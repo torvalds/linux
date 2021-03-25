@@ -30,11 +30,6 @@
  *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
  *	VIPT I-cache.
  *
- *	flush_cache_mm(mm)
- *
- *		Clean and invalidate all user space cache entries
- *		before a change of page tables.
- *
  *	flush_icache_range(start, end)
  *
  *		Ensure coherency between the I-cache and the D-cache in the

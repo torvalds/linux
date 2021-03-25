@@ -1110,7 +1110,8 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	return ret;
 }
 
-static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
+static int kernfs_iop_mkdir(struct user_namespace *mnt_userns,
+			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode)
 {
 	struct kernfs_node *parent = dir->i_private;
@@ -1147,7 +1148,8 @@ static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
+static int kernfs_iop_rename(struct user_namespace *mnt_userns,
+			     struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)
 {

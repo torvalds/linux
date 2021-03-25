@@ -314,7 +314,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
 
 	rdev->irq.installed = true;
-	r = drm_irq_install(rdev->ddev, rdev->ddev->pdev->irq);
+	r = drm_irq_install(rdev->ddev, rdev->pdev->irq);
 	if (r) {
 		rdev->irq.installed = false;
 		flush_delayed_work(&rdev->hotplug_work);

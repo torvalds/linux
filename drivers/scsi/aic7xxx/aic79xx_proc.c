@@ -100,17 +100,17 @@ ahd_format_transinfo(struct seq_file *m, struct ahd_transinfo *tinfo)
 		seq_puts(m, "Renegotiation Pending\n");
 		return;
 	}
-        speed = 3300;
-        freq = 0;
+	speed = 3300;
+	freq = 0;
 	if (tinfo->offset != 0) {
 		freq = ahd_calc_syncsrate(tinfo->period);
 		speed = freq;
 	}
 	speed *= (0x01 << tinfo->width);
-        mb = speed / 1000;
-        if (mb > 0)
+	mb = speed / 1000;
+	if (mb > 0)
 		seq_printf(m, "%d.%03dMB/s transfers", mb, speed % 1000);
-        else
+	else
 		seq_printf(m, "%dKB/s transfers", speed);
 
 	if (freq != 0) {
@@ -242,7 +242,8 @@ ahd_proc_write_seeprom(struct Scsi_Host *shost, char *buffer, int length)
 		u_int start_addr;
 
 		if (ahd->seep_config == NULL) {
-			ahd->seep_config = kmalloc(sizeof(*ahd->seep_config), GFP_ATOMIC);
+			ahd->seep_config = kmalloc(sizeof(*ahd->seep_config),
+						   GFP_ATOMIC);
 			if (ahd->seep_config == NULL) {
 				printk("aic79xx: Unable to allocate serial "
 				       "eeprom buffer.  Write failing\n");

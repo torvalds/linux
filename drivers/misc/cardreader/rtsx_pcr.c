@@ -59,12 +59,6 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);
 
-static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
-{
-	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC, 0);
-}
-
 static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 {
 	rtsx_pci_write_register(pcr, MSGTXDATA0,
@@ -1805,7 +1799,6 @@ static int rtsx_pci_runtime_resume(struct device *device)
 	struct pci_dev *pcidev = to_pci_dev(device);
 	struct pcr_handle *handle;
 	struct rtsx_pcr *pcr;
-	int ret = 0;
 
 	handle = pci_get_drvdata(pcidev);
 	pcr = handle->pcr;
@@ -1830,7 +1823,7 @@ static int rtsx_pci_runtime_resume(struct device *device)
 	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
 
 	mutex_unlock(&pcr->pcr_mutex);
-	return ret;
+	return 0;
 }
 
 #else /* CONFIG_PM */

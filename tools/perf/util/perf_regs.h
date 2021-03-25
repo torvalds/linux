@@ -33,6 +33,13 @@ extern const struct sample_reg sample_reg_masks[];
 
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);
 
+static inline const char *perf_reg_name(int id)
+{
+	const char *reg_name = __perf_reg_name(id);
+
+	return reg_name ?: "unknown";
+}
+
 #else
 #define PERF_REGS_MASK	0
 #define PERF_REGS_MAX	0

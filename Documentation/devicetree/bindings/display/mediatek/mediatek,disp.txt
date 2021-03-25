@@ -37,13 +37,14 @@ Required properties (all function blocks):
 	"mediatek,<chip>-disp-aal"   		- adaptive ambient light controller
 	"mediatek,<chip>-disp-gamma" 		- gamma correction
 	"mediatek,<chip>-disp-merge" 		- merge streams from two RDMA sources
+	"mediatek,<chip>-disp-postmask" 	- control round corner for display frame
 	"mediatek,<chip>-disp-split" 		- split stream to two encoders
 	"mediatek,<chip>-disp-ufoe"  		- data compression engine
 	"mediatek,<chip>-dsi"        		- DSI controller, see mediatek,dsi.txt
 	"mediatek,<chip>-dpi"        		- DPI controller, see mediatek,dpi.txt
 	"mediatek,<chip>-disp-mutex" 		- display mutex
 	"mediatek,<chip>-disp-od"    		- overdrive
-  the supported chips are mt2701, mt7623, mt2712, mt8167 and mt8173.
+  the supported chips are mt2701, mt7623, mt2712, mt8167, mt8173, mt8183 and mt8192.
 - reg: Physical base address and length of the function block register space
 - interrupts: The interrupt signal from the function block (required, except for
   merge and split function blocks).
@@ -65,6 +66,14 @@ Required properties (DMA function blocks):
 - iommus: Should point to the respective IOMMU block with master port as
   argument, see Documentation/devicetree/bindings/iommu/mediatek,iommu.txt
   for details.
+
+Optional properties (RDMA function blocks):
+- mediatek,rdma-fifo-size: rdma fifo size may be different even in same SOC, add this
+  property to the corresponding rdma
+  the value is the Max value which defined in hardware data sheet.
+  mediatek,rdma-fifo-size of mt8173-rdma0 is 8K
+  mediatek,rdma-fifo-size of mt8183-rdma0 is 5K
+  mediatek,rdma-fifo-size of mt8183-rdma1 is 2K
 
 Examples:
 
@@ -103,6 +112,7 @@ rdma0: rdma@1400e000 {
 	clocks = <&mmsys CLK_MM_DISP_RDMA0>;
 	iommus = <&iommu M4U_PORT_DISP_RDMA0>;
 	mediatek,larb = <&larb0>;
+	mediatek,rdma-fifosize = <8192>;
 };
 
 rdma1: rdma@1400f000 {

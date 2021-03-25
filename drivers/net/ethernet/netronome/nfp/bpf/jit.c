@@ -3109,13 +3109,19 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 	return 0;
 }
 
-static int mem_xadd4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_atomic4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->insn.imm != BPF_ADD)
+		return -EOPNOTSUPP;
+
 	return mem_xadd(nfp_prog, meta, false);
 }
 
-static int mem_xadd8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_atomic8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->insn.imm != BPF_ADD)
+		return -EOPNOTSUPP;
+
 	return mem_xadd(nfp_prog, meta, true);
 }
 
@@ -3475,8 +3481,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_STX | BPF_MEM | BPF_H] =	mem_stx2,
 	[BPF_STX | BPF_MEM | BPF_W] =	mem_stx4,
 	[BPF_STX | BPF_MEM | BPF_DW] =	mem_stx8,
-	[BPF_STX | BPF_XADD | BPF_W] =	mem_xadd4,
-	[BPF_STX | BPF_XADD | BPF_DW] =	mem_xadd8,
+	[BPF_STX | BPF_ATOMIC | BPF_W] =	mem_atomic4,
+	[BPF_STX | BPF_ATOMIC | BPF_DW] =	mem_atomic8,
 	[BPF_ST | BPF_MEM | BPF_B] =	mem_st1,
 	[BPF_ST | BPF_MEM | BPF_H] =	mem_st2,
 	[BPF_ST | BPF_MEM | BPF_W] =	mem_st4,

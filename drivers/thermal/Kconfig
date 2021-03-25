@@ -450,15 +450,6 @@ depends on (ARCH_STI || ARCH_STM32) && OF
 source "drivers/thermal/st/Kconfig"
 endmenu
 
-config TANGO_THERMAL
-	tristate "Tango thermal management"
-	depends on ARCH_TANGO || COMPILE_TEST
-	help
-	  Enable the Tango thermal driver, which supports the primitive
-	  temperature sensor embedded in Tango chips since the SMP8758.
-	  This sensor only generates a 1-bit signal to indicate whether
-	  the die temperature exceeds a programmable threshold.
-
 source "drivers/thermal/tegra/Kconfig"
 
 config GENERIC_ADC_THERMAL
@@ -475,14 +466,6 @@ menu "Qualcomm thermal drivers"
 depends on (ARCH_QCOM && OF) || COMPILE_TEST
 source "drivers/thermal/qcom/Kconfig"
 endmenu
-
-config ZX2967_THERMAL
-	tristate "Thermal sensors on zx2967 SoC"
-	depends on ARCH_ZX || COMPILE_TEST
-	help
-	  Enable the zx2967 thermal sensors driver, which supports
-	  the primitive temperature sensor embedded in zx2967 SoCs.
-	  This sensor generates the real time die temperature.
 
 config UNIPHIER_THERMAL
 	tristate "Socionext UniPhier thermal driver"

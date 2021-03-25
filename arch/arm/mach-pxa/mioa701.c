@@ -577,7 +577,6 @@ static struct platform_device power_dev = {
 static struct wm97xx_batt_pdata mioa701_battery_data = {
 	.batt_aux	= WM97XX_AUX_ID1,
 	.temp_aux	= -1,
-	.charge_gpio	= -1,
 	.min_voltage	= 0xc00,
 	.max_voltage	= 0xfc0,
 	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LION,

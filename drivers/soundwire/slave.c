@@ -163,15 +163,13 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 
 			if (id.unique_id != id2.unique_id) {
 				dev_dbg(bus->dev,
-					"Valid unique IDs %x %x for Slave mfg %x part %d\n",
-					id.unique_id, id2.unique_id,
-					id.mfg_id, id.part_id);
+					"Valid unique IDs 0x%x 0x%x for Slave mfg_id 0x%04x, part_id 0x%04x\n",
+					id.unique_id, id2.unique_id, id.mfg_id, id.part_id);
 				ignore_unique_id = false;
 			} else {
 				dev_err(bus->dev,
-					"Invalid unique IDs %x %x for Slave mfg %x part %d\n",
-					id.unique_id, id2.unique_id,
-					id.mfg_id, id.part_id);
+					"Invalid unique IDs 0x%x 0x%x for Slave mfg_id 0x%04x, part_id 0x%04x\n",
+					id.unique_id, id2.unique_id, id.mfg_id, id.part_id);
 				return -ENODEV;
 			}
 		}

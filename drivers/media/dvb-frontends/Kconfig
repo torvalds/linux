@@ -515,7 +515,7 @@ config DVB_RTL2830
 config DVB_RTL2832
 	tristate "Realtek RTL2832 DVB-T"
 	depends on DVB_CORE && I2C && I2C_MUX
-	select REGMAP
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
@@ -707,6 +707,15 @@ config DVB_S5H1411
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
+
+config DVB_MXL692
+	tristate "MaxLinear MXL692 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  MaxLinear MxL692 is a combo tuner-demodulator that
+	  supports ATSC 8VSB and QAM modes. Say Y when you want to
+	  support this frontend.
 
 comment "ISDB-T (terrestrial) frontends"
 	depends on DVB_CORE

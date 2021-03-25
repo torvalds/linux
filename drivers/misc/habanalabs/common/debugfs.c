@@ -310,8 +310,8 @@ static int mmu_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 	struct hl_ctx *ctx;
-	struct hl_mmu_hop_info hops_info;
-	u64 virt_addr = dev_entry->mmu_addr;
+	struct hl_mmu_hop_info hops_info = {0};
+	u64 virt_addr = dev_entry->mmu_addr, phys_addr;
 	int i;
 
 	if (!hdev->mmu_enable)
@@ -333,8 +333,19 @@ static int mmu_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	seq_printf(s, "asid: %u, virt_addr: 0x%llx\n",
-			dev_entry->mmu_asid, dev_entry->mmu_addr);
+	phys_addr = hops_info.hop_info[hops_info.used_hops - 1].hop_pte_val;
+
+	if (hops_info.scrambled_vaddr &&
+		(dev_entry->mmu_addr != hops_info.scrambled_vaddr))
+		seq_printf(s,
+			"asid: %u, virt_addr: 0x%llx, scrambled virt_addr: 0x%llx,\nphys_addr: 0x%llx, scrambled_phys_addr: 0x%llx\n",
+			dev_entry->mmu_asid, dev_entry->mmu_addr,
+			hops_info.scrambled_vaddr,
+			hops_info.unscrambled_paddr, phys_addr);
+	else
+		seq_printf(s,
+			"asid: %u, virt_addr: 0x%llx, phys_addr: 0x%llx\n",
+			dev_entry->mmu_asid, dev_entry->mmu_addr, phys_addr);
 
 	for (i = 0 ; i < hops_info.used_hops ; i++) {
 		seq_printf(s, "hop%d_addr: 0x%llx\n",
@@ -403,7 +414,7 @@ static int engines_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	hdev->asic_funcs->is_device_idle(hdev, NULL, s);
+	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, s);
 
 	return 0;
 }
@@ -865,6 +876,17 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static ssize_t hl_security_violations_read(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+
+	hdev->asic_funcs->ack_protection_bits_errors(hdev);
+
+	return 0;
+}
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -922,6 +944,11 @@ static const struct file_operations hl_stop_on_err_fops = {
 	.write = hl_stop_on_err_write
 };
 
+static const struct file_operations hl_security_violations_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_security_violations_read
+};
+
 static const struct hl_info_list hl_debugfs_list[] = {
 	{"command_buffers", command_buffers_show, NULL},
 	{"command_submission", command_submission_show, NULL},
@@ -965,7 +992,6 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 	int count = ARRAY_SIZE(hl_debugfs_list);
 	struct hl_debugfs_entry *entry;
-	struct dentry *ent;
 	int i;
 
 	dev_entry->hdev = hdev;
@@ -1071,14 +1097,18 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry,
 				&hl_stop_on_err_fops);
 
-	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
+	debugfs_create_file("dump_security_violations",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_security_violations_fops);
 
-		ent = debugfs_create_file(hl_debugfs_list[i].name,
+	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
+		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,
 					dev_entry->root,
 					entry,
 					&hl_debugfs_fops);
-		entry->dent = ent;
 		entry->info_ent = &hl_debugfs_list[i];
 		entry->dev_entry = dev_entry;
 	}

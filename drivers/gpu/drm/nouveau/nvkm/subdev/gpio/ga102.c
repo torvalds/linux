@@ -112,7 +112,8 @@ ga102_gpio = {
 };
 
 int
-ga102_gpio_new(struct nvkm_device *device, int index, struct nvkm_gpio **pgpio)
+ga102_gpio_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_gpio **pgpio)
 {
-	return nvkm_gpio_new_(&ga102_gpio, device, index, pgpio);
+	return nvkm_gpio_new_(&ga102_gpio, device, type, inst, pgpio);
 }

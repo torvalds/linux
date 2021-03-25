@@ -164,8 +164,10 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 	 * as initialization. (0 could trigger an spurious ring error warning).
 	 */
 	now = jiffies;
-	for (i = 0; i < HSR_PT_PORTS; i++)
+	for (i = 0; i < HSR_PT_PORTS; i++) {
 		new_node->time_in[i] = now;
+		new_node->time_out[i] = now;
+	}
 	for (i = 0; i < HSR_PT_PORTS; i++)
 		new_node->seq_out[i] = seq_out;
 
@@ -277,6 +279,8 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 		skb = frame->skb_hsr;
 	else if (frame->skb_prp)
 		skb = frame->skb_prp;
+	else if (frame->skb_std)
+		skb = frame->skb_std;
 	if (!skb)
 		return;
 
@@ -411,9 +415,12 @@ void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
 int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
 			   u16 sequence_nr)
 {
-	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[port->type]))
+	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[port->type]) &&
+	    time_is_after_jiffies(node->time_out[port->type] +
+	    msecs_to_jiffies(HSR_ENTRY_FORGET_TIME)))
 		return 1;
 
+	node->time_out[port->type] = jiffies;
 	node->seq_out[port->type] = sequence_nr;
 	return 0;
 }

@@ -168,6 +168,20 @@ config MMC_SDHCI_OF_ASPEED
 
 	  If unsure, say N.
 
+config MMC_SDHCI_OF_ASPEED_TEST
+	bool "Tests for the ASPEED SDHCI driver"
+	depends on MMC_SDHCI_OF_ASPEED && KUNIT=y
+	help
+	  Enable KUnit tests for the ASPEED SDHCI driver. Select this
+	  option only if you will boot the kernel for the purpose of running
+	  unit tests (e.g. under UML or qemu).
+
+	  The KUnit tests generally exercise parts of the driver that do not
+	  directly touch the hardware, for example, the phase correction
+	  calculations.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_OF_AT91
 	tristate "SDHCI OF support for the Atmel SDMMC controller"
 	depends on MMC_SDHCI_PLTFM
@@ -307,18 +321,6 @@ config MMC_SDHCI_S3C
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  often referrered to as the HSMMC block in some of the Samsung S3C
 	  range of SoC.
-
-	  If you have a controller with this interface, say Y or M here.
-
-	  If unsure, say N.
-
-config MMC_SDHCI_SIRF
-	tristate "SDHCI support on CSR SiRFprimaII and SiRFmarco SoCs"
-	depends on ARCH_SIRF || COMPILE_TEST
-	depends on MMC_SDHCI_PLTFM
-	select MMC_SDHCI_IO_ACCESSORS
-	help
-	  This selects the SDHCI support for SiRF System-on-Chip devices.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -544,6 +546,7 @@ config MMC_SDHCI_MSM
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	select MMC_CQHCI
+	select QCOM_SCM if MMC_CRYPTO && ARCH_QCOM
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in Qualcomm SOCs. The controller supports
@@ -607,13 +610,6 @@ config MMC_DAVINCI
 	  This selects the TI DAVINCI Multimedia card Interface.
 	  If you have an DAVINCI board with a Multimedia Card slot,
 	  say Y or M here.  If unsure, say N.
-
-config MMC_GOLDFISH
-	tristate "goldfish qemu Multimedia Card Interface support"
-	depends on GOLDFISH || COMPILE_TEST
-	help
-	  This selects the Goldfish Multimedia card Interface emulation
-	  found on the Goldfish Android virtual device emulation.
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
@@ -867,15 +863,6 @@ config MMC_DW_ROCKCHIP
 	  This selects support for Rockchip SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
-
-config MMC_DW_ZX
-	tristate "ZTE specific extensions for Synopsys DW Memory Card Interface"
-	depends on MMC_DW && ARCH_ZX
-	select MMC_DW_PLTFM
-	help
-	  This selects support for ZTE SoC specific extensions to the
-	  Synopsys DesignWare Memory Card Interface driver. Select this option
-	  for platforms based on ZX296718 SoC's.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"

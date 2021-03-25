@@ -224,14 +224,14 @@ static inline u16 udp_csum(u32 saddr, u32 daddr, u32 len, u8 proto, u16 *udp_pkt
 	return csum_tcpudp_magic(saddr, daddr, len, proto, csum);
 }
 
-static void gen_eth_hdr(void *data, struct ethhdr *eth_hdr)
+static void gen_eth_hdr(struct ifobject *ifobject, struct ethhdr *eth_hdr)
 {
-	memcpy(eth_hdr->h_dest, ((struct ifobject *)data)->dst_mac, ETH_ALEN);
-	memcpy(eth_hdr->h_source, ((struct ifobject *)data)->src_mac, ETH_ALEN);
+	memcpy(eth_hdr->h_dest, ifobject->dst_mac, ETH_ALEN);
+	memcpy(eth_hdr->h_source, ifobject->src_mac, ETH_ALEN);
 	eth_hdr->h_proto = htons(ETH_P_IP);
 }
 
-static void gen_ip_hdr(void *data, struct iphdr *ip_hdr)
+static void gen_ip_hdr(struct ifobject *ifobject, struct iphdr *ip_hdr)
 {
 	ip_hdr->version = IP_PKT_VER;
 	ip_hdr->ihl = 0x5;
@@ -241,18 +241,18 @@ static void gen_ip_hdr(void *data, struct iphdr *ip_hdr)
 	ip_hdr->frag_off = 0;
 	ip_hdr->ttl = IPDEFTTL;
 	ip_hdr->protocol = IPPROTO_UDP;
-	ip_hdr->saddr = ((struct ifobject *)data)->src_ip;
-	ip_hdr->daddr = ((struct ifobject *)data)->dst_ip;
+	ip_hdr->saddr = ifobject->src_ip;
+	ip_hdr->daddr = ifobject->dst_ip;
 	ip_hdr->check = 0;
 }
 
-static void gen_udp_hdr(void *data, void *arg, struct udphdr *udp_hdr)
+static void gen_udp_hdr(struct generic_data *data, struct ifobject *ifobject,
+			struct udphdr *udp_hdr)
 {
-	udp_hdr->source = htons(((struct ifobject *)arg)->src_port);
-	udp_hdr->dest = htons(((struct ifobject *)arg)->dst_port);
+	udp_hdr->source = htons(ifobject->src_port);
+	udp_hdr->dest = htons(ifobject->dst_port);
 	udp_hdr->len = htons(UDP_PKT_SIZE);
-	memset32_htonl(pkt_data + PKT_HDR_SIZE,
-		       htonl(((struct generic_data *)data)->seqnum), UDP_PKT_DATA_SIZE);
+	memset32_htonl(pkt_data + PKT_HDR_SIZE, htonl(data->seqnum), UDP_PKT_DATA_SIZE);
 }
 
 static void gen_udp_csum(struct udphdr *udp_hdr, struct iphdr *ip_hdr)
@@ -382,21 +382,19 @@ static bool switch_namespace(int idx)
 
 static void *nsswitchthread(void *args)
 {
-	if (switch_namespace(((struct targs *)args)->idx)) {
-		ifdict[((struct targs *)args)->idx]->ifindex =
-		    if_nametoindex(ifdict[((struct targs *)args)->idx]->ifname);
-		if (!ifdict[((struct targs *)args)->idx]->ifindex) {
-			ksft_test_result_fail
-			    ("ERROR: [%s] interface \"%s\" does not exist\n",
-			     __func__, ifdict[((struct targs *)args)->idx]->ifname);
-			((struct targs *)args)->retptr = false;
+	struct targs *targs = args;
+
+	targs->retptr = false;
+
+	if (switch_namespace(targs->idx)) {
+		ifdict[targs->idx]->ifindex = if_nametoindex(ifdict[targs->idx]->ifname);
+		if (!ifdict[targs->idx]->ifindex) {
+			ksft_test_result_fail("ERROR: [%s] interface \"%s\" does not exist\n",
+					      __func__, ifdict[targs->idx]->ifname);
 		} else {
-			ksft_print_msg("Interface found: %s\n",
-				       ifdict[((struct targs *)args)->idx]->ifname);
-			((struct targs *)args)->retptr = true;
+			ksft_print_msg("Interface found: %s\n", ifdict[targs->idx]->ifname);
+			targs->retptr = true;
 		}
-	} else {
-		((struct targs *)args)->retptr = false;
 	}
 	pthread_exit(NULL);
 }
@@ -413,12 +411,12 @@ static int validate_interfaces(void)
 		if (strcmp(ifdict[i]->nsname, "")) {
 			struct targs *targs;
 
-			targs = (struct targs *)malloc(sizeof(struct targs));
+			targs = malloc(sizeof(*targs));
 			if (!targs)
 				exit_with_error(errno);
 
 			targs->idx = i;
-			if (pthread_create(&ns_thread, NULL, nsswitchthread, (void *)targs))
+			if (pthread_create(&ns_thread, NULL, nsswitchthread, targs))
 				exit_with_error(errno);
 
 			pthread_join(ns_thread, NULL);
@@ -569,16 +567,18 @@ static void rx_pkt(struct xsk_socket_info *xsk, struct pollfd *fds)
 	}
 
 	for (i = 0; i < rcvd; i++) {
-		u64 addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
-		(void)xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++)->len;
-		u64 orig = xsk_umem__extract_addr(addr);
+		u64 addr, orig;
+
+		addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
+		xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
+		orig = xsk_umem__extract_addr(addr);
 
 		addr = xsk_umem__add_offset_to_addr(addr);
 		pkt_node_rx = malloc(sizeof(struct pkt) + PKT_SIZE);
 		if (!pkt_node_rx)
 			exit_with_error(errno);
 
-		pkt_node_rx->pkt_frame = (char *)malloc(PKT_SIZE);
+		pkt_node_rx->pkt_frame = malloc(PKT_SIZE);
 		if (!pkt_node_rx->pkt_frame)
 			exit_with_error(errno);
 
@@ -628,28 +628,27 @@ static inline int get_batch_size(int pkt_cnt)
 	return opt_pkt_count - pkt_cnt;
 }
 
-static void complete_tx_only_all(void *arg)
+static void complete_tx_only_all(struct ifobject *ifobject)
 {
 	bool pending;
 
 	do {
 		pending = false;
-		if (((struct ifobject *)arg)->xsk->outstanding_tx) {
-			complete_tx_only(((struct ifobject *)
-					  arg)->xsk, BATCH_SIZE);
-			pending = !!((struct ifobject *)arg)->xsk->outstanding_tx;
+		if (ifobject->xsk->outstanding_tx) {
+			complete_tx_only(ifobject->xsk, BATCH_SIZE);
+			pending = !!ifobject->xsk->outstanding_tx;
 		}
 	} while (pending);
 }
 
-static void tx_only_all(void *arg)
+static void tx_only_all(struct ifobject *ifobject)
 {
 	struct pollfd fds[MAX_SOCKS] = { };
 	u32 frame_nb = 0;
 	int pkt_cnt = 0;
 	int ret;
 
-	fds[0].fd = xsk_socket__fd(((struct ifobject *)arg)->xsk->xsk);
+	fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds[0].events = POLLOUT;
 
 	while ((opt_pkt_count && pkt_cnt < opt_pkt_count) || !opt_pkt_count) {
@@ -664,12 +663,12 @@ static void tx_only_all(void *arg)
 				continue;
 		}
 
-		tx_only(((struct ifobject *)arg)->xsk, &frame_nb, batch_size);
+		tx_only(ifobject->xsk, &frame_nb, batch_size);
 		pkt_cnt += batch_size;
 	}
 
 	if (opt_pkt_count)
-		complete_tx_only_all(arg);
+		complete_tx_only_all(ifobject);
 }
 
 static void worker_pkt_dump(void)
@@ -727,21 +726,21 @@ static void worker_pkt_dump(void)
 static void worker_pkt_validate(void)
 {
 	u32 payloadseqnum = -2;
+	struct iphdr *iphdr;
 
 	while (1) {
-		pkt_node_rx_q = malloc(sizeof(struct pkt));
 		pkt_node_rx_q = TAILQ_LAST(&head, head_s);
 		if (!pkt_node_rx_q)
 			break;
+
+		iphdr = (struct iphdr *)(pkt_node_rx_q->pkt_frame + sizeof(struct ethhdr));
+
 		/*do not increment pktcounter if !(tos=0x9 and ipv4) */
-		if ((((struct iphdr *)(pkt_node_rx_q->pkt_frame +
-				       sizeof(struct ethhdr)))->version == IP_PKT_VER)
-		    && (((struct iphdr *)(pkt_node_rx_q->pkt_frame + sizeof(struct ethhdr)))->tos ==
-			IP_PKT_TOS)) {
-			payloadseqnum = *((uint32_t *) (pkt_node_rx_q->pkt_frame + PKT_HDR_SIZE));
+		if (iphdr->version == IP_PKT_VER && iphdr->tos == IP_PKT_TOS) {
+			payloadseqnum = *((uint32_t *)(pkt_node_rx_q->pkt_frame + PKT_HDR_SIZE));
 			if (debug_pkt_dump && payloadseqnum != EOT) {
-				pkt_obj = (struct pkt_frame *)malloc(sizeof(struct pkt_frame));
-				pkt_obj->payload = (char *)malloc(PKT_SIZE);
+				pkt_obj = malloc(sizeof(*pkt_obj));
+				pkt_obj->payload = malloc(PKT_SIZE);
 				memcpy(pkt_obj->payload, pkt_node_rx_q->pkt_frame, PKT_SIZE);
 				pkt_buf[payloadseqnum] = pkt_obj;
 			}
@@ -759,35 +758,29 @@ static void worker_pkt_validate(void)
 				ksft_exit_xfail();
 			}
 
-			TAILQ_REMOVE(&head, pkt_node_rx_q, pkt_nodes);
-			free(pkt_node_rx_q->pkt_frame);
-			free(pkt_node_rx_q);
-			pkt_node_rx_q = NULL;
 			prev_pkt = payloadseqnum;
 			pkt_counter++;
 		} else {
 			ksft_print_msg("Invalid frame received: ");
-			ksft_print_msg("[IP_PKT_VER: %02X], [IP_PKT_TOS: %02X]\n",
-				((struct iphdr *)(pkt_node_rx_q->pkt_frame +
-				       sizeof(struct ethhdr)))->version,
-				((struct iphdr *)(pkt_node_rx_q->pkt_frame +
-				       sizeof(struct ethhdr)))->tos);
-			TAILQ_REMOVE(&head, pkt_node_rx_q, pkt_nodes);
-			free(pkt_node_rx_q->pkt_frame);
-			free(pkt_node_rx_q);
-			pkt_node_rx_q = NULL;
+			ksft_print_msg("[IP_PKT_VER: %02X], [IP_PKT_TOS: %02X]\n", iphdr->version,
+				       iphdr->tos);
 		}
+
+		TAILQ_REMOVE(&head, pkt_node_rx_q, pkt_nodes);
+		free(pkt_node_rx_q->pkt_frame);
+		free(pkt_node_rx_q);
+		pkt_node_rx_q = NULL;
 	}
 }
 
-static void thread_common_ops(void *arg, void *bufs, pthread_mutex_t *mutexptr,
+static void thread_common_ops(struct ifobject *ifobject, void *bufs, pthread_mutex_t *mutexptr,
 			      atomic_int *spinningptr)
 {
 	int ctr = 0;
 	int ret;
 
-	xsk_configure_umem((struct ifobject *)arg, bufs, num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE);
-	ret = xsk_configure_socket((struct ifobject *)arg);
+	xsk_configure_umem(ifobject, bufs, num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE);
+	ret = xsk_configure_socket(ifobject);
 
 	/* Retry Create Socket if it fails as xsk_socket__create()
 	 * is asynchronous
@@ -798,9 +791,8 @@ static void thread_common_ops(void *arg, void *bufs, pthread_mutex_t *mutexptr,
 	pthread_mutex_lock(mutexptr);
 	while (ret && ctr < SOCK_RECONF_CTR) {
 		atomic_store(spinningptr, 1);
-		xsk_configure_umem((struct ifobject *)arg,
-				   bufs, num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE);
-		ret = xsk_configure_socket((struct ifobject *)arg);
+		xsk_configure_umem(ifobject, bufs, num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE);
+		ret = xsk_configure_socket(ifobject);
 		usleep(USLEEP_MAX);
 		ctr++;
 	}
@@ -815,9 +807,10 @@ static void *worker_testapp_validate(void *arg)
 {
 	struct udphdr *udp_hdr =
 	    (struct udphdr *)(pkt_data + sizeof(struct ethhdr) + sizeof(struct iphdr));
-	struct generic_data *data = (struct generic_data *)malloc(sizeof(struct generic_data));
 	struct iphdr *ip_hdr = (struct iphdr *)(pkt_data + sizeof(struct ethhdr));
 	struct ethhdr *eth_hdr = (struct ethhdr *)pkt_data;
+	struct ifobject *ifobject = (struct ifobject *)arg;
+	struct generic_data data;
 	void *bufs = NULL;
 
 	pthread_attr_setstacksize(&attr, THREAD_STACK);
@@ -828,58 +821,56 @@ static void *worker_testapp_validate(void *arg)
 		if (bufs == MAP_FAILED)
 			exit_with_error(errno);
 
-		if (strcmp(((struct ifobject *)arg)->nsname, ""))
-			switch_namespace(((struct ifobject *)arg)->ifdict_index);
+		if (strcmp(ifobject->nsname, ""))
+			switch_namespace(ifobject->ifdict_index);
 	}
 
-	if (((struct ifobject *)arg)->fv.vector == tx) {
+	if (ifobject->fv.vector == tx) {
 		int spinningrxctr = 0;
 
 		if (!bidi_pass)
-			thread_common_ops(arg, bufs, &sync_mutex_tx, &spinning_tx);
+			thread_common_ops(ifobject, bufs, &sync_mutex_tx, &spinning_tx);
 
 		while (atomic_load(&spinning_rx) && spinningrxctr < SOCK_RECONF_CTR) {
 			spinningrxctr++;
 			usleep(USLEEP_MAX);
 		}
 
-		ksft_print_msg("Interface [%s] vector [Tx]\n", ((struct ifobject *)arg)->ifname);
+		ksft_print_msg("Interface [%s] vector [Tx]\n", ifobject->ifname);
 		for (int i = 0; i < num_frames; i++) {
 			/*send EOT frame */
 			if (i == (num_frames - 1))
-				data->seqnum = -1;
+				data.seqnum = -1;
 			else
-				data->seqnum = i;
-			gen_udp_hdr((void *)data, (void *)arg, udp_hdr);
-			gen_ip_hdr((void *)arg, ip_hdr);
+				data.seqnum = i;
+			gen_udp_hdr(&data, ifobject, udp_hdr);
+			gen_ip_hdr(ifobject, ip_hdr);
 			gen_udp_csum(udp_hdr, ip_hdr);
-			gen_eth_hdr((void *)arg, eth_hdr);
-			gen_eth_frame(((struct ifobject *)arg)->umem,
-				      i * XSK_UMEM__DEFAULT_FRAME_SIZE);
+			gen_eth_hdr(ifobject, eth_hdr);
+			gen_eth_frame(ifobject->umem, i * XSK_UMEM__DEFAULT_FRAME_SIZE);
 		}
 
-		free(data);
 		ksft_print_msg("Sending %d packets on interface %s\n",
-			       (opt_pkt_count - 1), ((struct ifobject *)arg)->ifname);
-		tx_only_all(arg);
-	} else if (((struct ifobject *)arg)->fv.vector == rx) {
+			       (opt_pkt_count - 1), ifobject->ifname);
+		tx_only_all(ifobject);
+	} else if (ifobject->fv.vector == rx) {
 		struct pollfd fds[MAX_SOCKS] = { };
 		int ret;
 
 		if (!bidi_pass)
-			thread_common_ops(arg, bufs, &sync_mutex_tx, &spinning_rx);
+			thread_common_ops(ifobject, bufs, &sync_mutex_tx, &spinning_rx);
 
-		ksft_print_msg("Interface [%s] vector [Rx]\n", ((struct ifobject *)arg)->ifname);
-		xsk_populate_fill_ring(((struct ifobject *)arg)->umem);
+		ksft_print_msg("Interface [%s] vector [Rx]\n", ifobject->ifname);
+		xsk_populate_fill_ring(ifobject->umem);
 
 		TAILQ_INIT(&head);
 		if (debug_pkt_dump) {
-			pkt_buf = malloc(sizeof(struct pkt_frame **) * num_frames);
+			pkt_buf = calloc(num_frames, sizeof(*pkt_buf));
 			if (!pkt_buf)
 				exit_with_error(errno);
 		}
 
-		fds[0].fd = xsk_socket__fd(((struct ifobject *)arg)->xsk->xsk);
+		fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
 		fds[0].events = POLLIN;
 
 		pthread_mutex_lock(&sync_mutex);
@@ -892,7 +883,7 @@ static void *worker_testapp_validate(void *arg)
 				if (ret <= 0)
 					continue;
 			}
-			rx_pkt(((struct ifobject *)arg)->xsk, fds);
+			rx_pkt(ifobject->xsk, fds);
 			worker_pkt_validate();
 
 			if (sigvar)
@@ -900,21 +891,23 @@ static void *worker_testapp_validate(void *arg)
 		}
 
 		ksft_print_msg("Received %d packets on interface %s\n",
-			       pkt_counter, ((struct ifobject *)arg)->ifname);
+			       pkt_counter, ifobject->ifname);
 
 		if (opt_teardown)
 			ksft_print_msg("Destroying socket\n");
 	}
 
-	if (!opt_bidi || (opt_bidi && bidi_pass)) {
-		xsk_socket__delete(((struct ifobject *)arg)->xsk->xsk);
-		(void)xsk_umem__delete(((struct ifobject *)arg)->umem->umem);
+	if (!opt_bidi || bidi_pass) {
+		xsk_socket__delete(ifobject->xsk->xsk);
+		(void)xsk_umem__delete(ifobject->umem->umem);
 	}
 	pthread_exit(NULL);
 }
 
 static void testapp_validate(void)
 {
+	struct timespec max_wait = { 0, 0 };
+
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, THREAD_STACK);
 
@@ -929,17 +922,15 @@ static void testapp_validate(void)
 	pthread_mutex_lock(&sync_mutex);
 
 	/*Spawn RX thread */
-	if (!opt_bidi || (opt_bidi && !bidi_pass)) {
-		if (pthread_create(&t0, &attr, worker_testapp_validate, (void *)ifdict[1]))
+	if (!opt_bidi || !bidi_pass) {
+		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[1]))
 			exit_with_error(errno);
 	} else if (opt_bidi && bidi_pass) {
 		/*switch Tx/Rx vectors */
 		ifdict[0]->fv.vector = rx;
-		if (pthread_create(&t0, &attr, worker_testapp_validate, (void *)ifdict[0]))
+		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[0]))
 			exit_with_error(errno);
 	}
-
-	struct timespec max_wait = { 0, 0 };
 
 	if (clock_gettime(CLOCK_REALTIME, &max_wait))
 		exit_with_error(errno);
@@ -951,13 +942,13 @@ static void testapp_validate(void)
 	pthread_mutex_unlock(&sync_mutex);
 
 	/*Spawn TX thread */
-	if (!opt_bidi || (opt_bidi && !bidi_pass)) {
-		if (pthread_create(&t1, &attr, worker_testapp_validate, (void *)ifdict[0]))
+	if (!opt_bidi || !bidi_pass) {
+		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[0]))
 			exit_with_error(errno);
 	} else if (opt_bidi && bidi_pass) {
 		/*switch Tx/Rx vectors */
 		ifdict[1]->fv.vector = tx;
-		if (pthread_create(&t1, &attr, worker_testapp_validate, (void *)ifdict[1]))
+		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[1]))
 			exit_with_error(errno);
 	}
 
@@ -991,25 +982,25 @@ static void testapp_sockets(void)
 	print_ksft_result();
 }
 
-static void init_iface_config(void *ifaceconfig)
+static void init_iface_config(struct ifaceconfigobj *ifaceconfig)
 {
 	/*Init interface0 */
 	ifdict[0]->fv.vector = tx;
-	memcpy(ifdict[0]->dst_mac, ((struct ifaceconfigobj *)ifaceconfig)->dst_mac, ETH_ALEN);
-	memcpy(ifdict[0]->src_mac, ((struct ifaceconfigobj *)ifaceconfig)->src_mac, ETH_ALEN);
-	ifdict[0]->dst_ip = ((struct ifaceconfigobj *)ifaceconfig)->dst_ip.s_addr;
-	ifdict[0]->src_ip = ((struct ifaceconfigobj *)ifaceconfig)->src_ip.s_addr;
-	ifdict[0]->dst_port = ((struct ifaceconfigobj *)ifaceconfig)->dst_port;
-	ifdict[0]->src_port = ((struct ifaceconfigobj *)ifaceconfig)->src_port;
+	memcpy(ifdict[0]->dst_mac, ifaceconfig->dst_mac, ETH_ALEN);
+	memcpy(ifdict[0]->src_mac, ifaceconfig->src_mac, ETH_ALEN);
+	ifdict[0]->dst_ip = ifaceconfig->dst_ip.s_addr;
+	ifdict[0]->src_ip = ifaceconfig->src_ip.s_addr;
+	ifdict[0]->dst_port = ifaceconfig->dst_port;
+	ifdict[0]->src_port = ifaceconfig->src_port;
 
 	/*Init interface1 */
 	ifdict[1]->fv.vector = rx;
-	memcpy(ifdict[1]->dst_mac, ((struct ifaceconfigobj *)ifaceconfig)->src_mac, ETH_ALEN);
-	memcpy(ifdict[1]->src_mac, ((struct ifaceconfigobj *)ifaceconfig)->dst_mac, ETH_ALEN);
-	ifdict[1]->dst_ip = ((struct ifaceconfigobj *)ifaceconfig)->src_ip.s_addr;
-	ifdict[1]->src_ip = ((struct ifaceconfigobj *)ifaceconfig)->dst_ip.s_addr;
-	ifdict[1]->dst_port = ((struct ifaceconfigobj *)ifaceconfig)->src_port;
-	ifdict[1]->src_port = ((struct ifaceconfigobj *)ifaceconfig)->dst_port;
+	memcpy(ifdict[1]->dst_mac, ifaceconfig->src_mac, ETH_ALEN);
+	memcpy(ifdict[1]->src_mac, ifaceconfig->dst_mac, ETH_ALEN);
+	ifdict[1]->dst_ip = ifaceconfig->src_ip.s_addr;
+	ifdict[1]->src_ip = ifaceconfig->dst_ip.s_addr;
+	ifdict[1]->dst_port = ifaceconfig->src_port;
+	ifdict[1]->src_port = ifaceconfig->dst_port;
 }
 
 int main(int argc, char **argv)
@@ -1026,7 +1017,7 @@ int main(int argc, char **argv)
 	u16 UDP_DST_PORT = 2020;
 	u16 UDP_SRC_PORT = 2121;
 
-	ifaceconfig = (struct ifaceconfigobj *)malloc(sizeof(struct ifaceconfigobj));
+	ifaceconfig = malloc(sizeof(struct ifaceconfigobj));
 	memcpy(ifaceconfig->dst_mac, MAC1, ETH_ALEN);
 	memcpy(ifaceconfig->src_mac, MAC2, ETH_ALEN);
 	inet_aton(IP1, &ifaceconfig->dst_ip);
@@ -1035,7 +1026,7 @@ int main(int argc, char **argv)
 	ifaceconfig->src_port = UDP_SRC_PORT;
 
 	for (int i = 0; i < MAX_INTERFACES; i++) {
-		ifdict[i] = (struct ifobject *)malloc(sizeof(struct ifobject));
+		ifdict[i] = malloc(sizeof(struct ifobject));
 		if (!ifdict[i])
 			exit_with_error(errno);
 
@@ -1048,7 +1039,7 @@ int main(int argc, char **argv)
 
 	num_frames = ++opt_pkt_count;
 
-	init_iface_config((void *)ifaceconfig);
+	init_iface_config(ifaceconfig);
 
 	pthread_init_mutex();
 

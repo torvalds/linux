@@ -364,6 +364,13 @@
 #define HFI_HEVC_TIER_MAIN			0x1
 #define HFI_HEVC_TIER_HIGH0			0x2
 
+#define HFI_VPX_PROFILE_MAIN			0x00000001
+
+#define HFI_VPX_LEVEL_VERSION_0			0x00000001
+#define HFI_VPX_LEVEL_VERSION_1			0x00000002
+#define HFI_VPX_LEVEL_VERSION_2			0x00000004
+#define HFI_VPX_LEVEL_VERSION_3			0x00000008
+
 /* VP9 Profile 0, 8-bit */
 #define HFI_VP9_PROFILE_P0			0x00000001
 /* VP9 Profile 2, 10-bit */
@@ -571,7 +578,18 @@ struct hfi_bitrate {
 #define HFI_CAPABILITY_LCU_SIZE				0x14
 #define HFI_CAPABILITY_HIER_P_HYBRID_NUM_ENH_LAYERS	0x15
 #define HFI_CAPABILITY_MBS_PER_SECOND_POWERSAVE		0x16
+#define HFI_CAPABILITY_I_FRAME_QP			0x20
+#define HFI_CAPABILITY_P_FRAME_QP			0x21
+#define HFI_CAPABILITY_B_FRAME_QP			0x22
+#define HFI_CAPABILITY_RATE_CONTROL_MODES		0x23
+#define HFI_CAPABILITY_BLUR_WIDTH			0x24
+#define HFI_CAPABILITY_BLUR_HEIGHT			0x25
+#define HFI_CAPABILITY_SLICE_BYTE			0x27
+#define HFI_CAPABILITY_SLICE_MB				0x28
 #define HFI_CAPABILITY_MAX_VIDEOCORES			0x2b
+#define HFI_CAPABILITY_MAX_WORKMODES			0x2c
+#define HFI_CAPABILITY_ROTATION				0x2f
+#define HFI_CAPABILITY_COLOR_SPACE_CONVERSION		0x30
 
 struct hfi_capability {
 	u32 capability_type;
@@ -908,13 +926,13 @@ struct hfi_uncompressed_plane_actual {
 struct hfi_uncompressed_plane_actual_info {
 	u32 buffer_type;
 	u32 num_planes;
-	struct hfi_uncompressed_plane_actual plane_format[1];
+	struct hfi_uncompressed_plane_actual plane_format[2];
 };
 
 struct hfi_uncompressed_plane_actual_constraints_info {
 	u32 buffer_type;
 	u32 num_planes;
-	struct hfi_uncompressed_plane_constraints plane_format[1];
+	struct hfi_uncompressed_plane_constraints plane_format[2];
 };
 
 struct hfi_codec_supported {

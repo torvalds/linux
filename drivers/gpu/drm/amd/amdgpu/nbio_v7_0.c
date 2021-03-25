@@ -60,15 +60,6 @@ static void nbio_v7_0_mc_access_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
 }
 
-static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev,
-				struct amdgpu_ring *ring)
-{
-	if (!ring || !ring->funcs->emit_wreg)
-		WREG32_NO_KIQ((adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
-	else
-		amdgpu_ring_emit_wreg(ring, (adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
-}
-
 static u32 nbio_v7_0_get_memsize(struct amdgpu_device *adev)
 {
 	return RREG32_SOC15(NBIO, 0, mmRCC_CONFIG_MEMSIZE);
@@ -292,7 +283,6 @@ const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
 	.get_pcie_data_offset = nbio_v7_0_get_pcie_data_offset,
 	.get_rev_id = nbio_v7_0_get_rev_id,
 	.mc_access_enable = nbio_v7_0_mc_access_enable,
-	.hdp_flush = nbio_v7_0_hdp_flush,
 	.get_memsize = nbio_v7_0_get_memsize,
 	.sdma_doorbell_range = nbio_v7_0_sdma_doorbell_range,
 	.vcn_doorbell_range = nbio_v7_0_vcn_doorbell_range,

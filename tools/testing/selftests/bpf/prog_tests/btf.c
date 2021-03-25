@@ -914,7 +914,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
-/* Test member exeeds the size of struct
+/* Test member exceeds the size of struct
  *
  * struct A {
  *     int m;
@@ -948,7 +948,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
-/* Test member exeeds the size of struct
+/* Test member exceeds the size of struct
  *
  * struct A {
  *     int m;
@@ -3508,6 +3508,27 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 10 /* int */,
 	.value_type_id = 3 /* arr_t */,
 	.max_entries = 4,
+},
+/*
+ * elf .rodata section size 4 and btf .rodata section vlen 0.
+ */
+{
+	.descr = "datasec: vlen == 0",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* .rodata section */
+		BTF_TYPE_ENC(NAME_NTH(1), BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 0), 4),
+								 /* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0.rodata"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
 },
 
 }; /* struct btf_raw_test raw_tests[] */

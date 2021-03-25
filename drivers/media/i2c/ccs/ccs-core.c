@@ -28,6 +28,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
+#include <uapi/linux/ccs.h>
 
 #include "ccs.h"
 
@@ -382,15 +383,22 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	/* Lane op clock ratio does not apply here. */
-	rval = ccs_write(sensor, REQUESTED_LINK_RATE,
-			 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
-				      1000000 / 256 / 256) *
-			 (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-			  sensor->pll.csi2.lanes : 1) <<
-			 (pll->flags & CCS_PLL_FLAG_OP_SYS_DDR ? 1 : 0));
-	if (rval < 0 || sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
-		return rval;
+	if (!(CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
+	      CCS_PHY_CTRL_CAPABILITY_AUTO_PHY_CTL)) {
+		/* Lane op clock ratio does not apply here. */
+		rval = ccs_write(sensor, REQUESTED_LINK_RATE,
+				 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
+					      1000000 / 256 / 256) *
+				 (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+				  sensor->pll.csi2.lanes : 1) <<
+				 (pll->flags & CCS_PLL_FLAG_OP_SYS_DDR ?
+				  1 : 0));
+		if (rval < 0)
+			return rval;
+	}
+
+	if (sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
+		return 0;
 
 	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op_bk.pix_clk_div);
 	if (rval < 0)
@@ -671,6 +679,49 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 		rval = ccs_write(sensor, ANALOG_GAIN_CODE_GLOBAL, ctrl->val);
 
 		break;
+
+	case V4L2_CID_CCS_ANALOGUE_LINEAR_GAIN:
+		rval = ccs_write(sensor, ANALOG_LINEAR_GAIN_GLOBAL, ctrl->val);
+
+		break;
+
+	case V4L2_CID_CCS_ANALOGUE_EXPONENTIAL_GAIN:
+		rval = ccs_write(sensor, ANALOG_EXPONENTIAL_GAIN_GLOBAL,
+				 ctrl->val);
+
+		break;
+
+	case V4L2_CID_DIGITAL_GAIN:
+		if (CCS_LIM(sensor, DIGITAL_GAIN_CAPABILITY) ==
+		    CCS_DIGITAL_GAIN_CAPABILITY_GLOBAL) {
+			rval = ccs_write(sensor, DIGITAL_GAIN_GLOBAL,
+					 ctrl->val);
+			break;
+		}
+
+		rval = ccs_write_addr(sensor,
+				      SMIAPP_REG_U16_DIGITAL_GAIN_GREENR,
+				      ctrl->val);
+		if (rval)
+			break;
+
+		rval = ccs_write_addr(sensor,
+				      SMIAPP_REG_U16_DIGITAL_GAIN_RED,
+				      ctrl->val);
+		if (rval)
+			break;
+
+		rval = ccs_write_addr(sensor,
+				      SMIAPP_REG_U16_DIGITAL_GAIN_BLUE,
+				      ctrl->val);
+		if (rval)
+			break;
+
+		rval = ccs_write_addr(sensor,
+				      SMIAPP_REG_U16_DIGITAL_GAIN_GREENB,
+				      ctrl->val);
+
+		break;
 	case V4L2_CID_EXPOSURE:
 		rval = ccs_write(sensor, COARSE_INTEGRATION_TIME, ctrl->val);
 
@@ -713,6 +764,19 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 		rval = ccs_write(sensor, TEST_DATA_GREENB, ctrl->val);
 
 		break;
+	case V4L2_CID_CCS_SHADING_CORRECTION:
+		rval = ccs_write(sensor, SHADING_CORRECTION_EN,
+				 ctrl->val ? CCS_SHADING_CORRECTION_EN_ENABLE :
+				 0);
+
+		if (!rval && sensor->luminance_level)
+			v4l2_ctrl_activate(sensor->luminance_level, ctrl->val);
+
+		break;
+	case V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL:
+		rval = ccs_write(sensor, LUMINANCE_CORRECTION_LEVEL, ctrl->val);
+
+		break;
 	case V4L2_CID_PIXEL_RATE:
 		/* For v4l2_ctrl_s_ctrl_int64() used internally. */
 		rval = 0;
@@ -739,19 +803,144 @@ static int ccs_init_controls(struct ccs_sensor *sensor)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
 
-	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 12);
+	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 17);
 	if (rval)
 		return rval;
 
 	sensor->pixel_array->ctrl_handler.lock = &sensor->mutex;
 
-	sensor->analog_gain = v4l2_ctrl_new_std(
-		&sensor->pixel_array->ctrl_handler, &ccs_ctrl_ops,
-		V4L2_CID_ANALOGUE_GAIN,
-		CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN),
-		CCS_LIM(sensor, ANALOG_GAIN_CODE_MAX),
-		max(CCS_LIM(sensor, ANALOG_GAIN_CODE_STEP), 1U),
-		CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN));
+	switch (CCS_LIM(sensor, ANALOG_GAIN_CAPABILITY)) {
+	case CCS_ANALOG_GAIN_CAPABILITY_GLOBAL: {
+		struct {
+			const char *name;
+			u32 id;
+			s32 value;
+		} const gain_ctrls[] = {
+			{ "Analogue Gain m0", V4L2_CID_CCS_ANALOGUE_GAIN_M0,
+			  CCS_LIM(sensor, ANALOG_GAIN_M0), },
+			{ "Analogue Gain c0", V4L2_CID_CCS_ANALOGUE_GAIN_C0,
+			  CCS_LIM(sensor, ANALOG_GAIN_C0), },
+			{ "Analogue Gain m1", V4L2_CID_CCS_ANALOGUE_GAIN_M1,
+			  CCS_LIM(sensor, ANALOG_GAIN_M1), },
+			{ "Analogue Gain c1", V4L2_CID_CCS_ANALOGUE_GAIN_C1,
+			  CCS_LIM(sensor, ANALOG_GAIN_C1), },
+		};
+		struct v4l2_ctrl_config ctrl_cfg = {
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.ops = &ccs_ctrl_ops,
+			.flags = V4L2_CTRL_FLAG_READ_ONLY,
+			.step = 1,
+		};
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(gain_ctrls); i++) {
+			ctrl_cfg.name = gain_ctrls[i].name;
+			ctrl_cfg.id = gain_ctrls[i].id;
+			ctrl_cfg.min = ctrl_cfg.max = ctrl_cfg.def =
+				gain_ctrls[i].value;
+
+			v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+					     &ctrl_cfg, NULL);
+		}
+
+		v4l2_ctrl_new_std(&sensor->pixel_array->ctrl_handler,
+				  &ccs_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
+				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN),
+				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MAX),
+				  max(CCS_LIM(sensor, ANALOG_GAIN_CODE_STEP),
+				      1U),
+				  CCS_LIM(sensor, ANALOG_GAIN_CODE_MIN));
+	}
+		break;
+
+	case CCS_ANALOG_GAIN_CAPABILITY_ALTERNATE_GLOBAL: {
+		struct {
+			const char *name;
+			u32 id;
+			u16 min, max, step;
+		} const gain_ctrls[] = {
+			{
+				"Analogue Linear Gain",
+				V4L2_CID_CCS_ANALOGUE_LINEAR_GAIN,
+				CCS_LIM(sensor, ANALOG_LINEAR_GAIN_MIN),
+				CCS_LIM(sensor, ANALOG_LINEAR_GAIN_MAX),
+				max(CCS_LIM(sensor,
+					    ANALOG_LINEAR_GAIN_STEP_SIZE),
+				    1U),
+			},
+			{
+				"Analogue Exponential Gain",
+				V4L2_CID_CCS_ANALOGUE_EXPONENTIAL_GAIN,
+				CCS_LIM(sensor, ANALOG_EXPONENTIAL_GAIN_MIN),
+				CCS_LIM(sensor, ANALOG_EXPONENTIAL_GAIN_MAX),
+				max(CCS_LIM(sensor,
+					    ANALOG_EXPONENTIAL_GAIN_STEP_SIZE),
+				    1U),
+			},
+		};
+		struct v4l2_ctrl_config ctrl_cfg = {
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.ops = &ccs_ctrl_ops,
+		};
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(gain_ctrls); i++) {
+			ctrl_cfg.name = gain_ctrls[i].name;
+			ctrl_cfg.min = ctrl_cfg.def = gain_ctrls[i].min;
+			ctrl_cfg.max = gain_ctrls[i].max;
+			ctrl_cfg.step = gain_ctrls[i].step;
+			ctrl_cfg.id = gain_ctrls[i].id;
+
+			v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+					     &ctrl_cfg, NULL);
+		}
+	}
+	}
+
+	if (CCS_LIM(sensor, SHADING_CORRECTION_CAPABILITY) &
+	    (CCS_SHADING_CORRECTION_CAPABILITY_COLOR_SHADING |
+	     CCS_SHADING_CORRECTION_CAPABILITY_LUMINANCE_CORRECTION)) {
+		const struct v4l2_ctrl_config ctrl_cfg = {
+			.name = "Shading Correction",
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.id = V4L2_CID_CCS_SHADING_CORRECTION,
+			.ops = &ccs_ctrl_ops,
+			.max = 1,
+			.step = 1,
+		};
+
+		v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+				     &ctrl_cfg, NULL);
+	}
+
+	if (CCS_LIM(sensor, SHADING_CORRECTION_CAPABILITY) &
+	    CCS_SHADING_CORRECTION_CAPABILITY_LUMINANCE_CORRECTION) {
+		const struct v4l2_ctrl_config ctrl_cfg = {
+			.name = "Luminance Correction Level",
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.id = V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL,
+			.ops = &ccs_ctrl_ops,
+			.max = 255,
+			.step = 1,
+			.def = 128,
+		};
+
+		sensor->luminance_level =
+			v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+					     &ctrl_cfg, NULL);
+	}
+
+	if (CCS_LIM(sensor, DIGITAL_GAIN_CAPABILITY) ==
+	    CCS_DIGITAL_GAIN_CAPABILITY_GLOBAL ||
+	    CCS_LIM(sensor, DIGITAL_GAIN_CAPABILITY) ==
+	    SMIAPP_DIGITAL_GAIN_CAPABILITY_PER_CHANNEL)
+		v4l2_ctrl_new_std(&sensor->pixel_array->ctrl_handler,
+				  &ccs_ctrl_ops, V4L2_CID_DIGITAL_GAIN,
+				  CCS_LIM(sensor, DIGITAL_GAIN_MIN),
+				  CCS_LIM(sensor, DIGITAL_GAIN_MAX),
+				  max(CCS_LIM(sensor, DIGITAL_GAIN_STEP_SIZE),
+				      1U),
+				  0x100);
 
 	/* Exposure limits will be updated soon, use just something here. */
 	sensor->exposure = v4l2_ctrl_new_std(
@@ -1001,7 +1190,7 @@ static void ccs_update_blanking(struct ccs_sensor *sensor)
 {
 	struct v4l2_ctrl *vblank = sensor->vblank;
 	struct v4l2_ctrl *hblank = sensor->hblank;
-	uint16_t min_fll, max_fll, min_llp, max_llp, min_lbp;
+	u16 min_fll, max_fll, min_llp, max_llp, min_lbp;
 	int min, max;
 
 	if (sensor->binning_vertical > 1 || sensor->binning_horizontal > 1) {
@@ -1322,6 +1511,28 @@ static int ccs_write_msr_regs(struct ccs_sensor *sensor)
 				   sensor->mdata.num_module_manufacturer_regs);
 }
 
+static int ccs_update_phy_ctrl(struct ccs_sensor *sensor)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	u8 val;
+
+	if (!sensor->ccs_limits)
+		return 0;
+
+	if (CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
+	    CCS_PHY_CTRL_CAPABILITY_AUTO_PHY_CTL) {
+		val = CCS_PHY_CTRL_AUTO;
+	} else if (CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
+		   CCS_PHY_CTRL_CAPABILITY_UI_PHY_CTL) {
+		val = CCS_PHY_CTRL_UI;
+	} else {
+		dev_err(&client->dev, "manual PHY control not supported\n");
+		return -EINVAL;
+	}
+
+	return ccs_write(sensor, PHY_CTRL, val);
+}
+
 static int ccs_power_on(struct device *dev)
 {
 	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
@@ -1333,7 +1544,6 @@ static int ccs_power_on(struct device *dev)
 	struct ccs_sensor *sensor =
 		container_of(ssd, struct ccs_sensor, ssds[0]);
 	const struct ccs_device *ccsdev = device_get_match_data(dev);
-	unsigned int sleep;
 	int rval;
 
 	rval = regulator_bulk_enable(ARRAY_SIZE(ccs_regulators),
@@ -1343,21 +1553,25 @@ static int ccs_power_on(struct device *dev)
 		return rval;
 	}
 
-	rval = clk_prepare_enable(sensor->ext_clk);
-	if (rval < 0) {
-		dev_dbg(dev, "failed to enable xclk\n");
-		goto out_xclk_fail;
+	if (sensor->reset || sensor->xshutdown || sensor->ext_clk) {
+		unsigned int sleep;
+
+		rval = clk_prepare_enable(sensor->ext_clk);
+		if (rval < 0) {
+			dev_dbg(dev, "failed to enable xclk\n");
+			goto out_xclk_fail;
+		}
+
+		gpiod_set_value(sensor->reset, 0);
+		gpiod_set_value(sensor->xshutdown, 1);
+
+		if (ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA)
+			sleep = SMIAPP_RESET_DELAY(sensor->hwcfg.ext_clk);
+		else
+			sleep = 5000;
+
+		usleep_range(sleep, sleep);
 	}
-
-	gpiod_set_value(sensor->reset, 0);
-	gpiod_set_value(sensor->xshutdown, 1);
-
-	if (ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA)
-		sleep = SMIAPP_RESET_DELAY(sensor->hwcfg.ext_clk);
-	else
-		sleep = 5000;
-
-	usleep_range(sleep, sleep);
 
 	/*
 	 * Failures to respond to the address change command have been noticed.
@@ -1370,18 +1584,27 @@ static int ccs_power_on(struct device *dev)
 	 * is found.
 	 */
 
-	if (sensor->hwcfg.i2c_addr_alt) {
-		rval = ccs_change_cci_addr(sensor);
-		if (rval) {
-			dev_err(dev, "cci address change error\n");
+	if (!sensor->reset && !sensor->xshutdown) {
+		u8 retry = 100;
+		u32 reset;
+
+		rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
+		if (rval < 0) {
+			dev_err(dev, "software reset failed\n");
 			goto out_cci_addr_fail;
 		}
-	}
 
-	rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
-	if (rval < 0) {
-		dev_err(dev, "software reset failed\n");
-		goto out_cci_addr_fail;
+		do {
+			rval = ccs_read(sensor, SOFTWARE_RESET, &reset);
+			reset = !rval && reset == CCS_SOFTWARE_RESET_OFF;
+			if (reset)
+				break;
+
+			usleep_range(1000, 2000);
+		} while (--retry);
+
+		if (!reset)
+			return -EIO;
 	}
 
 	if (sensor->hwcfg.i2c_addr_alt) {
@@ -1426,8 +1649,7 @@ static int ccs_power_on(struct device *dev)
 		goto out_cci_addr_fail;
 	}
 
-	/* DPHY control done by sensor based on requested link rate */
-	rval = ccs_write(sensor, PHY_CTRL, CCS_PHY_CTRL_UI);
+	rval = ccs_update_phy_ctrl(sensor);
 	if (rval < 0)
 		goto out_cci_addr_fail;
 
@@ -2908,7 +3130,8 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	int i;
 	int rval;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0,
+					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
 		return -ENODEV;
 
@@ -3080,6 +3303,11 @@ static int ccs_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
+	if (!sensor->hwcfg.ext_clk) {
+		dev_err(&client->dev, "cannot work with xclk frequency 0\n");
+		return -EINVAL;
+	}
+
 	sensor->reset = devm_gpiod_get_optional(&client->dev, "reset",
 						GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->reset))
@@ -3147,6 +3375,10 @@ static int ccs_probe(struct i2c_client *client)
 		rval = -ENODEV;
 		goto out_free_ccs_limits;
 	}
+
+	rval = ccs_update_phy_ctrl(sensor);
+	if (rval < 0)
+		goto out_free_ccs_limits;
 
 	/*
 	 * Handle Sensor Module orientation on the board.

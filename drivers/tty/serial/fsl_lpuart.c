@@ -2580,9 +2580,7 @@ static struct uart_driver lpuart_reg = {
 
 static int lpuart_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id = of_match_device(lpuart_dt_ids,
-							   &pdev->dev);
-	const struct lpuart_soc_data *sdata = of_id->data;
+	const struct lpuart_soc_data *sdata = of_device_get_match_data(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct lpuart_port *sport;
 	struct resource *res;

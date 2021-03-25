@@ -531,6 +531,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		goto out_free;
 	}
 
+	if (mnt_user_ns(path.mnt) != &init_user_ns) {
+		rc = -EINVAL;
+		printk(KERN_ERR "Mounting on idmapped mounts currently disallowed\n");
+		goto out_free;
+	}
+
 	if (check_ruid && !uid_eq(d_inode(path.dentry)->i_uid, current_uid())) {
 		rc = -EPERM;
 		printk(KERN_ERR "Mount of device (uid: %d) not owned by "

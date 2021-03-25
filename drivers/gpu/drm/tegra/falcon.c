@@ -72,7 +72,7 @@ static int falcon_parse_firmware_image(struct falcon *falcon)
 	struct falcon_fw_os_header_v1 *os;
 
 	/* endian problems would show up right here */
-	if (bin->magic != PCI_VENDOR_ID_NVIDIA) {
+	if (bin->magic != PCI_VENDOR_ID_NVIDIA && bin->magic != 0x10fe) {
 		dev_err(falcon->dev, "incorrect firmware magic\n");
 		return -EINVAL;
 	}
@@ -178,9 +178,10 @@ int falcon_boot(struct falcon *falcon)
 				  falcon->firmware.data.offset + offset,
 				  offset, FALCON_MEMORY_DATA);
 
-	/* copy the first code segment into Falcon internal memory */
-	falcon_copy_chunk(falcon, falcon->firmware.code.offset,
-			  0, FALCON_MEMORY_IMEM);
+	/* copy the code segment into Falcon internal memory */
+	for (offset = 0; offset < falcon->firmware.code.size; offset += 256)
+		falcon_copy_chunk(falcon, falcon->firmware.code.offset + offset,
+				  offset, FALCON_MEMORY_IMEM);
 
 	/* setup falcon interrupts */
 	falcon_writel(falcon, FALCON_IRQMSET_EXT(0xff) |

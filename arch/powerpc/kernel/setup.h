@@ -14,31 +14,31 @@ void irqstack_early_init(void);
 #ifdef CONFIG_PPC32
 void setup_power_save(void);
 #else
-static inline void setup_power_save(void) { };
+static inline void setup_power_save(void) { }
 #endif
 
 #if defined(CONFIG_PPC64) && defined(CONFIG_SMP)
 void check_smt_enabled(void);
 #else
-static inline void check_smt_enabled(void) { };
+static inline void check_smt_enabled(void) { }
 #endif
 
 #if defined(CONFIG_PPC_BOOK3E) && defined(CONFIG_SMP)
 void setup_tlb_core_data(void);
 #else
-static inline void setup_tlb_core_data(void) { };
+static inline void setup_tlb_core_data(void) { }
 #endif
 
 #if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 void exc_lvl_early_init(void);
 #else
-static inline void exc_lvl_early_init(void) { };
+static inline void exc_lvl_early_init(void) { }
 #endif
 
 #if defined(CONFIG_PPC64) || defined(CONFIG_VMAP_STACK)
 void emergency_stack_init(void);
 #else
-static inline void emergency_stack_init(void) { };
+static inline void emergency_stack_init(void) { }
 #endif
 
 #ifdef CONFIG_PPC64
@@ -55,7 +55,7 @@ extern unsigned long spr_default_dscr;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 void kvm_cma_reserve(void);
 #else
-static inline void kvm_cma_reserve(void) { };
+static inline void kvm_cma_reserve(void) { }
 #endif
 
 #ifdef CONFIG_TAU

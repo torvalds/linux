@@ -915,8 +915,7 @@ static void ath10k_snoc_hif_stop(struct ath10k *ar)
 	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
 		ath10k_snoc_irq_disable(ar);
 
-	napi_synchronize(&ar->napi);
-	napi_disable(&ar->napi);
+	ath10k_core_napi_sync_disable(ar);
 	ath10k_snoc_buffer_cleanup(ar);
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif stop\n");
 }
@@ -926,7 +925,8 @@ static int ath10k_snoc_hif_start(struct ath10k *ar)
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	bitmap_clear(ar_snoc->pending_ce_irqs, 0, CE_COUNT_MAX);
-	napi_enable(&ar->napi);
+
+	ath10k_core_napi_enable(ar);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
 
@@ -1003,6 +1003,39 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar,
 				       NULL);
 }
 
+static int ath10k_hw_power_on(struct ath10k *ar)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power on\n");
+
+	ret = regulator_bulk_enable(ar_snoc->num_vregs, ar_snoc->vregs);
+	if (ret)
+		return ret;
+
+	ret = clk_bulk_prepare_enable(ar_snoc->num_clks, ar_snoc->clks);
+	if (ret)
+		goto vreg_off;
+
+	return ret;
+
+vreg_off:
+	regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
+	return ret;
+}
+
+static int ath10k_hw_power_off(struct ath10k *ar)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power off\n");
+
+	clk_bulk_disable_unprepare(ar_snoc->num_clks, ar_snoc->clks);
+
+	return regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
+}
+
 static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
@@ -1024,6 +1057,7 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
 
 	ath10k_snoc_wlan_disable(ar);
 	ath10k_ce_free_rri(ar);
+	ath10k_hw_power_off(ar);
 }
 
 static int ath10k_snoc_hif_power_up(struct ath10k *ar,
@@ -1034,10 +1068,16 @@ static int ath10k_snoc_hif_power_up(struct ath10k *ar,
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "%s:WCN3990 driver state = %d\n",
 		   __func__, ar->state);
 
+	ret = ath10k_hw_power_on(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to power on device: %d\n", ret);
+		return ret;
+	}
+
 	ret = ath10k_snoc_wlan_enable(ar, fw_mode);
 	if (ret) {
 		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
-		return ret;
+		goto err_hw_power_off;
 	}
 
 	ath10k_ce_alloc_rri(ar);
@@ -1045,13 +1085,17 @@ static int ath10k_snoc_hif_power_up(struct ath10k *ar,
 	ret = ath10k_snoc_init_pipes(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to initialize CE: %d\n", ret);
-		goto err_wlan_enable;
+		goto err_free_rri;
 	}
 
 	return 0;
 
-err_wlan_enable:
+err_free_rri:
+	ath10k_ce_free_rri(ar);
 	ath10k_snoc_wlan_disable(ar);
+
+err_hw_power_off:
+	ath10k_hw_power_off(ar);
 
 	return ret;
 }
@@ -1369,39 +1413,6 @@ static void ath10k_snoc_release_resource(struct ath10k *ar)
 		ath10k_ce_free_pipe(ar, i);
 }
 
-static int ath10k_hw_power_on(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	int ret;
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power on\n");
-
-	ret = regulator_bulk_enable(ar_snoc->num_vregs, ar_snoc->vregs);
-	if (ret)
-		return ret;
-
-	ret = clk_bulk_prepare_enable(ar_snoc->num_clks, ar_snoc->clks);
-	if (ret)
-		goto vreg_off;
-
-	return ret;
-
-vreg_off:
-	regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
-	return ret;
-}
-
-static int ath10k_hw_power_off(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power off\n");
-
-	clk_bulk_disable_unprepare(ar_snoc->num_clks, ar_snoc->clks);
-
-	return regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
-}
-
 static void ath10k_msa_dump_memory(struct ath10k *ar,
 				   struct ath10k_fw_crash_data *crash_data)
 {
@@ -1711,22 +1722,16 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_irq;
 
-	ret = ath10k_hw_power_on(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to power on device: %d\n", ret);
-		goto err_free_irq;
-	}
-
 	ret = ath10k_setup_msa_resources(ar, msa_size);
 	if (ret) {
 		ath10k_warn(ar, "failed to setup msa resources: %d\n", ret);
-		goto err_power_off;
+		goto err_free_irq;
 	}
 
 	ret = ath10k_fw_init(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to initialize firmware: %d\n", ret);
-		goto err_power_off;
+		goto err_free_irq;
 	}
 
 	ret = ath10k_qmi_init(ar, msa_size);
@@ -1741,9 +1746,6 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 
 err_fw_deinit:
 	ath10k_fw_deinit(ar);
-
-err_power_off:
-	ath10k_hw_power_off(ar);
 
 err_free_irq:
 	ath10k_snoc_free_irq(ar);
@@ -1772,7 +1774,6 @@ static int ath10k_snoc_remove(struct platform_device *pdev)
 	set_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags);
 
 	ath10k_core_unregister(ar);
-	ath10k_hw_power_off(ar);
 	ath10k_fw_deinit(ar);
 	ath10k_snoc_free_irq(ar);
 	ath10k_snoc_release_resource(ar);

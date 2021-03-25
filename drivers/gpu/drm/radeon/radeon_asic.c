@@ -2478,6 +2478,9 @@ int radeon_asic_init(struct radeon_device *rdev)
 		if (rdev->family == CHIP_HAINAN) {
 			rdev->has_uvd = false;
 			rdev->has_vce = false;
+		} else if (rdev->family == CHIP_OLAND) {
+			rdev->has_uvd = true;
+			rdev->has_vce = false;
 		} else {
 			rdev->has_uvd = true;
 			rdev->has_vce = true;

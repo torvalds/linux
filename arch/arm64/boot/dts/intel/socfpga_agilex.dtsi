@@ -166,7 +166,7 @@
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
 			iommus = <&smmu 2>;
-			altr,sysmgr-syscon = <&sysmgr 0x48 8>;
+			altr,sysmgr-syscon = <&sysmgr 0x48 0>;
 			clocks = <&clkmgr AGILEX_EMAC1_CLK>, <&clkmgr AGILEX_EMAC_PTP_CLK>;
 			clock-names = "stmmaceth", "ptp_ref";
 			status = "disabled";
@@ -184,7 +184,7 @@
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
 			iommus = <&smmu 3>;
-			altr,sysmgr-syscon = <&sysmgr 0x4c 16>;
+			altr,sysmgr-syscon = <&sysmgr 0x4c 0>;
 			clocks = <&clkmgr AGILEX_EMAC2_CLK>, <&clkmgr AGILEX_EMAC_PTP_CLK>;
 			clock-names = "stmmaceth", "ptp_ref";
 			status = "disabled";

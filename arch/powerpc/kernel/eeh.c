@@ -1596,6 +1596,35 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 }
 
 #ifdef CONFIG_DEBUG_FS
+
+
+static struct pci_dev *eeh_debug_lookup_pdev(struct file *filp,
+					     const char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	uint32_t domain, bus, dev, fn;
+	struct pci_dev *pdev;
+	char buf[20];
+	int ret;
+
+	memset(buf, 0, sizeof(buf));
+	ret = simple_write_to_buffer(buf, sizeof(buf)-1, ppos, user_buf, count);
+	if (!ret)
+		return ERR_PTR(-EFAULT);
+
+	ret = sscanf(buf, "%x:%x:%x.%x", &domain, &bus, &dev, &fn);
+	if (ret != 4) {
+		pr_err("%s: expected 4 args, got %d\n", __func__, ret);
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdev = pci_get_domain_bus_and_slot(domain, bus, (dev << 3) | fn);
+	if (!pdev)
+		return ERR_PTR(-ENODEV);
+
+	return pdev;
+}
+
 static int eeh_enable_dbgfs_set(void *data, u64 val)
 {
 	if (val)
@@ -1688,26 +1717,13 @@ static ssize_t eeh_dev_check_write(struct file *filp,
 				const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	uint32_t domain, bus, dev, fn;
 	struct pci_dev *pdev;
 	struct eeh_dev *edev;
-	char buf[20];
 	int ret;
 
-	memset(buf, 0, sizeof(buf));
-	ret = simple_write_to_buffer(buf, sizeof(buf)-1, ppos, user_buf, count);
-	if (!ret)
-		return -EFAULT;
-
-	ret = sscanf(buf, "%x:%x:%x.%x", &domain, &bus, &dev, &fn);
-	if (ret != 4) {
-		pr_err("%s: expected 4 args, got %d\n", __func__, ret);
-		return -EINVAL;
-	}
-
-	pdev = pci_get_domain_bus_and_slot(domain, bus, (dev << 3) | fn);
-	if (!pdev)
-		return -ENODEV;
+	pdev = eeh_debug_lookup_pdev(filp, user_buf, count, ppos);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	edev = pci_dev_to_eeh_dev(pdev);
 	if (!edev) {
@@ -1717,8 +1733,8 @@ static ssize_t eeh_dev_check_write(struct file *filp,
 	}
 
 	ret = eeh_dev_check_failure(edev);
-	pci_info(pdev, "eeh_dev_check_failure(%04x:%02x:%02x.%01x) = %d\n",
-			domain, bus, dev, fn, ret);
+	pci_info(pdev, "eeh_dev_check_failure(%s) = %d\n",
+			pci_name(pdev), ret);
 
 	pci_dev_put(pdev);
 
@@ -1829,25 +1845,12 @@ static ssize_t eeh_dev_break_write(struct file *filp,
 				const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	uint32_t domain, bus, dev, fn;
 	struct pci_dev *pdev;
-	char buf[20];
 	int ret;
 
-	memset(buf, 0, sizeof(buf));
-	ret = simple_write_to_buffer(buf, sizeof(buf)-1, ppos, user_buf, count);
-	if (!ret)
-		return -EFAULT;
-
-	ret = sscanf(buf, "%x:%x:%x.%x", &domain, &bus, &dev, &fn);
-	if (ret != 4) {
-		pr_err("%s: expected 4 args, got %d\n", __func__, ret);
-		return -EINVAL;
-	}
-
-	pdev = pci_get_domain_bus_and_slot(domain, bus, (dev << 3) | fn);
-	if (!pdev)
-		return -ENODEV;
+	pdev = eeh_debug_lookup_pdev(filp, user_buf, count, ppos);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	ret = eeh_debugfs_break_device(pdev);
 	pci_dev_put(pdev);
@@ -1862,6 +1865,53 @@ static const struct file_operations eeh_dev_break_fops = {
 	.open	= simple_open,
 	.llseek	= no_llseek,
 	.write	= eeh_dev_break_write,
+	.read   = eeh_debugfs_dev_usage,
+};
+
+static ssize_t eeh_dev_can_recover(struct file *filp,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct pci_driver *drv;
+	struct pci_dev *pdev;
+	size_t ret;
+
+	pdev = eeh_debug_lookup_pdev(filp, user_buf, count, ppos);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	/*
+	 * In order for error recovery to work the driver needs to implement
+	 * .error_detected(), so it can quiesce IO to the device, and
+	 * .slot_reset() so it can re-initialise the device after a reset.
+	 *
+	 * Ideally they'd implement .resume() too, but some drivers which
+	 * we need to support (notably IPR) don't so I guess we can tolerate
+	 * that.
+	 *
+	 * .mmio_enabled() is mostly there as a work-around for devices which
+	 * take forever to re-init after a hot reset. Implementing that is
+	 * strictly optional.
+	 */
+	drv = pci_dev_driver(pdev);
+	if (drv &&
+	    drv->err_handler &&
+	    drv->err_handler->error_detected &&
+	    drv->err_handler->slot_reset) {
+		ret = count;
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
+	pci_dev_put(pdev);
+
+	return ret;
+}
+
+static const struct file_operations eeh_dev_can_recover_fops = {
+	.open	= simple_open,
+	.llseek	= no_llseek,
+	.write	= eeh_dev_can_recover,
 	.read   = eeh_debugfs_dev_usage,
 };
 
@@ -1889,6 +1939,9 @@ static int __init eeh_init_proc(void)
 		debugfs_create_file_unsafe("eeh_force_recover", 0600,
 				powerpc_debugfs_root, NULL,
 				&eeh_force_recover_fops);
+		debugfs_create_file_unsafe("eeh_dev_can_recover", 0600,
+				powerpc_debugfs_root, NULL,
+				&eeh_dev_can_recover_fops);
 		eeh_cache_debugfs_init();
 #endif
 	}

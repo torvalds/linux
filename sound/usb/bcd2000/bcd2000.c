@@ -300,7 +300,7 @@ static int bcd2000_init_midi(struct bcd2000 *bcd2k)
 	if (ret < 0)
 		return ret;
 
-	strlcpy(rmidi->name, bcd2k->card->shortname, sizeof(rmidi->name));
+	strscpy(rmidi->name, bcd2k->card->shortname, sizeof(rmidi->name));
 
 	rmidi->info_flags = SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = bcd2k;

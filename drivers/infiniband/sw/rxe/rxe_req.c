@@ -375,7 +375,6 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 	pkt->psn	= qp->req.psn;
 	pkt->mask	= rxe_opcode[opcode].mask;
 	pkt->paylen	= paylen;
-	pkt->offset	= 0;
 	pkt->wqe	= wqe;
 
 	/* init skb */

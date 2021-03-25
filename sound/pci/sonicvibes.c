@@ -29,7 +29,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("S3 SonicVibes PCI");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 
 #if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
@@ -570,7 +569,7 @@ static void snd_sonicvibes_set_dac_rate(struct sonicvibes * sonic, unsigned int 
 	unsigned int div;
 	unsigned long flags;
 
-	div = (rate * 65536 + SV_FULLRATE / 2) / SV_FULLRATE;
+	div = DIV_ROUND_CLOSEST(rate * 65536, SV_FULLRATE);
 	if (div > 65535)
 		div = 65535;
 	spin_lock_irqsave(&sonic->reg_lock, flags);
@@ -1230,8 +1229,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(24)) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(24)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(24))) {
 		dev_err(card->dev,
 			"architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);

@@ -127,7 +127,7 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 }
 
 
-/**
+/*
  * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
  *
  * \return true if CRT is connected.
@@ -278,8 +278,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	gma_encoder->ddc_bus = psb_intel_i2c_create(dev,
 							  i2c_reg, "CRTDDC_A");
 	if (!gma_encoder->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
-			   "failed.\n");
+		dev_printk(KERN_ERR, dev->dev, "DDC bus registration failed.\n");
 		goto failed_ddc;
 	}
 

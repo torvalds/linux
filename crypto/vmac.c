@@ -36,6 +36,7 @@
 #include <linux/scatterlist.h>
 #include <asm/byteorder.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/hash.h>
 
 /*
@@ -693,3 +694,4 @@ module_exit(vmac_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VMAC hash algorithm");
 MODULE_ALIAS_CRYPTO("vmac64");
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

@@ -376,7 +376,7 @@ interrupt_base:
 	/* Load the next available TLB index */
 	lwz	r13,tlb_44x_index@l(r10)
 
-	bne	2f			/* Bail if permission mismach */
+	bne	2f			/* Bail if permission mismatch */
 
 	/* Increment, rollover, and store TLB index */
 	addi	r13,r13,1
@@ -471,7 +471,7 @@ interrupt_base:
 	/* Load the next available TLB index */
 	lwz	r13,tlb_44x_index@l(r10)
 
-	bne	2f			/* Bail if permission mismach */
+	bne	2f			/* Bail if permission mismatch */
 
 	/* Increment, rollover, and store TLB index */
 	addi	r13,r13,1

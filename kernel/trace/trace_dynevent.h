@@ -39,7 +39,7 @@ struct dyn_event;
  */
 struct dyn_event_operations {
 	struct list_head	list;
-	int (*create)(int argc, const char *argv[]);
+	int (*create)(const char *raw_command);
 	int (*show)(struct seq_file *m, struct dyn_event *ev);
 	bool (*is_busy)(struct dyn_event *ev);
 	int (*free)(struct dyn_event *ev);
@@ -97,7 +97,7 @@ void *dyn_event_seq_start(struct seq_file *m, loff_t *pos);
 void *dyn_event_seq_next(struct seq_file *m, void *v, loff_t *pos);
 void dyn_event_seq_stop(struct seq_file *m, void *v);
 int dyn_events_release_all(struct dyn_event_operations *type);
-int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type);
+int dyn_event_release(const char *raw_command, struct dyn_event_operations *type);
 
 /*
  * for_each_dyn_event	-	iterate over the dyn_event list

@@ -96,6 +96,8 @@ enum {
 	PERF_IP_FLAG_TRACE_BEGIN	= 1ULL << 8,
 	PERF_IP_FLAG_TRACE_END		= 1ULL << 9,
 	PERF_IP_FLAG_IN_TX		= 1ULL << 10,
+	PERF_IP_FLAG_VMENTRY		= 1ULL << 11,
+	PERF_IP_FLAG_VMEXIT		= 1ULL << 12,
 };
 
 #define PERF_IP_FLAG_CHARS "bcrosyiABEx"
@@ -110,7 +112,9 @@ enum {
 	PERF_IP_FLAG_INTERRUPT		|\
 	PERF_IP_FLAG_TX_ABORT		|\
 	PERF_IP_FLAG_TRACE_BEGIN	|\
-	PERF_IP_FLAG_TRACE_END)
+	PERF_IP_FLAG_TRACE_END		|\
+	PERF_IP_FLAG_VMENTRY		|\
+	PERF_IP_FLAG_VMEXIT)
 
 #define MAX_INSN 16
 
@@ -136,11 +140,13 @@ struct perf_sample {
 	u64 data_src;
 	u64 phys_addr;
 	u64 data_page_size;
+	u64 code_page_size;
 	u64 cgroup;
 	u32 flags;
 	u16 insn_len;
 	u8  cpumode;
 	u16 misc;
+	u16 ins_lat;
 	bool no_hw_idx;		/* No hw_idx collected in branch_stack */
 	char insn[MAX_INSN];
 	void *raw_data;
@@ -171,6 +177,7 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_EXSTOP,
 	PERF_SYNTH_INTEL_PWRX,
 	PERF_SYNTH_INTEL_CBR,
+	PERF_SYNTH_INTEL_PSB,
 };
 
 /*
@@ -261,6 +268,12 @@ struct perf_synth_intel_cbr {
 	};
 	u32 freq;
 	u32 reserved3;
+};
+
+struct perf_synth_intel_psb {
+	u32 padding;
+	u32 reserved;
+	u64 offset;
 };
 
 /*
@@ -411,5 +424,8 @@ extern unsigned int proc_map_timeout;
 
 #define PAGE_SIZE_NAME_LEN	32
 char *get_page_size_name(u64 size, char *str);
+
+void arch_perf_parse_sample_weight(struct perf_sample *data, const __u64 *array, u64 type);
+void arch_perf_synthesize_sample_weight(const struct perf_sample *data, __u64 *array, u64 type);
 
 #endif /* __PERF_RECORD_H */

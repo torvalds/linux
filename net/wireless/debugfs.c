@@ -73,8 +73,6 @@ static ssize_t ht40allow_map_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	rtnl_lock();
-
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		sband = wiphy->bands[band];
 		if (!sband)
@@ -83,8 +81,6 @@ static ssize_t ht40allow_map_read(struct file *file,
 			offset += ht_print_chan(&sband->channels[i],
 						buf, buf_size, offset);
 	}
-
-	rtnl_unlock();
 
 	r = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
 

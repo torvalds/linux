@@ -35,4 +35,6 @@ u64 arch_cpu_idle_time(int cpu);
 
 #define arch_idle_time(cpu) arch_cpu_idle_time(cpu)
 
+void account_idle_time_irq(void);
+
 #endif /* _S390_CPUTIME_H */

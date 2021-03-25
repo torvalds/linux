@@ -137,28 +137,41 @@ properties:
     maxItems: 7
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
+  sink-vdos:
+    description: An array of u32 with each entry, a Vendor Defined Message Object (VDO),
+      providing additional information corresponding to the product, the detailed bit
+      definitions and the order of each VDO can be found in
+      "USB Power Delivery Specification Revision 3.0, Version 2.0 + ECNs 2020-12-10"
+      chapter 6.4.4.3.1 Discover Identity. User can specify the VDO array via
+      VDO_IDH/_CERT/_PRODUCT/_UFP/_DFP/_PCABLE/_ACABLE(1/2)/_VPD() defined in
+      dt-bindings/usb/pd.h.
+    minItems: 3
+    maxItems: 6
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
   op-sink-microwatt:
     description: Sink required operating power in microwatt, if source can't
       offer the power, Capability Mismatch is set. Required for power sink and
       power dual role.
 
   ports:
-    description: OF graph bindings (specified in bindings/graph.txt) that model
-      any data bus to the connector unless the bus is between parent node and
-      the connector. Since a single connector can have multiple data buses every
-      bus has an assigned OF graph port number as described below.
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: OF graph bindings modeling any data bus to the connector
+      unless the bus is between parent node and the connector. Since a single
+      connector can have multiple data buses every bus has an assigned OF graph
+      port number as described below.
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: High Speed (HS), present in all connectors.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Super Speed (SS), present in SS capable connectors.
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Sideband Use (SBU), present in USB-C. This describes the
           alternate mode connection of which SBU is a part.
 

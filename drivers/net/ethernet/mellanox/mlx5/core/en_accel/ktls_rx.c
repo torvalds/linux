@@ -57,6 +57,20 @@ struct mlx5e_ktls_offload_context_rx {
 	struct mlx5e_ktls_rx_resync_ctx resync;
 };
 
+static bool mlx5e_ktls_priv_rx_put(struct mlx5e_ktls_offload_context_rx *priv_rx)
+{
+	if (!refcount_dec_and_test(&priv_rx->resync.refcnt))
+		return false;
+
+	kfree(priv_rx);
+	return true;
+}
+
+static void mlx5e_ktls_priv_rx_get(struct mlx5e_ktls_offload_context_rx *priv_rx)
+{
+	refcount_inc(&priv_rx->resync.refcnt);
+}
+
 static int mlx5e_ktls_create_tir(struct mlx5_core_dev *mdev, u32 *tirn, u32 rqtn)
 {
 	int err, inlen;
@@ -326,7 +340,7 @@ static void resync_handle_work(struct work_struct *work)
 	priv_rx = container_of(resync, struct mlx5e_ktls_offload_context_rx, resync);
 
 	if (unlikely(test_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags))) {
-		refcount_dec(&resync->refcnt);
+		mlx5e_ktls_priv_rx_put(priv_rx);
 		return;
 	}
 
@@ -334,7 +348,7 @@ static void resync_handle_work(struct work_struct *work)
 	sq = &c->async_icosq;
 
 	if (resync_post_get_progress_params(sq, priv_rx))
-		refcount_dec(&resync->refcnt);
+		mlx5e_ktls_priv_rx_put(priv_rx);
 }
 
 static void resync_init(struct mlx5e_ktls_rx_resync_ctx *resync,
@@ -377,7 +391,11 @@ unlock:
 	return err;
 }
 
-/* Function is called with elevated refcount, it decreases it. */
+/* Function can be called with the refcount being either elevated or not.
+ * It decreases the refcount and may free the kTLS priv context.
+ * Refcount is not elevated only if tls_dev_del has been called, but GET_PSV was
+ * already in flight.
+ */
 void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 					  struct mlx5e_icosq *sq)
 {
@@ -410,7 +428,7 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	tls_offload_rx_resync_async_request_end(priv_rx->sk, cpu_to_be32(hw_seq));
 	priv_rx->stats->tls_resync_req_end++;
 out:
-	refcount_dec(&resync->refcnt);
+	mlx5e_ktls_priv_rx_put(priv_rx);
 	dma_unmap_single(dev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
 	kfree(buf);
 }
@@ -431,9 +449,9 @@ static bool resync_queue_get_psv(struct sock *sk)
 		return false;
 
 	resync = &priv_rx->resync;
-	refcount_inc(&resync->refcnt);
+	mlx5e_ktls_priv_rx_get(priv_rx);
 	if (unlikely(!queue_work(resync->priv->tls->rx_wq, &resync->work)))
-		refcount_dec(&resync->refcnt);
+		mlx5e_ktls_priv_rx_put(priv_rx);
 
 	return true;
 }
@@ -625,31 +643,6 @@ err_create_key:
 	return err;
 }
 
-/* Elevated refcount on the resync object means there are
- * outstanding operations (uncompleted GET_PSV WQEs) that
- * will read the resync / priv_rx objects once completed.
- * Wait for them to avoid use-after-free.
- */
-static void wait_for_resync(struct net_device *netdev,
-			    struct mlx5e_ktls_rx_resync_ctx *resync)
-{
-#define MLX5E_KTLS_RX_RESYNC_TIMEOUT 20000 /* msecs */
-	unsigned long exp_time = jiffies + msecs_to_jiffies(MLX5E_KTLS_RX_RESYNC_TIMEOUT);
-	unsigned int refcnt;
-
-	do {
-		refcnt = refcount_read(&resync->refcnt);
-		if (refcnt == 1)
-			return;
-
-		msleep(20);
-	} while (time_before(jiffies, exp_time));
-
-	netdev_warn(netdev,
-		    "Failed waiting for kTLS RX resync refcnt to be released (%u).\n",
-		    refcnt);
-}
-
 void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 {
 	struct mlx5e_ktls_offload_context_rx *priv_rx;
@@ -663,7 +656,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 	priv_rx = mlx5e_get_ktls_rx_priv_ctx(tls_ctx);
 	set_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags);
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, NULL);
-	synchronize_rcu(); /* Sync with NAPI */
+	synchronize_net(); /* Sync with NAPI */
 	if (!cancel_work_sync(&priv_rx->rule.work))
 		/* completion is needed, as the priv_rx in the add flow
 		 * is maintained on the wqe info (wi), not on the socket.
@@ -671,8 +664,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 		wait_for_completion(&priv_rx->add_ctx);
 	resync = &priv_rx->resync;
 	if (cancel_work_sync(&resync->work))
-		refcount_dec(&resync->refcnt);
-	wait_for_resync(netdev, resync);
+		mlx5e_ktls_priv_rx_put(priv_rx);
 
 	priv_rx->stats->tls_del++;
 	if (priv_rx->rule.rule)
@@ -680,5 +672,9 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 
 	mlx5_core_destroy_tir(mdev, priv_rx->tirn);
 	mlx5_ktls_destroy_key(mdev, priv_rx->key_id);
-	kfree(priv_rx);
+	/* priv_rx should normally be freed here, but if there is an outstanding
+	 * GET_PSV, deallocation will be delayed until the CQE for GET_PSV is
+	 * processed.
+	 */
+	mlx5e_ktls_priv_rx_put(priv_rx);
 }

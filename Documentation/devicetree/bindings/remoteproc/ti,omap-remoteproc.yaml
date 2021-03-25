@@ -70,10 +70,13 @@ properties:
       the firmware image.
 
   clocks:
+    maxItems: 1
     description: |
       Main functional clock for the remote processor
 
   resets:
+    minItems: 1
+    maxItems: 2
     description: |
       Reset handles for the remote processor
 

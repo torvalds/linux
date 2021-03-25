@@ -120,6 +120,7 @@ struct mlx5dr_ste_htbl;
 struct mlx5dr_match_param;
 struct mlx5dr_cmd_caps;
 struct mlx5dr_matcher_rx_tx;
+struct mlx5dr_ste_ctx;
 
 struct mlx5dr_ste {
 	u8 *hw_ste;
@@ -154,7 +155,7 @@ struct mlx5dr_ste_htbl_ctrl {
 };
 
 struct mlx5dr_ste_htbl {
-	u8 lu_type;
+	u16 lu_type;
 	u16 byte_mask;
 	u32 refcount;
 	struct mlx5dr_icm_chunk *chunk;
@@ -190,7 +191,7 @@ struct mlx5dr_ste_build {
 	u8 vhca_id_valid:1;
 	struct mlx5dr_domain *dmn;
 	struct mlx5dr_cmd_caps *caps;
-	u8 lu_type;
+	u16 lu_type;
 	u16 byte_mask;
 	u8 bit_mask[DR_STE_SIZE_MASK];
 	int (*ste_build_tag_func)(struct mlx5dr_match_param *spec,
@@ -201,7 +202,7 @@ struct mlx5dr_ste_build {
 struct mlx5dr_ste_htbl *
 mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 		      enum mlx5dr_icm_chunk_size chunk_size,
-		      u8 lu_type, u16 byte_mask);
+		      u16 lu_type, u16 byte_mask);
 
 int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl);
 
@@ -219,35 +220,84 @@ static inline void mlx5dr_htbl_get(struct mlx5dr_ste_htbl *htbl)
 
 /* STE utils */
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl);
-void mlx5dr_ste_init(u8 *hw_ste_p, u8 lu_type, u8 entry_type, u16 gvmi);
-void mlx5dr_ste_always_hit_htbl(struct mlx5dr_ste *ste,
-				struct mlx5dr_ste_htbl *next_htbl);
-void mlx5dr_ste_set_miss_addr(u8 *hw_ste, u64 miss_addr);
-u64 mlx5dr_ste_get_miss_addr(u8 *hw_ste);
-void mlx5dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi);
-void mlx5dr_ste_set_hit_addr(u8 *hw_ste, u64 icm_addr, u32 ht_size);
-void mlx5dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr);
+void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
+			      u8 *hw_ste, u64 miss_addr);
+void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
+			     u8 *hw_ste, u64 icm_addr, u32 ht_size);
+void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
+					  u8 *hw_ste,
+					  struct mlx5dr_ste_htbl *next_htbl);
 void mlx5dr_ste_set_bit_mask(u8 *hw_ste_p, u8 *bit_mask);
 bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
 				u8 ste_location);
-void mlx5dr_ste_rx_set_flow_tag(u8 *hw_ste_p, u32 flow_tag);
-void mlx5dr_ste_set_counter_id(u8 *hw_ste_p, u32 ctr_id);
-void mlx5dr_ste_set_tx_encap(void *hw_ste_p, u32 reformat_id,
-			     int size, bool encap_l3);
-void mlx5dr_ste_set_rx_decap(u8 *hw_ste_p);
-void mlx5dr_ste_set_rx_decap_l3(u8 *hw_ste_p, bool vlan);
-void mlx5dr_ste_set_rx_pop_vlan(u8 *hw_ste_p);
-void mlx5dr_ste_set_tx_push_vlan(u8 *hw_ste_p, u32 vlan_tpid_pcp_dei_vid,
-				 bool go_back);
-void mlx5dr_ste_set_entry_type(u8 *hw_ste_p, u8 entry_type);
-u8 mlx5dr_ste_get_entry_type(u8 *hw_ste_p);
-void mlx5dr_ste_set_rewrite_actions(u8 *hw_ste_p, u16 num_of_actions,
-				    u32 re_write_index);
-void mlx5dr_ste_set_go_back_bit(u8 *hw_ste_p);
 u64 mlx5dr_ste_get_icm_addr(struct mlx5dr_ste *ste);
 u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste);
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste);
 
+#define MLX5DR_MAX_VLANS 2
+
+struct mlx5dr_ste_actions_attr {
+	u32	modify_index;
+	u16	modify_actions;
+	u32	decap_index;
+	u16	decap_actions;
+	u8	decap_with_vlan:1;
+	u64	final_icm_addr;
+	u32	flow_tag;
+	u32	ctr_id;
+	u16	gvmi;
+	u16	hit_gvmi;
+	u32	reformat_id;
+	u32	reformat_size;
+	struct {
+		int	count;
+		u32	headers[MLX5DR_MAX_VLANS];
+	} vlans;
+};
+
+void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *last_ste,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes);
+void mlx5dr_ste_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *last_ste,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes);
+
+void mlx5dr_ste_set_action_set(struct mlx5dr_ste_ctx *ste_ctx,
+			       __be64 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data);
+void mlx5dr_ste_set_action_add(struct mlx5dr_ste_ctx *ste_ctx,
+			       __be64 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data);
+void mlx5dr_ste_set_action_copy(struct mlx5dr_ste_ctx *ste_ctx,
+				__be64 *hw_action,
+				u8 dst_hw_field,
+				u8 dst_shifter,
+				u8 dst_len,
+				u8 src_hw_field,
+				u8 src_shifter);
+int mlx5dr_ste_set_action_decap_l3_list(struct mlx5dr_ste_ctx *ste_ctx,
+					void *data,
+					u32 data_sz,
+					u8 *hw_action,
+					u32 hw_action_sz,
+					u16 *used_hw_action_num);
+
+const struct mlx5dr_ste_action_modify_field *
+mlx5dr_ste_conv_modify_hdr_sw_field(struct mlx5dr_ste_ctx *ste_ctx, u16 sw_field);
+
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version);
 void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 		     struct mlx5dr_matcher *matcher,
 		     struct mlx5dr_matcher_rx_tx *nic_matcher);
@@ -271,8 +321,6 @@ static inline bool mlx5dr_ste_is_not_used(struct mlx5dr_ste *ste)
 	return !ste->refcount;
 }
 
-void mlx5dr_ste_set_hit_addr_by_next_htbl(u8 *hw_ste,
-					  struct mlx5dr_ste_htbl *next_htbl);
 bool mlx5dr_ste_equal_tag(void *src, void *dst);
 int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 				struct mlx5dr_matcher_rx_tx *nic_matcher,
@@ -289,65 +337,85 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 			     struct mlx5dr_matcher_rx_tx *nic_matcher,
 			     struct mlx5dr_match_param *value,
 			     u8 *ste_arr);
-void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_build *builder,
+void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste_build *builder,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx);
-void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_ctx *ste_ctx,
+					  struct mlx5dr_ste_build *sb,
 					  struct mlx5dr_match_param *mask,
 					  bool inner, bool rx);
-void mlx5dr_ste_build_eth_l3_ipv4_misc(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l3_ipv4_misc(struct mlx5dr_ste_ctx *ste_ctx,
+				       struct mlx5dr_ste_build *sb,
 				       struct mlx5dr_match_param *mask,
 				       bool inner, bool rx);
-void mlx5dr_ste_build_eth_l3_ipv6_dst(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l3_ipv6_dst(struct mlx5dr_ste_ctx *ste_ctx,
+				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx);
-void mlx5dr_ste_build_eth_l3_ipv6_src(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l3_ipv6_src(struct mlx5dr_ste_ctx *ste_ctx,
+				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx);
-void mlx5dr_ste_build_eth_l2_src(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l2_src(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_eth_l2_dst(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l2_dst(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_eth_l2_tnl(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l2_tnl(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste_build *sb,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx);
-void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_ctx *ste_ctx,
+				  struct mlx5dr_ste_build *sb,
 				  struct mlx5dr_match_param *mask,
 				  bool inner, bool rx);
-void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_ctx *ste_ctx,
+			      struct mlx5dr_ste_build *sb,
 			      struct mlx5dr_match_param *mask,
 			      bool inner, bool rx);
-void mlx5dr_ste_build_mpls(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_mpls(struct mlx5dr_ste_ctx *ste_ctx,
+			   struct mlx5dr_ste_build *sb,
 			   struct mlx5dr_match_param *mask,
 			   bool inner, bool rx);
-void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_ste_build *sb,
 			       struct mlx5dr_match_param *mask,
 			       bool inner, bool rx);
-int mlx5dr_ste_build_icmp(struct mlx5dr_ste_build *sb,
+int mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
+			  struct mlx5dr_ste_build *sb,
 			  struct mlx5dr_match_param *mask,
 			  struct mlx5dr_cmd_caps *caps,
 			  bool inner, bool rx);
-void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
 				    struct mlx5dr_match_param *mask,
 				    bool inner, bool rx);
-void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_ctx *ste_ctx,
+				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx);
-void mlx5dr_ste_build_register_0(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_register_0(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_register_1(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_register_1(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_ctx *ste_ctx,
+				   struct mlx5dr_ste_build *sb,
 				   struct mlx5dr_match_param *mask,
 				   struct mlx5dr_domain *dmn,
 				   bool inner, bool rx);
@@ -574,10 +642,10 @@ struct mlx5dr_match_misc3 {
 	u32 outer_vxlan_gpe_next_protocol:8;
 	u32 icmpv4_header_data;
 	u32 icmpv6_header_data;
-	u32 icmpv6_code:8;
-	u32 icmpv6_type:8;
-	u32 icmpv4_code:8;
-	u32 icmpv4_type:8;
+	u8 icmpv6_code;
+	u8 icmpv6_type;
+	u8 icmpv4_code;
+	u8 icmpv4_type;
 	u8 reserved_auto3[0x1c];
 };
 
@@ -598,7 +666,8 @@ struct mlx5dr_esw_caps {
 	u64 drop_icm_address_tx;
 	u64 uplink_icm_address_rx;
 	u64 uplink_icm_address_tx;
-	bool sw_owner;
+	u8 sw_owner:1;
+	u8 sw_owner_v2:1;
 };
 
 struct mlx5dr_cmd_vport_cap {
@@ -631,6 +700,9 @@ struct mlx5dr_cmd_caps {
 	bool rx_sw_owner;
 	bool tx_sw_owner;
 	bool fdb_sw_owner;
+	u8 rx_sw_owner_v2:1;
+	u8 tx_sw_owner_v2:1;
+	u8 fdb_sw_owner_v2:1;
 	u32 num_vports;
 	struct mlx5dr_esw_caps esw_caps;
 	struct mlx5dr_cmd_vport_cap *vports_caps;
@@ -671,6 +743,7 @@ struct mlx5dr_domain {
 	struct mlx5dr_send_ring *send_ring;
 	struct mlx5dr_domain_info info;
 	struct mlx5dr_domain_cache cache;
+	struct mlx5dr_ste_ctx *ste_ctx;
 };
 
 struct mlx5dr_table_rx_tx {
@@ -723,6 +796,14 @@ struct mlx5dr_rule_member {
 	struct list_head list;
 	/* attached to mlx5dr_ste via this */
 	struct list_head use_ste_list;
+};
+
+struct mlx5dr_ste_action_modify_field {
+	u16 hw_field;
+	u8 start;
+	u8 end;
+	u8 l3_type;
+	u8 l4_type;
 };
 
 struct mlx5dr_action {
@@ -995,12 +1076,16 @@ struct mlx5dr_icm_chunk *
 mlx5dr_icm_alloc_chunk(struct mlx5dr_icm_pool *pool,
 		       enum mlx5dr_icm_chunk_size chunk_size);
 void mlx5dr_icm_free_chunk(struct mlx5dr_icm_chunk *chunk);
+
+void mlx5dr_ste_prepare_for_postsend(struct mlx5dr_ste_ctx *ste_ctx,
+				     u8 *hw_ste_p, u32 ste_size);
 int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 				      struct mlx5dr_domain_rx_tx *nic_dmn,
 				      struct mlx5dr_ste_htbl *htbl,
 				      struct mlx5dr_htbl_connect_info *connect_info,
 				      bool update_hw_ste);
-void mlx5dr_ste_set_formatted_ste(u16 gvmi,
+void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
+				  u16 gvmi,
 				  struct mlx5dr_domain_rx_tx *nic_dmn,
 				  struct mlx5dr_ste_htbl *htbl,
 				  u8 *formatted_ste,
@@ -1125,6 +1210,8 @@ int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
 		       struct mlx5dr_cmd_ft_info *ft,
 		       u32 group_id,
 		       struct mlx5dr_cmd_fte_info *fte);
+
+bool mlx5dr_ste_supp_ttl_cs_recalc(struct mlx5dr_cmd_caps *caps);
 
 struct mlx5dr_fw_recalc_cs_ft {
 	u64 rx_icm_addr;

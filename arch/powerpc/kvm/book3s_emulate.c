@@ -61,10 +61,6 @@
 #define SPRN_GQR6		918
 #define SPRN_GQR7		919
 
-/* Book3S_32 defines mfsrin(v) - but that messes up our abstract
- * function pointers, so let's just disable the define. */
-#undef mfsrin
-
 enum priv_level {
 	PRIV_PROBLEM = 0,
 	PRIV_SUPER = 1,

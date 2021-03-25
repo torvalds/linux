@@ -848,6 +848,20 @@ static int setup_port_data(struct ib_device *device)
 	return 0;
 }
 
+/**
+ * ib_port_immutable_read() - Read rdma port's immutable data
+ * @dev: IB device
+ * @port: port number whose immutable data to read. It starts with index 1 and
+ *        valid upto including rdma_end_port().
+ */
+const struct ib_port_immutable*
+ib_port_immutable_read(struct ib_device *dev, unsigned int port)
+{
+	WARN_ON(!rdma_is_port_valid(dev, port));
+	return &dev->port_data[port].immutable;
+}
+EXPORT_SYMBOL(ib_port_immutable_read);
+
 void ib_get_device_fw_str(struct ib_device *dev, char *str)
 {
 	if (dev->ops.get_dev_fw_str)
@@ -1887,9 +1901,9 @@ static int __ib_get_client_nl_info(struct ib_device *ibdev,
 
 /**
  * ib_get_client_nl_info - Fetch the nl_info from a client
- * @device - IB device
- * @client_name - Name of the client
- * @res - Result of the query
+ * @ibdev: IB device
+ * @client_name: Name of the client
+ * @res: Result of the query
  */
 int ib_get_client_nl_info(struct ib_device *ibdev, const char *client_name,
 			  struct ib_client_nl_info *res)
@@ -2317,7 +2331,7 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 	up_read(&devices_rwsem);
 }
 
-/**
+/*
  * ib_enum_all_devs - enumerate all ib_devices
  * @cb: Callback to call for each found ib_device
  *
@@ -2681,6 +2695,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, read_counters);
 	SET_DEVICE_OP(dev_ops, reg_dm_mr);
 	SET_DEVICE_OP(dev_ops, reg_user_mr);
+	SET_DEVICE_OP(dev_ops, reg_user_mr_dmabuf);
 	SET_DEVICE_OP(dev_ops, req_ncomp_notif);
 	SET_DEVICE_OP(dev_ops, req_notify_cq);
 	SET_DEVICE_OP(dev_ops, rereg_user_mr);

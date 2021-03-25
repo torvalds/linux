@@ -273,6 +273,18 @@ void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 	else if (perf_stat_evsel__is(counter, TOPDOWN_BE_BOUND))
 		update_runtime_stat(st, STAT_TOPDOWN_BE_BOUND,
 				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_HEAVY_OPS))
+		update_runtime_stat(st, STAT_TOPDOWN_HEAVY_OPS,
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_BR_MISPREDICT))
+		update_runtime_stat(st, STAT_TOPDOWN_BR_MISPREDICT,
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_FETCH_LAT))
+		update_runtime_stat(st, STAT_TOPDOWN_FETCH_LAT,
+				    cpu, count, &rsd);
+	else if (perf_stat_evsel__is(counter, TOPDOWN_MEM_BOUND))
+		update_runtime_stat(st, STAT_TOPDOWN_MEM_BOUND,
+				    cpu, count, &rsd);
 	else if (evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
 		update_runtime_stat(st, STAT_STALLED_CYCLES_FRONT,
 				    cpu, count, &rsd);
@@ -1174,6 +1186,86 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 			color = PERF_COLOR_RED;
 		print_metric(config, ctxp, color, "%8.1f%%", "bad speculation",
 				bad_spec * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_HEAVY_OPS) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double retiring = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_RETIRING, st,
+						  &rsd);
+		double heavy_ops = td_metric_ratio(cpu,
+						   STAT_TOPDOWN_HEAVY_OPS, st,
+						   &rsd);
+		double light_ops = retiring - heavy_ops;
+
+		if (retiring > 0.7 && heavy_ops > 0.1)
+			color = PERF_COLOR_GREEN;
+		print_metric(config, ctxp, color, "%8.1f%%", "heavy operations",
+				heavy_ops * 100.);
+		if (retiring > 0.7 && light_ops > 0.6)
+			color = PERF_COLOR_GREEN;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "light operations",
+				light_ops * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BR_MISPREDICT) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double bad_spec = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_BAD_SPEC, st,
+						  &rsd);
+		double br_mis = td_metric_ratio(cpu,
+						STAT_TOPDOWN_BR_MISPREDICT, st,
+						&rsd);
+		double m_clears = bad_spec - br_mis;
+
+		if (bad_spec > 0.1 && br_mis > 0.05)
+			color = PERF_COLOR_RED;
+		print_metric(config, ctxp, color, "%8.1f%%", "branch mispredict",
+				br_mis * 100.);
+		if (bad_spec > 0.1 && m_clears > 0.05)
+			color = PERF_COLOR_RED;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "machine clears",
+				m_clears * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FETCH_LAT) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double fe_bound = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_FE_BOUND, st,
+						  &rsd);
+		double fetch_lat = td_metric_ratio(cpu,
+						   STAT_TOPDOWN_FETCH_LAT, st,
+						   &rsd);
+		double fetch_bw = fe_bound - fetch_lat;
+
+		if (fe_bound > 0.2 && fetch_lat > 0.15)
+			color = PERF_COLOR_RED;
+		print_metric(config, ctxp, color, "%8.1f%%", "fetch latency",
+				fetch_lat * 100.);
+		if (fe_bound > 0.2 && fetch_bw > 0.1)
+			color = PERF_COLOR_RED;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "fetch bandwidth",
+				fetch_bw * 100.);
+	} else if (perf_stat_evsel__is(evsel, TOPDOWN_MEM_BOUND) &&
+			full_td(cpu, st, &rsd) && (config->topdown_level > 1)) {
+		double be_bound = td_metric_ratio(cpu,
+						  STAT_TOPDOWN_BE_BOUND, st,
+						  &rsd);
+		double mem_bound = td_metric_ratio(cpu,
+						   STAT_TOPDOWN_MEM_BOUND, st,
+						   &rsd);
+		double core_bound = be_bound - mem_bound;
+
+		if (be_bound > 0.2 && mem_bound > 0.2)
+			color = PERF_COLOR_RED;
+		print_metric(config, ctxp, color, "%8.1f%%", "memory bound",
+				mem_bound * 100.);
+		if (be_bound > 0.2 && core_bound > 0.1)
+			color = PERF_COLOR_RED;
+		else
+			color = NULL;
+		print_metric(config, ctxp, color, "%8.1f%%", "Core bound",
+				core_bound * 100.);
 	} else if (evsel->metric_expr) {
 		generic_metric(config, evsel->metric_expr, evsel->metric_events, NULL,
 				evsel->name, evsel->metric_name, NULL, 1, cpu, out, st);

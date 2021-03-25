@@ -298,16 +298,19 @@ int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return 0;
 
-	ret = iwl_pcie_ctxt_info_alloc_dma(trans, data, len,
-					   &trans_pcie->pnvm_dram);
-	if (ret < 0) {
-		IWL_DEBUG_FW(trans, "Failed to allocate PNVM DMA %d.\n",
-			     ret);
-		return ret;
-	}
+	/* only allocate the DRAM if not allocated yet */
+	if (!trans->pnvm_loaded) {
+		if (WARN_ON(prph_sc_ctrl->pnvm_cfg.pnvm_size))
+			return -EBUSY;
 
-	if (WARN_ON(prph_sc_ctrl->pnvm_cfg.pnvm_size))
-		return -EBUSY;
+		ret = iwl_pcie_ctxt_info_alloc_dma(trans, data, len,
+						   &trans_pcie->pnvm_dram);
+		if (ret < 0) {
+			IWL_DEBUG_FW(trans, "Failed to allocate PNVM DMA %d.\n",
+				     ret);
+			return ret;
+		}
+	}
 
 	prph_sc_ctrl->pnvm_cfg.pnvm_base_addr =
 		cpu_to_le64(trans_pcie->pnvm_dram.physical);

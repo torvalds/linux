@@ -216,7 +216,7 @@ static void psb_intel_lvds_set_power(struct drm_device *dev, bool on)
 	        dev_err(dev->dev, "set power, chip off!\n");
 		return;
         }
-        
+
 	if (on) {
 		REG_WRITE(PP_CONTROL, REG_READ(PP_CONTROL) |
 			  POWER_TARGET_ON);
@@ -626,6 +626,7 @@ const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 /**
  * psb_intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
+ * @mode_dev: mode device
  *
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
@@ -700,7 +701,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	lvds_priv->i2c_bus = psb_intel_i2c_create(dev, GPIOB, "LVDSBLC_B");
 	if (!lvds_priv->i2c_bus) {
 		dev_printk(KERN_ERR,
-			&dev->pdev->dev, "I2C bus registration failed.\n");
+			dev->dev, "I2C bus registration failed.\n");
 		goto failed_blc_i2c;
 	}
 	lvds_priv->i2c_bus->slave_addr = 0x2C;
@@ -719,7 +720,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	/* Set up the DDC bus. */
 	lvds_priv->ddc_bus = psb_intel_i2c_create(dev, GPIOC, "LVDSDDC_C");
 	if (!lvds_priv->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev,
+		dev_printk(KERN_ERR, dev->dev,
 			   "DDC bus registration " "failed.\n");
 		goto failed_ddc;
 	}

@@ -643,7 +643,7 @@ static struct snd_soc_dai_driver wm8974_dai = {
 		.rates = WM8974_RATES,
 		.formats = WM8974_FORMATS,},
 	.ops = &wm8974_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct regmap_config wm8974_regmap = {

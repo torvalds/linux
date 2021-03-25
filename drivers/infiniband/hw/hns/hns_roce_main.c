@@ -42,22 +42,6 @@
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 
-/**
- * hns_get_gid_index - Get gid index.
- * @hr_dev: pointer to structure hns_roce_dev.
- * @port:  port, value range: 0 ~ MAX
- * @gid_index:  gid_index, value range: 0 ~ MAX
- * Description:
- *    N ports shared gids, allocation method as follow:
- *		GID[0][0], GID[1][0],.....GID[N - 1][0],
- *		GID[0][0], GID[1][0],.....GID[N - 1][0],
- *		And so on
- */
-u8 hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
-{
-	return gid_index * hr_dev->caps.num_ports + port;
-}
-
 static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 {
 	u8 phy_port;
@@ -217,7 +201,8 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 		props->max_srq_sge = hr_dev->caps.max_srq_sges;
 	}
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR) {
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR &&
+	    hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
 		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 		props->max_fast_reg_page_list_len = HNS_ROCE_FRMR_MAX_PA;
 	}
@@ -748,11 +733,7 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_pd_table_free;
 	}
 
-	ret = hns_roce_init_cq_table(hr_dev);
-	if (ret) {
-		dev_err(dev, "Failed to init completion queue table.\n");
-		goto err_mr_table_free;
-	}
+	hns_roce_init_cq_table(hr_dev);
 
 	ret = hns_roce_init_qp_table(hr_dev);
 	if (ret) {
@@ -772,13 +753,10 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 	return 0;
 
 err_qp_table_free:
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
-		hns_roce_cleanup_qp_table(hr_dev);
+	hns_roce_cleanup_qp_table(hr_dev);
 
 err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);
-
-err_mr_table_free:
 	hns_roce_cleanup_mr_table(hr_dev);
 
 err_pd_table_free:

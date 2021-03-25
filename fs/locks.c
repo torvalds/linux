@@ -1808,9 +1808,6 @@ check_conflicting_open(struct file *filp, const long arg, int flags)
 
 	if (flags & FL_LAYOUT)
 		return 0;
-	if (flags & FL_DELEG)
-		/* We leave these checks to the caller. */
-		return 0;
 
 	if (arg == F_RDLCK)
 		return inode_is_open_for_write(inode) ? -EAGAIN : 0;

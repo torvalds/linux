@@ -1538,7 +1538,7 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 		wilc_wfi_deinit_mon_interface(wl, true);
 	vif = netdev_priv(wdev->netdev);
 	cfg80211_stop_iface(wiphy, wdev, GFP_KERNEL);
-	unregister_netdevice(vif->ndev);
+	cfg80211_unregister_netdevice(vif->ndev);
 	vif->monitor_flag = 0;
 
 	wilc_set_operation_mode(vif, 0, 0, 0);

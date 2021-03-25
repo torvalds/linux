@@ -959,13 +959,11 @@ static void via_sdc_timeout(struct timer_list *t)
 	spin_unlock_irqrestore(&sdhost->lock, flags);
 }
 
-static void via_sdc_tasklet_finish(unsigned long param)
+static void via_sdc_tasklet_finish(struct tasklet_struct *t)
 {
-	struct via_crdr_mmc_host *host;
+	struct via_crdr_mmc_host *host = from_tasklet(host, t, finish_tasklet);
 	unsigned long flags;
 	struct mmc_request *mrq;
-
-	host = (struct via_crdr_mmc_host *)param;
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -1050,8 +1048,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 
 	INIT_WORK(&host->carddet_work, via_sdc_card_detect);
 
-	tasklet_init(&host->finish_tasklet, via_sdc_tasklet_finish,
-		     (unsigned long)host);
+	tasklet_setup(&host->finish_tasklet, via_sdc_tasklet_finish);
 
 	addrbase = host->sdhc_mmiobase;
 	writel(0x0, addrbase + VIA_CRDR_SDINTMASK);

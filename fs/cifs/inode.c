@@ -1857,7 +1857,8 @@ posix_mkdir_get_info:
 	goto posix_mkdir_out;
 }
 
-int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
+int cifs_mkdir(struct user_namespace *mnt_userns, struct inode *inode,
+	       struct dentry *direntry, umode_t mode)
 {
 	int rc = 0;
 	unsigned int xid;
@@ -2067,9 +2068,9 @@ do_rename_exit:
 }
 
 int
-cifs_rename2(struct inode *source_dir, struct dentry *source_dentry,
-	     struct inode *target_dir, struct dentry *target_dentry,
-	     unsigned int flags)
+cifs_rename2(struct user_namespace *mnt_userns, struct inode *source_dir,
+	     struct dentry *source_dentry, struct inode *target_dir,
+	     struct dentry *target_dentry, unsigned int flags)
 {
 	char *from_name = NULL;
 	char *to_name = NULL;
@@ -2198,12 +2199,23 @@ cifs_inode_needs_reval(struct inode *inode)
 	if (!lookupCacheEnabled)
 		return true;
 
-	if (!cifs_sb->ctx->actimeo)
-		return true;
-
-	if (!time_in_range(jiffies, cifs_i->time,
-				cifs_i->time + cifs_sb->ctx->actimeo))
-		return true;
+	/*
+	 * depending on inode type, check if attribute caching disabled for
+	 * files or directories
+	 */
+	if (S_ISDIR(inode->i_mode)) {
+		if (!cifs_sb->ctx->acdirmax)
+			return true;
+		if (!time_in_range(jiffies, cifs_i->time,
+				   cifs_i->time + cifs_sb->ctx->acdirmax))
+			return true;
+	} else { /* file */
+		if (!cifs_sb->ctx->acregmax)
+			return true;
+		if (!time_in_range(jiffies, cifs_i->time,
+				   cifs_i->time + cifs_sb->ctx->acregmax))
+			return true;
+	}
 
 	/* hardlinked files w/ noserverino get "special" treatment */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) &&
@@ -2370,8 +2382,8 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 	return cifs_revalidate_mapping(inode);
 }
 
-int cifs_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+int cifs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
@@ -2383,7 +2395,7 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	 * We need to be sure that all dirty pages are written and the server
 	 * has actual ctime, mtime and file length.
 	 */
-	if ((request_mask & (STATX_CTIME | STATX_MTIME | STATX_SIZE)) &&
+	if ((request_mask & (STATX_CTIME | STATX_MTIME | STATX_SIZE | STATX_BLOCKS)) &&
 	    !CIFS_CACHE_READ(CIFS_I(inode)) &&
 	    inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = filemap_fdatawait(inode->i_mapping);
@@ -2408,7 +2420,7 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 			return rc;
 	}
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	stat->blksize = cifs_sb->ctx->bsize;
 	stat->ino = CIFS_I(inode)->uniqueid;
 
@@ -2573,6 +2585,14 @@ set_size_out:
 	if (rc == 0) {
 		cifsInode->server_eof = attrs->ia_size;
 		cifs_setsize(inode, attrs->ia_size);
+		/*
+		 * i_blocks is not related to (i_size / i_blksize), but instead
+		 * 512 byte (2**9) size is required for calculating num blocks.
+		 * Until we can query the server for actual allocation size,
+		 * this is best estimate we have for blocks allocated for a file
+		 * Number of blocks must be rounded up so size 1 is not 0 blocks
+		 */
+		inode->i_blocks = (512 - 1 + attrs->ia_size) >> 9;
 
 		/*
 		 * The man page of truncate says if the size changed,
@@ -2610,7 +2630,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(direntry, attrs);
+	rc = setattr_prepare(&init_user_ns, direntry, attrs);
 	if (rc < 0)
 		goto out;
 
@@ -2715,7 +2735,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	    attrs->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attrs->ia_size);
 
-	setattr_copy(inode, attrs);
+	setattr_copy(&init_user_ns, inode, attrs);
 	mark_inode_dirty(inode);
 
 	/* force revalidate when any of these times are set since some
@@ -2757,7 +2777,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(direntry, attrs);
+	rc = setattr_prepare(&init_user_ns, direntry, attrs);
 	if (rc < 0) {
 		free_xid(xid);
 		return rc;
@@ -2913,7 +2933,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	    attrs->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attrs->ia_size);
 
-	setattr_copy(inode, attrs);
+	setattr_copy(&init_user_ns, inode, attrs);
 	mark_inode_dirty(inode);
 
 cifs_setattr_exit:
@@ -2923,7 +2943,8 @@ cifs_setattr_exit:
 }
 
 int
-cifs_setattr(struct dentry *direntry, struct iattr *attrs)
+cifs_setattr(struct user_namespace *mnt_userns, struct dentry *direntry,
+	     struct iattr *attrs)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *pTcon = cifs_sb_master_tcon(cifs_sb);

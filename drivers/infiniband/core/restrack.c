@@ -201,8 +201,8 @@ EXPORT_SYMBOL(rdma_restrack_parent_name);
 /**
  * rdma_restrack_new() - Initializes new restrack entry to allow _put() interface
  * to release memory in fully automatic way.
- * @res - Entry to initialize
- * @type - REstrack type
+ * @res: Entry to initialize
+ * @type: REstrack type
  */
 void rdma_restrack_new(struct rdma_restrack_entry *res,
 		       enum rdma_restrack_type type)

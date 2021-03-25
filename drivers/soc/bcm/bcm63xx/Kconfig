@@ -10,3 +10,12 @@ config BCM63XX_POWER
 	  BCM6318, BCM6328, BCM6362 and BCM63268 SoCs.
 
 endif # SOC_BCM63XX
+
+config BCM_PMB
+	bool "Broadcom PMB (Power Management Bus) driver"
+	depends on ARCH_BCM4908 || (COMPILE_TEST && OF)
+	default ARCH_BCM4908
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  This enables support for the Broadcom's PMB (Power Management Bus) that
+	  is used for disabling and enabling SoC devices.

@@ -5,20 +5,11 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
-#include <linux/elf.h>
-#include <linux/fs.h>
-#include <linux/memblock.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/export.h>
-#include <linux/shm.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/mm.h>
 #include <linux/io.h>
-#include <linux/personality.h>
-#include <linux/random.h>
+#include <linux/memblock.h>
+#include <linux/types.h>
 
-#include <asm/cputype.h>
+#include <asm/page.h>
 
 /*
  * You really shouldn't be using read() or write() on /dev/mem.  This might go

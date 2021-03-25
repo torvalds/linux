@@ -1026,7 +1026,7 @@ static ssize_t tx_queue_limit_show(struct device *device,
 	size = dev->tx_queue_limit;
 	mutex_unlock(&dev->device_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", size);
+	return sysfs_emit(buf, "%u\n", size);
 }
 
 static ssize_t tx_queue_limit_store(struct device *device,

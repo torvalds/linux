@@ -39,7 +39,7 @@ config SCSI_UFSHCD
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select NLS
 	help
-	This selects the support for UFS devices in Linux, say Y and make
+	  This selects the support for UFS devices in Linux, say Y and make
 	  sure that you know the name of your UFS host adapter (the card
 	  inside your computer that "speaks" the UFS protocol, also
 	  called UFS Host Controller), because you will be asked for it.
@@ -54,8 +54,8 @@ config SCSI_UFSHCD_PCI
 	tristate "PCI bus based UFS Controller support"
 	depends on SCSI_UFSHCD && PCI
 	help
-	This selects the PCI UFS Host Controller Interface. Select this if
-	you have UFS Host Controller with PCI Interface.
+	  This selects the PCI UFS Host Controller Interface. Select this if
+	  you have UFS Host Controller with PCI Interface.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -74,10 +74,10 @@ config SCSI_UFSHCD_PLATFORM
 	depends on SCSI_UFSHCD
 	depends on HAS_IOMEM
 	help
-	This selects the UFS host controller support. Select this if
-	you have an UFS controller on Platform bus.
+	  This selects the UFS host controller support. Select this if
+	  you have an UFS controller on Platform bus.
 
-	If you have a controller with this interface, say Y or M here.
+	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 
@@ -85,7 +85,7 @@ config SCSI_UFS_CDNS_PLATFORM
 	tristate "Cadence UFS Controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM
 	help
-	This selects the Cadence-specific additions to UFSHCD platform driver.
+	  This selects the Cadence-specific additions to UFSHCD platform driver.
 
 	  If unsure, say N.
 

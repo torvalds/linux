@@ -422,6 +422,35 @@ void setup_private_pat(struct intel_uncore *uncore)
 		bdw_setup_private_ppat(uncore);
 }
 
+struct i915_vma *
+__vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int err;
+
+	obj = i915_gem_object_create_internal(vm->i915, PAGE_ALIGN(size));
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		i915_gem_object_put(obj);
+		return vma;
+	}
+
+	err = i915_vma_pin(vma, 0, 0,
+			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
+	if (err) {
+		i915_vma_put(vma);
+		return ERR_PTR(err);
+	}
+
+	return vma;
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_gtt.c"
 #endif

@@ -98,7 +98,7 @@ static int __init init_gfs2_fs(void)
 	error = -ENOMEM;
 	gfs2_glock_cachep = kmem_cache_create("gfs2_glock",
 					      sizeof(struct gfs2_glock),
-					      0, 0,
+					      0, SLAB_RECLAIM_ACCOUNT,
 					      gfs2_init_glock_once);
 	if (!gfs2_glock_cachep)
 		goto fail_cachep1;
@@ -134,7 +134,7 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_quotad_cachep = kmem_cache_create("gfs2_quotad",
 					       sizeof(struct gfs2_quota_data),
-					       0, 0, NULL);
+					       0, SLAB_RECLAIM_ACCOUNT, NULL);
 	if (!gfs2_quotad_cachep)
 		goto fail_cachep6;
 

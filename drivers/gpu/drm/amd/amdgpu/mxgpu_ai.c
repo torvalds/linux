@@ -255,6 +255,7 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	if (!down_read_trylock(&adev->reset_sem))
 		return;
 
+	amdgpu_virt_fini_data_exchange(adev);
 	atomic_set(&adev->in_gpu_reset, 1);
 
 	do {

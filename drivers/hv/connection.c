@@ -244,6 +244,13 @@ int vmbus_connect(void)
 			break;
 	}
 
+	if (hv_is_isolation_supported() && version < VERSION_WIN10_V5_2) {
+		pr_err("Invalid VMBus version %d.%d (expected >= %d.%d) from the host supporting isolation\n",
+		       version >> 16, version & 0xFFFF, VERSION_WIN10_V5_2 >> 16, VERSION_WIN10_V5_2 & 0xFFFF);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
 	vmbus_proto_version = version;
 	pr_info("Vmbus version:%d.%d\n",
 		version >> 16, version & 0xFFFF);

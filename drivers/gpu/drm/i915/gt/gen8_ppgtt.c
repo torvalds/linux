@@ -109,7 +109,7 @@ static void gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
 
 #define as_pd(x) container_of((x), typeof(struct i915_page_directory), pt)
 
-static inline unsigned int
+static unsigned int
 gen8_pd_range(u64 start, u64 end, int lvl, unsigned int *idx)
 {
 	const int shift = gen8_pd_shift(lvl);
@@ -125,7 +125,7 @@ gen8_pd_range(u64 start, u64 end, int lvl, unsigned int *idx)
 		return i915_pde_index(end, shift) - *idx;
 }
 
-static inline bool gen8_pd_contains(u64 start, u64 end, int lvl)
+static bool gen8_pd_contains(u64 start, u64 end, int lvl)
 {
 	const u64 mask = ~0ull << gen8_pd_shift(lvl + 1);
 
@@ -133,7 +133,7 @@ static inline bool gen8_pd_contains(u64 start, u64 end, int lvl)
 	return (start ^ end) & mask && (start & ~mask) == 0;
 }
 
-static inline unsigned int gen8_pt_count(u64 start, u64 end)
+static unsigned int gen8_pt_count(u64 start, u64 end)
 {
 	GEM_BUG_ON(start >= end);
 	if ((start ^ end) >> gen8_pd_shift(1))
@@ -142,14 +142,13 @@ static inline unsigned int gen8_pt_count(u64 start, u64 end)
 		return end - start;
 }
 
-static inline unsigned int
-gen8_pd_top_count(const struct i915_address_space *vm)
+static unsigned int gen8_pd_top_count(const struct i915_address_space *vm)
 {
 	unsigned int shift = __gen8_pte_shift(vm->top);
 	return (vm->total + (1ull << shift) - 1) >> shift;
 }
 
-static inline struct i915_page_directory *
+static struct i915_page_directory *
 gen8_pdp_for_page_index(struct i915_address_space * const vm, const u64 idx)
 {
 	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(vm);
@@ -160,7 +159,7 @@ gen8_pdp_for_page_index(struct i915_address_space * const vm, const u64 idx)
 		return i915_pd_entry(ppgtt->pd, gen8_pd_index(idx, vm->top));
 }
 
-static inline struct i915_page_directory *
+static struct i915_page_directory *
 gen8_pdp_for_page_address(struct i915_address_space * const vm, const u64 addr)
 {
 	return gen8_pdp_for_page_index(vm, addr >> GEN8_PTE_SHIFT);

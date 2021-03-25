@@ -32,7 +32,19 @@ extern void fpregs_mark_activate(void);
 /* Code that is unaware of kernel_fpu_begin_mask() can use this */
 static inline void kernel_fpu_begin(void)
 {
+#ifdef CONFIG_X86_64
+	/*
+	 * Any 64-bit code that uses 387 instructions must explicitly request
+	 * KFPU_387.
+	 */
+	kernel_fpu_begin_mask(KFPU_MXCSR);
+#else
+	/*
+	 * 32-bit kernel code may use 387 operations as well as SSE2, etc,
+	 * as long as it checks that the CPU has the required capability.
+	 */
 	kernel_fpu_begin_mask(KFPU_387 | KFPU_MXCSR);
+#endif
 }
 
 /*

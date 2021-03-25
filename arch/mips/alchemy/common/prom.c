@@ -143,7 +143,3 @@ int __init prom_get_ethernet_addr(char *ethernet_addr)
 
 	return 0;
 }
-
-void __init prom_free_prom_memory(void)
-{
-}

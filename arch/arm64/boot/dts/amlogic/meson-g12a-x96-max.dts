@@ -150,7 +150,7 @@
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "G12A-X96-MAX";
+		model = "X96-MAX";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",

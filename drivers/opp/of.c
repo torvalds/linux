@@ -144,7 +144,7 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 
 	for (i = 0; i < opp_table->required_opp_count; i++) {
 		if (IS_ERR_OR_NULL(required_opp_tables[i]))
-			break;
+			continue;
 
 		dev_pm_opp_put_opp_table(required_opp_tables[i]);
 	}
@@ -153,6 +153,7 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 
 	opp_table->required_opp_count = 0;
 	opp_table->required_opp_tables = NULL;
+	list_del(&opp_table->lazy);
 }
 
 /*
@@ -165,6 +166,7 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 {
 	struct opp_table **required_opp_tables;
 	struct device_node *required_np, *np;
+	bool lazy = false;
 	int count, i;
 
 	/* Traversing the first OPP node is all we need */
@@ -195,8 +197,10 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		required_opp_tables[i] = _find_table_of_opp_np(required_np);
 		of_node_put(required_np);
 
-		if (IS_ERR(required_opp_tables[i]))
-			goto free_required_tables;
+		if (IS_ERR(required_opp_tables[i])) {
+			lazy = true;
+			continue;
+		}
 
 		/*
 		 * We only support genpd's OPPs in the "required-opps" for now,
@@ -209,6 +213,10 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 			goto free_required_tables;
 		}
 	}
+
+	/* Let's do the linking later on */
+	if (lazy)
+		list_add(&opp_table->lazy, &lazy_opp_tables);
 
 	goto put_np;
 
@@ -278,14 +286,14 @@ void _of_opp_free_required_opps(struct opp_table *opp_table,
 
 	for (i = 0; i < opp_table->required_opp_count; i++) {
 		if (!required_opps[i])
-			break;
+			continue;
 
 		/* Put the reference back */
 		dev_pm_opp_put(required_opps[i]);
 	}
 
-	kfree(required_opps);
 	opp->required_opps = NULL;
+	kfree(required_opps);
 }
 
 /* Populate all required OPPs which are part of "required-opps" list */
@@ -308,6 +316,10 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 
 	for (i = 0; i < count; i++) {
 		required_table = opp_table->required_opp_tables[i];
+
+		/* Required table not added yet, we will link later */
+		if (IS_ERR_OR_NULL(required_table))
+			continue;
 
 		np = of_parse_required_opp(opp->np, i);
 		if (unlikely(!np)) {
@@ -332,6 +344,104 @@ free_required_opps:
 	_of_opp_free_required_opps(opp_table, opp);
 
 	return ret;
+}
+
+/* Link required OPPs for an individual OPP */
+static int lazy_link_required_opps(struct opp_table *opp_table,
+				   struct opp_table *new_table, int index)
+{
+	struct device_node *required_np;
+	struct dev_pm_opp *opp;
+
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		required_np = of_parse_required_opp(opp->np, index);
+		if (unlikely(!required_np))
+			return -ENODEV;
+
+		opp->required_opps[index] = _find_opp_of_np(new_table, required_np);
+		of_node_put(required_np);
+
+		if (!opp->required_opps[index]) {
+			pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
+			       __func__, opp->np, index);
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
+/* Link required OPPs for all OPPs of the newly added OPP table */
+static void lazy_link_required_opp_table(struct opp_table *new_table)
+{
+	struct opp_table *opp_table, *temp, **required_opp_tables;
+	struct device_node *required_np, *opp_np, *required_table_np;
+	struct dev_pm_opp *opp;
+	int i, ret;
+
+	/*
+	 * We only support genpd's OPPs in the "required-opps" for now,
+	 * as we don't know much about other cases.
+	 */
+	if (!new_table->is_genpd)
+		return;
+
+	mutex_lock(&opp_table_lock);
+
+	list_for_each_entry_safe(opp_table, temp, &lazy_opp_tables, lazy) {
+		bool lazy = false;
+
+		/* opp_np can't be invalid here */
+		opp_np = of_get_next_available_child(opp_table->np, NULL);
+
+		for (i = 0; i < opp_table->required_opp_count; i++) {
+			required_opp_tables = opp_table->required_opp_tables;
+
+			/* Required opp-table is already parsed */
+			if (!IS_ERR(required_opp_tables[i]))
+				continue;
+
+			/* required_np can't be invalid here */
+			required_np = of_parse_required_opp(opp_np, i);
+			required_table_np = of_get_parent(required_np);
+
+			of_node_put(required_table_np);
+			of_node_put(required_np);
+
+			/*
+			 * Newly added table isn't the required opp-table for
+			 * opp_table.
+			 */
+			if (required_table_np != new_table->np) {
+				lazy = true;
+				continue;
+			}
+
+			required_opp_tables[i] = new_table;
+			_get_opp_table_kref(new_table);
+
+			/* Link OPPs now */
+			ret = lazy_link_required_opps(opp_table, new_table, i);
+			if (ret) {
+				/* The OPPs will be marked unusable */
+				lazy = false;
+				break;
+			}
+		}
+
+		of_node_put(opp_np);
+
+		/* All required opp-tables found, remove from lazy list */
+		if (!lazy) {
+			list_del(&opp_table->lazy);
+			INIT_LIST_HEAD(&opp_table->lazy);
+
+			list_for_each_entry(opp, &opp_table->opp_list, node)
+				_required_opps_available(opp, opp_table->required_opp_count);
+		}
+	}
+
+	mutex_unlock(&opp_table_lock);
 }
 
 static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
@@ -755,7 +865,6 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 		struct device *dev, struct device_node *np)
 {
 	struct dev_pm_opp *new_opp;
-	u64 rate = 0;
 	u32 val;
 	int ret;
 	bool rate_not_available = false;
@@ -772,7 +881,8 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
 	if (!_opp_is_supported(dev, opp_table, np)) {
-		dev_dbg(dev, "OPP not supported by hardware: %llu\n", rate);
+		dev_dbg(dev, "OPP not supported by hardware: %lu\n",
+			new_opp->rate);
 		goto free_opp;
 	}
 
@@ -822,10 +932,11 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (new_opp->clock_latency_ns > opp_table->clock_latency_ns_max)
 		opp_table->clock_latency_ns_max = new_opp->clock_latency_ns;
 
-	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu\n",
+	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu level:%u\n",
 		 __func__, new_opp->turbo, new_opp->rate,
 		 new_opp->supplies[0].u_volt, new_opp->supplies[0].u_volt_min,
-		 new_opp->supplies[0].u_volt_max, new_opp->clock_latency_ns);
+		 new_opp->supplies[0].u_volt_max, new_opp->clock_latency_ns,
+		 new_opp->level);
 
 	/*
 	 * Notify the changes in the availability of the operable
@@ -887,6 +998,8 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 			break;
 		}
 	}
+
+	lazy_link_required_opp_table(opp_table);
 
 	return 0;
 
@@ -956,6 +1069,41 @@ remove_static_opp:
 	return ret;
 }
 
+static int _of_add_table_indexed(struct device *dev, int index, bool getclk)
+{
+	struct opp_table *opp_table;
+	int ret, count;
+
+	if (index) {
+		/*
+		 * If only one phandle is present, then the same OPP table
+		 * applies for all index requests.
+		 */
+		count = of_count_phandle_with_args(dev->of_node,
+						   "operating-points-v2", NULL);
+		if (count == 1)
+			index = 0;
+	}
+
+	opp_table = _add_opp_table_indexed(dev, index, getclk);
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
+
+	/*
+	 * OPPs have two version of bindings now. Also try the old (v1)
+	 * bindings for backward compatibility with older dtbs.
+	 */
+	if (opp_table->np)
+		ret = _of_add_opp_table_v2(dev, opp_table);
+	else
+		ret = _of_add_opp_table_v1(dev, opp_table);
+
+	if (ret)
+		dev_pm_opp_put_opp_table(opp_table);
+
+	return ret;
+}
+
 /**
  * dev_pm_opp_of_add_table() - Initialize opp table from device tree
  * @dev:	device pointer used to lookup OPP table.
@@ -975,26 +1123,7 @@ remove_static_opp:
  */
 int dev_pm_opp_of_add_table(struct device *dev)
 {
-	struct opp_table *opp_table;
-	int ret;
-
-	opp_table = _add_opp_table_indexed(dev, 0);
-	if (IS_ERR(opp_table))
-		return PTR_ERR(opp_table);
-
-	/*
-	 * OPPs have two version of bindings now. Also try the old (v1)
-	 * bindings for backward compatibility with older dtbs.
-	 */
-	if (opp_table->np)
-		ret = _of_add_opp_table_v2(dev, opp_table);
-	else
-		ret = _of_add_opp_table_v1(dev, opp_table);
-
-	if (ret)
-		dev_pm_opp_put_opp_table(opp_table);
-
-	return ret;
+	return _of_add_table_indexed(dev, 0, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
 
@@ -1006,44 +1135,31 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  * Register the initial OPP table with the OPP library for given device only
  * using the "operating-points-v2" property.
  *
- * Return:
- * 0		On success OR
- *		Duplicate OPPs (both freq and volt are same) and opp->available
- * -EEXIST	Freq are same and volt are different OR
- *		Duplicate OPPs (both freq and volt are same) and !opp->available
- * -ENOMEM	Memory allocation failure
- * -ENODEV	when 'operating-points' property is not found or is invalid data
- *		in device node.
- * -ENODATA	when empty 'operating-points' property is found
- * -EINVAL	when invalid entries are found in opp-v2 table
+ * Return: Refer to dev_pm_opp_of_add_table() for return values.
  */
 int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	struct opp_table *opp_table;
-	int ret, count;
-
-	if (index) {
-		/*
-		 * If only one phandle is present, then the same OPP table
-		 * applies for all index requests.
-		 */
-		count = of_count_phandle_with_args(dev->of_node,
-						   "operating-points-v2", NULL);
-		if (count == 1)
-			index = 0;
-	}
-
-	opp_table = _add_opp_table_indexed(dev, index);
-	if (IS_ERR(opp_table))
-		return PTR_ERR(opp_table);
-
-	ret = _of_add_opp_table_v2(dev, opp_table);
-	if (ret)
-		dev_pm_opp_put_opp_table(opp_table);
-
-	return ret;
+	return _of_add_table_indexed(dev, index, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
+
+/**
+ * dev_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
+ *		tree without getting clk for device.
+ * @dev:	device pointer used to lookup OPP table.
+ * @index:	Index number.
+ *
+ * Register the initial OPP table with the OPP library for given device only
+ * using the "operating-points-v2" property. Do not try to get the clk for the
+ * device.
+ *
+ * Return: Refer to dev_pm_opp_of_add_table() for return values.
+ */
+int dev_pm_opp_of_add_table_noclk(struct device *dev, int index)
+{
+	return _of_add_table_indexed(dev, index, false);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_noclk);
 
 /* CPU device specific helpers */
 

@@ -20,7 +20,7 @@
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 
-/**
+/*
  * Returns whether any output on the specified pipe is of the specified type
  */
 bool gma_pipe_has_type(struct drm_crtc *crtc, int type)
@@ -180,7 +180,7 @@ int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
 	return 0;
 }
 
-/**
+/*
  * Sets the power management mode of the pipe and plane.
  *
  * This code should probably grow support for turning the cursor off and back
@@ -559,14 +559,14 @@ int gma_crtc_set_config(struct drm_mode_set *set,
 	if (!dev_priv->rpm_enabled)
 		return drm_crtc_helper_set_config(set, ctx);
 
-	pm_runtime_forbid(&dev->pdev->dev);
+	pm_runtime_forbid(dev->dev);
 	ret = drm_crtc_helper_set_config(set, ctx);
-	pm_runtime_allow(&dev->pdev->dev);
+	pm_runtime_allow(dev->dev);
 
 	return ret;
 }
 
-/**
+/*
  * Save HW states of given crtc
  */
 void gma_crtc_save(struct drm_crtc *crtc)
@@ -609,7 +609,7 @@ void gma_crtc_save(struct drm_crtc *crtc)
 		crtc_state->savePalette[i] = REG_READ(palette_reg + (i << 2));
 }
 
-/**
+/*
  * Restore HW states of given crtc
  */
 void gma_crtc_restore(struct drm_crtc *crtc)

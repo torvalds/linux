@@ -138,7 +138,7 @@ int get_c0_fdc_int(void)
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
 		return -1;
-	};
+	}
 
 	if (cpu_has_veic)
 		return -1;

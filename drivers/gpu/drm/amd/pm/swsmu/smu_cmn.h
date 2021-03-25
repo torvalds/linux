@@ -26,6 +26,8 @@
 #include "amdgpu_smu.h"
 
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3) || defined(SWSMU_CODE_LAYER_L4)
+int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
+				     uint16_t msg, uint32_t param);
 int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    enum smu_message_type msg,
 				    uint32_t param,
@@ -94,6 +96,8 @@ int smu_cmn_get_metrics_table_locked(struct smu_context *smu,
 int smu_cmn_get_metrics_table(struct smu_context *smu,
 			      void *metrics_table,
 			      bool bypass_cache);
+
+void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev);
 
 #endif
 #endif

@@ -107,10 +107,6 @@
 
 MODULE_DESCRIPTION("ESS Maestro");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESS,Maestro 2e},"
-		"{ESS,Maestro 2},"
-		"{ESS,Maestro 1},"
-		"{TerraTec,DMX}}");
 
 #if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
@@ -2668,8 +2664,7 @@ static int snd_es1968_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(28)) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(28)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28))) {
 		dev_err(card->dev,
 			"architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
@@ -2768,7 +2763,7 @@ static int snd_es1968_create(struct snd_card *card,
 		if (!snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 			dev_info(card->dev, "detected TEA575x radio type %s\n",
 				   get_tea575x_gpio(chip)->name);
-			strlcpy(chip->tea.card, get_tea575x_gpio(chip)->name,
+			strscpy(chip->tea.card, get_tea575x_gpio(chip)->name,
 				sizeof(chip->tea.card));
 			break;
 		}

@@ -44,7 +44,7 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 	int ret;
 
 	/* Block runlist to prevent the channel from being rescheduled. */
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&chan->fifo->base.mutex);
 	nvkm_mask(device, 0x002630, BIT(chan->runl), BIT(chan->runl));
 
 	/* Preempt the channel. */
@@ -58,7 +58,7 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 
 	/* Resume runlist. */
 	nvkm_mask(device, 0x002630, BIT(chan->runl), 0);
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&chan->fifo->base.mutex);
 	return ret;
 }
 
@@ -70,8 +70,7 @@ gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 	struct nvkm_gpuobj *inst = chan->base.inst;
 	int ret;
 
-	if (engine->subdev.index >= NVKM_ENGINE_CE0 &&
-	    engine->subdev.index <= NVKM_ENGINE_CE_LAST)
+	if (engine->subdev.type == NVKM_ENGINE_CE)
 		return gk104_fifo_gpfifo_kick(chan);
 
 	ret = gv100_fifo_gpfifo_engine_valid(chan, false, false);
@@ -90,17 +89,15 @@ gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
+	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
 	struct nvkm_gpuobj *inst = chan->base.inst;
-	u64 addr;
 
-	if (engine->subdev.index >= NVKM_ENGINE_CE0 &&
-	    engine->subdev.index <= NVKM_ENGINE_CE_LAST)
+	if (engine->subdev.type == NVKM_ENGINE_CE)
 		return 0;
 
-	addr = chan->engn[engine->subdev.index].vma->addr;
 	nvkm_kmap(inst);
-	nvkm_wo32(inst, 0x210, lower_32_bits(addr) | 0x00000004);
-	nvkm_wo32(inst, 0x214, upper_32_bits(addr));
+	nvkm_wo32(inst, 0x210, lower_32_bits(engn->vma->addr) | 0x00000004);
+	nvkm_wo32(inst, 0x214, upper_32_bits(engn->vma->addr));
 	nvkm_done(inst);
 
 	return gv100_fifo_gpfifo_engine_valid(chan, false, true);
@@ -129,20 +126,12 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct gk104_fifo_chan *chan;
 	int runlist = ffs(*runlists) -1, ret, i;
-	unsigned long engm;
-	u64 subdevs = 0;
 	u64 usermem, mthd;
 	u32 size;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
 	*runlists = BIT_ULL(runlist);
-
-	engm = fifo->runlist[runlist].engm;
-	for_each_set_bit(i, &engm, fifo->engine_nr) {
-		if (fifo->engine[i].engine)
-			subdevs |= BIT_ULL(fifo->engine[i].engine->subdev.index);
-	}
 
 	/* Allocate the channel. */
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
@@ -153,7 +142,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(func, &fifo->base, 0x1000, 0x1000, true, vmm,
-				  0, subdevs, 1, fifo->user.bar->addr, 0x200,
+				  0, fifo->runlist[runlist].engm, 1, fifo->user.bar->addr, 0x200,
 				  oclass, &chan->base);
 	if (ret)
 		return ret;

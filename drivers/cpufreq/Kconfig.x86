@@ -62,16 +62,6 @@ config X86_ACPI_CPUFREQ_CPB
 	  By enabling this option the acpi_cpufreq driver provides the old
 	  entry in addition to the new boost ones, for compatibility reasons.
 
-config X86_SFI_CPUFREQ
-	tristate "SFI Performance-States driver"
-	depends on X86_INTEL_MID && SFI
-	help
-	  This adds a CPUFreq driver for some Silvermont based Intel Atom
-	  architectures like Z34xx and Z35xx which enumerate processor
-	  performance states through SFI.
-
-	  If in doubt, say N.
-
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
 	depends on MELAN

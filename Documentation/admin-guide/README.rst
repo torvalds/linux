@@ -226,10 +226,11 @@ Configuring the kernel
                            all module options to built in (=y) options. You can
                            also preserve modules by LMC_KEEP.
 
-     "make kvmconfig"   Enable additional options for kvm guest kernel support.
+     "make kvm_guest.config"   Enable additional options for kvm guest kernel
+                               support.
 
-     "make xenconfig"   Enable additional options for xen dom0 guest kernel
-                        support.
+     "make xen.config"   Enable additional options for xen dom0 guest kernel
+                         support.
 
      "make tinyconfig"  Configure the tiniest possible kernel.
 

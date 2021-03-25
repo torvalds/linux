@@ -299,7 +299,7 @@ static ssize_t label_show(struct device *dev,
 static umode_t da9052_channel_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct da9052_hwmon *hwmon = dev_get_drvdata(dev);
 	struct device_attribute *dattr = container_of(attr,
 				struct device_attribute, attr);

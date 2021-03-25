@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/acpi.h>
 #include <linux/ctype.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hwmon.h>
@@ -258,6 +259,9 @@ struct sfp {
 	char *hwmon_name;
 #endif
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *debugfs_dir;
+#endif
 };
 
 static bool sff_module_supported(const struct sfp_eeprom_id *id)
@@ -273,8 +277,21 @@ static const struct sff_data sff_data = {
 
 static bool sfp_module_supported(const struct sfp_eeprom_id *id)
 {
-	return id->base.phys_id == SFF8024_ID_SFP &&
-	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
+	if (id->base.phys_id == SFF8024_ID_SFP &&
+	    id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP)
+		return true;
+
+	/* SFP GPON module Ubiquiti U-Fiber Instant has in its EEPROM stored
+	 * phys id SFF instead of SFP. Therefore mark this module explicitly
+	 * as supported based on vendor name and pn match.
+	 */
+	if (id->base.phys_id == SFF8024_ID_SFF_8472 &&
+	    id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP &&
+	    !memcmp(id->base.vendor_name, "UBNT            ", 16) &&
+	    !memcmp(id->base.vendor_pn, "UF-INSTANT      ", 16))
+		return true;
+
+	return false;
 }
 
 static const struct sff_data sfp_data = {
@@ -336,18 +353,10 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 			size_t len)
 {
 	struct i2c_msg msgs[2];
-	size_t block_size;
+	u8 bus_addr = a2 ? 0x51 : 0x50;
+	size_t block_size = sfp->i2c_block_size;
 	size_t this_len;
-	u8 bus_addr;
 	int ret;
-
-	if (a2) {
-		block_size = 16;
-		bus_addr = 0x51;
-	} else {
-		block_size = sfp->i2c_block_size;
-		bus_addr = 0x50;
-	}
 
 	msgs[0].addr = bus_addr;
 	msgs[0].flags = 0;
@@ -1282,6 +1291,20 @@ static void sfp_hwmon_probe(struct work_struct *work)
 	struct sfp *sfp = container_of(work, struct sfp, hwmon_probe.work);
 	int err, i;
 
+	/* hwmon interface needs to access 16bit registers in atomic way to
+	 * guarantee coherency of the diagnostic monitoring data. If it is not
+	 * possible to guarantee coherency because EEPROM is broken in such way
+	 * that does not support atomic 16bit read operation then we have to
+	 * skip registration of hwmon device.
+	 */
+	if (sfp->i2c_block_size < 2) {
+		dev_info(sfp->dev,
+			 "skipping hwmon device registration due to broken EEPROM\n");
+		dev_info(sfp->dev,
+			 "diagnostic EEPROM area cannot be read atomically to guarantee data coherency\n");
+		return;
+	}
+
 	err = sfp_read(sfp, true, 0, &sfp->diag, sizeof(sfp->diag));
 	if (err < 0) {
 		if (sfp->hwmon_tries--) {
@@ -1390,6 +1413,54 @@ static void sfp_module_tx_enable(struct sfp *sfp)
 	sfp_set_state(sfp, sfp->state);
 }
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static int sfp_debug_state_show(struct seq_file *s, void *data)
+{
+	struct sfp *sfp = s->private;
+
+	seq_printf(s, "Module state: %s\n",
+		   mod_state_to_str(sfp->sm_mod_state));
+	seq_printf(s, "Module probe attempts: %d %d\n",
+		   R_PROBE_RETRY_INIT - sfp->sm_mod_tries_init,
+		   R_PROBE_RETRY_SLOW - sfp->sm_mod_tries);
+	seq_printf(s, "Device state: %s\n",
+		   dev_state_to_str(sfp->sm_dev_state));
+	seq_printf(s, "Main state: %s\n",
+		   sm_state_to_str(sfp->sm_state));
+	seq_printf(s, "Fault recovery remaining retries: %d\n",
+		   sfp->sm_fault_retries);
+	seq_printf(s, "PHY probe remaining retries: %d\n",
+		   sfp->sm_phy_retries);
+	seq_printf(s, "moddef0: %d\n", !!(sfp->state & SFP_F_PRESENT));
+	seq_printf(s, "rx_los: %d\n", !!(sfp->state & SFP_F_LOS));
+	seq_printf(s, "tx_fault: %d\n", !!(sfp->state & SFP_F_TX_FAULT));
+	seq_printf(s, "tx_disable: %d\n", !!(sfp->state & SFP_F_TX_DISABLE));
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(sfp_debug_state);
+
+static void sfp_debugfs_init(struct sfp *sfp)
+{
+	sfp->debugfs_dir = debugfs_create_dir(dev_name(sfp->dev), NULL);
+
+	debugfs_create_file("state", 0600, sfp->debugfs_dir, sfp,
+			    &sfp_debug_state_fops);
+}
+
+static void sfp_debugfs_exit(struct sfp *sfp)
+{
+	debugfs_remove_recursive(sfp->debugfs_dir);
+}
+#else
+static void sfp_debugfs_init(struct sfp *sfp)
+{
+}
+
+static void sfp_debugfs_exit(struct sfp *sfp)
+{
+}
+#endif
+
 static void sfp_module_tx_fault_reset(struct sfp *sfp)
 {
 	unsigned int state = sfp->state;
@@ -1482,15 +1553,19 @@ static void sfp_sm_link_down(struct sfp *sfp)
 
 static void sfp_sm_link_check_los(struct sfp *sfp)
 {
-	unsigned int los = sfp->state & SFP_F_LOS;
+	const __be16 los_inverted = cpu_to_be16(SFP_OPTIONS_LOS_INVERTED);
+	const __be16 los_normal = cpu_to_be16(SFP_OPTIONS_LOS_NORMAL);
+	__be16 los_options = sfp->id.ext.options & (los_inverted | los_normal);
+	bool los = false;
 
 	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
-	 * are set, we assume that no LOS signal is available.
+	 * are set, we assume that no LOS signal is available. If both are
+	 * set, we assume LOS is not implemented (and is meaningless.)
 	 */
-	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
-		los ^= SFP_F_LOS;
-	else if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL)))
-		los = 0;
+	if (los_options == los_inverted)
+		los = !(sfp->state & SFP_F_LOS);
+	else if (los_options == los_normal)
+		los = !!(sfp->state & SFP_F_LOS);
 
 	if (los)
 		sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
@@ -1500,18 +1575,22 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 
 static bool sfp_los_event_active(struct sfp *sfp, unsigned int event)
 {
-	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
-		event == SFP_E_LOS_LOW) ||
-	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
-		event == SFP_E_LOS_HIGH);
+	const __be16 los_inverted = cpu_to_be16(SFP_OPTIONS_LOS_INVERTED);
+	const __be16 los_normal = cpu_to_be16(SFP_OPTIONS_LOS_NORMAL);
+	__be16 los_options = sfp->id.ext.options & (los_inverted | los_normal);
+
+	return (los_options == los_inverted && event == SFP_E_LOS_LOW) ||
+	       (los_options == los_normal && event == SFP_E_LOS_HIGH);
 }
 
 static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
 {
-	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
-		event == SFP_E_LOS_HIGH) ||
-	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
-		event == SFP_E_LOS_LOW);
+	const __be16 los_inverted = cpu_to_be16(SFP_OPTIONS_LOS_INVERTED);
+	const __be16 los_normal = cpu_to_be16(SFP_OPTIONS_LOS_NORMAL);
+	__be16 los_options = sfp->id.ext.options & (los_inverted | los_normal);
+
+	return (los_options == los_inverted && event == SFP_E_LOS_HIGH) ||
+	       (los_options == los_normal && event == SFP_E_LOS_LOW);
 }
 
 static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
@@ -1642,26 +1721,30 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 	return 0;
 }
 
-/* Some modules (Nokia 3FE46541AA) lock up if byte 0x51 is read as a
- * single read. Switch back to reading 16 byte blocks unless we have
- * a CarlitoxxPro module (rebranded VSOL V2801F). Even more annoyingly,
- * some VSOL V2801F have the vendor name changed to OEM.
+/* GPON modules based on Realtek RTL8672 and RTL9601C chips (e.g. V-SOL
+ * V2801F, CarlitoxxPro CPGOS03-0490, Ubiquiti U-Fiber Instant, ...) do
+ * not support multibyte reads from the EEPROM. Each multi-byte read
+ * operation returns just one byte of EEPROM followed by zeros. There is
+ * no way to identify which modules are using Realtek RTL8672 and RTL9601C
+ * chips. Moreover every OEM of V-SOL V2801F module puts its own vendor
+ * name and vendor id into EEPROM, so there is even no way to detect if
+ * module is V-SOL V2801F. Therefore check for those zeros in the read
+ * data and then based on check switch to reading EEPROM to one byte
+ * at a time.
  */
-static int sfp_quirk_i2c_block_size(const struct sfp_eeprom_base *base)
+static bool sfp_id_needs_byte_io(struct sfp *sfp, void *buf, size_t len)
 {
-	if (!memcmp(base->vendor_name, "VSOL            ", 16))
-		return 1;
-	if (!memcmp(base->vendor_name, "OEM             ", 16) &&
-	    !memcmp(base->vendor_pn,   "V2801F          ", 16))
-		return 1;
+	size_t i, block_size = sfp->i2c_block_size;
 
-	/* Some modules can't cope with long reads */
-	return 16;
-}
+	/* Already using byte IO */
+	if (block_size == 1)
+		return false;
 
-static void sfp_quirks_base(struct sfp *sfp, const struct sfp_eeprom_base *base)
-{
-	sfp->i2c_block_size = sfp_quirk_i2c_block_size(base);
+	for (i = 1; i < len; i += block_size) {
+		if (memchr_inv(buf + i, '\0', min(block_size - 1, len - i)))
+			return false;
+	}
+	return true;
 }
 
 static int sfp_cotsworks_fixup_check(struct sfp *sfp, struct sfp_eeprom_id *id)
@@ -1705,11 +1788,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	u8 check;
 	int ret;
 
-	/* Some modules (CarlitoxxPro CPGOS03-0490) do not support multibyte
-	 * reads from the EEPROM, so start by reading the base identifying
-	 * information one byte at a time.
+	/* Some SFP modules and also some Linux I2C drivers do not like reads
+	 * longer than 16 bytes, so read the EEPROM in chunks of 16 bytes at
+	 * a time.
 	 */
-	sfp->i2c_block_size = 1;
+	sfp->i2c_block_size = 16;
 
 	ret = sfp_read(sfp, false, 0, &id.base, sizeof(id.base));
 	if (ret < 0) {
@@ -1721,6 +1804,33 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (ret != sizeof(id.base)) {
 		dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
 		return -EAGAIN;
+	}
+
+	/* Some SFP modules (e.g. Nokia 3FE46541AA) lock up if read from
+	 * address 0x51 is just one byte at a time. Also SFF-8472 requires
+	 * that EEPROM supports atomic 16bit read operation for diagnostic
+	 * fields, so do not switch to one byte reading at a time unless it
+	 * is really required and we have no other option.
+	 */
+	if (sfp_id_needs_byte_io(sfp, &id.base, sizeof(id.base))) {
+		dev_info(sfp->dev,
+			 "Detected broken RTL8672/RTL9601C emulated EEPROM\n");
+		dev_info(sfp->dev,
+			 "Switching to reading EEPROM to one byte at a time\n");
+		sfp->i2c_block_size = 1;
+
+		ret = sfp_read(sfp, false, 0, &id.base, sizeof(id.base));
+		if (ret < 0) {
+			if (report)
+				dev_err(sfp->dev, "failed to read EEPROM: %d\n",
+					ret);
+			return -EAGAIN;
+		}
+
+		if (ret != sizeof(id.base)) {
+			dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
+			return -EAGAIN;
+		}
 	}
 
 	/* Cotsworks do not seem to update the checksums when they
@@ -1756,9 +1866,6 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 			return -EINVAL;
 		}
 	}
-
-	/* Apply any early module-specific quirks */
-	sfp_quirks_base(sfp, &id.base);
 
 	ret = sfp_read(sfp, false, SFP_CC_BASE + 1, &id.ext, sizeof(id.ext));
 	if (ret < 0) {
@@ -2483,6 +2590,8 @@ static int sfp_probe(struct platform_device *pdev)
 	if (!sfp->sfp_bus)
 		return -ENOMEM;
 
+	sfp_debugfs_init(sfp);
+
 	return 0;
 }
 
@@ -2490,6 +2599,7 @@ static int sfp_remove(struct platform_device *pdev)
 {
 	struct sfp *sfp = platform_get_drvdata(pdev);
 
+	sfp_debugfs_exit(sfp);
 	sfp_unregister_socket(sfp->sfp_bus);
 
 	rtnl_lock();

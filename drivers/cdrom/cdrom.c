@@ -2214,7 +2214,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		rq->timeout = 60 * HZ;
 		bio = rq->bio;
 
-		blk_execute_rq(q, cdi->disk, rq, 0);
+		blk_execute_rq(cdi->disk, rq, 0);
 		if (scsi_req(rq)->result) {
 			struct scsi_sense_hdr sshdr;
 

@@ -485,8 +485,7 @@ struct i2400m_roq_data {
  * store the sequence number (sn) and the cs (packet type) coming from
  * the RX payload header from the device.
  */
-struct i2400m_roq
-{
+struct i2400m_roq {
 	unsigned ws;
 	struct sk_buff_head queue;
 	struct i2400m_roq_log *log;
@@ -819,7 +818,7 @@ void i2400m_roq_reset(struct i2400m *i2400m, struct i2400m_roq *roq)
  */
 static
 void i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
-		      struct sk_buff * skb, unsigned lbn)
+		      struct sk_buff *skb, unsigned lbn)
 {
 	struct device *dev = i2400m_dev(i2400m);
 	unsigned nsn, len;
@@ -882,7 +881,7 @@ void i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
  */
 static
 void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
-				struct sk_buff * skb, unsigned sn)
+				struct sk_buff *skb, unsigned sn)
 {
 	struct device *dev = i2400m_dev(i2400m);
 	unsigned nsn, old_ws, len;

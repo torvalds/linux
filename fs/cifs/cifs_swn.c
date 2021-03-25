@@ -248,7 +248,7 @@ nlmsg_fail:
 
 /*
  * Try to find a matching registration for the tcon's server name and share name.
- * Calls to this funciton must be protected by cifs_swnreg_idr_mutex.
+ * Calls to this function must be protected by cifs_swnreg_idr_mutex.
  * TODO Try to avoid memory allocations
  */
 static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
@@ -272,7 +272,7 @@ static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
 	if (IS_ERR(share_name)) {
 		int ret;
 
-		ret = PTR_ERR(net_name);
+		ret = PTR_ERR(share_name);
 		cifs_dbg(VFS, "%s: failed to extract share name from target '%s': %d\n",
 				__func__, tcon->treeName, ret);
 		kfree(net_name);

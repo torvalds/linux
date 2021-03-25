@@ -46,13 +46,12 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
  * PowerVR SGX535    - Poulsbo    - Intel GMA 500, Intel Atom Z5xx
  * PowerVR SGX535    - Moorestown - Intel GMA 600
  * PowerVR SGX535    - Oaktrail   - Intel GMA 600, Intel Atom Z6xx, E6xx
- * PowerVR SGX540    - Medfield   - Intel Atom Z2460
- * PowerVR SGX544MP2 - Medfield   -
  * PowerVR SGX545    - Cedartrail - Intel GMA 3600, Intel Atom D2500, N2600
  * PowerVR SGX545    - Cedartrail - Intel GMA 3650, Intel Atom D2550, D2700,
  *                                  N2800
  */
 static const struct pci_device_id pciidlist[] = {
+	/* Poulsbo */
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
 	{ 0x8086, 0x8109, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
 #if defined(CONFIG_DRM_GMA600)
@@ -66,17 +65,7 @@ static const struct pci_device_id pciidlist[] = {
 	{ 0x8086, 0x4107, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 #endif
-#if defined(CONFIG_DRM_MEDFIELD)
-	{ 0x8086, 0x0130, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0133, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0134, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0135, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0136, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0137, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-#endif
-#if defined(CONFIG_DRM_GMA3600)
+	/* Cedartrail */
 	{ 0x8086, 0x0be0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0be1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0be2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
@@ -93,7 +82,6 @@ static const struct pci_device_id pciidlist[] = {
 	{ 0x8086, 0x0bed, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0bee, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0bef, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
-#endif
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -208,6 +196,7 @@ static void psb_driver_unload(struct drm_device *dev)
 
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct drm_psb_private *dev_priv;
 	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
@@ -227,11 +216,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 
 	pg = &dev_priv->gtt;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
-	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
+	resource_start = pci_resource_start(pdev, PSB_MMIO_RESOURCE);
 
 	dev_priv->vdc_reg =
 	    ioremap(resource_start + PSB_VDC_OFFSET, PSB_VDC_SIZE);
@@ -244,7 +233,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_err;
 
 	if (IS_MRST(dev)) {
-		int domain = pci_domain_nr(dev->pdev->bus);
+		int domain = pci_domain_nr(pdev->bus);
 
 		dev_priv->aux_pdev =
 			pci_get_domain_bus_and_slot(domain, 0,
@@ -312,6 +301,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_err;
 
+	ret = -ENOMEM;
+
 	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, 0);
 	if (!dev_priv->mmu)
 		goto out_err;
@@ -359,7 +350,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
-	drm_irq_install(dev, dev->pdev->irq);
+	drm_irq_install(dev, pdev->irq);
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
@@ -385,8 +376,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	psb_intel_opregion_enable_asle(dev);
 #if 0
 	/* Enable runtime pm at last */
-	pm_runtime_enable(&dev->pdev->dev);
-	pm_runtime_set_active(&dev->pdev->dev);
+	pm_runtime_enable(dev->dev);
+	pm_runtime_set_active(dev->dev);
 #endif
 	/* Intel drm driver load is done, continue doing pvr load */
 	return 0;
@@ -415,7 +406,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {
 		runtime_allowed++;
-		pm_runtime_allow(&dev->pdev->dev);
+		pm_runtime_allow(dev->dev);
 		dev_priv->rpm_enabled = 1;
 	}
 	return drm_ioctl(filp, cmd, arg);
@@ -437,7 +428,6 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pci_disable_device;
 	}
 
-	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
 	ret = psb_driver_load(dev, ent->driver_data);

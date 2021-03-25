@@ -28,6 +28,12 @@ TRACE_EVENT(bpf_testmod_test_read,
 		  __entry->pid, __entry->comm, __entry->off, __entry->len)
 );
 
+/* A bare tracepoint with no event associated with it */
+DECLARE_TRACE(bpf_testmod_test_write_bare,
+	TP_PROTO(struct task_struct *task, struct bpf_testmod_test_write_ctx *ctx),
+	TP_ARGS(task, ctx)
+);
+
 #endif /* _BPF_TESTMOD_EVENTS_H */
 
 #undef TRACE_INCLUDE_PATH

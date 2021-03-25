@@ -68,7 +68,7 @@ static int regcache_hw_init(struct regmap *map)
 		map->cache_bypass = cache_bypass;
 		if (ret == 0) {
 			map->reg_defaults_raw = tmp_buf;
-			map->cache_free = 1;
+			map->cache_free = true;
 		} else {
 			kfree(tmp_buf);
 		}

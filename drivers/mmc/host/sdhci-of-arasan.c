@@ -1380,26 +1380,25 @@ static void sdhci_arasan_unregister_sdclk(struct device *dev)
 
 /**
  * sdhci_arasan_update_support64b - Set SUPPORT_64B (64-bit System Bus Support)
+ * @host:		The sdhci_host
+ * @value:		The value to write
  *
  * This should be set based on the System Address Bus.
  * 0: the Core supports only 32-bit System Address Bus.
  * 1: the Core supports 64-bit System Address Bus.
  *
- * NOTES:
- * - For Keem Bay, it is required to clear this bit. Its default value is 1'b1.
- *   Keem Bay does not support 64-bit access.
- *
- * @host:		The sdhci_host
- * @value:		The value to write
+ * NOTE:
+ * For Keem Bay, it is required to clear this bit. Its default value is 1'b1.
+ * Keem Bay does not support 64-bit access.
  */
 static void sdhci_arasan_update_support64b(struct sdhci_host *host, u32 value)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
-	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map =
-		sdhci_arasan->soc_ctl_map;
+	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map;
 
 	/* Having a map is optional */
+	soc_ctl_map = sdhci_arasan->soc_ctl_map;
 	if (!soc_ctl_map)
 		return;
 
@@ -1508,17 +1507,16 @@ cleanup:
 static int sdhci_arasan_probe(struct platform_device *pdev)
 {
 	int ret;
-	const struct of_device_id *match;
 	struct device_node *node;
 	struct clk *clk_xin;
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct sdhci_arasan_data *sdhci_arasan;
-	struct device_node *np = pdev->dev.of_node;
 	const struct sdhci_arasan_of_data *data;
 
-	match = of_match_node(sdhci_arasan_of_match, pdev->dev.of_node);
-	data = match->data;
+	data = of_device_get_match_data(dev);
 	host = sdhci_pltfm_init(pdev, data->pdata, sizeof(*sdhci_arasan));
 
 	if (IS_ERR(host))
@@ -1531,42 +1529,41 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	sdhci_arasan->soc_ctl_map = data->soc_ctl_map;
 	sdhci_arasan->clk_ops = data->clk_ops;
 
-	node = of_parse_phandle(pdev->dev.of_node, "arasan,soc-ctl-syscon", 0);
+	node = of_parse_phandle(np, "arasan,soc-ctl-syscon", 0);
 	if (node) {
 		sdhci_arasan->soc_ctl_base = syscon_node_to_regmap(node);
 		of_node_put(node);
 
 		if (IS_ERR(sdhci_arasan->soc_ctl_base)) {
-			ret = dev_err_probe(&pdev->dev,
+			ret = dev_err_probe(dev,
 					    PTR_ERR(sdhci_arasan->soc_ctl_base),
 					    "Can't get syscon\n");
 			goto err_pltfm_free;
 		}
 	}
 
-	sdhci_arasan->clk_ahb = devm_clk_get(&pdev->dev, "clk_ahb");
+	sdhci_arasan->clk_ahb = devm_clk_get(dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
-		dev_err(&pdev->dev, "clk_ahb clock not found.\n");
-		ret = PTR_ERR(sdhci_arasan->clk_ahb);
+		ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->clk_ahb),
+				    "clk_ahb clock not found.\n");
 		goto err_pltfm_free;
 	}
 
-	clk_xin = devm_clk_get(&pdev->dev, "clk_xin");
+	clk_xin = devm_clk_get(dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
-		dev_err(&pdev->dev, "clk_xin clock not found.\n");
-		ret = PTR_ERR(clk_xin);
+		ret = dev_err_probe(dev, PTR_ERR(clk_xin), "clk_xin clock not found.\n");
 		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(sdhci_arasan->clk_ahb);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable AHB clock.\n");
+		dev_err(dev, "Unable to enable AHB clock.\n");
 		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(clk_xin);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable SD clock.\n");
+		dev_err(dev, "Unable to enable SD clock.\n");
 		goto clk_dis_ahb;
 	}
 
@@ -1580,8 +1577,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	pltfm_host->clk = clk_xin;
 
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "rockchip,rk3399-sdhci-5.1"))
+	if (of_device_is_compatible(np, "rockchip,rk3399-sdhci-5.1"))
 		sdhci_arasan_update_clockmultiplier(host, 0x0);
 
 	if (of_device_is_compatible(np, "intel,keembay-sdhci-5.1-emmc") ||
@@ -1595,7 +1591,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	sdhci_arasan_update_baseclkfreq(host);
 
-	ret = sdhci_arasan_register_sdclk(sdhci_arasan, clk_xin, &pdev->dev);
+	ret = sdhci_arasan_register_sdclk(sdhci_arasan, clk_xin, dev);
 	if (ret)
 		goto clk_disable_all;
 
@@ -1604,29 +1600,26 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			arasan_zynqmp_execute_tuning;
 	}
 
-	arasan_dt_parse_clk_phases(&pdev->dev, &sdhci_arasan->clk_data);
+	arasan_dt_parse_clk_phases(dev, &sdhci_arasan->clk_data);
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "parsing dt failed (%d)\n", ret);
+		ret = dev_err_probe(dev, ret, "parsing dt failed.\n");
 		goto unreg_clk;
 	}
 
 	sdhci_arasan->phy = ERR_PTR(-ENODEV);
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "arasan,sdhci-5.1")) {
-		sdhci_arasan->phy = devm_phy_get(&pdev->dev,
-						 "phy_arasan");
+	if (of_device_is_compatible(np, "arasan,sdhci-5.1")) {
+		sdhci_arasan->phy = devm_phy_get(dev, "phy_arasan");
 		if (IS_ERR(sdhci_arasan->phy)) {
-			ret = PTR_ERR(sdhci_arasan->phy);
-			dev_err(&pdev->dev, "No phy for arasan,sdhci-5.1.\n");
+			ret = dev_err_probe(dev, PTR_ERR(sdhci_arasan->phy),
+					    "No phy for arasan,sdhci-5.1.\n");
 			goto unreg_clk;
 		}
 
 		ret = phy_init(sdhci_arasan->phy);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "phy_init err.\n");
+			dev_err(dev, "phy_init err.\n");
 			goto unreg_clk;
 		}
 
@@ -1651,7 +1644,7 @@ err_add_host:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
 unreg_clk:
-	sdhci_arasan_unregister_sdclk(&pdev->dev);
+	sdhci_arasan_unregister_sdclk(dev);
 clk_disable_all:
 	clk_disable_unprepare(clk_xin);
 clk_dis_ahb:

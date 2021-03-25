@@ -36,7 +36,6 @@
 #define IQS62X_PROD_NUM				0x00
 
 #define IQS62X_SYS_FLAGS			0x10
-#define IQS62X_SYS_FLAGS_IN_ATI			BIT(2)
 
 #define IQS620_HALL_FLAGS			0x16
 #define IQS621_HALL_FLAGS			0x19
@@ -57,10 +56,10 @@
 #define IQS620_TEMP_CAL_OFFS			0xC4
 
 #define IQS62X_SYS_SETTINGS			0xD0
-#define IQS62X_SYS_SETTINGS_SOFT_RESET		BIT(7)
 #define IQS62X_SYS_SETTINGS_ACK_RESET		BIT(6)
 #define IQS62X_SYS_SETTINGS_EVENT_MODE		BIT(5)
 #define IQS62X_SYS_SETTINGS_CLK_DIV		BIT(4)
+#define IQS62X_SYS_SETTINGS_COMM_ATI		BIT(3)
 #define IQS62X_SYS_SETTINGS_REDO_ATI		BIT(1)
 
 #define IQS62X_PWR_SETTINGS			0xD2
@@ -82,9 +81,8 @@
 #define IQS62X_FW_REC_TYPE_MASK			3
 #define IQS62X_FW_REC_TYPE_DATA			4
 
-#define IQS62X_ATI_POLL_SLEEP_US		10000
-#define IQS62X_ATI_POLL_TIMEOUT_US		500000
-#define IQS62X_ATI_STABLE_DELAY_MS		150
+#define IQS62X_ATI_STARTUP_MS			350
+#define IQS62X_FILT_SETTLE_MS			250
 
 struct iqs62x_fw_rec {
 	u8 type;
@@ -112,9 +110,16 @@ static int iqs62x_dev_init(struct iqs62x_core *iqs62x)
 	struct iqs62x_fw_blk *fw_blk;
 	unsigned int val;
 	int ret;
-	u8 clk_div = 1;
 
 	list_for_each_entry(fw_blk, &iqs62x->fw_blk_head, list) {
+		/*
+		 * In case ATI is in progress, wait for it to complete before
+		 * lowering the core clock frequency.
+		 */
+		if (fw_blk->addr == IQS62X_SYS_SETTINGS &&
+		    *fw_blk->data & IQS62X_SYS_SETTINGS_CLK_DIV)
+			msleep(IQS62X_ATI_STARTUP_MS);
+
 		if (fw_blk->mask)
 			ret = regmap_update_bits(iqs62x->regmap, fw_blk->addr,
 						 fw_blk->mask, *fw_blk->data);
@@ -135,7 +140,6 @@ static int iqs62x_dev_init(struct iqs62x_core *iqs62x)
 
 		if (val & IQS620_PROX_SETTINGS_4_SAR_EN)
 			iqs62x->ui_sel = IQS62X_UI_SAR1;
-
 		fallthrough;
 
 	case IQS621_PROD_NUM:
@@ -183,28 +187,32 @@ static int iqs62x_dev_init(struct iqs62x_core *iqs62x)
 			return ret;
 	}
 
-	ret = regmap_read(iqs62x->regmap, IQS62X_SYS_SETTINGS, &val);
+	/*
+	 * Place the device in streaming mode at first so as not to miss the
+	 * limited number of interrupts that would otherwise occur after ATI
+	 * completes. The device is subsequently placed in event mode by the
+	 * interrupt handler.
+	 *
+	 * In the meantime, mask interrupts during ATI to prevent the device
+	 * from soliciting I2C traffic until the noise-sensitive ATI process
+	 * is complete.
+	 */
+	ret = regmap_update_bits(iqs62x->regmap, IQS62X_SYS_SETTINGS,
+				 IQS62X_SYS_SETTINGS_ACK_RESET |
+				 IQS62X_SYS_SETTINGS_EVENT_MODE |
+				 IQS62X_SYS_SETTINGS_COMM_ATI |
+				 IQS62X_SYS_SETTINGS_REDO_ATI,
+				 IQS62X_SYS_SETTINGS_ACK_RESET |
+				 IQS62X_SYS_SETTINGS_REDO_ATI);
 	if (ret)
 		return ret;
 
-	if (val & IQS62X_SYS_SETTINGS_CLK_DIV)
-		clk_div = iqs62x->dev_desc->clk_div;
-
-	ret = regmap_write(iqs62x->regmap, IQS62X_SYS_SETTINGS, val |
-			   IQS62X_SYS_SETTINGS_ACK_RESET |
-			   IQS62X_SYS_SETTINGS_EVENT_MODE |
-			   IQS62X_SYS_SETTINGS_REDO_ATI);
-	if (ret)
-		return ret;
-
-	ret = regmap_read_poll_timeout(iqs62x->regmap, IQS62X_SYS_FLAGS, val,
-				       !(val & IQS62X_SYS_FLAGS_IN_ATI),
-				       IQS62X_ATI_POLL_SLEEP_US,
-				       IQS62X_ATI_POLL_TIMEOUT_US * clk_div);
-	if (ret)
-		return ret;
-
-	msleep(IQS62X_ATI_STABLE_DELAY_MS * clk_div);
+	/*
+	 * The following delay gives the device time to deassert its RDY output
+	 * in case a communication window was open while the REDO_ATI field was
+	 * written. This prevents an interrupt from being serviced prematurely.
+	 */
+	usleep_range(5000, 5100);
 
 	return 0;
 }
@@ -435,6 +443,11 @@ const struct iqs62x_event_desc iqs62x_events[IQS62X_NUM_EVENTS] = {
 		.mask	= BIT(7),
 		.val	= BIT(7),
 	},
+	[IQS62X_EVENT_SYS_ATI] = {
+		.reg	= IQS62X_EVENT_SYS,
+		.mask	= BIT(2),
+		.val	= BIT(2),
+	},
 };
 EXPORT_SYMBOL_GPL(iqs62x_events);
 
@@ -469,7 +482,6 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 		switch (event_reg) {
 		case IQS62X_EVENT_UI_LO:
 			event_data.ui_data = get_unaligned_le16(&event_map[i]);
-
 			fallthrough;
 
 		case IQS62X_EVENT_UI_HI:
@@ -490,7 +502,6 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 
 		case IQS62X_EVENT_HYST:
 			event_map[i] <<= iqs62x->dev_desc->hyst_shift;
-
 			fallthrough;
 
 		case IQS62X_EVENT_WHEEL:
@@ -525,19 +536,46 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 				"Failed to re-initialize device: %d\n", ret);
 			return IRQ_NONE;
 		}
+
+		iqs62x->event_cache |= BIT(IQS62X_EVENT_SYS_RESET);
+		reinit_completion(&iqs62x->ati_done);
+	} else if (event_flags & BIT(IQS62X_EVENT_SYS_ATI)) {
+		iqs62x->event_cache |= BIT(IQS62X_EVENT_SYS_ATI);
+		reinit_completion(&iqs62x->ati_done);
+	} else if (!completion_done(&iqs62x->ati_done)) {
+		ret = regmap_update_bits(iqs62x->regmap, IQS62X_SYS_SETTINGS,
+					 IQS62X_SYS_SETTINGS_EVENT_MODE, 0xFF);
+		if (ret) {
+			dev_err(&client->dev,
+				"Failed to enable event mode: %d\n", ret);
+			return IRQ_NONE;
+		}
+
+		msleep(IQS62X_FILT_SETTLE_MS);
+		complete_all(&iqs62x->ati_done);
 	}
 
-	ret = blocking_notifier_call_chain(&iqs62x->nh, event_flags,
-					   &event_data);
-	if (ret & NOTIFY_STOP_MASK)
-		return IRQ_NONE;
+	/*
+	 * Reset and ATI events are not broadcast to the sub-device drivers
+	 * until ATI has completed. Any other events that may have occurred
+	 * during ATI are ignored.
+	 */
+	if (completion_done(&iqs62x->ati_done)) {
+		event_flags |= iqs62x->event_cache;
+		ret = blocking_notifier_call_chain(&iqs62x->nh, event_flags,
+						   &event_data);
+		if (ret & NOTIFY_STOP_MASK)
+			return IRQ_NONE;
+
+		iqs62x->event_cache = 0;
+	}
 
 	/*
 	 * Once the communication window is closed, a small delay is added to
 	 * ensure the device's RDY output has been deasserted by the time the
 	 * interrupt handler returns.
 	 */
-	usleep_range(50, 100);
+	usleep_range(150, 200);
 
 	return IRQ_HANDLED;
 }
@@ -568,6 +606,12 @@ static void iqs62x_firmware_load(const struct firmware *fw, void *context)
 					client->name, iqs62x);
 	if (ret) {
 		dev_err(&client->dev, "Failed to request IRQ: %d\n", ret);
+		goto err_out;
+	}
+
+	if (!wait_for_completion_timeout(&iqs62x->ati_done,
+					 msecs_to_jiffies(2000))) {
+		dev_err(&client->dev, "Failed to complete ATI\n");
 		goto err_out;
 	}
 
@@ -752,22 +796,17 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 		.dev_name	= "iqs620at",
 		.sub_devs	= iqs620at_sub_devs,
 		.num_sub_devs	= ARRAY_SIZE(iqs620at_sub_devs),
-
 		.prod_num	= IQS620_PROD_NUM,
 		.sw_num		= 0x08,
 		.cal_regs	= iqs620at_cal_regs,
 		.num_cal_regs	= ARRAY_SIZE(iqs620at_cal_regs),
-
 		.prox_mask	= BIT(0),
 		.sar_mask	= BIT(1) | BIT(7),
 		.hall_mask	= BIT(2),
 		.hyst_mask	= BIT(3),
 		.temp_mask	= BIT(4),
-
 		.prox_settings	= IQS620_PROX_SETTINGS_4,
 		.hall_flags	= IQS620_HALL_FLAGS,
-
-		.clk_div	= 4,
 		.fw_name	= "iqs620a.bin",
 		.event_regs	= &iqs620a_event_regs[IQS62X_UI_PROX],
 	},
@@ -775,20 +814,15 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 		.dev_name	= "iqs620a",
 		.sub_devs	= iqs620a_sub_devs,
 		.num_sub_devs	= ARRAY_SIZE(iqs620a_sub_devs),
-
 		.prod_num	= IQS620_PROD_NUM,
 		.sw_num		= 0x08,
-
 		.prox_mask	= BIT(0),
 		.sar_mask	= BIT(1) | BIT(7),
 		.hall_mask	= BIT(2),
 		.hyst_mask	= BIT(3),
 		.temp_mask	= BIT(4),
-
 		.prox_settings	= IQS620_PROX_SETTINGS_4,
 		.hall_flags	= IQS620_HALL_FLAGS,
-
-		.clk_div	= 4,
 		.fw_name	= "iqs620a.bin",
 		.event_regs	= &iqs620a_event_regs[IQS62X_UI_PROX],
 	},
@@ -796,23 +830,18 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 		.dev_name	= "iqs621",
 		.sub_devs	= iqs621_sub_devs,
 		.num_sub_devs	= ARRAY_SIZE(iqs621_sub_devs),
-
 		.prod_num	= IQS621_PROD_NUM,
 		.sw_num		= 0x09,
 		.cal_regs	= iqs621_cal_regs,
 		.num_cal_regs	= ARRAY_SIZE(iqs621_cal_regs),
-
 		.prox_mask	= BIT(0),
 		.hall_mask	= BIT(1),
 		.als_mask	= BIT(2),
 		.hyst_mask	= BIT(3),
 		.temp_mask	= BIT(4),
-
 		.als_flags	= IQS621_ALS_FLAGS,
 		.hall_flags	= IQS621_HALL_FLAGS,
 		.hyst_shift	= 5,
-
-		.clk_div	= 2,
 		.fw_name	= "iqs621.bin",
 		.event_regs	= &iqs621_event_regs[IQS62X_UI_PROX],
 	},
@@ -820,21 +849,16 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 		.dev_name	= "iqs622",
 		.sub_devs	= iqs622_sub_devs,
 		.num_sub_devs	= ARRAY_SIZE(iqs622_sub_devs),
-
 		.prod_num	= IQS622_PROD_NUM,
 		.sw_num		= 0x06,
-
 		.prox_mask	= BIT(0),
 		.sar_mask	= BIT(1),
 		.hall_mask	= BIT(2),
 		.als_mask	= BIT(3),
 		.ir_mask	= BIT(4),
-
 		.prox_settings	= IQS622_PROX_SETTINGS_4,
 		.als_flags	= IQS622_ALS_FLAGS,
 		.hall_flags	= IQS622_HALL_FLAGS,
-
-		.clk_div	= 2,
 		.fw_name	= "iqs622.bin",
 		.event_regs	= &iqs622_event_regs[IQS62X_UI_PROX],
 	},
@@ -842,14 +866,10 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 		.dev_name	= "iqs624",
 		.sub_devs	= iqs624_sub_devs,
 		.num_sub_devs	= ARRAY_SIZE(iqs624_sub_devs),
-
 		.prod_num	= IQS624_PROD_NUM,
 		.sw_num		= 0x0B,
-
 		.interval	= IQS624_INTERVAL_NUM,
 		.interval_div	= 3,
-
-		.clk_div	= 2,
 		.fw_name	= "iqs624.bin",
 		.event_regs	= &iqs624_event_regs[IQS62X_UI_PROX],
 	},
@@ -857,20 +877,16 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 		.dev_name	= "iqs625",
 		.sub_devs	= iqs625_sub_devs,
 		.num_sub_devs	= ARRAY_SIZE(iqs625_sub_devs),
-
 		.prod_num	= IQS625_PROD_NUM,
 		.sw_num		= 0x0B,
-
 		.interval	= IQS625_INTERVAL_NUM,
 		.interval_div	= 10,
-
-		.clk_div	= 2,
 		.fw_name	= "iqs625.bin",
 		.event_regs	= &iqs625_event_regs[IQS62X_UI_PROX],
 	},
 };
 
-static const struct regmap_config iqs62x_map_config = {
+static const struct regmap_config iqs62x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = IQS62X_MAX_REG,
@@ -894,9 +910,11 @@ static int iqs62x_probe(struct i2c_client *client)
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&iqs62x->nh);
 	INIT_LIST_HEAD(&iqs62x->fw_blk_head);
+
+	init_completion(&iqs62x->ati_done);
 	init_completion(&iqs62x->fw_done);
 
-	iqs62x->regmap = devm_regmap_init_i2c(client, &iqs62x_map_config);
+	iqs62x->regmap = devm_regmap_init_i2c(client, &iqs62x_regmap_config);
 	if (IS_ERR(iqs62x->regmap)) {
 		ret = PTR_ERR(iqs62x->regmap);
 		dev_err(&client->dev, "Failed to initialize register map: %d\n",

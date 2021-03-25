@@ -153,6 +153,15 @@ struct clk_rcg2 {
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
 
+struct clk_rcg2_gfx3d {
+	u8 div;
+	struct clk_rcg2 rcg;
+	struct clk_hw **hws;
+};
+
+#define to_clk_rcg2_gfx3d(_hw) \
+	container_of(to_clk_rcg2(_hw), struct clk_rcg2_gfx3d, rcg)
+
 extern const struct clk_ops clk_rcg2_ops;
 extern const struct clk_ops clk_rcg2_floor_ops;
 extern const struct clk_ops clk_edp_pixel_ops;

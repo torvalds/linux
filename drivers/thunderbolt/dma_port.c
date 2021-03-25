@@ -335,6 +335,8 @@ static int dma_port_flash_write_block(struct tb_dma_port *dma, u32 address,
 	/* Write the block to MAIL_DATA registers */
 	ret = dma_port_write(sw->tb->ctl, buf, tb_route(sw), dma->port,
 			    dma->base + MAIL_DATA, dwords, DMA_PORT_TIMEOUT);
+	if (ret)
+		return ret;
 
 	in = MAIL_IN_CMD_FLASH_WRITE << MAIL_IN_CMD_SHIFT;
 

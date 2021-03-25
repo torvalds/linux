@@ -135,8 +135,8 @@ int gp102_acr_load_load(struct nvkm_acr *, struct nvkm_acr_hsfw *);
 extern const struct nvkm_acr_hsf_func gp108_acr_unload_0;
 void gp108_acr_hsfw_bld(struct nvkm_acr *, struct nvkm_acr_hsf *);
 
-int nvkm_acr_new_(const struct nvkm_acr_fwif *, struct nvkm_device *, int,
-		  struct nvkm_acr **);
+int nvkm_acr_new_(const struct nvkm_acr_fwif *, struct nvkm_device *, enum nvkm_subdev_type,
+		  int inst, struct nvkm_acr **);
 int nvkm_acr_hsf_boot(struct nvkm_acr *, const char *name);
 
 struct nvkm_acr_lsf {

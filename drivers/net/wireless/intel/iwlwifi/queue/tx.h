@@ -181,4 +181,5 @@ void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
 				bool freeze);
 void iwl_txq_progress(struct iwl_txq *txq);
 void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
+int iwl_trans_txq_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 #endif /* __iwl_trans_queue_tx_h__ */

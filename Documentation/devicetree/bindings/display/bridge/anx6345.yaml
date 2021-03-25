@@ -32,30 +32,22 @@ properties:
     description: Regulator for 2.5V digital core power.
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for LVTTL input
 
       port@1:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for eDP output (panel or connector).
           May be omitted if EDID works reliably.
 
     required:
       - port@0
-
-    additionalProperties: false
 
 required:
   - compatible

@@ -98,7 +98,7 @@ struct cpuset {
 	 * and if it ends up empty, it will inherit the parent's mask.
 	 *
 	 *
-	 * On legacy hierachy:
+	 * On legacy hierarchy:
 	 *
 	 * The user-configured masks are always the same with effective masks.
 	 */
@@ -1309,10 +1309,10 @@ static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
  * @cs:  the cpuset to consider
  * @tmp: temp variables for calculating effective_cpus & partition setup
  *
- * When congifured cpumask is changed, the effective cpumasks of this cpuset
+ * When configured cpumask is changed, the effective cpumasks of this cpuset
  * and all its descendants need to be updated.
  *
- * On legacy hierachy, effective_cpus will be the same with cpu_allowed.
+ * On legacy hierarchy, effective_cpus will be the same with cpu_allowed.
  *
  * Called with cpuset_mutex held
  */

@@ -1556,18 +1556,7 @@ static struct platform_driver octeon_mgmt_driver = {
 	.remove		= octeon_mgmt_remove,
 };
 
-static int __init octeon_mgmt_mod_init(void)
-{
-	return platform_driver_register(&octeon_mgmt_driver);
-}
-
-static void __exit octeon_mgmt_mod_exit(void)
-{
-	platform_driver_unregister(&octeon_mgmt_driver);
-}
-
-module_init(octeon_mgmt_mod_init);
-module_exit(octeon_mgmt_mod_exit);
+module_platform_driver(octeon_mgmt_driver);
 
 MODULE_SOFTDEP("pre: mdio-cavium");
 MODULE_DESCRIPTION(DRV_DESCRIPTION);

@@ -245,6 +245,13 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	    __func__, (rval != QLA_SUCCESS) ? "Failed to abort" : "Aborted",
 	    sp, sp->handle, fcport, rval);
 
+	/*
+	 * Returned before decreasing kref so that I/O requests
+	 * are waited until ABTS complete. This kref is decreased
+	 * at qla24xx_abort_sp_done function.
+	 */
+	if (ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(sp))
+		return;
 out:
 	/* kref_get was done before work was schedule. */
 	kref_put(&sp->cmd_kref, sp->put_fn);
@@ -284,8 +291,7 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	struct qla_hw_data *ha;
 	srb_t           *sp;
 
-
-	if (!fcport || (fcport && fcport->deleted))
+	if (!fcport || fcport->deleted)
 		return rval;
 
 	vha = fcport->vha;
@@ -591,6 +597,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	sp->put_fn = qla_nvme_release_fcp_cmd_kref;
 	sp->qpair = qpair;
 	sp->vha = vha;
+	sp->cmd_sp = sp;
 	nvme = &sp->u.iocb_cmd;
 	nvme->u.nvme.desc = fd;
 
@@ -743,4 +750,86 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	}
 
 	return ret;
+}
+
+void qla_nvme_abort_set_option(struct abort_entry_24xx *abt, srb_t *orig_sp)
+{
+	struct qla_hw_data *ha;
+
+	if (!(ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(orig_sp)))
+		return;
+
+	ha = orig_sp->fcport->vha->hw;
+
+	WARN_ON_ONCE(abt->options & cpu_to_le16(BIT_0));
+	/* Use Driver Specified Retry Count */
+	abt->options |= cpu_to_le16(AOF_ABTS_RTY_CNT);
+	abt->drv.abts_rty_cnt = cpu_to_le16(2);
+	/* Use specified response timeout */
+	abt->options |= cpu_to_le16(AOF_RSP_TIMEOUT);
+	/* set it to 2 * r_a_tov in secs */
+	abt->drv.rsp_timeout = cpu_to_le16(2 * (ha->r_a_tov / 10));
+}
+
+void qla_nvme_abort_process_comp_status(struct abort_entry_24xx *abt, srb_t *orig_sp)
+{
+	u16	comp_status;
+	struct scsi_qla_host *vha;
+
+	if (!(ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(orig_sp)))
+		return;
+
+	vha = orig_sp->fcport->vha;
+
+	comp_status = le16_to_cpu(abt->comp_status);
+	switch (comp_status) {
+	case CS_RESET:		/* reset event aborted */
+	case CS_ABORTED:	/* IOCB was cleaned */
+	/* N_Port handle is not currently logged in */
+	case CS_TIMEOUT:
+	/* N_Port handle was logged out while waiting for ABTS to complete */
+	case CS_PORT_UNAVAILABLE:
+	/* Firmware found that the port name changed */
+	case CS_PORT_LOGGED_OUT:
+	/* BA_RJT was received for the ABTS */
+	case CS_PORT_CONFIG_CHG:
+		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09d,
+		       "Abort I/O IOCB completed with error, comp_status=%x\n",
+		comp_status);
+		break;
+
+	/* BA_RJT was received for the ABTS */
+	case CS_REJECT_RECEIVED:
+		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09e,
+		       "BA_RJT was received for the ABTS rjt_vendorUnique = %u",
+			abt->fw.ba_rjt_vendorUnique);
+		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09e,
+		       "ba_rjt_reasonCodeExpl = %u, ba_rjt_reasonCode = %u\n",
+		       abt->fw.ba_rjt_reasonCodeExpl, abt->fw.ba_rjt_reasonCode);
+		break;
+
+	case CS_COMPLETE:
+		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09f,
+		       "IOCB request is completed successfully comp_status=%x\n",
+		comp_status);
+		break;
+
+	case CS_IOCB_ERROR:
+		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf0a0,
+		       "IOCB request is failed, comp_status=%x\n", comp_status);
+		break;
+
+	default:
+		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf0a1,
+		       "Invalid Abort IO IOCB Completion Status %x\n",
+		comp_status);
+		break;
+	}
+}
+
+inline void qla_wait_nvme_release_cmd_kref(srb_t *orig_sp)
+{
+	if (!(ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(orig_sp)))
+		return;
+	kref_put(&orig_sp->cmd_kref, orig_sp->put_fn);
 }

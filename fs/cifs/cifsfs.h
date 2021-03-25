@@ -62,19 +62,22 @@ extern void cifs_sb_deactive(struct super_block *sb);
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
 extern struct inode *cifs_root_iget(struct super_block *);
-extern int cifs_create(struct inode *, struct dentry *, umode_t,
-		       bool excl);
+extern int cifs_create(struct user_namespace *, struct inode *,
+		       struct dentry *, umode_t, bool excl);
 extern int cifs_atomic_open(struct inode *, struct dentry *,
 			    struct file *, unsigned, umode_t);
 extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
 				  unsigned int);
 extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
 extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
-extern int cifs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
-extern int cifs_mkdir(struct inode *, struct dentry *, umode_t);
+extern int cifs_mknod(struct user_namespace *, struct inode *, struct dentry *,
+		      umode_t, dev_t);
+extern int cifs_mkdir(struct user_namespace *, struct inode *, struct dentry *,
+		      umode_t);
 extern int cifs_rmdir(struct inode *, struct dentry *);
-extern int cifs_rename2(struct inode *, struct dentry *, struct inode *,
-			struct dentry *, unsigned int);
+extern int cifs_rename2(struct user_namespace *, struct inode *,
+			struct dentry *, struct inode *, struct dentry *,
+			unsigned int);
 extern int cifs_revalidate_file_attr(struct file *filp);
 extern int cifs_revalidate_dentry_attr(struct dentry *);
 extern int cifs_revalidate_file(struct file *filp);
@@ -82,8 +85,10 @@ extern int cifs_revalidate_dentry(struct dentry *);
 extern int cifs_invalidate_mapping(struct inode *inode);
 extern int cifs_revalidate_mapping(struct inode *inode);
 extern int cifs_zap_mapping(struct inode *inode);
-extern int cifs_getattr(const struct path *, struct kstat *, u32, unsigned int);
-extern int cifs_setattr(struct dentry *, struct iattr *);
+extern int cifs_getattr(struct user_namespace *, const struct path *,
+			struct kstat *, u32, unsigned int);
+extern int cifs_setattr(struct user_namespace *, struct dentry *,
+			struct iattr *);
 extern int cifs_fiemap(struct inode *, struct fiemap_extent_info *, u64 start,
 		       u64 len);
 
@@ -132,8 +137,8 @@ extern struct vfsmount *cifs_dfs_d_automount(struct path *path);
 /* Functions related to symlinks */
 extern const char *cifs_get_link(struct dentry *, struct inode *,
 			struct delayed_call *);
-extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
-			const char *symname);
+extern int cifs_symlink(struct user_namespace *mnt_userns, struct inode *inode,
+			struct dentry *direntry, const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR
 extern const struct xattr_handler *cifs_xattr_handlers[];
@@ -160,5 +165,5 @@ extern struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type,
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.30"
+#define CIFS_VERSION   "2.31"
 #endif				/* _CIFSFS_H */

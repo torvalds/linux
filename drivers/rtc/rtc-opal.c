@@ -224,32 +224,35 @@ static int opal_tpo_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return enabled ? 0 : opal_set_tpo_time(dev, &alarm);
 }
 
-static struct rtc_class_ops opal_rtc_ops = {
+static const struct rtc_class_ops opal_rtc_ops = {
 	.read_time	= opal_get_rtc_time,
 	.set_time	= opal_set_rtc_time,
+	.read_alarm	= opal_get_tpo_time,
+	.set_alarm	= opal_set_tpo_time,
+	.alarm_irq_enable = opal_tpo_alarm_irq_enable,
 };
 
 static int opal_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	if (pdev->dev.of_node &&
-	    (of_property_read_bool(pdev->dev.of_node, "wakeup-source") ||
-	     of_property_read_bool(pdev->dev.of_node, "has-tpo")/* legacy */)) {
-		device_set_wakeup_capable(&pdev->dev, true);
-		opal_rtc_ops.read_alarm	= opal_get_tpo_time;
-		opal_rtc_ops.set_alarm = opal_set_tpo_time;
-		opal_rtc_ops.alarm_irq_enable = opal_tpo_alarm_irq_enable;
-	}
-
-	rtc = devm_rtc_device_register(&pdev->dev, DRVNAME, &opal_rtc_ops,
-				       THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	if (pdev->dev.of_node &&
+	    (of_property_read_bool(pdev->dev.of_node, "wakeup-source") ||
+	     of_property_read_bool(pdev->dev.of_node, "has-tpo")/* legacy */))
+		device_set_wakeup_capable(&pdev->dev, true);
+	else
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
+
+	rtc->ops = &opal_rtc_ops;
+	rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
+	rtc->range_max = RTC_TIMESTAMP_END_9999;
 	rtc->uie_unsupported = 1;
 
-	return 0;
+	return devm_rtc_register_device(rtc);
 }
 
 static const struct of_device_id opal_rtc_match[] = {

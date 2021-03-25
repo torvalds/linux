@@ -21,6 +21,8 @@
 
 #define INTEL_PT_PKT_MAX_SZ		16
 
+#define INTEL_PT_VMX_NR_FLAG		1
+
 enum intel_pt_pkt_type {
 	INTEL_PT_BAD,
 	INTEL_PT_PAD,

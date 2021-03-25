@@ -13,7 +13,7 @@ struct nvkm_xtensa {
 };
 
 int nvkm_xtensa_new_(const struct nvkm_xtensa_func *, struct nvkm_device *,
-		     int index, bool enable, u32 addr, struct nvkm_engine **);
+		     enum nvkm_subdev_type, int, bool enable, u32 addr, struct nvkm_engine **);
 
 struct nvkm_xtensa_func {
 	u32 fifo_val;

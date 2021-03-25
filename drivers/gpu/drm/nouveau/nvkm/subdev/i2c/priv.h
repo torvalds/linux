@@ -4,8 +4,8 @@
 #define nvkm_i2c(p) container_of((p), struct nvkm_i2c, subdev)
 #include <subdev/i2c.h>
 
-int nvkm_i2c_new_(const struct nvkm_i2c_func *, struct nvkm_device *,
-		  int index, struct nvkm_i2c **);
+int nvkm_i2c_new_(const struct nvkm_i2c_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_i2c **);
 
 struct nvkm_i2c_func {
 	int (*pad_x_new)(struct nvkm_i2c *, int id, struct nvkm_i2c_pad **);

@@ -93,33 +93,6 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	jr	t0
 0:
 
-#ifdef CONFIG_USE_OF
-#if defined(CONFIG_MIPS_RAW_APPENDED_DTB) || \
-	defined(CONFIG_MIPS_ELF_APPENDED_DTB)
-
-	PTR_LA		t2, __appended_dtb
-
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	li		t1, 0xd00dfeed
-#else  /* !CONFIG_CPU_BIG_ENDIAN */
-	li		t1, 0xedfe0dd0
-#endif /* !CONFIG_CPU_BIG_ENDIAN */
-	lw		t0, (t2)
-	beq		t0, t1, dtb_found
-#endif /* CONFIG_MIPS_RAW_APPENDED_DTB || CONFIG_MIPS_ELF_APPENDED_DTB */
-	li		t1, -2
-	move		t2, a1
-	beq		a0, t1, dtb_found
-
-#ifdef CONFIG_BUILTIN_DTB
-	PTR_LA	t2, __dtb_start
-	PTR_LA	t1, __dtb_end
-	bne		t1, t2, dtb_found
-#endif /* CONFIG_BUILTIN_DTB */
-
-	li		t2, 0
-dtb_found:
-#endif /* CONFIG_USE_OF */
 	PTR_LA		t0, __bss_start		# clear .bss
 	LONG_S		zero, (t0)
 	PTR_LA		t1, __bss_stop - LONGSIZE
@@ -132,10 +105,6 @@ dtb_found:
 	LONG_S		a1, fw_arg1
 	LONG_S		a2, fw_arg2
 	LONG_S		a3, fw_arg3
-
-#ifdef CONFIG_USE_OF
-	LONG_S		t2, fw_passed_dtb
-#endif
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
 #ifdef CONFIG_64BIT

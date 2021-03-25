@@ -119,7 +119,7 @@ el2_error:
 
 .macro invalid_vector	label, target = __guest_exit_panic
 	.align	2
-SYM_CODE_START(\label)
+SYM_CODE_START_LOCAL(\label)
 	b \target
 SYM_CODE_END(\label)
 .endm

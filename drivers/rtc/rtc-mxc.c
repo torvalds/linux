@@ -189,11 +189,10 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 	struct platform_device *pdev = dev_id;
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 	void __iomem *ioaddr = pdata->ioaddr;
-	unsigned long flags;
 	u32 status;
 	u32 events = 0;
 
-	spin_lock_irqsave(&pdata->rtc->irq_lock, flags);
+	spin_lock(&pdata->rtc->irq_lock);
 	status = readw(ioaddr + RTC_RTCISR) & readw(ioaddr + RTC_RTCIENR);
 	/* clear interrupt sources */
 	writew(status, ioaddr + RTC_RTCISR);
@@ -209,7 +208,7 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 		events |= (RTC_PF | RTC_IRQF);
 
 	rtc_update_irq(pdata->rtc, 1, events);
-	spin_unlock_irqrestore(&pdata->rtc->irq_lock, flags);
+	spin_unlock(&pdata->rtc->irq_lock);
 
 	return IRQ_HANDLED;
 }

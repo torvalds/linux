@@ -1069,7 +1069,7 @@ static struct snd_soc_dai_driver adcx140_dai_driver[] = {
 			.formats	 = ADCX140_FORMATS,
 		},
 		.ops = &adcx140_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	}
 };
 

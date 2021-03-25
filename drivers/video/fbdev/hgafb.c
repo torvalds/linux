@@ -357,8 +357,8 @@ error:
 
 /**
  *	hgafb_open - open the framebuffer device
- *	@info:pointer to fb_info object containing info for current hga board
- *	@int:open by console system or userland.
+ *	@info: pointer to fb_info object containing info for current hga board
+ *	@init: open by console system or userland.
  */
 
 static int hgafb_open(struct fb_info *info, int init)
@@ -370,9 +370,9 @@ static int hgafb_open(struct fb_info *info, int init)
 }
 
 /**
- *	hgafb_open - open the framebuffer device
- *	@info:pointer to fb_info object containing info for current hga board
- *	@int:open by console system or userland.
+ *	hgafb_release - open the framebuffer device
+ *	@info: pointer to fb_info object containing info for current hga board
+ *	@init: open by console system or userland.
  */
 
 static int hgafb_release(struct fb_info *info, int init)

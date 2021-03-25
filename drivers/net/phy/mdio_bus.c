@@ -543,8 +543,8 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	mutex_init(&bus->mdio_lock);
 	mutex_init(&bus->shared_lock);
 
-	/* de-assert bus level PHY GPIO reset */
-	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_LOW);
+	/* assert bus level PHY GPIO reset */
+	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(gpiod)) {
 		err = dev_err_probe(&bus->dev, PTR_ERR(gpiod),
 				    "mii_bus %s couldn't get reset GPIO\n",
@@ -553,8 +553,6 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 		return err;
 	} else	if (gpiod) {
 		bus->reset_gpiod = gpiod;
-
-		gpiod_set_value_cansleep(gpiod, 1);
 		fsleep(bus->reset_delay_us);
 		gpiod_set_value_cansleep(gpiod, 0);
 		if (bus->reset_post_delay_us > 0)
@@ -740,7 +738,7 @@ int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 {
 	int retval;
 
-	WARN_ON_ONCE(!mutex_is_locked(&bus->mdio_lock));
+	lockdep_assert_held_once(&bus->mdio_lock);
 
 	retval = bus->read(bus, addr, regnum);
 
@@ -766,7 +764,7 @@ int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
 	int err;
 
-	WARN_ON_ONCE(!mutex_is_locked(&bus->mdio_lock));
+	lockdep_assert_held_once(&bus->mdio_lock);
 
 	err = bus->write(bus, addr, regnum, val);
 

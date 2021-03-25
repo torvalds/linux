@@ -65,7 +65,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		enable-gpios = <&pio 3 29 GPIO_ACTIVE_HIGH>;
-
+		power-supply = <&reg_sw>;
 		brightness-levels = <0 1 2 4 8 16 32 64 128 255>;
 		default-brightness-level = <9>;
 	};

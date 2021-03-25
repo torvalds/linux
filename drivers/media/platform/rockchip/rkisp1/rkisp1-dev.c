@@ -252,7 +252,7 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 		struct v4l2_fwnode_endpoint vep = {
 			.bus_type = V4L2_MBUS_CSI2_DPHY
 		};
-		struct rkisp1_sensor_async *rk_asd = NULL;
+		struct rkisp1_sensor_async *rk_asd;
 		struct fwnode_handle *ep;
 
 		ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(rkisp1->dev),
@@ -265,20 +265,16 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 		if (ret)
 			goto err_parse;
 
-		rk_asd = kzalloc(sizeof(*rk_asd), GFP_KERNEL);
-		if (!rk_asd) {
-			ret = -ENOMEM;
+		rk_asd = v4l2_async_notifier_add_fwnode_remote_subdev(ntf, ep,
+							struct rkisp1_sensor_async);
+		if (IS_ERR(rk_asd)) {
+			ret = PTR_ERR(rk_asd);
 			goto err_parse;
 		}
 
 		rk_asd->mbus_type = vep.bus_type;
 		rk_asd->mbus_flags = vep.bus.mipi_csi2.flags;
 		rk_asd->lanes = vep.bus.mipi_csi2.num_data_lanes;
-
-		ret = v4l2_async_notifier_add_fwnode_remote_subdev(ntf, ep,
-								   &rk_asd->asd);
-		if (ret)
-			goto err_parse;
 
 		dev_dbg(rkisp1->dev, "registered ep id %d with %d lanes\n",
 			vep.base.id, rk_asd->lanes);
@@ -290,7 +286,6 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 		continue;
 err_parse:
 		fwnode_handle_put(ep);
-		kfree(rk_asd);
 		v4l2_async_notifier_cleanup(ntf);
 		return ret;
 	}

@@ -211,7 +211,7 @@ typedef enum {
  */
 typedef enum {
 	AHD_FENONE		= 0x00000,
-	AHD_WIDE  		= 0x00001,/* Wide Channel */
+	AHD_WIDE		= 0x00001,/* Wide Channel */
 	AHD_AIC79XXB_SLOWCRC    = 0x00002,/* SLOWCRC bit should be set */
 	AHD_MULTI_FUNC		= 0x00100,/* Multi-Function/Channel Device */
 	AHD_TARGETMODE		= 0x01000,/* Has tested target mode support */
@@ -433,7 +433,7 @@ union initiator_data {
  * Target mode version of the shared data SCB segment.
  */
 struct target_data {
-	uint32_t spare[2];	
+	uint32_t spare[2];
 	uint8_t  scsi_status;		/* SCSI status to give to initiator */
 	uint8_t  target_phases;		/* Bitmap of phases to execute */
 	uint8_t  data_phase;		/* Data-In or Data-Out */
@@ -608,9 +608,9 @@ struct scb {
 	struct ahd_softc	 *ahd_softc;
 	scb_flag		  flags;
 	struct scb_platform_data *platform_data;
-	struct map_node	 	 *hscb_map;
-	struct map_node	 	 *sg_map;
-	struct map_node	 	 *sense_map;
+	struct map_node		 *hscb_map;
+	struct map_node		 *sg_map;
+	struct map_node		 *sense_map;
 	void			 *sg_list;
 	uint8_t			 *sense_data;
 	dma_addr_t		  sg_list_busaddr;
@@ -674,7 +674,7 @@ struct scb_data {
 struct target_cmd {
 	uint8_t scsiid;		/* Our ID and the initiator's ID */
 	uint8_t identify;	/* Identify message */
-	uint8_t bytes[22];	/* 
+	uint8_t bytes[22];	/*
 				 * Bytes contains any additional message
 				 * bytes terminated by 0xFF.  The remainder
 				 * is the cdb to execute.
@@ -712,7 +712,7 @@ struct ahd_tmode_event {
  * structure here so we can store arrays of them, etc. in OS neutral
  * data structures.
  */
-#ifdef AHD_TARGET_MODE 
+#ifdef AHD_TARGET_MODE
 struct ahd_tmode_lstate {
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
@@ -807,11 +807,11 @@ struct ahd_tmode_tstate {
 /***************************** Lookup Tables **********************************/
 /*
  * Phase -> name and message out response
- * to parity errors in each phase table. 
+ * to parity errors in each phase table.
  */
 struct ahd_phase_table_entry {
-        uint8_t phase;
-        uint8_t mesg_out; /* Message response to parity errors */
+	uint8_t phase;
+	uint8_t mesg_out; /* Message response to parity errors */
 	const char *phasemsg;
 };
 
@@ -844,7 +844,7 @@ struct seeprom_config {
 #define		    CFBS_ENABLED	0x04
 #define		    CFBS_DISABLED_SCAN	0x08
 #define		CFENABLEDV	0x0010	/* Perform Domain Validation */
-#define		CFCTRL_A	0x0020	/* BIOS displays Ctrl-A message */	
+#define		CFCTRL_A	0x0020	/* BIOS displays Ctrl-A message */
 #define		CFSPARITY	0x0040	/* SCSI parity */
 #define		CFEXTEND	0x0080	/* extended translation enabled */
 #define		CFBOOTCD	0x0100  /* Support Bootable CD-ROM */
@@ -858,7 +858,7 @@ struct seeprom_config {
 /*
  * Host Adapter Control Bits
  */
-	uint16_t adapter_control;	/* word 17 */	
+	uint16_t adapter_control;	/* word 17 */
 #define		CFAUTOTERM	0x0001	/* Perform Auto termination */
 #define		CFSTERM		0x0002	/* SCSI low byte termination */
 #define		CFWSTERM	0x0004	/* SCSI high byte termination */
@@ -867,7 +867,7 @@ struct seeprom_config {
 #define		CFSEHIGHTERM	0x0020	/* Ultra2 secondary high term */
 #define		CFSTPWLEVEL	0x0040	/* Termination level control */
 #define		CFBIOSAUTOTERM	0x0080	/* Perform Auto termination */
-#define		CFTERM_MENU	0x0100	/* BIOS displays termination menu */	
+#define		CFTERM_MENU	0x0100	/* BIOS displays termination menu */
 #define		CFCLUSTERENB	0x8000	/* Cluster Enable */
 
 /*
@@ -881,7 +881,7 @@ struct seeprom_config {
 /*
  * Maximum targets
  */
-	uint16_t max_targets;		/* word 19 */	
+	uint16_t max_targets;		/* word 19 */
 #define		CFMAXTARG	0x00ff	/* maximum targets */
 #define		CFBOOTLUN	0x0f00	/* Lun to boot from */
 #define		CFBOOTID	0xf000	/* Target to boot from */
@@ -941,7 +941,7 @@ struct vpd_config {
 #define		FLX_ROMSTAT_EE_2MBx8	0x2
 #define		FLX_ROMSTAT_EE_4MBx8	0x3
 #define		FLX_ROMSTAT_EE_16MBx8	0x4
-#define 		CURSENSE_ENB	0x1
+#define			CURSENSE_ENB	0x1
 #define	FLXADDR_FLEXSTAT		0x2
 #define		FLX_FSTAT_BUSY		0x1
 #define FLXADDR_CURRENT_STAT		0x4
@@ -1051,8 +1051,8 @@ struct ahd_completion
 };
 
 struct ahd_softc {
-	bus_space_tag_t           tags[2];
-	bus_space_handle_t        bshs[2];
+	bus_space_tag_t		  tags[2];
+	bus_space_handle_t	  bshs[2];
 	struct scb_data		  scb_data;
 
 	struct hardware_scb	 *next_queued_hscb;
@@ -1175,7 +1175,7 @@ struct ahd_softc {
 	uint8_t			  tqinfifonext;
 
 	/*
-	 * Cached verson of the hs_mailbox so we can avoid
+	 * Cached version of the hs_mailbox so we can avoid
 	 * pausing the sequencer during mailbox updates.
 	 */
 	uint8_t			  hs_mailbox;
@@ -1243,7 +1243,7 @@ struct ahd_softc {
 	u_int			  int_coalescing_threshold;
 	u_int			  int_coalescing_stop_threshold;
 
-	uint16_t	 	  user_discenable;/* Disconnection allowed  */
+	uint16_t		  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
 };
 

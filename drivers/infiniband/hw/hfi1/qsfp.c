@@ -242,7 +242,7 @@ static int i2c_bus_write(struct hfi1_devdata *dd, struct hfi1_i2c_bus *i2c,
 		msgs[0].buf = offset_bytes;
 
 		msgs[1].addr = slave_addr;
-		msgs[1].flags = I2C_M_NOSTART,
+		msgs[1].flags = I2C_M_NOSTART;
 		msgs[1].len = len;
 		msgs[1].buf = data;
 		break;
@@ -290,7 +290,7 @@ static int i2c_bus_read(struct hfi1_devdata *dd, struct hfi1_i2c_bus *bus,
 		msgs[0].buf = offset_bytes;
 
 		msgs[1].addr = slave_addr;
-		msgs[1].flags = I2C_M_RD,
+		msgs[1].flags = I2C_M_RD;
 		msgs[1].len = len;
 		msgs[1].buf = data;
 		break;

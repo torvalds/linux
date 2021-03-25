@@ -16,10 +16,11 @@ struct gk104_fifo_chan {
 
 	struct nvkm_memory *mthd;
 
-	struct {
+#define GK104_FIFO_ENGN_SW 15
+	struct gk104_fifo_engn {
 		struct nvkm_gpuobj *inst;
 		struct nvkm_vma *vma;
-	} engn[NVKM_SUBDEV_NR];
+	} engn[NVKM_FIFO_ENGN_NR];
 };
 
 extern const struct nvkm_fifo_chan_func gk104_fifo_gpfifo_func;
@@ -29,6 +30,7 @@ int gk104_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
 void *gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *);
 void gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *);
 void gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *);
+struct gk104_fifo_engn *gk104_fifo_gpfifo_engine(struct gk104_fifo_chan *, struct nvkm_engine *);
 int gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *, struct nvkm_engine *,
 				  struct nvkm_object *);
 void gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *,

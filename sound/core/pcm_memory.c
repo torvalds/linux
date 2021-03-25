@@ -111,9 +111,8 @@ void snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 	struct snd_pcm_substream *substream;
 	int stream;
 
-	for (stream = 0; stream < 2; stream++)
-		for (substream = pcm->streams[stream].substream; substream; substream = substream->next)
-			snd_pcm_lib_preallocate_free(substream);
+	for_each_pcm_substream(pcm, stream, substream)
+		snd_pcm_lib_preallocate_free(substream);
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
 
@@ -246,11 +245,8 @@ static void preallocate_pages_for_all(struct snd_pcm *pcm, int type,
 	struct snd_pcm_substream *substream;
 	int stream;
 
-	for (stream = 0; stream < 2; stream++)
-		for (substream = pcm->streams[stream].substream; substream;
-		     substream = substream->next)
-			preallocate_pages(substream, type, data, size, max,
-					  managed);
+	for_each_pcm_substream(pcm, stream, substream)
+		preallocate_pages(substream, type, data, size, max, managed);
 }
 
 /**

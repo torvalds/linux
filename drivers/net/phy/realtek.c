@@ -60,6 +60,9 @@
 #define RTL_LPADV_5000FULL			BIT(6)
 #define RTL_LPADV_2500FULL			BIT(5)
 
+#define RTL9000A_GINMR				0x14
+#define RTL9000A_GINMR_LINK_STATUS		BIT(4)
+
 #define RTLGEN_SPEED_MASK			0x0630
 
 #define RTL_GENERIC_PHYID			0x001cc800
@@ -655,6 +658,122 @@ static int rtlgen_resume(struct phy_device *phydev)
 	return ret;
 }
 
+static int rtl9000a_config_init(struct phy_device *phydev)
+{
+	phydev->autoneg = AUTONEG_DISABLE;
+	phydev->speed = SPEED_100;
+	phydev->duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
+static int rtl9000a_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+	u16 ctl = 0;
+
+	switch (phydev->master_slave_set) {
+	case MASTER_SLAVE_CFG_MASTER_FORCE:
+		ctl |= CTL1000_AS_MASTER;
+		break;
+	case MASTER_SLAVE_CFG_SLAVE_FORCE:
+		break;
+	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNSUPPORTED:
+		return 0;
+	default:
+		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	ret = phy_modify_changed(phydev, MII_CTRL1000, CTL1000_AS_MASTER, ctl);
+	if (ret == 1)
+		ret = genphy_soft_reset(phydev);
+
+	return ret;
+}
+
+static int rtl9000a_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+
+	ret = genphy_update_link(phydev);
+	if (ret)
+		return ret;
+
+	ret = phy_read(phydev, MII_CTRL1000);
+	if (ret < 0)
+		return ret;
+	if (ret & CTL1000_AS_MASTER)
+		phydev->master_slave_get = MASTER_SLAVE_CFG_MASTER_FORCE;
+	else
+		phydev->master_slave_get = MASTER_SLAVE_CFG_SLAVE_FORCE;
+
+	ret = phy_read(phydev, MII_STAT1000);
+	if (ret < 0)
+		return ret;
+	if (ret & LPA_1000MSRES)
+		phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
+	else
+		phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
+
+	return 0;
+}
+
+static int rtl9000a_ack_interrupt(struct phy_device *phydev)
+{
+	int err;
+
+	err = phy_read(phydev, RTL8211F_INSR);
+
+	return (err < 0) ? err : 0;
+}
+
+static int rtl9000a_config_intr(struct phy_device *phydev)
+{
+	u16 val;
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = rtl9000a_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		val = (u16)~RTL9000A_GINMR_LINK_STATUS;
+		err = phy_write_paged(phydev, 0xa42, RTL9000A_GINMR, val);
+	} else {
+		val = ~0;
+		err = phy_write_paged(phydev, 0xa42, RTL9000A_GINMR, val);
+		if (err)
+			return err;
+
+		err = rtl9000a_ack_interrupt(phydev);
+	}
+
+	return phy_write_paged(phydev, 0xa42, RTL9000A_GINMR, val);
+}
+
+static irqreturn_t rtl9000a_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, RTL8211F_INSR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & RTL8211F_INER_LINK_STATUS))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
@@ -823,6 +942,19 @@ static struct phy_driver realtek_drvs[] = {
 		.handle_interrupt = genphy_handle_interrupt_no_ack,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001ccb00),
+		.name		= "RTL9000AA_RTL9000AN Ethernet",
+		.features       = PHY_BASIC_T1_FEATURES,
+		.config_init	= rtl9000a_config_init,
+		.config_aneg	= rtl9000a_config_aneg,
+		.read_status	= rtl9000a_read_status,
+		.config_intr	= rtl9000a_config_intr,
+		.handle_interrupt = rtl9000a_handle_interrupt,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	},
 };
 

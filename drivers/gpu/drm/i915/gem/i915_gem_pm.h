@@ -19,4 +19,7 @@ void i915_gem_idle_work_handler(struct work_struct *work);
 void i915_gem_suspend(struct drm_i915_private *i915);
 void i915_gem_suspend_late(struct drm_i915_private *i915);
 
+int i915_gem_freeze(struct drm_i915_private *i915);
+int i915_gem_freeze_late(struct drm_i915_private *i915);
+
 #endif /* __I915_GEM_PM_H__ */

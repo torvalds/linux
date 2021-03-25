@@ -135,8 +135,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 		goto fail;
 	}
 
-	ret = drm_prime_sg_to_page_addr_arrays(sgt, etnaviv_obj->pages,
-					       NULL, npages);
+	ret = drm_prime_sg_to_page_array(sgt, etnaviv_obj->pages, npages);
 	if (ret)
 		goto fail;
 

@@ -10,10 +10,7 @@ C IRIW+fencembonceonces+OnceOnce
  * process?  This litmus test exercises LKMM's "propagation" rule.
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x)
 {

@@ -32,9 +32,10 @@ gm20b_bar_func = {
 };
 
 int
-gm20b_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
+gm20b_bar_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_bar **pbar)
 {
-	int ret = gf100_bar_new_(&gm20b_bar_func, device, index, pbar);
+	int ret = gf100_bar_new_(&gm20b_bar_func, device, type, inst, pbar);
 	if (ret == 0)
 		(*pbar)->iomap_uncached = true;
 	return ret;

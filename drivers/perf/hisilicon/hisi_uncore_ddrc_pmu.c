@@ -319,7 +319,7 @@ static struct attribute *hisi_ddrc_pmu_identifier_attrs[] = {
 	NULL
 };
 
-static struct attribute_group hisi_ddrc_pmu_identifier_group = {
+static const struct attribute_group hisi_ddrc_pmu_identifier_group = {
 	.attrs = hisi_ddrc_pmu_identifier_attrs,
 };
 

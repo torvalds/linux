@@ -25,6 +25,7 @@ static struct {
 	/* AST2600 */
 	{ "AST2600", 0x05000303 },
 	{ "AST2620", 0x05010203 },
+	{ "AST2605", 0x05030103 },
 };
 
 static const char *siliconid_to_name(u32 siliconid)
@@ -43,14 +44,30 @@ static const char *siliconid_to_name(u32 siliconid)
 static const char *siliconid_to_rev(u32 siliconid)
 {
 	unsigned int rev = (siliconid >> 16) & 0xff;
+	unsigned int gen = (siliconid >> 24) & 0xff;
 
-	switch (rev) {
-	case 0:
-		return "A0";
-	case 1:
-		return "A1";
-	case 3:
-		return "A2";
+	if (gen < 0x5) {
+		/* AST2500 and below */
+		switch (rev) {
+		case 0:
+			return "A0";
+		case 1:
+			return "A1";
+		case 3:
+			return "A2";
+		}
+	} else {
+		/* AST2600 */
+		switch (rev) {
+		case 0:
+			return "A0";
+		case 1:
+			return "A1";
+		case 2:
+			return "A2";
+		case 3:
+			return "A3";
+		}
 	}
 
 	return "??";

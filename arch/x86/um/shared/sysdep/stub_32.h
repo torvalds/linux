@@ -7,8 +7,8 @@
 #define __SYSDEP_STUB_H
 
 #include <asm/ptrace.h>
+#include <generated/asm-offsets.h>
 
-#define STUB_SYSCALL_RET EAX
 #define STUB_MMAP_NR __NR_mmap2
 #define MMAP_OFFSET(o) ((o) >> UM_KERN_PAGE_SHIFT)
 
@@ -77,17 +77,28 @@ static inline void trap_myself(void)
 	__asm("int3");
 }
 
-static inline void remap_stack(int fd, unsigned long offset)
+static void inline remap_stack_and_trap(void)
 {
-	__asm__ volatile ("movl %%eax,%%ebp ; movl %0,%%eax ; int $0x80 ;"
-			  "movl %7, %%ebx ; movl %%eax, (%%ebx)"
-			  : : "g" (STUB_MMAP_NR), "b" (STUB_DATA),
-			    "c" (UM_KERN_PAGE_SIZE),
-			    "d" (PROT_READ | PROT_WRITE),
-			    "S" (MAP_FIXED | MAP_SHARED), "D" (fd),
-			    "a" (offset),
-			    "i" (&((struct stub_data *) STUB_DATA)->err)
-			  : "memory");
+	__asm__ volatile (
+		"movl %%esp,%%ebx ;"
+		"andl %0,%%ebx ;"
+		"movl %1,%%eax ;"
+		"movl %%ebx,%%edi ; addl %2,%%edi ; movl (%%edi),%%edi ;"
+		"movl %%ebx,%%ebp ; addl %3,%%ebp ; movl (%%ebp),%%ebp ;"
+		"int $0x80 ;"
+		"addl %4,%%ebx ; movl %%eax, (%%ebx) ;"
+		"int $3"
+		: :
+		"g" (~(UM_KERN_PAGE_SIZE - 1)),
+		"g" (STUB_MMAP_NR),
+		"g" (UML_STUB_FIELD_FD),
+		"g" (UML_STUB_FIELD_OFFSET),
+		"g" (UML_STUB_FIELD_CHILD_ERR),
+		"c" (UM_KERN_PAGE_SIZE),
+		"d" (PROT_READ | PROT_WRITE),
+		"S" (MAP_FIXED | MAP_SHARED)
+		:
+		"memory");
 }
 
 #endif

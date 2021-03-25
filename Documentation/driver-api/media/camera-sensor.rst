@@ -15,13 +15,31 @@ Camera sensors have an internal clock tree including a PLL and a number of
 divisors. The clock tree is generally configured by the driver based on a few
 input parameters that are specific to the hardware:: the external clock frequency
 and the link frequency. The two parameters generally are obtained from system
-firmware. No other frequencies should be used in any circumstances.
+firmware. **No other frequencies should be used in any circumstances.**
 
 The reason why the clock frequencies are so important is that the clock signals
 come out of the SoC, and in many cases a specific frequency is designed to be
 used in the system. Using another frequency may cause harmful effects
 elsewhere. Therefore only the pre-determined frequencies are configurable by the
 user.
+
+ACPI
+~~~~
+
+Read the "clock-frequency" _DSD property to denote the frequency. The driver can
+rely on this frequency being used.
+
+Devicetree
+~~~~~~~~~~
+
+The currently preferred way to achieve this is using "assigned-clock-rates"
+property. See Documentation/devicetree/bindings/clock/clock-bindings.txt for
+more information. The driver then gets the frequency using clk_get_rate().
+
+This approach has the drawback that there's no guarantee that the frequency
+hasn't been modified directly or indirectly by another driver, or supported by
+the board's clock tree to begin with. Changes to the Common Clock Framework API
+are required to ensure reliability.
 
 Frame size
 ----------

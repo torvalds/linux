@@ -24,6 +24,7 @@
 #include "bpf-event.h"
 #include "util/string2.h"
 #include "util/perf_api_probe.h"
+#include "util/evsel_fprintf.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -303,6 +304,11 @@ int __evlist__add_default_attrs(struct evlist *evlist, struct perf_event_attr *a
 	return evlist__add_attrs(evlist, attrs, nr_attrs);
 }
 
+__weak int arch_evlist__add_default_attrs(struct evlist *evlist __maybe_unused)
+{
+	return 0;
+}
+
 struct evsel *evlist__find_tracepoint_by_id(struct evlist *evlist, int id)
 {
 	struct evsel *evsel;
@@ -571,6 +577,14 @@ int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
 {
 	return perf_evlist__filter_pollfd(&evlist->core, revents_and_mask);
 }
+
+#ifdef HAVE_EVENTFD_SUPPORT
+int evlist__add_wakeup_eventfd(struct evlist *evlist, int fd)
+{
+	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
+				       fdarray_flag__nonfilterable);
+}
+#endif
 
 int evlist__poll(struct evlist *evlist, int timeout)
 {
@@ -1292,6 +1306,7 @@ void evlist__close(struct evlist *evlist)
 		perf_evsel__free_fd(&evsel->core);
 		perf_evsel__free_id(&evsel->core);
 	}
+	perf_evlist__reset_id_hash(&evlist->core);
 }
 
 static int evlist__create_syswide_maps(struct evlist *evlist)
@@ -1936,6 +1951,15 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 				    (sizeof(EVLIST_CTL_CMD_SNAPSHOT_TAG)-1))) {
 			*cmd = EVLIST_CTL_CMD_SNAPSHOT;
 			pr_debug("is snapshot\n");
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_EVLIST_TAG,
+				    (sizeof(EVLIST_CTL_CMD_EVLIST_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_EVLIST;
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_STOP_TAG,
+				    (sizeof(EVLIST_CTL_CMD_STOP_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_STOP;
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_PING_TAG,
+				    (sizeof(EVLIST_CTL_CMD_PING_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_PING;
 		}
 	}
 
@@ -1957,6 +1981,98 @@ int evlist__ctlfd_ack(struct evlist *evlist)
 	return err;
 }
 
+static int get_cmd_arg(char *cmd_data, size_t cmd_size, char **arg)
+{
+	char *data = cmd_data + cmd_size;
+
+	/* no argument */
+	if (!*data)
+		return 0;
+
+	/* there's argument */
+	if (*data == ' ') {
+		*arg = data + 1;
+		return 1;
+	}
+
+	/* malformed */
+	return -1;
+}
+
+static int evlist__ctlfd_enable(struct evlist *evlist, char *cmd_data, bool enable)
+{
+	struct evsel *evsel;
+	char *name;
+	int err;
+
+	err = get_cmd_arg(cmd_data,
+			  enable ? sizeof(EVLIST_CTL_CMD_ENABLE_TAG) - 1 :
+				   sizeof(EVLIST_CTL_CMD_DISABLE_TAG) - 1,
+			  &name);
+	if (err < 0) {
+		pr_info("failed: wrong command\n");
+		return -1;
+	}
+
+	if (err) {
+		evsel = evlist__find_evsel_by_str(evlist, name);
+		if (evsel) {
+			if (enable)
+				evlist__enable_evsel(evlist, name);
+			else
+				evlist__disable_evsel(evlist, name);
+			pr_info("Event %s %s\n", evsel->name,
+				enable ? "enabled" : "disabled");
+		} else {
+			pr_info("failed: can't find '%s' event\n", name);
+		}
+	} else {
+		if (enable) {
+			evlist__enable(evlist);
+			pr_info(EVLIST_ENABLED_MSG);
+		} else {
+			evlist__disable(evlist);
+			pr_info(EVLIST_DISABLED_MSG);
+		}
+	}
+
+	return 0;
+}
+
+static int evlist__ctlfd_list(struct evlist *evlist, char *cmd_data)
+{
+	struct perf_attr_details details = { .verbose = false, };
+	struct evsel *evsel;
+	char *arg;
+	int err;
+
+	err = get_cmd_arg(cmd_data,
+			  sizeof(EVLIST_CTL_CMD_EVLIST_TAG) - 1,
+			  &arg);
+	if (err < 0) {
+		pr_info("failed: wrong command\n");
+		return -1;
+	}
+
+	if (err) {
+		if (!strcmp(arg, "-v")) {
+			details.verbose = true;
+		} else if (!strcmp(arg, "-g")) {
+			details.event_group = true;
+		} else if (!strcmp(arg, "-F")) {
+			details.freq = true;
+		} else {
+			pr_info("failed: wrong command\n");
+			return -1;
+		}
+	}
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__fprintf(evsel, &details, stderr);
+
+	return 0;
+}
+
 int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 {
 	int err = 0;
@@ -1973,12 +2089,16 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 		if (err > 0) {
 			switch (*cmd) {
 			case EVLIST_CTL_CMD_ENABLE:
-				evlist__enable(evlist);
-				break;
 			case EVLIST_CTL_CMD_DISABLE:
-				evlist__disable(evlist);
+				err = evlist__ctlfd_enable(evlist, cmd_data,
+							   *cmd == EVLIST_CTL_CMD_ENABLE);
+				break;
+			case EVLIST_CTL_CMD_EVLIST:
+				err = evlist__ctlfd_list(evlist, cmd_data);
 				break;
 			case EVLIST_CTL_CMD_SNAPSHOT:
+			case EVLIST_CTL_CMD_STOP:
+			case EVLIST_CTL_CMD_PING:
 				break;
 			case EVLIST_CTL_CMD_ACK:
 			case EVLIST_CTL_CMD_UNSUPPORTED:

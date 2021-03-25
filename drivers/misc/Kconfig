@@ -50,14 +50,6 @@ config AD525X_DPOT_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad525x_dpot-spi.
 
-config ATMEL_TCLIB
-	bool "Atmel AT32/AT91 Timer/Counter Library"
-	depends on ARCH_AT91
-	help
-	  Select this if you want a library to allocate the Timer/Counter
-	  blocks found on many Atmel processors.  This facilitates using
-	  these blocks by different drivers despite processor differences.
-
 config DUMMY_IRQ
 	tristate "Dummy IRQ handler"
 	help
@@ -111,19 +103,6 @@ config PHANTOM
 
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
-
-config INTEL_MID_PTI
-	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
-	depends on PCI && TTY && (X86_INTEL_MID || COMPILE_TEST)
-	help
-	  The PTI (Parallel Trace Interface) driver directs
-	  trace data routed from various parts in the system out
-	  through an Intel Penwell PTI port and out of the mobile
-	  device for analysis with a debugging tool (Lauterbach or Fido).
-
-	  You should select this driver if the target kernel is meant for
-	  an Intel Atom (non-netbook) mobile device containing a MIPI
-	  P1149.7 standard implementation.
 
 config TIFM_CORE
 	tristate "TI Flash Media interface support"
@@ -478,6 +457,7 @@ source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/ocxl/Kconfig"
+source "drivers/misc/bcm-vk/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/habanalabs/Kconfig"
 source "drivers/misc/uacce/Kconfig"

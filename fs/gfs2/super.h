@@ -11,6 +11,10 @@
 #include <linux/dcache.h>
 #include "incore.h"
 
+/* Supported fs format version range */
+#define GFS2_FS_FORMAT_MIN (1801)
+#define GFS2_FS_FORMAT_MAX (1802)
+
 extern void gfs2_lm_unmount(struct gfs2_sbd *sdp);
 
 static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
@@ -30,7 +34,7 @@ extern int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 				     struct gfs2_inode **ipp);
 
 extern int gfs2_make_fs_rw(struct gfs2_sbd *sdp);
-extern int gfs2_make_fs_ro(struct gfs2_sbd *sdp);
+extern void gfs2_make_fs_ro(struct gfs2_sbd *sdp);
 extern void gfs2_online_uevent(struct gfs2_sbd *sdp);
 extern int gfs2_statfs_init(struct gfs2_sbd *sdp);
 extern void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
@@ -54,7 +58,9 @@ extern struct file_system_type gfs2meta_fs_type;
 extern const struct export_operations gfs2_export_ops;
 extern const struct super_operations gfs2_super_ops;
 extern const struct dentry_operations gfs2_dops;
-extern const struct xattr_handler *gfs2_xattr_handlers[];
+
+extern const struct xattr_handler *gfs2_xattr_handlers_max[];
+extern const struct xattr_handler **gfs2_xattr_handlers_min;
 
 #endif /* __SUPER_DOT_H__ */
 

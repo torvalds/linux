@@ -91,6 +91,9 @@ STATIC int
 xlog_iclogs_empty(
 	struct xlog		*log);
 
+static int
+xfs_log_cover(struct xfs_mount *);
+
 static void
 xlog_grant_sub_space(
 	struct xlog		*log,
@@ -345,6 +348,25 @@ xlog_tic_add_region(xlog_ticket_t *tic, uint len, uint type)
 	tic->t_res_arr[tic->t_res_num].r_type = type;
 	tic->t_res_arr_sum += len;
 	tic->t_res_num++;
+}
+
+bool
+xfs_log_writable(
+	struct xfs_mount	*mp)
+{
+	/*
+	 * Never write to the log on norecovery mounts, if the block device is
+	 * read-only, or if the filesystem is shutdown. Read-only mounts still
+	 * allow internal writes for log recovery and unmount purposes, so don't
+	 * restrict that case here.
+	 */
+	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+		return false;
+	if (xfs_readonly_buftarg(mp->m_log->l_targ))
+		return false;
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return false;
+	return true;
 }
 
 /*
@@ -741,7 +763,7 @@ xfs_log_mount_finish(
 		xfs_log_force(mp, XFS_LOG_SYNC);
 		xfs_ail_push_all_sync(mp->m_ail);
 	}
-	xfs_wait_buftarg(mp->m_ddev_targp);
+	xfs_buftarg_drain(mp->m_ddev_targp);
 
 	if (readonly)
 		mp->m_flags |= XFS_MOUNT_RDONLY;
@@ -886,15 +908,8 @@ xfs_log_unmount_write(
 {
 	struct xlog		*log = mp->m_log;
 
-	/*
-	 * Don't write out unmount record on norecovery mounts or ro devices.
-	 * Or, if we are doing a forced umount (typically because of IO errors).
-	 */
-	if (mp->m_flags & XFS_MOUNT_NORECOVERY ||
-	    xfs_readonly_buftarg(log->l_targ)) {
-		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
+	if (!xfs_log_writable(mp))
 		return;
-	}
 
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
@@ -924,10 +939,9 @@ xfs_log_unmount_write(
  * To do this, we first need to shut down the background log work so it is not
  * trying to cover the log as we clean up. We then need to unpin all objects in
  * the log so we can then flush them out. Once they have completed their IO and
- * run the callbacks removing themselves from the AIL, we can write the unmount
- * record.
+ * run the callbacks removing themselves from the AIL, we can cover the log.
  */
-void
+int
 xfs_log_quiesce(
 	struct xfs_mount	*mp)
 {
@@ -936,16 +950,24 @@ xfs_log_quiesce(
 
 	/*
 	 * The superblock buffer is uncached and while xfs_ail_push_all_sync()
-	 * will push it, xfs_wait_buftarg() will not wait for it. Further,
+	 * will push it, xfs_buftarg_wait() will not wait for it. Further,
 	 * xfs_buf_iowait() cannot be used because it was pushed with the
 	 * XBF_ASYNC flag set, so we need to use a lock/unlock pair to wait for
 	 * the IO to complete.
 	 */
 	xfs_ail_push_all_sync(mp->m_ail);
-	xfs_wait_buftarg(mp->m_ddev_targp);
+	xfs_buftarg_wait(mp->m_ddev_targp);
 	xfs_buf_lock(mp->m_sb_bp);
 	xfs_buf_unlock(mp->m_sb_bp);
 
+	return xfs_log_cover(mp);
+}
+
+void
+xfs_log_clean(
+	struct xfs_mount	*mp)
+{
+	xfs_log_quiesce(mp);
 	xfs_log_unmount_write(mp);
 }
 
@@ -960,7 +982,9 @@ void
 xfs_log_unmount(
 	struct xfs_mount	*mp)
 {
-	xfs_log_quiesce(mp);
+	xfs_log_clean(mp);
+
+	xfs_buftarg_drain(mp->m_ddev_targp);
 
 	xfs_trans_ail_destroy(mp);
 
@@ -1037,17 +1061,15 @@ xfs_log_space_wake(
  * there's no point in running a dummy transaction at this point because we
  * can't start trying to idle the log until both the CIL and AIL are empty.
  */
-static int
-xfs_log_need_covered(xfs_mount_t *mp)
+static bool
+xfs_log_need_covered(
+	struct xfs_mount	*mp)
 {
-	struct xlog	*log = mp->m_log;
-	int		needed = 0;
-
-	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
-		return 0;
+	struct xlog		*log = mp->m_log;
+	bool			needed = false;
 
 	if (!xlog_cil_empty(log))
-		return 0;
+		return false;
 
 	spin_lock(&log->l_icloglock);
 	switch (log->l_covered_state) {
@@ -1062,18 +1084,72 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		if (!xlog_iclogs_empty(log))
 			break;
 
-		needed = 1;
+		needed = true;
 		if (log->l_covered_state == XLOG_STATE_COVER_NEED)
 			log->l_covered_state = XLOG_STATE_COVER_DONE;
 		else
 			log->l_covered_state = XLOG_STATE_COVER_DONE2;
 		break;
 	default:
-		needed = 1;
+		needed = true;
 		break;
 	}
 	spin_unlock(&log->l_icloglock);
 	return needed;
+}
+
+/*
+ * Explicitly cover the log. This is similar to background log covering but
+ * intended for usage in quiesce codepaths. The caller is responsible to ensure
+ * the log is idle and suitable for covering. The CIL, iclog buffers and AIL
+ * must all be empty.
+ */
+static int
+xfs_log_cover(
+	struct xfs_mount	*mp)
+{
+	int			error = 0;
+	bool			need_covered;
+
+	ASSERT((xlog_cil_empty(mp->m_log) && xlog_iclogs_empty(mp->m_log) &&
+	        !xfs_ail_min_lsn(mp->m_log->l_ailp)) ||
+	       XFS_FORCED_SHUTDOWN(mp));
+
+	if (!xfs_log_writable(mp))
+		return 0;
+
+	/*
+	 * xfs_log_need_covered() is not idempotent because it progresses the
+	 * state machine if the log requires covering. Therefore, we must call
+	 * this function once and use the result until we've issued an sb sync.
+	 * Do so first to make that abundantly clear.
+	 *
+	 * Fall into the covering sequence if the log needs covering or the
+	 * mount has lazy superblock accounting to sync to disk. The sb sync
+	 * used for covering accumulates the in-core counters, so covering
+	 * handles this for us.
+	 */
+	need_covered = xfs_log_need_covered(mp);
+	if (!need_covered && !xfs_sb_version_haslazysbcount(&mp->m_sb))
+		return 0;
+
+	/*
+	 * To cover the log, commit the superblock twice (at most) in
+	 * independent checkpoints. The first serves as a reference for the
+	 * tail pointer. The sync transaction and AIL push empties the AIL and
+	 * updates the in-core tail to the LSN of the first checkpoint. The
+	 * second commit updates the on-disk tail with the in-core LSN,
+	 * covering the log. Push the AIL one more time to leave it empty, as
+	 * we found it.
+	 */
+	do {
+		error = xfs_sync_sb(mp, true);
+		if (error)
+			break;
+		xfs_ail_push_all_sync(mp->m_ail);
+	} while (xfs_log_need_covered(mp));
+
+	return error;
 }
 
 /*
@@ -1259,7 +1335,7 @@ xfs_log_worker(
 	struct xfs_mount	*mp = log->l_mp;
 
 	/* dgc: errors ignored - not fatal and nowhere to report them */
-	if (xfs_log_need_covered(mp)) {
+	if (xfs_fs_writable(mp, SB_FREEZE_WRITE) && xfs_log_need_covered(mp)) {
 		/*
 		 * Dump a transaction into the log that contains no real change.
 		 * This is needed to stamp the current tail LSN into the log
@@ -1416,8 +1492,9 @@ xlog_alloc_log(
 	log->l_iclog->ic_prev = prev_iclog;	/* re-write 1st prev ptr */
 
 	log->l_ioend_workqueue = alloc_workqueue("xfs-log/%s",
-			WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI, 0,
-			mp->m_super->s_id);
+			XFS_WQFLAGS(WQ_FREEZABLE | WQ_MEM_RECLAIM |
+				    WQ_HIGHPRI),
+			0, mp->m_super->s_id);
 	if (!log->l_ioend_workqueue)
 		goto out_free_iclog;
 
@@ -2538,12 +2615,15 @@ xlog_covered_state(
 	int			iclogs_changed)
 {
 	/*
-	 * We usually go to NEED. But we go to NEED2 if the changed indicates we
-	 * are done writing the dummy record.  If we are done with the second
-	 * dummy recored (DONE2), then we go to IDLE.
+	 * We go to NEED for any non-covering writes. We go to NEED2 if we just
+	 * wrote the first covering record (DONE). We go to IDLE if we just
+	 * wrote the second covering record (DONE2) and remain in IDLE until a
+	 * non-covering write occurs.
 	 */
 	switch (prev_state) {
 	case XLOG_STATE_COVER_IDLE:
+		if (iclogs_changed == 1)
+			return XLOG_STATE_COVER_IDLE;
 	case XLOG_STATE_COVER_NEED:
 	case XLOG_STATE_COVER_NEED2:
 		break;

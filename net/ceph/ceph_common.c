@@ -252,7 +252,6 @@ static int parse_fsid(const char *str, struct ceph_fsid *fsid)
  * ceph options
  */
 enum {
-	Opt_osdtimeout,
 	Opt_osdkeepalivetimeout,
 	Opt_mount_timeout,
 	Opt_osd_idle_ttl,
@@ -307,7 +306,8 @@ static const struct constant_table ceph_param_ms_mode[] = {
 
 static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
-	fsparam_flag_no ("cephx_require_signatures",	Opt_cephx_require_signatures),
+	__fsparam	(NULL, "cephx_require_signatures", Opt_cephx_require_signatures,
+			 fs_param_neg_with_no|fs_param_deprecated, NULL),
 	fsparam_flag_no ("cephx_sign_messages",		Opt_cephx_sign_messages),
 	fsparam_flag_no ("crc",				Opt_crc),
 	fsparam_string	("crush_location",		Opt_crush_location),
@@ -319,8 +319,6 @@ static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_u32	("osd_idle_ttl",		Opt_osd_idle_ttl),
 	fsparam_u32	("osd_request_timeout",		Opt_osd_request_timeout),
 	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
-	__fsparam	(fs_param_is_s32, "osdtimeout", Opt_osdtimeout,
-			 fs_param_deprecated, NULL),
 	fsparam_enum	("read_from_replica",		Opt_read_from_replica,
 			 ceph_param_read_from_replica),
 	fsparam_enum	("ms_mode",			Opt_ms_mode,
@@ -552,9 +550,6 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		}
 		break;
 
-	case Opt_osdtimeout:
-		warn_plog(&log, "Ignoring osdtimeout");
-		break;
 	case Opt_osdkeepalivetimeout:
 		/* 0 isn't well defined right now, reject it */
 		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
@@ -596,9 +591,9 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		break;
 	case Opt_cephx_require_signatures:
 		if (!result.negated)
-			opt->flags &= ~CEPH_OPT_NOMSGAUTH;
+			warn_plog(&log, "Ignoring cephx_require_signatures");
 		else
-			opt->flags |= CEPH_OPT_NOMSGAUTH;
+			warn_plog(&log, "Ignoring nocephx_require_signatures, use nocephx_sign_messages");
 		break;
 	case Opt_cephx_sign_messages:
 		if (!result.negated)
@@ -686,8 +681,6 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 		seq_puts(m, "noshare,");
 	if (opt->flags & CEPH_OPT_NOCRC)
 		seq_puts(m, "nocrc,");
-	if (opt->flags & CEPH_OPT_NOMSGAUTH)
-		seq_puts(m, "nocephx_require_signatures,");
 	if (opt->flags & CEPH_OPT_NOMSGSIGN)
 		seq_puts(m, "nocephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
@@ -756,7 +749,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT;
 	client->required_features = CEPH_FEATURES_REQUIRED_DEFAULT;
 
-	if (!ceph_test_opt(client, NOMSGAUTH))
+	if (!ceph_test_opt(client, NOMSGSIGN))
 		client->required_features |= CEPH_FEATURE_MSG_AUTH;
 
 	/* msgr */

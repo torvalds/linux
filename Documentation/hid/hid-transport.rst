@@ -12,8 +12,8 @@ Bluetooth, I2C and user-space I/O drivers.
 
 The HID subsystem is designed as a bus. Any I/O subsystem may provide HID
 devices and register them with the HID bus. HID core then loads generic device
-drivers on top of it. The transport drivers are responsible of raw data
-transport and device setup/management. HID core is responsible of
+drivers on top of it. The transport drivers are responsible for raw data
+transport and device setup/management. HID core is responsible for
 report-parsing, report interpretation and the user-space API. Device specifics
 and quirks are handled by all layers depending on the quirk.
 
@@ -67,7 +67,7 @@ Transport drivers attach a constant "struct hid_ll_driver" object with each
 device. Once a device is registered with HID core, the callbacks provided via
 this struct are used by HID core to communicate with the device.
 
-Transport drivers are responsible of detecting device failures and unplugging.
+Transport drivers are responsible for detecting device failures and unplugging.
 HID core will operate a device as long as it is registered regardless of any
 device failures. Once transport drivers detect unplug or failure events, they
 must unregister the device from HID core and HID core will stop using the
@@ -101,7 +101,7 @@ properties in common.
    channel. Any unrequested incoming or outgoing data report must be sent on
    this channel and is never acknowledged by the remote side. Devices usually
    send their input events on this channel. Outgoing events are normally
-   not send via intr, except if high throughput is required.
+   not sent via intr, except if high throughput is required.
  - Control Channel (ctrl): The ctrl channel is used for synchronous requests and
    device management. Unrequested data input events must not be sent on this
    channel and are normally ignored. Instead, devices only send management
@@ -161,7 +161,7 @@ allowed on the intr channel and are the only means of data there.
    payload may be blocked by the underlying transport driver if the
    specification does not allow them.
  - SET_REPORT: A SET_REPORT request has a report ID plus data as payload. It is
-   sent from host to device and a device must update it's current report state
+   sent from host to device and a device must update its current report state
    according to the given data. Any of the 3 report types can be used. However,
    INPUT reports as payload might be blocked by the underlying transport driver
    if the specification does not allow them.
@@ -294,7 +294,7 @@ The available HID callbacks are:
       void (*request) (struct hid_device *hdev, struct hid_report *report,
 		       int reqtype)
 
-   Send an HID request on the ctrl channel. "report" contains the report that
+   Send a HID request on the ctrl channel. "report" contains the report that
    should be sent and "reqtype" the request type. Request-type can be
    HID_REQ_SET_REPORT or HID_REQ_GET_REPORT.
 

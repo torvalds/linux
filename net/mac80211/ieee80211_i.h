@@ -848,7 +848,6 @@ enum txq_info_flags {
  */
 struct txq_info {
 	struct fq_tin tin;
-	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
 	struct sk_buff_head frags;
@@ -1143,6 +1142,8 @@ enum mac80211_scan_state {
 	SCAN_RESUME,
 	SCAN_ABORT,
 };
+
+DECLARE_STATIC_KEY_FALSE(aql_disable);
 
 struct ieee80211_local {
 	/* embed the driver visible part.

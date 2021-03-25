@@ -707,7 +707,7 @@ static void __init save_fscr_to_task(void)
 		init_task.thread.fscr = mfspr(SPRN_FSCR);
 }
 #else
-static inline void save_fscr_to_task(void) {};
+static inline void save_fscr_to_task(void) {}
 #endif
 
 

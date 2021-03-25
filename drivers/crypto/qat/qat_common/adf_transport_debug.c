@@ -62,8 +62,8 @@ static int adf_ring_show(struct seq_file *sfile, void *v)
 		seq_printf(sfile, "head %x, tail %x, empty: %d\n",
 			   head, tail, (empty & 1 << ring->ring_number)
 			   >> ring->ring_number);
-		seq_printf(sfile, "ring size %d, msg size %d\n",
-			   ADF_SIZE_TO_RING_SIZE_IN_BYTES(ring->ring_size),
+		seq_printf(sfile, "ring size %lld, msg size %d\n",
+			   (long long)ADF_SIZE_TO_RING_SIZE_IN_BYTES(ring->ring_size),
 			   ADF_MSG_SIZE_TO_BYTES(ring->msg_size));
 		seq_puts(sfile, "----------- Ring data ------------\n");
 		return 0;

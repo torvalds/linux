@@ -442,15 +442,15 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	}
 
 	switch ((&pkts[i])->lsize) {
-		case 1:
-			dlen = skb->data[(&pkts[i])->loff];
-			break;
-		case 2:
-			dlen = get_unaligned_le16(skb->data +
+	case 1:
+		dlen = skb->data[(&pkts[i])->loff];
+		break;
+	case 2:
+		dlen = get_unaligned_le16(skb->data +
 						  (&pkts[i])->loff);
-			break;
-		default:
-			goto err_kfree_skb;
+		break;
+	default:
+		goto err_kfree_skb;
 	}
 
 	pad_size = skb->len - (&pkts[i])->hlen -  dlen;

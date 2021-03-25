@@ -87,10 +87,6 @@ void *prom_get_hwconf(void)
 	return (void *)CKSEG1ADDR(hwconf);
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 /*
  * /proc/cpuinfo system type
  *

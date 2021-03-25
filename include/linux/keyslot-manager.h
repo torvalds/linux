@@ -85,6 +85,9 @@ struct blk_keyslot_manager {
 
 int blk_ksm_init(struct blk_keyslot_manager *ksm, unsigned int num_slots);
 
+int devm_blk_ksm_init(struct device *dev, struct blk_keyslot_manager *ksm,
+		      unsigned int num_slots);
+
 blk_status_t blk_ksm_get_slot_for_key(struct blk_keyslot_manager *ksm,
 				      const struct blk_crypto_key *key,
 				      struct blk_ksm_keyslot **slot_ptr);
@@ -102,5 +105,16 @@ int blk_ksm_evict_key(struct blk_keyslot_manager *ksm,
 void blk_ksm_reprogram_all_keys(struct blk_keyslot_manager *ksm);
 
 void blk_ksm_destroy(struct blk_keyslot_manager *ksm);
+
+void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
+			     const struct blk_keyslot_manager *child);
+
+void blk_ksm_init_passthrough(struct blk_keyslot_manager *ksm);
+
+bool blk_ksm_is_superset(struct blk_keyslot_manager *ksm_superset,
+			 struct blk_keyslot_manager *ksm_subset);
+
+void blk_ksm_update_capabilities(struct blk_keyslot_manager *target_ksm,
+				 struct blk_keyslot_manager *reference_ksm);
 
 #endif /* __LINUX_KEYSLOT_MANAGER_H */

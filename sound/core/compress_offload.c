@@ -1132,7 +1132,7 @@ static void snd_compress_proc_done(struct snd_compr *compr)
 
 static inline void snd_compress_set_id(struct snd_compr *compr, const char *id)
 {
-	strlcpy(compr->id, id, sizeof(compr->id));
+	strscpy(compr->id, id, sizeof(compr->id));
 }
 #else
 static inline int snd_compress_proc_init(struct snd_compr *compr)

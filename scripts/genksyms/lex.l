@@ -119,12 +119,11 @@ yylex(void)
   static enum {
     ST_NOTSTARTED, ST_NORMAL, ST_ATTRIBUTE, ST_ASM, ST_TYPEOF, ST_TYPEOF_1,
     ST_BRACKET, ST_BRACE, ST_EXPRESSION, ST_STATIC_ASSERT,
-    ST_TABLE_1, ST_TABLE_2, ST_TABLE_3, ST_TABLE_4,
-    ST_TABLE_5, ST_TABLE_6
   } lexstate = ST_NOTSTARTED;
 
   static int suppress_type_lookup, dont_want_brace_phrase;
   static struct string_list *next_node;
+  static char *source_file;
 
   int token, count = 0;
   struct string_list *cur_node;
@@ -235,7 +234,6 @@ repeat:
 	  lexstate = ST_EXPRESSION;
 	  break;
 
-	case DOTS:
 	default:
 	  APP;
 	  break;
@@ -423,58 +421,6 @@ repeat:
 	  goto repeat;
 	default:
 	  goto repeat;
-	}
-      break;
-
-    case ST_TABLE_1:
-      goto repeat;
-
-    case ST_TABLE_2:
-      if (token == IDENT && yyleng == 1 && yytext[0] == 'X')
-	{
-	  token = EXPORT_SYMBOL_KEYW;
-	  lexstate = ST_TABLE_5;
-	  APP;
-	  break;
-	}
-      lexstate = ST_TABLE_6;
-      /* FALLTHRU */
-
-    case ST_TABLE_6:
-      switch (token)
-	{
-	case '{': case '[': case '(':
-	  ++count;
-	  break;
-	case '}': case ']': case ')':
-	  --count;
-	  break;
-	case ',':
-	  if (count == 0)
-	    lexstate = ST_TABLE_2;
-	  break;
-	};
-      goto repeat;
-
-    case ST_TABLE_3:
-      goto repeat;
-
-    case ST_TABLE_4:
-      if (token == ';')
-	lexstate = ST_NORMAL;
-      goto repeat;
-
-    case ST_TABLE_5:
-      switch (token)
-	{
-	case ',':
-	  token = ';';
-	  lexstate = ST_TABLE_2;
-	  APP;
-	  break;
-	default:
-	  APP;
-	  break;
 	}
       break;
 

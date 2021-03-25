@@ -117,10 +117,6 @@ struct sk_buff *tipc_msg_create(uint user, uint type,
 	msg_set_origport(msg, oport);
 	msg_set_destport(msg, dport);
 	msg_set_errcode(msg, errcode);
-	if (hdr_sz > SHORT_H_SIZE) {
-		msg_set_orignode(msg, onode);
-		msg_set_destnode(msg, dnode);
-	}
 	return buf;
 }
 

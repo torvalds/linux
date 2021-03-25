@@ -152,7 +152,7 @@ static bool name_in_tp_list(char *sys, struct tracepoint_path *tps)
 	return false;
 }
 
-#define for_each_event(dir, dent, tps)				\
+#define for_each_event_tps(dir, dent, tps)			\
 	while ((dent = readdir(dir)))				\
 		if (dent->d_type == DT_DIR &&			\
 		    (strcmp(dent->d_name, ".")) &&		\
@@ -174,7 +174,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 		return -errno;
 	}
 
-	for_each_event(dir, dent, tps) {
+	for_each_event_tps(dir, dent, tps) {
 		if (!name_in_tp_list(dent->d_name, tps))
 			continue;
 
@@ -196,7 +196,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 	}
 
 	rewinddir(dir);
-	for_each_event(dir, dent, tps) {
+	for_each_event_tps(dir, dent, tps) {
 		if (!name_in_tp_list(dent->d_name, tps))
 			continue;
 
@@ -274,7 +274,7 @@ static int record_event_files(struct tracepoint_path *tps)
 		goto out;
 	}
 
-	for_each_event(dir, dent, tps) {
+	for_each_event_tps(dir, dent, tps) {
 		if (strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
 			continue;
@@ -289,7 +289,7 @@ static int record_event_files(struct tracepoint_path *tps)
 	}
 
 	rewinddir(dir);
-	for_each_event(dir, dent, tps) {
+	for_each_event_tps(dir, dent, tps) {
 		if (strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
 			continue;

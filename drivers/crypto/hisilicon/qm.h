@@ -85,6 +85,11 @@
 /* page number for queue file region */
 #define QM_DOORBELL_PAGE_NR		1
 
+/* uacce mode of the driver */
+#define UACCE_MODE_NOUACCE		0 /* don't use uacce */
+#define UACCE_MODE_SVA			1 /* use uacce sva mode */
+#define UACCE_MODE_DESC	"0(default) means only register to crypto, 1 means both register to crypto and uacce"
+
 enum qm_stop_reason {
 	QM_NORMAL,
 	QM_SOFT_RESET,
@@ -168,6 +173,7 @@ struct hisi_qm_err_info {
 	char *acpi_rst;
 	u32 msi_wr_port;
 	u32 ecc_2bits_mask;
+	u32 dev_ce_mask;
 	u32 ce;
 	u32 nfe;
 	u32 fe;
@@ -225,7 +231,7 @@ struct hisi_qm {
 	struct hisi_qm_status status;
 	const struct hisi_qm_err_ini *err_ini;
 	struct hisi_qm_err_status err_status;
-	unsigned long reset_flag;
+	unsigned long misc_ctl; /* driver removing and reset sched */
 
 	struct rw_semaphore qps_lock;
 	struct idr qp_idr;
@@ -249,6 +255,7 @@ struct hisi_qm {
 	resource_size_t phys_base;
 	resource_size_t phys_size;
 	struct uacce_device *uacce;
+	int mode;
 };
 
 struct hisi_qp_status {
@@ -282,6 +289,7 @@ struct hisi_qp {
 
 	struct hisi_qm *qm;
 	bool is_resetting;
+	bool is_in_kernel;
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 };
@@ -299,7 +307,7 @@ static inline int q_num_set(const char *val, const struct kernel_param *kp,
 
 	if (!pdev) {
 		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
-		pr_info("No device found currently, suppose queue number is %d\n",
+		pr_info("No device found currently, suppose queue number is %u\n",
 			q_num);
 	} else {
 		if (pdev->revision == QM_HW_V1)
@@ -331,6 +339,27 @@ static inline int vfs_num_set(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 
 	return param_set_int(val, kp);
+}
+
+static inline int mode_set(const char *val, const struct kernel_param *kp)
+{
+	u32 n;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtou32(val, 10, &n);
+	if (ret != 0 || (n != UACCE_MODE_SVA &&
+			 n != UACCE_MODE_NOUACCE))
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+
+static inline int uacce_mode_set(const char *val, const struct kernel_param *kp)
+{
+	return mode_set(val, kp);
 }
 
 static inline void hisi_qm_init_list(struct hisi_qm_list *qm_list)

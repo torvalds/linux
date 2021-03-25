@@ -43,16 +43,4 @@ void spear13xx_cpu_die(unsigned int cpu);
 
 extern const struct smp_operations spear13xx_smp_ops;
 
-#ifdef CONFIG_MACH_SPEAR1310
-void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base);
-#else
-static inline void spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base) {}
-#endif
-
-#ifdef CONFIG_MACH_SPEAR1340
-void __init spear1340_clk_init(void __iomem *misc_base);
-#else
-static inline void spear1340_clk_init(void __iomem *misc_base) {}
-#endif
-
 #endif /* __MACH_GENERIC_H */

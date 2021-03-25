@@ -6,8 +6,6 @@
 #ifndef __MESON8B_CLKC_H
 #define __MESON8B_CLKC_H
 
-#define CLKID_UNUSED		0
-#define CLKID_XTAL		1
 #define CLKID_PLL_FIXED		2
 #define CLKID_PLL_VID		3
 #define CLKID_PLL_SYS		4

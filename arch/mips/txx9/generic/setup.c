@@ -340,10 +340,6 @@ void __init prom_init(void)
 	txx9_board_vec->prom_init();
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 const char *get_system_type(void)
 {
 	return txx9_system_type;

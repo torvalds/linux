@@ -49,7 +49,7 @@ struct bio_set pblk_bio_set;
 
 static blk_qc_t pblk_submit_bio(struct bio *bio)
 {
-	struct pblk *pblk = bio->bi_disk->queue->queuedata;
+	struct pblk *pblk = bio->bi_bdev->bd_disk->queue->queuedata;
 
 	if (bio_op(bio) == REQ_OP_DISCARD) {
 		pblk_discard(pblk, bio);

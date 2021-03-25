@@ -391,10 +391,6 @@ struct sas_ha_struct {
 	int strict_wide_ports; /* both sas_addr and attached_sas_addr must match
 				* their siblings when forming wide ports */
 
-	/* LLDD calls these to notify the class of an event. */
-	int (*notify_port_event)(struct asd_sas_phy *, enum port_event);
-	int (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
-
 	void *lldd_ha;		  /* not touched by sas class code */
 
 	struct list_head eh_done_q;  /* complete via scsi_eh_flush_done_q */
@@ -705,5 +701,10 @@ extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 struct sas_phy *sas_get_local_phy(struct domain_device *dev);
 
 int sas_request_addr(struct Scsi_Host *shost, u8 *addr);
+
+int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
+			  gfp_t gfp_flags);
+int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
+			 gfp_t gfp_flags);
 
 #endif /* _SASLIB_H_ */

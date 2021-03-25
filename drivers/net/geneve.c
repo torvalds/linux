@@ -1197,11 +1197,12 @@ static void geneve_setup(struct net_device *dev)
 	SET_NETDEV_DEVTYPE(dev, &geneve_type);
 
 	dev->features    |= NETIF_F_LLTX;
-	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->features    |= NETIF_F_RXCSUM;
 	dev->features    |= NETIF_F_GSO_SOFTWARE;
 
-	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
+	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
+	dev->hw_features |= NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 
 	/* MTU range: 68 - (something less than 65535) */
@@ -1851,16 +1852,10 @@ static int geneve_netdevice_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (event == NETDEV_UDP_TUNNEL_PUSH_INFO ||
-	    event == NETDEV_UDP_TUNNEL_DROP_INFO) {
-		geneve_offload_rx_ports(dev, event == NETDEV_UDP_TUNNEL_PUSH_INFO);
-	} else if (event == NETDEV_UNREGISTER) {
-		if (!dev->udp_tunnel_nic_info)
-			geneve_offload_rx_ports(dev, false);
-	} else if (event == NETDEV_REGISTER) {
-		if (!dev->udp_tunnel_nic_info)
-			geneve_offload_rx_ports(dev, true);
-	}
+	if (event == NETDEV_UDP_TUNNEL_PUSH_INFO)
+		geneve_offload_rx_ports(dev, true);
+	else if (event == NETDEV_UDP_TUNNEL_DROP_INFO)
+		geneve_offload_rx_ports(dev, false);
 
 	return NOTIFY_DONE;
 }

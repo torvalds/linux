@@ -480,7 +480,6 @@ unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
 		break;
 	default:
 		// invalid source select DIG
-		ASSERT(false);
 		result = ENGINE_ID_UNKNOWN;
 	}
 
@@ -954,6 +953,21 @@ void dcn10_link_encoder_enable_tmds_output(
 			__func__);
 		BREAK_TO_DEBUGGER();
 	}
+}
+
+void dcn10_link_encoder_enable_tmds_output_with_clk_pattern_wa(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	enum dc_color_depth color_depth,
+	enum signal_type signal,
+	uint32_t pixel_clock)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	dcn10_link_encoder_enable_tmds_output(
+		enc, clock_source, color_depth, signal, pixel_clock);
+
+	REG_UPDATE(DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F);
 }
 
 /* enables DP PHY output */

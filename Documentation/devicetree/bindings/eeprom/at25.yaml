@@ -39,8 +39,7 @@ properties:
           - const: atmel,at25
 
   reg:
-    description:
-      Chip select number.
+    maxItems: 1
 
   spi-max-frequency: true
 

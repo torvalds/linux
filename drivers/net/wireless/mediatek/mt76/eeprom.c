@@ -75,8 +75,8 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	}
 
 #ifdef CONFIG_NL80211_TESTMODE
-	dev->test.mtd_name = devm_kstrdup(dev->dev, part, GFP_KERNEL);
-	dev->test.mtd_offset = offset;
+	dev->test_mtd.name = devm_kstrdup(dev->dev, part, GFP_KERNEL);
+	dev->test_mtd.offset = offset;
 #endif
 
 out_put_node:

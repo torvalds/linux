@@ -169,18 +169,19 @@ static int mt7915_txbf_init(struct mt7915_dev *dev)
 {
 	int ret;
 
-	/*
-	 * TODO: DBDC & check whether iBF phase calibration data has
-	 * been stored in eeprom offset 0x651~0x7b8, then write down
-	 * 0x1111 into 0x651 and 0x651 to trigger iBF.
-	 */
+
+	if (dev->dbdc_support) {
+		ret = mt7915_mcu_set_txbf_module(dev);
+		if (ret)
+			return ret;
+	}
 
 	/* trigger sounding packets */
 	ret = mt7915_mcu_set_txbf_sounding(dev);
 	if (ret)
 		return ret;
 
-	/* enable iBF & eBF */
+	/* enable eBF */
 	return mt7915_mcu_set_txbf_type(dev);
 }
 
@@ -235,12 +236,12 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	phy = mphy->priv;
 	phy->dev = dev;
 	phy->mt76 = mphy;
-	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
-	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
+	mphy->chainmask = dev->chainmask & ~dev->mphy.chainmask;
+	mphy->antenna_mask = BIT(hweight8(mphy->chainmask)) - 1;
 	mt7915_init_wiphy(mphy->hw);
 
 	INIT_LIST_HEAD(&phy->stats_list);
-	INIT_DELAYED_WORK(&phy->mac_work, mt7915_mac_work);
+	INIT_DELAYED_WORK(&mphy->mac_work, mt7915_mac_work);
 
 	mt7915_eeprom_parse_band_config(phy);
 	mt7915_set_stream_vht_txbf_caps(phy);
@@ -329,7 +330,7 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 
 void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy)
 {
-	int nss = hweight8(phy->chainmask);
+	int nss = hweight8(phy->mt76->chainmask);
 	u32 *cap = &phy->mt76->sband_5g.sband.vht_cap.cap;
 
 	*cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
@@ -440,8 +441,7 @@ static int
 mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		    struct ieee80211_sband_iftype_data *data)
 {
-	int i, idx = 0;
-	int nss = hweight8(phy->chainmask);
+	int i, idx = 0, nss = hweight8(phy->mt76->chainmask);
 	u16 mcs_map = 0;
 
 	for (i = 0; i < 8; i++) {
@@ -622,7 +622,7 @@ int mt7915_register_device(struct mt7915_dev *dev)
 	dev->mt76.phy.priv = &dev->phy;
 	INIT_LIST_HEAD(&dev->phy.stats_list);
 	INIT_WORK(&dev->rc_work, mt7915_mac_sta_rc_work);
-	INIT_DELAYED_WORK(&dev->phy.mac_work, mt7915_mac_work);
+	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7915_mac_work);
 	INIT_LIST_HEAD(&dev->sta_rc_list);
 	INIT_LIST_HEAD(&dev->sta_poll_list);
 	spin_lock_init(&dev->sta_poll_lock);
@@ -648,8 +648,8 @@ int mt7915_register_device(struct mt7915_dev *dev)
 		dev->mphy.sband_5g.sband.vht_cap.cap |=
 			IEEE80211_VHT_CAP_SHORT_GI_160 |
 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
-	dev->mphy.hw->wiphy->available_antennas_rx = dev->phy.chainmask;
-	dev->mphy.hw->wiphy->available_antennas_tx = dev->phy.chainmask;
+	dev->mphy.hw->wiphy->available_antennas_rx = dev->mphy.chainmask;
+	dev->mphy.hw->wiphy->available_antennas_tx = dev->mphy.chainmask;
 
 	mt76_set_stream_caps(&dev->mphy, true);
 	mt7915_set_stream_vht_txbf_caps(&dev->phy);
@@ -672,28 +672,12 @@ int mt7915_register_device(struct mt7915_dev *dev)
 
 void mt7915_unregister_device(struct mt7915_dev *dev)
 {
-	struct mt76_txwi_cache *txwi;
-	int id;
-
 	mt7915_unregister_ext_phy(dev);
 	mt76_unregister_device(&dev->mt76);
 	mt7915_mcu_exit(dev);
 	mt7915_dma_cleanup(dev);
 
-	spin_lock_bh(&dev->token_lock);
-	idr_for_each_entry(&dev->token, txwi, id) {
-		mt7915_txp_skb_unmap(&dev->mt76, txwi);
-		if (txwi->skb) {
-			struct ieee80211_hw *hw;
-
-			hw = mt76_tx_status_get_hw(&dev->mt76, txwi->skb);
-			ieee80211_free_txskb(hw, txwi->skb);
-		}
-		mt76_put_txwi(&dev->mt76, txwi);
-		dev->token_count--;
-	}
-	spin_unlock_bh(&dev->token_lock);
-	idr_destroy(&dev->token);
+	mt7915_tx_token_put(dev);
 
 	mt76_free_device(&dev->mt76);
 }

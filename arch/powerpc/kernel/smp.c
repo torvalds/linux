@@ -34,6 +34,7 @@
 #include <linux/random.h>
 #include <linux/stackprotector.h>
 #include <linux/pgtable.h>
+#include <linux/clockchips.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -576,7 +577,7 @@ void tick_broadcast(const struct cpumask *mask)
 #endif
 
 #ifdef CONFIG_DEBUGGER
-void debugger_ipi_callback(struct pt_regs *regs)
+static void debugger_ipi_callback(struct pt_regs *regs)
 {
 	debugger_ipi(regs);
 }

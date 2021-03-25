@@ -263,6 +263,27 @@ Returns: 0 on success, -negative on error
                 __u32 trans_len;
         };
 
+10. KVM_SEV_GET_ATTESTATION_REPORT
+----------------------------------
+
+The KVM_SEV_GET_ATTESTATION_REPORT command can be used by the hypervisor to query the attestation
+report containing the SHA-256 digest of the guest memory and VMSA passed through the KVM_SEV_LAUNCH
+commands and signed with the PEK. The digest returned by the command should match the digest
+used by the guest owner with the KVM_SEV_LAUNCH_MEASURE.
+
+Parameters (in): struct kvm_sev_attestation
+
+Returns: 0 on success, -negative on error
+
+::
+
+        struct kvm_sev_attestation_report {
+                __u8 mnonce[16];        /* A random mnonce that will be placed in the report */
+
+                __u64 uaddr;            /* userspace address where the report should be copied */
+                __u32 len;
+        };
+
 References
 ==========
 

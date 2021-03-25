@@ -568,15 +568,15 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 			return rc;
 		}
 	} else {
-		/* We use ses->serverName if no domain name available */
-		len = strlen(ses->serverName);
+		/* We use ses->ip_addr if no domain name available */
+		len = strlen(ses->ip_addr);
 
 		server = kmalloc(2 + (len * 2), GFP_KERNEL);
 		if (server == NULL) {
 			rc = -ENOMEM;
 			return rc;
 		}
-		len = cifs_strtoUTF16((__le16 *)server, ses->serverName, len,
+		len = cifs_strtoUTF16((__le16 *)server, ses->ip_addr, len,
 					nls_cp);
 		rc =
 		crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,

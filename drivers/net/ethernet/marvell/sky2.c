@@ -4806,12 +4806,11 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		struct sockaddr sa = { AF_UNSPEC };
 
-		netdev_warn(dev,
-			    "Invalid MAC address, defaulting to random\n");
+		dev_warn(&hw->pdev->dev, "Invalid MAC address, defaulting to random\n");
 		eth_hw_addr_random(dev);
 		memcpy(sa.sa_data, dev->dev_addr, ETH_ALEN);
 		if (sky2_set_mac_address(dev, &sa))
-			netdev_warn(dev, "Failed to set MAC address.\n");
+			dev_warn(&hw->pdev->dev, "Failed to set MAC address.\n");
 	}
 
 	return dev;

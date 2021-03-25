@@ -1,14 +1,28 @@
-config USB_CDNS3
-	tristate "Cadence USB3 Dual-Role Controller"
+config USB_CDNS_SUPPORT
+	tristate "Cadence USB Support"
 	depends on USB_SUPPORT && (USB || USB_GADGET) && HAS_DMA
 	select USB_XHCI_PLATFORM if USB_XHCI_HCD
 	select USB_ROLE_SWITCH
+	help
+	  Say Y here if your system has a Cadence USBSS or USBSSP
+	  dual-role controller.
+	  It supports: dual-role switch, Host-only, and Peripheral-only.
+
+config USB_CDNS_HOST
+	bool
+
+if USB_CDNS_SUPPORT
+
+config USB_CDNS3
+	tristate "Cadence USB3 Dual-Role Controller"
+	depends on USB_CDNS_SUPPORT
 	help
 	  Say Y here if your system has a Cadence USB3 dual-role controller.
 	  It supports: dual-role switch, Host-only, and Peripheral-only.
 
 	  If you choose to build this driver is a dynamically linked
 	  as module, the module will be called cdns3.ko.
+endif
 
 if USB_CDNS3
 
@@ -25,6 +39,7 @@ config USB_CDNS3_GADGET
 config USB_CDNS3_HOST
 	bool "Cadence USB3 host controller"
 	depends on USB=y || USB=USB_CDNS3
+	select USB_CDNS_HOST
 	help
 	  Say Y here to enable host controller functionality of the
 	  Cadence driver.
@@ -62,5 +77,46 @@ config USB_CDNS3_IMX
 	  platforms that contain Cadence USB3 controller core.
 
 	  For example, imx8qm and imx8qxp.
+
+endif
+
+if USB_CDNS_SUPPORT
+
+config USB_CDNSP_PCI
+	tristate "Cadence CDNSP Dual-Role Controller"
+	depends on USB_CDNS_SUPPORT && USB_PCI && ACPI
+	help
+	  Say Y here if your system has a Cadence CDNSP dual-role controller.
+	  It supports: dual-role switch Host-only, and Peripheral-only.
+
+	  If you choose to build this driver is a dynamically linked
+	  module, the module will be called cdnsp.ko.
+endif
+
+if USB_CDNSP_PCI
+
+config USB_CDNSP_GADGET
+	bool "Cadence CDNSP device controller"
+	depends on USB_GADGET=y || USB_GADGET=USB_CDNSP_PCI
+	help
+	  Say Y here to enable device controller functionality of the
+	  Cadence CDNSP-DEV driver.
+
+	  Cadence CDNSP Device Controller in device mode is
+	  very similar to XHCI controller. Therefore some algorithms
+	  used has been taken from host driver.
+	  This controller supports FF, HS, SS and SSP mode.
+	  It doesn't support LS.
+
+config USB_CDNSP_HOST
+	bool "Cadence CDNSP host controller"
+	depends on USB=y || USB=USB_CDNSP_PCI
+	select USB_CDNS_HOST
+	help
+	  Say Y here to enable host controller functionality of the
+	  Cadence driver.
+
+	  Host controller is compliant with XHCI so it uses
+	  standard XHCI driver.
 
 endif

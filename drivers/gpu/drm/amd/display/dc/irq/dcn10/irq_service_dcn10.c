@@ -58,6 +58,18 @@ enum dc_irq_source to_dal_irq_source_dcn10(
 		return DC_IRQ_SOURCE_VBLANK5;
 	case DCN_1_0__SRCID__DC_D6_OTG_VSTARTUP:
 		return DC_IRQ_SOURCE_VBLANK6;
+	case DCN_1_0__SRCID__OTG1_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC1_VLINE0;
+	case DCN_1_0__SRCID__OTG2_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC2_VLINE0;
+	case DCN_1_0__SRCID__OTG3_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC3_VLINE0;
+	case DCN_1_0__SRCID__OTG4_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC4_VLINE0;
+	case DCN_1_0__SRCID__OTG5_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC5_VLINE0;
+	case DCN_1_0__SRCID__OTG6_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC6_VLINE0;
 	case DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE1;
 	case DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
@@ -167,6 +179,11 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 	.ack = NULL
 };
 
+static const struct irq_source_info_funcs vline0_irq_info_funcs = {
+	.set = NULL,
+	.ack = NULL
+};
+
 static const struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
@@ -239,6 +256,14 @@ static const struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
 			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_INT_EN,\
 			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_EVENT_CLEAR),\
 		.funcs = &vblank_irq_info_funcs\
+	}
+
+#define vline0_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_DC1_VLINE0 + reg_num] = {\
+		IRQ_REG_ENTRY(OTG, reg_num,\
+			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_INT_ENABLE,\
+			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_CLEAR),\
+		.funcs = &vline0_irq_info_funcs\
 	}
 
 #define dummy_irq_entry() \
@@ -349,6 +374,12 @@ irq_source_info_dcn10[DAL_IRQ_SOURCES_NUMBER] = {
 	vblank_int_entry(3),
 	vblank_int_entry(4),
 	vblank_int_entry(5),
+	vline0_int_entry(0),
+	vline0_int_entry(1),
+	vline0_int_entry(2),
+	vline0_int_entry(3),
+	vline0_int_entry(4),
+	vline0_int_entry(5),
 };
 
 static const struct irq_service_funcs irq_service_funcs_dcn10 = {

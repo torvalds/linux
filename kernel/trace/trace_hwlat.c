@@ -108,14 +108,9 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct hwlat_entry *entry;
-	unsigned long flags;
-	int pc;
-
-	pc = preempt_count();
-	local_save_flags(flags);
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_HWLAT, sizeof(*entry),
-					  flags, pc);
+					  tracing_gen_ctx());
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);

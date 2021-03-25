@@ -41,7 +41,7 @@ struct fsl_mc {
 	struct fsl_mc_device *root_mc_bus_dev;
 	u8 num_translation_ranges;
 	struct fsl_mc_addr_translation_range *translation_ranges;
-	void *fsl_mc_regs;
+	void __iomem *fsl_mc_regs;
 };
 
 /**
@@ -208,12 +208,108 @@ static struct attribute *fsl_mc_dev_attrs[] = {
 
 ATTRIBUTE_GROUPS(fsl_mc_dev);
 
+static int scan_fsl_mc_bus(struct device *dev, void *data)
+{
+	struct fsl_mc_device *root_mc_dev;
+	struct fsl_mc_bus *root_mc_bus;
+
+	if (!fsl_mc_is_root_dprc(dev))
+		goto exit;
+
+	root_mc_dev = to_fsl_mc_device(dev);
+	root_mc_bus = to_fsl_mc_bus(root_mc_dev);
+	mutex_lock(&root_mc_bus->scan_mutex);
+	dprc_scan_objects(root_mc_dev, NULL);
+	mutex_unlock(&root_mc_bus->scan_mutex);
+
+exit:
+	return 0;
+}
+
+static ssize_t rescan_store(struct bus_type *bus,
+			    const char *buf, size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val)
+		bus_for_each_dev(bus, NULL, NULL, scan_fsl_mc_bus);
+
+	return count;
+}
+static BUS_ATTR_WO(rescan);
+
+static int fsl_mc_bus_set_autorescan(struct device *dev, void *data)
+{
+	struct fsl_mc_device *root_mc_dev;
+	unsigned long val;
+	char *buf = data;
+
+	if (!fsl_mc_is_root_dprc(dev))
+		goto exit;
+
+	root_mc_dev = to_fsl_mc_device(dev);
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val)
+		enable_dprc_irq(root_mc_dev);
+	else
+		disable_dprc_irq(root_mc_dev);
+
+exit:
+	return 0;
+}
+
+static int fsl_mc_bus_get_autorescan(struct device *dev, void *data)
+{
+	struct fsl_mc_device *root_mc_dev;
+	char *buf = data;
+
+	if (!fsl_mc_is_root_dprc(dev))
+		goto exit;
+
+	root_mc_dev = to_fsl_mc_device(dev);
+
+	sprintf(buf, "%d\n", get_dprc_irq_state(root_mc_dev));
+exit:
+	return 0;
+}
+
+static ssize_t autorescan_store(struct bus_type *bus,
+				const char *buf, size_t count)
+{
+	bus_for_each_dev(bus, NULL, (void *)buf, fsl_mc_bus_set_autorescan);
+
+	return count;
+}
+
+static ssize_t autorescan_show(struct bus_type *bus, char *buf)
+{
+	bus_for_each_dev(bus, NULL, (void *)buf, fsl_mc_bus_get_autorescan);
+	return strlen(buf);
+}
+
+static BUS_ATTR_RW(autorescan);
+
+static struct attribute *fsl_mc_bus_attrs[] = {
+	&bus_attr_rescan.attr,
+	&bus_attr_autorescan.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(fsl_mc_bus);
+
 struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
 	.match = fsl_mc_bus_match,
 	.uevent = fsl_mc_bus_uevent,
 	.dma_configure  = fsl_mc_dma_configure,
 	.dev_groups = fsl_mc_dev_groups,
+	.bus_groups = fsl_mc_bus_groups,
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_type);
 
@@ -292,6 +388,11 @@ struct device_type fsl_mc_bus_dpdmai_type = {
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdmai_type);
 
+struct device_type fsl_mc_bus_dpdbg_type = {
+	.name = "fsl_mc_bus_dpdbg"
+};
+EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdbg_type);
+
 static struct device_type *fsl_mc_get_device_type(const char *type)
 {
 	static const struct {
@@ -313,6 +414,7 @@ static struct device_type *fsl_mc_get_device_type(const char *type)
 		{ &fsl_mc_bus_dpaiop_type, "dpaiop" },
 		{ &fsl_mc_bus_dpci_type, "dpci" },
 		{ &fsl_mc_bus_dpdmai_type, "dpdmai" },
+		{ &fsl_mc_bus_dpdbg_type, "dpdbg" },
 		{ NULL, NULL }
 	};
 	int i;
@@ -839,6 +941,15 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev)
 	strcpy(endpoint_desc.type, endpoint2.type);
 	endpoint_desc.id = endpoint2.id;
 	endpoint = fsl_mc_device_lookup(&endpoint_desc, mc_bus_dev);
+
+	/*
+	 * We know that the device has an endpoint because we verified by
+	 * interrogating the firmware. This is the case when the device was not
+	 * yet discovered by the fsl-mc bus, thus the lookup returned NULL.
+	 * Differentiate this case by returning EPROBE_DEFER.
+	 */
+	if (!endpoint)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	return endpoint;
 }

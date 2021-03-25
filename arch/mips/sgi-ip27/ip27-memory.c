@@ -404,11 +404,6 @@ void __init prom_meminit(void)
 	}
 }
 
-void __init prom_free_prom_memory(void)
-{
-	/* We got nothing to free here ...  */
-}
-
 extern void setup_zero_pages(void);
 
 void __init paging_init(void)

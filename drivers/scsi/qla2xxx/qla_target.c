@@ -981,8 +981,7 @@ void qlt_free_session_done(struct work_struct *work)
 			int rc;
 
 			if (!own ||
-			    (own &&
-			     (own->iocb.u.isp24.status_subcode == ELS_PLOGI))) {
+			     (own->iocb.u.isp24.status_subcode == ELS_PLOGI)) {
 				rc = qla2x00_post_async_logout_work(vha, sess,
 				    NULL);
 				if (rc != QLA_SUCCESS)

@@ -43,7 +43,7 @@ static int ibm_get_config_addr_info;
 static int ibm_get_config_addr_info2;
 static int ibm_configure_pe;
 
-void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
+static void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	struct pci_dn *pdn = pci_get_pdn(pdev);
 
@@ -694,8 +694,7 @@ static int pseries_eeh_write_config(struct eeh_dev *edev, int where, int size, u
 }
 
 #ifdef CONFIG_PCI_IOV
-int pseries_send_allow_unfreeze(struct pci_dn *pdn,
-				u16 *vf_pe_array, int cur_vfs)
+static int pseries_send_allow_unfreeze(struct pci_dn *pdn, u16 *vf_pe_array, int cur_vfs)
 {
 	int rc;
 	int ibm_allow_unfreeze = rtas_token("ibm,open-sriov-allow-unfreeze");

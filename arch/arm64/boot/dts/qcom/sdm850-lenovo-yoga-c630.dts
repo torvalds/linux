@@ -13,7 +13,7 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
-#include "sdm845.dtsi"
+#include "sdm850.dtsi"
 #include "pm8998.dtsi"
 
 / {

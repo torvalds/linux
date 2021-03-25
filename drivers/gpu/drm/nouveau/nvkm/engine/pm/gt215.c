@@ -132,7 +132,7 @@ gt215_pm[] = {
 };
 
 int
-gt215_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+gt215_pm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_pm **ppm)
 {
-	return nv40_pm_new_(gt215_pm, device, index, ppm);
+	return nv40_pm_new_(gt215_pm, device, type, inst, ppm);
 }

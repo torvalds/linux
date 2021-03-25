@@ -2761,7 +2761,7 @@ DEFINE_EVENT(local_sdata_addr_evt, drv_update_vif_offload,
 	TP_ARGS(local, sdata)
 );
 
-TRACE_EVENT(drv_sta_set_4addr,
+DECLARE_EVENT_CLASS(sta_flag_evt,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_sta *sta, bool enabled),
@@ -2786,6 +2786,22 @@ TRACE_EVENT(drv_sta_set_4addr,
 		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT " enabled:%d",
 		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->enabled
 	)
+);
+
+DEFINE_EVENT(sta_flag_evt, drv_sta_set_4addr,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta, bool enabled),
+
+	TP_ARGS(local, sdata, sta, enabled)
+);
+
+DEFINE_EVENT(sta_flag_evt, drv_sta_set_decap_offload,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta, bool enabled),
+
+	TP_ARGS(local, sdata, sta, enabled)
 );
 
 #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */

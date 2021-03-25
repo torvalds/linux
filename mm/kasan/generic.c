@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
+#include <linux/kfence.h>
 #include <linux/kmemleak.h>
 #include <linux/linkage.h>
 #include <linux/memblock.h>
@@ -158,7 +159,7 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
 	return memory_is_poisoned_n(addr, size);
 }
 
-static __always_inline bool check_memory_region_inline(unsigned long addr,
+static __always_inline bool check_region_inline(unsigned long addr,
 						size_t size, bool write,
 						unsigned long ret_ip)
 {
@@ -179,37 +180,37 @@ static __always_inline bool check_memory_region_inline(unsigned long addr,
 	return !kasan_report(addr, size, write, ret_ip);
 }
 
-bool check_memory_region(unsigned long addr, size_t size, bool write,
-				unsigned long ret_ip)
+bool kasan_check_range(unsigned long addr, size_t size, bool write,
+					unsigned long ret_ip)
 {
-	return check_memory_region_inline(addr, size, write, ret_ip);
+	return check_region_inline(addr, size, write, ret_ip);
 }
 
-bool check_invalid_free(void *addr)
+bool kasan_byte_accessible(const void *addr)
 {
 	s8 shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(addr));
 
-	return shadow_byte < 0 || shadow_byte >= KASAN_GRANULE_SIZE;
+	return shadow_byte >= 0 && shadow_byte < KASAN_GRANULE_SIZE;
 }
 
 void kasan_cache_shrink(struct kmem_cache *cache)
 {
-	quarantine_remove_cache(cache);
+	kasan_quarantine_remove_cache(cache);
 }
 
 void kasan_cache_shutdown(struct kmem_cache *cache)
 {
 	if (!__kmem_cache_empty(cache))
-		quarantine_remove_cache(cache);
+		kasan_quarantine_remove_cache(cache);
 }
 
 static void register_global(struct kasan_global *global)
 {
 	size_t aligned_size = round_up(global->size, KASAN_GRANULE_SIZE);
 
-	unpoison_range(global->beg, global->size);
+	kasan_unpoison(global->beg, global->size);
 
-	poison_range(global->beg + aligned_size,
+	kasan_poison(global->beg + aligned_size,
 		     global->size_with_redzone - aligned_size,
 		     KASAN_GLOBAL_REDZONE);
 }
@@ -231,7 +232,7 @@ EXPORT_SYMBOL(__asan_unregister_globals);
 #define DEFINE_ASAN_LOAD_STORE(size)					\
 	void __asan_load##size(unsigned long addr)			\
 	{								\
-		check_memory_region_inline(addr, size, false, _RET_IP_);\
+		check_region_inline(addr, size, false, _RET_IP_);	\
 	}								\
 	EXPORT_SYMBOL(__asan_load##size);				\
 	__alias(__asan_load##size)					\
@@ -239,7 +240,7 @@ EXPORT_SYMBOL(__asan_unregister_globals);
 	EXPORT_SYMBOL(__asan_load##size##_noabort);			\
 	void __asan_store##size(unsigned long addr)			\
 	{								\
-		check_memory_region_inline(addr, size, true, _RET_IP_);	\
+		check_region_inline(addr, size, true, _RET_IP_);	\
 	}								\
 	EXPORT_SYMBOL(__asan_store##size);				\
 	__alias(__asan_store##size)					\
@@ -254,7 +255,7 @@ DEFINE_ASAN_LOAD_STORE(16);
 
 void __asan_loadN(unsigned long addr, size_t size)
 {
-	check_memory_region(addr, size, false, _RET_IP_);
+	kasan_check_range(addr, size, false, _RET_IP_);
 }
 EXPORT_SYMBOL(__asan_loadN);
 
@@ -264,7 +265,7 @@ EXPORT_SYMBOL(__asan_loadN_noabort);
 
 void __asan_storeN(unsigned long addr, size_t size)
 {
-	check_memory_region(addr, size, true, _RET_IP_);
+	kasan_check_range(addr, size, true, _RET_IP_);
 }
 EXPORT_SYMBOL(__asan_storeN);
 
@@ -290,11 +291,11 @@ void __asan_alloca_poison(unsigned long addr, size_t size)
 
 	WARN_ON(!IS_ALIGNED(addr, KASAN_ALLOCA_REDZONE_SIZE));
 
-	unpoison_range((const void *)(addr + rounded_down_size),
-		       size - rounded_down_size);
-	poison_range(left_redzone, KASAN_ALLOCA_REDZONE_SIZE,
+	kasan_unpoison((const void *)(addr + rounded_down_size),
+			size - rounded_down_size);
+	kasan_poison(left_redzone, KASAN_ALLOCA_REDZONE_SIZE,
 		     KASAN_ALLOCA_LEFT);
-	poison_range(right_redzone, padding_size + KASAN_ALLOCA_REDZONE_SIZE,
+	kasan_poison(right_redzone, padding_size + KASAN_ALLOCA_REDZONE_SIZE,
 		     KASAN_ALLOCA_RIGHT);
 }
 EXPORT_SYMBOL(__asan_alloca_poison);
@@ -305,7 +306,7 @@ void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom)
 	if (unlikely(!stack_top || stack_top > stack_bottom))
 		return;
 
-	unpoison_range(stack_top, stack_bottom - stack_top);
+	kasan_unpoison(stack_top, stack_bottom - stack_top);
 }
 EXPORT_SYMBOL(__asan_allocas_unpoison);
 
@@ -331,7 +332,7 @@ void kasan_record_aux_stack(void *addr)
 	struct kasan_alloc_meta *alloc_meta;
 	void *object;
 
-	if (!(page && PageSlab(page)))
+	if (is_kfence_address(addr) || !(page && PageSlab(page)))
 		return;
 
 	cache = page->slab_cache;
