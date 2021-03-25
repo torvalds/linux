@@ -1300,7 +1300,7 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++) {
 		sg = rotate_pages(obj, rot_info->plane[i].offset,
 				  rot_info->plane[i].width, rot_info->plane[i].height,
-				  rot_info->plane[i].stride, st, sg);
+				  rot_info->plane[i].src_stride, st, sg);
 	}
 
 	return st;
@@ -1384,7 +1384,7 @@ intel_remap_pages(struct intel_remapped_info *rem_info,
 	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
 		sg = remap_pages(obj, rem_info->plane[i].offset,
 				 rem_info->plane[i].width, rem_info->plane[i].height,
-				 rem_info->plane[i].stride, st, sg);
+				 rem_info->plane[i].src_stride, st, sg);
 	}
 
 	i915_sg_trim(st);

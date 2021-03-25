@@ -361,7 +361,7 @@ static unsigned long rotated_index(const struct intel_rotation_info *r,
 				   unsigned int x,
 				   unsigned int y)
 {
-	return (r->plane[n].stride * (r->plane[n].height - y - 1) +
+	return (r->plane[n].src_stride * (r->plane[n].height - y - 1) +
 		r->plane[n].offset + x);
 }
 
@@ -411,7 +411,7 @@ static unsigned long remapped_index(const struct intel_remapped_info *r,
 				    unsigned int x,
 				    unsigned int y)
 {
-	return (r->plane[n].stride * y +
+	return (r->plane[n].src_stride * y +
 		r->plane[n].offset + x);
 }
 
@@ -479,21 +479,21 @@ static int igt_vma_rotate_remap(void *arg)
 	struct i915_address_space *vm = &ggtt->vm;
 	struct drm_i915_gem_object *obj;
 	const struct intel_remapped_plane_info planes[] = {
-		{ .width = 1, .height = 1, .stride = 1 },
-		{ .width = 2, .height = 2, .stride = 2 },
-		{ .width = 4, .height = 4, .stride = 4 },
-		{ .width = 8, .height = 8, .stride = 8 },
+		{ .width = 1, .height = 1, .src_stride = 1 },
+		{ .width = 2, .height = 2, .src_stride = 2 },
+		{ .width = 4, .height = 4, .src_stride = 4 },
+		{ .width = 8, .height = 8, .src_stride = 8 },
 
-		{ .width = 3, .height = 5, .stride = 3 },
-		{ .width = 3, .height = 5, .stride = 4 },
-		{ .width = 3, .height = 5, .stride = 5 },
+		{ .width = 3, .height = 5, .src_stride = 3 },
+		{ .width = 3, .height = 5, .src_stride = 4 },
+		{ .width = 3, .height = 5, .src_stride = 5 },
 
-		{ .width = 5, .height = 3, .stride = 5 },
-		{ .width = 5, .height = 3, .stride = 7 },
-		{ .width = 5, .height = 3, .stride = 9 },
+		{ .width = 5, .height = 3, .src_stride = 5 },
+		{ .width = 5, .height = 3, .src_stride = 7 },
+		{ .width = 5, .height = 3, .src_stride = 9 },
 
-		{ .width = 4, .height = 6, .stride = 6 },
-		{ .width = 6, .height = 4, .stride = 6 },
+		{ .width = 4, .height = 6, .src_stride = 6 },
+		{ .width = 6, .height = 4, .src_stride = 6 },
 		{ }
 	}, *a, *b;
 	enum i915_ggtt_view_type types[] = {
@@ -523,8 +523,8 @@ static int igt_vma_rotate_remap(void *arg)
 			struct intel_remapped_plane_info *plane_info = view.remapped.plane;
 			unsigned int n, max_offset;
 
-			max_offset = max(plane_info[0].stride * plane_info[0].height,
-					 plane_info[1].stride * plane_info[1].height);
+			max_offset = max(plane_info[0].src_stride * plane_info[0].height,
+					 plane_info[1].src_stride * plane_info[1].height);
 			GEM_BUG_ON(max_offset > max_pages);
 			max_offset = max_pages - max_offset;
 
@@ -596,11 +596,11 @@ static int igt_vma_rotate_remap(void *arg)
 							       "rotated" : "remapped", n,
 							       plane_info[0].width,
 							       plane_info[0].height,
-							       plane_info[0].stride,
+							       plane_info[0].src_stride,
 							       plane_info[0].offset,
 							       plane_info[1].width,
 							       plane_info[1].height,
-							       plane_info[1].stride,
+							       plane_info[1].src_stride,
 							       plane_info[1].offset);
 							err = -EINVAL;
 							goto out_object;
@@ -853,21 +853,21 @@ static int igt_vma_remapped_gtt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	const struct intel_remapped_plane_info planes[] = {
-		{ .width = 1, .height = 1, .stride = 1 },
-		{ .width = 2, .height = 2, .stride = 2 },
-		{ .width = 4, .height = 4, .stride = 4 },
-		{ .width = 8, .height = 8, .stride = 8 },
+		{ .width = 1, .height = 1, .src_stride = 1 },
+		{ .width = 2, .height = 2, .src_stride = 2 },
+		{ .width = 4, .height = 4, .src_stride = 4 },
+		{ .width = 8, .height = 8, .src_stride = 8 },
 
-		{ .width = 3, .height = 5, .stride = 3 },
-		{ .width = 3, .height = 5, .stride = 4 },
-		{ .width = 3, .height = 5, .stride = 5 },
+		{ .width = 3, .height = 5, .src_stride = 3 },
+		{ .width = 3, .height = 5, .src_stride = 4 },
+		{ .width = 3, .height = 5, .src_stride = 5 },
 
-		{ .width = 5, .height = 3, .stride = 5 },
-		{ .width = 5, .height = 3, .stride = 7 },
-		{ .width = 5, .height = 3, .stride = 9 },
+		{ .width = 5, .height = 3, .src_stride = 5 },
+		{ .width = 5, .height = 3, .src_stride = 7 },
+		{ .width = 5, .height = 3, .src_stride = 9 },
 
-		{ .width = 4, .height = 6, .stride = 6 },
-		{ .width = 6, .height = 4, .stride = 6 },
+		{ .width = 4, .height = 6, .src_stride = 6 },
+		{ .width = 6, .height = 4, .src_stride = 6 },
 		{ }
 	}, *p;
 	enum i915_ggtt_view_type types[] = {

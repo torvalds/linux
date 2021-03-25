@@ -100,7 +100,7 @@ struct intel_remapped_plane_info {
 	u32 offset;
 	u16 width;
 	u16 height;
-	u16 stride;
+	u16 src_stride;
 	u16 unused_mbz;
 } __packed;
 

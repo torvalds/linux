@@ -590,8 +590,8 @@ static void init_plane_view_dims(const struct intel_framebuffer *fb, int color_p
 }
 
 static unsigned int
-plane_view_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
-			const struct fb_plane_view_dims *dims)
+plane_view_src_stride_tiles(const struct intel_framebuffer *fb, int color_plane,
+			    const struct fb_plane_view_dims *dims)
 {
 	return DIV_ROUND_UP(fb->base.pitches[color_plane],
 			    dims->tile_width * fb->base.format->cpp[color_plane]);
@@ -633,7 +633,7 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 	struct drm_rect r;
 
 	assign_chk_ovf(i915, remap_info->offset, obj_offset);
-	assign_chk_ovf(i915, remap_info->stride, plane_view_stride_tiles(fb, color_plane, dims));
+	assign_chk_ovf(i915, remap_info->src_stride, plane_view_src_stride_tiles(fb, color_plane, dims));
 	assign_chk_ovf(i915, remap_info->width, plane_view_width_tiles(fb, color_plane, dims, x));
 	assign_chk_ovf(i915, remap_info->height, plane_view_height_tiles(fb, color_plane, dims, y));
 
@@ -699,7 +699,7 @@ calc_plane_normal_size(const struct intel_framebuffer *fb, int color_plane,
 		       x * fb->base.format->cpp[color_plane];
 		tiles = DIV_ROUND_UP(size, intel_tile_size(i915));
 	} else {
-		tiles = plane_view_stride_tiles(fb, color_plane, dims) *
+		tiles = plane_view_src_stride_tiles(fb, color_plane, dims) *
 			plane_view_height_tiles(fb, color_plane, dims, y);
 		/*
 		 * If the plane isn't horizontally tile aligned,
