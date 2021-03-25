@@ -360,11 +360,26 @@ static ssize_t supported_rescue_options_show(struct kobject *kobj,
 BTRFS_ATTR(static_feature, supported_rescue_options,
 	   supported_rescue_options_show);
 
+static ssize_t supported_sectorsizes_show(struct kobject *kobj,
+					  struct kobj_attribute *a,
+					  char *buf)
+{
+	ssize_t ret = 0;
+
+	/* Only sectorsize == PAGE_SIZE is now supported */
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%lu\n", PAGE_SIZE);
+
+	return ret;
+}
+BTRFS_ATTR(static_feature, supported_sectorsizes,
+	   supported_sectorsizes_show);
+
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
 	BTRFS_ATTR_PTR(static_feature, supported_checksums),
 	BTRFS_ATTR_PTR(static_feature, send_stream_version),
 	BTRFS_ATTR_PTR(static_feature, supported_rescue_options),
+	BTRFS_ATTR_PTR(static_feature, supported_sectorsizes),
 	NULL
 };
 
