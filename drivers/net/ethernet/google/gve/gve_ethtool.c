@@ -14,9 +14,9 @@ static void gve_get_drvinfo(struct net_device *netdev,
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 
-	strlcpy(info->driver, "gve", sizeof(info->driver));
-	strlcpy(info->version, gve_version_str, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(priv->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, "gve", sizeof(info->driver));
+	strscpy(info->version, gve_version_str, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(priv->pdev), sizeof(info->bus_info));
 }
 
 static void gve_set_msglevel(struct net_device *netdev, u32 value)
