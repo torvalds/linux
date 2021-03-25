@@ -1458,15 +1458,21 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		st->plat_data = *pdata;
 	}
 
-	desc = irq_get_irq_data(irq);
-	if (!desc) {
-		dev_err(dev, "Could not find IRQ %d\n", irq);
-		return -EINVAL;
+	if (irq > 0) {
+		desc = irq_get_irq_data(irq);
+		if (!desc) {
+			dev_err(dev, "Could not find IRQ %d\n", irq);
+			return -EINVAL;
+		}
+
+		irq_type = irqd_get_trigger_type(desc);
+		if (!irq_type)
+			irq_type = IRQF_TRIGGER_RISING;
+	} else {
+		/* Doesn't really matter, use the default */
+		irq_type = IRQF_TRIGGER_RISING;
 	}
 
-	irq_type = irqd_get_trigger_type(desc);
-	if (!irq_type)
-		irq_type = IRQF_TRIGGER_RISING;
 	if (irq_type & IRQF_TRIGGER_RISING)	// rising or both-edge
 		st->irq_mask = INV_MPU6050_ACTIVE_HIGH;
 	else if (irq_type == IRQF_TRIGGER_FALLING)
@@ -1592,18 +1598,25 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 
 	indio_dev->info = &mpu_info;
 
-	result = devm_iio_triggered_buffer_setup(dev, indio_dev,
-						 iio_pollfunc_store_time,
-						 inv_mpu6050_read_fifo,
-						 NULL);
-	if (result) {
-		dev_err(dev, "configure buffer fail %d\n", result);
-		return result;
-	}
-	result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
-	if (result) {
-		dev_err(dev, "trigger probe fail %d\n", result);
-		return result;
+	if (irq > 0) {
+		/*
+		 * The driver currently only supports buffered capture with its
+		 * own trigger. So no IRQ, no trigger, no buffer
+		 */
+		result = devm_iio_triggered_buffer_setup(dev, indio_dev,
+							 iio_pollfunc_store_time,
+							 inv_mpu6050_read_fifo,
+							 NULL);
+		if (result) {
+			dev_err(dev, "configure buffer fail %d\n", result);
+			return result;
+		}
+
+		result = inv_mpu6050_probe_trigger(indio_dev, irq_type);
+		if (result) {
+			dev_err(dev, "trigger probe fail %d\n", result);
+			return result;
+		}
 	}
 
 	result = devm_iio_device_register(dev, indio_dev);
