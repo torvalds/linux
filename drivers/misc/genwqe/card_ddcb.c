@@ -316,7 +316,7 @@ static int enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_queue *queue,
 
 /**
  * copy_ddcb_results() - Copy output state from real DDCB to request
- * @req:        pointer to requsted DDCB parameters
+ * @req:        pointer to requested DDCB parameters
  * @ddcb_no:    pointer to ddcb number being tapped
  *
  * Copy DDCB ASV to request struct. There is no endian
@@ -356,7 +356,7 @@ static void copy_ddcb_results(struct ddcb_requ *req, int ddcb_no)
 }
 
 /**
- * genwqe_check_ddcb_queue() - Checks DDCB queue for completed work equests.
+ * genwqe_check_ddcb_queue() - Checks DDCB queue for completed work requests.
  * @cd:         pointer to genwqe device descriptor
  * @queue:	queue to be checked
  *
@@ -498,7 +498,7 @@ int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 
 	/*
 	 * We need to distinguish 3 cases here:
-	 *   1. rc == 0              timeout occured
+	 *   1. rc == 0              timeout occurred
 	 *   2. rc == -ERESTARTSYS   signal received
 	 *   3. rc > 0               remaining jiffies condition is true
 	 */
@@ -982,7 +982,7 @@ static int genwqe_next_ddcb_ready(struct genwqe_dev *cd)
 
 	spin_lock_irqsave(&queue->ddcb_lock, flags);
 
-	if (queue_empty(queue)) { /* emtpy queue */
+	if (queue_empty(queue)) { /* empty queue */
 		spin_unlock_irqrestore(&queue->ddcb_lock, flags);
 		return 0;
 	}
@@ -1002,7 +1002,7 @@ static int genwqe_next_ddcb_ready(struct genwqe_dev *cd)
  * @cd:         pointer to genwqe device descriptor
  *
  * Keep track on the number of DDCBs which ware currently in the
- * queue. This is needed for statistics as well as conditon if we want
+ * queue. This is needed for statistics as well as condition if we want
  * to wait or better do polling in case of no interrupts available.
  */
 int genwqe_ddcbs_in_flight(struct genwqe_dev *cd)
