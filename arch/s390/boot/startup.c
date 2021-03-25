@@ -23,6 +23,7 @@ unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata(ident_map_size);
+int __bootdata(is_full_image) = 1;
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 u64 __bootdata_preserved(alt_stfle_fac_list[16]);
