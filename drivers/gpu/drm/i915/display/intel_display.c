@@ -1005,6 +1005,8 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,
 			unsigned int rotation)
 {
+	memset(view, 0, sizeof(*view));
+
 	view->type = I915_GGTT_VIEW_NORMAL;
 	if (drm_rotation_90_or_270(rotation)) {
 		view->type = I915_GGTT_VIEW_ROTATED;
