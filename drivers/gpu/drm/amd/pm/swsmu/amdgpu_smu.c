@@ -1447,7 +1447,7 @@ static int smu_hw_fini(void *handle)
 	return smu_smc_hw_cleanup(smu);
 }
 
-int smu_reset(struct smu_context *smu)
+static int smu_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
@@ -1695,10 +1695,10 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	return ret;
 }
 
-int smu_handle_task(struct smu_context *smu,
-		    enum amd_dpm_forced_level level,
-		    enum amd_pp_task task_id,
-		    bool lock_needed)
+static int smu_handle_task(struct smu_context *smu,
+			   enum amd_dpm_forced_level level,
+			   enum amd_pp_task task_id,
+			   bool lock_needed)
 {
 	int ret = 0;
 
@@ -2127,7 +2127,7 @@ static int smu_load_microcode(void *handle)
 	return ret;
 }
 
-int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled)
+static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled)
 {
 	int ret = 0;
 
@@ -2446,7 +2446,7 @@ static u32 smu_get_fan_control_mode(void *handle)
 	return ret;
 }
 
-int smu_set_fan_control_mode(struct smu_context *smu, int value)
+static int smu_set_fan_control_mode(struct smu_context *smu, int value)
 {
 	int ret = 0;
 
