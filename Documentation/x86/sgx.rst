@@ -209,3 +209,28 @@ An application may be loaded into a container enclave which is specially
 configured with a library OS and run-time which permits the application to run.
 The enclave run-time and library OS work together to execute the application
 when a thread enters the enclave.
+
+Impact of Potential Kernel SGX Bugs
+===================================
+
+EPC leaks
+---------
+
+When EPC page leaks happen, a WARNING like this is shown in dmesg:
+
+"EREMOVE returned ... and an EPC page was leaked.  SGX may become unusable..."
+
+This is effectively a kernel use-after-free of an EPC page, and due
+to the way SGX works, the bug is detected at freeing. Rather than
+adding the page back to the pool of available EPC pages, the kernel
+intentionally leaks the page to avoid additional errors in the future.
+
+When this happens, the kernel will likely soon leak more EPC pages, and
+SGX will likely become unusable because the memory available to SGX is
+limited. However, while this may be fatal to SGX, the rest of the kernel
+is unlikely to be impacted and should continue to work.
+
+As a result, when this happpens, user should stop running any new
+SGX workloads, (or just any new workloads), and migrate all valuable
+workloads. Although a machine reboot can recover all EPC memory, the bug
+should be reported to Linux developers.

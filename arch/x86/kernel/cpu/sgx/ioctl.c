@@ -47,7 +47,7 @@ static void sgx_encl_shrink(struct sgx_encl *encl, struct sgx_va_page *va_page)
 	encl->page_cnt--;
 
 	if (va_page) {
-		sgx_free_epc_page(va_page->epc_page);
+		sgx_encl_free_epc_page(va_page->epc_page);
 		list_del(&va_page->list);
 		kfree(va_page);
 	}
@@ -117,7 +117,7 @@ static int sgx_encl_create(struct sgx_encl *encl, struct sgx_secs *secs)
 	return 0;
 
 err_out:
-	sgx_free_epc_page(encl->secs.epc_page);
+	sgx_encl_free_epc_page(encl->secs.epc_page);
 	encl->secs.epc_page = NULL;
 
 err_out_backing:
@@ -365,7 +365,7 @@ err_out_unlock:
 	mmap_read_unlock(current->mm);
 
 err_out_free:
-	sgx_free_epc_page(epc_page);
+	sgx_encl_free_epc_page(epc_page);
 	kfree(encl_page);
 
 	return ret;
