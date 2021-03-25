@@ -2449,7 +2449,7 @@ dump_knl_turbo_ratio_limits(void)
 	fprintf(outf, "cpu%d: MSR_TURBO_RATIO_LIMIT: 0x%08llx\n",
 		base_cpu, msr);
 
-	/**
+	/*
 	 * Turbo encoding in KNL is as follows:
 	 * [0] -- Reserved
 	 * [7:1] -- Base value of number of active cores of bucket 1.
