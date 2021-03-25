@@ -190,6 +190,7 @@ struct inet6_dev {
 
 	spinlock_t		mc_query_lock;	/* mld query queue lock */
 	spinlock_t		mc_report_lock;	/* mld query report lock */
+	struct mutex		mc_lock;	/* mld global lock */
 
 	struct ifacaddr6	*ac_list;
 	rwlock_t		lock;
