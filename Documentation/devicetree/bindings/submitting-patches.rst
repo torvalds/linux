@@ -84,7 +84,7 @@ II. For kernel maintainers
 III. Notes
 ==========
 
-  0) Please see ...bindings/ABI.txt for details regarding devicetree ABI.
+  0) Please see :doc:`ABI` for details regarding devicetree ABI.
 
   1) This document is intended as a general familiarization with the process as
      decided at the 2013 Kernel Summit.  When in doubt, the current word of the
