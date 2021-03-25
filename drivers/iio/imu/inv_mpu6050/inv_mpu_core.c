@@ -1591,7 +1591,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	indio_dev->info = &mpu_info;
-	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
 	result = devm_iio_triggered_buffer_setup(dev, indio_dev,
 						 iio_pollfunc_store_time,
