@@ -4281,7 +4281,10 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		drm_sched_increase_karma(&job->base);
 
 	r = amdgpu_reset_prepare_hwcontext(adev, reset_context);
-	if (r != -ENOSYS)
+	/* If reset handler not implemented, continue; otherwise return */
+	if (r == -ENOSYS)
+		r = 0;
+	else
 		return r;
 
 	/* Don't suspend on bare metal if we are not going to HW reset the ASIC */
@@ -4323,8 +4326,10 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
 				    reset_list);
 	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
-
-	if (r != -ENOSYS)
+	/* If reset handler not implemented, continue; otherwise return */
+	if (r == -ENOSYS)
+		r = 0;
+	else
 		return r;
 
 	/* Reset handler not implemented, use the default method */
