@@ -204,18 +204,10 @@ struct ipa_resource_limits {
 };
 
 /**
- * struct ipa_resource_src - source endpoint group resource usage
- * @limits:	array of source resource limits, indexed by group
+ * struct ipa_resource - resource group source or destination resource usage
+ * @limits:	array of resource limits, indexed by group
  */
-struct ipa_resource_src {
-	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_MAX];
-};
-
-/**
- * struct ipa_resource_dst - destination endpoint group resource usage
- * @limits:	array of destination resource limits, indexed by group
- */
-struct ipa_resource_dst {
+struct ipa_resource {
 	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_MAX];
 };
 
@@ -233,9 +225,9 @@ struct ipa_resource_dst {
  */
 struct ipa_resource_data {
 	u32 resource_src_count;
-	const struct ipa_resource_src *resource_src;
+	const struct ipa_resource *resource_src;
 	u32 resource_dst_count;
-	const struct ipa_resource_dst *resource_dst;
+	const struct ipa_resource *resource_dst;
 };
 
 /**
