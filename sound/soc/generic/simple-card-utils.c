@@ -617,11 +617,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	}
 
 	/*
-	 * Use snd_soc_dai_link_component instead of legacy style
-	 * It is codec only. but cpu/platform will be supported in the future.
-	 * see
-	 *	soc-core.c :: snd_soc_init_multicodec()
-	 *
 	 * "platform" might be removed
 	 * see
 	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
