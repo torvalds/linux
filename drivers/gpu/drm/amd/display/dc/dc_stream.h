@@ -208,6 +208,7 @@ struct dc_stream_state {
 	bool ignore_msa_timing_param;
 
 	bool allow_freesync;
+	bool vrr_active_variable;
 	bool freesync_on_desktop;
 
 	bool converter_disable_audio;
