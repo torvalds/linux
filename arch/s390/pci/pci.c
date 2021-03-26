@@ -742,10 +742,9 @@ error:
  * @zdev: The zpci_dev to be configured
  * @fh: The general function handle supplied by the platform
  *
- * Configuring a device includes the configuration itself, if not done by the
- * platform, enabling, scanning and adding it to the common code PCI subsystem.
- * If any failure occurs, the zpci_dev is left disabled either in Standby if
- * the configuration failed or Configured if enabling or scanning failed.
+ * Given a device in the configuration state Configured, enables, scans and
+ * adds it to the common code PCI subsystem. If any failure occurs, the
+ * zpci_dev is left disabled.
  *
  * Return: 0 on success, or an error code otherwise
  */
@@ -754,14 +753,6 @@ int zpci_configure_device(struct zpci_dev *zdev, u32 fh)
 	int rc;
 
 	zdev->fh = fh;
-	if (zdev->state != ZPCI_FN_STATE_CONFIGURED) {
-		rc = sclp_pci_configure(zdev->fid);
-		zpci_dbg(3, "conf fid:%x, rc:%d\n", zdev->fid, rc);
-		if (rc)
-			return rc;
-		zdev->state = ZPCI_FN_STATE_CONFIGURED;
-	}
-
 	/* the PCI function will be scanned once function 0 appears */
 	if (!zdev->zbus->bus)
 		return 0;

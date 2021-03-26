@@ -24,9 +24,16 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
+	int rc;
 
 	if (zdev->state != ZPCI_FN_STATE_STANDBY)
 		return -EIO;
+
+	rc = sclp_pci_configure(zdev->fid);
+	zpci_dbg(3, "conf fid:%x, rc:%d\n", zdev->fid, rc);
+	if (rc)
+		return rc;
+	zdev->state = ZPCI_FN_STATE_CONFIGURED;
 
 	return zpci_configure_device(zdev, zdev->fh);
 }
