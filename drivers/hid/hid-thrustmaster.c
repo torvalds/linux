@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * When connected to the machine, the Thrustmaster wheels appear as
  * a «generic» hid gamepad called "Thrustmaster FFB Wheel".
  *
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-/**
+/*
  * These interrupts are used to prevent a nasty crash when initializing the
  * T300RS. Used in thrustmaster_interrupts().
  */
@@ -36,7 +36,7 @@ static const unsigned int setup_arr_sizes[] = {
 	ARRAY_SIZE(setup_3),
 	ARRAY_SIZE(setup_4)
 };
-/**
+/*
  * This struct contains for each type of
  * Thrustmaster wheel
  *
@@ -49,7 +49,7 @@ static const unsigned int setup_arr_sizes[] = {
 struct tm_wheel_info {
 	uint16_t wheel_type;
 
-	/**
+	/*
 	 * See when the USB control out packet is prepared...
 	 * @TODO The TMX seems to require multiple control codes to switch.
 	 */
@@ -58,7 +58,7 @@ struct tm_wheel_info {
 	char const *const wheel_name;
 };
 
-/**
+/*
  * Known wheels.
  * Note: TMX does not work as it requires 2 control packets
  */
@@ -72,7 +72,7 @@ static const struct tm_wheel_info tm_wheels_infos[] = {
 
 static const uint8_t tm_wheels_infos_length = 4;
 
-/**
+/*
  * This structs contains (in little endian) the response data
  * of the wheel to the request 73
  *
@@ -82,7 +82,7 @@ static const uint8_t tm_wheels_infos_length = 4;
  */
 struct __packed tm_wheel_response
 {
-	/**
+	/*
 	 * Seems to be the type of packet
 	 * - 0x0049 if is data.a (15 bytes)
 	 * - 0x0047 if is data.b (7 bytes)
@@ -93,7 +93,7 @@ struct __packed tm_wheel_response
 		struct __packed {
 			uint16_t field0;
 			uint16_t field1;
-			/**
+			/*
 			 * Seems to be the model code of the wheel
 			 * Read table thrustmaster_wheels to values
 			 */
@@ -122,7 +122,7 @@ struct tm_wheel {
 	struct usb_ctrlrequest *change_request;
 };
 
-/** The control packet to send to wheel */
+/* The control packet to send to wheel */
 static const struct usb_ctrlrequest model_request = {
 	.bRequestType = 0xc1,
 	.bRequest = 73,
@@ -139,7 +139,7 @@ static const struct usb_ctrlrequest change_request = {
 	.wLength = 0
 };
 
-/**
+/*
  * On some setups initializing the T300RS crashes the kernel,
  * these interrupts fix that particular issue. So far they haven't caused any
  * adverse effects in other wheels.
@@ -191,7 +191,7 @@ static void thrustmaster_change_handler(struct urb *urb)
 		hid_warn(hdev, "URB to change wheel mode seems to have failed with error %d\n", urb->status);
 }
 
-/**
+/*
  * Called by the USB subsystem when the wheel responses to our request
  * to get [what it seems to be] the wheel's model.
  *
@@ -261,7 +261,7 @@ static void thrustmaster_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-/**
+/*
  * Function called by HID when a hid Thrustmaster FFB wheel is connected to the host.
  * This function starts the hid dev, tries to allocate the tm_wheel data structure and
  * finally send an USB CONTROL REQUEST to the wheel to get [what it seems to be] its
