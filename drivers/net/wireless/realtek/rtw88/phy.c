@@ -618,6 +618,7 @@ static void rtw_phy_pwr_track(struct rtw_dev *rtwdev)
 
 static void rtw_phy_ra_track(struct rtw_dev *rtwdev)
 {
+	rtw_fw_update_wl_phy_info(rtwdev);
 	rtw_phy_ra_info_update(rtwdev);
 	rtw_phy_rrsr_update(rtwdev);
 }
