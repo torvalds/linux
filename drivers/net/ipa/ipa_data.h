@@ -220,21 +220,17 @@ struct ipa_resource_limits {
 
 /**
  * struct ipa_resource_src - source endpoint group resource usage
- * @type:	source group resource type
  * @limits:	array of limits to use for each resource group
  */
 struct ipa_resource_src {
-	enum ipa_resource_type type;	/* IPA_RESOURCE_TYPE_SRC_* */
 	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_SRC_MAX];
 };
 
 /**
  * struct ipa_resource_dst - destination endpoint group resource usage
- * @type:	destination group resource type
  * @limits:	array of limits to use for each resource group
  */
 struct ipa_resource_dst {
-	enum ipa_resource_type type;	/* IPA_RESOURCE_TYPE_DST_* */
 	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_DST_MAX];
 };
 

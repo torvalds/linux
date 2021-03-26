@@ -168,8 +168,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 
 /* Source resource configuration data for the SDM845 SoC */
 static const struct ipa_resource_src ipa_resource_src[] = {
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS,
+	[IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
 			.min = 1,
 			.max = 255,
@@ -183,8 +182,7 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 			.max = 63,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
+	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
 			.min = 10,
 			.max = 10,
@@ -198,8 +196,7 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 			.max = 8,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
+	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
 			.min = 12,
 			.max = 12,
@@ -213,8 +210,7 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 			.max = 8,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
+	[IPA_RESOURCE_TYPE_SRC_HPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
 			.min = 0,
 			.max = 63,
@@ -232,8 +228,7 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 			.max = 63,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
+	[IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
 			.min = 14,
 			.max = 14,
@@ -251,8 +246,7 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 
 /* Destination resource configuration data for the SDM845 SoC */
 static const struct ipa_resource_dst ipa_resource_dst[] = {
-	{
-		.type = IPA_RESOURCE_TYPE_DST_DATA_SECTORS,
+	[IPA_RESOURCE_TYPE_DST_DATA_SECTORS] = {
 		.limits[IPA_RSRC_GROUP_DST_LWA_DL] = {
 			.min = 4,
 			.max = 4,
@@ -266,8 +260,7 @@ static const struct ipa_resource_dst ipa_resource_dst[] = {
 			.max = 3,
 		}
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_DST_DPS_DMARS,
+	[IPA_RESOURCE_TYPE_DST_DPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_DST_LWA_DL] = {
 			.min = 2,
 			.max = 63,

@@ -150,36 +150,31 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 
 /* Source resource configuration data for the SC7180 SoC */
 static const struct ipa_resource_src ipa_resource_src[] = {
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS,
+	[IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
 			.min = 3,
 			.max = 63,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
+	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
 			.min = 3,
 			.max = 3,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
+	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
 			.min = 10,
 			.max = 10,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
+	[IPA_RESOURCE_TYPE_SRC_HPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
 			.min = 1,
 			.max = 1,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
+	[IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
 			.min = 5,
 			.max = 5,
@@ -189,15 +184,13 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 
 /* Destination resource configuration data for the SC7180 SoC */
 static const struct ipa_resource_dst ipa_resource_dst[] = {
-	{
-		.type = IPA_RESOURCE_TYPE_DST_DATA_SECTORS,
+	[IPA_RESOURCE_TYPE_DST_DATA_SECTORS] = {
 		.limits[IPA_RSRC_GROUP_DST_UL_DL_DPL] = {
 			.min = 3,
 			.max = 3,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_DST_DPS_DMARS,
+	[IPA_RESOURCE_TYPE_DST_DPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_DST_UL_DL_DPL] = {
 			.min = 1,
 			.max = 63,
