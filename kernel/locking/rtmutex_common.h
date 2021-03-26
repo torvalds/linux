@@ -23,29 +23,30 @@
  * @tree_entry:		pi node to enqueue into the mutex waiters tree
  * @pi_tree_entry:	pi node to enqueue into the mutex owner waiters tree
  * @task:		task reference to the blocked task
+ * @lock:		Pointer to the rt_mutex on which the waiter blocks
+ * @prio:		Priority of the waiter
+ * @deadline:		Deadline of the waiter if applicable
  */
 struct rt_mutex_waiter {
-	struct rb_node          tree_entry;
-	struct rb_node          pi_tree_entry;
+	struct rb_node		tree_entry;
+	struct rb_node		pi_tree_entry;
 	struct task_struct	*task;
 	struct rt_mutex		*lock;
-	int prio;
-	u64 deadline;
+	int			prio;
+	u64			deadline;
 };
 
 /*
- * Various helpers to access the waiters-tree:
+ * Must be guarded because this header is included from rcu/tree_plugin.h
+ * unconditionally.
  */
-
 #ifdef CONFIG_RT_MUTEXES
-
 static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
 {
 	return !RB_EMPTY_ROOT(&lock->waiters.rb_root);
 }
 
-static inline struct rt_mutex_waiter *
-rt_mutex_top_waiter(struct rt_mutex *lock)
+static inline struct rt_mutex_waiter *rt_mutex_top_waiter(struct rt_mutex *lock)
 {
 	struct rb_node *leftmost = rb_first_cached(&lock->waiters);
 	struct rt_mutex_waiter *w = NULL;
@@ -62,42 +63,12 @@ static inline int task_has_pi_waiters(struct task_struct *p)
 	return !RB_EMPTY_ROOT(&p->pi_waiters.rb_root);
 }
 
-static inline struct rt_mutex_waiter *
-task_top_pi_waiter(struct task_struct *p)
+static inline struct rt_mutex_waiter *task_top_pi_waiter(struct task_struct *p)
 {
-	return rb_entry(p->pi_waiters.rb_leftmost,
-			struct rt_mutex_waiter, pi_tree_entry);
+	return rb_entry(p->pi_waiters.rb_leftmost, struct rt_mutex_waiter,
+			pi_tree_entry);
 }
 
-#else
-
-static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
-{
-	return false;
-}
-
-static inline struct rt_mutex_waiter *
-rt_mutex_top_waiter(struct rt_mutex *lock)
-{
-	return NULL;
-}
-
-static inline int task_has_pi_waiters(struct task_struct *p)
-{
-	return false;
-}
-
-static inline struct rt_mutex_waiter *
-task_top_pi_waiter(struct task_struct *p)
-{
-	return NULL;
-}
-
-#endif
-
-/*
- * lock->owner state tracking:
- */
 #define RT_MUTEX_HAS_WAITERS	1UL
 
 static inline struct task_struct *rt_mutex_owner(struct rt_mutex *lock)
@@ -106,6 +77,13 @@ static inline struct task_struct *rt_mutex_owner(struct rt_mutex *lock)
 
 	return (struct task_struct *) (owner & ~RT_MUTEX_HAS_WAITERS);
 }
+#else /* CONFIG_RT_MUTEXES */
+/* Used in rcu/tree_plugin.h */
+static inline struct task_struct *rt_mutex_owner(struct rt_mutex *lock)
+{
+	return NULL;
+}
+#endif  /* !CONFIG_RT_MUTEXES */
 
 /*
  * Constants for rt mutex functions which have a selectable deadlock
