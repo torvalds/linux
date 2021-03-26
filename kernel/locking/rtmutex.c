@@ -1305,7 +1305,7 @@ void __sched rt_mutex_postunlock(struct wake_q_head *wake_q)
 {
 	wake_up_q(wake_q);
 
-	/* Pairs with preempt_disable() in rt_mutex_slowunlock() */
+	/* Pairs with preempt_disable() in mark_wakeup_next_waiter() */
 	preempt_enable();
 }
 
