@@ -144,7 +144,16 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
  * layout types will be returned.
  */
 #define decode_fsinfo_maxsz	(op_decode_hdr_maxsz + \
-				 nfs4_fattr_bitmap_maxsz + 4 + 8 + 5)
+				 nfs4_fattr_bitmap_maxsz + 1 + \
+				 1 /* lease time */ + \
+				 2 /* max filesize */ + \
+				 2 /* max read */ + \
+				 2 /* max write */ + \
+				 nfstime4_maxsz /* time delta */ + \
+				 5 /* fs layout types */ + \
+				 1 /* layout blksize */ + \
+				 1 /* clone blksize */ + \
+				 1 /* xattr support */)
 #define encode_renew_maxsz	(op_encode_hdr_maxsz + 3)
 #define decode_renew_maxsz	(op_decode_hdr_maxsz)
 #define encode_setclientid_maxsz \
