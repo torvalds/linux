@@ -18,7 +18,6 @@
 
 /**
  * struct sensor_hub_data - Hold a instance data for a HID hub device
- * @hsdev:		Stored hid instance for current hub device.
  * @mutex:		Mutex to serialize synchronous request.
  * @lock:		Spin lock to protect pending request structure.
  * @dyn_callback_list:	Holds callback function
@@ -41,6 +40,7 @@ struct sensor_hub_data {
  * struct hid_sensor_hub_callbacks_list - Stores callback list
  * @list:		list head.
  * @usage_id:		usage id for a physical device.
+ * @hsdev:		Stored hid instance for current hub device.
  * @usage_callback:	Stores registered callback functions.
  * @priv:		Private data for a physical device.
  */
