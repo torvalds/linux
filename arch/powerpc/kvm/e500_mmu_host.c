@@ -723,8 +723,6 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
 
 static int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 {
-	trace_kvm_unmap_hva(hva);
-
 	/*
 	 * Flush all shadow tlb entries everywhere. This is slow, but
 	 * we are 100% sure that we catch the to be unmapped page

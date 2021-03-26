@@ -459,6 +459,8 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
 	int idx;
 
+	trace_kvm_set_spte_hva(address);
+
 	idx = srcu_read_lock(&kvm->srcu);
 
 	KVM_MMU_LOCK(kvm);
@@ -477,6 +479,8 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
 	int need_tlb_flush = 0, idx;
+
+	trace_kvm_unmap_hva_range(range->start, range->end);
 
 	idx = srcu_read_lock(&kvm->srcu);
 	KVM_MMU_LOCK(kvm);
@@ -548,6 +552,8 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
 	int young, idx;
 
+	trace_kvm_age_hva(start, end);
+
 	idx = srcu_read_lock(&kvm->srcu);
 	KVM_MMU_LOCK(kvm);
 
@@ -568,6 +574,8 @@ static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
 	int young, idx;
+
+	trace_kvm_age_hva(start, end);
 
 	idx = srcu_read_lock(&kvm->srcu);
 	KVM_MMU_LOCK(kvm);
@@ -597,6 +605,8 @@ static int kvm_mmu_notifier_test_young(struct mmu_notifier *mn,
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
 	int young, idx;
+
+	trace_kvm_test_age_hva(address);
 
 	idx = srcu_read_lock(&kvm->srcu);
 	KVM_MMU_LOCK(kvm);
