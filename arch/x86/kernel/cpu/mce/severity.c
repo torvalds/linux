@@ -225,7 +225,7 @@ static bool is_copy_from_user(struct pt_regs *regs)
 	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
 		return false;
 
-	ret = insn_decode(&insn, insn_buf, MAX_INSN_SIZE, INSN_MODE_KERN);
+	ret = insn_decode_kernel(&insn, insn_buf);
 	if (ret < 0)
 		return false;
 

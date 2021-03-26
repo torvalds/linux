@@ -324,7 +324,7 @@ static int can_optimize(unsigned long paddr)
 		if (!recovered_insn)
 			return 0;
 
-		ret = insn_decode(&insn, (void *)recovered_insn, MAX_INSN_SIZE, INSN_MODE_KERN);
+		ret = insn_decode_kernel(&insn, (void *)recovered_insn);
 		if (ret < 0)
 			return 0;
 

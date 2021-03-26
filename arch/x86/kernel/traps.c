@@ -504,7 +504,7 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 			MAX_INSN_SIZE))
 		return GP_NO_HINT;
 
-	ret = insn_decode(&insn, insn_buf, MAX_INSN_SIZE, INSN_MODE_KERN);
+	ret = insn_decode_kernel(&insn, insn_buf);
 	if (ret < 0)
 		return GP_NO_HINT;
 

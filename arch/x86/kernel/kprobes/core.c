@@ -285,7 +285,7 @@ static int can_probe(unsigned long paddr)
 		if (!__addr)
 			return 0;
 
-		ret = insn_decode(&insn, (void *)__addr, MAX_INSN_SIZE, INSN_MODE_KERN);
+		ret = insn_decode_kernel(&insn, (void *)__addr);
 		if (ret < 0)
 			return 0;
 
@@ -322,7 +322,7 @@ int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 			MAX_INSN_SIZE))
 		return 0;
 
-	ret = insn_decode(insn, dest, MAX_INSN_SIZE, INSN_MODE_KERN);
+	ret = insn_decode_kernel(insn, dest);
 	if (ret < 0)
 		return 0;
 
