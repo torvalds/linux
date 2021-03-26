@@ -207,7 +207,7 @@ Currently the dump will be copied from /proc/vmcore to a new file upon
 user intervention. The dump data available through /proc/vmcore will be
 in ELF format. Hence the existing kdump infrastructure (kdump scripts)
 to save the dump works fine with minor modifications. KDump scripts on
-major Distro releases have already been modified to work seemlessly (no
+major Distro releases have already been modified to work seamlessly (no
 user intervention in saving the dump) when FADump is used, instead of
 KDump, as dump mechanism.
 

@@ -40,7 +40,7 @@ and any in-arguments for the hcall are provided in registers *r4-r12*. If values
 have to be passed through a memory buffer, the data stored in that buffer should be
 in Big-endian byte order.
 
-Once control is returns back to the guest after hypervisor has serviced the
+Once control returns back to the guest after hypervisor has serviced the
 'HVCS' instruction the return value of the hcall is available in *r3* and any
 out values are returned in registers *r4-r12*. Again like in case of in-arguments,
 any out values stored in a memory buffer will be in Big-endian byte order.
@@ -147,7 +147,7 @@ corresponding opcode values please look into the arch specific header [4]_:
 | Out: *numBytesRead*
 | Return Value: *H_Success, H_Parameter, H_P2, H_P3, H_Hardware*
 
-Given a DRC Index of an NVDIMM, read N-bytes from the the metadata area
+Given a DRC Index of an NVDIMM, read N-bytes from the metadata area
 associated with it, at a specified offset and copy it to provided buffer.
 The metadata area stores configuration information such as label information,
 bad-blocks etc. The metadata area is located out-of-band of NVDIMM storage
