@@ -3940,6 +3940,21 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 	return false;
 }
 
+static void hclge_update_reset_level(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	enum hnae3_reset_type reset_level;
+
+	/* if default_reset_request has a higher level reset request,
+	 * it should be handled as soon as possible. since some errors
+	 * need this kind of reset to fix.
+	 */
+	reset_level = hclge_get_reset_level(ae_dev,
+					    &hdev->default_reset_request);
+	if (reset_level != HNAE3_NONE_RESET)
+		set_bit(reset_level, &hdev->reset_request);
+}
+
 static int hclge_set_rst_done(struct hclge_dev *hdev)
 {
 	struct hclge_pf_rst_done_cmd *req;
@@ -4027,8 +4042,6 @@ static int hclge_reset_prepare(struct hclge_dev *hdev)
 
 static int hclge_reset_rebuild(struct hclge_dev *hdev)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
-	enum hnae3_reset_type reset_level;
 	int ret;
 
 	hdev->rst_stats.hw_reset_done_cnt++;
@@ -4072,14 +4085,7 @@ static int hclge_reset_rebuild(struct hclge_dev *hdev)
 	hdev->rst_stats.reset_done_cnt++;
 	clear_bit(HCLGE_STATE_RST_FAIL, &hdev->state);
 
-	/* if default_reset_request has a higher level reset request,
-	 * it should be handled as soon as possible. since some errors
-	 * need this kind of reset to fix.
-	 */
-	reset_level = hclge_get_reset_level(ae_dev,
-					    &hdev->default_reset_request);
-	if (reset_level != HNAE3_NONE_RESET)
-		set_bit(reset_level, &hdev->reset_request);
+	hclge_update_reset_level(hdev);
 
 	return 0;
 }
