@@ -1186,10 +1186,23 @@ nfs4_update_changeattr_locked(struct inode *inode,
 		unsigned long timestamp, unsigned long cache_validity)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	u64 change_attr = inode_peek_iversion_raw(inode);
 
 	cache_validity |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
 
-	if (cinfo->atomic && cinfo->before == inode_peek_iversion_raw(inode)) {
+	switch (NFS_SERVER(inode)->change_attr_type) {
+	case NFS4_CHANGE_TYPE_IS_UNDEFINED:
+		break;
+	case NFS4_CHANGE_TYPE_IS_TIME_METADATA:
+		if ((s64)(change_attr - cinfo->after) > 0)
+			goto out;
+		break;
+	default:
+		if ((s64)(change_attr - cinfo->after) >= 0)
+			goto out;
+	}
+
+	if (cinfo->atomic && cinfo->before == change_attr) {
 		nfsi->attrtimeo_timestamp = jiffies;
 	} else {
 		if (S_ISDIR(inode->i_mode)) {
@@ -1201,7 +1214,7 @@ nfs4_update_changeattr_locked(struct inode *inode,
 				cache_validity |= NFS_INO_REVAL_PAGECACHE;
 		}
 
-		if (cinfo->before != inode_peek_iversion_raw(inode))
+		if (cinfo->before != change_attr)
 			cache_validity |= NFS_INO_INVALID_ACCESS |
 					  NFS_INO_INVALID_ACL |
 					  NFS_INO_INVALID_XATTR;
@@ -1209,8 +1222,9 @@ nfs4_update_changeattr_locked(struct inode *inode,
 	inode_set_iversion_raw(inode, cinfo->after);
 	nfsi->read_cache_jiffies = timestamp;
 	nfsi->attr_gencount = nfs_inc_attr_generation_counter();
-	nfs_set_cache_invalid(inode, cache_validity);
 	nfsi->cache_validity &= ~NFS_INO_INVALID_CHANGE;
+out:
+	nfs_set_cache_invalid(inode, cache_validity);
 }
 
 void
