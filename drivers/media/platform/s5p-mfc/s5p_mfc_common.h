@@ -273,14 +273,18 @@ struct s5p_mfc_priv_buf {
  * @int_type:		type of last interrupt
  * @int_err:		error number for last interrupt
  * @queue:		waitqueue for waiting for completion of device commands
- * @fw_size:		size of firmware
- * @fw_virt_addr:	virtual firmware address
- * @dma_base[]:		address of the beginning of memory banks
+ * @fw_buf:		the firmware buffer data structure
+ * @mem_size:		size of the firmware operation memory
+ * @mem_base:		base DMA address of the firmware operation memory
+ * @mem_bitmap:		bitmap for managing MFC internal buffer allocations
+ * @mem_virt:		virtual address of the firmware operation memory
+ * @dma_base:		address of the beginning of memory banks
  * @hw_lock:		used for hardware locking
  * @ctx:		array of driver contexts
  * @curr_ctx:		number of the currently running context
  * @ctx_work_bits:	used to mark which contexts are waiting for hardware
  * @watchdog_cnt:	counter for the watchdog
+ * @watchdog_timer:	timer for the watchdog
  * @watchdog_workqueue:	workqueue for the watchdog
  * @watchdog_work:	worker for the watchdog
  * @enter_suspend:	flag set when entering suspend
@@ -290,9 +294,9 @@ struct s5p_mfc_priv_buf {
  * @mfc_cmds:		cmd structure holding HW commands function pointers
  * @mfc_regs:		structure holding MFC registers
  * @fw_ver:		loaded firmware sub-version
- * @fw_get_done		flag set when request_firmware() is complete and
+ * @fw_get_done:	flag set when request_firmware() is complete and
  *			copied into fw_buf
- * risc_on:		flag indicates RISC is on or off
+ * @risc_on:		flag indicates RISC is on or off
  *
  */
 struct s5p_mfc_dev {
@@ -579,7 +583,9 @@ struct s5p_mfc_codec_ops {
  * @capture_state:	state of the capture buffers queue
  * @output_state:	state of the output buffers queue
  * @src_bufs:		information on allocated source buffers
+ * @src_bufs_cnt:	number of allocated source buffers
  * @dst_bufs:		information on allocated destination buffers
+ * @dst_bufs_cnt:	number of allocated destination buffers
  * @sequence:		counter for the sequence number for v4l2
  * @dec_dst_flag:	flags for buffers queued in the hardware
  * @dec_src_buf_size:	size of the buffer for source buffers in decoding
@@ -591,7 +597,7 @@ struct s5p_mfc_codec_ops {
  * @after_packed_pb:	flag used to track buffer when stream is in
  *			Packed PB format
  * @sei_fp_parse:	enable/disable parsing of frame packing SEI information
- * @dpb_count:		count of the DPB buffers required by MFC hw
+ * @pb_count:		count of the DPB buffers required by MFC hw
  * @total_dpb_count:	count of DPB buffers with additional buffers
  *			requested by the application
  * @ctx:		context buffer information
@@ -606,11 +612,15 @@ struct s5p_mfc_codec_ops {
  * @tmv_buffer_size:	size of temporal predictor motion vector buffer
  * @frame_type:		used to force the type of the next encoded frame
  * @ref_queue:		list of the reference buffers for encoding
+ * @force_frame_type:	encoder's frame type forcing control
  * @ref_queue_cnt:	number of the buffers in the reference list
+ * @slice_size:		slice size
+ * @slice_mode:		mode of dividing frames into slices
  * @c_ops:		ops for encoding
  * @ctrls:		array of controls, used when adding controls to the
  *			v4l2 control framework
  * @ctrl_handler:	handler for v4l2 framework
+ * @scratch_buf_size:	scratch buffer size
  */
 struct s5p_mfc_ctx {
 	struct s5p_mfc_dev *dev;
@@ -709,7 +719,6 @@ struct s5p_mfc_ctx {
 
 	struct v4l2_ctrl *ctrls[MFC_MAX_CTRLS];
 	struct v4l2_ctrl_handler ctrl_handler;
-	unsigned int frame_tag;
 	size_t scratch_buf_size;
 };
 
