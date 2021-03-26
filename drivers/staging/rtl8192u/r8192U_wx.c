@@ -877,7 +877,6 @@ static iw_handler r8192_wx_handlers[] = {
 
 };
 
-
 static const struct iw_priv_args r8192_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x0,
