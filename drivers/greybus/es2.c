@@ -1171,7 +1171,7 @@ static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 	char tmp_buf[3];
 
 	sprintf(tmp_buf, "%d\n", enable);
-	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
+	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 2);
 }
 
 static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,
