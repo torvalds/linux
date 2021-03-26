@@ -9468,8 +9468,7 @@ static int hclge_check_vf_vlan_cmd_status(struct hclge_dev *hdev, u16 vfid,
 }
 
 static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
-				    bool is_kill, u16 vlan,
-				    __be16 proto)
+				    bool is_kill, u16 vlan)
 {
 	struct hclge_vport *vport = &hdev->vport[vfid];
 	struct hclge_desc desc[2];
@@ -9535,8 +9534,7 @@ static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
 	if (is_kill && !vlan_id)
 		return 0;
 
-	ret = hclge_set_vf_vlan_common(hdev, vport_id, is_kill, vlan_id,
-				       proto);
+	ret = hclge_set_vf_vlan_common(hdev, vport_id, is_kill, vlan_id);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Set %u vport vlan filter config fail, ret =%d.\n",
