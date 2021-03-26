@@ -165,6 +165,7 @@ struct cpg_z_clk {
 	struct clk_hw hw;
 	void __iomem *reg;
 	void __iomem *kick_reg;
+	unsigned long max_rate;		/* Maximum rate for normal mode */
 	unsigned int fixed_div;
 	u32 mask;
 };
@@ -190,7 +191,18 @@ static int cpg_z_clk_determine_rate(struct clk_hw *hw,
 {
 	struct cpg_z_clk *zclk = to_z_clk(hw);
 	unsigned int min_mult, max_mult, mult;
-	unsigned long prate;
+	unsigned long rate, prate;
+
+	rate = min(req->rate, req->max_rate);
+	if (rate <= zclk->max_rate) {
+		/* Set parent rate to initial value for normal modes */
+		prate = zclk->max_rate;
+	} else {
+		/* Set increased parent rate for boost modes */
+		prate = rate;
+	}
+	req->best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
+						  prate * zclk->fixed_div);
 
 	prate = req->best_parent_rate / zclk->fixed_div;
 	min_mult = max(div64_ul(req->min_rate * 32ULL, prate), 1ULL);
@@ -198,7 +210,7 @@ static int cpg_z_clk_determine_rate(struct clk_hw *hw,
 	if (max_mult < min_mult)
 		return -EINVAL;
 
-	mult = DIV_ROUND_CLOSEST_ULL(req->rate * 32ULL, prate);
+	mult = DIV_ROUND_CLOSEST_ULL(rate * 32ULL, prate);
 	mult = clamp(mult, min_mult, max_mult);
 
 	req->rate = DIV_ROUND_CLOSEST_ULL((u64)prate * mult, 32);
@@ -268,7 +280,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 
 	init.name = name;
 	init.ops = &cpg_z_clk_ops;
-	init.flags = 0;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -279,9 +291,13 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	zclk->fixed_div = div; /* PLLVCO x 1/div x SYS-CPU divider */
 
 	clk = clk_register(NULL, &zclk->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
 		kfree(zclk);
+		return clk;
+	}
 
+	zclk->max_rate = clk_hw_get_rate(clk_hw_get_parent(&zclk->hw)) /
+			 zclk->fixed_div;
 	return clk;
 }
 
