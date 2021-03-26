@@ -40,18 +40,9 @@ struct rt_mutex_waiter;
 struct hrtimer_sleeper;
 
 #ifdef CONFIG_DEBUG_RT_MUTEXES
- extern int rt_mutex_debug_check_no_locks_freed(const void *from,
-						unsigned long len);
- extern void rt_mutex_debug_check_no_locks_held(struct task_struct *task);
- extern void rt_mutex_debug_task_free(struct task_struct *tsk);
+extern void rt_mutex_debug_task_free(struct task_struct *tsk);
 #else
- static inline int rt_mutex_debug_check_no_locks_freed(const void *from,
-						       unsigned long len)
- {
-	return 0;
- }
-# define rt_mutex_debug_check_no_locks_held(task)	do { } while (0)
-# define rt_mutex_debug_task_free(t)			do { } while (0)
+static inline void rt_mutex_debug_task_free(struct task_struct *tsk) { }
 #endif
 
 #define rt_mutex_init(mutex) \
@@ -88,7 +79,6 @@ static inline int rt_mutex_is_locked(struct rt_mutex *lock)
 }
 
 extern void __rt_mutex_init(struct rt_mutex *lock, const char *name, struct lock_class_key *key);
-extern void rt_mutex_destroy(struct rt_mutex *lock);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 extern void rt_mutex_lock_nested(struct rt_mutex *lock, unsigned int subclass);

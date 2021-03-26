@@ -38,18 +38,9 @@ void rt_mutex_debug_task_free(struct task_struct *task)
 	DEBUG_LOCKS_WARN_ON(task->pi_blocked_on);
 }
 
-void debug_rt_mutex_lock(struct rt_mutex *lock)
-{
-}
-
 void debug_rt_mutex_unlock(struct rt_mutex *lock)
 {
 	DEBUG_LOCKS_WARN_ON(rt_mutex_owner(lock) != current);
-}
-
-void
-debug_rt_mutex_proxy_lock(struct rt_mutex *lock, struct task_struct *powner)
-{
 }
 
 void debug_rt_mutex_proxy_unlock(struct rt_mutex *lock)
