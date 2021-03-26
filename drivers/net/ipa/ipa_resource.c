@@ -139,14 +139,14 @@ static void ipa_resource_config_src(struct ipa *ipa,
 	ylimits = group_count == 1 ? NULL : &resource->limits[1];
 	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
 
-	if (group_count < 2)
+	if (group_count < 3)
 		return;
 
 	offset = IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
 	ylimits = group_count == 3 ? NULL : &resource->limits[3];
 	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
 
-	if (group_count < 4)
+	if (group_count < 5)
 		return;
 
 	offset = IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource->type);
@@ -165,14 +165,14 @@ static void ipa_resource_config_dst(struct ipa *ipa,
 	ylimits = group_count == 1 ? NULL : &resource->limits[1];
 	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
 
-	if (group_count < 2)
+	if (group_count < 3)
 		return;
 
 	offset = IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
 	ylimits = group_count == 3 ? NULL : &resource->limits[3];
 	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
 
-	if (group_count < 4)
+	if (group_count < 5)
 		return;
 
 	offset = IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource->type);
