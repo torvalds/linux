@@ -181,15 +181,13 @@ static int mlx5_sf_dev_vhca_arm_all(struct mlx5_sf_dev_table *table)
 	u16 max_functions;
 	u16 function_id;
 	int err = 0;
-	bool ecpu;
 	int i;
 
 	max_functions = mlx5_sf_max_functions(dev);
 	function_id = MLX5_CAP_GEN(dev, sf_base_id);
-	ecpu = mlx5_read_embedded_cpu(dev);
 	/* Arm the vhca context as the vhca event notifier */
 	for (i = 0; i < max_functions; i++) {
-		err = mlx5_vhca_event_arm(dev, function_id, ecpu);
+		err = mlx5_vhca_event_arm(dev, function_id);
 		if (err)
 			return err;
 
