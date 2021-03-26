@@ -1414,16 +1414,16 @@ struct ethtool_fecparam {
 
 /**
  * enum ethtool_fec_config_bits - flags definition of ethtool_fec_configuration
- * @ETHTOOL_FEC_NONE: FEC mode configuration is not supported. Should not
- *		      be used together with other bits. GET only.
- * @ETHTOOL_FEC_AUTO: Select default/best FEC mode automatically, usually based
- *		      link mode and SFP parameters read from module's EEPROM.
- *		      This bit does _not_ mean autonegotiation.
- * @ETHTOOL_FEC_OFF: No FEC Mode
- * @ETHTOOL_FEC_RS: Reed-Solomon FEC Mode
- * @ETHTOOL_FEC_BASER: Base-R/Reed-Solomon FEC Mode
- * @ETHTOOL_FEC_LLRS: Low Latency Reed Solomon FEC Mode (25G/50G Ethernet
- *		      Consortium)
+ * @ETHTOOL_FEC_NONE_BIT: FEC mode configuration is not supported. Should not
+ *			be used together with other bits. GET only.
+ * @ETHTOOL_FEC_AUTO_BIT: Select default/best FEC mode automatically, usually
+ *			based link mode and SFP parameters read from module's
+ *			EEPROM. This bit does _not_ mean autonegotiation.
+ * @ETHTOOL_FEC_OFF_BIT: No FEC Mode
+ * @ETHTOOL_FEC_RS_BIT: Reed-Solomon FEC Mode
+ * @ETHTOOL_FEC_BASER_BIT: Base-R/Reed-Solomon FEC Mode
+ * @ETHTOOL_FEC_LLRS_BIT: Low Latency Reed Solomon FEC Mode (25G/50G Ethernet
+ *			Consortium)
  */
 enum ethtool_fec_config_bits {
 	ETHTOOL_FEC_NONE_BIT,
