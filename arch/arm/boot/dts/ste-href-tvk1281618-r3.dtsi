@@ -4,10 +4,26 @@
  * also known as the "CYTTSP board"
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
-#include "ste-href-tvk1281618.dtsi"
 
 / {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vdd-supply = <&ab8500_ldo_aux1_reg>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hall_tvk_mode>;
+
+		button@145 {
+			/* Hall sensor */
+			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+			linux,code = <0>; /* SW_LID */
+			label = "HED54XXU11 Hall Effect Sensor";
+		};
+	};
+
 	soc {
 		i2c@80004000 {
 			tc35893@44 {
@@ -116,6 +132,14 @@
 		};
 
 		pinctrl {
+			hall {
+				hall_tvk_mode: hall_tvk {
+					tvk_cfg {
+						pins = "GPIO145_C13";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
 			tc35893 {
 				/* IRQ from the TC35893 */
 				tc35893_tvk_mode: tc35893_tvk {
