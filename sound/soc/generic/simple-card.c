@@ -483,9 +483,17 @@ static int simple_count_noml(struct asoc_simple_priv *priv,
 			     struct device_node *codec,
 			     struct link_info *li, bool is_top)
 {
-	li->dais++; /* CPU or Codec */
-	if (np != codec)
-		li->link++; /* CPU-Codec */
+	/*
+	 *	 |CPU   |Codec   : turn
+	 * CPU	 |Pass  |return
+	 * Codec |return|return
+	 * np
+	 */
+	if (!li->cpu || np == codec)
+		return 0;
+
+	li->link += 1;
+	li->dais += 2;
 
 	return 0;
 }
@@ -495,10 +503,23 @@ static int simple_count_dpcm(struct asoc_simple_priv *priv,
 			     struct device_node *codec,
 			     struct link_info *li, bool is_top)
 {
-	li->dais++; /* CPU or Codec */
-	li->link++; /* CPU-dummy or dummy-Codec */
-	if (np == codec)
+	/*
+	 *	 |CPU   |Codec   : turn
+	 * CPU	 |Pass  |return
+	 * Codec |return|Pass
+	 * np
+	 */
+	if (li->cpu == (np == codec))
+		return 0;
+
+	if (li->cpu) {
+		li->link++; /* CPU-dummy */
+		li->dais++;
+	} else {
+		li->link++; /* dummy-Codec */
+		li->dais++;
 		li->conf++;
+	}
 
 	return 0;
 }
@@ -562,9 +583,10 @@ static void simple_get_dais_count(struct asoc_simple_priv *priv,
 		return;
 	}
 
-	simple_for_each_link(priv, li,
-			     simple_count_noml,
-			     simple_count_dpcm);
+	for (li->cpu = 1; li->cpu >= 0; li->cpu--)
+		simple_for_each_link(priv, li,
+				     simple_count_noml,
+				     simple_count_dpcm);
 
 	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
 		li->link, li->dais, li->conf);
