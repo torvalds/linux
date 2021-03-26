@@ -38,4 +38,5 @@ obj-y += pressure/
 obj-y += proximity/
 obj-y += resolver/
 obj-y += temperature/
+obj-y += test/
 obj-y += trigger/

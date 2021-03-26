@@ -6,4 +6,5 @@ Description:
 		Controls the heater device within the humidity sensor to get
 		rid of excess condensation.
 
-		Valid control values are 0 = OFF, and 1 = ON.
+		In some devices, this is just a switch in which case 0 = OFF,
+		and 1 = ON.

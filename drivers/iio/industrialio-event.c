@@ -385,6 +385,7 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 
 		ret = __iio_add_chan_devattr(postfix, chan, show, store,
 			 (i << 16) | spec_index, shared_by, &indio_dev->dev,
+			 NULL,
 			&iio_dev_opaque->event_interface->dev_attr_list);
 		kfree(postfix);
 
@@ -544,7 +545,10 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 	/* Add all elements from the list. */
 	list_for_each_entry(p, &ev_int->dev_attr_list, l)
 		ev_int->group.attrs[attrn++] = &p->dev_attr.attr;
-	indio_dev->groups[indio_dev->groupcounter++] = &ev_int->group;
+
+	ret = iio_device_register_sysfs_group(indio_dev, &ev_int->group);
+	if (ret)
+		goto error_free_setup_event_lines;
 
 	ev_int->ioctl_handler.ioctl = iio_event_ioctl;
 	iio_device_ioctl_handler_register(&iio_dev_opaque->indio_dev,

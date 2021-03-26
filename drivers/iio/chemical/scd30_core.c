@@ -646,7 +646,6 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 		return -ENOMEM;
 	}
 
-	trig->dev.parent = dev;
 	trig->ops = &scd30_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 

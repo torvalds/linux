@@ -118,7 +118,7 @@ struct ad5770r_out_range {
 };
 
 /**
- * struct ad5770R_state - driver instance specific data
+ * struct ad5770r_state - driver instance specific data
  * @spi:		spi_device
  * @regmap:		regmap
  * @vref_reg:		fixed regulator for reference configuration

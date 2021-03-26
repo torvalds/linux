@@ -76,7 +76,7 @@ struct ad5791_chip_info {
  * @chip_info:		chip model specific constants
  * @vref_mv:		actual reference voltage used
  * @vref_neg_mv:	voltage of the negative supply
- * @ctrl:		control regster cache
+ * @ctrl:		control register cache
  * @pwr_down_mode:	current power down mode
  * @pwr_down:		true if device is powered down
  * @data:		spi transfer buffers

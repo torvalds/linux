@@ -58,7 +58,7 @@
 #define MMA8452_FF_MT_THS			0x17
 #define  MMA8452_FF_MT_THS_MASK			0x7f
 #define MMA8452_FF_MT_COUNT			0x18
-#define MMA8452_FF_MT_CHAN_SHIFT	3
+#define MMA8452_FF_MT_CHAN_SHIFT		3
 #define MMA8452_TRANSIENT_CFG			0x1d
 #define  MMA8452_TRANSIENT_CFG_CHAN(chan)	BIT(chan + 1)
 #define  MMA8452_TRANSIENT_CFG_HPF_BYP		BIT(0)
@@ -70,7 +70,7 @@
 #define MMA8452_TRANSIENT_THS			0x1f
 #define  MMA8452_TRANSIENT_THS_MASK		GENMASK(6, 0)
 #define MMA8452_TRANSIENT_COUNT			0x20
-#define MMA8452_TRANSIENT_CHAN_SHIFT 1
+#define MMA8452_TRANSIENT_CHAN_SHIFT		1
 #define MMA8452_CTRL_REG1			0x2a
 #define  MMA8452_CTRL_ACTIVE			BIT(0)
 #define  MMA8452_CTRL_DR_MASK			GENMASK(5, 3)
@@ -134,33 +134,33 @@ struct mma8452_data {
   * used for different chips and the relevant registers are included here.
   */
 struct mma8452_event_regs {
-		u8 ev_cfg;
-		u8 ev_cfg_ele;
-		u8 ev_cfg_chan_shift;
-		u8 ev_src;
-		u8 ev_ths;
-		u8 ev_ths_mask;
-		u8 ev_count;
+	u8 ev_cfg;
+	u8 ev_cfg_ele;
+	u8 ev_cfg_chan_shift;
+	u8 ev_src;
+	u8 ev_ths;
+	u8 ev_ths_mask;
+	u8 ev_count;
 };
 
 static const struct mma8452_event_regs ff_mt_ev_regs = {
-		.ev_cfg = MMA8452_FF_MT_CFG,
-		.ev_cfg_ele = MMA8452_FF_MT_CFG_ELE,
-		.ev_cfg_chan_shift = MMA8452_FF_MT_CHAN_SHIFT,
-		.ev_src = MMA8452_FF_MT_SRC,
-		.ev_ths = MMA8452_FF_MT_THS,
-		.ev_ths_mask = MMA8452_FF_MT_THS_MASK,
-		.ev_count = MMA8452_FF_MT_COUNT
+	.ev_cfg = MMA8452_FF_MT_CFG,
+	.ev_cfg_ele = MMA8452_FF_MT_CFG_ELE,
+	.ev_cfg_chan_shift = MMA8452_FF_MT_CHAN_SHIFT,
+	.ev_src = MMA8452_FF_MT_SRC,
+	.ev_ths = MMA8452_FF_MT_THS,
+	.ev_ths_mask = MMA8452_FF_MT_THS_MASK,
+	.ev_count = MMA8452_FF_MT_COUNT
 };
 
 static const struct mma8452_event_regs trans_ev_regs = {
-		.ev_cfg = MMA8452_TRANSIENT_CFG,
-		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
-		.ev_cfg_chan_shift = MMA8452_TRANSIENT_CHAN_SHIFT,
-		.ev_src = MMA8452_TRANSIENT_SRC,
-		.ev_ths = MMA8452_TRANSIENT_THS,
-		.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
-		.ev_count = MMA8452_TRANSIENT_COUNT,
+	.ev_cfg = MMA8452_TRANSIENT_CFG,
+	.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
+	.ev_cfg_chan_shift = MMA8452_TRANSIENT_CHAN_SHIFT,
+	.ev_src = MMA8452_TRANSIENT_SRC,
+	.ev_ths = MMA8452_TRANSIENT_THS,
+	.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
+	.ev_count = MMA8452_TRANSIENT_COUNT,
 };
 
 /**
@@ -1465,7 +1465,6 @@ static int mma8452_trigger_setup(struct iio_dev *indio_dev)
 	if (!trig)
 		return -ENOMEM;
 
-	trig->dev.parent = &data->client->dev;
 	trig->ops = &mma8452_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 

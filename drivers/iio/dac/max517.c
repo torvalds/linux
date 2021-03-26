@@ -153,7 +153,6 @@ static int max517_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
 	switch (id->driver_data) {
@@ -186,13 +185,7 @@ static int max517_probe(struct i2c_client *client,
 			data->vref_mv[chan] = platform_data->vref_mv[chan];
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static int max517_remove(struct i2c_client *client)
-{
-	iio_device_unregister(i2c_get_clientdata(client));
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id max517_id[] = {
@@ -211,7 +204,6 @@ static struct i2c_driver max517_driver = {
 		.pm	= &max517_pm_ops,
 	},
 	.probe		= max517_probe,
-	.remove		= max517_remove,
 	.id_table	= max517_id,
 };
 module_i2c_driver(max517_driver);

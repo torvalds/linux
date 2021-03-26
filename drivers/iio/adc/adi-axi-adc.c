@@ -23,7 +23,7 @@
 #include <linux/fpga/adi-axi-common.h>
 #include <linux/iio/adc/adi-axi-adc.h>
 
-/**
+/*
  * Register definitions:
  *   https://wiki.analog.com/resources/fpga/docs/axi_adc_ip#register_map
  */
@@ -104,7 +104,6 @@ static unsigned int adi_axi_adc_read(struct adi_axi_adc_state *st,
 static int adi_axi_adc_config_dma_buffer(struct device *dev,
 					 struct iio_dev *indio_dev)
 {
-	struct iio_buffer *buffer;
 	const char *dma_name;
 
 	if (!device_property_present(dev, "dmas"))
@@ -113,15 +112,8 @@ static int adi_axi_adc_config_dma_buffer(struct device *dev,
 	if (device_property_read_string(dev, "dma-names", &dma_name))
 		dma_name = "rx";
 
-	buffer = devm_iio_dmaengine_buffer_alloc(indio_dev->dev.parent,
-						 dma_name);
-	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
-
-	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
-	iio_device_attach_buffer(indio_dev, buffer);
-
-	return 0;
+	return devm_iio_dmaengine_buffer_setup(indio_dev->dev.parent,
+					       indio_dev, dma_name);
 }
 
 static int adi_axi_adc_read_raw(struct iio_dev *indio_dev,

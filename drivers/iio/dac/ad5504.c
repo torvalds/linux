@@ -39,7 +39,7 @@
 #define AD5504_DAC_PWRDN_3STATE		1
 
 /**
- * struct ad5446_state - driver instance specific data
+ * struct ad5504_state - driver instance specific data
  * @spi:			spi_device
  * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
