@@ -538,7 +538,6 @@ static void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk)
 	subflow = list_first_entry_or_null(&msk->conn_list, typeof(*subflow), node);
 	if (subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
-		u8 add_addr;
 
 		spin_unlock_bh(&msk->pm.lock);
 		pr_debug("send ack for add_addr%s%s",
@@ -549,13 +548,6 @@ static void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk)
 		tcp_send_ack(ssk);
 		release_sock(ssk);
 		spin_lock_bh(&msk->pm.lock);
-
-		add_addr = READ_ONCE(msk->pm.addr_signal);
-		if (mptcp_pm_should_add_signal_ipv6(msk))
-			add_addr &= ~BIT(MPTCP_ADD_ADDR_IPV6);
-		if (mptcp_pm_should_add_signal_port(msk))
-			add_addr &= ~BIT(MPTCP_ADD_ADDR_PORT);
-		WRITE_ONCE(msk->pm.addr_signal, add_addr);
 	}
 }
 
