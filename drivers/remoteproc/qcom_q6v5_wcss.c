@@ -972,7 +972,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->qdsp6ss_axim_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get axim cbcr clk\n");
-		return PTR_ERR(wcss->qdsp6ss_abhm_cbcr);
+		return ret;
 	}
 
 	wcss->lcc_bcr_sleep = devm_clk_get(wcss->dev, "lcc_bcr_sleep");
