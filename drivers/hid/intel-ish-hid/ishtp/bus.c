@@ -869,9 +869,9 @@ EXPORT_SYMBOL(ishtp_get_pci_device);
  *
  * This interface is used to return trace callback function pointer.
  *
- * Return: void *.
+ * Return: *ishtp_print_log()
  */
-void *ishtp_trace_callback(struct ishtp_cl_device *cl_device)
+ishtp_print_log ishtp_trace_callback(struct ishtp_cl_device *cl_device)
 {
 	return cl_device->ishtp_dev->print_log;
 }

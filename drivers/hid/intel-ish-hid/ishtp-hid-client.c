@@ -784,7 +784,7 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 	}
 }
 
-void (*hid_print_trace)(void *unused, const char *format, ...);
+ishtp_print_log ishtp_hid_print_trace;
 
 /**
  * hid_ishtp_cl_probe() - ISHTP client driver probe
@@ -823,7 +823,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 
 	INIT_WORK(&client_data->work, hid_ishtp_cl_reset_handler);
 
-	hid_print_trace = ishtp_trace_callback(cl_device);
+	ishtp_hid_print_trace = ishtp_trace_callback(cl_device);
 
 	rv = hid_ishtp_cl_init(hid_ishtp_cl, 0);
 	if (rv) {
