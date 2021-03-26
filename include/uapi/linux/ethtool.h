@@ -1382,6 +1382,10 @@ struct ethtool_per_queue_op {
  * @fec: Bitmask of configured FEC modes.
  * @reserved: Reserved for future extensions, ignore on GET, write 0 for SET.
  *
+ * Note that @reserved was never validated on input and ethtool user space
+ * left it uninitialized when calling SET. Hence going forward it can only be
+ * used to return a value to userspace with GET.
+ *
  * FEC modes supported by the device can be read via %ETHTOOL_GLINKSETTINGS.
  * FEC settings are configured by link autonegotiation whenever it's enabled.
  * With autoneg on %ETHTOOL_GFECPARAM can be used to read the current mode.
