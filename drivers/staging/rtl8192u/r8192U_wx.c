@@ -77,8 +77,8 @@ static int r8192_wx_set_rate(struct net_device *dev,
 }
 
 static int r8192_wx_set_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -93,8 +93,8 @@ static int r8192_wx_set_rts(struct net_device *dev,
 }
 
 static int r8192_wx_get_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -102,8 +102,8 @@ static int r8192_wx_get_rts(struct net_device *dev,
 }
 
 static int r8192_wx_set_power(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -118,8 +118,8 @@ static int r8192_wx_set_power(struct net_device *dev,
 }
 
 static int r8192_wx_get_power(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -127,8 +127,8 @@ static int r8192_wx_get_power(struct net_device *dev,
 }
 
 static int r8192_wx_force_reset(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra)
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -141,8 +141,8 @@ static int r8192_wx_force_reset(struct net_device *dev,
 }
 
 static int r8192_wx_set_rawtx(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
@@ -456,9 +456,9 @@ static int r8192_wx_get_frag(struct net_device *dev,
 }
 
 static int r8192_wx_set_wap(struct net_device *dev,
-			 struct iw_request_info *info,
-			 union iwreq_data *awrq,
-			 char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *awrq,
+			    char *extra)
 {
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -557,23 +557,23 @@ static int r8192_wx_set_enc(struct net_device *dev,
 			EnableHWSecurityConfig8192(dev);
 
 			setKey(dev,
-				key_idx,                /* EntryNo */
-				key_idx,                /* KeyIndex */
-				KEY_TYPE_WEP40,         /* KeyType */
-				zero_addr[key_idx],
-				0,                      /* DefaultKey */
-				hwkey);                 /* KeyContent */
+			       key_idx,                /* EntryNo */
+			       key_idx,                /* KeyIndex */
+			       KEY_TYPE_WEP40,         /* KeyType */
+			       zero_addr[key_idx],
+			       0,                      /* DefaultKey */
+			       hwkey);                 /* KeyContent */
 		} else if (wrqu->encoding.length == 0xd) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
 			EnableHWSecurityConfig8192(dev);
 
 			setKey(dev,
-				key_idx,                /* EntryNo */
-				key_idx,                /* KeyIndex */
-				KEY_TYPE_WEP104,        /* KeyType */
-				zero_addr[key_idx],
-				0,                      /* DefaultKey */
-				hwkey);                 /* KeyContent */
+			       key_idx,                /* EntryNo */
+			       key_idx,                /* KeyIndex */
+			       KEY_TYPE_WEP104,        /* KeyType */
+			       zero_addr[key_idx],
+			       0,                      /* DefaultKey */
+			       hwkey);                 /* KeyContent */
 		} else {
 			netdev_warn(dev, "wrong type in WEP, not WEP40 and WEP104\n");
 		}
@@ -583,7 +583,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 }
 
 static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info *aa,
-					union iwreq_data *wrqu, char *p)
+				  union iwreq_data *wrqu, char *p)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int *parms = (int *)p;
@@ -595,8 +595,8 @@ static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info
 }
 
 static int r8192_wx_set_retry(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int err = 0;
@@ -640,8 +640,8 @@ exit:
 }
 
 static int r8192_wx_get_retry(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -663,8 +663,8 @@ static int r8192_wx_get_retry(struct net_device *dev,
 }
 
 static int r8192_wx_get_sens(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -675,8 +675,8 @@ static int r8192_wx_get_sens(struct net_device *dev,
 }
 
 static int r8192_wx_set_sens(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	short err = 0;
@@ -699,8 +699,8 @@ exit:
 
 /* hw security need to reorganized. */
 static int r8192_wx_set_enc_ext(struct net_device *dev,
-					struct iw_request_info *info,
-					union iwreq_data *wrqu, char *extra)
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -738,29 +738,29 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 		if ((alg & KEY_TYPE_WEP40) && (ieee->auth_mode != 2)) {
 			setKey(dev,
-					idx,	/* EntryNao */
-					idx,	/* KeyIndex */
-					alg,	/* KeyType */
-					zero,	/* MacAddr */
-					0,	/* DefaultKey */
-					key);	/* KeyContent */
+			       idx,	/* EntryNao */
+			       idx,	/* KeyIndex */
+			       alg,	/* KeyType */
+			       zero,	/* MacAddr */
+			       0,	/* DefaultKey */
+			       key);	/* KeyContent */
 		} else if (group) {
 			ieee->group_key_type = alg;
 			setKey(dev,
-					idx,	/* EntryNo */
-					idx,	/* KeyIndex */
-					alg,	/* KeyType */
-					broadcast_addr,	/* MacAddr */
-					0,		/* DefaultKey */
-					key);		/* KeyContent */
+			       idx,	/* EntryNo */
+			       idx,	/* KeyIndex */
+			       alg,	/* KeyType */
+			       broadcast_addr,	/* MacAddr */
+			       0,		/* DefaultKey */
+			       key);		/* KeyContent */
 		} else {	/* pairwise key */
 			setKey(dev,
-					4,	/* EntryNo */
-					idx,	/* KeyIndex */
-					alg,	/* KeyType */
-					(u8 *)ieee->ap_mac_addr,/* MacAddr */
-					0,			/* DefaultKey */
-					key);			/* KeyContent */
+			       4,	/* EntryNo */
+			       idx,	/* KeyIndex */
+			       alg,	/* KeyType */
+			       (u8 *)ieee->ap_mac_addr,/* MacAddr */
+			       0,			/* DefaultKey */
+			       key);			/* KeyContent */
 		}
 	}
 
@@ -771,8 +771,8 @@ end_hw_sec:
 }
 
 static int r8192_wx_set_auth(struct net_device *dev,
-					struct iw_request_info *info,
-					union iwreq_data *data, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *data, char *extra)
 {
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -784,8 +784,8 @@ static int r8192_wx_set_auth(struct net_device *dev,
 }
 
 static int r8192_wx_set_mlme(struct net_device *dev,
-					struct iw_request_info *info,
-					union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -798,8 +798,8 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 }
 
 static int r8192_wx_set_gen_ie(struct net_device *dev,
-					struct iw_request_info *info,
-					union iwreq_data *data, char *extra)
+			       struct iw_request_info *info,
+			       union iwreq_data *data, char *extra)
 {
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
