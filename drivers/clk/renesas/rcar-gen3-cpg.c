@@ -104,8 +104,7 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
 		return -EBUSY;
 
-	cpg_reg_modify(zclk->reg, zclk->mask,
-		       ((32 - mult) << __ffs(zclk->mask)) & zclk->mask);
+	cpg_reg_modify(zclk->reg, zclk->mask, (32 - mult) << __ffs(zclk->mask));
 
 	/*
 	 * Set KICK bit in FRQCRB to update hardware setting and wait for
