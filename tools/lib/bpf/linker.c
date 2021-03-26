@@ -94,6 +94,7 @@ struct dst_sec {
 	int sec_sym_idx;
 
 	/* section's DATASEC variable info, emitted on BTF finalization */
+	bool has_btf;
 	int sec_var_cnt;
 	struct btf_var_secinfo *sec_vars;
 
@@ -1436,6 +1437,16 @@ static int linker_append_btf(struct bpf_linker *linker, struct src_obj *obj)
 			continue;
 		dst_sec = &linker->secs[src_sec->dst_id];
 
+		/* Mark section as having BTF regardless of the presence of
+		 * variables. In some cases compiler might generate empty BTF
+		 * with no variables information. E.g., when promoting local
+		 * array/structure variable initial values and BPF object
+		 * file otherwise has no read-only static variables in
+		 * .rodata. We need to preserve such empty BTF and just set
+		 * correct section size.
+		 */
+		dst_sec->has_btf = true;
+
 		t = btf__type_by_id(obj->btf, src_sec->sec_type_id);
 		src_var = btf_var_secinfos(t);
 		n = btf_vlen(t);
@@ -1717,7 +1728,7 @@ static int finalize_btf(struct bpf_linker *linker)
 	for (i = 1; i < linker->sec_cnt; i++) {
 		struct dst_sec *sec = &linker->secs[i];
 
-		if (!sec->sec_var_cnt)
+		if (!sec->has_btf)
 			continue;
 
 		id = btf__add_datasec(btf, sec->sec_name, sec->sec_sz);
