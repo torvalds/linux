@@ -792,6 +792,7 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 	server->maxfilesize = fsinfo->maxfilesize;
 
 	server->time_delta = fsinfo->time_delta;
+	server->change_attr_type = fsinfo->change_attr_type;
 
 	server->clone_blksize = fsinfo->clone_blksize;
 	/* We're airborne Set socket buffersize */
@@ -932,6 +933,8 @@ struct nfs_server *nfs_alloc_server(void)
 		kfree(server);
 		return NULL;
 	}
+
+	server->change_attr_type = NFS4_CHANGE_TYPE_IS_UNDEFINED;
 
 	ida_init(&server->openowner_id);
 	ida_init(&server->lockowner_id);
