@@ -98,9 +98,10 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		source_id == SOC15_INTSRC_SDMA_TRAP ||
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
 		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
-		client_id == SOC15_IH_CLIENTID_VMC ||
+		((client_id == SOC15_IH_CLIENTID_VMC ||
 		client_id == SOC15_IH_CLIENTID_VMC1 ||
-		client_id == SOC15_IH_CLIENTID_UTCL2;
+		client_id == SOC15_IH_CLIENTID_UTCL2) &&
+		!amdgpu_no_queue_eviction_on_vm_fault);
 }
 
 static void event_interrupt_wq_v9(struct kfd_dev *dev,

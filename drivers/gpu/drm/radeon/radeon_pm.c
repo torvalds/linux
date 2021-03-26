@@ -26,7 +26,6 @@
 #include <linux/pci.h>
 #include <linux/power_supply.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_vblank.h>
 
 #include "atom.h"
@@ -48,7 +47,7 @@ static const char *radeon_pm_state_type_name[5] = {
 };
 
 static void radeon_dynpm_idle_work_handler(struct work_struct *work);
-static int radeon_debugfs_pm_init(struct radeon_device *rdev);
+static void radeon_debugfs_pm_init(struct radeon_device *rdev);
 static bool radeon_pm_in_vbl(struct radeon_device *rdev);
 static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_update_profile(struct radeon_device *rdev);
@@ -1399,10 +1398,7 @@ static int radeon_pm_init_old(struct radeon_device *rdev)
 	INIT_DELAYED_WORK(&rdev->pm.dynpm_idle_work, radeon_dynpm_idle_work_handler);
 
 	if (rdev->pm.num_power_states > 1) {
-		if (radeon_debugfs_pm_init(rdev)) {
-			DRM_ERROR("Failed to register debugfs file for PM!\n");
-		}
-
+		radeon_debugfs_pm_init(rdev);
 		DRM_INFO("radeon: power management initialized\n");
 	}
 
@@ -1456,9 +1452,7 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 		goto dpm_failed;
 	rdev->pm.dpm_enabled = true;
 
-	if (radeon_debugfs_pm_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for dpm!\n");
-	}
+	radeon_debugfs_pm_init(rdev);
 
 	DRM_INFO("radeon: dpm initialized\n");
 
@@ -1916,11 +1910,9 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
  */
 #if defined(CONFIG_DEBUG_FS)
 
-static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
+static int radeon_debugfs_pm_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	struct drm_device *ddev = rdev->ddev;
 
 	if  ((rdev->flags & RADEON_IS_PX) &&
@@ -1952,16 +1944,16 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list radeon_pm_info_list[] = {
-	{"radeon_pm_info", radeon_debugfs_pm_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_pm_info);
 #endif
 
-static int radeon_debugfs_pm_init(struct radeon_device *rdev)
+static void radeon_debugfs_pm_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_pm_info_list, ARRAY_SIZE(radeon_pm_info_list));
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("radeon_pm_info", 0444, root, rdev,
+			    &radeon_debugfs_pm_info_fops);
+
 #endif
 }

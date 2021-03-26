@@ -38,6 +38,7 @@
 #include "dc_link_ddc.h"
 
 #include "i2caux_interface.h"
+#include "dmub_cmd.h"
 #if defined(CONFIG_DEBUG_FS)
 #include "amdgpu_dm_debugfs.h"
 #endif
@@ -51,7 +52,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 {
 	ssize_t result = 0;
 	struct aux_payload payload;
-	enum aux_channel_operation_result operation_result;
+	enum aux_return_code_type operation_result;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
@@ -73,17 +74,19 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 
 	if (result < 0)
 		switch (operation_result) {
-		case AUX_CHANNEL_OPERATION_SUCCEEDED:
+		case AUX_RET_SUCCESS:
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
-		case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+		case AUX_RET_ERROR_HPD_DISCON:
+		case AUX_RET_ERROR_UNKNOWN:
+		case AUX_RET_ERROR_INVALID_OPERATION:
+		case AUX_RET_ERROR_PROTOCOL_ERROR:
 			result = -EIO;
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
-		case AUX_CHANNEL_OPERATION_FAILED_ENGINE_ACQUIRE:
+		case AUX_RET_ERROR_INVALID_REPLY:
+		case AUX_RET_ERROR_ENGINE_ACQUIRE:
 			result = -EBUSY;
 			break;
-		case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+		case AUX_RET_ERROR_TIMEOUT:
 			result = -ETIMEDOUT;
 			break;
 		}

@@ -116,7 +116,7 @@ struct _vcs_dpi_ip_params_st dcn3_01_ip = {
 	.dcc_supported = true,
 	.writeback_interface_buffer_size_kbytes = 90,
 	.writeback_line_buffer_buffer_size = 656640,
-	.max_line_buffer_lines = 12,
+	.max_line_buffer_lines = 32,
 	.writeback_luma_buffer_size_kbytes = 12,  // writeback_line_buffer_buffer_size = 656640
 	.writeback_chroma_buffer_size_kbytes = 8,
 	.writeback_chroma_line_buffer_width_pixels = 4,
@@ -873,6 +873,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.underflow_assert_delay_us = 0xFFFFFFFF,
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
+	.use_max_lb = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -889,6 +890,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.scl_reset_length10 = true,
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
+	.use_max_lb = false,
 };
 
 void dcn301_dpp_destroy(struct dpp **dpp)
@@ -1719,6 +1721,7 @@ static struct resource_funcs dcn301_res_pool_funcs = {
 	.panel_cntl_create = dcn301_panel_cntl_create,
 	.validate_bandwidth = dcn30_validate_bandwidth,
 	.calculate_wm_and_dlg = dcn301_calculate_wm_and_dlg,
+	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
@@ -1764,6 +1767,8 @@ static bool dcn301_resource_construct(
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.is_apu = true;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;

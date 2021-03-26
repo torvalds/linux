@@ -903,12 +903,31 @@ static void build_vrr_infopacket_v3(enum signal_type signal,
 	infopacket->valid = true;
 }
 
+static void build_vrr_infopacket_sdp_v1_3(enum vrr_packet_type packet_type,
+										struct dc_info_packet *infopacket)
+{
+	uint8_t idx = 0, size = 0;
+
+	size = ((packet_type == PACKET_TYPE_FS_V1) ? 0x08 :
+			(packet_type == PACKET_TYPE_FS_V3) ? 0x10 :
+												0x09);
+
+	for (idx = infopacket->hb2; idx > 1; idx--) // Data Byte Count: 0x1B
+		infopacket->sb[idx] = infopacket->sb[idx-1];
+
+	infopacket->sb[1] = size;                         // Length
+	infopacket->sb[0] = (infopacket->hb3 >> 2) & 0x3F;//Version
+	infopacket->hb3   = (0x13 << 2);                  // Header,SDP 1.3
+	infopacket->hb2   = 0x1D;
+}
+
 void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
 		enum color_transfer_func app_tf,
-		struct dc_info_packet *infopacket)
+		struct dc_info_packet *infopacket,
+		bool pack_sdp_v1_3)
 {
 	/* SPD info packet for FreeSync
 	 * VTEM info packet for HdmiVRR
@@ -941,6 +960,12 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	default:
 		build_vrr_infopacket_v1(stream->signal, vrr, infopacket);
 	}
+
+	if (true == pack_sdp_v1_3 &&
+		true == dc_is_dp_signal(stream->signal) &&
+		packet_type != PACKET_TYPE_VRR &&
+		packet_type != PACKET_TYPE_VTEM)
+		build_vrr_infopacket_sdp_v1_3(packet_type, infopacket);
 }
 
 void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
@@ -1304,4 +1329,3 @@ bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 
 	return true;
 }
-

@@ -224,6 +224,13 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 
+static uint32_t read_doorbell_id(void *mqd)
+{
+	struct v10_compute_mqd *m = (struct v10_compute_mqd *)mqd;
+
+	return m->queue_doorbell_id0;
+}
+
 static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 		       enum kfd_preempt_type type,
 		       unsigned int timeout, uint32_t pipe_id,
@@ -425,6 +432,7 @@ struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
+		mqd->read_doorbell_id = read_doorbell_id;
 		pr_debug("%s@%i\n", __func__, __LINE__);
 		break;
 	case KFD_MQD_TYPE_DIQ:

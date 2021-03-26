@@ -639,15 +639,13 @@ error_free:
 /**
  * amdgpu_vram_mgr_free_sgt - allocate and fill a sg table
  *
- * @adev: amdgpu device pointer
  * @dev: device pointer
  * @dir: data direction of resource to unmap
  * @sgt: sg table to free
  *
  * Free a previously allocate sg table.
  */
-void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
-			      struct device *dev,
+void amdgpu_vram_mgr_free_sgt(struct device *dev,
 			      enum dma_data_direction dir,
 			      struct sg_table *sgt)
 {

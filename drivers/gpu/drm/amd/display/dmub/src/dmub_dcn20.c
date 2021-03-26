@@ -135,6 +135,8 @@ void dmub_dcn20_reset(struct dmub_srv *dmub)
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
 	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
 	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
+	REG_WRITE(DMCUB_OUTBOX1_RPTR, 0);
+	REG_WRITE(DMCUB_OUTBOX1_WPTR, 0);
 	REG_WRITE(DMCUB_SCRATCH0, 0);
 }
 
@@ -248,6 +250,13 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 		  DMCUB_REGION3_CW5_TOP_ADDRESS, cw5->region.top,
 		  DMCUB_REGION3_CW5_ENABLE, 1);
 
+	REG_WRITE(DMCUB_REGION5_OFFSET, offset.u.low_part);
+	REG_WRITE(DMCUB_REGION5_OFFSET_HIGH, offset.u.high_part);
+	REG_SET_2(DMCUB_REGION5_TOP_ADDRESS, 0,
+		  DMCUB_REGION5_TOP_ADDRESS,
+		  cw5->region.top - cw5->region.base - 1,
+		  DMCUB_REGION5_ENABLE, 1);
+
 	dmub_dcn20_translate_addr(&cw6->offset, fb_base, fb_offset, &offset);
 
 	REG_WRITE(DMCUB_REGION3_CW6_OFFSET, offset.u.low_part);
@@ -278,6 +287,54 @@ uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub)
 void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset)
 {
 	REG_WRITE(DMCUB_INBOX1_WPTR, wptr_offset);
+}
+
+void dmub_dcn20_setup_out_mailbox(struct dmub_srv *dmub,
+			      const struct dmub_region *outbox1)
+{
+	/* New firmware can support CW4 for the outbox. */
+	if (dmub_dcn20_use_cached_inbox(dmub))
+		REG_WRITE(DMCUB_OUTBOX1_BASE_ADDRESS, outbox1->base);
+	else
+		REG_WRITE(DMCUB_OUTBOX1_BASE_ADDRESS, 0x80002000);
+
+	REG_WRITE(DMCUB_OUTBOX1_SIZE, outbox1->top - outbox1->base);
+}
+
+uint32_t dmub_dcn20_get_outbox1_wptr(struct dmub_srv *dmub)
+{
+	/**
+	 * outbox1 wptr register is accessed without locks (dal & dc)
+	 * and to be called only by dmub_srv_stat_get_notification()
+	 */
+	return REG_READ(DMCUB_OUTBOX1_WPTR);
+}
+
+void dmub_dcn20_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset)
+{
+	/**
+	 * outbox1 rptr register is accessed without locks (dal & dc)
+	 * and to be called only by dmub_srv_stat_get_notification()
+	 */
+	REG_WRITE(DMCUB_OUTBOX1_RPTR, rptr_offset);
+}
+
+void dmub_dcn20_setup_outbox0(struct dmub_srv *dmub,
+			      const struct dmub_region *outbox0)
+{
+	REG_WRITE(DMCUB_OUTBOX0_BASE_ADDRESS, outbox0->base);
+
+	REG_WRITE(DMCUB_OUTBOX0_SIZE, outbox0->top - outbox0->base);
+}
+
+uint32_t dmub_dcn20_get_outbox0_wptr(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_OUTBOX0_WPTR);
+}
+
+void dmub_dcn20_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset)
+{
+	REG_WRITE(DMCUB_OUTBOX0_RPTR, rptr_offset);
 }
 
 bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub)

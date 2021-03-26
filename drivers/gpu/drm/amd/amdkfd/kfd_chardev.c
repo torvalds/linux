@@ -556,11 +556,7 @@ static int kfd_ioctl_set_trap_handler(struct file *filep,
 		goto out;
 	}
 
-	if (dev->dqm->ops.set_trap_handler(dev->dqm,
-					&pdd->qpd,
-					args->tba_addr,
-					args->tma_addr))
-		err = -EINVAL;
+	kfd_process_set_trap_handler(&pdd->qpd, args->tba_addr, args->tma_addr);
 
 out:
 	mutex_unlock(&p->mutex);

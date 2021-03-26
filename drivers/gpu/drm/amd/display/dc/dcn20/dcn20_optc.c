@@ -309,6 +309,129 @@ void optc2_set_dwb_source(struct timing_generator *optc,
 				OPTC_DWB1_SOURCE_SELECT, optc->inst);
 }
 
+void optc2_align_vblanks(
+	struct timing_generator *optc_master,
+	struct timing_generator *optc_slave,
+	uint32_t master_pixel_clock_100Hz,
+	uint32_t slave_pixel_clock_100Hz,
+	uint8_t master_clock_divider,
+	uint8_t slave_clock_divider)
+{
+	/* accessing slave OTG registers */
+	struct optc *optc1 = DCN10TG_FROM_TG(optc_slave);
+
+	uint32_t master_v_active = 0;
+	uint32_t master_h_total = 0;
+	uint32_t slave_h_total = 0;
+	uint64_t L, XY;
+	uint32_t X, Y, p = 10000;
+	uint32_t master_update_lock;
+
+	/* disable slave OTG */
+	REG_UPDATE(OTG_CONTROL, OTG_MASTER_EN, 0);
+	/* wait until disabled */
+	REG_WAIT(OTG_CONTROL,
+			 OTG_CURRENT_MASTER_EN_STATE,
+			 0, 10, 5000);
+
+	REG_GET(OTG_H_TOTAL, OTG_H_TOTAL, &slave_h_total);
+
+	/* assign slave OTG to be controlled by master update lock */
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, optc_master->inst);
+
+	/* accessing master OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_master);
+
+	/* saving update lock state, not sure if it's needed */
+	REG_GET(OTG_MASTER_UPDATE_LOCK,
+			OTG_MASTER_UPDATE_LOCK, &master_update_lock);
+	/* unlocking master OTG */
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 0);
+
+	REG_GET(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, &master_v_active);
+	REG_GET(OTG_H_TOTAL, OTG_H_TOTAL, &master_h_total);
+
+	/* calculate when to enable slave OTG */
+	L = (uint64_t)p * slave_h_total * master_pixel_clock_100Hz;
+	L = div_u64(L, master_h_total);
+	L = div_u64(L, slave_pixel_clock_100Hz);
+	XY = div_u64(L, p);
+	Y = master_v_active - XY - 1;
+	X = div_u64(((XY + 1) * p - L) * master_h_total, p * master_clock_divider);
+
+	/*
+	 * set master OTG to unlock when V/H
+	 * counters reach calculated values
+	 */
+	REG_UPDATE(OTG_GLOBAL_CONTROL1,
+			   MASTER_UPDATE_LOCK_DB_EN, 1);
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
+				 MASTER_UPDATE_LOCK_DB_X,
+				 X,
+				 MASTER_UPDATE_LOCK_DB_Y,
+				 Y);
+
+	/* lock master OTG */
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 1);
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			 UPDATE_LOCK_STATUS, 1, 1, 10);
+
+	/* accessing slave OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_slave);
+
+	/*
+	 * enable slave OTG, the OTG is locked with
+	 * master's update lock, so it will not run
+	 */
+	REG_UPDATE(OTG_CONTROL,
+			   OTG_MASTER_EN, 1);
+
+	/* accessing master OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_master);
+
+	/*
+	 * unlock master OTG. When master H/V counters reach
+	 * DB_XY point, slave OTG will start
+	 */
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 0);
+
+	/* accessing slave OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_slave);
+
+	/* wait for slave OTG to start running*/
+	REG_WAIT(OTG_CONTROL,
+			 OTG_CURRENT_MASTER_EN_STATE,
+			 1, 10, 5000);
+
+	/* accessing master OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_master);
+
+	/* disable the XY point*/
+	REG_UPDATE(OTG_GLOBAL_CONTROL1,
+			   MASTER_UPDATE_LOCK_DB_EN, 0);
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
+				 MASTER_UPDATE_LOCK_DB_X,
+				 0,
+				 MASTER_UPDATE_LOCK_DB_Y,
+				 0);
+
+	/*restore master update lock*/
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, master_update_lock);
+
+	/* accessing slave OTG registers */
+	optc1 = DCN10TG_FROM_TG(optc_slave);
+	/* restore slave to be controlled by it's own */
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, optc_slave->inst);
+
+}
+
 void optc2_triplebuffer_lock(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -468,6 +591,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
+		.align_vblanks = optc2_align_vblanks,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)

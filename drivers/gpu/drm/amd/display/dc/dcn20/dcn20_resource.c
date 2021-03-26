@@ -112,7 +112,7 @@ struct _vcs_dpi_ip_params_st dcn2_0_ip = {
 	.is_line_buffer_bpp_fixed = 0,
 	.line_buffer_fixed_bpp = 0,
 	.dcc_supported = true,
-	.max_line_buffer_lines = 12,
+	.max_line_buffer_lines = 32,
 	.writeback_luma_buffer_size_kbytes = 12,
 	.writeback_chroma_buffer_size_kbytes = 8,
 	.writeback_chroma_line_buffer_width_pixels = 4,
@@ -180,7 +180,7 @@ static struct _vcs_dpi_ip_params_st dcn2_0_nv14_ip = {
 	.is_line_buffer_bpp_fixed = 0,
 	.line_buffer_fixed_bpp = 0,
 	.dcc_supported = true,
-	.max_line_buffer_lines = 12,
+	.max_line_buffer_lines = 32,
 	.writeback_luma_buffer_size_kbytes = 12,
 	.writeback_chroma_buffer_size_kbytes = 8,
 	.writeback_chroma_line_buffer_width_pixels = 4,
@@ -1075,6 +1075,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1091,6 +1092,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.scl_reset_length10 = true,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_tri_buf = true,
+		.use_max_lb = true
 };
 
 void dcn20_dpp_destroy(struct dpp **dpp)
@@ -2033,9 +2035,13 @@ int dcn20_populate_dml_pipes_from_context(
 		if (res_ctx->pipe_ctx[pipe_cnt].stream == res_ctx->pipe_ctx[i].stream)
 			continue;
 
-		if (dc->debug.disable_timing_sync || !resource_are_streams_timing_synchronizable(
+		if (dc->debug.disable_timing_sync ||
+			(!resource_are_streams_timing_synchronizable(
 				res_ctx->pipe_ctx[pipe_cnt].stream,
-				res_ctx->pipe_ctx[i].stream)) {
+				res_ctx->pipe_ctx[i].stream) &&
+			!resource_are_vblanks_synchronizable(
+				res_ctx->pipe_ctx[pipe_cnt].stream,
+				res_ctx->pipe_ctx[i].stream))) {
 			synchronized_vblank = false;
 			break;
 		}
@@ -3697,6 +3703,8 @@ static bool dcn20_resource_construct(
 	dc->caps.dmdata_alloc_size = 2048;
 
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;

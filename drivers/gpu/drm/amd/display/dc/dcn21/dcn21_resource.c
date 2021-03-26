@@ -61,7 +61,6 @@
 #include "dcn21/dcn21_dccg.h"
 #include "dcn21_hubbub.h"
 #include "dcn10/dcn10_resource.h"
-#include "dce110/dce110_resource.h"
 #include "dce/dce_panel_cntl.h"
 
 #include "dcn20/dcn20_dwb.h"
@@ -116,7 +115,7 @@ struct _vcs_dpi_ip_params_st dcn2_1_ip = {
 	.is_line_buffer_bpp_fixed = 0,
 	.line_buffer_fixed_bpp = 0,
 	.dcc_supported = true,
-	.max_line_buffer_lines = 12,
+	.max_line_buffer_lines = 32,
 	.writeback_luma_buffer_size_kbytes = 12,
 	.writeback_chroma_buffer_size_kbytes = 8,
 	.writeback_chroma_line_buffer_width_pixels = 4,
@@ -883,7 +882,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
 		.disable_48mhz_pwrdwn = false,
-		.usbc_combo_phy_reset_wa = true
+		.usbc_combo_phy_reset_wa = true,
+		.dmub_command_table = true,
+		.use_max_lb = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -899,7 +900,8 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_stutter = true,
 		.disable_48mhz_pwrdwn = true,
 		.disable_psr = true,
-		.enable_tri_buf = true
+		.enable_tri_buf = true,
+		.use_max_lb = true
 };
 
 enum dcn20_clk_src_array_id {
@@ -1595,6 +1597,11 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	dcn2_1_soc.num_chans = bw_params->num_channels;
 
 	ASSERT(clk_table->num_entries);
+	/* Copy dcn2_1_soc.clock_limits to clock_limits to avoid copying over null states later */
+	for (i = 0; i < dcn2_1_soc.num_states + 1; i++) {
+		clock_limits[i] = dcn2_1_soc.clock_limits[i];
+	}
+
 	for (i = 0; i < clk_table->num_entries; i++) {
 		/* loop backwards*/
 		for (closest_clk_lvl = 0, j = dcn2_1_soc.num_states - 1; j >= 0; j--) {
@@ -1628,11 +1635,11 @@ static void update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn2_1_soc.clock_limits[i] = clock_limits[i];
 	if (clk_table->num_entries) {
 		dcn2_1_soc.num_states = clk_table->num_entries + 1;
+		/* fill in min DF PState */
+		dcn2_1_soc.clock_limits[1] = construct_low_pstate_lvl(clk_table, closest_clk_lvl);
 		/* duplicate last level */
 		dcn2_1_soc.clock_limits[dcn2_1_soc.num_states] = dcn2_1_soc.clock_limits[dcn2_1_soc.num_states - 1];
 		dcn2_1_soc.clock_limits[dcn2_1_soc.num_states].state = dcn2_1_soc.num_states;
-		/* fill in min DF PState */
-		dcn2_1_soc.clock_limits[1] = construct_low_pstate_lvl(clk_table, closest_clk_lvl);
 	}
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
@@ -1975,6 +1982,8 @@ static bool dcn21_resource_construct(
 	dc->caps.dmdata_alloc_size = 2048;
 
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;

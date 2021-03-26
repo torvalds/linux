@@ -30,6 +30,7 @@
 #include "clearstate_defs.h"
 #include "amdgpu_ring.h"
 #include "amdgpu_rlc.h"
+#include "soc15.h"
 
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
@@ -224,7 +225,9 @@ struct amdgpu_gfx_funcs {
 	void (*reset_ras_error_count) (struct amdgpu_device *adev);
 	void (*init_spm_golden)(struct amdgpu_device *adev);
 	void (*query_ras_error_status) (struct amdgpu_device *adev);
+	void (*reset_ras_error_status) (struct amdgpu_device *adev);
 	void (*update_perfmon_mgcg)(struct amdgpu_device *adev, bool enable);
+	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
 };
 
 struct sq_work {

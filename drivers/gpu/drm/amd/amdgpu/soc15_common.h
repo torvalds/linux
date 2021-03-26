@@ -100,6 +100,30 @@
 		}	\
 	} while (0)
 
+#define WREG32_RLC_EX(prefix, reg, value) \
+	do {							\
+		if (amdgpu_sriov_fullaccess(adev)) {    \
+			uint32_t i = 0;	\
+			uint32_t retries = 50000;	\
+			uint32_t r0 = adev->reg_offset[GC_HWIP][0][prefix##SCRATCH_REG0_BASE_IDX] + prefix##SCRATCH_REG0;	\
+			uint32_t r1 = adev->reg_offset[GC_HWIP][0][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG1;	\
+			uint32_t spare_int = adev->reg_offset[GC_HWIP][0][prefix##RLC_SPARE_INT_BASE_IDX] + prefix##RLC_SPARE_INT;	\
+			WREG32(r0, value);	\
+			WREG32(r1, (reg | 0x80000000));	\
+			WREG32(spare_int, 0x1);	\
+			for (i = 0; i < retries; i++) {	\
+				u32 tmp = RREG32(r1);	\
+				if (!(tmp & 0x80000000))	\
+					break;	\
+				udelay(10);	\
+			}	\
+			if (i >= retries)	\
+				pr_err("timeout: rlcg program reg:0x%05x failed !\n", reg);	\
+		} else {	\
+			WREG32(reg, value); \
+		}	\
+	} while (0)
+
 #define WREG32_SOC15_RLC_SHADOW(ip, inst, reg, value) \
 	do {							\
 		uint32_t target_reg = adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg;\
@@ -118,10 +142,34 @@
 		}	\
 	} while (0)
 
+#define WREG32_SOC15_RLC_SHADOW_EX(prefix, ip, inst, reg, value) \
+	do {							\
+		uint32_t target_reg = adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg;\
+		if (amdgpu_sriov_fullaccess(adev)) {    \
+			uint32_t r2 = adev->reg_offset[GC_HWIP][0][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG2;	\
+			uint32_t r3 = adev->reg_offset[GC_HWIP][0][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG3;	\
+			uint32_t grbm_cntl = adev->reg_offset[GC_HWIP][0][prefix##GRBM_GFX_CNTL_BASE_IDX] + prefix##GRBM_GFX_CNTL;   \
+			uint32_t grbm_idx = adev->reg_offset[GC_HWIP][0][prefix##GRBM_GFX_INDEX_BASE_IDX] + prefix##GRBM_GFX_INDEX;   \
+			if (target_reg == grbm_cntl) \
+				WREG32(r2, value);	\
+			else if (target_reg == grbm_idx) \
+				WREG32(r3, value);	\
+			WREG32(target_reg, value);	\
+		} else {	\
+			WREG32(target_reg, value); \
+		}	\
+	} while (0)
+
 #define WREG32_SOC15_RLC(ip, inst, reg, value) \
 	do {							\
 			uint32_t target_reg = adev->reg_offset[GC_HWIP][0][reg##_BASE_IDX] + reg;\
 			WREG32_RLC(target_reg, value); \
+	} while (0)
+
+#define WREG32_SOC15_RLC_EX(prefix, ip, inst, reg, value) \
+	do {							\
+			uint32_t target_reg = adev->reg_offset[GC_HWIP][0][reg##_BASE_IDX] + reg;\
+			WREG32_RLC_EX(prefix, target_reg, value); \
 	} while (0)
 
 #define WREG32_FIELD15_RLC(ip, idx, reg, field, val)   \
