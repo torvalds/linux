@@ -283,6 +283,7 @@ void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
 			   MT_INFRACFG_MISC_AP2CONN_WAKE,
 			   !en * MT_INFRACFG_MISC_AP2CONN_WAKE);
 }
+EXPORT_SYMBOL_GPL(mt7622_trigger_hif_int);
 
 static int mt7615_mcu_drv_pmctrl(struct mt7615_dev *dev)
 {
