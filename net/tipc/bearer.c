@@ -240,6 +240,7 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
  * @disc_domain: bearer domain
  * @prio: bearer priority
  * @attr: nlattr array
+ * @extack: netlink extended ack
  */
 static int tipc_enable_bearer(struct net *net, const char *name,
 			      u32 disc_domain, u32 prio,
