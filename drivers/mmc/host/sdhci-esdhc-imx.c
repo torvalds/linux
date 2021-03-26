@@ -434,10 +434,10 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 			 * Do not advertise faster UHS modes if there are no
 			 * pinctrl states for 100MHz/200MHz.
 			 */
-			if (IS_ERR_OR_NULL(imx_data->pins_100mhz) ||
-			    IS_ERR_OR_NULL(imx_data->pins_200mhz))
-				val &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50
-					 | SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_HS400);
+			if (IS_ERR_OR_NULL(imx_data->pins_100mhz))
+				val &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50);
+			if (IS_ERR_OR_NULL(imx_data->pins_200mhz))
+				val &= ~(SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_HS400);
 		}
 	}
 
