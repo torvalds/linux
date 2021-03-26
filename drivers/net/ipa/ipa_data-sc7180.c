@@ -27,9 +27,11 @@ enum ipa_resource_type {
 enum ipa_rsrc_group_id {
 	/* Source resource group identifiers */
 	IPA_RSRC_GROUP_SRC_UL_DL	= 0,
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
 
 	/* Destination resource group identifiers */
 	IPA_RSRC_GROUP_DST_UL_DL_DPL	= 0,
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
 };
 
 /* QSB configuration for the SC7180 SoC. */
@@ -207,6 +209,8 @@ static const struct ipa_resource ipa_resource_dst[] = {
 
 /* Resource configuration for the SC7180 SoC. */
 static const struct ipa_resource_data ipa_resource_data = {
+	.rsrc_group_src_count	= IPA_RSRC_GROUP_SRC_COUNT,
+	.rsrc_group_dst_count	= IPA_RSRC_GROUP_DST_COUNT,
 	.resource_src_count	= ARRAY_SIZE(ipa_resource_src),
 	.resource_src		= ipa_resource_src,
 	.resource_dst_count	= ARRAY_SIZE(ipa_resource_dst),

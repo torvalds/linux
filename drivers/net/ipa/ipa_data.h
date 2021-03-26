@@ -213,6 +213,8 @@ struct ipa_resource {
 
 /**
  * struct ipa_resource_data - IPA resource configuration data
+ * @rsrc_group_src_count: number of source resource groups supported
+ * @rsrc_group_dst_count: number of destination resource groups supported
  * @resource_src_count:	number of entries in the resource_src array
  * @resource_src:	source endpoint group resources
  * @resource_dst_count:	number of entries in the resource_dst array
@@ -224,6 +226,8 @@ struct ipa_resource {
  * programming it at initialization time, so we specify it here.
  */
 struct ipa_resource_data {
+	u32 rsrc_group_src_count;
+	u32 rsrc_group_dst_count;
 	u32 resource_src_count;
 	const struct ipa_resource *resource_src;
 	u32 resource_dst_count;
