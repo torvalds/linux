@@ -1093,19 +1093,19 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	gen12_gt_workarounds_init(i915, wal);
 
 	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
 			    CPSSUNIT_CLKGATE_DIS);
 
 	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 
 	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
 }
@@ -1583,7 +1583,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
-	    IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
+	    IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1607138336:tgl[a0],dg1[a0]
 		 * Wa_1607063988:tgl[a0],dg1[a0]
@@ -1593,7 +1593,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
 	}
 
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1606679103:tgl
 		 * (see also Wa_1606682166:icl)

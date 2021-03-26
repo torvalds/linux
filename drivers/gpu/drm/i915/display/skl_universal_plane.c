@@ -1858,7 +1858,7 @@ static bool gen12_plane_supports_mc_ccs(struct drm_i915_private *dev_priv,
 {
 	/* Wa_14010477008:tgl[a0..c0],rkl[all],dg1[all] */
 	if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv) ||
-	    IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_C0))
+	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0))
 		return false;
 
 	return plane_id < PLANE_SPRITE4;
