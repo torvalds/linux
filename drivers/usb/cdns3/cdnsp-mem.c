@@ -686,7 +686,7 @@ static void cdnsp_free_priv_device(struct cdnsp_device *pdev)
 
 static int cdnsp_alloc_priv_device(struct cdnsp_device *pdev)
 {
-	int ret = -ENOMEM;
+	int ret;
 
 	ret = cdnsp_init_device_ctx(pdev);
 	if (ret)
