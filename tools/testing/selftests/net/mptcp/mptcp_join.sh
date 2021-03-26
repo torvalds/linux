@@ -234,8 +234,10 @@ do_transfer()
 
 	if [ $speed = "fast" ]; then
 		mptcp_connect="./mptcp_connect -j"
-	else
-		mptcp_connect="./mptcp_connect -r"
+	elif [ $speed = "slow" ]; then
+		mptcp_connect="./mptcp_connect -r 50"
+	elif [ $speed = "least" ]; then
+		mptcp_connect="./mptcp_connect -r 10"
 	fi
 
 	local local_addr
@@ -818,6 +820,26 @@ add_addr_timeout_tests()
 	run_tests $ns1 $ns2 dead:beef:1::1 0 0 0 slow
 	chk_join_nr "signal address, ADD_ADDR6 timeout" 1 1 1
 	chk_add_nr 4 0
+
+	# signal addresses timeout
+	reset_with_add_addr_timeout
+	ip netns exec $ns1 ./pm_nl_ctl limits 2 2
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.3.1 flags signal
+	ip netns exec $ns2 ./pm_nl_ctl limits 2 2
+	run_tests $ns1 $ns2 10.0.1.1 0 0 0 least
+	chk_join_nr "signal addresses, ADD_ADDR timeout" 2 2 2
+	chk_add_nr 8 0
+
+	# signal invalid addresses timeout
+	reset_with_add_addr_timeout
+	ip netns exec $ns1 ./pm_nl_ctl limits 2 2
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.12.1 flags signal
+	ip netns exec $ns1 ./pm_nl_ctl add 10.0.3.1 flags signal
+	ip netns exec $ns2 ./pm_nl_ctl limits 2 2
+	run_tests $ns1 $ns2 10.0.1.1 0 0 0 least
+	chk_join_nr "invalid address, ADD_ADDR timeout" 1 1 1
+	chk_add_nr 8 0
 }
 
 remove_tests()
