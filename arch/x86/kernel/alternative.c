@@ -344,19 +344,35 @@ done:
 static void __init_or_module noinline optimize_nops(struct alt_instr *a, u8 *instr)
 {
 	unsigned long flags;
-	int i;
+	struct insn insn;
+	int nop, i = 0;
 
-	for (i = 0; i < a->padlen; i++) {
-		if (instr[i] != 0x90)
+	/*
+	 * Jump over the non-NOP insns, the remaining bytes must be single-byte
+	 * NOPs, optimize them.
+	 */
+	for (;;) {
+		if (insn_decode_kernel(&insn, &instr[i]))
+			return;
+
+		if (insn.length == 1 && insn.opcode.bytes[0] == 0x90)
+			break;
+
+		if ((i += insn.length) >= a->instrlen)
+			return;
+	}
+
+	for (nop = i; i < a->instrlen; i++) {
+		if (WARN_ONCE(instr[i] != 0x90, "Not a NOP at 0x%px\n", &instr[i]))
 			return;
 	}
 
 	local_irq_save(flags);
-	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
+	add_nops(instr + nop, i - nop);
 	local_irq_restore(flags);
 
 	DUMP_BYTES(instr, a->instrlen, "%px: [%d:%d) optimized NOPs: ",
-		   instr, a->instrlen - a->padlen, a->padlen);
+		   instr, nop, a->instrlen);
 }
 
 /*
@@ -402,19 +418,15 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		 * - feature not present but ALTINSTR_FLAG_INV is set to mean,
 		 *   patch if feature is *NOT* present.
 		 */
-		if (!boot_cpu_has(feature) == !(a->cpuid & ALTINSTR_FLAG_INV)) {
-			if (a->padlen > 1)
-				optimize_nops(a, instr);
+		if (!boot_cpu_has(feature) == !(a->cpuid & ALTINSTR_FLAG_INV))
+			goto next;
 
-			continue;
-		}
-
-		DPRINTK("feat: %s%d*32+%d, old: (%pS (%px) len: %d), repl: (%px, len: %d), pad: %d",
+		DPRINTK("feat: %s%d*32+%d, old: (%pS (%px) len: %d), repl: (%px, len: %d)",
 			(a->cpuid & ALTINSTR_FLAG_INV) ? "!" : "",
 			feature >> 5,
 			feature & 0x1f,
 			instr, instr, a->instrlen,
-			replacement, a->replacementlen, a->padlen);
+			replacement, a->replacementlen);
 
 		DUMP_BYTES(instr, a->instrlen, "%px: old_insn: ", instr);
 		DUMP_BYTES(replacement, a->replacementlen, "%px: rpl_insn: ", replacement);
@@ -438,14 +450,15 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		if (a->replacementlen && is_jmp(replacement[0]))
 			recompute_jump(a, instr, replacement, insn_buff);
 
-		if (a->instrlen > a->replacementlen) {
-			add_nops(insn_buff + a->replacementlen,
-				 a->instrlen - a->replacementlen);
-			insn_buff_sz += a->instrlen - a->replacementlen;
-		}
+		for (; insn_buff_sz < a->instrlen; insn_buff_sz++)
+			insn_buff[insn_buff_sz] = 0x90;
+
 		DUMP_BYTES(insn_buff, insn_buff_sz, "%px: final_insn: ", instr);
 
 		text_poke_early(instr, insn_buff, insn_buff_sz);
+
+next:
+		optimize_nops(a, instr);
 	}
 }
 
