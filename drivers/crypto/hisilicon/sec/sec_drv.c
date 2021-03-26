@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for the Hisilicon SEC units found on Hip06 Hip07
+ * Driver for the HiSilicon SEC units found on Hip06 Hip07
  *
- * Copyright (c) 2016-2017 Hisilicon Limited.
+ * Copyright (c) 2016-2017 HiSilicon Limited.
  */
 #include <linux/acpi.h>
 #include <linux/atomic.h>
@@ -1316,6 +1316,6 @@ static struct platform_driver sec_driver = {
 module_platform_driver(sec_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Hisilicon Security Accelerators");
+MODULE_DESCRIPTION("HiSilicon Security Accelerators");
 MODULE_AUTHOR("Zaibo Xu <xuzaibo@huawei.com");
 MODULE_AUTHOR("Jonathan Cameron <jonathan.cameron@huawei.com>");
