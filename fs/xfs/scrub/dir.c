@@ -694,15 +694,6 @@ xchk_directory_blocks(
 	/* Iterate all the data extents in the directory... */
 	found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	while (found && !(sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
-		/* Block directories only have a single block at offset 0. */
-		if (is_block &&
-		    (got.br_startoff > 0 ||
-		     got.br_blockcount != args.geo->fsbcount)) {
-			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
-					got.br_startoff);
-			break;
-		}
-
 		/* No more data blocks... */
 		if (got.br_startoff >= leaf_lblk)
 			break;
