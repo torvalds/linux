@@ -2765,10 +2765,8 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	/*
 	 * If we were cloning, force the next fsync to be a full one since we
 	 * we replaced (or just dropped in the case of cloning holes when
-	 * NO_HOLES is enabled) extents and extent maps.
-	 * This is for the sake of simplicity, and cloning into files larger
-	 * than 16Mb would force the full fsync any way (when
-	 * try_release_extent_mapping() is invoked during page cache truncation.
+	 * NO_HOLES is enabled) file extent items and did not setup new extent
+	 * maps for the replacement extents (or holes).
 	 */
 	if (extent_info && !extent_info->is_new_extent)
 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
