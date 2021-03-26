@@ -451,7 +451,7 @@ static int create_static_call_sections(struct objtool_file *file)
 		return 0;
 
 	idx = 0;
-	list_for_each_entry(insn, &file->static_call_list, static_call_node)
+	list_for_each_entry(insn, &file->static_call_list, call_node)
 		idx++;
 
 	sec = elf_create_section(file->elf, ".static_call_sites", SHF_WRITE,
@@ -460,7 +460,7 @@ static int create_static_call_sections(struct objtool_file *file)
 		return -1;
 
 	idx = 0;
-	list_for_each_entry(insn, &file->static_call_list, static_call_node) {
+	list_for_each_entry(insn, &file->static_call_list, call_node) {
 
 		site = (struct static_call_site *)sec->data->d_buf + idx;
 		memset(site, 0, sizeof(struct static_call_site));
@@ -786,13 +786,16 @@ static int add_jump_destinations(struct objtool_file *file)
 			else
 				insn->type = INSN_JUMP_DYNAMIC_CONDITIONAL;
 
+			list_add_tail(&insn->call_node,
+				      &file->retpoline_call_list);
+
 			insn->retpoline_safe = true;
 			continue;
 		} else if (insn->func) {
 			/* internal or external sibling call (with reloc) */
 			insn->call_dest = reloc->sym;
 			if (insn->call_dest->static_call_tramp) {
-				list_add_tail(&insn->static_call_node,
+				list_add_tail(&insn->call_node,
 					      &file->static_call_list);
 			}
 			continue;
@@ -854,7 +857,7 @@ static int add_jump_destinations(struct objtool_file *file)
 				/* internal sibling call (without reloc) */
 				insn->call_dest = insn->jump_dest->func;
 				if (insn->call_dest->static_call_tramp) {
-					list_add_tail(&insn->static_call_node,
+					list_add_tail(&insn->call_node,
 						      &file->static_call_list);
 				}
 			}
@@ -938,6 +941,9 @@ static int add_call_destinations(struct objtool_file *file)
 			insn->type = INSN_CALL_DYNAMIC;
 			insn->retpoline_safe = true;
 
+			list_add_tail(&insn->call_node,
+				      &file->retpoline_call_list);
+
 			remove_insn_ops(insn);
 			continue;
 
@@ -945,7 +951,7 @@ static int add_call_destinations(struct objtool_file *file)
 			insn->call_dest = reloc->sym;
 
 		if (insn->call_dest && insn->call_dest->static_call_tramp) {
-			list_add_tail(&insn->static_call_node,
+			list_add_tail(&insn->call_node,
 				      &file->static_call_list);
 		}
 
@@ -1655,6 +1661,11 @@ static void mark_rodata(struct objtool_file *file)
 	file->rodata = found;
 }
 
+__weak int arch_rewrite_retpolines(struct objtool_file *file)
+{
+	return 0;
+}
+
 static int decode_sections(struct objtool_file *file)
 {
 	int ret;
@@ -1683,6 +1694,10 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
+	/*
+	 * Must be before add_special_section_alts() as that depends on
+	 * jump_dest being set.
+	 */
 	ret = add_jump_destinations(file);
 	if (ret)
 		return ret;
@@ -1716,6 +1731,15 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	ret = read_instr_hints(file);
+	if (ret)
+		return ret;
+
+	/*
+	 * Must be after add_special_section_alts(), since this will emit
+	 * alternatives. Must be after add_{jump,call}_destination(), since
+	 * those create the call insn lists.
+	 */
+	ret = arch_rewrite_retpolines(file);
 	if (ret)
 		return ret;
 
