@@ -31,11 +31,37 @@
 /* One digit is u64 qword. */
 #define ECC_CURVE_NIST_P192_DIGITS  3
 #define ECC_CURVE_NIST_P256_DIGITS  4
-#define ECC_MAX_DIGITS             (512 / 64)
+#define ECC_CURVE_NIST_P384_DIGITS  6
+#define ECC_MAX_DIGITS              (512 / 64) /* due to ecrdsa */
 
 #define ECC_DIGITS_TO_BYTES_SHIFT 3
 
+#define ECC_MAX_BYTES (ECC_MAX_DIGITS << ECC_DIGITS_TO_BYTES_SHIFT)
+
 #define ECC_POINT_INIT(x, y, ndigits)	(struct ecc_point) { x, y, ndigits }
+
+/**
+ * ecc_swap_digits() - Copy ndigits from big endian array to native array
+ * @in:       Input array
+ * @out:      Output array
+ * @ndigits:  Number of digits to copy
+ */
+static inline void ecc_swap_digits(const u64 *in, u64 *out, unsigned int ndigits)
+{
+	const __be64 *src = (__force __be64 *)in;
+	int i;
+
+	for (i = 0; i < ndigits; i++)
+		out[i] = be64_to_cpu(src[ndigits - 1 - i]);
+}
+
+/**
+ * ecc_get_curve()  - Get a curve given its curve_id
+ * @curve_id:  Id of the curve
+ *
+ * Returns pointer to the curve data, NULL if curve is not available
+ */
+const struct ecc_curve *ecc_get_curve(unsigned int curve_id);
 
 /**
  * ecc_is_key_valid() - Validate a given ECDH private key
