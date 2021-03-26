@@ -1098,8 +1098,9 @@ walk_ipv6:
 	tmp.disp_flag = QETH_DISP_ADDR_ADD;
 	tmp.is_multicast = 1;
 
-	read_lock_bh(&in6_dev->lock);
-	for (im6 = in6_dev->mc_list; im6 != NULL; im6 = im6->next) {
+	for (im6 = rtnl_dereference(in6_dev->mc_list);
+	     im6;
+	     im6 = rtnl_dereference(im6->next)) {
 		tmp.u.a6.addr = im6->mca_addr;
 
 		ipm = qeth_l3_find_addr_by_ip(card, &tmp);
@@ -1117,7 +1118,6 @@ walk_ipv6:
 			 qeth_l3_ipaddr_hash(ipm));
 
 	}
-	read_unlock_bh(&in6_dev->lock);
 
 out:
 	return 0;
