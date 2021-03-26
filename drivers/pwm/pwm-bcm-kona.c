@@ -310,11 +310,6 @@ static int kona_pwmc_probe(struct platform_device *pdev)
 static int kona_pwmc_remove(struct platform_device *pdev)
 {
 	struct kona_pwmc *kp = platform_get_drvdata(pdev);
-	unsigned int chan;
-
-	for (chan = 0; chan < kp->chip.npwm; chan++)
-		if (pwm_is_enabled(&kp->chip.pwms[chan]))
-			clk_disable_unprepare(kp->clk);
 
 	return pwmchip_remove(&kp->chip);
 }
