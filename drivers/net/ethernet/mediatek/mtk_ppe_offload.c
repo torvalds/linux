@@ -5,7 +5,6 @@
 
 #include <linux/if_ether.h>
 #include <linux/rhashtable.h>
-#include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <net/flow_offload.h>
 #include <net/pkt_cls.h>
