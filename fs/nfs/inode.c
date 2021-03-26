@@ -164,34 +164,19 @@ static int nfs_attribute_timeout(struct inode *inode)
 	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }
 
-static bool nfs_check_cache_invalid_delegated(struct inode *inode, unsigned long flags)
+static bool nfs_check_cache_flags_invalid(struct inode *inode,
+					  unsigned long flags)
 {
 	unsigned long cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
 
-	/* Special case for the pagecache or access cache */
-	if (flags == NFS_INO_REVAL_PAGECACHE &&
-	    !(cache_validity & NFS_INO_REVAL_FORCED))
-		return false;
 	return (cache_validity & flags) != 0;
-}
-
-static bool nfs_check_cache_invalid_not_delegated(struct inode *inode, unsigned long flags)
-{
-	unsigned long cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
-
-	if ((cache_validity & flags) != 0)
-		return true;
-	if (nfs_attribute_timeout(inode))
-		return true;
-	return false;
 }
 
 bool nfs_check_cache_invalid(struct inode *inode, unsigned long flags)
 {
-	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
-		return nfs_check_cache_invalid_delegated(inode, flags);
-
-	return nfs_check_cache_invalid_not_delegated(inode, flags);
+	if (nfs_check_cache_flags_invalid(inode, flags))
+		return true;
+	return nfs_attribute_cache_expired(inode);
 }
 EXPORT_SYMBOL_GPL(nfs_check_cache_invalid);
 
@@ -809,14 +794,12 @@ static u32 nfs_get_valid_attrmask(struct inode *inode)
 
 	if (!(cache_validity & NFS_INO_INVALID_ATIME))
 		reply_mask |= STATX_ATIME;
-	if (!(cache_validity & NFS_INO_REVAL_PAGECACHE)) {
-		if (!(cache_validity & NFS_INO_INVALID_CTIME))
-			reply_mask |= STATX_CTIME;
-		if (!(cache_validity & NFS_INO_INVALID_MTIME))
-			reply_mask |= STATX_MTIME;
-		if (!(cache_validity & NFS_INO_INVALID_SIZE))
-			reply_mask |= STATX_SIZE;
-	}
+	if (!(cache_validity & NFS_INO_INVALID_CTIME))
+		reply_mask |= STATX_CTIME;
+	if (!(cache_validity & NFS_INO_INVALID_MTIME))
+		reply_mask |= STATX_MTIME;
+	if (!(cache_validity & NFS_INO_INVALID_SIZE))
+		reply_mask |= STATX_SIZE;
 	if (!(cache_validity & NFS_INO_INVALID_OTHER))
 		reply_mask |= STATX_UID | STATX_GID | STATX_MODE | STATX_NLINK;
 	if (!(cache_validity & NFS_INO_INVALID_BLOCKS))
@@ -1362,7 +1345,7 @@ out:
 
 bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 {
-	return nfs_check_cache_invalid(inode, NFS_INO_REVAL_PAGECACHE) ||
+	return nfs_check_cache_invalid(inode, NFS_INO_INVALID_CHANGE) ||
 		NFS_STALE(inode);
 }
 
