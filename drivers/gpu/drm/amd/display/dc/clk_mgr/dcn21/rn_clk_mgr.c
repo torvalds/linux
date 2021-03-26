@@ -128,7 +128,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dc *dc = clk_mgr_base->ctx->dc;
-	int display_count;
+	int display_count, i;
 	bool update_dppclk = false;
 	bool update_dispclk = false;
 	bool dpp_clock_lowered = false;
@@ -209,6 +209,14 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 				context,
 				clk_mgr_base->clks.dppclk_khz,
 				safe_to_lower);
+
+		for (i = 0; i < context->stream_count; i++) {
+			if (context->streams[i]->signal == SIGNAL_TYPE_EDP &&
+				context->streams[i]->apply_seamless_boot_optimization) {
+				dc_wait_for_vblank(dc, context->streams[i]);
+				break;
+			}
+		}
 
 		clk_mgr_base->clks.actual_dppclk_khz =
 				rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
