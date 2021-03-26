@@ -419,15 +419,17 @@ SYM_FUNC_START(__cpu_setup)
 	reset_amuserenr_el0 x1			// Disable AMU access from EL0
 
 	/*
-	 * Memory region attributes
+	 * Default values for VMSA control registers. These will be adjusted
+	 * below depending on detected CPU features.
 	 */
 	mair	.req	x17
+	tcr	.req	x16
 	mov_q	mair, MAIR_EL1_SET
+	mov_q	tcr, TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
+			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
+			TCR_TBI0 | TCR_A1 | TCR_KASAN_SW_FLAGS
+
 #ifdef CONFIG_ARM64_MTE
-	mte_tcr	.req	x20
-
-	mov	mte_tcr, #0
-
 	/*
 	 * Update MAIR_EL1, GCR_EL1 and TFSR*_EL1 if MTE is supported
 	 * (ID_AA64PFR1_EL1[11:8] > 1).
@@ -450,36 +452,26 @@ SYM_FUNC_START(__cpu_setup)
 	msr_s	SYS_TFSRE0_EL1, xzr
 
 	/* set the TCR_EL1 bits */
-	mov_q	mte_tcr, TCR_KASAN_HW_FLAGS
+	mov_q	x10, TCR_KASAN_HW_FLAGS
+	orr	tcr, tcr, x10
 1:
 #endif
-	/*
-	 * Set/prepare TCR and TTBR. TCR_EL1.T1SZ gets further
-	 * adjusted if the kernel is compiled with 52bit VA support.
-	 */
-	mov_q	x10, TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
-			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
-			TCR_TBI0 | TCR_A1 | TCR_KASAN_SW_FLAGS
-#ifdef CONFIG_ARM64_MTE
-	orr	x10, x10, mte_tcr
-	.unreq	mte_tcr
-#endif
-	tcr_clear_errata_bits x10, x9, x5
+	tcr_clear_errata_bits tcr, x9, x5
 
 #ifdef CONFIG_ARM64_VA_BITS_52
 	ldr_l		x9, vabits_actual
 	sub		x9, xzr, x9
 	add		x9, x9, #64
-	tcr_set_t1sz	x10, x9
+	tcr_set_t1sz	tcr, x9
 #else
 	ldr_l		x9, idmap_t0sz
 #endif
-	tcr_set_t0sz	x10, x9
+	tcr_set_t0sz	tcr, x9
 
 	/*
 	 * Set the IPS bits in TCR_EL1.
 	 */
-	tcr_compute_pa_size x10, #TCR_IPS_SHIFT, x5, x6
+	tcr_compute_pa_size tcr, #TCR_IPS_SHIFT, x5, x6
 #ifdef CONFIG_ARM64_HW_AFDBM
 	/*
 	 * Enable hardware update of the Access Flags bit.
@@ -489,11 +481,11 @@ SYM_FUNC_START(__cpu_setup)
 	mrs	x9, ID_AA64MMFR1_EL1
 	and	x9, x9, #0xf
 	cbz	x9, 1f
-	orr	x10, x10, #TCR_HA		// hardware Access flag update
+	orr	tcr, tcr, #TCR_HA		// hardware Access flag update
 1:
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	mair_el1, mair
-	msr	tcr_el1, x10
+	msr	tcr_el1, tcr
 	/*
 	 * Prepare SCTLR
 	 */
@@ -501,4 +493,5 @@ SYM_FUNC_START(__cpu_setup)
 	ret					// return to head.S
 
 	.unreq	mair
+	.unreq	tcr
 SYM_FUNC_END(__cpu_setup)
