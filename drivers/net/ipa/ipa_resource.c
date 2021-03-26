@@ -129,11 +129,14 @@ ipa_resource_config_common(struct ipa *ipa, u32 offset,
 }
 
 static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,
-				    const struct ipa_resource *resource)
+				    const struct ipa_resource_data *data)
 {
 	u32 group_count = ipa_resource_group_src_count(ipa->version);
 	const struct ipa_resource_limits *ylimits;
+	const struct ipa_resource *resource;
 	u32 offset;
+
+	resource = &data->resource_src[resource_type];
 
 	offset = IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource_type);
 	ylimits = group_count == 1 ? NULL : &resource->limits[1];
@@ -155,11 +158,14 @@ static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,
 }
 
 static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
-				    const struct ipa_resource *resource)
+				    const struct ipa_resource_data *data)
 {
 	u32 group_count = ipa_resource_group_dst_count(ipa->version);
 	const struct ipa_resource_limits *ylimits;
+	const struct ipa_resource *resource;
 	u32 offset;
+
+	resource = &data->resource_dst[resource_type];
 
 	offset = IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource_type);
 	ylimits = group_count == 1 ? NULL : &resource->limits[1];
@@ -189,10 +195,10 @@ int ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 		return -EINVAL;
 
 	for (i = 0; i < data->resource_src_count; i++)
-		ipa_resource_config_src(ipa, i, &data->resource_src[i]);
+		ipa_resource_config_src(ipa, i, data);
 
 	for (i = 0; i < data->resource_dst_count; i++)
-		ipa_resource_config_dst(ipa, i, &data->resource_dst[i]);
+		ipa_resource_config_dst(ipa, i, data);
 
 	return 0;
 }
