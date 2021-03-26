@@ -981,8 +981,6 @@ static int age_gfn_range(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 		tdp_mmu_set_spte_no_acc_track(kvm, &iter, new_spte);
 		young = 1;
-
-		trace_kvm_age_page(iter.gfn, iter.level, slot, young);
 	}
 
 	rcu_read_unlock();
