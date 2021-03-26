@@ -155,17 +155,16 @@ static void intel_quark_unregister_i2c_clk(struct device *dev)
 	clk_unregister(quark_mfd->i2c_clk);
 }
 
-static int intel_quark_i2c_setup(struct pci_dev *pdev, struct mfd_cell *cell)
+static int intel_quark_i2c_setup(struct pci_dev *pdev)
 {
+	struct mfd_cell *cell = &intel_quark_mfd_cells[MFD_I2C_BAR];
+	struct resource *res = intel_quark_i2c_res;
 	const struct dmi_system_id *dmi_id;
 	struct dw_i2c_platform_data *pdata;
-	struct resource *res = (struct resource *)cell->resources;
 	struct device *dev = &pdev->dev;
 
-	res[INTEL_QUARK_IORES_MEM].start =
-		pci_resource_start(pdev, MFD_I2C_BAR);
-	res[INTEL_QUARK_IORES_MEM].end =
-		pci_resource_end(pdev, MFD_I2C_BAR);
+	res[INTEL_QUARK_IORES_MEM].start = pci_resource_start(pdev, MFD_I2C_BAR);
+	res[INTEL_QUARK_IORES_MEM].end = pci_resource_end(pdev, MFD_I2C_BAR);
 
 	res[INTEL_QUARK_IORES_IRQ].start = pci_irq_vector(pdev, 0);
 	res[INTEL_QUARK_IORES_IRQ].end = pci_irq_vector(pdev, 0);
@@ -187,16 +186,15 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 	return 0;
 }
 
-static int intel_quark_gpio_setup(struct pci_dev *pdev, struct mfd_cell *cell)
+static int intel_quark_gpio_setup(struct pci_dev *pdev)
 {
+	struct mfd_cell *cell = &intel_quark_mfd_cells[MFD_GPIO_BAR];
+	struct resource *res = intel_quark_gpio_res;
 	struct dwapb_platform_data *pdata;
-	struct resource *res = (struct resource *)cell->resources;
 	struct device *dev = &pdev->dev;
 
-	res[INTEL_QUARK_IORES_MEM].start =
-		pci_resource_start(pdev, MFD_GPIO_BAR);
-	res[INTEL_QUARK_IORES_MEM].end =
-		pci_resource_end(pdev, MFD_GPIO_BAR);
+	res[INTEL_QUARK_IORES_MEM].start = pci_resource_start(pdev, MFD_GPIO_BAR);
+	res[INTEL_QUARK_IORES_MEM].end = pci_resource_end(pdev, MFD_GPIO_BAR);
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -251,11 +249,11 @@ static int intel_quark_mfd_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		goto err_unregister_i2c_clk;
 
-	ret = intel_quark_i2c_setup(pdev, &intel_quark_mfd_cells[MFD_I2C_BAR]);
+	ret = intel_quark_i2c_setup(pdev);
 	if (ret)
 		goto err_free_irq_vectors;
 
-	ret = intel_quark_gpio_setup(pdev, &intel_quark_mfd_cells[MFD_GPIO_BAR]);
+	ret = intel_quark_gpio_setup(pdev);
 	if (ret)
 		goto err_free_irq_vectors;
 
