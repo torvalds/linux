@@ -61,9 +61,9 @@
  *
  * This library also provides implementations for all the legacy driver
  * interfaces on top of the atomic interface. See drm_atomic_helper_set_config(),
- * drm_atomic_helper_disable_plane(), drm_atomic_helper_disable_plane() and the
- * various functions to implement set_property callbacks. New drivers must not
- * implement these functions themselves but must use the provided helpers.
+ * drm_atomic_helper_disable_plane(), and the various functions to implement
+ * set_property callbacks. New drivers must not implement these functions
+ * themselves but must use the provided helpers.
  *
  * The atomic helper uses the same function table structures as all other
  * modesetting helpers. See the documentation for &struct drm_crtc_helper_funcs,
@@ -592,11 +592,10 @@ mode_valid(struct drm_atomic_state *state)
  *
  * Drivers which set &drm_crtc_state.mode_changed (e.g. in their
  * &drm_plane_helper_funcs.atomic_check hooks if a plane update can't be done
- * without a full modeset) _must_ call this function afterwards after that
- * change. It is permitted to call this function multiple times for the same
- * update, e.g. when the &drm_crtc_helper_funcs.atomic_check functions depend
- * upon the adjusted dotclock for fifo space allocation and watermark
- * computation.
+ * without a full modeset) _must_ call this function after that change. It is
+ * permitted to call this function multiple times for the same update, e.g.
+ * when the &drm_crtc_helper_funcs.atomic_check functions depend upon the
+ * adjusted dotclock for fifo space allocation and watermark computation.
  *
  * RETURNS:
  * Zero for success or -errno
