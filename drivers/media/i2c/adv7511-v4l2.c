@@ -1196,21 +1196,21 @@ static int adv7511_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		return -EINVAL;
 
 	if (edid->start_block == 0 && edid->blocks == 0) {
-		edid->blocks = state->edid.segments * 2;
+		edid->blocks = state->edid.blocks;
 		return 0;
 	}
 
-	if (state->edid.segments == 0)
+	if (state->edid.blocks == 0)
 		return -ENODATA;
 
-	if (edid->start_block >= state->edid.segments * 2)
+	if (edid->start_block >= state->edid.blocks)
 		return -EINVAL;
 
-	if (edid->start_block + edid->blocks > state->edid.segments * 2)
-		edid->blocks = state->edid.segments * 2 - edid->start_block;
+	if (edid->start_block + edid->blocks > state->edid.blocks)
+		edid->blocks = state->edid.blocks - edid->start_block;
 
 	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
-			128 * edid->blocks);
+	       128 * edid->blocks);
 
 	return 0;
 }
