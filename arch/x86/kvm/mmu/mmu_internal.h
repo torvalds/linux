@@ -88,9 +88,14 @@ static inline struct kvm_mmu_page *sptep_to_sp(u64 *sptep)
 	return to_shadow_page(__pa(sptep));
 }
 
+static inline int kvm_mmu_role_as_id(union kvm_mmu_page_role role)
+{
+	return role.smm ? 1 : 0;
+}
+
 static inline int kvm_mmu_page_as_id(struct kvm_mmu_page *sp)
 {
-	return sp->role.smm ? 1 : 0;
+	return kvm_mmu_role_as_id(sp->role);
 }
 
 static inline bool kvm_vcpu_ad_need_write_protect(struct kvm_vcpu *vcpu)
