@@ -1710,10 +1710,14 @@ int smu_v13_0_get_dpm_level_count(struct smu_context *smu,
 				  enum smu_clk_type clk_type,
 				  uint32_t *value)
 {
-	return smu_v13_0_get_dpm_freq_by_index(smu,
-					       clk_type,
-					       0xff,
-					       value);
+	int ret;
+
+	ret = smu_v13_0_get_dpm_freq_by_index(smu, clk_type, 0xff, value);
+	/* FW returns 0 based max level, increment by one */
+	if (!ret && value)
+		++(*value);
+
+	return ret;
 }
 
 int smu_v13_0_set_single_dpm_table(struct smu_context *smu,
