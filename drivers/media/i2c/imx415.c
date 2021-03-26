@@ -1176,6 +1176,12 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 	rhs1_change_limit = rhs1_old + 3 * BRL - fsc + 3;
 	rhs1_change_limit = (rhs1_change_limit < 25) ? 25 : rhs1_change_limit;
 	rhs1_change_limit = (rhs1_change_limit + 5) / 6 * 6 + 1;
+	if (rhs1_max < rhs1_change_limit) {
+		dev_err(&client->dev,
+			"The total exposure limit makes rhs1 max is %d,but old rhs1 limit makes rhs1 min is %d\n",
+			rhs1_max, rhs1_change_limit);
+		return -EINVAL;
+	}
 	if (rhs1 < rhs1_change_limit)
 		rhs1 = rhs1_change_limit;
 
@@ -1207,6 +1213,12 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 	rhs2_change_limit = rhs2_old + 3 * BRL - fsc + 3;
 	rhs2_change_limit = (rhs2_change_limit < 50) ?  50 : rhs2_change_limit;
 	rhs2_change_limit = (rhs2_change_limit + 5) / 6 * 6 + 2;
+	if ((shr0 - 13) < rhs2_change_limit) {
+		dev_err(&client->dev,
+			"The total exposure limit makes rhs2 max is %d,but old rhs1 limit makes rhs2 min is %d\n",
+			shr0 - 13, rhs2_change_limit);
+		return -EINVAL;
+	}
 	if (rhs2 < rhs2_change_limit)
 		rhs2 = rhs2_change_limit;
 
@@ -1384,6 +1396,15 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	rhs1_min = max(SHR1_MIN_X2 + 8u, rhs1_old + 2 * BRL - fsc + 2);
 	rhs1_min = (rhs1_min + 3) / 4 * 4 + 1;
 	rhs1 = (SHR1_MIN_X2 + s_exp_time + 3) / 4 * 4 + 1;/* shall be 4n + 1 */
+	dev_dbg(&client->dev,
+		"line(%d) rhs1 %d, rhs1 min %d rhs1 max %d\n",
+		__LINE__, rhs1, rhs1_min, rhs1_max);
+	if (rhs1_max < rhs1_min) {
+		dev_err(&client->dev,
+			"The total exposure limit makes rhs1 max is %d,but old rhs1 limit makes rhs1 min is %d\n",
+			rhs1_max, rhs1_min);
+		return -EINVAL;
+	}
 	rhs1 = clamp(rhs1, rhs1_min, rhs1_max);
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, short time %d rhs1_old %d, rhs1_new %d\n",
