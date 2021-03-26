@@ -882,7 +882,7 @@ fully_established:
 	subflow->pm_notified = 1;
 	if (subflow->mp_join) {
 		clear_3rdack_retransmission(ssk);
-		mptcp_pm_subflow_established(msk, subflow);
+		mptcp_pm_subflow_established(msk);
 	} else {
 		mptcp_pm_fully_established(msk, ssk, GFP_ATOMIC);
 	}
@@ -1040,6 +1040,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 			mptcp_pm_add_addr_received(msk, &addr);
 			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ADDADDR);
 		} else {
+			mptcp_pm_add_addr_echoed(msk, &addr);
 			mptcp_pm_del_add_timer(msk, &addr);
 			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ECHOADD);
 		}

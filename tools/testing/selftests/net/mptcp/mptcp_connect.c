@@ -55,6 +55,7 @@ static int cfg_sndbuf;
 static int cfg_rcvbuf;
 static bool cfg_join;
 static bool cfg_remove;
+static unsigned int cfg_do_w;
 static int cfg_wait;
 
 static void die_usage(void)
@@ -272,8 +273,8 @@ static size_t do_rnd_write(const int fd, char *buf, const size_t len)
 	if (cfg_join && first && do_w > 100)
 		do_w = 100;
 
-	if (cfg_remove && do_w > 50)
-		do_w = 50;
+	if (cfg_remove && do_w > cfg_do_w)
+		do_w = cfg_do_w;
 
 	bw = write(fd, buf, do_w);
 	if (bw < 0)
@@ -829,7 +830,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jrlp:s:hut:m:S:R:w:")) != -1) {
+	while ((c = getopt(argc, argv, "6jr:lp:s:hut:m:S:R:w:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
@@ -840,6 +841,9 @@ static void parse_opts(int argc, char **argv)
 			cfg_remove = true;
 			cfg_mode = CFG_MODE_POLL;
 			cfg_wait = 400000;
+			cfg_do_w = atoi(optarg);
+			if (cfg_do_w <= 0)
+				cfg_do_w = 50;
 			break;
 		case 'l':
 			listen_mode = true;
