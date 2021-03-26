@@ -86,6 +86,7 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 		break;
 
 	default:
+		DRM_DEBUG_KMS("unknown format modifier: %llx\n", modifier);
 		return -EINVAL;
 	}
 
