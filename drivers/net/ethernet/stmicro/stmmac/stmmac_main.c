@@ -1002,7 +1002,8 @@ static void stmmac_mac_link_down(struct phylink_config *config,
 	stmmac_eee_init(priv);
 	stmmac_set_eee_pls(priv, priv->hw, false);
 
-	stmmac_fpe_link_state_handle(priv, false);
+	if (priv->dma_cap.fpesel)
+		stmmac_fpe_link_state_handle(priv, false);
 }
 
 static void stmmac_mac_link_up(struct phylink_config *config,
@@ -1102,7 +1103,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		stmmac_set_eee_pls(priv, priv->hw, true);
 	}
 
-	stmmac_fpe_link_state_handle(priv, true);
+	if (priv->dma_cap.fpesel)
+		stmmac_fpe_link_state_handle(priv, true);
 }
 
 static const struct phylink_mac_ops stmmac_phylink_mac_ops = {
