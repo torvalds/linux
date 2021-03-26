@@ -16,35 +16,35 @@
 
 /* FIXME: what about REVID_E0 */
 static const struct i915_rev_steppings kbl_revids[] = {
-	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
-	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_B0 },
-	[2] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_B0 },
-	[3] = { .gt_stepping = STEP_D0, .disp_stepping = STEP_B0 },
-	[4] = { .gt_stepping = STEP_F0, .disp_stepping = STEP_C0 },
-	[5] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_B1 },
-	[6] = { .gt_stepping = STEP_D1, .disp_stepping = STEP_B1 },
-	[7] = { .gt_stepping = STEP_G0, .disp_stepping = STEP_C0 },
+	[0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
+	[1] = { .gt_step = STEP_B0, .display_step = STEP_B0 },
+	[2] = { .gt_step = STEP_C0, .display_step = STEP_B0 },
+	[3] = { .gt_step = STEP_D0, .display_step = STEP_B0 },
+	[4] = { .gt_step = STEP_F0, .display_step = STEP_C0 },
+	[5] = { .gt_step = STEP_C0, .display_step = STEP_B1 },
+	[6] = { .gt_step = STEP_D1, .display_step = STEP_B1 },
+	[7] = { .gt_step = STEP_G0, .display_step = STEP_C0 },
 };
 
 static const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
-	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
-	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_C0 },
-	[2] = { .gt_stepping = STEP_B1, .disp_stepping = STEP_C0 },
-	[3] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_D0 },
+	[0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
+	[1] = { .gt_step = STEP_B0, .display_step = STEP_C0 },
+	[2] = { .gt_step = STEP_B1, .display_step = STEP_C0 },
+	[3] = { .gt_step = STEP_C0, .display_step = STEP_D0 },
 };
 
 /* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
 static const struct i915_rev_steppings tgl_revid_step_tbl[] = {
-	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_B0 },
-	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_D0 },
+	[0] = { .gt_step = STEP_A0, .display_step = STEP_B0 },
+	[1] = { .gt_step = STEP_B0, .display_step = STEP_D0 },
 };
 
 static const struct i915_rev_steppings adls_revid_step_tbl[] = {
-	[0x0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
-	[0x1] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A2 },
-	[0x4] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_B0 },
-	[0x8] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_B0 },
-	[0xC] = { .gt_stepping = STEP_D0, .disp_stepping = STEP_C0 },
+	[0x0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
+	[0x1] = { .gt_step = STEP_A0, .display_step = STEP_A2 },
+	[0x4] = { .gt_step = STEP_B0, .display_step = STEP_B0 },
+	[0x8] = { .gt_step = STEP_C0, .display_step = STEP_B0 },
+	[0xC] = { .gt_step = STEP_D0, .display_step = STEP_C0 },
 };
 
 void intel_step_init(struct drm_i915_private *i915)
@@ -72,7 +72,7 @@ void intel_step_init(struct drm_i915_private *i915)
 	if (!revids)
 		return;
 
-	if (revid < size && revids[revid].gt_stepping != STEP_NONE) {
+	if (revid < size && revids[revid].gt_step != STEP_NONE) {
 		step = revids[revid];
 	} else {
 		drm_warn(&i915->drm, "Unknown revid 0x%02x\n", revid);
@@ -85,7 +85,7 @@ void intel_step_init(struct drm_i915_private *i915)
 		 * steppings in the array are not monotonically increasing, but
 		 * it's better than defaulting to 0.
 		 */
-		while (revid < size && revids[revid].gt_stepping == STEP_NONE)
+		while (revid < size && revids[revid].gt_step == STEP_NONE)
 			revid++;
 
 		if (revid < size) {
@@ -94,12 +94,12 @@ void intel_step_init(struct drm_i915_private *i915)
 			step = revids[revid];
 		} else {
 			drm_dbg(&i915->drm, "Using future steppings\n");
-			step.gt_stepping = STEP_FUTURE;
-			step.disp_stepping = STEP_FUTURE;
+			step.gt_step = STEP_FUTURE;
+			step.display_step = STEP_FUTURE;
 		}
 	}
 
-	if (drm_WARN_ON(&i915->drm, step.gt_stepping == STEP_NONE))
+	if (drm_WARN_ON(&i915->drm, step.gt_step == STEP_NONE))
 		return;
 
 	RUNTIME_INFO(i915)->step = step;
