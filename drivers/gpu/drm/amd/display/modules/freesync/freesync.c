@@ -543,8 +543,8 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 		infopacket->sb[6] |= 0x02;
 
 	/* PB6 = [Bit 2 = FreeSync Active] */
-	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
-			vrr->state == VRR_STATE_ACTIVE_FIXED)
+	if (vrr->state != VRR_STATE_DISABLED &&
+			vrr->state != VRR_STATE_UNSUPPORTED)
 		infopacket->sb[6] |= 0x04;
 
 	// For v1 & 2 infoframes program nominal if non-fs mode, otherwise full range
