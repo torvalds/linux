@@ -34,8 +34,8 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 	u32 i;
 	u32 j;
 
-	/* We program at most 6 source or destination resource group limits */
-	BUILD_BUG_ON(IPA_RESOURCE_GROUP_MAX > 6);
+	/* We program at most 8 source or destination resource group limits */
+	BUILD_BUG_ON(IPA_RESOURCE_GROUP_MAX > 8);
 
 	group_count = data->rsrc_group_src_count;
 	if (!group_count || group_count > IPA_RESOURCE_GROUP_MAX)
@@ -113,6 +113,13 @@ static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,
 	offset = IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource_type);
 	ylimits = group_count == 5 ? NULL : &resource->limits[5];
 	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
+
+	if (group_count < 7)
+		return;
+
+	offset = IPA_REG_SRC_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(resource_type);
+	ylimits = group_count == 7 ? NULL : &resource->limits[7];
+	ipa_resource_config_common(ipa, offset, &resource->limits[6], ylimits);
 }
 
 static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
@@ -142,6 +149,13 @@ static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
 	offset = IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource_type);
 	ylimits = group_count == 5 ? NULL : &resource->limits[5];
 	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
+
+	if (group_count < 7)
+		return;
+
+	offset = IPA_REG_DST_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(resource_type);
+	ylimits = group_count == 7 ? NULL : &resource->limits[7];
+	ipa_resource_config_common(ipa, offset, &resource->limits[6], ylimits);
 }
 
 /* Configure resources */

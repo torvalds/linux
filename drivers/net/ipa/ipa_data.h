@@ -46,8 +46,8 @@
  * the IPA endpoint.
  */
 
-/* The maximum value returned by ipa_resource_group_{src,dst}_count() */
-#define IPA_RESOURCE_GROUP_MAX	5
+/* The maximum possible number of source or destination resource groups */
+#define IPA_RESOURCE_GROUP_MAX	8
 
 /** enum ipa_qsb_master_id - array index for IPA QSB configuration data */
 enum ipa_qsb_master_id {
