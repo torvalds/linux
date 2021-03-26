@@ -15,14 +15,6 @@ struct i915_rev_steppings {
 	u8 disp_stepping;
 };
 
-#define TGL_UY_REVID_STEP_TBL_SIZE	4
-#define TGL_REVID_STEP_TBL_SIZE		2
-#define ADLS_REVID_STEP_TBL_SIZE	13
-
-extern const struct i915_rev_steppings tgl_uy_revid_step_tbl[TGL_UY_REVID_STEP_TBL_SIZE];
-extern const struct i915_rev_steppings tgl_revid_step_tbl[TGL_REVID_STEP_TBL_SIZE];
-extern const struct i915_rev_steppings adls_revid_step_tbl[ADLS_REVID_STEP_TBL_SIZE];
-
 /*
  * Symbolic steppings that do not match the hardware. These are valid both as gt
  * and display steppings as symbolic names.

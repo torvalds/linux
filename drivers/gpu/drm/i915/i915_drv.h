@@ -1502,44 +1502,17 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_JSL_EHL_REVID(p, since, until) \
 	(IS_JSL_EHL(p) && IS_REVID(p, since, until))
 
-static inline const struct i915_rev_steppings *
-tgl_stepping_get(struct drm_i915_private *dev_priv)
-{
-	u8 revid = INTEL_REVID(dev_priv);
-	u8 size;
-	const struct i915_rev_steppings *revid_step_tbl;
+#define IS_TGL_DISP_STEPPING(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
 
-	if (IS_ALDERLAKE_S(dev_priv)) {
-		revid_step_tbl = adls_revid_step_tbl;
-		size = ARRAY_SIZE(adls_revid_step_tbl);
-	} else if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
-		revid_step_tbl = tgl_uy_revid_step_tbl;
-		size = ARRAY_SIZE(tgl_uy_revid_step_tbl);
-	} else {
-		revid_step_tbl = tgl_revid_step_tbl;
-		size = ARRAY_SIZE(tgl_revid_step_tbl);
-	}
+#define IS_TGL_UY_GT_STEPPING(__i915, since, until) \
+	((IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
+	 IS_GT_STEP(__i915, since, until))
 
-	revid = min_t(u8, revid, size - 1);
-
-	return &revid_step_tbl[revid];
-}
-
-#define IS_TGL_DISP_STEPPING(p, since, until) \
-	(IS_TIGERLAKE(p) && \
-	 tgl_stepping_get(p)->disp_stepping >= (since) && \
-	 tgl_stepping_get(p)->disp_stepping <= (until))
-
-#define IS_TGL_UY_GT_STEPPING(p, since, until) \
-	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_stepping_get(p)->gt_stepping >= (since) && \
-	 tgl_stepping_get(p)->gt_stepping <= (until))
-
-#define IS_TGL_GT_STEPPING(p, since, until) \
-	(IS_TIGERLAKE(p) && \
-	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_stepping_get(p)->gt_stepping >= (since) && \
-	 tgl_stepping_get(p)->gt_stepping <= (until))
+#define IS_TGL_GT_STEPPING(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && !(IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
+	 IS_GT_STEP(__i915, since, until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
@@ -1554,15 +1527,13 @@ tgl_stepping_get(struct drm_i915_private *dev_priv)
 #define IS_DG1_REVID(p, since, until) \
 	(IS_DG1(p) && IS_REVID(p, since, until))
 
-#define IS_ADLS_DISP_STEPPING(p, since, until) \
-	(IS_ALDERLAKE_S(p) && \
-	 tgl_stepping_get(p)->disp_stepping >= (since) && \
-	 tgl_stepping_get(p)->disp_stepping <= (until))
+#define IS_ADLS_DISP_STEPPING(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_ADLS_GT_STEPPING(p, since, until) \
-	(IS_ALDERLAKE_S(p) && \
-	 tgl_stepping_get(p)->gt_stepping >= (since) && \
-	 tgl_stepping_get(p)->gt_stepping <= (until))
+#define IS_ADLS_GT_STEPPING(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_GT_STEP(__i915, since, until))
 
 #define IS_LP(dev_priv)	(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))

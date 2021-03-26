@@ -26,7 +26,7 @@ static const struct i915_rev_steppings kbl_revids[] = {
 	[7] = { .gt_stepping = STEP_G0, .disp_stepping = STEP_C0 },
 };
 
-const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
+static const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
 	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
 	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_C0 },
 	[2] = { .gt_stepping = STEP_B1, .disp_stepping = STEP_C0 },
@@ -34,12 +34,12 @@ const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
 };
 
 /* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
-const struct i915_rev_steppings tgl_revid_step_tbl[] = {
+static const struct i915_rev_steppings tgl_revid_step_tbl[] = {
 	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_B0 },
 	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_D0 },
 };
 
-const struct i915_rev_steppings adls_revid_step_tbl[] = {
+static const struct i915_rev_steppings adls_revid_step_tbl[] = {
 	[0x0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
 	[0x1] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A2 },
 	[0x4] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_B0 },
@@ -54,7 +54,16 @@ void intel_step_init(struct drm_i915_private *i915)
 	int revid = INTEL_REVID(i915);
 	struct i915_rev_steppings step = {};
 
-	if (IS_KABYLAKE(i915)) {
+	if (IS_ALDERLAKE_S(i915)) {
+		revids = adls_revid_step_tbl;
+		size = ARRAY_SIZE(adls_revid_step_tbl);
+	} else if (IS_TGL_U(i915) || IS_TGL_Y(i915)) {
+		revids = tgl_uy_revid_step_tbl;
+		size = ARRAY_SIZE(tgl_uy_revid_step_tbl);
+	} else if (IS_TIGERLAKE(i915)) {
+		revids = tgl_revid_step_tbl;
+		size = ARRAY_SIZE(tgl_revid_step_tbl);
+	} else if (IS_KABYLAKE(i915)) {
 		revids = kbl_revids;
 		size = ARRAY_SIZE(kbl_revids);
 	}
