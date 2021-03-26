@@ -77,10 +77,10 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 	u32 j;
 
 	/* We program at most 6 source or destination resource group limits */
-	BUILD_BUG_ON(IPA_RESOURCE_GROUP_SRC_MAX > 6);
+	BUILD_BUG_ON(IPA_RESOURCE_GROUP_MAX > 6);
 
 	group_count = ipa_resource_group_src_count(ipa->version);
-	if (!group_count || group_count > IPA_RESOURCE_GROUP_SRC_MAX)
+	if (!group_count || group_count > IPA_RESOURCE_GROUP_MAX)
 		return false;
 
 	/* Return an error if a non-zero resource limit is specified
@@ -90,20 +90,20 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 		const struct ipa_resource_src *resource;
 
 		resource = &data->resource_src[i];
-		for (j = group_count; j < IPA_RESOURCE_GROUP_SRC_MAX; j++)
+		for (j = group_count; j < IPA_RESOURCE_GROUP_MAX; j++)
 			if (resource->limits[j].min || resource->limits[j].max)
 				return false;
 	}
 
 	group_count = ipa_resource_group_dst_count(ipa->version);
-	if (!group_count || group_count > IPA_RESOURCE_GROUP_DST_MAX)
+	if (!group_count || group_count > IPA_RESOURCE_GROUP_MAX)
 		return false;
 
 	for (i = 0; i < data->resource_dst_count; i++) {
 		const struct ipa_resource_dst *resource;
 
 		resource = &data->resource_dst[i];
-		for (j = group_count; j < IPA_RESOURCE_GROUP_DST_MAX; j++)
+		for (j = group_count; j < IPA_RESOURCE_GROUP_MAX; j++)
 			if (resource->limits[j].min || resource->limits[j].max)
 				return false;
 	}

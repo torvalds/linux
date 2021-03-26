@@ -47,8 +47,7 @@
  */
 
 /* The maximum value returned by ipa_resource_group_{src,dst}_count() */
-#define IPA_RESOURCE_GROUP_SRC_MAX	5
-#define IPA_RESOURCE_GROUP_DST_MAX	5
+#define IPA_RESOURCE_GROUP_MAX	5
 
 /** enum ipa_qsb_master_id - array index for IPA QSB configuration data */
 enum ipa_qsb_master_id {
@@ -206,18 +205,18 @@ struct ipa_resource_limits {
 
 /**
  * struct ipa_resource_src - source endpoint group resource usage
- * @limits:	array of limits to use for each resource group
+ * @limits:	array of source resource limits, indexed by group
  */
 struct ipa_resource_src {
-	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_SRC_MAX];
+	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_MAX];
 };
 
 /**
  * struct ipa_resource_dst - destination endpoint group resource usage
- * @limits:	array of limits to use for each resource group
+ * @limits:	array of destination resource limits, indexed by group
  */
 struct ipa_resource_dst {
-	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_DST_MAX];
+	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_MAX];
 };
 
 /**
