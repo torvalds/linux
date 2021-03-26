@@ -116,8 +116,8 @@ static void nh_notifier_single_info_fini(struct nh_notifier_info *info)
 	kfree(info->nh);
 }
 
-static int nh_notifier_mp_info_init(struct nh_notifier_info *info,
-				    struct nh_group *nhg)
+static int nh_notifier_mpath_info_init(struct nh_notifier_info *info,
+				       struct nh_group *nhg)
 {
 	u16 num_nh = nhg->num_nh;
 	int i;
@@ -181,8 +181,8 @@ static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
-	if (nhg->mpath)
-		return nh_notifier_mp_info_init(info, nhg);
+	if (nhg->hash_threshold)
+		return nh_notifier_mpath_info_init(info, nhg);
 	else if (nhg->resilient)
 		return nh_notifier_res_table_info_init(info, nhg);
 	return -EINVAL;
@@ -193,7 +193,7 @@ static void nh_notifier_grp_info_fini(struct nh_notifier_info *info,
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
-	if (nhg->mpath)
+	if (nhg->hash_threshold)
 		kfree(info->nh_grp);
 	else if (nhg->resilient)
 		vfree(info->nh_res_table);
@@ -406,7 +406,7 @@ static int call_nexthop_res_table_notifiers(struct net *net, struct nexthop *nh,
 	 * could potentially veto it in case of unsupported configuration.
 	 */
 	nhg = rtnl_dereference(nh->nh_grp);
-	err = nh_notifier_mp_info_init(&info, nhg);
+	err = nh_notifier_mpath_info_init(&info, nhg);
 	if (err) {
 		NL_SET_ERR_MSG(extack, "Failed to initialize nexthop notifier info");
 		return err;
@@ -661,7 +661,7 @@ static int nla_put_nh_group(struct sk_buff *skb, struct nh_group *nhg)
 	u16 group_type = 0;
 	int i;
 
-	if (nhg->mpath)
+	if (nhg->hash_threshold)
 		group_type = NEXTHOP_GRP_TYPE_MPATH;
 	else if (nhg->resilient)
 		group_type = NEXTHOP_GRP_TYPE_RES;
@@ -992,9 +992,9 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 		struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
 		/* Nesting groups within groups is not supported. */
-		if (nhg->mpath) {
+		if (nhg->hash_threshold) {
 			NL_SET_ERR_MSG(extack,
-				       "Multipath group can not be a nexthop within a group");
+				       "Hash-threshold group can not be a nexthop within a group");
 			return false;
 		}
 		if (nhg->resilient) {
@@ -1151,7 +1151,7 @@ static bool ipv4_good_nh(const struct fib_nh *nh)
 	return !!(state & NUD_VALID);
 }
 
-static struct nexthop *nexthop_select_path_mp(struct nh_group *nhg, int hash)
+static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 {
 	struct nexthop *rc = NULL;
 	int i;
@@ -1160,7 +1160,7 @@ static struct nexthop *nexthop_select_path_mp(struct nh_group *nhg, int hash)
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 		struct nh_info *nhi;
 
-		if (hash > atomic_read(&nhge->mpath.upper_bound))
+		if (hash > atomic_read(&nhge->hthr.upper_bound))
 			continue;
 
 		nhi = rcu_dereference(nhge->nh->nh_info);
@@ -1212,8 +1212,8 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 		return nh;
 
 	nhg = rcu_dereference(nh->nh_grp);
-	if (nhg->mpath)
-		return nexthop_select_path_mp(nhg, hash);
+	if (nhg->hash_threshold)
+		return nexthop_select_path_hthr(nhg, hash);
 	else if (nhg->resilient)
 		return nexthop_select_path_res(nhg, hash);
 
@@ -1710,7 +1710,7 @@ static void replace_nexthop_grp_res(struct nh_group *oldg,
 	nh_res_table_upkeep(old_res_table, true, false);
 }
 
-static void nh_mp_group_rebalance(struct nh_group *nhg)
+static void nh_hthr_group_rebalance(struct nh_group *nhg)
 {
 	int total = 0;
 	int w = 0;
@@ -1725,7 +1725,7 @@ static void nh_mp_group_rebalance(struct nh_group *nhg)
 
 		w += nhge->weight;
 		upper_bound = DIV_ROUND_CLOSEST_ULL((u64)w << 31, total) - 1;
-		atomic_set(&nhge->mpath.upper_bound, upper_bound);
+		atomic_set(&nhge->hthr.upper_bound, upper_bound);
 	}
 }
 
@@ -1752,7 +1752,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 
 	newg->has_v4 = false;
 	newg->is_multipath = nhg->is_multipath;
-	newg->mpath = nhg->mpath;
+	newg->hash_threshold = nhg->hash_threshold;
 	newg->resilient = nhg->resilient;
 	newg->fdb_nh = nhg->fdb_nh;
 	newg->num_nh = nhg->num_nh;
@@ -1781,8 +1781,8 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 		j++;
 	}
 
-	if (newg->mpath)
-		nh_mp_group_rebalance(newg);
+	if (newg->hash_threshold)
+		nh_hthr_group_rebalance(newg);
 	else if (newg->resilient)
 		replace_nexthop_grp_res(nhg, newg);
 
@@ -1794,7 +1794,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 	/* Removal of a NH from a resilient group is notified through
 	 * bucket notifications.
 	 */
-	if (newg->mpath) {
+	if (newg->hash_threshold) {
 		err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, nhp,
 					     &extack);
 		if (err)
@@ -1928,12 +1928,12 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 	oldg = rtnl_dereference(old->nh_grp);
 	newg = rtnl_dereference(new->nh_grp);
 
-	if (newg->mpath != oldg->mpath) {
+	if (newg->hash_threshold != oldg->hash_threshold) {
 		NL_SET_ERR_MSG(extack, "Can not replace a nexthop group with one of a different type.");
 		return -EINVAL;
 	}
 
-	if (newg->mpath) {
+	if (newg->hash_threshold) {
 		err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, new,
 					     extack);
 		if (err)
@@ -2063,7 +2063,7 @@ static int replace_nexthop_single_notify(struct net *net,
 	struct nh_group *nhg = rtnl_dereference(group_nh->nh_grp);
 	struct nh_res_table *res_table;
 
-	if (nhg->mpath) {
+	if (nhg->hash_threshold) {
 		return call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE,
 					      group_nh, extack);
 	} else if (nhg->resilient) {
@@ -2328,8 +2328,8 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 	rb_link_node_rcu(&new_nh->rb_node, parent, pp);
 	rb_insert_color(&new_nh->rb_node, root);
 
-	/* The initial insertion is a full notification for mpath as well
-	 * as resilient groups.
+	/* The initial insertion is a full notification for hash-threshold as
+	 * well as resilient groups.
 	 */
 	rc = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, new_nh, extack);
 	if (rc)
@@ -2438,7 +2438,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	}
 
 	if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_MPATH) {
-		nhg->mpath = 1;
+		nhg->hash_threshold = 1;
 		nhg->is_multipath = true;
 	} else if (cfg->nh_grp_type == NEXTHOP_GRP_TYPE_RES) {
 		struct nh_res_table *res_table;
@@ -2455,10 +2455,10 @@ static struct nexthop *nexthop_create_group(struct net *net,
 		nhg->is_multipath = true;
 	}
 
-	WARN_ON_ONCE(nhg->mpath + nhg->resilient != 1);
+	WARN_ON_ONCE(nhg->hash_threshold + nhg->resilient != 1);
 
-	if (nhg->mpath)
-		nh_mp_group_rebalance(nhg);
+	if (nhg->hash_threshold)
+		nh_hthr_group_rebalance(nhg);
 
 	if (cfg->nh_fdb)
 		nhg->fdb_nh = 1;

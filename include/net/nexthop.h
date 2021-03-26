@@ -102,7 +102,7 @@ struct nh_grp_entry {
 	union {
 		struct {
 			atomic_t	upper_bound;
-		} mpath;
+		} hthr;
 		struct {
 			/* Member on uw_nh_entries. */
 			struct list_head	uw_nh_entry;
@@ -120,7 +120,7 @@ struct nh_group {
 	struct nh_group		*spare; /* spare group for removals */
 	u16			num_nh;
 	bool			is_multipath;
-	bool			mpath;
+	bool			hash_threshold;
 	bool			resilient;
 	bool			fdb_nh;
 	bool			has_v4;
