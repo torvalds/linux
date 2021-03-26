@@ -421,7 +421,8 @@ SYM_FUNC_START(__cpu_setup)
 	/*
 	 * Memory region attributes
 	 */
-	mov_q	x5, MAIR_EL1_SET
+	mair	.req	x17
+	mov_q	mair, MAIR_EL1_SET
 #ifdef CONFIG_ARM64_MTE
 	mte_tcr	.req	x20
 
@@ -438,7 +439,7 @@ SYM_FUNC_START(__cpu_setup)
 
 	/* Normal Tagged memory type at the corresponding MAIR index */
 	mov	x10, #MAIR_ATTR_NORMAL_TAGGED
-	bfi	x5, x10, #(8 *  MT_NORMAL_TAGGED), #8
+	bfi	mair, x10, #(8 *  MT_NORMAL_TAGGED), #8
 
 	/* initialize GCR_EL1: all non-zero tags excluded by default */
 	mov	x10, #(SYS_GCR_EL1_RRND | SYS_GCR_EL1_EXCL_MASK)
@@ -452,7 +453,6 @@ SYM_FUNC_START(__cpu_setup)
 	mov_q	mte_tcr, TCR_KASAN_HW_FLAGS
 1:
 #endif
-	msr	mair_el1, x5
 	/*
 	 * Set/prepare TCR and TTBR. TCR_EL1.T1SZ gets further
 	 * adjusted if the kernel is compiled with 52bit VA support.
@@ -492,10 +492,13 @@ SYM_FUNC_START(__cpu_setup)
 	orr	x10, x10, #TCR_HA		// hardware Access flag update
 1:
 #endif	/* CONFIG_ARM64_HW_AFDBM */
+	msr	mair_el1, mair
 	msr	tcr_el1, x10
 	/*
 	 * Prepare SCTLR
 	 */
 	mov_q	x0, INIT_SCTLR_EL1_MMU_ON
 	ret					// return to head.S
+
+	.unreq	mair
 SYM_FUNC_END(__cpu_setup)
