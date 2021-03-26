@@ -56,6 +56,7 @@ struct tegra_drm {
 
 	unsigned int hmask, vmask;
 	unsigned int pitch_align;
+	unsigned int num_crtcs;
 
 	struct tegra_display_hub *hub;
 };

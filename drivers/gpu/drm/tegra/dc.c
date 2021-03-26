@@ -2080,6 +2080,16 @@ static bool tegra_dc_has_window_groups(struct tegra_dc *dc)
 	return false;
 }
 
+static int tegra_dc_early_init(struct host1x_client *client)
+{
+	struct drm_device *drm = dev_get_drvdata(client->host);
+	struct tegra_drm *tegra = drm->dev_private;
+
+	tegra->num_crtcs++;
+
+	return 0;
+}
+
 static int tegra_dc_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->host);
@@ -2228,6 +2238,16 @@ static int tegra_dc_exit(struct host1x_client *client)
 	return 0;
 }
 
+static int tegra_dc_late_exit(struct host1x_client *client)
+{
+	struct drm_device *drm = dev_get_drvdata(client->host);
+	struct tegra_drm *tegra = drm->dev_private;
+
+	tegra->num_crtcs--;
+
+	return 0;
+}
+
 static int tegra_dc_runtime_suspend(struct host1x_client *client)
 {
 	struct tegra_dc *dc = host1x_client_to_dc(client);
@@ -2292,8 +2312,10 @@ put_rpm:
 }
 
 static const struct host1x_client_ops dc_client_ops = {
+	.early_init = tegra_dc_early_init,
 	.init = tegra_dc_init,
 	.exit = tegra_dc_exit,
+	.late_exit = tegra_dc_late_exit,
 	.suspend = tegra_dc_runtime_suspend,
 	.resume = tegra_dc_runtime_resume,
 };

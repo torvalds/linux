@@ -562,9 +562,8 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	enum drm_plane_type type = DRM_PLANE_TYPE_OVERLAY;
 	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_display_hub *hub = tegra->hub;
-	/* planes can be assigned to arbitrary CRTCs */
-	unsigned int possible_crtcs = 0x7;
 	struct tegra_shared_plane *plane;
+	unsigned int possible_crtcs;
 	unsigned int num_formats;
 	const u64 *modifiers;
 	struct drm_plane *p;
@@ -582,6 +581,9 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	plane->wgrp->parent = &dc->client;
 
 	p = &plane->base.base;
+
+	/* planes can be assigned to arbitrary CRTCs */
+	possible_crtcs = BIT(tegra->num_crtcs) - 1;
 
 	num_formats = ARRAY_SIZE(tegra_shared_plane_formats);
 	formats = tegra_shared_plane_formats;
