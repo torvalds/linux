@@ -167,7 +167,7 @@ static inline int rb_sched_core_cmp(const void *key, const struct rb_node *node)
 	return 0;
 }
 
-static void sched_core_enqueue(struct rq *rq, struct task_struct *p)
+void sched_core_enqueue(struct rq *rq, struct task_struct *p)
 {
 	rq->core->core_task_seq++;
 
@@ -177,14 +177,15 @@ static void sched_core_enqueue(struct rq *rq, struct task_struct *p)
 	rb_add(&p->core_node, &rq->core_tree, rb_sched_core_less);
 }
 
-static void sched_core_dequeue(struct rq *rq, struct task_struct *p)
+void sched_core_dequeue(struct rq *rq, struct task_struct *p)
 {
 	rq->core->core_task_seq++;
 
-	if (!p->core_cookie)
+	if (!sched_core_enqueued(p))
 		return;
 
 	rb_erase(&p->core_node, &rq->core_tree);
+	RB_CLEAR_NODE(&p->core_node);
 }
 
 /*
