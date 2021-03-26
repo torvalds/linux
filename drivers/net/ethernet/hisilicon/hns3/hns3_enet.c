@@ -210,7 +210,6 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 	 * Rl defines rate of interrupts i.e. number of interrupts-per-second
 	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
 	 */
-
 	if (rl_reg > 0 && !tqp_vector->tx_group.coal.adapt_enable &&
 	    !tqp_vector->rx_group.coal.adapt_enable)
 		/* According to the hardware, the range of rl_reg is
@@ -883,7 +882,6 @@ static void hns3_set_outer_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			hns3_set_field(*ol_type_vlan_len_msec,
 				       HNS3_TXD_OL3T_S,
 				       HNS3_OL3T_IPV4_NO_CSUM);
-
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_OL3T_S,
 			       HNS3_OL3T_IPV6);
@@ -1296,7 +1294,6 @@ static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size,
 		return HNS3_MAX_TSO_BD_NUM + 1U;
 
 	bd_num = hns3_skb_bd_num(skb, bd_size, bd_num);
-
 	if (!skb_has_frag_list(skb) || bd_num > HNS3_MAX_TSO_BD_NUM)
 		return bd_num;
 
@@ -2965,7 +2962,6 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 					  HNS3_RXD_L3ID_S);
 		l4_type = hnae3_get_field(l234info, HNS3_RXD_L4ID_M,
 					  HNS3_RXD_L4ID_S);
-
 		/* Can checksum ipv4 or ipv6 + UDP/TCP/SCTP packets */
 		if ((l3_type == HNS3_L3_TYPE_IPV4 ||
 		     l3_type == HNS3_L3_TYPE_IPV6) &&
@@ -3295,7 +3291,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 
 	if (!skb) {
 		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
-
 		/* Check valid BD */
 		if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B))))
 			return -ENXIO;
@@ -3557,7 +3552,6 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	hns3_for_each_ring(ring, tqp_vector->rx_group) {
 		int rx_cleaned = hns3_clean_rx_ring(ring, rx_budget,
 						    hns3_rx_skb);
-
 		if (rx_cleaned >= rx_budget)
 			clean_complete = false;
 
@@ -4024,7 +4018,6 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 			       hns3_buf_size2type(ring->buf_size));
 		hns3_write_dev(q, HNS3_RING_RX_RING_BD_NUM_REG,
 			       ring->desc_num / 8 - 1);
-
 	} else {
 		hns3_write_dev(q, HNS3_RING_TX_RING_BASEADDR_L_REG,
 			       (u32)dma);

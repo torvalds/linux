@@ -192,7 +192,6 @@ struct hclgevf_tqp {
 };
 
 struct hclgevf_cfg {
-	u8 vmdq_vport_num;
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;

@@ -865,13 +865,7 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	}
 
 	/* configure TM QCN hw errors */
-	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG, 0);
-	if (ret) {
-		dev_err(dev, "fail(%d) to read TM QCN CFG status\n", ret);
-		return ret;
-	}
-
-	hclge_cmd_reuse_desc(&desc, false);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_QCN_MEM_INT_CFG, false);
 	if (en)
 		desc.data[1] = cpu_to_le32(HCLGE_TM_QCN_MEM_ERR_INT_EN);
 
@@ -1497,7 +1491,6 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 	}
 
 	status = le32_to_cpu(desc[0].data[0]);
-
 	if (status & HCLGE_ROCEE_AXI_ERR_INT_MASK) {
 		if (status & HCLGE_ROCEE_RERR_INT_MASK)
 			dev_err(dev, "ROCEE RAS AXI rresp error\n");
@@ -1647,7 +1640,6 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	}
 
 	status = hclge_read_dev(&hdev->hw, HCLGE_RAS_PF_OTHER_INT_STS_REG);
-
 	if (status & HCLGE_RAS_REG_NFE_MASK ||
 	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK)
 		ae_dev->hw_err_reset_req = 0;
