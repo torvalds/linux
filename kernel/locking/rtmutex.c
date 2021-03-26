@@ -1456,7 +1456,7 @@ int __sched rt_mutex_trylock(struct rt_mutex *lock)
 {
 	int ret;
 
-	if (WARN_ON_ONCE(in_irq() || in_nmi() || in_serving_softirq()))
+	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEXES) && WARN_ON_ONCE(!in_task()))
 		return 0;
 
 	/*
