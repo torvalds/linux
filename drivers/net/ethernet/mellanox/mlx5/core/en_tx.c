@@ -142,7 +142,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 				return txq_ix;
 		}
 
-		if (unlikely(priv->channels.port_ptp))
+		if (unlikely(priv->channels.ptp))
 			if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
 			    mlx5e_use_ptpsq(skb))
 				return mlx5e_select_ptpsq(dev, skb);

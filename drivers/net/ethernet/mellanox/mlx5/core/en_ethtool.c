@@ -368,7 +368,7 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	new_channels.params.log_rq_mtu_frames = log_rq_size;
 	new_channels.params.log_sq_size = log_sq_size;
 
-	err = mlx5e_validate_params(priv, &new_channels.params);
+	err = mlx5e_validate_params(priv->mdev, &new_channels.params);
 	if (err)
 		goto unlock;
 
@@ -2032,7 +2032,7 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 					 mlx5e_num_channels_changed_ctx, NULL);
 out:
 	if (!err)
-		priv->port_ptp_opened = true;
+		priv->tx_ptp_opened = true;
 
 	return err;
 }

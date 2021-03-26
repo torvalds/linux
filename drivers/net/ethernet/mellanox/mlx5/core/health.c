@@ -340,7 +340,7 @@ static int mlx5_health_try_recover(struct mlx5_core_dev *dev)
 		return -EIO;
 	}
 
-	mlx5_core_info(dev, "health revovery succeded\n");
+	mlx5_core_info(dev, "health recovery succeeded\n");
 	return 0;
 }
 

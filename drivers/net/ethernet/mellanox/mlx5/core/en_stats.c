@@ -407,13 +407,13 @@ static void mlx5e_stats_grp_sw_update_stats_ptp(struct mlx5e_priv *priv,
 {
 	int i;
 
-	if (!priv->port_ptp_opened)
+	if (!priv->tx_ptp_opened)
 		return;
 
-	mlx5e_stats_grp_sw_update_stats_ch_stats(s, &priv->port_ptp_stats.ch);
+	mlx5e_stats_grp_sw_update_stats_ch_stats(s, &priv->ptp_stats.ch);
 
 	for (i = 0; i < priv->max_opened_tc; i++) {
-		mlx5e_stats_grp_sw_update_stats_sq(s, &priv->port_ptp_stats.sq[i]);
+		mlx5e_stats_grp_sw_update_stats_sq(s, &priv->ptp_stats.sq[i]);
 
 		/* https://gcc.gnu.org/bugzilla/show_bug.cgi?id=92657 */
 		barrier();
@@ -1851,7 +1851,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(qos) { return; }
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ptp)
 {
-	return priv->port_ptp_opened ?
+	return priv->tx_ptp_opened ?
 	       NUM_PTP_CH_STATS +
 	       ((NUM_PTP_SQ_STATS + NUM_PTP_CQ_STATS) * priv->max_opened_tc) :
 	       0;
@@ -1861,7 +1861,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ptp)
 {
 	int i, tc;
 
-	if (!priv->port_ptp_opened)
+	if (!priv->tx_ptp_opened)
 		return idx;
 
 	for (i = 0; i < NUM_PTP_CH_STATS; i++)
@@ -1884,24 +1884,24 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ptp)
 {
 	int i, tc;
 
-	if (!priv->port_ptp_opened)
+	if (!priv->tx_ptp_opened)
 		return idx;
 
 	for (i = 0; i < NUM_PTP_CH_STATS; i++)
 		data[idx++] =
-			MLX5E_READ_CTR64_CPU(&priv->port_ptp_stats.ch,
+			MLX5E_READ_CTR64_CPU(&priv->ptp_stats.ch,
 					     ptp_ch_stats_desc, i);
 
 	for (tc = 0; tc < priv->max_opened_tc; tc++)
 		for (i = 0; i < NUM_PTP_SQ_STATS; i++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->port_ptp_stats.sq[tc],
+				MLX5E_READ_CTR64_CPU(&priv->ptp_stats.sq[tc],
 						     ptp_sq_stats_desc, i);
 
 	for (tc = 0; tc < priv->max_opened_tc; tc++)
 		for (i = 0; i < NUM_PTP_CQ_STATS; i++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&priv->port_ptp_stats.cq[tc],
+				MLX5E_READ_CTR64_CPU(&priv->ptp_stats.cq[tc],
 						     ptp_cq_stats_desc, i);
 
 	return idx;
