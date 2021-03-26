@@ -2358,7 +2358,7 @@ regen:
 	/* <draft-ietf-6man-rfc4941bis-08.txt>, Section 3.3.1:
 	 * check if generated address is not inappropriate:
 	 *
-	 * - Reserved IPv6 Interface Identifers
+	 * - Reserved IPv6 Interface Identifiers
 	 * - XXX: already assigned to an address on the device
 	 */
 
