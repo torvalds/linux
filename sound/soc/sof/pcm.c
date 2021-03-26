@@ -673,10 +673,10 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 	/* read rate and channels from topology */
 	switch (dai->dai_config->type) {
 	case SOF_DAI_INTEL_SSP:
-		rate->min = dai->dai_config->ssp.fsync_rate;
-		rate->max = dai->dai_config->ssp.fsync_rate;
-		channels->min = dai->dai_config->ssp.tdm_slots;
-		channels->max = dai->dai_config->ssp.tdm_slots;
+		rate->min = dai->dai_config[dai->current_config].ssp.fsync_rate;
+		rate->max = dai->dai_config[dai->current_config].ssp.fsync_rate;
+		channels->min = dai->dai_config[dai->current_config].ssp.tdm_slots;
+		channels->max = dai->dai_config[dai->current_config].ssp.tdm_slots;
 
 		dev_dbg(component->dev,
 			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
