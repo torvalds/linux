@@ -81,49 +81,6 @@
 				};
 			};
 		};
-		/* Sensors mounted on all board variants */
-		i2c@80128000 {
-			ak8974@f {
-				/* Magnetometer */
-				compatible = "asahi-kasei,ak8974";
-				reg = <0x0f>;
-				avdd-supply = <&ab8500_ldo_aux1_reg>;
-				dvdd-supply = <&db8500_vsmps2_reg>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&gyro_magn_tvk_mode>;
-				/*
-				 * These interrupts cannot be used: the other component
-				 * ST-Micro L3D4200D gyro that is connected to the same lines
-				 * cannot set its DRDY line to open drain, so it cannot be
-				 * shared with other peripherals. The should be defined for
-				 * the falling edge if they could be wired together.
-				 *
-				 * interrupts-extended =
-				 * <&gpio1 0 IRQ_TYPE_EDGE_FALLING>,
-				 * <&gpio0 31 IRQ_TYPE_EDGE_FALLING>;
-				 */
-			};
-			l3g4200d@68 {
-				/* Gyroscope */
-				compatible = "st,l3g4200d-gyro";
-				st,drdy-int-pin = <2>;
-				reg = <0x68>;
-				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&gyro_magn_tvk_mode>;
-				interrupts-extended =
-				<&gpio1 0 IRQ_TYPE_EDGE_RISING>,
-				<&gpio0 31 IRQ_TYPE_EDGE_RISING>;
-			};
-			lsp001wm@5c {
-				/* Barometer/pressure sensor */
-				compatible = "st,lps001wp-press";
-				reg = <0x5c>;
-				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
-			};
-		};
 
 		pinctrl {
 			/* Pull up this GPIO pin */
@@ -148,33 +105,6 @@
 					tvk_cfg {
 						pins = "GPIO145_C13";
 						ste,config = <&gpio_in_pu>;
-					};
-				};
-			};
-			accelerometer {
-				accel_tvk_mode: accel_tvk {
-					/* Accelerometer interrupt lines 1 & 2 */
-					tvk_cfg {
-						pins = "GPIO82_C1", "GPIO83_D3";
-						ste,config = <&gpio_in_pd>;
-					};
-				};
-			};
-			gyroscope {
-				/*
-				 * These lines are shared between Gyroscope l3g400dh
-				 * and AK8974 magnetometer.
-				 */
-				gyro_magn_tvk_mode: gyro_magn_tvk {
-					 /* GPIO 31 used for INT pull down the line */
-					tvk_cfg1 {
-						pins = "GPIO31_V3";
-						ste,config = <&gpio_in_pd>;
-					};
-					/* GPIO 32 used for DRDY, pull this down */
-					tvk_cfg2 {
-						pins = "GPIO32_V2";
-						ste,config = <&gpio_in_pd>;
 					};
 				};
 			};
