@@ -865,13 +865,7 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	}
 
 	/* configure TM QCN hw errors */
-	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG, 0);
-	if (ret) {
-		dev_err(dev, "fail(%d) to read TM QCN CFG status\n", ret);
-		return ret;
-	}
-
-	hclge_cmd_reuse_desc(&desc, false);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_QCN_MEM_INT_CFG, false);
 	if (en)
 		desc.data[1] = cpu_to_le32(HCLGE_TM_QCN_MEM_ERR_INT_EN);
 
