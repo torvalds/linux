@@ -294,7 +294,6 @@ void ipu_plane_disable_deferred(struct drm_plane *plane)
 		ipu_plane_disable(ipu_plane, false);
 	}
 }
-EXPORT_SYMBOL_GPL(ipu_plane_disable_deferred);
 
 static void ipu_plane_state_reset(struct drm_plane *plane)
 {
@@ -857,7 +856,6 @@ int ipu_planes_assign_pre(struct drm_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ipu_planes_assign_pre);
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 				 int dma, int dp, unsigned int possible_crtcs,
