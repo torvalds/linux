@@ -601,13 +601,15 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link;
 	struct simple_dai_props *dai_props;
 	struct asoc_simple_dai *dais;
+	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
 	int i;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
 	dais      = devm_kcalloc(dev, li->dais, sizeof(*dais),      GFP_KERNEL);
-	if (!dai_props || !dai_link || !dais)
+	dlcs      = devm_kcalloc(dev, li->link * 3, sizeof(*dai_props), GFP_KERNEL);
+	if (!dai_props || !dai_link || !dais || !dlcs)
 		return -ENOMEM;
 
 	if (li->conf) {
@@ -622,17 +624,22 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
 	 */
 	for (i = 0; i < li->link; i++) {
-		dai_link[i].cpus		= &dai_props[i].cpus;
+		dai_props[i].cpus	= dlcs + (3 * i) + 0;
+		dai_props[i].codecs	= dlcs + (3 * i) + 1;
+		dai_props[i].platforms	= dlcs + (3 * i) + 2;
+
+		dai_link[i].cpus		= dai_props[i].cpus;
 		dai_link[i].num_cpus		= 1;
-		dai_link[i].codecs		= &dai_props[i].codecs;
+		dai_link[i].codecs		= dai_props[i].codecs;
 		dai_link[i].num_codecs		= 1;
-		dai_link[i].platforms		= &dai_props[i].platforms;
+		dai_link[i].platforms		= dai_props[i].platforms;
 		dai_link[i].num_platforms	= 1;
 	}
 
 	priv->dai_props		= dai_props;
 	priv->dai_link		= dai_link;
 	priv->dais		= dais;
+	priv->dlcs		= dlcs;
 	priv->codec_conf	= cconf;
 
 	card->dai_link		= priv->dai_link;

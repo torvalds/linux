@@ -43,9 +43,9 @@ struct asoc_simple_priv {
 	struct simple_dai_props {
 		struct asoc_simple_dai *cpu_dai;
 		struct asoc_simple_dai *codec_dai;
-		struct snd_soc_dai_link_component cpus;   /* single cpu */
-		struct snd_soc_dai_link_component codecs; /* single codec */
-		struct snd_soc_dai_link_component platforms;
+		struct snd_soc_dai_link_component *cpus;
+		struct snd_soc_dai_link_component *codecs;
+		struct snd_soc_dai_link_component *platforms;
 		struct asoc_simple_data adata;
 		struct snd_soc_codec_conf *codec_conf;
 		unsigned int mclk_fs;
@@ -54,6 +54,7 @@ struct asoc_simple_priv {
 	struct asoc_simple_jack mic_jack;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dais;
+	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *codec_conf;
 	struct gpio_desc *pa_gpio;
 	const struct snd_soc_ops *ops;
