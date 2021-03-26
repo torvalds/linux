@@ -778,7 +778,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	mutex_lock(&priv->wx_mutex);
-	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &(data->param), extra);
+	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &data->param, extra);
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
