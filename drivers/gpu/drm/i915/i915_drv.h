@@ -86,9 +86,10 @@
 #include "gt/uc/intel_uc.h"
 
 #include "intel_device_info.h"
+#include "intel_memory_region.h"
 #include "intel_pch.h"
 #include "intel_runtime_pm.h"
-#include "intel_memory_region.h"
+#include "intel_step.h"
 #include "intel_uncore.h"
 #include "intel_wakeref.h"
 #include "intel_wopcm.h"
@@ -1467,14 +1468,6 @@ enum {
 	KBL_REVID_G0,
 };
 
-struct i915_rev_steppings {
-	u8 gt_stepping;
-	u8 disp_stepping;
-};
-
-/* Defined in intel_workarounds.c */
-extern const struct i915_rev_steppings kbl_revids[];
-
 #define IS_KBL_GT_REVID(dev_priv, since, until) \
 	(IS_KABYLAKE(dev_priv) && \
 	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping >= since && \
@@ -1522,14 +1515,6 @@ enum {
 	STEP_C0,
 	STEP_D0,
 };
-
-#define TGL_UY_REVID_STEP_TBL_SIZE	4
-#define TGL_REVID_STEP_TBL_SIZE		2
-#define ADLS_REVID_STEP_TBL_SIZE	13
-
-extern const struct i915_rev_steppings tgl_uy_revid_step_tbl[TGL_UY_REVID_STEP_TBL_SIZE];
-extern const struct i915_rev_steppings tgl_revid_step_tbl[TGL_REVID_STEP_TBL_SIZE];
-extern const struct i915_rev_steppings adls_revid_step_tbl[ADLS_REVID_STEP_TBL_SIZE];
 
 static inline const struct i915_rev_steppings *
 tgl_stepping_get(struct drm_i915_private *dev_priv)
