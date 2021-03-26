@@ -54,6 +54,7 @@ struct tegra_drm {
 	struct tegra_fbdev *fbdev;
 #endif
 
+	unsigned int hmask, vmask;
 	unsigned int pitch_align;
 
 	struct tegra_display_hub *hub;
