@@ -2217,7 +2217,7 @@ static int hclge_only_alloc_priv_buff(struct hclge_dev *hdev,
 /* hclge_rx_buffer_calc: calculate the rx private buffer size for all TCs
  * @hdev: pointer to struct hclge_dev
  * @buf_alloc: pointer to buffer calculation data
- * @return: 0: calculate sucessful, negative: fail
+ * @return: 0: calculate successful, negative: fail
  */
 static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 				struct hclge_pkt_buf_alloc *buf_alloc)
@@ -3358,7 +3358,7 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 		 * caused this event. Therefore, we will do below for now:
 		 * 1. Assert HNAE3_UNKNOWN_RESET type of reset. This means we
 		 *    have defered type of reset to be used.
-		 * 2. Schedule the reset serivce task.
+		 * 2. Schedule the reset service task.
 		 * 3. When service task receives  HNAE3_UNKNOWN_RESET type it
 		 *    will fetch the correct type of reset.  This would be done
 		 *    by first decoding the types of errors.
@@ -8416,7 +8416,7 @@ int hclge_update_mac_list(struct hclge_vport *vport,
 
 	/* if the mac addr is already in the mac list, no need to add a new
 	 * one into it, just check the mac addr state, convert it to a new
-	 * new state, or just remove it, or do nothing.
+	 * state, or just remove it, or do nothing.
 	 */
 	mac_node = hclge_find_mac_node(list, addr);
 	if (mac_node) {
