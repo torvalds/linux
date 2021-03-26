@@ -130,6 +130,7 @@ MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
 /* basic init/fini API */
 static int amdgpu_dm_init(struct amdgpu_device *adev);
 static void amdgpu_dm_fini(struct amdgpu_device *adev);
+static bool is_freesync_video_mode(const struct drm_display_mode *mode, struct amdgpu_dm_connector *aconnector);
 
 static enum drm_mode_subconnector get_subconnector_type(struct dc_link *link)
 {
@@ -5165,15 +5166,27 @@ static void fill_stream_properties_from_drm_display_mode(
 		timing_out->hdmi_vic = hv_frame.vic;
 	}
 
-	timing_out->h_addressable = mode_in->hdisplay;
-	timing_out->h_total = mode_in->htotal;
-	timing_out->h_sync_width = mode_in->hsync_end - mode_in->hsync_start;
-	timing_out->h_front_porch = mode_in->hsync_start - mode_in->hdisplay;
-	timing_out->v_total = mode_in->vtotal;
-	timing_out->v_addressable = mode_in->vdisplay;
-	timing_out->v_front_porch = mode_in->vsync_start - mode_in->vdisplay;
-	timing_out->v_sync_width = mode_in->vsync_end - mode_in->vsync_start;
-	timing_out->pix_clk_100hz = mode_in->clock * 10;
+	if (is_freesync_video_mode(mode_in, aconnector)) {
+		timing_out->h_addressable = mode_in->hdisplay;
+		timing_out->h_total = mode_in->htotal;
+		timing_out->h_sync_width = mode_in->hsync_end - mode_in->hsync_start;
+		timing_out->h_front_porch = mode_in->hsync_start - mode_in->hdisplay;
+		timing_out->v_total = mode_in->vtotal;
+		timing_out->v_addressable = mode_in->vdisplay;
+		timing_out->v_front_porch = mode_in->vsync_start - mode_in->vdisplay;
+		timing_out->v_sync_width = mode_in->vsync_end - mode_in->vsync_start;
+		timing_out->pix_clk_100hz = mode_in->clock * 10;
+	} else {
+		timing_out->h_addressable = mode_in->crtc_hdisplay;
+		timing_out->h_total = mode_in->crtc_htotal;
+		timing_out->h_sync_width = mode_in->crtc_hsync_end - mode_in->crtc_hsync_start;
+		timing_out->h_front_porch = mode_in->crtc_hsync_start - mode_in->crtc_hdisplay;
+		timing_out->v_total = mode_in->crtc_vtotal;
+		timing_out->v_addressable = mode_in->crtc_vdisplay;
+		timing_out->v_front_porch = mode_in->crtc_vsync_start - mode_in->crtc_vdisplay;
+		timing_out->v_sync_width = mode_in->crtc_vsync_end - mode_in->crtc_vsync_start;
+		timing_out->pix_clk_100hz = mode_in->crtc_clock * 10;
+	}
 
 	timing_out->aspect_ratio = get_aspect_ratio(mode_in);
 
@@ -5394,7 +5407,7 @@ get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
 	return m_pref;
 }
 
-static bool is_freesync_video_mode(struct drm_display_mode *mode,
+static bool is_freesync_video_mode(const struct drm_display_mode *mode,
 				   struct amdgpu_dm_connector *aconnector)
 {
 	struct drm_display_mode *high_mode;
@@ -5517,7 +5530,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (recalculate_timing)
 		drm_mode_set_crtcinfo(&saved_mode, 0);
-	else
+	else if (!dm_state)
 		drm_mode_set_crtcinfo(&mode, 0);
 
        /*
@@ -7354,7 +7367,7 @@ static void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connect
 
 	if (!(amdgpu_freesync_vid_mode && edid))
 		return;
-	
+
 	if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
 		amdgpu_dm_connector->num_modes +=
 			add_fs_modes(amdgpu_dm_connector);
@@ -8685,7 +8698,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 #endif
 		mutex_unlock(&dm->dc_lock);
 	}
-			   
+
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
