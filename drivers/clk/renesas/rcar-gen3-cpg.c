@@ -38,7 +38,8 @@
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
  * enable - clk_enable only ensures that parents are enabled
- * rate - rate is adjustable.  clk->rate = (parent->rate * mult / 32 ) / 2
+ * rate - rate is adjustable.
+ *        clk->rate = (parent->rate * mult / 32 ) / fixed_div
  * parent - fixed parent.  No clk_set_parent support
  */
 #define CPG_FRQCRB			0x00000004
