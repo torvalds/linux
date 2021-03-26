@@ -222,7 +222,7 @@ static void ipa_teardown(struct ipa *ipa)
 	gsi_teardown(&ipa->gsi);
 }
 
-/* Configure QMB Core Master Port selection */
+/* Configure bus access behavior for IPA components */
 static void ipa_hardware_config_comp(struct ipa *ipa)
 {
 	u32 val;
