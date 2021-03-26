@@ -9,6 +9,20 @@
 #include "ipa_endpoint.h"
 #include "ipa_mem.h"
 
+/** enum ipa_resource_type - IPA resource types */
+enum ipa_resource_type {
+	/* Source resource types; first must have value 0 */
+	IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS		= 0,
+	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
+	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
+	IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
+	IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
+
+	/* Destination resource types; first must have value 0 */
+	IPA_RESOURCE_TYPE_DST_DATA_SECTORS		= 0,
+	IPA_RESOURCE_TYPE_DST_DPS_DMARS,
+};
+
 /* Resource groups used for the SC7180 SoC */
 enum ipa_rsrc_group_id {
 	/* Source resource group identifiers */
@@ -152,32 +166,27 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 static const struct ipa_resource_src ipa_resource_src[] = {
 	[IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 3,
-			.max = 63,
+			.min = 3,	.max = 63,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 3,
-			.max = 3,
+			.min = 3,	.max = 3,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 10,
-			.max = 10,
+			.min = 10,	.max = 10,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_HPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 1,
-			.max = 1,
+			.min = 1,	.max = 1,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES] = {
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 5,
-			.max = 5,
+			.min = 5,	.max = 5,
 		},
 	},
 };
@@ -186,14 +195,12 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 static const struct ipa_resource_dst ipa_resource_dst[] = {
 	[IPA_RESOURCE_TYPE_DST_DATA_SECTORS] = {
 		.limits[IPA_RSRC_GROUP_DST_UL_DL_DPL] = {
-			.min = 3,
-			.max = 3,
+			.min = 3,	.max = 3,
 		},
 	},
 	[IPA_RESOURCE_TYPE_DST_DPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_DST_UL_DL_DPL] = {
-			.min = 1,
-			.max = 63,
+			.min = 1,	.max = 63,
 		},
 	},
 };

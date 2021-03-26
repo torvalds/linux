@@ -194,20 +194,6 @@ struct ipa_gsi_endpoint_data {
 	struct ipa_endpoint_data endpoint;
 };
 
-/** enum ipa_resource_type - IPA resource types */
-enum ipa_resource_type {
-	/* Source resource types; first must have value 0 */
-	IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS		= 0,
-	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
-	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
-	IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
-	IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
-
-	/* Destination resource types; first must have value 0 */
-	IPA_RESOURCE_TYPE_DST_DATA_SECTORS		= 0,
-	IPA_RESOURCE_TYPE_DST_DPS_DMARS,
-};
-
 /**
  * struct ipa_resource_limits - minimum and maximum resource counts
  * @min:	minimum number of resources of a given type

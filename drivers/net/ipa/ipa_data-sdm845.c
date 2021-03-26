@@ -11,6 +11,20 @@
 #include "ipa_endpoint.h"
 #include "ipa_mem.h"
 
+/** enum ipa_resource_type - IPA resource types */
+enum ipa_resource_type {
+	/* Source resource types; first must have value 0 */
+	IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS		= 0,
+	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
+	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
+	IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
+	IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
+
+	/* Destination resource types; first must have value 0 */
+	IPA_RESOURCE_TYPE_DST_DATA_SECTORS		= 0,
+	IPA_RESOURCE_TYPE_DST_DPS_DMARS,
+};
+
 /* Resource groups used for the SDM845 SoC */
 enum ipa_rsrc_group_id {
 	/* Source resource group identifiers */
@@ -170,76 +184,60 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 static const struct ipa_resource_src ipa_resource_src[] = {
 	[IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
-			.min = 1,
-			.max = 255,
+			.min = 1,	.max = 255,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 1,
-			.max = 255,
+			.min = 1,	.max = 255,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
-			.min = 1,
-			.max = 63,
+			.min = 1,	.max = 63,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
-			.min = 10,
-			.max = 10,
+			.min = 10,	.max = 10,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 10,
-			.max = 10,
+			.min = 10,	.max = 10,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
-			.min = 8,
-			.max = 8,
+			.min = 8,	.max = 8,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
-			.min = 12,
-			.max = 12,
+			.min = 12,	.max = 12,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 14,
-			.max = 14,
+			.min = 14,	.max = 14,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
-			.min = 8,
-			.max = 8,
+			.min = 8,	.max = 8,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_HPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
-			.min = 0,
-			.max = 63,
+			.min = 0,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 0,
-			.max = 63,
+			.min = 0,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_MHI_DMA] = {
-			.min = 0,
-			.max = 63,
+			.min = 0,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
-			.min = 0,
-			.max = 63,
+			.min = 0,	.max = 63,
 		},
 	},
 	[IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES] = {
 		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
-			.min = 14,
-			.max = 14,
+			.min = 14,	.max = 14,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
-			.min = 20,
-			.max = 20,
+			.min = 20,	.max = 20,
 		},
 		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
-			.min = 14,
-			.max = 14,
+			.min = 14,	.max = 14,
 		},
 	},
 };
@@ -248,30 +246,24 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 static const struct ipa_resource_dst ipa_resource_dst[] = {
 	[IPA_RESOURCE_TYPE_DST_DATA_SECTORS] = {
 		.limits[IPA_RSRC_GROUP_DST_LWA_DL] = {
-			.min = 4,
-			.max = 4,
+			.min = 4,	.max = 4,
 		},
 		.limits[1] = {
-			.min = 4,
-			.max = 4,
+			.min = 4,	.max = 4,
 		},
 		.limits[IPA_RSRC_GROUP_DST_UNUSED_2] = {
-			.min = 3,
-			.max = 3,
+			.min = 3,	.max = 3,
 		}
 	},
 	[IPA_RESOURCE_TYPE_DST_DPS_DMARS] = {
 		.limits[IPA_RSRC_GROUP_DST_LWA_DL] = {
-			.min = 2,
-			.max = 63,
+			.min = 2,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_DST_UL_DL_DPL] = {
-			.min = 1,
-			.max = 63,
+			.min = 1,	.max = 63,
 		},
 		.limits[IPA_RSRC_GROUP_DST_UNUSED_2] = {
-			.min = 1,
-			.max = 2,
+			.min = 1,	.max = 2,
 		}
 	},
 };
