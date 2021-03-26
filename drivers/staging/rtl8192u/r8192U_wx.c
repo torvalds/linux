@@ -294,7 +294,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 
 	for (i = 0, val = 0; i < 14; i++) {
 		/* Include only legal frequencies for some countries */
-		if ((GET_DOT11D_INFO(priv->ieee80211)->channel_map)[i+1]) {
+		if ((GET_DOT11D_INFO(priv->ieee80211)->channel_map)[i + 1]) {
 			range->freq[val].i = i + 1;
 			range->freq[val].m = ieee80211_wlan_frequencies[i] * 100000;
 			range->freq[val].e = 1;
@@ -309,8 +309,8 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	}
 	range->num_frequency = val;
 	range->num_channels = val;
-	range->enc_capa = IW_ENC_CAPA_WPA|IW_ENC_CAPA_WPA2|
-			  IW_ENC_CAPA_CIPHER_TKIP|IW_ENC_CAPA_CIPHER_CCMP;
+	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
+			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 	tmp->scan_capa = 0x01;
 	return 0;
 }
@@ -722,7 +722,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 			goto end_hw_sec;
 
 		/* as IW_ENCODE_ALG_CCMP is defined to be 3 and KEY_TYPE_CCMP is defined to 4; */
-		alg =  (ext->alg == IW_ENCODE_ALG_CCMP)?KEY_TYPE_CCMP:ext->alg;
+		alg =  (ext->alg == IW_ENCODE_ALG_CCMP) ? KEY_TYPE_CCMP : ext->alg;
 		idx = encoding->flags & IW_ENCODE_INDEX;
 		if (idx)
 			idx--;
