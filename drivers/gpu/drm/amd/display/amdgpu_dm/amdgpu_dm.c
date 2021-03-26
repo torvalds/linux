@@ -4258,13 +4258,6 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 		return false;
 
 	/*
-	 * The arbitrary tiling support for multiplane formats has not been hooked
-	 * up.
-	 */
-	if (info->num_planes > 1)
-		return false;
-
-	/*
 	 * For D swizzle the canonical modifier depends on the bpp, so check
 	 * it here.
 	 */
@@ -4281,6 +4274,10 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 	if (modifier_has_dcc(modifier)) {
 		/* Per radeonsi comments 16/64 bpp are more complicated. */
 		if (info->cpp[0] != 4)
+			return false;
+		/* We support multi-planar formats, but not when combined with
+		 * additional DCC metadata planes. */
+		if (info->num_planes > 1)
 			return false;
 	}
 
