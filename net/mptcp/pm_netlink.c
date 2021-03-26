@@ -140,6 +140,24 @@ static bool lookup_subflow_by_saddr(const struct list_head *list,
 	return false;
 }
 
+static bool lookup_subflow_by_daddr(const struct list_head *list,
+				    struct mptcp_addr_info *daddr)
+{
+	struct mptcp_subflow_context *subflow;
+	struct mptcp_addr_info cur;
+	struct sock_common *skc;
+
+	list_for_each_entry(subflow, list, node) {
+		skc = (struct sock_common *)mptcp_subflow_tcp_sock(subflow);
+
+		remote_address(skc, &cur);
+		if (addresses_equal(&cur, daddr, daddr->port))
+			return true;
+	}
+
+	return false;
+}
+
 static struct mptcp_pm_addr_entry *
 select_local_address(const struct pm_nl_pernet *pernet,
 		     struct mptcp_sock *msk)
@@ -475,6 +493,10 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	pr_debug("accepted %d:%d remote family %d",
 		 msk->pm.add_addr_accepted, add_addr_accept_max,
 		 msk->pm.remote.family);
+
+	if (lookup_subflow_by_daddr(&msk->conn_list, &msk->pm.remote))
+		goto add_addr_echo;
+
 	msk->pm.add_addr_accepted++;
 	msk->pm.subflows++;
 	if (msk->pm.add_addr_accepted >= add_addr_accept_max ||
@@ -494,6 +516,7 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	__mptcp_subflow_connect(sk, &local, &remote);
 	spin_lock_bh(&msk->pm.lock);
 
+add_addr_echo:
 	mptcp_pm_announce_addr(msk, &msk->pm.remote, true);
 	mptcp_pm_nl_add_addr_send_ack(msk);
 }
