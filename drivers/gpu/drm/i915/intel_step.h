@@ -10,7 +10,7 @@
 
 struct drm_i915_private;
 
-struct i915_rev_steppings {
+struct intel_step_info {
 	u8 gt_step;
 	u8 display_step;
 };

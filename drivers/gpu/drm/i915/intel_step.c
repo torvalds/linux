@@ -15,7 +15,7 @@
 
 
 /* FIXME: what about REVID_E0 */
-static const struct i915_rev_steppings kbl_revids[] = {
+static const struct intel_step_info kbl_revids[] = {
 	[0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
 	[1] = { .gt_step = STEP_B0, .display_step = STEP_B0 },
 	[2] = { .gt_step = STEP_C0, .display_step = STEP_B0 },
@@ -26,7 +26,7 @@ static const struct i915_rev_steppings kbl_revids[] = {
 	[7] = { .gt_step = STEP_G0, .display_step = STEP_C0 },
 };
 
-static const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
+static const struct intel_step_info tgl_uy_revid_step_tbl[] = {
 	[0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
 	[1] = { .gt_step = STEP_B0, .display_step = STEP_C0 },
 	[2] = { .gt_step = STEP_B1, .display_step = STEP_C0 },
@@ -34,12 +34,12 @@ static const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
 };
 
 /* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
-static const struct i915_rev_steppings tgl_revid_step_tbl[] = {
+static const struct intel_step_info tgl_revid_step_tbl[] = {
 	[0] = { .gt_step = STEP_A0, .display_step = STEP_B0 },
 	[1] = { .gt_step = STEP_B0, .display_step = STEP_D0 },
 };
 
-static const struct i915_rev_steppings adls_revid_step_tbl[] = {
+static const struct intel_step_info adls_revid_step_tbl[] = {
 	[0x0] = { .gt_step = STEP_A0, .display_step = STEP_A0 },
 	[0x1] = { .gt_step = STEP_A0, .display_step = STEP_A2 },
 	[0x4] = { .gt_step = STEP_B0, .display_step = STEP_B0 },
@@ -49,10 +49,10 @@ static const struct i915_rev_steppings adls_revid_step_tbl[] = {
 
 void intel_step_init(struct drm_i915_private *i915)
 {
-	const struct i915_rev_steppings *revids = NULL;
+	const struct intel_step_info *revids = NULL;
 	int size = 0;
 	int revid = INTEL_REVID(i915);
-	struct i915_rev_steppings step = {};
+	struct intel_step_info step = {};
 
 	if (IS_ALDERLAKE_S(i915)) {
 		revids = adls_revid_step_tbl;

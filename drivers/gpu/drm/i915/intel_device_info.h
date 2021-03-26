@@ -229,7 +229,7 @@ struct intel_runtime_info {
 
 	u32 rawclk_freq;
 
-	struct i915_rev_steppings step;
+	struct intel_step_info step;
 };
 
 struct intel_driver_caps {
