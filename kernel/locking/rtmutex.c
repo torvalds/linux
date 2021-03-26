@@ -579,7 +579,6 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	 * walk, we detected a deadlock.
 	 */
 	if (lock == orig_lock || rt_mutex_owner(lock) == top_task) {
-		debug_rt_mutex_deadlock(chwalk, orig_waiter, lock);
 		raw_spin_unlock(&lock->wait_lock);
 		ret = -EDEADLK;
 		goto out_unlock_pi;
@@ -1171,8 +1170,6 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 
 		raw_spin_unlock_irq(&lock->wait_lock);
 
-		debug_rt_mutex_print_deadlock(waiter);
-
 		schedule();
 
 		raw_spin_lock_irq(&lock->wait_lock);
@@ -1196,7 +1193,7 @@ static void rt_mutex_handle_deadlock(int res, int detect_deadlock,
 	/*
 	 * Yell loudly and stop the task right here.
 	 */
-	rt_mutex_print_deadlock(w);
+	WARN(1, "rtmutex deadlock detected\n");
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
@@ -1703,8 +1700,6 @@ int __rt_mutex_start_proxy_lock(struct rt_mutex *lock,
 		 */
 		ret = 0;
 	}
-
-	debug_rt_mutex_print_deadlock(waiter);
 
 	return ret;
 }
