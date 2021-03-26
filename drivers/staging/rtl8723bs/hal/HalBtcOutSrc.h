@@ -198,8 +198,6 @@ enum {
 	BTC_WIFI_PNP_MAX
 };
 
-/* for 8723b-d cut large current issue */
-
 /*  defined for BFP_BTC_GET */
 enum {
 	/*  type bool */

@@ -11,8 +11,6 @@
 
 
 
-/*  =========== Constant/Structure/Enum/... Define */
-
 /*  =========== Macro Define */
 
 #define _reg_all(_name)			ODM_##_name

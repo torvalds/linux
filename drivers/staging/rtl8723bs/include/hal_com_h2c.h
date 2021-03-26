@@ -7,11 +7,6 @@
 #ifndef __COMMON_H2C_H__
 #define __COMMON_H2C_H__
 
-/*  */
-/*     H2C CMD DEFINITION    ------------------------------------------------ */
-/*  */
-/*  88e, 8723b, 8812, 8821, 92e use the same FW code base */
-
 #define H2C_RSVDPAGE_LOC_LEN		5
 #define H2C_MEDIA_STATUS_RPT_LEN		3
 #define H2C_KEEP_ALIVE_CTRL_LEN	2

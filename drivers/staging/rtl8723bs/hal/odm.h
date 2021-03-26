@@ -1147,9 +1147,6 @@ enum { /* tag_RF_Type_Definition */
 	RF_MAX = 2,
 };
 
-/* 3 =========================================================== */
-/* 3 Antenna Diversity */
-/* 3 =========================================================== */
 /*  Maximal number of antenna detection mechanism needs to perform, added by Roger, 2011.12.28. */
 #define	MAX_ANTENNA_DETECTION_CNT	10
 
