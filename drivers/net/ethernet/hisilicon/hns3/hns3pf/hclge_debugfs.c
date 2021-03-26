@@ -1541,8 +1541,7 @@ static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev,
 	}
 }
 
-static void hclge_dbg_dump_loopback(struct hclge_dev *hdev,
-				    const char *cmd_buf)
+static void hclge_dbg_dump_loopback(struct hclge_dev *hdev)
 {
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	struct hclge_config_mac_mode_cmd *req_app;
@@ -1778,7 +1777,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_mac_tnl_status(hdev);
 	} else if (strncmp(cmd_buf, DUMP_LOOPBACK,
 		   strlen(DUMP_LOOPBACK)) == 0) {
-		hclge_dbg_dump_loopback(hdev, &cmd_buf[sizeof(DUMP_LOOPBACK)]);
+		hclge_dbg_dump_loopback(hdev);
 	} else if (strncmp(cmd_buf, "dump qs shaper", 14) == 0) {
 		hclge_dbg_dump_qs_shaper(hdev,
 					 &cmd_buf[sizeof("dump qs shaper")]);
