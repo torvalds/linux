@@ -2047,28 +2047,21 @@ out_err:
 	return copied;
 }
 
-static void mptcp_retransmit_handler(struct sock *sk)
-{
-	struct mptcp_sock *msk = mptcp_sk(sk);
-
-	set_bit(MPTCP_WORK_RTX, &msk->flags);
-	mptcp_schedule_work(sk);
-}
-
 static void mptcp_retransmit_timer(struct timer_list *t)
 {
 	struct inet_connection_sock *icsk = from_timer(icsk, t,
 						       icsk_retransmit_timer);
 	struct sock *sk = &icsk->icsk_inet.sk;
+	struct mptcp_sock *msk = mptcp_sk(sk);
 
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
-		mptcp_retransmit_handler(sk);
+		/* we need a process context to retransmit */
+		if (!test_and_set_bit(MPTCP_WORK_RTX, &msk->flags))
+			mptcp_schedule_work(sk);
 	} else {
 		/* delegate our work to tcp_release_cb() */
-		if (!test_and_set_bit(TCP_WRITE_TIMER_DEFERRED,
-				      &sk->sk_tsq_flags))
-			sock_hold(sk);
+		set_bit(MPTCP_RETRANSMIT, &msk->flags);
 	}
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -2958,17 +2951,16 @@ void __mptcp_check_push(struct sock *sk, struct sock *ssk)
 	}
 }
 
-#define MPTCP_DEFERRED_ALL (TCPF_WRITE_TIMER_DEFERRED)
-
 /* processes deferred events and flush wmem */
 static void mptcp_release_cb(struct sock *sk)
 {
-	unsigned long flags, nflags;
-
 	for (;;) {
-		flags = 0;
+		unsigned long flags = 0;
+
 		if (test_and_clear_bit(MPTCP_PUSH_PENDING, &mptcp_sk(sk)->flags))
 			flags |= BIT(MPTCP_PUSH_PENDING);
+		if (test_and_clear_bit(MPTCP_RETRANSMIT, &mptcp_sk(sk)->flags))
+			flags |= BIT(MPTCP_RETRANSMIT);
 		if (!flags)
 			break;
 
@@ -2983,6 +2975,8 @@ static void mptcp_release_cb(struct sock *sk)
 		spin_unlock_bh(&sk->sk_lock.slock);
 		if (flags & BIT(MPTCP_PUSH_PENDING))
 			__mptcp_push_pending(sk, 0);
+		if (flags & BIT(MPTCP_RETRANSMIT))
+			__mptcp_retrans(sk);
 
 		cond_resched();
 		spin_lock_bh(&sk->sk_lock.slock);
@@ -2998,20 +2992,6 @@ static void mptcp_release_cb(struct sock *sk)
 	 */
 	__mptcp_update_wmem(sk);
 	__mptcp_update_rmem(sk);
-
-	do {
-		flags = sk->sk_tsq_flags;
-		if (!(flags & MPTCP_DEFERRED_ALL))
-			return;
-		nflags = flags & ~MPTCP_DEFERRED_ALL;
-	} while (cmpxchg(&sk->sk_tsq_flags, flags, nflags) != flags);
-
-	sock_release_ownership(sk);
-
-	if (flags & TCPF_WRITE_TIMER_DEFERRED) {
-		mptcp_retransmit_handler(sk);
-		__sock_put(sk);
-	}
 }
 
 void mptcp_subflow_process_delegated(struct sock *ssk)

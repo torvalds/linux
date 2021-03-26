@@ -104,6 +104,7 @@
 #define MPTCP_PUSH_PENDING	6
 #define MPTCP_CLEAN_UNA		7
 #define MPTCP_ERROR_REPORT	8
+#define MPTCP_RETRANSMIT	9
 
 static inline bool before64(__u64 seq1, __u64 seq2)
 {
