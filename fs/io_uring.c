@@ -4798,7 +4798,6 @@ static int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 			ret = -ENOMEM;
 			goto out;
 		}
-		io = req->async_data;
 		memcpy(req->async_data, &__io, sizeof(__io));
 		return -EAGAIN;
 	}
