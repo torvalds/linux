@@ -617,6 +617,10 @@ static int graph_count_noml(struct asoc_simple_priv *priv,
 {
 	struct device *dev = simple_priv_to_dev(priv);
 
+	/* Do it only CPU turn */
+	if (!li->cpu)
+		return 0;
+
 	li->link += 1; /* 1xCPU-Codec */
 	li->dais += 2; /* 1xCPU + 1xCodec */
 
@@ -633,10 +637,22 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 {
 	struct device *dev = simple_priv_to_dev(priv);
 
-	li->link++; /* 1xCPU-dummy */
-	li->dais++; /* 1xCPU */
+	/*
+	 * Codec endpoint can be NULL for pluggable audio HW.
+	 * Platform DT can populate the Codec endpoint depending on the
+	 * plugged HW.
+	 */
+	if (!li->cpu && !codec_ep)
+		return 0;
 
-	if (!dup_codec && codec_ep) {
+	/* Do it all CPU endpoint, and 1st Codec endpoint */
+	if (!li->cpu && dup_codec)
+		return 0;
+
+	if (li->cpu) {
+		li->link++; /* 1xCPU-dummy */
+		li->dais++; /* 1xCPU */
+	} else if (!dup_codec && codec_ep) {
 		li->link++; /* 1xdummy-Codec */
 		li->conf++; /* 1xdummy-Codec */
 		li->dais++; /* 1xCodec */
@@ -698,9 +714,10 @@ static void graph_get_dais_count(struct asoc_simple_priv *priv,
 	 *	=> 4 DAIs  = 2xCPU + 2xCodec
 	 *	=> 1 ccnf  = 1xdummy-Codec
 	 */
-	graph_for_each_link(priv, li,
-			    graph_count_noml,
-			    graph_count_dpcm);
+	for (li->cpu = 1; li->cpu >= 0; li->cpu--)
+		graph_for_each_link(priv, li,
+				    graph_count_noml,
+				    graph_count_dpcm);
 	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
 		li->link, li->dais, li->conf);
 }
