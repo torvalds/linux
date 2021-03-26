@@ -337,6 +337,9 @@ static void mptcp_pm_add_timer(struct timer_list *timer)
 
 	spin_unlock_bh(&msk->pm.lock);
 
+	if (entry->retrans_times == ADD_ADDR_RETRANS_MAX)
+		mptcp_pm_subflow_established(msk);
+
 out:
 	__sock_put(sk);
 }
