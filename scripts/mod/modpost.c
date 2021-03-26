@@ -204,7 +204,7 @@ struct symbol {
 
 static struct symbol *symbolhash[SYMBOL_HASH_SIZE];
 
-/* This is based on the hash agorithm from gdbm, via tdb */
+/* This is based on the hash algorithm from gdbm, via tdb */
 static inline unsigned int tdb_hash(const char *name)
 {
 	unsigned value;	/* Used to compute the hash value.  */
@@ -987,7 +987,7 @@ enum mismatch {
 };
 
 /**
- * Describe how to match sections on different criterias:
+ * Describe how to match sections on different criteria:
  *
  * @fromsec: Array of sections to be matched.
  *
@@ -995,12 +995,12 @@ enum mismatch {
  * this array is forbidden (black-list).  Can be empty.
  *
  * @good_tosec: Relocations applied to a section in @fromsec must be
- * targetting sections in this array (white-list).  Can be empty.
+ * targeting sections in this array (white-list).  Can be empty.
  *
  * @mismatch: Type of mismatch.
  *
  * @symbol_white_list: Do not match a relocation to a symbol in this list
- * even if it is targetting a section in @bad_to_sec.
+ * even if it is targeting a section in @bad_to_sec.
  *
  * @handler: Specific handler to call when a match is found.  If NULL,
  * default_mismatch_handler() will be called.
