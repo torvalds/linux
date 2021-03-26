@@ -1382,6 +1382,10 @@ struct ethtool_per_queue_op {
  * @fec: Bitmask of configured FEC modes.
  * @reserved: Reserved for future extensions, ignore on GET, write 0 for SET.
  *
+ * Note that @reserved was never validated on input and ethtool user space
+ * left it uninitialized when calling SET. Hence going forward it can only be
+ * used to return a value to userspace with GET.
+ *
  * FEC modes supported by the device can be read via %ETHTOOL_GLINKSETTINGS.
  * FEC settings are configured by link autonegotiation whenever it's enabled.
  * With autoneg on %ETHTOOL_GFECPARAM can be used to read the current mode.
@@ -1410,16 +1414,16 @@ struct ethtool_fecparam {
 
 /**
  * enum ethtool_fec_config_bits - flags definition of ethtool_fec_configuration
- * @ETHTOOL_FEC_NONE: FEC mode configuration is not supported. Should not
- *		      be used together with other bits. GET only.
- * @ETHTOOL_FEC_AUTO: Select default/best FEC mode automatically, usually based
- *		      link mode and SFP parameters read from module's EEPROM.
- *		      This bit does _not_ mean autonegotiation.
- * @ETHTOOL_FEC_OFF: No FEC Mode
- * @ETHTOOL_FEC_RS: Reed-Solomon FEC Mode
- * @ETHTOOL_FEC_BASER: Base-R/Reed-Solomon FEC Mode
- * @ETHTOOL_FEC_LLRS: Low Latency Reed Solomon FEC Mode (25G/50G Ethernet
- *		      Consortium)
+ * @ETHTOOL_FEC_NONE_BIT: FEC mode configuration is not supported. Should not
+ *			be used together with other bits. GET only.
+ * @ETHTOOL_FEC_AUTO_BIT: Select default/best FEC mode automatically, usually
+ *			based link mode and SFP parameters read from module's
+ *			EEPROM. This bit does _not_ mean autonegotiation.
+ * @ETHTOOL_FEC_OFF_BIT: No FEC Mode
+ * @ETHTOOL_FEC_RS_BIT: Reed-Solomon FEC Mode
+ * @ETHTOOL_FEC_BASER_BIT: Base-R/Reed-Solomon FEC Mode
+ * @ETHTOOL_FEC_LLRS_BIT: Low Latency Reed Solomon FEC Mode (25G/50G Ethernet
+ *			Consortium)
  */
 enum ethtool_fec_config_bits {
 	ETHTOOL_FEC_NONE_BIT,
