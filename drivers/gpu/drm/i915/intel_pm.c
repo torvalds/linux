@@ -7233,12 +7233,12 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 		   FBC_LLC_FULLY_OPEN);
 
 	/* WaDisableSDEUnitClockGating:kbl */
-	if (IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_STEP(dev_priv, 0, STEP_B0))
 		intel_uncore_write(&dev_priv->uncore, GEN8_UCGCTL6, intel_uncore_read(&dev_priv->uncore, GEN8_UCGCTL6) |
 			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableGamClockGating:kbl */
-	if (IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_STEP(dev_priv, 0, STEP_B0))
 		intel_uncore_write(&dev_priv->uncore, GEN6_UCGCTL1, intel_uncore_read(&dev_priv->uncore, GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
