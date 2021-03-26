@@ -688,7 +688,7 @@ static void xfrm_hash_resize(struct work_struct *work)
 }
 
 /* Make sure *pol can be inserted into fastbin.
- * Useful to check that later insert requests will be sucessful
+ * Useful to check that later insert requests will be successful
  * (provided xfrm_policy_lock is held throughout).
  */
 static struct xfrm_pol_inexact_bin *
