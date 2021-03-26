@@ -773,7 +773,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
 ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
-	char buf[3];
+	char buf[2];
 	bool val;
 	int r;
 	struct dentry *dentry = F_DENTRY(file);
@@ -789,7 +789,6 @@ ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
 	else
 		buf[0] = 'N';
 	buf[1] = '\n';
-	buf[2] = 0x00;
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 EXPORT_SYMBOL_GPL(debugfs_read_file_bool);
