@@ -577,8 +577,6 @@ static void __exit rtw_drv_halt(void)
 	rtw_ndev_notifier_unregister();
 
 	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
-
-	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
 

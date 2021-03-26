@@ -58,11 +58,6 @@
 
 extern int RTW_STATUS_CODE(int error_code);
 
-#define mstat_tf_idx(flags) ((flags)&0xff)
-#define mstat_ff_idx(flags) (((flags)&0xff00) >> 8)
-
-#define rtw_mstat_update(flag, status, sz) do {} while (0)
-#define rtw_mstat_dump(sel) do {} while (0)
 void *_rtw_zmalloc(u32 sz);
 void *_rtw_malloc(u32 sz);
 void _kfree(u8 *pbuf, u32 sz);

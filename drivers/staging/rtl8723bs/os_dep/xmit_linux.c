@@ -248,10 +248,8 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
 	int ret = 0;
 
-	if (pkt) {
-		rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, pkt->truesize);
+	if (pkt)
 		ret = _rtw_xmit_entry(pkt, pnetdev);
-	}
 
 	return ret;
 }
