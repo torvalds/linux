@@ -542,9 +542,6 @@ static int create_static_call_sections(struct objtool_file *file)
 		idx++;
 	}
 
-	if (elf_rebuild_reloc_section(file->elf, reloc_sec))
-		return -1;
-
 	return 0;
 }
 

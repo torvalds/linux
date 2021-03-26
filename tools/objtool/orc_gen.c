@@ -251,8 +251,5 @@ int orc_create(struct objtool_file *file)
 			return -1;
 	}
 
-	if (elf_rebuild_reloc_section(file->elf, ip_rsec))
-		return -1;
-
 	return 0;
 }
