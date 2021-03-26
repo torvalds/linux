@@ -1813,3 +1813,11 @@ bool rt_mutex_cleanup_proxy_lock(struct rt_mutex *lock,
 
 	return cleanup;
 }
+
+#ifdef CONFIG_DEBUG_RT_MUTEXES
+void rt_mutex_debug_task_free(struct task_struct *task)
+{
+	DEBUG_LOCKS_WARN_ON(!RB_EMPTY_ROOT(&task->pi_waiters.rb_root));
+	DEBUG_LOCKS_WARN_ON(task->pi_blocked_on);
+}
+#endif
