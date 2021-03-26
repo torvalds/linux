@@ -27,6 +27,8 @@
 
 #include <uapi/drm/i915_drm.h>
 
+#include "intel_step.h"
+
 #include "display/intel_display.h"
 
 #include "gt/intel_engine_types.h"
@@ -226,6 +228,8 @@ struct intel_runtime_info {
 	u8 num_scalers[I915_MAX_PIPES];
 
 	u32 rawclk_freq;
+
+	struct i915_rev_steppings step;
 };
 
 struct intel_driver_caps {
