@@ -620,3 +620,8 @@ int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
 
 	return 0;
 }
+
+bool arch_is_retpoline(struct symbol *sym)
+{
+	return !strncmp(sym->name, "__x86_indirect_", 15);
+}
