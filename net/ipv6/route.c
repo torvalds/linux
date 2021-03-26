@@ -6075,7 +6075,7 @@ void fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i,
 
 	if (!rcu_access_pointer(f6i->fib6_node))
 		/* The route was removed from the tree, do not send
-		 * notfication.
+		 * notification.
 		 */
 		return;
 
