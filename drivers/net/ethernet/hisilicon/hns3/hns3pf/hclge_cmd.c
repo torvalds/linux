@@ -366,7 +366,6 @@ static void hclge_parse_capability(struct hclge_dev *hdev,
 	u32 caps;
 
 	caps = __le32_to_cpu(cmd->caps[0]);
-
 	if (hnae3_get_bit(caps, HCLGE_CAP_UDP_GSO_B))
 		set_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps);
 	if (hnae3_get_bit(caps, HCLGE_CAP_PTP_B))

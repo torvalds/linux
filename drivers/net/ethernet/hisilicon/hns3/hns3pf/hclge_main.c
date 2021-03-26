@@ -553,7 +553,6 @@ static int hclge_mac_update_stats(struct hclge_dev *hdev)
 	int ret;
 
 	ret = hclge_mac_query_reg_num(hdev, &desc_num);
-
 	/* The firmware supports the new statistics acquisition method */
 	if (!ret)
 		ret = hclge_mac_update_stats_complete(hdev, desc_num);
@@ -784,7 +783,6 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
-
 	} else if (stringset == ETH_SS_STATS) {
 		count = ARRAY_SIZE(g_mac_stats_string) +
 			hclge_tqps_get_sset_count(handle, stringset);
@@ -2191,7 +2189,6 @@ static int hclge_only_alloc_priv_buff(struct hclge_dev *hdev,
 			COMPENSATE_HALF_MPS_NUM * half_mps;
 	min_rx_priv = round_up(min_rx_priv, HCLGE_BUF_SIZE_UNIT);
 	rx_priv = round_down(rx_priv, HCLGE_BUF_SIZE_UNIT);
-
 	if (rx_priv < min_rx_priv)
 		return false;
 
@@ -8608,7 +8605,6 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	if (status)
 		return status;
 	status = hclge_add_mac_vlan_tbl(vport, &req, desc);
-
 	/* if already overflow, not to print each time */
 	if (status == -ENOSPC &&
 	    !(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE))
@@ -8657,7 +8653,6 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 		else
 			/* Not all the vfid is zero, update the vfid */
 			status = hclge_add_mac_vlan_tbl(vport, &req, desc);
-
 	} else if (status == -ENOENT) {
 		status = 0;
 	}
