@@ -868,7 +868,6 @@ static u16
 minstrel_ht_next_jump_rate(struct minstrel_ht_sta *mi, u32 fast_rate_dur,
 			   u32 slow_rate_dur, int *slow_rate_ofs)
 {
-	struct minstrel_mcs_group_data *mg;
 	struct minstrel_rate_stats *mrs;
 	u32 max_duration = slow_rate_dur;
 	int i, index, offset;
@@ -886,7 +885,6 @@ minstrel_ht_next_jump_rate(struct minstrel_ht_sta *mi, u32 fast_rate_dur,
 		u8 type;
 
 		group = (group + 1) % ARRAY_SIZE(minstrel_mcs_groups);
-		mg = &mi->groups[group];
 
 		supported = mi->supported[group];
 		if (!supported)
