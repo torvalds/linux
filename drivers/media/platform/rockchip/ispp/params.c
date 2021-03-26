@@ -192,7 +192,7 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 		      struct rkispp_nr_config *arg)
 {
 	u32 i, val;
-	u8 big_en, nobig_en;
+	u8 big_en, nobig_en, sd32_self_en = 0;
 
 	rkispp_write(params_vdev->dev, RKISPP_NR_UVNR_GAIN_1SIGMA,
 		arg->uvnr_gain_1sigma);
@@ -320,8 +320,11 @@ static void nr_config(struct rkispp_params_vdev *params_vdev,
 		nobig_en = 0;
 	}
 
+	if (params_vdev->dev->hw_dev->is_single)
+		sd32_self_en = arg->uvnr_sd32_self_en;
 	val = arg->uvnr_step1_en << 1 | arg->uvnr_step2_en << 2 |
-	      arg->nr_gain_en << 3 | nobig_en << 5 | big_en << 6;
+	      arg->nr_gain_en << 3 | sd32_self_en << 4 |
+	      nobig_en << 5 | big_en << 6;
 	rkispp_set_bits(params_vdev->dev, RKISPP_NR_UVNR_CTRL_PARA,
 			SW_UVNR_STEP1_ON | SW_UVNR_STEP2_ON |
 			SW_NR_GAIN_BYPASS | SW_UVNR_NOBIG_EN |

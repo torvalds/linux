@@ -190,6 +190,7 @@ struct rkispp_nr_config {
 	u8 uvnr_step1_en;
 	u8 uvnr_step2_en;
 	u8 nr_gain_en;
+	u8 uvnr_sd32_self_en;
 	u8 uvnr_nobig_en;
 	u8 uvnr_big_en;
 	u8 uvnr_gain_1sigma;
