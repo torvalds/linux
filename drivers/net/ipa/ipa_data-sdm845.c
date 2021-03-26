@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2021 Linaro Ltd.
  */
 
 #include <linux/log2.h>
@@ -10,6 +10,36 @@
 #include "ipa_data.h"
 #include "ipa_endpoint.h"
 #include "ipa_mem.h"
+
+/** enum ipa_resource_type - IPA resource types */
+enum ipa_resource_type {
+	/* Source resource types; first must have value 0 */
+	IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS		= 0,
+	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
+	IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
+	IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
+	IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
+
+	/* Destination resource types; first must have value 0 */
+	IPA_RESOURCE_TYPE_DST_DATA_SECTORS		= 0,
+	IPA_RESOURCE_TYPE_DST_DPS_DMARS,
+};
+
+/* Resource groups used for the SDM845 SoC */
+enum ipa_rsrc_group_id {
+	/* Source resource group identifiers */
+	IPA_RSRC_GROUP_SRC_LWA_DL	= 0,
+	IPA_RSRC_GROUP_SRC_UL_DL,
+	IPA_RSRC_GROUP_SRC_MHI_DMA,
+	IPA_RSRC_GROUP_SRC_UC_RX_Q,
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
+
+	/* Destination resource group identifiers */
+	IPA_RSRC_GROUP_DST_LWA_DL	= 0,
+	IPA_RSRC_GROUP_DST_UL_DL_DPL,
+	IPA_RSRC_GROUP_DST_UNUSED_2,
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
+};
 
 /* QSB configuration for the SDM845 SoC. */
 static const struct ipa_qsb_data ipa_qsb_data[] = {
@@ -37,7 +67,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		},
 		.endpoint = {
 			.config = {
-				.resource_group	= 1,
+				.resource_group	= IPA_RSRC_GROUP_SRC_UL_DL,
 				.dma_mode	= true,
 				.dma_endpoint	= IPA_ENDPOINT_AP_LAN_RX,
 				.tx = {
@@ -58,7 +88,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		},
 		.endpoint = {
 			.config = {
-				.resource_group	= 1,
+				.resource_group	= IPA_RSRC_GROUP_DST_UL_DL_DPL,
 				.aggregation	= true,
 				.status_enable	= true,
 				.rx = {
@@ -80,7 +110,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.filter_support	= true,
 			.config = {
-				.resource_group	= 1,
+				.resource_group	= IPA_RSRC_GROUP_SRC_UL_DL,
 				.checksum	= true,
 				.qmap		= true,
 				.status_enable	= true,
@@ -104,7 +134,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		},
 		.endpoint = {
 			.config = {
-				.resource_group	= 1,
+				.resource_group	= IPA_RSRC_GROUP_DST_UL_DL_DPL,
 				.checksum	= true,
 				.qmap		= true,
 				.aggregation	= true,
@@ -152,95 +182,98 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 	},
 };
 
-/* For the SDM845, resource groups are allocated this way:
- *   group 0:	LWA_DL
- *   group 1:	UL_DL
- */
-static const struct ipa_resource_src ipa_resource_src[] = {
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS,
-		.limits[0] = {
-			.min = 1,
-			.max = 255,
+/* Source resource configuration data for the SDM845 SoC */
+static const struct ipa_resource ipa_resource_src[] = {
+	[IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS] = {
+		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
+			.min = 1,	.max = 255,
 		},
-		.limits[1] = {
-			.min = 1,
-			.max = 255,
+		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
+			.min = 1,	.max = 255,
+		},
+		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
+			.min = 1,	.max = 63,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS,
-		.limits[0] = {
-			.min = 10,
-			.max = 10,
+	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_LISTS] = {
+		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
+			.min = 10,	.max = 10,
 		},
-		.limits[1] = {
-			.min = 10,
-			.max = 10,
+		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
+			.min = 10,	.max = 10,
 		},
-	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF,
-		.limits[0] = {
-			.min = 12,
-			.max = 12,
-		},
-		.limits[1] = {
-			.min = 14,
-			.max = 14,
+		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
+			.min = 8,	.max = 8,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_HPS_DMARS,
-		.limits[0] = {
-			.min = 0,
-			.max = 63,
+	[IPA_RESOURCE_TYPE_SRC_DESCRIPTOR_BUFF] = {
+		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
+			.min = 12,	.max = 12,
 		},
-		.limits[1] = {
-			.min = 0,
-			.max = 63,
+		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
+			.min = 14,	.max = 14,
+		},
+		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
+			.min = 8,	.max = 8,
 		},
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES,
-		.limits[0] = {
-			.min = 14,
-			.max = 14,
+	[IPA_RESOURCE_TYPE_SRC_HPS_DMARS] = {
+		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
+			.min = 0,	.max = 63,
 		},
-		.limits[1] = {
-			.min = 20,
-			.max = 20,
+		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
+			.min = 0,	.max = 63,
+		},
+		.limits[IPA_RSRC_GROUP_SRC_MHI_DMA] = {
+			.min = 0,	.max = 63,
+		},
+		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
+			.min = 0,	.max = 63,
+		},
+	},
+	[IPA_RESOURCE_TYPE_SRC_ACK_ENTRIES] = {
+		.limits[IPA_RSRC_GROUP_SRC_LWA_DL] = {
+			.min = 14,	.max = 14,
+		},
+		.limits[IPA_RSRC_GROUP_SRC_UL_DL] = {
+			.min = 20,	.max = 20,
+		},
+		.limits[IPA_RSRC_GROUP_SRC_UC_RX_Q] = {
+			.min = 14,	.max = 14,
 		},
 	},
 };
 
-static const struct ipa_resource_dst ipa_resource_dst[] = {
-	{
-		.type = IPA_RESOURCE_TYPE_DST_DATA_SECTORS,
-		.limits[0] = {
-			.min = 4,
-			.max = 4,
+/* Destination resource configuration data for the SDM845 SoC */
+static const struct ipa_resource ipa_resource_dst[] = {
+	[IPA_RESOURCE_TYPE_DST_DATA_SECTORS] = {
+		.limits[IPA_RSRC_GROUP_DST_LWA_DL] = {
+			.min = 4,	.max = 4,
 		},
 		.limits[1] = {
-			.min = 4,
-			.max = 4,
+			.min = 4,	.max = 4,
 		},
+		.limits[IPA_RSRC_GROUP_DST_UNUSED_2] = {
+			.min = 3,	.max = 3,
+		}
 	},
-	{
-		.type = IPA_RESOURCE_TYPE_DST_DPS_DMARS,
-		.limits[0] = {
-			.min = 2,
-			.max = 63,
+	[IPA_RESOURCE_TYPE_DST_DPS_DMARS] = {
+		.limits[IPA_RSRC_GROUP_DST_LWA_DL] = {
+			.min = 2,	.max = 63,
 		},
-		.limits[1] = {
-			.min = 1,
-			.max = 63,
+		.limits[IPA_RSRC_GROUP_DST_UL_DL_DPL] = {
+			.min = 1,	.max = 63,
 		},
+		.limits[IPA_RSRC_GROUP_DST_UNUSED_2] = {
+			.min = 1,	.max = 2,
+		}
 	},
 };
 
 /* Resource configuration for the SDM845 SoC. */
 static const struct ipa_resource_data ipa_resource_data = {
+	.rsrc_group_src_count	= IPA_RSRC_GROUP_SRC_COUNT,
+	.rsrc_group_dst_count	= IPA_RSRC_GROUP_DST_COUNT,
 	.resource_src_count	= ARRAY_SIZE(ipa_resource_src),
 	.resource_src		= ipa_resource_src,
 	.resource_dst_count	= ARRAY_SIZE(ipa_resource_dst),

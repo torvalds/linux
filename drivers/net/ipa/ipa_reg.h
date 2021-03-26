@@ -346,48 +346,6 @@ enum ipa_pulse_gran {
 	IPA_GRAN_655350_US			= 0x7,
 };
 
-/* # IPA source resource groups available based on version */
-static inline u32 ipa_resource_group_src_count(enum ipa_version version)
-{
-	switch (version) {
-	case IPA_VERSION_3_5_1:
-	case IPA_VERSION_4_0:
-	case IPA_VERSION_4_1:
-		return 4;
-
-	case IPA_VERSION_4_2:
-		return 1;
-
-	case IPA_VERSION_4_5:
-		return 5;
-
-	default:
-		return 0;
-	}
-}
-
-/* # IPA destination resource groups available based on version */
-static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
-{
-	switch (version) {
-	case IPA_VERSION_3_5_1:
-		return 3;
-
-	case IPA_VERSION_4_0:
-	case IPA_VERSION_4_1:
-		return 4;
-
-	case IPA_VERSION_4_2:
-		return 1;
-
-	case IPA_VERSION_4_5:
-		return 5;
-
-	default:
-		return 0;
-	}
-}
-
 /* Not all of the following are present (depends on IPA version) */
 #define IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000400 + 0x0020 * (rt))
@@ -395,12 +353,16 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 					(0x00000404 + 0x0020 * (rt))
 #define IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000408 + 0x0020 * (rt))
+#define IPA_REG_SRC_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(rt) \
+					(0x0000040c + 0x0020 * (rt))
 #define IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000500 + 0x0020 * (rt))
 #define IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000504 + 0x0020 * (rt))
 #define IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000508 + 0x0020 * (rt))
+#define IPA_REG_DST_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(rt) \
+					(0x0000050c + 0x0020 * (rt))
 /* The next four fields are used for all resource group registers */
 #define X_MIN_LIM_FMASK				GENMASK(5, 0)
 #define X_MAX_LIM_FMASK				GENMASK(13, 8)
