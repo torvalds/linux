@@ -42,12 +42,7 @@ static void printk_task(struct task_struct *p)
 
 static void printk_lock(struct rt_mutex *lock, int print_owner)
 {
-	if (lock->name)
-		printk(" [%p] {%s}\n",
-			lock, lock->name);
-	else
-		printk(" [%p] {%s:%d}\n",
-			lock, lock->file, lock->line);
+	printk(" [%p] {%s}\n", lock, lock->name);
 
 	if (print_owner && rt_mutex_owner(lock)) {
 		printk(".. ->owner: %p\n", lock->owner);

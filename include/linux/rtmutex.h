@@ -32,10 +32,7 @@ struct rt_mutex {
 	struct rb_root_cached   waiters;
 	struct task_struct	*owner;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
-	int			save_state;
-	const char		*name, *file;
-	int			line;
-	void			*magic;
+	const char		*name;
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -60,7 +57,7 @@ struct hrtimer_sleeper;
 
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 # define __DEBUG_RT_MUTEX_INITIALIZER(mutexname) \
-	, .name = #mutexname, .file = __FILE__, .line = __LINE__
+	, .name = #mutexname
 
 # define rt_mutex_init(mutex) \
 do { \
