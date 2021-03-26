@@ -111,6 +111,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	union acpi_operand_object *region_obj2;
 	void *region_context = NULL;
 	struct acpi_connection_info *context;
+	acpi_mutex context_mutex;
+	u8 context_locked;
 	acpi_physical_address address;
 
 	ACPI_FUNCTION_TRACE(ev_address_space_dispatch);
@@ -135,6 +137,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	}
 
 	context = handler_desc->address_space.context;
+	context_mutex = handler_desc->address_space.context_mutex;
+	context_locked = FALSE;
 
 	/*
 	 * It may be the case that the region has never been initialized.
@@ -203,41 +207,6 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	handler = handler_desc->address_space.handler;
 	address = (region_obj->region.address + region_offset);
 
-	/*
-	 * Special handling for generic_serial_bus and general_purpose_io:
-	 * There are three extra parameters that must be passed to the
-	 * handler via the context:
-	 *   1) Connection buffer, a resource template from Connection() op
-	 *   2) Length of the above buffer
-	 *   3) Actual access length from the access_as() op
-	 *
-	 * In addition, for general_purpose_io, the Address and bit_width fields
-	 * are defined as follows:
-	 *   1) Address is the pin number index of the field (bit offset from
-	 *      the previous Connection)
-	 *   2) bit_width is the actual bit length of the field (number of pins)
-	 */
-	if ((region_obj->region.space_id == ACPI_ADR_SPACE_GSBUS) &&
-	    context && field_obj) {
-
-		/* Get the Connection (resource_template) buffer */
-
-		context->connection = field_obj->field.resource_buffer;
-		context->length = field_obj->field.resource_length;
-		context->access_length = field_obj->field.access_length;
-	}
-	if ((region_obj->region.space_id == ACPI_ADR_SPACE_GPIO) &&
-	    context && field_obj) {
-
-		/* Get the Connection (resource_template) buffer */
-
-		context->connection = field_obj->field.resource_buffer;
-		context->length = field_obj->field.resource_length;
-		context->access_length = field_obj->field.access_length;
-		address = field_obj->field.pin_number_index;
-		bit_width = field_obj->field.bit_length;
-	}
-
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "Handler %p (@%p) Address %8.8X%8.8X [%s]\n",
 			  &region_obj->region.handler->address_space, handler,
@@ -255,10 +224,70 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		acpi_ex_exit_interpreter();
 	}
 
+	/*
+	 * Special handling for generic_serial_bus and general_purpose_io:
+	 * There are three extra parameters that must be passed to the
+	 * handler via the context:
+	 *   1) Connection buffer, a resource template from Connection() op
+	 *   2) Length of the above buffer
+	 *   3) Actual access length from the access_as() op
+	 *
+	 * Since we pass these extra parameters via the context, which is
+	 * shared between threads, we must lock the context to avoid these
+	 * parameters being changed from another thread before the handler
+	 * has completed running.
+	 *
+	 * In addition, for general_purpose_io, the Address and bit_width fields
+	 * are defined as follows:
+	 *   1) Address is the pin number index of the field (bit offset from
+	 *      the previous Connection)
+	 *   2) bit_width is the actual bit length of the field (number of pins)
+	 */
+	if ((region_obj->region.space_id == ACPI_ADR_SPACE_GSBUS) &&
+	    context && field_obj) {
+
+		status =
+		    acpi_os_acquire_mutex(context_mutex, ACPI_WAIT_FOREVER);
+		if (ACPI_FAILURE(status)) {
+			goto re_enter_interpreter;
+		}
+
+		context_locked = TRUE;
+
+		/* Get the Connection (resource_template) buffer */
+
+		context->connection = field_obj->field.resource_buffer;
+		context->length = field_obj->field.resource_length;
+		context->access_length = field_obj->field.access_length;
+	}
+	if ((region_obj->region.space_id == ACPI_ADR_SPACE_GPIO) &&
+	    context && field_obj) {
+
+		status =
+		    acpi_os_acquire_mutex(context_mutex, ACPI_WAIT_FOREVER);
+		if (ACPI_FAILURE(status)) {
+			goto re_enter_interpreter;
+		}
+
+		context_locked = TRUE;
+
+		/* Get the Connection (resource_template) buffer */
+
+		context->connection = field_obj->field.resource_buffer;
+		context->length = field_obj->field.resource_length;
+		context->access_length = field_obj->field.access_length;
+		address = field_obj->field.pin_number_index;
+		bit_width = field_obj->field.bit_length;
+	}
+
 	/* Call the handler */
 
 	status = handler(function, address, bit_width, value, context,
 			 region_obj2->extra.region_context);
+
+	if (context_locked) {
+		acpi_os_release_mutex(context_mutex);
+	}
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Returned by Handler for [%s]",
@@ -276,6 +305,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		}
 	}
 
+re_enter_interpreter:
 	if (!(handler_desc->address_space.handler_flags &
 	      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
 		/*

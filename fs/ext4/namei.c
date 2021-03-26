@@ -3715,6 +3715,32 @@ static int ext4_setent(handle_t *handle, struct ext4_renament *ent,
 	return retval;
 }
 
+static void ext4_resetent(handle_t *handle, struct ext4_renament *ent,
+			  unsigned ino, unsigned file_type)
+{
+	struct ext4_renament old = *ent;
+	int retval = 0;
+
+	/*
+	 * old->de could have moved from under us during make indexed dir,
+	 * so the old->de may no longer valid and need to find it again
+	 * before reset old inode info.
+	 */
+	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name, &old.de, NULL,
+				 NULL);
+	if (IS_ERR(old.bh))
+		retval = PTR_ERR(old.bh);
+	if (!old.bh)
+		retval = -ENOENT;
+	if (retval) {
+		ext4_std_error(old.dir->i_sb, retval);
+		return;
+	}
+
+	ext4_setent(handle, &old, ino, file_type);
+	brelse(old.bh);
+}
+
 static int ext4_find_delete_entry(handle_t *handle, struct inode *dir,
 				  const struct qstr *d_name)
 {
@@ -3953,6 +3979,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		retval = ext4_mark_inode_dirty(handle, whiteout);
 		if (unlikely(retval))
 			goto end_rename;
+
 	}
 	if (!new.bh) {
 		retval = ext4_add_entry(handle, new.dentry, old.inode);
@@ -4026,6 +4053,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			ext4_fc_track_unlink(handle, new.dentry);
 		__ext4_fc_track_link(handle, old.inode, new.dentry);
 		__ext4_fc_track_unlink(handle, old.inode, old.dentry);
+		if (whiteout)
+			__ext4_fc_track_create(handle, whiteout, old.dentry);
 	}
 
 	if (new.inode) {
@@ -4040,8 +4069,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 end_rename:
 	if (whiteout) {
 		if (retval) {
-			ext4_setent(handle, &old,
-				old.inode->i_ino, old_file_type);
+			ext4_resetent(handle, &old,
+				      old.inode->i_ino, old_file_type);
 			drop_nlink(whiteout);
 		}
 		unlock_new_inode(whiteout);
