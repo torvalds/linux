@@ -46,7 +46,7 @@
 #define SYS_socket      26
 #define SYS_sendto      27
 #define SYS_recvfrom    28
-#define SYS_select_one  29      /* not compitible select, one file descriptor at the time */
+#define SYS_select_one  29      /* not compatible select, one file descriptor at the time */
 #define SYS_bind        30
 #define SYS_ioctl	31
 
