@@ -13,6 +13,7 @@
 #ifndef __KERNEL_RTMUTEX_COMMON_H
 #define __KERNEL_RTMUTEX_COMMON_H
 
+#include <linux/debug_locks.h>
 #include <linux/rtmutex.h>
 #include <linux/sched/wake_q.h>
 
@@ -135,10 +136,29 @@ extern bool __rt_mutex_futex_unlock(struct rt_mutex *lock,
 
 extern void rt_mutex_postunlock(struct wake_q_head *wake_q);
 
-#ifdef CONFIG_DEBUG_RT_MUTEXES
-# include "rtmutex-debug.h"
-#else
-# include "rtmutex.h"
-#endif
+/* Debug functions */
+static inline void debug_rt_mutex_unlock(struct rt_mutex *lock)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEXES))
+		DEBUG_LOCKS_WARN_ON(rt_mutex_owner(lock) != current);
+}
+
+static inline void debug_rt_mutex_proxy_unlock(struct rt_mutex *lock)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEXES))
+		DEBUG_LOCKS_WARN_ON(!rt_mutex_owner(lock));
+}
+
+static inline void debug_rt_mutex_init_waiter(struct rt_mutex_waiter *waiter)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEXES))
+		memset(waiter, 0x11, sizeof(*waiter));
+}
+
+static inline void debug_rt_mutex_free_waiter(struct rt_mutex_waiter *waiter)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_RT_MUTEXES))
+		memset(waiter, 0x22, sizeof(*waiter));
+}
 
 #endif
