@@ -487,7 +487,7 @@ static ssize_t surface_dtx_read(struct file *file, char __user *buf, size_t coun
 			if (status < 0)
 				return status;
 
-			if (down_read_killable(&client->ddev->lock))
+			if (down_read_killable(&ddev->lock))
 				return -ERESTARTSYS;
 
 			/* Need to check that we're not shut down again. */
