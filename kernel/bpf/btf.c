@@ -789,7 +789,6 @@ static const struct btf_type *btf_type_skip_qualifiers(const struct btf *btf,
 
 	while (btf_type_is_modifier(t) &&
 	       BTF_INFO_KIND(t->info) != BTF_KIND_TYPEDEF) {
-		id = t->type;
 		t = btf_type_by_id(btf, t->type);
 	}
 
