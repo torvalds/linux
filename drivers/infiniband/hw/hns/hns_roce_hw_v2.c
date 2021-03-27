@@ -1400,6 +1400,21 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
+static int config_hem_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
+			       dma_addr_t base_addr, u16 op)
+{
+	struct hns_roce_cmd_mailbox *mbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	int ret;
+
+	if (IS_ERR(mbox))
+		return PTR_ERR(mbox);
+
+	ret = hns_roce_cmd_mbox(hr_dev, base_addr, mbox->dma, obj, 0, op,
+				HNS_ROCE_CMD_TIMEOUT_MSECS);
+	hns_roce_free_cmd_mailbox(hr_dev, mbox);
+	return ret;
+}
+
 static int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_query_version *resp;
@@ -3779,12 +3794,9 @@ out:
 }
 
 static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
-			      int step_idx)
+			      int step_idx, u16 *mbox_op)
 {
-	int op;
-
-	if (type == HEM_TYPE_SCCC && step_idx)
-		return -EINVAL;
+	u16 op;
 
 	switch (type) {
 	case HEM_TYPE_QPC:
@@ -3809,51 +3821,50 @@ static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
 		op = HNS_ROCE_CMD_WRITE_CQC_TIMER_BT0;
 		break;
 	default:
-		dev_warn(hr_dev->dev,
-			 "table %u not to be written by mailbox!\n", type);
+		dev_warn(hr_dev->dev, "failed to check hem type %u.\n", type);
 		return -EINVAL;
 	}
 
-	return op + step_idx;
+	*mbox_op = op + step_idx;
+
+	return 0;
 }
 
-static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj, u64 bt_ba,
-			 u32 hem_type, int step_idx)
+static int config_gmv_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
+			       dma_addr_t base_addr)
 {
-	struct hns_roce_cmd_mailbox *mailbox;
 	struct hns_roce_cmq_desc desc;
 	struct hns_roce_cfg_gmv_bt *gmv_bt =
 				(struct hns_roce_cfg_gmv_bt *)desc.data;
+	u64 addr = to_hr_hw_page_addr(base_addr);
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_GMV_BT, false);
+
+	gmv_bt->gmv_ba_l = cpu_to_le32(lower_32_bits(addr));
+	gmv_bt->gmv_ba_h = cpu_to_le32(upper_32_bits(addr));
+	gmv_bt->gmv_bt_idx = cpu_to_le32(obj /
+		(HNS_HW_PAGE_SIZE / hr_dev->caps.gmv_entry_sz));
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
+static int set_hem_to_hw(struct hns_roce_dev *hr_dev, int obj,
+			 dma_addr_t base_addr, u32 hem_type, int step_idx)
+{
 	int ret;
-	int op;
+	u16 op;
 
-	if (hem_type == HEM_TYPE_GMV) {
-		hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_GMV_BT,
-					      false);
+	if (unlikely(hem_type == HEM_TYPE_GMV))
+		return config_gmv_ba_to_hw(hr_dev, obj, base_addr);
 
-		gmv_bt->gmv_ba_l = cpu_to_le32(bt_ba >> HNS_HW_PAGE_SHIFT);
-		gmv_bt->gmv_ba_h = cpu_to_le32(bt_ba >> (HNS_HW_PAGE_SHIFT +
-							 32));
-		gmv_bt->gmv_bt_idx = cpu_to_le32(obj /
-			(HNS_HW_PAGE_SIZE / hr_dev->caps.gmv_entry_sz));
-
-		return hns_roce_cmq_send(hr_dev, &desc, 1);
-	}
-
-	op = get_op_for_set_hem(hr_dev, hem_type, step_idx);
-	if (op < 0)
+	if (unlikely(hem_type == HEM_TYPE_SCCC && step_idx))
 		return 0;
 
-	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
+	ret = get_op_for_set_hem(hr_dev, hem_type, step_idx, &op);
+	if (ret < 0)
+		return ret;
 
-	ret = hns_roce_cmd_mbox(hr_dev, bt_ba, mailbox->dma, obj,
-				0, op, HNS_ROCE_CMD_TIMEOUT_MSECS);
-
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
-
-	return ret;
+	return config_hem_ba_to_hw(hr_dev, obj, base_addr, op);
 }
 
 static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
