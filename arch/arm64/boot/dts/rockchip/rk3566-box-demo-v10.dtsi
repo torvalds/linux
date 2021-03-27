@@ -464,6 +464,26 @@
 	status = "okay";
 };
 
+&usb2phy1 {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
 &pinctrl {
 	cam {
 		camera_pwr: camera-pwr {

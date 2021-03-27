@@ -353,31 +353,31 @@
 };
 
 &u2phy1_host {
-	status = "okay";
+	status = "disabled";
 };
 
 &u2phy1_otg {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb2phy1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb_host0_ehci {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb_host0_ohci {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb_host1_ehci {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb_host1_ohci {
-	status = "okay";
+	status = "disabled";
 };
 
 &usbdrd_dwc3 {
