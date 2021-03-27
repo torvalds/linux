@@ -1842,10 +1842,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 	}
 
 	hellcreek->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(hellcreek->base)) {
-		dev_err(dev, "No memory available!\n");
+	if (IS_ERR(hellcreek->base))
 		return PTR_ERR(hellcreek->base);
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ptp");
 	if (!res) {
@@ -1854,10 +1852,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 	}
 
 	hellcreek->ptp_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(hellcreek->ptp_base)) {
-		dev_err(dev, "No memory available!\n");
+	if (IS_ERR(hellcreek->ptp_base))
 		return PTR_ERR(hellcreek->ptp_base);
-	}
 
 	ret = hellcreek_detect(hellcreek);
 	if (ret) {
