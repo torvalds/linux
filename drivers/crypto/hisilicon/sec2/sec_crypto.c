@@ -1397,6 +1397,36 @@ static int sec_aead_sha512_ctx_init(struct crypto_aead *tfm)
 	return sec_aead_ctx_init(tfm, "sha512");
 }
 
+
+static int sec_skcipher_cryptlen_ckeck(struct sec_ctx *ctx,
+	struct sec_req *sreq)
+{
+	u32 cryptlen = sreq->c_req.sk_req->cryptlen;
+	struct device *dev = ctx->dev;
+	u8 c_mode = ctx->c_ctx.c_mode;
+	int ret = 0;
+
+	switch (c_mode) {
+	case SEC_CMODE_XTS:
+		if (unlikely(cryptlen < AES_BLOCK_SIZE)) {
+			dev_err(dev, "skcipher XTS mode input length error!\n");
+			ret = -EINVAL;
+		}
+		break;
+	case SEC_CMODE_ECB:
+	case SEC_CMODE_CBC:
+		if (unlikely(cryptlen & (AES_BLOCK_SIZE - 1))) {
+			dev_err(dev, "skcipher AES input length error!\n");
+			ret = -EINVAL;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int sec_skcipher_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 {
 	struct skcipher_request *sk_req = sreq->c_req.sk_req;
@@ -1421,12 +1451,9 @@ static int sec_skcipher_param_check(struct sec_ctx *ctx, struct sec_req *sreq)
 		}
 		return 0;
 	} else if (c_alg == SEC_CALG_AES || c_alg == SEC_CALG_SM4) {
-		if (unlikely(sk_req->cryptlen & (AES_BLOCK_SIZE - 1))) {
-			dev_err(dev, "skcipher aes input length error!\n");
-			return -EINVAL;
-		}
-		return 0;
+		return sec_skcipher_cryptlen_ckeck(ctx, sreq);
 	}
+
 	dev_err(dev, "skcipher algorithm error!\n");
 
 	return -EINVAL;
