@@ -276,6 +276,57 @@ static void free_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 	}
 }
 
+static int verify_cq_create_attr(struct hns_roce_dev *hr_dev,
+				 const struct ib_cq_init_attr *attr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+
+	if (!attr->cqe || attr->cqe > hr_dev->caps.max_cqes) {
+		ibdev_err(ibdev, "failed to check CQ count %u, max = %u.\n",
+			  attr->cqe, hr_dev->caps.max_cqes);
+		return -EINVAL;
+	}
+
+	if (attr->comp_vector >= hr_dev->caps.num_comp_vectors) {
+		ibdev_err(ibdev, "failed to check CQ vector = %u, max = %d.\n",
+			  attr->comp_vector, hr_dev->caps.num_comp_vectors);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int get_cq_ucmd(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
+		       struct hns_roce_ib_create_cq *ucmd)
+{
+	struct ib_device *ibdev = hr_cq->ib_cq.device;
+	int ret;
+
+	ret = ib_copy_from_udata(ucmd, udata, min(udata->inlen, sizeof(*ucmd)));
+	if (ret) {
+		ibdev_err(ibdev, "failed to copy CQ udata, ret = %d.\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void set_cq_param(struct hns_roce_cq *hr_cq, u32 cq_entries, int vector,
+			 struct hns_roce_ib_create_cq *ucmd)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(hr_cq->ib_cq.device);
+
+	cq_entries = max(cq_entries, hr_dev->caps.min_cqes);
+	cq_entries = roundup_pow_of_two(cq_entries);
+	hr_cq->ib_cq.cqe = cq_entries - 1; /* used as cqe index */
+	hr_cq->cq_depth = cq_entries;
+	hr_cq->vector = vector;
+
+	spin_lock_init(&hr_cq->lock);
+	INIT_LIST_HEAD(&hr_cq->sq_list);
+	INIT_LIST_HEAD(&hr_cq->rq_list);
+}
+
 static void set_cqe_size(struct hns_roce_cq *hr_cq, struct ib_udata *udata,
 			 struct hns_roce_ib_create_cq *ucmd)
 {
@@ -299,43 +350,22 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_ib_create_cq ucmd = {};
-	int vector = attr->comp_vector;
-	u32 cq_entries = attr->cqe;
 	int ret;
 
 	if (attr->flags)
 		return -EOPNOTSUPP;
 
-	if (cq_entries < 1 || cq_entries > hr_dev->caps.max_cqes) {
-		ibdev_err(ibdev, "failed to check CQ count %u, max = %u.\n",
-			  cq_entries, hr_dev->caps.max_cqes);
-		return -EINVAL;
-	}
-
-	if (vector >= hr_dev->caps.num_comp_vectors) {
-		ibdev_err(ibdev, "failed to check CQ vector = %d, max = %d.\n",
-			  vector, hr_dev->caps.num_comp_vectors);
-		return -EINVAL;
-	}
-
-	cq_entries = max(cq_entries, hr_dev->caps.min_cqes);
-	cq_entries = roundup_pow_of_two(cq_entries);
-	hr_cq->ib_cq.cqe = cq_entries - 1; /* used as cqe index */
-	hr_cq->cq_depth = cq_entries;
-	hr_cq->vector = vector;
-	spin_lock_init(&hr_cq->lock);
-	INIT_LIST_HEAD(&hr_cq->sq_list);
-	INIT_LIST_HEAD(&hr_cq->rq_list);
+	ret = verify_cq_create_attr(hr_dev, attr);
+	if (ret)
+		return ret;
 
 	if (udata) {
-		ret = ib_copy_from_udata(&ucmd, udata,
-					 min(udata->inlen, sizeof(ucmd)));
-		if (ret) {
-			ibdev_err(ibdev, "failed to copy CQ udata, ret = %d.\n",
-				  ret);
+		ret = get_cq_ucmd(hr_cq, udata, &ucmd);
+		if (ret)
 			return ret;
-		}
 	}
+
+	set_cq_param(hr_cq, attr->cqe, attr->comp_vector, &ucmd);
 
 	set_cqe_size(hr_cq, udata, &ucmd);
 
