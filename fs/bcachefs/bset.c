@@ -674,16 +674,20 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 
 	if (is_power_of_2(j) &&
 	    !min_key->u64s) {
-		k = (void *) min_key;
-		bkey_init(&k->k);
-		k->k.p = b->data->min_key;
+		if (!bkey_pack_pos(min_key, b->data->min_key, b)) {
+			k = (void *) min_key;
+			bkey_init(&k->k);
+			k->k.p = b->data->min_key;
+		}
 	}
 
 	if (is_power_of_2(j + 1) &&
 	    !max_key->u64s) {
-		k = (void *) max_key;
-		bkey_init(&k->k);
-		k->k.p = t->max_key;
+		if (!bkey_pack_pos(max_key, b->data->max_key, b)) {
+			k = (void *) max_key;
+			bkey_init(&k->k);
+			k->k.p = t->max_key;
+		}
 	}
 
 	__make_bfloat(b, t, j, min_key, max_key);
@@ -768,10 +772,15 @@ retry:
 
 	t->max_key = bkey_unpack_pos(b, prev);
 
-	bkey_init(&min_key.k);
-	min_key.k.p = b->data->min_key;
-	bkey_init(&max_key.k);
-	max_key.k.p = t->max_key;
+	if (!bkey_pack_pos(bkey_to_packed(&min_key), b->data->min_key, b)) {
+		bkey_init(&min_key.k);
+		min_key.k.p = b->data->min_key;
+	}
+
+	if (!bkey_pack_pos(bkey_to_packed(&max_key), b->data->max_key, b)) {
+		bkey_init(&max_key.k);
+		max_key.k.p = t->max_key;
+	}
 
 	/* Then we build the tree */
 	eytzinger1_for_each(j, t->size)
