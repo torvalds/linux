@@ -225,7 +225,7 @@ static int alloc_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 		       struct ib_udata *udata, unsigned long addr,
 		       struct hns_roce_ib_create_cq_resp *resp)
 {
-	bool has_db = hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB;
+	bool has_db = hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB;
 	struct hns_roce_ucontext *uctx;
 	int err;
 

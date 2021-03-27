@@ -785,7 +785,7 @@ static inline bool user_qp_has_sdb(struct hns_roce_dev *hr_dev,
 				   struct hns_roce_ib_create_qp_resp *resp,
 				   struct hns_roce_ib_create_qp *ucmd)
 {
-	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
+	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB) &&
 		udata->outlen >= offsetofend(typeof(*resp), cap_flags) &&
 		hns_roce_qp_has_sq(init_attr) &&
 		udata->inlen >= offsetofend(typeof(*ucmd), sdb_addr));
@@ -796,7 +796,7 @@ static inline bool user_qp_has_rdb(struct hns_roce_dev *hr_dev,
 				   struct ib_udata *udata,
 				   struct hns_roce_ib_create_qp_resp *resp)
 {
-	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB) &&
 		udata->outlen >= offsetofend(typeof(*resp), cap_flags) &&
 		hns_roce_qp_has_rq(init_attr));
 }
@@ -804,7 +804,7 @@ static inline bool user_qp_has_rdb(struct hns_roce_dev *hr_dev,
 static inline bool kernel_qp_has_rdb(struct hns_roce_dev *hr_dev,
 				     struct ib_qp_init_attr *init_attr)
 {
-	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+	return ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB) &&
 		hns_roce_qp_has_rq(init_attr));
 }
 
