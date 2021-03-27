@@ -723,7 +723,7 @@ void dev_uc_flush(struct net_device *dev)
 EXPORT_SYMBOL(dev_uc_flush);
 
 /**
- *	dev_uc_flush - Init unicast address list
+ *	dev_uc_init - Init unicast address list
  *	@dev: device
  *
  *	Init unicast address list.
