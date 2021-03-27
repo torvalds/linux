@@ -20,17 +20,6 @@
 #define	HAL_RF_ENABLE				1
 #endif
 
-#define	RF6052_MAX_TX_PWR			0x3F
-#define	RF6052_MAX_REG_88E			0xFF
-#define	RF6052_MAX_REG_92C			0x7F
-
-#define	RF6052_MAX_REG	\
-		(RF6052_MAX_REG_88E > RF6052_MAX_REG_92C) ? RF6052_MAX_REG_88E : RF6052_MAX_REG_92C
-
-#define GET_RF6052_REAL_MAX_REG(_Adapter)	RF6052_MAX_REG_92C
-
-#define	RF6052_MAX_PATH				2
-
 /*  */
 /*  Antenna detection method, i.e., using single tone detection or RSSI reported from each antenna detected. */
 /*  Added by Roger, 2013.05.22. */
