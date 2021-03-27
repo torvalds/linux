@@ -8114,6 +8114,13 @@ F:	drivers/crypto/hisilicon/sec2/sec_crypto.c
 F:	drivers/crypto/hisilicon/sec2/sec_crypto.h
 F:	drivers/crypto/hisilicon/sec2/sec_main.c
 
+HISILICON SPI Controller DRIVER FOR KUNPENG SOCS
+M:	Jay Fang <f.fangjian@huawei.com>
+L:	linux-spi@vger.kernel.org
+S:	Maintained
+W:	http://www.hisilicon.com
+F:	drivers/spi/spi-hisi-kunpeng.c
+
 HISILICON STAGING DRIVERS FOR HIKEY 960/970
 M:	Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 L:	devel@driverdev.osuosl.org
