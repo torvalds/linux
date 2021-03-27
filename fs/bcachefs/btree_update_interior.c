@@ -82,8 +82,6 @@ void __bch2_btree_calc_format(struct bkey_format_state *s, struct btree *b)
 	struct bset_tree *t;
 	struct bkey uk;
 
-	bch2_bkey_format_add_pos(s, b->data->min_key);
-
 	for_each_bset(b, t)
 		bset_tree_for_each_key(b, t, k)
 			if (!bkey_deleted(k)) {
@@ -97,6 +95,8 @@ static struct bkey_format bch2_btree_calc_format(struct btree *b)
 	struct bkey_format_state s;
 
 	bch2_bkey_format_init(&s);
+	bch2_bkey_format_add_pos(&s, b->data->min_key);
+	bch2_bkey_format_add_pos(&s, b->data->max_key);
 	__bch2_btree_calc_format(&s, b);
 
 	return bch2_bkey_format_done(&s);
@@ -1578,8 +1578,10 @@ retry:
 	}
 
 	bch2_bkey_format_init(&new_s);
-	__bch2_btree_calc_format(&new_s, b);
-	__bch2_btree_calc_format(&new_s, m);
+	bch2_bkey_format_add_pos(&new_s, prev->data->min_key);
+	__bch2_btree_calc_format(&new_s, prev);
+	__bch2_btree_calc_format(&new_s, next);
+	bch2_bkey_format_add_pos(&new_s, next->data->max_key);
 	new_f = bch2_bkey_format_done(&new_s);
 
 	sib_u64s = btree_node_u64s_with_format(b, &new_f) +

@@ -1311,6 +1311,9 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 	/* Find a format that all keys in @old_nodes can pack into */
 	bch2_bkey_format_init(&format_state);
 
+	/*
+	 * XXX: this won't correctly take it account the new min/max keys:
+	 */
 	for (i = 0; i < nr_old_nodes; i++)
 		__bch2_btree_calc_format(&format_state, old_nodes[i]);
 
