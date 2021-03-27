@@ -850,15 +850,15 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		}
 	} else {
 		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
-			hr_qp->sq.db_reg_l = hr_dev->mem_base +
-					     HNS_ROCE_DWQE_SIZE * hr_qp->qpn;
+			hr_qp->sq.db_reg = hr_dev->mem_base +
+					   HNS_ROCE_DWQE_SIZE * hr_qp->qpn;
 		else
-			hr_qp->sq.db_reg_l =
+			hr_qp->sq.db_reg =
 				hr_dev->reg_base + hr_dev->sdb_offset +
 				DB_REG_OFFSET * hr_dev->priv_uar.index;
 
-		hr_qp->rq.db_reg_l = hr_dev->reg_base + hr_dev->odb_offset +
-				     DB_REG_OFFSET * hr_dev->priv_uar.index;
+		hr_qp->rq.db_reg = hr_dev->reg_base + hr_dev->odb_offset +
+				   DB_REG_OFFSET * hr_dev->priv_uar.index;
 
 		if (kernel_qp_has_rdb(hr_dev, init_attr)) {
 			ret = hns_roce_alloc_db(hr_dev, &hr_qp->rdb, 0);

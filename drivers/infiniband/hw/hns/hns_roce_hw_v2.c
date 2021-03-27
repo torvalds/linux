@@ -644,18 +644,19 @@ static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 	} else {
 		struct hns_roce_v2_db sq_db = {};
 
-		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_TAG_M,
-			       V2_DB_BYTE_4_TAG_S, qp->doorbell_qpn);
-		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_CMD_M,
-			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_SQ_DB);
+		roce_set_field(sq_db.byte_4, V2_DB_TAG_M, V2_DB_TAG_S,
+			       qp->doorbell_qpn);
+		roce_set_field(sq_db.byte_4, V2_DB_CMD_M, V2_DB_CMD_S,
+			       HNS_ROCE_V2_SQ_DB);
+
 		/* indicates data on new BAR, 0 : SQ doorbell, 1 : DWQE */
 		roce_set_bit(sq_db.byte_4, V2_DB_FLAG_S, 0);
-		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_IDX_M,
-			       V2_DB_PARAMETER_IDX_S, qp->sq.head);
-		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
-			       V2_DB_PARAMETER_SL_S, qp->sl);
+		roce_set_field(sq_db.parameter, V2_DB_PRODUCER_IDX_M,
+			       V2_DB_PRODUCER_IDX_S, qp->sq.head);
+		roce_set_field(sq_db.parameter, V2_DB_SL_M, V2_DB_SL_S,
+			       qp->sl);
 
-		hns_roce_write64(hr_dev, (__le32 *)&sq_db, qp->sq.db_reg_l);
+		hns_roce_write64(hr_dev, (__le32 *)&sq_db, qp->sq.db_reg);
 	}
 }
 
@@ -677,18 +678,19 @@ static inline void update_rq_db(struct hns_roce_dev *hr_dev,
 	} else {
 		if (likely(qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)) {
 			*qp->rdb.db_record =
-					qp->rq.head & V2_DB_PARAMETER_IDX_M;
+					qp->rq.head & V2_DB_PRODUCER_IDX_M;
 		} else {
 			struct hns_roce_v2_db rq_db = {};
 
-			roce_set_field(rq_db.byte_4, V2_DB_BYTE_4_TAG_M,
-				       V2_DB_BYTE_4_TAG_S, qp->qpn);
-			roce_set_field(rq_db.byte_4, V2_DB_BYTE_4_CMD_M,
-				       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_RQ_DB);
-			roce_set_field(rq_db.parameter, V2_DB_PARAMETER_IDX_M,
-				       V2_DB_PARAMETER_IDX_S, qp->rq.head);
+			roce_set_field(rq_db.byte_4, V2_DB_TAG_M, V2_DB_TAG_S,
+				       qp->qpn);
+			roce_set_field(rq_db.byte_4, V2_DB_CMD_M, V2_DB_CMD_S,
+				       HNS_ROCE_V2_RQ_DB);
+			roce_set_field(rq_db.parameter, V2_DB_PRODUCER_IDX_M,
+				       V2_DB_PRODUCER_IDX_S, qp->rq.head);
 
-			hns_roce_write64_k((__le32 *)&rq_db, qp->rq.db_reg_l);
+			hns_roce_write64(hr_dev, (__le32 *)&rq_db,
+					 qp->rq.db_reg);
 		}
 	}
 }
@@ -721,7 +723,7 @@ static void write_dwqe(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_M,
 		       V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_S, qp->sq.head);
 
-	hns_roce_write512(hr_dev, wqe, qp->sq.db_reg_l);
+	hns_roce_write512(hr_dev, wqe, qp->sq.db_reg);
 }
 
 static int hns_roce_v2_post_send(struct ib_qp *ibqp,
@@ -1040,13 +1042,14 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 	}
 
 	if (likely(nreq)) {
-		srq_db.byte_4 =
-			cpu_to_le32(HNS_ROCE_V2_SRQ_DB << V2_DB_BYTE_4_CMD_S |
-				    (srq->srqn & V2_DB_BYTE_4_TAG_M));
-		srq_db.parameter =
-			cpu_to_le32(srq->idx_que.head & V2_DB_PARAMETER_IDX_M);
+		roce_set_field(srq_db.byte_4, V2_DB_TAG_M, V2_DB_TAG_S,
+			       srq->srqn);
+		roce_set_field(srq_db.byte_4, V2_DB_CMD_M, V2_DB_CMD_S,
+			       HNS_ROCE_V2_SRQ_DB);
+		roce_set_field(srq_db.parameter, V2_DB_PRODUCER_IDX_M,
+			       V2_DB_PRODUCER_IDX_S, srq->idx_que.head);
 
-		hns_roce_write64(hr_dev, (__le32 *)&srq_db, srq->db_reg_l);
+		hns_roce_write64(hr_dev, (__le32 *)&srq_db, srq->db_reg);
 	}
 
 	spin_unlock_irqrestore(&srq->lock, flags);
@@ -3162,30 +3165,31 @@ static void *get_sw_cqe_v2(struct hns_roce_cq *hr_cq, unsigned int n)
 		!!(n & hr_cq->cq_depth)) ? cqe : NULL;
 }
 
-static inline void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 ci)
+static inline void update_cq_db(struct hns_roce_dev *hr_dev,
+				struct hns_roce_cq *hr_cq)
 {
 	if (likely(hr_cq->flags & HNS_ROCE_CQ_FLAG_RECORD_DB)) {
-		*hr_cq->set_ci_db = ci & V2_CQ_DB_PARAMETER_CONS_IDX_M;
+		*hr_cq->set_ci_db = hr_cq->cons_index & V2_CQ_DB_CONS_IDX_M;
 	} else {
 		struct hns_roce_v2_db cq_db = {};
 
-		roce_set_field(cq_db.byte_4, V2_CQ_DB_BYTE_4_TAG_M,
-			       V2_CQ_DB_BYTE_4_TAG_S, hr_cq->cqn);
-		roce_set_field(cq_db.byte_4, V2_CQ_DB_BYTE_4_CMD_M,
-			       V2_CQ_DB_BYTE_4_CMD_S, HNS_ROCE_V2_CQ_DB_PTR);
-		roce_set_field(cq_db.parameter, V2_CQ_DB_PARAMETER_CONS_IDX_M,
-			       V2_CQ_DB_PARAMETER_CONS_IDX_S,
-			       ci & ((hr_cq->cq_depth << 1) - 1));
-		roce_set_field(cq_db.parameter, V2_CQ_DB_PARAMETER_CMD_SN_M,
-			       V2_CQ_DB_PARAMETER_CMD_SN_S, 1);
+		roce_set_field(cq_db.byte_4, V2_DB_TAG_M, V2_DB_TAG_S,
+			       hr_cq->cqn);
+		roce_set_field(cq_db.byte_4, V2_DB_CMD_M, V2_DB_CMD_S,
+			       HNS_ROCE_V2_CQ_DB);
+		roce_set_field(cq_db.parameter, V2_CQ_DB_CONS_IDX_M,
+			       V2_CQ_DB_CONS_IDX_S, hr_cq->cons_index);
+		roce_set_field(cq_db.parameter, V2_CQ_DB_CMD_SN_M,
+			       V2_CQ_DB_CMD_SN_S, 1);
 
-		hns_roce_write64_k((__le32 *)&cq_db, hr_cq->cq_db_l);
+		hns_roce_write64(hr_dev, (__le32 *)&cq_db, hr_cq->db_reg);
 	}
 }
 
 static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 				   struct hns_roce_srq *srq)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(hr_cq->ib_cq.device);
 	struct hns_roce_v2_cqe *cqe, *dest;
 	u32 prod_index;
 	int nfreed = 0;
@@ -3228,7 +3232,7 @@ static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 
 	if (nfreed) {
 		hr_cq->cons_index += nfreed;
-		hns_roce_v2_cq_set_ci(hr_cq, hr_cq->cons_index);
+		update_cq_db(hr_dev, hr_cq);
 	}
 }
 
@@ -3323,30 +3327,26 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
-	u32 notification_flag;
-	__le32 doorbell[2];
+	struct hns_roce_v2_db cq_db = {};
+	u32 notify_flag;
 
-	doorbell[0] = 0;
-	doorbell[1] = 0;
-
-	notification_flag = (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
-			     V2_CQ_DB_REQ_NOT : V2_CQ_DB_REQ_NOT_SOL;
 	/*
-	 * flags = 0; Notification Flag = 1, next
-	 * flags = 1; Notification Flag = 0, solocited
+	 * flags = 0, then notify_flag : next
+	 * flags = 1, then notify flag : solocited
 	 */
-	roce_set_field(doorbell[0], V2_CQ_DB_BYTE_4_TAG_M, V2_DB_BYTE_4_TAG_S,
-		       hr_cq->cqn);
-	roce_set_field(doorbell[0], V2_CQ_DB_BYTE_4_CMD_M, V2_DB_BYTE_4_CMD_S,
-		       HNS_ROCE_V2_CQ_DB_NTR);
-	roce_set_field(doorbell[1], V2_CQ_DB_PARAMETER_CONS_IDX_M,
-		       V2_CQ_DB_PARAMETER_CONS_IDX_S, hr_cq->cons_index);
-	roce_set_field(doorbell[1], V2_CQ_DB_PARAMETER_CMD_SN_M,
-		       V2_CQ_DB_PARAMETER_CMD_SN_S, hr_cq->arm_sn & 0x3);
-	roce_set_bit(doorbell[1], V2_CQ_DB_PARAMETER_NOTIFY_S,
-		     notification_flag);
+	notify_flag = (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
+		      V2_CQ_DB_REQ_NOT : V2_CQ_DB_REQ_NOT_SOL;
 
-	hns_roce_write64(hr_dev, doorbell, hr_cq->cq_db_l);
+	roce_set_field(cq_db.byte_4, V2_DB_TAG_M, V2_DB_TAG_S, hr_cq->cqn);
+	roce_set_field(cq_db.byte_4, V2_DB_CMD_M, V2_DB_CMD_S,
+		       HNS_ROCE_V2_CQ_DB_NOTIFY);
+	roce_set_field(cq_db.parameter, V2_CQ_DB_CONS_IDX_M,
+		       V2_CQ_DB_CONS_IDX_S, hr_cq->cons_index);
+	roce_set_field(cq_db.parameter, V2_CQ_DB_CMD_SN_M,
+		       V2_CQ_DB_CMD_SN_S, hr_cq->arm_sn);
+	roce_set_bit(cq_db.parameter, V2_CQ_DB_NOTIFY_TYPE_S, notify_flag);
+
+	hns_roce_write64(hr_dev, (__le32 *)&cq_db, hr_cq->db_reg);
 
 	return 0;
 }
@@ -3782,7 +3782,7 @@ static int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries,
 	}
 
 	if (npolled)
-		hns_roce_v2_cq_set_ci(hr_cq, hr_cq->cons_index);
+		update_cq_db(hr_dev, hr_cq);
 
 out:
 	spin_unlock_irqrestore(&hr_cq->lock, flags);
@@ -5823,33 +5823,30 @@ static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
 	queue_work(hr_dev->irq_workq, &(irq_work->work));
 }
 
-static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
+static void update_eq_db(struct hns_roce_eq *eq)
 {
 	struct hns_roce_dev *hr_dev = eq->hr_dev;
-	__le32 doorbell[2] = {};
+	struct hns_roce_v2_db eq_db = {};
 
 	if (eq->type_flag == HNS_ROCE_AEQ) {
-		roce_set_field(doorbell[0], HNS_ROCE_V2_EQ_DB_CMD_M,
-			       HNS_ROCE_V2_EQ_DB_CMD_S,
+		roce_set_field(eq_db.byte_4, V2_EQ_DB_CMD_M, V2_EQ_DB_CMD_S,
 			       eq->arm_st == HNS_ROCE_V2_EQ_ALWAYS_ARMED ?
 			       HNS_ROCE_EQ_DB_CMD_AEQ :
 			       HNS_ROCE_EQ_DB_CMD_AEQ_ARMED);
 	} else {
-		roce_set_field(doorbell[0], HNS_ROCE_V2_EQ_DB_TAG_M,
-			       HNS_ROCE_V2_EQ_DB_TAG_S, eq->eqn);
+		roce_set_field(eq_db.byte_4, V2_EQ_DB_TAG_M, V2_EQ_DB_TAG_S,
+			       eq->eqn);
 
-		roce_set_field(doorbell[0], HNS_ROCE_V2_EQ_DB_CMD_M,
-			       HNS_ROCE_V2_EQ_DB_CMD_S,
+		roce_set_field(eq_db.byte_4, V2_EQ_DB_CMD_M, V2_EQ_DB_CMD_S,
 			       eq->arm_st == HNS_ROCE_V2_EQ_ALWAYS_ARMED ?
 			       HNS_ROCE_EQ_DB_CMD_CEQ :
 			       HNS_ROCE_EQ_DB_CMD_CEQ_ARMED);
 	}
 
-	roce_set_field(doorbell[1], HNS_ROCE_V2_EQ_DB_PARA_M,
-		       HNS_ROCE_V2_EQ_DB_PARA_S,
-		       (eq->cons_index & HNS_ROCE_V2_CONS_IDX_M));
+	roce_set_field(eq_db.parameter, V2_EQ_DB_CONS_IDX_M,
+		       V2_EQ_DB_CONS_IDX_S, eq->cons_index);
 
-	hns_roce_write64(hr_dev, doorbell, eq->doorbell);
+	hns_roce_write64(hr_dev, (__le32 *)&eq_db, eq->db_reg);
 }
 
 static struct hns_roce_aeqe *next_aeqe_sw_v2(struct hns_roce_eq *eq)
@@ -5936,7 +5933,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		aeqe = next_aeqe_sw_v2(eq);
 	}
 
-	set_eq_cons_index_v2(eq);
+	update_eq_db(eq);
 	return aeqe_found;
 }
 
@@ -5976,7 +5973,7 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 		ceqe = next_ceqe_sw_v2(eq);
 	}
 
-	set_eq_cons_index_v2(eq);
+	update_eq_db(eq);
 
 	return ceqe_found;
 }
@@ -6118,7 +6115,7 @@ static int config_eqc(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq,
 	memset(eqc, 0, sizeof(struct hns_roce_eq_context));
 
 	/* init eqc */
-	eq->doorbell = hr_dev->reg_base + ROCEE_VF_EQ_DB_CFG0_REG;
+	eq->db_reg = hr_dev->reg_base + ROCEE_VF_EQ_DB_CFG0_REG;
 	eq->cons_index = 0;
 	eq->over_ignore = HNS_ROCE_V2_EQ_OVER_IGNORE_0;
 	eq->coalesce = HNS_ROCE_V2_EQ_COALESCE_0;

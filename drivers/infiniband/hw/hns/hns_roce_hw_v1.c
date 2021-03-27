@@ -345,7 +345,7 @@ out:
 		doorbell[0] = sq_db.u32_4;
 		doorbell[1] = sq_db.u32_8;
 
-		hns_roce_write64_k(doorbell, qp->sq.db_reg_l);
+		hns_roce_write64_k(doorbell, qp->sq.db_reg);
 	}
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
@@ -440,7 +440,7 @@ out:
 			doorbell[0] = rq_db.u32_4;
 			doorbell[1] = rq_db.u32_8;
 
-			hns_roce_write64_k(doorbell, hr_qp->rq.db_reg_l);
+			hns_roce_write64_k(doorbell, hr_qp->rq.db_reg);
 		}
 	}
 	spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
@@ -1939,7 +1939,7 @@ static void hns_roce_v1_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 	roce_set_field(doorbell[1], ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_INP_H_M,
 		       ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_INP_H_S, hr_cq->cqn);
 
-	hns_roce_write64_k(doorbell, hr_cq->cq_db_l);
+	hns_roce_write64_k(doorbell, hr_cq->db_reg);
 }
 
 static void __hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
@@ -2092,7 +2092,7 @@ static int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq,
 		       ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_INP_H_S,
 		       hr_cq->cqn | notification_flag);
 
-	hns_roce_write64_k(doorbell, hr_cq->cq_db_l);
+	hns_roce_write64_k(doorbell, hr_cq->db_reg);
 
 	return 0;
 }
@@ -3217,12 +3217,12 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		roce_set_bit(doorbell[1], RQ_DOORBELL_U32_8_HW_SYNC_S, 1);
 
 		if (ibqp->uobject) {
-			hr_qp->rq.db_reg_l = hr_dev->reg_base +
+			hr_qp->rq.db_reg = hr_dev->reg_base +
 				     hr_dev->odb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 		}
 
-		hns_roce_write64_k(doorbell, hr_qp->rq.db_reg_l);
+		hns_roce_write64_k(doorbell, hr_qp->rq.db_reg);
 	}
 
 	hr_qp->state = new_state;
@@ -3604,7 +3604,7 @@ static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 static void set_eq_cons_index_v1(struct hns_roce_eq *eq, u32 req_not)
 {
 	roce_raw_write((eq->cons_index & HNS_ROCE_V1_CONS_IDX_M) |
-		       (req_not << eq->log_entries), eq->doorbell);
+		       (req_not << eq->log_entries), eq->db_reg);
 }
 
 static void hns_roce_v1_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
@@ -4234,9 +4234,9 @@ static int hns_roce_v1_init_eq_table(struct hns_roce_dev *hr_dev)
 						ROCEE_CAEP_CEQC_SHIFT_0_REG +
 						CEQ_REG_OFFSET * i;
 			eq->type_flag = HNS_ROCE_CEQ;
-			eq->doorbell = hr_dev->reg_base +
-				       ROCEE_CAEP_CEQC_CONS_IDX_0_REG +
-				       CEQ_REG_OFFSET * i;
+			eq->db_reg = hr_dev->reg_base +
+				     ROCEE_CAEP_CEQC_CONS_IDX_0_REG +
+				     CEQ_REG_OFFSET * i;
 			eq->entries = hr_dev->caps.ceqe_depth;
 			eq->log_entries = ilog2(eq->entries);
 			eq->eqe_size = HNS_ROCE_CEQE_SIZE;
@@ -4245,8 +4245,8 @@ static int hns_roce_v1_init_eq_table(struct hns_roce_dev *hr_dev)
 			eq_table->eqc_base[i] = hr_dev->reg_base +
 						ROCEE_CAEP_AEQC_AEQE_SHIFT_REG;
 			eq->type_flag = HNS_ROCE_AEQ;
-			eq->doorbell = hr_dev->reg_base +
-				       ROCEE_CAEP_AEQE_CONS_IDX_REG;
+			eq->db_reg = hr_dev->reg_base +
+				     ROCEE_CAEP_AEQE_CONS_IDX_REG;
 			eq->entries = hr_dev->caps.aeqe_depth;
 			eq->log_entries = ilog2(eq->entries);
 			eq->eqe_size = HNS_ROCE_AEQE_SIZE;

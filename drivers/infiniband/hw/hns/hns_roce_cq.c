@@ -250,8 +250,8 @@ static int alloc_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 			*hr_cq->set_ci_db = 0;
 			hr_cq->flags |= HNS_ROCE_CQ_FLAG_RECORD_DB;
 		}
-		hr_cq->cq_db_l = hr_dev->reg_base + hr_dev->odb_offset +
-				 DB_REG_OFFSET * hr_dev->priv_uar.index;
+		hr_cq->db_reg = hr_dev->reg_base + hr_dev->odb_offset +
+				DB_REG_OFFSET * hr_dev->priv_uar.index;
 	}
 
 	return 0;

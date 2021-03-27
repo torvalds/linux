@@ -415,7 +415,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 		}
 	}
 
-	srq->db_reg_l = hr_dev->reg_base + SRQ_DB_REG;
+	srq->db_reg = hr_dev->reg_base + SRQ_DB_REG;
 	srq->event = hns_roce_ib_srq_event;
 	atomic_set(&srq->refcount, 1);
 	init_completion(&srq->free);
