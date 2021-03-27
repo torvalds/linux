@@ -73,7 +73,7 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 		return ret;
 	}
 
-	return hr_dev->hw->chk_mbox(hr_dev, timeout);
+	return hr_dev->hw->poll_mbox_done(hr_dev, timeout);
 }
 
 static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
@@ -175,33 +175,20 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 		      unsigned long in_modifier, u8 op_modifier, u16 op,
 		      unsigned int timeout)
 {
-	int ret;
+	bool is_busy;
 
-	if (hr_dev->hw->rst_prc_mbox) {
-		ret = hr_dev->hw->rst_prc_mbox(hr_dev);
-		if (ret == CMD_RST_PRC_SUCCESS)
-			return 0;
-		else if (ret == CMD_RST_PRC_EBUSY)
-			return -EBUSY;
-	}
+	if (hr_dev->hw->chk_mbox_avail)
+		if (!hr_dev->hw->chk_mbox_avail(hr_dev, &is_busy))
+			return is_busy ? -EBUSY : 0;
 
 	if (hr_dev->cmd.use_events)
-		ret = hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
-					     in_modifier, op_modifier, op,
-					     timeout);
+		return hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,
+					      in_modifier, op_modifier, op,
+					      timeout);
 	else
-		ret = hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
-					     in_modifier, op_modifier, op,
-					     timeout);
-
-	if (ret == CMD_RST_PRC_EBUSY)
-		return -EBUSY;
-
-	if (ret && (hr_dev->hw->rst_prc_mbox &&
-		    hr_dev->hw->rst_prc_mbox(hr_dev) == CMD_RST_PRC_SUCCESS))
-		return 0;
-
-	return ret;
+		return hns_roce_cmd_mbox_poll(hr_dev, in_param, out_param,
+					      in_modifier, op_modifier, op,
+					      timeout);
 }
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)

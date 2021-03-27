@@ -48,6 +48,12 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v2.h"
 
+enum {
+	CMD_RST_PRC_OTHERS,
+	CMD_RST_PRC_SUCCESS,
+	CMD_RST_PRC_EBUSY,
+};
+
 static inline void set_data_seg_v2(struct hns_roce_v2_wqe_data_seg *dseg,
 				   struct ib_sge *sg)
 {
@@ -1029,7 +1035,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 	return ret;
 }
 
-static int hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
+static u32 hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
 				      unsigned long instance_stage,
 				      unsigned long reset_stage)
 {
@@ -1052,7 +1058,7 @@ static int hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
 	return CMD_RST_PRC_SUCCESS;
 }
 
-static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
+static u32 hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 					unsigned long instance_stage,
 					unsigned long reset_stage)
 {
@@ -1080,7 +1086,7 @@ static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 	return CMD_RST_PRC_SUCCESS;
 }
 
-static int hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
+static u32 hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
@@ -1097,19 +1103,15 @@ static int hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
 	return CMD_RST_PRC_EBUSY;
 }
 
-static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
+static u32 check_aedev_reset_status(struct hns_roce_dev *hr_dev,
+				    struct hnae3_handle *handle)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	unsigned long instance_stage; /* the current instance stage */
 	unsigned long reset_stage; /* the current reset stage */
 	unsigned long reset_cnt;
 	bool sw_resetting;
 	bool hw_resetting;
-
-	if (hr_dev->is_reset)
-		return CMD_RST_PRC_SUCCESS;
 
 	/* Get information about reset from NIC driver or RoCE driver itself,
 	 * the meaning of the following variables from NIC driver are described
@@ -1121,19 +1123,53 @@ static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
 	instance_stage = handle->rinfo.instance_state;
 	reset_stage = handle->rinfo.reset_state;
 	reset_cnt = ops->ae_dev_reset_cnt(handle);
-	hw_resetting = ops->get_cmdq_stat(handle);
-	sw_resetting = ops->ae_dev_resetting(handle);
-
 	if (reset_cnt != hr_dev->reset_cnt)
 		return hns_roce_v2_cmd_hw_reseted(hr_dev, instance_stage,
 						  reset_stage);
-	else if (hw_resetting)
+
+	hw_resetting = ops->get_cmdq_stat(handle);
+	if (hw_resetting)
 		return hns_roce_v2_cmd_hw_resetting(hr_dev, instance_stage,
 						    reset_stage);
-	else if (sw_resetting && instance_stage == HNS_ROCE_STATE_INIT)
+
+	sw_resetting = ops->ae_dev_resetting(handle);
+	if (sw_resetting && instance_stage == HNS_ROCE_STATE_INIT)
 		return hns_roce_v2_cmd_sw_resetting(hr_dev);
 
-	return 0;
+	return CMD_RST_PRC_OTHERS;
+}
+
+static bool check_device_is_in_reset(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (hr_dev->reset_cnt != ops->ae_dev_reset_cnt(handle))
+		return true;
+
+	if (ops->get_hw_reset_stat(handle))
+		return true;
+
+	if (ops->ae_dev_resetting(handle))
+		return true;
+
+	return false;
+}
+
+static bool v2_chk_mbox_is_avail(struct hns_roce_dev *hr_dev, bool *busy)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	u32 status;
+
+	if (hr_dev->is_reset)
+		status = CMD_RST_PRC_SUCCESS;
+	else
+		status = check_aedev_reset_status(hr_dev, priv->handle);
+
+	*busy = (status == CMD_RST_PRC_EBUSY);
+
+	return status == CMD_RST_PRC_OTHERS;
 }
 
 static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
@@ -1349,22 +1385,16 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_cmq_desc *desc, int num)
 {
-	int retval;
+	bool busy;
 	int ret;
 
-	ret = hns_roce_v2_rst_process_cmd(hr_dev);
-	if (ret == CMD_RST_PRC_SUCCESS)
-		return 0;
-	if (ret == CMD_RST_PRC_EBUSY)
-		return -EBUSY;
+	if (!v2_chk_mbox_is_avail(hr_dev, &busy))
+		return busy ? -EBUSY : 0;
 
 	ret = __hns_roce_cmq_send(hr_dev, desc, num);
 	if (ret) {
-		retval = hns_roce_v2_rst_process_cmd(hr_dev);
-		if (retval == CMD_RST_PRC_SUCCESS)
-			return 0;
-		else if (retval == CMD_RST_PRC_EBUSY)
-			return -EBUSY;
+		if (!v2_chk_mbox_is_avail(hr_dev, &busy))
+			return busy ? -EBUSY : 0;
 	}
 
 	return ret;
@@ -1388,91 +1418,89 @@ static int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-static bool hns_roce_func_clr_chk_rst(struct hns_roce_dev *hr_dev)
+static void func_clr_hw_resetting_state(struct hns_roce_dev *hr_dev,
+					struct hnae3_handle *handle)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
-	unsigned long reset_cnt;
-	bool sw_resetting;
-	bool hw_resetting;
+	unsigned long end;
 
-	reset_cnt = ops->ae_dev_reset_cnt(handle);
-	hw_resetting = ops->get_hw_reset_stat(handle);
-	sw_resetting = ops->ae_dev_resetting(handle);
+	hr_dev->dis_db = true;
 
-	if (reset_cnt != hr_dev->reset_cnt || hw_resetting || sw_resetting)
-		return true;
+	dev_warn(hr_dev->dev,
+		 "Func clear is pending, device in resetting state.\n");
+	end = HNS_ROCE_V2_HW_RST_TIMEOUT;
+	while (end) {
+		if (!ops->get_hw_reset_stat(handle)) {
+			hr_dev->is_reset = true;
+			dev_info(hr_dev->dev,
+				 "Func clear success after reset.\n");
+			return;
+		}
+		msleep(HNS_ROCE_V2_HW_RST_COMPLETION_WAIT);
+		end -= HNS_ROCE_V2_HW_RST_COMPLETION_WAIT;
+	}
 
-	return false;
+	dev_warn(hr_dev->dev, "Func clear failed.\n");
 }
 
-static void hns_roce_func_clr_rst_prc(struct hns_roce_dev *hr_dev, int retval,
-				      int flag)
+static void func_clr_sw_resetting_state(struct hns_roce_dev *hr_dev,
+					struct hnae3_handle *handle)
+{
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	unsigned long end;
+
+	hr_dev->dis_db = true;
+
+	dev_warn(hr_dev->dev,
+		 "Func clear is pending, device in resetting state.\n");
+	end = HNS_ROCE_V2_HW_RST_TIMEOUT;
+	while (end) {
+		if (ops->ae_dev_reset_cnt(handle) !=
+		    hr_dev->reset_cnt) {
+			hr_dev->is_reset = true;
+			dev_info(hr_dev->dev,
+				 "Func clear success after sw reset\n");
+			return;
+		}
+		msleep(HNS_ROCE_V2_HW_RST_COMPLETION_WAIT);
+		end -= HNS_ROCE_V2_HW_RST_COMPLETION_WAIT;
+	}
+
+	dev_warn(hr_dev->dev, "Func clear failed because of unfinished sw reset\n");
+}
+
+static void hns_roce_func_clr_rst_proc(struct hns_roce_dev *hr_dev, int retval,
+				       int flag)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
-	unsigned long instance_stage;
-	unsigned long reset_cnt;
-	unsigned long end;
-	bool sw_resetting;
-	bool hw_resetting;
 
-	instance_stage = handle->rinfo.instance_state;
-	reset_cnt = ops->ae_dev_reset_cnt(handle);
-	hw_resetting = ops->get_hw_reset_stat(handle);
-	sw_resetting = ops->ae_dev_resetting(handle);
-
-	if (reset_cnt != hr_dev->reset_cnt) {
+	if (ops->ae_dev_reset_cnt(handle) != hr_dev->reset_cnt) {
 		hr_dev->dis_db = true;
 		hr_dev->is_reset = true;
 		dev_info(hr_dev->dev, "Func clear success after reset.\n");
-	} else if (hw_resetting) {
-		hr_dev->dis_db = true;
-
-		dev_warn(hr_dev->dev,
-			 "Func clear is pending, device in resetting state.\n");
-		end = HNS_ROCE_V2_HW_RST_TIMEOUT;
-		while (end) {
-			if (!ops->get_hw_reset_stat(handle)) {
-				hr_dev->is_reset = true;
-				dev_info(hr_dev->dev,
-					 "Func clear success after reset.\n");
-				return;
-			}
-			msleep(HNS_ROCE_V2_HW_RST_COMPLETION_WAIT);
-			end -= HNS_ROCE_V2_HW_RST_COMPLETION_WAIT;
-		}
-
-		dev_warn(hr_dev->dev, "Func clear failed.\n");
-	} else if (sw_resetting && instance_stage == HNS_ROCE_STATE_INIT) {
-		hr_dev->dis_db = true;
-
-		dev_warn(hr_dev->dev,
-			 "Func clear is pending, device in resetting state.\n");
-		end = HNS_ROCE_V2_HW_RST_TIMEOUT;
-		while (end) {
-			if (ops->ae_dev_reset_cnt(handle) !=
-			    hr_dev->reset_cnt) {
-				hr_dev->is_reset = true;
-				dev_info(hr_dev->dev,
-					 "Func clear success after sw reset\n");
-				return;
-			}
-			msleep(HNS_ROCE_V2_HW_RST_COMPLETION_WAIT);
-			end -= HNS_ROCE_V2_HW_RST_COMPLETION_WAIT;
-		}
-
-		dev_warn(hr_dev->dev, "Func clear failed because of unfinished sw reset\n");
-	} else {
-		if (retval && !flag)
-			dev_warn(hr_dev->dev,
-				 "Func clear read failed, ret = %d.\n", retval);
-
-		dev_warn(hr_dev->dev, "Func clear failed.\n");
+		return;
 	}
+
+	if (ops->get_hw_reset_stat(handle)) {
+		func_clr_hw_resetting_state(hr_dev, handle);
+		return;
+	}
+
+	if (ops->ae_dev_resetting(handle) &&
+	    handle->rinfo.instance_state == HNS_ROCE_STATE_INIT) {
+		func_clr_sw_resetting_state(hr_dev, handle);
+		return;
+	}
+
+	if (retval && !flag)
+		dev_warn(hr_dev->dev,
+			 "Func clear read failed, ret = %d.\n", retval);
+
+	dev_warn(hr_dev->dev, "Func clear failed.\n");
 }
+
 static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
 {
 	bool fclr_write_fail_flag = false;
@@ -1481,7 +1509,7 @@ static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
 	unsigned long end;
 	int ret = 0;
 
-	if (hns_roce_func_clr_chk_rst(hr_dev))
+	if (check_device_is_in_reset(hr_dev))
 		goto out;
 
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_FUNC_CLEAR, false);
@@ -1498,7 +1526,7 @@ static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
 	msleep(HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL);
 	end = HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS;
 	while (end) {
-		if (hns_roce_func_clr_chk_rst(hr_dev))
+		if (check_device_is_in_reset(hr_dev))
 			goto out;
 		msleep(HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT);
 		end -= HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT;
@@ -1517,7 +1545,7 @@ static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
 	}
 
 out:
-	hns_roce_func_clr_rst_prc(hr_dev, ret, fclr_write_fail_flag);
+	hns_roce_func_clr_rst_proc(hr_dev, ret, fclr_write_fail_flag);
 }
 
 static int hns_roce_query_fw_ver(struct hns_roce_dev *hr_dev)
@@ -2658,36 +2686,6 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 		free_dip_list(hr_dev);
 }
 
-static int hns_roce_query_mbox_status(struct hns_roce_dev *hr_dev)
-{
-	struct hns_roce_cmq_desc desc;
-	struct hns_roce_mbox_status *mb_st =
-				       (struct hns_roce_mbox_status *)desc.data;
-	int status;
-
-	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_QUERY_MB_ST, true);
-
-	status = hns_roce_cmq_send(hr_dev, &desc, 1);
-	if (status)
-		return status;
-
-	return le32_to_cpu(mb_st->mb_status_hw_run);
-}
-
-static int hns_roce_v2_cmd_pending(struct hns_roce_dev *hr_dev)
-{
-	u32 status = hns_roce_query_mbox_status(hr_dev);
-
-	return status >> HNS_ROCE_HW_RUN_BIT_SHIFT;
-}
-
-static int hns_roce_v2_cmd_complete(struct hns_roce_dev *hr_dev)
-{
-	u32 status = hns_roce_query_mbox_status(hr_dev);
-
-	return status & HNS_ROCE_HW_MB_STATUS_MASK;
-}
-
 static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev, u64 in_param,
 			      u64 out_param, u32 in_modifier, u8 op_modifier,
 			      u16 op, u16 token, int event)
@@ -2707,58 +2705,97 @@ static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev, u64 in_param,
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
 
-static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
-				 u64 out_param, u32 in_modifier, u8 op_modifier,
-				 u16 op, u16 token, int event)
+static int v2_wait_mbox_complete(struct hns_roce_dev *hr_dev, u32 timeout,
+				 u8 *complete_status)
 {
-	struct device *dev = hr_dev->dev;
+	struct hns_roce_mbox_status *mb_st;
+	struct hns_roce_cmq_desc desc;
 	unsigned long end;
-	int ret;
+	int ret = -EBUSY;
+	u32 status;
+	bool busy;
 
-	end = msecs_to_jiffies(HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS) + jiffies;
-	while (hns_roce_v2_cmd_pending(hr_dev)) {
-		if (time_after(jiffies, end)) {
-			dev_dbg(dev, "jiffies=%d end=%d\n", (int)jiffies,
-				(int)end);
-			return -EAGAIN;
+	mb_st = (struct hns_roce_mbox_status *)desc.data;
+	end = msecs_to_jiffies(timeout) + jiffies;
+	while (v2_chk_mbox_is_avail(hr_dev, &busy)) {
+		status = 0;
+		hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_QUERY_MB_ST,
+					      true);
+		ret = __hns_roce_cmq_send(hr_dev, &desc, 1);
+		if (!ret) {
+			status = le32_to_cpu(mb_st->mb_status_hw_run);
+			/* No pending message exists in ROCEE mbox. */
+			if (!(status & MB_ST_HW_RUN_M))
+				break;
+		} else if (!v2_chk_mbox_is_avail(hr_dev, &busy)) {
+			break;
 		}
+
+		if (time_after(jiffies, end)) {
+			dev_err_ratelimited(hr_dev->dev,
+					    "failed to wait mbox status 0x%x\n",
+					    status);
+			return -ETIMEDOUT;
+		}
+
 		cond_resched();
+		ret = -EBUSY;
 	}
 
-	ret = hns_roce_mbox_post(hr_dev, in_param, out_param, in_modifier,
-				 op_modifier, op, token, event);
-	if (ret)
-		dev_err(dev, "Post mailbox fail(%d)\n", ret);
+	if (!ret) {
+		*complete_status = (u8)(status & MB_ST_COMPLETE_M);
+	} else if (!v2_chk_mbox_is_avail(hr_dev, &busy)) {
+		/* Ignore all errors if the mbox is unavailable. */
+		ret = 0;
+		*complete_status = MB_ST_COMPLETE_M;
+	}
 
 	return ret;
 }
 
-static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
-				unsigned int timeout)
+static int v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
+			u64 out_param, u32 in_modifier, u8 op_modifier,
+			u16 op, u16 token, int event)
 {
-	struct device *dev = hr_dev->dev;
-	unsigned long end;
-	u32 status;
+	u8 status = 0;
+	int ret;
 
-	end = msecs_to_jiffies(timeout) + jiffies;
-	while (hns_roce_v2_cmd_pending(hr_dev) && time_before(jiffies, end))
-		cond_resched();
-
-	if (hns_roce_v2_cmd_pending(hr_dev)) {
-		dev_err(dev, "[cmd_poll]hw run cmd TIMEDOUT!\n");
-		return -ETIMEDOUT;
+	/* Waiting for the mbox to be idle */
+	ret = v2_wait_mbox_complete(hr_dev, HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS,
+				    &status);
+	if (unlikely(ret)) {
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to check post mbox status = 0x%x, ret = %d.\n",
+				    status, ret);
+		return ret;
 	}
 
-	status = hns_roce_v2_cmd_complete(hr_dev);
-	if (status != 0x1) {
-		if (status == CMD_RST_PRC_EBUSY)
-			return status;
+	/* Post new message to mbox */
+	ret = hns_roce_mbox_post(hr_dev, in_param, out_param, in_modifier,
+				 op_modifier, op, token, event);
+	if (ret)
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to post mailbox, ret = %d.\n", ret);
 
-		dev_err(dev, "mailbox status 0x%x!\n", status);
-		return -EBUSY;
+	return ret;
+}
+
+static int v2_poll_mbox_done(struct hns_roce_dev *hr_dev, unsigned int timeout)
+{
+	u8 status = 0;
+	int ret;
+
+	ret = v2_wait_mbox_complete(hr_dev, timeout, &status);
+	if (!ret) {
+		if (status != MB_ST_COMPLETE_SUCC)
+			return -EBUSY;
+	} else {
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to check mbox status = 0x%x, ret = %d.\n",
+				    status, ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void copy_gid(void *dest, const union ib_gid *gid)
@@ -6453,6 +6490,8 @@ static void hns_roce_v2_cleanup_eq_table(struct hns_roce_dev *hr_dev)
 	hns_roce_v2_int_mask_enable(hr_dev, eq_num, EQ_DISABLE);
 
 	__hns_roce_free_irq(hr_dev);
+	flush_workqueue(hr_dev->irq_workq);
+	destroy_workqueue(hr_dev->irq_workq);
 
 	for (i = 0; i < eq_num; i++) {
 		hns_roce_v2_destroy_eqc(hr_dev, i);
@@ -6461,9 +6500,6 @@ static void hns_roce_v2_cleanup_eq_table(struct hns_roce_dev *hr_dev)
 	}
 
 	kfree(eq_table->eq);
-
-	flush_workqueue(hr_dev->irq_workq);
-	destroy_workqueue(hr_dev->irq_workq);
 }
 
 static const struct hns_roce_dfx_hw hns_roce_dfx_hw_v2 = {
@@ -6492,9 +6528,9 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.hw_profile = hns_roce_v2_profile,
 	.hw_init = hns_roce_v2_init,
 	.hw_exit = hns_roce_v2_exit,
-	.post_mbox = hns_roce_v2_post_mbox,
-	.chk_mbox = hns_roce_v2_chk_mbox,
-	.rst_prc_mbox = hns_roce_v2_rst_process_cmd,
+	.post_mbox = v2_post_mbox,
+	.poll_mbox_done = v2_poll_mbox_done,
+	.chk_mbox_avail = v2_chk_mbox_is_avail,
 	.set_gid = hns_roce_v2_set_gid,
 	.set_mac = hns_roce_v2_set_mac,
 	.write_mtpt = hns_roce_v2_write_mtpt,

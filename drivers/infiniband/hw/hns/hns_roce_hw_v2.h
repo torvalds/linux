@@ -1588,6 +1588,13 @@ struct hns_roce_mbox_status {
 	__le32	rsv[5];
 };
 
+#define HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS 10000
+
+#define MB_ST_HW_RUN_M BIT(31)
+#define MB_ST_COMPLETE_M GENMASK(7, 0)
+
+#define MB_ST_COMPLETE_SUCC 1
+
 struct hns_roce_cfg_bt_attr {
 	__le32 vf_qpc_cfg;
 	__le32 vf_srqc_cfg;
@@ -1892,11 +1899,6 @@ struct hns_roce_cmq_desc {
 	};
 
 };
-
-#define HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS	10000
-
-#define HNS_ROCE_HW_RUN_BIT_SHIFT	31
-#define HNS_ROCE_HW_MB_STATUS_MASK	0xFF
 
 struct hns_roce_v2_cmq_ring {
 	dma_addr_t desc_dma_addr;
