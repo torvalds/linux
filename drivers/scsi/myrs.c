@@ -2656,7 +2656,7 @@ static irqreturn_t DAC960_GEM_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrs_privdata DAC960_GEM_privdata = {
+static struct myrs_privdata DAC960_GEM_privdata = {
 	.hw_init =		DAC960_GEM_hw_init,
 	.irq_handler =		DAC960_GEM_intr_handler,
 	.mmio_size =		DAC960_GEM_mmio_size,
@@ -2906,7 +2906,7 @@ static irqreturn_t DAC960_BA_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrs_privdata DAC960_BA_privdata = {
+static struct myrs_privdata DAC960_BA_privdata = {
 	.hw_init =		DAC960_BA_hw_init,
 	.irq_handler =		DAC960_BA_intr_handler,
 	.mmio_size =		DAC960_BA_mmio_size,
@@ -3156,7 +3156,7 @@ static irqreturn_t DAC960_LP_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrs_privdata DAC960_LP_privdata = {
+static struct myrs_privdata DAC960_LP_privdata = {
 	.hw_init =		DAC960_LP_hw_init,
 	.irq_handler =		DAC960_LP_intr_handler,
 	.mmio_size =		DAC960_LP_mmio_size,
