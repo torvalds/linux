@@ -421,7 +421,7 @@ static int gfs2_allocate_page_backing(struct page *page, unsigned int length)
 	do {
 		struct iomap iomap = { };
 
-		if (gfs2_iomap_get_alloc(page->mapping->host, pos, length, &iomap))
+		if (gfs2_iomap_alloc(page->mapping->host, pos, length, &iomap))
 			return -EIO;
 
 		if (length < iomap.length)
@@ -991,8 +991,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	while (offset < end) {
 		struct iomap iomap = { };
 
-		error = gfs2_iomap_get_alloc(inode, offset, end - offset,
-					     &iomap);
+		error = gfs2_iomap_alloc(inode, offset, end - offset, &iomap);
 		if (error)
 			goto out;
 		offset = iomap.offset + iomap.length;
