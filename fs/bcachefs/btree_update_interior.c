@@ -1095,10 +1095,11 @@ static struct btree *__btree_split_node(struct btree_update *as,
 					struct btree *n1,
 					struct btree_iter *iter)
 {
+	struct bkey_format_state s;
 	size_t nr_packed = 0, nr_unpacked = 0;
 	struct btree *n2;
 	struct bset *set1, *set2;
-	struct bkey_packed *k, *prev = NULL;
+	struct bkey_packed *k, *set2_start, *set2_end, *out, *prev = NULL;
 
 	n2 = bch2_btree_node_alloc(as, n1->c.level);
 	bch2_btree_update_add_new_node(as, n2);
@@ -1107,8 +1108,6 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	n2->data->format	= n1->format;
 	SET_BTREE_NODE_SEQ(n2->data, BTREE_NODE_SEQ(n1->data));
 	n2->key.k.p = n1->key.k.p;
-
-	btree_node_set_format(n2, n2->data->format);
 
 	set1 = btree_bset_first(n1);
 	set2 = btree_bset_first(n2);
@@ -1136,32 +1135,48 @@ static struct btree *__btree_split_node(struct btree_update *as,
 	}
 
 	BUG_ON(!prev);
+	set2_start	= k;
+	set2_end	= vstruct_last(set1);
 
-	btree_set_max(n1, bkey_unpack_pos(n1, prev));
-	btree_set_min(n2, bkey_successor(n1->key.k.p));
-
-	set2->u64s = cpu_to_le16((u64 *) vstruct_end(set1) - (u64 *) k);
-	set1->u64s = cpu_to_le16(le16_to_cpu(set1->u64s) - le16_to_cpu(set2->u64s));
-
+	set1->u64s = cpu_to_le16((u64 *) set2_start - set1->_data);
 	set_btree_bset_end(n1, n1->set);
-	set_btree_bset_end(n2, n2->set);
-
-	n2->nr.live_u64s	= le16_to_cpu(set2->u64s);
-	n2->nr.bset_u64s[0]	= le16_to_cpu(set2->u64s);
-	n2->nr.packed_keys	= n1->nr.packed_keys - nr_packed;
-	n2->nr.unpacked_keys	= n1->nr.unpacked_keys - nr_unpacked;
 
 	n1->nr.live_u64s	= le16_to_cpu(set1->u64s);
 	n1->nr.bset_u64s[0]	= le16_to_cpu(set1->u64s);
 	n1->nr.packed_keys	= nr_packed;
 	n1->nr.unpacked_keys	= nr_unpacked;
 
+	btree_set_max(n1, bkey_unpack_pos(n1, prev));
+	btree_set_min(n2, bkey_successor(n1->key.k.p));
+
+	bch2_bkey_format_init(&s);
+	bch2_bkey_format_add_pos(&s, n2->data->min_key);
+	bch2_bkey_format_add_pos(&s, n2->data->max_key);
+
+	for (k = set2_start; k != set2_end; k = bkey_next(k)) {
+		struct bkey uk = bkey_unpack_key(n1, k);
+		bch2_bkey_format_add_key(&s, &uk);
+	}
+
+	n2->data->format = bch2_bkey_format_done(&s);
+	btree_node_set_format(n2, n2->data->format);
+
+	out = set2->start;
+	memset(&n2->nr, 0, sizeof(n2->nr));
+
+	for (k = set2_start; k != set2_end; k = bkey_next(k)) {
+		BUG_ON(!bch2_bkey_transform(&n2->format, out, bkey_packed(k)
+				       ? &n1->format : &bch2_bkey_format_current, k));
+		out->format = KEY_FORMAT_LOCAL_BTREE;
+		btree_keys_account_key_add(&n2->nr, 0, out);
+		out = bkey_next(out);
+	}
+
+	set2->u64s = cpu_to_le16((u64 *) out - set2->_data);
+	set_btree_bset_end(n2, n2->set);
+
 	BUG_ON(!set1->u64s);
 	BUG_ON(!set2->u64s);
-
-	memcpy_u64s(set2->start,
-		    vstruct_end(set1),
-		    le16_to_cpu(set2->u64s));
 
 	btree_node_reset_sib_u64s(n1);
 	btree_node_reset_sib_u64s(n2);
