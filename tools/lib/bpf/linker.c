@@ -1906,8 +1906,10 @@ static int finalize_btf_ext(struct bpf_linker *linker)
 			struct dst_sec *sec = &linker->secs[i];
 
 			sz = emit_btf_ext_data(linker, cur, sec->sec_name, &sec->func_info);
-			if (sz < 0)
-				return sz;
+			if (sz < 0) {
+				err = sz;
+				goto out;
+			}
 
 			cur += sz;
 		}
@@ -1921,8 +1923,10 @@ static int finalize_btf_ext(struct bpf_linker *linker)
 			struct dst_sec *sec = &linker->secs[i];
 
 			sz = emit_btf_ext_data(linker, cur, sec->sec_name, &sec->line_info);
-			if (sz < 0)
-				return sz;
+			if (sz < 0) {
+				err = sz;
+				goto out;
+			}
 
 			cur += sz;
 		}
@@ -1936,8 +1940,10 @@ static int finalize_btf_ext(struct bpf_linker *linker)
 			struct dst_sec *sec = &linker->secs[i];
 
 			sz = emit_btf_ext_data(linker, cur, sec->sec_name, &sec->core_relo_info);
-			if (sz < 0)
-				return sz;
+			if (sz < 0) {
+				err = sz;
+				goto out;
+			}
 
 			cur += sz;
 		}
@@ -1948,8 +1954,10 @@ static int finalize_btf_ext(struct bpf_linker *linker)
 	if (err) {
 		linker->btf_ext = NULL;
 		pr_warn("failed to parse final .BTF.ext data: %d\n", err);
-		return err;
+		goto out;
 	}
 
-	return 0;
+out:
+	free(data);
+	return err;
 }
