@@ -66,7 +66,7 @@
  * Fast Commit Ineligibility
  * -------------------------
  * Not all operations are supported by fast commits today (e.g extended
- * attributes). Fast commit ineligiblity is marked by calling one of the
+ * attributes). Fast commit ineligibility is marked by calling one of the
  * two following functions:
  *
  * - ext4_fc_mark_ineligible(): This makes next fast commit operation to fall
