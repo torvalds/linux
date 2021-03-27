@@ -321,7 +321,7 @@ static int hpre_set_cluster(struct hisi_qm *qm)
 }
 
 /*
- * For Kunpeng 920, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
+ * For Kunpeng 920, we should disable FLR triggered by hardware (BME/PM/SRIOV).
  * Or it may stay in D3 state when we bind and unbind hpre quickly,
  * as it does FLR triggered by hardware.
  */
@@ -951,7 +951,6 @@ static void hpre_remove(struct pci_dev *pdev)
 
 	hisi_qm_uninit(qm);
 }
-
 
 static const struct pci_error_handlers hpre_err_handler = {
 	.error_detected		= hisi_qm_dev_err_detected,
