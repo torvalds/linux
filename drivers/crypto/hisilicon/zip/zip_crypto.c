@@ -298,6 +298,11 @@ static void hisi_zip_fill_tag_v1(struct hisi_zip_sqe *sqe, struct hisi_zip_req *
 	sqe->dw13 = req->req_id;
 }
 
+static void hisi_zip_fill_tag_v2(struct hisi_zip_sqe *sqe, struct hisi_zip_req *req)
+{
+	sqe->dw26 = req->req_id;
+}
+
 static void hisi_zip_fill_sqe_type(struct hisi_zip_sqe *sqe, u8 sqe_type)
 {
 	u32 val;
@@ -378,6 +383,11 @@ err_unmap_input:
 static u32 hisi_zip_get_tag_v1(struct hisi_zip_sqe *sqe)
 {
 	return sqe->dw13;
+}
+
+static u32 hisi_zip_get_tag_v2(struct hisi_zip_sqe *sqe)
+{
+	return sqe->dw26;
 }
 
 static u32 hisi_zip_get_status(struct hisi_zip_sqe *sqe)
@@ -527,6 +537,19 @@ static const struct hisi_zip_sqe_ops hisi_zip_ops_v1 = {
 	.get_dstlen		= hisi_zip_get_dstlen,
 };
 
+static const struct hisi_zip_sqe_ops hisi_zip_ops_v2 = {
+	.sqe_type		= 0x3,
+	.fill_addr		= hisi_zip_fill_addr,
+	.fill_buf_size		= hisi_zip_fill_buf_size,
+	.fill_buf_type		= hisi_zip_fill_buf_type,
+	.fill_req_type		= hisi_zip_fill_req_type,
+	.fill_tag		= hisi_zip_fill_tag_v2,
+	.fill_sqe_type		= hisi_zip_fill_sqe_type,
+	.get_tag		= hisi_zip_get_tag_v2,
+	.get_status		= hisi_zip_get_status,
+	.get_dstlen		= hisi_zip_get_dstlen,
+};
+
 static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int node)
 {
 	struct hisi_qp *qps[HZIP_CTX_Q_NUM] = { NULL };
@@ -560,6 +583,8 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 
 	if (hisi_zip->qm.ver < QM_HW_V3)
 		hisi_zip_ctx->ops = &hisi_zip_ops_v1;
+	else
+		hisi_zip_ctx->ops = &hisi_zip_ops_v2;
 
 	return 0;
 }

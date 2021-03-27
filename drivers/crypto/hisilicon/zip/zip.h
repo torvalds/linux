@@ -75,6 +75,7 @@ struct hisi_zip_sqe {
 	u32 dw23;
 	u32 dw24;
 	u32 dw25;
+	/* tag: in sqe type 3 */
 	u32 dw26;
 	u32 dw27;
 	u32 rsvd1[4];
