@@ -2809,7 +2809,7 @@ static irqreturn_t DAC960_LA_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_LA_privdata = {
+static struct myrb_privdata DAC960_LA_privdata = {
 	.hw_init =	DAC960_LA_hw_init,
 	.irq_handler =	DAC960_LA_intr_handler,
 	.mmio_size =	DAC960_LA_mmio_size,
@@ -3085,7 +3085,7 @@ static irqreturn_t DAC960_PG_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_PG_privdata = {
+static struct myrb_privdata DAC960_PG_privdata = {
 	.hw_init =	DAC960_PG_hw_init,
 	.irq_handler =	DAC960_PG_intr_handler,
 	.mmio_size =	DAC960_PG_mmio_size,
@@ -3288,7 +3288,7 @@ static irqreturn_t DAC960_PD_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_PD_privdata = {
+static struct myrb_privdata DAC960_PD_privdata = {
 	.hw_init =	DAC960_PD_hw_init,
 	.irq_handler =	DAC960_PD_intr_handler,
 	.mmio_size =	DAC960_PD_mmio_size,
@@ -3486,7 +3486,7 @@ static irqreturn_t DAC960_P_intr_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-struct myrb_privdata DAC960_P_privdata = {
+static struct myrb_privdata DAC960_P_privdata = {
 	.hw_init =	DAC960_P_hw_init,
 	.irq_handler =	DAC960_P_intr_handler,
 	.mmio_size =	DAC960_PD_mmio_size,
