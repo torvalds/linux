@@ -54,7 +54,7 @@
 #define RAS_TBL_SIZE_BYTES      (256 * 1024)
 #define RAS_HDR_START           0
 #define RAS_RECORD_START        (RAS_HDR_START + RAS_TABLE_HEADER_SIZE)
-#define RAS_MAX_RECORD_NUM      ((RAS_TBL_SIZE_BYTES - RAS_TABLE_HEADER_SIZE) \
+#define RAS_MAX_RECORD_COUNT    ((RAS_TBL_SIZE_BYTES - RAS_TABLE_HEADER_SIZE) \
 				 / RAS_TABLE_RECORD_SIZE)
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
@@ -532,7 +532,7 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 		 * TODO - Check the assumption is correct
 		 */
 		control->num_recs += num;
-		control->num_recs %= RAS_MAX_RECORD_NUM;
+		control->num_recs %= RAS_MAX_RECORD_COUNT;
 		control->tbl_hdr.tbl_size += RAS_TABLE_RECORD_SIZE * num;
 		if (control->tbl_hdr.tbl_size > RAS_TBL_SIZE_BYTES)
 			control->tbl_hdr.tbl_size = RAS_TABLE_HEADER_SIZE +
@@ -568,9 +568,9 @@ int amdgpu_ras_eeprom_write(struct amdgpu_ras_eeprom_control *control,
 	return amdgpu_ras_eeprom_xfer(control, records, num, true);
 }
 
-inline uint32_t amdgpu_ras_eeprom_get_record_max_length(void)
+inline uint32_t amdgpu_ras_eeprom_max_record_count(void)
 {
-	return RAS_MAX_RECORD_NUM;
+	return RAS_MAX_RECORD_COUNT;
 }
 
 /* Used for testing if bugs encountered */

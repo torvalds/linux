@@ -71,8 +71,8 @@ const char *ras_block_string[] = {
 /* inject address is 52 bits */
 #define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
 
-/* typical ECC bad page rate(1 bad page per 100MB VRAM) */
-#define RAS_BAD_PAGE_RATE		(100 * 1024 * 1024ULL)
+/* typical ECC bad page rate is 1 bad page per 100MB VRAM */
+#define RAS_BAD_PAGE_COVER              (100 * 1024 * 1024ULL)
 
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
@@ -1841,27 +1841,24 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_eeprom_control *control =
-					&adev->psp.ras.ras->eeprom_control;
-	struct eeprom_table_record *bps = NULL;
-	int ret = 0;
+		&adev->psp.ras.ras->eeprom_control;
+	struct eeprom_table_record *bps;
+	int ret;
 
 	/* no bad page record, skip eeprom access */
-	if (!control->num_recs || (amdgpu_bad_page_threshold == 0))
-		return ret;
+	if (control->num_recs == 0 || amdgpu_bad_page_threshold == 0)
+		return 0;
 
 	bps = kcalloc(control->num_recs, sizeof(*bps), GFP_KERNEL);
 	if (!bps)
 		return -ENOMEM;
 
-	if (amdgpu_ras_eeprom_read(control, bps, control->num_recs)) {
+	ret = amdgpu_ras_eeprom_read(control, bps, control->num_recs);
+	if (ret)
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
-		ret = -EIO;
-		goto out;
-	}
+	else
+		ret = amdgpu_ras_add_bad_pages(adev, bps, control->num_recs);
 
-	ret = amdgpu_ras_add_bad_pages(adev, bps, control->num_recs);
-
-out:
 	kfree(bps);
 	return ret;
 }
@@ -1901,11 +1898,9 @@ static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
 }
 
 static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
-					uint32_t max_length)
+					  uint32_t max_count)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	int tmp_threshold = amdgpu_bad_page_threshold;
-	u64 val;
 
 	/*
 	 * Justification of value bad_page_cnt_threshold in ras structure
@@ -1926,18 +1921,15 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	 *      take no effect.
 	 */
 
-	if (tmp_threshold < -1)
-		tmp_threshold = -1;
-	else if (tmp_threshold > max_length)
-		tmp_threshold = max_length;
+	if (amdgpu_bad_page_threshold < 0) {
+		u64 val = adev->gmc.mc_vram_size;
 
-	if (tmp_threshold == -1) {
-		val = adev->gmc.mc_vram_size;
-		do_div(val, RAS_BAD_PAGE_RATE);
+		do_div(val, RAS_BAD_PAGE_COVER);
 		con->bad_page_cnt_threshold = min(lower_32_bits(val),
-						max_length);
+						  max_count);
 	} else {
-		con->bad_page_cnt_threshold = tmp_threshold;
+		con->bad_page_cnt_threshold = min_t(int, max_count,
+						    amdgpu_bad_page_threshold);
 	}
 }
 
@@ -1945,7 +1937,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data;
-	uint32_t max_eeprom_records_len = 0;
+	u32  max_eeprom_records_count = 0;
 	bool exc_err_limit = false;
 	int ret;
 
@@ -1965,8 +1957,8 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	atomic_set(&con->in_recovery, 0);
 	con->adev = adev;
 
-	max_eeprom_records_len = amdgpu_ras_eeprom_get_record_max_length();
-	amdgpu_ras_validate_threshold(adev, max_eeprom_records_len);
+	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count();
+	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
 
 	/* Todo: During test the SMU might fail to read the eeprom through I2C
 	 * when the GPU is pending on XGMI reset during probe time
