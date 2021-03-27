@@ -33,31 +33,50 @@ struct hisi_zip_sqe {
 	u32 consumed;
 	u32 produced;
 	u32 comp_data_length;
+	/*
+	 * status: 0~7 bits
+	 * rsvd: 8~31 bits
+	 */
 	u32 dw3;
 	u32 input_data_length;
-	u32 lba_l;
-	u32 lba_h;
+	u32 dw5;
+	u32 dw6;
+	/*
+	 * in_sge_data_offset: 0~23 bits
+	 * rsvd: 24~27 bits
+	 * sqe_type: 29~31 bits
+	 */
 	u32 dw7;
+	/*
+	 * out_sge_data_offset: 0~23 bits
+	 * rsvd: 24~31 bits
+	 */
 	u32 dw8;
+	/*
+	 * request_type: 0~7 bits
+	 * buffer_type: 8~11 bits
+	 * rsvd: 13~31 bits
+	 */
 	u32 dw9;
 	u32 dw10;
-	u32 priv_info;
+	u32 dw11;
 	u32 dw12;
-	u32 tag;
+	/* tag: in sqe type 0 */
+	u32 dw13;
 	u32 dest_avail_out;
-	u32 rsvd0;
-	u32 comp_head_addr_l;
-	u32 comp_head_addr_h;
+	u32 dw15;
+	u32 dw16;
+	u32 dw17;
 	u32 source_addr_l;
 	u32 source_addr_h;
 	u32 dest_addr_l;
 	u32 dest_addr_h;
-	u32 stream_ctx_addr_l;
-	u32 stream_ctx_addr_h;
-	u32 cipher_key1_addr_l;
-	u32 cipher_key1_addr_h;
-	u32 cipher_key2_addr_l;
-	u32 cipher_key2_addr_h;
+	u32 dw22;
+	u32 dw23;
+	u32 dw24;
+	u32 dw25;
+	u32 dw26;
+	u32 dw27;
 	u32 rsvd1[4];
 };
 

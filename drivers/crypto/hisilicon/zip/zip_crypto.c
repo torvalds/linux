@@ -253,7 +253,7 @@ static void hisi_zip_config_buf_type(struct hisi_zip_sqe *sqe, u8 buf_type)
 
 static void hisi_zip_config_tag(struct hisi_zip_sqe *sqe, u32 tag)
 {
-	sqe->tag = tag;
+	sqe->dw13 = tag;
 }
 
 static void hisi_zip_fill_sqe(struct hisi_zip_sqe *sqe, u8 req_type,
@@ -339,7 +339,7 @@ static void hisi_zip_acomp_cb(struct hisi_qp *qp, void *data)
 	struct hisi_zip_req_q *req_q = &qp_ctx->req_q;
 	struct device *dev = &qp->qm->pdev->dev;
 	struct hisi_zip_sqe *sqe = data;
-	struct hisi_zip_req *req = req_q->q + sqe->tag;
+	struct hisi_zip_req *req = req_q->q + sqe->dw13;
 	struct acomp_req *acomp_req = req->req;
 	u32 status, dlen, head_size;
 	int err = 0;
