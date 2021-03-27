@@ -7133,8 +7133,8 @@ static int hclge_clear_arfs_rules(struct hclge_dev *hdev)
 	}
 	hclge_sync_fd_state(hdev);
 
-	return 0;
 #endif
+	return 0;
 }
 
 static void hclge_get_cls_key_basic(const struct flow_rule *flow,
