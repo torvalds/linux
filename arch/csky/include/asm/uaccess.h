@@ -397,8 +397,6 @@ long __strncpy_from_user(char *dst, const char *src, long count);
  */
 long strnlen_user(const char *src, long n);
 
-#define strlen_user(str) strnlen_user(str, 32767)
-
 struct exception_table_entry {
 	unsigned long insn;
 	unsigned long nextinsn;
