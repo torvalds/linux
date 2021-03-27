@@ -1729,6 +1729,17 @@ static int hpre_curve25519_msg_request_set(struct hpre_ctx *ctx,
 	return 0;
 }
 
+static void hpre_curve25519_src_modulo_p(u8 *ptr)
+{
+	int i;
+
+	for (i = 0; i < CURVE25519_KEY_SIZE - 1; i++)
+		ptr[i] = 0;
+
+	/* The modulus is ptr's last byte minus '0xed'(last byte of p) */
+	ptr[i] -= 0xed;
+}
+
 static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 				    struct scatterlist *data, unsigned int len)
 {
@@ -1767,10 +1778,13 @@ static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 	curve = ecc_get_curve25519();
 
 	fill_curve_param(p, curve->p, CURVE25519_KEY_SIZE, curve->g.ndigits);
-	if (memcmp(ptr, p, ctx->key_sz) >= 0) {
-		dev_err(dev, "gx is out of p!\n");
-		goto err;
-	}
+
+	/*
+	 * When src_data equals (2^255 - 19) ~  (2^255 - 1), it is out of p,
+	 * we get its modulus to p, and then use it.
+	 */
+	if (memcmp(ptr, p, ctx->key_sz) >= 0)
+		hpre_curve25519_src_modulo_p(ptr);
 
 	hpre_req->src = ptr;
 	msg->in = cpu_to_le64(dma);
