@@ -29,63 +29,6 @@ const char *security_type_str(u8 value)
 	return NULL;
 }
 
-#ifdef DBG_SW_SEC_CNT
-#define WEP_SW_ENC_CNT_INC(sec, ra) \
-	if (is_broadcast_mac_addr(ra)) \
-		sec->wep_sw_enc_cnt_bc++; \
-	else if (is_multicast_mac_addr(ra)) \
-		sec->wep_sw_enc_cnt_mc++; \
-	else \
-		sec->wep_sw_enc_cnt_uc++;
-
-#define WEP_SW_DEC_CNT_INC(sec, ra) \
-	if (is_broadcast_mac_addr(ra)) \
-		sec->wep_sw_dec_cnt_bc++; \
-	else if (is_multicast_mac_addr(ra)) \
-		sec->wep_sw_dec_cnt_mc++; \
-	else \
-		sec->wep_sw_dec_cnt_uc++;
-
-#define TKIP_SW_ENC_CNT_INC(sec, ra) \
-	if (is_broadcast_mac_addr(ra)) \
-		sec->tkip_sw_enc_cnt_bc++; \
-	else if (is_multicast_mac_addr(ra)) \
-		sec->tkip_sw_enc_cnt_mc++; \
-	else \
-		sec->tkip_sw_enc_cnt_uc++;
-
-#define TKIP_SW_DEC_CNT_INC(sec, ra) \
-	if (is_broadcast_mac_addr(ra)) \
-		sec->tkip_sw_dec_cnt_bc++; \
-	else if (is_multicast_mac_addr(ra)) \
-		sec->tkip_sw_dec_cnt_mc++; \
-	else \
-		sec->tkip_sw_dec_cnt_uc++;
-
-#define AES_SW_ENC_CNT_INC(sec, ra) \
-	if (is_broadcast_mac_addr(ra)) \
-		sec->aes_sw_enc_cnt_bc++; \
-	else if (is_multicast_mac_addr(ra)) \
-		sec->aes_sw_enc_cnt_mc++; \
-	else \
-		sec->aes_sw_enc_cnt_uc++;
-
-#define AES_SW_DEC_CNT_INC(sec, ra) \
-	if (is_broadcast_mac_addr(ra)) \
-		sec->aes_sw_dec_cnt_bc++; \
-	else if (is_multicast_mac_addr(ra)) \
-		sec->aes_sw_dec_cnt_mc++; \
-	else \
-		sec->aes_sw_dec_cnt_uc++;
-#else
-#define WEP_SW_ENC_CNT_INC(sec, ra)
-#define WEP_SW_DEC_CNT_INC(sec, ra)
-#define TKIP_SW_ENC_CNT_INC(sec, ra)
-#define TKIP_SW_DEC_CNT_INC(sec, ra)
-#define AES_SW_ENC_CNT_INC(sec, ra)
-#define AES_SW_DEC_CNT_INC(sec, ra)
-#endif /* DBG_SW_SEC_CNT */
-
 /* WEP related ===== */
 
 struct arc4context {
@@ -256,8 +199,6 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 				pframe = (u8 *)round_up((SIZE_PTR)(pframe), 4);
 			}
 		}
-
-		WEP_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);
 	}
 }
 
@@ -305,8 +246,6 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 					crc[1], payload[length - 3],
 					crc[0], payload[length - 4]));
 		}
-
-		WEP_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
 	}
 }
 
@@ -710,8 +649,6 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 					pframe = (u8 *)round_up((SIZE_PTR)(pframe), 4);
 				}
 			}
-
-			TKIP_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);
 		}
 	}
 	return res;
@@ -812,8 +749,6 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 						crc[0], payload[length - 4]));
 				res = _FAIL;
 			}
-
-			TKIP_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
 		} else {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo == NULL!!!\n", __func__));
 			res = _FAIL;
@@ -1465,8 +1400,6 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 				pframe = (u8 *)round_up((SIZE_PTR)(pframe), 4);
 			}
 		}
-
-		AES_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);
 	}
 	return res;
 }
@@ -1772,7 +1705,6 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 
 			res = aes_decipher(prwskey, prxattrib->hdrlen, pframe, length);
 
-			AES_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
 		} else {
 			RT_TRACE(_module_rtl871x_security_c_,
 				 _drv_err_,
