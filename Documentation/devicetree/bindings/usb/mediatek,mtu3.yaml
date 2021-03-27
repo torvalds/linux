@@ -127,7 +127,7 @@ properties:
       Any connector to the data bus of this controller should be modelled
       using the OF graph bindings specified, if the "usb-role-switch"
       property is used. See graph.txt
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
 
   enable-manual-drd:
     $ref: /schemas/types.yaml#/definitions/flag
