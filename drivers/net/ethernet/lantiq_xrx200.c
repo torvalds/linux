@@ -460,10 +460,8 @@ static int xrx200_probe(struct platform_device *pdev)
 	}
 
 	priv->pmac_reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->pmac_reg)) {
-		dev_err(dev, "failed to request and remap io ranges\n");
+	if (IS_ERR(priv->pmac_reg))
 		return PTR_ERR(priv->pmac_reg);
-	}
 
 	priv->chan_rx.dma.irq = platform_get_irq_byname(pdev, "rx");
 	if (priv->chan_rx.dma.irq < 0)
