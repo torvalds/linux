@@ -89,7 +89,7 @@ struct reportpwrstate_parm {
 	unsigned short rsvd;
 };
 
-#define LPS_DELAY_TIME	1*HZ /*  1 sec */
+#define LPS_DELAY_TIME	(1*HZ) /*  1 sec */
 
 #define EXE_PWR_NONE	0x01
 #define EXE_PWR_IPS		0x02
@@ -238,7 +238,7 @@ struct pwrctrl_priv {
 };
 
 #define rtw_ips_mode_req(pwrctl, ips_mode) \
-	(pwrctl)->ips_mode_req = (ips_mode)
+	((pwrctl)->ips_mode_req = (ips_mode))
 
 #define RTW_PWR_STATE_CHK_INTERVAL 2000
 
