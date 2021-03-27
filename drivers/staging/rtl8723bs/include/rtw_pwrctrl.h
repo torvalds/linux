@@ -237,9 +237,6 @@ struct pwrctrl_priv {
 	unsigned long PS_BBRegBackup[PSBBREG_TOTALCNT];
 };
 
-#define rtw_get_ips_mode_req(pwrctl) \
-	(pwrctl)->ips_mode_req
-
 #define rtw_ips_mode_req(pwrctl, ips_mode) \
 	(pwrctl)->ips_mode_req = (ips_mode)
 
