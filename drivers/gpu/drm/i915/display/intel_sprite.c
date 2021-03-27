@@ -423,15 +423,15 @@ vlv_update_plane(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
-	u32 sprsurf_offset = plane_state->color_plane[0].offset;
+	u32 sprsurf_offset = plane_state->view.color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 crtc_w = drm_rect_width(&plane_state->uapi.dst);
 	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
-	u32 x = plane_state->color_plane[0].x;
-	u32 y = plane_state->color_plane[0].y;
+	u32 x = plane_state->view.color_plane[0].x;
+	u32 y = plane_state->view.color_plane[0].y;
 	unsigned long irqflags;
 	u32 sprctl;
 
@@ -446,7 +446,7 @@ vlv_update_plane(struct intel_plane *plane,
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, SPSTRIDE(pipe, plane_id),
-			  plane_state->color_plane[0].stride);
+			  plane_state->view.color_plane[0].stride);
 	intel_de_write_fw(dev_priv, SPPOS(pipe, plane_id),
 			  (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, SPSIZE(pipe, plane_id),
@@ -840,15 +840,15 @@ ivb_update_plane(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
-	u32 sprsurf_offset = plane_state->color_plane[0].offset;
+	u32 sprsurf_offset = plane_state->view.color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 crtc_w = drm_rect_width(&plane_state->uapi.dst);
 	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
-	u32 x = plane_state->color_plane[0].x;
-	u32 y = plane_state->color_plane[0].y;
+	u32 x = plane_state->view.color_plane[0].x;
+	u32 y = plane_state->view.color_plane[0].y;
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	u32 sprctl, sprscale = 0;
@@ -870,7 +870,7 @@ ivb_update_plane(struct intel_plane *plane,
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, SPRSTRIDE(pipe),
-			  plane_state->color_plane[0].stride);
+			  plane_state->view.color_plane[0].stride);
 	intel_de_write_fw(dev_priv, SPRPOS(pipe), (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
 	if (IS_IVYBRIDGE(dev_priv))
@@ -1168,15 +1168,15 @@ g4x_update_plane(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
-	u32 dvssurf_offset = plane_state->color_plane[0].offset;
+	u32 dvssurf_offset = plane_state->view.color_plane[0].offset;
 	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 crtc_w = drm_rect_width(&plane_state->uapi.dst);
 	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
-	u32 x = plane_state->color_plane[0].x;
-	u32 y = plane_state->color_plane[0].y;
+	u32 x = plane_state->view.color_plane[0].x;
+	u32 y = plane_state->view.color_plane[0].y;
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	u32 dvscntr, dvsscale = 0;
@@ -1198,7 +1198,7 @@ g4x_update_plane(struct intel_plane *plane,
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DVSSTRIDE(pipe),
-			  plane_state->color_plane[0].stride);
+			  plane_state->view.color_plane[0].stride);
 	intel_de_write_fw(dev_priv, DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	intel_de_write_fw(dev_priv, DVSSCALE(pipe), dvsscale);
@@ -1298,7 +1298,7 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 	int src_x, src_w, src_h, crtc_w, crtc_h;
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	unsigned int stride = plane_state->color_plane[0].stride;
+	unsigned int stride = plane_state->view.color_plane[0].stride;
 	unsigned int cpp = fb->format->cpp[0];
 	unsigned int width_bytes;
 	int min_width, min_height;

@@ -1013,7 +1013,7 @@ static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 
 	return DISPLAY_VER(dev_priv) < 4 ||
 		(plane->has_fbc &&
-		 plane_state->view.type == I915_GGTT_VIEW_NORMAL);
+		 plane_state->view.gtt.type == I915_GGTT_VIEW_NORMAL);
 }
 
 struct i915_vma *
@@ -1131,7 +1131,7 @@ u32 intel_fb_xy_to_linear(int x, int y,
 {
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int cpp = fb->format->cpp[color_plane];
-	unsigned int pitch = state->color_plane[color_plane].stride;
+	unsigned int pitch = state->view.color_plane[color_plane].stride;
 
 	return y * pitch + x * cpp;
 }
@@ -1146,8 +1146,8 @@ void intel_add_fb_offsets(int *x, int *y,
 			  int color_plane)
 
 {
-	*x += state->color_plane[color_plane].x;
-	*y += state->color_plane[color_plane].y;
+	*x += state->view.color_plane[color_plane].x;
+	*y += state->view.color_plane[color_plane].y;
 }
 
 static unsigned int intel_fb_modifier_to_tiling(u64 fb_modifier)
@@ -1650,9 +1650,9 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 
 valid_fb:
 	plane_state->rotation = plane_config->rotation;
-	intel_fill_fb_ggtt_view(&intel_state->view, fb,
+	intel_fill_fb_ggtt_view(&intel_state->view.gtt, fb,
 				plane_state->rotation);
-	intel_state->color_plane[0].stride =
+	intel_state->view.color_plane[0].stride =
 		intel_fb_pitch(fb, 0, plane_state->rotation);
 
 	__i915_vma_pin(vma);
@@ -1693,7 +1693,7 @@ intel_plane_fence_y_offset(const struct intel_plane_state *plane_state)
 	int x = 0, y = 0;
 
 	intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
-					  plane_state->color_plane[0].offset, 0);
+					  plane_state->view.color_plane[0].offset, 0);
 
 	return y;
 }
@@ -6757,8 +6757,6 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
 		linked_state->color_ctl = plane_state->color_ctl;
 		linked_state->view = plane_state->view;
-		memcpy(linked_state->color_plane, plane_state->color_plane,
-		       sizeof(linked_state->color_plane));
 
 		intel_plane_copy_hw_state(linked_state, plane_state);
 		linked_state->uapi.src = plane_state->uapi.src;
@@ -9286,8 +9284,8 @@ static int intel_atomic_check_async(struct intel_atomic_state *state)
 			return -EINVAL;
 		}
 
-		if (old_plane_state->color_plane[0].stride !=
-		    new_plane_state->color_plane[0].stride) {
+		if (old_plane_state->view.color_plane[0].stride !=
+		    new_plane_state->view.color_plane[0].stride) {
 			drm_dbg_kms(&i915->drm, "Stride cannot be changed in async flip\n");
 			return -EINVAL;
 		}
@@ -10520,7 +10518,7 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	}
 
 	vma = intel_pin_and_fence_fb_obj(fb,
-					 &plane_state->view,
+					 &plane_state->view.gtt,
 					 intel_plane_uses_fence(plane_state),
 					 &plane_state->flags);
 	if (IS_ERR(vma))

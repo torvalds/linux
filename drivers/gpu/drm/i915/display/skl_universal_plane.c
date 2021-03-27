@@ -582,7 +582,7 @@ static u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
-	u32 stride = plane_state->color_plane[color_plane].stride;
+	u32 stride = plane_state->view.color_plane[color_plane].stride;
 
 	if (color_plane >= fb->format->num_planes)
 		return 0;
@@ -919,14 +919,14 @@ skl_program_plane(struct intel_plane *plane,
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	u32 surf_addr = plane_state->color_plane[color_plane].offset;
+	u32 surf_addr = plane_state->view.color_plane[color_plane].offset;
 	u32 stride = skl_plane_stride(plane_state, color_plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
-	u32 x = plane_state->color_plane[color_plane].x;
-	u32 y = plane_state->color_plane[color_plane].y;
+	u32 x = plane_state->view.color_plane[color_plane].x;
+	u32 y = plane_state->view.color_plane[color_plane].y;
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	u8 alpha = plane_state->hw.alpha >> 8;
@@ -958,7 +958,7 @@ skl_program_plane(struct intel_plane *plane,
 	}
 
 	if (aux_plane) {
-		aux_dist = plane_state->color_plane[aux_plane].offset - surf_addr;
+		aux_dist = plane_state->view.color_plane[aux_plane].offset - surf_addr;
 
 		if (DISPLAY_VER(dev_priv) < 12)
 			aux_dist |= skl_plane_stride(plane_state, aux_plane);
@@ -1001,7 +1001,8 @@ skl_program_plane(struct intel_plane *plane,
 
 	if (DISPLAY_VER(dev_priv) < 11)
 		intel_de_write_fw(dev_priv, PLANE_AUX_OFFSET(pipe, plane_id),
-				  (plane_state->color_plane[1].y << 16) | plane_state->color_plane[1].x);
+				  (plane_state->view.color_plane[1].y << 16) |
+				   plane_state->view.color_plane[1].x);
 
 	if (!drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
 		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, color_plane);
@@ -1031,7 +1032,7 @@ skl_plane_async_flip(struct intel_plane *plane,
 	unsigned long irqflags;
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	u32 surf_addr = plane_state->color_plane[0].offset;
+	u32 surf_addr = plane_state->view.color_plane[0].offset;
 	u32 plane_ctl = plane_state->ctl;
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
@@ -1269,9 +1270,9 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 			       int ccs_plane)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int aux_x = plane_state->color_plane[ccs_plane].x;
-	int aux_y = plane_state->color_plane[ccs_plane].y;
-	u32 aux_offset = plane_state->color_plane[ccs_plane].offset;
+	int aux_x = plane_state->view.color_plane[ccs_plane].x;
+	int aux_y = plane_state->view.color_plane[ccs_plane].y;
+	u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
 	u32 alignment = intel_surf_alignment(fb, ccs_plane);
 	int hsub;
 	int vsub;
@@ -1301,9 +1302,9 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 	if (aux_x != main_x || aux_y != main_y)
 		return false;
 
-	plane_state->color_plane[ccs_plane].offset = aux_offset;
-	plane_state->color_plane[ccs_plane].x = aux_x;
-	plane_state->color_plane[ccs_plane].y = aux_y;
+	plane_state->view.color_plane[ccs_plane].offset = aux_offset;
+	plane_state->view.color_plane[ccs_plane].x = aux_x;
+	plane_state->view.color_plane[ccs_plane].y = aux_y;
 
 	return true;
 }
@@ -1316,7 +1317,7 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	const int aux_plane = skl_main_to_aux_plane(fb, 0);
-	const u32 aux_offset = plane_state->color_plane[aux_plane].offset;
+	const u32 aux_offset = plane_state->view.color_plane[aux_plane].offset;
 	const u32 alignment = intel_surf_alignment(fb, 0);
 	const int w = drm_rect_width(&plane_state->uapi.src) >> 16;
 
@@ -1344,7 +1345,7 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED) {
 		int cpp = fb->format->cpp[0];
 
-		while ((*x + w) * cpp > plane_state->color_plane[0].stride) {
+		while ((*x + w) * cpp > plane_state->view.color_plane[0].stride) {
 			if (*offset == 0) {
 				drm_dbg_kms(&dev_priv->drm,
 					    "Unable to find suitable display surface offset due to X-tiling\n");
@@ -1403,8 +1404,8 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 								   offset, offset - alignment);
 		}
 
-		if (x != plane_state->color_plane[aux_plane].x ||
-		    y != plane_state->color_plane[aux_plane].y) {
+		if (x != plane_state->view.color_plane[aux_plane].x ||
+		    y != plane_state->view.color_plane[aux_plane].y) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Unable to find suitable display surface offset due to CCS\n");
 			return -EINVAL;
@@ -1413,9 +1414,9 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 
 	drm_WARN_ON(&dev_priv->drm, x > 8191 || y > 8191);
 
-	plane_state->color_plane[0].offset = offset;
-	plane_state->color_plane[0].x = x;
-	plane_state->color_plane[0].y = y;
+	plane_state->view.color_plane[0].offset = offset;
+	plane_state->view.color_plane[0].x = x;
+	plane_state->view.color_plane[0].y = y;
 
 	/*
 	 * Put the final coordinates back so that the src
@@ -1456,7 +1457,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	if (is_ccs_modifier(fb->modifier)) {
 		int ccs_plane = main_to_ccs_plane(fb, uv_plane);
-		u32 aux_offset = plane_state->color_plane[ccs_plane].offset;
+		u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
 		u32 alignment = intel_surf_alignment(fb, uv_plane);
 
 		if (offset > aux_offset)
@@ -1477,8 +1478,8 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 								   offset, offset - alignment);
 		}
 
-		if (x != plane_state->color_plane[ccs_plane].x ||
-		    y != plane_state->color_plane[ccs_plane].y) {
+		if (x != plane_state->view.color_plane[ccs_plane].x ||
+		    y != plane_state->view.color_plane[ccs_plane].y) {
 			drm_dbg_kms(&i915->drm,
 				    "Unable to find suitable display surface offset due to CCS\n");
 			return -EINVAL;
@@ -1487,9 +1488,9 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	drm_WARN_ON(&i915->drm, x > 8191 || y > 8191);
 
-	plane_state->color_plane[uv_plane].offset = offset;
-	plane_state->color_plane[uv_plane].x = x;
-	plane_state->color_plane[uv_plane].y = y;
+	plane_state->view.color_plane[uv_plane].offset = offset;
+	plane_state->view.color_plane[uv_plane].x = x;
+	plane_state->view.color_plane[uv_plane].y = y;
 
 	return 0;
 }
@@ -1526,13 +1527,9 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 							    plane_state,
 							    ccs_plane);
 
-		plane_state->color_plane[ccs_plane].offset = offset;
-		plane_state->color_plane[ccs_plane].x = (x * hsub +
-							 src_x % hsub) /
-							main_hsub;
-		plane_state->color_plane[ccs_plane].y = (y * vsub +
-							 src_y % vsub) /
-							main_vsub;
+		plane_state->view.color_plane[ccs_plane].offset = offset;
+		plane_state->view.color_plane[ccs_plane].x = (x * hsub + src_x % hsub) / main_hsub;
+		plane_state->view.color_plane[ccs_plane].y = (y * vsub + src_y % vsub) / main_vsub;
 	}
 
 	return 0;
@@ -1567,10 +1564,10 @@ static int skl_check_plane_surface(struct intel_plane_state *plane_state)
 			return ret;
 	}
 
-	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->color_plane); i++) {
-		plane_state->color_plane[i].offset = 0;
-		plane_state->color_plane[i].x = 0;
-		plane_state->color_plane[i].y = 0;
+	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->view.color_plane); i++) {
+		plane_state->view.color_plane[i].offset = 0;
+		plane_state->view.color_plane[i].x = 0;
+		plane_state->view.color_plane[i].y = 0;
 	}
 
 	ret = skl_check_main_surface(plane_state);

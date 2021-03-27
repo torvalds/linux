@@ -85,20 +85,49 @@ enum intel_broadcast_rgb {
 	INTEL_BROADCAST_RGB_LIMITED,
 };
 
+struct intel_fb_view {
+	/*
+	 * The remap information used in the remapped and rotated views to
+	 * create the DMA scatter-gather list for each FB color plane. This sg
+	 * list is created along with the view type (gtt.type) specific
+	 * i915_vma object and contains the list of FB object pages (reordered
+	 * in the rotated view) that are visible in the view.
+	 * In the normal view the FB object's backing store sg list is used
+	 * directly and hence the remap information here is not used.
+	 */
+	struct i915_ggtt_view gtt;
+
+	/*
+	 * The GTT view (gtt.type) specific information for each FB color
+	 * plane. In the normal GTT view all formats (up to 4 color planes),
+	 * in the rotated and remapped GTT view all no-CCS formats (up to 2
+	 * color planes) are supported.
+	 *
+	 * TODO: add support for CCS formats in the remapped GTT view.
+	 *
+	 * The view information shared by all FB color planes in the FB,
+	 * like dst x/y and src/dst width, is stored separately in
+	 * intel_plane_state.
+	 */
+	struct i915_color_plane_view {
+		u32 offset;
+		unsigned int x, y;
+		/*
+		 * Plane stride in:
+		 *   bytes for 0/180 degree rotation
+		 *   pixels for 90/270 degree rotation
+		 */
+		unsigned int stride;
+	} color_plane[4];
+};
+
 struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct intel_frontbuffer *frontbuffer;
-	struct intel_rotation_info rot_info;
 
-	/* for each plane in the normal GTT view */
-	struct {
-		unsigned int x, y;
-	} normal[4];
-	/* for each plane in the rotated GTT view for no-CCS formats */
-	struct {
-		unsigned int x, y;
-		unsigned int pitch; /* pixels */
-	} rotated[2];
+	/* Params to remap the FB pages and program the plane registers in each view. */
+	struct intel_fb_view normal_view;
+	struct intel_fb_view rotated_view;
 };
 
 struct intel_fbdev {
@@ -581,21 +610,11 @@ struct intel_plane_state {
 		enum drm_scaling_filter scaling_filter;
 	} hw;
 
-	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
 
-	struct {
-		u32 offset;
-		/*
-		 * Plane stride in:
-		 * bytes for 0/180 degree rotation
-		 * pixels for 90/270 degree rotation
-		 */
-		u32 stride;
-		int x, y;
-	} color_plane[4];
+	struct intel_fb_view view;
 
 	/* plane control register */
 	u32 ctl;

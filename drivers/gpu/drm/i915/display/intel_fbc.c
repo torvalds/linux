@@ -716,8 +716,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	 */
 	cache->plane.src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	cache->plane.adjusted_x = plane_state->color_plane[0].x;
-	cache->plane.adjusted_y = plane_state->color_plane[0].y;
+	cache->plane.adjusted_x = plane_state->view.color_plane[0].x;
+	cache->plane.adjusted_y = plane_state->view.color_plane[0].y;
 
 	cache->plane.pixel_blend_mode = plane_state->hw.pixel_blend_mode;
 
@@ -725,7 +725,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.modifier = fb->modifier;
 
 	/* FIXME is this correct? */
-	cache->fb.stride = plane_state->color_plane[0].stride;
+	cache->fb.stride = plane_state->view.color_plane[0].stride;
 	if (drm_rotation_90_or_270(plane_state->hw.rotation))
 		cache->fb.stride *= fb->format->cpp[0];
 

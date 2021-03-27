@@ -271,7 +271,7 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		u32 alignment = intel_surf_alignment(fb, 0);
 		int cpp = fb->format->cpp[0];
 
-		while ((src_x + src_w) * cpp > plane_state->color_plane[0].stride) {
+		while ((src_x + src_w) * cpp > plane_state->view.color_plane[0].stride) {
 			if (offset == 0) {
 				drm_dbg_kms(&dev_priv->drm,
 					    "Unable to find suitable display surface offset due to X-tiling\n");
@@ -311,9 +311,9 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		drm_WARN_ON(&dev_priv->drm, src_x > 4095 || src_y > 4095);
 	}
 
-	plane_state->color_plane[0].offset = offset;
-	plane_state->color_plane[0].x = src_x;
-	plane_state->color_plane[0].y = src_y;
+	plane_state->view.color_plane[0].offset = offset;
+	plane_state->view.color_plane[0].x = src_x;
+	plane_state->view.color_plane[0].y = src_y;
 
 	return 0;
 }
@@ -424,8 +424,8 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	u32 linear_offset;
-	int x = plane_state->color_plane[0].x;
-	int y = plane_state->color_plane[0].y;
+	int x = plane_state->view.color_plane[0].x;
+	int y = plane_state->view.color_plane[0].y;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	int crtc_w = drm_rect_width(&plane_state->uapi.dst);
@@ -439,14 +439,14 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (DISPLAY_VER(dev_priv) >= 4)
-		dspaddr_offset = plane_state->color_plane[0].offset;
+		dspaddr_offset = plane_state->view.color_plane[0].offset;
 	else
 		dspaddr_offset = linear_offset;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
-			  plane_state->color_plane[0].stride);
+			  plane_state->view.color_plane[0].stride);
 
 	if (DISPLAY_VER(dev_priv) < 4) {
 		/*
@@ -531,7 +531,7 @@ g4x_primary_async_flip(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
-	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	unsigned long irqflags;
 
@@ -552,7 +552,7 @@ vlv_primary_async_flip(struct intel_plane *plane,
 		       bool async_flip)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	unsigned long irqflags;
 

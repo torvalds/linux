@@ -259,7 +259,7 @@ u32 intel_plane_adjust_aligned_offset(int *x, int *y,
 {
 	return intel_adjust_aligned_offset(x, y, state->hw.fb, color_plane,
 					   state->hw.rotation,
-					   state->color_plane[color_plane].stride,
+					   state->view.color_plane[color_plane].stride,
 					   old_offset, new_offset);
 }
 
@@ -340,7 +340,7 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 	struct drm_i915_private *i915 = to_i915(intel_plane->base.dev);
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int rotation = state->hw.rotation;
-	int pitch = state->color_plane[color_plane].stride;
+	int pitch = state->view.color_plane[color_plane].stride;
 	u32 alignment;
 
 	if (intel_plane->id == PLANE_CURSOR)
@@ -423,8 +423,8 @@ static int intel_fb_check_ccs_xy(const struct drm_framebuffer *fb, int ccs_plane
 	ccs_y = (y * vsub) % tile_height;
 
 	main_plane = skl_ccs_to_main_plane(fb, ccs_plane);
-	main_x = intel_fb->normal[main_plane].x % tile_width;
-	main_y = intel_fb->normal[main_plane].y % tile_height;
+	main_x = intel_fb->normal_view.color_plane[main_plane].x % tile_width;
+	main_y = intel_fb->normal_view.color_plane[main_plane].y % tile_height;
 
 	/*
 	 * CCS doesn't have its own x/y offset register, so the intra CCS tile
@@ -435,8 +435,8 @@ static int intel_fb_check_ccs_xy(const struct drm_framebuffer *fb, int ccs_plane
 			      "Bad CCS x/y (main %d,%d ccs %d,%d) full (main %d,%d ccs %d,%d)\n",
 			      main_x, main_y,
 			      ccs_x, ccs_y,
-			      intel_fb->normal[main_plane].x,
-			      intel_fb->normal[main_plane].y,
+			      intel_fb->normal_view.color_plane[main_plane].x,
+			      intel_fb->normal_view.color_plane[main_plane].y,
 			      x, y);
 		return -EINVAL;
 	}
@@ -487,7 +487,7 @@ static bool intel_plane_can_remap(const struct intel_plane_state *plane_state)
 int intel_fb_pitch(const struct drm_framebuffer *fb, int color_plane, unsigned int rotation)
 {
 	if (drm_rotation_90_or_270(rotation))
-		return to_intel_framebuffer(fb)->rotated[color_plane].pitch;
+		return to_intel_framebuffer(fb)->rotated_view.color_plane[color_plane].stride;
 	else
 		return fb->pitches[color_plane];
 }
@@ -584,7 +584,7 @@ static u32 setup_fb_rotation(int plane, const struct intel_remapped_plane_info *
 			     struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct intel_rotation_info *rot_info = &intel_fb->rot_info;
+	struct intel_rotation_info *rot_info = &intel_fb->rotated_view.gtt.rotated;
 	unsigned int pitch_tiles;
 	struct drm_rect r;
 
@@ -598,7 +598,7 @@ static u32 setup_fb_rotation(int plane, const struct intel_remapped_plane_info *
 
 	rot_info->plane[plane] = *plane_info;
 
-	intel_fb->rotated[plane].pitch = plane_info->height * tile_height;
+	intel_fb->rotated_view.color_plane[plane].stride = plane_info->height * tile_height;
 
 	/* rotate the x/y offsets to match the GTT view */
 	drm_rect_init(&r, x, y, width, height);
@@ -610,7 +610,7 @@ static u32 setup_fb_rotation(int plane, const struct intel_remapped_plane_info *
 	y = r.y1;
 
 	/* rotate the tile dimensions to match the GTT view */
-	pitch_tiles = intel_fb->rotated[plane].pitch / tile_height;
+	pitch_tiles = intel_fb->rotated_view.color_plane[plane].stride / tile_height;
 	swap(tile_width, tile_height);
 
 	/*
@@ -626,8 +626,8 @@ static u32 setup_fb_rotation(int plane, const struct intel_remapped_plane_info *
 	 * First pixel of the framebuffer from
 	 * the start of the rotated gtt mapping.
 	 */
-	intel_fb->rotated[plane].x = x;
-	intel_fb->rotated[plane].y = y;
+	intel_fb->rotated_view.color_plane[plane].x = x;
+	intel_fb->rotated_view.color_plane[plane].y = y;
 
 	return plane_info->width * plane_info->height;
 }
@@ -742,8 +742,8 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct drm_framebuffer *fb
 		 * First pixel of the framebuffer from
 		 * the start of the normal gtt mapping.
 		 */
-		intel_fb->normal[i].x = x;
-		intel_fb->normal[i].y = y;
+		intel_fb->normal_view.color_plane[i].x = x;
+		intel_fb->normal_view.color_plane[i].y = y;
 
 		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
@@ -785,7 +785,7 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 		to_i915(plane_state->uapi.plane->dev);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct intel_rotation_info *info = &plane_state->view.rotated;
+	struct intel_rotation_info *info = &plane_state->view.gtt.rotated;
 	unsigned int rotation = plane_state->hw.rotation;
 	int i, num_planes = fb->format->num_planes;
 	unsigned int tile_size = intel_tile_size(i915);
@@ -793,8 +793,8 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 	unsigned int src_w, src_h;
 	u32 gtt_offset = 0;
 
-	memset(&plane_state->view, 0, sizeof(plane_state->view));
-	plane_state->view.type = drm_rotation_90_or_270(rotation) ?
+	memset(&plane_state->view.gtt, 0, sizeof(plane_state->view.gtt));
+	plane_state->view.gtt.type = drm_rotation_90_or_270(rotation) ?
 		I915_GGTT_VIEW_ROTATED : I915_GGTT_VIEW_REMAPPED;
 
 	src_x = plane_state->uapi.src.x1 >> 16;
@@ -835,8 +835,8 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 		 * First pixel of the src viewport from the
 		 * start of the normal gtt mapping.
 		 */
-		x += intel_fb->normal[i].x;
-		y += intel_fb->normal[i].y;
+		x += intel_fb->normal_view.color_plane[i].x;
+		y += intel_fb->normal_view.color_plane[i].y;
 
 		offset = calc_plane_aligned_offset(intel_fb, i, &x, &y);
 
@@ -860,13 +860,13 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 			y = r.y1;
 
 			pitch_tiles = info->plane[i].height;
-			plane_state->color_plane[i].stride = pitch_tiles * tile_height;
+			plane_state->view.color_plane[i].stride = pitch_tiles * tile_height;
 
 			/* rotate the tile dimensions to match the GTT view */
 			swap(tile_width, tile_height);
 		} else {
 			pitch_tiles = info->plane[i].width;
-			plane_state->color_plane[i].stride = pitch_tiles * tile_width * cpp;
+			plane_state->view.color_plane[i].stride = pitch_tiles * tile_width * cpp;
 		}
 
 		/*
@@ -880,9 +880,9 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 
 		gtt_offset += info->plane[i].width * info->plane[i].height;
 
-		plane_state->color_plane[i].offset = 0;
-		plane_state->color_plane[i].x = x;
-		plane_state->color_plane[i].y = y;
+		plane_state->view.color_plane[i].offset = 0;
+		plane_state->view.color_plane[i].x = x;
+		plane_state->view.color_plane[i].y = y;
 	}
 }
 
@@ -895,7 +895,7 @@ void intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 	view->type = I915_GGTT_VIEW_NORMAL;
 	if (drm_rotation_90_or_270(rotation)) {
 		view->type = I915_GGTT_VIEW_ROTATED;
-		view->rotated = to_intel_framebuffer(fb)->rot_info;
+		view->rotated = to_intel_framebuffer(fb)->rotated_view.gtt.rotated;
 	}
 }
 
@@ -917,7 +917,7 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 		return 0;
 
 	/* FIXME other color planes? */
-	stride = plane_state->color_plane[0].stride;
+	stride = plane_state->view.color_plane[0].stride;
 	max_stride = plane->max_stride(plane, fb->format->format,
 				       fb->modifier, rotation);
 
@@ -955,18 +955,18 @@ int intel_plane_compute_gtt(struct intel_plane_state *plane_state)
 		return intel_plane_check_stride(plane_state);
 	}
 
-	intel_fill_fb_ggtt_view(&plane_state->view, &fb->base, rotation);
+	intel_fill_fb_ggtt_view(&plane_state->view.gtt, &fb->base, rotation);
 
 	for (i = 0; i < num_planes; i++) {
-		plane_state->color_plane[i].stride = intel_fb_pitch(&fb->base, i, rotation);
-		plane_state->color_plane[i].offset = 0;
+		plane_state->view.color_plane[i].stride = intel_fb_pitch(&fb->base, i, rotation);
+		plane_state->view.color_plane[i].offset = 0;
 
 		if (drm_rotation_90_or_270(rotation)) {
-			plane_state->color_plane[i].x = fb->rotated[i].x;
-			plane_state->color_plane[i].y = fb->rotated[i].y;
+			plane_state->view.color_plane[i].x = fb->rotated_view.color_plane[i].x;
+			plane_state->view.color_plane[i].y = fb->rotated_view.color_plane[i].y;
 		} else {
-			plane_state->color_plane[i].x = fb->normal[i].x;
-			plane_state->color_plane[i].y = fb->normal[i].y;
+			plane_state->view.color_plane[i].x = fb->normal_view.color_plane[i].x;
+			plane_state->view.color_plane[i].y = fb->normal_view.color_plane[i].y;
 		}
 	}
 
