@@ -110,6 +110,12 @@ background_gc=%s	 Turn on/off cleaning operations, namely garbage
 			 on synchronous garbage collection running in background.
 			 Default value for this option is on. So garbage
 			 collection is on by default.
+gc_merge		 When background_gc is on, this option can be enabled to
+			 let background GC thread to handle foreground GC requests,
+			 it can eliminate the sluggish issue caused by slow foreground
+			 GC operation when GC is triggered from a process with limited
+			 I/O and CPU resources.
+nogc_merge		 Disable GC merge feature.
 disable_roll_forward	 Disable the roll-forward recovery routine
 norecovery		 Disable the roll-forward recovery routine, mounted read-
 			 only (i.e., -o ro,disable_roll_forward)
