@@ -412,7 +412,6 @@ struct adapter {
 	struct rereg_nd_name_data {
 		struct net_device *old_pnetdev;
 		char old_ifname[IFNAMSIZ];
-		u8 old_ips_mode;
 		u8 old_bRegUseLed;
 	} rereg_nd_name_priv;
 
