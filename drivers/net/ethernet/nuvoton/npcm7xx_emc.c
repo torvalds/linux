@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_device.h>
+#include <linux/of_mdio.h>
 #include <linux/dma-mapping.h>
 
 #include <linux/regmap.h>
@@ -242,6 +243,7 @@ struct  npcm7xx_ether {
 	struct net_device *ndev;
 	struct resource *res;
 	unsigned int msg_enable;
+	struct device_node *phy_dn;
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
 	struct napi_struct napi;
@@ -1768,6 +1770,17 @@ static int npcm7xx_mii_setup(struct net_device *dev)
 
 	pdev = ether->pdev;
 
+	if (ether->phy_dn) {
+		ether->phy_dev = of_phy_connect(dev, ether->phy_dn,
+					&adjust_link, 0, 0);
+		if (!ether->phy_dn) {
+			dev_err(&dev->dev, "could not connect to phy %pOF\n",
+				ether->phy_dn);
+			return -ENODEV;
+		}
+		return 0;
+	}
+
 	ether->mii_bus = mdiobus_alloc();
 	if (!ether->mii_bus) {
 		err = -ENOMEM;
@@ -2005,6 +2018,15 @@ static int npcm7xx_ether_probe(struct platform_device *pdev)
 		}
 	} else {
 		ether->use_ncsi = false;
+
+		ether->phy_dn = of_parse_phandle(np, "phy-handle", 0);
+		if (!ether->phy_dn && of_phy_is_fixed_link(np)) {
+			error = of_phy_register_fixed_link(np);
+			if (error < 0)
+				goto failed_free_napi;
+			ether->phy_dn = of_node_get(np);
+		}
+
 	error = npcm7xx_mii_setup(dev);
 	if (error < 0) {
 		dev_err(&pdev->dev, "npcm7xx_mii_setup err\n");
@@ -2026,6 +2048,9 @@ static int npcm7xx_ether_probe(struct platform_device *pdev)
 	return 0;
 
 failed_free_napi:
+	of_node_put(ether->phy_dn);
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	netif_napi_del(&ether->napi);
 	platform_set_drvdata(pdev, NULL);
 failed_free_io:
@@ -2042,12 +2067,16 @@ static int npcm7xx_ether_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct npcm7xx_ether *ether = netdev_priv(dev);
+	struct device_node *np = pdev->dev.of_node;
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(ether->dbgfs_dir);
 #endif
-
 	unregister_netdev(dev);
+
+	of_node_put(ether->phy_dn);
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 
 	free_irq(ether->txirq, dev);
 	free_irq(ether->rxirq, dev);
