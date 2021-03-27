@@ -2618,7 +2618,6 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 		rtw_free_network_queue(padapter, true);
 
 		/*  the interface is being "disabled", we can do deeper IPS */
-		/* rereg_priv->old_ips_mode = rtw_get_ips_mode_req(&padapter->pwrctrlpriv); */
 		/* rtw_ips_mode_req(&padapter->pwrctrlpriv, IPS_NORMAL); */
 	}
 exit:
