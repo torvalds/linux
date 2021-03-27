@@ -48,7 +48,7 @@ struct amdgpu_ras_eeprom_control {
 	uint32_t next_addr;
 	unsigned int num_recs;
 	struct mutex tbl_mutex;
-	uint32_t tbl_byte_sum;
+	u8 tbl_byte_sum;
 };
 
 /*

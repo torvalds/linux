@@ -141,8 +141,8 @@ static void __decode_table_header_from_buff(struct amdgpu_ras_eeprom_table_heade
 	hdr->checksum	      = le32_to_cpu(pp[4]);
 }
 
-static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
-				 unsigned char *buff)
+static int __write_table_header(struct amdgpu_ras_eeprom_control *control,
+				unsigned char *buff)
 {
 	int ret = 0;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
@@ -162,69 +162,74 @@ static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
 	return ret;
 }
 
-static uint32_t  __calc_hdr_byte_sum(struct amdgpu_ras_eeprom_control *control)
+static u8 __calc_hdr_byte_sum(const struct amdgpu_ras_eeprom_control *control)
 {
 	int i;
-	uint32_t tbl_sum = 0;
+	u8 hdr_sum = 0;
+	u8  *p;
+	size_t sz;
 
 	/* Header checksum, skip checksum field in the calculation */
-	for (i = 0; i < sizeof(control->tbl_hdr) - sizeof(control->tbl_hdr.checksum); i++)
-		tbl_sum += *(((unsigned char *)&control->tbl_hdr) + i);
+	sz = sizeof(control->tbl_hdr) - sizeof(control->tbl_hdr.checksum);
+	p = (u8 *) &control->tbl_hdr;
+	for (i = 0; i < sz; i++, p++)
+		hdr_sum += *p;
 
-	return tbl_sum;
+	return hdr_sum;
 }
 
-static uint32_t  __calc_recs_byte_sum(struct eeprom_table_record *records,
-				      int num)
+static u8 __calc_recs_byte_sum(const struct eeprom_table_record *record,
+			       const int num)
 {
 	int i, j;
-	uint32_t tbl_sum = 0;
+	u8  tbl_sum = 0;
+
+	if (!record)
+		return 0;
 
 	/* Records checksum */
 	for (i = 0; i < num; i++) {
-		struct eeprom_table_record *record = &records[i];
+		u8 *p = (u8 *) &record[i];
 
-		for (j = 0; j < sizeof(*record); j++) {
-			tbl_sum += *(((unsigned char *)record) + j);
-		}
+		for (j = 0; j < sizeof(*record); j++, p++)
+			tbl_sum += *p;
 	}
 
 	return tbl_sum;
 }
 
-static inline uint32_t  __calc_tbl_byte_sum(struct amdgpu_ras_eeprom_control *control,
+static inline u8
+__calc_tbl_byte_sum(struct amdgpu_ras_eeprom_control *control,
+		    struct eeprom_table_record *records, int num)
+{
+	return __calc_hdr_byte_sum(control) +
+		__calc_recs_byte_sum(records, num);
+}
+
+static void __update_tbl_checksum(struct amdgpu_ras_eeprom_control *control,
 				  struct eeprom_table_record *records, int num)
 {
-	return __calc_hdr_byte_sum(control) + __calc_recs_byte_sum(records, num);
+	u8 v;
+
+	control->tbl_byte_sum = __calc_tbl_byte_sum(control, records, num);
+	/* Avoid 32-bit sign extension. */
+	v = -control->tbl_byte_sum;
+	control->tbl_hdr.checksum = v;
 }
 
-/* Checksum = 256 -((sum of all table entries) mod 256) */
-static void __update_tbl_checksum(struct amdgpu_ras_eeprom_control *control,
-				  struct eeprom_table_record *records, int num,
-				  uint32_t old_hdr_byte_sum)
+static bool __verify_tbl_checksum(struct amdgpu_ras_eeprom_control *control,
+				  struct eeprom_table_record *records,
+				  int num)
 {
-	/*
-	 * This will update the table sum with new records.
-	 *
-	 * TODO: What happens when the EEPROM table is to be wrapped around
-	 * and old records from start will get overridden.
-	 */
+	u8 result;
 
-	/* need to recalculate updated header byte sum */
-	control->tbl_byte_sum -= old_hdr_byte_sum;
-	control->tbl_byte_sum += __calc_tbl_byte_sum(control, records, num);
-
-	control->tbl_hdr.checksum = 256 - (control->tbl_byte_sum % 256);
-}
-
-/* table sum mod 256 + checksum must equals 256 */
-static bool __validate_tbl_checksum(struct amdgpu_ras_eeprom_control *control,
-			    struct eeprom_table_record *records, int num)
-{
 	control->tbl_byte_sum = __calc_tbl_byte_sum(control, records, num);
 
-	if (control->tbl_hdr.checksum + (control->tbl_byte_sum % 256) != 256) {
-		DRM_WARN("Checksum mismatch, checksum: %u ", control->tbl_hdr.checksum);
+	result = (u8)control->tbl_hdr.checksum + control->tbl_byte_sum;
+	if (result) {
+		DRM_WARN("RAS table checksum mismatch: stored:0x%02X wants:0x%02hhX",
+			 control->tbl_hdr.checksum,
+			 -control->tbl_byte_sum);
 		return false;
 	}
 
@@ -232,8 +237,8 @@ static bool __validate_tbl_checksum(struct amdgpu_ras_eeprom_control *control,
 }
 
 static int amdgpu_ras_eeprom_correct_header_tag(
-				struct amdgpu_ras_eeprom_control *control,
-				uint32_t header)
+	struct amdgpu_ras_eeprom_control *control,
+	uint32_t header)
 {
 	unsigned char buff[RAS_TABLE_HEADER_SIZE];
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
@@ -243,7 +248,7 @@ static int amdgpu_ras_eeprom_correct_header_tag(
 
 	mutex_lock(&control->tbl_mutex);
 	hdr->header = header;
-	ret = __update_table_header(control, buff);
+	ret = __write_table_header(control, buff);
 	mutex_unlock(&control->tbl_mutex);
 
 	return ret;
@@ -262,11 +267,9 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	hdr->first_rec_offset = RAS_RECORD_START;
 	hdr->tbl_size = RAS_TABLE_HEADER_SIZE;
 
-	control->tbl_byte_sum = 0;
-	__update_tbl_checksum(control, NULL, 0, 0);
+	__update_tbl_checksum(control, NULL, 0);
 	control->next_addr = RAS_RECORD_START;
-
-	ret = __update_table_header(control, buff);
+	ret = __write_table_header(control, buff);
 
 	mutex_unlock(&control->tbl_mutex);
 
@@ -521,8 +524,6 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 	}
 
 	if (write) {
-		uint32_t old_hdr_byte_sum = __calc_hdr_byte_sum(control);
-
 		/*
 		 * Update table header with size and CRC and account for table
 		 * wrap around where the assumption is that we treat it as empty
@@ -537,10 +538,9 @@ static int amdgpu_ras_eeprom_xfer(struct amdgpu_ras_eeprom_control *control,
 			control->tbl_hdr.tbl_size = RAS_TABLE_HEADER_SIZE +
 			control->num_recs * RAS_TABLE_RECORD_SIZE;
 
-		__update_tbl_checksum(control, records, num, old_hdr_byte_sum);
-
-		__update_table_header(control, buffs);
-	} else if (!__validate_tbl_checksum(control, records, num)) {
+		__update_tbl_checksum(control, records, num);
+		__write_table_header(control, buffs);
+	} else if (!__verify_tbl_checksum(control, records, num)) {
 		DRM_WARN("EEPROM Table checksum mismatch!");
 		/* TODO Uncomment when EEPROM read/write is relliable */
 		/* ret = -EIO; */
