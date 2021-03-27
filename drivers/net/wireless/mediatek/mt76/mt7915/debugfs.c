@@ -192,7 +192,7 @@ mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
 }
 
 static int
-mt7915_tx_stats_read(struct seq_file *file, void *data)
+mt7915_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7915_dev *dev = file->private;
 	int stat[8], i, n;
@@ -222,19 +222,7 @@ mt7915_tx_stats_read(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int
-mt7915_tx_stats_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt7915_tx_stats_read, inode->i_private);
-}
-
-static const struct file_operations fops_tx_stats = {
-	.open = mt7915_tx_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(mt7915_tx_stats);
 
 static int mt7915_read_temperature(struct seq_file *s, void *data)
 {
@@ -379,7 +367,7 @@ int mt7915_init_debugfs(struct mt7915_dev *dev)
 				    mt7915_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7915_queues_acq);
-	debugfs_create_file("tx_stats", 0400, dir, dev, &fops_tx_stats);
+	debugfs_create_file("tx_stats", 0400, dir, dev, &mt7915_tx_stats_fops);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
 	debugfs_create_file("implicit_txbf", 0600, dir, dev,
 			    &fops_implicit_txbf);
@@ -412,7 +400,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fixed_rate, NULL,
 			 mt7915_sta_fixed_rate_set, "%llx\n");
 
 static int
-mt7915_sta_stats_read(struct seq_file *s, void *data)
+mt7915_sta_stats_show(struct seq_file *s, void *data)
 {
 	struct ieee80211_sta *sta = s->private;
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
@@ -455,24 +443,12 @@ mt7915_sta_stats_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int
-mt7915_sta_stats_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt7915_sta_stats_read, inode->i_private);
-}
-
-static const struct file_operations fops_sta_stats = {
-	.open = mt7915_sta_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(mt7915_sta_stats);
 
 void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
 	debugfs_create_file("fixed_rate", 0600, dir, sta, &fops_fixed_rate);
-	debugfs_create_file("stats", 0400, dir, sta, &fops_sta_stats);
+	debugfs_create_file("stats", 0400, dir, sta, &mt7915_sta_stats_fops);
 }
 #endif

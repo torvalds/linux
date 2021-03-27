@@ -62,7 +62,7 @@ mt7921_ampdu_stat_read_phy(struct mt7921_phy *phy,
 }
 
 static int
-mt7921_tx_stats_read(struct seq_file *file, void *data)
+mt7921_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7921_dev *dev = file->private;
 	int stat[8], i, n;
@@ -88,19 +88,7 @@ mt7921_tx_stats_read(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int
-mt7921_tx_stats_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt7921_tx_stats_read, inode->i_private);
-}
-
-static const struct file_operations fops_tx_stats = {
-	.open = mt7921_tx_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(mt7921_tx_stats);
 
 static int
 mt7921_queues_acq(struct seq_file *s, void *data)
@@ -239,7 +227,7 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 				    mt7921_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7921_queues_acq);
-	debugfs_create_file("tx_stats", 0400, dir, dev, &fops_tx_stats);
+	debugfs_create_file("tx_stats", 0400, dir, dev, &mt7921_tx_stats_fops);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
 	debugfs_create_file("runtime-pm", 0600, dir, dev, &fops_pm);
 	debugfs_create_file("idle-timeout", 0600, dir, dev,
