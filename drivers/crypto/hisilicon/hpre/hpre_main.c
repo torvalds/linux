@@ -244,28 +244,24 @@ struct hisi_qp *hpre_create_qp(u8 type)
 	return NULL;
 }
 
-static void hpre_pasid_enable(struct hisi_qm *qm)
+static void hpre_config_pasid(struct hisi_qm *qm)
 {
-	u32 val;
+	u32 val1, val2;
 
-	val = readl_relaxed(qm->io_base + HPRE_DATA_RUSER_CFG);
-	val |= BIT(HPRE_PASID_EN_BIT);
-	writel_relaxed(val, qm->io_base + HPRE_DATA_RUSER_CFG);
-	val = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
-	val |= BIT(HPRE_PASID_EN_BIT);
-	writel_relaxed(val, qm->io_base + HPRE_DATA_WUSER_CFG);
-}
+	if (qm->ver >= QM_HW_V3)
+		return;
 
-static void hpre_pasid_disable(struct hisi_qm *qm)
-{
-	u32 val;
-
-	val = readl_relaxed(qm->io_base +  HPRE_DATA_RUSER_CFG);
-	val &= ~BIT(HPRE_PASID_EN_BIT);
-	writel_relaxed(val, qm->io_base + HPRE_DATA_RUSER_CFG);
-	val = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
-	val &= ~BIT(HPRE_PASID_EN_BIT);
-	writel_relaxed(val, qm->io_base + HPRE_DATA_WUSER_CFG);
+	val1 = readl_relaxed(qm->io_base + HPRE_DATA_RUSER_CFG);
+	val2 = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
+	if (qm->use_sva) {
+		val1 |= BIT(HPRE_PASID_EN_BIT);
+		val2 |= BIT(HPRE_PASID_EN_BIT);
+	} else {
+		val1 &= ~BIT(HPRE_PASID_EN_BIT);
+		val2 &= ~BIT(HPRE_PASID_EN_BIT);
+	}
+	writel_relaxed(val1, qm->io_base + HPRE_DATA_RUSER_CFG);
+	writel_relaxed(val2, qm->io_base + HPRE_DATA_WUSER_CFG);
 }
 
 static int hpre_cfg_by_dsm(struct hisi_qm *qm)
@@ -391,11 +387,10 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 			dev_err(dev, "acpi_evaluate_dsm err.\n");
 
 		disable_flr_of_bme(qm);
-
-		/* Enable data buffer pasid */
-		if (qm->use_sva)
-			hpre_pasid_enable(qm);
 	}
+
+	/* Config data buffer pasid needed by Kunpeng 920 */
+	hpre_config_pasid(qm);
 
 	return ret;
 }
@@ -949,8 +944,6 @@ static void hpre_remove(struct pci_dev *pdev)
 	hisi_qm_stop(qm, QM_NORMAL);
 
 	if (qm->fun_type == QM_HW_PF) {
-		if (qm->use_sva && qm->ver == QM_HW_V2)
-			hpre_pasid_disable(qm);
 		hpre_cnt_regs_clear(qm);
 		qm->debug.curr_qm_qp_num = 0;
 		hisi_qm_dev_err_uninit(qm);
