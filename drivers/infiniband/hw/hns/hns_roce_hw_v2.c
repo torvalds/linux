@@ -1796,71 +1796,46 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_v2_set_bt(struct hns_roce_dev *hr_dev)
 {
-	u8 srqc_hop_num = hr_dev->caps.srqc_hop_num;
-	u8 qpc_hop_num = hr_dev->caps.qpc_hop_num;
-	u8 cqc_hop_num = hr_dev->caps.cqc_hop_num;
-	u8 mpt_hop_num = hr_dev->caps.mpt_hop_num;
-	u8 sccc_hop_num = hr_dev->caps.sccc_hop_num;
-	struct hns_roce_cfg_bt_attr *req;
 	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
+	struct hns_roce_caps *caps = &hr_dev->caps;
 
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_BT_ATTR, false);
-	req = (struct hns_roce_cfg_bt_attr *)desc.data;
-	memset(req, 0, sizeof(*req));
 
-	roce_set_field(req->vf_qpc_cfg, CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_M,
-		       CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S,
-		       hr_dev->caps.qpc_ba_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_qpc_cfg, CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_M,
-		       CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_S,
-		       hr_dev->caps.qpc_buf_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_qpc_cfg, CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_M,
-		       CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_S,
-		       qpc_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : qpc_hop_num);
+	hr_reg_write(req, CFG_BT_ATTR_QPC_BA_PGSZ,
+		     caps->qpc_ba_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_QPC_BUF_PGSZ,
+		     caps->qpc_buf_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_QPC_HOPNUM,
+		     to_hr_hem_hopnum(caps->qpc_hop_num, caps->num_qps));
 
-	roce_set_field(req->vf_srqc_cfg, CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_M,
-		       CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_S,
-		       hr_dev->caps.srqc_ba_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_srqc_cfg, CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_M,
-		       CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_S,
-		       hr_dev->caps.srqc_buf_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_srqc_cfg, CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_M,
-		       CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_S,
-		       srqc_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : srqc_hop_num);
+	hr_reg_write(req, CFG_BT_ATTR_SRQC_BA_PGSZ,
+		     caps->srqc_ba_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_SRQC_BUF_PGSZ,
+		     caps->srqc_buf_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_SRQC_HOPNUM,
+		     to_hr_hem_hopnum(caps->srqc_hop_num, caps->num_srqs));
 
-	roce_set_field(req->vf_cqc_cfg, CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_M,
-		       CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_S,
-		       hr_dev->caps.cqc_ba_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_cqc_cfg, CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_M,
-		       CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_S,
-		       hr_dev->caps.cqc_buf_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_cqc_cfg, CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_M,
-		       CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_S,
-		       cqc_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : cqc_hop_num);
+	hr_reg_write(req, CFG_BT_ATTR_CQC_BA_PGSZ,
+		     caps->cqc_ba_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_CQC_BUF_PGSZ,
+		     caps->cqc_buf_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_CQC_HOPNUM,
+		     to_hr_hem_hopnum(caps->cqc_hop_num, caps->num_cqs));
 
-	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_M,
-		       CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_S,
-		       hr_dev->caps.mpt_ba_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_M,
-		       CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_S,
-		       hr_dev->caps.mpt_buf_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M,
-		       CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S,
-		       mpt_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : mpt_hop_num);
+	hr_reg_write(req, CFG_BT_ATTR_MPT_BA_PGSZ,
+		     caps->mpt_ba_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_MPT_BUF_PGSZ,
+		     caps->mpt_buf_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_MPT_HOPNUM,
+		     to_hr_hem_hopnum(caps->mpt_hop_num, caps->num_mtpts));
 
-	roce_set_field(req->vf_sccc_cfg,
-		       CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_M,
-		       CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_S,
-		       hr_dev->caps.sccc_ba_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_sccc_cfg,
-		       CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_M,
-		       CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_S,
-		       hr_dev->caps.sccc_buf_pg_sz + PG_SHIFT_OFFSET);
-	roce_set_field(req->vf_sccc_cfg,
-		       CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_M,
-		       CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_S,
-		       sccc_hop_num ==
-			      HNS_ROCE_HOP_NUM_0 ? 0 : sccc_hop_num);
+	hr_reg_write(req, CFG_BT_ATTR_SCCC_BA_PGSZ,
+		     caps->sccc_ba_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_SCCC_BUF_PGSZ,
+		     caps->sccc_buf_pg_sz + PG_SHIFT_OFFSET);
+	hr_reg_write(req, CFG_BT_ATTR_SCCC_HOPNUM,
+		     to_hr_hem_hopnum(caps->sccc_hop_num, caps->num_qps));
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
@@ -2276,50 +2251,37 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-static int hns_roce_config_qpc_size(struct hns_roce_dev *hr_dev)
+static int config_hem_entry_size(struct hns_roce_dev *hr_dev, u32 type, u32 val)
 {
 	struct hns_roce_cmq_desc desc;
-	struct hns_roce_cfg_entry_size *cfg_size =
-				  (struct hns_roce_cfg_entry_size *)desc.data;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
 
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_ENTRY_SIZE,
 				      false);
 
-	cfg_size->type = cpu_to_le32(HNS_ROCE_CFG_QPC_SIZE);
-	cfg_size->size = cpu_to_le32(hr_dev->caps.qpc_sz);
-
-	return hns_roce_cmq_send(hr_dev, &desc, 1);
-}
-
-static int hns_roce_config_sccc_size(struct hns_roce_dev *hr_dev)
-{
-	struct hns_roce_cmq_desc desc;
-	struct hns_roce_cfg_entry_size *cfg_size =
-				  (struct hns_roce_cfg_entry_size *)desc.data;
-
-	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_ENTRY_SIZE,
-				      false);
-
-	cfg_size->type = cpu_to_le32(HNS_ROCE_CFG_SCCC_SIZE);
-	cfg_size->size = cpu_to_le32(hr_dev->caps.sccc_sz);
+	hr_reg_write(req, CFG_HEM_ENTRY_SIZE_TYPE, type);
+	hr_reg_write(req, CFG_HEM_ENTRY_SIZE_VALUE, val);
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
 
 static int hns_roce_config_entry_size(struct hns_roce_dev *hr_dev)
 {
+	struct hns_roce_caps *caps = &hr_dev->caps;
 	int ret;
 
 	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
 		return 0;
 
-	ret = hns_roce_config_qpc_size(hr_dev);
+	ret = config_hem_entry_size(hr_dev, HNS_ROCE_CFG_QPC_SIZE,
+				    caps->qpc_sz);
 	if (ret) {
 		dev_err(hr_dev->dev, "failed to cfg qpc sz, ret = %d.\n", ret);
 		return ret;
 	}
 
-	ret = hns_roce_config_sccc_size(hr_dev);
+	ret = config_hem_entry_size(hr_dev, HNS_ROCE_CFG_SCCC_SIZE,
+				    caps->sccc_sz);
 	if (ret)
 		dev_err(hr_dev->dev, "failed to cfg sccc sz, ret = %d.\n", ret);
 
@@ -3834,16 +3796,15 @@ static int config_gmv_ba_to_hw(struct hns_roce_dev *hr_dev, unsigned long obj,
 			       dma_addr_t base_addr)
 {
 	struct hns_roce_cmq_desc desc;
-	struct hns_roce_cfg_gmv_bt *gmv_bt =
-				(struct hns_roce_cfg_gmv_bt *)desc.data;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
+	u32 idx = obj / (HNS_HW_PAGE_SIZE / hr_dev->caps.gmv_entry_sz);
 	u64 addr = to_hr_hw_page_addr(base_addr);
 
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_GMV_BT, false);
 
-	gmv_bt->gmv_ba_l = cpu_to_le32(lower_32_bits(addr));
-	gmv_bt->gmv_ba_h = cpu_to_le32(upper_32_bits(addr));
-	gmv_bt->gmv_bt_idx = cpu_to_le32(obj /
-		(HNS_HW_PAGE_SIZE / hr_dev->caps.gmv_entry_sz));
+	hr_reg_write(req, CFG_GMV_BT_BA_L, lower_32_bits(addr));
+	hr_reg_write(req, CFG_GMV_BT_BA_H, upper_32_bits(addr));
+	hr_reg_write(req, CFG_GMV_BT_IDX, idx);
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }

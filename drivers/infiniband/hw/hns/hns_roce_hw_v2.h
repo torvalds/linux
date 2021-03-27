@@ -1595,59 +1595,36 @@ struct hns_roce_mbox_status {
 
 #define MB_ST_COMPLETE_SUCC 1
 
-struct hns_roce_cfg_bt_attr {
-	__le32 vf_qpc_cfg;
-	__le32 vf_srqc_cfg;
-	__le32 vf_cqc_cfg;
-	__le32 vf_mpt_cfg;
-	__le32 vf_sccc_cfg;
-	__le32 rsv;
+/* Fields of HNS_ROCE_OPC_CFG_BT_ATTR */
+#define CFG_BT_ATTR_QPC_BA_PGSZ CMQ_REQ_FIELD_LOC(3, 0)
+#define CFG_BT_ATTR_QPC_BUF_PGSZ CMQ_REQ_FIELD_LOC(7, 4)
+#define CFG_BT_ATTR_QPC_HOPNUM CMQ_REQ_FIELD_LOC(9, 8)
+#define CFG_BT_ATTR_SRQC_BA_PGSZ CMQ_REQ_FIELD_LOC(35, 32)
+#define CFG_BT_ATTR_SRQC_BUF_PGSZ CMQ_REQ_FIELD_LOC(39, 36)
+#define CFG_BT_ATTR_SRQC_HOPNUM CMQ_REQ_FIELD_LOC(41, 40)
+#define CFG_BT_ATTR_CQC_BA_PGSZ CMQ_REQ_FIELD_LOC(67, 64)
+#define CFG_BT_ATTR_CQC_BUF_PGSZ CMQ_REQ_FIELD_LOC(71, 68)
+#define CFG_BT_ATTR_CQC_HOPNUM CMQ_REQ_FIELD_LOC(73, 72)
+#define CFG_BT_ATTR_MPT_BA_PGSZ CMQ_REQ_FIELD_LOC(99, 96)
+#define CFG_BT_ATTR_MPT_BUF_PGSZ CMQ_REQ_FIELD_LOC(103, 100)
+#define CFG_BT_ATTR_MPT_HOPNUM CMQ_REQ_FIELD_LOC(105, 104)
+#define CFG_BT_ATTR_SCCC_BA_PGSZ CMQ_REQ_FIELD_LOC(131, 128)
+#define CFG_BT_ATTR_SCCC_BUF_PGSZ CMQ_REQ_FIELD_LOC(135, 132)
+#define CFG_BT_ATTR_SCCC_HOPNUM CMQ_REQ_FIELD_LOC(137, 136)
+
+/* Fields of HNS_ROCE_OPC_CFG_ENTRY_SIZE */
+#define CFG_HEM_ENTRY_SIZE_TYPE CMQ_REQ_FIELD_LOC(31, 0)
+enum {
+	HNS_ROCE_CFG_QPC_SIZE = BIT(0),
+	HNS_ROCE_CFG_SCCC_SIZE = BIT(1),
 };
 
-#define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S 0
-#define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_M GENMASK(3, 0)
+#define CFG_HEM_ENTRY_SIZE_VALUE CMQ_REQ_FIELD_LOC(191, 160)
 
-#define CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_S 4
-#define CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_M GENMASK(7, 4)
-
-#define CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_S 8
-#define CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_M GENMASK(9, 8)
-
-#define CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_S 0
-#define CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_M GENMASK(3, 0)
-
-#define CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_S 4
-#define CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_M GENMASK(7, 4)
-
-#define CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_S 8
-#define CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_M GENMASK(9, 8)
-
-#define CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_S 0
-#define CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_M GENMASK(3, 0)
-
-#define CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_S 4
-#define CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_M GENMASK(7, 4)
-
-#define CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_S 8
-#define CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_M GENMASK(9, 8)
-
-#define CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_S 0
-#define CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_M GENMASK(3, 0)
-
-#define CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_S 4
-#define CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_M GENMASK(7, 4)
-
-#define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S 8
-#define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M GENMASK(9, 8)
-
-#define CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_S 0
-#define CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_M GENMASK(3, 0)
-
-#define CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_S 4
-#define CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_M GENMASK(7, 4)
-
-#define CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_S 8
-#define CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_M GENMASK(9, 8)
+/* Fields of HNS_ROCE_OPC_CFG_GMV_BT */
+#define CFG_GMV_BT_BA_L CMQ_REQ_FIELD_LOC(31, 0)
+#define CFG_GMV_BT_BA_H CMQ_REQ_FIELD_LOC(51, 32)
+#define CFG_GMV_BT_IDX CMQ_REQ_FIELD_LOC(95, 64)
 
 struct hns_roce_cfg_sgid_tb {
 	__le32	table_idx_rsv;
@@ -1656,17 +1633,6 @@ struct hns_roce_cfg_sgid_tb {
 	__le32	vf_sgid_mh;
 	__le32	vf_sgid_h;
 	__le32	vf_sgid_type_rsv;
-};
-
-enum {
-	HNS_ROCE_CFG_QPC_SIZE = BIT(0),
-	HNS_ROCE_CFG_SCCC_SIZE = BIT(1),
-};
-
-struct hns_roce_cfg_entry_size {
-	__le32	type;
-	__le32	rsv[4];
-	__le32	size;
 };
 
 #define CFG_SGID_TB_TABLE_IDX_S 0
@@ -1686,16 +1652,6 @@ struct hns_roce_cfg_smac_tb {
 
 #define CFG_SMAC_TB_VF_SMAC_H_S 0
 #define CFG_SMAC_TB_VF_SMAC_H_M GENMASK(15, 0)
-
-struct hns_roce_cfg_gmv_bt {
-	__le32 gmv_ba_l;
-	__le32 gmv_ba_h;
-	__le32 gmv_bt_idx;
-	__le32 rsv[3];
-};
-
-#define CFG_GMV_BA_H_S 0
-#define CFG_GMV_BA_H_M GENMASK(19, 0)
 
 struct hns_roce_cfg_gmv_tb_a {
 	__le32 vf_sgid_l;
@@ -1883,6 +1839,12 @@ struct hns_roce_query_pf_caps_e {
 
 #define V2_QUERY_PF_CAPS_E_RSV_LKEYS_S 0
 #define V2_QUERY_PF_CAPS_E_RSV_LKEYS_M GENMASK(19, 0)
+
+struct hns_roce_cmq_req {
+	__le32 data[6];
+};
+
+#define CMQ_REQ_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_cmq_req, h, l)
 
 struct hns_roce_cmq_desc {
 	__le16 opcode;
