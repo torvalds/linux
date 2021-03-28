@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x8bb402f5a
+#define DMUB_FW_VERSION_GIT_HASH 0x7f2db1846
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 58
+#define DMUB_FW_VERSION_REVISION 59
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -1229,6 +1229,19 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Length of each horizontal line in us.
 	 */
 	uint32_t line_time_in_us;
+	/**
+	 * FEC enable status in driver
+	 */
+	uint8_t fec_enable_status;
+	/**
+	 * FEC re-enable delay when PSR exit.
+	 * unit is 100us, range form 0~255(0xFF).
+	 */
+	uint8_t fec_enable_delay_in100us;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad3[2];
 };
 
 /**
