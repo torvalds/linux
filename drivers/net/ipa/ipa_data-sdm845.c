@@ -144,12 +144,6 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			},
 		},
 	},
-	[IPA_ENDPOINT_MODEM_COMMAND_TX] = {
-		.ee_id		= GSI_EE_MODEM,
-		.channel_id	= 1,
-		.endpoint_id	= 4,
-		.toward_ipa	= true,
-	},
 	[IPA_ENDPOINT_MODEM_LAN_TX] = {
 		.ee_id		= GSI_EE_MODEM,
 		.channel_id	= 0,
@@ -158,12 +152,6 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.filter_support	= true,
 		},
-	},
-	[IPA_ENDPOINT_MODEM_LAN_RX] = {
-		.ee_id		= GSI_EE_MODEM,
-		.channel_id	= 3,
-		.endpoint_id	= 13,
-		.toward_ipa	= false,
 	},
 	[IPA_ENDPOINT_MODEM_AP_TX] = {
 		.ee_id		= GSI_EE_MODEM,
