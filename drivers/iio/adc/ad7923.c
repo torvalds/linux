@@ -313,8 +313,6 @@ static int ad7923_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	spi_set_drvdata(spi, indio_dev);
-
 	st->spi = spi;
 	st->settings = AD7923_CODING | AD7923_RANGE |
 			AD7923_PM_MODE_WRITE(AD7923_PM_MODE_OPS);
@@ -356,16 +354,7 @@ static int ad7923_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return iio_device_register(indio_dev);
-}
-
-static int ad7923_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7923_id[] = {
@@ -398,7 +387,6 @@ static struct spi_driver ad7923_driver = {
 		.of_match_table = ad7923_of_match,
 	},
 	.probe		= ad7923_probe,
-	.remove		= ad7923_remove,
 	.id_table	= ad7923_id,
 };
 module_spi_driver(ad7923_driver);
