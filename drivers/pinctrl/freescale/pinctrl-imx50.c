@@ -400,6 +400,7 @@ static struct platform_driver imx50_pinctrl_driver = {
 	.driver = {
 		.name = "imx50-pinctrl",
 		.of_match_table = imx50_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx50_pinctrl_probe,
 };
