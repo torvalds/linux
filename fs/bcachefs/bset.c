@@ -1167,8 +1167,7 @@ void bch2_bset_delete(struct btree *b,
 __flatten
 static struct bkey_packed *bset_search_write_set(const struct btree *b,
 				struct bset_tree *t,
-				struct bpos *search,
-				const struct bkey_packed *packed_search)
+				struct bpos *search)
 {
 	unsigned l = 0, r = t->size;
 
@@ -1235,9 +1234,6 @@ static struct bkey_packed *bset_search_tree(const struct btree *b,
 			prefetch(&base->f[n << 4]);
 
 		f = &base->f[n];
-
-		if (!unlikely(packed_search))
-			goto slowpath;
 		if (unlikely(f->exponent >= BFLOAT_FAILED))
 			goto slowpath;
 
@@ -1301,7 +1297,7 @@ struct bkey_packed *__bch2_bset_search(struct btree *b,
 	case BSET_NO_AUX_TREE:
 		return btree_bkey_first(b, t);
 	case BSET_RW_AUX_TREE:
-		return bset_search_write_set(b, t, search, lossy_packed_search);
+		return bset_search_write_set(b, t, search);
 	case BSET_RO_AUX_TREE:
 		/*
 		 * Each node in the auxiliary search tree covers a certain range
@@ -1400,16 +1396,15 @@ noinline __flatten __attribute__((cold))
 static void btree_node_iter_init_pack_failed(struct btree_node_iter *iter,
 			      struct btree *b, struct bpos *search)
 {
-	struct bset_tree *t;
+	struct bkey_packed *k;
 
 	trace_bkey_pack_pos_fail(search);
 
-	for_each_bset(b, t)
-		__bch2_btree_node_iter_push(iter, b,
-			bch2_bset_search(b, t, search, NULL, NULL),
-			btree_bkey_last(b, t));
+	bch2_btree_node_iter_init_from_start(iter, b);
 
-	bch2_btree_node_iter_sort(iter, b);
+	while ((k = bch2_btree_node_iter_peek(iter, b)) &&
+	       bkey_iter_pos_cmp(b, k, search) < 0)
+		bch2_btree_node_iter_advance(iter, b);
 }
 
 /**
