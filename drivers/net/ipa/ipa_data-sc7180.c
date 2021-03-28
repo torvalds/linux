@@ -349,6 +349,7 @@ static const struct ipa_clock_data ipa_clock_data = {
 /* Configuration data for the SC7180 SoC. */
 const struct ipa_data ipa_data_sc7180 = {
 	.version	= IPA_VERSION_4_2,
+	/* backward_compat value is 0 */
 	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
 	.qsb_data	= ipa_qsb_data,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),

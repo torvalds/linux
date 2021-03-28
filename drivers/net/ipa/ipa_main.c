@@ -397,9 +397,9 @@ static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 	u32 granularity;
 	u32 val;
 
-	/* IPA v4.5 has no backward compatibility register */
+	/* IPA v4.5+ has no backward compatibility register */
 	if (version < IPA_VERSION_4_5) {
-		val = ipa_reg_bcr_val(version);
+		val = data->backward_compat;
 		iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
 	}
 

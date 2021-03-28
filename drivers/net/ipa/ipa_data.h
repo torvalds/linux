@@ -279,6 +279,7 @@ struct ipa_clock_data {
 /**
  * struct ipa_data - combined IPA/GSI configuration data
  * @version:		IPA hardware version
+ * @backward_compat:	BCR register value (prior to IPA v4.5 only)
  * @qsb_count:		number of entries in the qsb_data array
  * @qsb_data:		Qualcomm System Bus configuration data
  * @endpoint_count:	number of entries in the endpoint_data array
@@ -289,6 +290,7 @@ struct ipa_clock_data {
  */
 struct ipa_data {
 	enum ipa_version version;
+	u32 backward_compat;
 	u32 qsb_count;		/* number of entries in qsb_data[] */
 	const struct ipa_qsb_data *qsb_data;
 	u32 endpoint_count;	/* number of entries in endpoint_data[] */

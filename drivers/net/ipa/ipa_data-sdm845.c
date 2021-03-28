@@ -397,6 +397,11 @@ static const struct ipa_clock_data ipa_clock_data = {
 /* Configuration data for the SDM845 SoC. */
 const struct ipa_data ipa_data_sdm845 = {
 	.version	= IPA_VERSION_3_5_1,
+	.backward_compat = BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK |
+			   BCR_TX_NOT_USING_BRESP_FMASK |
+			   BCR_SUSPEND_L2_IRQ_FMASK |
+			   BCR_HOLB_DROP_L2_IRQ_FMASK |
+			   BCR_DUAL_TX_FMASK,
 	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
 	.qsb_data	= ipa_qsb_data,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),
