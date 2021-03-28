@@ -1684,7 +1684,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_vif *vif;
 	struct sk_buff *skb;
-	bool result = true;
+	bool result;
 	__le16 fc;
 
 	if (WARN_ON(skb_queue_empty(skbs)))
