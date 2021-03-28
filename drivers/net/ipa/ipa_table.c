@@ -96,9 +96,6 @@
  *                 ----------------------
  */
 
-/* IPA hardware constrains filter and route tables alignment */
-#define IPA_TABLE_ALIGN			128	/* Minimum table alignment */
-
 /* Assignment of route table entries to the modem and AP */
 #define IPA_ROUTE_MODEM_MIN		0
 #define IPA_ROUTE_MODEM_COUNT		8
@@ -656,25 +653,16 @@ int ipa_table_init(struct ipa *ipa)
 
 	ipa_table_validate_build();
 
+	/* The IPA hardware requires route and filter table rules to be
+	 * aligned on a 128-byte boundary.  We put the "zero rule" at the
+	 * base of the table area allocated here.  The DMA address returned
+	 * by dma_alloc_coherent() is guaranteed to be a power-of-2 number
+	 * of pages, which satisfies the rule alignment requirement.
+	 */
 	size = IPA_ZERO_RULE_SIZE + (1 + count) * IPA_TABLE_ENTRY_SIZE;
 	virt = dma_alloc_coherent(dev, size, &addr, GFP_KERNEL);
 	if (!virt)
 		return -ENOMEM;
-
-	/* We put the "zero rule" at the base of our table area.  The IPA
-	 * hardware requires route and filter table rules to be aligned
-	 * on a 128-byte boundary.  As long as the alignment constraint
-	 * is a power of 2, we can check alignment using just the bottom
-	 * 32 bits for a DMA address of any size.
-	 */
-	BUILD_BUG_ON(!is_power_of_2(IPA_TABLE_ALIGN));
-	if (lower_32_bits(addr) % IPA_TABLE_ALIGN) {
-		dev_err(dev, "table address %pad not %u-byte aligned\n",
-			&addr, IPA_TABLE_ALIGN);
-		dma_free_coherent(dev, size, virt, addr);
-
-		return -ERANGE;
-	}
 
 	ipa->table_virt = virt;
 	ipa->table_addr = addr;

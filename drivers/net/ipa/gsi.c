@@ -1256,18 +1256,13 @@ static int gsi_ring_alloc(struct gsi *gsi, struct gsi_ring *ring, u32 count)
 	dma_addr_t addr;
 
 	/* Hardware requires a 2^n ring size, with alignment equal to size.
-	 * The size is a power of 2, so we can check alignment using just
-	 * the bottom 32 bits for a DMA address of any size.
+	 * The DMA address returned by dma_alloc_coherent() is guaranteed to
+	 * be a power-of-2 number of pages, which satisfies the requirement.
 	 */
 	ring->virt = dma_alloc_coherent(dev, size, &addr, GFP_KERNEL);
-	if (ring->virt && lower_32_bits(addr) % size) {
-		dma_free_coherent(dev, size, ring->virt, addr);
-		dev_err(dev, "unable to alloc 0x%x-aligned ring buffer\n",
-			size);
-		return -EINVAL;	/* Not a good error value, but distinct */
-	} else if (!ring->virt) {
+	if (!ring->virt)
 		return -ENOMEM;
-	}
+
 	ring->addr = addr;
 	ring->count = count;
 

@@ -14,7 +14,7 @@ struct gsi_trans;
 struct gsi_ring;
 struct gsi_channel;
 
-#define GSI_RING_ELEMENT_SIZE	16	/* bytes */
+#define GSI_RING_ELEMENT_SIZE	16	/* bytes; must be a power of 2 */
 
 /* Return the entry that follows one provided in a transaction pool */
 void *gsi_trans_pool_next(struct gsi_trans_pool *pool, void *element);
