@@ -293,6 +293,13 @@ static const struct iio_info ad7923_info = {
 	.update_scan_mode = ad7923_update_scan_mode,
 };
 
+static void ad7923_regulator_disable(void *data)
+{
+	struct ad7923_state *st = data;
+
+	regulator_disable(st->reg);
+}
+
 static int ad7923_probe(struct spi_device *spi)
 {
 	struct ad7923_state *st;
@@ -340,10 +347,14 @@ static int ad7923_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(&spi->dev, ad7923_regulator_disable, st);
+	if (ret)
+		return ret;
+
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 					 &ad7923_trigger_handler, NULL);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -353,20 +364,15 @@ static int ad7923_probe(struct spi_device *spi)
 
 error_cleanup_ring:
 	iio_triggered_buffer_cleanup(indio_dev);
-error_disable_reg:
-	regulator_disable(st->reg);
-
 	return ret;
 }
 
 static int ad7923_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7923_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(st->reg);
 
 	return 0;
 }
