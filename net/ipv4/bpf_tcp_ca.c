@@ -206,7 +206,7 @@ BTF_ID(func, bbr_init)
 BTF_ID(func, bbr_main)
 BTF_ID(func, bbr_sndbuf_expand)
 BTF_ID(func, bbr_undo_cwnd)
-BTF_ID(func, bbr_cwnd_even),
+BTF_ID(func, bbr_cwnd_even)
 BTF_ID(func, bbr_ssthresh)
 BTF_ID(func, bbr_min_tso_segs)
 BTF_ID(func, bbr_set_state)
