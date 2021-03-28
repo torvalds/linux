@@ -77,7 +77,7 @@ enum ipa_mem_id {
  * struct ipa_mem - IPA local memory region description
  * @offset:		offset in IPA memory space to base of the region
  * @size:		size in bytes base of the region
- * @canary_count	# 32-bit "canary" values that precede region
+ * @canary_count:	Number of 32-bit "canary" values that precede region
  */
 struct ipa_mem {
 	u32 offset;

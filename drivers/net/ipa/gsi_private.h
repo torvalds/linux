@@ -100,7 +100,7 @@ void gsi_channel_doorbell(struct gsi_channel *channel);
 /**
  * gsi_ring_virt() - Return virtual address for a ring entry
  * @ring:	Ring whose address is to be translated
- * @addr:	Index (slot number) of entry
+ * @index:	Index (slot number) of entry
  */
 void *gsi_ring_virt(struct gsi_ring *ring, u32 index);
 
