@@ -129,7 +129,10 @@ struct flow_offload_tuple {
 					in_vlan_ingress:2;
 	u16				mtu;
 	union {
-		struct dst_entry	*dst_cache;
+		struct {
+			struct dst_entry *dst_cache;
+			u32		dst_cookie;
+		};
 		struct {
 			u32		ifidx;
 			u32		hw_ifidx;
