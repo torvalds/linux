@@ -1235,7 +1235,7 @@ default state like this::
 		foo->s = pinctrl_lookup_state(foo->p, PINCTRL_STATE_DEFAULT);
 		if (IS_ERR(foo->s)) {
 			/* FIXME: clean up "foo" here */
-			return PTR_ERR(s);
+			return PTR_ERR(foo->s);
 		}
 
 		ret = pinctrl_select_state(foo->s);
