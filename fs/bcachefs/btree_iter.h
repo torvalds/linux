@@ -303,6 +303,7 @@ static inline void set_btree_iter_dontneed(struct btree_trans *trans, struct btr
 }
 
 #define TRANS_RESET_NOTRAVERSE		(1 << 0)
+#define TRANS_RESET_NOUNLOCK		(1 << 1)
 
 void bch2_trans_reset(struct btree_trans *, unsigned);
 

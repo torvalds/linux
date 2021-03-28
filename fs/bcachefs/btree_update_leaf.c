@@ -826,7 +826,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	struct btree_insert_entry *i = NULL;
 	struct btree_iter *iter;
 	bool trans_trigger_run;
-	unsigned u64s;
+	unsigned u64s, reset_flags = 0;
 	int ret = 0;
 
 	if (!trans->nr_updates)
@@ -940,7 +940,11 @@ out:
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&trans->c->writes);
 out_reset:
-	bch2_trans_reset(trans, !ret ? TRANS_RESET_NOTRAVERSE : 0);
+	if (!ret)
+		reset_flags |= TRANS_RESET_NOTRAVERSE;
+	if (!ret && (trans->flags & BTREE_INSERT_NOUNLOCK))
+		reset_flags |= TRANS_RESET_NOUNLOCK;
+	bch2_trans_reset(trans, reset_flags);
 
 	return ret;
 err:

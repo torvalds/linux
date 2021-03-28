@@ -2155,7 +2155,8 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 		       (void *) &trans->fs_usage_deltas->memset_start);
 	}
 
-	bch2_trans_cond_resched(trans);
+	if (!(flags & TRANS_RESET_NOUNLOCK))
+		bch2_trans_cond_resched(trans);
 
 	if (!(flags & TRANS_RESET_NOTRAVERSE))
 		bch2_btree_iter_traverse_all(trans);
