@@ -351,20 +351,12 @@ static int ad7923_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 &ad7923_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      &ad7923_trigger_handler, NULL);
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_cleanup_ring;
-
-	return 0;
-
-error_cleanup_ring:
-	iio_triggered_buffer_cleanup(indio_dev);
-	return ret;
+	return iio_device_register(indio_dev);
 }
 
 static int ad7923_remove(struct spi_device *spi)
@@ -372,7 +364,6 @@ static int ad7923_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
 
 	return 0;
 }
