@@ -654,7 +654,6 @@ static int fsl_i2c_probe(struct platform_device *op)
 	u32 clock = MPC_I2C_CLOCK_LEGACY;
 	int result = 0;
 	int plen;
-	struct resource res;
 	struct clk *clk;
 	int err;
 
@@ -662,7 +661,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 	if (!match)
 		return -EINVAL;
 
-	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc(&op->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
@@ -670,24 +669,21 @@ static int fsl_i2c_probe(struct platform_device *op)
 
 	init_waitqueue_head(&i2c->queue);
 
-	i2c->base = of_iomap(op->dev.of_node, 0);
-	if (!i2c->base) {
+	i2c->base = devm_platform_ioremap_resource(op, 0);
+	if (IS_ERR(i2c->base)) {
 		dev_err(i2c->dev, "failed to map controller\n");
-		result = -ENOMEM;
-		goto fail_map;
+		return PTR_ERR(i2c->base);
 	}
 
-	i2c->irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (i2c->irq < 0) {
-		result = i2c->irq;
-		goto fail_map;
-	}
+	i2c->irq = platform_get_irq(op, 0);
+	if (i2c->irq < 0)
+		return i2c->irq;
 
-	result = request_irq(i2c->irq, mpc_i2c_isr,
+	result = devm_request_irq(&op->dev, i2c->irq, mpc_i2c_isr,
 			IRQF_SHARED, "i2c-mpc", i2c);
 	if (result < 0) {
 		dev_err(i2c->dev, "failed to attach interrupt\n");
-		goto fail_request;
+		return result;
 	}
 
 	/*
@@ -699,7 +695,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 		err = clk_prepare_enable(clk);
 		if (err) {
 			dev_err(&op->dev, "failed to enable clock\n");
-			goto fail_request;
+			return err;
 		} else {
 			i2c->clk_per = clk;
 		}
@@ -731,32 +727,26 @@ static int fsl_i2c_probe(struct platform_device *op)
 	}
 	dev_info(i2c->dev, "timeout %u us\n", mpc_ops.timeout * 1000000 / HZ);
 
-	platform_set_drvdata(op, i2c);
-
 	i2c->adap = mpc_ops;
-	of_address_to_resource(op->dev.of_node, 0, &res);
 	scnprintf(i2c->adap.name, sizeof(i2c->adap.name),
-		  "MPC adapter at 0x%llx", (unsigned long long)res.start);
-	i2c_set_adapdata(&i2c->adap, i2c);
+		  "MPC adapter (%s)", of_node_full_name(op->dev.of_node));
 	i2c->adap.dev.parent = &op->dev;
+	i2c->adap.nr = op->id;
 	i2c->adap.dev.of_node = of_node_get(op->dev.of_node);
 	i2c->adap.bus_recovery_info = &fsl_i2c_recovery_info;
+	platform_set_drvdata(op, i2c);
+	i2c_set_adapdata(&i2c->adap, i2c);
 
-	result = i2c_add_adapter(&i2c->adap);
-	if (result < 0)
+	result = i2c_add_numbered_adapter(&i2c->adap);
+	if (result)
 		goto fail_add;
 
-	return result;
+	return 0;
 
  fail_add:
 	if (i2c->clk_per)
 		clk_disable_unprepare(i2c->clk_per);
-	free_irq(i2c->irq, i2c);
- fail_request:
-	irq_dispose_mapping(i2c->irq);
-	iounmap(i2c->base);
- fail_map:
-	kfree(i2c);
+
 	return result;
 };
 
