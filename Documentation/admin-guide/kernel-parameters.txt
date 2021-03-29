@@ -1464,6 +1464,8 @@
 	gpio-mockup.gpio_mockup_ranges
 			[HW] Sets the ranges of gpiochip of for this device.
 			Format: <start1>,<end1>,<start2>,<end2>...
+	gpio-mockup.gpio_mockup_named_lines
+			[HW] Let the driver know GPIO lines should be named.
 
 	gpt		[EFI] Forces disk with valid GPT signature but
 			invalid Protective MBR to be treated as GPT. If the
