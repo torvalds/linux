@@ -93,6 +93,7 @@ struct papr_scm_priv {
 	uint64_t block_size;
 	int metadata_size;
 	bool is_volatile;
+	bool hcall_flush_required;
 
 	uint64_t bound_addr;
 
@@ -116,6 +117,38 @@ struct papr_scm_priv {
 	/* length of the stat buffer as expected by phyp */
 	size_t stat_buffer_len;
 };
+
+static int papr_scm_pmem_flush(struct nd_region *nd_region,
+			       struct bio *bio __maybe_unused)
+{
+	struct papr_scm_priv *p = nd_region_provider_data(nd_region);
+	unsigned long ret_buf[PLPAR_HCALL_BUFSIZE], token = 0;
+	long rc;
+
+	dev_dbg(&p->pdev->dev, "flush drc 0x%x", p->drc_index);
+
+	do {
+		rc = plpar_hcall(H_SCM_FLUSH, ret_buf, p->drc_index, token);
+		token = ret_buf[0];
+
+		/* Check if we are stalled for some time */
+		if (H_IS_LONG_BUSY(rc)) {
+			msleep(get_longbusy_msecs(rc));
+			rc = H_BUSY;
+		} else if (rc == H_BUSY) {
+			cond_resched();
+		}
+	} while (rc == H_BUSY);
+
+	if (rc) {
+		dev_err(&p->pdev->dev, "flush error: %lld", rc);
+		rc = -EIO;
+	} else {
+		dev_dbg(&p->pdev->dev, "flush drc 0x%x complete", p->drc_index);
+	}
+
+	return rc;
+}
 
 static LIST_HEAD(papr_nd_regions);
 static DEFINE_MUTEX(papr_ndr_lock);
@@ -943,6 +976,11 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	ndr_desc.num_mappings = 1;
 	ndr_desc.nd_set = &p->nd_set;
 
+	if (p->hcall_flush_required) {
+		set_bit(ND_REGION_ASYNC, &ndr_desc.flags);
+		ndr_desc.flush = papr_scm_pmem_flush;
+	}
+
 	if (p->is_volatile)
 		p->region = nvdimm_volatile_region_create(p->bus, &ndr_desc);
 	else {
@@ -1088,6 +1126,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 	p->block_size = block_size;
 	p->blocks = blocks;
 	p->is_volatile = !of_property_read_bool(dn, "ibm,cache-flush-required");
+	p->hcall_flush_required = of_property_read_bool(dn, "ibm,hcall-flush-required");
 
 	/* We just need to ensure that set cookies are unique across */
 	uuid_parse(uuid_str, (uuid_t *) uuid);
