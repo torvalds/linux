@@ -1187,7 +1187,7 @@ retry:
 		goto retry;
 	}
 
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_free(trans, iter);
 	return ret;
 }
 
