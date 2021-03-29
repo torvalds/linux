@@ -538,7 +538,7 @@ xchk_directory_leaf1_bestfree(
 	 * There should be as many bestfree slots as there are dir data
 	 * blocks that can fit under i_size.
 	 */
-	if (bestcount != xfs_dir2_byte_to_db(geo, sc->ip->i_d.di_size)) {
+	if (bestcount != xfs_dir2_byte_to_db(geo, sc->ip->i_disk_size)) {
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, lblk);
 		goto out;
 	}
@@ -808,7 +808,7 @@ xchk_directory(
 		return -ENOENT;
 
 	/* Plausible size? */
-	if (sc->ip->i_d.di_size < xfs_dir2_sf_hdr_size(0)) {
+	if (sc->ip->i_disk_size < xfs_dir2_sf_hdr_size(0)) {
 		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 		goto out;
 	}
@@ -834,7 +834,7 @@ xchk_directory(
 	 * Userspace usually asks for a 32k buffer, so we will too.
 	 */
 	bufsize = (size_t)min_t(loff_t, XFS_READDIR_BUFSIZE,
-			sc->ip->i_d.di_size);
+			sc->ip->i_disk_size);
 
 	/*
 	 * Look up every name in this directory by hash.

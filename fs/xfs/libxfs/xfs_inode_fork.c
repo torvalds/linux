@@ -242,7 +242,7 @@ xfs_iformat_data_fork(
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		ip->i_d.di_size = 0;
+		ip->i_disk_size = 0;
 		inode->i_rdev = xfs_to_linux_dev_t(xfs_dinode_get_rdev(dip));
 		return 0;
 	case S_IFREG:

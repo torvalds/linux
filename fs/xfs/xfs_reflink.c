@@ -930,7 +930,7 @@ xfs_reflink_update_dest(
 	if (newlen > i_size_read(VFS_I(dest))) {
 		trace_xfs_reflink_update_inode_size(dest, newlen);
 		i_size_write(VFS_I(dest), newlen);
-		dest->i_d.di_size = newlen;
+		dest->i_disk_size = newlen;
 	}
 
 	if (cowextsize) {
@@ -1156,7 +1156,7 @@ xfs_reflink_remap_extent(
 	if (newlen > i_size_read(VFS_I(ip))) {
 		trace_xfs_reflink_update_inode_size(ip, newlen);
 		i_size_write(VFS_I(ip), newlen);
-		ip->i_d.di_size = newlen;
+		ip->i_disk_size = newlen;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	}
 

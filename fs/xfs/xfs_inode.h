@@ -54,6 +54,7 @@ typedef struct xfs_inode {
 	/* Miscellaneous state. */
 	unsigned long		i_flags;	/* see defined flags below */
 	uint64_t		i_delayed_blks;	/* count of delay alloc blks */
+	xfs_fsize_t		i_disk_size;	/* number of bytes in file */
 	prid_t			i_projid;	/* owner's project id */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
@@ -88,7 +89,7 @@ static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
 {
 	if (S_ISREG(VFS_I(ip)->i_mode))
 		return i_size_read(VFS_I(ip));
-	return ip->i_d.di_size;
+	return ip->i_disk_size;
 }
 
 /*
@@ -102,7 +103,7 @@ xfs_new_eof(struct xfs_inode *ip, xfs_fsize_t new_size)
 
 	if (new_size > i_size || new_size < 0)
 		new_size = i_size;
-	return new_size > ip->i_d.di_size ? new_size : 0;
+	return new_size > ip->i_disk_size ? new_size : 0;
 }
 
 /*

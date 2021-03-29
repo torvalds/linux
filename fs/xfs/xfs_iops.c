@@ -949,8 +949,8 @@ xfs_setattr_size(
 	 * operation.
 	 *
 	 * And we update in-core i_size and truncate page cache beyond newsize
-	 * before writeback the [di_size, newsize] range, so we're guaranteed
-	 * not to write stale data past the new EOF on truncate down.
+	 * before writeback the [i_disk_size, newsize] range, so we're
+	 * guaranteed not to write stale data past the new EOF on truncate down.
 	 */
 	truncate_setsize(inode, newsize);
 
@@ -963,9 +963,9 @@ xfs_setattr_size(
 	 * otherwise those blocks may not be zeroed after a crash.
 	 */
 	if (did_zeroing ||
-	    (newsize > ip->i_d.di_size && oldsize != ip->i_d.di_size)) {
+	    (newsize > ip->i_disk_size && oldsize != ip->i_disk_size)) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-						ip->i_d.di_size, newsize - 1);
+						ip->i_disk_size, newsize - 1);
 		if (error)
 			return error;
 	}
@@ -1007,7 +1007,7 @@ xfs_setattr_size(
 	 * permanent before actually freeing any blocks it doesn't matter if
 	 * they get written to.
 	 */
-	ip->i_d.di_size = newsize;
+	ip->i_disk_size = newsize;
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	if (newsize <= oldsize) {
@@ -1344,7 +1344,7 @@ xfs_setup_inode(
 	/* make the inode look hashed for the writeback code */
 	inode_fake_hash(inode);
 
-	i_size_write(inode, ip->i_d.di_size);
+	i_size_write(inode, ip->i_disk_size);
 	xfs_diflags_to_iflags(ip, true);
 
 	if (S_ISDIR(inode->i_mode)) {

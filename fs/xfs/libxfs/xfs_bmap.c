@@ -1440,7 +1440,7 @@ xfs_bmap_last_offset(
 
 /*
  * Returns whether the selected fork of the inode has exactly one
- * block or not.  For the data fork we check this matches di_size,
+ * block or not.  For the data fork we check this matches i_disk_size,
  * implying the file's range is 0..bsize-1.
  */
 int					/* 1=>1 block, 0=>otherwise */

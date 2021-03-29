@@ -226,7 +226,7 @@ xfs_inode_from_disk(
 	inode->i_mtime = xfs_inode_from_disk_ts(from, from->di_mtime);
 	inode->i_ctime = xfs_inode_from_disk_ts(from, from->di_ctime);
 
-	to->di_size = be64_to_cpu(from->di_size);
+	ip->i_disk_size = be64_to_cpu(from->di_size);
 	to->di_nblocks = be64_to_cpu(from->di_nblocks);
 	to->di_extsize = be32_to_cpu(from->di_extsize);
 	to->di_forkoff = from->di_forkoff;
@@ -305,7 +305,7 @@ xfs_inode_to_disk(
 	to->di_gen = cpu_to_be32(inode->i_generation);
 	to->di_mode = cpu_to_be16(inode->i_mode);
 
-	to->di_size = cpu_to_be64(from->di_size);
+	to->di_size = cpu_to_be64(ip->i_disk_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
 	to->di_extsize = cpu_to_be32(from->di_extsize);
 	to->di_nextents = cpu_to_be32(xfs_ifork_nextents(&ip->i_df));

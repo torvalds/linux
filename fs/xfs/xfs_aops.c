@@ -36,7 +36,7 @@ XFS_WPC(struct iomap_writepage_ctx *ctx)
 static inline bool xfs_ioend_is_append(struct iomap_ioend *ioend)
 {
 	return ioend->io_offset + ioend->io_size >
-		XFS_I(ioend->io_inode)->i_d.di_size;
+		XFS_I(ioend->io_inode)->i_disk_size;
 }
 
 STATIC int
@@ -88,7 +88,7 @@ __xfs_setfilesize(
 
 	trace_xfs_setfilesize(ip, offset, size);
 
-	ip->i_d.di_size = isize;
+	ip->i_disk_size = isize;
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
