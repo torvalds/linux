@@ -934,7 +934,7 @@ xfs_reflink_update_dest(
 	}
 
 	if (cowextsize) {
-		dest->i_d.di_cowextsize = cowextsize;
+		dest->i_cowextsize = cowextsize;
 		dest->i_d.di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
 	}
 

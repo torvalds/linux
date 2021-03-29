@@ -81,7 +81,7 @@ xfs_get_cowextsz_hint(
 
 	a = 0;
 	if (ip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
-		a = ip->i_d.di_cowextsize;
+		a = ip->i_cowextsize;
 	b = xfs_get_extsz_hint(ip);
 
 	a = max(a, b);
@@ -754,7 +754,7 @@ xfs_inode_inherit_flags2(
 {
 	if (pip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) {
 		ip->i_d.di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
-		ip->i_d.di_cowextsize = pip->i_d.di_cowextsize;
+		ip->i_cowextsize = pip->i_cowextsize;
 	}
 	if (pip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
 		ip->i_d.di_flags2 |= XFS_DIFLAG2_DAX;
@@ -844,7 +844,7 @@ xfs_init_new_inode(
 
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
 		inode_set_iversion(inode, 1);
-		ip->i_d.di_cowextsize = 0;
+		ip->i_cowextsize = 0;
 		ip->i_d.di_crtime = tv;
 	}
 

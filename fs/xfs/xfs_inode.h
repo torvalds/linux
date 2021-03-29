@@ -58,6 +58,7 @@ typedef struct xfs_inode {
 	xfs_rfsblock_t		i_nblocks;	/* # of direct & btree blocks */
 	prid_t			i_projid;	/* owner's project id */
 	xfs_extlen_t		i_extsize;	/* basic/minimum extent size */
+	xfs_extlen_t		i_cowextsize;	/* basic cow extent size */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
