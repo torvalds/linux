@@ -447,7 +447,7 @@ static struct platform_driver imx8m_ddrc_platdrv = {
 	.probe		= imx8m_ddrc_probe,
 	.driver = {
 		.name	= "imx8m-ddrc-devfreq",
-		.of_match_table = of_match_ptr(imx8m_ddrc_of_match),
+		.of_match_table = imx8m_ddrc_of_match,
 	},
 };
 module_platform_driver(imx8m_ddrc_platdrv);
