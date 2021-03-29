@@ -42,7 +42,7 @@ static int fsl_rpmsg_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct fsl_rpmsg *rpmsg = snd_soc_dai_get_drvdata(dai);
-	struct clk *p = rpmsg->mclk, *pll = 0, *npll = 0;
+	struct clk *p = rpmsg->mclk, *pll = NULL, *npll = NULL;
 	u64 rate = params_rate(params);
 	int ret = 0;
 
