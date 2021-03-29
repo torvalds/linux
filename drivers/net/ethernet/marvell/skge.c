@@ -2959,8 +2959,9 @@ static void genesis_set_multicast(struct net_device *dev)
 
 static void yukon_add_filter(u8 filter[8], const u8 *addr)
 {
-	 u32 bit = ether_crc(ETH_ALEN, addr) & 0x3f;
-	 filter[bit/8] |= 1 << (bit%8);
+	u32 bit = ether_crc(ETH_ALEN, addr) & 0x3f;
+
+	filter[bit / 8] |= 1 << (bit % 8);
 }
 
 static void yukon_set_multicast(struct net_device *dev)
