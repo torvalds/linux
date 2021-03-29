@@ -1080,7 +1080,7 @@ static inline u64 rb_time_stamp(struct trace_buffer *buffer)
 	return ts << DEBUG_SHIFT;
 }
 
-u64 ring_buffer_time_stamp(struct trace_buffer *buffer, int cpu)
+u64 ring_buffer_time_stamp(struct trace_buffer *buffer)
 {
 	u64 time;
 

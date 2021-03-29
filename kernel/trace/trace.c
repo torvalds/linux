@@ -771,7 +771,7 @@ static u64 buffer_ftrace_now(struct array_buffer *buf, int cpu)
 	if (!buf->buffer)
 		return trace_clock_local();
 
-	ts = ring_buffer_time_stamp(buf->buffer, cpu);
+	ts = ring_buffer_time_stamp(buf->buffer);
 	ring_buffer_normalize_time_stamp(buf->buffer, cpu, &ts);
 
 	return ts;
@@ -7174,7 +7174,7 @@ static int tracing_time_stamp_mode_open(struct inode *inode, struct file *file)
 u64 tracing_event_time_stamp(struct trace_buffer *buffer, struct ring_buffer_event *rbe)
 {
 	if (rbe == this_cpu_read(trace_buffered_event))
-		return ring_buffer_time_stamp(buffer, smp_processor_id());
+		return ring_buffer_time_stamp(buffer);
 
 	return ring_buffer_event_time_stamp(buffer, rbe);
 }
@@ -8088,7 +8088,7 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 		trace_seq_printf(s, "oldest event ts: %5llu.%06lu\n",
 								t, usec_rem);
 
-		t = ns2usecs(ring_buffer_time_stamp(trace_buf->buffer, cpu));
+		t = ns2usecs(ring_buffer_time_stamp(trace_buf->buffer));
 		usec_rem = do_div(t, USEC_PER_SEC);
 		trace_seq_printf(s, "now ts: %5llu.%06lu\n", t, usec_rem);
 	} else {
@@ -8097,7 +8097,7 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 				ring_buffer_oldest_event_ts(trace_buf->buffer, cpu));
 
 		trace_seq_printf(s, "now ts: %llu\n",
-				ring_buffer_time_stamp(trace_buf->buffer, cpu));
+				ring_buffer_time_stamp(trace_buf->buffer));
 	}
 
 	cnt = ring_buffer_dropped_events_cpu(trace_buf->buffer, cpu);

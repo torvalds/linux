@@ -181,7 +181,7 @@ unsigned long ring_buffer_commit_overrun_cpu(struct trace_buffer *buffer, int cp
 unsigned long ring_buffer_dropped_events_cpu(struct trace_buffer *buffer, int cpu);
 unsigned long ring_buffer_read_events_cpu(struct trace_buffer *buffer, int cpu);
 
-u64 ring_buffer_time_stamp(struct trace_buffer *buffer, int cpu);
+u64 ring_buffer_time_stamp(struct trace_buffer *buffer);
 void ring_buffer_normalize_time_stamp(struct trace_buffer *buffer,
 				      int cpu, u64 *ts);
 void ring_buffer_set_clock(struct trace_buffer *buffer,
