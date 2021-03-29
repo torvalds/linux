@@ -6440,8 +6440,8 @@ static int hclge_add_fd_entry_common(struct hclge_dev *hdev,
 		goto out;
 
 	rule->state = HCLGE_FD_ACTIVE;
-	hclge_update_fd_list(hdev, rule->state, rule->location, rule);
 	hdev->fd_active_type = rule->rule_type;
+	hclge_update_fd_list(hdev, rule->state, rule->location, rule);
 
 out:
 	spin_unlock_bh(&hdev->fd_rule_lock);
