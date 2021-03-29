@@ -63,6 +63,7 @@ typedef struct xfs_inode {
 		xfs_extlen_t	i_cowextsize;	/* basic cow extent size */
 		uint16_t	i_flushiter;	/* incremented on flush */
 	};
+	uint8_t			i_forkoff;	/* attr fork offset >> 3 */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 

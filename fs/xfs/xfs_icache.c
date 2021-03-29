@@ -65,7 +65,7 @@ xfs_inode_alloc(
 	ip->i_delayed_blks = 0;
 	ip->i_d.di_flags2 = mp->m_ino_geo.new_diflags2;
 	ip->i_nblocks = 0;
-	ip->i_d.di_forkoff = 0;
+	ip->i_forkoff = 0;
 	ip->i_sick = 0;
 	ip->i_checked = 0;
 	INIT_WORK(&ip->i_ioend_work, xfs_end_io);
