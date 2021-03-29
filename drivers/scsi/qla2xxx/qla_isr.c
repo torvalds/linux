@@ -270,12 +270,7 @@ qla2x00_check_reg32_for_disconnect(scsi_qla_host_t *vha, uint32_t reg)
 		if (!test_and_set_bit(PFLG_DISCONNECTED, &vha->pci_flags) &&
 		    !test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags) &&
 		    !test_bit(PFLG_DRIVER_PROBING, &vha->pci_flags)) {
-			/*
-			 * Schedule this (only once) on the default system
-			 * workqueue so that all the adapter workqueues and the
-			 * DPC thread can be shutdown cleanly.
-			 */
-			schedule_work(&vha->hw->board_disable);
+			qla_schedule_eeh_work(vha);
 		}
 		return true;
 	} else
@@ -1657,8 +1652,6 @@ global_port_update:
 	case MBA_TEMPERATURE_ALERT:
 		ql_dbg(ql_dbg_async, vha, 0x505e,
 		    "TEMPERATURE ALERT: %04x %04x %04x\n", mb[1], mb[2], mb[3]);
-		if (mb[1] == 0x12)
-			schedule_work(&ha->board_disable);
 		break;
 
 	case MBA_TRANS_INSERT:
