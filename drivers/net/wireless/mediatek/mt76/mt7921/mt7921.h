@@ -132,7 +132,7 @@ struct mt7921_phy {
 	s16 coverage_class;
 	u8 slottime;
 
-	__le32 rx_ampdu_ts;
+	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
 
 	struct mib_stats mib;

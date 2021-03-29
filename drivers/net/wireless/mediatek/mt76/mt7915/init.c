@@ -96,6 +96,9 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	hw->max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 	hw->netdev_features = NETIF_F_RXCSUM;
 
+	hw->radiotap_timestamp.units_pos =
+		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US;
+
 	phy->slottime = 9;
 
 	hw->sta_data_size = sizeof(struct mt7915_sta);

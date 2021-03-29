@@ -76,9 +76,9 @@ mt76_rx_aggr_check_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames)
 
 		nframes--;
 		status = (struct mt76_rx_status *)skb->cb;
-		if (!time_after(jiffies,
-				status->reorder_time +
-				mt76_aggr_tid_to_timeo(tid->num)))
+		if (!time_after32(jiffies,
+				  status->reorder_time +
+				  mt76_aggr_tid_to_timeo(tid->num)))
 			continue;
 
 		mt76_rx_aggr_release_frames(tid, frames, status->seqno);

@@ -333,6 +333,9 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 	hw->max_rate_tries = 11;
 	hw->netdev_features = NETIF_F_RXCSUM;
 
+	hw->radiotap_timestamp.units_pos =
+		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US;
+
 	phy->slottime = 9;
 
 	hw->sta_data_size = sizeof(struct mt7615_sta);
