@@ -913,136 +913,6 @@ out:
 	return b;
 }
 
-struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
-					  struct btree_iter *iter,
-					  struct btree *b,
-					  enum btree_node_sibling sib)
-{
-	struct btree_trans *trans = iter->trans;
-	struct btree *parent;
-	struct btree_node_iter node_iter;
-	struct bkey_packed *k;
-	struct bkey_buf tmp;
-	struct btree *ret = NULL;
-	unsigned level = b->c.level;
-
-	bch2_bkey_buf_init(&tmp);
-
-	parent = btree_iter_node(iter, level + 1);
-	if (!parent)
-		return NULL;
-
-	/*
-	 * There's a corner case where a btree_iter might have a node locked
-	 * that is just outside its current pos - when
-	 * bch2_btree_iter_set_pos_same_leaf() gets to the end of the node.
-	 *
-	 * But the lock ordering checks in __bch2_btree_node_lock() go off of
-	 * iter->pos, not the node's key: so if the iterator is marked as
-	 * needing to be traversed, we risk deadlock if we don't bail out here:
-	 */
-	if (iter->uptodate >= BTREE_ITER_NEED_TRAVERSE)
-		return ERR_PTR(-EINTR);
-
-	if (!bch2_btree_node_relock(iter, level + 1)) {
-		ret = ERR_PTR(-EINTR);
-		goto out;
-	}
-
-	node_iter = iter->l[parent->c.level].iter;
-
-	k = bch2_btree_node_iter_peek_all(&node_iter, parent);
-	BUG_ON(bkey_cmp_left_packed(parent, k, &b->key.k.p));
-
-	k = sib == btree_prev_sib
-		? bch2_btree_node_iter_prev(&node_iter, parent)
-		: (bch2_btree_node_iter_advance(&node_iter, parent),
-		   bch2_btree_node_iter_peek(&node_iter, parent));
-	if (!k)
-		goto out;
-
-	bch2_bkey_buf_unpack(&tmp, c, parent, k);
-
-	ret = bch2_btree_node_get(c, iter, tmp.k, level,
-				  SIX_LOCK_intent, _THIS_IP_);
-
-	if (PTR_ERR_OR_ZERO(ret) == -EINTR && !trans->nounlock) {
-		struct btree_iter *linked;
-
-		if (!bch2_btree_node_relock(iter, level + 1))
-			goto out;
-
-		/*
-		 * We might have got -EINTR because trylock failed, and we're
-		 * holding other locks that would cause us to deadlock:
-		 */
-		trans_for_each_iter(trans, linked)
-			if (btree_iter_lock_cmp(iter, linked) < 0)
-				__bch2_btree_iter_unlock(linked);
-
-		if (sib == btree_prev_sib)
-			btree_node_unlock(iter, level);
-
-		ret = bch2_btree_node_get(c, iter, tmp.k, level,
-					  SIX_LOCK_intent, _THIS_IP_);
-
-		/*
-		 * before btree_iter_relock() calls btree_iter_verify_locks():
-		 */
-		if (btree_lock_want(iter, level + 1) == BTREE_NODE_UNLOCKED)
-			btree_node_unlock(iter, level + 1);
-
-		if (!bch2_btree_node_relock(iter, level)) {
-			btree_iter_set_dirty(iter, BTREE_ITER_NEED_RELOCK);
-
-			if (!IS_ERR(ret)) {
-				six_unlock_intent(&ret->c.lock);
-				ret = ERR_PTR(-EINTR);
-			}
-		}
-
-		bch2_trans_relock(trans);
-	}
-out:
-	if (btree_lock_want(iter, level + 1) == BTREE_NODE_UNLOCKED)
-		btree_node_unlock(iter, level + 1);
-
-	if (PTR_ERR_OR_ZERO(ret) == -EINTR)
-		bch2_btree_iter_upgrade(iter, level + 2);
-
-	BUG_ON(!IS_ERR(ret) && !btree_node_locked(iter, level));
-
-	if (!IS_ERR_OR_NULL(ret)) {
-		struct btree *n1 = ret, *n2 = b;
-
-		if (sib != btree_prev_sib)
-			swap(n1, n2);
-
-		if (bpos_cmp(bpos_successor(n1->key.k.p),
-			     n2->data->min_key)) {
-			char buf1[200], buf2[200];
-
-			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(&n1->key));
-			bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&n2->key));
-
-			bch2_fs_inconsistent(c, "btree topology error at btree %s level %u:\n"
-					     "prev: %s\n"
-					     "next: %s\n",
-					     bch2_btree_ids[iter->btree_id], level,
-					     buf1, buf2);
-
-			six_unlock_intent(&ret->c.lock);
-			ret = NULL;
-		}
-	}
-
-	bch2_btree_trans_verify_locks(trans);
-
-	bch2_bkey_buf_exit(&tmp, c);
-
-	return ret;
-}
-
 void bch2_btree_node_prefetch(struct bch_fs *c, struct btree_iter *iter,
 			      const struct bkey_i *k,
 			      enum btree_id btree_id, unsigned level)
@@ -1082,7 +952,7 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       "    format: u64s %u fields %u %u %u %u %u\n"
 	       "    unpack fn len: %u\n"
 	       "    bytes used %zu/%zu (%zu%% full)\n"
-	       "    sib u64s: %u, %u (merge threshold %zu)\n"
+	       "    sib u64s: %u, %u (merge threshold %u)\n"
 	       "    nr packed keys %u\n"
 	       "    nr unpacked keys %u\n"
 	       "    floats %zu\n"
@@ -1099,7 +969,7 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       b->nr.live_u64s * 100 / btree_max_u64s(c),
 	       b->sib_u64s[0],
 	       b->sib_u64s[1],
-	       BTREE_FOREGROUND_MERGE_THRESHOLD(c),
+	       c->btree_foreground_merge_threshold,
 	       b->nr.packed_keys,
 	       b->nr.unpacked_keys,
 	       stats.floats,

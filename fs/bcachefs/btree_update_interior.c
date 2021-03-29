@@ -1539,36 +1539,50 @@ void __bch2_foreground_maybe_merge(struct bch_fs *c,
 				   enum btree_node_sibling sib)
 {
 	struct btree_trans *trans = iter->trans;
+	struct btree_iter *sib_iter = NULL;
 	struct btree_update *as;
 	struct bkey_format_state new_s;
 	struct bkey_format new_f;
 	struct bkey_i delete;
 	struct btree *b, *m, *n, *prev, *next, *parent;
+	struct bpos sib_pos;
 	size_t sib_u64s;
 	int ret = 0;
 
+	if (trans->nounlock)
+		return;
+
 	BUG_ON(!btree_node_locked(iter, level));
 retry:
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		goto err;
+
 	BUG_ON(!btree_node_locked(iter, level));
 
 	b = iter->l[level].b;
 
-	parent = btree_node_parent(iter, b);
-	if (!parent)
+	if ((sib == btree_prev_sib && !bpos_cmp(b->data->min_key, POS_MIN)) ||
+	    (sib == btree_next_sib && !bpos_cmp(b->data->max_key, POS_MAX))) {
+		b->sib_u64s[sib] = U16_MAX;
 		goto out;
-
-	if (b->sib_u64s[sib] > BTREE_FOREGROUND_MERGE_THRESHOLD(c))
-		goto out;
-
-	/* XXX: can't be holding read locks */
-	m = bch2_btree_node_get_sibling(c, iter, b, sib);
-	if (IS_ERR(m)) {
-		ret = PTR_ERR(m);
-		goto err;
 	}
 
-	/* NULL means no sibling: */
-	if (!m) {
+	sib_pos = sib == btree_prev_sib
+		? bpos_predecessor(b->data->min_key)
+		: bpos_successor(b->data->max_key);
+
+	sib_iter = bch2_trans_get_node_iter(trans, iter->btree_id,
+					    sib_pos, U8_MAX, level,
+					    BTREE_ITER_INTENT);
+	ret = bch2_btree_iter_traverse(sib_iter);
+	if (ret)
+		goto err;
+
+	m = sib_iter->l[level].b;
+
+	if (btree_node_parent(iter, b) !=
+	    btree_node_parent(sib_iter, m)) {
 		b->sib_u64s[sib] = U16_MAX;
 		goto out;
 	}
@@ -1580,6 +1594,8 @@ retry:
 		prev = b;
 		next = m;
 	}
+
+	BUG_ON(bkey_cmp(bpos_successor(prev->data->max_key), next->data->min_key));
 
 	bch2_bkey_format_init(&new_s);
 	bch2_bkey_format_add_pos(&new_s, prev->data->min_key);
@@ -1598,23 +1614,21 @@ retry:
 	}
 
 	sib_u64s = min(sib_u64s, btree_max_u64s(c));
+	sib_u64s = min(sib_u64s, (size_t) U16_MAX - 1);
 	b->sib_u64s[sib] = sib_u64s;
 
-	if (b->sib_u64s[sib] > BTREE_FOREGROUND_MERGE_THRESHOLD(c)) {
-		six_unlock_intent(&m->c.lock);
+	if (b->sib_u64s[sib] > c->btree_foreground_merge_threshold)
 		goto out;
-	}
 
+	parent = btree_node_parent(iter, b);
 	as = bch2_btree_update_start(iter, level,
 			 btree_update_reserve_required(c, parent) + 1,
 			 flags|
 			 BTREE_INSERT_NOFAIL|
 			 BTREE_INSERT_USE_RESERVE);
 	ret = PTR_ERR_OR_ZERO(as);
-	if (ret) {
-		six_unlock_intent(&m->c.lock);
+	if (ret)
 		goto err;
-	}
 
 	trace_btree_merge(c, b);
 
@@ -1648,6 +1662,7 @@ retry:
 	bch2_btree_update_get_open_buckets(as, n);
 
 	six_lock_increment(&b->c.lock, SIX_LOCK_intent);
+	six_lock_increment(&m->c.lock, SIX_LOCK_intent);
 	bch2_btree_iter_node_drop(iter, b);
 	bch2_btree_iter_node_drop(iter, m);
 
@@ -1663,6 +1678,7 @@ retry:
 	bch2_btree_update_done(as);
 out:
 	bch2_btree_trans_verify_locks(trans);
+	bch2_trans_iter_free(trans, sib_iter);
 
 	/*
 	 * Don't downgrade locks here: we're called after successful insert,
@@ -1675,11 +1691,16 @@ out:
 	 */
 	return;
 err:
-	BUG_ON(ret == -EAGAIN && (flags & BTREE_INSERT_NOUNLOCK));
+	bch2_trans_iter_put(trans, sib_iter);
+	sib_iter = NULL;
+
+	if (ret == -EINTR && bch2_trans_relock(trans)) {
+		ret = 0;
+		goto retry;
+	}
 
 	if (ret == -EINTR && !(flags & BTREE_INSERT_NOUNLOCK)) {
-		bch2_trans_unlock(trans);
-		ret = bch2_btree_iter_traverse(iter);
+		ret = bch2_btree_iter_traverse_all(trans);
 		if (!ret)
 			goto retry;
 	}
