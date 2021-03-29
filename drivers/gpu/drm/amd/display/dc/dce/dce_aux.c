@@ -667,12 +667,13 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			case AUX_TRANSACTION_REPLY_AUX_DEFER:
 				/* polling_timeout_period is in us */
 				defer_time_in_ms += aux110->polling_timeout_period / 1000;
+				++aux_defer_retries;
 				/* fall through */
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
 				retry_on_defer = true;
 				fallthrough;
 			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
-				if (++aux_defer_retries >= AUX_MIN_DEFER_RETRIES
+				if (aux_defer_retries >= AUX_MIN_DEFER_RETRIES
 						&& defer_time_in_ms >= AUX_MAX_DEFER_TIMEOUT_MS) {
 					goto fail;
 				} else {
