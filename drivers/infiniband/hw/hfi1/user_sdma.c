@@ -133,6 +133,7 @@ static int defer_packet_queue(
 		container_of(wait->iow, struct hfi1_user_sdma_pkt_q, busy);
 
 	write_seqlock(&sde->waitlock);
+	trace_hfi1_usdma_defer(pq, sde, &pq->busy);
 	if (sdma_progress(sde, seq, txreq))
 		goto eagain;
 	/*
@@ -157,7 +158,8 @@ static void activate_packet_queue(struct iowait *wait, int reason)
 {
 	struct hfi1_user_sdma_pkt_q *pq =
 		container_of(wait, struct hfi1_user_sdma_pkt_q, busy);
-	pq->busy.lock = NULL;
+
+	trace_hfi1_usdma_activate(pq, wait, reason);
 	xchg(&pq->state, SDMA_PKT_Q_ACTIVE);
 	wake_up(&wait->wait_dma);
 };
@@ -599,13 +601,17 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	while (req->seqsubmitted != req->info.npkts) {
 		ret = user_sdma_send_pkts(req, pcount);
 		if (ret < 0) {
+			int we_ret;
+
 			if (ret != -EBUSY)
 				goto free_req;
-			if (wait_event_interruptible_timeout(
+			we_ret = wait_event_interruptible_timeout(
 				pq->busy.wait_dma,
 				pq->state == SDMA_PKT_Q_ACTIVE,
 				msecs_to_jiffies(
-					SDMA_IOWAIT_TIMEOUT)) <= 0)
+					SDMA_IOWAIT_TIMEOUT));
+			trace_hfi1_usdma_we(pq, we_ret);
+			if (we_ret <= 0)
 				flush_pq_iowait(pq);
 		}
 	}
