@@ -828,7 +828,7 @@
 			ranges;
 			status = "disabled";
 
-			usb_dwc3_0: dwc3@38100000 {
+			usb_dwc3_0: usb@38100000 {
 				compatible = "snps,dwc3";
 				reg = <0x38100000 0x10000>;
 				clocks = <&clk IMX8MP_CLK_HSIO_AXI>,
@@ -869,7 +869,7 @@
 			ranges;
 			status = "disabled";
 
-			usb_dwc3_1: dwc3@38200000 {
+			usb_dwc3_1: usb@38200000 {
 				compatible = "snps,dwc3";
 				reg = <0x38200000 0x10000>;
 				clocks = <&clk IMX8MP_CLK_HSIO_AXI>,
