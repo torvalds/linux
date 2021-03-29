@@ -25,6 +25,8 @@
 #ifndef KFD_SVM_H_
 #define KFD_SVM_H_
 
+#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+
 #include <linux/rwsem.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -172,5 +174,33 @@ void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 			 unsigned long offset, unsigned long npages);
 void svm_range_free_dma_mappings(struct svm_range *prange);
 void svm_range_prefault(struct svm_range *prange, struct mm_struct *mm);
+
+#else
+
+struct kfd_process;
+
+static inline int svm_range_list_init(struct kfd_process *p)
+{
+	return 0;
+}
+static inline void svm_range_list_fini(struct kfd_process *p)
+{
+	/* empty */
+}
+
+static inline int svm_range_restore_pages(struct amdgpu_device *adev,
+					  unsigned int pasid, uint64_t addr)
+{
+	return -EFAULT;
+}
+
+static inline int svm_range_schedule_evict_svm_bo(
+		struct amdgpu_amdkfd_fence *fence)
+{
+	WARN_ONCE(1, "SVM eviction fence triggered, but SVM is disabled");
+	return -EINVAL;
+}
+
+#endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */
 
 #endif /* KFD_SVM_H_ */

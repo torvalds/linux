@@ -25,6 +25,8 @@
 #ifndef KFD_MIGRATE_H_
 #define KFD_MIGRATE_H_
 
+#if IS_ENABLED(CONFIG_HSA_AMD_SVM)
+
 #include <linux/rwsem.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -44,17 +46,20 @@ int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm);
 unsigned long
 svm_migrate_addr_to_pfn(struct amdgpu_device *adev, unsigned long addr);
 
-#if defined(CONFIG_DEVICE_PRIVATE)
 int svm_migrate_init(struct amdgpu_device *adev);
 void svm_migrate_fini(struct amdgpu_device *adev);
 
 #else
+
 static inline int svm_migrate_init(struct amdgpu_device *adev)
 {
-	DRM_WARN_ONCE("DEVICE_PRIVATE kernel config option is not enabled, "
-		      "add CONFIG_DEVICE_PRIVATE=y in config file to fix\n");
-	return -ENODEV;
+	return 0;
 }
-static inline void svm_migrate_fini(struct amdgpu_device *adev) {}
-#endif
+static inline void svm_migrate_fini(struct amdgpu_device *adev)
+{
+	/* empty */
+}
+
+#endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */
+
 #endif /* KFD_MIGRATE_H_ */
