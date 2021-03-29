@@ -26,6 +26,15 @@
 
 #define MBIM_NDP16_SIGN_MASK 0x00ffffff
 
+/* Usual WWAN MTU */
+#define MHI_MBIM_DEFAULT_MTU 1500
+
+/* 3500 allows to optimize skb allocation, the skbs will basically fit in
+ * one 4K page. Large MBIM packets will simply be split over several MHI
+ * transfers and chained by the MHI net layer (zerocopy).
+ */
+#define MHI_MBIM_DEFAULT_MRU 3500
+
 struct mbim_context {
 	u16 rx_seq;
 	u16 tx_seq;
@@ -281,6 +290,8 @@ static int mbim_init(struct mhi_net_dev *mhi_netdev)
 		return -ENOMEM;
 
 	ndev->needed_headroom = sizeof(struct mbim_tx_hdr);
+	ndev->mtu = MHI_MBIM_DEFAULT_MTU;
+	mhi_netdev->mru = MHI_MBIM_DEFAULT_MRU;
 
 	return 0;
 }
