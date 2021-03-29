@@ -6733,21 +6733,24 @@ static int io_sq_thread(void *data)
 		int ret;
 		bool cap_entries, sqt_spin, needs_sched;
 
-		if (test_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state)) {
+		if (test_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state) ||
+		    signal_pending(current)) {
+			bool did_sig = false;
+
 			mutex_unlock(&sqd->lock);
+			if (signal_pending(current)) {
+				struct ksignal ksig;
+
+				did_sig = get_signal(&ksig);
+			}
 			cond_resched();
 			mutex_lock(&sqd->lock);
+			if (did_sig)
+				break;
 			io_run_task_work();
 			io_run_task_work_head(&sqd->park_task_work);
 			timeout = jiffies + sqd->sq_thread_idle;
 			continue;
-		}
-		if (signal_pending(current)) {
-			struct ksignal ksig;
-
-			if (!get_signal(&ksig))
-				continue;
-			break;
 		}
 		sqt_spin = false;
 		cap_entries = !list_is_singular(&sqd->ctx_list);
