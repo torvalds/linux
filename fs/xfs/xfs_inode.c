@@ -2075,9 +2075,10 @@ xfs_iunlink_update_inode(
 
 	ASSERT(xfs_verify_agino_or_null(mp, agno, next_agino));
 
-	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &ibp, 0);
+	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &ibp);
 	if (error)
 		return error;
+	dip = xfs_buf_offset(ibp, ip->i_imap.im_boffset);
 
 	/* Make sure the old pointer isn't garbage. */
 	old_value = be32_to_cpu(dip->di_next_unlinked);
@@ -2202,13 +2203,14 @@ xfs_iunlink_map_ino(
 		return error;
 	}
 
-	error = xfs_imap_to_bp(mp, tp, imap, dipp, bpp, 0);
+	error = xfs_imap_to_bp(mp, tp, imap, bpp);
 	if (error) {
 		xfs_warn(mp, "%s: xfs_imap_to_bp returned error %d.",
 				__func__, error);
 		return error;
 	}
 
+	*dipp = xfs_buf_offset(*bpp, imap->im_boffset);
 	return 0;
 }
 

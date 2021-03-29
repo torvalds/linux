@@ -47,9 +47,8 @@ struct xfs_imap {
 	unsigned short	im_boffset;	/* inode offset in block in bytes */
 };
 
-int	xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
-		       struct xfs_imap *, struct xfs_dinode **,
-		       struct xfs_buf **, uint);
+int	xfs_imap_to_bp(struct xfs_mount *mp, struct xfs_trans *tp,
+		       struct xfs_imap *imap, struct xfs_buf **bpp);
 void	xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
 void	xfs_inode_to_disk(struct xfs_inode *ip, struct xfs_dinode *to,
 			  xfs_lsn_t lsn);

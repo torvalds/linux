@@ -124,37 +124,18 @@ const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
 /*
  * This routine is called to map an inode to the buffer containing the on-disk
  * version of the inode.  It returns a pointer to the buffer containing the
- * on-disk inode in the bpp parameter, and in the dipp parameter it returns a
- * pointer to the on-disk inode within that buffer.
- *
- * If a non-zero error is returned, then the contents of bpp and dipp are
- * undefined.
+ * on-disk inode in the bpp parameter.
  */
 int
 xfs_imap_to_bp(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_imap		*imap,
-	struct xfs_dinode       **dipp,
-	struct xfs_buf		**bpp,
-	uint			buf_flags)
+	struct xfs_buf		**bpp)
 {
-	struct xfs_buf		*bp;
-	int			error;
-
-	buf_flags |= XBF_UNMAPPED;
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
-				   (int)imap->im_len, buf_flags, &bp,
+	return xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
+				   imap->im_len, XBF_UNMAPPED, bpp,
 				   &xfs_inode_buf_ops);
-	if (error) {
-		ASSERT(error != -EAGAIN || (buf_flags & XBF_TRYLOCK));
-		return error;
-	}
-
-	*bpp = bp;
-	if (dipp)
-		*dipp = xfs_buf_offset(bp, imap->im_boffset);
-	return 0;
 }
 
 static inline struct timespec64 xfs_inode_decode_bigtime(uint64_t ts)

@@ -164,8 +164,7 @@ xfs_trans_log_inode(
 		 * here.
 		 */
 		spin_unlock(&iip->ili_lock);
-		error = xfs_imap_to_bp(ip->i_mount, tp, &ip->i_imap, NULL,
-					&bp, 0);
+		error = xfs_imap_to_bp(ip->i_mount, tp, &ip->i_imap, &bp);
 		if (error) {
 			xfs_force_shutdown(ip->i_mount, SHUTDOWN_META_IO_ERROR);
 			return;
