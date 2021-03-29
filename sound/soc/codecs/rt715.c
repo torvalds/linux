@@ -57,14 +57,14 @@ static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
 {
 	int ret;
 	/* R Channel */
-	*r_val = (val_h << 8);
+	*r_val = val_h << 8;
 	ret = regmap_read(rt715->regmap, addr_l, r_val);
 	if (ret < 0)
 		pr_err("Failed to get R channel gain.\n");
 
 	/* L Channel */
 	val_h |= 0x20;
-	*l_val = (val_h << 8);
+	*l_val = val_h << 8;
 	ret = regmap_read(rt715->regmap, addr_h, l_val);
 	if (ret < 0)
 		pr_err("Failed to get L channel gain.\n");
@@ -188,8 +188,8 @@ static int rt715_set_amp_gain_get(struct snd_kcontrol *kcontrol,
 
 	if (mc->invert) {
 		/* for mute status */
-		read_ll = !((read_ll & 0x80) >> RT715_MUTE_SFT);
-		read_rl = !((read_rl & 0x80) >> RT715_MUTE_SFT);
+		read_ll = !(read_ll & 0x80);
+		read_rl = !(read_rl & 0x80);
 	} else {
 		/* for gain */
 		read_ll = read_ll & 0x7f;
