@@ -280,6 +280,10 @@
 	status = "disabled";
 };
 
+&work_led {
+	status = "disabled";
+};
+
 &pinctrl {
 	headphone {
 		hp_det: hp-det {

@@ -444,6 +444,10 @@
 	WIFI,host_wake_irq = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
 };
 
+&work_led {
+	gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
+};
+
 &pinctrl {
 	cam {
 		camera_pwr: camera-pwr {

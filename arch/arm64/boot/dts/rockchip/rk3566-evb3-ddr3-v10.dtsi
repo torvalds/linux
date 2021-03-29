@@ -493,3 +493,7 @@
 	pinctrl-0 = <&wifi_host_wake_irq>;
 	WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 };
+
+&work_led {
+	gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+};

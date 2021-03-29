@@ -165,6 +165,14 @@
 		};
 	};
 
+	leds: leds {
+		compatible = "gpio-leds";
+		work_led: work {
+			gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	pdmics: dummy-codec {
 		status = "disabled";
 		compatible = "rockchip,dummy-codec";
