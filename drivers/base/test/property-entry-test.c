@@ -412,15 +412,8 @@ static void pe_test_reference(struct kunit *test)
 	};
 
 	static const struct software_node_ref_args refs[] = {
-		{
-			.node = &nodes[0],
-			.nargs = 0,
-		},
-		{
-			.node = &nodes[1],
-			.nargs = 2,
-			.args = { 3, 4 },
-		},
+		SOFTWARE_NODE_REFERENCE(&nodes[0]),
+		SOFTWARE_NODE_REFERENCE(&nodes[1], 3, 4),
 	};
 
 	const struct property_entry entries[] = {
