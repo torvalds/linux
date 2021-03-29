@@ -41,7 +41,7 @@ int z_erofs_load_lz4_config(struct super_block *sb,
 		}
 		distance = le16_to_cpu(lz4->max_distance);
 	} else {
-		distance = le16_to_cpu(dsb->lz4_max_distance);
+		distance = le16_to_cpu(dsb->u1.lz4_max_distance);
 	}
 
 	EROFS_SB(sb)->lz4.max_distance_pages = distance ?
