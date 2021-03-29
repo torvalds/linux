@@ -492,20 +492,75 @@ err:
 	return ret;
 }
 
+static noinline int maybe_do_btree_merge(struct btree_trans *trans, struct btree_iter *iter)
+{
+	struct btree_insert_entry *i;
+	struct btree *b = iter_l(iter)->b;
+	struct bkey_s_c old;
+	int u64s_delta = 0;
+	int ret;
+
+	/*
+	 * Inserting directly into interior nodes is an uncommon operation with
+	 * various weird edge cases: also, a lot of things about
+	 * BTREE_ITER_NODES iters need to be audited
+	 */
+	if (unlikely(btree_iter_type(iter) != BTREE_ITER_KEYS))
+		return 0;
+
+	BUG_ON(iter->level);
+
+	trans_for_each_update2(trans, i) {
+		if (iter_l(i->iter)->b != b)
+			continue;
+
+		old = bch2_btree_iter_peek_slot(i->iter);
+		ret = bkey_err(old);
+		if (ret)
+			return ret;
+
+		u64s_delta += !bkey_deleted(&i->k->k) ? i->k->k.u64s : 0;
+		u64s_delta -= !bkey_deleted(old.k) ? old.k->u64s : 0;
+	}
+
+	return u64s_delta <= 0
+		? (bch2_foreground_maybe_merge(trans->c, iter, iter->level,
+				trans->flags & ~BTREE_INSERT_NOUNLOCK) ?: -EINTR)
+		: 0;
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
 static inline int do_bch2_trans_commit(struct btree_trans *trans,
 				       struct btree_insert_entry **stopped_at)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
 	struct btree_iter *iter;
 	int ret;
 
-	trans_for_each_update2(trans, i)
-		BUG_ON(!btree_node_intent_locked(i->iter, i->iter->level));
+	trans_for_each_update2(trans, i) {
+		struct btree *b;
 
-	ret = bch2_journal_preres_get(&trans->c->journal,
+		BUG_ON(!btree_node_intent_locked(i->iter, i->level));
+
+		if (btree_iter_type(i->iter) == BTREE_ITER_CACHED)
+			continue;
+
+		b = iter_l(i->iter)->b;
+		if (b->sib_u64s[0] < c->btree_foreground_merge_threshold ||
+		    b->sib_u64s[1] < c->btree_foreground_merge_threshold) {
+			ret = maybe_do_btree_merge(trans, i->iter);
+			if (unlikely(ret))
+				return ret;
+		}
+	}
+
+	trans_for_each_update2(trans, i)
+		BUG_ON(!btree_node_intent_locked(i->iter, i->level));
+
+	ret = bch2_journal_preres_get(&c->journal,
 			&trans->journal_preres, trans->journal_preres_u64s,
 			JOURNAL_RES_GET_NONBLOCK|
 			((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM)
@@ -547,7 +602,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	trans_for_each_update2(trans, i)
 		if (!same_leaf_as_prev(trans, i))
-			bch2_btree_node_lock_for_insert(trans->c,
+			bch2_btree_node_lock_for_insert(c,
 					iter_l(i->iter)->b, i->iter);
 
 	ret = bch2_trans_commit_write_locked(trans, stopped_at);
@@ -558,28 +613,17 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 							     i->iter);
 
 	if (!ret && trans->journal_pin)
-		bch2_journal_pin_add(&trans->c->journal, trans->journal_res.seq,
+		bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
 				     trans->journal_pin, NULL);
 
 	/*
 	 * Drop journal reservation after dropping write locks, since dropping
 	 * the journal reservation may kick off a journal write:
 	 */
-	bch2_journal_res_put(&trans->c->journal, &trans->journal_res);
+	bch2_journal_res_put(&c->journal, &trans->journal_res);
 
 	if (unlikely(ret))
 		return ret;
-
-	if (trans->flags & BTREE_INSERT_NOUNLOCK)
-		trans->nounlock = true;
-
-	trans_for_each_update2(trans, i)
-		if (btree_iter_type(i->iter) != BTREE_ITER_CACHED &&
-		    !same_leaf_as_prev(trans, i))
-			bch2_foreground_maybe_merge(trans->c, i->iter,
-						    0, trans->flags);
-
-	trans->nounlock = false;
 
 	bch2_trans_downgrade(trans);
 
