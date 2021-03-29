@@ -59,6 +59,7 @@ typedef struct xfs_inode {
 	prid_t			i_projid;	/* owner's project id */
 	xfs_extlen_t		i_extsize;	/* basic/minimum extent size */
 	xfs_extlen_t		i_cowextsize;	/* basic cow extent size */
+	uint16_t		i_flushiter;	/* incremented on flush */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
