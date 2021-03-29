@@ -8603,9 +8603,9 @@ static bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
 			canceled++;
 		}
 	}
-	io_commit_cqring(ctx);
+	if (canceled != 0)
+		io_commit_cqring(ctx);
 	spin_unlock_irq(&ctx->completion_lock);
-
 	if (canceled != 0)
 		io_cqring_ev_posted(ctx);
 	return canceled != 0;
