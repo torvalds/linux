@@ -981,15 +981,14 @@ fwnode_create_software_node(const struct property_entry *properties,
 {
 	struct fwnode_handle *fwnode;
 	struct software_node *node;
-	struct swnode *p = NULL;
+	struct swnode *p;
 
-	if (parent) {
-		if (IS_ERR(parent))
-			return ERR_CAST(parent);
-		if (!is_software_node(parent))
-			return ERR_PTR(-EINVAL);
-		p = to_swnode(parent);
-	}
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	p = to_swnode(parent);
+	if (parent && !p)
+		return ERR_PTR(-EINVAL);
 
 	node = software_node_alloc(properties);
 	if (IS_ERR(node))
