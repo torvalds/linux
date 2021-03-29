@@ -87,6 +87,18 @@
  * 2. fix config of clk_dbg
  * 3. check frame id when apply params
  *
+ * v1.5.2 (match aiq v1.56.4)
+ * 1. limit min clk to 50
+ * 2. check scl stop if fec enable
+ * 3. sync to free buf for multi dev stream off
+ * 4. support output isp/ispp reg in nv12 format
+ * 5. isp and ispp add shutdown
+ * 6. optimize the frame rate of fec en
+ * 7. image input from user
+ * 8. fix input video config
+ * 9. add cru reset
+ * 10. check SHARP_CORE_CTRL after update
+ * 11. add uvnr sd32 self en control
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

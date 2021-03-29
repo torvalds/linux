@@ -111,6 +111,18 @@
  * 11. fix extend line with isp input crop case
  * 12. set lgmean related regs for tmo in hdr isr
  *
+ * v1.5.2:
+ * 1. reorder of subdev stream
+ * 2. fix media link err for name don't match
+ * 3. switch hdr_done interrupt according to hdrtmo cnt mode
+ * 4. support output isp/ispp reg in nv12 format
+ * 5. isp and ispp add shutdown
+ * 6. image input from user
+ * 7. import dma API for memory synchronisation for thunderboot
+ * 8. don't start ldch asynchronously in multi-isp mode
+ * 9. fix err of mp dump raw for isp20
+ * 10. make sure 3dlut no continuous read twice
+ * 11. adjust rdbk times with mulit dev for isp2.0
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
