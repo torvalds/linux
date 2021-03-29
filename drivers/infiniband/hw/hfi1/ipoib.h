@@ -126,10 +126,10 @@ hfi1_ipoib_priv(const struct net_device *dev)
 	return &((struct hfi1_ipoib_rdma_netdev *)netdev_priv(dev))->dev_priv;
 }
 
-int hfi1_ipoib_send_dma(struct net_device *dev,
-			struct sk_buff *skb,
-			struct ib_ah *address,
-			u32 dqpn);
+int hfi1_ipoib_send(struct net_device *dev,
+		    struct sk_buff *skb,
+		    struct ib_ah *address,
+		    u32 dqpn);
 
 int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv);
 void hfi1_ipoib_txreq_deinit(struct hfi1_ipoib_dev_priv *priv);

@@ -581,10 +581,10 @@ static u8 hfi1_ipoib_calc_entropy(struct sk_buff *skb)
 	return (u8)skb_get_queue_mapping(skb);
 }
 
-int hfi1_ipoib_send_dma(struct net_device *dev,
-			struct sk_buff *skb,
-			struct ib_ah *address,
-			u32 dqpn)
+int hfi1_ipoib_send(struct net_device *dev,
+		    struct sk_buff *skb,
+		    struct ib_ah *address,
+		    u32 dqpn)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
 	struct ipoib_txparms txp;

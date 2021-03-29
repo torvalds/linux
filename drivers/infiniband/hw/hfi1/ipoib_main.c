@@ -101,14 +101,6 @@ static const struct net_device_ops hfi1_ipoib_netdev_ops = {
 	.ndo_get_stats64  = dev_get_tstats64,
 };
 
-static int hfi1_ipoib_send(struct net_device *dev,
-			   struct sk_buff *skb,
-			   struct ib_ah *address,
-			   u32 dqpn)
-{
-	return hfi1_ipoib_send_dma(dev, skb, address, dqpn);
-}
-
 static int hfi1_ipoib_mcast_attach(struct net_device *dev,
 				   struct ib_device *device,
 				   union ib_gid *mgid,
