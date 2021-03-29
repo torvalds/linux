@@ -1450,7 +1450,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 		ua = (struct tipc_uaddr *)&tsk->peer;
 		if (!syn && ua->family != AF_TIPC)
 			return -EDESTADDRREQ;
-		 atype = ua->addrtype;
+		atype = ua->addrtype;
 	}
 
 	if (unlikely(syn)) {
