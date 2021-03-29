@@ -187,6 +187,7 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
+	params_vdev->rdbk_times = 0;
 }
 
 static int
@@ -298,12 +299,10 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v2x(params_vdev);
 }
 
-void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
-		      u32 frame_id, u32 rdbk_times)
+void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)
 {
 	if (params_vdev->ops->param_cfg)
-		params_vdev->ops->param_cfg(params_vdev, frame_id,
-					    rdbk_times, RKISP_PARAMS_IMD);
+		params_vdev->ops->param_cfg(params_vdev, frame_id, RKISP_PARAMS_IMD);
 }
 
 void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev)

@@ -493,19 +493,8 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	u64 iq_feature = hw->iq_feature;
 	bool is_upd = false, is_3dlut_upd = false;
 
-	if (dev->isp_ver == ISP_V21)
-		dma2frm = 0;
 	hw->cur_dev_id = dev->dev_id;
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, NULL, true);
-	if (dma2frm > 2)
-		dma2frm = 2;
-	if (dma2frm == 2)
-		csi->frame_cnt_x3++;
-	else if (dma2frm == 1)
-		csi->frame_cnt_x2++;
-	else
-		csi->frame_cnt_x1++;
-	csi->frame_cnt++;
 
 	val = 0;
 	if (mode & T_START_X1) {
@@ -560,7 +549,7 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 		rkisp_params_first_cfg(&dev->params_vdev,
 				       &dev->isp_sdev.in_fmt,
 				       dev->isp_sdev.quantization);
-	rkisp_params_cfg(params_vdev, cur_frame_id, dma2frm + 1);
+	rkisp_params_cfg(params_vdev, cur_frame_id);
 
 	if (!hw->is_single) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
@@ -572,7 +561,11 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 		rkisp_update_regs(dev, MI_RD_CTRL2, ISP_LSC_CTRL);
 		rkisp_update_regs(dev, MI_MP_WR_Y_BASE, MI_MP_WR_Y_LLENGTH);
 		rkisp_update_regs(dev, ISP_LSC_XGRAD_01, ISP_RAWAWB_RAM_DATA);
-		if (dev->isp_ver == ISP_V21) {
+		if (dev->isp_ver == ISP_V20 &&
+		    (rkisp_read(dev, ISP_DHAZ_CTRL, false) & ISP_DHAZ_ENMUX ||
+		     rkisp_read(dev, ISP_HDRTMO_CTRL, false) & ISP_HDRTMO_EN)) {
+			dma2frm += (dma2frm ? 0 : 1);
+		} else if (dev->isp_ver == ISP_V21) {
 			val = rkisp_read(dev, MI_WR_CTRL2, false);
 			rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, true);
 			rkisp_write(dev, MI_WR_INIT, ISP21_SP_FORCE_UPD | ISP21_MP_FORCE_UPD, true);
@@ -584,8 +577,20 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 		is_upd = true;
 	}
 
-	if (IS_HDR_RDBK(dev->csi_dev.rd_mode))
-		rkisp_params_cfgsram(params_vdev);
+	if (dev->isp_ver == ISP_V21)
+		dma2frm = 0;
+	if (dma2frm > 2)
+		dma2frm = 2;
+	if (dma2frm == 2)
+		csi->frame_cnt_x3++;
+	else if (dma2frm == 1)
+		csi->frame_cnt_x2++;
+	else
+		csi->frame_cnt_x1++;
+	csi->frame_cnt++;
+
+	rkisp_params_cfgsram(params_vdev);
+	params_vdev->rdbk_times = dma2frm + 1;
 
 	/* read 3d lut at frame end */
 	if (hw->is_single && is_upd &&
