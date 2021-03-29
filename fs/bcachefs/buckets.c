@@ -273,10 +273,9 @@ retry:
 
 	ret->online_reserved = percpu_u64_get(c->online_reserved);
 
-	u64s = fs_usage_u64s(c);
 	do {
 		seq = read_seqcount_begin(&c->usage_lock);
-		memcpy(ret, c->usage_base, u64s * sizeof(u64));
+		memcpy(&ret->u, c->usage_base, u64s * sizeof(u64));
 		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 			acc_u64s_percpu((u64 *) &ret->u, (u64 __percpu *) c->usage[i], u64s);
 	} while (read_seqcount_retry(&c->usage_lock, seq));
@@ -437,45 +436,6 @@ static bool bucket_became_unavailable(struct bucket_mark old,
 {
 	return is_available_bucket(old) &&
 	       !is_available_bucket(new);
-}
-
-int bch2_fs_usage_apply(struct bch_fs *c,
-			struct bch_fs_usage_online *src,
-			struct disk_reservation *disk_res,
-			unsigned journal_seq)
-{
-	struct bch_fs_usage *dst = fs_usage_ptr(c, journal_seq, false);
-	s64 added = src->u.data + src->u.reserved;
-	s64 should_not_have_added;
-	int ret = 0;
-
-	percpu_rwsem_assert_held(&c->mark_lock);
-
-	/*
-	 * Not allowed to reduce sectors_available except by getting a
-	 * reservation:
-	 */
-	should_not_have_added = added - (s64) (disk_res ? disk_res->sectors : 0);
-	if (WARN_ONCE(should_not_have_added > 0,
-		      "disk usage increased by %lli more than reservation of %llu",
-		      added, disk_res ? disk_res->sectors : 0)) {
-		atomic64_sub(should_not_have_added, &c->sectors_available);
-		added -= should_not_have_added;
-		ret = -1;
-	}
-
-	if (added > 0) {
-		disk_res->sectors	-= added;
-		src->online_reserved	-= added;
-	}
-
-	this_cpu_add(*c->online_reserved, src->online_reserved);
-
-	preempt_disable();
-	acc_u64s((u64 *) dst, (u64 *) &src->u, fs_usage_u64s(c));
-	preempt_enable();
-
-	return ret;
 }
 
 static inline void account_bucket(struct bch_fs_usage *fs_usage,
@@ -672,20 +632,12 @@ static int __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 				    size_t b, bool owned_by_allocator,
 				    bool gc)
 {
-	struct bch_fs_usage *fs_usage = fs_usage_ptr(c, 0, gc);
 	struct bucket *g = __bucket(ca, b, gc);
 	struct bucket_mark old, new;
 
 	old = bucket_cmpxchg(g, new, ({
 		new.owned_by_allocator	= owned_by_allocator;
 	}));
-
-	/*
-	 * XXX: this is wrong, this means we'll be doing updates to the percpu
-	 * buckets_alloc counter that don't have an open journal buffer and
-	 * we'll race with the machinery that accumulates that to ca->usage_base
-	 */
-	bch2_dev_usage_update(c, ca, fs_usage, old, new, 0, gc);
 
 	BUG_ON(!gc &&
 	       !owned_by_allocator && !old.owned_by_allocator);
@@ -1431,6 +1383,45 @@ int bch2_mark_update(struct btree_trans *trans,
 		}
 		bch2_trans_iter_put(trans, copy);
 	}
+
+	return ret;
+}
+
+static int bch2_fs_usage_apply(struct bch_fs *c,
+			       struct bch_fs_usage_online *src,
+			       struct disk_reservation *disk_res,
+			       unsigned journal_seq)
+{
+	struct bch_fs_usage *dst = fs_usage_ptr(c, journal_seq, false);
+	s64 added = src->u.data + src->u.reserved;
+	s64 should_not_have_added;
+	int ret = 0;
+
+	percpu_rwsem_assert_held(&c->mark_lock);
+
+	/*
+	 * Not allowed to reduce sectors_available except by getting a
+	 * reservation:
+	 */
+	should_not_have_added = added - (s64) (disk_res ? disk_res->sectors : 0);
+	if (WARN_ONCE(should_not_have_added > 0,
+		      "disk usage increased by %lli more than reservation of %llu",
+		      added, disk_res ? disk_res->sectors : 0)) {
+		atomic64_sub(should_not_have_added, &c->sectors_available);
+		added -= should_not_have_added;
+		ret = -1;
+	}
+
+	if (added > 0) {
+		disk_res->sectors	-= added;
+		src->online_reserved	-= added;
+	}
+
+	this_cpu_add(*c->online_reserved, src->online_reserved);
+
+	preempt_disable();
+	acc_u64s((u64 *) dst, (u64 *) &src->u, fs_usage_u64s(c));
+	preempt_enable();
 
 	return ret;
 }
