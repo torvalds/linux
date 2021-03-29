@@ -371,7 +371,7 @@ xfs_inode_to_log_dinode(
 
 	to->di_size = ip->i_disk_size;
 	to->di_nblocks = ip->i_nblocks;
-	to->di_extsize = from->di_extsize;
+	to->di_extsize = ip->i_extsize;
 	to->di_nextents = xfs_ifork_nextents(&ip->i_df);
 	to->di_anextents = xfs_ifork_nextents(ip->i_afp);
 	to->di_forkoff = from->di_forkoff;
