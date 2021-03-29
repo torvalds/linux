@@ -9214,7 +9214,6 @@ static int __init nf_tables_module_init(void)
 {
 	int err;
 
-	spin_lock_init(&nf_tables_destroy_list_lock);
 	err = register_pernet_subsys(&nf_tables_net_ops);
 	if (err < 0)
 		return err;
