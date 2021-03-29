@@ -602,7 +602,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 		if (fifo_free(&j->pin) <= 32)
 			min_nr = 1;
 
-		min_nr = max(min_nr, bch2_nr_btree_keys_need_flush(c));
+		min_nr = max(min_nr, bch2_nr_btree_keys_want_flush(c));
 
 		trace_journal_reclaim_start(c,
 				min_nr,

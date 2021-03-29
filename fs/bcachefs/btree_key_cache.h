@@ -1,6 +1,15 @@
 #ifndef _BCACHEFS_BTREE_KEY_CACHE_H
 #define _BCACHEFS_BTREE_KEY_CACHE_H
 
+static inline size_t bch2_nr_btree_keys_want_flush(struct bch_fs *c)
+{
+	size_t nr_dirty = atomic_long_read(&c->btree_key_cache.nr_dirty);
+	size_t nr_keys = atomic_long_read(&c->btree_key_cache.nr_keys);
+	size_t max_dirty = nr_keys / 4;
+
+	return max_t(ssize_t, 0, nr_dirty - max_dirty);
+}
+
 static inline size_t bch2_nr_btree_keys_need_flush(struct bch_fs *c)
 {
 	size_t nr_dirty = atomic_long_read(&c->btree_key_cache.nr_dirty);
