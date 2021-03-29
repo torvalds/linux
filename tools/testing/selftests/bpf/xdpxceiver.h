@@ -125,15 +125,6 @@ struct generic_data {
 	u32 seqnum;
 };
 
-struct ifaceconfigobj {
-	u8 dst_mac[ETH_ALEN];
-	u8 src_mac[ETH_ALEN];
-	struct in_addr dst_ip;
-	struct in_addr src_ip;
-	u16 src_port;
-	u16 dst_port;
-} *ifaceconfig;
-
 struct ifobject {
 	int ifindex;
 	int ifdict_index;

@@ -93,6 +93,13 @@ typedef __u16 __sum16;
 #include "xdpxceiver.h"
 #include "../kselftest.h"
 
+static const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
+static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
+static const char *IP1 = "192.168.100.162";
+static const char *IP2 = "192.168.100.161";
+static const u16 UDP_PORT1 = 2020;
+static const u16 UDP_PORT2 = 2121;
+
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
 	if (configured_mode == TEST_MODE_UNCONFIGURED) {
@@ -1053,25 +1060,24 @@ static void testapp_stats(void)
 	print_ksft_result();
 }
 
-static void init_iface_config(struct ifaceconfigobj *ifaceconfig)
+static void init_iface(struct ifobject *ifobj, const char *dst_mac,
+		       const char *src_mac, const char *dst_ip,
+		       const char *src_ip, const u16 dst_port,
+		       const u16 src_port)
 {
-	/*Init interface0 */
-	ifdict[0]->fv.vector = tx;
-	memcpy(ifdict[0]->dst_mac, ifaceconfig->dst_mac, ETH_ALEN);
-	memcpy(ifdict[0]->src_mac, ifaceconfig->src_mac, ETH_ALEN);
-	ifdict[0]->dst_ip = ifaceconfig->dst_ip.s_addr;
-	ifdict[0]->src_ip = ifaceconfig->src_ip.s_addr;
-	ifdict[0]->dst_port = ifaceconfig->dst_port;
-	ifdict[0]->src_port = ifaceconfig->src_port;
+	struct in_addr ip;
 
-	/*Init interface1 */
-	ifdict[1]->fv.vector = rx;
-	memcpy(ifdict[1]->dst_mac, ifaceconfig->src_mac, ETH_ALEN);
-	memcpy(ifdict[1]->src_mac, ifaceconfig->dst_mac, ETH_ALEN);
-	ifdict[1]->dst_ip = ifaceconfig->src_ip.s_addr;
-	ifdict[1]->src_ip = ifaceconfig->dst_ip.s_addr;
-	ifdict[1]->dst_port = ifaceconfig->src_port;
-	ifdict[1]->src_port = ifaceconfig->dst_port;
+	memcpy(ifobj->dst_mac, dst_mac, ETH_ALEN);
+	memcpy(ifobj->src_mac, src_mac, ETH_ALEN);
+
+	inet_aton(dst_ip, &ip);
+	ifobj->dst_ip = ip.s_addr;
+
+	inet_aton(src_ip, &ip);
+	ifobj->src_ip = ip.s_addr;
+
+	ifobj->dst_port = dst_port;
+	ifobj->src_port = src_port;
 }
 
 static void *nsdisablemodethread(void *args)
@@ -1175,25 +1181,10 @@ static void run_pkt_test(int mode, int type)
 int main(int argc, char **argv)
 {
 	struct rlimit _rlim = { RLIM_INFINITY, RLIM_INFINITY };
+	int i, j;
 
 	if (setrlimit(RLIMIT_MEMLOCK, &_rlim))
 		exit_with_error(errno);
-
-	const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
-	const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
-	const char *IP1 = "192.168.100.162";
-	const char *IP2 = "192.168.100.161";
-	u16 UDP_DST_PORT = 2020;
-	u16 UDP_SRC_PORT = 2121;
-	int i, j;
-
-	ifaceconfig = malloc(sizeof(struct ifaceconfigobj));
-	memcpy(ifaceconfig->dst_mac, MAC1, ETH_ALEN);
-	memcpy(ifaceconfig->src_mac, MAC2, ETH_ALEN);
-	inet_aton(IP1, &ifaceconfig->dst_ip);
-	inet_aton(IP2, &ifaceconfig->src_ip);
-	ifaceconfig->dst_port = UDP_DST_PORT;
-	ifaceconfig->src_port = UDP_SRC_PORT;
 
 	for (int i = 0; i < MAX_INTERFACES; i++) {
 		ifdict[i] = malloc(sizeof(struct ifobject));
@@ -1209,7 +1200,11 @@ int main(int argc, char **argv)
 
 	num_frames = ++opt_pkt_count;
 
-	init_iface_config(ifaceconfig);
+	ifdict[0]->fv.vector = tx;
+	init_iface(ifdict[0], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2);
+
+	ifdict[1]->fv.vector = rx;
+	init_iface(ifdict[1], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1);
 
 	disable_xdp_mode(XDP_FLAGS_DRV_MODE);
 
