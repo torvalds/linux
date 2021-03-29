@@ -2109,15 +2109,17 @@ sub process_name($$) {
 	}
     } elsif (/$doc_decl/o) {
 	$identifier = $1;
-	if (/\s*([\w\s]+?)(\(\))?\s*([-:].*)?$/) {
+	my $is_kernel_comment = 0;
+	if (/^\s*\*\s*([\w\s]+?)(\(\))?\s*([-:].*)?$/) {
 	    $identifier = $1;
+	    $decl_type = 'function';
+	    $identifier =~ s/^define\s+//;
+	    $is_kernel_comment = 1;
 	}
 	if ($identifier =~ m/^(struct|union|enum|typedef)\b\s*(\S*)/) {
 	    $decl_type = $1;
 	    $identifier = $2;
-	} else {
-	    $decl_type = 'function';
-	    $identifier =~ s/^define\s+//;
+	    $is_kernel_comment = 1;
 	}
 	$identifier =~ s/\s+$//;
 
@@ -2137,6 +2139,13 @@ sub process_name($$) {
 	    $state = STATE_BODY_MAYBE;
 	} else {
 	    $declaration_purpose = "";
+	}
+
+	if (!$is_kernel_comment) {
+	    print STDERR "${file}:$.: warning: This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n";
+	    print STDERR $_;
+	    ++$warnings;
+	    $state = STATE_NORMAL;
 	}
 
 	if (($declaration_purpose eq "") && $verbose) {
