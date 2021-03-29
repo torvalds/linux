@@ -75,6 +75,7 @@
 		power {
 			label = "bcm53xx:white:power";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
 		};
 
 		wifi-disabled {
