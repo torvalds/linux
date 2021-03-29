@@ -250,32 +250,27 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 	mall_entry->priority = f->common.prio;
 	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 
+	if (flower_prio_valid && mall_entry->ingress &&
+	    mall_entry->priority >= flower_min_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
+	if (flower_prio_valid && !mall_entry->ingress &&
+	    mall_entry->priority <= flower_max_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
+
 	act = &f->rule->action.entries[0];
 
 	switch (act->id) {
 	case FLOW_ACTION_MIRRED:
-		if (flower_prio_valid && mall_entry->ingress &&
-		    mall_entry->priority >= flower_min_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-		if (flower_prio_valid && !mall_entry->ingress &&
-		    mall_entry->priority <= flower_max_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
 		break;
 	case FLOW_ACTION_SAMPLE:
-		if (flower_prio_valid &&
-		    mall_entry->priority >= flower_min_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_SAMPLE;
 		mall_entry->sample.params.psample_group = act->sample.psample_group;
 		mall_entry->sample.params.truncate = act->sample.truncate;
