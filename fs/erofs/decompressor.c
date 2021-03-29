@@ -29,9 +29,20 @@ struct z_erofs_decompressor {
 };
 
 int z_erofs_load_lz4_config(struct super_block *sb,
-			    struct erofs_super_block *dsb)
+			    struct erofs_super_block *dsb,
+			    struct z_erofs_lz4_cfgs *lz4, int size)
 {
-	u16 distance = le16_to_cpu(dsb->lz4_max_distance);
+	u16 distance;
+
+	if (lz4) {
+		if (size < sizeof(struct z_erofs_lz4_cfgs)) {
+			erofs_err(sb, "invalid lz4 cfgs, size=%u", size);
+			return -EINVAL;
+		}
+		distance = le16_to_cpu(lz4->max_distance);
+	} else {
+		distance = le16_to_cpu(dsb->lz4_max_distance);
+	}
 
 	EROFS_SB(sb)->lz4.max_distance_pages = distance ?
 					DIV_ROUND_UP(distance, PAGE_SIZE) + 1 :
