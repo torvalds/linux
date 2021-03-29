@@ -7,14 +7,14 @@ Required properties :
    compatible processor, e.g. mpc8313, mpc8543, mpc8544, mpc5121,
    mpc5200 or mpc5200b. For the mpc5121, an additional node
    "fsl,mpc5121-i2c-ctrl" is required as shown in the example below.
-
-Recommended properties :
-
  - interrupts : <a b> where a is the interrupt number and b is a
    field that represents an encoding of the sense and level
    information for the interrupt.  This should be encoded based on
    the information in section 2) depending on the type of interrupt
    controller you have.
+
+Recommended properties :
+
  - fsl,preserve-clocking : boolean; if defined, the clock settings
    from the bootloader are preserved (not touched).
  - clock-frequency : desired I2C bus clock frequency in Hz.
