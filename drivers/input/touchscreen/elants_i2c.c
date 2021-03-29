@@ -1449,8 +1449,7 @@ static int elants_i2c_probe(struct i2c_client *client,
 
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
-	if (ts->major_res > 0)
-		input_abs_set_res(ts->input, ABS_MT_TOUCH_MAJOR, ts->major_res);
+	input_abs_set_res(ts->input, ABS_MT_TOUCH_MAJOR, ts->major_res);
 
 	error = input_mt_init_slots(ts->input, MAX_CONTACT_NUM,
 				    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
