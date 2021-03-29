@@ -953,7 +953,7 @@ xfs_qm_id_for_quotatype(
 	case XFS_DQTYPE_GROUP:
 		return i_gid_read(VFS_I(ip));
 	case XFS_DQTYPE_PROJ:
-		return ip->i_d.di_projid;
+		return ip->i_projid;
 	}
 	ASSERT(0);
 	return 0;
