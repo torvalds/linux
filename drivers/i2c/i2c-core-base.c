@@ -909,23 +909,13 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 
 	i2c_dev_set_name(adap, client, info);
 
-	if (info->properties) {
-		status = device_add_properties(&client->dev, info->properties);
-		if (status) {
-			dev_err(&adap->dev,
-				"Failed to add properties to client %s: %d\n",
-				client->name, status);
-			goto out_err_put_of_node;
-		}
-	}
-
 	if (info->swnode) {
 		status = device_add_software_node(&client->dev, info->swnode);
 		if (status) {
 			dev_err(&adap->dev,
 				"Failed to add software node to client %s: %d\n",
 				client->name, status);
-			goto out_free_props;
+			goto out_err_put_of_node;
 		}
 	}
 
@@ -940,9 +930,6 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 
 out_remove_swnode:
 	device_remove_software_node(&client->dev);
-out_free_props:
-	if (info->properties)
-		device_remove_properties(&client->dev);
 out_err_put_of_node:
 	of_node_put(info->of_node);
 out_err:

@@ -391,7 +391,6 @@ static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
  * @platform_data: stored in i2c_client.dev.platform_data
  * @of_node: pointer to OpenFirmware device node
  * @fwnode: device node supplied by the platform firmware
- * @properties: Deprecated - use swnode instead
  * @swnode: software node for the device
  * @resources: resources associated with the device
  * @num_resources: number of resources in the @resources array
@@ -416,7 +415,6 @@ struct i2c_board_info {
 	void		*platform_data;
 	struct device_node *of_node;
 	struct fwnode_handle *fwnode;
-	const struct property_entry *properties;
 	const struct software_node *swnode;
 	const struct resource *resources;
 	unsigned int	num_resources;
