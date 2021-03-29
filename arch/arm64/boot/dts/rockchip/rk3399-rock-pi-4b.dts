@@ -27,7 +27,7 @@
 };
 
 &uart0 {
-	status = "okay";
+	status = "disabled";
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
