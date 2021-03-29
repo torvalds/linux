@@ -126,18 +126,6 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 			       test_type == TEST_TYPE_STATS ? "Stats" : "",\
 			       test_type == TEST_TYPE_BPF_RES ? "BPF RES" : ""))
 
-static void init_sync_resources(void)
-{
-	pthread_mutex_init(&sync_mutex, NULL);
-	pthread_cond_init(&signal_rx_condition, NULL);
-}
-
-static void destroy_sync_resources(void)
-{
-	pthread_mutex_destroy(&sync_mutex);
-	pthread_cond_destroy(&signal_rx_condition);
-}
-
 static void *memset32_htonl(void *dest, u32 val, u32 size)
 {
 	u32 *ptr = (u32 *)dest;
@@ -876,9 +864,7 @@ static void *worker_testapp_validate_rx(void *arg)
 	fds[0].fd = xsk_socket__fd(ifobject->xsk->xsk);
 	fds[0].events = POLLIN;
 
-	pthread_mutex_lock(&sync_mutex);
-	pthread_cond_signal(&signal_rx_condition);
-	pthread_mutex_unlock(&sync_mutex);
+	pthread_barrier_wait(&barr);
 
 	while (1) {
 		if (test_type != TEST_TYPE_STATS) {
@@ -903,23 +889,18 @@ static void *worker_testapp_validate_rx(void *arg)
 
 static void testapp_validate(void)
 {
-	struct timespec max_wait = { 0, 0 };
 	bool bidi = test_type == TEST_TYPE_BIDI;
 	bool bpf = test_type == TEST_TYPE_BPF_RES;
 
-	pthread_mutex_lock(&sync_mutex);
+	if (pthread_barrier_init(&barr, NULL, 2))
+		exit_with_error(errno);
 
 	/*Spawn RX thread */
 	pthread_create(&t0, NULL, ifdict_rx->func_ptr, ifdict_rx);
 
-	if (clock_gettime(CLOCK_REALTIME, &max_wait))
+	pthread_barrier_wait(&barr);
+	if (pthread_barrier_destroy(&barr))
 		exit_with_error(errno);
-	max_wait.tv_sec += TMOUT_SEC;
-
-	if (pthread_cond_timedwait(&signal_rx_condition, &sync_mutex, &max_wait) == ETIMEDOUT)
-		exit_with_error(errno);
-
-	pthread_mutex_unlock(&sync_mutex);
 
 	/*Spawn TX thread */
 	pthread_create(&t1, NULL, ifdict_tx->func_ptr, ifdict_tx);
@@ -1160,14 +1141,10 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
-	init_sync_resources();
-
 	for (i = 0; i < TEST_MODE_MAX; i++) {
 		for (j = 0; j < TEST_TYPE_MAX; j++)
 			run_pkt_test(i, j);
 	}
-
-	destroy_sync_resources();
 
 cleanup:
 	for (int i = 0; i < MAX_INTERFACES; i++) {

@@ -148,8 +148,7 @@ static struct ifobject *ifdict_rx;
 static struct ifobject *ifdict_tx;
 
 /*threads*/
-pthread_mutex_t sync_mutex;
-pthread_cond_t signal_rx_condition;
+pthread_barrier_t barr;
 pthread_t t0, t1;
 
 TAILQ_HEAD(head_s, pkt) head = TAILQ_HEAD_INITIALIZER(head);
