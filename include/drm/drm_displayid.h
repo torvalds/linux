@@ -108,4 +108,22 @@ const u8 *drm_find_displayid_extension(const struct edid *edid,
 				       int *length, int *idx,
 				       int *ext_index);
 
+/* DisplayID iteration */
+struct displayid_iter {
+	const struct edid *edid;
+
+	const u8 *section;
+	int length;
+	int idx;
+	int ext_index;
+};
+
+void displayid_iter_edid_begin(const struct edid *edid,
+			       struct displayid_iter *iter);
+const struct displayid_block *
+__displayid_iter_next(struct displayid_iter *iter);
+#define displayid_iter_for_each(__block, __iter) \
+	while (((__block) = __displayid_iter_next(__iter)))
+void displayid_iter_end(struct displayid_iter *iter);
+
 #endif
