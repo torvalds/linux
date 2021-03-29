@@ -12,10 +12,10 @@
 #include <linux/slab.h>
 
 struct swnode {
-	int id;
 	struct kobject kobj;
 	struct fwnode_handle fwnode;
 	const struct software_node *node;
+	int id;
 
 	/* hierarchy */
 	struct ida child_ids;
