@@ -772,6 +772,15 @@ rate()
 	echo $((8 * (t1 - t0) / interval))
 }
 
+packets_rate()
+{
+	local t0=$1; shift
+	local t1=$1; shift
+	local interval=$1; shift
+
+	echo $(((t1 - t0) / interval))
+}
+
 mac_get()
 {
 	local if_name=$1
