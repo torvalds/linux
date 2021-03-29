@@ -397,9 +397,9 @@ static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 	u32 granularity;
 	u32 val;
 
-	/* IPA v4.5 has no backward compatibility register */
+	/* IPA v4.5+ has no backward compatibility register */
 	if (version < IPA_VERSION_4_5) {
-		val = ipa_reg_bcr_val(version);
+		val = data->backward_compat;
 		iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
 	}
 
@@ -578,11 +578,11 @@ out_release_firmware:
 static const struct of_device_id ipa_match[] = {
 	{
 		.compatible	= "qcom,sdm845-ipa",
-		.data		= &ipa_data_sdm845,
+		.data		= &ipa_data_v3_5_1,
 	},
 	{
 		.compatible	= "qcom,sc7180-ipa",
-		.data		= &ipa_data_sc7180,
+		.data		= &ipa_data_v4_2,
 	},
 	{ },
 };

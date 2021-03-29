@@ -235,27 +235,6 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 #define BCR_FILTER_PREFETCH_EN_FMASK		GENMASK(8, 8)
 #define BCR_ROUTER_PREFETCH_EN_FMASK		GENMASK(9, 9)
 
-/* Backward compatibility register value to use for each version */
-static inline u32 ipa_reg_bcr_val(enum ipa_version version)
-{
-	if (version == IPA_VERSION_3_5_1)
-		return BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK |
-			BCR_TX_NOT_USING_BRESP_FMASK |
-			BCR_SUSPEND_L2_IRQ_FMASK |
-			BCR_HOLB_DROP_L2_IRQ_FMASK |
-			BCR_DUAL_TX_FMASK;
-
-	if (version == IPA_VERSION_4_0 || version == IPA_VERSION_4_1)
-		return BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK |
-			BCR_SUSPEND_L2_IRQ_FMASK |
-			BCR_HOLB_DROP_L2_IRQ_FMASK |
-			BCR_DUAL_TX_FMASK;
-
-	/* assert(version != IPA_VERSION_4_5); */
-
-	return 0x00000000;
-}
-
 /* The value of the next register must be a multiple of 8 (bottom 3 bits 0) */
 #define IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET		0x000001e8
 

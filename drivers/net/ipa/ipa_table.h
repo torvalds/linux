@@ -10,9 +10,6 @@
 
 struct ipa;
 
-/* The size of a filter or route table entry */
-#define IPA_TABLE_ENTRY_SIZE	sizeof(__le64)	/* Holds a physical address */
-
 /* The maximum number of filter table entries (IPv4, IPv6; hashed or not) */
 #define IPA_FILTER_COUNT_MAX	14
 
@@ -24,7 +21,7 @@ struct ipa;
 /**
  * ipa_table_valid() - Validate route and filter table memory regions
  * @ipa:	IPA pointer
-
+ *
  * Return:	true if all regions are valid, false otherwise
  */
 bool ipa_table_valid(struct ipa *ipa);
@@ -32,6 +29,7 @@ bool ipa_table_valid(struct ipa *ipa);
 /**
  * ipa_filter_map_valid() - Validate a filter table endpoint bitmap
  * @ipa:	IPA pointer
+ * @filter_mask: Filter table endpoint bitmap to check
  *
  * Return:	true if all regions are valid, false otherwise
  */

@@ -90,8 +90,8 @@ struct ipa_qsb_data {
  * that can be included in a single transaction.
  */
 struct gsi_channel_data {
-	u16 tre_count;
-	u16 event_count;
+	u16 tre_count;			/* must be a power of 2 */
+	u16 event_count;		/* must be a power of 2 */
 	u8 tlv_count;
 };
 
@@ -279,6 +279,7 @@ struct ipa_clock_data {
 /**
  * struct ipa_data - combined IPA/GSI configuration data
  * @version:		IPA hardware version
+ * @backward_compat:	BCR register value (prior to IPA v4.5 only)
  * @qsb_count:		number of entries in the qsb_data array
  * @qsb_data:		Qualcomm System Bus configuration data
  * @endpoint_count:	number of entries in the endpoint_data array
@@ -289,6 +290,7 @@ struct ipa_clock_data {
  */
 struct ipa_data {
 	enum ipa_version version;
+	u32 backward_compat;
 	u32 qsb_count;		/* number of entries in qsb_data[] */
 	const struct ipa_qsb_data *qsb_data;
 	u32 endpoint_count;	/* number of entries in endpoint_data[] */
@@ -298,7 +300,7 @@ struct ipa_data {
 	const struct ipa_clock_data *clock_data;
 };
 
-extern const struct ipa_data ipa_data_sdm845;
-extern const struct ipa_data ipa_data_sc7180;
+extern const struct ipa_data ipa_data_v3_5_1;
+extern const struct ipa_data ipa_data_v4_2;
 
 #endif /* _IPA_DATA_H_ */

@@ -24,6 +24,7 @@ typedef void (*ipa_irq_handler_t)(struct ipa *ipa, enum ipa_irq_id irq_id);
 
 /**
  * ipa_interrupt_add() - Register a handler for an IPA interrupt type
+ * @interrupt:	IPA interrupt structure
  * @irq_id:	IPA interrupt type
  * @handler:	Handler function for the interrupt
  *
