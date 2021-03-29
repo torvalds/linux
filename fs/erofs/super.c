@@ -187,7 +187,9 @@ static int erofs_read_superblock(struct super_block *sb)
 		ret = -EFSCORRUPTED;
 		goto out;
 	}
-	ret = 0;
+
+	/* parse on-disk compression configurations */
+	ret = z_erofs_load_lz4_config(sb, dsb);
 out:
 	kunmap(page);
 	put_page(page);
