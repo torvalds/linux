@@ -974,8 +974,8 @@ static int brcmuart_probe(struct platform_device *pdev)
 			break;
 		priv->regs[x] =	devm_ioremap(dev, regs->start,
 					     resource_size(regs));
-		if (IS_ERR(priv->regs[x]))
-			return PTR_ERR(priv->regs[x]);
+		if (!priv->regs[x])
+			return -ENOMEM;
 		if (x == REGS_8250) {
 			mapbase = regs->start;
 			membase = priv->regs[x];
