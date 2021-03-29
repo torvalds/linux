@@ -102,7 +102,7 @@ DEFINE_STATIC_KEY_FALSE(__sched_core_enabled);
  */
 
 static DEFINE_MUTEX(sched_core_mutex);
-static int sched_core_count;
+static atomic_t sched_core_count;
 static struct cpumask sched_core_mask;
 
 static void __sched_core_flip(bool enabled)
@@ -170,18 +170,39 @@ static void __sched_core_disable(void)
 
 void sched_core_get(void)
 {
+	if (atomic_inc_not_zero(&sched_core_count))
+		return;
+
 	mutex_lock(&sched_core_mutex);
-	if (!sched_core_count++)
+	if (!atomic_read(&sched_core_count))
 		__sched_core_enable();
+
+	smp_mb__before_atomic();
+	atomic_inc(&sched_core_count);
 	mutex_unlock(&sched_core_mutex);
+}
+
+static void __sched_core_put(struct work_struct *work)
+{
+	if (atomic_dec_and_mutex_lock(&sched_core_count, &sched_core_mutex)) {
+		__sched_core_disable();
+		mutex_unlock(&sched_core_mutex);
+	}
 }
 
 void sched_core_put(void)
 {
-	mutex_lock(&sched_core_mutex);
-	if (!--sched_core_count)
-		__sched_core_disable();
-	mutex_unlock(&sched_core_mutex);
+	static DECLARE_WORK(_work, __sched_core_put);
+
+	/*
+	 * "There can be only one"
+	 *
+	 * Either this is the last one, or we don't actually need to do any
+	 * 'work'. If it is the last *again*, we rely on
+	 * WORK_STRUCT_PENDING_BIT.
+	 */
+	if (!atomic_add_unless(&sched_core_count, -1, 1))
+		schedule_work(&_work);
 }
 
 #endif /* CONFIG_SCHED_CORE */
