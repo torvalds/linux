@@ -121,17 +121,15 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 			       test_type == TEST_TYPE_BIDI ? "Bi-directional Sockets" : "",\
 			       test_type == TEST_TYPE_STATS ? "Stats" : ""))
 
-static void pthread_init_mutex(void)
+static void init_sync_resources(void)
 {
 	pthread_mutex_init(&sync_mutex, NULL);
-	pthread_mutex_init(&sync_mutex_tx, NULL);
 	pthread_cond_init(&signal_rx_condition, NULL);
 }
 
-static void pthread_destroy_mutex(void)
+static void destroy_sync_resources(void)
 {
 	pthread_mutex_destroy(&sync_mutex);
-	pthread_mutex_destroy(&sync_mutex_tx);
 	pthread_cond_destroy(&signal_rx_condition);
 }
 
@@ -752,7 +750,7 @@ static void worker_pkt_validate(void)
 	}
 }
 
-static void thread_common_ops(struct ifobject *ifobject, void *bufs, pthread_mutex_t *mutexptr)
+static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 {
 	int ctr = 0;
 	int ret;
@@ -771,22 +769,13 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs, pthread_mut
 
 	/* Retry Create Socket if it fails as xsk_socket__create()
 	 * is asynchronous
-	 *
-	 * Essential to lock Mutex here to prevent Tx thread from
-	 * entering before Rx and causing a deadlock
 	 */
-	pthread_mutex_lock(mutexptr);
 	while (ret && ctr < SOCK_RECONF_CTR) {
-		if (ifobject->fv.vector == rx)
-			atomic_store(&spinning_rx, 1);
 		xsk_configure_umem(ifobject, bufs, num_frames * XSK_UMEM__DEFAULT_FRAME_SIZE);
 		ret = xsk_configure_socket(ifobject);
 		usleep(USLEEP_MAX);
 		ctr++;
 	}
-	if (ifobject->fv.vector == rx)
-		atomic_store(&spinning_rx, 0);
-	pthread_mutex_unlock(mutexptr);
 
 	if (ctr >= SOCK_RECONF_CTR)
 		exit_with_error(ret);
@@ -803,16 +792,10 @@ static void *worker_testapp_validate_tx(void *arg)
 	struct ethhdr *eth_hdr = (struct ethhdr *)pkt_data;
 	struct ifobject *ifobject = (struct ifobject *)arg;
 	struct generic_data data;
-	int spinningrxctr = 0;
 	void *bufs = NULL;
 
 	if (!bidi_pass)
-		thread_common_ops(ifobject, bufs, &sync_mutex_tx);
-
-	while (atomic_load(&spinning_rx) && spinningrxctr < SOCK_RECONF_CTR) {
-		spinningrxctr++;
-		usleep(USLEEP_MAX);
-	}
+		thread_common_ops(ifobject, bufs);
 
 	for (int i = 0; i < num_frames; i++) {
 		/*send EOT frame */
@@ -845,7 +828,7 @@ static void *worker_testapp_validate_rx(void *arg)
 	void *bufs = NULL;
 
 	if (!bidi_pass)
-		thread_common_ops(ifobject, bufs, &sync_mutex_tx);
+		thread_common_ops(ifobject, bufs);
 
 	if (stat_test_type != STAT_TEST_RX_FILL_EMPTY)
 		xsk_populate_fill_ring(ifobject->umem);
@@ -1103,7 +1086,7 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
-	pthread_init_mutex();
+	init_sync_resources();
 
 	for (i = 0; i < TEST_MODE_MAX; i++) {
 		for (j = 0; j < TEST_TYPE_MAX; j++)
@@ -1116,7 +1099,7 @@ int main(int argc, char **argv)
 		free(ifdict[i]);
 	}
 
-	pthread_destroy_mutex();
+	destroy_sync_resources();
 
 	ksft_exit_pass();
 
