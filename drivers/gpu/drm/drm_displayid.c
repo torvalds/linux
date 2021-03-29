@@ -11,9 +11,9 @@ static int validate_displayid(const u8 *displayid, int length, int idx)
 {
 	int i, dispid_length;
 	u8 csum = 0;
-	const struct displayid_hdr *base;
+	const struct displayid_header *base;
 
-	base = (const struct displayid_hdr *)&displayid[idx];
+	base = (const struct displayid_header *)&displayid[idx];
 
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
@@ -38,7 +38,7 @@ static const u8 *drm_find_displayid_extension(const struct edid *edid,
 					      int *ext_index)
 {
 	const u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT, ext_index);
-	const struct displayid_hdr *base;
+	const struct displayid_header *base;
 	int ret;
 
 	if (!displayid)
@@ -52,7 +52,7 @@ static const u8 *drm_find_displayid_extension(const struct edid *edid,
 	if (ret)
 		return NULL;
 
-	base = (const struct displayid_hdr *)&displayid[*idx];
+	base = (const struct displayid_header *)&displayid[*idx];
 	*length = *idx + sizeof(*base) + base->bytes;
 
 	return displayid;
@@ -118,7 +118,7 @@ __displayid_iter_next(struct displayid_iter *iter)
 			return NULL;
 		}
 
-		iter->idx += sizeof(struct displayid_hdr);
+		iter->idx += sizeof(struct displayid_header);
 
 		block = displayid_iter_block(iter);
 		if (block)

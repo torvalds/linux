@@ -56,7 +56,7 @@ struct edid;
 #define PRODUCT_TYPE_REPEATER 5
 #define PRODUCT_TYPE_DIRECT_DRIVE 6
 
-struct displayid_hdr {
+struct displayid_header {
 	u8 rev;
 	u8 bytes;
 	u8 prod_id;
