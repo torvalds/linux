@@ -843,7 +843,7 @@ xfs_init_new_inode(
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
 		inode_set_iversion(inode, 1);
 		ip->i_cowextsize = 0;
-		ip->i_d.di_crtime = tv;
+		ip->i_crtime = tv;
 	}
 
 	flags = XFS_ILOG_CORE;

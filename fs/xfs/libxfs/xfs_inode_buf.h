@@ -10,16 +10,6 @@ struct xfs_inode;
 struct xfs_dinode;
 
 /*
- * In memory representation of the XFS inode. This is held in the in-core struct
- * xfs_inode and represents the current on disk values but the structure is not
- * in on-disk format.  That is, this structure is always translated to on-disk
- * format specific structures at the appropriate time.
- */
-struct xfs_icdinode {
-	struct timespec64 di_crtime;	/* time created */
-};
-
-/*
  * Inode location information.  Stored in the inode and passed to
  * xfs_imap_to_bp() to get a buffer and dinode for a given inode.
  */

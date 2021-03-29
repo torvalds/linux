@@ -60,7 +60,6 @@ xfs_bulkstat_one_int(
 	struct xfs_bstat_chunk	*bc)
 {
 	struct user_namespace	*sb_userns = mp->m_super->s_user_ns;
-	struct xfs_icdinode	*dic;		/* dinode core info pointer */
 	struct xfs_inode	*ip;		/* incore inode pointer */
 	struct inode		*inode;
 	struct xfs_bulkstat	*buf = bc->buf;
@@ -80,8 +79,6 @@ xfs_bulkstat_one_int(
 	ASSERT(ip != NULL);
 	ASSERT(ip->i_imap.im_blkno != 0);
 	inode = VFS_I(ip);
-
-	dic = &ip->i_d;
 
 	/* xfs_iget returns the following without needing
 	 * further change.
@@ -111,8 +108,8 @@ xfs_bulkstat_one_int(
 	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
-		buf->bs_btime = dic->di_crtime.tv_sec;
-		buf->bs_btime_nsec = dic->di_crtime.tv_nsec;
+		buf->bs_btime = ip->i_crtime.tv_sec;
+		buf->bs_btime_nsec = ip->i_crtime.tv_nsec;
 		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
 			buf->bs_cowextsize_blks = ip->i_cowextsize;
 	}
