@@ -235,10 +235,11 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 			host1x_hw_intr_enable_syncpt_intr(host, syncpt->id);
 	}
 
-	spin_unlock(&syncpt->intr.lock);
-
 	if (ref)
 		*ref = waiter;
+
+	spin_unlock(&syncpt->intr.lock);
+
 	return 0;
 }
 
