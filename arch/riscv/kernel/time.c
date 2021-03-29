@@ -10,7 +10,7 @@
 #include <asm/sbi.h>
 #include <asm/processor.h>
 
-unsigned long riscv_timebase;
+unsigned long riscv_timebase __ro_after_init;
 EXPORT_SYMBOL_GPL(riscv_timebase);
 
 void __init time_init(void)
