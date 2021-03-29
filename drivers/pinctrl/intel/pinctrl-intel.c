@@ -1173,16 +1173,15 @@ static int intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 	for (gpp = 0; gpp < community->ngpps; gpp++) {
 		const struct intel_padgroup *padgrp = &community->gpps[gpp];
 		unsigned long pending, enabled, gpp_offset;
-		unsigned long flags;
 
-		raw_spin_lock_irqsave(&pctrl->lock, flags);
+		raw_spin_lock(&pctrl->lock);
 
 		pending = readl(community->regs + community->is_offset +
 				padgrp->reg_num * 4);
 		enabled = readl(community->regs + community->ie_offset +
 				padgrp->reg_num * 4);
 
-		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+		raw_spin_unlock(&pctrl->lock);
 
 		/* Only interrupts that are enabled */
 		pending &= enabled;
@@ -1357,6 +1356,7 @@ static int intel_pinctrl_add_padgroups_by_gpps(struct intel_pinctrl *pctrl,
 				gpps[i].gpio_base = 0;
 				break;
 			case INTEL_GPIO_BASE_NOMAP:
+				break;
 			default:
 				break;
 		}
@@ -1393,6 +1393,7 @@ static int intel_pinctrl_add_padgroups_by_size(struct intel_pinctrl *pctrl,
 		gpps[i].size = min(gpp_size, npins);
 		npins -= gpps[i].size;
 
+		gpps[i].gpio_base = gpps[i].base;
 		gpps[i].padown_num = padown_num;
 
 		/*
