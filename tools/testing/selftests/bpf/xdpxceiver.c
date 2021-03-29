@@ -658,45 +658,40 @@ static void tx_only_all(struct ifobject *ifobject)
 
 static void worker_pkt_dump(void)
 {
-	struct in_addr ipaddr;
+	struct ethhdr *ethhdr;
+	struct iphdr *iphdr;
+	struct udphdr *udphdr;
+	char s[128];
+	int payload;
+	void *ptr;
 
 	fprintf(stdout, "---------------------------------------\n");
 	for (int iter = 0; iter < num_frames - 1; iter++) {
+		ptr = pkt_buf[iter]->payload;
+		ethhdr = ptr;
+		iphdr = ptr + sizeof(*ethhdr);
+		udphdr = ptr + sizeof(*ethhdr) + sizeof(*iphdr);
+
 		/*extract L2 frame */
 		fprintf(stdout, "DEBUG>> L2: dst mac: ");
 		for (int i = 0; i < ETH_ALEN; i++)
-			fprintf(stdout, "%02X", ((struct ethhdr *)
-						 pkt_buf[iter]->payload)->h_dest[i]);
+			fprintf(stdout, "%02X", ethhdr->h_dest[i]);
 
 		fprintf(stdout, "\nDEBUG>> L2: src mac: ");
 		for (int i = 0; i < ETH_ALEN; i++)
-			fprintf(stdout, "%02X", ((struct ethhdr *)
-						 pkt_buf[iter]->payload)->h_source[i]);
+			fprintf(stdout, "%02X", ethhdr->h_source[i]);
 
 		/*extract L3 frame */
-		fprintf(stdout, "\nDEBUG>> L3: ip_hdr->ihl: %02X\n",
-			((struct iphdr *)(pkt_buf[iter]->payload + sizeof(struct ethhdr)))->ihl);
-
-		ipaddr.s_addr =
-		    ((struct iphdr *)(pkt_buf[iter]->payload + sizeof(struct ethhdr)))->saddr;
-		fprintf(stdout, "DEBUG>> L3: ip_hdr->saddr: %s\n", inet_ntoa(ipaddr));
-
-		ipaddr.s_addr =
-		    ((struct iphdr *)(pkt_buf[iter]->payload + sizeof(struct ethhdr)))->daddr;
-		fprintf(stdout, "DEBUG>> L3: ip_hdr->daddr: %s\n", inet_ntoa(ipaddr));
-
+		fprintf(stdout, "\nDEBUG>> L3: ip_hdr->ihl: %02X\n", iphdr->ihl);
+		fprintf(stdout, "DEBUG>> L3: ip_hdr->saddr: %s\n",
+			inet_ntop(AF_INET, &iphdr->saddr, s, sizeof(s)));
+		fprintf(stdout, "DEBUG>> L3: ip_hdr->daddr: %s\n",
+			inet_ntop(AF_INET, &iphdr->daddr, s, sizeof(s)));
 		/*extract L4 frame */
-		fprintf(stdout, "DEBUG>> L4: udp_hdr->src: %d\n",
-			ntohs(((struct udphdr *)(pkt_buf[iter]->payload +
-						 sizeof(struct ethhdr) +
-						 sizeof(struct iphdr)))->source));
-
-		fprintf(stdout, "DEBUG>> L4: udp_hdr->dst: %d\n",
-			ntohs(((struct udphdr *)(pkt_buf[iter]->payload +
-						 sizeof(struct ethhdr) +
-						 sizeof(struct iphdr)))->dest));
+		fprintf(stdout, "DEBUG>> L4: udp_hdr->src: %d\n", ntohs(udphdr->source));
+		fprintf(stdout, "DEBUG>> L4: udp_hdr->dst: %d\n", ntohs(udphdr->dest));
 		/*extract L5 frame */
-		int payload = *((uint32_t *)(pkt_buf[iter]->payload + PKT_HDR_SIZE));
+		payload = *((uint32_t *)(ptr + PKT_HDR_SIZE));
 
 		if (payload == EOT) {
 			print_verbose("End-of-transmission frame received\n");
