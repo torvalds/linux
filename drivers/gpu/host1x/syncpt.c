@@ -90,6 +90,8 @@ struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 	else
 		sp->client_managed = false;
 
+	kref_init(&sp->ref);
+
 	mutex_unlock(&host->syncpt_mutex);
 	return sp;
 
@@ -383,7 +385,7 @@ int host1x_syncpt_init(struct host1x *host)
  * host1x client drivers can use this function to allocate a syncpoint for
  * subsequent use. A syncpoint returned by this function will be reserved for
  * use by the client exclusively. When no longer using a syncpoint, a host1x
- * client driver needs to release it using host1x_syncpt_free().
+ * client driver needs to release it using host1x_syncpt_put().
  */
 struct host1x_syncpt *host1x_syncpt_request(struct host1x_client *client,
 					    unsigned long flags)
@@ -394,20 +396,9 @@ struct host1x_syncpt *host1x_syncpt_request(struct host1x_client *client,
 }
 EXPORT_SYMBOL(host1x_syncpt_request);
 
-/**
- * host1x_syncpt_free() - free a requested syncpoint
- * @sp: host1x syncpoint
- *
- * Release a syncpoint previously allocated using host1x_syncpt_request(). A
- * host1x client driver should call this when the syncpoint is no longer in
- * use. Note that client drivers must ensure that the syncpoint doesn't remain
- * under the control of hardware after calling this function, otherwise two
- * clients may end up trying to access the same syncpoint concurrently.
- */
-void host1x_syncpt_free(struct host1x_syncpt *sp)
+static void syncpt_release(struct kref *ref)
 {
-	if (!sp)
-		return;
+	struct host1x_syncpt *sp = container_of(ref, struct host1x_syncpt, ref);
 
 	mutex_lock(&sp->host->syncpt_mutex);
 
@@ -419,7 +410,23 @@ void host1x_syncpt_free(struct host1x_syncpt *sp)
 
 	mutex_unlock(&sp->host->syncpt_mutex);
 }
-EXPORT_SYMBOL(host1x_syncpt_free);
+
+/**
+ * host1x_syncpt_put() - free a requested syncpoint
+ * @sp: host1x syncpoint
+ *
+ * Release a syncpoint previously allocated using host1x_syncpt_request(). A
+ * host1x client driver should call this when the syncpoint is no longer in
+ * use.
+ */
+void host1x_syncpt_put(struct host1x_syncpt *sp)
+{
+	if (!sp)
+		return;
+
+	kref_put(&sp->ref, syncpt_release);
+}
+EXPORT_SYMBOL(host1x_syncpt_put);
 
 void host1x_syncpt_deinit(struct host1x *host)
 {
@@ -486,16 +493,48 @@ unsigned int host1x_syncpt_nb_mlocks(struct host1x *host)
 }
 
 /**
- * host1x_syncpt_get() - obtain a syncpoint by ID
+ * host1x_syncpt_get_by_id() - obtain a syncpoint by ID
  * @host: host1x controller
  * @id: syncpoint ID
  */
-struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, unsigned int id)
+struct host1x_syncpt *host1x_syncpt_get_by_id(struct host1x *host,
+					      unsigned int id)
 {
 	if (id >= host->info->nb_pts)
 		return NULL;
 
-	return host->syncpt + id;
+	if (kref_get_unless_zero(&host->syncpt[id].ref))
+		return &host->syncpt[id];
+	else
+		return NULL;
+}
+EXPORT_SYMBOL(host1x_syncpt_get_by_id);
+
+/**
+ * host1x_syncpt_get_by_id_noref() - obtain a syncpoint by ID but don't
+ * 	increase the refcount.
+ * @host: host1x controller
+ * @id: syncpoint ID
+ */
+struct host1x_syncpt *host1x_syncpt_get_by_id_noref(struct host1x *host,
+						    unsigned int id)
+{
+	if (id >= host->info->nb_pts)
+		return NULL;
+
+	return &host->syncpt[id];
+}
+EXPORT_SYMBOL(host1x_syncpt_get_by_id_noref);
+
+/**
+ * host1x_syncpt_get() - increment syncpoint refcount
+ * @sp: syncpoint
+ */
+struct host1x_syncpt *host1x_syncpt_get(struct host1x_syncpt *sp)
+{
+	kref_get(&sp->ref);
+
+	return sp;
 }
 EXPORT_SYMBOL(host1x_syncpt_get);
 

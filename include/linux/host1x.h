@@ -142,7 +142,9 @@ struct host1x_syncpt_base;
 struct host1x_syncpt;
 struct host1x;
 
-struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id);
+struct host1x_syncpt *host1x_syncpt_get_by_id(struct host1x *host, u32 id);
+struct host1x_syncpt *host1x_syncpt_get_by_id_noref(struct host1x *host, u32 id);
+struct host1x_syncpt *host1x_syncpt_get(struct host1x_syncpt *sp);
 u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp);
@@ -153,7 +155,7 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 		       u32 *value);
 struct host1x_syncpt *host1x_syncpt_request(struct host1x_client *client,
 					    unsigned long flags);
-void host1x_syncpt_free(struct host1x_syncpt *sp);
+void host1x_syncpt_put(struct host1x_syncpt *sp);
 struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 					  unsigned long flags,
 					  const char *name);
@@ -221,7 +223,7 @@ struct host1x_job {
 	dma_addr_t *reloc_addr_phys;
 
 	/* Sync point id, number of increments and end related to the submit */
-	u32 syncpt_id;
+	struct host1x_syncpt *syncpt;
 	u32 syncpt_incrs;
 	u32 syncpt_end;
 

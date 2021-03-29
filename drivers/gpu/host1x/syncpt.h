@@ -11,6 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/host1x.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/sched.h>
 
 #include "intr.h"
@@ -26,6 +27,8 @@ struct host1x_syncpt_base {
 };
 
 struct host1x_syncpt {
+	struct kref ref;
+
 	unsigned int id;
 	atomic_t min_val;
 	atomic_t max_val;

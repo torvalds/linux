@@ -37,7 +37,7 @@ struct host1x_cdma_ops {
 	void (*start)(struct host1x_cdma *cdma);
 	void (*stop)(struct host1x_cdma *cdma);
 	void (*flush)(struct  host1x_cdma *cdma);
-	int (*timeout_init)(struct host1x_cdma *cdma, unsigned int syncpt);
+	int (*timeout_init)(struct host1x_cdma *cdma);
 	void (*timeout_destroy)(struct host1x_cdma *cdma);
 	void (*freeze)(struct host1x_cdma *cdma);
 	void (*resume)(struct host1x_cdma *cdma, u32 getptr);
@@ -261,10 +261,9 @@ static inline void host1x_hw_cdma_flush(struct host1x *host,
 }
 
 static inline int host1x_hw_cdma_timeout_init(struct host1x *host,
-					      struct host1x_cdma *cdma,
-					      unsigned int syncpt)
+					      struct host1x_cdma *cdma)
 {
-	return host->cdma_op->timeout_init(cdma, syncpt);
+	return host->cdma_op->timeout_init(cdma);
 }
 
 static inline void host1x_hw_cdma_timeout_destroy(struct host1x *host,

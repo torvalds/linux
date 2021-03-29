@@ -2141,7 +2141,7 @@ cleanup:
 		drm_plane_cleanup(primary);
 
 	host1x_client_iommu_detach(client);
-	host1x_syncpt_free(dc->syncpt);
+	host1x_syncpt_put(dc->syncpt);
 
 	return err;
 }
@@ -2166,7 +2166,7 @@ static int tegra_dc_exit(struct host1x_client *client)
 	}
 
 	host1x_client_iommu_detach(client);
-	host1x_syncpt_free(dc->syncpt);
+	host1x_syncpt_put(dc->syncpt);
 
 	return 0;
 }
