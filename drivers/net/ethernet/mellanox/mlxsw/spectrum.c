@@ -2668,6 +2668,11 @@ mlxsw_sp_sample_trigger_params_set(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_sample_trigger_node_init(mlxsw_sp, &key,
 							 params);
 
+	if (trigger_node->trigger.local_port) {
+		NL_SET_ERR_MSG_MOD(extack, "Sampling already enabled on port");
+		return -EINVAL;
+	}
+
 	if (trigger_node->params.psample_group != params->psample_group ||
 	    trigger_node->params.truncate != params->truncate ||
 	    trigger_node->params.rate != params->rate ||
