@@ -77,8 +77,7 @@ displayid_iter_block(const struct displayid_iter *iter)
 	block = (const struct displayid_block *)&iter->section[iter->idx];
 
 	if (iter->idx + sizeof(*block) <= iter->length &&
-	    iter->idx + sizeof(*block) + block->num_bytes <= iter->length &&
-	    block->num_bytes > 0)
+	    iter->idx + sizeof(*block) + block->num_bytes <= iter->length)
 		return block;
 
 	return NULL;
