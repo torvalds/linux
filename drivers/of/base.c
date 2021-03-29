@@ -1775,7 +1775,7 @@ EXPORT_SYMBOL(of_count_phandle_with_args);
 /**
  * __of_add_property - Add a property to a node without lock operations
  * @np:		Caller's Device Node
- * @prob:	Property to add
+ * @prop:	Property to add
  */
 int __of_add_property(struct device_node *np, struct property *prop)
 {
@@ -1798,7 +1798,7 @@ int __of_add_property(struct device_node *np, struct property *prop)
 /**
  * of_add_property - Add a property to a node
  * @np:		Caller's Device Node
- * @prob:	Property to add
+ * @prop:	Property to add
  */
 int of_add_property(struct device_node *np, struct property *prop)
 {
@@ -1844,7 +1844,7 @@ int __of_remove_property(struct device_node *np, struct property *prop)
 /**
  * of_remove_property - Remove a property from a node.
  * @np:		Caller's Device Node
- * @prob:	Property to remove
+ * @prop:	Property to remove
  *
  * Note that we don't actually remove it, since we have given out
  * who-knows-how-many pointers to the data using get-property.
