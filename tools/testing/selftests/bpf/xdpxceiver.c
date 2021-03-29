@@ -154,19 +154,6 @@ static void *memset32_htonl(void *dest, u32 val, u32 size)
 }
 
 /*
- * This function code has been taken from
- * Linux kernel lib/checksum.c
- */
-static inline unsigned short from32to16(unsigned int x)
-{
-	/* add up 16-bit and 16-bit for 16+c bit */
-	x = (x & 0xffff) + (x >> 16);
-	/* add up carry.. */
-	x = (x & 0xffff) + (x >> 16);
-	return x;
-}
-
-/*
  * Fold a partial checksum
  * This function code has been taken from
  * Linux kernel include/asm-generic/checksum.h
