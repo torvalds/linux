@@ -34,6 +34,7 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 ALL_TESTS="
 	tc_sample_rate_test
 	tc_sample_max_rate_test
+	tc_sample_conflict_test
 	tc_sample_group_conflict_test
 	tc_sample_md_iif_test
 	tc_sample_md_lag_iif_test
@@ -270,6 +271,35 @@ tc_sample_max_rate_test()
 	check_fail $? "Managed to configure sampling rate above maximum"
 
 	log_test "tc sample maximum rate"
+}
+
+tc_sample_conflict_test()
+{
+	RET=0
+
+	# Test that two sampling rules cannot be configured on the same port,
+	# even when they share the same parameters.
+
+	tc filter add dev $rp1 ingress protocol all pref 1 handle 101 matchall \
+		skip_sw action sample rate 1024 group 1
+	check_err $? "Failed to configure sampling rule"
+
+	tc filter add dev $rp1 ingress protocol all pref 2 handle 102 matchall \
+		skip_sw action sample rate 1024 group 1 &> /dev/null
+	check_fail $? "Managed to configure second sampling rule"
+
+	# Delete the first rule and make sure the second rule can now be
+	# configured.
+
+	tc filter del dev $rp1 ingress protocol all pref 1 handle 101 matchall
+
+	tc filter add dev $rp1 ingress protocol all pref 2 handle 102 matchall \
+		skip_sw action sample rate 1024 group 1
+	check_err $? "Failed to configure sampling rule after deletion"
+
+	log_test "tc sample conflict test"
+
+	tc filter del dev $rp1 ingress protocol all pref 2 handle 102 matchall
 }
 
 tc_sample_group_conflict_test()
