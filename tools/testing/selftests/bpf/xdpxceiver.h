@@ -144,12 +144,10 @@ struct ifobject {
 static struct ifobject *ifdict[MAX_INTERFACES];
 
 /*threads*/
-atomic_int spinning_tx;
 atomic_int spinning_rx;
 pthread_mutex_t sync_mutex;
 pthread_mutex_t sync_mutex_tx;
 pthread_cond_t signal_rx_condition;
-pthread_cond_t signal_tx_condition;
 pthread_t t0, t1;
 pthread_attr_t attr;
 
