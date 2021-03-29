@@ -23,6 +23,7 @@
 #define MAX_SOCKS 1
 #define MAX_TEARDOWN_ITER 10
 #define MAX_BIDI_ITER 2
+#define MAX_BPF_ITER 2
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
 			sizeof(struct udphdr))
 #define MIN_PKT_SIZE 64
@@ -63,6 +64,7 @@ enum TEST_TYPES {
 	TEST_TYPE_TEARDOWN,
 	TEST_TYPE_BIDI,
 	TEST_TYPE_STATS,
+	TEST_TYPE_BPF_RES,
 	TEST_TYPE_MAX
 };
 
@@ -77,10 +79,9 @@ enum STAT_TEST_TYPES {
 static int configured_mode = TEST_MODE_UNCONFIGURED;
 static u8 debug_pkt_dump;
 static u32 num_frames;
-static u8 bidi_pass;
+static bool second_step;
 static int test_type;
 
-static int opt_queue;
 static int opt_pkt_count;
 static u8 opt_verbose;
 
@@ -128,6 +129,8 @@ struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
 	struct xsk_socket_info *xsk;
+	struct xsk_socket_info **xsk_arr;
+	struct xsk_umem_info **umem_arr;
 	struct xsk_umem_info *umem;
 	void *(*func_ptr)(void *arg);
 	struct flow_vector fv;
