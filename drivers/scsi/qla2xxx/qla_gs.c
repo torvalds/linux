@@ -3443,6 +3443,10 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			list_for_each_entry(fcport, &vha->vp_fcports, list) {
 				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
 					fcport->scan_state = QLA_FCPORT_SCAN;
+					if (fcport->loop_id == FC_NO_LOOP_ID)
+						fcport->logout_on_delete = 0;
+					else
+						fcport->logout_on_delete = 1;
 				}
 			}
 			goto login_logout;
