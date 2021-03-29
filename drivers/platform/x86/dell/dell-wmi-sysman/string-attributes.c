@@ -155,5 +155,8 @@ void exit_str_attributes(void)
 			sysfs_remove_group(wmi_priv.str_data[instance_id].attr_name_kobj,
 								&str_attr_group);
 	}
+	wmi_priv.str_instances_count = 0;
+
 	kfree(wmi_priv.str_data);
+	wmi_priv.str_data = NULL;
 }

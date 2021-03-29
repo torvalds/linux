@@ -4381,7 +4381,7 @@ static int build_sit_entries(struct f2fs_sb_info *sbi)
 	block_t total_node_blocks = 0;
 
 	do {
-		readed = f2fs_ra_meta_pages(sbi, start_blk, BIO_MAX_PAGES,
+		readed = f2fs_ra_meta_pages(sbi, start_blk, BIO_MAX_VECS,
 							META_SIT, true);
 
 		start = start_blk * sit_i->sents_per_block;

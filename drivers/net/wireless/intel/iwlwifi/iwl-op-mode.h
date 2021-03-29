@@ -205,6 +205,8 @@ static inline void iwl_op_mode_time_point(struct iwl_op_mode *op_mode,
 					  enum iwl_fw_ini_time_point tp_id,
 					  union iwl_dbg_tlv_tp_data *tp_data)
 {
+	if (!op_mode || !op_mode->ops || !op_mode->ops->time_point)
+		return;
 	op_mode->ops->time_point(op_mode, tp_id, tp_data);
 }
 

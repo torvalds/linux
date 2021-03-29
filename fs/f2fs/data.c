@@ -857,7 +857,7 @@ int f2fs_merge_page_bio(struct f2fs_io_info *fio)
 		f2fs_submit_merged_ipu_write(fio->sbi, &bio, NULL);
 alloc_new:
 	if (!bio) {
-		bio = __bio_alloc(fio, BIO_MAX_PAGES);
+		bio = __bio_alloc(fio, BIO_MAX_VECS);
 		__attach_io_flag(fio);
 		f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
 				       fio->page->index, fio, GFP_NOIO);
@@ -932,7 +932,7 @@ alloc_new:
 			fio->retry = true;
 			goto skip;
 		}
-		io->bio = __bio_alloc(fio, BIO_MAX_PAGES);
+		io->bio = __bio_alloc(fio, BIO_MAX_VECS);
 		f2fs_set_bio_crypt_ctx(io->bio, fio->page->mapping->host,
 				       bio_page->index, fio, GFP_NOIO);
 		io->fio = *fio;

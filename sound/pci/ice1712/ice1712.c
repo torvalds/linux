@@ -60,12 +60,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("ICEnsemble ICE1712 (Envy24)");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{"
-	       HOONTECH_DEVICE_DESC
-	       DELTA_DEVICE_DESC
-	       EWS_DEVICE_DESC
-	       "{ICEnsemble,Generic ICE1712},"
-	       "{ICEnsemble,Generic Envy24}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

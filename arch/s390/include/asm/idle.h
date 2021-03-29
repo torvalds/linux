@@ -14,12 +14,12 @@
 
 struct s390_idle_data {
 	seqcount_t seqcount;
-	unsigned long long idle_count;
-	unsigned long long idle_time;
-	unsigned long long clock_idle_enter;
-	unsigned long long clock_idle_exit;
-	unsigned long long timer_idle_enter;
-	unsigned long long timer_idle_exit;
+	unsigned long idle_count;
+	unsigned long idle_time;
+	unsigned long clock_idle_enter;
+	unsigned long clock_idle_exit;
+	unsigned long timer_idle_enter;
+	unsigned long timer_idle_exit;
 	unsigned long mt_cycles_enter[8];
 };
 

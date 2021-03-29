@@ -29,9 +29,6 @@
 MODULE_AUTHOR("Krzysztof Helt");
 MODULE_DESCRIPTION("Gallant SC-6000");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Gallant, SC-6000},"
-			"{AudioExcel, Audio Excel DSP 16},"
-			"{Zoltrix, AV302}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

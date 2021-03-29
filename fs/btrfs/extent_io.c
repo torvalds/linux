@@ -2886,6 +2886,35 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 }
 
 /*
+ * Find extent buffer for a givne bytenr.
+ *
+ * This is for end_bio_extent_readpage(), thus we can't do any unsafe locking
+ * in endio context.
+ */
+static struct extent_buffer *find_extent_buffer_readpage(
+		struct btrfs_fs_info *fs_info, struct page *page, u64 bytenr)
+{
+	struct extent_buffer *eb;
+
+	/*
+	 * For regular sectorsize, we can use page->private to grab extent
+	 * buffer
+	 */
+	if (fs_info->sectorsize == PAGE_SIZE) {
+		ASSERT(PagePrivate(page) && page->private);
+		return (struct extent_buffer *)page->private;
+	}
+
+	/* For subpage case, we need to lookup buffer radix tree */
+	rcu_read_lock();
+	eb = radix_tree_lookup(&fs_info->buffer_radix,
+			       bytenr >> fs_info->sectorsize_bits);
+	rcu_read_unlock();
+	ASSERT(eb);
+	return eb;
+}
+
+/*
  * after a readpage IO is done, we need to:
  * clear the uptodate bits on error
  * set the uptodate bits if things worked
@@ -2996,7 +3025,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 		} else {
 			struct extent_buffer *eb;
 
-			eb = (struct extent_buffer *)page->private;
+			eb = find_extent_buffer_readpage(fs_info, page, start);
 			set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
 			eb->read_mirror = mirror;
 			atomic_dec(&eb->io_pages);
@@ -3020,7 +3049,7 @@ readpage_ok:
 			 */
 			if (page->index == end_index && i_size <= end) {
 				u32 zero_start = max(offset_in_page(i_size),
-						     offset_in_page(end));
+						     offset_in_page(start));
 
 				zero_user_segment(page, zero_start,
 						  offset_in_page(end) + 1);
@@ -3059,7 +3088,7 @@ struct bio *btrfs_bio_alloc(u64 first_byte)
 {
 	struct bio *bio;
 
-	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, &btrfs_bioset);
+	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_VECS, &btrfs_bioset);
 	bio->bi_iter.bi_sector = first_byte >> 9;
 	btrfs_io_bio_init(btrfs_io_bio(bio));
 	return bio;
