@@ -69,7 +69,6 @@
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
-#include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -1060,6 +1059,7 @@ struct sdma_vl_map;
 #define SERIAL_MAX 16 /* length of the serial number */
 
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
+struct hfi1_netdev_rx;
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
 	/* pointers to related structs for this device */
@@ -1402,7 +1402,7 @@ struct hfi1_devdata {
 	/* Lock to protect IRQ SRC register access */
 	spinlock_t irq_src_lock;
 	int vnic_num_vports;
-	struct net_device *dummy_netdev;
+	struct hfi1_netdev_rx *netdev_rx;
 
 	/* Keeps track of IPoIB RSM rule users */
 	atomic_t ipoib_rsm_usr_num;

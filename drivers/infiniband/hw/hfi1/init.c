@@ -1767,7 +1767,7 @@ static void remove_one(struct pci_dev *pdev)
 	hfi1_unregister_ib_device(dd);
 
 	/* free netdev data */
-	hfi1_netdev_free(dd);
+	hfi1_free_rx(dd);
 
 	/*
 	 * Disable the IB link, disable interrupts on the device,

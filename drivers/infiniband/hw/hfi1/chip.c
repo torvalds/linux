@@ -15243,8 +15243,8 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
 		    & CCE_REVISION_SW_MASK);
 
-	/* alloc netdev data */
-	ret = hfi1_netdev_alloc(dd);
+	/* alloc VNIC/AIP rx data */
+	ret = hfi1_alloc_rx(dd);
 	if (ret)
 		goto bail_cleanup;
 
@@ -15348,7 +15348,7 @@ bail_clear_intr:
 	hfi1_comp_vectors_clean_up(dd);
 	msix_clean_up_interrupts(dd);
 bail_cleanup:
-	hfi1_netdev_free(dd);
+	hfi1_free_rx(dd);
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
 	hfi1_free_devdata(dd);
