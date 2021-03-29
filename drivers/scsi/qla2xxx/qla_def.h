@@ -396,6 +396,7 @@ typedef union {
 	} b;
 } port_id_t;
 #define INVALID_PORT_ID	0xFFFFFF
+#define ISP_REG16_DISCONNECT 0xFFFF
 
 static inline le_id_t be_id_to_le(be_id_t id)
 {
@@ -3848,6 +3849,13 @@ struct qla_hw_data_stat {
 	u32 num_mpi_reset;
 };
 
+/* refer to pcie_do_recovery reference */
+typedef enum {
+	QLA_PCI_RESUME,
+	QLA_PCI_ERR_DETECTED,
+	QLA_PCI_MMIO_ENABLED,
+	QLA_PCI_SLOT_RESET,
+} pci_error_state_t;
 /*
  * Qlogic host adapter specific data structure.
 */
@@ -4586,6 +4594,7 @@ struct qla_hw_data {
 #define DEFAULT_ZIO_THRESHOLD 5
 
 	struct qla_hw_data_stat stat;
+	pci_error_state_t pci_error_state;
 };
 
 struct active_regions {
@@ -4706,6 +4715,7 @@ typedef struct scsi_qla_host {
 #define FX00_CRITEMP_RECOVERY	25
 #define FX00_HOST_INFO_RESEND	26
 #define QPAIR_ONLINE_CHECK_NEEDED	27
+#define DO_EEH_RECOVERY		28
 #define DETECT_SFP_CHANGE	29
 #define N2N_LOGIN_NEEDED	30
 #define IOCB_WORK_ACTIVE	31
