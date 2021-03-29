@@ -720,19 +720,30 @@ software_node_find_by_name(const struct software_node *parent, const char *name)
 }
 EXPORT_SYMBOL_GPL(software_node_find_by_name);
 
-static int
-software_node_register_properties(struct software_node *node,
-				  const struct property_entry *properties)
+static struct software_node *software_node_alloc(const struct property_entry *properties)
 {
 	struct property_entry *props;
+	struct software_node *node;
 
 	props = property_entries_dup(properties);
 	if (IS_ERR(props))
-		return PTR_ERR(props);
+		return ERR_CAST(props);
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node) {
+		property_entries_free(props);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	node->properties = props;
 
-	return 0;
+	return node;
+}
+
+static void software_node_free(const struct software_node *node)
+{
+	property_entries_free(node->properties);
+	kfree(node);
 }
 
 static void software_node_release(struct kobject *kobj)
@@ -746,10 +757,9 @@ static void software_node_release(struct kobject *kobj)
 		ida_simple_remove(&swnode_root_ids, swnode->id);
 	}
 
-	if (swnode->allocated) {
-		property_entries_free(swnode->node->properties);
-		kfree(swnode->node);
-	}
+	if (swnode->allocated)
+		software_node_free(swnode->node);
+
 	ida_destroy(&swnode->child_ids);
 	kfree(swnode);
 }
@@ -972,7 +982,6 @@ fwnode_create_software_node(const struct property_entry *properties,
 	struct fwnode_handle *fwnode;
 	struct software_node *node;
 	struct swnode *p = NULL;
-	int ret;
 
 	if (parent) {
 		if (IS_ERR(parent))
@@ -982,23 +991,15 @@ fwnode_create_software_node(const struct property_entry *properties,
 		p = to_swnode(parent);
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return ERR_PTR(-ENOMEM);
-
-	ret = software_node_register_properties(node, properties);
-	if (ret) {
-		kfree(node);
-		return ERR_PTR(ret);
-	}
+	node = software_node_alloc(properties);
+	if (IS_ERR(node))
+		return ERR_CAST(node);
 
 	node->parent = p ? p->node : NULL;
 
 	fwnode = swnode_register(node, p, 1);
-	if (IS_ERR(fwnode)) {
-		property_entries_free(node->properties);
-		kfree(node);
-	}
+	if (IS_ERR(fwnode))
+		software_node_free(node);
 
 	return fwnode;
 }
