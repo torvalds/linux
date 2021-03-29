@@ -45,7 +45,7 @@ struct comp_channel {
 
 #define to_channel(d) container_of(d, struct comp_channel, cdev)
 static struct list_head channel_list;
-static spinlock_t ch_list_lock;
+static DEFINE_SPINLOCK(ch_list_lock);
 
 static inline bool ch_has_mbo(struct comp_channel *c)
 {
@@ -495,7 +495,6 @@ static int __init mod_init(void)
 		return PTR_ERR(comp.class);
 
 	INIT_LIST_HEAD(&channel_list);
-	spin_lock_init(&ch_list_lock);
 	ida_init(&comp.minor_id);
 
 	err = alloc_chrdev_region(&comp.devno, 0, CHRDEV_REGION_SIZE, "cdev");
