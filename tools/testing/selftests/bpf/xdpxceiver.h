@@ -77,7 +77,6 @@ enum STAT_TEST_TYPES {
 static int configured_mode = TEST_MODE_UNCONFIGURED;
 static u8 debug_pkt_dump;
 static u32 num_frames;
-static u8 switching_notify;
 static u8 bidi_pass;
 static int test_type;
 
@@ -126,22 +125,25 @@ struct generic_data {
 };
 
 struct ifobject {
-	int ns_fd;
-	int ifdict_index;
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
-	struct flow_vector fv;
 	struct xsk_socket_info *xsk;
 	struct xsk_umem_info *umem;
-	u8 dst_mac[ETH_ALEN];
-	u8 src_mac[ETH_ALEN];
+	void *(*func_ptr)(void *arg);
+	struct flow_vector fv;
+	int ns_fd;
+	int ifdict_index;
 	u32 dst_ip;
 	u32 src_ip;
 	u16 src_port;
 	u16 dst_port;
+	u8 dst_mac[ETH_ALEN];
+	u8 src_mac[ETH_ALEN];
 };
 
 static struct ifobject *ifdict[MAX_INTERFACES];
+static struct ifobject *ifdict_rx;
+static struct ifobject *ifdict_tx;
 
 /*threads*/
 atomic_int spinning_rx;

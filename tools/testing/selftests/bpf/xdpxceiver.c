@@ -896,26 +896,10 @@ static void testapp_validate(void)
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, THREAD_STACK);
 
-	if ((test_type == TEST_TYPE_BIDI) && bidi_pass) {
-		pthread_init_mutex();
-		if (!switching_notify) {
-			print_verbose("Switching Tx/Rx vectors\n");
-			switching_notify++;
-		}
-	}
-
 	pthread_mutex_lock(&sync_mutex);
 
 	/*Spawn RX thread */
-	if (!bidi || !bidi_pass) {
-		if (pthread_create(&t0, &attr, worker_testapp_validate_rx, ifdict[1]))
-			exit_with_error(errno);
-	} else if (bidi && bidi_pass) {
-		/*switch Tx/Rx vectors */
-		ifdict[0]->fv.vector = rx;
-		if (pthread_create(&t0, &attr, worker_testapp_validate_rx, ifdict[0]))
-			exit_with_error(errno);
-	}
+	pthread_create(&t0, &attr, ifdict_rx->func_ptr, ifdict_rx);
 
 	if (clock_gettime(CLOCK_REALTIME, &max_wait))
 		exit_with_error(errno);
@@ -927,15 +911,7 @@ static void testapp_validate(void)
 	pthread_mutex_unlock(&sync_mutex);
 
 	/*Spawn TX thread */
-	if (!bidi || !bidi_pass) {
-		if (pthread_create(&t1, &attr, worker_testapp_validate_tx, ifdict[0]))
-			exit_with_error(errno);
-	} else if (bidi && bidi_pass) {
-		/*switch Tx/Rx vectors */
-		ifdict[1]->fv.vector = tx;
-		if (pthread_create(&t1, &attr, worker_testapp_validate_tx, ifdict[1]))
-			exit_with_error(errno);
-	}
+	pthread_create(&t1, &attr, ifdict_tx->func_ptr, ifdict_tx);
 
 	pthread_join(t1, NULL);
 	pthread_join(t0, NULL);
@@ -953,17 +929,52 @@ static void testapp_validate(void)
 		print_ksft_result();
 }
 
-static void testapp_sockets(void)
+static void testapp_teardown(void)
 {
-	for (int i = 0; i < ((test_type == TEST_TYPE_TEARDOWN) ? MAX_TEARDOWN_ITER : MAX_BIDI_ITER);
-	     i++) {
+	int i;
+
+	for (i = 0; i < MAX_TEARDOWN_ITER; i++) {
 		pkt_counter = 0;
 		prev_pkt = -1;
 		sigvar = 0;
 		print_verbose("Creating socket\n");
 		testapp_validate();
-		test_type == TEST_TYPE_BIDI ? bidi_pass++ : bidi_pass;
 	}
+
+	print_ksft_result();
+}
+
+static void swap_vectors(struct ifobject *ifobj1, struct ifobject *ifobj2)
+{
+	void *(*tmp_func_ptr)(void *) = ifobj1->func_ptr;
+	enum fvector tmp_vector = ifobj1->fv.vector;
+
+	ifobj1->func_ptr = ifobj2->func_ptr;
+	ifobj1->fv.vector = ifobj2->fv.vector;
+
+	ifobj2->func_ptr = tmp_func_ptr;
+	ifobj2->fv.vector = tmp_vector;
+
+	ifdict_tx = ifobj1;
+	ifdict_rx = ifobj2;
+}
+
+static void testapp_bidi(void)
+{
+	for (int i = 0; i < MAX_BIDI_ITER; i++) {
+		pkt_counter = 0;
+		prev_pkt = -1;
+		sigvar = 0;
+		print_verbose("Creating socket\n");
+		testapp_validate();
+		if (!bidi_pass) {
+			print_verbose("Switching Tx/Rx vectors\n");
+			swap_vectors(ifdict[1], ifdict[0]);
+		}
+		bidi_pass++;
+	}
+
+	swap_vectors(ifdict[0], ifdict[1]);
 
 	print_ksft_result();
 }
@@ -997,7 +1008,7 @@ static void testapp_stats(void)
 static void init_iface(struct ifobject *ifobj, const char *dst_mac,
 		       const char *src_mac, const char *dst_ip,
 		       const char *src_ip, const u16 dst_port,
-		       const u16 src_port)
+		       const u16 src_port, enum fvector vector)
 {
 	struct in_addr ip;
 
@@ -1012,6 +1023,16 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac,
 
 	ifobj->dst_port = dst_port;
 	ifobj->src_port = src_port;
+
+	if (vector == tx) {
+		ifobj->fv.vector = tx;
+		ifobj->func_ptr = worker_testapp_validate_tx;
+		ifdict_tx = ifobj;
+	} else {
+		ifobj->fv.vector = rx;
+		ifobj->func_ptr = worker_testapp_validate_rx;
+		ifdict_rx = ifobj;
+	}
 }
 
 static void run_pkt_test(int mode, int type)
@@ -1021,11 +1042,8 @@ static void run_pkt_test(int mode, int type)
 	/* reset defaults after potential previous test */
 	xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 	pkt_counter = 0;
-	switching_notify = 0;
 	bidi_pass = 0;
 	prev_pkt = -1;
-	ifdict[0]->fv.vector = tx;
-	ifdict[1]->fv.vector = rx;
 	sigvar = 0;
 	stat_test_type = -1;
 	rxqsize = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -1042,16 +1060,20 @@ static void run_pkt_test(int mode, int type)
 		break;
 	}
 
-	pthread_init_mutex();
-
-	if (test_type == TEST_TYPE_STATS)
+	switch (test_type) {
+	case TEST_TYPE_STATS:
 		testapp_stats();
-	else if ((test_type != TEST_TYPE_TEARDOWN) && (test_type != TEST_TYPE_BIDI))
+		break;
+	case TEST_TYPE_TEARDOWN:
+		testapp_teardown();
+		break;
+	case TEST_TYPE_BIDI:
+		testapp_bidi();
+		break;
+	default:
 		testapp_validate();
-	else
-		testapp_sockets();
-
-	pthread_destroy_mutex();
+		break;
+	}
 }
 
 int main(int argc, char **argv)
@@ -1076,13 +1098,12 @@ int main(int argc, char **argv)
 
 	num_frames = ++opt_pkt_count;
 
-	ifdict[0]->fv.vector = tx;
-	init_iface(ifdict[0], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2);
-
-	ifdict[1]->fv.vector = rx;
-	init_iface(ifdict[1], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1);
+	init_iface(ifdict[0], MAC1, MAC2, IP1, IP2, UDP_PORT1, UDP_PORT2, tx);
+	init_iface(ifdict[1], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1, rx);
 
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
+
+	pthread_init_mutex();
 
 	for (i = 0; i < TEST_MODE_MAX; i++) {
 		for (j = 0; j < TEST_TYPE_MAX; j++)
@@ -1094,6 +1115,8 @@ int main(int argc, char **argv)
 			close(ifdict[i]->ns_fd);
 		free(ifdict[i]);
 	}
+
+	pthread_destroy_mutex();
 
 	ksft_exit_pass();
 
