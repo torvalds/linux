@@ -6439,7 +6439,8 @@ static int hclge_add_fd_entry_common(struct hclge_dev *hdev,
 	if (ret)
 		goto out;
 
-	hclge_update_fd_list(hdev, HCLGE_FD_ACTIVE, rule->location, rule);
+	rule->state = HCLGE_FD_ACTIVE;
+	hclge_update_fd_list(hdev, rule->state, rule->location, rule);
 	hdev->fd_active_type = rule->rule_type;
 
 out:
@@ -7002,6 +7003,7 @@ static void hclge_fd_build_arfs_rule(const struct hclge_fd_rule_tuples *tuples,
 	rule->action = 0;
 	rule->vf_id = 0;
 	rule->rule_type = HCLGE_FD_ARFS_ACTIVE;
+	rule->state = HCLGE_FD_TO_ADD;
 	if (tuples->ether_proto == ETH_P_IP) {
 		if (tuples->ip_proto == IPPROTO_TCP)
 			rule->flow_type = TCP_V4_FLOW;
@@ -7064,8 +7066,7 @@ static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 		rule->arfs.flow_id = flow_id;
 		rule->queue_id = queue_id;
 		hclge_fd_build_arfs_rule(&new_tuples, rule);
-		hclge_update_fd_list(hdev, HCLGE_FD_TO_ADD, rule->location,
-				     rule);
+		hclge_update_fd_list(hdev, rule->state, rule->location, rule);
 		hdev->fd_active_type = HCLGE_FD_ARFS_ACTIVE;
 	} else if (rule->queue_id != queue_id) {
 		rule->queue_id = queue_id;
