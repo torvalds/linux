@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-pci.c - PCI Specific glue layer
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com
