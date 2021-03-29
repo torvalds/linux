@@ -213,7 +213,7 @@ static bool support_nvme_encapsulation;
 static bool support_pci_lane_margining;
 
 /* define lock for aen poll */
-static spinlock_t poll_aen_lock;
+static DEFINE_SPINLOCK(poll_aen_lock);
 
 extern struct dentry *megasas_debugfs_root;
 extern int megasas_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
@@ -8933,8 +8933,6 @@ static int __init megasas_init(void)
 	 * Announce driver version and other information
 	 */
 	pr_info("megasas: %s\n", MEGASAS_VERSION);
-
-	spin_lock_init(&poll_aen_lock);
 
 	support_poll_for_event = 2;
 	support_device_change = 1;
