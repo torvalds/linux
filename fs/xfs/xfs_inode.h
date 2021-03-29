@@ -65,6 +65,7 @@ typedef struct xfs_inode {
 	};
 	uint8_t			i_forkoff;	/* attr fork offset >> 3 */
 	uint16_t		i_diflags;	/* XFS_DIFLAG_... */
+	uint64_t		i_diflags2;	/* XFS_DIFLAG2_... */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
@@ -193,7 +194,7 @@ xfs_get_initial_prid(struct xfs_inode *dp)
 
 static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 {
-	return ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK;
+	return ip->i_diflags2 & XFS_DIFLAG2_REFLINK;
 }
 
 static inline bool xfs_is_metadata_inode(struct xfs_inode *ip)
@@ -215,7 +216,7 @@ static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
 
 static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 {
-	return ip->i_d.di_flags2 & XFS_DIFLAG2_BIGTIME;
+	return ip->i_diflags2 & XFS_DIFLAG2_BIGTIME;
 }
 
 /*

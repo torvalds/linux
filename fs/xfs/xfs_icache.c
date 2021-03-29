@@ -63,7 +63,7 @@ xfs_inode_alloc(
 	memset(&ip->i_df, 0, sizeof(ip->i_df));
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
-	ip->i_d.di_flags2 = mp->m_ino_geo.new_diflags2;
+	ip->i_diflags2 = mp->m_ino_geo.new_diflags2;
 	ip->i_nblocks = 0;
 	ip->i_forkoff = 0;
 	ip->i_sick = 0;

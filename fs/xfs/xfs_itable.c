@@ -113,7 +113,7 @@ xfs_bulkstat_one_int(
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
 		buf->bs_btime = dic->di_crtime.tv_sec;
 		buf->bs_btime_nsec = dic->di_crtime.tv_nsec;
-		if (dic->di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
+		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
 			buf->bs_cowextsize_blks = ip->i_cowextsize;
 	}
 

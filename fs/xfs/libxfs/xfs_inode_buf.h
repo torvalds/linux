@@ -16,8 +16,6 @@ struct xfs_dinode;
  * format specific structures at the appropriate time.
  */
 struct xfs_icdinode {
-	uint64_t	di_flags2;	/* more random flags */
-
 	struct timespec64 di_crtime;	/* time created */
 };
 
