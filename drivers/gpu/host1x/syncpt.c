@@ -308,7 +308,7 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 		}
 	}
 
-	host1x_intr_put_ref(sp->host, sp->id, ref);
+	host1x_intr_put_ref(sp->host, sp->id, ref, true);
 
 done:
 	return err;
