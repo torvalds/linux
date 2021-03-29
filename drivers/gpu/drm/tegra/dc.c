@@ -2046,6 +2046,12 @@ static int tegra_dc_init(struct host1x_client *client)
 	int err;
 
 	/*
+	 * DC has been reset by now, so VBLANK syncpoint can be released
+	 * for general use.
+	 */
+	host1x_syncpt_release_vblank_reservation(client, 26 + dc->pipe);
+
+	/*
 	 * XXX do not register DCs with no window groups because we cannot
 	 * assign a primary plane to them, which in turn will cause KMS to
 	 * crash.
