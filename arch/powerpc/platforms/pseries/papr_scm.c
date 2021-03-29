@@ -947,6 +947,15 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	dimm_flags = 0;
 	set_bit(NDD_LABELING, &dimm_flags);
 
+	/*
+	 * Check if the nvdimm is unarmed. No locking needed as we are still
+	 * initializing. Ignore error encountered if any.
+	 */
+	__drc_pmem_query_health(p);
+
+	if (p->health_bitmap & PAPR_PMEM_UNARMED_MASK)
+		set_bit(NDD_UNARMED, &dimm_flags);
+
 	p->nvdimm = nvdimm_create(p->bus, p, papr_nd_attr_groups,
 				  dimm_flags, PAPR_SCM_DIMM_CMD_MASK, 0, NULL);
 	if (!p->nvdimm) {
