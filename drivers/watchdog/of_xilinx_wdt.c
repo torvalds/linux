@@ -71,6 +71,8 @@ static int xilinx_wdt_start(struct watchdog_device *wdd)
 
 	spin_unlock(&xdev->spinlock);
 
+	dev_dbg(wdd->parent, "Watchdog Started!\n");
+
 	return 0;
 }
 
@@ -92,7 +94,7 @@ static int xilinx_wdt_stop(struct watchdog_device *wdd)
 
 	clk_disable(xdev->clk);
 
-	pr_info("Stopped!\n");
+	dev_dbg(wdd->parent, "Watchdog Stopped!\n");
 
 	return 0;
 }
