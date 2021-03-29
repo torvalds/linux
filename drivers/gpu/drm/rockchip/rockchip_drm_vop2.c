@@ -131,7 +131,11 @@
 #define to_vop2_plane_state(x) container_of(x, struct vop2_plane_state, base)
 #define to_wb_state(x) container_of(x, struct vop2_wb_connector_state, base)
 
-
+/*
+ * max two jobs a time, one is running(writing back),
+ * another one will run in next frame.
+ */
+#define VOP2_WB_JOB_MAX      2
 #define VOP2_SYS_AXI_BUS_NUM 2
 
 #define VOP2_CLUSTER_YUV444_10 0x12
@@ -343,10 +347,30 @@ struct vop2_layer {
 	const struct vop2_layer_regs *regs;
 };
 
+struct vop2_wb_job {
+
+	bool pending;
+	/**
+	 * @fs_vsync_cnt: frame start vysnc counter,
+	 * used to get the write back complete event;
+	 */
+	uint32_t fs_vsync_cnt;
+};
+
 struct vop2_wb {
 	uint8_t vp_id;
 	struct drm_writeback_connector conn;
 	const struct vop2_wb_regs *regs;
+	struct vop2_wb_job jobs[VOP2_WB_JOB_MAX];
+	uint8_t job_index;
+
+	/**
+	 * @job_lock:
+	 *
+	 * spinlock to protect the job between vop2_wb_commit and vop2_wb_handler in isr.
+	 */
+	spinlock_t job_lock;
+
 };
 
 enum vop2_wb_format {
@@ -400,17 +424,6 @@ struct vop2_video_port {
 	 *
 	 */
 	bool sdr2hdr_en;
-
-	/**
-	 * @wb_en: write back enabled on this port;
-	 */
-	bool wb_en;
-
-	/**
-	 * @fs_vsync_cnt: frame start vysnc counter,
-	 * used to get the write back complete event;
-	 */
-	uint32_t fs_vsync_cnt;
 
 	/**
 	 * @bg_ovl_dly: The timing delay from background layer
@@ -1899,6 +1912,7 @@ static int vop2_wb_connector_init(struct vop2 *vop2)
 
 	vop2->wb.regs = vop2_data->wb->regs;
 	vop2->wb.conn.encoder.possible_crtcs = (1 << vop2_data->nr_vps) - 1;
+	spin_lock_init(&vop2->wb.job_lock);
 	drm_connector_helper_add(&vop2->wb.conn.base, &vop2_wb_connector_helper_funcs);
 
 	ret = drm_writeback_connector_init(vop2->drm_dev, &vop2->wb.conn,
@@ -1951,6 +1965,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 	struct drm_writeback_connector *wb_conn = &wb->conn;
 	struct drm_connector_state *conn_state = wb_conn->base.state;
 	struct vop2_wb_connector_state *wb_state;
+	unsigned long flags;
 	uint32_t fifo_throd;
 	uint8_t r2y;
 
@@ -1970,6 +1985,13 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		drm_writeback_queue_job(wb_conn, conn_state);
 		conn_state->writeback_job = NULL;
 
+		spin_lock_irqsave(&wb->job_lock, flags);
+		wb->jobs[wb->job_index].pending = true;
+		wb->job_index++;
+		if (wb->job_index >= VOP2_WB_JOB_MAX)
+			wb->job_index = 0;
+		spin_unlock_irqrestore(&wb->job_lock, flags);
+
 		fifo_throd = fb->pitches[0] >> 4;
 		r2y = is_yuv_support(fb->format->format) && (!is_yuv_output(vcstate->bus_format));
 
@@ -1987,8 +2009,6 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		VOP_MODULE_SET(vop2, wb, r2y_en, r2y);
 		VOP_MODULE_SET(vop2, wb, enable, 1);
 		vop2_wb_irqs_enable(vop2);
-		vp->wb_en = true;
-		vp->fs_vsync_cnt = 0;
 	}
 }
 
@@ -5204,6 +5224,52 @@ static u32 vop2_read_and_clear_active_vp_irqs(struct vop2 *vop2, int vp_id)
 	return val;
 }
 
+static void vop2_wb_disable(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_wb *wb = &vop2->wb;
+
+	VOP_MODULE_SET(vop2, wb, enable, 0);
+	vop2_wb_cfg_done(vop2);
+}
+
+static void vop2_wb_handler(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_wb *wb = &vop2->wb;
+	struct vop2_wb_job *job;
+	unsigned long flags;
+	uint8_t wb_en;
+	uint8_t wb_vp_id;
+	uint8_t i;
+
+	wb_en = vop2_readl(vop2, RK3568_WB_CTRL) & 0x01;
+	wb_vp_id = (vop2_readl(vop2, RK3568_LUT_PORT_SEL) >> 8) & 0x3;
+	if (wb_vp_id != vp->id)
+		return;
+	/*
+	 * The write back should work in one shot mode,
+	 * stop when write back complete in next vsync.
+	 */
+	if (wb_en)
+		vop2_wb_disable(vp);
+
+	spin_lock_irqsave(&wb->job_lock, flags);
+	for (i = 0; i < VOP2_WB_JOB_MAX; i++) {
+		job = &wb->jobs[i];
+		if (job->pending) {
+			job->fs_vsync_cnt++;
+
+			if (job->fs_vsync_cnt == 2) {
+				job->pending = false;
+				job->fs_vsync_cnt = 0;
+				drm_writeback_signal_completion(&vop2->wb.conn, 0);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&wb->job_lock, flags);
+}
+
 static irqreturn_t vop2_isr(int irq, void *data)
 {
 	struct vop2 *vop2 = data;
@@ -5212,7 +5278,6 @@ static irqreturn_t vop2_isr(int irq, void *data)
 	const struct vop2_data *vop2_data = vop2->data;
 	size_t vp_max = min_t(size_t, vop2_data->nr_vps, ROCKCHIP_MAX_CRTC);
 	size_t axi_max = min_t(size_t, vop2_data->nr_axi_intr, VOP2_SYS_AXI_BUS_NUM);
-	struct vop2_wb *wb = &vop2->wb;
 	uint32_t vp_irqs[ROCKCHIP_MAX_CRTC];
 	uint32_t axi_irqs[VOP2_SYS_AXI_BUS_NUM];
 	uint32_t active_irqs;
@@ -5274,25 +5339,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & FS_FIELD_INTR) {
-			if (vp->wb_en) {
-				vp->fs_vsync_cnt++;
-				/*
-				 * First frame start, the start of the write back
-				 * we should stop when write back complete.
-				 */
-				if (vp->fs_vsync_cnt == 1) {
-					VOP_MODULE_SET(vop2, wb, enable, 0);
-					vop2_wb_cfg_done(vop2);
-				}
-
-				/*
-				 * Second frame start, write back complete now.
-				 */
-				if (vp->fs_vsync_cnt == 2) {
-					drm_writeback_signal_completion(&vop2->wb.conn, 0);
-					vp->wb_en = 0;
-				}
-			}
+			vop2_wb_handler(vp);
 			drm_crtc_handle_vblank(crtc);
 			vop2_handle_vblank(vop2, crtc);
 			active_irqs &= ~FS_FIELD_INTR;
