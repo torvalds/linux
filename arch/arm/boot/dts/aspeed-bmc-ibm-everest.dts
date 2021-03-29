@@ -59,10 +59,11 @@
 		i2c27 = &i2c14mux0chn0;
 		i2c28 = &i2c14mux0chn1;
 		i2c29 = &i2c14mux0chn2;
-		i2c30 = &i2c14mux1chn0;
-		i2c31 = &i2c14mux1chn1;
-		i2c32 = &i2c14mux1chn2;
-		i2c33 = &i2c14mux1chn3;
+		i2c30 = &i2c14mux0chn3;
+		i2c31 = &i2c14mux1chn0;
+		i2c32 = &i2c14mux1chn1;
+		i2c33 = &i2c14mux1chn2;
+		i2c34 = &i2c14mux1chn3;
 
 		serial4 = &uart5;
 
@@ -455,6 +456,41 @@
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
+			};
+		};
+
+		i2c14mux0chn3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			max31785@52 {
+				compatible = "maxim,max31785a";
+				reg = <0x52>;
+
+				fan@0 {
+					compatible = "pmbus-fan";
+					reg = <0>;
+					tach-pulses = <2>;
+				};
+
+				fan@1 {
+					compatible = "pmbus-fan";
+					reg = <1>;
+					tach-pulses = <2>;
+				};
+
+				fan@2 {
+					compatible = "pmbus-fan";
+					reg = <2>;
+					tach-pulses = <2>;
+				};
+
+				fan@3 {
+					compatible = "pmbus-fan";
+					reg = <3>;
+					tach-pulses = <2>;
+				};
 			};
 		};
 	};
