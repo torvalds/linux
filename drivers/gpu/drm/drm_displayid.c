@@ -33,9 +33,9 @@ static int validate_displayid(const u8 *displayid, int length, int idx)
 	return 0;
 }
 
-const u8 *drm_find_displayid_extension(const struct edid *edid,
-				       int *length, int *idx,
-				       int *ext_index)
+static const u8 *drm_find_displayid_extension(const struct edid *edid,
+					      int *length, int *idx,
+					      int *ext_index)
 {
 	const u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT, ext_index);
 	const struct displayid_hdr *base;

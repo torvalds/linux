@@ -96,18 +96,6 @@ struct displayid_detailed_timing_block {
 	struct displayid_detailed_timings_1 timings[];
 };
 
-#define for_each_displayid_db(displayid, block, idx, length) \
-	for ((block) = (const struct displayid_block *)&(displayid)[idx]; \
-	     (idx) + sizeof(struct displayid_block) <= (length) && \
-	     (idx) + sizeof(struct displayid_block) + (block)->num_bytes <= (length) && \
-	     (block)->num_bytes > 0; \
-	     (idx) += sizeof(struct displayid_block) + (block)->num_bytes, \
-	     (block) = (const struct displayid_block *)&(displayid)[idx])
-
-const u8 *drm_find_displayid_extension(const struct edid *edid,
-				       int *length, int *idx,
-				       int *ext_index);
-
 /* DisplayID iteration */
 struct displayid_iter {
 	const struct edid *edid;

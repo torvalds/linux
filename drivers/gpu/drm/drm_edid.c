@@ -5969,43 +5969,20 @@ static void drm_parse_tiled_block(struct drm_connector *connector,
 	}
 }
 
-static void drm_displayid_parse_tiled(struct drm_connector *connector,
-				      const u8 *displayid, int length, int idx)
-{
-	const struct displayid_block *block;
-
-	idx += sizeof(struct displayid_hdr);
-	for_each_displayid_db(displayid, block, idx, length) {
-		DRM_DEBUG_KMS("block id 0x%x, rev %d, len %d\n",
-			      block->tag, block->rev, block->num_bytes);
-
-		switch (block->tag) {
-		case DATA_BLOCK_TILED_DISPLAY:
-			drm_parse_tiled_block(connector, block);
-			break;
-		default:
-			DRM_DEBUG_KMS("found DisplayID tag 0x%x, unhandled\n", block->tag);
-			break;
-		}
-	}
-}
-
 void drm_update_tile_info(struct drm_connector *connector,
 			  const struct edid *edid)
 {
-	const void *displayid = NULL;
-	int ext_index = 0;
-	int length, idx;
+	const struct displayid_block *block;
+	struct displayid_iter iter;
 
 	connector->has_tile = false;
-	for (;;) {
-		displayid = drm_find_displayid_extension(edid, &length, &idx,
-							 &ext_index);
-		if (!displayid)
-			break;
 
-		drm_displayid_parse_tiled(connector, displayid, length, idx);
+	displayid_iter_edid_begin(edid, &iter);
+	displayid_iter_for_each(block, &iter) {
+		if (block->tag == DATA_BLOCK_TILED_DISPLAY)
+			drm_parse_tiled_block(connector, block);
 	}
+	displayid_iter_end(&iter);
 
 	if (!connector->has_tile && connector->tile_group) {
 		drm_mode_put_tile_group(connector->dev, connector->tile_group);
