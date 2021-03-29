@@ -22,6 +22,10 @@
 #ifndef DRM_DISPLAYID_H
 #define DRM_DISPLAYID_H
 
+#include <linux/types.h>
+
+struct edid;
+
 #define DATA_BLOCK_PRODUCT_ID 0x00
 #define DATA_BLOCK_DISPLAY_PARAMETERS 0x01
 #define DATA_BLOCK_COLOR_CHARACTERISTICS 0x02
@@ -99,5 +103,9 @@ struct displayid_detailed_timing_block {
 	     (block)->num_bytes > 0; \
 	     (idx) += sizeof(struct displayid_block) + (block)->num_bytes, \
 	     (block) = (const struct displayid_block *)&(displayid)[idx])
+
+const u8 *drm_find_displayid_extension(const struct edid *edid,
+				       int *length, int *idx,
+				       int *ext_index);
 
 #endif
