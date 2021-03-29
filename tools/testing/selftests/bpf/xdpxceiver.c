@@ -999,7 +999,7 @@ static void testapp_validate(void)
 	pthread_join(t1, NULL);
 	pthread_join(t0, NULL);
 
-	if (debug_pkt_dump) {
+	if (debug_pkt_dump && test_type != TEST_TYPE_STATS) {
 		worker_pkt_dump();
 		for (int iter = 0; iter < num_frames - 1; iter++) {
 			free(pkt_buf[iter]->payload);
