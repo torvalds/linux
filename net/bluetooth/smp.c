@@ -1628,10 +1628,10 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 	u32 value;
 	int err;
 
-	bt_dev_dbg(conn->hcon->hdev, "");
-
 	if (!conn)
 		return -ENOTCONN;
+
+	bt_dev_dbg(conn->hcon->hdev, "");
 
 	chan = conn->smp;
 	if (!chan)
