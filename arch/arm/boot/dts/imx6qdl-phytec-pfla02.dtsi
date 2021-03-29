@@ -31,6 +31,8 @@
 
 		reg_usb_h1_vbus: regulator@1 {
 			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbh1_vbus>;
 			reg = <1>;
 			regulator-name = "usb_h1_vbus";
 			regulator-min-microvolt = <5000000>;
@@ -332,9 +334,9 @@
 			>;
 		};
 
-		pinctrl_usbh1: usbh1grp {
+		pinctrl_usbh1_vbus: usbh1vbusgrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_0__USB_H1_PWR		0x80000000
+				MX6QDL_PAD_GPIO_0__GPIO1_IO00		0x1b0b0
 			>;
 		};
 
@@ -419,8 +421,6 @@
 
 &usbh1 {
 	vbus-supply = <&reg_usb_h1_vbus>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbh1>;
 	status = "disabled";
 };
 
