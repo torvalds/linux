@@ -64,6 +64,7 @@ typedef struct xfs_inode {
 		uint16_t	i_flushiter;	/* incremented on flush */
 	};
 	uint8_t			i_forkoff;	/* attr fork offset >> 3 */
+	uint16_t		i_diflags;	/* XFS_DIFLAG_... */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
@@ -184,7 +185,7 @@ xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
 static inline prid_t
 xfs_get_initial_prid(struct xfs_inode *dp)
 {
-	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+	if (dp->i_diflags & XFS_DIFLAG_PROJINHERIT)
 		return dp->i_projid;
 
 	return XFS_PROJID_DEFAULT;

@@ -376,7 +376,7 @@ xfs_inode_to_log_dinode(
 	to->di_anextents = xfs_ifork_nextents(ip->i_afp);
 	to->di_forkoff = ip->i_forkoff;
 	to->di_aformat = xfs_ifork_format(ip->i_afp);
-	to->di_flags = from->di_flags;
+	to->di_flags = ip->i_diflags;
 
 	xfs_copy_dm_fields_to_log_dinode(ip, to);
 

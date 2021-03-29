@@ -60,7 +60,7 @@ xfs_get_extsz_hint(
 	 */
 	if (xfs_is_always_cow_inode(ip))
 		return 0;
-	if ((ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE) && ip->i_extsize)
+	if ((ip->i_diflags & XFS_DIFLAG_EXTSIZE) && ip->i_extsize)
 		return ip->i_extsize;
 	if (XFS_IS_REALTIME_INODE(ip))
 		return ip->i_mount->m_sb.sb_rextsize;
@@ -656,7 +656,7 @@ xfs_ip2xflags(
 {
 	struct xfs_icdinode	*dic = &ip->i_d;
 
-	return _xfs_dic2xflags(dic->di_flags, dic->di_flags2, XFS_IFORK_Q(ip));
+	return _xfs_dic2xflags(ip->i_diflags, dic->di_flags2, XFS_IFORK_Q(ip));
 }
 
 /*
@@ -708,42 +708,42 @@ xfs_inode_inherit_flags(
 	umode_t			mode = VFS_I(ip)->i_mode;
 
 	if (S_ISDIR(mode)) {
-		if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
+		if (pip->i_diflags & XFS_DIFLAG_RTINHERIT)
 			di_flags |= XFS_DIFLAG_RTINHERIT;
-		if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
+		if (pip->i_diflags & XFS_DIFLAG_EXTSZINHERIT) {
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 			ip->i_extsize = pip->i_extsize;
 		}
-		if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+		if (pip->i_diflags & XFS_DIFLAG_PROJINHERIT)
 			di_flags |= XFS_DIFLAG_PROJINHERIT;
 	} else if (S_ISREG(mode)) {
-		if ((pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) &&
+		if ((pip->i_diflags & XFS_DIFLAG_RTINHERIT) &&
 		    xfs_sb_version_hasrealtime(&ip->i_mount->m_sb))
 			di_flags |= XFS_DIFLAG_REALTIME;
-		if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
+		if (pip->i_diflags & XFS_DIFLAG_EXTSZINHERIT) {
 			di_flags |= XFS_DIFLAG_EXTSIZE;
 			ip->i_extsize = pip->i_extsize;
 		}
 	}
-	if ((pip->i_d.di_flags & XFS_DIFLAG_NOATIME) &&
+	if ((pip->i_diflags & XFS_DIFLAG_NOATIME) &&
 	    xfs_inherit_noatime)
 		di_flags |= XFS_DIFLAG_NOATIME;
-	if ((pip->i_d.di_flags & XFS_DIFLAG_NODUMP) &&
+	if ((pip->i_diflags & XFS_DIFLAG_NODUMP) &&
 	    xfs_inherit_nodump)
 		di_flags |= XFS_DIFLAG_NODUMP;
-	if ((pip->i_d.di_flags & XFS_DIFLAG_SYNC) &&
+	if ((pip->i_diflags & XFS_DIFLAG_SYNC) &&
 	    xfs_inherit_sync)
 		di_flags |= XFS_DIFLAG_SYNC;
-	if ((pip->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) &&
+	if ((pip->i_diflags & XFS_DIFLAG_NOSYMLINKS) &&
 	    xfs_inherit_nosymlinks)
 		di_flags |= XFS_DIFLAG_NOSYMLINKS;
-	if ((pip->i_d.di_flags & XFS_DIFLAG_NODEFRAG) &&
+	if ((pip->i_diflags & XFS_DIFLAG_NODEFRAG) &&
 	    xfs_inherit_nodefrag)
 		di_flags |= XFS_DIFLAG_NODEFRAG;
-	if (pip->i_d.di_flags & XFS_DIFLAG_FILESTREAM)
+	if (pip->i_diflags & XFS_DIFLAG_FILESTREAM)
 		di_flags |= XFS_DIFLAG_FILESTREAM;
 
-	ip->i_d.di_flags |= di_flags;
+	ip->i_diflags |= di_flags;
 }
 
 /* Propagate di_flags2 from a parent inode to a child inode. */
@@ -840,7 +840,7 @@ xfs_init_new_inode(
 	inode->i_ctime = tv;
 
 	ip->i_extsize = 0;
-	ip->i_d.di_flags = 0;
+	ip->i_diflags = 0;
 
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
 		inode_set_iversion(inode, 1);
@@ -860,7 +860,7 @@ xfs_init_new_inode(
 		break;
 	case S_IFREG:
 	case S_IFDIR:
-		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY))
+		if (pip && (pip->i_diflags & XFS_DIFLAG_ANY))
 			xfs_inode_inherit_flags(ip, pip);
 		if (pip && (pip->i_d.di_flags2 & XFS_DIFLAG2_ANY))
 			xfs_inode_inherit_flags2(ip, pip);
@@ -1287,7 +1287,7 @@ xfs_link(
 	 * creation in our tree when the project IDs are the same; else
 	 * the tree quota mechanism could be circumvented.
 	 */
-	if (unlikely((tdp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
+	if (unlikely((tdp->i_diflags & XFS_DIFLAG_PROJINHERIT) &&
 		     tdp->i_projid != sip->i_projid)) {
 		error = -EXDEV;
 		goto error_return;
@@ -2611,7 +2611,7 @@ xfs_ifree(
 	}
 
 	VFS_I(ip)->i_mode = 0;		/* mark incore inode as free */
-	ip->i_d.di_flags = 0;
+	ip->i_diflags = 0;
 	ip->i_d.di_flags2 = ip->i_mount->m_ino_geo.new_diflags2;
 	ip->i_forkoff = 0;		/* mark the attr fork not in use */
 	ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
@@ -3125,7 +3125,7 @@ xfs_rename(
 	 * into our tree when the project IDs are the same; else the
 	 * tree quota mechanism would be circumvented.
 	 */
-	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
+	if (unlikely((target_dp->i_diflags & XFS_DIFLAG_PROJINHERIT) &&
 		     target_dp->i_projid != src_ip->i_projid)) {
 		error = -EXDEV;
 		goto out_trans_cancel;
