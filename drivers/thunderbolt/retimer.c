@@ -347,7 +347,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	ret = tb_retimer_nvm_add(rt);
 	if (ret) {
 		dev_err(&rt->dev, "failed to add NVM devices: %d\n", ret);
-		device_del(&rt->dev);
+		device_unregister(&rt->dev);
 		return ret;
 	}
 
