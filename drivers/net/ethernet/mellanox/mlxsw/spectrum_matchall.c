@@ -252,7 +252,8 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 
 	act = &f->rule->action.entries[0];
 
-	if (act->id == FLOW_ACTION_MIRRED) {
+	switch (act->id) {
+	case FLOW_ACTION_MIRRED:
 		if (flower_prio_valid && mall_entry->ingress &&
 		    mall_entry->priority >= flower_min_prio) {
 			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
@@ -267,7 +268,8 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		}
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
-	} else if (act->id == FLOW_ACTION_SAMPLE) {
+		break;
+	case FLOW_ACTION_SAMPLE:
 		if (flower_prio_valid &&
 		    mall_entry->priority >= flower_min_prio) {
 			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
@@ -279,7 +281,8 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		mall_entry->sample.params.truncate = act->sample.truncate;
 		mall_entry->sample.params.trunc_size = act->sample.trunc_size;
 		mall_entry->sample.params.rate = act->sample.rate;
-	} else {
+		break;
+	default:
 		err = -EOPNOTSUPP;
 		goto errout;
 	}
