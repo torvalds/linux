@@ -1029,7 +1029,12 @@ void qlt_free_session_done(struct work_struct *work)
 			}
 			msleep(100);
 			cnt++;
-			if (cnt > 200)
+			/*
+			 * Driver timeout is set to 22 Sec, update count value to loop
+			 * long enough for log-out to complete before advancing. Otherwise,
+			 * straddling logout can interfere with re-login attempt.
+			 */
+			if (cnt > 230)
 				break;
 		}
 
