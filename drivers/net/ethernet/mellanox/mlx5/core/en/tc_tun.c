@@ -685,14 +685,14 @@ int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 	u16 vport_num;
 	int err = 0;
 
-	if (flow_attr->ip_version == 4) {
+	if (flow_attr->tun_ip_version == 4) {
 		/* Addresses are swapped for decap */
 		attr.fl.fl4.saddr = esw_attr->rx_tun_attr->dst_ip.v4;
 		attr.fl.fl4.daddr = esw_attr->rx_tun_attr->src_ip.v4;
 		err = mlx5e_route_lookup_ipv4_get(priv, priv->netdev, &attr);
 	}
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
-	else if (flow_attr->ip_version == 6) {
+	else if (flow_attr->tun_ip_version == 6) {
 		/* Addresses are swapped for decap */
 		attr.fl.fl6.saddr = esw_attr->rx_tun_attr->dst_ip.v6;
 		attr.fl.fl6.daddr = esw_attr->rx_tun_attr->src_ip.v6;
@@ -718,10 +718,10 @@ int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 	esw_attr->rx_tun_attr->decap_vport = vport_num;
 
 out:
-	if (flow_attr->ip_version == 4)
+	if (flow_attr->tun_ip_version == 4)
 		mlx5e_route_lookup_ipv4_put(&attr);
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
-	else if (flow_attr->ip_version == 6)
+	else if (flow_attr->tun_ip_version == 6)
 		mlx5e_route_lookup_ipv6_put(&attr);
 #endif
 	return err;

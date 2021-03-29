@@ -27,7 +27,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sébastien Hinderer <Sebastien.Hinderer@ens-lyon.org>");
 MODULE_DESCRIPTION("A power_off handler for Iris devices from EuroBraille");
-MODULE_SUPPORTED_DEVICE("Eurobraille/Iris");
 
 static bool force;
 
