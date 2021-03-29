@@ -97,7 +97,7 @@ static int instance;
 
 static struct list_head online_list;
 static struct list_head removing_list;
-static spinlock_t dev_lock;
+static DEFINE_SPINLOCK(dev_lock);
 
 /*
  * Global variable used to hold the major block device number
@@ -4362,8 +4362,6 @@ static int __init mtip_init(void)
 	int error;
 
 	pr_info(MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
-
-	spin_lock_init(&dev_lock);
 
 	INIT_LIST_HEAD(&online_list);
 	INIT_LIST_HEAD(&removing_list);
