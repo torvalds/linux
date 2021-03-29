@@ -5333,27 +5333,16 @@ static int add_displayid_detailed_1_modes(struct drm_connector *connector,
 static int add_displayid_detailed_modes(struct drm_connector *connector,
 					struct edid *edid)
 {
-	const u8 *displayid;
-	int length, idx;
 	const struct displayid_block *block;
+	struct displayid_iter iter;
 	int num_modes = 0;
-	int ext_index = 0;
 
-	for (;;) {
-		displayid = drm_find_displayid_extension(edid, &length, &idx,
-							 &ext_index);
-		if (!displayid)
-			break;
-
-		idx += sizeof(struct displayid_hdr);
-		for_each_displayid_db(displayid, block, idx, length) {
-			switch (block->tag) {
-			case DATA_BLOCK_TYPE_1_DETAILED_TIMING:
-				num_modes += add_displayid_detailed_1_modes(connector, block);
-				break;
-			}
-		}
+	displayid_iter_edid_begin(edid, &iter);
+	displayid_iter_for_each(block, &iter) {
+		if (block->tag == DATA_BLOCK_TYPE_1_DETAILED_TIMING)
+			num_modes += add_displayid_detailed_1_modes(connector, block);
 	}
+	displayid_iter_end(&iter);
 
 	return num_modes;
 }
