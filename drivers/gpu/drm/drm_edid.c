@@ -3266,35 +3266,28 @@ const u8 *drm_find_edid_extension(const struct edid *edid,
 
 static const u8 *drm_find_cea_extension(const struct edid *edid)
 {
-	int length, idx;
 	const struct displayid_block *block;
+	struct displayid_iter iter;
 	const u8 *cea;
-	const u8 *displayid;
-	int ext_index;
+	int ext_index = 0;
 
 	/* Look for a top level CEA extension block */
 	/* FIXME: make callers iterate through multiple CEA ext blocks? */
-	ext_index = 0;
 	cea = drm_find_edid_extension(edid, CEA_EXT, &ext_index);
 	if (cea)
 		return cea;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
-	ext_index = 0;
-	for (;;) {
-		displayid = drm_find_displayid_extension(edid, &length, &idx,
-							 &ext_index);
-		if (!displayid)
-			return NULL;
-
-		idx += sizeof(struct displayid_hdr);
-		for_each_displayid_db(displayid, block, idx, length) {
-			if (block->tag == DATA_BLOCK_CTA)
-				return (const u8 *)block;
+	displayid_iter_edid_begin(edid, &iter);
+	displayid_iter_for_each(block, &iter) {
+		if (block->tag == DATA_BLOCK_CTA) {
+			cea = (const u8 *)block;
+			break;
 		}
 	}
+	displayid_iter_end(&iter);
 
-	return NULL;
+	return cea;
 }
 
 static __always_inline const struct drm_display_mode *cea_mode_for_vic(u8 vic)
