@@ -1240,12 +1240,11 @@ static void hclgevf_sync_promisc_mode(struct hclgevf_dev *hdev)
 	}
 }
 
-static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, unsigned int tqp_id,
-			      int stream_id, bool enable)
+static int hclgevf_tqp_enable_cmd_send(struct hclgevf_dev *hdev, u16 tqp_id,
+				       u16 stream_id, bool enable)
 {
 	struct hclgevf_cfg_com_tqp_queue_cmd *req;
 	struct hclgevf_desc desc;
-	int status;
 
 	req = (struct hclgevf_cfg_com_tqp_queue_cmd *)desc.data;
 
@@ -1256,12 +1255,22 @@ static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, unsigned int tqp_id,
 	if (enable)
 		req->enable |= 1U << HCLGEVF_TQP_ENABLE_B;
 
-	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
-	if (status)
-		dev_err(&hdev->pdev->dev,
-			"TQP enable fail, status =%d.\n", status);
+	return hclgevf_cmd_send(&hdev->hw, &desc, 1);
+}
 
-	return status;
+static int hclgevf_tqp_enable(struct hnae3_handle *handle, bool enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	int ret;
+	u16 i;
+
+	for (i = 0; i < handle->kinfo.num_tqps; i++) {
+		ret = hclgevf_tqp_enable_cmd_send(hdev, i, 0, enable);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
@@ -1710,20 +1719,39 @@ static int hclgevf_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
 }
 
-static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
+static int hclgevf_reset_tqp(struct hnae3_handle *handle)
 {
+#define HCLGEVF_RESET_ALL_QUEUE_DONE	1U
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclge_vf_to_pf_msg send_msg;
+	u8 return_status = 0;
 	int ret;
+	u16 i;
 
 	/* disable vf queue before send queue reset msg to PF */
-	ret = hclgevf_tqp_enable(hdev, queue_id, 0, false);
-	if (ret)
+	ret = hclgevf_tqp_enable(handle, false);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "failed to disable tqp, ret = %d\n",
+			ret);
 		return ret;
+	}
 
 	hclgevf_build_send_msg(&send_msg, HCLGE_MBX_QUEUE_RESET, 0);
-	memcpy(send_msg.data, &queue_id, sizeof(queue_id));
-	return hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
+
+	ret = hclgevf_send_mbx_msg(hdev, &send_msg, true, &return_status,
+				   sizeof(return_status));
+	if (ret || return_status == HCLGEVF_RESET_ALL_QUEUE_DONE)
+		return ret;
+
+	for (i = 1; i < handle->kinfo.num_tqps; i++) {
+		hclgevf_build_send_msg(&send_msg, HCLGE_MBX_QUEUE_RESET, 0);
+		memcpy(send_msg.data, &i, sizeof(i));
+		ret = hclgevf_send_mbx_msg(hdev, &send_msg, true, NULL, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
@@ -2636,14 +2664,11 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 static void hclgevf_ae_stop(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	int i;
 
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 
 	if (hdev->reset_type != HNAE3_VF_RESET)
-		for (i = 0; i < handle->kinfo.num_tqps; i++)
-			if (hclgevf_reset_tqp(handle, i))
-				break;
+		hclgevf_reset_tqp(handle);
 
 	hclgevf_reset_tqp_stats(handle);
 	hclgevf_update_link_status(hdev, 0);

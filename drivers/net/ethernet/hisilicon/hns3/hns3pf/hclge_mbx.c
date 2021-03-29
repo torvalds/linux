@@ -550,14 +550,32 @@ static void hclge_get_link_mode(struct hclge_vport *vport,
 			   HCLGE_MBX_LINK_STAT_MODE, dest_vfid);
 }
 
-static void hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
-				     struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+static int hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+				    struct hclge_respond_to_vf_msg *resp_msg)
 {
+#define HCLGE_RESET_ALL_QUEUE_DONE	1U
+	struct hnae3_handle *handle = &vport->nic;
+	struct hclge_dev *hdev = vport->back;
 	u16 queue_id;
+	int ret;
 
 	memcpy(&queue_id, mbx_req->msg.data, sizeof(queue_id));
+	resp_msg->data[0] = HCLGE_RESET_ALL_QUEUE_DONE;
+	resp_msg->len = sizeof(u8);
 
-	hclge_reset_vf_queue(vport, queue_id);
+	/* pf will reset vf's all queues at a time. So it is unnecessary
+	 * to reset queues if queue_id > 0, just return success.
+	 */
+	if (queue_id > 0)
+		return 0;
+
+	ret = hclge_reset_tqp(handle);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "failed to reset vf %u queue, ret = %d\n",
+			vport->vport_id - HCLGE_VF_VPORT_START_NUM, ret);
+
+	return ret;
 }
 
 static int hclge_reset_vf(struct hclge_vport *vport)
@@ -783,7 +801,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					ret);
 			break;
 		case HCLGE_MBX_QUEUE_RESET:
-			hclge_mbx_reset_vf_queue(vport, req);
+			ret = hclge_mbx_reset_vf_queue(vport, req, &resp_msg);
 			break;
 		case HCLGE_MBX_RESET:
 			ret = hclge_reset_vf(vport);

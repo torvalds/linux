@@ -7797,13 +7797,12 @@ static int hclge_set_phy_loopback(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-static int hclge_tqp_enable(struct hclge_dev *hdev, unsigned int tqp_id,
-			    int stream_id, bool enable)
+static int hclge_tqp_enable_cmd_send(struct hclge_dev *hdev, u16 tqp_id,
+				     u16 stream_id, bool enable)
 {
 	struct hclge_desc desc;
 	struct hclge_cfg_com_tqp_queue_cmd *req =
 		(struct hclge_cfg_com_tqp_queue_cmd *)desc.data;
-	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_COM_TQP_QUEUE, false);
 	req->tqp_id = cpu_to_le16(tqp_id);
@@ -7811,20 +7810,30 @@ static int hclge_tqp_enable(struct hclge_dev *hdev, unsigned int tqp_id,
 	if (enable)
 		req->enable |= 1U << HCLGE_TQP_ENABLE_B;
 
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		dev_err(&hdev->pdev->dev,
-			"Tqp enable fail, status =%d.\n", ret);
-	return ret;
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
+static int hclge_tqp_enable(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+	u16 i;
+
+	for (i = 0; i < handle->kinfo.num_tqps; i++) {
+		ret = hclge_tqp_enable_cmd_send(hdev, i, 0, enable);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static int hclge_set_loopback(struct hnae3_handle *handle,
 			      enum hnae3_loop loop_mode, bool en)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hnae3_knic_private_info *kinfo;
 	struct hclge_dev *hdev = vport->back;
-	int i, ret;
+	int ret;
 
 	/* Loopback can be enabled in three places: SSU, MAC, and serdes. By
 	 * default, SSU loopback is enabled, so if the SMAC and the DMAC are
@@ -7861,14 +7870,12 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 	if (ret)
 		return ret;
 
-	kinfo = &vport->nic.kinfo;
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		ret = hclge_tqp_enable(hdev, i, 0, en);
-		if (ret)
-			return ret;
-	}
+	ret = hclge_tqp_enable(handle, en);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "failed to %s tqp in loopback, ret = %d\n",
+			en ? "enable" : "disable", ret);
 
-	return 0;
+	return ret;
 }
 
 static int hclge_set_default_loopback(struct hclge_dev *hdev)
@@ -7955,7 +7962,6 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i;
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 	spin_lock_bh(&hdev->fd_rule_lock);
@@ -7972,8 +7978,7 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 		return;
 	}
 
-	for (i = 0; i < handle->kinfo.num_tqps; i++)
-		hclge_reset_tqp(handle, i);
+	hclge_reset_tqp(handle);
 
 	hclge_config_mac_tnl_int(hdev, false);
 
@@ -10347,7 +10352,7 @@ out:
 	return ret;
 }
 
-static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
+static int hclge_reset_tqp_cmd_send(struct hclge_dev *hdev, u16 queue_id,
 				    bool enable)
 {
 	struct hclge_reset_tqp_queue_cmd *req;
@@ -10403,94 +10408,114 @@ u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle, u16 queue_id)
 	return tqp->index;
 }
 
-int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
+static int hclge_reset_tqp_cmd(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int reset_try_times = 0;
+	u16 reset_try_times = 0;
 	int reset_status;
 	u16 queue_gid;
 	int ret;
+	u16 i;
 
-	queue_gid = hclge_covert_handle_qid_global(handle, queue_id);
+	for (i = 0; i < handle->kinfo.num_tqps; i++) {
+		queue_gid = hclge_covert_handle_qid_global(handle, i);
+		ret = hclge_reset_tqp_cmd_send(hdev, queue_gid, true);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to send reset tqp cmd, ret = %d\n",
+				ret);
+			return ret;
+		}
 
-	ret = hclge_tqp_enable(hdev, queue_id, 0, false);
-	if (ret) {
-		dev_err(&hdev->pdev->dev, "Disable tqp fail, ret = %d\n", ret);
-		return ret;
+		while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
+			reset_status = hclge_get_reset_status(hdev, queue_gid);
+			if (reset_status)
+				break;
+
+			/* Wait for tqp hw reset */
+			usleep_range(1000, 1200);
+		}
+
+		if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
+			dev_err(&hdev->pdev->dev,
+				"wait for tqp hw reset timeout\n");
+			return -ETIME;
+		}
+
+		ret = hclge_reset_tqp_cmd_send(hdev, queue_gid, false);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to deassert soft reset, ret = %d\n",
+				ret);
+			return ret;
+		}
+		reset_try_times = 0;
 	}
-
-	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, true);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Send reset tqp cmd fail, ret = %d\n", ret);
-		return ret;
-	}
-
-	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
-		reset_status = hclge_get_reset_status(hdev, queue_gid);
-		if (reset_status)
-			break;
-
-		/* Wait for tqp hw reset */
-		usleep_range(1000, 1200);
-	}
-
-	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
-		dev_err(&hdev->pdev->dev, "Reset TQP fail\n");
-		return ret;
-	}
-
-	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, false);
-	if (ret)
-		dev_err(&hdev->pdev->dev,
-			"Deassert the soft reset fail, ret = %d\n", ret);
-
-	return ret;
+	return 0;
 }
 
-void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
+static int hclge_reset_rcb(struct hnae3_handle *handle)
 {
-	struct hnae3_handle *handle = &vport->nic;
+#define HCLGE_RESET_RCB_NOT_SUPPORT	0U
+#define HCLGE_RESET_RCB_SUCCESS		1U
+
+	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int reset_try_times = 0;
-	int reset_status;
+	struct hclge_reset_cmd *req;
+	struct hclge_desc desc;
+	u8 return_status;
 	u16 queue_gid;
 	int ret;
 
-	if (queue_id >= handle->kinfo.num_tqps) {
-		dev_warn(&hdev->pdev->dev, "Invalid vf queue id(%u)\n",
-			 queue_id);
-		return;
-	}
+	queue_gid = hclge_covert_handle_qid_global(handle, 0);
 
-	queue_gid = hclge_covert_handle_qid_global(&vport->nic, queue_id);
+	req = (struct hclge_reset_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_RST_TRIGGER, false);
+	hnae3_set_bit(req->fun_reset_rcb, HCLGE_CFG_RESET_RCB_B, 1);
+	req->fun_reset_rcb_vqid_start = cpu_to_le16(queue_gid);
+	req->fun_reset_rcb_vqid_num = cpu_to_le16(handle->kinfo.num_tqps);
 
-	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_warn(&hdev->pdev->dev,
-			 "Send reset tqp cmd fail, ret = %d\n", ret);
-		return;
+		dev_err(&hdev->pdev->dev,
+			"failed to send rcb reset cmd, ret = %d\n", ret);
+		return ret;
 	}
 
-	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
-		reset_status = hclge_get_reset_status(hdev, queue_gid);
-		if (reset_status)
-			break;
+	return_status = req->fun_reset_rcb_return_status;
+	if (return_status == HCLGE_RESET_RCB_SUCCESS)
+		return 0;
 
-		/* Wait for tqp hw reset */
-		usleep_range(1000, 1200);
+	if (return_status != HCLGE_RESET_RCB_NOT_SUPPORT) {
+		dev_err(&hdev->pdev->dev, "failed to reset rcb, ret = %u\n",
+			return_status);
+		return -EIO;
 	}
 
-	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
-		dev_warn(&hdev->pdev->dev, "Reset TQP fail\n");
-		return;
+	/* if reset rcb cmd is unsupported, we need to send reset tqp cmd
+	 * again to reset all tqps
+	 */
+	return hclge_reset_tqp_cmd(handle);
+}
+
+int hclge_reset_tqp(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	/* only need to disable PF's tqp */
+	if (!vport->vport_id) {
+		ret = hclge_tqp_enable(handle, false);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to disable tqp, ret = %d\n", ret);
+			return ret;
+		}
 	}
 
-	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, false);
-	if (ret)
-		dev_warn(&hdev->pdev->dev,
-			 "Deassert the soft reset fail, ret = %d\n", ret);
+	return hclge_reset_rcb(handle);
 }
 
 static u32 hclge_get_fw_version(struct hnae3_handle *handle)

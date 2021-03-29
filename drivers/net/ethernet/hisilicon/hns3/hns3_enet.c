@@ -4455,11 +4455,11 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 	int i, j;
 	int ret;
 
-	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		ret = h->ae_algo->ops->reset_queue(h, i);
-		if (ret)
-			return ret;
+	ret = h->ae_algo->ops->reset_queue(h);
+	if (ret)
+		return ret;
 
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		hns3_init_ring_hw(&priv->ring[i]);
 
 		/* We need to clear tx ring here because self test will
