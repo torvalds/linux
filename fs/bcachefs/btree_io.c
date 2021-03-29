@@ -578,6 +578,10 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		mutex_unlock(&c->sb_lock);
 	}
 
+	btree_err_on(BSET_SEPARATE_WHITEOUTS(i),
+		     BTREE_ERR_FATAL, c, ca, b, i,
+		     "BSET_SEPARATE_WHITEOUTS no longer supported");
+
 	if (btree_err_on(b->written + sectors > c->opts.btree_node_size,
 			 BTREE_ERR_FIXABLE, c, ca, b, i,
 			 "bset past end of btree node")) {
@@ -660,13 +664,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 {
 	unsigned version = le16_to_cpu(i->version);
 	struct bkey_packed *k, *prev = NULL;
-	bool seen_non_whiteout = false;
 	int ret = 0;
-
-	if (!BSET_SEPARATE_WHITEOUTS(i)) {
-		seen_non_whiteout = true;
-		*whiteout_u64s = 0;
-	}
 
 	for (k = i->start;
 	     k != vstruct_last(i);) {
@@ -719,18 +717,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				    BSET_BIG_ENDIAN(i), write,
 				    &b->format, k);
 
-		/*
-		 * with the separate whiteouts thing (used for extents), the
-		 * second set of keys actually can have whiteouts too, so we
-		 * can't solely go off bkey_deleted()...
-		 */
-
-		if (!seen_non_whiteout &&
-		    (!bkey_deleted(k) ||
-		     (prev && bkey_iter_cmp(b, prev, k) > 0))) {
-			*whiteout_u64s = k->_data - i->_data;
-			seen_non_whiteout = true;
-		} else if (prev && bkey_iter_cmp(b, prev, k) > 0) {
+		if (prev && bkey_iter_cmp(b, prev, k) > 0) {
 			char buf1[80];
 			char buf2[80];
 			struct bkey up = bkey_unpack_key(b, prev);
@@ -739,10 +726,15 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			bch2_bkey_to_text(&PBUF(buf2), u.k);
 
 			bch2_dump_bset(c, b, i, 0);
-			btree_err(BTREE_ERR_FATAL, c, NULL, b, i,
-				  "keys out of order: %s > %s",
-				  buf1, buf2);
-			/* XXX: repair this */
+
+			if (btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i,
+				      "keys out of order: %s > %s",
+				      buf1, buf2)) {
+				i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
+				memmove_u64s_down(k, bkey_next(k),
+						  (u64 *) vstruct_end(i) - (u64 *) k);
+				continue;
+			}
 		}
 
 		prev = k;
