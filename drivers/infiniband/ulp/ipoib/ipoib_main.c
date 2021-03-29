@@ -1181,7 +1181,12 @@ unref:
 static void ipoib_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
 
+	if (rn->tx_timeout) {
+		rn->tx_timeout(dev, txqueue);
+		return;
+	}
 	ipoib_warn(priv, "transmit timeout: latency %d msecs\n",
 		   jiffies_to_msecs(jiffies - dev_trans_start(dev)));
 	ipoib_warn(priv,

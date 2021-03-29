@@ -147,4 +147,6 @@ int hfi1_ipoib_rn_get_params(struct ib_device *device,
 			     enum rdma_netdev_t type,
 			     struct rdma_netdev_alloc_params *params);
 
+void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q);
+
 #endif /* _IPOIB_H */

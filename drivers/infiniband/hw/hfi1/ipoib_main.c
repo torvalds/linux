@@ -204,6 +204,7 @@ static int hfi1_ipoib_setup_rn(struct ib_device *device,
 	int rc;
 
 	rn->send = hfi1_ipoib_send;
+	rn->tx_timeout = hfi1_ipoib_tx_timeout;
 	rn->attach_mcast = hfi1_ipoib_mcast_attach;
 	rn->detach_mcast = hfi1_ipoib_mcast_detach;
 	rn->set_id = hfi1_ipoib_set_id;

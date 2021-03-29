@@ -866,3 +866,32 @@ void hfi1_ipoib_napi_tx_disable(struct net_device *dev)
 		(void)hfi1_ipoib_drain_tx_ring(txq, txq->tx_ring.max_items);
 	}
 }
+
+void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q)
+{
+	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
+	struct hfi1_ipoib_txq *txq = &priv->txqs[q];
+	u64 completed = atomic64_read(&txq->complete_txreqs);
+
+	dd_dev_info(priv->dd, "timeout txq %llx q %u stopped %u stops %d no_desc %d ring_full %d\n",
+		    (unsigned long long)txq, q,
+		    __netif_subqueue_stopped(dev, txq->q_idx),
+		    atomic_read(&txq->stops),
+		    atomic_read(&txq->no_desc),
+		    atomic_read(&txq->ring_full));
+	dd_dev_info(priv->dd, "sde %llx engine %u\n",
+		    (unsigned long long)txq->sde,
+		    txq->sde ? txq->sde->this_idx : 0);
+	dd_dev_info(priv->dd, "flow %x\n", txq->flow.as_int);
+	dd_dev_info(priv->dd, "sent %llu completed %llu used %llu\n",
+		    txq->sent_txreqs, completed, hfi1_ipoib_used(txq));
+	dd_dev_info(priv->dd, "tx_queue_len %u max_items %lu\n",
+		    dev->tx_queue_len, txq->tx_ring.max_items);
+	dd_dev_info(priv->dd, "head %lu tail %lu\n",
+		    txq->tx_ring.head, txq->tx_ring.tail);
+	dd_dev_info(priv->dd, "wait queued %u\n",
+		    !list_empty(&txq->wait.list));
+	dd_dev_info(priv->dd, "tx_list empty %u\n",
+		    list_empty(&txq->tx_list));
+}
+
