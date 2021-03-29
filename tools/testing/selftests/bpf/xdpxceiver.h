@@ -37,7 +37,6 @@
 #define TMOUT_SEC (3)
 #define EOT (-1)
 #define USLEEP_MAX 200000
-#define THREAD_STACK 60000000
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
 #define POLL_TMOUT 1000
@@ -152,7 +151,6 @@ static struct ifobject *ifdict_tx;
 pthread_mutex_t sync_mutex;
 pthread_cond_t signal_rx_condition;
 pthread_t t0, t1;
-pthread_attr_t attr;
 
 TAILQ_HEAD(head_s, pkt) head = TAILQ_HEAD_INITIALIZER(head);
 struct head_s *head_p;

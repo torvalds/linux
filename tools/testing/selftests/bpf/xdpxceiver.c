@@ -764,8 +764,6 @@ static void thread_common_ops(struct ifobject *ifobject, void *bufs)
 	int ctr = 0;
 	int ret;
 
-	pthread_attr_setstacksize(&attr, THREAD_STACK);
-
 	ifobject->ns_fd = switch_namespace(ifobject->nsname);
 
 	if (test_type == TEST_TYPE_BPF_RES)
@@ -909,13 +907,10 @@ static void testapp_validate(void)
 	bool bidi = test_type == TEST_TYPE_BIDI;
 	bool bpf = test_type == TEST_TYPE_BPF_RES;
 
-	pthread_attr_init(&attr);
-	pthread_attr_setstacksize(&attr, THREAD_STACK);
-
 	pthread_mutex_lock(&sync_mutex);
 
 	/*Spawn RX thread */
-	pthread_create(&t0, &attr, ifdict_rx->func_ptr, ifdict_rx);
+	pthread_create(&t0, NULL, ifdict_rx->func_ptr, ifdict_rx);
 
 	if (clock_gettime(CLOCK_REALTIME, &max_wait))
 		exit_with_error(errno);
@@ -927,7 +922,7 @@ static void testapp_validate(void)
 	pthread_mutex_unlock(&sync_mutex);
 
 	/*Spawn TX thread */
-	pthread_create(&t1, &attr, ifdict_tx->func_ptr, ifdict_tx);
+	pthread_create(&t1, NULL, ifdict_tx->func_ptr, ifdict_tx);
 
 	pthread_join(t1, NULL);
 	pthread_join(t0, NULL);
