@@ -1755,7 +1755,7 @@ static struct platform_driver pxp_driver = {
 	.remove		= pxp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
-		.of_match_table = of_match_ptr(pxp_dt_ids),
+		.of_match_table = pxp_dt_ids,
 	},
 };
 
