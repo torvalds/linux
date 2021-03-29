@@ -209,7 +209,7 @@ static void hfi1_ipoib_add_tx(struct ipoib_txreq *tx)
 
 		/* Finish storing txreq before incrementing head. */
 		smp_store_release(&tx_ring->head, CIRC_ADD(head, 1, max_tx));
-		napi_schedule(tx->txq->napi);
+		napi_schedule_irqoff(tx->txq->napi);
 	} else {
 		struct hfi1_ipoib_txq *txq = tx->txq;
 		struct hfi1_ipoib_dev_priv *priv = tx->priv;
