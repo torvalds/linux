@@ -1585,7 +1585,7 @@ module_param_named(edid_fixup, edid_fixup, int, 0400);
 MODULE_PARM_DESC(edid_fixup,
 		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
-static int validate_displayid(u8 *displayid, int length, int idx);
+static int validate_displayid(const u8 *displayid, int length, int idx);
 
 static int drm_edid_block_checksum(const u8 *raw_edid)
 {
@@ -3241,10 +3241,10 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_edid_extension(const struct edid *edid,
-				   int ext_id, int *ext_index)
+static const u8 *drm_find_edid_extension(const struct edid *edid,
+					 int ext_id, int *ext_index)
 {
-	u8 *edid_ext = NULL;
+	const u8 *edid_ext = NULL;
 	int i;
 
 	/* No EDID or EDID extensions */
@@ -3253,7 +3253,7 @@ static u8 *drm_find_edid_extension(const struct edid *edid,
 
 	/* Find CEA extension */
 	for (i = *ext_index; i < edid->extensions; i++) {
-		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
+		edid_ext = (const u8 *)edid + EDID_LENGTH * (i + 1);
 		if (edid_ext[0] == ext_id)
 			break;
 	}
@@ -3267,12 +3267,12 @@ static u8 *drm_find_edid_extension(const struct edid *edid,
 }
 
 
-static u8 *drm_find_displayid_extension(const struct edid *edid,
-					int *length, int *idx,
-					int *ext_index)
+static const u8 *drm_find_displayid_extension(const struct edid *edid,
+					      int *length, int *idx,
+					      int *ext_index)
 {
-	u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT, ext_index);
-	struct displayid_hdr *base;
+	const u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT, ext_index);
+	const struct displayid_hdr *base;
 	int ret;
 
 	if (!displayid)
@@ -3286,18 +3286,18 @@ static u8 *drm_find_displayid_extension(const struct edid *edid,
 	if (ret)
 		return NULL;
 
-	base = (struct displayid_hdr *)&displayid[*idx];
+	base = (const struct displayid_hdr *)&displayid[*idx];
 	*length = *idx + sizeof(*base) + base->bytes;
 
 	return displayid;
 }
 
-static u8 *drm_find_cea_extension(const struct edid *edid)
+static const u8 *drm_find_cea_extension(const struct edid *edid)
 {
 	int length, idx;
-	struct displayid_block *block;
-	u8 *cea;
-	u8 *displayid;
+	const struct displayid_block *block;
+	const u8 *cea;
+	const u8 *displayid;
 	int ext_index;
 
 	/* Look for a top level CEA extension block */
@@ -3318,7 +3318,7 @@ static u8 *drm_find_cea_extension(const struct edid *edid)
 		idx += sizeof(struct displayid_hdr);
 		for_each_displayid_db(displayid, block, idx, length) {
 			if (block->tag == DATA_BLOCK_CTA)
-				return (u8 *)block;
+				return (const u8 *)block;
 		}
 	}
 
@@ -4503,8 +4503,8 @@ static void clear_eld(struct drm_connector *connector)
 static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 {
 	uint8_t *eld = connector->eld;
-	u8 *cea;
-	u8 *db;
+	const u8 *cea;
+	const u8 *db;
 	int total_sad_count = 0;
 	int mnl;
 	int dbl;
@@ -4600,7 +4600,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 {
 	int count = 0;
 	int i, start, end, dbl;
-	u8 *cea;
+	const u8 *cea;
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
@@ -4619,7 +4619,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 	}
 
 	for_each_cea_db(cea, i, start, end) {
-		u8 *db = &cea[i];
+		const u8 *db = &cea[i];
 
 		if (cea_db_tag(db) == AUDIO_BLOCK) {
 			int j;
@@ -4631,7 +4631,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 			if (!*sads)
 				return -ENOMEM;
 			for (j = 0; j < count; j++) {
-				u8 *sad = &db[1 + j * 3];
+				const u8 *sad = &db[1 + j * 3];
 
 				(*sads)[j].format = (sad[0] & 0x78) >> 3;
 				(*sads)[j].channels = sad[0] & 0x7;
@@ -4755,7 +4755,7 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  */
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
-	u8 *edid_ext;
+	const u8 *edid_ext;
 	int i;
 	int start_offset, end_offset;
 
@@ -4793,7 +4793,7 @@ EXPORT_SYMBOL(drm_detect_hdmi_monitor);
  */
 bool drm_detect_monitor_audio(struct edid *edid)
 {
-	u8 *edid_ext;
+	const u8 *edid_ext;
 	int i, j;
 	bool has_audio = false;
 	int start_offset, end_offset;
@@ -5287,13 +5287,13 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	return quirks;
 }
 
-static int validate_displayid(u8 *displayid, int length, int idx)
+static int validate_displayid(const u8 *displayid, int length, int idx)
 {
 	int i, dispid_length;
 	u8 csum = 0;
-	struct displayid_hdr *base;
+	const struct displayid_hdr *base;
 
-	base = (struct displayid_hdr *)&displayid[idx];
+	base = (const struct displayid_hdr *)&displayid[idx];
 
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
@@ -5359,7 +5359,7 @@ static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *d
 }
 
 static int add_displayid_detailed_1_modes(struct drm_connector *connector,
-					  struct displayid_block *block)
+					  const struct displayid_block *block)
 {
 	struct displayid_detailed_timing_block *det = (struct displayid_detailed_timing_block *)block;
 	int i;
@@ -5387,9 +5387,9 @@ static int add_displayid_detailed_1_modes(struct drm_connector *connector,
 static int add_displayid_detailed_modes(struct drm_connector *connector,
 					struct edid *edid)
 {
-	u8 *displayid;
+	const u8 *displayid;
 	int length, idx;
-	struct displayid_block *block;
+	const struct displayid_block *block;
 	int num_modes = 0;
 	int ext_index = 0;
 

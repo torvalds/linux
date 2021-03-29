@@ -93,11 +93,11 @@ struct displayid_detailed_timing_block {
 };
 
 #define for_each_displayid_db(displayid, block, idx, length) \
-	for ((block) = (struct displayid_block *)&(displayid)[idx]; \
+	for ((block) = (const struct displayid_block *)&(displayid)[idx]; \
 	     (idx) + sizeof(struct displayid_block) <= (length) && \
 	     (idx) + sizeof(struct displayid_block) + (block)->num_bytes <= (length) && \
 	     (block)->num_bytes > 0; \
 	     (idx) += sizeof(struct displayid_block) + (block)->num_bytes, \
-	     (block) = (struct displayid_block *)&(displayid)[idx])
+	     (block) = (const struct displayid_block *)&(displayid)[idx])
 
 #endif
