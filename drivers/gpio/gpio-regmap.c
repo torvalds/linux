@@ -254,6 +254,11 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	chip->names = config->names;
 	chip->label = config->label ?: dev_name(config->parent);
 
+#if defined(CONFIG_OF_GPIO)
+	/* gpiolib will use of_node of the parent if chip->of_node is NULL */
+	chip->of_node = to_of_node(config->fwnode);
+#endif /* CONFIG_OF_GPIO */
+
 	/*
 	 * If our regmap is fast_io we should probably set can_sleep to false.
 	 * Right now, the regmap doesn't save this property, nor is there any
