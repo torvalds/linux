@@ -32,7 +32,7 @@ required:
   - interrupts
   - interrupt-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
