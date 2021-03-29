@@ -919,15 +919,27 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 		}
 	}
 
+	if (info->swnode) {
+		status = device_add_software_node(&client->dev, info->swnode);
+		if (status) {
+			dev_err(&adap->dev,
+				"Failed to add software node to client %s: %d\n",
+				client->name, status);
+			goto out_free_props;
+		}
+	}
+
 	status = device_register(&client->dev);
 	if (status)
-		goto out_free_props;
+		goto out_remove_swnode;
 
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
 	return client;
 
+out_remove_swnode:
+	device_remove_software_node(&client->dev);
 out_free_props:
 	if (info->properties)
 		device_remove_properties(&client->dev);
@@ -960,6 +972,7 @@ void i2c_unregister_device(struct i2c_client *client)
 
 	if (ACPI_COMPANION(&client->dev))
 		acpi_device_clear_enumerated(ACPI_COMPANION(&client->dev));
+	device_remove_software_node(&client->dev);
 	device_unregister(&client->dev);
 }
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
