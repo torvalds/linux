@@ -43,8 +43,16 @@ static struct longterm_pinner lt_pinner = {
 
 static s64 threshold_usec = 300000;
 
+/* alloc_contig failed pinner */
+static struct longterm_pinner acf_pinner = {
+	.lock = __SPIN_LOCK_UNLOCKED(acf_pinner.lock),
+};
+
 static bool page_pinner_enabled;
 DEFINE_STATIC_KEY_FALSE(page_pinner_inited);
+
+DEFINE_STATIC_KEY_TRUE(failure_tracking);
+EXPORT_SYMBOL(failure_tracking);
 
 static depot_stack_handle_t failure_handle;
 
@@ -150,6 +158,7 @@ void __reset_page_pinner(struct page *page, unsigned int order, bool free)
 		if (free) {
 			WARN_ON_ONCE(atomic_read(&page_pinner->count));
 			atomic_set(&page_pinner->count, 0);
+			__clear_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags);
 		} else {
 			WARN_ON_ONCE(atomic_dec_if_positive(
 				     &page_pinner->count) < 0);
@@ -289,6 +298,49 @@ void __dump_page_pinner(struct page *page)
 	}
 }
 
+void __page_pinner_migration_failed(struct page *page)
+{
+	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_pinner *page_pinner;
+	depot_stack_handle_t handle;
+	unsigned long flags;
+	unsigned int idx;
+
+	if (unlikely(!page_ext))
+		return;
+
+	page_pinner = get_page_pinner(page_ext);
+	if (!test_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags))
+		return;
+
+	handle = save_stack(GFP_NOWAIT|__GFP_NOWARN);
+
+	spin_lock_irqsave(&acf_pinner.lock, flags);
+	idx = acf_pinner.index++;
+	acf_pinner.index %= LONTERM_PIN_BUCKETS;
+
+	acf_pinner.pinner[idx].handle = handle;
+	acf_pinner.pinner[idx].ts_usec = ktime_to_us(ktime_get_boottime());
+	acf_pinner.pinner[idx].page_flags = page->flags;
+	acf_pinner.pinner[idx].page_mt = get_pageblock_migratetype(page);
+	acf_pinner.pinner[idx].pfn = page_to_pfn(page);
+	spin_unlock_irqrestore(&acf_pinner.lock, flags);
+}
+EXPORT_SYMBOL(__page_pinner_migration_failed);
+
+void __page_pinner_mark_migration_failed_pages(struct list_head *page_list)
+{
+	struct page *page;
+	struct page_ext *page_ext;
+
+	list_for_each_entry(page, page_list, lru) {
+		page_ext = lookup_page_ext(page);
+		if (unlikely(!page_ext))
+			continue;
+		__set_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags);
+	}
+}
+
 static ssize_t
 read_longterm_page_pinner(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
@@ -327,6 +379,44 @@ static const struct file_operations proc_longterm_pinner_operations = {
 	.read		= read_longterm_page_pinner,
 };
 
+static ssize_t read_alloc_contig_failed(struct file *file, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	loff_t i, idx;
+	struct captured_pinner record;
+	unsigned long flags;
+
+	if (!static_branch_unlikely(&failure_tracking))
+		return -EINVAL;
+
+	if (*ppos >= LONTERM_PIN_BUCKETS)
+		return 0;
+
+	i = *ppos;
+	*ppos = i + 1;
+
+	/*
+	 * reading the records in the reverse order with newest one
+	 * being read first followed by older ones
+	 */
+	idx = (acf_pinner.index - 1 - i + LONTERM_PIN_BUCKETS) %
+	       LONTERM_PIN_BUCKETS;
+
+	spin_lock_irqsave(&acf_pinner.lock, flags);
+	record = acf_pinner.pinner[idx];
+	spin_unlock_irqrestore(&acf_pinner.lock, flags);
+	if (!record.handle)
+		return 0;
+
+	return print_page_pinner(buf, count, record.pfn, record.page_mt,
+				 record.page_flags, record.ts_usec,
+				 record.handle, 0);
+}
+
+static const struct file_operations proc_alloc_contig_failed_operations = {
+	.read		= read_alloc_contig_failed,
+};
+
 static int pp_threshold_set(void *data, unsigned long long val)
 {
 	unsigned long flags;
@@ -350,6 +440,27 @@ static int pp_threshold_get(void *data, unsigned long long *val)
 DEFINE_DEBUGFS_ATTRIBUTE(pp_threshold_fops, pp_threshold_get,
 			 pp_threshold_set, "%lld\n");
 
+static int failure_tracking_set(void *data, u64 val)
+{
+	bool on;
+
+	on = (bool)val;
+	if (on)
+		static_branch_enable(&failure_tracking);
+	else
+		static_branch_disable(&failure_tracking);
+	return 0;
+}
+
+static int failure_tracking_get(void *data, u64 *val)
+{
+	*val = static_branch_unlikely(&failure_tracking);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(failure_tracking_fops,
+			 failure_tracking_get,
+			 failure_tracking_set, "%llu\n");
+
 static int __init page_pinner_init(void)
 {
 	struct dentry *pp_debugfs_root;
@@ -358,6 +469,7 @@ static int __init page_pinner_init(void)
 		return 0;
 
 	pr_info("page_pinner enabled\n");
+
 	pp_debugfs_root = debugfs_create_dir("page_pinner", NULL);
 
 	debugfs_create_file("longterm_pinner", 0400, pp_debugfs_root, NULL,
@@ -365,6 +477,14 @@ static int __init page_pinner_init(void)
 
 	debugfs_create_file("threshold", 0444, pp_debugfs_root, NULL,
 			    &pp_threshold_fops);
+
+	debugfs_create_file("alloc_contig_failed", 0400,
+			    pp_debugfs_root, NULL,
+			    &proc_alloc_contig_failed_operations);
+
+	debugfs_create_file("failure_tracking", 0444,
+			    pp_debugfs_root, NULL,
+			    &failure_tracking_fops);
 	return 0;
 }
 late_initcall(page_pinner_init)

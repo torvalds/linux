@@ -22,6 +22,8 @@ enum page_ext_flags {
 #if defined(CONFIG_PAGE_PINNER)
 	/* page refcount was increased by GUP or follow_page(FOLL_GET) */
 	PAGE_EXT_GET,
+	/* page migration failed */
+	PAGE_EXT_PINNER_MIGRATION_FAILED,
 #endif
 #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
 	PAGE_EXT_YOUNG,

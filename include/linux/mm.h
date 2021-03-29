@@ -1232,6 +1232,8 @@ static inline void put_page(struct page *page)
 {
 	page = compound_head(page);
 
+	page_pinner_migration_failed(page);
+
 	/*
 	 * For devmap managed pages we need to catch refcount transition from
 	 * 2 to 1, when refcount reach one it means the page is free and we
