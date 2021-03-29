@@ -1087,7 +1087,7 @@ static int mvneta_mbus_io_win_set(struct mvneta_port *pp, u32 base, u32 wsize,
 	return 0;
 }
 
-static  int mvneta_bm_port_mbus_init(struct mvneta_port *pp)
+static int mvneta_bm_port_mbus_init(struct mvneta_port *pp)
 {
 	u32 wsize;
 	u8 target, attr;
@@ -3993,7 +3993,8 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 
 	/* Armada 370 documentation says we can only change the port mode
 	 * and in-band enable when the link is down, so force it down
-	 * while making these changes. We also do this for GMAC_CTRL2 */
+	 * while making these changes. We also do this for GMAC_CTRL2
+	 */
 	if ((new_ctrl0 ^ gmac_ctrl0) & MVNETA_GMAC0_PORT_1000BASE_X ||
 	    (new_ctrl2 ^ gmac_ctrl2) & MVNETA_GMAC2_INBAND_AN_ENABLE ||
 	    (new_an  ^ gmac_an) & MVNETA_GMAC_INBAND_AN_ENABLE) {
@@ -4175,9 +4176,7 @@ static void mvneta_percpu_elect(struct mvneta_port *pp)
 				rxq_map |= MVNETA_CPU_RXQ_ACCESS(rxq);
 
 		if (cpu == elected_cpu)
-			/* Map the default receive queue queue to the
-			 * elected CPU
-			 */
+			/* Map the default receive queue to the elected CPU */
 			rxq_map |= MVNETA_CPU_RXQ_ACCESS(pp->rxq_def);
 
 		/* We update the TX queue map only if we have one
@@ -4907,7 +4906,8 @@ static int mvneta_ethtool_set_eee(struct net_device *dev,
 	u32 lpi_ctl0;
 
 	/* The Armada 37x documents do not give limits for this other than
-	 * it being an 8-bit register. */
+	 * it being an 8-bit register.
+	 */
 	if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)
 		return -EINVAL;
 
