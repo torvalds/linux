@@ -840,8 +840,6 @@ xfs_init_new_inode(
 	inode->i_ctime = tv;
 
 	ip->i_d.di_extsize = 0;
-	ip->i_d.di_dmevmask = 0;
-	ip->i_d.di_dmstate = 0;
 	ip->i_d.di_flags = 0;
 
 	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
@@ -2615,9 +2613,10 @@ xfs_ifree(
 	VFS_I(ip)->i_mode = 0;		/* mark incore inode as free */
 	ip->i_d.di_flags = 0;
 	ip->i_d.di_flags2 = ip->i_mount->m_ino_geo.new_diflags2;
-	ip->i_d.di_dmevmask = 0;
 	ip->i_d.di_forkoff = 0;		/* mark the attr fork not in use */
 	ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
+	if (xfs_iflags_test(ip, XFS_IPRESERVE_DM_FIELDS))
+		xfs_iflags_clear(ip, XFS_IPRESERVE_DM_FIELDS);
 
 	/* Don't attempt to replay owner changes for a deleted inode */
 	spin_lock(&iip->ili_lock);

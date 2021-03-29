@@ -317,6 +317,33 @@ xfs_inode_to_log_dinode_ts(
 	return its;
 }
 
+/*
+ * The legacy DMAPI fields are only present in the on-disk and in-log inodes,
+ * but not in the in-memory one.  But we are guaranteed to have an inode buffer
+ * in memory when logging an inode, so we can just copy it from the on-disk
+ * inode to the in-log inode here so that recovery of file system with these
+ * fields set to non-zero values doesn't lose them.  For all other cases we zero
+ * the fields.
+ */
+static void
+xfs_copy_dm_fields_to_log_dinode(
+	struct xfs_inode	*ip,
+	struct xfs_log_dinode	*to)
+{
+	struct xfs_dinode	*dip;
+
+	dip = xfs_buf_offset(ip->i_itemp->ili_item.li_buf,
+			     ip->i_imap.im_boffset);
+
+	if (xfs_iflags_test(ip, XFS_IPRESERVE_DM_FIELDS)) {
+		to->di_dmevmask = be32_to_cpu(dip->di_dmevmask);
+		to->di_dmstate = be16_to_cpu(dip->di_dmstate);
+	} else {
+		to->di_dmevmask = 0;
+		to->di_dmstate = 0;
+	}
+}
+
 static void
 xfs_inode_to_log_dinode(
 	struct xfs_inode	*ip,
@@ -349,9 +376,9 @@ xfs_inode_to_log_dinode(
 	to->di_anextents = xfs_ifork_nextents(ip->i_afp);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat = xfs_ifork_format(ip->i_afp);
-	to->di_dmevmask = from->di_dmevmask;
-	to->di_dmstate = from->di_dmstate;
 	to->di_flags = from->di_flags;
+
+	xfs_copy_dm_fields_to_log_dinode(ip, to);
 
 	/* log a dummy value to ensure log structure is fully initialised */
 	to->di_next_unlinked = NULLAGINO;
