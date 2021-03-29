@@ -57,16 +57,20 @@ For HiSilicon uncore PMU v2 whose identifier is 0x30, the topology is the same
 as PMU v1, but some new functions are added to the hardware.
 
 (a) L3C PMU supports filtering by core/thread within the cluster which can be
-specified as a bitmap.
+specified as a bitmap::
+
   $# perf stat -a -e hisi_sccl3_l3c0/config=0x02,tt_core=0x3/ sleep 5
+
 This will only count the operations from core/thread 0 and 1 in this cluster.
 
 (b) Tracetag allow the user to chose to count only read, write or atomic
 operations via the tt_req parameeter in perf. The default value counts all
 operations. tt_req is 3bits, 3'b100 represents read operations, 3'b101
 represents write operations, 3'b110 represents atomic store operations and
-3'b111 represents atomic non-store operations, other values are reserved.
+3'b111 represents atomic non-store operations, other values are reserved::
+
   $# perf stat -a -e hisi_sccl3_l3c0/config=0x02,tt_req=0x4/ sleep 5
+
 This will only count the read operations in this cluster.
 
 (c) Datasrc allows the user to check where the data comes from. It is 5 bits.
@@ -79,7 +83,8 @@ Some important codes are as follows:
 5'b10000: comes from cross-socket DDR;
 etc, it is mainly helpful to find that the data source is nearest from the CPU
 cores. If datasrc_cfg is used in the multi-chips, the datasrc_skt shall be
-configured in perf command.
+configured in perf command::
+
   $# perf stat -a -e hisi_sccl3_l3c0/config=0xb9,datasrc_cfg=0xE/,
   hisi_sccl3_l3c0/config=0xb9,datasrc_cfg=0xF/ sleep 5
 
