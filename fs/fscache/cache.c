@@ -269,7 +269,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	hlist_add_head(&ifsdef->cookie_link,
 		       &fscache_fsdef_index.backing_objects);
 
-	atomic_inc(&fscache_fsdef_index.usage);
+	refcount_inc(&fscache_fsdef_index.ref);
 
 	/* done */
 	spin_unlock(&fscache_fsdef_index.lock);

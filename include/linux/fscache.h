@@ -123,7 +123,7 @@ struct fscache_netfs {
  * - indices are created on disk just-in-time
  */
 struct fscache_cookie {
-	atomic_t			usage;		/* number of users of this cookie */
+	refcount_t			ref;		/* number of users of this cookie */
 	atomic_t			n_children;	/* number of children of this cookie */
 	atomic_t			n_active;	/* number of active users of netfs ptrs */
 	unsigned int			debug_id;
