@@ -406,6 +406,11 @@
 &i2c8 {
 	status = "okay";
 
+	ucd90320@11 {
+		compatible = "ti,ucd90320";
+		reg = <0x11>;
+	};
+
 	eeprom@51 {
 		compatible = "atmel,24c64";
 		reg = <0x51>;
