@@ -123,36 +123,20 @@ static void mpc_i2c_fixup(struct mpc_i2c *i2c)
 
 static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 {
-	unsigned long orig_jiffies = jiffies;
 	u32 cmd_err;
-	int result = 0;
+	int result;
 
-	if (!i2c->irq) {
-		while (!(readb(i2c->base + MPC_I2C_SR) & CSR_MIF)) {
-			schedule();
-			if (time_after(jiffies, orig_jiffies + timeout)) {
-				dev_dbg(i2c->dev, "timeout\n");
-				writeccr(i2c, 0);
-				result = -ETIMEDOUT;
-				break;
-			}
-		}
-		cmd_err = readb(i2c->base + MPC_I2C_SR);
-		writeb(0, i2c->base + MPC_I2C_SR);
-	} else {
-		/* Interrupt mode */
-		result = wait_event_timeout(i2c->queue,
+	result = wait_event_timeout(i2c->queue,
 			(i2c->interrupt & CSR_MIF), timeout);
 
-		if (unlikely(!(i2c->interrupt & CSR_MIF))) {
-			dev_dbg(i2c->dev, "wait timeout\n");
-			writeccr(i2c, 0);
-			result = -ETIMEDOUT;
-		}
-
-		cmd_err = i2c->interrupt;
-		i2c->interrupt = 0;
+	if (unlikely(!(i2c->interrupt & CSR_MIF))) {
+		dev_dbg(i2c->dev, "wait timeout\n");
+		writeccr(i2c, 0);
+		result = -ETIMEDOUT;
 	}
+
+	cmd_err = i2c->interrupt;
+	i2c->interrupt = 0;
 
 	if (result < 0)
 		return result;
@@ -694,13 +678,16 @@ static int fsl_i2c_probe(struct platform_device *op)
 	}
 
 	i2c->irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (i2c->irq) { /* no i2c->irq implies polling */
-		result = request_irq(i2c->irq, mpc_i2c_isr,
-				     IRQF_SHARED, "i2c-mpc", i2c);
-		if (result < 0) {
-			dev_err(i2c->dev, "failed to attach interrupt\n");
-			goto fail_request;
-		}
+	if (i2c->irq < 0) {
+		result = i2c->irq;
+		goto fail_map;
+	}
+
+	result = request_irq(i2c->irq, mpc_i2c_isr,
+			IRQF_SHARED, "i2c-mpc", i2c);
+	if (result < 0) {
+		dev_err(i2c->dev, "failed to attach interrupt\n");
+		goto fail_request;
 	}
 
 	/*
