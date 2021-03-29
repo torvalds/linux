@@ -270,6 +270,8 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_LEADTEK_Y04G0051          "rc-leadtek-y04g0051"
 #define RC_MAP_LME2510                   "rc-lme2510"
 #define RC_MAP_MANLI                     "rc-manli"
+#define RC_MAP_MECOOL_KII_PRO            "rc-mecool-kii-pro"
+#define RC_MAP_MECOOL_KIII_PRO           "rc-mecool-kiii-pro"
 #define RC_MAP_MEDION_X10                "rc-medion-x10"
 #define RC_MAP_MEDION_X10_DIGITAINER     "rc-medion-x10-digitainer"
 #define RC_MAP_MEDION_X10_OR2X           "rc-medion-x10-or2x"
