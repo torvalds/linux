@@ -238,6 +238,11 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		flower_prio_valid = true;
 	}
 
+	if (protocol != htons(ETH_P_ALL)) {
+		NL_SET_ERR_MSG(f->common.extack, "matchall rules only supported with 'all' protocol");
+		return -EOPNOTSUPP;
+	}
+
 	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
 	if (!mall_entry)
 		return -ENOMEM;
@@ -245,37 +250,34 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 	mall_entry->priority = f->common.prio;
 	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 
+	if (flower_prio_valid && mall_entry->ingress &&
+	    mall_entry->priority >= flower_min_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
+	if (flower_prio_valid && !mall_entry->ingress &&
+	    mall_entry->priority <= flower_max_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
+
 	act = &f->rule->action.entries[0];
 
-	if (act->id == FLOW_ACTION_MIRRED && protocol == htons(ETH_P_ALL)) {
-		if (flower_prio_valid && mall_entry->ingress &&
-		    mall_entry->priority >= flower_min_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
-		if (flower_prio_valid && !mall_entry->ingress &&
-		    mall_entry->priority <= flower_max_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
+	switch (act->id) {
+	case FLOW_ACTION_MIRRED:
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_MIRROR;
 		mall_entry->mirror.to_dev = act->dev;
-	} else if (act->id == FLOW_ACTION_SAMPLE &&
-		   protocol == htons(ETH_P_ALL)) {
-		if (flower_prio_valid &&
-		    mall_entry->priority >= flower_min_prio) {
-			NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-			err = -EOPNOTSUPP;
-			goto errout;
-		}
+		break;
+	case FLOW_ACTION_SAMPLE:
 		mall_entry->type = MLXSW_SP_MALL_ACTION_TYPE_SAMPLE;
 		mall_entry->sample.params.psample_group = act->sample.psample_group;
 		mall_entry->sample.params.truncate = act->sample.truncate;
 		mall_entry->sample.params.trunc_size = act->sample.trunc_size;
 		mall_entry->sample.params.rate = act->sample.rate;
-	} else {
+		break;
+	default:
 		err = -EOPNOTSUPP;
 		goto errout;
 	}

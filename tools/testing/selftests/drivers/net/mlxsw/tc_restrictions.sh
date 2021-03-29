@@ -11,6 +11,7 @@ ALL_TESTS="
 	matchall_mirror_behind_flower_ingress_test
 	matchall_sample_behind_flower_ingress_test
 	matchall_mirror_behind_flower_egress_test
+	matchall_proto_match_test
 	police_limits_test
 	multi_police_test
 "
@@ -289,6 +290,22 @@ matchall_behind_flower_egress_test()
 matchall_mirror_behind_flower_egress_test()
 {
 	matchall_behind_flower_egress_test "mirror" "mirred egress mirror dev $swp2"
+}
+
+matchall_proto_match_test()
+{
+	RET=0
+
+	tc qdisc add dev $swp1 clsact
+
+	tc filter add dev $swp1 ingress pref 1 proto ip handle 101 \
+		matchall skip_sw \
+		action sample group 1 rate 100
+	check_fail $? "Incorrect success to add matchall rule with protocol match"
+
+	tc qdisc del dev $swp1 clsact
+
+	log_test "matchall protocol match"
 }
 
 police_limits_test()
