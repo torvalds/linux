@@ -49,7 +49,7 @@ properties:
     description:
       Reference to an nvmem node for the MAC address
 
-  nvmem-cells-names:
+  nvmem-cell-names:
     const: mac-address
 
   phy-connection-type:
