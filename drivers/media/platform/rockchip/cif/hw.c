@@ -594,6 +594,7 @@ static const struct cif_reg rk3568_cif_regs[] = {
 	[CIF_REG_MMU_INT_STATUS] = CIF_REG(CIF_MMU_INT_STATUS),
 	[CIF_REG_MMU_AUTO_GATING] = CIF_REG(CIF_MMU_AUTO_GATING),
 	[CIF_REG_GRF_CIFIO_CON] = CIF_REG(CIF_GRF_VI_CON0),
+	[CIF_REG_GRF_CIFIO_CON1] = CIF_REG(CIF_GRF_VI_CON1),
 };
 
 static const struct rkcif_hw_match_data px30_cif_match_data = {
