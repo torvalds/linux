@@ -211,6 +211,15 @@ static int xwdt_probe(struct platform_device *pdev)
 				 "The watchdog clock freq cannot be obtained\n");
 	} else {
 		pfreq = clk_get_rate(xdev->clk);
+		rc = clk_prepare_enable(xdev->clk);
+		if (rc) {
+			dev_err(dev, "unable to enable clock\n");
+			return rc;
+		}
+		rc = devm_add_action_or_reset(dev, xwdt_clk_disable_unprepare,
+					      xdev->clk);
+		if (rc)
+			return rc;
 	}
 
 	/*
@@ -223,16 +232,6 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	spin_lock_init(&xdev->spinlock);
 	watchdog_set_drvdata(xilinx_wdt_wdd, xdev);
-
-	rc = clk_prepare_enable(xdev->clk);
-	if (rc) {
-		dev_err(dev, "unable to enable clock\n");
-		return rc;
-	}
-	rc = devm_add_action_or_reset(dev, xwdt_clk_disable_unprepare,
-				      xdev->clk);
-	if (rc)
-		return rc;
 
 	rc = xwdt_selftest(xdev);
 	if (rc == XWT_TIMER_FAILED) {
