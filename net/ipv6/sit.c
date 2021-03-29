@@ -218,8 +218,6 @@ static int ipip6_tunnel_create(struct net_device *dev)
 
 	ipip6_tunnel_clone_6rd(dev, sitn);
 
-	dev_hold(dev);
-
 	ipip6_tunnel_link(sitn, t);
 	return 0;
 
@@ -1456,7 +1454,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 		dev->tstats = NULL;
 		return err;
 	}
-
+	dev_hold(dev);
 	return 0;
 }
 
