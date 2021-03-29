@@ -2767,6 +2767,49 @@ qla81xx_reset_mpi(scsi_qla_host_t *vha)
 	return qla81xx_write_mpi_register(vha, mb);
 }
 
+static int
+qla_chk_risc_recovery(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	__le16 __iomem *mbptr = &reg->mailbox0;
+	int i;
+	u16 mb[32];
+	int rc = QLA_SUCCESS;
+
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return rc;
+
+	/* this check is only valid after RISC reset */
+	mb[0] = rd_reg_word(mbptr);
+	mbptr++;
+	if (mb[0] == 0xf) {
+		rc = QLA_FUNCTION_FAILED;
+
+		for (i = 1; i < 32; i++) {
+			mb[i] = rd_reg_word(mbptr);
+			mbptr++;
+		}
+
+		ql_log(ql_log_warn, vha, 0x1015,
+		       "RISC reset failed. mb[0-7] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+		       mb[0], mb[1], mb[2], mb[3], mb[4], mb[5], mb[6], mb[7]);
+		ql_log(ql_log_warn, vha, 0x1015,
+		       "RISC reset failed. mb[8-15] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+		       mb[8], mb[9], mb[10], mb[11], mb[12], mb[13], mb[14],
+		       mb[15]);
+		ql_log(ql_log_warn, vha, 0x1015,
+		       "RISC reset failed. mb[16-23] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+		       mb[16], mb[17], mb[18], mb[19], mb[20], mb[21], mb[22],
+		       mb[23]);
+		ql_log(ql_log_warn, vha, 0x1015,
+		       "RISC reset failed. mb[24-31] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+		       mb[24], mb[25], mb[26], mb[27], mb[28], mb[29], mb[30],
+		       mb[31]);
+	}
+	return rc;
+}
+
 /**
  * qla24xx_reset_risc() - Perform full reset of ISP24xx RISC.
  * @vha: HA context
@@ -2783,6 +2826,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	uint16_t wd;
 	static int abts_cnt; /* ISP abort retry counts */
 	int rval = QLA_SUCCESS;
+	int print = 1;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -2871,17 +2915,26 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	rd_reg_dword(&reg->hccr);
 
 	wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_RESET);
+	mdelay(10);
 	rd_reg_dword(&reg->hccr);
 
-	rd_reg_word(&reg->mailbox0);
-	for (cnt = 60; rd_reg_word(&reg->mailbox0) != 0 &&
-	    rval == QLA_SUCCESS; cnt--) {
+	wd = rd_reg_word(&reg->mailbox0);
+	for (cnt = 300; wd != 0 && rval == QLA_SUCCESS; cnt--) {
 		barrier();
-		if (cnt)
-			udelay(5);
-		else
+		if (cnt) {
+			mdelay(1);
+			if (print && qla_chk_risc_recovery(vha))
+				print = 0;
+
+			wd = rd_reg_word(&reg->mailbox0);
+		} else {
 			rval = QLA_FUNCTION_TIMEOUT;
+
+			ql_log(ql_log_warn, vha, 0x015e,
+			       "RISC reset timeout\n");
+		}
 	}
+
 	if (rval == QLA_SUCCESS)
 		set_bit(RISC_RDY_AFT_RESET, &ha->fw_dump_cap_flags);
 
