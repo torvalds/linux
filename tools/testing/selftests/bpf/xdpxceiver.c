@@ -355,12 +355,15 @@ static void usage(const char *prog)
 	ksft_print_msg(str, prog);
 }
 
-static bool switch_namespace(int idx)
+static int switch_namespace(const char *nsname)
 {
 	char fqns[26] = "/var/run/netns/";
 	int nsfd;
 
-	strncat(fqns, ifdict[idx]->nsname, sizeof(fqns) - strlen(fqns) - 1);
+	if (!nsname || strlen(nsname) == 0)
+		return -1;
+
+	strncat(fqns, nsname, sizeof(fqns) - strlen(fqns) - 1);
 	nsfd = open(fqns, O_RDONLY);
 
 	if (nsfd == -1)
@@ -369,26 +372,9 @@ static bool switch_namespace(int idx)
 	if (setns(nsfd, 0) == -1)
 		exit_with_error(errno);
 
-	return true;
-}
+	print_verbose("NS switched: %s\n", nsname);
 
-static void *nsswitchthread(void *args)
-{
-	struct targs *targs = args;
-
-	targs->retptr = false;
-
-	if (switch_namespace(targs->idx)) {
-		ifdict[targs->idx]->ifindex = if_nametoindex(ifdict[targs->idx]->ifname);
-		if (!ifdict[targs->idx]->ifindex) {
-			ksft_test_result_fail("ERROR: [%s] interface \"%s\" does not exist\n",
-					      __func__, ifdict[targs->idx]->ifname);
-		} else {
-			print_verbose("Interface found: %s\n", ifdict[targs->idx]->ifname);
-			targs->retptr = true;
-		}
-	}
-	pthread_exit(NULL);
+	return nsfd;
 }
 
 static int validate_interfaces(void)
@@ -399,33 +385,6 @@ static int validate_interfaces(void)
 		if (!strcmp(ifdict[i]->ifname, "")) {
 			ret = false;
 			ksft_test_result_fail("ERROR: interfaces: -i <int>,<ns> -i <int>,<ns>.");
-		}
-		if (strcmp(ifdict[i]->nsname, "")) {
-			struct targs *targs;
-
-			targs = malloc(sizeof(*targs));
-			if (!targs)
-				exit_with_error(errno);
-
-			targs->idx = i;
-			if (pthread_create(&ns_thread, NULL, nsswitchthread, targs))
-				exit_with_error(errno);
-
-			pthread_join(ns_thread, NULL);
-
-			if (targs->retptr)
-				print_verbose("NS switched: %s\n", ifdict[i]->nsname);
-
-			free(targs);
-		} else {
-			ifdict[i]->ifindex = if_nametoindex(ifdict[i]->ifname);
-			if (!ifdict[i]->ifindex) {
-				ksft_test_result_fail
-				    ("ERROR: interface \"%s\" does not exist\n", ifdict[i]->ifname);
-				ret = false;
-			} else {
-				print_verbose("Interface found: %s\n", ifdict[i]->ifname);
-			}
 		}
 	}
 	return ret;
@@ -843,8 +802,7 @@ static void *worker_testapp_validate(void *arg)
 		if (bufs == MAP_FAILED)
 			exit_with_error(errno);
 
-		if (strcmp(ifobject->nsname, ""))
-			switch_namespace(ifobject->ifdict_index);
+		ifobject->ns_fd = switch_namespace(ifobject->nsname);
 	}
 
 	if (ifobject->fv.vector == tx) {
@@ -1059,60 +1017,6 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac,
 	ifobj->src_port = src_port;
 }
 
-static void *nsdisablemodethread(void *args)
-{
-	struct targs *targs = args;
-
-	targs->retptr = false;
-
-	if (switch_namespace(targs->idx)) {
-		targs->retptr = bpf_set_link_xdp_fd(ifdict[targs->idx]->ifindex, -1, targs->flags);
-	} else {
-		targs->retptr = errno;
-		print_verbose("Failed to switch namespace to %s\n", ifdict[targs->idx]->nsname);
-	}
-
-	pthread_exit(NULL);
-}
-
-static void disable_xdp_mode(int mode)
-{
-	int err = 0;
-	__u32 flags = XDP_FLAGS_UPDATE_IF_NOEXIST | mode;
-	char *mode_str = mode & XDP_FLAGS_SKB_MODE ? "skb" : "drv";
-
-	for (int i = 0; i < MAX_INTERFACES; i++) {
-		if (strcmp(ifdict[i]->nsname, "")) {
-			struct targs *targs;
-
-			targs = malloc(sizeof(*targs));
-			memset(targs, 0, sizeof(*targs));
-			if (!targs)
-				exit_with_error(errno);
-
-			targs->idx = i;
-			targs->flags = flags;
-			if (pthread_create(&ns_thread, NULL, nsdisablemodethread, targs))
-				exit_with_error(errno);
-
-			pthread_join(ns_thread, NULL);
-			err = targs->retptr;
-			free(targs);
-		} else {
-			err = bpf_set_link_xdp_fd(ifdict[i]->ifindex, -1, flags);
-		}
-
-		if (err) {
-			print_verbose("Failed to disable %s mode on interface %s\n",
-						mode_str, ifdict[i]->ifname);
-			exit_with_error(err);
-		}
-
-		print_verbose("Disabled %s mode for interface: %s\n", mode_str, ifdict[i]->ifname);
-		configured_mode = mode & XDP_FLAGS_SKB_MODE ? TEST_MODE_DRV : TEST_MODE_SKB;
-	}
-}
-
 static void run_pkt_test(int mode, int type)
 {
 	test_type = type;
@@ -1132,13 +1036,9 @@ static void run_pkt_test(int mode, int type)
 
 	switch (mode) {
 	case (TEST_MODE_SKB):
-		if (configured_mode == TEST_MODE_DRV)
-			disable_xdp_mode(XDP_FLAGS_DRV_MODE);
 		xdp_flags |= XDP_FLAGS_SKB_MODE;
 		break;
 	case (TEST_MODE_DRV):
-		if (configured_mode == TEST_MODE_SKB)
-			disable_xdp_mode(XDP_FLAGS_SKB_MODE);
 		xdp_flags |= XDP_FLAGS_DRV_MODE;
 		break;
 	default:
@@ -1185,8 +1085,6 @@ int main(int argc, char **argv)
 	ifdict[1]->fv.vector = rx;
 	init_iface(ifdict[1], MAC2, MAC1, IP2, IP1, UDP_PORT2, UDP_PORT1);
 
-	disable_xdp_mode(XDP_FLAGS_DRV_MODE);
-
 	ksft_set_plan(TEST_MODE_MAX * TEST_TYPE_MAX);
 
 	for (i = 0; i < TEST_MODE_MAX; i++) {
@@ -1194,8 +1092,11 @@ int main(int argc, char **argv)
 			run_pkt_test(i, j);
 	}
 
-	for (int i = 0; i < MAX_INTERFACES; i++)
+	for (int i = 0; i < MAX_INTERFACES; i++) {
+		if (ifdict[i]->ns_fd != -1)
+			close(ifdict[i]->ns_fd);
 		free(ifdict[i]);
+	}
 
 	ksft_exit_pass();
 

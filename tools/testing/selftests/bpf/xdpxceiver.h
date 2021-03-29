@@ -126,7 +126,7 @@ struct generic_data {
 };
 
 struct ifobject {
-	int ifindex;
+	int ns_fd;
 	int ifdict_index;
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
@@ -150,14 +150,8 @@ pthread_mutex_t sync_mutex;
 pthread_mutex_t sync_mutex_tx;
 pthread_cond_t signal_rx_condition;
 pthread_cond_t signal_tx_condition;
-pthread_t t0, t1, ns_thread;
+pthread_t t0, t1;
 pthread_attr_t attr;
-
-struct targs {
-	u8 retptr;
-	int idx;
-	u32 flags;
-};
 
 TAILQ_HEAD(head_s, pkt) head = TAILQ_HEAD_INITIALIZER(head);
 struct head_s *head_p;
