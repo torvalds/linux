@@ -8552,7 +8552,8 @@ S:	Supported
 F:	drivers/scsi/ibmvscsi/ibmvfc*
 
 IBM Power Virtual Management Channel Driver
-M:	Steven Royer <seroyer@linux.ibm.com>
+M:	Brad Warrum <bwarrum@linux.ibm.com>
+M:	Ritu Agarwal <rituagar@linux.ibm.com>
 S:	Supported
 F:	drivers/misc/ibmvmc.*
 
