@@ -17,46 +17,41 @@ Reporting issues
 The short guide (aka TL;DR)
 ===========================
 
-If you're facing multiple issues with the Linux kernel at once, report each
-separately to its developers. Try your best guess which kernel part might be
-causing the issue. Check the :ref:`MAINTAINERS <maintainers>` file for how its
-developers expect to be told about issues. Note, it's rarely
-`bugzilla.kernel.org <https://bugzilla.kernel.org/>`_, as in almost all cases
-the report needs to be sent by email!
+Are you facing a regression with vanilla kernels from the same stable or
+longterm series? One still supported? Then search the `LKML
+<https://lore.kernel.org/lkml/>`_ and the `Linux stable mailing list
+<https://lore.kernel.org/stable/>`_ archives for matching reports to join. If
+you don't find any, install `the latest release from that series
+<https://kernel.org/>`_. If it still shows the issue, report it to the stable
+mailing list (stable@vger.kernel.org).
 
-Check the destination thoroughly for existing reports; also search the LKML
-archives and the web. Join existing discussion if you find matches. If you
-don't find any, install `the latest Linux mainline kernel
-<https://kernel.org/>`_. Make sure it's vanilla, thus is not patched or using
-add-on kernel modules. Also ensure the kernel is running in a healthy
-environment and is not already tainted before the issue occurs.
+In all other cases try your best guess which kernel part might be causing the
+issue. Check the :ref:`MAINTAINERS <maintainers>` file for how its developers
+expect to be told about problems, which most of the time will be by email with a
+mailing list in CC. Check the destination's archives for matching reports;
+search the `LKML <https://lore.kernel.org/lkml/>`_ and the web, too. If you
+don't find any to join, install `the latest mainline kernel
+<https://kernel.org/>`_. If the issue is present there, send a report.
 
-If you can reproduce your issue with the mainline kernel, send a report to the
-destination you determined earlier. Make sure it includes all relevant
-information, which in case of a regression should mention the change that's
-causing it which can often can be found with a bisection. Also ensure the
-report reaches all people that need to know about it, for example the security
-team, the stable maintainers or the developers of the patch that causes a
-regression. Once the report is out, answer any questions that might be raised
-and help where you can. That includes keeping the ball rolling: every time a
-new rc1 mainline kernel is released, check if the issue is still happening
-there and attach a status update to your initial report.
+The issue was fixed there, but you would like to see it resolved in a still
+supported stable or longterm series as well? Then install its latest release.
+If it shows the problem, search for the change that fixed it in mainline and
+check if backporting is in the works or was discarded; if it's neither, ask
+those who handled the change for it.
 
-If you can not reproduce the issue with the mainline kernel, consider sticking
-with it; if you'd like to use an older version line and want to see it fixed
-there, first make sure it's still supported. Install its latest release as
-vanilla kernel. If you cannot reproduce the issue there, try to find the commit
-that fixed it in mainline or any discussion preceding it: those will often
-mention if backporting is planed or considered too complex. If backporting was
-not discussed, ask if it's in the cards. In case you don't find any commits or
-a preceding discussion, see the Linux-stable mailing list archives for existing
-reports, as it might be a regression specific to the version line. If it is,
-report it like you would report a problem in mainline (including the
-bisection).
+**General remarks**: When installing and testing a kernel as outlined above,
+ensure it's vanilla (IOW: not patched and not using add-on modules). Also make
+sure it's built and running in a healthy environment and not already tainted
+before the issue occurs.
 
-If you reached this point without a solution, ask for advice one the
-subsystem's mailing list.
+While writing your report, include all information relevant to the issue, like
+the kernel and the distro used. In case of a regression try to include the
+commit-id of the change causing it, which a bisection can find. If you're facing
+multiple issues with the Linux kernel at once, report each separately.
 
+Once the report is out, answer any questions that come up and help where you
+can. That includes keeping the ball rolling by occasionally retesting with newer
+releases and sending a status update afterwards.
 
 Step-by-step guide how to report issues to the kernel maintainers
 =================================================================
