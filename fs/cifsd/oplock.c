@@ -608,14 +608,14 @@ static inline int allocate_oplock_break_buf(struct ksmbd_work *work)
  * There are two ways this function can be called. 1- while file open we break
  * from exclusive/batch lock to levelII oplock and 2- while file write/truncate
  * we break from levelII oplock no oplock.
- * REQUEST_BUF(work) contains oplock_info.
+ * work->request_buf contains oplock_info.
  */
 static void __smb2_oplock_break_noti(struct work_struct *wk)
 {
 	struct smb2_oplock_break *rsp = NULL;
 	struct ksmbd_work *work = container_of(wk, struct ksmbd_work, work);
 	struct ksmbd_conn *conn = work->conn;
-	struct oplock_break_info *br_info = REQUEST_BUF(work);
+	struct oplock_break_info *br_info = work->request_buf;
 	struct smb2_hdr *rsp_hdr;
 	struct ksmbd_file *fp;
 
@@ -634,7 +634,7 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 		return;
 	}
 
-	rsp_hdr = RESPONSE_BUF(work);
+	rsp_hdr = work->response_buf;
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
 	rsp_hdr->smb2_buf_length = cpu_to_be32(HEADER_SIZE_NO_BUF_LEN(conn));
 	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;
@@ -650,7 +650,7 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
 	memset(rsp_hdr->Signature, 0, 16);
 
 
-	rsp = RESPONSE_BUF(work);
+	rsp = work->response_buf;
 
 	rsp->StructureSize = cpu_to_le16(24);
 	if (!br_info->open_trunc &&
@@ -730,7 +730,7 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 {
 	struct smb2_lease_break *rsp = NULL;
 	struct ksmbd_work *work = container_of(wk, struct ksmbd_work, work);
-	struct lease_break_info *br_info = REQUEST_BUF(work);
+	struct lease_break_info *br_info = work->request_buf;
 	struct ksmbd_conn *conn = work->conn;
 	struct smb2_hdr *rsp_hdr;
 
@@ -741,7 +741,7 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 		return;
 	}
 
-	rsp_hdr = RESPONSE_BUF(work);
+	rsp_hdr = work->response_buf;
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
 	rsp_hdr->smb2_buf_length = cpu_to_be32(HEADER_SIZE_NO_BUF_LEN(conn));
 	rsp_hdr->ProtocolId = SMB2_PROTO_NUMBER;
@@ -756,7 +756,7 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
 	rsp_hdr->SessionId = 0;
 	memset(rsp_hdr->Signature, 0, 16);
 
-	rsp = RESPONSE_BUF(work);
+	rsp = work->response_buf;
 	rsp->StructureSize = cpu_to_le16(44);
 	rsp->Reserved = 0;
 	rsp->Flags = 0;

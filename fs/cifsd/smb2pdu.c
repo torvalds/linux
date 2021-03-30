@@ -44,8 +44,8 @@ static void __wbuf(struct ksmbd_work *work, void **req, void **rsp)
 		*req = REQUEST_BUF_NEXT(work);
 		*rsp = RESPONSE_BUF_NEXT(work);
 	} else {
-		*req = REQUEST_BUF(work);
-		*rsp = RESPONSE_BUF(work);
+		*req = work->request_buf;
+		*rsp = work->response_buf;
 	}
 }
 
@@ -94,7 +94,7 @@ struct channel *lookup_chann_list(struct ksmbd_session *sess)
  */
 int smb2_get_ksmbd_tcon(struct ksmbd_work *work)
 {
-	struct smb2_hdr *req_hdr = REQUEST_BUF(work);
+	struct smb2_hdr *req_hdr = work->request_buf;
 	int tree_id;
 
 	work->tcon = NULL;
@@ -131,7 +131,7 @@ void smb2_set_err_rsp(struct ksmbd_work *work)
 	if (work->next_smb2_rcv_hdr_off)
 		err_rsp = RESPONSE_BUF_NEXT(work);
 	else
-		err_rsp = RESPONSE_BUF(work);
+		err_rsp = work->response_buf;
 
 	if (err_rsp->hdr.Status != STATUS_STOPPED_ON_SYMLINK) {
 		err_rsp->StructureSize = SMB2_ERROR_STRUCTURE_SIZE2_LE;
@@ -139,7 +139,7 @@ void smb2_set_err_rsp(struct ksmbd_work *work)
 		err_rsp->Reserved = 0;
 		err_rsp->ByteCount = 0;
 		err_rsp->ErrorData[0] = 0;
-		inc_rfc1001_len(RESPONSE_BUF(work), SMB2_ERROR_STRUCTURE_SIZE2);
+		inc_rfc1001_len(work->response_buf, SMB2_ERROR_STRUCTURE_SIZE2);
 	}
 }
 
@@ -151,7 +151,7 @@ void smb2_set_err_rsp(struct ksmbd_work *work)
  */
 int is_smb2_neg_cmd(struct ksmbd_work *work)
 {
-	struct smb2_hdr *hdr = REQUEST_BUF(work);
+	struct smb2_hdr *hdr = work->request_buf;
 
 	/* is it SMB2 header ? */
 	if (hdr->ProtocolId != SMB2_PROTO_NUMBER)
@@ -175,7 +175,7 @@ int is_smb2_neg_cmd(struct ksmbd_work *work)
  */
 int is_smb2_rsp(struct ksmbd_work *work)
 {
-	struct smb2_hdr *hdr = RESPONSE_BUF(work);
+	struct smb2_hdr *hdr = work->response_buf;
 
 	/* is it SMB2 header ? */
 	if (hdr->ProtocolId != SMB2_PROTO_NUMBER)
@@ -201,7 +201,7 @@ uint16_t get_smb2_cmd_val(struct ksmbd_work *work)
 	if (work->next_smb2_rcv_hdr_off)
 		rcv_hdr = REQUEST_BUF_NEXT(work);
 	else
-		rcv_hdr = REQUEST_BUF(work);
+		rcv_hdr = work->request_buf;
 	return le16_to_cpu(rcv_hdr->Command);
 }
 
@@ -217,7 +217,7 @@ void set_smb2_rsp_status(struct ksmbd_work *work, __le32 err)
 	if (work->next_smb2_rcv_hdr_off)
 		rsp_hdr = RESPONSE_BUF_NEXT(work);
 	else
-		rsp_hdr = RESPONSE_BUF(work);
+		rsp_hdr = work->response_buf;
 	rsp_hdr->Status = err;
 	smb2_set_err_rsp(work);
 }
@@ -241,7 +241,7 @@ int init_smb2_neg_rsp(struct ksmbd_work *work)
 		conn->dialect <= SMB311_PROT_ID))
 		return -EINVAL;
 
-	rsp_hdr = RESPONSE_BUF(work);
+	rsp_hdr = work->response_buf;
 
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
 
@@ -260,7 +260,7 @@ int init_smb2_neg_rsp(struct ksmbd_work *work)
 	rsp_hdr->SessionId = 0;
 	memset(rsp_hdr->Signature, 0, 16);
 
-	rsp = RESPONSE_BUF(work);
+	rsp = work->response_buf;
 
 	WARN_ON(ksmbd_conn_good(work));
 
@@ -410,11 +410,11 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
 		work->compound_sid = le64_to_cpu(rsp->SessionId);
 	}
 
-	len = get_rfc1002_len(RESPONSE_BUF(work)) - work->next_smb2_rsp_hdr_off;
+	len = get_rfc1002_len(work->response_buf) - work->next_smb2_rsp_hdr_off;
 	next_hdr_offset = le32_to_cpu(req->NextCommand);
 
 	new_len = ALIGN(len, 8);
-	inc_rfc1001_len(RESPONSE_BUF(work), ((sizeof(struct smb2_hdr) - 4)
+	inc_rfc1001_len(work->response_buf, ((sizeof(struct smb2_hdr) - 4)
 			+ new_len - len));
 	rsp->NextCommand = cpu_to_le32(new_len);
 
@@ -459,7 +459,7 @@ static void init_chained_smb2_rsp(struct ksmbd_work *work)
  */
 bool is_chained_smb2_message(struct ksmbd_work *work)
 {
-	struct smb2_hdr *hdr = REQUEST_BUF(work);
+	struct smb2_hdr *hdr = work->request_buf;
 	unsigned int len;
 
 	if (hdr->ProtocolId != SMB2_PROTO_NUMBER)
@@ -475,12 +475,12 @@ bool is_chained_smb2_message(struct ksmbd_work *work)
 		 * This is last request in chained command,
 		 * align response to 8 byte
 		 */
-		len = ALIGN(get_rfc1002_len(RESPONSE_BUF(work)), 8);
-		len = len - get_rfc1002_len(RESPONSE_BUF(work));
+		len = ALIGN(get_rfc1002_len(work->response_buf), 8);
+		len = len - get_rfc1002_len(work->response_buf);
 		if (len) {
 			ksmbd_debug(SMB, "padding len %u\n", len);
-			inc_rfc1001_len(RESPONSE_BUF(work), len);
-			if (HAS_AUX_PAYLOAD(work))
+			inc_rfc1001_len(work->response_buf, len);
+			if (work->aux_payload_sz)
 				work->aux_payload_sz += len;
 		}
 	}
@@ -495,8 +495,8 @@ bool is_chained_smb2_message(struct ksmbd_work *work)
  */
 int init_smb2_rsp_hdr(struct ksmbd_work *work)
 {
-	struct smb2_hdr *rsp_hdr = RESPONSE_BUF(work);
-	struct smb2_hdr *rcv_hdr = REQUEST_BUF(work);
+	struct smb2_hdr *rsp_hdr = work->response_buf;
+	struct smb2_hdr *rcv_hdr = work->request_buf;
 	struct ksmbd_conn *conn = work->conn;
 
 	memset(rsp_hdr, 0, sizeof(struct smb2_hdr) + 2);
@@ -533,7 +533,7 @@ int init_smb2_rsp_hdr(struct ksmbd_work *work)
  */
 int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 {
-	struct smb2_hdr *hdr = REQUEST_BUF(work);
+	struct smb2_hdr *hdr = work->request_buf;
 	size_t small_sz = MAX_CIFS_SMALL_BUFFER_SIZE;
 	size_t large_sz = work->conn->vals->max_trans_size + MAX_SMB2_HDR_SIZE;
 	size_t sz = small_sz;
@@ -547,7 +547,7 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 	if (cmd == SMB2_QUERY_INFO_HE) {
 		struct smb2_query_info_req *req;
 
-		req = REQUEST_BUF(work);
+		req = work->request_buf;
 		if (req->InfoType == SMB2_O_INFO_FILE &&
 			(req->FileInfoClass == FILE_FULL_EA_INFORMATION ||
 				req->FileInfoClass == FILE_ALL_INFORMATION)) {
@@ -566,7 +566,7 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
 	else
 		work->response_buf = ksmbd_alloc_response(sz);
 
-	if (!RESPONSE_BUF(work)) {
+	if (!work->response_buf) {
 		ksmbd_err("Failed to allocate %zu bytes buffer\n", sz);
 		return -ENOMEM;
 	}
@@ -583,7 +583,7 @@ int smb2_allocate_rsp_buf(struct ksmbd_work *work)
  */
 int smb2_check_user_session(struct ksmbd_work *work)
 {
-	struct smb2_hdr *req_hdr = REQUEST_BUF(work);
+	struct smb2_hdr *req_hdr = work->request_buf;
 	struct ksmbd_conn *conn = work->conn;
 	unsigned int cmd = conn->ops->get_cmd_val(work);
 	unsigned long long sess_id;
@@ -686,7 +686,7 @@ int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 	struct ksmbd_conn *conn = work->conn;
 	int id;
 
-	rsp_hdr = RESPONSE_BUF(work);
+	rsp_hdr = work->response_buf;
 	rsp_hdr->Flags |= SMB2_FLAGS_ASYNC_COMMAND;
 
 	id = ksmbd_acquire_async_msg_id(conn->async_ida);
@@ -716,7 +716,7 @@ void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status)
 {
 	struct smb2_hdr *rsp_hdr;
 
-	rsp_hdr = RESPONSE_BUF(work);
+	rsp_hdr = work->response_buf;
 	smb2_set_err_rsp(work);
 	rsp_hdr->Status = status;
 
@@ -1030,8 +1030,8 @@ static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
 int smb2_handle_negotiate(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_negotiate_req *req = REQUEST_BUF(work);
-	struct smb2_negotiate_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_negotiate_req *req = work->request_buf;
+	struct smb2_negotiate_rsp *rsp = work->response_buf;
 	int rc = 0;
 	__le32 status;
 
@@ -1078,7 +1078,7 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 		}
 
 		ksmbd_gen_preauth_integrity_hash(conn,
-				REQUEST_BUF(work),
+				work->request_buf,
 				conn->preauth_info->Preauth_HashValue);
 		rsp->NegotiateContextOffset =
 				cpu_to_le32(OFFSET_OF_NEG_CONTEXT);
@@ -1198,7 +1198,7 @@ static int generate_preauth_hash(struct ksmbd_work *work)
 	}
 
 	ksmbd_gen_preauth_integrity_hash(conn,
-					 REQUEST_BUF(work),
+					 work->request_buf,
 					 sess->Preauth_HashValue);
 	return 0;
 }
@@ -1213,7 +1213,7 @@ static int decode_negotiation_token(struct ksmbd_work *work,
 	if (!conn->use_spnego)
 		return -EINVAL;
 
-	req = REQUEST_BUF(work);
+	req = work->request_buf;
 	sz = le16_to_cpu(req->SecurityBufferLength);
 
 	if (!ksmbd_decode_negTokenInit((char *)negblob, sz, conn)) {
@@ -1229,8 +1229,8 @@ static int decode_negotiation_token(struct ksmbd_work *work,
 static int ntlm_negotiate(struct ksmbd_work *work,
 			  struct negotiate_message *negblob)
 {
-	struct smb2_sess_setup_req *req = REQUEST_BUF(work);
-	struct smb2_sess_setup_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_sess_setup_req *req = work->request_buf;
+	struct smb2_sess_setup_rsp *rsp = work->response_buf;
 	struct challenge_message *chgblob;
 	unsigned char *spnego_blob = NULL;
 	u16 spnego_blob_len;
@@ -1330,8 +1330,8 @@ static struct ksmbd_user *session_user(struct ksmbd_conn *conn,
 
 static int ntlm_authenticate(struct ksmbd_work *work)
 {
-	struct smb2_sess_setup_req *req = REQUEST_BUF(work);
-	struct smb2_sess_setup_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_sess_setup_req *req = work->request_buf;
+	struct smb2_sess_setup_rsp *rsp = work->response_buf;
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
 	struct channel *chann = NULL;
@@ -1473,8 +1473,8 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 #ifdef CONFIG_SMB_SERVER_KERBEROS5
 static int krb5_authenticate(struct ksmbd_work *work)
 {
-	struct smb2_sess_setup_req *req = REQUEST_BUF(work);
-	struct smb2_sess_setup_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_sess_setup_req *req = work->request_buf;
+	struct smb2_sess_setup_rsp *rsp = work->response_buf;
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
 	char *in_blob, *out_blob;
@@ -1570,8 +1570,8 @@ static int krb5_authenticate(struct ksmbd_work *work)
 int smb2_sess_setup(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_sess_setup_req *req = REQUEST_BUF(work);
-	struct smb2_sess_setup_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_sess_setup_req *req = work->request_buf;
+	struct smb2_sess_setup_rsp *rsp = work->response_buf;
 	struct ksmbd_session *sess;
 	struct negotiate_message *negblob;
 	int rc = 0;
@@ -1695,8 +1695,8 @@ out_err:
 int smb2_tree_connect(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_tree_connect_req *req = REQUEST_BUF(work);
-	struct smb2_tree_connect_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_tree_connect_req *req = work->request_buf;
+	struct smb2_tree_connect_rsp *rsp = work->response_buf;
 	struct ksmbd_session *sess = work->sess;
 	char *treename = NULL, *name = NULL;
 	struct ksmbd_tree_conn_status status;
@@ -1858,7 +1858,7 @@ static int smb2_create_open_flags(bool file_present, __le32 access,
  */
 int smb2_tree_disconnect(struct ksmbd_work *work)
 {
-	struct smb2_tree_disconnect_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_tree_disconnect_rsp *rsp = work->response_buf;
 	struct ksmbd_session *sess = work->sess;
 	struct ksmbd_tree_connect *tcon = work->tcon;
 
@@ -1868,7 +1868,7 @@ int smb2_tree_disconnect(struct ksmbd_work *work)
 	ksmbd_debug(SMB, "request\n");
 
 	if (!tcon) {
-		struct smb2_tree_disconnect_req *req = REQUEST_BUF(work);
+		struct smb2_tree_disconnect_req *req = work->request_buf;
 
 		ksmbd_debug(SMB, "Invalid tid %d\n", req->hdr.Id.SyncId.TreeId);
 		rsp->hdr.Status = STATUS_NETWORK_NAME_DELETED;
@@ -1890,7 +1890,7 @@ int smb2_tree_disconnect(struct ksmbd_work *work)
 int smb2_session_logoff(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_logoff_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_logoff_rsp *rsp = work->response_buf;
 	struct ksmbd_session *sess = work->sess;
 
 	rsp->StructureSize = cpu_to_le16(4);
@@ -1907,7 +1907,7 @@ int smb2_session_logoff(struct ksmbd_work *work)
 	ksmbd_conn_wait_idle(conn);
 
 	if (ksmbd_tree_conn_session_logoff(sess)) {
-		struct smb2_logoff_req *req = REQUEST_BUF(work);
+		struct smb2_logoff_req *req = work->request_buf;
 
 		ksmbd_debug(SMB, "Invalid tid %d\n", req->hdr.Id.SyncId.TreeId);
 		rsp->hdr.Status = STATUS_NETWORK_NAME_DELETED;
@@ -1934,8 +1934,8 @@ int smb2_session_logoff(struct ksmbd_work *work)
  */
 static noinline int create_smb2_pipe(struct ksmbd_work *work)
 {
-	struct smb2_create_rsp *rsp = RESPONSE_BUF(work);
-	struct smb2_create_req *req = REQUEST_BUF(work);
+	struct smb2_create_rsp *rsp = work->response_buf;
+	struct smb2_create_req *req = work->request_buf;
 	int id;
 	int err;
 	char *name;
@@ -2490,7 +2490,7 @@ int smb2_open(struct ksmbd_work *work)
 	umode_t posix_mode = 0;
 	__le32 daccess, maximal_access = 0;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	if (req->hdr.NextCommand && !work->next_smb2_rcv_hdr_off &&
@@ -3889,7 +3889,7 @@ int smb2_query_dir(struct ksmbd_work *work)
 	int buffer_sz;
 	struct smb2_query_dir_private query_dir_private = {NULL, };
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	if (ksmbd_override_fsids(work)) {
@@ -5190,7 +5190,7 @@ int smb2_query_info(struct ksmbd_work *work)
 	struct smb2_query_info_rsp *rsp, *rsp_org;
 	int rc = 0;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	ksmbd_debug(SMB, "GOT query info request\n");
@@ -5244,8 +5244,8 @@ int smb2_query_info(struct ksmbd_work *work)
 static noinline int smb2_close_pipe(struct ksmbd_work *work)
 {
 	uint64_t id;
-	struct smb2_close_req *req = REQUEST_BUF(work);
-	struct smb2_close_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_close_req *req = work->request_buf;
+	struct smb2_close_rsp *rsp = work->response_buf;
 
 	id = le64_to_cpu(req->VolatileFileId);
 	ksmbd_session_rpc_close(work->sess, id);
@@ -5283,7 +5283,7 @@ int smb2_close(struct ksmbd_work *work)
 	u64 time;
 	int err = 0;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	if (test_share_config_flag(work->tcon->share_conf,
@@ -5386,7 +5386,7 @@ out:
  */
 int smb2_echo(struct ksmbd_work *work)
 {
-	struct smb2_echo_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_echo_rsp *rsp = work->response_buf;
 
 	rsp->StructureSize = cpu_to_le16(4);
 	rsp->Reserved = 0;
@@ -5974,7 +5974,7 @@ int smb2_set_info(struct ksmbd_work *work)
 
 	ksmbd_debug(SMB, "Received set info request\n");
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	if (work->next_smb2_rcv_hdr_off) {
 		req = REQUEST_BUF_NEXT(work);
 		rsp = RESPONSE_BUF_NEXT(work);
@@ -5985,8 +5985,8 @@ int smb2_set_info(struct ksmbd_work *work)
 			pid = work->compound_pfid;
 		}
 	} else {
-		req = REQUEST_BUF(work);
-		rsp = RESPONSE_BUF(work);
+		req = work->request_buf;
+		rsp = work->response_buf;
 	}
 
 	if (!HAS_FILE_ID(id)) {
@@ -6062,8 +6062,8 @@ static noinline int smb2_read_pipe(struct ksmbd_work *work)
 	int nbytes = 0, err;
 	uint64_t id;
 	struct ksmbd_rpc_command *rpc_resp;
-	struct smb2_read_req *req = REQUEST_BUF(work);
-	struct smb2_read_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_read_req *req = work->request_buf;
+	struct smb2_read_rsp *rsp = work->response_buf;
 
 	id = le64_to_cpu(req->VolatileFileId);
 
@@ -6155,7 +6155,7 @@ int smb2_read(struct ksmbd_work *work)
 	ssize_t nbytes = 0, remain_bytes = 0;
 	int err = 0;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	if (test_share_config_flag(work->tcon->share_conf,
@@ -6212,10 +6212,10 @@ int smb2_read(struct ksmbd_work *work)
 
 	if ((nbytes == 0 && length != 0) || nbytes < mincount) {
 		if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF)
-			ksmbd_release_buffer(AUX_PAYLOAD(work));
+			ksmbd_release_buffer(work->aux_payload_buf);
 		else
-			ksmbd_free_response(AUX_PAYLOAD(work));
-		INIT_AUX_PAYLOAD(work);
+			ksmbd_free_response(work->aux_payload_buf);
+		work->aux_payload_buf = NULL;
 		rsp->hdr.Status = STATUS_END_OF_FILE;
 		smb2_set_err_rsp(work);
 		ksmbd_fd_put(work, fp);
@@ -6229,12 +6229,12 @@ int smb2_read(struct ksmbd_work *work)
 			req->Channel == SMB2_CHANNEL_RDMA_V1) {
 		/* write data to the client using rdma channel */
 		remain_bytes = smb2_read_rdma_channel(work, req,
-						AUX_PAYLOAD(work), nbytes);
+						work->aux_payload_buf, nbytes);
 		if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF)
-			ksmbd_release_buffer(AUX_PAYLOAD(work));
+			ksmbd_release_buffer(work->aux_payload_buf);
 		else
-			ksmbd_free_response(AUX_PAYLOAD(work));
-		INIT_AUX_PAYLOAD(work);
+			ksmbd_free_response(work->aux_payload_buf);
+		work->aux_payload_buf = NULL;
 
 		nbytes = 0;
 		if (remain_bytes < 0) {
@@ -6287,8 +6287,8 @@ out:
  */
 static noinline int smb2_write_pipe(struct ksmbd_work *work)
 {
-	struct smb2_write_req *req = REQUEST_BUF(work);
-	struct smb2_write_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_write_req *req = work->request_buf;
+	struct smb2_write_rsp *rsp = work->response_buf;
 	struct ksmbd_rpc_command *rpc_resp;
 	uint64_t id = 0;
 	int err = 0, ret = 0;
@@ -6418,7 +6418,7 @@ int smb2_write(struct ksmbd_work *work)
 	bool writethrough = false;
 	int err = 0;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	if (test_share_config_flag(work->tcon->share_conf,
@@ -6548,7 +6548,7 @@ int smb2_flush(struct ksmbd_work *work)
 	struct smb2_flush_rsp *rsp, *rsp_org;
 	int err;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	WORK_BUFFERS(work, req, rsp);
 
 	ksmbd_debug(SMB, "SMB2_FLUSH called for fid %llu\n",
@@ -6583,7 +6583,7 @@ out:
 int smb2_cancel(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_hdr *hdr = REQUEST_BUF(work);
+	struct smb2_hdr *hdr = work->request_buf;
 	struct smb2_hdr *chdr;
 	struct ksmbd_work *cancel_work = NULL;
 	struct list_head *tmp;
@@ -6600,7 +6600,7 @@ int smb2_cancel(struct ksmbd_work *work)
 		list_for_each(tmp, command_list) {
 			cancel_work = list_entry(tmp, struct ksmbd_work,
 					async_request_entry);
-			chdr = REQUEST_BUF(cancel_work);
+			chdr = cancel_work->request_buf;
 
 			if (cancel_work->async_id !=
 					le64_to_cpu(hdr->Id.AsyncId))
@@ -6621,7 +6621,7 @@ int smb2_cancel(struct ksmbd_work *work)
 		list_for_each(tmp, command_list) {
 			cancel_work = list_entry(tmp, struct ksmbd_work,
 					request_entry);
-			chdr = REQUEST_BUF(cancel_work);
+			chdr = cancel_work->request_buf;
 
 			if (chdr->MessageId != hdr->MessageId ||
 				cancel_work == work)
@@ -6754,8 +6754,8 @@ static inline bool lock_defer_pending(struct file_lock *fl)
  */
 int smb2_lock(struct ksmbd_work *work)
 {
-	struct smb2_lock_req *req = REQUEST_BUF(work);
-	struct smb2_lock_rsp *rsp = RESPONSE_BUF(work);
+	struct smb2_lock_req *req = work->request_buf;
+	struct smb2_lock_rsp *rsp = work->response_buf;
 	struct smb2_lock_element *lock_ele;
 	struct ksmbd_file *fp = NULL;
 	struct file_lock *flock = NULL;
@@ -7504,7 +7504,7 @@ int smb2_ioctl(struct ksmbd_work *work)
 	struct ksmbd_conn *conn = work->conn;
 	int ret = 0;
 
-	rsp_org = RESPONSE_BUF(work);
+	rsp_org = work->response_buf;
 	if (work->next_smb2_rcv_hdr_off) {
 		req = REQUEST_BUF_NEXT(work);
 		rsp = RESPONSE_BUF_NEXT(work);
@@ -7514,8 +7514,8 @@ int smb2_ioctl(struct ksmbd_work *work)
 			id = work->compound_fid;
 		}
 	} else {
-		req = REQUEST_BUF(work);
-		rsp = RESPONSE_BUF(work);
+		req = work->request_buf;
+		rsp = work->response_buf;
 	}
 
 	if (!HAS_FILE_ID(id))
@@ -7725,8 +7725,8 @@ out:
  */
 static void smb20_oplock_break_ack(struct ksmbd_work *work)
 {
-	struct smb2_oplock_break *req = REQUEST_BUF(work);
-	struct smb2_oplock_break *rsp = RESPONSE_BUF(work);
+	struct smb2_oplock_break *req = work->request_buf;
+	struct smb2_oplock_break *rsp = work->response_buf;
 	struct ksmbd_file *fp;
 	struct oplock_info *opinfo = NULL;
 	__le32 err = 0;
@@ -7867,8 +7867,8 @@ static int check_lease_state(struct lease *lease, __le32 req_state)
 static void smb21_lease_break_ack(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_lease_ack *req = REQUEST_BUF(work);
-	struct smb2_lease_ack *rsp = RESPONSE_BUF(work);
+	struct smb2_lease_ack *req = work->request_buf;
+	struct smb2_lease_ack *rsp = work->response_buf;
 	struct oplock_info *opinfo;
 	__le32 err = 0;
 	int ret = 0;
@@ -8000,8 +8000,8 @@ err_out:
  */
 int smb2_oplock_break(struct ksmbd_work *work)
 {
-	struct smb2_oplock_break *req = REQUEST_BUF(work);
-	struct smb2_oplock_break *rsp = RESPONSE_BUF(work);
+	struct smb2_oplock_break *req = work->request_buf;
+	struct smb2_oplock_break *rsp = work->response_buf;
 
 	switch (le16_to_cpu(req->StructureSize)) {
 	case OP_BREAK_STRUCT_SIZE_20:
@@ -8053,7 +8053,7 @@ int smb2_notify(struct ksmbd_work *work)
  */
 bool smb2_is_sign_req(struct ksmbd_work *work, unsigned int command)
 {
-	struct smb2_hdr *rcv_hdr2 = REQUEST_BUF(work);
+	struct smb2_hdr *rcv_hdr2 = work->request_buf;
 
 	if ((rcv_hdr2->Flags & SMB2_FLAGS_SIGNED) &&
 			command != SMB2_NEGOTIATE_HE &&
@@ -8078,7 +8078,7 @@ int smb2_check_sign_req(struct ksmbd_work *work)
 	struct kvec iov[1];
 	size_t len;
 
-	hdr_org = hdr = REQUEST_BUF(work);
+	hdr_org = hdr = work->request_buf;
 	if (work->next_smb2_rcv_hdr_off)
 		hdr = REQUEST_BUF_NEXT(work);
 
@@ -8122,7 +8122,7 @@ void smb2_set_sign_rsp(struct ksmbd_work *work)
 	size_t len;
 	int n_vec = 1;
 
-	hdr_org = hdr = RESPONSE_BUF(work);
+	hdr_org = hdr = work->response_buf;
 	if (work->next_smb2_rsp_hdr_off)
 		hdr = RESPONSE_BUF_NEXT(work);
 
@@ -8146,11 +8146,11 @@ void smb2_set_sign_rsp(struct ksmbd_work *work)
 	iov[0].iov_base = (char *)&hdr->ProtocolId;
 	iov[0].iov_len = len;
 
-	if (HAS_AUX_PAYLOAD(work)) {
-		iov[0].iov_len -= AUX_PAYLOAD_SIZE(work);
+	if (work->aux_payload_sz) {
+		iov[0].iov_len -= work->aux_payload_sz;
 
-		iov[1].iov_base = AUX_PAYLOAD(work);
-		iov[1].iov_len = AUX_PAYLOAD_SIZE(work);
+		iov[1].iov_base = work->aux_payload_buf;
+		iov[1].iov_len = work->aux_payload_sz;
 		n_vec++;
 	}
 
@@ -8176,7 +8176,7 @@ int smb3_check_sign_req(struct ksmbd_work *work)
 	struct kvec iov[1];
 	size_t len;
 
-	hdr_org = hdr = REQUEST_BUF(work);
+	hdr_org = hdr = work->request_buf;
 	if (work->next_smb2_rcv_hdr_off)
 		hdr = REQUEST_BUF_NEXT(work);
 
@@ -8237,7 +8237,7 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 	size_t len;
 	char *signing_key;
 
-	hdr_org = hdr = RESPONSE_BUF(work);
+	hdr_org = hdr = work->response_buf;
 	if (work->next_smb2_rsp_hdr_off)
 		hdr = RESPONSE_BUF_NEXT(work);
 
@@ -8273,10 +8273,10 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 	memset(hdr->Signature, 0, SMB2_SIGNATURE_SIZE);
 	iov[0].iov_base = (char *)&hdr->ProtocolId;
 	iov[0].iov_len = len;
-	if (HAS_AUX_PAYLOAD(work)) {
-		iov[0].iov_len -= AUX_PAYLOAD_SIZE(work);
-		iov[1].iov_base = AUX_PAYLOAD(work);
-		iov[1].iov_len = AUX_PAYLOAD_SIZE(work);
+	if (work->aux_payload_sz) {
+		iov[0].iov_len -= work->aux_payload_sz;
+		iov[1].iov_base = work->aux_payload_buf;
+		iov[1].iov_len = work->aux_payload_sz;
 		n_vec++;
 	}
 
@@ -8336,11 +8336,11 @@ static void fill_transform_hdr(struct smb2_transform_hdr *tr_hdr,
 
 int smb3_encrypt_resp(struct ksmbd_work *work)
 {
-	char *buf = RESPONSE_BUF(work);
+	char *buf = work->response_buf;
 	struct smb2_transform_hdr *tr_hdr;
 	struct kvec iov[3];
 	int rc = -ENOMEM;
-	int buf_size = 0, rq_nvec = 2 + (HAS_AUX_PAYLOAD(work) ? 1 : 0);
+	int buf_size = 0, rq_nvec = 2 + (work->aux_payload_sz ? 1 : 0);
 
 	if (ARRAY_SIZE(iov) < rq_nvec)
 		return -ENOMEM;
@@ -8358,11 +8358,11 @@ int smb3_encrypt_resp(struct ksmbd_work *work)
 
 	iov[1].iov_base = buf + 4;
 	iov[1].iov_len = get_rfc1002_len(buf);
-	if (HAS_AUX_PAYLOAD(work)) {
-		iov[1].iov_len = RESP_HDR_SIZE(work) - 4;
+	if (work->aux_payload_sz) {
+		iov[1].iov_len = work->resp_hdr_sz - 4;
 
-		iov[2].iov_base = AUX_PAYLOAD(work);
-		iov[2].iov_len = AUX_PAYLOAD_SIZE(work);
+		iov[2].iov_base = work->aux_payload_buf;
+		iov[2].iov_len = work->aux_payload_sz;
 		buf_size += iov[2].iov_len;
 	}
 	buf_size += iov[1].iov_len;
@@ -8390,7 +8390,7 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess;
-	char *buf = REQUEST_BUF(work);
+	char *buf = work->request_buf;
 	struct smb2_hdr *hdr;
 	unsigned int pdu_length = get_rfc1002_len(buf);
 	struct kvec iov[2];
@@ -8437,7 +8437,7 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 bool smb3_11_final_sess_setup_resp(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb2_hdr *rsp = RESPONSE_BUF(work);
+	struct smb2_hdr *rsp = work->response_buf;
 
 	if (conn->dialect < SMB30_PROT_ID)
 		return false;

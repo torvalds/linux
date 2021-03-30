@@ -95,7 +95,7 @@ static inline int check_conn_state(struct ksmbd_work *work)
 	struct smb_hdr *rsp_hdr;
 
 	if (ksmbd_conn_exiting(work) || ksmbd_conn_need_reconnect(work)) {
-		rsp_hdr = RESPONSE_BUF(work);
+		rsp_hdr = work->response_buf;
 		rsp_hdr->Status.CifsError = STATUS_CONNECTION_DISCONNECTED;
 		return 1;
 	}
@@ -169,7 +169,7 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 		return;
 
 	if (conn->ops->is_transform_hdr &&
-		conn->ops->is_transform_hdr(REQUEST_BUF(work))) {
+		conn->ops->is_transform_hdr(work->request_buf)) {
 		rc = conn->ops->decrypt_req(work);
 		if (rc < 0) {
 			conn->ops->set_rsp_status(work, STATUS_DATA_ERROR);

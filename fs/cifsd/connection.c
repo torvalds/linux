@@ -154,7 +154,7 @@ void ksmbd_conn_wait_idle(struct ksmbd_conn *conn)
 int ksmbd_conn_write(struct ksmbd_work *work)
 {
 	struct ksmbd_conn *conn = work->conn;
-	struct smb_hdr *rsp_hdr = RESPONSE_BUF(work);
+	struct smb_hdr *rsp_hdr = work->response_buf;
 	size_t len = 0;
 	int sent;
 	struct kvec iov[3];
@@ -166,21 +166,20 @@ int ksmbd_conn_write(struct ksmbd_work *work)
 		return -EINVAL;
 	}
 
-	if (HAS_TRANSFORM_BUF(work)) {
+	if (work->tr_buf) {
 		iov[iov_idx] = (struct kvec) { work->tr_buf,
 				sizeof(struct smb2_transform_hdr) };
 		len += iov[iov_idx++].iov_len;
 	}
 
-	if (HAS_AUX_PAYLOAD(work)) {
-		iov[iov_idx] = (struct kvec) { rsp_hdr, RESP_HDR_SIZE(work) };
+	if (work->aux_payload_sz) {
+		iov[iov_idx] = (struct kvec) { rsp_hdr, work->resp_hdr_sz };
 		len += iov[iov_idx++].iov_len;
-		iov[iov_idx] = (struct kvec) { AUX_PAYLOAD(work),
-			AUX_PAYLOAD_SIZE(work) };
+		iov[iov_idx] = (struct kvec) { work->aux_payload_buf, work->aux_payload_sz };
 		len += iov[iov_idx++].iov_len;
 	} else {
-		if (HAS_TRANSFORM_BUF(work))
-			iov[iov_idx].iov_len = RESP_HDR_SIZE(work);
+		if (work->tr_buf)
+			iov[iov_idx].iov_len = work->resp_hdr_sz;
 		else
 			iov[iov_idx].iov_len = get_rfc1002_len(rsp_hdr) + 4;
 		iov[iov_idx].iov_base = rsp_hdr;

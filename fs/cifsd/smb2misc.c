@@ -355,7 +355,7 @@ static int smb2_validate_credit_charge(struct smb2_hdr *hdr)
 
 int ksmbd_smb2_check_message(struct ksmbd_work *work)
 {
-	struct smb2_pdu *pdu = REQUEST_BUF(work);
+	struct smb2_pdu *pdu = work->request_buf;
 	struct smb2_hdr *hdr = &pdu->hdr;
 	int command;
 	__u32 clc_len;  /* calculated length */

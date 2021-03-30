@@ -27,12 +27,12 @@ struct ksmbd_work {
 	struct ksmbd_tree_connect       *tcon;
 
 	/* Pointer to received SMB header */
-	char                            *request_buf;
+	void                            *request_buf;
 	/* Response buffer */
-	char                            *response_buf;
+	void                            *response_buf;
 
 	/* Read data buffer */
-	char                            *aux_payload_buf;
+	void                            *aux_payload_buf;
 
 	/* Next cmd hdr in compound req buf*/
 	int                             next_smb2_rcv_hdr_off;
@@ -92,24 +92,10 @@ struct ksmbd_work {
 #define WORK_CLOSED(w)		((w)->state == KSMBD_WORK_CLOSED)
 #define WORK_ACTIVE(w)		((w)->state == KSMBD_WORK_ACTIVE)
 
-#define RESPONSE_BUF(w)		((void *)(w)->response_buf)
-#define REQUEST_BUF(w)		((void *)(w)->request_buf)
-
 #define RESPONSE_BUF_NEXT(w)	\
-	((void *)((w)->response_buf + (w)->next_smb2_rsp_hdr_off))
+	(((w)->response_buf + (w)->next_smb2_rsp_hdr_off))
 #define REQUEST_BUF_NEXT(w)	\
-	((void *)((w)->request_buf + (w)->next_smb2_rcv_hdr_off))
-
-#define RESPONSE_SZ(w)		((w)->response_sz)
-
-#define INIT_AUX_PAYLOAD(w)	((w)->aux_payload_buf = NULL)
-#define HAS_AUX_PAYLOAD(w)	((w)->aux_payload_sz != 0)
-#define AUX_PAYLOAD(w)		((void *)((w)->aux_payload_buf))
-#define AUX_PAYLOAD_SIZE(w)	((w)->aux_payload_sz)
-#define RESP_HDR_SIZE(w)	((w)->resp_hdr_sz)
-
-#define HAS_TRANSFORM_BUF(w)	((w)->tr_buf != NULL)
-#define TRANSFORM_BUF(w)	((void *)((w)->tr_buf))
+	(((w)->request_buf + (w)->next_smb2_rcv_hdr_off))
 
 struct ksmbd_work *ksmbd_alloc_work_struct(void);
 void ksmbd_free_work_struct(struct ksmbd_work *work);
