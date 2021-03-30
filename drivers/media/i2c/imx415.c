@@ -44,6 +44,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
@@ -219,6 +220,9 @@ struct imx415 {
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
+	bool			is_thunderboot;
+	bool			is_thunderboot_ng;
+	bool			is_first_streamoff;
 	const struct imx415_mode *cur_mode;
 	u32			module_index;
 	u32			cfg_num;
@@ -915,8 +919,15 @@ imx415_find_best_fit(struct imx415 *imx415, struct v4l2_subdev_format *fmt)
 	return &supported_modes[cur_best_fit];
 }
 
+static int __imx415_power_on(struct imx415 *imx415);
+
 static void imx415_change_mode(struct imx415 *imx415, const struct imx415_mode *mode)
 {
+	if (imx415->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+		imx415->is_thunderboot = false;
+		imx415->is_thunderboot_ng = true;
+		__imx415_power_on(imx415);
+	}
 	imx415->cur_mode = mode;
 	imx415->cur_vts = imx415->cur_mode->vts_def;
 	dev_dbg(&imx415->client->dev, "set fmt: cur_mode: %dx%d, hdr: %d\n",
@@ -1655,12 +1666,14 @@ static int __imx415_start_stream(struct imx415 *imx415)
 {
 	int ret;
 
-	ret = imx415_write_array(imx415->client, imx415->cur_mode->global_reg_list);
-	if (ret)
-		return ret;
-	ret = imx415_write_array(imx415->client, imx415->cur_mode->reg_list);
-	if (ret)
-		return ret;
+	if (!imx415->is_thunderboot) {
+		ret = imx415_write_array(imx415->client, imx415->cur_mode->global_reg_list);
+		if (ret)
+			return ret;
+		ret = imx415_write_array(imx415->client, imx415->cur_mode->reg_list);
+		if (ret)
+			return ret;
+	}
 
 	/* In case these controls are set before streaming */
 	ret = __v4l2_ctrl_handler_setup(&imx415->ctrl_handler);
@@ -1682,6 +1695,8 @@ static int __imx415_start_stream(struct imx415 *imx415)
 static int __imx415_stop_stream(struct imx415 *imx415)
 {
 	imx415->has_init_exp = false;
+	if (imx415->is_thunderboot)
+		imx415->is_first_streamoff = true;
 	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
 				IMX415_REG_VALUE_08BIT, 1);
 }
@@ -1702,6 +1717,10 @@ static int imx415_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+		if (imx415->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			imx415->is_thunderboot = false;
+			__imx415_power_on(imx415);
+		}
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
@@ -1756,10 +1775,13 @@ unlock_and_return:
 	return ret;
 }
 
-static int __imx415_power_on(struct imx415 *imx415)
+int __imx415_power_on(struct imx415 *imx415)
 {
 	int ret;
 	struct device *dev = &imx415->client->dev;
+
+	if (imx415->is_thunderboot)
+		return 0;
 
 	if (!IS_ERR_OR_NULL(imx415->pins_default)) {
 		ret = pinctrl_select_state(imx415->pinctrl,
@@ -1774,12 +1796,12 @@ static int __imx415_power_on(struct imx415 *imx415)
 		goto err_pinctrl;
 	}
 	if (!IS_ERR(imx415->power_gpio))
-		gpiod_set_value_cansleep(imx415->power_gpio, 1);
+		gpiod_direction_output(imx415->power_gpio, 1);
 	/* At least 500ns between power raising and XCLR */
 	/* fix power on timing if insmod this ko */
 	usleep_range(10 * 1000, 20 * 1000);
 	if (!IS_ERR(imx415->reset_gpio))
-		gpiod_set_value_cansleep(imx415->reset_gpio, 0);
+		gpiod_direction_output(imx415->reset_gpio, 0);
 
 	/* At least 1us between XCLR and clk */
 	/* fix power on timing if insmod this ko */
@@ -1802,7 +1824,7 @@ static int __imx415_power_on(struct imx415 *imx415)
 
 err_clk:
 	if (!IS_ERR(imx415->reset_gpio))
-		gpiod_set_value_cansleep(imx415->reset_gpio, 1);
+		gpiod_direction_output(imx415->reset_gpio, 1);
 	regulator_bulk_disable(IMX415_NUM_SUPPLIES, imx415->supplies);
 
 err_pinctrl:
@@ -1817,8 +1839,17 @@ static void __imx415_power_off(struct imx415 *imx415)
 	int ret;
 	struct device *dev = &imx415->client->dev;
 
+	if (imx415->is_thunderboot) {
+		if (imx415->is_first_streamoff) {
+			imx415->is_thunderboot = false;
+			imx415->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
+
 	if (!IS_ERR(imx415->reset_gpio))
-		gpiod_set_value_cansleep(imx415->reset_gpio, 1);
+		gpiod_direction_output(imx415->reset_gpio, 1);
 	clk_disable_unprepare(imx415->xvclk);
 	if (!IS_ERR_OR_NULL(imx415->pins_sleep)) {
 		ret = pinctrl_select_state(imx415->pinctrl,
@@ -1827,7 +1858,7 @@ static void __imx415_power_off(struct imx415 *imx415)
 			dev_dbg(dev, "could not set pins\n");
 	}
 	if (!IS_ERR(imx415->power_gpio))
-		gpiod_set_value_cansleep(imx415->power_gpio, 0);
+		gpiod_direction_output(imx415->power_gpio, 0);
 	regulator_bulk_disable(IMX415_NUM_SUPPLIES, imx415->supplies);
 }
 
@@ -2163,6 +2194,11 @@ static int imx415_check_sensor_id(struct imx415 *imx415,
 	u32 id = 0;
 	int ret;
 
+	if (imx415->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
+
 	ret = imx415_read_reg(client, IMX415_REG_CHIP_ID,
 			      IMX415_REG_VALUE_08BIT, &id);
 	if (id != CHIP_ID) {
@@ -2234,16 +2270,18 @@ static int imx415_probe(struct i2c_client *client,
 		}
 	}
 
+	imx415->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+
 	imx415->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(imx415->xvclk)) {
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
 
-	imx415->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	imx415->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(imx415->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
-	imx415->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	imx415->power_gpio = devm_gpiod_get(dev, "power", GPIOD_ASIS);
 	if (IS_ERR(imx415->power_gpio))
 		dev_warn(dev, "Failed to get power-gpios\n");
 	imx415->pinctrl = devm_pinctrl_get(dev);
