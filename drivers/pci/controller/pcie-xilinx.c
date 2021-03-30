@@ -94,7 +94,6 @@
  * struct xilinx_pcie_port - PCIe port information
  * @reg_base: IO Mapped Register Base
  * @irq: Interrupt number
- * @msi_pages: MSI pages
  * @dev: Device pointer
  * @msi_domain: MSI IRQ domain pointer
  * @leg_domain: Legacy IRQ domain pointer
@@ -103,7 +102,6 @@
 struct xilinx_pcie_port {
 	void __iomem *reg_base;
 	u32 irq;
-	unsigned long msi_pages;
 	struct device *dev;
 	struct irq_domain *msi_domain;
 	struct irq_domain *leg_domain;
@@ -274,10 +272,10 @@ static int xilinx_pcie_msi_setup_irq(struct msi_controller *chip,
 
 	irq_set_msi_desc(irq, desc);
 
-	msg_addr = virt_to_phys((void *)port->msi_pages);
+	msg_addr = ALIGN_DOWN(virt_to_phys(port), SZ_4K);
 
-	msg.address_hi = 0;
-	msg.address_lo = msg_addr;
+	msg.address_hi = upper_32_bits(msg_addr);
+	msg.address_lo = lower_32_bits(msg_addr);
 	msg.data = irq;
 
 	pci_write_msi_msg(irq, &msg);
@@ -330,13 +328,9 @@ static int xilinx_pcie_enable_msi(struct xilinx_pcie_port *port)
 {
 	phys_addr_t msg_addr;
 
-	port->msi_pages = __get_free_pages(GFP_KERNEL, 0);
-	if (!port->msi_pages)
-		return -ENOMEM;
-
-	msg_addr = virt_to_phys((void *)port->msi_pages);
-	pcie_write(port, 0x0, XILINX_PCIE_REG_MSIBASE1);
-	pcie_write(port, msg_addr, XILINX_PCIE_REG_MSIBASE2);
+	msg_addr = ALIGN_DOWN(virt_to_phys(port), SZ_4K);
+	pcie_write(port, upper_32_bits(msg_addr), XILINX_PCIE_REG_MSIBASE1);
+	pcie_write(port, lower_32_bits(msg_addr), XILINX_PCIE_REG_MSIBASE2);
 
 	return 0;
 }
