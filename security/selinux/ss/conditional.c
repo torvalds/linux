@@ -628,7 +628,8 @@ static int cond_dup_av_list(struct cond_av_list *new,
 static int duplicate_policydb_cond_list(struct policydb *newp,
 					struct policydb *origp)
 {
-	int rc, i, j;
+	int rc;
+	u32 i;
 
 	rc = avtab_alloc_dup(&newp->te_cond_avtab, &origp->te_cond_avtab);
 	if (rc)
@@ -648,12 +649,12 @@ static int duplicate_policydb_cond_list(struct policydb *newp,
 		newp->cond_list_len++;
 
 		newn->cur_state = orign->cur_state;
-		newn->expr.nodes = kcalloc(orign->expr.len,
-					sizeof(*newn->expr.nodes), GFP_KERNEL);
+		newn->expr.nodes = kmemdup(orign->expr.nodes,
+				orign->expr.len * sizeof(*orign->expr.nodes),
+				GFP_KERNEL);
 		if (!newn->expr.nodes)
 			goto error;
-		for (j = 0; j < orign->expr.len; j++)
-			newn->expr.nodes[j] = orign->expr.nodes[j];
+
 		newn->expr.len = orign->expr.len;
 
 		rc = cond_dup_av_list(&newn->true_list, &orign->true_list,
