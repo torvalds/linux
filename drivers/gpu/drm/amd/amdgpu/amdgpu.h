@@ -180,6 +180,7 @@ extern uint amdgpu_smu_memory_pool_size;
 extern uint amdgpu_dc_feature_mask;
 extern uint amdgpu_dc_debug_mask;
 extern uint amdgpu_dm_abm_level;
+extern int amdgpu_backlight;
 extern struct amdgpu_mgpu_info mgpu_info;
 extern int amdgpu_ras_enable;
 extern uint amdgpu_ras_mask;
@@ -1006,13 +1007,9 @@ struct amdgpu_device {
 
 	/* s3/s4 mask */
 	bool                            in_suspend;
-	bool				in_hibernate;
-
-	/*
-	 * The combination flag in_poweroff_reboot_com used to identify the poweroff
-	 * and reboot opt in the s0i3 system-wide suspend.
-	 */
-	bool 				in_poweroff_reboot_com;
+	bool				in_s3;
+	bool				in_s4;
+	bool				in_s0ix;
 
 	atomic_t 			in_gpu_reset;
 	enum pp_mp1_state               mp1_state;

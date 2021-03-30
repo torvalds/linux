@@ -129,9 +129,6 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_WEIGHT)
 		COMP(weight);
 
-	if (type & PERF_SAMPLE_WEIGHT_STRUCT)
-		COMP(ins_lat);
-
 	if (type & PERF_SAMPLE_DATA_SRC)
 		COMP(data_src);
 
@@ -245,7 +242,6 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		.cgroup		= 114,
 		.data_page_size = 115,
 		.code_page_size = 116,
-		.ins_lat        = 117,
 		.aux_sample	= {
 			.size	= sizeof(aux_data),
 			.data	= (void *)aux_data,

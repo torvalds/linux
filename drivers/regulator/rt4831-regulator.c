@@ -153,9 +153,9 @@ static int rt4831_regulator_probe(struct platform_device *pdev)
 	int i, ret;
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
-	if (IS_ERR(regmap)) {
+	if (!regmap) {
 		dev_err(&pdev->dev, "Failed to init regmap\n");
-		return PTR_ERR(regmap);
+		return -ENODEV;
 	}
 
 	/* Configure DSV mode to normal by default */

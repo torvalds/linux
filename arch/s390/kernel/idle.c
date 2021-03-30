@@ -47,7 +47,7 @@ void account_idle_time_irq(void)
 void arch_cpu_idle(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
-	unsigned long long idle_time;
+	unsigned long idle_time;
 	unsigned long psw_mask;
 
 	/* Wait for external, I/O or machine check interrupt. */
@@ -73,7 +73,7 @@ static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
-	unsigned long long idle_count;
+	unsigned long idle_count;
 	unsigned int seq;
 
 	do {
@@ -82,14 +82,14 @@ static ssize_t show_idle_count(struct device *dev,
 		if (READ_ONCE(idle->clock_idle_enter))
 			idle_count++;
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-	return sprintf(buf, "%llu\n", idle_count);
+	return sprintf(buf, "%lu\n", idle_count);
 }
 DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
 
 static ssize_t show_idle_time(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	unsigned long long now, idle_time, idle_enter, idle_exit, in_idle;
+	unsigned long now, idle_time, idle_enter, idle_exit, in_idle;
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
 	unsigned int seq;
 
@@ -109,14 +109,14 @@ static ssize_t show_idle_time(struct device *dev,
 		}
 	}
 	idle_time += in_idle;
-	return sprintf(buf, "%llu\n", idle_time >> 12);
+	return sprintf(buf, "%lu\n", idle_time >> 12);
 }
 DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 u64 arch_cpu_idle_time(int cpu)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
-	unsigned long long now, idle_enter, idle_exit, in_idle;
+	unsigned long now, idle_enter, idle_exit, in_idle;
 	unsigned int seq;
 
 	do {
