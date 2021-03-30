@@ -361,8 +361,7 @@ static void mhi_net_remove(struct mhi_device *mhi_dev)
 
 	mhi_unprepare_from_transfer(mhi_netdev->mdev);
 
-	if (mhi_netdev->skbagg_head)
-		kfree_skb(mhi_netdev->skbagg_head);
+	kfree_skb(mhi_netdev->skbagg_head);
 
 	free_netdev(mhi_netdev->ndev);
 }
