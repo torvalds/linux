@@ -596,7 +596,7 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 
 	last = extract_last_component(name);
 	if (!last)
-		return -ENOENT;
+		return -EINVAL;
 
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
