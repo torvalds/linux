@@ -254,8 +254,7 @@ vfio_unregister_group_dev() respectively::
 
 	void vfio_init_group_dev(struct vfio_device *device,
 				struct device *dev,
-				const struct vfio_device_ops *ops,
-				void *device_data);
+				const struct vfio_device_ops *ops);
 	int vfio_register_group_dev(struct vfio_device *device);
 	void vfio_unregister_group_dev(struct vfio_device *device);
 

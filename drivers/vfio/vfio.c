@@ -741,12 +741,11 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
  * VFIO driver API
  */
 void vfio_init_group_dev(struct vfio_device *device, struct device *dev,
-			 const struct vfio_device_ops *ops, void *device_data)
+			 const struct vfio_device_ops *ops)
 {
 	init_completion(&device->comp);
 	device->dev = dev;
 	device->ops = ops;
-	device->device_data = device_data;
 }
 EXPORT_SYMBOL_GPL(vfio_init_group_dev);
 
@@ -850,15 +849,6 @@ static struct vfio_device *vfio_device_get_from_name(struct vfio_group *group,
 
 	return device;
 }
-
-/*
- * Caller must hold a reference to the vfio_device
- */
-void *vfio_device_data(struct vfio_device *device)
-{
-	return device->device_data;
-}
-EXPORT_SYMBOL_GPL(vfio_device_data);
 
 /*
  * Decrement the device reference count and wait for the device to be
