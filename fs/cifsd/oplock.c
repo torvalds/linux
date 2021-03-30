@@ -1436,7 +1436,7 @@ struct create_context *smb2_find_context_vals(void *open_req, const char *tag)
 }
 
 /**
- * create_durable_rsp__buf() - create durable handle context
+ * create_durable_rsp_buf() - create durable handle context
  * @cc:	buffer to create durable context response
  */
 void create_durable_rsp_buf(char *cc)
