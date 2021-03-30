@@ -511,8 +511,10 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	pins = devm_kcalloc(iod->dev, rows, sizeof(*pins), GFP_KERNEL);
-	if (!pins)
+	if (!pins) {
+		error = -ENOMEM;
 		goto free_group;
+	}
 
 	cfg = devm_kcalloc(iod->dev, rows, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg) {
