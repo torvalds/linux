@@ -1675,9 +1675,10 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg,
 					  cl->parent->common.classid,
 					  NULL);
 		if (q->offload) {
-			if (new_q)
+			if (new_q) {
 				htb_set_lockdep_class_child(new_q);
-			htb_parent_to_leaf_offload(sch, dev_queue, new_q);
+				htb_parent_to_leaf_offload(sch, dev_queue, new_q);
+			}
 		}
 	}
 
