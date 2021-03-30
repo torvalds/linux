@@ -722,7 +722,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	sprintf(isp_dev->name, "%s%d",
+	sprintf(isp_dev->media_dev.model, "%s%d",
 		DRIVER_NAME, isp_dev->dev_id);
 
 	ret = rkisp_get_reserved_mem(isp_dev);
@@ -746,8 +746,9 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		}
 	}
 
-	strlcpy(isp_dev->media_dev.model, isp_dev->name,
-		sizeof(isp_dev->media_dev.model));
+	strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
+	strscpy(isp_dev->media_dev.driver_name, isp_dev->name,
+		sizeof(isp_dev->media_dev.driver_name));
 	isp_dev->media_dev.dev = dev;
 	isp_dev->media_dev.ops = &rkisp_media_ops;
 

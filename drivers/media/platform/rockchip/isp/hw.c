@@ -756,7 +756,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	return platform_driver_register(&rkisp_plat_drv);
+	return 0;
 err:
 	return ret;
 }
@@ -829,18 +829,18 @@ static struct platform_driver rkisp_hw_drv = {
 	.shutdown = rkisp_hw_shutdown,
 };
 
-#if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
 static int __init rkisp_hw_drv_init(void)
 {
 	int ret;
 
 	ret = platform_driver_register(&rkisp_hw_drv);
-	if (ret)
-		return ret;
-	return rkispp_hw_drv_init();
+	if (!ret)
+		ret = platform_driver_register(&rkisp_plat_drv);
+#if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)
+	if (!ret)
+		ret = rkispp_hw_drv_init();
+#endif
+	return ret;
 }
 
 module_init(rkisp_hw_drv_init);
-#else
-module_platform_driver(rkisp_hw_drv);
-#endif

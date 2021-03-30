@@ -264,15 +264,16 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	sprintf(ispp_dev->name, "%s%d",
+	sprintf(ispp_dev->media_dev.model, "%s%d",
 		DRIVER_NAME, ispp_dev->dev_id);
 	ispp_dev->irq_hdl = rkispp_isr;
 	mutex_init(&ispp_dev->apilock);
 	mutex_init(&ispp_dev->iqlock);
 	init_waitqueue_head(&ispp_dev->sync_onoff);
 
-	strlcpy(ispp_dev->media_dev.model, ispp_dev->name,
-		sizeof(ispp_dev->media_dev.model));
+	strscpy(ispp_dev->name, dev_name(dev), sizeof(ispp_dev->name));
+	strscpy(ispp_dev->media_dev.driver_name, ispp_dev->name,
+		sizeof(ispp_dev->media_dev.driver_name));
 	ispp_dev->media_dev.dev = &pdev->dev;
 	v4l2_dev = &ispp_dev->v4l2_dev;
 	v4l2_dev->mdev = &ispp_dev->media_dev;
@@ -369,7 +370,6 @@ struct platform_driver rkispp_plat_drv = {
 	.probe = rkispp_plat_probe,
 	.remove = rkispp_plat_remove,
 };
-EXPORT_SYMBOL(rkispp_plat_drv);
 
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip ISPP platform driver");
