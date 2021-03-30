@@ -1769,7 +1769,7 @@ static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 
 	/*
 	 * Src_data(gx) is in little-endian order, MSB in the final byte should
-	 * be masked as discribed in RFC7748, then transform it to big-endian
+	 * be masked as described in RFC7748, then transform it to big-endian
 	 * form, then hisi_hpre can use the data.
 	 */
 	ptr[31] &= 0x7f;
