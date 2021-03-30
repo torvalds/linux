@@ -809,7 +809,7 @@ static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 	 * The best precision is achieved when the base value is as
 	 * large as possible.  Find the highest set bit in the tick
 	 * count, and extract the number of bits in the base field
-	 * such that that high bit is included.
+	 * such that high bit is included.
 	 */
 	high = fls(ticks);		/* 1..32 */
 	width = HWEIGHT32(BASE_VALUE_FMASK);
@@ -1448,7 +1448,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	if (ret)
 		goto out_suspend_again;
 
-	/* Finally, reset and reconfigure the channel again (re-enabling the
+	/* Finally, reset and reconfigure the channel again (re-enabling
 	 * the doorbell engine if appropriate).  Sleep for 1 millisecond to
 	 * complete the channel reset sequence.  Finish by suspending the
 	 * channel again (if necessary).
