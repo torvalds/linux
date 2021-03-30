@@ -2264,7 +2264,7 @@ static int cdns_torrent_reset(struct cdns_torrent_phy *cdns_phy)
 		return PTR_ERR(cdns_phy->phy_rst);
 	}
 
-	cdns_phy->apb_rst = devm_reset_control_get_optional(dev, "torrent_apb");
+	cdns_phy->apb_rst = devm_reset_control_get_optional_exclusive(dev, "torrent_apb");
 	if (IS_ERR(cdns_phy->apb_rst)) {
 		dev_err(dev, "%s: failed to get apb reset\n",
 			dev->of_node->full_name);
