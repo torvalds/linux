@@ -1693,7 +1693,7 @@ int nvmem_cell_read_variable_le_u64(struct device *dev, const char *cell_id,
 	/* Copy w/ implicit endian conversion */
 	*val = 0;
 	for (i = 0; i < len; i++)
-		*val |= buf[i] << (8 * i);
+		*val |= (uint64_t)buf[i] << (8 * i);
 
 	kfree(buf);
 
