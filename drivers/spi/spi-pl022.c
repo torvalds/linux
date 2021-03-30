@@ -31,7 +31,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/pm_runtime.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 
@@ -363,7 +362,7 @@ struct vendor_data {
  * @dummypage: a dummy page used for driving data on the bus with DMA
  * @dma_running: indicates whether DMA is in operation
  * @cur_cs: current chip select index
- * @cur_gpio: current chip select GPIO line
+ * @cur_gpiod: current chip select GPIO descriptor
  */
 struct pl022 {
 	struct amba_device		*adev;
@@ -398,7 +397,7 @@ struct pl022 {
 	bool				dma_running;
 #endif
 	int cur_cs;
-	int cur_gpio;
+	struct gpio_desc *cur_gpiod;
 };
 
 /**
@@ -454,8 +453,16 @@ static void pl022_cs_control(struct pl022 *pl022, u32 command)
 {
 	if (pl022->vendor->internal_cs_ctrl)
 		internal_cs_control(pl022, command);
-	else if (gpio_is_valid(pl022->cur_gpio))
-		gpio_set_value(pl022->cur_gpio, command);
+	else if (pl022->cur_gpiod)
+		/*
+		 * This needs to be inverted since with GPIOLIB in
+		 * control, the inversion will be handled by
+		 * GPIOLIB's active low handling. The "command"
+		 * passed into this function will be SSP_CHIP_SELECT
+		 * which is enum:ed to 0, so we need the inverse
+		 * (1) to activate chip select.
+		 */
+		gpiod_set_value(pl022->cur_gpiod, !command);
 }
 
 /**
@@ -1582,7 +1589,7 @@ static int pl022_transfer_one_message(struct spi_master *master,
 	pl022->cur_chip = spi_get_ctldata(msg->spi);
 	pl022->cur_cs = msg->spi->chip_select;
 	/* This is always available but may be set to -ENOENT */
-	pl022->cur_gpio = msg->spi->cs_gpio;
+	pl022->cur_gpiod = msg->spi->cs_gpiod;
 
 	restore_state(pl022);
 	flush(pl022);
@@ -2135,6 +2142,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
 	master->dev.of_node = dev->of_node;
+	master->use_gpio_descriptors = true;
 
 	/*
 	 * Supports mode 0-3, loopback, and active low CS. Transfers are
