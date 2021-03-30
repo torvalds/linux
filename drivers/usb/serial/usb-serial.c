@@ -121,6 +121,44 @@ static void release_minors(struct usb_serial *serial)
 	serial->minors_reserved = 0;
 }
 
+int usb_serial_claim_interface(struct usb_serial *serial, struct usb_interface *intf)
+{
+	struct usb_driver *driver = serial->type->usb_driver;
+	int ret;
+
+	if (serial->sibling)
+		return -EBUSY;
+
+	ret = usb_driver_claim_interface(driver, intf, serial);
+	if (ret) {
+		dev_err(&serial->interface->dev,
+				"failed to claim sibling interface: %d\n", ret);
+		return ret;
+	}
+
+	serial->sibling = intf;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_serial_claim_interface);
+
+static void release_sibling(struct usb_serial *serial, struct usb_interface *intf)
+{
+	struct usb_driver *driver = serial->type->usb_driver;
+	struct usb_interface *sibling;
+
+	if (!serial->sibling)
+		return;
+
+	if (intf == serial->sibling)
+		sibling = serial->interface;
+	else
+		sibling = serial->sibling;
+
+	usb_set_intfdata(sibling, NULL);
+	usb_driver_release_interface(driver, sibling);
+}
+
 static void destroy_serial(struct kref *kref)
 {
 	struct usb_serial *serial;
@@ -742,13 +780,14 @@ static void store_endpoint(struct usb_serial *serial,
 }
 
 static void find_endpoints(struct usb_serial *serial,
-					struct usb_serial_endpoints *epds)
+					struct usb_serial_endpoints *epds,
+					struct usb_interface *intf)
 {
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *epd;
 	unsigned int i;
 
-	iface_desc = serial->interface->cur_altsetting;
+	iface_desc = intf->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		epd = &iface_desc->endpoint[i].desc;
 		store_endpoint(serial, epds, epd);
@@ -917,7 +956,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 		if (retval) {
 			dev_dbg(ddev, "sub driver rejected device\n");
-			goto err_put_serial;
+			goto err_release_sibling;
 		}
 	}
 
@@ -925,10 +964,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 	epds = kzalloc(sizeof(*epds), GFP_KERNEL);
 	if (!epds) {
 		retval = -ENOMEM;
-		goto err_put_serial;
+		goto err_release_sibling;
 	}
 
-	find_endpoints(serial, epds);
+	find_endpoints(serial, epds, interface);
+	if (serial->sibling)
+		find_endpoints(serial, epds, serial->sibling);
 
 	if (epds->num_bulk_in < type->num_bulk_in ||
 			epds->num_bulk_out < type->num_bulk_out ||
@@ -1076,7 +1117,8 @@ exit:
 
 err_free_epds:
 	kfree(epds);
-err_put_serial:
+err_release_sibling:
+	release_sibling(serial, interface);
 	usb_serial_put(serial);
 err_put_module:
 	module_put(type->driver.owner);
@@ -1091,6 +1133,10 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 	struct device *dev = &interface->dev;
 	struct usb_serial_port *port;
 	struct tty_struct *tty;
+
+	/* sibling interface is cleaning up */
+	if (!serial)
+		return;
 
 	usb_serial_console_disconnect(serial);
 
@@ -1115,6 +1161,8 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 	if (serial->type->disconnect)
 		serial->type->disconnect(serial);
 
+	release_sibling(serial, interface);
+
 	/* let the last holder of this object cause it to be cleaned up */
 	usb_serial_put(serial);
 	dev_info(dev, "device disconnected\n");
@@ -1123,7 +1171,11 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
-	int i, r = 0;
+	int i, r;
+
+	/* suspend when called for first sibling interface */
+	if (serial->suspend_count++)
+		return 0;
 
 	/*
 	 * serial->type->suspend() MUST return 0 in system sleep context,
@@ -1132,14 +1184,16 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	 */
 	if (serial->type->suspend) {
 		r = serial->type->suspend(serial, message);
-		if (r < 0)
-			goto err_out;
+		if (r < 0) {
+			serial->suspend_count--;
+			return r;
+		}
 	}
 
 	for (i = 0; i < serial->num_ports; ++i)
 		usb_serial_port_poison_urbs(serial->port[i]);
-err_out:
-	return r;
+
+	return 0;
 }
 EXPORT_SYMBOL(usb_serial_suspend);
 
@@ -1156,6 +1210,10 @@ int usb_serial_resume(struct usb_interface *intf)
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	int rv;
 
+	/* resume when called for last sibling interface */
+	if (--serial->suspend_count)
+		return 0;
+
 	usb_serial_unpoison_port_urbs(serial);
 
 	if (serial->type->resume)
@@ -1171,6 +1229,10 @@ static int usb_serial_reset_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	int rv;
+
+	/* resume when called for last sibling interface */
+	if (--serial->suspend_count)
+		return 0;
 
 	usb_serial_unpoison_port_urbs(serial);
 
