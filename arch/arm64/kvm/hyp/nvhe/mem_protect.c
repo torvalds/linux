@@ -19,6 +19,8 @@
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
 
+#define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_NOFWB | KVM_PGTABLE_S2_IDMAP)
+
 extern unsigned long hyp_nr_cpus;
 struct host_kvm host_kvm;
 
@@ -95,7 +97,7 @@ int kvm_host_prepare_stage2(void *mem_pgt_pool, void *dev_pgt_pool)
 		return ret;
 
 	ret = kvm_pgtable_stage2_init_flags(&host_kvm.pgt, &host_kvm.arch,
-					    &host_kvm.mm_ops, KVM_PGTABLE_S2_NOFWB);
+					    &host_kvm.mm_ops, KVM_HOST_S2_FLAGS);
 	if (ret)
 		return ret;
 

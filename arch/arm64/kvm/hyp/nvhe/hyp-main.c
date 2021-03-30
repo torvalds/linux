@@ -247,7 +247,6 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		sve_cond_update_zcr_vq(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
 		break;
 	case ESR_ELx_EC_IABT_LOW:
-		fallthrough;
 	case ESR_ELx_EC_DABT_LOW:
 		handle_host_mem_abort(host_ctxt);
 		break;

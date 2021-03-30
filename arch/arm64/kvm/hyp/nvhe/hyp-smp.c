@@ -5,8 +5,16 @@
  */
 
 #include <asm/kvm_asm.h>
+#include <asm/kvm_cpufeature.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
+
+/*
+ * Copies of the host's CPU features registers holding sanitized values.
+ */
+DEFINE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_ctrel0);
+DEFINE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr0_el1);
+DEFINE_KVM_HYP_CPU_FTR_REG(arm64_ftr_reg_id_aa64mmfr1_el1);
 
 /*
  * nVHE copy of data structures tracking available CPU cores.
@@ -38,10 +46,3 @@ unsigned long __hyp_per_cpu_offset(unsigned int cpu)
 	elf_base = (unsigned long)&__per_cpu_start;
 	return this_cpu_base - elf_base;
 }
-
-/*
- * Define the CPU feature registers variables that will hold the copies of
- * the host's sanitized values.
- */
-#define KVM_HYP_CPU_FTR_REG(name) struct arm64_ftr_reg name
-#include <asm/kvm_cpufeature.h>
