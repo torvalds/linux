@@ -22,8 +22,13 @@
 #define PCH_PTP_CLK_FREQ_19_2MHZ	(GMAC_GPO0)
 #define PCH_PTP_CLK_FREQ_200MHZ		(0)
 
+/* Cross-timestamping defines */
+#define ART_CPUID_LEAF		0x15
+#define EHL_PSE_ART_MHZ		19200000
+
 struct intel_priv_data {
 	int mdio_adhoc_addr;	/* mdio address for serdes & etc */
+	unsigned long crossts_adj;
 	bool is_pse;
 };
 
@@ -340,7 +345,24 @@ static int intel_crosststamp(ktime_t *device,
 		*system = convert_art_to_tsc(art_time);
 	}
 
+	system->cycles *= intel_priv->crossts_adj;
+
 	return 0;
+}
+
+static void intel_mgbe_pse_crossts_adj(struct intel_priv_data *intel_priv,
+				       int base)
+{
+	if (boot_cpu_has(X86_FEATURE_ART)) {
+		unsigned int art_freq;
+
+		/* On systems that support ART, ART frequency can be obtained
+		 * from ECX register of CPUID leaf (0x15).
+		 */
+		art_freq = cpuid_ecx(ART_CPUID_LEAF);
+		do_div(art_freq, base);
+		intel_priv->crossts_adj = art_freq;
+	}
 }
 
 static void common_default_data(struct plat_stmmacenet_data *plat)
@@ -551,6 +573,8 @@ static int ehl_pse0_common_data(struct pci_dev *pdev,
 	plat->bus_id = 2;
 	plat->addr64 = 32;
 
+	intel_mgbe_pse_crossts_adj(intel_priv, EHL_PSE_ART_MHZ);
+
 	return ehl_common_data(pdev, plat);
 }
 
@@ -586,6 +610,8 @@ static int ehl_pse1_common_data(struct pci_dev *pdev,
 	intel_priv->is_pse = true;
 	plat->bus_id = 3;
 	plat->addr64 = 32;
+
+	intel_mgbe_pse_crossts_adj(intel_priv, EHL_PSE_ART_MHZ);
 
 	return ehl_common_data(pdev, plat);
 }
@@ -913,6 +939,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 
 	plat->bsp_priv = intel_priv;
 	intel_priv->mdio_adhoc_addr = INTEL_MGBE_ADHOC_ADDR;
+	intel_priv->crossts_adj = 1;
 
 	/* Initialize all MSI vectors to invalid so that it can be set
 	 * according to platform data settings below.
