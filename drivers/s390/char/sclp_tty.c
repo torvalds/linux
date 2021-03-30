@@ -35,7 +35,7 @@
  */
 
 /* Lock to guard over changes to global variables. */
-static spinlock_t sclp_tty_lock;
+static DEFINE_SPINLOCK(sclp_tty_lock);
 /* List of free pages that can be used for console output buffering. */
 static struct list_head sclp_tty_pages;
 /* List of full struct sclp_buffer structures ready for output. */
@@ -526,7 +526,6 @@ sclp_tty_init(void)
 		list_add_tail((struct list_head *) page, &sclp_tty_pages);
 	}
 	INIT_LIST_HEAD(&sclp_tty_outqueue);
-	spin_lock_init(&sclp_tty_lock);
 	timer_setup(&sclp_tty_timer, sclp_tty_timeout, 0);
 	sclp_ttybuf = NULL;
 	sclp_tty_buffer_count = 0;

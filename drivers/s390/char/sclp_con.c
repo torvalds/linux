@@ -26,7 +26,7 @@
 #define sclp_console_name  "ttyS"
 
 /* Lock to guard over changes to global variables */
-static spinlock_t sclp_con_lock;
+static DEFINE_SPINLOCK(sclp_con_lock);
 /* List of free pages that can be used for console output buffering */
 static struct list_head sclp_con_pages;
 /* List of full struct sclp_buffer structures ready for output */
@@ -329,7 +329,6 @@ sclp_console_init(void)
 		list_add_tail(page, &sclp_con_pages);
 	}
 	INIT_LIST_HEAD(&sclp_con_outqueue);
-	spin_lock_init(&sclp_con_lock);
 	sclp_conbuf = NULL;
 	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
 

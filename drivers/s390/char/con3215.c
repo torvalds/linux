@@ -99,7 +99,7 @@ static DEFINE_SPINLOCK(raw3215_device_lock);
 /* list of free request structures */
 static struct raw3215_req *raw3215_freelist;
 /* spinlock to protect free list */
-static spinlock_t raw3215_freelist_lock;
+static DEFINE_SPINLOCK(raw3215_freelist_lock);
 
 static struct tty_driver *tty3215_driver;
 
@@ -850,7 +850,6 @@ static int __init con3215_init(void)
 
 	/* allocate 3215 request structures */
 	raw3215_freelist = NULL;
-	spin_lock_init(&raw3215_freelist_lock);
 	for (i = 0; i < NR_3215_REQ; i++) {
 		req = kzalloc(sizeof(struct raw3215_req), GFP_KERNEL | GFP_DMA);
 		if (!req)
