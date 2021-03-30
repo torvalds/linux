@@ -5729,18 +5729,26 @@ release_cb:
 static int gaudi_schedule_register_memset(struct hl_device *hdev,
 		u32 hw_queue_id, u64 reg_base, u32 num_regs, u32 val)
 {
-	struct hl_ctx *ctx = hdev->compute_ctx;
+	struct hl_ctx *ctx;
 	struct hl_pending_cb *pending_cb;
 	struct packet_msg_long *pkt;
 	u32 cb_size, ctl;
 	struct hl_cb *cb;
-	int i;
+	int i, rc;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	ctx = hdev->compute_ctx;
 
 	/* If no compute context available or context is going down
 	 * memset registers directly
 	 */
-	if (!ctx || kref_read(&ctx->refcount) == 0)
-		return gaudi_memset_registers(hdev, reg_base, num_regs, val);
+	if (!ctx || kref_read(&ctx->refcount) == 0) {
+		rc = gaudi_memset_registers(hdev, reg_base, num_regs, val);
+		mutex_unlock(&hdev->fpriv_list_lock);
+		return rc;
+	}
+
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	cb_size = (sizeof(*pkt) * num_regs) +
 			sizeof(struct packet_msg_prot) * 2;
