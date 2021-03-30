@@ -232,8 +232,8 @@ static phys_addr_t alloc_pte_late(uintptr_t va)
 	unsigned long vaddr;
 
 	vaddr = __get_free_page(GFP_KERNEL);
-	if (!vaddr || !pgtable_pte_page_ctor(virt_to_page(vaddr)))
-		BUG();
+	BUG_ON(!vaddr || !pgtable_pte_page_ctor(virt_to_page(vaddr)));
+
 	return __pa(vaddr);
 }
 
