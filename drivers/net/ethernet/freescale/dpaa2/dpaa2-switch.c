@@ -1250,14 +1250,6 @@ static void dpaa2_switch_teardown_irqs(struct fsl_mc_device *sw_dev)
 	fsl_mc_free_irqs(sw_dev);
 }
 
-static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
-						u8 state)
-{
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-
-	return dpaa2_switch_port_set_stp_state(port_priv, state);
-}
-
 static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, bool enable)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
@@ -1276,6 +1268,32 @@ static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, boo
 
 	if (!enable)
 		dpaa2_switch_port_fast_age(port_priv);
+
+	return err;
+}
+
+static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
+						u8 state)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int err;
+
+	err = dpaa2_switch_port_set_stp_state(port_priv, state);
+	if (err)
+		return err;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		err = dpaa2_switch_port_set_learning(port_priv, false);
+		break;
+	case BR_STATE_LEARNING:
+	case BR_STATE_FORWARDING:
+		err = dpaa2_switch_port_set_learning(port_priv,
+						     port_priv->learn_ena);
+		break;
+	}
 
 	return err;
 }
