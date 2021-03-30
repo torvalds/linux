@@ -676,20 +676,20 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 
 	err = -ENOMEM;
 	lif->txqcqs = devm_kcalloc(dev, lif->ionic->ntxqs_per_lif,
-				   sizeof(struct ionic_qcq *), GFP_KERNEL);
+				   sizeof(*lif->txqcqs), GFP_KERNEL);
 	if (!lif->txqcqs)
 		goto err_out;
 	lif->rxqcqs = devm_kcalloc(dev, lif->ionic->nrxqs_per_lif,
-				   sizeof(struct ionic_qcq *), GFP_KERNEL);
+				   sizeof(*lif->rxqcqs), GFP_KERNEL);
 	if (!lif->rxqcqs)
 		goto err_out;
 
 	lif->txqstats = devm_kcalloc(dev, lif->ionic->ntxqs_per_lif,
-				     sizeof(struct ionic_tx_stats), GFP_KERNEL);
+				     sizeof(*lif->txqstats), GFP_KERNEL);
 	if (!lif->txqstats)
 		goto err_out;
 	lif->rxqstats = devm_kcalloc(dev, lif->ionic->nrxqs_per_lif,
-				     sizeof(struct ionic_rx_stats), GFP_KERNEL);
+				     sizeof(*lif->rxqstats), GFP_KERNEL);
 	if (!lif->rxqstats)
 		goto err_out;
 
