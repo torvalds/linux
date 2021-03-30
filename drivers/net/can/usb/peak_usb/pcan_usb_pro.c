@@ -9,6 +9,7 @@
 #include <linux/netdevice.h>
 #include <linux/usb.h>
 #include <linux/module.h>
+#include <linux/ethtool.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -36,6 +37,7 @@
 
 #define PCAN_USBPRO_RTR			0x01
 #define PCAN_USBPRO_EXT			0x02
+#define PCAN_USBPRO_SS			0x08
 
 #define PCAN_USBPRO_CMD_BUFFER_SIZE	512
 
@@ -776,9 +778,13 @@ static int pcan_usb_pro_encode_msg(struct peak_usb_device *dev,
 
 	flags = 0;
 	if (cf->can_id & CAN_EFF_FLAG)
-		flags |= 0x02;
+		flags |= PCAN_USBPRO_EXT;
 	if (cf->can_id & CAN_RTR_FLAG)
-		flags |= 0x01;
+		flags |= PCAN_USBPRO_RTR;
+
+	/* Single-Shot frame */
+	if (dev->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
+		flags |= PCAN_USBPRO_SS;
 
 	pcan_msg_add_rec(&usb_msg, data_type, 0, flags, len, cf->can_id,
 			 cf->data);
@@ -906,7 +912,7 @@ static int pcan_usb_pro_init(struct peak_usb_device *dev)
 	usb_if->dev[dev->ctrl_idx] = dev;
 
 	/* set LED in default state (end of init phase) */
-	pcan_usb_pro_set_led(dev, 0, 1);
+	pcan_usb_pro_set_led(dev, PCAN_USBPRO_LED_DEVICE, 1);
 
 	kfree(bi);
 	kfree(fi);
@@ -990,6 +996,35 @@ int pcan_usb_pro_probe(struct usb_interface *intf)
 	return 0;
 }
 
+static int pcan_usb_pro_set_phys_id(struct net_device *netdev,
+				    enum ethtool_phys_id_state state)
+{
+	struct peak_usb_device *dev = netdev_priv(netdev);
+	int err = 0;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		/* fast blinking forever */
+		err = pcan_usb_pro_set_led(dev, PCAN_USBPRO_LED_BLINK_FAST,
+					   0xffffffff);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		/* restore LED default */
+		err = pcan_usb_pro_set_led(dev, PCAN_USBPRO_LED_DEVICE, 1);
+		break;
+
+	default:
+		break;
+	}
+
+	return err;
+}
+
+static const struct ethtool_ops pcan_usb_pro_ethtool_ops = {
+	.set_phys_id = pcan_usb_pro_set_phys_id,
+};
+
 /*
  * describe the PCAN-USB Pro adapter
  */
@@ -1009,7 +1044,8 @@ const struct peak_usb_adapter pcan_usb_pro = {
 	.name = "PCAN-USB Pro",
 	.device_id = PCAN_USBPRO_PRODUCT_ID,
 	.ctrl_count = PCAN_USBPRO_CHANNEL_COUNT,
-	.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY,
+	.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY |
+			      CAN_CTRLMODE_ONE_SHOT,
 	.clock = {
 		.freq = PCAN_USBPRO_CRYSTAL_HZ,
 	},
@@ -1017,6 +1053,8 @@ const struct peak_usb_adapter pcan_usb_pro = {
 
 	/* size of device private data */
 	.sizeof_dev_private = sizeof(struct pcan_usb_pro_device),
+
+	.ethtool_ops = &pcan_usb_pro_ethtool_ops,
 
 	/* timestamps usage */
 	.ts_used_bits = 32,

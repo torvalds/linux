@@ -115,6 +115,12 @@ struct __packed pcan_usb_pro_devid {
 	__le32 serial_num;
 };
 
+#define PCAN_USBPRO_LED_DEVICE		0x00
+#define PCAN_USBPRO_LED_BLINK_FAST	0x01
+#define PCAN_USBPRO_LED_BLINK_SLOW	0x02
+#define PCAN_USBPRO_LED_ON		0x03
+#define PCAN_USBPRO_LED_OFF		0x04
+
 struct __packed pcan_usb_pro_setled {
 	u8  data_type;
 	u8  channel;
