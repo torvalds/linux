@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 2004-2008 International Business Machines Corp.
@@ -147,7 +147,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * ecryptfs_exorcise_daemon - Destroy the daemon struct
  *
  * Must be called ceremoniously while in possession of
@@ -181,7 +181,8 @@ out:
 }
 
 /**
- * ecryptfs_process_reponse
+ * ecryptfs_process_response
+ * @daemon: eCryptfs daemon object
  * @msg: The ecryptfs message received; the caller should sanity check
  *       msg->data_len and free the memory
  * @seq: The sequence number of the message; must match the sequence
@@ -250,6 +251,7 @@ out:
  * ecryptfs_send_message_locked
  * @data: The data to send
  * @data_len: The length of data
+ * @msg_type: Type of message
  * @msg_ctx: The message context allocated for the send
  *
  * Must be called with ecryptfs_daemon_hash_mux held.
