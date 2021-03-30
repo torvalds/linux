@@ -6,18 +6,20 @@
 
 #include <linux/notifier.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 #include "eswitch.h"
 
 struct mlx5_flow_table;
 struct mlx5_flow_group;
-struct workqueue_struct;
 
 struct mlx5_esw_bridge_offloads {
 	struct mlx5_eswitch *esw;
 	struct list_head bridges;
 	struct notifier_block netdev_nb;
+	struct notifier_block nb_blk;
 	struct notifier_block nb;
 	struct workqueue_struct *wq;
+	struct delayed_work update_work;
 
 	struct mlx5_flow_table *ingress_ft;
 	struct mlx5_flow_group *ingress_mac_fg;
@@ -35,5 +37,8 @@ void mlx5_esw_bridge_fdb_create(struct net_device *dev, struct mlx5_eswitch *esw
 void mlx5_esw_bridge_fdb_remove(struct net_device *dev, struct mlx5_eswitch *esw,
 				struct mlx5_vport *vport,
 				struct switchdev_notifier_fdb_info *fdb_info);
+void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads);
+int mlx5_esw_bridge_ageing_time_set(unsigned long ageing_time, struct mlx5_eswitch *esw,
+				    struct mlx5_vport *vport);
 
 #endif /* __MLX5_ESW_BRIDGE_H__ */

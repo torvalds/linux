@@ -2,11 +2,14 @@
 /* Copyright (c) 2021 Mellanox Technologies. */
 
 #include <linux/netdevice.h>
+#include <linux/if_bridge.h>
 #include <net/netevent.h>
 #include <net/switchdev.h>
 #include "bridge.h"
 #include "esw/bridge.h"
 #include "en_rep.h"
+
+#define MLX5_ESW_BRIDGE_UPDATE_INTERVAL 1000
 
 struct mlx5_bridge_switchdev_fdb_work {
 	struct work_struct work;
@@ -67,6 +70,63 @@ static int mlx5_esw_bridge_switchdev_port_event(struct notifier_block *nb,
 	case NETDEV_CHANGEUPPER:
 		err = mlx5_esw_bridge_port_changeupper(nb, ptr);
 		break;
+	}
+
+	return notifier_from_errno(err);
+}
+
+static int mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
+					     const struct switchdev_attr *attr,
+					     struct netlink_ext_ack *extack)
+{
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+	struct mlx5_vport *vport;
+	struct mlx5e_priv *priv;
+	u16 vport_num;
+	int err = 0;
+
+	priv = netdev_priv(dev);
+	rpriv = priv->ppriv;
+	vport_num = rpriv->rep->vport;
+	esw = priv->mdev->priv.eswitch;
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
+		if (attr->u.brport_flags.mask & ~(BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD)) {
+			NL_SET_ERR_MSG_MOD(extack, "Flag is not supported");
+			err = -EINVAL;
+		}
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
+		err = mlx5_esw_bridge_ageing_time_set(attr->u.ageing_time, esw, vport);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int mlx5_esw_bridge_event_blocking(struct notifier_block *unused,
+					  unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	int err;
+
+	switch (event) {
+	case SWITCHDEV_PORT_ATTR_SET:
+		err = switchdev_handle_port_attr_set(dev, ptr,
+						     mlx5e_eswitch_rep,
+						     mlx5_esw_bridge_port_obj_attr_set);
+		break;
+	default:
+		err = 0;
 	}
 
 	return notifier_from_errno(err);
@@ -160,6 +220,13 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 	if (priv->mdev->priv.eswitch != br_offloads->esw)
 		return NOTIFY_DONE;
 
+	if (event == SWITCHDEV_PORT_ATTR_SET) {
+		int err = switchdev_handle_port_attr_set(dev, ptr,
+							 mlx5e_eswitch_rep,
+							 mlx5_esw_bridge_port_obj_attr_set);
+		return notifier_from_errno(err);
+	}
+
 	upper = netdev_master_upper_dev_get_rcu(dev);
 	if (!upper)
 		return NOTIFY_DONE;
@@ -190,6 +257,20 @@ static int mlx5_esw_bridge_switchdev_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static void mlx5_esw_bridge_update_work(struct work_struct *work)
+{
+	struct mlx5_esw_bridge_offloads *br_offloads = container_of(work,
+								    struct mlx5_esw_bridge_offloads,
+								    update_work.work);
+
+	rtnl_lock();
+	mlx5_esw_bridge_update(br_offloads);
+	rtnl_unlock();
+
+	queue_delayed_work(br_offloads->wq, &br_offloads->update_work,
+			   msecs_to_jiffies(MLX5_ESW_BRIDGE_UPDATE_INTERVAL));
+}
+
 void mlx5e_rep_bridge_init(struct mlx5e_priv *priv)
 {
 	struct mlx5_esw_bridge_offloads *br_offloads;
@@ -211,12 +292,22 @@ void mlx5e_rep_bridge_init(struct mlx5e_priv *priv)
 		esw_warn(mdev, "Failed to allocate bridge offloads workqueue\n");
 		goto err_alloc_wq;
 	}
+	INIT_DELAYED_WORK(&br_offloads->update_work, mlx5_esw_bridge_update_work);
+	queue_delayed_work(br_offloads->wq, &br_offloads->update_work,
+			   msecs_to_jiffies(MLX5_ESW_BRIDGE_UPDATE_INTERVAL));
 
 	br_offloads->nb.notifier_call = mlx5_esw_bridge_switchdev_event;
 	err = register_switchdev_notifier(&br_offloads->nb);
 	if (err) {
 		esw_warn(mdev, "Failed to register switchdev notifier (err=%d)\n", err);
 		goto err_register_swdev;
+	}
+
+	br_offloads->nb_blk.notifier_call = mlx5_esw_bridge_event_blocking;
+	err = register_switchdev_blocking_notifier(&br_offloads->nb_blk);
+	if (err) {
+		esw_warn(mdev, "Failed to register blocking switchdev notifier (err=%d)\n", err);
+		goto err_register_swdev_blk;
 	}
 
 	br_offloads->netdev_nb.notifier_call = mlx5_esw_bridge_switchdev_port_event;
@@ -229,6 +320,8 @@ void mlx5e_rep_bridge_init(struct mlx5e_priv *priv)
 	return;
 
 err_register_netdev:
+	unregister_switchdev_blocking_notifier(&br_offloads->nb_blk);
+err_register_swdev_blk:
 	unregister_switchdev_notifier(&br_offloads->nb);
 err_register_swdev:
 	destroy_workqueue(br_offloads->wq);
@@ -248,7 +341,9 @@ void mlx5e_rep_bridge_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	unregister_netdevice_notifier(&br_offloads->netdev_nb);
+	unregister_switchdev_blocking_notifier(&br_offloads->nb_blk);
 	unregister_switchdev_notifier(&br_offloads->nb);
+	cancel_delayed_work(&br_offloads->update_work);
 	destroy_workqueue(br_offloads->wq);
 	rtnl_lock();
 	mlx5_esw_bridge_cleanup(esw);

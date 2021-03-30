@@ -4,6 +4,7 @@
 #include <linux/netdevice.h>
 #include <linux/list.h>
 #include <linux/rhashtable.h>
+#include <linux/if_bridge.h>
 #include <net/switchdev.h>
 #include "bridge.h"
 #include "eswitch.h"
@@ -27,13 +28,21 @@ struct mlx5_esw_bridge_fdb_key {
 	u16 vid;
 };
 
+enum {
+	MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER = BIT(0),
+};
+
 struct mlx5_esw_bridge_fdb_entry {
 	struct mlx5_esw_bridge_fdb_key key;
 	struct rhash_head ht_node;
+	struct net_device *dev;
 	struct list_head list;
 	u16 vport_num;
+	u16 flags;
 
 	struct mlx5_flow_handle *ingress_handle;
+	struct mlx5_fc *ingress_counter;
+	unsigned long lastuse;
 	struct mlx5_flow_handle *egress_handle;
 };
 
@@ -55,6 +64,7 @@ struct mlx5_esw_bridge {
 
 	struct mlx5_flow_table *egress_ft;
 	struct mlx5_flow_group *egress_mac_fg;
+	unsigned long ageing_time;
 };
 
 static void
@@ -238,17 +248,14 @@ mlx5_esw_bridge_egress_table_cleanup(struct mlx5_esw_bridge *bridge)
 
 static struct mlx5_flow_handle *
 mlx5_esw_bridge_ingress_flow_create(u16 vport_num, const unsigned char *addr, u16 vid,
-				    struct mlx5_esw_bridge *bridge)
+				    u32 counter_id, struct mlx5_esw_bridge *bridge)
 {
 	struct mlx5_esw_bridge_offloads *br_offloads = bridge->br_offloads;
-	struct mlx5_flow_destination dest = {
-		.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE,
-		.ft = bridge->egress_ft,
-	};
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_COUNT,
 		.flags = FLOW_ACT_NO_APPEND,
 	};
+	struct mlx5_flow_destination dests[2] = {};
 	struct mlx5_flow_spec *rule_spec;
 	struct mlx5_flow_handle *handle;
 	u8 *smac_v, *smac_c;
@@ -271,7 +278,13 @@ mlx5_esw_bridge_ingress_flow_create(u16 vport_num, const unsigned char *addr, u1
 	MLX5_SET(fte_match_param, rule_spec->match_value, misc_parameters_2.metadata_reg_c_0,
 		 mlx5_eswitch_get_vport_metadata_for_match(br_offloads->esw, vport_num));
 
-	handle = mlx5_add_flow_rules(br_offloads->ingress_ft, rule_spec, &flow_act, &dest, 1);
+	dests[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dests[0].ft = bridge->egress_ft;
+	dests[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dests[1].counter_id = counter_id;
+
+	handle = mlx5_add_flow_rules(br_offloads->ingress_ft, rule_spec, &flow_act, dests,
+				     ARRAY_SIZE(dests));
 
 	kvfree(rule_spec);
 	return handle;
@@ -334,6 +347,7 @@ static struct mlx5_esw_bridge *mlx5_esw_bridge_create(int ifindex,
 	INIT_LIST_HEAD(&bridge->fdb_list);
 	bridge->ifindex = ifindex;
 	bridge->refcnt = 1;
+	bridge->ageing_time = BR_DEFAULT_AGEING_TIME;
 	list_add(&bridge->list, &br_offloads->bridges);
 
 	return bridge;
@@ -399,27 +413,44 @@ mlx5_esw_bridge_fdb_entry_cleanup(struct mlx5_esw_bridge_fdb_entry *entry,
 	rhashtable_remove_fast(&bridge->fdb_ht, &entry->ht_node, fdb_ht_params);
 	mlx5_del_flow_rules(entry->egress_handle);
 	mlx5_del_flow_rules(entry->ingress_handle);
+	mlx5_fc_destroy(bridge->br_offloads->esw->dev, entry->ingress_counter);
 	list_del(&entry->list);
 	kvfree(entry);
 }
 
 static struct mlx5_esw_bridge_fdb_entry *
 mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsigned char *addr,
-			       u16 vid, struct mlx5_eswitch *esw, struct mlx5_esw_bridge *bridge)
+			       u16 vid, bool added_by_user, struct mlx5_eswitch *esw,
+			       struct mlx5_esw_bridge *bridge)
 {
 	struct mlx5_esw_bridge_fdb_entry *entry;
 	struct mlx5_flow_handle *handle;
+	struct mlx5_fc *counter;
+	struct mlx5e_priv *priv;
 	int err;
 
+	priv = netdev_priv(dev);
 	entry = kvzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
 	ether_addr_copy(entry->key.addr, addr);
 	entry->key.vid = vid;
+	entry->dev = dev;
 	entry->vport_num = vport_num;
+	entry->lastuse = jiffies;
+	if (added_by_user)
+		entry->flags |= MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER;
 
-	handle = mlx5_esw_bridge_ingress_flow_create(vport_num, addr, vid, bridge);
+	counter = mlx5_fc_create(priv->mdev, true);
+	if (IS_ERR(counter)) {
+		err = PTR_ERR(counter);
+		goto err_ingress_fc_create;
+	}
+	entry->ingress_counter = counter;
+
+	handle = mlx5_esw_bridge_ingress_flow_create(vport_num, addr, vid, mlx5_fc_id(counter),
+						     bridge);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		esw_warn(esw->dev, "Failed to create ingress flow(vport=%u,err=%d)\n",
@@ -451,8 +482,20 @@ err_ht_init:
 err_egress_flow_create:
 	mlx5_del_flow_rules(entry->ingress_handle);
 err_ingress_flow_create:
+	mlx5_fc_destroy(priv->mdev, entry->ingress_counter);
+err_ingress_fc_create:
 	kvfree(entry);
 	return ERR_PTR(err);
+}
+
+int mlx5_esw_bridge_ageing_time_set(unsigned long ageing_time, struct mlx5_eswitch *esw,
+				    struct mlx5_vport *vport)
+{
+	if (!vport->bridge)
+		return -EINVAL;
+
+	vport->bridge->ageing_time = ageing_time;
+	return 0;
 }
 
 static int mlx5_esw_bridge_vport_init(struct mlx5_esw_bridge *bridge,
@@ -524,12 +567,17 @@ void mlx5_esw_bridge_fdb_create(struct net_device *dev, struct mlx5_eswitch *esw
 	}
 
 	entry = mlx5_esw_bridge_fdb_entry_init(dev, vport_num, fdb_info->addr, fdb_info->vid,
-					       esw, bridge);
+					       fdb_info->added_by_user, esw, bridge);
 	if (IS_ERR(entry))
 		return;
 
-	mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
-					   SWITCHDEV_FDB_OFFLOADED);
+	if (entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER)
+		mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
+						   SWITCHDEV_FDB_OFFLOADED);
+	else
+		/* Take over dynamic entries to prevent kernel bridge from aging them out. */
+		mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
+						   SWITCHDEV_FDB_ADD_TO_BRIDGE);
 }
 
 void mlx5_esw_bridge_fdb_remove(struct net_device *dev, struct mlx5_eswitch *esw,
@@ -556,7 +604,39 @@ void mlx5_esw_bridge_fdb_remove(struct net_device *dev, struct mlx5_eswitch *esw
 		return;
 	}
 
+	if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
+		mlx5_esw_bridge_fdb_offload_notify(dev, entry->key.addr, entry->key.vid,
+						   SWITCHDEV_FDB_DEL_TO_BRIDGE);
 	mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
+}
+
+void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
+{
+	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
+	struct mlx5_esw_bridge *bridge;
+
+	list_for_each_entry(bridge, &br_offloads->bridges, list) {
+		list_for_each_entry_safe(entry, tmp, &bridge->fdb_list, list) {
+			unsigned long lastuse =
+				(unsigned long)mlx5_fc_query_lastuse(entry->ingress_counter);
+
+			if (entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER)
+				continue;
+
+			if (time_after(lastuse, entry->lastuse)) {
+				entry->lastuse = lastuse;
+				/* refresh existing bridge entry */
+				mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
+								   entry->key.vid,
+								   SWITCHDEV_FDB_ADD_TO_BRIDGE);
+			} else if (time_is_before_jiffies(entry->lastuse + bridge->ageing_time)) {
+				mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
+								   entry->key.vid,
+								   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+				mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
+			}
+		}
+	}
 }
 
 static void mlx5_esw_bridge_flush(struct mlx5_esw_bridge_offloads *br_offloads)
