@@ -460,7 +460,8 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 		goto error_fw_load;
 	}
 
-	if (mhi_cntrl->ee == MHI_EE_EDL) {
+	/* Exit if EDL image was loaded */
+	if (fw_name == mhi_cntrl->edl_image) {
 		release_firmware(firmware);
 		return;
 	}
