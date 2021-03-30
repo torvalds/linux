@@ -23,6 +23,7 @@
 #define MAX_SOCKS 1
 #define MAX_TEARDOWN_ITER 10
 #define MAX_BIDI_ITER 2
+#define MAX_BPF_ITER 2
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
 			sizeof(struct udphdr))
 #define MIN_PKT_SIZE 64
@@ -33,14 +34,11 @@
 #define IP_PKT_TOS 0x9
 #define UDP_PKT_SIZE (IP_PKT_SIZE - sizeof(struct iphdr))
 #define UDP_PKT_DATA_SIZE (UDP_PKT_SIZE - sizeof(struct udphdr))
-#define TMOUT_SEC (3)
 #define EOT (-1)
 #define USLEEP_MAX 200000
-#define THREAD_STACK 60000000
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
 #define POLL_TMOUT 1000
-#define NEED_WAKEUP true
 #define DEFAULT_PKT_CNT 10000
 #define RX_FULL_RXQSIZE 32
 
@@ -63,6 +61,7 @@ enum TEST_TYPES {
 	TEST_TYPE_TEARDOWN,
 	TEST_TYPE_BIDI,
 	TEST_TYPE_STATS,
+	TEST_TYPE_BPF_RES,
 	TEST_TYPE_MAX
 };
 
@@ -77,11 +76,9 @@ enum STAT_TEST_TYPES {
 static int configured_mode = TEST_MODE_UNCONFIGURED;
 static u8 debug_pkt_dump;
 static u32 num_frames;
-static u8 switching_notify;
-static u8 bidi_pass;
+static bool second_step;
 static int test_type;
 
-static int opt_queue;
 static int opt_pkt_count;
 static u8 opt_verbose;
 
@@ -125,48 +122,32 @@ struct generic_data {
 	u32 seqnum;
 };
 
-struct ifaceconfigobj {
-	u8 dst_mac[ETH_ALEN];
-	u8 src_mac[ETH_ALEN];
-	struct in_addr dst_ip;
-	struct in_addr src_ip;
-	u16 src_port;
-	u16 dst_port;
-} *ifaceconfig;
-
 struct ifobject {
-	int ifindex;
-	int ifdict_index;
 	char ifname[MAX_INTERFACE_NAME_CHARS];
 	char nsname[MAX_INTERFACES_NAMESPACE_CHARS];
-	struct flow_vector fv;
 	struct xsk_socket_info *xsk;
+	struct xsk_socket_info **xsk_arr;
+	struct xsk_umem_info **umem_arr;
 	struct xsk_umem_info *umem;
-	u8 dst_mac[ETH_ALEN];
-	u8 src_mac[ETH_ALEN];
+	void *(*func_ptr)(void *arg);
+	struct flow_vector fv;
+	int ns_fd;
+	int ifdict_index;
 	u32 dst_ip;
 	u32 src_ip;
 	u16 src_port;
 	u16 dst_port;
+	u8 dst_mac[ETH_ALEN];
+	u8 src_mac[ETH_ALEN];
 };
 
 static struct ifobject *ifdict[MAX_INTERFACES];
+static struct ifobject *ifdict_rx;
+static struct ifobject *ifdict_tx;
 
 /*threads*/
-atomic_int spinning_tx;
-atomic_int spinning_rx;
-pthread_mutex_t sync_mutex;
-pthread_mutex_t sync_mutex_tx;
-pthread_cond_t signal_rx_condition;
-pthread_cond_t signal_tx_condition;
-pthread_t t0, t1, ns_thread;
-pthread_attr_t attr;
-
-struct targs {
-	u8 retptr;
-	int idx;
-	u32 flags;
-};
+pthread_barrier_t barr;
+pthread_t t0, t1;
 
 TAILQ_HEAD(head_s, pkt) head = TAILQ_HEAD_INITIALIZER(head);
 struct head_s *head_p;
