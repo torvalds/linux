@@ -176,7 +176,7 @@ MODULE_LICENSE("GPL");
 
 /*int spinnest = 0;*/
 
-spinlock_t dsp_lock; /* global dsp lock */
+DEFINE_SPINLOCK(dsp_lock); /* global dsp lock */
 struct list_head dsp_ilist;
 struct list_head conf_ilist;
 int dsp_debug;
@@ -1169,7 +1169,6 @@ static int __init dsp_init(void)
 	printk(KERN_INFO "mISDN_dsp: DSP clocks every %d samples. This equals "
 	       "%d jiffies.\n", dsp_poll, dsp_tics);
 
-	spin_lock_init(&dsp_lock);
 	INIT_LIST_HEAD(&dsp_ilist);
 	INIT_LIST_HEAD(&conf_ilist);
 
