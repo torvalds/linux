@@ -496,11 +496,11 @@ static int bcm6362_pinctrl_get_groups(struct pinctrl_dev *pctldev,
 static void bcm6362_set_gpio(struct bcm63xx_pinctrl *pc, unsigned pin)
 {
 	const struct pinctrl_pin_desc *desc = &bcm6362_pins[pin];
+	unsigned int basemode = (uintptr_t)desc->drv_data;
 	unsigned int mask = bcm63xx_bank_pin(pin);
 
-	if (desc->drv_data)
-		regmap_update_bits(pc->regs, BCM6362_BASEMODE_REG,
-				   (uint32_t) desc->drv_data, 0);
+	if (basemode)
+		regmap_update_bits(pc->regs, BCM6362_BASEMODE_REG, basemode, 0);
 
 	if (pin < BCM63XX_BANK_GPIOS) {
 		/* base mode 0 => gpio 1 => mux function */
