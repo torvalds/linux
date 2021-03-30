@@ -3582,6 +3582,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
 		if (is_lttpr_present)
 			CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
 	}
 
 	if (!is_lttpr_present)
