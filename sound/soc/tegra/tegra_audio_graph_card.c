@@ -198,6 +198,7 @@ static int tegra_audio_graph_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card = simple_priv_to_card(&priv->simple);
+	card->driver_name = "tegra-ape";
 
 	card->probe = tegra_audio_graph_card_probe;
 
