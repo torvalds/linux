@@ -200,7 +200,8 @@ struct aspeed_jtag {
 	u32 pad_data_zero[ASPEED_JTAG_MAX_PAD_SIZE / 32];
 };
 
-/* Multi generation support is enabled by fops and low level assped function
+/*
+ * Multi generation support is enabled by fops and low level assped function
  * mapping using asped_jtag_functions struct as config mechanism.
  */
 
@@ -216,6 +217,7 @@ struct jtag_low_level_functions {
 	int (*xfer_hw)(struct aspeed_jtag *aspeed_jtag, struct jtag_xfer *xfer,
 		       u32 *data);
 	void (*xfer_hw_fifo_delay)(void);
+	void (*xfer_sw_delay)(struct aspeed_jtag *aspeed_jtag);
 	irqreturn_t (*jtag_interrupt)(s32 this_irq, void *dev_id);
 };
 
@@ -411,6 +413,18 @@ static int aspeed_jtag_mode_set(struct jtag *jtag, struct jtag_mode *jtag_mode)
 	return 0;
 }
 
+/*
+ * We read and write from an unused JTAG Master controller register in SW
+ * mode to create a delay in xfers.
+ * We found this mechanism better than any udelay or usleep option.
+ */
+static inline void aspeed_jtag_sw_delay_26xx(struct aspeed_jtag *aspeed_jtag)
+{
+	u32 read_reg = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_PADCTRL1);
+
+	aspeed_jtag_write(aspeed_jtag, read_reg, ASPEED_JTAG_PADCTRL1);
+}
+
 static char aspeed_jtag_tck_cycle(struct aspeed_jtag *aspeed_jtag, u8 tms,
 				  u8 tdi)
 {
@@ -423,7 +437,11 @@ static char aspeed_jtag_tck_cycle(struct aspeed_jtag *aspeed_jtag, u8 tms,
 				  (tdi * ASPEED_JTAG_SW_MODE_TDIO),
 			  ASPEED_JTAG_SW);
 
-	aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW);
+	/* Wait until JTAG Master controller finishes the operation */
+	if (aspeed_jtag->llops->xfer_sw_delay)
+		aspeed_jtag->llops->xfer_sw_delay(aspeed_jtag);
+	else
+		aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW);
 
 	/* TCK = 1 */
 	aspeed_jtag_write(aspeed_jtag,
@@ -431,6 +449,10 @@ static char aspeed_jtag_tck_cycle(struct aspeed_jtag *aspeed_jtag, u8 tms,
 				  (tms * ASPEED_JTAG_SW_MODE_TMS) |
 				  (tdi * ASPEED_JTAG_SW_MODE_TDIO),
 			  ASPEED_JTAG_SW);
+
+	/* Wait until JTAG Master controller finishes the operation */
+	if (aspeed_jtag->llops->xfer_sw_delay)
+		aspeed_jtag->llops->xfer_sw_delay(aspeed_jtag);
 
 	if (aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_SW) &
 	    ASPEED_JTAG_SW_MODE_TDIO)
@@ -1429,6 +1451,7 @@ static const struct jtag_low_level_functions ast25xx_llops = {
 	.xfer_sw = aspeed_jtag_xfer_sw,
 	.xfer_hw = aspeed_jtag_xfer_hw,
 	.xfer_hw_fifo_delay = NULL,
+	.xfer_sw_delay = NULL,
 	.jtag_interrupt = aspeed_jtag_interrupt
 };
 
@@ -1446,6 +1469,7 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_sw = aspeed_jtag_xfer_sw,
 	.xfer_hw = aspeed_jtag_xfer_hw2,
 	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx,
+	.xfer_sw_delay = aspeed_jtag_sw_delay_26xx,
 	.jtag_interrupt = aspeed_jtag_interrupt_hw2
 #else
 	.master_enable = aspeed_jtag_master,
@@ -1455,6 +1479,7 @@ static const struct jtag_low_level_functions ast26xx_llops = {
 	.xfer_sw = aspeed_jtag_xfer_sw,
 	.xfer_hw = aspeed_jtag_xfer_hw,
 	.xfer_hw_fifo_delay = aspeed_jtag_xfer_hw_fifo_delay_26xx,
+	.xfer_sw_delay = aspeed_jtag_sw_delay_26xx,
 	.jtag_interrupt = aspeed_jtag_interrupt
 #endif
 };
