@@ -86,7 +86,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	return 0;
 }
 
-static int __vdso_init(enum vdso_abi abi)
+static int __init __vdso_init(enum vdso_abi abi)
 {
 	int i;
 	struct page **vdso_pagelist;
@@ -326,7 +326,7 @@ static int aarch32_alloc_sigpage(void)
 	return 0;
 }
 
-static int __aarch32_alloc_vdso_pages(void)
+static int __init __aarch32_alloc_vdso_pages(void)
 {
 
 	if (!IS_ENABLED(CONFIG_COMPAT_VDSO))
