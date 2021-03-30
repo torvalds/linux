@@ -278,4 +278,13 @@ config NVMEM_RMEM
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-rmem.
+
+config NVMEM_BRCM_NVRAM
+	tristate "Broadcom's NVRAM support"
+	depends on ARCH_BCM_5301X || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver provides support for Broadcom's NVRAM that can be accessed
+	  using I/O mapping.
+
 endif
