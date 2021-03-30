@@ -266,7 +266,6 @@ static int ip6_tnl_create2(struct net_device *dev)
 
 	strcpy(t->parms.name, dev->name);
 
-	dev_hold(dev);
 	ip6_tnl_link(ip6n, t);
 	return 0;
 
@@ -1882,6 +1881,7 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = IP6_MAX_MTU - dev->hard_header_len;
 
+	dev_hold(dev);
 	return 0;
 
 destroy_dst:
