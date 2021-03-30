@@ -1966,6 +1966,11 @@ static int nvme_tcp_setup_ctrl(struct nvme_ctrl *ctrl, bool new)
 		goto destroy_admin;
 	}
 
+	if (!(ctrl->sgls & ((1 << 0) | (1 << 1)))) {
+		dev_err(ctrl->device, "Mandatory sgls are not supported!\n");
+		goto destroy_admin;
+	}
+
 	if (opts->queue_size > ctrl->sqsize + 1)
 		dev_warn(ctrl->device,
 			"queue_size %zu > ctrl sqsize %u, clamping down\n",
