@@ -607,6 +607,13 @@
 		};
 	};
 
+	uart1 {
+		uart1_xfer: uart1-xfer {
+			rockchip,pins = <1 RK_PB1 2 &pcfg_pull_default>,
+					<1 RK_PB2 2 &pcfg_pull_default>;
+		};
+	};
+
 	wireless-bluetooth {
 		uart1_rts_gpio: uart1-rts-gpio {
 			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
