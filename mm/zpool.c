@@ -23,6 +23,7 @@ struct zpool {
 	void *pool;
 	const struct zpool_ops *ops;
 	bool evictable;
+	bool can_sleep_mapped;
 
 	struct list_head list;
 };
@@ -183,6 +184,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	zpool->pool = driver->create(name, gfp, ops, zpool);
 	zpool->ops = ops;
 	zpool->evictable = driver->shrink && ops && ops->evict;
+	zpool->can_sleep_mapped = driver->sleep_mapped;
 
 	if (!zpool->pool) {
 		pr_err("couldn't create %s pool\n", type);
@@ -391,6 +393,17 @@ u64 zpool_get_total_size(struct zpool *zpool)
 bool zpool_evictable(struct zpool *zpool)
 {
 	return zpool->evictable;
+}
+
+/**
+ * zpool_can_sleep_mapped - Test if zpool can sleep when do mapped.
+ * @zpool:	The zpool to test
+ *
+ * Returns: true if zpool can sleep; false otherwise.
+ */
+bool zpool_can_sleep_mapped(struct zpool *zpool)
+{
+	return zpool->can_sleep_mapped;
 }
 
 MODULE_LICENSE("GPL");

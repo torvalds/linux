@@ -491,8 +491,8 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_inode *ip,
 	di = (struct gfs2_dinode *)dibh->b_data;
 	gfs2_dinode_out(ip, di);
 
-	di->di_major = cpu_to_be32(MAJOR(ip->i_inode.i_rdev));
-	di->di_minor = cpu_to_be32(MINOR(ip->i_inode.i_rdev));
+	di->di_major = cpu_to_be32(imajor(&ip->i_inode));
+	di->di_minor = cpu_to_be32(iminor(&ip->i_inode));
 	di->__pad1 = 0;
 	di->__pad2 = 0;
 	di->__pad3 = 0;

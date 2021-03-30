@@ -1997,9 +1997,9 @@ static int vme_bus_remove(struct device *dev)
 
 	driver = dev->platform_data;
 	if (driver->remove)
-		return driver->remove(vdev);
+		driver->remove(vdev);
 
-	return -ENODEV;
+	return 0;
 }
 
 struct bus_type vme_bus_type = {

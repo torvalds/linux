@@ -103,7 +103,6 @@ config RD_LZ4
 config RD_ZSTD
 	bool "Support initial ramdisk/ramfs compressed using ZSTD"
 	default y
-	depends on BLK_DEV_INITRD
 	select DECOMPRESS_ZSTD
 	help
 	  Support loading of a ZSTD encoded initial ramdisk or cpio buffer.

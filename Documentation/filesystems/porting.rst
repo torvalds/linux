@@ -883,3 +883,10 @@ For bvec based itererators bio_iov_iter_get_pages() now doesn't copy bvecs but
 uses the one provided. Anyone issuing kiocb-I/O should ensure that the bvec and
 page references stay until I/O has completed, i.e. until ->ki_complete() has
 been called or returned with non -EIOCBQUEUED code.
+
+---
+
+**mandatory**
+
+mnt_want_write_file() can now only be paired with mnt_drop_write_file(),
+whereas previously it could be paired with mnt_drop_write() as well.

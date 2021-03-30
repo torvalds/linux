@@ -213,7 +213,7 @@ static void jack_detect_update(struct hda_codec *codec,
 }
 
 /**
- * snd_hda_set_dirty_all - Mark all the cached as dirty
+ * snd_hda_jack_set_dirty_all - Mark all the cached as dirty
  * @codec: the HDA codec
  *
  * This function sets the dirty flag to all entries of jack table.
@@ -293,7 +293,7 @@ find_callback_from_list(struct hda_jack_tbl *jack,
 }
 
 /**
- * snd_hda_jack_detect_enable_mst - enable the jack-detection
+ * snd_hda_jack_detect_enable_callback_mst - enable the jack-detection
  * @codec: the HDA codec
  * @nid: pin NID to enable
  * @func: callback function to register

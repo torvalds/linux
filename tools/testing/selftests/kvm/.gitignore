@@ -33,6 +33,7 @@
 /demand_paging_test
 /dirty_log_test
 /dirty_log_perf_test
+/hardware_disable_test
 /kvm_create_max_vcpus
 /memslot_modification_stress_test
 /set_memory_region_test

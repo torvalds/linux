@@ -298,7 +298,7 @@ int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu)
 	if (IS_ERR(event)) {
 		pr_debug_ratelimited("%s: failed %ld\n",
 					__func__, PTR_ERR(event));
-		return -ENOENT;
+		return PTR_ERR(event);
 	}
 	lbr_desc->event = event;
 	pmu->event_count++;
@@ -320,7 +320,7 @@ static bool intel_pmu_handle_lbr_msrs_access(struct kvm_vcpu *vcpu,
 	if (!intel_pmu_is_valid_lbr_msr(vcpu, index))
 		return false;
 
-	if (!lbr_desc->event && !intel_pmu_create_guest_lbr_event(vcpu))
+	if (!lbr_desc->event && intel_pmu_create_guest_lbr_event(vcpu) < 0)
 		goto dummy;
 
 	/*

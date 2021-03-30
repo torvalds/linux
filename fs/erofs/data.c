@@ -215,10 +215,8 @@ submit_bio_retry:
 		/* max # of continuous pages */
 		if (nblocks > DIV_ROUND_UP(map.m_plen, PAGE_SIZE))
 			nblocks = DIV_ROUND_UP(map.m_plen, PAGE_SIZE);
-		if (nblocks > BIO_MAX_PAGES)
-			nblocks = BIO_MAX_PAGES;
 
-		bio = bio_alloc(GFP_NOIO, nblocks);
+		bio = bio_alloc(GFP_NOIO, bio_max_segs(nblocks));
 
 		bio->bi_end_io = erofs_readendio;
 		bio_set_dev(bio, sb->s_bdev);

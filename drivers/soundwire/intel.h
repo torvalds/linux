@@ -48,8 +48,6 @@ struct sdw_intel {
 #endif
 };
 
-#define SDW_INTEL_QUIRK_MASK_BUS_DISABLE      BIT(1)
-
 int intel_master_startup(struct platform_device *pdev);
 int intel_master_process_wakeen_event(struct platform_device *pdev);
 

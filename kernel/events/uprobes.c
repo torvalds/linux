@@ -1733,7 +1733,7 @@ void uprobe_free_utask(struct task_struct *t)
 }
 
 /*
- * Allocate a uprobe_task object for the task if if necessary.
+ * Allocate a uprobe_task object for the task if necessary.
  * Called when the thread hits a breakpoint.
  *
  * Returns:

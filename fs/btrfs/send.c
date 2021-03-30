@@ -4932,7 +4932,6 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct inode *inode;
 	struct page *page;
-	char *addr;
 	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
 	unsigned pg_offset = offset_in_page(offset);
@@ -4985,10 +4984,8 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 			}
 		}
 
-		addr = kmap(page);
-		memcpy(sctx->send_buf + sctx->send_size, addr + pg_offset,
-		       cur_len);
-		kunmap(page);
+		memcpy_from_page(sctx->send_buf + sctx->send_size, page,
+				 pg_offset, cur_len);
 		unlock_page(page);
 		put_page(page);
 		index++;

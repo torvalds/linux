@@ -1225,8 +1225,10 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 			goto err;
 		}
 
-		if (!argc)
+		if (!argc) {
+			argv_free(argv);
 			continue;
+		}
 
 		n_fields_this_loop = 0;
 		consumed = 0;

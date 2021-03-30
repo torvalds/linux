@@ -25,6 +25,7 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
 #include <linux/virtio_pci.h>
+#include <linux/virtio_pci_modern.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 
@@ -43,30 +44,11 @@ struct virtio_pci_vq_info {
 struct virtio_pci_device {
 	struct virtio_device vdev;
 	struct pci_dev *pci_dev;
+	struct virtio_pci_modern_device mdev;
 
 	/* In legacy mode, these two point to within ->legacy. */
 	/* Where to read and clear interrupt */
 	u8 __iomem *isr;
-
-	/* Modern only fields */
-	/* The IO mapping for the PCI config space (non-legacy mode) */
-	struct virtio_pci_common_cfg __iomem *common;
-	/* Device-specific data (non-legacy mode)  */
-	void __iomem *device;
-	/* Base of vq notifications (non-legacy mode). */
-	void __iomem *notify_base;
-
-	/* So we can sanity-check accesses. */
-	size_t notify_len;
-	size_t device_len;
-
-	/* Capability for when we need to map notifications per-vq. */
-	int notify_map_cap;
-
-	/* Multiply queue_notify_off by this value. (non-legacy mode). */
-	u32 notify_offset_multiplier;
-
-	int modern_bars;
 
 	/* Legacy only field */
 	/* the IO mapping for the PCI config space */

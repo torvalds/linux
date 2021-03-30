@@ -309,10 +309,10 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 	unsigned short tun_proto = ip_tunnel_info_af(tun_info);
 	const struct ip_tunnel_key *tun_key = &tun_info->key;
 	int tun_opts_len = tun_info->options_len;
-	int sum = 0;
+	int sum = nla_total_size(0);	/* PSAMPLE_ATTR_TUNNEL */
 
 	if (tun_key->tun_flags & TUNNEL_KEY)
-		sum += nla_total_size(sizeof(u64));
+		sum += nla_total_size_64bit(sizeof(u64));
 
 	if (tun_info->mode & IP_TUNNEL_INFO_BRIDGE)
 		sum += nla_total_size(0);

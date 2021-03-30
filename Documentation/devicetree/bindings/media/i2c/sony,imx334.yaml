@@ -36,18 +36,17 @@ properties:
     description: Reference to the GPIO connected to the XCLR pin, if any.
 
   port:
-    type: object
     additionalProperties: false
     $ref: /schemas/graph.yaml#/properties/port
 
     properties:
       endpoint:
-        type: object
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
         properties:
-          data-lanes:
-            $ref: ../video-interfaces.yaml#/properties/data-lanes
-          link-frequencies:
-            $ref: ../video-interfaces.yaml#/properties/link-frequencies
+          data-lanes: true
+          link-frequencies: true
 
         required:
           - data-lanes

@@ -284,6 +284,9 @@ The following sysctls are available for the XFS filesystem:
 	removes unused preallocation from clean inodes and releases
 	the unused space back to the free pool.
 
+  fs.xfs.speculative_cow_prealloc_lifetime
+	This is an alias for speculative_prealloc_lifetime.
+
   fs.xfs.error_level		(Min: 0  Default: 3  Max: 11)
 	A volume knob for error reporting when internal errors occur.
 	This will generate detailed messages & backtraces for filesystem
@@ -356,12 +359,13 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-===========================     ================
-  Name				Removal Schedule
-===========================     ================
-fs.xfs.irix_sgid_inherit        September 2025
-fs.xfs.irix_symlink_mode        September 2025
-===========================     ================
+===========================================     ================
+  Name                                          Removal Schedule
+===========================================     ================
+fs.xfs.irix_sgid_inherit                        September 2025
+fs.xfs.irix_symlink_mode                        September 2025
+fs.xfs.speculative_cow_prealloc_lifetime        September 2025
+===========================================     ================
 
 
 Removed Sysctls

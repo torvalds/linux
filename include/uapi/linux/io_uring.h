@@ -262,6 +262,7 @@ struct io_uring_params {
 #define IORING_FEAT_POLL_32BITS 	(1U << 6)
 #define IORING_FEAT_SQPOLL_NONFIXED	(1U << 7)
 #define IORING_FEAT_EXT_ARG		(1U << 8)
+#define IORING_FEAT_NATIVE_WORKERS	(1U << 9)
 
 /*
  * io_uring_register(2) opcodes and arguments

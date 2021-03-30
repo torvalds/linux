@@ -140,6 +140,8 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("rsize", Opt_rsize),
 	fsparam_u32("wsize", Opt_wsize),
 	fsparam_u32("actimeo", Opt_actimeo),
+	fsparam_u32("acdirmax", Opt_acdirmax),
+	fsparam_u32("acregmax", Opt_acregmax),
 	fsparam_u32("echo_interval", Opt_echo_interval),
 	fsparam_u32("max_credits", Opt_max_credits),
 	fsparam_u32("handletimeout", Opt_handletimeout),
@@ -397,7 +399,7 @@ cifs_parse_smb_version(char *value, struct smb3_fs_context *ctx, bool is_smb3)
 		ctx->vals = &smb3any_values;
 		break;
 	case Smb_default:
-		ctx->ops = &smb30_operations; /* currently identical with 3.0 */
+		ctx->ops = &smb30_operations;
 		ctx->vals = &smbdefault_values;
 		break;
 	default:
@@ -542,20 +544,37 @@ static int smb3_fs_context_parse_monolithic(struct fs_context *fc,
 
 	/* BB Need to add support for sep= here TBD */
 	while ((key = strsep(&options, ",")) != NULL) {
-		if (*key) {
-			size_t v_len = 0;
-			char *value = strchr(key, '=');
+		size_t len;
+		char *value;
 
-			if (value) {
-				if (value == key)
-					continue;
-				*value++ = 0;
-				v_len = strlen(value);
-			}
-			ret = vfs_parse_fs_string(fc, key, value, v_len);
-			if (ret < 0)
-				break;
+		if (*key == 0)
+			break;
+
+		/* Check if following character is the deliminator If yes,
+		 * we have encountered a double deliminator reset the NULL
+		 * character to the deliminator
+		 */
+		while (options && options[0] == ',') {
+			len = strlen(key);
+			strcpy(key + len, options);
+			options = strchr(options, ',');
+			if (options)
+				*options++ = 0;
 		}
+
+
+		len = 0;
+		value = strchr(key, '=');
+		if (value) {
+			if (value == key)
+				continue;
+			*value++ = 0;
+			len = strlen(value);
+		}
+
+		ret = vfs_parse_fs_string(fc, key, value, len);
+		if (ret < 0)
+			break;
 	}
 
 	return ret;
@@ -929,12 +948,31 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->wsize = result.uint_32;
 		ctx->got_wsize = true;
 		break;
-	case Opt_actimeo:
-		ctx->actimeo = HZ * result.uint_32;
-		if (ctx->actimeo > CIFS_MAX_ACTIMEO) {
-			cifs_dbg(VFS, "attribute cache timeout too large\n");
+	case Opt_acregmax:
+		ctx->acregmax = HZ * result.uint_32;
+		if (ctx->acregmax > CIFS_MAX_ACTIMEO) {
+			cifs_dbg(VFS, "acregmax too large\n");
 			goto cifs_parse_mount_err;
 		}
+		break;
+	case Opt_acdirmax:
+		ctx->acdirmax = HZ * result.uint_32;
+		if (ctx->acdirmax > CIFS_MAX_ACTIMEO) {
+			cifs_dbg(VFS, "acdirmax too large\n");
+			goto cifs_parse_mount_err;
+		}
+		break;
+	case Opt_actimeo:
+		if (HZ * result.uint_32 > CIFS_MAX_ACTIMEO) {
+			cifs_dbg(VFS, "timeout too large\n");
+			goto cifs_parse_mount_err;
+		}
+		if ((ctx->acdirmax != CIFS_DEF_ACTIMEO) ||
+		    (ctx->acregmax != CIFS_DEF_ACTIMEO)) {
+			cifs_dbg(VFS, "actimeo ignored since acregmax or acdirmax specified\n");
+			break;
+		}
+		ctx->acdirmax = ctx->acregmax = HZ * result.uint_32;
 		break;
 	case Opt_echo_interval:
 		ctx->echo_interval = result.uint_32;
@@ -1361,7 +1399,8 @@ int smb3_init_fs_context(struct fs_context *fc)
 	/* default is to use strict cifs caching semantics */
 	ctx->strict_io = true;
 
-	ctx->actimeo = CIFS_DEF_ACTIMEO;
+	ctx->acregmax = CIFS_DEF_ACTIMEO;
+	ctx->acdirmax = CIFS_DEF_ACTIMEO;
 
 	/* Most clients set timeout to 0, allows server to use its default */
 	ctx->handle_timeout = 0; /* See MS-SMB2 spec section 2.2.14.2.12 */

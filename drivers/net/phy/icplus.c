@@ -239,7 +239,7 @@ static int ip101a_g_config_intr_pin(struct phy_device *phydev)
 
 	oldpage = phy_select_page(phydev, IP101G_DEFAULT_PAGE);
 	if (oldpage < 0)
-		return oldpage;
+		goto out;
 
 	/* configure the RXER/INTR_32 pin of the 32-pin IP101GR if needed: */
 	switch (priv->sel_intr32) {
@@ -314,7 +314,7 @@ static int ip101a_g_read_status(struct phy_device *phydev)
 
 	oldpage = phy_select_page(phydev, IP101G_DEFAULT_PAGE);
 	if (oldpage < 0)
-		return oldpage;
+		goto out;
 
 	ret = __phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
 	if (ret < 0)
@@ -349,7 +349,8 @@ out:
 static int ip101a_g_config_mdix(struct phy_device *phydev)
 {
 	u16 ctrl = 0, ctrl2 = 0;
-	int oldpage, ret;
+	int oldpage;
+	int ret = 0;
 
 	switch (phydev->mdix_ctrl) {
 	case ETH_TP_MDI:
@@ -367,7 +368,7 @@ static int ip101a_g_config_mdix(struct phy_device *phydev)
 
 	oldpage = phy_select_page(phydev, IP101G_DEFAULT_PAGE);
 	if (oldpage < 0)
-		return oldpage;
+		goto out;
 
 	ret = __phy_modify(phydev, IP10XX_SPEC_CTRL_STATUS,
 			   IP101A_G_AUTO_MDIX_DIS, ctrl);

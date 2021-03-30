@@ -278,8 +278,6 @@ static void tpm_devs_release(struct device *dev)
 {
 	struct tpm_chip *chip = container_of(dev, struct tpm_chip, devs);
 
-	dump_stack();
-
 	/* release the master device reference */
 	put_device(&chip->dev);
 }

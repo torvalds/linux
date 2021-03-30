@@ -764,4 +764,7 @@ void hda_machine_select(struct snd_sof_dev *sdev);
 void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
 			 struct device *dev);
 
+/* PCI driver selection and probe */
+int hda_pci_intel_probe(struct pci_dev *pci, const struct pci_device_id *pci_id);
+
 #endif

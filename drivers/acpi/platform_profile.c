@@ -17,6 +17,7 @@ static const char * const profile_names[] = {
 	[PLATFORM_PROFILE_COOL] = "cool",
 	[PLATFORM_PROFILE_QUIET] = "quiet",
 	[PLATFORM_PROFILE_BALANCED] = "balanced",
+	[PLATFORM_PROFILE_BALANCED_PERFORMANCE] = "balanced-performance",
 	[PLATFORM_PROFILE_PERFORMANCE] = "performance",
 };
 static_assert(ARRAY_SIZE(profile_names) == PLATFORM_PROFILE_LAST);

@@ -537,6 +537,16 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.map = bose_companion5_map,
 	},
 	{
+		/* Corsair Virtuoso SE (wired mode) */
+		.id = USB_ID(0x1b1c, 0x0a3d),
+		.map = corsair_virtuoso_map,
+	},
+	{
+		/* Corsair Virtuoso SE (wireless mode) */
+		.id = USB_ID(0x1b1c, 0x0a3e),
+		.map = corsair_virtuoso_map,
+	},
+	{
 		/* Corsair Virtuoso (wired mode) */
 		.id = USB_ID(0x1b1c, 0x0a41),
 		.map = corsair_virtuoso_map,

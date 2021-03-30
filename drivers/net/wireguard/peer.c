@@ -32,27 +32,22 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 	peer = kzalloc(sizeof(*peer), GFP_KERNEL);
 	if (unlikely(!peer))
 		return ERR_PTR(ret);
-	peer->device = wg;
+	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL))
+		goto err;
 
+	peer->device = wg;
 	wg_noise_handshake_init(&peer->handshake, &wg->static_identity,
 				public_key, preshared_key, peer);
-	if (dst_cache_init(&peer->endpoint_cache, GFP_KERNEL))
-		goto err_1;
-	if (wg_packet_queue_init(&peer->tx_queue, wg_packet_tx_worker, false,
-				 MAX_QUEUED_PACKETS))
-		goto err_2;
-	if (wg_packet_queue_init(&peer->rx_queue, NULL, false,
-				 MAX_QUEUED_PACKETS))
-		goto err_3;
-
 	peer->internal_id = atomic64_inc_return(&peer_counter);
 	peer->serial_work_cpu = nr_cpumask_bits;
 	wg_cookie_init(&peer->latest_cookie);
 	wg_timers_init(peer);
 	wg_cookie_checker_precompute_peer_keys(peer);
 	spin_lock_init(&peer->keypairs.keypair_update_lock);
-	INIT_WORK(&peer->transmit_handshake_work,
-		  wg_packet_handshake_send_worker);
+	INIT_WORK(&peer->transmit_handshake_work, wg_packet_handshake_send_worker);
+	INIT_WORK(&peer->transmit_packet_work, wg_packet_tx_worker);
+	wg_prev_queue_init(&peer->tx_queue);
+	wg_prev_queue_init(&peer->rx_queue);
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
 	skb_queue_head_init(&peer->staged_packet_queue);
@@ -68,11 +63,7 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 	pr_debug("%s: Peer %llu created\n", wg->dev->name, peer->internal_id);
 	return peer;
 
-err_3:
-	wg_packet_queue_free(&peer->tx_queue, false);
-err_2:
-	dst_cache_destroy(&peer->endpoint_cache);
-err_1:
+err:
 	kfree(peer);
 	return ERR_PTR(ret);
 }
@@ -197,8 +188,7 @@ static void rcu_release(struct rcu_head *rcu)
 	struct wg_peer *peer = container_of(rcu, struct wg_peer, rcu);
 
 	dst_cache_destroy(&peer->endpoint_cache);
-	wg_packet_queue_free(&peer->rx_queue, false);
-	wg_packet_queue_free(&peer->tx_queue, false);
+	WARN_ON(wg_prev_queue_peek(&peer->tx_queue) || wg_prev_queue_peek(&peer->rx_queue));
 
 	/* The final zeroing takes care of clearing any remaining handshake key
 	 * material and other potentially sensitive information.

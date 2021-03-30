@@ -1554,7 +1554,7 @@ static ssize_t pccard_show_cis(struct file *filp, struct kobject *kobj,
 		if (off + count > size)
 			count = size - off;
 
-		s = to_socket(container_of(kobj, struct device, kobj));
+		s = to_socket(kobj_to_dev(kobj));
 
 		if (!(s->state & SOCKET_PRESENT))
 			return -ENODEV;
@@ -1581,7 +1581,7 @@ static ssize_t pccard_store_cis(struct file *filp, struct kobject *kobj,
 	if (error)
 		return error;
 
-	s = to_socket(container_of(kobj, struct device, kobj));
+	s = to_socket(kobj_to_dev(kobj));
 
 	if (off)
 		return -EINVAL;

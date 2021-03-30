@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_PGTABLE_H
 #define __ASM_CSKY_PGTABLE_H
@@ -14,7 +13,7 @@
 #define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK		(~(PGDIR_SIZE-1))
 
-#define USER_PTRS_PER_PGD	(0x80000000UL/PGDIR_SIZE)
+#define USER_PTRS_PER_PGD	(PAGE_OFFSET/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0UL
 
 /*
@@ -34,23 +33,13 @@
 
 #define pmd_page(pmd)	(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #define pte_clear(mm, addr, ptep)	set_pte((ptep), \
-	(((unsigned int) addr & PAGE_OFFSET) ? __pte(_PAGE_GLOBAL) : __pte(0)))
+	(((unsigned int) addr >= PAGE_OFFSET) ? __pte(_PAGE_GLOBAL) : __pte(0)))
 #define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
 #define pte_pfn(x)	((unsigned long)((x).pte_low >> PAGE_SHIFT))
 #define pfn_pte(pfn, prot) __pte(((unsigned long long)(pfn) << PAGE_SHIFT) \
 				| pgprot_val(prot))
 
-#define __READABLE	(_PAGE_READ | _PAGE_VALID | _PAGE_ACCESSED)
-#define __WRITEABLE	(_PAGE_WRITE | _PAGE_DIRTY | _PAGE_MODIFIED)
-
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED | \
-			 _CACHE_MASK)
-
-#define __swp_type(x)			(((x).val >> 4) & 0xff)
-#define __swp_offset(x)			((x).val >> 12)
-#define __swp_entry(type, offset)	((swp_entry_t) {((type) << 4) | \
-					((offset) << 12) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
@@ -59,41 +48,52 @@
 					pgprot_val(pgprot))
 
 /*
- * CSKY can't do page protection for execute, and considers that the same like
- * read. Also, write permissions imply read permissions. This is the closest
- * we can get by reasonable means..
+ * C-SKY only has VALID and DIRTY bit in hardware. So we need to use the
+ * two bits emulate PRESENT, READ, WRITE, EXEC, MODIFIED, ACCESSED.
  */
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+#define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
+
+#define PAGE_NONE	__pgprot(_PAGE_PROT_NONE)
+#define PAGE_READ	__pgprot(_PAGE_BASE | _PAGE_READ | \
 				_CACHE_CACHED)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _CACHE_CACHED)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _CACHE_CACHED)
-#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
-				_PAGE_GLOBAL | _CACHE_CACHED)
-#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+#define PAGE_WRITE	__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE | \
+				_CACHE_CACHED)
+#define PAGE_SHARED PAGE_WRITE
+
+#define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_VALID | \
+				_PAGE_WRITE | _PAGE_DIRTY | _PAGE_MODIFIED | \
+				_PAGE_GLOBAL | \
 				_CACHE_CACHED)
 
-#define _PAGE_IOREMAP \
-	(_PAGE_PRESENT | __READABLE | __WRITEABLE | _PAGE_GLOBAL | \
-	 _CACHE_UNCACHED | _PAGE_SO)
+#define _PAGE_IOREMAP		(_PAGE_BASE | _PAGE_READ | _PAGE_VALID | \
+				_PAGE_WRITE | _PAGE_DIRTY | _PAGE_MODIFIED | \
+				_PAGE_GLOBAL | \
+				_CACHE_UNCACHED | _PAGE_SO)
+
+#define _PAGE_CHG_MASK	(~(unsigned long) \
+				(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+				_CACHE_MASK | _PAGE_GLOBAL))
+
+#define MAX_SWAPFILES_CHECK() \
+		BUILD_BUG_ON(MAX_SWAPFILES_SHIFT != 5)
 
 #define __P000	PAGE_NONE
-#define __P001	PAGE_READONLY
-#define __P010	PAGE_COPY
-#define __P011	PAGE_COPY
-#define __P100	PAGE_READONLY
-#define __P101	PAGE_READONLY
-#define __P110	PAGE_COPY
-#define __P111	PAGE_COPY
+#define __P001	PAGE_READ
+#define __P010	PAGE_READ
+#define __P011	PAGE_READ
+#define __P100	PAGE_READ
+#define __P101	PAGE_READ
+#define __P110	PAGE_READ
+#define __P111	PAGE_READ
 
 #define __S000	PAGE_NONE
-#define __S001	PAGE_READONLY
-#define __S010	PAGE_SHARED
-#define __S011	PAGE_SHARED
-#define __S100	PAGE_READONLY
-#define __S101	PAGE_READONLY
-#define __S110	PAGE_SHARED
-#define __S111	PAGE_SHARED
+#define __S001	PAGE_READ
+#define __S010	PAGE_WRITE
+#define __S011	PAGE_WRITE
+#define __S100	PAGE_READ
+#define __S101	PAGE_READ
+#define __S110	PAGE_WRITE
+#define __S111	PAGE_WRITE
 
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr)	(virt_to_page(empty_zero_page))

@@ -451,6 +451,8 @@ static void ufshcd_print_evt(struct ufs_hba *hba, u32 id,
 
 	if (!found)
 		dev_err(hba->dev, "No record of %s\n", err_name);
+	else
+		dev_err(hba->dev, "%s: total cnt=%llu\n", err_name, e->cnt);
 }
 
 static void ufshcd_print_evt_hist(struct ufs_hba *hba)
@@ -1866,7 +1868,7 @@ static ssize_t ufshcd_clkgate_delay_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%lu\n", hba->clk_gating.delay_ms);
+	return sysfs_emit(buf, "%lu\n", hba->clk_gating.delay_ms);
 }
 
 static ssize_t ufshcd_clkgate_delay_store(struct device *dev,
@@ -1889,7 +1891,7 @@ static ssize_t ufshcd_clkgate_enable_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", hba->clk_gating.is_enabled);
+	return sysfs_emit(buf, "%d\n", hba->clk_gating.is_enabled);
 }
 
 static ssize_t ufshcd_clkgate_enable_store(struct device *dev,

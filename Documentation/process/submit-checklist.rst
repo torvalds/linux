@@ -96,7 +96,7 @@ and elsewhere regarding submitting Linux kernel patches.
     injection might be appropriate.
 
 20) Newly-added code has been compiled with ``gcc -W`` (use
-    ``make EXTRA_CFLAGS=-W``).  This will generate lots of noise, but is good
+    ``make KCFLAGS=-W``).  This will generate lots of noise, but is good
     for finding bugs like "warning: comparison between signed and unsigned".
 
 21) Tested after it has been merged into the -mm patchset to make sure

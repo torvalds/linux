@@ -3648,24 +3648,15 @@ _base_get_msix_index(struct MPT3SAS_ADAPTER *ioc,
 		    base_mod64(atomic64_add_return(1,
 		    &ioc->total_io_cnt), ioc->reply_queue_count) : 0;
 
+	if (scmd && ioc->shost->nr_hw_queues > 1) {
+		u32 tag = blk_mq_unique_tag(scmd->request);
+
+		return blk_mq_unique_tag_to_hwq(tag) +
+			ioc->high_iops_queues;
+	}
+
 	return ioc->cpu_msix_table[raw_smp_processor_id()];
 }
-
-/**
- * _base_sdev_nr_inflight_request -get number of inflight requests
- *				   of a request queue.
- * @q: request_queue object
- *
- * returns number of inflight request of a request queue.
- */
-inline unsigned long
-_base_sdev_nr_inflight_request(struct request_queue *q)
-{
-	struct blk_mq_hw_ctx *hctx = q->queue_hw_ctx[0];
-
-	return atomic_read(&hctx->nr_active);
-}
-
 
 /**
  * _base_get_high_iops_msix_index - get the msix index of
@@ -3686,7 +3677,8 @@ _base_get_high_iops_msix_index(struct MPT3SAS_ADAPTER *ioc,
 	 * reply queues in terms of batch count 16 when outstanding
 	 * IOs on the target device is >=8.
 	 */
-	if (_base_sdev_nr_inflight_request(scmd->device->request_queue) >
+
+	if (atomic_read(&scmd->device->device_busy) >
 	    MPT3SAS_DEVICE_HIGH_IOPS_DEPTH)
 		return base_mod64((
 		    atomic64_add_return(1, &ioc->high_iops_outstanding) /
@@ -3739,8 +3731,23 @@ mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
 	struct scsi_cmnd *scmd)
 {
 	struct scsiio_tracker *request = scsi_cmd_priv(scmd);
-	unsigned int tag = scmd->request->tag;
 	u16 smid;
+	u32 tag, unique_tag;
+
+	unique_tag = blk_mq_unique_tag(scmd->request);
+	tag = blk_mq_unique_tag_to_tag(unique_tag);
+
+	/*
+	 * Store hw queue number corresponding to the tag.
+	 * This hw queue number is used later to determine
+	 * the unique_tag using the logic below. This unique_tag
+	 * is used to retrieve the scmd pointer corresponding
+	 * to tag using scsi_host_find_tag() API.
+	 *
+	 * tag = smid - 1;
+	 * unique_tag = ioc->io_queue_num[tag] << BLK_MQ_UNIQUE_TAG_BITS | tag;
+	 */
+	ioc->io_queue_num[tag] = blk_mq_unique_tag_to_hwq(unique_tag);
 
 	smid = tag + 1;
 	request->cb_idx = cb_idx;
@@ -3831,6 +3838,7 @@ mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 
 		mpt3sas_base_clear_st(ioc, st);
 		_base_recovery_check(ioc);
+		ioc->io_queue_num[smid - 1] = 0;
 		return;
 	}
 
@@ -5362,6 +5370,9 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		kfree(ioc->chain_lookup);
 		ioc->chain_lookup = NULL;
 	}
+
+	kfree(ioc->io_queue_num);
+	ioc->io_queue_num = NULL;
 }
 
 /**
@@ -5641,7 +5652,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	reply_post_free_sz = ioc->reply_post_queue_depth *
 	    sizeof(Mpi2DefaultReplyDescriptor_t);
 	rdpq_sz = reply_post_free_sz * RDPQ_MAX_INDEX_IN_ONE_CHUNK;
-	if (_base_is_controller_msix_enabled(ioc) && !ioc->rdpq_array_enable)
+	if ((_base_is_controller_msix_enabled(ioc) && !ioc->rdpq_array_enable)
+	    || (ioc->reply_queue_count < RDPQ_MAX_INDEX_IN_ONE_CHUNK))
 		rdpq_sz = reply_post_free_sz * ioc->reply_queue_count;
 	ret = base_alloc_rdpq_dma_pool(ioc, rdpq_sz);
 	if (ret == -EAGAIN) {
@@ -5772,6 +5784,11 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		    ioc_info(ioc, "internal(0x%p): depth(%d), start smid(%d)\n",
 			     ioc->internal,
 			     ioc->internal_depth, ioc->internal_smid));
+
+	ioc->io_queue_num = kcalloc(ioc->scsiio_depth,
+	    sizeof(u16), GFP_KERNEL);
+	if (!ioc->io_queue_num)
+		goto out;
 	/*
 	 * The number of NVMe page sized blocks needed is:
 	 *     (((sg_tablesize * 8) - 1) / (page_size - 8)) + 1
@@ -8174,8 +8191,11 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
 		if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT ||
 		    (ioc_state & MPI2_IOC_STATE_MASK) ==
-		    MPI2_IOC_STATE_COREDUMP)
+		    MPI2_IOC_STATE_COREDUMP) {
 			is_fault = 1;
+			ioc->htb_rel.trigger_info_dwords[1] =
+			    (ioc_state & MPI2_DOORBELL_DATA_MASK);
+		}
 	}
 	_base_pre_reset_handler(ioc);
 	mpt3sas_wait_for_commands_to_complete(ioc);

@@ -55,15 +55,6 @@ config PCI_RCAR_GEN2
 	  There are 3 internal PCI controllers available with a single
 	  built-in EHCI/OHCI host controller present on each one.
 
-config PCIE_RCAR
-	bool "Renesas R-Car PCIe controller"
-	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_RCAR_HOST
-	help
-	  Say Y here if you want PCIe controller support on R-Car SoCs.
-	  This option will be removed after arm64 defconfig is updated.
-
 config PCIE_RCAR_HOST
 	bool "Renesas R-Car PCIe host controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
@@ -242,20 +233,6 @@ config PCIE_MEDIATEK
 	  Say Y here if you want to enable PCIe controller support on
 	  MediaTek SoCs.
 
-config PCIE_TANGO_SMP8759
-	bool "Tango SMP8759 PCIe controller (DANGEROUS)"
-	depends on ARCH_TANGO && PCI_MSI && OF
-	depends on BROKEN
-	select PCI_HOST_COMMON
-	help
-	  Say Y here to enable PCIe controller support for Sigma Designs
-	  Tango SMP8759-based systems.
-
-	  Note: The SMP8759 controller multiplexes PCI config and MMIO
-	  accesses, and Linux doesn't provide a way to serialize them.
-	  This can lead to data corruption if drivers perform concurrent
-	  config and MMIO accesses.
-
 config VMD
 	depends on PCI_MSI && X86_64 && SRCU
 	tristate "Intel Volume Management Device Driver"
@@ -273,7 +250,7 @@ config VMD
 
 config PCIE_BRCMSTB
 	tristate "Broadcom Brcmstb PCIe host controller"
-	depends on ARCH_BRCMSTB || ARCH_BCM2835 || COMPILE_TEST
+	depends on ARCH_BRCMSTB || ARCH_BCM2835 || ARCH_BCM4908 || COMPILE_TEST
 	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN
 	default ARCH_BRCMSTB
@@ -297,6 +274,16 @@ config PCI_LOONGSON
 	help
 	  Say Y here if you want to enable PCI controller support on
 	  Loongson systems.
+
+config PCIE_MICROCHIP_HOST
+	bool "Microchip AXI PCIe host bridge support"
+	depends on PCI_MSI && OF
+	select PCI_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ_DOMAIN
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want kernel to support the Microchip AXI PCIe
+	  Host Bridge driver.
 
 config PCIE_HISI_ERR
 	depends on ACPI_APEI_GHES && (ARM64 || COMPILE_TEST)

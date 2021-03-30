@@ -1155,7 +1155,7 @@ void vmemmap_free(unsigned long start, unsigned long end,
 }
 #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
 
-static inline pud_t * fixmap_pud(unsigned long addr)
+static inline pud_t *fixmap_pud(unsigned long addr)
 {
 	pgd_t *pgdp = pgd_offset_k(addr);
 	p4d_t *p4dp = p4d_offset(pgdp, addr);
@@ -1166,7 +1166,7 @@ static inline pud_t * fixmap_pud(unsigned long addr)
 	return pud_offset_kimg(p4dp, addr);
 }
 
-static inline pmd_t * fixmap_pmd(unsigned long addr)
+static inline pmd_t *fixmap_pmd(unsigned long addr)
 {
 	pud_t *pudp = fixmap_pud(addr);
 	pud_t pud = READ_ONCE(*pudp);
@@ -1176,7 +1176,7 @@ static inline pmd_t * fixmap_pmd(unsigned long addr)
 	return pmd_offset_kimg(pudp, addr);
 }
 
-static inline pte_t * fixmap_pte(unsigned long addr)
+static inline pte_t *fixmap_pte(unsigned long addr)
 {
 	return &bm_pte[pte_index(addr)];
 }
@@ -1444,16 +1444,19 @@ static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
 	free_empty_tables(start, end, PAGE_OFFSET, PAGE_END);
 }
 
-static bool inside_linear_region(u64 start, u64 size)
+struct range arch_get_mappable_range(void)
 {
+	struct range mhp_range;
+
 	/*
 	 * Linear mapping region is the range [PAGE_OFFSET..(PAGE_END - 1)]
 	 * accommodating both its ends but excluding PAGE_END. Max physical
 	 * range which can be mapped inside this linear mapping range, must
 	 * also be derived from its end points.
 	 */
-	return start >= __pa(_PAGE_OFFSET(vabits_actual)) &&
-	       (start + size - 1) <= __pa(PAGE_END - 1);
+	mhp_range.start = __pa(_PAGE_OFFSET(vabits_actual));
+	mhp_range.end =  __pa(PAGE_END - 1);
+	return mhp_range;
 }
 
 int arch_add_memory(int nid, u64 start, u64 size,
@@ -1461,12 +1464,14 @@ int arch_add_memory(int nid, u64 start, u64 size,
 {
 	int ret, flags = 0;
 
-	if (!inside_linear_region(start, size)) {
-		pr_err("[%llx %llx] is outside linear mapping region\n", start, start + size);
-		return -EINVAL;
-	}
+	VM_BUG_ON(!mhp_range_allowed(start, size, true));
 
-	if (rodata_full || debug_pagealloc_enabled())
+	/*
+	 * KFENCE requires linear map to be mapped at page granularity, so that
+	 * it is possible to protect/unprotect single pages in the KFENCE pool.
+	 */
+	if (rodata_full || debug_pagealloc_enabled() ||
+	    IS_ENABLED(CONFIG_KFENCE))
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
 
 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
