@@ -36,7 +36,7 @@ static int __init walt_debug_init(void)
 	int ret;
 
 	ret = preemptirq_long_init();
-	if (!ret)
+	if (ret)
 		return ret;
 
 	register_trace_android_vh_dump_throttled_rt_tasks(dump_throttled_rt_tasks, NULL);
