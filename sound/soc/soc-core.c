@@ -470,8 +470,10 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 						 dai_link->num_codecs +
 						 dai_link->num_platforms),
 			   GFP_KERNEL);
-	if (!rtd)
-		goto free_rtd;
+	if (!rtd) {
+		device_unregister(dev);
+		return NULL;
+	}
 
 	rtd->dev = dev;
 	INIT_LIST_HEAD(&rtd->list);
