@@ -919,6 +919,22 @@ rkispp_params_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
+static void fec_data_abandon(struct rkispp_params_vdev *vdev,
+			     struct rkispp_params_cfg *params)
+{
+	struct rkispp_fec_head *data;
+	int i;
+
+	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+		if (params->fec_cfg.buf_fd == vdev->buf_fec[i].dma_fd) {
+			data = (struct rkispp_fec_head *)vdev->buf_fec[i].vaddr;
+			if (data)
+				data->stat = FEC_BUF_INIT;
+			break;
+		}
+	}
+}
+
 void rkispp_params_cfg(struct rkispp_params_vdev *params_vdev, u32 frame_id)
 {
 	struct rkispp_params_cfg *new_params = NULL;
@@ -937,6 +953,8 @@ void rkispp_params_cfg(struct rkispp_params_vdev *params_vdev, u32 frame_id)
 
 		new_params = (struct rkispp_params_cfg *)(params_vdev->cur_buf->vaddr[0]);
 		if (new_params->frame_id < frame_id) {
+			if (new_params->module_cfg_update & ISPP_MODULE_FEC)
+				fec_data_abandon(params_vdev, new_params);
 			list_del(&params_vdev->cur_buf->queue);
 			vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			params_vdev->cur_buf = NULL;
