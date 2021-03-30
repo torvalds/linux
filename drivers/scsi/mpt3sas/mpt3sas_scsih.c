@@ -10820,7 +10820,8 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 			pr_notice("cannot be powered and devices connected\n");
 			pr_notice("to this active cable will not be seen\n");
 			pr_notice("This active cable requires %d mW of power\n",
-			     ActiveCableEventData->ActiveCablePowerRequirement);
+			    le32_to_cpu(
+			    ActiveCableEventData->ActiveCablePowerRequirement));
 			break;
 
 		case MPI26_EVENT_ACTIVE_CABLE_DEGRADED:
