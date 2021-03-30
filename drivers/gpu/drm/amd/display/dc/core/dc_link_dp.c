@@ -1618,11 +1618,10 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 {
 	enum dc_status status = DC_OK;
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_TRANSPARENT)
-		status = configure_lttpr_mode_transparent(link);
-
-	else if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
 		status = configure_lttpr_mode_non_transparent(link, lt_settings);
+	else
+		status = configure_lttpr_mode_transparent(link);
 
 	return status;
 }
