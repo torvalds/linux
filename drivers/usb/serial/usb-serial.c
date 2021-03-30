@@ -711,36 +711,47 @@ static const struct tty_port_operations serial_port_ops = {
 	.shutdown		= serial_port_shutdown,
 };
 
+static void store_endpoint(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds,
+					struct usb_endpoint_descriptor *epd)
+{
+	struct device *dev = &serial->interface->dev;
+	u8 addr = epd->bEndpointAddress;
+
+	if (usb_endpoint_is_bulk_in(epd)) {
+		if (epds->num_bulk_in == ARRAY_SIZE(epds->bulk_in))
+			return;
+		dev_dbg(dev, "found bulk in endpoint %02x\n", addr);
+		epds->bulk_in[epds->num_bulk_in++] = epd;
+	} else if (usb_endpoint_is_bulk_out(epd)) {
+		if (epds->num_bulk_out == ARRAY_SIZE(epds->bulk_out))
+			return;
+		dev_dbg(dev, "found bulk out endpoint %02x\n", addr);
+		epds->bulk_out[epds->num_bulk_out++] = epd;
+	} else if (usb_endpoint_is_int_in(epd)) {
+		if (epds->num_interrupt_in == ARRAY_SIZE(epds->interrupt_in))
+			return;
+		dev_dbg(dev, "found interrupt in endpoint %02x\n", addr);
+		epds->interrupt_in[epds->num_interrupt_in++] = epd;
+	} else if (usb_endpoint_is_int_out(epd)) {
+		if (epds->num_interrupt_out == ARRAY_SIZE(epds->interrupt_out))
+			return;
+		dev_dbg(dev, "found interrupt out endpoint %02x\n", addr);
+		epds->interrupt_out[epds->num_interrupt_out++] = epd;
+	}
+}
+
 static void find_endpoints(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
-	struct device *dev = &serial->interface->dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *epd;
 	unsigned int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_in) < USB_MAXENDPOINTS / 2);
-	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_out) < USB_MAXENDPOINTS / 2);
-	BUILD_BUG_ON(ARRAY_SIZE(epds->interrupt_in) < USB_MAXENDPOINTS / 2);
-	BUILD_BUG_ON(ARRAY_SIZE(epds->interrupt_out) < USB_MAXENDPOINTS / 2);
-
 	iface_desc = serial->interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		epd = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_bulk_in(epd)) {
-			dev_dbg(dev, "found bulk in on endpoint %u\n", i);
-			epds->bulk_in[epds->num_bulk_in++] = epd;
-		} else if (usb_endpoint_is_bulk_out(epd)) {
-			dev_dbg(dev, "found bulk out on endpoint %u\n", i);
-			epds->bulk_out[epds->num_bulk_out++] = epd;
-		} else if (usb_endpoint_is_int_in(epd)) {
-			dev_dbg(dev, "found interrupt in on endpoint %u\n", i);
-			epds->interrupt_in[epds->num_interrupt_in++] = epd;
-		} else if (usb_endpoint_is_int_out(epd)) {
-			dev_dbg(dev, "found interrupt out on endpoint %u\n", i);
-			epds->interrupt_out[epds->num_interrupt_out++] = epd;
-		}
+		store_endpoint(serial, epds, epd);
 	}
 }
 
