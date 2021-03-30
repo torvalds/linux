@@ -78,9 +78,9 @@ static inline int is_char_allowed(char ch)
 {
 	/* check for control chars, wildcards etc. */
 	if (!(ch & 0x80) &&
-		(ch <= 0x1f ||
-		 ch == '?' || ch == '"' || ch == '<' ||
-		 ch == '>' || ch == '|' || ch == '*'))
+	    (ch <= 0x1f ||
+	     ch == '?' || ch == '"' || ch == '<' ||
+	     ch == '>' || ch == '|' || ch == '*'))
 		return 0;
 
 	return 1;
@@ -268,8 +268,7 @@ char *convert_to_unix_name(struct ksmbd_share_config *share, char *name)
 }
 
 char *ksmbd_convert_dir_info_name(struct ksmbd_dir_info *d_info,
-				  const struct nls_table *local_nls,
-				  int *conv_len)
+		const struct nls_table *local_nls, int *conv_len)
 {
 	char *conv;
 	int  sz = min(4 * d_info->name_len, PATH_MAX);

@@ -159,8 +159,9 @@ int ndr_encode_dos_attr(struct ndr *n, struct xattr_dos_attrib *da)
 		ndr_write_int32(n, da->ea_size);
 		ndr_write_int64(n, da->size);
 		ndr_write_int64(n, da->alloc_size);
-	} else
+	} else {
 		ndr_write_int64(n, da->itime);
+	}
 	ndr_write_int64(n, da->create_time);
 	if (da->version == 3)
 		ndr_write_int64(n, da->change_time);
@@ -248,15 +249,17 @@ int ndr_encode_posix_acl(struct ndr *n, struct inode *inode,
 		/* ACL ACCESS */
 		ndr_write_int32(n, ref_id);
 		ref_id += 4;
-	} else
+	} else {
 		ndr_write_int32(n, 0);
+	}
 
 	if (def_acl) {
 		/* DEFAULT ACL ACCESS */
 		ndr_write_int32(n, ref_id);
 		ref_id += 4;
-	} else
+	} else {
 		ndr_write_int32(n, 0);
+	}
 
 	ndr_write_int64(n, from_kuid(&init_user_ns, inode->i_uid));
 	ndr_write_int64(n, from_kgid(&init_user_ns, inode->i_gid));

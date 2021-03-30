@@ -149,50 +149,31 @@ static inline bool ksmbd_stream_fd(struct ksmbd_file *fp)
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft);
 void ksmbd_destroy_file_table(struct ksmbd_file_table *ft);
-
 int ksmbd_close_fd(struct ksmbd_work *work, unsigned int id);
-
-struct ksmbd_file *ksmbd_lookup_fd_fast(struct ksmbd_work *work,
-					unsigned int id);
-struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work,
-					   unsigned int id);
-struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work,
-					unsigned int id,
-					unsigned int pid);
-
+struct ksmbd_file *ksmbd_lookup_fd_fast(struct ksmbd_work *work, unsigned int id);
+struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work, unsigned int id);
+struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, unsigned int id,
+		unsigned int pid);
 void ksmbd_fd_put(struct ksmbd_work *work, struct ksmbd_file *fp);
-
 int ksmbd_close_fd_app_id(struct ksmbd_work *work, char *app_id);
 struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id);
 struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid);
-struct ksmbd_file *ksmbd_lookup_fd_filename(struct ksmbd_work *work,
-					    char *filename);
+struct ksmbd_file *ksmbd_lookup_fd_filename(struct ksmbd_work *work, char *filename);
 struct ksmbd_file *ksmbd_lookup_fd_inode(struct inode *inode);
-
 unsigned int ksmbd_open_durable_fd(struct ksmbd_file *fp);
-
-struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work,
-				 struct file *filp);
-
+struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp);
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work);
 void ksmbd_close_session_fds(struct ksmbd_work *work);
-
 int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode);
-
-int ksmbd_reopen_durable_fd(struct ksmbd_work *work,
-			    struct ksmbd_file *fp);
-
+int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp);
 int ksmbd_init_global_file_table(void);
 void ksmbd_free_global_file_table(void);
-
 int ksmbd_file_table_flush(struct ksmbd_work *work);
-
 void ksmbd_set_fd_limit(unsigned long limit);
 
 /*
  * INODE hash
  */
-
 int __init ksmbd_inode_hash_init(void);
 void ksmbd_release_inode_hash(void);
 
@@ -203,11 +184,9 @@ enum KSMBD_INODE_STATUS {
 };
 
 int ksmbd_query_inode_status(struct inode *inode);
-
 bool ksmbd_inode_pending_delete(struct ksmbd_file *fp);
 void ksmbd_set_inode_pending_delete(struct ksmbd_file *fp);
 void ksmbd_clear_inode_pending_delete(struct ksmbd_file *fp);
-
 void ksmbd_fd_set_delete_on_close(struct ksmbd_file *fp,
 				  int file_info);
 #endif /* __VFS_CACHE_H__ */

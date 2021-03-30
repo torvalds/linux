@@ -17,7 +17,7 @@
 
 /*for shortname implementation */
 static const char basechars[43] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-!@#$%";
-#define MANGLE_BASE       (sizeof(basechars)/sizeof(char)-1)
+#define MANGLE_BASE (sizeof(basechars) / sizeof(char) - 1)
 #define MAGIC_CHAR '~'
 #define PERIOD '.'
 #define mangle(V) ((char)(basechars[(V) % MANGLE_BASE]))
@@ -268,15 +268,10 @@ bool ksmbd_pdu_size_has_room(unsigned int pdu)
 	return (pdu >= KSMBD_MIN_SUPPORTED_HEADER_SIZE - 4);
 }
 
-int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work,
-				      int info_level,
-				      struct ksmbd_file *dir,
-				      struct ksmbd_dir_info *d_info,
-				      char *search_pattern,
-				      int (*fn)(struct ksmbd_conn *,
-						int,
-						struct ksmbd_dir_info *,
-						struct ksmbd_kstat *))
+int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work, int info_level,
+		struct ksmbd_file *dir, struct ksmbd_dir_info *d_info,
+		char *search_pattern, int (*fn)(struct ksmbd_conn *, int,
+			struct ksmbd_dir_info *, struct ksmbd_kstat *))
 {
 	int i, rc = 0;
 	struct ksmbd_conn *conn = work->conn;
@@ -295,7 +290,7 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work,
 			}
 
 			if (!match_pattern(d_info->name, d_info->name_len,
-					search_pattern)) {
+					   search_pattern)) {
 				dir->dot_dotdot[i] = 1;
 				continue;
 			}
@@ -331,9 +326,8 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work,
  * TODO: Though this function comforms the restriction of 8.3 Filename spec,
  * but the result is different with Windows 7's one. need to check.
  */
-int ksmbd_extract_shortname(struct ksmbd_conn *conn,
-			    const char *longname,
-			    char *shortname)
+int ksmbd_extract_shortname(struct ksmbd_conn *conn, const char *longname,
+		char *shortname)
 {
 	const char *p;
 	char base[9], extension[4];
@@ -354,7 +348,7 @@ int ksmbd_extract_shortname(struct ksmbd_conn *conn,
 	if (p == longname) { /*name starts with a dot*/
 		strscpy(extension, "___", strlen("___"));
 	} else {
-		if (p != NULL) {
+		if (p) {
 			p++;
 			while (*p && extlen < 3) {
 				if (*p != '.')
@@ -362,8 +356,9 @@ int ksmbd_extract_shortname(struct ksmbd_conn *conn,
 				p++;
 			}
 			extension[extlen] = '\0';
-		} else
+		} else {
 			dot_present = false;
+		}
 	}
 
 	p = longname;
@@ -378,7 +373,7 @@ int ksmbd_extract_shortname(struct ksmbd_conn *conn,
 	}
 
 	base[baselen] = MAGIC_CHAR;
-	memcpy(out, base, baselen+1);
+	memcpy(out, base, baselen + 1);
 
 	ptr = longname;
 	len = strlen(longname);
@@ -386,14 +381,14 @@ int ksmbd_extract_shortname(struct ksmbd_conn *conn,
 		csum += *ptr;
 
 	csum = csum % (MANGLE_BASE * MANGLE_BASE);
-	out[baselen+1] = mangle(csum/MANGLE_BASE);
-	out[baselen+2] = mangle(csum);
-	out[baselen+3] = PERIOD;
+	out[baselen + 1] = mangle(csum / MANGLE_BASE);
+	out[baselen + 2] = mangle(csum);
+	out[baselen + 3] = PERIOD;
 
 	if (dot_present)
-		memcpy(&out[baselen+4], extension, 4);
+		memcpy(&out[baselen + 4], extension, 4);
 	else
-		out[baselen+4] = '\0';
+		out[baselen + 4] = '\0';
 	smbConvertToUTF16((__le16 *)shortname, out, PATH_MAX,
 			conn->local_nls, 0);
 	len = strlen(out) * 2;
@@ -471,9 +466,8 @@ static const char * const shared_mode_errors[] = {
 	"Desired access mode does not permit FILE_DELETE",
 };
 
-static void smb_shared_mode_error(int error,
-				  struct ksmbd_file *prev_fp,
-				  struct ksmbd_file *curr_fp)
+static void smb_shared_mode_error(int error, struct ksmbd_file *prev_fp,
+		struct ksmbd_file *curr_fp)
 {
 	ksmbd_debug(SMB, "%s\n", shared_mode_errors[error]);
 	ksmbd_debug(SMB, "Current mode: 0x%x Desired mode: 0x%x\n",
@@ -512,7 +506,7 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 			continue;
 
 		if (!(prev_fp->saccess & FILE_SHARE_DELETE_LE) &&
-				curr_fp->daccess & FILE_DELETE_LE) {
+		    curr_fp->daccess & FILE_DELETE_LE) {
 			smb_shared_mode_error(SHARE_DELETE_ERROR,
 					      prev_fp,
 					      curr_fp);
@@ -528,8 +522,7 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 			continue;
 
 		if (!(prev_fp->saccess & FILE_SHARE_READ_LE) &&
-				curr_fp->daccess & (FILE_EXECUTE_LE |
-					FILE_READ_DATA_LE)) {
+		    curr_fp->daccess & (FILE_EXECUTE_LE | FILE_READ_DATA_LE)) {
 			smb_shared_mode_error(SHARE_READ_ERROR,
 					      prev_fp,
 					      curr_fp);
@@ -538,8 +531,7 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 		}
 
 		if (!(prev_fp->saccess & FILE_SHARE_WRITE_LE) &&
-				curr_fp->daccess & (FILE_WRITE_DATA_LE |
-					FILE_APPEND_DATA_LE)) {
+		    curr_fp->daccess & (FILE_WRITE_DATA_LE | FILE_APPEND_DATA_LE)) {
 			smb_shared_mode_error(SHARE_WRITE_ERROR,
 					      prev_fp,
 					      curr_fp);
@@ -547,9 +539,8 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 			break;
 		}
 
-		if (prev_fp->daccess & (FILE_EXECUTE_LE |
-					FILE_READ_DATA_LE) &&
-				!(curr_fp->saccess & FILE_SHARE_READ_LE)) {
+		if (prev_fp->daccess & (FILE_EXECUTE_LE | FILE_READ_DATA_LE) &&
+		    !(curr_fp->saccess & FILE_SHARE_READ_LE)) {
 			smb_shared_mode_error(FILE_READ_ERROR,
 					      prev_fp,
 					      curr_fp);
@@ -557,9 +548,8 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 			break;
 		}
 
-		if (prev_fp->daccess & (FILE_WRITE_DATA_LE |
-					FILE_APPEND_DATA_LE) &&
-				!(curr_fp->saccess & FILE_SHARE_WRITE_LE)) {
+		if (prev_fp->daccess & (FILE_WRITE_DATA_LE | FILE_APPEND_DATA_LE) &&
+		    !(curr_fp->saccess & FILE_SHARE_WRITE_LE)) {
 			smb_shared_mode_error(FILE_WRITE_ERROR,
 					      prev_fp,
 					      curr_fp);
@@ -568,7 +558,7 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 		}
 
 		if (prev_fp->daccess & FILE_DELETE_LE &&
-				!(curr_fp->saccess & FILE_SHARE_DELETE_LE)) {
+		    !(curr_fp->saccess & FILE_SHARE_DELETE_LE)) {
 			smb_shared_mode_error(FILE_DELETE_ERROR,
 					      prev_fp,
 					      curr_fp);
@@ -620,7 +610,7 @@ int ksmbd_override_fsids(struct ksmbd_work *work)
 	if (!uid_eq(cred->fsuid, GLOBAL_ROOT_UID))
 		cred->cap_effective = cap_drop_fs_set(cred->cap_effective);
 
-	WARN_ON(work->saved_cred != NULL);
+	WARN_ON(work->saved_cred);
 	work->saved_cred = override_creds(cred);
 	if (!work->saved_cred) {
 		abort_creds(cred);
@@ -633,7 +623,7 @@ void ksmbd_revert_fsids(struct ksmbd_work *work)
 {
 	const struct cred *cred;
 
-	WARN_ON(work->saved_cred == NULL);
+	WARN_ON(!work->saved_cred);
 
 	cred = current_cred();
 	revert_creds(work->saved_cred);

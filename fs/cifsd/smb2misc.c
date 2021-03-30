@@ -90,8 +90,7 @@ static char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 
 	/* error reqeusts do not have data area */
 	if (hdr->Status && hdr->Status != STATUS_MORE_PROCESSING_REQUIRED &&
-			(((struct smb2_err_rsp *)hdr)->StructureSize) ==
-			SMB2_ERROR_STRUCTURE_SIZE2_LE)
+	    (((struct smb2_err_rsp *)hdr)->StructureSize) == SMB2_ERROR_STRUCTURE_SIZE2_LE)
 		return NULL;
 
 	/*
@@ -101,16 +100,12 @@ static char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 	 */
 	switch (hdr->Command) {
 	case SMB2_SESSION_SETUP:
-		*off = le16_to_cpu(
-		     ((struct smb2_sess_setup_req *)hdr)->SecurityBufferOffset);
-		*len = le16_to_cpu(
-		     ((struct smb2_sess_setup_req *)hdr)->SecurityBufferLength);
+		*off = le16_to_cpu(((struct smb2_sess_setup_req *)hdr)->SecurityBufferOffset);
+		*len = le16_to_cpu(((struct smb2_sess_setup_req *)hdr)->SecurityBufferLength);
 		break;
 	case SMB2_TREE_CONNECT:
-		*off = le16_to_cpu(
-		     ((struct smb2_tree_connect_req *)hdr)->PathOffset);
-		*len = le16_to_cpu(
-		     ((struct smb2_tree_connect_req *)hdr)->PathLength);
+		*off = le16_to_cpu(((struct smb2_tree_connect_req *)hdr)->PathOffset);
+		*len = le16_to_cpu(((struct smb2_tree_connect_req *)hdr)->PathLength);
 		break;
 	case SMB2_CREATE:
 	{
@@ -122,49 +117,35 @@ static char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 			break;
 		}
 
-		*off = le16_to_cpu(
-		     ((struct smb2_create_req *)hdr)->NameOffset);
-		*len = le16_to_cpu(
-		     ((struct smb2_create_req *)hdr)->NameLength);
+		*off = le16_to_cpu(((struct smb2_create_req *)hdr)->NameOffset);
+		*len = le16_to_cpu(((struct smb2_create_req *)hdr)->NameLength);
 		break;
 	}
 	case SMB2_QUERY_INFO:
-		*off = le16_to_cpu(
-		     ((struct smb2_query_info_req *)hdr)->InputBufferOffset);
-		*len = le32_to_cpu(
-		     ((struct smb2_query_info_req *)hdr)->InputBufferLength);
+		*off = le16_to_cpu(((struct smb2_query_info_req *)hdr)->InputBufferOffset);
+		*len = le32_to_cpu(((struct smb2_query_info_req *)hdr)->InputBufferLength);
 		break;
 	case SMB2_SET_INFO:
-		*off = le16_to_cpu(
-		     ((struct smb2_set_info_req *)hdr)->BufferOffset);
-		*len = le32_to_cpu(
-		     ((struct smb2_set_info_req *)hdr)->BufferLength);
+		*off = le16_to_cpu(((struct smb2_set_info_req *)hdr)->BufferOffset);
+		*len = le32_to_cpu(((struct smb2_set_info_req *)hdr)->BufferLength);
 		break;
 	case SMB2_READ:
-		*off = le16_to_cpu(
-		     ((struct smb2_read_req *)hdr)->ReadChannelInfoOffset);
-		*len = le16_to_cpu(
-		     ((struct smb2_read_req *)hdr)->ReadChannelInfoLength);
+		*off = le16_to_cpu(((struct smb2_read_req *)hdr)->ReadChannelInfoOffset);
+		*len = le16_to_cpu(((struct smb2_read_req *)hdr)->ReadChannelInfoLength);
 		break;
 	case SMB2_WRITE:
 		if (((struct smb2_write_req *)hdr)->DataOffset) {
-			*off = le16_to_cpu(
-			     ((struct smb2_write_req *)hdr)->DataOffset);
-			*len = le32_to_cpu(
-				((struct smb2_write_req *)hdr)->Length);
+			*off = le16_to_cpu(((struct smb2_write_req *)hdr)->DataOffset);
+			*len = le32_to_cpu(((struct smb2_write_req *)hdr)->Length);
 			break;
 		}
 
-		*off = le16_to_cpu(
-		     ((struct smb2_write_req *)hdr)->WriteChannelInfoOffset);
-		*len = le16_to_cpu(
-		     ((struct smb2_write_req *)hdr)->WriteChannelInfoLength);
+		*off = le16_to_cpu(((struct smb2_write_req *)hdr)->WriteChannelInfoOffset);
+		*len = le16_to_cpu(((struct smb2_write_req *)hdr)->WriteChannelInfoLength);
 		break;
 	case SMB2_QUERY_DIRECTORY:
-		*off = le16_to_cpu(
-		     ((struct smb2_query_directory_req *)hdr)->FileNameOffset);
-		*len = le16_to_cpu(
-		     ((struct smb2_query_directory_req *)hdr)->FileNameLength);
+		*off = le16_to_cpu(((struct smb2_query_directory_req *)hdr)->FileNameOffset);
+		*len = le16_to_cpu(((struct smb2_query_directory_req *)hdr)->FileNameLength);
 		break;
 	case SMB2_LOCK:
 	{
@@ -174,8 +155,7 @@ static char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 		 * smb2_lock request size is 48 included single
 		 * smb2_lock_element structure size.
 		 */
-		lock_count = le16_to_cpu(
-			((struct smb2_lock_req *)hdr)->LockCount) - 1;
+		lock_count = le16_to_cpu(((struct smb2_lock_req *)hdr)->LockCount) - 1;
 		if (lock_count > 0) {
 			*off = __SMB2_HEADER_STRUCTURE_SIZE + 48;
 			*len = sizeof(struct smb2_lock_element) * lock_count;
@@ -183,8 +163,7 @@ static char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 		break;
 	}
 	case SMB2_IOCTL:
-		*off = le32_to_cpu(
-		     ((struct smb2_ioctl_req *)hdr)->InputOffset);
+		*off = le32_to_cpu(((struct smb2_ioctl_req *)hdr)->InputOffset);
 		*len = le32_to_cpu(((struct smb2_ioctl_req *)hdr)->InputCount);
 
 		break;
@@ -366,9 +345,9 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 		hdr = &pdu->hdr;
 	}
 
-	if (le32_to_cpu(hdr->NextCommand) > 0)
+	if (le32_to_cpu(hdr->NextCommand) > 0) {
 		len = le32_to_cpu(hdr->NextCommand);
-	else if (work->next_smb2_rcv_hdr_off) {
+	} else if (work->next_smb2_rcv_hdr_off) {
 		len -= work->next_smb2_rcv_hdr_off;
 		len = round_up(len, 8);
 	}
@@ -389,19 +368,17 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 	}
 
 	if (smb2_req_struct_sizes[command] != pdu->StructureSize2) {
-		if (command != SMB2_OPLOCK_BREAK_HE && (hdr->Status == 0 ||
-		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE)) {
+		if (command != SMB2_OPLOCK_BREAK_HE &&
+		    (hdr->Status == 0 || pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE)) {
 			/* error packets have 9 byte structure size */
 			ksmbd_debug(SMB,
 				"Illegal request size %u for command %d\n",
 				le16_to_cpu(pdu->StructureSize2), command);
 			return 1;
-		} else if (command == SMB2_OPLOCK_BREAK_HE
-				&& (hdr->Status == 0)
-				&& (le16_to_cpu(pdu->StructureSize2) !=
-					OP_BREAK_STRUCT_SIZE_20)
-				&& (le16_to_cpu(pdu->StructureSize2) !=
-					OP_BREAK_STRUCT_SIZE_21)) {
+		} else if (command == SMB2_OPLOCK_BREAK_HE &&
+			   hdr->Status == 0 &&
+			   le16_to_cpu(pdu->StructureSize2) != OP_BREAK_STRUCT_SIZE_20 &&
+			   le16_to_cpu(pdu->StructureSize2) != OP_BREAK_STRUCT_SIZE_21) {
 			/* special case for SMB2.1 lease break message */
 			ksmbd_debug(SMB,
 				"Illegal request size %d for oplock break\n",

@@ -20,9 +20,9 @@ struct sockaddr;
 
 struct ksmbd_tree_connect_response *
 ksmbd_ipc_tree_connect_request(struct ksmbd_session *sess,
-			       struct ksmbd_share_config *share,
-			       struct ksmbd_tree_connect *tree_conn,
-			       struct sockaddr *peer_addr);
+		struct ksmbd_share_config *share,
+		struct ksmbd_tree_connect *tree_conn,
+		struct sockaddr *peer_addr);
 
 int ksmbd_ipc_tree_disconnect_request(unsigned long long session_id,
 				      unsigned long long connect_id);
@@ -37,24 +37,16 @@ ksmbd_ipc_spnego_authen_request(const char *spnego_blob, int blob_len);
 int ksmbd_ipc_id_alloc(void);
 void ksmbd_rpc_id_free(int handle);
 
-struct ksmbd_rpc_command *ksmbd_rpc_open(struct ksmbd_session *sess,
-					 int handle);
-struct ksmbd_rpc_command *ksmbd_rpc_close(struct ksmbd_session *sess,
-					  int handle);
+struct ksmbd_rpc_command *ksmbd_rpc_open(struct ksmbd_session *sess, int handle);
+struct ksmbd_rpc_command *ksmbd_rpc_close(struct ksmbd_session *sess, int handle);
 
-struct ksmbd_rpc_command *ksmbd_rpc_write(struct ksmbd_session *sess,
-					  int handle,
-					  void *payload,
-					  size_t payload_sz);
-struct ksmbd_rpc_command *ksmbd_rpc_read(struct ksmbd_session *sess,
-					 int handle);
-struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess,
-					  int handle,
-					  void *payload,
-					  size_t payload_sz);
-struct ksmbd_rpc_command *ksmbd_rpc_rap(struct ksmbd_session *sess,
-					  void *payload,
-					  size_t payload_sz);
+struct ksmbd_rpc_command *ksmbd_rpc_write(struct ksmbd_session *sess, int handle,
+		void *payload, size_t payload_sz);
+struct ksmbd_rpc_command *ksmbd_rpc_read(struct ksmbd_session *sess, int handle);
+struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess, int handle,
+		void *payload, size_t payload_sz);
+struct ksmbd_rpc_command *ksmbd_rpc_rap(struct ksmbd_session *sess, void *payload,
+		size_t payload_sz);
 
 void ksmbd_ipc_release(void);
 void ksmbd_ipc_soft_reset(void);

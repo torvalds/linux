@@ -24,13 +24,13 @@ extern int ksmbd_caseless_search;
 #define DATA_STREAM	1
 #define DIR_STREAM	2
 
-#define KSMBD_DEBUG_SMB         (1 << 0)
-#define KSMBD_DEBUG_AUTH        (1 << 1)
-#define KSMBD_DEBUG_VFS         (1 << 2)
-#define KSMBD_DEBUG_OPLOCK      (1 << 3)
-#define KSMBD_DEBUG_IPC         (1 << 4)
-#define KSMBD_DEBUG_CONN        (1 << 5)
-#define KSMBD_DEBUG_RDMA        (1 << 6)
+#define KSMBD_DEBUG_SMB		BIT(0)
+#define KSMBD_DEBUG_AUTH	BIT(1)
+#define KSMBD_DEBUG_VFS		BIT(2)
+#define KSMBD_DEBUG_OPLOCK      BIT(3)
+#define KSMBD_DEBUG_IPC         BIT(4)
+#define KSMBD_DEBUG_CONN        BIT(5)
+#define KSMBD_DEBUG_RDMA        BIT(6)
 #define KSMBD_DEBUG_ALL         (KSMBD_DEBUG_SMB | KSMBD_DEBUG_AUTH |	\
 				KSMBD_DEBUG_VFS | KSMBD_DEBUG_OPLOCK |	\
 				KSMBD_DEBUG_IPC | KSMBD_DEBUG_CONN |	\

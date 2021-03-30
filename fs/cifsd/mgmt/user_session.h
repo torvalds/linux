@@ -26,12 +26,12 @@ struct channel {
 
 struct preauth_session {
 	__u8			Preauth_HashValue[PREAUTH_HASHVALUE_SIZE];
-	uint64_t		sess_id;
+	u64			sess_id;
 	struct list_head	list_entry;
 };
 
 struct ksmbd_session {
-	uint64_t			id;
+	u64				id;
 
 	struct ksmbd_user		*user;
 	struct ksmbd_conn		*conn;

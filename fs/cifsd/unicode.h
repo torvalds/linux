@@ -32,13 +32,13 @@
  * reserved symbols (along with \ and /), otherwise illegal to store
  * in filenames in NTFS
  */
-#define UNI_ASTERISK    ((__u16) ('*' + 0xF000))
-#define UNI_QUESTION    ((__u16) ('?' + 0xF000))
-#define UNI_COLON       ((__u16) (':' + 0xF000))
-#define UNI_GRTRTHAN    ((__u16) ('>' + 0xF000))
-#define UNI_LESSTHAN    ((__u16) ('<' + 0xF000))
-#define UNI_PIPE        ((__u16) ('|' + 0xF000))
-#define UNI_SLASH       ((__u16) ('\\' + 0xF000))
+#define UNI_ASTERISK    ((__u16)('*' + 0xF000))
+#define UNI_QUESTION    ((__u16)('?' + 0xF000))
+#define UNI_COLON       ((__u16)(':' + 0xF000))
+#define UNI_GRTRTHAN    ((__u16)('>' + 0xF000))
+#define UNI_LESSTHAN    ((__u16)('<' + 0xF000))
+#define UNI_PIPE        ((__u16)('|' + 0xF000))
+#define UNI_SLASH       ((__u16)('\\' + 0xF000))
 
 /* Just define what we want from uniupr.h.  We don't want to define the tables
  * in each source file.
@@ -63,13 +63,12 @@ extern const struct UniCaseRange CifsUniLowerRange[];
 
 #ifdef __KERNEL__
 int smb_strtoUTF16(__le16 *to, const char *from, int len,
-	const struct nls_table *codepage);
-char *smb_strndup_from_utf16(const char *src, const int maxlen,
-		const bool is_unicode,
 		const struct nls_table *codepage);
-extern int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
+char *smb_strndup_from_utf16(const char *src, const int maxlen,
+		const bool is_unicode, const struct nls_table *codepage);
+int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 		const struct nls_table *cp, int mapchars);
-extern char *ksmbd_extract_sharename(char *treename);
+char *ksmbd_extract_sharename(char *treename);
 #endif
 
 wchar_t cifs_toupper(wchar_t in);
@@ -80,8 +79,7 @@ wchar_t cifs_toupper(wchar_t in);
  * Returns:
  *     Address of the first string
  */
-	static inline wchar_t *
-UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
+static inline wchar_t *UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
 {
 	wchar_t *anchor = ucs1;	/* save a pointer to start of ucs1 */
 
@@ -100,14 +98,13 @@ UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
  *     Address of first occurrence of character in string
  *     or NULL if the character is not in the string
  */
-	static inline wchar_t *
-UniStrchr(const wchar_t *ucs, wchar_t uc)
+static inline wchar_t *UniStrchr(const wchar_t *ucs, wchar_t uc)
 {
 	while ((*ucs != uc) && *ucs)
 		ucs++;
 
 	if (*ucs == uc)
-		return (wchar_t *) ucs;
+		return (wchar_t *)ucs;
 	return NULL;
 }
 
@@ -119,21 +116,19 @@ UniStrchr(const wchar_t *ucs, wchar_t uc)
  *     = 0:  Strings are equal
  *     > 0:  First string is greater than second
  */
-	static inline int
-UniStrcmp(const wchar_t *ucs1, const wchar_t *ucs2)
+static inline int UniStrcmp(const wchar_t *ucs1, const wchar_t *ucs2)
 {
 	while ((*ucs1 == *ucs2) && *ucs1) {
 		ucs1++;
 		ucs2++;
 	}
-	return (int) *ucs1 - (int) *ucs2;
+	return (int)*ucs1 - (int)*ucs2;
 }
 
 /*
  * UniStrcpy:  Copy a string
  */
-	static inline wchar_t *
-UniStrcpy(wchar_t *ucs1, const wchar_t *ucs2)
+static inline wchar_t *UniStrcpy(wchar_t *ucs1, const wchar_t *ucs2)
 {
 	wchar_t *anchor = ucs1;	/* save the start of result string */
 
@@ -145,8 +140,7 @@ UniStrcpy(wchar_t *ucs1, const wchar_t *ucs2)
 /*
  * UniStrlen:  Return the length of a string (in 16 bit Unicode chars not bytes)
  */
-	static inline size_t
-UniStrlen(const wchar_t *ucs1)
+static inline size_t UniStrlen(const wchar_t *ucs1)
 {
 	int i = 0;
 
@@ -159,8 +153,7 @@ UniStrlen(const wchar_t *ucs1)
  * UniStrnlen:  Return the length (in 16 bit Unicode chars not bytes) of a
  *		string (length limited)
  */
-	static inline size_t
-UniStrnlen(const wchar_t *ucs1, int maxlen)
+static inline size_t UniStrnlen(const wchar_t *ucs1, int maxlen)
 {
 	int i = 0;
 
@@ -175,8 +168,7 @@ UniStrnlen(const wchar_t *ucs1, int maxlen)
 /*
  * UniStrncat:  Concatenate length limited string
  */
-	static inline wchar_t *
-UniStrncat(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
+static inline wchar_t *UniStrncat(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	wchar_t *anchor = ucs1;	/* save pointer to string 1 */
 
@@ -194,8 +186,7 @@ UniStrncat(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 /*
  * UniStrncmp:  Compare length limited string
  */
-	static inline int
-UniStrncmp(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
+static inline int UniStrncmp(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	if (!n)
 		return 0;	/* Null strings are equal */
@@ -203,7 +194,7 @@ UniStrncmp(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 		ucs1++;
 		ucs2++;
 	}
-	return (int) *ucs1 - (int) *ucs2;
+	return (int)*ucs1 - (int)*ucs2;
 }
 
 /*
@@ -218,14 +209,13 @@ UniStrncmp_le(const wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 		ucs1++;
 		ucs2++;
 	}
-	return (int) *ucs1 - (int) __le16_to_cpu(*ucs2);
+	return (int)*ucs1 - (int)__le16_to_cpu(*ucs2);
 }
 
 /*
  * UniStrncpy:  Copy length limited string with pad
  */
-	static inline wchar_t *
-UniStrncpy(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
+static inline wchar_t *UniStrncpy(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	wchar_t *anchor = ucs1;
 
@@ -241,8 +231,7 @@ UniStrncpy(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 /*
  * UniStrncpy_le:  Copy length limited string with pad to little-endian
  */
-	static inline wchar_t *
-UniStrncpy_le(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
+static inline wchar_t *UniStrncpy_le(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
 {
 	wchar_t *anchor = ucs1;
 
@@ -262,8 +251,7 @@ UniStrncpy_le(wchar_t *ucs1, const wchar_t *ucs2, size_t n)
  *     Address of first match found
  *     NULL if no matching string is found
  */
-	static inline wchar_t *
-UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
+static inline wchar_t *UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 {
 	const wchar_t *anchor1 = ucs1;
 	const wchar_t *anchor2 = ucs2;
@@ -275,14 +263,14 @@ UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 			ucs2++;
 		} else {
 			if (!*ucs2)	/* Match found */
-				return (wchar_t *) anchor1;
+				return (wchar_t *)anchor1;
 			ucs1 = ++anchor1;	/* No match */
 			ucs2 = anchor2;
 		}
 	}
 
 	if (!*ucs2)		/* Both end together */
-		return (wchar_t *) anchor1;	/* Match found */
+		return (wchar_t *)anchor1;	/* Match found */
 	return NULL;		/* No match */
 }
 
@@ -290,8 +278,7 @@ UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 /*
  * UniToupper:  Convert a unicode character to upper case
  */
-	static inline wchar_t
-UniToupper(register wchar_t uc)
+static inline wchar_t UniToupper(register wchar_t uc)
 {
 	register const struct UniCaseRange *rp;
 
@@ -314,8 +301,7 @@ UniToupper(register wchar_t uc)
 /*
  * UniStrupr:  Upper case a unicode string
  */
-	static inline __le16 *
-UniStrupr(register __le16 *upin)
+static inline __le16 *UniStrupr(register __le16 *upin)
 {
 	register __le16 *up;
 
@@ -332,8 +318,7 @@ UniStrupr(register __le16 *upin)
 /*
  * UniTolower:  Convert a unicode character to lower case
  */
-	static inline wchar_t
-UniTolower(register wchar_t uc)
+static inline wchar_t UniTolower(register wchar_t uc)
 {
 	register const struct UniCaseRange *rp;
 
@@ -356,8 +341,7 @@ UniTolower(register wchar_t uc)
 /*
  * UniStrlwr:  Lower case a unicode string
  */
-	static inline wchar_t *
-UniStrlwr(register wchar_t *upin)
+static inline wchar_t *UniStrlwr(register wchar_t *upin)
 {
 	register wchar_t *up;
 

@@ -11,13 +11,13 @@
  * between different kernel versions.
  */
 
-#define NTFS_TIME_OFFSET	((u64)(369*365 + 89) * 24 * 3600 * 10000000)
+#define NTFS_TIME_OFFSET	((u64)(369 * 365 + 89) * 24 * 3600 * 10000000)
 
 /* Convert the Unix UTC into NT UTC. */
 static inline u64 ksmbd_UnixTimeToNT(struct timespec64 t)
 {
 	/* Convert to 100ns intervals and then add the NTFS time offset. */
-	return (u64) t.tv_sec * 10000000 + t.tv_nsec / 100 + NTFS_TIME_OFFSET;
+	return (u64)t.tv_sec * 10000000 + t.tv_nsec / 100 + NTFS_TIME_OFFSET;
 }
 
 struct timespec64 ksmbd_NTtimeToUnix(__le64 ntutc);
