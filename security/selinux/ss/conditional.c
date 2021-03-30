@@ -254,7 +254,8 @@ struct cond_insertf_data {
 	struct cond_av_list *other;
 };
 
-static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum *d, void *ptr)
+static int cond_insertf(struct avtab *a, const struct avtab_key *k,
+			const struct avtab_datum *d, void *ptr)
 {
 	struct cond_insertf_data *data = ptr;
 	struct policydb *p = data->p;

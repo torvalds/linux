@@ -29,7 +29,7 @@ static struct kmem_cache *avtab_xperms_cachep __ro_after_init;
 /* Based on MurmurHash3, written by Austin Appleby and placed in the
  * public domain.
  */
-static inline int avtab_hash(struct avtab_key *keyp, u32 mask)
+static inline int avtab_hash(const struct avtab_key *keyp, u32 mask)
 {
 	static const u32 c1 = 0xcc9e2d51;
 	static const u32 c2 = 0x1b873593;
@@ -68,7 +68,7 @@ static inline int avtab_hash(struct avtab_key *keyp, u32 mask)
 static struct avtab_node*
 avtab_insert_node(struct avtab *h, int hvalue,
 		  struct avtab_node *prev, struct avtab_node *cur,
-		  struct avtab_key *key, struct avtab_datum *datum)
+		  const struct avtab_key *key, const struct avtab_datum *datum)
 {
 	struct avtab_node *newnode;
 	struct avtab_extended_perms *xperms;
@@ -103,7 +103,8 @@ avtab_insert_node(struct avtab *h, int hvalue,
 	return newnode;
 }
 
-static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
+static int avtab_insert(struct avtab *h, const struct avtab_key *key,
+			const struct avtab_datum *datum)
 {
 	int hvalue;
 	struct avtab_node *prev, *cur, *newnode;
@@ -147,8 +148,9 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
  * key/specified mask into the table, as needed by the conditional avtab.
  * It also returns a pointer to the node inserted.
  */
-struct avtab_node *
-avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
+struct avtab_node *avtab_insert_nonunique(struct avtab *h,
+					  const struct avtab_key *key,
+					  const struct avtab_datum *datum)
 {
 	int hvalue;
 	struct avtab_node *prev, *cur;
@@ -178,7 +180,7 @@ avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datu
 	return avtab_insert_node(h, hvalue, prev, cur, key, datum);
 }
 
-struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
+struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *key)
 {
 	int hvalue;
 	struct avtab_node *cur;
@@ -213,8 +215,8 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 /* This search function returns a node pointer, and can be used in
  * conjunction with avtab_search_next_node()
  */
-struct avtab_node*
-avtab_search_node(struct avtab *h, struct avtab_key *key)
+struct avtab_node *avtab_search_node(struct avtab *h,
+				     const struct avtab_key *key)
 {
 	int hvalue;
 	struct avtab_node *cur;
@@ -396,8 +398,8 @@ static uint16_t spec_order[] = {
 };
 
 int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
-		    int (*insertf)(struct avtab *a, struct avtab_key *k,
-				   struct avtab_datum *d, void *p),
+		    int (*insertf)(struct avtab *a, const struct avtab_key *k,
+				   const struct avtab_datum *d, void *p),
 		    void *p)
 {
 	__le16 buf16[4];
@@ -557,8 +559,8 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	return insertf(a, &key, &datum, p);
 }
 
-static int avtab_insertf(struct avtab *a, struct avtab_key *k,
-			 struct avtab_datum *d, void *p)
+static int avtab_insertf(struct avtab *a, const struct avtab_key *k,
+			 const struct avtab_datum *d, void *p)
 {
 	return avtab_insert(a, k, d);
 }
@@ -607,7 +609,7 @@ bad:
 	goto out;
 }
 
-int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp)
+int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp)
 {
 	__le16 buf16[4];
 	__le32 buf32[ARRAY_SIZE(cur->datum.u.xperms->perms.p)];
