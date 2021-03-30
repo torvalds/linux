@@ -63,11 +63,6 @@ extern void vfio_iommu_group_put(struct iommu_group *group, struct device *dev);
 void vfio_init_group_dev(struct vfio_device *device, struct device *dev,
 			 const struct vfio_device_ops *ops, void *device_data);
 int vfio_register_group_dev(struct vfio_device *device);
-extern int vfio_add_group_dev(struct device *dev,
-			      const struct vfio_device_ops *ops,
-			      void *device_data);
-
-extern void *vfio_del_group_dev(struct device *dev);
 void vfio_unregister_group_dev(struct vfio_device *device);
 extern struct vfio_device *vfio_device_get_from_dev(struct device *dev);
 extern void vfio_device_put(struct vfio_device *device);

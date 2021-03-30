@@ -124,13 +124,29 @@ static const struct vfio_device_ops vfio_mdev_dev_ops = {
 static int vfio_mdev_probe(struct device *dev)
 {
 	struct mdev_device *mdev = to_mdev_device(dev);
+	struct vfio_device *vdev;
+	int ret;
 
-	return vfio_add_group_dev(dev, &vfio_mdev_dev_ops, mdev);
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev)
+		return -ENOMEM;
+
+	vfio_init_group_dev(vdev, &mdev->dev, &vfio_mdev_dev_ops, mdev);
+	ret = vfio_register_group_dev(vdev);
+	if (ret) {
+		kfree(vdev);
+		return ret;
+	}
+	dev_set_drvdata(&mdev->dev, vdev);
+	return 0;
 }
 
 static void vfio_mdev_remove(struct device *dev)
 {
-	vfio_del_group_dev(dev);
+	struct vfio_device *vdev = dev_get_drvdata(dev);
+
+	vfio_unregister_group_dev(vdev);
+	kfree(vdev);
 }
 
 static struct mdev_driver vfio_mdev_driver = {

@@ -99,8 +99,8 @@ MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  Thi
 /*
  * vfio_iommu_group_{get,put} are only intended for VFIO bus driver probe
  * and remove functions, any use cases other than acquiring the first
- * reference for the purpose of calling vfio_add_group_dev() or removing
- * that symmetric reference after vfio_del_group_dev() should use the raw
+ * reference for the purpose of calling vfio_register_group_dev() or removing
+ * that symmetric reference after vfio_unregister_group_dev() should use the raw
  * iommu_group_{get,put} functions.  In particular, vfio_iommu_group_put()
  * removes the device from the dummy group and cannot be nested.
  */
@@ -799,29 +799,6 @@ int vfio_register_group_dev(struct vfio_device *device)
 }
 EXPORT_SYMBOL_GPL(vfio_register_group_dev);
 
-int vfio_add_group_dev(struct device *dev, const struct vfio_device_ops *ops,
-		       void *device_data)
-{
-	struct vfio_device *device;
-	int ret;
-
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
-	if (!device)
-		return -ENOMEM;
-
-	vfio_init_group_dev(device, dev, ops, device_data);
-	ret = vfio_register_group_dev(device);
-	if (ret)
-		goto err_kfree;
-	dev_set_drvdata(dev, device);
-	return 0;
-
-err_kfree:
-	kfree(device);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(vfio_add_group_dev);
-
 /**
  * Get a reference to the vfio_device for a device.  Even if the
  * caller thinks they own the device, they could be racing with a
@@ -961,18 +938,6 @@ void vfio_unregister_group_dev(struct vfio_device *device)
 	vfio_group_put(group);
 }
 EXPORT_SYMBOL_GPL(vfio_unregister_group_dev);
-
-void *vfio_del_group_dev(struct device *dev)
-{
-	struct vfio_device *device = dev_get_drvdata(dev);
-	void *device_data = device->device_data;
-
-	vfio_unregister_group_dev(device);
-	dev_set_drvdata(dev, NULL);
-	kfree(device);
-	return device_data;
-}
-EXPORT_SYMBOL_GPL(vfio_del_group_dev);
 
 /**
  * VFIO base fd, /dev/vfio/vfio
