@@ -5,6 +5,7 @@
 #if !defined(_TRACE_HOOK_TYPEC_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_TYPEC_H
 #include <linux/tracepoint.h>
+#include <linux/usb/pd.h>
 #include <trace/hooks/vendor_hooks.h>
 /*
  * Following tracepoints are not exported in tracefs and provide a
@@ -12,6 +13,7 @@
  */
 struct tcpci;
 struct tcpci_data;
+struct tcpm_port;
 
 #ifndef TYPEC_TIMER
 #define TYPEC_TIMER
@@ -45,6 +47,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_typec_tcpci_get_vbus,
 DECLARE_HOOK(android_vh_typec_tcpm_get_timer,
 	TP_PROTO(const char *state, enum typec_timer timer, unsigned int *msecs),
 	TP_ARGS(state, timer, msecs));
+
+DECLARE_HOOK(android_vh_typec_store_partner_src_caps,
+	TP_PROTO(struct tcpm_port *port, unsigned int *nr_source_caps,
+		 u32 (*source_caps)[PDO_MAX_OBJECTS]),
+	TP_ARGS(port, nr_source_caps, source_caps));
 
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
