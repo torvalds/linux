@@ -867,7 +867,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_device *bdev,
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
 	/* double check that we don't free the table twice */
-	if (!ttm->sg->sgl)
+	if (!ttm->sg || !ttm->sg->sgl)
 		return;
 
 	/* unmap the pages mapped to the device */
