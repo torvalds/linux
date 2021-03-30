@@ -370,7 +370,6 @@ int ksmbd_vfs_read(struct ksmbd_work *work,
 	char *rbuf, *name;
 	struct inode *inode;
 	char namebuf[NAME_MAX];
-	int ret;
 
 	rbuf = work->aux_payload_buf;
 	filp = fp->filp;
@@ -391,11 +390,15 @@ int ksmbd_vfs_read(struct ksmbd_work *work,
 	if (ksmbd_stream_fd(fp))
 		return ksmbd_vfs_stream_read(fp, rbuf, pos, count);
 
-	ret = check_lock_range(filp, *pos, *pos + count - 1,
-			READ);
-	if (ret) {
-		ksmbd_err("unable to read due to lock\n");
-		return -EAGAIN;
+	if (!work->tcon->posix_extensions) {
+		int ret;
+
+		ret = check_lock_range(filp, *pos, *pos + count - 1,
+				READ);
+		if (ret) {
+			ksmbd_err("unable to read due to lock\n");
+			return -EAGAIN;
+		}
 	}
 
 	nbytes = kernel_read(filp, rbuf, count, pos);
@@ -504,11 +507,13 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 		goto out;
 	}
 
-	err = check_lock_range(filp, *pos, *pos + count - 1, WRITE);
-	if (err) {
-		ksmbd_err("unable to write due to lock\n");
-		err = -EAGAIN;
-		goto out;
+	if (!work->tcon->posix_extensions) {
+		err = check_lock_range(filp, *pos, *pos + count - 1, WRITE);
+		if (err) {
+			ksmbd_err("unable to write due to lock\n");
+			err = -EAGAIN;
+			goto out;
+		}
 	}
 
 	/* Do we need to break any of a levelII oplock? */
@@ -706,21 +711,23 @@ static int __ksmbd_vfs_rename(struct ksmbd_work *work,
 	struct dentry *dst_dent;
 	int err;
 
-	spin_lock(&src_dent->d_lock);
-	list_for_each_entry(dst_dent, &src_dent->d_subdirs, d_child) {
-		struct ksmbd_file *child_fp;
+	if (!work->tcon->posix_extensions) {
+		spin_lock(&src_dent->d_lock);
+		list_for_each_entry(dst_dent, &src_dent->d_subdirs, d_child) {
+			struct ksmbd_file *child_fp;
 
-		if (d_really_is_negative(dst_dent))
-			continue;
+			if (d_really_is_negative(dst_dent))
+				continue;
 
-		child_fp = ksmbd_lookup_fd_inode(d_inode(dst_dent));
-		if (child_fp) {
-			spin_unlock(&src_dent->d_lock);
-			ksmbd_debug(VFS, "Forbid rename, sub file/dir is in use\n");
-			return -EACCES;
+			child_fp = ksmbd_lookup_fd_inode(d_inode(dst_dent));
+			if (child_fp) {
+				spin_unlock(&src_dent->d_lock);
+				ksmbd_debug(VFS, "Forbid rename, sub file/dir is in use\n");
+				return -EACCES;
+			}
 		}
+		spin_unlock(&src_dent->d_lock);
 	}
-	spin_unlock(&src_dent->d_lock);
 
 	if (d_really_is_negative(src_dent_parent))
 		return -ENOENT;
@@ -820,7 +827,6 @@ int ksmbd_vfs_truncate(struct ksmbd_work *work, const char *name,
 {
 	struct path path;
 	int err = 0;
-	struct inode *inode;
 
 	if (name) {
 		err = kern_path(name, 0, &path);
@@ -842,18 +848,21 @@ int ksmbd_vfs_truncate(struct ksmbd_work *work, const char *name,
 		/* Do we need to break any of a levelII oplock? */
 		smb_break_all_levII_oplock(work, fp, 1);
 
-		inode = file_inode(filp);
-		if (size < inode->i_size) {
-			err = check_lock_range(filp, size,
-					inode->i_size - 1, WRITE);
-		} else {
-			err = check_lock_range(filp, inode->i_size,
-					size - 1, WRITE);
-		}
+		if (!work->tcon->posix_extensions) {
+			struct inode *inode = file_inode(filp);
 
-		if (err) {
-			ksmbd_err("failed due to lock\n");
-			return -EAGAIN;
+			if (size < inode->i_size) {
+				err = check_lock_range(filp, size,
+						inode->i_size - 1, WRITE);
+			} else {
+				err = check_lock_range(filp, inode->i_size,
+						size - 1, WRITE);
+			}
+
+			if (err) {
+				ksmbd_err("failed due to lock\n");
+				return -EAGAIN;
+			}
 		}
 
 		err = vfs_truncate(&filp->f_path, size);
@@ -1860,17 +1869,19 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 
 	smb_break_all_levII_oplock(work, dst_fp, 1);
 
-	for (i = 0; i < chunk_count; i++) {
-		src_off = le64_to_cpu(chunks[i].SourceOffset);
-		dst_off = le64_to_cpu(chunks[i].TargetOffset);
-		len = le32_to_cpu(chunks[i].Length);
+	if (!work->tcon->posix_extensions) {
+		for (i = 0; i < chunk_count; i++) {
+			src_off = le64_to_cpu(chunks[i].SourceOffset);
+			dst_off = le64_to_cpu(chunks[i].TargetOffset);
+			len = le32_to_cpu(chunks[i].Length);
 
-		if (check_lock_range(src_fp->filp, src_off,
-				src_off + len - 1, READ))
-			return -EAGAIN;
-		if (check_lock_range(dst_fp->filp, dst_off,
-				dst_off + len - 1, WRITE))
-			return -EAGAIN;
+			if (check_lock_range(src_fp->filp, src_off,
+						src_off + len - 1, READ))
+				return -EAGAIN;
+			if (check_lock_range(dst_fp->filp, dst_off,
+						dst_off + len - 1, WRITE))
+				return -EAGAIN;
+		}
 	}
 
 	src_file_size = i_size_read(file_inode(src_fp->filp));
