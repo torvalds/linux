@@ -16,13 +16,7 @@ menuconfig BLK_DEV
 
 if BLK_DEV
 
-config BLK_DEV_NULL_BLK
-	tristate "Null test block driver"
-	select CONFIGFS_FS
-
-config BLK_DEV_NULL_BLK_FAULT_INJECTION
-	bool "Support fault injection for Null test block driver"
-	depends on BLK_DEV_NULL_BLK && FAULT_INJECTION
+source "drivers/block/null_blk/Kconfig"
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
@@ -273,16 +267,6 @@ config BLK_DEV_NBD
 
 	  If unsure, say N.
 
-config BLK_DEV_SKD
-	tristate "STEC S1120 Block Driver"
-	depends on PCI
-	depends on 64BIT
-	help
-	Saying Y or M here will enable support for the
-	STEC, Inc. S1120 PCIe SSD.
-
-	Use device /dev/skd$N amd /dev/skd$Np$M.
-
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
 	depends on PCI
@@ -451,6 +435,7 @@ config BLK_DEV_RBD
 config BLK_DEV_RSXX
 	tristate "IBM Flash Adapter 900GB Full Height PCIe Device Driver"
 	depends on PCI
+	select CRC32
 	help
 	  Device driver for IBM's high speed PCIe SSD
 	  storage device: Flash Adapter 900GB Full Height.

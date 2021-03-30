@@ -358,7 +358,7 @@ static struct attribute *ppi_attrs[] = {
 	&dev_attr_tcg_operations.attr,
 	&dev_attr_vs_operations.attr, NULL,
 };
-static struct attribute_group ppi_attr_grp = {
+static const struct attribute_group ppi_attr_grp = {
 	.name = "ppi",
 	.attrs = ppi_attrs
 };

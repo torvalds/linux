@@ -386,7 +386,7 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 		/* Transfer complete - reset SPI HW */
 		bcm2835_spi_reset_hw(bs);
 		/* wake up the framework */
-		complete(&bs->ctlr->xfer_completion);
+		spi_finalize_current_transfer(bs->ctlr);
 	}
 
 	return IRQ_HANDLED;
@@ -608,7 +608,7 @@ static void bcm2835_spi_dma_rx_done(void *data)
 	bcm2835_spi_reset_hw(bs);
 
 	/* and mark as completed */;
-	complete(&ctlr->xfer_completion);
+	spi_finalize_current_transfer(ctlr);
 }
 
 /**
@@ -640,7 +640,7 @@ static void bcm2835_spi_dma_tx_done(void *data)
 
 	bcm2835_spi_undo_prologue(bs);
 	bcm2835_spi_reset_hw(bs);
-	complete(&ctlr->xfer_completion);
+	spi_finalize_current_transfer(ctlr);
 }
 
 /**
@@ -1193,7 +1193,6 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	struct spi_controller *ctlr = spi->controller;
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 	struct gpio_chip *chip;
-	enum gpio_lookup_flags lflags;
 	u32 cs;
 
 	/*
@@ -1259,21 +1258,9 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	if (!chip)
 		return 0;
 
-	/*
-	 * Retrieve the corresponding GPIO line used for CS.
-	 * The inversion semantics will be handled by the GPIO core
-	 * code, so we pass GPIOD_OUT_LOW for "unasserted" and
-	 * the correct flag for inversion semantics. The SPI_CS_HIGH
-	 * on spi->mode cannot be checked for polarity in this case
-	 * as the flag use_gpio_descriptors enforces SPI_CS_HIGH.
-	 */
-	if (of_property_read_bool(spi->dev.of_node, "spi-cs-high"))
-		lflags = GPIO_ACTIVE_HIGH;
-	else
-		lflags = GPIO_ACTIVE_LOW;
 	spi->cs_gpiod = gpiochip_request_own_desc(chip, 8 - spi->chip_select,
 						  DRV_NAME,
-						  lflags,
+						  GPIO_LOOKUP_FLAGS_DEFAULT,
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(spi->cs_gpiod))
 		return PTR_ERR(spi->cs_gpiod);
@@ -1291,7 +1278,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	struct bcm2835_spi *bs;
 	int err;
 
-	ctlr = spi_alloc_master(&pdev->dev, ALIGN(sizeof(*bs),
+	ctlr = devm_spi_alloc_master(&pdev->dev, ALIGN(sizeof(*bs),
 						  dma_get_cache_alignment()));
 	if (!ctlr)
 		return -ENOMEM;
@@ -1312,23 +1299,19 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	bs->ctlr = ctlr;
 
 	bs->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(bs->regs)) {
-		err = PTR_ERR(bs->regs);
-		goto out_controller_put;
-	}
+	if (IS_ERR(bs->regs))
+		return PTR_ERR(bs->regs);
 
 	bs->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(bs->clk)) {
-		err = dev_err_probe(&pdev->dev, PTR_ERR(bs->clk),
-				    "could not get clk\n");
-		goto out_controller_put;
-	}
+	if (IS_ERR(bs->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(bs->clk),
+				     "could not get clk\n");
+
+	ctlr->max_speed_hz = clk_get_rate(bs->clk) / 2;
 
 	bs->irq = platform_get_irq(pdev, 0);
-	if (bs->irq <= 0) {
-		err = bs->irq ? bs->irq : -ENODEV;
-		goto out_controller_put;
-	}
+	if (bs->irq <= 0)
+		return bs->irq ? bs->irq : -ENODEV;
 
 	clk_prepare_enable(bs->clk);
 
@@ -1362,8 +1345,6 @@ out_dma_release:
 	bcm2835_dma_release(ctlr, bs);
 out_clk_disable:
 	clk_disable_unprepare(bs->clk);
-out_controller_put:
-	spi_controller_put(ctlr);
 	return err;
 }
 

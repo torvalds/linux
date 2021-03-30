@@ -27,5 +27,5 @@ subdir-y += socionext
 subdir-y += sprd
 subdir-y += synaptics
 subdir-y += ti
+subdir-y += toshiba
 subdir-y += xilinx
-subdir-y += zte

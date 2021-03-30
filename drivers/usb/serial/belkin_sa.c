@@ -37,7 +37,7 @@
 
 /* function prototypes for a Belkin USB Serial Adapter F5U103 */
 static int belkin_sa_port_probe(struct usb_serial_port *port);
-static int belkin_sa_port_remove(struct usb_serial_port *port);
+static void belkin_sa_port_remove(struct usb_serial_port *port);
 static int  belkin_sa_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void belkin_sa_close(struct usb_serial_port *port);
@@ -134,14 +134,12 @@ static int belkin_sa_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int belkin_sa_port_remove(struct usb_serial_port *port)
+static void belkin_sa_port_remove(struct usb_serial_port *port)
 {
 	struct belkin_sa_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int belkin_sa_open(struct tty_struct *tty,

@@ -81,7 +81,7 @@ static int check_buffer_underflow_by_byte(int mem_type, int mode,
 		last_index = 0;
 		/* Set some value in tagged memory and make the buffer underflow */
 		for (j = sizes[i] - 1; (j >= -underflow_range) &&
-				       (cur_mte_cxt.fault_valid == false); j--) {
+				       (!cur_mte_cxt.fault_valid); j--) {
 			ptr[j] = '1';
 			last_index = j;
 		}
@@ -416,6 +416,9 @@ int main(int argc, char *argv[])
 
 	/* Register SIGSEGV handler */
 	mte_register_signal(SIGSEGV, mte_default_handler);
+
+	/* Set test plan */
+	ksft_set_plan(20);
 
 	/* Buffer by byte tests */
 	evaluate_test(check_buffer_by_byte(USE_MMAP, MTE_SYNC_ERR),

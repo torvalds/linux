@@ -868,7 +868,7 @@ void dce_aud_wall_dto_setup(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
-void dce60_aud_wall_dto_setup(
+static void dce60_aud_wall_dto_setup(
 	struct audio *audio,
 	enum signal_type signal,
 	const struct audio_crtc_info *crtc_info,

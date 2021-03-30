@@ -125,6 +125,8 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
 	}
 
 	slave_config->slave_id = dma_data->slave_id;
+	slave_config->peripheral_config = dma_data->peripheral_config;
+	slave_config->peripheral_size = dma_data->peripheral_size;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_config_from_dai_data);
 
@@ -356,7 +358,8 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream)
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_close);
 
 /**
- * snd_dmaengine_pcm_release_chan_close - Close a dmaengine based PCM substream and release channel
+ * snd_dmaengine_pcm_close_release_chan - Close a dmaengine based PCM
+ *					  substream and release channel
  * @substream: PCM substream
  *
  * Releases the DMA channel associated with the PCM substream.

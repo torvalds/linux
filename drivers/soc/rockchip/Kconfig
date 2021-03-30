@@ -14,6 +14,14 @@ config ROCKCHIP_GRF
 	  In a lot of cases there also need to be default settings initialized
 	  to make some of them conform to expectations of the kernel.
 
+config ROCKCHIP_IODOMAIN
+	tristate "Rockchip IO domain support"
+	depends on OF
+	help
+	  Say y here to enable support io domains on Rockchip SoCs. It is
+	  necessary for the io domain setting of the SoC to match the
+	  voltage supplied by the regulators.
+
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM

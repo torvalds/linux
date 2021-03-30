@@ -19,6 +19,9 @@ extern int __read_mostly pt_mode;
 #define PT_MODE_HOST_GUEST	1
 
 #define PMU_CAP_FW_WRITES	(1ULL << 13)
+#define PMU_CAP_LBR_FMT		0x3f
+
+#define DEBUGCTLMSR_LBR_MASK		(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI)
 
 struct nested_vmx_msrs {
 	/*
@@ -151,7 +154,7 @@ static inline bool vmx_umip_emulated(void)
 static inline bool cpu_has_vmx_rdtscp(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_RDTSCP;
+		SECONDARY_EXEC_ENABLE_RDTSCP;
 }
 
 static inline bool cpu_has_vmx_virtualize_x2apic_mode(void)
@@ -196,7 +199,7 @@ static inline bool cpu_has_vmx_ple(void)
 		SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 }
 
-static inline bool vmx_rdrand_supported(void)
+static inline bool cpu_has_vmx_rdrand(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_RDRAND_EXITING;
@@ -233,7 +236,7 @@ static inline bool cpu_has_vmx_encls_vmexit(void)
 		SECONDARY_EXEC_ENCLS_EXITING;
 }
 
-static inline bool vmx_rdseed_supported(void)
+static inline bool cpu_has_vmx_rdseed(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_RDSEED_EXITING;
@@ -244,13 +247,13 @@ static inline bool cpu_has_vmx_pml(void)
 	return vmcs_config.cpu_based_2nd_exec_ctrl & SECONDARY_EXEC_ENABLE_PML;
 }
 
-static inline bool vmx_xsaves_supported(void)
+static inline bool cpu_has_vmx_xsaves(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_XSAVES;
 }
 
-static inline bool vmx_waitpkg_supported(void)
+static inline bool cpu_has_vmx_waitpkg(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
@@ -260,6 +263,12 @@ static inline bool cpu_has_vmx_tsc_scaling(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_TSC_SCALING;
+}
+
+static inline bool cpu_has_vmx_bus_lock_detection(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+	    SECONDARY_EXEC_BUS_LOCK_DETECTION;
 }
 
 static inline bool cpu_has_vmx_apicv(void)
@@ -371,11 +380,28 @@ static inline bool vmx_pt_mode_is_host_guest(void)
 
 static inline u64 vmx_get_perf_capabilities(void)
 {
+	u64 perf_cap = 0;
+
+	if (boot_cpu_has(X86_FEATURE_PDCM))
+		rdmsrl(MSR_IA32_PERF_CAPABILITIES, perf_cap);
+
+	perf_cap &= PMU_CAP_LBR_FMT;
+
 	/*
 	 * Since counters are virtualized, KVM would support full
 	 * width counting unconditionally, even if the host lacks it.
 	 */
-	return PMU_CAP_FW_WRITES;
+	return PMU_CAP_FW_WRITES | perf_cap;
+}
+
+static inline u64 vmx_supported_debugctl(void)
+{
+	u64 debugctl = 0;
+
+	if (vmx_get_perf_capabilities() & PMU_CAP_LBR_FMT)
+		debugctl |= DEBUGCTLMSR_LBR_MASK;
+
+	return debugctl;
 }
 
 #endif /* __KVM_X86_VMX_CAPS_H */

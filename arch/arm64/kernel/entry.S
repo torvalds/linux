@@ -30,18 +30,18 @@
 #include <asm/unistd.h>
 
 /*
- * Context tracking subsystem.  Used to instrument transitions
- * between user and kernel mode.
+ * Context tracking and irqflag tracing need to instrument transitions between
+ * user and kernel mode.
  */
-	.macro ct_user_exit_irqoff
-#ifdef CONFIG_CONTEXT_TRACKING
+	.macro user_exit_irqoff
+#if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
 	bl	enter_from_user_mode
 #endif
 	.endm
 
-	.macro ct_user_enter
-#ifdef CONFIG_CONTEXT_TRACKING
-	bl	context_tracking_user_enter
+	.macro user_enter_irqoff
+#if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
+	bl	exit_to_user_mode
 #endif
 	.endm
 
@@ -75,7 +75,7 @@ alternative_else_nop_endif
 	.endif
 #endif
 
-	sub	sp, sp, #S_FRAME_SIZE
+	sub	sp, sp, #PT_REGS_SIZE
 #ifdef CONFIG_VMAP_STACK
 	/*
 	 * Test whether the SP has overflowed, without corrupting a GPR.
@@ -96,7 +96,7 @@ alternative_else_nop_endif
 	 * userspace, and can clobber EL0 registers to free up GPRs.
 	 */
 
-	/* Stash the original SP (minus S_FRAME_SIZE) in tpidr_el0. */
+	/* Stash the original SP (minus PT_REGS_SIZE) in tpidr_el0. */
 	msr	tpidr_el0, x0
 
 	/* Recover the original x0 value and stash it in tpidrro_el0 */
@@ -173,6 +173,43 @@ alternative_else_nop_endif
 #endif
 	.endm
 
+	.macro mte_set_gcr, tmp, tmp2
+#ifdef CONFIG_ARM64_MTE
+	/*
+	 * Calculate and set the exclude mask preserving
+	 * the RRND (bit[16]) setting.
+	 */
+	mrs_s	\tmp2, SYS_GCR_EL1
+	bfi	\tmp2, \tmp, #0, #16
+	msr_s	SYS_GCR_EL1, \tmp2
+#endif
+	.endm
+
+	.macro mte_set_kernel_gcr, tmp, tmp2
+#ifdef CONFIG_KASAN_HW_TAGS
+alternative_if_not ARM64_MTE
+	b	1f
+alternative_else_nop_endif
+	ldr_l	\tmp, gcr_kernel_excl
+
+	mte_set_gcr \tmp, \tmp2
+	isb
+1:
+#endif
+	.endm
+
+	.macro mte_set_user_gcr, tsk, tmp, tmp2
+#ifdef CONFIG_ARM64_MTE
+alternative_if_not ARM64_MTE
+	b	1f
+alternative_else_nop_endif
+	ldr	\tmp, [\tsk, #THREAD_GCR_EL1_USER]
+
+	mte_set_gcr \tmp, \tmp2
+1:
+#endif
+	.endm
+
 	.macro	kernel_entry, el, regsize = 64
 	.if	\regsize == 32
 	mov	w0, w0				// zero upper 32 bits of x0
@@ -212,32 +249,28 @@ alternative_else_nop_endif
 
 	ptrauth_keys_install_kernel tsk, x20, x22, x23
 
+	mte_set_kernel_gcr x22, x23
+
 	scs_load tsk, x20
 	.else
-	add	x21, sp, #S_FRAME_SIZE
+	add	x21, sp, #PT_REGS_SIZE
 	get_current_task tsk
-	/* Save the task's original addr_limit and set USER_DS */
-	ldr	x20, [tsk, #TSK_TI_ADDR_LIMIT]
-	str	x20, [sp, #S_ORIG_ADDR_LIMIT]
-	mov	x20, #USER_DS
-	str	x20, [tsk, #TSK_TI_ADDR_LIMIT]
-	/* No need to reset PSTATE.UAO, hardware's already set it to 0 for us */
 	.endif /* \el == 0 */
 	mrs	x22, elr_el1
 	mrs	x23, spsr_el1
 	stp	lr, x21, [sp, #S_LR]
 
 	/*
-	 * In order to be able to dump the contents of struct pt_regs at the
-	 * time the exception was taken (in case we attempt to walk the call
-	 * stack later), chain it together with the stack frames.
+	 * For exceptions from EL0, terminate the callchain here.
+	 * For exceptions from EL1, create a synthetic frame record so the
+	 * interrupted code shows up in the backtrace.
 	 */
 	.if \el == 0
-	stp	xzr, xzr, [sp, #S_STACKFRAME]
+	mov	x29, xzr
 	.else
 	stp	x29, x22, [sp, #S_STACKFRAME]
-	.endif
 	add	x29, sp, #S_STACKFRAME
+	.endif
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 alternative_if_not ARM64_HAS_PAN
@@ -279,12 +312,6 @@ alternative_else_nop_endif
 	.macro	kernel_exit, el
 	.if	\el != 0
 	disable_daif
-
-	/* Restore the task's original addr_limit. */
-	ldr	x20, [sp, #S_ORIG_ADDR_LIMIT]
-	str	x20, [tsk, #TSK_TI_ADDR_LIMIT]
-
-	/* No need to restore UAO, it will be restored from SPSR_EL1 */
 	.endif
 
 	/* Restore pmr */
@@ -298,9 +325,6 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 alternative_else_nop_endif
 
 	ldp	x21, x22, [sp, #S_PC]		// load ELR, SPSR
-	.if	\el == 0
-	ct_user_enter
-	.endif
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 alternative_if_not ARM64_HAS_PAN
@@ -330,6 +354,8 @@ alternative_else_nop_endif
 	/* No kernel C function calls after this as user keys are set. */
 	ptrauth_keys_install_user tsk, x0, x1, x2
 
+	mte_set_user_gcr tsk, x0, x1
+
 	apply_ssbd 0, x0, x1
 	.endif
 
@@ -351,7 +377,7 @@ alternative_else_nop_endif
 	ldp	x26, x27, [sp, #16 * 13]
 	ldp	x28, x29, [sp, #16 * 14]
 	ldr	lr, [sp, #S_LR]
-	add	sp, sp, #S_FRAME_SIZE		// restore sp
+	add	sp, sp, #PT_REGS_SIZE		// restore sp
 
 	.if	\el == 0
 alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
@@ -365,6 +391,9 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	br	x30
 #endif
 	.else
+	/* Ensure any device/NC reads complete */
+	alternative_insn nop, "dmb sy", ARM64_WORKAROUND_1508412
+
 	eret
 	.endif
 	sb
@@ -438,7 +467,7 @@ SYM_CODE_END(__swpan_exit_el0)
 
 #ifdef CONFIG_SHADOW_CALL_STACK
 	/* also switch to the irq shadow stack */
-	adr_this_cpu scs_sp, irq_shadow_call_stack, x26
+	ldr_this_cpu scs_sp, irq_shadow_call_stack_ptr, x26
 #endif
 
 9998:
@@ -551,12 +580,12 @@ __bad_stack:
 
 	/*
 	 * Store the original GPRs to the new stack. The orginal SP (minus
-	 * S_FRAME_SIZE) was stashed in tpidr_el0 by kernel_ventry.
+	 * PT_REGS_SIZE) was stashed in tpidr_el0 by kernel_ventry.
 	 */
-	sub	sp, sp, #S_FRAME_SIZE
+	sub	sp, sp, #PT_REGS_SIZE
 	kernel_entry 1
 	mrs	x0, tpidr_el0
-	add	x0, x0, #S_FRAME_SIZE
+	add	x0, x0, #PT_REGS_SIZE
 	str	x0, [sp, #S_SP]
 
 	/* Stash the regs for handle_bad_stack */
@@ -634,16 +663,8 @@ SYM_CODE_START_LOCAL_NOALIGN(el1_irq)
 	gic_prio_irq_setup pmr=x20, tmp=x1
 	enable_da_f
 
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	test_irqs_unmasked	res=x0, pmr=x20
-	cbz	x0, 1f
-	bl	asm_nmi_enter
-1:
-#endif
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_off
-#endif
+	mov	x0, sp
+	bl	enter_el1_irq_or_nmi
 
 	irq_handler
 
@@ -662,26 +683,8 @@ alternative_else_nop_endif
 1:
 #endif
 
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	/*
-	 * When using IRQ priority masking, we can get spurious interrupts while
-	 * PMR is set to GIC_PRIO_IRQOFF. An NMI might also have occurred in a
-	 * section with interrupts disabled. Skip tracing in those cases.
-	 */
-	test_irqs_unmasked	res=x0, pmr=x20
-	cbz	x0, 1f
-	bl	asm_nmi_exit
-1:
-#endif
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	test_irqs_unmasked	res=x0, pmr=x20
-	cbnz	x0, 1f
-#endif
-	bl	trace_hardirqs_on
-1:
-#endif
+	mov	x0, sp
+	bl	exit_el1_irq_or_nmi
 
 	kernel_exit 1
 SYM_CODE_END(el1_irq)
@@ -723,21 +726,14 @@ SYM_CODE_START_LOCAL_NOALIGN(el0_irq)
 	kernel_entry 0
 el0_irq_naked:
 	gic_prio_irq_setup pmr=x20, tmp=x0
-	ct_user_exit_irqoff
+	user_exit_irqoff
 	enable_da_f
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_off
-#endif
 
 	tbz	x22, #55, 1f
 	bl	do_el0_irq_bp_hardening
 1:
 	irq_handler
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_on
-#endif
 	b	ret_to_user
 SYM_CODE_END(el0_irq)
 
@@ -756,7 +752,7 @@ SYM_CODE_START_LOCAL(el0_error)
 el0_error_naked:
 	mrs	x25, esr_el1
 	gic_prio_kentry_setup tmp=x2
-	ct_user_exit_irqoff
+	user_exit_irqoff
 	enable_dbg
 	mov	x0, sp
 	mov	x1, x25
@@ -771,13 +767,17 @@ SYM_CODE_END(el0_error)
 SYM_CODE_START_LOCAL(ret_to_user)
 	disable_daif
 	gic_prio_kentry_setup tmp=x3
-	ldr	x1, [tsk, #TSK_TI_FLAGS]
-	and	x2, x1, #_TIF_WORK_MASK
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
+	ldr	x19, [tsk, #TSK_TI_FLAGS]
+	and	x2, x19, #_TIF_WORK_MASK
 	cbnz	x2, work_pending
 finish_ret_to_user:
+	user_enter_irqoff
 	/* Ignore asynchronous tag check faults in the uaccess routines */
 	clear_mte_async_tcf
-	enable_step_tsk x1, x2
+	enable_step_tsk x19, x2
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
@@ -788,11 +788,9 @@ finish_ret_to_user:
  */
 work_pending:
 	mov	x0, sp				// 'regs'
+	mov	x1, x19
 	bl	do_notify_resume
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_on		// enabled while in userspace
-#endif
-	ldr	x1, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
+	ldr	x19, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
 	b	finish_ret_to_user
 SYM_CODE_END(ret_to_user)
 
@@ -804,9 +802,10 @@ SYM_CODE_END(ret_to_user)
  */
 	.pushsection ".entry.tramp.text", "ax"
 
+	// Move from tramp_pg_dir to swapper_pg_dir
 	.macro tramp_map_kernel, tmp
 	mrs	\tmp, ttbr1_el1
-	add	\tmp, \tmp, #(PAGE_SIZE + RESERVED_TTBR0_SIZE)
+	add	\tmp, \tmp, #TRAMP_SWAPPER_OFFSET
 	bic	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
 #ifdef CONFIG_QCOM_FALKOR_ERRATUM_1003
@@ -823,9 +822,10 @@ alternative_else_nop_endif
 #endif /* CONFIG_QCOM_FALKOR_ERRATUM_1003 */
 	.endm
 
+	// Move from swapper_pg_dir to tramp_pg_dir
 	.macro tramp_unmap_kernel, tmp
 	mrs	\tmp, ttbr1_el1
-	sub	\tmp, \tmp, #(PAGE_SIZE + RESERVED_TTBR0_SIZE)
+	sub	\tmp, \tmp, #TRAMP_SWAPPER_OFFSET
 	orr	\tmp, \tmp, #USER_ASID_FLAG
 	msr	ttbr1_el1, \tmp
 	/*
@@ -996,10 +996,9 @@ SYM_CODE_START(__sdei_asm_entry_trampoline)
 	mov	x4, xzr
 
 	/*
-	 * Use reg->interrupted_regs.addr_limit to remember whether to unmap
-	 * the kernel on exit.
+	 * Remember whether to unmap the kernel on exit.
 	 */
-1:	str	x4, [x1, #(SDEI_EVENT_INTREGS + S_ORIG_ADDR_LIMIT)]
+1:	str	x4, [x1, #(SDEI_EVENT_INTREGS + S_SDEI_TTBR1)]
 
 #ifdef CONFIG_RANDOMIZE_BASE
 	adr	x4, tramp_vectors + PAGE_SIZE
@@ -1020,7 +1019,7 @@ NOKPROBE(__sdei_asm_entry_trampoline)
  * x4: struct sdei_registered_event argument from registration time.
  */
 SYM_CODE_START(__sdei_asm_exit_trampoline)
-	ldr	x4, [x4, #(SDEI_EVENT_INTREGS + S_ORIG_ADDR_LIMIT)]
+	ldr	x4, [x4, #(SDEI_EVENT_INTREGS + S_SDEI_TTBR1)]
 	cbnz	x4, 1f
 
 	tramp_unmap_kernel	tmp=x4
@@ -1094,9 +1093,9 @@ SYM_CODE_START(__sdei_asm_handler)
 #ifdef CONFIG_SHADOW_CALL_STACK
 	/* Use a separate shadow call stack for normal and critical events */
 	cbnz	w4, 3f
-	adr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_normal, tmp=x6
+	ldr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_normal_ptr, tmp=x6
 	b	4f
-3:	adr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_critical, tmp=x6
+3:	ldr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_critical_ptr, tmp=x6
 4:
 #endif
 

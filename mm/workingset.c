@@ -216,7 +216,7 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
 
 /**
  * workingset_age_nonresident - age non-resident entries as LRU ages
- * @memcg: the lruvec that was aged
+ * @lruvec: the lruvec that was aged
  * @nr_pages: the number of pages to count
  *
  * As in-memory pages are aged, non-resident pages need to be aged as
@@ -257,7 +257,7 @@ void *workingset_eviction(struct page *page, struct mem_cgroup *target_memcg)
 	struct lruvec *lruvec;
 	int memcgid;
 
-	/* Page is fully exclusive and pins page->mem_cgroup */
+	/* Page is fully exclusive and pins page's memory cgroup pointer */
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 	VM_BUG_ON_PAGE(page_count(page), page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
@@ -381,9 +381,7 @@ void workingset_refault(struct page *page, void *shadow)
 	if (workingset) {
 		SetPageWorkingset(page);
 		/* XXX: Move to lru_cache_add() when it supports new vs putback */
-		spin_lock_irq(&page_pgdat(page)->lru_lock);
 		lru_note_cost_page(page);
-		spin_unlock_irq(&page_pgdat(page)->lru_lock);
 		inc_lruvec_state(lruvec, WORKINGSET_RESTORE_BASE + file);
 	}
 out:
@@ -445,12 +443,12 @@ void workingset_update_node(struct xa_node *node)
 	if (node->count && node->count == node->nr_values) {
 		if (list_empty(&node->private_list)) {
 			list_lru_add(&shadow_nodes, &node->private_list);
-			__inc_lruvec_slab_state(node, WORKINGSET_NODES);
+			__inc_lruvec_kmem_state(node, WORKINGSET_NODES);
 		}
 	} else {
 		if (!list_empty(&node->private_list)) {
 			list_lru_del(&shadow_nodes, &node->private_list);
-			__dec_lruvec_slab_state(node, WORKINGSET_NODES);
+			__dec_lruvec_kmem_state(node, WORKINGSET_NODES);
 		}
 	}
 }
@@ -519,12 +517,11 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 					  void *arg) __must_hold(lru_lock)
 {
 	struct xa_node *node = container_of(item, struct xa_node, private_list);
-	XA_STATE(xas, node->array, 0);
 	struct address_space *mapping;
 	int ret;
 
 	/*
-	 * Page cache insertions and deletions synchroneously maintain
+	 * Page cache insertions and deletions synchronously maintain
 	 * the shadow node LRU under the i_pages lock and the
 	 * lru_lock.  Because the page cache tree is emptied before
 	 * the inode can be destroyed, holding the lru_lock pins any
@@ -545,7 +542,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	}
 
 	list_lru_isolate(lru, item);
-	__dec_lruvec_slab_state(node, WORKINGSET_NODES);
+	__dec_lruvec_kmem_state(node, WORKINGSET_NODES);
 
 	spin_unlock(lru_lock);
 
@@ -559,16 +556,8 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	if (WARN_ON_ONCE(node->count != node->nr_values))
 		goto out_invalid;
 	mapping->nrexceptional -= node->nr_values;
-	xas.xa_node = xa_parent_locked(&mapping->i_pages, node);
-	xas.xa_offset = node->offset;
-	xas.xa_shift = node->shift + XA_CHUNK_SHIFT;
-	xas_set_update(&xas, workingset_update_node);
-	/*
-	 * We could store a shadow entry here which was the minimum of the
-	 * shadow entries we were tracking ...
-	 */
-	xas_store(&xas, NULL);
-	__inc_lruvec_slab_state(node, WORKINGSET_NODERECLAIM);
+	xa_delete_node(node, workingset_update_node);
+	__inc_lruvec_kmem_state(node, WORKINGSET_NODERECLAIM);
 
 out_invalid:
 	xa_unlock_irq(&mapping->i_pages);

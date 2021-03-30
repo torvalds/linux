@@ -40,42 +40,7 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-fence-array.h>
 #include <linux/pci-p2pdma.h>
-
-/**
- * amdgpu_gem_prime_vmap - &dma_buf_ops.vmap implementation
- * @obj: GEM BO
- *
- * Sets up an in-kernel virtual mapping of the BO's memory.
- *
- * Returns:
- * The virtual address of the mapping or an error pointer.
- */
-void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj)
-{
-	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-	int ret;
-
-	ret = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages,
-			  &bo->dma_buf_vmap);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return bo->dma_buf_vmap.virtual;
-}
-
-/**
- * amdgpu_gem_prime_vunmap - &dma_buf_ops.vunmap implementation
- * @obj: GEM BO
- * @vaddr: Virtual address (unused)
- *
- * Tears down the in-kernel virtual mapping of the BO's memory.
- */
-void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-
-	ttm_bo_kunmap(&bo->dma_buf_vmap);
-}
+#include <linux/pm_runtime.h>
 
 /**
  * amdgpu_gem_prime_mmap - &drm_driver.gem_prime_mmap implementation
@@ -187,9 +152,13 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 	if (attach->dev->driver == adev->dev->driver)
 		return 0;
 
+	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
+	if (r < 0)
+		goto out;
+
 	r = amdgpu_bo_reserve(bo, false);
 	if (unlikely(r != 0))
-		return r;
+		goto out;
 
 	/*
 	 * We only create shared fences for internal use, but importers
@@ -201,11 +170,15 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 	 */
 	r = __dma_resv_make_exclusive(bo->tbo.base.resv);
 	if (r)
-		return r;
+		goto out;
 
 	bo->prime_shared_count++;
 	amdgpu_bo_unreserve(bo);
 	return 0;
+
+out:
+	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	return r;
 }
 
 /**
@@ -225,6 +198,9 @@ static void amdgpu_dma_buf_detach(struct dma_buf *dmabuf,
 
 	if (attach->dev->driver != adev->dev->driver && bo->prime_shared_count)
 		bo->prime_shared_count--;
+
+	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 }
 
 /**
@@ -281,7 +257,7 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 	struct sg_table *sgt;
 	long r;
 
-	if (!bo->pin_count) {
+	if (!bo->tbo.pin_count) {
 		/* move buffer into GTT or VRAM */
 		struct ttm_operation_ctx ctx = { false, false };
 		unsigned domains = AMDGPU_GEM_DOMAIN_GTT;
@@ -305,7 +281,7 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 	case TTM_PL_TT:
 		sgt = drm_prime_pages_to_sg(obj->dev,
 					    bo->tbo.ttm->pages,
-					    bo->tbo.num_pages);
+					    bo->tbo.ttm->num_pages);
 		if (IS_ERR(sgt))
 			return sgt;
 
@@ -390,7 +366,8 @@ static int amdgpu_dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 	if (unlikely(ret != 0))
 		return ret;
 
-	if (!bo->pin_count && (bo->allowed_domains & AMDGPU_GEM_DOMAIN_GTT)) {
+	if (!bo->tbo.pin_count &&
+	    (bo->allowed_domains & AMDGPU_GEM_DOMAIN_GTT)) {
 		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	}
@@ -459,6 +436,7 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_bo *bo;
 	struct amdgpu_bo_param bp;
+	struct drm_gem_object *gobj;
 	int ret;
 
 	memset(&bp, 0, sizeof(bp));
@@ -469,17 +447,20 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 	bp.type = ttm_bo_type_sg;
 	bp.resv = resv;
 	dma_resv_lock(resv, NULL);
-	ret = amdgpu_bo_create(adev, &bp, &bo);
+	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_CPU,
+			0, ttm_bo_type_sg, resv, &gobj);
 	if (ret)
 		goto error;
 
+	bo = gem_to_amdgpu_bo(gobj);
 	bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
 	bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
 	if (dma_buf->ops != &amdgpu_dmabuf_ops)
 		bo->prime_shared_count = 1;
 
 	dma_resv_unlock(resv);
-	return &bo->tbo.base;
+	return gobj;
 
 error:
 	dma_resv_unlock(resv);

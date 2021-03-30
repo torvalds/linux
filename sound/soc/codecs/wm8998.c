@@ -1161,8 +1161,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-aif2",
@@ -1183,8 +1183,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-aif3",
@@ -1205,8 +1205,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 			 .formats = WM8998_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8998-slim1",
@@ -1375,7 +1375,7 @@ static int wm8998_probe(struct platform_device *pdev)
 
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_pm_disable;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &soc_component_dev_wm8998,
@@ -1390,6 +1390,8 @@ static int wm8998_probe(struct platform_device *pdev)
 
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }

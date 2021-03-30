@@ -10,7 +10,7 @@ DT_SCHEMA_MIN_VERSION = 2020.8.1
 PHONY += check_dtschema_version
 check_dtschema_version:
 	@{ echo $(DT_SCHEMA_MIN_VERSION); \
-	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -VC || \
+	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -Vc >/dev/null || \
 	{ echo "ERROR: dtschema minimum version is v$(DT_SCHEMA_MIN_VERSION)" >&2; false; }
 
 quiet_cmd_extract_ex = DTEX    $@
@@ -27,17 +27,17 @@ find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name '*.example.dt.yaml' \)
 
 quiet_cmd_yamllint = LINT    $(src)
-      cmd_yamllint = $(find_cmd) | \
-                     xargs $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint
+      cmd_yamllint = ($(find_cmd) | \
+                     xargs $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint) || true
 
 quiet_cmd_chk_bindings = CHKDT   $@
-      cmd_chk_bindings = $(find_cmd) | \
-                         xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)
+      cmd_chk_bindings = ($(find_cmd) | \
+                         xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)) || true
 
 quiet_cmd_mk_schema = SCHEMA  $@
       cmd_mk_schema = f=$$(mktemp) ; \
                       $(if $(DT_MK_SCHEMA_FLAGS), \
-                           echo $(real-prereqs), \
+                           printf '%s\n' $(real-prereqs), \
                            $(find_cmd)) > $$f ; \
                       $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
 		      rm -f $$f

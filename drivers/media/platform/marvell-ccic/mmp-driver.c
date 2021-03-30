@@ -180,6 +180,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct fwnode_handle *ep;
 	struct mmp_camera_platform_data *pdata;
+	struct v4l2_async_subdev *asd;
 	int ret;
 
 	cam = devm_kzalloc(&pdev->dev, sizeof(*cam), GFP_KERNEL);
@@ -238,10 +239,15 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (!ep)
 		return -ENODEV;
 
-	mcam->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	mcam->asd.match.fwnode = fwnode_graph_get_remote_port_parent(ep);
+	v4l2_async_notifier_init(&mcam->notifier);
 
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&mcam->notifier, ep,
+							   struct v4l2_async_subdev);
 	fwnode_handle_put(ep);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out;
+	}
 
 	/*
 	 * Register the device with the core.
@@ -278,7 +284,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	return 0;
 out:
-	fwnode_handle_put(mcam->asd.match.fwnode);
 	mccic_shutdown(mcam);
 
 	return ret;
@@ -307,7 +312,7 @@ static int mmpcam_platform_remove(struct platform_device *pdev)
  * Suspend/resume support.
  */
 
-static int mmpcam_runtime_resume(struct device *dev)
+static int __maybe_unused mmpcam_runtime_resume(struct device *dev)
 {
 	struct mmp_camera *cam = dev_get_drvdata(dev);
 	struct mcam_camera *mcam = &cam->mcam;
@@ -321,7 +326,7 @@ static int mmpcam_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int mmpcam_runtime_suspend(struct device *dev)
+static int __maybe_unused mmpcam_runtime_suspend(struct device *dev)
 {
 	struct mmp_camera *cam = dev_get_drvdata(dev);
 	struct mcam_camera *mcam = &cam->mcam;

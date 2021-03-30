@@ -279,7 +279,6 @@ static int seq_free_client1(struct snd_seq_client *client)
 	snd_seq_delete_all_ports(client);
 	snd_seq_queue_client_leave(client->number);
 	snd_use_lock_sync(&client->use_lock);
-	snd_seq_queue_client_termination(client->number);
 	if (client->pool)
 		snd_seq_pool_delete(&client->pool);
 	spin_lock_irq(&clients_lock);
@@ -1585,7 +1584,7 @@ static int snd_seq_ioctl_get_queue_info(struct snd_seq_client *client,
 	info->queue = q->queue;
 	info->owner = q->owner;
 	info->locked = q->locked;
-	strlcpy(info->name, q->name, sizeof(info->name));
+	strscpy(info->name, q->name, sizeof(info->name));
 	queuefree(q);
 
 	return 0;

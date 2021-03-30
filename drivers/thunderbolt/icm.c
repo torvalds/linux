@@ -49,6 +49,18 @@ module_param(start_icm, bool, 0444);
 MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: false)");
 
 /**
+ * struct usb4_switch_nvm_auth - Holds USB4 NVM_AUTH status
+ * @reply: Reply from ICM firmware is placed here
+ * @request: Request that is sent to ICM firmware
+ * @icm: Pointer to ICM private data
+ */
+struct usb4_switch_nvm_auth {
+	struct icm_usb4_switch_op_response reply;
+	struct icm_usb4_switch_op request;
+	struct icm *icm;
+};
+
+/**
  * struct icm - Internal connection manager private data
  * @request_lock: Makes sure only one message is send to ICM at time
  * @rescan_work: Work used to rescan the surviving switches after resume
@@ -61,6 +73,8 @@ MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: f
  * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
  * @rpm: Does the controller support runtime PM (RTD3)
  * @can_upgrade_nvm: Can the NVM firmware be upgrade on this controller
+ * @proto_version: Firmware protocol version
+ * @last_nvm_auth: Last USB4 router NVM_AUTH result (or %NULL if not set)
  * @veto: Is RTD3 veto in effect
  * @is_supported: Checks if we can support ICM on this controller
  * @cio_reset: Trigger CIO reset
@@ -71,19 +85,21 @@ MODULE_PARM_DESC(start_icm, "start ICM firmware if it is not running (default: f
  * @set_uuid: Set UUID for the root switch (optional)
  * @device_connected: Handle device connected ICM message
  * @device_disconnected: Handle device disconnected ICM message
- * @xdomain_connected - Handle XDomain connected ICM message
- * @xdomain_disconnected - Handle XDomain disconnected ICM message
+ * @xdomain_connected: Handle XDomain connected ICM message
+ * @xdomain_disconnected: Handle XDomain disconnected ICM message
  * @rtd3_veto: Handle RTD3 veto notification ICM message
  */
 struct icm {
 	struct mutex request_lock;
 	struct delayed_work rescan_work;
 	struct pci_dev *upstream_port;
-	size_t max_boot_acl;
 	int vnd_cap;
 	bool safe_mode;
+	size_t max_boot_acl;
 	bool rpm;
 	bool can_upgrade_nvm;
+	u8 proto_version;
+	struct usb4_switch_nvm_auth *last_nvm_auth;
 	bool veto;
 	bool (*is_supported)(struct tb *tb);
 	int (*cio_reset)(struct tb *tb);
@@ -92,7 +108,7 @@ struct icm {
 	void (*save_devices)(struct tb *tb);
 	int (*driver_ready)(struct tb *tb,
 			    enum tb_security_level *security_level,
-			    size_t *nboot_acl, bool *rpm);
+			    u8 *proto_version, size_t *nboot_acl, bool *rpm);
 	void (*set_uuid)(struct tb *tb);
 	void (*device_connected)(struct tb *tb,
 				 const struct icm_pkg_header *hdr);
@@ -437,7 +453,7 @@ static void icm_fr_save_devices(struct tb *tb)
 
 static int
 icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		    u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_fr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -870,7 +886,13 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
+	pm_runtime_get_sync(sw->dev.parent);
+
 	remove_switch(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+
 	tb_switch_put(sw);
 }
 
@@ -986,7 +1008,7 @@ static int icm_tr_cio_reset(struct tb *tb)
 
 static int
 icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		    u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_tr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -1002,6 +1024,9 @@ icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	if (security_level)
 		*security_level = reply.info & ICM_TR_INFO_SLEVEL_MASK;
+	if (proto_version)
+		*proto_version = (reply.info & ICM_TR_INFO_PROTO_VERSION_MASK) >>
+				ICM_TR_INFO_PROTO_VERSION_SHIFT;
 	if (nboot_acl)
 		*nboot_acl = (reply.info & ICM_TR_INFO_BOOT_ACL_MASK) >>
 				ICM_TR_INFO_BOOT_ACL_SHIFT;
@@ -1280,8 +1305,13 @@ icm_tr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
 		return;
 	}
+	pm_runtime_get_sync(sw->dev.parent);
 
 	remove_switch(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+
 	tb_switch_put(sw);
 }
 
@@ -1450,7 +1480,7 @@ static int icm_ar_get_mode(struct tb *tb)
 
 static int
 icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		    u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_ar_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -1580,7 +1610,7 @@ static int icm_ar_set_boot_acl(struct tb *tb, const uuid_t *uuids,
 
 static int
 icm_icl_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		    size_t *nboot_acl, bool *rpm)
+		     u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm_tr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -1593,6 +1623,10 @@ icm_icl_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 			  1, 20000);
 	if (ret)
 		return ret;
+
+	if (proto_version)
+		*proto_version = (reply.info & ICM_TR_INFO_PROTO_VERSION_MASK) >>
+				ICM_TR_INFO_PROTO_VERSION_SHIFT;
 
 	/* Ice Lake always supports RTD3 */
 	if (rpm)
@@ -1667,10 +1701,12 @@ static void icm_handle_notification(struct work_struct *work)
 			icm->device_disconnected(tb, n->pkg);
 			break;
 		case ICM_EVENT_XDOMAIN_CONNECTED:
-			icm->xdomain_connected(tb, n->pkg);
+			if (tb_is_xdomain_enabled())
+				icm->xdomain_connected(tb, n->pkg);
 			break;
 		case ICM_EVENT_XDOMAIN_DISCONNECTED:
-			icm->xdomain_disconnected(tb, n->pkg);
+			if (tb_is_xdomain_enabled())
+				icm->xdomain_disconnected(tb, n->pkg);
 			break;
 		case ICM_EVENT_RTD3_VETO:
 			icm->rtd3_veto(tb, n->pkg);
@@ -1702,13 +1738,14 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 
 static int
 __icm_driver_ready(struct tb *tb, enum tb_security_level *security_level,
-		   size_t *nboot_acl, bool *rpm)
+		   u8 *proto_version, size_t *nboot_acl, bool *rpm)
 {
 	struct icm *icm = tb_priv(tb);
 	unsigned int retries = 50;
 	int ret;
 
-	ret = icm->driver_ready(tb, security_level, nboot_acl, rpm);
+	ret = icm->driver_ready(tb, security_level, proto_version, nboot_acl,
+				rpm);
 	if (ret) {
 		tb_err(tb, "failed to send driver ready to ICM\n");
 		return ret;
@@ -1918,8 +1955,8 @@ static int icm_driver_ready(struct tb *tb)
 		return 0;
 	}
 
-	ret = __icm_driver_ready(tb, &tb->security_level, &tb->nboot_acl,
-				 &icm->rpm);
+	ret = __icm_driver_ready(tb, &tb->security_level, &icm->proto_version,
+				 &tb->nboot_acl, &icm->rpm);
 	if (ret)
 		return ret;
 
@@ -1929,6 +1966,9 @@ static int icm_driver_ready(struct tb *tb)
 	 */
 	if (tb->nboot_acl > icm->max_boot_acl)
 		tb->nboot_acl = 0;
+
+	if (icm->proto_version >= 3)
+		tb_dbg(tb, "USB4 proxy operations supported\n");
 
 	return 0;
 }
@@ -1976,7 +2016,9 @@ static int complete_rpm(struct device *dev, void *data)
 
 static void remove_unplugged_switch(struct tb_switch *sw)
 {
-	pm_runtime_get_sync(sw->dev.parent);
+	struct device *parent = get_device(sw->dev.parent);
+
+	pm_runtime_get_sync(parent);
 
 	/*
 	 * Signal this and switches below for rpm_complete because
@@ -1987,8 +2029,10 @@ static void remove_unplugged_switch(struct tb_switch *sw)
 	bus_for_each_dev(&tb_bus_type, &sw->dev, NULL, complete_rpm);
 	tb_switch_remove(sw);
 
-	pm_runtime_mark_last_busy(sw->dev.parent);
-	pm_runtime_put_autosuspend(sw->dev.parent);
+	pm_runtime_mark_last_busy(parent);
+	pm_runtime_put_autosuspend(parent);
+
+	put_device(parent);
 }
 
 static void icm_free_unplugged_children(struct tb_switch *sw)
@@ -2041,7 +2085,7 @@ static void icm_complete(struct tb *tb)
 	 * Now all existing children should be resumed, start events
 	 * from ICM to get updated status.
 	 */
-	__icm_driver_ready(tb, NULL, NULL, NULL);
+	__icm_driver_ready(tb, NULL, NULL, NULL, NULL);
 
 	/*
 	 * We do not get notifications of devices that have been
@@ -2120,11 +2164,172 @@ static void icm_stop(struct tb *tb)
 	tb_switch_remove(tb->root_switch);
 	tb->root_switch = NULL;
 	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
+	kfree(icm->last_nvm_auth);
+	icm->last_nvm_auth = NULL;
 }
 
 static int icm_disconnect_pcie_paths(struct tb *tb)
 {
 	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DISCONNECT_PCIE_PATHS, 0);
+}
+
+static void icm_usb4_switch_nvm_auth_complete(void *data)
+{
+	struct usb4_switch_nvm_auth *auth = data;
+	struct icm *icm = auth->icm;
+	struct tb *tb = icm_to_tb(icm);
+
+	tb_dbg(tb, "NVM_AUTH response for %llx flags %#x status %#x\n",
+	       get_route(auth->reply.route_hi, auth->reply.route_lo),
+	       auth->reply.hdr.flags, auth->reply.status);
+
+	mutex_lock(&tb->lock);
+	if (WARN_ON(icm->last_nvm_auth))
+		kfree(icm->last_nvm_auth);
+	icm->last_nvm_auth = auth;
+	mutex_unlock(&tb->lock);
+}
+
+static int icm_usb4_switch_nvm_authenticate(struct tb *tb, u64 route)
+{
+	struct usb4_switch_nvm_auth *auth;
+	struct icm *icm = tb_priv(tb);
+	struct tb_cfg_request *req;
+	int ret;
+
+	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	if (!auth)
+		return -ENOMEM;
+
+	auth->icm = icm;
+	auth->request.hdr.code = ICM_USB4_SWITCH_OP;
+	auth->request.route_hi = upper_32_bits(route);
+	auth->request.route_lo = lower_32_bits(route);
+	auth->request.opcode = USB4_SWITCH_OP_NVM_AUTH;
+
+	req = tb_cfg_request_alloc();
+	if (!req) {
+		ret = -ENOMEM;
+		goto err_free_auth;
+	}
+
+	req->match = icm_match;
+	req->copy = icm_copy;
+	req->request = &auth->request;
+	req->request_size = sizeof(auth->request);
+	req->request_type = TB_CFG_PKG_ICM_CMD;
+	req->response = &auth->reply;
+	req->npackets = 1;
+	req->response_size = sizeof(auth->reply);
+	req->response_type = TB_CFG_PKG_ICM_RESP;
+
+	tb_dbg(tb, "NVM_AUTH request for %llx\n", route);
+
+	mutex_lock(&icm->request_lock);
+	ret = tb_cfg_request(tb->ctl, req, icm_usb4_switch_nvm_auth_complete,
+			     auth);
+	mutex_unlock(&icm->request_lock);
+
+	tb_cfg_request_put(req);
+	if (ret)
+		goto err_free_auth;
+	return 0;
+
+err_free_auth:
+	kfree(auth);
+	return ret;
+}
+
+static int icm_usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			      u8 *status, const void *tx_data, size_t tx_data_len,
+			      void *rx_data, size_t rx_data_len)
+{
+	struct icm_usb4_switch_op_response reply;
+	struct icm_usb4_switch_op request;
+	struct tb *tb = sw->tb;
+	struct icm *icm = tb_priv(tb);
+	u64 route = tb_route(sw);
+	int ret;
+
+	/*
+	 * USB4 router operation proxy is supported in firmware if the
+	 * protocol version is 3 or higher.
+	 */
+	if (icm->proto_version < 3)
+		return -EOPNOTSUPP;
+
+	/*
+	 * NVM_AUTH is a special USB4 proxy operation that does not
+	 * return immediately so handle it separately.
+	 */
+	if (opcode == USB4_SWITCH_OP_NVM_AUTH)
+		return icm_usb4_switch_nvm_authenticate(tb, route);
+
+	memset(&request, 0, sizeof(request));
+	request.hdr.code = ICM_USB4_SWITCH_OP;
+	request.route_hi = upper_32_bits(route);
+	request.route_lo = lower_32_bits(route);
+	request.opcode = opcode;
+	if (metadata)
+		request.metadata = *metadata;
+
+	if (tx_data_len) {
+		request.data_len_valid |= ICM_USB4_SWITCH_DATA_VALID;
+		if (tx_data_len < ARRAY_SIZE(request.data))
+			request.data_len_valid =
+				tx_data_len & ICM_USB4_SWITCH_DATA_LEN_MASK;
+		memcpy(request.data, tx_data, tx_data_len * sizeof(u32));
+	}
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	if (status)
+		*status = reply.status;
+
+	if (metadata)
+		*metadata = reply.metadata;
+
+	if (rx_data_len)
+		memcpy(rx_data, reply.data, rx_data_len * sizeof(u32));
+
+	return 0;
+}
+
+static int icm_usb4_switch_nvm_authenticate_status(struct tb_switch *sw,
+						   u32 *status)
+{
+	struct usb4_switch_nvm_auth *auth;
+	struct tb *tb = sw->tb;
+	struct icm *icm = tb_priv(tb);
+	int ret = 0;
+
+	if (icm->proto_version < 3)
+		return -EOPNOTSUPP;
+
+	auth = icm->last_nvm_auth;
+	icm->last_nvm_auth = NULL;
+
+	if (auth && auth->reply.route_hi == sw->config.route_hi &&
+	    auth->reply.route_lo == sw->config.route_lo) {
+		tb_dbg(tb, "NVM_AUTH found for %llx flags %#x status %#x\n",
+		       tb_route(sw), auth->reply.hdr.flags, auth->reply.status);
+		if (auth->reply.hdr.flags & ICM_FLAGS_ERROR)
+			ret = -EIO;
+		else
+			*status = auth->reply.status;
+	} else {
+		*status = 0;
+	}
+
+	kfree(auth);
+	return ret;
 }
 
 /* Falcon Ridge */
@@ -2185,6 +2390,9 @@ static const struct tb_cm_ops icm_tr_ops = {
 	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
 	.approve_xdomain_paths = icm_tr_approve_xdomain_paths,
 	.disconnect_xdomain_paths = icm_tr_disconnect_xdomain_paths,
+	.usb4_switch_op = icm_usb4_switch_op,
+	.usb4_switch_nvm_authenticate_status =
+		icm_usb4_switch_nvm_authenticate_status,
 };
 
 /* Ice Lake */
@@ -2198,6 +2406,9 @@ static const struct tb_cm_ops icm_icl_ops = {
 	.handle_event = icm_handle_event,
 	.approve_xdomain_paths = icm_tr_approve_xdomain_paths,
 	.disconnect_xdomain_paths = icm_tr_disconnect_xdomain_paths,
+	.usb4_switch_op = icm_usb4_switch_op,
+	.usb4_switch_nvm_authenticate_status =
+		icm_usb4_switch_nvm_authenticate_status,
 };
 
 struct tb *icm_probe(struct tb_nhi *nhi)
@@ -2284,6 +2495,8 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 
 	case PCI_DEVICE_ID_INTEL_TGL_NHI0:
 	case PCI_DEVICE_ID_INTEL_TGL_NHI1:
+	case PCI_DEVICE_ID_INTEL_TGL_H_NHI0:
+	case PCI_DEVICE_ID_INTEL_TGL_H_NHI1:
 		icm->is_supported = icm_tgl_is_supported;
 		icm->driver_ready = icm_icl_driver_ready;
 		icm->set_uuid = icm_icl_set_uuid;
@@ -2294,6 +2507,17 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		icm->rtd3_veto = icm_icl_rtd3_veto;
 		tb->cm_ops = &icm_icl_ops;
 		break;
+
+	case PCI_DEVICE_ID_INTEL_MAPLE_RIDGE_4C_NHI:
+		icm->is_supported = icm_tgl_is_supported;
+		icm->get_mode = icm_ar_get_mode;
+		icm->driver_ready = icm_tr_driver_ready;
+		icm->device_connected = icm_tr_device_connected;
+		icm->device_disconnected = icm_tr_device_disconnected;
+		icm->xdomain_connected = icm_tr_xdomain_connected;
+		icm->xdomain_disconnected = icm_tr_xdomain_disconnected;
+		tb->cm_ops = &icm_tr_ops;
+		break;
 	}
 
 	if (!icm->is_supported || !icm->is_supported(tb)) {
@@ -2301,6 +2525,8 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		tb_domain_put(tb);
 		return NULL;
 	}
+
+	tb_dbg(tb, "using firmware connection manager\n");
 
 	return tb;
 }

@@ -6,10 +6,10 @@
  */
 
 #include <linux/of.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 #include <linux/clocksource.h>
 #include <linux/irqchip.h>
-#include <linux/clk-provider.h>
 #include <asm/machvec.h>
 #include <asm/rtc.h>
 
@@ -49,7 +49,7 @@ static struct plat_smp_ops dummy_smp_ops = {
 
 extern const struct of_cpu_method __cpu_method_of_table[];
 const struct of_cpu_method __cpu_method_of_table_sentinel
-	__section(__cpu_method_of_table_end);
+	__section("__cpu_method_of_table_end");
 
 static void sh_of_smp_probe(void)
 {

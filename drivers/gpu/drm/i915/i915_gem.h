@@ -38,11 +38,18 @@ struct drm_i915_private;
 
 #define GEM_SHOW_DEBUG() drm_debug_enabled(DRM_UT_DRIVER)
 
+#ifdef CONFIG_DRM_I915_DEBUG_GEM_ONCE
+#define __GEM_BUG(cond) BUG()
+#else
+#define __GEM_BUG(cond) \
+	WARN(1, "%s:%d GEM_BUG_ON(%s)\n", __func__, __LINE__, __stringify(cond))
+#endif
+
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
 		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
 			      __func__, __LINE__, __stringify(condition)); \
 		GEM_TRACE_DUMP(); \
-		BUG(); \
+		__GEM_BUG(condition); \
 		} \
 	} while(0)
 #define GEM_WARN_ON(expr) WARN_ON(expr)

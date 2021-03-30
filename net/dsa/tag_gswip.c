@@ -60,12 +60,7 @@ static struct sk_buff *gswip_tag_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
-	int err;
 	u8 *gswip_tag;
-
-	err = skb_cow_head(skb, GSWIP_TX_HEADER_LEN);
-	if (err)
-		return NULL;
 
 	skb_push(skb, GSWIP_TX_HEADER_LEN);
 

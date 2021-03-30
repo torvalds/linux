@@ -271,65 +271,62 @@ static inline struct net_device **get_dev_p(struct pvc_device *pvc,
 }
 
 
-static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
+static int fr_hard_header(struct sk_buff *skb, u16 dlci)
 {
-	u16 head_len;
-	struct sk_buff *skb = *skb_p;
+	if (!skb->dev) { /* Control packets */
+		switch (dlci) {
+		case LMI_CCITT_ANSI_DLCI:
+			skb_push(skb, 4);
+			skb->data[3] = NLPID_CCITT_ANSI_LMI;
+			break;
 
-	switch (skb->protocol) {
-	case cpu_to_be16(NLPID_CCITT_ANSI_LMI):
-		head_len = 4;
-		skb_push(skb, head_len);
-		skb->data[3] = NLPID_CCITT_ANSI_LMI;
-		break;
+		case LMI_CISCO_DLCI:
+			skb_push(skb, 4);
+			skb->data[3] = NLPID_CISCO_LMI;
+			break;
 
-	case cpu_to_be16(NLPID_CISCO_LMI):
-		head_len = 4;
-		skb_push(skb, head_len);
-		skb->data[3] = NLPID_CISCO_LMI;
-		break;
-
-	case cpu_to_be16(ETH_P_IP):
-		head_len = 4;
-		skb_push(skb, head_len);
-		skb->data[3] = NLPID_IP;
-		break;
-
-	case cpu_to_be16(ETH_P_IPV6):
-		head_len = 4;
-		skb_push(skb, head_len);
-		skb->data[3] = NLPID_IPV6;
-		break;
-
-	case cpu_to_be16(ETH_P_802_3):
-		head_len = 10;
-		if (skb_headroom(skb) < head_len) {
-			struct sk_buff *skb2 = skb_realloc_headroom(skb,
-								    head_len);
-			if (!skb2)
-				return -ENOBUFS;
-			dev_kfree_skb(skb);
-			skb = *skb_p = skb2;
+		default:
+			return -EINVAL;
 		}
-		skb_push(skb, head_len);
+
+	} else if (skb->dev->type == ARPHRD_DLCI) {
+		switch (skb->protocol) {
+		case htons(ETH_P_IP):
+			skb_push(skb, 4);
+			skb->data[3] = NLPID_IP;
+			break;
+
+		case htons(ETH_P_IPV6):
+			skb_push(skb, 4);
+			skb->data[3] = NLPID_IPV6;
+			break;
+
+		default:
+			skb_push(skb, 10);
+			skb->data[3] = FR_PAD;
+			skb->data[4] = NLPID_SNAP;
+			/* OUI 00-00-00 indicates an Ethertype follows */
+			skb->data[5] = 0x00;
+			skb->data[6] = 0x00;
+			skb->data[7] = 0x00;
+			/* This should be an Ethertype: */
+			*(__be16 *)(skb->data + 8) = skb->protocol;
+		}
+
+	} else if (skb->dev->type == ARPHRD_ETHER) {
+		skb_push(skb, 10);
 		skb->data[3] = FR_PAD;
 		skb->data[4] = NLPID_SNAP;
-		skb->data[5] = FR_PAD;
+		/* OUI 00-80-C2 stands for the 802.1 organization */
+		skb->data[5] = 0x00;
 		skb->data[6] = 0x80;
 		skb->data[7] = 0xC2;
+		/* PID 00-07 stands for Ethernet frames without FCS */
 		skb->data[8] = 0x00;
-		skb->data[9] = 0x07; /* bridged Ethernet frame w/out FCS */
-		break;
+		skb->data[9] = 0x07;
 
-	default:
-		head_len = 10;
-		skb_push(skb, head_len);
-		skb->data[3] = FR_PAD;
-		skb->data[4] = NLPID_SNAP;
-		skb->data[5] = FR_PAD;
-		skb->data[6] = FR_PAD;
-		skb->data[7] = FR_PAD;
-		*(__be16*)(skb->data + 8) = skb->protocol;
+	} else {
+		return -EINVAL;
 	}
 
 	dlci_to_q922(skb->data, dlci);
@@ -410,38 +407,49 @@ static netdev_tx_t pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct pvc_device *pvc = dev->ml_priv;
 
-	if (pvc->state.active) {
-		if (dev->type == ARPHRD_ETHER) {
-			int pad = ETH_ZLEN - skb->len;
-			if (pad > 0) { /* Pad the frame with zeros */
-				int len = skb->len;
-				if (skb_tailroom(skb) < pad)
-					if (pskb_expand_head(skb, 0, pad,
-							     GFP_ATOMIC)) {
-						dev->stats.tx_dropped++;
-						dev_kfree_skb(skb);
-						return NETDEV_TX_OK;
-					}
-				skb_put(skb, pad);
-				memset(skb->data + len, 0, pad);
-			}
-			skb->protocol = cpu_to_be16(ETH_P_802_3);
-		}
-		if (!fr_hard_header(&skb, pvc->dlci)) {
-			dev->stats.tx_bytes += skb->len;
-			dev->stats.tx_packets++;
-			if (pvc->state.fecn) /* TX Congestion counter */
-				dev->stats.tx_compressed++;
-			skb->dev = pvc->frad;
-			skb->protocol = htons(ETH_P_HDLC);
-			skb_reset_network_header(skb);
-			dev_queue_xmit(skb);
-			return NETDEV_TX_OK;
+	if (!pvc->state.active)
+		goto drop;
+
+	if (dev->type == ARPHRD_ETHER) {
+		int pad = ETH_ZLEN - skb->len;
+
+		if (pad > 0) { /* Pad the frame with zeros */
+			if (__skb_pad(skb, pad, false))
+				goto drop;
+			skb_put(skb, pad);
 		}
 	}
 
+	/* We already requested the header space with dev->needed_headroom.
+	 * So this is just a protection in case the upper layer didn't take
+	 * dev->needed_headroom into consideration.
+	 */
+	if (skb_headroom(skb) < 10) {
+		struct sk_buff *skb2 = skb_realloc_headroom(skb, 10);
+
+		if (!skb2)
+			goto drop;
+		dev_kfree_skb(skb);
+		skb = skb2;
+	}
+
+	skb->dev = dev;
+	if (fr_hard_header(skb, pvc->dlci))
+		goto drop;
+
+	dev->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	if (pvc->state.fecn) /* TX Congestion counter */
+		dev->stats.tx_compressed++;
+	skb->dev = pvc->frad;
+	skb->protocol = htons(ETH_P_HDLC);
+	skb_reset_network_header(skb);
+	dev_queue_xmit(skb);
+	return NETDEV_TX_OK;
+
+drop:
 	dev->stats.tx_dropped++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -494,11 +502,9 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
 	if (lmi == LMI_CISCO) {
-		skb->protocol = cpu_to_be16(NLPID_CISCO_LMI);
-		fr_hard_header(&skb, LMI_CISCO_DLCI);
+		fr_hard_header(skb, LMI_CISCO_DLCI);
 	} else {
-		skb->protocol = cpu_to_be16(NLPID_CCITT_ANSI_LMI);
-		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
+		fr_hard_header(skb, LMI_CCITT_ANSI_DLCI);
 	}
 	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
@@ -865,6 +871,45 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static int fr_snap_parse(struct sk_buff *skb, struct pvc_device *pvc)
+{
+	/* OUI 00-00-00 indicates an Ethertype follows */
+	if (skb->data[0] == 0x00 &&
+	    skb->data[1] == 0x00 &&
+	    skb->data[2] == 0x00) {
+		if (!pvc->main)
+			return -1;
+		skb->dev = pvc->main;
+		skb->protocol = *(__be16 *)(skb->data + 3); /* Ethertype */
+		skb_pull(skb, 5);
+		skb_reset_mac_header(skb);
+		return 0;
+
+	/* OUI 00-80-C2 stands for the 802.1 organization */
+	} else if (skb->data[0] == 0x00 &&
+		   skb->data[1] == 0x80 &&
+		   skb->data[2] == 0xC2) {
+		/* PID 00-07 stands for Ethernet frames without FCS */
+		if (skb->data[3] == 0x00 &&
+		    skb->data[4] == 0x07) {
+			if (!pvc->ether)
+				return -1;
+			skb_pull(skb, 5);
+			if (skb->len < ETH_HLEN)
+				return -1;
+			skb->protocol = eth_type_trans(skb, pvc->ether);
+			return 0;
+
+		/* PID unsupported */
+		} else {
+			return -1;
+		}
+
+	/* OUI unsupported */
+	} else {
+		return -1;
+	}
+}
 
 static int fr_rx(struct sk_buff *skb)
 {
@@ -874,9 +919,9 @@ static int fr_rx(struct sk_buff *skb)
 	u8 *data = skb->data;
 	u16 dlci;
 	struct pvc_device *pvc;
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 
-	if (skb->len <= 4 || fh->ea1 || data[2] != FR_UI)
+	if (skb->len < 4 || fh->ea1 || !fh->ea2 || data[2] != FR_UI)
 		goto rx_error;
 
 	dlci = q922_to_dlci(skb->data);
@@ -898,8 +943,7 @@ static int fr_rx(struct sk_buff *skb)
 		netdev_info(frad, "No PVC for received frame's DLCI %d\n",
 			    dlci);
 #endif
-		dev_kfree_skb_any(skb);
-		return NET_RX_DROP;
+		goto rx_drop;
 	}
 
 	if (pvc->state.fecn != fh->fecn) {
@@ -925,63 +969,51 @@ static int fr_rx(struct sk_buff *skb)
 	}
 
 	if (data[3] == NLPID_IP) {
+		if (!pvc->main)
+			goto rx_drop;
 		skb_pull(skb, 4); /* Remove 4-byte header (hdr, UI, NLPID) */
-		dev = pvc->main;
+		skb->dev = pvc->main;
 		skb->protocol = htons(ETH_P_IP);
+		skb_reset_mac_header(skb);
 
 	} else if (data[3] == NLPID_IPV6) {
+		if (!pvc->main)
+			goto rx_drop;
 		skb_pull(skb, 4); /* Remove 4-byte header (hdr, UI, NLPID) */
-		dev = pvc->main;
+		skb->dev = pvc->main;
 		skb->protocol = htons(ETH_P_IPV6);
+		skb_reset_mac_header(skb);
 
-	} else if (skb->len > 10 && data[3] == FR_PAD &&
-		   data[4] == NLPID_SNAP && data[5] == FR_PAD) {
-		u16 oui = ntohs(*(__be16*)(data + 6));
-		u16 pid = ntohs(*(__be16*)(data + 8));
-		skb_pull(skb, 10);
-
-		switch ((((u32)oui) << 16) | pid) {
-		case ETH_P_ARP: /* routed frame with SNAP */
-		case ETH_P_IPX:
-		case ETH_P_IP:	/* a long variant */
-		case ETH_P_IPV6:
-			dev = pvc->main;
-			skb->protocol = htons(pid);
-			break;
-
-		case 0x80C20007: /* bridged Ethernet frame */
-			if ((dev = pvc->ether) != NULL)
-				skb->protocol = eth_type_trans(skb, dev);
-			break;
-
-		default:
-			netdev_info(frad, "Unsupported protocol, OUI=%x PID=%x\n",
-				    oui, pid);
-			dev_kfree_skb_any(skb);
-			return NET_RX_DROP;
+	} else if (data[3] == FR_PAD) {
+		if (skb->len < 5)
+			goto rx_error;
+		if (data[4] == NLPID_SNAP) { /* A SNAP header follows */
+			skb_pull(skb, 5);
+			if (skb->len < 5) /* Incomplete SNAP header */
+				goto rx_error;
+			if (fr_snap_parse(skb, pvc))
+				goto rx_drop;
+		} else {
+			goto rx_drop;
 		}
+
 	} else {
 		netdev_info(frad, "Unsupported protocol, NLPID=%x length=%i\n",
 			    data[3], skb->len);
-		dev_kfree_skb_any(skb);
-		return NET_RX_DROP;
+		goto rx_drop;
 	}
 
-	if (dev) {
-		dev->stats.rx_packets++; /* PVC traffic */
-		dev->stats.rx_bytes += skb->len;
-		if (pvc->state.becn)
-			dev->stats.rx_compressed++;
-		skb->dev = dev;
-		netif_rx(skb);
-		return NET_RX_SUCCESS;
-	} else {
-		dev_kfree_skb_any(skb);
-		return NET_RX_DROP;
-	}
+	dev = skb->dev;
+	dev->stats.rx_packets++; /* PVC traffic */
+	dev->stats.rx_bytes += skb->len;
+	if (pvc->state.becn)
+		dev->stats.rx_compressed++;
+	netif_rx(skb);
+	return NET_RX_SUCCESS;
 
- rx_error:
+rx_error:
 	frad->stats.rx_errors++; /* Mark error */
+rx_drop:
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 }

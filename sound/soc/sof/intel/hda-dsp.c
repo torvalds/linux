@@ -44,7 +44,7 @@ int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 	reset = HDA_DSP_ADSPCS_CRST_MASK(core_mask);
 	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 					 HDA_DSP_REG_ADSPCS,
-					 reset, reset),
+					 reset, reset);
 
 	/* poll with timeout to check if operation successful */
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
@@ -617,14 +617,14 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	if (runtime_suspend)
-		hda_codec_jack_wake_enable(sdev);
+		hda_codec_jack_wake_enable(sdev, true);
 
 	/* power down all hda link */
 	snd_hdac_ext_bus_link_power_down_all(bus);
 #endif
 
 	/* power down DSP */
-	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
+	ret = snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to power down core during suspend\n");
@@ -683,8 +683,11 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* check jack status */
-	if (runtime_resume)
-		hda_codec_jack_check(sdev);
+	if (runtime_resume) {
+		hda_codec_jack_wake_enable(sdev, false);
+		if (sdev->system_suspend_target == SOF_SUSPEND_NONE)
+			hda_codec_jack_check(sdev);
+	}
 
 	/* turn off the links that were off before suspend */
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
@@ -729,7 +732,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 				ret = snd_hdac_ext_bus_link_power_up(hlink);
 				if (ret < 0) {
 					dev_dbg(sdev->dev,
-						"error %x in %s: failed to power up links",
+						"error %d in %s: failed to power up links",
 						ret, __func__);
 					return ret;
 				}
@@ -799,10 +802,14 @@ int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 
 int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_dsp_power_state target_state = {
 		.state = SOF_DSP_PM_D3,
 	};
 	int ret;
+
+	/* cancel any attempt for DSP D0I3 */
+	cancel_delayed_work_sync(&hda->d0i3_work);
 
 	/* stop hda controller and power dsp off */
 	ret = hda_suspend(sdev, true);
@@ -927,19 +934,15 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 						      d0i3_work.work);
 	struct hdac_bus *bus = &hdev->hbus.core;
 	struct snd_sof_dev *sdev = dev_get_drvdata(bus->dev);
-	struct sof_dsp_power_state target_state;
+	struct sof_dsp_power_state target_state = {
+		.state = SOF_DSP_PM_D0,
+		.substate = SOF_HDA_DSP_PM_D0I3,
+	};
 	int ret;
 
-	target_state.state = SOF_DSP_PM_D0;
-
 	/* DSP can enter D0I3 iff only D0I3-compatible streams are active */
-	if (snd_sof_dsp_only_d0i3_compatible_stream_active(sdev))
-		target_state.substate = SOF_HDA_DSP_PM_D0I3;
-	else
-		target_state.substate = SOF_HDA_DSP_PM_D0I0;
-
-	/* remain in D0I0 */
-	if (target_state.substate == SOF_HDA_DSP_PM_D0I0)
+	if (!snd_sof_dsp_only_d0i3_compatible_stream_active(sdev))
+		/* remain in D0I0 */
 		return;
 
 	/* This can fail but error cannot be propagated */

@@ -72,22 +72,12 @@ static struct list_head adpt_list;
 		       SNDRV_PCM_INFO_INTERLEAVED | \
 		       SNDRV_PCM_INFO_BLOCK_TRANSFER)
 
-#define swap16(val) ( \
-	(((u16)(val) << 8) & (u16)0xFF00) | \
-	(((u16)(val) >> 8) & (u16)0x00FF))
-
-#define swap32(val) ( \
-	(((u32)(val) << 24) & (u32)0xFF000000) | \
-	(((u32)(val) <<  8) & (u32)0x00FF0000) | \
-	(((u32)(val) >>  8) & (u32)0x0000FF00) | \
-	(((u32)(val) >> 24) & (u32)0x000000FF))
-
 static void swap_copy16(u16 *dest, const u16 *source, unsigned int bytes)
 {
 	unsigned int i = 0;
 
 	while (i < (bytes / 2)) {
-		dest[i] = swap16(source[i]);
+		dest[i] = swab16(source[i]);
 		i++;
 	}
 }
@@ -96,6 +86,8 @@ static void swap_copy24(u8 *dest, const u8 *source, unsigned int bytes)
 {
 	unsigned int i = 0;
 
+	if (bytes < 2)
+		return;
 	while (i < bytes - 2) {
 		dest[i] = source[i + 2];
 		dest[i + 1] = source[i + 1];
@@ -109,7 +101,7 @@ static void swap_copy32(u32 *dest, const u32 *source, unsigned int bytes)
 	unsigned int i = 0;
 
 	while (i < bytes / 4) {
-		dest[i] = swap32(source[i]);
+		dest[i] = swab32(source[i]);
 		i++;
 	}
 }
@@ -168,9 +160,9 @@ static struct channel *get_channel(struct most_interface *iface,
 				   int channel_id)
 {
 	struct sound_adapter *adpt = iface->priv;
-	struct channel *channel, *tmp;
+	struct channel *channel;
 
-	list_for_each_entry_safe(channel, tmp, &adpt->dev_list, list) {
+	list_for_each_entry(channel, &adpt->dev_list, list) {
 		if ((channel->iface == iface) && (channel->id == channel_id))
 			return channel;
 	}
@@ -535,7 +527,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		pr_err("Incompatible channel type\n");
 		return -EINVAL;
 	}
-	strlcpy(arg_list_cpy, arg_list, STRING_SIZE);
+	strscpy(arg_list_cpy, arg_list, STRING_SIZE);
 	ret = split_arg_list(arg_list_cpy, &ch_num, &sample_res);
 	if (ret < 0)
 		return ret;

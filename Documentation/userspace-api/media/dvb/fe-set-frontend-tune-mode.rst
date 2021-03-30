@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_SET_FRONTEND_TUNE_MODE:
 
@@ -11,19 +12,18 @@ Name
 
 FE_SET_FRONTEND_TUNE_MODE - Allow setting tuner mode flags to the frontend.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_SET_FRONTEND_TUNE_MODE, unsigned int flags )
-    :name: FE_SET_FRONTEND_TUNE_MODE
+.. c:macro:: FE_SET_FRONTEND_TUNE_MODE
 
+``int ioctl(int fd, FE_SET_FRONTEND_TUNE_MODE, unsigned int flags)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``flags``
     Valid flags:
@@ -37,13 +37,11 @@ Arguments
        is closed, this flag will be automatically turned off when the
        device is reopened read-write.
 
-
 Description
 ===========
 
 Allow setting tuner mode flags to the frontend, between 0 (normal) or
 ``FE_TUNE_MODE_ONESHOT`` mode
-
 
 Return Value
 ============

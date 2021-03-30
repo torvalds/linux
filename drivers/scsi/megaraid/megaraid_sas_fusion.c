@@ -3920,8 +3920,7 @@ megasas_free_host_crash_buffer(struct megasas_instance *instance)
 {
 	unsigned int i;
 	for (i = 0; i < instance->drv_buf_alloc; i++) {
-		if (instance->crash_buf[i])
-			vfree(instance->crash_buf[i]);
+		vfree(instance->crash_buf[i]);
 	}
 	instance->drv_buf_index = 0;
 	instance->drv_buf_alloc = 0;

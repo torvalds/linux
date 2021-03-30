@@ -491,7 +491,7 @@ static int __q6asm_memory_map_regions(struct audio_client *ac, int dir,
  *
  * @dir: direction of audio stream
  * @ac: audio client instanace
- * @phys: physcial address that needs mapping.
+ * @phys: physical address that needs mapping.
  * @period_sz: audio period size
  * @periods: number of periods
  *
@@ -1727,14 +1727,7 @@ static int q6asm_probe(struct apr_device *adev)
 	spin_lock_init(&q6asm->slock);
 	dev_set_drvdata(dev, q6asm);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
-}
-
-static int q6asm_remove(struct apr_device *adev)
-{
-	of_platform_depopulate(&adev->dev);
-
-	return 0;
+	return devm_of_platform_populate(dev);
 }
 
 #ifdef CONFIG_OF
@@ -1747,7 +1740,6 @@ MODULE_DEVICE_TABLE(of, q6asm_device_id);
 
 static struct apr_driver qcom_q6asm_driver = {
 	.probe = q6asm_probe,
-	.remove = q6asm_remove,
 	.callback = q6asm_srvc_callback,
 	.driver = {
 		.name = "qcom-q6asm",

@@ -46,6 +46,8 @@ void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 
 int intel_gt_init_mmio(struct intel_gt *gt)
 {
+	intel_gt_init_clock_frequency(gt);
+
 	intel_uc_init_mmio(&gt->uc);
 	intel_sseu_info_init(gt);
 
@@ -546,8 +548,6 @@ int intel_gt_init(struct intel_gt *gt)
 	 */
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 
-	intel_gt_init_clock_frequency(gt);
-
 	err = intel_gt_init_scratch(gt, IS_GEN(gt->i915, 2) ? SZ_256K : SZ_4K);
 	if (err)
 		goto out_fw;
@@ -614,6 +614,8 @@ void intel_gt_driver_remove(struct intel_gt *gt)
 
 void intel_gt_driver_unregister(struct intel_gt *gt)
 {
+	intel_wakeref_t wakeref;
+
 	intel_rps_driver_unregister(&gt->rps);
 
 	/*
@@ -622,16 +624,15 @@ void intel_gt_driver_unregister(struct intel_gt *gt)
 	 * resources.
 	 */
 	intel_gt_set_wedged(gt);
+
+	/* Scrub all HW state upon release */
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		__intel_gt_reset(gt, ALL_ENGINES);
 }
 
 void intel_gt_driver_release(struct intel_gt *gt)
 {
 	struct i915_address_space *vm;
-	intel_wakeref_t wakeref;
-
-	/* Scrub all HW state upon release */
-	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		__intel_gt_reset(gt, ALL_ENGINES);
 
 	vm = fetch_and_zero(&gt->vm);
 	if (vm) /* FIXME being called twice on error paths :( */

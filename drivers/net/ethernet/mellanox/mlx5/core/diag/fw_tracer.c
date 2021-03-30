@@ -124,7 +124,7 @@ static void mlx5_fw_tracer_ownership_release(struct mlx5_fw_tracer *tracer)
 static int mlx5_fw_tracer_create_log_buf(struct mlx5_fw_tracer *tracer)
 {
 	struct mlx5_core_dev *dev = tracer->dev;
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev;
 	dma_addr_t dma;
 	void *buff;
 	gfp_t gfp;
@@ -142,6 +142,7 @@ static int mlx5_fw_tracer_create_log_buf(struct mlx5_fw_tracer *tracer)
 	}
 	tracer->buff.log_buf = buff;
 
+	ddev = mlx5_core_dma_dev(dev);
 	dma = dma_map_single(ddev, buff, tracer->buff.size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(ddev, dma)) {
 		mlx5_core_warn(dev, "FWTracer: Unable to map DMA: %d\n",
@@ -162,11 +163,12 @@ free_pages:
 static void mlx5_fw_tracer_destroy_log_buf(struct mlx5_fw_tracer *tracer)
 {
 	struct mlx5_core_dev *dev = tracer->dev;
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev;
 
 	if (!tracer->buff.log_buf)
 		return;
 
+	ddev = mlx5_core_dma_dev(dev);
 	dma_unmap_single(ddev, tracer->buff.dma, tracer->buff.size, DMA_FROM_DEVICE);
 	free_pages((unsigned long)tracer->buff.log_buf, get_order(tracer->buff.size));
 }
@@ -1062,6 +1064,58 @@ void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
 	flush_workqueue(tracer->work_queue);
 	destroy_workqueue(tracer->work_queue);
 	kvfree(tracer);
+}
+
+static int mlx5_fw_tracer_recreate_strings_db(struct mlx5_fw_tracer *tracer)
+{
+	struct mlx5_core_dev *dev;
+	int err;
+
+	cancel_work_sync(&tracer->read_fw_strings_work);
+	mlx5_fw_tracer_clean_ready_list(tracer);
+	mlx5_fw_tracer_clean_print_hash(tracer);
+	mlx5_fw_tracer_clean_saved_traces_array(tracer);
+	mlx5_fw_tracer_free_strings_db(tracer);
+
+	dev = tracer->dev;
+	err = mlx5_query_mtrc_caps(tracer);
+	if (err) {
+		mlx5_core_dbg(dev, "FWTracer: Failed to query capabilities %d\n", err);
+		return err;
+	}
+
+	err = mlx5_fw_tracer_allocate_strings_db(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "FWTracer: Allocate strings DB failed %d\n", err);
+		return err;
+	}
+	mlx5_fw_tracer_init_saved_traces_array(tracer);
+
+	return 0;
+}
+
+int mlx5_fw_tracer_reload(struct mlx5_fw_tracer *tracer)
+{
+	struct mlx5_core_dev *dev;
+	int err;
+
+	if (IS_ERR_OR_NULL(tracer))
+		return -EINVAL;
+
+	dev = tracer->dev;
+	mlx5_fw_tracer_cleanup(tracer);
+	err = mlx5_fw_tracer_recreate_strings_db(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "Failed to recreate FW tracer strings DB\n");
+		return err;
+	}
+	err = mlx5_fw_tracer_init(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "Failed to re-initialize FW tracer\n");
+		return err;
+	}
+
+	return 0;
 }
 
 static int fw_tracer_event(struct notifier_block *nb, unsigned long action, void *data)

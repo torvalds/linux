@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_FBUF:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_G_FBUF - VIDIOC_S_FBUF - Get or set frame buffer overlay parameters
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_FBUF, struct v4l2_framebuffer *argp )
-    :name: VIDIOC_G_FBUF
+.. c:macro:: VIDIOC_G_FBUF
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_FBUF, const struct v4l2_framebuffer *argp )
-    :name: VIDIOC_S_FBUF
+``int ioctl(int fd, VIDIOC_G_FBUF, struct v4l2_framebuffer *argp)``
 
+.. c:macro:: VIDIOC_S_FBUF
+
+``int ioctl(int fd, VIDIOC_S_FBUF, const struct v4l2_framebuffer *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_framebuffer`.
-
 
 Description
 ===========
@@ -74,7 +74,6 @@ a ``base`` address. Setting up a DMA to a random memory location can
 jeopardize the system security, its stability or even damage the
 hardware, therefore only the superuser can set the parameters for a
 destructive video overlay.
-
 
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
 
@@ -208,7 +207,6 @@ destructive video overlay.
       - ``priv``
       - Reserved. Drivers and applications must set this field to zero.
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _framebuffer-cap:
@@ -256,7 +254,6 @@ destructive video overlay.
       - The device supports Source Chroma-keying. Video pixels with the
 	chroma-key colors are replaced by framebuffer pixels, which is
 	exactly opposite of ``V4L2_FBUF_CAP_CHROMAKEY``
-
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
@@ -331,7 +328,6 @@ destructive video overlay.
 	and :ref:`osd`. Both chroma-keying are mutual exclusive to each
 	other, so same ``chromakey`` field of struct
 	:c:type:`v4l2_window` is being used.
-
 
 Return Value
 ============

@@ -242,7 +242,7 @@
 		      <0x0 0xfe020000 0 0x10000>;       /* GICV */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-		its_dsa: interrupt-controller@c6000000 {
+		its_dsa: msi-controller@c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
@@ -330,12 +330,11 @@
 	 *  when iommu-map entry is used along with the PCIe node.
 	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
 	 */
-	smmu0: smmu_pcie {
+	smmu0: iommu@a0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x0 0xa0040000 0x0 0x20000>;
 		#iommu-cells = <1>;
 		dma-coherent;
-		smmu-cb-memtype = <0x0 0x1>;
 		hisilicon,broken-prefetch-cmd;
 		status = "disabled";
 	};
@@ -359,7 +358,7 @@
 				status = "disabled";
 			};
 
-			uart0: lpc-uart@2f8 {
+			uart0: serial@2f8 {
 				compatible = "ns16550a";
 				clock-frequency = <1843200>;
 				reg = <0x01 0x2f8 0x08>;
@@ -373,7 +372,7 @@
 			#clock-cells = <0>;
 		};
 
-		usb_ohci: ohci@a7030000 {
+		usb_ohci: usb@a7030000 {
 			compatible = "generic-ohci";
 			reg = <0x0 0xa7030000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
@@ -382,7 +381,7 @@
 			status = "disabled";
 		};
 
-		usb_ehci: ehci@a7020000 {
+		usb_ehci: usb@a7020000 {
 			compatible = "generic-ehci";
 			reg = <0x0 0xa7020000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
@@ -434,8 +433,8 @@
 			#size-cells = <0>;
 			compatible = "hisilicon,hns-dsaf-v2";
 			mode = "6port-16rss";
-			reg = <0x0 0xc5000000 0x0 0x890000
-			       0x0 0xc7000000 0x0 0x600000>;
+			reg = <0x0 0xc5000000 0x0 0x890000>,
+			      <0x0 0xc7000000 0x0 0x600000>;
 			reg-names = "ppe-base", "dsaf-base";
 			interrupt-parent = <&mbigen_dsaf0>;
 			subctrl-syscon = <&dsa_subctrl>;
@@ -737,9 +736,8 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0
-				 0x5ff0000 0x01000000 0 0 0 0xb7ff0000
-				 0 0x10000>;
+			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0 0x5ff0000>,
+				 <0x01000000 0 0 0 0xb7ff0000 0 0x10000>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map = <0x0 0 0 1 &mbigen_pcie0 650 4

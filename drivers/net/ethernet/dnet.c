@@ -507,23 +507,20 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 
 	struct dnet *bp = netdev_priv(dev);
-	u32 tx_status, irq_enable;
-	unsigned int len, i, tx_cmd, wrsz;
+	unsigned int i, tx_cmd, wrsz;
 	unsigned long flags;
 	unsigned int *bufp;
+	u32 irq_enable;
 
-	tx_status = dnet_readl(bp, TX_STATUS);
+	dnet_readl(bp, TX_STATUS);
 
 	pr_debug("start_xmit: len %u head %p data %p\n",
 	       skb->len, skb->head, skb->data);
 	dnet_print_skb(skb);
 
-	/* frame size (words) */
-	len = (skb->len + 3) >> 2;
-
 	spin_lock_irqsave(&bp->lock, flags);
 
-	tx_status = dnet_readl(bp, TX_STATUS);
+	dnet_readl(bp, TX_STATUS);
 
 	bufp = (unsigned int *)(((unsigned long) skb->data) & ~0x3UL);
 	wrsz = (u32) skb->len + 3;
@@ -545,7 +542,7 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (dnet_readl(bp, TX_FIFO_WCNT) > DNET_FIFO_TX_DATA_AF_TH) {
 		netif_stop_queue(dev);
-		tx_status = dnet_readl(bp, INTR_SRC);
+		dnet_readl(bp, INTR_SRC);
 		irq_enable = dnet_readl(bp, INTR_ENB);
 		irq_enable |= DNET_INTR_ENB_TX_FIFOAE;
 		dnet_writel(bp, irq_enable, INTR_ENB);

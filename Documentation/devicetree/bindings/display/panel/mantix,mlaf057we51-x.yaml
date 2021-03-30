@@ -20,6 +20,7 @@ properties:
   compatible:
     enum:
       - mantix,mlaf057we51-x
+      - ys,ys57pss36bh5gq
 
   port: true
   reg:
@@ -36,6 +37,10 @@ properties:
     description: 1.8V I/O voltage supply
 
   reset-gpios: true
+
+  mantix,tp-rstn-gpios:
+    maxItems: 1
+    description: second reset line that triggers DSI config load
 
   backlight: true
 
@@ -63,6 +68,7 @@ examples:
             avee-supply = <&reg_avee>;
             vddi-supply = <&reg_1v8_p>;
             reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+            mantix,tp-rstn-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
             backlight = <&backlight>;
         };
     };

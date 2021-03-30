@@ -5,7 +5,6 @@
 #define _MSCC_FELIX_H
 
 #define ocelot_to_felix(o)		container_of((o), struct felix, ocelot)
-#define FELIX_NUM_TC			8
 
 /* Platform-specific information */
 struct felix_info {
@@ -15,28 +14,30 @@ struct felix_info {
 	const struct reg_field		*regfields;
 	const u32 *const		*map;
 	const struct ocelot_ops		*ops;
-	int				shared_queue_sz;
 	int				num_mact_rows;
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 	int				num_ports;
-	int                             num_tx_queues;
-	struct vcap_field		*vcap_is2_keys;
-	struct vcap_field		*vcap_is2_actions;
-	const struct vcap_props		*vcap;
+	int				num_tx_queues;
+	struct vcap_props		*vcap;
 	int				switch_pci_bar;
 	int				imdio_pci_bar;
+	const struct ptp_clock_info	*ptp_caps;
+
+	/* Some Ocelot switches are integrated into the SoC without the
+	 * extraction IRQ line connected to the ARM GIC. By enabling this
+	 * workaround, the few packets that are delivered to the CPU port
+	 * module (currently only PTP) are copied not only to the hardware CPU
+	 * port module, but also to the 802.1Q Ethernet CPU port, and polling
+	 * the extraction registers is triggered once the DSA tagger sees a PTP
+	 * frame. The Ethernet frame is only used as a notification: it is
+	 * dropped, and the original frame is extracted over MMIO and annotated
+	 * with the RX timestamp.
+	 */
+	bool				quirk_no_xtr_irq;
+
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
-	void	(*pcs_config)(struct ocelot *ocelot, int port,
-			      unsigned int link_an_mode,
-			      const struct phylink_link_state *state);
-	void	(*pcs_link_up)(struct ocelot *ocelot, int port,
-			       unsigned int link_an_mode,
-			       phy_interface_t interface,
-			       int speed, int duplex);
-	void	(*pcs_link_state)(struct ocelot *ocelot, int port,
-				  struct phylink_link_state *state);
 	void	(*phylink_validate)(struct ocelot *ocelot, int port,
 				    unsigned long *supported,
 				    struct phylink_link_state *state);
@@ -46,12 +47,9 @@ struct felix_info {
 				 enum tc_setup_type type, void *type_data);
 	void	(*port_sched_speed_set)(struct ocelot *ocelot, int port,
 					u32 speed);
-	void	(*xmit_template_populate)(struct ocelot *ocelot, int port);
 };
 
 extern const struct dsa_switch_ops felix_switch_ops;
-extern struct pci_driver felix_vsc9959_pci_driver;
-extern struct platform_driver seville_vsc9953_driver;
 
 /* DSA glue / front-end for struct ocelot */
 struct felix {
@@ -59,20 +57,14 @@ struct felix {
 	const struct felix_info		*info;
 	struct ocelot			ocelot;
 	struct mii_bus			*imdio;
-	struct phy_device		**pcs;
+	struct lynx_pcs			**pcs;
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
+	struct dsa_8021q_context	*dsa_8021q_ctx;
+	enum dsa_tag_protocol		tag_proto;
 };
 
-void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
-			    struct phylink_link_state *state);
-void vsc9959_pcs_config(struct ocelot *ocelot, int port,
-			unsigned int link_an_mode,
-			const struct phylink_link_state *state);
-void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
-			 unsigned int link_an_mode,
-			 phy_interface_t interface,
-			 int speed, int duplex);
-void vsc9959_mdio_bus_free(struct ocelot *ocelot);
+struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port);
+int felix_netdev_to_port(struct net_device *dev);
 
 #endif

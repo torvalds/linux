@@ -338,7 +338,8 @@ static int rt711_update_status(struct sdw_slave *slave,
 static int rt711_read_prop(struct sdw_slave *slave)
 {
 	struct sdw_slave_prop *prop = &slave->prop;
-	int nval, i;
+	int nval;
+	int i, j;
 	u32 bit;
 	unsigned long addr;
 	struct sdw_dpn_prop *dpn;
@@ -379,15 +380,15 @@ static int rt711_read_prop(struct sdw_slave *slave)
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
-	i = 0;
+	j = 0;
 	dpn = prop->sink_dpn_prop;
 	addr = prop->sink_ports;
 	for_each_set_bit(bit, &addr, 32) {
-		dpn[i].num = bit;
-		dpn[i].type = SDW_DPN_FULL;
-		dpn[i].simple_ch_prep_sm = true;
-		dpn[i].ch_prep_timeout = 10;
-		i++;
+		dpn[j].num = bit;
+		dpn[j].type = SDW_DPN_FULL;
+		dpn[j].simple_ch_prep_sm = true;
+		dpn[j].ch_prep_timeout = 10;
+		j++;
 	}
 
 	/* set the timeout values */
@@ -462,8 +463,8 @@ static int rt711_sdw_remove(struct sdw_slave *slave)
 	struct rt711_priv *rt711 = dev_get_drvdata(&slave->dev);
 
 	if (rt711 && rt711->hw_init) {
-		cancel_delayed_work(&rt711->jack_detect_work);
-		cancel_delayed_work(&rt711->jack_btn_check_work);
+		cancel_delayed_work_sync(&rt711->jack_detect_work);
+		cancel_delayed_work_sync(&rt711->jack_btn_check_work);
 		cancel_work_sync(&rt711->calibration_work);
 	}
 
@@ -492,7 +493,7 @@ static int __maybe_unused rt711_dev_suspend(struct device *dev)
 	return 0;
 }
 
-#define RT711_PROBE_TIMEOUT 2000
+#define RT711_PROBE_TIMEOUT 5000
 
 static int __maybe_unused rt711_dev_resume(struct device *dev)
 {

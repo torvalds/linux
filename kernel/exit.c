@@ -63,6 +63,7 @@
 #include <linux/random.h>
 #include <linux/rcuwait.h>
 #include <linux/compat.h>
+#include <linux/io_uring.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -454,7 +455,10 @@ static void exit_mm(void)
 		mmap_read_unlock(mm);
 
 		self.task = current;
-		self.next = xchg(&core_state->dumper.next, &self);
+		if (self.task->flags & PF_SIGNALED)
+			self.next = xchg(&core_state->dumper.next, &self);
+		else
+			self.task = NULL;
 		/*
 		 * Implies mb(), the result of xchg() must be visible
 		 * to core_state->dumper.
@@ -475,10 +479,24 @@ static void exit_mm(void)
 	BUG_ON(mm != current->active_mm);
 	/* more a memory barrier than a real lock */
 	task_lock(current);
+	/*
+	 * When a thread stops operating on an address space, the loop
+	 * in membarrier_private_expedited() may not observe that
+	 * tsk->mm, and the loop in membarrier_global_expedited() may
+	 * not observe a MEMBARRIER_STATE_GLOBAL_EXPEDITED
+	 * rq->membarrier_state, so those would not issue an IPI.
+	 * Membarrier requires a memory barrier after accessing
+	 * user-space memory, before clearing tsk->mm or the
+	 * rq->membarrier_state.
+	 */
+	smp_mb__after_spinlock();
+	local_irq_disable();
 	current->mm = NULL;
-	mmap_read_unlock(mm);
+	membarrier_update_current_mm(NULL);
 	enter_lazy_tlb(mm, current);
+	local_irq_enable();
 	task_unlock(current);
+	mmap_read_unlock(mm);
 	mm_update_next_owner(mm);
 	mmput(mm);
 	if (test_thread_flag(TIF_MEMDIE))
@@ -759,6 +777,7 @@ void __noreturn do_exit(long code)
 		schedule();
 	}
 
+	io_uring_files_cancel(tsk->files);
 	exit_signals(tsk);  /* sets PF_EXITING */
 
 	/* sync mm's RSS info before statistics gathering */
@@ -1472,25 +1491,6 @@ end:
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&current->signal->wait_chldexit, &wo->child_wait);
 	return retval;
-}
-
-static struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
-{
-	struct fd f;
-	struct pid *pid;
-
-	f = fdget(fd);
-	if (!f.file)
-		return ERR_PTR(-EBADF);
-
-	pid = pidfd_pid(f.file);
-	if (!IS_ERR(pid)) {
-		get_pid(pid);
-		*flags = f.file->f_flags;
-	}
-
-	fdput(f);
-	return pid;
 }
 
 static long kernel_waitid(int which, pid_t upid, struct waitid_info *infop,

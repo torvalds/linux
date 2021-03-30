@@ -52,8 +52,10 @@
 /**
  * amdgpu_ib_get - request an IB (Indirect Buffer)
  *
- * @ring: ring index the IB is associated with
+ * @adev: amdgpu_device pointer
+ * @vm: amdgpu_vm pointer
  * @size: requested IB size
+ * @pool_type: IB pool type (delayed, immediate, direct)
  * @ib: IB object returned
  *
  * Request an IB (all asics).  IBs are allocated using the
@@ -101,9 +103,10 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
 /**
  * amdgpu_ib_schedule - schedule an IB (Indirect Buffer) on the ring
  *
- * @adev: amdgpu_device pointer
+ * @ring: ring index the IB is associated with
  * @num_ibs: number of IBs to schedule
  * @ibs: IB objects to schedule
+ * @job: job to schedule
  * @f: fence created during this submission
  *
  * Schedule an IB on the associated ring (all asics).
@@ -191,6 +194,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if ((ib->flags & AMDGPU_IB_FLAG_EMIT_MEM_SYNC) && ring->funcs->emit_mem_sync)
 		ring->funcs->emit_mem_sync(ring);
+
+	if (ring->funcs->emit_wave_limit &&
+	    ring->hw_prio == AMDGPU_GFX_PIPE_PRIO_HIGH)
+		ring->funcs->emit_wave_limit(ring, true);
 
 	if (ring->funcs->insert_start)
 		ring->funcs->insert_start(ring);
@@ -292,6 +299,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	ring->current_ctx = fence_ctx;
 	if (vm && ring->funcs->emit_switch_buffer)
 		amdgpu_ring_emit_switch_buffer(ring);
+
+	if (ring->funcs->emit_wave_limit &&
+	    ring->hw_prio == AMDGPU_GFX_PIPE_PRIO_HIGH)
+		ring->funcs->emit_wave_limit(ring, false);
+
 	amdgpu_ring_commit(ring);
 	return 0;
 }

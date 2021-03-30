@@ -33,19 +33,15 @@ properties:
 
   vana-supply:
     description: Sensor 2.8 V analog supply.
-    maxItems: 1
 
   vdig-supply:
     description: Sensor 1.8 V digital core supply.
-    maxItems: 1
 
   vddl-supply:
     description: Sensor digital IO 1.2 V supply.
-    maxItems: 1
 
   port:
-    type: object
-    description: Output video port. See ../video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/properties/port
 
 required:
   - compatible

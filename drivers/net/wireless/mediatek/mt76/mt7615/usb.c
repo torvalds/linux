@@ -29,7 +29,7 @@ static void mt7663u_stop(struct ieee80211_hw *hw)
 	del_timer_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 	cancel_delayed_work_sync(&phy->scan_work);
-	cancel_delayed_work_sync(&phy->mac_work);
+	cancel_delayed_work_sync(&phy->mt76->mac_work);
 	mt76u_stop_tx(&dev->mt76);
 }
 
@@ -47,11 +47,7 @@ static void mt7663u_init_work(struct work_struct *work)
 	if (mt7663u_mcu_init(dev))
 		return;
 
-	mt7615_mcu_set_eeprom(dev);
-	mt7615_mac_init(dev);
-	mt7615_phy_init(dev);
-	mt7615_mcu_del_wtbl_all(dev);
-	mt7615_check_offload_capability(dev);
+	mt7615_init_work(dev);
 }
 
 static int mt7663u_probe(struct usb_interface *usb_intf,
@@ -126,21 +122,20 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 alloc_queues:
 	ret = mt76u_alloc_mcu_queue(&dev->mt76);
 	if (ret)
-		goto error_free_q;
+		goto error;
 
 	ret = mt76u_alloc_queues(&dev->mt76);
 	if (ret)
-		goto error_free_q;
+		goto error;
 
 	ret = mt7663_usb_sdio_register_device(dev);
 	if (ret)
-		goto error_free_q;
+		goto error;
 
 	return 0;
 
-error_free_q:
-	mt76u_queues_deinit(&dev->mt76);
 error:
+	mt76u_queues_deinit(&dev->mt76);
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
@@ -174,15 +169,13 @@ static int mt7663u_suspend(struct usb_interface *intf, pm_message_t state)
 	    mt7615_firmware_offload(dev)) {
 		int err;
 
-		err = mt7615_mcu_set_hif_suspend(dev, true);
+		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
 		if (err < 0)
 			return err;
 	}
 
 	mt76u_stop_rx(&dev->mt76);
-
 	mt76u_stop_tx(&dev->mt76);
-	tasklet_kill(&dev->mt76.tx_tasklet);
 
 	return 0;
 }
@@ -204,7 +197,7 @@ static int mt7663u_resume(struct usb_interface *intf)
 
 	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state) &&
 	    mt7615_firmware_offload(dev))
-		err = mt7615_mcu_set_hif_suspend(dev, false);
+		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
 
 	return err;
 }

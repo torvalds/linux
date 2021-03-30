@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Microsemi Corporation
  */
+#include <linux/dsa/ocelot.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
@@ -17,12 +18,6 @@
 #include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/ocelot_hsio.h>
 #include "ocelot.h"
-
-#define IFH_EXTRACT_BITFIELD64(x, o, w) (((x) >> (o)) & GENMASK_ULL((w) - 1, 0))
-#define VSC7514_VCAP_IS2_CNT 64
-#define VSC7514_VCAP_IS2_ENTRY_WIDTH 376
-#define VSC7514_VCAP_IS2_ACTION_WIDTH 99
-#define VSC7514_VCAP_PORT_CNT 11
 
 static const u32 ocelot_ana_regmap[] = {
 	REG(ANA_ADVLEARN,				0x009000),
@@ -241,14 +236,27 @@ static const u32 ocelot_sys_regmap[] = {
 	REG(SYS_PTP_CFG,				0x0006c4),
 };
 
-static const u32 ocelot_s2_regmap[] = {
-	REG(S2_CORE_UPDATE_CTRL,			0x000000),
-	REG(S2_CORE_MV_CFG,				0x000004),
-	REG(S2_CACHE_ENTRY_DAT,				0x000008),
-	REG(S2_CACHE_MASK_DAT,				0x000108),
-	REG(S2_CACHE_ACTION_DAT,			0x000208),
-	REG(S2_CACHE_CNT_DAT,				0x000308),
-	REG(S2_CACHE_TG_DAT,				0x000388),
+static const u32 ocelot_vcap_regmap[] = {
+	/* VCAP_CORE_CFG */
+	REG(VCAP_CORE_UPDATE_CTRL,			0x000000),
+	REG(VCAP_CORE_MV_CFG,				0x000004),
+	/* VCAP_CORE_CACHE */
+	REG(VCAP_CACHE_ENTRY_DAT,			0x000008),
+	REG(VCAP_CACHE_MASK_DAT,			0x000108),
+	REG(VCAP_CACHE_ACTION_DAT,			0x000208),
+	REG(VCAP_CACHE_CNT_DAT,				0x000308),
+	REG(VCAP_CACHE_TG_DAT,				0x000388),
+	/* VCAP_CONST */
+	REG(VCAP_CONST_VCAP_VER,			0x000398),
+	REG(VCAP_CONST_ENTRY_WIDTH,			0x00039c),
+	REG(VCAP_CONST_ENTRY_CNT,			0x0003a0),
+	REG(VCAP_CONST_ENTRY_SWCNT,			0x0003a4),
+	REG(VCAP_CONST_ENTRY_TG_WIDTH,			0x0003a8),
+	REG(VCAP_CONST_ACTION_DEF_CNT,			0x0003ac),
+	REG(VCAP_CONST_ACTION_WIDTH,			0x0003b0),
+	REG(VCAP_CONST_CNT_WIDTH,			0x0003b4),
+	REG(VCAP_CONST_CORE_CNT,			0x0003b8),
+	REG(VCAP_CONST_IF_CNT,				0x0003bc),
 };
 
 static const u32 ocelot_ptp_regmap[] = {
@@ -311,7 +319,9 @@ static const u32 *ocelot_regmap[TARGET_MAX] = {
 	[QSYS] = ocelot_qsys_regmap,
 	[REW] = ocelot_rew_regmap,
 	[SYS] = ocelot_sys_regmap,
-	[S2] = ocelot_s2_regmap,
+	[S0] = ocelot_vcap_regmap,
+	[S1] = ocelot_vcap_regmap,
+	[S2] = ocelot_vcap_regmap,
 	[PTP] = ocelot_ptp_regmap,
 	[DEV_GMII] = ocelot_dev_gmii_regmap,
 };
@@ -506,7 +516,6 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 	ocelot->map = ocelot_regmap;
 	ocelot->stats_layout = ocelot_stats_layout;
 	ocelot->num_stats = ARRAY_SIZE(ocelot_stats_layout);
-	ocelot->shared_queue_sz = 224 * 1024;
 	ocelot->num_mact_rows = 1024;
 	ocelot->ops = ops;
 
@@ -522,181 +531,28 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 	return 0;
 }
 
-static int ocelot_parse_ifh(u32 *_ifh, struct frame_info *info)
-{
-	u8 llen, wlen;
-	u64 ifh[2];
-
-	ifh[0] = be64_to_cpu(((__force __be64 *)_ifh)[0]);
-	ifh[1] = be64_to_cpu(((__force __be64 *)_ifh)[1]);
-
-	wlen = IFH_EXTRACT_BITFIELD64(ifh[0], 7,  8);
-	llen = IFH_EXTRACT_BITFIELD64(ifh[0], 15,  6);
-
-	info->len = OCELOT_BUFFER_CELL_SZ * wlen + llen - 80;
-
-	info->timestamp = IFH_EXTRACT_BITFIELD64(ifh[0], 21, 32);
-
-	info->port = IFH_EXTRACT_BITFIELD64(ifh[1], 43, 4);
-
-	info->tag_type = IFH_EXTRACT_BITFIELD64(ifh[1], 16,  1);
-	info->vid = IFH_EXTRACT_BITFIELD64(ifh[1], 0,  12);
-
-	return 0;
-}
-
-static int ocelot_rx_frame_word(struct ocelot *ocelot, u8 grp, bool ifh,
-				u32 *rval)
-{
-	u32 val;
-	u32 bytes_valid;
-
-	val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-	if (val == XTR_NOT_READY) {
-		if (ifh)
-			return -EIO;
-
-		do {
-			val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		} while (val == XTR_NOT_READY);
-	}
-
-	switch (val) {
-	case XTR_ABORT:
-		return -EIO;
-	case XTR_EOF_0:
-	case XTR_EOF_1:
-	case XTR_EOF_2:
-	case XTR_EOF_3:
-	case XTR_PRUNED:
-		bytes_valid = XTR_VALID_BYTES(val);
-		val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		if (val == XTR_ESCAPE)
-			*rval = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-		else
-			*rval = val;
-
-		return bytes_valid;
-	case XTR_ESCAPE:
-		*rval = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
-
-		return 4;
-	default:
-		*rval = val;
-
-		return 4;
-	}
-}
-
 static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 {
 	struct ocelot *ocelot = arg;
-	int i = 0, grp = 0;
-	int err = 0;
+	int grp = 0, err;
 
-	if (!(ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)))
-		return IRQ_NONE;
-
-	do {
-		struct skb_shared_hwtstamps *shhwtstamps;
-		struct ocelot_port_private *priv;
-		struct ocelot_port *ocelot_port;
-		u64 tod_in_ns, full_ts_in_ns;
-		struct frame_info info = {};
-		struct net_device *dev;
-		u32 ifh[4], val, *buf;
-		struct timespec64 ts;
-		int sz, len, buf_len;
+	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)) {
 		struct sk_buff *skb;
 
-		for (i = 0; i < OCELOT_TAG_LEN / 4; i++) {
-			err = ocelot_rx_frame_word(ocelot, grp, true, &ifh[i]);
-			if (err != 4)
-				break;
-		}
+		err = ocelot_xtr_poll_frame(ocelot, grp, &skb);
+		if (err)
+			goto out;
 
-		if (err != 4)
-			break;
+		skb->dev->stats.rx_bytes += skb->len;
+		skb->dev->stats.rx_packets++;
 
-		/* At this point the IFH was read correctly, so it is safe to
-		 * presume that there is no error. The err needs to be reset
-		 * otherwise a frame could come in CPU queue between the while
-		 * condition and the check for error later on. And in that case
-		 * the new frame is just removed and not processed.
-		 */
-		err = 0;
-
-		ocelot_parse_ifh(ifh, &info);
-
-		ocelot_port = ocelot->ports[info.port];
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-		dev = priv->dev;
-
-		skb = netdev_alloc_skb(dev, info.len);
-
-		if (unlikely(!skb)) {
-			netdev_err(dev, "Unable to allocate sk_buff\n");
-			err = -ENOMEM;
-			break;
-		}
-		buf_len = info.len - ETH_FCS_LEN;
-		buf = (u32 *)skb_put(skb, buf_len);
-
-		len = 0;
-		do {
-			sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
-			*buf++ = val;
-			len += sz;
-		} while (len < buf_len);
-
-		/* Read the FCS */
-		sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
-		/* Update the statistics if part of the FCS was read before */
-		len -= ETH_FCS_LEN - sz;
-
-		if (unlikely(dev->features & NETIF_F_RXFCS)) {
-			buf = (u32 *)skb_put(skb, ETH_FCS_LEN);
-			*buf = val;
-		}
-
-		if (sz < 0) {
-			err = sz;
-			break;
-		}
-
-		if (ocelot->ptp) {
-			ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
-
-			tod_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
-			if ((tod_in_ns & 0xffffffff) < info.timestamp)
-				full_ts_in_ns = (((tod_in_ns >> 32) - 1) << 32) |
-						info.timestamp;
-			else
-				full_ts_in_ns = (tod_in_ns & GENMASK_ULL(63, 32)) |
-						info.timestamp;
-
-			shhwtstamps = skb_hwtstamps(skb);
-			memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
-			shhwtstamps->hwtstamp = full_ts_in_ns;
-		}
-
-		/* Everything we see on an interface that is in the HW bridge
-		 * has already been forwarded.
-		 */
-		if (ocelot->bridge_mask & BIT(info.port))
-			skb->offload_fwd_mark = 1;
-
-		skb->protocol = eth_type_trans(skb, dev);
 		if (!skb_defer_rx_timestamp(skb))
 			netif_rx(skb);
-		dev->stats.rx_bytes += len;
-		dev->stats.rx_packets++;
-	} while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp));
+	}
 
-	if (err)
-		while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp))
-			ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+out:
+	if (err < 0)
+		ocelot_drain_cpu_queue(ocelot, 0);
 
 	return IRQ_HANDLED;
 }
@@ -753,9 +609,134 @@ static u16 ocelot_wm_enc(u16 value)
 	return value;
 }
 
+static u16 ocelot_wm_dec(u16 wm)
+{
+	if (wm & BIT(8))
+		return (wm & GENMASK(7, 0)) * 16;
+
+	return wm;
+}
+
+static void ocelot_wm_stat(u32 val, u32 *inuse, u32 *maxuse)
+{
+	*inuse = (val & GENMASK(23, 12)) >> 12;
+	*maxuse = val & GENMASK(11, 0);
+}
+
 static const struct ocelot_ops ocelot_ops = {
 	.reset			= ocelot_reset,
 	.wm_enc			= ocelot_wm_enc,
+	.wm_dec			= ocelot_wm_dec,
+	.wm_stat		= ocelot_wm_stat,
+	.port_to_netdev		= ocelot_port_to_netdev,
+	.netdev_to_port		= ocelot_netdev_to_port,
+};
+
+static const struct vcap_field vsc7514_vcap_es0_keys[] = {
+	[VCAP_ES0_EGR_PORT]			= {  0,  4},
+	[VCAP_ES0_IGR_PORT]			= {  4,  4},
+	[VCAP_ES0_RSV]				= {  8,  2},
+	[VCAP_ES0_L2_MC]			= { 10,  1},
+	[VCAP_ES0_L2_BC]			= { 11,  1},
+	[VCAP_ES0_VID]				= { 12, 12},
+	[VCAP_ES0_DP]				= { 24,  1},
+	[VCAP_ES0_PCP]				= { 25,  3},
+};
+
+static const struct vcap_field vsc7514_vcap_es0_actions[] = {
+	[VCAP_ES0_ACT_PUSH_OUTER_TAG]		= {  0,  2},
+	[VCAP_ES0_ACT_PUSH_INNER_TAG]		= {  2,  1},
+	[VCAP_ES0_ACT_TAG_A_TPID_SEL]		= {  3,  2},
+	[VCAP_ES0_ACT_TAG_A_VID_SEL]		= {  5,  1},
+	[VCAP_ES0_ACT_TAG_A_PCP_SEL]		= {  6,  2},
+	[VCAP_ES0_ACT_TAG_A_DEI_SEL]		= {  8,  2},
+	[VCAP_ES0_ACT_TAG_B_TPID_SEL]		= { 10,  2},
+	[VCAP_ES0_ACT_TAG_B_VID_SEL]		= { 12,  1},
+	[VCAP_ES0_ACT_TAG_B_PCP_SEL]		= { 13,  2},
+	[VCAP_ES0_ACT_TAG_B_DEI_SEL]		= { 15,  2},
+	[VCAP_ES0_ACT_VID_A_VAL]		= { 17, 12},
+	[VCAP_ES0_ACT_PCP_A_VAL]		= { 29,  3},
+	[VCAP_ES0_ACT_DEI_A_VAL]		= { 32,  1},
+	[VCAP_ES0_ACT_VID_B_VAL]		= { 33, 12},
+	[VCAP_ES0_ACT_PCP_B_VAL]		= { 45,  3},
+	[VCAP_ES0_ACT_DEI_B_VAL]		= { 48,  1},
+	[VCAP_ES0_ACT_RSV]			= { 49, 24},
+	[VCAP_ES0_ACT_HIT_STICKY]		= { 73,  1},
+};
+
+static const struct vcap_field vsc7514_vcap_is1_keys[] = {
+	[VCAP_IS1_HK_TYPE]			= {  0,   1},
+	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
+	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,  12},
+	[VCAP_IS1_HK_RSV]			= { 15,   9},
+	[VCAP_IS1_HK_OAM_Y1731]			= { 24,   1},
+	[VCAP_IS1_HK_L2_MC]			= { 25,   1},
+	[VCAP_IS1_HK_L2_BC]			= { 26,   1},
+	[VCAP_IS1_HK_IP_MC]			= { 27,   1},
+	[VCAP_IS1_HK_VLAN_TAGGED]		= { 28,   1},
+	[VCAP_IS1_HK_VLAN_DBL_TAGGED]		= { 29,   1},
+	[VCAP_IS1_HK_TPID]			= { 30,   1},
+	[VCAP_IS1_HK_VID]			= { 31,  12},
+	[VCAP_IS1_HK_DEI]			= { 43,   1},
+	[VCAP_IS1_HK_PCP]			= { 44,   3},
+	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	[VCAP_IS1_HK_L2_SMAC]			= { 47,  48},
+	[VCAP_IS1_HK_ETYPE_LEN]			= { 95,   1},
+	[VCAP_IS1_HK_ETYPE]			= { 96,  16},
+	[VCAP_IS1_HK_IP_SNAP]			= {112,   1},
+	[VCAP_IS1_HK_IP4]			= {113,   1},
+	/* Layer-3 Information */
+	[VCAP_IS1_HK_L3_FRAGMENT]		= {114,   1},
+	[VCAP_IS1_HK_L3_FRAG_OFS_GT0]		= {115,   1},
+	[VCAP_IS1_HK_L3_OPTIONS]		= {116,   1},
+	[VCAP_IS1_HK_L3_DSCP]			= {117,   6},
+	[VCAP_IS1_HK_L3_IP4_SIP]		= {123,  32},
+	/* Layer-4 Information */
+	[VCAP_IS1_HK_TCP_UDP]			= {155,   1},
+	[VCAP_IS1_HK_TCP]			= {156,   1},
+	[VCAP_IS1_HK_L4_SPORT]			= {157,  16},
+	[VCAP_IS1_HK_L4_RNG]			= {173,   8},
+	/* Specific Fields for IS1 Half Key S1_5TUPLE_IP4 */
+	[VCAP_IS1_HK_IP4_INNER_TPID]            = { 47,   1},
+	[VCAP_IS1_HK_IP4_INNER_VID]		= { 48,  12},
+	[VCAP_IS1_HK_IP4_INNER_DEI]		= { 60,   1},
+	[VCAP_IS1_HK_IP4_INNER_PCP]		= { 61,   3},
+	[VCAP_IS1_HK_IP4_IP4]			= { 64,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAGMENT]		= { 65,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAG_OFS_GT0]	= { 66,   1},
+	[VCAP_IS1_HK_IP4_L3_OPTIONS]		= { 67,   1},
+	[VCAP_IS1_HK_IP4_L3_DSCP]		= { 68,   6},
+	[VCAP_IS1_HK_IP4_L3_IP4_DIP]		= { 74,  32},
+	[VCAP_IS1_HK_IP4_L3_IP4_SIP]		= {106,  32},
+	[VCAP_IS1_HK_IP4_L3_PROTO]		= {138,   8},
+	[VCAP_IS1_HK_IP4_TCP_UDP]		= {146,   1},
+	[VCAP_IS1_HK_IP4_TCP]			= {147,   1},
+	[VCAP_IS1_HK_IP4_L4_RNG]		= {148,   8},
+	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= {156,  32},
+};
+
+static const struct vcap_field vsc7514_vcap_is1_actions[] = {
+	[VCAP_IS1_ACT_DSCP_ENA]			= {  0,  1},
+	[VCAP_IS1_ACT_DSCP_VAL]			= {  1,  6},
+	[VCAP_IS1_ACT_QOS_ENA]			= {  7,  1},
+	[VCAP_IS1_ACT_QOS_VAL]			= {  8,  3},
+	[VCAP_IS1_ACT_DP_ENA]			= { 11,  1},
+	[VCAP_IS1_ACT_DP_VAL]			= { 12,  1},
+	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
+	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
+	[VCAP_IS1_ACT_RSV]			= { 29,  9},
+	/* The fields below are incorrectly shifted by 2 in the manual */
+	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 38,  1},
+	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 39, 12},
+	[VCAP_IS1_ACT_FID_SEL]			= { 51,  2},
+	[VCAP_IS1_ACT_FID_VAL]			= { 53, 13},
+	[VCAP_IS1_ACT_PCP_DEI_ENA]		= { 66,  1},
+	[VCAP_IS1_ACT_PCP_VAL]			= { 67,  3},
+	[VCAP_IS1_ACT_DEI_VAL]			= { 70,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT_ENA]		= { 71,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT]		= { 72,  2},
+	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 74,  4},
+	[VCAP_IS1_ACT_HIT_STICKY]		= { 78,  1},
 };
 
 static const struct vcap_field vsc7514_vcap_is2_keys[] = {
@@ -856,15 +837,32 @@ static const struct vcap_field vsc7514_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
 };
 
-static const struct vcap_props vsc7514_vcap_props[] = {
+static struct vcap_props vsc7514_vcap_props[] = {
+	[VCAP_ES0] = {
+		.action_type_width = 0,
+		.action_table = {
+			[ES0_ACTION_TYPE_NORMAL] = {
+				.width = 73, /* HIT_STICKY not included */
+				.count = 1,
+			},
+		},
+		.target = S0,
+		.keys = vsc7514_vcap_es0_keys,
+		.actions = vsc7514_vcap_es0_actions,
+	},
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 78, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc7514_vcap_is1_keys,
+		.actions = vsc7514_vcap_is1_actions,
+	},
 	[VCAP_IS2] = {
-		.tg_width = 2,
-		.sw_count = 4,
-		.entry_count = VSC7514_VCAP_IS2_CNT,
-		.entry_width = VSC7514_VCAP_IS2_ENTRY_WIDTH,
-		.action_count = VSC7514_VCAP_IS2_CNT +
-				VSC7514_VCAP_PORT_CNT + 2,
-		.action_width = 99,
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
@@ -876,8 +874,9 @@ static const struct vcap_props vsc7514_vcap_props[] = {
 				.count = 4
 			},
 		},
-		.counter_words = 4,
-		.counter_width = 32,
+		.target = S2,
+		.keys = vsc7514_vcap_is2_keys,
+		.actions = vsc7514_vcap_is2_actions,
 	},
 };
 
@@ -898,12 +897,19 @@ static struct ptp_clock_info ocelot_ptp_clock_info = {
 	.enable		= ocelot_ptp_enable,
 };
 
+static void mscc_ocelot_teardown_devlink_ports(struct ocelot *ocelot)
+{
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++)
+		ocelot_port_devlink_teardown(ocelot, port);
+}
+
 static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 {
 	int port;
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
 
 		ocelot_port = ocelot->ports[port];
@@ -911,12 +917,7 @@ static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 			continue;
 
 		ocelot_deinit_port(ocelot, port);
-
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-
-		unregister_netdev(priv->dev);
-		free_netdev(priv->dev);
+		ocelot_release_port(ocelot_port);
 	}
 }
 
@@ -924,40 +925,55 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				  struct device_node *ports)
 {
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
+	u32 devlink_ports_registered = 0;
 	struct device_node *portnp;
-	int err;
+	int port, err;
+	u32 reg;
 
 	ocelot->ports = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
 				     sizeof(struct ocelot_port *), GFP_KERNEL);
 	if (!ocelot->ports)
 		return -ENOMEM;
 
-	/* No NPI port */
-	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
-			     OCELOT_TAG_PREFIX_NONE);
+	ocelot->devlink_ports = devm_kcalloc(ocelot->dev,
+					     ocelot->num_phys_ports,
+					     sizeof(*ocelot->devlink_ports),
+					     GFP_KERNEL);
+	if (!ocelot->devlink_ports)
+		return -ENOMEM;
 
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
 		struct device_node *phy_node;
+		struct devlink_port *dlp;
 		phy_interface_t phy_mode;
 		struct phy_device *phy;
 		struct regmap *target;
 		struct resource *res;
 		struct phy *serdes;
 		char res_name[8];
-		u32 port;
 
-		if (of_property_read_u32(portnp, "reg", &port))
+		if (of_property_read_u32(portnp, "reg", &reg))
 			continue;
+
+		port = reg;
+		if (port < 0 || port >= ocelot->num_phys_ports) {
+			dev_err(ocelot->dev,
+				"invalid port number: %d >= %d\n", port,
+				ocelot->num_phys_ports);
+			continue;
+		}
 
 		snprintf(res_name, sizeof(res_name), "port%d", port);
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   res_name);
 		target = ocelot_regmap_init(ocelot, res);
-		if (IS_ERR(target))
-			continue;
+		if (IS_ERR(target)) {
+			err = PTR_ERR(target);
+			goto out_teardown;
+		}
 
 		phy_node = of_parse_phandle(portnp, "phy-handle", 0);
 		if (!phy_node)
@@ -968,15 +984,25 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		if (!phy)
 			continue;
 
+		err = ocelot_port_devlink_init(ocelot, port,
+					       DEVLINK_PORT_FLAVOUR_PHYSICAL);
+		if (err) {
+			of_node_put(portnp);
+			goto out_teardown;
+		}
+		devlink_ports_registered |= BIT(port);
+
 		err = ocelot_probe_port(ocelot, port, target, phy);
 		if (err) {
 			of_node_put(portnp);
-			return err;
+			goto out_teardown;
 		}
 
 		ocelot_port = ocelot->ports[port];
 		priv = container_of(ocelot_port, struct ocelot_port_private,
 				    port);
+		dlp = &ocelot->devlink_ports[port];
+		devlink_port_type_eth_set(dlp, priv->dev);
 
 		of_get_phy_mode(portnp, &phy_mode);
 
@@ -1001,7 +1027,8 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				"invalid phy mode for port%d, (Q)SGMII only\n",
 				port);
 			of_node_put(portnp);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_teardown;
 		}
 
 		serdes = devm_of_phy_get(ocelot->dev, portnp, NULL);
@@ -1015,13 +1042,36 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 					port);
 
 			of_node_put(portnp);
-			return err;
+			goto out_teardown;
 		}
 
 		priv->serdes = serdes;
 	}
 
+	/* Initialize unused devlink ports at the end */
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (devlink_ports_registered & BIT(port))
+			continue;
+
+		err = ocelot_port_devlink_init(ocelot, port,
+					       DEVLINK_PORT_FLAVOUR_UNUSED);
+		if (err)
+			goto out_teardown;
+
+		devlink_ports_registered |= BIT(port);
+	}
+
 	return 0;
+
+out_teardown:
+	/* Unregister the network interfaces */
+	mscc_ocelot_release_ports(ocelot);
+	/* Tear down devlink ports for the registered network interfaces */
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (devlink_ports_registered & BIT(port))
+			ocelot_port_devlink_teardown(ocelot, port);
+	}
+	return err;
 }
 
 static int mscc_ocelot_probe(struct platform_device *pdev)
@@ -1029,6 +1079,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int err, irq_xtr, irq_ptp_rdy;
 	struct device_node *ports;
+	struct devlink *devlink;
 	struct ocelot *ocelot;
 	struct regmap *hsio;
 	unsigned int i;
@@ -1043,6 +1094,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		{ QSYS, "qsys" },
 		{ ANA, "ana" },
 		{ QS, "qs" },
+		{ S0, "s0" },
+		{ S1, "s1" },
 		{ S2, "s2" },
 		{ PTP, "ptp", 1 },
 	};
@@ -1050,10 +1103,12 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	if (!np && !pdev->dev.platform_data)
 		return -ENODEV;
 
-	ocelot = devm_kzalloc(&pdev->dev, sizeof(*ocelot), GFP_KERNEL);
-	if (!ocelot)
+	devlink = devlink_alloc(&ocelot_devlink_ops, sizeof(*ocelot));
+	if (!devlink)
 		return -ENOMEM;
 
+	ocelot = devlink_priv(devlink);
+	ocelot->devlink = priv_to_devlink(ocelot);
 	platform_set_drvdata(pdev, ocelot);
 	ocelot->dev = &pdev->dev;
 
@@ -1070,7 +1125,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 				ocelot->targets[io_target[i].id] = NULL;
 				continue;
 			}
-			return PTR_ERR(target);
+			err = PTR_ERR(target);
+			goto out_free_devlink;
 		}
 
 		ocelot->targets[io_target[i].id] = target;
@@ -1079,24 +1135,27 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	hsio = syscon_regmap_lookup_by_compatible("mscc,ocelot-hsio");
 	if (IS_ERR(hsio)) {
 		dev_err(&pdev->dev, "missing hsio syscon\n");
-		return PTR_ERR(hsio);
+		err = PTR_ERR(hsio);
+		goto out_free_devlink;
 	}
 
 	ocelot->targets[HSIO] = hsio;
 
 	err = ocelot_chip_init(ocelot, &ocelot_ops);
 	if (err)
-		return err;
+		goto out_free_devlink;
 
 	irq_xtr = platform_get_irq_byname(pdev, "xtr");
-	if (irq_xtr < 0)
-		return -ENODEV;
+	if (irq_xtr < 0) {
+		err = irq_xtr;
+		goto out_free_devlink;
+	}
 
 	err = devm_request_threaded_irq(&pdev->dev, irq_xtr, NULL,
 					ocelot_xtr_irq_handler, IRQF_ONESHOT,
 					"frame extraction", ocelot);
 	if (err)
-		return err;
+		goto out_free_devlink;
 
 	irq_ptp_rdy = platform_get_irq_byname(pdev, "ptp_rdy");
 	if (irq_ptp_rdy > 0 && ocelot->targets[PTP]) {
@@ -1105,7 +1164,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 						IRQF_ONESHOT, "ptp ready",
 						ocelot);
 		if (err)
-			return err;
+			goto out_free_devlink;
 
 		/* Both the PTP interrupt and the PTP bank are available */
 		ocelot->ptp = 1;
@@ -1114,22 +1173,31 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ports = of_get_child_by_name(np, "ethernet-ports");
 	if (!ports) {
 		dev_err(ocelot->dev, "no ethernet-ports child node found\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_free_devlink;
 	}
 
 	ocelot->num_phys_ports = of_get_child_count(ports);
+	ocelot->num_flooding_pgids = 1;
 
-	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
-	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
 	ocelot->vcap = vsc7514_vcap_props;
+	ocelot->npi = -1;
 
 	err = ocelot_init(ocelot);
 	if (err)
 		goto out_put_ports;
 
+	err = devlink_register(devlink, ocelot->dev);
+	if (err)
+		goto out_ocelot_deinit;
+
 	err = mscc_ocelot_init_ports(pdev, ports);
 	if (err)
-		goto out_put_ports;
+		goto out_ocelot_devlink_unregister;
+
+	err = ocelot_devlink_sb_register(ocelot);
+	if (err)
+		goto out_ocelot_release_ports;
 
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
@@ -1144,10 +1212,23 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	register_switchdev_notifier(&ocelot_switchdev_nb);
 	register_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 
+	of_node_put(ports);
+
 	dev_info(&pdev->dev, "Ocelot switch probed\n");
 
+	return 0;
+
+out_ocelot_release_ports:
+	mscc_ocelot_release_ports(ocelot);
+	mscc_ocelot_teardown_devlink_ports(ocelot);
+out_ocelot_devlink_unregister:
+	devlink_unregister(devlink);
+out_ocelot_deinit:
+	ocelot_deinit(ocelot);
 out_put_ports:
 	of_node_put(ports);
+out_free_devlink:
+	devlink_free(devlink);
 	return err;
 }
 
@@ -1156,11 +1237,15 @@ static int mscc_ocelot_remove(struct platform_device *pdev)
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 
 	ocelot_deinit_timestamp(ocelot);
+	ocelot_devlink_sb_unregister(ocelot);
 	mscc_ocelot_release_ports(ocelot);
+	mscc_ocelot_teardown_devlink_ports(ocelot);
+	devlink_unregister(ocelot->devlink);
 	ocelot_deinit(ocelot);
 	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 	unregister_switchdev_notifier(&ocelot_switchdev_nb);
 	unregister_netdevice_notifier(&ocelot_netdevice_nb);
+	devlink_free(ocelot->devlink);
 
 	return 0;
 }

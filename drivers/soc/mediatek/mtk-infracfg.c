@@ -12,14 +12,9 @@
 #define MTK_POLL_DELAY_US   10
 #define MTK_POLL_TIMEOUT    (jiffies_to_usecs(HZ))
 
-#define INFRA_TOPAXI_PROTECTEN		0x0220
-#define INFRA_TOPAXI_PROTECTSTA1	0x0228
-#define INFRA_TOPAXI_PROTECTEN_SET	0x0260
-#define INFRA_TOPAXI_PROTECTEN_CLR	0x0264
-
 /**
  * mtk_infracfg_set_bus_protection - enable bus protection
- * @regmap: The infracfg regmap
+ * @infracfg: The infracfg regmap
  * @mask: The mask containing the protection bits to be enabled.
  * @reg_update: The boolean flag determines to set the protection bits
  *              by regmap_update_bits with enable register(PROTECTEN) or
@@ -50,7 +45,7 @@ int mtk_infracfg_set_bus_protection(struct regmap *infracfg, u32 mask,
 
 /**
  * mtk_infracfg_clear_bus_protection - disable bus protection
- * @regmap: The infracfg regmap
+ * @infracfg: The infracfg regmap
  * @mask: The mask containing the protection bits to be disabled.
  * @reg_update: The boolean flag determines to clear the protection bits
  *              by regmap_update_bits with enable register(PROTECTEN) or

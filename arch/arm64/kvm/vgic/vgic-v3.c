@@ -500,29 +500,23 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	int ret = 0;
 	int c;
 
-	if (vgic_ready(kvm))
-		goto out;
-
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
 			kvm_debug("vcpu %d redistributor base not set\n", c);
-			ret = -ENXIO;
-			goto out;
+			return -ENXIO;
 		}
 	}
 
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base)) {
 		kvm_err("Need to set vgic distributor addresses first\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	if (!vgic_v3_check_base(kvm)) {
 		kvm_err("VGIC redist and dist frames overlap\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/*
@@ -530,22 +524,19 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	 * the VGIC before we need to use it.
 	 */
 	if (!vgic_initialized(kvm)) {
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V3);
 	if (ret) {
 		kvm_err("Unable to register VGICv3 dist MMIO regions\n");
-		goto out;
+		return ret;
 	}
 
 	if (kvm_vgic_global_state.has_gicv4_1)
 		vgic_v4_configure_vsgis(kvm);
-	dist->ready = true;
 
-out:
-	return ret;
+	return 0;
 }
 
 DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
@@ -662,7 +653,7 @@ void vgic_v3_load(struct kvm_vcpu *vcpu)
 	if (likely(cpu_if->vgic_sre))
 		kvm_call_hyp(__vgic_v3_write_vmcr, cpu_if->vgic_vmcr);
 
-	kvm_call_hyp(__vgic_v3_restore_aprs, kern_hyp_va(cpu_if));
+	kvm_call_hyp(__vgic_v3_restore_aprs, cpu_if);
 
 	if (has_vhe())
 		__vgic_v3_activate_traps(cpu_if);
@@ -686,7 +677,7 @@ void vgic_v3_put(struct kvm_vcpu *vcpu)
 
 	vgic_v3_vmcr_sync(vcpu);
 
-	kvm_call_hyp(__vgic_v3_save_aprs, kern_hyp_va(cpu_if));
+	kvm_call_hyp(__vgic_v3_save_aprs, cpu_if);
 
 	if (has_vhe())
 		__vgic_v3_deactivate_traps(cpu_if);

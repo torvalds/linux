@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich, Antonio Quartulli
  */
@@ -11,7 +11,6 @@
 
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
 
@@ -21,8 +20,6 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 u16 batadv_tt_local_remove(struct batadv_priv *bat_priv,
 			   const u8 *addr, unsigned short vid,
 			   const char *message, bool roaming);
-int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset);
-int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_tt_local_dump(struct sk_buff *msg, struct netlink_callback *cb);
 int batadv_tt_global_dump(struct sk_buff *msg, struct netlink_callback *cb);
 void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,

@@ -62,7 +62,7 @@ config ARM_PMU_ACPI
 
 config ARM_SMMU_V3_PMU
 	 tristate "ARM SMMUv3 Performance Monitors Extension"
-	 depends on ARM64 && ACPI && ARM_SMMU_V3
+	 depends on ARM64 && ACPI
 	   help
 	   Provides support for the ARM SMMUv3 Performance Monitor Counter
 	   Groups (PMCG), which provide monitoring of transactions passing
@@ -129,6 +129,13 @@ config ARM_SPE_PMU
 	  Enable perf support for the ARMv8.2 Statistical Profiling
 	  Extension, which provides periodic sampling of operations in
 	  the CPU pipeline and reports this via the perf AUX interface.
+
+config ARM_DMC620_PMU
+	tristate "Enable PMU support for the ARM DMC-620 memory controller"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  Support for PMU events monitoring on the ARM DMC-620 memory
+	  controller.
 
 source "drivers/perf/hisilicon/Kconfig"
 

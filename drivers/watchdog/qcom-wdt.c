@@ -22,7 +22,6 @@ enum wdt_reg {
 };
 
 #define QCOM_WDT_ENABLE		BIT(0)
-#define QCOM_WDT_ENABLE_IRQ	BIT(1)
 
 static const u32 reg_offset_data_apcs_tmr[] = {
 	[WDT_RST] = 0x38,
@@ -63,16 +62,6 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
-static inline int qcom_get_enable(struct watchdog_device *wdd)
-{
-	int enable = QCOM_WDT_ENABLE;
-
-	if (wdd->pretimeout)
-		enable |= QCOM_WDT_ENABLE_IRQ;
-
-	return enable;
-}
-
 static irqreturn_t qcom_wdt_isr(int irq, void *arg)
 {
 	struct watchdog_device *wdd = arg;
@@ -91,7 +80,7 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 	writel(1, wdt_addr(wdt, WDT_RST));
 	writel(bark * wdt->rate, wdt_addr(wdt, WDT_BARK_TIME));
 	writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BITE_TIME));
-	writel(qcom_get_enable(wdd), wdt_addr(wdt, WDT_EN));
+	writel(QCOM_WDT_ENABLE, wdt_addr(wdt, WDT_EN));
 	return 0;
 }
 
@@ -148,8 +137,15 @@ static int qcom_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	 */
 	wmb();
 
-	msleep(150);
+	mdelay(150);
 	return 0;
+}
+
+static int qcom_wdt_is_running(struct watchdog_device *wdd)
+{
+	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
+
+	return (readl(wdt_addr(wdt, WDT_EN)) & QCOM_WDT_ENABLE);
 }
 
 static const struct watchdog_ops qcom_wdt_ops = {
@@ -293,6 +289,17 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 */
 	wdt->wdd.timeout = min(wdt->wdd.max_timeout, 30U);
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
+
+	/*
+	 * If WDT is already running, call WDT start which
+	 * will stop the WDT, set timeouts as bootloader
+	 * might use different ones and set running bit
+	 * to inform the WDT subsystem to ping the WDT
+	 */
+	if (qcom_wdt_is_running(&wdt->wdd)) {
+		qcom_wdt_start(&wdt->wdd);
+		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+	}
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (ret)

@@ -31,7 +31,8 @@ static int mtk_rtc_write_trigger(struct mt6397_rtc *rtc)
 					MTK_RTC_POLL_DELAY_US,
 					MTK_RTC_POLL_TIMEOUT);
 	if (ret < 0)
-		dev_err(rtc->dev, "failed to write WRTGE: %d\n", ret);
+		dev_err(rtc->rtc_dev->dev.parent,
+			"failed to write WRTGR: %d\n", ret);
 
 	return ret;
 }
@@ -300,7 +301,7 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_dev->ops = &mtk_rtc_ops;
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP

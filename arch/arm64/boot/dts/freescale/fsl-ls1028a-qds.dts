@@ -23,6 +23,8 @@
 		gpio2 = &gpio3;
 		serial0 = &duart0;
 		serial1 = &duart1;
+		mmc0 = &esdhc;
+		mmc1 = &esdhc1;
 	};
 
 	chosen {
@@ -105,6 +107,14 @@
 			};
 		};
 	};
+};
+
+&can0 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
 };
 
 &dspi0 {
@@ -310,6 +320,10 @@
 &enetc_port1 {
 	phy-handle = <&qds_phy1>;
 	phy-connection-type = "rgmii-id";
+	status = "okay";
+};
+
+&lpuart0 {
 	status = "okay";
 };
 

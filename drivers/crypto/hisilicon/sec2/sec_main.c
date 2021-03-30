@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/topology.h>
+#include <linux/uacce.h>
 
 #include "sec.h"
 
@@ -74,6 +75,16 @@
 
 #define SEC_USER0_SMMU_NORMAL		(BIT(23) | BIT(15))
 #define SEC_USER1_SMMU_NORMAL		(BIT(31) | BIT(23) | BIT(15) | BIT(7))
+#define SEC_USER1_ENABLE_CONTEXT_SSV	BIT(24)
+#define SEC_USER1_ENABLE_DATA_SSV	BIT(16)
+#define SEC_USER1_WB_CONTEXT_SSV	BIT(8)
+#define SEC_USER1_WB_DATA_SSV		BIT(0)
+#define SEC_USER1_SVA_SET		(SEC_USER1_ENABLE_CONTEXT_SSV | \
+					SEC_USER1_ENABLE_DATA_SSV | \
+					SEC_USER1_WB_CONTEXT_SSV |  \
+					SEC_USER1_WB_DATA_SSV)
+#define SEC_USER1_SMMU_SVA		(SEC_USER1_SMMU_NORMAL | SEC_USER1_SVA_SET)
+#define SEC_USER1_SMMU_MASK		(~SEC_USER1_SVA_SET)
 #define SEC_CORE_INT_STATUS_M_ECC	BIT(2)
 
 #define SEC_DELAY_10_US			10
@@ -233,6 +244,18 @@ struct hisi_qp **sec_create_qps(void)
 	return NULL;
 }
 
+static const struct kernel_param_ops sec_uacce_mode_ops = {
+	.set = uacce_mode_set,
+	.get = param_get_int,
+};
+
+/*
+ * uacce_mode = 0 means sec only register to crypto,
+ * uacce_mode = 1 means sec both register to crypto and uacce.
+ */
+static u32 uacce_mode = UACCE_MODE_NOUACCE;
+module_param_cb(uacce_mode, &sec_uacce_mode_ops, &uacce_mode, 0444);
+MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
 static const struct pci_device_id sec_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, SEC_PF_PCI_DEVICE_ID) },
@@ -299,7 +322,11 @@ static int sec_engine_init(struct hisi_qm *qm)
 	writel_relaxed(reg, SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL0_REG));
 
 	reg = readl_relaxed(SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL1_REG));
-	reg |= SEC_USER1_SMMU_NORMAL;
+	reg &= SEC_USER1_SMMU_MASK;
+	if (qm->use_sva && qm->ver == QM_HW_V2)
+		reg |= SEC_USER1_SMMU_SVA;
+	else
+		reg |= SEC_USER1_SMMU_NORMAL;
 	writel_relaxed(reg, SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL1_REG));
 
 	writel(SEC_SINGLE_PORT_MAX_TRANS,
@@ -652,20 +679,16 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 						  sec_debugfs_root);
 	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
-	ret = hisi_qm_debug_init(qm);
-	if (ret)
-		goto failed_to_create;
+	hisi_qm_debug_init(qm);
 
 	ret = sec_debug_init(qm);
 	if (ret)
 		goto failed_to_create;
 
-
 	return 0;
 
 failed_to_create:
 	debugfs_remove_recursive(sec_debugfs_root);
-
 	return ret;
 }
 
@@ -683,13 +706,13 @@ static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 	while (errs->msg) {
 		if (errs->int_msk & err_sts) {
 			dev_err(dev, "%s [error status=0x%x] found\n",
-				errs->msg, errs->int_msk);
+					errs->msg, errs->int_msk);
 
 			if (SEC_CORE_INT_STATUS_M_ECC & errs->int_msk) {
 				err_val = readl(qm->io_base +
 						SEC_CORE_SRAM_ECC_ERR_INFO);
 				dev_err(dev, "multi ecc sram num=0x%x\n",
-					SEC_ECC_NUM(err_val));
+						SEC_ECC_NUM(err_val));
 			}
 		}
 		errs++;
@@ -724,13 +747,14 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.log_dev_hw_err		= sec_log_hw_error,
 	.open_axi_master_ooo	= sec_open_axi_master_ooo,
 	.err_info		= {
-		.ce			= QM_BASE_CE,
-		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
-					  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe			= 0,
-		.ecc_2bits_mask		= SEC_CORE_INT_STATUS_M_ECC,
-		.msi_wr_port		= BIT(0),
-		.acpi_rst		= "SRST",
+		.ce		= QM_BASE_CE,
+		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
+				  QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe		= 0,
+		.ecc_2bits_mask	= SEC_CORE_INT_STATUS_M_ECC,
+		.dev_ce_mask	= SEC_RAS_CE_ENB_MSK,
+		.msi_wr_port	= BIT(0),
+		.acpi_rst	= "SRST",
 	}
 };
 
@@ -762,6 +786,8 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
+	qm->algs = "cipher\ndigest\naead\n";
+	qm->mode = uacce_mode;
 	qm->sqe_size = SEC_SQE_SIZE;
 	qm->dev_name = sec_name;
 
@@ -889,6 +915,14 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_qm_stop;
 	}
 
+	if (qm->uacce) {
+		ret = uacce_register(qm->uacce);
+		if (ret) {
+			pci_err(pdev, "failed to register uacce (%d)!\n", ret);
+			goto err_alg_unregister;
+		}
+	}
+
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
@@ -899,17 +933,13 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_alg_unregister:
 	hisi_qm_alg_unregister(qm, &sec_devices);
-
 err_qm_stop:
 	sec_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
-
 err_probe_uninit:
 	sec_probe_uninit(qm);
-
 err_qm_uninit:
 	sec_qm_uninit(qm);
-
 	return ret;
 }
 
@@ -920,7 +950,7 @@ static void sec_remove(struct pci_dev *pdev)
 	hisi_qm_wait_task_finish(qm, &sec_devices);
 	hisi_qm_alg_unregister(qm, &sec_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		hisi_qm_sriov_disable(pdev, qm->is_frozen);
+		hisi_qm_sriov_disable(pdev, true);
 
 	sec_debugfs_exit(qm);
 
@@ -936,9 +966,9 @@ static void sec_remove(struct pci_dev *pdev)
 
 static const struct pci_error_handlers sec_err_handler = {
 	.error_detected = hisi_qm_dev_err_detected,
-	.slot_reset =  hisi_qm_dev_slot_reset,
-	.reset_prepare		= hisi_qm_reset_prepare,
-	.reset_done		= hisi_qm_reset_done,
+	.slot_reset	= hisi_qm_dev_slot_reset,
+	.reset_prepare	= hisi_qm_reset_prepare,
+	.reset_done	= hisi_qm_reset_done,
 };
 
 static struct pci_driver sec_pci_driver = {

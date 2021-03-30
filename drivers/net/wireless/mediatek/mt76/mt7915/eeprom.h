@@ -15,6 +15,7 @@ enum mt7915_eeprom_field {
 	MT_EE_CHIP_ID =		0x000,
 	MT_EE_VERSION =		0x002,
 	MT_EE_MAC_ADDR =	0x004,
+	MT_EE_MAC_ADDR2 =	0x00a,
 	MT_EE_DDIE_FT_VERSION =	0x050,
 	MT_EE_WIFI_CONF =	0x190,
 	MT_EE_TX0_POWER_2G =	0x2fc,
@@ -24,17 +25,20 @@ enum mt7915_eeprom_field {
 	__MT_EE_MAX =		0xe00
 };
 
-#define MT_EE_WIFI_CONF_TX_MASK			GENMASK(2, 0)
-#define MT_EE_WIFI_CONF_BAND_SEL		GENMASK(7, 6)
-#define MT_EE_WIFI_CONF_TSSI0_2G		BIT(0)
-#define MT_EE_WIFI_CONF_TSSI0_5G		BIT(2)
-#define MT_EE_WIFI_CONF_TSSI1_5G		BIT(4)
+#define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
+#define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
+#define MT_EE_WIFI_CONF1_BAND_SEL		GENMASK(7, 6)
+#define MT_EE_WIFI_CONF3_TX_PATH_B0		GENMASK(1, 0)
+#define MT_EE_WIFI_CONF3_TX_PATH_B1		GENMASK(5, 4)
+#define MT_EE_WIFI_CONF7_TSSI0_2G		BIT(0)
+#define MT_EE_WIFI_CONF7_TSSI0_5G		BIT(2)
+#define MT_EE_WIFI_CONF7_TSSI1_5G		BIT(4)
 
 enum mt7915_eeprom_band {
-	MT_EE_DUAL_BAND,
-	MT_EE_5GHZ,
-	MT_EE_2GHZ,
-	MT_EE_DBDC,
+	MT_EE_BAND_SEL_DEFAULT,
+	MT_EE_BAND_SEL_5GHZ,
+	MT_EE_BAND_SEL_2GHZ,
+	MT_EE_BAND_SEL_DUAL,
 };
 
 #define SKU_DELTA_VAL		GENMASK(5, 0)
@@ -115,9 +119,9 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
 
 	/* TODO: DBDC */
 	if (band == NL80211_BAND_5GHZ)
-		return eep[MT_EE_WIFI_CONF + 7] & MT_EE_WIFI_CONF_TSSI0_5G;
+		return eep[MT_EE_WIFI_CONF + 7] & MT_EE_WIFI_CONF7_TSSI0_5G;
 	else
-		return eep[MT_EE_WIFI_CONF + 7] & MT_EE_WIFI_CONF_TSSI0_2G;
+		return eep[MT_EE_WIFI_CONF + 7] & MT_EE_WIFI_CONF7_TSSI0_2G;
 }
 
 extern const struct sku_group mt7915_sku_groups[];

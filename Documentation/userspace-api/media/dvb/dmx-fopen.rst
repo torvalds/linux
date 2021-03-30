@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _dmx_fopen:
 
@@ -11,12 +12,10 @@ Name
 
 Digital TV demux open()
 
-
 Synopsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
-    :name: dvb-dmx-open
 
 Arguments
 ---------
@@ -47,7 +46,6 @@ Arguments
        - open in non-blocking mode
          (blocking mode is the default)
 
-
 Description
 -----------
 
@@ -67,7 +65,6 @@ documentation for functions where there is a difference. It does not
 affect the semantics of the ``open()`` call itself. A device opened
 in blocking mode can later be put into non-blocking mode (and vice versa)
 using the ``F_SETFL`` command of the fcntl system call.
-
 
 Return Value
 ------------

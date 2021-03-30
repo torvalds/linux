@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/dsa/brcm.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -20,6 +21,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <net/dsa.h>
+#include <linux/clk.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 
@@ -186,6 +188,11 @@ static int bcm_sysport_set_features(struct net_device *dev,
 				    netdev_features_t features)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
 
 	/* Read CRC forward */
 	if (!priv->is_lite)
@@ -196,6 +203,8 @@ static int bcm_sysport_set_features(struct net_device *dev,
 
 	bcm_sysport_set_rx_csum(dev, features);
 	bcm_sysport_set_tx_csum(dev, features);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -1940,6 +1949,8 @@ static int bcm_sysport_open(struct net_device *dev)
 	unsigned int i;
 	int ret;
 
+	clk_prepare_enable(priv->clk);
+
 	/* Reset UniMAC */
 	umac_reset(priv);
 
@@ -1970,7 +1981,8 @@ static int bcm_sysport_open(struct net_device *dev)
 				0, priv->phy_interface);
 	if (!phydev) {
 		netdev_err(dev, "could not attach to PHY\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_clk_disable;
 	}
 
 	/* Reset house keeping link status */
@@ -2048,6 +2060,8 @@ out_free_irq0:
 	free_irq(priv->irq0, dev);
 out_phy_disconnect:
 	phy_disconnect(phydev);
+out_clk_disable:
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -2105,6 +2119,8 @@ static int bcm_sysport_stop(struct net_device *dev)
 
 	/* Disconnect from PHY */
 	phy_disconnect(dev->phydev);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -2295,33 +2311,22 @@ static const struct net_device_ops bcm_sysport_netdev_ops = {
 	.ndo_select_queue	= bcm_sysport_select_queue,
 };
 
-static int bcm_sysport_map_queues(struct notifier_block *nb,
-				  struct dsa_notifier_register_info *info)
+static int bcm_sysport_map_queues(struct net_device *dev,
+				  struct net_device *slave_dev)
 {
+	struct dsa_port *dp = dsa_port_from_netdev(slave_dev);
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	struct bcm_sysport_tx_ring *ring;
-	struct bcm_sysport_priv *priv;
-	struct net_device *slave_dev;
 	unsigned int num_tx_queues;
 	unsigned int q, qp, port;
-	struct net_device *dev;
-
-	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
-	if (priv->netdev != info->master)
-		return 0;
-
-	dev = info->master;
 
 	/* We can't be setting up queue inspection for non directly attached
 	 * switches
 	 */
-	if (info->switch_number)
+	if (dp->ds->index)
 		return 0;
 
-	if (dev->netdev_ops != &bcm_sysport_netdev_ops)
-		return 0;
-
-	port = info->port_number;
-	slave_dev = info->info.dev;
+	port = dp->index;
 
 	/* On SYSTEMPORT Lite we have twice as less queues, so we cannot do a
 	 * 1:1 mapping, we can only do a 2:1 mapping. By reducing the number of
@@ -2361,27 +2366,16 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 	return 0;
 }
 
-static int bcm_sysport_unmap_queues(struct notifier_block *nb,
-				    struct dsa_notifier_register_info *info)
+static int bcm_sysport_unmap_queues(struct net_device *dev,
+				    struct net_device *slave_dev)
 {
+	struct dsa_port *dp = dsa_port_from_netdev(slave_dev);
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	struct bcm_sysport_tx_ring *ring;
-	struct bcm_sysport_priv *priv;
-	struct net_device *slave_dev;
 	unsigned int num_tx_queues;
-	struct net_device *dev;
 	unsigned int q, qp, port;
 
-	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
-	if (priv->netdev != info->master)
-		return 0;
-
-	dev = info->master;
-
-	if (dev->netdev_ops != &bcm_sysport_netdev_ops)
-		return 0;
-
-	port = info->port_number;
-	slave_dev = info->info.dev;
+	port = dp->index;
 
 	num_tx_queues = slave_dev->real_num_tx_queues;
 
@@ -2402,17 +2396,30 @@ static int bcm_sysport_unmap_queues(struct notifier_block *nb,
 	return 0;
 }
 
-static int bcm_sysport_dsa_notifier(struct notifier_block *nb,
-				    unsigned long event, void *ptr)
+static int bcm_sysport_netdevice_event(struct notifier_block *nb,
+				       unsigned long event, void *ptr)
 {
-	int ret = NOTIFY_DONE;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct bcm_sysport_priv *priv;
+	int ret = 0;
+
+	priv = container_of(nb, struct bcm_sysport_priv, netdev_notifier);
+	if (priv->netdev != dev)
+		return NOTIFY_DONE;
 
 	switch (event) {
-	case DSA_PORT_REGISTER:
-		ret = bcm_sysport_map_queues(nb, ptr);
-		break;
-	case DSA_PORT_UNREGISTER:
-		ret = bcm_sysport_unmap_queues(nb, ptr);
+	case NETDEV_CHANGEUPPER:
+		if (dev->netdev_ops != &bcm_sysport_netdev_ops)
+			return NOTIFY_DONE;
+
+		if (!dsa_slave_dev_check(info->upper_dev))
+			return NOTIFY_DONE;
+
+		if (info->linking)
+			ret = bcm_sysport_map_queues(dev, info->upper_dev);
+		else
+			ret = bcm_sysport_unmap_queues(dev, info->upper_dev);
 		break;
 	}
 
@@ -2487,6 +2494,12 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	/* Initialize private members */
 	priv = netdev_priv(dev);
 
+	priv->clk = devm_clk_get_optional(&pdev->dev, "sw_sysport");
+	if (IS_ERR(priv->clk)) {
+		ret = PTR_ERR(priv->clk);
+		goto err_free_netdev;
+	}
+
 	/* Allocate number of TX rings */
 	priv->tx_rings = devm_kcalloc(&pdev->dev, txq,
 				      sizeof(struct bcm_sysport_tx_ring),
@@ -2558,6 +2571,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 			 NETIF_F_HW_VLAN_CTAG_TX;
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
+	dev->max_mtu = UMAC_MAX_MTU_SIZE;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = 1;
@@ -2565,6 +2579,10 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 			       bcm_sysport_wol_isr, 0, dev->name, priv);
 	if (!ret)
 		device_set_wakeup_capable(&pdev->dev, 1);
+
+	priv->wol_clk = devm_clk_get_optional(&pdev->dev, "sw_sysportwol");
+	if (IS_ERR(priv->wol_clk))
+		return PTR_ERR(priv->wol_clk);
 
 	/* Set the needed headroom once and for all */
 	BUILD_BUG_ON(sizeof(struct bcm_tsb) != 8);
@@ -2576,9 +2594,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	priv->rx_max_coalesced_frames = 1;
 	u64_stats_init(&priv->syncp);
 
-	priv->dsa_notifier.notifier_call = bcm_sysport_dsa_notifier;
+	priv->netdev_notifier.notifier_call = bcm_sysport_netdevice_event;
 
-	ret = register_dsa_notifier(&priv->dsa_notifier);
+	ret = register_netdevice_notifier(&priv->netdev_notifier);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DSA notifier\n");
 		goto err_deregister_fixed_link;
@@ -2590,6 +2608,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		goto err_deregister_notifier;
 	}
 
+	clk_prepare_enable(priv->clk);
+
 	priv->rev = topctrl_readl(priv, REV_CNTL) & REV_MASK;
 	dev_info(&pdev->dev,
 		 "Broadcom SYSTEMPORT%s " REV_FMT
@@ -2598,10 +2618,12 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		 (priv->rev >> 8) & 0xff, priv->rev & 0xff,
 		 priv->irq0, priv->irq1, txq, rxq);
 
+	clk_disable_unprepare(priv->clk);
+
 	return 0;
 
 err_deregister_notifier:
-	unregister_dsa_notifier(&priv->dsa_notifier);
+	unregister_netdevice_notifier(&priv->netdev_notifier);
 err_deregister_fixed_link:
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
@@ -2619,7 +2641,7 @@ static int bcm_sysport_remove(struct platform_device *pdev)
 	/* Not much to do, ndo_close has been called
 	 * and we use managed allocations
 	 */
-	unregister_dsa_notifier(&priv->dsa_notifier);
+	unregister_netdevice_notifier(&priv->netdev_notifier);
 	unregister_netdev(dev);
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
@@ -2751,8 +2773,12 @@ static int __maybe_unused bcm_sysport_suspend(struct device *d)
 	bcm_sysport_fini_rx_ring(priv);
 
 	/* Get prepared for Wake-on-LAN */
-	if (device_may_wakeup(d) && priv->wolopts)
+	if (device_may_wakeup(d) && priv->wolopts) {
+		clk_prepare_enable(priv->wol_clk);
 		ret = bcm_sysport_suspend_to_wol(priv);
+	}
+
+	clk_disable_unprepare(priv->clk);
 
 	return ret;
 }
@@ -2766,6 +2792,10 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 
 	if (!netif_running(dev))
 		return 0;
+
+	clk_prepare_enable(priv->clk);
+	if (priv->wolopts)
+		clk_disable_unprepare(priv->wol_clk);
 
 	umac_reset(priv);
 
@@ -2846,6 +2876,7 @@ out_free_rx_ring:
 out_free_tx_rings:
 	for (i = 0; i < dev->num_tx_queues; i++)
 		bcm_sysport_fini_tx_ring(priv, i);
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 

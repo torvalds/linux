@@ -15,6 +15,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/phy/phy.h>
 
 / {
 	model = "ZynqMP ZCU100 RevC";
@@ -56,27 +57,27 @@
 
 	leds {
 		compatible = "gpio-leds";
-		ds2 {
+		led-ds2 {
 			label = "ds2";
 			gpios = <&gpio 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		ds3 {
+		led-ds3 {
 			label = "ds3";
 			gpios = <&gpio 19 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0tx"; /* WLAN tx */
 			default-state = "off";
 		};
 
-		ds4 {
+		led-ds4 {
 			label = "ds4";
 			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0rx"; /* WLAN rx */
 			default-state = "off";
 		};
 
-		ds5 {
+		led-ds5 {
 			label = "ds5";
 			gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "bluetooth-power";
@@ -107,6 +108,18 @@
 	ina226 {
 		compatible = "iio-hwmon";
 		io-channels = <&u35 0>, <&u35 1>, <&u35 2>, <&u35 3>;
+	};
+
+	si5335a_0: clk26 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	si5335a_1: clk27 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
 	};
 };
 
@@ -186,7 +199,7 @@
 				compatible = "ti,tps65086";
 				reg = <0x5e>;
 				interrupt-parent = <&gpio>;
-				interrupts = <77 GPIO_ACTIVE_LOW>;
+				interrupts = <77 IRQ_TYPE_LEVEL_LOW>;
 				#gpio-cells = <2>;
 				gpio-controller;
 			};
@@ -224,6 +237,13 @@
 	};
 };
 
+&psgtr {
+	status = "okay";
+	/* usb3, dps */
+	clocks = <&si5335a_0>, <&si5335a_1>;
+	clock-names = "ref0", "ref1";
+};
+
 &rtc {
 	status = "okay";
 };
@@ -233,11 +253,13 @@
 	status = "okay";
 	no-1-8-v;
 	disable-wp;
+	xlnx,mio-bank = <0>;
 };
 
 &sdhci1 {
 	status = "okay";
 	bus-width = <0x4>;
+	xlnx,mio-bank = <0>;
 	non-removable;
 	disable-wp;
 	cap-power-off-card;
@@ -292,4 +314,15 @@
 
 &watchdog0 {
 	status = "okay";
+};
+
+&zynqmp_dpdma {
+	status = "okay";
+};
+
+&zynqmp_dpsub {
+	status = "okay";
+	phy-names = "dp-phy0", "dp-phy1";
+	phys = <&psgtr 1 PHY_TYPE_DP 0 1>,
+	       <&psgtr 0 PHY_TYPE_DP 1 1>;
 };

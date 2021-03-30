@@ -125,7 +125,6 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_Y, crtc->y);
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_WIDTH, crtc->mode.hdisplay);
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_HEIGHT, crtc->mode.vdisplay);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
 
 		i++;
 	}
@@ -214,7 +213,7 @@ static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
  * CRTC, it makes more sense to do those at plane update time.
  */
 static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 }
 
@@ -224,7 +223,7 @@ static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
  * @crtc: CRTC to be turned off
  */
 static void vmw_ldu_crtc_atomic_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 }
 
@@ -355,7 +354,7 @@ static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
 static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 {
 	struct vmw_legacy_display_unit *ldu;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_plane *primary, *cursor;
@@ -479,7 +478,7 @@ err_free:
 
 int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int i, ret;
 
 	if (dev_priv->ldu_priv) {
@@ -554,7 +553,7 @@ int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
 	} *cmd;
 
 	fifo_size = sizeof(*cmd) * num_clips;
-	cmd = VMW_FIFO_RESERVE(dev_priv, fifo_size);
+	cmd = VMW_CMD_RESERVE(dev_priv, fifo_size);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -567,6 +566,6 @@ int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
 		cmd[i].body.height = clips->y2 - clips->y1;
 	}
 
-	vmw_fifo_commit(dev_priv, fifo_size);
+	vmw_cmd_commit(dev_priv, fifo_size);
 	return 0;
 }

@@ -29,19 +29,20 @@
  * the overhead of waking that client is much preferred.
  */
 struct intel_breadcrumbs {
-	spinlock_t irq_lock; /* protects the lists used in hardirq context */
+	atomic_t active;
+
+	spinlock_t signalers_lock; /* protects the list of signalers */
+	struct list_head signalers;
+	struct llist_head signaled_requests;
+	atomic_t signaler_active;
+
+	spinlock_t irq_lock; /* protects the interrupt from hardirq context */
+	struct irq_work irq_work; /* for use from inside irq_lock */
+	unsigned int irq_enabled;
+	bool irq_armed;
 
 	/* Not all breadcrumbs are attached to physical HW */
 	struct intel_engine_cs *irq_engine;
-
-	struct list_head signalers;
-	struct list_head signaled_requests;
-
-	struct irq_work irq_work; /* for use from inside irq_lock */
-
-	unsigned int irq_enabled;
-
-	bool irq_armed;
 };
 
 #endif /* __INTEL_BREADCRUMBS_TYPES__ */

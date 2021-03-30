@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_PAUSE:
 
@@ -16,8 +17,9 @@ AUDIO_PAUSE
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, AUDIO_PAUSE)
-    :name: AUDIO_PAUSE
+.. c:macro:: AUDIO_PAUSE
+
+``int ioctl(int fd, AUDIO_PAUSE)``
 
 Arguments
 ---------
@@ -26,13 +28,11 @@ Arguments
     :header-rows:  0
     :stub-columns: 0
 
-
     -  .. row 1
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
-
 
 Description
 -----------
@@ -40,7 +40,6 @@ Description
 This ioctl call suspends the audio stream being played. Decoding and
 playing are paused. It is then possible to restart again decoding and
 playing process of the audio stream using AUDIO_CONTINUE command.
-
 
 Return Value
 ------------

@@ -553,6 +553,7 @@ static int dummy_enable(struct usb_ep *_ep,
 				/* we'll fake any legal size */
 				break;
 			/* save a return statement */
+			fallthrough;
 		default:
 			goto done;
 		}
@@ -595,6 +596,7 @@ static int dummy_enable(struct usb_ep *_ep,
 			if (max <= 1023)
 				break;
 			/* save a return statement */
+			fallthrough;
 		default:
 			goto done;
 		}
@@ -1754,8 +1756,10 @@ static int handle_control_request(struct dummy_hcd *dum_hcd, struct urb *urb,
 	return ret_val;
 }
 
-/* drive both sides of the transfers; looks like irq handlers to
- * both drivers except the callbacks aren't in_irq().
+/*
+ * Drive both sides of the transfers; looks like irq handlers to both
+ * drivers except that the callbacks are invoked from soft interrupt
+ * context.
  */
 static void dummy_timer(struct timer_list *t)
 {
@@ -2114,9 +2118,21 @@ static int dummy_hub_control(
 				dum_hcd->port_status &= ~USB_PORT_STAT_POWER;
 			set_link_state(dum_hcd);
 			break;
-		default:
+		case USB_PORT_FEAT_ENABLE:
+		case USB_PORT_FEAT_C_ENABLE:
+		case USB_PORT_FEAT_C_SUSPEND:
+			/* Not allowed for USB-3 */
+			if (hcd->speed == HCD_USB3)
+				goto error;
+			fallthrough;
+		case USB_PORT_FEAT_C_CONNECTION:
+		case USB_PORT_FEAT_C_RESET:
 			dum_hcd->port_status &= ~(1 << wValue);
 			set_link_state(dum_hcd);
+			break;
+		default:
+		/* Disallow INDICATOR and C_OVER_CURRENT */
+			goto error;
 		}
 		break;
 	case GetHubDescriptor:
@@ -2254,17 +2270,20 @@ static int dummy_hub_control(
 			}
 			fallthrough;
 		case USB_PORT_FEAT_RESET:
+			if (!(dum_hcd->port_status & USB_PORT_STAT_CONNECTION))
+				break;
 			/* if it's already enabled, disable */
 			if (hcd->speed == HCD_USB3) {
-				dum_hcd->port_status = 0;
 				dum_hcd->port_status =
 					(USB_SS_PORT_STAT_POWER |
 					 USB_PORT_STAT_CONNECTION |
 					 USB_PORT_STAT_RESET);
-			} else
+			} else {
 				dum_hcd->port_status &= ~(USB_PORT_STAT_ENABLE
 					| USB_PORT_STAT_LOW_SPEED
 					| USB_PORT_STAT_HIGH_SPEED);
+				dum_hcd->port_status |= USB_PORT_STAT_RESET;
+			}
 			/*
 			 * We want to reset device status. All but the
 			 * Self powered feature
@@ -2276,19 +2295,19 @@ static int dummy_hub_control(
 			 * interval? Is it still 50msec as for HS?
 			 */
 			dum_hcd->re_timeout = jiffies + msecs_to_jiffies(50);
-			fallthrough;
-		default:
-			if (hcd->speed == HCD_USB3) {
-				if ((dum_hcd->port_status &
-				     USB_SS_PORT_STAT_POWER) != 0) {
-					dum_hcd->port_status |= (1 << wValue);
-				}
-			} else
-				if ((dum_hcd->port_status &
-				     USB_PORT_STAT_POWER) != 0) {
-					dum_hcd->port_status |= (1 << wValue);
-				}
 			set_link_state(dum_hcd);
+			break;
+		case USB_PORT_FEAT_C_CONNECTION:
+		case USB_PORT_FEAT_C_RESET:
+		case USB_PORT_FEAT_C_ENABLE:
+		case USB_PORT_FEAT_C_SUSPEND:
+			/* Not allowed for USB-3, and ignored for USB-2 */
+			if (hcd->speed == HCD_USB3)
+				goto error;
+			break;
+		default:
+		/* Disallow TEST, INDICATOR, and C_OVER_CURRENT */
+			goto error;
 		}
 		break;
 	case GetPortErrorCount:
@@ -2734,7 +2753,7 @@ static int __init init(void)
 {
 	int	retval = -ENOMEM;
 	int	i;
-	struct	dummy *dum[MAX_NUM_UDC];
+	struct	dummy *dum[MAX_NUM_UDC] = {};
 
 	if (usb_disabled())
 		return -ENODEV;

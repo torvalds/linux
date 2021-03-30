@@ -33,6 +33,7 @@
 #include "ppsmc.h"
 #include "amd_acpi.h"
 #include "pp_psm.h"
+#include "vega10_hwmgr.h"
 
 extern const struct pp_smumgr_func ci_smu_funcs;
 extern const struct pp_smumgr_func smu8_smu_funcs;
@@ -46,11 +47,6 @@ extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
 extern const struct pp_smumgr_func vega20_smu_funcs;
 
-extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
-extern int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
-extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
@@ -479,11 +475,17 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 						PHM_PlatformCaps_RegulatorHot);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MemorySpreadSpectrumSupport);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_EngineSpreadSpectrumSupport);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_AutomaticDCTransition);
 
-	if (hwmgr->chip_id != CHIP_POLARIS10)
+	if (((hwmgr->chip_id == CHIP_POLARIS11) && !hwmgr->is_kicker) ||
+	    (hwmgr->chip_id == CHIP_POLARIS12))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_SPLLShutdownSupport);
+				PHM_PlatformCaps_SPLLShutdownSupport);
 
 	if (hwmgr->chip_id != CHIP_POLARIS11) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,

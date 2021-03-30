@@ -394,7 +394,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (IS_ERR(opaquedir))
 		goto out_unlock;
 
-	err = ovl_copy_xattr(upper, opaquedir);
+	err = ovl_copy_xattr(dentry->d_sb, upper, opaquedir);
 	if (err)
 		goto out_cleanup;
 
@@ -992,8 +992,8 @@ static char *ovl_get_redirect(struct dentry *dentry, bool abs_redirect)
 
 		buflen -= thislen;
 		memcpy(&buf[buflen], name, thislen);
-		tmp = dget_dlock(d->d_parent);
 		spin_unlock(&d->d_lock);
+		tmp = dget_parent(d);
 
 		dput(d);
 		d = tmp;

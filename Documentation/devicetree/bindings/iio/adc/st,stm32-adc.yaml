@@ -41,6 +41,8 @@ properties:
     maxItems: 2
 
   clocks:
+    minItems: 1
+    maxItems: 2
     description: |
       Core can use up to two clocks, depending on part used:
         - "adc" clock: for the analog circuitry, common to all ADCs.
@@ -246,7 +248,6 @@ patternProperties:
           Resolution (bits) to use for conversions:
             - can be 6, 8, 10 or 12 on stm32f4
             - can be 8, 10, 12, 14 or 16 on stm32h7 and stm32mp1
-        $ref: /schemas/types.yaml#/definitions/uint32
 
       st,adc-channels:
         description: |

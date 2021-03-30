@@ -29,13 +29,9 @@
 #include "netns.h"
 #include "filecache.h"
 
-#define NFSDDBG_FACILITY	NFSDDBG_SVC
+#include "trace.h"
 
-bool inter_copy_offload_enable;
-EXPORT_SYMBOL_GPL(inter_copy_offload_enable);
-module_param(inter_copy_offload_enable, bool, 0644);
-MODULE_PARM_DESC(inter_copy_offload_enable,
-		 "Enable inter server to server copy offload. Default: false");
+#define NFSDDBG_FACILITY	NFSDDBG_SVC
 
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
@@ -527,8 +523,7 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 		return;
 
 	nfsd_shutdown_net(net);
-	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
-			    "cache\n");
+	pr_info("nfsd: last server has exited, flushing export cache\n");
 	nfsd_export_flush(net);
 }
 
@@ -960,121 +955,104 @@ out:
 	return 0;
 }
 
-static __be32 map_new_errors(u32 vers, __be32 nfserr)
-{
-	if (nfserr == nfserr_jukebox && vers == 2)
-		return nfserr_dropit;
-	if (nfserr == nfserr_wrongsec && vers < 4)
-		return nfserr_acces;
-	return nfserr;
-}
-
-/*
- * A write procedure can have a large argument, and a read procedure can
- * have a large reply, but no NFSv2 or NFSv3 procedure has argument and
- * reply that can both be larger than a page.  The xdr code has taken
- * advantage of this assumption to be a sloppy about bounds checking in
- * some cases.  Pending a rewrite of the NFSv2/v3 xdr code to fix that
- * problem, we enforce these assumptions here:
+/**
+ * nfsd_dispatch - Process an NFS or NFSACL Request
+ * @rqstp: incoming request
+ * @statp: pointer to location of accept_stat field in RPC Reply buffer
+ *
+ * This RPC dispatcher integrates the NFS server's duplicate reply cache.
+ *
+ * Return values:
+ *  %0: Processing complete; do not send a Reply
+ *  %1: Processing complete; send Reply in rqstp->rq_res
  */
-static bool nfs_request_too_big(struct svc_rqst *rqstp,
-				const struct svc_procedure *proc)
+int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
-	/*
-	 * The ACL code has more careful bounds-checking and is not
-	 * susceptible to this problem:
-	 */
-	if (rqstp->rq_prog != NFS_PROGRAM)
-		return false;
-	/*
-	 * Ditto NFSv4 (which can in theory have argument and reply both
-	 * more than a page):
-	 */
-	if (rqstp->rq_vers >= 4)
-		return false;
-	/* The reply will be small, we're OK: */
-	if (proc->pc_xdrressize > 0 &&
-	    proc->pc_xdrressize < XDR_QUADLEN(PAGE_SIZE))
-		return false;
+	const struct svc_procedure *proc = rqstp->rq_procinfo;
+	struct kvec *argv = &rqstp->rq_arg.head[0];
+	struct kvec *resv = &rqstp->rq_res.head[0];
+	__be32 *p;
 
-	return rqstp->rq_arg.len > PAGE_SIZE;
-}
-
-int
-nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
-{
-	const struct svc_procedure *proc;
-	__be32			nfserr;
-	__be32			*nfserrp;
-
-	dprintk("nfsd_dispatch: vers %d proc %d\n",
-				rqstp->rq_vers, rqstp->rq_proc);
-	proc = rqstp->rq_procinfo;
-
-	if (nfs_request_too_big(rqstp, proc)) {
-		dprintk("nfsd: NFSv%d argument too large\n", rqstp->rq_vers);
-		*statp = rpc_garbage_args;
-		return 1;
-	}
-	rqstp->rq_lease_breaker = NULL;
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
 	 * (necessary in the NFSv4.0 compound case)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
-	/* Decode arguments */
-	if (proc->pc_decode &&
-	    !proc->pc_decode(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base)) {
-		dprintk("nfsd: failed to decode arguments!\n");
-		*statp = rpc_garbage_args;
-		return 1;
-	}
 
-	/* Check whether we have this call in the cache. */
+	svcxdr_init_decode(rqstp);
+	if (!proc->pc_decode(rqstp, argv->iov_base))
+		goto out_decode_err;
+
 	switch (nfsd_cache_lookup(rqstp)) {
-	case RC_DROPIT:
-		return 0;
+	case RC_DOIT:
+		break;
 	case RC_REPLY:
-		return 1;
-	case RC_DOIT:;
-		/* do it */
+		goto out_cached_reply;
+	case RC_DROPIT:
+		goto out_dropit;
 	}
 
-	/* need to grab the location to store the status, as
-	 * nfsv4 does some encoding while processing 
+	/*
+	 * Need to grab the location to store the status, as
+	 * NFSv4 does some encoding while processing
 	 */
-	nfserrp = rqstp->rq_res.head[0].iov_base
-		+ rqstp->rq_res.head[0].iov_len;
-	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
+	p = resv->iov_base + resv->iov_len;
+	resv->iov_len += sizeof(__be32);
 
-	/* Now call the procedure handler, and encode NFS status. */
-	nfserr = proc->pc_func(rqstp);
-	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
-	if (nfserr == nfserr_dropit || test_bit(RQ_DROPME, &rqstp->rq_flags)) {
-		dprintk("nfsd: Dropping request; may be revisited later\n");
-		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
-		return 0;
-	}
+	*statp = proc->pc_func(rqstp);
+	if (*statp == rpc_drop_reply || test_bit(RQ_DROPME, &rqstp->rq_flags))
+		goto out_update_drop;
 
-	if (rqstp->rq_proc != 0)
-		*nfserrp++ = nfserr;
+	if (!proc->pc_encode(rqstp, p))
+		goto out_encode_err;
 
-	/* Encode result.
-	 * For NFSv2, additional info is never returned in case of an error.
-	 */
-	if (!(nfserr && rqstp->rq_vers == 2)) {
-		if (proc->pc_encode && !proc->pc_encode(rqstp, nfserrp)) {
-			/* Failed to encode result. Release cache entry */
-			dprintk("nfsd: failed to encode result!\n");
-			nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
-			*statp = rpc_system_err;
-			return 1;
-		}
-	}
-
-	/* Store reply in cache. */
 	nfsd_cache_update(rqstp, rqstp->rq_cachetype, statp + 1);
+out_cached_reply:
 	return 1;
+
+out_decode_err:
+	trace_nfsd_garbage_args_err(rqstp);
+	*statp = rpc_garbage_args;
+	return 1;
+
+out_update_drop:
+	nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
+out_dropit:
+	return 0;
+
+out_encode_err:
+	trace_nfsd_cant_encode_err(rqstp);
+	nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
+	*statp = rpc_system_err;
+	return 1;
+}
+
+/**
+ * nfssvc_decode_voidarg - Decode void arguments
+ * @rqstp: Server RPC transaction context
+ * @p: buffer containing arguments to decode
+ *
+ * Return values:
+ *   %0: Arguments were not valid
+ *   %1: Decoding was successful
+ */
+int nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
+/**
+ * nfssvc_encode_voidres - Encode void results
+ * @rqstp: Server RPC transaction context
+ * @p: buffer in which to encode results
+ *
+ * Return values:
+ *   %0: Local error while encoding
+ *   %1: Encoding was successful
+ */
+int nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
+{
+        return xdr_ressize_check(rqstp, p);
 }
 
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)

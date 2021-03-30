@@ -1,7 +1,7 @@
 /*
  * AM33XX CM functions
  *
- * Copyright (C) 2011-2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2012 Texas Instruments Incorporated - https://www.ti.com/
  * Vaibhav Hiremath <hvaibhav@ti.com>
  *
  * Reference taken from from OMAP4 cminst44xx.c

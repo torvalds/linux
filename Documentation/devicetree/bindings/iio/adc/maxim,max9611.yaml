@@ -23,7 +23,6 @@ properties:
     maxItems: 1
 
   shunt-resistor-micro-ohms:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Value in micro Ohms of the shunt resistor connected between the RS+ and
       RS- inputs, across which the current is measured.  Value needed to compute

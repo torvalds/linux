@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_ioc_g_topology:
 
@@ -11,23 +12,21 @@ Name
 
 MEDIA_IOC_G_TOPOLOGY - Enumerate the graph topology and graph element properties
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, MEDIA_IOC_G_TOPOLOGY, struct media_v2_topology *argp )
-    :name: MEDIA_IOC_G_TOPOLOGY
+.. c:macro:: MEDIA_IOC_G_TOPOLOGY
 
+``int ioctl(int fd, MEDIA_IOC_G_TOPOLOGY, struct media_v2_topology *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <media-func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`media_v2_topology`.
-
 
 Description
 ===========
@@ -120,7 +119,6 @@ desired arrays with the media graph elements.
 	  converted to a 64-bits integer. It can be zero. if zero, the ioctl
 	  won't store the links. It will just update ``num_links``
 
-
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
 .. c:type:: media_v2_entity
@@ -158,7 +156,6 @@ desired arrays with the media graph elements.
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
-
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
 .. c:type:: media_v2_interface
@@ -191,7 +188,6 @@ desired arrays with the media graph elements.
        -  ``devnode``
        -  Used only for device node interfaces. See
 	  :c:type:`media_v2_intf_devnode` for details.
-
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
@@ -245,7 +241,6 @@ desired arrays with the media graph elements.
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
-
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
 .. c:type:: media_v2_link
@@ -281,7 +276,6 @@ desired arrays with the media graph elements.
        -  ``reserved``\ [6]
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
-
 
 Return Value
 ============

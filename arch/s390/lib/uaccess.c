@@ -16,6 +16,24 @@
 #include <asm/mmu_context.h>
 #include <asm/facility.h>
 
+#ifdef CONFIG_DEBUG_ENTRY
+void debug_user_asce(int exit)
+{
+	unsigned long cr1, cr7;
+
+	__ctl_store(cr1, 1, 1);
+	__ctl_store(cr7, 7, 7);
+	if (cr1 == S390_lowcore.kernel_asce && cr7 == S390_lowcore.user_asce)
+		return;
+	panic("incorrect ASCE on kernel %s\n"
+	      "cr1:    %016lx cr7:  %016lx\n"
+	      "kernel: %016llx user: %016llx\n",
+	      exit ? "exit" : "entry", cr1, cr7,
+	      S390_lowcore.kernel_asce, S390_lowcore.user_asce);
+
+}
+#endif /*CONFIG_DEBUG_ENTRY */
+
 #ifndef CONFIG_HAVE_MARCH_Z10_FEATURES
 static DEFINE_STATIC_KEY_FALSE(have_mvcos);
 
@@ -40,71 +58,10 @@ static inline int copy_with_mvcos(void)
 }
 #endif
 
-void set_fs(mm_segment_t fs)
-{
-	current->thread.mm_segment = fs;
-	if (fs == USER_DS) {
-		__ctl_load(S390_lowcore.user_asce, 1, 1);
-		clear_cpu_flag(CIF_ASCE_PRIMARY);
-	} else {
-		__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-		set_cpu_flag(CIF_ASCE_PRIMARY);
-	}
-	if (fs & 1) {
-		if (fs == USER_DS_SACF)
-			__ctl_load(S390_lowcore.user_asce, 7, 7);
-		else
-			__ctl_load(S390_lowcore.kernel_asce, 7, 7);
-		set_cpu_flag(CIF_ASCE_SECONDARY);
-	}
-}
-EXPORT_SYMBOL(set_fs);
-
-mm_segment_t enable_sacf_uaccess(void)
-{
-	mm_segment_t old_fs;
-	unsigned long asce, cr;
-	unsigned long flags;
-
-	old_fs = current->thread.mm_segment;
-	if (old_fs & 1)
-		return old_fs;
-	/* protect against a concurrent page table upgrade */
-	local_irq_save(flags);
-	current->thread.mm_segment |= 1;
-	asce = S390_lowcore.kernel_asce;
-	if (likely(old_fs == USER_DS)) {
-		__ctl_store(cr, 1, 1);
-		if (cr != S390_lowcore.kernel_asce) {
-			__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-			set_cpu_flag(CIF_ASCE_PRIMARY);
-		}
-		asce = S390_lowcore.user_asce;
-	}
-	__ctl_store(cr, 7, 7);
-	if (cr != asce) {
-		__ctl_load(asce, 7, 7);
-		set_cpu_flag(CIF_ASCE_SECONDARY);
-	}
-	local_irq_restore(flags);
-	return old_fs;
-}
-EXPORT_SYMBOL(enable_sacf_uaccess);
-
-void disable_sacf_uaccess(mm_segment_t old_fs)
-{
-	current->thread.mm_segment = old_fs;
-	if (old_fs == USER_DS && test_facility(27)) {
-		__ctl_load(S390_lowcore.user_asce, 1, 1);
-		clear_cpu_flag(CIF_ASCE_PRIMARY);
-	}
-}
-EXPORT_SYMBOL(disable_sacf_uaccess);
-
 static inline unsigned long copy_from_user_mvcos(void *x, const void __user *ptr,
 						 unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x01UL;
+	register unsigned long reg0 asm("0") = 0x81UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
@@ -135,9 +92,7 @@ static inline unsigned long copy_from_user_mvcp(void *x, const void __user *ptr,
 						unsigned long size)
 {
 	unsigned long tmp1, tmp2;
-	mm_segment_t old_fs;
 
-	old_fs = enable_sacf_uaccess();
 	tmp1 = -256UL;
 	asm volatile(
 		"   sacf  0\n"
@@ -164,7 +119,6 @@ static inline unsigned long copy_from_user_mvcp(void *x, const void __user *ptr,
 		EX_TABLE(7b,3b) EX_TABLE(8b,3b) EX_TABLE(9b,6b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
-	disable_sacf_uaccess(old_fs);
 	return size;
 }
 
@@ -179,7 +133,7 @@ EXPORT_SYMBOL(raw_copy_from_user);
 static inline unsigned long copy_to_user_mvcos(void __user *ptr, const void *x,
 					       unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x010000UL;
+	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
@@ -210,9 +164,7 @@ static inline unsigned long copy_to_user_mvcs(void __user *ptr, const void *x,
 					      unsigned long size)
 {
 	unsigned long tmp1, tmp2;
-	mm_segment_t old_fs;
 
-	old_fs = enable_sacf_uaccess();
 	tmp1 = -256UL;
 	asm volatile(
 		"   sacf  0\n"
@@ -239,7 +191,6 @@ static inline unsigned long copy_to_user_mvcs(void __user *ptr, const void *x,
 		EX_TABLE(7b,3b) EX_TABLE(8b,3b) EX_TABLE(9b,6b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
-	disable_sacf_uaccess(old_fs);
 	return size;
 }
 
@@ -254,7 +205,7 @@ EXPORT_SYMBOL(raw_copy_to_user);
 static inline unsigned long copy_in_user_mvcos(void __user *to, const void __user *from,
 					       unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x010001UL;
+	register unsigned long reg0 asm("0") = 0x810081UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
@@ -277,10 +228,8 @@ static inline unsigned long copy_in_user_mvcos(void __user *to, const void __use
 static inline unsigned long copy_in_user_mvc(void __user *to, const void __user *from,
 					     unsigned long size)
 {
-	mm_segment_t old_fs;
 	unsigned long tmp1;
 
-	old_fs = enable_sacf_uaccess();
 	asm volatile(
 		"   sacf  256\n"
 		"   aghi  %0,-1\n"
@@ -304,7 +253,6 @@ static inline unsigned long copy_in_user_mvc(void __user *to, const void __user 
 		EX_TABLE(1b,6b) EX_TABLE(2b,0b) EX_TABLE(4b,0b)
 		: "+a" (size), "+a" (to), "+a" (from), "=a" (tmp1)
 		: : "cc", "memory");
-	disable_sacf_uaccess(old_fs);
 	return size;
 }
 
@@ -318,7 +266,7 @@ EXPORT_SYMBOL(raw_copy_in_user);
 
 static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size)
 {
-	register unsigned long reg0 asm("0") = 0x010000UL;
+	register unsigned long reg0 asm("0") = 0x810000UL;
 	unsigned long tmp1, tmp2;
 
 	tmp1 = -4096UL;
@@ -346,10 +294,8 @@ static inline unsigned long clear_user_mvcos(void __user *to, unsigned long size
 
 static inline unsigned long clear_user_xc(void __user *to, unsigned long size)
 {
-	mm_segment_t old_fs;
 	unsigned long tmp1, tmp2;
 
-	old_fs = enable_sacf_uaccess();
 	asm volatile(
 		"   sacf  256\n"
 		"   aghi  %0,-1\n"
@@ -378,7 +324,6 @@ static inline unsigned long clear_user_xc(void __user *to, unsigned long size)
 		EX_TABLE(1b,6b) EX_TABLE(2b,0b) EX_TABLE(4b,0b)
 		: "+a" (size), "+a" (to), "=a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
-	disable_sacf_uaccess(old_fs);
 	return size;
 }
 
@@ -414,15 +359,9 @@ static inline unsigned long strnlen_user_srst(const char __user *src,
 
 unsigned long __strnlen_user(const char __user *src, unsigned long size)
 {
-	mm_segment_t old_fs;
-	unsigned long len;
-
 	if (unlikely(!size))
 		return 0;
-	old_fs = enable_sacf_uaccess();
-	len = strnlen_user_srst(src, size);
-	disable_sacf_uaccess(old_fs);
-	return len;
+	return strnlen_user_srst(src, size);
 }
 EXPORT_SYMBOL(__strnlen_user);
 

@@ -67,6 +67,15 @@ static void bpf_iter_done_stop(struct seq_file *seq)
 	iter_priv->done_stop = true;
 }
 
+static bool bpf_iter_support_resched(struct seq_file *seq)
+{
+	struct bpf_iter_priv_data *iter_priv;
+
+	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
+				 target_private);
+	return iter_priv->tinfo->reg_info->feature & BPF_ITER_RESCHED;
+}
+
 /* maximum visited objects before bailing out */
 #define MAX_ITER_OBJECTS	1000000
 
@@ -83,13 +92,14 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 	struct seq_file *seq = file->private_data;
 	size_t n, offs, copied = 0;
 	int err = 0, num_objs = 0;
+	bool can_resched;
 	void *p;
 
 	mutex_lock(&seq->lock);
 
 	if (!seq->buf) {
-		seq->size = PAGE_SIZE;
-		seq->buf = kmalloc(seq->size, GFP_KERNEL);
+		seq->size = PAGE_SIZE << 3;
+		seq->buf = kvmalloc(seq->size, GFP_KERNEL);
 		if (!seq->buf) {
 			err = -ENOMEM;
 			goto done;
@@ -135,6 +145,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 		goto done;
 	}
 
+	can_resched = bpf_iter_support_resched(seq);
 	while (1) {
 		loff_t pos = seq->index;
 
@@ -180,6 +191,9 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 			}
 			break;
 		}
+
+		if (can_resched)
+			cond_resched();
 	}
 stop:
 	offs = seq->count;
@@ -273,7 +287,7 @@ int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;
 
-	tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
+	tinfo = kzalloc(sizeof(*tinfo), GFP_KERNEL);
 	if (!tinfo)
 		return -ENOMEM;
 
@@ -390,10 +404,68 @@ out_unlock:
 	return ret;
 }
 
+static void bpf_iter_link_show_fdinfo(const struct bpf_link *link,
+				      struct seq_file *seq)
+{
+	struct bpf_iter_link *iter_link =
+		container_of(link, struct bpf_iter_link, link);
+	bpf_iter_show_fdinfo_t show_fdinfo;
+
+	seq_printf(seq,
+		   "target_name:\t%s\n",
+		   iter_link->tinfo->reg_info->target);
+
+	show_fdinfo = iter_link->tinfo->reg_info->show_fdinfo;
+	if (show_fdinfo)
+		show_fdinfo(&iter_link->aux, seq);
+}
+
+static int bpf_iter_link_fill_link_info(const struct bpf_link *link,
+					struct bpf_link_info *info)
+{
+	struct bpf_iter_link *iter_link =
+		container_of(link, struct bpf_iter_link, link);
+	char __user *ubuf = u64_to_user_ptr(info->iter.target_name);
+	bpf_iter_fill_link_info_t fill_link_info;
+	u32 ulen = info->iter.target_name_len;
+	const char *target_name;
+	u32 target_len;
+
+	if (!ulen ^ !ubuf)
+		return -EINVAL;
+
+	target_name = iter_link->tinfo->reg_info->target;
+	target_len =  strlen(target_name);
+	info->iter.target_name_len = target_len + 1;
+
+	if (ubuf) {
+		if (ulen >= target_len + 1) {
+			if (copy_to_user(ubuf, target_name, target_len + 1))
+				return -EFAULT;
+		} else {
+			char zero = '\0';
+
+			if (copy_to_user(ubuf, target_name, ulen - 1))
+				return -EFAULT;
+			if (put_user(zero, ubuf + ulen - 1))
+				return -EFAULT;
+			return -ENOSPC;
+		}
+	}
+
+	fill_link_info = iter_link->tinfo->reg_info->fill_link_info;
+	if (fill_link_info)
+		return fill_link_info(&iter_link->aux, info);
+
+	return 0;
+}
+
 static const struct bpf_link_ops bpf_iter_link_lops = {
 	.release = bpf_iter_link_release,
 	.dealloc = bpf_iter_link_dealloc,
 	.update_prog = bpf_iter_link_replace,
+	.show_fdinfo = bpf_iter_link_show_fdinfo,
+	.fill_link_info = bpf_iter_link_fill_link_info,
 };
 
 bool bpf_link_is_iter(struct bpf_link *link)

@@ -425,11 +425,6 @@ static inline void debug_hrtimer_deactivate(struct hrtimer *timer)
 	debug_object_deactivate(timer, &hrtimer_debug_descr);
 }
 
-static inline void debug_hrtimer_free(struct hrtimer *timer)
-{
-	debug_object_free(timer, &hrtimer_debug_descr);
-}
-
 static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 			   enum hrtimer_mode mode);
 
@@ -1289,7 +1284,7 @@ int hrtimer_cancel(struct hrtimer *timer)
 EXPORT_SYMBOL_GPL(hrtimer_cancel);
 
 /**
- * hrtimer_get_remaining - get remaining time for the timer
+ * __hrtimer_get_remaining - get remaining time for the timer
  * @timer:	the timer to read
  * @adjust:	adjust relative timers when CONFIG_TIME_LOW_RES=y
  */

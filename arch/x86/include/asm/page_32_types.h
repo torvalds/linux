@@ -42,7 +42,24 @@
 #endif	/* CONFIG_X86_PAE */
 
 /*
- * Kernel image size is limited to 512 MB (see in arch/x86/kernel/head_32.S)
+ * User space process size: 3GB (default).
+ */
+#define IA32_PAGE_OFFSET	__PAGE_OFFSET
+#define TASK_SIZE		__PAGE_OFFSET
+#define TASK_SIZE_LOW		TASK_SIZE
+#define TASK_SIZE_MAX		TASK_SIZE
+#define DEFAULT_MAP_WINDOW	TASK_SIZE
+#define STACK_TOP		TASK_SIZE
+#define STACK_TOP_MAX		STACK_TOP
+
+/*
+ * In spite of the name, KERNEL_IMAGE_SIZE is a limit on the maximum virtual
+ * address for the kernel image, rather than the limit on the size itself. On
+ * 32-bit, this is not a strict limit, but this value is used to limit the
+ * link-time virtual address range of the kernel, and by KASLR to limit the
+ * randomized address from which the kernel is executed. A relocatable kernel
+ * can be loaded somewhat higher than KERNEL_IMAGE_SIZE as long as enough space
+ * remains for the vmalloc area.
  */
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
 

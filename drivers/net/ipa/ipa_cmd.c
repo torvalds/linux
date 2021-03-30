@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2021 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -38,9 +38,9 @@
 
 /* Some commands can wait until indicated pipeline stages are clear */
 enum pipeline_clear_options {
-	pipeline_clear_hps	= 0,
-	pipeline_clear_src_grp	= 1,
-	pipeline_clear_full	= 2,
+	pipeline_clear_hps		= 0x0,
+	pipeline_clear_src_grp		= 0x1,
+	pipeline_clear_full		= 0x2,
 };
 
 /* IPA_CMD_IP_V{4,6}_{FILTER,ROUTING}_INIT */
@@ -244,11 +244,15 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 	if (ipa->version != IPA_VERSION_3_5_1)
 		bit_count += hweight32(REGISTER_WRITE_FLAGS_OFFSET_HIGH_FMASK);
 	BUILD_BUG_ON(bit_count > 32);
-	offset_max = ~0 >> (32 - bit_count);
+	offset_max = ~0U >> (32 - bit_count);
 
+	/* Make sure the offset can be represented by the field(s)
+	 * that holds it.  Also make sure the offset is not outside
+	 * the overall IPA memory range.
+	 */
 	if (offset > offset_max || ipa->mem_offset > offset_max - offset) {
 		dev_err(dev, "%s offset too large 0x%04x + 0x%04x > 0x%04x)\n",
-				ipa->mem_offset + offset, offset_max);
+			name, ipa->mem_offset, offset, offset_max);
 		return false;
 	}
 
@@ -261,12 +265,24 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	const char *name;
 	u32 offset;
 
-	offset = ipa_reg_filt_rout_hash_flush_offset(ipa->version);
-	name = "filter/route hash flush";
-	if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
-		return false;
+	/* If hashed tables are supported, ensure the hash flush register
+	 * offset will fit in a register write IPA immediate command.
+	 */
+	if (ipa_table_hash_support(ipa)) {
+		offset = ipa_reg_filt_rout_hash_flush_offset(ipa->version);
+		name = "filter/route hash flush";
+		if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
+			return false;
+	}
 
-	offset = IPA_REG_ENDP_STATUS_N_OFFSET(IPA_ENDPOINT_COUNT);
+	/* Each endpoint can have a status endpoint associated with it,
+	 * and this is recorded in an endpoint register.  If the modem
+	 * crashes, we reset the status endpoint for all modem endpoints
+	 * using a register write IPA immediate command.  Make sure the
+	 * worst case (highest endpoint number) offset of that endpoint
+	 * fits in the register write command field(s) that must hold it.
+	 */
+	offset = IPA_REG_ENDP_STATUS_N_OFFSET(IPA_ENDPOINT_COUNT - 1);
 	name = "maximal endpoint status";
 	if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 		return false;
@@ -529,7 +545,7 @@ void ipa_cmd_dma_shared_mem_add(struct gsi_trans *trans, u32 offset, u16 size,
 			  direction, opcode);
 }
 
-static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans, u64 tag)
+static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
 	enum ipa_cmd_opcode opcode = IPA_CMD_IP_PACKET_TAG_STATUS;
@@ -543,22 +559,20 @@ static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans, u64 tag)
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->ip_packet_tag_status;
 
-	payload->tag = u64_encode_bits(tag, IP_PACKET_TAG_STATUS_TAG_FMASK);
+	payload->tag = le64_encode_bits(0, IP_PACKET_TAG_STATUS_TAG_FMASK);
 
 	gsi_trans_cmd_add(trans, payload, sizeof(*payload), payload_addr,
 			  direction, opcode);
 }
 
 /* Issue a small command TX data transfer */
-static void ipa_cmd_transfer_add(struct gsi_trans *trans, u16 size)
+static void ipa_cmd_transfer_add(struct gsi_trans *trans)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
 	enum dma_data_direction direction = DMA_TO_DEVICE;
 	enum ipa_cmd_opcode opcode = IPA_CMD_NONE;
 	union ipa_cmd_payload *payload;
 	dma_addr_t payload_addr;
-
-	/* assert(size <= sizeof(*payload)); */
 
 	/* Just transfer a zero-filled payload structure */
 	payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
@@ -567,34 +581,53 @@ static void ipa_cmd_transfer_add(struct gsi_trans *trans, u16 size)
 			  direction, opcode);
 }
 
-void ipa_cmd_tag_process_add(struct gsi_trans *trans)
+/* Add immediate commands to a transaction to clear the hardware pipeline */
+void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
 	struct ipa_endpoint *endpoint;
 
-	endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
+	/* This will complete when the transfer is received */
+	reinit_completion(&ipa->completion);
 
+	/* Issue a no-op register write command (mask 0 means no write) */
 	ipa_cmd_register_write_add(trans, 0, 0, 0, true);
+
+	/* Send a data packet through the IPA pipeline.  The packet_init
+	 * command says to send the next packet directly to the exception
+	 * endpoint without any other IPA processing.  The tag_status
+	 * command requests that status be generated on completion of
+	 * that transfer, and that it will be tagged with a value.
+	 * Finally, the transfer command sends a small packet of data
+	 * (instead of a command) using the command endpoint.
+	 */
+	endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ipa_cmd_ip_packet_init_add(trans, endpoint->endpoint_id);
-	ipa_cmd_ip_tag_status_add(trans, 0xcba987654321);
-	ipa_cmd_transfer_add(trans, 4);
+	ipa_cmd_ip_tag_status_add(trans);
+	ipa_cmd_transfer_add(trans);
 }
 
-/* Returns the number of commands required for the tag process */
-u32 ipa_cmd_tag_process_count(void)
+/* Returns the number of commands required to clear the pipeline */
+u32 ipa_cmd_pipeline_clear_count(void)
 {
 	return 4;
 }
 
-void ipa_cmd_tag_process(struct ipa *ipa)
+void ipa_cmd_pipeline_clear_wait(struct ipa *ipa)
 {
-	u32 count = ipa_cmd_tag_process_count();
+	wait_for_completion(&ipa->completion);
+}
+
+void ipa_cmd_pipeline_clear(struct ipa *ipa)
+{
+	u32 count = ipa_cmd_pipeline_clear_count();
 	struct gsi_trans *trans;
 
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (trans) {
-		ipa_cmd_tag_process_add(trans);
+		ipa_cmd_pipeline_clear_add(trans);
 		gsi_trans_commit_wait(trans);
+		ipa_cmd_pipeline_clear_wait(ipa);
 	} else {
 		dev_err(&ipa->pdev->dev,
 			"error allocating %u entry tag transaction\n", count);

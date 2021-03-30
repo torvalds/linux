@@ -10,6 +10,7 @@
 #include "eeprom.h"
 #include "mcu.h"
 #include "initvals.h"
+#include "initvals_init.h"
 #include "../mt76x02_phy.h"
 
 static void
@@ -244,7 +245,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	if (dev->mt76.cap.has_5ghz) {
+	if (dev->mphy.cap.has_5ghz) {
 		struct ieee80211_supported_band *sband;
 
 		sband = &dev->mphy.sband_5g.sband;
@@ -252,7 +253,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 		mt76x0_init_txpower(dev, sband);
 	}
 
-	if (dev->mt76.cap.has_2ghz)
+	if (dev->mphy.cap.has_2ghz)
 		mt76x0_init_txpower(dev, &dev->mphy.sband_2g.sband);
 
 	mt76x02_init_debugfs(dev);

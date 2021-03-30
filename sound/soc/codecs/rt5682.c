@@ -43,6 +43,7 @@ static const struct reg_sequence patch_list[] = {
 	{RT5682_DAC_ADC_DIG_VOL1, 0xa020},
 	{RT5682_I2C_CTRL, 0x000f},
 	{RT5682_PLL2_INTERNAL, 0x8266},
+	{RT5682_SAR_IL_CMD_3, 0x8365},
 };
 
 void rt5682_apply_patch_list(struct rt5682_priv *rt5682, struct device *dev)
@@ -952,6 +953,8 @@ int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 		case 0x1:
 		case 0x2:
 			rt5682->jack_type = SND_JACK_HEADSET;
+			snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
+				RT5682_FAST_OFF_MASK, RT5682_FAST_OFF_EN);
 			rt5682_enable_push_button_irq(component, true);
 			break;
 		default:
@@ -981,6 +984,8 @@ int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 		snd_soc_component_update_bits(component, RT5682_MICBIAS_2,
 			RT5682_PWR_CLK25M_MASK | RT5682_PWR_CLK1M_MASK,
 			RT5682_PWR_CLK25M_PD | RT5682_PWR_CLK1M_PD);
+		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
+			RT5682_FAST_OFF_MASK, RT5682_FAST_OFF_DIS);
 
 		rt5682->jack_type = 0;
 	}
@@ -1011,10 +1016,12 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 		switch (rt5682->pdata.jd_src) {
 		case RT5682_JD1:
 			snd_soc_component_update_bits(component,
+				RT5682_CBJ_CTRL_5, 0x0700, 0x0600);
+			snd_soc_component_update_bits(component,
 				RT5682_CBJ_CTRL_2, RT5682_EXT_JD_SRC,
 				RT5682_EXT_JD_SRC_MANUAL);
 			snd_soc_component_write(component, RT5682_CBJ_CTRL_1,
-				0xd042);
+				0xd142);
 			snd_soc_component_update_bits(component,
 				RT5682_CBJ_CTRL_3, RT5682_CBJ_IN_BUF_EN,
 				RT5682_CBJ_IN_BUF_EN);
@@ -1846,8 +1853,6 @@ static const struct snd_soc_dapm_route rt5682_dapm_routes[] = {
 	{"MICBIAS2", NULL, "Vref1"},
 
 	{"CLKDET SYS", NULL, "CLKDET"},
-
-	{"IN1P", NULL, "LDO2"},
 
 	{"BST1 CBJ", NULL, "IN1P"},
 
@@ -2905,6 +2910,9 @@ static int rt5682_suspend(struct snd_soc_component *component)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 
+	if (rt5682->is_sdw)
+		return 0;
+
 	regcache_cache_only(rt5682->regmap, true);
 	regcache_mark_dirty(rt5682->regmap);
 	return 0;
@@ -2913,6 +2921,9 @@ static int rt5682_suspend(struct snd_soc_component *component)
 static int rt5682_resume(struct snd_soc_component *component)
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
+
+	if (rt5682->is_sdw)
+		return 0;
 
 	regcache_cache_only(rt5682->regmap, false);
 	regcache_sync(rt5682->regmap);
@@ -2988,6 +2999,9 @@ int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev)
 		dev_warn(dev, "Using default DAI clk names: %s, %s\n",
 			 rt5682->pdata.dai_clk_names[RT5682_DAI_WCLK_IDX],
 			 rt5682->pdata.dai_clk_names[RT5682_DAI_BCLK_IDX]);
+
+	rt5682->pdata.dmic_clk_driving_high = device_property_read_bool(dev,
+		"realtek,dmic-clk-driving-high");
 
 	return 0;
 }

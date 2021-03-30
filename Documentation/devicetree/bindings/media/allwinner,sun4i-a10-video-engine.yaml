@@ -18,6 +18,8 @@ properties:
       - allwinner,sun7i-a20-video-engine
       - allwinner,sun8i-a33-video-engine
       - allwinner,sun8i-h3-video-engine
+      - allwinner,sun8i-v3s-video-engine
+      - allwinner,sun8i-r40-video-engine
       - allwinner,sun50i-a64-video-engine
       - allwinner,sun50i-h5-video-engine
       - allwinner,sun50i-h6-video-engine
@@ -51,6 +53,7 @@ properties:
     maxItems: 1
 
   memory-region:
+    maxItems: 1
     description:
       CMA pool to use for buffers allocation instead of the default
       CMA pool.

@@ -36,6 +36,7 @@ enum {
 /* netlink interface */
 #define MPTCP_PM_NAME		"mptcp_pm"
 #define MPTCP_PM_CMD_GRP_NAME	"mptcp_pm_cmds"
+#define MPTCP_PM_EV_GRP_NAME	"mptcp_pm_events"
 #define MPTCP_PM_VER		0x1
 
 /*
@@ -82,6 +83,7 @@ enum {
 	MPTCP_PM_CMD_FLUSH_ADDRS,
 	MPTCP_PM_CMD_SET_LIMITS,
 	MPTCP_PM_CMD_GET_LIMITS,
+	MPTCP_PM_CMD_SET_FLAGS,
 
 	__MPTCP_PM_CMD_AFTER_LAST
 };
@@ -101,6 +103,81 @@ struct mptcp_info {
 	__u64	mptcpi_write_seq;
 	__u64	mptcpi_snd_una;
 	__u64	mptcpi_rcv_nxt;
+	__u8	mptcpi_local_addr_used;
+	__u8	mptcpi_local_addr_max;
 };
+
+/*
+ * MPTCP_EVENT_CREATED: token, family, saddr4 | saddr6, daddr4 | daddr6,
+ *                      sport, dport
+ * A new MPTCP connection has been created. It is the good time to allocate
+ * memory and send ADD_ADDR if needed. Depending on the traffic-patterns
+ * it can take a long time until the MPTCP_EVENT_ESTABLISHED is sent.
+ *
+ * MPTCP_EVENT_ESTABLISHED: token, family, saddr4 | saddr6, daddr4 | daddr6,
+ *			    sport, dport
+ * A MPTCP connection is established (can start new subflows).
+ *
+ * MPTCP_EVENT_CLOSED: token
+ * A MPTCP connection has stopped.
+ *
+ * MPTCP_EVENT_ANNOUNCED: token, rem_id, family, daddr4 | daddr6 [, dport]
+ * A new address has been announced by the peer.
+ *
+ * MPTCP_EVENT_REMOVED: token, rem_id
+ * An address has been lost by the peer.
+ *
+ * MPTCP_EVENT_SUB_ESTABLISHED: token, family, saddr4 | saddr6,
+ *                              daddr4 | daddr6, sport, dport, backup,
+ *                              if_idx [, error]
+ * A new subflow has been established. 'error' should not be set.
+ *
+ * MPTCP_EVENT_SUB_CLOSED: token, family, saddr4 | saddr6, daddr4 | daddr6,
+ *                         sport, dport, backup, if_idx [, error]
+ * A subflow has been closed. An error (copy of sk_err) could be set if an
+ * error has been detected for this subflow.
+ *
+ * MPTCP_EVENT_SUB_PRIORITY: token, family, saddr4 | saddr6, daddr4 | daddr6,
+ *                           sport, dport, backup, if_idx [, error]
+ *       The priority of a subflow has changed. 'error' should not be set.
+ */
+enum mptcp_event_type {
+	MPTCP_EVENT_UNSPEC = 0,
+	MPTCP_EVENT_CREATED = 1,
+	MPTCP_EVENT_ESTABLISHED = 2,
+	MPTCP_EVENT_CLOSED = 3,
+
+	MPTCP_EVENT_ANNOUNCED = 6,
+	MPTCP_EVENT_REMOVED = 7,
+
+	MPTCP_EVENT_SUB_ESTABLISHED = 10,
+	MPTCP_EVENT_SUB_CLOSED = 11,
+
+	MPTCP_EVENT_SUB_PRIORITY = 13,
+};
+
+enum mptcp_event_attr {
+	MPTCP_ATTR_UNSPEC = 0,
+
+	MPTCP_ATTR_TOKEN,	/* u32 */
+	MPTCP_ATTR_FAMILY,	/* u16 */
+	MPTCP_ATTR_LOC_ID,	/* u8 */
+	MPTCP_ATTR_REM_ID,	/* u8 */
+	MPTCP_ATTR_SADDR4,	/* be32 */
+	MPTCP_ATTR_SADDR6,	/* struct in6_addr */
+	MPTCP_ATTR_DADDR4,	/* be32 */
+	MPTCP_ATTR_DADDR6,	/* struct in6_addr */
+	MPTCP_ATTR_SPORT,	/* be16 */
+	MPTCP_ATTR_DPORT,	/* be16 */
+	MPTCP_ATTR_BACKUP,	/* u8 */
+	MPTCP_ATTR_ERROR,	/* u8 */
+	MPTCP_ATTR_FLAGS,	/* u16 */
+	MPTCP_ATTR_TIMEOUT,	/* u32 */
+	MPTCP_ATTR_IF_IDX,	/* s32 */
+
+	__MPTCP_ATTR_AFTER_LAST
+};
+
+#define MPTCP_ATTR_MAX (__MPTCP_ATTR_AFTER_LAST - 1)
 
 #endif /* _UAPI_MPTCP_H */

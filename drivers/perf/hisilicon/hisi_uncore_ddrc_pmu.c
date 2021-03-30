@@ -33,6 +33,7 @@
 #define DDRC_INT_MASK		0x6c8
 #define DDRC_INT_STATUS		0x6cc
 #define DDRC_INT_CLEAR		0x6d0
+#define DDRC_VERSION		0x710
 
 /* DDRC has 8-counters */
 #define DDRC_NR_COUNTERS	0x8
@@ -267,6 +268,8 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 		return PTR_ERR(ddrc_pmu->base);
 	}
 
+	ddrc_pmu->identifier = readl(ddrc_pmu->base + DDRC_VERSION);
+
 	return 0;
 }
 
@@ -308,10 +311,23 @@ static const struct attribute_group hisi_ddrc_pmu_cpumask_attr_group = {
 	.attrs = hisi_ddrc_pmu_cpumask_attrs,
 };
 
+static struct device_attribute hisi_ddrc_pmu_identifier_attr =
+	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
+
+static struct attribute *hisi_ddrc_pmu_identifier_attrs[] = {
+	&hisi_ddrc_pmu_identifier_attr.attr,
+	NULL
+};
+
+static const struct attribute_group hisi_ddrc_pmu_identifier_group = {
+	.attrs = hisi_ddrc_pmu_identifier_attrs,
+};
+
 static const struct attribute_group *hisi_ddrc_pmu_attr_groups[] = {
 	&hisi_ddrc_pmu_format_group,
 	&hisi_ddrc_pmu_events_group,
 	&hisi_ddrc_pmu_cpumask_attr_group,
+	&hisi_ddrc_pmu_identifier_group,
 	NULL,
 };
 

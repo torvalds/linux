@@ -393,10 +393,8 @@
 
 &pfc {
 	avb0_pins: avb {
-		mux {
-			groups = "avb0_link", "avb0_mdio", "avb0_mii";
-			function = "avb0";
-		};
+		groups = "avb0_link", "avb0_mdio", "avb0_mii";
+		function = "avb0";
 	};
 
 	can0_pins: can0 {
@@ -498,6 +496,8 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
+	no-sd;
+	no-sdio;
 	non-removable;
 	status = "okay";
 };

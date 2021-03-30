@@ -141,9 +141,10 @@ config AD5696_I2C
 	depends on I2C
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5671R, AD5675R,
-	  AD5694, AD5694R, AD5695R, AD5696, AD5696R Voltage Output Digital to
-	  Analog Converter.
+	  Say yes here to build support for Analog Devices AD5311R, AD5338R,
+	  AD5671R, AD5675R, AD5691R, AD5692R, AD5693, AD5693R, AD5694, AD5694R,
+	  AD5695R, AD5696, and AD5696R Digital to Analog converters.
+
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad5696.
 
@@ -187,6 +188,16 @@ config AD5764
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5764.
+
+config AD5766
+	tristate "Analog Devices AD5766/AD5767 DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5766, AD5767
+	  Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5766.
 
 config AD5770R
 	tristate "Analog Devices AD5770R IDAC driver"

@@ -139,12 +139,12 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 	u32 val;
 
 	/* assert(mask & ipa->available); */
-	val = ioread32(ipa->reg_virt + IPA_REG_SUSPEND_IRQ_EN_OFFSET);
+	val = ioread32(ipa->reg_virt + IPA_REG_IRQ_SUSPEND_EN_OFFSET);
 	if (enable)
 		val |= mask;
 	else
 		val &= ~mask;
-	iowrite32(val, ipa->reg_virt + IPA_REG_SUSPEND_IRQ_EN_OFFSET);
+	iowrite32(val, ipa->reg_virt + IPA_REG_IRQ_SUSPEND_EN_OFFSET);
 }
 
 /* Enable TX_SUSPEND for an endpoint */
@@ -168,7 +168,7 @@ void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
 	u32 val;
 
 	val = ioread32(ipa->reg_virt + IPA_REG_IRQ_SUSPEND_INFO_OFFSET);
-	iowrite32(val, ipa->reg_virt + IPA_REG_SUSPEND_IRQ_CLR_OFFSET);
+	iowrite32(val, ipa->reg_virt + IPA_REG_IRQ_SUSPEND_CLR_OFFSET);
 }
 
 /* Simulate arrival of an IPA TX_SUSPEND interrupt */
@@ -237,8 +237,16 @@ struct ipa_interrupt *ipa_interrupt_setup(struct ipa *ipa)
 		goto err_kfree;
 	}
 
+	ret = enable_irq_wake(irq);
+	if (ret) {
+		dev_err(dev, "error %d enabling wakeup for \"ipa\" IRQ\n", ret);
+		goto err_free_irq;
+	}
+
 	return interrupt;
 
+err_free_irq:
+	free_irq(interrupt->irq, interrupt);
 err_kfree:
 	kfree(interrupt);
 
@@ -248,6 +256,12 @@ err_kfree:
 /* Tear down the IPA interrupt framework */
 void ipa_interrupt_teardown(struct ipa_interrupt *interrupt)
 {
+	struct device *dev = &interrupt->ipa->pdev->dev;
+	int ret;
+
+	ret = disable_irq_wake(interrupt->irq);
+	if (ret)
+		dev_err(dev, "error %d disabling \"ipa\" IRQ wakeup\n", ret);
 	free_irq(interrupt->irq, interrupt);
 	kfree(interrupt);
 }

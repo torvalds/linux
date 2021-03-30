@@ -4,7 +4,8 @@
  */
 
 #include <linux/of.h>
-#include <linux/mm.h>
+#include <linux/of_device.h>
+#include <linux/slab.h>
 
 #include <dt-bindings/memory/tegra124-mc.h>
 
@@ -15,6 +16,12 @@ static const struct tegra_mc_client tegra124_mc_clients[] = {
 		.id = 0x00,
 		.name = "ptcr",
 		.swgroup = TEGRA_SWGROUP_PTC,
+		.la = {
+			.reg = 0x34c,
+			.shift = 0,
+			.mask = 0xff,
+			.def = 0x0,
+		},
 	}, {
 		.id = 0x01,
 		.name = "display0a",
@@ -957,7 +964,6 @@ static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
 static const unsigned int tegra124_group_drm[] = {
 	TEGRA_SWGROUP_DC,
 	TEGRA_SWGROUP_DCB,
-	TEGRA_SWGROUP_GPU,
 	TEGRA_SWGROUP_VIC,
 };
 
@@ -1003,6 +1009,83 @@ static const struct tegra_mc_reset tegra124_mc_resets[] = {
 	TEGRA124_MC_RESET(SDMMC4,    0x970, 0x974,  0),
 	TEGRA124_MC_RESET(ISP2B,     0x970, 0x974,  1),
 	TEGRA124_MC_RESET(GPU,       0x970, 0x974,  2),
+};
+
+static int tegra124_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+{
+	/* TODO: program PTSA */
+	return 0;
+}
+
+static int tegra124_mc_icc_aggreate(struct icc_node *node, u32 tag, u32 avg_bw,
+				    u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
+{
+	/*
+	 * ISO clients need to reserve extra bandwidth up-front because
+	 * there could be high bandwidth pressure during initial filling
+	 * of the client's FIFO buffers.  Secondly, we need to take into
+	 * account impurities of the memory subsystem.
+	 */
+	if (tag & TEGRA_MC_ICC_TAG_ISO)
+		peak_bw = tegra_mc_scale_percents(peak_bw, 400);
+
+	*agg_avg += avg_bw;
+	*agg_peak = max(*agg_peak, peak_bw);
+
+	return 0;
+}
+
+static struct icc_node_data *
+tegra124_mc_of_icc_xlate_extended(struct of_phandle_args *spec, void *data)
+{
+	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
+	const struct tegra_mc_client *client;
+	unsigned int i, idx = spec->args[0];
+	struct icc_node_data *ndata;
+	struct icc_node *node;
+
+	list_for_each_entry(node, &mc->provider.nodes, node_list) {
+		if (node->id != idx)
+			continue;
+
+		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
+		if (!ndata)
+			return ERR_PTR(-ENOMEM);
+
+		client = &mc->soc->clients[idx];
+		ndata->node = node;
+
+		switch (client->swgroup) {
+		case TEGRA_SWGROUP_DC:
+		case TEGRA_SWGROUP_DCB:
+		case TEGRA_SWGROUP_PTC:
+		case TEGRA_SWGROUP_VI:
+			/* these clients are isochronous by default */
+			ndata->tag = TEGRA_MC_ICC_TAG_ISO;
+			break;
+
+		default:
+			ndata->tag = TEGRA_MC_ICC_TAG_DEFAULT;
+			break;
+		}
+
+		return ndata;
+	}
+
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		if (mc->soc->clients[i].id == idx)
+			return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	dev_err(mc->dev, "invalid ICC client ID %u\n", idx);
+
+	return ERR_PTR(-EINVAL);
+}
+
+static const struct tegra_mc_icc_ops tegra124_mc_icc_ops = {
+	.xlate_extended = tegra124_mc_of_icc_xlate_extended,
+	.aggregate = tegra124_mc_icc_aggreate,
+	.set = tegra124_mc_icc_set,
 };
 
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
@@ -1056,6 +1139,7 @@ const struct tegra_mc_soc tegra124_mc_soc = {
 	.reset_ops = &tegra_mc_reset_ops_common,
 	.resets = tegra124_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra124_mc_resets),
+	.icc_ops = &tegra124_mc_icc_ops,
 };
 #endif /* CONFIG_ARCH_TEGRA_124_SOC */
 
@@ -1086,5 +1170,6 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.reset_ops = &tegra_mc_reset_ops_common,
 	.resets = tegra124_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra124_mc_resets),
+	.icc_ops = &tegra124_mc_icc_ops,
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */

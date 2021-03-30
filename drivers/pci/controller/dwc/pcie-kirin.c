@@ -157,11 +157,6 @@ static long kirin_pcie_get_resource(struct kirin_pcie *kirin_pcie,
 	if (IS_ERR(kirin_pcie->phy_base))
 		return PTR_ERR(kirin_pcie->phy_base);
 
-	kirin_pcie->pci->dbi_base =
-		devm_platform_ioremap_resource_byname(pdev, "dbi");
-	if (IS_ERR(kirin_pcie->pci->dbi_base))
-		return PTR_ERR(kirin_pcie->pci->dbi_base);
-
 	kirin_pcie->crgctrl =
 		syscon_regmap_lookup_by_compatible("hisilicon,hi3660-crgctrl");
 	if (IS_ERR(kirin_pcie->crgctrl))
@@ -330,33 +325,36 @@ static void kirin_pcie_sideband_dbi_r_mode(struct kirin_pcie *kirin_pcie,
 	kirin_apb_ctrl_writel(kirin_pcie, val, SOC_PCIECTRL_CTRL1_ADDR);
 }
 
-static int kirin_pcie_rd_own_conf(struct pcie_port *pp,
+static int kirin_pcie_rd_own_conf(struct pci_bus *bus, unsigned int devfn,
 				  int where, int size, u32 *val)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct kirin_pcie *kirin_pcie = to_kirin_pcie(pci);
-	int ret;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
-	kirin_pcie_sideband_dbi_r_mode(kirin_pcie, true);
-	ret = dw_pcie_read(pci->dbi_base + where, size, val);
-	kirin_pcie_sideband_dbi_r_mode(kirin_pcie, false);
+	if (PCI_SLOT(devfn)) {
+		*val = ~0;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
 
-	return ret;
+	*val = dw_pcie_read_dbi(pci, where, size);
+	return PCIBIOS_SUCCESSFUL;
 }
 
-static int kirin_pcie_wr_own_conf(struct pcie_port *pp,
+static int kirin_pcie_wr_own_conf(struct pci_bus *bus, unsigned int devfn,
 				  int where, int size, u32 val)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct kirin_pcie *kirin_pcie = to_kirin_pcie(pci);
-	int ret;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(bus->sysdata);
 
-	kirin_pcie_sideband_dbi_w_mode(kirin_pcie, true);
-	ret = dw_pcie_write(pci->dbi_base + where, size, val);
-	kirin_pcie_sideband_dbi_w_mode(kirin_pcie, false);
+	if (PCI_SLOT(devfn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	return ret;
+	dw_pcie_write_dbi(pci, where, size, val);
+	return PCIBIOS_SUCCESSFUL;
 }
+
+static struct pci_ops kirin_pci_ops = {
+	.read = kirin_pcie_rd_own_conf,
+	.write = kirin_pcie_wr_own_conf,
+};
 
 static u32 kirin_pcie_read_dbi(struct dw_pcie *pci, void __iomem *base,
 			       u32 reg, size_t size)
@@ -392,41 +390,20 @@ static int kirin_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static int kirin_pcie_establish_link(struct pcie_port *pp)
+static int kirin_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct kirin_pcie *kirin_pcie = to_kirin_pcie(pci);
-	struct device *dev = kirin_pcie->pci->dev;
-	int count = 0;
-
-	if (kirin_pcie_link_up(pci))
-		return 0;
-
-	dw_pcie_setup_rc(pp);
 
 	/* assert LTSSM enable */
 	kirin_apb_ctrl_writel(kirin_pcie, PCIE_LTSSM_ENABLE_BIT,
 			      PCIE_APP_LTSSM_ENABLE);
-
-	/* check if the link is up or not */
-	while (!kirin_pcie_link_up(pci)) {
-		usleep_range(LINK_WAIT_MIN, LINK_WAIT_MAX);
-		count++;
-		if (count == 1000) {
-			dev_err(dev, "Link Fail\n");
-			return -EINVAL;
-		}
-	}
 
 	return 0;
 }
 
 static int kirin_pcie_host_init(struct pcie_port *pp)
 {
-	kirin_pcie_establish_link(pp);
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
+	pp->bridge->ops = &kirin_pci_ops;
 
 	return 0;
 }
@@ -435,43 +412,12 @@ static const struct dw_pcie_ops kirin_dw_pcie_ops = {
 	.read_dbi = kirin_pcie_read_dbi,
 	.write_dbi = kirin_pcie_write_dbi,
 	.link_up = kirin_pcie_link_up,
+	.start_link = kirin_pcie_start_link,
 };
 
 static const struct dw_pcie_host_ops kirin_pcie_host_ops = {
-	.rd_own_conf = kirin_pcie_rd_own_conf,
-	.wr_own_conf = kirin_pcie_wr_own_conf,
 	.host_init = kirin_pcie_host_init,
 };
-
-static int kirin_pcie_add_msi(struct dw_pcie *pci,
-				struct platform_device *pdev)
-{
-	int irq;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		irq = platform_get_irq(pdev, 0);
-		if (irq < 0)
-			return irq;
-
-		pci->pp.msi_irq = irq;
-	}
-
-	return 0;
-}
-
-static int kirin_add_pcie_port(struct dw_pcie *pci,
-			       struct platform_device *pdev)
-{
-	int ret;
-
-	ret = kirin_pcie_add_msi(pci, pdev);
-	if (ret)
-		return ret;
-
-	pci->pp.ops = &kirin_pcie_host_ops;
-
-	return dw_pcie_host_init(&pci->pp);
-}
 
 static int kirin_pcie_probe(struct platform_device *pdev)
 {
@@ -495,6 +441,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 	pci->ops = &kirin_dw_pcie_ops;
+	pci->pp.ops = &kirin_pcie_host_ops;
 	kirin_pcie->pci = pci;
 
 	ret = kirin_pcie_get_clk(kirin_pcie, pdev);
@@ -507,8 +454,12 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 	kirin_pcie->gpio_id_reset = of_get_named_gpio(dev->of_node,
 						      "reset-gpios", 0);
-	if (kirin_pcie->gpio_id_reset < 0)
+	if (kirin_pcie->gpio_id_reset == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (!gpio_is_valid(kirin_pcie->gpio_id_reset)) {
+		dev_err(dev, "unable to get a valid gpio pin\n");
 		return -ENODEV;
+	}
 
 	ret = kirin_pcie_power_on(kirin_pcie);
 	if (ret)
@@ -516,7 +467,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, kirin_pcie);
 
-	return kirin_add_pcie_port(pci, pdev);
+	return dw_pcie_host_init(&pci->pp);
 }
 
 static const struct of_device_id kirin_pcie_match[] = {

@@ -33,6 +33,8 @@
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
 #define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
 #define ulong2long(a)		(*(long *)(&(a)))
+#define USHORT_CMP_GE(a, b)	(USHRT_MAX / 2 >= (unsigned short)((a) - (b)))
+#define USHORT_CMP_LT(a, b)	(USHRT_MAX / 2 < (unsigned short)((a) - (b)))
 
 /* Exported common interfaces */
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
@@ -55,6 +57,12 @@ void __rcu_read_unlock(void);
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
+#ifdef CONFIG_TINY_RCU
+#define rcu_read_unlock_strict() do { } while (0)
+#else
+void rcu_read_unlock_strict(void);
+#endif
+
 static inline void __rcu_read_lock(void)
 {
 	preempt_disable();
@@ -63,6 +71,7 @@ static inline void __rcu_read_lock(void)
 static inline void __rcu_read_unlock(void)
 {
 	preempt_enable();
+	rcu_read_unlock_strict();
 }
 
 static inline int rcu_preempt_depth(void)
@@ -78,6 +87,12 @@ extern int rcu_scheduler_active __read_mostly;
 void rcu_sched_clock_irq(int user);
 void rcu_report_dead(unsigned int cpu);
 void rcutree_migrate_callbacks(int cpu);
+
+#ifdef CONFIG_TASKS_RCU_GENERIC
+void rcu_init_tasks_generic(void);
+#else
+static inline void rcu_init_tasks_generic(void) { }
+#endif
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);
@@ -97,8 +112,14 @@ static inline void rcu_user_exit(void) { }
 
 #ifdef CONFIG_RCU_NOCB_CPU
 void rcu_init_nohz(void);
+int rcu_nocb_cpu_offload(int cpu);
+int rcu_nocb_cpu_deoffload(int cpu);
+void rcu_nocb_flush_deferred_wakeup(void);
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
 static inline void rcu_init_nohz(void) { }
+static inline int rcu_nocb_cpu_offload(int cpu) { return -EINVAL; }
+static inline int rcu_nocb_cpu_deoffload(int cpu) { return 0; }
+static inline void rcu_nocb_flush_deferred_wakeup(void) { }
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
 
 /**
@@ -234,6 +255,11 @@ bool rcu_lockdep_current_cpu_online(void);
 static inline bool rcu_lockdep_current_cpu_online(void) { return true; }
 #endif /* #else #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
 
+extern struct lockdep_map rcu_lock_map;
+extern struct lockdep_map rcu_bh_lock_map;
+extern struct lockdep_map rcu_sched_lock_map;
+extern struct lockdep_map rcu_callback_map;
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
 static inline void rcu_lock_acquire(struct lockdep_map *map)
@@ -246,10 +272,6 @@ static inline void rcu_lock_release(struct lockdep_map *map)
 	lock_release(map, _THIS_IP_);
 }
 
-extern struct lockdep_map rcu_lock_map;
-extern struct lockdep_map rcu_bh_lock_map;
-extern struct lockdep_map rcu_sched_lock_map;
-extern struct lockdep_map rcu_callback_map;
 int debug_lockdep_rcu_enabled(void);
 int rcu_read_lock_held(void);
 int rcu_read_lock_bh_held(void);
@@ -292,7 +314,7 @@ static inline int rcu_read_lock_any_held(void)
  */
 #define RCU_LOCKDEP_WARN(c, s)						\
 	do {								\
-		static bool __section(.data.unlikely) __warned;		\
+		static bool __section(".data.unlikely") __warned;	\
 		if (debug_lockdep_rcu_enabled() && !__warned && (c)) {	\
 			__warned = true;				\
 			lockdep_rcu_suspicious(__FILE__, __LINE__, s);	\
@@ -320,7 +342,7 @@ static inline void rcu_preempt_sleep_check(void) { }
 
 #else /* #ifdef CONFIG_PROVE_RCU */
 
-#define RCU_LOCKDEP_WARN(c, s) do { } while (0)
+#define RCU_LOCKDEP_WARN(c, s) do { } while (0 && (c))
 #define rcu_sleep_check() do { } while (0)
 
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
@@ -709,8 +731,8 @@ static inline void rcu_read_lock_bh(void)
 			 "rcu_read_lock_bh() used illegally while idle");
 }
 
-/*
- * rcu_read_unlock_bh - marks the end of a softirq-only RCU critical section
+/**
+ * rcu_read_unlock_bh() - marks the end of a softirq-only RCU critical section
  *
  * See rcu_read_lock_bh() for more information.
  */
@@ -751,10 +773,10 @@ static inline notrace void rcu_read_lock_sched_notrace(void)
 	__acquire(RCU_SCHED);
 }
 
-/*
- * rcu_read_unlock_sched - marks the end of a RCU-classic critical section
+/**
+ * rcu_read_unlock_sched() - marks the end of a RCU-classic critical section
  *
- * See rcu_read_lock_sched for more information.
+ * See rcu_read_lock_sched() for more information.
  */
 static inline void rcu_read_unlock_sched(void)
 {
@@ -832,19 +854,11 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  */
 #define __is_kvfree_rcu_offset(offset) ((offset) < 4096)
 
-/*
- * Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.
- */
-#define __kvfree_rcu(head, offset) \
-	do { \
-		BUILD_BUG_ON(!__is_kvfree_rcu_offset(offset)); \
-		kvfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
-	} while (0)
-
 /**
  * kfree_rcu() - kfree an object after a grace period.
- * @ptr:	pointer to kfree
- * @rhf:	the name of the struct rcu_head within the type of @ptr.
+ * @ptr: pointer to kfree for both single- and double-argument invocations.
+ * @rhf: the name of the struct rcu_head within the type of @ptr,
+ *       but only for double-argument invocations.
  *
  * Many rcu callbacks functions just call kfree() on the base structure.
  * These functions are trivial, but their size adds up, and furthermore
@@ -857,7 +871,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * Because the functions are not allowed in the low-order 4096 bytes of
  * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
  * If the offset is larger than 4095 bytes, a compile-time error will
- * be generated in __kvfree_rcu(). If this error is triggered, you can
+ * be generated in kvfree_rcu_arg_2(). If this error is triggered, you can
  * either fall back to use of call_rcu() or rearrange the structure to
  * position the rcu_head structure into the first 4096 bytes.
  *
@@ -867,13 +881,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * The BUILD_BUG_ON check must not involve any function calls, hence the
  * checks are done in macros here.
  */
-#define kfree_rcu(ptr, rhf)						\
-do {									\
-	typeof (ptr) ___p = (ptr);					\
-									\
-	if (___p)							\
-		__kvfree_rcu(&((___p)->rhf), offsetof(typeof(*(ptr)), rhf)); \
-} while (0)
+#define kfree_rcu kvfree_rcu
 
 /**
  * kvfree_rcu() - kvfree an object after a grace period.
@@ -905,7 +913,17 @@ do {									\
 	kvfree_rcu_arg_2, kvfree_rcu_arg_1)(__VA_ARGS__)
 
 #define KVFREE_GET_MACRO(_1, _2, NAME, ...) NAME
-#define kvfree_rcu_arg_2(ptr, rhf) kfree_rcu(ptr, rhf)
+#define kvfree_rcu_arg_2(ptr, rhf)					\
+do {									\
+	typeof (ptr) ___p = (ptr);					\
+									\
+	if (___p) {									\
+		BUILD_BUG_ON(!__is_kvfree_rcu_offset(offsetof(typeof(*(ptr)), rhf)));	\
+		kvfree_call_rcu(&((___p)->rhf), (rcu_callback_t)(unsigned long)		\
+			(offsetof(typeof(*(ptr)), rhf)));				\
+	}										\
+} while (0)
+
 #define kvfree_rcu_arg_1(ptr)					\
 do {								\
 	typeof(ptr) ___p = (ptr);				\
@@ -945,7 +963,7 @@ static inline void rcu_head_init(struct rcu_head *rhp)
 }
 
 /**
- * rcu_head_after_call_rcu - Has this rcu_head been passed to call_rcu()?
+ * rcu_head_after_call_rcu() - Has this rcu_head been passed to call_rcu()?
  * @rhp: The rcu_head structure to test.
  * @f: The function passed to call_rcu() along with @rhp.
  *

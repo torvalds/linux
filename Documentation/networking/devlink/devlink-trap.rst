@@ -409,6 +409,82 @@ be added to the following table:
      - ``drop``
      - Traps packets dropped due to the RED (Random Early Detection) algorithm
        (i.e., early drops)
+   * - ``vxlan_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the VXLAN header parsing which
+       might be because of packet truncation or the I flag is not set.
+   * - ``llc_snap_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the LLC+SNAP header parsing
+   * - ``vlan_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the VLAN header parsing. Could
+       include unexpected packet truncation.
+   * - ``pppoe_ppp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the PPPoE+PPP header parsing.
+       This could include finding a session ID of 0xFFFF (which is reserved and
+       not for use), a PPPoE length which is larger than the frame received or
+       any common error on this type of header
+   * - ``mpls_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the MPLS header parsing which
+       could include unexpected header truncation
+   * - ``arp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the ARP header parsing
+   * - ``ip_1_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the first IP header parsing.
+       This packet trap could include packets which do not pass an IP checksum
+       check, a header length check (a minimum of 20 bytes), which might suffer
+       from packet truncation thus the total length field exceeds the received
+       packet length etc
+   * - ``ip_n_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the parsing of the last IP
+       header (the inner one in case of an IP over IP tunnel). The same common
+       error checking is performed here as for the ip_1_parsing trap
+   * - ``gre_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the GRE header parsing
+   * - ``udp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the UDP header parsing.
+       This packet trap could include checksum errorrs, an improper UDP
+       length detected (smaller than 8 bytes) or detection of header
+       truncation.
+   * - ``tcp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the TCP header parsing.
+       This could include TCP checksum errors, improper combination of SYN, FIN
+       and/or RESET etc.
+   * - ``ipsec_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the IPSEC header parsing
+   * - ``sctp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the SCTP header parsing.
+       This would mean that port number 0 was used or that the header is
+       truncated.
+   * - ``dccp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the DCCP header parsing
+   * - ``gtp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the GTP header parsing
+   * - ``esp_parsing``
+     - ``drop``
+     - Traps packets dropped due to an error in the ESP header parsing
+   * - ``blackhole_nexthop``
+     - ``drop``
+     - Traps packets that the device decided to drop in case they hit a
+       blackhole nexthop
+   * - ``dmac_filter``
+     - ``drop``
+     - Traps incoming packets that the device decided to drop because
+       the destination MAC is not configured in the MAC table and
+       the interface is not in promiscuous mode
 
 Driver-specific Packet Traps
 ============================
@@ -509,6 +585,9 @@ narrow. The description of these groups must be added to the following table:
    * - ``acl_trap``
      - Contains packet traps for packets that were trapped (logged) by the
        device during ACL processing
+   * - ``parser_error_drops``
+     - Contains packet traps for packets that were marked by the device during
+       parsing as erroneous
 
 Packet Trap Policers
 ====================

@@ -26,9 +26,9 @@
 
 /**
  * struct qdesfmt0 - queue descriptor, format 0
- * @sliba: storage list information block address
- * @sla: storage list address
- * @slsba: storage list state block address
+ * @sliba: absolute address of storage list information block
+ * @sla: absolute address of storage list
+ * @slsba: absolute address of storage list state block
  * @akey: access key for SLIB
  * @bkey: access key for SL
  * @ckey: access key for SBALs
@@ -56,7 +56,7 @@ struct qdesfmt0 {
  * @oqdcnt: output queue descriptor count
  * @iqdsz: input queue descriptor size
  * @oqdsz: output queue descriptor size
- * @qiba: queue information block address
+ * @qiba: absolute address of queue information block
  * @qkey: queue information block key
  * @qdf0: queue descriptions
  */
@@ -250,16 +250,12 @@ struct slsb {
  * struct qdio_outbuf_state - SBAL related asynchronous operation information
  *   (for communication with upper layer programs)
  *   (only required for use with completion queues)
- * @flags: flags indicating state of buffer
  * @user: pointer to upper layer program's state information related to SBAL
  *        (stored in user1 data of QAOB)
  */
 struct qdio_outbuf_state {
-	u8 flags;
 	void *user;
 };
-
-#define QDIO_OUTBUF_STATE_FLAG_PENDING	0x01
 
 #define CHSC_AC1_INITIATE_INPUTQ	0x80
 
@@ -315,6 +311,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 #define QDIO_ERROR_GET_BUF_STATE		0x0002
 #define QDIO_ERROR_SET_BUF_STATE		0x0004
 #define QDIO_ERROR_SLSB_STATE			0x0100
+#define QDIO_ERROR_SLSB_PENDING			0x0200
 
 #define QDIO_ERROR_FATAL			0x00ff
 #define QDIO_ERROR_TEMPORARY			0xff00
@@ -327,7 +324,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * struct qdio_initialize - qdio initialization data
  * @q_format: queue format
  * @qdr_ac: feature flags to set
- * @adapter_name: name for the adapter
  * @qib_param_field_format: format for qib_parm_field
  * @qib_param_field: pointer to 128 bytes or NULL, if no param field
  * @qib_rflags: rflags to set
@@ -337,7 +333,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @no_output_qs: number of output queues
  * @input_handler: handler to be called for input queues
  * @output_handler: handler to be called for output queues
- * @irq_poll: Data IRQ polling handler (NULL when not supported)
+ * @irq_poll: Data IRQ polling handler
  * @scan_threshold: # of in-use buffers that triggers scan on output queue
  * @int_parm: interruption parameter
  * @input_sbal_addr_array:  per-queue array, each element points to 128 SBALs
@@ -347,7 +343,6 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 struct qdio_initialize {
 	unsigned char q_format;
 	unsigned char qdr_ac;
-	unsigned char adapter_name[8];
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
 	unsigned char qib_rflags;

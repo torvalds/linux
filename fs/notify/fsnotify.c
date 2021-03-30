@@ -152,6 +152,13 @@ static bool fsnotify_event_needs_parent(struct inode *inode, struct mount *mnt,
 	if (mask & FS_ISDIR)
 		return false;
 
+	/*
+	 * All events that are possible on child can also may be reported with
+	 * parent/name info to inode/sb/mount.  Otherwise, a watching parent
+	 * could result in events reported with unexpected name info to sb/mount.
+	 */
+	BUILD_BUG_ON(FS_EVENTS_POSS_ON_CHILD & ~FS_EVENTS_POSS_TO_PARENT);
+
 	/* Did either inode/sb/mount subscribe for events with parent/name? */
 	marks_mask |= fsnotify_parent_needed_mask(inode->i_fsnotify_mask);
 	marks_mask |= fsnotify_parent_needed_mask(inode->i_sb->s_fsnotify_mask);
@@ -178,6 +185,7 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 	struct inode *inode = d_inode(dentry);
 	struct dentry *parent;
 	bool parent_watched = dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED;
+	bool parent_needed, parent_interested;
 	__u32 p_mask;
 	struct inode *p_inode = NULL;
 	struct name_snapshot name;
@@ -193,7 +201,8 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 		return 0;
 
 	parent = NULL;
-	if (!parent_watched && !fsnotify_event_needs_parent(inode, mnt, mask))
+	parent_needed = fsnotify_event_needs_parent(inode, mnt, mask);
+	if (!parent_watched && !parent_needed)
 		goto notify;
 
 	/* Does parent inode care about events on children? */
@@ -205,17 +214,17 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 
 	/*
 	 * Include parent/name in notification either if some notification
-	 * groups require parent info (!parent_watched case) or the parent is
-	 * interested in this event.
+	 * groups require parent info or the parent is interested in this event.
 	 */
-	if (!parent_watched || (mask & p_mask & ALL_FSNOTIFY_EVENTS)) {
+	parent_interested = mask & p_mask & ALL_FSNOTIFY_EVENTS;
+	if (parent_needed || parent_interested) {
 		/* When notifying parent, child should be passed as data */
 		WARN_ON_ONCE(inode != fsnotify_data_inode(data, data_type));
 
 		/* Notify both parent and child with child name info */
 		take_dentry_name_snapshot(&name, dentry);
 		file_name = &name.name;
-		if (parent_watched)
+		if (parent_interested)
 			mask |= FS_EVENT_ON_CHILD;
 	}
 
@@ -230,47 +239,76 @@ notify:
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
+static int fsnotify_handle_inode_event(struct fsnotify_group *group,
+				       struct fsnotify_mark *inode_mark,
+				       u32 mask, const void *data, int data_type,
+				       struct inode *dir, const struct qstr *name,
+				       u32 cookie)
+{
+	const struct path *path = fsnotify_data_path(data, data_type);
+	struct inode *inode = fsnotify_data_inode(data, data_type);
+	const struct fsnotify_ops *ops = group->ops;
+
+	if (WARN_ON_ONCE(!ops->handle_inode_event))
+		return 0;
+
+	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
+	    path && d_unlinked(path->dentry))
+		return 0;
+
+	/* Check interest of this mark in case event was sent with two marks */
+	if (!(mask & inode_mark->mask & ALL_FSNOTIFY_EVENTS))
+		return 0;
+
+	return ops->handle_inode_event(inode_mark, mask, inode, dir, name, cookie);
+}
+
 static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 				 const void *data, int data_type,
 				 struct inode *dir, const struct qstr *name,
 				 u32 cookie, struct fsnotify_iter_info *iter_info)
 {
 	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
-	struct fsnotify_mark *child_mark = fsnotify_iter_child_mark(iter_info);
-	struct inode *inode = fsnotify_data_inode(data, data_type);
-	const struct fsnotify_ops *ops = group->ops;
+	struct fsnotify_mark *parent_mark = fsnotify_iter_parent_mark(iter_info);
 	int ret;
-
-	if (WARN_ON_ONCE(!ops->handle_inode_event))
-		return 0;
 
 	if (WARN_ON_ONCE(fsnotify_iter_sb_mark(iter_info)) ||
 	    WARN_ON_ONCE(fsnotify_iter_vfsmount_mark(iter_info)))
 		return 0;
 
-	/*
-	 * An event can be sent on child mark iterator instead of inode mark
-	 * iterator because of other groups that have interest of this inode
-	 * and have marks on both parent and child.  We can simplify this case.
-	 */
-	if (!inode_mark) {
-		inode_mark = child_mark;
-		child_mark = NULL;
+	if (parent_mark) {
+		/*
+		 * parent_mark indicates that the parent inode is watching
+		 * children and interested in this event, which is an event
+		 * possible on child. But is *this mark* watching children and
+		 * interested in this event?
+		 */
+		if (parent_mark->mask & FS_EVENT_ON_CHILD) {
+			ret = fsnotify_handle_inode_event(group, parent_mark, mask,
+							  data, data_type, dir, name, 0);
+			if (ret)
+				return ret;
+		}
+		if (!inode_mark)
+			return 0;
+	}
+
+	if (mask & FS_EVENT_ON_CHILD) {
+		/*
+		 * Some events can be sent on both parent dir and child marks
+		 * (e.g. FS_ATTRIB).  If both parent dir and child are
+		 * watching, report the event once to parent dir with name (if
+		 * interested) and once to child without name (if interested).
+		 * The child watcher is expecting an event without a file name
+		 * and without the FS_EVENT_ON_CHILD flag.
+		 */
+		mask &= ~FS_EVENT_ON_CHILD;
 		dir = NULL;
 		name = NULL;
 	}
 
-	ret = ops->handle_inode_event(inode_mark, mask, inode, dir, name);
-	if (ret || !child_mark)
-		return ret;
-
-	/*
-	 * Some events can be sent on both parent dir and child marks
-	 * (e.g. FS_ATTRIB).  If both parent dir and child are watching,
-	 * report the event once to parent dir with name and once to child
-	 * without name.
-	 */
-	return ops->handle_inode_event(child_mark, mask, inode, NULL, NULL);
+	return fsnotify_handle_inode_event(group, inode_mark, mask, data, data_type,
+					   dir, name, cookie);
 }
 
 static int send_to_group(__u32 mask, const void *data, int data_type,
@@ -428,7 +466,7 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 	struct fsnotify_iter_info iter_info = {};
 	struct super_block *sb;
 	struct mount *mnt = NULL;
-	struct inode *child = NULL;
+	struct inode *parent = NULL;
 	int ret = 0;
 	__u32 test_mask, marks_mask;
 
@@ -440,11 +478,10 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 		inode = dir;
 	} else if (mask & FS_EVENT_ON_CHILD) {
 		/*
-		 * Event on child - report on TYPE_INODE to dir if it is
-		 * watching children and on TYPE_CHILD to child.
+		 * Event on child - report on TYPE_PARENT to dir if it is
+		 * watching children and on TYPE_INODE to child.
 		 */
-		child = inode;
-		inode = dir;
+		parent = dir;
 	}
 	sb = inode->i_sb;
 
@@ -458,7 +495,7 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 	if (!sb->s_fsnotify_marks &&
 	    (!mnt || !mnt->mnt_fsnotify_marks) &&
 	    (!inode || !inode->i_fsnotify_marks) &&
-	    (!child || !child->i_fsnotify_marks))
+	    (!parent || !parent->i_fsnotify_marks))
 		return 0;
 
 	marks_mask = sb->s_fsnotify_mask;
@@ -466,8 +503,8 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 		marks_mask |= mnt->mnt_fsnotify_mask;
 	if (inode)
 		marks_mask |= inode->i_fsnotify_mask;
-	if (child)
-		marks_mask |= child->i_fsnotify_mask;
+	if (parent)
+		marks_mask |= parent->i_fsnotify_mask;
 
 
 	/*
@@ -490,9 +527,9 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 		iter_info.marks[FSNOTIFY_OBJ_TYPE_INODE] =
 			fsnotify_first_mark(&inode->i_fsnotify_marks);
 	}
-	if (child) {
-		iter_info.marks[FSNOTIFY_OBJ_TYPE_CHILD] =
-			fsnotify_first_mark(&child->i_fsnotify_marks);
+	if (parent) {
+		iter_info.marks[FSNOTIFY_OBJ_TYPE_PARENT] =
+			fsnotify_first_mark(&parent->i_fsnotify_marks);
 	}
 
 	/*

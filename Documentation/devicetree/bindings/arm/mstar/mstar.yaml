@@ -20,6 +20,12 @@ properties:
               - thingyjp,breadbee-crust # thingy.jp BreadBee Crust
           - const: mstar,infinity
 
+      - description: infinity2m boards
+        items:
+          - enum:
+              - honestar,ssd201htv2 # Honestar SSD201_HT_V2 devkit
+          - const: mstar,infinity2m
+
       - description: infinity3 boards
         items:
           - enum:
@@ -31,3 +37,5 @@ properties:
           - enum:
               - 70mai,midrived08 # 70mai midrive d08
           - const: mstar,mercury5
+
+additionalProperties: true

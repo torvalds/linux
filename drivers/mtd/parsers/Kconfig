@@ -12,7 +12,7 @@ config MTD_BCM47XX_PARTS
 	  boards.
 
 config MTD_BCM63XX_PARTS
-	tristate "BCM63XX CFE partitioning parser"
+	bool "BCM63XX CFE partitioning parser"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	select CRC32
 	select MTD_PARSER_IMAGETAG
@@ -160,3 +160,11 @@ config MTD_REDBOOT_PARTS_READONLY
 	  'FIS directory' images, enable this option.
 
 endif # MTD_REDBOOT_PARTS
+
+config MTD_QCOMSMEM_PARTS
+	tristate "Qualcomm SMEM NAND flash partition parser"
+	depends on MTD_NAND_QCOM || COMPILE_TEST
+	depends on QCOM_SMEM
+	help
+	  This provides support for parsing partitions from Shared Memory (SMEM)
+	  for NAND flash on Qualcomm platforms.

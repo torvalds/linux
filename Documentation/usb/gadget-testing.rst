@@ -91,9 +91,9 @@ The ECM function provides these attributes in its function directory:
 
 and after creating the functions/ecm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the ECM function
 ------------------------
@@ -131,9 +131,9 @@ The ECM subset function provides these attributes in its function directory:
 
 and after creating the functions/ecm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the ECM subset function
 -------------------------------
@@ -171,9 +171,9 @@ The EEM function provides these attributes in its function directory:
 
 and after creating the functions/eem.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the EEM function
 ------------------------
@@ -453,9 +453,9 @@ The NCM function provides these attributes in its function directory:
 
 and after creating the functions/ncm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the NCM function
 ------------------------
@@ -591,9 +591,9 @@ The RNDIS function provides these attributes in its function directory:
 
 and after creating the functions/rndis.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
-Except for ifname they can be written to until the function is linked to a
-configuration. The ifname is read-only and contains the name of the interface
-which was assigned by the net core, e. g. usb0.
+The ifname can be written to if the function is not bound. A write must be an
+interface pattern such as "usb%d", which will cause the net core to choose the
+next free usbX interface. By default, it is set to "usb%d".
 
 Testing the RNDIS function
 --------------------------

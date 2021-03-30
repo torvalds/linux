@@ -24,8 +24,53 @@ allOf:
 
 properties:
   compatible:
-    contains:
-      const: generic-ehci
+    oneOf:
+      - items:
+          - enum:
+              - allwinner,sun4i-a10-ehci
+              - allwinner,sun50i-a64-ehci
+              - allwinner,sun50i-h6-ehci
+              - allwinner,sun5i-a13-ehci
+              - allwinner,sun6i-a31-ehci
+              - allwinner,sun7i-a20-ehci
+              - allwinner,sun8i-a23-ehci
+              - allwinner,sun8i-h3-ehci
+              - allwinner,sun8i-r40-ehci
+              - allwinner,sun9i-a80-ehci
+              - aspeed,ast2400-ehci
+              - aspeed,ast2500-ehci
+              - aspeed,ast2600-ehci
+              - brcm,bcm3384-ehci
+              - brcm,bcm63268-ehci
+              - brcm,bcm6328-ehci
+              - brcm,bcm6358-ehci
+              - brcm,bcm6362-ehci
+              - brcm,bcm6368-ehci
+              - brcm,bcm7125-ehci
+              - brcm,bcm7346-ehci
+              - brcm,bcm7358-ehci
+              - brcm,bcm7360-ehci
+              - brcm,bcm7362-ehci
+              - brcm,bcm7420-ehci
+              - brcm,bcm7425-ehci
+              - brcm,bcm7435-ehci
+              - ibm,476gtr-ehci
+              - nxp,lpc1850-ehci
+              - qca,ar7100-ehci
+              - snps,hsdk-v1.0-ehci
+              - socionext,uniphier-ehci
+          - const: generic-ehci
+      - items:
+          - enum:
+              - cavium,octeon-6335-ehci
+              - ibm,usb-ehci-440epx
+              - ibm,usb-ehci-460ex
+              - nintendo,hollywood-usb-ehci
+              - st,spear600-ehci
+          - const: usb-ehci
+      - enum:
+          - generic-ehci
+          - usb-ehci
 
   reg:
     minItems: 1
@@ -83,7 +128,7 @@ properties:
       Phandle of a companion.
 
   phys:
-    description: PHY specifier for the USB PHY
+    maxItems: 1
 
   phy-names:
     const: usb
@@ -101,7 +146,7 @@ additionalProperties: false
 examples:
   - |
     usb@e0000300 {
-        compatible = "ibm,usb-ehci-440epx", "generic-ehci";
+        compatible = "ibm,usb-ehci-440epx", "usb-ehci";
         interrupt-parent = <&UIC0>;
         interrupts = <0x1a 4>;
         reg = <0xe0000300 90>, <0xe0000390 70>;

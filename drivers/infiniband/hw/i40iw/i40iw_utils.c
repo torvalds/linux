@@ -55,6 +55,7 @@
  * i40iw_arp_table - manage arp table
  * @iwdev: iwarp device
  * @ip_addr: ip address for device
+ * @ipv4: flag indicating IPv4 when true
  * @mac_addr: mac address ptr
  * @action: modify, delete or add
  */
@@ -138,7 +139,7 @@ inline u32 i40iw_rd32(struct i40iw_hw *hw, u32 reg)
 
 /**
  * i40iw_inetaddr_event - system notifier for ipv4 addr events
- * @notfier: not used
+ * @notifier: not used
  * @event: event for notifier
  * @ptr: if address
  */
@@ -214,7 +215,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 
 /**
  * i40iw_inet6addr_event - system notifier for ipv6 addr events
- * @notfier: not used
+ * @notifier: not used
  * @event: event for notifier
  * @ptr: if address
  */
@@ -265,7 +266,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 
 /**
  * i40iw_net_event - system notifier for netevents
- * @notfier: not used
+ * @notifier: not used
  * @event: event for notifier
  * @ptr: neighbor
  */
@@ -310,7 +311,7 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 
 /**
  * i40iw_netdevice_event - system notifier for netdev events
- * @notfier: not used
+ * @notifier: not used
  * @event: event for notifier
  * @ptr: netdev
  */
@@ -478,25 +479,6 @@ void i40iw_cleanup_pending_cqp_op(struct i40iw_device *iwdev)
 }
 
 /**
- * i40iw_free_qp - callback after destroy cqp completes
- * @cqp_request: cqp request for destroy qp
- * @num: not used
- */
-static void i40iw_free_qp(struct i40iw_cqp_request *cqp_request, u32 num)
-{
-	struct i40iw_sc_qp *qp = (struct i40iw_sc_qp *)cqp_request->param;
-	struct i40iw_qp *iwqp = (struct i40iw_qp *)qp->back_qp;
-	struct i40iw_device *iwdev;
-	u32 qp_num = iwqp->ibqp.qp_num;
-
-	iwdev = iwqp->iwdev;
-
-	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
-	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
-	i40iw_rem_devusecount(iwdev);
-}
-
-/**
  * i40iw_wait_event - wait for completion
  * @iwdev: iwarp device
  * @cqp_request: cqp request to wait
@@ -616,26 +598,23 @@ void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev)
 }
 
 /**
- * i40iw_add_ref - add refcount for qp
+ * i40iw_qp_add_ref - add refcount for qp
  * @ibqp: iqarp qp
  */
-void i40iw_add_ref(struct ib_qp *ibqp)
+void i40iw_qp_add_ref(struct ib_qp *ibqp)
 {
 	struct i40iw_qp *iwqp = (struct i40iw_qp *)ibqp;
 
-	atomic_inc(&iwqp->refcount);
+	refcount_inc(&iwqp->refcount);
 }
 
 /**
- * i40iw_rem_ref - rem refcount for qp and free if 0
+ * i40iw_qp_rem_ref - rem refcount for qp and free if 0
  * @ibqp: iqarp qp
  */
-void i40iw_rem_ref(struct ib_qp *ibqp)
+void i40iw_qp_rem_ref(struct ib_qp *ibqp)
 {
 	struct i40iw_qp *iwqp;
-	enum i40iw_status_code status;
-	struct i40iw_cqp_request *cqp_request;
-	struct cqp_commands_info *cqp_info;
 	struct i40iw_device *iwdev;
 	u32 qp_num;
 	unsigned long flags;
@@ -643,7 +622,7 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	iwqp = to_iwqp(ibqp);
 	iwdev = iwqp->iwdev;
 	spin_lock_irqsave(&iwdev->qptable_lock, flags);
-	if (!atomic_dec_and_test(&iwqp->refcount)) {
+	if (!refcount_dec_and_test(&iwqp->refcount)) {
 		spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 		return;
 	}
@@ -651,25 +630,8 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	qp_num = iwqp->ibqp.qp_num;
 	iwdev->qp_table[qp_num] = NULL;
 	spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
-	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
-	if (!cqp_request)
-		return;
+	complete(&iwqp->free_qp);
 
-	cqp_request->callback_fcn = i40iw_free_qp;
-	cqp_request->param = (void *)&iwqp->sc_qp;
-	cqp_info = &cqp_request->info;
-	cqp_info->cqp_cmd = OP_QP_DESTROY;
-	cqp_info->post_sq = 1;
-	cqp_info->in.u.qp_destroy.qp = &iwqp->sc_qp;
-	cqp_info->in.u.qp_destroy.scratch = (uintptr_t)cqp_request;
-	cqp_info->in.u.qp_destroy.remove_hash_idx = true;
-	status = i40iw_handle_cqp_op(iwdev, cqp_request);
-	if (!status)
-		return;
-
-	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
-	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
-	i40iw_rem_devusecount(iwdev);
 }
 
 /**
@@ -691,6 +653,7 @@ struct ib_qp *i40iw_get_qp(struct ib_device *device, int qpn)
  * i40iw_debug_buf - print debug msg and buffer is mask set
  * @dev: hardware control device structure
  * @mask: mask to compare if to print debug buffer
+ * @desc: identifying string
  * @buf: points buffer addr
  * @size: saize of buffer to print
  */
@@ -751,7 +714,7 @@ enum i40iw_status_code i40iw_allocate_dma_mem(struct i40iw_hw *hw,
 					      u64 size,
 					      u32 alignment)
 {
-	struct pci_dev *pcidev = (struct pci_dev *)hw->dev_context;
+	struct pci_dev *pcidev = hw->pcidev;
 
 	if (!mem)
 		return I40IW_ERR_PARAM;
@@ -770,7 +733,7 @@ enum i40iw_status_code i40iw_allocate_dma_mem(struct i40iw_hw *hw,
  */
 void i40iw_free_dma_mem(struct i40iw_hw *hw, struct i40iw_dma_mem *mem)
 {
-	struct pci_dev *pcidev = (struct pci_dev *)hw->dev_context;
+	struct pci_dev *pcidev = hw->pcidev;
 
 	if (!mem || !mem->va)
 		return;
@@ -823,7 +786,7 @@ enum i40iw_status_code i40iw_free_virt_mem(struct i40iw_hw *hw,
 /**
  * i40iw_cqp_sds_cmd - create cqp command for sd
  * @dev: hardware control device structure
- * @sd_info: information  for sd cqp
+ * @sdinfo: information  for sd cqp
  *
  */
 enum i40iw_status_code i40iw_cqp_sds_cmd(struct i40iw_sc_dev *dev,
@@ -928,7 +891,7 @@ void i40iw_terminate_done(struct i40iw_sc_qp *qp, int timeout_occurred)
 
 /**
  * i40iw_terminate_imeout - timeout happened
- * @context: points to iwarp qp
+ * @t: points to iwarp qp
  */
 static void i40iw_terminate_timeout(struct timer_list *t)
 {
@@ -936,7 +899,7 @@ static void i40iw_terminate_timeout(struct timer_list *t)
 	struct i40iw_sc_qp *qp = (struct i40iw_sc_qp *)&iwqp->sc_qp;
 
 	i40iw_terminate_done(qp, 1);
-	i40iw_rem_ref(&iwqp->ibqp);
+	i40iw_qp_rem_ref(&iwqp->ibqp);
 }
 
 /**
@@ -948,7 +911,7 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 	struct i40iw_qp *iwqp;
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
-	i40iw_add_ref(&iwqp->ibqp);
+	i40iw_qp_add_ref(&iwqp->ibqp);
 	timer_setup(&iwqp->terminate_timer, i40iw_terminate_timeout, 0);
 	iwqp->terminate_timer.expires = jiffies + HZ;
 	add_timer(&iwqp->terminate_timer);
@@ -964,7 +927,7 @@ void i40iw_terminate_del_timer(struct i40iw_sc_qp *qp)
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
 	if (del_timer(&iwqp->terminate_timer))
-		i40iw_rem_ref(&iwqp->ibqp);
+		i40iw_qp_rem_ref(&iwqp->ibqp);
 }
 
 /**
@@ -982,7 +945,7 @@ static void i40iw_cqp_generic_worker(struct work_struct *work)
 
 /**
  * i40iw_cqp_spawn_worker - spawn worket thread
- * @iwdev: device struct pointer
+ * @dev: device struct pointer
  * @work_info: work request info
  * @iw_vf_idx: virtual function index
  */
@@ -1087,7 +1050,7 @@ enum i40iw_status_code i40iw_cqp_manage_hmc_fcn_cmd(struct i40iw_sc_dev *dev,
 
 /**
  * i40iw_cqp_query_fpm_values_cmd - send cqp command for fpm
- * @iwdev: function device struct
+ * @dev: function device struct
  * @values_mem: buffer for fpm
  * @hmc_fn_id: function id for fpm
  */
@@ -1153,7 +1116,7 @@ enum i40iw_status_code i40iw_cqp_commit_fpm_values_cmd(struct i40iw_sc_dev *dev,
 
 /**
  * i40iw_vf_wait_vchnl_resp - wait for channel msg
- * @iwdev: function's device struct
+ * @dev: function's device struct
  */
 enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev)
 {
@@ -1500,7 +1463,7 @@ enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_in
 
 /**
  * i40iw_hw_stats_timeout - Stats timer-handler which updates all HW stats
- * @vsi: pointer to the vsi structure
+ * @t: Timer context containing pointer to the vsi structure
  */
 static void i40iw_hw_stats_timeout(struct timer_list *t)
 {

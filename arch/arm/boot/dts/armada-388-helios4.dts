@@ -70,6 +70,9 @@
 
 	system-leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&helios_system_led_pins>;
+
 		status-led {
 			label = "helios4:green:status";
 			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
@@ -86,6 +89,9 @@
 
 	io-leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&helios_io_led_pins>;
+
 		sata1-led {
 			label = "helios4:green:ata1";
 			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
@@ -121,11 +127,15 @@
 	fan1: j10-pwm {
 		compatible = "pwm-fan";
 		pwms = <&gpio1 9 40000>;	/* Target freq:25 kHz */
+		pinctrl-names = "default";
+		pinctrl-0 = <&helios_fan1_pins>;
 	};
 
 	fan2: j17-pwm {
 		compatible = "pwm-fan";
 		pwms = <&gpio1 23 40000>;	/* Target freq:25 kHz */
+		pinctrl-names = "default";
+		pinctrl-0 = <&helios_fan2_pins>;
 	};
 
 	usb2_phy: usb2-phy {
@@ -166,19 +176,19 @@
 					interrupt-controller;
 					#interrupt-cells = <2>;
 
-					board_rev_bit_0 {
+					board-rev-bit-0-hog {
 						gpio-hog;
 						gpios = <0 GPIO_ACTIVE_LOW>;
 						input;
 						line-name = "board-rev-0";
 					};
-					board_rev_bit_1 {
+					board-rev-bit-1-hog {
 						gpio-hog;
 						gpios = <1 GPIO_ACTIVE_LOW>;
 						input;
 						line-name = "board-rev-1";
 					};
-					usb3_ilimit {
+					usb3-ilimit-hog {
 						gpio-hog;
 						gpios = <5 GPIO_ACTIVE_HIGH>;
 						input;
@@ -286,16 +296,22 @@
 						       "mpp39", "mpp40";
 					marvell,function = "sd0";
 				};
-				helios_led_pins: helios-led-pins {
-					marvell,pins = "mpp24", "mpp25",
-						       "mpp49", "mpp50",
+				helios_system_led_pins: helios-system-led-pins {
+					marvell,pins = "mpp24", "mpp25";
+					marvell,function = "gpio";
+				};
+				helios_io_led_pins: helios-io-led-pins {
+					marvell,pins = "mpp49", "mpp50",
 						       "mpp52", "mpp53",
 						       "mpp54";
 					marvell,function = "gpio";
 				};
-				helios_fan_pins: helios-fan-pins {
-					marvell,pins = "mpp41", "mpp43",
-						       "mpp48", "mpp55";
+				helios_fan1_pins: helios_fan1_pins {
+					marvell,pins = "mpp41", "mpp43";
+					marvell,function = "gpio";
+				};
+				helios_fan2_pins: helios_fan2_pins {
+					marvell,pins = "mpp48", "mpp55";
 					marvell,function = "gpio";
 				};
 				microsom_spi1_cs_pins: spi1-cs-pins {

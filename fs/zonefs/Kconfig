@@ -3,6 +3,7 @@ config ZONEFS_FS
 	depends on BLOCK
 	depends on BLK_DEV_ZONED
 	select FS_IOMAP
+	select CRC32
 	help
 	  zonefs is a simple file system which exposes zones of a zoned block
 	  device (e.g. host-managed or host-aware SMR disk drives) as files.

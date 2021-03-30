@@ -165,7 +165,7 @@ static void i40iw_cqp_ce_handler(struct i40iw_device *iwdev, struct i40iw_sc_cq 
 /**
  * i40iw_iwarp_ce_handler - handle iwarp completions
  * @iwdev: iwarp device
- * @iwcp: iwarp cq receiving event
+ * @iwcq: iwarp cq receiving event
  */
 static void i40iw_iwarp_ce_handler(struct i40iw_device *iwdev,
 				   struct i40iw_sc_cq *iwcq)
@@ -313,7 +313,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 					    __func__, info->qp_cq_id);
 				continue;
 			}
-			i40iw_add_ref(&iwqp->ibqp);
+			i40iw_qp_add_ref(&iwqp->ibqp);
 			spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 			qp = &iwqp->sc_qp;
 			spin_lock_irqsave(&iwqp->lock, flags);
@@ -426,7 +426,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			break;
 		}
 		if (info->qp)
-			i40iw_rem_ref(&iwqp->ibqp);
+			i40iw_qp_rem_ref(&iwqp->ibqp);
 	} while (1);
 
 	if (aeqcnt)
@@ -519,6 +519,7 @@ enum i40iw_status_code i40iw_manage_apbvt(struct i40iw_device *iwdev,
  * @iwdev: iwarp device
  * @mac_addr: mac address ptr
  * @ip_addr: ip addr for arp cache
+ * @ipv4: flag indicating IPv4 when true
  * @action: add, delete or modify
  */
 void i40iw_manage_arp_cache(struct i40iw_device *iwdev,
@@ -581,7 +582,6 @@ static void i40iw_send_syn_cqp_callback(struct i40iw_cqp_request *cqp_request, u
  * @mtype: type of qhash
  * @cmnode: cmnode associated with connection
  * @wait: wait for completion
- * @user_pri:user pri of the connection
  */
 enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  struct i40iw_cm_info *cminfo,

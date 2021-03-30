@@ -39,19 +39,18 @@ properties:
           - const: atmel,at25
 
   reg:
-    description:
-      Chip select number.
+    maxItems: 1
 
   spi-max-frequency: true
 
   pagesize:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]
     description:
       Size of the eeprom page.
 
   size:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Total eeprom size in bytes.
 
@@ -81,14 +80,14 @@ properties:
   at25,byte-len:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-       Total eeprom size in bytes. Deprecated, use "size" property instead.
+      Total eeprom size in bytes. Deprecated, use "size" property instead.
     deprecated: true
 
   at25,addr-mode:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-       Addr-mode flags, as defined in include/linux/spi/eeprom.h.
-       Deprecated, use "address-width" property instead.
+      Addr-mode flags, as defined in include/linux/spi/eeprom.h.
+      Deprecated, use "address-width" property instead.
     deprecated: true
 
   at25,page-size:

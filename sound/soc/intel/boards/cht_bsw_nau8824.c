@@ -100,13 +100,6 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_component *component = codec_dai->component;
 	int ret, jack_type;
 
-	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
-	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xf, 0x1, 4, 24);
-	if (ret < 0) {
-		dev_err(runtime->dev, "can't set codec TDM slot %d\n", ret);
-		return ret;
-	}
-
 	/* NAU88L24 supports 4 butons headset detection
 	 * KEY_PLAYPAUSE
 	 * KEY_VOICECOMMAND
@@ -141,6 +134,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_mask *fmt =
 		hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	int ret;
 
 	/* The DSP will covert the FE rate to 48k, stereo, 24bits */
 	rate->min = rate->max = 48000;
@@ -149,6 +143,13 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/* set SSP2 to 24-bit */
 	snd_mask_none(fmt);
 	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+
+	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
+	ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_codec(rtd, 0), 0xf, 0x1, 4, 24);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't set codec TDM slot %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -175,9 +176,6 @@ SND_SOC_DAILINK_DEF(media,
 
 SND_SOC_DAILINK_DEF(deepbuffer,
 	DAILINK_COMP_ARRAY(COMP_CPU("deepbuffer-cpu-dai")));
-
-SND_SOC_DAILINK_DEF(compress,
-	DAILINK_COMP_ARRAY(COMP_CPU("compress-cpu-dai")));
 
 SND_SOC_DAILINK_DEF(ssp2_port,
 	DAILINK_COMP_ARRAY(COMP_CPU("ssp2-port")));
@@ -209,16 +207,11 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.ops = &cht_aif1_ops,
 		SND_SOC_DAILINK_REG(deepbuffer, dummy, platform),
 	},
-	[MERR_DPCM_COMPR] = {
-		.name = "Compressed Port",
-		.stream_name = "Compress",
-		SND_SOC_DAILINK_REG(compress, dummy, platform),
-	},
 	/* Back End DAI links */
 	{
 		/* SSP2 - Codec */
 		.name = "SSP2-Codec",
-		.id = 1,
+		.id = 0,
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF
 			| SND_SOC_DAIFMT_CBS_CFS,
@@ -231,19 +224,15 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht nau8824" /* card name will be 'sof-bytcht nau8824 */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht nau8824" /* card name will be 'sof-bytcht nau8824 */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "chtnau8824"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
-	.name = CARD_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
@@ -260,6 +249,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	struct cht_mc_private *drv;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
+	bool sof_parent;
 	int ret_val;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
@@ -277,6 +267,21 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	if (ret_val)
 		return ret_val;
 
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		snd_soc_card_cht.name = SOF_CARD_NAME;
+		snd_soc_card_cht.driver_name = SOF_DRIVER_NAME;
+	} else {
+		snd_soc_card_cht.name = CARD_NAME;
+		snd_soc_card_cht.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		pdev->dev.driver->pm = &snd_soc_pm_ops;
+
 	/* register the soc card */
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_cht);
 	if (ret_val) {
@@ -292,9 +297,6 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-nau8824",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = snd_cht_mc_probe,
 };

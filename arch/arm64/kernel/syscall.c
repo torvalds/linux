@@ -9,6 +9,7 @@
 
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
+#include <asm/exception.h>
 #include <asm/fpsimd.h>
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
@@ -64,35 +65,6 @@ static inline bool has_syscall_work(unsigned long flags)
 int syscall_trace_enter(struct pt_regs *regs);
 void syscall_trace_exit(struct pt_regs *regs);
 
-#ifdef CONFIG_ARM64_ERRATUM_1463225
-DECLARE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
-
-static void cortex_a76_erratum_1463225_svc_handler(void)
-{
-	u32 reg, val;
-
-	if (!unlikely(test_thread_flag(TIF_SINGLESTEP)))
-		return;
-
-	if (!unlikely(this_cpu_has_cap(ARM64_WORKAROUND_1463225)))
-		return;
-
-	__this_cpu_write(__in_cortex_a76_erratum_1463225_wa, 1);
-	reg = read_sysreg(mdscr_el1);
-	val = reg | DBG_MDSCR_SS | DBG_MDSCR_KDE;
-	write_sysreg(val, mdscr_el1);
-	asm volatile("msr daifclr, #8");
-	isb();
-
-	/* We will have taken a single-step exception by this point */
-
-	write_sysreg(reg, mdscr_el1);
-	__this_cpu_write(__in_cortex_a76_erratum_1463225_wa, 0);
-}
-#else
-static void cortex_a76_erratum_1463225_svc_handler(void) { }
-#endif /* CONFIG_ARM64_ERRATUM_1463225 */
-
 static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 			   const syscall_fn_t syscall_table[])
 {
@@ -119,11 +91,9 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	 * (Similarly for HVC and SMC elsewhere.)
 	 */
 
-	cortex_a76_erratum_1463225_svc_handler();
 	local_daif_restore(DAIF_PROCCTX);
-	user_exit();
 
-	if (system_supports_mte() && (flags & _TIF_MTE_ASYNC_FAULT)) {
+	if (flags & _TIF_MTE_ASYNC_FAULT) {
 		/*
 		 * Process the asynchronous tag check fault before the actual
 		 * syscall. do_notify_resume() will send a signal to userspace
@@ -166,15 +136,8 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	if (!has_syscall_work(flags) && !IS_ENABLED(CONFIG_DEBUG_RSEQ)) {
 		local_daif_mask();
 		flags = current_thread_info()->flags;
-		if (!has_syscall_work(flags) && !(flags & _TIF_SINGLESTEP)) {
-			/*
-			 * We're off to userspace, where interrupts are
-			 * always enabled after we restore the flags from
-			 * the SPSR.
-			 */
-			trace_hardirqs_on();
+		if (!has_syscall_work(flags) && !(flags & _TIF_SINGLESTEP))
 			return;
-		}
 		local_daif_restore(DAIF_PROCCTX);
 	}
 

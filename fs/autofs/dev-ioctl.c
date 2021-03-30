@@ -4,10 +4,12 @@
  * Copyright 2008 Ian Kent <raven@themaw.net>
  */
 
+#include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/compat.h>
-#include <linux/syscalls.h>
+#include <linux/fdtable.h>
 #include <linux/magic.h>
+#include <linux/nospec.h>
 
 #include "autofs_i.h"
 
@@ -288,7 +290,7 @@ static int autofs_dev_ioctl_closemount(struct file *fp,
 				       struct autofs_sb_info *sbi,
 				       struct autofs_dev_ioctl *param)
 {
-	return ksys_close(param->ioctlfd);
+	return close_fd(param->ioctlfd);
 }
 
 /*
@@ -563,7 +565,7 @@ out:
 
 static ioctl_fn lookup_dev_ioctl(unsigned int cmd)
 {
-	static ioctl_fn _ioctls[] = {
+	static const ioctl_fn _ioctls[] = {
 		autofs_dev_ioctl_version,
 		autofs_dev_ioctl_protover,
 		autofs_dev_ioctl_protosubver,
@@ -581,7 +583,10 @@ static ioctl_fn lookup_dev_ioctl(unsigned int cmd)
 	};
 	unsigned int idx = cmd_idx(cmd);
 
-	return (idx >= ARRAY_SIZE(_ioctls)) ? NULL : _ioctls[idx];
+	if (idx >= ARRAY_SIZE(_ioctls))
+		return NULL;
+	idx = array_index_nospec(idx, ARRAY_SIZE(_ioctls));
+	return _ioctls[idx];
 }
 
 /* ioctl dispatcher */

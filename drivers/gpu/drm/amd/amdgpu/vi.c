@@ -642,11 +642,21 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
+/**
+ * vi_asic_pci_config_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Use PCI Config method to reset the GPU.
+ *
+ * Returns 0 for success.
+ */
+static int vi_asic_pci_config_reset(struct amdgpu_device *adev)
 {
 	u32 i;
+	int r = -EINVAL;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	/* disable BM */
 	pci_clear_master(adev->pdev);
@@ -661,29 +671,11 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 			/* enable BM */
 			pci_set_master(adev->pdev);
 			adev->has_hw_reset = true;
-			return 0;
+			r = 0;
+			break;
 		}
 		udelay(1);
 	}
-	return -EINVAL;
-}
-
-/**
- * vi_asic_pci_config_reset - soft reset GPU
- *
- * @adev: amdgpu_device pointer
- *
- * Use PCI Config method to reset the GPU.
- *
- * Returns 0 for success.
- */
-static int vi_asic_pci_config_reset(struct amdgpu_device *adev)
-{
-	int r;
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	r = vi_gpu_pci_config_reset(adev);
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
@@ -1645,6 +1637,7 @@ static int vi_common_set_clockgating_state(void *handle,
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
 		vi_common_set_clockgating_state_by_smu(adev, state);
+		break;
 	default:
 		break;
 	}

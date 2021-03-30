@@ -1,66 +1,24 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2020 Intel Corporation
+ */
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
 #include "mvm.h"
 #include "constants.h"
+
+struct iwl_mvm_pasn_sta {
+	struct list_head list;
+	struct iwl_mvm_int_sta int_sta;
+	u8 addr[ETH_ALEN];
+};
+
+struct iwl_mvm_pasn_hltk_data {
+	u8 *addr;
+	u8 cipher;
+	u8 *hltk;
+};
 
 static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 					   u8 *bw, u8 *ctrl_ch_position)
@@ -137,7 +95,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 		.sta_id = mvmvif->bcast_sta.sta_id,
 	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-					   TOF_RESPONDER_CONFIG_CMD);
+					   TOF_RESPONDER_CONFIG_CMD, 6);
 	int err;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -162,11 +120,11 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 }
 
 static int
-iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_ftm_responder_params *params)
+iwl_mvm_ftm_responder_dyn_cfg_v2(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_ftm_responder_params *params)
 {
-	struct iwl_tof_responder_dyn_config_cmd cmd = {
+	struct iwl_tof_responder_dyn_config_cmd_v2 cmd = {
 		.lci_len = cpu_to_le32(params->lci_len + 2),
 		.civic_len = cpu_to_le32(params->civicloc_len + 2),
 	};
@@ -205,6 +163,171 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 	hcmd.len[1] = aligned_lci_len + aligned_civicloc_len;
 
 	return iwl_mvm_send_cmd(mvm, &hcmd);
+}
+
+static int
+iwl_mvm_ftm_responder_dyn_cfg_v3(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_ftm_responder_params *params,
+				 struct iwl_mvm_pasn_hltk_data *hltk_data)
+{
+	struct iwl_tof_responder_dyn_config_cmd cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = iwl_cmd_id(TOF_RESPONDER_DYN_CONFIG_CMD,
+				 LOCATION_GROUP, 0),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+		/* may not be able to DMA from stack */
+		.dataflags[0] = IWL_HCMD_DFL_DUP,
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	cmd.valid_flags = 0;
+
+	if (params) {
+		if (params->lci_len + 2 > sizeof(cmd.lci_buf) ||
+		    params->civicloc_len + 2 > sizeof(cmd.civic_buf)) {
+			IWL_ERR(mvm,
+				"LCI/civic data too big (lci=%zd, civic=%zd)\n",
+				params->lci_len, params->civicloc_len);
+			return -ENOBUFS;
+		}
+
+		cmd.lci_buf[0] = WLAN_EID_MEASURE_REPORT;
+		cmd.lci_buf[1] = params->lci_len;
+		memcpy(cmd.lci_buf + 2, params->lci, params->lci_len);
+		cmd.lci_len = params->lci_len + 2;
+
+		cmd.civic_buf[0] = WLAN_EID_MEASURE_REPORT;
+		cmd.civic_buf[1] = params->civicloc_len;
+		memcpy(cmd.civic_buf + 2, params->civicloc,
+		       params->civicloc_len);
+		cmd.civic_len = params->civicloc_len + 2;
+
+		cmd.valid_flags |= IWL_RESPONDER_DYN_CFG_VALID_LCI |
+			IWL_RESPONDER_DYN_CFG_VALID_CIVIC;
+	}
+
+	if (hltk_data) {
+		if (hltk_data->cipher > IWL_LOCATION_CIPHER_GCMP_256) {
+			IWL_ERR(mvm, "invalid cipher: %u\n",
+				hltk_data->cipher);
+			return -EINVAL;
+		}
+
+		cmd.cipher = hltk_data->cipher;
+		memcpy(cmd.addr, hltk_data->addr, sizeof(cmd.addr));
+		memcpy(cmd.hltk_buf, hltk_data->hltk, sizeof(cmd.hltk_buf));
+		cmd.valid_flags |= IWL_RESPONDER_DYN_CFG_VALID_PASN_STA;
+	}
+
+	return iwl_mvm_send_cmd(mvm, &hcmd);
+}
+
+static int
+iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_ftm_responder_params *params)
+{
+	int ret;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
+					   TOF_RESPONDER_DYN_CONFIG_CMD, 2);
+
+	switch (cmd_ver) {
+	case 2:
+		ret = iwl_mvm_ftm_responder_dyn_cfg_v2(mvm, vif,
+						       params);
+		break;
+	case 3:
+		ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif,
+						       params, NULL);
+		break;
+	default:
+		IWL_ERR(mvm, "Unsupported DYN_CONFIG_CMD version %u\n",
+			cmd_ver);
+		ret = -ENOTSUPP;
+	}
+
+	return ret;
+}
+
+static void iwl_mvm_resp_del_pasn_sta(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct iwl_mvm_pasn_sta *sta)
+{
+	list_del(&sta->list);
+	iwl_mvm_rm_sta_id(mvm, vif, sta->int_sta.sta_id);
+	iwl_mvm_dealloc_int_sta(mvm, &sta->int_sta);
+	kfree(sta);
+}
+
+int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
+				      u8 *hltk, u32 hltk_len)
+{
+	int ret;
+	struct iwl_mvm_pasn_sta *sta = NULL;
+	struct iwl_mvm_pasn_hltk_data hltk_data = {
+		.addr = addr,
+		.hltk = hltk,
+	};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
+					   TOF_RESPONDER_DYN_CONFIG_CMD, 2);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (cmd_ver < 3) {
+		IWL_ERR(mvm, "Adding PASN station not supported by FW\n");
+		return -ENOTSUPP;
+	}
+
+	hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
+	if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
+		IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
+		return -EINVAL;
+	}
+
+	if (tk && tk_len) {
+		sta = kzalloc(sizeof(*sta), GFP_KERNEL);
+		if (!sta)
+			return -ENOBUFS;
+
+		ret = iwl_mvm_add_pasn_sta(mvm, vif, &sta->int_sta, addr,
+					   cipher, tk, tk_len);
+		if (ret) {
+			kfree(sta);
+			return ret;
+		}
+
+		memcpy(sta->addr, addr, ETH_ALEN);
+		list_add_tail(&sta->list, &mvm->resp_pasn_list);
+	}
+
+	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, &hltk_data);
+	if (ret && sta)
+		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+
+	return ret;
+}
+
+int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif, u8 *addr)
+{
+	struct iwl_mvm_pasn_sta *sta, *prev;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	list_for_each_entry_safe(sta, prev, &mvm->resp_pasn_list, list) {
+		if (!memcmp(sta->addr, addr, ETH_ALEN)) {
+			iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+			return 0;
+		}
+	}
+
+	IWL_ERR(mvm, "FTM: PASN station %pM not found\n", addr);
+	return -EINVAL;
 }
 
 int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -255,12 +378,24 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return ret;
 }
 
+void iwl_mvm_ftm_responder_clear(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_pasn_sta *sta, *prev;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	list_for_each_entry_safe(sta, prev, &mvm->resp_pasn_list, list)
+		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+}
+
 void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
 	if (!vif->bss_conf.ftm_responder)
 		return;
 
+	iwl_mvm_ftm_responder_clear(mvm, vif);
 	iwl_mvm_ftm_start_responder(mvm, vif);
 }
 

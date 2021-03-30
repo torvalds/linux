@@ -210,7 +210,6 @@ static void xfrmi_scrub_packet(struct sk_buff *skb, bool xnet)
 static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 {
 	const struct xfrm_mode *inner_mode;
-	struct pcpu_sw_netstats *tstats;
 	struct net_device *dev;
 	struct xfrm_state *x;
 	struct xfrm_if *xi;
@@ -255,13 +254,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 	}
 
 	xfrmi_scrub_packet(skb, xnet);
-
-	tstats = this_cpu_ptr(dev->tstats);
-
-	u64_stats_update_begin(&tstats->syncp);
-	tstats->rx_packets++;
-	tstats->rx_bytes += skb->len;
-	u64_stats_update_end(&tstats->syncp);
+	dev_sw_netstats_rx_add(dev, skb->len);
 
 	return 0;
 }
@@ -303,7 +296,8 @@ xfrmi_xmit2(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	}
 
 	mtu = dst_mtu(dst);
-	if (skb->len > mtu) {
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) && !skb_gso_validate_network_len(skb, mtu))) {
 		skb_dst_update_pmtu_no_confirm(skb, mtu);
 
 		if (skb->protocol == htons(ETH_P_IPV6)) {
@@ -326,12 +320,7 @@ xfrmi_xmit2(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 
 	err = dst_output(xi->net, skb->sk, skb);
 	if (net_xmit_eval(err) == 0) {
-		struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
-
-		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += length;
-		tstats->tx_packets++;
-		u64_stats_update_end(&tstats->syncp);
+		dev_sw_netstats_tx_add(dev, 1, length);
 	} else {
 		stats->tx_errors++;
 		stats->tx_aborted_errors++;
@@ -545,35 +534,6 @@ static int xfrmi_update(struct xfrm_if *xi, struct xfrm_if_parms *p)
 	return err;
 }
 
-static void xfrmi_get_stats64(struct net_device *dev,
-			       struct rtnl_link_stats64 *s)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct pcpu_sw_netstats *stats;
-		struct pcpu_sw_netstats tmp;
-		int start;
-
-		stats = per_cpu_ptr(dev->tstats, cpu);
-		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			tmp.rx_packets = stats->rx_packets;
-			tmp.rx_bytes   = stats->rx_bytes;
-			tmp.tx_packets = stats->tx_packets;
-			tmp.tx_bytes   = stats->tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
-
-		s->rx_packets += tmp.rx_packets;
-		s->rx_bytes   += tmp.rx_bytes;
-		s->tx_packets += tmp.tx_packets;
-		s->tx_bytes   += tmp.tx_bytes;
-	}
-
-	s->rx_dropped = dev->stats.rx_dropped;
-	s->tx_dropped = dev->stats.tx_dropped;
-}
-
 static int xfrmi_get_iflink(const struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
@@ -581,12 +541,11 @@ static int xfrmi_get_iflink(const struct net_device *dev)
 	return xi->p.link;
 }
 
-
 static const struct net_device_ops xfrmi_netdev_ops = {
 	.ndo_init	= xfrmi_dev_init,
 	.ndo_uninit	= xfrmi_dev_uninit,
 	.ndo_start_xmit = xfrmi_xmit,
-	.ndo_get_stats64 = xfrmi_get_stats64,
+	.ndo_get_stats64 = dev_get_tstats64,
 	.ndo_get_iflink = xfrmi_get_iflink,
 };
 
@@ -606,6 +565,11 @@ static void xfrmi_dev_setup(struct net_device *dev)
 	eth_broadcast_addr(dev->broadcast);
 }
 
+#define XFRMI_FEATURES (NETIF_F_SG |		\
+			NETIF_F_FRAGLIST |	\
+			NETIF_F_GSO_SOFTWARE |	\
+			NETIF_F_HW_CSUM)
+
 static int xfrmi_dev_init(struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
@@ -623,6 +587,8 @@ static int xfrmi_dev_init(struct net_device *dev)
 	}
 
 	dev->features |= NETIF_F_LLTX;
+	dev->features |= XFRMI_FEATURES;
+	dev->hw_features |= XFRMI_FEATURES;
 
 	if (phydev) {
 		dev->needed_headroom = phydev->needed_headroom;
@@ -830,14 +796,14 @@ static struct xfrm6_tunnel xfrmi_ipv6_handler __read_mostly = {
 	.handler	=	xfrmi6_rcv_tunnel,
 	.cb_handler	=	xfrmi_rcv_cb,
 	.err_handler	=	xfrmi6_err,
-	.priority	=	-1,
+	.priority	=	2,
 };
 
 static struct xfrm6_tunnel xfrmi_ip6ip_handler __read_mostly = {
 	.handler	=	xfrmi6_rcv_tunnel,
 	.cb_handler	=	xfrmi_rcv_cb,
 	.err_handler	=	xfrmi6_err,
-	.priority	=	-1,
+	.priority	=	2,
 };
 #endif
 
@@ -875,14 +841,14 @@ static struct xfrm_tunnel xfrmi_ipip_handler __read_mostly = {
 	.handler	=	xfrmi4_rcv_tunnel,
 	.cb_handler	=	xfrmi_rcv_cb,
 	.err_handler	=	xfrmi4_err,
-	.priority	=	-1,
+	.priority	=	3,
 };
 
 static struct xfrm_tunnel xfrmi_ipip6_handler __read_mostly = {
 	.handler	=	xfrmi4_rcv_tunnel,
 	.cb_handler	=	xfrmi_rcv_cb,
 	.err_handler	=	xfrmi4_err,
-	.priority	=	-1,
+	.priority	=	2,
 };
 #endif
 

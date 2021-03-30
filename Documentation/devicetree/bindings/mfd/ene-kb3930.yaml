@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - enum:
-        - dell,wyse-ariel-ec  # Dell Wyse Ariel board (3020)
+          - dell,wyse-ariel-ec  # Dell Wyse Ariel board (3020)
       - const: ene,kb3930
   reg:
     maxItems: 1

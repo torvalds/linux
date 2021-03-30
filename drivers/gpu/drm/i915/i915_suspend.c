@@ -24,6 +24,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "display/intel_de.h"
 #include "display/intel_fbc.h"
 #include "display/intel_gmbus.h"
 #include "display/intel_vga.h"
@@ -32,22 +33,76 @@
 #include "i915_reg.h"
 #include "i915_suspend.h"
 
-static void i915_save_display(struct drm_i915_private *dev_priv)
+static void intel_save_swf(struct drm_i915_private *dev_priv)
+{
+	int i;
+
+	/* Scratch space */
+	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
+		for (i = 0; i < 7; i++) {
+			dev_priv->regfile.saveSWF0[i] = intel_de_read(dev_priv, SWF0(i));
+			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv, SWF1(i));
+		}
+		for (i = 0; i < 3; i++)
+			dev_priv->regfile.saveSWF3[i] = intel_de_read(dev_priv, SWF3(i));
+	} else if (IS_GEN(dev_priv, 2)) {
+		for (i = 0; i < 7; i++)
+			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv, SWF1(i));
+	} else if (HAS_GMCH(dev_priv)) {
+		for (i = 0; i < 16; i++) {
+			dev_priv->regfile.saveSWF0[i] = intel_de_read(dev_priv, SWF0(i));
+			dev_priv->regfile.saveSWF1[i] = intel_de_read(dev_priv, SWF1(i));
+		}
+		for (i = 0; i < 3; i++)
+			dev_priv->regfile.saveSWF3[i] = intel_de_read(dev_priv, SWF3(i));
+	}
+}
+
+static void intel_restore_swf(struct drm_i915_private *dev_priv)
+{
+	int i;
+
+	/* Scratch space */
+	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
+		for (i = 0; i < 7; i++) {
+			intel_de_write(dev_priv, SWF0(i), dev_priv->regfile.saveSWF0[i]);
+			intel_de_write(dev_priv, SWF1(i), dev_priv->regfile.saveSWF1[i]);
+		}
+		for (i = 0; i < 3; i++)
+			intel_de_write(dev_priv, SWF3(i), dev_priv->regfile.saveSWF3[i]);
+	} else if (IS_GEN(dev_priv, 2)) {
+		for (i = 0; i < 7; i++)
+			intel_de_write(dev_priv, SWF1(i), dev_priv->regfile.saveSWF1[i]);
+	} else if (HAS_GMCH(dev_priv)) {
+		for (i = 0; i < 16; i++) {
+			intel_de_write(dev_priv, SWF0(i), dev_priv->regfile.saveSWF0[i]);
+			intel_de_write(dev_priv, SWF1(i), dev_priv->regfile.saveSWF1[i]);
+		}
+		for (i = 0; i < 3; i++)
+			intel_de_write(dev_priv, SWF3(i), dev_priv->regfile.saveSWF3[i]);
+	}
+}
+
+void i915_save_display(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	/* Display arbitration control */
 	if (INTEL_GEN(dev_priv) <= 4)
-		dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
+		dev_priv->regfile.saveDSPARB = intel_de_read(dev_priv, DSPARB);
 
 	if (IS_GEN(dev_priv, 4))
 		pci_read_config_word(pdev, GCDGMBUS,
 				     &dev_priv->regfile.saveGCDGMBUS);
+
+	intel_save_swf(dev_priv);
 }
 
-static void i915_restore_display(struct drm_i915_private *dev_priv)
+void i915_restore_display(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+
+	intel_restore_swf(dev_priv);
 
 	if (IS_GEN(dev_priv, 4))
 		pci_write_config_word(pdev, GCDGMBUS,
@@ -55,7 +110,7 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 
 	/* Display arbitration */
 	if (INTEL_GEN(dev_priv) <= 4)
-		I915_WRITE(DSPARB, dev_priv->regfile.saveDSPARB);
+		intel_de_write(dev_priv, DSPARB, dev_priv->regfile.saveDSPARB);
 
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_fbc_global_disable(dev_priv);
@@ -63,62 +118,4 @@ static void i915_restore_display(struct drm_i915_private *dev_priv)
 	intel_vga_redisable(dev_priv);
 
 	intel_gmbus_reset(dev_priv);
-}
-
-int i915_save_state(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	i915_save_display(dev_priv);
-
-	/* Scratch space */
-	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
-		for (i = 0; i < 7; i++) {
-			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
-			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
-		}
-		for (i = 0; i < 3; i++)
-			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
-	} else if (IS_GEN(dev_priv, 2)) {
-		for (i = 0; i < 7; i++)
-			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
-	} else if (HAS_GMCH(dev_priv)) {
-		for (i = 0; i < 16; i++) {
-			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
-			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
-		}
-		for (i = 0; i < 3; i++)
-			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
-	}
-
-	return 0;
-}
-
-int i915_restore_state(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	i915_restore_display(dev_priv);
-
-	/* Scratch space */
-	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
-		for (i = 0; i < 7; i++) {
-			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
-			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
-		}
-		for (i = 0; i < 3; i++)
-			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
-	} else if (IS_GEN(dev_priv, 2)) {
-		for (i = 0; i < 7; i++)
-			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
-	} else if (HAS_GMCH(dev_priv)) {
-		for (i = 0; i < 16; i++) {
-			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
-			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
-		}
-		for (i = 0; i < 3; i++)
-			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
-	}
-
-	return 0;
 }

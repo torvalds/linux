@@ -21,7 +21,6 @@
 #define KHZ                     1000
 #define REF_CLK_MHZ             408 /* 408 MHz */
 #define US_DELAY                500
-#define US_DELAY_MIN            2
 #define CPUFREQ_TBL_STEP_HZ     (50 * KHZ * KHZ)
 #define MAX_CNT                 ~0U
 
@@ -44,7 +43,6 @@ struct tegra194_cpufreq_data {
 
 struct tegra_cpu_ctr {
 	u32 cpu;
-	u32 delay;
 	u32 coreclk_cnt, last_coreclk_cnt;
 	u32 refclk_cnt, last_refclk_cnt;
 };
@@ -112,7 +110,7 @@ static void tegra_read_counters(struct work_struct *work)
 	val = read_freq_feedback();
 	c->last_refclk_cnt = lower_32_bits(val);
 	c->last_coreclk_cnt = upper_32_bits(val);
-	udelay(c->delay);
+	udelay(US_DELAY);
 	val = read_freq_feedback();
 	c->refclk_cnt = lower_32_bits(val);
 	c->coreclk_cnt = upper_32_bits(val);
@@ -139,7 +137,7 @@ static void tegra_read_counters(struct work_struct *work)
  * @cpu - logical cpu whose freq to be updated
  * Returns freq in KHz on success, 0 if cpu is offline
  */
-static unsigned int tegra194_get_speed_common(u32 cpu, u32 delay)
+static unsigned int tegra194_calculate_speed(u32 cpu)
 {
 	struct read_counters_work read_counters_work;
 	struct tegra_cpu_ctr c;
@@ -153,7 +151,6 @@ static unsigned int tegra194_get_speed_common(u32 cpu, u32 delay)
 	 * interrupts enabled.
 	 */
 	read_counters_work.c.cpu = cpu;
-	read_counters_work.c.delay = delay;
 	INIT_WORK_ONSTACK(&read_counters_work.work, tegra_read_counters);
 	queue_work_on(cpu, read_counters_wq, &read_counters_work.work);
 	flush_work(&read_counters_work.work);
@@ -180,9 +177,61 @@ static unsigned int tegra194_get_speed_common(u32 cpu, u32 delay)
 	return (rate_mhz * KHZ); /* in KHz */
 }
 
+static void get_cpu_ndiv(void *ndiv)
+{
+	u64 ndiv_val;
+
+	asm volatile("mrs %0, s3_0_c15_c0_4" : "=r" (ndiv_val) : );
+
+	*(u64 *)ndiv = ndiv_val;
+}
+
+static void set_cpu_ndiv(void *data)
+{
+	struct cpufreq_frequency_table *tbl = data;
+	u64 ndiv_val = (u64)tbl->driver_data;
+
+	asm volatile("msr s3_0_c15_c0_4, %0" : : "r" (ndiv_val));
+}
+
 static unsigned int tegra194_get_speed(u32 cpu)
 {
-	return tegra194_get_speed_common(cpu, US_DELAY);
+	struct tegra194_cpufreq_data *data = cpufreq_get_driver_data();
+	struct cpufreq_frequency_table *pos;
+	unsigned int rate;
+	u64 ndiv;
+	int ret;
+	u32 cl;
+
+	smp_call_function_single(cpu, get_cpu_cluster, &cl, true);
+
+	/* reconstruct actual cpu freq using counters */
+	rate = tegra194_calculate_speed(cpu);
+
+	/* get last written ndiv value */
+	ret = smp_call_function_single(cpu, get_cpu_ndiv, &ndiv, true);
+	if (WARN_ON_ONCE(ret))
+		return rate;
+
+	/*
+	 * If the reconstructed frequency has acceptable delta from
+	 * the last written value, then return freq corresponding
+	 * to the last written ndiv value from freq_table. This is
+	 * done to return consistent value.
+	 */
+	cpufreq_for_each_valid_entry(pos, data->tables[cl]) {
+		if (pos->driver_data != ndiv)
+			continue;
+
+		if (abs(pos->frequency - rate) > 115200) {
+			pr_warn("cpufreq: cpu%d,cur:%u,set:%u,set ndiv:%llu\n",
+				cpu, rate, pos->frequency, ndiv);
+		} else {
+			rate = pos->frequency;
+		}
+		break;
+	}
+	return rate;
 }
 
 static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
@@ -196,9 +245,6 @@ static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 	if (cl >= data->num_clusters)
 		return -EINVAL;
 
-	/* boot freq */
-	policy->cur = tegra194_get_speed_common(policy->cpu, US_DELAY_MIN);
-
 	/* set same policy for all cpus in a cluster */
 	for (cpu = (cl * 2); cpu < ((cl + 1) * 2); cpu++)
 		cpumask_set_cpu(cpu, policy->cpus);
@@ -207,14 +253,6 @@ static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = TEGRA_CPUFREQ_TRANSITION_LATENCY;
 
 	return 0;
-}
-
-static void set_cpu_ndiv(void *data)
-{
-	struct cpufreq_frequency_table *tbl = data;
-	u64 ndiv_val = (u64)tbl->driver_data;
-
-	asm volatile("msr s3_0_c15_c0_4, %0" : : "r" (ndiv_val));
 }
 
 static int tegra194_cpufreq_set_target(struct cpufreq_policy *policy,
@@ -234,8 +272,7 @@ static int tegra194_cpufreq_set_target(struct cpufreq_policy *policy,
 
 static struct cpufreq_driver tegra194_cpufreq_driver = {
 	.name = "tegra194",
-	.flags = CPUFREQ_STICKY | CPUFREQ_CONST_LOOPS |
-		CPUFREQ_NEED_INITIAL_FREQ_CHECK,
+	.flags = CPUFREQ_CONST_LOOPS | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify = cpufreq_generic_frequency_table_verify,
 	.target_index = tegra194_cpufreq_set_target,
 	.get = tegra194_get_speed,

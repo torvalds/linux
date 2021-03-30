@@ -374,7 +374,7 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					&statistics_cmd);
 }
 
-/**
+/*
  * iwl_bg_statistics_periodic - Timer callback to queue statistics
  *
  * This callback is provided in order to send a statistics request.
@@ -406,7 +406,6 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	u32 i;
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
 
 	if (mode == 0)
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 2 * sizeof(u32));
@@ -414,7 +413,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(priv->trans, &reg_flags))
+	if (!iwl_trans_grab_nic_access(priv->trans))
 		return;
 
 	/* Set starting address; reads will auto-increment */
@@ -446,7 +445,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		}
 	}
 	/* Allow device to power down */
-	iwl_trans_release_nic_access(priv->trans, &reg_flags);
+	iwl_trans_release_nic_access(priv->trans);
 }
 
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
@@ -533,7 +532,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	priv->event_log.next_entry = next_entry;
 }
 
-/**
+/*
  * iwl_bg_ucode_trace - Timer callback to log ucode event
  *
  * The timer is continually set to execute every
@@ -762,7 +761,7 @@ static void iwl_send_bt_config(struct iwl_priv *priv)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
 
-/**
+/*
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by iwl_init_alive_start()).
@@ -1682,9 +1681,8 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))
 
-/**
+/*
  * iwl_print_event_log - Dump error event log to syslog
- *
  */
 static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 			       u32 num_events, u32 mode,
@@ -1695,7 +1693,6 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	u32 event_size; /* 2 u32s, or 3 u32s if timestamp recorded */
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
 
 	struct iwl_trans *trans = priv->trans;
 
@@ -1719,7 +1716,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(trans, &reg_flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return pos;
 
 	/* Set starting address; reads will auto-increment */
@@ -1758,11 +1755,11 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	}
 
 	/* Allow device to power down */
-	iwl_trans_release_nic_access(trans, &reg_flags);
+	iwl_trans_release_nic_access(trans);
 	return pos;
 }
 
-/**
+/*
  * iwl_print_last_event_logs - Dump the newest # of event log to syslog
  */
 static int iwl_print_last_event_logs(struct iwl_priv *priv, u32 capacity,

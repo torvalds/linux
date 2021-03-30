@@ -54,7 +54,7 @@ temperature) and throttle appropriate devices.
     trips:
 	the total number of trip points this thermal zone supports.
     mask:
-	Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
+	Bit string: If 'n'th bit is set, then trip point 'n' is writable.
     devdata:
 	device private data
     ops:
@@ -406,7 +406,7 @@ Thermal cooling device sys I/F, created once it's registered::
     |---stats/reset:		Writing any value resets the statistics
     |---stats/time_in_state_ms:	Time (msec) spent in various cooling states
     |---stats/total_trans:	Total number of times cooling state is changed
-    |---stats/trans_table:	Cooing state transition table
+    |---stats/trans_table:	Cooling state transition table
 
 
 Then next two dynamic attributes are created/removed in pairs. They represent
@@ -517,19 +517,6 @@ available_policies
 	zone. For example, if a cooling device has a weight double
 	than that of other, it's twice as effective in cooling the
 	thermal zone.
-
-	RW, Optional
-
-passive
-	Attribute is only present for zones in which the passive cooling
-	policy is not supported by native thermal driver. Default is zero
-	and can be set to a temperature (in millidegrees) to enable a
-	passive trip point for the zone. Activation is done by polling with
-	an interval of 1 second.
-
-	Unit: millidegrees Celsius
-
-	Valid values: 0 (disabled) or greater than 1000
 
 	RW, Optional
 
@@ -654,8 +641,7 @@ stats/time_in_state_ms:
 	The amount of time spent by the cooling device in various cooling
 	states. The output will have "<state> <time>" pair in each line, which
 	will mean this cooling device spent <time> msec of time at <state>.
-	Output will have one line for each of the supported states.  usertime
-	units here is 10mS (similar to other time exported in /proc).
+	Output will have one line for each of the supported states.
 	RO, Required
 
 
@@ -780,5 +766,5 @@ emergency poweroff kicks in after the delay has elapsed and shuts down
 the system.
 
 If set to 0 emergency poweroff will not be supported. So a carefully
-profiled non-zero positive value is a must for emergerncy poweroff to be
+profiled non-zero positive value is a must for emergency poweroff to be
 triggered.

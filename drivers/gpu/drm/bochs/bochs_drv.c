@@ -57,7 +57,7 @@ err:
 
 DEFINE_DRM_GEM_FOPS(bochs_fops);
 
-static struct drm_driver bochs_driver = {
+static const struct drm_driver bochs_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
@@ -121,7 +121,6 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_dev;
 
-	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
 	ret = bochs_load(dev);

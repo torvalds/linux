@@ -205,7 +205,7 @@ static int rvin_reset_format(struct rvin_dev *vin)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-		.pad = vin->parallel->source_pad,
+		.pad = vin->parallel.source_pad,
 	};
 	int ret;
 
@@ -246,7 +246,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	struct v4l2_subdev_pad_config *pad_cfg;
 	struct v4l2_subdev_format format = {
 		.which = which,
-		.pad = vin->parallel->source_pad,
+		.pad = vin->parallel.source_pad,
 	};
 	enum v4l2_field field;
 	u32 width, height;
@@ -632,7 +632,7 @@ static int rvin_enum_dv_timings(struct file *file, void *priv_fh,
 	if (timings->pad)
 		return -EINVAL;
 
-	timings->pad = vin->parallel->sink_pad;
+	timings->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, enum_dv_timings, timings);
 
@@ -684,7 +684,7 @@ static int rvin_dv_timings_cap(struct file *file, void *priv_fh,
 	if (cap->pad)
 		return -EINVAL;
 
-	cap->pad = vin->parallel->sink_pad;
+	cap->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, dv_timings_cap, cap);
 
@@ -702,7 +702,7 @@ static int rvin_g_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	if (edid->pad)
 		return -EINVAL;
 
-	edid->pad = vin->parallel->sink_pad;
+	edid->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, get_edid, edid);
 
@@ -720,7 +720,7 @@ static int rvin_s_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	if (edid->pad)
 		return -EINVAL;
 
-	edid->pad = vin->parallel->sink_pad;
+	edid->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, set_edid, edid);
 
@@ -966,18 +966,50 @@ void rvin_v4l2_unregister(struct rvin_dev *vin)
 	video_unregister_device(&vin->vdev);
 }
 
-static void rvin_notify(struct v4l2_subdev *sd,
-			unsigned int notification, void *arg)
+static void rvin_notify_video_device(struct rvin_dev *vin,
+				     unsigned int notification, void *arg)
 {
-	struct rvin_dev *vin =
-		container_of(sd->v4l2_dev, struct rvin_dev, v4l2_dev);
-
 	switch (notification) {
 	case V4L2_DEVICE_NOTIFY_EVENT:
 		v4l2_event_queue(&vin->vdev, arg);
 		break;
 	default:
 		break;
+	}
+}
+
+static void rvin_notify(struct v4l2_subdev *sd,
+			unsigned int notification, void *arg)
+{
+	struct v4l2_subdev *remote;
+	struct rvin_group *group;
+	struct media_pad *pad;
+	struct rvin_dev *vin =
+		container_of(sd->v4l2_dev, struct rvin_dev, v4l2_dev);
+	unsigned int i;
+
+	/* If no media controller, no need to route the event. */
+	if (!vin->info->use_mc) {
+		rvin_notify_video_device(vin, notification, arg);
+		return;
+	}
+
+	group = vin->group;
+
+	for (i = 0; i < RCAR_VIN_NUM; i++) {
+		vin = group->vin[i];
+		if (!vin)
+			continue;
+
+		pad = media_entity_remote_pad(&vin->pad);
+		if (!pad)
+			continue;
+
+		remote = media_entity_to_v4l2_subdev(pad->entity);
+		if (remote != sd)
+			continue;
+
+		rvin_notify_video_device(vin, notification, arg);
 	}
 }
 

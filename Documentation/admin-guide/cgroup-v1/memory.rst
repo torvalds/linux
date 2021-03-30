@@ -77,6 +77,8 @@ Brief summary of control files.
  memory.soft_limit_in_bytes	     set/show soft limit of memory usage
  memory.stat			     show various statistics
  memory.use_hierarchy		     set/show hierarchical account enabled
+                                     This knob is deprecated and shouldn't be
+                                     used.
  memory.force_empty		     trigger forced page reclaim
  memory.pressure_level		     set memory pressure notifications
  memory.swappiness		     set/show swappiness parameter of vmscan
@@ -285,20 +287,17 @@ When oom event notifier is registered, event will be delivered.
 2.6 Locking
 -----------
 
-   lock_page_cgroup()/unlock_page_cgroup() should not be called under
-   the i_pages lock.
+Lock order is as follows:
 
-   Other lock order is following:
+  Page lock (PG_locked bit of page->flags)
+    mm->page_table_lock or split pte_lock
+      lock_page_memcg (memcg->move_lock)
+        mapping->i_pages lock
+          lruvec->lru_lock.
 
-   PG_locked.
-     mm->page_table_lock
-         pgdat->lru_lock
-	   lock_page_cgroup.
-
-  In many cases, just lock_page_cgroup() is called.
-
-  per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
-  pgdat->lru_lock, it has no lock of its own.
+Per-node-per-memcgroup LRU (cgroup's private LRU) is guarded by
+lruvec->lru_lock; PG_lru bit of page->flags is cleared before
+isolating a page from its LRU under lruvec->lru_lock.
 
 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
 -----------------------------------------------
@@ -495,15 +494,12 @@ cgroup might have some charge associated with it, even though all
 tasks have migrated away from it. (because we charge against pages, not
 against tasks.)
 
-We move the stats to root (if use_hierarchy==0) or parent (if
-use_hierarchy==1), and no change on the charge except uncharging
+We move the stats to parent, and no change on the charge except uncharging
 from the child.
 
 Charges recorded in swap information is not updated at removal of cgroup.
 Recorded information is discarded and a cgroup which uses swap (swapcache)
 will be charged as a new owner of it.
-
-About use_hierarchy, see Section 6.
 
 5. Misc. interfaces
 ===================
@@ -526,8 +522,6 @@ About use_hierarchy, see Section 6.
   kernel pages will still be seen. This is not considered a failure and the
   write will still return success. In this case, it is expected that
   memory.kmem.usage_in_bytes == memory.usage_in_bytes.
-
-  About use_hierarchy, see Section 6.
 
 5.2 stat file
 -------------
@@ -675,31 +669,20 @@ hierarchy::
 		      d   e
 
 In the diagram above, with hierarchical accounting enabled, all memory
-usage of e, is accounted to its ancestors up until the root (i.e, c and root),
-that has memory.use_hierarchy enabled. If one of the ancestors goes over its
-limit, the reclaim algorithm reclaims from the tasks in the ancestor and the
-children of the ancestor.
+usage of e, is accounted to its ancestors up until the root (i.e, c and root).
+If one of the ancestors goes over its limit, the reclaim algorithm reclaims
+from the tasks in the ancestor and the children of the ancestor.
 
-6.1 Enabling hierarchical accounting and reclaim
-------------------------------------------------
+6.1 Hierarchical accounting and reclaim
+---------------------------------------
 
-A memory cgroup by default disables the hierarchy feature. Support
-can be enabled by writing 1 to memory.use_hierarchy file of the root cgroup::
+Hierarchical accounting is enabled by default. Disabling the hierarchical
+accounting is deprecated. An attempt to do it will result in a failure
+and a warning printed to dmesg.
+
+For compatibility reasons writing 1 to memory.use_hierarchy will always pass::
 
 	# echo 1 > memory.use_hierarchy
-
-The feature can be disabled by::
-
-	# echo 0 > memory.use_hierarchy
-
-NOTE1:
-       Enabling/disabling will fail if either the cgroup already has other
-       cgroups created below it, or if the parent cgroup has use_hierarchy
-       enabled.
-
-NOTE2:
-       When panic_on_oom is set to "2", the whole system will panic in
-       case of an OOM event in any cgroup.
 
 7. Soft limits
 ==============
@@ -980,21 +963,21 @@ References
 2. Singh, Balbir. Memory Controller (RSS Control),
    http://lwn.net/Articles/222762/
 3. Emelianov, Pavel. Resource controllers based on process cgroups
-   http://lkml.org/lkml/2007/3/6/198
+   https://lore.kernel.org/r/45ED7DEC.7010403@sw.ru
 4. Emelianov, Pavel. RSS controller based on process cgroups (v2)
-   http://lkml.org/lkml/2007/4/9/78
+   https://lore.kernel.org/r/461A3010.90403@sw.ru
 5. Emelianov, Pavel. RSS controller based on process cgroups (v3)
-   http://lkml.org/lkml/2007/5/30/244
+   https://lore.kernel.org/r/465D9739.8070209@openvz.org
 6. Menage, Paul. Control Groups v10, http://lwn.net/Articles/236032/
 7. Vaidyanathan, Srinivasan, Control Groups: Pagecache accounting and control
    subsystem (v3), http://lwn.net/Articles/235534/
 8. Singh, Balbir. RSS controller v2 test results (lmbench),
-   http://lkml.org/lkml/2007/5/17/232
+   https://lore.kernel.org/r/464C95D4.7070806@linux.vnet.ibm.com
 9. Singh, Balbir. RSS controller v2 AIM9 results
-   http://lkml.org/lkml/2007/5/18/1
+   https://lore.kernel.org/r/464D267A.50107@linux.vnet.ibm.com
 10. Singh, Balbir. Memory controller v6 test results,
-    http://lkml.org/lkml/2007/8/19/36
+    https://lore.kernel.org/r/20070819094658.654.84837.sendpatchset@balbir-laptop
 11. Singh, Balbir. Memory controller introduction (v6),
-    http://lkml.org/lkml/2007/8/17/69
+    https://lore.kernel.org/r/20070817084228.26003.12568.sendpatchset@balbir-laptop
 12. Corbet, Jonathan, Controlling memory use in cgroups,
     http://lwn.net/Articles/243795/

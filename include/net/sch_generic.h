@@ -91,7 +91,7 @@ struct Qdisc {
 	struct net_rate_estimator __rcu *rate_est;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue	__percpu *cpu_qstats;
-	int			padded;
+	int			pad;
 	refcount_t		refcnt;
 
 	/*
@@ -112,6 +112,9 @@ struct Qdisc {
 	/* for NOLOCK qdisc, true if there are no enqueued skbs */
 	bool			empty;
 	struct rcu_head		rcu;
+
+	/* private data */
+	long privdata[] ____cacheline_aligned;
 };
 
 static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
@@ -207,7 +210,8 @@ struct Qdisc_class_ops {
 	int			(*change)(struct Qdisc *, u32, u32,
 					struct nlattr **, unsigned long *,
 					struct netlink_ext_ack *);
-	int			(*delete)(struct Qdisc *, unsigned long);
+	int			(*delete)(struct Qdisc *, unsigned long,
+					  struct netlink_ext_ack *);
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
 	/* Filter manipulation */
@@ -385,6 +389,7 @@ struct qdisc_skb_cb {
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
 	u16			mru;
+	bool			post_ct;
 };
 
 typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
@@ -432,7 +437,6 @@ struct tcf_block {
 	struct mutex proto_destroy_lock; /* Lock for proto_destroy hashtable. */
 };
 
-#ifdef CONFIG_PROVE_LOCKING
 static inline bool lockdep_tcf_chain_is_locked(struct tcf_chain *chain)
 {
 	return lockdep_is_held(&chain->filter_chain_lock);
@@ -442,17 +446,6 @@ static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
 {
 	return lockdep_is_held(&tp->lock);
 }
-#else
-static inline bool lockdep_tcf_chain_is_locked(struct tcf_block *chain)
-{
-	return true;
-}
-
-static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
-{
-	return true;
-}
-#endif /* #ifdef CONFIG_PROVE_LOCKING */
 
 #define tcf_chain_dereference(p, chain)					\
 	rcu_dereference_protected(p, lockdep_tcf_chain_is_locked(chain))
@@ -560,14 +553,20 @@ static inline struct net_device *qdisc_dev(const struct Qdisc *qdisc)
 	return qdisc->dev_queue->dev;
 }
 
-static inline void sch_tree_lock(const struct Qdisc *q)
+static inline void sch_tree_lock(struct Qdisc *q)
 {
-	spin_lock_bh(qdisc_root_sleeping_lock(q));
+	if (q->flags & TCQ_F_MQROOT)
+		spin_lock_bh(qdisc_lock(q));
+	else
+		spin_lock_bh(qdisc_root_sleeping_lock(q));
 }
 
-static inline void sch_tree_unlock(const struct Qdisc *q)
+static inline void sch_tree_unlock(struct Qdisc *q)
 {
-	spin_unlock_bh(qdisc_root_sleeping_lock(q));
+	if (q->flags & TCQ_F_MQROOT)
+		spin_unlock_bh(qdisc_lock(q));
+	else
+		spin_unlock_bh(qdisc_root_sleeping_lock(q));
 }
 
 extern struct Qdisc noop_qdisc;
@@ -1047,12 +1046,6 @@ static inline unsigned int __qdisc_queue_drop_head(struct Qdisc *sch,
 	return 0;
 }
 
-static inline unsigned int qdisc_queue_drop_head(struct Qdisc *sch,
-						 struct sk_buff **to_free)
-{
-	return __qdisc_queue_drop_head(sch, &sch->q, to_free);
-}
-
 static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 {
 	const struct qdisc_skb_head *qh = &sch->q;
@@ -1158,7 +1151,7 @@ static inline struct Qdisc *qdisc_replace(struct Qdisc *sch, struct Qdisc *new,
 	old = *pold;
 	*pold = new;
 	if (old != NULL)
-		qdisc_tree_flush_backlog(old);
+		qdisc_purge_queue(old);
 	sch_tree_unlock(sch);
 
 	return old;
@@ -1284,9 +1277,6 @@ void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
 void mini_qdisc_pair_block_init(struct mini_Qdisc_pair *miniqp,
 				struct tcf_block *block);
 
-static inline int skb_tc_reinsert(struct sk_buff *skb, struct tcf_result *res)
-{
-	return res->ingress ? netif_receive_skb(skb) : dev_queue_xmit(skb);
-}
+int sch_frag_xmit_hook(struct sk_buff *skb, int (*xmit)(struct sk_buff *skb));
 
 #endif

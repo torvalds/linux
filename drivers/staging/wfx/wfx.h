@@ -10,9 +10,6 @@
 #ifndef WFX_H
 #define WFX_H
 
-#include <linux/completion.h>
-#include <linux/workqueue.h>
-#include <linux/mutex.h>
 #include <linux/nospec.h>
 #include <net/mac80211.h>
 

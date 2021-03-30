@@ -42,6 +42,33 @@ properties:
         cs2 : &gpio1 1 0
         cs3 : &gpio1 2 0
 
+      The second flag of a gpio descriptor can be GPIO_ACTIVE_HIGH (0)
+      or GPIO_ACTIVE_LOW(1). Legacy device trees often use 0.
+
+      There is a special rule set for combining the second flag of an
+      cs-gpio with the optional spi-cs-high flag for SPI slaves.
+
+      Each table entry defines how the CS pin is to be physically
+      driven (not considering potential gpio inversions by pinmux):
+
+      device node     | cs-gpio       | CS pin state active | Note
+      ================+===============+=====================+=====
+      spi-cs-high     | -             | H                   |
+      -               | -             | L                   |
+      spi-cs-high     | ACTIVE_HIGH   | H                   |
+      -               | ACTIVE_HIGH   | L                   | 1
+      spi-cs-high     | ACTIVE_LOW    | H                   | 2
+      -               | ACTIVE_LOW    | L                   |
+
+      Notes:
+      1) Should print a warning about polarity inversion.
+         Here it would be wise to avoid and define the gpio as
+         ACTIVE_LOW.
+      2) Should print a warning about polarity inversion
+         because ACTIVE_LOW is overridden by spi-cs-high.
+         Should be generally avoided and be replaced by
+         spi-cs-high + ACTIVE_HIGH.
+
   num-cs:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -125,8 +152,9 @@ patternProperties:
       spi-rx-bus-width:
         description:
           Bus width to the SPI bus used for read transfers.
+          If 0 is provided, then no RX will be possible on this device.
         $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [1, 2, 4, 8]
+        enum: [0, 1, 2, 4, 8]
         default: 1
 
       spi-rx-delay-us:
@@ -136,8 +164,9 @@ patternProperties:
       spi-tx-bus-width:
         description:
           Bus width to the SPI bus used for write transfers.
+          If 0 is provided, then no TX will be possible on this device.
         $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [1, 2, 4, 8]
+        enum: [0, 1, 2, 4, 8]
         default: 1
 
       spi-tx-delay-us:

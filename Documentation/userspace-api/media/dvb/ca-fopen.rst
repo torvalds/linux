@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.ca
 
 .. _ca_fopen:
 
@@ -11,13 +12,10 @@ Name
 
 Digital TV CA open()
 
-
 Synopsis
 --------
 
 .. c:function:: int open(const char *name, int flags)
-    :name: dvb-ca-open
-
 
 Arguments
 ---------
@@ -45,7 +43,6 @@ Arguments
        - open in non-blocking mode
          (blocking mode is the default)
 
-
 Description
 -----------
 
@@ -63,10 +60,8 @@ Only one user can open the CA Device in ``O_RDWR`` mode. All other
 attempts to open the device in this mode will fail, and an error code
 will be returned.
 
-
 Return Value
 ------------
-
 
 On success 0 is returned.
 

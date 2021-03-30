@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
  */
 
@@ -487,7 +487,7 @@ static vm_fault_t omap_gem_fault_2d(struct drm_gem_object *obj,
  * vma->vm_private_data points to the GEM object that is backing this
  * mapping.
  */
-vm_fault_t omap_gem_fault(struct vm_fault *vmf)
+static vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -564,9 +564,8 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		 * address_space (so unmap_mapping_range does what we want,
 		 * in particular in the case of mmap'd dmabufs)
 		 */
-		fput(vma->vm_file);
 		vma->vm_pgoff = 0;
-		vma->vm_file  = get_file(obj->filp);
+		vma_set_file(vma, obj->filp);
 
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	}
@@ -580,7 +579,7 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 
 /**
  * omap_gem_dumb_create	-	create a dumb buffer
- * @drm_file: our client file
+ * @file: our client file
  * @dev: our device
  * @args: the requested arguments copied from userspace
  *
@@ -610,6 +609,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  * @file: our drm client file
  * @dev: drm device
  * @handle: GEM handle to the object (from dumb_create)
+ * @offset: memory map offset placeholder
  *
  * Do the necessary setup to allow the mapping of the frame buffer
  * into user memory. We don't have to do much here at the moment.
@@ -1089,7 +1089,7 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m)
  * Constructor & Destructor
  */
 
-void omap_gem_free_object(struct drm_gem_object *obj)
+static void omap_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct omap_drm_private *priv = dev->dev_private;
@@ -1169,6 +1169,18 @@ static bool omap_gem_validate_flags(struct drm_device *dev, u32 flags)
 	return true;
 }
 
+static const struct vm_operations_struct omap_gem_vm_ops = {
+	.fault = omap_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs omap_gem_object_funcs = {
+	.free = omap_gem_free_object,
+	.export = omap_gem_prime_export,
+	.vm_ops = &omap_gem_vm_ops,
+};
+
 /* GEM buffer object constructor */
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, u32 flags)
@@ -1235,6 +1247,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	} else {
 		size = PAGE_ALIGN(gsize.bytes);
 	}
+
+	obj->funcs = &omap_gem_object_funcs;
 
 	/* Initialize the GEM object. */
 	if (!(flags & OMAP_BO_MEM_SHMEM)) {
@@ -1310,8 +1324,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 		}
 
 		omap_obj->pages = pages;
-		ret = drm_prime_sg_to_page_addr_arrays(sgt, pages, NULL,
-						       npages);
+		ret = drm_prime_sg_to_page_array(sgt, pages, npages);
 		if (ret) {
 			omap_gem_free_object(obj);
 			obj = ERR_PTR(-ENOMEM);

@@ -57,6 +57,19 @@ static void gem_free_pages_array(struct xen_gem_object *xen_obj)
 	xen_obj->pages = NULL;
 }
 
+static const struct vm_operations_struct xen_drm_drv_vm_ops = {
+	.open           = drm_gem_vm_open,
+	.close          = drm_gem_vm_close,
+};
+
+static const struct drm_gem_object_funcs xen_drm_front_gem_object_funcs = {
+	.free = xen_drm_front_gem_object_free,
+	.get_sg_table = xen_drm_front_gem_get_sg_table,
+	.vmap = xen_drm_front_gem_prime_vmap,
+	.vunmap = xen_drm_front_gem_prime_vunmap,
+	.vm_ops = &xen_drm_drv_vm_ops,
+};
+
 static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 					     size_t size)
 {
@@ -66,6 +79,8 @@ static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 	xen_obj = kzalloc(sizeof(*xen_obj), GFP_KERNEL);
 	if (!xen_obj)
 		return ERR_PTR(-ENOMEM);
+
+	xen_obj->base.funcs = &xen_drm_front_gem_object_funcs;
 
 	ret = drm_gem_object_init(dev, &xen_obj->base, size);
 	if (ret < 0) {
@@ -205,8 +220,8 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 
 	xen_obj->sgt_imported = sgt;
 
-	ret = drm_prime_sg_to_page_addr_arrays(sgt, xen_obj->pages,
-					       NULL, xen_obj->num_pages);
+	ret = drm_prime_sg_to_page_array(sgt, xen_obj->pages,
+					 xen_obj->num_pages);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
@@ -275,22 +290,28 @@ int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return gem_mmap_obj(xen_obj, vma);
 }
 
-void *xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj)
+int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj, struct dma_buf_map *map)
 {
 	struct xen_gem_object *xen_obj = to_xen_gem_obj(gem_obj);
+	void *vaddr;
 
 	if (!xen_obj->pages)
-		return NULL;
+		return -ENOMEM;
 
 	/* Please see comment in gem_mmap_obj on mapping and attributes. */
-	return vmap(xen_obj->pages, xen_obj->num_pages,
-		    VM_MAP, PAGE_KERNEL);
+	vaddr = vmap(xen_obj->pages, xen_obj->num_pages,
+		     VM_MAP, PAGE_KERNEL);
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
 void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
-				    void *vaddr)
+				    struct dma_buf_map *map)
 {
-	vunmap(vaddr);
+	vunmap(map->vaddr);
 }
 
 int xen_drm_front_gem_prime_mmap(struct drm_gem_object *gem_obj,

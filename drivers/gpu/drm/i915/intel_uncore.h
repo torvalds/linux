@@ -46,7 +46,7 @@ struct intel_uncore_mmio_debug {
 
 enum forcewake_domain_id {
 	FW_DOMAIN_ID_RENDER = 0,
-	FW_DOMAIN_ID_BLITTER,
+	FW_DOMAIN_ID_GT,        /* also includes blitter engine */
 	FW_DOMAIN_ID_MEDIA,
 	FW_DOMAIN_ID_MEDIA_VDBOX0,
 	FW_DOMAIN_ID_MEDIA_VDBOX1,
@@ -60,7 +60,7 @@ enum forcewake_domain_id {
 
 enum forcewake_domains {
 	FORCEWAKE_RENDER	= BIT(FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_BLITTER	= BIT(FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_GT		= BIT(FW_DOMAIN_ID_GT),
 	FORCEWAKE_MEDIA		= BIT(FW_DOMAIN_ID_MEDIA),
 	FORCEWAKE_MEDIA_VDBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX0),
 	FORCEWAKE_MEDIA_VDBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX1),
@@ -216,7 +216,7 @@ void intel_uncore_forcewake_flush(struct intel_uncore *uncore,
 
 /*
  * Like above but the caller must manage the uncore.lock itself.
- * Must be used with I915_READ_FW and friends.
+ * Must be used with intel_uncore_read_fw() and friends.
  */
 void intel_uncore_forcewake_get__locked(struct intel_uncore *uncore,
 					enum forcewake_domains domains);
@@ -318,8 +318,8 @@ __uncore_write(write_notrace, 32, l, false)
  * will be implemented using 2 32-bit writes in an arbitrary order with
  * an arbitrary delay between them. This can cause the hardware to
  * act upon the intermediate value, possibly leading to corruption and
- * machine death. For this reason we do not support I915_WRITE64, or
- * uncore->funcs.mmio_writeq.
+ * machine death. For this reason we do not support intel_uncore_write64,
+ * or uncore->funcs.mmio_writeq.
  *
  * When reading a 64-bit value as two 32-bit values, the delay may cause
  * the two reads to mismatch, e.g. a timestamp overflowing. Also note that

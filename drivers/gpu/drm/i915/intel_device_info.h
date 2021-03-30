@@ -79,6 +79,7 @@ enum intel_platform {
 	/* gen11 */
 	INTEL_ICELAKE,
 	INTEL_ELKHARTLAKE,
+	INTEL_JASPERLAKE,
 	/* gen12 */
 	INTEL_TIGERLAKE,
 	INTEL_ROCKETLAKE,
@@ -122,7 +123,6 @@ enum intel_ppgtt_type {
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
-	func(has_logical_ring_preemption); \
 	func(has_master_unit_irq); \
 	func(has_pooled_eu); \
 	func(has_rc6); \
@@ -223,9 +223,6 @@ struct intel_runtime_info {
 	u8 num_scalers[I915_MAX_PIPES];
 
 	u32 rawclk_freq;
-
-	u32 cs_timestamp_frequency_hz;
-	u32 cs_timestamp_period_ns;
 };
 
 struct intel_driver_caps {

@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.6";
+static const char *version_str = "v1.8";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -328,8 +328,12 @@ int get_physical_die_id(int cpu)
 		int core_id, pkg_id, die_id;
 
 		ret = get_stored_topology_info(cpu, &core_id, &pkg_id, &die_id);
-		if (!ret)
+		if (!ret) {
+			if (die_id < 0)
+				die_id = 0;
+
 			return die_id;
+		}
 	}
 
 	if (ret < 0)
@@ -1245,6 +1249,8 @@ static void dump_isst_config(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void adjust_scaling_max_from_base_freq(int cpu);
+
 static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				  void *arg4)
 {
@@ -1263,6 +1269,9 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			int pkg_id = get_physical_package_id(cpu);
 			int die_id = get_physical_die_id(cpu);
 
+			/* Wait for updated base frequencies */
+			usleep(2000);
+
 			fprintf(stderr, "Option is set to online/offline\n");
 			ctdp_level.core_cpumask_size =
 				alloc_cpu_set(&ctdp_level.core_cpumask);
@@ -1279,6 +1288,7 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 						fprintf(stderr, "online cpu %d\n", i);
 						set_cpu_online_offline(i, 1);
+						adjust_scaling_max_from_base_freq(i);
 					} else {
 						fprintf(stderr, "offline cpu %d\n", i);
 						set_cpu_online_offline(i, 0);
@@ -1436,6 +1446,31 @@ static int set_cpufreq_scaling_min_max(int cpu, int max, int freq)
 	return 0;
 }
 
+static int no_turbo(void)
+{
+	return parse_int_file(0, "/sys/devices/system/cpu/intel_pstate/no_turbo");
+}
+
+static void adjust_scaling_max_from_base_freq(int cpu)
+{
+	int base_freq, scaling_max_freq;
+
+	scaling_max_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	base_freq = get_cpufreq_base_freq(cpu);
+	if (scaling_max_freq < base_freq || no_turbo())
+		set_cpufreq_scaling_min_max(cpu, 1, base_freq);
+}
+
+static void adjust_scaling_min_from_base_freq(int cpu)
+{
+	int base_freq, scaling_min_freq;
+
+	scaling_min_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+	base_freq = get_cpufreq_base_freq(cpu);
+	if (scaling_min_freq < base_freq)
+		set_cpufreq_scaling_min_max(cpu, 0, base_freq);
+}
+
 static int set_clx_pbf_cpufreq_scaling_min_max(int cpu)
 {
 	struct isst_pkg_ctdp_level_info *ctdp_level;
@@ -1533,6 +1568,7 @@ static void set_scaling_min_to_cpuinfo_max(int cpu)
 			continue;
 
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
+		adjust_scaling_min_from_base_freq(i);
 	}
 }
 
@@ -2268,6 +2304,102 @@ static void get_clos_assoc(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void set_turbo_mode_for_cpu(int cpu, int status)
+{
+	int base_freq;
+
+	if (status) {
+		base_freq = get_cpufreq_base_freq(cpu);
+		set_cpufreq_scaling_min_max(cpu, 1, base_freq);
+	} else {
+		set_scaling_max_to_cpuinfo_max(cpu);
+	}
+
+	if (status) {
+		isst_display_result(cpu, outf, "turbo-mode", "enable", 0);
+	} else {
+		isst_display_result(cpu, outf, "turbo-mode", "disable", 0);
+	}
+}
+
+static void set_turbo_mode(int arg)
+{
+	int i, enable = arg;
+
+	if (cmd_help) {
+		if (enable)
+			fprintf(stderr, "Set turbo mode enable\n");
+		else
+			fprintf(stderr, "Set turbo mode disable\n");
+		exit(0);
+	}
+
+	isst_ctdp_display_information_start(outf);
+
+	for (i = 0; i < topo_max_cpus; ++i) {
+		int online;
+
+		if (i)
+			online = parse_int_file(
+				1, "/sys/devices/system/cpu/cpu%d/online", i);
+		else
+			online =
+				1; /* online entry for CPU 0 needs some special configs */
+
+		if (online)
+			set_turbo_mode_for_cpu(i, enable);
+
+	}
+	isst_ctdp_display_information_end(outf);
+}
+
+static void get_set_trl(int cpu, void *arg1, void *arg2, void *arg3,
+			void *arg4)
+{
+	unsigned long long trl;
+	int set = *(int *)arg4;
+	int ret;
+
+	if (set && !fact_trl) {
+		isst_display_error_info_message(1, "Invalid TRL. Specify with [-t|--trl]", 0, 0);
+		exit(0);
+	}
+
+	if (set) {
+		ret = isst_set_trl(cpu, fact_trl);
+		isst_display_result(cpu, outf, "turbo-mode", "set-trl", ret);
+		return;
+	}
+
+	ret = isst_get_trl(cpu, &trl);
+	if (ret)
+		isst_display_result(cpu, outf, "turbo-mode", "get-trl", ret);
+	else
+		isst_trl_display_information(cpu, outf, trl);
+}
+
+static void process_trl(int arg)
+{
+	if (cmd_help) {
+		if (arg) {
+			fprintf(stderr, "Set TRL (turbo ratio limits)\n");
+			fprintf(stderr, "\t t|--trl: Specify turbo ratio limit for setting TRL\n");
+		} else {
+			fprintf(stderr, "Get TRL (turbo ratio limits)\n");
+		}
+		exit(0);
+	}
+
+	isst_ctdp_display_information_start(outf);
+	if (max_target_cpus)
+		for_each_online_target_cpu_in_set(get_set_trl, NULL,
+						  NULL, NULL, &arg);
+	else
+		for_each_online_package_in_set(get_set_trl, NULL,
+					       NULL, NULL, &arg);
+	isst_ctdp_display_information_end(outf);
+}
+
 static struct process_cmd_struct clx_n_cmds[] = {
 	{ "perf-profile", "info", dump_isst_config, 0 },
 	{ "base-freq", "info", dump_pbf_config, 0 },
@@ -2298,6 +2430,10 @@ static struct process_cmd_struct isst_cmds[] = {
 	{ "core-power", "get-config", dump_clos_config, 0 },
 	{ "core-power", "assoc", set_clos_assoc, 0 },
 	{ "core-power", "get-assoc", get_clos_assoc, 0 },
+	{ "turbo-mode", "enable", set_turbo_mode, 0 },
+	{ "turbo-mode", "disable", set_turbo_mode, 1 },
+	{ "turbo-mode", "get-trl", process_trl, 0 },
+	{ "turbo-mode", "set-trl", process_trl, 1 },
 	{ NULL, NULL, NULL }
 };
 
@@ -2513,6 +2649,16 @@ static void fact_help(void)
 	printf("\tcommand : disable\n");
 }
 
+static void turbo_mode_help(void)
+{
+	printf("turbo-mode:\tEnables users to enable/disable turbo mode by adjusting frequency settings. Also allows to get and set turbo ratio limits (TRL).\n");
+	printf("\tcommand : enable\n");
+	printf("\tcommand : disable\n");
+	printf("\tcommand : get-trl\n");
+	printf("\tcommand : set-trl\n");
+}
+
+
 static void core_power_help(void)
 {
 	printf("core-power:\tInterface that allows user to define per core/tile\n\
@@ -2537,6 +2683,7 @@ static struct process_cmd_help_struct isst_help_cmds[] = {
 	{ "base-freq", pbf_help },
 	{ "turbo-freq", fact_help },
 	{ "core-power", core_power_help },
+	{ "turbo-mode", turbo_mode_help },
 	{ NULL, NULL }
 };
 
@@ -2600,7 +2747,7 @@ static void usage(void)
 	if (is_clx_n_platform())
 		printf("\nFEATURE : [perf-profile|base-freq]\n");
 	else
-		printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power]\n");
+		printf("\nFEATURE : [perf-profile|base-freq|turbo-freq|core-power|turbo-mode]\n");
 	printf("\nFor help on each feature, use -h|--help\n");
 	printf("\tFor example:  intel-speed-select perf-profile -h\n");
 

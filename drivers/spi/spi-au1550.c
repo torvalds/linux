@@ -26,7 +26,7 @@
 
 #include <asm/mach-au1x00/au1550_spi.h>
 
-static unsigned usedma = 1;
+static unsigned int usedma = 1;
 module_param(usedma, uint, 0644);
 
 /*
@@ -43,9 +43,9 @@ struct au1550_spi {
 	volatile psc_spi_t __iomem *regs;
 	int irq;
 
-	unsigned len;
-	unsigned tx_count;
-	unsigned rx_count;
+	unsigned int len;
+	unsigned int tx_count;
+	unsigned int rx_count;
 	const u8 *tx;
 	u8 *rx;
 
@@ -56,14 +56,14 @@ struct au1550_spi {
 
 	struct completion master_done;
 
-	unsigned usedma;
+	unsigned int usedma;
 	u32 dma_tx_id;
 	u32 dma_rx_id;
 	u32 dma_tx_ch;
 	u32 dma_rx_ch;
 
 	u8 *dma_rx_tmpbuf;
-	unsigned dma_rx_tmpbuf_size;
+	unsigned int dma_rx_tmpbuf_size;
 	u32 dma_rx_tmpbuf_addr;
 
 	struct spi_master *master;
@@ -74,8 +74,7 @@ struct au1550_spi {
 
 
 /* we use an 8-bit memory device for dma transfers to/from spi fifo */
-static dbdev_tab_t au1550_spi_mem_dbdev =
-{
+static dbdev_tab_t au1550_spi_mem_dbdev = {
 	.dev_id			= DBDMA_MEM_CHAN,
 	.dev_flags		= DEV_FLAGS_ANYUSE|DEV_FLAGS_SYNC,
 	.dev_tsize		= 0,
@@ -99,7 +98,7 @@ static void au1550_spi_bits_handlers_set(struct au1550_spi *hw, int bpw);
  *    BRG valid range is 4..63
  *    DIV valid range is 0..3
  */
-static u32 au1550_spi_baudcfg(struct au1550_spi *hw, unsigned speed_hz)
+static u32 au1550_spi_baudcfg(struct au1550_spi *hw, unsigned int speed_hz)
 {
 	u32 mainclk_hz = hw->pdata->mainclk_hz;
 	u32 div, brg;
@@ -161,7 +160,7 @@ static void au1550_spi_reset_fifos(struct au1550_spi *hw)
 static void au1550_spi_chipsel(struct spi_device *spi, int value)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-	unsigned cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
+	unsigned int cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
 	u32 cfg, stat;
 
 	switch (value) {
@@ -221,7 +220,7 @@ static void au1550_spi_chipsel(struct spi_device *spi, int value)
 static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-	unsigned bpw, hz;
+	unsigned int bpw, hz;
 	u32 cfg, stat;
 
 	if (t) {
@@ -276,7 +275,7 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
  * spi master done event irq is not generated unless rx fifo is empty (emptied)
  * so we need rx tmp buffer to use for rx dma if user does not provide one
  */
-static int au1550_spi_dma_rxtmp_alloc(struct au1550_spi *hw, unsigned size)
+static int au1550_spi_dma_rxtmp_alloc(struct au1550_spi *hw, unsigned int size)
 {
 	hw->dma_rx_tmpbuf = kmalloc(size, GFP_KERNEL);
 	if (!hw->dma_rx_tmpbuf)
@@ -399,10 +398,10 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 			DMA_FROM_DEVICE);
 	}
 	/* unmap buffers if mapped above */
-	if (t->rx_buf && t->rx_dma == 0 )
+	if (t->rx_buf && t->rx_dma == 0)
 		dma_unmap_single(hw->dev, dma_rx_addr, t->len,
 			DMA_FROM_DEVICE);
-	if (t->tx_buf && t->tx_dma == 0 )
+	if (t->tx_buf && t->tx_dma == 0)
 		dma_unmap_single(hw->dev, dma_tx_addr, t->len,
 			DMA_TO_DEVICE);
 
@@ -447,8 +446,8 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 				"dma transfer: receive FIFO overflow!\n");
 		else
 			dev_err(hw->dev,
-				"dma transfer: unexpected SPI error "
-				"(event=0x%x stat=0x%x)!\n", evnt, stat);
+				"dma transfer: unexpected SPI error (event=0x%x stat=0x%x)!\n",
+				evnt, stat);
 
 		complete(&hw->master_done);
 		return IRQ_HANDLED;
@@ -493,12 +492,12 @@ static void au1550_spi_tx_word_##size(struct au1550_spi *hw)		\
 	wmb(); /* drain writebuffer */					\
 }
 
-AU1550_SPI_RX_WORD(8,0xff)
-AU1550_SPI_RX_WORD(16,0xffff)
-AU1550_SPI_RX_WORD(32,0xffffff)
-AU1550_SPI_TX_WORD(8,0xff)
-AU1550_SPI_TX_WORD(16,0xffff)
-AU1550_SPI_TX_WORD(32,0xffffff)
+AU1550_SPI_RX_WORD(8, 0xff)
+AU1550_SPI_RX_WORD(16, 0xffff)
+AU1550_SPI_RX_WORD(32, 0xffffff)
+AU1550_SPI_TX_WORD(8, 0xff)
+AU1550_SPI_TX_WORD(16, 0xffff)
+AU1550_SPI_TX_WORD(32, 0xffffff)
 
 static int au1550_spi_pio_txrxb(struct spi_device *spi, struct spi_transfer *t)
 {
@@ -567,8 +566,8 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 		au1550_spi_mask_ack_all(hw);
 		au1550_spi_reset_fifos(hw);
 		dev_err(hw->dev,
-			"pio transfer: unexpected SPI error "
-			"(event=0x%x stat=0x%x)!\n", evnt, stat);
+			"pio transfer: unexpected SPI error (event=0x%x stat=0x%x)!\n",
+			evnt, stat);
 		complete(&hw->master_done);
 		return IRQ_HANDLED;
 	}
@@ -636,12 +635,14 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 static int au1550_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
+
 	return hw->txrx_bufs(spi, t);
 }
 
 static irqreturn_t au1550_spi_irq(int irq, void *dev)
 {
 	struct au1550_spi *hw = dev;
+
 	return hw->irq_callback(hw);
 }
 
@@ -872,6 +873,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	{
 		int min_div = (2 << 0) * (2 * (4 + 1));
 		int max_div = (2 << 3) * (2 * (63 + 1));
+
 		master->max_speed_hz = hw->pdata->mainclk_hz / min_div;
 		master->min_speed_hz =
 				hw->pdata->mainclk_hz / (max_div + 1) + 1;
@@ -972,8 +974,7 @@ static int __init au1550_spi_init(void)
 	if (usedma) {
 		ddma_memid = au1xxx_ddma_add_device(&au1550_spi_mem_dbdev);
 		if (!ddma_memid)
-			printk(KERN_ERR "au1550-spi: cannot add memory"
-					"dbdma device\n");
+			printk(KERN_ERR "au1550-spi: cannot add memory dbdma device\n");
 	}
 	return platform_driver_register(&au1550_spi_drv);
 }

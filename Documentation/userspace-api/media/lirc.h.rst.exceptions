@@ -64,6 +64,7 @@ ignore symbol RC_PROTO_RCMM12
 ignore symbol RC_PROTO_RCMM24
 ignore symbol RC_PROTO_RCMM32
 ignore symbol RC_PROTO_XBOX_DVD
+ignore symbol RC_PROTO_MAX
 
 # Undocumented macros
 

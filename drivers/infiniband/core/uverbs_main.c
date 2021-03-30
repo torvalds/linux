@@ -108,8 +108,11 @@ int uverbs_dealloc_mw(struct ib_mw *mw)
 	int ret;
 
 	ret = mw->device->ops.dealloc_mw(mw);
-	if (!ret)
-		atomic_dec(&pd->usecnt);
+	if (ret)
+		return ret;
+
+	atomic_dec(&pd->usecnt);
+	kfree(mw);
 	return ret;
 }
 
@@ -845,8 +848,6 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 		 * will only be one mm, so no big deal.
 		 */
 		mmap_read_lock(mm);
-		if (!mmget_still_valid(mm))
-			goto skip_mm;
 		mutex_lock(&ufile->umap_lock);
 		list_for_each_entry_safe (priv, next_priv, &ufile->umaps,
 					  list) {
@@ -865,7 +866,6 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 			}
 		}
 		mutex_unlock(&ufile->umap_lock);
-	skip_mm:
 		mmap_read_unlock(mm);
 		mmput(mm);
 	}
@@ -1046,7 +1046,7 @@ static ssize_t ibdev_show(struct device *device, struct device_attribute *attr,
 	srcu_key = srcu_read_lock(&dev->disassociate_srcu);
 	ib_dev = srcu_dereference(dev->ib_dev, &dev->disassociate_srcu);
 	if (ib_dev)
-		ret = sprintf(buf, "%s\n", dev_name(&ib_dev->dev));
+		ret = sysfs_emit(buf, "%s\n", dev_name(&ib_dev->dev));
 	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
 
 	return ret;
@@ -1065,7 +1065,7 @@ static ssize_t abi_version_show(struct device *device,
 	srcu_key = srcu_read_lock(&dev->disassociate_srcu);
 	ib_dev = srcu_dereference(dev->ib_dev, &dev->disassociate_srcu);
 	if (ib_dev)
-		ret = sprintf(buf, "%u\n", ib_dev->ops.uverbs_abi_ver);
+		ret = sysfs_emit(buf, "%u\n", ib_dev->ops.uverbs_abi_ver);
 	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
 
 	return ret;

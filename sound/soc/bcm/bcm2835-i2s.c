@@ -783,8 +783,8 @@ static struct snd_soc_dai_driver bcm2835_i2s_dai = {
 				| SNDRV_PCM_FMTBIT_S32_LE
 		},
 	.ops = &bcm2835_i2s_dai_ops,
-	.symmetric_rates = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_rate = 1,
+	.symmetric_sample_bits = 1,
 };
 
 static bool bcm2835_i2s_volatile_reg(struct device *dev, unsigned int reg)
@@ -797,7 +797,7 @@ static bool bcm2835_i2s_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool bcm2835_i2s_precious_reg(struct device *dev, unsigned int reg)
@@ -807,7 +807,7 @@ static bool bcm2835_i2s_precious_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config bcm2835_regmap_config = {

@@ -81,10 +81,11 @@
 #define CH341_QUIRK_SIMULATE_BREAK	BIT(1)
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0x4348, 0x5523) },
+	{ USB_DEVICE(0x1a86, 0x5512) },
+	{ USB_DEVICE(0x1a86, 0x5523) },
 	{ USB_DEVICE(0x1a86, 0x7522) },
 	{ USB_DEVICE(0x1a86, 0x7523) },
-	{ USB_DEVICE(0x1a86, 0x5523) },
+	{ USB_DEVICE(0x4348, 0x5523) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -418,14 +419,12 @@ error:	kfree(priv);
 	return r;
 }
 
-static int ch341_port_remove(struct usb_serial_port *port)
+static void ch341_port_remove(struct usb_serial_port *port)
 {
 	struct ch341_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int ch341_carrier_raised(struct usb_serial_port *port)

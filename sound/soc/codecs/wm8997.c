@@ -969,8 +969,8 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 			 .formats = WM8997_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8997-aif2",
@@ -991,8 +991,8 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 			 .formats = WM8997_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_rate = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "wm8997-slim1",
@@ -1176,6 +1176,8 @@ static int wm8997_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;
 	}
+
+	return ret;
 
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);

@@ -14,9 +14,8 @@ capture=false
 timeout=30
 ipv6=true
 ethtool_random_on=true
-tc_delay="$((RANDOM%400))"
+tc_delay="$((RANDOM%50))"
 tc_loss=$((RANDOM%101))
-tc_reorder=""
 testmode=""
 sndbuf=0
 rcvbuf=0
@@ -129,6 +128,7 @@ cleanup()
 	local netns
 	for netns in "$ns1" "$ns2" "$ns3" "$ns4";do
 		ip netns del $netns
+		rm -f /tmp/$netns.{nstat,out}
 	done
 }
 
@@ -334,6 +334,21 @@ do_ping()
 	return 0
 }
 
+# $1: ns, $2: MIB counter
+get_mib_counter()
+{
+	local listener_ns="${1}"
+	local mib="${2}"
+
+	# strip the header
+	ip netns exec "${listener_ns}" \
+		nstat -z -a "${mib}" | \
+			tail -n+2 | \
+			while read a count c rest; do
+				echo $count
+			done
+}
+
 # $1: ns, $2: port
 wait_local_port_listen()
 {
@@ -410,10 +425,10 @@ do_transfer()
 		sleep 1
 	fi
 
-	local stat_synrx_last_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableSYNRX | while read a count c rest ;do  echo $count;done)
-	local stat_ackrx_last_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableACKRX | while read a count c rest ;do  echo $count;done)
-	local stat_cookietx_last=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesSent | while read a count c rest ;do  echo $count;done)
-	local stat_cookierx_last=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesRecv | while read a count c rest ;do  echo $count;done)
+	local stat_synrx_last_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
+	local stat_ackrx_last_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
+	local stat_cookietx_last=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesSent")
+	local stat_cookierx_last=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesRecv")
 
 	ip netns exec ${listener_ns} ./mptcp_connect -t $timeout -l -p $port -s ${srv_proto} $extra_args $local_addr < "$sin" > "$sout" &
 	local spid=$!
@@ -439,16 +454,26 @@ do_transfer()
 		kill ${cappid_connector}
 	fi
 
+	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
+		nstat | grep Tcp > /tmp/${listener_ns}.out
+	if [ ${listener_ns} != ${connector_ns} ]; then
+		NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
+			nstat | grep Tcp > /tmp/${connector_ns}.out
+	fi
+
 	local duration
 	duration=$((stop-start))
-	duration=$(printf "(duration %05sms)" $duration)
+	printf "(duration %05sms) " "${duration}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
-		echo "$duration [ FAIL ] client exit code $retc, server $rets" 1>&2
-		echo "\nnetns ${listener_ns} socket stat for $port:" 1>&2
-		ip netns exec ${listener_ns} ss -nita 1>&2 -o "sport = :$port"
-		echo "\nnetns ${connector_ns} socket stat for $port:" 1>&2
-		ip netns exec ${connector_ns} ss -nita 1>&2 -o "dport = :$port"
+		echo "[ FAIL ] client exit code $retc, server $rets" 1>&2
+		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
+		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
+		cat /tmp/${listener_ns}.out
+		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
+		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
+		[ ${listener_ns} != ${connector_ns} ] && cat /tmp/${connector_ns}.out
 
+		echo
 		cat "$capout"
 		return 1
 	fi
@@ -458,11 +483,10 @@ do_transfer()
 	check_transfer $cin $sout "file received by server"
 	rets=$?
 
-	local stat_synrx_now_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableSYNRX  | while read a count c rest ;do  echo $count;done)
-	local stat_ackrx_now_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableACKRX  | while read a count c rest ;do  echo $count;done)
-
-	local stat_cookietx_now=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesSent | while read a count c rest ;do  echo $count;done)
-	local stat_cookierx_now=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesRecv | while read a count c rest ;do  echo $count;done)
+	local stat_synrx_now_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
+	local stat_ackrx_now_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
+	local stat_cookietx_now=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesSent")
+	local stat_cookierx_now=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesRecv")
 
 	expect_synrx=$((stat_synrx_last_l))
 	expect_ackrx=$((stat_ackrx_last_l))
@@ -474,37 +498,50 @@ do_transfer()
 		expect_synrx=$((stat_synrx_last_l+1))
 		expect_ackrx=$((stat_ackrx_last_l+1))
 	fi
+
+	if [ ${stat_synrx_now_l} -lt ${expect_synrx} ]; then
+		printf "[ FAIL ] lower MPC SYN rx (%d) than expected (%d)\n" \
+			"${stat_synrx_now_l}" "${expect_synrx}" 1>&2
+		retc=1
+	fi
+	if [ ${stat_ackrx_now_l} -lt ${expect_ackrx} ]; then
+		printf "[ FAIL ] lower MPC ACK rx (%d) than expected (%d)\n" \
+			"${stat_ackrx_now_l}" "${expect_ackrx}" 1>&2
+		rets=1
+	fi
+
+	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
+		printf "[ OK ]"
+	fi
+
 	if [ $cookies -eq 2 ];then
 		if [ $stat_cookietx_last -ge $stat_cookietx_now ] ;then
-			echo "${listener_ns} CookieSent: ${cl_proto} -> ${srv_proto}: did not advance"
+			printf " WARN: CookieSent: did not advance"
 		fi
 		if [ $stat_cookierx_last -ge $stat_cookierx_now ] ;then
-			echo "${listener_ns} CookieRecv: ${cl_proto} -> ${srv_proto}: did not advance"
+			printf " WARN: CookieRecv: did not advance"
 		fi
 	else
 		if [ $stat_cookietx_last -ne $stat_cookietx_now ] ;then
-			echo "${listener_ns} CookieSent: ${cl_proto} -> ${srv_proto}: changed"
+			printf " WARN: CookieSent: changed"
 		fi
 		if [ $stat_cookierx_last -ne $stat_cookierx_now ] ;then
-			echo "${listener_ns} CookieRecv: ${cl_proto} -> ${srv_proto}: changed"
+			printf " WARN: CookieRecv: changed"
 		fi
 	fi
 
-	if [ $expect_synrx -ne $stat_synrx_now_l ] ;then
-		echo "${listener_ns} SYNRX: ${cl_proto} -> ${srv_proto}: expect ${expect_synrx}, got ${stat_synrx_now_l}"
+	if [ ${stat_synrx_now_l} -gt ${expect_synrx} ]; then
+		printf " WARN: SYNRX: expect %d, got %d (probably retransmissions)" \
+			"${expect_synrx}" "${stat_synrx_now_l}"
 	fi
-	if [ $expect_ackrx -ne $stat_ackrx_now_l ] ;then
-		echo "${listener_ns} ACKRX: ${cl_proto} -> ${srv_proto}: expect ${expect_synrx}, got ${stat_synrx_now_l}"
-	fi
-
-	if [ $retc -eq 0 ] && [ $rets -eq 0 ];then
-		echo "$duration [ OK ]"
-		cat "$capout"
-		return 0
+	if [ ${stat_ackrx_now_l} -gt ${expect_ackrx} ]; then
+		printf " WARN: ACKRX: expect %d, got %d (probably retransmissions)" \
+			"${expect_ackrx}" "${stat_ackrx_now_l}"
 	fi
 
+	echo
 	cat "$capout"
-	return 1
+	[ $retc -eq 0 ] && [ $rets -eq 0 ]
 }
 
 make_file()
@@ -628,30 +665,32 @@ for sender in "$ns1" "$ns2" "$ns3" "$ns4";do
 	do_ping "$ns4" $sender dead:beef:3::1
 done
 
-[ -n "$tc_loss" ] && tc -net "$ns2" qdisc add dev ns2eth3 root netem loss random $tc_loss
+[ -n "$tc_loss" ] && tc -net "$ns2" qdisc add dev ns2eth3 root netem loss random $tc_loss delay ${tc_delay}ms
 echo -n "INFO: Using loss of $tc_loss "
 test "$tc_delay" -gt 0 && echo -n "delay $tc_delay ms "
+
+reorder_delay=$(($tc_delay / 4))
 
 if [ -z "${tc_reorder}" ]; then
 	reorder1=$((RANDOM%10))
 	reorder1=$((100 - reorder1))
 	reorder2=$((RANDOM%100))
 
-	if [ $tc_delay -gt 0 ] && [ $reorder1 -lt 100 ] && [ $reorder2 -gt 0 ]; then
+	if [ $reorder_delay -gt 0 ] && [ $reorder1 -lt 100 ] && [ $reorder2 -gt 0 ]; then
 		tc_reorder="reorder ${reorder1}% ${reorder2}%"
-		echo -n "$tc_reorder "
+		echo -n "$tc_reorder with delay ${reorder_delay}ms "
 	fi
 elif [ "$tc_reorder" = "0" ];then
 	tc_reorder=""
-elif [ "$tc_delay" -gt 0 ];then
+elif [ "$reorder_delay" -gt 0 ];then
 	# reordering requires some delay
 	tc_reorder="reorder $tc_reorder"
-	echo -n "$tc_reorder "
+	echo -n "$tc_reorder with delay ${reorder_delay}ms "
 fi
 
 echo "on ns3eth4"
 
-tc -net "$ns3" qdisc add dev ns3eth4 root netem delay ${tc_delay}ms $tc_reorder
+tc -net "$ns3" qdisc add dev ns3eth4 root netem delay ${reorder_delay}ms $tc_reorder
 
 for sender in $ns1 $ns2 $ns3 $ns4;do
 	run_tests_lo "$ns1" "$sender" 10.0.1.1 1

@@ -259,15 +259,27 @@ struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
 	struct ieee80211_meshconf_ie *meshconf;
-	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
-	u8 csa_current_counter;
+	u16 cntdwn_counter_offsets[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
+	u8 cntdwn_current_counter;
 	struct rcu_head rcu_head;
 };
 
 struct probe_resp {
 	struct rcu_head rcu_head;
 	int len;
-	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
+	u16 cntdwn_counter_offsets[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
+	u8 data[];
+};
+
+struct fils_discovery_data {
+	struct rcu_head rcu_head;
+	int len;
+	u8 data[];
+};
+
+struct unsol_bcast_probe_resp_data {
+	struct rcu_head rcu_head;
+	int len;
 	u8 data[];
 };
 
@@ -286,6 +298,8 @@ struct ps_data {
 struct ieee80211_if_ap {
 	struct beacon_data __rcu *beacon;
 	struct probe_resp __rcu *probe_resp;
+	struct fils_discovery_data __rcu *fils_discovery;
+	struct unsol_bcast_probe_resp_data __rcu *unsol_bcast_probe_resp;
 
 	/* to be used after channel switch. */
 	struct cfg80211_beacon_data *next_beacon;
@@ -295,11 +309,6 @@ struct ieee80211_if_ap {
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
 
 	bool multicast_to_unicast;
-};
-
-struct ieee80211_if_wds {
-	struct sta_info *sta;
-	u8 remote_addr[ETH_ALEN];
 };
 
 struct ieee80211_if_vlan {
@@ -443,7 +452,9 @@ struct ieee80211_if_managed {
 	unsigned long probe_timeout;
 	int probe_send_count;
 	bool nullfunc_failed;
-	bool connection_loss;
+	u8 connection_loss:1,
+	   driver_disconnect:1,
+	   reconnect:1;
 
 	struct cfg80211_bss *associated;
 	struct ieee80211_mgd_auth_data *auth_data;
@@ -530,6 +541,8 @@ struct ieee80211_if_managed {
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
 	struct ieee80211_vht_cap vht_capa; /* configured VHT overrides */
 	struct ieee80211_vht_cap vht_capa_mask; /* Valid parts of vht_capa */
+	struct ieee80211_s1g_cap s1g_capa; /* configured S1G overrides */
+	struct ieee80211_s1g_cap s1g_capa_mask; /* valid s1g_capa bits */
 
 	/* TDLS support */
 	u8 tdls_peer[ETH_ALEN] __aligned(2);
@@ -835,7 +848,6 @@ enum txq_info_flags {
  */
 struct txq_info {
 	struct fq_tin tin;
-	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
 	struct sk_buff_head frags;
@@ -969,7 +981,6 @@ struct ieee80211_sub_if_data {
 
 	union {
 		struct ieee80211_if_ap ap;
-		struct ieee80211_if_wds wds;
 		struct ieee80211_if_vlan vlan;
 		struct ieee80211_if_managed mgd;
 		struct ieee80211_if_ibss ibss;
@@ -988,8 +999,6 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_beacon_key;
 	} debugfs;
 #endif
-
-	bool hw_80211_encap;
 
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
@@ -1068,6 +1077,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_FLUSH,
 	IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN,
 	IEEE80211_QUEUE_STOP_REASON_RESERVE_TID,
+	IEEE80211_QUEUE_STOP_REASON_IFTYPE_CHANGE,
 
 	IEEE80211_QUEUE_STOP_REASONS,
 };
@@ -1132,6 +1142,8 @@ enum mac80211_scan_state {
 	SCAN_RESUME,
 	SCAN_ABORT,
 };
+
+DECLARE_STATIC_KEY_FALSE(aql_disable);
 
 struct ieee80211_local {
 	/* embed the driver visible part.
@@ -1364,7 +1376,6 @@ struct ieee80211_local {
 				*/
 
 	bool pspolling;
-	bool offchannel_ps_enabled;
 	/*
 	 * PS can only be enabled when we have exactly one managed
 	 * interface (and monitors) in PS, this then points there.
@@ -1522,6 +1533,10 @@ struct ieee802_11_elems {
 	u8 dtim_count;
 	u8 dtim_period;
 	const struct ieee80211_addba_ext_ie *addba_ext_ie;
+	const struct ieee80211_s1g_cap *s1g_capab;
+	const struct ieee80211_s1g_oper_ie *s1g_oper;
+	const struct ieee80211_s1g_bcn_compat_ie *s1g_bcn_compat;
+	const struct ieee80211_aid_response_ie *aid_resp;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1576,13 +1591,8 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 {
 	WARN_ON_ONCE(status->flag & RX_FLAG_MACTIME_START &&
 		     status->flag & RX_FLAG_MACTIME_END);
-	if (status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END))
-		return true;
-	/* can't handle non-legacy preamble yet */
-	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
-	    status->encoding == RX_ENC_LEGACY)
-		return true;
-	return false;
+	return !!(status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END |
+				  RX_FLAG_MACTIME_PLCP_START));
 }
 
 void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata);
@@ -1640,6 +1650,8 @@ int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
+void ieee80211_sta_rx_queued_ext(struct ieee80211_sub_if_data *sdata,
+				 struct sk_buff *skb);
 void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata);
@@ -1767,6 +1779,7 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
 			      bool update_bss);
+void ieee80211_recalc_offload(struct ieee80211_local *local);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
@@ -1775,7 +1788,7 @@ static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
-void ieee80211_tx_pending(unsigned long data);
+void ieee80211_tx_pending(struct tasklet_struct *t);
 netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 					 struct net_device *dev);
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
@@ -1907,6 +1920,9 @@ ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
 void
 ieee80211_he_op_ie_to_bss_conf(struct ieee80211_vif *vif,
 			const struct ieee80211_he_operation *he_op_ie_elem);
+
+/* S1G */
+void ieee80211_s1g_sta_rate_init(struct sta_info *sta);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
@@ -2040,8 +2056,6 @@ void ieee80211_dynamic_ps_timer(struct timer_list *t);
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
 			     bool powersave);
-void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
-			     struct ieee80211_hdr *hdr);
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr, bool ack, u16 tx_time);
 
@@ -2125,7 +2139,7 @@ void ieee80211_txq_remove_vlan(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata);
 void ieee80211_fill_txq_stats(struct cfg80211_txq_stats *txqstats,
 			      struct txq_info *txqi);
-void ieee80211_wake_txqs(unsigned long data);
+void ieee80211_wake_txqs(struct tasklet_struct *t);
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *bssid,
@@ -2193,6 +2207,11 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, bool need_basic,
 				enum nl80211_band band);
 u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
+void ieee80211_add_s1g_capab_ie(struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_sta_s1g_cap *caps,
+				struct sk_buff *skb);
+void ieee80211_add_aid_request_ie(struct ieee80211_sub_if_data *sdata,
+				  struct sk_buff *skb);
 
 /* channel management */
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
@@ -2204,6 +2223,8 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_he_operation *he_oper,
 				    struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
+				struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check
@@ -2258,7 +2279,6 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_chanctx_mode chanmode,
 				 u8 radar_detect);
 int ieee80211_max_num_channels(struct ieee80211_local *local);
-enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta);
 void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 				       struct ieee80211_chanctx *ctx);
 
@@ -2282,6 +2302,9 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk);
 void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
 				      const u8 *peer, u16 reason);
 const char *ieee80211_get_reason_code_string(u16 reason_code);
+u16 ieee80211_encode_usf(int val);
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
+			enum nl80211_iftype type);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 

@@ -53,7 +53,6 @@
 enum fault_type {
 	KERNEL_FAULT,
 	USER_FAULT,
-	VDSO_FAULT,
 	GMAP_FAULT,
 };
 
@@ -77,22 +76,16 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 	trans_exc_code = regs->int_parm_long & 3;
 	if (likely(trans_exc_code == 0)) {
 		/* primary space exception */
-		if (IS_ENABLED(CONFIG_PGSTE) &&
-		    test_pt_regs_flag(regs, PIF_GUEST_FAULT))
-			return GMAP_FAULT;
-		if (current->thread.mm_segment == USER_DS)
+		if (user_mode(regs))
 			return USER_FAULT;
+		if (!IS_ENABLED(CONFIG_PGSTE))
+			return KERNEL_FAULT;
+		if (test_pt_regs_flag(regs, PIF_GUEST_FAULT))
+			return GMAP_FAULT;
 		return KERNEL_FAULT;
 	}
-	if (trans_exc_code == 2) {
-		/* secondary space exception */
-		if (current->thread.mm_segment & 1) {
-			if (current->thread.mm_segment == USER_DS_SACF)
-				return USER_FAULT;
-			return KERNEL_FAULT;
-		}
-		return VDSO_FAULT;
-	}
+	if (trans_exc_code == 2)
+		return USER_FAULT;
 	if (trans_exc_code == 1) {
 		/* access register mode, not used in the kernel */
 		return USER_FAULT;
@@ -187,10 +180,6 @@ static void dump_fault_info(struct pt_regs *regs)
 	case USER_FAULT:
 		asce = S390_lowcore.user_asce;
 		pr_cont("user ");
-		break;
-	case VDSO_FAULT:
-		asce = S390_lowcore.vdso_asce;
-		pr_cont("vdso ");
 		break;
 	case GMAP_FAULT:
 		asce = ((struct gmap *) S390_lowcore.gmap)->asce;
@@ -396,7 +385,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	 * The instruction that caused the program check has
 	 * been nullified. Don't signal single step via SIGTRAP.
 	 */
-	clear_pt_regs_flag(regs, PIF_PER_TRAP);
+	clear_thread_flag(TIF_PER_TRAP);
 
 	if (kprobe_page_fault(regs, 14))
 		return 0;
@@ -413,9 +402,6 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	type = get_fault_type(regs);
 	switch (type) {
 	case KERNEL_FAULT:
-		goto out;
-	case VDSO_FAULT:
-		fault = VM_FAULT_BADMAP;
 		goto out;
 	case USER_FAULT:
 	case GMAP_FAULT:
@@ -834,7 +820,6 @@ void do_secure_storage_access(struct pt_regs *regs)
 		if (rc)
 			BUG();
 		break;
-	case VDSO_FAULT:
 	case GMAP_FAULT:
 	default:
 		do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);

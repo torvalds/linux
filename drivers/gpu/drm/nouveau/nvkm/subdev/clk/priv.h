@@ -16,9 +16,9 @@ struct nvkm_clk_func {
 	struct nvkm_domain domains[];
 };
 
-int nvkm_clk_ctor(const struct nvkm_clk_func *, struct nvkm_device *, int,
+int nvkm_clk_ctor(const struct nvkm_clk_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  bool allow_reclock, struct nvkm_clk *);
-int nvkm_clk_new_(const struct nvkm_clk_func *, struct nvkm_device *, int,
+int nvkm_clk_new_(const struct nvkm_clk_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  bool allow_reclock, struct nvkm_clk **);
 
 int nv04_clk_pll_calc(struct nvkm_clk *, struct nvbios_pll *, int clk,

@@ -55,7 +55,7 @@ static const struct i2c_device_id s35390a_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, s35390a_id);
 
-static const struct of_device_id s35390a_of_match[] = {
+static const __maybe_unused struct of_device_id s35390a_of_match[] = {
 	{ .compatible = "s35390a" },
 	{ .compatible = "sii,s35390a" },
 	{ }
@@ -497,7 +497,7 @@ static int s35390a_probe(struct i2c_client *client,
 	if (status1 & S35390A_FLAG_INT2)
 		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
 
-	return rtc_register_device(s35390a->rtc);
+	return devm_rtc_register_device(s35390a->rtc);
 }
 
 static struct i2c_driver s35390a_driver = {

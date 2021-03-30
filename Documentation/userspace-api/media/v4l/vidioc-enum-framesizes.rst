@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FRAMESIZES:
 
@@ -11,25 +12,23 @@ Name
 
 VIDIOC_ENUM_FRAMESIZES - Enumerate frame sizes
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FRAMESIZES, struct v4l2_frmsizeenum *argp )
-    :name: VIDIOC_ENUM_FRAMESIZES
+.. c:macro:: VIDIOC_ENUM_FRAMESIZES
 
+``int ioctl(int fd, VIDIOC_ENUM_FRAMESIZES, struct v4l2_frmsizeenum *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_frmsizeenum`
     that contains an index and pixel format and receives a frame width
     and height.
-
 
 Description
 ===========
@@ -81,14 +80,12 @@ without any interaction from the application itself. This means that the
 enumeration data is consistent if the application does not perform any
 other ioctl calls while it runs the frame size enumeration.
 
-
 Structs
 =======
 
 In the structs below, *IN* denotes a value that has to be filled in by
 the application, *OUT* denotes values that the driver fills in. The
 application should zero out all members except for the *IN* fields.
-
 
 .. c:type:: v4l2_frmsize_discrete
 
@@ -105,7 +102,6 @@ application should zero out all members except for the *IN* fields.
     * - __u32
       - ``height``
       - Height of the frame [pixel].
-
 
 
 .. c:type:: v4l2_frmsize_stepwise
@@ -135,7 +131,6 @@ application should zero out all members except for the *IN* fields.
     * - __u32
       - ``step_height``
       - Frame height step size [pixel].
-
 
 
 .. c:type:: v4l2_frmsizeenum
@@ -173,10 +168,8 @@ application should zero out all members except for the *IN* fields.
 	applications.
 
 
-
 Enums
 =====
-
 
 .. c:type:: v4l2_frmsizetypes
 
@@ -196,7 +189,6 @@ Enums
     * - ``V4L2_FRMSIZE_TYPE_STEPWISE``
       - 3
       - Step-wise defined frame size.
-
 
 Return Value
 ============

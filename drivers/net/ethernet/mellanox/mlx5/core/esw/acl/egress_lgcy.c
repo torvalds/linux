@@ -95,21 +95,20 @@ int esw_acl_egress_lgcy_setup(struct mlx5_eswitch *esw,
 		return 0;
 	}
 
-	if (!IS_ERR_OR_NULL(vport->egress.acl))
-		return 0;
+	if (!vport->egress.acl) {
+		vport->egress.acl = esw_acl_table_create(esw, vport->vport,
+							 MLX5_FLOW_NAMESPACE_ESW_EGRESS,
+							 table_size);
+		if (IS_ERR(vport->egress.acl)) {
+			err = PTR_ERR(vport->egress.acl);
+			vport->egress.acl = NULL;
+			goto out;
+		}
 
-	vport->egress.acl = esw_acl_table_create(esw, vport->vport,
-						 MLX5_FLOW_NAMESPACE_ESW_EGRESS,
-						 table_size);
-	if (IS_ERR_OR_NULL(vport->egress.acl)) {
-		err = PTR_ERR(vport->egress.acl);
-		vport->egress.acl = NULL;
-		goto out;
+		err = esw_acl_egress_lgcy_groups_create(esw, vport);
+		if (err)
+			goto out;
 	}
-
-	err = esw_acl_egress_lgcy_groups_create(esw, vport);
-	if (err)
-		goto out;
 
 	esw_debug(esw->dev,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",

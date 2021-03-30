@@ -369,7 +369,7 @@ _initial_num_blocks_is_0\@:
 
 
 _initial_blocks_encrypted\@:
-        cmp     $0, %r13
+        test    %r13, %r13
         je      _zero_cipher_left\@
 
         sub     $128, %r13
@@ -528,7 +528,7 @@ _multiple_of_16_bytes\@:
         vmovdqu HashKey(arg2), %xmm13
 
         mov PBlockLen(arg2), %r12
-        cmp $0, %r12
+        test %r12, %r12
         je _partial_done\@
 
 	#GHASH computation for the last <16 Byte block
@@ -573,7 +573,7 @@ _T_8\@:
         add     $8, %r10
         sub     $8, %r11
         vpsrldq $8, %xmm9, %xmm9
-        cmp     $0, %r11
+        test    %r11, %r11
         je     _return_T_done\@
 _T_4\@:
         vmovd   %xmm9, %eax
@@ -581,7 +581,7 @@ _T_4\@:
         add     $4, %r10
         sub     $4, %r11
         vpsrldq     $4, %xmm9, %xmm9
-        cmp     $0, %r11
+        test    %r11, %r11
         je     _return_T_done\@
 _T_123\@:
         vmovd     %xmm9, %eax
@@ -625,7 +625,7 @@ _get_AAD_blocks\@:
 	cmp     $16, %r11
 	jge     _get_AAD_blocks\@
 	vmovdqu \T8, \T7
-	cmp     $0, %r11
+	test    %r11, %r11
 	je      _get_AAD_done\@
 
 	vpxor   \T7, \T7, \T7
@@ -644,7 +644,7 @@ _get_AAD_rest8\@:
 	vpxor   \T1, \T7, \T7
 	jmp     _get_AAD_rest8\@
 _get_AAD_rest4\@:
-	cmp     $0, %r11
+	test    %r11, %r11
 	jle      _get_AAD_rest0\@
 	mov     (%r10), %eax
 	movq    %rax, \T1
@@ -749,7 +749,7 @@ _done_read_partial_block_\@:
 .macro PARTIAL_BLOCK GHASH_MUL CYPH_PLAIN_OUT PLAIN_CYPH_IN PLAIN_CYPH_LEN DATA_OFFSET \
         AAD_HASH ENC_DEC
         mov 	PBlockLen(arg2), %r13
-        cmp	$0, %r13
+        test	%r13, %r13
         je	_partial_block_done_\@	# Leave Macro if no partial blocks
         # Read in input data without over reading
         cmp	$16, \PLAIN_CYPH_LEN
@@ -801,7 +801,7 @@ _no_extra_mask_1_\@:
         vpshufb	%xmm2, %xmm3, %xmm3
         vpxor	%xmm3, \AAD_HASH, \AAD_HASH
 
-        cmp	$0, %r10
+        test	%r10, %r10
         jl	_partial_incomplete_1_\@
 
         # GHASH computation for the last <16 Byte block
@@ -836,7 +836,7 @@ _no_extra_mask_2_\@:
         vpshufb %xmm2, %xmm9, %xmm9
         vpxor	%xmm9, \AAD_HASH, \AAD_HASH
 
-        cmp	$0, %r10
+        test	%r10, %r10
         jl	_partial_incomplete_2_\@
 
         # GHASH computation for the last <16 Byte block
@@ -856,7 +856,7 @@ _encode_done_\@:
         vpshufb	%xmm2, %xmm9, %xmm9
 .endif
         # output encrypted Bytes
-        cmp	$0, %r10
+        test	%r10, %r10
         jl	_partial_fill_\@
         mov	%r13, %r12
         mov	$16, %r13

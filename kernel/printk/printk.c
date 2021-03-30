@@ -491,52 +491,6 @@ static void truncate_msg(u16 *text_len, u16 *trunc_msg_len)
 		*trunc_msg_len = 0;
 }
 
-/* insert record into the buffer, discard old ones, update heads */
-static int log_store(u32 caller_id, int facility, int level,
-		     enum log_flags flags, u64 ts_nsec,
-		     const struct dev_printk_info *dev_info,
-		     const char *text, u16 text_len)
-{
-	struct prb_reserved_entry e;
-	struct printk_record r;
-	u16 trunc_msg_len = 0;
-
-	prb_rec_init_wr(&r, text_len);
-
-	if (!prb_reserve(&e, prb, &r)) {
-		/* truncate the message if it is too long for empty buffer */
-		truncate_msg(&text_len, &trunc_msg_len);
-		prb_rec_init_wr(&r, text_len + trunc_msg_len);
-		/* survive when the log buffer is too small for trunc_msg */
-		if (!prb_reserve(&e, prb, &r))
-			return 0;
-	}
-
-	/* fill message */
-	memcpy(&r.text_buf[0], text, text_len);
-	if (trunc_msg_len)
-		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
-	r.info->text_len = text_len + trunc_msg_len;
-	r.info->facility = facility;
-	r.info->level = level & 7;
-	r.info->flags = flags & 0x1f;
-	if (ts_nsec > 0)
-		r.info->ts_nsec = ts_nsec;
-	else
-		r.info->ts_nsec = local_clock();
-	r.info->caller_id = caller_id;
-	if (dev_info)
-		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));
-
-	/* insert message */
-	if ((flags & LOG_CONT) || !(flags & LOG_NEWLINE))
-		prb_commit(&e);
-	else
-		prb_final_commit(&e);
-
-	return (text_len + trunc_msg_len);
-}
-
 int dmesg_restrict = IS_ENABLED(CONFIG_SECURITY_DMESG_RESTRICT);
 
 static int syslog_action_restricted(int type)
@@ -741,7 +695,6 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 			if (LOG_FACILITY(u) != 0)
 				facility = LOG_FACILITY(u);
 			endp++;
-			len -= endp - line;
 			line = endp;
 		}
 	}
@@ -782,9 +735,9 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		logbuf_lock_irq();
 	}
 
-	if (user->seq < prb_first_valid_seq(prb)) {
+	if (r->info->seq != user->seq) {
 		/* our last seen message is gone, return error and reset */
-		user->seq = prb_first_valid_seq(prb);
+		user->seq = r->info->seq;
 		ret = -EPIPE;
 		logbuf_unlock_irq();
 		goto out;
@@ -859,6 +812,7 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 {
 	struct devkmsg_user *user = file->private_data;
+	struct printk_info info;
 	__poll_t ret = 0;
 
 	if (!user)
@@ -867,9 +821,9 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &log_wait, wait);
 
 	logbuf_lock_irq();
-	if (prb_read_valid(prb, user->seq, NULL)) {
+	if (prb_read_valid_info(prb, user->seq, &info, NULL)) {
 		/* return error when data has vanished underneath us */
-		if (user->seq < prb_first_valid_seq(prb))
+		if (info.seq != user->seq)
 			ret = EPOLLIN|EPOLLRDNORM|EPOLLERR|EPOLLPRI;
 		else
 			ret = EPOLLIN|EPOLLRDNORM;
@@ -1172,7 +1126,7 @@ void __init setup_log_buf(int early)
 		 new_descs, ilog2(new_descs_count),
 		 new_infos);
 
-	logbuf_lock_irqsave(flags);
+	printk_safe_enter_irqsave(flags);
 
 	log_buf_len = new_log_buf_len;
 	log_buf = new_log_buf;
@@ -1189,7 +1143,7 @@ void __init setup_log_buf(int early)
 	 */
 	prb = &printk_rb_dynamic;
 
-	logbuf_unlock_irqrestore(flags);
+	printk_safe_exit_irqrestore(flags);
 
 	if (seq != prb_next_seq(&printk_rb_static)) {
 		pr_err("dropped %llu messages\n",
@@ -1338,11 +1292,16 @@ static size_t info_print_prefix(const struct printk_info  *info, bool syslog,
  * done:
  *
  *   - Add prefix for each line.
+ *   - Drop truncated lines that no longer fit into the buffer.
  *   - Add the trailing newline that has been removed in vprintk_store().
- *   - Drop truncated lines that do not longer fit into the buffer.
+ *   - Add a string terminator.
+ *
+ * Since the produced string is always terminated, the maximum possible
+ * return value is @r->text_buf_size - 1;
  *
  * Return: The length of the updated/prepared text, including the added
- * prefixes and the newline. The dropped line(s) are not counted.
+ * prefixes and the newline. The terminator is not counted. The dropped
+ * line(s) are not counted.
  */
 static size_t record_print_text(struct printk_record *r, bool syslog,
 				bool time)
@@ -1385,26 +1344,31 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 
 		/*
 		 * Truncate the text if there is not enough space to add the
-		 * prefix and a trailing newline.
+		 * prefix and a trailing newline and a terminator.
 		 */
-		if (len + prefix_len + text_len + 1 > buf_size) {
+		if (len + prefix_len + text_len + 1 + 1 > buf_size) {
 			/* Drop even the current line if no space. */
-			if (len + prefix_len + line_len + 1 > buf_size)
+			if (len + prefix_len + line_len + 1 + 1 > buf_size)
 				break;
 
-			text_len = buf_size - len - prefix_len - 1;
+			text_len = buf_size - len - prefix_len - 1 - 1;
 			truncated = true;
 		}
 
 		memmove(text + prefix_len, text, text_len);
 		memcpy(text, prefix, prefix_len);
 
+		/*
+		 * Increment the prepared length to include the text and
+		 * prefix that were just moved+copied. Also increment for the
+		 * newline at the end of this line. If this is the last line,
+		 * there is no newline, but it will be added immediately below.
+		 */
 		len += prefix_len + line_len + 1;
-
 		if (text_len == line_len) {
 			/*
-			 * Add the trailing newline removed in
-			 * vprintk_store().
+			 * This is the last line. Add the trailing newline
+			 * removed in vprintk_store().
 			 */
 			text[prefix_len + line_len] = '\n';
 			break;
@@ -1428,6 +1392,14 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 		 */
 		text_len -= line_len + 1;
 	}
+
+	/*
+	 * If a buffer was provided, it will be terminated. Space for the
+	 * string terminator is guaranteed to be available. The terminator is
+	 * not counted in the return value.
+	 */
+	if (buf_size > 0)
+		r->text_buf[len] = 0;
 
 	return len;
 }
@@ -1588,6 +1560,7 @@ static void syslog_clear(void)
 
 int do_syslog(int type, char __user *buf, int len, int source)
 {
+	struct printk_info info;
 	bool clear = false;
 	static int saved_console_loglevel = LOGLEVEL_DEFAULT;
 	int error;
@@ -1658,9 +1631,14 @@ int do_syslog(int type, char __user *buf, int len, int source)
 	/* Number of chars in the log buffer */
 	case SYSLOG_ACTION_SIZE_UNREAD:
 		logbuf_lock_irq();
-		if (syslog_seq < prb_first_valid_seq(prb)) {
+		if (!prb_read_valid_info(prb, syslog_seq, &info, NULL)) {
+			/* No unread messages. */
+			logbuf_unlock_irq();
+			return 0;
+		}
+		if (info.seq != syslog_seq) {
 			/* messages are gone, move to first one */
-			syslog_seq = prb_first_valid_seq(prb);
+			syslog_seq = info.seq;
 			syslog_partial = 0;
 		}
 		if (source == SYSLOG_FROM_PROC) {
@@ -1672,7 +1650,6 @@ int do_syslog(int type, char __user *buf, int len, int source)
 			error = prb_next_seq(prb) - syslog_seq;
 		} else {
 			bool time = syslog_partial ? syslog_time : printk_time;
-			struct printk_info info;
 			unsigned int line_count;
 			u64 seq;
 
@@ -1907,75 +1884,117 @@ static inline u32 printk_caller_id(void)
 		0x80000000 + raw_smp_processor_id();
 }
 
-static size_t log_output(int facility, int level, enum log_flags lflags,
-			 const struct dev_printk_info *dev_info,
-			 char *text, size_t text_len)
+/**
+ * parse_prefix - Parse level and control flags.
+ *
+ * @text:     The terminated text message.
+ * @level:    A pointer to the current level value, will be updated.
+ * @lflags:   A pointer to the current log flags, will be updated.
+ *
+ * @level may be NULL if the caller is not interested in the parsed value.
+ * Otherwise the variable pointed to by @level must be set to
+ * LOGLEVEL_DEFAULT in order to be updated with the parsed value.
+ *
+ * @lflags may be NULL if the caller is not interested in the parsed value.
+ * Otherwise the variable pointed to by @lflags will be OR'd with the parsed
+ * value.
+ *
+ * Return: The length of the parsed level and control flags.
+ */
+static u16 parse_prefix(char *text, int *level, enum log_flags *lflags)
 {
-	const u32 caller_id = printk_caller_id();
+	u16 prefix_len = 0;
+	int kern_level;
 
-	if (lflags & LOG_CONT) {
-		struct prb_reserved_entry e;
-		struct printk_record r;
+	while (*text) {
+		kern_level = printk_get_level(text);
+		if (!kern_level)
+			break;
 
-		prb_rec_init_wr(&r, text_len);
-		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
-			memcpy(&r.text_buf[r.info->text_len], text, text_len);
-			r.info->text_len += text_len;
-			if (lflags & LOG_NEWLINE) {
-				r.info->flags |= LOG_NEWLINE;
-				prb_final_commit(&e);
-			} else {
-				prb_commit(&e);
-			}
-			return text_len;
+		switch (kern_level) {
+		case '0' ... '7':
+			if (level && *level == LOGLEVEL_DEFAULT)
+				*level = kern_level - '0';
+			break;
+		case 'c':	/* KERN_CONT */
+			if (lflags)
+				*lflags |= LOG_CONT;
+		}
+
+		prefix_len += 2;
+		text += 2;
+	}
+
+	return prefix_len;
+}
+
+static u16 printk_sprint(char *text, u16 size, int facility, enum log_flags *lflags,
+			 const char *fmt, va_list args)
+{
+	u16 text_len;
+
+	text_len = vscnprintf(text, size, fmt, args);
+
+	/* Mark and strip a trailing newline. */
+	if (text_len && text[text_len - 1] == '\n') {
+		text_len--;
+		*lflags |= LOG_NEWLINE;
+	}
+
+	/* Strip log level and control flags. */
+	if (facility == 0) {
+		u16 prefix_len;
+
+		prefix_len = parse_prefix(text, NULL, NULL);
+		if (prefix_len) {
+			text_len -= prefix_len;
+			memmove(text, text + prefix_len, text_len);
 		}
 	}
 
-	/* Store it in the record log */
-	return log_store(caller_id, facility, level, lflags, 0,
-			 dev_info, text, text_len);
+	return text_len;
 }
 
-/* Must be called under logbuf_lock. */
+__printf(4, 0)
 int vprintk_store(int facility, int level,
 		  const struct dev_printk_info *dev_info,
 		  const char *fmt, va_list args)
 {
-	static char textbuf[LOG_LINE_MAX];
-	char *text = textbuf;
-	size_t text_len;
+	const u32 caller_id = printk_caller_id();
+	struct prb_reserved_entry e;
 	enum log_flags lflags = 0;
+	struct printk_record r;
+	u16 trunc_msg_len = 0;
+	char prefix_buf[8];
+	u16 reserve_size;
+	va_list args2;
+	u16 text_len;
+	u64 ts_nsec;
 
 	/*
-	 * The printf needs to come first; we need the syslog
-	 * prefix which might be passed-in as a parameter.
+	 * Since the duration of printk() can vary depending on the message
+	 * and state of the ringbuffer, grab the timestamp now so that it is
+	 * close to the call of printk(). This provides a more deterministic
+	 * timestamp with respect to the caller.
 	 */
-	text_len = vscnprintf(text, sizeof(textbuf), fmt, args);
+	ts_nsec = local_clock();
 
-	/* mark and strip a trailing newline */
-	if (text_len && text[text_len-1] == '\n') {
-		text_len--;
-		lflags |= LOG_NEWLINE;
-	}
+	/*
+	 * The sprintf needs to come first since the syslog prefix might be
+	 * passed in as a parameter. An extra byte must be reserved so that
+	 * later the vscnprintf() into the reserved buffer has room for the
+	 * terminating '\0', which is not counted by vsnprintf().
+	 */
+	va_copy(args2, args);
+	reserve_size = vsnprintf(&prefix_buf[0], sizeof(prefix_buf), fmt, args2) + 1;
+	va_end(args2);
 
-	/* strip kernel syslog prefix and extract log level or control flags */
-	if (facility == 0) {
-		int kern_level;
+	if (reserve_size > LOG_LINE_MAX)
+		reserve_size = LOG_LINE_MAX;
 
-		while ((kern_level = printk_get_level(text)) != 0) {
-			switch (kern_level) {
-			case '0' ... '7':
-				if (level == LOGLEVEL_DEFAULT)
-					level = kern_level - '0';
-				break;
-			case 'c':	/* KERN_CONT */
-				lflags |= LOG_CONT;
-			}
-
-			text_len -= 2;
-			text += 2;
-		}
-	}
+	/* Extract log level or control flags. */
+	if (facility == 0)
+		parse_prefix(&prefix_buf[0], &level, &lflags);
 
 	if (level == LOGLEVEL_DEFAULT)
 		level = default_message_loglevel;
@@ -1983,7 +2002,59 @@ int vprintk_store(int facility, int level,
 	if (dev_info)
 		lflags |= LOG_NEWLINE;
 
-	return log_output(facility, level, lflags, dev_info, text, text_len);
+	if (lflags & LOG_CONT) {
+		prb_rec_init_wr(&r, reserve_size);
+		if (prb_reserve_in_last(&e, prb, &r, caller_id, LOG_LINE_MAX)) {
+			text_len = printk_sprint(&r.text_buf[r.info->text_len], reserve_size,
+						 facility, &lflags, fmt, args);
+			r.info->text_len += text_len;
+
+			if (lflags & LOG_NEWLINE) {
+				r.info->flags |= LOG_NEWLINE;
+				prb_final_commit(&e);
+			} else {
+				prb_commit(&e);
+			}
+
+			return text_len;
+		}
+	}
+
+	/*
+	 * Explicitly initialize the record before every prb_reserve() call.
+	 * prb_reserve_in_last() and prb_reserve() purposely invalidate the
+	 * structure when they fail.
+	 */
+	prb_rec_init_wr(&r, reserve_size);
+	if (!prb_reserve(&e, prb, &r)) {
+		/* truncate the message if it is too long for empty buffer */
+		truncate_msg(&reserve_size, &trunc_msg_len);
+
+		prb_rec_init_wr(&r, reserve_size + trunc_msg_len);
+		if (!prb_reserve(&e, prb, &r))
+			return 0;
+	}
+
+	/* fill message */
+	text_len = printk_sprint(&r.text_buf[0], reserve_size, facility, &lflags, fmt, args);
+	if (trunc_msg_len)
+		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
+	r.info->text_len = text_len + trunc_msg_len;
+	r.info->facility = facility;
+	r.info->level = level & 7;
+	r.info->flags = lflags & 0x1f;
+	r.info->ts_nsec = ts_nsec;
+	r.info->caller_id = caller_id;
+	if (dev_info)
+		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));
+
+	/* A message without a trailing newline can be continued. */
+	if (!(lflags & LOG_NEWLINE))
+		prb_commit(&e);
+	else
+		prb_final_commit(&e);
+
+	return (text_len + trunc_msg_len);
 }
 
 asmlinkage int vprintk_emit(int facility, int level,
@@ -2006,10 +2077,9 @@ asmlinkage int vprintk_emit(int facility, int level,
 	boot_delay_msec(level);
 	printk_delay();
 
-	/* This stops the holder of console_sem just where we want him */
-	logbuf_lock_irqsave(flags);
+	printk_safe_enter_irqsave(flags);
 	printed_len = vprintk_store(facility, level, dev_info, fmt, args);
-	logbuf_unlock_irqrestore(flags);
+	printk_safe_exit_irqrestore(flags);
 
 	/* If called from the scheduler, we can not call up(). */
 	if (!in_sched) {
@@ -2189,8 +2259,15 @@ static int __init console_setup(char *str)
 	char *s, *options, *brl_options = NULL;
 	int idx;
 
-	if (str[0] == 0)
+	/*
+	 * console="" or console=null have been suggested as a way to
+	 * disable console output. Use ttynull that has been created
+	 * for exacly this purpose.
+	 */
+	if (str[0] == 0 || strcmp(str, "null") == 0) {
+		__add_preferred_console("ttynull", 0, NULL, NULL, true);
 		return 1;
+	}
 
 	if (_braille_console_setup(&str, &brl_options))
 		return 1;
@@ -3025,10 +3102,8 @@ static void wake_up_klogd_work_func(struct irq_work *irq_work)
 		wake_up_interruptible(&log_wait);
 }
 
-static DEFINE_PER_CPU(struct irq_work, wake_up_klogd_work) = {
-	.func = wake_up_klogd_work_func,
-	.flags = ATOMIC_INIT(IRQ_WORK_LAZY),
-};
+static DEFINE_PER_CPU(struct irq_work, wake_up_klogd_work) =
+	IRQ_WORK_INIT_LAZY(wake_up_klogd_work_func);
 
 void wake_up_klogd(void)
 {
@@ -3360,9 +3435,11 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 		goto out;
 
 	logbuf_lock_irqsave(flags);
-	if (dumper->cur_seq < prb_first_valid_seq(prb)) {
-		/* messages are gone, move to first available one */
-		dumper->cur_seq = prb_first_valid_seq(prb);
+	if (prb_read_valid_info(prb, dumper->cur_seq, &info, NULL)) {
+		if (info.seq != dumper->cur_seq) {
+			/* messages are gone, move to first available one */
+			dumper->cur_seq = info.seq;
+		}
 	}
 
 	/* last entry */
@@ -3376,7 +3453,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 	while (prb_read_valid_info(prb, seq, &info, &line_count)) {
 		if (r.info->seq >= dumper->next_seq)
 			break;
-		l += get_record_print_text_size(&info, line_count, true, time);
+		l += get_record_print_text_size(&info, line_count, syslog, time);
 		seq = r.info->seq + 1;
 	}
 
@@ -3386,7 +3463,7 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 						&info, &line_count)) {
 		if (r.info->seq >= dumper->next_seq)
 			break;
-		l -= get_record_print_text_size(&info, line_count, true, time);
+		l -= get_record_print_text_size(&info, line_count, syslog, time);
 		seq = r.info->seq + 1;
 	}
 

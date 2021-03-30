@@ -211,7 +211,7 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	int err;
 
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (entries < 1 || entries > rdi->dparms.props.max_cqe)
 		return -EINVAL;
@@ -315,7 +315,7 @@ bail_wc:
  *
  * Called by ib_destroy_cq() in the generic verbs code.
  */
-void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;
@@ -328,6 +328,7 @@ void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(cq->kqueue);
+	return 0;
 }
 
 /**
@@ -370,7 +371,7 @@ int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 	return ret;
 }
 
-/**
+/*
  * rvt_resize_cq - change the size of the CQ
  * @ibcq: the completion queue
  *

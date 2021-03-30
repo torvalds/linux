@@ -174,7 +174,6 @@
 #define SPRN_L1CSR1	0x3F3	/* L1 Cache Control and Status Register 1 */
 #define SPRN_MMUCSR0	0x3F4	/* MMU Control and Status Register 0 */
 #define SPRN_MMUCFG	0x3F7	/* MMU Configuration Register */
-#define SPRN_PIT	0x3DB	/* Programmable Interval Timer */
 #define SPRN_BUCSR	0x3F5	/* Branch Unit Control and Status */
 #define SPRN_L2CSR0	0x3F9	/* L2 Data Cache Control and Status Register 0 */
 #define SPRN_L2CSR1	0x3FA	/* L2 Data Cache Control and Status Register 1 */
@@ -280,18 +279,6 @@
 #define MSRP_UCLEP	0x04000000 /* Protect MSR[UCLE] */
 #define MSRP_DEP	0x00000200 /* Protect MSR[DE] */
 #define MSRP_PMMP	0x00000004 /* Protect MSR[PMM] */
-#endif
-
-#ifdef CONFIG_E200
-#define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
-#define MCSR_CP_PERR 	0x20000000UL /* Cache Push Parity Error */
-#define MCSR_CPERR 	0x10000000UL /* Cache Parity Error */
-#define MCSR_EXCP_ERR 	0x08000000UL /* ISI, ITLB, or Bus Error on 1st insn
-					fetch for an exception handler */
-#define MCSR_BUS_IRERR 	0x00000010UL /* Read Bus Error on instruction fetch*/
-#define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
-#define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
-					store or cache line push */
 #endif
 
 /* Bit definitions for the HID1 */

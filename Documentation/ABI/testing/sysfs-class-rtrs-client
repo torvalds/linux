@@ -10,10 +10,10 @@ Date:		Feb 2020
 KernelVersion:	5.7
 Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
 Description:	RW, adds a new path (connection) to an existing session. Expected format is the
-		following:
+		following::
 
-		<[source addr,]destination addr>
-		*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]
+		    <[source addr,]destination addr>
+		    *addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]
 
 What:		/sys/class/rtrs-client/<session-name>/max_reconnect_attempts
 Date:		Feb 2020
@@ -29,10 +29,10 @@ Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud
 Description:	Multipath policy specifies which path should be selected on each IO:
 
 		round-robin (0):
-		select path in per CPU round-robin manner.
+		    select path in per CPU round-robin manner.
 
 		min-inflight (1):
-		select path with minimum inflights.
+		    select path with minimum inflights.
 
 What:		/sys/class/rtrs-client/<session-name>/paths/
 Date:		Feb 2020
@@ -109,8 +109,11 @@ Description:	RTRS expects that each HCA IRQ is pinned to a separate CPU. If it's
 		not the case, the processing of an I/O response could be processed on a
 		different CPU than where it was originally submitted.  This file shows
 		how many interrupts where generated on a non expected CPU.
-		"from:" is the CPU on which the IRQ was expected, but not generated.
-		"to:" is the CPU on which the IRQ was generated, but not expected.
+
+		"from:"
+		    is the CPU on which the IRQ was expected, but not generated.
+		"to:"
+		    is the CPU on which the IRQ was generated, but not expected.
 
 What:		/sys/class/rtrs-client/<session-name>/paths/<src@dst>/stats/reconnects
 Date:		Feb 2020
@@ -125,7 +128,7 @@ Date:		Feb 2020
 KernelVersion:	5.7
 Contact:	Jack Wang <jinpu.wang@cloud.ionos.com> Danil Kipnis <danil.kipnis@cloud.ionos.com>
 Description:	Contains statistics regarding rdma operations and inflight operations.
-		The output consists of 6 values:
+		The output consists of 6 values::
 
-		<read-count> <read-total-size> <write-count> <write-total-size> \
-		<inflights> <failovered>
+		    <read-count> <read-total-size> <write-count> \
+		    <write-total-size> <inflights> <failovered>

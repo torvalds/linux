@@ -5,12 +5,13 @@
 #include "nouveau_drv.h"
 #include "nouveau_mem.h"
 #include "nouveau_ttm.h"
+#include "nouveau_bo.h"
 
 struct nouveau_sgdma_be {
 	/* this has to be the first field so populate/unpopulated in
 	 * nouve_bo.c works properly, otherwise have to move them here
 	 */
-	struct ttm_dma_tt ttm;
+	struct ttm_tt ttm;
 	struct nouveau_mem *mem;
 };
 
@@ -22,7 +23,7 @@ nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 	if (ttm) {
 		nouveau_sgdma_unbind(bdev, ttm);
 		ttm_tt_destroy_common(bdev, ttm);
-		ttm_dma_tt_fini(&nvbe->ttm);
+		ttm_tt_fini(&nvbe->ttm);
 		kfree(nvbe);
 	}
 }
@@ -67,15 +68,25 @@ nouveau_sgdma_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 struct ttm_tt *
 nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo, uint32_t page_flags)
 {
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_sgdma_be *nvbe;
+	enum ttm_caching caching;
+
+	if (nvbo->force_coherent)
+		caching = ttm_uncached;
+	else if (drm->agp.bridge)
+		caching = ttm_write_combined;
+	else
+		caching = ttm_cached;
 
 	nvbe = kzalloc(sizeof(*nvbe), GFP_KERNEL);
 	if (!nvbe)
 		return NULL;
 
-	if (ttm_dma_tt_init(&nvbe->ttm, bo, page_flags)) {
+	if (ttm_sg_tt_init(&nvbe->ttm, bo, page_flags, caching)) {
 		kfree(nvbe);
 		return NULL;
 	}
-	return &nvbe->ttm.ttm;
+	return &nvbe->ttm;
 }

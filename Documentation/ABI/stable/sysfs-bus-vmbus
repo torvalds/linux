@@ -1,3 +1,10 @@
+What:		/sys/bus/vmbus/hibernation
+Date:		Jan 2021
+KernelVersion:	5.12
+Contact:	Dexuan Cui <decui@microsoft.com>
+Description:	Whether the host supports hibernation for the VM.
+Users:		Daemon that sets up swap partition/file for hibernation.
+
 What:		/sys/bus/vmbus/devices/<UUID>/id
 Date:		Jul 2009
 KernelVersion:	2.6.31
@@ -55,13 +62,6 @@ KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Directory for per-channel information
 		NN is the VMBUS relid associtated with the channel.
-
-What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/cpu
-Date:		September. 2017
-KernelVersion:	4.14
-Contact:	Stephen Hemminger <sthemmin@microsoft.com>
-Description:	VCPU (sub)channel is affinitized to
-Users:		tools/hv/lsvmbus and other debugging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/cpu
 Date:		September. 2017

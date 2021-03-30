@@ -1347,7 +1347,7 @@ static struct snd_soc_dai_driver da9055_dai = {
 		.formats = DA9055_FORMATS,
 	},
 	.ops = &da9055_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int da9055_set_bias_level(struct snd_soc_component *component,
@@ -1519,11 +1519,13 @@ static const struct i2c_device_id da9055_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, da9055_i2c_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id da9055_of_match[] = {
 	{ .compatible = "dlg,da9055-codec", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da9055_of_match);
+#endif
 
 /* I2C codec control layer */
 static struct i2c_driver da9055_i2c_driver = {

@@ -360,7 +360,7 @@ between device driver specific code and shared common code:
    system memory page, locks the page with ``lock_page()``, and fills in the
    ``dst`` array entry with::
 
-   dst[i] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+     dst[i] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
 
    Now that the driver knows that this page is being migrated, it can
    invalidate device private MMU mappings and copy device private memory

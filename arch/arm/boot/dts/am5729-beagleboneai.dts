@@ -488,25 +488,29 @@
 	status = "okay";
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	reset-gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
 	reset-delay-us = <2>;
 
-	phy0: ethernet-phy@1 {
+	phy0: ethernet-phy@4 {
 		reg = <4>;
 		eee-broken-100tx;
 		eee-broken-1000t;
 	};
 };
 
-&mac {
-	slaves = <1>;
+&mac_sw {
 	status = "okay";
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-rxid";
+	ti,dual-emac-pvid = <1>;
+};
+
+&cpsw_port2 {
+	status = "disabled";
 };
 
 &ocp {

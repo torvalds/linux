@@ -35,6 +35,11 @@ struct drm_crtc;
 struct drm_printer;
 struct drm_modeset_acquire_ctx;
 
+enum drm_scaling_filter {
+	DRM_SCALING_FILTER_DEFAULT,
+	DRM_SCALING_FILTER_NEAREST_NEIGHBOR,
+};
+
 /**
  * struct drm_plane_state - mutable plane state
  *
@@ -213,6 +218,13 @@ struct drm_plane_state {
 	 * crtc!=NULL, due to clipping.
 	 */
 	bool visible;
+
+	/**
+	 * @scaling_filter:
+	 *
+	 * Scaling filter to be applied
+	 */
+	enum drm_scaling_filter scaling_filter;
 
 	/**
 	 * @commit: Tracks the pending commit to prevent use-after-free conditions,
@@ -724,6 +736,12 @@ struct drm_plane {
 	 * See drm_plane_create_color_properties().
 	 */
 	struct drm_property *color_range_property;
+
+	/**
+	 * @scaling_filter_property: property to apply a particular filter while
+	 * scaling.
+	 */
+	struct drm_property *scaling_filter_property;
 };
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
@@ -745,6 +763,48 @@ int drm_plane_init(struct drm_device *dev,
 		   const uint32_t *formats, unsigned int format_count,
 		   bool is_primary);
 void drm_plane_cleanup(struct drm_plane *plane);
+
+__printf(10, 11)
+void *__drmm_universal_plane_alloc(struct drm_device *dev,
+				   size_t size, size_t offset,
+				   uint32_t possible_crtcs,
+				   const struct drm_plane_funcs *funcs,
+				   const uint32_t *formats,
+				   unsigned int format_count,
+				   const uint64_t *format_modifiers,
+				   enum drm_plane_type plane_type,
+				   const char *name, ...);
+
+/**
+ * drmm_universal_plane_alloc - Allocate and initialize an universal plane object
+ * @dev: DRM device
+ * @type: the type of the struct which contains struct &drm_plane
+ * @member: the name of the &drm_plane within @type
+ * @possible_crtcs: bitmask of possible CRTCs
+ * @funcs: callbacks for the new plane
+ * @formats: array of supported formats (DRM_FORMAT\_\*)
+ * @format_count: number of elements in @formats
+ * @format_modifiers: array of struct drm_format modifiers terminated by
+ *                    DRM_FORMAT_MOD_INVALID
+ * @plane_type: type of plane (overlay, primary, cursor)
+ * @name: printf style format string for the plane name, or NULL for default name
+ *
+ * Allocates and initializes a plane object of type @type. Cleanup is
+ * automatically handled through registering drm_plane_cleanup() with
+ * drmm_add_action().
+ *
+ * The @drm_plane_funcs.destroy hook must be NULL.
+ *
+ * Returns:
+ * Pointer to new plane, or ERR_PTR on failure.
+ */
+#define drmm_universal_plane_alloc(dev, type, member, possible_crtcs, funcs, formats, \
+				   format_count, format_modifiers, plane_type, name, ...) \
+	((type *)__drmm_universal_plane_alloc(dev, sizeof(type), \
+					      offsetof(type, member), \
+					      possible_crtcs, funcs, formats, \
+					      format_count, format_modifiers, \
+					      plane_type, name, ##__VA_ARGS__))
 
 /**
  * drm_plane_index - find the index of a registered plane
@@ -861,5 +921,8 @@ drm_plane_get_damage_clips(const struct drm_plane_state *state)
 	return (struct drm_mode_rect *)((state && state->fb_damage_clips) ?
 					state->fb_damage_clips->data : NULL);
 }
+
+int drm_plane_create_scaling_filter_property(struct drm_plane *plane,
+					     unsigned int supported_filters);
 
 #endif

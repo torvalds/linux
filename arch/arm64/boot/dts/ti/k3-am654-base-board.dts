@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2016-2020 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /dts-v1/;
@@ -29,8 +29,39 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		secure_ddr: secure_ddr@9e800000 {
+
+		secure_ddr: secure-ddr@9e800000 {
 			reg = <0 0x9e800000 0 0x01800000>; /* for OP-TEE */
+			alignment = <0x1000>;
+			no-map;
+		};
+
+		mcu_r5fss0_core0_dma_memory_region: r5f-dma-memory@a0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa0000000 0 0x100000>;
+			no-map;
+		};
+
+		mcu_r5fss0_core0_memory_region: r5f-memory@a0100000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa0100000 0 0xf00000>;
+			no-map;
+		};
+
+		mcu_r5fss0_core1_dma_memory_region: r5f-dma-memory@a1000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa1000000 0 0x100000>;
+			no-map;
+		};
+
+		mcu_r5fss0_core1_memory_region: r5f-memory@a1100000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa1100000 0 0xf00000>;
+			no-map;
+		};
+
+		rtos_ipc_memory_region: ipc-memories@a2000000 {
+			reg = <0x00 0xa2000000 0x00 0x00100000>;
 			alignment = <0x1000>;
 			no-map;
 		};
@@ -70,14 +101,14 @@
 		>;
 	};
 
-	push_button_pins_default: push_button__pins_default {
+	push_button_pins_default: push-button-pins-default {
 		pinctrl-single,pins = <
 			AM65X_WKUP_IOPAD(0x0030, PIN_INPUT, 7) /* (R5) WKUP_GPIO0_24 */
 			AM65X_WKUP_IOPAD(0x003c, PIN_INPUT, 7) /* (P2) WKUP_GPIO0_27 */
 		>;
 	};
 
-	mcu_fss0_ospi0_pins_default: mcu-fss0-ospi0-pins_default {
+	mcu_fss0_ospi0_pins_default: mcu-fss0-ospi0-pins-default {
 		pinctrl-single,pins = <
 			AM65X_WKUP_IOPAD(0x0000, PIN_OUTPUT, 0) /* (V1) MCU_OSPI0_CLK */
 			AM65X_WKUP_IOPAD(0x0008, PIN_INPUT, 0)	 /* (U2) MCU_OSPI0_DQS */
@@ -93,13 +124,13 @@
 		>;
 	};
 
-	wkup_pca554_default: wkup_pca554_default {
+	wkup_pca554_default: wkup-pca554-default {
 		pinctrl-single,pins = <
 			AM65X_WKUP_IOPAD(0x0034, PIN_INPUT, 7) /* (T1) MCU_OSPI1_CLK.WKUP_GPIO0_25 */
 		>;
 	};
 
-	mcu_cpsw_pins_default: mcu_cpsw_pins_default {
+	mcu_cpsw_pins_default: mcu-cpsw-pins-default {
 		pinctrl-single,pins = <
 			AM65X_WKUP_IOPAD(0x0058, PIN_OUTPUT, 0) /* (N4) MCU_RGMII1_TX_CTL */
 			AM65X_WKUP_IOPAD(0x005c, PIN_INPUT, 0) /* (N5) MCU_RGMII1_RX_CTL */
@@ -116,7 +147,7 @@
 		>;
 	};
 
-	mcu_mdio_pins_default: mcu_mdio1_pins_default {
+	mcu_mdio_pins_default: mcu-mdio1-pins-default {
 		pinctrl-single,pins = <
 			AM65X_WKUP_IOPAD(0x008c, PIN_OUTPUT, 0) /* (L1) MCU_MDIO0_MDC */
 			AM65X_WKUP_IOPAD(0x0088, PIN_INPUT, 0) /* (L4) MCU_MDIO0_MDIO */
@@ -167,7 +198,7 @@
 		>;
 	};
 
-	main_mmc1_pins_default: main_mmc1_pins_default {
+	main_mmc1_pins_default: main-mmc1-pins-default {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x02d4, PIN_INPUT_PULLDOWN, 0) /* (C27) MMC1_CLK */
 			AM65X_IOPAD(0x02d8, PIN_INPUT_PULLUP, 0) /* (C28) MMC1_CMD */
@@ -180,7 +211,7 @@
 		>;
 	};
 
-	usb1_pins_default: usb1_pins_default {
+	usb1_pins_default: usb1-pins-default {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x02c0, PIN_OUTPUT, 0) /* (AC8) USB1_DRVVBUS */
 		>;
@@ -211,7 +242,7 @@
 
 &wkup_uart0 {
 	/* Wakeup UART is used by System firmware */
-	status = "disabled";
+	status = "reserved";
 };
 
 &main_uart0 {
@@ -257,7 +288,7 @@
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
 
-	ov5640@3c {
+	ov5640: camera@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 
@@ -323,14 +354,6 @@
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
-};
-
-&dwc3_1 {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
 };
 
 &usb1 {
@@ -441,6 +464,18 @@
 	status = "disabled";
 };
 
+&mcu_r5fss0_core0 {
+	memory-region = <&mcu_r5fss0_core0_dma_memory_region>,
+			<&mcu_r5fss0_core0_memory_region>;
+	mboxes = <&mailbox0_cluster0 &mbox_mcu_r5fss0_core0>;
+};
+
+&mcu_r5fss0_core1 {
+	memory-region = <&mcu_r5fss0_core1_dma_memory_region>,
+			<&mcu_r5fss0_core1_memory_region>;
+	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5fss0_core1>;
+};
+
 &ospi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>;
@@ -485,4 +520,20 @@
 &cpsw_port1 {
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&phy0>;
+};
+
+&mcasp0 {
+	status = "disabled";
+};
+
+&mcasp1 {
+	status = "disabled";
+};
+
+&mcasp2 {
+	status = "disabled";
+};
+
+&dss {
+	status = "disabled";
 };

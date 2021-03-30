@@ -338,7 +338,7 @@ static struct snd_soc_dai_driver rockchip_pdm_dai = {
 		.formats = ROCKCHIP_PDM_FORMATS,
 	},
 	.ops = &rockchip_pdm_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver rockchip_pdm_component = {
@@ -460,7 +460,7 @@ static const struct regmap_config rockchip_pdm_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static const struct of_device_id rockchip_pdm_match[] = {
+static const struct of_device_id rockchip_pdm_match[] __maybe_unused = {
 	{ .compatible = "rockchip,pdm",
 	  .data = (void *)RK_PDM_RK3229 },
 	{ .compatible = "rockchip,px30-pdm",

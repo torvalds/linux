@@ -1,3 +1,5 @@
+.. _elf_hwcaps_index:
+
 ================
 ARM64 ELF hwcaps
 ================

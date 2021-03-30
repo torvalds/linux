@@ -53,7 +53,7 @@
 		};
 	};
 
-	memory {
+	memory@20000000 {
 		device_type = "memory";
 		reg = <0x20000000 0x20000000>;
 	};
@@ -81,6 +81,9 @@
 	ns_sram: sram@210000 {
 		compatible = "mmio-sram";
 		reg = <0x00210000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x00210000 0x10000>;
 	};
 
 	ahb {
@@ -93,6 +96,9 @@
 			compatible = "mmio-sram";
 			no-memory-wc;
 			reg = <0x100000 0x2400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x100000 0x2400>;
 		};
 
 		usb0: gadget@400000 {
@@ -655,31 +661,9 @@
 				atmel,adc-startup-time = <40>;
 				atmel,adc-use-external-triggers;
 				atmel,adc-vref = <3000>;
-				atmel,adc-res = <8 10>;
 				atmel,adc-sample-hold-time = <11>;
-				atmel,adc-res-names = "lowres", "highres";
 				atmel,adc-ts-pressure-threshold = <10000>;
 				status = "disabled";
-
-				trigger0 {
-					trigger-name = "external-rising";
-					trigger-value = <0x1>;
-					trigger-external;
-				};
-				trigger1 {
-					trigger-name = "external-falling";
-					trigger-value = <0x2>;
-					trigger-external;
-				};
-				trigger2 {
-					trigger-name = "external-any";
-					trigger-value = <0x3>;
-					trigger-external;
-				};
-				trigger3 {
-					trigger-name = "continuous";
-					trigger-value = <0x6>;
-				};
 			};
 
 			aes@fc044000 {

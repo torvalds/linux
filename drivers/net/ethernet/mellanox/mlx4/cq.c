@@ -55,11 +55,11 @@
 #define TASKLET_MAX_TIME 2
 #define TASKLET_MAX_TIME_JIFFIES msecs_to_jiffies(TASKLET_MAX_TIME)
 
-void mlx4_cq_tasklet_cb(unsigned long data)
+void mlx4_cq_tasklet_cb(struct tasklet_struct *t)
 {
 	unsigned long flags;
 	unsigned long end = jiffies + TASKLET_MAX_TIME_JIFFIES;
-	struct mlx4_eq_tasklet *ctx = (struct mlx4_eq_tasklet *)data;
+	struct mlx4_eq_tasklet *ctx = from_tasklet(ctx, t, task);
 	struct mlx4_cq *mcq, *temp;
 
 	spin_lock_irqsave(&ctx->lock, flags);
@@ -462,19 +462,14 @@ EXPORT_SYMBOL_GPL(mlx4_cq_free);
 int mlx4_init_cq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_cq_table *cq_table = &mlx4_priv(dev)->cq_table;
-	int err;
 
 	spin_lock_init(&cq_table->lock);
 	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 	if (mlx4_is_slave(dev))
 		return 0;
 
-	err = mlx4_bitmap_init(&cq_table->bitmap, dev->caps.num_cqs,
-			       dev->caps.num_cqs - 1, dev->caps.reserved_cqs, 0);
-	if (err)
-		return err;
-
-	return 0;
+	return mlx4_bitmap_init(&cq_table->bitmap, dev->caps.num_cqs,
+				dev->caps.num_cqs - 1, dev->caps.reserved_cqs, 0);
 }
 
 void mlx4_cleanup_cq_table(struct mlx4_dev *dev)

@@ -241,12 +241,12 @@ SYM_FUNC_START(startup_32)
 	leal	rva(startup_64)(%ebp), %eax
 #ifdef CONFIG_EFI_MIXED
 	movl	rva(efi32_boot_args)(%ebp), %edi
-	cmp	$0, %edi
+	testl	%edi, %edi
 	jz	1f
 	leal	rva(efi64_stub_entry)(%ebp), %eax
 	movl	rva(efi32_boot_args+4)(%ebp), %esi
 	movl	rva(efi32_boot_args+8)(%ebp), %edx	// saved bootparams pointer
-	cmpl	$0, %edx
+	testl	%edx, %edx
 	jnz	1f
 	/*
 	 * efi_pe_entry uses MS calling convention, which requires 32 bytes of
@@ -544,6 +544,9 @@ SYM_FUNC_START_LOCAL_NOALIGN(.Lrelocated)
 	pushq	%rsi
 	call	set_sev_encryption_mask
 	call	load_stage2_idt
+
+	/* Pass boot_params to initialize_identity_maps() */
+	movq	(%rsp), %rdi
 	call	initialize_identity_maps
 	popq	%rsi
 
@@ -589,7 +592,7 @@ SYM_CODE_START(trampoline_32bit_src)
 	movl	%eax, %cr0
 
 	/* Check what paging mode we want to be in after the trampoline */
-	cmpl	$0, %edx
+	testl	%edx, %edx
 	jz	1f
 
 	/* We want 5-level paging: don't touch CR3 if it already points to 5-level page tables */
@@ -619,7 +622,7 @@ SYM_CODE_START(trampoline_32bit_src)
 
 	/* Enable PAE and LA57 (if required) paging modes */
 	movl	$X86_CR4_PAE, %eax
-	cmpl	$0, %edx
+	testl	%edx, %edx
 	jz	1f
 	orl	$X86_CR4_LA57, %eax
 1:

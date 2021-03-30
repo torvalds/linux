@@ -15,19 +15,12 @@
  * Please update drivers/acpi/debug.c and Documentation/firmware-guide/acpi/debug.rst
  * if you add to this list.
  */
-#define ACPI_BUS_COMPONENT		0x00010000
-#define ACPI_AC_COMPONENT		0x00020000
-#define ACPI_BATTERY_COMPONENT		0x00040000
-#define ACPI_BUTTON_COMPONENT		0x00080000
 #define ACPI_SBS_COMPONENT		0x00100000
 #define ACPI_FAN_COMPONENT		0x00200000
 #define ACPI_PCI_COMPONENT		0x00400000
-#define ACPI_POWER_COMPONENT		0x00800000
 #define ACPI_CONTAINER_COMPONENT	0x01000000
 #define ACPI_SYSTEM_COMPONENT		0x02000000
-#define ACPI_THERMAL_COMPONENT		0x04000000
 #define ACPI_MEMORY_DEVICE_COMPONENT	0x08000000
-#define ACPI_VIDEO_COMPONENT		0x10000000
 #define ACPI_PROCESSOR_COMPONENT	0x20000000
 
 /*
@@ -64,14 +57,14 @@
    -------------------------------------------------------------------------- */
 
 
-/* ACPI PCI Interrupt Link (pci_link.c) */
+/* ACPI PCI Interrupt Link */
 
 int acpi_irq_penalty_init(void);
 int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 			       int *polarity, char **name);
 int acpi_pci_link_free_irq(acpi_handle handle);
 
-/* ACPI PCI Device Binding (pci_bind.c) */
+/* ACPI PCI Device Binding */
 
 struct pci_bus;
 
@@ -93,14 +86,6 @@ void pci_acpi_crs_quirks(void);
 #else
 static inline void pci_acpi_crs_quirks(void) { }
 #endif
-
-/* --------------------------------------------------------------------------
-                                    Processor
-   -------------------------------------------------------------------------- */
-
-#define ACPI_PROCESSOR_LIMIT_NONE	0x00
-#define ACPI_PROCESSOR_LIMIT_INCREMENT	0x01
-#define ACPI_PROCESSOR_LIMIT_DECREMENT	0x02
 
 /*--------------------------------------------------------------------------
                                   Dock Station

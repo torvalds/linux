@@ -229,7 +229,7 @@ typedef int (*snd_pcm_hw_rule_func_t)(struct snd_pcm_hw_params *params,
 struct snd_pcm_hw_rule {
 	unsigned int cond;
 	int var;
-	int deps[4];
+	int deps[5];
 
 	snd_pcm_hw_rule_func_t func;
 	void *private;
@@ -1284,8 +1284,8 @@ snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
 }
 
 /**
- * snd_pcm_sgbuf_chunk_size - Compute the max size that fits within the contig.
- * page from the given size
+ * snd_pcm_sgbuf_get_chunk_size - Compute the max size that fits within the
+ * contig. page from the given size
  * @substream: PCM substream
  * @ofs: byte offset
  * @size: byte size to examine

@@ -48,6 +48,8 @@ struct ttm_bo_global;
 
 struct ttm_bo_device;
 
+struct dma_buf_map;
+
 struct drm_mm_node;
 
 struct ttm_placement;
@@ -90,9 +92,6 @@ struct ttm_tt;
  * @kref: Reference count of this buffer object. When this refcount reaches
  * zero, the object is destroyed or put on the delayed delete list.
  * @mem: structure describing current placement.
- * @persistent_swap_storage: Usually the swap storage is deleted for buffers
- * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistent shmem object.
  * @ttm: TTM structure holding system pages.
  * @evicted: Whether the object was evicted without user-space knowing.
  * @deleted: True if the object is only a zombie and already deleted.
@@ -126,7 +125,6 @@ struct ttm_buffer_object {
 	struct ttm_bo_device *bdev;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
-	unsigned long num_pages;
 	size_t acc_size;
 
 	/**
@@ -139,7 +137,6 @@ struct ttm_buffer_object {
 	 */
 
 	struct ttm_resource mem;
-	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
 	bool deleted;
 
@@ -157,6 +154,7 @@ struct ttm_buffer_object {
 
 	struct dma_fence *moving;
 	unsigned priority;
+	unsigned pin_count;
 
 	/**
 	 * Special members that are protected by the reserve lock
@@ -198,8 +196,12 @@ struct ttm_bo_kmap_obj {
  *
  * @interruptible: Sleep interruptible if sleeping.
  * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
+ * @allow_res_evict: Allow eviction of reserved BOs. Can be used when multiple
+ * BOs share the same reservation object.
+ * @force_alloc: Don't check the memory account during suspend or CPU page
+ * faults. Should only be used by TTM internally.
  * @resv: Reservation object to allow reserved evictions with.
- * @flags: Including the following flags
  *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
@@ -207,15 +209,12 @@ struct ttm_bo_kmap_obj {
 struct ttm_operation_ctx {
 	bool interruptible;
 	bool no_wait_gpu;
+	bool gfp_retry_mayfail;
+	bool allow_res_evict;
+	bool force_alloc;
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
-	uint32_t flags;
 };
-
-/* Allow eviction of reserved BOs */
-#define TTM_OPT_FLAG_ALLOW_RES_EVICT		0x1
-/* when serving page fault or suspend, allow alloc anyway */
-#define TTM_OPT_FLAG_FORCE_ALLOC		0x2
 
 /**
  * ttm_bo_get - reference a struct ttm_buffer_object
@@ -261,6 +260,11 @@ ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
  */
 int ttm_bo_wait(struct ttm_buffer_object *bo, bool interruptible, bool no_wait);
 
+static inline int ttm_bo_wait_ctx(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx)
+{
+	return ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+}
+
 /**
  * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
  *
@@ -305,6 +309,7 @@ void ttm_bo_put(struct ttm_buffer_object *bo);
  * ttm_bo_move_to_lru_tail
  *
  * @bo: The buffer object.
+ * @mem: Resource object.
  * @bulk: optional bulk move structure to remember BO positions
  *
  * Move this BO to the tail of all lru lists used to lookup and reserve an
@@ -312,6 +317,7 @@ void ttm_bo_put(struct ttm_buffer_object *bo);
  * held, and is used to make a BO less likely to be considered for eviction.
  */
 void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
+			     struct ttm_resource *mem,
 			     struct ttm_lru_bulk_move *bulk);
 
 /**
@@ -392,13 +398,11 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 
 int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_buffer_object *bo,
-			 unsigned long size,
-			 enum ttm_bo_type type,
+			 size_t size, enum ttm_bo_type type,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 size_t acc_size,
-			 struct sg_table *sg,
+			 size_t acc_size, struct sg_table *sg,
 			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *));
 
@@ -440,55 +444,11 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
-		unsigned long size, enum ttm_bo_type type,
+		size_t size, enum ttm_bo_type type,
 		struct ttm_placement *placement,
 		uint32_t page_alignment, bool interrubtible, size_t acc_size,
 		struct sg_table *sg, struct dma_resv *resv,
 		void (*destroy) (struct ttm_buffer_object *));
-
-/**
- * ttm_bo_create
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @size: Requested size of buffer object.
- * @type: Requested type of buffer object.
- * @placement: Initial placement.
- * @page_alignment: Data alignment in pages.
- * @interruptible: If needing to sleep while waiting for GPU resources,
- * sleep interruptible.
- * @p_bo: On successful completion *p_bo points to the created object.
- *
- * This function allocates a ttm_buffer_object, and then calls ttm_bo_init
- * on that object. The destroy function is set to kfree().
- * Returns
- * -ENOMEM: Out of memory.
- * -EINVAL: Invalid placement flags.
- * -ERESTARTSYS: Interrupted by signal while waiting for resources.
- */
-int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
-		  enum ttm_bo_type type, struct ttm_placement *placement,
-		  uint32_t page_alignment, bool interruptible,
-		  struct ttm_buffer_object **p_bo);
-
-/**
- * ttm_bo_evict_mm
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @mem_type: The memory type.
- *
- * Evicts all buffers on the lru list of the memory type.
- * This is normally part of a VT switch or an
- * out-of-memory-space-due-to-fragmentation handler.
- * The caller must make sure that there are no other processes
- * currently validating buffers, and can do that by taking the
- * struct ttm_bo_device::ttm_lock in write mode.
- *
- * Returns:
- * -EINVAL: Invalid or uninitialized memory type.
- * -ERESTARTSYS: The call was interrupted by a signal while waiting to
- * evict a buffer.
- */
-int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type);
 
 /**
  * ttm_kmap_obj_virtual
@@ -537,6 +497,32 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo, unsigned long start_page,
 void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
 
 /**
+ * ttm_bo_vmap
+ *
+ * @bo: The buffer object.
+ * @map: pointer to a struct dma_buf_map representing the map.
+ *
+ * Sets up a kernel virtual mapping, using ioremap or vmap to the
+ * data in the buffer object. The parameter @map returns the virtual
+ * address as struct dma_buf_map. Unmap the buffer with ttm_bo_vunmap().
+ *
+ * Returns
+ * -ENOMEM: Out of memory.
+ * -EINVAL: Invalid range.
+ */
+int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map);
+
+/**
+ * ttm_bo_vunmap
+ *
+ * @bo: The buffer object.
+ * @map: Object describing the map to unmap.
+ *
+ * Unmaps a kernel map set up by ttm_bo_vmap().
+ */
+void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct dma_buf_map *map);
+
+/**
  * ttm_bo_mmap_obj - mmap memory backed by a ttm buffer object.
  *
  * @vma:       vma as input from the fbdev mmap method.
@@ -583,9 +569,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		  const char __user *wbuf, char __user *rbuf,
 		  size_t count, loff_t *f_pos, bool write);
 
-int ttm_bo_swapout(struct ttm_bo_global *glob,
-			struct ttm_operation_ctx *ctx);
-void ttm_bo_swapout_all(void);
+int ttm_bo_swapout(struct ttm_operation_ctx *ctx);
 
 /**
  * ttm_bo_uses_embedded_gem_object - check if the given bo uses the
@@ -604,6 +588,33 @@ void ttm_bo_swapout_all(void);
 static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
 {
 	return bo->base.dev != NULL;
+}
+
+/**
+ * ttm_bo_pin - Pin the buffer object.
+ * @bo: The buffer object to pin
+ *
+ * Make sure the buffer is not evicted any more during memory pressure.
+ */
+static inline void ttm_bo_pin(struct ttm_buffer_object *bo)
+{
+	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
+	++bo->pin_count;
+}
+
+/**
+ * ttm_bo_unpin - Unpin the buffer object.
+ * @bo: The buffer object to unpin
+ *
+ * Allows the buffer object to be evicted again during memory pressure.
+ */
+static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
+{
+	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!bo->pin_count);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
+	--bo->pin_count;
 }
 
 int ttm_mem_evict_first(struct ttm_bo_device *bdev,

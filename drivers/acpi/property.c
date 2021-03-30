@@ -76,7 +76,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 		return false;
 
 	dn->name = link->package.elements[0].string.pointer;
-	dn->fwnode.ops = &acpi_data_fwnode_ops;
+	fwnode_init(&dn->fwnode, &acpi_data_fwnode_ops);
 	dn->parent = parent;
 	INIT_LIST_HEAD(&dn->data.properties);
 	INIT_LIST_HEAD(&dn->data.subnodes);
@@ -564,7 +564,7 @@ int acpi_node_prop_get(const struct fwnode_handle *fwnode,
 
 /**
  * acpi_data_get_property_array - return an ACPI array property with given name
- * @adev: ACPI data object to get the property from
+ * @data: ACPI data object to get the property from
  * @name: Name of the property
  * @type: Expected type of array elements
  * @obj: Location to store a pointer to the property value (if not NULL)
@@ -787,9 +787,6 @@ static int acpi_data_prop_read_single(const struct acpi_device_data *data,
 	const union acpi_object *obj;
 	int ret;
 
-	if (!val)
-		return -EINVAL;
-
 	if (proptype >= DEV_PROP_U8 && proptype <= DEV_PROP_U64) {
 		ret = acpi_data_get_property(data, propname, ACPI_TYPE_INTEGER, &obj);
 		if (ret)
@@ -799,48 +796,49 @@ static int acpi_data_prop_read_single(const struct acpi_device_data *data,
 		case DEV_PROP_U8:
 			if (obj->integer.value > U8_MAX)
 				return -EOVERFLOW;
-			*(u8 *)val = obj->integer.value;
+
+			if (val)
+				*(u8 *)val = obj->integer.value;
+
 			break;
 		case DEV_PROP_U16:
 			if (obj->integer.value > U16_MAX)
 				return -EOVERFLOW;
-			*(u16 *)val = obj->integer.value;
+
+			if (val)
+				*(u16 *)val = obj->integer.value;
+
 			break;
 		case DEV_PROP_U32:
 			if (obj->integer.value > U32_MAX)
 				return -EOVERFLOW;
-			*(u32 *)val = obj->integer.value;
+
+			if (val)
+				*(u32 *)val = obj->integer.value;
+
 			break;
 		default:
-			*(u64 *)val = obj->integer.value;
+			if (val)
+				*(u64 *)val = obj->integer.value;
+
 			break;
 		}
+
+		if (!val)
+			return 1;
 	} else if (proptype == DEV_PROP_STRING) {
 		ret = acpi_data_get_property(data, propname, ACPI_TYPE_STRING, &obj);
 		if (ret)
 			return ret;
 
-		*(char **)val = obj->string.pointer;
+		if (val)
+			*(char **)val = obj->string.pointer;
 
 		return 1;
 	} else {
 		ret = -EINVAL;
 	}
 	return ret;
-}
-
-int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
-			      enum dev_prop_type proptype, void *val)
-{
-	int ret;
-
-	if (!adev)
-		return -EINVAL;
-
-	ret = acpi_data_prop_read_single(&adev->data, propname, proptype, val);
-	if (ret < 0 || proptype != ACPI_TYPE_STRING)
-		return ret;
-	return 0;
 }
 
 static int acpi_copy_property_array_u8(const union acpi_object *items, u8 *val,
@@ -928,10 +926,20 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 	const union acpi_object *items;
 	int ret;
 
-	if (val && nval == 1) {
+	if (nval == 1 || !val) {
 		ret = acpi_data_prop_read_single(data, propname, proptype, val);
-		if (ret >= 0)
+		/*
+		 * The overflow error means that the property is there and it is
+		 * single-value, but its type does not match, so return.
+		 */
+		if (ret >= 0 || ret == -EOVERFLOW)
 			return ret;
+
+		/*
+		 * Reading this property as a single-value one failed, but its
+		 * value may still be represented as one-element array, so
+		 * continue.
+		 */
 	}
 
 	ret = acpi_data_get_property_array(data, propname, ACPI_TYPE_ANY, &obj);
@@ -973,12 +981,6 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 	return ret;
 }
 
-int acpi_dev_prop_read(const struct acpi_device *adev, const char *propname,
-		       enum dev_prop_type proptype, void *val, size_t nval)
-{
-	return adev ? acpi_data_prop_read(&adev->data, propname, proptype, val, nval) : -EINVAL;
-}
-
 /**
  * acpi_node_prop_read - retrieve the value of an ACPI property with given name.
  * @fwnode: Firmware node to get the property from.
@@ -991,9 +993,9 @@ int acpi_dev_prop_read(const struct acpi_device *adev, const char *propname,
  * of the property.  Otherwise, read at most @nval values to the array at the
  * location pointed to by @val.
  */
-int acpi_node_prop_read(const struct fwnode_handle *fwnode,
-			const char *propname, enum dev_prop_type proptype,
-			void *val, size_t nval)
+static int acpi_node_prop_read(const struct fwnode_handle *fwnode,
+			       const char *propname, enum dev_prop_type proptype,
+			       void *val, size_t nval)
 {
 	return acpi_data_prop_read(acpi_device_data_of_node(fwnode),
 				   propname, proptype, val, nval);
@@ -1210,8 +1212,7 @@ static struct fwnode_handle *acpi_graph_get_child_prop_value(
 
 /**
  * acpi_graph_get_remote_endpoint - Parses and returns remote end of an endpoint
- * @fwnode: Endpoint firmware node pointing to a remote device
- * @endpoint: Firmware node of remote endpoint is filled here if not %NULL
+ * @__fwnode: Endpoint firmware node pointing to a remote device
  *
  * Returns the remote endpoint corresponding to @__fwnode. NULL on error.
  */

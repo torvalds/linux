@@ -22,14 +22,16 @@ struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	return drm_prime_pages_to_sg(obj->dev, etnaviv_obj->pages, npages);
 }
 
-void *etnaviv_gem_prime_vmap(struct drm_gem_object *obj)
+int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
-	return etnaviv_gem_vmap(obj);
-}
+	void *vaddr;
 
-void etnaviv_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	/* TODO msm_gem_vunmap() */
+	vaddr = etnaviv_gem_vmap(obj);
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
 int etnaviv_gem_prime_mmap(struct drm_gem_object *obj,
@@ -70,9 +72,10 @@ void etnaviv_gem_prime_unpin(struct drm_gem_object *obj)
 
 static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 {
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(etnaviv_obj->vaddr);
+
 	if (etnaviv_obj->vaddr)
-		dma_buf_vunmap(etnaviv_obj->base.import_attach->dmabuf,
-			       etnaviv_obj->vaddr);
+		dma_buf_vunmap(etnaviv_obj->base.import_attach->dmabuf, &map);
 
 	/* Don't drop the pages for imported dmabuf, as they are not
 	 * ours, just free the array we allocated:
@@ -85,9 +88,15 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 
 static void *etnaviv_gem_prime_vmap_impl(struct etnaviv_gem_object *etnaviv_obj)
 {
+	struct dma_buf_map map;
+	int ret;
+
 	lockdep_assert_held(&etnaviv_obj->lock);
 
-	return dma_buf_vmap(etnaviv_obj->base.import_attach->dmabuf);
+	ret = dma_buf_vmap(etnaviv_obj->base.import_attach->dmabuf, &map);
+	if (ret)
+		return NULL;
+	return map.vaddr;
 }
 
 static int etnaviv_gem_prime_mmap_obj(struct etnaviv_gem_object *etnaviv_obj,
@@ -126,8 +135,7 @@ struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 		goto fail;
 	}
 
-	ret = drm_prime_sg_to_page_addr_arrays(sgt, etnaviv_obj->pages,
-					       NULL, npages);
+	ret = drm_prime_sg_to_page_array(sgt, etnaviv_obj->pages, npages);
 	if (ret)
 		goto fail;
 

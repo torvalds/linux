@@ -14,6 +14,7 @@ struct ath11k_peer {
 	int peer_id;
 	u16 ast_hash;
 	u8 pdev_idx;
+	u16 hw_peer_id;
 
 	/* protected by ab->data_lock */
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
@@ -31,7 +32,7 @@ struct ath11k_peer {
 
 void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id);
 void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,
-			   u8 *mac_addr, u16 ast_hash);
+			   u8 *mac_addr, u16 ast_hash, u16 hw_peer_id);
 struct ath11k_peer *ath11k_peer_find(struct ath11k_base *ab, int vdev_id,
 				     const u8 *addr);
 struct ath11k_peer *ath11k_peer_find_by_addr(struct ath11k_base *ab,
@@ -41,5 +42,9 @@ void ath11k_peer_cleanup(struct ath11k *ar, u32 vdev_id);
 int ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, u8 *addr);
 int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		       struct ieee80211_sta *sta, struct peer_create_params *param);
+int ath11k_wait_for_peer_delete_done(struct ath11k *ar, u32 vdev_id,
+				     const u8 *addr);
+struct ath11k_peer *ath11k_peer_find_by_vdev_id(struct ath11k_base *ab,
+						int vdev_id);
 
 #endif /* _PEER_H_ */

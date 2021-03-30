@@ -84,6 +84,32 @@ const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 	return ops->name;
 };
 
+/* Function takes a reference on the module owning the tagger,
+ * so dsa_tag_driver_put must be called afterwards.
+ */
+const struct dsa_device_ops *dsa_find_tagger_by_name(const char *buf)
+{
+	const struct dsa_device_ops *ops = ERR_PTR(-ENOPROTOOPT);
+	struct dsa_tag_driver *dsa_tag_driver;
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
+		const struct dsa_device_ops *tmp = dsa_tag_driver->ops;
+
+		if (!sysfs_streq(buf, tmp->name))
+			continue;
+
+		if (!try_module_get(dsa_tag_driver->owner))
+			break;
+
+		ops = tmp;
+		break;
+	}
+	mutex_unlock(&dsa_tag_drivers_lock);
+
+	return ops;
+}
+
 const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 {
 	struct dsa_tag_driver *dsa_tag_driver;
@@ -201,7 +227,6 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct sk_buff *nskb = NULL;
-	struct pcpu_sw_netstats *s;
 	struct dsa_slave_priv *p;
 
 	if (unlikely(!cpu_dp)) {
@@ -220,16 +245,31 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	skb = nskb;
-	p = netdev_priv(skb->dev);
 	skb_push(skb, ETH_HLEN);
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	s = this_cpu_ptr(p->stats64);
-	u64_stats_update_begin(&s->syncp);
-	s->rx_packets++;
-	s->rx_bytes += skb->len;
-	u64_stats_update_end(&s->syncp);
+	if (unlikely(!dsa_slave_dev_check(skb->dev))) {
+		/* Packet is to be injected directly on an upper
+		 * device, e.g. a team/bond, so skip all DSA-port
+		 * specific actions.
+		 */
+		netif_rx(skb);
+		return 0;
+	}
+
+	p = netdev_priv(skb->dev);
+
+	if (unlikely(cpu_dp->ds->untag_bridge_pvid)) {
+		nskb = dsa_untag_bridge_pvid(skb);
+		if (!nskb) {
+			kfree_skb(skb);
+			return 0;
+		}
+		skb = nskb;
+	}
+
+	dev_sw_netstats_rx_add(skb->dev, skb->len);
 
 	if (dsa_skb_defer_rx_timestamp(p, skb))
 		return 0;
@@ -305,36 +345,10 @@ bool dsa_schedule_work(struct work_struct *work)
 	return queue_work(dsa_owq, work);
 }
 
-static ATOMIC_NOTIFIER_HEAD(dsa_notif_chain);
-
-int register_dsa_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&dsa_notif_chain, nb);
-}
-EXPORT_SYMBOL_GPL(register_dsa_notifier);
-
-int unregister_dsa_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&dsa_notif_chain, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_dsa_notifier);
-
-int call_dsa_notifiers(unsigned long val, struct net_device *dev,
-		       struct dsa_notifier_info *info)
-{
-	info->dev = dev;
-	return atomic_notifier_call_chain(&dsa_notif_chain, val, info);
-}
-EXPORT_SYMBOL_GPL(call_dsa_notifiers);
-
 int dsa_devlink_param_get(struct devlink *dl, u32 id,
 			  struct devlink_param_gset_ctx *ctx)
 {
-	struct dsa_devlink_priv *dl_priv;
-	struct dsa_switch *ds;
-
-	dl_priv = devlink_priv(dl);
-	ds = dl_priv->ds;
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_param_get)
 		return -EOPNOTSUPP;
@@ -346,11 +360,7 @@ EXPORT_SYMBOL_GPL(dsa_devlink_param_get);
 int dsa_devlink_param_set(struct devlink *dl, u32 id,
 			  struct devlink_param_gset_ctx *ctx)
 {
-	struct dsa_devlink_priv *dl_priv;
-	struct dsa_switch *ds;
-
-	dl_priv = devlink_priv(dl);
-	ds = dl_priv->ds;
+	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
 
 	if (!ds->ops->devlink_param_set)
 		return -EOPNOTSUPP;
@@ -411,6 +421,36 @@ void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
 	devlink_resource_occ_get_unregister(ds->devlink, resource_id);
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_unregister);
+
+struct devlink_region *
+dsa_devlink_region_create(struct dsa_switch *ds,
+			  const struct devlink_region_ops *ops,
+			  u32 region_max_snapshots, u64 region_size)
+{
+	return devlink_region_create(ds->devlink, ops, region_max_snapshots,
+				     region_size);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_region_create);
+
+struct devlink_region *
+dsa_devlink_port_region_create(struct dsa_switch *ds,
+			       int port,
+			       const struct devlink_port_region_ops *ops,
+			       u32 region_max_snapshots, u64 region_size)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+
+	return devlink_port_region_create(&dp->devlink_port, ops,
+					  region_max_snapshots,
+					  region_size);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_port_region_create);
+
+void dsa_devlink_region_destroy(struct devlink_region *region)
+{
+	devlink_region_destroy(region);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_region_destroy);
 
 struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
 {

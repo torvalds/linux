@@ -59,7 +59,9 @@
 #include "dce/dce_11_2_sh_mask.h"
 
 #include "dce100/dce100_resource.h"
-#define DC_LOGGER \
+#include "dce112_resource.h"
+
+#define DC_LOGGER				\
 		dc->ctx->logger
 
 #ifndef mmDP_DPHY_INTERNAL_CTRL
@@ -446,25 +448,18 @@ static int map_transmitter_id_to_phy_instance(
 	switch (transmitter) {
 	case TRANSMITTER_UNIPHY_A:
 		return 0;
-	break;
 	case TRANSMITTER_UNIPHY_B:
 		return 1;
-	break;
 	case TRANSMITTER_UNIPHY_C:
 		return 2;
-	break;
 	case TRANSMITTER_UNIPHY_D:
 		return 3;
-	break;
 	case TRANSMITTER_UNIPHY_E:
 		return 4;
-	break;
 	case TRANSMITTER_UNIPHY_F:
 		return 5;
-	break;
 	case TRANSMITTER_UNIPHY_G:
 		return 6;
-	break;
 	default:
 		ASSERT(0);
 		return 0;
@@ -624,7 +619,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
-struct link_encoder *dce112_link_encoder_create(
+static struct link_encoder *dce112_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
@@ -678,7 +673,7 @@ static struct input_pixel_processor *dce112_ipp_create(
 	return &ipp->base;
 }
 
-struct output_pixel_processor *dce112_opp_create(
+static struct output_pixel_processor *dce112_opp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -693,7 +688,7 @@ struct output_pixel_processor *dce112_opp_create(
 	return &opp->base;
 }
 
-struct dce_aux *dce112_aux_engine_create(
+static struct dce_aux *dce112_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -731,7 +726,7 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
 };
 
-struct dce_i2c_hw *dce112_i2c_hw_create(
+static struct dce_i2c_hw *dce112_i2c_hw_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -746,7 +741,7 @@ struct dce_i2c_hw *dce112_i2c_hw_create(
 
 	return dce_i2c_hw;
 }
-struct clock_source *dce112_clock_source_create(
+static struct clock_source *dce112_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -770,7 +765,7 @@ struct clock_source *dce112_clock_source_create(
 	return NULL;
 }
 
-void dce112_clock_source_destroy(struct clock_source **clk_src)
+static void dce112_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
@@ -865,7 +860,7 @@ static struct clock_source *find_matching_pll(
 		return pool->clock_sources[DCE112_CLK_SRC_PLL5];
 	default:
 		return NULL;
-	};
+	}
 
 	return 0;
 }
@@ -1031,7 +1026,7 @@ enum dc_status dce112_add_stream_to_ctx(
 	return result;
 }
 
-enum dc_status dce112_validate_global(
+static enum dc_status dce112_validate_global(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -1209,7 +1204,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	dm_pp_notify_wm_clock_changes(dc->ctx, &clk_ranges);
 }
 
-const struct resource_caps *dce112_resource_cap(
+static const struct resource_caps *dce112_resource_cap(
 	struct hw_asic_id *asic_id)
 {
 	if (ASIC_REV_IS_POLARIS11_M(asic_id->hw_internal_rev) ||
@@ -1240,7 +1235,9 @@ static bool dce112_resource_construct(
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.extended_aux_timeout_support = false;
 

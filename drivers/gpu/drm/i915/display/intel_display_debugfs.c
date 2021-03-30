@@ -18,6 +18,7 @@
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sideband.h"
+#include "intel_sprite.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -518,8 +519,13 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 		   CSR_VERSION_MINOR(csr->version));
 
 	if (INTEL_GEN(dev_priv) >= 12) {
-		dc5_reg = TGL_DMC_DEBUG_DC5_COUNT;
-		dc6_reg = TGL_DMC_DEBUG_DC6_COUNT;
+		if (IS_DGFX(dev_priv)) {
+			dc5_reg = DG1_DMC_DEBUG_DC5_COUNT;
+		} else {
+			dc5_reg = TGL_DMC_DEBUG_DC5_COUNT;
+			dc6_reg = TGL_DMC_DEBUG_DC6_COUNT;
+		}
+
 		/*
 		 * NOTE: DMC_DEBUG3 is a general purpose reg.
 		 * According to B.Specs:49196 DMC f/w reuses DC5/6 counter
@@ -750,6 +756,17 @@ static void plane_rotation(char *buf, size_t bufsize, unsigned int rotation)
 		 rotation);
 }
 
+static const char *plane_visibility(const struct intel_plane_state *plane_state)
+{
+	if (plane_state->uapi.visible)
+		return "visible";
+
+	if (plane_state->planar_slave)
+		return "planar-slave";
+
+	return "hidden";
+}
+
 static void intel_plane_uapi_info(struct seq_file *m, struct intel_plane *plane)
 {
 	const struct intel_plane_state *plane_state =
@@ -768,12 +785,19 @@ static void intel_plane_uapi_info(struct seq_file *m, struct intel_plane *plane)
 	plane_rotation(rot_str, sizeof(rot_str),
 		       plane_state->uapi.rotation);
 
-	seq_printf(m, "\t\tuapi: fb=%d,%s,%dx%d, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+	seq_printf(m, "\t\tuapi: [FB:%d] %s,0x%llx,%dx%d, visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
 		   fb ? fb->base.id : 0, fb ? format_name.str : "n/a",
+		   fb ? fb->modifier : 0,
 		   fb ? fb->width : 0, fb ? fb->height : 0,
+		   plane_visibility(plane_state),
 		   DRM_RECT_FP_ARG(&src),
 		   DRM_RECT_ARG(&dst),
 		   rot_str);
+
+	if (plane_state->planar_linked_plane)
+		seq_printf(m, "\t\tplanar: Linked to [PLANE:%d:%s] as a %s\n",
+			   plane_state->planar_linked_plane->base.base.id, plane_state->planar_linked_plane->base.name,
+			   plane_state->planar_slave ? "slave" : "master");
 }
 
 static void intel_plane_hw_info(struct seq_file *m, struct intel_plane *plane)
@@ -792,9 +816,9 @@ static void intel_plane_hw_info(struct seq_file *m, struct intel_plane *plane)
 	plane_rotation(rot_str, sizeof(rot_str),
 		       plane_state->hw.rotation);
 
-	seq_printf(m, "\t\thw: fb=%d,%s,%dx%d, visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+	seq_printf(m, "\t\thw: [FB:%d] %s,0x%llx,%dx%d, visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
 		   fb->base.id, format_name.str,
-		   fb->width, fb->height,
+		   fb->modifier, fb->width, fb->height,
 		   yesno(plane_state->uapi.visible),
 		   DRM_RECT_FP_ARG(&plane_state->uapi.src),
 		   DRM_RECT_ARG(&plane_state->uapi.dst),
@@ -842,6 +866,110 @@ static void intel_scaler_info(struct seq_file *m, struct intel_crtc *crtc)
 	}
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
+static void crtc_updates_info(struct seq_file *m,
+			      struct intel_crtc *crtc,
+			      const char *hdr)
+{
+	u64 count;
+	int row;
+
+	count = 0;
+	for (row = 0; row < ARRAY_SIZE(crtc->debug.vbl.times); row++)
+		count += crtc->debug.vbl.times[row];
+	seq_printf(m, "%sUpdates: %llu\n", hdr, count);
+	if (!count)
+		return;
+
+	for (row = 0; row < ARRAY_SIZE(crtc->debug.vbl.times); row++) {
+		char columns[80] = "       |";
+		unsigned int x;
+
+		if (row & 1) {
+			const char *units;
+
+			if (row > 10) {
+				x = 1000000;
+				units = "ms";
+			} else {
+				x = 1000;
+				units = "us";
+			}
+
+			snprintf(columns, sizeof(columns), "%4ld%s |",
+				 DIV_ROUND_CLOSEST(BIT(row + 9), x), units);
+		}
+
+		if (crtc->debug.vbl.times[row]) {
+			x = ilog2(crtc->debug.vbl.times[row]);
+			memset(columns + 8, '*', x);
+			columns[8 + x] = '\0';
+		}
+
+		seq_printf(m, "%s%s\n", hdr, columns);
+	}
+
+	seq_printf(m, "%sMin update: %lluns\n",
+		   hdr, crtc->debug.vbl.min);
+	seq_printf(m, "%sMax update: %lluns\n",
+		   hdr, crtc->debug.vbl.max);
+	seq_printf(m, "%sAverage update: %lluns\n",
+		   hdr, div64_u64(crtc->debug.vbl.sum,  count));
+	seq_printf(m, "%sOverruns > %uus: %u\n",
+		   hdr, VBLANK_EVASION_TIME_US, crtc->debug.vbl.over);
+}
+
+static int crtc_updates_show(struct seq_file *m, void *data)
+{
+	crtc_updates_info(m, m->private, "");
+	return 0;
+}
+
+static int crtc_updates_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, crtc_updates_show, inode->i_private);
+}
+
+static ssize_t crtc_updates_write(struct file *file,
+				  const char __user *ubuf,
+				  size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct intel_crtc *crtc = m->private;
+
+	/* May race with an update. Meh. */
+	memset(&crtc->debug.vbl, 0, sizeof(crtc->debug.vbl));
+
+	return len;
+}
+
+static const struct file_operations crtc_updates_fops = {
+	.owner = THIS_MODULE,
+	.open = crtc_updates_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = crtc_updates_write
+};
+
+static void crtc_updates_add(struct drm_crtc *crtc)
+{
+	debugfs_create_file("i915_update_info", 0644, crtc->debugfs_entry,
+			    to_intel_crtc(crtc), &crtc_updates_fops);
+}
+
+#else
+static void crtc_updates_info(struct seq_file *m,
+			      struct intel_crtc *crtc,
+			      const char *hdr)
+{
+}
+
+static void crtc_updates_add(struct drm_crtc *crtc)
+{
+}
+#endif
+
 static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -869,6 +997,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		intel_scaler_info(m, crtc);
 	}
 
+	if (crtc_state->bigjoiner)
+		seq_printf(m, "\tLinked to [CRTC:%d:%s] as a %s\n",
+			   crtc_state->bigjoiner_linked_crtc->base.base.id,
+			   crtc_state->bigjoiner_linked_crtc->base.name,
+			   crtc_state->bigjoiner_slave ? "slave" : "master");
+
 	for_each_intel_encoder_mask(&dev_priv->drm, encoder,
 				    crtc_state->uapi.encoder_mask)
 		intel_encoder_info(m, crtc, encoder);
@@ -878,6 +1012,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s\n",
 		   yesno(!crtc->cpu_fifo_underrun_disabled),
 		   yesno(!crtc->pch_fifo_underrun_disabled));
+
+	crtc_updates_info(m, crtc, "\t");
 }
 
 static int i915_display_info(struct seq_file *m, void *unused)
@@ -1003,7 +1139,6 @@ static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
 		if (!dev_priv->ipc_enabled && enable)
 			drm_info(&dev_priv->drm,
 				 "Enabling IPC: WM will be proper only after next commit\n");
-		dev_priv->wm.distrust_bios_wm = true;
 		dev_priv->ipc_enabled = enable;
 		intel_enable_ipc(dev_priv);
 	}
@@ -2019,13 +2154,13 @@ static int i915_panel_show(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	seq_printf(m, "Panel power up delay: %d\n",
-		   intel_dp->panel_power_up_delay);
+		   intel_dp->pps.panel_power_up_delay);
 	seq_printf(m, "Panel power down delay: %d\n",
-		   intel_dp->panel_power_down_delay);
+		   intel_dp->pps.panel_power_down_delay);
 	seq_printf(m, "Backlight on delay: %d\n",
-		   intel_dp->backlight_on_delay);
+		   intel_dp->pps.backlight_on_delay);
 	seq_printf(m, "Backlight off delay: %d\n",
-		   intel_dp->backlight_off_delay);
+		   intel_dp->pps.backlight_off_delay);
 
 	return 0;
 }
@@ -2247,5 +2382,22 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 		debugfs_create_file("i915_lpsp_capability", 0444, root,
 				    connector, &i915_lpsp_capability_fops);
 
+	return 0;
+}
+
+/**
+ * intel_crtc_debugfs_add - add i915 specific crtc debugfs files
+ * @crtc: pointer to a drm_crtc
+ *
+ * Returns 0 on success, negative error codes on error.
+ *
+ * Failure to add debugfs entries should generally be ignored.
+ */
+int intel_crtc_debugfs_add(struct drm_crtc *crtc)
+{
+	if (!crtc->debugfs_entry)
+		return -ENODEV;
+
+	crtc_updates_add(crtc);
 	return 0;
 }

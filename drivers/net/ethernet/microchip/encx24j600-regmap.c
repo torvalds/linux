@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Register map access API - ENCX24J600 support
  *
  * Copyright 2015 Gridpoint

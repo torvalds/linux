@@ -232,6 +232,7 @@ extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 # define local_irq_enable_in_hardirq()	local_irq_enable()
 #endif
 
+bool irq_has_action(unsigned int irq);
 extern void disable_irq_nosync(unsigned int irq);
 extern bool disable_hardirq(unsigned int irq);
 extern void disable_irq(unsigned int irq);
@@ -352,6 +353,8 @@ extern int irq_can_set_affinity(unsigned int irq);
 extern int irq_select_affinity(unsigned int irq);
 
 extern int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m);
+extern int irq_update_affinity_desc(unsigned int irq,
+				    struct irq_affinity_desc *affinity);
 
 extern int
 irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
@@ -383,6 +386,12 @@ static inline int irq_select_affinity(unsigned int irq)  { return 0; }
 
 static inline int irq_set_affinity_hint(unsigned int irq,
 					const struct cpumask *m)
+{
+	return -EINVAL;
+}
+
+static inline int irq_update_affinity_desc(unsigned int irq,
+					   struct irq_affinity_desc *affinity)
 {
 	return -EINVAL;
 }
@@ -792,9 +801,9 @@ extern int arch_early_irq_init(void);
  * We want to know which function is an entrypoint of a hardirq or a softirq.
  */
 #ifndef __irq_entry
-# define __irq_entry	 __attribute__((__section__(".irqentry.text")))
+# define __irq_entry	 __section(".irqentry.text")
 #endif
 
-#define __softirq_entry  __attribute__((__section__(".softirqentry.text")))
+#define __softirq_entry  __section(".softirqentry.text")
 
 #endif

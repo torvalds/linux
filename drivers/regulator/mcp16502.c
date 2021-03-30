@@ -22,8 +22,9 @@
 #define VDD_LOW_SEL 0x0D
 #define VDD_HIGH_SEL 0x3F
 
-#define MCP16502_FLT BIT(7)
-#define MCP16502_ENS BIT(0)
+#define MCP16502_FLT		BIT(7)
+#define MCP16502_DVSR		GENMASK(3, 2)
+#define MCP16502_ENS		BIT(0)
 
 /*
  * The PMIC has four sets of registers corresponding to four power modes:
@@ -54,12 +55,8 @@
  * This function is useful for iterating over all regulators and accessing their
  * registers in a generic way or accessing a regulator device by its id.
  */
-#define MCP16502_BASE(i) (((i) + 1) << 4)
+#define MCP16502_REG_BASE(i, r) ((((i) + 1) << 4) + MCP16502_REG_##r)
 #define MCP16502_STAT_BASE(i) ((i) + 5)
-
-#define MCP16502_OFFSET_MODE_A 0
-#define MCP16502_OFFSET_MODE_LPM 1
-#define MCP16502_OFFSET_MODE_HIB 2
 
 #define MCP16502_OPMODE_ACTIVE REGULATOR_MODE_NORMAL
 #define MCP16502_OPMODE_LPM REGULATOR_MODE_IDLE
@@ -74,6 +71,29 @@
 
 #define MCP16502_MIN_REG 0x0
 #define MCP16502_MAX_REG 0x65
+
+/**
+ * enum mcp16502_reg - MCP16502 regulators's registers
+ * @MCP16502_REG_A: active state register
+ * @MCP16502_REG_LPM: low power mode state register
+ * @MCP16502_REG_HIB: hibernate state register
+ * @MCP16502_REG_SEQ: startup sequence register
+ * @MCP16502_REG_CFG: configuration register
+ */
+enum mcp16502_reg {
+	MCP16502_REG_A,
+	MCP16502_REG_LPM,
+	MCP16502_REG_HIB,
+	MCP16502_REG_HPM,
+	MCP16502_REG_SEQ,
+	MCP16502_REG_CFG,
+};
+
+/* Ramp delay (uV/us) for buck1, ldo1, ldo2. */
+static const int mcp16502_ramp_b1l12[] = { 6250, 3125, 2083, 1563 };
+
+/* Ramp delay (uV/us) for buck2, buck3, buck4. */
+static const int mcp16502_ramp_b234[] = { 3125, 1563, 1042, 781 };
 
 static unsigned int mcp16502_of_map_mode(unsigned int mode)
 {
@@ -93,6 +113,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 		.owner			= THIS_MODULE,			\
 		.n_voltages		= MCP16502_VSEL + 1,		\
 		.linear_ranges		= _ranges,			\
+		.linear_min_sel		= VDD_LOW_SEL,			\
 		.n_linear_ranges	= ARRAY_SIZE(_ranges),		\
 		.of_match		= of_match_ptr(_name),		\
 		.of_map_mode		= mcp16502_of_map_mode,		\
@@ -114,8 +135,6 @@ enum {
 
 /*
  * struct mcp16502 - PMIC representation
- * @rdev: the regulators belonging to this chip
- * @rmap: regmap to be used for I2C communication
  * @lpm: LPM GPIO descriptor
  */
 struct mcp16502 {
@@ -143,22 +162,20 @@ static void mcp16502_gpio_set_mode(struct mcp16502 *mcp, int mode)
 }
 
 /*
- * mcp16502_get_reg() - get the PMIC's configuration register for opmode
+ * mcp16502_get_reg() - get the PMIC's state configuration register for opmode
  *
  * @rdev: the regulator whose register we are searching
  * @opmode: the PMIC's operating mode ACTIVE, Low-power, Hibernate
  */
-static int mcp16502_get_reg(struct regulator_dev *rdev, int opmode)
+static int mcp16502_get_state_reg(struct regulator_dev *rdev, int opmode)
 {
-	int reg = MCP16502_BASE(rdev_get_id(rdev));
-
 	switch (opmode) {
 	case MCP16502_OPMODE_ACTIVE:
-		return reg + MCP16502_OFFSET_MODE_A;
+		return MCP16502_REG_BASE(rdev_get_id(rdev), A);
 	case MCP16502_OPMODE_LPM:
-		return reg + MCP16502_OFFSET_MODE_LPM;
+		return MCP16502_REG_BASE(rdev_get_id(rdev), LPM);
 	case MCP16502_OPMODE_HIB:
-		return reg + MCP16502_OFFSET_MODE_HIB;
+		return MCP16502_REG_BASE(rdev_get_id(rdev), HIB);
 	default:
 		return -EINVAL;
 	}
@@ -178,7 +195,7 @@ static unsigned int mcp16502_get_mode(struct regulator_dev *rdev)
 	unsigned int val;
 	int ret, reg;
 
-	reg = mcp16502_get_reg(rdev, MCP16502_OPMODE_ACTIVE);
+	reg = mcp16502_get_state_reg(rdev, MCP16502_OPMODE_ACTIVE);
 	if (reg < 0)
 		return reg;
 
@@ -209,7 +226,7 @@ static int _mcp16502_set_mode(struct regulator_dev *rdev, unsigned int mode,
 	int val;
 	int reg;
 
-	reg = mcp16502_get_reg(rdev, op_mode);
+	reg = mcp16502_get_state_reg(rdev, op_mode);
 	if (reg < 0)
 		return reg;
 
@@ -259,6 +276,80 @@ static int mcp16502_get_status(struct regulator_dev *rdev)
 	return REGULATOR_STATUS_UNDEFINED;
 }
 
+static int mcp16502_set_voltage_time_sel(struct regulator_dev *rdev,
+					 unsigned int old_sel,
+					 unsigned int new_sel)
+{
+	static const u8 us_ramp[] = { 8, 16, 24, 32 };
+	int id = rdev_get_id(rdev);
+	unsigned int uV_delta, val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, MCP16502_REG_BASE(id, CFG), &val);
+	if (ret)
+		return ret;
+
+	val = (val & MCP16502_DVSR) >> 2;
+	uV_delta = abs(new_sel * rdev->desc->linear_ranges->step -
+		       old_sel * rdev->desc->linear_ranges->step);
+	switch (id) {
+	case BUCK1:
+	case LDO1:
+	case LDO2:
+		ret = DIV_ROUND_CLOSEST(uV_delta * us_ramp[val],
+					mcp16502_ramp_b1l12[val]);
+		break;
+
+	case BUCK2:
+	case BUCK3:
+	case BUCK4:
+		ret = DIV_ROUND_CLOSEST(uV_delta * us_ramp[val],
+					mcp16502_ramp_b234[val]);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int mcp16502_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
+{
+	const int *ramp;
+	int id = rdev_get_id(rdev);
+	unsigned int i, size;
+
+	switch (id) {
+	case BUCK1:
+	case LDO1:
+	case LDO2:
+		ramp = mcp16502_ramp_b1l12;
+		size = ARRAY_SIZE(mcp16502_ramp_b1l12);
+		break;
+
+	case BUCK2:
+	case BUCK3:
+	case BUCK4:
+		ramp = mcp16502_ramp_b234;
+		size = ARRAY_SIZE(mcp16502_ramp_b234);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < size; i++) {
+		if (ramp[i] == ramp_delay)
+			break;
+	}
+	if (i == size)
+		return -EINVAL;
+
+	return regmap_update_bits(rdev->regmap, MCP16502_REG_BASE(id, CFG),
+				  MCP16502_DVSR, (i << 2));
+}
+
 #ifdef CONFIG_SUSPEND
 /*
  * mcp16502_suspend_get_target_reg() - get the reg of the target suspend PMIC
@@ -268,10 +359,10 @@ static int mcp16502_suspend_get_target_reg(struct regulator_dev *rdev)
 {
 	switch (pm_suspend_target_state) {
 	case PM_SUSPEND_STANDBY:
-		return mcp16502_get_reg(rdev, MCP16502_OPMODE_LPM);
+		return mcp16502_get_state_reg(rdev, MCP16502_OPMODE_LPM);
 	case PM_SUSPEND_ON:
 	case PM_SUSPEND_MEM:
-		return mcp16502_get_reg(rdev, MCP16502_OPMODE_HIB);
+		return mcp16502_get_state_reg(rdev, MCP16502_OPMODE_HIB);
 	default:
 		dev_err(&rdev->dev, "invalid suspend target: %d\n",
 			pm_suspend_target_state);
@@ -353,6 +444,8 @@ static const struct regulator_ops mcp16502_buck_ops = {
 	.disable			= regulator_disable_regmap,
 	.is_enabled			= regulator_is_enabled_regmap,
 	.get_status			= mcp16502_get_status,
+	.set_voltage_time_sel		= mcp16502_set_voltage_time_sel,
+	.set_ramp_delay			= mcp16502_set_ramp_delay,
 
 	.set_mode			= mcp16502_set_mode,
 	.get_mode			= mcp16502_get_mode,
@@ -377,6 +470,8 @@ static const struct regulator_ops mcp16502_ldo_ops = {
 	.disable			= regulator_disable_regmap,
 	.is_enabled			= regulator_is_enabled_regmap,
 	.get_status			= mcp16502_get_status,
+	.set_voltage_time_sel		= mcp16502_set_voltage_time_sel,
+	.set_ramp_delay			= mcp16502_set_ramp_delay,
 
 #ifdef CONFIG_SUSPEND
 	.set_suspend_voltage		= mcp16502_set_suspend_voltage,
@@ -455,7 +550,7 @@ static int mcp16502_probe(struct i2c_client *client,
 	config.regmap = rmap;
 	config.driver_data = mcp;
 
-	mcp->lpm = devm_gpiod_get(dev, "lpm", GPIOD_OUT_LOW);
+	mcp->lpm = devm_gpiod_get_optional(dev, "lpm", GPIOD_OUT_LOW);
 	if (IS_ERR(mcp->lpm)) {
 		dev_err(dev, "failed to get lpm pin: %ld\n", PTR_ERR(mcp->lpm));
 		return PTR_ERR(mcp->lpm);

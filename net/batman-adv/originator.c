@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2009-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -20,7 +20,6 @@
 #include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -733,42 +732,6 @@ batadv_neigh_node_get_or_create(struct batadv_orig_node *orig_node,
 	return batadv_neigh_node_create(orig_node, hard_iface, neigh_addr);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-/**
- * batadv_hardif_neigh_seq_print_text() - print the single hop neighbour list
- * @seq: neighbour table seq_file struct
- * @offset: not used
- *
- * Return: always 0
- */
-int batadv_hardif_neigh_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hard_iface *primary_if;
-
-	primary_if = batadv_seq_print_text_primary_if_get(seq);
-	if (!primary_if)
-		return 0;
-
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
-		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
-		   primary_if->net_dev->dev_addr, net_dev->name,
-		   bat_priv->algo_ops->name);
-
-	batadv_hardif_put(primary_if);
-
-	if (!bat_priv->algo_ops->neigh.print) {
-		seq_puts(seq,
-			 "No printing function for this routing protocol\n");
-		return 0;
-	}
-
-	bat_priv->algo_ops->neigh.print(bat_priv, seq);
-	return 0;
-}
-#endif
-
 /**
  * batadv_hardif_neigh_dump() - Dump to netlink the neighbor infos for a
  *  specific outgoing interface
@@ -1381,90 +1344,6 @@ static void batadv_purge_orig(struct work_struct *work)
 			   &bat_priv->orig_work,
 			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
 }
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-
-/**
- * batadv_orig_seq_print_text() - Print the originator table in a seq file
- * @seq: seq file to print on
- * @offset: not used
- *
- * Return: always 0
- */
-int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hard_iface *primary_if;
-
-	primary_if = batadv_seq_print_text_primary_if_get(seq);
-	if (!primary_if)
-		return 0;
-
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
-		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
-		   primary_if->net_dev->dev_addr, net_dev->name,
-		   bat_priv->algo_ops->name);
-
-	batadv_hardif_put(primary_if);
-
-	if (!bat_priv->algo_ops->orig.print) {
-		seq_puts(seq,
-			 "No printing function for this routing protocol\n");
-		return 0;
-	}
-
-	bat_priv->algo_ops->orig.print(bat_priv, seq, BATADV_IF_DEFAULT);
-
-	return 0;
-}
-
-/**
- * batadv_orig_hardif_seq_print_text() - writes originator infos for a specific
- *  outgoing interface
- * @seq: debugfs table seq_file struct
- * @offset: not used
- *
- * Return: 0
- */
-int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_hard_iface *hard_iface;
-	struct batadv_priv *bat_priv;
-
-	hard_iface = batadv_hardif_get_by_netdev(net_dev);
-
-	if (!hard_iface || !hard_iface->soft_iface) {
-		seq_puts(seq, "Interface not known to B.A.T.M.A.N.\n");
-		goto out;
-	}
-
-	bat_priv = netdev_priv(hard_iface->soft_iface);
-	if (!bat_priv->algo_ops->orig.print) {
-		seq_puts(seq,
-			 "No printing function for this routing protocol\n");
-		goto out;
-	}
-
-	if (hard_iface->if_status != BATADV_IF_ACTIVE) {
-		seq_puts(seq, "Interface not active\n");
-		goto out;
-	}
-
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s, IF/MAC: %s/%pM (%s %s)]\n",
-		   BATADV_SOURCE_VERSION, hard_iface->net_dev->name,
-		   hard_iface->net_dev->dev_addr,
-		   hard_iface->soft_iface->name, bat_priv->algo_ops->name);
-
-	bat_priv->algo_ops->orig.print(bat_priv, seq, hard_iface);
-
-out:
-	if (hard_iface)
-		batadv_hardif_put(hard_iface);
-	return 0;
-}
-#endif
 
 /**
  * batadv_orig_dump() - Dump to netlink the originator infos for a specific

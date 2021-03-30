@@ -729,7 +729,7 @@ bail_txadd:
 
 /**
  * update_tx_opstats - record stats by opcode
- * @qp; the qp
+ * @qp: the qp
  * @ps: transmit packet state
  * @plen: the plen in dwords
  *
@@ -1145,7 +1145,7 @@ static inline int egress_pkey_matches_entry(u16 pkey, u16 ent)
  * egress_pkey_check - check P_KEY of a packet
  * @ppd:  Physical IB port data
  * @slid: SLID for packet
- * @bkey: PKEY for header
+ * @pkey: PKEY for header
  * @sc5:  SC for packet
  * @s_pkey_index: It will be used for look up optimization for kernel contexts
  * only. If it is negative value, then it means user contexts is calling this
@@ -1206,7 +1206,7 @@ bad:
 	return 1;
 }
 
-/**
+/*
  * get_send_routine - choose an egress routine
  *
  * Choose an egress routine based on QP type
@@ -1424,7 +1424,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->gid_tbl_len = HFI1_GUIDS_PER_PORT;
 	props->active_width = (u8)opa_width_to_ib(ppd->link_width_active);
 	/* see rate_show() in ib core/sysfs.c */
-	props->active_speed = (u8)opa_speed_to_ib(ppd->link_speed_active);
+	props->active_speed = opa_speed_to_ib(ppd->link_speed_active);
 	props->max_vl_num = ppd->vls_supported;
 
 	/* Once we are a "first class" citizen and have added the OPA MTUs to

@@ -54,10 +54,7 @@
  * 0xffff_ffff_0000_0000 and limit EFI VA mapping space to 64G.
  */
 static u64 efi_va = EFI_VA_START;
-
-struct efi_scratch efi_scratch;
-
-EXPORT_SYMBOL_GPL(efi_mm);
+static struct mm_struct *efi_prev_mm;
 
 /*
  * We need our own copy of the higher levels of the page tables
@@ -78,28 +75,30 @@ int __init efi_alloc_page_tables(void)
 	gfp_mask = GFP_KERNEL | __GFP_ZERO;
 	efi_pgd = (pgd_t *)__get_free_pages(gfp_mask, PGD_ALLOCATION_ORDER);
 	if (!efi_pgd)
-		return -ENOMEM;
+		goto fail;
 
 	pgd = efi_pgd + pgd_index(EFI_VA_END);
 	p4d = p4d_alloc(&init_mm, pgd, EFI_VA_END);
-	if (!p4d) {
-		free_page((unsigned long)efi_pgd);
-		return -ENOMEM;
-	}
+	if (!p4d)
+		goto free_pgd;
 
 	pud = pud_alloc(&init_mm, p4d, EFI_VA_END);
-	if (!pud) {
-		if (pgtable_l5_enabled())
-			free_page((unsigned long) pgd_page_vaddr(*pgd));
-		free_pages((unsigned long)efi_pgd, PGD_ALLOCATION_ORDER);
-		return -ENOMEM;
-	}
+	if (!pud)
+		goto free_p4d;
 
 	efi_mm.pgd = efi_pgd;
 	mm_init_cpumask(&efi_mm);
 	init_new_context(NULL, &efi_mm);
 
 	return 0;
+
+free_p4d:
+	if (pgtable_l5_enabled())
+		free_page((unsigned long)pgd_page_vaddr(*pgd));
+free_pgd:
+	free_pages((unsigned long)efi_pgd, PGD_ALLOCATION_ORDER);
+fail:
+	return -ENOMEM;
 }
 
 /*
@@ -113,30 +112,11 @@ void efi_sync_low_kernel_mappings(void)
 	pud_t *pud_k, *pud_efi;
 	pgd_t *efi_pgd = efi_mm.pgd;
 
-	/*
-	 * We can share all PGD entries apart from the one entry that
-	 * covers the EFI runtime mapping space.
-	 *
-	 * Make sure the EFI runtime region mappings are guaranteed to
-	 * only span a single PGD entry and that the entry also maps
-	 * other important kernel regions.
-	 */
-	MAYBE_BUILD_BUG_ON(pgd_index(EFI_VA_END) != pgd_index(MODULES_END));
-	MAYBE_BUILD_BUG_ON((EFI_VA_START & PGDIR_MASK) !=
-			(EFI_VA_END & PGDIR_MASK));
-
 	pgd_efi = efi_pgd + pgd_index(PAGE_OFFSET);
 	pgd_k = pgd_offset_k(PAGE_OFFSET);
 
 	num_entries = pgd_index(EFI_VA_END) - pgd_index(PAGE_OFFSET);
 	memcpy(pgd_efi, pgd_k, sizeof(pgd_t) * num_entries);
-
-	/*
-	 * As with PGDs, we share all P4D entries apart from the one entry
-	 * that covers the EFI runtime mapping space.
-	 */
-	BUILD_BUG_ON(p4d_index(EFI_VA_END) != p4d_index(MODULES_END));
-	BUILD_BUG_ON((EFI_VA_START & P4D_MASK) != (EFI_VA_END & P4D_MASK));
 
 	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
 	pgd_k = pgd_offset_k(EFI_VA_END);
@@ -254,7 +234,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 		return 1;
 	}
 
-	efi_scratch.phys_stack = page_to_phys(page + 1); /* stack grows down */
+	efi_mixed_mode_stack_pa = page_to_phys(page + 1); /* stack grows down */
 
 	npages = (_etext - _text) >> PAGE_SHIFT;
 	text = __pa(_text);
@@ -479,11 +459,17 @@ void __init efi_dump_pagetable(void)
  * can not change under us.
  * It should be ensured that there are no concurent calls to this function.
  */
-void efi_switch_mm(struct mm_struct *mm)
+void efi_enter_mm(void)
 {
-	efi_scratch.prev_mm = current->active_mm;
-	current->active_mm = mm;
-	switch_mm(efi_scratch.prev_mm, mm, NULL);
+	efi_prev_mm = current->active_mm;
+	current->active_mm = &efi_mm;
+	switch_mm(efi_prev_mm, &efi_mm, NULL);
+}
+
+void efi_leave_mm(void)
+{
+	current->active_mm = efi_prev_mm;
+	switch_mm(&efi_mm, efi_prev_mm, NULL);
 }
 
 static DEFINE_SPINLOCK(efi_runtime_lock);
@@ -547,12 +533,12 @@ efi_thunk_set_virtual_address_map(unsigned long memory_map_size,
 	efi_sync_low_kernel_mappings();
 	local_irq_save(flags);
 
-	efi_switch_mm(&efi_mm);
+	efi_enter_mm();
 
 	status = __efi_thunk(set_virtual_address_map, memory_map_size,
 			     descriptor_size, descriptor_version, virtual_map);
 
-	efi_switch_mm(efi_scratch.prev_mm);
+	efi_leave_mm();
 	local_irq_restore(flags);
 
 	return status;
@@ -846,9 +832,9 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 							 descriptor_size,
 							 descriptor_version,
 							 virtual_map);
-	efi_switch_mm(&efi_mm);
+	efi_enter_mm();
 
-	kernel_fpu_begin();
+	efi_fpu_begin();
 
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
@@ -857,12 +843,12 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 			  descriptor_version, virtual_map);
 	local_irq_restore(flags);
 
-	kernel_fpu_end();
+	efi_fpu_end();
 
 	/* grab the virtually remapped EFI runtime services table pointer */
 	efi.runtime = READ_ONCE(systab->runtime);
 
-	efi_switch_mm(efi_scratch.prev_mm);
+	efi_leave_mm();
 
 	return status;
 }

@@ -9,6 +9,11 @@
 #include <dt-bindings/mfd/st,stpmic1.h>
 
 / {
+	aliases {
+		ethernet0 = &ethernet0;
+		ethernet1 = &ksz8851;
+	};
+
 	memory@c0000000 {
 		device_type = "memory";
 		reg = <0xC0000000 0x40000000>;
@@ -55,6 +60,17 @@
 			no-map;
 		};
 	};
+
+	ethernet_vio: vioregulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vio";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpiog 3 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vdd>;
+	};
 };
 
 &adc {
@@ -91,6 +107,64 @@
 };
 
 &dts {
+	status = "okay";
+};
+
+&ethernet0 {
+	status = "okay";
+	pinctrl-0 = <&ethernet0_rmii_pins_a>;
+	pinctrl-1 = <&ethernet0_rmii_sleep_pins_a>;
+	pinctrl-names = "default", "sleep";
+	phy-mode = "rmii";
+	max-speed = <100>;
+	phy-handle = <&phy0>;
+	st,eth-ref-clk-sel;
+	phy-reset-gpios = <&gpioh 3 GPIO_ACTIVE_LOW>;
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			interrupt-parent = <&gpioi>;
+			interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
+
+&fmc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&fmc_pins_b>;
+	pinctrl-1 = <&fmc_sleep_pins_b>;
+	status = "okay";
+
+	ksz8851: ks8851mll@1,0 {
+		compatible = "micrel,ks8851-mll";
+		reg = <1 0x0 0x2>, <1 0x2 0x20000>;
+		interrupt-parent = <&gpioc>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		bank-width = <2>;
+
+		/* Timing values are in nS */
+		st,fmc2-ebi-cs-mux-enable;
+		st,fmc2-ebi-cs-transaction-type = <4>;
+		st,fmc2-ebi-cs-buswidth = <16>;
+		st,fmc2-ebi-cs-address-setup-ns = <5>;
+		st,fmc2-ebi-cs-address-hold-ns = <5>;
+		st,fmc2-ebi-cs-bus-turnaround-ns = <5>;
+		st,fmc2-ebi-cs-data-setup-ns = <45>;
+		st,fmc2-ebi-cs-data-hold-ns = <1>;
+		st,fmc2-ebi-cs-write-address-setup-ns = <5>;
+		st,fmc2-ebi-cs-write-address-hold-ns = <5>;
+		st,fmc2-ebi-cs-write-bus-turnaround-ns = <5>;
+		st,fmc2-ebi-cs-write-data-setup-ns = <45>;
+		st,fmc2-ebi-cs-write-data-hold-ns = <1>;
+	};
+};
+
+&gpioc {
 	status = "okay";
 };
 
@@ -166,6 +240,7 @@
 
 			vdda: ldo1 {
 				regulator-name = "vdda";
+				regulator-always-on;
 				regulator-min-microvolt = <2900000>;
 				regulator-max-microvolt = <2900000>;
 				interrupts = <IT_CURLIM_LDO1 0>;
@@ -249,7 +324,7 @@
 		compatible = "ti,tsc2004";
 		reg = <0x49>;
 		vio-supply = <&v3v3>;
-		interrupts-extended = <&gpioh 3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpioh 15 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	eeprom@50 {
@@ -285,8 +360,8 @@
 
 &qspi {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a &qspi_bk2_pins_a>;
-	pinctrl-1 = <&qspi_clk_sleep_pins_a &qspi_bk1_sleep_pins_a &qspi_bk2_sleep_pins_a>;
+	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a>;
+	pinctrl-1 = <&qspi_clk_sleep_pins_a &qspi_bk1_sleep_pins_a>;
 	reg = <0x58003000 0x1000>, <0x70000000 0x4000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -311,17 +386,36 @@
 };
 
 &sdmmc1 {
-	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-names = "default", "opendrain", "sleep", "init";
 	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
 	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_a>;
 	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_a>;
-	broken-cd;
+	pinctrl-3 = <&sdmmc1_b4_init_pins_a &sdmmc1_dir_init_pins_a>;
+	cd-gpios = <&gpiog 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	disable-wp;
 	st,sig-dir;
 	st,neg-edge;
 	st,use-ckin;
+	st,cmd-gpios = <&gpiod 2 0>;
+	st,ck-gpios = <&gpioc 12 0>;
+	st,ckin-gpios = <&gpioe 4 0>;
 	bus-width = <4>;
 	vmmc-supply = <&vdd_sd>;
 	status = "okay";
+};
+
+&sdmmc1_b4_pins_a {
+	/*
+	 * SD bus pull-up resistors:
+	 * - optional on SoMs with SD voltage translator
+	 * - mandatory on SoMs without SD voltage translator
+	 */
+	pins1 {
+		bias-pull-up;
+	};
+	pins2 {
+		bias-pull-up;
+	};
 };
 
 &sdmmc2 {

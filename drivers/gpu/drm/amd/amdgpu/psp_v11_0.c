@@ -59,6 +59,10 @@ MODULE_FIRMWARE("amdgpu/sienna_cichlid_sos.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_ta.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_sos.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_ta.bin");
+MODULE_FIRMWARE("amdgpu/vangogh_asd.bin");
+MODULE_FIRMWARE("amdgpu/vangogh_toc.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_sos.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_ta.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -77,7 +81,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 	const char *chip_name;
-	char fw_name[30];
+	char fw_name[PSP_FW_NAME_LEN];
 	int err = 0;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
@@ -105,24 +109,26 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	case CHIP_NAVY_FLOUNDER:
 		chip_name = "navy_flounder";
 		break;
+	case CHIP_VANGOGH:
+		chip_name = "vangogh";
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		chip_name = "dimgrey_cavefish";
+		break;
 	default:
 		BUG();
 	}
 
-	err = psp_init_sos_microcode(psp, chip_name);
-	if (err)
-		return err;
-
-	if (adev->asic_type != CHIP_SIENNA_CICHLID &&
-	    adev->asic_type != CHIP_NAVY_FLOUNDER) {
-		err = psp_init_asd_microcode(psp, chip_name);
-		if (err)
-			return err;
-	}
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 	case CHIP_ARCTURUS:
+		err = psp_init_sos_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_asd_microcode(psp, chip_name);
+		if (err)
+			return err;
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
 		err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
 		if (err) {
@@ -150,6 +156,12 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
+		err = psp_init_sos_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_asd_microcode(psp, chip_name);
+		if (err)
+			return err;
 		if (amdgpu_sriov_vf(adev))
 			break;
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
@@ -180,7 +192,19 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		break;
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
-		err = psp_init_ta_microcode(&adev->psp, chip_name);
+	case CHIP_DIMGREY_CAVEFISH:
+		err = psp_init_sos_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_ta_microcode(psp, chip_name);
+		if (err)
+			return err;
+		break;
+	case CHIP_VANGOGH:
+		err = psp_init_asd_microcode(psp, chip_name);
+		if (err)
+			return err;
+		err = psp_init_toc_microcode(psp, chip_name);
 		if (err)
 			return err;
 		break;
@@ -196,7 +220,7 @@ out2:
 	return err;
 }
 
-int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
+static int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 
@@ -368,48 +392,12 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	return ret;
 }
 
-static void psp_v11_0_reroute_ih(struct psp_context *psp)
-{
-	struct amdgpu_device *adev = psp->adev;
-	uint32_t tmp;
-
-	/* Change IH ring for VMC */
-	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1244b);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, 3);
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
-
-	mdelay(20);
-	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-		     0x80000000, 0x8000FFFF, false);
-
-	/* Change IH ring for UMC */
-	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1216b);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, 4);
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
-
-	mdelay(20);
-	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-		     0x80000000, 0x8000FFFF, false);
-}
-
 static int psp_v11_0_ring_init(struct psp_context *psp,
 			      enum psp_ring_type ring_type)
 {
 	int ret = 0;
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
-
-	if ((!amdgpu_sriov_vf(adev)) &&
-	    (adev->asic_type != CHIP_SIENNA_CICHLID) &&
-	    (adev->asic_type != CHIP_NAVY_FLOUNDER))
-		psp_v11_0_reroute_ih(psp);
 
 	ring = &psp->km_ring;
 
@@ -615,7 +603,7 @@ static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 {
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
-	uint32_t *pcache = (uint32_t*)ctx->sys_cache;
+	uint32_t *pcache = (uint32_t *)ctx->sys_cache;
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t p2c_header[4];
 	uint32_t sz;
@@ -702,7 +690,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 		}
 
 		memcpy_toio(adev->mman.aper_base_kaddr, buf, sz);
-		adev->nbio.funcs->hdp_flush(adev, NULL);
+		adev->hdp.funcs->flush_hdp(adev, NULL);
 		vfree(buf);
 	}
 

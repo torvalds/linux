@@ -1,0 +1,300 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/dts-v1/;
+
+/ {
+	interrupt-parent = <&gic>;
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x0>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x1>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x2>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "brcm,brahma-b53";
+			reg = <0x3>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xfff8>;
+			next-level-cache = <&l2>;
+		};
+
+		l2: l2-cache0 {
+			compatible = "cache";
+		};
+	};
+
+	axi@81000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00 0x00 0x81000000 0x4000>;
+
+		gic: interrupt-controller@1000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+			reg = <0x1000 0x1000>,
+			      <0x2000 0x2000>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	clocks {
+		periph_clk: periph_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <50000000>;
+			clock-output-names = "periph";
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00 0x00 0x80000000 0x281000>;
+
+		usb@c300 {
+			compatible = "generic-ehci";
+			reg = <0xc300 0x100>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		usb@c400 {
+			compatible = "generic-ohci";
+			reg = <0xc400 0x100>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		usb@d000 {
+			compatible = "generic-xhci";
+			reg = <0xd000 0x8c8>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		ethernet-switch@80000 {
+			compatible = "simple-bus";
+			#size-cells = <1>;
+			#address-cells = <1>;
+			ranges = <0 0x80000 0x50000>;
+
+			ethernet-switch@0 {
+				compatible = "brcm,bcm4908-switch";
+				reg = <0x0 0x40000>,
+				      <0x40000 0x110>,
+				      <0x40340 0x30>,
+				      <0x40380 0x30>,
+				      <0x40600 0x34>,
+				      <0x40800 0x208>;
+				reg-names = "core", "reg", "intrl2_0",
+					    "intrl2_1", "fcb", "acb";
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				brcm,num-gphy = <5>;
+				brcm,num-rgmii-ports = <2>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ports: ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						phy-mode = "internal";
+						phy-handle = <&phy8>;
+					};
+
+					port@1 {
+						reg = <1>;
+						phy-mode = "internal";
+						phy-handle = <&phy9>;
+					};
+
+					port@2 {
+						reg = <2>;
+						phy-mode = "internal";
+						phy-handle = <&phy10>;
+					};
+
+					port@3 {
+						reg = <3>;
+						phy-mode = "internal";
+						phy-handle = <&phy11>;
+					};
+				};
+			};
+
+			mdio: mdio@405c0 {
+				compatible = "brcm,unimac-mdio";
+				reg = <0x405c0 0x8>;
+				reg-names = "mdio";
+				#size-cells = <0>;
+				#address-cells = <1>;
+
+				phy8: ethernet-phy@8 {
+					reg = <8>;
+				};
+
+				phy9: ethernet-phy@9 {
+					reg = <9>;
+				};
+
+				phy10: ethernet-phy@a {
+					reg = <10>;
+				};
+
+				phy11: ethernet-phy@b {
+					reg = <11>;
+				};
+
+				phy12: ethernet-phy@c {
+					reg = <12>;
+				};
+			};
+		};
+
+		procmon: syscon@280000 {
+			compatible = "simple-bus";
+			reg = <0x280000 0x1000>;
+			ranges;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			power-controller@2800c0 {
+				compatible = "brcm,bcm4908-pmb";
+				reg = <0x2800c0 0x40>;
+				#power-domain-cells = <1>;
+			};
+		};
+	};
+
+	bus@ff800000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00 0x00 0xff800000 0x3000>;
+
+		timer: timer@400 {
+			compatible = "brcm,bcm6328-timer", "syscon";
+			reg = <0x400 0x3c>;
+		};
+
+		gpio0: gpio-controller@500 {
+			compatible = "brcm,bcm6345-gpio";
+			reg-names = "dirout", "dat";
+			reg = <0x500 0x28>, <0x528 0x28>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		uart0: serial@640 {
+			compatible = "brcm,bcm6345-uart";
+			reg = <0x640 0x18>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&periph_clk>;
+			clock-names = "periph";
+			status = "okay";
+		};
+
+		nand@1800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.1", "brcm,brcmnand";
+			reg = <0x1800 0x600>, <0x2000 0x10>;
+			reg-names = "nand", "nand-int-base";
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "nand";
+			status = "okay";
+
+			nandcs: nandcs@0 {
+				compatible = "brcm,nandcs";
+				reg = <0>;
+			};
+		};
+
+		misc@2600 {
+			compatible = "brcm,misc", "simple-mfd";
+			reg = <0x2600 0xe4>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00 0x2600 0xe4>;
+
+			reset-controller@2644 {
+				compatible = "brcm,bcm4908-misc-pcie-reset";
+				reg = <0x44 0x04>;
+				#reset-cells = <1>;
+			};
+		};
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&timer>;
+			offset = <0x34>;
+			mask = <1>;
+		};
+	};
+};

@@ -160,7 +160,7 @@ static int ds2780_get_voltage(struct ds2780_device_info *dev_info,
 
 	/*
 	 * The voltage value is located in 10 bits across the voltage MSB
-	 * and LSB registers in two's compliment form
+	 * and LSB registers in two's complement form
 	 * Sign bit of the voltage value is in bit 7 of the voltage MSB register
 	 * Bits 9 - 3 of the voltage value are in bits 6 - 0 of the
 	 * voltage MSB register
@@ -188,7 +188,7 @@ static int ds2780_get_temperature(struct ds2780_device_info *dev_info,
 
 	/*
 	 * The temperature value is located in 10 bits across the temperature
-	 * MSB and LSB registers in two's compliment form
+	 * MSB and LSB registers in two's complement form
 	 * Sign bit of the temperature value is in bit 7 of the temperature
 	 * MSB register
 	 * Bits 9 - 3 of the temperature value are in bits 6 - 0 of the
@@ -241,7 +241,7 @@ static int ds2780_get_current(struct ds2780_device_info *dev_info,
 
 	/*
 	 * The current value is located in 16 bits across the current MSB
-	 * and LSB registers in two's compliment form
+	 * and LSB registers in two's complement form
 	 * Sign bit of the current value is in bit 7 of the current MSB register
 	 * Bits 14 - 8 of the current value are in bits 6 - 0 of the current
 	 * MSB register
@@ -624,7 +624,7 @@ static ssize_t ds2780_read_param_eeprom_bin(struct file *filp,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 
@@ -637,7 +637,7 @@ static ssize_t ds2780_write_param_eeprom_bin(struct file *filp,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 	int ret;
@@ -669,7 +669,7 @@ static ssize_t ds2780_read_user_eeprom_bin(struct file *filp,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 
@@ -682,7 +682,7 @@ static ssize_t ds2780_write_user_eeprom_bin(struct file *filp,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct power_supply *psy = to_power_supply(dev);
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 	int ret;

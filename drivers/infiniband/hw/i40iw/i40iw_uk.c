@@ -115,21 +115,12 @@ void i40iw_qp_post_wr(struct i40iw_qp_uk *qp)
 }
 
 /**
- * i40iw_qp_ring_push_db -  ring qp doorbell
- * @qp: hw qp ptr
- * @wqe_idx: wqe index
- */
-static void i40iw_qp_ring_push_db(struct i40iw_qp_uk *qp, u32 wqe_idx)
-{
-	set_32bit_val(qp->push_db, 0, LS_32((wqe_idx >> 2), I40E_PFPE_WQEALLOC_WQE_DESC_INDEX) | qp->qp_id);
-	qp->initial_ring.head = I40IW_RING_GETCURRENT_HEAD(qp->sq_ring);
-}
-
-/**
  * i40iw_qp_get_next_send_wqe - return next wqe ptr
  * @qp: hw qp ptr
  * @wqe_idx: return wqe index
  * @wqe_size: size of sq wqe
+ * @total_size: work request length
+ * @wr_id: work request id
  */
 u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 				u32 *wqe_idx,
@@ -426,7 +417,6 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 	u64 *wqe;
 	u8 *dest, *src;
 	struct i40iw_inline_rdma_write *op_info;
-	u64 *push;
 	u64 header = 0;
 	u32 wqe_idx;
 	enum i40iw_status_code ret_code;
@@ -453,7 +443,6 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 		 LS_64(I40IWQP_OP_RDMA_WRITE, I40IWQPSQ_OPCODE) |
 		 LS_64(op_info->len, I40IWQPSQ_INLINEDATALEN) |
 		 LS_64(1, I40IWQPSQ_INLINEDATAFLAG) |
-		 LS_64((qp->push_db ? 1 : 0), I40IWQPSQ_PUSHWQE) |
 		 LS_64(read_fence, I40IWQPSQ_READFENCE) |
 		 LS_64(info->local_fence, I40IWQPSQ_LOCALFENCE) |
 		 LS_64(info->signaled, I40IWQPSQ_SIGCOMPL) |
@@ -475,14 +464,8 @@ static enum i40iw_status_code i40iw_inline_rdma_write(struct i40iw_qp_uk *qp,
 
 	set_64bit_val(wqe, 24, header);
 
-	if (qp->push_db) {
-		push = (u64 *)((uintptr_t)qp->push_wqe + (wqe_idx & 0x3) * 0x20);
-		memcpy(push, wqe, (op_info->len > 16) ? op_info->len + 16 : 32);
-		i40iw_qp_ring_push_db(qp, wqe_idx);
-	} else {
-		if (post_sq)
-			i40iw_qp_post_wr(qp);
-	}
+	if (post_sq)
+		i40iw_qp_post_wr(qp);
 
 	return 0;
 }
@@ -507,7 +490,6 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 	enum i40iw_status_code ret_code;
 	bool read_fence = false;
 	u8 wqe_size;
-	u64 *push;
 
 	op_info = &info->op.inline_send;
 	if (op_info->len > I40IW_MAX_INLINE_DATA_SIZE)
@@ -526,7 +508,6 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 	    LS_64(info->op_type, I40IWQPSQ_OPCODE) |
 	    LS_64(op_info->len, I40IWQPSQ_INLINEDATALEN) |
 	    LS_64(1, I40IWQPSQ_INLINEDATAFLAG) |
-	    LS_64((qp->push_db ? 1 : 0), I40IWQPSQ_PUSHWQE) |
 	    LS_64(read_fence, I40IWQPSQ_READFENCE) |
 	    LS_64(info->local_fence, I40IWQPSQ_LOCALFENCE) |
 	    LS_64(info->signaled, I40IWQPSQ_SIGCOMPL) |
@@ -548,14 +529,8 @@ static enum i40iw_status_code i40iw_inline_send(struct i40iw_qp_uk *qp,
 
 	set_64bit_val(wqe, 24, header);
 
-	if (qp->push_db) {
-		push = (u64 *)((uintptr_t)qp->push_wqe + (wqe_idx & 0x3) * 0x20);
-		memcpy(push, wqe, (op_info->len > 16) ? op_info->len + 16 : 32);
-		i40iw_qp_ring_push_db(qp, wqe_idx);
-	} else {
-		if (post_sq)
-			i40iw_qp_post_wr(qp);
-	}
+	if (post_sq)
+		i40iw_qp_post_wr(qp);
 
 	return 0;
 }
@@ -744,7 +719,6 @@ static enum i40iw_status_code i40iw_cq_post_entries(struct i40iw_cq_uk *cq,
  * i40iw_cq_poll_completion - get cq completion info
  * @cq: hw cq
  * @info: cq poll information returned
- * @post_cq: update cq tail
  */
 static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 						       struct i40iw_cq_poll_info *info)
@@ -772,7 +746,6 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 
 	q_type = (u8)RS_64(qword3, I40IW_CQ_SQ);
 	info->error = (bool)RS_64(qword3, I40IW_CQ_ERROR);
-	info->push_dropped = (bool)RS_64(qword3, I40IWCQ_PSHDROP);
 	if (info->error) {
 		info->comp_status = I40IW_COMPL_STATUS_FLUSHED;
 		info->major_err = (bool)RS_64(qword3, I40IW_CQ_MAJERR);
@@ -951,7 +924,6 @@ enum i40iw_status_code i40iw_get_rqdepth(u32 rq_size, u8 shift, u32 *rqdepth)
 
 static const struct i40iw_qp_uk_ops iw_qp_uk_ops = {
 	.iw_qp_post_wr = i40iw_qp_post_wr,
-	.iw_qp_ring_push_db = i40iw_qp_ring_push_db,
 	.iw_rdma_write = i40iw_rdma_write,
 	.iw_rdma_read = i40iw_rdma_read,
 	.iw_send = i40iw_send,
@@ -1009,11 +981,7 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 
 	qp->wqe_alloc_reg = info->wqe_alloc_reg;
 	qp->qp_id = info->qp_id;
-
 	qp->sq_size = info->sq_size;
-	qp->push_db = info->push_db;
-	qp->push_wqe = info->push_wqe;
-
 	qp->max_sq_frag_cnt = info->max_sq_frag_cnt;
 	sq_ring_size = qp->sq_size << sqshift;
 
@@ -1084,7 +1052,7 @@ void i40iw_device_init_uk(struct i40iw_dev_uk *dev)
 
 /**
  * i40iw_clean_cq - clean cq entries
- * @ queue completion context
+ * @queue: completion context
  * @cq: cq to clean
  */
 void i40iw_clean_cq(void *queue, struct i40iw_cq_uk *cq)

@@ -72,11 +72,16 @@ Description:    read/write
                 when performing the START_WORK ioctl. Only applicable when
                 running under hashed page table mmu.
                 Possible values:
-                        none: No prefaulting (default)
-                        work_element_descriptor: Treat the work element
-                                 descriptor as an effective address and
-                                 prefault what it points to.
-                        all: all segments process calling START_WORK maps.
+
+                =======================  ======================================
+		none			 No prefaulting (default)
+		work_element_descriptor  Treat the work element
+					 descriptor as an effective address and
+					 prefault what it points to.
+                all			 all segments process calling
+					 START_WORK maps.
+                =======================  ======================================
+
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/reset
@@ -212,6 +217,7 @@ Description:    read/write
                 card.  A power cycle is required to load the image.
                 "none" could be useful for debugging because the trace arrays
                 are preserved.
+
                 "user" and "factory" means PERST will cause either the user or
                 user or factory image to be loaded.
                 Default is to reload on PERST whichever image the card has
@@ -235,8 +241,11 @@ Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
 		Trust that when an image is reloaded via PERST, it will not
 		have changed.
-		0 = don't trust, the image may be different (default)
-		1 = trust that the image will not change.
+
+		==  =================================================
+		0   don't trust, the image may be different (default)
+		1   trust that the image will not change.
+		==  =================================================
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/psl_timebase_synced

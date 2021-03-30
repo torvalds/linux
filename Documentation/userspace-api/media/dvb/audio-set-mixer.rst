@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_SET_MIXER:
 
@@ -16,8 +17,9 @@ AUDIO_SET_MIXER
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_SET_MIXER, struct audio_mixer *mix)
-    :name: AUDIO_SET_MIXER
+.. c:macro:: AUDIO_SET_MIXER
+
+``int ioctl(int fd, AUDIO_SET_MIXER, struct audio_mixer *mix)``
 
 Arguments
 ---------
@@ -25,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -39,12 +40,10 @@ Arguments
 
        -  mixer settings.
 
-
 Description
 -----------
 
 This ioctl lets you adjust the mixer settings of the audio decoder.
-
 
 Return Value
 ------------

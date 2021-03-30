@@ -51,7 +51,7 @@ klitmus7 Compatibility Table
 	============  ==========
 	target Linux  herdtools7
 	------------  ----------
-	     -- 4.18  7.48 --
+	     -- 4.14  7.48 --
 	4.15 -- 4.19  7.49 --
 	4.20 -- 5.5   7.54 --
 	5.6  --       7.56 --
@@ -161,26 +161,8 @@ running LKMM litmus tests.
 DESCRIPTION OF FILES
 ====================
 
-Documentation/cheatsheet.txt
-	Quick-reference guide to the Linux-kernel memory model.
-
-Documentation/explanation.txt
-	Describes the memory model in detail.
-
-Documentation/litmus-tests.txt
-	Describes the format, features, capabilities, and limitations
-	of the litmus tests that LKMM can evaluate.
-
-Documentation/recipes.txt
-	Lists common memory-ordering patterns.
-
-Documentation/references.txt
-	Provides background reading.
-
-Documentation/simple.txt
-	Starting point for someone new to Linux-kernel concurrency.
-	And also for those needing a reminder of the simpler approaches
-	to concurrency!
+Documentation/README
+	Guide to the other documents in the Documentation/ directory.
 
 linux-kernel.bell
 	Categorizes the relevant instructions, including memory

@@ -28,6 +28,7 @@ static void rtc_device_release(struct device *dev)
 	struct rtc_device *rtc = to_rtc_device(dev);
 
 	ida_simple_remove(&rtc_ida, rtc->id);
+	mutex_destroy(&rtc->ops_lock);
 	kfree(rtc);
 }
 
@@ -200,8 +201,13 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	device_initialize(&rtc->dev);
 
-	/* Drivers can revise this default after allocating the device. */
-	rtc->set_offset_nsec =  NSEC_PER_SEC / 2;
+	/*
+	 * Drivers can revise this default after allocating the device.
+	 * The default is what most RTCs do: Increment seconds exactly one
+	 * second after the write happened. This adds a default transport
+	 * time of 5ms which is at least halfways close to reality.
+	 */
+	rtc->set_offset_nsec = NSEC_PER_SEC + 5 * NSEC_PER_MSEC;
 
 	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
@@ -224,6 +230,8 @@ static struct rtc_device *rtc_allocate_device(void)
 	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
+
+	set_bit(RTC_FEATURE_ALARM, rtc->features);
 
 	return rtc;
 }
@@ -316,13 +324,10 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 		rtc->offset_secs = 0;
 }
 
-/**
- * rtc_device_unregister - removes the previously registered RTC class device
- *
- * @rtc: the RTC class device to destroy
- */
-static void rtc_device_unregister(struct rtc_device *rtc)
+static void devm_rtc_unregister_device(void *data)
 {
+	struct rtc_device *rtc = data;
+
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -332,60 +337,43 @@ static void rtc_device_unregister(struct rtc_device *rtc)
 	cdev_device_del(&rtc->char_dev, &rtc->dev);
 	rtc->ops = NULL;
 	mutex_unlock(&rtc->ops_lock);
-	put_device(&rtc->dev);
 }
 
-static void devm_rtc_release_device(struct device *dev, void *res)
+static void devm_rtc_release_device(void *res)
 {
-	struct rtc_device *rtc = *(struct rtc_device **)res;
+	struct rtc_device *rtc = res;
 
-	rtc_nvmem_unregister(rtc);
-
-	if (rtc->registered)
-		rtc_device_unregister(rtc);
-	else
-		put_device(&rtc->dev);
+	put_device(&rtc->dev);
 }
 
 struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 {
-	struct rtc_device **ptr, *rtc;
+	struct rtc_device *rtc;
 	int id, err;
 
 	id = rtc_device_get_id(dev);
 	if (id < 0)
 		return ERR_PTR(id);
 
-	ptr = devres_alloc(devm_rtc_release_device, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr) {
-		err = -ENOMEM;
-		goto exit_ida;
-	}
-
 	rtc = rtc_allocate_device();
 	if (!rtc) {
-		err = -ENOMEM;
-		goto exit_devres;
+		ida_simple_remove(&rtc_ida, id);
+		return ERR_PTR(-ENOMEM);
 	}
-
-	*ptr = rtc;
-	devres_add(dev, ptr);
 
 	rtc->id = id;
 	rtc->dev.parent = dev;
 	dev_set_name(&rtc->dev, "rtc%d", id);
 
-	return rtc;
+	err = devm_add_action_or_reset(dev, devm_rtc_release_device, rtc);
+	if (err)
+		return ERR_PTR(err);
 
-exit_devres:
-	devres_free(ptr);
-exit_ida:
-	ida_simple_remove(&rtc_ida, id);
-	return ERR_PTR(err);
+	return rtc;
 }
 EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
 
-int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 {
 	struct rtc_wkalrm alrm;
 	int err;
@@ -394,6 +382,9 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 		dev_dbg(&rtc->dev, "no ops set\n");
 		return -EINVAL;
 	}
+
+	if (!rtc->ops->set_alarm)
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
 
 	rtc->owner = owner;
 	rtc_device_get_offset(rtc);
@@ -415,7 +406,6 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 	rtc_proc_add_device(rtc);
 
-	rtc->registered = true;
 	dev_info(rtc->dev.parent, "registered as %s\n",
 		 dev_name(&rtc->dev));
 
@@ -424,9 +414,10 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 		rtc_hctosys(rtc);
 #endif
 
-	return 0;
+	return devm_add_action_or_reset(rtc->dev.parent,
+					devm_rtc_unregister_device, rtc);
 }
-EXPORT_SYMBOL_GPL(__rtc_register_device);
+EXPORT_SYMBOL_GPL(__devm_rtc_register_device);
 
 /**
  * devm_rtc_device_register - resource managed rtc_device_register()
@@ -456,7 +447,7 @@ struct rtc_device *devm_rtc_device_register(struct device *dev,
 
 	rtc->ops = ops;
 
-	err = __rtc_register_device(owner, rtc);
+	err = __devm_rtc_register_device(owner, rtc);
 	if (err)
 		return ERR_PTR(err);
 

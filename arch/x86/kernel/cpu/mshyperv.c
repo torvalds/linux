@@ -31,6 +31,11 @@
 #include <asm/reboot.h>
 #include <asm/nmi.h>
 #include <clocksource/hyperv_timer.h>
+#include <asm/numa.h>
+
+/* Is Linux running as the root partition? */
+bool hv_root_partition;
+EXPORT_SYMBOL_GPL(hv_root_partition);
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
@@ -55,9 +60,14 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 	set_irq_regs(old_regs);
 }
 
-void hv_setup_vmbus_irq(void (*handler)(void))
+int hv_setup_vmbus_irq(int irq, void (*handler)(void))
 {
+	/*
+	 * The 'irq' argument is ignored on x86/x64 because a hard-coded
+	 * interrupt vector is used for Hyper-V interrupts.
+	 */
 	vmbus_handler = handler;
+	return 0;
 }
 
 void hv_remove_vmbus_irq(void)
@@ -130,14 +140,32 @@ static void hv_machine_shutdown(void)
 {
 	if (kexec_in_progress && hv_kexec_handler)
 		hv_kexec_handler();
+
+	/*
+	 * Call hv_cpu_die() on all the CPUs, otherwise later the hypervisor
+	 * corrupts the old VP Assist Pages and can crash the kexec kernel.
+	 */
+	if (kexec_in_progress && hyperv_init_cpuhp > 0)
+		cpuhp_remove_state(hyperv_init_cpuhp);
+
+	/* The function calls stop_other_cpus(). */
 	native_machine_shutdown();
+
+	/* Disable the hypercall page when there is only 1 active CPU. */
+	if (kexec_in_progress)
+		hyperv_cleanup();
 }
 
 static void hv_machine_crash_shutdown(struct pt_regs *regs)
 {
 	if (hv_crash_handler)
 		hv_crash_handler(regs);
+
+	/* The function calls crash_smp_send_stop(). */
 	native_machine_crash_shutdown(regs);
+
+	/* Disable the hypercall page when there is only 1 active CPU. */
+	hyperv_cleanup();
 }
 #endif /* CONFIG_KEXEC_CORE */
 #endif /* CONFIG_HYPERV */
@@ -203,6 +231,32 @@ static void __init hv_smp_prepare_boot_cpu(void)
 	hv_init_spinlocks();
 #endif
 }
+
+static void __init hv_smp_prepare_cpus(unsigned int max_cpus)
+{
+#ifdef CONFIG_X86_64
+	int i;
+	int ret;
+#endif
+
+	native_smp_prepare_cpus(max_cpus);
+
+#ifdef CONFIG_X86_64
+	for_each_present_cpu(i) {
+		if (i == 0)
+			continue;
+		ret = hv_call_add_logical_proc(numa_cpu_node(i), i, cpu_physical_id(i));
+		BUG_ON(ret);
+	}
+
+	for_each_present_cpu(i) {
+		if (i == 0)
+			continue;
+		ret = hv_call_create_vp(numa_cpu_node(i), hv_current_partition_id, i, i);
+		BUG_ON(ret);
+	}
+#endif
+}
 #endif
 
 static void __init ms_hyperv_init_platform(void)
@@ -220,6 +274,7 @@ static void __init ms_hyperv_init_platform(void)
 	 * Extract the features and hints
 	 */
 	ms_hyperv.features = cpuid_eax(HYPERV_CPUID_FEATURES);
+	ms_hyperv.features_b = cpuid_ebx(HYPERV_CPUID_FEATURES);
 	ms_hyperv.misc_features = cpuid_edx(HYPERV_CPUID_FEATURES);
 	ms_hyperv.hints    = cpuid_eax(HYPERV_CPUID_ENLIGHTMENT_INFO);
 
@@ -231,6 +286,22 @@ static void __init ms_hyperv_init_platform(void)
 
 	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
+
+	/*
+	 * Check CPU management privilege.
+	 *
+	 * To mirror what Windows does we should extract CPU management
+	 * features and use the ReservedIdentityBit to detect if Linux is the
+	 * root partition. But that requires negotiating CPU management
+	 * interface (a process to be finalized).
+	 *
+	 * For now, use the privilege flag as the indicator for running as
+	 * root.
+	 */
+	if (cpuid_ebx(HYPERV_CPUID_FEATURES) & HV_CPU_MANAGEMENT) {
+		hv_root_partition = true;
+		pr_info("Hyper-V: running as root partition\n");
+	}
 
 	/*
 	 * Extract host information.
@@ -252,6 +323,14 @@ static void __init ms_hyperv_init_platform(void)
 	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		x86_platform.calibrate_tsc = hv_get_tsc_khz;
 		x86_platform.calibrate_cpu = hv_get_tsc_khz;
+	}
+
+	if (ms_hyperv.features_b & HV_ISOLATION) {
+		ms_hyperv.isolation_config_a = cpuid_eax(HYPERV_CPUID_ISOLATION_CONFIG);
+		ms_hyperv.isolation_config_b = cpuid_ebx(HYPERV_CPUID_ISOLATION_CONFIG);
+
+		pr_info("Hyper-V: Isolation Config: Group A 0x%x, Group B 0x%x\n",
+			ms_hyperv.isolation_config_a, ms_hyperv.isolation_config_b);
 	}
 
 	if (ms_hyperv.hints & HV_X64_ENLIGHTENED_VMCS_RECOMMENDED) {
@@ -343,6 +422,8 @@ static void __init ms_hyperv_init_platform(void)
 
 # ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = hv_smp_prepare_boot_cpu;
+	if (hv_root_partition)
+		smp_ops.smp_prepare_cpus = hv_smp_prepare_cpus;
 # endif
 
 	/*
@@ -361,9 +442,38 @@ static void __init ms_hyperv_init_platform(void)
 #endif
 }
 
+static bool __init ms_hyperv_x2apic_available(void)
+{
+	return x2apic_supported();
+}
+
+/*
+ * If ms_hyperv_msi_ext_dest_id() returns true, hyperv_prepare_irq_remapping()
+ * returns -ENODEV and the Hyper-V IOMMU driver is not used; instead, the
+ * generic support of the 15-bit APIC ID is used: see __irq_msi_compose_msg().
+ *
+ * Note: for a VM on Hyper-V, the I/O-APIC is the only device which
+ * (logically) generates MSIs directly to the system APIC irq domain.
+ * There is no HPET, and PCI MSI/MSI-X interrupts are remapped by the
+ * pci-hyperv host bridge.
+ */
+static bool __init ms_hyperv_msi_ext_dest_id(void)
+{
+	u32 eax;
+
+	eax = cpuid_eax(HYPERV_CPUID_VIRT_STACK_INTERFACE);
+	if (eax != HYPERV_VS_INTERFACE_EAX_SIGNATURE)
+		return false;
+
+	eax = cpuid_eax(HYPERV_CPUID_VIRT_STACK_PROPERTIES);
+	return eax & HYPERV_VS_PROPERTIES_EAX_EXTENDED_IOAPIC_RTE;
+}
+
 const __initconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
 	.name			= "Microsoft Hyper-V",
 	.detect			= ms_hyperv_platform,
 	.type			= X86_HYPER_MS_HYPERV,
+	.init.x2apic_available	= ms_hyperv_x2apic_available,
+	.init.msi_ext_dest_id	= ms_hyperv_msi_ext_dest_id,
 	.init.init_platform	= ms_hyperv_init_platform,
 };

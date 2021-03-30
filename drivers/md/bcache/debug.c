@@ -114,7 +114,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 	check = bio_kmalloc(GFP_NOIO, bio_segments(bio));
 	if (!check)
 		return;
-	check->bi_disk = bio->bi_disk;
+	bio_set_dev(check, bio->bi_bdev);
 	check->bi_opf = REQ_OP_READ;
 	check->bi_iter.bi_sector = bio->bi_iter.bi_sector;
 	check->bi_iter.bi_size = bio->bi_iter.bi_size;

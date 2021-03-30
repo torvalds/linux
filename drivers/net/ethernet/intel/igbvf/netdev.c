@@ -61,7 +61,7 @@ static const struct igbvf_info *igbvf_info_tbl[] = {
 
 /**
  * igbvf_desc_unused - calculate if we have unused descriptors
- * @rx_ring: address of receive ring structure
+ * @ring: address of receive ring structure
  **/
 static int igbvf_desc_unused(struct igbvf_ring *ring)
 {
@@ -74,6 +74,8 @@ static int igbvf_desc_unused(struct igbvf_ring *ring)
 /**
  * igbvf_receive_skb - helper function to handle Rx indications
  * @adapter: board private structure
+ * @netdev: pointer to netdev struct
+ * @skb: skb to indicate to stack
  * @status: descriptor status field as written by hardware
  * @vlan: descriptor vlan field as written by hardware (no le/be conversion)
  * @skb: pointer to sk_buff to be indicated to stack
@@ -233,6 +235,8 @@ no_buffers:
 /**
  * igbvf_clean_rx_irq - Send received data up the network stack; legacy
  * @adapter: board private structure
+ * @work_done: output parameter used to indicate completed work
+ * @work_to_do: input parameter setting limit of work
  *
  * the return value indicates whether actual cleaning was done, there
  * is no guarantee that everything was cleaned
@@ -406,6 +410,7 @@ static void igbvf_put_txbuf(struct igbvf_adapter *adapter,
 /**
  * igbvf_setup_tx_resources - allocate Tx resources (Descriptors)
  * @adapter: board private structure
+ * @tx_ring: ring being initialized
  *
  * Return 0 on success, negative on failure
  **/
@@ -444,6 +449,7 @@ err:
 /**
  * igbvf_setup_rx_resources - allocate Rx resources (Descriptors)
  * @adapter: board private structure
+ * @rx_ring: ring being initialized
  *
  * Returns 0 on success, negative on failure
  **/
@@ -540,7 +546,7 @@ void igbvf_free_tx_resources(struct igbvf_ring *tx_ring)
 
 /**
  * igbvf_clean_rx_ring - Free Rx Buffers per Queue
- * @adapter: board private structure
+ * @rx_ring: ring structure pointer to free buffers from
  **/
 static void igbvf_clean_rx_ring(struct igbvf_ring *rx_ring)
 {
@@ -760,7 +766,7 @@ static void igbvf_set_itr(struct igbvf_adapter *adapter)
 
 /**
  * igbvf_clean_tx_irq - Reclaim resources after transmit completes
- * @adapter: board private structure
+ * @tx_ring: ring structure to clean descriptors from
  *
  * returns true if ring is completely cleaned
  **/
@@ -1230,7 +1236,7 @@ static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
 	spin_lock_bh(&hw->mbx_lock);
 
 	if (hw->mac.ops.set_vfta(hw, vid, true)) {
-		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
+		dev_warn(&adapter->pdev->dev, "Vlan id %d\n is not added", vid);
 		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
@@ -1514,7 +1520,7 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 
 	/* Allow time for pending master requests to run */
 	if (mac->ops.reset_hw(hw))
-		dev_err(&adapter->pdev->dev, "PF still resetting\n");
+		dev_warn(&adapter->pdev->dev, "PF still resetting\n");
 
 	mac->ops.init_hw(hw);
 
@@ -1891,7 +1897,7 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 
 /**
  * igbvf_watchdog - Timer Call-back
- * @data: pointer to adapter cast into an unsigned long
+ * @t: timer list pointer containing private struct
  **/
 static void igbvf_watchdog(struct timer_list *t)
 {
@@ -2066,15 +2072,6 @@ static int igbvf_tso(struct igbvf_ring *tx_ring,
 	return 1;
 }
 
-static inline bool igbvf_ipv6_csum_is_sctp(struct sk_buff *skb)
-{
-	unsigned int offset = 0;
-
-	ipv6_find_hdr(skb, &offset, IPPROTO_SCTP, NULL, NULL);
-
-	return offset == skb_checksum_start_offset(skb);
-}
-
 static bool igbvf_tx_csum(struct igbvf_ring *tx_ring, struct sk_buff *skb,
 			  u32 tx_flags, __be16 protocol)
 {
@@ -2096,10 +2093,7 @@ csum_failed:
 		break;
 	case offsetof(struct sctphdr, checksum):
 		/* validate that this is actually an SCTP request */
-		if (((protocol == htons(ETH_P_IP)) &&
-		     (ip_hdr(skb)->protocol == IPPROTO_SCTP)) ||
-		    ((protocol == htons(ETH_P_IPV6)) &&
-		     igbvf_ipv6_csum_is_sctp(skb))) {
+		if (skb_csum_is_sctp(skb)) {
 			type_tucmd = E1000_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 		}
@@ -2372,8 +2366,9 @@ static netdev_tx_t igbvf_xmit_frame(struct sk_buff *skb,
 /**
  * igbvf_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: queue timing out (unused)
  **/
-static void igbvf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
+static void igbvf_tx_timeout(struct net_device *netdev, unsigned int __always_unused txqueue)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 

@@ -921,6 +921,37 @@ void dce110_edp_power_control(
 	}
 }
 
+void dce110_edp_wait_for_T12(
+		struct dc_link *link)
+{
+	struct dc_context *ctx = link->ctx;
+
+	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
+			!= CONNECTOR_ID_EDP) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (!link->panel_cntl)
+		return;
+
+	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
+			link->link_trace.time_stamp.edp_poweroff != 0) {
+		unsigned int t12_duration = 500; // Default T12 as per spec
+		unsigned long long current_ts = dm_get_timestamp(ctx);
+		unsigned long long time_since_edp_poweroff_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweroff), 1000000);
+
+		t12_duration += link->local_sink->edid_caps.panel_patch.extra_t12_ms; // Add extra T12
+
+		if (time_since_edp_poweroff_ms < t12_duration)
+			msleep(t12_duration - time_since_edp_poweroff_ms);
+	}
+}
+
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
@@ -939,12 +970,15 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && link->panel_cntl &&
-		link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl)) {
-		DC_LOG_HW_RESUME_S3(
-				"%s: panel already powered up. Do nothing.\n",
+	if (link->panel_cntl) {
+		bool is_backlight_on = link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl);
+
+		if ((enable && is_backlight_on) || (!enable && !is_backlight_on)) {
+			DC_LOG_HW_RESUME_S3(
+				"%s: panel already powered up/off. Do nothing.\n",
 				__func__);
-		return;
+			return;
+		}
 	}
 
 	/* Send VBIOS command to control eDP panel backlight */
@@ -992,8 +1026,6 @@ void dce110_edp_backlight_control(
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
 
-
-
 	if (enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_POST_T7_DELAY);
 
@@ -1004,7 +1036,7 @@ void dce110_edp_backlight_control(
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
-		edp_receiver_ready_T9(link);
+		edp_add_delay_for_T9(link);
 
 	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_PRE_T11_DELAY);
@@ -1145,12 +1177,14 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 
-		/*
-		 * After output is idle pattern some sinks need time to recognize the stream
-		 * has changed or they enter protection state and hang.
-		 */
-		if (!dc_is_embedded_signal(pipe_ctx->stream->signal))
+		if (!dc_is_embedded_signal(pipe_ctx->stream->signal)) {
+			/*
+			 * After output is idle pattern some sinks need time to recognize the stream
+			 * has changed or they enter protection state and hang.
+			 */
 			msleep(60);
+		} else if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
+			edp_receiver_ready_T9(link);
 	}
 
 }
@@ -1527,6 +1561,8 @@ static void power_down_encoders(struct dc *dc)
 				dc->links[i]->link_enc, signal);
 
 		dc->links[i]->link_status.link_active = false;
+		memset(&dc->links[i]->cur_link_settings, 0,
+				sizeof(dc->links[i]->cur_link_settings));
 	}
 }
 
@@ -1623,7 +1659,7 @@ static struct dc_link *get_edp_link_with_sink(
 	return link;
 }
 
-/**
+/*
  * When ASIC goes from VBIOS/VGA mode to driver/accelerated mode we need:
  *  1. Power down all DC HW blocks
  *  2. Disable VGA engine on all controllers

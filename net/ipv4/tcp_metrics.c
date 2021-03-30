@@ -887,7 +887,7 @@ static void tcp_metrics_flush_all(struct net *net)
 		pp = &hb->chain;
 		for (tm = deref_locked(*pp); tm; tm = deref_locked(*pp)) {
 			match = net ? net_eq(tm_net(tm), net) :
-				!refcount_read(&tm_net(tm)->count);
+				!refcount_read(&tm_net(tm)->ns.count);
 			if (match) {
 				*pp = tm->tcpm_next;
 				kfree_rcu(tm, rcu_head);
@@ -943,7 +943,7 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static const struct genl_ops tcp_metrics_nl_ops[] = {
+static const struct genl_small_ops tcp_metrics_nl_ops[] = {
 	{
 		.cmd = TCP_METRICS_CMD_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -966,8 +966,8 @@ static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.policy = tcp_metrics_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= tcp_metrics_nl_ops,
-	.n_ops		= ARRAY_SIZE(tcp_metrics_nl_ops),
+	.small_ops	= tcp_metrics_nl_ops,
+	.n_small_ops	= ARRAY_SIZE(tcp_metrics_nl_ops),
 };
 
 static unsigned int tcpmhash_entries;

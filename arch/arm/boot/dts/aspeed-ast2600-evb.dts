@@ -23,6 +23,15 @@
 	};
 };
 
+&mdio0 {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
 &mdio1 {
 	status = "okay";
 
@@ -49,6 +58,17 @@
 		reg = <0>;
 	};
 };
+
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+};
+
 
 &mac1 {
 	status = "okay";
@@ -215,5 +235,13 @@
 };
 
 &fsim0 {
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
 	status = "okay";
 };

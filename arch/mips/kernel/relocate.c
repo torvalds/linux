@@ -64,24 +64,20 @@ static void __init sync_icache(void *kbase, unsigned long kernel_length)
 			: "r" (kbase));
 
 		kbase += step;
-	} while (kbase < kend);
+	} while (step && kbase < kend);
 
 	/* Completion barrier */
 	__sync();
 }
 
-static int __init apply_r_mips_64_rel(u32 *loc_orig, u32 *loc_new, long offset)
+static void __init apply_r_mips_64_rel(u32 *loc_new, long offset)
 {
 	*(u64 *)loc_new += offset;
-
-	return 0;
 }
 
-static int __init apply_r_mips_32_rel(u32 *loc_orig, u32 *loc_new, long offset)
+static void __init apply_r_mips_32_rel(u32 *loc_new, long offset)
 {
 	*loc_new += offset;
-
-	return 0;
 }
 
 static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
@@ -95,7 +91,7 @@ static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
 
 	/* Original target address */
 	target_addr <<= 2;
-	target_addr += (unsigned long)loc_orig & ~0x03ffffff;
+	target_addr += (unsigned long)loc_orig & 0xf0000000;
 
 	/* Get the new target address */
 	target_addr += offset;
@@ -105,7 +101,7 @@ static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
 		return -ENOEXEC;
 	}
 
-	target_addr -= (unsigned long)loc_new & ~0x03ffffff;
+	target_addr -= (unsigned long)loc_new & 0xf0000000;
 	target_addr >>= 2;
 
 	*loc_new = (*loc_new & ~0x03ffffff) | (target_addr & 0x03ffffff);
@@ -114,7 +110,8 @@ static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
 }
 
 
-static int __init apply_r_mips_hi16_rel(u32 *loc_orig, u32 *loc_new, long offset)
+static void __init apply_r_mips_hi16_rel(u32 *loc_orig, u32 *loc_new,
+					 long offset)
 {
 	unsigned long insn = *loc_orig;
 	unsigned long target = (insn & 0xffff) << 16; /* high 16bits of target */
@@ -122,17 +119,33 @@ static int __init apply_r_mips_hi16_rel(u32 *loc_orig, u32 *loc_new, long offset
 	target += offset;
 
 	*loc_new = (insn & ~0xffff) | ((target >> 16) & 0xffff);
+}
+
+static int __init reloc_handler(u32 type, u32 *loc_orig, u32 *loc_new,
+				long offset)
+{
+	switch (type) {
+	case R_MIPS_64:
+		apply_r_mips_64_rel(loc_new, offset);
+		break;
+	case R_MIPS_32:
+		apply_r_mips_32_rel(loc_new, offset);
+		break;
+	case R_MIPS_26:
+		return apply_r_mips_26_rel(loc_orig, loc_new, offset);
+	case R_MIPS_HI16:
+		apply_r_mips_hi16_rel(loc_orig, loc_new, offset);
+		break;
+	default:
+		pr_err("Unhandled relocation type %d at 0x%pK\n", type,
+		       loc_orig);
+		return -ENOEXEC;
+	}
+
 	return 0;
 }
 
-static int (*reloc_handlers_rel[]) (u32 *, u32 *, long) __initdata = {
-	[R_MIPS_64]		= apply_r_mips_64_rel,
-	[R_MIPS_32]		= apply_r_mips_32_rel,
-	[R_MIPS_26]		= apply_r_mips_26_rel,
-	[R_MIPS_HI16]		= apply_r_mips_hi16_rel,
-};
-
-int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
+static int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 {
 	u32 *r;
 	u32 *loc_orig;
@@ -149,14 +162,7 @@ int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 		loc_orig = kbase_old + ((*r & 0x00ffffff) << 2);
 		loc_new = RELOCATED(loc_orig);
 
-		if (reloc_handlers_rel[type] == NULL) {
-			/* Unsupported relocation */
-			pr_err("Unhandled relocation type %d at 0x%pK\n",
-			       type, loc_orig);
-			return -ENOEXEC;
-		}
-
-		res = reloc_handlers_rel[type](loc_orig, loc_new, offset);
+		res = reloc_handler(type, loc_orig, loc_new, offset);
 		if (res)
 			return res;
 	}
@@ -187,8 +193,14 @@ static int __init relocate_exception_table(long offset)
 static inline __init unsigned long rotate_xor(unsigned long hash,
 					      const void *area, size_t size)
 {
-	size_t i;
-	unsigned long *ptr = (unsigned long *)area;
+	const typeof(hash) *ptr = PTR_ALIGN(area, sizeof(hash));
+	size_t diff, i;
+
+	diff = (void *)ptr - area;
+	if (unlikely(size < diff + sizeof(hash)))
+		return hash;
+
+	size = ALIGN_DOWN(size - diff, sizeof(hash));
 
 	for (i = 0; i < size / sizeof(hash); i++) {
 		/* Rotate by odd number of bits and XOR. */
@@ -294,6 +306,20 @@ static inline int __init relocation_addr_valid(void *loc_new)
 	return 1;
 }
 
+static inline void __init update_kaslr_offset(unsigned long *addr, long offset)
+{
+	unsigned long *new_addr = (unsigned long *)RELOCATED(addr);
+
+	*new_addr = (unsigned long)offset;
+}
+
+#if defined(CONFIG_USE_OF)
+void __weak *plat_get_fdt(void)
+{
+	return NULL;
+}
+#endif
+
 void *__init relocate_kernel(void)
 {
 	void *loc_new;
@@ -397,6 +423,9 @@ void *__init relocate_kernel(void)
 
 		/* Return the new kernel's entry point */
 		kernel_entry = RELOCATED(start_kernel);
+
+		/* Error may occur before, so keep it at last */
+		update_kaslr_offset(&__kaslr_offset, offset);
 	}
 out:
 	return kernel_entry;
@@ -405,15 +434,11 @@ out:
 /*
  * Show relocation information on panic.
  */
-void show_kernel_relocation(const char *level)
+static void show_kernel_relocation(const char *level)
 {
-	unsigned long offset;
-
-	offset = __pa_symbol(_text) - __pa_symbol(VMLINUX_LOAD_ADDRESS);
-
-	if (IS_ENABLED(CONFIG_RELOCATABLE) && offset > 0) {
+	if (__kaslr_offset > 0) {
 		printk(level);
-		pr_cont("Kernel relocated by 0x%pK\n", (void *)offset);
+		pr_cont("Kernel relocated by 0x%pK\n", (void *)__kaslr_offset);
 		pr_cont(" .text @ 0x%pK\n", _text);
 		pr_cont(" .data @ 0x%pK\n", _sdata);
 		pr_cont(" .bss  @ 0x%pK\n", __bss_start);

@@ -115,7 +115,7 @@ static ssize_t default_roce_mode_show(struct config_item *item,
 	if (gid_type < 0)
 		return gid_type;
 
-	return sprintf(buf, "%s\n", ib_cache_gid_type_str(gid_type));
+	return sysfs_emit(buf, "%s\n", ib_cache_gid_type_str(gid_type));
 }
 
 static ssize_t default_roce_mode_store(struct config_item *item,
@@ -123,15 +123,18 @@ static ssize_t default_roce_mode_store(struct config_item *item,
 {
 	struct cma_device *cma_dev;
 	struct cma_dev_port_group *group;
-	int gid_type = ib_cache_gid_parse_type_str(buf);
+	int gid_type;
 	ssize_t ret;
-
-	if (gid_type < 0)
-		return -EINVAL;
 
 	ret = cma_configfs_params_get(item, &cma_dev, &group);
 	if (ret)
 		return ret;
+
+	gid_type = ib_cache_gid_parse_type_str(buf);
+	if (gid_type < 0) {
+		cma_configfs_params_put(cma_dev);
+		return -EINVAL;
+	}
 
 	ret = cma_set_default_gid_type(cma_dev, group->port_num, gid_type);
 
@@ -156,7 +159,7 @@ static ssize_t default_roce_tos_show(struct config_item *item, char *buf)
 	tos = cma_get_default_roce_tos(cma_dev, group->port_num);
 	cma_configfs_params_put(cma_dev);
 
-	return sprintf(buf, "%u\n", tos);
+	return sysfs_emit(buf, "%u\n", tos);
 }
 
 static ssize_t default_roce_tos_store(struct config_item *item,
@@ -201,7 +204,6 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	unsigned int i;
 	unsigned int ports_num;
 	struct cma_dev_port_group *ports;
-	int err;
 
 	ibdev = cma_get_ib_dev(cma_dev);
 
@@ -212,10 +214,8 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	ports = kcalloc(ports_num, sizeof(*cma_dev_group->ports),
 			GFP_KERNEL);
 
-	if (!ports) {
-		err = -ENOMEM;
-		goto free;
-	}
+	if (!ports)
+		return -ENOMEM;
 
 	for (i = 0; i < ports_num; i++) {
 		char port_str[10];
@@ -231,12 +231,7 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 
 	}
 	cma_dev_group->ports = ports;
-
 	return 0;
-free:
-	kfree(ports);
-	cma_dev_group->ports = NULL;
-	return err;
 }
 
 static void release_cma_dev(struct config_item  *item)

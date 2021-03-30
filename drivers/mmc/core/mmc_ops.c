@@ -296,7 +296,7 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	return 0;
 }
 
-static int mmc_spi_send_csd(struct mmc_card *card, u32 *csd)
+static int mmc_spi_send_csd(struct mmc_host *host, u32 *csd)
 {
 	int ret, i;
 	__be32 *csd_tmp;
@@ -305,7 +305,7 @@ static int mmc_spi_send_csd(struct mmc_card *card, u32 *csd)
 	if (!csd_tmp)
 		return -ENOMEM;
 
-	ret = mmc_send_cxd_data(card, card->host, MMC_SEND_CSD, csd_tmp, 16);
+	ret = mmc_send_cxd_data(NULL, host, MMC_SEND_CSD, csd_tmp, 16);
 	if (ret)
 		goto err;
 
@@ -320,7 +320,7 @@ err:
 int mmc_send_csd(struct mmc_card *card, u32 *csd)
 {
 	if (mmc_host_is_spi(card->host))
-		return mmc_spi_send_csd(card, csd);
+		return mmc_spi_send_csd(card->host, csd);
 
 	return mmc_send_cxd_native(card->host, card->rca << 16,	csd,
 				MMC_SEND_CSD);

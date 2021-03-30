@@ -690,8 +690,7 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = 0;
 	buf->f_files = CRAMFS_SB(sb)->files;
 	buf->f_ffree = 0;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = CRAMFS_MAXPATHLEN;
 	return 0;
 }

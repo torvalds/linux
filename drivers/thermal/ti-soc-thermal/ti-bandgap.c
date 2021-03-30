@@ -20,15 +20,27 @@
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/sys_soc.h>
 #include <linux/reboot.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
+#include <linux/cpu_pm.h>
+#include <linux/device.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include "ti-bandgap.h"
 
 static int ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id);
+#ifdef CONFIG_PM_SLEEP
+static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
+				  unsigned long cmd, void *v);
+#endif
 
 /***   Helper functions to access registers and their bitfields   ***/
 
@@ -591,35 +603,40 @@ void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id)
 static int
 ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 {
-	u32 counter = 1000;
-	struct temp_sensor_registers *tsr;
+	struct temp_sensor_registers *tsr = bgp->conf->sensors[id].registers;
+	void __iomem *temp_sensor_ctrl = bgp->base + tsr->temp_sensor_ctrl;
+	int error;
+	u32 val;
 
-	/* Select single conversion mode */
-	if (TI_BANDGAP_HAS(bgp, MODE_CONFIG))
-		RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 0);
-
-	/* Start of Conversion = 1 */
-	RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 1);
-
-	/* Wait for EOCZ going up */
-	tsr = bgp->conf->sensors[id].registers;
-
-	while (--counter) {
-		if (ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
-		    tsr->bgap_eocz_mask)
-			break;
+	/* Select continuous or single conversion mode */
+	if (TI_BANDGAP_HAS(bgp, MODE_CONFIG)) {
+		if (TI_BANDGAP_HAS(bgp, CONT_MODE_ONLY))
+			RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 1);
+		else
+			RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 0);
 	}
 
-	/* Start of Conversion = 0 */
-	RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 0);
+	/* Set Start of Conversion if available */
+	if (tsr->bgap_soc_mask) {
+		RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 1);
 
-	/* Wait for EOCZ going down */
-	counter = 1000;
-	while (--counter) {
-		if (!(ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
-		      tsr->bgap_eocz_mask))
-			break;
+		/* Wait for EOCZ going up */
+		error = readl_poll_timeout_atomic(temp_sensor_ctrl, val,
+						  val & tsr->bgap_eocz_mask,
+						  1, 1000);
+		if (error)
+			dev_warn(bgp->dev, "eocz timed out waiting high\n");
+
+		/* Clear Start of Conversion if available */
+		RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 0);
 	}
+
+	/* Wait for EOCZ going down, always needed even if no bgap_soc_mask */
+	error = readl_poll_timeout_atomic(temp_sensor_ctrl, val,
+					  !(val & tsr->bgap_eocz_mask),
+					  1, 1500);
+	if (error)
+		dev_warn(bgp->dev, "eocz timed out waiting low\n");
 
 	return 0;
 }
@@ -854,6 +871,17 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	return bgp;
 }
 
+/*
+ * List of SoCs on which the CPU PM notifier can cause erros on the DTEMP
+ * readout.
+ * Enabled notifier on these machines results in erroneous, random values which
+ * could trigger unexpected thermal shutdown.
+ */
+static const struct soc_device_attribute soc_no_cpu_notifier[] = {
+	{ .machine = "OMAP4430" },
+	{ /* sentinel */ },
+};
+
 /***   Device driver call backs   ***/
 
 static
@@ -1008,6 +1036,12 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_PM_SLEEP
+	bgp->nb.notifier_call = bandgap_omap_cpu_notifier;
+	if (!soc_device_match(soc_no_cpu_notifier))
+		cpu_pm_register_notifier(&bgp->nb);
+#endif
+
 	return 0;
 
 remove_last_cooling:
@@ -1041,7 +1075,10 @@ int ti_bandgap_remove(struct platform_device *pdev)
 	struct ti_bandgap *bgp = platform_get_drvdata(pdev);
 	int i;
 
-	/* First thing is to remove sensor interfaces */
+	if (!soc_device_match(soc_no_cpu_notifier))
+		cpu_pm_unregister_notifier(&bgp->nb);
+
+	/* Remove sensor interfaces */
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
 		if (bgp->conf->sensors[i].unregister_cooling)
 			bgp->conf->sensors[i].unregister_cooling(bgp, i);
@@ -1150,7 +1187,41 @@ static int ti_bandgap_suspend(struct device *dev)
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
 		clk_disable_unprepare(bgp->fclock);
 
+	bgp->is_suspended = true;
+
 	return err;
+}
+
+static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
+				  unsigned long cmd, void *v)
+{
+	struct ti_bandgap *bgp;
+
+	bgp = container_of(nb, struct ti_bandgap, nb);
+
+	spin_lock(&bgp->lock);
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (bgp->is_suspended)
+			break;
+		ti_bandgap_save_ctxt(bgp);
+		ti_bandgap_power(bgp, false);
+		if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
+			clk_disable(bgp->fclock);
+		break;
+	case CPU_CLUSTER_PM_ENTER_FAILED:
+	case CPU_CLUSTER_PM_EXIT:
+		if (bgp->is_suspended)
+			break;
+		if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
+			clk_enable(bgp->fclock);
+		ti_bandgap_power(bgp, true);
+		ti_bandgap_restore_ctxt(bgp);
+		break;
+	}
+	spin_unlock(&bgp->lock);
+
+	return NOTIFY_OK;
 }
 
 static int ti_bandgap_resume(struct device *dev)
@@ -1161,6 +1232,7 @@ static int ti_bandgap_resume(struct device *dev)
 		clk_prepare_enable(bgp->fclock);
 
 	ti_bandgap_power(bgp, true);
+	bgp->is_suspended = false;
 
 	return ti_bandgap_restore_ctxt(bgp);
 }

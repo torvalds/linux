@@ -52,7 +52,7 @@ static void modify_qos(struct atm_vcc *vcc, struct atmsvc_msg *msg)
 			msg->type = as_okay;
 	}
 	/*
-	 * Should probably just turn around the old skb. But the, the buffer
+	 * Should probably just turn around the old skb. But then, the buffer
 	 * space accounting needs to follow the change too. Maybe later.
 	 */
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg), GFP_KERNEL)))

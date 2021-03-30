@@ -13,6 +13,7 @@
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -272,8 +273,10 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 }
 
 static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
-					struct drm_connector_state *conn_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(state,
+										    conn);
 	struct vc4_txp *txp = connector_to_vc4_txp(conn);
 	struct drm_gem_cma_object *gem;
 	struct drm_display_mode *mode;
@@ -379,43 +382,44 @@ static const struct drm_crtc_funcs vc4_txp_crtc_funcs = {
 	.reset			= vc4_crtc_reset,
 	.atomic_duplicate_state	= vc4_crtc_duplicate_state,
 	.atomic_destroy_state	= vc4_crtc_destroy_state,
-	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
 	.enable_vblank		= vc4_txp_enable_vblank,
 	.disable_vblank		= vc4_txp_disable_vblank,
 };
 
 static int vc4_txp_atomic_check(struct drm_crtc *crtc,
-				struct drm_crtc_state *state)
+				struct drm_atomic_state *state)
 {
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	int ret;
 
 	ret = vc4_hvs_atomic_check(crtc, state);
 	if (ret)
 		return ret;
 
-	state->no_vblank = true;
+	crtc_state->no_vblank = true;
 	vc4_state->feed_txp = true;
 
 	return 0;
 }
 
 static void vc4_txp_atomic_enable(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
-	vc4_hvs_atomic_enable(crtc, old_state);
+	vc4_hvs_atomic_enable(crtc, state);
 }
 
 static void vc4_txp_atomic_disable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 
 	/* Disable vblank irq handling before crtc is disabled. */
 	drm_crtc_vblank_off(crtc);
 
-	vc4_hvs_atomic_disable(crtc, old_state);
+	vc4_hvs_atomic_disable(crtc, state);
 
 	/*
 	 * Make sure we issue a vblank event after disabling the CRTC if

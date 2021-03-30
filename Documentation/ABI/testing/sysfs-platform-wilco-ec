@@ -39,6 +39,7 @@ Description:
                which affects charging via the special USB PowerShare port
                (marked with a small lightning bolt or battery icon) when in
                low power states:
+
                - In S0, the port will always provide power.
                - In S0ix, if usb_charge is enabled, then power will be
                  supplied to the port when on AC or if battery is > 50%.

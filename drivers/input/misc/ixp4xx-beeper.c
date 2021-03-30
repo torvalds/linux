@@ -97,7 +97,7 @@ static int ixp4xx_spkr_probe(struct platform_device *dev)
 
 	input_set_drvdata(input_dev, (void *) dev->id);
 
-	input_dev->name = "ixp4xx beeper",
+	input_dev->name = "ixp4xx beeper";
 	input_dev->phys = "ixp4xx/gpio";
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor  = 0x001f;

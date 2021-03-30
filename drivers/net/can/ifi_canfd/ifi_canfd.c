@@ -271,9 +271,9 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 	dlc = (rxdlc >> IFI_CANFD_RXFIFO_DLC_DLC_OFFSET) &
 	      IFI_CANFD_RXFIFO_DLC_DLC_MASK;
 	if (rxdlc & IFI_CANFD_RXFIFO_DLC_EDL)
-		cf->len = can_dlc2len(dlc);
+		cf->len = can_fd_dlc2len(dlc);
 	else
-		cf->len = get_can_dlc(dlc);
+		cf->len = can_cc_dlc2len(dlc);
 
 	rxid = readl(priv->base + IFI_CANFD_RXFIFO_ID);
 	id = (rxid >> IFI_CANFD_RXFIFO_ID_ID_OFFSET);
@@ -431,7 +431,7 @@ static int ifi_canfd_handle_lec_err(struct net_device *ndev)
 	writel(IFI_CANFD_ERROR_CTR_ER_ENABLE, priv->base + IFI_CANFD_ERROR_CTR);
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -523,7 +523,7 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -629,7 +629,7 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 
 	/* TX IRQ */
 	if (isr & IFI_CANFD_INTERRUPT_TXFIFO_REMOVE) {
-		stats->tx_bytes += can_get_echo_skb(ndev, 0);
+		stats->tx_bytes += can_get_echo_skb(ndev, 0, NULL);
 		stats->tx_packets++;
 		can_led_event(ndev, CAN_LED_EVENT_TX);
 	}
@@ -900,7 +900,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 		txid = cf->can_id & CAN_SFF_MASK;
 	}
 
-	txdlc = can_len2dlc(cf->len);
+	txdlc = can_fd_len2dlc(cf->len);
 	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) && can_is_canfd_skb(skb)) {
 		txdlc |= IFI_CANFD_TXFIFO_DLC_EDL;
 		if (cf->flags & CANFD_BRS)
@@ -922,7 +922,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 	writel(0, priv->base + IFI_CANFD_TXFIFO_REPEATCOUNT);
 	writel(0, priv->base + IFI_CANFD_TXFIFO_SUSPEND_US);
 
-	can_put_echo_skb(skb, ndev, 0);
+	can_put_echo_skb(skb, ndev, 0, 0);
 
 	/* Start the transmission */
 	writel(IFI_CANFD_TXSTCMD_ADD_MSG, priv->base + IFI_CANFD_TXSTCMD);

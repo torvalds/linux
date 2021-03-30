@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_CROP:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_G_CROP - VIDIOC_S_CROP - Get or set the current cropping rectangle
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_CROP, struct v4l2_crop *argp )
-    :name: VIDIOC_G_CROP
+.. c:macro:: VIDIOC_G_CROP
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_CROP, const struct v4l2_crop *argp )
-    :name: VIDIOC_S_CROP
+``int ioctl(int fd, VIDIOC_G_CROP, struct v4l2_crop *argp)``
 
+.. c:macro:: VIDIOC_S_CROP
+
+``int ioctl(int fd, VIDIOC_S_CROP, const struct v4l2_crop *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_crop`.
-
 
 Description
 ===========
@@ -69,7 +69,6 @@ been negotiated.
 When cropping is not supported then no parameters are changed and
 :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` returns the ``EINVAL`` error code.
 
-
 .. c:type:: v4l2_crop
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -99,7 +98,6 @@ When cropping is not supported then no parameters are changed and
    ``_MPLANE`` at the end).
 
    Starting with kernel 4.13 both variations are allowed.
-
 
 Return Value
 ============

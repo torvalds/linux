@@ -84,6 +84,8 @@ struct intel_timeline {
 	struct list_head link;
 	struct intel_gt *gt;
 
+	struct list_head engine_link;
+
 	struct kref kref;
 	struct rcu_head rcu;
 };
@@ -93,6 +95,8 @@ struct intel_timeline_cacheline {
 
 	struct intel_timeline_hwsp *hwsp;
 	void *vaddr;
+
+	u32 ggtt_offset;
 
 	struct rcu_head rcu;
 };

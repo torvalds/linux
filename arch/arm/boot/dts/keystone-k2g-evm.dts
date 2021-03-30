@@ -46,6 +46,14 @@
 		regulator-always-on;
 	};
 
+	vcc1v8_ldo2_reg: fixedregulator-vcc1v8-ldo2 {
+		compatible = "regulator-fixed";
+		regulator-name = "ldo2";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
 	hdmi: connector {
 		compatible = "hdmi-connector";
 		label = "hdmi";
@@ -55,6 +63,57 @@
 		port {
 			hdmi_connector_in: endpoint {
 				remote-endpoint = <&sii9022_out>;
+			};
+		};
+	};
+
+	aud_mclk: aud_mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+	};
+
+	sound0: sound@0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "K2G-EVM";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Line", "Line In";
+		simple-audio-card,routing =
+			"Headphone Jack",	"HPLOUT",
+			"Headphone Jack",	"HPROUT",
+			"LINE1L",		"Line In",
+			"LINE1R",		"Line In";
+
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			bitclock-master = <&sound0_0_master>;
+			frame-master = <&sound0_0_master>;
+			sound0_0_master: cpu {
+				sound-dai = <&mcasp2>;
+				clocks = <&k2g_clks 0x6 1>;
+				system-clock-direction-out;
+			};
+
+			codec {
+				sound-dai = <&tlv320aic3106>;
+				clocks = <&aud_mclk>;
+			};
+		};
+
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			bitclock-master = <&sound0_1_master>;
+			frame-master = <&sound0_1_master>;
+			sound0_1_master: cpu {
+				sound-dai = <&mcasp2>;
+				clocks = <&k2g_clks 0x6 1>;
+				system-clock-direction-out;
+			};
+
+			codec {
+				sound-dai = <&sii9022>;
+				clocks = <&aud_mclk>;
 			};
 		};
 	};
@@ -212,6 +271,15 @@
 			K2G_CORE_IOPAD(0x10e0) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* dsspclk.dsspclk */
 			K2G_CORE_IOPAD(0x10e4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* dssde.dssde */
 			K2G_CORE_IOPAD(0x10e8) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* dssfid.dssfid */
+		>;
+	};
+
+	mcasp2_pins: pinmux_mcasp2_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1234) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE4) /* pr0_pru_gpo2.mcasp2_axr2 */
+			K2G_CORE_IOPAD(0x1238) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE4) /* pr0_pru_gpo3.mcasp2_axr3 */
+			K2G_CORE_IOPAD(0x1254) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE4) /* pr0_pru_gpo10.mcasp2_afsx */
+			K2G_CORE_IOPAD(0x125c) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE4) /* pr0_pru_gpo12.mcasp2_aclkx */
 		>;
 	};
 };
@@ -423,6 +491,10 @@
 		compatible = "sil,sii9022";
 		reg = <0x3b>;
 
+		sil,i2s-data-lanes = < 0 >;
+		clocks = <&aud_mclk>;
+		clock-names = "mclk";
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -444,6 +516,19 @@
 			};
 		};
 	};
+
+	tlv320aic3106: tlv320aic3106@1b {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3106";
+		reg = <0x1b>;
+		status = "okay";
+
+		/* Regulators */
+		AVDD-supply = <&vcc3v3_dcin_reg>;
+		IOVDD-supply = <&vcc3v3_dcin_reg>;
+		DRVDD-supply = <&vcc3v3_dcin_reg>;
+		DVDD-supply = <&vcc1v8_ldo2_reg>;
+	};
 };
 
 &dss {
@@ -457,4 +542,31 @@
 			data-lines = <24>;
 		};
 	};
+};
+
+&k2g_clks {
+	/* on the board 22.5792MHz is connected to AUDOSC_IN */
+	assigned-clocks = <&k2g_clks 0x4c 2>;
+	assigned-clock-rates = <22579200>;
+};
+
+&mcasp2 {
+	#sound-dai-cells = <0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp2_pins>;
+
+	assigned-clocks = <&k2g_clks 0x6 1>;
+	assigned-clock-parents = <&k2g_clks 0x6 2>;
+
+	status = "okay";
+
+	op-mode = <0>;		/* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 6 serializer */
+	serial-dir = <	/* 0: INACTIVE, 1: TX, 2: RX */
+		0 0 1 2 0 0 // AXR2: TX, AXR3: rx
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };

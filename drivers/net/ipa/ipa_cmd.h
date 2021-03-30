@@ -27,16 +27,16 @@ struct gsi_channel;
  * a request is *not* an immediate command.
  */
 enum ipa_cmd_opcode {
-	IPA_CMD_NONE			= 0,
-	IPA_CMD_IP_V4_FILTER_INIT	= 3,
-	IPA_CMD_IP_V6_FILTER_INIT	= 4,
-	IPA_CMD_IP_V4_ROUTING_INIT	= 7,
-	IPA_CMD_IP_V6_ROUTING_INIT	= 8,
-	IPA_CMD_HDR_INIT_LOCAL		= 9,
-	IPA_CMD_REGISTER_WRITE		= 12,
-	IPA_CMD_IP_PACKET_INIT		= 16,
-	IPA_CMD_DMA_SHARED_MEM		= 19,
-	IPA_CMD_IP_PACKET_TAG_STATUS	= 20,
+	IPA_CMD_NONE			= 0x0,
+	IPA_CMD_IP_V4_FILTER_INIT	= 0x3,
+	IPA_CMD_IP_V6_FILTER_INIT	= 0x4,
+	IPA_CMD_IP_V4_ROUTING_INIT	= 0x7,
+	IPA_CMD_IP_V6_ROUTING_INIT	= 0x8,
+	IPA_CMD_HDR_INIT_LOCAL		= 0x9,
+	IPA_CMD_REGISTER_WRITE		= 0xc,
+	IPA_CMD_IP_PACKET_INIT		= 0x10,
+	IPA_CMD_DMA_SHARED_MEM		= 0x13,
+	IPA_CMD_IP_PACKET_TAG_STATUS	= 0x14,
 };
 
 /**
@@ -49,7 +49,6 @@ struct ipa_cmd_info {
 	enum ipa_cmd_opcode opcode;
 	enum dma_data_direction direction;
 };
-
 
 #ifdef IPA_VALIDATE
 
@@ -158,26 +157,30 @@ void ipa_cmd_dma_shared_mem_add(struct gsi_trans *trans, u32 offset,
 				u16 size, dma_addr_t addr, bool toward_ipa);
 
 /**
- * ipa_cmd_tag_process_add() - Add IPA tag process commands to a transaction
+ * ipa_cmd_pipeline_clear_add() - Add pipeline clear commands to a transaction
  * @trans:	GSI transaction
  */
-void ipa_cmd_tag_process_add(struct gsi_trans *trans);
+void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans);
 
 /**
- * ipa_cmd_tag_process_add_count() - Number of commands in a tag process
+ * ipa_cmd_pipeline_clear_count() - # commands required to clear pipeline
  *
  * Return:	The number of elements to allocate in a transaction
- *		to hold tag process commands
+ *		to hold commands to clear the pipeline
  */
-u32 ipa_cmd_tag_process_count(void);
+u32 ipa_cmd_pipeline_clear_count(void);
 
 /**
- * ipa_cmd_tag_process() - Perform a tag process
- *
- * @Return:	The number of elements to allocate in a transaction
- *		to hold tag process commands
+ * ipa_cmd_pipeline_clear_wait() - Wait pipeline clear to complete
+ * @ipa:	- IPA pointer
  */
-void ipa_cmd_tag_process(struct ipa *ipa);
+void ipa_cmd_pipeline_clear_wait(struct ipa *ipa);
+
+/**
+ * ipa_cmd_pipeline_clear() - Clear the hardware pipeline
+ * @ipa:	- IPA pointer
+ */
+void ipa_cmd_pipeline_clear(struct ipa *ipa);
 
 /**
  * ipa_cmd_trans_alloc() - Allocate a transaction for the command TX endpoint

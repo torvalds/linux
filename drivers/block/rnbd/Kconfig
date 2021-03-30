@@ -7,6 +7,7 @@ config BLK_DEV_RNBD_CLIENT
 	tristate "RDMA Network Block Device driver client"
 	depends on INFINIBAND_RTRS_CLIENT
 	select BLK_DEV_RNBD
+	select SG_POOL
 	help
 	  RNBD client is a network block device driver using rdma transport.
 

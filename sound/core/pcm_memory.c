@@ -89,14 +89,6 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 	return 0;
 }
 
-/*
- * release the preallocated buffer if not yet done.
- */
-static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream)
-{
-	do_free_pages(substream->pcm->card, &substream->dma_buffer);
-}
-
 /**
  * snd_pcm_lib_preallocate_free - release the preallocated buffer of the specified substream.
  * @substream: the pcm substream instance
@@ -105,7 +97,7 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
  */
 void snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
-	snd_pcm_lib_preallocate_dma_free(substream);
+	do_free_pages(substream->pcm->card, &substream->dma_buffer);
 }
 
 /**
@@ -119,9 +111,8 @@ void snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 	struct snd_pcm_substream *substream;
 	int stream;
 
-	for (stream = 0; stream < 2; stream++)
-		for (substream = pcm->streams[stream].substream; substream; substream = substream->next)
-			snd_pcm_lib_preallocate_free(substream);
+	for_each_pcm_substream(pcm, stream, substream)
+		snd_pcm_lib_preallocate_free(substream);
 }
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
 
@@ -254,11 +245,8 @@ static void preallocate_pages_for_all(struct snd_pcm *pcm, int type,
 	struct snd_pcm_substream *substream;
 	int stream;
 
-	for (stream = 0; stream < 2; stream++)
-		for (substream = pcm->streams[stream].substream; substream;
-		     substream = substream->next)
-			preallocate_pages(substream, type, data, size, max,
-					  managed);
+	for_each_pcm_substream(pcm, stream, substream)
+		preallocate_pages(substream, type, data, size, max, managed);
 }
 
 /**

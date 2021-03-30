@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2009-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  */
@@ -25,7 +25,6 @@
 #include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
-#include <linux/seq_file.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -510,44 +509,6 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 	}
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
-
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-
-/**
- * batadv_gw_client_seq_print_text() - Print the gateway table in a seq file
- * @seq: seq file to print on
- * @offset: not used
- *
- * Return: always 0
- */
-int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
-{
-	struct net_device *net_dev = (struct net_device *)seq->private;
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hard_iface *primary_if;
-
-	primary_if = batadv_seq_print_text_primary_if_get(seq);
-	if (!primary_if)
-		return 0;
-
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
-		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
-		   primary_if->net_dev->dev_addr, net_dev->name,
-		   bat_priv->algo_ops->name);
-
-	batadv_hardif_put(primary_if);
-
-	if (!bat_priv->algo_ops->gw.print) {
-		seq_puts(seq,
-			 "No printing function for this routing protocol\n");
-		return 0;
-	}
-
-	bat_priv->algo_ops->gw.print(bat_priv, seq);
-
-	return 0;
-}
-#endif
 
 /**
  * batadv_gw_dump() - Dump gateways into a message

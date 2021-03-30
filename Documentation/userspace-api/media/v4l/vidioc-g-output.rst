@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_OUTPUT:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_G_OUTPUT - VIDIOC_S_OUTPUT - Query or select the current video output
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_OUTPUT, int *argp )
-    :name: VIDIOC_G_OUTPUT
+.. c:macro:: VIDIOC_G_OUTPUT
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_OUTPUT, int *argp )
-    :name: VIDIOC_S_OUTPUT
+``int ioctl(int fd, VIDIOC_G_OUTPUT, int *argp)``
 
+.. c:macro:: VIDIOC_S_OUTPUT
+
+``int ioctl(int fd, VIDIOC_S_OUTPUT, int *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to an integer with output index.
-
 
 Description
 ===========
@@ -46,13 +46,12 @@ To select a video output applications store the number of the desired
 output in an integer and call the :ref:`VIDIOC_S_OUTPUT <VIDIOC_G_OUTPUT>` ioctl with a
 pointer to this integer. Side effects are possible. For example outputs
 may support different video standards, so the driver may implicitly
-switch the current standard. standard. Because of these possible side
+switch the current standard. Because of these possible side
 effects applications must select an output before querying or
 negotiating any other parameters.
 
 Information about video outputs is available using the
 :ref:`VIDIOC_ENUMOUTPUT` ioctl.
-
 
 Return Value
 ============

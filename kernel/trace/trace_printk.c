@@ -367,13 +367,13 @@ static const struct file_operations ftrace_formats_fops = {
 
 static __init int init_trace_printk_function_export(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	trace_create_file("printk_formats", 0444, d_tracer,
+	trace_create_file("printk_formats", 0444, NULL,
 				    NULL, &ftrace_formats_fops);
 
 	return 0;

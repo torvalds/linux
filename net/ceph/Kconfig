@@ -5,6 +5,9 @@ config CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO_CBC
+	select CRYPTO_GCM
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
 	select CRYPTO
 	select KEYS
 	default n

@@ -11,10 +11,6 @@
 #include <stdint.h>
 #include "processor.h"
 
-#define CPUID_VMX_BIT				5
-
-#define CPUID_VMX				(1 << 5)
-
 /*
  * Definitions of Primary Processor-Based VM-Execution Controls.
  */
@@ -48,7 +44,7 @@
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
 #define SECONDARY_EXEC_ENABLE_EPT		0x00000002
 #define SECONDARY_EXEC_DESC			0x00000004
-#define SECONDARY_EXEC_RDTSCP			0x00000008
+#define SECONDARY_EXEC_ENABLE_RDTSCP		0x00000008
 #define SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE	0x00000010
 #define SECONDARY_EXEC_ENABLE_VPID		0x00000020
 #define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
@@ -573,6 +569,10 @@ struct vmx_pages {
 	void *eptp_hva;
 	uint64_t eptp_gpa;
 	void *eptp;
+
+	void *apic_access_hva;
+	uint64_t apic_access_gpa;
+	void *apic_access;
 };
 
 union vmx_basic {
@@ -615,5 +615,7 @@ void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
 			uint32_t memslot, uint32_t eptp_memslot);
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot);
+void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm,
+				      uint32_t eptp_memslot);
 
 #endif /* SELFTEST_KVM_VMX_H */

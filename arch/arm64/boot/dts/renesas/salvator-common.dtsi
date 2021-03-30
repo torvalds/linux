@@ -324,7 +324,7 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 	phy-handle = <&phy0>;
-	phy-mode = "rgmii-txid";
+	tx-internal-delay-ps = <2000>;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -831,6 +831,8 @@
 	bus-width = <8>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
+	no-sd;
+	no-sdio;
 	non-removable;
 	fixed-emmc-driver-type = <1>;
 	full-pwr-cycle-in-suspend;

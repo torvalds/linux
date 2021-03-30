@@ -153,20 +153,18 @@ int avic_vm_init(struct kvm *kvm)
 		return 0;
 
 	/* Allocating physical APIC ID table (4KB) */
-	p_page = alloc_page(GFP_KERNEL_ACCOUNT);
+	p_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!p_page)
 		goto free_avic;
 
 	kvm_svm->avic_physical_id_table_page = p_page;
-	clear_page(page_address(p_page));
 
 	/* Allocating logical APIC ID table (4KB) */
-	l_page = alloc_page(GFP_KERNEL_ACCOUNT);
+	l_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!l_page)
 		goto free_avic;
 
 	kvm_svm->avic_logical_id_table_page = l_page;
-	clear_page(page_address(l_page));
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
  again:
@@ -235,7 +233,8 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
  */
 static int avic_update_access_page(struct kvm *kvm, bool activate)
 {
-	int ret = 0;
+	void __user *ret;
+	int r = 0;
 
 	mutex_lock(&kvm->slots_lock);
 	/*
@@ -251,13 +250,15 @@ static int avic_update_access_page(struct kvm *kvm, bool activate)
 				      APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
 				      APIC_DEFAULT_PHYS_BASE,
 				      activate ? PAGE_SIZE : 0);
-	if (ret)
+	if (IS_ERR(ret)) {
+		r = PTR_ERR(ret);
 		goto out;
+	}
 
 	kvm->arch.apic_access_page_done = activate;
 out:
 	mutex_unlock(&kvm->slots_lock);
-	return ret;
+	return r;
 }
 
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
@@ -297,6 +298,23 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
+				   u32 icrl, u32 icrh)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		bool m = kvm_apic_match_dest(vcpu, source,
+					     icrl & APIC_SHORT_MASK,
+					     GET_APIC_DEST_FIELD(icrh),
+					     icrl & APIC_DEST_MASK);
+
+		if (m && !avic_vcpu_is_running(vcpu))
+			kvm_vcpu_wake_up(vcpu);
+	}
+}
+
 int avic_incomplete_ipi_interception(struct vcpu_svm *svm)
 {
 	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
@@ -323,28 +341,14 @@ int avic_incomplete_ipi_interception(struct vcpu_svm *svm)
 		kvm_lapic_reg_write(apic, APIC_ICR2, icrh);
 		kvm_lapic_reg_write(apic, APIC_ICR, icrl);
 		break;
-	case AVIC_IPI_FAILURE_TARGET_NOT_RUNNING: {
-		int i;
-		struct kvm_vcpu *vcpu;
-		struct kvm *kvm = svm->vcpu.kvm;
-		struct kvm_lapic *apic = svm->vcpu.arch.apic;
-
+	case AVIC_IPI_FAILURE_TARGET_NOT_RUNNING:
 		/*
 		 * At this point, we expect that the AVIC HW has already
 		 * set the appropriate IRR bits on the valid target
 		 * vcpus. So, we just need to kick the appropriate vcpu.
 		 */
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			bool m = kvm_apic_match_dest(vcpu, apic,
-						     icrl & APIC_SHORT_MASK,
-						     GET_APIC_DEST_FIELD(icrh),
-						     icrl & APIC_DEST_MASK);
-
-			if (m && !avic_vcpu_is_running(vcpu))
-				kvm_vcpu_wake_up(vcpu);
-		}
+		avic_kick_target_vcpus(svm->vcpu.kvm, apic, icrl, icrh);
 		break;
-	}
 	case AVIC_IPI_FAILURE_INVALID_TARGET:
 		WARN_ONCE(1, "Invalid IPI target: index=%u, vcpu=%d, icr=%#0x:%#0x\n",
 			  index, svm->vcpu.vcpu_id, icrh, icrl);
@@ -868,6 +872,7 @@ int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 			 * - Tell IOMMU to use legacy mode for this interrupt.
 			 * - Retrieve ga_tag of prior interrupt remapping data.
 			 */
+			pi.prev_ga_tag = 0;
 			pi.is_guest_mode = false;
 			ret = irq_set_vcpu_affinity(host_irq, &pi);
 

@@ -183,9 +183,12 @@ struct netns_ipv4 {
 	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
+	int sysctl_tcp_reflect_tos;
 
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
+
+	int sysctl_fib_notify_on_flag_change;
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	int sysctl_udp_l3mdev_accept;

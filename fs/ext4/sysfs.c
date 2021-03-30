@@ -62,11 +62,8 @@ static ssize_t session_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
-	if (!sb->s_bdev->bd_part)
-		return snprintf(buf, PAGE_SIZE, "0\n");
 	return snprintf(buf, PAGE_SIZE, "%lu\n",
-			(part_stat_read(sb->s_bdev->bd_part,
-					sectors[STAT_WRITE]) -
+			(part_stat_read(sb->s_bdev, sectors[STAT_WRITE]) -
 			 sbi->s_sectors_written_start) >> 1);
 }
 
@@ -74,12 +71,9 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
-	if (!sb->s_bdev->bd_part)
-		return snprintf(buf, PAGE_SIZE, "0\n");
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
 			(unsigned long long)(sbi->s_kbytes_written +
-			((part_stat_read(sb->s_bdev->bd_part,
-					 sectors[STAT_WRITE]) -
+			((part_stat_read(sb->s_bdev, sectors[STAT_WRITE]) -
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
@@ -315,6 +309,7 @@ EXT4_ATTR_FEATURE(casefold);
 EXT4_ATTR_FEATURE(verity);
 #endif
 EXT4_ATTR_FEATURE(metadata_csum_seed);
+EXT4_ATTR_FEATURE(fast_commit);
 
 static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(lazy_itable_init),
@@ -331,6 +326,7 @@ static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(verity),
 #endif
 	ATTR_LIST(metadata_csum_seed),
+	ATTR_LIST(fast_commit),
 	NULL,
 };
 ATTRIBUTE_GROUPS(ext4_feat);
@@ -521,6 +517,8 @@ int ext4_register_sysfs(struct super_block *sb)
 		proc_create_single_data("es_shrinker_info", S_IRUGO,
 				sbi->s_proc, ext4_seq_es_shrinker_info_show,
 				sb);
+		proc_create_single_data("fc_info", 0444, sbi->s_proc,
+					ext4_fc_info_show, sb);
 		proc_create_seq_data("mb_groups", S_IRUGO, sbi->s_proc,
 				&ext4_mb_seq_groups_ops, sb);
 	}

@@ -165,7 +165,10 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 		handler = list_entry(entry, struct amdgpu_dm_irq_handler_data,
 				     list);
 
-		if (ih == handler) {
+		if (handler == NULL)
+			continue;
+
+		if (ih == handler->handler) {
 			/* Found our handler. Remove it from the list. */
 			list_del(&handler->list);
 			handler_removed = true;
@@ -659,6 +662,20 @@ static int amdgpu_dm_set_crtc_irq_state(struct amdgpu_device *adev,
 		__func__);
 }
 
+static int amdgpu_dm_set_vline0_irq_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned int crtc_id,
+					enum amdgpu_interrupt_state state)
+{
+	return dm_irq_state(
+		adev,
+		source,
+		crtc_id,
+		state,
+		IRQ_TYPE_VLINE0,
+		__func__);
+}
+
 static int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
 					   struct amdgpu_irq_src *source,
 					   unsigned int crtc_id,
@@ -675,6 +692,11 @@ static int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
 
 static const struct amdgpu_irq_src_funcs dm_crtc_irq_funcs = {
 	.set = amdgpu_dm_set_crtc_irq_state,
+	.process = amdgpu_dm_irq_handler,
+};
+
+static const struct amdgpu_irq_src_funcs dm_vline0_irq_funcs = {
+	.set = amdgpu_dm_set_vline0_irq_state,
 	.process = amdgpu_dm_irq_handler,
 };
 
@@ -698,6 +720,9 @@ void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
+
+	adev->vline0_irq.num_types = adev->mode_info.num_crtc;
+	adev->vline0_irq.funcs = &dm_vline0_irq_funcs;
 
 	adev->vupdate_irq.num_types = adev->mode_info.num_crtc;
 	adev->vupdate_irq.funcs = &dm_vupdate_irq_funcs;

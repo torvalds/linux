@@ -38,18 +38,9 @@
 #include <linux/jiffies.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/bitops.h>
 #include <asm/unaligned.h>
 #include <trace/events/random.h>
-
-#ifdef CONFIG_RANDOM32_SELFTEST
-static void __init prandom_state_selftest(void);
-#else
-static inline void prandom_state_selftest(void)
-{
-}
-#endif
-
-DEFINE_PER_CPU(struct rnd_state, net_rand_state)  __latent_entropy;
 
 /**
  *	prandom_u32_state - seeded pseudo-random number generator.
@@ -69,26 +60,6 @@ u32 prandom_u32_state(struct rnd_state *state)
 	return (state->s1 ^ state->s2 ^ state->s3 ^ state->s4);
 }
 EXPORT_SYMBOL(prandom_u32_state);
-
-/**
- *	prandom_u32 - pseudo random number generator
- *
- *	A 32 bit pseudo-random number is generated using a fast
- *	algorithm suitable for simulation. This algorithm is NOT
- *	considered safe for cryptographic use.
- */
-u32 prandom_u32(void)
-{
-	struct rnd_state *state = &get_cpu_var(net_rand_state);
-	u32 res;
-
-	res = prandom_u32_state(state);
-	trace_prandom_u32(res);
-	put_cpu_var(net_rand_state);
-
-	return res;
-}
-EXPORT_SYMBOL(prandom_u32);
 
 /**
  *	prandom_bytes_state - get the requested number of pseudo-random bytes
@@ -121,20 +92,6 @@ void prandom_bytes_state(struct rnd_state *state, void *buf, size_t bytes)
 }
 EXPORT_SYMBOL(prandom_bytes_state);
 
-/**
- *	prandom_bytes - get the requested number of pseudo-random bytes
- *	@buf: where to copy the pseudo-random bytes to
- *	@bytes: the requested number of bytes
- */
-void prandom_bytes(void *buf, size_t bytes)
-{
-	struct rnd_state *state = &get_cpu_var(net_rand_state);
-
-	prandom_bytes_state(state, buf, bytes);
-	put_cpu_var(net_rand_state);
-}
-EXPORT_SYMBOL(prandom_bytes);
-
 static void prandom_warmup(struct rnd_state *state)
 {
 	/* Calling RNG ten times to satisfy recurrence condition */
@@ -148,96 +105,6 @@ static void prandom_warmup(struct rnd_state *state)
 	prandom_u32_state(state);
 	prandom_u32_state(state);
 	prandom_u32_state(state);
-}
-
-static u32 __extract_hwseed(void)
-{
-	unsigned int val = 0;
-
-	(void)(arch_get_random_seed_int(&val) ||
-	       arch_get_random_int(&val));
-
-	return val;
-}
-
-static void prandom_seed_early(struct rnd_state *state, u32 seed,
-			       bool mix_with_hwseed)
-{
-#define LCG(x)	 ((x) * 69069U)	/* super-duper LCG */
-#define HWSEED() (mix_with_hwseed ? __extract_hwseed() : 0)
-	state->s1 = __seed(HWSEED() ^ LCG(seed),        2U);
-	state->s2 = __seed(HWSEED() ^ LCG(state->s1),   8U);
-	state->s3 = __seed(HWSEED() ^ LCG(state->s2),  16U);
-	state->s4 = __seed(HWSEED() ^ LCG(state->s3), 128U);
-}
-
-/**
- *	prandom_seed - add entropy to pseudo random number generator
- *	@entropy: entropy value
- *
- *	Add some additional entropy to the prandom pool.
- */
-void prandom_seed(u32 entropy)
-{
-	int i;
-	/*
-	 * No locking on the CPUs, but then somewhat random results are, well,
-	 * expected.
-	 */
-	for_each_possible_cpu(i) {
-		struct rnd_state *state = &per_cpu(net_rand_state, i);
-
-		state->s1 = __seed(state->s1 ^ entropy, 2U);
-		prandom_warmup(state);
-	}
-}
-EXPORT_SYMBOL(prandom_seed);
-
-/*
- *	Generate some initially weak seeding values to allow
- *	to start the prandom_u32() engine.
- */
-static int __init prandom_init(void)
-{
-	int i;
-
-	prandom_state_selftest();
-
-	for_each_possible_cpu(i) {
-		struct rnd_state *state = &per_cpu(net_rand_state, i);
-		u32 weak_seed = (i + jiffies) ^ random_get_entropy();
-
-		prandom_seed_early(state, weak_seed, true);
-		prandom_warmup(state);
-	}
-
-	return 0;
-}
-core_initcall(prandom_init);
-
-static void __prandom_timer(struct timer_list *unused);
-
-static DEFINE_TIMER(seed_timer, __prandom_timer);
-
-static void __prandom_timer(struct timer_list *unused)
-{
-	u32 entropy;
-	unsigned long expires;
-
-	get_random_bytes(&entropy, sizeof(entropy));
-	prandom_seed(entropy);
-
-	/* reseed every ~60 seconds, in [40 .. 80) interval with slack */
-	expires = 40 + prandom_u32_max(40);
-	seed_timer.expires = jiffies + msecs_to_jiffies(expires * MSEC_PER_SEC);
-
-	add_timer(&seed_timer);
-}
-
-static void __init __prandom_start_seed_timer(void)
-{
-	seed_timer.expires = jiffies + msecs_to_jiffies(40 * MSEC_PER_SEC);
-	add_timer(&seed_timer);
 }
 
 void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state)
@@ -258,51 +125,6 @@ void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state)
 	}
 }
 EXPORT_SYMBOL(prandom_seed_full_state);
-
-/*
- *	Generate better values after random number generator
- *	is fully initialized.
- */
-static void __prandom_reseed(bool late)
-{
-	unsigned long flags;
-	static bool latch = false;
-	static DEFINE_SPINLOCK(lock);
-
-	/* Asking for random bytes might result in bytes getting
-	 * moved into the nonblocking pool and thus marking it
-	 * as initialized. In this case we would double back into
-	 * this function and attempt to do a late reseed.
-	 * Ignore the pointless attempt to reseed again if we're
-	 * already waiting for bytes when the nonblocking pool
-	 * got initialized.
-	 */
-
-	/* only allow initial seeding (late == false) once */
-	if (!spin_trylock_irqsave(&lock, flags))
-		return;
-
-	if (latch && !late)
-		goto out;
-
-	latch = true;
-	prandom_seed_full_state(&net_rand_state);
-out:
-	spin_unlock_irqrestore(&lock, flags);
-}
-
-void prandom_reseed_late(void)
-{
-	__prandom_reseed(true);
-}
-
-static int __init prandom_reseed(void)
-{
-	__prandom_reseed(false);
-	__prandom_start_seed_timer();
-	return 0;
-}
-late_initcall(prandom_reseed);
 
 #ifdef CONFIG_RANDOM32_SELFTEST
 static struct prandom_test1 {
@@ -423,7 +245,28 @@ static struct prandom_test2 {
 	{  407983964U, 921U,  728767059U },
 };
 
-static void __init prandom_state_selftest(void)
+static u32 __extract_hwseed(void)
+{
+	unsigned int val = 0;
+
+	(void)(arch_get_random_seed_int(&val) ||
+	       arch_get_random_int(&val));
+
+	return val;
+}
+
+static void prandom_seed_early(struct rnd_state *state, u32 seed,
+			       bool mix_with_hwseed)
+{
+#define LCG(x)	 ((x) * 69069U)	/* super-duper LCG */
+#define HWSEED() (mix_with_hwseed ? __extract_hwseed() : 0)
+	state->s1 = __seed(HWSEED() ^ LCG(seed),        2U);
+	state->s2 = __seed(HWSEED() ^ LCG(state->s1),   8U);
+	state->s3 = __seed(HWSEED() ^ LCG(state->s2),  16U);
+	state->s4 = __seed(HWSEED() ^ LCG(state->s3), 128U);
+}
+
+static int __init prandom_state_selftest(void)
 {
 	int i, j, errors = 0, runs = 0;
 	bool error = false;
@@ -463,5 +306,327 @@ static void __init prandom_state_selftest(void)
 		pr_warn("prandom: %d/%d self tests failed\n", errors, runs);
 	else
 		pr_info("prandom: %d self tests passed\n", runs);
+	return 0;
 }
+core_initcall(prandom_state_selftest);
 #endif
+
+/*
+ * The prandom_u32() implementation is now completely separate from the
+ * prandom_state() functions, which are retained (for now) for compatibility.
+ *
+ * Because of (ab)use in the networking code for choosing random TCP/UDP port
+ * numbers, which open DoS possibilities if guessable, we want something
+ * stronger than a standard PRNG.  But the performance requirements of
+ * the network code do not allow robust crypto for this application.
+ *
+ * So this is a homebrew Junior Spaceman implementation, based on the
+ * lowest-latency trustworthy crypto primitive available, SipHash.
+ * (The authors of SipHash have not been consulted about this abuse of
+ * their work.)
+ *
+ * Standard SipHash-2-4 uses 2n+4 rounds to hash n words of input to
+ * one word of output.  This abbreviated version uses 2 rounds per word
+ * of output.
+ */
+
+struct siprand_state {
+	unsigned long v0;
+	unsigned long v1;
+	unsigned long v2;
+	unsigned long v3;
+};
+
+static DEFINE_PER_CPU(struct siprand_state, net_rand_state) __latent_entropy;
+DEFINE_PER_CPU(unsigned long, net_rand_noise);
+EXPORT_PER_CPU_SYMBOL(net_rand_noise);
+
+/*
+ * This is the core CPRNG function.  As "pseudorandom", this is not used
+ * for truly valuable things, just intended to be a PITA to guess.
+ * For maximum speed, we do just two SipHash rounds per word.  This is
+ * the same rate as 4 rounds per 64 bits that SipHash normally uses,
+ * so hopefully it's reasonably secure.
+ *
+ * There are two changes from the official SipHash finalization:
+ * - We omit some constants XORed with v2 in the SipHash spec as irrelevant;
+ *   they are there only to make the output rounds distinct from the input
+ *   rounds, and this application has no input rounds.
+ * - Rather than returning v0^v1^v2^v3, return v1+v3.
+ *   If you look at the SipHash round, the last operation on v3 is
+ *   "v3 ^= v0", so "v0 ^ v3" just undoes that, a waste of time.
+ *   Likewise "v1 ^= v2".  (The rotate of v2 makes a difference, but
+ *   it still cancels out half of the bits in v2 for no benefit.)
+ *   Second, since the last combining operation was xor, continue the
+ *   pattern of alternating xor/add for a tiny bit of extra non-linearity.
+ */
+static inline u32 siprand_u32(struct siprand_state *s)
+{
+	unsigned long v0 = s->v0, v1 = s->v1, v2 = s->v2, v3 = s->v3;
+	unsigned long n = raw_cpu_read(net_rand_noise);
+
+	v3 ^= n;
+	PRND_SIPROUND(v0, v1, v2, v3);
+	PRND_SIPROUND(v0, v1, v2, v3);
+	v0 ^= n;
+	s->v0 = v0;  s->v1 = v1;  s->v2 = v2;  s->v3 = v3;
+	return v1 + v3;
+}
+
+
+/**
+ *	prandom_u32 - pseudo random number generator
+ *
+ *	A 32 bit pseudo-random number is generated using a fast
+ *	algorithm suitable for simulation. This algorithm is NOT
+ *	considered safe for cryptographic use.
+ */
+u32 prandom_u32(void)
+{
+	struct siprand_state *state = get_cpu_ptr(&net_rand_state);
+	u32 res = siprand_u32(state);
+
+	trace_prandom_u32(res);
+	put_cpu_ptr(&net_rand_state);
+	return res;
+}
+EXPORT_SYMBOL(prandom_u32);
+
+/**
+ *	prandom_bytes - get the requested number of pseudo-random bytes
+ *	@buf: where to copy the pseudo-random bytes to
+ *	@bytes: the requested number of bytes
+ */
+void prandom_bytes(void *buf, size_t bytes)
+{
+	struct siprand_state *state = get_cpu_ptr(&net_rand_state);
+	u8 *ptr = buf;
+
+	while (bytes >= sizeof(u32)) {
+		put_unaligned(siprand_u32(state), (u32 *)ptr);
+		ptr += sizeof(u32);
+		bytes -= sizeof(u32);
+	}
+
+	if (bytes > 0) {
+		u32 rem = siprand_u32(state);
+
+		do {
+			*ptr++ = (u8)rem;
+			rem >>= BITS_PER_BYTE;
+		} while (--bytes > 0);
+	}
+	put_cpu_ptr(&net_rand_state);
+}
+EXPORT_SYMBOL(prandom_bytes);
+
+/**
+ *	prandom_seed - add entropy to pseudo random number generator
+ *	@entropy: entropy value
+ *
+ *	Add some additional seed material to the prandom pool.
+ *	The "entropy" is actually our IP address (the only caller is
+ *	the network code), not for unpredictability, but to ensure that
+ *	different machines are initialized differently.
+ */
+void prandom_seed(u32 entropy)
+{
+	int i;
+
+	add_device_randomness(&entropy, sizeof(entropy));
+
+	for_each_possible_cpu(i) {
+		struct siprand_state *state = per_cpu_ptr(&net_rand_state, i);
+		unsigned long v0 = state->v0, v1 = state->v1;
+		unsigned long v2 = state->v2, v3 = state->v3;
+
+		do {
+			v3 ^= entropy;
+			PRND_SIPROUND(v0, v1, v2, v3);
+			PRND_SIPROUND(v0, v1, v2, v3);
+			v0 ^= entropy;
+		} while (unlikely(!v0 || !v1 || !v2 || !v3));
+
+		WRITE_ONCE(state->v0, v0);
+		WRITE_ONCE(state->v1, v1);
+		WRITE_ONCE(state->v2, v2);
+		WRITE_ONCE(state->v3, v3);
+	}
+}
+EXPORT_SYMBOL(prandom_seed);
+
+/*
+ *	Generate some initially weak seeding values to allow
+ *	the prandom_u32() engine to be started.
+ */
+static int __init prandom_init_early(void)
+{
+	int i;
+	unsigned long v0, v1, v2, v3;
+
+	if (!arch_get_random_long(&v0))
+		v0 = jiffies;
+	if (!arch_get_random_long(&v1))
+		v1 = random_get_entropy();
+	v2 = v0 ^ PRND_K0;
+	v3 = v1 ^ PRND_K1;
+
+	for_each_possible_cpu(i) {
+		struct siprand_state *state;
+
+		v3 ^= i;
+		PRND_SIPROUND(v0, v1, v2, v3);
+		PRND_SIPROUND(v0, v1, v2, v3);
+		v0 ^= i;
+
+		state = per_cpu_ptr(&net_rand_state, i);
+		state->v0 = v0;  state->v1 = v1;
+		state->v2 = v2;  state->v3 = v3;
+	}
+
+	return 0;
+}
+core_initcall(prandom_init_early);
+
+
+/* Stronger reseeding when available, and periodically thereafter. */
+static void prandom_reseed(struct timer_list *unused);
+
+static DEFINE_TIMER(seed_timer, prandom_reseed);
+
+static void prandom_reseed(struct timer_list *unused)
+{
+	unsigned long expires;
+	int i;
+
+	/*
+	 * Reinitialize each CPU's PRNG with 128 bits of key.
+	 * No locking on the CPUs, but then somewhat random results are,
+	 * well, expected.
+	 */
+	for_each_possible_cpu(i) {
+		struct siprand_state *state;
+		unsigned long v0 = get_random_long(), v2 = v0 ^ PRND_K0;
+		unsigned long v1 = get_random_long(), v3 = v1 ^ PRND_K1;
+#if BITS_PER_LONG == 32
+		int j;
+
+		/*
+		 * On 32-bit machines, hash in two extra words to
+		 * approximate 128-bit key length.  Not that the hash
+		 * has that much security, but this prevents a trivial
+		 * 64-bit brute force.
+		 */
+		for (j = 0; j < 2; j++) {
+			unsigned long m = get_random_long();
+
+			v3 ^= m;
+			PRND_SIPROUND(v0, v1, v2, v3);
+			PRND_SIPROUND(v0, v1, v2, v3);
+			v0 ^= m;
+		}
+#endif
+		/*
+		 * Probably impossible in practice, but there is a
+		 * theoretical risk that a race between this reseeding
+		 * and the target CPU writing its state back could
+		 * create the all-zero SipHash fixed point.
+		 *
+		 * To ensure that never happens, ensure the state
+		 * we write contains no zero words.
+		 */
+		state = per_cpu_ptr(&net_rand_state, i);
+		WRITE_ONCE(state->v0, v0 ? v0 : -1ul);
+		WRITE_ONCE(state->v1, v1 ? v1 : -1ul);
+		WRITE_ONCE(state->v2, v2 ? v2 : -1ul);
+		WRITE_ONCE(state->v3, v3 ? v3 : -1ul);
+	}
+
+	/* reseed every ~60 seconds, in [40 .. 80) interval with slack */
+	expires = round_jiffies(jiffies + 40 * HZ + prandom_u32_max(40 * HZ));
+	mod_timer(&seed_timer, expires);
+}
+
+/*
+ * The random ready callback can be called from almost any interrupt.
+ * To avoid worrying about whether it's safe to delay that interrupt
+ * long enough to seed all CPUs, just schedule an immediate timer event.
+ */
+static void prandom_timer_start(struct random_ready_callback *unused)
+{
+	mod_timer(&seed_timer, jiffies);
+}
+
+#ifdef CONFIG_RANDOM32_SELFTEST
+/* Principle: True 32-bit random numbers will all have 16 differing bits on
+ * average. For each 32-bit number, there are 601M numbers differing by 16
+ * bits, and 89% of the numbers differ by at least 12 bits. Note that more
+ * than 16 differing bits also implies a correlation with inverted bits. Thus
+ * we take 1024 random numbers and compare each of them to the other ones,
+ * counting the deviation of correlated bits to 16. Constants report 32,
+ * counters 32-log2(TEST_SIZE), and pure randoms, around 6 or lower. With the
+ * u32 total, TEST_SIZE may be as large as 4096 samples.
+ */
+#define TEST_SIZE 1024
+static int __init prandom32_state_selftest(void)
+{
+	unsigned int x, y, bits, samples;
+	u32 xor, flip;
+	u32 total;
+	u32 *data;
+
+	data = kmalloc(sizeof(*data) * TEST_SIZE, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	for (samples = 0; samples < TEST_SIZE; samples++)
+		data[samples] = prandom_u32();
+
+	flip = total = 0;
+	for (x = 0; x < samples; x++) {
+		for (y = 0; y < samples; y++) {
+			if (x == y)
+				continue;
+			xor = data[x] ^ data[y];
+			flip |= xor;
+			bits = hweight32(xor);
+			total += (bits - 16) * (bits - 16);
+		}
+	}
+
+	/* We'll return the average deviation as 2*sqrt(corr/samples), which
+	 * is also sqrt(4*corr/samples) which provides a better resolution.
+	 */
+	bits = int_sqrt(total / (samples * (samples - 1)) * 4);
+	if (bits > 6)
+		pr_warn("prandom32: self test failed (at least %u bits"
+			" correlated, fixed_mask=%#x fixed_value=%#x\n",
+			bits, ~flip, data[0] & ~flip);
+	else
+		pr_info("prandom32: self test passed (less than %u bits"
+			" correlated)\n",
+			bits+1);
+	kfree(data);
+	return 0;
+}
+core_initcall(prandom32_state_selftest);
+#endif /*  CONFIG_RANDOM32_SELFTEST */
+
+/*
+ * Start periodic full reseeding as soon as strong
+ * random numbers are available.
+ */
+static int __init prandom_init_late(void)
+{
+	static struct random_ready_callback random_ready = {
+		.func = prandom_timer_start
+	};
+	int ret = add_random_ready_callback(&random_ready);
+
+	if (ret == -EALREADY) {
+		prandom_timer_start(&random_ready);
+		ret = 0;
+	}
+	return ret;
+}
+late_initcall(prandom_init_late);

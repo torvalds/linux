@@ -123,11 +123,6 @@ bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
 
 	npg = min(npg, BIO_MAX_PAGES);
 	bio = bio_alloc(GFP_NOIO, npg);
-	if (!bio && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (npg /= 2))
-			bio = bio_alloc(GFP_NOIO, npg);
-	}
-
 	if (bio) {
 		bio->bi_iter.bi_sector = disk_sector;
 		bio_set_dev(bio, bdev);
@@ -697,7 +692,7 @@ bl_alloc_lseg(struct pnfs_layout_hdr *lo, struct nfs4_layoutget_res *lgr,
 
 	xdr_init_decode_pages(&xdr, &buf,
 			lgr->layoutp->pages, lgr->layoutp->len);
-	xdr_set_scratch_buffer(&xdr, page_address(scratch), PAGE_SIZE);
+	xdr_set_scratch_page(&xdr, scratch);
 
 	status = -EIO;
 	p = xdr_inline_decode(&xdr, 4);

@@ -125,12 +125,6 @@ mt8183_da7219_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (!strcmp(codec_dai->component->name, RT1015_DEV0_NAME) ||
 		    !strcmp(codec_dai->component->name, RT1015_DEV1_NAME)) {
-			ret = snd_soc_dai_set_bclk_ratio(codec_dai, 64);
-			if (ret) {
-				dev_err(rtd->dev, "failed to set bclk ratio\n");
-				return ret;
-			}
-
 			ret = snd_soc_dai_set_pll(codec_dai, 0,
 						  RT1015_PLL_S_BCLK,
 						  rate * 64, rate * 256);
@@ -532,6 +526,7 @@ static struct snd_soc_dai_link mt8183_da7219_dai_links[] = {
 		.dpcm_playback = 1,
 		.ignore_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
+		.ignore = 1,
 		.init = mt8183_da7219_max98357_hdmi_init,
 		SND_SOC_DAILINK_REG(tdm),
 	},
@@ -630,15 +625,34 @@ static struct snd_soc_codec_conf mt8183_da7219_rt1015_codec_conf[] = {
 	},
 };
 
+static const struct snd_kcontrol_new mt8183_da7219_rt1015_snd_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+};
+
+static const
+struct snd_soc_dapm_widget mt8183_da7219_rt1015_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+	SND_SOC_DAPM_PINCTRL("TDM_OUT_PINCTRL",
+			     "aud_tdm_out_on", "aud_tdm_out_off"),
+};
+
+static const struct snd_soc_dapm_route mt8183_da7219_rt1015_dapm_routes[] = {
+	{"Left Spk", NULL, "Left SPO"},
+	{"Right Spk", NULL, "Right SPO"},
+	{"I2S Playback", NULL, "TDM_OUT_PINCTRL"},
+};
+
 static struct snd_soc_card mt8183_da7219_rt1015_card = {
 	.name = "mt8183_da7219_rt1015",
 	.owner = THIS_MODULE,
-	.controls = mt8183_da7219_max98357_snd_controls,
-	.num_controls = ARRAY_SIZE(mt8183_da7219_max98357_snd_controls),
-	.dapm_widgets = mt8183_da7219_max98357_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(mt8183_da7219_max98357_dapm_widgets),
-	.dapm_routes = mt8183_da7219_max98357_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(mt8183_da7219_max98357_dapm_routes),
+	.controls = mt8183_da7219_rt1015_snd_controls,
+	.num_controls = ARRAY_SIZE(mt8183_da7219_rt1015_snd_controls),
+	.dapm_widgets = mt8183_da7219_rt1015_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(mt8183_da7219_rt1015_dapm_widgets),
+	.dapm_routes = mt8183_da7219_rt1015_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(mt8183_da7219_rt1015_dapm_routes),
 	.dai_link = mt8183_da7219_dai_links,
 	.num_links = ARRAY_SIZE(mt8183_da7219_dai_links),
 	.aux_dev = &mt8183_da7219_max98357_headset_dev,
@@ -735,8 +749,10 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 			}
 		}
 
-		if (hdmi_codec && strcmp(dai_link->name, "TDM") == 0)
+		if (hdmi_codec && strcmp(dai_link->name, "TDM") == 0) {
 			dai_link->codecs->of_node = hdmi_codec;
+			dai_link->ignore = 0;
+		}
 
 		if (!dai_link->platforms->name)
 			dai_link->platforms->of_node = platform_node;
@@ -792,6 +808,7 @@ static struct platform_driver mt8183_da7219_max98357_driver = {
 #ifdef CONFIG_OF
 		.of_match_table = mt8183_da7219_max98357_dt_match,
 #endif
+		.pm = &snd_soc_pm_ops,
 	},
 	.probe = mt8183_da7219_max98357_dev_probe,
 };

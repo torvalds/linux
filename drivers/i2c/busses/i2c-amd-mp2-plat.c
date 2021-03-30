@@ -88,8 +88,7 @@ static void i2c_amd_cmd_completion(struct amd_i2c_common *i2c_common)
 	union i2c_event *event = &i2c_common->eventval;
 
 	if (event->r.status == i2c_readcomplete_event)
-		dev_dbg(&i2c_dev->pdev->dev, "%s readdata:%*ph\n",
-			__func__, event->r.length,
+		dev_dbg(&i2c_dev->pdev->dev, "readdata:%*ph\n", event->r.length,
 			i2c_common->msg->buf);
 
 	complete(&i2c_dev->cmd_complete);
@@ -155,7 +154,7 @@ static int i2c_amd_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	struct amd_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	int i;
 	struct i2c_msg *pmsg;
-	int err;
+	int err = 0;
 
 	/* the adapter might have been deleted while waiting for the bus lock */
 	if (unlikely(!i2c_dev->common.mp2_dev))

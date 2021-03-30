@@ -329,7 +329,7 @@ struct ccw_dev_id {
 };
 
 /**
- * ccw_device_id_is_equal() - compare two ccw_dev_ids
+ * ccw_dev_id_is_equal() - compare two ccw_dev_ids
  * @dev_id1: a ccw_dev_id
  * @dev_id2: another ccw_dev_id
  * Returns:
@@ -356,7 +356,6 @@ static inline u8 pathmask_to_pos(u8 mask)
 	return 8 - ffs(mask);
 }
 
-void channel_subsystem_reinit(void);
 extern void css_schedule_reprobe(void);
 
 extern void *cio_dma_zalloc(size_t size);
@@ -372,6 +371,8 @@ struct gen_pool *cio_gp_dma_create(struct device *dma_dev, int nr_pages);
 /* Function from drivers/s390/cio/chsc.c */
 int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
+int chsc_stzi(void *page, void *result, size_t size);
 int chsc_sgib(u32 origin);
+int chsc_scud(u16 cu, u64 *esm, u8 *esm_valid);
 
 #endif

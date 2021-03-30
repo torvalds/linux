@@ -103,7 +103,19 @@
 };
 
 &cpu0 {
-	cpu0-supply = <&vdd_cpu>;
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu1 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu2 {
+	cpu-supply = <&vdd_cpu>;
+};
+
+&cpu3 {
+	cpu-supply = <&vdd_cpu>;
 };
 
 &emmc {
@@ -149,7 +161,7 @@
 	pinctrl-0 = <&rgmii_pins>;
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
-	status = "ok";
+	status = "okay";
 };
 
 &hdmi {

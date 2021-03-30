@@ -346,8 +346,7 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 	regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
 			       mt9p031->regulators);
 
-	if (mt9p031->clk)
-		clk_disable_unprepare(mt9p031->clk);
+	clk_disable_unprepare(mt9p031->clk);
 }
 
 static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)

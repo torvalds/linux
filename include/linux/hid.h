@@ -163,6 +163,7 @@ struct hid_item {
 #define HID_UP_LNVENDOR		0xffa00000
 #define HID_UP_SENSOR		0x00200000
 #define HID_UP_ASUSVENDOR	0xff310000
+#define HID_UP_GOOGLEVENDOR	0xffd10000
 
 #define HID_USAGE		0x0000ffff
 
@@ -371,6 +372,7 @@ struct hid_item {
 #define HID_GROUP_LOGITECH_DJ_DEVICE		0x0102
 #define HID_GROUP_STEAM				0x0103
 #define HID_GROUP_LOGITECH_27MHZ_DEVICE		0x0104
+#define HID_GROUP_VIVALDI			0x0105
 
 /*
  * HID protocol status
@@ -492,7 +494,7 @@ struct hid_report_enum {
 };
 
 #define HID_MIN_BUFFER_SIZE	64		/* make sure there is at least a packet size of space */
-#define HID_MAX_BUFFER_SIZE	8192		/* 8kb */
+#define HID_MAX_BUFFER_SIZE	16384		/* 16kb */
 #define HID_CONTROL_FIFO_SIZE	256		/* to init devices with >100 reports */
 #define HID_OUTPUT_FIFO_SIZE	64
 
@@ -583,6 +585,7 @@ struct hid_device {							/* device report descriptor */
 	__s32 battery_report_id;
 	enum hid_battery_status battery_status;
 	bool battery_avoid_query;
+	ktime_t battery_ratelimit_time;
 #endif
 
 	unsigned long status;						/* see STAT flags above */

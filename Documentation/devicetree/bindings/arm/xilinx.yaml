@@ -22,6 +22,9 @@ properties:
               - adapteva,parallella
               - digilent,zynq-zybo
               - digilent,zynq-zybo-z7
+              - ebang,ebaz4205
+              - myir,zynq-zturn-v5
+              - myir,zynq-zturn
               - xlnx,zynq-cc108
               - xlnx,zynq-zc702
               - xlnx,zynq-zc706
@@ -91,6 +94,7 @@ properties:
         items:
           - enum:
               - xlnx,zynqmp-zcu104-revA
+              - xlnx,zynqmp-zcu104-revC
               - xlnx,zynqmp-zcu104-rev1.0
           - const: xlnx,zynqmp-zcu104
           - const: xlnx,zynqmp
@@ -107,8 +111,10 @@ properties:
         items:
           - enum:
               - xlnx,zynqmp-zcu111-revA
-              - xlnx,zynqmp-zcu11-rev1.0
+              - xlnx,zynqmp-zcu111-rev1.0
           - const: xlnx,zynqmp-zcu111
           - const: xlnx,zynqmp
+
+additionalProperties: true
 
 ...

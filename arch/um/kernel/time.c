@@ -31,6 +31,7 @@ static bool time_travel_start_set;
 static unsigned long long time_travel_start;
 static unsigned long long time_travel_time;
 static LIST_HEAD(time_travel_events);
+static LIST_HEAD(time_travel_irqs);
 static unsigned long long time_travel_timer_interval;
 static unsigned long long time_travel_next_event;
 static struct time_travel_event time_travel_timer_event;
@@ -46,6 +47,9 @@ static void time_travel_set_time(unsigned long long ns)
 	if (unlikely(ns < time_travel_time))
 		panic("time-travel: time goes backwards %lld -> %lld\n",
 		      time_travel_time, ns);
+	else if (unlikely(ns >= S64_MAX))
+		panic("The system was going to sleep forever, aborting");
+
 	time_travel_time = ns;
 }
 
@@ -70,13 +74,17 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 	 * read of the message and write of the ACK.
 	 */
 	if (mode != TTMH_READ) {
+		bool disabled = irqs_disabled();
+
+		BUG_ON(mode == TTMH_IDLE && !disabled);
+
+		if (disabled)
+			local_irq_enable();
 		while (os_poll(1, &time_travel_ext_fd) != 0) {
-			if (mode == TTMH_IDLE) {
-				BUG_ON(!irqs_disabled());
-				local_irq_enable();
-				local_irq_disable();
-			}
+			/* nothing */
 		}
+		if (disabled)
+			local_irq_disable();
 	}
 
 	ret = os_read_file(time_travel_ext_fd, msg, sizeof(*msg));
@@ -102,6 +110,7 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 		break;
 	}
 
+	resp.seq = msg->seq;
 	os_write_file(time_travel_ext_fd, &resp, sizeof(resp));
 }
 
@@ -175,6 +184,14 @@ static void time_travel_ext_update_request(unsigned long long time)
 	    time == time_travel_ext_prev_request)
 		return;
 
+	/*
+	 * if we're running and are allowed to run past the request
+	 * then we don't need to update it either
+	 */
+	if (!time_travel_ext_waiting && time_travel_ext_free_until_valid &&
+	    time < time_travel_ext_free_until)
+		return;
+
 	time_travel_ext_prev_request = time;
 	time_travel_ext_prev_request_valid = true;
 	time_travel_ext_req(UM_TIMETRAVEL_REQUEST, time);
@@ -182,7 +199,13 @@ static void time_travel_ext_update_request(unsigned long long time)
 
 void __time_travel_propagate_time(void)
 {
+	static unsigned long long last_propagated;
+
+	if (last_propagated == time_travel_time)
+		return;
+
 	time_travel_ext_req(UM_TIMETRAVEL_UPDATE, time_travel_time);
+	last_propagated = time_travel_time;
 }
 EXPORT_SYMBOL_GPL(__time_travel_propagate_time);
 
@@ -209,6 +232,7 @@ static void time_travel_ext_wait(bool idle)
 	};
 
 	time_travel_ext_prev_request_valid = false;
+	time_travel_ext_free_until_valid = false;
 	time_travel_ext_waiting++;
 
 	time_travel_ext_req(UM_TIMETRAVEL_WAIT, -1);
@@ -254,11 +278,7 @@ static void __time_travel_add_event(struct time_travel_event *e,
 {
 	struct time_travel_event *tmp;
 	bool inserted = false;
-
-	if (WARN(time_travel_mode == TT_MODE_BASIC &&
-		 e != &time_travel_timer_event,
-		 "only timer events can be handled in basic mode"))
-		return;
+	unsigned long flags;
 
 	if (e->pending)
 		return;
@@ -266,6 +286,7 @@ static void __time_travel_add_event(struct time_travel_event *e,
 	e->pending = true;
 	e->time = time;
 
+	local_irq_save(flags);
 	list_for_each_entry(tmp, &time_travel_events, list) {
 		/*
 		 * Add the new entry before one with higher time,
@@ -288,6 +309,7 @@ static void __time_travel_add_event(struct time_travel_event *e,
 	tmp = time_travel_first_event();
 	time_travel_ext_update_request(tmp->time);
 	time_travel_next_event = tmp->time;
+	local_irq_restore(flags);
 }
 
 static void time_travel_add_event(struct time_travel_event *e,
@@ -299,11 +321,46 @@ static void time_travel_add_event(struct time_travel_event *e,
 	__time_travel_add_event(e, time);
 }
 
+void time_travel_add_event_rel(struct time_travel_event *e,
+			       unsigned long long delay_ns)
+{
+	time_travel_add_event(e, time_travel_time + delay_ns);
+}
+
 void time_travel_periodic_timer(struct time_travel_event *e)
 {
 	time_travel_add_event(&time_travel_timer_event,
 			      time_travel_time + time_travel_timer_interval);
 	deliver_alarm();
+}
+
+void deliver_time_travel_irqs(void)
+{
+	struct time_travel_event *e;
+	unsigned long flags;
+
+	/*
+	 * Don't do anything for most cases. Note that because here we have
+	 * to disable IRQs (and re-enable later) we'll actually recurse at
+	 * the end of the function, so this is strictly necessary.
+	 */
+	if (likely(list_empty(&time_travel_irqs)))
+		return;
+
+	local_irq_save(flags);
+	irq_enter();
+	while ((e = list_first_entry_or_null(&time_travel_irqs,
+					     struct time_travel_event,
+					     list))) {
+		WARN(e->time != time_travel_time,
+		     "time moved from %lld to %lld before IRQ delivery\n",
+		     time_travel_time, e->time);
+		list_del(&e->list);
+		e->pending = false;
+		e->fn(e);
+	}
+	irq_exit();
+	local_irq_restore(flags);
 }
 
 static void time_travel_deliver_event(struct time_travel_event *e)
@@ -314,6 +371,14 @@ static void time_travel_deliver_event(struct time_travel_event *e)
 		 * by itself, so must handle it specially here
 		 */
 		e->fn(e);
+	} else if (irqs_disabled()) {
+		list_add_tail(&e->list, &time_travel_irqs);
+		/*
+		 * set pending again, it was set to false when the
+		 * event was deleted from the original list, but
+		 * now it's still pending until we deliver the IRQ.
+		 */
+		e->pending = true;
 	} else {
 		unsigned long flags;
 
@@ -325,12 +390,16 @@ static void time_travel_deliver_event(struct time_travel_event *e)
 	}
 }
 
-static bool time_travel_del_event(struct time_travel_event *e)
+bool time_travel_del_event(struct time_travel_event *e)
 {
+	unsigned long flags;
+
 	if (!e->pending)
 		return false;
+	local_irq_save(flags);
 	list_del(&e->list);
 	e->pending = false;
+	local_irq_restore(flags);
 	return true;
 }
 
@@ -399,9 +468,14 @@ static void time_travel_oneshot_timer(struct time_travel_event *e)
 	deliver_alarm();
 }
 
-void time_travel_sleep(unsigned long long duration)
+void time_travel_sleep(void)
 {
-	unsigned long long next = time_travel_time + duration;
+	/*
+	 * Wait "forever" (using S64_MAX because there are some potential
+	 * wrapping issues, especially with the current TT_MODE_EXTERNAL
+	 * controller application.
+	 */
+	unsigned long long next = S64_MAX;
 
 	if (time_travel_mode == TT_MODE_BASIC)
 		os_timer_disable();
@@ -474,10 +548,36 @@ invalid_number:
 
 	return 1;
 }
+
+static void time_travel_set_start(void)
+{
+	if (time_travel_start_set)
+		return;
+
+	switch (time_travel_mode) {
+	case TT_MODE_EXTERNAL:
+		time_travel_start = time_travel_ext_req(UM_TIMETRAVEL_GET_TOD, -1);
+		/* controller gave us the *current* time, so adjust by that */
+		time_travel_ext_get_time();
+		time_travel_start -= time_travel_time;
+		break;
+	case TT_MODE_INFCPU:
+	case TT_MODE_BASIC:
+		if (!time_travel_start_set)
+			time_travel_start = os_persistent_clock_emulation();
+		break;
+	case TT_MODE_OFF:
+		/* we just read the host clock with os_persistent_clock_emulation() */
+		break;
+	}
+
+	time_travel_start_set = true;
+}
 #else /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 #define time_travel_start_set 0
 #define time_travel_start 0
 #define time_travel_time 0
+#define time_travel_ext_waiting 0
 
 static inline void time_travel_update_time(unsigned long long ns, bool retearly)
 {
@@ -491,11 +591,17 @@ static void time_travel_set_interval(unsigned long long interval)
 {
 }
 
+static inline void time_travel_set_start(void)
+{
+}
+
 /* fail link if this actually gets used */
 extern u64 time_travel_ext_req(u32 op, u64 time);
 
 /* these are empty macros so the struct/fn need not exist */
 #define time_travel_add_event(e, time) do { } while (0)
+/* externally not usable - redefine here so we can */
+#undef time_travel_del_event
 #define time_travel_del_event(e) do { } while (0)
 #endif
 
@@ -623,7 +729,8 @@ static u64 timer_read(struct clocksource *cs)
 		 * "what do I do next" and onstack event we use to know when
 		 * to return from time_travel_update_time().
 		 */
-		if (!irqs_disabled() && !in_interrupt() && !in_softirq())
+		if (!irqs_disabled() && !in_interrupt() && !in_softirq() &&
+		    !time_travel_ext_waiting)
 			time_travel_update_time(time_travel_time +
 						TIMER_MULTIPLIER,
 						false);
@@ -668,10 +775,10 @@ void read_persistent_clock64(struct timespec64 *ts)
 {
 	long long nsecs;
 
-	if (time_travel_start_set)
+	time_travel_set_start();
+
+	if (time_travel_mode != TT_MODE_OFF)
 		nsecs = time_travel_start + time_travel_time;
-	else if (time_travel_mode == TT_MODE_EXTERNAL)
-		nsecs = time_travel_ext_req(UM_TIMETRAVEL_GET_TOD, -1);
 	else
 		nsecs = os_persistent_clock_emulation();
 

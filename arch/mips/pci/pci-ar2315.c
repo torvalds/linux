@@ -423,9 +423,8 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	apc->irq = irq;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "ar2315-pci-ctrl");
-	apc->mmr_mem = devm_ioremap_resource(dev, res);
+	apc->mmr_mem = devm_platform_ioremap_resource_byname(pdev,
+							     "ar2315-pci-ctrl");
 	if (IS_ERR(apc->mmr_mem))
 		return PTR_ERR(apc->mmr_mem);
 
@@ -484,11 +483,11 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 	apc->io_res.name = "AR2315 IO space";
 	apc->io_res.start = 0;
 	apc->io_res.end = 0;
-	apc->io_res.flags = IORESOURCE_IO,
+	apc->io_res.flags = IORESOURCE_IO;
 
 	apc->pci_ctrl.pci_ops = &ar2315_pci_ops;
-	apc->pci_ctrl.mem_resource = &apc->mem_res,
-	apc->pci_ctrl.io_resource = &apc->io_res,
+	apc->pci_ctrl.mem_resource = &apc->mem_res;
+	apc->pci_ctrl.io_resource = &apc->io_res;
 
 	register_pci_controller(&apc->pci_ctrl);
 

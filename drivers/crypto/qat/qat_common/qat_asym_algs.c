@@ -201,12 +201,7 @@ static unsigned long qat_dh_fn_id(unsigned int len, bool g2)
 		return g2 ? PKE_DH_G2_4096 : PKE_DH_4096;
 	default:
 		return 0;
-	};
-}
-
-static inline struct qat_dh_ctx *qat_dh_get_params(struct crypto_kpp *tfm)
-{
-	return kpp_tfm_ctx(tfm);
+	}
 }
 
 static int qat_dh_compute_value(struct kpp_request *req)
@@ -326,13 +321,13 @@ static int qat_dh_compute_value(struct kpp_request *req)
 	qat_req->out.dh.out_tab[1] = 0;
 	/* Mapping in.in.b or in.in_g2.xa is the same */
 	qat_req->phy_in = dma_map_single(dev, &qat_req->in.dh.in.b,
-					 sizeof(struct qat_dh_input_params),
+					 sizeof(qat_req->in.dh.in.b),
 					 DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, qat_req->phy_in)))
 		goto unmap_dst;
 
 	qat_req->phy_out = dma_map_single(dev, &qat_req->out.dh.r,
-					  sizeof(struct qat_dh_output_params),
+					  sizeof(qat_req->out.dh.r),
 					  DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, qat_req->phy_out)))
 		goto unmap_in_params;
@@ -577,7 +572,7 @@ static unsigned long qat_rsa_enc_fn_id(unsigned int len)
 		return PKE_RSA_EP_4096;
 	default:
 		return 0;
-	};
+	}
 }
 
 #define PKE_RSA_DP1_512 0x1c161b3c
@@ -606,7 +601,7 @@ static unsigned long qat_rsa_dec_fn_id(unsigned int len)
 		return PKE_RSA_DP1_4096;
 	default:
 		return 0;
-	};
+	}
 }
 
 #define PKE_RSA_DP2_512 0x1c131b57
@@ -635,7 +630,7 @@ static unsigned long qat_rsa_dec_fn_id_crt(unsigned int len)
 		return PKE_RSA_DP2_4096;
 	default:
 		return 0;
-	};
+	}
 }
 
 static int qat_rsa_enc(struct akcipher_request *req)
@@ -721,13 +716,13 @@ static int qat_rsa_enc(struct akcipher_request *req)
 	qat_req->in.rsa.in_tab[3] = 0;
 	qat_req->out.rsa.out_tab[1] = 0;
 	qat_req->phy_in = dma_map_single(dev, &qat_req->in.rsa.enc.m,
-					 sizeof(struct qat_rsa_input_params),
+					 sizeof(qat_req->in.rsa.enc.m),
 					 DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, qat_req->phy_in)))
 		goto unmap_dst;
 
 	qat_req->phy_out = dma_map_single(dev, &qat_req->out.rsa.enc.c,
-					  sizeof(struct qat_rsa_output_params),
+					  sizeof(qat_req->out.rsa.enc.c),
 					  DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, qat_req->phy_out)))
 		goto unmap_in_params;
@@ -869,13 +864,13 @@ static int qat_rsa_dec(struct akcipher_request *req)
 		qat_req->in.rsa.in_tab[3] = 0;
 	qat_req->out.rsa.out_tab[1] = 0;
 	qat_req->phy_in = dma_map_single(dev, &qat_req->in.rsa.dec.c,
-					 sizeof(struct qat_rsa_input_params),
+					 sizeof(qat_req->in.rsa.dec.c),
 					 DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, qat_req->phy_in)))
 		goto unmap_dst;
 
 	qat_req->phy_out = dma_map_single(dev, &qat_req->out.rsa.dec.m,
-					  sizeof(struct qat_rsa_output_params),
+					  sizeof(qat_req->out.rsa.dec.m),
 					  DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, qat_req->phy_out)))
 		goto unmap_in_params;

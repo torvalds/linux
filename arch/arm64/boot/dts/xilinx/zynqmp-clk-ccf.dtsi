@@ -10,35 +10,30 @@
 #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
 / {
 	pss_ref_clk: pss_ref_clk {
-		u-boot,dm-pre-reloc;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <33333333>;
 	};
 
 	video_clk: video_clk {
-		u-boot,dm-pre-reloc;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
 	};
 
 	pss_alt_ref_clk: pss_alt_ref_clk {
-		u-boot,dm-pre-reloc;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
 	};
 
 	gt_crx_ref_clk: gt_crx_ref_clk {
-		u-boot,dm-pre-reloc;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <108000000>;
 	};
 
 	aux_ref_clk: aux_ref_clk {
-		u-boot,dm-pre-reloc;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
@@ -121,6 +116,10 @@
 	clocks = <&zynqmp_clk ADMA_REF>, <&zynqmp_clk LPD_LSBUS>;
 };
 
+&nand0 {
+	clocks = <&zynqmp_clk NAND_REF>, <&zynqmp_clk LPD_LSBUS>;
+};
+
 &gem0 {
 	clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM0_REF>,
 		 <&zynqmp_clk GEM0_TX>, <&zynqmp_clk GEM0_RX>,
@@ -163,6 +162,10 @@
 
 &pcie {
 	clocks = <&zynqmp_clk PCIE_REF>;
+};
+
+&qspi {
+	clocks = <&zynqmp_clk QSPI_REF>, <&zynqmp_clk LPD_LSBUS>;
 };
 
 &sata {
@@ -219,4 +222,18 @@
 
 &watchdog0 {
 	clocks = <&zynqmp_clk WDT>;
+};
+
+&lpd_watchdog {
+	clocks = <&zynqmp_clk LPD_WDT>;
+};
+
+&zynqmp_dpdma {
+	clocks = <&zynqmp_clk DPDMA_REF>;
+};
+
+&zynqmp_dpsub {
+	clocks = <&zynqmp_clk TOPSW_LSBUS>,
+		 <&zynqmp_clk DP_AUDIO_REF>,
+		 <&zynqmp_clk DP_VIDEO_REF>;
 };

@@ -116,6 +116,12 @@ struct ath11k_generic_iter {
 
 #define ATH11K_CHAN_WIDTH_NUM			8
 
+#define ATH11K_OBSS_PD_MAX_THRESHOLD			-82
+#define ATH11K_OBSS_PD_NON_SRG_MAX_THRESHOLD		-62
+#define ATH11K_OBSS_PD_THRESHOLD_IN_DBM			BIT(29)
+#define ATH11K_OBSS_PD_SRG_EN				BIT(30)
+#define ATH11K_OBSS_PD_NON_SRG_EN			BIT(31)
+
 extern const struct htt_rx_ring_tlv_filter ath11k_mac_mon_status_filter_default;
 
 void ath11k_mac_destroy(struct ath11k_base *ab);
@@ -137,8 +143,6 @@ struct ath11k_vif *ath11k_mac_get_arvif_by_vdev_id(struct ath11k_base *ab,
 						   u32 vdev_id);
 struct ath11k *ath11k_mac_get_ar_by_vdev_id(struct ath11k_base *ab, u32 vdev_id);
 struct ath11k *ath11k_mac_get_ar_by_pdev_id(struct ath11k_base *ab, u32 pdev_id);
-struct ath11k *ath11k_mac_get_ar_vdev_stop_status(struct ath11k_base *ab,
-						  u32 vdev_id);
 
 void ath11k_mac_drain_tx(struct ath11k *ar);
 void ath11k_mac_peer_cleanup_all(struct ath11k *ar);

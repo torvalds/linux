@@ -90,6 +90,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = true,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA988X_HW_2_0_VERSION,
@@ -119,12 +120,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = true,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -155,12 +156,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -191,6 +192,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.tx_stats_over_pktlog = false,
 		.bmi_large_size_download = true,
 		.supports_peer_stats_info = true,
+		.dynamic_sar_support = true,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -220,12 +222,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -255,12 +257,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -290,12 +292,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -328,12 +330,13 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = true,
 		.tx_stats_over_pktlog = false,
+		.supports_peer_stats_info = true,
+		.dynamic_sar_support = true,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -369,12 +372,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -417,12 +420,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -462,12 +465,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -497,12 +500,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -534,12 +537,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = true,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -567,6 +570,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.ast_skid_limit = 0x10,
 		.num_wds_entries = 0x20,
 		.uart_pin_workaround = true,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -603,12 +607,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = 0x20,
 		.target_64bit = false,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
-		.per_ce_irq = false,
 		.shadow_reg_support = false,
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = false,
 	},
 	{
 		.id = WCN3990_HW_1_0_DEV_VERSION,
@@ -631,12 +635,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.num_wds_entries = TARGET_HL_TLV_NUM_WDS_ENTRIES,
 		.target_64bit = true,
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL_DUAL_MAC,
-		.per_ce_irq = true,
 		.shadow_reg_support = true,
 		.rri_on_ddr = true,
 		.hw_filter_reset_required = false,
 		.fw_diag_ce_download = false,
 		.tx_stats_over_pktlog = false,
+		.dynamic_sar_support = true,
 	},
 };
 
@@ -663,6 +667,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_NON_BMI] = "non-bmi",
 	[ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL] = "single-chan-info-per-channel",
 	[ATH10K_FW_FEATURE_PEER_FIXED_RATE] = "peer-fixed-rate",
+	[ATH10K_FW_FEATURE_IRAM_RECOVERY] = "iram-recovery",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
@@ -737,6 +742,16 @@ static int ath10k_init_sdio(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
 
 	ret = ath10k_bmi_write32(ar, hi_acs_flags, param);
+	if (ret)
+		return ret;
+
+	ret = ath10k_bmi_read32(ar, hi_option_flag2, &param);
+	if (ret)
+		return ret;
+
+	param |= HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_HOST;
+
+	ret = ath10k_bmi_write32(ar, hi_option_flag2, param);
 	if (ret)
 		return ret;
 
@@ -1024,7 +1039,7 @@ static int ath10k_core_check_smbios(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_core_check_dt(struct ath10k *ar)
+int ath10k_core_check_dt(struct ath10k *ar)
 {
 	struct device_node *node;
 	const char *variant = NULL;
@@ -1045,6 +1060,7 @@ static int ath10k_core_check_dt(struct ath10k *ar)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_core_check_dt);
 
 static int ath10k_download_fw(struct ath10k *ar)
 {
@@ -1350,7 +1366,8 @@ out:
 
 static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 					      const char *boardname,
-					      const char *fallback_boardname,
+					      const char *fallback_boardname1,
+					      const char *fallback_boardname2,
 					      const char *filename)
 {
 	size_t len, magic_len;
@@ -1399,8 +1416,11 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	ret = ath10k_core_search_bd(ar, boardname, data, len);
 
 	/* if we didn't find it and have a fallback name, try that */
-	if (ret == -ENOENT && fallback_boardname)
-		ret = ath10k_core_search_bd(ar, fallback_boardname, data, len);
+	if (ret == -ENOENT && fallback_boardname1)
+		ret = ath10k_core_search_bd(ar, fallback_boardname1, data, len);
+
+	if (ret == -ENOENT && fallback_boardname2)
+		ret = ath10k_core_search_bd(ar, fallback_boardname2, data, len);
 
 	if (ret == -ENOENT) {
 		ath10k_err(ar,
@@ -1420,7 +1440,8 @@ err:
 }
 
 static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
-					 size_t name_len, bool with_variant)
+					 size_t name_len, bool with_variant,
+					 bool with_chip_id)
 {
 	/* strlen(',variant=') + strlen(ar->id.bdf_ext) */
 	char variant[9 + ATH10K_SMBIOS_BDF_EXT_STR_LENGTH] = { 0 };
@@ -1439,10 +1460,17 @@ static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 	}
 
 	if (ar->id.qmi_ids_valid) {
-		scnprintf(name, name_len,
-			  "bus=%s,qmi-board-id=%x",
-			  ath10k_bus_str(ar->hif.bus),
-			  ar->id.qmi_board_id);
+		if (with_chip_id)
+			scnprintf(name, name_len,
+				  "bus=%s,qmi-board-id=%x,qmi-chip-id=%x%s",
+				  ath10k_bus_str(ar->hif.bus),
+				  ar->id.qmi_board_id, ar->id.qmi_chip_id,
+				  variant);
+		else
+			scnprintf(name, name_len,
+				  "bus=%s,qmi-board-id=%x",
+				  ath10k_bus_str(ar->hif.bus),
+				  ar->id.qmi_board_id);
 		goto out;
 	}
 
@@ -1476,21 +1504,36 @@ static int ath10k_core_create_eboard_name(struct ath10k *ar, char *name,
 
 int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type)
 {
-	char boardname[100], fallback_boardname[100];
+	char boardname[100], fallback_boardname1[100], fallback_boardname2[100];
 	int ret;
 
 	if (bd_ie_type == ATH10K_BD_IE_BOARD) {
+		/* With variant and chip id */
 		ret = ath10k_core_create_board_name(ar, boardname,
-						    sizeof(boardname), true);
+						    sizeof(boardname), true,
+						    true);
 		if (ret) {
 			ath10k_err(ar, "failed to create board name: %d", ret);
 			return ret;
 		}
 
-		ret = ath10k_core_create_board_name(ar, fallback_boardname,
-						    sizeof(boardname), false);
+		/* Without variant and only chip-id */
+		ret = ath10k_core_create_board_name(ar, fallback_boardname1,
+						    sizeof(boardname), false,
+						    true);
 		if (ret) {
-			ath10k_err(ar, "failed to create fallback board name: %d", ret);
+			ath10k_err(ar, "failed to create 1st fallback board name: %d",
+				   ret);
+			return ret;
+		}
+
+		/* Without variant and without chip-id */
+		ret = ath10k_core_create_board_name(ar, fallback_boardname2,
+						    sizeof(boardname), false,
+						    false);
+		if (ret) {
+			ath10k_err(ar, "failed to create 2nd fallback board name: %d",
+				   ret);
 			return ret;
 		}
 	} else if (bd_ie_type == ATH10K_BD_IE_BOARD_EXT) {
@@ -1504,7 +1547,8 @@ int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type)
 
 	ar->bd_api = 2;
 	ret = ath10k_core_fetch_board_data_api_n(ar, boardname,
-						 fallback_boardname,
+						 fallback_boardname1,
+						 fallback_boardname2,
 						 ATH10K_BOARD_API2_FILE);
 	if (!ret)
 		goto success;
@@ -2266,6 +2310,42 @@ static int ath10k_init_hw_params(struct ath10k *ar)
 	return 0;
 }
 
+void ath10k_core_start_recovery(struct ath10k *ar)
+{
+	if (test_and_set_bit(ATH10K_FLAG_RESTARTING, &ar->dev_flags)) {
+		ath10k_warn(ar, "already restarting\n");
+		return;
+	}
+
+	queue_work(ar->workqueue, &ar->restart_work);
+}
+EXPORT_SYMBOL(ath10k_core_start_recovery);
+
+void ath10k_core_napi_enable(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (test_bit(ATH10K_FLAG_NAPI_ENABLED, &ar->dev_flags))
+		return;
+
+	napi_enable(&ar->napi);
+	set_bit(ATH10K_FLAG_NAPI_ENABLED, &ar->dev_flags);
+}
+EXPORT_SYMBOL(ath10k_core_napi_enable);
+
+void ath10k_core_napi_sync_disable(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!test_bit(ATH10K_FLAG_NAPI_ENABLED, &ar->dev_flags))
+		return;
+
+	napi_synchronize(&ar->napi);
+	napi_disable(&ar->napi);
+	clear_bit(ATH10K_FLAG_NAPI_ENABLED, &ar->dev_flags);
+}
+EXPORT_SYMBOL(ath10k_core_napi_sync_disable);
+
 static void ath10k_core_restart(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
@@ -2320,7 +2400,7 @@ static void ath10k_core_restart(struct work_struct *work)
 		break;
 	case ATH10K_STATE_RESTARTED:
 		ar->state = ATH10K_STATE_WEDGED;
-		/* fall through */
+		fallthrough;
 	case ATH10K_STATE_WEDGED:
 		ath10k_warn(ar, "device is wedged, will not restart\n");
 		break;
@@ -2598,6 +2678,78 @@ static int ath10k_core_compat_services(struct ath10k *ar)
 	return 0;
 }
 
+#define TGT_IRAM_READ_PER_ITR (8 * 1024)
+
+static int ath10k_core_copy_target_iram(struct ath10k *ar)
+{
+	const struct ath10k_hw_mem_layout *hw_mem;
+	const struct ath10k_mem_region *tmp, *mem_region = NULL;
+	dma_addr_t paddr;
+	void *vaddr = NULL;
+	u8 num_read_itr;
+	int i, ret;
+	u32 len, remaining_len;
+
+	hw_mem = ath10k_coredump_get_mem_layout(ar);
+	if (!hw_mem)
+		return -ENOMEM;
+
+	for (i = 0; i < hw_mem->region_table.size; i++) {
+		tmp = &hw_mem->region_table.regions[i];
+		if (tmp->type == ATH10K_MEM_REGION_TYPE_REG) {
+			mem_region = tmp;
+			break;
+		}
+	}
+
+	if (!mem_region)
+		return -ENOMEM;
+
+	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
+		if (ar->wmi.mem_chunks[i].req_id ==
+		    WMI_IRAM_RECOVERY_HOST_MEM_REQ_ID) {
+			vaddr = ar->wmi.mem_chunks[i].vaddr;
+			len = ar->wmi.mem_chunks[i].len;
+			break;
+		}
+	}
+
+	if (!vaddr || !len) {
+		ath10k_warn(ar, "No allocated memory for IRAM back up");
+		return -ENOMEM;
+	}
+
+	len = (len < mem_region->len) ? len : mem_region->len;
+	paddr = mem_region->start;
+	num_read_itr = len / TGT_IRAM_READ_PER_ITR;
+	remaining_len = len % TGT_IRAM_READ_PER_ITR;
+	for (i = 0; i < num_read_itr; i++) {
+		ret = ath10k_hif_diag_read(ar, paddr, vaddr,
+					   TGT_IRAM_READ_PER_ITR);
+		if (ret) {
+			ath10k_warn(ar, "failed to copy firmware IRAM contents: %d",
+				    ret);
+			return ret;
+		}
+
+		paddr += TGT_IRAM_READ_PER_ITR;
+		vaddr += TGT_IRAM_READ_PER_ITR;
+	}
+
+	if (remaining_len) {
+		ret = ath10k_hif_diag_read(ar, paddr, vaddr, remaining_len);
+		if (ret) {
+			ath10k_warn(ar, "failed to copy firmware IRAM contents: %d",
+				    ret);
+			return ret;
+		}
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "target IRAM back up completed\n");
+
+	return 0;
+}
+
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw)
 {
@@ -2614,6 +2766,13 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      ar->running_fw->fw_file.fw_features)) {
 		ath10k_bmi_start(ar);
 
+		/* Enable hardware clock to speed up firmware download */
+		if (ar->hw_params.hw_ops->enable_pll_clk) {
+			status = ar->hw_params.hw_ops->enable_pll_clk(ar);
+			ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot enable pll ret %d\n",
+				   status);
+		}
+
 		if (ath10k_init_configure_target(ar)) {
 			status = -EINVAL;
 			goto err;
@@ -2623,7 +2782,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		if (status)
 			goto err;
 
-		/* Some of of qca988x solutions are having global reset issue
+		/* Some of qca988x solutions are having global reset issue
 		 * during target initialization. Bypassing PLL setting before
 		 * downloading firmware and letting the SoC run on REF_CLK is
 		 * fixing the problem. Corresponding firmware change is also
@@ -2752,6 +2911,16 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "firmware %s booted\n",
 		   ar->hw->wiphy->fw_version);
 
+	if (test_bit(ATH10K_FW_FEATURE_IRAM_RECOVERY,
+		     ar->running_fw->fw_file.fw_features)) {
+		status = ath10k_core_copy_target_iram(ar);
+		if (status) {
+			ath10k_warn(ar, "failed to copy target iram contents: %d",
+				    status);
+			goto err_hif_stop;
+		}
+	}
+
 	if (test_bit(WMI_SERVICE_EXT_RES_CFG_SUPPORT, ar->wmi.svc_map) &&
 	    mode == ATH10K_FIRMWARE_MODE_NORMAL) {
 		val = 0;
@@ -2796,6 +2965,10 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 
 		if (test_bit(WMI_SERVICE_REPORT_AIRTIME, ar->wmi.svc_map))
 			val |= WMI_10_4_REPORT_AIRTIME;
+
+		if (test_bit(WMI_SERVICE_EXT_PEER_TID_CONFIGS_SUPPORT,
+			     ar->wmi.svc_map))
+			val |= WMI_10_4_EXT_PEER_TID_CONFIGS_SUPPORT;
 
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {

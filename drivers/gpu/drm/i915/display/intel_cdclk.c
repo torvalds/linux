@@ -1233,6 +1233,30 @@ static const struct intel_cdclk_vals icl_cdclk_table[] = {
 	{}
 };
 
+static const struct intel_cdclk_vals rkl_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk = 172800, .divider = 4, .ratio =  36 },
+	{ .refclk = 19200, .cdclk = 192000, .divider = 4, .ratio =  40 },
+	{ .refclk = 19200, .cdclk = 307200, .divider = 4, .ratio =  64 },
+	{ .refclk = 19200, .cdclk = 326400, .divider = 8, .ratio = 136 },
+	{ .refclk = 19200, .cdclk = 556800, .divider = 4, .ratio = 116 },
+	{ .refclk = 19200, .cdclk = 652800, .divider = 4, .ratio = 136 },
+
+	{ .refclk = 24000, .cdclk = 180000, .divider = 4, .ratio =  30 },
+	{ .refclk = 24000, .cdclk = 192000, .divider = 4, .ratio =  32 },
+	{ .refclk = 24000, .cdclk = 312000, .divider = 4, .ratio =  52 },
+	{ .refclk = 24000, .cdclk = 324000, .divider = 8, .ratio = 108 },
+	{ .refclk = 24000, .cdclk = 552000, .divider = 4, .ratio =  92 },
+	{ .refclk = 24000, .cdclk = 648000, .divider = 4, .ratio = 108 },
+
+	{ .refclk = 38400, .cdclk = 172800, .divider = 4, .ratio = 18 },
+	{ .refclk = 38400, .cdclk = 192000, .divider = 4, .ratio = 20 },
+	{ .refclk = 38400, .cdclk = 307200, .divider = 4, .ratio = 32 },
+	{ .refclk = 38400, .cdclk = 326400, .divider = 8, .ratio = 68 },
+	{ .refclk = 38400, .cdclk = 556800, .divider = 4, .ratio = 58 },
+	{ .refclk = 38400, .cdclk = 652800, .divider = 4, .ratio = 68 },
+	{}
+};
+
 static int bxt_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 {
 	const struct intel_cdclk_vals *table = dev_priv->cdclk.table;
@@ -2391,8 +2415,7 @@ static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 
-		ret = drm_atomic_add_affected_planes(&state->base,
-						     &crtc->base);
+		ret = intel_atomic_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
 
@@ -2588,7 +2611,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 {
-	if (IS_ELKHARTLAKE(dev_priv)) {
+	if (IS_JSL_EHL(dev_priv)) {
 		if (dev_priv->cdclk.hw.ref == 24000)
 			dev_priv->max_cdclk_freq = 552000;
 		else
@@ -2678,6 +2701,18 @@ void intel_update_cdclk(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_de_write(dev_priv, GMBUSFREQ_VLV,
 			       DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
+}
+
+static int dg1_rawclk(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * DG1 always uses a 38.4 MHz rawclk.  The bspec tells us
+	 * "Program Numerator=2, Denominator=4, Divider=37 decimal."
+	 */
+	intel_de_write(dev_priv, PCH_RAWCLK_FREQ,
+		       CNP_RAWCLK_DEN(4) | CNP_RAWCLK_DIV(37) | ICP_RAWCLK_NUM(2));
+
+	return 38400;
 }
 
 static int cnp_rawclk(struct drm_i915_private *dev_priv)
@@ -2788,7 +2823,9 @@ u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
 {
 	u32 freq;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+		freq = dg1_rawclk(dev_priv);
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		freq = cnp_rawclk(dev_priv);
 	else if (HAS_PCH_SPLIT(dev_priv))
 		freq = pch_rawclk(dev_priv);
@@ -2809,13 +2846,19 @@ u32 intel_read_rawclk(struct drm_i915_private *dev_priv)
  */
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (IS_ROCKETLAKE(dev_priv)) {
+		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
+		dev_priv->cdclk.table = rkl_cdclk_table;
+	} else if (INTEL_GEN(dev_priv) >= 12) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = tgl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
-	} else if (IS_ELKHARTLAKE(dev_priv)) {
+	} else if (IS_JSL_EHL(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;

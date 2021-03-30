@@ -58,6 +58,8 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_i2c.h"
 
+#include "dce100_resource.h"
+
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
 #include "gmc/gmc_8_2_d.h"
 #include "gmc/gmc_8_2_sh_mask.h"
@@ -385,7 +387,7 @@ static const struct dc_plane_cap plane_cap = {
 	.pixel_format_support = {
 			.argb8888 = true,
 			.nv12 = false,
-			.fp16 = false
+			.fp16 = true
 	},
 
 	.max_upscale_factor = {
@@ -418,25 +420,18 @@ static int map_transmitter_id_to_phy_instance(
 	switch (transmitter) {
 	case TRANSMITTER_UNIPHY_A:
 		return 0;
-	break;
 	case TRANSMITTER_UNIPHY_B:
 		return 1;
-	break;
 	case TRANSMITTER_UNIPHY_C:
 		return 2;
-	break;
 	case TRANSMITTER_UNIPHY_D:
 		return 3;
-	break;
 	case TRANSMITTER_UNIPHY_E:
 		return 4;
-	break;
 	case TRANSMITTER_UNIPHY_F:
 		return 5;
-	break;
 	case TRANSMITTER_UNIPHY_G:
 		return 6;
-	break;
 	default:
 		ASSERT(0);
 		return 0;
@@ -618,7 +613,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_TPS3_CAPABLE = true
 };
 
-struct link_encoder *dce100_link_encoder_create(
+static struct link_encoder *dce100_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
@@ -657,7 +652,7 @@ static struct panel_cntl *dce100_panel_cntl_create(const struct panel_cntl_init_
 	return &panel_cntl->base;
 }
 
-struct output_pixel_processor *dce100_opp_create(
+static struct output_pixel_processor *dce100_opp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -672,7 +667,7 @@ struct output_pixel_processor *dce100_opp_create(
 	return &opp->base;
 }
 
-struct dce_aux *dce100_aux_engine_create(
+static struct dce_aux *dce100_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -710,7 +705,7 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
-struct dce_i2c_hw *dce100_i2c_hw_create(
+static struct dce_i2c_hw *dce100_i2c_hw_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -725,7 +720,7 @@ struct dce_i2c_hw *dce100_i2c_hw_create(
 
 	return dce_i2c_hw;
 }
-struct clock_source *dce100_clock_source_create(
+static struct clock_source *dce100_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -749,7 +744,7 @@ struct clock_source *dce100_clock_source_create(
 	return NULL;
 }
 
-void dce100_clock_source_destroy(struct clock_source **clk_src)
+static void dce100_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
@@ -838,7 +833,7 @@ static enum dc_status build_mapped_resource(
 	return DC_OK;
 }
 
-bool dce100_validate_bandwidth(
+static bool dce100_validate_bandwidth(
 	struct dc  *dc,
 	struct dc_state *context,
 	bool fast_validate)
@@ -883,7 +878,7 @@ static bool dce100_validate_surface_sets(
 	return true;
 }
 
-enum dc_status dce100_validate_global(
+static enum dc_status dce100_validate_global(
 		struct dc  *dc,
 		struct dc_state *context)
 {
@@ -1071,7 +1066,9 @@ static bool dce100_resource_construct(
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
+	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.disable_dp_clk_share = true;
 	dc->caps.extended_aux_timeout_support = false;

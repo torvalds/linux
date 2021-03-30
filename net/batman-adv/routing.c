@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -29,7 +29,6 @@
 #include "distributed-arp-table.h"
 #include "fragmentation.h"
 #include "hard-interface.h"
-#include "icmp_socket.h"
 #include "log.h"
 #include "network-coding.h"
 #include "originator.h"
@@ -227,15 +226,6 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 	icmph = (struct batadv_icmp_header *)skb->data;
 
 	switch (icmph->msg_type) {
-	case BATADV_ECHO_REPLY:
-	case BATADV_DESTINATION_UNREACHABLE:
-	case BATADV_TTL_EXCEEDED:
-		/* receive the packet */
-		if (skb_linearize(skb) < 0)
-			break;
-
-		batadv_socket_receive_packet(icmph, skb->len);
-		break;
 	case BATADV_ECHO_REQUEST:
 		/* answer echo request (ping) */
 		primary_if = batadv_primary_if_get_selected(bat_priv);

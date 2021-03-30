@@ -8,7 +8,7 @@
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "ACPI: battery: " fmt
 
 #include <linux/async.h>
 #include <linux/delay.h>
@@ -29,8 +29,6 @@
 
 #include <acpi/battery.h>
 
-#define PREFIX "ACPI: "
-
 #define ACPI_BATTERY_VALUE_UNKNOWN 0xFFFFFFFF
 #define ACPI_BATTERY_CAPACITY_VALID(capacity) \
 	((capacity) != 0 && (capacity) != ACPI_BATTERY_VALUE_UNKNOWN)
@@ -43,10 +41,6 @@
 #define ACPI_BATTERY_STATE_DISCHARGING	0x1
 #define ACPI_BATTERY_STATE_CHARGING	0x2
 #define ACPI_BATTERY_STATE_CRITICAL	0x4
-
-#define _COMPONENT		ACPI_BATTERY_COMPONENT
-
-ACPI_MODULE_NAME("battery");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
@@ -466,7 +460,8 @@ static int extract_package(struct acpi_battery *battery,
 static int acpi_battery_get_status(struct acpi_battery *battery)
 {
 	if (acpi_bus_get_status(battery->device)) {
-		ACPI_EXCEPTION((AE_INFO, AE_ERROR, "Evaluating _STA"));
+		acpi_handle_info(battery->device->handle,
+				 "_STA evaluation failed\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -535,8 +530,10 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 		mutex_unlock(&battery->lock);
 
 		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status, "Evaluating %s",
-					use_bix ? "_BIX":"_BIF"));
+			acpi_handle_info(battery->device->handle,
+					 "%s evaluation failed: %s\n",
+					 use_bix ?"_BIX":"_BIF",
+				         acpi_format_exception(status));
 		} else {
 			result = extract_battery_info(use_bix,
 						      battery,
@@ -573,7 +570,9 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 	mutex_unlock(&battery->lock);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BST"));
+		acpi_handle_info(battery->device->handle,
+				 "_BST evaluation failed: %s",
+				 acpi_format_exception(status));
 		return -ENODEV;
 	}
 
@@ -590,7 +589,7 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 		battery->rate_now != ACPI_BATTERY_VALUE_UNKNOWN &&
 		(s16)(battery->rate_now) < 0) {
 		battery->rate_now = abs((s16)battery->rate_now);
-		pr_warn_once(FW_BUG "battery: (dis)charge rate invalid.\n");
+		pr_warn_once(FW_BUG "(dis)charge rate invalid.\n");
 	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
@@ -625,7 +624,9 @@ static int acpi_battery_set_alarm(struct acpi_battery *battery)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Alarm set to %d\n", battery->alarm));
+	acpi_handle_debug(battery->device->handle, "Alarm set to %d\n",
+			  battery->alarm);
+
 	return 0;
 }
 
@@ -987,7 +988,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	 */
 	if ((battery->state & ACPI_BATTERY_STATE_CRITICAL) ||
 	    (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
-            (battery->capacity_now <= battery->alarm)))
+	     (battery->capacity_now <= battery->alarm)))
 		acpi_pm_wakeup_event(&battery->device->dev);
 
 	return result;
@@ -1201,8 +1202,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (result)
 		goto fail;
 
-	pr_info(PREFIX "%s Slot [%s] (battery %s)\n",
-		ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
+	pr_info("Slot [%s] (battery %s)\n", acpi_device_bid(device),
 		device->status.battery_present ? "present" : "absent");
 
 	battery->pm_nb.notifier_call = battery_notify;
@@ -1282,8 +1282,7 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	if (battery_check_pmic) {
 		for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
 			if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
-				pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
-					": found native %s PMIC, not loading\n",
+				pr_info("found native %s PMIC, not loading\n",
 					acpi_battery_blacklist[i]);
 				return;
 			}

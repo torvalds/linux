@@ -113,6 +113,8 @@
 &ap_sdhci0 {
 	pinctrl-names = "default";
 	bus-width = <8>;
+	mmc-ddr-1_8v;
+	mmc-hs400-1_8v;
 	vqmmc-supply = <&ap0_reg_sd_vccq>;
 	status = "okay";
 };

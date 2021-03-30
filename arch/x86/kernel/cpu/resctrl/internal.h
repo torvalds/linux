@@ -264,7 +264,7 @@ void __exit rdtgroup_exit(void);
 struct rftype {
 	char			*name;
 	umode_t			mode;
-	struct kernfs_ops	*kf_ops;
+	const struct kernfs_ops	*kf_ops;
 	unsigned long		flags;
 	unsigned long		fflags;
 
@@ -360,6 +360,8 @@ struct msr_param {
  *			executing entities
  * @arch_has_sparse_bitmaps:	True if a bitmap like f00f is valid.
  * @arch_has_empty_bitmaps:	True if the '0' bitmap is valid.
+ * @arch_has_per_cpu_cfg:	True if QOS_CFG register for this cache
+ *				level has CPU scope.
  */
 struct rdt_cache {
 	unsigned int	cbm_len;
@@ -369,6 +371,7 @@ struct rdt_cache {
 	unsigned int	shareable_bits;
 	bool		arch_has_sparse_bitmaps;
 	bool		arch_has_empty_bitmaps;
+	bool		arch_has_per_cpu_cfg;
 };
 
 /**
@@ -569,6 +572,7 @@ union cpuid_0x10_x_edx {
 
 void rdt_last_cmd_clear(void);
 void rdt_last_cmd_puts(const char *s);
+__printf(1, 2)
 void rdt_last_cmd_printf(const char *fmt, ...);
 
 void rdt_ctrl_update(void *arg);
@@ -616,6 +620,7 @@ void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 void mbm_setup_overflow_handler(struct rdt_domain *dom,
 				unsigned long delay_ms);
 void mbm_handle_overflow(struct work_struct *work);
+void __init intel_rdt_mbm_apply_quirk(void);
 bool is_mba_sc(struct rdt_resource *r);
 void setup_default_ctrlval(struct rdt_resource *r, u32 *dc, u32 *dm);
 u32 delay_bw_map(unsigned long bw, struct rdt_resource *r);

@@ -38,42 +38,6 @@
 #define DRIVER_MINOR 0
 #define DRIVER_PATCHLEVEL 0
 
-#ifdef CONFIG_PM
-static int v3d_runtime_suspend(struct device *dev)
-{
-	struct drm_device *drm = dev_get_drvdata(dev);
-	struct v3d_dev *v3d = to_v3d_dev(drm);
-
-	v3d_irq_disable(v3d);
-
-	clk_disable_unprepare(v3d->clk);
-
-	return 0;
-}
-
-static int v3d_runtime_resume(struct device *dev)
-{
-	struct drm_device *drm = dev_get_drvdata(dev);
-	struct v3d_dev *v3d = to_v3d_dev(drm);
-	int ret;
-
-	ret = clk_prepare_enable(v3d->clk);
-	if (ret != 0)
-		return ret;
-
-	/* XXX: VPM base */
-
-	v3d_mmu_set_page_table(v3d);
-	v3d_irq_enable(v3d);
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops v3d_v3d_pm_ops = {
-	SET_RUNTIME_PM_OPS(v3d_runtime_suspend, v3d_runtime_resume, NULL)
-};
-
 static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
 {
@@ -194,7 +158,7 @@ static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_CSD, v3d_submit_csd_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
 };
 
-static struct drm_driver v3d_drm_driver = {
+static const struct drm_driver v3d_drm_driver = {
 	.driver_features = (DRIVER_GEM |
 			    DRIVER_RENDER |
 			    DRIVER_SYNCOBJ),
@@ -268,8 +232,8 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 		return ret;
 
 	mmu_debug = V3D_READ(V3D_MMU_DEBUG_INFO);
-	dev->coherent_dma_mask =
-		DMA_BIT_MASK(30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_PA_WIDTH));
+	dma_set_mask_and_coherent(dev,
+		DMA_BIT_MASK(30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_PA_WIDTH)));
 	v3d->va_width = 30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_VA_WIDTH);
 
 	ident1 = V3D_READ(V3D_HUB_IDENT1);

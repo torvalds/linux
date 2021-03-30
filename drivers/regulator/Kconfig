@@ -122,15 +122,6 @@ config REGULATOR_AAT2870
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  regulator driver.
 
-config REGULATOR_AB3100
-	tristate "ST-Ericsson AB3100 Regulator functions"
-	depends on AB3100_CORE
-	default y if AB3100_CORE
-	help
-	 These regulators correspond to functionality in the
-	 AB3100 analog baseband dealing with power regulators
-	 for the system.
-
 config REGULATOR_AB8500
 	bool "ST-Ericsson AB8500 Power Regulators"
 	depends on AB8500_CORE
@@ -155,6 +146,15 @@ config REGULATOR_ARIZONA_MICSUPP
 	  and Wolfson Microelectronic Arizona codecs
 	  devices.
 
+config REGULATOR_ARM_SCMI
+	tristate "SCMI based regulator driver"
+	depends on ARM_SCMI_PROTOCOL && OF
+	help
+	  This adds the regulator driver support for ARM platforms using SCMI
+	  protocol for device voltage management.
+	  This driver uses SCMI Message Protocol driver to interact with the
+	  firmware providing the device Voltage functionality.
+
 config REGULATOR_AS3711
 	tristate "AS3711 PMIC"
 	depends on MFD_AS3711
@@ -168,6 +168,14 @@ config REGULATOR_AS3722
 	help
 	  This driver provides support for the voltage regulators on the
 	  AS3722 PMIC. This will enable support for all the software
+	  controllable DCDC/LDO regulators.
+
+config REGULATOR_ATC260X
+	tristate "Actions Semi ATC260x PMIC Regulators"
+	depends on MFD_ATC260X
+	help
+	  This driver provides support for the voltage regulators on the
+	  ATC260x PMICs. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
 config REGULATOR_AXP20X
@@ -302,6 +310,26 @@ config REGULATOR_DA9063
 
 	  This driver can also be built as a module. If so, the module
 	  will be called da9063-regulator.
+
+config REGULATOR_DA9121
+	tristate "Dialog Semiconductor DA9121/DA9122/DA9220/DA9217/DA9130/DA9131/DA9132 regulator"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor DA9121.  The
+	  DA9121 is a single channel dual-phase buck converter controlled
+	  through an I2C interface.
+
+	  DA9121 Single-channel dual-phase 10A buck converter
+	  DA9130 Single-channel dual-phase 10A buck converter (Automotive)
+	  DA9217 Single-channel dual-phase  6A buck converter
+	  DA9122 Dual-channel single-phase  5A buck converter
+	  DA9131 Dual-channel single-phase  5A buck converter (Automotive)
+	  DA9220 Dual-channel single-phase  3A buck converter
+	  DA9132 Dual-channel single-phase  3A buck converter (Automotive)
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9121-regulator.
 
 config REGULATOR_DA9210
 	tristate "Dialog Semiconductor DA9210 regulator"
@@ -703,6 +731,16 @@ config REGULATOR_MT6311
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6315
+	tristate "MediaTek MT6315 PMIC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6315 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6323
 	tristate "MediaTek MT6323 PMIC"
 	depends on MFD_MT6397
@@ -748,6 +786,16 @@ config REGULATOR_MT6397
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MTK_DVFSRC
+	tristate "MediaTek DVFSRC regulator driver"
+	depends on MTK_DVFSRC
+	help
+	  Say y here to control regulator by DVFSRC (dynamic voltage
+	  and frequency scaling resource collector).
+	  This driver supports to control regulators via the DVFSRC
+	  of Mediatek. It allows for voting on regulator state
+	  between multiple users.
+
 config REGULATOR_PALMAS
 	tristate "TI Palmas PMIC Regulators"
 	depends on MFD_PALMAS
@@ -791,9 +839,21 @@ config REGULATOR_PCF50633
 	 Say Y here to support the voltage regulators and converters
 	 on PCF50633
 
+config REGULATOR_PF8X00
+	tristate "NXP PF8100/PF8121A/PF8200 regulator driver"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  Say y here to support the regulators found on the NXP
+	  PF8100/PF8121A/PF8200 PMIC.
+
+	  Say M here if you want to support for the regulators found
+	  on the NXP PF8100/PF8121A/PF8200 PMIC. The module will be named
+	  "pf8x00-regulator".
+
 config REGULATOR_PFUZE100
 	tristate "Freescale PFUZE100/200/3000/3001 regulator driver"
-	depends on I2C
+	depends on I2C && OF
 	select REGMAP_I2C
 	help
 	  Say y here to support the regulators found on the Freescale
@@ -843,7 +903,8 @@ config REGULATOR_QCOM_RPM
 
 config REGULATOR_QCOM_RPMH
 	tristate "Qualcomm Technologies, Inc. RPMh regulator driver"
-	depends on QCOM_RPMH || COMPILE_TEST
+	depends on QCOM_RPMH || (QCOM_RPMH=n && COMPILE_TEST)
+	depends on QCOM_COMMAND_DB || (QCOM_COMMAND_DB=n && COMPILE_TEST)
 	help
 	  This driver supports control of PMIC regulators via the RPMh hardware
 	  block found on Qualcomm Technologies Inc. SoCs.  RPMh regulator
@@ -930,6 +991,16 @@ config REGULATOR_RT4801
 	help
 	  This adds support for voltage regulators in Richtek RT4801 Display Bias IC.
 	  The device supports two regulators (DSVP/DSVN).
+
+config REGULATOR_RT4831
+	tristate "Richtek RT4831 DSV Regulators"
+	depends on MFD_RT4831
+	help
+	  This adds support for voltage regulators in Richtek RT4831.
+	  There are three regulators (VLCM/DSVP/DSVN).
+	  VLCM is a virtual voltage input for DSVP/DSVN inside IC.
+	  And DSVP/DSVN is the real Vout range from 4V to 6.5V.
+	  It's common used to provide the power for the display panel.
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"

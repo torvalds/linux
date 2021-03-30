@@ -47,7 +47,4 @@ extern unsigned long txn_affinity_addr(unsigned int irq, int cpu);
 extern int cpu_claim_irq(unsigned int irq, struct irq_chip *, void *);
 extern int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest);
 
-/* soft power switch support (power.c) */
-extern struct tasklet_struct power_tasklet;
-
 #endif	/* _ASM_PARISC_IRQ_H */

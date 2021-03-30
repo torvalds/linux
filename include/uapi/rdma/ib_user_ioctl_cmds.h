@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2020, Intel Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -70,6 +71,8 @@ enum uverbs_methods_device {
 	UVERBS_METHOD_QUERY_PORT,
 	UVERBS_METHOD_GET_CONTEXT,
 	UVERBS_METHOD_QUERY_CONTEXT,
+	UVERBS_METHOD_QUERY_GID_TABLE,
+	UVERBS_METHOD_QUERY_GID_ENTRY,
 };
 
 enum uverbs_attrs_invoke_write_cmd_attr_ids {
@@ -249,6 +252,7 @@ enum uverbs_methods_mr {
 	UVERBS_METHOD_MR_DESTROY,
 	UVERBS_METHOD_ADVISE_MR,
 	UVERBS_METHOD_QUERY_MR,
+	UVERBS_METHOD_REG_DMABUF_MR,
 };
 
 enum uverbs_attrs_mr_destroy_ids {
@@ -268,6 +272,18 @@ enum uverbs_attrs_query_mr_cmd_attr_ids {
 	UVERBS_ATTR_QUERY_MR_RESP_RKEY,
 	UVERBS_ATTR_QUERY_MR_RESP_LENGTH,
 	UVERBS_ATTR_QUERY_MR_RESP_IOVA,
+};
+
+enum uverbs_attrs_reg_dmabuf_mr_cmd_attr_ids {
+	UVERBS_ATTR_REG_DMABUF_MR_HANDLE,
+	UVERBS_ATTR_REG_DMABUF_MR_PD_HANDLE,
+	UVERBS_ATTR_REG_DMABUF_MR_OFFSET,
+	UVERBS_ATTR_REG_DMABUF_MR_LENGTH,
+	UVERBS_ATTR_REG_DMABUF_MR_IOVA,
+	UVERBS_ATTR_REG_DMABUF_MR_FD,
+	UVERBS_ATTR_REG_DMABUF_MR_ACCESS_FLAGS,
+	UVERBS_ATTR_REG_DMABUF_MR_RESP_LKEY,
+	UVERBS_ATTR_REG_DMABUF_MR_RESP_RKEY,
 };
 
 enum uverbs_attrs_create_counters_cmd_attr_ids {
@@ -350,6 +366,20 @@ enum uverbs_method_async_event {
 
 enum uverbs_attrs_async_event_create {
 	UVERBS_ATTR_ASYNC_EVENT_ALLOC_FD_HANDLE,
+};
+
+enum uverbs_attrs_query_gid_table_cmd_attr_ids {
+	UVERBS_ATTR_QUERY_GID_TABLE_ENTRY_SIZE,
+	UVERBS_ATTR_QUERY_GID_TABLE_FLAGS,
+	UVERBS_ATTR_QUERY_GID_TABLE_RESP_ENTRIES,
+	UVERBS_ATTR_QUERY_GID_TABLE_RESP_NUM_ENTRIES,
+};
+
+enum uverbs_attrs_query_gid_entry_cmd_attr_ids {
+	UVERBS_ATTR_QUERY_GID_ENTRY_PORT,
+	UVERBS_ATTR_QUERY_GID_ENTRY_GID_INDEX,
+	UVERBS_ATTR_QUERY_GID_ENTRY_FLAGS,
+	UVERBS_ATTR_QUERY_GID_ENTRY_RESP_ENTRY,
 };
 
 #endif

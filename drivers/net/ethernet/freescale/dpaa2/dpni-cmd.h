@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /* Copyright 2013-2016 Freescale Semiconductor Inc.
  * Copyright 2016 NXP
+ * Copyright 2020 NXP
  */
 #ifndef _FSL_DPNI_CMD_H
 #define _FSL_DPNI_CMD_H
@@ -61,6 +62,10 @@
 
 #define DPNI_CMDID_SET_RX_TC_DIST			DPNI_CMD(0x235)
 
+#define DPNI_CMDID_ENABLE_VLAN_FILTER			DPNI_CMD(0x230)
+#define DPNI_CMDID_ADD_VLAN_ID				DPNI_CMD_V2(0x231)
+#define DPNI_CMDID_REMOVE_VLAN_ID			DPNI_CMD(0x232)
+
 #define DPNI_CMDID_SET_QOS_TBL				DPNI_CMD(0x240)
 #define DPNI_CMDID_ADD_QOS_ENT				DPNI_CMD(0x241)
 #define DPNI_CMDID_REMOVE_QOS_ENT			DPNI_CMD(0x242)
@@ -91,6 +96,9 @@
 #define DPNI_CMDID_SET_RX_FS_DIST			DPNI_CMD(0x273)
 #define DPNI_CMDID_SET_RX_HASH_DIST			DPNI_CMD(0x274)
 #define DPNI_CMDID_GET_LINK_CFG				DPNI_CMD(0x278)
+
+#define DPNI_CMDID_SET_SINGLE_STEP_CFG			DPNI_CMD(0x279)
+#define DPNI_CMDID_GET_SINGLE_STEP_CFG			DPNI_CMD(0x27a)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPNI_MASK(field)	\
@@ -639,6 +647,36 @@ struct dpni_cmd_set_tx_shaping {
 	__le32 tx_er_rate_limit;
 	/* from LSB: coupled:1 */
 	u8 coupled;
+};
+
+#define DPNI_PTP_ENABLE_SHIFT			0
+#define DPNI_PTP_ENABLE_SIZE			1
+#define DPNI_PTP_CH_UPDATE_SHIFT		1
+#define DPNI_PTP_CH_UPDATE_SIZE			1
+
+struct dpni_cmd_single_step_cfg {
+	__le16 flags;
+	__le16 offset;
+	__le32 peer_delay;
+};
+
+struct dpni_rsp_single_step_cfg {
+	__le16 flags;
+	__le16 offset;
+	__le32 peer_delay;
+};
+
+struct dpni_cmd_enable_vlan_filter {
+	/* only the LSB */
+	u8 en;
+};
+
+struct dpni_cmd_vlan_id {
+	u8 flags;
+	u8 tc_id;
+	u8 flow_id;
+	u8 pad;
+	__le16 vlan_id;
 };
 
 #endif /* _FSL_DPNI_CMD_H */

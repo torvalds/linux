@@ -498,7 +498,7 @@ static struct tomoyo_profile *tomoyo_assign_profile
 	ptr = ns->profile_ptr[profile];
 	if (ptr)
 		return ptr;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	entry = kzalloc(sizeof(*entry), GFP_NOFS | __GFP_NOWARN);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	ptr = ns->profile_ptr[profile];
@@ -635,7 +635,7 @@ static int tomoyo_set_mode(char *name, const char *value,
 			if (strstr(value, tomoyo_mode[mode]))
 				/*
 				 * Update lower 3 bits in order to distinguish
-				 * 'config' from 'TOMOYO_CONFIG_USE_DEAFULT'.
+				 * 'config' from 'TOMOYO_CONFIG_USE_DEFAULT'.
 				 */
 				config = (config & ~7) | mode;
 		if (config != TOMOYO_CONFIG_USE_DEFAULT) {
@@ -2574,7 +2574,7 @@ static inline bool tomoyo_has_more_namespace(struct tomoyo_io_buffer *head)
  * tomoyo_read_control - read() for /sys/kernel/security/tomoyo/ interface.
  *
  * @head:       Pointer to "struct tomoyo_io_buffer".
- * @buffer:     Poiner to buffer to write to.
+ * @buffer:     Pointer to buffer to write to.
  * @buffer_len: Size of @buffer.
  *
  * Returns bytes read on success, negative value otherwise.
@@ -2608,7 +2608,7 @@ ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 /**
  * tomoyo_parse_policy - Parse a policy line.
  *
- * @head: Poiter to "struct tomoyo_io_buffer".
+ * @head: Pointer to "struct tomoyo_io_buffer".
  * @line: Line to parse.
  *
  * Returns 0 on success, negative value otherwise.

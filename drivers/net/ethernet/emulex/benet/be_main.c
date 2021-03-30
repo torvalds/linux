@@ -4677,7 +4677,6 @@ static int be_if_create(struct be_adapter *adapter)
 {
 	u32 en_flags = BE_IF_FLAGS_RSS | BE_IF_FLAGS_DEFQ_RSS;
 	u32 cap_flags = be_if_cap_flags(adapter);
-	int status;
 
 	/* alloc required memory for other filtering fields */
 	adapter->pmac_id = kcalloc(be_max_uc(adapter),
@@ -4700,13 +4699,8 @@ static int be_if_create(struct be_adapter *adapter)
 
 	en_flags &= cap_flags;
 	/* will enable all the needed filter flags in be_open() */
-	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
+	return be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
 				  &adapter->if_handle, 0);
-
-	if (status)
-		return status;
-
-	return 0;
 }
 
 int be_update_queues(struct be_adapter *adapter)
@@ -5185,8 +5179,6 @@ static const struct net_device_ops be_netdev_ops = {
 #endif
 	.ndo_bridge_setlink	= be_ndo_bridge_setlink,
 	.ndo_bridge_getlink	= be_ndo_bridge_getlink,
-	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= be_features_check,
 	.ndo_get_phys_port_id   = be_get_phys_port_id,
 };

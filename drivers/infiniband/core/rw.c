@@ -285,8 +285,11 @@ static void rdma_rw_unmap_sg(struct ib_device *dev, struct scatterlist *sg,
 static int rdma_rw_map_sg(struct ib_device *dev, struct scatterlist *sg,
 			  u32 sg_cnt, enum dma_data_direction dir)
 {
-	if (is_pci_p2pdma_page(sg_page(sg)))
+	if (is_pci_p2pdma_page(sg_page(sg))) {
+		if (WARN_ON_ONCE(ib_uses_virt_dma(dev)))
+			return 0;
 		return pci_p2pdma_map_sg(dev->dma_device, sg, sg_cnt, dir);
+	}
 	return ib_dma_map_sg(dev, sg, sg_cnt, dir);
 }
 
@@ -407,7 +410,7 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 
 	ctx->type = RDMA_RW_SIG_MR;
 	ctx->nr_ops = 1;
-	ctx->reg = kcalloc(1, sizeof(*ctx->reg), GFP_KERNEL);
+	ctx->reg = kzalloc(sizeof(*ctx->reg), GFP_KERNEL);
 	if (!ctx->reg) {
 		ret = -ENOMEM;
 		goto out_unmap_prot_sg;

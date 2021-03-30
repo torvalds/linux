@@ -18,14 +18,18 @@
 #include <sound/sof/pm.h>
 #include <sound/sof/trace.h>
 #include <uapi/sound/sof/fw.h>
+#include <sound/sof/ext_manifest.h>
 
 /* debug flags */
 #define SOF_DBG_ENABLE_TRACE	BIT(0)
-#define SOF_DBG_REGS		BIT(1)
-#define SOF_DBG_MBOX		BIT(2)
-#define SOF_DBG_TEXT		BIT(3)
-#define SOF_DBG_PCI		BIT(4)
-#define SOF_DBG_RETAIN_CTX	BIT(5)	/* prevent DSP D3 on FW exception */
+#define SOF_DBG_RETAIN_CTX	BIT(1)	/* prevent DSP D3 on FW exception */
+
+#define SOF_DBG_DUMP_REGS		BIT(0)
+#define SOF_DBG_DUMP_MBOX		BIT(1)
+#define SOF_DBG_DUMP_TEXT		BIT(2)
+#define SOF_DBG_DUMP_PCI		BIT(3)
+#define SOF_DBG_DUMP_FORCE_ERR_LEVEL	BIT(4) /* used to dump dsp status with error log level */
+
 
 /* global debug state set by SOF_DBG_ flags */
 extern int sof_core_debug;
@@ -94,13 +98,14 @@ struct snd_sof_pdata;
  */
 struct snd_sof_dsp_ops {
 
-	/* probe and remove */
+	/* probe/remove/shutdown */
 	int (*probe)(struct snd_sof_dev *sof_dev); /* mandatory */
 	int (*remove)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*shutdown)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* DSP core boot / reset */
 	int (*run)(struct snd_sof_dev *sof_dev); /* mandatory */
-	int (*stall)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*stall)(struct snd_sof_dev *sof_dev, unsigned int core_mask); /* optional */
 	int (*reset)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*core_power_up)(struct snd_sof_dev *sof_dev,
 			     unsigned int core_mask); /* optional */
@@ -208,6 +213,10 @@ struct snd_sof_dsp_ops {
 	int (*pre_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*post_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
 
+	/* parse platform specific extended manifest, optional */
+	int (*parse_platform_ext_manifest)(struct snd_sof_dev *sof_dev,
+					   const struct sof_ext_man_elem_header *hdr);
+
 	/* DSP PM */
 	int (*suspend)(struct snd_sof_dev *sof_dev,
 		       u32 target_state); /* optional */
@@ -290,6 +299,7 @@ enum sof_debugfs_access_type {
 /* FS entry for debug files that can expose DSP memories, registers */
 struct snd_sof_dfsentry {
 	size_t size;
+	size_t buf_data_size;  /* length of buffered data for file read operation */
 	enum sof_dfsentry_type type;
 	/*
 	 * access_type specifies if the
@@ -366,6 +376,8 @@ struct snd_sof_dev {
 
 	/* current DSP power state */
 	struct sof_dsp_power_state dsp_power_state;
+	/* mutex to protect the dsp_power_state access */
+	struct mutex power_state_access;
 
 	/* Intended power target of system suspend */
 	enum sof_system_suspend_state system_suspend_target;
@@ -377,6 +389,7 @@ struct snd_sof_dev {
 
 	/* work queue in case the probe is implemented in two steps */
 	struct work_struct probe_work;
+	bool probe_completed;
 
 	/* DSP HW differentiation */
 	struct snd_sof_pdata *pdata;
@@ -451,6 +464,8 @@ struct snd_sof_dev {
 
 int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data);
 int snd_sof_device_remove(struct device *dev);
+int snd_sof_device_shutdown(struct device *dev);
+bool snd_sof_device_probe_completed(struct device *dev);
 
 int snd_sof_runtime_suspend(struct device *dev);
 int snd_sof_runtime_resume(struct device *dev);
@@ -523,6 +538,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 			void *stack, size_t stack_words);
 int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
+int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
 
 /*
  * Platform specific ops.

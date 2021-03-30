@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_ADD_PID:
 
@@ -11,23 +12,21 @@ Name
 
 DMX_ADD_PID
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, DMX_ADD_PID, __u16 *pid)
-    :name: DMX_ADD_PID
+.. c:macro:: DMX_ADD_PID
 
+``int ioctl(fd, DMX_ADD_PID, __u16 *pid)``
 
 Arguments
 ---------
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``pid``
    PID number to be filtered.
-
 
 Description
 -----------
@@ -35,7 +34,6 @@ Description
 This ioctl call allows to add multiple PIDs to a transport stream filter
 previously set up with :ref:`DMX_SET_PES_FILTER` and output equal to
 :c:type:`DMX_OUT_TSDEMUX_TAP <dmx_output>`.
-
 
 Return Value
 ------------

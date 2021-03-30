@@ -751,7 +751,7 @@ try_again:
 	 * Read CSD, before selecting the card
 	 */
 	if (!oldcard && card->type == MMC_TYPE_SD_COMBO) {
-		err = mmc_sd_get_csd(host, card);
+		err = mmc_sd_get_csd(card);
 		if (err)
 			goto remove;
 

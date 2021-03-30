@@ -199,21 +199,6 @@ source "drivers/cpuidle/Kconfig"
 
 endmenu
 
-config PPC601_SYNC_FIX
-	bool "Workarounds for PPC601 bugs"
-	depends on PPC_BOOK3S_601 && PPC_PMAC
-	default y
-	help
-	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
-	  mean that extra synchronization instructions are required near
-	  certain instructions, typically those that make major changes to the
-	  CPU state.  These extra instructions reduce performance slightly.
-	  If you say N here, these extra instructions will not be included,
-	  resulting in a kernel which will run faster but may not run at all
-	  on some systems with the PPC601 chip.
-
-	  If in doubt, say Y here.
-
 config TAU
 	bool "On-chip CPU temperature sensor support"
 	depends on PPC_BOOK3S_32
@@ -223,12 +208,11 @@ config TAU
 	  temperature within 2-4 degrees Celsius. This option shows the current
 	  on-die temperature in /proc/cpuinfo if the cpu supports it.
 
-	  Unfortunately, on some chip revisions, this sensor is very inaccurate
-	  and in many cases, does not work at all, so don't assume the cpu
-	  temp is actually what /proc/cpuinfo says it is.
+	  Unfortunately, this sensor is very inaccurate when uncalibrated, so
+	  don't assume the cpu temp is actually what /proc/cpuinfo says it is.
 
 config TAU_INT
-	bool "Interrupt driven TAU driver (DANGEROUS)"
+	bool "Interrupt driven TAU driver (EXPERIMENTAL)"
 	depends on TAU
 	help
 	  The TAU supports an interrupt driven mode which causes an interrupt
@@ -236,12 +220,7 @@ config TAU_INT
 	  to get notified the temp has exceeded a range. With this option off,
 	  a timer is used to re-check the temperature periodically.
 
-	  However, on some cpus it appears that the TAU interrupt hardware
-	  is buggy and can cause a situation which would lead unexplained hard
-	  lockups.
-
-	  Unless you are extending the TAU driver, or enjoy kernel/hardware
-	  debugging, leave this option off.
+	  If in doubt, say N here.
 
 config TAU_AVERAGE
 	bool "Average high and low temp"

@@ -103,6 +103,7 @@ enum pp_clock_type {
 
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
+	AMDGPU_PP_SENSOR_CPU_CLK,
 	AMDGPU_PP_SENSOR_VDDNB,
 	AMDGPU_PP_SENSOR_VDDGFX,
 	AMDGPU_PP_SENSOR_UVD_VCLK,
@@ -155,9 +156,11 @@ enum {
 enum PP_OD_DPM_TABLE_COMMAND {
 	PP_OD_EDIT_SCLK_VDDC_TABLE,
 	PP_OD_EDIT_MCLK_VDDC_TABLE,
+	PP_OD_EDIT_CCLK_VDDC_TABLE,
 	PP_OD_EDIT_VDDC_CURVE,
 	PP_OD_RESTORE_DEFAULT_TABLE,
-	PP_OD_COMMIT_DPM_TABLE
+	PP_OD_COMMIT_DPM_TABLE,
+	PP_OD_EDIT_VDDGFX_OFFSET
 };
 
 struct pp_states_info {
@@ -285,6 +288,7 @@ struct amd_pm_funcs {
 	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
 	int (*set_mp1_state)(void *handle, enum pp_mp1_state mp1_state);
 	int (*smu_i2c_bus_access)(void *handle, bool acquire);
+	int (*gfx_state_change_set)(void *handle, uint32_t state);
 /* export to DC */
 	u32 (*get_sclk)(void *handle, bool low);
 	u32 (*get_mclk)(void *handle, bool low);

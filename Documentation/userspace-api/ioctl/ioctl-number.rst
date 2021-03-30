@@ -157,7 +157,6 @@ Code  Seq#    Include File                                           Comments
 'I'   all    linux/isdn.h                                            conflict!
 'I'   00-0F  drivers/isdn/divert/isdn_divert.h                       conflict!
 'I'   40-4F  linux/mISDNif.h                                         conflict!
-'J'   00-1F  drivers/scsi/gdth_ioctl.h
 'K'   all    linux/kd.h
 'L'   00-1F  linux/loop.h                                            conflict!
 'L'   10-1F  drivers/scsi/mpt3sas/mpt3sas_ctl.h                      conflict!
@@ -323,6 +322,9 @@ Code  Seq#    Include File                                           Comments
                                                                      <mailto:tlewis@mindspring.com>
 0xA3  90-9F  linux/dtlk.h
 0xA4  00-1F  uapi/linux/tee.h                                        Generic TEE subsystem
+0xA4  00-1F  uapi/asm/sgx.h                                          <mailto:linux-sgx@vger.kernel.org>
+0xA5  01     linux/surface_aggregator/cdev.h                         Microsoft Surface Platform System Aggregator
+                                                                     <mailto:luzmaximilian@gmail.com>
 0xAA  00-3F  linux/uapi/linux/userfaultfd.h
 0xAB  00-1F  linux/nbd.h
 0xAC  00-1F  linux/raw.h

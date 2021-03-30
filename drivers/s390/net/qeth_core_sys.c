@@ -52,7 +52,7 @@ static ssize_t qeth_dev_if_name_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", QETH_CARD_IFNAME(card));
+	return sprintf(buf, "%s\n", netdev_name(card->dev));
 }
 
 static DEVICE_ATTR(if_name, 0444, qeth_dev_if_name_show, NULL);
@@ -103,9 +103,14 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
 	unsigned int portno, limit;
 	int rc = 0;
+
+	rc = kstrtouint(buf, 16, &portno);
+	if (rc)
+		return rc;
+	if (portno > QETH_MAX_PORTNO)
+		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
 	if (card->state != CARD_STATE_DOWN) {
@@ -113,11 +118,6 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		goto out;
 	}
 
-	portno = simple_strtoul(buf, &tmp, 16);
-	if (portno > QETH_MAX_PORTNO) {
-		rc = -EINVAL;
-		goto out;
-	}
 	limit = (card->ssqd.pcnt ? card->ssqd.pcnt - 1 : card->ssqd.pcnt);
 	if (portno > limit) {
 		rc = -EINVAL;
@@ -164,9 +164,11 @@ static ssize_t qeth_dev_prioqing_show(struct device *dev,
 		return sprintf(buf, "%s\n", "by skb-priority");
 	case QETH_PRIO_Q_ING_VLAN:
 		return sprintf(buf, "%s\n", "by VLAN headers");
-	default:
+	case QETH_PRIO_Q_ING_FIXED:
 		return sprintf(buf, "always queue %i\n",
 			       card->qdio.default_out_queue);
+	default:
+		return sprintf(buf, "disabled\n");
 	}
 }
 
@@ -248,8 +250,11 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	unsigned int cnt;
-	char *tmp;
 	int rc = 0;
+
+	rc = kstrtouint(buf, 10, &cnt);
+	if (rc)
+		return rc;
 
 	mutex_lock(&card->conf_mutex);
 	if (card->state != CARD_STATE_DOWN) {
@@ -257,10 +262,7 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		goto out;
 	}
 
-	cnt = simple_strtoul(buf, &tmp, 10);
-	cnt = (cnt < QETH_IN_BUF_COUNT_MIN) ? QETH_IN_BUF_COUNT_MIN :
-		((cnt > QETH_IN_BUF_COUNT_MAX) ? QETH_IN_BUF_COUNT_MAX : cnt);
-
+	cnt = clamp(cnt, QETH_IN_BUF_COUNT_MIN, QETH_IN_BUF_COUNT_MAX);
 	rc = qeth_resize_buffer_pool(card, cnt);
 
 out:
@@ -341,18 +343,15 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	struct net_device *ndev;
-	char *tmp;
-	int i, rc = 0;
 	enum qeth_discipline_id newdis;
+	unsigned int input;
+	int rc;
 
-	mutex_lock(&card->discipline_mutex);
-	if (card->state != CARD_STATE_DOWN) {
-		rc = -EPERM;
-		goto out;
-	}
+	rc = kstrtouint(buf, 16, &input);
+	if (rc)
+		return rc;
 
-	i = simple_strtoul(buf, &tmp, 16);
-	switch (i) {
+	switch (input) {
 	case 0:
 		newdis = QETH_DISCIPLINE_LAYER3;
 		break;
@@ -360,7 +359,12 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		newdis = QETH_DISCIPLINE_LAYER2;
 		break;
 	default:
-		rc = -EINVAL;
+		return -EINVAL;
+	}
+
+	mutex_lock(&card->discipline_mutex);
+	if (card->state != CARD_STATE_DOWN) {
+		rc = -EPERM;
 		goto out;
 	}
 
@@ -380,19 +384,13 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 			goto out;
 		}
 
-		card->discipline->remove(card->gdev);
-		qeth_core_free_discipline(card);
+		qeth_remove_discipline(card);
 		free_netdev(card->dev);
 		card->dev = ndev;
 	}
 
-	rc = qeth_core_load_discipline(card, newdis);
-	if (rc)
-		goto out;
+	rc = qeth_setup_discipline(card, newdis);
 
-	rc = card->discipline->setup(card->gdev);
-	if (rc)
-		qeth_core_free_discipline(card);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;
@@ -551,20 +549,21 @@ static DEVICE_ATTR(hw_trap, 0644, qeth_hw_trap_show,
 static ssize_t qeth_dev_blkt_store(struct qeth_card *card,
 		const char *buf, size_t count, int *value, int max_value)
 {
-	char *tmp;
-	int i, rc = 0;
+	unsigned int input;
+	int rc;
+
+	rc = kstrtouint(buf, 10, &input);
+	if (rc)
+		return rc;
+
+	if (input > max_value)
+		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if (card->state != CARD_STATE_DOWN) {
+	if (card->state != CARD_STATE_DOWN)
 		rc = -EPERM;
-		goto out;
-	}
-	i = simple_strtoul(buf, &tmp, 10);
-	if (i <= max_value)
-		*value = i;
 	else
-		rc = -EINVAL;
-out:
+		*value = input;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -635,23 +634,17 @@ static struct attribute *qeth_blkt_device_attrs[] = {
 	&dev_attr_inter_jumbo.attr,
 	NULL,
 };
-const struct attribute_group qeth_device_blkt_group = {
+
+static const struct attribute_group qeth_dev_blkt_group = {
 	.name = "blkt",
 	.attrs = qeth_blkt_device_attrs,
 };
-EXPORT_SYMBOL_GPL(qeth_device_blkt_group);
 
-static struct attribute *qeth_device_attrs[] = {
-	&dev_attr_state.attr,
-	&dev_attr_chpid.attr,
-	&dev_attr_if_name.attr,
-	&dev_attr_card_type.attr,
+static struct attribute *qeth_dev_extended_attrs[] = {
 	&dev_attr_inbuf_size.attr,
 	&dev_attr_portno.attr,
 	&dev_attr_portname.attr,
 	&dev_attr_priority_queueing.attr,
-	&dev_attr_buffer_count.attr,
-	&dev_attr_recover.attr,
 	&dev_attr_performance_stats.attr,
 	&dev_attr_layer2.attr,
 	&dev_attr_isolation.attr,
@@ -659,18 +652,12 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_switch_attrs.attr,
 	NULL,
 };
-const struct attribute_group qeth_device_attr_group = {
-	.attrs = qeth_device_attrs,
-};
-EXPORT_SYMBOL_GPL(qeth_device_attr_group);
 
-const struct attribute_group *qeth_generic_attr_groups[] = {
-	&qeth_device_attr_group,
-	&qeth_device_blkt_group,
-	NULL,
+static const struct attribute_group qeth_dev_extended_group = {
+	.attrs = qeth_dev_extended_attrs,
 };
 
-static struct attribute *qeth_osn_device_attrs[] = {
+static struct attribute *qeth_dev_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_chpid.attr,
 	&dev_attr_if_name.attr,
@@ -679,10 +666,19 @@ static struct attribute *qeth_osn_device_attrs[] = {
 	&dev_attr_recover.attr,
 	NULL,
 };
-static struct attribute_group qeth_osn_device_attr_group = {
-	.attrs = qeth_osn_device_attrs,
+
+static const struct attribute_group qeth_dev_group = {
+	.attrs = qeth_dev_attrs,
 };
-const struct attribute_group *qeth_osn_attr_groups[] = {
-	&qeth_osn_device_attr_group,
+
+const struct attribute_group *qeth_osn_dev_groups[] = {
+	&qeth_dev_group,
+	NULL,
+};
+
+const struct attribute_group *qeth_dev_groups[] = {
+	&qeth_dev_group,
+	&qeth_dev_extended_group,
+	&qeth_dev_blkt_group,
 	NULL,
 };

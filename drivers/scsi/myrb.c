@@ -194,7 +194,6 @@ static unsigned short myrb_exec_cmd(struct myrb_hba *cb,
 	cb->qcmd(cb, cmd_blk);
 	spin_unlock_irqrestore(&cb->queue_lock, flags);
 
-	WARN_ON(in_interrupt());
 	wait_for_completion(&cmpl);
 	return cmd_blk->status;
 }
@@ -1050,7 +1049,7 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		enquiry2->fw.turn_id = 0;
 	}
 	snprintf(cb->fw_version, sizeof(cb->fw_version),
-		"%d.%02d-%c-%02d",
+		"%u.%02u-%c-%02u",
 		enquiry2->fw.major_version,
 		enquiry2->fw.minor_version,
 		enquiry2->fw.firmware_type,
@@ -2167,7 +2166,7 @@ static ssize_t ctlr_num_show(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct myrb_hba *cb = shost_priv(shost);
 
-	return snprintf(buf, 20, "%d\n", cb->ctlr_num);
+	return snprintf(buf, 20, "%u\n", cb->ctlr_num);
 }
 static DEVICE_ATTR_RO(ctlr_num);
 
@@ -2732,7 +2731,6 @@ static int DAC960_LA_hw_init(struct pci_dev *pdev,
 	DAC960_LA_disable_intr(base);
 	DAC960_LA_ack_hw_mbox_status(base);
 	udelay(1000);
-	timeout = 0;
 	while (DAC960_LA_init_in_progress(base) &&
 	       timeout < MYRB_MAILBOX_TIMEOUT) {
 		if (DAC960_LA_read_error_status(base, &error,

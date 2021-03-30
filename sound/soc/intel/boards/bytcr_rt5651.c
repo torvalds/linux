@@ -143,7 +143,7 @@ static int byt_rt5651_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai,
 
 	/* Configure the PLL before selecting it */
 	if (!(byt_rt5651_quirk & BYT_RT5651_MCLK_EN)) {
-		clk_id = RT5651_PLL1_S_BCLK1,
+		clk_id = RT5651_PLL1_S_BCLK1;
 		clk_freq = rate * bclk_ratio;
 	} else {
 		clk_id = RT5651_PLL1_S_MCLK;
@@ -434,6 +434,19 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_IN2_MAP |
 					BYT_RT5651_SSP0_AIF1 |
 					BYT_RT5651_MONO_SPEAKER),
+	},
+	{
+		/* Jumper EZpad 7 */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Jumper"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EZpad"),
+			/* Jumper12x.WJ2012.bsBKRCP05 with the version dropped */
+			DMI_MATCH(DMI_BIOS_VERSION, "Jumper12x.WJ2012.bsBKRCP"),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_JD_NOT_INV),
 	},
 	{
 		/* KIANO SlimNote 14.2 */
@@ -827,14 +840,12 @@ static int byt_rt5651_resume(struct snd_soc_card *card)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht rt5651" /* card name will be 'sof-bytcht rt5651' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht rt5651" /* card name will be 'sof-bytcht rt5651' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bytcr-rt5651"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 static struct snd_soc_card byt_rt5651_card = {
 	.name = CARD_NAME,
@@ -876,6 +887,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	const char *platform_name;
 	struct acpi_device *adev;
 	struct device *codec_dev;
+	bool sof_parent;
 	bool is_bytcr = false;
 	int ret_val = 0;
 	int dai_index = 0;
@@ -1093,6 +1105,21 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	if (ret_val)
 		return ret_val;
 
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		byt_rt5651_card.name = SOF_CARD_NAME;
+		byt_rt5651_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		byt_rt5651_card.name = CARD_NAME;
+		byt_rt5651_card.driver_name = DRIVER_NAME;
+	}
+
+	/* set pm ops */
+	if (sof_parent)
+		pdev->dev.driver->pm = &snd_soc_pm_ops;
+
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5651_card);
 
 	if (ret_val) {
@@ -1107,9 +1134,6 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_byt_rt5651_mc_driver = {
 	.driver = {
 		.name = "bytcr_rt5651",
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-		.pm = &snd_soc_pm_ops,
-#endif
 	},
 	.probe = snd_byt_rt5651_mc_probe,
 };

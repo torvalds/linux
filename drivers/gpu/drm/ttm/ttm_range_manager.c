@@ -29,7 +29,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drm_mm.h>
@@ -37,7 +36,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
-/**
+/*
  * Currently we use a spinlock for the lock, but a mutex *may* be
  * more appropriate to reduce scheduling latency if the range manager
  * ends up with very fragmented allocation patterns.
@@ -149,7 +148,7 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(bdev, man);
+	ret = ttm_resource_manager_evict_all(bdev, man);
 	if (ret)
 		return ret;
 

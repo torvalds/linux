@@ -41,6 +41,12 @@
 #define IBMVFC_DEFAULT_LOG_LEVEL	2
 #define IBMVFC_MAX_CDB_LEN		16
 #define IBMVFC_CLS3_ERROR		0
+#define IBMVFC_MQ			1
+#define IBMVFC_SCSI_CHANNELS		8
+#define IBMVFC_MAX_SCSI_QUEUES		16
+#define IBMVFC_SCSI_HW_QUEUES		8
+#define IBMVFC_MIG_NO_SUB_TO_CRQ	0
+#define IBMVFC_MIG_NO_N_TO_M		0
 
 /*
  * Ensure we have resources for ERP and initialization:
@@ -54,6 +60,7 @@
 
 #define IBMVFC_MAD_SUCCESS		0x00
 #define IBMVFC_MAD_NOT_SUPPORTED	0xF1
+#define IBMVFC_MAD_VERSION_NOT_SUPP	0xF2
 #define IBMVFC_MAD_FAILED		0xF7
 #define IBMVFC_MAD_DRIVER_FAILED	0xEE
 #define IBMVFC_MAD_CRQ_ERROR		0xEF
@@ -168,6 +175,8 @@ struct ibmvfc_npiv_login {
 #define IBMVFC_CAN_MIGRATE		0x01
 #define IBMVFC_CAN_USE_CHANNELS		0x02
 #define IBMVFC_CAN_HANDLE_FPIN		0x04
+#define IBMVFC_CAN_USE_MAD_VERSION	0x08
+#define IBMVFC_CAN_SEND_VF_WWPN		0x10
 	__be64 node_name;
 	struct srp_direct_buf async;
 	u8 partition_name[IBMVFC_MAX_NAME];
@@ -211,7 +220,9 @@ struct ibmvfc_npiv_login_resp {
 	__be64 capabilities;
 #define IBMVFC_CAN_FLUSH_ON_HALT	0x08
 #define IBMVFC_CAN_SUPPRESS_ABTS	0x10
-#define IBMVFC_CAN_SUPPORT_CHANNELS	0x20
+#define IBMVFC_MAD_VERSION_CAP		0x20
+#define IBMVFC_HANDLE_VF_WWPN		0x40
+#define IBMVFC_CAN_SUPPORT_CHANNELS	0x80
 	__be32 max_cmds;
 	__be32 scsi_id_sz;
 	__be64 max_dma_len;
@@ -293,6 +304,7 @@ struct ibmvfc_port_login {
 	__be32 reserved2;
 	struct ibmvfc_service_parms service_parms;
 	struct ibmvfc_service_parms service_parms_change;
+	__be64 target_wwpn;
 	__be64 reserved3[2];
 } __packed __aligned(8);
 
@@ -344,6 +356,7 @@ struct ibmvfc_process_login {
 	__be16 status;
 	__be16 error;			/* also fc_reason */
 	__be32 reserved2;
+	__be64 target_wwpn;
 	__be64 reserved3[2];
 } __packed __aligned(8);
 
@@ -378,6 +391,8 @@ struct ibmvfc_tmf {
 	__be32 cancel_key;
 	__be32 my_cancel_key;
 	__be32 pad;
+	__be64 target_wwpn;
+	__be64 task_tag;
 	__be64 reserved[2];
 } __packed __aligned(8);
 
@@ -474,9 +489,19 @@ struct ibmvfc_cmd {
 	__be64 correlation;
 	__be64 tgt_scsi_id;
 	__be64 tag;
-	__be64 reserved3[2];
-	struct ibmvfc_fcp_cmd_iu iu;
-	struct ibmvfc_fcp_rsp rsp;
+	__be64 target_wwpn;
+	__be64 reserved3;
+	union {
+		struct {
+			struct ibmvfc_fcp_cmd_iu iu;
+			struct ibmvfc_fcp_rsp rsp;
+		} v1;
+		struct {
+			__be64 reserved4;
+			struct ibmvfc_fcp_cmd_iu iu;
+			struct ibmvfc_fcp_rsp rsp;
+		} v2;
+	};
 } __packed __aligned(8);
 
 struct ibmvfc_passthru_fc_iu {
@@ -503,6 +528,7 @@ struct ibmvfc_passthru_iu {
 	__be64 correlation;
 	__be64 scsi_id;
 	__be64 tag;
+	__be64 target_wwpn;
 	__be64 reserved2[2];
 } __packed __aligned(8);
 
@@ -625,11 +651,10 @@ struct ibmvfc_crq {
 	volatile __be64 ioba;
 } __packed __aligned(8);
 
-struct ibmvfc_crq_queue {
-	struct ibmvfc_crq *msgs;
-	int size, cur;
-	dma_addr_t msg_token;
-};
+struct ibmvfc_sub_crq {
+	struct ibmvfc_crq crq;
+	__be64 reserved[2];
+} __packed __aligned(8);
 
 enum ibmvfc_ae_link_state {
 	IBMVFC_AE_LS_LINK_UP		= 0x01,
@@ -657,12 +682,6 @@ struct ibmvfc_async_crq {
 	volatile __be64 node_name;
 	__be64 reserved;
 } __packed __aligned(8);
-
-struct ibmvfc_async_crq_queue {
-	struct ibmvfc_async_crq *msgs;
-	int size, cur;
-	dma_addr_t msg_token;
-};
 
 union ibmvfc_iu {
 	struct ibmvfc_mad_common mad_common;
@@ -718,13 +737,16 @@ struct ibmvfc_target {
 
 /* a unit of work for the hosting partition */
 struct ibmvfc_event {
-	struct list_head queue;
+	struct list_head queue_list;
+	struct list_head cancel;
 	struct ibmvfc_host *vhost;
+	struct ibmvfc_queue *queue;
 	struct ibmvfc_target *tgt;
 	struct scsi_cmnd *cmnd;
 	atomic_t free;
 	union ibmvfc_iu *xfer_iu;
-	void (*done) (struct ibmvfc_event *);
+	void (*done)(struct ibmvfc_event *evt);
+	void (*_done)(struct ibmvfc_event *evt);
 	struct ibmvfc_crq crq;
 	union ibmvfc_iu iu;
 	union ibmvfc_iu *sync_iu;
@@ -733,6 +755,7 @@ struct ibmvfc_event {
 	struct completion comp;
 	struct completion *eh_comp;
 	struct timer_list timer;
+	u16 hwq;
 };
 
 /* a pool of event structs for use */
@@ -741,6 +764,49 @@ struct ibmvfc_event_pool {
 	u32 size;
 	union ibmvfc_iu *iu_storage;
 	dma_addr_t iu_token;
+};
+
+enum ibmvfc_msg_fmt {
+	IBMVFC_CRQ_FMT = 0,
+	IBMVFC_ASYNC_FMT,
+	IBMVFC_SUB_CRQ_FMT,
+};
+
+union ibmvfc_msgs {
+	void *handle;
+	struct ibmvfc_crq *crq;
+	struct ibmvfc_async_crq *async;
+	struct ibmvfc_sub_crq *scrq;
+};
+
+struct ibmvfc_queue {
+	union ibmvfc_msgs msgs;
+	dma_addr_t msg_token;
+	enum ibmvfc_msg_fmt fmt;
+	int size, cur;
+	spinlock_t _lock;
+	spinlock_t *q_lock;
+
+	struct ibmvfc_event_pool evt_pool;
+	struct list_head sent;
+	struct list_head free;
+	spinlock_t l_lock;
+
+	union ibmvfc_iu cancel_rsp;
+
+	/* Sub-CRQ fields */
+	struct ibmvfc_host *vhost;
+	unsigned long cookie;
+	unsigned long vios_cookie;
+	unsigned long hw_irq;
+	unsigned long irq;
+	unsigned long hwq_id;
+	char name[32];
+};
+
+struct ibmvfc_scsi_channels {
+	struct ibmvfc_queue *scrqs;
+	unsigned int active_queues;
 };
 
 enum ibmvfc_host_action {
@@ -777,26 +843,29 @@ struct ibmvfc_host {
 	enum ibmvfc_host_action action;
 #define IBMVFC_NUM_TRACE_INDEX_BITS		8
 #define IBMVFC_NUM_TRACE_ENTRIES		(1 << IBMVFC_NUM_TRACE_INDEX_BITS)
+#define IBMVFC_TRACE_INDEX_MASK			(IBMVFC_NUM_TRACE_ENTRIES - 1)
 #define IBMVFC_TRACE_SIZE	(sizeof(struct ibmvfc_trace_entry) * IBMVFC_NUM_TRACE_ENTRIES)
 	struct ibmvfc_trace_entry *trace;
-	u32 trace_index:IBMVFC_NUM_TRACE_INDEX_BITS;
+	atomic_t trace_index;
 	int num_targets;
 	struct list_head targets;
-	struct list_head sent;
-	struct list_head free;
+	struct list_head purge;
 	struct device *dev;
-	struct ibmvfc_event_pool pool;
 	struct dma_pool *sg_pool;
 	mempool_t *tgt_pool;
-	struct ibmvfc_crq_queue crq;
-	struct ibmvfc_async_crq_queue async_crq;
+	struct ibmvfc_queue crq;
+	struct ibmvfc_queue async_crq;
+	struct ibmvfc_scsi_channels scsi_scrqs;
 	struct ibmvfc_npiv_login login_info;
 	union ibmvfc_npiv_login_data *login_buf;
 	dma_addr_t login_buf_dma;
+	struct ibmvfc_channel_setup *channel_setup_buf;
+	dma_addr_t channel_setup_dma;
 	int disc_buf_sz;
 	int log_level;
 	struct ibmvfc_discover_targets_entry *disc_buf;
 	struct mutex passthru_mutex;
+	int max_vios_scsi_channels;
 	int task_set;
 	int init_retries;
 	int discovery_threads;
@@ -806,6 +875,10 @@ struct ibmvfc_host {
 	int delay_init;
 	int scan_complete;
 	int logged_in;
+	int mq_enabled;
+	int using_channels;
+	int do_enquiry;
+	int client_scsi_channels;
 	int aborting_passthru;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001

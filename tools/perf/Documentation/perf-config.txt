@@ -138,7 +138,7 @@ If you want to add or modify several config items, you can do like
 
 To modify the sort order of report functionality in user config file(i.e. `~/.perfconfig`), do
 
-	% perf config --user report sort-order=srcline
+	% perf config --user report.sort-order=srcline
 
 To change colors of selected line to other foreground and background colors
 in system config file (i.e. `$(sysconf)/perfconfig`), do
@@ -241,6 +241,11 @@ buildid.*::
 annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
+
+	annotate.disassembler_style:
+		Use this to change the default disassembler style to some other value
+		supported by binutils, such as "intel", see the '-M' option help in the
+		'objdump' man page.
 
 	annotate.hide_src_code::
 		If a program which is analyzed has source code,

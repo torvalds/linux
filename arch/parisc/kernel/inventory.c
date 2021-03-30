@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/mmzone.h>
@@ -640,5 +641,34 @@ void __init do_device_inventory(void)
 	pa_serialize_tlb_flushes = machine_has_merced_bus();
 	if (pa_serialize_tlb_flushes)
 		pr_info("Merced bus found: Enable PxTLB serialization.\n");
+#endif
+
+#if defined(CONFIG_FW_CFG_SYSFS)
+	if (running_on_qemu) {
+		struct resource res[3] = {0,};
+		unsigned int base;
+
+		base = ((unsigned long long) PAGE0->pad0[2] << 32)
+			| PAGE0->pad0[3]; /* SeaBIOS stored it here */
+
+		res[0].name = "fw_cfg";
+		res[0].start = base;
+		res[0].end = base + 8 - 1;
+		res[0].flags = IORESOURCE_MEM;
+
+		res[1].name = "ctrl";
+		res[1].start = 0;
+		res[1].flags = IORESOURCE_REG;
+
+		res[2].name = "data";
+		res[2].start = 4;
+		res[2].flags = IORESOURCE_REG;
+
+		if (base) {
+			pr_info("Found qemu fw_cfg interface at %#08x\n", base);
+			platform_device_register_simple("fw_cfg",
+				PLATFORM_DEVID_NONE, res, 3);
+		}
+	}
 #endif
 }

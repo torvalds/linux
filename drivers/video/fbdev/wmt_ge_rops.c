@@ -11,6 +11,7 @@
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include "core/fb_draw.h"
+#include "wmt_ge_rops.h"
 
 #define GE_COMMAND_OFF		0x00
 #define GE_DEPTH_OFF		0x04

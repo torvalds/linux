@@ -65,8 +65,7 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 /* Report whether this TX queue would be empty for the given write_count.
  * May return false negative.
  */
-static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
-					 unsigned int write_count)
+static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue, unsigned int write_count)
 {
 	unsigned int empty_read_count = READ_ONCE(tx_queue->empty_read_count);
 
@@ -74,41 +73,6 @@ static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 		return false;
 
 	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
-}
-
-/* Report whether the NIC considers this TX queue empty, using
- * packet_write_count (the write count recorded for the last completable
- * doorbell push).  May return false negative.  EF10 only, which is OK
- * because only EF10 supports PIO.
- */
-static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
-{
-	EFX_WARN_ON_ONCE_PARANOID(!tx_queue->efx->type->option_descriptors);
-	return __efx_nic_tx_is_empty(tx_queue, tx_queue->packet_write_count);
-}
-
-/* Get partner of a TX queue, seen as part of the same net core queue */
-/* XXX is this a thing on EF100? */
-static inline struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
-{
-	if (tx_queue->label & EFX_TXQ_TYPE_OFFLOAD)
-		return tx_queue - EFX_TXQ_TYPE_OFFLOAD;
-	else
-		return tx_queue + EFX_TXQ_TYPE_OFFLOAD;
-}
-
-/* Decide whether we can use TX PIO, ie. write packet data directly into
- * a buffer on the device.  This can reduce latency at the expense of
- * throughput, so we only do this if both hardware and software TX rings
- * are empty.  This also ensures that only one packet at a time can be
- * using the PIO buffer.
- */
-static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
-{
-	struct efx_tx_queue *partner = efx_tx_queue_partner(tx_queue);
-
-	return tx_queue->piobuf && efx_nic_tx_is_empty(tx_queue) &&
-	       efx_nic_tx_is_empty(partner);
 }
 
 int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
@@ -125,7 +89,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 					    unsigned int write_count)
 {
-	bool was_empty = __efx_nic_tx_is_empty(tx_queue, write_count);
+	bool was_empty = efx_nic_tx_is_empty(tx_queue, write_count);
 
 	tx_queue->empty_read_count = 0;
 	return was_empty && tx_queue->write_count - write_count == 1;
@@ -280,6 +244,13 @@ void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,
 			  const void *dma_buf, bool accumulate);
 void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
+static inline size_t efx_nic_update_stats_atomic(struct efx_nic *efx, u64 *full_stats,
+						 struct rtnl_link_stats64 *core_stats)
+{
+	if (efx->type->update_stats_atomic)
+		return efx->type->update_stats_atomic(efx, full_stats, core_stats);
+	return efx->type->update_stats(efx, full_stats, core_stats);
+}
 
 #define EFX_MAX_FLUSH_TIME 5000
 

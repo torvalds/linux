@@ -58,6 +58,15 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
   into place (arm64 only), and jump to the restart address while at HYP/EL2.
   This hypercall is not expected to return to its caller.
 
+* ::
+
+    x0 = HVC_VHE_RESTART (arm64 only)
+
+  Attempt to upgrade the kernel's exception level from EL1 to EL2 by enabling
+  the VHE mode. This is conditioned by the CPU supporting VHE, the EL2 MMU
+  being off, and VHE not being disabled by any other means (command line
+  option, for example).
+
 Any other value of r0/x0 triggers a hypervisor-specific handling,
 which is not documented here.
 

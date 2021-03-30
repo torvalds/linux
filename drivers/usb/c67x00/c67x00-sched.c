@@ -1123,24 +1123,26 @@ static void c67x00_do_work(struct c67x00_hcd *c67x00)
 
 /* -------------------------------------------------------------------------- */
 
-static void c67x00_sched_tasklet(struct tasklet_struct *t)
+static void c67x00_sched_work(struct work_struct *work)
 {
-	struct c67x00_hcd *c67x00 = from_tasklet(c67x00, t, tasklet);
+	struct c67x00_hcd *c67x00;
+
+	c67x00 = container_of(work, struct c67x00_hcd, work);
 	c67x00_do_work(c67x00);
 }
 
 void c67x00_sched_kick(struct c67x00_hcd *c67x00)
 {
-	tasklet_hi_schedule(&c67x00->tasklet);
+	queue_work(system_highpri_wq, &c67x00->work);
 }
 
 int c67x00_sched_start_scheduler(struct c67x00_hcd *c67x00)
 {
-	tasklet_setup(&c67x00->tasklet, c67x00_sched_tasklet);
+	INIT_WORK(&c67x00->work, c67x00_sched_work);
 	return 0;
 }
 
 void c67x00_sched_stop_scheduler(struct c67x00_hcd *c67x00)
 {
-	tasklet_kill(&c67x00->tasklet);
+	cancel_work_sync(&c67x00->work);
 }

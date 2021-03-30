@@ -92,6 +92,25 @@ struct mlx5_core_srq *mlx5_cmd_get_srq(struct mlx5_ib_dev *dev, u32 srqn)
 	return srq;
 }
 
+static int __set_srq_page_size(struct mlx5_srq_attr *in,
+			       unsigned long page_size)
+{
+	if (!page_size)
+		return -EINVAL;
+	in->log_page_size = order_base_2(page_size) - MLX5_ADAPTER_PAGE_SHIFT;
+
+	if (WARN_ON(get_pas_size(in) !=
+		    ib_umem_num_dma_blocks(in->umem, page_size) * sizeof(u64)))
+		return -EINVAL;
+	return 0;
+}
+
+#define set_srq_page_size(in, typ, log_pgsz_fld)                               \
+	__set_srq_page_size(in, mlx5_umem_find_best_quantized_pgoff(           \
+					(in)->umem, typ, log_pgsz_fld,         \
+					MLX5_ADAPTER_PAGE_SHIFT, page_offset,  \
+					64, &(in)->page_offset))
+
 static int create_srq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 			  struct mlx5_srq_attr *in)
 {
@@ -102,6 +121,12 @@ static int create_srq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	int pas_size;
 	int inlen;
 	int err;
+
+	if (in->umem) {
+		err = set_srq_page_size(in, srqc, log_page_size);
+		if (err)
+			return err;
+	}
 
 	pas_size  = get_pas_size(in);
 	inlen	  = MLX5_ST_SZ_BYTES(create_srq_in) + pas_size;
@@ -114,7 +139,13 @@ static int create_srq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	pas = MLX5_ADDR_OF(create_srq_in, create_in, pas);
 
 	set_srqc(srqc, in);
-	memcpy(pas, in->pas, pas_size);
+	if (in->umem)
+		mlx5_ib_populate_pas(
+			in->umem,
+			1UL << (in->log_page_size + MLX5_ADAPTER_PAGE_SHIFT),
+			pas, 0);
+	else
+		memcpy(pas, in->pas, pas_size);
 
 	MLX5_SET(create_srq_in, create_in, opcode,
 		 MLX5_CMD_OP_CREATE_SRQ);
@@ -194,6 +225,12 @@ static int create_xrc_srq_cmd(struct mlx5_ib_dev *dev,
 	int inlen;
 	int err;
 
+	if (in->umem) {
+		err = set_srq_page_size(in, xrc_srqc, log_page_size);
+		if (err)
+			return err;
+	}
+
 	pas_size  = get_pas_size(in);
 	inlen	  = MLX5_ST_SZ_BYTES(create_xrc_srq_in) + pas_size;
 	create_in = kvzalloc(inlen, GFP_KERNEL);
@@ -207,7 +244,13 @@ static int create_xrc_srq_cmd(struct mlx5_ib_dev *dev,
 
 	set_srqc(xrc_srqc, in);
 	MLX5_SET(xrc_srqc, xrc_srqc, user_index, in->user_index);
-	memcpy(pas, in->pas, pas_size);
+	if (in->umem)
+		mlx5_ib_populate_pas(
+			in->umem,
+			1UL << (in->log_page_size + MLX5_ADAPTER_PAGE_SHIFT),
+			pas, 0);
+	else
+		memcpy(pas, in->pas, pas_size);
 	MLX5_SET(create_xrc_srq_in, create_in, opcode,
 		 MLX5_CMD_OP_CREATE_XRC_SRQ);
 
@@ -289,10 +332,17 @@ static int create_rmp_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	void *create_in = NULL;
 	void *rmpc;
 	void *wq;
+	void *pas;
 	int pas_size;
 	int outlen;
 	int inlen;
 	int err;
+
+	if (in->umem) {
+		err = set_srq_page_size(in, wq, log_wq_pg_sz);
+		if (err)
+			return err;
+	}
 
 	pas_size = get_pas_size(in);
 	inlen = MLX5_ST_SZ_BYTES(create_rmp_in) + pas_size;
@@ -309,8 +359,16 @@ static int create_rmp_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 
 	MLX5_SET(rmpc, rmpc, state, MLX5_RMPC_STATE_RDY);
 	MLX5_SET(create_rmp_in, create_in, uid, in->uid);
+	pas = MLX5_ADDR_OF(rmpc, rmpc, wq.pas);
+
 	set_wq(wq, in);
-	memcpy(MLX5_ADDR_OF(rmpc, rmpc, wq.pas), in->pas, pas_size);
+	if (in->umem)
+		mlx5_ib_populate_pas(
+			in->umem,
+			1UL << (in->log_page_size + MLX5_ADAPTER_PAGE_SHIFT),
+			pas, 0);
+	else
+		memcpy(pas, in->pas, pas_size);
 
 	MLX5_SET(create_rmp_in, create_in, opcode, MLX5_CMD_OP_CREATE_RMP);
 	err = mlx5_cmd_exec(dev->mdev, create_in, inlen, create_out, outlen);
@@ -421,9 +479,16 @@ static int create_xrq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	void *create_in;
 	void *xrqc;
 	void *wq;
+	void *pas;
 	int pas_size;
 	int inlen;
 	int err;
+
+	if (in->umem) {
+		err = set_srq_page_size(in, wq, log_wq_pg_sz);
+		if (err)
+			return err;
+	}
 
 	pas_size = get_pas_size(in);
 	inlen = MLX5_ST_SZ_BYTES(create_xrq_in) + pas_size;
@@ -433,9 +498,16 @@ static int create_xrq_cmd(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 
 	xrqc = MLX5_ADDR_OF(create_xrq_in, create_in, xrq_context);
 	wq = MLX5_ADDR_OF(xrqc, xrqc, wq);
+	pas = MLX5_ADDR_OF(xrqc, xrqc, wq.pas);
 
 	set_wq(wq, in);
-	memcpy(MLX5_ADDR_OF(xrqc, xrqc, wq.pas), in->pas, pas_size);
+	if (in->umem)
+		mlx5_ib_populate_pas(
+			in->umem,
+			1UL << (in->log_page_size + MLX5_ADAPTER_PAGE_SHIFT),
+			pas, 0);
+	else
+		memcpy(pas, in->pas, pas_size);
 
 	if (in->type == IB_SRQT_TM) {
 		MLX5_SET(xrqc, xrqc, topology, MLX5_XRQC_TOPOLOGY_TAG_MATCHING);
@@ -590,22 +662,32 @@ err_destroy_srq_split:
 	return err;
 }
 
-void mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq)
+int mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq)
 {
 	struct mlx5_srq_table *table = &dev->srq_table;
 	struct mlx5_core_srq *tmp;
 	int err;
 
-	tmp = xa_erase_irq(&table->array, srq->srqn);
-	if (!tmp || tmp != srq)
-		return;
+	/* Delete entry, but leave index occupied */
+	tmp = xa_cmpxchg_irq(&table->array, srq->srqn, srq, XA_ZERO_ENTRY, 0);
+	if (WARN_ON(tmp != srq))
+		return xa_err(tmp) ?: -EINVAL;
 
 	err = destroy_srq_split(dev, srq);
-	if (err)
-		return;
+	if (err) {
+		/*
+		 * We don't need to check returned result for an error,
+		 * because  we are storing in pre-allocated space xarray
+		 * entry and it can't fail at this stage.
+		 */
+		xa_cmpxchg_irq(&table->array, srq->srqn, XA_ZERO_ENTRY, srq, 0);
+		return err;
+	}
+	xa_erase_irq(&table->array, srq->srqn);
 
 	mlx5_core_res_put(&srq->common);
 	wait_for_completion(&srq->common.free);
+	return 0;
 }
 
 int mlx5_cmd_query_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,

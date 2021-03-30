@@ -79,7 +79,7 @@ struct tc_u_hnode {
 	/* The 'ht' field MUST be the last field in structure to allow for
 	 * more entries allocated at end of structure.
 	 */
-	struct tc_u_knode __rcu	*ht[1];
+	struct tc_u_knode __rcu	*ht[];
 };
 
 struct tc_u_common {
@@ -353,7 +353,7 @@ static int u32_init(struct tcf_proto *tp)
 	void *key = tc_u_common_ptr(tp);
 	struct tc_u_common *tp_c = tc_u_common_find(key);
 
-	root_ht = kzalloc(sizeof(*root_ht), GFP_KERNEL);
+	root_ht = kzalloc(struct_size(root_ht, ht, 1), GFP_KERNEL);
 	if (root_ht == NULL)
 		return -ENOBUFS;
 
@@ -364,7 +364,7 @@ static int u32_init(struct tcf_proto *tp)
 	idr_init(&root_ht->handle_idr);
 
 	if (tp_c == NULL) {
-		tp_c = kzalloc(sizeof(*tp_c), GFP_KERNEL);
+		tp_c = kzalloc(struct_size(tp_c, hlist->ht, 1), GFP_KERNEL);
 		if (tp_c == NULL) {
 			kfree(root_ht);
 			return -ENOBUFS;
@@ -933,7 +933,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			NL_SET_ERR_MSG_MOD(extack, "Divisor can only be used on a hash table");
 			return -EINVAL;
 		}
-		ht = kzalloc(sizeof(*ht) + divisor*sizeof(void *), GFP_KERNEL);
+		ht = kzalloc(struct_size(ht, ht, divisor + 1), GFP_KERNEL);
 		if (ht == NULL)
 			return -ENOBUFS;
 		if (handle == 0) {
@@ -1171,7 +1171,6 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
-	int err;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp, n->flags, extack);
 	cls_u32.command = add ?
@@ -1194,13 +1193,9 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 			cls_u32.knode.link_handle = ht->handle;
 	}
 
-	err = tc_setup_cb_reoffload(block, tp, add, cb, TC_SETUP_CLSU32,
-				    &cls_u32, cb_priv, &n->flags,
-				    &n->in_hw_count);
-	if (err)
-		return err;
-
-	return 0;
+	return tc_setup_cb_reoffload(block, tp, add, cb, TC_SETUP_CLSU32,
+				     &cls_u32, cb_priv, &n->flags,
+				     &n->in_hw_count);
 }
 
 static int u32_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,

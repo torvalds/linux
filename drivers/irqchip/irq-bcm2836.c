@@ -167,7 +167,7 @@ static void bcm2836_arm_irqchip_handle_ipi(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void bcm2836_arm_irqchip_ipi_eoi(struct irq_data *d)
+static void bcm2836_arm_irqchip_ipi_ack(struct irq_data *d)
 {
 	int cpu = smp_processor_id();
 
@@ -195,7 +195,7 @@ static struct irq_chip bcm2836_arm_irqchip_ipi = {
 	.name		= "IPI",
 	.irq_mask	= bcm2836_arm_irqchip_dummy_op,
 	.irq_unmask	= bcm2836_arm_irqchip_dummy_op,
-	.irq_eoi	= bcm2836_arm_irqchip_ipi_eoi,
+	.irq_ack	= bcm2836_arm_irqchip_ipi_ack,
 	.ipi_send_mask	= bcm2836_arm_irqchip_ipi_send_mask,
 };
 
@@ -209,7 +209,7 @@ static int bcm2836_arm_irqchip_ipi_alloc(struct irq_domain *d,
 		irq_set_percpu_devid(virq + i);
 		irq_domain_set_info(d, virq + i, i, &bcm2836_arm_irqchip_ipi,
 				    d->host_data,
-				    handle_percpu_devid_fasteoi_ipi,
+				    handle_percpu_devid_irq,
 				    NULL, NULL);
 	}
 
@@ -244,7 +244,7 @@ static int bcm2836_cpu_dying(unsigned int cpu)
 
 #define BITS_PER_MBOX	32
 
-static void bcm2836_arm_irqchip_smp_init(void)
+static void __init bcm2836_arm_irqchip_smp_init(void)
 {
 	struct irq_fwspec ipi_fwspec = {
 		.fwnode		= intc.domain->fwnode,

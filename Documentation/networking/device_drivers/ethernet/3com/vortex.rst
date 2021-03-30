@@ -374,8 +374,8 @@ steps you should take:
    email address will be in the driver source or in the MAINTAINERS file.
 
 - The contents of your report will vary a lot depending upon the
-  problem.  If it's a kernel crash then you should refer to the
-  admin-guide/reporting-bugs.rst file.
+  problem.  If it's a kernel crash then you should refer to
+  'Documentation/admin-guide/reporting-issues.rst'.
 
   But for most problems it is useful to provide the following:
 

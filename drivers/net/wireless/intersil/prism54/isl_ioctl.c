@@ -54,7 +54,7 @@ static const unsigned char scan_rate_list[] = { 2, 4, 11, 22,
 
 /**
  * prism54_mib_mode_helper - MIB change mode helper function
- * @mib: the &struct islpci_mib object to modify
+ * @priv: the &struct islpci_private object to modify
  * @iw_mode: new mode (%IW_MODE_*)
  *
  *  This is a helper function, hence it does not lock. Make sure
@@ -114,14 +114,13 @@ prism54_mib_mode_helper(islpci_private *priv, u32 iw_mode)
 	return 0;
 }
 
-/**
+/*
  * prism54_mib_init - fill MIB cache with defaults
  *
  *  this function initializes the struct given as @mib with defaults,
  *  of which many are retrieved from the global module parameter
  *  variables.
  */
-
 void
 prism54_mib_init(islpci_private *priv)
 {
@@ -163,7 +162,6 @@ prism54_update_stats(struct work_struct *work)
 {
 	islpci_private *priv = container_of(work, islpci_private, stats_work);
 	char *data;
-	int j;
 	struct obj_bss bss, *bss2;
 	union oid_res_t r;
 
@@ -187,7 +185,7 @@ prism54_update_stats(struct work_struct *work)
 	kfree(data);
 
 	/* now ask for the corresponding bss */
-	j = mgt_get_request(priv, DOT11_OID_BSSFIND, 0, (void *) &bss, &r);
+	mgt_get_request(priv, DOT11_OID_BSSFIND, 0, (void *) &bss, &r);
 	bss2 = r.ptr;
 	/* report the rssi and use it to calculate
 	 *  link quality through a signal-noise
@@ -1691,7 +1689,7 @@ static int prism54_get_encodeext(struct net_device *ndev,
 	case DOT11_AUTH_BOTH:
 	case DOT11_AUTH_SK:
 		wrqu->encoding.flags |= IW_ENCODE_RESTRICTED;
-		/* fall through */
+		fallthrough;
 	case DOT11_AUTH_OS:
 	default:
 		wrqu->encoding.flags |= IW_ENCODE_OPEN;

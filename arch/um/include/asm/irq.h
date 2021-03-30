@@ -17,21 +17,21 @@
 #define TELNETD_IRQ 		12
 #define XTERM_IRQ 		13
 #define RANDOM_IRQ 		14
-#define VIRTIO_IRQ		15
 
 #ifdef CONFIG_UML_NET_VECTOR
 
-#define VECTOR_BASE_IRQ		(VIRTIO_IRQ + 1)
+#define VECTOR_BASE_IRQ		(RANDOM_IRQ + 1)
 #define VECTOR_IRQ_SPACE	8
 
-#define LAST_IRQ (VECTOR_IRQ_SPACE + VECTOR_BASE_IRQ - 1)
+#define UM_FIRST_DYN_IRQ (VECTOR_IRQ_SPACE + VECTOR_BASE_IRQ)
 
 #else
 
-#define LAST_IRQ VIRTIO_IRQ
+#define UM_FIRST_DYN_IRQ (RANDOM_IRQ + 1)
 
 #endif
 
-#define NR_IRQS (LAST_IRQ + 1)
+#define NR_IRQS			64
 
+#include <asm-generic/irq.h>
 #endif

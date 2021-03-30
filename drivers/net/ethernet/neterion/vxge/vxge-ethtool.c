@@ -119,7 +119,7 @@ static void vxge_ethtool_gdrvinfo(struct net_device *dev,
  * @dev: device pointer.
  * @regs: pointer to the structure with parameters given by ethtool for
  * dumping the registers.
- * @reg_space: The input argument into which all the registers are dumped.
+ * @space: The input argument into which all the registers are dumped.
  *
  * Dumps the vpath register space of Titan NIC into the user given
  * buffer area.

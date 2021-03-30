@@ -682,7 +682,7 @@ static int __init smsc47m1_handle_resources(unsigned short address,
 			/* Request the resources */
 			if (!devm_request_region(dev, start, len, DRVNAME)) {
 				dev_err(dev,
-					"Region 0x%hx-0x%hx already in use!\n",
+					"Region 0x%x-0x%x already in use!\n",
 					start, start + len);
 				return -EBUSY;
 			}

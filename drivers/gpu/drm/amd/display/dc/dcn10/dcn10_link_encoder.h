@@ -42,6 +42,7 @@
 #define LE_DCN_COMMON_REG_LIST(id) \
 	SRI(DIG_BE_CNTL, DIG, id), \
 	SRI(DIG_BE_EN_CNTL, DIG, id), \
+	SRI(DIG_CLOCK_PATTERN, DIG, id), \
 	SRI(TMDS_CTL_BITS, DIG, id), \
 	SRI(DP_CONFIG, DP, id), \
 	SRI(DP_DPHY_CNTL, DP, id), \
@@ -83,6 +84,7 @@ struct dcn10_link_enc_hpd_registers {
 struct dcn10_link_enc_registers {
 	uint32_t DIG_BE_CNTL;
 	uint32_t DIG_BE_EN_CNTL;
+	uint32_t DIG_CLOCK_PATTERN;
 	uint32_t DP_CONFIG;
 	uint32_t DP_DPHY_CNTL;
 	uint32_t DP_DPHY_INTERNAL_CTRL;
@@ -154,12 +156,10 @@ struct dcn10_link_enc_registers {
 	uint32_t RAWLANE2_DIG_PCS_XF_RX_OVRD_IN_3;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_2;
 	uint32_t RAWLANE3_DIG_PCS_XF_RX_OVRD_IN_3;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	uint32_t TMDS_DCBALANCER_CONTROL;
 	uint32_t PHYA_LINK_CNTL2;
 	uint32_t PHYB_LINK_CNTL2;
 	uint32_t PHYC_LINK_CNTL2;
-#endif
 };
 
 #define LE_SF(reg_name, field_name, post_fix)\
@@ -170,6 +170,7 @@ struct dcn10_link_enc_registers {
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_HPD_SELECT, mask_sh),\
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_MODE, mask_sh),\
 	LE_SF(DIG0_DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, mask_sh),\
+	LE_SF(DIG0_DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, mask_sh),\
 	LE_SF(DIG0_TMDS_CTL_BITS, TMDS_CTL0, mask_sh), \
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_BYPASS, mask_sh),\
 	LE_SF(DP0_DP_DPHY_CNTL, DPHY_ATEST_SEL_LANE0, mask_sh),\
@@ -220,6 +221,7 @@ struct dcn10_link_enc_registers {
 	type DIG_HPD_SELECT;\
 	type DIG_MODE;\
 	type DIG_FE_SOURCE_SELECT;\
+	type DIG_CLOCK_PATTERN;\
 	type DPHY_BYPASS;\
 	type DPHY_ATEST_SEL_LANE0;\
 	type DPHY_ATEST_SEL_LANE1;\
@@ -449,14 +451,25 @@ struct dcn10_link_enc_registers {
 	type AUX_RX_TIMEOUT_LEN;\
 	type AUX_RX_TIMEOUT_LEN_MUL
 
+#define DCN30_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type TMDS_SYNC_DCBAL_EN;\
+	type PHY_HPO_DIG_SRC_SEL;\
+	type PHY_HPO_ENC_SRC_SEL;\
+	type DPCS_TX_HDMI_FRL_MODE;\
+	type DPCS_TX_DATA_SWAP_10_BIT;\
+	type DPCS_TX_DATA_ORDER_INVERT_18_BIT;\
+	type RDPCS_TX_CLK_EN
+
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn10_link_enc_mask {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 };
 
 struct dcn10_link_encoder {
@@ -521,6 +534,13 @@ void enc1_configure_encoder(
 /* enables TMDS PHY output */
 /* TODO: still need depth or just pass in adjusted pixel clock? */
 void dcn10_link_encoder_enable_tmds_output(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	enum dc_color_depth color_depth,
+	enum signal_type signal,
+	uint32_t pixel_clock);
+
+void dcn10_link_encoder_enable_tmds_output_with_clk_pattern_wa(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,

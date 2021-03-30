@@ -20,7 +20,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
@@ -30,7 +30,7 @@
 			qcom,saw = <&saw0>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
@@ -67,7 +67,7 @@
 			no-map;
 		};
 
-		smem@41000000 {
+		smem: smem@41000000 {
 			reg = <0x41000000 0x200000>;
 			no-map;
 		};
@@ -251,7 +251,7 @@
 
 			syscon-tcsr = <&tcsr>;
 
-			serial@12490000 {
+			gsbi2_serial: serial@12490000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x12490000 0x1000>,
 				      <0x12480000 0x1000>;
@@ -273,7 +273,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
-
 		};
 
 		gsbi4: gsbi@16300000 {
@@ -326,7 +325,7 @@
 
 			syscon-tcsr = <&tcsr>;
 
-			serial@1a240000 {
+			gsbi5_serial: serial@1a240000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x1a240000 0x1000>,
 				      <0x1a200000 0x1000>;
@@ -386,6 +385,13 @@
 			};
 		};
 
+		rng@1a500000 {
+			compatible = "qcom,prng";
+			reg = <0x1a500000 0x200>;
+			clocks = <&gcc PRNG_CLK>;
+			clock-names = "core";
+		};
+
 		sata_phy: sata-phy@1b400000 {
 			compatible = "qcom,ipq806x-sata-phy";
 			reg = <0x1b400000 0x200>;
@@ -397,7 +403,7 @@
 			status = "disabled";
 		};
 
-		sata@29000000 {
+		sata: sata@29000000 {
 			compatible = "qcom,ipq806x-ahci", "generic-ahci";
 			reg = <0x29000000 0x180>;
 
@@ -720,7 +726,7 @@
 			regulator-always-on;
 		};
 
-		sdcc1bam:dma@12402000 {
+		sdcc1bam: dma@12402000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12402000 0x8000>;
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -730,7 +736,7 @@
 			qcom,ee = <0>;
 		};
 
-		sdcc3bam:dma@12182000 {
+		sdcc3bam: dma@12182000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12182000 0x8000>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -740,13 +746,13 @@
 			qcom,ee = <0>;
 		};
 
-		amba {
+		amba: amba {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 
-			sdcc@12400000 {
+			sdcc1: sdcc@12400000 {
 				status          = "disabled";
 				compatible      = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -766,7 +772,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc@12180000 {
+			sdcc3: sdcc@12180000 {
 				compatible      = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status          = "disabled";
@@ -779,7 +785,6 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency   = <192000000>;
-				#mmc-ddr-1_8v;
 				sd-uhs-sdr104;
 				sd-uhs-ddr50;
 				vqmmc-supply = <&vsdcc_fixed>;

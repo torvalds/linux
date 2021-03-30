@@ -114,7 +114,7 @@ Notes:
   you must provide some kind of page in your thread after reading from
   the uffd.  You must provide either ``UFFDIO_COPY`` or ``UFFDIO_ZEROPAGE``.
   The normal behavior of the OS automatically providing a zero page on
-  an annonymous mmaping is not in place.
+  an anonymous mmaping is not in place.
 
 - None of the page-delivering ioctls default to the range that you
   registered with.  You must fill in all fields for the appropriate

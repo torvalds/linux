@@ -1070,7 +1070,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 					/ EXT2_BLOCKS_PER_GROUP(sb)) + 1;
 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
 		   EXT2_DESC_PER_BLOCK(sb);
-	sbi->s_group_desc = kmalloc_array (db_count,
+	sbi->s_group_desc = kmalloc_array(db_count,
 					   sizeof(struct buffer_head *),
 					   GFP_KERNEL);
 	if (sbi->s_group_desc == NULL) {
@@ -1455,8 +1455,7 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 	buf->f_namelen = EXT2_NAME_LEN;
 	fsid = le64_to_cpup((void *)es->s_uuid) ^
 	       le64_to_cpup((void *)es->s_uuid + sizeof(u64));
-	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
-	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
+	buf->f_fsid = u64_to_fsid(fsid);
 	spin_unlock(&sbi->s_lock);
 	return 0;
 }

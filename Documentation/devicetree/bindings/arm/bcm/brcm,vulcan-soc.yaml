@@ -19,4 +19,6 @@ properties:
           - cavium,thunderx2-cn9900
       - const: brcm,vulcan-soc
 
+additionalProperties: true
+
 ...

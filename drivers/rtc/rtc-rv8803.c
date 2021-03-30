@@ -454,13 +454,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 static int rv8803_nvram_write(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
-	int ret;
-
-	ret = rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
 }
 
 static int rv8803_nvram_read(void *priv, unsigned int offset,
@@ -477,10 +471,13 @@ static int rv8803_nvram_read(void *priv, unsigned int offset,
 	return 0;
 }
 
-static struct rtc_class_ops rv8803_rtc_ops = {
+static const struct rtc_class_ops rv8803_rtc_ops = {
 	.read_time = rv8803_get_time,
 	.set_time = rv8803_set_time,
 	.ioctl = rv8803_ioctl,
+	.read_alarm = rv8803_get_alarm,
+	.set_alarm = rv8803_set_alarm,
+	.alarm_irq_enable = rv8803_alarm_irq_enable,
 };
 
 static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
@@ -573,12 +570,10 @@ static int rv8803_probe(struct i2c_client *client,
 		if (err) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			rv8803_rtc_ops.read_alarm = rv8803_get_alarm;
-			rv8803_rtc_ops.set_alarm = rv8803_set_alarm;
-			rv8803_rtc_ops.alarm_irq_enable = rv8803_alarm_irq_enable;
 		}
 	}
+	if (!client->irq)
+		clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 
 	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
 	if (err)
@@ -591,14 +586,13 @@ static int rv8803_probe(struct i2c_client *client,
 	}
 
 	rv8803->rtc->ops = &rv8803_rtc_ops;
-	rv8803->rtc->nvram_old_abi = true;
 	rv8803->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv8803->rtc->range_max = RTC_TIMESTAMP_END_2099;
-	err = rtc_register_device(rv8803->rtc);
+	err = devm_rtc_register_device(rv8803->rtc);
 	if (err)
 		return err;
 
-	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
 
 	rv8803->rtc->max_user_freq = 1;
 
@@ -613,7 +607,7 @@ static const struct i2c_device_id rv8803_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);
 
-static const struct of_device_id rv8803_of_match[] = {
+static const __maybe_unused struct of_device_id rv8803_of_match[] = {
 	{
 		.compatible = "microcrystal,rv8803",
 		.data = (void *)rv_8803

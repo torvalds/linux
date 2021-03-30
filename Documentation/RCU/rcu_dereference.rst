@@ -28,6 +28,12 @@ Follow these rules to keep your RCU code working properly:
 	for an example where the compiler can in fact deduce the exact
 	value of the pointer, and thus cause misordering.
 
+-	In the special case where data is added but is never removed
+	while readers are accessing the structure, READ_ONCE() may be used
+	instead of rcu_dereference().  In this case, use of READ_ONCE()
+	takes on the role of the lockless_dereference() primitive that
+	was removed in v4.15.
+
 -	You are only permitted to use rcu_dereference on pointer values.
 	The compiler simply knows too much about integral values to
 	trust it to carry dependencies through integer operations.

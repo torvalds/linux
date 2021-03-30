@@ -24,6 +24,7 @@ select:
           - samsung,exynos5420-pmu
           - samsung,exynos5433-pmu
           - samsung,exynos7-pmu
+          - samsung-s5pv210-pmu
   required:
     - compatible
 
@@ -40,6 +41,7 @@ properties:
           - samsung,exynos5420-pmu
           - samsung,exynos5433-pmu
           - samsung,exynos7-pmu
+          - samsung-s5pv210-pmu
       - const: syscon
 
   reg:
@@ -88,11 +90,27 @@ properties:
 required:
   - compatible
   - reg
-  - '#clock-cells'
-  - clock-names
-  - clocks
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos3250-pmu
+              - samsung,exynos4210-pmu
+              - samsung,exynos4412-pmu
+              - samsung,exynos5250-pmu
+              - samsung,exynos5410-pmu
+              - samsung,exynos5420-pmu
+              - samsung,exynos5433-pmu
+    then:
+      required:
+        - '#clock-cells'
+        - clock-names
+        - clocks
 
 examples:
   - |

@@ -30,10 +30,9 @@ DC_LIBS += dcn20
 DC_LIBS += dsc
 DC_LIBS += dcn10 dml
 DC_LIBS += dcn21
-endif
-
-ifdef CONFIG_DRM_AMD_DC_DCN3_0
 DC_LIBS += dcn30
+DC_LIBS += dcn301
+DC_LIBS += dcn302
 endif
 
 DC_LIBS += dce120
@@ -70,5 +69,7 @@ AMD_DISPLAY_FILES += $(AMD_DISPLAY_CORE)
 AMD_DISPLAY_FILES += $(AMD_DM_REG_UPDATE)
 
 DC_DMUB += dc_dmub_srv.o
+DC_EDID += dc_edid_parser.o
 AMD_DISPLAY_DMUB = $(addprefix $(AMDDALPATH)/dc/,$(DC_DMUB))
-AMD_DISPLAY_FILES += $(AMD_DISPLAY_DMUB)
+AMD_DISPLAY_EDID = $(addprefix $(AMDDALPATH)/dc/,$(DC_EDID))
+AMD_DISPLAY_FILES += $(AMD_DISPLAY_DMUB) $(AMD_DISPLAY_EDID)

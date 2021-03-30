@@ -92,7 +92,7 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 	if (!ns)
 		goto fail_dec;
 
-	kref_init(&ns->kref);
+	refcount_set(&ns->ns.count, 1);
 
 	ns->vvar_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!ns->vvar_page)
@@ -226,11 +226,8 @@ out:
 	mutex_unlock(&offset_lock);
 }
 
-void free_time_ns(struct kref *kref)
+void free_time_ns(struct time_namespace *ns)
 {
-	struct time_namespace *ns;
-
-	ns = container_of(kref, struct time_namespace, kref);
 	dec_time_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
@@ -308,22 +305,20 @@ static int timens_install(struct nsset *nsset, struct ns_common *new)
 	return 0;
 }
 
-int timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk)
+void timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk)
 {
 	struct ns_common *nsc = &nsproxy->time_ns_for_children->ns;
 	struct time_namespace *ns = to_time_ns(nsc);
 
 	/* create_new_namespaces() already incremented the ref counter */
 	if (nsproxy->time_ns == nsproxy->time_ns_for_children)
-		return 0;
+		return;
 
 	get_time_ns(ns);
 	put_time_ns(nsproxy->time_ns);
 	nsproxy->time_ns = ns;
 
 	timens_commit(tsk, ns);
-
-	return 0;
 }
 
 static struct user_namespace *timens_owner(struct ns_common *ns)
@@ -464,15 +459,9 @@ const struct proc_ns_operations timens_for_children_operations = {
 };
 
 struct time_namespace init_time_ns = {
-	.kref		= KREF_INIT(3),
+	.ns.count	= REFCOUNT_INIT(3),
 	.user_ns	= &init_user_ns,
 	.ns.inum	= PROC_TIME_INIT_INO,
 	.ns.ops		= &timens_operations,
 	.frozen_offsets	= true,
 };
-
-static int __init time_ns_init(void)
-{
-	return 0;
-}
-subsys_initcall(time_ns_init);

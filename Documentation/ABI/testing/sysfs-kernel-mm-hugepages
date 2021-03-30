@@ -7,9 +7,11 @@ Description:
 		of the hugepages supported by the kernel/CPU combination.
 
 		Under these directories are a number of files:
-			nr_hugepages
-			nr_overcommit_hugepages
-			free_hugepages
-			surplus_hugepages
-			resv_hugepages
+
+			- nr_hugepages
+			- nr_overcommit_hugepages
+			- free_hugepages
+			- surplus_hugepages
+			- resv_hugepages
+
 		See Documentation/admin-guide/mm/hugetlbpage.rst for details.

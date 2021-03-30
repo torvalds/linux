@@ -520,7 +520,7 @@ static struct snd_soc_dai_driver max9867_dai[] = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &max9867_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	}
 };
 
@@ -649,11 +649,13 @@ static const struct i2c_device_id max9867_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max9867_i2c_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id max9867_of_match[] = {
 	{ .compatible = "maxim,max9867", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max9867_of_match);
+#endif
 
 static struct i2c_driver max9867_i2c_driver = {
 	.driver = {

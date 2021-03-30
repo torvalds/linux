@@ -264,7 +264,6 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	} else {
 		/*
 		 * Declared with "Device" statement; match _UID.
-		 * Note that we don't handle string _UIDs yet.
 		 */
 		status = acpi_evaluate_integer(pr->handle, METHOD_NAME__UID,
 						NULL, &value);

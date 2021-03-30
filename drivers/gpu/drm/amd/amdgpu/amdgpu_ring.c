@@ -52,7 +52,6 @@
 /**
  * amdgpu_ring_alloc - allocate space on the ring buffer
  *
- * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
  * @ndw: number of dwords to allocate in the ring buffer
  *
@@ -95,7 +94,8 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 		amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
-/** amdgpu_ring_generic_pad_ib - pad IB with NOP packets
+/**
+ * amdgpu_ring_generic_pad_ib - pad IB with NOP packets
  *
  * @ring: amdgpu_ring structure holding ring information
  * @ib: IB to add NOP packets to
@@ -112,7 +112,6 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
  * amdgpu_ring_commit - tell the GPU to execute the new
  * commands on the ring buffer
  *
- * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
  *
  * Update the wptr (write pointer) to tell the GPU to
@@ -155,8 +154,10 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  *
  * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
- * @max_ndw: maximum number of dw for ring alloc
- * @nop: nop packet for this ring
+ * @max_dw: maximum number of dw for ring alloc
+ * @irq_src: interrupt source to use for this ring
+ * @irq_type: interrupt type to use for this ring
+ * @hw_prio: ring priority (NORMAL/HIGH)
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
@@ -165,7 +166,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned int max_dw, struct amdgpu_irq_src *irq_src,
 		     unsigned int irq_type, unsigned int hw_prio)
 {
-	int r, i;
+	int r;
 	int sched_hw_submission = amdgpu_sched_hw_submission;
 	u32 *num_sched;
 	u32 hw_ip;
@@ -257,8 +258,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 
 	ring->max_dw = max_dw;
-	ring->priority = DRM_SCHED_PRIORITY_NORMAL;
-	mutex_init(&ring->priority_mutex);
+	ring->hw_prio = hw_prio;
 
 	if (!ring->no_scheduler) {
 		hw_ip = ring->funcs->type;
@@ -267,16 +267,12 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			&ring->sched;
 	}
 
-	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_COUNT; ++i)
-		atomic_set(&ring->num_jobs[i], 0);
-
 	return 0;
 }
 
 /**
  * amdgpu_ring_fini - tear down the driver ring struct.
  *
- * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
  *
  * Tear down the driver information for the selected ring (all asics).
@@ -310,7 +306,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 /**
  * amdgpu_ring_emit_reg_write_reg_wait_helper - ring helper
  *
- * @adev: amdgpu_device pointer
+ * @ring: ring to write to
  * @reg0: register to write
  * @reg1: register to wait on
  * @ref: reference value to write/wait on
@@ -396,7 +392,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 			return result;
 
 		value = ring->ring[(*pos - 12)/4];
-		r = put_user(value, (uint32_t*)buf);
+		r = put_user(value, (uint32_t *)buf);
 		if (r)
 			return r;
 		buf += 4;

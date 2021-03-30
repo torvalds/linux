@@ -1045,6 +1045,8 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 	server->caps |= server->nfs_client->cl_mvops->init_caps;
 	if (server->flags & NFS_MOUNT_NORDIRPLUS)
 			server->caps &= ~NFS_CAP_READDIRPLUS;
+	if (server->nfs_client->cl_proto == XPRT_TRANSPORT_RDMA)
+		server->caps &= ~NFS_CAP_READ_PLUS;
 	/*
 	 * Don't use NFS uid/gid mapping if we're using AUTH_SYS or lower
 	 * authentication.
@@ -1151,7 +1153,7 @@ struct nfs_server *nfs4_create_server(struct fs_context *fc)
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
-	server->cred = get_cred(current_cred());
+	server->cred = get_cred(fc->cred);
 
 	auth_probe = ctx->auth_info.flavor_len < 1;
 

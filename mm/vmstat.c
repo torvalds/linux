@@ -325,7 +325,7 @@ void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 
 	t = __this_cpu_read(pcp->stat_threshold);
 
-	if (unlikely(x > t || x < -t)) {
+	if (unlikely(abs(x) > t)) {
 		zone_page_state_add(x, zone, item);
 		x = 0;
 	}
@@ -350,7 +350,7 @@ void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
 
 	t = __this_cpu_read(pcp->stat_threshold);
 
-	if (unlikely(x > t || x < -t)) {
+	if (unlikely(abs(x) > t)) {
 		node_page_state_add(x, pgdat, item);
 		x = 0;
 	}
@@ -511,7 +511,7 @@ static inline void mod_zone_state(struct zone *zone,
 		o = this_cpu_read(*p);
 		n = delta + o;
 
-		if (n > t || n < -t) {
+		if (abs(n) > t) {
 			int os = overstep_mode * (t >> 1) ;
 
 			/* Overflow must be added to zone counters */
@@ -573,7 +573,7 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 		o = this_cpu_read(*p);
 		n = delta + o;
 
-		if (n > t || n < -t) {
+		if (abs(n) > t) {
 			int os = overstep_mode * (t >> 1) ;
 
 			/* Overflow must be added to node counters */
@@ -1157,7 +1157,6 @@ const char * const vmstat_text[] = {
 	"nr_zone_unevictable",
 	"nr_zone_write_pending",
 	"nr_mlock",
-	"nr_page_table_pages",
 	"nr_bounce",
 #if IS_ENABLED(CONFIG_ZSMALLOC)
 	"nr_zspages",
@@ -1215,6 +1214,7 @@ const char * const vmstat_text[] = {
 #if IS_ENABLED(CONFIG_SHADOW_CALL_STACK)
 	"nr_shadow_call_stack",
 #endif
+	"nr_page_table_pages",
 
 	/* enum writeback_stat_item counters */
 	"nr_dirty_threshold",
@@ -1501,10 +1501,6 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
 
 		page = pfn_to_online_page(pfn);
 		if (!page)
-			continue;
-
-		/* Watch for unexpected holes punched in the memmap */
-		if (!memmap_valid_within(pfn, page, zone))
 			continue;
 
 		if (page_zone(page) != zone)

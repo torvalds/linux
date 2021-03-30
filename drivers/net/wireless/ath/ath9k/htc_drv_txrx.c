@@ -297,7 +297,12 @@ static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
 		tx_hdr.data_type = ATH9K_HTC_NORMAL;
 	}
 
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
+	/* Transmit all frames that should not be reordered relative
+	 * to each other using the same priority. For other QoS data
+	 * frames extract the priority from the header.
+	 */
+	if (!(tx_info->control.flags & IEEE80211_TX_CTRL_DONT_REORDER) &&
+	    ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	}
@@ -570,9 +575,9 @@ void ath9k_htc_tx_drain(struct ath9k_htc_priv *priv)
 	spin_unlock_bh(&priv->tx.tx_lock);
 }
 
-void ath9k_tx_failed_tasklet(unsigned long data)
+void ath9k_tx_failed_tasklet(struct tasklet_struct *t)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ath9k_htc_priv *priv = from_tasklet(priv, t, tx_failed_tasklet);
 
 	spin_lock(&priv->tx.tx_lock);
 	if (priv->tx.flags & ATH9K_HTC_OP_TX_DRAIN) {
@@ -974,7 +979,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct ath_htc_rx_status *rxstatus;
 	struct ath_rx_status rx_stats;
 	bool decrypt_error = false;
-	__be16 rs_datalen;
+	u16 rs_datalen;
 	bool is_phyerr;
 
 	if (skb->len < HTC_RX_FRAME_HEADER_SIZE) {
@@ -1062,9 +1067,9 @@ rx_next:
 /*
  * FIXME: Handle FLUSH later on.
  */
-void ath9k_rx_tasklet(unsigned long data)
+void ath9k_rx_tasklet(struct tasklet_struct *t)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ath9k_htc_priv *priv = from_tasklet(priv, t, rx_tasklet);
 	struct ath9k_htc_rxbuf *rxbuf = NULL, *tmp_buf = NULL;
 	struct ieee80211_rx_status rx_status;
 	struct sk_buff *skb;

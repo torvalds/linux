@@ -43,7 +43,7 @@ __END__;
 
 #define FONTDATAMAX 1536
 
-static struct font_data fontdata_mini_4x6 = {
+static const struct font_data fontdata_mini_4x6 = {
 	{ 0, 0, FONTDATAMAX, 0 }, {
 	/*{*/
 	  	/*   Char 0: ' '  */
@@ -2152,6 +2152,7 @@ const struct font_desc font_mini_4x6 = {
 	.name	= "MINI4x6",
 	.width	= 4,
 	.height	= 6,
+	.charcount = 256,
 	.data	= fontdata_mini_4x6.data,
 	.pref	= 3,
 };

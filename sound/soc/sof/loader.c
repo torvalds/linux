@@ -118,8 +118,13 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 		case SOF_IPC_EXT_CC_INFO:
 			ret = get_cc_info(sdev, ext_hdr);
 			break;
+		case SOF_IPC_EXT_UNUSED:
+		case SOF_IPC_EXT_PROBE_INFO:
+		case SOF_IPC_EXT_USER_ABI_INFO:
+			/* They are supported but we don't do anything here */
+			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown ext header type %d size 0x%x\n",
+			dev_info(sdev->dev, "unknown ext header type %d size 0x%x\n",
 				 ext_hdr->type, ext_hdr->hdr.size);
 			ret = 0;
 			break;
@@ -188,6 +193,54 @@ static int ext_man_get_dbg_abi_info(struct snd_sof_dev *sdev,
 			SOF_ABI_VERSION_MAJOR(dbg_abi->dbg_abi.abi_dbg_version),
 			SOF_ABI_VERSION_MINOR(dbg_abi->dbg_abi.abi_dbg_version),
 			SOF_ABI_VERSION_PATCH(dbg_abi->dbg_abi.abi_dbg_version));
+
+	return 0;
+}
+
+static int ext_man_get_config_data(struct snd_sof_dev *sdev,
+				   const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_config_data *config =
+		container_of(hdr, struct sof_ext_man_config_data, hdr);
+	const struct sof_config_elem *elem;
+	int elems_counter;
+	int elems_size;
+	int ret = 0;
+	int i;
+
+	/* calculate elements counter */
+	elems_size = config->hdr.size - sizeof(struct sof_ext_man_elem_header);
+	elems_counter = elems_size / sizeof(struct sof_config_elem);
+
+	dev_dbg(sdev->dev, "%s can hold up to %d config elements\n",
+		__func__, elems_counter);
+
+	for (i = 0; i < elems_counter; ++i) {
+		elem = &config->elems[i];
+		dev_dbg(sdev->dev, "%s get index %d token %d val %d\n",
+			__func__, i, elem->token, elem->value);
+		switch (elem->token) {
+		case SOF_EXT_MAN_CONFIG_EMPTY:
+			/* unused memory space is zero filled - mapped to EMPTY elements */
+			break;
+		case SOF_EXT_MAN_CONFIG_IPC_MSG_SIZE:
+			/* TODO: use ipc msg size from config data */
+			break;
+		case SOF_EXT_MAN_CONFIG_MEMORY_USAGE_SCAN:
+			if (sdev->first_boot && elem->value)
+				ret = snd_sof_dbg_memory_info_init(sdev);
+			break;
+		default:
+			dev_info(sdev->dev, "Unknown firmware configuration token %d value %d",
+				 elem->token, elem->value);
+			break;
+		}
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: processing sof_ext_man_config_data failed for token %d value 0x%x, %d\n",
+				elem->token, elem->value, ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -274,8 +327,14 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 		case SOF_EXT_MAN_ELEM_DBG_ABI:
 			ret = ext_man_get_dbg_abi_info(sdev, elem_hdr);
 			break;
+		case SOF_EXT_MAN_ELEM_CONFIG_DATA:
+			ret = ext_man_get_config_data(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_PLATFORM_CONFIG_DATA:
+			ret = snd_sof_dsp_parse_platform_ext_manifest(sdev, elem_hdr);
+			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
+			dev_info(sdev->dev, "unknown sof_ext_man header type %d size 0x%X\n",
 				 elem_hdr->type, elem_hdr->size);
 			break;
 		}
@@ -672,6 +731,8 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
+		dev_err(sdev->dev,
+			"you may need to download the firmware from https://github.com/thesofproject/sof-bin/\n");
 		goto err;
 	} else {
 		dev_dbg(sdev->dev, "request_firmware %s successful\n",
@@ -752,7 +813,6 @@ EXPORT_SYMBOL(snd_sof_load_firmware);
 int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 {
 	int ret;
-	int init_core_mask;
 
 	init_waitqueue_head(&sdev->boot_wait);
 
@@ -784,8 +844,6 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	init_core_mask = ret;
-
 	/*
 	 * now wait for the DSP to boot. There are 3 possible outcomes:
 	 * 1. Boot wait times out indicating FW boot failure.
@@ -797,8 +855,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 				 msecs_to_jiffies(sdev->boot_timeout));
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: firmware boot failure\n");
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX |
-			SOF_DBG_TEXT | SOF_DBG_PCI);
+		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
+			SOF_DBG_DUMP_TEXT | SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_FORCE_ERR_LEVEL);
 		sdev->fw_state = SOF_FW_BOOT_FAILED;
 		return -EIO;
 	}
@@ -814,9 +872,6 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: failed post fw run op\n");
 		return ret;
 	}
-
-	/* fw boot is complete. Update the active cores mask */
-	sdev->enabled_cores_mask = init_core_mask;
 
 	return 0;
 }

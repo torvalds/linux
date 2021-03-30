@@ -70,12 +70,16 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
 
 extern int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
-		       struct cifs_sb_info *cifs_sb, struct cifs_fid *pfid);
+		       struct cifs_sb_info *cifs_sb,
+		       struct cached_fid **cfid);
 extern void close_shroot(struct cached_fid *cfid);
 extern void close_shroot_lease(struct cached_fid *cfid);
 extern void close_shroot_lease_locked(struct cached_fid *cfid);
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);
+extern int smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb, const char *path,
+				__u32 *reparse_tag);
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb,
 				const char *full_path, FILE_ALL_INFO *data,
@@ -196,8 +200,8 @@ extern int SMB2_query_info_init(struct cifs_tcon *tcon,
 				size_t input_len, void *input);
 extern void SMB2_query_info_free(struct smb_rqst *rqst);
 extern int SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
-			   u64 persistent_file_id, u64 volatile_file_id,
-			   void **data, unsigned int *plen);
+			  u64 persistent_file_id, u64 volatile_file_id,
+			  void **data, unsigned int *plen, u32 info);
 extern int SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
 			    u64 persistent_fid, u64 volatile_fid,
 			    __le64 *uniqueid);

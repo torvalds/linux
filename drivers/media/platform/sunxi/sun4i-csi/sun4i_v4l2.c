@@ -113,8 +113,6 @@ static void _sun4i_csi_try_fmt(struct sun4i_csi *csi,
 	pix->num_planes = _fmt->num_planes;
 	pix->pixelformat = _fmt->fourcc;
 
-	memset(pix->reserved, 0, sizeof(pix->reserved));
-
 	/* Align the width and height on the subsampling */
 	width = ALIGN(pix->width, _fmt->hsub);
 	height = ALIGN(pix->height, _fmt->vsub);
@@ -131,8 +129,6 @@ static void _sun4i_csi_try_fmt(struct sun4i_csi *csi,
 		bpl = pix->width / hsub * _fmt->bpp[i] / 8;
 		pix->plane_fmt[i].bytesperline = bpl;
 		pix->plane_fmt[i].sizeimage = bpl * pix->height / vsub;
-		memset(pix->plane_fmt[i].reserved, 0,
-		       sizeof(pix->plane_fmt[i].reserved));
 	}
 }
 
@@ -363,7 +359,7 @@ int sun4i_csi_v4l2_register(struct sun4i_csi *csi)
 	vdev->lock = &csi->lock;
 
 	/* Set a default format */
-	csi->fmt.pixelformat = sun4i_csi_formats[0].fourcc,
+	csi->fmt.pixelformat = sun4i_csi_formats[0].fourcc;
 	csi->fmt.width = CSI_DEFAULT_WIDTH;
 	csi->fmt.height = CSI_DEFAULT_HEIGHT;
 	_sun4i_csi_try_fmt(csi, &csi->fmt);

@@ -270,10 +270,6 @@ static void __init smp_psurge_probe(void)
 	int i, ncpus;
 	struct device_node *dn;
 
-	/* We don't do SMP on the PPC601 -- paulus */
-	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
-		return;
-
 	/*
 	 * The powersurge cpu board can be used in the generation
 	 * of powermacs that have a socket for an upgradeable cpu card,
@@ -915,12 +911,14 @@ static int smp_core99_cpu_disable(void)
 
 	mpic_cpu_set_priority(0xf);
 
+	cleanup_cpu_mmu_context();
+
 	return 0;
 }
 
 #ifdef CONFIG_PPC32
 
-static void pmac_cpu_die(void)
+static void pmac_cpu_offline_self(void)
 {
 	int cpu = smp_processor_id();
 
@@ -930,12 +928,12 @@ static void pmac_cpu_die(void)
 	generic_set_cpu_dead(cpu);
 	smp_wmb();
 	mb();
-	low_cpu_die();
+	low_cpu_offline_self();
 }
 
 #else /* CONFIG_PPC32 */
 
-static void pmac_cpu_die(void)
+static void pmac_cpu_offline_self(void)
 {
 	int cpu = smp_processor_id();
 
@@ -1020,7 +1018,7 @@ void __init pmac_setup_smp(void)
 #endif /* CONFIG_PPC_PMAC32_PSURGE */
 
 #ifdef CONFIG_HOTPLUG_CPU
-	ppc_md.cpu_die = pmac_cpu_die;
+	smp_ops->cpu_offline_self = pmac_cpu_offline_self;
 #endif
 }
 

@@ -144,12 +144,13 @@
  */
 
 /**
- * sifive_serial_port - driver-specific data extension to struct uart_port
+ * struct sifive_serial_port - driver-specific data extension to struct uart_port
  * @port: struct uart_port embedded in this struct
  * @dev: struct device *
  * @ier: shadowed copy of the interrupt enable register
  * @clkin_rate: input clock to the UART IP block.
  * @baud_rate: UART serial line rate (e.g., 115200 baud)
+ * @clk: reference to this device's clock
  * @clk_notifier: clock rate change notifier for upstream clock changes
  *
  * Configuration data specific to this SiFive UART.
@@ -999,6 +1000,7 @@ static int sifive_serial_probe(struct platform_device *pdev)
 	/* Set up clock divider */
 	ssp->clkin_rate = clk_get_rate(ssp->clk);
 	ssp->baud_rate = SIFIVE_DEFAULT_BAUD_RATE;
+	ssp->port.uartclk = ssp->baud_rate * 16;
 	__ssp_update_div(ssp);
 
 	platform_set_drvdata(pdev, ssp);

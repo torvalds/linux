@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2013-2016 Freescale Semiconductor Inc.
  * Copyright 2016 NXP
+ * Copyright 2020 NXP
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1224,6 +1225,99 @@ int dpni_get_port_mac_addr(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpni_enable_vlan_filter() - Enable/disable VLAN filtering mode
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @en:		Set to '1' to enable; '0' to disable
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpni_enable_vlan_filter(struct fsl_mc_io *mc_io,
+			    u32 cmd_flags,
+			    u16 token,
+			    u32 en)
+{
+	struct dpni_cmd_enable_vlan_filter *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_ENABLE_VLAN_FILTER,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpni_cmd_enable_vlan_filter *)cmd.params;
+	dpni_set_field(cmd_params->en, ENABLE, en);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpni_add_vlan_id() - Add VLAN ID filter
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @vlan_id:	VLAN ID to add
+ * @flags:   0 - tc_id and flow_id will be ignored.
+ * Pkt with this vlan_id will be passed to the next
+ * classification stages
+ * DPNI_VLAN_SET_QUEUE_ACTION
+ * Pkt with this vlan_id will be forward directly to
+ * queue defined by the tc_id and flow_id
+ *
+ * @tc_id: Traffic class selection (0-7)
+ * @flow_id: Selects the specific queue out of the set allocated for the
+ *           same as tc_id. Value must be in range 0 to NUM_QUEUES - 1
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpni_add_vlan_id(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		     u16 vlan_id, u8 flags, u8 tc_id, u8 flow_id)
+{
+	struct dpni_cmd_vlan_id *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_ADD_VLAN_ID,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpni_cmd_vlan_id *)cmd.params;
+	cmd_params->flags = flags;
+	cmd_params->tc_id = tc_id;
+	cmd_params->flow_id =  flow_id;
+	cmd_params->vlan_id = cpu_to_le16(vlan_id);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpni_remove_vlan_id() - Remove VLAN ID filter
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @vlan_id:	VLAN ID to remove
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpni_remove_vlan_id(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			u16 vlan_id)
+{
+	struct dpni_cmd_vlan_id *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_REMOVE_VLAN_ID,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpni_cmd_vlan_id *)cmd.params;
+	cmd_params->vlan_id = cpu_to_le16(vlan_id);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpni_add_mac_addr() - Add MAC address filter
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -1995,6 +2089,84 @@ int dpni_set_tx_shaping(struct fsl_mc_io *mc_io,
 	cmd_params->tx_cr_rate_limit = cpu_to_le32(tx_cr_shaper->rate_limit);
 	cmd_params->tx_er_rate_limit = cpu_to_le32(tx_er_shaper->rate_limit);
 	dpni_set_field(cmd_params->coupled, COUPLED, coupled);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpni_get_single_step_cfg() - return current configuration for
+ *                              single step PTP
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @ptp_cfg:	ptp single step configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ *
+ */
+int dpni_get_single_step_cfg(struct fsl_mc_io *mc_io,
+			     u32 cmd_flags,
+			     u16 token,
+			     struct dpni_single_step_cfg *ptp_cfg)
+{
+	struct dpni_rsp_single_step_cfg *rsp_params;
+	struct fsl_mc_command cmd = { 0 };
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_GET_SINGLE_STEP_CFG,
+					  cmd_flags, token);
+	/* send command to mc*/
+	err =  mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* read command response */
+	rsp_params = (struct dpni_rsp_single_step_cfg *)cmd.params;
+	ptp_cfg->offset = le16_to_cpu(rsp_params->offset);
+	ptp_cfg->en = dpni_get_field(le16_to_cpu(rsp_params->flags),
+				     PTP_ENABLE) ? 1 : 0;
+	ptp_cfg->ch_update = dpni_get_field(le16_to_cpu(rsp_params->flags),
+					    PTP_CH_UPDATE) ? 1 : 0;
+	ptp_cfg->peer_delay = le32_to_cpu(rsp_params->peer_delay);
+
+	return err;
+}
+
+/**
+ * dpni_set_single_step_cfg() - enable/disable and configure single step PTP
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @ptp_cfg:	ptp single step configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ *
+ * The function has effect only when dpni object is connected to a dpmac
+ * object. If the dpni is not connected to a dpmac the configuration will
+ * be stored inside and applied when connection is made.
+ */
+int dpni_set_single_step_cfg(struct fsl_mc_io *mc_io,
+			     u32 cmd_flags,
+			     u16 token,
+			     struct dpni_single_step_cfg *ptp_cfg)
+{
+	struct dpni_cmd_single_step_cfg *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+	u16 flags;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_SET_SINGLE_STEP_CFG,
+					  cmd_flags, token);
+	cmd_params = (struct dpni_cmd_single_step_cfg *)cmd.params;
+	cmd_params->offset = cpu_to_le16(ptp_cfg->offset);
+	cmd_params->peer_delay = cpu_to_le32(ptp_cfg->peer_delay);
+
+	flags = le16_to_cpu(cmd_params->flags);
+	dpni_set_field(flags, PTP_ENABLE, !!ptp_cfg->en);
+	dpni_set_field(flags, PTP_CH_UPDATE, !!ptp_cfg->ch_update);
+	cmd_params->flags = cpu_to_le16(flags);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);

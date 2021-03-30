@@ -64,6 +64,7 @@ config DP83640_PHY
 	depends on NETWORK_PHY_TIMESTAMPING
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
+	select CRC32
 	help
 	  Supports the DP83640 PHYTER with IEEE 1588 features.
 
@@ -78,6 +79,7 @@ config DP83640_PHY
 config PTP_1588_CLOCK_INES
 	tristate "ZHAW InES PTP time stamping IP core"
 	depends on NETWORK_PHY_TIMESTAMPING
+	depends on HAS_IOMEM
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
 	help
@@ -150,5 +152,19 @@ config PTP_1588_CLOCK_VMW
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_vmw.
+
+config PTP_1588_CLOCK_OCP
+	tristate "OpenCompute TimeCard as PTP clock"
+	depends on PTP_1588_CLOCK
+	depends on HAS_IOMEM && PCI
+	default n
+	help
+	  This driver adds support for an OpenCompute time card.
+
+	  The OpenCompute time card is an atomic clock along with
+	  a GPS receiver that provides a Grandmaster clock source
+	  for a PTP enabled network.
+
+	  More information is available at http://www.timingcard.com/
 
 endmenu

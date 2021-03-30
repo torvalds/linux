@@ -150,7 +150,7 @@
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "G12A-X96-MAX";
+		model = "X96-MAX";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
@@ -340,7 +340,7 @@
 		eee-broken-1000t;
 
 		reset-assert-us = <10000>;
-		reset-deassert-us = <30000>;
+		reset-deassert-us = <80000>;
 		reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
 
 		interrupt-parent = <&gpio_intc>;

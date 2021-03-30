@@ -71,6 +71,8 @@ void ath11k_hal_tx_cmd_desc_setup(struct ath11k_base *ab, void *cmd,
 	tcl_cmd->info3 = FIELD_PREP(HAL_TCL_DATA_CMD_INFO3_DSCP_TID_TABLE_IDX,
 				    ti->dscp_tid_tbl_idx) |
 			 FIELD_PREP(HAL_TCL_DATA_CMD_INFO3_SEARCH_INDEX,
+				    ti->bss_ast_idx) |
+			 FIELD_PREP(HAL_TCL_DATA_CMD_INFO3_CACHE_SET_NUM,
 				    ti->bss_ast_hash);
 	tcl_cmd->info4 = 0;
 }
@@ -141,7 +143,7 @@ void ath11k_hal_tx_init_data_ring(struct ath11k_base *ab, struct hal_srng *srng)
 
 	memset(&params, 0, sizeof(params));
 
-	entry_size = ath11k_hal_srng_get_entrysize(HAL_TCL_DATA);
+	entry_size = ath11k_hal_srng_get_entrysize(ab, HAL_TCL_DATA);
 	ath11k_hal_srng_get_params(ab, srng, &params);
 	desc = (u8 *)params.ring_base_vaddr;
 

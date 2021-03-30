@@ -25,6 +25,7 @@
 #define L3C_INT_STATUS		0x0808
 #define L3C_INT_CLEAR		0x080c
 #define L3C_EVENT_CTRL	        0x1c00
+#define L3C_VERSION		0x1cf0
 #define L3C_EVENT_TYPE0		0x1d00
 /*
  * Each counter is 48-bits and [48:63] are reserved
@@ -264,6 +265,8 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 		return PTR_ERR(l3c_pmu->base);
 	}
 
+	l3c_pmu->identifier = readl(l3c_pmu->base + L3C_VERSION);
+
 	return 0;
 }
 
@@ -310,10 +313,23 @@ static const struct attribute_group hisi_l3c_pmu_cpumask_attr_group = {
 	.attrs = hisi_l3c_pmu_cpumask_attrs,
 };
 
+static struct device_attribute hisi_l3c_pmu_identifier_attr =
+	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
+
+static struct attribute *hisi_l3c_pmu_identifier_attrs[] = {
+	&hisi_l3c_pmu_identifier_attr.attr,
+	NULL
+};
+
+static const struct attribute_group hisi_l3c_pmu_identifier_group = {
+	.attrs = hisi_l3c_pmu_identifier_attrs,
+};
+
 static const struct attribute_group *hisi_l3c_pmu_attr_groups[] = {
 	&hisi_l3c_pmu_format_group,
 	&hisi_l3c_pmu_events_group,
 	&hisi_l3c_pmu_cpumask_attr_group,
+	&hisi_l3c_pmu_identifier_group,
 	NULL,
 };
 

@@ -177,7 +177,7 @@ static bool tscs454_volatile(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tscs454_writable(struct device *dev, unsigned int reg)
@@ -197,7 +197,7 @@ static bool tscs454_writable(struct device *dev, unsigned int reg)
 		return false;
 	default:
 		return true;
-	};
+	}
 }
 
 static bool tscs454_readable(struct device *dev, unsigned int reg)
@@ -217,7 +217,7 @@ static bool tscs454_readable(struct device *dev, unsigned int reg)
 		return false;
 	default:
 		return true;
-	};
+	}
 }
 
 static bool tscs454_precious(struct device *dev, unsigned int reg)
@@ -246,7 +246,7 @@ static bool tscs454_precious(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_range_cfg tscs454_regmap_range_cfg = {
@@ -3346,9 +3346,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai1_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "tscs454-dai2",
@@ -3366,9 +3366,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai23_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "tscs454-dai3",
@@ -3386,9 +3386,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai23_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 };
 

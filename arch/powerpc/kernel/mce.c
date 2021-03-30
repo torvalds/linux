@@ -555,7 +555,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	}
 
 	printk("%sMCE: CPU%d: machine check (%s) %s %s %s %s[%s]\n",
-		level, evt->cpu, sevstr, in_guest ? "Guest" : "Host",
+		level, evt->cpu, sevstr, in_guest ? "Guest" : "",
 		err_type, subtype, dar_str,
 		evt->disposition == MCE_DISPOSITION_RECOVERED ?
 		"Recovered" : "Not recovered");
@@ -577,7 +577,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Display faulty slb contents for SLB errors. */
-	if (evt->error_type == MCE_ERROR_TYPE_SLB)
+	if (evt->error_type == MCE_ERROR_TYPE_SLB && !in_guest)
 		slb_dump_contents(local_paca->mce_faulty_slbs);
 #endif
 }
@@ -591,12 +591,11 @@ EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 long notrace machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
-	bool nested = in_nmi();
 	u8 ftrace_enabled = this_cpu_get_ftrace_enabled();
 
 	this_cpu_set_ftrace_enabled(0);
-
-	if (!nested)
+	/* Do not use nmi_enter/exit for pseries hpte guest */
+	if (radix_enabled() || !firmware_has_feature(FW_FEATURE_LPAR))
 		nmi_enter();
 
 	hv_nmi_check_nonrecoverable(regs);
@@ -607,7 +606,7 @@ long notrace machine_check_early(struct pt_regs *regs)
 	if (ppc_md.machine_check_early)
 		handled = ppc_md.machine_check_early(regs);
 
-	if (!nested)
+	if (radix_enabled() || !firmware_has_feature(FW_FEATURE_LPAR))
 		nmi_exit();
 
 	this_cpu_set_ftrace_enabled(ftrace_enabled);

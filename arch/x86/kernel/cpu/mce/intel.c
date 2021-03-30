@@ -509,12 +509,32 @@ static void intel_ppin_init(struct cpuinfo_x86 *c)
 	}
 }
 
+/*
+ * Enable additional error logs from the integrated
+ * memory controller on processors that support this.
+ */
+static void intel_imc_init(struct cpuinfo_x86 *c)
+{
+	u64 error_control;
+
+	switch (c->x86_model) {
+	case INTEL_FAM6_SANDYBRIDGE_X:
+	case INTEL_FAM6_IVYBRIDGE_X:
+	case INTEL_FAM6_HASWELL_X:
+		if (rdmsrl_safe(MSR_ERROR_CONTROL, &error_control))
+			return;
+		error_control |= 2;
+		wrmsrl_safe(MSR_ERROR_CONTROL, error_control);
+		break;
+	}
+}
+
 void mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
-	intel_init_thermal(c);
 	intel_init_cmci();
 	intel_init_lmce();
 	intel_ppin_init(c);
+	intel_imc_init(c);
 }
 
 void mce_intel_feature_clear(struct cpuinfo_x86 *c)

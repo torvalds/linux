@@ -64,15 +64,15 @@
 #else	/* !__ASSEMBLY__ */
 
 #ifdef CONFIG_ARC_HAS_ICCM
-#define __arcfp_code __section(.text.arcfp)
+#define __arcfp_code __section(".text.arcfp")
 #else
-#define __arcfp_code __section(.text)
+#define __arcfp_code __section(".text")
 #endif
 
 #ifdef CONFIG_ARC_HAS_DCCM
-#define __arcfp_data __section(.data.arcfp)
+#define __arcfp_data __section(".data.arcfp")
 #else
-#define __arcfp_data __section(.data)
+#define __arcfp_data __section(".data")
 #endif
 
 #endif /* __ASSEMBLY__ */

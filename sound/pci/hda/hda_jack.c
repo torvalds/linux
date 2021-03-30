@@ -275,16 +275,21 @@ int snd_hda_jack_detect_state_mst(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_state_mst);
 
-static bool func_is_already_in_callback_list(struct hda_jack_tbl *jack,
-					     hda_jack_callback_fn func)
+static struct hda_jack_callback *
+find_callback_from_list(struct hda_jack_tbl *jack,
+			hda_jack_callback_fn func)
 {
 	struct hda_jack_callback *cb;
 
+	if (!func)
+		return NULL;
+
 	for (cb = jack->callback; cb; cb = cb->next) {
 		if (cb->func == func)
-			return true;
+			return cb;
 	}
-	return false;
+
+	return NULL;
 }
 
 /**
@@ -309,7 +314,10 @@ snd_hda_jack_detect_enable_callback_mst(struct hda_codec *codec, hda_nid_t nid,
 	jack = snd_hda_jack_tbl_new(codec, nid, dev_id);
 	if (!jack)
 		return ERR_PTR(-ENOMEM);
-	if (func && !func_is_already_in_callback_list(jack, func)) {
+
+	callback = find_callback_from_list(jack, func);
+
+	if (func && !callback) {
 		callback = kzalloc(sizeof(*callback), GFP_KERNEL);
 		if (!callback)
 			return ERR_PTR(-ENOMEM);
@@ -522,7 +530,7 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 		       !is_jack_detectable(codec, nid);
 
 	if (base_name)
-		strlcpy(name, base_name, sizeof(name));
+		strscpy(name, base_name, sizeof(name));
 	else
 		snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), NULL);
 	if (phantom_jack)

@@ -66,6 +66,13 @@ static const struct dmi_system_id community_key_platforms[] = {
 		}
 	},
 	{
+		.ident = "Up Extreme",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
+			DMI_MATCH(DMI_BOARD_NAME, "UP-WHL01"),
+		}
+	},
+	{
 		.ident = "Google Chromebooks",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
@@ -209,11 +216,11 @@ static const struct sof_dev_desc icl_desc = {
 	.default_tplg_path = "intel/sof-tplg",
 	.default_fw_filename = "sof-icl.ri",
 	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
+	.ops = &sof_icl_ops,
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE) || IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
 static const struct sof_dev_desc tgl_desc = {
 	.machines               = snd_soc_acpi_intel_tgl_machines,
 	.alt_machines		= snd_soc_acpi_intel_tgl_sdw_machines,
@@ -230,7 +237,9 @@ static const struct sof_dev_desc tgl_desc = {
 	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
 	.ops = &sof_tgl_ops,
 };
+#endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
 static const struct sof_dev_desc tglh_desc = {
 	.machines               = snd_soc_acpi_intel_tgl_machines,
 	.alt_machines		= snd_soc_acpi_intel_tgl_sdw_machines,
@@ -284,6 +293,24 @@ static const struct sof_dev_desc jsl_desc = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
+static const struct sof_dev_desc adls_desc = {
+	.machines               = snd_soc_acpi_intel_adl_machines,
+	.alt_machines           = snd_soc_acpi_intel_adl_sdw_machines,
+	.resindex_lpe_base      = 0,
+	.resindex_pcicfg_base   = -1,
+	.resindex_imr_base      = -1,
+	.irqindex_host_ipc      = -1,
+	.resindex_dma_base      = -1,
+	.chip_info = &adls_chip_info,
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.default_fw_filename = "sof-adl-s.ri",
+	.nocodec_tplg_filename = "sof-adl-nocodec.tplg",
+	.ops = &sof_tgl_ops,
+};
+#endif
+
 static const struct dev_pm_ops sof_pci_pm = {
 	.prepare = snd_sof_prepare,
 	.complete = snd_sof_complete,
@@ -326,10 +353,12 @@ static int sof_pci_probe(struct pci_dev *pci,
 	const struct snd_sof_dsp_ops *ops;
 	int ret;
 
-	ret = snd_intel_dsp_driver_probe(pci);
-	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-		dev_dbg(&pci->dev, "SOF PCI driver not selected, aborting probe\n");
-		return -ENODEV;
+	if (IS_REACHABLE(CONFIG_SND_INTEL_DSP_CONFIG)) {
+		ret = snd_intel_dsp_driver_probe(pci);
+		if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
+			dev_dbg(&pci->dev, "SOF PCI driver not selected, aborting probe\n");
+			return -ENODEV;
+		}
 	}
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
@@ -425,11 +454,17 @@ static void sof_pci_remove(struct pci_dev *pci)
 	snd_sof_device_remove(&pci->dev);
 
 	/* follow recommendation in pci-driver.c to increment usage counter */
-	if (!(sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME))
+	if (snd_sof_device_probe_completed(&pci->dev) &&
+	    !(sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME))
 		pm_runtime_get_noresume(&pci->dev);
 
 	/* release pci regions and disable device */
 	pci_release_regions(pci);
+}
+
+static void sof_pci_shutdown(struct pci_dev *pci)
+{
+	snd_sof_device_shutdown(&pci->dev);
 }
 
 /* PCI IDs */
@@ -491,6 +526,12 @@ static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE(0x8086, 0x4b58),
 		.driver_data = (unsigned long)&ehl_desc},
 #endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
+	{ PCI_DEVICE(0x8086, 0x7ad0),
+		.driver_data = (unsigned long)&adls_desc},
+	{ PCI_DEVICE(0x8086, 0x51c8),
+		.driver_data = (unsigned long)&tgl_desc},
+#endif
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);
@@ -501,6 +542,7 @@ static struct pci_driver snd_sof_pci_driver = {
 	.id_table = sof_pci_ids,
 	.probe = sof_pci_probe,
 	.remove = sof_pci_remove,
+	.shutdown = sof_pci_shutdown,
 	.driver = {
 		.pm = &sof_pci_pm,
 	},

@@ -133,6 +133,8 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 
 	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev,
 					&hw_idle.busy_engines_mask_ext, NULL);
+	hw_idle.busy_engines_mask =
+			lower_32_bits(hw_idle.busy_engines_mask_ext);
 
 	return copy_to_user(out, &hw_idle,
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
@@ -314,20 +316,50 @@ static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_info_cs_counters cs_counters = { {0} };
-	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	struct hl_info_cs_counters cs_counters = {0};
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_cs_counters_atomic *cntr;
+	u32 max_size = args->return_size;
+
+	cntr = &hdev->aggregated_cs_counters;
 
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	memcpy(&cs_counters.cs_counters, &hdev->aggregated_cs_counters,
-			sizeof(struct hl_cs_counters));
+	cs_counters.total_out_of_mem_drop_cnt =
+			atomic64_read(&cntr->out_of_mem_drop_cnt);
+	cs_counters.total_parsing_drop_cnt =
+			atomic64_read(&cntr->parsing_drop_cnt);
+	cs_counters.total_queue_full_drop_cnt =
+			atomic64_read(&cntr->queue_full_drop_cnt);
+	cs_counters.total_device_in_reset_drop_cnt =
+			atomic64_read(&cntr->device_in_reset_drop_cnt);
+	cs_counters.total_max_cs_in_flight_drop_cnt =
+			atomic64_read(&cntr->max_cs_in_flight_drop_cnt);
+	cs_counters.total_validation_drop_cnt =
+			atomic64_read(&cntr->validation_drop_cnt);
 
-	if (hpriv->ctx)
-		memcpy(&cs_counters.ctx_cs_counters, &hpriv->ctx->cs_counters,
-				sizeof(struct hl_cs_counters));
+	if (hpriv->ctx) {
+		cs_counters.ctx_out_of_mem_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.out_of_mem_drop_cnt);
+		cs_counters.ctx_parsing_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.parsing_drop_cnt);
+		cs_counters.ctx_queue_full_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.queue_full_drop_cnt);
+		cs_counters.ctx_device_in_reset_drop_cnt =
+				atomic64_read(
+			&hpriv->ctx->cs_counters.device_in_reset_drop_cnt);
+		cs_counters.ctx_max_cs_in_flight_drop_cnt =
+				atomic64_read(
+			&hpriv->ctx->cs_counters.max_cs_in_flight_drop_cnt);
+		cs_counters.ctx_validation_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.validation_drop_cnt);
+	}
 
 	return copy_to_user(out, &cs_counters,
 		min((size_t) max_size, sizeof(cs_counters))) ? -EFAULT : 0;
@@ -378,11 +410,32 @@ static int total_energy_consumption_info(struct hl_fpriv *hpriv,
 		min((size_t) max_size, sizeof(total_energy))) ? -EFAULT : 0;
 }
 
+static int pll_frequency_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_pll_frequency_info freq_info = { {0} };
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_cpucp_pll_info_get(hdev, args->pll_index, freq_info.output);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &freq_info,
+		min((size_t) max_size, sizeof(freq_info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
+	enum hl_device_status status;
 	struct hl_info_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
+
 	int rc;
 
 	/*
@@ -403,10 +456,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 		break;
 	}
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(dev,
 			"Device is %s. Can't execute INFO IOCTL\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 
@@ -453,6 +506,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_TOTAL_ENERGY:
 		return total_energy_consumption_info(hpriv, args);
 
+	case HL_INFO_PLL_FREQUENCY:
+		return pll_frequency_info(hpriv, args);
+
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);
 		rc = -ENOTTY;
@@ -476,12 +532,14 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	struct hl_debug_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
+	enum hl_device_status status;
+
 	int rc = 0;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't execute DEBUG IOCTL\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 
@@ -544,7 +602,7 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 	int retcode;
 
 	if (hdev->hard_reset_pending) {
-		dev_crit_ratelimited(hdev->dev_ctrl,
+		dev_crit_ratelimited(dev,
 			"Device HARD reset pending! Please close FD\n");
 		return -ENODEV;
 	}

@@ -312,7 +312,7 @@ static ssize_t store_ctlr_mode(struct device *dev,
 	default:
 		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.\n");
 		return -ENOTSUPP;
-	};
+	}
 }
 
 static FCOE_DEVICE_ATTR(ctlr, mode, S_IRUGO | S_IWUSR,
@@ -346,7 +346,7 @@ static ssize_t store_ctlr_enabled(struct device *dev,
 		break;
 	case FCOE_CTLR_UNUSED:
 		return -ENOTSUPP;
-	};
+	}
 
 	rc = ctlr->f->set_fcoe_ctlr_enabled(ctlr);
 	if (rc)
@@ -1053,16 +1053,10 @@ EXPORT_SYMBOL_GPL(fcoe_fcf_device_add);
 
 int __init fcoe_sysfs_setup(void)
 {
-	int error;
-
 	atomic_set(&ctlr_num, 0);
 	atomic_set(&fcf_num, 0);
 
-	error = bus_register(&fcoe_bus_type);
-	if (error)
-		return error;
-
-	return 0;
+	return bus_register(&fcoe_bus_type);
 }
 
 void __exit fcoe_sysfs_teardown(void)

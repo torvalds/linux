@@ -404,8 +404,8 @@ static int __sandybridge_pcode_rw(struct drm_i915_private *i915,
 	lockdep_assert_held(&i915->sb_lock);
 
 	/*
-	 * GEN6_PCODE_* are outside of the forcewake domain, we can
-	 * use te fw I915_READ variants to reduce the amount of work
+	 * GEN6_PCODE_* are outside of the forcewake domain, we can use
+	 * intel_uncore_read/write_fw variants to reduce the amount of work
 	 * required when reading/writing.
 	 */
 
@@ -554,4 +554,19 @@ out:
 	mutex_unlock(&i915->sb_lock);
 	return ret ? ret : status;
 #undef COND
+}
+
+void intel_pcode_init(struct drm_i915_private *i915)
+{
+	int ret;
+
+	if (!IS_DGFX(i915))
+		return;
+
+	ret = skl_pcode_request(i915, DG1_PCODE_STATUS,
+				DG1_UNCORE_GET_INIT_STATUS,
+				DG1_UNCORE_INIT_STATUS_COMPLETE,
+				DG1_UNCORE_INIT_STATUS_COMPLETE, 50);
+	if (ret)
+		drm_err(&i915->drm, "Pcode did not report uncore initialization completion!\n");
 }

@@ -28,7 +28,6 @@
 #define KVM_S390_BSCA_CPU_SLOTS 64
 #define KVM_S390_ESCA_CPU_SLOTS 248
 #define KVM_MAX_VCPUS 255
-#define KVM_USER_MEM_SLOTS 32
 
 /*
  * These seem to be used for allocating ->chip in the routing table, which we
@@ -459,6 +458,7 @@ struct kvm_vcpu_stat {
 	u64 diagnose_308;
 	u64 diagnose_500;
 	u64 diagnose_other;
+	u64 pfault_sync;
 };
 
 #define PGM_OPERATION			0x01

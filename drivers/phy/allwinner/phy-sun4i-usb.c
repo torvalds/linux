@@ -686,7 +686,6 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct phy_provider *phy_provider;
-	struct resource *res;
 	int i, ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -700,8 +699,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	if (!data->cfg)
 		return -EINVAL;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy_ctrl");
-	data->base = devm_ioremap_resource(dev, res);
+	data->base = devm_platform_ioremap_resource_byname(pdev, "phy_ctrl");
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
@@ -796,9 +794,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 
 		if (i || data->cfg->phy0_dual_route) { /* No pmu for musb */
 			snprintf(name, sizeof(name), "pmu%d", i);
-			res = platform_get_resource_byname(pdev,
-							IORESOURCE_MEM, name);
-			phy->pmu = devm_ioremap_resource(dev, res);
+			phy->pmu = devm_platform_ioremap_resource_byname(pdev, name);
 			if (IS_ERR(phy->pmu))
 				return PTR_ERR(phy->pmu);
 		}
@@ -969,7 +965,6 @@ static const struct sun4i_usb_phy_cfg sun50i_h6_cfg = {
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
-	.enable_pmu_unk1 = true,
 	.phy0_dual_route = true,
 	.missing_phys = BIT(1) | BIT(2),
 };

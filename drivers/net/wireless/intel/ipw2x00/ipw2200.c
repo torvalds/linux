@@ -1945,12 +1945,11 @@ static void notify_wx_assoc_event(struct ipw_priv *priv)
 	wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
 }
 
-static void ipw_irq_tasklet(unsigned long data)
+static void ipw_irq_tasklet(struct tasklet_struct *t)
 {
-	struct ipw_priv *priv = (struct ipw_priv *)data;
+	struct ipw_priv *priv = from_tasklet(priv, t, irq_tasklet);
 	u32 inta, inta_mask, handled = 0;
 	unsigned long flags;
-	int rc = 0;
 
 	spin_lock_irqsave(&priv->irq_lock, flags);
 
@@ -1980,7 +1979,7 @@ static void ipw_irq_tasklet(unsigned long data)
 
 	if (inta & IPW_INTA_BIT_TX_CMD_QUEUE) {
 		IPW_DEBUG_HC("Command completed.\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq_cmd, -1);
+		ipw_queue_tx_reclaim(priv, &priv->txq_cmd, -1);
 		priv->status &= ~STATUS_HCMD_ACTIVE;
 		wake_up_interruptible(&priv->wait_command_queue);
 		handled |= IPW_INTA_BIT_TX_CMD_QUEUE;
@@ -1988,25 +1987,25 @@ static void ipw_irq_tasklet(unsigned long data)
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_1) {
 		IPW_DEBUG_TX("TX_QUEUE_1\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[0], 0);
+		ipw_queue_tx_reclaim(priv, &priv->txq[0], 0);
 		handled |= IPW_INTA_BIT_TX_QUEUE_1;
 	}
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_2) {
 		IPW_DEBUG_TX("TX_QUEUE_2\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[1], 1);
+		ipw_queue_tx_reclaim(priv, &priv->txq[1], 1);
 		handled |= IPW_INTA_BIT_TX_QUEUE_2;
 	}
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_3) {
 		IPW_DEBUG_TX("TX_QUEUE_3\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[2], 2);
+		ipw_queue_tx_reclaim(priv, &priv->txq[2], 2);
 		handled |= IPW_INTA_BIT_TX_QUEUE_3;
 	}
 
 	if (inta & IPW_INTA_BIT_TX_QUEUE_4) {
 		IPW_DEBUG_TX("TX_QUEUE_4\n");
-		rc = ipw_queue_tx_reclaim(priv, &priv->txq[3], 3);
+		ipw_queue_tx_reclaim(priv, &priv->txq[3], 3);
 		handled |= IPW_INTA_BIT_TX_QUEUE_4;
 	}
 
@@ -2999,7 +2998,7 @@ static void ipw_remove_current_network(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->ieee->lock, flags);
 }
 
-/**
+/*
  * Check that card is still alive.
  * Reads debug register from domain0.
  * If card is present, pre-defined value should
@@ -3114,7 +3113,7 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 	mdelay(1);
 
 	/* write ucode */
-	/**
+	/*
 	 * @bug
 	 * Do NOT set indirect address register once and then
 	 * store data to indirect data register in the loop.
@@ -3667,7 +3666,7 @@ static int ipw_load(struct ipw_priv *priv)
 	return rc;
 }
 
-/**
+/*
  * DMA services
  *
  * Theory of operation
@@ -3690,11 +3689,11 @@ static int ipw_load(struct ipw_priv *priv)
  * we only utilize the first data transmit queue (queue1).
  */
 
-/**
+/*
  * Driver allocates buffers of this size for Rx
  */
 
-/**
+/*
  * ipw_rx_queue_space - Return number of free slots available in queue.
  */
 static int ipw_rx_queue_space(const struct ipw_rx_queue *q)
@@ -3725,7 +3724,7 @@ static inline int ipw_queue_inc_wrap(int index, int n_bd)
 	return (++index == n_bd) ? 0 : index;
 }
 
-/**
+/*
  * Initialize common DMA queue structure
  *
  * @param q                queue to init
@@ -3789,7 +3788,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 	return 0;
 }
 
-/**
+/*
  * Free one TFD, those at index [txq->q.last_used].
  * Do NOT advance any indexes
  *
@@ -3812,7 +3811,7 @@ static void ipw_queue_tx_free_tfd(struct ipw_priv *priv,
 	if (le32_to_cpu(bd->u.data.num_chunks) > NUM_TFD_CHUNKS) {
 		IPW_ERROR("Too many chunks: %i\n",
 			  le32_to_cpu(bd->u.data.num_chunks));
-		/** @todo issue fatal error, it is quite serious situation */
+		/* @todo issue fatal error, it is quite serious situation */
 		return;
 	}
 
@@ -3829,7 +3828,7 @@ static void ipw_queue_tx_free_tfd(struct ipw_priv *priv,
 	}
 }
 
-/**
+/*
  * Deallocate DMA queue.
  *
  * Empty queue by removing and destroying all BD's.
@@ -3861,7 +3860,7 @@ static void ipw_queue_tx_free(struct ipw_priv *priv, struct clx2_tx_queue *txq)
 	memset(txq, 0, sizeof(*txq));
 }
 
-/**
+/*
  * Destroy all DMA queues and structures
  *
  * @param priv
@@ -4466,7 +4465,7 @@ static void handle_scan_event(struct ipw_priv *priv)
 	}
 }
 
-/**
+/*
  * Handle host notification packet.
  * Called from interrupt routine
  */
@@ -4926,7 +4925,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 	}
 }
 
-/**
+/*
  * Destroys all DMA structures and initialise them again
  *
  * @param priv
@@ -4935,7 +4934,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 static int ipw_queue_reset(struct ipw_priv *priv)
 {
 	int rc = 0;
-	/** @todo customize queue sizes */
+	/* @todo customize queue sizes */
 	int nTx = 64, nTxCmd = 8;
 	ipw_tx_queue_free(priv);
 	/* Tx CMD queue */
@@ -4991,7 +4990,7 @@ static int ipw_queue_reset(struct ipw_priv *priv)
 	return rc;
 }
 
-/**
+/*
  * Reclaim Tx queue entries no more used by NIC.
  *
  * When FW advances 'R' index, all entries between old and
@@ -8248,12 +8247,12 @@ static void ipw_rx(struct ipw_priv *priv)
 	struct ipw_rx_mem_buffer *rxb;
 	struct ipw_rx_packet *pkt;
 	struct libipw_hdr_4addr *header;
-	u32 r, w, i;
+	u32 r, i;
 	u8 network_packet;
 	u8 fill_rx = 0;
 
 	r = ipw_read32(priv, IPW_RX_READ_INDEX);
-	w = ipw_read32(priv, IPW_RX_WRITE_INDEX);
+	ipw_read32(priv, IPW_RX_WRITE_INDEX);
 	i = priv->rxq->read;
 
 	if (ipw_rx_queue_space (priv->rxq) > (RX_QUEUE_SIZE / 2))
@@ -8446,7 +8445,7 @@ static void ipw_rx(struct ipw_priv *priv)
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-/**
+/*
  * ipw_sw_reset
  * @option: options to control different reset behaviour
  * 	    0 = reset everything except the 'disable' module_param
@@ -10673,8 +10672,7 @@ static void ipw_setup_deferred_work(struct ipw_priv *priv)
 	INIT_WORK(&priv->qos_activate, ipw_bg_qos_activate);
 #endif				/* CONFIG_IPW2200_QOS */
 
-	tasklet_init(&priv->irq_tasklet,
-		     ipw_irq_tasklet, (unsigned long)priv);
+	tasklet_setup(&priv->irq_tasklet, ipw_irq_tasklet);
 }
 
 static void shim__set_security(struct net_device *dev,

@@ -485,7 +485,7 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 				const char *header,
 				const struct i915_gem_context_coredump *ctx)
 {
-	const u32 period = RUNTIME_INFO(m->i915)->cs_timestamp_period_ns;
+	const u32 period = m->i915->gt.clock_period_ns;
 
 	err_printf(m, "%s%s[%d] prio %d, guilty %d active %d, runtime total %lluns, avg %lluns\n",
 		   header, ctx->comm, ctx->pid, ctx->sched_attr.priority,
@@ -570,6 +570,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 				   ee->vm_info.pp_dir_base);
 		}
 	}
+	err_printf(m, "  hung: %u\n", ee->hung);
 	err_printf(m, "  engine reset count: %u\n", ee->reset_count);
 
 	for (n = 0; n < ee->num_ports; n++) {
@@ -1026,6 +1027,7 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 		dma_addr_t dma;
 
 		for_each_sgt_daddr(dma, iter, vma->pages) {
+			mutex_lock(&ggtt->error_mutex);
 			ggtt->vm.insert_page(&ggtt->vm, dma, slot,
 					     I915_CACHE_NONE, 0);
 			mb();
@@ -1035,6 +1037,10 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 					    (void  __force *)s, dst,
 					    true);
 			io_mapping_unmap(s);
+
+			mb();
+			ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+			mutex_unlock(&ggtt->error_mutex);
 			if (ret)
 				break;
 		}
@@ -1045,7 +1051,9 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 		for_each_sgt_daddr(dma, iter, vma->pages) {
 			void __iomem *s;
 
-			s = io_mapping_map_wc(&mem->iomap, dma, PAGE_SIZE);
+			s = io_mapping_map_wc(&mem->iomap,
+					      dma - mem->region.start,
+					      PAGE_SIZE);
 			ret = compress_page(compress,
 					    (void __force *)s, dst,
 					    true);
@@ -1312,7 +1320,7 @@ capture_vma(struct intel_engine_capture_vma *next,
 	}
 
 	strcpy(c->name, name);
-	c->vma = i915_vma_get(vma);
+	c->vma = vma; /* reference held while active */
 
 	c->next = next;
 	return c;
@@ -1402,7 +1410,6 @@ intel_engine_coredump_add_vma(struct intel_engine_coredump *ee,
 						 compress));
 
 		i915_active_release(&vma->active);
-		i915_vma_put(vma);
 
 		capture = this->next;
 		kfree(this);
@@ -1452,6 +1459,7 @@ capture_engine(struct intel_engine_cs *engine,
 
 static void
 gt_record_engines(struct intel_gt_coredump *gt,
+		  intel_engine_mask_t engine_mask,
 		  struct i915_vma_compress *compress)
 {
 	struct intel_engine_cs *engine;
@@ -1466,6 +1474,8 @@ gt_record_engines(struct intel_gt_coredump *gt,
 		ee = capture_engine(engine, compress);
 		if (!ee)
 			continue;
+
+		ee->hung = engine->mask & engine_mask;
 
 		gt->simulated |= ee->simulated;
 		if (ee->simulated) {
@@ -1504,25 +1514,6 @@ gt_record_uc(struct intel_gt_coredump *gt,
 					 compress);
 
 	return error_uc;
-}
-
-static void gt_capture_prepare(struct intel_gt_coredump *gt)
-{
-	struct i915_ggtt *ggtt = gt->_gt->ggtt;
-
-	mutex_lock(&ggtt->error_mutex);
-}
-
-static void gt_capture_finish(struct intel_gt_coredump *gt)
-{
-	struct i915_ggtt *ggtt = gt->_gt->ggtt;
-
-	if (drm_mm_node_allocated(&ggtt->error_capture))
-		ggtt->vm.clear_range(&ggtt->vm,
-				     ggtt->error_capture.start,
-				     PAGE_SIZE);
-
-	mutex_unlock(&ggtt->error_mutex);
 }
 
 /* Capture all registers which don't fit into another category. */
@@ -1670,24 +1661,25 @@ static u32 generate_ecode(const struct intel_engine_coredump *ee)
 static const char *error_msg(struct i915_gpu_coredump *error)
 {
 	struct intel_engine_coredump *first = NULL;
+	unsigned int hung_classes = 0;
 	struct intel_gt_coredump *gt;
-	intel_engine_mask_t engines;
 	int len;
 
-	engines = 0;
 	for (gt = error->gt; gt; gt = gt->next) {
 		struct intel_engine_coredump *cs;
 
-		if (gt->engine && !first)
-			first = gt->engine;
-
-		for (cs = gt->engine; cs; cs = cs->next)
-			engines |= cs->engine->mask;
+		for (cs = gt->engine; cs; cs = cs->next) {
+			if (cs->hung) {
+				hung_classes |= BIT(cs->engine->uabi_class);
+				if (!first)
+					first = cs;
+			}
+		}
 	}
 
 	len = scnprintf(error->error_msg, sizeof(error->error_msg),
 			"GPU HANG: ecode %d:%x:%08x",
-			INTEL_GEN(error->i915), engines,
+			INTEL_GEN(error->i915), hung_classes,
 			generate_ecode(first));
 	if (first && first->context.pid) {
 		/* Just show the first executing process, more is confusing */
@@ -1783,8 +1775,6 @@ i915_vma_capture_prepare(struct intel_gt_coredump *gt)
 		return NULL;
 	}
 
-	gt_capture_prepare(gt);
-
 	return compress;
 }
 
@@ -1794,14 +1784,14 @@ void i915_vma_capture_finish(struct intel_gt_coredump *gt,
 	if (!compress)
 		return;
 
-	gt_capture_finish(gt);
-
 	compress_fini(compress);
 	kfree(compress);
 }
 
-struct i915_gpu_coredump *i915_gpu_coredump(struct drm_i915_private *i915)
+struct i915_gpu_coredump *
+i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	struct i915_gpu_coredump *error;
 
 	/* Check if GPU capture has been disabled */
@@ -1813,7 +1803,7 @@ struct i915_gpu_coredump *i915_gpu_coredump(struct drm_i915_private *i915)
 	if (!error)
 		return ERR_PTR(-ENOMEM);
 
-	error->gt = intel_gt_coredump_alloc(&i915->gt, ALLOW_FAIL);
+	error->gt = intel_gt_coredump_alloc(gt, ALLOW_FAIL);
 	if (error->gt) {
 		struct i915_vma_compress *compress;
 
@@ -1825,7 +1815,7 @@ struct i915_gpu_coredump *i915_gpu_coredump(struct drm_i915_private *i915)
 		}
 
 		gt_record_info(error->gt);
-		gt_record_engines(error->gt, compress);
+		gt_record_engines(error->gt, engine_mask, compress);
 
 		if (INTEL_INFO(i915)->has_gt_uc)
 			error->gt->uc = gt_record_uc(error->gt, compress);
@@ -1872,20 +1862,23 @@ void i915_error_state_store(struct i915_gpu_coredump *error)
 
 /**
  * i915_capture_error_state - capture an error record for later analysis
- * @i915: i915 device
+ * @gt: intel_gt which originated the hang
+ * @engine_mask: hung engines
+ *
  *
  * Should be called when an error is detected (either a hang or an error
  * interrupt) to capture error state from the time of the error.  Fills
  * out a structure which becomes available in debugfs for user level tools
  * to pick up.
  */
-void i915_capture_error_state(struct drm_i915_private *i915)
+void i915_capture_error_state(struct intel_gt *gt,
+			      intel_engine_mask_t engine_mask)
 {
 	struct i915_gpu_coredump *error;
 
-	error = i915_gpu_coredump(i915);
+	error = i915_gpu_coredump(gt, engine_mask);
 	if (IS_ERR(error)) {
-		cmpxchg(&i915->gpu_error.first_error, NULL, error);
+		cmpxchg(&gt->i915->gpu_error.first_error, NULL, error);
 		return;
 	}
 

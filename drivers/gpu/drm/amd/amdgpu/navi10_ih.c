@@ -40,6 +40,53 @@
 static void navi10_ih_set_interrupt_funcs(struct amdgpu_device *adev);
 
 /**
+ * navi10_ih_init_register_offset - Initialize register offset for ih rings
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Initialize register offset ih rings (NAVI10).
+ */
+static void navi10_ih_init_register_offset(struct amdgpu_device *adev)
+{
+	struct amdgpu_ih_regs *ih_regs;
+
+	if (adev->irq.ih.ring_size) {
+		ih_regs = &adev->irq.ih.ih_regs;
+		ih_regs->ih_rb_base = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE);
+		ih_regs->ih_rb_base_hi = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI);
+		ih_regs->ih_rb_cntl = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL);
+		ih_regs->ih_rb_wptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR);
+		ih_regs->ih_rb_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR);
+		ih_regs->ih_doorbell_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR);
+		ih_regs->ih_rb_wptr_addr_lo = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO);
+		ih_regs->ih_rb_wptr_addr_hi = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI);
+		ih_regs->psp_reg_id = PSP_REG_IH_RB_CNTL;
+	}
+
+	if (adev->irq.ih1.ring_size) {
+		ih_regs = &adev->irq.ih1.ih_regs;
+		ih_regs->ih_rb_base = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_RING1);
+		ih_regs->ih_rb_base_hi = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI_RING1);
+		ih_regs->ih_rb_cntl = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING1);
+		ih_regs->ih_rb_wptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING1);
+		ih_regs->ih_rb_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING1);
+		ih_regs->ih_doorbell_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING1);
+		ih_regs->psp_reg_id = PSP_REG_IH_RB_CNTL_RING1;
+	}
+
+	if (adev->irq.ih2.ring_size) {
+		ih_regs = &adev->irq.ih2.ih_regs;
+		ih_regs->ih_rb_base = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_RING2);
+		ih_regs->ih_rb_base_hi = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI_RING2);
+		ih_regs->ih_rb_cntl = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING2);
+		ih_regs->ih_rb_wptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING2);
+		ih_regs->ih_rb_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING2);
+		ih_regs->ih_doorbell_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING2);
+		ih_regs->psp_reg_id = PSP_REG_IH_RB_CNTL_RING2;
+	}
+}
+
+/**
  * force_update_wptr_for_self_int - Force update the wptr for self interrupt
  *
  * @adev: amdgpu_device pointer
@@ -82,130 +129,66 @@ force_update_wptr_for_self_int(struct amdgpu_device *adev,
 }
 
 /**
- * navi10_ih_enable_interrupts - Enable the interrupt ring buffer
+ * navi10_ih_toggle_ring_interrupts - toggle the interrupt ring buffer
  *
  * @adev: amdgpu_device pointer
+ * @ih: amdgpu_ih_ring pointet
+ * @enable: true - enable the interrupts, false - disable the interrupts
  *
- * Enable the interrupt ring buffer (NAVI10).
+ * Toggle the interrupt ring buffer (NAVI10)
  */
-static void navi10_ih_enable_interrupts(struct amdgpu_device *adev)
+static int navi10_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
+					    struct amdgpu_ih_ring *ih,
+					    bool enable)
 {
-	u32 ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
+	struct amdgpu_ih_regs *ih_regs;
+	uint32_t tmp;
 
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 1);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 1);
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
-			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
-			return;
-		}
+	ih_regs = &ih->ih_regs;
+
+	tmp = RREG32(ih_regs->ih_rb_cntl);
+	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, RB_ENABLE, (enable ? 1 : 0));
+	/* enable_intr field is only valid in ring0 */
+	if (ih == &adev->irq.ih)
+		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, ENABLE_INTR, (enable ? 1 : 0));
+	WREG32(ih_regs->ih_rb_cntl, tmp);
+
+	if (enable) {
+		ih->enabled = true;
 	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
+		/* set rptr, wptr to 0 */
+		WREG32(ih_regs->ih_rb_rptr, 0);
+		WREG32(ih_regs->ih_rb_wptr, 0);
+		ih->enabled = false;
+		ih->rptr = 0;
 	}
 
-	adev->irq.ih.enabled = true;
-
-	if (adev->irq.ih1.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING1,
-					   RB_ENABLE, 1);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
-		}
-		adev->irq.ih1.enabled = true;
-	}
-
-	if (adev->irq.ih2.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING2,
-					   RB_ENABLE, 1);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
-		}
-		adev->irq.ih2.enabled = true;
-	}
+	return 0;
 }
 
 /**
- * navi10_ih_disable_interrupts - Disable the interrupt ring buffer
+ * navi10_ih_toggle_interrupts - Toggle all the available interrupt ring buffers
  *
  * @adev: amdgpu_device pointer
+ * @enable: enable or disable interrupt ring buffers
  *
- * Disable the interrupt ring buffer (NAVI10).
+ * Toggle all the available interrupt ring buffers (NAVI10).
  */
-static void navi10_ih_disable_interrupts(struct amdgpu_device *adev)
+static int navi10_ih_toggle_interrupts(struct amdgpu_device *adev, bool enable)
 {
-	u32 ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
+	struct amdgpu_ih_ring *ih[] = {&adev->irq.ih, &adev->irq.ih1, &adev->irq.ih2};
+	int i;
+	int r;
 
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 0);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 0);
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
-			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
-			return;
+	for (i = 0; i < ARRAY_SIZE(ih); i++) {
+		if (ih[i]->ring_size) {
+			r = navi10_ih_toggle_ring_interrupts(adev, ih[i], enable);
+			if (r)
+				return r;
 		}
-	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	}
 
-	/* set rptr, wptr to 0 */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
-	adev->irq.ih.enabled = false;
-	adev->irq.ih.rptr = 0;
-
-	if (adev->irq.ih1.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING1,
-					   RB_ENABLE, 0);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
-		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING1, 0);
-		adev->irq.ih1.enabled = false;
-		adev->irq.ih1.rptr = 0;
-	}
-
-	if (adev->irq.ih2.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING2,
-					   RB_ENABLE, 0);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
-		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING2, 0);
-		adev->irq.ih2.enabled = false;
-		adev->irq.ih2.rptr = 0;
-	}
-
+	return 0;
 }
 
 static uint32_t navi10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl)
@@ -250,22 +233,49 @@ static uint32_t navi10_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
 	return ih_doorbell_rtpr;
 }
 
-static void navi10_ih_reroute_ih(struct amdgpu_device *adev)
+/**
+ * navi10_ih_enable_ring - enable an ih ring buffer
+ *
+ * @adev: amdgpu_device pointer
+ * @ih: amdgpu_ih_ring pointer
+ *
+ * Enable an ih ring buffer (NAVI10)
+ */
+static int navi10_ih_enable_ring(struct amdgpu_device *adev,
+				 struct amdgpu_ih_ring *ih)
 {
+	struct amdgpu_ih_regs *ih_regs;
 	uint32_t tmp;
 
-	/* Reroute to IH ring 1 for VMC */
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x12);
-	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+	ih_regs = &ih->ih_regs;
 
-	/* Reroute IH ring 1 for UMC */
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x1B);
-	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
-	tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-	WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
+	WREG32(ih_regs->ih_rb_base, ih->gpu_addr >> 8);
+	WREG32(ih_regs->ih_rb_base_hi, (ih->gpu_addr >> 40) & 0xff);
+
+	tmp = RREG32(ih_regs->ih_rb_cntl);
+	tmp = navi10_ih_rb_cntl(ih, tmp);
+	if (ih == &adev->irq.ih)
+		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, RPTR_REARM, !!adev->irq.msi_enabled);
+	if (ih == &adev->irq.ih1) {
+		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_ENABLE, 0);
+		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, RB_FULL_DRAIN_ENABLE, 1);
+	}
+	WREG32(ih_regs->ih_rb_cntl, tmp);
+
+	if (ih == &adev->irq.ih) {
+		/* set the ih ring 0 writeback address whether it's enabled or not */
+		WREG32(ih_regs->ih_rb_wptr_addr_lo, lower_32_bits(ih->wptr_addr));
+		WREG32(ih_regs->ih_rb_wptr_addr_hi, upper_32_bits(ih->wptr_addr) & 0xFFFF);
+	}
+
+	/* set rptr, wptr to 0 */
+	WREG32(ih_regs->ih_rb_wptr, 0);
+	WREG32(ih_regs->ih_rb_rptr, 0);
+
+	WREG32(ih_regs->ih_doorbell_rptr, navi10_ih_doorbell_rptr(ih));
+
+	return 0;
 }
 
 /**
@@ -281,39 +291,26 @@ static void navi10_ih_reroute_ih(struct amdgpu_device *adev)
  */
 static int navi10_ih_irq_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_ih_ring *ih = &adev->irq.ih;
-	u32 ih_rb_cntl, ih_chicken;
+	struct amdgpu_ih_ring *ih[] = {&adev->irq.ih, &adev->irq.ih1, &adev->irq.ih2};
+	u32 ih_chicken;
 	u32 tmp;
+	int ret;
+	int i;
 
 	/* disable irqs */
-	navi10_ih_disable_interrupts(adev);
+	ret = navi10_ih_toggle_interrupts(adev, false);
+	if (ret)
+		return ret;
 
 	adev->nbio.funcs->ih_control(adev);
 
-	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE, ih->gpu_addr >> 8);
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (ih->gpu_addr >> 40) & 0xff);
-
-	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
-	ih_rb_cntl = navi10_ih_rb_cntl(ih, ih_rb_cntl);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM,
-				   !!adev->irq.msi_enabled);
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
-			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
-			return -ETIMEDOUT;
-		}
-	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
-	}
-	if (adev->irq.ih1.ring_size)
-		navi10_ih_reroute_ih(adev);
-
 	if (unlikely(adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)) {
-		if (ih->use_bus_addr) {
+		if (ih[0]->use_bus_addr) {
 			switch (adev->asic_type) {
 			case CHIP_SIENNA_CICHLID:
 			case CHIP_NAVY_FLOUNDER:
+			case CHIP_VANGOGH:
+			case CHIP_DIMGREY_CAVEFISH:
 				ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_Sienna_Cichlid);
 				ih_chicken = REG_SET_FIELD(ih_chicken,
 						IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
@@ -329,77 +326,17 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 		}
 	}
 
-	/* set the writeback address whether it's enabled or not */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
-		     lower_32_bits(ih->wptr_addr));
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI,
-		     upper_32_bits(ih->wptr_addr) & 0xFFFF);
-
-	/* set rptr, wptr to 0 */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
-
-	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR,
-			navi10_ih_doorbell_rptr(ih));
-
-	adev->nbio.funcs->ih_doorbell_range(adev, ih->use_doorbell,
-					    ih->doorbell_index);
-
-	ih = &adev->irq.ih1;
-	if (ih->ring_size) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_RING1, ih->gpu_addr >> 8);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI_RING1,
-			     (ih->gpu_addr >> 40) & 0xff);
-
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-		ih_rb_cntl = navi10_ih_rb_cntl(ih, ih_rb_cntl);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
-					   WPTR_OVERFLOW_ENABLE, 0);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
-					   RB_FULL_DRAIN_ENABLE, 1);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
-				return -ETIMEDOUT;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
+	for (i = 0; i < ARRAY_SIZE(ih); i++) {
+		if (ih[i]->ring_size) {
+			ret = navi10_ih_enable_ring(adev, ih[i]);
+			if (ret)
+				return ret;
 		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING1, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, 0);
-
-		WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING1,
-				navi10_ih_doorbell_rptr(ih));
 	}
 
-	ih = &adev->irq.ih2;
-	if (ih->ring_size) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_RING2, ih->gpu_addr >> 8);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI_RING2,
-			     (ih->gpu_addr >> 40) & 0xff);
-
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-		ih_rb_cntl = navi10_ih_rb_cntl(ih, ih_rb_cntl);
-
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
-				return -ETIMEDOUT;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
-		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING2, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, 0);
-
-		WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RPTR_RING2,
-			     navi10_ih_doorbell_rptr(ih));
-	}
-
+	/* update doorbell range for ih ring 0*/
+	adev->nbio.funcs->ih_doorbell_range(adev, ih[0]->use_doorbell,
+					    ih[0]->doorbell_index);
 
 	tmp = RREG32_SOC15(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL);
 	tmp = REG_SET_FIELD(tmp, IH_STORM_CLIENT_LIST_CNTL,
@@ -413,9 +350,14 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	pci_set_master(adev->pdev);
 
 	/* enable interrupts */
-	navi10_ih_enable_interrupts(adev);
+	ret = navi10_ih_toggle_interrupts(adev, true);
+	if (ret)
+		return ret;
 	/* enable wptr force update for self int */
 	force_update_wptr_for_self_int(adev, 0, 8, true);
+
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
 
 	return 0;
 }
@@ -430,7 +372,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 static void navi10_ih_irq_disable(struct amdgpu_device *adev)
 {
 	force_update_wptr_for_self_int(adev, 0, 8, false);
-	navi10_ih_disable_interrupts(adev);
+	navi10_ih_toggle_interrupts(adev, false);
 
 	/* Wait and acknowledge irq */
 	mdelay(1);
@@ -440,6 +382,7 @@ static void navi10_ih_irq_disable(struct amdgpu_device *adev)
  * navi10_ih_get_wptr - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to fetch wptr
  *
  * Get the IH ring buffer wptr from either the register
  * or the writeback memory buffer (NAVI10).  Also check for
@@ -449,23 +392,16 @@ static void navi10_ih_irq_disable(struct amdgpu_device *adev)
 static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 			      struct amdgpu_ih_ring *ih)
 {
-	u32 wptr, reg, tmp;
+	u32 wptr, tmp;
+	struct amdgpu_ih_regs *ih_regs;
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
+	ih_regs = &ih->ih_regs;
 
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
 
-	if (ih == &adev->irq.ih)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR);
-	else if (ih == &adev->irq.ih1)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING1);
-	else if (ih == &adev->irq.ih2)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING2);
-	else
-		BUG();
-
-	wptr = RREG32_NO_KIQ(reg);
+	wptr = RREG32_NO_KIQ(ih_regs->ih_rb_wptr);
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
 	wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
@@ -480,90 +416,32 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 		 wptr, ih->rptr, tmp);
 	ih->rptr = tmp;
 
-	if (ih == &adev->irq.ih)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL);
-	else if (ih == &adev->irq.ih1)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-	else if (ih == &adev->irq.ih2)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-	else
-		BUG();
-
-	tmp = RREG32_NO_KIQ(reg);
+	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-	WREG32_NO_KIQ(reg, tmp);
+	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
 out:
 	return (wptr & ih->ptr_mask);
-}
-
-/**
- * navi10_ih_decode_iv - decode an interrupt vector
- *
- * @adev: amdgpu_device pointer
- *
- * Decodes the interrupt vector at the current rptr
- * position and also advance the position.
- */
-static void navi10_ih_decode_iv(struct amdgpu_device *adev,
-				struct amdgpu_ih_ring *ih,
-				struct amdgpu_iv_entry *entry)
-{
-	/* wptr/rptr are in bytes! */
-	u32 ring_index = ih->rptr >> 2;
-	uint32_t dw[8];
-
-	dw[0] = le32_to_cpu(ih->ring[ring_index + 0]);
-	dw[1] = le32_to_cpu(ih->ring[ring_index + 1]);
-	dw[2] = le32_to_cpu(ih->ring[ring_index + 2]);
-	dw[3] = le32_to_cpu(ih->ring[ring_index + 3]);
-	dw[4] = le32_to_cpu(ih->ring[ring_index + 4]);
-	dw[5] = le32_to_cpu(ih->ring[ring_index + 5]);
-	dw[6] = le32_to_cpu(ih->ring[ring_index + 6]);
-	dw[7] = le32_to_cpu(ih->ring[ring_index + 7]);
-
-	entry->client_id = dw[0] & 0xff;
-	entry->src_id = (dw[0] >> 8) & 0xff;
-	entry->ring_id = (dw[0] >> 16) & 0xff;
-	entry->vmid = (dw[0] >> 24) & 0xf;
-	entry->vmid_src = (dw[0] >> 31);
-	entry->timestamp = dw[1] | ((u64)(dw[2] & 0xffff) << 32);
-	entry->timestamp_src = dw[2] >> 31;
-	entry->pasid = dw[3] & 0xffff;
-	entry->pasid_src = dw[3] >> 31;
-	entry->src_data[0] = dw[4];
-	entry->src_data[1] = dw[5];
-	entry->src_data[2] = dw[6];
-	entry->src_data[3] = dw[7];
-
-	/* wptr/rptr are in bytes! */
-	ih->rptr += 32;
 }
 
 /**
  * navi10_ih_irq_rearm - rearm IRQ if lost
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring to match
  *
  */
 static void navi10_ih_irq_rearm(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
-	uint32_t reg_rptr = 0;
 	uint32_t v = 0;
 	uint32_t i = 0;
+	struct amdgpu_ih_regs *ih_regs;
 
-	if (ih == &adev->irq.ih)
-		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR);
-	else if (ih == &adev->irq.ih1)
-		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING1);
-	else if (ih == &adev->irq.ih2)
-		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING2);
-	else
-		return;
+	ih_regs = &ih->ih_regs;
 
 	/* Rearm IRQ / re-write doorbell if doorbell write is lost */
 	for (i = 0; i < MAX_REARM_RETRY; i++) {
-		v = RREG32_NO_KIQ(reg_rptr);
+		v = RREG32_NO_KIQ(ih_regs->ih_rb_rptr);
 		if ((v < ih->ring_size) && (v != ih->rptr))
 			WDOORBELL32(ih->doorbell_index, ih->rptr);
 		else
@@ -576,11 +454,14 @@ static void navi10_ih_irq_rearm(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  *
+ * @ih: IH ring buffer to set rptr
  * Set the IH ring buffer rptr.
  */
 static void navi10_ih_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
+	struct amdgpu_ih_regs *ih_regs;
+
 	if (ih->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
 		*ih->rptr_cpu = ih->rptr;
@@ -588,12 +469,9 @@ static void navi10_ih_set_rptr(struct amdgpu_device *adev,
 
 		if (amdgpu_sriov_vf(adev))
 			navi10_ih_irq_rearm(adev, ih);
-	} else if (ih == &adev->irq.ih) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, ih->rptr);
-	} else if (ih == &adev->irq.ih1) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, ih->rptr);
-	} else if (ih == &adev->irq.ih2) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, ih->rptr);
+	} else {
+		ih_regs = &ih->ih_regs;
+		WREG32(ih_regs->ih_rb_rptr, ih->rptr);
 	}
 }
 
@@ -660,8 +538,11 @@ static int navi10_ih_sw_init(void *handle)
 	/* use gpu virtual address for ih ring
 	 * until ih_checken is programmed to allow
 	 * use bus address for ih ring by psp bl */
-	use_bus_addr =
-		(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) ? false : true;
+	if ((adev->flags & AMD_IS_APU) ||
+	    (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+		use_bus_addr = false;
+	else
+		use_bus_addr = true;
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, use_bus_addr);
 	if (r)
 		return r;
@@ -672,23 +553,12 @@ static int navi10_ih_sw_init(void *handle)
 	adev->irq.ih1.ring_size = 0;
 	adev->irq.ih2.ring_size = 0;
 
-	if (adev->asic_type < CHIP_NAVI10) {
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
-		if (r)
-			return r;
+	/* initialize ih control registers offset */
+	navi10_ih_init_register_offset(adev);
 
-		adev->irq.ih1.use_doorbell = true;
-		adev->irq.ih1.doorbell_index =
-					(adev->doorbell_index.ih + 1) << 1;
-
-		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-		if (r)
-			return r;
-
-		adev->irq.ih2.use_doorbell = true;
-		adev->irq.ih2.doorbell_index =
-					(adev->doorbell_index.ih + 2) << 1;
-	}
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	if (r)
+		return r;
 
 	r = amdgpu_irq_init(adev);
 
@@ -700,6 +570,7 @@ static int navi10_ih_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_irq_fini(adev);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih_soft);
 	amdgpu_ih_ring_fini(adev, &adev->irq.ih2);
 	amdgpu_ih_ring_fini(adev, &adev->irq.ih1);
 	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
@@ -831,7 +702,7 @@ static const struct amd_ip_funcs navi10_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs navi10_ih_funcs = {
 	.get_wptr = navi10_ih_get_wptr,
-	.decode_iv = navi10_ih_decode_iv,
+	.decode_iv = amdgpu_ih_decode_iv_helper,
 	.set_rptr = navi10_ih_set_rptr
 };
 

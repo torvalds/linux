@@ -90,7 +90,7 @@ static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)
 	if (!fpriv)
 		return -ENOMEM;
 
-	idr_init(&fpriv->contexts);
+	idr_init_base(&fpriv->contexts, 1);
 	mutex_init(&fpriv->lock);
 	filp->driver_priv = fpriv;
 
@@ -847,7 +847,7 @@ static void tegra_debugfs_init(struct drm_minor *minor)
 }
 #endif
 
-static struct drm_driver tegra_drm_driver = {
+static const struct drm_driver tegra_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM |
 			   DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = tegra_drm_open,
@@ -858,12 +858,8 @@ static struct drm_driver tegra_drm_driver = {
 	.debugfs_init = tegra_debugfs_init,
 #endif
 
-	.gem_free_object_unlocked = tegra_bo_free_object,
-	.gem_vm_ops = &tegra_bo_vm_ops,
-
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = tegra_gem_prime_export,
 	.gem_prime_import = tegra_gem_prime_import,
 
 	.dumb_create = tegra_bo_dumb_create,
@@ -1085,12 +1081,11 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 
 static int host1x_drm_probe(struct host1x_device *dev)
 {
-	struct drm_driver *driver = &tegra_drm_driver;
 	struct tegra_drm *tegra;
 	struct drm_device *drm;
 	int err;
 
-	drm = drm_dev_alloc(driver, &dev->dev);
+	drm = drm_dev_alloc(&tegra_drm_driver, &dev->dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
@@ -1306,8 +1301,10 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra30-hdmi", },
 	{ .compatible = "nvidia,tegra30-gr2d", },
 	{ .compatible = "nvidia,tegra30-gr3d", },
+	{ .compatible = "nvidia,tegra114-dc", },
 	{ .compatible = "nvidia,tegra114-dsi", },
 	{ .compatible = "nvidia,tegra114-hdmi", },
+	{ .compatible = "nvidia,tegra114-gr2d", },
 	{ .compatible = "nvidia,tegra114-gr3d", },
 	{ .compatible = "nvidia,tegra124-dc", },
 	{ .compatible = "nvidia,tegra124-sor", },

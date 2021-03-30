@@ -90,6 +90,8 @@ static struct kmem_cache *mm_slot_cache __read_mostly;
  * @hash: hash collision list
  * @mm_node: khugepaged scan list headed in khugepaged_scan.mm_head
  * @mm: the mm that this information is valid for
+ * @nr_pte_mapped_thp: number of pte mapped THP
+ * @pte_mapped_thp: address array corresponding pte mapped THP
  */
 struct mm_slot {
 	struct hlist_node hash;
@@ -124,18 +126,18 @@ static ssize_t scan_sleep_millisecs_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_scan_sleep_millisecs);
+	return sysfs_emit(buf, "%u\n", khugepaged_scan_sleep_millisecs);
 }
 
 static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buf, size_t count)
 {
-	unsigned long msecs;
+	unsigned int msecs;
 	int err;
 
-	err = kstrtoul(buf, 10, &msecs);
-	if (err || msecs > UINT_MAX)
+	err = kstrtouint(buf, 10, &msecs);
+	if (err)
 		return -EINVAL;
 
 	khugepaged_scan_sleep_millisecs = msecs;
@@ -152,18 +154,18 @@ static ssize_t alloc_sleep_millisecs_show(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_alloc_sleep_millisecs);
+	return sysfs_emit(buf, "%u\n", khugepaged_alloc_sleep_millisecs);
 }
 
 static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
 					   struct kobj_attribute *attr,
 					   const char *buf, size_t count)
 {
-	unsigned long msecs;
+	unsigned int msecs;
 	int err;
 
-	err = kstrtoul(buf, 10, &msecs);
-	if (err || msecs > UINT_MAX)
+	err = kstrtouint(buf, 10, &msecs);
+	if (err)
 		return -EINVAL;
 
 	khugepaged_alloc_sleep_millisecs = msecs;
@@ -180,17 +182,17 @@ static ssize_t pages_to_scan_show(struct kobject *kobj,
 				  struct kobj_attribute *attr,
 				  char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_pages_to_scan);
+	return sysfs_emit(buf, "%u\n", khugepaged_pages_to_scan);
 }
 static ssize_t pages_to_scan_store(struct kobject *kobj,
 				   struct kobj_attribute *attr,
 				   const char *buf, size_t count)
 {
+	unsigned int pages;
 	int err;
-	unsigned long pages;
 
-	err = kstrtoul(buf, 10, &pages);
-	if (err || !pages || pages > UINT_MAX)
+	err = kstrtouint(buf, 10, &pages);
+	if (err || !pages)
 		return -EINVAL;
 
 	khugepaged_pages_to_scan = pages;
@@ -205,7 +207,7 @@ static ssize_t pages_collapsed_show(struct kobject *kobj,
 				    struct kobj_attribute *attr,
 				    char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_pages_collapsed);
+	return sysfs_emit(buf, "%u\n", khugepaged_pages_collapsed);
 }
 static struct kobj_attribute pages_collapsed_attr =
 	__ATTR_RO(pages_collapsed);
@@ -214,7 +216,7 @@ static ssize_t full_scans_show(struct kobject *kobj,
 			       struct kobj_attribute *attr,
 			       char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_full_scans);
+	return sysfs_emit(buf, "%u\n", khugepaged_full_scans);
 }
 static struct kobj_attribute full_scans_attr =
 	__ATTR_RO(full_scans);
@@ -223,7 +225,7 @@ static ssize_t khugepaged_defrag_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
 {
 	return single_hugepage_flag_show(kobj, attr, buf,
-				TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG);
+					 TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG);
 }
 static ssize_t khugepaged_defrag_store(struct kobject *kobj,
 				       struct kobj_attribute *attr,
@@ -248,7 +250,7 @@ static ssize_t khugepaged_max_ptes_none_show(struct kobject *kobj,
 					     struct kobj_attribute *attr,
 					     char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_max_ptes_none);
+	return sysfs_emit(buf, "%u\n", khugepaged_max_ptes_none);
 }
 static ssize_t khugepaged_max_ptes_none_store(struct kobject *kobj,
 					      struct kobj_attribute *attr,
@@ -273,7 +275,7 @@ static ssize_t khugepaged_max_ptes_swap_show(struct kobject *kobj,
 					     struct kobj_attribute *attr,
 					     char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_max_ptes_swap);
+	return sysfs_emit(buf, "%u\n", khugepaged_max_ptes_swap);
 }
 
 static ssize_t khugepaged_max_ptes_swap_store(struct kobject *kobj,
@@ -297,10 +299,10 @@ static struct kobj_attribute khugepaged_max_ptes_swap_attr =
 	       khugepaged_max_ptes_swap_store);
 
 static ssize_t khugepaged_max_ptes_shared_show(struct kobject *kobj,
-					     struct kobj_attribute *attr,
-					     char *buf)
+					       struct kobj_attribute *attr,
+					       char *buf)
 {
-	return sprintf(buf, "%u\n", khugepaged_max_ptes_shared);
+	return sysfs_emit(buf, "%u\n", khugepaged_max_ptes_shared);
 }
 
 static ssize_t khugepaged_max_ptes_shared_store(struct kobject *kobj,
@@ -434,7 +436,7 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
 
 static inline int khugepaged_test_exit(struct mm_struct *mm)
 {
-	return atomic_read(&mm->mm_users) == 0 || !mmget_still_valid(mm);
+	return atomic_read(&mm->mm_users) == 0;
 }
 
 static bool hugepage_vma_check(struct vm_area_struct *vma,
@@ -989,38 +991,41 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
 
 static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 					struct vm_area_struct *vma,
-					unsigned long address, pmd_t *pmd,
+					unsigned long haddr, pmd_t *pmd,
 					int referenced)
 {
 	int swapped_in = 0;
 	vm_fault_t ret = 0;
-	struct vm_fault vmf = {
-		.vma = vma,
-		.address = address,
-		.flags = FAULT_FLAG_ALLOW_RETRY,
-		.pmd = pmd,
-		.pgoff = linear_page_index(vma, address),
-	};
+	unsigned long address, end = haddr + (HPAGE_PMD_NR * PAGE_SIZE);
 
-	vmf.pte = pte_offset_map(pmd, address);
-	for (; vmf.address < address + HPAGE_PMD_NR*PAGE_SIZE;
-			vmf.pte++, vmf.address += PAGE_SIZE) {
+	for (address = haddr; address < end; address += PAGE_SIZE) {
+		struct vm_fault vmf = {
+			.vma = vma,
+			.address = address,
+			.pgoff = linear_page_index(vma, haddr),
+			.flags = FAULT_FLAG_ALLOW_RETRY,
+			.pmd = pmd,
+		};
+
+		vmf.pte = pte_offset_map(pmd, address);
 		vmf.orig_pte = *vmf.pte;
-		if (!is_swap_pte(vmf.orig_pte))
+		if (!is_swap_pte(vmf.orig_pte)) {
+			pte_unmap(vmf.pte);
 			continue;
+		}
 		swapped_in++;
 		ret = do_swap_page(&vmf);
 
 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_lock */
 		if (ret & VM_FAULT_RETRY) {
 			mmap_read_lock(mm);
-			if (hugepage_vma_revalidate(mm, address, &vmf.vma)) {
+			if (hugepage_vma_revalidate(mm, haddr, &vma)) {
 				/* vma is no longer available, don't continue to swapin */
 				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
 				return false;
 			}
 			/* check if the pmd is still valid */
-			if (mm_find_pmd(mm, address) != pmd) {
+			if (mm_find_pmd(mm, haddr) != pmd) {
 				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
 				return false;
 			}
@@ -1029,11 +1034,7 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
 			return false;
 		}
-		/* pte is unmapped now, we need to map it */
-		vmf.pte = pte_offset_map(pmd, vmf.address);
 	}
-	vmf.pte--;
-	pte_unmap(vmf.pte);
 
 	/* Drain LRU add pagevec to remove extra pin on the swapped in pages */
 	if (swapped_in)
@@ -1273,7 +1274,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 			 * PTEs are armed with uffd write protection.
 			 * Here we can also mark the new huge pmd as
 			 * write protected if any of the small ones is
-			 * marked but that could bring uknown
+			 * marked but that could bring unknown
 			 * userfault messages that falls outside of
 			 * the registered range.  So, just be simple.
 			 */
@@ -1414,7 +1415,11 @@ static int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
 }
 
 /**
- * Try to collapse a pte-mapped THP for mm at address haddr.
+ * collapse_pte_mapped_thp - Try to collapse a pte-mapped THP for mm at
+ * address haddr.
+ *
+ * @mm: process address space where collapse happens
+ * @addr: THP collapse address
  *
  * This function checks whether all the PTEs in the PMD are pointing to the
  * right THP. If so, retract the page table so the THP can refault in with
@@ -1604,6 +1609,12 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 
 /**
  * collapse_file - collapse filemap/tmpfs/shmem pages into huge one.
+ *
+ * @mm: process address space where collapse happens
+ * @file: file that collapse on
+ * @start: collapse start address
+ * @hpage: new allocated huge page for collapse
+ * @node: appointed node the new huge page allocate from
  *
  * Basic scheme is simple, details are more complex:
  *  - allocate and lock a new huge page;
@@ -1845,9 +1856,9 @@ out_unlock:
 	}
 
 	if (is_shmem)
-		__inc_node_page_state(new_page, NR_SHMEM_THPS);
+		__inc_lruvec_page_state(new_page, NR_SHMEM_THPS);
 	else {
-		__inc_node_page_state(new_page, NR_FILE_THPS);
+		__inc_lruvec_page_state(new_page, NR_FILE_THPS);
 		filemap_nr_thps_inc(mapping);
 	}
 

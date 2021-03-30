@@ -792,8 +792,11 @@ static void ext4_xattr_update_super_block(handle_t *handle,
 
 	BUFFER_TRACE(EXT4_SB(sb)->s_sbh, "get_write_access");
 	if (ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh) == 0) {
+		lock_buffer(EXT4_SB(sb)->s_sbh);
 		ext4_set_feature_xattr(sb);
-		ext4_handle_dirty_super(handle, sb);
+		ext4_superblock_csum_set(sb);
+		unlock_buffer(EXT4_SB(sb)->s_sbh);
+		ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
 	}
 }
 
@@ -1927,7 +1930,6 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 	} else {
 		/* Allocate a buffer where we construct the new block. */
 		s->base = kzalloc(sb->s_blocksize, GFP_NOFS);
-		/* assert(header == s->base) */
 		error = -ENOMEM;
 		if (s->base == NULL)
 			goto cleanup;
@@ -2419,6 +2421,7 @@ retry_inode:
 		if (IS_SYNC(inode))
 			ext4_handle_sync(handle);
 	}
+	ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_XATTR);
 
 cleanup:
 	brelse(is.iloc.bh);
@@ -2496,6 +2499,7 @@ retry:
 		if (error == 0)
 			error = error2;
 	}
+	ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_XATTR);
 
 	return error;
 }
@@ -2928,6 +2932,7 @@ int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 					 error);
 			goto cleanup;
 		}
+		ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_XATTR);
 	}
 	error = 0;
 cleanup:

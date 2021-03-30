@@ -207,7 +207,6 @@ struct sdw_stream_data {
 enum {
 	RT715_AIF1,
 	RT715_AIF2,
-	RT715_AIFS,
 };
 
 #define RT715_POWER_UP_DELAY_MS 400

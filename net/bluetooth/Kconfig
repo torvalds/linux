@@ -5,7 +5,7 @@
 
 menuconfig BT
 	tristate "Bluetooth subsystem support"
-	depends on NET && !S390
+	depends on !S390
 	depends on RFKILL || !RFKILL
 	select CRC16
 	select CRYPTO
@@ -64,7 +64,6 @@ source "net/bluetooth/hidp/Kconfig"
 config BT_HS
 	bool "Bluetooth High Speed (HS) features"
 	depends on BT_BREDR
-	default y
 	help
 	  Bluetooth High Speed includes support for off-loading
 	  Bluetooth connections via 802.11 (wifi) physical layer

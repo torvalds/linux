@@ -50,15 +50,6 @@ static struct sk_buff *ath11k_htc_build_tx_ctrl_skb(void *ab)
 	return skb;
 }
 
-static inline void ath11k_htc_restore_tx_skb(struct ath11k_htc *htc,
-					     struct sk_buff *skb)
-{
-	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
-
-	dma_unmap_single(htc->ab->dev, skb_cb->paddr, skb->len, DMA_TO_DEVICE);
-	skb_pull(skb, sizeof(struct ath11k_htc_hdr));
-}
-
 static void ath11k_htc_prepare_tx_skb(struct ath11k_htc_ep *ep,
 				      struct sk_buff *skb)
 {
@@ -69,9 +60,11 @@ static void ath11k_htc_prepare_tx_skb(struct ath11k_htc_ep *ep,
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->htc_info = FIELD_PREP(HTC_HDR_ENDPOINTID, ep->eid) |
 			FIELD_PREP(HTC_HDR_PAYLOADLEN,
-				   (skb->len - sizeof(*hdr))) |
-			FIELD_PREP(HTC_HDR_FLAGS,
-				   ATH11K_HTC_FLAG_NEED_CREDIT_UPDATE);
+				   (skb->len - sizeof(*hdr)));
+
+	if (ep->tx_credit_flow_enabled)
+		hdr->htc_info |= FIELD_PREP(HTC_HDR_FLAGS,
+					    ATH11K_HTC_FLAG_NEED_CREDIT_UPDATE);
 
 	spin_lock_bh(&ep->htc->tx_lock);
 	hdr->ctrl_info = FIELD_PREP(HTC_HDR_CONTROLBYTES1, ep->seq_no++);
@@ -240,6 +233,18 @@ static int ath11k_htc_process_trailer(struct ath11k_htc *htc,
 	return status;
 }
 
+static void ath11k_htc_suspend_complete(struct ath11k_base *ab, bool ack)
+{
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot suspend complete %d\n", ack);
+
+	if (ack)
+		set_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+	else
+		clear_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+
+	complete(&ab->htc_suspend);
+}
+
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 				      struct sk_buff *skb)
 {
@@ -337,8 +342,17 @@ void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 
 			complete(&htc->ctl_resp);
 			break;
+		case ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE:
+			ath11k_htc_suspend_complete(ab, true);
+			break;
+		case ATH11K_HTC_MSG_NACK_SUSPEND:
+			ath11k_htc_suspend_complete(ab, false);
+			break;
+		case ATH11K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID:
+			break;
 		default:
-			ath11k_warn(ab, "ignoring unsolicited htc ep0 event\n");
+			ath11k_warn(ab, "ignoring unsolicited htc ep0 event %ld\n",
+				    FIELD_GET(HTC_MSG_MESSAGEID, msg->msg_svc_id));
 			break;
 		}
 		goto out;
@@ -478,7 +492,7 @@ int ath11k_htc_wait_target(struct ath11k_htc *htc)
 	if (!time_left) {
 		ath11k_warn(ab, "failed to receive control response completion, polling..\n");
 
-		for (i = 0; i < CE_COUNT; i++)
+		for (i = 0; i < ab->hw_params.ce_count; i++)
 			ath11k_ce_per_engine_service(htc->ab, i);
 
 		time_left =
@@ -523,6 +537,12 @@ int ath11k_htc_wait_target(struct ath11k_htc *htc)
 		ath11k_warn(ab, "Invalid credit size received\n");
 		return -ECOMM;
 	}
+
+	/* For QCA6390, wmi endpoint uses 1 credit to avoid
+	 * back-to-back write.
+	 */
+	if (ab->hw_params.supports_shadow_regs)
+		htc->total_transmit_credits = 1;
 
 	ath11k_htc_setup_target_buffer_assignments(htc);
 
@@ -748,7 +768,7 @@ int ath11k_htc_init(struct ath11k_base *ab)
 		htc->wmi_ep_count = 3;
 		break;
 	default:
-		htc->wmi_ep_count = 3;
+		htc->wmi_ep_count = ab->hw_params.max_radios;
 		break;
 	}
 

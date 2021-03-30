@@ -28,6 +28,8 @@ required:
   - reg
   - vref-supply
 
+additionalProperties: false
+
 examples:
   - |
     i2c {

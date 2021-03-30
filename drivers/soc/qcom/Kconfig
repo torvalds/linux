@@ -17,7 +17,7 @@ config QCOM_AOSS_QMP
 	  Subsystem (AOSS) using Qualcomm Messaging Protocol (QMP).
 
 config QCOM_COMMAND_DB
-	bool "Qualcomm Command DB"
+	tristate "Qualcomm Command DB"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on OF_RESERVED_MEM
 	help
@@ -25,6 +25,22 @@ config QCOM_COMMAND_DB
 	  resources. Platform drivers that require to set state of a shared
 	  resource on a RPM-hardened platform must use this database to get
 	  SoC specific identifier and information for the shared resources.
+
+config QCOM_CPR
+	tristate "QCOM Core Power Reduction (CPR) support"
+	depends on ARCH_QCOM && HAS_IOMEM
+	select PM_OPP
+	select REGMAP
+	help
+	  Say Y here to enable support for the CPR hardware found on Qualcomm
+	  SoCs like QCS404.
+
+	  This driver populates CPU OPPs tables and makes adjustments to the
+	  tables based on feedback from the CPR hardware. If you want to do
+	  CPUfrequency scaling say Y here.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-cpr
 
 config QCOM_GENI_SE
 	tristate "QCOM GENI Serial Engine Driver"
@@ -92,8 +108,9 @@ config QCOM_RMTFS_MEM
 	  Say y here if you intend to boot the modem remoteproc.
 
 config QCOM_RPMH
-	bool "Qualcomm RPM-Hardened (RPMH) Communication"
+	tristate "Qualcomm RPM-Hardened (RPMH) Communication"
 	depends on ARCH_QCOM || COMPILE_TEST
+	depends on (QCOM_COMMAND_DB || !QCOM_COMMAND_DB)
 	help
 	  Support for communication with the hardened-RPM blocks in
 	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an

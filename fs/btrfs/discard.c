@@ -185,10 +185,12 @@ static struct btrfs_block_group *find_next_block_group(
 }
 
 /**
- * peek_discard_list - wrap find_next_block_group()
- * @discard_ctl: discard control
+ * Wrap find_next_block_group()
+ *
+ * @discard_ctl:   discard control
  * @discard_state: the discard_state of the block_group after state management
  * @discard_index: the discard_index of the block_group after state management
+ * @now:           time when discard was invoked, in ns
  *
  * This wraps find_next_block_group() and sets the block_group to be in use.
  * discard_state's control flow is managed here.  Variables related to
@@ -199,16 +201,15 @@ static struct btrfs_block_group *find_next_block_group(
 static struct btrfs_block_group *peek_discard_list(
 					struct btrfs_discard_ctl *discard_ctl,
 					enum btrfs_discard_state *discard_state,
-					int *discard_index)
+					int *discard_index, u64 now)
 {
 	struct btrfs_block_group *block_group;
-	const u64 now = ktime_get_ns();
 
 	spin_lock(&discard_ctl->lock);
 again:
 	block_group = find_next_block_group(discard_ctl, now);
 
-	if (block_group && now > block_group->discard_eligible_time) {
+	if (block_group && now >= block_group->discard_eligible_time) {
 		if (block_group->discard_index == BTRFS_DISCARD_INDEX_UNUSED &&
 		    block_group->used != 0) {
 			if (btrfs_is_block_group_data_only(block_group))
@@ -222,12 +223,11 @@ again:
 			block_group->discard_state = BTRFS_DISCARD_EXTENTS;
 		}
 		discard_ctl->block_group = block_group;
+	}
+	if (block_group) {
 		*discard_state = block_group->discard_state;
 		*discard_index = block_group->discard_index;
-	} else {
-		block_group = NULL;
 	}
-
 	spin_unlock(&discard_ctl->lock);
 
 	return block_group;
@@ -330,32 +330,19 @@ void btrfs_discard_queue_work(struct btrfs_discard_ctl *discard_ctl,
 		btrfs_discard_schedule_work(discard_ctl, false);
 }
 
-/**
- * btrfs_discard_schedule_work - responsible for scheduling the discard work
- * @discard_ctl: discard control
- * @override: override the current timer
- *
- * Discards are issued by a delayed workqueue item.  @override is used to
- * update the current delay as the baseline delay interval is reevaluated on
- * transaction commit.  This is also maxed with any other rate limit.
- */
-void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
-				 bool override)
+static void __btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
+					  u64 now, bool override)
 {
 	struct btrfs_block_group *block_group;
-	const u64 now = ktime_get_ns();
-
-	spin_lock(&discard_ctl->lock);
 
 	if (!btrfs_run_discard_work(discard_ctl))
-		goto out;
-
+		return;
 	if (!override && delayed_work_pending(&discard_ctl->work))
-		goto out;
+		return;
 
 	block_group = find_next_block_group(discard_ctl, now);
 	if (block_group) {
-		unsigned long delay = discard_ctl->delay;
+		u64 delay = discard_ctl->delay_ms * NSEC_PER_MSEC;
 		u32 kbps_limit = READ_ONCE(discard_ctl->kbps_limit);
 
 		/*
@@ -366,9 +353,9 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 		if (kbps_limit && discard_ctl->prev_discard) {
 			u64 bps_limit = ((u64)kbps_limit) * SZ_1K;
 			u64 bps_delay = div64_u64(discard_ctl->prev_discard *
-						  MSEC_PER_SEC, bps_limit);
+						  NSEC_PER_SEC, bps_limit);
 
-			delay = max(delay, msecs_to_jiffies(bps_delay));
+			delay = max(delay, bps_delay);
 		}
 
 		/*
@@ -378,13 +365,39 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 		if (now < block_group->discard_eligible_time) {
 			u64 bg_timeout = block_group->discard_eligible_time - now;
 
-			delay = max(delay, nsecs_to_jiffies(bg_timeout));
+			delay = max(delay, bg_timeout);
+		}
+
+		if (override && discard_ctl->prev_discard) {
+			u64 elapsed = now - discard_ctl->prev_discard_time;
+
+			if (delay > elapsed)
+				delay -= elapsed;
+			else
+				delay = 0;
 		}
 
 		mod_delayed_work(discard_ctl->discard_workers,
-				 &discard_ctl->work, delay);
+				 &discard_ctl->work, nsecs_to_jiffies(delay));
 	}
-out:
+}
+
+/*
+ * btrfs_discard_schedule_work - responsible for scheduling the discard work
+ * @discard_ctl:  discard control
+ * @override:     override the current timer
+ *
+ * Discards are issued by a delayed workqueue item.  @override is used to
+ * update the current delay as the baseline delay interval is reevaluated on
+ * transaction commit.  This is also maxed with any other rate limit.
+ */
+void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
+				 bool override)
+{
+	const u64 now = ktime_get_ns();
+
+	spin_lock(&discard_ctl->lock);
+	__btrfs_discard_schedule_work(discard_ctl, now, override);
 	spin_unlock(&discard_ctl->lock);
 }
 
@@ -429,13 +442,18 @@ static void btrfs_discard_workfn(struct work_struct *work)
 	int discard_index = 0;
 	u64 trimmed = 0;
 	u64 minlen = 0;
+	u64 now = ktime_get_ns();
 
 	discard_ctl = container_of(work, struct btrfs_discard_ctl, work.work);
 
 	block_group = peek_discard_list(discard_ctl, &discard_state,
-					&discard_index);
+					&discard_index, now);
 	if (!block_group || !btrfs_run_discard_work(discard_ctl))
 		return;
+	if (now < block_group->discard_eligible_time) {
+		btrfs_discard_schedule_work(discard_ctl, false);
+		return;
+	}
 
 	/* Perform discarding */
 	minlen = discard_minlen[discard_index];
@@ -465,8 +483,6 @@ static void btrfs_discard_workfn(struct work_struct *work)
 		discard_ctl->discard_extent_bytes += trimmed;
 	}
 
-	discard_ctl->prev_discard = trimmed;
-
 	/* Determine next steps for a block_group */
 	if (block_group->discard_cursor >= btrfs_block_group_end(block_group)) {
 		if (discard_state == BTRFS_DISCARD_BITMAPS) {
@@ -482,11 +498,13 @@ static void btrfs_discard_workfn(struct work_struct *work)
 		}
 	}
 
+	now = ktime_get_ns();
 	spin_lock(&discard_ctl->lock);
+	discard_ctl->prev_discard = trimmed;
+	discard_ctl->prev_discard_time = now;
 	discard_ctl->block_group = NULL;
+	__btrfs_discard_schedule_work(discard_ctl, now, false);
 	spin_unlock(&discard_ctl->lock);
-
-	btrfs_discard_schedule_work(discard_ctl, false);
 }
 
 /**
@@ -519,7 +537,6 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 	s64 discardable_bytes;
 	u32 iops_limit;
 	unsigned long delay;
-	unsigned long lower_limit = BTRFS_DISCARD_MIN_DELAY_MSEC;
 
 	discardable_extents = atomic_read(&discard_ctl->discardable_extents);
 	if (!discardable_extents)
@@ -550,12 +567,13 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 
 	iops_limit = READ_ONCE(discard_ctl->iops_limit);
 	if (iops_limit)
-		lower_limit = max_t(unsigned long, lower_limit,
-				    MSEC_PER_SEC / iops_limit);
+		delay = MSEC_PER_SEC / iops_limit;
+	else
+		delay = BTRFS_DISCARD_TARGET_MSEC / discardable_extents;
 
-	delay = BTRFS_DISCARD_TARGET_MSEC / discardable_extents;
-	delay = clamp(delay, lower_limit, BTRFS_DISCARD_MAX_DELAY_MSEC);
-	discard_ctl->delay = msecs_to_jiffies(delay);
+	delay = clamp(delay, BTRFS_DISCARD_MIN_DELAY_MSEC,
+		      BTRFS_DISCARD_MAX_DELAY_MSEC);
+	discard_ctl->delay_ms = delay;
 
 	spin_unlock(&discard_ctl->lock);
 }
@@ -563,15 +581,14 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 /**
  * btrfs_discard_update_discardable - propagate discard counters
  * @block_group: block_group of interest
- * @ctl: free_space_ctl of @block_group
  *
  * This propagates deltas of counters up to the discard_ctl.  It maintains a
  * current counter and a previous counter passing the delta up to the global
  * stat.  Then the current counter value becomes the previous counter value.
  */
-void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
-				      struct btrfs_free_space_ctl *ctl)
+void btrfs_discard_update_discardable(struct btrfs_block_group *block_group)
 {
+	struct btrfs_free_space_ctl *ctl;
 	struct btrfs_discard_ctl *discard_ctl;
 	s32 extents_delta;
 	s64 bytes_delta;
@@ -581,8 +598,10 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
 	    !btrfs_is_block_group_data_only(block_group))
 		return;
 
+	ctl = block_group->free_space_ctl;
 	discard_ctl = &block_group->fs_info->discard_ctl;
 
+	lockdep_assert_held(&ctl->tree_lock);
 	extents_delta = ctl->discardable_extents[BTRFS_STAT_CURR] -
 			ctl->discardable_extents[BTRFS_STAT_PREV];
 	if (extents_delta) {
@@ -684,10 +703,11 @@ void btrfs_discard_init(struct btrfs_fs_info *fs_info)
 		INIT_LIST_HEAD(&discard_ctl->discard_list[i]);
 
 	discard_ctl->prev_discard = 0;
+	discard_ctl->prev_discard_time = 0;
 	atomic_set(&discard_ctl->discardable_extents, 0);
 	atomic64_set(&discard_ctl->discardable_bytes, 0);
 	discard_ctl->max_discard_size = BTRFS_ASYNC_DISCARD_DEFAULT_MAX_SIZE;
-	discard_ctl->delay = BTRFS_DISCARD_MAX_DELAY_MSEC;
+	discard_ctl->delay_ms = BTRFS_DISCARD_MAX_DELAY_MSEC;
 	discard_ctl->iops_limit = BTRFS_DISCARD_MAX_IOPS;
 	discard_ctl->kbps_limit = 0;
 	discard_ctl->discard_extent_bytes = 0;

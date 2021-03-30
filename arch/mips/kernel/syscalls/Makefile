@@ -44,17 +44,17 @@ $(uapi)/unistd_o32.h: $(syscallo32) $(syshdr)
 
 sysnr_pfx_unistd_nr_n32 := N32
 sysnr_offset_unistd_nr_n32 := 6000
-$(uapi)/unistd_nr_n32.h: $(syscalln32) $(sysnr)
+$(kapi)/unistd_nr_n32.h: $(syscalln32) $(sysnr)
 	$(call if_changed,sysnr)
 
 sysnr_pfx_unistd_nr_n64 := 64
 sysnr_offset_unistd_nr_n64 := 5000
-$(uapi)/unistd_nr_n64.h: $(syscalln64) $(sysnr)
+$(kapi)/unistd_nr_n64.h: $(syscalln64) $(sysnr)
 	$(call if_changed,sysnr)
 
 sysnr_pfx_unistd_nr_o32 := O32
 sysnr_offset_unistd_nr_o32 := 4000
-$(uapi)/unistd_nr_o32.h: $(syscallo32) $(sysnr)
+$(kapi)/unistd_nr_o32.h: $(syscallo32) $(sysnr)
 	$(call if_changed,sysnr)
 
 systbl_abi_syscall_table_32_o32 := 32_o32
@@ -79,14 +79,14 @@ $(kapi)/syscall_table_64_o32.h: $(syscallo32) $(systbl)
 
 uapisyshdr-y		+= unistd_n32.h			\
 			   unistd_n64.h			\
-			   unistd_o32.h			\
-			   unistd_nr_n32.h		\
-			   unistd_nr_n64.h		\
-			   unistd_nr_o32.h
+			   unistd_o32.h
 kapisyshdr-y		+= syscall_table_32_o32.h	\
 			   syscall_table_64_n32.h	\
 			   syscall_table_64_n64.h	\
-			   syscall_table_64_o32.h
+			   syscall_table_64_o32.h	\
+			   unistd_nr_n32.h		\
+			   unistd_nr_n64.h		\
+			   unistd_nr_o32.h
 
 targets	+= $(uapisyshdr-y) $(kapisyshdr-y)
 

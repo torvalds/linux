@@ -82,22 +82,24 @@ struct abm_parameters {
 	unsigned char deviation_gain;
 	unsigned char min_knee;
 	unsigned char max_knee;
+	unsigned short blRampReduction;
+	unsigned short blRampStart;
 };
 
 static const struct abm_parameters abm_settings_config0[abm_defines_max_level] = {
-//  min_red  max_red  bright_pos  dark_pos  brightness_gain  contrast  deviation  min_knee  max_knee
-	{0xff,   0xbf,    0x20,       0x00,     0xff,            0x99,     0xb3,      0x40,     0xe0},
-	{0xde,   0x85,    0x20,       0x00,     0xff,            0x90,     0xa8,      0x40,     0xdf},
-	{0xb0,   0x50,    0x20,       0x00,     0xc0,            0x88,     0x78,      0x70,     0xa0},
-	{0x82,   0x40,    0x20,       0x00,     0x00,            0xff,     0xb3,      0x70,     0x70},
+//  min_red  max_red  bright_pos  dark_pos  bright_gain  contrast  dev   min_knee  max_knee  blStart  blRed
+	{0xff,   0xbf,    0x20,   0x00,     0xff,        0x99,     0xb3, 0x40,     0xe0,     0xCCCC,  0xCCCC},
+	{0xde,   0x85,    0x20,   0x00,     0xff,        0x90,     0xa8, 0x40,     0xdf,     0xCCCC,  0xCCCC},
+	{0xb0,   0x50,    0x20,   0x00,     0xc0,        0x88,     0x78, 0x70,     0xa0,     0xCCCC,  0xCCCC},
+	{0x82,   0x40,    0x20,   0x00,     0x00,        0xff,     0xb3, 0x70,     0x70,     0xCCCC,  0xCCCC},
 };
 
 static const struct abm_parameters abm_settings_config1[abm_defines_max_level] = {
-//  min_red  max_red  bright_pos  dark_pos  brightness_gain  contrast  deviation  min_knee  max_knee
-	{0xf0,   0xd9,    0x20,       0x00,     0x00,            0xff,     0xb3,      0x70,     0x70},
-	{0xcd,   0xa5,    0x20,       0x00,     0x00,            0xff,     0xb3,      0x70,     0x70},
-	{0x99,   0x65,    0x20,       0x00,     0x00,            0xff,     0xb3,      0x70,     0x70},
-	{0x82,   0x4d,    0x20,       0x00,     0x00,            0xff,     0xb3,      0x70,     0x70},
+//  min_red  max_red  bright_pos  dark_pos  bright_gain  contrast  dev   min_knee  max_knee  blStart  blRed
+	{0xf0,   0xd9,    0x20,   0x00,     0x00,        0xff,     0xb3, 0x70,     0x70,     0xCCCC,  0xCCCC},
+	{0xcd,   0xa5,    0x20,   0x00,     0x00,        0xff,     0xb3, 0x70,     0x70,     0xCCCC,  0xCCCC},
+	{0x99,   0x65,    0x20,   0x00,     0x00,        0xff,     0xb3, 0x70,     0x70,     0xCCCC,  0xCCCC},
+	{0x82,   0x4d,    0x20,   0x00,     0x00,        0xff,     0xb3, 0x70,     0x70,     0xCCCC,  0xCCCC},
 };
 
 static const struct abm_parameters * const abm_settings[] = {
@@ -264,7 +266,7 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 	 * format U4.10.
 	 */
 	for (i = 1; i+1 < num_entries; i++) {
-		lut_index = (params.backlight_lut_array_size - 1) * i / (num_entries - 1);
+		lut_index = DIV_ROUNDUP((i * params.backlight_lut_array_size), num_entries);
 		ASSERT(lut_index < params.backlight_lut_array_size);
 
 		table->backlight_thresholds[i] = (big_endian) ?
@@ -276,7 +278,7 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 	}
 }
 
-void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters params)
+static void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters params)
 {
 	unsigned int set = params.set;
 
@@ -450,7 +452,7 @@ void fill_iram_v_2(struct iram_table_v_2 *ram_table, struct dmcu_iram_parameters
 			params, ram_table);
 }
 
-void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params)
+static void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params)
 {
 	unsigned int set = params.set;
 
@@ -596,7 +598,7 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 			params, ram_table, true);
 }
 
-void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params, bool big_endian)
+static void fill_iram_v_2_3(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parameters params, bool big_endian)
 {
 	unsigned int i, j;
 	unsigned int set = params.set;
@@ -662,10 +664,11 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 {
 	struct iram_table_v_2_2 ram_table;
 	struct abm_config_table config;
+	unsigned int set = params.set;
 	bool result = false;
 	uint32_t i, j = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->abm == NULL && res_pool->multiple_abms[0] == NULL)
 		return false;
 #else
@@ -710,13 +713,25 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		config.max_knee[i] = ram_table.max_knee[i];
 	}
 
+	if (params.backlight_ramping_override) {
+		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+			config.blRampReduction[i] = params.backlight_ramping_reduction;
+			config.blRampStart[i] = params.backlight_ramping_start;
+			}
+		} else {
+			for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+				config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
+				config.blRampStart[i] = abm_settings[set][i].blRampStart;
+				}
+			}
+
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-	if (res_pool->multiple_abms[0]) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (res_pool->multiple_abms[0])
 		result = res_pool->multiple_abms[0]->funcs->init_abm_config(
 			res_pool->multiple_abms[0], (char *)(&config), sizeof(struct abm_config_table));
-	} else
+	else
 #endif
 		result = res_pool->abm->funcs->init_abm_config(
 			res_pool->abm, (char *)(&config), sizeof(struct abm_config_table));

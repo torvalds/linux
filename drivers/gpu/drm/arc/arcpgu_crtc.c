@@ -116,7 +116,7 @@ static void arc_pgu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void arc_pgu_crtc_atomic_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
@@ -127,7 +127,7 @@ static void arc_pgu_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void arc_pgu_crtc_atomic_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
@@ -162,15 +162,10 @@ static const struct drm_plane_helper_funcs arc_pgu_plane_helper_funcs = {
 	.atomic_update = arc_pgu_plane_atomic_update,
 };
 
-static void arc_pgu_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-}
-
 static const struct drm_plane_funcs arc_pgu_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= arc_pgu_plane_destroy,
+	.destroy		= drm_plane_cleanup,
 	.reset			= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
@@ -213,7 +208,7 @@ int arc_pgu_setup_crtc(struct drm_device *drm)
 	ret = drm_crtc_init_with_planes(drm, &arcpgu->crtc, primary, NULL,
 					&arc_pgu_crtc_funcs, NULL);
 	if (ret) {
-		arc_pgu_plane_destroy(primary);
+		drm_plane_cleanup(primary);
 		return ret;
 	}
 

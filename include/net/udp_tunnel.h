@@ -129,12 +129,16 @@ void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type);
 static inline void udp_tunnel_get_rx_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
+	if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
+		return;
 	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
 }
 
 static inline void udp_tunnel_drop_rx_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
+	if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
+		return;
 	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_DROP_INFO, dev);
 }
 
@@ -177,9 +181,8 @@ static inline void udp_tunnel_encap_enable(struct socket *sock)
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sock->sk->sk_family == PF_INET6)
 		ipv6_stub->udpv6_encap_enable();
-	else
 #endif
-		udp_encap_enable();
+	udp_encap_enable();
 }
 
 #define UDP_TUNNEL_NIC_MAX_TABLES	4
@@ -200,11 +203,27 @@ enum udp_tunnel_nic_info_flags {
 	UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN	= BIT(3),
 };
 
+struct udp_tunnel_nic;
+
+#define UDP_TUNNEL_NIC_MAX_SHARING_DEVICES	(U16_MAX / 2)
+
+struct udp_tunnel_nic_shared {
+	struct udp_tunnel_nic *udp_tunnel_nic_info;
+
+	struct list_head devices;
+};
+
+struct udp_tunnel_nic_shared_node {
+	struct net_device *dev;
+	struct list_head list;
+};
+
 /**
  * struct udp_tunnel_nic_info - driver UDP tunnel offload information
  * @set_port:	callback for adding a new port
  * @unset_port:	callback for removing a port
  * @sync_table:	callback for syncing the entire port table at once
+ * @shared:	reference to device global state (optional)
  * @flags:	device flags from enum udp_tunnel_nic_info_flags
  * @tables:	UDP port tables this device has
  * @tables.n_entries:		number of entries in this table
@@ -212,6 +231,12 @@ enum udp_tunnel_nic_info_flags {
  *
  * Drivers are expected to provide either @set_port and @unset_port callbacks
  * or the @sync_table callback. Callbacks are invoked with rtnl lock held.
+ *
+ * Devices which (misguidedly) share the UDP tunnel port table across multiple
+ * netdevs should allocate an instance of struct udp_tunnel_nic_shared and
+ * point @shared at it.
+ * There must never be more than %UDP_TUNNEL_NIC_MAX_SHARING_DEVICES devices
+ * sharing a table.
  *
  * Known limitations:
  *  - UDP tunnel port notifications are fundamentally best-effort -
@@ -233,6 +258,8 @@ struct udp_tunnel_nic_info {
 
 	/* all at once */
 	int (*sync_table)(struct net_device *dev, unsigned int table);
+
+	struct udp_tunnel_nic_shared *shared;
 
 	unsigned int flags;
 
@@ -299,6 +326,8 @@ udp_tunnel_nic_set_port_priv(struct net_device *dev, unsigned int table,
 static inline void
 udp_tunnel_nic_add_port(struct net_device *dev, struct udp_tunnel_info *ti)
 {
+	if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
+		return;
 	if (udp_tunnel_nic_ops)
 		udp_tunnel_nic_ops->add_port(dev, ti);
 }
@@ -306,6 +335,8 @@ udp_tunnel_nic_add_port(struct net_device *dev, struct udp_tunnel_info *ti)
 static inline void
 udp_tunnel_nic_del_port(struct net_device *dev, struct udp_tunnel_info *ti)
 {
+	if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
+		return;
 	if (udp_tunnel_nic_ops)
 		udp_tunnel_nic_ops->del_port(dev, ti);
 }

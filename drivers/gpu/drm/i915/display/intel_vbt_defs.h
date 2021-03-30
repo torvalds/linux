@@ -319,6 +319,8 @@ enum vbt_gmbus_ddi {
 	ICL_DDC_BUS_DDI_A = 0x1,
 	ICL_DDC_BUS_DDI_B,
 	TGL_DDC_BUS_DDI_C,
+	RKL_DDC_BUS_DDI_D = 0x3,
+	RKL_DDC_BUS_DDI_E,
 	ICL_DDC_BUS_PORT_1 = 0x4,
 	ICL_DDC_BUS_PORT_2,
 	ICL_DDC_BUS_PORT_3,
@@ -782,7 +784,7 @@ struct lfp_backlight_data_entry {
 	u8 active_low_pwm:1;
 	u8 obsolete1:5;
 	u16 pwm_freq_hz;
-	u8 min_brightness;
+	u8 min_brightness; /* Obsolete from 234+ */
 	u8 obsolete2;
 	u8 obsolete3;
 } __packed;
@@ -792,11 +794,19 @@ struct lfp_backlight_control_method {
 	u8 controller:4;
 } __packed;
 
+struct lfp_brightness_level {
+	u16 level;
+	u16 reserved;
+} __packed;
+
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct lfp_backlight_data_entry data[16];
-	u8 level[16];
+	u8 level[16]; /* Obsolete from 234+ */
 	struct lfp_backlight_control_method backlight_control[16];
+	struct lfp_brightness_level brightness_level[16];		/* 234+ */
+	struct lfp_brightness_level brightness_min_level[16];	/* 234+ */
+	u8 brightness_precision_bits[16];						/* 236+ */
 } __packed;
 
 /*
@@ -827,6 +837,7 @@ struct bdb_lfp_power {
 	u16 lace_enabled_status;
 	struct agressiveness_profile_entry aggressivenes[16];
 	u16 hobl; /* 232+ */
+	u16 vrr_feature_enabled; /* 233+ */
 } __packed;
 
 /*

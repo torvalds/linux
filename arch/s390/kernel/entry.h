@@ -9,7 +9,6 @@
 #include <asm/idle.h>
 
 extern void *restart_stack;
-extern unsigned long suspend_zero_pages;
 
 void system_call(void);
 void pgm_check_handler(void);
@@ -17,10 +16,10 @@ void ext_int_handler(void);
 void io_int_handler(void);
 void mcck_int_handler(void);
 void restart_int_handler(void);
-void restart_call_handler(void);
 
-asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
-asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
+void __ret_from_fork(struct task_struct *prev, struct pt_regs *regs);
+void __do_pgm_check(struct pt_regs *regs);
+void __do_syscall(struct pt_regs *regs, int per_trap);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
@@ -50,9 +49,7 @@ void translation_exception(struct pt_regs *regs);
 void vector_exception(struct pt_regs *regs);
 void monitor_event_exception(struct pt_regs *regs);
 
-void do_per_trap(struct pt_regs *regs);
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
-void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);
 void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
@@ -60,14 +57,13 @@ void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 void do_notify_resume(struct pt_regs *regs);
 
 void __init init_IRQ(void);
-void do_IRQ(struct pt_regs *regs, int irq);
+void do_io_irq(struct pt_regs *regs);
+void do_ext_irq(struct pt_regs *regs);
 void do_restart(void);
-void __init startup_init_nobss(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);
 void __init time_init(void);
-void s390_early_resume(void);
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long sp, unsigned long ip);
 
 struct s390_mmap_arg_struct;
@@ -86,10 +82,9 @@ long sys_s390_sthyi(unsigned long function_code, void __user *buffer, u64 __user
 
 DECLARE_PER_CPU(u64, mt_cycles[8]);
 
-void gs_load_bc_cb(struct pt_regs *regs);
-void set_fs_fixup(void);
-
 unsigned long stack_alloc(void);
 void stack_free(unsigned long stack);
+
+extern char kprobes_insn_page[];
 
 #endif /* _ENTRY_H */

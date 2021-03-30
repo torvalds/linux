@@ -97,6 +97,7 @@ static int validate_keys_sizes(struct cc_cipher_ctx *ctx_p, u32 size)
 	case S_DIN_to_SM4:
 		if (size == SM4_KEY_SIZE)
 			return 0;
+		break;
 	default:
 		break;
 	}
@@ -139,9 +140,11 @@ static int validate_data_size(struct cc_cipher_ctx *ctx_p,
 		case DRV_CIPHER_CBC:
 			if (IS_ALIGNED(size, SM4_BLOCK_SIZE))
 				return 0;
+			break;
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -918,7 +921,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 			return crypto_skcipher_decrypt(subreq);
 	}
 
-	/* The IV we are handed may be allocted from the stack so
+	/* The IV we are handed may be allocated from the stack so
 	 * we must copy it to a DMAable buffer before use.
 	 */
 	req_ctx->iv = kmemdup(iv, ivsize, flags);

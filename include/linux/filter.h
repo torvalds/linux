@@ -21,7 +21,8 @@
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
 #include <linux/sockptr.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <linux/u64_stats_sync.h>
 
 #include <net/sch_generic.h>
 
@@ -259,15 +260,32 @@ static inline bool insn_is_zext(const struct bpf_insn *insn)
 		.off   = OFF,					\
 		.imm   = 0 })
 
-/* Atomic memory add, *(uint *)(dst_reg + off16) += src_reg */
 
-#define BPF_STX_XADD(SIZE, DST, SRC, OFF)			\
+/*
+ * Atomic operations:
+ *
+ *   BPF_ADD                  *(uint *) (dst_reg + off16) += src_reg
+ *   BPF_AND                  *(uint *) (dst_reg + off16) &= src_reg
+ *   BPF_OR                   *(uint *) (dst_reg + off16) |= src_reg
+ *   BPF_XOR                  *(uint *) (dst_reg + off16) ^= src_reg
+ *   BPF_ADD | BPF_FETCH      src_reg = atomic_fetch_add(dst_reg + off16, src_reg);
+ *   BPF_AND | BPF_FETCH      src_reg = atomic_fetch_and(dst_reg + off16, src_reg);
+ *   BPF_OR | BPF_FETCH       src_reg = atomic_fetch_or(dst_reg + off16, src_reg);
+ *   BPF_XOR | BPF_FETCH      src_reg = atomic_fetch_xor(dst_reg + off16, src_reg);
+ *   BPF_XCHG                 src_reg = atomic_xchg(dst_reg + off16, src_reg)
+ *   BPF_CMPXCHG              r0 = atomic_cmpxchg(dst_reg + off16, r0, src_reg)
+ */
+
+#define BPF_ATOMIC_OP(SIZE, OP, DST, SRC, OFF)			\
 	((struct bpf_insn) {					\
-		.code  = BPF_STX | BPF_SIZE(SIZE) | BPF_XADD,	\
+		.code  = BPF_STX | BPF_SIZE(SIZE) | BPF_ATOMIC,	\
 		.dst_reg = DST,					\
 		.src_reg = SRC,					\
 		.off   = OFF,					\
-		.imm   = 0 })
+		.imm   = OP })
+
+/* Legacy alias */
+#define BPF_STX_XADD(SIZE, DST, SRC, OFF) BPF_ATOMIC_OP(SIZE, BPF_ADD, DST, SRC, OFF)
 
 /* Memory store, *(uint *) (dst_reg + off16) = imm32 */
 
@@ -522,6 +540,13 @@ struct bpf_binary_header {
 	u8 image[] __aligned(BPF_IMAGE_ALIGNMENT);
 };
 
+struct bpf_prog_stats {
+	u64 cnt;
+	u64 nsecs;
+	u64 misses;
+	struct u64_stats_sync syncp;
+} __aligned(2 * sizeof(u64));
+
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	u16			jited:1,	/* Is our filter JIT'ed? */
@@ -540,10 +565,12 @@ struct bpf_prog {
 	u32			len;		/* Number of filter blocks */
 	u32			jited_len;	/* Size of jited insns in bytes */
 	u8			tag[BPF_TAG_SIZE];
-	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
-	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
+	struct bpf_prog_stats __percpu *stats;
+	int __percpu		*active;
 	unsigned int		(*bpf_func)(const void *ctx,
 					    const struct bpf_insn *insn);
+	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
+	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	/* Instructions for interpreter */
 	struct sock_filter	insns[0];
 	struct bpf_insn		insnsi[];
@@ -558,21 +585,21 @@ struct sk_filter {
 DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 
 #define __BPF_PROG_RUN(prog, ctx, dfunc)	({			\
-	u32 ret;							\
+	u32 __ret;							\
 	cant_migrate();							\
 	if (static_branch_unlikely(&bpf_stats_enabled_key)) {		\
-		struct bpf_prog_stats *stats;				\
-		u64 start = sched_clock();				\
-		ret = dfunc(ctx, (prog)->insnsi, (prog)->bpf_func);	\
-		stats = this_cpu_ptr(prog->aux->stats);			\
-		u64_stats_update_begin(&stats->syncp);			\
-		stats->cnt++;						\
-		stats->nsecs += sched_clock() - start;			\
-		u64_stats_update_end(&stats->syncp);			\
+		struct bpf_prog_stats *__stats;				\
+		u64 __start = sched_clock();				\
+		__ret = dfunc(ctx, (prog)->insnsi, (prog)->bpf_func);	\
+		__stats = this_cpu_ptr(prog->stats);			\
+		u64_stats_update_begin(&__stats->syncp);		\
+		__stats->cnt++;						\
+		__stats->nsecs += sched_clock() - __start;		\
+		u64_stats_update_end(&__stats->syncp);			\
 	} else {							\
-		ret = dfunc(ctx, (prog)->insnsi, (prog)->bpf_func);	\
+		__ret = dfunc(ctx, (prog)->insnsi, (prog)->bpf_func);	\
 	}								\
-	ret; })
+	__ret; })
 
 #define BPF_PROG_RUN(prog, ctx)						\
 	__BPF_PROG_RUN(prog, ctx, bpf_dispatcher_nop_func)
@@ -607,12 +634,21 @@ struct bpf_skb_data_end {
 	void *data_end;
 };
 
+struct bpf_nh_params {
+	u32 nh_family;
+	union {
+		u32 ipv4_nh;
+		struct in6_addr ipv6_nh;
+	};
+};
+
 struct bpf_redirect_info {
 	u32 flags;
 	u32 tgt_index;
 	void *tgt_value;
 	struct bpf_map *map;
 	u32 kern_flags;
+	struct bpf_nh_params nh;
 };
 
 DECLARE_PER_CPU(struct bpf_redirect_info, bpf_redirect_info);
@@ -877,7 +913,7 @@ void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 #define __bpf_call_base_args \
 	((u64 (*)(u64, u64, u64, u64, u64, const struct bpf_insn *)) \
-	 __bpf_call_base)
+	 (void *)__bpf_call_base)
 
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog);
 void bpf_jit_compile(struct bpf_prog *prog);
@@ -1236,13 +1272,17 @@ struct bpf_sock_addr_kern {
 
 struct bpf_sock_ops_kern {
 	struct	sock *sk;
-	u32	op;
 	union {
 		u32 args[4];
 		u32 reply;
 		u32 replylong[4];
 	};
-	u32	is_fullsock;
+	struct sk_buff	*syn_skb;
+	struct sk_buff	*skb;
+	void	*skb_data_end;
+	u8	op;
+	u8	is_fullsock;
+	u8	remaining_opt_len;
 	u64	temp;			/* temp and everything after is not
 					 * initialized to 0 before calling
 					 * the BPF program. New fields that
@@ -1268,6 +1308,11 @@ struct bpf_sysctl_kern {
 	u64 tmp_reg;
 };
 
+#define BPF_SOCKOPT_KERN_BUF_SIZE	32
+struct bpf_sockopt_buf {
+	u8		data[BPF_SOCKOPT_KERN_BUF_SIZE];
+};
+
 struct bpf_sockopt_kern {
 	struct sock	*sk;
 	u8		*optval;
@@ -1283,6 +1328,8 @@ int copy_bpf_fprog_from_user(struct sock_fprog *dst, sockptr_t src, int len);
 struct bpf_sk_lookup_kern {
 	u16		family;
 	u16		protocol;
+	__be16		sport;
+	u16		dport;
 	struct {
 		__be32 saddr;
 		__be32 daddr;
@@ -1291,8 +1338,6 @@ struct bpf_sk_lookup_kern {
 		const struct in6_addr *saddr;
 		const struct in6_addr *daddr;
 	} v6;
-	__be16		sport;
-	u16		dport;
 	struct sock	*selected_sk;
 	bool		no_reuseport;
 };

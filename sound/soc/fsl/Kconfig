@@ -95,6 +95,23 @@ config SND_SOC_FSL_EASRC
 	  destination sample rate. It is a new design module compare with the
 	  old ASRC.
 
+config SND_SOC_FSL_XCVR
+	tristate "NXP Audio Transceiver (XCVR) module support"
+	select REGMAP_MMIO
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y if you want to add Audio Transceiver (XCVR) support for NXP
+	  iMX CPUs. XCVR is a digital module that supports HDMI2.1 eARC,
+	  HDMI1.4 ARC and SPDIF.
+
+config SND_SOC_FSL_AUD2HTX
+	tristate "AUDIO TO HDMI TX module support"
+	depends on ARCH_MXC || COMPILE_TEST
+	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
+	help
+	  Say Y if you want to add AUDIO TO HDMI TX support for NXP.
+
 config SND_SOC_FSL_UTILS
 	tristate
 
@@ -213,57 +230,18 @@ endif # SND_POWERPC_SOC
 
 config SND_SOC_IMX_PCM_FIQ
 	tristate
-	default y if SND_SOC_IMX_SSI=y && (SND_SOC_FSL_SSI=m || SND_SOC_FSL_SPDIF=m) && (MXC_TZIC || MXC_AVIC)
+	default y if (SND_SOC_FSL_SSI=m || SND_SOC_FSL_SPDIF=m) && (MXC_TZIC || MXC_AVIC)
 	select FIQ
 
 if SND_IMX_SOC
 
-config SND_SOC_IMX_SSI
-	tristate
-	select SND_SOC_FSL_UTILS
-
 comment "SoC Audio support for Freescale i.MX boards:"
-
-config SND_MXC_SOC_WM1133_EV1
-	tristate "Audio on the i.MX31ADS with WM1133-EV1 fitted"
-	depends on MACH_MX31ADS_WM1133_EV1
-	select SND_SOC_WM8350
-	select SND_SOC_IMX_PCM_FIQ
-	select SND_SOC_IMX_AUDMUX
-	select SND_SOC_IMX_SSI
-	help
-	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
-	  PMIC board with WM8835x fitted.
-
-config SND_SOC_MX27VIS_AIC32X4
-	tristate "SoC audio support for Visstrim M10 boards"
-	depends on MACH_IMX27_VISSTRIM_M10 && I2C
-	select SND_SOC_TLV320AIC32X4
-	select SND_SOC_IMX_PCM_DMA
-	select SND_SOC_IMX_AUDMUX
-	select SND_SOC_IMX_SSI
-	help
-	  Say Y if you want to add support for SoC audio on Visstrim SM10
-	  board with TLV320AIC32X4 codec.
-
-config SND_SOC_PHYCORE_AC97
-	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
-	depends on MACH_PCM043 || MACH_PCA100
-	select SND_SOC_AC97_BUS
-	select SND_SOC_WM9712
-	select SND_SOC_IMX_PCM_FIQ
-	select SND_SOC_IMX_AUDMUX
-	select SND_SOC_IMX_SSI
-	help
-	  Say Y if you want to add support for SoC audio on Phytec phyCORE
-	  and phyCARD boards in AC97 mode
 
 config SND_SOC_EUKREA_TLV320
 	tristate "Eukrea TLV320"
 	depends on ARCH_MXC && !ARM64 && I2C
 	select SND_SOC_TLV320AIC23_I2C
 	select SND_SOC_IMX_AUDMUX
-	select SND_SOC_IMX_SSI
 	select SND_SOC_FSL_SSI
 	select SND_SOC_IMX_PCM_DMA
 	help
@@ -302,14 +280,6 @@ config SND_SOC_IMX_SPDIF
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  a S/DPDIF.
 
-config SND_SOC_IMX_MC13783
-	tristate "SoC Audio support for I.MX boards with mc13783"
-	depends on MFD_MC13XXX && ARM
-	select SND_SOC_IMX_SSI
-	select SND_SOC_IMX_AUDMUX
-	select SND_SOC_MC13783
-	select SND_SOC_IMX_PCM_DMA
-
 config SND_SOC_FSL_ASOC_CARD
 	tristate "Generic ASoC Sound Card with ASRC support"
 	depends on OF && I2C
@@ -335,6 +305,18 @@ config SND_SOC_IMX_AUDMIX
 	  SoC Audio support for i.MX boards with Audio Mixer
 	  Say Y if you want to add support for SoC audio on an i.MX board with
 	  an Audio Mixer.
+
+config SND_SOC_IMX_HDMI
+	tristate "SoC Audio support for i.MX boards with HDMI port"
+	select SND_SOC_FSL_SAI
+	select SND_SOC_FSL_AUD2HTX
+	select SND_SOC_HDMI_CODEC
+	help
+	  ALSA SoC Audio support with HDMI feature for Freescale SoCs that have
+	  SAI/AUD2HTX and connect with internal HDMI IP or external module
+	  SII902X.
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  IMX HDMI.
 
 endif # SND_IMX_SOC
 

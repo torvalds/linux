@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <string.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#include <linux/tcp.h>
 #include <linux/bpf.h>
+#include <netinet/in.h>
 #include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
@@ -10,6 +10,10 @@ __u32 _version SEC("version") = 1;
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
+#endif
+
+#ifndef SOL_TCP
+#define SOL_TCP IPPROTO_TCP
 #endif
 
 #define SOL_CUSTOM			0xdeadbeef
@@ -54,6 +58,21 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
+		return 1;
+	}
+
+	if (ctx->level == SOL_TCP && ctx->optname == TCP_ZEROCOPY_RECEIVE) {
+		/* Verify that TCP_ZEROCOPY_RECEIVE triggers.
+		 * It has a custom implementation for performance
+		 * reasons.
+		 */
+
+		if (optval + sizeof(struct tcp_zerocopy_receive) > optval_end)
+			return 0; /* EPERM, bounds check */
+
+		if (((struct tcp_zerocopy_receive *)optval)->address != 0)
+			return 0; /* EPERM, unexpected data */
+
 		return 1;
 	}
 

@@ -111,7 +111,7 @@ int create_user_ns(struct cred *new)
 		goto fail_free;
 	ns->ns.ops = &userns_operations;
 
-	atomic_set(&ns->count, 1);
+	refcount_set(&ns->ns.count, 1);
 	/* Leave the new->user_ns reference with the new user namespace. */
 	ns->parent = parent_ns;
 	ns->level = parent_ns->level + 1;
@@ -197,7 +197,7 @@ static void free_user_ns(struct work_struct *work)
 		kmem_cache_free(user_ns_cachep, ns);
 		dec_user_namespaces(ucounts);
 		ns = parent;
-	} while (atomic_dec_and_test(&parent->count));
+	} while (refcount_dec_and_test(&parent->ns.count));
 }
 
 void __put_user_ns(struct user_namespace *ns)
@@ -515,7 +515,7 @@ EXPORT_SYMBOL(from_kgid_munged);
  *
  *	When there is no mapping defined for the user-namespace projid
  *	pair INVALID_PROJID is returned.  Callers are expected to test
- *	for and handle handle INVALID_PROJID being returned.  INVALID_PROJID
+ *	for and handle INVALID_PROJID being returned.  INVALID_PROJID
  *	may be tested for using projid_valid().
  */
 kprojid_t make_kprojid(struct user_namespace *ns, projid_t projid)

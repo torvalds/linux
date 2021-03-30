@@ -467,6 +467,17 @@ void mpc1_cursor_lock(struct mpc *mpc, int opp_id, bool lock)
 	REG_SET(CUR[opp_id], 0, CUR_VUPDATE_LOCK_SET, lock ? 1 : 0);
 }
 
+unsigned int mpc1_get_mpc_out_mux(struct mpc *mpc, int opp_id)
+{
+	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	uint32_t val = 0xf;
+
+	if (opp_id < MAX_OPP && REG(MUX[opp_id]))
+		REG_GET(MUX[opp_id], MPC_OUT_MUX, &val);
+
+	return val;
+}
+
 static const struct mpc_funcs dcn10_mpc_funcs = {
 	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
@@ -483,6 +494,7 @@ static const struct mpc_funcs dcn10_mpc_funcs = {
 	.set_denorm_clamp = NULL,
 	.set_output_csc = NULL,
 	.set_output_gamma = NULL,
+	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,

@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 #include <linux/console.h>
 
@@ -86,10 +87,6 @@ void *prom_get_hwconf(void)
 	return (void *)CKSEG1ADDR(hwconf);
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 /*
  * /proc/cpuinfo system type
  *
@@ -131,8 +128,7 @@ static void __init sni_mem_init(void)
 		}
 		pr_debug("Bank%d: %08x @ %08x\n", i,
 			memconf[i].size, memconf[i].base);
-		add_memory_region(memconf[i].base, memconf[i].size,
-				  BOOT_MEM_RAM);
+		memblock_add(memconf[i].base, memconf[i].size);
 	}
 }
 

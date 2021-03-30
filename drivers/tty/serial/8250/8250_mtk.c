@@ -317,7 +317,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	baud = tty_termios_baud_rate(termios);
 
-	serial8250_do_set_termios(port, termios, old);
+	serial8250_do_set_termios(port, termios, NULL);
 
 	tty_termios_encode_baud_rate(termios, baud, baud);
 
@@ -572,15 +572,22 @@ static int mtk8250_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	err = mtk8250_runtime_resume(&pdev->dev);
 	if (err)
-		return err;
+		goto err_pm_disable;
 
 	data->line = serial8250_register_8250_port(&uart);
-	if (data->line < 0)
-		return data->line;
+	if (data->line < 0) {
+		err = data->line;
+		goto err_pm_disable;
+	}
 
 	data->rx_wakeup_irq = platform_get_irq_optional(pdev, 1);
 
 	return 0;
+
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
+
+	return err;
 }
 
 static int mtk8250_remove(struct platform_device *pdev)

@@ -63,10 +63,9 @@ will want to turn on ``CONFIG_DEBUG_INFO`` which is called
 It is advised, but not required, that you turn on the
 ``CONFIG_FRAME_POINTER`` kernel option which is called :menuselection:`Compile
 the kernel with frame pointers` in the config menu. This option inserts code
-to into the compiled executable which saves the frame information in
-registers or on the stack at different points which allows a debugger
-such as gdb to more accurately construct stack back traces while
-debugging the kernel.
+into the compiled executable which saves the frame information in registers
+or on the stack at different points which allows a debugger such as gdb to
+more accurately construct stack back traces while debugging the kernel.
 
 If the architecture that you are using supports the kernel option
 ``CONFIG_STRICT_KERNEL_RWX``, you should consider turning it off. This
@@ -726,7 +725,7 @@ The kernel debugger is organized into a number of components:
    -  contains an arch-specific trap catcher which invokes
       kgdb_handle_exception() to start kgdb about doing its work
 
-   -  translation to and from gdb specific packet format to :c:type:`pt_regs`
+   -  translation to and from gdb specific packet format to struct pt_regs
 
    -  Registration and unregistration of architecture specific trap
       hooks
@@ -846,7 +845,7 @@ invokes a callback in the serial core which in turn uses the callback in
 the UART driver.
 
 When using kgdboc with a UART, the UART driver must implement two
-callbacks in the :c:type:`struct uart_ops <uart_ops>`.
+callbacks in the struct uart_ops.
 Example from ``drivers/8250.c``::
 
 
@@ -875,7 +874,7 @@ kernel when ``CONFIG_KDB_KEYBOARD=y`` is set in the kernel configuration.
 The core polled keyboard driver for PS/2 type keyboards is in
 ``drivers/char/kdb_keyboard.c``. This driver is hooked into the debug core
 when kgdboc populates the callback in the array called
-:c:type:`kdb_poll_funcs[]`. The kdb_get_kbd_char() is the top-level
+:c:expr:`kdb_poll_funcs[]`. The kdb_get_kbd_char() is the top-level
 function which polls hardware for single character input.
 
 kgdboc and kms

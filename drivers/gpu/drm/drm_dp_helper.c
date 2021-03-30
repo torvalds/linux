@@ -150,11 +150,8 @@ void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+static void __drm_dp_link_train_channel_eq_delay(unsigned long rd_interval)
 {
-	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					 DP_TRAINING_AUX_RD_MASK;
-
 	if (rd_interval > 4)
 		DRM_DEBUG_KMS("AUX interval %lu, out of range (max 4)\n",
 			      rd_interval);
@@ -166,7 +163,34 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 
 	usleep_range(rd_interval, rd_interval * 2);
 }
+
+void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	__drm_dp_link_train_channel_eq_delay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					     DP_TRAINING_AUX_RD_MASK);
+}
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
+
+void drm_dp_lttpr_link_train_clock_recovery_delay(void)
+{
+	usleep_range(100, 200);
+}
+EXPORT_SYMBOL(drm_dp_lttpr_link_train_clock_recovery_delay);
+
+static u8 dp_lttpr_phy_cap(const u8 phy_cap[DP_LTTPR_PHY_CAP_SIZE], int r)
+{
+	return phy_cap[r - DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1];
+}
+
+void drm_dp_lttpr_link_train_channel_eq_delay(const u8 phy_cap[DP_LTTPR_PHY_CAP_SIZE])
+{
+	u8 interval = dp_lttpr_phy_cap(phy_cap,
+				       DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1) &
+		      DP_TRAINING_AUX_RD_MASK;
+
+	__drm_dp_link_train_channel_eq_delay(interval);
+}
+EXPORT_SYMBOL(drm_dp_lttpr_link_train_channel_eq_delay);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate)
 {
@@ -363,6 +387,59 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
 
+/**
+ * drm_dp_dpcd_read_phy_link_status - get the link status information for a DP PHY
+ * @aux: DisplayPort AUX channel
+ * @dp_phy: the DP PHY to get the link status for
+ * @link_status: buffer to return the status in
+ *
+ * Fetch the AUX DPCD registers for the DPRX or an LTTPR PHY link status. The
+ * layout of the returned @link_status matches the DPCD register layout of the
+ * DPRX PHY link status.
+ *
+ * Returns 0 if the information was read successfully or a negative error code
+ * on failure.
+ */
+int drm_dp_dpcd_read_phy_link_status(struct drm_dp_aux *aux,
+				     enum drm_dp_phy dp_phy,
+				     u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	int ret;
+
+	if (dp_phy == DP_PHY_DPRX) {
+		ret = drm_dp_dpcd_read(aux,
+				       DP_LANE0_1_STATUS,
+				       link_status,
+				       DP_LINK_STATUS_SIZE);
+
+		if (ret < 0)
+			return ret;
+
+		WARN_ON(ret != DP_LINK_STATUS_SIZE);
+
+		return 0;
+	}
+
+	ret = drm_dp_dpcd_read(aux,
+			       DP_LANE0_1_STATUS_PHY_REPEATER(dp_phy),
+			       link_status,
+			       DP_LINK_STATUS_SIZE - 1);
+
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(ret != DP_LINK_STATUS_SIZE - 1);
+
+	/* Convert the LTTPR to the sink PHY link status layout */
+	memmove(&link_status[DP_SINK_STATUS - DP_LANE0_1_STATUS + 1],
+		&link_status[DP_SINK_STATUS - DP_LANE0_1_STATUS],
+		DP_LINK_STATUS_SIZE - (DP_SINK_STATUS - DP_LANE0_1_STATUS) - 1);
+	link_status[DP_SINK_STATUS - DP_LANE0_1_STATUS] = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_dpcd_read_phy_link_status);
+
 static bool is_edid_digital_input_dp(const struct edid *edid)
 {
 	return edid && edid->revision >= 4 &&
@@ -374,6 +451,10 @@ static bool is_edid_digital_input_dp(const struct edid *edid)
  * drm_dp_downstream_is_type() - is the downstream facing port of certain type?
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
+ * @type: port type to be checked. Can be:
+ * 	  %DP_DS_PORT_TYPE_DP, %DP_DS_PORT_TYPE_VGA, %DP_DS_PORT_TYPE_DVI,
+ * 	  %DP_DS_PORT_TYPE_HDMI, %DP_DS_PORT_TYPE_NON_EDID,
+ *	  %DP_DS_PORT_TYPE_DP_DUALMODE or %DP_DS_PORT_TYPE_WIRELESS.
  *
  * Caveat: Only works with DPCD 1.1+ port caps.
  *
@@ -869,7 +950,40 @@ bool drm_dp_downstream_444_to_420_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZE]
 EXPORT_SYMBOL(drm_dp_downstream_444_to_420_conversion);
 
 /**
+ * drm_dp_downstream_rgb_to_ycbcr_conversion() - determine downstream facing port
+ *                                               RGB->YCbCr conversion capability
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: downstream facing port capabilities
+ * @color_spc: Colorspace for which conversion cap is sought
+ *
+ * Returns: whether the downstream facing port can convert RGB->YCbCr for a given
+ * colorspace.
+ */
+bool drm_dp_downstream_rgb_to_ycbcr_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+					       const u8 port_cap[4],
+					       u8 color_spc)
+{
+	if (!drm_dp_is_branch(dpcd))
+		return false;
+
+	if (dpcd[DP_DPCD_REV] < 0x13)
+		return false;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_HDMI:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return false;
+
+		return port_cap[3] & color_spc;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_rgb_to_ycbcr_conversion);
+
+/**
  * drm_dp_downstream_mode() - return a mode for downstream facing port
+ * @dev: DRM device
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
  *
@@ -1028,7 +1142,8 @@ EXPORT_SYMBOL(drm_dp_downstream_debug);
 
 /**
  * drm_dp_subconnector_type() - get DP branch device type
- *
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
  */
 enum drm_mode_subconnector
 drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
@@ -1078,7 +1193,11 @@ drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 EXPORT_SYMBOL(drm_dp_subconnector_type);
 
 /**
- * drm_mode_set_dp_subconnector_property - set subconnector for DP connector
+ * drm_dp_set_subconnector_property - set subconnector for DP connector
+ * @connector: connector to set property on
+ * @status: connector status
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
  *
  * Called by a driver on every detect event.
  */
@@ -1117,7 +1236,7 @@ bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
 	return connector->connector_type != DRM_MODE_CONNECTOR_eDP &&
 		dpcd[DP_DPCD_REV] >= DP_DPCD_REV_11 &&
 		dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT &&
-		!drm_dp_has_quirk(desc, 0, DP_DPCD_QUIRK_NO_SINK_COUNT);
+		!drm_dp_has_quirk(desc, DP_DPCD_QUIRK_NO_SINK_COUNT);
 }
 EXPORT_SYMBOL(drm_dp_read_sink_count_cap);
 
@@ -1838,86 +1957,6 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 #undef DEVICE_ID_ANY
 #undef DEVICE_ID
 
-struct edid_quirk {
-	u8 mfg_id[2];
-	u8 prod_id[2];
-	u32 quirks;
-};
-
-#define MFG(first, second) { (first), (second) }
-#define PROD_ID(first, second) { (first), (second) }
-
-/*
- * Some devices have unreliable OUIDs where they don't set the device ID
- * correctly, and as a result we need to use the EDID for finding additional
- * DP quirks in such cases.
- */
-static const struct edid_quirk edid_quirk_list[] = {
-	/* Optional 4K AMOLED panel in the ThinkPad X1 Extreme 2nd Generation
-	 * only supports DPCD backlight controls
-	 */
-	{ MFG(0x4c, 0x83), PROD_ID(0x41, 0x41), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
-	/*
-	 * Some Dell CML 2020 systems have panels support both AUX and PWM
-	 * backlight control, and some only support AUX backlight control. All
-	 * said panels start up in AUX mode by default, and we don't have any
-	 * support for disabling HDR mode on these panels which would be
-	 * required to switch to PWM backlight control mode (plus, I'm not
-	 * even sure we want PWM backlight controls over DPCD backlight
-	 * controls anyway...). Until we have a better way of detecting these,
-	 * force DPCD backlight mode on all of them.
-	 */
-	{ MFG(0x06, 0xaf), PROD_ID(0x9b, 0x32), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
-	{ MFG(0x06, 0xaf), PROD_ID(0xeb, 0x41), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
-	{ MFG(0x4d, 0x10), PROD_ID(0xc7, 0x14), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
-	{ MFG(0x4d, 0x10), PROD_ID(0xe6, 0x14), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
-	{ MFG(0x4c, 0x83), PROD_ID(0x47, 0x41), BIT(DP_QUIRK_FORCE_DPCD_BACKLIGHT) },
-};
-
-#undef MFG
-#undef PROD_ID
-
-/**
- * drm_dp_get_edid_quirks() - Check the EDID of a DP device to find additional
- * DP-specific quirks
- * @edid: The EDID to check
- *
- * While OUIDs are meant to be used to recognize a DisplayPort device, a lot
- * of manufacturers don't seem to like following standards and neglect to fill
- * the dev-ID in, making it impossible to only use OUIDs for determining
- * quirks in some cases. This function can be used to check the EDID and look
- * up any additional DP quirks. The bits returned by this function correspond
- * to the quirk bits in &drm_dp_quirk.
- *
- * Returns: a bitmask of quirks, if any. The driver can check this using
- * drm_dp_has_quirk().
- */
-u32 drm_dp_get_edid_quirks(const struct edid *edid)
-{
-	const struct edid_quirk *quirk;
-	u32 quirks = 0;
-	int i;
-
-	if (!edid)
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(edid_quirk_list); i++) {
-		quirk = &edid_quirk_list[i];
-		if (memcmp(quirk->mfg_id, edid->mfg_id,
-			   sizeof(edid->mfg_id)) == 0 &&
-		    memcmp(quirk->prod_id, edid->prod_code,
-			   sizeof(edid->prod_code)) == 0)
-			quirks |= quirk->quirks;
-	}
-
-	DRM_DEBUG_KMS("DP sink: EDID mfg %*phD prod-ID %*phD quirks: 0x%04x\n",
-		      (int)sizeof(edid->mfg_id), edid->mfg_id,
-		      (int)sizeof(edid->prod_code), edid->prod_code, quirks);
-
-	return quirks;
-}
-EXPORT_SYMBOL(drm_dp_get_edid_quirks);
-
 /**
  * drm_dp_read_desc - read sink/branch descriptor from DPCD
  * @aux: DisplayPort AUX channel
@@ -2092,6 +2131,153 @@ int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_S
 	return num_bpc;
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_supported_input_bpcs);
+
+/**
+ * drm_dp_read_lttpr_common_caps - read the LTTPR common capabilities
+ * @aux: DisplayPort AUX channel
+ * @caps: buffer to return the capability info in
+ *
+ * Read capabilities common to all LTTPRs.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_lttpr_common_caps(struct drm_dp_aux *aux,
+				  u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_read(aux,
+			       DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
+			       caps, DP_LTTPR_COMMON_CAP_SIZE);
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(ret != DP_LTTPR_COMMON_CAP_SIZE);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_lttpr_common_caps);
+
+/**
+ * drm_dp_read_lttpr_phy_caps - read the capabilities for a given LTTPR PHY
+ * @aux: DisplayPort AUX channel
+ * @dp_phy: LTTPR PHY to read the capabilities for
+ * @caps: buffer to return the capability info in
+ *
+ * Read the capabilities for the given LTTPR PHY.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_lttpr_phy_caps(struct drm_dp_aux *aux,
+			       enum drm_dp_phy dp_phy,
+			       u8 caps[DP_LTTPR_PHY_CAP_SIZE])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_read(aux,
+			       DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy),
+			       caps, DP_LTTPR_PHY_CAP_SIZE);
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(ret != DP_LTTPR_PHY_CAP_SIZE);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_lttpr_phy_caps);
+
+static u8 dp_lttpr_common_cap(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE], int r)
+{
+	return caps[r - DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+}
+
+/**
+ * drm_dp_lttpr_count - get the number of detected LTTPRs
+ * @caps: LTTPR common capabilities
+ *
+ * Get the number of detected LTTPRs from the LTTPR common capabilities info.
+ *
+ * Returns:
+ *   -ERANGE if more than supported number (8) of LTTPRs are detected
+ *   -EINVAL if the DP_PHY_REPEATER_CNT register contains an invalid value
+ *   otherwise the number of detected LTTPRs
+ */
+int drm_dp_lttpr_count(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 count = dp_lttpr_common_cap(caps, DP_PHY_REPEATER_CNT);
+
+	switch (hweight8(count)) {
+	case 0:
+		return 0;
+	case 1:
+		return 8 - ilog2(count);
+	case 8:
+		return -ERANGE;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(drm_dp_lttpr_count);
+
+/**
+ * drm_dp_lttpr_max_link_rate - get the maximum link rate supported by all LTTPRs
+ * @caps: LTTPR common capabilities
+ *
+ * Returns the maximum link rate supported by all detected LTTPRs.
+ */
+int drm_dp_lttpr_max_link_rate(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 rate = dp_lttpr_common_cap(caps, DP_MAX_LINK_RATE_PHY_REPEATER);
+
+	return drm_dp_bw_code_to_link_rate(rate);
+}
+EXPORT_SYMBOL(drm_dp_lttpr_max_link_rate);
+
+/**
+ * drm_dp_lttpr_max_lane_count - get the maximum lane count supported by all LTTPRs
+ * @caps: LTTPR common capabilities
+ *
+ * Returns the maximum lane count supported by all detected LTTPRs.
+ */
+int drm_dp_lttpr_max_lane_count(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 max_lanes = dp_lttpr_common_cap(caps, DP_MAX_LANE_COUNT_PHY_REPEATER);
+
+	return max_lanes & DP_MAX_LANE_COUNT_MASK;
+}
+EXPORT_SYMBOL(drm_dp_lttpr_max_lane_count);
+
+/**
+ * drm_dp_lttpr_voltage_swing_level_3_supported - check for LTTPR vswing3 support
+ * @caps: LTTPR PHY capabilities
+ *
+ * Returns true if the @caps for an LTTPR TX PHY indicate support for
+ * voltage swing level 3.
+ */
+bool
+drm_dp_lttpr_voltage_swing_level_3_supported(const u8 caps[DP_LTTPR_PHY_CAP_SIZE])
+{
+	u8 txcap = dp_lttpr_phy_cap(caps, DP_TRANSMITTER_CAPABILITY_PHY_REPEATER1);
+
+	return txcap & DP_VOLTAGE_SWING_LEVEL_3_SUPPORTED;
+}
+EXPORT_SYMBOL(drm_dp_lttpr_voltage_swing_level_3_supported);
+
+/**
+ * drm_dp_lttpr_pre_emphasis_level_3_supported - check for LTTPR preemph3 support
+ * @caps: LTTPR PHY capabilities
+ *
+ * Returns true if the @caps for an LTTPR TX PHY indicate support for
+ * pre-emphasis level 3.
+ */
+bool
+drm_dp_lttpr_pre_emphasis_level_3_supported(const u8 caps[DP_LTTPR_PHY_CAP_SIZE])
+{
+	u8 txcap = dp_lttpr_phy_cap(caps, DP_TRANSMITTER_CAPABILITY_PHY_REPEATER1);
+
+	return txcap & DP_PRE_EMPHASIS_LEVEL_3_SUPPORTED;
+}
+EXPORT_SYMBOL(drm_dp_lttpr_pre_emphasis_level_3_supported);
 
 /**
  * drm_dp_get_phy_test_pattern() - get the requested pattern from the sink.
@@ -2361,3 +2547,538 @@ void drm_dp_vsc_sdp_log(const char *level, struct device *dev,
 #undef DP_SDP_LOG
 }
 EXPORT_SYMBOL(drm_dp_vsc_sdp_log);
+
+/**
+ * drm_dp_get_pcon_max_frl_bw() - maximum frl supported by PCON
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Returns maximum frl bandwidth supported by PCON in GBPS,
+ * returns 0 if not supported.
+ */
+int drm_dp_get_pcon_max_frl_bw(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4])
+{
+	int bw;
+	u8 buf;
+
+	buf = port_cap[2];
+	bw = buf & DP_PCON_MAX_FRL_BW;
+
+	switch (bw) {
+	case DP_PCON_MAX_9GBPS:
+		return 9;
+	case DP_PCON_MAX_18GBPS:
+		return 18;
+	case DP_PCON_MAX_24GBPS:
+		return 24;
+	case DP_PCON_MAX_32GBPS:
+		return 32;
+	case DP_PCON_MAX_40GBPS:
+		return 40;
+	case DP_PCON_MAX_48GBPS:
+		return 48;
+	case DP_PCON_MAX_0GBPS:
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_get_pcon_max_frl_bw);
+
+/**
+ * drm_dp_pcon_frl_prepare() - Prepare PCON for FRL.
+ * @aux: DisplayPort AUX channel
+ * @enable_frl_ready_hpd: Configure DP_PCON_ENABLE_HPD_READY.
+ *
+ * Returns 0 if success, else returns negative error code.
+ */
+int drm_dp_pcon_frl_prepare(struct drm_dp_aux *aux, bool enable_frl_ready_hpd)
+{
+	int ret;
+	u8 buf = DP_PCON_ENABLE_SOURCE_CTL_MODE |
+		 DP_PCON_ENABLE_LINK_FRL_MODE;
+
+	if (enable_frl_ready_hpd)
+		buf |= DP_PCON_ENABLE_HPD_READY;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PCON_HDMI_LINK_CONFIG_1, buf);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_dp_pcon_frl_prepare);
+
+/**
+ * drm_dp_pcon_is_frl_ready() - Is PCON ready for FRL
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns true if success, else returns false.
+ */
+bool drm_dp_pcon_is_frl_ready(struct drm_dp_aux *aux)
+{
+	int ret;
+	u8 buf;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PCON_HDMI_TX_LINK_STATUS, &buf);
+	if (ret < 0)
+		return false;
+
+	if (buf & DP_PCON_FRL_READY)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(drm_dp_pcon_is_frl_ready);
+
+/**
+ * drm_dp_pcon_frl_configure_1() - Set HDMI LINK Configuration-Step1
+ * @aux: DisplayPort AUX channel
+ * @max_frl_gbps: maximum frl bw to be configured between PCON and HDMI sink
+ * @concurrent_mode: true if concurrent mode or operation is required,
+ * false otherwise.
+ *
+ * Returns 0 if success, else returns negative error code.
+ */
+
+int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
+				bool concurrent_mode)
+{
+	int ret;
+	u8 buf;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PCON_HDMI_LINK_CONFIG_1, &buf);
+	if (ret < 0)
+		return ret;
+
+	if (concurrent_mode)
+		buf |= DP_PCON_ENABLE_CONCURRENT_LINK;
+	else
+		buf &= ~DP_PCON_ENABLE_CONCURRENT_LINK;
+
+	switch (max_frl_gbps) {
+	case 9:
+		buf |=  DP_PCON_ENABLE_MAX_BW_9GBPS;
+		break;
+	case 18:
+		buf |=  DP_PCON_ENABLE_MAX_BW_18GBPS;
+		break;
+	case 24:
+		buf |=  DP_PCON_ENABLE_MAX_BW_24GBPS;
+		break;
+	case 32:
+		buf |=  DP_PCON_ENABLE_MAX_BW_32GBPS;
+		break;
+	case 40:
+		buf |=  DP_PCON_ENABLE_MAX_BW_40GBPS;
+		break;
+	case 48:
+		buf |=  DP_PCON_ENABLE_MAX_BW_48GBPS;
+		break;
+	case 0:
+		buf |=  DP_PCON_ENABLE_MAX_BW_0GBPS;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PCON_HDMI_LINK_CONFIG_1, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_frl_configure_1);
+
+/**
+ * drm_dp_pcon_frl_configure_2() - Set HDMI Link configuration Step-2
+ * @aux: DisplayPort AUX channel
+ * @max_frl_mask : Max FRL BW to be tried by the PCON with HDMI Sink
+ * @extended_train_mode : true for Extended Mode, false for Normal Mode.
+ * In Normal mode, the PCON tries each frl bw from the max_frl_mask starting
+ * from min, and stops when link training is successful. In Extended mode, all
+ * frl bw selected in the mask are trained by the PCON.
+ *
+ * Returns 0 if success, else returns negative error code.
+ */
+int drm_dp_pcon_frl_configure_2(struct drm_dp_aux *aux, int max_frl_mask,
+				bool extended_train_mode)
+{
+	int ret;
+	u8 buf = max_frl_mask;
+
+	if (extended_train_mode)
+		buf |= DP_PCON_FRL_LINK_TRAIN_EXTENDED;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PCON_HDMI_LINK_CONFIG_2, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_frl_configure_2);
+
+/**
+ * drm_dp_pcon_reset_frl_config() - Re-Set HDMI Link configuration.
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns 0 if success, else returns negative error code.
+ */
+int drm_dp_pcon_reset_frl_config(struct drm_dp_aux *aux)
+{
+	int ret;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PCON_HDMI_LINK_CONFIG_1, 0x0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_reset_frl_config);
+
+/**
+ * drm_dp_pcon_frl_enable() - Enable HDMI link through FRL
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns 0 if success, else returns negative error code.
+ */
+int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux)
+{
+	int ret;
+	u8 buf = 0;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PCON_HDMI_LINK_CONFIG_1, &buf);
+	if (ret < 0)
+		return ret;
+	if (!(buf & DP_PCON_ENABLE_SOURCE_CTL_MODE)) {
+		DRM_DEBUG_KMS("PCON in Autonomous mode, can't enable FRL\n");
+		return -EINVAL;
+	}
+	buf |= DP_PCON_ENABLE_HDMI_LINK;
+	ret = drm_dp_dpcd_writeb(aux, DP_PCON_HDMI_LINK_CONFIG_1, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_frl_enable);
+
+/**
+ * drm_dp_pcon_hdmi_link_active() - check if the PCON HDMI LINK status is active.
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns true if link is active else returns false.
+ */
+bool drm_dp_pcon_hdmi_link_active(struct drm_dp_aux *aux)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PCON_HDMI_TX_LINK_STATUS, &buf);
+	if (ret < 0)
+		return false;
+
+	return buf & DP_PCON_HDMI_TX_LINK_ACTIVE;
+}
+EXPORT_SYMBOL(drm_dp_pcon_hdmi_link_active);
+
+/**
+ * drm_dp_pcon_hdmi_link_mode() - get the PCON HDMI LINK MODE
+ * @aux: DisplayPort AUX channel
+ * @frl_trained_mask: pointer to store bitmask of the trained bw configuration.
+ * Valid only if the MODE returned is FRL. For Normal Link training mode
+ * only 1 of the bits will be set, but in case of Extended mode, more than
+ * one bits can be set.
+ *
+ * Returns the link mode : TMDS or FRL on success, else returns negative error
+ * code.
+ */
+int drm_dp_pcon_hdmi_link_mode(struct drm_dp_aux *aux, u8 *frl_trained_mask)
+{
+	u8 buf;
+	int mode;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PCON_HDMI_POST_FRL_STATUS, &buf);
+	if (ret < 0)
+		return ret;
+
+	mode = buf & DP_PCON_HDMI_LINK_MODE;
+
+	if (frl_trained_mask && DP_PCON_HDMI_MODE_FRL == mode)
+		*frl_trained_mask = (buf & DP_PCON_HDMI_FRL_TRAINED_BW) >> 1;
+
+	return mode;
+}
+EXPORT_SYMBOL(drm_dp_pcon_hdmi_link_mode);
+
+/**
+ * drm_dp_pcon_hdmi_frl_link_error_count() - print the error count per lane
+ * during link failure between PCON and HDMI sink
+ * @aux: DisplayPort AUX channel
+ * @connector: DRM connector
+ * code.
+ **/
+
+void drm_dp_pcon_hdmi_frl_link_error_count(struct drm_dp_aux *aux,
+					   struct drm_connector *connector)
+{
+	u8 buf, error_count;
+	int i, num_error;
+	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+
+	for (i = 0; i < hdmi->max_lanes; i++) {
+		if (drm_dp_dpcd_readb(aux, DP_PCON_HDMI_ERROR_STATUS_LN0 + i, &buf) < 0)
+			return;
+
+		error_count = buf & DP_PCON_HDMI_ERROR_COUNT_MASK;
+		switch (error_count) {
+		case DP_PCON_HDMI_ERROR_COUNT_HUNDRED_PLUS:
+			num_error = 100;
+			break;
+		case DP_PCON_HDMI_ERROR_COUNT_TEN_PLUS:
+			num_error = 10;
+			break;
+		case DP_PCON_HDMI_ERROR_COUNT_THREE_PLUS:
+			num_error = 3;
+			break;
+		default:
+			num_error = 0;
+		}
+
+		DRM_ERROR("More than %d errors since the last read for lane %d", num_error, i);
+	}
+}
+EXPORT_SYMBOL(drm_dp_pcon_hdmi_frl_link_error_count);
+
+/*
+ * drm_dp_pcon_enc_is_dsc_1_2 - Does PCON Encoder supports DSC 1.2
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns true is PCON encoder is DSC 1.2 else returns false.
+ */
+bool drm_dp_pcon_enc_is_dsc_1_2(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 buf;
+	u8 major_v, minor_v;
+
+	buf = pcon_dsc_dpcd[DP_PCON_DSC_VERSION - DP_PCON_DSC_ENCODER];
+	major_v = (buf & DP_PCON_DSC_MAJOR_MASK) >> DP_PCON_DSC_MAJOR_SHIFT;
+	minor_v = (buf & DP_PCON_DSC_MINOR_MASK) >> DP_PCON_DSC_MINOR_SHIFT;
+
+	if (major_v == 1 && minor_v == 2)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(drm_dp_pcon_enc_is_dsc_1_2);
+
+/*
+ * drm_dp_pcon_dsc_max_slices - Get max slices supported by PCON DSC Encoder
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns maximum no. of slices supported by the PCON DSC Encoder.
+ */
+int drm_dp_pcon_dsc_max_slices(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 slice_cap1, slice_cap2;
+
+	slice_cap1 = pcon_dsc_dpcd[DP_PCON_DSC_SLICE_CAP_1 - DP_PCON_DSC_ENCODER];
+	slice_cap2 = pcon_dsc_dpcd[DP_PCON_DSC_SLICE_CAP_2 - DP_PCON_DSC_ENCODER];
+
+	if (slice_cap2 & DP_PCON_DSC_24_PER_DSC_ENC)
+		return 24;
+	if (slice_cap2 & DP_PCON_DSC_20_PER_DSC_ENC)
+		return 20;
+	if (slice_cap2 & DP_PCON_DSC_16_PER_DSC_ENC)
+		return 16;
+	if (slice_cap1 & DP_PCON_DSC_12_PER_DSC_ENC)
+		return 12;
+	if (slice_cap1 & DP_PCON_DSC_10_PER_DSC_ENC)
+		return 10;
+	if (slice_cap1 & DP_PCON_DSC_8_PER_DSC_ENC)
+		return 8;
+	if (slice_cap1 & DP_PCON_DSC_6_PER_DSC_ENC)
+		return 6;
+	if (slice_cap1 & DP_PCON_DSC_4_PER_DSC_ENC)
+		return 4;
+	if (slice_cap1 & DP_PCON_DSC_2_PER_DSC_ENC)
+		return 2;
+	if (slice_cap1 & DP_PCON_DSC_1_PER_DSC_ENC)
+		return 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_dsc_max_slices);
+
+/*
+ * drm_dp_pcon_dsc_max_slice_width() - Get max slice width for Pcon DSC encoder
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns maximum width of the slices in pixel width i.e. no. of pixels x 320.
+ */
+int drm_dp_pcon_dsc_max_slice_width(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 buf;
+
+	buf = pcon_dsc_dpcd[DP_PCON_DSC_MAX_SLICE_WIDTH - DP_PCON_DSC_ENCODER];
+
+	return buf * DP_DSC_SLICE_WIDTH_MULTIPLIER;
+}
+EXPORT_SYMBOL(drm_dp_pcon_dsc_max_slice_width);
+
+/*
+ * drm_dp_pcon_dsc_bpp_incr() - Get bits per pixel increment for PCON DSC encoder
+ * @pcon_dsc_dpcd: DSC capabilities of the PCON DSC Encoder
+ *
+ * Returns the bpp precision supported by the PCON encoder.
+ */
+int drm_dp_pcon_dsc_bpp_incr(const u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE])
+{
+	u8 buf;
+
+	buf = pcon_dsc_dpcd[DP_PCON_DSC_BPP_INCR - DP_PCON_DSC_ENCODER];
+
+	switch (buf & DP_PCON_DSC_BPP_INCR_MASK) {
+	case DP_PCON_DSC_ONE_16TH_BPP:
+		return 16;
+	case DP_PCON_DSC_ONE_8TH_BPP:
+		return 8;
+	case DP_PCON_DSC_ONE_4TH_BPP:
+		return 4;
+	case DP_PCON_DSC_ONE_HALF_BPP:
+		return 2;
+	case DP_PCON_DSC_ONE_BPP:
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_dsc_bpp_incr);
+
+static
+int drm_dp_pcon_configure_dsc_enc(struct drm_dp_aux *aux, u8 pps_buf_config)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PROTOCOL_CONVERTER_CONTROL_2, &buf);
+	if (ret < 0)
+		return ret;
+
+	buf |= DP_PCON_ENABLE_DSC_ENCODER;
+
+	if (pps_buf_config <= DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER) {
+		buf &= ~DP_PCON_ENCODER_PPS_OVERRIDE_MASK;
+		buf |= pps_buf_config << 2;
+	}
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PROTOCOL_CONVERTER_CONTROL_2, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/**
+ * drm_dp_pcon_pps_default() - Let PCON fill the default pps parameters
+ * for DSC1.2 between PCON & HDMI2.1 sink
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_pps_default(struct drm_dp_aux *aux)
+{
+	int ret;
+
+	ret = drm_dp_pcon_configure_dsc_enc(aux, DP_PCON_ENC_PPS_OVERRIDE_DISABLED);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_pps_default);
+
+/**
+ * drm_dp_pcon_pps_override_buf() - Configure PPS encoder override buffer for
+ * HDMI sink
+ * @aux: DisplayPort AUX channel
+ * @pps_buf: 128 bytes to be written into PPS buffer for HDMI sink by PCON.
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_pps_override_buf(struct drm_dp_aux *aux, u8 pps_buf[128])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVERRIDE_BASE, &pps_buf, 128);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_pcon_configure_dsc_enc(aux, DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_pps_override_buf);
+
+/*
+ * drm_dp_pcon_pps_override_param() - Write PPS parameters to DSC encoder
+ * override registers
+ * @aux: DisplayPort AUX channel
+ * @pps_param: 3 Parameters (2 Bytes each) : Slice Width, Slice Height,
+ * bits_per_pixel.
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_pps_override_param(struct drm_dp_aux *aux, u8 pps_param[6])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVRD_SLICE_HEIGHT, &pps_param[0], 2);
+	if (ret < 0)
+		return ret;
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVRD_SLICE_WIDTH, &pps_param[2], 2);
+	if (ret < 0)
+		return ret;
+	ret = drm_dp_dpcd_write(aux, DP_PCON_HDMI_PPS_OVRD_BPP, &pps_param[4], 2);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_pcon_configure_dsc_enc(aux, DP_PCON_ENC_PPS_OVERRIDE_EN_BUFFER);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_pps_override_param);
+
+/*
+ * drm_dp_pcon_convert_rgb_to_ycbcr() - Configure the PCon to convert RGB to Ycbcr
+ * @aux: displayPort AUX channel
+ * @color_spc: Color-space/s for which conversion is to be enabled, 0 for disable.
+ *
+ * Returns 0 on success, else returns negative error code.
+ */
+int drm_dp_pcon_convert_rgb_to_ycbcr(struct drm_dp_aux *aux, u8 color_spc)
+{
+	int ret;
+	u8 buf;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PROTOCOL_CONVERTER_CONTROL_2, &buf);
+	if (ret < 0)
+		return ret;
+
+	if (color_spc & DP_CONVERSION_RGB_YCBCR_MASK)
+		buf |= (color_spc & DP_CONVERSION_RGB_YCBCR_MASK);
+	else
+		buf &= ~DP_CONVERSION_RGB_YCBCR_MASK;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_PROTOCOL_CONVERTER_CONTROL_2, buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_pcon_convert_rgb_to_ycbcr);

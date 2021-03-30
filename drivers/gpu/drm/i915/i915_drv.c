@@ -58,12 +58,14 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
+#include "display/intel_pps.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_rc6.h"
@@ -84,9 +86,10 @@
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pm.h"
+#include "intel_sideband.h"
 #include "vlv_suspend.h"
 
-static struct drm_driver driver;
+static const struct drm_driver driver;
 
 static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 {
@@ -409,6 +412,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev_priv);
+	intel_device_info_runtime_init(dev_priv);
 
 	ret = intel_gt_init_mmio(&dev_priv->gt);
 	if (ret)
@@ -515,8 +519,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	intel_device_info_runtime_init(dev_priv);
-
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
 		    !intel_vgpu_has_full_ppgtt(dev_priv)) {
@@ -577,8 +579,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	pci_set_master(pdev);
 
-	cpu_latency_qos_add_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
-
 	intel_gt_init_workarounds(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -610,9 +610,12 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		goto err_msi;
 
 	intel_opregion_setup(dev_priv);
+
+	intel_pcode_init(dev_priv);
+
 	/*
-	 * Fill the dram structure to get the system raw bandwidth and
-	 * dram info. This will be used for memory latency calculation.
+	 * Fill the dram structure to get the system dram info. This will be
+	 * used for memory latency calculation.
 	 */
 	intel_dram_detect(dev_priv);
 
@@ -623,7 +626,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
-	cpu_latency_qos_remove_request(&dev_priv->pm_qos);
 err_mem_regions:
 	intel_memory_regions_driver_release(dev_priv);
 err_ggtt:
@@ -645,8 +647,6 @@ static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
-
-	cpu_latency_qos_remove_request(&dev_priv->pm_qos);
 }
 
 /**
@@ -668,7 +668,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	/* Reveal our presence to userspace */
 	if (drm_dev_register(dev, 0) == 0) {
 		i915_debugfs_register(dev_priv);
-		intel_display_debugfs_register(dev_priv);
+		if (HAS_DISPLAY(dev_priv))
+			intel_display_debugfs_register(dev_priv);
 		i915_setup_sysfs(dev_priv);
 
 		/* Depends on sysfs having been initialized */
@@ -734,6 +735,7 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	 * events.
 	 */
 	drm_kms_helper_poll_fini(&dev_priv->drm);
+	drm_atomic_helper_shutdown(&dev_priv->drm);
 
 	intel_gt_driver_unregister(&dev_priv->gt);
 	acpi_video_unregister();
@@ -840,9 +842,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    i915->params.fake_lmem_start) {
 			mkwrite_device_info(i915)->memory_regions =
 				REGION_SMEM | REGION_LMEM | REGION_STOLEN;
-			mkwrite_device_info(i915)->is_dgfx = true;
 			GEM_BUG_ON(!HAS_LMEM(i915));
-			GEM_BUG_ON(!IS_DGFX(i915));
 		}
 	}
 #endif
@@ -937,8 +937,6 @@ void i915_driver_remove(struct drm_i915_private *i915)
 	synchronize_rcu();
 
 	i915_gem_suspend(i915);
-
-	drm_atomic_helper_shutdown(&i915->drm);
 
 	intel_gvt_driver_remove(i915);
 
@@ -1036,6 +1034,39 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 	drm_modeset_unlock_all(dev);
 }
 
+static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = &dev_priv->drm;
+	struct intel_encoder *encoder;
+
+	drm_modeset_lock_all(dev);
+	for_each_intel_encoder(dev, encoder)
+		if (encoder->shutdown)
+			encoder->shutdown(encoder);
+	drm_modeset_unlock_all(dev);
+}
+
+void i915_driver_shutdown(struct drm_i915_private *i915)
+{
+	disable_rpm_wakeref_asserts(&i915->runtime_pm);
+
+	i915_gem_suspend(i915);
+
+	drm_kms_helper_poll_disable(&i915->drm);
+
+	drm_atomic_helper_shutdown(&i915->drm);
+
+	intel_dp_mst_suspend(i915);
+
+	intel_runtime_pm_disable_interrupts(i915);
+	intel_hpd_cancel_work(i915);
+
+	intel_suspend_encoders(i915);
+	intel_shutdown_encoders(i915);
+
+	enable_rpm_wakeref_asserts(&i915->runtime_pm);
+}
+
 static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 {
 #if IS_ENABLED(CONFIG_ACPI_SLEEP)
@@ -1089,7 +1120,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	i915_ggtt_suspend(&dev_priv->ggtt);
 
-	i915_save_state(dev_priv);
+	i915_save_display(dev_priv);
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_suspend(dev_priv, opregion_target_state);
@@ -1202,7 +1233,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_csr_ucode_resume(dev_priv);
 
-	i915_restore_state(dev_priv);
+	i915_restore_display(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);
 
 	intel_init_pch_refclk(dev_priv);
@@ -1225,31 +1256,22 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_modeset_init_hw(dev_priv);
 	intel_init_clock_gating(dev_priv);
+	intel_hpd_init(dev_priv);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display.hpd_irq_setup)
-		dev_priv->display.hpd_irq_setup(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
+	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(dev_priv);
-
 	intel_display_resume(dev);
 
+	intel_hpd_poll_disable(dev_priv);
 	drm_kms_helper_poll_enable(dev);
-
-	/*
-	 * ... but also need to make sure that hotplug processing
-	 * doesn't cause havoc. Like in the driver load code we don't
-	 * bother with the tiny race here where we might lose hotplug
-	 * notifications.
-	 * */
-	intel_hpd_init(dev_priv);
 
 	intel_opregion_resume(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
 
 	intel_power_domains_enable(dev_priv);
+
+	intel_gvt_resume(dev_priv);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1556,7 +1578,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	assert_forcewakes_inactive(&dev_priv->uncore);
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
-		intel_hpd_poll_init(dev_priv);
+		intel_hpd_poll_enable(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Device suspended\n");
 	return 0;
@@ -1601,8 +1623,10 @@ static int intel_runtime_resume(struct device *kdev)
 	 * power well, so hpd is reinitialized from there. For
 	 * everyone else do it here.
 	 */
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
 		intel_hpd_init(dev_priv);
+		intel_hpd_poll_disable(dev_priv);
+	}
 
 	intel_enable_ipc(dev_priv);
 
@@ -1737,7 +1761,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_VM_DESTROY, i915_gem_vm_destroy_ioctl, DRM_RENDER_ALLOW),
 };
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.
 	 */
@@ -1750,12 +1774,8 @@ static struct drm_driver driver = {
 	.lastclose = i915_driver_lastclose,
 	.postclose = i915_driver_postclose,
 
-	.gem_close_object = i915_gem_close_object,
-	.gem_free_object_unlocked = i915_gem_free_object,
-
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = i915_gem_prime_export,
 	.gem_prime_import = i915_gem_prime_import,
 
 	.dumb_create = i915_gem_dumb_create,

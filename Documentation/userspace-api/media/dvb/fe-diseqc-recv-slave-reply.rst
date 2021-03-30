@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_DISEQC_RECV_SLAVE_REPLY:
 
@@ -11,23 +12,21 @@ Name
 
 FE_DISEQC_RECV_SLAVE_REPLY - Receives reply from a DiSEqC 2.0 command
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_DISEQC_RECV_SLAVE_REPLY, struct dvb_diseqc_slave_reply *argp )
-    :name: FE_DISEQC_RECV_SLAVE_REPLY
+.. c:macro:: FE_DISEQC_RECV_SLAVE_REPLY
 
+``int ioctl(int fd, FE_DISEQC_RECV_SLAVE_REPLY, struct dvb_diseqc_slave_reply *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     pointer to struct :c:type:`dvb_diseqc_slave_reply`.
-
 
 Description
 ===========

@@ -52,7 +52,6 @@ properties:
   ti,bus-range-microvolt:
     description: |
       This is the operating range of the bus voltage in microvolt
-    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [16000000, 32000000]
     default: 32000000
 
@@ -61,7 +60,7 @@ properties:
       Array of three(TMP513) or two(TMP512) n-Factor value for each remote
       temperature channel.
       See datasheet Table 11 for n-Factor range list and value interpretation.
-    $ref: /schemas/types.yaml#definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 3
     items:

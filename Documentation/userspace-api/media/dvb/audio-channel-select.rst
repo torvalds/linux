@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_CHANNEL_SELECT:
 
@@ -16,9 +17,9 @@ AUDIO_CHANNEL_SELECT
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_CHANNEL_SELECT, struct *audio_channel_select)
-    :name: AUDIO_CHANNEL_SELECT
+.. c:macro:: AUDIO_CHANNEL_SELECT
 
+``int ioctl(int fd, AUDIO_CHANNEL_SELECT, struct audio_channel_select *select)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -40,7 +40,6 @@ Arguments
 
        -  Select the output format of the audio (mono left/right, stereo).
 
-
 Description
 -----------
 
@@ -49,7 +48,6 @@ V4L2 ``V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK`` control instead.
 
 This ioctl call asks the Audio Device to select the requested channel if
 possible.
-
 
 Return Value
 ------------

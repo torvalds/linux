@@ -70,15 +70,12 @@ bool dal_bios_parser_init_cmd_tbl_helper2(
 	case DCN_VERSION_1_01:
 	case DCN_VERSION_2_0:
 	case DCN_VERSION_2_1:
-		*h = dal_cmd_tbl_helper_dce112_get_table2();
-		return true;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DCN_VERSION_3_0:
+	case DCN_VERSION_3_01:
+	case DCN_VERSION_3_02:
 		*h = dal_cmd_tbl_helper_dce112_get_table2();
 		return true;
 #endif
-
 	default:
 		/* Unsupported DCE */
 		BREAK_TO_DEBUGGER();
@@ -131,18 +128,14 @@ bool dal_cmd_table_helper_controller_id_to_atom2(
 }
 
 /**
-* translate_transmitter_bp_to_atom
-*
-* @brief
-*  Translate the Transmitter to the corresponding ATOM BIOS value
-*
-* @param
-*   input transmitter
-*   output digitalTransmitter
-*    // =00: Digital Transmitter1 ( UNIPHY linkAB )
-*    // =01: Digital Transmitter2 ( UNIPHY linkCD )
-*    // =02: Digital Transmitter3 ( UNIPHY linkEF )
-*/
+ * translate_transmitter_bp_to_atom2 - Translate the Transmitter to the
+ *                                     corresponding ATOM BIOS value
+ *  @t: transmitter
+ *  returns: digitalTransmitter
+ *    // =00: Digital Transmitter1 ( UNIPHY linkAB )
+ *    // =01: Digital Transmitter2 ( UNIPHY linkCD )
+ *    // =02: Digital Transmitter3 ( UNIPHY linkEF )
+ */
 uint8_t dal_cmd_table_helper_transmitter_bp_to_atom2(
 	enum transmitter t)
 {

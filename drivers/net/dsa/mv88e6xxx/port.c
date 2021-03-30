@@ -162,6 +162,42 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 	return 0;
 }
 
+int mv88e6xxx_port_sync_link(struct mv88e6xxx_chip *chip, int port, unsigned int mode, bool isup)
+{
+	const struct mv88e6xxx_ops *ops = chip->info->ops;
+	int err = 0;
+	int link;
+
+	if (isup)
+		link = LINK_FORCED_UP;
+	else
+		link = LINK_FORCED_DOWN;
+
+	if (ops->port_set_link)
+		err = ops->port_set_link(chip, port, link);
+
+	return err;
+}
+
+int mv88e6185_port_sync_link(struct mv88e6xxx_chip *chip, int port, unsigned int mode, bool isup)
+{
+	const struct mv88e6xxx_ops *ops = chip->info->ops;
+	int err = 0;
+	int link;
+
+	if (mode == MLO_AN_INBAND)
+		link = LINK_UNFORCED;
+	else if (isup)
+		link = LINK_FORCED_UP;
+	else
+		link = LINK_FORCED_DOWN;
+
+	if (ops->port_set_link)
+		err = ops->port_set_link(chip, port, link);
+
+	return err;
+}
+
 static int mv88e6xxx_port_set_speed_duplex(struct mv88e6xxx_chip *chip,
 					   int port, int speed, bool alt_bit,
 					   bool force_bit, int duplex)
@@ -753,8 +789,8 @@ int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
-static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
-					      int port, bool unicast)
+int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
+				       int port, bool unicast)
 {
 	int err;
 	u16 reg;
@@ -771,8 +807,8 @@ static int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
 
-int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
-				     bool unicast, bool multicast)
+int mv88e6352_port_set_ucast_flood(struct mv88e6xxx_chip *chip, int port,
+				   bool unicast)
 {
 	int err;
 	u16 reg;
@@ -781,16 +817,28 @@ int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	reg &= ~MV88E6352_PORT_CTL0_EGRESS_FLOODS_MASK;
-
-	if (unicast && multicast)
-		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_ALL_UNKNOWN_DA;
-	else if (unicast)
-		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_MC_DA;
-	else if (multicast)
-		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_UC_DA;
+	if (unicast)
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_UC;
 	else
-		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_DA;
+		reg &= ~MV88E6352_PORT_CTL0_EGRESS_FLOODS_UC;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
+}
+
+int mv88e6352_port_set_mcast_flood(struct mv88e6xxx_chip *chip, int port,
+				   bool multicast)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL0, &reg);
+	if (err)
+		return err;
+
+	if (multicast)
+		reg |= MV88E6352_PORT_CTL0_EGRESS_FLOODS_MC;
+	else
+		reg &= ~MV88E6352_PORT_CTL0_EGRESS_FLOODS_MC;
 
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 }
@@ -811,6 +859,27 @@ int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,
 		val |= MV88E6XXX_PORT_CTL1_MESSAGE_PORT;
 	else
 		val &= ~MV88E6XXX_PORT_CTL1_MESSAGE_PORT;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL1, val);
+}
+
+int mv88e6xxx_port_set_trunk(struct mv88e6xxx_chip *chip, int port,
+			     bool trunk, u8 id)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_CTL1, &val);
+	if (err)
+		return err;
+
+	val &= ~MV88E6XXX_PORT_CTL1_TRUNK_ID_MASK;
+
+	if (trunk)
+		val |= MV88E6XXX_PORT_CTL1_TRUNK_PORT |
+			(id << MV88E6XXX_PORT_CTL1_TRUNK_ID_SHIFT);
+	else
+		val &= ~MV88E6XXX_PORT_CTL1_TRUNK_PORT;
 
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL1, val);
 }
@@ -956,8 +1025,8 @@ static const char * const mv88e6xxx_port_8021q_mode_names[] = {
 	[MV88E6XXX_PORT_CTL2_8021Q_MODE_SECURE] = "Secure",
 };
 
-static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
-					      int port, bool multicast)
+int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
+				       int port, bool multicast)
 {
 	int err;
 	u16 reg;
@@ -972,18 +1041,6 @@ static int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
 		reg &= ~MV88E6XXX_PORT_CTL2_DEFAULT_FORWARD;
 
 	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL2, reg);
-}
-
-int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
-				     bool unicast, bool multicast)
-{
-	int err;
-
-	err = mv88e6185_port_set_forward_unknown(chip, port, unicast);
-	if (err)
-		return err;
-
-	return mv88e6185_port_set_default_forward(chip, port, multicast);
 }
 
 int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,

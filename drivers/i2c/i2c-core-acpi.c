@@ -225,12 +225,8 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 	adev->power.flags.ignore_parent = true;
 	acpi_device_set_enumerated(adev);
 
-	if (IS_ERR(i2c_new_client_device(adapter, info))) {
+	if (IS_ERR(i2c_new_client_device(adapter, info)))
 		adev->power.flags.ignore_parent = false;
-		dev_err(&adapter->dev,
-			"failed to add I2C device %s from ACPI\n",
-			dev_name(&adev->dev));
-	}
 }
 
 static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
@@ -264,6 +260,7 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
 void i2c_acpi_register_devices(struct i2c_adapter *adap)
 {
 	acpi_status status;
+	acpi_handle handle;
 
 	if (!has_acpi_companion(&adap->dev))
 		return;
@@ -274,6 +271,15 @@ void i2c_acpi_register_devices(struct i2c_adapter *adap)
 				     adap, NULL);
 	if (ACPI_FAILURE(status))
 		dev_warn(&adap->dev, "failed to enumerate I2C slaves\n");
+
+	if (!adap->dev.parent)
+		return;
+
+	handle = ACPI_HANDLE(adap->dev.parent);
+	if (!handle)
+		return;
+
+	acpi_walk_dep_device_list(handle);
 }
 
 static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
@@ -719,7 +725,6 @@ int i2c_acpi_install_space_handler(struct i2c_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	acpi_walk_dep_device_list(handle);
 	return 0;
 }
 

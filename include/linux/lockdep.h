@@ -185,12 +185,19 @@ extern void lockdep_unregister_key(struct lock_class_key *key);
  * to lockdep:
  */
 
-extern void lockdep_init_map_waits(struct lockdep_map *lock, const char *name,
-	struct lock_class_key *key, int subclass, short inner, short outer);
+extern void lockdep_init_map_type(struct lockdep_map *lock, const char *name,
+	struct lock_class_key *key, int subclass, u8 inner, u8 outer, u8 lock_type);
+
+static inline void
+lockdep_init_map_waits(struct lockdep_map *lock, const char *name,
+		       struct lock_class_key *key, int subclass, u8 inner, u8 outer)
+{
+	lockdep_init_map_type(lock, name, key, subclass, inner, LD_WAIT_INV, LD_LOCK_NORMAL);
+}
 
 static inline void
 lockdep_init_map_wait(struct lockdep_map *lock, const char *name,
-		      struct lock_class_key *key, int subclass, short inner)
+		      struct lock_class_key *key, int subclass, u8 inner)
 {
 	lockdep_init_map_waits(lock, name, key, subclass, inner, LD_WAIT_INV);
 }
@@ -340,6 +347,8 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 # define lock_set_class(l, n, k, s, i)		do { } while (0)
 # define lock_set_subclass(l, s, i)		do { } while (0)
 # define lockdep_init()				do { } while (0)
+# define lockdep_init_map_type(lock, name, key, sub, inner, outer, type) \
+		do { (void)(name); (void)(key); } while (0)
 # define lockdep_init_map_waits(lock, name, key, sub, inner, outer) \
 		do { (void)(name); (void)(key); } while (0)
 # define lockdep_init_map_wait(lock, name, key, sub, inner) \
@@ -375,6 +384,12 @@ static inline void lockdep_unregister_key(struct lock_class_key *key)
 
 #define lockdep_depth(tsk)	(0)
 
+/*
+ * Dummy forward declarations, allow users to write less ifdef-y code
+ * and depend on dead code elimination.
+ */
+extern int lock_is_held(const void *);
+extern int lockdep_is_held(const void *);
 #define lockdep_is_held_type(l, r)		(1)
 
 #define lockdep_assert_held(l)			do { (void)(l); } while (0)
@@ -594,6 +609,16 @@ do {									\
 		      this_cpu_read(hardirqs_enabled)));		\
 } while (0)
 
+/*
+ * Acceptable for protecting per-CPU resources accessed from BH.
+ * Much like in_softirq() - semantics are ambiguous, use carefully.
+ */
+#define lockdep_assert_in_softirq()					\
+do {									\
+	WARN_ON_ONCE(__lockdep_enabled			&&		\
+		     (!in_softirq() || in_irq() || in_nmi()));		\
+} while (0)
+
 #else
 # define might_lock(lock) do { } while (0)
 # define might_lock_read(lock) do { } while (0)
@@ -605,6 +630,7 @@ do {									\
 
 # define lockdep_assert_preemption_enabled() do { } while (0)
 # define lockdep_assert_preemption_disabled() do { } while (0)
+# define lockdep_assert_in_softirq() do { } while (0)
 #endif
 
 #ifdef CONFIG_PROVE_RAW_LOCK_NESTING

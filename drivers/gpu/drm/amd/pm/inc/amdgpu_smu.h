@@ -31,6 +31,9 @@
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
 #define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
+#define SMU_FW_NAME_LEN			0x24
+
+#define SMU_DPM_USER_PROFILE_RESTORE (1 << 0)
 
 struct smu_hw_power_state {
 	unsigned int magic;
@@ -98,7 +101,7 @@ struct smu_state_display_block {
 	bool              enable_vari_bright;
 };
 
-struct smu_state_memroy_block {
+struct smu_state_memory_block {
 	bool              dll_off;
 	uint8_t                 m3arb;
 	uint8_t                 unused[3];
@@ -145,7 +148,7 @@ struct smu_power_state {
 	struct smu_state_validation_block             validation;
 	struct smu_state_pcie_block                   pcie;
 	struct smu_state_display_block                display;
-	struct smu_state_memroy_block                 memory;
+	struct smu_state_memory_block                 memory;
 	struct smu_state_software_algorithm_block     software;
 	struct smu_uvd_clocks                         uvd_clocks;
 	struct smu_hw_power_state                     hardware;
@@ -158,6 +161,19 @@ enum smu_power_src_type
 	SMU_POWER_SOURCE_COUNT,
 };
 
+enum smu_ppt_limit_type
+{
+	SMU_DEFAULT_PPT_LIMIT = 0,
+	SMU_FAST_PPT_LIMIT,
+};
+
+enum smu_ppt_limit_level
+{
+	SMU_PPT_LIMIT_MIN = -1,
+	SMU_PPT_LIMIT_CURRENT,
+	SMU_PPT_LIMIT_MAX,
+};
+
 enum smu_memory_pool_size
 {
     SMU_MEMORY_POOL_SIZE_ZERO   = 0,
@@ -165,6 +181,17 @@ enum smu_memory_pool_size
     SMU_MEMORY_POOL_SIZE_512_MB = 0x20000000,
     SMU_MEMORY_POOL_SIZE_1_GB   = 0x40000000,
     SMU_MEMORY_POOL_SIZE_2_GB   = 0x80000000,
+};
+
+struct smu_user_dpm_profile {
+	uint32_t fan_mode;
+	uint32_t power_limit;
+	uint32_t fan_speed_percent;
+	uint32_t flags;
+
+	/* user clock state information */
+	uint32_t clk_mask[SMU_CLK_COUNT];
+	uint32_t clk_dependency;
 };
 
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
@@ -225,6 +252,8 @@ struct smu_bios_boot_up_values
 	uint32_t			format_revision;
 	uint32_t			content_revision;
 	uint32_t			fclk;
+	uint32_t			lclk;
+	uint32_t			firmware_caps;
 };
 
 enum smu_table_id
@@ -456,153 +485,673 @@ struct smu_context
 	struct work_struct interrupt_work;
 
 	unsigned fan_max_rpm;
-	unsigned manual_fan_speed_rpm;
+	unsigned manual_fan_speed_percent;
+
+	uint32_t gfx_default_hard_min_freq;
+	uint32_t gfx_default_soft_max_freq;
+	uint32_t gfx_actual_hard_min_freq;
+	uint32_t gfx_actual_soft_max_freq;
+
+	/* APU only */
+	uint32_t cpu_default_soft_min_freq;
+	uint32_t cpu_default_soft_max_freq;
+	uint32_t cpu_actual_soft_min_freq;
+	uint32_t cpu_actual_soft_max_freq;
+	uint32_t cpu_core_id_select;
+	uint16_t cpu_core_num;
+
+	struct smu_user_dpm_profile user_dpm_profile;
 };
 
 struct i2c_adapter;
 
+/**
+ * struct pptable_funcs - Callbacks used to interact with the SMU.
+ */
 struct pptable_funcs {
+	/**
+	 * @run_btc: Calibrate voltage/frequency curve to fit the system's
+	 *           power delivery and voltage margins. Required for adaptive
+	 *           voltage frequency scaling (AVFS).
+	 */
 	int (*run_btc)(struct smu_context *smu);
+
+	/**
+	 * @get_allowed_feature_mask: Get allowed feature mask.
+	 * &feature_mask: Array to store feature mask.
+	 * &num: Elements in &feature_mask.
+	 */
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+
+	/**
+	 * @get_current_power_state: Get the current power state.
+	 *
+	 * Return: Current power state on success, negative errno on failure.
+	 */
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
+
+	/**
+	 * @set_default_dpm_table: Retrieve the default overdrive settings from
+	 *                         the SMU.
+	 */
 	int (*set_default_dpm_table)(struct smu_context *smu);
+
 	int (*set_power_state)(struct smu_context *smu);
+
+	/**
+	 * @populate_umd_state_clk: Populate the UMD power state table with
+	 *                          defaults.
+	 */
 	int (*populate_umd_state_clk)(struct smu_context *smu);
+
+	/**
+	 * @print_clk_levels: Print DPM clock levels for a clock domain
+	 *                    to buffer. Star current level.
+	 *
+	 * Used for sysfs interfaces.
+	 */
 	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
+
+	/**
+	 * @force_clk_levels: Set a range of allowed DPM levels for a clock
+	 *                    domain.
+	 * &clk_type: Clock domain.
+	 * &mask: Range of allowed DPM levels.
+	 */
 	int (*force_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t mask);
-	int (*set_default_od8_settings)(struct smu_context *smu);
-	int (*get_od_percentage)(struct smu_context *smu, enum smu_clk_type clk_type);
-	int (*set_od_percentage)(struct smu_context *smu,
-				 enum smu_clk_type clk_type,
-				 uint32_t value);
+
+	/**
+	 * @od_edit_dpm_table: Edit the custom overdrive DPM table.
+	 * &type: Type of edit.
+	 * &input: Edit parameters.
+	 * &size: Size of &input.
+	 */
 	int (*od_edit_dpm_table)(struct smu_context *smu,
 				 enum PP_OD_DPM_TABLE_COMMAND type,
 				 long *input, uint32_t size);
+
+	/**
+	 * @get_clock_by_type_with_latency: Get the speed and latency of a clock
+	 *                                  domain.
+	 */
 	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
 					      enum smu_clk_type clk_type,
 					      struct
 					      pp_clock_levels_with_latency
 					      *clocks);
+	/**
+	 * @get_clock_by_type_with_voltage: Get the speed and voltage of a clock
+	 *                                  domain.
+	 */
 	int (*get_clock_by_type_with_voltage)(struct smu_context *smu,
 					      enum amd_pp_clock_type type,
 					      struct
 					      pp_clock_levels_with_voltage
 					      *clocks);
+
+	/**
+	 * @get_power_profile_mode: Print all power profile modes to
+	 *                          buffer. Star current mode.
+	 */
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
+
+	/**
+	 * @set_power_profile_mode: Set a power profile mode. Also used to
+	 *                          create/set custom power profile modes.
+	 * &input: Power profile mode parameters.
+	 * &size: Size of &input.
+	 */
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
+
+	/**
+	 * @dpm_set_vcn_enable: Enable/disable VCN engine dynamic power
+	 *                      management.
+	 */
 	int (*dpm_set_vcn_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @dpm_set_jpeg_enable: Enable/disable JPEG engine dynamic power
+	 *                       management.
+	 */
 	int (*dpm_set_jpeg_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @read_sensor: Read data from a sensor.
+	 * &sensor: Sensor to read data from.
+	 * &data: Sensor reading.
+	 * &size: Size of &data.
+	 */
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
+
+	/**
+	 * @pre_display_config_changed: Prepare GPU for a display configuration
+	 *                              change.
+	 *
+	 * Disable display tracking and pin memory clock speed to maximum. Used
+	 * in display component synchronization.
+	 */
 	int (*pre_display_config_changed)(struct smu_context *smu);
+
+	/**
+	 * @display_config_changed: Notify the SMU of the current display
+	 *                          configuration.
+	 *
+	 * Allows SMU to properly track blanking periods for memory clock
+	 * adjustment. Used in display component synchronization.
+	 */
 	int (*display_config_changed)(struct smu_context *smu);
+
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
+
+	/**
+	 * @notify_smc_display_config: Applies display requirements to the
+	 *                             current power state.
+	 *
+	 * Optimize deep sleep DCEFclk and mclk for the current display
+	 * configuration. Used in display component synchronization.
+	 */
 	int (*notify_smc_display_config)(struct smu_context *smu);
-	int (*set_cpu_power_state)(struct smu_context *smu);
+
+	/**
+	 * @is_dpm_running: Check if DPM is running.
+	 *
+	 * Return: True if DPM is running, false otherwise.
+	 */
 	bool (*is_dpm_running)(struct smu_context *smu);
-	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
+
+	/**
+	 * @get_fan_speed_percent: Get the current fan speed in percent.
+	 */
+	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
+
+	/**
+	 * @set_watermarks_table: Configure and upload the watermarks tables to
+	 *                        the SMU.
+	 */
 	int (*set_watermarks_table)(struct smu_context *smu,
 				    struct pp_smu_wm_range_sets *clock_ranges);
+
+	/**
+	 * @get_thermal_temperature_range: Get safe thermal limits in Celcius.
+	 */
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
+
+	/**
+	 * @get_uclk_dpm_states: Get memory clock DPM levels in kHz.
+	 * &clocks_in_khz: Array of DPM levels.
+	 * &num_states: Elements in &clocks_in_khz.
+	 */
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
+
+	/**
+	 * @set_default_od_settings: Set the overdrive tables to defaults.
+	 */
 	int (*set_default_od_settings)(struct smu_context *smu);
+
+	/**
+	 * @set_performance_level: Set a performance level.
+	 */
 	int (*set_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
+
+	/**
+	 * @display_disable_memory_clock_switch: Enable/disable dynamic memory
+	 *                                       clock switching.
+	 *
+	 * Disabling this feature forces memory clock speed to maximum.
+	 * Enabling sets the minimum memory clock capable of driving the
+	 * current display configuration.
+	 */
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
+
+	/**
+	 * @dump_pptable: Print the power play table to the system log.
+	 */
 	void (*dump_pptable)(struct smu_context *smu);
+
+	/**
+	 * @get_power_limit: Get the device's power limits.
+	 */
 	int (*get_power_limit)(struct smu_context *smu);
+
+	/**
+	 * @get_ppt_limit: Get the device's ppt limits.
+	 */
+	int (*get_ppt_limit)(struct smu_context *smu, uint32_t *ppt_limit,
+			enum smu_ppt_limit_type limit_type, enum smu_ppt_limit_level limit_level);
+
+	/**
+	 * @set_df_cstate: Set data fabric cstate.
+	 */
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
+
+	/**
+	 * @allow_xgmi_power_down: Enable/disable external global memory
+	 *                         interconnect power down.
+	 */
 	int (*allow_xgmi_power_down)(struct smu_context *smu, bool en);
+
+	/**
+	 * @update_pcie_parameters: Update and upload the system's PCIe
+	 *                          capabilites to the SMU.
+	 * &pcie_gen_cap: Maximum allowed PCIe generation.
+	 * &pcie_width_cap: Maximum allowed PCIe width.
+	 */
 	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
+
+	/**
+	 * @i2c_init: Initialize i2c.
+	 *
+	 * The i2c bus is used internally by the SMU voltage regulators and
+	 * other devices. The i2c's EEPROM also stores bad page tables on boards
+	 * with ECC.
+	 */
 	int (*i2c_init)(struct smu_context *smu, struct i2c_adapter *control);
+
+	/**
+	 * @i2c_fini: Tear down i2c.
+	 */
 	void (*i2c_fini)(struct smu_context *smu, struct i2c_adapter *control);
+
+	/**
+	 * @get_unique_id: Get the GPU's unique id. Used for asset tracking.
+	 */
 	void (*get_unique_id)(struct smu_context *smu);
+
+	/**
+	 * @get_dpm_clock_table: Get a copy of the DPM clock table.
+	 *
+	 * Used by display component in bandwidth and watermark calculations.
+	 */
 	int (*get_dpm_clock_table)(struct smu_context *smu, struct dpm_clocks *clock_table);
+
+	/**
+	 * @init_microcode: Request the SMU's firmware from the kernel.
+	 */
 	int (*init_microcode)(struct smu_context *smu);
+
+	/**
+	 * @load_microcode: Load firmware onto the SMU.
+	 */
 	int (*load_microcode)(struct smu_context *smu);
+
+	/**
+	 * @fini_microcode: Release the SMU's firmware.
+	 */
 	void (*fini_microcode)(struct smu_context *smu);
+
+	/**
+	 * @init_smc_tables: Initialize the SMU tables.
+	 */
 	int (*init_smc_tables)(struct smu_context *smu);
+
+	/**
+	 * @fini_smc_tables: Release the SMU tables.
+	 */
 	int (*fini_smc_tables)(struct smu_context *smu);
+
+	/**
+	 * @init_power: Initialize the power gate table context.
+	 */
 	int (*init_power)(struct smu_context *smu);
+
+	/**
+	 * @fini_power: Release the power gate table context.
+	 */
 	int (*fini_power)(struct smu_context *smu);
+
+	/**
+	 * @check_fw_status: Check the SMU's firmware status.
+	 *
+	 * Return: Zero if check passes, negative errno on failure.
+	 */
 	int (*check_fw_status)(struct smu_context *smu);
+
+	/**
+	 * @setup_pptable: Initialize the power play table and populate it with
+	 *                 default values.
+	 */
 	int (*setup_pptable)(struct smu_context *smu);
+
+	/**
+	 * @get_vbios_bootup_values: Get default boot values from the VBIOS.
+	 */
 	int (*get_vbios_bootup_values)(struct smu_context *smu);
+
+	/**
+	 * @check_fw_version: Print driver and SMU interface versions to the
+	 *                    system log.
+	 *
+	 * Interface mismatch is not a critical failure.
+	 */
 	int (*check_fw_version)(struct smu_context *smu);
+
+	/**
+	 * @powergate_sdma: Power up/down system direct memory access.
+	 */
 	int (*powergate_sdma)(struct smu_context *smu, bool gate);
+
+	/**
+	 * @set_gfx_cgpg: Enable/disable graphics engine course grain power
+	 *                gating.
+	 */
 	int (*set_gfx_cgpg)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @write_pptable: Write the power play table to the SMU.
+	 */
 	int (*write_pptable)(struct smu_context *smu);
+
+	/**
+	 * @set_driver_table_location: Send the location of the driver table to
+	 *                             the SMU.
+	 */
 	int (*set_driver_table_location)(struct smu_context *smu);
+
+	/**
+	 * @set_tool_table_location: Send the location of the tool table to the
+	 *                           SMU.
+	 */
 	int (*set_tool_table_location)(struct smu_context *smu);
+
+	/**
+	 * @notify_memory_pool_location: Send the location of the memory pool to
+	 *                               the SMU.
+	 */
 	int (*notify_memory_pool_location)(struct smu_context *smu);
-	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
+
+	/**
+	 * @system_features_control: Enable/disable all SMU features.
+	 */
 	int (*system_features_control)(struct smu_context *smu, bool en);
+
+	/**
+	 * @send_smc_msg_with_param: Send a message with a parameter to the SMU.
+	 * &msg: Type of message.
+	 * &param: Message parameter.
+	 * &read_arg: SMU response (optional).
+	 */
 	int (*send_smc_msg_with_param)(struct smu_context *smu,
 				       enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
+
+	/**
+	 * @send_smc_msg: Send a message to the SMU.
+	 * &msg: Type of message.
+	 * &read_arg: SMU response (optional).
+	 */
 	int (*send_smc_msg)(struct smu_context *smu,
 			    enum smu_message_type msg,
 			    uint32_t *read_arg);
+
+	/**
+	 * @init_display_count: Notify the SMU of the number of display
+	 *                      components in current display configuration.
+	 */
 	int (*init_display_count)(struct smu_context *smu, uint32_t count);
+
+	/**
+	 * @set_allowed_mask: Notify the SMU of the features currently allowed
+	 *                    by the driver.
+	 */
 	int (*set_allowed_mask)(struct smu_context *smu);
+
+	/**
+	 * @get_enabled_mask: Get a mask of features that are currently enabled
+	 *                    on the SMU.
+	 * &feature_mask: Array representing enabled feature mask.
+	 * &num: Elements in &feature_mask.
+	 */
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+
+	/**
+	 * @feature_is_enabled: Test if a feature is enabled.
+	 *
+	 * Return: One if enabled, zero if disabled.
+	 */
 	int (*feature_is_enabled)(struct smu_context *smu, enum smu_feature_mask mask);
+
+	/**
+	 * @disable_all_features_with_exception: Disable all features with
+	 *                                       exception to those in &mask.
+	 */
 	int (*disable_all_features_with_exception)(struct smu_context *smu, enum smu_feature_mask mask);
+
+	/**
+	 * @notify_display_change: Enable fast memory clock switching.
+	 *
+	 * Allows for fine grained memory clock switching but has more stringent
+	 * timing requirements.
+	 */
 	int (*notify_display_change)(struct smu_context *smu);
+
+	/**
+	 * @set_power_limit: Set power limit in watts.
+	 */
 	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
+
+	/**
+	 * @init_max_sustainable_clocks: Populate max sustainable clock speed
+	 *                               table with values from the SMU.
+	 */
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
+
+	/**
+	 * @enable_thermal_alert: Enable thermal alert interrupts.
+	 */
 	int (*enable_thermal_alert)(struct smu_context *smu);
+
+	/**
+	 * @disable_thermal_alert: Disable thermal alert interrupts.
+	 */
 	int (*disable_thermal_alert)(struct smu_context *smu);
+
+	/**
+	 * @set_min_dcef_deep_sleep: Set a minimum display fabric deep sleep
+	 *                           clock speed in MHz.
+	 */
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu, uint32_t clk);
-	int (*set_active_display_count)(struct smu_context *smu, uint32_t count);
-	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,
-			      bool cc6_disable, bool pstate_disable,
-			      bool pstate_switch_disable);
-	int (*get_clock_by_type)(struct smu_context *smu,
-				 enum amd_pp_clock_type type,
-				 struct amd_pp_clocks *clocks);
-	int (*get_max_high_clocks)(struct smu_context *smu,
-				   struct amd_pp_simple_clock_info *clocks);
+
+	/**
+	 * @display_clock_voltage_request: Set a hard minimum frequency
+	 * for a clock domain.
+	 */
 	int (*display_clock_voltage_request)(struct smu_context *smu, struct
 					     pp_display_clock_request
 					     *clock_req);
-	int (*get_dal_power_level)(struct smu_context *smu,
-				   struct amd_pp_simple_clock_info *clocks);
-	int (*get_perf_level)(struct smu_context *smu,
-			      enum smu_perf_level_designation designation,
-			      struct smu_performance_level *level);
-	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
-						struct smu_clock_info *clocks);
-	int (*notify_smu_enable_pwe)(struct smu_context *smu);
-	int (*conv_power_profile_to_pplib_workload)(int power_profile);
+
+	/**
+	 * @get_fan_control_mode: Get the current fan control mode.
+	 */
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
+
+	/**
+	 * @set_fan_control_mode: Set the fan control mode.
+	 */
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
-	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
+
+	/**
+	 * @set_fan_speed_percent: Set a static fan speed in percent.
+	 */
+	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
+
+	/**
+	 * @set_xgmi_pstate: Set inter-chip global memory interconnect pstate.
+	 * &pstate: Pstate to set. D0 if Nonzero, D3 otherwise.
+	 */
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
+
+	/**
+	 * @gfx_off_control: Enable/disable graphics engine poweroff.
+	 */
 	int (*gfx_off_control)(struct smu_context *smu, bool enable);
+
+
+	/**
+	 * @get_gfx_off_status: Get graphics engine poweroff status.
+	 *
+	 * Return:
+	 * 0 - GFXOFF(default).
+	 * 1 - Transition out of GFX State.
+	 * 2 - Not in GFXOFF.
+	 * 3 - Transition into GFXOFF.
+	 */
 	uint32_t (*get_gfx_off_status)(struct smu_context *smu);
+
+	/**
+	 * @register_irq_handler: Register interupt request handlers.
+	 */
 	int (*register_irq_handler)(struct smu_context *smu);
+
+	/**
+	 * @set_azalia_d3_pme: Wake the audio decode engine from d3 sleep.
+	 */
 	int (*set_azalia_d3_pme)(struct smu_context *smu);
+
+	/**
+	 * @get_max_sustainable_clocks_by_dc: Get a copy of the max sustainable
+	 *                                    clock speeds table.
+	 *
+	 * Provides a way for the display component (DC) to get the max
+	 * sustainable clocks from the SMU.
+	 */
 	int (*get_max_sustainable_clocks_by_dc)(struct smu_context *smu, struct pp_smu_nv_clock_table *max_clocks);
+
+	/**
+	 * @baco_is_support: Check if GPU supports BACO (Bus Active, Chip Off).
+	 */
 	bool (*baco_is_support)(struct smu_context *smu);
+
+	/**
+	 * @baco_get_state: Get the current BACO state.
+	 *
+	 * Return: Current BACO state.
+	 */
 	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
+
+	/**
+	 * @baco_set_state: Enter/exit BACO.
+	 */
 	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
+
+	/**
+	 * @baco_enter: Enter BACO.
+	 */
 	int (*baco_enter)(struct smu_context *smu);
+
+	/**
+	 * @baco_exit: Exit Baco.
+	 */
 	int (*baco_exit)(struct smu_context *smu);
+
+	/**
+	 * @mode1_reset_is_support: Check if GPU supports mode1 reset.
+	 */
 	bool (*mode1_reset_is_support)(struct smu_context *smu);
+
+	/**
+	 * @mode1_reset: Perform mode1 reset.
+	 *
+	 * Complete GPU reset.
+	 */
 	int (*mode1_reset)(struct smu_context *smu);
+
+	/**
+	 * @mode2_reset: Perform mode2 reset.
+	 *
+	 * Mode2 reset generally does not reset as many IPs as mode1 reset. The
+	 * IPs reset varies by asic.
+	 */
 	int (*mode2_reset)(struct smu_context *smu);
+
+	/**
+	 * @get_dpm_ultimate_freq: Get the hard frequency range of a clock
+	 *                         domain in MHz.
+	 */
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
+
+	/**
+	 * @set_soft_freq_limited_range: Set the soft frequency range of a clock
+	 *                               domain in MHz.
+	 */
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
+
+	/**
+	 * @set_power_source: Notify the SMU of the current power source.
+	 */
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
+
+	/**
+	 * @log_thermal_throttling_event: Print a thermal throttling warning to
+	 *                                the system's log.
+	 */
 	void (*log_thermal_throttling_event)(struct smu_context *smu);
+
+	/**
+	 * @get_pp_feature_mask: Print a human readable table of enabled
+	 *                       features to buffer.
+	 */
 	size_t (*get_pp_feature_mask)(struct smu_context *smu, char *buf);
+
+	/**
+	 * @set_pp_feature_mask: Request the SMU enable/disable features to
+	 *                       match those enabled in &new_mask.
+	 */
 	int (*set_pp_feature_mask)(struct smu_context *smu, uint64_t new_mask);
+
+	/**
+	 * @get_gpu_metrics: Get a copy of the GPU metrics table from the SMU.
+	 *
+	 * Return: Size of &table
+	 */
 	ssize_t (*get_gpu_metrics)(struct smu_context *smu, void **table);
+
+	/**
+	 * @enable_mgpu_fan_boost: Enable multi-GPU fan boost.
+	 */
 	int (*enable_mgpu_fan_boost)(struct smu_context *smu);
+
+	/**
+	 * @gfx_ulv_control: Enable/disable ultra low voltage.
+	 */
 	int (*gfx_ulv_control)(struct smu_context *smu, bool enablement);
+
+	/**
+	 * @deep_sleep_control: Enable/disable deep sleep.
+	 */
 	int (*deep_sleep_control)(struct smu_context *smu, bool enablement);
+
+	/**
+	 * @get_fan_parameters: Get fan parameters.
+	 *
+	 * Get maximum fan speed from the power play table.
+	 */
 	int (*get_fan_parameters)(struct smu_context *smu);
+
+	/**
+	 * @post_init: Helper function for asic specific workarounds.
+	 */
 	int (*post_init)(struct smu_context *smu);
+
+	/**
+	 * @interrupt_work: Work task scheduled from SMU interrupt handler.
+	 */
 	void (*interrupt_work)(struct smu_context *smu);
+
+	/**
+	 * @gpo_control: Enable/disable graphics power optimization if supported.
+	 */
+	int (*gpo_control)(struct smu_context *smu, bool enablement);
+
+	/**
+	 * @gfx_state_change_set: Send the current graphics state to the SMU.
+	 */
+	int (*gfx_state_change_set)(struct smu_context *smu, uint32_t state);
+
+	/**
+	 * @set_fine_grain_gfx_freq_parameters: Set fine grain graphics clock
+	 *                                      parameters to defaults.
+	 */
+	int (*set_fine_grain_gfx_freq_parameters)(struct smu_context *smu);
 };
 
 typedef enum {
@@ -615,6 +1164,7 @@ typedef enum {
 	METRICS_CURR_DCLK1,
 	METRICS_CURR_FCLK,
 	METRICS_CURR_DCEFCLK,
+	METRICS_AVERAGE_CPUCLK,
 	METRICS_AVERAGE_GFXCLK,
 	METRICS_AVERAGE_SOCCLK,
 	METRICS_AVERAGE_FCLK,
@@ -633,6 +1183,8 @@ typedef enum {
 	METRICS_TEMPERATURE_VRMEM,
 	METRICS_THROTTLER_STATUS,
 	METRICS_CURR_FANSPEED,
+	METRICS_VOLTAGE_VDDSOC,
+	METRICS_VOLTAGE_VDDGFX,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
@@ -652,6 +1204,12 @@ enum smu_cmn2asic_mapping_type {
 
 #define FEA_MAP(fea) \
 	[SMU_FEATURE_##fea##_BIT] = {1, FEATURE_##fea##_BIT}
+
+#define FEA_MAP_REVERSE(fea) \
+	[SMU_FEATURE_DPM_##fea##_BIT] = {1, FEATURE_##fea##_DPM_BIT}
+
+#define FEA_MAP_HALF_REVERSE(fea) \
+	[SMU_FEATURE_DPM_##fea##CLK_BIT] = {1, FEATURE_##fea##_DPM_BIT}
 
 #define TAB_MAP(tab) \
 	[SMU_TABLE_##tab] = {1, TABLE_##tab}
@@ -679,12 +1237,10 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
-			bool max_setting);
+			enum smu_ppt_limit_level limit_level);
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
-int smu_get_od_percentage(struct smu_context *smu, enum smu_clk_type type);
-int smu_set_od_percentage(struct smu_context *smu, enum smu_clk_type type, uint32_t value);
 
 int smu_od_edit_dpm_table(struct smu_context *smu,
 			  enum PP_OD_DPM_TABLE_COMMAND type,
@@ -707,25 +1263,13 @@ int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed);
 
 int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk);
 
-int smu_get_clock_by_type(struct smu_context *smu,
-			  enum amd_pp_clock_type type,
-			  struct amd_pp_clocks *clocks);
-
-int smu_get_max_high_clocks(struct smu_context *smu,
-			    struct amd_pp_simple_clock_info *clocks);
-
 int smu_get_clock_by_type_with_latency(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       struct pp_clock_levels_with_latency *clocks);
 
-int smu_get_clock_by_type_with_voltage(struct smu_context *smu,
-				       enum amd_pp_clock_type type,
-				       struct pp_clock_levels_with_voltage *clocks);
-
 int smu_display_clock_voltage_request(struct smu_context *smu,
 				      struct pp_display_clock_request *clock_req);
 int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disable_memory_clock_switch);
-int smu_notify_smu_enable_pwe(struct smu_context *smu);
 
 int smu_set_xgmi_pstate(struct smu_context *smu,
 			uint32_t pstate);
@@ -749,6 +1293,7 @@ extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
 
 bool is_support_sw_smu(struct amdgpu_device *adev);
+bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_reset(struct smu_context *smu);
 int smu_sys_get_pp_table(struct smu_context *smu, void **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);
@@ -763,8 +1308,6 @@ int smu_set_watermarks_for_clock_ranges(
 extern int smu_display_configuration_change(struct smu_context *smu, const
 					    struct amd_pp_display_configuration
 					    *display_config);
-extern int smu_get_current_clocks(struct smu_context *smu,
-				  struct amd_pp_clock_info *clocks);
 extern int smu_dpm_set_power_gate(struct smu_context *smu,uint32_t block_type, bool gate);
 extern int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
@@ -807,6 +1350,7 @@ int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu, void **table);
 
 int smu_enable_mgpu_fan_boost(struct smu_context *smu);
+int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state);
 
 #endif
 #endif

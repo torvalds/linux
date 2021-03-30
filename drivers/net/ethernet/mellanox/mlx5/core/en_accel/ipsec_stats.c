@@ -76,7 +76,7 @@ static const struct counter_desc mlx5e_ipsec_sw_stats_desc[] = {
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ipsec_sw)
 {
-	return NUM_IPSEC_SW_COUNTERS;
+	return priv->ipsec ? NUM_IPSEC_SW_COUNTERS : 0;
 }
 
 static inline MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(ipsec_sw) {}
@@ -105,7 +105,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ipsec_sw)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ipsec_hw)
 {
-	return (mlx5_fpga_ipsec_device_caps(priv->mdev)) ? NUM_IPSEC_HW_COUNTERS : 0;
+	return (priv->ipsec && mlx5_fpga_ipsec_device_caps(priv->mdev)) ? NUM_IPSEC_HW_COUNTERS : 0;
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(ipsec_hw)

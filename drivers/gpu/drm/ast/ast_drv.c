@@ -49,7 +49,7 @@ module_param_named(modeset, ast_modeset, int, 0400);
 
 DEFINE_DRM_GEM_FOPS(ast_fops);
 
-static struct drm_driver ast_driver = {
+static const struct drm_driver ast_driver = {
 	.driver_features = DRIVER_ATOMIC |
 			   DRIVER_GEM |
 			   DRIVER_MODESET,
@@ -147,7 +147,7 @@ static int ast_drm_freeze(struct drm_device *dev)
 	error = drm_mode_config_helper_suspend(dev);
 	if (error)
 		return error;
-	pci_save_state(dev->pdev);
+	pci_save_state(to_pci_dev(dev->dev));
 	return 0;
 }
 
@@ -162,7 +162,7 @@ static int ast_drm_resume(struct drm_device *dev)
 {
 	int ret;
 
-	if (pci_enable_device(dev->pdev))
+	if (pci_enable_device(to_pci_dev(dev->dev)))
 		return -EIO;
 
 	ret = ast_drm_thaw(dev);

@@ -148,6 +148,8 @@ struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 		return NULL;
 	if (bus->idx != bus_idx)
 		return NULL;
+	if (addr < 0 || addr > 31)
+		return NULL;
 
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
 		for (i = 0; i < HDA_MAX_CODECS; i++) {
@@ -330,3 +332,40 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_put);
+
+static void hdac_ext_codec_link_up(struct hdac_device *codec)
+{
+	const char *devname = dev_name(&codec->dev);
+	struct hdac_ext_link *hlink =
+		snd_hdac_ext_bus_get_link(codec->bus, devname);
+
+	if (hlink)
+		snd_hdac_ext_bus_link_get(codec->bus, hlink);
+}
+
+static void hdac_ext_codec_link_down(struct hdac_device *codec)
+{
+	const char *devname = dev_name(&codec->dev);
+	struct hdac_ext_link *hlink =
+		snd_hdac_ext_bus_get_link(codec->bus, devname);
+
+	if (hlink)
+		snd_hdac_ext_bus_link_put(codec->bus, hlink);
+}
+
+void snd_hdac_ext_bus_link_power(struct hdac_device *codec, bool enable)
+{
+	struct hdac_bus *bus = codec->bus;
+	bool oldstate = test_bit(codec->addr, &bus->codec_powered);
+
+	if (enable == oldstate)
+		return;
+
+	snd_hdac_bus_link_power(codec, enable);
+
+	if (enable)
+		hdac_ext_codec_link_up(codec);
+	else
+		hdac_ext_codec_link_down(codec);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power);

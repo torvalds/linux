@@ -195,6 +195,9 @@ enum drm_mode_status {
  * @crtc_vsync_end: hardware mode vertical sync end
  * @crtc_vtotal: hardware mode vertical total size
  *
+ * This is the kernel API display mode information structure. For the
+ * user-space version see struct drm_mode_modeinfo.
+ *
  * The horizontal and vertical timings are defined per the following diagram.
  *
  * ::
@@ -458,9 +461,19 @@ void drm_display_mode_from_videomode(const struct videomode *vm,
 void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
 				   struct videomode *vm);
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags);
+
+#if defined(CONFIG_OF)
 int of_get_drm_display_mode(struct device_node *np,
 			    struct drm_display_mode *dmode, u32 *bus_flags,
 			    int index);
+#else
+static inline int of_get_drm_display_mode(struct device_node *np,
+					  struct drm_display_mode *dmode,
+					  u32 *bus_flags, int index)
+{
+	return -EINVAL;
+}
+#endif
 
 void drm_mode_set_name(struct drm_display_mode *mode);
 int drm_mode_vrefresh(const struct drm_display_mode *mode);

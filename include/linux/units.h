@@ -2,7 +2,11 @@
 #ifndef _LINUX_UNITS_H
 #define _LINUX_UNITS_H
 
-#include <linux/kernel.h>
+#include <linux/math.h>
+
+#define MILLIWATT_PER_WATT	1000L
+#define MICROWATT_PER_MILLIWATT	1000L
+#define MICROWATT_PER_WATT	1000000L
 
 #define ABSOLUTE_ZERO_MILLICELSIUS -273150
 

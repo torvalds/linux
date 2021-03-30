@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.ca
 
 .. _CA_GET_DESCR_INFO:
 
@@ -11,18 +12,18 @@ Name
 
 CA_GET_DESCR_INFO
 
-
 Synopsis
 --------
 
-.. c:function:: int  ioctl(fd, CA_GET_DESCR_INFO, struct ca_descr_info *desc)
-    :name: CA_GET_DESCR_INFO
+.. c:macro:: CA_GET_DESCR_INFO
+
+``int ioctl(fd, CA_GET_DESCR_INFO, struct ca_descr_info *desc)``
 
 Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+  File descriptor returned by a previous call to :c:func:`open()`.
 
 ``desc``
   Pointer to struct :c:type:`ca_descr_info`.

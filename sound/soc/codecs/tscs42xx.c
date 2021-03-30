@@ -66,7 +66,7 @@ static bool tscs42xx_volatile(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tscs42xx_precious(struct device *dev, unsigned int reg)
@@ -81,7 +81,7 @@ static bool tscs42xx_precious(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config tscs42xx_regmap = {
@@ -1294,7 +1294,7 @@ static int part_is_valid(struct tscs42xx *tscs42xx)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static int set_sysclk(struct snd_soc_component *component)
@@ -1397,9 +1397,9 @@ static struct snd_soc_dai_driver tscs42xx_dai = {
 		.rates = TSCS42XX_RATES,
 		.formats = TSCS42XX_FORMATS,},
 	.ops = &tscs42xx_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	.symmetric_channels = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_sample_bits = 1,
 };
 
 static const struct reg_sequence tscs42xx_patch[] = {

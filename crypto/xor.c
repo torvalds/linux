@@ -95,7 +95,7 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	for (i = 0; i < 3; i++) {
 		start = ktime_get();
 		for (j = 0; j < REPS; j++) {
-			mb(); /* prevent loop optimzation */
+			mb(); /* prevent loop optimization */
 			tmpl->do_2(BENCH_SIZE, b1, b2);
 			mb();
 		}
@@ -107,6 +107,8 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	preempt_enable();
 
 	// bytes/ns == GB/s, multiply by 1000 to get MB/s [not MiB/s]
+	if (!min)
+		min = 1;
 	speed = (1000 * REPS * BENCH_SIZE) / (unsigned int)ktime_to_ns(min);
 	tmpl->speed = speed;
 

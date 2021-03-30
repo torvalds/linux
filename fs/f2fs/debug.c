@@ -120,6 +120,13 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 			atomic_read(&SM_I(sbi)->dcc_info->discard_cmd_cnt);
 		si->undiscard_blks = SM_I(sbi)->dcc_info->undiscard_blks;
 	}
+	si->nr_issued_ckpt = atomic_read(&sbi->cprc_info.issued_ckpt);
+	si->nr_total_ckpt = atomic_read(&sbi->cprc_info.total_ckpt);
+	si->nr_queued_ckpt = atomic_read(&sbi->cprc_info.queued_ckpt);
+	spin_lock(&sbi->cprc_info.stat_lock);
+	si->cur_ckpt_time = sbi->cprc_info.cur_time;
+	si->peak_ckpt_time = sbi->cprc_info.peak_time;
+	spin_unlock(&sbi->cprc_info.stat_lock);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
@@ -131,7 +138,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->inline_inode = atomic_read(&sbi->inline_inode);
 	si->inline_dir = atomic_read(&sbi->inline_dir);
 	si->compr_inode = atomic_read(&sbi->compr_inode);
-	si->compr_blocks = atomic_read(&sbi->compr_blocks);
+	si->compr_blocks = atomic64_read(&sbi->compr_blocks);
 	si->append = sbi->im[APPEND_INO].ino_num;
 	si->update = sbi->im[UPDATE_INO].ino_num;
 	si->orphans = sbi->im[ORPHAN_INO].ino_num;
@@ -145,8 +152,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->node_pages = NODE_MAPPING(sbi)->nrpages;
 	if (sbi->meta_inode)
 		si->meta_pages = META_MAPPING(sbi)->nrpages;
-	si->nats = NM_I(sbi)->nat_cnt;
-	si->dirty_nats = NM_I(sbi)->dirty_nat_cnt;
+	si->nats = NM_I(sbi)->nat_cnt[TOTAL_NAT];
+	si->dirty_nats = NM_I(sbi)->nat_cnt[DIRTY_NAT];
 	si->sits = MAIN_SEGS(sbi);
 	si->dirty_sits = SIT_I(sbi)->dirty_sentries;
 	si->free_nids = NM_I(sbi)->nid_cnt[FREE_NID];
@@ -164,7 +171,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		* 100 / (int)(sbi->user_block_count >> sbi->log_blocks_per_seg)
 		/ 2;
 	si->util_invalid = 50 - si->util_free - si->util_valid;
-	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_NODE; i++) {
+	for (i = CURSEG_HOT_DATA; i < NO_CHECK_TYPE; i++) {
 		struct curseg_info *curseg = CURSEG_I(sbi, i);
 		si->curseg[i] = curseg->segno;
 		si->cursec[i] = GET_SEC_FROM_SEG(sbi, curseg->segno);
@@ -278,9 +285,10 @@ get_cache:
 	si->cache_mem += (NM_I(sbi)->nid_cnt[FREE_NID] +
 				NM_I(sbi)->nid_cnt[PREALLOC_NID]) *
 				sizeof(struct free_nid);
-	si->cache_mem += NM_I(sbi)->nat_cnt * sizeof(struct nat_entry);
-	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *
-					sizeof(struct nat_entry_set);
+	si->cache_mem += NM_I(sbi)->nat_cnt[TOTAL_NAT] *
+				sizeof(struct nat_entry);
+	si->cache_mem += NM_I(sbi)->nat_cnt[DIRTY_NAT] *
+				sizeof(struct nat_entry_set);
 	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
 	for (i = 0; i < MAX_INO_ENTRY; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
@@ -342,7 +350,7 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->inline_inode);
 		seq_printf(s, "  - Inline_dentry Inode: %u\n",
 			   si->inline_dir);
-		seq_printf(s, "  - Compressed Inode: %u, Blocks: %u\n",
+		seq_printf(s, "  - Compressed Inode: %u, Blocks: %llu\n",
 			   si->compr_inode, si->compr_blocks);
 		seq_printf(s, "  - Orphan/Append/Update Inode: %u, %u, %u\n",
 			   si->orphans, si->append, si->update);
@@ -393,6 +401,14 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->dirty_seg[CURSEG_COLD_NODE],
 			   si->full_seg[CURSEG_COLD_NODE],
 			   si->valid_blks[CURSEG_COLD_NODE]);
+		seq_printf(s, "  - Pinned file: %8d %8d %8d\n",
+			   si->curseg[CURSEG_COLD_DATA_PINNED],
+			   si->cursec[CURSEG_COLD_DATA_PINNED],
+			   si->curzone[CURSEG_COLD_DATA_PINNED]);
+		seq_printf(s, "  - ATGC   data: %8d %8d %8d\n",
+			   si->curseg[CURSEG_ALL_DATA_ATGC],
+			   si->cursec[CURSEG_ALL_DATA_ATGC],
+			   si->curzone[CURSEG_ALL_DATA_ATGC]);
 		seq_printf(s, "\n  - Valid: %d\n  - Dirty: %d\n",
 			   si->main_area_segs - si->dirty_count -
 			   si->prefree_count - si->free_segs,
@@ -408,6 +424,11 @@ static int stat_show(struct seq_file *s, void *v)
 				si->meta_count[META_NAT]);
 		seq_printf(s, "  - ssa blocks : %u\n",
 				si->meta_count[META_SSA]);
+		seq_printf(s, "CP merge (Queued: %4d, Issued: %4d, Total: %4d, "
+				"Cur time: %4d(ms), Peak time: %4d(ms))\n",
+				si->nr_queued_ckpt, si->nr_issued_ckpt,
+				si->nr_total_ckpt, si->cur_ckpt_time,
+				si->peak_ckpt_time);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
@@ -542,7 +563,7 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	atomic_set(&sbi->inline_inode, 0);
 	atomic_set(&sbi->inline_dir, 0);
 	atomic_set(&sbi->compr_inode, 0);
-	atomic_set(&sbi->compr_blocks, 0);
+	atomic64_set(&sbi->compr_blocks, 0);
 	atomic_set(&sbi->inplace_count, 0);
 	for (i = META_CP; i < META_MAX; i++)
 		atomic_set(&sbi->meta_count[i], 0);
@@ -566,7 +587,7 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 	list_del(&si->stat_list);
 	mutex_unlock(&f2fs_stat_mutex);
 
-	kvfree(si);
+	kfree(si);
 }
 
 void __init f2fs_create_root_stats(void)

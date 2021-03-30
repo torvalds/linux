@@ -129,7 +129,6 @@
 
 /* 1000BASE-T Status Register */
 #define SR_1000T_REMOTE_RX_STATUS	0x1000 /* Remote receiver OK */
-#define SR_1000T_LOCAL_RX_STATUS	0x2000 /* Local receiver OK */
 
 /* PHY GPY 211 registers */
 #define STANDARD_AN_REG_MASK	0x0007 /* MMD */
@@ -160,6 +159,7 @@
 #define IGC_NVM_RW_REG_START	1    /* Start operation */
 #define IGC_NVM_RW_ADDR_SHIFT	2    /* Shift to the address bits */
 #define IGC_NVM_POLL_READ	0    /* Flag for polling for read complete */
+#define IGC_NVM_DEV_STARTER	5    /* Dev_starter Version */
 
 /* NVM Word Offsets */
 #define NVM_CHECKSUM_REG		0x003F
@@ -179,7 +179,6 @@
 #define IGC_STATUS_LU		0x00000002      /* Link up.0=no,1=link */
 #define IGC_STATUS_FUNC_MASK	0x0000000C      /* PCI Function Mask */
 #define IGC_STATUS_FUNC_SHIFT	2
-#define IGC_STATUS_FUNC_1	0x00000004      /* Function 1 */
 #define IGC_STATUS_TXOFF	0x00000010      /* transmission paused */
 #define IGC_STATUS_SPEED_100	0x00000040      /* Speed 100Mb/s */
 #define IGC_STATUS_SPEED_1000	0x00000080      /* Speed 1000Mb/s */
@@ -284,7 +283,6 @@
 #define IGC_TCTL_CT		0x00000ff0 /* collision threshold */
 #define IGC_TCTL_COLD		0x003ff000 /* collision distance */
 #define IGC_TCTL_RTLC		0x01000000 /* Re-transmit on late collision */
-#define IGC_TCTL_MULR		0x10000000 /* Multiple request support */
 
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW	0x00C28001
@@ -324,21 +322,9 @@
 /* Advanced Receive Descriptor bit definitions */
 #define IGC_RXDADV_STAT_TSIP	0x08000 /* timestamp in packet */
 
-#define IGC_RXDEXT_STATERR_CE		0x01000000
-#define IGC_RXDEXT_STATERR_SE		0x02000000
-#define IGC_RXDEXT_STATERR_SEQ		0x04000000
-#define IGC_RXDEXT_STATERR_CXE		0x10000000
-#define IGC_RXDEXT_STATERR_TCPE		0x20000000
+#define IGC_RXDEXT_STATERR_L4E		0x20000000
 #define IGC_RXDEXT_STATERR_IPE		0x40000000
 #define IGC_RXDEXT_STATERR_RXE		0x80000000
-
-/* Same mask, but for extended and packet split descriptors */
-#define IGC_RXDEXT_ERR_FRAME_ERR_MASK ( \
-	IGC_RXDEXT_STATERR_CE  |	\
-	IGC_RXDEXT_STATERR_SE  |	\
-	IGC_RXDEXT_STATERR_SEQ |	\
-	IGC_RXDEXT_STATERR_CXE |	\
-	IGC_RXDEXT_STATERR_RXE)
 
 #define IGC_MRQC_RSS_FIELD_IPV4_TCP	0x00010000
 #define IGC_MRQC_RSS_FIELD_IPV4		0x00020000
@@ -409,7 +395,7 @@
 #define IGC_IMIREXT_SIZE_BP	0x00001000  /* Packet size bypass */
 
 /* Time Sync Transmit Control bit definitions */
-#define IGC_TSYNCTXCTL_VALID			0x00000001  /* Tx timestamp valid */
+#define IGC_TSYNCTXCTL_TXTT_0			0x00000001  /* Tx timestamp reg 0 valid */
 #define IGC_TSYNCTXCTL_ENABLED			0x00000010  /* enable Tx timestamping */
 #define IGC_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK	0x0000F000  /* max delay */
 #define IGC_TSYNCTXCTL_SYNC_COMP_ERR		0x20000000  /* sync err */

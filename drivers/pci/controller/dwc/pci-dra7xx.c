@@ -73,8 +73,6 @@
 #define	LINK_UP						BIT(16)
 #define	DRA7XX_CPU_TO_BUS_ADDR				0x0FFFFFFF
 
-#define EXP_CAP_ID_OFFSET				0x70
-
 #define	PCIECTRL_TI_CONF_INTX_ASSERT			0x0124
 #define	PCIECTRL_TI_CONF_INTX_DEASSERT			0x0128
 
@@ -91,7 +89,6 @@ struct dra7xx_pcie {
 	void __iomem		*base;		/* DT ti_conf */
 	int			phy_count;	/* DT phy-names count */
 	struct phy		**phy;
-	int			link_gen;
 	struct irq_domain	*irq_domain;
 	enum dw_pcie_device_mode mode;
 };
@@ -142,31 +139,10 @@ static int dra7xx_pcie_establish_link(struct dw_pcie *pci)
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 	struct device *dev = pci->dev;
 	u32 reg;
-	u32 exp_cap_off = EXP_CAP_ID_OFFSET;
 
 	if (dw_pcie_link_up(pci)) {
 		dev_err(dev, "link is already up\n");
 		return 0;
-	}
-
-	if (dra7xx->link_gen == 1) {
-		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
-			     4, &reg);
-		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
-			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
-			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pci->dbi_base + exp_cap_off +
-				      PCI_EXP_LNKCAP, 4, reg);
-		}
-
-		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
-			     2, &reg);
-		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
-			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
-			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
-			dw_pcie_write(pci->dbi_base + exp_cap_off +
-				      PCI_EXP_LNKCTL2, 2, reg);
-		}
 	}
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
@@ -205,11 +181,6 @@ static int dra7xx_pcie_host_init(struct pcie_port *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
 
-	dw_pcie_setup_rc(pp);
-
-	dra7xx_pcie_establish_link(pci);
-	dw_pcie_wait_for_link(pci);
-	dw_pcie_msi_init(pp);
 	dra7xx_pcie_enable_interrupts(dra7xx);
 
 	return 0;
@@ -401,117 +372,8 @@ static int dra7xx_pcie_init_irq_domain(struct pcie_port *pp)
 	return 0;
 }
 
-static void dra7xx_pcie_setup_msi_msg(struct irq_data *d, struct msi_msg *msg)
-{
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	u64 msi_target;
-
-	msi_target = (u64)pp->msi_data;
-
-	msg->address_lo = lower_32_bits(msi_target);
-	msg->address_hi = upper_32_bits(msi_target);
-
-	msg->data = d->hwirq;
-
-	dev_dbg(pci->dev, "msi#%d address_hi %#x address_lo %#x\n",
-		(int)d->hwirq, msg->address_hi, msg->address_lo);
-}
-
-static int dra7xx_pcie_msi_set_affinity(struct irq_data *d,
-					const struct cpumask *mask,
-					bool force)
-{
-	return -EINVAL;
-}
-
-static void dra7xx_pcie_bottom_mask(struct irq_data *d)
-{
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	unsigned int res, bit, ctrl;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&pp->lock, flags);
-
-	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
-	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
-	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
-
-	pp->irq_mask[ctrl] |= BIT(bit);
-	dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_MASK + res,
-			   pp->irq_mask[ctrl]);
-
-	raw_spin_unlock_irqrestore(&pp->lock, flags);
-}
-
-static void dra7xx_pcie_bottom_unmask(struct irq_data *d)
-{
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	unsigned int res, bit, ctrl;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&pp->lock, flags);
-
-	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
-	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
-	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
-
-	pp->irq_mask[ctrl] &= ~BIT(bit);
-	dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_MASK + res,
-			   pp->irq_mask[ctrl]);
-
-	raw_spin_unlock_irqrestore(&pp->lock, flags);
-}
-
-static void dra7xx_pcie_bottom_ack(struct irq_data *d)
-{
-	struct pcie_port *pp  = irq_data_get_irq_chip_data(d);
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	unsigned int res, bit, ctrl;
-
-	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
-	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
-	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
-
-	dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_STATUS + res, BIT(bit));
-}
-
-static struct irq_chip dra7xx_pci_msi_bottom_irq_chip = {
-	.name = "DRA7XX-PCI-MSI",
-	.irq_ack = dra7xx_pcie_bottom_ack,
-	.irq_compose_msi_msg = dra7xx_pcie_setup_msi_msg,
-	.irq_set_affinity = dra7xx_pcie_msi_set_affinity,
-	.irq_mask = dra7xx_pcie_bottom_mask,
-	.irq_unmask = dra7xx_pcie_bottom_unmask,
-};
-
-static int dra7xx_pcie_msi_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	u32 ctrl, num_ctrls;
-
-	pp->msi_irq_chip = &dra7xx_pci_msi_bottom_irq_chip;
-
-	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
-	/* Initialize IRQ Status array */
-	for (ctrl = 0; ctrl < num_ctrls; ctrl++) {
-		pp->irq_mask[ctrl] = ~0;
-		dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_MASK +
-				    (ctrl * MSI_REG_CTRL_BLOCK_SIZE),
-				    pp->irq_mask[ctrl]);
-		dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_ENABLE +
-				    (ctrl * MSI_REG_CTRL_BLOCK_SIZE),
-				    ~0);
-	}
-
-	return dw_pcie_allocate_domains(pp);
-}
-
 static const struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
 	.host_init = dra7xx_pcie_host_init,
-	.msi_host_init = dra7xx_pcie_msi_host_init,
 };
 
 static void dra7xx_pcie_ep_init(struct dw_pcie_ep *ep)
@@ -586,7 +448,6 @@ static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
 {
 	int ret;
 	struct dw_pcie_ep *ep;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci = dra7xx->pci;
 
@@ -601,13 +462,6 @@ static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
 		devm_platform_ioremap_resource_byname(pdev, "ep_dbics2");
 	if (IS_ERR(pci->dbi_base2))
 		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
 
 	ret = dw_pcie_ep_init(ep);
 	if (ret) {
@@ -629,6 +483,9 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 	pp->irq = platform_get_irq(pdev, 1);
 	if (pp->irq < 0)
 		return pp->irq;
+
+	/* MSI IRQ is muxed */
+	pp->msi_irq = -ENODEV;
 
 	ret = dra7xx_pcie_init_irq_domain(pp);
 	if (ret < 0)
@@ -936,10 +793,6 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
 	reg &= ~LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
-
-	dra7xx->link_gen = of_pci_get_max_link_speed(np);
-	if (dra7xx->link_gen < 0 || dra7xx->link_gen > 2)
-		dra7xx->link_gen = 2;
 
 	switch (mode) {
 	case DW_PCIE_RC_TYPE:

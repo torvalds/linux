@@ -34,7 +34,7 @@
 	NL80211_RRF_PASSIVE_SCAN)
 
 static const struct ieee80211_regdomain rtw_regdom_rd = {
-	.n_reg_rules = 3,
+	.n_reg_rules = 2,
 	.alpha2 = "99",
 	.reg_rules = {
 		RTW_2GHZ_CH01_11,
@@ -139,15 +139,11 @@ static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 	_rtw_reg_apply_flags(wiphy);
 }
 
-int rtw_regd_init(struct adapter *padapter,
-		  void (*reg_notifier)(struct wiphy *wiphy,
-				       struct regulatory_request *request))
+void rtw_regd_init(struct wiphy *wiphy,
+		   void (*reg_notifier)(struct wiphy *wiphy,
+					struct regulatory_request *request))
 {
-	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
-
 	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
-
-	return 0;
 }
 
 void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)

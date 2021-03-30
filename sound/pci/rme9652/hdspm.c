@@ -2286,7 +2286,6 @@ static int hdspm_get_wc_sample_rate(struct hdspm *hdspm)
 	case AIO:
 		status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 		return (status >> 16) & 0xF;
-		break;
 	case AES32:
 		status = hdspm_read(hdspm, HDSPM_statusRegister);
 		return (status >> HDSPM_AES32_wcFreq_bit) & 0xF;
@@ -2312,7 +2311,6 @@ static int hdspm_get_tco_sample_rate(struct hdspm *hdspm)
 		case AIO:
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 			return (status >> 20) & 0xF;
-			break;
 		case AES32:
 			status = hdspm_read(hdspm, HDSPM_statusRegister);
 			return (status >> 1) & 0xF;
@@ -2338,7 +2336,6 @@ static int hdspm_get_sync_in_sample_rate(struct hdspm *hdspm)
 		case AIO:
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_2);
 			return (status >> 12) & 0xF;
-			break;
 		default:
 			break;
 		}
@@ -2358,7 +2355,6 @@ static int hdspm_get_aes_sample_rate(struct hdspm *hdspm, int index)
 	case AES32:
 		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
 		return (timecode >> (4*index)) & 0xF;
-		break;
 	default:
 		break;
 	}
@@ -3845,7 +3841,6 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 				return 1;
 		}
 		return 0;
-		break;
 
 	case MADI:
 		status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
@@ -3856,7 +3851,6 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 				return 1;
 		}
 		return 0;
-		break;
 
 	case RayDAT:
 	case AIO:
@@ -3867,8 +3861,6 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 		else if (status & 0x1000000)
 			return 1;
 		return 0;
-
-		break;
 
 	case MADIface:
 		break;
@@ -6321,6 +6313,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 				(statusregister & HDSPM_RX_64ch) ? 1 : 0;
 			/* TODO: Mac driver sets it when f_s>48kHz */
 			status.card_specific.madi.frame_format = 0;
+			break;
 
 		default:
 			break;
@@ -6336,7 +6329,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		memset(&hdspm_version, 0, sizeof(hdspm_version));
 
 		hdspm_version.card_type = hdspm->io_type;
-		strlcpy(hdspm_version.cardname, hdspm->card_name,
+		strscpy(hdspm_version.cardname, hdspm->card_name,
 				sizeof(hdspm_version.cardname));
 		hdspm_version.serial = hdspm->serial;
 		hdspm_version.firmware_rev = hdspm->firmware_rev;

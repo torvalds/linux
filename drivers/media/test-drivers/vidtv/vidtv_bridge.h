@@ -16,13 +16,17 @@
  * For now, only one frontend is supported. See vidtv_start_streaming()
  */
 #define NUM_FE 1
+#define VIDTV_PDEV_NAME "vidtv"
 
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+
 #include <media/dmxdev.h>
 #include <media/dvb_demux.h>
 #include <media/dvb_frontend.h>
+#include <media/media-device.h>
+
 #include "vidtv_mux.h"
 
 /**
@@ -32,7 +36,7 @@
  * @adapter: Represents a DTV adapter. See 'dvb_register_adapter'.
  * @demux: The demux used by the dvb_dmx_swfilter_packets() call.
  * @dmx_dev: Represents a demux device.
- * @dmx_frontend: The frontends associated with the demux.
+ * @dmx_fe: The frontends associated with the demux.
  * @i2c_adapter: The i2c_adapter associated with the bridge driver.
  * @i2c_client_demod: The i2c_clients associated with the demodulator modules.
  * @i2c_client_tuner: The i2c_clients associated with the tuner modules.
@@ -40,6 +44,7 @@
  * @feed_lock: Protects access to the start/stop stream logic/data.
  * @streaming: Whether we are streaming now.
  * @mux: The abstraction responsible for delivering MPEG TS packets to the bridge.
+ * @mdev: The media_device struct for media controller support.
  */
 struct vidtv_dvb {
 	struct platform_device *pdev;
@@ -58,6 +63,10 @@ struct vidtv_dvb {
 	bool streaming;
 
 	struct vidtv_mux *mux;
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_device mdev;
+#endif /* CONFIG_MEDIA_CONTROLLER_DVB */
 };
 
 #endif // VIDTV_BRIDG_H

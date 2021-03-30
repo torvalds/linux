@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/spi/spi.h>
+#include <linux/i2c.h>
 
 /* RX-6110 Register definitions */
 #define RX6110_REG_SEC		0x10
@@ -310,6 +311,27 @@ static const struct rtc_class_ops rx6110_rtc_ops = {
 	.set_time = rx6110_set_time,
 };
 
+static int rx6110_probe(struct rx6110_data *rx6110, struct device *dev)
+{
+	int err;
+
+	rx6110->rtc = devm_rtc_device_register(dev,
+					       RX6110_DRIVER_NAME,
+					       &rx6110_rtc_ops, THIS_MODULE);
+
+	if (IS_ERR(rx6110->rtc))
+		return PTR_ERR(rx6110->rtc);
+
+	err = rx6110_init(rx6110);
+	if (err)
+		return err;
+
+	rx6110->rtc->max_user_freq = 1;
+
+	return 0;
+}
+
+#if IS_ENABLED(CONFIG_SPI_MASTER)
 static struct regmap_config regmap_spi_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -318,13 +340,12 @@ static struct regmap_config regmap_spi_config = {
 };
 
 /**
- * rx6110_probe - initialize rtc driver
+ * rx6110_spi_probe - initialize rtc driver
  * @spi: pointer to spi device
  */
-static int rx6110_probe(struct spi_device *spi)
+static int rx6110_spi_probe(struct spi_device *spi)
 {
 	struct rx6110_data *rx6110;
-	int err;
 
 	if ((spi->bits_per_word && spi->bits_per_word != 8) ||
 	    (spi->max_speed_hz > 2000000) ||
@@ -346,27 +367,14 @@ static int rx6110_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, rx6110);
 
-	rx6110->rtc = devm_rtc_device_register(&spi->dev,
-					       RX6110_DRIVER_NAME,
-					       &rx6110_rtc_ops, THIS_MODULE);
-
-	if (IS_ERR(rx6110->rtc))
-		return PTR_ERR(rx6110->rtc);
-
-	err = rx6110_init(rx6110);
-	if (err)
-		return err;
-
-	rx6110->rtc->max_user_freq = 1;
-
-	return 0;
+	return rx6110_probe(rx6110, &spi->dev);
 }
 
-static const struct spi_device_id rx6110_id[] = {
+static const struct spi_device_id rx6110_spi_id[] = {
 	{ "rx6110", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(spi, rx6110_id);
+MODULE_DEVICE_TABLE(spi, rx6110_spi_id);
 
 static const struct of_device_id rx6110_spi_of_match[] = {
 	{ .compatible = "epson,rx6110" },
@@ -374,16 +382,127 @@ static const struct of_device_id rx6110_spi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rx6110_spi_of_match);
 
-static struct spi_driver rx6110_driver = {
+static struct spi_driver rx6110_spi_driver = {
 	.driver = {
 		.name = RX6110_DRIVER_NAME,
 		.of_match_table = of_match_ptr(rx6110_spi_of_match),
 	},
-	.probe		= rx6110_probe,
-	.id_table	= rx6110_id,
+	.probe		= rx6110_spi_probe,
+	.id_table	= rx6110_spi_id,
 };
 
-module_spi_driver(rx6110_driver);
+static int rx6110_spi_register(void)
+{
+	return spi_register_driver(&rx6110_spi_driver);
+}
+
+static void rx6110_spi_unregister(void)
+{
+	spi_unregister_driver(&rx6110_spi_driver);
+}
+#else
+static int rx6110_spi_register(void)
+{
+	return 0;
+}
+
+static void rx6110_spi_unregister(void)
+{
+}
+#endif /* CONFIG_SPI_MASTER */
+
+#if IS_ENABLED(CONFIG_I2C)
+static struct regmap_config regmap_i2c_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = RX6110_REG_IRQ,
+	.read_flag_mask = 0x80,
+};
+
+static int rx6110_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
+{
+	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct rx6110_data *rx6110;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
+				| I2C_FUNC_SMBUS_I2C_BLOCK)) {
+		dev_err(&adapter->dev,
+			"doesn't support required functionality\n");
+		return -EIO;
+	}
+
+	rx6110 = devm_kzalloc(&client->dev, sizeof(*rx6110), GFP_KERNEL);
+	if (!rx6110)
+		return -ENOMEM;
+
+	rx6110->regmap = devm_regmap_init_i2c(client, &regmap_i2c_config);
+	if (IS_ERR(rx6110->regmap)) {
+		dev_err(&client->dev, "regmap init failed for rtc rx6110\n");
+		return PTR_ERR(rx6110->regmap);
+	}
+
+	i2c_set_clientdata(client, rx6110);
+
+	return rx6110_probe(rx6110, &client->dev);
+}
+
+static const struct i2c_device_id rx6110_i2c_id[] = {
+	{ "rx6110", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, rx6110_i2c_id);
+
+static struct i2c_driver rx6110_i2c_driver = {
+	.driver = {
+		.name = RX6110_DRIVER_NAME,
+	},
+	.probe		= rx6110_i2c_probe,
+	.id_table	= rx6110_i2c_id,
+};
+
+static int rx6110_i2c_register(void)
+{
+	return i2c_add_driver(&rx6110_i2c_driver);
+}
+
+static void rx6110_i2c_unregister(void)
+{
+	i2c_del_driver(&rx6110_i2c_driver);
+}
+#else
+static int rx6110_i2c_register(void)
+{
+	return 0;
+}
+
+static void rx6110_i2c_unregister(void)
+{
+}
+#endif /* CONFIG_I2C */
+
+static int __init rx6110_module_init(void)
+{
+	int ret;
+
+	ret = rx6110_spi_register();
+	if (ret)
+		return ret;
+
+	ret = rx6110_i2c_register();
+	if (ret)
+		rx6110_spi_unregister();
+
+	return ret;
+}
+module_init(rx6110_module_init);
+
+static void __exit rx6110_module_exit(void)
+{
+	rx6110_spi_unregister();
+	rx6110_i2c_unregister();
+}
+module_exit(rx6110_module_exit);
 
 MODULE_AUTHOR("Val Krutov <val.krutov@erd.epson.com>");
 MODULE_DESCRIPTION("RX-6110 SA RTC driver");

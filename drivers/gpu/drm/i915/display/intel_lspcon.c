@@ -30,10 +30,14 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_lspcon.h"
+#include "intel_hdmi.h"
 
 /* LSPCON OUI Vendor ID(signatures) */
 #define LSPCON_VENDOR_PARADE_OUI 0x001CF8
 #define LSPCON_VENDOR_MCA_OUI 0x0060AD
+
+#define DPCD_MCA_LSPCON_HDR_STATUS	0x70003
+#define DPCD_PARADE_LSPCON_HDR_STATUS	0x00511
 
 /* AUX addresses to write MCA AVI IF */
 #define LSPCON_MCA_AVI_IF_WRITE_OFFSET 0x5C0
@@ -102,6 +106,35 @@ static bool lspcon_detect_vendor(struct intel_lspcon *lspcon)
 	}
 
 	return true;
+}
+
+static u32 get_hdr_status_reg(struct intel_lspcon *lspcon)
+{
+	if (lspcon->vendor == LSPCON_VENDOR_MCA)
+		return DPCD_MCA_LSPCON_HDR_STATUS;
+	else
+		return DPCD_PARADE_LSPCON_HDR_STATUS;
+}
+
+void lspcon_detect_hdr_capability(struct intel_lspcon *lspcon)
+{
+	struct intel_digital_port *dig_port =
+		container_of(lspcon, struct intel_digital_port, lspcon);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct intel_dp *dp = lspcon_to_intel_dp(lspcon);
+	u8 hdr_caps;
+	int ret;
+
+	ret = drm_dp_dpcd_read(&dp->aux, get_hdr_status_reg(lspcon),
+			       &hdr_caps, 1);
+
+	if (ret < 0) {
+		drm_dbg_kms(dev, "HDR capability detection failed\n");
+		lspcon->hdr_supported = false;
+	} else if (hdr_caps & 0x1) {
+		drm_dbg_kms(dev, "LSPCON capable of HDR\n");
+		lspcon->hdr_supported = true;
+	}
 }
 
 static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
@@ -182,21 +215,6 @@ static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
 		      rev >> 4, rev & 0xf);
 
 	return true;
-}
-
-void lspcon_ycbcr420_config(struct drm_connector *connector,
-			    struct intel_crtc_state *crtc_state)
-{
-	const struct drm_display_info *info = &connector->display_info;
-	const struct drm_display_mode *adjusted_mode =
-					&crtc_state->hw.adjusted_mode;
-
-	if (drm_mode_is_420_only(info, adjusted_mode) &&
-	    connector->ycbcr_420_allowed) {
-		crtc_state->port_clock /= 2;
-		crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
-		crtc_state->lspcon_downsampling = true;
-	}
 }
 
 static bool lspcon_probe(struct intel_lspcon *lspcon)
@@ -433,27 +451,32 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 			    unsigned int type,
 			    const void *frame, ssize_t len)
 {
-	bool ret;
+	bool ret = true;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 
-	/* LSPCON only needs AVI IF */
-	if (type != HDMI_INFOFRAME_TYPE_AVI)
-		return;
-
-	if (lspcon->vendor == LSPCON_VENDOR_MCA)
-		ret = _lspcon_write_avi_infoframe_mca(&intel_dp->aux,
-						      frame, len);
-	else
-		ret = _lspcon_write_avi_infoframe_parade(&intel_dp->aux,
-							 frame, len);
-
-	if (!ret) {
-		DRM_ERROR("Failed to write AVI infoframes\n");
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		if (lspcon->vendor == LSPCON_VENDOR_MCA)
+			ret = _lspcon_write_avi_infoframe_mca(&intel_dp->aux,
+							      frame, len);
+		else
+			ret = _lspcon_write_avi_infoframe_parade(&intel_dp->aux,
+								 frame, len);
+		break;
+	case HDMI_PACKET_TYPE_GAMUT_METADATA:
+		drm_dbg_kms(encoder->base.dev, "Update HDR metadata for lspcon\n");
+		/* It uses the legacy hsw implementation for the same */
+		hsw_write_infoframe(encoder, crtc_state, type, frame, len);
+		break;
+	default:
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("AVI infoframes updated successfully\n");
+	if (!ret) {
+		DRM_ERROR("Failed to write infoframes\n");
+		return;
+	}
 }
 
 void lspcon_read_infoframe(struct intel_encoder *encoder,
@@ -461,7 +484,10 @@ void lspcon_read_infoframe(struct intel_encoder *encoder,
 			   unsigned int type,
 			   void *frame, ssize_t len)
 {
-	/* FIXME implement this */
+	/* FIXME implement for AVI Infoframe as well */
+	if (type == HDMI_PACKET_TYPE_GAMUT_METADATA)
+		hsw_read_infoframe(encoder, crtc_state, type,
+				   frame, len);
 }
 
 void lspcon_set_infoframes(struct intel_encoder *encoder,
@@ -492,21 +518,40 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		return;
 	}
 
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
-		if (crtc_state->lspcon_downsampling)
-			frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
-		else
-			frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
-	} else {
+	/*
+	 * Currently there is no interface defined to
+	 * check user preference between RGB/YCBCR444
+	 * or YCBCR420. So the only possible case for
+	 * YCBCR444 usage is driving YCBCR420 output
+	 * with LSPCON, when pipe is configured for
+	 * YCBCR444 output and LSPCON takes care of
+	 * downsampling it.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+		frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
+	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
+
+	/* Set the Colorspace as per the HDMI spec */
+	drm_hdmi_avi_infoframe_colorspace(&frame.avi, conn_state);
+
+	/* nonsense combination */
+	drm_WARN_ON(encoder->base.dev, crtc_state->limited_color_range &&
+		    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
+
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB) {
+		drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+						   conn_state->connector,
+						   adjusted_mode,
+						   crtc_state->limited_color_range ?
+						   HDMI_QUANTIZATION_RANGE_LIMITED :
+						   HDMI_QUANTIZATION_RANGE_FULL);
+	} else {
+		frame.avi.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
+		frame.avi.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
-					   conn_state->connector,
-					   adjusted_mode,
-					   crtc_state->limited_color_range ?
-					   HDMI_QUANTIZATION_RANGE_LIMITED :
-					   HDMI_QUANTIZATION_RANGE_FULL);
+	drm_hdmi_avi_infoframe_content_type(&frame.avi, conn_state);
 
 	ret = hdmi_infoframe_pack(&frame, buf, sizeof(buf));
 	if (ret < 0) {
@@ -518,31 +563,64 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 				  buf, ret);
 }
 
+static bool _lspcon_read_avi_infoframe_enabled_mca(struct drm_dp_aux *aux)
+{
+	int ret;
+	u32 val = 0;
+	u16 reg = LSPCON_MCA_AVI_IF_CTRL;
+
+	ret = drm_dp_dpcd_read(aux, reg, &val, 1);
+	if (ret < 0) {
+		DRM_ERROR("DPCD read failed, address 0x%x\n", reg);
+		return false;
+	}
+
+	return val & LSPCON_MCA_AVI_IF_KICKOFF;
+}
+
+static bool _lspcon_read_avi_infoframe_enabled_parade(struct drm_dp_aux *aux)
+{
+	int ret;
+	u32 val = 0;
+	u16 reg = LSPCON_PARADE_AVI_IF_CTRL;
+
+	ret = drm_dp_dpcd_read(aux, reg, &val, 1);
+	if (ret < 0) {
+		DRM_ERROR("DPCD read failed, address 0x%x\n", reg);
+		return false;
+	}
+
+	return val & LSPCON_PARADE_AVI_IF_KICKOFF;
+}
+
 u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
-	/* FIXME actually read this from the hw */
-	return 0;
-}
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	bool infoframes_enabled;
+	u32 val = 0;
+	u32 mask, tmp;
 
-void lspcon_resume(struct intel_lspcon *lspcon)
-{
-	enum drm_lspcon_mode expected_mode;
+	if (lspcon->vendor == LSPCON_VENDOR_MCA)
+		infoframes_enabled = _lspcon_read_avi_infoframe_enabled_mca(&intel_dp->aux);
+	else
+		infoframes_enabled = _lspcon_read_avi_infoframe_enabled_parade(&intel_dp->aux);
 
-	if (lspcon_wake_native_aux_ch(lspcon)) {
-		expected_mode = DRM_LSPCON_MODE_PCON;
-		lspcon_resume_in_pcon_wa(lspcon);
-	} else {
-		expected_mode = DRM_LSPCON_MODE_LS;
+	if (infoframes_enabled)
+		val |= intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI);
+
+	if (lspcon->hdr_supported) {
+		tmp = intel_de_read(dev_priv,
+				    HSW_TVIDEO_DIP_CTL(pipe_config->cpu_transcoder));
+		mask = VIDEO_DIP_ENABLE_GMP_HSW;
+
+		if (tmp & mask)
+			val |= intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GAMUT_METADATA);
 	}
 
-	if (lspcon_wait_mode(lspcon, expected_mode) == DRM_LSPCON_MODE_PCON)
-		return;
-
-	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON))
-		DRM_ERROR("LSPCON resume failed\n");
-	else
-		DRM_DEBUG_KMS("LSPCON resume success\n");
+	return val;
 }
 
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon)
@@ -554,14 +632,7 @@ bool lspcon_init(struct intel_digital_port *dig_port)
 {
 	struct intel_dp *dp = &dig_port->dp;
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
-	struct drm_device *dev = dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_connector *connector = &dp->attached_connector->base;
-
-	if (!HAS_LSPCON(dev_priv)) {
-		DRM_ERROR("LSPCON is not supported on this platform\n");
-		return false;
-	}
 
 	lspcon->active = false;
 	lspcon->mode = DRM_LSPCON_MODE_INVALID;
@@ -585,4 +656,46 @@ bool lspcon_init(struct intel_digital_port *dig_port)
 	lspcon->active = true;
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;
+}
+
+u32 intel_lspcon_infoframes_enabled(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *pipe_config)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	return dig_port->infoframes_enabled(encoder, pipe_config);
+}
+
+void lspcon_resume(struct intel_digital_port *dig_port)
+{
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum drm_lspcon_mode expected_mode;
+
+	if (!intel_bios_is_lspcon_present(dev_priv, dig_port->base.port))
+		return;
+
+	if (!lspcon->active) {
+		if (!lspcon_init(dig_port)) {
+			DRM_ERROR("LSPCON init failed on port %c\n",
+				  port_name(dig_port->base.port));
+			return;
+		}
+	}
+
+	if (lspcon_wake_native_aux_ch(lspcon)) {
+		expected_mode = DRM_LSPCON_MODE_PCON;
+		lspcon_resume_in_pcon_wa(lspcon);
+	} else {
+		expected_mode = DRM_LSPCON_MODE_LS;
+	}
+
+	if (lspcon_wait_mode(lspcon, expected_mode) == DRM_LSPCON_MODE_PCON)
+		return;
+
+	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON))
+		DRM_ERROR("LSPCON resume failed\n");
+	else
+		DRM_DEBUG_KMS("LSPCON resume success\n");
 }

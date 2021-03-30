@@ -9,7 +9,6 @@
 #include "intel_engine_pm.h"
 #include "intel_gpu_commands.h"
 #include "intel_lrc.h"
-#include "intel_lrc_reg.h"
 #include "intel_ring.h"
 #include "intel_sseu.h"
 

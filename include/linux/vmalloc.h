@@ -24,6 +24,8 @@ struct notifier_block;		/* in notifier.h */
 #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
 #define VM_NO_GUARD		0x00000040      /* don't add guard page */
 #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
+#define VM_FLUSH_RESET_PERMS	0x00000100	/* reset direct map and flush TLB on unmap, can't be freed in atomic context */
+#define VM_MAP_PUT_PAGES	0x00000200	/* put pages and free array in vfree */
 
 /*
  * VM_KASAN is used slighly differently depending on CONFIG_KASAN_VMALLOC.
@@ -35,12 +37,6 @@ struct notifier_block;		/* in notifier.h */
  * Otherwise, VM_KASAN is set for kasan_module_alloc() allocations and used to
  * determine which allocations need the module shadow freed.
  */
-
-/*
- * Memory with VM_FLUSH_RESET_PERMS cannot be freed in an interrupt or with
- * vfree_atomic().
- */
-#define VM_FLUSH_RESET_PERMS	0x00000100      /* Reset direct map and flush TLB on unmap */
 
 /* bits [20..32] reserved for arch specific ioremap internals */
 
@@ -71,16 +67,14 @@ struct vmap_area {
 	struct list_head list;          /* address sorted list */
 
 	/*
-	 * The following three variables can be packed, because
-	 * a vmap_area object is always one of the three states:
+	 * The following two variables can be packed, because
+	 * a vmap_area object can be either:
 	 *    1) in "free" tree (root is vmap_area_root)
-	 *    2) in "busy" tree (root is free_vmap_area_root)
-	 *    3) in purge list  (head is vmap_purge_list)
+	 *    2) or "busy" tree (root is free_vmap_area_root)
 	 */
 	union {
 		unsigned long subtree_max_size; /* in "free" tree */
 		struct vm_struct *vm;           /* in "busy" tree */
-		struct llist_node purge_list;   /* in purge list */
 	};
 };
 
@@ -121,6 +115,7 @@ extern void vfree_atomic(const void *addr);
 
 extern void *vmap(struct page **pages, unsigned int count,
 			unsigned long flags, pgprot_t prot);
+void *vmap_pfn(unsigned long *pfns, unsigned int count, pgprot_t prot);
 extern void vunmap(const void *addr);
 
 extern int remap_vmalloc_range_partial(struct vm_area_struct *vma,
@@ -167,6 +162,7 @@ extern struct vm_struct *__get_vm_area_caller(unsigned long size,
 					unsigned long flags,
 					unsigned long start, unsigned long end,
 					const void *caller);
+void free_vm_area(struct vm_struct *area);
 extern struct vm_struct *remove_vm_area(const void *addr);
 extern struct vm_struct *find_vm_area(const void *addr);
 
@@ -201,10 +197,6 @@ static inline void set_vm_flush_reset_perms(void *addr)
 {
 }
 #endif
-
-/* Allocate/destroy a 'vmalloc' VM area. */
-extern struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes);
-extern void free_vm_area(struct vm_struct *area);
 
 /* for /dev/kmem */
 extern long vread(char *buf, char *addr, unsigned long count);
@@ -248,5 +240,11 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 
 int register_vmap_purge_notifier(struct notifier_block *nb);
 int unregister_vmap_purge_notifier(struct notifier_block *nb);
+
+#ifdef CONFIG_MMU
+bool vmalloc_dump_obj(void *object);
+#else
+static inline bool vmalloc_dump_obj(void *object) { return false; }
+#endif
 
 #endif /* _LINUX_VMALLOC_H */

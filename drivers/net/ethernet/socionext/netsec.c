@@ -6,6 +6,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/acpi.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -630,6 +631,7 @@ static void netsec_set_rx_de(struct netsec_priv *priv,
 static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
+	struct xdp_frame_bulk bq;
 	struct netsec_de *entry;
 	int tail = dring->tail;
 	unsigned int bytes;
@@ -638,7 +640,10 @@ static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 	spin_lock(&dring->lock);
 
 	bytes = 0;
+	xdp_frame_bulk_init(&bq);
 	entry = dring->vaddr + DESC_SZ * tail;
+
+	rcu_read_lock(); /* need for xdp_return_frame_bulk */
 
 	while (!(entry->attr & (1U << NETSEC_TX_SHIFT_OWN_FIELD)) &&
 	       cnt < DESC_NUM) {
@@ -664,7 +669,10 @@ static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 			dev_kfree_skb(desc->skb);
 		} else {
 			bytes += desc->xdpf->len;
-			xdp_return_frame(desc->xdpf);
+			if (desc->buf_type == TYPE_NETSEC_XDP_TX)
+				xdp_return_frame_rx_napi(desc->xdpf);
+			else
+				xdp_return_frame_bulk(desc->xdpf, &bq);
 		}
 next:
 		/* clean up so netsec_uninit_pkt_dring() won't free the skb
@@ -683,6 +691,9 @@ next:
 		entry = dring->vaddr + DESC_SZ * tail;
 		cnt++;
 	}
+	xdp_flush_frame_bulk(&bq);
+
+	rcu_read_unlock();
 
 	spin_unlock(&dring->lock);
 
@@ -945,8 +956,7 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 	u32 xdp_act = 0;
 	int done = 0;
 
-	xdp.rxq = &dring->xdp_rxq;
-	xdp.frame_sz = PAGE_SIZE;
+	xdp_init_buff(&xdp, PAGE_SIZE, &dring->xdp_rxq);
 
 	rcu_read_lock();
 	xdp_prog = READ_ONCE(priv->xdp_prog);
@@ -1005,10 +1015,8 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 					dma_dir);
 		prefetch(desc->addr);
 
-		xdp.data_hard_start = desc->addr;
-		xdp.data = desc->addr + NETSEC_RXBUF_HEADROOM;
-		xdp_set_data_meta_invalid(&xdp);
-		xdp.data_end = xdp.data + pkt_len;
+		xdp_prepare_buff(&xdp, desc->addr, NETSEC_RXBUF_HEADROOM,
+				 pkt_len, false);
 
 		if (xdp_prog) {
 			xdp_result = netsec_run_xdp(priv, xdp_prog, &xdp);
@@ -1303,7 +1311,7 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		goto err_out;
 	}
 
-	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0);
+	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0, priv->napi.napi_id);
 	if (err)
 		goto err_out;
 
@@ -1833,6 +1841,14 @@ static const struct net_device_ops netsec_netdev_ops = {
 static int netsec_of_probe(struct platform_device *pdev,
 			   struct netsec_priv *priv, u32 *phy_addr)
 {
+	int err;
+
+	err = of_get_phy_mode(pdev->dev.of_node, &priv->phy_interface);
+	if (err) {
+		dev_err(&pdev->dev, "missing required property 'phy-mode'\n");
+		return err;
+	}
+
 	priv->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 	if (!priv->phy_np) {
 		dev_err(&pdev->dev, "missing required property 'phy-handle'\n");
@@ -1858,6 +1874,14 @@ static int netsec_acpi_probe(struct platform_device *pdev,
 
 	if (!IS_ENABLED(CONFIG_ACPI))
 		return -ENODEV;
+
+	/* ACPI systems are assumed to configure the PHY in firmware, so
+	 * there is really no need to discover the PHY mode from the DSDT.
+	 * Since firmware is known to exist in the field that configures the
+	 * PHY correctly but passes the wrong mode string in the phy-mode
+	 * device property, we have no choice but to ignore it.
+	 */
+	priv->phy_interface = PHY_INTERFACE_MODE_NA;
 
 	ret = device_property_read_u32(&pdev->dev, "phy-channel", phy_addr);
 	if (ret) {
@@ -1994,13 +2018,6 @@ static int netsec_probe(struct platform_device *pdev)
 
 	priv->msg_enable = NETIF_MSG_TX_ERR | NETIF_MSG_HW | NETIF_MSG_DRV |
 			   NETIF_MSG_LINK | NETIF_MSG_PROBE;
-
-	priv->phy_interface = device_get_phy_mode(&pdev->dev);
-	if ((int)priv->phy_interface < 0) {
-		dev_err(&pdev->dev, "missing required property 'phy-mode'\n");
-		ret = -ENODEV;
-		goto free_ndev;
-	}
 
 	priv->ioaddr = devm_ioremap(&pdev->dev, mmio_res->start,
 				    resource_size(mmio_res));

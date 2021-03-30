@@ -906,7 +906,7 @@ int __init early_init_dt_scan_chosen_stdout(void)
 	int offset;
 	const char *p, *q, *options = NULL;
 	int l;
-	const struct earlycon_id **p_match;
+	const struct earlycon_id *match;
 	const void *fdt = initial_boot_params;
 
 	offset = fdt_path_offset(fdt, "/chosen");
@@ -933,10 +933,7 @@ int __init early_init_dt_scan_chosen_stdout(void)
 		return 0;
 	}
 
-	for (p_match = __earlycon_table; p_match < __earlycon_table_end;
-	     p_match++) {
-		const struct earlycon_id *match = *p_match;
-
+	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
 		if (!match->compatible[0])
 			continue;
 
@@ -1149,8 +1146,16 @@ int __init __weak early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size)
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
-	if (nomap)
-		return memblock_remove(base, size);
+	if (nomap) {
+		/*
+		 * If the memory is already reserved (by another region), we
+		 * should not allow it to be marked nomap.
+		 */
+		if (memblock_is_region_reserved(base, size))
+			return -EBUSY;
+
+		return memblock_mark_nomap(base, size);
+	}
 	return memblock_reserve(base, size);
 }
 

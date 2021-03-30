@@ -9,7 +9,7 @@
 #include <linux/completion.h>
 #include <linux/firmware.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 
 #include "s3fwrn5.h"
 #include "firmware.h"
@@ -266,7 +266,7 @@ static int s3fwrn5_fw_complete_update_mode(struct s3fwrn5_fw_info *fw_info)
 }
 
 /*
- * Firmware header stucture:
+ * Firmware header structure:
  *
  * 0x00 - 0x0B : Date and time string (w/o NUL termination)
  * 0x10 - 0x13 : Firmware version
@@ -280,7 +280,7 @@ static int s3fwrn5_fw_complete_update_mode(struct s3fwrn5_fw_info *fw_info)
 
 #define S3FWRN5_FW_IMAGE_HEADER_SIZE 44
 
-static int s3fwrn5_fw_request_firmware(struct s3fwrn5_fw_info *fw_info)
+int s3fwrn5_fw_request_firmware(struct s3fwrn5_fw_info *fw_info)
 {
 	struct s3fwrn5_fw_image *fw = &fw_info->fw;
 	u32 sig_off;
@@ -293,8 +293,10 @@ static int s3fwrn5_fw_request_firmware(struct s3fwrn5_fw_info *fw_info)
 	if (ret < 0)
 		return ret;
 
-	if (fw->fw->size < S3FWRN5_FW_IMAGE_HEADER_SIZE)
+	if (fw->fw->size < S3FWRN5_FW_IMAGE_HEADER_SIZE) {
+		release_firmware(fw->fw);
 		return -EINVAL;
+	}
 
 	memcpy(fw->date, fw->fw->data + 0x00, 12);
 	fw->date[12] = '\0';
@@ -348,7 +350,7 @@ static int s3fwrn5_fw_get_base_addr(
 }
 
 static inline bool
-s3fwrn5_fw_is_custom(struct s3fwrn5_fw_cmd_get_bootinfo_rsp *bootinfo)
+s3fwrn5_fw_is_custom(const struct s3fwrn5_fw_cmd_get_bootinfo_rsp *bootinfo)
 {
 	return !!bootinfo->hw_version[2];
 }
@@ -357,15 +359,6 @@ int s3fwrn5_fw_setup(struct s3fwrn5_fw_info *fw_info)
 {
 	struct s3fwrn5_fw_cmd_get_bootinfo_rsp bootinfo;
 	int ret;
-
-	/* Get firmware data */
-
-	ret = s3fwrn5_fw_request_firmware(fw_info);
-	if (ret < 0) {
-		dev_err(&fw_info->ndev->nfc_dev->dev,
-			"Failed to get fw file, ret=%02x\n", ret);
-		return ret;
-	}
 
 	/* Get bootloader info */
 
@@ -399,7 +392,7 @@ err:
 	return ret;
 }
 
-bool s3fwrn5_fw_check_version(struct s3fwrn5_fw_info *fw_info, u32 version)
+bool s3fwrn5_fw_check_version(const struct s3fwrn5_fw_info *fw_info, u32 version)
 {
 	struct s3fwrn5_fw_version *new = (void *) &fw_info->fw.version;
 	struct s3fwrn5_fw_version *old = (void *) &version;

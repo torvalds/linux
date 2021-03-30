@@ -325,7 +325,7 @@ static struct snd_soc_dai_driver rk3036_codec_dai_driver[] = {
 			.formats = RK3036_CODEC_FMTS,
 		},
 		.ops = &rk3036_codec_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
@@ -467,7 +467,7 @@ static int rk3036_codec_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id rk3036_codec_of_match[] = {
+static const struct of_device_id rk3036_codec_of_match[] __maybe_unused = {
 	{ .compatible = "rockchip,rk3036-codec", },
 	{}
 };

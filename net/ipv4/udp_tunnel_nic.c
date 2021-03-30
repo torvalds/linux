@@ -19,8 +19,9 @@ enum udp_tunnel_nic_table_entry_flags {
 struct udp_tunnel_nic_table_entry {
 	__be16 port;
 	u8 type;
-	u8 use_cnt;
 	u8 flags;
+	u16 use_cnt;
+#define UDP_TUNNEL_NIC_USE_CNT_MAX	U16_MAX
 	u8 hw_priv;
 };
 
@@ -370,6 +371,8 @@ udp_tunnel_nic_entry_adj(struct udp_tunnel_nic *utn,
 	bool dodgy = entry->flags & UDP_TUNNEL_NIC_ENTRY_OP_FAIL;
 	unsigned int from, to;
 
+	WARN_ON(entry->use_cnt + (u32)use_cnt_adj > U16_MAX);
+
 	/* If not going from used to unused or vice versa - all done.
 	 * For dodgy entries make sure we try to sync again (queue the entry).
 	 */
@@ -675,6 +678,7 @@ static void
 udp_tunnel_nic_replay(struct net_device *dev, struct udp_tunnel_nic *utn)
 {
 	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
+	struct udp_tunnel_nic_shared_node *node;
 	unsigned int i, j;
 
 	/* Freeze all the ports we are already tracking so that the replay
@@ -686,7 +690,12 @@ udp_tunnel_nic_replay(struct net_device *dev, struct udp_tunnel_nic *utn)
 	utn->missed = 0;
 	utn->need_replay = 0;
 
-	udp_tunnel_get_rx_info(dev);
+	if (!info->shared) {
+		udp_tunnel_get_rx_info(dev);
+	} else {
+		list_for_each_entry(node, &info->shared->devices, list)
+			udp_tunnel_get_rx_info(node->dev);
+	}
 
 	for (i = 0; i < utn->n_tables; i++)
 		for (j = 0; j < info->tables[i].n_entries; j++)
@@ -742,18 +751,37 @@ err_free_utn:
 	return NULL;
 }
 
+static void udp_tunnel_nic_free(struct udp_tunnel_nic *utn)
+{
+	unsigned int i;
+
+	for (i = 0; i < utn->n_tables; i++)
+		kfree(utn->entries[i]);
+	kfree(utn->entries);
+	kfree(utn);
+}
+
 static int udp_tunnel_nic_register(struct net_device *dev)
 {
 	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
+	struct udp_tunnel_nic_shared_node *node = NULL;
 	struct udp_tunnel_nic *utn;
 	unsigned int n_tables, i;
 
 	BUILD_BUG_ON(sizeof(utn->missed) * BITS_PER_BYTE <
 		     UDP_TUNNEL_NIC_MAX_TABLES);
+	/* Expect use count of at most 2 (IPv4, IPv6) per device */
+	BUILD_BUG_ON(UDP_TUNNEL_NIC_USE_CNT_MAX <
+		     UDP_TUNNEL_NIC_MAX_SHARING_DEVICES * 2);
 
+	/* Check that the driver info is sane */
 	if (WARN_ON(!info->set_port != !info->unset_port) ||
 	    WARN_ON(!info->set_port == !info->sync_table) ||
 	    WARN_ON(!info->tables[0].n_entries))
+		return -EINVAL;
+
+	if (WARN_ON(info->shared &&
+		    info->flags & UDP_TUNNEL_NIC_INFO_OPEN_ONLY))
 		return -EINVAL;
 
 	n_tables = 1;
@@ -766,9 +794,33 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 			return -EINVAL;
 	}
 
-	utn = udp_tunnel_nic_alloc(info, n_tables);
-	if (!utn)
-		return -ENOMEM;
+	/* Create UDP tunnel state structures */
+	if (info->shared) {
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		if (!node)
+			return -ENOMEM;
+
+		node->dev = dev;
+	}
+
+	if (info->shared && info->shared->udp_tunnel_nic_info) {
+		utn = info->shared->udp_tunnel_nic_info;
+	} else {
+		utn = udp_tunnel_nic_alloc(info, n_tables);
+		if (!utn) {
+			kfree(node);
+			return -ENOMEM;
+		}
+	}
+
+	if (info->shared) {
+		if (!info->shared->udp_tunnel_nic_info) {
+			INIT_LIST_HEAD(&info->shared->devices);
+			info->shared->udp_tunnel_nic_info = utn;
+		}
+
+		list_add_tail(&node->list, &info->shared->devices);
+	}
 
 	utn->dev = dev;
 	dev_hold(dev);
@@ -783,7 +835,33 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 static void
 udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 {
-	unsigned int i;
+	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
+
+	/* For a shared table remove this dev from the list of sharing devices
+	 * and if there are other devices just detach.
+	 */
+	if (info->shared) {
+		struct udp_tunnel_nic_shared_node *node, *first;
+
+		list_for_each_entry(node, &info->shared->devices, list)
+			if (node->dev == dev)
+				break;
+		if (node->dev != dev)
+			return;
+
+		list_del(&node->list);
+		kfree(node);
+
+		first = list_first_entry_or_null(&info->shared->devices,
+						 typeof(*first), list);
+		if (first) {
+			udp_tunnel_drop_rx_info(dev);
+			utn->dev = first->dev;
+			goto release_dev;
+		}
+
+		info->shared->udp_tunnel_nic_info = NULL;
+	}
 
 	/* Flush before we check work, so we don't waste time adding entries
 	 * from the work which we will boot immediately.
@@ -796,10 +874,8 @@ udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 	if (utn->work_pending)
 		return;
 
-	for (i = 0; i < utn->n_tables; i++)
-		kfree(utn->entries[i]);
-	kfree(utn->entries);
-	kfree(utn);
+	udp_tunnel_nic_free(utn);
+release_dev:
 	dev->udp_tunnel_nic = NULL;
 	dev_put(dev);
 }

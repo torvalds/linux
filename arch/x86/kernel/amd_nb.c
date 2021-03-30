@@ -384,7 +384,7 @@ struct resource *amd_get_mmconfig_range(struct resource *res)
 
 int amd_get_subcaches(int cpu)
 {
-	struct pci_dev *link = node_to_amd_nb(amd_get_nb_id(cpu))->link;
+	struct pci_dev *link = node_to_amd_nb(topology_die_id(cpu))->link;
 	unsigned int mask;
 
 	if (!amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
@@ -398,7 +398,7 @@ int amd_get_subcaches(int cpu)
 int amd_set_subcaches(int cpu, unsigned long mask)
 {
 	static unsigned int reset, ban;
-	struct amd_northbridge *nb = node_to_amd_nb(amd_get_nb_id(cpu));
+	struct amd_northbridge *nb = node_to_amd_nb(topology_die_id(cpu));
 	unsigned int reg;
 	int cuid;
 

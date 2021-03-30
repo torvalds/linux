@@ -195,8 +195,7 @@ static void sdi_bridge_mode_set(struct drm_bridge *bridge,
 	sdi->pixelclock = adjusted_mode->clock * 1000;
 }
 
-static void sdi_bridge_enable(struct drm_bridge *bridge,
-			      struct drm_bridge_state *bridge_state)
+static void sdi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct sdi_device *sdi = drm_bridge_to_sdi(bridge);
 	struct dispc_clock_info dispc_cinfo;
@@ -259,8 +258,7 @@ err_get_dispc:
 	regulator_disable(sdi->vdds_sdi_reg);
 }
 
-static void sdi_bridge_disable(struct drm_bridge *bridge,
-			       struct drm_bridge_state *bridge_state)
+static void sdi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct sdi_device *sdi = drm_bridge_to_sdi(bridge);
 
@@ -278,8 +276,8 @@ static const struct drm_bridge_funcs sdi_bridge_funcs = {
 	.mode_valid = sdi_bridge_mode_valid,
 	.mode_fixup = sdi_bridge_mode_fixup,
 	.mode_set = sdi_bridge_mode_set,
-	.atomic_enable = sdi_bridge_enable,
-	.atomic_disable = sdi_bridge_disable,
+	.enable = sdi_bridge_enable,
+	.disable = sdi_bridge_disable,
 };
 
 static void sdi_bridge_init(struct sdi_device *sdi)
@@ -314,7 +312,6 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 	/* We have SDI only on OMAP3, where it's on port 1 */
 	out->of_port = 1;
-	out->owner = THIS_MODULE;
 	out->bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE	/* 15.5.9.1.2 */
 		       | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE;
 

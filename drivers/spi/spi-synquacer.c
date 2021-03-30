@@ -490,6 +490,10 @@ static void synquacer_spi_set_cs(struct spi_device *spi, bool enable)
 	val &= ~(SYNQUACER_HSSPI_DMPSEL_CS_MASK <<
 		 SYNQUACER_HSSPI_DMPSEL_CS_SHIFT);
 	val |= spi->chip_select << SYNQUACER_HSSPI_DMPSEL_CS_SHIFT;
+
+	if (!enable)
+		val |= SYNQUACER_HSSPI_DMSTOP_STOP;
+
 	writel(val, sspi->regs + SYNQUACER_HSSPI_REG_DMSTART);
 }
 
@@ -657,7 +661,8 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 
 	if (!master->max_speed_hz) {
 		dev_err(&pdev->dev, "missing clock source\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto disable_clk;
 	}
 	master->min_speed_hz = master->max_speed_hz / 254;
 
@@ -670,7 +675,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 	rx_irq = platform_get_irq(pdev, 0);
 	if (rx_irq <= 0) {
 		ret = rx_irq;
-		goto put_spi;
+		goto disable_clk;
 	}
 	snprintf(sspi->rx_irq_name, SYNQUACER_HSSPI_IRQ_NAME_MAX, "%s-rx",
 		 dev_name(&pdev->dev));
@@ -678,13 +683,13 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 				0, sspi->rx_irq_name, sspi);
 	if (ret) {
 		dev_err(&pdev->dev, "request rx_irq failed (%d)\n", ret);
-		goto put_spi;
+		goto disable_clk;
 	}
 
 	tx_irq = platform_get_irq(pdev, 1);
 	if (tx_irq <= 0) {
 		ret = tx_irq;
-		goto put_spi;
+		goto disable_clk;
 	}
 	snprintf(sspi->tx_irq_name, SYNQUACER_HSSPI_IRQ_NAME_MAX, "%s-tx",
 		 dev_name(&pdev->dev));
@@ -692,7 +697,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 				0, sspi->tx_irq_name, sspi);
 	if (ret) {
 		dev_err(&pdev->dev, "request tx_irq failed (%d)\n", ret);
-		goto put_spi;
+		goto disable_clk;
 	}
 
 	master->dev.of_node = np;
@@ -710,7 +715,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 
 	ret = synquacer_spi_enable(master);
 	if (ret)
-		goto fail_enable;
+		goto disable_clk;
 
 	pm_runtime_set_active(sspi->dev);
 	pm_runtime_enable(sspi->dev);
@@ -723,7 +728,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 
 disable_pm:
 	pm_runtime_disable(sspi->dev);
-fail_enable:
+disable_clk:
 	clk_disable_unprepare(sspi->clk);
 put_spi:
 	spi_master_put(master);

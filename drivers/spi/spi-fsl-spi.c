@@ -115,14 +115,13 @@ static void fsl_spi_chipselect(struct spi_device *spi, int value)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	struct fsl_spi_platform_data *pdata;
-	bool pol = spi->mode & SPI_CS_HIGH;
 	struct spi_mpc8xxx_cs	*cs = spi->controller_state;
 
 	pdata = spi->dev.parent->parent->platform_data;
 
 	if (value == BITBANG_CS_INACTIVE) {
 		if (pdata->cs_control)
-			pdata->cs_control(spi, !pol);
+			pdata->cs_control(spi, false);
 	}
 
 	if (value == BITBANG_CS_ACTIVE) {
@@ -134,7 +133,7 @@ static void fsl_spi_chipselect(struct spi_device *spi, int value)
 		fsl_spi_change_mode(spi);
 
 		if (pdata->cs_control)
-			pdata->cs_control(spi, pol);
+			pdata->cs_control(spi, true);
 	}
 }
 
@@ -696,7 +695,7 @@ static void fsl_spi_cs_control(struct spi_device *spi, bool on)
 
 		if (WARN_ON_ONCE(!pinfo->immr_spi_cs))
 			return;
-		iowrite32be(on ? SPI_BOOT_SEL_BIT : 0, pinfo->immr_spi_cs);
+		iowrite32be(on ? 0 : SPI_BOOT_SEL_BIT, pinfo->immr_spi_cs);
 	}
 }
 
@@ -716,10 +715,11 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	type = fsl_spi_get_type(&ofdev->dev);
 	if (type == TYPE_FSL) {
 		struct fsl_spi_platform_data *pdata = dev_get_platdata(dev);
+		bool spisel_boot = false;
 #if IS_ENABLED(CONFIG_FSL_SOC)
 		struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
-		bool spisel_boot = of_property_read_bool(np, "fsl,spisel_boot");
 
+		spisel_boot = of_property_read_bool(np, "fsl,spisel_boot");
 		if (spisel_boot) {
 			pinfo->immr_spi_cs = ioremap(get_immrbase() + IMMR_SPI_CS_OFFSET, 4);
 			if (!pinfo->immr_spi_cs)
@@ -734,10 +734,14 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 		 * supported on the GRLIB variant.
 		 */
 		ret = gpiod_count(dev, "cs");
-		if (ret <= 0)
+		if (ret < 0)
+			ret = 0;
+		if (ret == 0 && !spisel_boot) {
 			pdata->max_chipselect = 1;
-		else
+		} else {
+			pdata->max_chipselect = ret + spisel_boot;
 			pdata->cs_control = fsl_spi_cs_control;
+		}
 	}
 
 	ret = of_address_to_resource(np, 0, &mem);

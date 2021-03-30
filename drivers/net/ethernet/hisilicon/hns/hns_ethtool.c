@@ -415,6 +415,10 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 	/* for mutl buffer*/
 	new_skb = skb_copy(skb, GFP_ATOMIC);
 	dev_kfree_skb_any(skb);
+	if (!new_skb) {
+		netdev_err(ndev, "skb alloc failed\n");
+		return;
+	}
 	skb = new_skb;
 
 	check_ok = 0;
@@ -462,7 +466,7 @@ static int __lb_clean_rings(struct hns_nic_priv *priv,
 }
 
 /**
- * nic_run_loopback_test -  run loopback test
+ * __lb_run_test -  run loopback test
  * @ndev: net device
  * @loop_mode: loopback mode
  */
@@ -971,7 +975,7 @@ static void hns_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 }
 
 /**
- * nic_get_sset_count - get string set count witch returned by nic_get_strings.
+ * hns_get_sset_count - get string set count returned by nic_get_strings
  * @netdev: net device
  * @stringset: string set index, 0: self test string; 1: statistics string.
  *
@@ -1027,7 +1031,7 @@ static int hns_phy_led_set(struct net_device *netdev, int value)
 }
 
 /**
- * nic_set_phys_id - set phy identify LED.
+ * hns_set_phys_id - set phy identify LED.
  * @netdev: net device
  * @state: LED state.
  *
@@ -1125,7 +1129,7 @@ static void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
 }
 
 /**
- * nic_get_regs_len - get total register len.
+ * hns_get_regs_len - get total register len.
  * @net_dev: net device
  *
  * Return total register len.

@@ -64,8 +64,9 @@ config TYPEC_HD3SS3220
 config TYPEC_TPS6598X
 	tristate "TI TPS6598x USB Power Delivery controller driver"
 	depends on I2C
-	depends on REGMAP_I2C
-	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
+	select POWER_SUPPLY
+	select REGMAP_I2C
+	select USB_ROLE_SWITCH
 	help
 	  Say Y or M here if your system has TI TPS65982 or TPS65983 USB Power
 	  Delivery controller.
@@ -88,6 +89,7 @@ config TYPEC_STUSB160X
 config TYPEC_QCOM_PMIC
 	tristate "Qualcomm PMIC USB Type-C driver"
 	depends on ARCH_QCOM || COMPILE_TEST
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	help
 	  Driver for supporting role switch over the Qualcomm PMIC.  This will
 	  handle the USB Type-C role and orientation detection reported by the

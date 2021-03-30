@@ -157,10 +157,10 @@ static const char * const imx8mq_qspi_sels[] = {"osc_25m", "sys1_pll_400m", "sys
 					 "audio_pll2_out", "sys1_pll_266m", "sys3_pll_out", "sys1_pll_100m", };
 
 static const char * const imx8mq_usdhc1_sels[] = {"osc_25m", "sys1_pll_400m", "sys1_pll_800m", "sys2_pll_500m",
-					 "audio_pll2_out", "sys1_pll_266m", "sys3_pll_out", "sys1_pll_100m", };
+					 "sys3_pll_out", "sys1_pll_266m", "audio_pll2_out", "sys1_pll_100m", };
 
 static const char * const imx8mq_usdhc2_sels[] = {"osc_25m", "sys1_pll_400m", "sys1_pll_800m", "sys2_pll_500m",
-					 "audio_pll2_out", "sys1_pll_266m", "sys3_pll_out", "sys1_pll_100m", };
+					 "sys3_pll_out", "sys1_pll_266m", "audio_pll2_out", "sys1_pll_100m", };
 
 static const char * const imx8mq_i2c1_sels[] = {"osc_25m", "sys1_pll_160m", "sys2_pll_50m", "sys3_pll_out", "audio_pll1_out",
 					 "video_pll1_out", "audio_pll2_out", "sys1_pll_133m", };
@@ -269,6 +269,14 @@ static const char * const imx8mq_clko1_sels[] = {"osc_25m", "sys1_pll_800m", "os
 					  "audio_pll2_out", "sys2_pll_500m", "vpu_pll_out", "sys1_pll_80m", };
 static const char * const imx8mq_clko2_sels[] = {"osc_25m", "sys2_pll_200m", "sys1_pll_400m", "sys2_pll_166m",
 					  "sys3_pll_out", "audio_pll1_out", "video_pll1_out", "ckil", };
+
+static const char * const pllout_monitor_sels[] = {"osc_25m", "osc_27m", "dummy", "dummy", "ckil",
+						   "audio_pll1_out_monitor", "audio_pll2_out_monitor",
+						   "video_pll1_out_monitor", "gpu_pll_out_monitor",
+						   "vpu_pll_out_monitor", "arm_pll_out_monitor",
+						   "sys_pll1_out_monitor", "sys_pll2_out_monitor",
+						   "sys_pll3_out_monitor", "dram_pll_out_monitor",
+						   "video_pll2_out_monitor", };
 
 static struct clk_hw_onecell_data *clk_hw_data;
 static struct clk_hw **hws;
@@ -399,6 +407,20 @@ static int imx8mq_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MQ_SYS2_PLL_500M] = imx_clk_hw_fixed_factor("sys2_pll_500m", "sys2_pll_500m_cg", 1, 2);
 	hws[IMX8MQ_SYS2_PLL_1000M] = imx_clk_hw_fixed_factor("sys2_pll_1000m", "sys2_pll_1000m_cg", 1, 1);
 
+	hws[IMX8MQ_CLK_MON_AUDIO_PLL1_DIV] = imx_clk_hw_divider("audio_pll1_out_monitor", "audio_pll1_bypass", base + 0x78, 0, 3);
+	hws[IMX8MQ_CLK_MON_AUDIO_PLL2_DIV] = imx_clk_hw_divider("audio_pll2_out_monitor", "audio_pll2_bypass", base + 0x78, 4, 3);
+	hws[IMX8MQ_CLK_MON_VIDEO_PLL1_DIV] = imx_clk_hw_divider("video_pll1_out_monitor", "video_pll1_bypass", base + 0x78, 8, 3);
+	hws[IMX8MQ_CLK_MON_GPU_PLL_DIV] = imx_clk_hw_divider("gpu_pll_out_monitor", "gpu_pll_bypass", base + 0x78, 12, 3);
+	hws[IMX8MQ_CLK_MON_VPU_PLL_DIV] = imx_clk_hw_divider("vpu_pll_out_monitor", "vpu_pll_bypass", base + 0x78, 16, 3);
+	hws[IMX8MQ_CLK_MON_ARM_PLL_DIV] = imx_clk_hw_divider("arm_pll_out_monitor", "arm_pll_bypass", base + 0x78, 20, 3);
+	hws[IMX8MQ_CLK_MON_SYS_PLL1_DIV] = imx_clk_hw_divider("sys_pll1_out_monitor", "sys1_pll_out", base + 0x7c, 0, 3);
+	hws[IMX8MQ_CLK_MON_SYS_PLL2_DIV] = imx_clk_hw_divider("sys_pll2_out_monitor", "sys2_pll_out", base + 0x7c, 4, 3);
+	hws[IMX8MQ_CLK_MON_SYS_PLL3_DIV] = imx_clk_hw_divider("sys_pll3_out_monitor", "sys3_pll_out", base + 0x7c, 8, 3);
+	hws[IMX8MQ_CLK_MON_DRAM_PLL_DIV] = imx_clk_hw_divider("dram_pll_out_monitor", "dram_pll_out", base + 0x7c, 12, 3);
+	hws[IMX8MQ_CLK_MON_VIDEO_PLL2_DIV] = imx_clk_hw_divider("video_pll2_out_monitor", "video2_pll_out", base + 0x7c, 16, 3);
+	hws[IMX8MQ_CLK_MON_SEL] = imx_clk_hw_mux("pllout_monitor_sel", base + 0x74, 0, 4, pllout_monitor_sels, ARRAY_SIZE(pllout_monitor_sels));
+	hws[IMX8MQ_CLK_MON_CLK2_OUT] = imx_clk_hw_gate("pllout_monitor_clk2", "pllout_monitor_sel", base + 0x74, 4);
+
 	np = dev->of_node;
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (WARN_ON(IS_ERR(base)))
@@ -431,7 +453,7 @@ static int imx8mq_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MQ_CLK_A53_CORE] = imx_clk_hw_mux2("arm_a53_core", base + 0x9880, 24, 1, imx8mq_a53_core_sels, ARRAY_SIZE(imx8mq_a53_core_sels));
 
 	/* BUS */
-	hws[IMX8MQ_CLK_MAIN_AXI] = imx8m_clk_hw_composite_critical("main_axi", imx8mq_main_axi_sels, base + 0x8800);
+	hws[IMX8MQ_CLK_MAIN_AXI] = imx8m_clk_hw_composite_bus_critical("main_axi", imx8mq_main_axi_sels, base + 0x8800);
 	hws[IMX8MQ_CLK_ENET_AXI] = imx8m_clk_hw_composite_bus("enet_axi", imx8mq_enet_axi_sels, base + 0x8880);
 	hws[IMX8MQ_CLK_NAND_USDHC_BUS] = imx8m_clk_hw_composite_bus("nand_usdhc_bus", imx8mq_nand_usdhc_sels, base + 0x8900);
 	hws[IMX8MQ_CLK_VPU_BUS] = imx8m_clk_hw_composite_bus("vpu_bus", imx8mq_vpu_bus_sels, base + 0x8980);
@@ -441,12 +463,12 @@ static int imx8mq_clocks_probe(struct platform_device *pdev)
 	hws[IMX8MQ_CLK_USB_BUS] = imx8m_clk_hw_composite_bus("usb_bus", imx8mq_usb_bus_sels, base + 0x8b80);
 	hws[IMX8MQ_CLK_GPU_AXI] = imx8m_clk_hw_composite_bus("gpu_axi", imx8mq_gpu_axi_sels, base + 0x8c00);
 	hws[IMX8MQ_CLK_GPU_AHB] = imx8m_clk_hw_composite_bus("gpu_ahb", imx8mq_gpu_ahb_sels, base + 0x8c80);
-	hws[IMX8MQ_CLK_NOC] = imx8m_clk_hw_composite_critical("noc", imx8mq_noc_sels, base + 0x8d00);
-	hws[IMX8MQ_CLK_NOC_APB] = imx8m_clk_hw_composite_critical("noc_apb", imx8mq_noc_apb_sels, base + 0x8d80);
+	hws[IMX8MQ_CLK_NOC] = imx8m_clk_hw_composite_bus_critical("noc", imx8mq_noc_sels, base + 0x8d00);
+	hws[IMX8MQ_CLK_NOC_APB] = imx8m_clk_hw_composite_bus_critical("noc_apb", imx8mq_noc_apb_sels, base + 0x8d80);
 
 	/* AHB */
 	/* AHB clock is used by the AHB bus therefore marked as critical */
-	hws[IMX8MQ_CLK_AHB] = imx8m_clk_hw_composite_critical("ahb", imx8mq_ahb_sels, base + 0x9000);
+	hws[IMX8MQ_CLK_AHB] = imx8m_clk_hw_composite_bus_critical("ahb", imx8mq_ahb_sels, base + 0x9000);
 	hws[IMX8MQ_CLK_AUDIO_AHB] = imx8m_clk_hw_composite_bus("audio_ahb", imx8mq_audio_ahb_sels, base + 0x9100);
 
 	/* IPG */
@@ -639,7 +661,11 @@ static struct platform_driver imx8mq_clk_driver = {
 		 * reloading the driver will crash or break devices.
 		 */
 		.suppress_bind_attrs = true,
-		.of_match_table = of_match_ptr(imx8mq_clk_of_match),
+		.of_match_table = imx8mq_clk_of_match,
 	},
 };
 module_platform_driver(imx8mq_clk_driver);
+
+MODULE_AUTHOR("Abel Vesa <abel.vesa@nxp.com>");
+MODULE_DESCRIPTION("NXP i.MX8MQ clock driver");
+MODULE_LICENSE("GPL v2");

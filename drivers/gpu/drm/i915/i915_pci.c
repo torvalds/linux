@@ -389,6 +389,7 @@ static const struct intel_device_info ilk_m_info = {
 	GEN5_FEATURES,
 	PLATFORM(INTEL_IRONLAKE),
 	.is_mobile = 1,
+	.has_rps = true,
 	.display.has_fbc = 1,
 };
 
@@ -454,6 +455,7 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
+	.has_reset_engine = true, \
 	.has_rps = true, \
 	.dma_mask_size = 40, \
 	.ppgtt_type = INTEL_PPGTT_ALIASING, \
@@ -512,6 +514,7 @@ static const struct intel_device_info vlv_info = {
 	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
+	.has_reset_engine = true,
 	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
@@ -570,8 +573,7 @@ static const struct intel_device_info hsw_gt3_info = {
 	.dma_mask_size = 39, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
-	.has_64bit_reloc = 1, \
-	.has_reset_engine = 1
+	.has_64bit_reloc = 1
 
 #define BDW_PLATFORM \
 	GEN8_FEATURES, \
@@ -638,7 +640,6 @@ static const struct intel_device_info chv_info = {
 	GEN8_FEATURES, \
 	GEN(9), \
 	GEN9_DEFAULT_PAGE_SIZES, \
-	.has_logical_ring_preemption = 1, \
 	.display.has_csr = 1, \
 	.has_gt_uc = 1, \
 	.display.has_hdcp = 1, \
@@ -699,7 +700,6 @@ static const struct intel_device_info skl_gt4_info = {
 	.has_rps = true, \
 	.display.has_dp_mst = 1, \
 	.has_logical_ring_contexts = 1, \
-	.has_logical_ring_preemption = 1, \
 	.has_gt_uc = 1, \
 	.dma_mask_size = 39, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
@@ -846,6 +846,14 @@ static const struct intel_device_info ehl_info = {
 	.ppgtt_size = 36,
 };
 
+static const struct intel_device_info jsl_info = {
+	GEN11_FEATURES,
+	PLATFORM(INTEL_JASPERLAKE),
+	.require_force_probe = 1,
+	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
+	.ppgtt_size = 36,
+};
+
 #define GEN12_FEATURES \
 	GEN11_FEATURES, \
 	GEN(12), \
@@ -900,6 +908,8 @@ static const struct intel_device_info rkl_info = {
 	GEN12_FEATURES, \
 	.memory_regions = REGION_SMEM | REGION_LMEM, \
 	.has_master_unit_irq = 1, \
+	.has_llc = 0, \
+	.has_snoop = 1, \
 	.is_dgfx = 1
 
 static const struct intel_device_info dg1_info __maybe_unused = {
@@ -910,6 +920,8 @@ static const struct intel_device_info dg1_info __maybe_unused = {
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) |
 		BIT(VCS0) | BIT(VCS2),
+	/* Wa_16011227922 */
+	.ppgtt_size = 47,
 };
 
 #undef GEN
@@ -985,6 +997,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CNL_IDS(&cnl_info),
 	INTEL_ICL_11_IDS(&icl_info),
 	INTEL_EHL_IDS(&ehl_info),
+	INTEL_JSL_IDS(&jsl_info),
 	INTEL_TGL_12_IDS(&tgl_info),
 	INTEL_RKL_IDS(&rkl_info),
 	{0, 0, 0}
@@ -1090,11 +1103,19 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 }
 
+static void i915_pci_shutdown(struct pci_dev *pdev)
+{
+	struct drm_i915_private *i915 = pci_get_drvdata(pdev);
+
+	i915_driver_shutdown(i915);
+}
+
 static struct pci_driver i915_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
+	.shutdown = i915_pci_shutdown,
 	.driver.pm = &i915_pm_ops,
 };
 
@@ -1129,9 +1150,13 @@ static int __init i915_init(void)
 		return 0;
 	}
 
+	i915_pmu_init();
+
 	err = pci_register_driver(&i915_pci_driver);
-	if (err)
+	if (err) {
+		i915_pmu_exit();
 		return err;
+	}
 
 	i915_perf_sysctl_register();
 	return 0;
@@ -1145,6 +1170,7 @@ static void __exit i915_exit(void)
 	i915_perf_sysctl_unregister();
 	pci_unregister_driver(&i915_pci_driver);
 	i915_globals_exit();
+	i915_pmu_exit();
 }
 
 module_init(i915_init);

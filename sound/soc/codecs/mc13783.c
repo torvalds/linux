@@ -712,7 +712,7 @@ static struct snd_soc_dai_driver mc13783_dai_sync[] = {
 			.formats = MC13783_FORMATS,
 		},
 		.ops = &mc13783_ops_sync,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	}
 };
 

@@ -70,27 +70,26 @@ gk104_top_oneinit(struct nvkm_top *top)
 			continue;
 
 		/* Translate engine type to NVKM engine identifier. */
-#define A_(A) if (inst == 0) info->index = NVKM_ENGINE_##A
-#define B_(A) if (inst + NVKM_ENGINE_##A##0 < NVKM_ENGINE_##A##_LAST + 1)      \
-		info->index = NVKM_ENGINE_##A##0 + inst
-#define C_(A) if (inst == 0) info->index = NVKM_SUBDEV_##A
+#define I_(T,I) do { info->type = (T); info->inst = (I); } while(0)
+#define O_(T,I) do { WARN_ON(inst); I_(T, I); } while (0)
 		switch (type) {
-		case 0x00000000: A_(GR    ); break;
-		case 0x00000001: A_(CE0   ); break;
-		case 0x00000002: A_(CE1   ); break;
-		case 0x00000003: A_(CE2   ); break;
-		case 0x00000008: A_(MSPDEC); break;
-		case 0x00000009: A_(MSPPP ); break;
-		case 0x0000000a: A_(MSVLD ); break;
-		case 0x0000000b: A_(MSENC ); break;
-		case 0x0000000c: A_(VIC   ); break;
-		case 0x0000000d: A_(SEC2  ); break;
-		case 0x0000000e: B_(NVENC ); break;
-		case 0x0000000f: A_(NVENC1); break;
-		case 0x00000010: B_(NVDEC ); break;
-		case 0x00000013: B_(CE    ); break;
-		case 0x00000014: C_(GSP   ); break;
-			break;
+		case 0x00000000: O_(NVKM_ENGINE_GR    ,    0); break;
+		case 0x00000001: O_(NVKM_ENGINE_CE    ,    0); break;
+		case 0x00000002: O_(NVKM_ENGINE_CE    ,    1); break;
+		case 0x00000003: O_(NVKM_ENGINE_CE    ,    2); break;
+		case 0x00000008: O_(NVKM_ENGINE_MSPDEC,    0); break;
+		case 0x00000009: O_(NVKM_ENGINE_MSPPP ,    0); break;
+		case 0x0000000a: O_(NVKM_ENGINE_MSVLD ,    0); break;
+		case 0x0000000b: O_(NVKM_ENGINE_MSENC ,    0); break;
+		case 0x0000000c: O_(NVKM_ENGINE_VIC   ,    0); break;
+		case 0x0000000d: O_(NVKM_ENGINE_SEC2  ,    0); break;
+		case 0x0000000e: I_(NVKM_ENGINE_NVENC , inst); break;
+		case 0x0000000f: O_(NVKM_ENGINE_NVENC ,    1); break;
+		case 0x00000010: I_(NVKM_ENGINE_NVDEC , inst); break;
+		case 0x00000012: I_(NVKM_SUBDEV_IOCTRL, inst); break;
+		case 0x00000013: I_(NVKM_ENGINE_CE    , inst); break;
+		case 0x00000014: O_(NVKM_SUBDEV_GSP   ,    0); break;
+		case 0x00000015: O_(NVKM_ENGINE_NVJPG ,    0); break;
 		default:
 			break;
 		}
@@ -98,8 +97,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 		nvkm_debug(subdev, "%02x.%d (%8s): addr %06x fault %2d "
 				   "engine %2d runlist %2d intr %2d "
 				   "reset %2d\n", type, inst,
-			   info->index == NVKM_SUBDEV_NR ? NULL :
-					  nvkm_subdev_name[info->index],
+			   info->type == NVKM_SUBDEV_NR ? "????????" : nvkm_subdev_type[info->type],
 			   info->addr, info->fault, info->engine, info->runlist,
 			   info->intr, info->reset);
 		info = NULL;
@@ -114,7 +112,8 @@ gk104_top = {
 };
 
 int
-gk104_top_new(struct nvkm_device *device, int index, struct nvkm_top **ptop)
+gk104_top_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_top **ptop)
 {
-	return nvkm_top_new_(&gk104_top, device, index, ptop);
+	return nvkm_top_new_(&gk104_top, device, type, inst, ptop);
 }

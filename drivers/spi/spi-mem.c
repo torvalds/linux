@@ -137,8 +137,8 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 	return -ENOTSUPP;
 }
 
-bool spi_mem_default_supports_op(struct spi_mem *mem,
-				 const struct spi_mem_op *op)
+static bool spi_mem_check_buswidth(struct spi_mem *mem,
+				   const struct spi_mem_op *op)
 {
 	if (spi_check_buswidth_req(mem, op->cmd.buswidth, true))
 		return false;
@@ -156,13 +156,29 @@ bool spi_mem_default_supports_op(struct spi_mem *mem,
 				   op->data.dir == SPI_MEM_DATA_OUT))
 		return false;
 
+	return true;
+}
+
+bool spi_mem_dtr_supports_op(struct spi_mem *mem,
+			     const struct spi_mem_op *op)
+{
+	if (op->cmd.nbytes != 2)
+		return false;
+
+	return spi_mem_check_buswidth(mem, op);
+}
+EXPORT_SYMBOL_GPL(spi_mem_dtr_supports_op);
+
+bool spi_mem_default_supports_op(struct spi_mem *mem,
+				 const struct spi_mem_op *op)
+{
 	if (op->cmd.dtr || op->addr.dtr || op->dummy.dtr || op->data.dtr)
 		return false;
 
 	if (op->cmd.nbytes != 1)
 		return false;
 
-	return true;
+	return spi_mem_check_buswidth(mem, op);
 }
 EXPORT_SYMBOL_GPL(spi_mem_default_supports_op);
 
@@ -243,6 +259,7 @@ static int spi_mem_access_start(struct spi_mem *mem)
 
 		ret = pm_runtime_get_sync(ctlr->dev.parent);
 		if (ret < 0) {
+			pm_runtime_put_noidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 			return ret;
@@ -353,6 +370,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		xfers[xferpos].tx_buf = tmpbuf + op->addr.nbytes + 1;
 		xfers[xferpos].len = op->dummy.nbytes;
 		xfers[xferpos].tx_nbits = op->dummy.buswidth;
+		xfers[xferpos].dummy_data = 1;
 		spi_message_add_tail(&xfers[xferpos], &msg);
 		xferpos++;
 		totalxferlen += op->dummy.nbytes;
@@ -743,7 +761,7 @@ static int spi_mem_probe(struct spi_device *spi)
 		mem->name = dev_name(&spi->dev);
 
 	if (IS_ERR_OR_NULL(mem->name))
-		return PTR_ERR(mem->name);
+		return PTR_ERR_OR_ZERO(mem->name);
 
 	spi_set_drvdata(spi, mem);
 

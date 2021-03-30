@@ -1384,9 +1384,11 @@ static inline void sdhci_auto_cmd_select(struct sdhci_host *host,
 	/*
 	 * In case of Version 4.10 or later, use of 'Auto CMD Auto
 	 * Select' is recommended rather than use of 'Auto CMD12
-	 * Enable' or 'Auto CMD23 Enable'.
+	 * Enable' or 'Auto CMD23 Enable'. We require Version 4 Mode
+	 * here because some controllers (e.g sdhci-of-dwmshc) expect it.
 	 */
-	if (host->version >= SDHCI_SPEC_410 && (use_cmd12 || use_cmd23)) {
+	if (host->version >= SDHCI_SPEC_410 && host->v4_mode &&
+	    (use_cmd12 || use_cmd23)) {
 		*mode |= SDHCI_TRNS_AUTO_SEL;
 
 		ctrl2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
@@ -3992,10 +3994,10 @@ void __sdhci_read_caps(struct sdhci_host *host, const u16 *ver,
 	if (host->v4_mode)
 		sdhci_do_enable_v4_mode(host);
 
-	of_property_read_u64(mmc_dev(host->mmc)->of_node,
-			     "sdhci-caps-mask", &dt_caps_mask);
-	of_property_read_u64(mmc_dev(host->mmc)->of_node,
-			     "sdhci-caps", &dt_caps);
+	device_property_read_u64(mmc_dev(host->mmc),
+				 "sdhci-caps-mask", &dt_caps_mask);
+	device_property_read_u64(mmc_dev(host->mmc),
+				 "sdhci-caps", &dt_caps);
 
 	v = ver ? *ver : sdhci_readw(host, SDHCI_HOST_VERSION);
 	host->version = (v & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;

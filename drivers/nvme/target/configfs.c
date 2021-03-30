@@ -45,7 +45,7 @@ static bool nvmet_is_port_enabled(struct nvmet_port *p, const char *caller)
 {
 	if (p->enabled)
 		pr_err("Disable port '%u' before changing attribute in %s\n",
-				le16_to_cpu(p->disc_addr.portid), caller);
+		       le16_to_cpu(p->disc_addr.portid), caller);
 	return p->enabled;
 }
 
@@ -266,10 +266,8 @@ static ssize_t nvmet_param_pi_enable_store(struct config_item *item,
 	if (strtobool(page, &val))
 		return -EINVAL;
 
-	if (port->enabled) {
-		pr_err("Disable port before setting pi_enable value.\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	port->pi_enable = val;
 	return count;
@@ -736,9 +734,49 @@ static ssize_t nvmet_passthru_enable_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_passthru_, enable);
 
+static ssize_t nvmet_passthru_admin_timeout_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%u\n", to_subsys(item->ci_parent)->admin_timeout);
+}
+
+static ssize_t nvmet_passthru_admin_timeout_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item->ci_parent);
+	unsigned int timeout;
+
+	if (kstrtouint(page, 0, &timeout))
+		return -EINVAL;
+	subsys->admin_timeout = timeout;
+	return count;
+}
+CONFIGFS_ATTR(nvmet_passthru_, admin_timeout);
+
+static ssize_t nvmet_passthru_io_timeout_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%u\n", to_subsys(item->ci_parent)->io_timeout);
+}
+
+static ssize_t nvmet_passthru_io_timeout_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item->ci_parent);
+	unsigned int timeout;
+
+	if (kstrtouint(page, 0, &timeout))
+		return -EINVAL;
+	subsys->io_timeout = timeout;
+	return count;
+}
+CONFIGFS_ATTR(nvmet_passthru_, io_timeout);
+
 static struct configfs_attribute *nvmet_passthru_attrs[] = {
 	&nvmet_passthru_attr_device_path,
 	&nvmet_passthru_attr_enable,
+	&nvmet_passthru_attr_admin_timeout,
+	&nvmet_passthru_attr_io_timeout,
 	NULL,
 };
 

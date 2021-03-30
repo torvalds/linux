@@ -9,9 +9,10 @@ config SND_SOC_TEGRA
 	help
 	  Say Y or M here if you want support for SoC audio on Tegra.
 
+if SND_SOC_TEGRA
+
 config SND_SOC_TEGRA20_AC97
 	tristate "Tegra20 AC97 interface"
-	depends on SND_SOC_TEGRA
 	select SND_SOC_AC97_BUS
 	select SND_SOC_TEGRA20_DAS
 	help
@@ -21,7 +22,6 @@ config SND_SOC_TEGRA20_AC97
 
 config SND_SOC_TEGRA20_DAS
 	tristate "Tegra20 DAS module"
-	depends on SND_SOC_TEGRA
 	help
 	  Say Y or M if you want to add support for the Tegra20 DAS module.
 	  You will also need to select the individual machine drivers to
@@ -29,7 +29,6 @@ config SND_SOC_TEGRA20_DAS
 
 config SND_SOC_TEGRA20_I2S
 	tristate "Tegra20 I2S interface"
-	depends on SND_SOC_TEGRA
 	select SND_SOC_TEGRA20_DAS
 	help
 	  Say Y or M if you want to add support for codecs attached to the
@@ -38,8 +37,6 @@ config SND_SOC_TEGRA20_I2S
 
 config SND_SOC_TEGRA20_SPDIF
 	tristate "Tegra20 SPDIF interface"
-	depends on SND_SOC_TEGRA
-	default m
 	help
 	  Say Y or M if you want to add support for the Tegra20 SPDIF interface.
 	  You will also need to select the individual machine drivers to support
@@ -47,7 +44,6 @@ config SND_SOC_TEGRA20_SPDIF
 
 config SND_SOC_TEGRA30_AHUB
 	tristate "Tegra30 AHUB module"
-	depends on SND_SOC_TEGRA
 	help
 	  Say Y or M if you want to add support for the Tegra30 AHUB module.
 	  You will also need to select the individual machine drivers to
@@ -55,7 +51,6 @@ config SND_SOC_TEGRA30_AHUB
 
 config SND_SOC_TEGRA30_I2S
 	tristate "Tegra30 I2S interface"
-	depends on SND_SOC_TEGRA
 	select SND_SOC_TEGRA30_AHUB
 	help
 	  Say Y or M if you want to add support for codecs attached to the
@@ -64,7 +59,6 @@ config SND_SOC_TEGRA30_I2S
 
 config SND_SOC_TEGRA210_AHUB
 	tristate "Tegra210 AHUB module"
-	depends on SND_SOC_TEGRA
 	help
 	  Config to enable Audio Hub (AHUB) module, which comprises of a
 	  switch called Audio Crossbar (AXBAR) used to configure or modify
@@ -74,7 +68,6 @@ config SND_SOC_TEGRA210_AHUB
 
 config SND_SOC_TEGRA210_DMIC
 	tristate "Tegra210 DMIC module"
-	depends on SND_SOC_TEGRA
 	help
 	  Config to enable the Digital MIC (DMIC) controller which is used
 	  to interface with Pulse Density Modulation (PDM) input devices.
@@ -85,7 +78,6 @@ config SND_SOC_TEGRA210_DMIC
 
 config SND_SOC_TEGRA210_I2S
 	tristate "Tegra210 I2S module"
-	depends on SND_SOC_TEGRA
 	help
 	  Config to enable the Inter-IC Sound (I2S) Controller which
 	  implements full-duplex and bidirectional and single direction
@@ -95,7 +87,6 @@ config SND_SOC_TEGRA210_I2S
 
 config SND_SOC_TEGRA186_DSPK
 	tristate "Tegra186 DSPK module"
-	depends on SND_SOC_TEGRA
 	help
 	  Config to enable the Digital Speaker Controller (DSPK) which
 	  converts the multi-bit Pulse Code Modulation (PCM) audio input to
@@ -108,7 +99,6 @@ config SND_SOC_TEGRA186_DSPK
 
 config SND_SOC_TEGRA210_ADMAIF
 	tristate "Tegra210 ADMAIF module"
-	depends on SND_SOC_TEGRA
 	help
 	  Config to enable ADMAIF which is the interface between ADMA and
 	  Audio Hub (AHUB). Each ADMA channel that sends/receives data to/
@@ -118,9 +108,18 @@ config SND_SOC_TEGRA210_ADMAIF
 	  channel. Buffer size is configurable for each ADMAIIF channel.
 	  Say Y or M if you want to add support for Tegra210 ADMAIF module.
 
+config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
+	tristate "Audio Graph Card based Tegra driver"
+	depends on SND_AUDIO_GRAPH_CARD
+	help
+	  Config to enable Tegra audio machine driver based on generic
+	  audio graph driver. It is a thin driver written to customize
+	  few things for Tegra audio. Most of the code is re-used from
+	  audio graph driver and the same DT bindings are used.
+
 config SND_SOC_TEGRA_RT5640
 	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_RT5640
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -128,7 +127,7 @@ config SND_SOC_TEGRA_RT5640
 
 config SND_SOC_TEGRA_WM8753
 	tristate "SoC Audio support for Tegra boards using a WM8753 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_WM8753
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -136,7 +135,7 @@ config SND_SOC_TEGRA_WM8753
 
 config SND_SOC_TEGRA_WM8903
 	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_WM8903
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -145,7 +144,7 @@ config SND_SOC_TEGRA_WM8903
 
 config SND_SOC_TEGRA_WM9712
 	tristate "SoC Audio support for Tegra boards using a WM9712 codec"
-	depends on SND_SOC_TEGRA && GPIOLIB
+	depends on GPIOLIB
 	select SND_SOC_TEGRA20_AC97
 	select SND_SOC_WM9712
 	help
@@ -154,7 +153,7 @@ config SND_SOC_TEGRA_WM9712
 
 config SND_SOC_TEGRA_TRIMSLICE
 	tristate "SoC Audio support for TrimSlice board"
-	depends on SND_SOC_TEGRA && I2C
+	depends on I2C
 	select SND_SOC_TLV320AIC23_I2C
 	help
 	  Say Y or M here if you want to add support for SoC audio on the
@@ -162,7 +161,7 @@ config SND_SOC_TEGRA_TRIMSLICE
 
 config SND_SOC_TEGRA_ALC5632
 	tristate "SoC Audio support for Tegra boards using an ALC5632 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_ALC5632
 	help
 	  Say Y or M here if you want to add support for SoC audio on the
@@ -170,7 +169,7 @@ config SND_SOC_TEGRA_ALC5632
 
 config SND_SOC_TEGRA_MAX98090
 	tristate "SoC Audio support for Tegra boards using a MAX98090 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_MAX98090
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -178,7 +177,7 @@ config SND_SOC_TEGRA_MAX98090
 
 config SND_SOC_TEGRA_RT5677
 	tristate "SoC Audio support for Tegra boards using a RT5677 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_RT5677
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
@@ -186,9 +185,11 @@ config SND_SOC_TEGRA_RT5677
 
 config SND_SOC_TEGRA_SGTL5000
 	tristate "SoC Audio support for Tegra boards using a SGTL5000 codec"
-	depends on SND_SOC_TEGRA && I2C && GPIOLIB
+	depends on I2C && GPIOLIB
 	select SND_SOC_SGTL5000
 	help
 	  Say Y or M here if you want to add support for SoC audio on Tegra
 	  boards using the SGTL5000 codec, such as Apalis T30, Apalis TK1 or
 	  Colibri T30.
+
+endif

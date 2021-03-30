@@ -2973,7 +2973,7 @@ static struct snd_soc_dai_driver wm8962_dai = {
 		.formats = WM8962_FORMATS,
 	},
 	.ops = &wm8962_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static void wm8962_mic_work(struct work_struct *work)
@@ -3203,6 +3203,7 @@ static int wm8962_beep_event(struct input_dev *dev, unsigned int type,
 	case SND_BELL:
 		if (hz)
 			hz = 1000;
+		fallthrough;
 	case SND_TONE:
 		break;
 	default:

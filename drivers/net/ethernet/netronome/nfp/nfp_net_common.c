@@ -1822,8 +1822,8 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 	rcu_read_lock();
 	xdp_prog = READ_ONCE(dp->xdp_prog);
 	true_bufsz = xdp_prog ? PAGE_SIZE : dp->fl_bufsz;
-	xdp.frame_sz = PAGE_SIZE - NFP_NET_RX_BUF_HEADROOM;
-	xdp.rxq = &rx_ring->xdp_rxq;
+	xdp_init_buff(&xdp, PAGE_SIZE - NFP_NET_RX_BUF_HEADROOM,
+		      &rx_ring->xdp_rxq);
 	tx_ring = r_vec->xdp_ring;
 
 	while (pkts_polled < budget) {
@@ -1914,10 +1914,10 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			unsigned int dma_off;
 			int act;
 
-			xdp.data_hard_start = rxbuf->frag + NFP_NET_RX_BUF_HEADROOM;
-			xdp.data = orig_data;
-			xdp.data_meta = orig_data;
-			xdp.data_end = orig_data + pkt_len;
+			xdp_prepare_buff(&xdp,
+					 rxbuf->frag + NFP_NET_RX_BUF_HEADROOM,
+					 pkt_off - NFP_NET_RX_BUF_HEADROOM,
+					 pkt_len, true);
 
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
@@ -2287,9 +2287,9 @@ static bool nfp_ctrl_rx(struct nfp_net_r_vector *r_vec)
 	return budget;
 }
 
-static void nfp_ctrl_poll(unsigned long arg)
+static void nfp_ctrl_poll(struct tasklet_struct *t)
 {
-	struct nfp_net_r_vector *r_vec = (void *)arg;
+	struct nfp_net_r_vector *r_vec = from_tasklet(r_vec, t, tasklet);
 
 	spin_lock(&r_vec->lock);
 	nfp_net_tx_complete(r_vec->tx_ring, 0);
@@ -2337,8 +2337,7 @@ static void nfp_net_vecs_init(struct nfp_net *nn)
 
 			__skb_queue_head_init(&r_vec->queue);
 			spin_lock_init(&r_vec->lock);
-			tasklet_init(&r_vec->tasklet, nfp_ctrl_poll,
-				     (unsigned long)r_vec);
+			tasklet_setup(&r_vec->tasklet, nfp_ctrl_poll);
 			tasklet_disable(&r_vec->tasklet);
 		}
 
@@ -2534,7 +2533,7 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 
 	if (dp->netdev) {
 		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev,
-				       rx_ring->idx);
+				       rx_ring->idx, rx_ring->r_vec->napi.napi_id);
 		if (err < 0)
 			return err;
 	}
@@ -3563,9 +3562,6 @@ static int nfp_net_xdp_setup_drv(struct nfp_net *nn, struct netdev_bpf *bpf)
 	struct nfp_net_dp *dp;
 	int err;
 
-	if (!xdp_attachment_flags_ok(&nn->xdp, bpf))
-		return -EBUSY;
-
 	if (!prog == !nn->dp.xdp_prog) {
 		WRITE_ONCE(nn->dp.xdp_prog, prog);
 		xdp_attachment_setup(&nn->xdp, bpf);
@@ -3593,9 +3589,6 @@ static int nfp_net_xdp_setup_drv(struct nfp_net *nn, struct netdev_bpf *bpf)
 static int nfp_net_xdp_setup_hw(struct nfp_net *nn, struct netdev_bpf *bpf)
 {
 	int err;
-
-	if (!xdp_attachment_flags_ok(&nn->xdp_hw, bpf))
-		return -EBUSY;
 
 	err = nfp_app_xdp_offload(nn->app, nn, bpf->prog, bpf->extack);
 	if (err)
@@ -3663,8 +3656,6 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_set_features	= nfp_net_set_features,
 	.ndo_features_check	= nfp_net_features_check,
 	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
-	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
-	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_bpf		= nfp_net_xdp,
 	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };

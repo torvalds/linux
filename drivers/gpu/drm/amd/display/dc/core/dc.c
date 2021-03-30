@@ -70,6 +70,8 @@
 
 #include "dce/dmub_hw_lock_mgr.h"
 
+#include "dc_trace.h"
+
 #define CTX \
 	dc->ctx
 
@@ -147,6 +149,20 @@ static void destroy_links(struct dc *dc)
 	}
 }
 
+static uint32_t get_num_of_internal_disp(struct dc_link **links, uint32_t num_links)
+{
+	int i;
+	uint32_t count = 0;
+
+	for (i = 0; i < num_links; i++) {
+		if (links[i]->connector_signal == SIGNAL_TYPE_EDP ||
+				links[i]->is_internal_display)
+			count++;
+	}
+
+	return count;
+}
+
 static bool create_links(
 		struct dc *dc,
 		uint32_t num_virtual_links)
@@ -158,6 +174,8 @@ static bool create_links(
 	dc->link_count = 0;
 
 	connectors_num = bios->funcs->get_connectors_number(bios);
+
+	DC_LOG_DC("BIOS object table - number of connectors: %d", connectors_num);
 
 	if (connectors_num > ENUM_ID_COUNT) {
 		dm_error(
@@ -177,6 +195,8 @@ static bool create_links(
 		struct link_init_data link_init_params = {0};
 		struct dc_link *link;
 
+		DC_LOG_DC("BIOS object table - printing link object info for connector number: %d, link_index: %d", i, dc->link_count);
+
 		link_init_params.ctx = dc->ctx;
 		/* next BIOS object table connector */
 		link_init_params.connector_index = i;
@@ -185,29 +205,13 @@ static bool create_links(
 		link = link_create(&link_init_params);
 
 		if (link) {
-			bool should_destory_link = false;
-
-			if (link->connector_signal == SIGNAL_TYPE_EDP) {
-				if (dc->config.edp_not_connected) {
-					if (!IS_DIAG_DC(dc->ctx->dce_environment))
-						should_destory_link = true;
-				} else {
-					enum dc_connection_type type;
-					dc_link_detect_sink(link, &type);
-					if (type == dc_connection_none)
-						should_destory_link = true;
-				}
-			}
-
-			if (dc->config.force_enum_edp || !should_destory_link) {
 				dc->links[dc->link_count] = link;
 				link->dc = dc;
 				++dc->link_count;
-			} else {
-				link_destroy(&link);
-			}
 		}
 	}
+
+	DC_LOG_DC("BIOS object table - end");
 
 	for (i = 0; i < num_virtual_links; i++) {
 		struct dc_link *link = kzalloc(sizeof(*link), GFP_KERNEL);
@@ -248,6 +252,8 @@ static bool create_links(
 		virtual_link_encoder_construct(link->link_enc, &enc_init);
 	}
 
+	dc->caps.num_of_internal_disp = get_num_of_internal_disp(dc->links, dc->link_count);
+
 	return true;
 
 failed_alloc:
@@ -266,20 +272,16 @@ static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
 }
 
 /**
- *****************************************************************************
- *  Function: dc_stream_adjust_vmin_vmax
+ *  dc_stream_adjust_vmin_vmax:
  *
- *  @brief
- *     Looks up the pipe context of dc_stream_state and updates the
- *     vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
- *     Rate, which is a power-saving feature that targets reducing panel
- *     refresh rate while the screen is static
+ *  Looks up the pipe context of dc_stream_state and updates the
+ *  vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
+ *  Rate, which is a power-saving feature that targets reducing panel
+ *  refresh rate while the screen is static
  *
- *  @param [in] dc: dc reference
- *  @param [in] stream: Initial dc stream state
- *  @param [in] adjust: Updated parameters for vertical_total_min and
- *  vertical_total_max
- *****************************************************************************
+ *  @dc:     dc reference
+ *  @stream: Initial dc stream state
+ *  @adjust: Updated parameters for vertical_total_min and vertical_total_max
  */
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_stream_state *stream,
@@ -337,6 +339,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
  * @dc: DC Object
  * @stream: The stream to configure CRC on.
  * @enable: Enable CRC if true, disable otherwise.
+ * @crc_window: CRC window (x/y start/end) information
  * @continuous: Capture CRC on every frame if true. Otherwise, only capture
  *              once.
  *
@@ -344,7 +347,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
  * calculate the crc.
  */
 bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
-			     bool enable, bool continuous)
+			     struct crc_params *crc_window, bool enable, bool continuous)
 {
 	int i;
 	struct pipe_ctx *pipe;
@@ -360,7 +363,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	if (i == MAX_PIPES)
 		return false;
 
-	/* Always capture the full frame */
+	/* By default, capture the full frame */
 	param.windowa_x_start = 0;
 	param.windowa_y_start = 0;
 	param.windowa_x_end = pipe->stream->timing.h_addressable;
@@ -369,6 +372,17 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	if (crc_window) {
+		param.windowa_x_start = crc_window->windowa_x_start;
+		param.windowa_y_start = crc_window->windowa_y_start;
+		param.windowa_x_end = crc_window->windowa_x_end;
+		param.windowa_y_end = crc_window->windowa_y_end;
+		param.windowb_x_start = crc_window->windowb_x_start;
+		param.windowb_y_start = crc_window->windowb_y_start;
+		param.windowb_x_end = crc_window->windowb_x_end;
+		param.windowb_y_end = crc_window->windowb_y_end;
+	}
 
 	param.dsc_mode = pipe->stream->timing.flags.DSC ? 1:0;
 	param.odm_mode = pipe->next_odm_pipe ? 1:0;
@@ -391,7 +405,9 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
  * dc_stream_get_crc() - Get CRC values for the given stream.
  * @dc: DC object
  * @stream: The DC stream state of the stream to get CRCs from.
- * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
+ * @r_cr: CRC value for the first of the 3 channels stored here.
+ * @g_y:  CRC value for the second of the 3 channels stored here.
+ * @b_cb: CRC value for the third of the 3 channels stored here.
  *
  * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
  * Return false if stream is not found, or if CRCs are not enabled.
@@ -678,7 +694,6 @@ static bool dc_construct(struct dc *dc,
 	}
 
 	dc->dcn_ip = dcn_ip;
-	dc->soc_bounding_box = init_params->soc_bounding_box;
 #endif
 
 	if (!dc_construct_ctx(dc, init_params)) {
@@ -728,14 +743,16 @@ static bool dc_construct(struct dc *dc,
 	if (!dc->res_pool)
 		goto fail;
 
+	/* set i2c speed if not done by the respective dcnxxx__resource.c */
+	if (dc->caps.i2c_speed_in_khz_hdcp == 0)
+		dc->caps.i2c_speed_in_khz_hdcp = dc->caps.i2c_speed_in_khz;
+
 	dc->clk_mgr = dc_clk_mgr_create(dc->ctx, dc->res_pool->pp_smu, dc->res_pool->dccg);
 	if (!dc->clk_mgr)
 		goto fail;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	dc->clk_mgr->force_smu_not_present = init_params->force_smu_not_present;
 #endif
-
-	dc->debug.force_ignore_link_settings = init_params->force_ignore_link_settings;
 
 	if (dc->res_pool->funcs->update_bw_bounding_box)
 		dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
@@ -763,7 +780,7 @@ fail:
 	return false;
 }
 
-static bool disable_all_writeback_pipes_for_stream(
+static void disable_all_writeback_pipes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_state *context)
@@ -772,11 +789,10 @@ static bool disable_all_writeback_pipes_for_stream(
 
 	for (i = 0; i < stream->num_wb_info; i++)
 		stream->writeback_info[i].wb_enabled = false;
-
-	return true;
 }
 
-void apply_ctx_interdependent_lock(struct dc *dc, struct dc_state *context, struct dc_stream_state *stream, bool lock)
+static void apply_ctx_interdependent_lock(struct dc *dc, struct dc_state *context,
+					  struct dc_stream_state *stream, bool lock)
 {
 	int i = 0;
 
@@ -848,7 +864,7 @@ static void disable_vbios_mode_if_required(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	unsigned int i;
+	unsigned int i, j;
 
 	/* check if timing_changed, disable stream*/
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -861,21 +877,25 @@ static void disable_vbios_mode_if_required(
 		if (stream == NULL)
 			continue;
 
+		// only looking for first odm pipe
+		if (pipe->prev_odm_pipe)
+			continue;
+
 		if (stream->link->local_sink &&
 			stream->link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 			link = stream->link;
 		}
 
-		if (link != NULL) {
+		if (link != NULL && link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
 			unsigned int enc_inst, tg_inst = 0;
 			unsigned int pix_clk_100hz;
 
 			enc_inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 			if (enc_inst != ENGINE_ID_UNKNOWN) {
-				for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
-					if (dc->res_pool->stream_enc[i]->id == enc_inst) {
-						tg_inst = dc->res_pool->stream_enc[i]->funcs->dig_source_otg(
-							dc->res_pool->stream_enc[i]);
+				for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+					if (dc->res_pool->stream_enc[j]->id == enc_inst) {
+						tg_inst = dc->res_pool->stream_enc[j]->funcs->dig_source_otg(
+							dc->res_pool->stream_enc[j]);
 						break;
 					}
 				}
@@ -933,19 +953,15 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	struct dc *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 	unsigned int full_pipe_count;
 
-	if (NULL == dc)
-		goto alloc_fail;
+	if (!dc)
+		return NULL;
 
 	if (init_params->dce_environment == DCE_ENV_VIRTUAL_HW) {
-		if (false == dc_construct_ctx(dc, init_params)) {
-			dc_destruct(dc);
-			goto construct_fail;
-		}
+		if (!dc_construct_ctx(dc, init_params))
+			goto destruct_dc;
 	} else {
-		if (false == dc_construct(dc, init_params)) {
-			dc_destruct(dc);
-			goto construct_fail;
-		}
+		if (!dc_construct(dc, init_params))
+			goto destruct_dc;
 
 		full_pipe_count = dc->res_pool->pipe_count;
 		if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
@@ -976,15 +992,36 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	return dc;
 
-construct_fail:
+destruct_dc:
+	dc_destruct(dc);
 	kfree(dc);
-
-alloc_fail:
 	return NULL;
+}
+
+static void detect_edp_presence(struct dc *dc)
+{
+	struct dc_link *edp_link = get_edp_link(dc);
+	bool edp_sink_present = true;
+
+	if (!edp_link)
+		return;
+
+	if (dc->config.edp_not_connected) {
+			edp_sink_present = false;
+	} else {
+		enum dc_connection_type type;
+		dc_link_detect_sink(edp_link, &type);
+		if (type == dc_connection_none)
+			edp_sink_present = false;
+	}
+
+	edp_link->edp_sink_present = edp_sink_present;
 }
 
 void dc_hardware_init(struct dc *dc)
 {
+
+	detect_edp_presence(dc);
 	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW)
 		dc->hwss.init_hw(dc);
 }
@@ -1266,16 +1303,19 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 			return false;
 	}
 
+	if (link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+		return false;
+	}
+
 	return true;
 }
 
-bool dc_enable_stereo(
+void dc_enable_stereo(
 	struct dc *dc,
 	struct dc_state *context,
 	struct dc_stream_state *streams[],
 	uint8_t stream_count)
 {
-	bool ret = true;
 	int i, j;
 	struct pipe_ctx *pipe;
 
@@ -1290,8 +1330,6 @@ bool dc_enable_stereo(
 				dc->hwss.setup_stereo(pipe, dc);
 		}
 	}
-
-	return ret;
 }
 
 void dc_trigger_sync(struct dc *dc, struct dc_state *context)
@@ -1327,7 +1365,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	int i, k, l;
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_allow_idle_optimizations(dc, false);
 #endif
 
@@ -1434,6 +1472,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.optimize_bandwidth(dc, context);
 	}
 
+	if (dc->ctx->dce_version >= DCE_VERSION_MAX)
+		TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
+	else
+		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
+
 	context->stream_mask = get_stream_mask(dc, context);
 
 	if (context->stream_mask != dc->current_state->stream_mask)
@@ -1456,7 +1499,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i;
 
-	if (false == context_changed(dc, context))
+	if (!context_changed(dc, context))
 		return DC_OK;
 
 	DC_LOG_DC("%s: %d streams\n",
@@ -1473,7 +1516,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	return (result == DC_OK);
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,
 		struct dc_stream_state *stream,
@@ -1503,7 +1546,7 @@ bool dc_acquire_release_mpc_3dlut(
 		if (found_pipe_idx) {
 			if (acquire && pool->funcs->acquire_post_bldn_3dlut)
 				ret = pool->funcs->acquire_post_bldn_3dlut(res_ctx, pool, mpcc_id, lut, shaper);
-			else if (acquire == false && pool->funcs->release_post_bldn_3dlut)
+			else if (!acquire && pool->funcs->release_post_bldn_3dlut)
 				ret = pool->funcs->release_post_bldn_3dlut(res_ctx, pool, lut, shaper);
 		}
 	}
@@ -1530,18 +1573,18 @@ static bool is_flip_pending_in_pipes(struct dc *dc, struct dc_state *context)
 	return false;
 }
 
-bool dc_post_update_surfaces_to_stream(struct dc *dc)
+void dc_post_update_surfaces_to_stream(struct dc *dc)
 {
 	int i;
 	struct dc_state *context = dc->current_state;
 
 	if ((!dc->optimized_required) || dc->optimize_seamless_boot_streams > 0)
-		return true;
+		return;
 
 	post_surface_trace(dc);
 
 	if (is_flip_pending_in_pipes(dc, context))
-		return true;
+		return;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].stream == NULL ||
@@ -1554,8 +1597,6 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	dc->optimized_required = false;
 	dc->wm_optimized_required = false;
-
-	return true;
 }
 
 static void init_state(struct dc *dc, struct dc_state *context)
@@ -1571,8 +1612,8 @@ static void init_state(struct dc *dc, struct dc_state *context)
 
 struct dc_state *dc_create_state(struct dc *dc)
 {
-	struct dc_state *context = kzalloc(sizeof(struct dc_state),
-					   GFP_KERNEL);
+	struct dc_state *context = kvzalloc(sizeof(struct dc_state),
+					    GFP_KERNEL);
 
 	if (!context)
 		return NULL;
@@ -1929,7 +1970,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (dc->idle_optimizations_allowed)
 		overall_type = UPDATE_TYPE_FULL;
 
@@ -1981,7 +2022,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	return overall_type;
 }
 
-/**
+/*
  * dc_check_update_surfaces_for_stream() - Determine update type (fast, med, or full)
  *
  * See :c:type:`enum surface_update_type <surface_update_type>` for explanation of update types
@@ -2235,6 +2276,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
+
+	if (update->pending_test_pattern)
+		stream->test_pattern = *update->pending_test_pattern;
 	/* update current stream with writeback info */
 	if (update->wb_update) {
 		int i;
@@ -2331,6 +2375,15 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				}
 			}
 
+			if (stream_update->pending_test_pattern) {
+				dc_link_dp_set_test_pattern(stream->link,
+					stream->test_pattern.type,
+					stream->test_pattern.color_space,
+					stream->test_pattern.p_link_settings,
+					stream->test_pattern.p_custom_pattern,
+					stream->test_pattern.cust_pattern_size);
+			}
+
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
@@ -2383,7 +2436,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		enum surface_update_type update_type,
 		struct dc_state *context)
 {
-	bool mpcc_disconnected = false;
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 
@@ -2404,7 +2456,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	}
 
 	if (update_type == UPDATE_TYPE_FULL) {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		dc_allow_idle_optimizations(dc, false);
 
 #endif
@@ -2412,15 +2464,6 @@ static void commit_planes_for_stream(struct dc *dc,
 			dc->hwss.prepare_bandwidth(dc, context);
 
 		context_clock_trace(dc, context);
-	}
-
-	if (update_type != UPDATE_TYPE_FAST && dc->hwss.interdependent_update_lock &&
-		dc->hwss.disconnect_pipes && dc->hwss.wait_for_pending_cleared){
-		dc->hwss.interdependent_update_lock(dc, context, true);
-		mpcc_disconnected = dc->hwss.disconnect_pipes(dc, context);
-		dc->hwss.interdependent_update_lock(dc, context, false);
-		if (mpcc_disconnected)
-			dc->hwss.wait_for_pending_cleared(dc, context);
 	}
 
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
@@ -2460,7 +2503,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		 *  top_pipe_to_program is expected to never be NULL
 		 */
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, true);
-
 
 	// Stream updates
 	if (stream_update)
@@ -2641,9 +2683,8 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (pipe_ctx->bottom_pipe ||
-				!pipe_ctx->stream ||
-				pipe_ctx->stream != stream ||
+		if (pipe_ctx->bottom_pipe || pipe_ctx->next_odm_pipe ||
+				!pipe_ctx->stream || pipe_ctx->stream != stream ||
 				!pipe_ctx->plane_state->update_flags.bits.addr_update)
 			continue;
 
@@ -2656,8 +2697,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update,
-		struct dc_state *state)
+		struct dc_stream_update *stream_update)
 {
 	const struct dc_stream_status *stream_status;
 	enum surface_update_type update_type;
@@ -2676,6 +2716,12 @@ void dc_commit_updates_for_stream(struct dc *dc,
 
 
 	if (update_type >= UPDATE_TYPE_FULL) {
+		struct dc_plane_state *new_planes[MAX_SURFACES];
+
+		memset(new_planes, 0, sizeof(new_planes));
+
+		for (i = 0; i < surface_count; i++)
+			new_planes[i] = srf_updates[i].surface;
 
 		/* initialize scratch memory for building context */
 		context = dc_create_state(dc);
@@ -2684,15 +2730,21 @@ void dc_commit_updates_for_stream(struct dc *dc,
 			return;
 		}
 
-		dc_resource_state_copy_construct(state, context);
+		dc_resource_state_copy_construct(
+				dc->current_state, context);
 
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
-			struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-
-			if (new_pipe->plane_state && new_pipe->plane_state != old_pipe->plane_state)
-				new_pipe->plane_state->force_full_update = true;
+		/*remove old surfaces from context */
+		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {
+			DC_ERROR("Failed to remove streams for new validate context!\n");
+			return;
 		}
+
+		/* add surface to context */
+		if (!dc_add_all_planes_for_stream(dc, stream, new_planes, surface_count, context)) {
+			DC_ERROR("Failed to add streams for new validate context!\n");
+			return;
+		}
+
 	}
 
 
@@ -2724,6 +2776,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		}
 	}
 
+	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
+
 	commit_planes_for_stream(
 				dc,
 				srf_updates,
@@ -2748,8 +2802,14 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		}
 	}
 	/*let's use current_state to update watermark etc*/
-	if (update_type >= UPDATE_TYPE_FULL)
+	if (update_type >= UPDATE_TYPE_FULL) {
 		dc_post_update_surfaces_to_stream(dc);
+
+		if (dc_ctx->dce_version >= DCE_VERSION_MAX)
+			TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
+		else
+			TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
+	}
 
 	return;
 
@@ -2767,6 +2827,19 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i)
 	return NULL;
 }
 
+struct dc_stream_state *dc_stream_find_from_link(const struct dc_link *link)
+{
+	uint8_t i;
+	struct dc_context *ctx = link->ctx;
+
+	for (i = 0; i < ctx->dc->current_state->stream_count; i++) {
+		if (ctx->dc->current_state->streams[i]->link == link)
+			return ctx->dc->current_state->streams[i];
+	}
+
+	return NULL;
+}
+
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
@@ -2775,7 +2848,7 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 	return dal_irq_service_to_irq_source(dc->res_pool->irqs, src_id, ext_id);
 }
 
-/**
+/*
  * dc_interrupt_set() - Enable/disable an AMD hw interrupt source
  */
 bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
@@ -2909,7 +2982,7 @@ static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink 
 	return true;
 }
 
-/**
+/*
  * dc_link_add_remote_sink() - Create a sink and attach it to an existing link
  *
  * EDID length is in bytes
@@ -2972,7 +3045,7 @@ fail_add_sink:
 	return NULL;
 }
 
-/**
+/*
  * dc_link_remove_remote_sink() - Remove a remote sink from a dc_link
  *
  * Note that this just removes the struct dc_sink - it doesn't
@@ -3043,16 +3116,16 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 
 		if (link->psr_settings.psr_feature_enabled) {
 			if (enable && !link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, true, false);
+				return dc_link_set_psr_allow_active(link, true, false, false);
 			else if (!enable && link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, false, true);
+				return dc_link_set_psr_allow_active(link, false, true, false);
 		}
 	}
 
 	return true;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 {
@@ -3099,9 +3172,18 @@ void dc_lock_memory_clock_frequency(struct dc *dc)
 			core_link_enable_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 }
 
-bool dc_is_plane_eligible_for_idle_optimizaitons(struct dc *dc,
-						 struct dc_plane_state *plane)
+bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
+		struct dc_cursor_attributes *cursor_attr)
 {
+	if (dc->hwss.does_plane_fit_in_mall && dc->hwss.does_plane_fit_in_mall(dc, plane, cursor_attr))
+		return true;
 	return false;
+}
+
+/* cleanup on driver unload */
+void dc_hardware_release(struct dc *dc)
+{
+	if (dc->hwss.hardware_release)
+		dc->hwss.hardware_release(dc);
 }
 #endif

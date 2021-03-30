@@ -168,7 +168,7 @@ enum bq2515x_id {
  * @device_id: value of device_id
  * @mains_online: boolean value indicating power supply online
  *
- * @bq2515x_init_data init_data: charger initialization data structure
+ * @init_data: charger initialization data structure
  */
 struct bq2515x_device {
 	struct power_supply *mains;
@@ -188,7 +188,7 @@ struct bq2515x_device {
 	struct bq2515x_init_data init_data;
 };
 
-static struct reg_default bq25150_reg_defaults[] = {
+static const struct reg_default bq25150_reg_defaults[] = {
 	{BQ2515X_FLAG0, 0x0},
 	{BQ2515X_FLAG1, 0x0},
 	{BQ2515X_FLAG2, 0x0},
@@ -227,7 +227,7 @@ static struct reg_default bq25150_reg_defaults[] = {
 	{BQ2515X_DEVICE_ID, 0x20},
 };
 
-static struct reg_default bq25155_reg_defaults[] = {
+static const struct reg_default bq25155_reg_defaults[] = {
 	{BQ2515X_FLAG0, 0x0},
 	{BQ2515X_FLAG1, 0x0},
 	{BQ2515X_FLAG2, 0x0},
@@ -886,14 +886,14 @@ static int bq2515x_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static enum power_supply_property bq2515x_battery_properties[] = {
+static const enum power_supply_property bq2515x_battery_properties[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 };
 
-static enum power_supply_property bq2515x_mains_properties[] = {
+static const enum power_supply_property bq2515x_mains_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -905,7 +905,7 @@ static enum power_supply_property bq2515x_mains_properties[] = {
 	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
 };
 
-static struct power_supply_desc bq2515x_mains_desc = {
+static const struct power_supply_desc bq2515x_mains_desc = {
 	.name			= "bq2515x-mains",
 	.type			= POWER_SUPPLY_TYPE_MAINS,
 	.get_property		= bq2515x_mains_get_property,
@@ -915,7 +915,7 @@ static struct power_supply_desc bq2515x_mains_desc = {
 	.property_is_writeable	= bq2515x_power_supply_property_is_writeable,
 };
 
-static struct power_supply_desc bq2515x_battery_desc = {
+static const struct power_supply_desc bq2515x_battery_desc = {
 	.name			= "bq2515x-battery",
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.get_property		= bq2515x_battery_get_property,

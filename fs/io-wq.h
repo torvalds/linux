@@ -1,14 +1,22 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
+#include <linux/io_uring.h>
+
 struct io_wq;
 
 enum {
 	IO_WQ_WORK_CANCEL	= 1,
 	IO_WQ_WORK_HASHED	= 2,
 	IO_WQ_WORK_UNBOUND	= 4,
-	IO_WQ_WORK_NO_CANCEL	= 8,
 	IO_WQ_WORK_CONCURRENT	= 16,
+
+	IO_WQ_WORK_FILES	= 32,
+	IO_WQ_WORK_FS		= 64,
+	IO_WQ_WORK_MM		= 128,
+	IO_WQ_WORK_CREDS	= 256,
+	IO_WQ_WORK_BLKCG	= 512,
+	IO_WQ_WORK_FSIZE	= 1024,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -17,15 +25,6 @@ enum io_wq_cancel {
 	IO_WQ_CANCEL_OK,	/* cancelled before started */
 	IO_WQ_CANCEL_RUNNING,	/* found, running, and attempted cancelled */
 	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
-};
-
-struct io_wq_work_node {
-	struct io_wq_work_node *next;
-};
-
-struct io_wq_work_list {
-	struct io_wq_work_node *first;
-	struct io_wq_work_node *last;
 };
 
 static inline void wq_list_add_after(struct io_wq_work_node *node,
@@ -50,6 +49,7 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 		list->last->next = node;
 		list->last = node;
 	}
+	node->next = NULL;
 }
 
 static inline void wq_list_cut(struct io_wq_work_list *list,
@@ -85,15 +85,7 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	struct files_struct *files;
-	struct mm_struct *mm;
-#ifdef CONFIG_BLK_CGROUP
-	struct cgroup_subsys_state *blkcg_css;
-#endif
-	const struct cred *creds;
-	struct nsproxy *nsproxy;
-	struct fs_struct *fs;
-	unsigned long fsize;
+	struct io_identity *identity;
 	unsigned flags;
 };
 
@@ -105,8 +97,8 @@ static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
 	return container_of(work->list.next, struct io_wq_work, list);
 }
 
-typedef void (free_work_fn)(struct io_wq_work *);
-typedef struct io_wq_work *(io_wq_work_fn)(struct io_wq_work *);
+typedef struct io_wq_work *(free_work_fn)(struct io_wq_work *);
+typedef void (io_wq_work_fn)(struct io_wq_work *);
 
 struct io_wq_data {
 	struct user_struct *user;
@@ -126,9 +118,6 @@ static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
 	return work->flags & IO_WQ_WORK_HASHED;
 }
-
-void io_wq_cancel_all(struct io_wq *wq);
-enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 

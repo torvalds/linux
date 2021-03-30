@@ -38,9 +38,6 @@ void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align);
 
-void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
-void i915_gem_free_object(struct drm_gem_object *obj);
-
 void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 
 struct sg_table *
@@ -191,6 +188,24 @@ i915_gem_object_set_volatile(struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_has_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	return test_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline void
+i915_gem_object_set_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	set_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline void
+i915_gem_object_clear_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	clear_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline bool
 i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
 			 unsigned long flags)
 {
@@ -201,6 +216,12 @@ static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_STRUCT_PAGE);
+}
+
+static inline bool
+i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM);
 }
 
 static inline bool
@@ -275,8 +296,26 @@ int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 			       unsigned int tiling, unsigned int stride);
 
 struct scatterlist *
+__i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
+			 struct i915_gem_object_page_iter *iter,
+			 unsigned int n,
+			 unsigned int *offset);
+
+static inline struct scatterlist *
 i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
-		       unsigned int n, unsigned int *offset);
+		       unsigned int n,
+		       unsigned int *offset)
+{
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_page, n, offset);
+}
+
+static inline struct scatterlist *
+i915_gem_object_get_sg_dma(struct drm_i915_gem_object *obj,
+			   unsigned int n,
+			   unsigned int *offset)
+{
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_dma_page, n, offset);
+}
 
 struct page *
 i915_gem_object_get_page(struct drm_i915_gem_object *obj,
@@ -369,14 +408,6 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 void i915_gem_object_writeback(struct drm_i915_gem_object *obj);
 
-enum i915_map_type {
-	I915_MAP_WB = 0,
-	I915_MAP_WC,
-#define I915_MAP_OVERRIDE BIT(31)
-	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
-	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
-};
-
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
  * @obj: the object to map into kernel address space
@@ -419,10 +450,6 @@ static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 }
 
 void __i915_gem_object_release_map(struct drm_i915_gem_object *obj);
-
-void
-i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
-				   unsigned int flush_domains);
 
 int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 				 unsigned int *needs_clflush);
@@ -471,7 +498,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags);
-void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 
 void i915_gem_object_make_unshrinkable(struct drm_i915_gem_object *obj);
 void i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
@@ -496,6 +522,9 @@ static inline void __start_cpu_write(struct drm_i915_gem_object *obj)
 	if (cpu_write_needs_clflush(obj))
 		obj->cache_dirty = true;
 }
+
+void i915_gem_fence_wait_priority(struct dma_fence *fence,
+				  const struct i915_sched_attr *attr);
 
 int i915_gem_object_wait(struct drm_i915_gem_object *obj,
 			 unsigned int flags,
@@ -524,5 +553,9 @@ i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 	if (unlikely(rcu_access_pointer(obj->frontbuffer)))
 		__i915_gem_object_invalidate_frontbuffer(obj, origin);
 }
+
+int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size);
+
+bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj);
 
 #endif

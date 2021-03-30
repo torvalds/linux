@@ -52,8 +52,6 @@
 #include "dcn10/hw_factory_dcn10.h"
 #include "dcn20/hw_factory_dcn20.h"
 #include "dcn21/hw_factory_dcn21.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #include "dcn30/hw_factory_dcn30.h"
 #endif
 
@@ -104,16 +102,15 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_1_01:
 		dal_hw_factory_dcn10_init(factory);
 		return true;
-
 	case DCN_VERSION_2_0:
 		dal_hw_factory_dcn20_init(factory);
 		return true;
 	case DCN_VERSION_2_1:
 		dal_hw_factory_dcn21_init(factory);
 		return true;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DCN_VERSION_3_0:
+	case DCN_VERSION_3_01:
+	case DCN_VERSION_3_02:
 		dal_hw_factory_dcn30_init(factory);
 		return true;
 #endif
@@ -121,18 +118,4 @@ bool dal_hw_factory_init(
 		ASSERT_CRITICAL(false);
 		return false;
 	}
-}
-
-void dal_hw_factory_destroy(
-	struct dc_context *ctx,
-	struct hw_factory **factory)
-{
-	if (!factory || !*factory) {
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-
-	kfree(*factory);
-
-	*factory = NULL;
 }

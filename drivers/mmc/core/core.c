@@ -37,6 +37,7 @@
 
 #include "core.h"
 #include "card.h"
+#include "crypto.h"
 #include "bus.h"
 #include "host.h"
 #include "sdio_bus.h"
@@ -547,10 +548,10 @@ int mmc_cqe_recovery(struct mmc_host *host)
 	host->cqe_ops->cqe_recovery_start(host);
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.opcode       = MMC_STOP_TRANSMISSION,
-	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC,
+	cmd.opcode       = MMC_STOP_TRANSMISSION;
+	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
 	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
-	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT,
+	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
 	mmc_wait_for_cmd(host, &cmd, 0);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -558,7 +559,7 @@ int mmc_cqe_recovery(struct mmc_host *host)
 	cmd.arg          = 1; /* Discard entire queue */
 	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
 	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
-	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT,
+	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 
 	host->cqe_ops->cqe_recovery_finish(host);
@@ -992,6 +993,8 @@ void mmc_set_initial_state(struct mmc_host *host)
 		host->ops->hs400_enhanced_strobe(host, &host->ios);
 
 	mmc_set_ios(host);
+
+	mmc_crypto_set_initial_state(host);
 }
 
 /**
@@ -2147,8 +2150,12 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
 	mmc_go_idle(host);
 
-	if (!(host->caps2 & MMC_CAP2_NO_SD))
-		mmc_send_if_cond(host, host->ocr_avail);
+	if (!(host->caps2 & MMC_CAP2_NO_SD)) {
+		if (mmc_send_if_cond_pcie(host, host->ocr_avail))
+			goto out;
+		if (mmc_card_sd_express(host))
+			return 0;
+	}
 
 	/* Order's important: probe SDIO, then SD, then MMC */
 	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
@@ -2163,6 +2170,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		if (!mmc_attach_mmc(host))
 			return 0;
 
+out:
 	mmc_power_off(host);
 	return -EIO;
 }
@@ -2286,6 +2294,12 @@ void mmc_rescan(struct work_struct *work)
 	if (mmc_card_is_removable(host) && host->ops->get_cd &&
 			host->ops->get_cd(host) == 0) {
 		mmc_power_off(host);
+		mmc_release_host(host);
+		goto out;
+	}
+
+	/* If an SD express card is present, then leave it as is. */
+	if (mmc_card_sd_express(host)) {
 		mmc_release_host(host);
 		goto out;
 	}

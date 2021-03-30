@@ -77,6 +77,8 @@ int dscr_sysfs(void)
 	unsigned long orig_dscr_default;
 	int i, j;
 
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
 	orig_dscr_default = get_default_dscr();
 	for (i = 0; i < COUNT; i++) {
 		for (j = 0; j < DSCR_MAX; j++) {

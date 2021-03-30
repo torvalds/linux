@@ -1,16 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * BQ27xxx battery monitor HDQ/1-wire driver
  *
  * Copyright (C) 2007-2017 Texas Instruments Incorporated - https://www.ti.com/
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>

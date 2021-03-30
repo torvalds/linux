@@ -23,6 +23,9 @@ Advanced: Tricky tasks that need fairly good understanding of the DRM subsystem
 and graphics topics. Generally need the relevant hardware for development and
 testing.
 
+Expert: Only attempt these if you've successfully completed some tricky
+refactorings already and are an expert in the specific area
+
 Subsystem-wide refactorings
 ===========================
 
@@ -105,6 +108,10 @@ converted over to the new infrastructure.
 One issue with the helpers is that they require that drivers handle completion
 events for atomic commits correctly. But fixing these bugs is good anyway.
 
+Somewhat related is the legacy_cursor_update hack, which should be replaced with
+the new atomic_async_check/commit functionality in the helpers in drivers that
+still look at that flag.
+
 Contact: Daniel Vetter, respective driver maintainers
 
 Level: Advanced
@@ -149,7 +156,7 @@ have to keep track of that lock and either call ``unreference`` or
 ``unreference_locked`` depending upon context.
 
 Core GEM doesn't have a need for ``struct_mutex`` any more since kernel 4.8,
-and there's a ``gem_free_object_unlocked`` callback for any drivers which are
+and there's a GEM object ``free`` callback for any drivers which are
 entirely ``struct_mutex`` free.
 
 For drivers that need ``struct_mutex`` it should be replaced with a driver-
@@ -163,6 +170,22 @@ the ``msm`` and `i915` drivers use ``struct_mutex``.
 Contact: Daniel Vetter, respective driver maintainers
 
 Level: Advanced
+
+Move Buffer Object Locking to dma_resv_lock()
+---------------------------------------------
+
+Many drivers have their own per-object locking scheme, usually using
+mutex_lock(). This causes all kinds of trouble for buffer sharing, since
+depending which driver is the exporter and importer, the locking hierarchy is
+reversed.
+
+To solve this we need one standard per-object locking mechanism, which is
+dma_resv_lock(). This lock needs to be called as the outermost lock, with all
+other driver specific per-object locks removed. The problem is tha rolling out
+the actual change to the locking contract is a flag day, due to struct dma_buf
+buffer sharing.
+
+Level: Expert
 
 Convert logging to drm_* functions with drm_device paramater
 ------------------------------------------------------------
@@ -197,12 +220,27 @@ Convert drivers to use drm_fbdev_generic_setup()
 ------------------------------------------------
 
 Most drivers can use drm_fbdev_generic_setup(). Driver have to implement
-atomic modesetting and GEM vmap support. Current generic fbdev emulation
-expects the framebuffer in system memory (or system-like memory).
+atomic modesetting and GEM vmap support. Historically, generic fbdev emulation
+expected the framebuffer in system memory or system-like memory. By employing
+struct dma_buf_map, drivers with frambuffers in I/O memory can be supported
+as well.
 
 Contact: Maintainer of the driver you plan to convert
 
 Level: Intermediate
+
+Reimplement functions in drm_fbdev_fb_ops without fbdev
+-------------------------------------------------------
+
+A number of callback functions in drm_fbdev_fb_ops could benefit from
+being rewritten without dependencies on the fbdev module. Some of the
+helpers could further benefit from using struct dma_buf_map instead of
+raw pointers.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>, Daniel Vetter
+
+Level: Advanced
+
 
 drm_framebuffer_funcs and drm_mode_config_funcs.fb_create cleanup
 -----------------------------------------------------------------
@@ -273,6 +311,27 @@ Contact: Daniel Vetter, Noralf Tronnes
 
 Level: Advanced
 
+Garbage collect fbdev scrolling acceleration
+--------------------------------------------
+
+Scroll acceleration is disabled in fbcon by hard-wiring p->scrollmode =
+SCROLL_REDRAW. There's a ton of code this will allow us to remove:
+
+- lots of code in fbcon.c
+
+- a bunch of the hooks in fbcon_ops, maybe the remaining hooks could be called
+  directly instead of the function table (with a switch on p->rotate)
+
+- fb_copyarea is unused after this, and can be deleted from all drivers
+
+Note that not all acceleration code can be deleted, since clearing and cursor
+support is still accelerated, which might be good candidates for further
+deletion projects.
+
+Contact: Daniel Vetter
+
+Level: Intermediate
+
 idr_init_base()
 ---------------
 
@@ -289,11 +348,8 @@ struct drm_gem_object_funcs
 ---------------------------
 
 GEM objects can now have a function table instead of having the callbacks on the
-DRM driver struct. This is now the preferred way and drivers can be moved over.
-
-We also need a 2nd version of the CMA define that doesn't require the
-vmapping to be present (different hook for prime importing). Plus this needs to
-be rolled out to all drivers using their own implementations, too.
+DRM driver struct. This is now the preferred way. Callbacks in drivers have been
+converted, except for struct drm_driver.gem_prime_mmap.
 
 Level: Intermediate
 
@@ -449,6 +505,24 @@ Contact: Ville Syrjälä, Daniel Vetter
 
 Level: Intermediate
 
+Use struct dma_buf_map throughout codebase
+------------------------------------------
+
+Pointers to shared device memory are stored in struct dma_buf_map. Each
+instance knows whether it refers to system or I/O memory. Most of the DRM-wide
+interface have been converted to use struct dma_buf_map, but implementations
+often still use raw pointers.
+
+The task is to use struct dma_buf_map where it makes sense.
+
+* Memory managers should use struct dma_buf_map for dma-buf-imported buffers.
+* TTM might benefit from using struct dma_buf_map internally.
+* Framebuffer copying and blitting helpers should operate on struct dma_buf_map.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>, Christian König, Daniel Vetter
+
+Level: Intermediate
+
 
 Core refactorings
 =================
@@ -517,9 +591,6 @@ There's a bunch of issues with it:
   time. Drivers shouldn't need to worry about these technicalities, and fixing
   this (together with the drm_minor->drm_device move) would allow us to remove
   debugfs_init.
-
-- Drop the return code and error checking from all debugfs functions. Greg KH is
-  working on this already.
 
 Contact: Daniel Vetter
 
@@ -617,7 +688,7 @@ for fbdev.
   https://patchwork.freedesktop.org/patch/306579/
 
 - [RFC PATCH v2 00/13] Kernel based bootsplash
-  https://lkml.org/lkml/2017/12/13/764
+  https://lore.kernel.org/r/20171213194755.3409-1-mstaudt@suse.de
 
 Contact: Sam Ravnborg
 

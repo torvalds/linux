@@ -18,8 +18,10 @@ general.
    devlink-info
    devlink-flash
    devlink-params
+   devlink-port
    devlink-region
    devlink-resource
+   devlink-reload
    devlink-trap
 
 Driver-specific documentation
@@ -43,3 +45,4 @@ parameters, info versions, and other features it supports.
    sja1105
    qed
    ti-cpsw-switch
+   am65-nuss-cpsw-switch

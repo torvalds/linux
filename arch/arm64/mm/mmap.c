@@ -5,20 +5,11 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
-#include <linux/elf.h>
-#include <linux/fs.h>
-#include <linux/memblock.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/export.h>
-#include <linux/shm.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/mm.h>
 #include <linux/io.h>
-#include <linux/personality.h>
-#include <linux/random.h>
+#include <linux/memblock.h>
+#include <linux/types.h>
 
-#include <asm/cputype.h>
+#include <asm/page.h>
 
 /*
  * You really shouldn't be using read() or write() on /dev/mem.  This might go
@@ -47,24 +38,3 @@ int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 {
 	return !(((pfn << PAGE_SHIFT) + size) & ~PHYS_MASK);
 }
-
-#ifdef CONFIG_STRICT_DEVMEM
-
-#include <linux/ioport.h>
-
-/*
- * devmem_is_allowed() checks to see if /dev/mem access to a certain address
- * is valid. The argument is a physical page number.  We mimic x86 here by
- * disallowing access to system RAM as well as device-exclusive MMIO regions.
- * This effectively disable read()/write() on /dev/mem.
- */
-int devmem_is_allowed(unsigned long pfn)
-{
-	if (iomem_is_exclusive(pfn << PAGE_SHIFT))
-		return 0;
-	if (!page_is_ram(pfn))
-		return 1;
-	return 0;
-}
-
-#endif

@@ -194,6 +194,12 @@
 			#clock-cells = <1>;
 		};
 
+		iomcu_rst: reset {
+			compatible = "hisilicon,hi3660-reset";
+			hisi,rst-syscon = <&iomcu>;
+			#reset-cells = <2>;
+		};
+
 		uart0: serial@fdf02000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0xfdf02000 0x0 0x1000>;
@@ -213,7 +219,6 @@
 			clocks = <&crg_ctrl HI3670_CLK_GATE_UART1>,
 				 <&crg_ctrl HI3670_PCLK>;
 			clock-names = "uartclk", "apb_pclk";
-			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -260,7 +265,6 @@
 			clocks = <&crg_ctrl HI3670_CLK_GATE_UART5>,
 				 <&crg_ctrl HI3670_PCLK>;
 			clock-names = "uartclk", "apb_pclk";
-			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -667,7 +671,8 @@
 			clocks = <&crg_ctrl HI3670_CLK_GATE_UFSIO_REF>,
 				<&crg_ctrl HI3670_CLK_GATE_UFS_SUBSYS>;
 			clock-names = "ref_clk", "phy_clk";
-			freq-table-hz = <0 0>, <0 0>;
+			freq-table-hz = <0 0
+					 0 0>;
 			/* offset: 0x84; bit: 12 */
 			resets = <&crg_rst 0x84 12>;
 			reset-names = "rst";
@@ -707,6 +712,77 @@
 			resets = <&crg_rst 0x94 20>;
 			reset-names = "reset";
 			card-detect-delay = <200>;
+			status = "disabled";
+		};
+
+		/* I2C */
+		i2c0: i2c@ffd71000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0xffd71000 0x0 0x1000>;
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <400000>;
+			clocks = <&iomcu HI3670_CLK_GATE_I2C0>;
+			resets = <&iomcu_rst 0x20 3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pmx_func &i2c0_cfg_func>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@ffd72000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0xffd72000 0x0 0x1000>;
+			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <400000>;
+			clocks = <&iomcu HI3670_CLK_GATE_I2C1>;
+			resets = <&iomcu_rst 0x20 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pmx_func &i2c1_cfg_func>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@ffd73000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0xffd73000 0x0 0x1000>;
+			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <400000>;
+			clocks = <&iomcu HI3670_CLK_GATE_I2C2>;
+			resets = <&iomcu_rst 0x20 5>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_pmx_func &i2c2_cfg_func>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@fdf0c000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0xfdf0c000 0x0 0x1000>;
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <400000>;
+			clocks = <&crg_ctrl HI3670_CLK_GATE_I2C3>;
+			resets = <&crg_rst 0x78 7>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3_pmx_func &i2c3_cfg_func>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@fdf0d000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0xfdf0d000 0x0 0x1000>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <400000>;
+			clocks = <&crg_ctrl HI3670_CLK_GATE_I2C4>;
+			resets = <&crg_rst 0x78 27>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4_pmx_func &i2c4_cfg_func>;
 			status = "disabled";
 		};
 	};

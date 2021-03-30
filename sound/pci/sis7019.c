@@ -363,7 +363,7 @@ static u32 sis_rate_to_delta(unsigned int rate)
 	else if (rate == 48000)
 		delta = 0x1000;
 	else
-		delta = (((rate << 12) + 24000) / 48000) & 0x0000ffff;
+		delta = DIV_ROUND_CLOSEST(rate << 12, 48000) & 0x0000ffff;
 	return delta;
 }
 

@@ -117,13 +117,6 @@ static inline bool __acpi_aml_busy(void)
 	return false;
 }
 
-static inline bool __acpi_aml_opened(void)
-{
-	if (acpi_aml_io.flags & ACPI_AML_OPEN)
-		return true;
-	return false;
-}
-
 static inline bool __acpi_aml_used(void)
 {
 	return acpi_aml_io.usages ? true : false;
@@ -748,6 +741,9 @@ static const struct acpi_debugger_ops acpi_aml_debugger = {
 static int __init acpi_aml_init(void)
 {
 	int ret;
+
+	if (acpi_disabled)
+		return -ENODEV;
 
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);

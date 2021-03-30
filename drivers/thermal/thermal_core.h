@@ -34,7 +34,7 @@ extern struct thermal_governor *__governor_thermal_table_end[];
 
 #define THERMAL_TABLE_ENTRY(table, name)			\
 	static typeof(name) *__thermal_table_entry_##name	\
-	__used __section(__##table##_thermal_table) = &name
+	__used __section("__" #table "_thermal_table") = &name
 
 #define THERMAL_GOVERNOR_DECLARE(name)	THERMAL_TABLE_ENTRY(governor, name)
 
@@ -65,12 +65,8 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 		cdev->ops->power2state;
 }
 
-int power_actor_get_max_power(struct thermal_cooling_device *cdev,
-			      struct thermal_zone_device *tz, u32 *max_power);
-int power_actor_get_min_power(struct thermal_cooling_device *cdev,
-			      struct thermal_zone_device *tz, u32 *min_power);
-int power_actor_set_power(struct thermal_cooling_device *cdev,
-			  struct thermal_instance *ti, u32 power);
+void thermal_cdev_update(struct thermal_cooling_device *);
+
 /**
  * struct thermal_trip - representation of a point in temperature domain
  * @np: pointer to struct device_node that this trip point was created from
@@ -124,15 +120,12 @@ struct thermal_instance {
 
 int thermal_register_governor(struct thermal_governor *);
 void thermal_unregister_governor(struct thermal_governor *);
-void thermal_zone_device_rebind_exception(struct thermal_zone_device *,
-					  const char *, size_t);
-void thermal_zone_device_unbind_exception(struct thermal_zone_device *,
-					  const char *, size_t);
 int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
 int thermal_build_list_of_policies(char *buf);
 
 /* Helpers */
 void thermal_zone_set_trips(struct thermal_zone_device *tz);
+void thermal_set_delay_jiffies(unsigned long *delay_jiffies, int delay_ms);
 
 /* sysfs I/F */
 int thermal_zone_create_device_groups(struct thermal_zone_device *, int);

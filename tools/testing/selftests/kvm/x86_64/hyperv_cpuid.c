@@ -46,19 +46,19 @@ static bool smt_possible(void)
 }
 
 static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
-			  bool evmcs_enabled)
+			  bool evmcs_expected)
 {
 	int i;
 	int nent = 9;
 	u32 test_val;
 
-	if (evmcs_enabled)
+	if (evmcs_expected)
 		nent += 1; /* 0x4000000A */
 
 	TEST_ASSERT(hv_cpuid_entries->nent == nent,
 		    "KVM_GET_SUPPORTED_HV_CPUID should return %d entries"
 		    " with evmcs=%d (returned %d)",
-		    nent, evmcs_enabled, hv_cpuid_entries->nent);
+		    nent, evmcs_expected, hv_cpuid_entries->nent);
 
 	for (i = 0; i < hv_cpuid_entries->nent; i++) {
 		struct kvm_cpuid_entry2 *entry = &hv_cpuid_entries->entries[i];
@@ -68,7 +68,7 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 			    "function %x is our of supported range",
 			    entry->function);
 
-		TEST_ASSERT(evmcs_enabled || (entry->function != 0x4000000A),
+		TEST_ASSERT(evmcs_expected || (entry->function != 0x4000000A),
 			    "0x4000000A leaf should not be reported");
 
 		TEST_ASSERT(entry->index == 0,
@@ -87,7 +87,7 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 			TEST_ASSERT(entry->eax == test_val,
 				    "Wrong max leaf report in 0x40000000.EAX: %x"
 				    " (evmcs=%d)",
-				    entry->eax, evmcs_enabled
+				    entry->eax, evmcs_expected
 				);
 			break;
 		case 0x40000004:
@@ -110,81 +110,67 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 
 }
 
-void test_hv_cpuid_e2big(struct kvm_vm *vm)
+void test_hv_cpuid_e2big(struct kvm_vm *vm, bool system)
 {
 	static struct kvm_cpuid2 cpuid = {.nent = 0};
 	int ret;
 
-	ret = _vcpu_ioctl(vm, VCPU_ID, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
+	if (!system)
+		ret = _vcpu_ioctl(vm, VCPU_ID, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
+	else
+		ret = _kvm_ioctl(vm, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
 
 	TEST_ASSERT(ret == -1 && errno == E2BIG,
-		    "KVM_GET_SUPPORTED_HV_CPUID didn't fail with -E2BIG when"
-		    " it should have: %d %d", ret, errno);
+		    "%s KVM_GET_SUPPORTED_HV_CPUID didn't fail with -E2BIG when"
+		    " it should have: %d %d", system ? "KVM" : "vCPU", ret, errno);
 }
-
-
-struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(struct kvm_vm *vm)
-{
-	int nent = 20; /* should be enough */
-	static struct kvm_cpuid2 *cpuid;
-
-	cpuid = malloc(sizeof(*cpuid) + nent * sizeof(struct kvm_cpuid_entry2));
-
-	if (!cpuid) {
-		perror("malloc");
-		abort();
-	}
-
-	cpuid->nent = nent;
-
-	vcpu_ioctl(vm, VCPU_ID, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
-
-	return cpuid;
-}
-
 
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
-	int rv, stage;
 	struct kvm_cpuid2 *hv_cpuid_entries;
-	bool evmcs_enabled;
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
-	rv = kvm_check_cap(KVM_CAP_HYPERV_CPUID);
-	if (!rv) {
+	if (!kvm_check_cap(KVM_CAP_HYPERV_CPUID)) {
 		print_skip("KVM_CAP_HYPERV_CPUID not supported");
 		exit(KSFT_SKIP);
 	}
 
-	for (stage = 0; stage < 3; stage++) {
-		evmcs_enabled = false;
+	vm = vm_create_default(VCPU_ID, 0, guest_code);
 
-		vm = vm_create_default(VCPU_ID, 0, guest_code);
-		switch (stage) {
-		case 0:
-			test_hv_cpuid_e2big(vm);
-			continue;
-		case 1:
-			break;
-		case 2:
-			if (!nested_vmx_supported() ||
-			    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
-				print_skip("Enlightened VMCS is unsupported");
-				continue;
-			}
-			vcpu_enable_evmcs(vm, VCPU_ID);
-			evmcs_enabled = true;
-			break;
-		}
+	/* Test vCPU ioctl version */
+	test_hv_cpuid_e2big(vm, false);
 
-		hv_cpuid_entries = kvm_get_supported_hv_cpuid(vm);
-		test_hv_cpuid(hv_cpuid_entries, evmcs_enabled);
-		free(hv_cpuid_entries);
-		kvm_vm_free(vm);
+	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, VCPU_ID);
+	test_hv_cpuid(hv_cpuid_entries, false);
+	free(hv_cpuid_entries);
+
+	if (!nested_vmx_supported() ||
+	    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
+		print_skip("Enlightened VMCS is unsupported");
+		goto do_sys;
 	}
+	vcpu_enable_evmcs(vm, VCPU_ID);
+	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, VCPU_ID);
+	test_hv_cpuid(hv_cpuid_entries, true);
+	free(hv_cpuid_entries);
+
+do_sys:
+	/* Test system ioctl version */
+	if (!kvm_check_cap(KVM_CAP_SYS_HYPERV_CPUID)) {
+		print_skip("KVM_CAP_SYS_HYPERV_CPUID not supported");
+		goto out;
+	}
+
+	test_hv_cpuid_e2big(vm, true);
+
+	hv_cpuid_entries = kvm_get_supported_hv_cpuid();
+	test_hv_cpuid(hv_cpuid_entries, nested_vmx_supported());
+
+out:
+	kvm_vm_free(vm);
 
 	return 0;
 }

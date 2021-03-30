@@ -43,7 +43,7 @@ static kmem_zone_t *xfs_buf_zone;
  *	  pag_buf_lock
  *	    lru_lock
  *
- * xfs_buftarg_wait_rele
+ * xfs_buftarg_drain_rele
  *	lru_lock
  *	  b_lock (trylock due to inversion)
  *
@@ -88,7 +88,7 @@ xfs_buf_vmap_len(
  * because the corresponding decrement is deferred to buffer release. Buffers
  * can undergo I/O multiple times in a hold-release cycle and per buffer I/O
  * tracking adds unnecessary overhead. This is used for sychronization purposes
- * with unmount (see xfs_wait_buftarg()), so all we really need is a count of
+ * with unmount (see xfs_buftarg_drain()), so all we really need is a count of
  * in-flight buffers.
  *
  * Buffers that are never released (e.g., superblock, iclog buffers) must set
@@ -278,7 +278,7 @@ _xfs_buf_alloc(
  */
 STATIC int
 _xfs_buf_get_pages(
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	int			page_count)
 {
 	/* Make sure that we have a page list */
@@ -302,7 +302,7 @@ _xfs_buf_get_pages(
  */
 STATIC void
 _xfs_buf_free_pages(
-	xfs_buf_t	*bp)
+	struct xfs_buf	*bp)
 {
 	if (bp->b_pages != bp->b_page_array) {
 		kmem_free(bp->b_pages);
@@ -319,7 +319,7 @@ _xfs_buf_free_pages(
  */
 static void
 xfs_buf_free(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp)
 {
 	trace_xfs_buf_free(bp, _RET_IP_);
 
@@ -352,7 +352,7 @@ xfs_buf_free(
  */
 STATIC int
 xfs_buf_allocate_memory(
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	uint			flags)
 {
 	size_t			size;
@@ -463,7 +463,7 @@ out_free_pages:
  */
 STATIC int
 _xfs_buf_map_pages(
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	uint			flags)
 {
 	ASSERT(bp->b_flags & _XBF_PAGES);
@@ -590,7 +590,7 @@ xfs_buf_find(
 	struct xfs_buf		**found_bp)
 {
 	struct xfs_perag	*pag;
-	xfs_buf_t		*bp;
+	struct xfs_buf		*bp;
 	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
 	xfs_daddr_t		eofs;
 	int			i;
@@ -762,7 +762,7 @@ found:
 
 int
 _xfs_buf_read(
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	xfs_buf_flags_t		flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
@@ -1005,7 +1005,7 @@ xfs_buf_get_uncached(
  */
 void
 xfs_buf_hold(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp)
 {
 	trace_xfs_buf_hold(bp, _RET_IP_);
 	atomic_inc(&bp->b_hold);
@@ -1017,7 +1017,7 @@ xfs_buf_hold(
  */
 void
 xfs_buf_rele(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp)
 {
 	struct xfs_perag	*pag = bp->b_pag;
 	bool			release;
@@ -1161,7 +1161,7 @@ xfs_buf_unlock(
 
 STATIC void
 xfs_buf_wait_unpin(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp)
 {
 	DECLARE_WAITQUEUE	(wait, current);
 
@@ -1373,7 +1373,7 @@ xfs_buf_ioend_work(
 	struct work_struct	*work)
 {
 	struct xfs_buf		*bp =
-		container_of(work, xfs_buf_t, b_ioend_work);
+		container_of(work, struct xfs_buf, b_ioend_work);
 
 	xfs_buf_ioend(bp);
 }
@@ -1388,7 +1388,7 @@ xfs_buf_ioend_async(
 
 void
 __xfs_buf_ioerror(
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	int			error,
 	xfs_failaddr_t		failaddr)
 {
@@ -1786,7 +1786,7 @@ __xfs_buf_mark_corrupt(
  * while freeing all the buffers only held by the LRU.
  */
 static enum lru_status
-xfs_buftarg_wait_rele(
+xfs_buftarg_drain_rele(
 	struct list_head	*item,
 	struct list_lru_one	*lru,
 	spinlock_t		*lru_lock,
@@ -1798,7 +1798,7 @@ xfs_buftarg_wait_rele(
 
 	if (atomic_read(&bp->b_hold) > 1) {
 		/* need to wait, so skip it this pass */
-		trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
+		trace_xfs_buf_drain_buftarg(bp, _RET_IP_);
 		return LRU_SKIP;
 	}
 	if (!spin_trylock(&bp->b_lock))
@@ -1815,14 +1815,13 @@ xfs_buftarg_wait_rele(
 	return LRU_REMOVED;
 }
 
+/*
+ * Wait for outstanding I/O on the buftarg to complete.
+ */
 void
-xfs_wait_buftarg(
+xfs_buftarg_wait(
 	struct xfs_buftarg	*btp)
 {
-	LIST_HEAD(dispose);
-	int			loop = 0;
-	bool			write_fail = false;
-
 	/*
 	 * First wait on the buftarg I/O count for all in-flight buffers to be
 	 * released. This is critical as new buffers do not make the LRU until
@@ -1838,10 +1837,21 @@ xfs_wait_buftarg(
 	while (percpu_counter_sum(&btp->bt_io_count))
 		delay(100);
 	flush_workqueue(btp->bt_mount->m_buf_workqueue);
+}
+
+void
+xfs_buftarg_drain(
+	struct xfs_buftarg	*btp)
+{
+	LIST_HEAD(dispose);
+	int			loop = 0;
+	bool			write_fail = false;
+
+	xfs_buftarg_wait(btp);
 
 	/* loop until there is nothing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {
-		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
+		list_lru_walk(&btp->bt_lru, xfs_buftarg_drain_rele,
 			      &dispose, LONG_MAX);
 
 		while (!list_empty(&dispose)) {

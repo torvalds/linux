@@ -26,11 +26,12 @@
 #include <crypto/aes.h>
 #include <crypto/internal/des.h>
 #include <crypto/hmac.h>
-#include <crypto/sha.h>
 #include <crypto/md5.h>
 #include <crypto/authenc.h>
 #include <crypto/skcipher.h>
 #include <crypto/hash.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/sha3.h>
 
 #include "util.h"
@@ -41,7 +42,7 @@
 
 /* ================= Device Structure ================== */
 
-struct device_private iproc_priv;
+struct bcm_device_private iproc_priv;
 
 /* ==================== Parameters ===================== */
 
@@ -470,10 +471,8 @@ static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 static void handle_skcipher_resp(struct iproc_reqctx_s *rctx)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
-#ifdef DEBUG
 	struct crypto_async_request *areq = rctx->parent;
 	struct skcipher_request *req = skcipher_request_cast(areq);
-#endif
 	struct iproc_ctx_s *ctx = rctx->ctx;
 	u32 payload_len;
 
@@ -995,13 +994,11 @@ static int ahash_req_done(struct iproc_reqctx_s *rctx)
 static void handle_ahash_resp(struct iproc_reqctx_s *rctx)
 {
 	struct iproc_ctx_s *ctx = rctx->ctx;
-#ifdef DEBUG
 	struct crypto_async_request *areq = rctx->parent;
 	struct ahash_request *req = ahash_request_cast(areq);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	unsigned int blocksize =
 		crypto_tfm_alg_blocksize(crypto_ahash_tfm(ahash));
-#endif
 	/*
 	 * Save hash to use as input to next op if incremental. Might be copying
 	 * too much, but that's easier than figuring out actual digest size here

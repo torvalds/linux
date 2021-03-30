@@ -1758,10 +1758,10 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 		 * and the code is stored as a positive value.	\
 		 */						\
 		if (_result < 0) {				\
-			SYSCALL_RET(_regs) = -result;		\
+			SYSCALL_RET(_regs) = -_result;		\
 			(_regs).ccr |= 0x10000000;		\
 		} else {					\
-			SYSCALL_RET(_regs) = result;		\
+			SYSCALL_RET(_regs) = _result;		\
 			(_regs).ccr &= ~0x10000000;		\
 		}						\
 	} while (0)
@@ -1804,8 +1804,8 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 #define SYSCALL_RET(_regs)	(_regs).a[(_regs).windowbase * 4 + 2]
 #elif defined(__sh__)
 # define ARCH_REGS		struct pt_regs
-# define SYSCALL_NUM(_regs)	(_regs).gpr[3]
-# define SYSCALL_RET(_regs)	(_regs).gpr[0]
+# define SYSCALL_NUM(_regs)	(_regs).regs[3]
+# define SYSCALL_RET(_regs)	(_regs).regs[0]
 #else
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
@@ -4019,18 +4019,14 @@ TEST(user_notification_addfd)
 
 	/* Verify we can set an arbitrary remote fd */
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd);
-	/*
-	 * The child has fds 0(stdin), 1(stdout), 2(stderr), 3(memfd),
-	 * 4(listener), so the newly allocated fd should be 5.
-	 */
-	EXPECT_EQ(fd, 5);
+	EXPECT_GE(fd, 0);
 	EXPECT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/* Verify we can set an arbitrary remote fd with large size */
 	memset(&big, 0x0, sizeof(big));
 	big.addfd = addfd;
 	fd = ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD_BIG, &big);
-	EXPECT_EQ(fd, 6);
+	EXPECT_GE(fd, 0);
 
 	/* Verify we can set a specific remote fd */
 	addfd.newfd = 42;

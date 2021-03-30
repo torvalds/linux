@@ -56,6 +56,7 @@ static const char * const POWER_SUPPLY_TYPE_TEXT[] = {
 	[POWER_SUPPLY_TYPE_USB_PD]		= "USB_PD",
 	[POWER_SUPPLY_TYPE_USB_PD_DRP]		= "USB_PD_DRP",
 	[POWER_SUPPLY_TYPE_APPLE_BRICK_ID]	= "BrickID",
+	[POWER_SUPPLY_TYPE_WIRELESS]		= "Wireless",
 };
 
 static const char * const POWER_SUPPLY_USB_TYPE_TEXT[] = {
@@ -373,7 +374,7 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static struct attribute_group power_supply_attr_group = {
+static const struct attribute_group power_supply_attr_group = {
 	.attrs = __power_supply_attrs,
 	.is_visible = power_supply_attr_is_visible,
 };
@@ -401,7 +402,7 @@ void power_supply_init_attrs(struct device_type *dev_type)
 		struct device_attribute *attr;
 
 		if (!power_supply_attrs[i].prop_name) {
-			pr_warn("%s: Property %d skipped because is is missing from power_supply_attrs\n",
+			pr_warn("%s: Property %d skipped because it is missing from power_supply_attrs\n",
 				__func__, i);
 			sprintf(power_supply_attrs[i].attr_name, "_err_%d", i);
 		} else {

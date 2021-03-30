@@ -12,9 +12,7 @@
  *
  * The 2 bytes tag form a 16 bit big endian word. The exact
  * meaning has been guessed from packet dumps from ingress
- * frames, as no working egress traffic has been available
- * we do not know the format of the egress tags or if they
- * are even supported.
+ * frames.
  */
 
 #include <linux/etherdevice.h>
@@ -36,17 +34,34 @@
 static struct sk_buff *rtl4a_tag_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
-	/*
-	 * Just let it pass thru, we don't know if it is possible
-	 * to tag a frame with the 0x8899 ethertype and direct it
-	 * to a specific port, all attempts at reverse-engineering have
-	 * ended up with the frames getting dropped.
-	 *
-	 * The VLAN set-up needs to restrict the frames to the right port.
-	 *
-	 * If you have documentation on the tagging format for RTL8366RB
-	 * (tag type A) then please contribute.
-	 */
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	u8 *tag;
+	u16 *p;
+	u16 out;
+
+	/* Pad out to at least 60 bytes */
+	if (unlikely(eth_skb_pad(skb)))
+		return NULL;
+	if (skb_cow_head(skb, RTL4_A_HDR_LEN) < 0)
+		return NULL;
+
+	netdev_dbg(dev, "add realtek tag to package to port %d\n",
+		   dp->index);
+	skb_push(skb, RTL4_A_HDR_LEN);
+
+	memmove(skb->data, skb->data + RTL4_A_HDR_LEN, 2 * ETH_ALEN);
+	tag = skb->data + 2 * ETH_ALEN;
+
+	/* Set Ethertype */
+	p = (u16 *)tag;
+	*p = htons(RTL4_A_ETHERTYPE);
+
+	out = (RTL4_A_PROTOCOL_RTL8366RB << 12) | (2 << 8);
+	/* The lower bits is the port numer */
+	out |= (u8)dp->index;
+	p = (u16 *)(tag + 2);
+	*p = htons(out);
+
 	return skb;
 }
 
@@ -106,22 +121,11 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-static int rtl4a_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
-				  int *offset)
-{
-	*offset = RTL4_A_HDR_LEN;
-	/* Skip past the tag and fetch the encapsulated Ethertype */
-	*proto = ((__be16 *)skb->data)[1];
-
-	return 0;
-}
-
 static const struct dsa_device_ops rtl4a_netdev_ops = {
 	.name	= "rtl4a",
 	.proto	= DSA_TAG_PROTO_RTL4_A,
 	.xmit	= rtl4a_tag_xmit,
 	.rcv	= rtl4a_tag_rcv,
-	.flow_dissect = rtl4a_tag_flow_dissect,
 	.overhead = RTL4_A_HDR_LEN,
 };
 module_dsa_tag_driver(rtl4a_netdev_ops);

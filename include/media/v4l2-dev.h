@@ -43,8 +43,8 @@ enum vfl_devnode_type {
 };
 
 /**
- * enum  vfl_direction - Identifies if a &struct video_device corresponds
- *	to a receiver, a transmitter or a mem-to-mem device.
+ * enum  vfl_devnode_direction - Identifies if a &struct video_device
+ * 	corresponds to a receiver, a transmitter or a mem-to-mem device.
  *
  * @VFL_DIR_RX:		device is a receiver.
  * @VFL_DIR_TX:		device is a transmitter.

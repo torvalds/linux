@@ -106,6 +106,7 @@ static int pch_fivr_remove(struct platform_device *pdev)
 
 static const struct acpi_device_id pch_fivr_device_ids[] = {
 	{"INTC1045", 0},
+	{"INTC1049", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, pch_fivr_device_ids);
@@ -114,7 +115,7 @@ static struct platform_driver pch_fivr_driver = {
 	.probe = pch_fivr_add,
 	.remove = pch_fivr_remove,
 	.driver = {
-		.name = "DPTF PCH FIVR",
+		.name = "dptf_pch_fivr",
 		.acpi_match_table = pch_fivr_device_ids,
 	},
 };

@@ -122,6 +122,12 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_stats_event) },
 	[WMI_TAG_PDEV_CTL_FAILSAFE_CHECK_EVENT]
 		= { .min_len = sizeof(struct wmi_pdev_ctl_failsafe_chk_event) },
+	[WMI_TAG_HOST_SWFDA_EVENT] = {
+		.min_len = sizeof(struct wmi_fils_discovery_event) },
+	[WMI_TAG_OFFLOAD_PRB_RSP_TX_STATUS_EVENT] = {
+		.min_len = sizeof(struct wmi_probe_resp_tx_status_event) },
+	[WMI_TAG_VDEV_DELETE_RESP_EVENT] = {
+		.min_len = sizeof(struct wmi_vdev_delete_resp_event) },
 };
 
 #define PRIMAP(_hw_mode_) \
@@ -163,7 +169,7 @@ ath11k_wmi_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		len -= sizeof(*tlv);
 
 		if (tlv_len > len) {
-			ath11k_err(ab, "wmi tlv parse failure of tag %hhu at byte %zd (%zu bytes left, %hhu expected)\n",
+			ath11k_err(ab, "wmi tlv parse failure of tag %u at byte %zd (%zu bytes left, %u expected)\n",
 				   tlv_tag, ptr - begin, len, tlv_len);
 			return -EINVAL;
 		}
@@ -171,7 +177,7 @@ ath11k_wmi_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		if (tlv_tag < ARRAY_SIZE(wmi_tlv_policies) &&
 		    wmi_tlv_policies[tlv_tag].min_len &&
 		    wmi_tlv_policies[tlv_tag].min_len > tlv_len) {
-			ath11k_err(ab, "wmi tlv parse failure of tag %hhu at byte %zd (%hhu bytes is less than min length %zu)\n",
+			ath11k_err(ab, "wmi tlv parse failure of tag %u at byte %zd (%u bytes is less than min length %zu)\n",
 				   tlv_tag, ptr - begin, tlv_len,
 				   wmi_tlv_policies[tlv_tag].min_len);
 			return -EINVAL;
@@ -338,7 +344,7 @@ ath11k_pull_mac_phy_cap_svc_ready_ext(struct ath11k_pdev_wmi *wmi_handle,
 	mac_phy_caps = wmi_mac_phy_caps + phy_idx;
 
 	pdev->pdev_id = mac_phy_caps->pdev_id;
-	pdev_cap->supported_bands = mac_phy_caps->supported_bands;
+	pdev_cap->supported_bands |= mac_phy_caps->supported_bands;
 	pdev_cap->ampdu_density = mac_phy_caps->ampdu_density;
 
 	/* Take non-zero tx/rx chainmask. If tx/rx chainmask differs from
@@ -362,7 +368,7 @@ ath11k_pull_mac_phy_cap_svc_ready_ext(struct ath11k_pdev_wmi *wmi_handle,
 	 * For example, for 4x4 capable macphys, first 4 chains can be used for first
 	 * mac and the remaing 4 chains can be used for the second mac or vice-versa.
 	 * In this case, tx/rx chainmask 0xf will be advertised for first mac and 0xf0
-	 * will be advertised for second mac or vice-versa. Compute the shift value for
+	 * will be advertised for second mac or vice-versa. Compute the shift value
 	 * for tx/rx chainmask which will be used to advertise supported ht/vht rates to
 	 * mac80211.
 	 */
@@ -371,27 +377,33 @@ ath11k_pull_mac_phy_cap_svc_ready_ext(struct ath11k_pdev_wmi *wmi_handle,
 	pdev_cap->rx_chain_mask_shift =
 			find_first_bit((unsigned long *)&pdev_cap->rx_chain_mask, 32);
 
-	cap_band = &pdev_cap->band[NL80211_BAND_2GHZ];
-	cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_2g;
-	cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_2g;
-	cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_2g;
-	cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_2g_ext;
-	cap_band->he_mcs = mac_phy_caps->he_supp_mcs_2g;
-	memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_2g,
-	       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
-	memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet2g,
-	       sizeof(struct ath11k_ppe_threshold));
+	if (mac_phy_caps->supported_bands & WMI_HOST_WLAN_2G_CAP) {
+		cap_band = &pdev_cap->band[NL80211_BAND_2GHZ];
+		cap_band->phy_id = mac_phy_caps->phy_id;
+		cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_2g;
+		cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_2g;
+		cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_2g;
+		cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_2g_ext;
+		cap_band->he_mcs = mac_phy_caps->he_supp_mcs_2g;
+		memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_2g,
+		       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
+		memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet2g,
+		       sizeof(struct ath11k_ppe_threshold));
+	}
 
-	cap_band = &pdev_cap->band[NL80211_BAND_5GHZ];
-	cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_5g;
-	cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_5g;
-	cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_5g;
-	cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_5g_ext;
-	cap_band->he_mcs = mac_phy_caps->he_supp_mcs_5g;
-	memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_5g,
-	       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
-	memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet5g,
-	       sizeof(struct ath11k_ppe_threshold));
+	if (mac_phy_caps->supported_bands & WMI_HOST_WLAN_5G_CAP) {
+		cap_band = &pdev_cap->band[NL80211_BAND_5GHZ];
+		cap_band->phy_id = mac_phy_caps->phy_id;
+		cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_5g;
+		cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_5g;
+		cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_5g;
+		cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_5g_ext;
+		cap_band->he_mcs = mac_phy_caps->he_supp_mcs_5g;
+		memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_5g,
+		       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
+		memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet5g,
+		       sizeof(struct ath11k_ppe_threshold));
+	}
 
 	cap_band = &pdev_cap->band[NL80211_BAND_6GHZ];
 	cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_5g;
@@ -1593,8 +1605,8 @@ int ath11k_wmi_bcn_tmpl(struct ath11k *ar, u32 vdev_id,
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 	cmd->vdev_id = vdev_id;
 	cmd->tim_ie_offset = offs->tim_offset;
-	cmd->csa_switch_count_offset = offs->csa_counter_offs[0];
-	cmd->ext_csa_switch_count_offset = offs->csa_counter_offs[1];
+	cmd->csa_switch_count_offset = offs->cntdwn_counter_offs[0];
+	cmd->ext_csa_switch_count_offset = offs->cntdwn_counter_offs[1];
 	cmd->buf_len = bcn->len;
 
 	ptr = skb->data + sizeof(*cmd);
@@ -1676,7 +1688,8 @@ int ath11k_wmi_vdev_install_key(struct ath11k *ar,
 
 static inline void
 ath11k_wmi_copy_peer_flags(struct wmi_peer_assoc_complete_cmd *cmd,
-			   struct peer_assoc_params *param)
+			   struct peer_assoc_params *param,
+			   bool hw_crypto_disabled)
 {
 	cmd->peer_flags = 0;
 
@@ -1730,7 +1743,8 @@ ath11k_wmi_copy_peer_flags(struct wmi_peer_assoc_complete_cmd *cmd,
 		cmd->peer_flags |= WMI_PEER_AUTH;
 	if (param->need_ptk_4_way) {
 		cmd->peer_flags |= WMI_PEER_NEED_PTK_4_WAY;
-		cmd->peer_flags &= ~WMI_PEER_AUTH;
+		if (!hw_crypto_disabled)
+			cmd->peer_flags &= ~WMI_PEER_AUTH;
 	}
 	if (param->need_gtk_2_way)
 		cmd->peer_flags |= WMI_PEER_NEED_GTK_2_WAY;
@@ -1797,7 +1811,9 @@ int ath11k_wmi_send_peer_assoc_cmd(struct ath11k *ar,
 	cmd->peer_new_assoc = param->peer_new_assoc;
 	cmd->peer_associd = param->peer_associd;
 
-	ath11k_wmi_copy_peer_flags(cmd, param);
+	ath11k_wmi_copy_peer_flags(cmd, param,
+				   test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED,
+					    &ar->ab->dev_flags));
 
 	ether_addr_copy(cmd->peer_macaddr.addr, param->peer_mac);
 
@@ -1940,6 +1956,11 @@ void ath11k_wmi_start_scan_init(struct ath11k *ar,
 				  WMI_SCAN_EVENT_DEQUEUED;
 	arg->scan_flags |= WMI_SCAN_CHAN_STAT_EVENT;
 	arg->num_bssid = 1;
+
+	/* fill bssid_list[0] with 0xff, otherwise bssid and RA will be
+	 * ZEROs in probe request
+	 */
+	eth_broadcast_addr(arg->bssid_list[0].addr);
 }
 
 static inline void
@@ -2182,37 +2203,6 @@ int ath11k_wmi_send_scan_start_cmd(struct ath11k *ar,
 		tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_FIXED_STRUCT) |
 			      FIELD_PREP(WMI_TLV_LEN, len);
 		ptr += TLV_HDR_SIZE;
-		hint_bssid = ptr;
-		for (i = 0; i < params->num_hint_bssid; ++i) {
-			hint_bssid->freq_flags =
-				params->hint_bssid[i].freq_flags;
-			ether_addr_copy(&params->hint_bssid[i].bssid.addr[0],
-					&hint_bssid->bssid.addr[0]);
-			hint_bssid++;
-		}
-	}
-
-	len = params->num_hint_s_ssid * sizeof(struct hint_short_ssid);
-	tlv = ptr;
-	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_FIXED_STRUCT) |
-		      FIELD_PREP(WMI_TLV_LEN, len);
-	ptr += TLV_HDR_SIZE;
-	if (params->num_hint_s_ssid) {
-		s_ssid = ptr;
-		for (i = 0; i < params->num_hint_s_ssid; ++i) {
-			s_ssid->freq_flags = params->hint_s_ssid[i].freq_flags;
-			s_ssid->short_ssid = params->hint_s_ssid[i].short_ssid;
-			s_ssid++;
-		}
-	}
-	ptr += len;
-
-	len = params->num_hint_bssid * sizeof(struct hint_bssid);
-	tlv = ptr;
-	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_FIXED_STRUCT) |
-		      FIELD_PREP(WMI_TLV_LEN, len);
-	ptr += TLV_HDR_SIZE;
-	if (params->num_hint_bssid) {
 		hint_bssid = ptr;
 		for (i = 0; i < params->num_hint_bssid; ++i) {
 			hint_bssid->freq_flags =
@@ -2981,6 +2971,233 @@ ath11k_wmi_send_obss_spr_cmd(struct ath11k *ar, u32 vdev_id,
 }
 
 int
+ath11k_wmi_pdev_set_srg_bss_color_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_PDEV_SRG_BSS_COLOR_BITMAP_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd pdev_id %d bss color bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_set_srg_patial_bssid_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_SRG_PARTIAL_BSSID_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd pdev_id %d partial bssid bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_srg_obss_color_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd srg pdev_id %d bss color enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_srg_obss_bssid_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd srg pdev_id %d bssid enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_non_srg_obss_color_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd non_srg pdev_id %d bss color enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
+ath11k_wmi_pdev_non_srg_obss_bssid_enable_bitmap(struct ath11k *ar, u32 *bitmap)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ath11k_base *ab = wmi->wmi_ab->ab;
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct sk_buff *skb;
+	int ret, len;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header =
+		FIELD_PREP(WMI_TLV_TAG,
+			   WMI_TAG_PDEV_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD) |
+		FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->pdev_id = ar->pdev->pdev_id;
+	memcpy(cmd->bitmap, bitmap, sizeof(cmd->bitmap));
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "obss pd non_srg pdev_id %d bssid enable bitmap %08x %08x\n",
+		   cmd->pdev_id, cmd->bitmap[0], cmd->bitmap[1]);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb,
+				  WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID);
+	if (ret) {
+		ath11k_warn(ab,
+			    "failed to send WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int
 ath11k_wmi_send_obss_color_collision_cfg_cmd(struct ath11k *ar, u32 vdev_id,
 					     u8 bss_color, u32 period,
 					     bool enable)
@@ -3053,6 +3270,137 @@ int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
 				  WMI_BSS_COLOR_CHANGE_ENABLE_CMDID);
 	if (ret) {
 		ath11k_warn(ab, "Failed to send WMI_BSS_COLOR_CHANGE_ENABLE_CMDID");
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
+int ath11k_wmi_fils_discovery_tmpl(struct ath11k *ar, u32 vdev_id,
+				   struct sk_buff *tmpl)
+{
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	void *ptr;
+	int ret, len;
+	size_t aligned_len;
+	struct wmi_fils_discovery_tmpl_cmd *cmd;
+
+	aligned_len = roundup(tmpl->len, 4);
+	len = sizeof(*cmd) + TLV_HDR_SIZE + aligned_len;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev %i set FILS discovery template\n", vdev_id);
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_fils_discovery_tmpl_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_FILS_DISCOVERY_TMPL_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->buf_len = tmpl->len;
+	ptr = skb->data + sizeof(*cmd);
+
+	tlv = ptr;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+		      FIELD_PREP(WMI_TLV_LEN, aligned_len);
+	memcpy(tlv->value, tmpl->data, tmpl->len);
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_FILS_DISCOVERY_TMPL_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "WMI vdev %i failed to send FILS discovery template command\n",
+			    vdev_id);
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
+int ath11k_wmi_probe_resp_tmpl(struct ath11k *ar, u32 vdev_id,
+			       struct sk_buff *tmpl)
+{
+	struct wmi_probe_tmpl_cmd *cmd;
+	struct wmi_bcn_prb_info *probe_info;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	void *ptr;
+	int ret, len;
+	size_t aligned_len = roundup(tmpl->len, 4);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev %i set probe response template\n", vdev_id);
+
+	len = sizeof(*cmd) + sizeof(*probe_info) + TLV_HDR_SIZE + aligned_len;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_probe_tmpl_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PRB_TMPL_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->buf_len = tmpl->len;
+
+	ptr = skb->data + sizeof(*cmd);
+
+	probe_info = ptr;
+	len = sizeof(*probe_info);
+	probe_info->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+					    WMI_TAG_BCN_PRB_INFO) |
+				 FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	probe_info->caps = 0;
+	probe_info->erp = 0;
+
+	ptr += sizeof(*probe_info);
+
+	tlv = ptr;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+		      FIELD_PREP(WMI_TLV_LEN, aligned_len);
+	memcpy(tlv->value, tmpl->data, tmpl->len);
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_PRB_TMPL_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "WMI vdev %i failed to send probe response template command\n",
+			    vdev_id);
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
+int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
+			      bool unsol_bcast_probe_resp_enabled)
+{
+	struct sk_buff *skb;
+	int ret, len;
+	struct wmi_fils_discovery_cmd *cmd;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev %i set %s interval to %u TU\n",
+		   vdev_id, unsol_bcast_probe_resp_enabled ?
+		   "unsolicited broadcast probe response" : "FILS discovery",
+		   interval);
+
+	len = sizeof(*cmd);
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_fils_discovery_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ENABLE_FILS_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->interval = interval;
+	cmd->config = unsol_bcast_probe_resp_enabled;
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_ENABLE_FILS_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "WMI vdev %i failed to send FILS discovery enable/disable command\n",
+			    vdev_id);
 		dev_kfree_skb(skb);
 	}
 	return ret;
@@ -3175,7 +3523,7 @@ static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
 			      (param->num_band_to_mac * sizeof(*band_to_mac));
 
 	len = sizeof(*cmd) + TLV_HDR_SIZE + sizeof(*cfg) + hw_mode_len +
-	      (sizeof(*host_mem_chunks) * WMI_MAX_MEM_REQS);
+	      (param->num_mem_chunks ? (sizeof(*host_mem_chunks) * WMI_MAX_MEM_REQS) : 0);
 
 	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
@@ -3327,6 +3675,38 @@ int ath11k_wmi_wait_for_unified_ready(struct ath11k_base *ab)
 	return 0;
 }
 
+int ath11k_wmi_set_hw_mode(struct ath11k_base *ab,
+			   enum wmi_host_hw_mode_config_type mode)
+{
+	struct wmi_pdev_set_hw_mode_cmd_param *cmd;
+	struct sk_buff *skb;
+	struct ath11k_wmi_base *wmi_ab = &ab->wmi_ab;
+	int len;
+	int ret;
+
+	len = sizeof(*cmd);
+
+	skb = ath11k_wmi_alloc_skb(wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_set_hw_mode_cmd_param *)skb->data;
+
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PDEV_SET_HW_MODE_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->pdev_id = WMI_PDEV_ID_SOC;
+	cmd->hw_mode_index = mode;
+
+	ret = ath11k_wmi_cmd_send(&wmi_ab->wmi[0], skb, WMI_PDEV_SET_HW_MODE_CMDID);
+	if (ret) {
+		ath11k_warn(ab, "failed to send WMI_PDEV_SET_HW_MODE_CMDID\n");
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
 int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 {
 	struct ath11k_wmi_base *wmi_sc = &ab->wmi_ab;
@@ -3336,50 +3716,7 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	memset(&init_param, 0, sizeof(init_param));
 	memset(&config, 0, sizeof(config));
 
-	config.num_vdevs = ab->num_radios * TARGET_NUM_VDEVS;
-
-	if (ab->num_radios == 2) {
-		config.num_peers = TARGET_NUM_PEERS(DBS);
-		config.num_tids = TARGET_NUM_TIDS(DBS);
-	} else if (ab->num_radios == 3) {
-		config.num_peers = TARGET_NUM_PEERS(DBS_SBS);
-		config.num_tids = TARGET_NUM_TIDS(DBS_SBS);
-	} else {
-		/* Control should not reach here */
-		config.num_peers = TARGET_NUM_PEERS(SINGLE);
-		config.num_tids = TARGET_NUM_TIDS(SINGLE);
-	}
-	config.num_offload_peers = TARGET_NUM_OFFLD_PEERS;
-	config.num_offload_reorder_buffs = TARGET_NUM_OFFLD_REORDER_BUFFS;
-	config.num_peer_keys = TARGET_NUM_PEER_KEYS;
-	config.ast_skid_limit = TARGET_AST_SKID_LIMIT;
-	config.tx_chain_mask = (1 << ab->target_caps.num_rf_chains) - 1;
-	config.rx_chain_mask = (1 << ab->target_caps.num_rf_chains) - 1;
-	config.rx_timeout_pri[0] = TARGET_RX_TIMEOUT_LO_PRI;
-	config.rx_timeout_pri[1] = TARGET_RX_TIMEOUT_LO_PRI;
-	config.rx_timeout_pri[2] = TARGET_RX_TIMEOUT_LO_PRI;
-	config.rx_timeout_pri[3] = TARGET_RX_TIMEOUT_HI_PRI;
-	config.rx_decap_mode = TARGET_DECAP_MODE_NATIVE_WIFI;
-	config.scan_max_pending_req = TARGET_SCAN_MAX_PENDING_REQS;
-	config.bmiss_offload_max_vdev = TARGET_BMISS_OFFLOAD_MAX_VDEV;
-	config.roam_offload_max_vdev = TARGET_ROAM_OFFLOAD_MAX_VDEV;
-	config.roam_offload_max_ap_profiles = TARGET_ROAM_OFFLOAD_MAX_AP_PROFILES;
-	config.num_mcast_groups = TARGET_NUM_MCAST_GROUPS;
-	config.num_mcast_table_elems = TARGET_NUM_MCAST_TABLE_ELEMS;
-	config.mcast2ucast_mode = TARGET_MCAST2UCAST_MODE;
-	config.tx_dbg_log_size = TARGET_TX_DBG_LOG_SIZE;
-	config.num_wds_entries = TARGET_NUM_WDS_ENTRIES;
-	config.dma_burst_size = TARGET_DMA_BURST_SIZE;
-	config.rx_skip_defrag_timeout_dup_detection_check =
-		TARGET_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK;
-	config.vow_config = TARGET_VOW_CONFIG;
-	config.gtk_offload_max_vdev = TARGET_GTK_OFFLOAD_MAX_VDEV;
-	config.num_msdu_desc = TARGET_NUM_MSDU_DESC;
-	config.beacon_tx_offload_max_vdev = ab->num_radios * TARGET_MAX_BCN_OFFLD;
-	config.rx_batchmode = TARGET_RX_BATCHMODE;
-	config.peer_map_unmap_v2_support = 1;
-	config.twt_ap_pdev_count = ab->num_radios;
-	config.twt_ap_sta_count = 1000;
+	ab->hw_params.hw_ops->wmi_init_config(ab, &config);
 
 	memcpy(&wmi_sc->wlan_resource_config, &config, sizeof(config));
 
@@ -3388,11 +3725,10 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	init_param.hw_mode_id = wmi_sc->preferred_hw_mode;
 	init_param.mem_chunks = wmi_sc->mem_chunks;
 
-	if (wmi_sc->preferred_hw_mode == WMI_HOST_HW_MODE_SINGLE)
+	if (ab->hw_params.single_pdev_only)
 		init_param.hw_mode_id = WMI_HOST_HW_MODE_MAX;
 
 	init_param.num_band_to_mac = ab->num_radios;
-
 	ath11k_fill_band_to_mac_param(ab, init_param.band_to_mac);
 
 	return ath11k_init_cmd_send(&wmi_sc->wmi[0], &init_param);
@@ -3688,6 +4024,8 @@ static int ath11k_wmi_tlv_hw_mode_caps(struct ath11k_base *soc,
 		i++;
 	}
 
+	ath11k_dbg(soc, ATH11K_DBG_WMI, "preferred_hw_mode:%d\n",
+		   soc->wmi_ab.preferred_hw_mode);
 	if (soc->wmi_ab.preferred_hw_mode == WMI_HOST_HW_MODE_MAX)
 		return -EINVAL;
 
@@ -3778,6 +4116,7 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 	struct wmi_tlv_svc_rdy_ext_parse *svc_rdy_ext = data;
 	u8 hw_mode_id = svc_rdy_ext->pref_hw_mode_caps.hw_mode_id;
 	u32 phy_id_map;
+	int pdev_index = 0;
 	int ret;
 
 	svc_rdy_ext->soc_hal_reg_caps = (struct wmi_soc_hal_reg_capabilities *)ptr;
@@ -3793,7 +4132,7 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 							    svc_rdy_ext->soc_hal_reg_caps,
 							    svc_rdy_ext->mac_phy_caps,
 							    hw_mode_id, soc->num_radios,
-							    &soc->pdevs[soc->num_radios]);
+							    &soc->pdevs[pdev_index]);
 		if (ret) {
 			ath11k_warn(soc, "failed to extract mac caps, idx :%d\n",
 				    soc->num_radios);
@@ -3802,9 +4141,25 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 
 		soc->num_radios++;
 
+		/* For QCA6390, save mac_phy capability in the same pdev */
+		if (soc->hw_params.single_pdev_only)
+			pdev_index = 0;
+		else
+			pdev_index = soc->num_radios;
+
 		/* TODO: mac_phy_cap prints */
 		phy_id_map >>= 1;
 	}
+
+	/* For QCA6390, set num_radios to 1 because host manages
+	 * both 2G and 5G radio in one pdev.
+	 * Set pdev_id = 0 and 0 means soc level.
+	 */
+	if (soc->hw_params.single_pdev_only) {
+		soc->num_radios = 1;
+		soc->pdevs[0].pdev_id = 0;
+	}
+
 	return 0;
 }
 
@@ -4254,6 +4609,34 @@ static int ath11k_pull_peer_del_resp_ev(struct ath11k_base *ab, struct sk_buff *
 	peer_del_resp->vdev_id = ev->vdev_id;
 	ether_addr_copy(peer_del_resp->peer_macaddr.addr,
 			ev->peer_macaddr.addr);
+
+	kfree(tb);
+	return 0;
+}
+
+static int ath11k_pull_vdev_del_resp_ev(struct ath11k_base *ab,
+					struct sk_buff *skb,
+					u32 *vdev_id)
+{
+	const void **tb;
+	const struct wmi_vdev_delete_resp_event *ev;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TAG_VDEV_DELETE_RESP_EVENT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch vdev delete resp ev");
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	*vdev_id = ev->vdev_id;
 
 	kfree(tb);
 	return 0;
@@ -5434,8 +5817,17 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *sk
 
 	pdev_idx = reg_info->phy_id;
 
-	if (pdev_idx >= ab->num_radios)
-		goto fallback;
+	if (pdev_idx >= ab->num_radios) {
+		/* Process the event for phy0 only if single_pdev_only
+		 * is true. If pdev_idx is valid but not 0, discard the
+		 * event. Otherwise, it goes to fallback.
+		 */
+		if (ab->hw_params.single_pdev_only &&
+		    pdev_idx < ab->hw_params.num_rxmda_per_pdev)
+			goto mem_free;
+		else
+			goto fallback;
+	}
 
 	/* Avoid multiple overwrites to default regd, during core
 	 * stop-start after mac registration.
@@ -5571,15 +5963,54 @@ static int ath11k_ready_event(struct ath11k_base *ab, struct sk_buff *skb)
 static void ath11k_peer_delete_resp_event(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_peer_delete_resp_event peer_del_resp;
+	struct ath11k *ar;
 
 	if (ath11k_pull_peer_del_resp_ev(ab, skb, &peer_del_resp) != 0) {
 		ath11k_warn(ab, "failed to extract peer delete resp");
 		return;
 	}
 
-	/* TODO: Do we need to validate whether ath11k_peer_find() return NULL
-	 *	 Why this is needed when there is HTT event for peer delete
-	 */
+	rcu_read_lock();
+	ar = ath11k_mac_get_ar_by_vdev_id(ab, peer_del_resp.vdev_id);
+	if (!ar) {
+		ath11k_warn(ab, "invalid vdev id in peer delete resp ev %d",
+			    peer_del_resp.vdev_id);
+		rcu_read_unlock();
+		return;
+	}
+
+	complete(&ar->peer_delete_done);
+	rcu_read_unlock();
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "peer delete resp for vdev id %d addr %pM\n",
+		   peer_del_resp.vdev_id, peer_del_resp.peer_macaddr.addr);
+}
+
+static void ath11k_vdev_delete_resp_event(struct ath11k_base *ab,
+					  struct sk_buff *skb)
+{
+	struct ath11k *ar;
+	u32 vdev_id = 0;
+
+	if (ath11k_pull_vdev_del_resp_ev(ab, skb, &vdev_id) != 0) {
+		ath11k_warn(ab, "failed to extract vdev delete resp");
+		return;
+	}
+
+	rcu_read_lock();
+	ar = ath11k_mac_get_ar_by_vdev_id(ab, vdev_id);
+	if (!ar) {
+		ath11k_warn(ab, "invalid vdev id in vdev delete resp ev %d",
+			    vdev_id);
+		rcu_read_unlock();
+		return;
+	}
+
+	complete(&ar->vdev_delete_done);
+
+	rcu_read_unlock();
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI, "vdev delete resp for vdev id %d\n",
+		   vdev_id);
 }
 
 static inline const char *ath11k_wmi_vdev_resp_print(u32 vdev_resp_status)
@@ -5658,7 +6089,7 @@ static void ath11k_vdev_stopped_event(struct ath11k_base *ab, struct sk_buff *sk
 	}
 
 	rcu_read_lock();
-	ar = ath11k_mac_get_ar_vdev_stop_status(ab, vdev_id);
+	ar = ath11k_mac_get_ar_by_vdev_id(ab, vdev_id);
 	if (!ar) {
 		ath11k_warn(ab, "invalid vdev id in vdev stopped ev %d",
 			    vdev_id);
@@ -6260,7 +6691,7 @@ static void ath11k_peer_assoc_conf_event(struct ath11k_base *ab, struct sk_buff 
 
 static void ath11k_update_stats_event(struct ath11k_base *ab, struct sk_buff *skb)
 {
-	ath11k_debug_fw_stats_process(ab, skb);
+	ath11k_debugfs_fw_stats_process(ab, skb);
 }
 
 /* PDEV_CTL_FAILSAFE_CHECK_EVENT is received from FW when the frequency scanned
@@ -6437,6 +6868,121 @@ ath11k_wmi_pdev_temperature_event(struct ath11k_base *ab,
 	ath11k_thermal_event_temperature(ar, ev.temp);
 }
 
+static void ath11k_fils_discovery_event(struct ath11k_base *ab,
+					struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_fils_discovery_event *ev;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab,
+			    "failed to parse FILS discovery event tlv %d\n",
+			    ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_HOST_SWFDA_EVENT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch FILS discovery event\n");
+		kfree(tb);
+		return;
+	}
+
+	ath11k_warn(ab,
+		    "FILS discovery frame expected from host for vdev_id: %u, transmission scheduled at %u, next TBTT: %u\n",
+		    ev->vdev_id, ev->fils_tt, ev->tbtt);
+
+	kfree(tb);
+}
+
+static void ath11k_probe_resp_tx_status_event(struct ath11k_base *ab,
+					      struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_probe_resp_tx_status_event *ev;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab,
+			    "failed to parse probe response transmission status event tlv: %d\n",
+			    ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_OFFLOAD_PRB_RSP_TX_STATUS_EVENT];
+	if (!ev) {
+		ath11k_warn(ab,
+			    "failed to fetch probe response transmission status event");
+		kfree(tb);
+		return;
+	}
+
+	if (ev->tx_status)
+		ath11k_warn(ab,
+			    "Probe response transmission failed for vdev_id %u, status %u\n",
+			    ev->vdev_id, ev->tx_status);
+
+	kfree(tb);
+}
+
+static int ath11k_wmi_tlv_wow_wakeup_host_parse(struct ath11k_base *ab,
+						u16 tag, u16 len,
+						const void *ptr, void *data)
+{
+	struct wmi_wow_ev_arg *ev = data;
+	const char *wow_pg_fault;
+	int wow_pg_len;
+
+	switch (tag) {
+	case WMI_TAG_WOW_EVENT_INFO:
+		memcpy(ev, ptr, sizeof(*ev));
+		ath11k_dbg(ab, ATH11K_DBG_WMI, "wow wakeup host reason %d %s\n",
+			   ev->wake_reason, wow_reason(ev->wake_reason));
+		break;
+
+	case WMI_TAG_ARRAY_BYTE:
+		if (ev && ev->wake_reason == WOW_REASON_PAGE_FAULT) {
+			wow_pg_fault = ptr;
+			/* the first 4 bytes are length */
+			wow_pg_len = *(int *)wow_pg_fault;
+			wow_pg_fault += sizeof(int);
+			ath11k_dbg(ab, ATH11K_DBG_WMI, "wow data_len = %d\n",
+				   wow_pg_len);
+			ath11k_dbg_dump(ab, ATH11K_DBG_WMI,
+					"wow_event_info_type packet present",
+					"wow_pg_fault ",
+					wow_pg_fault,
+					wow_pg_len);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void ath11k_wmi_event_wow_wakeup_host(struct ath11k_base *ab, struct sk_buff *skb)
+{
+	struct wmi_wow_ev_arg ev = { };
+	int ret;
+
+	ret = ath11k_wmi_tlv_iter(ab, skb->data, skb->len,
+				  ath11k_wmi_tlv_wow_wakeup_host_parse,
+				  &ev);
+	if (ret) {
+		ath11k_warn(ab, "failed to parse wmi wow tlv: %d\n", ret);
+		return;
+	}
+
+	complete(&ab->wow.wakeup_completed);
+}
+
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -6523,9 +7069,14 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 	case WMI_PDEV_DMA_RING_BUF_RELEASE_EVENTID:
 		ath11k_wmi_pdev_dma_ring_buf_release_event(ab, skb);
 		break;
+	case WMI_HOST_FILS_DISCOVERY_EVENTID:
+		ath11k_fils_discovery_event(ab, skb);
+		break;
+	case WMI_OFFLOAD_PROB_RESP_TX_STATUS_EVENTID:
+		ath11k_probe_resp_tx_status_event(ab, skb);
+		break;
 	/* add Unsupported events here */
 	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:
-	case WMI_VDEV_DELETE_RESP_EVENTID:
 	case WMI_PEER_OPER_MODE_CHANGE_EVENTID:
 	case WMI_TWT_ENABLE_EVENTID:
 	case WMI_TWT_DISABLE_EVENTID:
@@ -6536,9 +7087,15 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 	case WMI_PDEV_DFS_RADAR_DETECTION_EVENTID:
 		ath11k_wmi_pdev_dfs_radar_detected_event(ab, skb);
 		break;
+	case WMI_VDEV_DELETE_RESP_EVENTID:
+		ath11k_vdev_delete_resp_event(ab, skb);
+		break;
+	case WMI_WOW_WAKEUP_HOST_EVENTID:
+		ath11k_wmi_event_wow_wakeup_host(ab, skb);
+		break;
 	/* TODO: Add remaining events */
 	default:
-		ath11k_warn(ab, "Unknown eventid: 0x%x\n", id);
+		ath11k_dbg(ab, ATH11K_DBG_WMI, "Unknown eventid: 0x%x\n", id);
 		break;
 	}
 
@@ -6682,7 +7239,7 @@ int ath11k_wmi_connect(struct ath11k_base *ab)
 	u8 wmi_ep_count;
 
 	wmi_ep_count = ab->htc.wmi_ep_count;
-	if (wmi_ep_count > MAX_RADIOS)
+	if (wmi_ep_count > ab->hw_params.max_radios)
 		return -1;
 
 	for (i = 0; i < wmi_ep_count; i++)
@@ -6704,7 +7261,7 @@ int ath11k_wmi_pdev_attach(struct ath11k_base *ab,
 {
 	struct ath11k_pdev_wmi *wmi_handle;
 
-	if (pdev_id >= MAX_RADIOS)
+	if (pdev_id >= ab->hw_params.max_radios)
 		return -EINVAL;
 
 	wmi_handle = &ab->wmi_ab.wmi[pdev_id];
@@ -6728,6 +7285,10 @@ int ath11k_wmi_attach(struct ath11k_base *ab)
 	ab->wmi_ab.ab = ab;
 	ab->wmi_ab.preferred_hw_mode = WMI_HOST_HW_MODE_MAX;
 
+	/* It's overwritten when service_ext_ready is handled */
+	if (ab->hw_params.single_pdev_only)
+		ab->wmi_ab.preferred_hw_mode = WMI_HOST_HW_MODE_SINGLE;
+
 	/* TODO: Init remaining wmi soc resources required */
 	init_completion(&ab->wmi_ab.service_ready);
 	init_completion(&ab->wmi_ab.unified_ready);
@@ -6745,4 +7306,47 @@ void ath11k_wmi_detach(struct ath11k_base *ab)
 		ath11k_wmi_pdev_detach(ab, i);
 
 	ath11k_wmi_free_dbring_caps(ab);
+}
+
+int ath11k_wmi_wow_host_wakeup_ind(struct ath11k *ar)
+{
+	struct wmi_wow_host_wakeup_ind *cmd;
+	struct sk_buff *skb;
+	size_t len;
+
+	len = sizeof(*cmd);
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_wow_host_wakeup_ind *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_WOW_HOSTWAKEUP_FROM_SLEEP_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "wmi tlv wow host wakeup ind\n");
+
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_WOW_HOSTWAKEUP_FROM_SLEEP_CMDID);
+}
+
+int ath11k_wmi_wow_enable(struct ath11k *ar)
+{
+	struct wmi_wow_enable_cmd *cmd;
+	struct sk_buff *skb;
+	int len;
+
+	len = sizeof(*cmd);
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_wow_enable_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_WOW_ENABLE_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->enable = 1;
+	cmd->pause_iface_config = WOW_IFACE_PAUSE_ENABLED;
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI, "wmi tlv wow enable\n");
+
+	return ath11k_wmi_cmd_send(ar->wmi, skb, WMI_WOW_ENABLE_CMDID);
 }

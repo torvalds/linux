@@ -63,7 +63,7 @@ static struct dma_resv_list *dma_resv_list_alloc(unsigned int shared_max)
 {
 	struct dma_resv_list *list;
 
-	list = kmalloc(offsetof(typeof(*list), shared[shared_max]), GFP_KERNEL);
+	list = kmalloc(struct_size(list, shared, shared_max), GFP_KERNEL);
 	if (!list)
 		return NULL;
 
@@ -200,7 +200,7 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 			max = max(old->shared_count + num_fences,
 				  old->shared_max * 2);
 	} else {
-		max = 4;
+		max = max(4ul, roundup_pow_of_two(num_fences));
 	}
 
 	new = dma_resv_list_alloc(max);

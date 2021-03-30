@@ -672,7 +672,7 @@ static void cpumsf_output_event_pid(struct perf_event *event,
 	rcu_read_lock();
 
 	perf_prepare_sample(&header, data, event, regs);
-	if (perf_output_begin(&handle, event, header.size))
+	if (perf_output_begin(&handle, data, event, header.size))
 		goto out;
 
 	/* Update the process ID (see also kernel/events/core.c) */
@@ -1682,7 +1682,7 @@ static void aux_sdb_init(unsigned long sdb)
 
 	/* Save clock base */
 	te->clock_base = 1;
-	memcpy(&te->progusage2, &tod_clock_base[1], 8);
+	te->progusage2 = tod_clock_base.tod;
 }
 
 /*
@@ -2228,4 +2228,4 @@ out:
 }
 
 arch_initcall(init_cpum_sampling_pmu);
-core_param(cpum_sfb_size, CPUM_SF_MAX_SDB, sfb_size, 0640);
+core_param(cpum_sfb_size, CPUM_SF_MAX_SDB, sfb_size, 0644);

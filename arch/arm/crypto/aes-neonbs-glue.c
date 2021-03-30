@@ -9,6 +9,7 @@
 #include <asm/simd.h>
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
@@ -19,9 +20,11 @@ MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
 
 MODULE_ALIAS_CRYPTO("ecb(aes)");
-MODULE_ALIAS_CRYPTO("cbc(aes)");
+MODULE_ALIAS_CRYPTO("cbc(aes)-all");
 MODULE_ALIAS_CRYPTO("ctr(aes)");
 MODULE_ALIAS_CRYPTO("xts(aes)");
+
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);
 
 asmlinkage void aesbs_convert_key(u8 out[], u32 const rk[], int rounds);
 
@@ -191,7 +194,8 @@ static int cbc_init(struct crypto_skcipher *tfm)
 	struct aesbs_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
 	unsigned int reqsize;
 
-	ctx->enc_tfm = crypto_alloc_skcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC);
+	ctx->enc_tfm = crypto_alloc_skcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC |
+					     CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->enc_tfm))
 		return PTR_ERR(ctx->enc_tfm);
 
@@ -441,7 +445,8 @@ static struct skcipher_alg aes_algs[] = { {
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct aesbs_cbc_ctx),
 	.base.cra_module	= THIS_MODULE,
-	.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+	.base.cra_flags		= CRYPTO_ALG_INTERNAL |
+				  CRYPTO_ALG_NEED_FALLBACK,
 
 	.min_keysize		= AES_MIN_KEY_SIZE,
 	.max_keysize		= AES_MAX_KEY_SIZE,

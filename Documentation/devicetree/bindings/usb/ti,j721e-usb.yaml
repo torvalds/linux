@@ -11,17 +11,24 @@ maintainers:
 
 properties:
   compatible:
-    items:
+    oneOf:
       - const: ti,j721e-usb
+      - const: ti,am64-usb
+      - items:
+          - const: ti,j721e-usb
+          - const: ti,am64-usb
 
   reg:
-    description: module registers
+    maxItems: 1
+
+  ranges: true
 
   power-domains:
     description:
       PM domain provider node and an args specifier containing
       the USB device id value. See,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+    maxItems: 1
 
   clocks:
     description: Clock phandles to usb2_refclk and lpm_clk
@@ -57,6 +64,8 @@ properties:
 
   '#size-cells':
     const: 2
+
+  dma-coherent: true
 
 patternProperties:
   "^usb@":

@@ -207,6 +207,7 @@ struct l2cap_hdr {
 	__le16     len;
 	__le16     cid;
 } __packed;
+#define L2CAP_LEN_SIZE		2
 #define L2CAP_HDR_SIZE		4
 #define L2CAP_ENH_HDR_SIZE	6
 #define L2CAP_EXT_HDR_SIZE	8
@@ -665,6 +666,8 @@ struct l2cap_ops {
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long hdr_len,
 					       unsigned long len, int nb);
+	int			(*filter) (struct l2cap_chan * chan,
+					   struct sk_buff *skb);
 };
 
 struct l2cap_conn {

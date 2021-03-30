@@ -57,3 +57,5 @@ call32_from_64:
 	ret
 
 .size call32_from_64, .-call32_from_64
+
+.section .note.GNU-stack,"",%progbits

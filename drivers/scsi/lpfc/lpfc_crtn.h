@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -88,8 +88,6 @@ void lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_unregister_vfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_enqueue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_dequeue_node(struct lpfc_vport *, struct lpfc_nodelist *);
-struct lpfc_nodelist *lpfc_enable_node(struct lpfc_vport *,
-					struct lpfc_nodelist *, int);
 void lpfc_nlp_set_state(struct lpfc_vport *, struct lpfc_nodelist *, int);
 void lpfc_drop_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_set_disctmo(struct lpfc_vport *);
@@ -257,7 +255,6 @@ void lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba,
 int lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 			       struct fc_frame_header *fc_hdr);
 void lpfc_nvmet_wqfull_process(struct lpfc_hba *phba, struct lpfc_queue *wq);
-void lpfc_sli_flush_nvme_rings(struct lpfc_hba *phba);
 void lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba);
 void lpfc_sli4_build_dflt_fcf_record(struct lpfc_hba *, struct fcf_record *,
 			uint16_t);
@@ -322,8 +319,12 @@ void lpfc_sli_def_mbox_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 			struct lpfc_iocbq *, uint32_t);
+int lpfc_sli_issue_fcp_io(struct lpfc_hba *phba, uint32_t ring_number,
+			  struct lpfc_iocbq *piocb, uint32_t flag);
 int lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 			struct lpfc_iocbq *pwqe);
+int lpfc_sli4_issue_abort_iotag(struct lpfc_hba *phba,
+			struct lpfc_iocbq *cmdiocb, void *cmpl);
 struct lpfc_sglq *__lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xri);
 struct lpfc_sglq *__lpfc_sli_get_nvmet_sglq(struct lpfc_hba *phba,
 					    struct lpfc_iocbq *piocbq);
@@ -348,7 +349,7 @@ int lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *, uint32_t);
 void lpfc_sli_hbqbuf_free_all(struct lpfc_hba *);
 int lpfc_sli_hbq_size(void);
 int lpfc_sli_issue_abort_iotag(struct lpfc_hba *, struct lpfc_sli_ring *,
-			       struct lpfc_iocbq *);
+			       struct lpfc_iocbq *, void *);
 int lpfc_sli_sum_iocb(struct lpfc_vport *, uint16_t, uint64_t, lpfc_ctx_cmd);
 int lpfc_sli_abort_iocb(struct lpfc_vport *, struct lpfc_sli_ring *, uint16_t,
 			uint64_t, lpfc_ctx_cmd);
@@ -358,6 +359,8 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *, struct lpfc_sli_ring *,
 
 void lpfc_mbox_timeout(struct timer_list *t);
 void lpfc_mbox_timeout_handler(struct lpfc_hba *);
+int lpfc_issue_hb_mbox(struct lpfc_hba *phba);
+void lpfc_issue_hb_tmo(struct lpfc_hba *phba);
 
 struct lpfc_nodelist *lpfc_findnode_did(struct lpfc_vport *, uint32_t);
 struct lpfc_nodelist *lpfc_findnode_wwpn(struct lpfc_vport *,
@@ -371,6 +374,8 @@ int lpfc_sli_issue_iocb_wait(struct lpfc_hba *, uint32_t,
 			     uint32_t);
 void lpfc_sli_abort_fcp_cmpl(struct lpfc_hba *, struct lpfc_iocbq *,
 			     struct lpfc_iocbq *);
+void lpfc_sli4_abort_fcp_cmpl(struct lpfc_hba *h, struct lpfc_iocbq *i,
+			      struct lpfc_wcqe_complete *w);
 
 void lpfc_sli_free_hbq(struct lpfc_hba *, struct hbq_dmabuf *);
 
@@ -592,11 +597,14 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *ncmd,
 			 struct lpfc_sli4_hdw_queue *qp);
 void lpfc_io_ktime(struct lpfc_hba *phba, struct lpfc_io_buf *ncmd);
-void lpfc_nvme_cmd_template(void);
+void lpfc_wqe_cmd_template(void);
 void lpfc_nvmet_cmd_template(void);
-void lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn);
-void lpfc_nvme_prep_abort_wqe(struct lpfc_iocbq *pwqeq, u16 xritag, u8 opt);
+void lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
+			   uint32_t stat, uint32_t param);
 extern int lpfc_enable_nvmet_cnt;
 extern unsigned long long lpfc_enable_nvmet[];
 extern int lpfc_no_hba_reset_cnt;
 extern unsigned long lpfc_no_hba_reset[];
+extern union lpfc_wqe128 lpfc_iread_cmd_template;
+extern union lpfc_wqe128 lpfc_iwrite_cmd_template;
+extern union lpfc_wqe128 lpfc_icmnd_cmd_template;

@@ -61,7 +61,6 @@ struct file_security_struct {
 };
 
 struct superblock_security_struct {
-	struct super_block *sb;		/* back pointer to sb object */
 	u32 sid;			/* SID of file system superblock */
 	u32 def_sid;			/* default SID for labeling */
 	u32 mntpoint_sid;		/* SECURITY_FS_USE_MNTPOINT context for files */

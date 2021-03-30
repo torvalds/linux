@@ -62,9 +62,7 @@ enum dc_plane_addr_type {
 	PLN_ADDR_TYPE_GRAPHICS = 0,
 	PLN_ADDR_TYPE_GRPH_STEREO,
 	PLN_ADDR_TYPE_VIDEO_PROGRESSIVE,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	PLN_ADDR_TYPE_RGBEA
-#endif
 };
 
 struct dc_plane_address {
@@ -73,6 +71,7 @@ struct dc_plane_address {
 	union {
 		struct{
 			PHYSICAL_ADDRESS_LOC addr;
+			PHYSICAL_ADDRESS_LOC cursor_cache_addr;
 			PHYSICAL_ADDRESS_LOC meta_addr;
 			union large_integer dcc_const_color;
 		} grph;
@@ -87,7 +86,6 @@ struct dc_plane_address {
 			PHYSICAL_ADDRESS_LOC right_meta_addr;
 			union large_integer right_dcc_const_color;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 			PHYSICAL_ADDRESS_LOC left_alpha_addr;
 			PHYSICAL_ADDRESS_LOC left_alpha_meta_addr;
 			union large_integer left_alpha_dcc_const_color;
@@ -95,7 +93,6 @@ struct dc_plane_address {
 			PHYSICAL_ADDRESS_LOC right_alpha_addr;
 			PHYSICAL_ADDRESS_LOC right_alpha_meta_addr;
 			union large_integer right_alpha_dcc_const_color;
-#endif
 
 		} grph_stereo;
 
@@ -110,7 +107,6 @@ struct dc_plane_address {
 			union large_integer chroma_dcc_const_color;
 		} video_progressive;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		struct {
 			PHYSICAL_ADDRESS_LOC addr;
 			PHYSICAL_ADDRESS_LOC meta_addr;
@@ -120,7 +116,6 @@ struct dc_plane_address {
 			PHYSICAL_ADDRESS_LOC alpha_meta_addr;
 			union large_integer alpha_dcc_const_color;
 		} rgbea;
-#endif
 	};
 
 	union large_integer page_table_base;
@@ -156,15 +151,11 @@ struct dc_plane_dcc_param {
 
 	int meta_pitch;
 	bool independent_64b_blks;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	uint8_t dcc_ind_blk;
-#endif
 
 	int meta_pitch_c;
 	bool independent_64b_blks_c;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	uint8_t dcc_ind_blk_c;
-#endif
 };
 
 /*Displayable pixel format in fb*/
@@ -200,10 +191,8 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX,
 	SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT,
 	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	SURFACE_PIXEL_FORMAT_GRPH_RGBE,
 	SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA,
-#endif
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
@@ -856,8 +845,6 @@ enum dwb_stereo_type {
 	DWB_STEREO_TYPE_FRAME_SEQUENTIAL = 3,	/* Frame sequential */
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
-
 enum dwb_out_format {
 	DWB_OUT_FORMAT_32BPP_ARGB = 0,
 	DWB_OUT_FORMAT_32BPP_RGBA = 1,
@@ -890,8 +877,6 @@ struct mcif_warmup_params {
 	unsigned int		p_vmid;
 };
 
-#endif
-
 #define MCIF_BUF_COUNT	4
 
 struct mcif_buf_params {
@@ -901,9 +886,7 @@ struct mcif_buf_params {
 	unsigned int		chroma_pitch;
 	unsigned int		warmup_pitch;
 	unsigned int		swlock;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	unsigned int		p_vmid;
-#endif
 };
 
 

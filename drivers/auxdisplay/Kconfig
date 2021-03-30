@@ -16,10 +16,29 @@ menuconfig AUXDISPLAY
 
 if AUXDISPLAY
 
+config CHARLCD
+	tristate "Character LCD core support" if COMPILE_TEST
+	help
+	  This is the base system for character-based LCD displays.
+	  It makes no sense to have this alone, you select your display driver
+	  and if it needs the charlcd core, it will select it automatically.
+	  This is some character LCD core interface that multiple drivers can
+	  use.
+
+config HD44780_COMMON
+	tristate "Common functions for HD44780 (and compatibles) LCD displays" if COMPILE_TEST
+	select CHARLCD
+	help
+	  This is a module with the common symbols for HD44780 (and compatibles)
+	  displays. This is the code that multiple other modules use. It is not
+	  useful alone. If you have some sort of HD44780 compatible display,
+	  you very likely use this. It is selected automatically by selecting
+	  your concrete display.
+
 config HD44780
 	tristate "HD44780 Character LCD support"
 	depends on GPIOLIB || COMPILE_TEST
-	select CHARLCD
+	select HD44780_COMMON
 	help
 	  Enable support for Character LCDs using a HD44780 controller.
 	  The LCD is accessible through the /dev/lcd char device (10, 156).
@@ -154,6 +173,16 @@ config HT16K33
 	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
 	  LED controller driver with keyscan.
 
+config LCD2S
+	tristate "lcd2s 20x4 character display over I2C console"
+	depends on I2C
+	select CHARLCD
+	help
+	  This is a driver that lets you use the lcd2s 20x4 character display
+	  from Modtronix engineering as a console output device. The display
+	  is a simple single color character display. You have to connect it
+	  to an I2C bus.
+
 config ARM_CHARLCD
 	bool "ARM Ltd. Character LCD Driver"
 	depends on PLAT_VERSATILE
@@ -167,7 +196,7 @@ config ARM_CHARLCD
 menuconfig PARPORT_PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
-	select CHARLCD
+	select HD44780_COMMON
 	help
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
 	  parallel port. This driver also features 4 and 6-key keypads. The LCD
@@ -478,6 +507,3 @@ config PANEL
 	depends on PARPORT
 	select AUXDISPLAY
 	select PARPORT_PANEL
-
-config CHARLCD
-	tristate "Character LCD core support" if COMPILE_TEST

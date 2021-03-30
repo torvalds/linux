@@ -13,6 +13,7 @@
 #ifndef __DMA_BUF_H__
 #define __DMA_BUF_H__
 
+#include <linux/dma-buf-map.h>
 #include <linux/file.h>
 #include <linux/err.h>
 #include <linux/scatterlist.h>
@@ -84,14 +85,16 @@ struct dma_buf_ops {
 	/**
 	 * @pin:
 	 *
-	 * This is called by dma_buf_pin and lets the exporter know that the
-	 * DMA-buf can't be moved any more.
+	 * This is called by dma_buf_pin() and lets the exporter know that the
+	 * DMA-buf can't be moved any more. The exporter should pin the buffer
+	 * into system memory to make sure it is generally accessible by other
+	 * devices.
 	 *
-	 * This is called with the dmabuf->resv object locked and is mutual
+	 * This is called with the &dmabuf.resv object locked and is mutual
 	 * exclusive with @cache_sgt_mapping.
 	 *
-	 * This callback is optional and should only be used in limited use
-	 * cases like scanout and not for temporary pin operations.
+	 * This is called automatically for non-dynamic importers from
+	 * dma_buf_attach().
 	 *
 	 * Returns:
 	 *
@@ -102,7 +105,7 @@ struct dma_buf_ops {
 	/**
 	 * @unpin:
 	 *
-	 * This is called by dma_buf_unpin and lets the exporter know that the
+	 * This is called by dma_buf_unpin() and lets the exporter know that the
 	 * DMA-buf can be moved again.
 	 *
 	 * This is called with the dmabuf->resv object locked and is mutual
@@ -145,11 +148,18 @@ struct dma_buf_ops {
 	 *
 	 * A &sg_table scatter list of or the backing storage of the DMA buffer,
 	 * already mapped into the device address space of the &device attached
-	 * with the provided &dma_buf_attachment.
+	 * with the provided &dma_buf_attachment. The addresses and lengths in
+	 * the scatter list are PAGE_SIZE aligned.
 	 *
 	 * On failure, returns a negative error value wrapped into a pointer.
 	 * May also return -EINTR when a signal was received while being
 	 * blocked.
+	 *
+	 * Note that exporters should not try to cache the scatter list, or
+	 * return the same one for multiple calls. Caching is done either by the
+	 * DMA-BUF code (for non-dynamic importers) or the importer. Ownership
+	 * of the scatter list is transferred to the caller, and returned by
+	 * @unmap_dma_buf.
 	 */
 	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
 					 enum dma_data_direction);
@@ -181,24 +191,19 @@ struct dma_buf_ops {
 	 * @begin_cpu_access:
 	 *
 	 * This is called from dma_buf_begin_cpu_access() and allows the
-	 * exporter to ensure that the memory is actually available for cpu
-	 * access - the exporter might need to allocate or swap-in and pin the
-	 * backing storage. The exporter also needs to ensure that cpu access is
-	 * coherent for the access direction. The direction can be used by the
-	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * exporter to ensure that the memory is actually coherent for cpu
+	 * access. The exporter also needs to ensure that cpu access is coherent
+	 * for the access direction. The direction can be used by the exporter
+	 * to optimize the cache flushing, i.e. access with a different
 	 * direction (read instead of write) might return stale or even bogus
 	 * data (e.g. when the exporter needs to copy the data to temporary
 	 * storage).
 	 *
-	 * This callback is optional.
+	 * Note that this is both called through the DMA_BUF_IOCTL_SYNC IOCTL
+	 * command for userspace mappings established through @mmap, and also
+	 * for kernel mappings established with @vmap.
 	 *
-	 * FIXME: This is both called through the DMA_BUF_IOCTL_SYNC command
-	 * from userspace (where storage shouldn't be pinned to avoid handing
-	 * de-factor mlock rights to userspace) and for the kernel-internal
-	 * users of the various kmap interfaces, where the backing storage must
-	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
-	 * there's no in-kernel users of the kmap interfaces yet this isn't a
-	 * real problem.
+	 * This callback is optional.
 	 *
 	 * Returns:
 	 *
@@ -214,9 +219,7 @@ struct dma_buf_ops {
 	 *
 	 * This is called from dma_buf_end_cpu_access() when the importer is
 	 * done accessing the CPU. The exporter can use this to flush caches and
-	 * unpin any resources pinned in @begin_cpu_access.
-	 * The result of any dma_buf kmap calls after end_cpu_access is
-	 * undefined.
+	 * undo anything else done in @begin_cpu_access.
 	 *
 	 * This callback is optional.
 	 *
@@ -265,13 +268,13 @@ struct dma_buf_ops {
 	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
-	void *(*vmap)(struct dma_buf *);
-	void (*vunmap)(struct dma_buf *, void *vaddr);
+	int (*vmap)(struct dma_buf *dmabuf, struct dma_buf_map *map);
+	void (*vunmap)(struct dma_buf *dmabuf, struct dma_buf_map *map);
 };
 
 /**
  * struct dma_buf - shared buffer object
- * @size: size of the buffer
+ * @size: size of the buffer; invariant over the lifetime of the buffer.
  * @file: file pointer used for sharing buffers across, and for refcounting.
  * @attachments: list of dma_buf_attachment that denotes all devices attached,
  *               protected by dma_resv lock.
@@ -309,7 +312,7 @@ struct dma_buf {
 	const struct dma_buf_ops *ops;
 	struct mutex lock;
 	unsigned vmapping_counter;
-	void *vmap_ptr;
+	struct dma_buf_map vmap_ptr;
 	const char *exp_name;
 	const char *name;
 	spinlock_t name_lock;
@@ -403,7 +406,7 @@ struct dma_buf_attachment {
  * @exp_name:	name of the exporter - useful for debugging.
  * @owner:	pointer to exporter module - used for refcounting kernel module
  * @ops:	Attach allocator-defined dma buf ops to the new buffer
- * @size:	Size of the buffer
+ * @size:	Size of the buffer - invariant over the lifetime of the buffer
  * @flags:	mode flags for the file
  * @resv:	reservation-object, NULL to allocate default one
  * @priv:	Attach private data of allocator to this buffer
@@ -502,6 +505,6 @@ int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 
 int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
-void *dma_buf_vmap(struct dma_buf *);
-void dma_buf_vunmap(struct dma_buf *, void *vaddr);
+int dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map);
+void dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map);
 #endif /* __DMA_BUF_H__ */

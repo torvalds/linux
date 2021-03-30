@@ -33,6 +33,7 @@
 #define DP_BRANCH_DEVICE_ID_0080E1 0x0080e1
 #define DP_BRANCH_DEVICE_ID_90CC24 0x90CC24
 #define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
+#define DP_BRANCH_DEVICE_ID_006037 0x006037
 
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,
@@ -115,12 +116,5 @@ struct av_sync_data {
 	uint8_t aud_del_ins2;/* DPCD 0002Ch */
 	uint8_t aud_del_ins3;/* DPCD 0002Dh */
 };
-
-/*Travis*/
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
-/*Nutmeg*/
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
-/*DP to Dual link DVI converter*/
-static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

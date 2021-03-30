@@ -32,6 +32,7 @@
 #include <linux/hdmi.h>
 #include <linux/component.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
@@ -219,9 +220,13 @@ nv50_dmac_wait(struct nvif_push *push, u32 size)
 	return 0;
 }
 
+MODULE_PARM_DESC(kms_vram_pushbuf, "Place EVO/NVD push buffers in VRAM (default: auto)");
+static int nv50_dmac_vram_pushbuf = -1;
+module_param_named(kms_vram_pushbuf, nv50_dmac_vram_pushbuf, int, 0400);
+
 int
 nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
-		 const s32 *oclass, u8 head, void *data, u32 size, u64 syncbuf,
+		 const s32 *oclass, u8 head, void *data, u32 size, s64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
@@ -240,7 +245,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	 *
 	 * This appears to match NVIDIA's behaviour on Pascal.
 	 */
-	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
+	if ((nv50_dmac_vram_pushbuf > 0) ||
+	    (nv50_dmac_vram_pushbuf < 0 && device->info.family == NV_DEVICE_INFO_V0_PASCAL))
 		type |= NVIF_MEM_VRAM;
 
 	ret = nvif_mem_ctor_map(&cli->mmu, "kmsChanPush", type, 0x1000,
@@ -270,7 +276,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
-	if (!syncbuf)
+	if (syncbuf < 0)
 		return 0;
 
 	ret = nvif_object_ctor(&dmac->base.user, "kmsSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
@@ -303,6 +309,14 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 /******************************************************************************
  * Output path helpers
  *****************************************************************************/
+static void
+nv50_outp_dump_caps(struct nouveau_drm *drm,
+		    struct nouveau_encoder *outp)
+{
+	NV_DEBUG(drm, "%s caps: dp_interlace=%d\n",
+		 outp->base.base.name, outp->caps.dp_interlace);
+}
+
 static void
 nv50_outp_release(struct nouveau_encoder *nv_encoder)
 {
@@ -418,8 +432,7 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
 }
 
 struct nouveau_connector *
-nv50_outp_get_new_connector(struct nouveau_encoder *outp,
-			    struct drm_atomic_state *state)
+nv50_outp_get_new_connector(struct drm_atomic_state *state, struct nouveau_encoder *outp)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -435,8 +448,7 @@ nv50_outp_get_new_connector(struct nouveau_encoder *outp,
 }
 
 struct nouveau_connector *
-nv50_outp_get_old_connector(struct nouveau_encoder *outp,
-			    struct drm_atomic_state *state)
+nv50_outp_get_old_connector(struct drm_atomic_state *state, struct nouveau_encoder *outp)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -451,27 +463,44 @@ nv50_outp_get_old_connector(struct nouveau_encoder *outp,
 	return NULL;
 }
 
+static struct nouveau_crtc *
+nv50_outp_get_new_crtc(const struct drm_atomic_state *state, const struct nouveau_encoder *outp)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	const u32 mask = drm_encoder_mask(&outp->base.base);
+	int i;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc_state->encoder_mask & mask)
+			return nouveau_crtc(crtc);
+	}
+
+	return NULL;
+}
+
 /******************************************************************************
  * DAC
  *****************************************************************************/
 static void
-nv50_dac_disable(struct drm_encoder *encoder)
+nv50_dac_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	const u32 ctrl = NVDEF(NV507D, DAC_SET_CONTROL, OWNER, NONE);
-	if (nv_encoder->crtc)
-		core->func->dac->ctrl(core, nv_encoder->or, ctrl, NULL);
+
+	core->func->dac->ctrl(core, nv_encoder->or, ctrl, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
 
 static void
-nv50_dac_enable(struct drm_encoder *encoder)
+nv50_dac_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
+	struct nouveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
+	struct nv50_head_atom *asyh =
+		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	u32 ctrl = 0;
 
@@ -492,7 +521,7 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	core->func->dac->ctrl(core, nv_encoder->or, ctrl, asyh);
 	asyh->or.depth = 0;
 
-	nv_encoder->crtc = encoder->crtc;
+	nv_encoder->crtc = &nv_crtc->base;
 }
 
 static enum drm_connector_status
@@ -525,8 +554,8 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs
 nv50_dac_help = {
 	.atomic_check = nv50_outp_atomic_check,
-	.enable = nv50_dac_enable,
-	.disable = nv50_dac_disable,
+	.atomic_enable = nv50_dac_atomic_enable,
+	.atomic_disable = nv50_dac_atomic_disable,
 	.detect = nv50_dac_detect
 };
 
@@ -592,34 +621,27 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder;
-	struct drm_connector *connector;
 	struct nouveau_crtc *nv_crtc;
-	struct drm_connector_list_iter conn_iter;
 	int ret = 0;
 
 	*enabled = false;
 
+	mutex_lock(&drm->audio.lock);
+
 	drm_for_each_encoder(encoder, drm->dev) {
 		struct nouveau_connector *nv_connector = NULL;
 
+		if (encoder->encoder_type == DRM_MODE_ENCODER_DPMST)
+			continue; /* TODO */
+
 		nv_encoder = nouveau_encoder(encoder);
+		nv_connector = nouveau_connector(nv_encoder->audio.connector);
+		nv_crtc = nouveau_crtc(nv_encoder->crtc);
 
-		drm_connector_list_iter_begin(drm_dev, &conn_iter);
-		drm_for_each_connector_iter(connector, &conn_iter) {
-			if (connector->state->best_encoder == encoder) {
-				nv_connector = nouveau_connector(connector);
-				break;
-			}
-		}
-		drm_connector_list_iter_end(&conn_iter);
-		if (!nv_connector)
+		if (!nv_crtc || nv_encoder->or != port || nv_crtc->index != dev_id)
 			continue;
 
-		nv_crtc = nouveau_crtc(encoder->crtc);
-		if (!nv_crtc || nv_encoder->or != port ||
-		    nv_crtc->index != dev_id)
-			continue;
-		*enabled = nv_encoder->audio;
+		*enabled = nv_encoder->audio.enabled;
 		if (*enabled) {
 			ret = drm_eld_size(nv_connector->base.eld);
 			memcpy(buf, nv_connector->base.eld,
@@ -627,6 +649,8 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 		}
 		break;
 	}
+
+	mutex_unlock(&drm->audio.lock);
 
 	return ret;
 }
@@ -677,17 +701,22 @@ static const struct component_ops nv50_audio_component_bind_ops = {
 static void
 nv50_audio_component_init(struct nouveau_drm *drm)
 {
-	if (!component_add(drm->dev->dev, &nv50_audio_component_bind_ops))
-		drm->audio.component_registered = true;
+	if (component_add(drm->dev->dev, &nv50_audio_component_bind_ops))
+		return;
+
+	drm->audio.component_registered = true;
+	mutex_init(&drm->audio.lock);
 }
 
 static void
 nv50_audio_component_fini(struct nouveau_drm *drm)
 {
-	if (drm->audio.component_registered) {
-		component_del(drm->dev->dev, &nv50_audio_component_bind_ops);
-		drm->audio.component_registered = false;
-	}
+	if (!drm->audio.component_registered)
+		return;
+
+	component_del(drm->dev->dev, &nv50_audio_component_bind_ops);
+	drm->audio.component_registered = false;
+	mutex_destroy(&drm->audio.lock);
 }
 
 /******************************************************************************
@@ -710,24 +739,25 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 				(0x0100 << nv_crtc->index),
 	};
 
-	if (!nv_encoder->audio)
-		return;
-
-	nv_encoder->audio = false;
-	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
+	mutex_lock(&drm->audio.lock);
+	if (nv_encoder->audio.enabled) {
+		nv_encoder->audio.enabled = false;
+		nv_encoder->audio.connector = NULL;
+		nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
+	}
+	mutex_unlock(&drm->audio.lock);
 
 	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
 					nv_crtc->index);
 }
 
 static void
-nv50_audio_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
+nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
+		  struct nouveau_connector *nv_connector, struct drm_atomic_state *state,
 		  struct drm_display_mode *mode)
 {
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct __packed {
 		struct {
@@ -743,15 +773,19 @@ nv50_audio_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
 				     (0x0100 << nv_crtc->index),
 	};
 
-	nv_connector = nv50_outp_get_new_connector(nv_encoder, state);
 	if (!drm_detect_monitor_audio(nv_connector->edid))
 		return;
+
+	mutex_lock(&drm->audio.lock);
 
 	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
 	nvif_mthd(&disp->disp->object, 0, &args,
 		  sizeof(args.base) + drm_eld_size(args.data));
-	nv_encoder->audio = true;
+	nv_encoder->audio.enabled = true;
+	nv_encoder->audio.connector = &nv_connector->base;
+
+	mutex_unlock(&drm->audio.lock);
 
 	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
 					nv_crtc->index);
@@ -780,12 +814,12 @@ nv50_hdmi_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 }
 
 static void
-nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
+nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
+		 struct nouveau_connector *nv_connector, struct drm_atomic_state *state,
 		 struct drm_display_mode *mode)
 {
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct {
 		struct nv50_disp_mthd_v1 base;
@@ -800,7 +834,6 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
 		.pwr.state = 1,
 		.pwr.rekey = 56, /* binary driver, and tegra, constant */
 	};
-	struct nouveau_connector *nv_connector;
 	struct drm_hdmi_info *hdmi;
 	u32 max_ac_packet;
 	union hdmi_infoframe avi_frame;
@@ -810,7 +843,6 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
 	int ret;
 	int size;
 
-	nv_connector = nv50_outp_get_new_connector(nv_encoder, state);
 	if (!drm_detect_hdmi_monitor(nv_connector->edid))
 		return;
 
@@ -856,7 +888,7 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_atomic_state *state,
 		+ args.pwr.vendor_infoframe_length;
 	nvif_mthd(&disp->disp->object, 0, &args, size);
 
-	nv50_audio_enable(encoder, state, mode);
+	nv50_audio_enable(encoder, nv_crtc, nv_connector, state, mode);
 
 	/* If SCDC is supported by the downstream monitor, update
 	 * divider / scrambling settings to what we programmed above.
@@ -897,6 +929,7 @@ struct nv50_mstc {
 struct nv50_msto {
 	struct drm_encoder encoder;
 
+	/* head is statically assigned on msto creation */
 	struct nv50_head *head;
 	struct nv50_mstc *mstc;
 	bool disabled;
@@ -1055,11 +1088,12 @@ nv50_dp_bpc_to_depth(unsigned int bpc)
 }
 
 static void
-nv50_msto_enable(struct drm_encoder *encoder)
+nv50_msto_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
-	struct nv50_head *head = nv50_head(encoder->crtc);
-	struct nv50_head_atom *armh = nv50_head_atom(head->base.base.state);
 	struct nv50_msto *msto = nv50_msto(encoder);
+	struct nv50_head *head = msto->head;
+	struct nv50_head_atom *asyh =
+		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &head->base.base));
 	struct nv50_mstc *mstc = NULL;
 	struct nv50_mstm *mstm = NULL;
 	struct drm_connector *connector;
@@ -1080,8 +1114,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	if (WARN_ON(!mstc))
 		return;
 
-	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, armh->dp.pbn,
-				     armh->dp.tu);
+	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, asyh->dp.pbn, asyh->dp.tu);
 	if (!r)
 		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
 
@@ -1093,15 +1126,15 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	else
 		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
-	mstm->outp->update(mstm->outp, head->base.index, armh, proto,
-			   nv50_dp_bpc_to_depth(armh->or.bpc));
+	mstm->outp->update(mstm->outp, head->base.index, asyh, proto,
+			   nv50_dp_bpc_to_depth(asyh->or.bpc));
 
 	msto->mstc = mstc;
 	mstm->modified = true;
 }
 
 static void
-nv50_msto_disable(struct drm_encoder *encoder)
+nv50_msto_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nv50_msto *msto = nv50_msto(encoder);
 	struct nv50_mstc *mstc = msto->mstc;
@@ -1118,8 +1151,8 @@ nv50_msto_disable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs
 nv50_msto_help = {
-	.disable = nv50_msto_disable,
-	.enable = nv50_msto_enable,
+	.atomic_disable = nv50_msto_atomic_disable,
+	.atomic_enable = nv50_msto_atomic_enable,
 	.atomic_check = nv50_msto_atomic_check,
 };
 
@@ -1161,8 +1194,10 @@ nv50_msto_new(struct drm_device *dev, struct nv50_head *head, int id)
 
 static struct drm_encoder *
 nv50_mstc_atomic_best_encoder(struct drm_connector *connector,
-			      struct drm_connector_state *connector_state)
+			      struct drm_atomic_state *state)
 {
+	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
+											 connector);
 	struct nv50_mstc *mstc = nv50_mstc(connector);
 	struct drm_crtc *crtc = connector_state->crtc;
 
@@ -1613,44 +1648,38 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 }
 
 static void
-nv50_sor_disable(struct drm_encoder *encoder,
-		 struct drm_atomic_state *state)
+nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
-	struct nouveau_connector *nv_connector =
-		nv50_outp_get_old_connector(nv_encoder, state);
+	struct nouveau_connector *nv_connector = nv50_outp_get_old_connector(state, nv_encoder);
+	struct drm_dp_aux *aux = &nv_connector->aux;
+	u8 pwr;
 
-	nv_encoder->crtc = NULL;
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
+		int ret = drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr);
 
-	if (nv_crtc) {
-		struct drm_dp_aux *aux = &nv_connector->aux;
-		u8 pwr;
-
-		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-			int ret = drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr);
-
-			if (ret == 0) {
-				pwr &= ~DP_SET_POWER_MASK;
-				pwr |=  DP_SET_POWER_D3;
-				drm_dp_dpcd_writeb(aux, DP_SET_POWER, pwr);
-			}
+		if (ret == 0) {
+			pwr &= ~DP_SET_POWER_MASK;
+			pwr |=  DP_SET_POWER_D3;
+			drm_dp_dpcd_writeb(aux, DP_SET_POWER, pwr);
 		}
-
-		nv_encoder->update(nv_encoder, nv_crtc->index, NULL, 0, 0);
-		nv50_audio_disable(encoder, nv_crtc);
-		nv50_hdmi_disable(&nv_encoder->base.base, nv_crtc);
-		nv50_outp_release(nv_encoder);
 	}
+
+	nv_encoder->update(nv_encoder, nv_crtc->index, NULL, 0, 0);
+	nv50_audio_disable(encoder, nv_crtc);
+	nv50_hdmi_disable(&nv_encoder->base.base, nv_crtc);
+	nv50_outp_release(nv_encoder);
+	nv_encoder->crtc = NULL;
 }
 
 static void
-nv50_sor_enable(struct drm_encoder *encoder,
-		struct drm_atomic_state *state)
+nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
+	struct nouveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
+	struct nv50_head_atom *asyh =
+		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
 	struct {
 		struct nv50_disp_mthd_v1 base;
@@ -1670,8 +1699,8 @@ nv50_sor_enable(struct drm_encoder *encoder,
 	u8 proto = NV507D_SOR_SET_CONTROL_PROTOCOL_CUSTOM;
 	u8 depth = NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT;
 
-	nv_connector = nv50_outp_get_new_connector(nv_encoder, state);
-	nv_encoder->crtc = encoder->crtc;
+	nv_connector = nv50_outp_get_new_connector(state, nv_encoder);
+	nv_encoder->crtc = &nv_crtc->base;
 
 	if ((disp->disp->object.oclass == GT214_DISP ||
 	     disp->disp->object.oclass >= GF110_DISP) &&
@@ -1697,7 +1726,7 @@ nv50_sor_enable(struct drm_encoder *encoder,
 			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_B;
 		}
 
-		nv50_hdmi_enable(&nv_encoder->base.base, state, mode);
+		nv50_hdmi_enable(&nv_encoder->base.base, nv_crtc, nv_connector, state, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
 		proto = NV507D_SOR_SET_CONTROL_PROTOCOL_LVDS_CUSTOM;
@@ -1738,7 +1767,7 @@ nv50_sor_enable(struct drm_encoder *encoder,
 		else
 			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
-		nv50_audio_enable(encoder, state, mode);
+		nv50_audio_enable(encoder, nv_crtc, nv_connector, state, mode);
 		break;
 	default:
 		BUG();
@@ -1751,8 +1780,8 @@ nv50_sor_enable(struct drm_encoder *encoder,
 static const struct drm_encoder_helper_funcs
 nv50_sor_help = {
 	.atomic_check = nv50_outp_atomic_check,
-	.atomic_enable = nv50_sor_enable,
-	.atomic_disable = nv50_sor_disable,
+	.atomic_enable = nv50_sor_atomic_enable,
+	.atomic_disable = nv50_sor_atomic_disable,
 };
 
 static void
@@ -1819,6 +1848,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_connector_attach_encoder(connector, encoder);
 
 	disp->core->func->sor->get_caps(disp, nv_encoder, ffs(dcbe->or) - 1);
+	nv50_outp_dump_caps(drm, nv_encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
 		struct nvkm_i2c_aux *aux =
@@ -1873,23 +1903,24 @@ nv50_pior_atomic_check(struct drm_encoder *encoder,
 }
 
 static void
-nv50_pior_disable(struct drm_encoder *encoder)
+nv50_pior_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	const u32 ctrl = NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, NONE);
-	if (nv_encoder->crtc)
-		core->func->pior->ctrl(core, nv_encoder->or, ctrl, NULL);
+
+	core->func->pior->ctrl(core, nv_encoder->or, ctrl, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
 
 static void
-nv50_pior_enable(struct drm_encoder *encoder)
+nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
+	struct nouveau_crtc *nv_crtc = nv50_outp_get_new_crtc(state, nv_encoder);
+	struct nv50_head_atom *asyh =
+		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	u32 ctrl = 0;
 
@@ -1921,14 +1952,14 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	}
 
 	core->func->pior->ctrl(core, nv_encoder->or, ctrl, asyh);
-	nv_encoder->crtc = encoder->crtc;
+	nv_encoder->crtc = &nv_crtc->base;
 }
 
 static const struct drm_encoder_helper_funcs
 nv50_pior_help = {
 	.atomic_check = nv50_pior_atomic_check,
-	.enable = nv50_pior_enable,
-	.disable = nv50_pior_disable,
+	.atomic_enable = nv50_pior_atomic_enable,
+	.atomic_disable = nv50_pior_atomic_disable,
 };
 
 static void
@@ -1989,6 +2020,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_connector_attach_encoder(connector, encoder);
 
 	disp->core->func->pior->get_caps(disp, nv_encoder, ffs(dcbe->or) - 1);
+	nv50_outp_dump_caps(drm, nv_encoder);
 
 	return 0;
 }
@@ -2660,6 +2692,14 @@ nv50_display_create(struct drm_device *dev)
 		nouveau_display(dev)->format_modifiers = disp90xx_modifiers;
 	else
 		nouveau_display(dev)->format_modifiers = disp50xx_modifiers;
+
+	if (disp->disp->object.oclass >= GK104_DISP) {
+		dev->mode_config.cursor_width = 256;
+		dev->mode_config.cursor_height = 256;
+	} else {
+		dev->mode_config.cursor_width = 64;
+		dev->mode_config.cursor_height = 64;
+	}
 
 	/* create crtc objects to represent the hw heads */
 	if (disp->disp->object.oclass >= GV100_DISP)

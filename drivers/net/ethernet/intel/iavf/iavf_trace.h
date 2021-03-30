@@ -22,7 +22,7 @@
 
 #include <linux/tracepoint.h>
 
-/**
+/*
  * iavf_trace() macro enables shared code to refer to trace points
  * like:
  *

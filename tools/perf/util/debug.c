@@ -30,6 +30,12 @@ bool dump_trace = false, quiet = false;
 int debug_ordered_events;
 static int redirect_to_stderr;
 int debug_data_convert;
+static FILE *debug_file;
+
+void debug_set_file(FILE *file)
+{
+	debug_file = file;
+}
 
 int veprintf(int level, int var, const char *fmt, va_list args)
 {
@@ -39,7 +45,7 @@ int veprintf(int level, int var, const char *fmt, va_list args)
 		if (use_browser >= 1 && !redirect_to_stderr)
 			ui_helpline__vshow(fmt, args);
 		else
-			ret = vfprintf(stderr, fmt, args);
+			ret = vfprintf(debug_file, fmt, args);
 	}
 
 	return ret;
@@ -227,6 +233,7 @@ DEBUG_WRAPPER(debug, 1);
 
 void perf_debug_setup(void)
 {
+	debug_set_file(stderr);
 	libapi_set_print(pr_warning_wrapper, pr_warning_wrapper, pr_debug_wrapper);
 }
 

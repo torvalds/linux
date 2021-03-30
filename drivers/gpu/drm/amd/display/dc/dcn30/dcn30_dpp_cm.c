@@ -133,18 +133,15 @@ static void dpp3_power_on_gamcor_lut(
 		struct dpp *dpp_base,
 	bool power_on)
 {
-	uint32_t power_status;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-
-	REG_SET(CM_MEM_PWR_CTRL, 0,
-			GAMCOR_MEM_PWR_DIS, power_on == true ? 0:1);
-
-	REG_GET(CM_MEM_PWR_STATUS, GAMCOR_MEM_PWR_STATE, &power_status);
-	if (power_status != 0)
-		BREAK_TO_DEBUGGER();
-
-
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm) {
+		REG_UPDATE(CM_MEM_PWR_CTRL, GAMCOR_MEM_PWR_FORCE, power_on ? 0 : 3);
+		if (power_on)
+			REG_WAIT(CM_MEM_PWR_STATUS, GAMCOR_MEM_PWR_STATE, 0, 1, 5);
+	} else
+		REG_SET(CM_MEM_PWR_CTRL, 0,
+				GAMCOR_MEM_PWR_DIS, power_on == true ? 0:1);
 }
 
 void dpp3_program_cm_dealpha(
@@ -229,6 +226,8 @@ bool dpp3_program_gamcor_lut(
 
 	if (params == NULL) { //bypass if we have no pwl data
 		REG_SET(CM_GAMCOR_CONTROL, 0, CM_GAMCOR_MODE, 0);
+		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+			dpp3_power_on_gamcor_lut(dpp_base, false);
 		return false;
 	}
 	dpp3_power_on_gamcor_lut(dpp_base, true);

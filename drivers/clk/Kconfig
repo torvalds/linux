@@ -49,7 +49,7 @@ source "drivers/clk/versatile/Kconfig"
 
 config CLK_HSDK
 	bool "PLL Driver for HSDK platform"
-	depends on OF || COMPILE_TEST
+	depends on ARC_SOC_HSDK || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This driver supports the HSDK core, system, ddr, tunnel and hdmi PLLs
@@ -188,6 +188,14 @@ config COMMON_CLK_CS2000_CP
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
 
+config COMMON_CLK_FSL_FLEXSPI
+	tristate "Clock driver for FlexSPI on Layerscape SoCs"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	default ARCH_LAYERSCAPE && SPI_NXP_FLEXSPI
+	help
+	  On Layerscape SoCs there is a special clock for the FlexSPI
+	  interface.
+
 config COMMON_CLK_FSL_SAI
 	bool "Clock driver for BCLK of Freescale SAI cores"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
@@ -239,14 +247,16 @@ config CLK_TWL6040
 
 config COMMON_CLK_AXI_CLKGEN
 	tristate "AXI clkgen driver"
-	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
+	depends on HAS_IOMEM || COMPILE_TEST
+	depends on OF
 	help
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
 	  FPGAs. It is commonly used in Analog Devices' reference designs.
 
 config CLK_QORIQ
 	bool "Clock driver for Freescale QorIQ platforms"
-	depends on (PPC_E500MC || ARM || ARM64 || COMPILE_TEST) && OF
+	depends on OF
+	depends on PPC_E500MC || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
 	help
 	  This adds the clock driver support for Freescale QorIQ platforms
 	  using common clock framework.
@@ -370,9 +380,11 @@ source "drivers/clk/ingenic/Kconfig"
 source "drivers/clk/keystone/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
+source "drivers/clk/mstar/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
 source "drivers/clk/qcom/Kconfig"
 source "drivers/clk/renesas/Kconfig"
+source "drivers/clk/rockchip/Kconfig"
 source "drivers/clk/samsung/Kconfig"
 source "drivers/clk/sifive/Kconfig"
 source "drivers/clk/sprd/Kconfig"
@@ -382,6 +394,7 @@ source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
 source "drivers/clk/x86/Kconfig"
+source "drivers/clk/xilinx/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"
 
 endif

@@ -1035,7 +1035,7 @@ source_ok:
 			fld.saddr = dnet_select_source(dev_out, 0,
 						       RT_SCOPE_HOST);
 			if (!fld.daddr)
-				goto out;
+				goto done;
 		}
 		fld.flowidn_oif = LOOPBACK_IFINDEX;
 		res.type = RTN_LOCAL;

@@ -446,7 +446,7 @@ synproxy_send_tcp(struct net *net,
 
 	skb_dst_set_noref(nskb, skb_dst(skb));
 	nskb->protocol = htons(ETH_P_IP);
-	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
+	if (ip_route_me_harder(net, nskb->sk, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
 	if (nfct) {
@@ -849,7 +849,7 @@ synproxy_send_tcp_ipv6(struct net *net,
 	fl6.fl6_sport = nth->source;
 	fl6.fl6_dport = nth->dest;
 	security_skb_classify_flow((struct sk_buff *)skb,
-				   flowi6_to_flowi(&fl6));
+				   flowi6_to_flowi_common(&fl6));
 	err = nf_ip6_route(net, &dst, flowi6_to_flowi(&fl6), false);
 	if (err) {
 		goto free_nskb;

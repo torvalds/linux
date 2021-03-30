@@ -14,6 +14,8 @@
 #include <linux/reset-controller.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
+#include <linux/module.h>
+
 #include <linux/slab.h>
 #include "meson-aoclk.h"
 
@@ -57,7 +59,7 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	rstc->data = data;
 	rstc->regmap = regmap;
 	rstc->reset.ops = &meson_aoclk_reset_ops;
-	rstc->reset.nr_resets = data->num_reset,
+	rstc->reset.nr_resets = data->num_reset;
 	rstc->reset.of_node = dev->of_node;
 	ret = devm_reset_controller_register(dev, &rstc->reset);
 	if (ret) {
@@ -84,3 +86,5 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 		(void *) data->hw_data);
 }
+EXPORT_SYMBOL_GPL(meson_aoclkc_probe);
+MODULE_LICENSE("GPL v2");

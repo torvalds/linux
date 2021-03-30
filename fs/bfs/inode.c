@@ -229,8 +229,7 @@ static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_bavail = info->si_freeb;
 	buf->f_files = info->si_lasti + 1 - BFS_ROOT_INO;
 	buf->f_ffree = info->si_freei;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = BFS_NAMELEN;
 	return 0;
 }
@@ -351,7 +350,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 
 	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_inode) + BFS_ROOT_INO - 1;
 	if (info->si_lasti == BFS_MAX_LASTI)
-		printf("WARNING: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
+		printf("NOTE: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
 	else if (info->si_lasti > BFS_MAX_LASTI) {
 		printf("Impossible last inode number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
 		goto out1;

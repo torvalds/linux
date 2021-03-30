@@ -189,12 +189,10 @@ static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 				 struct mlx5e_tls *tls)
 {
 	u32 tcp_seq = ntohl(tcp_hdr(skb)->seq);
-	struct mlx5e_tx_wqe *wqe;
 	struct sync_info info;
 	struct sk_buff *nskb;
 	int linear_len = 0;
 	int headln;
-	u16 pi;
 	int i;
 
 	sq->stats->tls_ooo++;
@@ -246,9 +244,7 @@ static bool mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 	sq->stats->tls_resync_bytes += nskb->len;
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
-	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
-	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
-	mlx5e_sq_xmit(sq, nskb, wqe, pi, true);
+	mlx5e_sq_xmit_simple(sq, nskb, true);
 
 	return true;
 
@@ -274,11 +270,13 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	if (!datalen)
 		return true;
 
+	mlx5e_tx_mpwqe_ensure_complete(sq);
+
 	tls_ctx = tls_get_ctx(skb->sk);
 	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
 		goto err_out;
 
-	if (mlx5_accel_is_ktls_tx(sq->channel->mdev))
+	if (mlx5_accel_is_ktls_tx(sq->mdev))
 		return mlx5e_ktls_handle_tx_skb(tls_ctx, sq, skb, datalen, state);
 
 	/* FPGA */
@@ -387,15 +385,13 @@ void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
 	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 }
 
-u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
-	struct mlx5_core_dev *mdev = sq->channel->mdev;
-
 	if (!mlx5_accel_is_tls_device(mdev))
 		return 0;
 
 	if (mlx5_accel_is_ktls_device(mdev))
-		return mlx5e_ktls_get_stop_room(sq);
+		return mlx5e_ktls_get_stop_room(params);
 
 	/* FPGA */
 	/* Resync SKB. */

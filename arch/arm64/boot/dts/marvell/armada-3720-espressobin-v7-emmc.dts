@@ -8,7 +8,7 @@
  *
  */
 /*
- * Schematic available at http://wiki.espressobin.net/tiki-download_file.php?fileId=200
+ * Schematic available at http://espressobin.net/wp-content/uploads/2020/05/ESPRESSObin_V7-0_Schematic.pdf
  */
 
 /dts-v1/;
@@ -20,42 +20,26 @@
 	compatible = "globalscale,espressobin-v7-emmc", "globalscale,espressobin-v7",
 		     "globalscale,espressobin", "marvell,armada3720",
 		     "marvell,armada3710";
-};
 
-&switch0 {
-	ports {
-		port@1 {
-			reg = <1>;
-			label = "lan1";
-			phy-handle = <&switch0phy0>;
-		};
-
-		port@3 {
-			reg = <3>;
-			label = "wan";
-			phy-handle = <&switch0phy2>;
-		};
+	aliases {
+		/* ethernet1 is wan port */
+		ethernet1 = &switch0port3;
+		ethernet3 = &switch0port1;
 	};
 };
 
-/* U11 */
+&switch0port1 {
+	label = "lan1";
+};
+
+&switch0port3 {
+	label = "wan";
+};
+
 &sdhci0 {
-	non-removable;
-	bus-width = <8>;
-	mmc-ddr-1_8v;
-	mmc-hs400-1_8v;
-	marvell,xenon-emmc;
-	marvell,xenon-tun-count = <9>;
-	marvell,pad-type = "fixed-1-8v";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc_pins>;
 	status = "okay";
+};
 
-	#address-cells = <1>;
-	#size-cells = <0>;
-	mmccard: mmccard@0 {
-		compatible = "mmc-card";
-		reg = <0>;
-	};
+&led2 {
+	status = "okay";
 };

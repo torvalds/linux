@@ -90,7 +90,6 @@ PPP_MAGIC             0x5002           ppp                      ``include/linux/
 SSTATE_MAGIC          0x5302           serial_state             ``include/linux/serial.h``
 SLIP_MAGIC            0x5302           slip                     ``drivers/net/slip.h``
 STRIP_MAGIC           0x5303           strip                    ``drivers/net/strip.c``
-X25_ASY_MAGIC         0x5303           x25_asy                  ``drivers/net/x25_asy.h``
 SIXPACK_MAGIC         0x5304           sixpack                  ``drivers/net/hamradio/6pack.h``
 AX25_MAGIC            0x5316           ax_disp                  ``drivers/net/mkiss.h``
 TTY_MAGIC             0x5401           tty_struct               ``include/linux/tty.h``
@@ -142,7 +141,6 @@ FW_HEADER_MAGIC       0x65726F66       fw_header                ``drivers/atm/fo
 SLOT_MAGIC            0x67267321       slot                     ``drivers/hotplug/cpqphp.h``
 SLOT_MAGIC            0x67267322       slot                     ``drivers/hotplug/acpiphp.h``
 LO_MAGIC              0x68797548       nbd_device               ``include/linux/nbd.h``
-OPROFILE_MAGIC        0x6f70726f       super_block              ``drivers/oprofile/oprofilefs.h``
 M3_STATE_MAGIC        0x734d724d       m3_state                 ``sound/oss/maestro3.c``
 VMALLOC_MAGIC         0x87654320       snd_alloc_track          ``sound/core/memory.c``
 KMALLOC_MAGIC         0x87654321       snd_alloc_track          ``sound/core/memory.c``

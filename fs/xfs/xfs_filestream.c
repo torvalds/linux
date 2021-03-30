@@ -33,39 +33,7 @@ enum xfs_fstrm_alloc {
 /*
  * Allocation group filestream associations are tracked with per-ag atomic
  * counters.  These counters allow xfs_filestream_pick_ag() to tell whether a
- * particular AG already has active filestreams associated with it. The mount
- * point's m_peraglock is used to protect these counters from per-ag array
- * re-allocation during a growfs operation.  When xfs_growfs_data_private() is
- * about to reallocate the array, it calls xfs_filestream_flush() with the
- * m_peraglock held in write mode.
- *
- * Since xfs_mru_cache_flush() guarantees that all the free functions for all
- * the cache elements have finished executing before it returns, it's safe for
- * the free functions to use the atomic counters without m_peraglock protection.
- * This allows the implementation of xfs_fstrm_free_func() to be agnostic about
- * whether it was called with the m_peraglock held in read mode, write mode or
- * not held at all.  The race condition this addresses is the following:
- *
- *  - The work queue scheduler fires and pulls a filestream directory cache
- *    element off the LRU end of the cache for deletion, then gets pre-empted.
- *  - A growfs operation grabs the m_peraglock in write mode, flushes all the
- *    remaining items from the cache and reallocates the mount point's per-ag
- *    array, resetting all the counters to zero.
- *  - The work queue thread resumes and calls the free function for the element
- *    it started cleaning up earlier.  In the process it decrements the
- *    filestreams counter for an AG that now has no references.
- *
- * With a shrinkfs feature, the above scenario could panic the system.
- *
- * All other uses of the following macros should be protected by either the
- * m_peraglock held in read mode, or the cache's internal locking exposed by the
- * interval between a call to xfs_mru_cache_lookup() and a call to
- * xfs_mru_cache_done().  In addition, the m_peraglock must be held in read mode
- * when new elements are added to the cache.
- *
- * Combined, these locking rules ensure that no associations will ever exist in
- * the cache that reference per-ag array elements that have since been
- * reallocated.
+ * particular AG already has active filestreams associated with it.
  */
 int
 xfs_filestream_peek_ag(

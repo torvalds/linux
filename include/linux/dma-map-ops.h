@@ -203,11 +203,36 @@ static inline int dma_mmap_from_global_coherent(struct vm_area_struct *vma,
 }
 #endif /* CONFIG_DMA_DECLARE_COHERENT */
 
-#ifdef CONFIG_ARCH_HAS_DMA_COHERENCE_H
-#include <asm/dma-coherence.h>
-#elif defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
+		void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		unsigned long attrs);
+int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+		void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		unsigned long attrs);
+struct page *dma_common_alloc_pages(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp);
+void dma_common_free_pages(struct device *dev, size_t size, struct page *vaddr,
+		dma_addr_t dma_handle, enum dma_data_direction dir);
+
+struct page **dma_common_find_pages(void *cpu_addr);
+void *dma_common_contiguous_remap(struct page *page, size_t size, pgprot_t prot,
+		const void *caller);
+void *dma_common_pages_remap(struct page **pages, size_t size, pgprot_t prot,
+		const void *caller);
+void dma_common_free_remap(void *cpu_addr, size_t size);
+
+struct page *dma_alloc_from_pool(struct device *dev, size_t size,
+		void **cpu_addr, gfp_t flags,
+		bool (*phys_addr_ok)(struct device *, phys_addr_t, size_t));
+bool dma_free_from_pool(struct device *dev, void *start, size_t size);
+
+int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
+		dma_addr_t dma_start, u64 size);
+
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
 	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
 	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+extern bool dma_default_coherent;
 static inline bool dev_is_dma_coherent(struct device *dev)
 {
 	return dev->dma_coherent;
@@ -290,6 +315,20 @@ static inline void arch_dma_mark_clean(phys_addr_t paddr, size_t size)
 
 void *arch_dma_set_uncached(void *addr, size_t size);
 void arch_dma_clear_uncached(void *addr, size_t size);
+
+#ifdef CONFIG_ARCH_HAS_DMA_MAP_DIRECT
+bool arch_dma_map_page_direct(struct device *dev, phys_addr_t addr);
+bool arch_dma_unmap_page_direct(struct device *dev, dma_addr_t dma_handle);
+bool arch_dma_map_sg_direct(struct device *dev, struct scatterlist *sg,
+		int nents);
+bool arch_dma_unmap_sg_direct(struct device *dev, struct scatterlist *sg,
+		int nents);
+#else
+#define arch_dma_map_page_direct(d, a)		(false)
+#define arch_dma_unmap_page_direct(d, a)	(false)
+#define arch_dma_map_sg_direct(d, s, n)		(false)
+#define arch_dma_unmap_sg_direct(d, s, n)	(false)
+#endif
 
 #ifdef CONFIG_ARCH_HAS_SETUP_DMA_OPS
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,

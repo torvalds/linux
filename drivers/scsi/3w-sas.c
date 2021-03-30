@@ -120,7 +120,7 @@ static struct bin_attribute twl_sysfs_aen_read_attr = {
 	.attr = {
 		.name = "3ware_aen_read",
 		.mode = S_IRUSR,
-	}, 
+	},
 	.size = 0,
 	.read = twl_sysfs_aen_read
 };
@@ -151,7 +151,7 @@ static struct bin_attribute twl_sysfs_compat_info_attr = {
 	.attr = {
 		.name = "3ware_compat_info",
 		.mode = S_IRUSR,
-	}, 
+	},
 	.size = 0,
 	.read = twl_sysfs_compat_info
 };
@@ -174,7 +174,7 @@ static ssize_t twl_show_stats(struct device *dev,
 		       "Last sector count:         %4d\n"
 		       "Max sector count:          %4d\n"
 		       "SCSI Host Resets:          %4d\n"
-		       "AEN's:                     %4d\n", 
+		       "AEN's:                     %4d\n",
 		       TW_DRIVER_VERSION,
 		       tw_dev->posted_request_count,
 		       tw_dev->max_posted_request_count,
@@ -191,7 +191,7 @@ static ssize_t twl_show_stats(struct device *dev,
 /* stats sysfs attribute initializer */
 static struct device_attribute twl_host_stats_attr = {
 	.attr = {
-		.name = 	"3ware_stats",
+		.name =		"3ware_stats",
 		.mode =		S_IRUGO,
 	},
 	.show = twl_show_stats
@@ -432,7 +432,7 @@ static void twl_aen_sync_time(TW_Device_Extension *tw_dev, int request_id)
 	param->parameter_id = cpu_to_le16(0x3); /* SchedulerTime */
 	param->parameter_size_bytes = cpu_to_le16(4);
 
-	/* Convert system time in UTC to local time seconds since last 
+	/* Convert system time in UTC to local time seconds since last
            Sunday 12:00AM */
 	local_time = (ktime_get_real_seconds() - (sys_tz.tz_minuteswest * 60));
 	div_u64_rem(local_time - (3 * 86400), 604800, &schedulertime);
@@ -483,7 +483,7 @@ static int twl_aen_complete(TW_Device_Extension *tw_dev, int request_id)
 		/* Keep reading the queue in case there are more aen's */
 		if (twl_aen_read_queue(tw_dev, request_id))
 			goto out2;
-	        else {
+		else {
 			retval = 0;
 			goto out;
 		}
@@ -548,7 +548,7 @@ static int twl_poll_response(TW_Device_Extension *tw_dev, int request_id, int se
 		msleep(50);
 	}
 	retval = 0;
-out: 
+out:
 	return retval;
 } /* End twl_poll_response() */
 
@@ -802,7 +802,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		/* Now copy in the command packet response */
 		memcpy(&(tw_ioctl->firmware_command), tw_dev->command_packet_virt[request_id], sizeof(TW_Command_Full));
-		
+
 		/* Now complete the io */
 		spin_lock_irqsave(tw_dev->host->host_lock, flags);
 		tw_dev->posted_request_count--;
@@ -879,7 +879,7 @@ static int twl_fill_sense(TW_Device_Extension *tw_dev, int i, int request_id, in
 			       tw_dev->host->host_no,
 			       TW_MESSAGE_SOURCE_CONTROLLER_ERROR,
 			       header->status_block.error,
-			       error_str, 
+			       error_str,
 			       header->err_specific_desc);
 		else
 			printk(KERN_WARNING "3w-sas: ERROR: (0x%02X:0x%04X): %s:%s.\n",
@@ -937,8 +937,8 @@ static void *twl_get_param(TW_Device_Extension *tw_dev, int request_id, int tabl
 	command_packet = &full_command_packet->command.oldcommand;
 
 	command_packet->opcode__sgloffset = TW_OPSGL_IN(2, TW_OP_GET_PARAM);
-	command_packet->size              = TW_COMMAND_SIZE;
-	command_packet->request_id        = request_id;
+	command_packet->size		  = TW_COMMAND_SIZE;
+	command_packet->request_id	  = request_id;
 	command_packet->byte6_offset.block_count = cpu_to_le16(1);
 
 	/* Now setup the param */
@@ -968,14 +968,14 @@ static void *twl_get_param(TW_Device_Extension *tw_dev, int request_id, int tabl
 
 /* This function will send an initconnection command to controller */
 static int twl_initconnection(TW_Device_Extension *tw_dev, int message_credits,
- 			      u32 set_features, unsigned short current_fw_srl, 
-			      unsigned short current_fw_arch_id, 
-			      unsigned short current_fw_branch, 
-			      unsigned short current_fw_build, 
-			      unsigned short *fw_on_ctlr_srl, 
-			      unsigned short *fw_on_ctlr_arch_id, 
-			      unsigned short *fw_on_ctlr_branch, 
-			      unsigned short *fw_on_ctlr_build, 
+			      u32 set_features, unsigned short current_fw_srl,
+			      unsigned short current_fw_arch_id,
+			      unsigned short current_fw_branch,
+			      unsigned short current_fw_build,
+			      unsigned short *fw_on_ctlr_srl,
+			      unsigned short *fw_on_ctlr_arch_id,
+			      unsigned short *fw_on_ctlr_branch,
+			      unsigned short *fw_on_ctlr_build,
 			      u32 *init_connect_result)
 {
 	TW_Command_Full *full_command_packet;
@@ -986,7 +986,7 @@ static int twl_initconnection(TW_Device_Extension *tw_dev, int message_credits,
 	full_command_packet = tw_dev->command_packet_virt[request_id];
 	memset(full_command_packet, 0, sizeof(TW_Command_Full));
 	full_command_packet->header.header_desc.size_header = 128;
-	
+
 	tw_initconnect = (TW_Initconnect *)&full_command_packet->command.oldcommand;
 	tw_initconnect->opcode__reserved = TW_OPRES_IN(0, TW_OP_INIT_CONNECTION);
 	tw_initconnect->request_id = request_id;
@@ -1004,7 +1004,7 @@ static int twl_initconnection(TW_Device_Extension *tw_dev, int message_credits,
 		tw_initconnect->fw_arch_id = cpu_to_le16(current_fw_arch_id);
 		tw_initconnect->fw_branch = cpu_to_le16(current_fw_branch);
 		tw_initconnect->fw_build = cpu_to_le16(current_fw_build);
-	} else 
+	} else
 		tw_initconnect->size = TW_INIT_COMMAND_PACKET_SIZE;
 
 	/* Send command packet to the board */
@@ -1211,7 +1211,7 @@ static irqreturn_t twl_interrupt(int irq, void *dev_instance)
 
 			if (!error)
 				cmd->result = (DID_OK << 16);
-			
+
 			/* Report residual bytes for single sgl */
 			if ((scsi_sg_count(cmd) <= 1) && (full_command_packet->command.newcommand.status == 0)) {
 				if (full_command_packet->command.newcommand.sg_list[0].length < scsi_bufflen(tw_dev->srb[request_id]))
@@ -1245,7 +1245,7 @@ static int twl_poll_register(TW_Device_Extension *tw_dev, void *reg, u32 value, 
 	reg_value = readl(reg);
 	before = jiffies;
 
-        while ((reg_value & value) != result) {
+	while ((reg_value & value) != result) {
 		reg_value = readl(reg);
 		if (time_after(jiffies, before + HZ * seconds))
 			goto out;
@@ -1470,7 +1470,7 @@ static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 
 	/* Save done function into scsi_cmnd struct */
 	SCpnt->scsi_done = done;
-		
+
 	/* Get a free request id */
 	twl_get_request_id(tw_dev, &request_id);
 
@@ -1524,7 +1524,7 @@ static void twl_shutdown(struct pci_dev *pdev)
 
 	tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	if (tw_dev->online) 
+	if (tw_dev->online)
 		__twl_shutdown(tw_dev);
 } /* End twl_shutdown() */
 
@@ -1675,7 +1675,7 @@ static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	/* Re-enable interrupts on the card */
 	TWL_UNMASK_INTERRUPTS(tw_dev);
-	
+
 	/* Finally, scan the host */
 	scsi_scan_host(host);
 
@@ -1756,11 +1756,10 @@ static void twl_remove(struct pci_dev *pdev)
 	twl_device_extension_count--;
 } /* End twl_remove() */
 
-#ifdef CONFIG_PM
 /* This function is called on PCI suspend */
-static int twl_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused twl_suspend(struct device *dev)
 {
-	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	struct Scsi_Host *host = dev_get_drvdata(dev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
 	printk(KERN_WARNING "3w-sas: Suspending host %d.\n", tw_dev->host->host_no);
@@ -1779,32 +1778,18 @@ static int twl_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* Clear doorbell interrupt */
 	TWL_CLEAR_DB_INTERRUPT(tw_dev);
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
 	return 0;
 } /* End twl_suspend() */
 
 /* This function is called on PCI resume */
-static int twl_resume(struct pci_dev *pdev)
+static int __maybe_unused twl_resume(struct device *dev)
 {
 	int retval = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 
 	printk(KERN_WARNING "3w-sas: Resuming host %d.\n", tw_dev->host->host_no);
-	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_wake(pdev, PCI_D0, 0);
-	pci_restore_state(pdev);
-
-	retval = pci_enable_device(pdev);
-	if (retval) {
-		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x24, "Enable device failed during resume");
-		return retval;
-	}
-
-	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
 	retval = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -1842,11 +1827,9 @@ static int twl_resume(struct pci_dev *pdev)
 
 out_disable_device:
 	scsi_remove_host(host);
-	pci_disable_device(pdev);
 
 	return retval;
 } /* End twl_resume() */
-#endif
 
 /* PCI Devices supported by this driver */
 static struct pci_device_id twl_pci_tbl[] = {
@@ -1855,16 +1838,15 @@ static struct pci_device_id twl_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, twl_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(twl_pm_ops, twl_suspend, twl_resume);
+
 /* pci_driver initializer */
 static struct pci_driver twl_driver = {
 	.name		= "3w-sas",
 	.id_table	= twl_pci_tbl,
 	.probe		= twl_probe,
 	.remove		= twl_remove,
-#ifdef CONFIG_PM
-	.suspend	= twl_suspend,
-	.resume		= twl_resume,
-#endif
+	.driver.pm	= &twl_pm_ops,
 	.shutdown	= twl_shutdown
 };
 

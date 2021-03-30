@@ -309,6 +309,7 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.enable_crtc_reset = optc1_enable_crtc_reset,
 		.disable_reset_trigger = optc1_disable_reset_trigger,
 		.lock = optc3_lock,
+		.is_locked = optc1_is_locked,
 		.unlock = optc1_unlock,
 		.lock_doublebuffer_enable = optc3_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
@@ -350,7 +351,7 @@ void dcn30_timing_generator_init(struct optc *optc1)
 	optc1->min_h_blank = 32;
 	optc1->min_v_blank = 3;
 	optc1->min_v_blank_interlace = 5;
-	optc1->min_h_sync_width = 8;
+	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
 }
 

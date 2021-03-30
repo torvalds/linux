@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_PLAY:
 
@@ -16,9 +17,9 @@ VIDEO_PLAY
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_PLAY)
-    :name: VIDEO_PLAY
+.. c:macro:: VIDEO_PLAY
 
+``int ioctl(fd, VIDEO_PLAY)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -40,7 +40,6 @@ Arguments
 
        -  Equals VIDEO_PLAY for this command.
 
-
 Description
 -----------
 
@@ -49,7 +48,6 @@ V4L2 :ref:`VIDIOC_DECODER_CMD` instead.
 
 This ioctl call asks the Video Device to start playing a video stream
 from the selected source.
-
 
 Return Value
 ------------

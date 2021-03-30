@@ -365,11 +365,11 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	}
 
 	meson_rtc_nvmem_config.priv = rtc;
-	ret = rtc_nvmem_register(rtc->rtc, &meson_rtc_nvmem_config);
+	ret = devm_rtc_nvmem_register(rtc->rtc, &meson_rtc_nvmem_config);
 	if (ret)
 		goto out_disable_vdd;
 
-	ret = rtc_register_device(rtc->rtc);
+	ret = devm_rtc_register_device(rtc->rtc);
 	if (ret)
 		goto out_disable_vdd;
 
@@ -380,7 +380,7 @@ out_disable_vdd:
 	return ret;
 }
 
-static const struct of_device_id meson_rtc_dt_match[] = {
+static const __maybe_unused struct of_device_id meson_rtc_dt_match[] = {
 	{ .compatible = "amlogic,meson6-rtc", },
 	{ .compatible = "amlogic,meson8-rtc", },
 	{ .compatible = "amlogic,meson8b-rtc", },

@@ -8,7 +8,7 @@
  * EC for audio function.
  */
 
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -332,7 +332,7 @@ static int i2s_rx_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_to_component(w->dapm);
 	struct cros_ec_codec_priv *priv =
 		snd_soc_component_get_drvdata(component);
-	struct ec_param_ec_codec_i2s_rx p;
+	struct ec_param_ec_codec_i2s_rx p = {};
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1010,6 +1010,18 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 	priv->ec_capabilities = r.capabilities;
+
+	/* Reset EC codec i2s rx. */
+	p.cmd = EC_CODEC_I2S_RX_RESET;
+	ret = send_ec_host_command(priv->ec_device, EC_CMD_EC_CODEC_I2S_RX,
+				   (uint8_t *)&p, sizeof(p), NULL, 0);
+	if (ret == -ENOPROTOOPT) {
+		dev_info(dev,
+			 "Missing reset command. Please update EC firmware.\n");
+	} else if (ret) {
+		dev_err(dev, "failed to EC_CODEC_I2S_RESET: %d\n", ret);
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, priv);
 

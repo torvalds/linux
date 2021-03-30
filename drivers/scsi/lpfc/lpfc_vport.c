@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -462,7 +462,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * up and ready to FDISC.
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+	if (ndlp &&
 	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
 			lpfc_set_disctmo(vport);
@@ -478,7 +478,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	rc = VPORT_OK;
 
 out:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 			 "1825 Vport Created.\n");
 	lpfc_host_attrib_init(lpfc_shost_from_vport(vport));
 error_out:
@@ -495,8 +495,7 @@ disable_vport(struct fc_vport *fc_vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
-	    && phba->link_state >= LPFC_LINK_UP) {
+	if (ndlp && phba->link_state >= LPFC_LINK_UP) {
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
@@ -510,8 +509,6 @@ disable_vport(struct fc_vport *fc_vport)
 	 * calling lpfc_cleanup_rpis(vport, 1)
 	 */
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
 		lpfc_disc_state_machine(vport, ndlp, NULL,
@@ -568,8 +565,7 @@ enable_vport(struct fc_vport *fc_vport)
 	 * up and ready to FDISC.
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
-	    && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
+	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
 			lpfc_set_disctmo(vport);
 			lpfc_initial_fdisc(vport);
@@ -597,16 +593,14 @@ lpfc_vport_disable(struct fc_vport *fc_vport, bool disable)
 		return enable_vport(fc_vport);
 }
 
-
 int
 lpfc_vport_delete(struct fc_vport *fc_vport)
 {
 	struct lpfc_nodelist *ndlp = NULL;
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_hba  *phba = vport->phba;
 	long timeout;
-	bool ns_ndlp_referenced = false;
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -623,9 +617,11 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				 "static vport.\n");
 		return VPORT_ERROR;
 	}
+
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
+
 	/*
 	 * If we are not unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
@@ -653,64 +649,22 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		return VPORT_INVAL;
 
 	lpfc_free_sysfs_attr(vport);
-
 	lpfc_debugfs_terminate(vport);
 
-	/*
-	 * The call to fc_remove_host might release the NameServer ndlp. Since
-	 * we might need to use the ndlp to send the DA_ID CT command,
-	 * increment the reference for the NameServer ndlp to prevent it from
-	 * being released.
-	 */
-	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-		lpfc_nlp_get(ndlp);
-		ns_ndlp_referenced = true;
-	}
-
-	/* Remove FC host and then SCSI host with the vport */
+	/* Remove FC host to break driver binding. */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-
-	/* In case of driver unload, we shall not perform fabric logo as the
-	 * worker thread already stopped at this stage and, in this case, we
-	 * can safely skip the fabric logo.
-	 */
-	if (phba->pport->load_flag & FC_UNLOADING) {
-		if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
-		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
-		    phba->link_state >= LPFC_LINK_UP) {
-			/* First look for the Fabric ndlp */
-			ndlp = lpfc_findnode_did(vport, Fabric_DID);
-			if (!ndlp)
-				goto skip_logo;
-			else if (!NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp = lpfc_enable_node(vport, ndlp,
-							NLP_STE_UNUSED_NODE);
-				if (!ndlp)
-					goto skip_logo;
-			}
-			/* Remove ndlp from vport npld list */
-			lpfc_dequeue_node(vport, ndlp);
-
-			/* Indicate free memory when release */
-			spin_lock_irq(&phba->ndlp_lock);
-			NLP_SET_FREE_REQ(ndlp);
-			spin_unlock_irq(&phba->ndlp_lock);
-			/* Kick off release ndlp when it can be safely done */
-			lpfc_nlp_put(ndlp);
-		}
+	/* Send the DA_ID and Fabric LOGO to cleanup Nameserver entries. */
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp)
 		goto skip_logo;
-	}
 
-	/* Otherwise, we will perform fabric logo as needed */
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
-	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
+	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 	    phba->link_state >= LPFC_LINK_UP &&
 	    phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
+			/* Send DA_ID and wait for a completion. */
 			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))
 				while (vport->ct_flags && timeout)
@@ -721,47 +675,19 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 						"1829 CT command failed to "
 						"delete objects on fabric\n");
 		}
-		/* First look for the Fabric ndlp */
-		ndlp = lpfc_findnode_did(vport, Fabric_DID);
-		if (!ndlp) {
-			/* Cannot find existing Fabric ndlp, allocate one */
-			ndlp = lpfc_nlp_init(vport, Fabric_DID);
-			if (!ndlp)
-				goto skip_logo;
-			/* Indicate free memory when release */
-			NLP_SET_FREE_REQ(ndlp);
-		} else {
-			if (!NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp = lpfc_enable_node(vport, ndlp,
-						NLP_STE_UNUSED_NODE);
-				if (!ndlp)
-					goto skip_logo;
-			}
-
-			/* Remove ndlp from vport list */
-			lpfc_dequeue_node(vport, ndlp);
-			spin_lock_irq(&phba->ndlp_lock);
-			if (!NLP_CHK_FREE_REQ(ndlp))
-				/* Indicate free memory when release */
-				NLP_SET_FREE_REQ(ndlp);
-			else {
-				/* Skip this if ndlp is already in free mode */
-				spin_unlock_irq(&phba->ndlp_lock);
-				goto skip_logo;
-			}
-			spin_unlock_irq(&phba->ndlp_lock);
-		}
 
 		/*
 		 * If the vpi is not registered, then a valid FDISC doesn't
 		 * exist and there is no need for a ELS LOGO.  Just cleanup
 		 * the ndlp.
 		 */
-		if (!(vport->vpi_state & LPFC_VPI_REGISTERED)) {
-			lpfc_nlp_put(ndlp);
+		if (!(vport->vpi_state & LPFC_VPI_REGISTERED))
 			goto skip_logo;
-		}
 
+		/* Issue a Fabric LOGO to cleanup fabric resources. */
+		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		if (!ndlp)
+			goto skip_logo;
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
@@ -774,18 +700,10 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 
 skip_logo:
 
-	/*
-	 * If the NameServer ndlp has been incremented to allow the DA_ID CT
-	 * command to be sent, decrement the ndlp now.
-	 */
-	if (ns_ndlp_referenced) {
-		ndlp = lpfc_findnode_did(vport, NameServer_DID);
-		lpfc_nlp_put(ndlp);
-	}
-
 	lpfc_cleanup(vport);
-	lpfc_sli_host_down(vport);
 
+	/* Remove scsi host now.  The nodes are cleaned up. */
+	lpfc_sli_host_down(vport);
 	lpfc_stop_vport_timers(vport);
 
 	if (!(phba->pport->load_flag & FC_UNLOADING)) {
@@ -865,8 +783,6 @@ lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 		if (ndlp->lat_data)
 			memset(ndlp->lat_data, 0, LPFC_MAX_BUCKET_COUNT *
 				sizeof(struct lpfc_scsicmd_bkt));
@@ -887,8 +803,6 @@ lpfc_alloc_bucket(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 
 		kfree(ndlp->lat_data);
 		ndlp->lat_data = NULL;
@@ -921,8 +835,6 @@ lpfc_free_bucket(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 
 		kfree(ndlp->lat_data);
 		ndlp->lat_data = NULL;

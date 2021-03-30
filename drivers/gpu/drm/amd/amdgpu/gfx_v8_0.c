@@ -29,6 +29,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
+#include "amdgpu_ring.h"
 #include "vi.h"
 #include "vi_structs.h"
 #include "vid.h"
@@ -729,8 +730,13 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev);
 static void gfx_v8_0_ring_emit_ce_meta(struct amdgpu_ring *ring);
 static void gfx_v8_0_ring_emit_de_meta(struct amdgpu_ring *ring);
 
+#define CG_ACLK_CNTL__ACLK_DIVIDER_MASK                    0x0000007fL
+#define CG_ACLK_CNTL__ACLK_DIVIDER__SHIFT                  0x00000000L
+
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
+	uint32_t data;
+
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 		amdgpu_device_program_register_sequence(adev,
@@ -790,11 +796,14 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_device_program_register_sequence(adev,
 							polaris10_golden_common_all,
 							ARRAY_SIZE(polaris10_golden_common_all));
-		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
-		if (adev->pdev->revision == 0xc7 &&
+		data = RREG32_SMC(ixCG_ACLK_CNTL);
+		data &= ~CG_ACLK_CNTL__ACLK_DIVIDER_MASK;
+		data |= 0x18 << CG_ACLK_CNTL__ACLK_DIVIDER__SHIFT;
+		WREG32_SMC(ixCG_ACLK_CNTL, data);
+		if ((adev->pdev->device == 0x67DF) && (adev->pdev->revision == 0xc7) &&
 		    ((adev->pdev->subsystem_device == 0xb37 && adev->pdev->subsystem_vendor == 0x1002) ||
 		     (adev->pdev->subsystem_device == 0x4a8 && adev->pdev->subsystem_vendor == 0x1043) ||
-		     (adev->pdev->subsystem_device == 0x9480 && adev->pdev->subsystem_vendor == 0x1682))) {
+		     (adev->pdev->subsystem_device == 0x9480 && adev->pdev->subsystem_vendor == 0x1680))) {
 			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1E, 0xDD);
 			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1F, 0xD0);
 		}
@@ -1915,7 +1924,7 @@ static int gfx_v8_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 		+ ((ring->me - 1) * adev->gfx.mec.num_pipe_per_mec)
 		+ ring->pipe;
 
-	hw_prio = amdgpu_gfx_is_high_priority_compute_queue(adev, ring->queue) ?
+	hw_prio = amdgpu_gfx_is_high_priority_compute_queue(adev, ring) ?
 			AMDGPU_GFX_PIPE_PRIO_HIGH : AMDGPU_RING_PRIO_DEFAULT;
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
 	r = amdgpu_ring_init(adev, ring, 1024,
@@ -3678,6 +3687,7 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+#define DEFAULT_SH_MEM_BASES	(0x6000)
 /**
  * gfx_v8_0_init_compute_vmid - gart enable
  *
@@ -3686,7 +3696,6 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev)
  * Initialize compute vmid sh_mem registers
  *
  */
-#define DEFAULT_SH_MEM_BASES	(0x6000)
 static void gfx_v8_0_init_compute_vmid(struct amdgpu_device *adev)
 {
 	int i;
@@ -3740,7 +3749,7 @@ static void gfx_v8_0_init_gds_vmid(struct amdgpu_device *adev)
 	 * the driver can enable them for graphics. VMID0 should maintain
 	 * access so that HWS firmware can save/restore entries.
 	 */
-	for (vmid = 1; vmid < 16; vmid++) {
+	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
 		WREG32(amdgpu_gds_reg_offset[vmid].mem_base, 0);
 		WREG32(amdgpu_gds_reg_offset[vmid].mem_size, 0);
 		WREG32(amdgpu_gds_reg_offset[vmid].gws, 0);
@@ -4433,7 +4442,7 @@ static void gfx_v8_0_mqd_set_priority(struct amdgpu_ring *ring, struct vi_mqd *m
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
-		if (amdgpu_gfx_is_high_priority_compute_queue(adev, ring->queue)) {
+		if (amdgpu_gfx_is_high_priority_compute_queue(adev, ring)) {
 			mqd->cp_hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_HIGH;
 			mqd->cp_hqd_queue_priority =
 				AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM;
@@ -5058,7 +5067,7 @@ static int gfx_v8_0_pre_soft_reset(void *handle)
 		gfx_v8_0_cp_compute_enable(adev, false);
 	}
 
-       return 0;
+	return 0;
 }
 
 static int gfx_v8_0_soft_reset(void *handle)
@@ -5295,7 +5304,8 @@ static int gfx_v8_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX8_NUM_GFX_RINGS;
-	adev->gfx.num_compute_rings = amdgpu_num_kcq;
+	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
+					  AMDGPU_MAX_COMPUTE_RINGS);
 	adev->gfx.funcs = &gfx_v8_0_gfx_funcs;
 	gfx_v8_0_set_ring_funcs(adev);
 	gfx_v8_0_set_irq_funcs(adev);
@@ -6836,6 +6846,66 @@ static void gfx_v8_0_emit_mem_sync_compute(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0x0000000A);	/* poll interval */
 }
 
+
+/* mmSPI_WCL_PIPE_PERCENT_CS[0-7]_DEFAULT values are same */
+#define mmSPI_WCL_PIPE_PERCENT_CS_DEFAULT	0x0000007f
+static void gfx_v8_0_emit_wave_limit_cs(struct amdgpu_ring *ring,
+					uint32_t pipe, bool enable)
+{
+	uint32_t val;
+	uint32_t wcl_cs_reg;
+
+	val = enable ? 0x1 : mmSPI_WCL_PIPE_PERCENT_CS_DEFAULT;
+
+	switch (pipe) {
+	case 0:
+		wcl_cs_reg = mmSPI_WCL_PIPE_PERCENT_CS0;
+		break;
+	case 1:
+		wcl_cs_reg = mmSPI_WCL_PIPE_PERCENT_CS1;
+		break;
+	case 2:
+		wcl_cs_reg = mmSPI_WCL_PIPE_PERCENT_CS2;
+		break;
+	case 3:
+		wcl_cs_reg = mmSPI_WCL_PIPE_PERCENT_CS3;
+		break;
+	default:
+		DRM_DEBUG("invalid pipe %d\n", pipe);
+		return;
+	}
+
+	amdgpu_ring_emit_wreg(ring, wcl_cs_reg, val);
+
+}
+
+#define mmSPI_WCL_PIPE_PERCENT_GFX_DEFAULT	0x07ffffff
+static void gfx_v8_0_emit_wave_limit(struct amdgpu_ring *ring, bool enable)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t val;
+	int i;
+
+	/* mmSPI_WCL_PIPE_PERCENT_GFX is 7 bit multiplier register to limit
+	 * number of gfx waves. Setting 5 bit will make sure gfx only gets
+	 * around 25% of gpu resources.
+	 */
+	val = enable ? 0x1f : mmSPI_WCL_PIPE_PERCENT_GFX_DEFAULT;
+	amdgpu_ring_emit_wreg(ring, mmSPI_WCL_PIPE_PERCENT_GFX, val);
+
+	/* Restrict waves for normal/low priority compute queues as well
+	 * to get best QoS for high priority compute jobs.
+	 *
+	 * amdgpu controls only 1st ME(0-3 CS pipes).
+	 */
+	for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
+		if (i != ring->pipe)
+			gfx_v8_0_emit_wave_limit_cs(ring, i, enable);
+
+	}
+
+}
+
 static const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
 	.name = "gfx_v8_0",
 	.early_init = gfx_v8_0_early_init,
@@ -6919,7 +6989,9 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
 		VI_FLUSH_GPU_TLB_NUM_WREG * 5 + 7 + /* gfx_v8_0_ring_emit_vm_flush */
 		7 + 7 + 7 + /* gfx_v8_0_ring_emit_fence_compute x3 for user fence, vm fence */
-		7, /* gfx_v8_0_emit_mem_sync_compute */
+		7 + /* gfx_v8_0_emit_mem_sync_compute */
+		5 + /* gfx_v8_0_emit_wave_limit for updating mmSPI_WCL_PIPE_PERCENT_GFX register */
+		15, /* for updating 3 mmSPI_WCL_PIPE_PERCENT_CS registers */
 	.emit_ib_size =	7, /* gfx_v8_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v8_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v8_0_ring_emit_fence_compute,
@@ -6933,6 +7005,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_wreg = gfx_v8_0_ring_emit_wreg,
 	.emit_mem_sync = gfx_v8_0_emit_mem_sync_compute,
+	.emit_wave_limit = gfx_v8_0_emit_wave_limit,
 };
 
 static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_kiq = {

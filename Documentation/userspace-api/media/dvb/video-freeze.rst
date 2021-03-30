@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_FREEZE:
 
@@ -16,9 +17,9 @@ VIDEO_FREEZE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_FREEZE)
-    :name: VIDEO_FREEZE
+.. c:macro:: VIDEO_FREEZE
 
+``int ioctl(fd, VIDEO_FREEZE)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -40,7 +40,6 @@ Arguments
 
        -  Equals VIDEO_FREEZE for this command.
 
-
 Description
 -----------
 
@@ -53,7 +52,6 @@ playing process of the video stream using the VIDEO_CONTINUE command.
 If VIDEO_SOURCE_MEMORY is selected in the ioctl call
 VIDEO_SELECT_SOURCE, the Digital TV subsystem will not decode any more data
 until the ioctl call VIDEO_CONTINUE or VIDEO_PLAY is performed.
-
 
 Return Value
 ------------

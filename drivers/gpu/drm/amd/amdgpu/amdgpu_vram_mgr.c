@@ -168,8 +168,7 @@ static const struct ttm_resource_manager_func amdgpu_vram_mgr_func;
 /**
  * amdgpu_vram_mgr_init - init VRAM manager and DRM MM
  *
- * @man: TTM memory type manager
- * @p_size: maximum size of VRAM
+ * @adev: amdgpu_device pointer
  *
  * Allocate and initialize the VRAM manager.
  */
@@ -185,6 +184,8 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 
 	drm_mm_init(&mgr->mm, 0, man->size);
 	spin_lock_init(&mgr->lock);
+	INIT_LIST_HEAD(&mgr->reservations_pending);
+	INIT_LIST_HEAD(&mgr->reserved_pages);
 
 	/* Add the two VRAM-related sysfs files */
 	ret = sysfs_create_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
@@ -199,7 +200,7 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 /**
  * amdgpu_vram_mgr_fini - free and destroy VRAM manager
  *
- * @man: TTM memory type manager
+ * @adev: amdgpu_device pointer
  *
  * Destroy and free the VRAM manager, returns -EBUSY if ranges are still
  * allocated inside it.
@@ -209,14 +210,22 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
 	struct ttm_resource_manager *man = &mgr->manager;
 	int ret;
+	struct amdgpu_vram_reservation *rsv, *temp;
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(&adev->mman.bdev, man);
+	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
 	if (ret)
 		return;
 
 	spin_lock(&mgr->lock);
+	list_for_each_entry_safe(rsv, temp, &mgr->reservations_pending, node)
+		kfree(rsv);
+
+	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, node) {
+		drm_mm_remove_node(&rsv->mm_node);
+		kfree(rsv);
+	}
 	drm_mm_takedown(&mgr->mm);
 	spin_unlock(&mgr->lock);
 
@@ -229,7 +238,7 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 /**
  * amdgpu_vram_mgr_vis_size - Calculate visible node size
  *
- * @adev: amdgpu device structure
+ * @adev: amdgpu_device pointer
  * @node: MM node structure
  *
  * Calculate how many bytes of the MM node are inside visible VRAM
@@ -273,6 +282,101 @@ u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 		usage += amdgpu_vram_mgr_vis_size(adev, nodes);
 
 	return usage;
+}
+
+static void amdgpu_vram_mgr_do_reserve(struct ttm_resource_manager *man)
+{
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
+	struct amdgpu_device *adev = to_amdgpu_device(mgr);
+	struct drm_mm *mm = &mgr->mm;
+	struct amdgpu_vram_reservation *rsv, *temp;
+	uint64_t vis_usage;
+
+	list_for_each_entry_safe(rsv, temp, &mgr->reservations_pending, node) {
+		if (drm_mm_reserve_node(mm, &rsv->mm_node))
+			continue;
+
+		dev_dbg(adev->dev, "Reservation 0x%llx - %lld, Succeeded\n",
+			rsv->mm_node.start, rsv->mm_node.size);
+
+		vis_usage = amdgpu_vram_mgr_vis_size(adev, &rsv->mm_node);
+		atomic64_add(vis_usage, &mgr->vis_usage);
+		atomic64_add(rsv->mm_node.size << PAGE_SHIFT, &mgr->usage);
+		list_move(&rsv->node, &mgr->reserved_pages);
+	}
+}
+
+/**
+ * amdgpu_vram_mgr_reserve_range - Reserve a range from VRAM
+ *
+ * @man: TTM memory type manager
+ * @start: start address of the range in VRAM
+ * @size: size of the range
+ *
+ * Reserve memory from start addess with the specified size in VRAM
+ */
+int amdgpu_vram_mgr_reserve_range(struct ttm_resource_manager *man,
+				  uint64_t start, uint64_t size)
+{
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
+	struct amdgpu_vram_reservation *rsv;
+
+	rsv = kzalloc(sizeof(*rsv), GFP_KERNEL);
+	if (!rsv)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&rsv->node);
+	rsv->mm_node.start = start >> PAGE_SHIFT;
+	rsv->mm_node.size = size >> PAGE_SHIFT;
+
+	spin_lock(&mgr->lock);
+	list_add_tail(&mgr->reservations_pending, &rsv->node);
+	amdgpu_vram_mgr_do_reserve(man);
+	spin_unlock(&mgr->lock);
+
+	return 0;
+}
+
+/**
+ * amdgpu_vram_mgr_query_page_status - query the reservation status
+ *
+ * @man: TTM memory type manager
+ * @start: start address of a page in VRAM
+ *
+ * Returns:
+ *	-EBUSY: the page is still hold and in pending list
+ *	0: the page has been reserved
+ *	-ENOENT: the input page is not a reservation
+ */
+int amdgpu_vram_mgr_query_page_status(struct ttm_resource_manager *man,
+				      uint64_t start)
+{
+	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
+	struct amdgpu_vram_reservation *rsv;
+	int ret;
+
+	spin_lock(&mgr->lock);
+
+	list_for_each_entry(rsv, &mgr->reservations_pending, node) {
+		if ((rsv->mm_node.start <= start) &&
+		    (start < (rsv->mm_node.start + rsv->mm_node.size))) {
+			ret = -EBUSY;
+			goto out;
+		}
+	}
+
+	list_for_each_entry(rsv, &mgr->reserved_pages, node) {
+		if ((rsv->mm_node.start <= start) &&
+		    (start < (rsv->mm_node.start + rsv->mm_node.size))) {
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = -ENOENT;
+out:
+	spin_unlock(&mgr->lock);
+	return ret;
 }
 
 /**
@@ -369,6 +473,9 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	for (i = 0; pages_left >= pages_per_node; ++i) {
 		unsigned long pages = rounddown_pow_of_two(pages_left);
 
+		/* Limit maximum size to 2GB due to SG table limitations */
+		pages = min(pages, (2UL << (30 - PAGE_SHIFT)));
+
 		r = drm_mm_insert_node_in_range(mm, &nodes[i], pages,
 						pages_per_node, 0,
 						place->fpfn, lpfn,
@@ -445,6 +552,7 @@ static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
 		vis_usage += amdgpu_vram_mgr_vis_size(adev, nodes);
 		++nodes;
 	}
+	amdgpu_vram_mgr_do_reserve(man);
 	spin_unlock(&mgr->lock);
 
 	atomic64_sub(usage, &mgr->usage);
@@ -529,9 +637,11 @@ error_free:
 }
 
 /**
- * amdgpu_vram_mgr_alloc_sgt - allocate and fill a sg table
+ * amdgpu_vram_mgr_free_sgt - allocate and fill a sg table
  *
  * @adev: amdgpu device pointer
+ * @dev: device pointer
+ * @dir: data direction of resource to unmap
  * @sgt: sg table to free
  *
  * Free a previously allocate sg table.

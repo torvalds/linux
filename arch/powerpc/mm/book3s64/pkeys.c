@@ -9,8 +9,11 @@
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>
+#include <asm/smp.h>
+
 #include <linux/pkeys.h>
 #include <linux/of_fdt.h>
+
 
 int  num_pkey;		/* Max number of pkeys supported */
 /*
@@ -25,9 +28,10 @@ static u32 initial_allocation_mask __ro_after_init;
  * Even if we allocate keys with sys_pkey_alloc(), we need to make sure
  * other thread still find the access denied using the same keys.
  */
-static u64 default_amr = ~0x0UL;
-static u64 default_iamr = 0x5555555555555555UL;
+u64 default_amr __ro_after_init  = ~0x0UL;
+u64 default_iamr __ro_after_init = 0x5555555555555555UL;
 u64 default_uamor __ro_after_init;
+EXPORT_SYMBOL(default_amr);
 /*
  * Key used to implement PROT_EXEC mmap. Denies READ/WRITE
  * We pick key 2 because 0 is special key and 1 is reserved as per ISA.
@@ -89,12 +93,14 @@ static int scan_pkey_feature(void)
 		}
 	}
 
+#ifdef CONFIG_PPC_MEM_KEYS
 	/*
 	 * Adjust the upper limit, based on the number of bits supported by
 	 * arch-neutral code.
 	 */
 	pkeys_total = min_t(int, pkeys_total,
 			    ((ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) + 1));
+#endif
 	return pkeys_total;
 }
 
@@ -102,6 +108,7 @@ void __init pkey_early_init_devtree(void)
 {
 	int pkeys_total, i;
 
+#ifdef CONFIG_PPC_MEM_KEYS
 	/*
 	 * We define PKEY_DISABLE_EXECUTE in addition to the arch-neutral
 	 * generic defines for PKEY_DISABLE_ACCESS and PKEY_DISABLE_WRITE.
@@ -117,7 +124,7 @@ void __init pkey_early_init_devtree(void)
 	BUILD_BUG_ON(__builtin_clzl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) +
 		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
 				!= (sizeof(u64) * BITS_PER_BYTE));
-
+#endif
 	/*
 	 * Only P7 and above supports SPRN_AMR update with MSR[PR] = 1
 	 */
@@ -179,6 +186,27 @@ void __init pkey_early_init_devtree(void)
 		default_uamor &= ~(0x3ul << pkeyshift(execute_only_key));
 	}
 
+	if (unlikely(num_pkey <= 3)) {
+		/*
+		 * Insufficient number of keys to support
+		 * KUAP/KUEP feature.
+		 */
+		disable_kuep = true;
+		disable_kuap = true;
+		WARN(1, "Disabling kernel user protection due to low (%d) max supported keys\n", num_pkey);
+	} else {
+		/*  handle key which is used by kernel for KAUP */
+		reserved_allocation_mask |= (0x1 << 3);
+		/*
+		 * Mark access for kup_key in default amr so that
+		 * we continue to operate with that AMR in
+		 * copy_to/from_user().
+		 */
+		default_amr   &= ~(0x3ul << pkeyshift(3));
+		default_iamr  &= ~(0x1ul << pkeyshift(3));
+		default_uamor &= ~(0x3ul << pkeyshift(3));
+	}
+
 	/*
 	 * Allow access for only key 0. And prevent any other modification.
 	 */
@@ -223,6 +251,70 @@ out:
 	return;
 }
 
+#ifdef CONFIG_PPC_KUEP
+void setup_kuep(bool disabled)
+{
+	if (disabled)
+		return;
+	/*
+	 * On hash if PKEY feature is not enabled, disable KUAP too.
+	 */
+	if (!early_radix_enabled() && !early_mmu_has_feature(MMU_FTR_PKEY))
+		return;
+
+	if (smp_processor_id() == boot_cpuid) {
+		pr_info("Activating Kernel Userspace Execution Prevention\n");
+		cur_cpu_spec->mmu_features |= MMU_FTR_BOOK3S_KUEP;
+	}
+
+	/*
+	 * Radix always uses key0 of the IAMR to determine if an access is
+	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
+	 * fetch.
+	 */
+	mtspr(SPRN_IAMR, AMR_KUEP_BLOCKED);
+	isync();
+}
+#endif
+
+#ifdef CONFIG_PPC_KUAP
+void setup_kuap(bool disabled)
+{
+	if (disabled)
+		return;
+	/*
+	 * On hash if PKEY feature is not enabled, disable KUAP too.
+	 */
+	if (!early_radix_enabled() && !early_mmu_has_feature(MMU_FTR_PKEY))
+		return;
+
+	if (smp_processor_id() == boot_cpuid) {
+		pr_info("Activating Kernel Userspace Access Prevention\n");
+		cur_cpu_spec->mmu_features |= MMU_FTR_BOOK3S_KUAP;
+	}
+
+	/*
+	 * Set the default kernel AMR values on all cpus.
+	 */
+	mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
+	isync();
+}
+#endif
+
+static inline void update_current_thread_amr(u64 value)
+{
+	current->thread.regs->amr = value;
+}
+
+static inline void update_current_thread_iamr(u64 value)
+{
+	if (!likely(pkey_execute_disable_supported))
+		return;
+
+	current->thread.regs->iamr = value;
+}
+
+#ifdef CONFIG_PPC_MEM_KEYS
 void pkey_mm_init(struct mm_struct *mm)
 {
 	if (!mmu_has_feature(MMU_FTR_PKEY))
@@ -231,46 +323,20 @@ void pkey_mm_init(struct mm_struct *mm)
 	mm->context.execute_only_pkey = execute_only_key;
 }
 
-static inline u64 read_amr(void)
-{
-	return mfspr(SPRN_AMR);
-}
-
-static inline void write_amr(u64 value)
-{
-	mtspr(SPRN_AMR, value);
-}
-
-static inline u64 read_iamr(void)
-{
-	if (!likely(pkey_execute_disable_supported))
-		return 0x0UL;
-
-	return mfspr(SPRN_IAMR);
-}
-
-static inline void write_iamr(u64 value)
-{
-	if (!likely(pkey_execute_disable_supported))
-		return;
-
-	mtspr(SPRN_IAMR, value);
-}
-
 static inline void init_amr(int pkey, u8 init_bits)
 {
 	u64 new_amr_bits = (((u64)init_bits & 0x3UL) << pkeyshift(pkey));
-	u64 old_amr = read_amr() & ~((u64)(0x3ul) << pkeyshift(pkey));
+	u64 old_amr = current_thread_amr() & ~((u64)(0x3ul) << pkeyshift(pkey));
 
-	write_amr(old_amr | new_amr_bits);
+	update_current_thread_amr(old_amr | new_amr_bits);
 }
 
 static inline void init_iamr(int pkey, u8 init_bits)
 {
 	u64 new_iamr_bits = (((u64)init_bits & 0x1UL) << pkeyshift(pkey));
-	u64 old_iamr = read_iamr() & ~((u64)(0x1ul) << pkeyshift(pkey));
+	u64 old_iamr = current_thread_iamr() & ~((u64)(0x1ul) << pkeyshift(pkey));
 
-	write_iamr(old_iamr | new_iamr_bits);
+	update_current_thread_iamr(old_iamr | new_iamr_bits);
 }
 
 /*
@@ -311,42 +377,6 @@ int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 
 	init_amr(pkey, new_amr_bits);
 	return 0;
-}
-
-void thread_pkey_regs_save(struct thread_struct *thread)
-{
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return;
-
-	/*
-	 * TODO: Skip saving registers if @thread hasn't used any keys yet.
-	 */
-	thread->amr = read_amr();
-	thread->iamr = read_iamr();
-}
-
-void thread_pkey_regs_restore(struct thread_struct *new_thread,
-			      struct thread_struct *old_thread)
-{
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return;
-
-	if (old_thread->amr != new_thread->amr)
-		write_amr(new_thread->amr);
-	if (old_thread->iamr != new_thread->iamr)
-		write_iamr(new_thread->iamr);
-}
-
-void thread_pkey_regs_init(struct thread_struct *thread)
-{
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return;
-
-	thread->amr   = default_amr;
-	thread->iamr  = default_iamr;
-
-	write_amr(default_amr);
-	write_iamr(default_iamr);
 }
 
 int execute_only_pkey(struct mm_struct *mm)
@@ -397,9 +427,9 @@ static bool pkey_access_permitted(int pkey, bool write, bool execute)
 
 	pkey_shift = pkeyshift(pkey);
 	if (execute)
-		return !(read_iamr() & (IAMR_EX_BIT << pkey_shift));
+		return !(current_thread_iamr() & (IAMR_EX_BIT << pkey_shift));
 
-	amr = read_amr();
+	amr = current_thread_amr();
 	if (write)
 		return !(amr & (AMR_WR_BIT << pkey_shift));
 
@@ -445,3 +475,5 @@ void arch_dup_pkeys(struct mm_struct *oldmm, struct mm_struct *mm)
 	mm_pkey_allocation_map(mm) = mm_pkey_allocation_map(oldmm);
 	mm->context.execute_only_pkey = oldmm->context.execute_only_pkey;
 }
+
+#endif /* CONFIG_PPC_MEM_KEYS */

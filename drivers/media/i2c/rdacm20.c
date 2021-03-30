@@ -435,7 +435,7 @@ static int rdacm20_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops rdacm20_video_ops = {
+static const struct v4l2_subdev_video_ops rdacm20_video_ops = {
 	.s_stream	= rdacm20_s_stream,
 };
 
@@ -445,7 +445,7 @@ static const struct v4l2_subdev_pad_ops rdacm20_subdev_pad_ops = {
 	.set_fmt	= rdacm20_get_fmt,
 };
 
-static struct v4l2_subdev_ops rdacm20_subdev_ops = {
+static const struct v4l2_subdev_ops rdacm20_subdev_ops = {
 	.video		= &rdacm20_video_ops,
 	.pad		= &rdacm20_subdev_pad_ops,
 };
@@ -487,9 +487,18 @@ static int rdacm20_initialize(struct rdacm20_device *dev)
 	 * Reset the sensor by cycling the OV10635 reset signal connected to the
 	 * MAX9271 GPIO1 and verify communication with the OV10635.
 	 */
-	max9271_clear_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	ret = max9271_enable_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
+
+	ret = max9271_clear_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
 	usleep_range(10000, 15000);
-	max9271_set_gpios(dev->serializer, MAX9271_GPIO1OUT);
+
+	ret = max9271_set_gpios(dev->serializer, MAX9271_GPIO1OUT);
+	if (ret)
+		return ret;
 	usleep_range(10000, 15000);
 
 again:

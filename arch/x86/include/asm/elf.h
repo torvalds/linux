@@ -186,8 +186,9 @@ static inline void elf_common_init(struct thread_struct *t,
 #define	COMPAT_ELF_PLAT_INIT(regs, load_addr)		\
 	elf_common_init(&current->thread, regs, __USER_DS)
 
-void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp);
-#define compat_start_thread compat_start_thread
+void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp, bool x32);
+#define COMPAT_START_THREAD(ex, regs, new_ip, new_sp)	\
+	compat_start_thread(regs, new_ip, new_sp, ex->e_machine == EM_X86_64)
 
 void set_personality_ia32(bool);
 #define COMPAT_SET_PERSONALITY(ex)			\
@@ -361,9 +362,9 @@ do {									\
 #define AT_SYSINFO		32
 
 #define COMPAT_ARCH_DLINFO						\
-if (test_thread_flag(TIF_X32))						\
+if (exec->e_machine == EM_X86_64)					\
 	ARCH_DLINFO_X32;						\
-else									\
+else if (IS_ENABLED(CONFIG_IA32_EMULATION))				\
 	ARCH_DLINFO_IA32
 
 #define COMPAT_ELF_ET_DYN_BASE	(TASK_UNMAPPED_BASE + 0x1000000)
@@ -382,8 +383,12 @@ struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
 extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
-					      int uses_interp);
-#define compat_arch_setup_additional_pages compat_arch_setup_additional_pages
+					      int uses_interp, bool x32);
+#define COMPAT_ARCH_SETUP_ADDITIONAL_PAGES(bprm, ex, interpreter)	\
+	compat_arch_setup_additional_pages(bprm, interpreter,		\
+					   (ex->e_machine == EM_X86_64))
+
+extern bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs);
 
 /* Do not change the values. See get_align_mask() */
 enum align_flags {

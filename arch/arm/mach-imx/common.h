@@ -17,29 +17,14 @@ struct device_node;
 enum mxc_cpu_pwr_mode;
 struct of_device_id;
 
-void mx21_map_io(void);
-void mx27_map_io(void);
 void mx31_map_io(void);
 void mx35_map_io(void);
 void imx21_init_early(void);
-void imx27_init_early(void);
 void imx31_init_early(void);
 void imx35_init_early(void);
 void mxc_init_irq(void __iomem *);
-void mx21_init_irq(void);
-void mx27_init_irq(void);
 void mx31_init_irq(void);
 void mx35_init_irq(void);
-void imx21_soc_init(void);
-void imx27_soc_init(void);
-void imx31_soc_init(void);
-void imx35_soc_init(void);
-int mx21_clocks_init(unsigned long lref, unsigned long fref);
-int mx27_clocks_init(unsigned long fref);
-int mx31_clocks_init(unsigned long fref);
-int mx35_clocks_init(void);
-struct platform_device *mxc_register_gpio(char *name, int id,
-	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 void mxc_set_cpu_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
@@ -100,7 +85,6 @@ void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
 int imx6_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6_set_int_mem_clk_lpm(bool enable);
-void imx6sl_set_wait_clk(bool enter);
 int imx_mmdc_get_ddr_type(void);
 int imx7ulp_set_lpm(enum ulp_cpu_pwr_mode mode);
 

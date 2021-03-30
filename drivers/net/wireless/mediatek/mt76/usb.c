@@ -497,8 +497,8 @@ mt76u_get_next_rx_entry(struct mt76_queue *q)
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->queued > 0) {
-		urb = q->entry[q->head].urb;
-		q->head = (q->head + 1) % q->ndesc;
+		urb = q->entry[q->tail].urb;
+		q->tail = (q->tail + 1) % q->ndesc;
 		q->queued--;
 	}
 	spin_unlock_irqrestore(&q->lock, flags);
@@ -612,22 +612,23 @@ static void mt76u_complete_rx(struct urb *urb)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 	case -ENOENT:
+	case -EPROTO:
 		return;
 	default:
 		dev_err_ratelimited(dev->dev, "rx urb failed: %d\n",
 				    urb->status);
-		/* fall through */
+		fallthrough;
 	case 0:
 		break;
 	}
 
 	spin_lock_irqsave(&q->lock, flags);
-	if (WARN_ONCE(q->entry[q->tail].urb != urb, "rx urb mismatch"))
+	if (WARN_ONCE(q->entry[q->head].urb != urb, "rx urb mismatch"))
 		goto out;
 
-	q->tail = (q->tail + 1) % q->ndesc;
+	q->head = (q->head + 1) % q->ndesc;
 	q->queued++;
-	tasklet_schedule(&dev->usb.rx_tasklet);
+	mt76_worker_schedule(&dev->usb.rx_worker);
 out:
 	spin_unlock_irqrestore(&q->lock, flags);
 }
@@ -665,13 +666,17 @@ mt76u_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		}
 		mt76u_submit_rx_buf(dev, qid, urb);
 	}
-	if (qid == MT_RXQ_MAIN)
+	if (qid == MT_RXQ_MAIN) {
+		local_bh_disable();
 		mt76_rx_poll_complete(dev, MT_RXQ_MAIN, NULL);
+		local_bh_enable();
+	}
 }
 
-static void mt76u_rx_tasklet(unsigned long data)
+static void mt76u_rx_worker(struct mt76_worker *w)
 {
-	struct mt76_dev *dev = (struct mt76_dev *)data;
+	struct mt76_usb *usb = container_of(w, struct mt76_usb, rx_worker);
+	struct mt76_dev *dev = container_of(usb, struct mt76_dev, usb);
 	int i;
 
 	rcu_read_lock();
@@ -737,8 +742,13 @@ mt76u_free_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 	struct page *page;
 	int i;
 
-	for (i = 0; i < q->ndesc; i++)
+	for (i = 0; i < q->ndesc; i++) {
+		if (!q->entry[i].urb)
+			continue;
+
 		mt76u_urb_free(q->entry[i].urb);
+		q->entry[i].urb = NULL;
+	}
 
 	if (!q->rx_page.va)
 		return;
@@ -752,6 +762,8 @@ static void mt76u_free_rx(struct mt76_dev *dev)
 {
 	int i;
 
+	mt76_worker_teardown(&dev->usb.rx_worker);
+
 	mt76_for_each_q_rx(dev, i)
 		mt76u_free_rx_queue(dev, &dev->q_rx[i]);
 }
@@ -760,6 +772,8 @@ void mt76u_stop_rx(struct mt76_dev *dev)
 {
 	int i;
 
+	mt76_worker_disable(&dev->usb.rx_worker);
+
 	mt76_for_each_q_rx(dev, i) {
 		struct mt76_queue *q = &dev->q_rx[i];
 		int j;
@@ -767,8 +781,6 @@ void mt76u_stop_rx(struct mt76_dev *dev)
 		for (j = 0; j < q->ndesc; j++)
 			usb_poison_urb(q->entry[j].urb);
 	}
-
-	tasklet_kill(&dev->usb.rx_tasklet);
 }
 EXPORT_SYMBOL_GPL(mt76u_stop_rx);
 
@@ -788,63 +800,43 @@ int mt76u_resume_rx(struct mt76_dev *dev)
 			return err;
 	}
 
+	mt76_worker_enable(&dev->usb.rx_worker);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76u_resume_rx);
 
-static void mt76u_tx_tasklet(unsigned long data)
+static void mt76u_status_worker(struct mt76_worker *w)
 {
-	struct mt76_dev *dev = (struct mt76_dev *)data;
+	struct mt76_usb *usb = container_of(w, struct mt76_usb, status_worker);
+	struct mt76_dev *dev = container_of(usb, struct mt76_dev, usb);
 	struct mt76_queue_entry entry;
-	struct mt76_sw_queue *sq;
 	struct mt76_queue *q;
-	bool wake;
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		u32 n_dequeued = 0, n_sw_dequeued = 0;
+		q = dev->phy.q_tx[i];
+		if (!q)
+			continue;
 
-		sq = &dev->q_tx[i];
-		q = sq->q;
-
-		while (q->queued > n_dequeued) {
-			if (!q->entry[q->head].done)
+		while (q->queued > 0) {
+			if (!q->entry[q->tail].done)
 				break;
 
-			if (q->entry[q->head].schedule) {
-				q->entry[q->head].schedule = false;
-				n_sw_dequeued++;
-			}
+			entry = q->entry[q->tail];
+			q->entry[q->tail].done = false;
 
-			entry = q->entry[q->head];
-			q->entry[q->head].done = false;
-			q->head = (q->head + 1) % q->ndesc;
-			n_dequeued++;
-
-			dev->drv->tx_complete_skb(dev, i, &entry);
+			mt76_queue_tx_complete(dev, q, &entry);
 		}
-
-		spin_lock_bh(&q->lock);
-
-		sq->swq_queued -= n_sw_dequeued;
-		q->queued -= n_dequeued;
-
-		wake = q->stopped && q->queued < q->ndesc - 8;
-		if (wake)
-			q->stopped = false;
 
 		if (!q->queued)
 			wake_up(&dev->tx_wait);
 
-		spin_unlock_bh(&q->lock);
-
-		mt76_txq_schedule(&dev->phy, i);
+		mt76_worker_schedule(&dev->tx_worker);
 
 		if (dev->drv->tx_status_data &&
 		    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
 			queue_work(dev->wq, &dev->usb.stat_work);
-		if (wake)
-			ieee80211_wake_queue(dev->hw, i);
 	}
 }
 
@@ -882,7 +874,7 @@ static void mt76u_complete_tx(struct urb *urb)
 		dev_err(dev->dev, "tx urb failed: %d\n", urb->status);
 	e->done = true;
 
-	tasklet_schedule(&dev->tx_tasklet);
+	mt76_worker_schedule(&dev->usb.status_worker);
 }
 
 static int
@@ -905,22 +897,21 @@ mt76u_tx_setup_buffers(struct mt76_dev *dev, struct sk_buff *skb,
 }
 
 static int
-mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
+mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		   struct sk_buff *skb, struct mt76_wcid *wcid,
 		   struct ieee80211_sta *sta)
 {
-	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
-	u16 idx = q->tail;
+	u16 idx = q->head;
 	int err;
 
 	if (q->queued == q->ndesc)
 		return -ENOSPC;
 
 	skb->prev = skb->next = NULL;
-	err = dev->drv->tx_prepare_skb(dev, NULL, qid, wcid, sta, &tx_info);
+	err = dev->drv->tx_prepare_skb(dev, NULL, q->qid, wcid, sta, &tx_info);
 	if (err < 0)
 		return err;
 
@@ -932,7 +923,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 			    q->entry[idx].urb, mt76u_complete_tx,
 			    &q->entry[idx]);
 
-	q->tail = (q->tail + 1) % q->ndesc;
+	q->head = (q->head + 1) % q->ndesc;
 	q->entry[idx].skb = tx_info.skb;
 	q->queued++;
 
@@ -944,7 +935,7 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 	struct urb *urb;
 	int err;
 
-	while (q->first != q->tail) {
+	while (q->first != q->head) {
 		urb = q->entry[q->first].urb;
 
 		trace_submit_urb(dev, urb);
@@ -987,10 +978,8 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 	int i, j, err;
 
 	for (i = 0; i <= MT_TXQ_PSD; i++) {
-		INIT_LIST_HEAD(&dev->q_tx[i].swq);
-
 		if (i >= IEEE80211_NUM_ACS) {
-			dev->q_tx[i].q = dev->q_tx[0].q;
+			dev->phy.q_tx[i] = dev->phy.q_tx[0];
 			continue;
 		}
 
@@ -1000,7 +989,9 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 
 		spin_lock_init(&q->lock);
 		q->hw_idx = mt76u_ac_to_hwq(dev, i);
-		dev->q_tx[i].q = q;
+		q->qid = i;
+
+		dev->phy.q_tx[i] = q;
 
 		q->entry = devm_kcalloc(dev->dev,
 					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
@@ -1023,22 +1014,28 @@ static void mt76u_free_tx(struct mt76_dev *dev)
 {
 	int i;
 
+	mt76_worker_teardown(&dev->usb.status_worker);
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		struct mt76_queue *q;
 		int j;
 
-		q = dev->q_tx[i].q;
+		q = dev->phy.q_tx[i];
 		if (!q)
 			continue;
 
-		for (j = 0; j < q->ndesc; j++)
+		for (j = 0; j < q->ndesc; j++) {
 			usb_free_urb(q->entry[j].urb);
+			q->entry[j].urb = NULL;
+		}
 	}
 }
 
 void mt76u_stop_tx(struct mt76_dev *dev)
 {
 	int ret;
+
+	mt76_worker_disable(&dev->usb.status_worker);
 
 	ret = wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(&dev->phy),
 				 HZ / 5);
@@ -1050,7 +1047,7 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 		dev_err(dev->dev, "timed out waiting for pending tx\n");
 
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			q = dev->q_tx[i].q;
+			q = dev->phy.q_tx[i];
 			if (!q)
 				continue;
 
@@ -1058,31 +1055,30 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 				usb_kill_urb(q->entry[j].urb);
 		}
 
-		tasklet_kill(&dev->tx_tasklet);
+		mt76_worker_disable(&dev->tx_worker);
 
 		/* On device removal we maight queue skb's, but mt76u_tx_kick()
 		 * will fail to submit urb, cleanup those skb's manually.
 		 */
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			q = dev->q_tx[i].q;
+			q = dev->phy.q_tx[i];
 			if (!q)
 				continue;
 
-			/* Assure we are in sync with killed tasklet. */
-			spin_lock_bh(&q->lock);
-			while (q->queued) {
-				entry = q->entry[q->head];
-				q->head = (q->head + 1) % q->ndesc;
-				q->queued--;
-
-				dev->drv->tx_complete_skb(dev, i, &entry);
+			while (q->queued > 0) {
+				entry = q->entry[q->tail];
+				q->entry[q->tail].done = false;
+				mt76_queue_tx_complete(dev, q, &entry);
 			}
-			spin_unlock_bh(&q->lock);
 		}
+
+		mt76_worker_enable(&dev->tx_worker);
 	}
 
 	cancel_work_sync(&dev->usb.stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
+
+	mt76_worker_enable(&dev->usb.status_worker);
 
 	mt76_tx_status_check(dev, NULL, true);
 }
@@ -1126,15 +1122,13 @@ int mt76u_init(struct mt76_dev *dev,
 	};
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct mt76_usb *usb = &dev->usb;
-	int err = -ENOMEM;
+	int err;
 
 	mt76u_ops.rr = ext ? mt76u_rr_ext : mt76u_rr;
 	mt76u_ops.wr = ext ? mt76u_wr_ext : mt76u_wr;
 	mt76u_ops.rmw = ext ? mt76u_rmw_ext : mt76u_rmw;
 	mt76u_ops.write_copy = ext ? mt76u_copy_ext : mt76u_copy;
 
-	tasklet_init(&usb->rx_tasklet, mt76u_rx_tasklet, (unsigned long)dev);
-	tasklet_init(&dev->tx_tasklet, mt76u_tx_tasklet, (unsigned long)dev);
 	INIT_WORK(&usb->stat_work, mt76u_tx_status_data);
 
 	usb->data_len = usb_maxpacket(udev, usb_sndctrlpipe(udev, 0), 1);
@@ -1143,7 +1137,7 @@ int mt76u_init(struct mt76_dev *dev,
 
 	usb->data = devm_kmalloc(dev->dev, usb->data_len, GFP_KERNEL);
 	if (!usb->data)
-		goto error;
+		return -ENOMEM;
 
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = &mt76u_ops;
@@ -1155,14 +1149,22 @@ int mt76u_init(struct mt76_dev *dev,
 
 	err = mt76u_set_endpoints(intf, usb);
 	if (err < 0)
-		goto error;
+		return err;
+
+	err = mt76_worker_setup(dev->hw, &usb->rx_worker, mt76u_rx_worker,
+				"usb-rx");
+	if (err)
+		return err;
+
+	err = mt76_worker_setup(dev->hw, &usb->status_worker,
+				mt76u_status_worker, "usb-status");
+	if (err)
+		return err;
+
+	sched_set_fifo_low(usb->rx_worker.task);
+	sched_set_fifo_low(usb->status_worker.task);
 
 	return 0;
-
-error:
-	destroy_workqueue(dev->wq);
-
-	return err;
 }
 EXPORT_SYMBOL_GPL(mt76u_init);
 

@@ -27,7 +27,8 @@ struct channel_path_desc_fmt1 {
 	u8 lsn;
 	u8 desc;
 	u8 chpid;
-	u32:24;
+	u32:16;
+	u8 esc;
 	u8 chpp;
 	u32 unused[2];
 	u16 chid;
@@ -205,12 +206,10 @@ struct chsc_scm_info {
 
 int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
 
-int chsc_pnso(struct subchannel_id schid,
-	      struct chsc_pnso_area *pnso_area,
-	      struct chsc_pnso_resume_token resume_token,
-	      int cnc);
+int chsc_pnso(struct subchannel_id schid, struct chsc_pnso_area *pnso_area,
+	      u8 oc, struct chsc_pnso_resume_token resume_token, int cnc);
 
-int __init chsc_get_cssid(int idx);
+int __init chsc_get_cssid_iid(int idx, u8 *cssid, u8 *iid);
 
 #ifdef CONFIG_SCM_BUS
 int scm_update_information(void);

@@ -234,7 +234,7 @@ config UML_NET_DAEMON
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
 	depends on UML_NET
-	select FORBID_STATIC_LINK
+	select MAY_HAVE_RUNTIME_DEPS
 	help
 	This User-Mode Linux network driver uses multi-message send
 	and receive functions. The host running the UML guest must have
@@ -246,7 +246,7 @@ config UML_NET_VECTOR
 config UML_NET_VDE
 	bool "VDE transport (obsolete)"
 	depends on UML_NET
-	select FORBID_STATIC_LINK
+	select MAY_HAVE_RUNTIME_DEPS
 	help
 	This User-Mode Linux network transport allows one or more running
 	UMLs on a single host to communicate with each other and also
@@ -294,7 +294,7 @@ config UML_NET_MCAST
 config UML_NET_PCAP
 	bool "pcap transport (obsolete)"
 	depends on UML_NET
-	select FORBID_STATIC_LINK
+	select MAY_HAVE_RUNTIME_DEPS
 	help
 	The pcap transport makes a pcap packet stream on the host look
 	like an ethernet device inside UML.  This is useful for making
@@ -323,7 +323,7 @@ config UML_NET_SLIRP
 	  frames.  In general, slirp allows the UML the same IP connectivity
 	  to the outside world that the host user is permitted, and unlike
 	  other transports, SLiRP works without the need of root level
-	  privleges, setuid binaries, or SLIP devices on the host.  This
+	  privileges, setuid binaries, or SLIP devices on the host.  This
 	  also means not every type of connection is possible, but most
 	  situations can be accommodated with carefully crafted slirp
 	  commands that can be passed along as part of the network device's
@@ -346,3 +346,14 @@ config VIRTIO_UML
 	help
 	  This driver provides support for virtio based paravirtual device
 	  drivers over vhost-user sockets.
+
+config UML_RTC
+	bool "UML RTC driver"
+	depends on RTC_CLASS
+	# there's no use in this if PM_SLEEP isn't enabled ...
+	depends on PM_SLEEP
+	help
+	  When PM_SLEEP is configured, it may be desirable to wake up using
+	  rtcwake, especially in time-travel mode. This driver enables that
+	  by providing a fake RTC clock that causes a wakeup at the right
+	  time.

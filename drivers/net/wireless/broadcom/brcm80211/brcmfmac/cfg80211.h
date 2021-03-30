@@ -129,6 +129,19 @@ enum brcmf_profile_fwsup {
 };
 
 /**
+ * enum brcmf_profile_fwauth - firmware authenticator profile
+ *
+ * @BRCMF_PROFILE_FWAUTH_NONE: no firmware authenticator
+ * @BRCMF_PROFILE_FWAUTH_PSK: authenticator for WPA/WPA2-PSK
+ * @BRCMF_PROFILE_FWAUTH_SAE: authenticator for SAE
+ */
+enum brcmf_profile_fwauth {
+	BRCMF_PROFILE_FWAUTH_NONE,
+	BRCMF_PROFILE_FWAUTH_PSK,
+	BRCMF_PROFILE_FWAUTH_SAE
+};
+
+/**
  * struct brcmf_cfg80211_profile - profile information.
  *
  * @bssid: bssid of joined/joining ibss.
@@ -140,6 +153,7 @@ struct brcmf_cfg80211_profile {
 	struct brcmf_cfg80211_security sec;
 	struct brcmf_wsec_key key[BRCMF_MAX_DEFAULT_KEYS];
 	enum brcmf_profile_fwsup use_fwsup;
+	u16 use_fwauth;
 	bool is_ft;
 };
 
@@ -199,6 +213,9 @@ struct vif_saved_ie {
  * @list: linked list.
  * @mgmt_rx_reg: registered rx mgmt frame types.
  * @mbss: Multiple BSS type, set if not first AP (not relevant for P2P).
+ * @cqm_rssi_low: Lower RSSI limit for CQM monitoring
+ * @cqm_rssi_high: Upper RSSI limit for CQM monitoring
+ * @cqm_rssi_last: Last RSSI reading for CQM monitoring
  */
 struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
@@ -210,6 +227,9 @@ struct brcmf_cfg80211_vif {
 	u16 mgmt_rx_reg;
 	bool mbss;
 	int is_11d;
+	s32 cqm_rssi_low;
+	s32 cqm_rssi_high;
+	s32 cqm_rssi_last;
 };
 
 /* association inform */

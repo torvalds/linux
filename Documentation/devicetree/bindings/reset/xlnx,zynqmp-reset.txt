@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------
- =  Zynq UltraScale+ MPSoC reset driver binding =
+ =  Zynq UltraScale+ MPSoC and Versal reset driver binding =
 --------------------------------------------------------------------------
-The Zynq UltraScale+ MPSoC has several different resets.
+The Zynq UltraScale+ MPSoC and Versal has several different resets.
 
 See Chapter 36 of the Zynq UltraScale+ MPSoC TRM (UG) for more information
 about zynqmp resets.
@@ -10,7 +10,8 @@ Please also refer to reset.txt in this directory for common reset
 controller binding usage.
 
 Required Properties:
-- compatible:	"xlnx,zynqmp-reset"
+- compatible:	"xlnx,zynqmp-reset" for Zynq UltraScale+ MPSoC platform
+		"xlnx,versal-reset" for Versal platform
 - #reset-cells:	Specifies the number of cells needed to encode reset
 		line, should be 1
 
@@ -37,8 +38,10 @@ Device nodes that need access to reset lines should
 specify them as a reset phandle in their corresponding node as
 specified in reset.txt.
 
-For list of all valid reset indicies see
+For list of all valid reset indices for Zynq UltraScale+ MPSoC see
 <dt-bindings/reset/xlnx-zynqmp-resets.h>
+For list of all valid reset indices for Versal see
+<dt-bindings/reset/xlnx-versal-resets.h>
 
 Example:
 

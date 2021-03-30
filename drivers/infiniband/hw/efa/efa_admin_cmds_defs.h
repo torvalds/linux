@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -61,19 +61,13 @@ enum efa_admin_qp_state {
 
 enum efa_admin_get_stats_type {
 	EFA_ADMIN_GET_STATS_TYPE_BASIC              = 0,
+	EFA_ADMIN_GET_STATS_TYPE_MESSAGES           = 1,
+	EFA_ADMIN_GET_STATS_TYPE_RDMA_READ          = 2,
 };
 
 enum efa_admin_get_stats_scope {
 	EFA_ADMIN_GET_STATS_SCOPE_ALL               = 0,
 	EFA_ADMIN_GET_STATS_SCOPE_QUEUE             = 1,
-};
-
-enum efa_admin_modify_qp_mask_bits {
-	EFA_ADMIN_QP_STATE_BIT                      = 0,
-	EFA_ADMIN_CUR_QP_STATE_BIT                  = 1,
-	EFA_ADMIN_QKEY_BIT                          = 2,
-	EFA_ADMIN_SQ_PSN_BIT                        = 3,
-	EFA_ADMIN_SQ_DRAINED_ASYNC_NOTIFY_BIT       = 4,
 };
 
 /*
@@ -167,8 +161,8 @@ struct efa_admin_create_qp_resp {
 	u32 qp_handle;
 
 	/*
-	 * QP number in the given EFA virtual device. Least-significant bits
-	 *    (as needed according to max_qp) carry unique QP ID
+	 * QP number in the given EFA virtual device. Least-significant bits (as
+	 * needed according to max_qp) carry unique QP ID
 	 */
 	u16 qp_num;
 
@@ -199,8 +193,14 @@ struct efa_admin_modify_qp_cmd {
 	struct efa_admin_aq_common_desc aq_common_desc;
 
 	/*
-	 * Mask indicating which fields should be updated see enum
-	 * efa_admin_modify_qp_mask_bits
+	 * Mask indicating which fields should be updated
+	 * 0 : qp_state
+	 * 1 : cur_qp_state
+	 * 2 : qkey
+	 * 3 : sq_psn
+	 * 4 : sq_drained_async_notify
+	 * 5 : rnr_retry
+	 * 31:6 : reserved
 	 */
 	u32 modify_mask;
 
@@ -222,8 +222,8 @@ struct efa_admin_modify_qp_cmd {
 	/* Enable async notification when SQ is drained */
 	u8 sq_drained_async_notify;
 
-	/* MBZ */
-	u8 reserved1;
+	/* Number of RNR retries (valid only for SRD QPs) */
+	u8 rnr_retry;
 
 	/* MBZ */
 	u16 reserved2;
@@ -258,8 +258,8 @@ struct efa_admin_query_qp_resp {
 	/* Indicates that draining is in progress */
 	u8 sq_draining;
 
-	/* MBZ */
-	u8 reserved1;
+	/* Number of RNR retries (valid only for SRD QPs) */
+	u8 rnr_retry;
 
 	/* MBZ */
 	u16 reserved2;
@@ -465,7 +465,7 @@ struct efa_admin_create_cq_cmd {
 
 	/*
 	 * number of sub cqs - must be equal to sub_cqs_per_cq of queue
-	 *    attributes.
+	 * attributes.
 	 */
 	u16 num_sub_cqs;
 
@@ -530,19 +530,41 @@ struct efa_admin_basic_stats {
 	u64 rx_drops;
 };
 
+struct efa_admin_messages_stats {
+	u64 send_bytes;
+
+	u64 send_wrs;
+
+	u64 recv_bytes;
+
+	u64 recv_wrs;
+};
+
+struct efa_admin_rdma_read_stats {
+	u64 read_wrs;
+
+	u64 read_bytes;
+
+	u64 read_wr_err;
+
+	u64 read_resp_bytes;
+};
+
 struct efa_admin_acq_get_stats_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 
-	struct efa_admin_basic_stats basic_stats;
+	union {
+		struct efa_admin_basic_stats basic_stats;
+
+		struct efa_admin_messages_stats messages_stats;
+
+		struct efa_admin_rdma_read_stats rdma_read_stats;
+	} u;
 };
 
 struct efa_admin_get_set_feature_common_desc {
-	/*
-	 * 1:0 : select - 0x1 - current value; 0x3 - default
-	 *    value
-	 * 7:3 : reserved3 - MBZ
-	 */
-	u8 flags;
+	/* MBZ */
+	u8 reserved0;
 
 	/* as appears in efa_admin_aq_feature_id */
 	u8 feature_id;
@@ -576,7 +598,9 @@ struct efa_admin_feature_device_attr_desc {
 	/*
 	 * 0 : rdma_read - If set, RDMA Read is supported on
 	 *    TX queues
-	 * 31:1 : reserved - MBZ
+	 * 1 : rnr_retry - If set, RNR retry is supported on
+	 *    modify QP command
+	 * 31:2 : reserved - MBZ
 	 */
 	u32 device_caps;
 
@@ -795,12 +819,6 @@ enum efa_admin_aenq_group {
 	EFA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum efa_admin_aenq_notification_syndrom {
-	EFA_ADMIN_SUSPEND                           = 0,
-	EFA_ADMIN_RESUME                            = 1,
-	EFA_ADMIN_UPDATE_HINTS                      = 2,
-};
-
 struct efa_admin_mmio_req_read_less_resp {
 	u16 req_id;
 
@@ -862,6 +880,14 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_CREATE_QP_CMD_SQ_VIRT_MASK                BIT(0)
 #define EFA_ADMIN_CREATE_QP_CMD_RQ_VIRT_MASK                BIT(1)
 
+/* modify_qp_cmd */
+#define EFA_ADMIN_MODIFY_QP_CMD_QP_STATE_MASK               BIT(0)
+#define EFA_ADMIN_MODIFY_QP_CMD_CUR_QP_STATE_MASK           BIT(1)
+#define EFA_ADMIN_MODIFY_QP_CMD_QKEY_MASK                   BIT(2)
+#define EFA_ADMIN_MODIFY_QP_CMD_SQ_PSN_MASK                 BIT(3)
+#define EFA_ADMIN_MODIFY_QP_CMD_SQ_DRAINED_ASYNC_NOTIFY_MASK BIT(4)
+#define EFA_ADMIN_MODIFY_QP_CMD_RNR_RETRY_MASK              BIT(5)
+
 /* reg_mr_cmd */
 #define EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK      GENMASK(4, 0)
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_MASK      BIT(7)
@@ -873,11 +899,9 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
 
-/* get_set_feature_common_desc */
-#define EFA_ADMIN_GET_SET_FEATURE_COMMON_DESC_SELECT_MASK   GENMASK(1, 0)
-
 /* feature_device_attr_desc */
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
 
 /* host_info */
 #define EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE_MASK         GENMASK(7, 0)

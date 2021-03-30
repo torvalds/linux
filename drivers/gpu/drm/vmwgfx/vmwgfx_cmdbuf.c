@@ -610,7 +610,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 
 	/* Send a new fence in case one was removed */
 	if (send_fence) {
-		vmw_fifo_send_fence(man->dev_priv, &dummy);
+		vmw_cmd_send_fence(man->dev_priv, &dummy);
 		wake_up_all(&man->idle_queue);
 	}
 
@@ -1208,18 +1208,14 @@ static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
  *
  * @man: The command buffer manager.
  * @size: The size of the main space pool.
- * @default_size: The default size of the command buffer for small kernel
- * submissions.
  *
- * Set the size and allocate the main command buffer space pool,
- * as well as the default size of the command buffer for
- * small kernel submissions. If successful, this enables large command
- * submissions. Note that this function requires that rudimentary command
+ * Set the size and allocate the main command buffer space pool.
+ * If successful, this enables large command submissions.
+ * Note that this function requires that rudimentary command
  * submission is already available and that the MOB memory manager is alive.
  * Returns 0 on success. Negative error code on failure.
  */
-int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
-			     size_t size, size_t default_size)
+int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 {
 	struct vmw_private *dev_priv = man->dev_priv;
 	bool dummy;
@@ -1230,7 +1226,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 
 	/* First, try to allocate a huge chunk of DMA memory */
 	size = PAGE_ALIGN(size);
-	man->map = dma_alloc_coherent(&dev_priv->dev->pdev->dev, size,
+	man->map = dma_alloc_coherent(dev_priv->drm.dev, size,
 				      &man->handle, GFP_KERNEL);
 	if (man->map) {
 		man->using_mob = false;
@@ -1245,9 +1241,9 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 		    !dev_priv->has_mob)
 			return -ENOMEM;
 
-		ret = ttm_bo_create(&dev_priv->bdev, size, ttm_bo_type_device,
-				    &vmw_mob_ne_placement, 0, false,
-				    &man->cmd_space);
+		ret = vmw_bo_create_kernel(dev_priv, size,
+					   &vmw_mob_placement,
+					   &man->cmd_space);
 		if (ret)
 			return ret;
 
@@ -1313,7 +1309,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	man->num_contexts = (dev_priv->capabilities & SVGA_CAP_HP_CMD_QUEUE) ?
 		2 : 1;
 	man->headers = dma_pool_create("vmwgfx cmdbuf",
-				       &dev_priv->dev->pdev->dev,
+				       dev_priv->drm.dev,
 				       sizeof(SVGACBHeader),
 				       64, PAGE_SIZE);
 	if (!man->headers) {
@@ -1322,7 +1318,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	}
 
 	man->dheaders = dma_pool_create("vmwgfx inline cmdbuf",
-					&dev_priv->dev->pdev->dev,
+					dev_priv->drm.dev,
 					sizeof(struct vmw_cmdbuf_dheader),
 					64, PAGE_SIZE);
 	if (!man->dheaders) {
@@ -1387,7 +1383,7 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
 		ttm_bo_put(man->cmd_space);
 		man->cmd_space = NULL;
 	} else {
-		dma_free_coherent(&man->dev_priv->dev->pdev->dev,
+		dma_free_coherent(man->dev_priv->drm.dev,
 				  man->size, man->map, man->handle);
 	}
 }

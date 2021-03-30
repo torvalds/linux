@@ -96,16 +96,12 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
 	}
 
 	/* Write our page entries into the GTT itself */
-	for (i = r->roll; i < r->npage; i++) {
+	for (i = 0; i < r->npage; i++) {
 		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
 				       PSB_MMU_CACHED_MEMORY);
 		iowrite32(pte, gtt_slot++);
 	}
-	for (i = 0; i < r->roll; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
-	}
+
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
 
@@ -138,49 +134,6 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
 	set_pages_array_wb(r->pages, r->npage);
-}
-
-/**
- *	psb_gtt_roll	-	set scrolling position
- *	@dev: our DRM device
- *	@r: the gtt mapping we are using
- *	@roll: roll offset
- *
- *	Roll an existing pinned mapping by moving the pages through the GTT.
- *	This allows us to implement hardware scrolling on the consoles without
- *	a 2D engine
- */
-void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
-{
-	u32 __iomem *gtt_slot;
-	u32 pte;
-	int i;
-
-	if (roll >= r->npage) {
-		WARN_ON(1);
-		return;
-	}
-
-	r->roll = roll;
-
-	/* Not currently in the GTT - no worry we will write the mapping at
-	   the right position when it gets pinned */
-	if (!r->stolen && !r->in_gart)
-		return;
-
-	gtt_slot = psb_gtt_entry(dev, r);
-
-	for (i = r->roll; i < r->npage; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
-	}
-	for (i = 0; i < r->roll; i++) {
-		pte = psb_gtt_mask_pte(page_to_pfn(r->pages[i]),
-				       PSB_MMU_CACHED_MEMORY);
-		iowrite32(pte, gtt_slot++);
-	}
-	ioread32(gtt_slot - 1);
 }
 
 /**
@@ -346,7 +299,6 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	gt->resource.name = name;
 	gt->stolen = backed;
 	gt->in_gart = backed;
-	gt->roll = 0;
 	/* Ensure this is set for non GEM objects */
 	gt->gem.dev = dev;
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
@@ -388,13 +340,14 @@ static void psb_gtt_alloc(struct drm_device *dev)
 void psb_gtt_takedown(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (dev_priv->gtt_map) {
 		iounmap(dev_priv->gtt_map);
 		dev_priv->gtt_map = NULL;
 	}
 	if (dev_priv->gtt_initialized) {
-		pci_write_config_word(dev->pdev, PSB_GMCH_CTRL,
+		pci_write_config_word(pdev, PSB_GMCH_CTRL,
 				      dev_priv->gmch_ctrl);
 		PSB_WVDC32(dev_priv->pge_ctl, PSB_PGETBL_CTL);
 		(void) PSB_RVDC32(PSB_PGETBL_CTL);
@@ -406,6 +359,7 @@ void psb_gtt_takedown(struct drm_device *dev)
 int psb_gtt_init(struct drm_device *dev, int resume)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned gtt_pages;
 	unsigned long stolen_size, vram_stolen_size;
 	unsigned i, num_pages;
@@ -424,8 +378,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pg = &dev_priv->gtt;
 
 	/* Enable the GTT */
-	pci_read_config_word(dev->pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
-	pci_write_config_word(dev->pdev, PSB_GMCH_CTRL,
+	pci_read_config_word(pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
+	pci_write_config_word(pdev, PSB_GMCH_CTRL,
 			      dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
 
 	dev_priv->pge_ctl = PSB_RVDC32(PSB_PGETBL_CTL);
@@ -445,8 +399,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	 */
 	pg->mmu_gatt_start = 0xE0000000;
 
-	pg->gtt_start = pci_resource_start(dev->pdev, PSB_GTT_RESOURCE);
-	gtt_pages = pci_resource_len(dev->pdev, PSB_GTT_RESOURCE)
+	pg->gtt_start = pci_resource_start(pdev, PSB_GTT_RESOURCE);
+	gtt_pages = pci_resource_len(pdev, PSB_GTT_RESOURCE)
 								>> PAGE_SHIFT;
 	/* CDV doesn't report this. In which case the system has 64 gtt pages */
 	if (pg->gtt_start == 0 || gtt_pages == 0) {
@@ -455,10 +409,10 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 		pg->gtt_start = dev_priv->pge_ctl;
 	}
 
-	pg->gatt_start = pci_resource_start(dev->pdev, PSB_GATT_RESOURCE);
-	pg->gatt_pages = pci_resource_len(dev->pdev, PSB_GATT_RESOURCE)
+	pg->gatt_start = pci_resource_start(pdev, PSB_GATT_RESOURCE);
+	pg->gatt_pages = pci_resource_len(pdev, PSB_GATT_RESOURCE)
 								>> PAGE_SHIFT;
-	dev_priv->gtt_mem = &dev->pdev->resource[PSB_GATT_RESOURCE];
+	dev_priv->gtt_mem = &pdev->resource[PSB_GATT_RESOURCE];
 
 	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
 		static struct resource fudge;	/* Preferably peppermint */
@@ -479,7 +433,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 		dev_priv->gtt_mem = &fudge;
 	}
 
-	pci_read_config_dword(dev->pdev, PSB_BSM, &dev_priv->stolen_base);
+	pci_read_config_dword(pdev, PSB_BSM, &dev_priv->stolen_base);
 	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base
 								- PAGE_SIZE;
 

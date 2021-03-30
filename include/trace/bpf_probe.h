@@ -55,14 +55,17 @@
 /* tracepoints with more than 12 arguments will hit build error */
 #define CAST_TO_U64(...) CONCATENATE(__CAST, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
-#undef DECLARE_EVENT_CLASS
-#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
+#define __BPF_DECLARE_TRACE(call, proto, args)				\
 static notrace void							\
 __bpf_trace_##call(void *__data, proto)					\
 {									\
 	struct bpf_prog *prog = __data;					\
 	CONCATENATE(bpf_trace_run, COUNT_ARGS(args))(prog, CAST_TO_U64(args));	\
 }
+
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
+	__BPF_DECLARE_TRACE(call, PARAMS(proto), PARAMS(args))
 
 /*
  * This part is compiled out, it is only here as a build time check
@@ -79,7 +82,7 @@ static union {								\
 	struct bpf_raw_event_map event;					\
 	btf_trace_##call handler;					\
 } __bpf_trace_tp_map_##call __used					\
-__attribute__((section("__bpf_raw_tp_map"))) = {			\
+__section("__bpf_raw_tp_map") = {					\
 	.event = {							\
 		.tp		= &__tracepoint_##call,			\
 		.bpf_func	= __bpf_trace_##template,		\
@@ -110,6 +113,11 @@ __DEFINE_EVENT(template, call, PARAMS(proto), PARAMS(args), size)
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
 	DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
+
+#undef DECLARE_TRACE
+#define DECLARE_TRACE(call, proto, args)				\
+	__BPF_DECLARE_TRACE(call, PARAMS(proto), PARAMS(args))		\
+	__DEFINE_EVENT(call, call, PARAMS(proto), PARAMS(args), 0)
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 

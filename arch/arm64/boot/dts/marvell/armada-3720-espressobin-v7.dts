@@ -8,7 +8,7 @@
  *
  */
 /*
- * Schematic available at http://wiki.espressobin.net/tiki-download_file.php?fileId=200
+ * Schematic available at http://espressobin.net/wp-content/uploads/2020/05/ESPRESSObin_V7-0_Schematic.pdf
  */
 
 /dts-v1/;
@@ -19,20 +19,22 @@
 	model = "Globalscale Marvell ESPRESSOBin Board V7";
 	compatible = "globalscale,espressobin-v7", "globalscale,espressobin",
 		     "marvell,armada3720", "marvell,armada3710";
+
+	aliases {
+		/* ethernet1 is wan port */
+		ethernet1 = &switch0port3;
+		ethernet3 = &switch0port1;
+	};
 };
 
-&switch0 {
-	ports {
-		port@1 {
-			reg = <1>;
-			label = "lan1";
-			phy-handle = <&switch0phy0>;
-		};
+&switch0port1 {
+	label = "lan1";
+};
 
-		port@3 {
-			reg = <3>;
-			label = "wan";
-			phy-handle = <&switch0phy2>;
-		};
-	};
+&switch0port3 {
+	label = "wan";
+};
+
+&led2 {
+	status = "okay";
 };

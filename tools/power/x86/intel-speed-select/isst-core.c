@@ -665,6 +665,17 @@ int isst_get_fact_info(int cpu, int level, int fact_bucket, struct isst_fact_inf
 	return 0;
 }
 
+int isst_get_trl(int cpu, unsigned long long *trl)
+{
+	int ret;
+
+	ret = isst_send_msr_command(cpu, 0x1AD, 0, trl);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int isst_set_trl(int cpu, unsigned long long trl)
 {
 	int ret;
@@ -804,7 +815,7 @@ int isst_get_process_ctdp(int cpu, int tdp_level, struct isst_pkg_ctdp *pkg_dev)
 				return ret;
 		}
 
-		if (!pkg_dev->enabled) {
+		if (!pkg_dev->enabled && is_skx_based_platform()) {
 			int freq;
 
 			freq = get_cpufreq_base_freq(cpu);

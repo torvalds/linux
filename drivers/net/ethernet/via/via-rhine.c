@@ -1504,7 +1504,7 @@ static void rhine_init_cam_filter(struct net_device *dev)
 
 /**
  * rhine_update_vcam - update VLAN CAM filters
- * @rp: rhine_private data of this Rhine
+ * @dev: rhine_private data of this Rhine
  *
  * Update VLAN CAM filters to match configuration change.
  */

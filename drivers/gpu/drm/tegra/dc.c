@@ -1742,7 +1742,7 @@ static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
 }
 
 static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
@@ -1799,10 +1799,10 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	struct tegra_dc_state *state = to_dc_state(crtc->state);
+	struct tegra_dc_state *crtc_state = to_dc_state(crtc->state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
 	int err;
@@ -1882,7 +1882,7 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
 
 	/* apply PLL and pixel clock changes */
-	tegra_dc_commit_state(dc, state);
+	tegra_dc_commit_state(dc, crtc_state);
 
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);
@@ -1918,7 +1918,7 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
 	unsigned long flags;
 
@@ -1937,17 +1937,19 @@ static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
-	struct tegra_dc_state *state = to_dc_state(crtc->state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct tegra_dc_state *dc_state = to_dc_state(crtc_state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
 
-	value = state->planes << 8 | GENERAL_UPDATE;
+	value = dc_state->planes << 8 | GENERAL_UPDATE;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 
-	value = state->planes | GENERAL_ACT_REQ;
+	value = dc_state->planes | GENERAL_ACT_REQ;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 }
@@ -2184,7 +2186,7 @@ static int tegra_dc_runtime_resume(struct host1x_client *client)
 	struct device *dev = client->dev;
 	int err;
 
-	err = pm_runtime_get_sync(dev);
+	err = pm_runtime_resume_and_get(dev);
 	if (err < 0) {
 		dev_err(dev, "failed to get runtime PM: %d\n", err);
 		return err;

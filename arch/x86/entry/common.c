@@ -73,10 +73,8 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs,
 						  unsigned int nr)
 {
 	if (likely(nr < IA32_NR_syscalls)) {
-		instrumentation_begin();
 		nr = array_index_nospec(nr, IA32_NR_syscalls);
 		regs->ax = ia32_sys_call_table[nr](regs);
-		instrumentation_end();
 	}
 }
 
@@ -91,8 +89,11 @@ __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 	 * or may not be necessary, but it matches the old asm behavior.
 	 */
 	nr = (unsigned int)syscall_enter_from_user_mode(regs, nr);
+	instrumentation_begin();
 
 	do_syscall_32_irqs_on(regs, nr);
+
+	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
 }
 
@@ -121,11 +122,12 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 		res = get_user(*(u32 *)&regs->bp,
 		       (u32 __user __force *)(unsigned long)(u32)regs->sp);
 	}
-	instrumentation_end();
 
 	if (res) {
 		/* User code screwed up. */
 		regs->ax = -EFAULT;
+
+		instrumentation_end();
 		syscall_exit_to_user_mode(regs);
 		return false;
 	}
@@ -135,6 +137,8 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 
 	/* Now this is just like a normal syscall. */
 	do_syscall_32_irqs_on(regs, nr);
+
+	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
 	return true;
 }
@@ -207,40 +211,6 @@ __visible noinstr long do_SYSENTER_32(struct pt_regs *regs)
 SYSCALL_DEFINE0(ni_syscall)
 {
 	return -ENOSYS;
-}
-
-noinstr bool idtentry_enter_nmi(struct pt_regs *regs)
-{
-	bool irq_state = lockdep_hardirqs_enabled();
-
-	__nmi_enter();
-	lockdep_hardirqs_off(CALLER_ADDR0);
-	lockdep_hardirq_enter();
-	rcu_nmi_enter();
-
-	instrumentation_begin();
-	trace_hardirqs_off_finish();
-	ftrace_nmi_enter();
-	instrumentation_end();
-
-	return irq_state;
-}
-
-noinstr void idtentry_exit_nmi(struct pt_regs *regs, bool restore)
-{
-	instrumentation_begin();
-	ftrace_nmi_exit();
-	if (restore) {
-		trace_hardirqs_on_prepare();
-		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
-	}
-	instrumentation_end();
-
-	rcu_nmi_exit();
-	lockdep_hardirq_exit();
-	if (restore)
-		lockdep_hardirqs_on(CALLER_ADDR0);
-	__nmi_exit();
 }
 
 #ifdef CONFIG_XEN_PV

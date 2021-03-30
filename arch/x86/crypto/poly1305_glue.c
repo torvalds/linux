@@ -158,6 +158,7 @@ static unsigned int crypto_poly1305_setdctxkey(struct poly1305_desc_ctx *dctx,
 			dctx->s[1] = get_unaligned_le32(&inp[4]);
 			dctx->s[2] = get_unaligned_le32(&inp[8]);
 			dctx->s[3] = get_unaligned_le32(&inp[12]);
+			acc += POLY1305_BLOCK_SIZE;
 			dctx->sset = true;
 		}
 	}
@@ -209,7 +210,7 @@ void poly1305_final_arch(struct poly1305_desc_ctx *dctx, u8 *dst)
 	}
 
 	poly1305_simd_emit(&dctx->h, dst, dctx->s);
-	*dctx = (struct poly1305_desc_ctx){};
+	memzero_explicit(dctx, sizeof(*dctx));
 }
 EXPORT_SYMBOL(poly1305_final_arch);
 

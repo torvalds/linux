@@ -29,10 +29,10 @@
 #include <asm/page.h>
 
 #define EFI_SUCCESS		0
-#define EFI_LOAD_ERROR          ( 1 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_LOAD_ERROR		( 1 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_INVALID_PARAMETER	( 2 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_UNSUPPORTED		( 3 | (1UL << (BITS_PER_LONG-1)))
-#define EFI_BAD_BUFFER_SIZE     ( 4 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_BAD_BUFFER_SIZE	( 4 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BUFFER_TOO_SMALL	( 5 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_NOT_READY		( 6 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_DEVICE_ERROR	( 7 | (1UL << (BITS_PER_LONG-1)))
@@ -166,8 +166,6 @@ struct capsule_info {
 };
 
 int __efi_capsule_setup_info(struct capsule_info *cap_info);
-
-typedef int (*efi_freemem_callback_t) (u64 start, u64 end, void *arg);
 
 /*
  * Types and defines for Time Services
@@ -605,10 +603,6 @@ efi_guid_to_str(efi_guid_t *guid, char *out)
 }
 
 extern void efi_init (void);
-extern void *efi_get_pal_addr (void);
-extern void efi_map_pal_code (void);
-extern void efi_memmap_walk (efi_freemem_callback_t callback, void *arg);
-extern void efi_gettimeofday (struct timespec64 *ts);
 #ifdef CONFIG_EFI
 extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if possible */
 #else
@@ -816,12 +810,6 @@ static inline bool efi_enabled(int feature)
 }
 static inline void
 efi_reboot(enum reboot_mode reboot_mode, const char *__unused) {}
-
-static inline bool
-efi_capsule_pending(int *reset_type)
-{
-	return false;
-}
 
 static inline bool efi_soft_reserve_enabled(void)
 {
@@ -1038,6 +1026,7 @@ bool efivar_validate(efi_guid_t vendor, efi_char16_t *var_name, u8 *data,
 bool efivar_variable_is_removable(efi_guid_t vendor, const char *name,
 				  size_t len);
 
+#if IS_ENABLED(CONFIG_EFI_CAPSULE_LOADER)
 extern bool efi_capsule_pending(int *reset_type);
 
 extern int efi_capsule_supported(efi_guid_t guid, u32 flags,
@@ -1045,6 +1034,9 @@ extern int efi_capsule_supported(efi_guid_t guid, u32 flags,
 
 extern int efi_capsule_update(efi_capsule_header_t *capsule,
 			      phys_addr_t *pages);
+#else
+static inline bool efi_capsule_pending(int *reset_type) { return false; }
+#endif
 
 #ifdef CONFIG_EFI_RUNTIME_MAP
 int efi_runtime_map_init(struct kobject *);
@@ -1089,14 +1081,28 @@ enum efi_secureboot_mode {
 	efi_secureboot_mode_disabled,
 	efi_secureboot_mode_enabled,
 };
-enum efi_secureboot_mode efi_get_secureboot(void);
 
-#ifdef CONFIG_RESET_ATTACK_MITIGATION
-void efi_enable_reset_attack_mitigation(void);
-#else
-static inline void
-efi_enable_reset_attack_mitigation(void) { }
-#endif
+static inline
+enum efi_secureboot_mode efi_get_secureboot_mode(efi_get_variable_t *get_var)
+{
+	u8 secboot, setupmode = 0;
+	efi_status_t status;
+	unsigned long size;
+
+	size = sizeof(secboot);
+	status = get_var(L"SecureBoot", &EFI_GLOBAL_VARIABLE_GUID, NULL, &size,
+			 &secboot);
+	if (status == EFI_NOT_FOUND)
+		return efi_secureboot_mode_disabled;
+	if (status != EFI_SUCCESS)
+		return efi_secureboot_mode_unknown;
+
+	size = sizeof(setupmode);
+	get_var(L"SetupMode", &EFI_GLOBAL_VARIABLE_GUID, NULL, &size, &setupmode);
+	if (secboot == 0 || setupmode == 1)
+		return efi_secureboot_mode_disabled;
+	return efi_secureboot_mode_enabled;
+}
 
 #ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
 void efi_check_for_embedded_firmwares(void);
@@ -1105,8 +1111,6 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 #endif
 
 efi_status_t efi_random_get_seed(void);
-
-void efi_retrieve_tpm2_eventlog(void);
 
 /*
  * Arch code can implement the following three template macros, avoiding

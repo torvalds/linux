@@ -44,18 +44,23 @@
 #define DEFAULT_TOD2_PTP_PLL		(2)
 #define DEFAULT_TOD3_PTP_PLL		(3)
 
-#define POST_SM_RESET_DELAY_MS		(3000)
-#define PHASE_PULL_IN_THRESHOLD_NS	(150000)
-#define PHASE_PULL_IN_THRESHOLD_NS_V487	(15000)
-#define TOD_WRITE_OVERHEAD_COUNT_MAX	(2)
-#define TOD_BYTE_COUNT			(11)
-#define WR_PHASE_SETUP_MS		(5000)
+#define POST_SM_RESET_DELAY_MS			(3000)
+#define PHASE_PULL_IN_THRESHOLD_NS_DEPRECATED	(150000)
+#define PHASE_PULL_IN_THRESHOLD_NS		(15000)
+#define TOD_WRITE_OVERHEAD_COUNT_MAX		(2)
+#define TOD_BYTE_COUNT				(11)
 
-#define OUTPUT_MODULE_FROM_INDEX(index)	(OUTPUT_0 + (index) * 0x10)
+#define LOCK_TIMEOUT_MS			(2000)
+#define LOCK_POLL_INTERVAL_MS		(10)
 
-#define PEROUT_ENABLE_OUTPUT_MASK		(0xdeadbeef)
+#define PEROUT_ENABLE_OUTPUT_MASK	(0xdeadbeef)
 
-#define IDTCM_MAX_WRITE_COUNT			(512)
+#define IDTCM_MAX_WRITE_COUNT		(512)
+
+#define FULL_FW_CFG_BYTES		(SCRATCH - GPIO_USER_CONTROL)
+#define FULL_FW_CFG_SKIPPED_BYTES	(((SCRATCH >> 7) \
+					  - (GPIO_USER_CONTROL >> 7)) \
+					 * 4) /* 4 bytes skipped every 0x80 */
 
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
@@ -102,6 +107,18 @@ enum scsr_tod_write_type_sel {
 	SCSR_TOD_WR_TYPE_SEL_MAX = SCSR_TOD_WR_TYPE_SEL_DELTA_MINUS,
 };
 
+/* Values STATUS.DPLL_SYS_STATUS.DPLL_SYS_STATE */
+enum dpll_state {
+	DPLL_STATE_MIN = 0,
+	DPLL_STATE_FREERUN = DPLL_STATE_MIN,
+	DPLL_STATE_LOCKACQ = 1,
+	DPLL_STATE_LOCKREC = 2,
+	DPLL_STATE_LOCKED = 3,
+	DPLL_STATE_HOLDOVER = 4,
+	DPLL_STATE_OPEN_LOOP = 5,
+	DPLL_STATE_MAX = DPLL_STATE_OPEN_LOOP,
+};
+
 struct idtcm;
 
 struct idtcm_channel {
@@ -120,7 +137,6 @@ struct idtcm_channel {
 	enum pll_mode		pll_mode;
 	u8			pll;
 	u16			output_mask;
-	int			write_phase_ready;
 };
 
 struct idtcm {
@@ -129,6 +145,7 @@ struct idtcm {
 	u8			page_offset;
 	u8			tod_mask;
 	char			version[16];
+	u8			deprecated;
 
 	/* Overhead calculation for adjtime */
 	u8			calculate_overhead_flag;

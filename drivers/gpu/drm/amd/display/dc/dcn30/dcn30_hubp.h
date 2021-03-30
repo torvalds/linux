@@ -62,6 +62,7 @@
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_DISABLE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_IN_BLANK, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_PIPES, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, PIPE_INTERLEAVE, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, MAX_COMPRESSED_FRAGS, mask_sh),\
@@ -250,6 +251,9 @@ bool hubp3_construct(
 		const struct dcn_hubp2_registers *hubp_regs,
 		const struct dcn_hubp2_shift *hubp_shift,
 		const struct dcn_hubp2_mask *hubp_mask);
+
+void hubp3_set_vm_system_aperture_settings(struct hubp *hubp,
+	struct vm_system_aperture_param *apt);
 
 bool hubp3_program_surface_flip_and_addr(
 	struct hubp *hubp,

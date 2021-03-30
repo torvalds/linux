@@ -86,16 +86,6 @@ bool mutex_is_locked(struct mutex *lock)
 }
 EXPORT_SYMBOL(mutex_is_locked);
 
-__must_check enum mutex_trylock_recursive_enum
-mutex_trylock_recursive(struct mutex *lock)
-{
-	if (unlikely(__mutex_owner(lock) == current))
-		return MUTEX_TRYLOCK_RECURSIVE;
-
-	return mutex_trylock(lock);
-}
-EXPORT_SYMBOL(mutex_trylock_recursive);
-
 static inline unsigned long __owner_flags(unsigned long owner)
 {
 	return owner & MUTEX_FLAGS;

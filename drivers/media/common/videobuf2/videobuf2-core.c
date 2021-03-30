@@ -414,6 +414,17 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		vb->index = q->num_buffers + buffer;
 		vb->type = q->type;
 		vb->memory = memory;
+		/*
+		 * We need to set these flags here so that the videobuf2 core
+		 * will call ->prepare()/->finish() cache sync/flush on vb2
+		 * buffers when appropriate. However, we can avoid explicit
+		 * ->prepare() and ->finish() cache sync for DMABUF buffers,
+		 * because DMA exporter takes care of it.
+		 */
+		if (q->memory != VB2_MEMORY_DMABUF) {
+			vb->need_cache_sync_on_prepare = 1;
+			vb->need_cache_sync_on_finish = 1;
+		}
 		for (plane = 0; plane < num_planes; ++plane) {
 			vb->planes[plane].length = plane_sizes[plane];
 			vb->planes[plane].min_length = plane_sizes[plane];
@@ -2363,12 +2374,19 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	struct vb2_buffer *vb = NULL;
 	unsigned long flags;
 
+	/*
+	 * poll_wait() MUST be called on the first invocation on all the
+	 * potential queues of interest, even if we are not interested in their
+	 * events during this first call. Failure to do so will result in
+	 * queue's events to be ignored because the poll_table won't be capable
+	 * of adding new wait queues thereafter.
+	 */
+	poll_wait(file, &q->done_wq, wait);
+
 	if (!q->is_output && !(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return 0;
 	if (q->is_output && !(req_events & (EPOLLOUT | EPOLLWRNORM)))
 		return 0;
-
-	poll_wait(file, &q->done_wq, wait);
 
 	/*
 	 * Start file I/O emulator only if streaming API has not been used yet.

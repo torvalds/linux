@@ -8,10 +8,15 @@
 
 #include <asm/bootinfo.h>
 
+char *system_type;
+
 const char *get_system_type(void)
 {
 	const char *str;
 	int err;
+
+	if (system_type)
+		return system_type;
 
 	err = of_property_read_string(of_root, "model", &str);
 	if (!err)

@@ -975,7 +975,6 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	port->closing_wait    = closing_wait;
 	if (new_info->xmit_fifo_size)
 		uport->fifosize = new_info->xmit_fifo_size;
-	port->low_latency = (uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	retval = 0;
@@ -1467,6 +1466,10 @@ static void uart_set_ldisc(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *uport;
+	struct tty_port *port = &state->port;
+
+	if (!tty_port_initialized(port))
+		return;
 
 	mutex_lock(&state->port.mutex);
 	uport = uart_port_check(state);
@@ -1790,8 +1793,6 @@ static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
 	uport = uart_port_check(state);
 	if (!uport || uport->flags & UPF_DEAD)
 		return -ENXIO;
-
-	port->low_latency = (uport->flags & UPF_LOW_LATENCY) ? 1 : 0;
 
 	/*
 	 * Start up the serial port.
@@ -2847,6 +2848,8 @@ static const struct attribute_group tty_dev_attr_group = {
  *	@drv: pointer to the uart low level driver structure for this port
  *	@uport: uart port structure to use for this port.
  *
+ *	Context: task context, might sleep
+ *
  *	This allows the driver to register its own uart_port structure
  *	with the core driver.  The main purpose is to allow the low
  *	level uart drivers to expand uart_port, rather than having yet
@@ -2859,8 +2862,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	int ret = 0;
 	struct device *tty_dev;
 	int num_groups;
-
-	BUG_ON(in_interrupt());
 
 	if (uport->line >= drv->nr)
 		return -EINVAL;
@@ -2950,6 +2951,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
  *	@drv: pointer to the uart low level driver structure for this port
  *	@uport: uart port structure for this port
  *
+ *	Context: task context, might sleep
+ *
  *	This unhooks (and hangs up) the specified port structure from the
  *	core driver.  No further calls will be made to the low-level code
  *	for this port.
@@ -2961,8 +2964,6 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	struct uart_port *uart_port;
 	struct tty_struct *tty;
 	int ret = 0;
-
-	BUG_ON(in_interrupt());
 
 	mutex_lock(&port_mutex);
 

@@ -88,6 +88,7 @@ struct panfrost_device {
 	/* pm_domains for devices with more than one. */
 	struct device *pm_domain_devs[MAX_PM_DOMAINS];
 	struct device_link *pm_domain_links[MAX_PM_DOMAINS];
+	bool coherent;
 
 	struct panfrost_features features;
 	const struct panfrost_compatible *comp;
@@ -105,7 +106,11 @@ struct panfrost_device {
 	struct panfrost_perfcnt *perfcnt;
 
 	struct mutex sched_lock;
-	struct mutex reset_lock;
+
+	struct {
+		struct work_struct work;
+		atomic_t pending;
+	} reset;
 
 	struct mutex shrinker_lock;
 	struct list_head shrinker_list;

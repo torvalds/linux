@@ -1,78 +1,67 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *	   Redistribution and use in source and binary forms, with or
- *	   without modification, are permitted provided that the following
- *	   conditions are met:
- *
- *		- Redistributions of source code must retain the above
- *		  copyright notice, this list of conditions and the following
- *		  disclaimer.
- *
- *		- Redistributions in binary form must reproduce the above
- *		  copyright notice, this list of conditions and the following
- *		  disclaimer in the documentation and/or other materials
- *		  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include "rxe.h"
 #include "rxe_loc.h"
+
+/* caller should hold mc_grp_pool->pool_lock */
+static struct rxe_mc_grp *create_grp(struct rxe_dev *rxe,
+				     struct rxe_pool *pool,
+				     union ib_gid *mgid)
+{
+	int err;
+	struct rxe_mc_grp *grp;
+
+	grp = rxe_alloc_locked(&rxe->mc_grp_pool);
+	if (!grp)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&grp->qp_list);
+	spin_lock_init(&grp->mcg_lock);
+	grp->rxe = rxe;
+	rxe_add_key_locked(grp, mgid);
+
+	err = rxe_mcast_add(rxe, mgid);
+	if (unlikely(err)) {
+		rxe_drop_key_locked(grp);
+		rxe_drop_ref(grp);
+		return ERR_PTR(err);
+	}
+
+	return grp;
+}
 
 int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
 		      struct rxe_mc_grp **grp_p)
 {
 	int err;
 	struct rxe_mc_grp *grp;
+	struct rxe_pool *pool = &rxe->mc_grp_pool;
+	unsigned long flags;
 
-	if (rxe->attr.max_mcast_qp_attach == 0) {
-		err = -EINVAL;
-		goto err1;
-	}
+	if (rxe->attr.max_mcast_qp_attach == 0)
+		return -EINVAL;
 
-	grp = rxe_pool_get_key(&rxe->mc_grp_pool, mgid);
+	write_lock_irqsave(&pool->pool_lock, flags);
+
+	grp = rxe_pool_get_key_locked(pool, mgid);
 	if (grp)
 		goto done;
 
-	grp = rxe_alloc(&rxe->mc_grp_pool);
-	if (!grp) {
-		err = -ENOMEM;
-		goto err1;
+	grp = create_grp(rxe, pool, mgid);
+	if (IS_ERR(grp)) {
+		write_unlock_irqrestore(&pool->pool_lock, flags);
+		err = PTR_ERR(grp);
+		return err;
 	}
 
-	INIT_LIST_HEAD(&grp->qp_list);
-	spin_lock_init(&grp->mcg_lock);
-	grp->rxe = rxe;
-
-	rxe_add_key(grp, mgid);
-
-	err = rxe_mcast_add(rxe, mgid);
-	if (err)
-		goto err2;
-
 done:
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 	*grp_p = grp;
 	return 0;
-
-err2:
-	rxe_drop_ref(grp);
-err1:
-	return err;
 }
 
 int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,

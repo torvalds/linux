@@ -182,13 +182,6 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
-config DRM_TTM_DMA_PAGE_POOL
-	bool
-	depends on DRM_TTM && (SWIOTLB || INTEL_IOMMU)
-	default y
-	help
-	  Choose this if you need the TTM dma page pool
-
 config DRM_VRAM_HELPER
 	tristate
 	depends on DRM
@@ -221,10 +214,6 @@ config DRM_GEM_SHMEM_HELPER
 	help
 	  Choose this if you need the GEM shmem helper functions
 
-config DRM_VM
-	bool
-	depends on DRM && MMU
-
 config DRM_SCHED
 	tristate
 	depends on DRM
@@ -239,6 +228,7 @@ config DRM_RADEON
 	select FW_LOADER
         select DRM_KMS_HELPER
         select DRM_TTM
+	select DRM_TTM_HELPER
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
@@ -259,6 +249,7 @@ config DRM_AMDGPU
 	select DRM_KMS_HELPER
 	select DRM_SCHED
 	select DRM_TTM
+	select DRM_TTM_HELPER
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
@@ -275,6 +266,8 @@ source "drivers/gpu/drm/nouveau/Kconfig"
 
 source "drivers/gpu/drm/i915/Kconfig"
 
+source "drivers/gpu/drm/kmb/Kconfig"
+
 config DRM_VGEM
 	tristate "Virtual GEM provider"
 	depends on DRM
@@ -287,6 +280,7 @@ config DRM_VKMS
 	tristate "Virtual KMS (EXPERIMENTAL)"
 	depends on DRM
 	select DRM_KMS_HELPER
+	select DRM_GEM_SHMEM_HELPER
 	select CRC32
 	default n
 	help
@@ -393,7 +387,6 @@ source "drivers/gpu/drm/xlnx/Kconfig"
 menuconfig DRM_LEGACY
 	bool "Enable legacy drivers (DANGEROUS)"
 	depends on DRM && MMU
-	select DRM_VM
 	help
 	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
 	  APIs to user-space, which can be used to circumvent access

@@ -44,23 +44,21 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * List of required GuC and HuC binaries per-platform.
  * Must be ordered based on platform + revid, from newer to older.
  *
- * TGL 35.2 is interface-compatible with 33.0 for previous Gens. The deltas
- * between 33.0 and 35.2 are only related to new additions to support new Gen12
- * features.
- *
  * Note that RKL uses the same firmware as TGL.
  */
 #define INTEL_UC_FIRMWARE_DEFS(fw_def, guc_def, huc_def) \
-	fw_def(ROCKETLAKE,  0, guc_def(tgl, 35, 2, 0), huc_def(tgl,  7, 5, 0)) \
-	fw_def(TIGERLAKE,   0, guc_def(tgl, 35, 2, 0), huc_def(tgl,  7, 5, 0)) \
-	fw_def(ELKHARTLAKE, 0, guc_def(ehl, 33, 0, 4), huc_def(ehl,  9, 0, 0)) \
-	fw_def(ICELAKE,     0, guc_def(icl, 33, 0, 0), huc_def(icl,  9, 0, 0)) \
-	fw_def(COMETLAKE,   5, guc_def(cml, 33, 0, 0), huc_def(cml,  4, 0, 0)) \
-	fw_def(COFFEELAKE,  0, guc_def(kbl, 33, 0, 0), huc_def(kbl,  4, 0, 0)) \
-	fw_def(GEMINILAKE,  0, guc_def(glk, 33, 0, 0), huc_def(glk,  4, 0, 0)) \
-	fw_def(KABYLAKE,    0, guc_def(kbl, 33, 0, 0), huc_def(kbl,  4, 0, 0)) \
-	fw_def(BROXTON,     0, guc_def(bxt, 33, 0, 0), huc_def(bxt,  2, 0, 0)) \
-	fw_def(SKYLAKE,     0, guc_def(skl, 33, 0, 0), huc_def(skl,  2, 0, 0))
+	fw_def(ROCKETLAKE,  0, guc_def(tgl, 49, 0, 1), huc_def(tgl,  7, 5, 0)) \
+	fw_def(TIGERLAKE,   0, guc_def(tgl, 49, 0, 1), huc_def(tgl,  7, 5, 0)) \
+	fw_def(JASPERLAKE,  0, guc_def(ehl, 49, 0, 1), huc_def(ehl,  9, 0, 0)) \
+	fw_def(ELKHARTLAKE, 0, guc_def(ehl, 49, 0, 1), huc_def(ehl,  9, 0, 0)) \
+	fw_def(ICELAKE,     0, guc_def(icl, 49, 0, 1), huc_def(icl,  9, 0, 0)) \
+	fw_def(COMETLAKE,   5, guc_def(cml, 49, 0, 1), huc_def(cml,  4, 0, 0)) \
+	fw_def(COMETLAKE,   0, guc_def(kbl, 49, 0, 1), huc_def(kbl,  4, 0, 0)) \
+	fw_def(COFFEELAKE,  0, guc_def(kbl, 49, 0, 1), huc_def(kbl,  4, 0, 0)) \
+	fw_def(GEMINILAKE,  0, guc_def(glk, 49, 0, 1), huc_def(glk,  4, 0, 0)) \
+	fw_def(KABYLAKE,    0, guc_def(kbl, 49, 0, 1), huc_def(kbl,  4, 0, 0)) \
+	fw_def(BROXTON,     0, guc_def(bxt, 49, 0, 1), huc_def(bxt,  2, 0, 0)) \
+	fw_def(SKYLAKE,     0, guc_def(skl, 49, 0, 1), huc_def(skl,  2, 0, 0))
 
 #define __MAKE_UC_FW_PATH(prefix_, name_, major_, minor_, patch_) \
 	"i915/" \
@@ -154,16 +152,11 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 			uc_fw->path = NULL;
 		}
 	}
-
-	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
-	if (i915->params.enable_guc == -1 && p < INTEL_ICELAKE)
-		uc_fw->path = NULL;
 }
 
 static const char *__override_guc_firmware_path(struct drm_i915_private *i915)
 {
-	if (i915->params.enable_guc & (ENABLE_GUC_SUBMISSION |
-				       ENABLE_GUC_LOAD_HUC))
+	if (i915->params.enable_guc & ENABLE_GUC_MASK)
 		return i915->params.guc_firmware_path;
 	return "";
 }
@@ -370,6 +363,9 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			goto fail;
 		}
 	}
+
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
+		uc_fw->private_data_size = css->private_data_size;
 
 	obj = i915_gem_object_create_shmem_from_data(i915, fw->data, fw->size);
 	if (IS_ERR(obj)) {

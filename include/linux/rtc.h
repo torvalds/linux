@@ -110,19 +110,38 @@ struct rtc_device {
 	/* Some hardware can't support UIE mode */
 	int uie_unsupported;
 
-	/* Number of nsec it takes to set the RTC clock. This influences when
-	 * the set ops are called. An offset:
-	 *   - of 0.5 s will call RTC set for wall clock time 10.0 s at 9.5 s
-	 *   - of 1.5 s will call RTC set for wall clock time 10.0 s at 8.5 s
-	 *   - of -0.5 s will call RTC set for wall clock time 10.0 s at 10.5 s
+	/*
+	 * This offset specifies the update timing of the RTC.
+	 *
+	 * tsched     t1 write(t2.tv_sec - 1sec))  t2 RTC increments seconds
+	 *
+	 * The offset defines how tsched is computed so that the write to
+	 * the RTC (t2.tv_sec - 1sec) is correct versus the time required
+	 * for the transport of the write and the time which the RTC needs
+	 * to increment seconds the first time after the write (t2).
+	 *
+	 * For direct accessible RTCs tsched ~= t1 because the write time
+	 * is negligible. For RTCs behind slow busses the transport time is
+	 * significant and has to be taken into account.
+	 *
+	 * The time between the write (t1) and the first increment after
+	 * the write (t2) is RTC specific. For a MC146818 RTC it's 500ms,
+	 * for many others it's exactly 1 second. Consult the datasheet.
+	 *
+	 * The value of this offset is also used to calculate the to be
+	 * written value (t2.tv_sec - 1sec) at tsched.
+	 *
+	 * The default value for this is NSEC_PER_SEC + 10 msec default
+	 * transport time. The offset can be adjusted by drivers so the
+	 * calculation for the to be written value at tsched becomes
+	 * correct:
+	 *
+	 *	newval = tsched + set_offset_nsec - NSEC_PER_SEC
+	 * and  (tsched + set_offset_nsec) % NSEC_PER_SEC == 0
 	 */
-	long set_offset_nsec;
+	unsigned long set_offset_nsec;
 
-	bool registered;
-
-	/* Old ABI support */
-	bool nvram_old_abi;
-	struct bin_attribute *nvram;
+	unsigned long features[BITS_TO_LONGS(RTC_FEATURE_CNT)];
 
 	time64_t range_min;
 	timeu64_t range_max;
@@ -161,11 +180,10 @@ extern struct rtc_device *devm_rtc_device_register(struct device *dev,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
 struct rtc_device *devm_rtc_allocate_device(struct device *dev);
-int __rtc_register_device(struct module *owner, struct rtc_device *rtc);
+int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc);
 
 extern int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm);
 extern int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm);
-extern int rtc_set_ntp_time(struct timespec64 now, unsigned long *target_nsec);
 int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
 extern int rtc_read_alarm(struct rtc_device *rtc,
 			struct rtc_wkalrm *alrm);
@@ -205,41 +223,8 @@ static inline bool is_leap_year(unsigned int year)
 	return (!(year % 4) && (year % 100)) || !(year % 400);
 }
 
-/* Determine if we can call to driver to set the time. Drivers can only be
- * called to set a second aligned time value, and the field set_offset_nsec
- * specifies how far away from the second aligned time to call the driver.
- *
- * This also computes 'to_set' which is the time we are trying to set, and has
- * a zero in tv_nsecs, such that:
- *    to_set - set_delay_nsec == now +/- FUZZ
- *
- */
-static inline bool rtc_tv_nsec_ok(s64 set_offset_nsec,
-				  struct timespec64 *to_set,
-				  const struct timespec64 *now)
-{
-	/* Allowed error in tv_nsec, arbitarily set to 5 jiffies in ns. */
-	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
-	struct timespec64 delay = {.tv_sec = 0,
-				   .tv_nsec = set_offset_nsec};
-
-	*to_set = timespec64_add(*now, delay);
-
-	if (to_set->tv_nsec < TIME_SET_NSEC_FUZZ) {
-		to_set->tv_nsec = 0;
-		return true;
-	}
-
-	if (to_set->tv_nsec > NSEC_PER_SEC - TIME_SET_NSEC_FUZZ) {
-		to_set->tv_sec++;
-		to_set->tv_nsec = 0;
-		return true;
-	}
-	return false;
-}
-
-#define rtc_register_device(device) \
-	__rtc_register_device(THIS_MODULE, device)
+#define devm_rtc_register_device(device) \
+	__devm_rtc_register_device(THIS_MODULE, device)
 
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 extern int rtc_hctosys_ret;
@@ -248,16 +233,14 @@ extern int rtc_hctosys_ret;
 #endif
 
 #ifdef CONFIG_RTC_NVMEM
-int rtc_nvmem_register(struct rtc_device *rtc,
-		       struct nvmem_config *nvmem_config);
-void rtc_nvmem_unregister(struct rtc_device *rtc);
+int devm_rtc_nvmem_register(struct rtc_device *rtc,
+			    struct nvmem_config *nvmem_config);
 #else
-static inline int rtc_nvmem_register(struct rtc_device *rtc,
-				     struct nvmem_config *nvmem_config)
+static inline int devm_rtc_nvmem_register(struct rtc_device *rtc,
+					  struct nvmem_config *nvmem_config)
 {
 	return 0;
 }
-static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif
 
 #ifdef CONFIG_RTC_INTF_SYSFS

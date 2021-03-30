@@ -20,8 +20,6 @@ menuconfig STAGING_MEDIA
 if STAGING_MEDIA && MEDIA_SUPPORT
 
 # Please keep them in alphabetic order
-source "drivers/staging/media/allegro-dvt/Kconfig"
-
 source "drivers/staging/media/atomisp/Kconfig"
 
 source "drivers/staging/media/hantro/Kconfig"
@@ -43,7 +41,5 @@ source "drivers/staging/media/zoran/Kconfig"
 source "drivers/staging/media/tegra-video/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
-
-source "drivers/staging/media/rkisp1/Kconfig"
 
 endif

@@ -303,6 +303,7 @@ struct vivid_dev {
 	struct fb_fix_screeninfo	fb_fix;
 
 	/* Error injection */
+	bool				disconnect_error;
 	bool				queue_setup_error;
 	bool				buf_prepare_error;
 	bool				start_streaming_error;

@@ -256,7 +256,7 @@ struct qm_dqrr_entry {
 	__be32 context_b;
 	struct qm_fd fd;
 	u8 __reserved4[32];
-} __packed;
+} __packed __aligned(64);
 #define QM_DQRR_VERB_VBIT		0x80
 #define QM_DQRR_VERB_MASK		0x7f	/* where the verb contains; */
 #define QM_DQRR_VERB_FRAME_DEQUEUE	0x60	/* "this format" */
@@ -289,7 +289,7 @@ union qm_mr_entry {
 		__be32 tag;
 		struct qm_fd fd;
 		u8 __reserved1[32];
-	} __packed ern;
+	} __packed __aligned(64) ern;
 	struct {
 		u8 verb;
 		u8 fqs;		/* Frame Queue Status */
@@ -689,7 +689,8 @@ enum qman_cb_dqrr_result {
 };
 typedef enum qman_cb_dqrr_result (*qman_cb_dqrr)(struct qman_portal *qm,
 					struct qman_fq *fq,
-					const struct qm_dqrr_entry *dqrr);
+					const struct qm_dqrr_entry *dqrr,
+					bool sched_napi);
 
 /*
  * This callback type is used when handling ERNs, FQRNs and FQRLs via MR. They

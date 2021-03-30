@@ -19,7 +19,14 @@ struct br_ip {
 #if IS_ENABLED(CONFIG_IPV6)
 		struct in6_addr ip6;
 #endif
-	} u;
+	} src;
+	union {
+		__be32	ip4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct in6_addr ip6;
+#endif
+		unsigned char	mac_addr[ETH_ALEN];
+	} dst;
 	__be16		proto;
 	__u16           vid;
 };

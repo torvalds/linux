@@ -26,9 +26,6 @@
 
 #include "jz4740-i2s.h"
 
-#define JZ4740_DMA_TYPE_AIC_TRANSMIT 24
-#define JZ4740_DMA_TYPE_AIC_RECEIVE 25
-
 #define JZ_REG_AIC_CONF		0x00
 #define JZ_REG_AIC_CTRL		0x04
 #define JZ_REG_AIC_I2S_FMT	0x10
@@ -312,10 +309,14 @@ static int jz4740_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	switch (clk_id) {
 	case JZ4740_I2S_CLKSRC_EXT:
 		parent = clk_get(NULL, "ext");
+		if (IS_ERR(parent))
+			return PTR_ERR(parent);
 		clk_set_parent(i2s->clk_i2s, parent);
 		break;
 	case JZ4740_I2S_CLKSRC_PLL:
 		parent = clk_get(NULL, "pll half");
+		if (IS_ERR(parent))
+			return PTR_ERR(parent);
 		clk_set_parent(i2s->clk_i2s, parent);
 		ret = clk_set_rate(i2s->clk_i2s, freq);
 		break;
@@ -377,13 +378,11 @@ static void jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 	/* Playback */
 	dma_data = &i2s->playback_dma_data;
 	dma_data->maxburst = 16;
-	dma_data->slave_id = JZ4740_DMA_TYPE_AIC_TRANSMIT;
 	dma_data->addr = i2s->phys_base + JZ_REG_AIC_FIFO;
 
 	/* Capture */
 	dma_data = &i2s->capture_dma_data;
 	dma_data->maxburst = 16;
-	dma_data->slave_id = JZ4740_DMA_TYPE_AIC_RECEIVE;
 	dma_data->addr = i2s->phys_base + JZ_REG_AIC_FIFO;
 }
 
@@ -456,7 +455,7 @@ static struct snd_soc_dai_driver jz4740_i2s_dai = {
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = JZ4740_I2S_FMTS,
 	},
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	.ops = &jz4740_i2s_dai_ops,
 };
 

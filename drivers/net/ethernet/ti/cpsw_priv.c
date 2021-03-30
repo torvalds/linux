@@ -500,8 +500,8 @@ int cpsw_init_common(struct cpsw_common *cpsw, void __iomem *ss_regs,
 
 	ale_params.dev			= dev;
 	ale_params.ale_ageout		= ale_ageout;
-	ale_params.ale_entries		= data->ale_entries;
 	ale_params.ale_ports		= CPSW_ALE_PORTS_NUM;
+	ale_params.dev_id		= "cpsw";
 
 	cpsw->ale = cpsw_ale_create(&ale_params);
 	if (IS_ERR(cpsw->ale)) {
@@ -639,13 +639,10 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		return -ERANGE;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		priv->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
-		break;
+		return -ERANGE;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
@@ -1189,7 +1186,7 @@ static int cpsw_ndev_create_xdp_rxq(struct cpsw_priv *priv, int ch)
 	pool = cpsw->page_pool[ch];
 	rxq = &priv->xdp_rxq[ch];
 
-	ret = xdp_rxq_info_reg(rxq, priv->ndev, ch);
+	ret = xdp_rxq_info_reg(rxq, priv->ndev, ch, 0);
 	if (ret)
 		return ret;
 
@@ -1268,9 +1265,6 @@ static int cpsw_xdp_prog_setup(struct cpsw_priv *priv, struct netdev_bpf *bpf)
 	if (!priv->xdpi.prog && !prog)
 		return 0;
 
-	if (!xdp_attachment_flags_ok(&priv->xdpi, bpf))
-		return -EBUSY;
-
 	WRITE_ONCE(priv->xdp_prog, prog);
 
 	xdp_attachment_setup(&priv->xdpi, bpf);
@@ -1329,7 +1323,7 @@ int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
 }
 
 int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
-		 struct page *page, int port)
+		 struct page *page, int port, int *len)
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 	struct net_device *ndev = priv->ndev;
@@ -1347,10 +1341,13 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 	}
 
 	act = bpf_prog_run_xdp(prog, xdp);
+	/* XDP prog might have changed packet data and boundaries */
+	*len = xdp->data_end - xdp->data;
+
 	switch (act) {
 	case XDP_PASS:
 		ret = CPSW_XDP_PASS;
-		break;
+		goto out;
 	case XDP_TX:
 		xdpf = xdp_convert_buff_to_frame(xdp);
 		if (unlikely(!xdpf))
@@ -1376,8 +1373,13 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 		trace_xdp_exception(ndev, prog, act);
 		fallthrough;	/* handle aborts by dropping packet */
 	case XDP_DROP:
+		ndev->stats.rx_bytes += *len;
+		ndev->stats.rx_packets++;
 		goto drop;
 	}
+
+	ndev->stats.rx_bytes += *len;
+	ndev->stats.rx_packets++;
 out:
 	rcu_read_unlock();
 	return ret;

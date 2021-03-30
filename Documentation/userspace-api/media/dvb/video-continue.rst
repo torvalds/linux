@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_CONTINUE:
 
@@ -16,9 +17,9 @@ VIDEO_CONTINUE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_CONTINUE)
-    :name: VIDEO_CONTINUE
+.. c:macro:: VIDEO_CONTINUE
 
+``int ioctl(fd, VIDEO_CONTINUE)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -40,7 +40,6 @@ Arguments
 
        -  Equals VIDEO_CONTINUE for this command.
 
-
 Description
 -----------
 
@@ -49,7 +48,6 @@ V4L2 :ref:`VIDIOC_DECODER_CMD` instead.
 
 This ioctl call restarts decoding and playing processes of the video
 stream which was played before a call to VIDEO_FREEZE was made.
-
 
 Return Value
 ------------

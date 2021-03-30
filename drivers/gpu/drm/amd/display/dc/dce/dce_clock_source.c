@@ -113,20 +113,19 @@ static const struct spread_spectrum_data *get_ss_data_entry(
 }
 
 /**
- * Function: calculate_fb_and_fractional_fb_divider
+ * calculate_fb_and_fractional_fb_divider - Calculates feedback and fractional
+ *                                          feedback dividers values
  *
- * * DESCRIPTION: Calculates feedback and fractional feedback dividers values
+ * @calc_pll_cs:	    Pointer to clock source information
+ * @target_pix_clk_100hz:   Desired frequency in 100 Hz
+ * @ref_divider:            Reference divider (already known)
+ * @post_divider:           Post Divider (already known)
+ * @feedback_divider_param: Pointer where to store
+ *			    calculated feedback divider value
+ * @fract_feedback_divider_param: Pointer where to store
+ *			    calculated fract feedback divider value
  *
- *PARAMETERS:
- * targetPixelClock             Desired frequency in 100 Hz
- * ref_divider                  Reference divider (already known)
- * postDivider                  Post Divider (already known)
- * feedback_divider_param       Pointer where to store
- *					calculated feedback divider value
- * fract_feedback_divider_param Pointer where to store
- *					calculated fract feedback divider value
- *
- *RETURNS:
+ * return:
  * It fills the locations pointed by feedback_divider_param
  *					and fract_feedback_divider_param
  * It returns	- true if feedback divider not 0
@@ -175,22 +174,22 @@ static bool calculate_fb_and_fractional_fb_divider(
 }
 
 /**
-*calc_fb_divider_checking_tolerance
-*
-*DESCRIPTION: Calculates Feedback and Fractional Feedback divider values
-*		for passed Reference and Post divider, checking for tolerance.
-*PARAMETERS:
-* pll_settings		Pointer to structure
-* ref_divider		Reference divider (already known)
-* postDivider		Post Divider (already known)
-* tolerance		Tolerance for Calculated Pixel Clock to be within
-*
-*RETURNS:
-* It fills the PLLSettings structure with PLL Dividers values
-* if calculated values are within required tolerance
-* It returns	- true if error is within tolerance
-*		- false if error is not within tolerance
-*/
+ * calc_fb_divider_checking_tolerance - Calculates Feedback and
+ *                                      Fractional Feedback divider values
+ *		                        for passed Reference and Post divider,
+ *                                      checking for tolerance.
+ * @calc_pll_cs:	Pointer to clock source information
+ * @pll_settings:	Pointer to PLL settings
+ * @ref_divider:	Reference divider (already known)
+ * @post_divider:	Post Divider (already known)
+ * @tolerance:		Tolerance for Calculated Pixel Clock to be within
+ *
+ * return:
+ *  It fills the PLLSettings structure with PLL Dividers values
+ *  if calculated values are within required tolerance
+ *  It returns	- true if error is within tolerance
+ *		- false if error is not within tolerance
+ */
 static bool calc_fb_divider_checking_tolerance(
 		struct calc_pll_clock_source *calc_pll_cs,
 		struct pll_settings *pll_settings,
@@ -241,7 +240,7 @@ static bool calc_fb_divider_checking_tolerance(
 		pll_settings->calculated_pix_clk_100hz =
 			actual_calculated_clock_100hz;
 		pll_settings->vco_freq =
-			actual_calculated_clock_100hz * post_divider / 10;
+			div_u64((u64)actual_calculated_clock_100hz * post_divider, 10);
 		return true;
 	}
 	return false;
@@ -460,7 +459,7 @@ static bool pll_adjust_pix_clk(
 	return false;
 }
 
-/**
+/*
  * Calculate PLL Dividers for given Clock Value.
  * First will call VBIOS Adjust Exec table to check if requested Pixel clock
  * will be Adjusted based on usage.
@@ -871,6 +870,20 @@ static bool dce110_program_pix_clk(
 	bp_pc_params.flags.SET_EXTERNAL_REF_DIV_SRC =
 					pll_settings->use_external_clk;
 
+	switch (pix_clk_params->color_depth) {
+	case COLOR_DEPTH_101010:
+		bp_pc_params.color_depth = TRANSMITTER_COLOR_DEPTH_30;
+		break;
+	case COLOR_DEPTH_121212:
+		bp_pc_params.color_depth = TRANSMITTER_COLOR_DEPTH_36;
+		break;
+	case COLOR_DEPTH_161616:
+		bp_pc_params.color_depth = TRANSMITTER_COLOR_DEPTH_48;
+		break;
+	default:
+		break;
+	}
+
 	if (clk_src->bios->funcs->set_pixel_clock(
 			clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
 		return false;
@@ -1004,7 +1017,7 @@ static bool get_pixel_clk_frequency_100hz(
 	return false;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 /* this table is use to find *1.001 and /1.001 pixel rates from non-precise pixel rate */
 const struct pixel_rate_range_table_entry video_optimized_pixel_rates[] = {
 	// /1.001 rates
@@ -1073,7 +1086,7 @@ static const struct clock_source_funcs dcn20_clk_src_funcs = {
 	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 static bool dcn3_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
@@ -1149,7 +1162,8 @@ static uint32_t dcn3_get_pix_clk_dividers(
 static const struct clock_source_funcs dcn3_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dcn3_program_pix_clk,
-	.get_pix_clk_dividers = dcn3_get_pix_clk_dividers
+	.get_pix_clk_dividers = dcn3_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 #endif
 /*****************************************/
@@ -1537,8 +1551,26 @@ bool dcn20_clk_src_construct(
 	return ret;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dcn3_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask)
+{
+	bool ret = dce112_clk_src_construct(clk_src, ctx, bios, id, regs, cs_shift, cs_mask);
+
+	clk_src->base.funcs = &dcn3_clk_src_funcs;
+
+	return ret;
+}
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+bool dcn301_clk_src_construct(
 	struct dce110_clk_src *clk_src,
 	struct dc_context *ctx,
 	struct dc_bios *bios,

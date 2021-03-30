@@ -57,7 +57,7 @@ properties:
       A list of the connections between audio components.  Each entry
       is a pair of strings, the first being the connection's sink, the
       second being the connection's source.
-    $ref: /schemas/types.yaml#definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
     minItems: 2
     maxItems: 18
     items:
@@ -88,6 +88,7 @@ properties:
     description: Phandle to the codec analog controls in the PRCM
 
   allwinner,pa-gpios:
+    maxItems: 1
     description: GPIO to enable the external amplifier
 
 required:

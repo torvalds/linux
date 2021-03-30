@@ -112,7 +112,7 @@ members are defined:
 
 .. code-block:: c
 
-	struct file_system_operations {
+	struct file_system_type {
 		const char *name;
 		int fs_flags;
 		struct dentry *(*mount) (struct file_system_type *, int,

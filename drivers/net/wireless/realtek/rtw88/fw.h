@@ -16,7 +16,6 @@
 
 #define FIFO_PAGE_SIZE_SHIFT		12
 #define FIFO_PAGE_SIZE			4096
-#define RSVD_PAGE_START_ADDR		0x780
 #define FIFO_DUMP_ADDR			0x8000
 
 #define DLFW_PAGE_SIZE_SHIFT_LEGACY	12
@@ -32,6 +31,7 @@ enum rtw_c2h_cmd_id {
 	C2H_RA_RPT = 0x0c,
 	C2H_HW_FEATURE_REPORT = 0x19,
 	C2H_WLAN_INFO = 0x27,
+	C2H_WLAN_RFON = 0x32,
 	C2H_HW_FEATURE_DUMP = 0xfd,
 	C2H_HALMAC = 0xff,
 };
@@ -71,6 +71,14 @@ enum rtw_fw_rf_type {
 	FW_RF_3T4R = 7,
 	FW_RF_4T4R = 8,
 	FW_RF_MAX_TYPE = 0xF,
+};
+
+enum rtw_fw_feature {
+	FW_FEATURE_SIG = BIT(0),
+	FW_FEATURE_LPS_C2H = BIT(1),
+	FW_FEATURE_LCLK = BIT(2),
+	FW_FEATURE_PG = BIT(3),
+	FW_FEATURE_MAX = BIT(31),
 };
 
 struct rtw_coex_info_req {
@@ -178,7 +186,7 @@ struct rtw_fw_hdr {
 	u8 subversion;
 	u8 subindex;
 	__le32 rsvd;		/* 0x08 */
-	__le32 rsvd2;		/* 0x0C */
+	__le32 feature;		/* 0x0C */
 	u8 month;		/* 0x10 */
 	u8 day;
 	u8 hour;
@@ -508,6 +516,20 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define SET_NLO_LOC_NLO_INFO(h2c_pkt, value)                                   \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
 
+#define GET_FW_DUMP_LEN(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(15, 0))
+#define GET_FW_DUMP_SEQ(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(22, 16))
+#define GET_FW_DUMP_MORE(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), BIT(23))
+#define GET_FW_DUMP_VERSION(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(31, 24))
+#define GET_FW_DUMP_TLV_TYPE(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x01), GENMASK(15, 0))
+#define GET_FW_DUMP_TLV_LEN(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x01), GENMASK(31, 16))
+#define GET_FW_DUMP_TLV_VAL(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x02), GENMASK(31, 0))
 static inline struct rtw_c2h_cmd *get_c2h_from_skb(struct sk_buff *skb)
 {
 	u32 pkt_offset;
@@ -564,5 +586,8 @@ void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
 				 struct cfg80211_ssid *ssid);
 void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable);
 void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c);
+void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev);
+int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
+		     u32 *buffer);
 
 #endif

@@ -27,6 +27,8 @@
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
 #include <linux/ftrace.h>
+#include <linux/refcount.h>
+#include <linux/freelist.h>
 #include <asm/kprobes.h>
 
 #ifdef CONFIG_KPROBES
@@ -144,6 +146,11 @@ static inline int kprobe_ftrace(struct kprobe *p)
  * ignored, due to maxactive being too low.
  *
  */
+struct kretprobe_holder {
+	struct kretprobe	*rp;
+	refcount_t		ref;
+};
+
 struct kretprobe {
 	struct kprobe kp;
 	kretprobe_handler_t handler;
@@ -151,18 +158,18 @@ struct kretprobe {
 	int maxactive;
 	int nmissed;
 	size_t data_size;
-	struct hlist_head free_instances;
-	raw_spinlock_t lock;
+	struct freelist_head freelist;
+	struct kretprobe_holder *rph;
 };
 
 struct kretprobe_instance {
 	union {
-		struct hlist_node hlist;
+		struct freelist_node freelist;
 		struct rcu_head rcu;
 	};
-	struct kretprobe *rp;
+	struct llist_node llist;
+	struct kretprobe_holder *rph;
 	kprobe_opcode_t *ret_addr;
-	struct task_struct *task;
 	void *fp;
 	char data[];
 };
@@ -221,6 +228,14 @@ unsigned long kretprobe_trampoline_handler(struct pt_regs *regs,
 	return ret;
 }
 
+static nokprobe_inline struct kretprobe *get_kretprobe(struct kretprobe_instance *ri)
+{
+	RCU_LOCKDEP_WARN(!rcu_read_lock_any_held(),
+		"Kretprobe is accessed from instance under preemptive context");
+
+	return READ_ONCE(ri->rph->rp);
+}
+
 #else /* CONFIG_KRETPROBES */
 static inline void arch_prepare_kretprobe(struct kretprobe *rp,
 					struct pt_regs *regs)
@@ -251,7 +266,7 @@ extern void kprobes_inc_nmissed_count(struct kprobe *p);
 extern bool arch_within_kprobe_blacklist(unsigned long addr);
 extern int arch_populate_kprobe_blacklist(void);
 extern bool arch_kprobe_on_func_entry(unsigned long offset);
-extern bool kprobe_on_func_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset);
+extern int kprobe_on_func_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset);
 
 extern bool within_kprobe_blacklist(unsigned long addr);
 extern int kprobe_add_ksym_blacklist(unsigned long entry);
@@ -345,7 +360,7 @@ static inline void wait_for_kprobe_optimizer(void) { }
 #endif /* CONFIG_OPTPROBES */
 #ifdef CONFIG_KPROBES_ON_FTRACE
 extern void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
-				  struct ftrace_ops *ops, struct pt_regs *regs);
+				  struct ftrace_ops *ops, struct ftrace_regs *fregs);
 extern int arch_prepare_kprobe_ftrace(struct kprobe *p);
 #endif
 

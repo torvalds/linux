@@ -24,12 +24,17 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/rt1015.h>
 #include <sound/soc-dapm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
 #include "rl6231.h"
 #include "rt1015.h"
+
+static const struct rt1015_platform_data i2s_default_platform_data = {
+	.power_up_delay_ms = 50,
+};
 
 static const struct reg_default rt1015_reg[] = {
 	{ 0x0000, 0x0000 },
@@ -439,10 +444,9 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		snd_soc_kcontrol_component(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
+	int boost_mode = ucontrol->value.integer.value[0];
 
-	rt1015->boost_mode = ucontrol->value.integer.value[0];
-
-	switch (rt1015->boost_mode) {
+	switch (boost_mode) {
 	case BYPASS:
 		snd_soc_component_update_bits(component,
 			RT1015_SMART_BST_CTRL1, RT1015_ABST_AUTO_EN_MASK |
@@ -466,7 +470,10 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		break;
 	default:
 		dev_err(component->dev, "Unknown boost control.\n");
+		return -EINVAL;
 	}
+
+	rt1015->boost_mode = boost_mode;
 
 	return 0;
 }
@@ -492,18 +499,20 @@ static void rt1015_calibrate(struct rt1015_priv *rt1015)
 	snd_soc_dapm_mutex_lock(&component->dapm);
 	regcache_cache_bypass(regmap, true);
 
-	regmap_write(regmap, RT1015_PWR1, 0xd7df);
-	regmap_write(regmap, RT1015_PWR4, 0x00b2);
-	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2008);
+	regmap_write(regmap, RT1015_CLK_DET, 0x0000);
+	regmap_write(regmap, RT1015_PWR4, 0x00B2);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0009);
+	msleep(100);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000A);
+	msleep(100);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000C);
+	msleep(100);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2028);
 	regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0140);
-	regmap_write(regmap, RT1015_GAT_BOOST, 0x0efe);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000d);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000e);
-	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a00);
-	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a01);
-	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a05);
-	msleep(500);
-	regmap_write(regmap, RT1015_PWR1, 0x0);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000D);
+	msleep(300);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0008);
+	regmap_write(regmap, RT1015_SYS_RST1, 0x05F5);
 
 	regcache_cache_bypass(regmap, false);
 	regcache_mark_dirty(regmap);
@@ -519,17 +528,19 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 
-	if (!rt1015->dac_is_used) {
-		rt1015->bypass_boost = ucontrol->value.integer.value[0];
-		if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
-			!rt1015->cali_done) {
-			rt1015_calibrate(rt1015);
-			rt1015->cali_done = 1;
-
-			regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
-		}
-	} else
+	if (rt1015->dac_is_used) {
 		dev_err(component->dev, "DAC is being used!\n");
+		return -EBUSY;
+	}
+
+	rt1015->bypass_boost = ucontrol->value.integer.value[0];
+	if (rt1015->bypass_boost == RT1015_Bypass_Boost &&
+			!rt1015->cali_done) {
+		rt1015_calibrate(rt1015);
+		rt1015->cali_done = 1;
+
+		regmap_write(rt1015->regmap, RT1015_MONO_DYNA_CTRL, 0x0010);
+	}
 
 	return 0;
 }
@@ -539,15 +550,14 @@ static void rt1015_flush_work(struct work_struct *work)
 	struct rt1015_priv *rt1015 = container_of(work, struct rt1015_priv,
 						flush_work.work);
 	struct snd_soc_component *component = rt1015->component;
-	unsigned int val, i = 0, count = 20;
+	unsigned int val, i;
 
-	while (i < count) {
+	for (i = 0; i < 200; ++i) {
 		usleep_range(1000, 1500);
 		dev_dbg(component->dev, "Flush DAC (retry:%u)\n", i);
 		regmap_read(rt1015->regmap, RT1015_CLK_DET, &val);
 		if (val & 0x800)
 			break;
-		i++;
 	}
 
 	regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x0597);
@@ -599,6 +609,8 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f7);
 			snd_soc_component_write(component,
+				RT1015_SYS_RST2, 0x0b0a);
+			snd_soc_component_write(component,
 				RT1015_GAT_BOOST, 0xacfe);
 			snd_soc_component_write(component,
 				RT1015_PWR9, 0xaa00);
@@ -606,9 +618,13 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 				RT1015_GAT_BOOST, 0xecfe);
 		} else {
 			snd_soc_component_write(component,
+				0x032d, 0xaa60);
+			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f7);
 			snd_soc_component_write(component,
-				RT1015_PWR_STATE_CTRL, 0x026e);
+				RT1015_SYS_RST2, 0x0b0a);
+			snd_soc_component_write(component,
+				RT1015_PWR_STATE_CTRL, 0x008e);
 		}
 		break;
 
@@ -622,11 +638,17 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 				RT1015_PWR9, 0xa800);
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f5);
+			snd_soc_component_write(component,
+				RT1015_SYS_RST2, 0x0b9a);
 		} else {
 			snd_soc_component_write(component,
-				RT1015_PWR_STATE_CTRL, 0x0268);
+				0x032d, 0xaa60);
+			snd_soc_component_write(component,
+				RT1015_PWR_STATE_CTRL, 0x0088);
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f5);
+			snd_soc_component_write(component,
+				RT1015_SYS_RST2, 0x0b9a);
 		}
 		rt1015->dac_is_used = 0;
 
@@ -650,6 +672,7 @@ static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		if (rt1015->hw_config == RT1015_HW_28)
 			schedule_delayed_work(&rt1015->flush_work, msecs_to_jiffies(10));
+		msleep(rt1015->pdata.power_up_delay_ms);
 		break;
 	default:
 		break;
@@ -658,38 +681,12 @@ static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("LDO2", RT1015_PWR1, RT1015_PWR_LDO2_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("INT RC CLK", RT1015_PWR1, RT1015_PWR_INTCLK_BIT,
-		0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ISENSE", RT1015_PWR1, RT1015_PWR_ISENSE_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("VSENSE", RT1015_PWR1, RT1015_PWR_VSENSE_BIT, 0,
-		NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL", RT1015_PWR1, RT1015_PWR_PLL_BIT, 0,
 		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("BG1 BG2", RT1015_PWR1, RT1015_PWR_BG_1_2_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MBIAS BG", RT1015_PWR1, RT1015_PWR_MBIAS_BG_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("VBAT", RT1015_PWR1, RT1015_PWR_VBAT_BIT, 0, NULL,
-		0),
-	SND_SOC_DAPM_SUPPLY("MBIAS", RT1015_PWR1, RT1015_PWR_MBIAS_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADCV", RT1015_PWR1, RT1015_PWR_ADCV_BIT, 0, NULL,
-		0),
-	SND_SOC_DAPM_SUPPLY("MIXERV", RT1015_PWR1, RT1015_PWR_MIXERV_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SUMV", RT1015_PWR1, RT1015_PWR_SUMV_BIT, 0, NULL,
-		0),
-	SND_SOC_DAPM_SUPPLY("VREFLV", RT1015_PWR1, RT1015_PWR_VREFLV_BIT, 0,
-		NULL, 0),
-
 	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, RT1015_PWR1, RT1015_PWR_DAC_BIT, 0,
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0,
 		r1015_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
-
 	SND_SOC_DAPM_OUT_DRV_E("Amp Drv", SND_SOC_NOPM, 0, 0, NULL, 0,
 			rt1015_amp_drv_event, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPO"),
@@ -697,19 +694,7 @@ static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route rt1015_dapm_routes[] = {
 	{ "DAC", NULL, "AIFRX" },
-	{ "DAC", NULL, "LDO2" },
 	{ "DAC", NULL, "PLL", rt1015_is_sys_clk_from_pll},
-	{ "DAC", NULL, "INT RC CLK" },
-	{ "DAC", NULL, "ISENSE" },
-	{ "DAC", NULL, "VSENSE" },
-	{ "DAC", NULL, "BG1 BG2" },
-	{ "DAC", NULL, "MBIAS BG" },
-	{ "DAC", NULL, "VBAT" },
-	{ "DAC", NULL, "MBIAS" },
-	{ "DAC", NULL, "ADCV" },
-	{ "DAC", NULL, "MIXERV" },
-	{ "DAC", NULL, "SUMV" },
-	{ "DAC", NULL, "VREFLV" },
 	{ "Amp Drv", NULL, "DAC" },
 	{ "SPO", NULL, "Amp Drv" },
 };
@@ -719,11 +704,11 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
-	int pre_div, bclk_ms, frame_size;
+	int pre_div, bclk_ms, frame_size, lrck;
 	unsigned int val_len = 0;
 
-	rt1015->lrck = params_rate(params);
-	pre_div = rl6231_get_clk_info(rt1015->sysclk, rt1015->lrck);
+	lrck = params_rate(params);
+	pre_div = rl6231_get_clk_info(rt1015->sysclk, lrck);
 	if (pre_div < 0) {
 		dev_err(component->dev, "Unsupported clock rate\n");
 		return -EINVAL;
@@ -737,13 +722,12 @@ static int rt1015_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	bclk_ms = frame_size > 32;
-	rt1015->bclk = rt1015->lrck * (32 << bclk_ms);
 
 	dev_dbg(component->dev, "bclk_ms is %d and pre_div is %d for iis %d\n",
 				bclk_ms, pre_div, dai->id);
 
 	dev_dbg(component->dev, "lrck is %dHz and pre_div is %d for iis %d\n",
-				rt1015->lrck, pre_div, dai->id);
+				lrck, pre_div, dai->id);
 
 	switch (params_width(params)) {
 	case 16:
@@ -880,14 +864,6 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 		freq_out == rt1015->pll_out)
 		return 0;
 
-	if (source == RT1015_PLL_S_BCLK) {
-		if (rt1015->bclk_ratio == 0) {
-			dev_err(component->dev,
-				"Can not support bclk ratio as 0.\n");
-			return -EINVAL;
-		}
-	}
-
 	switch (source) {
 	case RT1015_PLL_S_MCLK:
 		snd_soc_component_update_bits(component, RT1015_CLK2,
@@ -927,21 +903,104 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 	return 0;
 }
 
-static int rt1015_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+static int rt1015_set_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_component *component = dai->component;
-	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
+	unsigned int val = 0, rx_slotnum, tx_slotnum;
+	int ret = 0, first_bit;
 
-	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
-
-	rt1015->bclk_ratio = ratio;
-
-	if (ratio == 50) {
-		dev_dbg(component->dev, "Unsupport bclk ratio\n");
-		return -EINVAL;
+	switch (slots) {
+	case 2:
+		val |= RT1015_I2S_TX_2CH;
+		break;
+	case 4:
+		val |= RT1015_I2S_TX_4CH;
+		break;
+	case 6:
+		val |= RT1015_I2S_TX_6CH;
+		break;
+	case 8:
+		val |= RT1015_I2S_TX_8CH;
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
 	}
 
-	return 0;
+	switch (slot_width) {
+	case 16:
+		val |= RT1015_I2S_CH_TX_LEN_16B;
+		break;
+	case 20:
+		val |= RT1015_I2S_CH_TX_LEN_20B;
+		break;
+	case 24:
+		val |= RT1015_I2S_CH_TX_LEN_24B;
+		break;
+	case 32:
+		val |= RT1015_I2S_CH_TX_LEN_32B;
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	/* Rx slot configuration */
+	rx_slotnum = hweight_long(rx_mask);
+	if (rx_slotnum != 1) {
+		ret = -EINVAL;
+		dev_err(component->dev, "too many rx slots or zero slot\n");
+		goto _set_tdm_err_;
+	}
+
+	/* This is an assumption that the system sends stereo audio to the amplifier typically.
+	 * And the stereo audio is placed in slot 0/2/4/6 as the starting slot.
+	 * The users could select the channel from L/R/L+R by "Mono LR Select" control.
+	 */
+	first_bit = __ffs(rx_mask);
+	switch (first_bit) {
+	case 0:
+	case 2:
+	case 4:
+	case 6:
+		snd_soc_component_update_bits(component,
+			RT1015_TDM1_4,
+			RT1015_TDM_I2S_TX_L_DAC1_1_MASK |
+			RT1015_TDM_I2S_TX_R_DAC1_1_MASK,
+			(first_bit << RT1015_TDM_I2S_TX_L_DAC1_1_SFT) |
+			((first_bit+1) << RT1015_TDM_I2S_TX_R_DAC1_1_SFT));
+		break;
+	case 1:
+	case 3:
+	case 5:
+	case 7:
+		snd_soc_component_update_bits(component,
+			RT1015_TDM1_4,
+			RT1015_TDM_I2S_TX_L_DAC1_1_MASK |
+			RT1015_TDM_I2S_TX_R_DAC1_1_MASK,
+			((first_bit-1) << RT1015_TDM_I2S_TX_L_DAC1_1_SFT) |
+			(first_bit << RT1015_TDM_I2S_TX_R_DAC1_1_SFT));
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	/* Tx slot configuration */
+	tx_slotnum = hweight_long(tx_mask);
+	if (tx_slotnum) {
+		ret = -EINVAL;
+		dev_err(component->dev, "doesn't need to support tx slots\n");
+		goto _set_tdm_err_;
+	}
+
+	snd_soc_component_update_bits(component, RT1015_TDM1_1,
+		RT1015_I2S_CH_TX_MASK | RT1015_I2S_CH_RX_MASK |
+		RT1015_I2S_CH_TX_LEN_MASK | RT1015_I2S_CH_RX_LEN_MASK, val);
+
+_set_tdm_err_:
+	return ret;
 }
 
 static int rt1015_probe(struct snd_soc_component *component)
@@ -950,10 +1009,6 @@ static int rt1015_probe(struct snd_soc_component *component)
 		snd_soc_component_get_drvdata(component);
 
 	rt1015->component = component;
-	rt1015->bclk_ratio = 0;
-	rt1015->cali_done = 0;
-	snd_soc_component_write(component, RT1015_BAT_RPO_STEP1, 0x061c);
-
 	INIT_DELAYED_WORK(&rt1015->flush_work, rt1015_flush_work);
 
 	return 0;
@@ -974,7 +1029,7 @@ static void rt1015_remove(struct snd_soc_component *component)
 static struct snd_soc_dai_ops rt1015_aif_dai_ops = {
 	.hw_params = rt1015_hw_params,
 	.set_fmt = rt1015_set_dai_fmt,
-	.set_bclk_ratio = rt1015_set_bclk_ratio,
+	.set_tdm_slot = rt1015_set_tdm_slot,
 };
 
 static struct snd_soc_dai_driver rt1015_dai[] = {
@@ -1009,6 +1064,10 @@ static int rt1015_resume(struct snd_soc_component *component)
 
 	regcache_cache_only(rt1015->regmap, false);
 	regcache_sync(rt1015->regmap);
+
+	if (rt1015->cali_done)
+		rt1015_calibrate(rt1015);
+
 	return 0;
 }
 #else
@@ -1067,19 +1126,32 @@ static struct acpi_device_id rt1015_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt1015_acpi_match);
 #endif
 
+static void rt1015_parse_dt(struct rt1015_priv *rt1015, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,power-up-delay-ms",
+		&rt1015->pdata.power_up_delay_ms);
+}
+
 static int rt1015_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
+	struct rt1015_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt1015_priv *rt1015;
 	int ret;
 	unsigned int val;
 
-	rt1015 = devm_kzalloc(&i2c->dev, sizeof(struct rt1015_priv),
-				GFP_KERNEL);
-	if (rt1015 == NULL)
+	rt1015 = devm_kzalloc(&i2c->dev, sizeof(*rt1015), GFP_KERNEL);
+	if (!rt1015)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt1015);
+
+	rt1015->pdata = i2s_default_platform_data;
+
+	if (pdata)
+		rt1015->pdata = *pdata;
+	else
+		rt1015_parse_dt(rt1015, &i2c->dev);
 
 	rt1015->regmap = devm_regmap_init_i2c(i2c, &rt1015_regmap);
 	if (IS_ERR(rt1015->regmap)) {
@@ -1091,8 +1163,13 @@ static int rt1015_i2c_probe(struct i2c_client *i2c,
 
 	rt1015->hw_config = (i2c->addr == 0x29) ? RT1015_HW_29 : RT1015_HW_28;
 
-	regmap_read(rt1015->regmap, RT1015_DEVICE_ID, &val);
-	if ((val != RT1015_DEVICE_ID_VAL) && (val != RT1015_DEVICE_ID_VAL2)) {
+	ret = regmap_read(rt1015->regmap, RT1015_DEVICE_ID, &val);
+	if (ret) {
+		dev_err(&i2c->dev,
+			"Failed to read device register: %d\n", ret);
+		return ret;
+	} else if ((val != RT1015_DEVICE_ID_VAL) &&
+			(val != RT1015_DEVICE_ID_VAL2)) {
 		dev_err(&i2c->dev,
 			"Device with ID register %x is not rt1015\n", val);
 		return -ENODEV;

@@ -5,23 +5,24 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/clk/versaclock.h>
 
 / {
 	backlight_lvds: backlight-lvds {
 		compatible = "pwm-backlight";
 		power-supply = <&reg_lcd>;
-		enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
-		pwms = <&pwm2 0 50000>;
+		enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
+		pwms = <&pwm2 0 25000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 	};
 
-	backlight_rgb: backlight-rgb {
+	backlight_dpi: backlight-dpi {
 		compatible = "pwm-backlight";
 		power-supply = <&reg_lcd>;
 		enable-gpios = <&gpio_exp1 7 GPIO_ACTIVE_LOW>;
-		pwms = <&pwm0 0 50000>;
-		brightness-levels = <0 4 8 16 32 64 128 255>;
+		pwms = <&pwm0 0 25000>;
+		brightness-levels = <0 25 33 50 63 75 88 100>;
 		default-brightness-level = <6>;
 	};
 
@@ -39,38 +40,38 @@
 	keys {
 		compatible = "gpio-keys";
 
-		key-1 {
+		key-1 { /* S19 */
 			gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_1>;
-			label = "Switch-1";
+			linux,code = <KEY_UP>;
+			label = "Up";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-2 {
+		key-2 { /*S20 */
 			gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_2>;
-			label = "Switch-2";
+			linux,code = <KEY_LEFT>;
+			label = "Left";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-3 {
+		key-3 { /* S21 */
 			gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_3>;
-			label = "Switch-3";
+			linux,code = <KEY_DOWN>;
+			label = "Down";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-4 {
+		key-4 { /* S22 */
 			gpios = <&gpio5 20 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_4>;
-			label = "Switch-4";
+			linux,code = <KEY_RIGHT>;
+			label = "Right";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
-		key-5 {
+		key-5 { /* S23 */
 			gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_5>;
-			label = "Switch-4";
+			linux,code = <KEY_ENTER>;
+			label = "Center";
 			wakeup-source;
 			debounce-interval = <20>;
 		};
@@ -118,9 +119,9 @@
 			hback-porch = <40>;
 			vfront-porch = <13>;
 			vback-porch = <29>;
-			vsync-len = <3>;
+			vsync-len = <1>;
 			hsync-active = <1>;
-			vsync-active = <1>;
+			vsync-active = <3>;
 			de-active = <1>;
 			pixelclk-active = <0>;
 		};
@@ -135,7 +136,7 @@
 	rgb {
 		/* Different LCD with compatible timings */
 		compatible = "rocktech,rk070er9427";
-		backlight = <&backlight_rgb>;
+		backlight = <&backlight_dpi>;
 		enable-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 		power-supply = <&reg_lcd>;
 		port {
@@ -150,7 +151,7 @@
 		regulator-name = "audio-1.8V";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio_exp2 7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio_exp4 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -200,15 +201,12 @@
 
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
-
 		regulator-name = "SDHI0 VccQ";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-
 		gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
-		regulator-always-on;
 	};
 
 	/* External DU dot clocks */
@@ -223,12 +221,29 @@
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
 	};
-};
 
-&audio_clk_a {
-	clock-frequency = <24576000>;
-	assigned-clocks = <&versaclock6_bb 4>;
-	assigned-clock-rates = <24576000>;
+	connector {
+		compatible = "usb-c-connector";
+		label = "USB-C";
+		data-role = "dual";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				hs_ep: endpoint {
+					remote-endpoint = <&usb3_hs_ep>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				ss_ep: endpoint {
+					remote-endpoint = <&hd3ss3220_in_ep>;
+				};
+			};
+		};
+	};
 };
 
 &audio_clk_b {
@@ -247,21 +262,6 @@
 	pinctrl-names = "default";
 	renesas,can-clock-select = <0x0>;
 	status = "okay";
-};
-
-&du {
-	pinctrl-0 = <&du_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-
-	clocks = <&cpg CPG_MOD 724>,
-		<&cpg CPG_MOD 723>,
-		<&cpg CPG_MOD 722>,
-		<&versaclock5 1>,
-		<&x302_clk>,
-		<&versaclock5 2>;
-	clock-names = "du.0", "du.1", "du.2",
-		"dclkin.0", "dclkin.1", "dclkin.2";
 };
 
 &du_out_rgb {
@@ -319,7 +319,7 @@
 
 &i2c2 {
 	status = "okay";
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-0 = <&i2c2_pins>;
 	pinctrl-names = "default";
 
@@ -350,12 +350,36 @@
 		#clock-cells = <1>;
 		clocks = <&x304_clk>;
 		clock-names = "xin";
-		/* CSI0_MCLK, CSI1_MCLK, AUDIO_CLKIN, USB_HUB_MCLK_BB */
+
 		assigned-clocks = <&versaclock6_bb 1>,
 				   <&versaclock6_bb 2>,
 				   <&versaclock6_bb 3>,
 				   <&versaclock6_bb 4>;
 		assigned-clock-rates =	<24000000>, <24000000>, <24000000>, <24576000>;
+
+		OUT1 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <1800000>;
+			idt,slew-percent = <100>;
+		};
+
+		OUT2 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <1800000>;
+			idt,slew-percent = <100>;
+		};
+
+		OUT3 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <3300000>;
+			idt,slew-percent = <100>;
+		};
+
+		OUT4 {
+			idt,mode = <VC5_CMOS>;
+			idt,voltage-microvolt = <3300000>;
+			idt,slew-percent = <100>;
+		};
 	};
 };
 
@@ -369,13 +393,14 @@
 
 &i2c5 {
 	status = "okay";
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-0 = <&i2c5_pins>;
 	pinctrl-names = "default";
 
 	codec: wm8962@1a {
 		compatible = "wlf,wm8962";
 		reg = <0x1a>;
+		clocks = <&versaclock6_bb 3>;
 		DCVDD-supply = <&reg_audio>;
 		DBVDD-supply = <&reg_audio>;
 		AVDD-supply = <&reg_audio>;
@@ -427,20 +452,19 @@
 		interrupt-parent = <&gpio6>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 
-		connector {
-			compatible = "usb-c-connector";
-			label = "USB-C";
-			data-role = "dual";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@1 {
-					reg = <1>;
-					hd3ss3220_ep: endpoint {
-						remote-endpoint = <&usb3_role_switch>;
-					};
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				hd3ss3220_in_ep: endpoint {
+					remote-endpoint = <&ss_ep>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				hd3ss3220_out_ep: endpoint {
+					remote-endpoint = <&usb3_role_switch>;
 				};
 			};
 		};
@@ -457,6 +481,13 @@
 			};
 		};
 	};
+};
+
+&msiof1 {
+	pinctrl-0 = <&msiof1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	cs-gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
 };
 
 &ohci0 {
@@ -512,6 +543,11 @@
 		bias-pull-down;
 	};
 
+	msiof1_pins: msiof1 {
+		groups = "msiof1_clk_g", "msiof1_rxd_g", "msiof1_txd_g";
+		function = "msiof1";
+	};
+
 	pwm0_pins: pwm0 {
 		groups = "pwm0";
 		function = "pwm0";
@@ -519,7 +555,7 @@
 
 	pwm2_pins: pwm2 {
 		groups = "pwm2_a";
-		function = "pwm2_a";
+		function = "pwm2";
 	};
 
 	sdhi0_pins: sd0 {
@@ -540,7 +576,7 @@
 	};
 
 	sound_clk_pins: sound_clk {
-		groups = "audio_clk_a_a";
+		groups = "audio_clk_a_a", "audio_clk_b_a";
 		function = "audio_clk";
 	};
 
@@ -590,23 +626,6 @@
 	clock-frequency = <11289600>;
 
 	status = "okay";
-
-	clocks = <&cpg CPG_MOD 1005>,
-		 <&cpg CPG_MOD 1006>, <&cpg CPG_MOD 1007>,
-		 <&cpg CPG_MOD 1008>, <&cpg CPG_MOD 1009>,
-		 <&cpg CPG_MOD 1010>, <&cpg CPG_MOD 1011>,
-		 <&cpg CPG_MOD 1012>, <&cpg CPG_MOD 1013>,
-		 <&cpg CPG_MOD 1014>, <&cpg CPG_MOD 1015>,
-		 <&cpg CPG_MOD 1022>, <&cpg CPG_MOD 1023>,
-		 <&cpg CPG_MOD 1024>, <&cpg CPG_MOD 1025>,
-		 <&cpg CPG_MOD 1026>, <&cpg CPG_MOD 1027>,
-		 <&cpg CPG_MOD 1028>, <&cpg CPG_MOD 1029>,
-		 <&cpg CPG_MOD 1030>, <&cpg CPG_MOD 1031>,
-		 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
-		 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
-		 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
-		 <&audio_clk_a>, <&audio_clk_b>, <&audio_clk_c>,
-		 <&cpg CPG_CORE R8A774A1_CLK_S0D4>;
 
 	ports {
 		#address-cells = <1>;
@@ -714,9 +733,20 @@
 	status = "okay";
 	usb-role-switch;
 
-	port {
-		usb3_role_switch: endpoint {
-			remote-endpoint = <&hd3ss3220_ep>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			usb3_hs_ep: endpoint {
+				remote-endpoint = <&hs_ep>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			usb3_role_switch: endpoint {
+				remote-endpoint = <&hd3ss3220_out_ep>;
+			};
 		};
 	};
 };

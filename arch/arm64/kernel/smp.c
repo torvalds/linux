@@ -222,6 +222,7 @@ asmlinkage notrace void secondary_start_kernel(void)
 	if (system_uses_irq_prio_masking())
 		init_gic_priority_masking();
 
+	rcu_cpu_starting(cpu);
 	preempt_disable();
 	trace_hardirqs_off();
 
@@ -412,6 +413,7 @@ void cpu_die_early(void)
 
 	/* Mark this CPU absent */
 	set_cpu_present(cpu, 0);
+	rcu_report_dead(cpu);
 
 	if (IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
 		update_cpu_boot_status(CPU_KILL_ME);
@@ -432,8 +434,10 @@ static void __init hyp_mode_check(void)
 			   "CPU: CPUs started in inconsistent modes");
 	else
 		pr_info("CPU: All CPU(s) started at EL1\n");
-	if (IS_ENABLED(CONFIG_KVM))
+	if (IS_ENABLED(CONFIG_KVM) && !is_kernel_in_hyp_mode()) {
 		kvm_compute_layout();
+		kvm_apply_hyp_relocations();
+	}
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -460,6 +464,8 @@ void __init smp_prepare_boot_cpu(void)
 	/* Conditionally switch to GIC PMR for interrupt masking */
 	if (system_uses_irq_prio_masking())
 		init_gic_priority_masking();
+
+	kasan_init_hw_tags();
 }
 
 static u64 __init of_get_cpu_mpidr(struct device_node *dn)
@@ -785,14 +791,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 }
 
 static const char *ipi_types[NR_IPI] __tracepoint_string = {
-#define S(x,s)	[x] = s
-	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
-	S(IPI_CALL_FUNC, "Function call interrupts"),
-	S(IPI_CPU_STOP, "CPU stop interrupts"),
-	S(IPI_CPU_CRASH_STOP, "CPU stop (for crash dump) interrupts"),
-	S(IPI_TIMER, "Timer broadcast interrupts"),
-	S(IPI_IRQ_WORK, "IRQ work interrupts"),
-	S(IPI_WAKEUP, "CPU wake-up interrupts"),
+	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+	[IPI_CALL_FUNC]		= "Function call interrupts",
+	[IPI_CPU_STOP]		= "CPU stop interrupts",
+	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
+	[IPI_TIMER]		= "Timer broadcast interrupts",
+	[IPI_IRQ_WORK]		= "IRQ work interrupts",
+	[IPI_WAKEUP]		= "CPU wake-up interrupts",
 };
 
 static void smp_cross_call(const struct cpumask *target, unsigned int ipinr);
@@ -804,11 +809,10 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	unsigned int cpu, i;
 
 	for (i = 0; i < NR_IPI; i++) {
-		unsigned int irq = irq_desc_get_irq(ipi_desc[i]);
 		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i,
 			   prec >= 4 ? " " : "");
 		for_each_online_cpu(cpu)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(irq, cpu));
+			seq_printf(p, "%10u ", irq_desc_kstat_cpu(ipi_desc[i], cpu));
 		seq_printf(p, "      %s\n", ipi_types[i]);
 	}
 

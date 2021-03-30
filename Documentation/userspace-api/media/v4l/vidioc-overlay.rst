@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_OVERLAY:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_OVERLAY - Start or stop video overlay
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_OVERLAY, const int *argp )
-    :name: VIDIOC_OVERLAY
+.. c:macro:: VIDIOC_OVERLAY
 
+``int ioctl(int fd, VIDIOC_OVERLAY, const int *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to an integer.
-
 
 Description
 ===========
@@ -40,7 +39,6 @@ application to stop overlay, to one to start.
 Drivers do not support :ref:`VIDIOC_STREAMON` or
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` with
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``.
-
 
 Return Value
 ============

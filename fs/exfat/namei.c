@@ -290,7 +290,7 @@ static int exfat_check_max_dentries(struct inode *inode)
 {
 	if (EXFAT_B_TO_DEN(i_size_read(inode)) >= MAX_EXFAT_DENTRIES) {
 		/*
-		 * exFAT spec allows a dir to grow upto 8388608(256MB)
+		 * exFAT spec allows a dir to grow up to 8388608(256MB)
 		 * dentries
 		 */
 		return -ENOSPC;
@@ -318,8 +318,7 @@ static int exfat_find_empty_entry(struct inode *inode,
 	hint_femp.eidx = EXFAT_HINT_NONE;
 
 	if (ei->hint_femp.eidx != EXFAT_HINT_NONE) {
-		memcpy(&hint_femp, &ei->hint_femp,
-				sizeof(struct exfat_hint_femp));
+		hint_femp = ei->hint_femp;
 		ei->hint_femp.eidx = EXFAT_HINT_NONE;
 	}
 
@@ -519,7 +518,7 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 	if (ret)
 		goto out;
 
-	memcpy(&info->dir, p_dir, sizeof(struct exfat_chain));
+	info->dir = *p_dir;
 	info->entry = dentry;
 	info->flags = ALLOC_NO_FAT_CHAIN;
 	info->type = type;
@@ -530,19 +529,10 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 		info->size = 0;
 		info->num_subdirs = 0;
 	} else {
-		int count;
-		struct exfat_chain cdir;
-
 		info->attr = ATTR_SUBDIR;
 		info->start_clu = start_clu;
 		info->size = clu_size;
-
-		exfat_chain_set(&cdir, info->start_clu,
-			EXFAT_B_TO_CLU(info->size, sbi), info->flags);
-		count = exfat_count_dir_entries(sb, &cdir);
-		if (count < 0)
-			return -EIO;
-		info->num_subdirs = count + EXFAT_MIN_SUBDIR;
+		info->num_subdirs = EXFAT_MIN_SUBDIR;
 	}
 	memset(&info->crtime, 0, sizeof(info->crtime));
 	memset(&info->mtime, 0, sizeof(info->mtime));
@@ -604,6 +594,8 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 	struct super_block *sb = dir->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(dir);
+	struct exfat_dentry *ep, *ep2;
+	struct exfat_entry_set_cache *es;
 
 	if (qname->len == 0)
 		return -ENOENT;
@@ -629,91 +621,63 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 	dentry = exfat_find_dir_entry(sb, ei, &cdir, &uni_name,
 			num_entries, TYPE_ALL);
 
-	if ((dentry < 0) && (dentry != -EEXIST))
+	if (dentry < 0)
 		return dentry; /* -error value */
 
-	memcpy(&info->dir, &cdir.dir, sizeof(struct exfat_chain));
+	info->dir = cdir;
 	info->entry = dentry;
 	info->num_subdirs = 0;
 
-	/* root directory itself */
-	if (unlikely(dentry == -EEXIST)) {
-		int num_clu = 0;
+	es = exfat_get_dentry_set(sb, &cdir, dentry, ES_2_ENTRIES);
+	if (!es)
+		return -EIO;
+	ep = exfat_get_dentry_cached(es, 0);
+	ep2 = exfat_get_dentry_cached(es, 1);
 
-		info->type = TYPE_DIR;
-		info->attr = ATTR_SUBDIR;
-		info->flags = ALLOC_FAT_CHAIN;
-		info->start_clu = sbi->root_dir;
-		memset(&info->crtime, 0, sizeof(info->crtime));
-		memset(&info->mtime, 0, sizeof(info->mtime));
-		memset(&info->atime, 0, sizeof(info->atime));
+	info->type = exfat_get_entry_type(ep);
+	info->attr = le16_to_cpu(ep->dentry.file.attr);
+	info->size = le64_to_cpu(ep2->dentry.stream.valid_size);
+	if ((info->type == TYPE_FILE) && (info->size == 0)) {
+		info->flags = ALLOC_NO_FAT_CHAIN;
+		info->start_clu = EXFAT_EOF_CLUSTER;
+	} else {
+		info->flags = ep2->dentry.stream.flags;
+		info->start_clu =
+			le32_to_cpu(ep2->dentry.stream.start_clu);
+	}
 
-		exfat_chain_set(&cdir, sbi->root_dir, 0, ALLOC_FAT_CHAIN);
-		if (exfat_count_num_clusters(sb, &cdir, &num_clu))
-			return -EIO;
-		info->size = num_clu << sbi->cluster_size_bits;
+	exfat_get_entry_time(sbi, &info->crtime,
+			     ep->dentry.file.create_tz,
+			     ep->dentry.file.create_time,
+			     ep->dentry.file.create_date,
+			     ep->dentry.file.create_time_cs);
+	exfat_get_entry_time(sbi, &info->mtime,
+			     ep->dentry.file.modify_tz,
+			     ep->dentry.file.modify_time,
+			     ep->dentry.file.modify_date,
+			     ep->dentry.file.modify_time_cs);
+	exfat_get_entry_time(sbi, &info->atime,
+			     ep->dentry.file.access_tz,
+			     ep->dentry.file.access_time,
+			     ep->dentry.file.access_date,
+			     0);
+	exfat_free_dentry_set(es, false);
 
+	if (ei->start_clu == EXFAT_FREE_CLUSTER) {
+		exfat_fs_error(sb,
+			       "non-zero size file starts with zero cluster (size : %llu, p_dir : %u, entry : 0x%08x)",
+			       i_size_read(dir), ei->dir.dir, ei->entry);
+		return -EIO;
+	}
+
+	if (info->type == TYPE_DIR) {
+		exfat_chain_set(&cdir, info->start_clu,
+				EXFAT_B_TO_CLU(info->size, sbi), info->flags);
 		count = exfat_count_dir_entries(sb, &cdir);
 		if (count < 0)
 			return -EIO;
 
-		info->num_subdirs = count;
-	} else {
-		struct exfat_dentry *ep, *ep2;
-		struct exfat_entry_set_cache *es;
-
-		es = exfat_get_dentry_set(sb, &cdir, dentry, ES_2_ENTRIES);
-		if (!es)
-			return -EIO;
-		ep = exfat_get_dentry_cached(es, 0);
-		ep2 = exfat_get_dentry_cached(es, 1);
-
-		info->type = exfat_get_entry_type(ep);
-		info->attr = le16_to_cpu(ep->dentry.file.attr);
-		info->size = le64_to_cpu(ep2->dentry.stream.valid_size);
-		if ((info->type == TYPE_FILE) && (info->size == 0)) {
-			info->flags = ALLOC_NO_FAT_CHAIN;
-			info->start_clu = EXFAT_EOF_CLUSTER;
-		} else {
-			info->flags = ep2->dentry.stream.flags;
-			info->start_clu =
-				le32_to_cpu(ep2->dentry.stream.start_clu);
-		}
-
-		if (ei->start_clu == EXFAT_FREE_CLUSTER) {
-			exfat_fs_error(sb,
-				"non-zero size file starts with zero cluster (size : %llu, p_dir : %u, entry : 0x%08x)",
-				i_size_read(dir), ei->dir.dir, ei->entry);
-			exfat_free_dentry_set(es, false);
-			return -EIO;
-		}
-
-		exfat_get_entry_time(sbi, &info->crtime,
-				ep->dentry.file.create_tz,
-				ep->dentry.file.create_time,
-				ep->dentry.file.create_date,
-				ep->dentry.file.create_time_cs);
-		exfat_get_entry_time(sbi, &info->mtime,
-				ep->dentry.file.modify_tz,
-				ep->dentry.file.modify_time,
-				ep->dentry.file.modify_date,
-				ep->dentry.file.modify_time_cs);
-		exfat_get_entry_time(sbi, &info->atime,
-				ep->dentry.file.access_tz,
-				ep->dentry.file.access_time,
-				ep->dentry.file.access_date,
-				0);
-		exfat_free_dentry_set(es, false);
-
-		if (info->type == TYPE_DIR) {
-			exfat_chain_set(&cdir, info->start_clu,
-				EXFAT_B_TO_CLU(info->size, sbi), info->flags);
-			count = exfat_count_dir_entries(sb, &cdir);
-			if (count < 0)
-				return -EIO;
-
-			info->num_subdirs = count + EXFAT_MIN_SUBDIR;
-		}
+		info->num_subdirs = count + EXFAT_MIN_SUBDIR;
 	}
 	return 0;
 }
@@ -1065,7 +1029,7 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 		if (!epnew)
 			return -EIO;
 
-		memcpy(epnew, epold, DENTRY_SIZE);
+		*epnew = *epold;
 		if (exfat_get_entry_type(epnew) == TYPE_FILE) {
 			epnew->dentry.file.attr |= cpu_to_le16(ATTR_ARCHIVE);
 			ei->attr |= ATTR_ARCHIVE;
@@ -1085,7 +1049,7 @@ static int exfat_rename_file(struct inode *inode, struct exfat_chain *p_dir,
 			return -EIO;
 		}
 
-		memcpy(epnew, epold, DENTRY_SIZE);
+		*epnew = *epold;
 		exfat_update_bh(new_bh, sync);
 		brelse(old_bh);
 		brelse(new_bh);
@@ -1130,11 +1094,6 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 	if (!epmov)
 		return -EIO;
 
-	/* check if the source and target directory is the same */
-	if (exfat_get_entry_type(epmov) == TYPE_DIR &&
-	    le32_to_cpu(epmov->dentry.stream.start_clu) == p_newdir->dir)
-		return -EINVAL;
-
 	num_old_entries = exfat_count_ext_entries(sb, p_olddir, oldentry,
 		epmov);
 	if (num_old_entries < 0)
@@ -1153,7 +1112,7 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 	if (!epnew)
 		return -EIO;
 
-	memcpy(epnew, epmov, DENTRY_SIZE);
+	*epnew = *epmov;
 	if (exfat_get_entry_type(epnew) == TYPE_FILE) {
 		epnew->dentry.file.attr |= cpu_to_le16(ATTR_ARCHIVE);
 		ei->attr |= ATTR_ARCHIVE;
@@ -1173,7 +1132,7 @@ static int exfat_move_file(struct inode *inode, struct exfat_chain *p_olddir,
 		return -EIO;
 	}
 
-	memcpy(epnew, epmov, DENTRY_SIZE);
+	*epnew = *epmov;
 	exfat_update_bh(new_bh, IS_DIRSYNC(inode));
 	brelse(mov_bh);
 	brelse(new_bh);

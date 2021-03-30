@@ -7,17 +7,17 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Toshiba TC358775 DSI to LVDS bridge bindings
 
 maintainers:
- - Vinay Simha BN <simhavcs@gmail.com>
+  - Vinay Simha BN <simhavcs@gmail.com>
 
 description: |
- This binding supports DSI to LVDS bridge TC358775
+  This binding supports DSI to LVDS bridge TC358775
 
- MIPI DSI-RX Data 4-lane, CLK 1-lane with data rates up to 800 Mbps/lane.
- Video frame size:
- Up to 1600x1200 24-bit/pixel resolution for single-link LVDS display panel
- limited by 135 MHz LVDS speed
- Up to WUXGA (1920x1200 24-bit pixels) resolution for dual-link LVDS display
- panel, limited by 270 MHz LVDS speed.
+  MIPI DSI-RX Data 4-lane, CLK 1-lane with data rates up to 800 Mbps/lane.
+  Video frame size:
+  Up to 1600x1200 24-bit/pixel resolution for single-link LVDS display panel
+  limited by 135 MHz LVDS speed
+  Up to WUXGA (1920x1200 24-bit pixels) resolution for dual-link LVDS display
+  panel, limited by 270 MHz LVDS speed.
 
 properties:
   compatible:
@@ -28,11 +28,9 @@ properties:
     description: i2c address of the bridge, 0x0f
 
   vdd-supply:
-    maxItems: 1
-    description:  1.2V LVDS Power Supply
+    description: 1.2V LVDS Power Supply
 
   vddio-supply:
-    maxItems: 1
     description: 1.8V IO Power Supply
 
   stby-gpios:
@@ -44,31 +42,22 @@ properties:
     description: Hardware reset, Low active
 
   ports:
-    type: object
-    description:
-      A node containing input and output port nodes with endpoint definitions
-      as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           DSI Input. The remote endpoint phandle should be a
           reference to a valid mipi_dsi_host device node.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Video port for LVDS output (panel or connector).
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: |
           Video port for Dual link LVDS output (panel or connector).
 
@@ -77,16 +66,18 @@ properties:
       - port@1
 
 required:
- - compatible
- - reg
- - vdd-supply
- - vddio-supply
- - stby-gpios
- - reset-gpios
- - ports
+  - compatible
+  - reg
+  - vdd-supply
+  - vddio-supply
+  - stby-gpios
+  - reset-gpios
+  - ports
+
+additionalProperties: false
 
 examples:
- - |
+  - |
     #include <dt-bindings/gpio/gpio.h>
 
     /* For single-link LVDS display panel */
@@ -147,7 +138,7 @@ examples:
          };
      };
 
- - |
+  - |
     /* For dual-link LVDS display panel */
 
     i2c@78b8000 {

@@ -638,7 +638,6 @@ config CPU_V7M_NUM_IRQ
 	int "Number of external interrupts connected to the NVIC"
 	depends on CPU_V7M
 	default 90 if ARCH_STM32
-	default 38 if ARCH_EFM32
 	default 112 if SOC_VF610
 	default 240
 	help
@@ -743,6 +742,7 @@ config SWP_EMULATE
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
 	depends on ARCH_SUPPORTS_BIG_ENDIAN
+	depends on !LD_IS_LLD
 	help
 	  Say Y if you plan on running a kernel in big-endian mode.
 	  Note that your board must be properly built and your board

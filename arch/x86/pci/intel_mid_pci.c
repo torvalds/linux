@@ -33,6 +33,7 @@
 #include <asm/hw_irq.h>
 #include <asm/io_apic.h>
 #include <asm/intel-mid.h>
+#include <asm/acpi.h>
 
 #define PCIE_CAP_OFFSET	0x100
 
@@ -214,7 +215,7 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
 	struct irq_alloc_info info;
-	int polarity;
+	bool polarity_low;
 	int ret;
 	u8 gsi;
 
@@ -229,7 +230,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 	switch (intel_mid_identify_cpu()) {
 	case INTEL_MID_CPU_CHIP_TANGIER:
-		polarity = IOAPIC_POL_HIGH;
+		polarity_low = false;
 
 		/* Special treatment for IRQ0 */
 		if (gsi == 0) {
@@ -251,11 +252,11 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		}
 		break;
 	default:
-		polarity = IOAPIC_POL_LOW;
+		polarity_low = true;
 		break;
 	}
 
-	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity);
+	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity_low);
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
@@ -322,7 +323,7 @@ static void pci_d3delay_fixup(struct pci_dev *dev)
 	 */
 	if (type1_access_ok(dev->bus->number, dev->devfn, PCI_DEVICE_ID))
 		return;
-	dev->d3_delay = 0;
+	dev->d3hot_delay = 0;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3delay_fixup);
 

@@ -286,7 +286,7 @@ void rmi_unregister_function(struct rmi_function *fn)
 /**
  * rmi_register_function_handler - register a handler for an RMI function
  * @handler: RMI handler that should be registered.
- * @module: pointer to module that implements the handler
+ * @owner: pointer to module that implements the handler
  * @mod_name: name of the module implementing the handler
  *
  * This function performs additional setup of RMI function handler and
@@ -364,6 +364,9 @@ static struct rmi_function_handler *fn_handlers[] = {
 #endif
 #ifdef CONFIG_RMI4_F34
 	&rmi_f34_handler,
+#endif
+#ifdef CONFIG_RMI4_F3A
+	&rmi_f3a_handler,
 #endif
 #ifdef CONFIG_RMI4_F54
 	&rmi_f54_handler,

@@ -14,6 +14,7 @@
 #include <linux/acpi.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -126,7 +127,14 @@ enum kx_chipset {
 	KX_MAX_CHIPS /* this must be last */
 };
 
+enum kx_acpi_type {
+	ACPI_GENERIC,
+	ACPI_SMO8500,
+	ACPI_KIOX010A,
+};
+
 struct kxcjk1013_data {
+	struct regulator_bulk_data regulators[2];
 	struct i2c_client *client;
 	struct iio_trigger *dready_trig;
 	struct iio_trigger *motion_trig;
@@ -143,7 +151,7 @@ struct kxcjk1013_data {
 	bool motion_trigger_on;
 	int64_t timestamp;
 	enum kx_chipset chipset;
-	bool is_smo8500_device;
+	enum kx_acpi_type acpi_type;
 };
 
 enum kxcjk1013_axis {
@@ -270,6 +278,32 @@ static const struct {
 			      {19163, 1, 0},
 			      {38326, 0, 1} };
 
+#ifdef CONFIG_ACPI
+enum kiox010a_fn_index {
+	KIOX010A_SET_LAPTOP_MODE = 1,
+	KIOX010A_SET_TABLET_MODE = 2,
+};
+
+static int kiox010a_dsm(struct device *dev, int fn_index)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	guid_t kiox010a_dsm_guid;
+	union acpi_object *obj;
+
+	if (!handle)
+		return -ENODEV;
+
+	guid_parse("1f339696-d475-4e26-8cad-2e9f8e6d7a91", &kiox010a_dsm_guid);
+
+	obj = acpi_evaluate_dsm(handle, &kiox010a_dsm_guid, 1, fn_index, NULL);
+	if (!obj)
+		return -EIO;
+
+	ACPI_FREE(obj);
+	return 0;
+}
+#endif
+
 static int kxcjk1013_set_mode(struct kxcjk1013_data *data,
 			      enum kxcjk1013_mode mode)
 {
@@ -346,6 +380,13 @@ static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 {
 	int ret;
+
+#ifdef CONFIG_ACPI
+	if (data->acpi_type == ACPI_KIOX010A) {
+		/* Make sure the kbd and touchpad on 2-in-1s using 2 KXCJ91008-s work */
+		kiox010a_dsm(&data->client->dev, KIOX010A_SET_LAPTOP_MODE);
+	}
+#endif
 
 	ret = i2c_smbus_read_byte_data(data->client, KXCJK1013_REG_WHO_AM_I);
 	if (ret < 0) {
@@ -1066,19 +1107,15 @@ err:
 	return IRQ_HANDLED;
 }
 
-static int kxcjk1013_trig_try_reen(struct iio_trigger *trig)
+static void kxcjk1013_trig_reen(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(data->client, KXCJK1013_REG_INT_REL);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&data->client->dev, "Error reading reg_int_rel\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -1122,7 +1159,7 @@ static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 static const struct iio_trigger_ops kxcjk1013_trigger_ops = {
 	.set_trigger_state = kxcjk1013_data_rdy_trigger_set_state,
-	.try_reenable = kxcjk1013_trig_try_reen,
+	.reenable = kxcjk1013_trig_reen,
 };
 
 static void kxcjk1013_report_motion_event(struct iio_dev *indio_dev)
@@ -1247,7 +1284,7 @@ static irqreturn_t kxcjk1013_data_rdy_trig_poll(int irq, void *private)
 
 static const char *kxcjk1013_match_acpi_device(struct device *dev,
 					       enum kx_chipset *chipset,
-					       bool *is_smo8500_device)
+					       enum kx_acpi_type *acpi_type)
 {
 	const struct acpi_device_id *id;
 
@@ -1256,11 +1293,20 @@ static const char *kxcjk1013_match_acpi_device(struct device *dev,
 		return NULL;
 
 	if (strcmp(id->id, "SMO8500") == 0)
-		*is_smo8500_device = true;
+		*acpi_type = ACPI_SMO8500;
+	else if (strcmp(id->id, "KIOX010A") == 0)
+		*acpi_type = ACPI_KIOX010A;
 
 	*chipset = (enum kx_chipset)id->driver_data;
 
 	return dev_name(dev);
+}
+
+static void kxcjk1013_disable_regulators(void *d)
+{
+	struct kxcjk1013_data *data = d;
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
 }
 
 static int kxcjk1013_probe(struct i2c_client *client,
@@ -1293,13 +1339,36 @@ static int kxcjk1013_probe(struct i2c_client *client,
 			return ret;
 	}
 
+	data->regulators[0].supply = "vdd";
+	data->regulators[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret)
+		return dev_err_probe(&client->dev, ret, "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&client->dev, kxcjk1013_disable_regulators, data);
+	if (ret)
+		return ret;
+
+	/*
+	 * A typical delay of 10ms is required for powering up
+	 * according to the data sheets of supported chips.
+	 * Hence double that to play safe.
+	 */
+	msleep(20);
+
 	if (id) {
 		data->chipset = (enum kx_chipset)(id->driver_data);
 		name = id->name;
 	} else if (ACPI_HANDLE(&client->dev)) {
 		name = kxcjk1013_match_acpi_device(&client->dev,
 						   &data->chipset,
-						   &data->is_smo8500_device);
+						   &data->acpi_type);
 	} else
 		return -ENODEV;
 
@@ -1316,7 +1385,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &kxcjk1013_info;
 
-	if (client->irq > 0 && !data->is_smo8500_device) {
+	if (client->irq > 0 && data->acpi_type != ACPI_SMO8500) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						kxcjk1013_data_rdy_trig_poll,
 						kxcjk1013_event_handler,

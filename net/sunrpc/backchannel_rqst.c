@@ -5,7 +5,7 @@
 
 NetApp provides this source code under the GPL v2 License.
 The GPL v2 license is available at
-http://opensource.org/licenses/gpl-license.php.
+https://opensource.org/licenses/gpl-license.php.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -111,7 +111,7 @@ out_free:
  * by the backchannel.  This function can be called multiple times
  * when creating new sessions that use the same rpc_xprt.  The
  * preallocated buffers are added to the pool of resources used by
- * the rpc_xprt.  Anyone of these resources may be used used by an
+ * the rpc_xprt.  Any one of these resources may be used by an
  * incoming callback request.  It's up to the higher levels in the
  * stack to enforce that the maximum number of session slots is not
  * being exceeded.

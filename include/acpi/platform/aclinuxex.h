@@ -3,7 +3,7 @@
  *
  * Name: aclinuxex.h - Extra OS specific defines, etc. for Linux
  *
- * Copyright (C) 2000 - 2020, Intel Corp.
+ * Copyright (C) 2000 - 2021, Intel Corp.
  *
  *****************************************************************************/
 

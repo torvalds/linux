@@ -20,6 +20,7 @@
 /* RTC_CTRL register bit fields */
 #define PM8xxx_RTC_ENABLE		BIT(7)
 #define PM8xxx_RTC_ALARM_CLEAR		BIT(0)
+#define PM8xxx_RTC_ALARM_ENABLE		BIT(7)
 
 #define NUM_8_BIT_RTC_REGS		0x4
 
@@ -265,6 +266,7 @@ rtc_rw_fail:
 static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	int rc;
+	unsigned int ctrl_reg;
 	u8 value[NUM_8_BIT_RTC_REGS];
 	unsigned long secs;
 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
@@ -281,6 +283,13 @@ static int pm8xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	       ((unsigned long)value[3] << 24);
 
 	rtc_time64_to_tm(secs, &alarm->time);
+
+	rc = regmap_read(rtc_dd->regmap, regs->alarm_ctrl, &ctrl_reg);
+	if (rc) {
+		dev_err(dev, "Read from RTC alarm control register failed\n");
+		return rc;
+	}
+	alarm->enabled = !!(ctrl_reg & PM8xxx_RTC_ALARM_ENABLE);
 
 	dev_dbg(dev, "Alarm set for - h:m:s=%ptRt, y-m-d=%ptRdr\n",
 		&alarm->time, &alarm->time);
@@ -343,16 +352,15 @@ static irqreturn_t pm8xxx_alarm_trigger(int irq, void *dev_id)
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 	unsigned int ctrl_reg;
 	int rc;
-	unsigned long irq_flags;
 
 	rtc_update_irq(rtc_dd->rtc, 1, RTC_IRQF | RTC_AF);
 
-	spin_lock_irqsave(&rtc_dd->ctrl_reg_lock, irq_flags);
+	spin_lock(&rtc_dd->ctrl_reg_lock);
 
 	/* Clear the alarm enable bit */
 	rc = regmap_read(rtc_dd->regmap, regs->alarm_ctrl, &ctrl_reg);
 	if (rc) {
-		spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
+		spin_unlock(&rtc_dd->ctrl_reg_lock);
 		goto rtc_alarm_handled;
 	}
 
@@ -360,13 +368,13 @@ static irqreturn_t pm8xxx_alarm_trigger(int irq, void *dev_id)
 
 	rc = regmap_write(rtc_dd->regmap, regs->alarm_ctrl, ctrl_reg);
 	if (rc) {
-		spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
+		spin_unlock(&rtc_dd->ctrl_reg_lock);
 		dev_err(rtc_dd->rtc_dev,
 			"Write to alarm control register failed\n");
 		goto rtc_alarm_handled;
 	}
 
-	spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
+	spin_unlock(&rtc_dd->ctrl_reg_lock);
 
 	/* Clear RTC alarm register */
 	rc = regmap_read(rtc_dd->regmap, regs->alarm_ctrl2, &ctrl_reg);
@@ -508,7 +516,7 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	return rtc_register_device(rtc_dd->rtc);
+	return devm_rtc_register_device(rtc_dd->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -32,10 +32,10 @@
 #include "pptable_v1_0.h"
 
 /**
- * Private Function used during initialization.
- * @param hwmgr Pointer to the hardware manager.
- * @param setIt A flag indication if the capability should be set (TRUE) or reset (FALSE).
- * @param cap Which capability to set/reset.
+ * set_hw_cap - Private Function used during initialization.
+ * @hwmgr: Pointer to the hardware manager.
+ * @setIt: A flag indication if the capability should be set (TRUE) or reset (FALSE).
+ * @cap: Which capability to set/reset.
  */
 static void set_hw_cap(struct pp_hwmgr *hwmgr, bool setIt, enum phm_platform_caps cap)
 {
@@ -47,10 +47,10 @@ static void set_hw_cap(struct pp_hwmgr *hwmgr, bool setIt, enum phm_platform_cap
 
 
 /**
- * Private Function used during initialization.
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_caps the bit array (from BIOS) of capability bits.
- * @exception the current implementation always returns 1.
+ * set_platform_caps - Private Function used during initialization.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_caps: the bit array (from BIOS) of capability bits.
+ * Exception:  the current implementation always returns 1.
  */
 static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 {
@@ -128,7 +128,7 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 	return 0;
 }
 
-/**
+/*
  * Private Function to get the PowerPlay Table Address.
  */
 static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
@@ -157,7 +157,7 @@ static int get_vddc_lookup_table(
 		uint32_t max_levels
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_voltage_lookup_table *table;
 	phm_ppt_v1_voltage_lookup_record *record;
 	ATOM_Tonga_Voltage_Lookup_Record *atom_record;
@@ -165,12 +165,8 @@ static int get_vddc_lookup_table(
 	PP_ASSERT_WITH_CODE((0 != vddc_lookup_pp_tables->ucNumEntries),
 		"Invalid CAC Leakage PowerPlay Table!", return 1);
 
-	table_size = sizeof(uint32_t) +
-		sizeof(phm_ppt_v1_voltage_lookup_record) * max_levels;
-
-	table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == table)
+	table = kzalloc(struct_size(table, entries, max_levels), GFP_KERNEL);
+	if (!table)
 		return -ENOMEM;
 
 	table->count = vddc_lookup_pp_tables->ucNumEntries;
@@ -195,10 +191,10 @@ static int get_vddc_lookup_table(
 }
 
 /**
- * Private Function used during initialization.
+ * get_platform_power_management_table - Private Function used during initialization.
  * Initialize Platform Power Management Parameter table
- * @param hwmgr Pointer to the hardware manager.
- * @param atom_ppm_table Pointer to PPM table in VBIOS
+ * @hwmgr: Pointer to the hardware manager.
+ * @atom_ppm_table: Pointer to PPM table in VBIOS
  */
 static int get_platform_power_management_table(
 		struct pp_hwmgr *hwmgr,
@@ -238,10 +234,10 @@ static int get_platform_power_management_table(
 }
 
 /**
- * Private Function used during initialization.
+ * init_dpm_2_parameters - Private Function used during initialization.
  * Initialize TDP limits for DPM2
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
  */
 static int init_dpm_2_parameters(
 		struct pp_hwmgr *hwmgr,
@@ -318,19 +314,16 @@ static int get_valid_clk(
 		phm_ppt_v1_clock_voltage_dependency_table const *clk_volt_pp_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	struct phm_clock_array *table;
 	phm_ppt_v1_clock_voltage_dependency_record *dep_record;
 
 	PP_ASSERT_WITH_CODE((0 != clk_volt_pp_table->count),
 		"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-		sizeof(uint32_t) * clk_volt_pp_table->count;
-
-	table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == table)
+	table = kzalloc(struct_size(table, values, clk_volt_pp_table->count),
+			GFP_KERNEL);
+	if (!table)
 		return -ENOMEM;
 
 	table->count = (uint32_t)clk_volt_pp_table->count;
@@ -370,7 +363,7 @@ static int get_mclk_voltage_dependency_table(
 		ATOM_Tonga_MCLK_Dependency_Table const *mclk_dep_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_clock_voltage_dependency_table *mclk_table;
 	phm_ppt_v1_clock_voltage_dependency_record *mclk_table_record;
 	ATOM_Tonga_MCLK_Dependency_Record *mclk_dep_record;
@@ -378,12 +371,9 @@ static int get_mclk_voltage_dependency_table(
 	PP_ASSERT_WITH_CODE((0 != mclk_dep_table->ucNumEntries),
 		"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-		* mclk_dep_table->ucNumEntries;
-
-	mclk_table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == mclk_table)
+	mclk_table = kzalloc(struct_size(mclk_table, entries, mclk_dep_table->ucNumEntries),
+			     GFP_KERNEL);
+	if (!mclk_table)
 		return -ENOMEM;
 
 	mclk_table->count = (uint32_t)mclk_dep_table->ucNumEntries;
@@ -413,7 +403,7 @@ static int get_sclk_voltage_dependency_table(
 		PPTable_Generic_SubTable_Header const  *sclk_dep_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_clock_voltage_dependency_table *sclk_table;
 	phm_ppt_v1_clock_voltage_dependency_record *sclk_table_record;
 
@@ -425,12 +415,9 @@ static int get_sclk_voltage_dependency_table(
 		PP_ASSERT_WITH_CODE((0 != tonga_table->ucNumEntries),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-			* tonga_table->ucNumEntries;
-
-		sclk_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (NULL == sclk_table)
+		sclk_table = kzalloc(struct_size(sclk_table, entries, tonga_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!sclk_table)
 			return -ENOMEM;
 
 		sclk_table->count = (uint32_t)tonga_table->ucNumEntries;
@@ -457,12 +444,9 @@ static int get_sclk_voltage_dependency_table(
 		PP_ASSERT_WITH_CODE((0 != polaris_table->ucNumEntries),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-			* polaris_table->ucNumEntries;
-
-		sclk_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (NULL == sclk_table)
+		sclk_table = kzalloc(struct_size(sclk_table, entries, polaris_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!sclk_table)
 			return -ENOMEM;
 
 		sclk_table->count = (uint32_t)polaris_table->ucNumEntries;
@@ -494,7 +478,7 @@ static int get_pcie_table(
 		PPTable_Generic_SubTable_Header const *ptable
 		)
 {
-	uint32_t table_size, i, pcie_count;
+	uint32_t i, pcie_count;
 	phm_ppt_v1_pcie_table *pcie_table;
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -507,12 +491,10 @@ static int get_pcie_table(
 		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
-
-		pcie_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (pcie_table == NULL)
+		pcie_table = kzalloc(struct_size(pcie_table, entries,
+						 atom_pcie_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!pcie_table)
 			return -ENOMEM;
 
 		/*
@@ -546,12 +528,10 @@ static int get_pcie_table(
 		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
-
-		pcie_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (pcie_table == NULL)
+		pcie_table = kzalloc(struct_size(pcie_table, entries,
+						 atom_pcie_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!pcie_table)
 			return -ENOMEM;
 
 		/*
@@ -633,7 +613,7 @@ static int get_cac_tdp_table(
 			le16_to_cpu(tonga_table->usSoftwareShutdownTemp);
 		tdp_table->usClockStretchAmount =
 			le16_to_cpu(tonga_table->usClockStretchAmount);
-	} else {   /* Fiji and newer */
+	} else if (table->ucRevId < 4) {   /* Fiji and newer */
 		const ATOM_Fiji_PowerTune_Table *fijitable =
 			(ATOM_Fiji_PowerTune_Table *)table;
 		tdp_table->usTDP = le16_to_cpu(fijitable->usTDP);
@@ -677,6 +657,53 @@ static int get_cac_tdp_table(
 		tdp_table->ucVr_I2C_Line = fijitable->ucVr_I2C_Line;
 		tdp_table->ucPlx_I2C_address = fijitable->ucPlx_I2C_address;
 		tdp_table->ucPlx_I2C_Line = fijitable->ucPlx_I2C_Line;
+	} else {
+		const ATOM_Polaris_PowerTune_Table *polaristable =
+			(ATOM_Polaris_PowerTune_Table *)table;
+		tdp_table->usTDP = le16_to_cpu(polaristable->usTDP);
+		tdp_table->usConfigurableTDP = le16_to_cpu(polaristable->usConfigurableTDP);
+		tdp_table->usTDC = le16_to_cpu(polaristable->usTDC);
+		tdp_table->usBatteryPowerLimit = le16_to_cpu(polaristable->usBatteryPowerLimit);
+		tdp_table->usSmallPowerLimit = le16_to_cpu(polaristable->usSmallPowerLimit);
+		tdp_table->usLowCACLeakage = le16_to_cpu(polaristable->usLowCACLeakage);
+		tdp_table->usHighCACLeakage = le16_to_cpu(polaristable->usHighCACLeakage);
+		tdp_table->usMaximumPowerDeliveryLimit =
+			le16_to_cpu(polaristable->usMaximumPowerDeliveryLimit);
+		tdp_table->usDefaultTargetOperatingTemp =
+			le16_to_cpu(polaristable->usTjMax);
+		tdp_table->usTargetOperatingTemp =
+			le16_to_cpu(polaristable->usTjMax); /*Set the initial temp to the same as default */
+		tdp_table->usPowerTuneDataSetID =
+			le16_to_cpu(polaristable->usPowerTuneDataSetID);
+		tdp_table->usSoftwareShutdownTemp =
+			le16_to_cpu(polaristable->usSoftwareShutdownTemp);
+		tdp_table->usClockStretchAmount =
+			le16_to_cpu(polaristable->usClockStretchAmount);
+		tdp_table->usTemperatureLimitHotspot =
+			le16_to_cpu(polaristable->usTemperatureLimitHotspot);
+		tdp_table->usTemperatureLimitLiquid1 =
+			le16_to_cpu(polaristable->usTemperatureLimitLiquid1);
+		tdp_table->usTemperatureLimitLiquid2 =
+			le16_to_cpu(polaristable->usTemperatureLimitLiquid2);
+		tdp_table->usTemperatureLimitVrVddc =
+			le16_to_cpu(polaristable->usTemperatureLimitVrVddc);
+		tdp_table->usTemperatureLimitVrMvdd =
+			le16_to_cpu(polaristable->usTemperatureLimitVrMvdd);
+		tdp_table->usTemperatureLimitPlx =
+			le16_to_cpu(polaristable->usTemperatureLimitPlx);
+		tdp_table->ucLiquid1_I2C_address =
+			polaristable->ucLiquid1_I2C_address;
+		tdp_table->ucLiquid2_I2C_address =
+			polaristable->ucLiquid2_I2C_address;
+		tdp_table->ucLiquid_I2C_Line =
+			polaristable->ucLiquid_I2C_Line;
+		tdp_table->ucVr_I2C_address = polaristable->ucVr_I2C_address;
+		tdp_table->ucVr_I2C_Line = polaristable->ucVr_I2C_Line;
+		tdp_table->ucPlx_I2C_address = polaristable->ucPlx_I2C_address;
+		tdp_table->ucPlx_I2C_Line = polaristable->ucPlx_I2C_Line;
+		tdp_table->usBoostPowerLimit = polaristable->usBoostPowerLimit;
+		tdp_table->ucCKS_LDO_REFSEL = polaristable->ucCKS_LDO_REFSEL;
+		tdp_table->ucHotSpotOnly = polaristable->ucHotSpotOnly;
 	}
 
 	*cac_tdp_table = tdp_table;
@@ -690,19 +717,16 @@ static int get_mm_clock_voltage_table(
 		const ATOM_Tonga_MM_Dependency_Table * mm_dependency_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	const ATOM_Tonga_MM_Dependency_Record *mm_dependency_record;
 	phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table;
 	phm_ppt_v1_mm_clock_voltage_dependency_record *mm_table_record;
 
 	PP_ASSERT_WITH_CODE((0 != mm_dependency_table->ucNumEntries),
 		"Invalid PowerPlay Table!", return -1);
-	table_size = sizeof(uint32_t) +
-		sizeof(phm_ppt_v1_mm_clock_voltage_dependency_record)
-		* mm_dependency_table->ucNumEntries;
-	mm_table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == mm_table)
+	mm_table = kzalloc(struct_size(mm_table, entries, mm_dependency_table->ucNumEntries),
+			   GFP_KERNEL);
+	if (!mm_table)
 		return -ENOMEM;
 
 	mm_table->count = mm_dependency_table->ucNumEntries;
@@ -755,10 +779,10 @@ static int get_gpio_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 /**
- * Private Function used during initialization.
+ * init_clock_voltage_dependency - Private Function used during initialization.
  * Initialize clock voltage dependency
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
  */
 static int init_clock_voltage_dependency(
 		struct pp_hwmgr *hwmgr,
@@ -847,15 +871,16 @@ static int init_clock_voltage_dependency(
 	return result;
 }
 
-/** Retrieves the (signed) Overdrive limits from VBIOS.
+/**
+ * init_over_drive_limits - Retrieves the (signed) Overdrive limits from VBIOS.
  * The max engine clock, memory clock and max temperature come from the firmware info table.
  *
  * The information is placed into the platform descriptor.
  *
- * @param hwmgr source of the VBIOS table and owner of the platform descriptor to be updated.
- * @param powerplay_table the address of the PowerPlay table.
+ * @hwmgr: source of the VBIOS table and owner of the platform descriptor to be updated.
+ * @powerplay_table: the address of the PowerPlay table.
  *
- * @return 1 as long as the firmware info table was present and of a supported version.
+ * Return: 1 as long as the firmware info table was present and of a supported version.
  */
 static int init_over_drive_limits(
 		struct pp_hwmgr *hwmgr,
@@ -874,11 +899,11 @@ static int init_over_drive_limits(
 }
 
 /**
- * Private Function used during initialization.
+ * init_thermal_controller - Private Function used during initialization.
  * Inspect the PowerPlay table for obvious signs of corruption.
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
- * @exception This implementation always returns 1.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
+ * Exception:  This implementation always returns 1.
  */
 static int init_thermal_controller(
 		struct pp_hwmgr *hwmgr,
@@ -972,7 +997,7 @@ static int init_thermal_controller(
 			= tonga_fan_table->ucTargetTemperature;
 		hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit
 			= tonga_fan_table->ucMinimumPWMLimit;
-	} else {
+	} else if (fan_table->ucRevId == 8) {
 		const ATOM_Fiji_Fan_Table *fiji_fan_table =
 			(ATOM_Fiji_Fan_Table *)fan_table;
 		hwmgr->thermal_controller.advanceFanControlParameters.ucTHyst
@@ -1022,17 +1047,73 @@ static int init_thermal_controller(
 			= le16_to_cpu(fiji_fan_table->usFanGainPlx);
 		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm
 			= le16_to_cpu(fiji_fan_table->usFanGainHbm);
+	} else if (fan_table->ucRevId >= 9) {
+		const ATOM_Polaris_Fan_Table *polaris_fan_table =
+			(ATOM_Polaris_Fan_Table *)fan_table;
+		hwmgr->thermal_controller.advanceFanControlParameters.ucTHyst
+			= polaris_fan_table->ucTHyst;
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMin
+			= le16_to_cpu(polaris_fan_table->usTMin);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMed
+			= le16_to_cpu(polaris_fan_table->usTMed);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTHigh
+			= le16_to_cpu(polaris_fan_table->usTHigh);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin
+			= le16_to_cpu(polaris_fan_table->usPWMMin);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMed
+			= le16_to_cpu(polaris_fan_table->usPWMMed);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMHigh
+			= le16_to_cpu(polaris_fan_table->usPWMHigh);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMax
+			= le16_to_cpu(polaris_fan_table->usTMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucFanControlMode
+			= polaris_fan_table->ucFanControlMode;
+		hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM
+			= le16_to_cpu(polaris_fan_table->usFanPWMMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.usDefaultFanOutputSensitivity
+			= 4836;
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity
+			= le16_to_cpu(polaris_fan_table->usFanOutputSensitivity);
+		hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanRPM
+			= le16_to_cpu(polaris_fan_table->usFanRPMMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulMinFanSCLKAcousticLimit
+			= (le32_to_cpu(polaris_fan_table->ulMinFanSCLKAcousticLimit) / 100); /* PPTable stores it in 10Khz unit for 2 decimal places.  SMC wants MHz. */
+		hwmgr->thermal_controller.advanceFanControlParameters.ucTargetTemperature
+			= polaris_fan_table->ucTargetTemperature;
+		hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit
+			= polaris_fan_table->ucMinimumPWMLimit;
+
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainEdge
+			= le16_to_cpu(polaris_fan_table->usFanGainEdge);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHotspot
+			= le16_to_cpu(polaris_fan_table->usFanGainHotspot);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainLiquid
+			= le16_to_cpu(polaris_fan_table->usFanGainLiquid);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrVddc
+			= le16_to_cpu(polaris_fan_table->usFanGainVrVddc);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrMvdd
+			= le16_to_cpu(polaris_fan_table->usFanGainVrMvdd);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainPlx
+			= le16_to_cpu(polaris_fan_table->usFanGainPlx);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm
+			= le16_to_cpu(polaris_fan_table->usFanGainHbm);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM
+			= le16_to_cpu(polaris_fan_table->ucEnableZeroRPM);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucFanStopTemperature
+			= le16_to_cpu(polaris_fan_table->ucFanStopTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucFanStartTemperature
+			= le16_to_cpu(polaris_fan_table->ucFanStartTemperature);
 	}
 
 	return 0;
 }
 
 /**
- * Private Function used during initialization.
+ * check_powerplay_tables - Private Function used during initialization.
  * Inspect the PowerPlay table for obvious signs of corruption.
- * @param hwmgr Pointer to the hardware manager.
- * @param powerplay_table Pointer to the PowerPlay Table.
- * @exception 2 if the powerplay table is incorrect.
+ * @hwmgr: Pointer to the hardware manager.
+ * @powerplay_table: Pointer to the PowerPlay Table.
+ * Exception:  2 if the powerplay table is incorrect.
  */
 static int check_powerplay_tables(
 		struct pp_hwmgr *hwmgr,
@@ -1175,9 +1256,9 @@ int get_number_of_powerplay_table_entries_v1_0(struct pp_hwmgr *hwmgr)
 	return (uint32_t)(state_arrays->ucNumEntries);
 }
 
-/**
-* Private function to convert flags stored in the BIOS to software flags in PowerPlay.
-*/
+/*
+ * Private function to convert flags stored in the BIOS to software flags in PowerPlay.
+ */
 static uint32_t make_classification_flags(struct pp_hwmgr *hwmgr,
 		uint16_t classification, uint16_t classification2)
 {
@@ -1276,13 +1357,14 @@ static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i
 }
 
 /**
-* Create a Power State out of an entry in the PowerPlay table.
-* This function is called by the hardware back-end.
-* @param hwmgr Pointer to the hardware manager.
-* @param entry_index The index of the entry to be extracted from the table.
-* @param power_state The address of the PowerState instance being created.
-* @return -1 if the entry cannot be retrieved.
-*/
+ * get_powerplay_table_entry_v1_0 - Create a Power State out of an entry in the PowerPlay table.
+ * This function is called by the hardware back-end.
+ * @hwmgr: Pointer to the hardware manager.
+ * @entry_index: The index of the entry to be extracted from the table.
+ * @power_state: The address of the PowerState instance being created.
+ * @call_back_func: The function to call into to fill power state
+ * Return: -1 if the entry cannot be retrieved.
+ */
 int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 		uint32_t entry_index, struct pp_power_state *power_state,
 		int (*call_back_func)(struct pp_hwmgr *, void *,

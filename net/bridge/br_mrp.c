@@ -6,6 +6,13 @@
 static const u8 mrp_test_dmac[ETH_ALEN] = { 0x1, 0x15, 0x4e, 0x0, 0x0, 0x1 };
 static const u8 mrp_in_test_dmac[ETH_ALEN] = { 0x1, 0x15, 0x4e, 0x0, 0x0, 0x3 };
 
+static int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb);
+
+static struct br_frame_type mrp_frame_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_MRP),
+	.frame_handler = br_mrp_process,
+};
+
 static bool br_mrp_is_ring_port(struct net_bridge_port *p_port,
 				struct net_bridge_port *s_port,
 				struct net_bridge_port *port)
@@ -47,8 +54,8 @@ static struct br_mrp *br_mrp_find_id(struct net_bridge *br, u32 ring_id)
 	struct br_mrp *res = NULL;
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		if (mrp->ring_id == ring_id) {
 			res = mrp;
 			break;
@@ -63,8 +70,8 @@ static struct br_mrp *br_mrp_find_in_id(struct net_bridge *br, u32 in_id)
 	struct br_mrp *res = NULL;
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		if (mrp->in_id == in_id) {
 			res = mrp;
 			break;
@@ -78,8 +85,8 @@ static bool br_mrp_unique_ifindex(struct net_bridge *br, u32 ifindex)
 {
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		struct net_bridge_port *p;
 
 		p = rtnl_dereference(mrp->p_port);
@@ -104,8 +111,8 @@ static struct br_mrp *br_mrp_find_port(struct net_bridge *br,
 	struct br_mrp *res = NULL;
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		if (rcu_access_pointer(mrp->p_port) == p ||
 		    rcu_access_pointer(mrp->s_port) == p ||
 		    rcu_access_pointer(mrp->i_port) == p) {
@@ -443,8 +450,11 @@ static void br_mrp_del_impl(struct net_bridge *br, struct br_mrp *mrp)
 		rcu_assign_pointer(mrp->i_port, NULL);
 	}
 
-	list_del_rcu(&mrp->list);
+	hlist_del_rcu(&mrp->list);
 	kfree_rcu(mrp, rcu);
+
+	if (hlist_empty(&br->mrp_list))
+		br_del_frame(br, &mrp_frame_type);
 }
 
 /* Adds a new MRP instance.
@@ -493,9 +503,12 @@ int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 	spin_unlock_bh(&br->lock);
 	rcu_assign_pointer(mrp->s_port, p);
 
+	if (hlist_empty(&br->mrp_list))
+		br_add_frame(br, &mrp_frame_type);
+
 	INIT_DELAYED_WORK(&mrp->test_work, br_mrp_test_work_expired);
 	INIT_DELAYED_WORK(&mrp->in_test_work, br_mrp_in_test_work_expired);
-	list_add_tail_rcu(&mrp->list, &br->mrp_list);
+	hlist_add_tail_rcu(&mrp->list, &br->mrp_list);
 
 	err = br_mrp_switchdev_add(br, mrp);
 	if (err)
@@ -544,19 +557,22 @@ int br_mrp_del(struct net_bridge *br, struct br_mrp_instance *instance)
 int br_mrp_set_port_state(struct net_bridge_port *p,
 			  enum br_mrp_port_state_type state)
 {
+	u32 port_state;
+
 	if (!p || !(p->flags & BR_MRP_AWARE))
 		return -EINVAL;
 
 	spin_lock_bh(&p->br->lock);
 
 	if (state == BR_MRP_PORT_STATE_FORWARDING)
-		p->state = BR_STATE_FORWARDING;
+		port_state = BR_STATE_FORWARDING;
 	else
-		p->state = BR_STATE_BLOCKING;
+		port_state = BR_STATE_BLOCKING;
 
+	p->state = port_state;
 	spin_unlock_bh(&p->br->lock);
 
-	br_mrp_port_switchdev_set_state(p, state);
+	br_mrp_port_switchdev_set_state(p, port_state);
 
 	return 0;
 }
@@ -623,7 +639,7 @@ int br_mrp_set_ring_role(struct net_bridge *br,
 			 struct br_mrp_ring_role *role)
 {
 	struct br_mrp *mrp = br_mrp_find_id(br, role->ring_id);
-	int err;
+	enum br_mrp_hw_support support;
 
 	if (!mrp)
 		return -EINVAL;
@@ -631,9 +647,9 @@ int br_mrp_set_ring_role(struct net_bridge *br,
 	mrp->ring_role = role->ring_role;
 
 	/* If there is an error just bailed out */
-	err = br_mrp_switchdev_set_ring_role(br, mrp, role->ring_role);
-	if (err && err != -EOPNOTSUPP)
-		return err;
+	support = br_mrp_switchdev_set_ring_role(br, mrp, role->ring_role);
+	if (support == BR_MRP_NONE)
+		return -EOPNOTSUPP;
 
 	/* Now detect if the HW actually applied the role or not. If the HW
 	 * applied the role it means that the SW will not to do those operations
@@ -641,7 +657,7 @@ int br_mrp_set_ring_role(struct net_bridge *br,
 	 * SW when ring is open, but if the is not pushed to the HW the SW will
 	 * need to detect when the ring is open
 	 */
-	mrp->ring_role_offloaded = err == -EOPNOTSUPP ? 0 : 1;
+	mrp->ring_role_offloaded = support == BR_MRP_SW ? 0 : 1;
 
 	return 0;
 }
@@ -654,6 +670,7 @@ int br_mrp_start_test(struct net_bridge *br,
 		      struct br_mrp_start_test *test)
 {
 	struct br_mrp *mrp = br_mrp_find_id(br, test->ring_id);
+	enum br_mrp_hw_support support;
 
 	if (!mrp)
 		return -EINVAL;
@@ -661,9 +678,13 @@ int br_mrp_start_test(struct net_bridge *br,
 	/* Try to push it to the HW and if it fails then continue with SW
 	 * implementation and if that also fails then return error.
 	 */
-	if (!br_mrp_switchdev_send_ring_test(br, mrp, test->interval,
-					     test->max_miss, test->period,
-					     test->monitor))
+	support = br_mrp_switchdev_send_ring_test(br, mrp, test->interval,
+						  test->max_miss, test->period,
+						  test->monitor);
+	if (support == BR_MRP_NONE)
+		return -EOPNOTSUPP;
+
+	if (support == BR_MRP_HW)
 		return 0;
 
 	mrp->test_interval = test->interval;
@@ -705,8 +726,8 @@ int br_mrp_set_in_state(struct net_bridge *br, struct br_mrp_in_state *state)
 int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 {
 	struct br_mrp *mrp = br_mrp_find_id(br, role->ring_id);
+	enum br_mrp_hw_support support;
 	struct net_bridge_port *p;
-	int err;
 
 	if (!mrp)
 		return -EINVAL;
@@ -764,10 +785,10 @@ int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 	mrp->in_id = role->in_id;
 
 	/* If there is an error just bailed out */
-	err = br_mrp_switchdev_set_in_role(br, mrp, role->in_id,
-					   role->ring_id, role->in_role);
-	if (err && err != -EOPNOTSUPP)
-		return err;
+	support = br_mrp_switchdev_set_in_role(br, mrp, role->in_id,
+					       role->ring_id, role->in_role);
+	if (support == BR_MRP_NONE)
+		return -EOPNOTSUPP;
 
 	/* Now detect if the HW actually applied the role or not. If the HW
 	 * applied the role it means that the SW will not to do those operations
@@ -775,7 +796,7 @@ int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 	 * SW when interconnect ring is open, but if the is not pushed to the HW
 	 * the SW will need to detect when the interconnect ring is open.
 	 */
-	mrp->in_role_offloaded = err == -EOPNOTSUPP ? 0 : 1;
+	mrp->in_role_offloaded = support == BR_MRP_SW ? 0 : 1;
 
 	return 0;
 }
@@ -788,6 +809,7 @@ int br_mrp_start_in_test(struct net_bridge *br,
 			 struct br_mrp_start_in_test *in_test)
 {
 	struct br_mrp *mrp = br_mrp_find_in_id(br, in_test->in_id);
+	enum br_mrp_hw_support support;
 
 	if (!mrp)
 		return -EINVAL;
@@ -798,8 +820,13 @@ int br_mrp_start_in_test(struct net_bridge *br,
 	/* Try to push it to the HW and if it fails then continue with SW
 	 * implementation and if that also fails then return error.
 	 */
-	if (!br_mrp_switchdev_send_in_test(br, mrp, in_test->interval,
-					   in_test->max_miss, in_test->period))
+	support =  br_mrp_switchdev_send_in_test(br, mrp, in_test->interval,
+						 in_test->max_miss,
+						 in_test->period);
+	if (support == BR_MRP_NONE)
+		return -EOPNOTSUPP;
+
+	if (support == BR_MRP_HW)
 		return 0;
 
 	mrp->in_test_interval = in_test->interval;
@@ -812,7 +839,7 @@ int br_mrp_start_in_test(struct net_bridge *br,
 	return 0;
 }
 
-/* Determin if the frame type is a ring frame */
+/* Determine if the frame type is a ring frame */
 static bool br_mrp_ring_frame(struct sk_buff *skb)
 {
 	const struct br_mrp_tlv_hdr *hdr;
@@ -832,7 +859,7 @@ static bool br_mrp_ring_frame(struct sk_buff *skb)
 	return false;
 }
 
-/* Determin if the frame type is an interconnect frame */
+/* Determine if the frame type is an interconnect frame */
 static bool br_mrp_in_frame(struct sk_buff *skb)
 {
 	const struct br_mrp_tlv_hdr *hdr;
@@ -845,7 +872,8 @@ static bool br_mrp_in_frame(struct sk_buff *skb)
 	if (hdr->type == BR_MRP_TLV_HEADER_IN_TEST ||
 	    hdr->type == BR_MRP_TLV_HEADER_IN_TOPO ||
 	    hdr->type == BR_MRP_TLV_HEADER_IN_LINK_DOWN ||
-	    hdr->type == BR_MRP_TLV_HEADER_IN_LINK_UP)
+	    hdr->type == BR_MRP_TLV_HEADER_IN_LINK_UP ||
+	    hdr->type == BR_MRP_TLV_HEADER_IN_LINK_STATUS)
 		return true;
 
 	return false;
@@ -880,7 +908,7 @@ static void br_mrp_mrm_process(struct br_mrp *mrp, struct net_bridge_port *port,
 		br_mrp_ring_port_open(port->dev, false);
 }
 
-/* Determin if the test hdr has a better priority than the node */
+/* Determine if the test hdr has a better priority than the node */
 static bool br_mrp_test_better_than_own(struct br_mrp *mrp,
 					struct net_bridge *br,
 					const struct br_mrp_ring_test_hdr *hdr)
@@ -1113,9 +1141,9 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 						goto no_forward;
 				}
 			} else {
-				/* MIM should forward IntLinkChange and
+				/* MIM should forward IntLinkChange/Status and
 				 * IntTopoChange between ring ports but MIM
-				 * should not forward IntLinkChange and
+				 * should not forward IntLinkChange/Status and
 				 * IntTopoChange if the frame was received at
 				 * the interconnect port
 				 */
@@ -1141,6 +1169,17 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 			    (in_type == BR_MRP_TLV_HEADER_IN_LINK_UP ||
 			     in_type == BR_MRP_TLV_HEADER_IN_LINK_DOWN))
 				goto forward;
+
+			/* MIC should forward IntLinkStatus frames only to
+			 * interconnect port if it was received on a ring port.
+			 * If it is received on interconnect port then, it
+			 * should be forward on both ring ports
+			 */
+			if (br_mrp_is_ring_port(p_port, s_port, p) &&
+			    in_type == BR_MRP_TLV_HEADER_IN_LINK_STATUS) {
+				p_dst = NULL;
+				s_dst = NULL;
+			}
 
 			/* Should forward the InTopo frames only between the
 			 * ring ports
@@ -1172,20 +1211,18 @@ no_forward:
  * normal forwarding.
  * note: already called with rcu_read_lock
  */
-int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb)
+static int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb)
 {
 	/* If there is no MRP instance do normal forwarding */
 	if (likely(!(p->flags & BR_MRP_AWARE)))
 		goto out;
 
-	if (unlikely(skb->protocol == htons(ETH_P_MRP)))
-		return br_mrp_rcv(p, skb, p->dev);
-
+	return br_mrp_rcv(p, skb, p->dev);
 out:
 	return 0;
 }
 
 bool br_mrp_enabled(struct net_bridge *br)
 {
-	return !list_empty(&br->mrp_list);
+	return !hlist_empty(&br->mrp_list);
 }

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_request_ioc_reinit:
 
@@ -11,13 +12,12 @@ Name
 
 MEDIA_REQUEST_IOC_REINIT - Re-initialize a request
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int request_fd, MEDIA_REQUEST_IOC_REINIT )
-    :name: MEDIA_REQUEST_IOC_REINIT
+.. c:macro:: MEDIA_REQUEST_IOC_REINIT
 
+``int ioctl(int request_fd, MEDIA_REQUEST_IOC_REINIT)``
 
 Arguments
 =========
@@ -33,7 +33,7 @@ this request ioctl can be used to re-initialize a previously allocated
 request.
 
 Re-initializing a request will clear any existing data from the request.
-This avoids having to :ref:`close() <request-func-close>` a completed
+This avoids having to :c:func:`close()` a completed
 request and allocate a new request. Instead the completed request can just
 be re-initialized and it is ready to be used again.
 

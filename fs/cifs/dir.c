@@ -33,6 +33,7 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
+#include "fs_context.h"
 
 static void
 renew_parental_timestamps(struct dentry *direntry)
@@ -46,10 +47,10 @@ renew_parental_timestamps(struct dentry *direntry)
 }
 
 char *
-cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
+cifs_build_path_to_root(struct smb3_fs_context *ctx, struct cifs_sb_info *cifs_sb,
 			struct cifs_tcon *tcon, int add_treename)
 {
-	int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
+	int pplen = ctx->prepath ? strlen(ctx->prepath) + 1 : 0;
 	int dfsplen;
 	char *full_path = NULL;
 
@@ -71,7 +72,7 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 	if (dfsplen)
 		memcpy(full_path, tcon->treeName, dfsplen);
 	full_path[dfsplen] = CIFS_DIR_SEP(cifs_sb);
-	memcpy(full_path + dfsplen + 1, vol->prepath, pplen);
+	memcpy(full_path + dfsplen + 1, ctx->prepath, pplen);
 	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
 	return full_path;
 }
@@ -736,6 +737,7 @@ static int
 cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 {
 	struct inode *inode;
+	int rc;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -745,8 +747,25 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 		if ((flags & LOOKUP_REVAL) && !CIFS_CACHE_READ(CIFS_I(inode)))
 			CIFS_I(inode)->time = 0; /* force reval */
 
-		if (cifs_revalidate_dentry(direntry))
-			return 0;
+		rc = cifs_revalidate_dentry(direntry);
+		if (rc) {
+			cifs_dbg(FYI, "cifs_revalidate_dentry failed with rc=%d", rc);
+			switch (rc) {
+			case -ENOENT:
+			case -ESTALE:
+				/*
+				 * Those errors mean the dentry is invalid
+				 * (file was deleted or recreated)
+				 */
+				return 0;
+			default:
+				/*
+				 * Otherwise some unexpected error happened
+				 * report it as-is to VFS layer
+				 */
+				return rc;
+			}
+		}
 		else {
 			/*
 			 * If the inode wasn't known to be a dfs entry when

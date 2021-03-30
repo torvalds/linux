@@ -14,7 +14,6 @@
 &iomuxc {
 	/delete-node/ flexcan1engrp;
 	/delete-node/ rtcintgrp;
-	/delete-node/ stmpegrp;
 };
 
 &iomuxc_snvs {
@@ -27,12 +26,6 @@
 	pinctrl_rtc_int: rtcintgrp {
 		fsl,pins = <
 			MX6ULL_PAD_SNVS_TAMPER1__GPIO5_IO01	0x17059
-		>;
-	};
-
-	pinctrl_stmpe: stmpegrp {
-		fsl,pins = <
-			MX6ULL_PAD_SNVS_TAMPER3__GPIO5_IO03	0x17059
 		>;
 	};
 };

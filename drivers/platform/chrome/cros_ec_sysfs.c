@@ -28,7 +28,7 @@ static ssize_t reboot_show(struct device *dev,
 	int count = 0;
 
 	count += scnprintf(buf + count, PAGE_SIZE - count,
-			   "ro|rw|cancel|cold|disable-jump|hibernate");
+			   "ro|rw|cancel|cold|disable-jump|hibernate|cold-ap-off");
 	count += scnprintf(buf + count, PAGE_SIZE - count,
 			   " [at-shutdown]\n");
 	return count;
@@ -46,6 +46,7 @@ static ssize_t reboot_store(struct device *dev,
 		{"cancel",       EC_REBOOT_CANCEL, 0},
 		{"ro",           EC_REBOOT_JUMP_RO, 0},
 		{"rw",           EC_REBOOT_JUMP_RW, 0},
+		{"cold-ap-off",  EC_REBOOT_COLD_AP_OFF, 0},
 		{"cold",         EC_REBOOT_COLD, 0},
 		{"disable-jump", EC_REBOOT_DISABLE_JUMP, 0},
 		{"hibernate",    EC_REBOOT_HIBERNATE, 0},
@@ -150,12 +151,10 @@ static ssize_t version_show(struct device *dev,
 	msg->command = EC_CMD_GET_BUILD_INFO + ec->cmd_offset;
 	msg->insize = EC_HOST_PARAM_SIZE;
 	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
-	if (ret == -EPROTO) {
+	if (ret < 0) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Build info:    EC error %d\n", msg->result);
-	} else if (ret < 0) {
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Build info:    XFER ERROR %d\n", ret);
+				   "Build info:    XFER / EC ERROR %d / %d\n",
+				   ret, msg->result);
 	} else {
 		msg->data[EC_HOST_PARAM_SIZE - 1] = '\0';
 		count += scnprintf(buf + count, PAGE_SIZE - count,
@@ -166,12 +165,10 @@ static ssize_t version_show(struct device *dev,
 	msg->command = EC_CMD_GET_CHIP_INFO + ec->cmd_offset;
 	msg->insize = sizeof(*r_chip);
 	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
-	if (ret == -EPROTO) {
+	if (ret < 0) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip info:     EC error %d\n", msg->result);
-	} else if (ret < 0) {
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Chip info:     XFER ERROR %d\n", ret);
+				   "Chip info:     XFER / EC ERROR %d / %d\n",
+				   ret, msg->result);
 	} else {
 		r_chip = (struct ec_response_get_chip_info *)msg->data;
 
@@ -190,12 +187,10 @@ static ssize_t version_show(struct device *dev,
 	msg->command = EC_CMD_GET_BOARD_VERSION + ec->cmd_offset;
 	msg->insize = sizeof(*r_board);
 	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
-	if (ret == -EPROTO) {
+	if (ret < 0) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Board version: EC error %d\n", msg->result);
-	} else if (ret < 0) {
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Board version: XFER ERROR %d\n", ret);
+				   "Board version: XFER / EC ERROR %d / %d\n",
+				   ret, msg->result);
 	} else {
 		r_board = (struct ec_response_board_version *)msg->data;
 
@@ -326,7 +321,7 @@ static struct attribute *__ec_attrs[] = {
 static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 				    struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	if (a == &dev_attr_kb_wake_angle.attr && !ec->has_kb_wake_angle)
@@ -335,7 +330,7 @@ static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group cros_ec_attr_group = {
+static const struct attribute_group cros_ec_attr_group = {
 	.attrs = __ec_attrs,
 	.is_visible = cros_ec_ctrl_visible,
 };

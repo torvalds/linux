@@ -7,5 +7,4 @@ generated-y += unistd_nr.h
 generic-y += asm-offsets.h
 generic-y += export.h
 generic-y += kvm_types.h
-generic-y += local64.h
 generic-y += mcs_spinlock.h

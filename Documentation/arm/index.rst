@@ -23,6 +23,8 @@ ARM Architecture
    vlocks
    porting
 
+   features
+
 SoC-specific documents
 ======================
 
@@ -31,7 +33,7 @@ SoC-specific documents
 
    ixp4xx
 
-   marvel
+   marvell
    microchip
 
    netwinder

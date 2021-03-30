@@ -36,8 +36,8 @@
 		  __stringify(name))
 #endif
 
-#define __page_aligned_data	__section(.data..page_aligned) __aligned(PAGE_SIZE)
-#define __page_aligned_bss	__section(.bss..page_aligned) __aligned(PAGE_SIZE)
+#define __page_aligned_data	__section(".data..page_aligned") __aligned(PAGE_SIZE)
+#define __page_aligned_bss	__section(".bss..page_aligned") __aligned(PAGE_SIZE)
 
 /*
  * For assembly routines.
@@ -177,6 +177,11 @@
  * Objtool validates stack for FUNC, but not for CODE.
  * Objtool generates debug info for both FUNC & CODE, but needs special
  * annotations for each CODE's start (to describe the actual stack frame).
+ *
+ * Objtool requires that all code must be contained in an ELF symbol. Symbol
+ * names that have a  .L prefix do not emit symbol table entries. .L
+ * prefixed symbols can be used within a code region, but should be avoided for
+ * denoting a range of code via ``SYM_*_START/END`` annotations.
  *
  * ALIAS -- does not generate debug info -- the aliased function will
  */

@@ -5,11 +5,13 @@
 #include "x86.h"
 #include <asm/cpu.h>
 #include <asm/processor.h>
+#include <uapi/asm/kvm_para.h>
 
 extern u32 kvm_cpu_caps[NCAPINTS] __read_mostly;
 void kvm_set_cpu_caps(void);
 
 void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu);
+void kvm_update_pv_runtime(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
 int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
@@ -28,10 +30,32 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	       u32 *ecx, u32 *edx, bool exact_only);
 
 int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu);
+u64 kvm_vcpu_reserved_gpa_bits_raw(struct kvm_vcpu *vcpu);
 
 static inline int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.maxphyaddr;
+}
+
+static inline bool kvm_vcpu_is_legal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return !(gpa & vcpu->arch.reserved_gpa_bits);
+}
+
+static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return !kvm_vcpu_is_legal_gpa(vcpu, gpa);
+}
+
+static inline bool kvm_vcpu_is_legal_aligned_gpa(struct kvm_vcpu *vcpu,
+						 gpa_t gpa, gpa_t alignment)
+{
+	return IS_ALIGNED(gpa, alignment) && kvm_vcpu_is_legal_gpa(vcpu, gpa);
+}
+
+static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return kvm_vcpu_is_legal_aligned_gpa(vcpu, gpa, PAGE_SIZE);
 }
 
 struct cpuid_reg {
@@ -257,6 +281,20 @@ static inline int guest_cpuid_stepping(struct kvm_vcpu *vcpu)
 	return x86_stepping(best->eax);
 }
 
+static inline bool guest_has_spec_ctrl_msr(struct kvm_vcpu *vcpu)
+{
+	return (guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL) ||
+		guest_cpuid_has(vcpu, X86_FEATURE_AMD_STIBP) ||
+		guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBRS) ||
+		guest_cpuid_has(vcpu, X86_FEATURE_AMD_SSBD));
+}
+
+static inline bool guest_has_pred_cmd_msr(struct kvm_vcpu *vcpu)
+{
+	return (guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL) ||
+		guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBPB));
+}
+
 static inline bool supports_cpuid_fault(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.msr_platform_info & MSR_PLATFORM_INFO_CPUID_FAULT;
@@ -303,9 +341,13 @@ static __always_inline void kvm_cpu_cap_check_and_set(unsigned int x86_feature)
 		kvm_cpu_cap_set(x86_feature);
 }
 
-static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
+static __always_inline bool guest_pv_has(struct kvm_vcpu *vcpu,
+					 unsigned int kvm_feature)
 {
-	return PAGE_ALIGNED(gpa) && !(gpa >> cpuid_maxphyaddr(vcpu));
+	if (!vcpu->arch.pv_cpuid.enforce)
+		return true;
+
+	return vcpu->arch.pv_cpuid.features & (1u << kvm_feature);
 }
 
 #endif

@@ -83,7 +83,6 @@
 
 
 #define KVM_MAX_VCPUS		16
-#define KVM_USER_MEM_SLOTS	16
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS	0
 
@@ -341,7 +340,7 @@ struct kvm_mips_tlb {
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
 	void *guest_ebase;
-	int (*vcpu_run)(struct kvm_run *run, struct kvm_vcpu *vcpu);
+	int (*vcpu_run)(struct kvm_vcpu *vcpu);
 
 	/* Host registers preserved across guest mode execution */
 	unsigned long host_stack;
@@ -852,7 +851,7 @@ int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);
 /* Debug: dump vcpu state */
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
 
-extern int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu);
+extern int kvm_mips_handle_exit(struct kvm_vcpu *vcpu);
 
 /* Building of entry/exception code */
 int kvm_mips_entry_setup(void);

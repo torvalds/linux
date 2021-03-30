@@ -413,18 +413,6 @@ static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
 	return 0;
 }
 
-static void sock_warn_obsolete_bsdism(const char *name)
-{
-	static int warned;
-	static char warncomm[TASK_COMM_LEN];
-	if (strcmp(warncomm, current->comm) && warned < 5) {
-		strcpy(warncomm,  current->comm);
-		pr_warn("process `%s' is using obsolete %s SO_BSDCOMPAT\n",
-			warncomm, name);
-		warned++;
-	}
-}
-
 static bool sock_needs_netstamp(const struct sock *sk)
 {
 	switch (sk->sk_family) {
@@ -538,11 +526,17 @@ discard_and_relse:
 }
 EXPORT_SYMBOL(__sk_receive_skb);
 
+INDIRECT_CALLABLE_DECLARE(struct dst_entry *ip6_dst_check(struct dst_entry *,
+							  u32));
+INDIRECT_CALLABLE_DECLARE(struct dst_entry *ipv4_dst_check(struct dst_entry *,
+							   u32));
 struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
 {
 	struct dst_entry *dst = __sk_dst_get(sk);
 
-	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+	if (dst && dst->obsolete &&
+	    INDIRECT_CALL_INET(dst->ops->check, ip6_dst_check, ipv4_dst_check,
+			       dst, cookie) == NULL) {
 		sk_tx_queue_clear(sk);
 		sk->sk_dst_pending_confirm = 0;
 		RCU_INIT_POINTER(sk->sk_dst_cache, NULL);
@@ -558,7 +552,9 @@ struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie)
 {
 	struct dst_entry *dst = sk_dst_get(sk);
 
-	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+	if (dst && dst->obsolete &&
+	    INDIRECT_CALL_INET(dst->ops->check, ip6_dst_check, ipv4_dst_check,
+			       dst, cookie) == NULL) {
 		sk_dst_reset(sk);
 		dst_release(dst);
 		return NULL;
@@ -769,7 +765,6 @@ static void __sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
 	} else {
 		sock_reset_flag(sk, SOCK_RCVTSTAMP);
 		sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
-		sock_reset_flag(sk, SOCK_TSTAMP_NEW);
 	}
 }
 
@@ -984,7 +979,6 @@ set_sndbuf:
 		break;
 
 	case SO_BSDCOMPAT:
-		sock_warn_obsolete_bsdism("setsockopt");
 		break;
 
 	case SO_PASSCRED:
@@ -1007,8 +1001,6 @@ set_sndbuf:
 		__sock_set_timestamps(sk, valbool, true, true);
 		break;
 	case SO_TIMESTAMPING_NEW:
-		sock_set_flag(sk, SOCK_TSTAMP_NEW);
-		fallthrough;
 	case SO_TIMESTAMPING_OLD:
 		if (val & ~SOF_TIMESTAMPING_MASK) {
 			ret = -EINVAL;
@@ -1037,16 +1029,14 @@ set_sndbuf:
 		}
 
 		sk->sk_tsflags = val;
+		sock_valbool_flag(sk, SOCK_TSTAMP_NEW, optname == SO_TIMESTAMPING_NEW);
+
 		if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
 			sock_enable_timestamp(sk,
 					      SOCK_TIMESTAMPING_RX_SOFTWARE);
-		else {
-			if (optname == SO_TIMESTAMPING_NEW)
-				sock_reset_flag(sk, SOCK_TSTAMP_NEW);
-
+		else
 			sock_disable_timestamp(sk,
 					       (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE));
-		}
 		break;
 
 	case SO_RCVLOWAT:
@@ -1177,11 +1167,27 @@ set_sndbuf:
 				sk->sk_ll_usec = val;
 		}
 		break;
+	case SO_PREFER_BUSY_POLL:
+		if (valbool && !capable(CAP_NET_ADMIN))
+			ret = -EPERM;
+		else
+			WRITE_ONCE(sk->sk_prefer_busy_poll, valbool);
+		break;
+	case SO_BUSY_POLL_BUDGET:
+		if (val > READ_ONCE(sk->sk_busy_poll_budget) && !capable(CAP_NET_ADMIN)) {
+			ret = -EPERM;
+		} else {
+			if (val < 0 || val > U16_MAX)
+				ret = -EINVAL;
+			else
+				WRITE_ONCE(sk->sk_busy_poll_budget, val);
+		}
+		break;
 #endif
 
 	case SO_MAX_PACING_RATE:
 		{
-		unsigned long ulval = (val == ~0U) ? ~0UL : val;
+		unsigned long ulval = (val == ~0U) ? ~0UL : (unsigned int)val;
 
 		if (sizeof(ulval) != sizeof(val) &&
 		    optlen >= sizeof(ulval) &&
@@ -1387,7 +1393,6 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_BSDCOMPAT:
-		sock_warn_obsolete_bsdism("getsockopt");
 		break;
 
 	case SO_TIMESTAMP_OLD:
@@ -1542,6 +1547,9 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	case SO_BUSY_POLL:
 		v.val = sk->sk_ll_usec;
 		break;
+	case SO_PREFER_BUSY_POLL:
+		v.val = READ_ONCE(sk->sk_prefer_busy_poll);
+		break;
 #endif
 
 	case SO_MAX_PACING_RATE:
@@ -1657,6 +1665,16 @@ static void sock_copy(struct sock *nsk, const struct sock *osk)
 #ifdef CONFIG_SECURITY_NETWORK
 	void *sptr = nsk->sk_security;
 #endif
+
+	/* If we move sk_tx_queue_mapping out of the private section,
+	 * we must check if sk_tx_queue_clear() is called after
+	 * sock_copy() in sk_clone_lock().
+	 */
+	BUILD_BUG_ON(offsetof(struct sock, sk_tx_queue_mapping) <
+		     offsetof(struct sock, sk_dontcopy_begin) ||
+		     offsetof(struct sock, sk_tx_queue_mapping) >=
+		     offsetof(struct sock, sk_dontcopy_end));
+
 	memcpy(nsk, osk, offsetof(struct sock, sk_dontcopy_begin));
 
 	memcpy(&nsk->sk_dontcopy_end, &osk->sk_dontcopy_end,
@@ -1690,7 +1708,6 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 
 		if (!try_module_get(prot->owner))
 			goto out_free_sec;
-		sk_tx_queue_clear(sk);
 	}
 
 	return sk;
@@ -1876,123 +1893,120 @@ static void sk_init_common(struct sock *sk)
 struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 {
 	struct proto *prot = READ_ONCE(sk->sk_prot);
-	struct sock *newsk;
+	struct sk_filter *filter;
 	bool is_charged = true;
+	struct sock *newsk;
 
 	newsk = sk_prot_alloc(prot, priority, sk->sk_family);
-	if (newsk != NULL) {
-		struct sk_filter *filter;
+	if (!newsk)
+		goto out;
 
-		sock_copy(newsk, sk);
+	sock_copy(newsk, sk);
 
-		newsk->sk_prot_creator = prot;
+	newsk->sk_prot_creator = prot;
 
-		/* SANITY */
-		if (likely(newsk->sk_net_refcnt))
-			get_net(sock_net(newsk));
-		sk_node_init(&newsk->sk_node);
-		sock_lock_init(newsk);
-		bh_lock_sock(newsk);
-		newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
-		newsk->sk_backlog.len = 0;
+	/* SANITY */
+	if (likely(newsk->sk_net_refcnt))
+		get_net(sock_net(newsk));
+	sk_node_init(&newsk->sk_node);
+	sock_lock_init(newsk);
+	bh_lock_sock(newsk);
+	newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
+	newsk->sk_backlog.len = 0;
 
-		atomic_set(&newsk->sk_rmem_alloc, 0);
-		/*
-		 * sk_wmem_alloc set to one (see sk_free() and sock_wfree())
+	atomic_set(&newsk->sk_rmem_alloc, 0);
+
+	/* sk_wmem_alloc set to one (see sk_free() and sock_wfree()) */
+	refcount_set(&newsk->sk_wmem_alloc, 1);
+
+	atomic_set(&newsk->sk_omem_alloc, 0);
+	sk_init_common(newsk);
+
+	newsk->sk_dst_cache	= NULL;
+	newsk->sk_dst_pending_confirm = 0;
+	newsk->sk_wmem_queued	= 0;
+	newsk->sk_forward_alloc = 0;
+	atomic_set(&newsk->sk_drops, 0);
+	newsk->sk_send_head	= NULL;
+	newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
+	atomic_set(&newsk->sk_zckey, 0);
+
+	sock_reset_flag(newsk, SOCK_DONE);
+
+	/* sk->sk_memcg will be populated at accept() time */
+	newsk->sk_memcg = NULL;
+
+	cgroup_sk_clone(&newsk->sk_cgrp_data);
+
+	rcu_read_lock();
+	filter = rcu_dereference(sk->sk_filter);
+	if (filter != NULL)
+		/* though it's an empty new sock, the charging may fail
+		 * if sysctl_optmem_max was changed between creation of
+		 * original socket and cloning
 		 */
-		refcount_set(&newsk->sk_wmem_alloc, 1);
-		atomic_set(&newsk->sk_omem_alloc, 0);
-		sk_init_common(newsk);
+		is_charged = sk_filter_charge(newsk, filter);
+	RCU_INIT_POINTER(newsk->sk_filter, filter);
+	rcu_read_unlock();
 
-		newsk->sk_dst_cache	= NULL;
-		newsk->sk_dst_pending_confirm = 0;
-		newsk->sk_wmem_queued	= 0;
-		newsk->sk_forward_alloc = 0;
-		atomic_set(&newsk->sk_drops, 0);
-		newsk->sk_send_head	= NULL;
-		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
-		atomic_set(&newsk->sk_zckey, 0);
-
-		sock_reset_flag(newsk, SOCK_DONE);
-
-		/* sk->sk_memcg will be populated at accept() time */
-		newsk->sk_memcg = NULL;
-
-		cgroup_sk_clone(&newsk->sk_cgrp_data);
-
-		rcu_read_lock();
-		filter = rcu_dereference(sk->sk_filter);
-		if (filter != NULL)
-			/* though it's an empty new sock, the charging may fail
-			 * if sysctl_optmem_max was changed between creation of
-			 * original socket and cloning
-			 */
-			is_charged = sk_filter_charge(newsk, filter);
-		RCU_INIT_POINTER(newsk->sk_filter, filter);
-		rcu_read_unlock();
-
-		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk, sk))) {
-			/* We need to make sure that we don't uncharge the new
-			 * socket if we couldn't charge it in the first place
-			 * as otherwise we uncharge the parent's filter.
-			 */
-			if (!is_charged)
-				RCU_INIT_POINTER(newsk->sk_filter, NULL);
-			sk_free_unlock_clone(newsk);
-			newsk = NULL;
-			goto out;
-		}
-		RCU_INIT_POINTER(newsk->sk_reuseport_cb, NULL);
-
-		if (bpf_sk_storage_clone(sk, newsk)) {
-			sk_free_unlock_clone(newsk);
-			newsk = NULL;
-			goto out;
-		}
-
-		/* Clear sk_user_data if parent had the pointer tagged
-		 * as not suitable for copying when cloning.
+	if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk, sk))) {
+		/* We need to make sure that we don't uncharge the new
+		 * socket if we couldn't charge it in the first place
+		 * as otherwise we uncharge the parent's filter.
 		 */
-		if (sk_user_data_is_nocopy(newsk))
-			newsk->sk_user_data = NULL;
-
-		newsk->sk_err	   = 0;
-		newsk->sk_err_soft = 0;
-		newsk->sk_priority = 0;
-		newsk->sk_incoming_cpu = raw_smp_processor_id();
-		if (likely(newsk->sk_net_refcnt))
-			sock_inuse_add(sock_net(newsk), 1);
-
-		/*
-		 * Before updating sk_refcnt, we must commit prior changes to memory
-		 * (Documentation/RCU/rculist_nulls.rst for details)
-		 */
-		smp_wmb();
-		refcount_set(&newsk->sk_refcnt, 2);
-
-		/*
-		 * Increment the counter in the same struct proto as the master
-		 * sock (sk_refcnt_debug_inc uses newsk->sk_prot->socks, that
-		 * is the same as sk->sk_prot->socks, as this field was copied
-		 * with memcpy).
-		 *
-		 * This _changes_ the previous behaviour, where
-		 * tcp_create_openreq_child always was incrementing the
-		 * equivalent to tcp_prot->socks (inet_sock_nr), so this have
-		 * to be taken into account in all callers. -acme
-		 */
-		sk_refcnt_debug_inc(newsk);
-		sk_set_socket(newsk, NULL);
-		sk_tx_queue_clear(newsk);
-		RCU_INIT_POINTER(newsk->sk_wq, NULL);
-
-		if (newsk->sk_prot->sockets_allocated)
-			sk_sockets_allocated_inc(newsk);
-
-		if (sock_needs_netstamp(sk) &&
-		    newsk->sk_flags & SK_FLAGS_TIMESTAMP)
-			net_enable_timestamp();
+		if (!is_charged)
+			RCU_INIT_POINTER(newsk->sk_filter, NULL);
+		sk_free_unlock_clone(newsk);
+		newsk = NULL;
+		goto out;
 	}
+	RCU_INIT_POINTER(newsk->sk_reuseport_cb, NULL);
+
+	if (bpf_sk_storage_clone(sk, newsk)) {
+		sk_free_unlock_clone(newsk);
+		newsk = NULL;
+		goto out;
+	}
+
+	/* Clear sk_user_data if parent had the pointer tagged
+	 * as not suitable for copying when cloning.
+	 */
+	if (sk_user_data_is_nocopy(newsk))
+		newsk->sk_user_data = NULL;
+
+	newsk->sk_err	   = 0;
+	newsk->sk_err_soft = 0;
+	newsk->sk_priority = 0;
+	newsk->sk_incoming_cpu = raw_smp_processor_id();
+	if (likely(newsk->sk_net_refcnt))
+		sock_inuse_add(sock_net(newsk), 1);
+
+	/* Before updating sk_refcnt, we must commit prior changes to memory
+	 * (Documentation/RCU/rculist_nulls.rst for details)
+	 */
+	smp_wmb();
+	refcount_set(&newsk->sk_refcnt, 2);
+
+	/* Increment the counter in the same struct proto as the master
+	 * sock (sk_refcnt_debug_inc uses newsk->sk_prot->socks, that
+	 * is the same as sk->sk_prot->socks, as this field was copied
+	 * with memcpy).
+	 *
+	 * This _changes_ the previous behaviour, where
+	 * tcp_create_openreq_child always was incrementing the
+	 * equivalent to tcp_prot->socks (inet_sock_nr), so this have
+	 * to be taken into account in all callers. -acme
+	 */
+	sk_refcnt_debug_inc(newsk);
+	sk_set_socket(newsk, NULL);
+	sk_tx_queue_clear(newsk);
+	RCU_INIT_POINTER(newsk->sk_wq, NULL);
+
+	if (newsk->sk_prot->sockets_allocated)
+		sk_sockets_allocated_inc(newsk);
+
+	if (sock_needs_netstamp(sk) && newsk->sk_flags & SK_FLAGS_TIMESTAMP)
+		net_enable_timestamp();
 out:
 	return newsk;
 }
@@ -2505,7 +2519,7 @@ bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
 }
 EXPORT_SYMBOL(sk_page_frag_refill);
 
-static void __lock_sock(struct sock *sk)
+void __lock_sock(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
 	__acquires(&sk->sk_lock.slock)
 {
@@ -2827,14 +2841,8 @@ EXPORT_SYMBOL(sock_no_mmap);
 void __receive_sock(struct file *file)
 {
 	struct socket *sock;
-	int error;
 
-	/*
-	 * The resulting value of "error" is ignored here since we only
-	 * need to take action when the file is a socket and testing
-	 * "sock" for NULL is sufficient.
-	 */
-	sock = sock_from_file(file, &error);
+	sock = sock_from_file(file);
 	if (sock) {
 		sock_update_netprioidx(&sock->sk->sk_cgrp_data);
 		sock_update_classid(&sock->sk->sk_cgrp_data);
@@ -2960,6 +2968,13 @@ void sk_stop_timer(struct sock *sk, struct timer_list* timer)
 		__sock_put(sk);
 }
 EXPORT_SYMBOL(sk_stop_timer);
+
+void sk_stop_timer_sync(struct sock *sk, struct timer_list *timer)
+{
+	if (del_timer_sync(timer))
+		__sock_put(sk);
+}
+EXPORT_SYMBOL(sk_stop_timer_sync);
 
 void sock_init_data(struct socket *sock, struct sock *sk)
 {
@@ -3090,7 +3105,7 @@ EXPORT_SYMBOL(release_sock);
  *
  *   sk_lock.slock unlocked, owned = 1, BH enabled
  */
-bool lock_sock_fast(struct sock *sk)
+bool lock_sock_fast(struct sock *sk) __acquires(&sk->sk_lock.slock)
 {
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
@@ -3108,6 +3123,7 @@ bool lock_sock_fast(struct sock *sk)
 	 * The sk_lock has mutex_lock() semantics here:
 	 */
 	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+	__acquire(&sk->sk_lock.slock);
 	local_bh_enable();
 	return true;
 }

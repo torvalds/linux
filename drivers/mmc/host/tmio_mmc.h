@@ -42,7 +42,6 @@
 #define CTL_DMA_ENABLE 0xd8
 #define CTL_RESET_SD 0xe0
 #define CTL_VERSION 0xe2
-#define CTL_SDIF_MODE 0xe6
 
 /* Definitions for values the CTL_STOP_INTERNAL_ACTION register can take */
 #define TMIO_STOP_STP		BIT(0)
@@ -81,7 +80,11 @@
 #define	CLK_CTL_SCLKEN		BIT(8)
 
 /* Definitions for values the CTL_SD_MEM_CARD_OPT register can take */
+#define CARD_OPT_TOP_MASK	0xf0
+#define CARD_OPT_TOP_SHIFT	4
+#define CARD_OPT_EXTOP		BIT(9) /* first appeared on R-Car Gen3 SDHI */
 #define CARD_OPT_WIDTH8		BIT(13)
+#define CARD_OPT_ALWAYS1	BIT(14)
 #define CARD_OPT_WIDTH		BIT(15)
 
 /* Definitions for values the CTL_SDIO_STATUS register can take */
@@ -178,8 +181,9 @@ struct tmio_mmc_host {
 			      unsigned int direction, int blk_size);
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
 	void (*reset)(struct tmio_mmc_host *host);
-	bool (*check_retune)(struct tmio_mmc_host *host);
+	bool (*check_retune)(struct tmio_mmc_host *host, struct mmc_request *mrq);
 	void (*fixup_request)(struct tmio_mmc_host *host, struct mmc_request *mrq);
+	unsigned int (*get_timeout_cycles)(struct tmio_mmc_host *host);
 
 	void (*prepare_hs400_tuning)(struct tmio_mmc_host *host);
 	void (*hs400_downgrade)(struct tmio_mmc_host *host);

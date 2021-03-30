@@ -17,7 +17,10 @@ ARM_BE8(rev	\rd, \rd )
 	str	\rd, [\rx, #0x70]
 	.endm
 
-	.macro	waituart, rd, rx
+	.macro	waituartcts,rd,rx
+	.endm
+
+	.macro	waituarttxrdy, rd, rx
 	@ check for TX_EMT in UARTDM_SR
 	ldr	\rd, [\rx, #0x08]
 ARM_BE8(rev     \rd, \rd )

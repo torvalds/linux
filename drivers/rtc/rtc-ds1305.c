@@ -435,13 +435,12 @@ static const struct rtc_class_ops ds1305_ops = {
 static void ds1305_work(struct work_struct *work)
 {
 	struct ds1305	*ds1305 = container_of(work, struct ds1305, work);
-	struct mutex	*lock = &ds1305->rtc->ops_lock;
 	struct spi_device *spi = ds1305->spi;
 	u8		buf[3];
 	int		status;
 
 	/* lock to protect ds1305->ctrl */
-	mutex_lock(lock);
+	rtc_lock(ds1305->rtc);
 
 	/* Disable the IRQ, and clear its status ... for now, we "know"
 	 * that if more than one alarm is active, they're in sync.
@@ -459,7 +458,7 @@ static void ds1305_work(struct work_struct *work)
 	if (status < 0)
 		dev_dbg(&spi->dev, "clear irq --> %d\n", status);
 
-	mutex_unlock(lock);
+	rtc_unlock(ds1305->rtc);
 
 	if (!test_bit(FLAG_EXITING, &ds1305->flags))
 		enable_irq(spi->irq);
@@ -694,12 +693,11 @@ static int ds1305_probe(struct spi_device *spi)
 	ds1305->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	ds1305_nvmem_cfg.priv = ds1305;
-	ds1305->rtc->nvram_old_abi = true;
-	status = rtc_register_device(ds1305->rtc);
+	status = devm_rtc_register_device(ds1305->rtc);
 	if (status)
 		return status;
 
-	rtc_nvmem_register(ds1305->rtc, &ds1305_nvmem_cfg);
+	devm_rtc_nvmem_register(ds1305->rtc, &ds1305_nvmem_cfg);
 
 	/* Maybe set up alarm IRQ; be ready to handle it triggering right
 	 * away.  NOTE that we don't share this.  The signal is active low,

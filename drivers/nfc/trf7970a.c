@@ -169,7 +169,7 @@
 
 /* Bits determining whether its a direct command or register R/W,
  * whether to use a continuous SPI transaction or not, and the actual
- * direct cmd opcode or regster address.
+ * direct cmd opcode or register address.
  */
 #define TRF7970A_CMD_BIT_CTRL			BIT(7)
 #define TRF7970A_CMD_BIT_RW			BIT(6)
@@ -1382,7 +1382,6 @@ static int trf7970a_is_iso15693_write_or_lock(u8 cmd)
 	case ISO15693_CMD_WRITE_DSFID:
 	case ISO15693_CMD_LOCK_DSFID:
 		return 1;
-		break;
 	default:
 		return 0;
 	}

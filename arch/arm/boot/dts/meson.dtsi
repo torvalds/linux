@@ -11,11 +11,9 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	L2: cache-controller@c4200000 {
-		compatible = "arm,pl310-cache";
-		reg = <0xc4200000 0x1000>;
-		cache-unified;
-		cache-level = <2>;
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&saradc 8>;
 	};
 
 	soc {
@@ -172,6 +170,13 @@
 			};
 		};
 
+		L2: cache-controller@c4200000 {
+			compatible = "arm,pl310-cache";
+			reg = <0xc4200000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
 		periph: bus@c4300000 {
 			compatible = "simple-bus";
 			reg = <0xc4300000 0x10000>;
@@ -194,6 +199,13 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xc8100000 0x100000>;
+
+			ao_arc_rproc: remoteproc@1c {
+				compatible= "amlogic,meson-mx-ao-arc";
+				reg = <0x1c 0x8>, <0x38 0x8>;
+				reg-names = "remap", "cpu";
+				status = "disabled";
+			};
 
 			ir_receiver: ir-receiver@480 {
 				compatible= "amlogic,meson6-ir";
@@ -291,6 +303,13 @@
 				#size-cells = <1>;
 			};
 		};
+	};
+
+	thermal_sensor: thermal-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&saradc 8>;
+		io-channel-names = "sensor-channel";
 	};
 
 	xtal: xtal-clk {

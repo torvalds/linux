@@ -45,6 +45,7 @@
 #include <asm/timex.h>
 #include <asm/ap.h>
 #include <asm/uv.h>
+#include <asm/fpu/api.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -60,6 +61,7 @@
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("userspace_handled", exit_userspace),
 	VCPU_STAT("exit_null", exit_null),
+	VCPU_STAT("pfault_sync", pfault_sync),
 	VCPU_STAT("exit_validity", exit_validity),
 	VCPU_STAT("exit_stop_request", exit_stop_request),
 	VCPU_STAT("exit_external_request", exit_external_request),
@@ -162,12 +164,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("instruction_diag_other", diagnose_other),
 	{ NULL }
 };
-
-struct kvm_s390_tod_clock_ext {
-	__u8 epoch_idx;
-	__u64 tod;
-	__u8 reserved[7];
-} __packed;
 
 /* allow nested virtualization in KVM (if enabled by user space) */
 static int nested;
@@ -1164,17 +1160,17 @@ static int kvm_s390_set_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 static void kvm_s390_get_tod_clock(struct kvm *kvm,
 				   struct kvm_s390_vm_tod_clock *gtod)
 {
-	struct kvm_s390_tod_clock_ext htod;
+	union tod_clock clk;
 
 	preempt_disable();
 
-	get_tod_clock_ext((char *)&htod);
+	store_tod_clock_ext(&clk);
 
-	gtod->tod = htod.tod + kvm->arch.epoch;
+	gtod->tod = clk.tod + kvm->arch.epoch;
 	gtod->epoch_idx = 0;
 	if (test_kvm_facility(kvm, 139)) {
-		gtod->epoch_idx = htod.epoch_idx + kvm->arch.epdx;
-		if (gtod->tod < htod.tod)
+		gtod->epoch_idx = clk.ei + kvm->arch.epdx;
+		if (gtod->tod < clk.tod)
 			gtod->epoch_idx += 1;
 	}
 
@@ -1254,7 +1250,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		ret = -EBUSY;
 		goto out;
 	}
-	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	proc = kzalloc(sizeof(*proc), GFP_KERNEL_ACCOUNT);
 	if (!proc) {
 		ret = -ENOMEM;
 		goto out;
@@ -1416,7 +1412,7 @@ static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_vm_cpu_processor *proc;
 	int ret = 0;
 
-	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	proc = kzalloc(sizeof(*proc), GFP_KERNEL_ACCOUNT);
 	if (!proc) {
 		ret = -ENOMEM;
 		goto out;
@@ -1444,7 +1440,7 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_vm_cpu_machine *mach;
 	int ret = 0;
 
-	mach = kzalloc(sizeof(*mach), GFP_KERNEL);
+	mach = kzalloc(sizeof(*mach), GFP_KERNEL_ACCOUNT);
 	if (!mach) {
 		ret = -ENOMEM;
 		goto out;
@@ -1812,7 +1808,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
 		return -EINVAL;
 
-	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL);
+	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL_ACCOUNT);
 	if (!keys)
 		return -ENOMEM;
 
@@ -1857,7 +1853,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
 		return -EINVAL;
 
-	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL);
+	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL_ACCOUNT);
 	if (!keys)
 		return -ENOMEM;
 
@@ -2312,7 +2308,7 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 		struct kvm_s390_pv_unp unp = {};
 
 		r = -EINVAL;
-		if (!kvm_s390_pv_is_protected(kvm))
+		if (!kvm_s390_pv_is_protected(kvm) || !mm_is_protected(kvm->mm))
 			break;
 
 		r = -EFAULT;
@@ -2625,7 +2621,7 @@ static void sca_dispose(struct kvm *kvm)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	gfp_t alloc_flags = GFP_KERNEL;
+	gfp_t alloc_flags = GFP_KERNEL_ACCOUNT;
 	int i, rc;
 	char debug_name[16];
 	static unsigned long sca_offset;
@@ -2670,7 +2666,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	BUILD_BUG_ON(sizeof(struct sie_page2) != 4096);
 	kvm->arch.sie_page2 =
-	     (struct sie_page2 *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	     (struct sie_page2 *) get_zeroed_page(GFP_KERNEL_ACCOUNT | GFP_DMA);
 	if (!kvm->arch.sie_page2)
 		goto out_err;
 
@@ -2900,7 +2896,7 @@ static int sca_switch_to_extended(struct kvm *kvm)
 	if (kvm->arch.use_esca)
 		return 0;
 
-	new_sca = alloc_pages_exact(sizeof(*new_sca), GFP_KERNEL|__GFP_ZERO);
+	new_sca = alloc_pages_exact(sizeof(*new_sca), GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!new_sca)
 		return -ENOMEM;
 
@@ -3133,7 +3129,7 @@ void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu)
 
 int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.sie_block->cbrlo = get_zeroed_page(GFP_KERNEL);
+	vcpu->arch.sie_block->cbrlo = get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!vcpu->arch.sie_block->cbrlo)
 		return -ENOMEM;
 	return 0;
@@ -3243,7 +3239,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	int rc;
 
 	BUILD_BUG_ON(sizeof(struct sie_page) != 4096);
-	sie_page = (struct sie_page *) get_zeroed_page(GFP_KERNEL);
+	sie_page = (struct sie_page *) get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!sie_page)
 		return -ENOMEM;
 
@@ -3564,7 +3560,6 @@ static void kvm_arch_vcpu_ioctl_initial_reset(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->pp = 0;
 		vcpu->arch.sie_block->fpf &= ~FPF_BPBC;
 		vcpu->arch.sie_block->todpr = 0;
-		vcpu->arch.sie_block->cpnc = 0;
 	}
 }
 
@@ -3582,7 +3577,6 @@ static void kvm_arch_vcpu_ioctl_clear_reset(struct kvm_vcpu *vcpu)
 
 	regs->etoken = 0;
 	regs->etoken_extension = 0;
-	regs->diag318 = 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
@@ -3867,18 +3861,18 @@ void kvm_s390_set_tod_clock(struct kvm *kvm,
 			    const struct kvm_s390_vm_tod_clock *gtod)
 {
 	struct kvm_vcpu *vcpu;
-	struct kvm_s390_tod_clock_ext htod;
+	union tod_clock clk;
 	int i;
 
 	mutex_lock(&kvm->lock);
 	preempt_disable();
 
-	get_tod_clock_ext((char *)&htod);
+	store_tod_clock_ext(&clk);
 
-	kvm->arch.epoch = gtod->tod - htod.tod;
+	kvm->arch.epoch = gtod->tod - clk.tod;
 	kvm->arch.epdx = 0;
 	if (test_kvm_facility(kvm, 139)) {
-		kvm->arch.epdx = gtod->epoch_idx - htod.epoch_idx;
+		kvm->arch.epdx = gtod->epoch_idx - clk.ei;
 		if (kvm->arch.epoch > gtod->tod)
 			kvm->arch.epdx -= 1;
 	}
@@ -4111,6 +4105,7 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 		current->thread.gmap_pfault = 0;
 		if (kvm_arch_setup_async_pf(vcpu))
 			return 0;
+		vcpu->stat.pfault_sync++;
 		return kvm_arch_fault_in_page(vcpu, current->thread.gmap_addr, 1);
 	}
 	return vcpu_post_run_fault_in_sie(vcpu);
@@ -4147,6 +4142,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			       vcpu->run->s.regs.gprs,
 			       sizeof(sie_page->pv_grregs));
 		}
+		if (test_cpu_flag(CIF_FPU))
+			load_fpu_regs();
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {

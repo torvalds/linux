@@ -246,7 +246,7 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 
 	adev->df.funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", error_count);
+	return snprintf(buf, PAGE_SIZE, "%u\n", error_count);
 }
 
 
@@ -324,7 +324,7 @@ static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
 
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 {
-	struct amdgpu_hive_info *hive = NULL, *tmp = NULL;
+	struct amdgpu_hive_info *hive = NULL;
 	int ret;
 
 	if (!adev->gmc.xgmi.hive_id)
@@ -337,11 +337,9 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 
 	mutex_lock(&xgmi_mutex);
 
-	if (!list_empty(&xgmi_hive_list)) {
-		list_for_each_entry_safe(hive, tmp, &xgmi_hive_list, node)  {
-			if (hive->hive_id == adev->gmc.xgmi.hive_id)
-				goto pro_end;
-		}
+	list_for_each_entry(hive, &xgmi_hive_list, node)  {
+		if (hive->hive_id == adev->gmc.xgmi.hive_id)
+			goto pro_end;
 	}
 
 	hive = kzalloc(sizeof(*hive), GFP_KERNEL);
@@ -395,12 +393,17 @@ void amdgpu_put_xgmi_hive(struct amdgpu_hive_info *hive)
 int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 {
 	int ret = 0;
-	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
-	struct amdgpu_device *request_adev = hive->hi_req_gpu ?
-						hive->hi_req_gpu : adev;
+	struct amdgpu_hive_info *hive;
+	struct amdgpu_device *request_adev;
 	bool is_hi_req = pstate == AMDGPU_XGMI_PSTATE_MAX_VEGA20;
-	bool init_low = hive->pstate == AMDGPU_XGMI_PSTATE_UNKNOWN;
+	bool init_low;
 
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive)
+		return 0;
+
+	request_adev = hive->hi_req_gpu ? hive->hi_req_gpu : adev;
+	init_low = hive->pstate == AMDGPU_XGMI_PSTATE_UNKNOWN;
 	amdgpu_put_xgmi_hive(hive);
 	/* fw bug so temporarily disable pstate switching */
 	return 0;

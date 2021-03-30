@@ -13,7 +13,10 @@
 #define _SMC_CORE_H
 
 #include <linux/atomic.h>
+#include <linux/smc.h>
+#include <linux/pci.h>
 #include <rdma/ib_verbs.h>
+#include <net/genetlink.h>
 
 #include "smc.h"
 #include "smc_ib.h"
@@ -124,11 +127,14 @@ struct smc_link {
 	u8			link_is_asym;	/* is link asymmetric? */
 	struct smc_link_group	*lgr;		/* parent link group */
 	struct work_struct	link_down_wrk;	/* wrk to bring link down */
+	char			ibname[IB_DEVICE_NAME_MAX]; /* ib device name */
+	int			ndev_ifidx; /* network device ifindex */
 
 	enum smc_link_state	state;		/* state of link */
 	struct delayed_work	llc_testlink_wrk; /* testlink worker */
 	struct completion	llc_testlink_resp; /* wait for rx of testlink */
 	int			llc_testlink_time; /* testlink interval */
+	atomic_t		conn_cnt; /* connections on this link */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol
@@ -136,9 +142,6 @@ struct smc_link {
  */
 #define SMC_LINKS_PER_LGR_MAX	3
 #define SMC_SINGLE_LINK		0
-
-#define SMC_FIRST_CONTACT	1		/* first contact to a peer */
-#define SMC_REUSE_CONTACT	0		/* follow-on contact to a peer*/
 
 /* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
 struct smc_buf_desc {
@@ -228,12 +231,17 @@ struct smc_link_group {
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
 	struct work_struct	terminate_work;	/* abnormal lgr termination */
+	struct workqueue_struct	*tx_wq;		/* wq for conn. tx workers */
 	u8			sync_err : 1;	/* lgr no longer fits to peer */
 	u8			terminating : 1;/* lgr is terminating */
-	u8			freefast : 1;	/* free worker scheduled fast */
 	u8			freeing : 1;	/* lgr is being freed */
 
 	bool			is_smcd;	/* SMC-R or SMC-D */
+	u8			smc_version;
+	u8			negotiated_eid[SMC_MAX_EID_LEN];
+	u8			peer_os;	/* peer operating system */
+	u8			peer_smc_release;
+	u8			peer_hostname[SMC_MAX_HOSTNAME_LEN];
 	union {
 		struct { /* SMC-R */
 			enum smc_lgr_role	role;
@@ -294,9 +302,12 @@ struct smc_clc_msg_local;
 
 struct smc_init_info {
 	u8			is_smcd;
+	u8			smc_type_v1;
+	u8			smc_type_v2;
+	u8			first_contact_peer;
+	u8			first_contact_local;
 	unsigned short		vlan_id;
-	int			srv_first_contact;
-	int			cln_first_contact;
+	u32			rc;
 	/* SMC-R */
 	struct smc_clc_msg_local *ib_lcl;
 	struct smc_ib_device	*ib_dev;
@@ -304,8 +315,12 @@ struct smc_init_info {
 	u8			ib_port;
 	u32			ib_clcqpn;
 	/* SMC-D */
-	u64			ism_gid;
-	struct smcd_dev		*ism_dev;
+	u64			ism_peer_gid[SMC_MAX_ISM_DEVS + 1];
+	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
+	u16			ism_chid[SMC_MAX_ISM_DEVS + 1];
+	u8			ism_offered_cnt; /* # of ISM devices offered */
+	u8			ism_selected;    /* index of selected ISM dev*/
+	u8			smcd_version;
 };
 
 /* Find the connection associated with the given alert token in the link group.
@@ -352,6 +367,45 @@ static inline bool smc_link_usable(struct smc_link *lnk)
 static inline bool smc_link_active(struct smc_link *lnk)
 {
 	return lnk->state == SMC_LNK_ACTIVE;
+}
+
+static inline void smc_gid_be16_convert(__u8 *buf, u8 *gid_raw)
+{
+	sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x",
+		be16_to_cpu(((__be16 *)gid_raw)[0]),
+		be16_to_cpu(((__be16 *)gid_raw)[1]),
+		be16_to_cpu(((__be16 *)gid_raw)[2]),
+		be16_to_cpu(((__be16 *)gid_raw)[3]),
+		be16_to_cpu(((__be16 *)gid_raw)[4]),
+		be16_to_cpu(((__be16 *)gid_raw)[5]),
+		be16_to_cpu(((__be16 *)gid_raw)[6]),
+		be16_to_cpu(((__be16 *)gid_raw)[7]));
+}
+
+struct smc_pci_dev {
+	__u32		pci_fid;
+	__u16		pci_pchid;
+	__u16		pci_vendor;
+	__u16		pci_device;
+	__u8		pci_id[SMC_PCI_ID_STR_LEN];
+};
+
+static inline void smc_set_pci_values(struct pci_dev *pci_dev,
+				      struct smc_pci_dev *smc_dev)
+{
+	smc_dev->pci_vendor = pci_dev->vendor;
+	smc_dev->pci_device = pci_dev->device;
+	snprintf(smc_dev->pci_id, sizeof(smc_dev->pci_id), "%s",
+		 pci_name(pci_dev));
+#if IS_ENABLED(CONFIG_S390)
+	{ /* Set s390 specific PCI information */
+	struct zpci_dev *zdev;
+
+	zdev = to_zpci(pci_dev);
+	smc_dev->pci_fid = zdev->fid;
+	smc_dev->pci_pchid = zdev->pchid;
+	}
+#endif
 }
 
 struct smc_sock;
@@ -401,6 +455,10 @@ struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
 				  struct smc_link *from_lnk, bool is_dev_err);
 void smcr_link_down_cond(struct smc_link *lnk);
 void smcr_link_down_cond_sched(struct smc_link *lnk);
+int smc_nl_get_sys_info(struct sk_buff *skb, struct netlink_callback *cb);
+int smcr_nl_get_lgr(struct sk_buff *skb, struct netlink_callback *cb);
+int smcr_nl_get_link(struct sk_buff *skb, struct netlink_callback *cb);
+int smcd_nl_get_lgr(struct sk_buff *skb, struct netlink_callback *cb);
 
 static inline struct smc_link_group *smc_get_lgr(struct smc_link *link)
 {

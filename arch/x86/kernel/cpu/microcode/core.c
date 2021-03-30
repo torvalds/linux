@@ -830,7 +830,7 @@ static const struct attribute_group cpu_root_microcode_group = {
 	.attrs = cpu_root_microcode_attrs,
 };
 
-int __init microcode_init(void)
+static int __init microcode_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int error;

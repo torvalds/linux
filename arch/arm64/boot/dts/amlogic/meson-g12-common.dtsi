@@ -209,7 +209,7 @@
 		};
 
 		ethmac: ethernet@ff3f0000 {
-			compatible = "amlogic,meson-axg-dwmac",
+			compatible = "amlogic,meson-g12a-dwmac",
 				     "snps,dwmac-3.70a",
 				     "snps,dwmac";
 			reg = <0x0 0xff3f0000 0x0 0x10000>,
@@ -282,6 +282,8 @@
 				hwrng: rng@218 {
 					compatible = "amlogic,meson-rng";
 					reg = <0x0 0x218 0x0 0x4>;
+					clocks = <&clkc CLKID_RNG0>;
+					clock-names = "core";
 				};
 			};
 
@@ -2179,6 +2181,12 @@
 				amlogic,channel-interrupts = <64 65 66 67 68 69 70 71>;
 			};
 
+			watchdog: wdt@f0d0 {
+				compatible = "amlogic,meson-gxbb-wdt";
+				reg = <0x0 0xf0d0 0x0 0x10>;
+				clocks = <&xtal>;
+			};
+
 			spicc0: spi@13000 {
 				compatible = "amlogic,meson-g12a-spicc";
 				reg = <0x0 0x13000 0x0 0x44>;
@@ -2380,7 +2388,7 @@
 				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 				dr_mode = "host";
 				snps,dis_u2_susphy_quirk;
-				snps,quirk-frame-length-adjustment;
+				snps,quirk-frame-length-adjustment = <0x20>;
 				snps,parkmode-disable-ss-quirk;
 			};
 		};

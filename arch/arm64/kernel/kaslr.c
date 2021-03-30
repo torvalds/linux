@@ -19,6 +19,7 @@
 #include <asm/memory.h>
 #include <asm/mmu.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 
 enum kaslr_status {
 	KASLR_ENABLED,
@@ -50,26 +51,7 @@ static __init u64 get_kaslr_seed(void *fdt)
 	return ret;
 }
 
-static __init const u8 *kaslr_get_cmdline(void *fdt)
-{
-	static __initconst const u8 default_cmdline[] = CONFIG_CMDLINE;
-
-	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		int node;
-		const u8 *prop;
-
-		node = fdt_path_offset(fdt, "/chosen");
-		if (node < 0)
-			goto out;
-
-		prop = fdt_getprop(fdt, node, "bootargs", NULL);
-		if (!prop)
-			goto out;
-		return prop;
-	}
-out:
-	return default_cmdline;
-}
+struct arm64_ftr_override kaslr_feature_override __initdata;
 
 /*
  * This routine will be executed with the kernel mapped at its default virtual
@@ -79,13 +61,11 @@ out:
  * containing function pointers) to be reinitialized, and zero-initialized
  * .bss variables will be reset to 0.
  */
-u64 __init kaslr_early_init(u64 dt_phys)
+u64 __init kaslr_early_init(void)
 {
 	void *fdt;
 	u64 seed, offset, mask, module_range;
-	const u8 *cmdline, *str;
 	unsigned long raw;
-	int size;
 
 	/*
 	 * Set a reasonable default for module_alloc_base in case
@@ -99,8 +79,7 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 * and proceed with KASLR disabled. We will make another
 	 * attempt at mapping the FDT in setup_machine()
 	 */
-	early_fixmap_init();
-	fdt = fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL);
+	fdt = get_early_fdt_ptr();
 	if (!fdt) {
 		kaslr_status = KASLR_DISABLED_FDT_REMAP;
 		return 0;
@@ -115,9 +94,7 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 * Check if 'nokaslr' appears on the command line, and
 	 * return 0 if that is the case.
 	 */
-	cmdline = kaslr_get_cmdline(fdt);
-	str = strstr(cmdline, "nokaslr");
-	if (str == cmdline || (str > cmdline && *(str - 1) == ' ')) {
+	if (kaslr_feature_override.val & kaslr_feature_override.mask & 0xf) {
 		kaslr_status = KASLR_DISABLED_CMDLINE;
 		return 0;
 	}
@@ -151,7 +128,8 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	/* use the top 16 bits to randomize the linear region */
 	memstart_offset_seed = seed >> 48;
 
-	if (IS_ENABLED(CONFIG_KASAN))
+	if (IS_ENABLED(CONFIG_KASAN_GENERIC) ||
+	    IS_ENABLED(CONFIG_KASAN_SW_TAGS))
 		/*
 		 * KASAN does not expect the module region to intersect the
 		 * vmalloc region, since shadow memory is allocated for each

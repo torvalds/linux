@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # SPDX-License-Identifier: GPL-2.0-or-later
 use strict;
 
@@ -728,8 +728,8 @@ sub check_needs()
 					$need_virtualenv = 1;
 				}
 				if ($1 < 3) {
-					# Complain if it finds python2 (or worse)
-					printf "Warning: python$1 support is deprecated. Use it with caution!\n";
+					# Fail if it finds python2 (or worse)
+					die "Python 3 is required to build the kernel docs\n";
 				}
 			} else {
 				die "Warning: couldn't identify $python_cmd version!";

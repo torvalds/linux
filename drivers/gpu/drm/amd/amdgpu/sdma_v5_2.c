@@ -46,6 +46,9 @@
 
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_sdma.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_sdma.bin");
+
+MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA3_REG_OFFSET 0x400
@@ -87,6 +90,8 @@ static void sdma_v5_2_init_golden_registers(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		break;
 	default:
 		break;
@@ -114,17 +119,9 @@ static int sdma_v5_2_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 
 static void sdma_v5_2_destroy_inst_ctx(struct amdgpu_device *adev)
 {
-	int i;
+	release_firmware(adev->sdma.instance[0].fw);
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		release_firmware(adev->sdma.instance[i].fw);
-		adev->sdma.instance[i].fw = NULL;
-
-		if (adev->asic_type == CHIP_SIENNA_CICHLID)
-			break;
-	}
-
-	memset((void*)adev->sdma.instance, 0,
+	memset((void *)adev->sdma.instance, 0,
 	       sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
 }
 
@@ -148,7 +145,7 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev) && (adev->asic_type == CHIP_SIENNA_CICHLID))
 		return 0;
 
 	DRM_DEBUG("\n");
@@ -159,6 +156,12 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		chip_name = "navy_flounder";
+		break;
+	case CHIP_VANGOGH:
+		chip_name = "vangogh";
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		chip_name = "dimgrey_cavefish";
 		break;
 	default:
 		BUG();
@@ -174,23 +177,10 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 
-	for (i = 1; i < adev->sdma.num_instances; i++) {
-		if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-		    adev->asic_type == CHIP_NAVY_FLOUNDER) {
-			memcpy((void*)&adev->sdma.instance[i],
-			       (void*)&adev->sdma.instance[0],
-			       sizeof(struct amdgpu_sdma_instance));
-		} else {
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma%d.bin", chip_name, i);
-			err = request_firmware(&adev->sdma.instance[i].fw, fw_name, adev->dev);
-			if (err)
-				goto out;
-
-			err = sdma_v5_2_init_inst_ctx(&adev->sdma.instance[0]);
-			if (err)
-				goto out;
-		}
-	}
+	for (i = 1; i < adev->sdma.num_instances; i++)
+		memcpy((void *)&adev->sdma.instance[i],
+		       (void *)&adev->sdma.instance[0],
+		       sizeof(struct amdgpu_sdma_instance));
 
 	DRM_DEBUG("psp_load == '%s'\n",
 		  adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
@@ -345,7 +335,9 @@ static void sdma_v5_2_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * sdma_v5_2_ring_emit_ib - Schedule an IB on the DMA engine
  *
  * @ring: amdgpu ring pointer
+ * @job: job to retrieve vmid from
  * @ib: IB object to schedule
+ * @flags: unused
  *
  * Schedule an IB in the DMA ring.
  */
@@ -407,7 +399,9 @@ static void sdma_v5_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
  * sdma_v5_2_ring_emit_fence - emit a fence on the DMA ring
  *
  * @ring: amdgpu ring pointer
- * @fence: amdgpu fence object
+ * @addr: address
+ * @seq: sequence number
+ * @flags: fence related flags
  *
  * Add a DMA fence packet to the ring to write
  * the fence seq number and DMA trap packet to generate
@@ -696,7 +690,7 @@ static int sdma_v5_2_gfx_resume(struct amdgpu_device *adev)
 		temp &= 0xFF0FFF;
 		temp |= ((CACHE_READ_POLICY_L2__DEFAULT << 12) |
 			 (CACHE_WRITE_POLICY_L2__DEFAULT << 14) |
-			 0x01000000);
+			 SDMA0_UTCL1_PAGE__LLC_NOALLOC_MASK);
 		WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_UTCL1_PAGE), temp);
 
 		if (!amdgpu_sriov_vf(adev)) {
@@ -795,6 +789,37 @@ static int sdma_v5_2_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int sdma_v5_2_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 grbm_soft_reset;
+	u32 tmp;
+	int i;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		grbm_soft_reset = REG_SET_FIELD(0,
+						GRBM_SOFT_RESET, SOFT_RESET_SDMA0,
+						1);
+		grbm_soft_reset <<= i;
+
+		tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
+		tmp |= grbm_soft_reset;
+		DRM_DEBUG("GRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, tmp);
+		tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~grbm_soft_reset;
+		WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, tmp);
+		tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
+
+		udelay(50);
+	}
+
+	return 0;
+}
+
 /**
  * sdma_v5_2_start - setup and start the async dma engines
  *
@@ -826,6 +851,7 @@ static int sdma_v5_2_start(struct amdgpu_device *adev)
 			msleep(1000);
 	}
 
+	sdma_v5_2_soft_reset(adev);
 	/* unhalt the MEs */
 	sdma_v5_2_enable(adev, true);
 	/* enable sdma ring preemption */
@@ -905,6 +931,7 @@ static int sdma_v5_2_ring_test_ring(struct amdgpu_ring *ring)
  * sdma_v5_2_ring_test_ib - test an IB on the DMA engine
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Test a simple IB in the DMA ring.
  * Returns 0 on success, error on failure.
@@ -1006,10 +1033,9 @@ static void sdma_v5_2_vm_copy_pte(struct amdgpu_ib *ib,
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
- * @addr: dst addr to write into pe
+ * @value: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: access flags
  *
  * Update PTEs by writing them manually using sDMA.
  */
@@ -1065,6 +1091,7 @@ static void sdma_v5_2_vm_set_pte_pde(struct amdgpu_ib *ib,
  * sdma_v5_2_ring_pad_ib - pad the IB
  *
  * @ib: indirect buffer to fill with padding
+ * @ring: amdgpu_ring structure holding ring information
  *
  * Pad the IB with NOPs to a boundary multiple of 8.
  */
@@ -1116,7 +1143,8 @@ static void sdma_v5_2_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * sdma_v5_2_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
- * @vm: amdgpu_vm pointer
+ * @vmid: vmid number to use
+ * @pd_addr: address
  *
  * Update the page table base and flush the VM TLB
  * using sDMA.
@@ -1169,7 +1197,11 @@ static int sdma_v5_2_early_init(void *handle)
 		adev->sdma.num_instances = 4;
 		break;
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		adev->sdma.num_instances = 2;
+		break;
+	case CHIP_VANGOGH:
+		adev->sdma.num_instances = 1;
 		break;
 	default:
 		break;
@@ -1346,13 +1378,6 @@ static int sdma_v5_2_wait_for_idle(void *handle)
 		udelay(1);
 	}
 	return -ETIMEDOUT;
-}
-
-static int sdma_v5_2_soft_reset(void *handle)
-{
-	/* todo */
-
-	return 0;
 }
 
 static int sdma_v5_2_ring_preempt_ib(struct amdgpu_ring *ring)
@@ -1567,6 +1592,8 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v5_2_update_medium_grain_light_sleep(adev,
@@ -1683,10 +1710,11 @@ static void sdma_v5_2_set_irq_funcs(struct amdgpu_device *adev)
 /**
  * sdma_v5_2_emit_copy_buffer - copy buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to copy to
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
+ * @tmz: if a secure copy should be used
  *
  * Copy GPU buffers using the DMA engine.
  * Used by the amdgpu ttm implementation to move pages if
@@ -1712,7 +1740,7 @@ static void sdma_v5_2_emit_copy_buffer(struct amdgpu_ib *ib,
 /**
  * sdma_v5_2_emit_fill_buffer - fill buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to fill
  * @src_data: value to write to buffer
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer

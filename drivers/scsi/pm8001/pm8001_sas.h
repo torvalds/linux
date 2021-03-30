@@ -58,7 +58,7 @@
 #include "pm8001_defs.h"
 
 #define DRV_NAME		"pm80xx"
-#define DRV_VERSION		"0.1.39"
+#define DRV_VERSION		"0.1.40"
 #define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
@@ -69,45 +69,16 @@
 #define PM8001_DEV_LOGGING	0x80 /* development message logging */
 #define PM8001_DEVIO_LOGGING	0x100 /* development io message logging */
 #define PM8001_IOERR_LOGGING	0x200 /* development io err message logging */
-#define pm8001_printk(format, arg...)	pr_info("%s:: %s  %d:" \
-			format, pm8001_ha->name, __func__, __LINE__, ## arg)
-#define PM8001_CHECK_LOGGING(HBA, LEVEL, CMD)	\
-do {						\
-	if (unlikely(HBA->logging_level & LEVEL))	\
-		do {					\
-			CMD;				\
-		} while (0);				\
-} while (0);
 
-#define PM8001_EH_DBG(HBA, CMD)			\
-	PM8001_CHECK_LOGGING(HBA, PM8001_EH_LOGGING, CMD)
+#define pm8001_info(HBA, fmt, ...)					\
+	pr_info("%s:: %s  %d:" fmt,					\
+		(HBA)->name, __func__, __LINE__, ##__VA_ARGS__)
 
-#define PM8001_INIT_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_INIT_LOGGING, CMD)
-
-#define PM8001_DISC_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_DISC_LOGGING, CMD)
-
-#define PM8001_IO_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_IO_LOGGING, CMD)
-
-#define PM8001_FAIL_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_FAIL_LOGGING, CMD)
-
-#define PM8001_IOCTL_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_IOCTL_LOGGING, CMD)
-
-#define PM8001_MSG_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_MSG_LOGGING, CMD)
-
-#define PM8001_DEV_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_DEV_LOGGING, CMD)
-
-#define PM8001_DEVIO_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_DEVIO_LOGGING, CMD)
-
-#define PM8001_IOERR_DBG(HBA, CMD)		\
-	PM8001_CHECK_LOGGING(HBA, PM8001_IOERR_LOGGING, CMD)
+#define pm8001_dbg(HBA, level, fmt, ...)				\
+do {									\
+	if (unlikely((HBA)->logging_level & PM8001_##level##_LOGGING))	\
+		pm8001_info(HBA, fmt, ##__VA_ARGS__);			\
+} while (0)
 
 #define PM8001_USE_TASKLET
 #define PM8001_USE_MSIX
@@ -244,6 +215,7 @@ struct pm8001_dispatch {
 	int (*sas_diag_execute_req)(struct pm8001_hba_info *pm8001_ha,
 		u32 state);
 	int (*sas_re_init_req)(struct pm8001_hba_info *pm8001_ha);
+	int (*fatal_errors)(struct pm8001_hba_info *pm8001_ha);
 };
 
 struct pm8001_chip_info {
@@ -293,7 +265,7 @@ struct pm8001_device {
 	struct completion	*dcompletion;
 	struct completion	*setds_completion;
 	u32			device_id;
-	u32			running_req;
+	atomic_t		running_req;
 };
 
 struct pm8001_prd_imt {
@@ -315,7 +287,7 @@ struct pm8001_ccb_info {
 	u32			ccb_tag;
 	dma_addr_t		ccb_dma_handle;
 	struct pm8001_device	*device;
-	struct pm8001_prd	buf_prd[PM8001_MAX_DMA_SG];
+	struct pm8001_prd	*buf_prd;
 	struct fw_control_ex	*fw_control_context;
 	u8			open_retry;
 };
@@ -468,6 +440,7 @@ struct inbound_queue_table {
 	u32			reserved;
 	__le32			consumer_index;
 	u32			producer_idx;
+	spinlock_t		iq_lock;
 };
 struct outbound_queue_table {
 	u32			element_size_cnt;
@@ -524,8 +497,8 @@ struct pm8001_hba_info {
 	void __iomem	*fatal_tbl_addr; /*MPI IVT Table Addr */
 	union main_cfg_table	main_cfg_tbl;
 	union general_status_table	gs_tbl;
-	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_SPCV_INB_NUM];
-	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_SPCV_OUTB_NUM];
+	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_INB_NUM];
+	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_OUTB_NUM];
 	struct sas_phy_attribute_table	phy_attr_table;
 					/* MPI SAS PHY attributes */
 	u8			sas_addr[SAS_ADDR_SIZE];
@@ -561,6 +534,12 @@ struct pm8001_hba_info {
 	u32			reset_in_progress;
 	u32			non_fatal_count;
 	u32			non_fatal_read_length;
+	u32 max_q_num;
+	u32 ib_offset;
+	u32 ob_offset;
+	u32 ci_offset;
+	u32 pi_offset;
+	u32 max_memcnt;
 };
 
 struct pm8001_work {
@@ -747,6 +726,7 @@ ssize_t pm80xx_get_fatal_dump(struct device *cdev,
 ssize_t pm80xx_get_non_fatal_dump(struct device *cdev,
 		struct device_attribute *attr, char *buf);
 ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
+int pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha);
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];
 

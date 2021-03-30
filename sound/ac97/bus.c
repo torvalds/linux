@@ -273,7 +273,7 @@ static struct attribute *ac97_controller_device_attrs[] = {
 	NULL
 };
 
-static struct attribute_group ac97_adapter_attr_group = {
+static const struct attribute_group ac97_adapter_attr_group = {
 	.name	= "ac97_operations",
 	.attrs	= ac97_controller_device_attrs,
 };

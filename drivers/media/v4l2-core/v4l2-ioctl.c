@@ -8,6 +8,7 @@
  *              Mauro Carvalho Chehab <mchehab@kernel.org> (version 2)
  */
 
+#include <linux/compat.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -517,9 +518,9 @@ static void v4l_print_create_buffers(const void *arg, bool write_only)
 {
 	const struct v4l2_create_buffers *p = arg;
 
-	pr_cont("index=%d, count=%d, memory=%s, ",
-			p->index, p->count,
-			prt_names(p->memory, v4l2_memory_names));
+	pr_cont("index=%d, count=%d, memory=%s, capabilities=0x%08x, ",
+		p->index, p->count, prt_names(p->memory, v4l2_memory_names),
+		p->capabilities);
 	v4l_print_format(&p->format, write_only);
 }
 
@@ -1402,6 +1403,8 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_META_FMT_UVC:		descr = "UVC Payload Header Metadata"; break;
 	case V4L2_META_FMT_D4XX:	descr = "Intel D4xx UVC Metadata"; break;
 	case V4L2_META_FMT_VIVID:       descr = "Vivid Metadata"; break;
+	case V4L2_META_FMT_RK_ISP1_PARAMS:	descr = "Rockchip ISP1 3A Parameters"; break;
+	case V4L2_META_FMT_RK_ISP1_STAT_3A:	descr = "Rockchip ISP1 3A Statistics"; break;
 
 	default:
 		/* Compressed formats */
@@ -1581,7 +1584,7 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY: {
-		struct v4l2_clip __user *clips = p->fmt.win.clips;
+		struct v4l2_clip *clips = p->fmt.win.clips;
 		u32 clipcount = p->fmt.win.clipcount;
 		void __user *bitmap = p->fmt.win.bitmap;
 
@@ -3083,6 +3086,27 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		}
 		break;
 	}
+	case VIDIOC_G_FMT:
+	case VIDIOC_S_FMT:
+	case VIDIOC_TRY_FMT: {
+		struct v4l2_format *fmt = parg;
+
+		if (fmt->type != V4L2_BUF_TYPE_VIDEO_OVERLAY &&
+		    fmt->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY)
+			break;
+		if (fmt->fmt.win.clipcount > 2048)
+			return -EINVAL;
+		if (!fmt->fmt.win.clipcount)
+			break;
+
+		*user_ptr = (void __user *)fmt->fmt.win.clips;
+		*kernel_ptr = (void **)&fmt->fmt.win.clips;
+		*array_size = sizeof(struct v4l2_clip)
+				* fmt->fmt.win.clipcount;
+
+		ret = 1;
+		break;
+	}
 	}
 
 	return ret;
@@ -3104,14 +3128,18 @@ static unsigned int video_translate_cmd(unsigned int cmd)
 		return VIDIOC_PREPARE_BUF;
 #endif
 	}
+	if (in_compat_syscall())
+		return v4l2_compat_translate_cmd(cmd);
 
 	return cmd;
 }
 
-static int video_get_user(void __user *arg, void *parg, unsigned int cmd,
+static int video_get_user(void __user *arg, void *parg,
+			  unsigned int real_cmd, unsigned int cmd,
 			  bool *always_copy)
 {
-	unsigned int n = _IOC_SIZE(cmd);
+	unsigned int n = _IOC_SIZE(real_cmd);
+	int err = 0;
 
 	if (!(_IOC_DIR(cmd) & _IOC_WRITE)) {
 		/* read-only ioctl */
@@ -3119,72 +3147,81 @@ static int video_get_user(void __user *arg, void *parg, unsigned int cmd,
 		return 0;
 	}
 
-	switch (cmd) {
-#ifdef CONFIG_COMPAT_32BIT_TIME
-	case VIDIOC_QUERYBUF_TIME32:
-	case VIDIOC_QBUF_TIME32:
-	case VIDIOC_DQBUF_TIME32:
-	case VIDIOC_PREPARE_BUF_TIME32: {
-		struct v4l2_buffer_time32 vb32;
-		struct v4l2_buffer *vb = parg;
+	/*
+	 * In some cases, only a few fields are used as input,
+	 * i.e. when the app sets "index" and then the driver
+	 * fills in the rest of the structure for the thing
+	 * with that index.  We only need to copy up the first
+	 * non-input field.
+	 */
+	if (v4l2_is_known_ioctl(real_cmd)) {
+		u32 flags = v4l2_ioctls[_IOC_NR(real_cmd)].flags;
 
-		if (copy_from_user(&vb32, arg, sizeof(vb32)))
-			return -EFAULT;
-
-		*vb = (struct v4l2_buffer) {
-			.index		= vb32.index,
-			.type		= vb32.type,
-			.bytesused	= vb32.bytesused,
-			.flags		= vb32.flags,
-			.field		= vb32.field,
-			.timestamp.tv_sec	= vb32.timestamp.tv_sec,
-			.timestamp.tv_usec	= vb32.timestamp.tv_usec,
-			.timecode	= vb32.timecode,
-			.sequence	= vb32.sequence,
-			.memory		= vb32.memory,
-			.m.userptr	= vb32.m.userptr,
-			.length		= vb32.length,
-			.request_fd	= vb32.request_fd,
-		};
-
-		if (cmd == VIDIOC_QUERYBUF_TIME32)
-			vb->request_fd = 0;
-
-		break;
+		if (flags & INFO_FL_CLEAR_MASK)
+			n = (flags & INFO_FL_CLEAR_MASK) >> 16;
+		*always_copy = flags & INFO_FL_ALWAYS_COPY;
 	}
-#endif
-	default:
-		/*
-		 * In some cases, only a few fields are used as input,
-		 * i.e. when the app sets "index" and then the driver
-		 * fills in the rest of the structure for the thing
-		 * with that index.  We only need to copy up the first
-		 * non-input field.
-		 */
-		if (v4l2_is_known_ioctl(cmd)) {
-			u32 flags = v4l2_ioctls[_IOC_NR(cmd)].flags;
 
-			if (flags & INFO_FL_CLEAR_MASK)
-				n = (flags & INFO_FL_CLEAR_MASK) >> 16;
-			*always_copy = flags & INFO_FL_ALWAYS_COPY;
-		}
-
+	if (cmd == real_cmd) {
 		if (copy_from_user(parg, (void __user *)arg, n))
-			return -EFAULT;
+			err = -EFAULT;
+	} else if (in_compat_syscall()) {
+		err = v4l2_compat_get_user(arg, parg, cmd);
+	} else {
+		switch (cmd) {
+#ifdef CONFIG_COMPAT_32BIT_TIME
+		case VIDIOC_QUERYBUF_TIME32:
+		case VIDIOC_QBUF_TIME32:
+		case VIDIOC_DQBUF_TIME32:
+		case VIDIOC_PREPARE_BUF_TIME32: {
+			struct v4l2_buffer_time32 vb32;
+			struct v4l2_buffer *vb = parg;
 
-		/* zero out anything we don't copy from userspace */
-		if (n < _IOC_SIZE(cmd))
-			memset((u8 *)parg + n, 0, _IOC_SIZE(cmd) - n);
-		break;
+			if (copy_from_user(&vb32, arg, sizeof(vb32)))
+				return -EFAULT;
+
+			*vb = (struct v4l2_buffer) {
+				.index		= vb32.index,
+					.type		= vb32.type,
+					.bytesused	= vb32.bytesused,
+					.flags		= vb32.flags,
+					.field		= vb32.field,
+					.timestamp.tv_sec	= vb32.timestamp.tv_sec,
+					.timestamp.tv_usec	= vb32.timestamp.tv_usec,
+					.timecode	= vb32.timecode,
+					.sequence	= vb32.sequence,
+					.memory		= vb32.memory,
+					.m.userptr	= vb32.m.userptr,
+					.length		= vb32.length,
+					.request_fd	= vb32.request_fd,
+			};
+			break;
+		}
+#endif
+		}
 	}
 
-	return 0;
+	/* zero out anything we don't copy from userspace */
+	if (!err && n < _IOC_SIZE(real_cmd))
+		memset((u8 *)parg + n, 0, _IOC_SIZE(real_cmd) - n);
+	return err;
 }
 
-static int video_put_user(void __user *arg, void *parg, unsigned int cmd)
+static int video_put_user(void __user *arg, void *parg,
+			  unsigned int real_cmd, unsigned int cmd)
 {
 	if (!(_IOC_DIR(cmd) & _IOC_READ))
 		return 0;
+
+	if (cmd == real_cmd) {
+		/*  Copy results into user buffer  */
+		if (copy_to_user(arg, parg, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		return 0;
+	}
+
+	if (in_compat_syscall())
+		return v4l2_compat_put_user(arg, parg, cmd);
 
 	switch (cmd) {
 #ifdef CONFIG_COMPAT_32BIT_TIME
@@ -3236,11 +3273,6 @@ static int video_put_user(void __user *arg, void *parg, unsigned int cmd)
 		break;
 	}
 #endif
-	default:
-		/*  Copy results into user buffer  */
-		if (copy_to_user(arg, parg, _IOC_SIZE(cmd)))
-			return -EFAULT;
-		break;
 	}
 
 	return 0;
@@ -3251,7 +3283,7 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 	       v4l2_kioctl func)
 {
 	char	sbuf[128];
-	void    *mbuf = NULL;
+	void    *mbuf = NULL, *array_buf = NULL;
 	void	*parg = (void *)arg;
 	long	err  = -EINVAL;
 	bool	has_array_args;
@@ -3268,14 +3300,14 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kvmalloc(ioc_size, GFP_KERNEL);
+			mbuf = kmalloc(ioc_size, GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;
 		}
 
-		err = video_get_user((void __user *)arg, parg, orig_cmd,
-				     &always_copy);
+		err = video_get_user((void __user *)arg, parg, cmd,
+				     orig_cmd, &always_copy);
 		if (err)
 			goto out;
 	}
@@ -3286,20 +3318,21 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 	has_array_args = err;
 
 	if (has_array_args) {
-		/*
-		 * When adding new types of array args, make sure that the
-		 * parent argument to ioctl (which contains the pointer to the
-		 * array) fits into sbuf (so that mbuf will still remain
-		 * unused up to here).
-		 */
-		mbuf = kvmalloc(array_size, GFP_KERNEL);
+		array_buf = kvmalloc(array_size, GFP_KERNEL);
 		err = -ENOMEM;
-		if (NULL == mbuf)
+		if (array_buf == NULL)
 			goto out_array_args;
 		err = -EFAULT;
-		if (copy_from_user(mbuf, user_ptr, array_size))
+		if (in_compat_syscall())
+			err = v4l2_compat_get_array_args(file, array_buf,
+							 user_ptr, array_size,
+							 orig_cmd, parg);
+		else
+			err = copy_from_user(array_buf, user_ptr, array_size) ?
+								-EFAULT : 0;
+		if (err)
 			goto out_array_args;
-		*kernel_ptr = mbuf;
+		*kernel_ptr = array_buf;
 	}
 
 	/* Handles IOCTL */
@@ -3318,8 +3351,18 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 
 	if (has_array_args) {
 		*kernel_ptr = (void __force *)user_ptr;
-		if (copy_to_user(user_ptr, mbuf, array_size))
+		if (in_compat_syscall()) {
+			int put_err;
+
+			put_err = v4l2_compat_put_array_args(file, user_ptr,
+							     array_buf,
+							     array_size,
+							     orig_cmd, parg);
+			if (put_err)
+				err = put_err;
+		} else if (copy_to_user(user_ptr, array_buf, array_size)) {
 			err = -EFAULT;
+		}
 		goto out_array_args;
 	}
 	/*
@@ -3330,10 +3373,11 @@ video_usercopy(struct file *file, unsigned int orig_cmd, unsigned long arg,
 		goto out;
 
 out_array_args:
-	if (video_put_user((void __user *)arg, parg, orig_cmd))
+	if (video_put_user((void __user *)arg, parg, cmd, orig_cmd))
 		err = -EFAULT;
 out:
-	kvfree(mbuf);
+	kvfree(array_buf);
+	kfree(mbuf);
 	return err;
 }
 

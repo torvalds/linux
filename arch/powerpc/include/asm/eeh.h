@@ -27,7 +27,6 @@ struct pci_dn;
 #define EEH_FORCE_DISABLED	0x02	/* EEH disabled			     */
 #define EEH_PROBE_MODE_DEV	0x04	/* From PCI device		     */
 #define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree		     */
-#define EEH_VALID_PE_ZERO	0x10	/* PE#0 is valid		     */
 #define EEH_ENABLE_IO_FOR_LOG	0x20	/* Enable IO for log		     */
 #define EEH_EARLY_DUMP_LOG	0x40	/* Dump log immediately		     */
 
@@ -74,7 +73,6 @@ struct pci_dn;
 struct eeh_pe {
 	int type;			/* PE type: PHB/Bus/Device	*/
 	int state;			/* PE EEH dependent mode	*/
-	int config_addr;		/* Traditional PCI address	*/
 	int addr;			/* PE configuration address	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
 	struct pci_bus *bus;		/* Top PCI bus for bus PE	*/
@@ -216,7 +214,6 @@ enum {
 
 struct eeh_ops {
 	char *name;
-	int (*init)(void);
 	struct eeh_dev *(*probe)(struct pci_dev *pdev);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_state)(struct eeh_pe *pe, int *delay);
@@ -281,8 +278,7 @@ int eeh_phb_pe_create(struct pci_controller *phb);
 int eeh_wait_state(struct eeh_pe *pe, int max_wait);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
-struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
-			  int pe_no, int config_addr);
+struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_no);
 int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent);
 int eeh_pe_tree_remove(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);
@@ -295,8 +291,7 @@ const char *eeh_pe_loc_get(struct eeh_pe *pe);
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
 void eeh_show_enabled(void);
-int __init eeh_ops_register(struct eeh_ops *ops);
-int __exit eeh_ops_unregister(const char *name);
+int __init eeh_init(struct eeh_ops *ops);
 int eeh_check_failure(const volatile void __iomem *token);
 int eeh_dev_check_failure(struct eeh_dev *edev);
 void eeh_addr_cache_init(void);

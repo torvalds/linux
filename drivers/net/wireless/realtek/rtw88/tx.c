@@ -58,6 +58,10 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 	SET_TX_DESC_SPE_RPT(txdesc, pkt_info->report);
 	SET_TX_DESC_SW_DEFINE(txdesc, pkt_info->sn);
 	SET_TX_DESC_USE_RTS(txdesc, pkt_info->rts);
+	if (pkt_info->rts) {
+		SET_TX_DESC_RTSRATE(txdesc, DESC_RATE24M);
+		SET_TX_DESC_DATA_RTS_SHORT(txdesc, 1);
+	}
 	SET_TX_DESC_DISQSELSEQ(txdesc, pkt_info->dis_qselseq);
 	SET_TX_DESC_EN_HWSEQ(txdesc, pkt_info->en_hwseq);
 	SET_TX_DESC_HW_SSN_SEL(txdesc, pkt_info->hw_ssn_sel);
@@ -158,7 +162,7 @@ void rtw_tx_report_purge_timer(struct timer_list *t)
 	if (skb_queue_len(&tx_report->queue) == 0)
 		return;
 
-	WARN(1, "purge skb(s) not reported by firmware\n");
+	rtw_dbg(rtwdev, RTW_DBG_TX, "purge skb(s) not reported by firmware\n");
 
 	spin_lock_irqsave(&tx_report->q_lock, flags);
 	skb_queue_purge(&tx_report->queue);
@@ -290,6 +294,7 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw_sta_info *si;
 	u16 seq;
 	u8 ampdu_factor = 0;
@@ -313,7 +318,7 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 		ampdu_density = get_tx_ampdu_density(sta);
 	}
 
-	if (info->control.use_rts)
+	if (info->control.use_rts || skb->len > hw->wiphy->rts_threshold)
 		pkt_info->rts = true;
 
 	if (sta->vht_cap.vht_supported)
@@ -587,9 +592,9 @@ static void rtw_txq_push(struct rtw_dev *rtwdev,
 	rcu_read_unlock();
 }
 
-void rtw_tx_tasklet(unsigned long data)
+void rtw_tx_work(struct work_struct *w)
 {
-	struct rtw_dev *rtwdev = (void *)data;
+	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
 	struct rtw_txq *rtwtxq, *tmp;
 
 	spin_lock_bh(&rtwdev->txq_lock);

@@ -5,19 +5,13 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
-#include <linux/module.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
-#include <linux/interrupt.h>
 #include <linux/of_irq.h>
-#include <linux/irq.h>
 
 #include "bus.h"
 #include "wfx.h"
-#include "hwio.h"
-#include "main.h"
-#include "bh.h"
 
 static const struct wfx_platform_data wfx_sdio_pdata = {
 	.file_fw = "wfm_wf200",

@@ -1032,7 +1032,7 @@ static struct snd_soc_dai_driver alc5632_dai = {
 		.formats = ALC5632_FORMATS,},
 
 	.ops = &alc5632_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 #ifdef CONFIG_PM
@@ -1167,11 +1167,13 @@ static const struct i2c_device_id alc5632_i2c_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, alc5632_i2c_table);
 
+#ifdef CONFIG_OF
 static const struct of_device_id alc5632_of_match[] = {
 	{ .compatible = "realtek,alc5632", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, alc5632_of_match);
+#endif
 
 /* i2c codec control layer */
 static struct i2c_driver alc5632_i2c_driver = {

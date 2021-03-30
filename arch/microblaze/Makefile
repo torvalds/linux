@@ -1,11 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 KBUILD_DEFCONFIG := mmu_defconfig
 
-ifeq ($(CONFIG_MMU),y)
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
-else
-UTS_SYSNAME = -DUTS_SYSNAME=\"uClinux\"
-endif
 
 # What CPU vesion are we building for, and crack it open
 # as major.minor.rev
@@ -58,8 +54,6 @@ core-y += arch/microblaze/kernel/
 core-y += arch/microblaze/mm/
 core-$(CONFIG_PCI) += arch/microblaze/pci/
 
-drivers-$(CONFIG_OPROFILE) += arch/microblaze/oprofile/
-
 boot := arch/microblaze/boot
 
 # Are we making a simpleImage.<boardname> target? If so, crack out the boardname
@@ -67,12 +61,7 @@ DTB:=$(subst simpleImage.,,$(filter simpleImage.%, $(MAKECMDGOALS)))
 
 core-y	+= $(boot)/dts/
 
-# defines filename extension depending memory management type
-ifeq ($(CONFIG_MMU),)
-MMU := -nommu
-endif
-
-export MMU DTB
+export DTB
 
 all: linux.bin
 

@@ -125,8 +125,7 @@ static int gpu_i2c_read(struct gpu_i2c_dev *i2cd, u8 *data, u16 len)
 		put_unaligned_be16(val, data);
 		break;
 	case 3:
-		put_unaligned_be16(val >> 8, data);
-		data[2] = val;
+		put_unaligned_be24(val, data);
 		break;
 	case 4:
 		put_unaligned_be32(val, data);
@@ -354,15 +353,7 @@ static void gpu_i2c_remove(struct pci_dev *pdev)
 	pci_free_irq_vectors(pdev);
 }
 
-/*
- * We need gpu_i2c_suspend() even if it is stub, for runtime pm to work
- * correctly. Without it, lspci shows runtime pm status as "D0" for the card.
- * Documentation/power/pci.rst also insists for driver to provide this.
- */
-static __maybe_unused int gpu_i2c_suspend(struct device *dev)
-{
-	return 0;
-}
+#define gpu_i2c_suspend NULL
 
 static __maybe_unused int gpu_i2c_resume(struct device *dev)
 {

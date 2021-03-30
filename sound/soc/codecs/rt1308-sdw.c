@@ -475,7 +475,7 @@ static int rt1308_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 	if (!stream)
 		return -ENOMEM;
 
-	stream->sdw_stream = (struct sdw_stream_runtime *)sdw_stream;
+	stream->sdw_stream = sdw_stream;
 
 	/* Use tx_mask or rx_mask to configure stream tag and set dma_data */
 	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
@@ -701,7 +701,7 @@ static int __maybe_unused rt1308_dev_suspend(struct device *dev)
 	return 0;
 }
 
-#define RT1308_PROBE_TIMEOUT 2000
+#define RT1308_PROBE_TIMEOUT 5000
 
 static int __maybe_unused rt1308_dev_resume(struct device *dev)
 {

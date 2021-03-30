@@ -45,8 +45,14 @@ static const struct pci_device_id igc_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I220_V), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_K), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_K2), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I226_K), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_LMVP), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_IT), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I226_LM), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I226_V), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I226_IT), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I221_V), board_base },
+	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I226_BLANK_NVM), board_base },
 	{ PCI_VDEVICE(INTEL, IGC_DEV_ID_I225_BLANK_NVM), board_base },
 	/* required last entry */
 	{0, }
@@ -943,15 +949,6 @@ static void igc_tx_ctxtdesc(struct igc_ring *tx_ring,
 	}
 }
 
-static inline bool igc_ipv6_csum_is_sctp(struct sk_buff *skb)
-{
-	unsigned int offset = 0;
-
-	ipv6_find_hdr(skb, &offset, IPPROTO_SCTP, NULL, NULL);
-
-	return offset == skb_checksum_start_offset(skb);
-}
-
 static void igc_tx_csum(struct igc_ring *tx_ring, struct igc_tx_buffer *first)
 {
 	struct sk_buff *skb = first->skb;
@@ -974,10 +971,7 @@ csum_failed:
 		break;
 	case offsetof(struct sctphdr, checksum):
 		/* validate that this is actually an SCTP request */
-		if ((first->protocol == htons(ETH_P_IP) &&
-		     (ip_hdr(skb)->protocol == IPPROTO_SCTP)) ||
-		    (first->protocol == htons(ETH_P_IPV6) &&
-		     igc_ipv6_csum_is_sctp(skb))) {
+		if (skb_csum_is_sctp(skb)) {
 			type_tucmd = IGC_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 		}
@@ -1428,7 +1422,7 @@ static void igc_rx_checksum(struct igc_ring *ring,
 
 	/* TCP/UDP checksum error bit is set */
 	if (igc_test_staterr(rx_desc,
-			     IGC_RXDEXT_STATERR_TCPE |
+			     IGC_RXDEXT_STATERR_L4E |
 			     IGC_RXDEXT_STATERR_IPE)) {
 		/* work around errata with sctp packets where the TCPE aka
 		 * L4E bit is set incorrectly on 64 byte (60 byte w/o crc)
@@ -1550,10 +1544,7 @@ static struct sk_buff *igc_build_skb(struct igc_ring *rx_ring,
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
-#if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
-#endif
+	net_prefetch(va);
 
 	/* build an skb around the page buffer */
 	skb = build_skb(va - IGC_SKB_PAD, truesize);
@@ -1589,10 +1580,7 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
-#if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
-#endif
+	net_prefetch(va);
 
 	/* allocate a skb to store the frags */
 	skb = napi_alloc_skb(&rx_ring->q_vector->napi, IGC_RX_HDR_LEN);
@@ -1660,18 +1648,13 @@ static void igc_reuse_rx_page(struct igc_ring *rx_ring,
 	new_buff->pagecnt_bias	= old_buff->pagecnt_bias;
 }
 
-static inline bool igc_page_is_reserved(struct page *page)
-{
-	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
-}
-
 static bool igc_can_reuse_rx_page(struct igc_rx_buffer *rx_buffer)
 {
 	unsigned int pagecnt_bias = rx_buffer->pagecnt_bias;
 	struct page *page = rx_buffer->page;
 
-	/* avoid re-using remote pages */
-	if (unlikely(igc_page_is_reserved(page)))
+	/* avoid re-using remote and pfmemalloc pages */
+	if (!dev_page_is_reusable(page))
 		return false;
 
 #if (PAGE_SIZE < 8192)
@@ -1743,8 +1726,7 @@ static bool igc_cleanup_headers(struct igc_ring *rx_ring,
 				union igc_adv_rx_desc *rx_desc,
 				struct sk_buff *skb)
 {
-	if (unlikely((igc_test_staterr(rx_desc,
-				       IGC_RXDEXT_ERR_FRAME_ERR_MASK)))) {
+	if (unlikely(igc_test_staterr(rx_desc, IGC_RXDEXT_STATERR_RXE))) {
 		struct net_device *netdev = rx_ring->netdev;
 
 		if (!(netdev->features & NETIF_F_RXALL)) {
@@ -3685,6 +3667,9 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.prc511 += rd32(IGC_PRC511);
 	adapter->stats.prc1023 += rd32(IGC_PRC1023);
 	adapter->stats.prc1522 += rd32(IGC_PRC1522);
+	adapter->stats.tlpic += rd32(IGC_TLPIC);
+	adapter->stats.rlpic += rd32(IGC_RLPIC);
+	adapter->stats.hgptc += rd32(IGC_HGPTC);
 
 	mpc = rd32(IGC_MPC);
 	adapter->stats.mpc += mpc;
@@ -3778,6 +3763,8 @@ void igc_down(struct igc_adapter *adapter)
 
 	set_bit(__IGC_DOWN, &adapter->state);
 
+	igc_ptp_suspend(adapter);
+
 	/* disable receives in the hardware */
 	rctl = rd32(IGC_RCTL);
 	wr32(IGC_RCTL, rctl & ~IGC_RCTL_EN);
@@ -3831,7 +3818,6 @@ void igc_down(struct igc_adapter *adapter)
 
 void igc_reinit_locked(struct igc_adapter *adapter)
 {
-	WARN_ON(in_interrupt());
 	while (test_and_set_bit(__IGC_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
 	igc_down(adapter);
@@ -3890,21 +3876,23 @@ static int igc_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /**
- * igc_get_stats - Get System Network Statistics
+ * igc_get_stats64 - Get System Network Statistics
  * @netdev: network interface device structure
+ * @stats: rtnl_link_stats64 pointer
  *
  * Returns the address of the device statistics structure.
  * The statistics are updated here and also from the timer callback.
  */
-static struct net_device_stats *igc_get_stats(struct net_device *netdev)
+static void igc_get_stats64(struct net_device *netdev,
+			    struct rtnl_link_stats64 *stats)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
+	spin_lock(&adapter->stats64_lock);
 	if (!test_bit(__IGC_RESETTING, &adapter->state))
 		igc_update_stats(adapter);
-
-	/* only return the current stats */
-	return &netdev->stats;
+	memcpy(stats, &adapter->stats64, sizeof(*stats));
+	spin_unlock(&adapter->stats64_lock);
 }
 
 static netdev_features_t igc_fix_features(struct net_device *netdev,
@@ -4659,7 +4647,7 @@ int igc_close(struct net_device *netdev)
 /**
  * igc_ioctl - Access the hwtstamp interface
  * @netdev: network interface device structure
- * @ifreq: interface request data
+ * @ifr: interface request data
  * @cmd: ioctl command
  **/
 static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
@@ -4700,12 +4688,33 @@ static int igc_save_launchtime_params(struct igc_adapter *adapter, int queue,
 	return 0;
 }
 
-static bool validate_schedule(const struct tc_taprio_qopt_offload *qopt)
+static bool is_base_time_past(ktime_t base_time, const struct timespec64 *now)
+{
+	struct timespec64 b;
+
+	b = ktime_to_timespec64(base_time);
+
+	return timespec64_compare(now, &b) > 0;
+}
+
+static bool validate_schedule(struct igc_adapter *adapter,
+			      const struct tc_taprio_qopt_offload *qopt)
 {
 	int queue_uses[IGC_MAX_TX_QUEUES] = { };
+	struct timespec64 now;
 	size_t n;
 
 	if (qopt->cycle_time_extension)
+		return false;
+
+	igc_ptp_read(adapter, &now);
+
+	/* If we program the controller's BASET registers with a time
+	 * in the future, it will hold all the packets until that
+	 * time, causing a lot of TX Hangs, so to avoid that, we
+	 * reject schedules that would start in the future.
+	 */
+	if (!is_base_time_past(qopt->base_time, &now))
 		return false;
 
 	for (n = 0; n < qopt->num_entries; n++) {
@@ -4762,7 +4771,7 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 	if (adapter->base_time)
 		return -EALREADY;
 
-	if (!validate_schedule(qopt))
+	if (!validate_schedule(adapter, qopt))
 		return -EINVAL;
 
 	adapter->cycle_time = qopt->cycle_time;
@@ -4833,7 +4842,7 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_set_rx_mode	= igc_set_rx_mode,
 	.ndo_set_mac_address	= igc_set_mac,
 	.ndo_change_mtu		= igc_change_mtu,
-	.ndo_get_stats		= igc_get_stats,
+	.ndo_get_stats64	= igc_get_stats64,
 	.ndo_fix_features	= igc_fix_features,
 	.ndo_set_features	= igc_set_features,
 	.ndo_features_check	= igc_features_check,

@@ -7,10 +7,14 @@
 #ifndef __LINUX_BVEC_ITER_H
 #define __LINUX_BVEC_ITER_H
 
-#include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/errno.h>
+#include <linux/limits.h>
+#include <linux/minmax.h>
 #include <linux/mm.h>
+#include <linux/types.h>
+
+struct page;
 
 /**
  * struct bio_vec - a contiguous range of physical memory addresses
@@ -117,18 +121,28 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
 	return true;
 }
 
-static inline void bvec_iter_skip_zero_bvec(struct bvec_iter *iter)
+/*
+ * A simpler version of bvec_iter_advance(), @bytes should not span
+ * across multiple bvec entries, i.e. bytes <= bv[i->bi_idx].bv_len
+ */
+static inline void bvec_iter_advance_single(const struct bio_vec *bv,
+				struct bvec_iter *iter, unsigned int bytes)
 {
-	iter->bi_bvec_done = 0;
-	iter->bi_idx++;
+	unsigned int done = iter->bi_bvec_done + bytes;
+
+	if (done == bv[iter->bi_idx].bv_len) {
+		done = 0;
+		iter->bi_idx++;
+	}
+	iter->bi_bvec_done = done;
+	iter->bi_size -= bytes;
 }
 
 #define for_each_bvec(bvl, bio_vec, iter, start)			\
 	for (iter = (start);						\
 	     (iter).bi_size &&						\
 		((bvl = bvec_iter_bvec((bio_vec), (iter))), 1);	\
-	     (bvl).bv_len ? (void)bvec_iter_advance((bio_vec), &(iter),	\
-		     (bvl).bv_len) : bvec_iter_skip_zero_bvec(&(iter)))
+	     bvec_iter_advance_single((bio_vec), &(iter), (bvl).bv_len))
 
 /* for iterating one bio from start to end */
 #define BVEC_ITER_ALL_INIT (struct bvec_iter)				\

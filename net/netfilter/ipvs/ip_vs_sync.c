@@ -242,9 +242,6 @@ struct ip_vs_sync_thread_data {
       |                    IPVS Sync Connection (1)                   |
 */
 
-#define SYNC_MESG_HEADER_LEN	4
-#define MAX_CONNS_PER_SYNCBUFF	255 /* nr_conns in ip_vs_sync_mesg is 8 bit */
-
 /* Version 0 header */
 struct ip_vs_sync_mesg_v0 {
 	__u8                    nr_conns;
@@ -618,7 +615,7 @@ static void ip_vs_sync_conn_v0(struct netns_ipvs *ipvs, struct ip_vs_conn *cp,
 	cp = cp->control;
 	if (cp) {
 		if (cp->flags & IP_VS_CONN_F_TEMPLATE)
-			pkts = atomic_add_return(1, &cp->in_pkts);
+			pkts = atomic_inc_return(&cp->in_pkts);
 		else
 			pkts = sysctl_sync_threshold(ipvs);
 		ip_vs_sync_conn(ipvs, cp, pkts);
@@ -779,7 +776,7 @@ control:
 	if (!cp)
 		return;
 	if (cp->flags & IP_VS_CONN_F_TEMPLATE)
-		pkts = atomic_add_return(1, &cp->in_pkts);
+		pkts = atomic_inc_return(&cp->in_pkts);
 	else
 		pkts = sysctl_sync_threshold(ipvs);
 	goto sloop;

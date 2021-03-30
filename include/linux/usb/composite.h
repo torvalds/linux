@@ -437,7 +437,7 @@ static inline struct usb_composite_driver *to_cdriver(
 #define OS_STRING_IDX			0xEE
 
 /**
- * struct usb_composite_device - represents one composite usb gadget
+ * struct usb_composite_dev - represents one composite usb gadget
  * @gadget: read-only, abstracts the gadget's usb peripheral controller
  * @req: used for control responses; buffer is pre-allocated
  * @os_desc_req: used for OS descriptors responses; buffer is pre-allocated
@@ -525,6 +525,8 @@ extern struct usb_string *usb_gstrings_attach(struct usb_composite_dev *cdev,
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
 
 extern void composite_disconnect(struct usb_gadget *gadget);
+extern void composite_reset(struct usb_gadget *gadget);
+
 extern int composite_setup(struct usb_gadget *gadget,
 		const struct usb_ctrlrequest *ctrl);
 extern void composite_suspend(struct usb_gadget *gadget);

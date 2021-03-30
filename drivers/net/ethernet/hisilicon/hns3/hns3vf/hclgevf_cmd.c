@@ -176,36 +176,111 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 		desc->flag &= cpu_to_le16(~HCLGEVF_CMD_FLAG_WR);
 }
 
+struct vf_errcode {
+	u32 imp_errcode;
+	int common_errno;
+};
+
+static void hclgevf_cmd_copy_desc(struct hclgevf_hw *hw,
+				  struct hclgevf_desc *desc, int num)
+{
+	struct hclgevf_desc *desc_to_use;
+	int handle = 0;
+
+	while (handle < num) {
+		desc_to_use = &hw->cmq.csq.desc[hw->cmq.csq.next_to_use];
+		*desc_to_use = desc[handle];
+		(hw->cmq.csq.next_to_use)++;
+		if (hw->cmq.csq.next_to_use == hw->cmq.csq.desc_num)
+			hw->cmq.csq.next_to_use = 0;
+		handle++;
+	}
+}
+
 static int hclgevf_cmd_convert_err_code(u16 desc_ret)
 {
-	switch (desc_ret) {
-	case HCLGEVF_CMD_EXEC_SUCCESS:
-		return 0;
-	case HCLGEVF_CMD_NO_AUTH:
-		return -EPERM;
-	case HCLGEVF_CMD_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
-	case HCLGEVF_CMD_QUEUE_FULL:
-		return -EXFULL;
-	case HCLGEVF_CMD_NEXT_ERR:
-		return -ENOSR;
-	case HCLGEVF_CMD_UNEXE_ERR:
-		return -ENOTBLK;
-	case HCLGEVF_CMD_PARA_ERR:
-		return -EINVAL;
-	case HCLGEVF_CMD_RESULT_ERR:
-		return -ERANGE;
-	case HCLGEVF_CMD_TIMEOUT:
-		return -ETIME;
-	case HCLGEVF_CMD_HILINK_ERR:
-		return -ENOLINK;
-	case HCLGEVF_CMD_QUEUE_ILLEGAL:
-		return -ENXIO;
-	case HCLGEVF_CMD_INVALID:
-		return -EBADR;
-	default:
-		return -EIO;
+	struct vf_errcode hclgevf_cmd_errcode[] = {
+		{HCLGEVF_CMD_EXEC_SUCCESS, 0},
+		{HCLGEVF_CMD_NO_AUTH, -EPERM},
+		{HCLGEVF_CMD_NOT_SUPPORTED, -EOPNOTSUPP},
+		{HCLGEVF_CMD_QUEUE_FULL, -EXFULL},
+		{HCLGEVF_CMD_NEXT_ERR, -ENOSR},
+		{HCLGEVF_CMD_UNEXE_ERR, -ENOTBLK},
+		{HCLGEVF_CMD_PARA_ERR, -EINVAL},
+		{HCLGEVF_CMD_RESULT_ERR, -ERANGE},
+		{HCLGEVF_CMD_TIMEOUT, -ETIME},
+		{HCLGEVF_CMD_HILINK_ERR, -ENOLINK},
+		{HCLGEVF_CMD_QUEUE_ILLEGAL, -ENXIO},
+		{HCLGEVF_CMD_INVALID, -EBADR},
+	};
+	u32 errcode_count = ARRAY_SIZE(hclgevf_cmd_errcode);
+	u32 i;
+
+	for (i = 0; i < errcode_count; i++)
+		if (hclgevf_cmd_errcode[i].imp_errcode == desc_ret)
+			return hclgevf_cmd_errcode[i].common_errno;
+
+	return -EIO;
+}
+
+static int hclgevf_cmd_check_retval(struct hclgevf_hw *hw,
+				    struct hclgevf_desc *desc, int num, int ntc)
+{
+	u16 opcode, desc_ret;
+	int handle;
+
+	opcode = le16_to_cpu(desc[0].opcode);
+	for (handle = 0; handle < num; handle++) {
+		/* Get the result of hardware write back */
+		desc[handle] = hw->cmq.csq.desc[ntc];
+		ntc++;
+		if (ntc == hw->cmq.csq.desc_num)
+			ntc = 0;
 	}
+	if (likely(!hclgevf_is_special_opcode(opcode)))
+		desc_ret = le16_to_cpu(desc[num - 1].retval);
+	else
+		desc_ret = le16_to_cpu(desc[0].retval);
+	hw->cmq.last_status = desc_ret;
+
+	return hclgevf_cmd_convert_err_code(desc_ret);
+}
+
+static int hclgevf_cmd_check_result(struct hclgevf_hw *hw,
+				    struct hclgevf_desc *desc, int num, int ntc)
+{
+	struct hclgevf_dev *hdev = (struct hclgevf_dev *)hw->hdev;
+	bool is_completed = false;
+	u32 timeout = 0;
+	int handle, ret;
+
+	/* If the command is sync, wait for the firmware to write back,
+	 * if multi descriptors to be sent, use the first one to check
+	 */
+	if (HCLGEVF_SEND_SYNC(le16_to_cpu(desc->flag))) {
+		do {
+			if (hclgevf_cmd_csq_done(hw)) {
+				is_completed = true;
+				break;
+			}
+			udelay(1);
+			timeout++;
+		} while (timeout < hw->cmq.tx_timeout);
+	}
+
+	if (!is_completed)
+		ret = -EBADE;
+	else
+		ret = hclgevf_cmd_check_retval(hw, desc, num, ntc);
+
+	/* Clean the command send queue */
+	handle = hclgevf_cmd_csq_clean(hw);
+	if (handle < 0)
+		ret = handle;
+	else if (handle != num)
+		dev_warn(&hdev->pdev->dev,
+			 "cleaned %d, need to clean %d\n", handle, num);
+	return ret;
 }
 
 /* hclgevf_cmd_send - send command to command queue
@@ -220,13 +295,7 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 {
 	struct hclgevf_dev *hdev = (struct hclgevf_dev *)hw->hdev;
 	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
-	struct hclgevf_desc *desc_to_use;
-	bool complete = false;
-	u32 timeout = 0;
-	int handle = 0;
-	int status = 0;
-	u16 retval;
-	u16 opcode;
+	int ret;
 	int ntc;
 
 	spin_lock_bh(&hw->cmq.csq.lock);
@@ -250,72 +319,61 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 	 * which will be use for hardware to write back
 	 */
 	ntc = hw->cmq.csq.next_to_use;
-	opcode = le16_to_cpu(desc[0].opcode);
-	while (handle < num) {
-		desc_to_use = &hw->cmq.csq.desc[hw->cmq.csq.next_to_use];
-		*desc_to_use = desc[handle];
-		(hw->cmq.csq.next_to_use)++;
-		if (hw->cmq.csq.next_to_use == hw->cmq.csq.desc_num)
-			hw->cmq.csq.next_to_use = 0;
-		handle++;
-	}
+
+	hclgevf_cmd_copy_desc(hw, desc, num);
 
 	/* Write to hardware */
 	hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_TAIL_REG,
 			  hw->cmq.csq.next_to_use);
 
-	/* If the command is sync, wait for the firmware to write back,
-	 * if multi descriptors to be sent, use the first one to check
-	 */
-	if (HCLGEVF_SEND_SYNC(le16_to_cpu(desc->flag))) {
-		do {
-			if (hclgevf_cmd_csq_done(hw))
-				break;
-			udelay(1);
-			timeout++;
-		} while (timeout < hw->cmq.tx_timeout);
-	}
-
-	if (hclgevf_cmd_csq_done(hw)) {
-		complete = true;
-		handle = 0;
-
-		while (handle < num) {
-			/* Get the result of hardware write back */
-			desc_to_use = &hw->cmq.csq.desc[ntc];
-			desc[handle] = *desc_to_use;
-
-			if (likely(!hclgevf_is_special_opcode(opcode)))
-				retval = le16_to_cpu(desc[handle].retval);
-			else
-				retval = le16_to_cpu(desc[0].retval);
-
-			status = hclgevf_cmd_convert_err_code(retval);
-			hw->cmq.last_status = (enum hclgevf_cmd_status)retval;
-			ntc++;
-			handle++;
-			if (ntc == hw->cmq.csq.desc_num)
-				ntc = 0;
-		}
-	}
-
-	if (!complete)
-		status = -EBADE;
-
-	/* Clean the command send queue */
-	handle = hclgevf_cmd_csq_clean(hw);
-	if (handle != num)
-		dev_warn(&hdev->pdev->dev,
-			 "cleaned %d, need to clean %d\n", handle, num);
+	ret = hclgevf_cmd_check_result(hw, desc, num, ntc);
 
 	spin_unlock_bh(&hw->cmq.csq.lock);
 
-	return status;
+	return ret;
 }
 
-static int  hclgevf_cmd_query_firmware_version(struct hclgevf_hw *hw,
-					       u32 *version)
+static void hclgevf_set_default_capability(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_GRO_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+}
+
+static void hclgevf_parse_capability(struct hclgevf_dev *hdev,
+				     struct hclgevf_query_version_cmd *cmd)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	u32 caps;
+
+	caps = __le32_to_cpu(cmd->caps[0]);
+
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_UDP_GSO_B))
+		set_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_INT_QL_B))
+		set_bit(HNAE3_DEV_SUPPORT_INT_QL_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_TQP_TXRX_INDEP_B))
+		set_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_HW_TX_CSUM_B))
+		set_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGEVF_CAP_UDP_TUNNEL_CSUM_B))
+		set_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps);
+}
+
+static __le32 hclgevf_build_api_caps(void)
+{
+	u32 api_caps = 0;
+
+	hnae3_set_bit(api_caps, HCLGEVF_API_CAP_FLEX_RSS_TBL_B, 1);
+
+	return cpu_to_le32(api_caps);
+}
+
+static int hclgevf_cmd_query_version_and_capability(struct hclgevf_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclgevf_query_version_cmd *resp;
 	struct hclgevf_desc desc;
 	int status;
@@ -323,9 +381,21 @@ static int  hclgevf_cmd_query_firmware_version(struct hclgevf_hw *hw,
 	resp = (struct hclgevf_query_version_cmd *)desc.data;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_FW_VER, 1);
-	status = hclgevf_cmd_send(hw, &desc, 1);
-	if (!status)
-		*version = le32_to_cpu(resp->firmware);
+	resp->api_caps = hclgevf_build_api_caps();
+	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
+	if (status)
+		return status;
+
+	hdev->fw_version = le32_to_cpu(resp->firmware);
+
+	ae_dev->dev_version = le32_to_cpu(resp->hardware) <<
+				 HNAE3_PCI_REVISION_BIT_SIZE;
+	ae_dev->dev_version |= hdev->pdev->revision;
+
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
+		hclgevf_set_default_capability(hdev);
+
+	hclgevf_parse_capability(hdev, resp);
 
 	return status;
 }
@@ -364,7 +434,6 @@ err_csq:
 
 int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 {
-	u32 version;
 	int ret;
 
 	spin_lock_bh(&hdev->hw.cmq.csq.lock);
@@ -395,23 +464,22 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 		goto err_cmd_init;
 	}
 
-	/* get firmware version */
-	ret = hclgevf_cmd_query_firmware_version(&hdev->hw, &version);
+	/* get version and device capabilities */
+	ret = hclgevf_cmd_query_version_and_capability(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed(%d) to query firmware version\n", ret);
+			"failed to query version and capabilities, ret = %d\n", ret);
 		goto err_cmd_init;
 	}
-	hdev->fw_version = version;
 
 	dev_info(&hdev->pdev->dev, "The firmware version is %lu.%lu.%lu.%lu\n",
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE3_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE3_MASK,
 				 HNAE3_FW_VERSION_BYTE3_SHIFT),
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE2_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE2_MASK,
 				 HNAE3_FW_VERSION_BYTE2_SHIFT),
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE1_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE1_MASK,
 				 HNAE3_FW_VERSION_BYTE1_SHIFT),
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE0_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE0_MASK,
 				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 
 	return 0;

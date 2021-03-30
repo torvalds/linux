@@ -6,6 +6,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
@@ -337,10 +338,10 @@ static void init_ldb_clks(struct device_node *np, void __iomem *ccm_base)
 	of_assigned_ldb_sels(np, &sel[0][3], &sel[1][3]);
 
 	for (i = 0; i < 2; i++) {
-		/* Warn if a glitch might have been introduced already */
+		/* Print a notice if a glitch might have been introduced already */
 		if (sel[i][0] != 3) {
-			pr_warn("ccm: ldb_di%d_sel already changed from reset value: %d\n",
-				i, sel[i][0]);
+			pr_notice("ccm: possible glitch: ldb_di%d_sel already changed from reset value: %d\n",
+				  i, sel[i][0]);
 		}
 
 		if (sel[i][0] == sel[i][3])

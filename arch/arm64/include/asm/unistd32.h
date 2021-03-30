@@ -887,6 +887,10 @@ __SYSCALL(__NR_openat2, sys_openat2)
 __SYSCALL(__NR_pidfd_getfd, sys_pidfd_getfd)
 #define __NR_faccessat2 439
 __SYSCALL(__NR_faccessat2, sys_faccessat2)
+#define __NR_process_madvise 440
+__SYSCALL(__NR_process_madvise, sys_process_madvise)
+#define __NR_epoll_pwait2 441
+__SYSCALL(__NR_epoll_pwait2, compat_sys_epoll_pwait2)
 
 /*
  * Please add new compat syscalls above this comment and update

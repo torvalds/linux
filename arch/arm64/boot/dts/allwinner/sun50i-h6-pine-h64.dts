@@ -44,17 +44,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		heartbeat {
+		led-0 {
 			label = "pine-h64:green:heartbeat";
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
 		};
 
-		link {
+		led-1 {
 			label = "pine-h64:white:link";
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_HIGH>; /* PL3 */
 		};
 
-		status {
+		led-2 {
 			label = "pine-h64:blue:status";
 			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
 		};
@@ -100,7 +100,7 @@
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ext_rgmii_pins>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy-handle = <&ext_rgmii_phy>;
 	phy-supply = <&reg_gmac_3v3>;
 	allwinner,rx-delay-ps = <200>;
@@ -142,6 +142,7 @@
 	vqmmc-supply = <&reg_bldo2>;
 	non-removable;
 	cap-mmc-hw-reset;
+	mmc-hs200-1_8v;
 	bus-width = <8>;
 	status = "okay";
 };

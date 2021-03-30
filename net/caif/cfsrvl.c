@@ -21,7 +21,6 @@
 #define SRVL_FLOW_OFF 0x81
 #define SRVL_FLOW_ON  0x80
 #define SRVL_SET_PIN  0x82
-#define SRVL_CTRL_PKT_SIZE 1
 
 #define container_obj(layr) container_of(layr, struct cfsrvl, layer)
 

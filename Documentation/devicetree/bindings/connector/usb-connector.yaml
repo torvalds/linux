@@ -37,7 +37,7 @@ properties:
     description: Size of the connector, should be specified in case of
       non-fullsize 'usb-a-connector' or 'usb-b-connector' compatible
       connectors.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - mini
@@ -67,7 +67,7 @@ properties:
   power-role:
     description: Determines the power role that the Type C connector will
       support. "dual" refers to Dual Role Port (DRP).
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - source
@@ -76,7 +76,7 @@ properties:
 
   try-power-role:
     description: Preferred power role.
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - source
@@ -86,12 +86,30 @@ properties:
   data-role:
     description: Data role if Type C connector supports USB data. "dual" refers
       Dual Role Device (DRD).
-    $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
 
     enum:
       - host
       - device
       - dual
+
+  typec-power-opmode:
+    description: Determines the power operation mode that the Type C connector
+      will support and will advertise through CC pins when it has no power
+      delivery support.
+      - "default" corresponds to default USB voltage and current defined by the
+        USB 2.0 and USB 3.2 specifications, 5V 500mA for USB 2.0 ports and
+        5V 900mA or 1500mA for USB 3.2 ports in single-lane or dual-lane
+        operation respectively.
+      - "1.5A" and "3.0A", 5V 1.5A and 5V 3.0A respectively, as defined in USB
+        Type-C Cable and Connector specification, when Power Delivery is not
+        supported.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - default
+      - 1.5A
+      - 3.0A
 
   # The following are optional properties for "usb-c-connector" with power
   # delivery support.
@@ -119,33 +137,65 @@ properties:
     maxItems: 7
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
+  sink-vdos:
+    description: An array of u32 with each entry, a Vendor Defined Message Object (VDO),
+      providing additional information corresponding to the product, the detailed bit
+      definitions and the order of each VDO can be found in
+      "USB Power Delivery Specification Revision 3.0, Version 2.0 + ECNs 2020-12-10"
+      chapter 6.4.4.3.1 Discover Identity. User can specify the VDO array via
+      VDO_IDH/_CERT/_PRODUCT/_UFP/_DFP/_PCABLE/_ACABLE(1/2)/_VPD() defined in
+      dt-bindings/usb/pd.h.
+    minItems: 3
+    maxItems: 6
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
   op-sink-microwatt:
     description: Sink required operating power in microwatt, if source can't
       offer the power, Capability Mismatch is set. Required for power sink and
       power dual role.
 
   ports:
-    description: OF graph bindings (specified in bindings/graph.txt) that model
-      any data bus to the connector unless the bus is between parent node and
-      the connector. Since a single connector can have multiple data buses every
-      bus has an assigned OF graph port number as described below.
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: OF graph bindings modeling any data bus to the connector
+      unless the bus is between parent node and the connector. Since a single
+      connector can have multiple data buses every bus has an assigned OF graph
+      port number as described below.
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: High Speed (HS), present in all connectors.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Super Speed (SS), present in SS capable connectors.
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Sideband Use (SBU), present in USB-C. This describes the
           alternate mode connection of which SBU is a part.
 
     required:
       - port@0
+
+  new-source-frs-typec-current:
+    description: Initial current capability of the new source when vSafe5V
+      is applied during PD3.0 Fast Role Swap. "Table 6-14 Fixed Supply PDO - Sink"
+      of "USB Power Delivery Specification Revision 3.0, Version 1.2" provides the
+      different power levels and "6.4.1.3.1.6 Fast Role Swap USB Type-C Current"
+      provides a detailed description of the field. The sink PDO from current source
+      reflects the current source's(i.e. transmitter of the FRS signal) power
+      requirement during fr swap. The current sink (i.e. receiver of the FRS signal),
+      a.k.a new source, should check if it will be able to satisfy the current source's,
+      new sink's, requirement during frswap before enabling the frs signal reception.
+      This property refers to maximum current capability that the current sink can
+      satisfy. During FRS, VBUS voltage is at 5V, as the partners are in implicit
+      contract, hence, the power level is only a function of the current capability.
+      "1" refers to default USB power level as described by "Table 6-14 Fixed Supply PDO - Sink".
+      "2" refers to 1.5A@5V.
+      "3" refers to 3.0A@5V.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 3]
 
 required:
   - compatible
@@ -172,6 +222,12 @@ allOf:
       properties:
         type:
           const: micro
+
+anyOf:
+  - not:
+      required:
+        - typec-power-opmode
+        - new-source-frs-typec-current
 
 additionalProperties: true
 

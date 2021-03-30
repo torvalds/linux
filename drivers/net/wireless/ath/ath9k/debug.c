@@ -735,10 +735,10 @@ static int read_file_misc(struct seq_file *file, void *data)
 		ath9k_calculate_iter_data(sc, ctx, &iter_data);
 
 		seq_printf(file,
-			   "VIFS: CTX %i(%i) AP: %i STA: %i MESH: %i WDS: %i",
+			   "VIFS: CTX %i(%i) AP: %i STA: %i MESH: %i",
 			   i++, (int)(ctx->assigned), iter_data.naps,
 			   iter_data.nstations,
-			   iter_data.nmeshes, iter_data.nwds);
+			   iter_data.nmeshes);
 		seq_printf(file, " ADHOC: %i OCB: %i TOTAL: %hi BEACON-VIF: %hi\n",
 			   iter_data.nadhocs, iter_data.nocbs, sc->cur_chan->nvifs,
 			   sc->nbcnvifs);
@@ -1223,8 +1223,11 @@ static ssize_t write_file_nf_override(struct file *file,
 
 	ah->nf_override = val;
 
-	if (ah->curchan)
+	if (ah->curchan) {
+		ath9k_ps_wakeup(sc);
 		ath9k_hw_loadnf(ah, ah->curchan);
+		ath9k_ps_restore(sc);
+	}
 
 	return count;
 }

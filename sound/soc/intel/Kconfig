@@ -15,22 +15,6 @@ config SND_SOC_INTEL_SST_TOPLEVEL
 
 if SND_SOC_INTEL_SST_TOPLEVEL
 
-config SND_SST_IPC
-	tristate
-	# This option controls the IPC core for HiFi2 platforms
-
-config SND_SST_IPC_PCI
-	tristate
-	select SND_SST_IPC
-	# This option controls the PCI-based IPC for HiFi2 platforms
-	#  (Medfield, Merrifield).
-
-config SND_SST_IPC_ACPI
-	tristate
-	select SND_SST_IPC
-	# This option controls the ACPI-based IPC for HiFi2 platforms
-	# (Baytrail, Cherrytrail)
-
 config SND_SOC_INTEL_SST
 	tristate
 
@@ -40,6 +24,8 @@ config SND_SOC_INTEL_CATPT
 	depends on DMADEVICES && SND_DMA_SGBUF
 	select DW_DMAC_CORE
 	select SND_SOC_ACPI_INTEL_MATCH
+	select WANT_DEV_COREDUMP
+	select SND_INTEL_DSP_CONFIG
 	help
 	  Enable support for Intel(R) Haswell and Broadwell platforms
 	  with I2S codec present. This is a recommended option.
@@ -57,7 +43,6 @@ config SND_SST_ATOM_HIFI2_PLATFORM
 config SND_SST_ATOM_HIFI2_PLATFORM_PCI
 	tristate "PCI HiFi2 (Merrifield) Platforms"
 	depends on X86 && PCI
-	select SND_SST_IPC_PCI
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	help
 	  If you have a Intel Merrifield/Edison platform, then
@@ -70,9 +55,9 @@ config SND_SST_ATOM_HIFI2_PLATFORM_ACPI
 	tristate "ACPI HiFi2 (Baytrail, Cherrytrail) Platforms"
 	default ACPI
 	depends on X86 && ACPI && PCI
-	select SND_SST_IPC_ACPI
 	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SOC_ACPI_INTEL_MATCH
+	select SND_INTEL_DSP_CONFIG
 	select IOSF_MBI
 	help
 	  If you have a Intel Baytrail or Cherrytrail platform with an I2S
@@ -216,8 +201,10 @@ endif ## SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL_TOPLEVEL
 
 config SND_SOC_INTEL_KEEMBAY
 	tristate "Keembay Platforms"
-	depends on ARM64 || COMPILE_TEST
+	depends on ARCH_KEEMBAY || COMPILE_TEST
 	depends on COMMON_CLK
+	select SND_DMAENGINE_PCM
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  If you have a Intel Keembay platform then enable this option
 	  by saying Y or m.

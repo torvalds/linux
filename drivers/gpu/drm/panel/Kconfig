@@ -8,6 +8,15 @@ config DRM_PANEL
 menu "Display Panels"
 	depends on DRM && DRM_PANEL
 
+config DRM_PANEL_ABT_Y030XX067A
+	tristate "ABT Y030XX067A 320x480 LCD panel"
+	depends on OF && SPI
+	select REGMAP_SPI
+	help
+	  Say Y here to enable support for the Asia Better Technology Ltd.
+	  Y030XX067A 320x480 3.0" panel as found in the YLM RG-280M, RG-300
+	  and RG-99 handheld gaming consoles.
+
 config DRM_PANEL_ARM_VERSATILE
 	tristate "ARM Versatile panel driver"
 	depends on OF
@@ -47,6 +56,15 @@ config DRM_PANEL_BOE_TV101WUM_NL6
 	help
 	  Say Y here if you want to support for BOE TV101WUM and AUO KD101N80
 	  45NA WUXGA PANEL DSI Video Mode panel
+
+config DRM_PANEL_DSI_CM
+	tristate "Generic DSI command mode panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  DRM panel driver for DSI command mode panels with support for
+	  embedded and external backlights.
 
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
@@ -136,6 +154,17 @@ config DRM_PANEL_JDI_LT070ME05000
 	  The panel has a 1200(RGB)×1920 (WUXGA) resolution and uses
 	  24 bit per pixel.
 
+config DRM_PANEL_KHADAS_TS050
+	tristate "Khadas TS050 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Khadas TS050 TFT-LCD
+	  panel module. The panel has a 1080x1920 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host, a built-in LED backlight and touch controller.
+
 config DRM_PANEL_KINGDISPLAY_KD097D04
 	tristate "Kingdisplay kd097d04 panel"
 	depends on OF
@@ -207,6 +236,16 @@ config DRM_PANEL_NOVATEK_NT35510
 	  Say Y here if you want to enable support for the panels built
 	  around the Novatek NT35510 display controller, such as some
 	  Hydis panels.
+
+config DRM_PANEL_NOVATEK_NT36672A
+	tristate "Novatek NT36672A DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT36672A display controller, such as some
+	  Tianma panels used in a few Xiaomi Poco F1 mobile phones.
 
 config DRM_PANEL_NOVATEK_NT39016
 	tristate "Novatek NT39016 RGB/SPI panel"
@@ -361,6 +400,18 @@ config DRM_PANEL_SAMSUNG_S6E8AA0
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
 
+config DRM_PANEL_SAMSUNG_SOFEF00
+	tristate "Samsung sofef00/s6e3fc2x01 OnePlus 6/6T DSI cmd mode panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y or M here if you want to enable support for the Samsung AMOLED
+	  command mode panels found in the OnePlus 6/6T smartphones.
+
+	  The panels are 2280x1080@60Hz and 2340x1080@60Hz respectively
+
 config DRM_PANEL_SEIKO_43WVF1G
 	tristate "Seiko 43WVF1G panel"
 	depends on OF
@@ -449,6 +500,17 @@ config DRM_PANEL_SONY_ACX565AKM
 	help
 	  Say Y here if you want to enable support for the Sony ACX565AKM
 	  800x600 3.5" panel (found on the Nokia N900).
+
+config DRM_PANEL_TDO_TL070WSH30
+	tristate "TDO TL070WSH30 DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for TDO TL070WSH30 TFT-LCD
+	  panel module. The panel has a 1024×600 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host, a built-in LED backlight and touch controller.
 
 config DRM_PANEL_TPO_TD028TTEC1
 	tristate "Toppoly (TPO) TD028TTEC1 panel driver"

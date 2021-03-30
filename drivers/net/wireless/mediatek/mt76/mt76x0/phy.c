@@ -447,11 +447,11 @@ static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
 		else
 			coex3 |= BIT(4);
 		coex3 |= BIT(3);
-		if (dev->mt76.cap.has_2ghz)
+		if (dev->mphy.cap.has_2ghz)
 			wlan |= BIT(6);
 	} else {
 		/* sigle antenna mode */
-		if (dev->mt76.cap.has_5ghz) {
+		if (dev->mphy.cap.has_5ghz) {
 			coex3 |= BIT(3) | BIT(4);
 		} else {
 			wlan |= BIT(6);
@@ -734,7 +734,7 @@ mt76x0_phy_get_delta_power(struct mt76x02_dev *dev, u8 tx_mode,
 	case 1:
 		if (chan->band == NL80211_BAND_2GHZ)
 			tssi_target += 29491; /* 3.6 * 8192 */
-		/* fall through */
+		fallthrough;
 	case 0:
 		break;
 	default:

@@ -11,7 +11,9 @@ KUnit - Unit Testing for the Linux Kernel
 	usage
 	kunit-tool
 	api/index
+	style
 	faq
+	tips
 
 What is KUnit?
 ==============
@@ -87,6 +89,7 @@ How do I use it?
 ================
 
 *   :doc:`start` - for new users of KUnit
+*   :doc:`tips` - for short examples of best practices
 *   :doc:`usage` - for a more detailed explanation of KUnit features
 *   :doc:`api/index` - for the list of KUnit APIs used for testing
 *   :doc:`kunit-tool` - for more information on the kunit_tool helper script

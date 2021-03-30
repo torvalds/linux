@@ -27,6 +27,7 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_READ_LATENCY,	\
 	CLIENT_METRIC_TYPE_WRITE_LATENCY,	\
 	CLIENT_METRIC_TYPE_METADATA_LATENCY,	\
+	CLIENT_METRIC_TYPE_DENTRY_LEASE,	\
 						\
 	CLIENT_METRIC_TYPE_MAX,			\
 }
@@ -80,6 +81,19 @@ struct ceph_metric_metadata_latency {
 	__le32 nsec;
 } __packed;
 
+/* metric dentry lease header */
+struct ceph_metric_dlease {
+	__le32 type;     /* ceph metric type */
+
+	__u8  ver;
+	__u8  compat;
+
+	__le32 data_len; /* length of sizeof(hit + mis + total) */
+	__le64 hit;
+	__le64 mis;
+	__le64 total;
+} __packed;
+
 struct ceph_metric_head {
 	__le32 num;	/* the number of metrics that will be sent */
 } __packed;
@@ -114,6 +128,13 @@ struct ceph_client_metric {
 	ktime_t metadata_latency_sq_sum;
 	ktime_t metadata_latency_min;
 	ktime_t metadata_latency_max;
+
+	/* The total number of directories and files that are opened */
+	atomic64_t opened_files;
+
+	/* The total number of inodes that have opened files or directories */
+	struct percpu_counter opened_inodes;
+	struct percpu_counter total_inodes;
 
 	struct ceph_mds_session *session;
 	struct delayed_work delayed_work;  /* delayed work */

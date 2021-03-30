@@ -1275,24 +1275,23 @@ xfs_ioctl_setattr_prepare_dax(
  */
 static struct xfs_trans *
 xfs_ioctl_setattr_get_trans(
-	struct xfs_inode	*ip)
+	struct xfs_inode	*ip,
+	struct xfs_dquot	*pdqp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error = -EROFS;
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		goto out_unlock;
+		goto out_error;
 	error = -EIO;
 	if (XFS_FORCED_SHUTDOWN(mp))
-		goto out_unlock;
+		goto out_error;
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	error = xfs_trans_alloc_ichange(ip, NULL, NULL, pdqp,
+			capable(CAP_FOWNER), &tp);
 	if (error)
-		goto out_unlock;
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+		goto out_error;
 
 	/*
 	 * CAP_FOWNER overrides the following restrictions:
@@ -1312,7 +1311,7 @@ xfs_ioctl_setattr_get_trans(
 
 out_cancel:
 	xfs_trans_cancel(tp);
-out_unlock:
+out_error:
 	return ERR_PTR(error);
 }
 
@@ -1436,13 +1435,13 @@ xfs_ioctl_setattr(
 	struct xfs_trans	*tp;
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_dquot	*olddquot = NULL;
-	int			code;
+	int			error;
 
 	trace_xfs_ioctl_setattr(ip);
 
-	code = xfs_ioctl_setattr_check_projid(ip, fa);
-	if (code)
-		return code;
+	error = xfs_ioctl_setattr_check_projid(ip, fa);
+	if (error)
+		return error;
 
 	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
@@ -1453,44 +1452,36 @@ xfs_ioctl_setattr(
 	 * because the i_*dquot fields will get updated anyway.
 	 */
 	if (XFS_IS_QUOTA_ON(mp)) {
-		code = xfs_qm_vop_dqalloc(ip, VFS_I(ip)->i_uid,
+		error = xfs_qm_vop_dqalloc(ip, VFS_I(ip)->i_uid,
 				VFS_I(ip)->i_gid, fa->fsx_projid,
 				XFS_QMOPT_PQUOTA, NULL, NULL, &pdqp);
-		if (code)
-			return code;
+		if (error)
+			return error;
 	}
 
 	xfs_ioctl_setattr_prepare_dax(ip, fa);
 
-	tp = xfs_ioctl_setattr_get_trans(ip);
+	tp = xfs_ioctl_setattr_get_trans(ip, pdqp);
 	if (IS_ERR(tp)) {
-		code = PTR_ERR(tp);
+		error = PTR_ERR(tp);
 		goto error_free_dquots;
 	}
 
-	if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp) &&
-	    ip->i_d.di_projid != fa->fsx_projid) {
-		code = xfs_qm_vop_chown_reserve(tp, ip, NULL, NULL, pdqp,
-				capable(CAP_FOWNER) ?  XFS_QMOPT_FORCE_RES : 0);
-		if (code)	/* out of quota */
-			goto error_trans_cancel;
-	}
-
 	xfs_fill_fsxattr(ip, false, &old_fa);
-	code = vfs_ioc_fssetxattr_check(VFS_I(ip), &old_fa, fa);
-	if (code)
+	error = vfs_ioc_fssetxattr_check(VFS_I(ip), &old_fa, fa);
+	if (error)
 		goto error_trans_cancel;
 
-	code = xfs_ioctl_setattr_check_extsize(ip, fa);
-	if (code)
+	error = xfs_ioctl_setattr_check_extsize(ip, fa);
+	if (error)
 		goto error_trans_cancel;
 
-	code = xfs_ioctl_setattr_check_cowextsize(ip, fa);
-	if (code)
+	error = xfs_ioctl_setattr_check_cowextsize(ip, fa);
+	if (error)
 		goto error_trans_cancel;
 
-	code = xfs_ioctl_setattr_xflags(tp, ip, fa);
-	if (code)
+	error = xfs_ioctl_setattr_xflags(tp, ip, fa);
+	if (error)
 		goto error_trans_cancel;
 
 	/*
@@ -1530,7 +1521,7 @@ xfs_ioctl_setattr(
 	else
 		ip->i_d.di_cowextsize = 0;
 
-	code = xfs_trans_commit(tp);
+	error = xfs_trans_commit(tp);
 
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
@@ -1538,13 +1529,13 @@ xfs_ioctl_setattr(
 	xfs_qm_dqrele(olddquot);
 	xfs_qm_dqrele(pdqp);
 
-	return code;
+	return error;
 
 error_trans_cancel:
 	xfs_trans_cancel(tp);
 error_free_dquots:
 	xfs_qm_dqrele(pdqp);
-	return code;
+	return error;
 }
 
 STATIC int
@@ -1608,7 +1599,7 @@ xfs_ioc_setxflags(
 
 	xfs_ioctl_setattr_prepare_dax(ip, &fa);
 
-	tp = xfs_ioctl_setattr_get_trans(ip);
+	tp = xfs_ioctl_setattr_get_trans(ip, NULL);
 	if (IS_ERR(tp)) {
 		error = PTR_ERR(tp);
 		goto out_drop_write;
@@ -1716,39 +1707,17 @@ out_free_buf:
 	return error;
 }
 
-struct getfsmap_info {
-	struct xfs_mount	*mp;
-	struct fsmap_head __user *data;
-	unsigned int		idx;
-	__u32			last_flags;
-};
-
-STATIC int
-xfs_getfsmap_format(struct xfs_fsmap *xfm, void *priv)
-{
-	struct getfsmap_info	*info = priv;
-	struct fsmap		fm;
-
-	trace_xfs_getfsmap_mapping(info->mp, xfm);
-
-	info->last_flags = xfm->fmr_flags;
-	xfs_fsmap_from_internal(&fm, xfm);
-	if (copy_to_user(&info->data->fmh_recs[info->idx++], &fm,
-			sizeof(struct fsmap)))
-		return -EFAULT;
-
-	return 0;
-}
-
 STATIC int
 xfs_ioc_getfsmap(
 	struct xfs_inode	*ip,
 	struct fsmap_head	__user *arg)
 {
-	struct getfsmap_info	info = { NULL };
 	struct xfs_fsmap_head	xhead = {0};
 	struct fsmap_head	head;
-	bool			aborted = false;
+	struct fsmap		*recs;
+	unsigned int		count;
+	__u32			last_flags = 0;
+	bool			done = false;
 	int			error;
 
 	if (copy_from_user(&head, arg, sizeof(struct fsmap_head)))
@@ -1760,38 +1729,112 @@ xfs_ioc_getfsmap(
 		       sizeof(head.fmh_keys[1].fmr_reserved)))
 		return -EINVAL;
 
+	/*
+	 * Use an internal memory buffer so that we don't have to copy fsmap
+	 * data to userspace while holding locks.  Start by trying to allocate
+	 * up to 128k for the buffer, but fall back to a single page if needed.
+	 */
+	count = min_t(unsigned int, head.fmh_count,
+			131072 / sizeof(struct fsmap));
+	recs = kvzalloc(count * sizeof(struct fsmap), GFP_KERNEL);
+	if (!recs) {
+		count = min_t(unsigned int, head.fmh_count,
+				PAGE_SIZE / sizeof(struct fsmap));
+		recs = kvzalloc(count * sizeof(struct fsmap), GFP_KERNEL);
+		if (!recs)
+			return -ENOMEM;
+	}
+
 	xhead.fmh_iflags = head.fmh_iflags;
-	xhead.fmh_count = head.fmh_count;
 	xfs_fsmap_to_internal(&xhead.fmh_keys[0], &head.fmh_keys[0]);
 	xfs_fsmap_to_internal(&xhead.fmh_keys[1], &head.fmh_keys[1]);
 
 	trace_xfs_getfsmap_low_key(ip->i_mount, &xhead.fmh_keys[0]);
 	trace_xfs_getfsmap_high_key(ip->i_mount, &xhead.fmh_keys[1]);
 
-	info.mp = ip->i_mount;
-	info.data = arg;
-	error = xfs_getfsmap(ip->i_mount, &xhead, xfs_getfsmap_format, &info);
-	if (error == -ECANCELED) {
-		error = 0;
-		aborted = true;
-	} else if (error)
-		return error;
+	head.fmh_entries = 0;
+	do {
+		struct fsmap __user	*user_recs;
+		struct fsmap		*last_rec;
 
-	/* If we didn't abort, set the "last" flag in the last fmx */
-	if (!aborted && info.idx) {
-		info.last_flags |= FMR_OF_LAST;
-		if (copy_to_user(&info.data->fmh_recs[info.idx - 1].fmr_flags,
-				&info.last_flags, sizeof(info.last_flags)))
-			return -EFAULT;
+		user_recs = &arg->fmh_recs[head.fmh_entries];
+		xhead.fmh_entries = 0;
+		xhead.fmh_count = min_t(unsigned int, count,
+					head.fmh_count - head.fmh_entries);
+
+		/* Run query, record how many entries we got. */
+		error = xfs_getfsmap(ip->i_mount, &xhead, recs);
+		switch (error) {
+		case 0:
+			/*
+			 * There are no more records in the result set.  Copy
+			 * whatever we got to userspace and break out.
+			 */
+			done = true;
+			break;
+		case -ECANCELED:
+			/*
+			 * The internal memory buffer is full.  Copy whatever
+			 * records we got to userspace and go again if we have
+			 * not yet filled the userspace buffer.
+			 */
+			error = 0;
+			break;
+		default:
+			goto out_free;
+		}
+		head.fmh_entries += xhead.fmh_entries;
+		head.fmh_oflags = xhead.fmh_oflags;
+
+		/*
+		 * If the caller wanted a record count or there aren't any
+		 * new records to return, we're done.
+		 */
+		if (head.fmh_count == 0 || xhead.fmh_entries == 0)
+			break;
+
+		/* Copy all the records we got out to userspace. */
+		if (copy_to_user(user_recs, recs,
+				 xhead.fmh_entries * sizeof(struct fsmap))) {
+			error = -EFAULT;
+			goto out_free;
+		}
+
+		/* Remember the last record flags we copied to userspace. */
+		last_rec = &recs[xhead.fmh_entries - 1];
+		last_flags = last_rec->fmr_flags;
+
+		/* Set up the low key for the next iteration. */
+		xfs_fsmap_to_internal(&xhead.fmh_keys[0], last_rec);
+		trace_xfs_getfsmap_low_key(ip->i_mount, &xhead.fmh_keys[0]);
+	} while (!done && head.fmh_entries < head.fmh_count);
+
+	/*
+	 * If there are no more records in the query result set and we're not
+	 * in counting mode, mark the last record returned with the LAST flag.
+	 */
+	if (done && head.fmh_count > 0 && head.fmh_entries > 0) {
+		struct fsmap __user	*user_rec;
+
+		last_flags |= FMR_OF_LAST;
+		user_rec = &arg->fmh_recs[head.fmh_entries - 1];
+
+		if (copy_to_user(&user_rec->fmr_flags, &last_flags,
+					sizeof(last_flags))) {
+			error = -EFAULT;
+			goto out_free;
+		}
 	}
 
 	/* copy back header */
-	head.fmh_entries = xhead.fmh_entries;
-	head.fmh_oflags = xhead.fmh_oflags;
-	if (copy_to_user(arg, &head, sizeof(struct fsmap_head)))
-		return -EFAULT;
+	if (copy_to_user(arg, &head, sizeof(struct fsmap_head))) {
+		error = -EFAULT;
+		goto out_free;
+	}
 
-	return 0;
+out_free:
+	kmem_free(recs);
+	return error;
 }
 
 STATIC int
@@ -2208,7 +2251,7 @@ xfs_file_ioctl(
 	}
 
 	case XFS_IOC_FSGROWFSDATA: {
-		xfs_growfs_data_t in;
+		struct xfs_growfs_data in;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
 			return -EFAULT;
@@ -2222,7 +2265,7 @@ xfs_file_ioctl(
 	}
 
 	case XFS_IOC_FSGROWFSLOG: {
-		xfs_growfs_log_t in;
+		struct xfs_growfs_log in;
 
 		if (copy_from_user(&in, arg, sizeof(in)))
 			return -EFAULT;
@@ -2296,8 +2339,10 @@ xfs_file_ioctl(
 		if (error)
 			return error;
 
+		trace_xfs_ioc_free_eofblocks(mp, &keofb, _RET_IP_);
+
 		sb_start_write(mp->m_super);
-		error = xfs_icache_free_eofblocks(mp, &keofb);
+		error = xfs_blockgc_free_space(mp, &keofb);
 		sb_end_write(mp->m_super);
 		return error;
 	}

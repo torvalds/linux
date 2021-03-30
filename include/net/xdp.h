@@ -59,6 +59,7 @@ struct xdp_rxq_info {
 	u32 queue_index;
 	u32 reg_state;
 	struct xdp_mem_info mem;
+	unsigned int napi_id;
 } ____cacheline_aligned; /* perf critical, avoid false-sharing */
 
 struct xdp_txq_info {
@@ -74,6 +75,25 @@ struct xdp_buff {
 	struct xdp_txq_info *txq;
 	u32 frame_sz; /* frame size to deduce data_hard_end/reserved tailroom*/
 };
+
+static __always_inline void
+xdp_init_buff(struct xdp_buff *xdp, u32 frame_sz, struct xdp_rxq_info *rxq)
+{
+	xdp->frame_sz = frame_sz;
+	xdp->rxq = rxq;
+}
+
+static __always_inline void
+xdp_prepare_buff(struct xdp_buff *xdp, unsigned char *hard_start,
+		 int headroom, int data_len, const bool meta_valid)
+{
+	unsigned char *data = hard_start + headroom;
+
+	xdp->data_hard_start = hard_start;
+	xdp->data = data;
+	xdp->data_end = data + data_len;
+	xdp->data_meta = meta_valid ? data : data + 1;
+}
 
 /* Reserve memory area at end-of data area.
  *
@@ -104,6 +124,18 @@ struct xdp_frame {
 	struct net_device *dev_rx; /* used by cpumap */
 };
 
+#define XDP_BULK_QUEUE_SIZE	16
+struct xdp_frame_bulk {
+	int count;
+	void *xa;
+	void *q[XDP_BULK_QUEUE_SIZE];
+};
+
+static __always_inline void xdp_frame_bulk_init(struct xdp_frame_bulk *bq)
+{
+	/* bq->count will be zero'ed when bq->xa gets updated */
+	bq->xa = NULL;
+}
 
 static inline struct skb_shared_info *
 xdp_get_shared_info_from_frame(struct xdp_frame *frame)
@@ -132,6 +164,12 @@ void xdp_warn(const char *msg, const char *func, const int line);
 #define XDP_WARN(msg) xdp_warn(msg, __func__, __LINE__)
 
 struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp);
+struct sk_buff *__xdp_build_skb_from_frame(struct xdp_frame *xdpf,
+					   struct sk_buff *skb,
+					   struct net_device *dev);
+struct sk_buff *xdp_build_skb_from_frame(struct xdp_frame *xdpf,
+					 struct net_device *dev);
+int xdp_alloc_skb_bulk(void **skbs, int n_skb, gfp_t gfp);
 
 static inline
 void xdp_convert_frame_to_buff(struct xdp_frame *frame, struct xdp_buff *xdp)
@@ -194,6 +232,9 @@ struct xdp_frame *xdp_convert_buff_to_frame(struct xdp_buff *xdp)
 void xdp_return_frame(struct xdp_frame *xdpf);
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf);
 void xdp_return_buff(struct xdp_buff *xdp);
+void xdp_flush_frame_bulk(struct xdp_frame_bulk *bq);
+void xdp_return_frame_bulk(struct xdp_frame *xdpf,
+			   struct xdp_frame_bulk *bq);
 
 /* When sending xdp_frame into the network stack, then there is no
  * return point callback, which is needed to release e.g. DMA-mapping
@@ -211,7 +252,7 @@ static inline void xdp_release_frame(struct xdp_frame *xdpf)
 }
 
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
-		     struct net_device *dev, u32 queue_index);
+		     struct net_device *dev, u32 queue_index, unsigned int napi_id);
 void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq);
 void xdp_rxq_info_unused(struct xdp_rxq_info *xdp_rxq);
 bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq);
@@ -240,11 +281,9 @@ struct xdp_attachment_info {
 };
 
 struct netdev_bpf;
-bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
-			     struct netdev_bpf *bpf);
 void xdp_attachment_setup(struct xdp_attachment_info *info,
 			  struct netdev_bpf *bpf);
 
-#define DEV_MAP_BULK_SIZE 16
+#define DEV_MAP_BULK_SIZE XDP_BULK_QUEUE_SIZE
 
 #endif /* __LINUX_NET_XDP_H__ */

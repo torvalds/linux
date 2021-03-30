@@ -624,7 +624,7 @@ static int ov5675_set_ctrl_hflip(struct ov5675 *ov5675, u32 ctrl_val)
 
 	return ov5675_write_reg(ov5675, OV5675_REG_FORMAT1,
 				OV5675_REG_VALUE_08BIT,
-				ctrl_val ? val & ~BIT(3) : val);
+				ctrl_val ? val & ~BIT(3) : val | BIT(3));
 }
 
 static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
@@ -639,7 +639,7 @@ static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
 
 	ret = ov5675_write_reg(ov5675, OV5675_REG_FORMAT1,
 			       OV5675_REG_VALUE_08BIT,
-			       ctrl_val ? val | BIT(4) | BIT(5)  : val);
+			       ctrl_val ? val | BIT(4) | BIT(5)  : val & ~BIT(4) & ~BIT(5));
 
 	if (ret)
 		return ret;
@@ -652,7 +652,7 @@ static int ov5675_set_ctrl_vflip(struct ov5675 *ov5675, u8 ctrl_val)
 
 	return ov5675_write_reg(ov5675, OV5675_REG_FORMAT2,
 				OV5675_REG_VALUE_08BIT,
-				ctrl_val ? val | BIT(1) : val);
+				ctrl_val ? val | BIT(1) : val & ~BIT(1));
 }
 
 static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -889,8 +889,7 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 
 static int __maybe_unused ov5675_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5675 *ov5675 = to_ov5675(sd);
 
 	mutex_lock(&ov5675->mutex);
@@ -904,8 +903,7 @@ static int __maybe_unused ov5675_suspend(struct device *dev)
 
 static int __maybe_unused ov5675_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov5675 *ov5675 = to_ov5675(sd);
 	int ret;
 

@@ -304,20 +304,18 @@ static irqreturn_t adc_irq_fn(int irq, void *dev_id)
 {
 	struct imx6ul_tsc *tsc = dev_id;
 	u32 coco;
-	u32 value;
 
 	coco = readl(tsc->adc_regs + REG_ADC_HS);
 	if (coco & 0x01) {
-		value = readl(tsc->adc_regs + REG_ADC_R0);
+		readl(tsc->adc_regs + REG_ADC_R0);
 		complete(&tsc->completion);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static int imx6ul_tsc_open(struct input_dev *input_dev)
+static int imx6ul_tsc_start(struct imx6ul_tsc *tsc)
 {
-	struct imx6ul_tsc *tsc = input_get_drvdata(input_dev);
 	int err;
 
 	err = clk_prepare_enable(tsc->adc_clk);
@@ -349,14 +347,27 @@ disable_adc_clk:
 	return err;
 }
 
-static void imx6ul_tsc_close(struct input_dev *input_dev)
+static void imx6ul_tsc_stop(struct imx6ul_tsc *tsc)
 {
-	struct imx6ul_tsc *tsc = input_get_drvdata(input_dev);
-
 	imx6ul_tsc_disable(tsc);
 
 	clk_disable_unprepare(tsc->tsc_clk);
 	clk_disable_unprepare(tsc->adc_clk);
+}
+
+
+static int imx6ul_tsc_open(struct input_dev *input_dev)
+{
+	struct imx6ul_tsc *tsc = input_get_drvdata(input_dev);
+
+	return imx6ul_tsc_start(tsc);
+}
+
+static void imx6ul_tsc_close(struct input_dev *input_dev)
+{
+	struct imx6ul_tsc *tsc = input_get_drvdata(input_dev);
+
+	imx6ul_tsc_stop(tsc);
 }
 
 static int imx6ul_tsc_probe(struct platform_device *pdev)
@@ -509,12 +520,8 @@ static int __maybe_unused imx6ul_tsc_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users) {
-		imx6ul_tsc_disable(tsc);
-
-		clk_disable_unprepare(tsc->tsc_clk);
-		clk_disable_unprepare(tsc->adc_clk);
-	}
+	if (input_device_enabled(input_dev))
+		imx6ul_tsc_stop(tsc);
 
 	mutex_unlock(&input_dev->mutex);
 
@@ -530,22 +537,11 @@ static int __maybe_unused imx6ul_tsc_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users) {
-		retval = clk_prepare_enable(tsc->adc_clk);
-		if (retval)
-			goto out;
+	if (input_device_enabled(input_dev))
+		retval = imx6ul_tsc_start(tsc);
 
-		retval = clk_prepare_enable(tsc->tsc_clk);
-		if (retval) {
-			clk_disable_unprepare(tsc->adc_clk);
-			goto out;
-		}
-
-		retval = imx6ul_tsc_init(tsc);
-	}
-
-out:
 	mutex_unlock(&input_dev->mutex);
+
 	return retval;
 }
 

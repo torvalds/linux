@@ -574,7 +574,7 @@ static int zynq_gpio_irq_reqres(struct irq_data *d)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 	int ret;
 
-	ret = pm_runtime_get_sync(chip->parent);
+	ret = pm_runtime_resume_and_get(chip->parent);
 	if (ret < 0)
 		return ret;
 
@@ -942,7 +942,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
 		goto err_pm_dis;
 

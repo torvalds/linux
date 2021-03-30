@@ -101,7 +101,8 @@ static void __noreturn storcenter_restart(char *cmd)
 	local_irq_disable();
 
 	/* Set exception prefix high - to the firmware */
-	_nmask_and_or_msr(0, MSR_IP);
+	mtmsr(mfmsr() | MSR_IP);
+	isync();
 
 	/* Wait for reset to happen */
 	for (;;) ;

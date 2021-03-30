@@ -364,6 +364,26 @@ Che verrà rappresentata nel seguente modo:
 
         - column 3
 
+Riferimenti incrociati
+----------------------
+
+Per fare dei riferimenti incrociati da una pagina ad un'altra
+specificando il percorso a partire dalla cartella *Documentation*.
+Per esempio, se volete aggiungere un riferimento a questa pagina
+(l'estensione .rst è opzionale)::
+
+    See Documentation/translations/it_IT/doc-guide/sphinx.rst.
+
+Se preferite usare un percorso relative allora vi serve la direttiva
+Sphinx ``doc``.  Per esempio, se volete aggiungere un riferimento a
+questa pagina dalla stessa cartella::
+
+    See :doc:`sphinx`.
+
+Per maggiori informazioni su come aggiungere riferimenti incrociati a
+commenti kernel-doc di funzioni o tipi, leggete
+Documentation/translations/it_IT/doc-guide/sphinx.rst.
+
 .. _it_sphinx_kfigure:
 
 Figure ed immagini

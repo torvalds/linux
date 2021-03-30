@@ -577,7 +577,7 @@ static struct snd_soc_dai_driver tegra210_i2s_dais[] = {
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
 		.ops = &tegra210_i2s_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
@@ -662,7 +662,7 @@ static bool tegra210_i2s_wr_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra210_i2s_rd_reg(struct device *dev, unsigned int reg)
@@ -682,7 +682,7 @@ static bool tegra210_i2s_rd_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra210_i2s_volatile_reg(struct device *dev, unsigned int reg)
@@ -701,7 +701,7 @@ static bool tegra210_i2s_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config tegra210_i2s_regmap_config = {

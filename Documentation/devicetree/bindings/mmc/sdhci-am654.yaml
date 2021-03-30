@@ -3,7 +3,7 @@
 %YAML 1.2
 ---
 $id: "http://devicetree.org/schemas/mmc/sdhci-am654.yaml#"
-$schema : "http://devicetree.org/meta-schemas/core.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
 title: TI AM654 MMC Controller
 
@@ -15,12 +15,19 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - ti,am654-sdhci-5.1
-      - ti,j721e-sdhci-8bit
-      - ti,j721e-sdhci-4bit
-      - ti,j7200-sdhci-8bit
-      - ti,j721e-sdhci-4bit
+    oneOf:
+      - const: ti,am654-sdhci-5.1
+      - const: ti,j721e-sdhci-8bit
+      - const: ti,j721e-sdhci-4bit
+      - const: ti,j721e-sdhci-4bit
+      - const: ti,am64-sdhci-8bit
+      - const: ti,am64-sdhci-4bit
+      - items:
+          - const: ti,j7200-sdhci-8bit
+          - const: ti,j721e-sdhci-8bit
+      - items:
+          - const: ti,j7200-sdhci-4bit
+          - const: ti,j721e-sdhci-4bit
 
   reg:
     maxItems: 2
@@ -163,13 +170,12 @@ properties:
   ti,driver-strength-ohm:
     description: DLL drive strength in ohms
     $ref: "/schemas/types.yaml#/definitions/uint32"
-    oneOf:
-      - enum:
-        - 33
-        - 40
-        - 50
-        - 66
-        - 100
+    enum:
+      - 33
+      - 40
+      - 50
+      - 66
+      - 100
 
   ti,strobe-sel:
     description: strobe select delay for HS400 speed mode.
@@ -186,6 +192,8 @@ required:
   - clocks
   - clock-names
   - ti,otap-del-sel-legacy
+
+unevaluatedProperties: false
 
 examples:
   - |

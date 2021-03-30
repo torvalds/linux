@@ -13,9 +13,11 @@
 #include <linux/bitfield.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 #include "util.h"
 
+#define RTW_NAPI_WEIGHT_NUM		64
 #define RTW_MAX_MAC_ID_NUM		32
 #define RTW_MAX_SEC_CAM_NUM		32
 #define MAX_PG_CAM_BACKUP_NUM		8
@@ -37,7 +39,7 @@
 #define RTW_TP_SHIFT			18 /* bytes/2s --> Mbps */
 
 extern bool rtw_bf_support;
-extern unsigned int rtw_fw_lps_deep_mode;
+extern bool rtw_disable_lps_deep_mode;
 extern unsigned int rtw_debug_mask;
 extern const struct ieee80211_ops rtw_ops;
 
@@ -359,6 +361,7 @@ enum rtw_flags {
 	RTW_FLAG_DIG_DISABLE,
 	RTW_FLAG_BUSY_TRAFFIC,
 	RTW_FLAG_WOWLAN,
+	RTW_FLAG_RESTARTING,
 
 	NUM_OF_RTW_FLAGS,
 };
@@ -663,6 +666,7 @@ enum rtw_pwr_state {
 struct rtw_lps_conf {
 	enum rtw_lps_mode mode;
 	enum rtw_lps_deep_mode deep_mode;
+	enum rtw_lps_deep_mode wow_deep_mode;
 	enum rtw_pwr_state state;
 	u8 awake_interval;
 	u8 rlbm;
@@ -1040,11 +1044,18 @@ enum rtw_rfe_fem {
 struct rtw_rfe_def {
 	const struct rtw_table *phy_pg_tbl;
 	const struct rtw_table *txpwr_lmt_tbl;
+	const struct rtw_table *agc_btg_tbl;
 };
 
 #define RTW_DEF_RFE(chip, bb_pg, pwrlmt) {				  \
 	.phy_pg_tbl = &rtw ## chip ## _bb_pg_type ## bb_pg ## _tbl,	  \
 	.txpwr_lmt_tbl = &rtw ## chip ## _txpwr_lmt_type ## pwrlmt ## _tbl, \
+	}
+
+#define RTW_DEF_RFE_EXT(chip, bb_pg, pwrlmt, btg) {			  \
+	.phy_pg_tbl = &rtw ## chip ## _bb_pg_type ## bb_pg ## _tbl,	  \
+	.txpwr_lmt_tbl = &rtw ## chip ## _txpwr_lmt_type ## pwrlmt ## _tbl, \
+	.agc_btg_tbl = &rtw ## chip ## _agc_btg_type ## btg ## _tbl, \
 	}
 
 #define RTW_PWR_TRK_5G_1		0
@@ -1082,6 +1093,17 @@ enum rtw_wlan_cpu {
 	RTW_WCPU_11N,
 };
 
+enum rtw_fw_fifo_sel {
+	RTW_FW_FIFO_SEL_TX,
+	RTW_FW_FIFO_SEL_RX,
+	RTW_FW_FIFO_SEL_RSVD_PAGE,
+	RTW_FW_FIFO_SEL_REPORT,
+	RTW_FW_FIFO_SEL_LLT,
+	RTW_FW_FIFO_SEL_RXBUF_FW,
+
+	RTW_FW_FIFO_MAX,
+};
+
 /* hardware configuration for each IC */
 struct rtw_chip_info {
 	struct rtw_chip_ops *ops;
@@ -1098,6 +1120,7 @@ struct rtw_chip_info {
 	u32 ptct_efuse_size;
 	u32 txff_size;
 	u32 rxff_size;
+	u32 fw_rxff_size;
 	u8 band;
 	u8 page_size;
 	u8 csi_buf_pg_num;
@@ -1107,6 +1130,8 @@ struct rtw_chip_info {
 	bool is_pwr_by_rate_dec;
 	bool rx_ldpc;
 	u8 max_power_index;
+
+	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
 
 	bool ht_supported;
 	bool vht_supported;
@@ -1158,6 +1183,7 @@ struct rtw_chip_info {
 	u8 bt_desired_ver;
 	bool scbd_support;
 	bool new_scbd10_def; /* true: fix 2M(8822c) */
+	bool ble_hid_profile_support;
 	u8 pstdma_type; /* 0: LPSoff, 1:LPSon */
 	u8 bt_rssi_type;
 	u8 ant_isolation;
@@ -1182,6 +1208,7 @@ struct rtw_chip_info {
 	const struct coex_5g_afh_map *afh_5g;
 	const struct rtw_hw_reg *btg_reg;
 	const struct rtw_reg_domain *coex_info_hw_regs;
+	u32 wl_fw_desired_ver;
 };
 
 enum rtw_coex_bt_state_cnt {
@@ -1203,6 +1230,7 @@ enum rtw_coex_bt_state_cnt {
 };
 
 enum rtw_coex_wl_state_cnt {
+	COEX_CNT_WL_SCANAP,
 	COEX_CNT_WL_CONNPKT,
 	COEX_CNT_WL_COEXRUN,
 	COEX_CNT_WL_NOISY0,
@@ -1225,6 +1253,8 @@ struct rtw_coex_rfe {
 	bool wlg_at_btg;
 };
 
+#define COEX_WL_TDMA_PARA_LENGTH	5
+
 struct rtw_coex_dm {
 	bool cur_ps_tdma_on;
 	bool cur_wl_rx_low_gain_en;
@@ -1244,6 +1274,7 @@ struct rtw_coex_dm {
 	u32 cur_ant_pos_type;
 	u32 cur_switch_status;
 	u32 setting_tdma;
+	u8 fw_tdma_para[COEX_WL_TDMA_PARA_LENGTH];
 };
 
 #define COEX_BTINFO_SRC_WL_FW	0x0
@@ -1251,7 +1282,8 @@ struct rtw_coex_dm {
 #define COEX_BTINFO_SRC_BT_ACT	0x2
 #define COEX_BTINFO_SRC_BT_IQK	0x3
 #define COEX_BTINFO_SRC_BT_SCBD	0x4
-#define COEX_BTINFO_SRC_MAX	0x5
+#define COEX_BTINFO_SRC_H2C60	0x5
+#define COEX_BTINFO_SRC_MAX	0x6
 
 #define COEX_INFO_FTP		BIT(7)
 #define COEX_INFO_A2DP		BIT(6)
@@ -1262,6 +1294,7 @@ struct rtw_coex_dm {
 #define COEX_INFO_SCO_ESCO	BIT(1)
 #define COEX_INFO_CONNECTION	BIT(0)
 #define COEX_BTINFO_LENGTH_MAX	10
+#define COEX_BTINFO_LENGTH	7
 
 struct rtw_coex_stat {
 	bool bt_disabled;
@@ -1283,6 +1316,8 @@ struct rtw_coex_stat {
 	bool bt_fix_2M;
 	bool bt_setup_link;
 	bool bt_multi_link;
+	bool bt_multi_link_pre;
+	bool bt_multi_link_remain;
 	bool bt_a2dp_sink;
 	bool bt_a2dp_active;
 	bool bt_reenable;
@@ -1290,6 +1325,7 @@ struct rtw_coex_stat {
 	bool bt_init_scan;
 	bool bt_slave;
 	bool bt_418_hid_exist;
+	bool bt_ble_hid_exist;
 	bool bt_mailbox_reply;
 
 	bool wl_under_lps;
@@ -1307,9 +1343,16 @@ struct rtw_coex_stat {
 	bool wl_cck_lock;
 	bool wl_cck_lock_pre;
 	bool wl_cck_lock_ever;
+	bool wl_connecting;
+	bool wl_slot_toggle;
+	bool wl_slot_toggle_change; /* if toggle to no-toggle */
 
 	u32 bt_supported_version;
 	u32 bt_supported_feature;
+	u32 hi_pri_tx;
+	u32 hi_pri_rx;
+	u32 lo_pri_tx;
+	u32 lo_pri_rx;
 	u32 patch_ver;
 	u16 bt_reg_vendor_ae;
 	u16 bt_reg_vendor_ac;
@@ -1331,12 +1374,20 @@ struct rtw_coex_stat {
 	u8 bt_a2dp_bitpool;
 	u8 bt_iqk_state;
 
+	u16 wl_beacon_interval;
 	u8 wl_noisy_level;
 	u8 wl_fw_dbg_info[10];
 	u8 wl_fw_dbg_info_pre[10];
+	u8 wl_rx_rate;
+	u8 wl_tx_rate;
+	u8 wl_rts_rx_rate;
 	u8 wl_coex_mode;
+	u8 wl_iot_peer;
 	u8 ampdu_max_time;
 	u8 wl_tput_dir;
+
+	u8 wl_toggle_para[6];
+	u8 wl_toggle_interval;
 
 	u16 score_board;
 	u16 retry_limit;
@@ -1346,6 +1397,9 @@ struct rtw_coex_stat {
 
 	/* counters to record wifi states */
 	u32 cnt_wl[COEX_CNT_WL_MAX];
+
+	/* counters to record bt c2h data */
+	u32 cnt_bt_info_c2h[COEX_BTINFO_SRC_MAX];
 
 	u32 darfrc;
 	u32 darfrch;
@@ -1362,6 +1416,7 @@ struct rtw_coex {
 	bool freeze;
 	bool freerun;
 	bool wl_rf_off;
+	bool manual_control;
 
 	struct rtw_coex_stat stat;
 	struct rtw_coex_dm dm;
@@ -1372,6 +1427,10 @@ struct rtw_coex {
 	struct delayed_work defreeze_work;
 	struct delayed_work wl_remain_work;
 	struct delayed_work bt_remain_work;
+	struct delayed_work wl_connecting_work;
+	struct delayed_work bt_multi_link_remain_work;
+	struct delayed_work wl_ccklock_work;
+
 };
 
 #define DPK_RF_REG_NUM 7
@@ -1438,6 +1497,9 @@ struct rtw_iqk_info {
 	} result;
 };
 
+#define RRSR_INIT_2G 0x15f
+#define RRSR_INIT_5G 0x150
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
@@ -1468,6 +1530,8 @@ struct rtw_dm_info {
 	u8 cck_gi_l_bnd;
 
 	u8 tx_rate;
+	u32 rrsr_val_init;
+	u32 rrsr_mask_min;
 	u8 thermal_avg[RTW_RF_PATH_MAX];
 	u8 thermal_meter_k;
 	s8 delta_power_index[RTW_RF_PATH_MAX];
@@ -1606,6 +1670,9 @@ struct rtw_fifo_conf {
 	const struct rtw_rqpn *rqpn;
 };
 
+#define FW_CD_TYPE 0xffff
+#define FW_CD_LEN 4
+#define FW_CD_VAL 0xaabbccdd
 struct rtw_fw_state {
 	const struct firmware *firmware;
 	struct rtw_dev *rtwdev;
@@ -1614,6 +1681,8 @@ struct rtw_fw_state {
 	u8 sub_version;
 	u8 sub_index;
 	u16 h2c_version;
+	u8 prev_dump_seq;
+	u32 feature;
 };
 
 struct rtw_hal {
@@ -1699,11 +1768,13 @@ struct rtw_dev {
 	/* c2h cmd queue & handler work */
 	struct sk_buff_head c2h_queue;
 	struct work_struct c2h_work;
+	struct work_struct fw_recovery_work;
 
 	/* used to protect txqs list */
 	spinlock_t txq_lock;
 	struct list_head txqs;
-	struct tasklet_struct tx_tasklet;
+	struct workqueue_struct *tx_wq;
+	struct work_struct tx_work;
 	struct work_struct ba_work;
 
 	struct rtw_tx_report tx_report;
@@ -1719,6 +1790,7 @@ struct rtw_dev {
 	/* lps power state & handler work */
 	struct rtw_lps_conf lps_conf;
 	bool ps_enabled;
+	struct completion lps_leave_check;
 
 	struct dentry *debugfs;
 
@@ -1799,6 +1871,11 @@ static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
 	return rtwdev->chip->rx_ldpc;
 }
 
+static inline void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)
+{
+	clear_bit(mac_id, rtwdev->mac_id_map);
+}
+
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			    struct rtw_channel_params *ch_param);
 bool check_hw_ready(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 target);
@@ -1821,5 +1898,12 @@ void rtw_core_deinit(struct rtw_dev *rtwdev);
 int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw);
 void rtw_unregister_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw);
 u16 rtw_desc_to_bitrate(u8 desc_rate);
+void rtw_vif_assoc_changed(struct rtw_vif *rtwvif,
+			   struct ieee80211_bss_conf *conf);
+int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
+		struct ieee80211_vif *vif);
+void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
+		    bool fw_exist);
+void rtw_fw_recovery(struct rtw_dev *rtwdev);
 
 #endif

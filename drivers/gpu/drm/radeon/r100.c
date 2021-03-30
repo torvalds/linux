@@ -153,6 +153,7 @@ void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * @rdev: radeon_device pointer
  * @crtc_id: crtc to cleanup pageflip on
  * @crtc_base: new address of the crtc (GPU MC address)
+ * @async: asynchronous flip
  *
  * Does the actual pageflip (r1xx-r4xx).
  * During vblank we take the crtc lock and wait for the update_pending
@@ -841,8 +842,8 @@ u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc)
 
 /**
  * r100_ring_hdp_flush - flush Host Data Path via the ring buffer
- * rdev: radeon device structure
- * ring: ring buffer struct for emitting packets
+ * @rdev: radeon device structure
+ * @ring: ring buffer struct for emitting packets
  */
 static void r100_ring_hdp_flush(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -1409,7 +1410,7 @@ int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 
 /**
  * r100_cs_packet_next_vline() - parse userspace VLINE packet
- * @parser:		parser structure holding parsing context.
+ * @p:		parser structure holding parsing context.
  *
  * Userspace sends a special sequence for VLINE waits.
  * PACKET0 - VLINE_START_END + value
@@ -2611,7 +2612,6 @@ int r100_asic_reset(struct radeon_device *rdev, bool hard)
 
 void r100_set_common_regs(struct radeon_device *rdev)
 {
-	struct drm_device *dev = rdev->ddev;
 	bool force_dac2 = false;
 	u32 tmp;
 
@@ -2629,7 +2629,7 @@ void r100_set_common_regs(struct radeon_device *rdev)
 	 * don't report it in the bios connector
 	 * table.
 	 */
-	switch (dev->pdev->device) {
+	switch (rdev->pdev->device) {
 		/* RN50 */
 	case 0x515e:
 	case 0x5969:
@@ -2639,17 +2639,17 @@ void r100_set_common_regs(struct radeon_device *rdev)
 	case 0x5159:
 	case 0x515a:
 		/* DELL triple head servers */
-		if ((dev->pdev->subsystem_vendor == 0x1028 /* DELL */) &&
-		    ((dev->pdev->subsystem_device == 0x016c) ||
-		     (dev->pdev->subsystem_device == 0x016d) ||
-		     (dev->pdev->subsystem_device == 0x016e) ||
-		     (dev->pdev->subsystem_device == 0x016f) ||
-		     (dev->pdev->subsystem_device == 0x0170) ||
-		     (dev->pdev->subsystem_device == 0x017d) ||
-		     (dev->pdev->subsystem_device == 0x017e) ||
-		     (dev->pdev->subsystem_device == 0x0183) ||
-		     (dev->pdev->subsystem_device == 0x018a) ||
-		     (dev->pdev->subsystem_device == 0x019a)))
+		if ((rdev->pdev->subsystem_vendor == 0x1028 /* DELL */) &&
+		    ((rdev->pdev->subsystem_device == 0x016c) ||
+		     (rdev->pdev->subsystem_device == 0x016d) ||
+		     (rdev->pdev->subsystem_device == 0x016e) ||
+		     (rdev->pdev->subsystem_device == 0x016f) ||
+		     (rdev->pdev->subsystem_device == 0x0170) ||
+		     (rdev->pdev->subsystem_device == 0x017d) ||
+		     (rdev->pdev->subsystem_device == 0x017e) ||
+		     (rdev->pdev->subsystem_device == 0x0183) ||
+		     (rdev->pdev->subsystem_device == 0x018a) ||
+		     (rdev->pdev->subsystem_device == 0x019a)))
 			force_dac2 = true;
 		break;
 	}
@@ -2797,7 +2797,7 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 			rdev->mc.real_vram_size = 8192 * 1024;
 			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 		}
-		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
+		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM -
 		 * Novell bug 204882 + along with lots of ubuntu ones
 		 */
 		if (rdev->mc.aper_size > config_aper_size)

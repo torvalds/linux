@@ -98,8 +98,7 @@ static int amdgpu_cs_bo_handles_chunk(struct amdgpu_cs_parser *p,
 	return 0;
 
 error_free:
-	if (info)
-		kvfree(info);
+	kvfree(info);
 
 	return r;
 }
@@ -326,7 +325,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	increment_us = time_us - adev->mm_stats.last_update_us;
 	adev->mm_stats.last_update_us = time_us;
 	adev->mm_stats.accum_us = min(adev->mm_stats.accum_us + increment_us,
-                                      us_upper_bound);
+				      us_upper_bound);
 
 	/* This prevents the short period of low performance when the VRAM
 	 * usage is low and the driver is in debt or doesn't have enough
@@ -404,13 +403,12 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
-		.resv = bo->tbo.base.resv,
-		.flags = 0
+		.resv = bo->tbo.base.resv
 	};
 	uint32_t domain;
 	int r;
 
-	if (bo->pin_count)
+	if (bo->tbo.pin_count)
 		return 0;
 
 	/* Don't move this buffer if we have depleted our allowance
@@ -677,6 +675,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
  * cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
  * @error:	error number
+ * @backoff:	indicator to backoff the reservation
  *
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
@@ -1461,7 +1460,7 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 		dma_fence_put(fence);
 		if (r)
 			return r;
-		r = drm_syncobj_get_fd(syncobj, (int*)&info->out.handle);
+		r = drm_syncobj_get_fd(syncobj, (int *)&info->out.handle);
 		drm_syncobj_put(syncobj);
 		return r;
 
@@ -1645,6 +1644,7 @@ err_free_fences:
  * @parser: command submission parser context
  * @addr: VM address
  * @bo: resulting BO of the mapping found
+ * @map: Placeholder to return found BO mapping
  *
  * Search the buffer objects in the command submission context for a certain
  * virtual memory address. Returns allocation structure when found, NULL

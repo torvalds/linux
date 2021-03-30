@@ -1041,6 +1041,15 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 		goto out;
 	}
 
+	/*
+	 * If control has more than 2 channels we need to override the info. This is because even if
+	 * ASoC layer has defined topology's max channel count to SND_SOC_TPLG_MAX_CHAN = 8, the
+	 * pre-defined dapm control types (and related functions) creating the actual control
+	 * restrict the channels only to mono or stereo.
+	 */
+	if (le32_to_cpu(mc->num_channels) > 2)
+		kc->info = snd_sof_volume_info;
+
 	/* init the volume get/put data */
 	scontrol->size = struct_size(scontrol->control_data, chanv,
 				     le32_to_cpu(mc->num_channels));
@@ -1064,7 +1073,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
 
 	/* extract tlv data */
-	if (get_tlv_data(kc->tlv.p, tlv) < 0) {
+	if (!kc->tlv.p || get_tlv_data(kc->tlv.p, tlv) < 0) {
 		dev_err(scomp->dev, "error: invalid TLV data\n");
 		ret = -EINVAL;
 		goto out_free;
@@ -1201,7 +1210,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 			ret = -EINVAL;
 			goto out_free;
 		}
-		if (cdata->data->size + sizeof(const struct sof_abi_hdr) !=
+		if (cdata->data->size + sizeof(struct sof_abi_hdr) !=
 		    le32_to_cpu(control->priv.size)) {
 			dev_err(scomp->dev,
 				"error: Conflict in bytes vs. priv size.\n");
@@ -1343,10 +1352,6 @@ static int sof_core_enable(struct snd_sof_dev *sdev, int core)
 			core, ret);
 		goto err;
 	}
-
-	/* update enabled cores mask */
-	sdev->enabled_cores_mask |= BIT(core);
-
 	return ret;
 err:
 	/* power down core if it is host managed and return the original error if this fails too */
@@ -2594,10 +2599,6 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		if (ret < 0)
 			dev_err(scomp->dev, "error: powering down pipeline schedule core %d\n",
 				pipeline->core);
-
-		/* update enabled cores mask */
-		sdev->enabled_cores_mask &= ~(1 << pipeline->core);
-
 		break;
 	default:
 		break;
@@ -2777,18 +2778,18 @@ static void sof_dai_set_format(struct snd_soc_tplg_hw_config *hw_config,
 			       struct sof_ipc_dai_config *config)
 {
 	/* clock directions wrt codec */
-	if (hw_config->bclk_master == SND_SOC_TPLG_BCLK_CM) {
-		/* codec is bclk master */
-		if (hw_config->fsync_master == SND_SOC_TPLG_FSYNC_CM)
-			config->format |= SOF_DAI_FMT_CBM_CFM;
+	if (hw_config->bclk_provider == SND_SOC_TPLG_BCLK_CP) {
+		/* codec is bclk provider */
+		if (hw_config->fsync_provider == SND_SOC_TPLG_FSYNC_CP)
+			config->format |= SOF_DAI_FMT_CBP_CFP;
 		else
-			config->format |= SOF_DAI_FMT_CBM_CFS;
+			config->format |= SOF_DAI_FMT_CBP_CFC;
 	} else {
-		/* codec is bclk slave */
-		if (hw_config->fsync_master == SND_SOC_TPLG_FSYNC_CM)
-			config->format |= SOF_DAI_FMT_CBS_CFM;
+		/* codec is bclk consumer */
+		if (hw_config->fsync_provider == SND_SOC_TPLG_FSYNC_CP)
+			config->format |= SOF_DAI_FMT_CBC_CFP;
 		else
-			config->format |= SOF_DAI_FMT_CBS_CFS;
+			config->format |= SOF_DAI_FMT_CBC_CFC;
 	}
 
 	/* inverted clocks ? */
@@ -3657,7 +3658,7 @@ static int sof_manifest(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	if (abi_version > SOF_ABI_VERSION) {
+	if (SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
 		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
 			dev_warn(scomp->dev, "warn: topology ABI is more recent than kernel\n");
 		} else {
@@ -3731,12 +3732,12 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: tplg request firmware %s failed err: %d\n",
 			file, ret);
+		dev_err(scomp->dev,
+			"you may need to download the firmware from https://github.com/thesofproject/sof-bin/\n");
 		return ret;
 	}
 
-	ret = snd_soc_tplg_component_load(scomp,
-					  &sof_tplg_ops, fw,
-					  SND_SOC_TPLG_INDEX_ALL);
+	ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: tplg component load failed %d\n",
 			ret);

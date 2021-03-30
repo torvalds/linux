@@ -1251,13 +1251,22 @@ static void kv_restore_regs_for_reset(struct amdgpu_device *adev,
 	WREG32(mmGMCON_RENG_EXECUTE, save->gmcon_reng_execute);
 }
 
-static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
+/**
+ * cik_asic_pci_config_reset - soft reset GPU
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Use PCI Config method to reset the GPU.
+ *
+ * Returns 0 for success.
+ */
+static int cik_asic_pci_config_reset(struct amdgpu_device *adev)
 {
 	struct kv_reset_save_regs kv_save = { 0 };
 	u32 i;
 	int r = -EINVAL;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	if (adev->flags & AMD_IS_APU)
 		kv_save_regs_for_reset(adev, &kv_save);
@@ -1284,26 +1293,6 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 	/* does asic init need to be run first??? */
 	if (adev->flags & AMD_IS_APU)
 		kv_restore_regs_for_reset(adev, &kv_save);
-
-	return r;
-}
-
-/**
- * cik_asic_pci_config_reset - soft reset GPU
- *
- * @adev: amdgpu_device pointer
- *
- * Use PCI Config method to reset the GPU.
- *
- * Returns 0 for success.
- */
-static int cik_asic_pci_config_reset(struct amdgpu_device *adev)
-{
-	int r;
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	r = cik_gpu_pci_config_reset(adev);
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
@@ -1337,9 +1326,7 @@ cik_asic_reset_method(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
-		/* disable baco reset until it works */
-		/* smu7_asic_get_baco_capability(adev, &baco_reset); */
-		baco_reset = false;
+		baco_reset = cik_asic_supports_baco(adev);
 		break;
 	default:
 		baco_reset = false;

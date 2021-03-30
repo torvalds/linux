@@ -44,6 +44,8 @@ mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_info(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+
 	ret = devm_request_irq(mdev->dev, pdev->irq, mt7603_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
@@ -55,7 +57,8 @@ mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 error:
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
+
 	return ret;
 }
 

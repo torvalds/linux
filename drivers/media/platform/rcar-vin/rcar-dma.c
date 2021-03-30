@@ -133,7 +133,6 @@
 #define VNCSI_IFMD_DES1		(1 << 26)
 #define VNCSI_IFMD_DES0		(1 << 25)
 #define VNCSI_IFMD_CSI_CHSEL(n) (((n) & 0xf) << 0)
-#define VNCSI_IFMD_CSI_CHSEL_MASK 0xf
 
 struct rvin_buffer {
 	struct vb2_v4l2_buffer vb;
@@ -672,7 +671,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
 		if (!vin->is_csi &&
-		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+		    vin->parallel.mbus_type == V4L2_MBUS_BT656)
 			vnmc |= VNMC_INF_YUV8_BT656;
 		else
 			vnmc |= VNMC_INF_YUV8_BT601;
@@ -685,7 +684,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
 		if (!vin->is_csi &&
-		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+		    vin->parallel.mbus_type == V4L2_MBUS_BT656)
 			vnmc |= VNMC_INF_YUV10_BT656;
 		else
 			vnmc |= VNMC_INF_YUV10_BT601;
@@ -710,21 +709,21 @@ static int rvin_setup(struct rvin_dev *vin)
 
 	if (!vin->is_csi) {
 		/* Hsync Signal Polarity Select */
-		if (!(vin->parallel->bus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
+		if (!(vin->parallel.bus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_HPS;
 
 		/* Vsync Signal Polarity Select */
-		if (!(vin->parallel->bus.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
+		if (!(vin->parallel.bus.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_VPS;
 
 		/* Data Enable Polarity Select */
-		if (vin->parallel->bus.flags & V4L2_MBUS_DATA_ENABLE_LOW)
+		if (vin->parallel.bus.flags & V4L2_MBUS_DATA_ENABLE_LOW)
 			dmr2 |= VNDMR2_CES;
 
 		switch (vin->mbus_code) {
 		case MEDIA_BUS_FMT_UYVY8_2X8:
-			if (vin->parallel->bus.bus_width == 8 &&
-			    vin->parallel->bus.data_shift == 8)
+			if (vin->parallel.bus.bus_width == 8 &&
+			    vin->parallel.bus.data_shift == 8)
 				dmr2 |= VNDMR2_YDS;
 			break;
 		default:
@@ -905,7 +904,7 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 				vin->format.sizeimage / 2;
 			break;
 		}
-	} else if (list_empty(&vin->buf_list)) {
+	} else if (vin->state != RUNNING || list_empty(&vin->buf_list)) {
 		vin->buf_hw[slot].buffer = NULL;
 		vin->buf_hw[slot].type = FULL;
 		phys_addr = vin->scratch_phys;
@@ -998,12 +997,6 @@ static irqreturn_t rvin_irq(int irq, void *data)
 		goto done;
 	}
 
-	/* Nothing to do if capture status is 'STOPPING' */
-	if (vin->state == STOPPING) {
-		vin_dbg(vin, "IRQ while state stopping\n");
-		goto done;
-	}
-
 	/* Prepare for capture and update state */
 	vnms = rvin_read(vin, VNMS_REG);
 	slot = (vnms & VNMS_FBS_MASK) >> VNMS_FBS_SHIFT;
@@ -1056,33 +1049,20 @@ done:
 	return IRQ_RETVAL(handled);
 }
 
-/* Need to hold qlock before calling */
-static void return_all_buffers(struct rvin_dev *vin,
-			       enum vb2_buffer_state state)
+static void return_unused_buffers(struct rvin_dev *vin,
+				  enum vb2_buffer_state state)
 {
 	struct rvin_buffer *buf, *node;
-	struct vb2_v4l2_buffer *freed[HW_BUFFER_NUM];
-	unsigned int i, n;
+	unsigned long flags;
 
-	for (i = 0; i < HW_BUFFER_NUM; i++) {
-		freed[i] = vin->buf_hw[i].buffer;
-		vin->buf_hw[i].buffer = NULL;
-
-		for (n = 0; n < i; n++) {
-			if (freed[i] == freed[n]) {
-				freed[i] = NULL;
-				break;
-			}
-		}
-
-		if (freed[i])
-			vb2_buffer_done(&freed[i]->vb2_buf, state);
-	}
+	spin_lock_irqsave(&vin->qlock, flags);
 
 	list_for_each_entry_safe(buf, node, &vin->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
+
+	spin_unlock_irqrestore(&vin->qlock, flags);
 }
 
 static int rvin_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
@@ -1222,7 +1202,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 
 	/* No media controller used, simply pass operation to subdevice. */
 	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->parallel->subdev, video, s_stream,
+		ret = v4l2_subdev_call(vin->parallel.subdev, video, s_stream,
 				       on);
 
 		return ret == -ENOIOCTLCMD ? 0 : ret;
@@ -1266,61 +1246,86 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	return ret;
 }
 
-static int rvin_start_streaming(struct vb2_queue *vq, unsigned int count)
+int rvin_start_streaming(struct rvin_dev *vin)
 {
-	struct rvin_dev *vin = vb2_get_drv_priv(vq);
 	unsigned long flags;
 	int ret;
 
-	/* Allocate scratch buffer. */
-	vin->scratch = dma_alloc_coherent(vin->dev, vin->format.sizeimage,
-					  &vin->scratch_phys, GFP_KERNEL);
-	if (!vin->scratch) {
-		spin_lock_irqsave(&vin->qlock, flags);
-		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
-		spin_unlock_irqrestore(&vin->qlock, flags);
-		vin_err(vin, "Failed to allocate scratch buffer\n");
-		return -ENOMEM;
-	}
-
 	ret = rvin_set_stream(vin, 1);
-	if (ret) {
-		spin_lock_irqsave(&vin->qlock, flags);
-		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
-		spin_unlock_irqrestore(&vin->qlock, flags);
-		goto out;
-	}
+	if (ret)
+		return ret;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
 	vin->sequence = 0;
 
 	ret = rvin_capture_start(vin);
-	if (ret) {
-		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
+	if (ret)
 		rvin_set_stream(vin, 0);
-	}
 
 	spin_unlock_irqrestore(&vin->qlock, flags);
-out:
-	if (ret)
-		dma_free_coherent(vin->dev, vin->format.sizeimage, vin->scratch,
-				  vin->scratch_phys);
 
 	return ret;
 }
 
-static void rvin_stop_streaming(struct vb2_queue *vq)
+static int rvin_start_streaming_vq(struct vb2_queue *vq, unsigned int count)
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);
+	int ret = -ENOMEM;
+
+	/* Allocate scratch buffer. */
+	vin->scratch = dma_alloc_coherent(vin->dev, vin->format.sizeimage,
+					  &vin->scratch_phys, GFP_KERNEL);
+	if (!vin->scratch)
+		goto err_scratch;
+
+	ret = rvin_start_streaming(vin);
+	if (ret)
+		goto err_start;
+
+	return 0;
+err_start:
+	dma_free_coherent(vin->dev, vin->format.sizeimage, vin->scratch,
+			  vin->scratch_phys);
+err_scratch:
+	return_unused_buffers(vin, VB2_BUF_STATE_QUEUED);
+
+	return ret;
+}
+
+void rvin_stop_streaming(struct rvin_dev *vin)
+{
+	unsigned int i, retries;
 	unsigned long flags;
-	int retries = 0;
+	bool buffersFreed;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
+	if (vin->state == STOPPED) {
+		spin_unlock_irqrestore(&vin->qlock, flags);
+		return;
+	}
+
 	vin->state = STOPPING;
 
+	/* Wait until only scratch buffer is used, max 3 interrupts. */
+	retries = 0;
+	while (retries++ < RVIN_RETRIES) {
+		buffersFreed = true;
+		for (i = 0; i < HW_BUFFER_NUM; i++)
+			if (vin->buf_hw[i].buffer)
+				buffersFreed = false;
+
+		if (buffersFreed)
+			break;
+
+		spin_unlock_irqrestore(&vin->qlock, flags);
+		msleep(RVIN_TIMEOUT_MS);
+		spin_lock_irqsave(&vin->qlock, flags);
+	}
+
 	/* Wait for streaming to stop */
+	retries = 0;
 	while (retries++ < RVIN_RETRIES) {
 
 		rvin_capture_stop(vin);
@@ -1336,7 +1341,7 @@ static void rvin_stop_streaming(struct vb2_queue *vq)
 		spin_lock_irqsave(&vin->qlock, flags);
 	}
 
-	if (vin->state != STOPPED) {
+	if (!buffersFreed || vin->state != STOPPED) {
 		/*
 		 * If this happens something have gone horribly wrong.
 		 * Set state to stopped to prevent the interrupt handler
@@ -1346,27 +1351,33 @@ static void rvin_stop_streaming(struct vb2_queue *vq)
 		vin->state = STOPPED;
 	}
 
-	/* Release all active buffers */
-	return_all_buffers(vin, VB2_BUF_STATE_ERROR);
-
 	spin_unlock_irqrestore(&vin->qlock, flags);
 
 	rvin_set_stream(vin, 0);
 
 	/* disable interrupts */
 	rvin_disable_interrupts(vin);
+}
+
+static void rvin_stop_streaming_vq(struct vb2_queue *vq)
+{
+	struct rvin_dev *vin = vb2_get_drv_priv(vq);
+
+	rvin_stop_streaming(vin);
 
 	/* Free scratch buffer. */
 	dma_free_coherent(vin->dev, vin->format.sizeimage, vin->scratch,
 			  vin->scratch_phys);
+
+	return_unused_buffers(vin, VB2_BUF_STATE_ERROR);
 }
 
 static const struct vb2_ops rvin_qops = {
 	.queue_setup		= rvin_queue_setup,
 	.buf_prepare		= rvin_buffer_prepare,
 	.buf_queue		= rvin_buffer_queue,
-	.start_streaming	= rvin_start_streaming,
-	.stop_streaming		= rvin_stop_streaming,
+	.start_streaming	= rvin_start_streaming_vq,
+	.stop_streaming		= rvin_stop_streaming_vq,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
 };
@@ -1442,7 +1453,9 @@ error:
  */
 int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 {
-	u32 ifmd, vnmc;
+	const struct rvin_group_route *route;
+	u32 ifmd = 0;
+	u32 vnmc;
 	int ret;
 
 	ret = pm_runtime_get_sync(vin->dev);
@@ -1455,11 +1468,30 @@ int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 	vnmc = rvin_read(vin, VNMC_REG);
 	rvin_write(vin, vnmc & ~VNMC_VUP, VNMC_REG);
 
-	ifmd = VNCSI_IFMD_DES1 | VNCSI_IFMD_DES0 | VNCSI_IFMD_CSI_CHSEL(chsel);
+	/*
+	 * Set data expansion mode to "pad with 0s" by inspecting the routes
+	 * table to find out which bit fields are available in the IFMD
+	 * register. IFMD_DES1 controls data expansion mode for CSI20/21,
+	 * IFMD_DES0 controls data expansion mode for CSI40/41.
+	 */
+	for (route = vin->info->routes; route->mask; route++) {
+		if (route->csi == RVIN_CSI20 || route->csi == RVIN_CSI21)
+			ifmd |= VNCSI_IFMD_DES1;
+		else
+			ifmd |= VNCSI_IFMD_DES0;
 
-	rvin_write(vin, ifmd, VNCSI_IFMD_REG);
+		if (ifmd == (VNCSI_IFMD_DES0 | VNCSI_IFMD_DES1))
+			break;
+	}
+
+	if (ifmd) {
+		ifmd |= VNCSI_IFMD_CSI_CHSEL(chsel);
+		rvin_write(vin, ifmd, VNCSI_IFMD_REG);
+	}
 
 	vin_dbg(vin, "Set IFMD 0x%x\n", ifmd);
+
+	vin->chsel = chsel;
 
 	/* Restore VNMC. */
 	rvin_write(vin, vnmc, VNMC_REG);

@@ -228,8 +228,8 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 			/* for a corked socket defer the RDMA writes if there
 			 * is still sufficient sndbuf_space available
 			 */
-			schedule_delayed_work(&conn->tx_work,
-					      SMC_TX_CORK_DELAY);
+			queue_delayed_work(conn->lgr->tx_wq, &conn->tx_work,
+					   SMC_TX_CORK_DELAY);
 		else
 			smc_tx_sndbuf_nonempty(conn);
 	} /* while (msg_data_left(msg)) */
@@ -499,7 +499,7 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 			if (conn->killed)
 				return -EPIPE;
 			rc = 0;
-			mod_delayed_work(system_wq, &conn->tx_work,
+			mod_delayed_work(conn->lgr->tx_wq, &conn->tx_work,
 					 SMC_TX_WORK_DELAY);
 		}
 		return rc;
@@ -623,8 +623,8 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 			return;
 		if ((smc_cdc_get_slot_and_msg_send(conn) < 0) &&
 		    !conn->killed) {
-			schedule_delayed_work(&conn->tx_work,
-					      SMC_TX_WORK_DELAY);
+			queue_delayed_work(conn->lgr->tx_wq, &conn->tx_work,
+					   SMC_TX_WORK_DELAY);
 			return;
 		}
 	}

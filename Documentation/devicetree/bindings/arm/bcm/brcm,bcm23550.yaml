@@ -18,4 +18,6 @@ properties:
           - brcm,bcm23550-sparrow
       - const: brcm,bcm23550
 
+additionalProperties: true
+
 ...

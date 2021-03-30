@@ -47,12 +47,13 @@ void qedr_dealloc_ucontext(struct ib_ucontext *uctx);
 int qedr_mmap(struct ib_ucontext *ucontext, struct vm_area_struct *vma);
 void qedr_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 int qedr_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-void qedr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-
+int qedr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
+int qedr_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata);
+int qedr_dealloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata);
 int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		   struct ib_udata *udata);
 int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
-void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
+int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 struct ib_qp *qedr_create_qp(struct ib_pd *, struct ib_qp_init_attr *attrs,
 			     struct ib_udata *);
@@ -67,12 +68,12 @@ int qedr_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *attr,
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
+int qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
 int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		   struct ib_udata *udata);
-void qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
 int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);

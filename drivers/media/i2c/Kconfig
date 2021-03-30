@@ -722,7 +722,7 @@ menu "Camera sensor devices"
 config VIDEO_APTINA_PLL
 	tristate
 
-config VIDEO_SMIAPP_PLL
+config VIDEO_CCS_PLL
 	tristate
 
 config VIDEO_HI556
@@ -813,6 +813,20 @@ config VIDEO_IMX319
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx319.
 
+config VIDEO_IMX334
+	tristate "Sony IMX334 sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX334 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx334.
+
 config VIDEO_IMX355
 	tristate "Sony IMX355 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -824,6 +838,19 @@ config VIDEO_IMX355
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx355.
+
+config VIDEO_OV02A10
+	tristate "OmniVision OV02A10 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV02A10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov02a10.
 
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
@@ -877,6 +904,7 @@ config VIDEO_OV2740
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
+	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV2740 camera.
@@ -921,6 +949,19 @@ config VIDEO_OV5647
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5647.
+
+config VIDEO_OV5648
+	tristate "OmniVision OV5648 sensor support"
+	depends on I2C && PM && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV5648 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5648.
 
 config VIDEO_OV6650
 	tristate "OmniVision OV6650 sensor support"
@@ -986,6 +1027,7 @@ config VIDEO_OV772X
 	tristate "OmniVision OV772x sensor support"
 	depends on I2C && VIDEO_V4L2
 	select REGMAP_SCCB
+	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV772x camera.
@@ -1033,6 +1075,19 @@ config VIDEO_OV8856
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov8856.
 
+config VIDEO_OV8865
+	tristate "OmniVision OV8865 sensor support"
+	depends on I2C && PM && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for OmniVision
+	  OV8865 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov8865.
+
 config VIDEO_OV9640
 	tristate "OmniVision OV9640 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -1049,6 +1104,20 @@ config VIDEO_OV9650
 	help
 	  This is a V4L2 sensor driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.
+
+config VIDEO_OV9734
+	tristate "OmniVision OV9734 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	depends on ACPI || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9734 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module's name is ov9734.
 
 config VIDEO_OV13858
 	tristate "OmniVision OV13858 sensor support"
@@ -1171,14 +1240,32 @@ config VIDEO_NOON010PC30
 
 source "drivers/media/i2c/m5mols/Kconfig"
 
+config VIDEO_MAX9271_LIB
+	tristate
+
 config VIDEO_RDACM20
 	tristate "IMI RDACM20 camera support"
 	depends on I2C
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
+	select VIDEO_MAX9271_LIB
 	help
 	  This driver supports the IMI RDACM20 GMSL camera, used in
+	  ADAS systems.
+
+	  This camera should be used in conjunction with a GMSL
+	  deserialiser such as the MAX9286.
+
+config VIDEO_RDACM21
+	tristate "IMI RDACM21 camera support"
+	depends on I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select VIDEO_MAX9271_LIB
+	help
+	  This driver supports the IMI RDACM21 GMSL camera, used in
 	  ADAS systems.
 
 	  This camera should be used in conjunction with a GMSL
@@ -1232,7 +1319,7 @@ config VIDEO_S5K5BAF
 	  This is a V4L2 sensor driver for Samsung S5K5BAF 2M
 	  camera sensor with an embedded SoC image signal processor.
 
-source "drivers/media/i2c/smiapp/Kconfig"
+source "drivers/media/i2c/ccs/Kconfig"
 source "drivers/media/i2c/et8ek8/Kconfig"
 
 config VIDEO_S5C73M3

@@ -99,7 +99,7 @@
 				#dma-channels = <16>;
 			};
 
-			wdog: wdog@10002000 {
+			wdog: watchdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x1000>;
 				interrupts = <27>;
@@ -558,7 +558,7 @@
 			};
 		};
 
-		nfc: nand@d8000000 {
+		nfc: nand-controller@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,imx27-nand";

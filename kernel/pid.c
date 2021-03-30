@@ -73,7 +73,7 @@ int pid_max_max = PID_MAX_LIMIT;
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
-	.kref = KREF_INIT(2),
+	.ns.count = REFCOUNT_INIT(2),
 	.idr = IDR_INIT(init_pid_ns.idr),
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
@@ -520,6 +520,25 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 	return idr_get_next(&ns->idr, &nr);
 }
 
+struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
+{
+	struct fd f;
+	struct pid *pid;
+
+	f = fdget(fd);
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	pid = pidfd_pid(f.file);
+	if (!IS_ERR(pid)) {
+		get_pid(pid);
+		*flags = f.file->f_flags;
+	}
+
+	fdput(f);
+	return pid;
+}
+
 /**
  * pidfd_create() - Create a new pid file descriptor.
  *
@@ -609,7 +628,7 @@ static struct file *__pidfd_fget(struct task_struct *task, int fd)
 	struct file *file;
 	int ret;
 
-	ret = mutex_lock_killable(&task->signal->exec_update_mutex);
+	ret = down_read_killable(&task->signal->exec_update_lock);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -618,7 +637,7 @@ static struct file *__pidfd_fget(struct task_struct *task, int fd)
 	else
 		file = ERR_PTR(-EPERM);
 
-	mutex_unlock(&task->signal->exec_update_mutex);
+	up_read(&task->signal->exec_update_lock);
 
 	return file ?: ERR_PTR(-EBADF);
 }

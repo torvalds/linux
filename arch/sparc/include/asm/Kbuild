@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-# User exported sparc header files
-
 generated-y += syscall_table_32.h
 generated-y += syscall_table_64.h
 generated-y += syscall_table_c32.h
 generic-y += export.h
 generic-y += kvm_para.h
-generic-y += local64.h
 generic-y += mcs_spinlock.h

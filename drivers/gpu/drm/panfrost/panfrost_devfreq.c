@@ -29,18 +29,13 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
 	struct dev_pm_opp *opp;
-	int err;
 
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 	dev_pm_opp_put(opp);
 
-	err = dev_pm_opp_set_rate(dev, *freq);
-	if (err)
-		return err;
-
-	return 0;
+	return dev_pm_opp_set_rate(dev, *freq);
 }
 
 static void panfrost_devfreq_reset(struct panfrost_devfreq *pfdevfreq)
@@ -81,6 +76,7 @@ static int panfrost_devfreq_get_dev_status(struct device *dev,
 }
 
 static struct devfreq_dev_profile panfrost_devfreq_profile = {
+	.timer = DEVFREQ_TIMER_DELAYED,
 	.polling_ms = 50, /* ~3 frames */
 	.target = panfrost_devfreq_target,
 	.get_dev_status = panfrost_devfreq_get_dev_status,
@@ -143,7 +139,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	}
 	pfdevfreq->devfreq = devfreq;
 
-	cooling = of_devfreq_cooling_register(dev->of_node, devfreq);
+	cooling = devfreq_cooling_em_register(devfreq, NULL);
 	if (IS_ERR(cooling))
 		DRM_DEV_INFO(dev, "Failed to register cooling device\n");
 	else
@@ -170,10 +166,8 @@ void panfrost_devfreq_fini(struct panfrost_device *pfdev)
 		pfdevfreq->opp_of_table_added = false;
 	}
 
-	if (pfdevfreq->regulators_opp_table) {
-		dev_pm_opp_put_regulators(pfdevfreq->regulators_opp_table);
-		pfdevfreq->regulators_opp_table = NULL;
-	}
+	dev_pm_opp_put_regulators(pfdevfreq->regulators_opp_table);
+	pfdevfreq->regulators_opp_table = NULL;
 }
 
 void panfrost_devfreq_resume(struct panfrost_device *pfdev)

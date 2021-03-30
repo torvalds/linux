@@ -1439,8 +1439,6 @@ static void fdp1_compute_stride(struct v4l2_pix_format_mplane *pix,
 		pix->plane_fmt[i].sizeimage = pix->plane_fmt[i].bytesperline
 					    * pix->height / vsub;
 
-		memset(pix->plane_fmt[i].reserved, 0,
-		       sizeof(pix->plane_fmt[i].reserved));
 	}
 
 	if (fmt->num_planes == 3) {
@@ -1448,8 +1446,6 @@ static void fdp1_compute_stride(struct v4l2_pix_format_mplane *pix,
 		pix->plane_fmt[2].bytesperline = pix->plane_fmt[1].bytesperline;
 		pix->plane_fmt[2].sizeimage = pix->plane_fmt[1].sizeimage;
 
-		memset(pix->plane_fmt[2].reserved, 0,
-		       sizeof(pix->plane_fmt[2].reserved));
 	}
 }
 

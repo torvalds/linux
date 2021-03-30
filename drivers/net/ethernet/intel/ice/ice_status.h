@@ -29,6 +29,7 @@ enum ice_status {
 	ICE_ERR_HW_TABLE			= -19,
 	ICE_ERR_FW_DDP_MISMATCH			= -20,
 
+	ICE_ERR_NVM				= -50,
 	ICE_ERR_NVM_CHECKSUM			= -51,
 	ICE_ERR_BUF_TOO_SHORT			= -52,
 	ICE_ERR_NVM_BLANK_MODE			= -53,

@@ -1061,9 +1061,6 @@
 			clock-names = "bus", "mod", "ram";
 			resets = <&ccu RST_BUS_CSI>;
 			status = "disabled";
-
-			csi_in: port {
-			};
 		};
 
 		hdmi: hdmi@1ee0000 {

@@ -5,8 +5,8 @@ Description:
 		Provide a place in sysfs for the device link objects in the
 		kernel at any given time.  The name of a device link directory,
 		denoted as ... above, is of the form <supplier>--<consumer>
-		where <supplier> is the supplier device name and <consumer> is
-		the consumer device name.
+		where <supplier> is the supplier bus:device name and <consumer>
+		is the consumer bus:device name.
 
 What:		/sys/class/devlink/.../auto_remove_on
 Date:		May 2020
@@ -18,9 +18,9 @@ Description:
 
 		This will be one of the following strings:
 
-		'consumer unbind'
-		'supplier unbind'
-		'never'
+		- 'consumer unbind'
+		- 'supplier unbind'
+		- 'never'
 
 		'consumer unbind' means the device link will be removed when
 		the consumer's driver is unbound from the consumer device.
@@ -49,8 +49,10 @@ Description:
 
 		This will be one of the following strings:
 
-		'0' - Does not affect runtime power management
-		'1' - Affects runtime power management
+		===   ========================================
+		'0'   Does not affect runtime power management
+		'1'   Affects runtime power management
+		===   ========================================
 
 What:		/sys/class/devlink/.../status
 Date:		May 2020
@@ -68,13 +70,13 @@ Description:
 
 		This will be one of the following strings:
 
-		'not tracked'
-		'dormant'
-		'available'
-		'consumer probing'
-		'active'
-		'supplier unbinding'
-		'unknown'
+		- 'not tracked'
+		- 'dormant'
+		- 'available'
+		- 'consumer probing'
+		- 'active'
+		- 'supplier unbinding'
+		- 'unknown'
 
 		'not tracked' means this device link does not track the status
 		and has no impact on the binding, unbinding and syncing the
@@ -114,8 +116,10 @@ Description:
 
 		This will be one of the following strings:
 
+		===  ================================
 		'0'
-		'1' - Affects runtime power management
+		'1'  Affects runtime power management
+		===  ================================
 
 		'0' means the device link can affect other device behaviors
 		like binding/unbinding, suspend/resume, runtime power

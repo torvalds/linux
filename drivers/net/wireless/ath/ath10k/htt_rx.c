@@ -142,6 +142,14 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	BUILD_BUG_ON(HTT_RX_RING_FILL_LEVEL >= HTT_RX_RING_SIZE / 2);
 
 	idx = __le32_to_cpu(*htt->rx_ring.alloc_idx.vaddr);
+
+	if (idx < 0 || idx >= htt->rx_ring.size) {
+		ath10k_err(htt->ar, "rx ring index is not valid, firmware malfunctioning?\n");
+		idx &= htt->rx_ring.size_mask;
+		ret = -ENOMEM;
+		goto fail;
+	}
+
 	while (num > 0) {
 		skb = dev_alloc_skb(HTT_RX_BUF_SIZE + HTT_RX_DESC_ALIGN);
 		if (!skb) {
@@ -941,6 +949,7 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 	u8 preamble = 0;
 	u8 group_id;
 	u32 info1, info2, info3;
+	u32 stbc, nsts_su;
 
 	info1 = __le32_to_cpu(rxd->ppdu_start.info1);
 	info2 = __le32_to_cpu(rxd->ppdu_start.info2);
@@ -985,11 +994,16 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		 */
 		bw = info2 & 3;
 		sgi = info3 & 1;
+		stbc = (info2 >> 3) & 1;
 		group_id = (info2 >> 4) & 0x3F;
 
 		if (GROUP_ID_IS_SU_MIMO(group_id)) {
 			mcs = (info3 >> 4) & 0x0F;
-			nss = ((info2 >> 10) & 0x07) + 1;
+			nsts_su = ((info2 >> 10) & 0x07);
+			if (stbc)
+				nss = (nsts_su >> 2) + 1;
+			else
+				nss = (nsts_su + 1);
 		} else {
 			/* Hardware doesn't decode VHT-SIG-B into Rx descriptor
 			 * so it's impossible to decode MCS. Also since
@@ -2767,13 +2781,13 @@ static void ath10k_htt_rx_addba(struct ath10k *ar, struct htt_resp *resp)
 	peer_id = MS(info0, HTT_RX_BA_INFO0_PEER_ID);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt rx addba tid %hu peer_id %hu size %hhu\n",
+		   "htt rx addba tid %u peer_id %u size %u\n",
 		   tid, peer_id, ev->window_size);
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, peer_id);
 	if (!peer) {
-		ath10k_warn(ar, "received addba event for invalid peer_id: %hu\n",
+		ath10k_warn(ar, "received addba event for invalid peer_id: %u\n",
 			    peer_id);
 		spin_unlock_bh(&ar->data_lock);
 		return;
@@ -2788,7 +2802,7 @@ static void ath10k_htt_rx_addba(struct ath10k *ar, struct htt_resp *resp)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt rx start rx ba session sta %pM tid %hu size %hhu\n",
+		   "htt rx start rx ba session sta %pM tid %u size %u\n",
 		   peer->addr, tid, ev->window_size);
 
 	ieee80211_start_rx_ba_session_offl(arvif->vif, peer->addr, tid);
@@ -2807,13 +2821,13 @@ static void ath10k_htt_rx_delba(struct ath10k *ar, struct htt_resp *resp)
 	peer_id = MS(info0, HTT_RX_BA_INFO0_PEER_ID);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt rx delba tid %hu peer_id %hu\n",
+		   "htt rx delba tid %u peer_id %u\n",
 		   tid, peer_id);
 
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, peer_id);
 	if (!peer) {
-		ath10k_warn(ar, "received addba event for invalid peer_id: %hu\n",
+		ath10k_warn(ar, "received addba event for invalid peer_id: %u\n",
 			    peer_id);
 		spin_unlock_bh(&ar->data_lock);
 		return;
@@ -2828,7 +2842,7 @@ static void ath10k_htt_rx_delba(struct ath10k *ar, struct htt_resp *resp)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt rx stop rx ba session sta %pM tid %hu\n",
+		   "htt rx stop rx ba session sta %pM tid %u\n",
 		   peer->addr, tid);
 
 	ieee80211_stop_rx_ba_session_offl(arvif->vif, peer->addr, tid);
@@ -3017,7 +3031,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 			ath10k_htt_rx_h_enqueue(ar, &amsdu, status);
 			break;
 		case -EAGAIN:
-			/* fall through */
+			fallthrough;
 		default:
 			/* Should not happen. */
 			ath10k_warn(ar, "failed to extract amsdu: %d\n", ret);
@@ -3088,7 +3102,7 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	}
 
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind num records %hu num resps %hu seq %hu\n",
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind num records %u num resps %u seq %u\n",
 		   num_records, num_resp_ids,
 		   le16_to_cpu(resp->tx_fetch_ind.fetch_seq_num));
 
@@ -3113,12 +3127,12 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 		max_num_msdus = le16_to_cpu(record->num_msdus);
 		max_num_bytes = le32_to_cpu(record->num_bytes);
 
-		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch record %i peer_id %hu tid %hhu msdus %zu bytes %zu\n",
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch record %i peer_id %u tid %u msdus %zu bytes %zu\n",
 			   i, peer_id, tid, max_num_msdus, max_num_bytes);
 
 		if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
 		    unlikely(tid >= ar->htt.tx_q_state.num_tids)) {
-			ath10k_warn(ar, "received out of range peer_id %hu tid %hhu\n",
+			ath10k_warn(ar, "received out of range peer_id %u tid %u\n",
 				    peer_id, tid);
 			continue;
 		}
@@ -3132,7 +3146,7 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 		 */
 
 		if (unlikely(!txq)) {
-			ath10k_warn(ar, "failed to lookup txq for peer_id %hu tid %hhu\n",
+			ath10k_warn(ar, "failed to lookup txq for peer_id %u tid %u\n",
 				    peer_id, tid);
 			continue;
 		}
@@ -3245,7 +3259,7 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 	threshold = MS(info1, HTT_TX_MODE_SWITCH_IND_INFO1_THRESHOLD);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt rx tx mode switch ind info0 0x%04hx info1 0x%04hx enable %d num records %zd mode %d threshold %hu\n",
+		   "htt rx tx mode switch ind info0 0x%04hx info1 0x%04x enable %d num records %zd mode %d threshold %u\n",
 		   info0, info1, enable, num_records, mode, threshold);
 
 	len += sizeof(resp->tx_mode_switch_ind.records[0]) * num_records;
@@ -3282,7 +3296,7 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 
 		if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
 		    unlikely(tid >= ar->htt.tx_q_state.num_tids)) {
-			ath10k_warn(ar, "received out of range peer_id %hu tid %hhu\n",
+			ath10k_warn(ar, "received out of range peer_id %u tid %u\n",
 				    peer_id, tid);
 			continue;
 		}
@@ -3296,7 +3310,7 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 		 */
 
 		if (unlikely(!txq)) {
-			ath10k_warn(ar, "failed to lookup txq for peer_id %hu tid %hhu\n",
+			ath10k_warn(ar, "failed to lookup txq for peer_id %u tid %u\n",
 				    peer_id, tid);
 			continue;
 		}
@@ -3334,7 +3348,7 @@ static inline s8 ath10k_get_legacy_rate_idx(struct ath10k *ar, u8 rate)
 			return i;
 	}
 
-	ath10k_warn(ar, "Invalid legacy rate %hhd peer stats", rate);
+	ath10k_warn(ar, "Invalid legacy rate %d peer stats", rate);
 	return -EINVAL;
 }
 
@@ -3488,13 +3502,13 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		return;
 
 	if (txrate.flags == WMI_RATE_PREAMBLE_VHT && txrate.mcs > 9) {
-		ath10k_warn(ar, "Invalid VHT mcs %hhd peer stats",  txrate.mcs);
+		ath10k_warn(ar, "Invalid VHT mcs %d peer stats",  txrate.mcs);
 		return;
 	}
 
 	if (txrate.flags == WMI_RATE_PREAMBLE_HT &&
 	    (txrate.mcs > 7 || txrate.nss < 1)) {
-		ath10k_warn(ar, "Invalid HT mcs %hhd nss %hhd peer stats",
+		ath10k_warn(ar, "Invalid HT mcs %d nss %d peer stats",
 			    txrate.mcs, txrate.nss);
 		return;
 	}
@@ -3575,11 +3589,13 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 	}
 
 	if (ar->htt.disable_tx_comp) {
-		arsta->tx_retries += peer_stats->retry_pkts;
 		arsta->tx_failed += peer_stats->failed_pkts;
-		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx retries %d tx failed %d\n",
-			   arsta->tx_retries, arsta->tx_failed);
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "tx failed %d\n",
+			   arsta->tx_failed);
 	}
+
+	arsta->tx_retries += peer_stats->retry_pkts;
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx retries %d", arsta->tx_retries);
 
 	if (ath10k_debug_is_extd_tx_stats_enabled(ar))
 		ath10k_accumulate_per_peer_tx_stats(ar, arsta, peer_stats,
@@ -3862,7 +3878,6 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		return ath10k_htt_rx_proc_rx_frag_ind(htt,
 						      &resp->rx_frag_ind,
 						      skb);
-		break;
 	}
 	case HTT_T2H_MSG_TYPE_TEST:
 		break;

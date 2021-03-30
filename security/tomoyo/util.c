@@ -434,59 +434,64 @@ void tomoyo_normalize_line(unsigned char *buffer)
  */
 static bool tomoyo_correct_word2(const char *string, size_t len)
 {
+	u8 recursion = 20;
 	const char *const start = string;
 	bool in_repetition = false;
-	unsigned char c;
-	unsigned char d;
-	unsigned char e;
 
 	if (!len)
 		goto out;
 	while (len--) {
-		c = *string++;
+		unsigned char c = *string++;
+
 		if (c == '\\') {
 			if (!len--)
 				goto out;
 			c = *string++;
+			if (c >= '0' && c <= '3') {
+				unsigned char d;
+				unsigned char e;
+
+				if (!len-- || !len--)
+					goto out;
+				d = *string++;
+				e = *string++;
+				if (d < '0' || d > '7' || e < '0' || e > '7')
+					goto out;
+				c = tomoyo_make_byte(c, d, e);
+				if (c <= ' ' || c >= 127)
+					continue;
+				goto out;
+			}
 			switch (c) {
 			case '\\':  /* "\\" */
-				continue;
-			case '$':   /* "\$" */
 			case '+':   /* "\+" */
 			case '?':   /* "\?" */
+			case 'x':   /* "\x" */
+			case 'a':   /* "\a" */
+			case '-':   /* "\-" */
+				continue;
+			}
+			if (!recursion--)
+				goto out;
+			switch (c) {
 			case '*':   /* "\*" */
 			case '@':   /* "\@" */
-			case 'x':   /* "\x" */
+			case '$':   /* "\$" */
 			case 'X':   /* "\X" */
-			case 'a':   /* "\a" */
 			case 'A':   /* "\A" */
-			case '-':   /* "\-" */
 				continue;
 			case '{':   /* "/\{" */
 				if (string - 3 < start || *(string - 3) != '/')
-					break;
+					goto out;
 				in_repetition = true;
 				continue;
 			case '}':   /* "\}/" */
 				if (*string != '/')
-					break;
+					goto out;
 				if (!in_repetition)
-					break;
+					goto out;
 				in_repetition = false;
 				continue;
-			case '0':   /* "\ooo" */
-			case '1':
-			case '2':
-			case '3':
-				if (!len-- || !len--)
-					break;
-				d = *string++;
-				e = *string++;
-				if (d < '0' || d > '7' || e < '0' || e > '7')
-					break;
-				c = tomoyo_make_byte(c, d, e);
-				if (c <= ' ' || c >= 127)
-					continue;
 			}
 			goto out;
 		} else if (in_repetition && c == '/') {
@@ -1053,30 +1058,30 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 
 		if (ptr->is_deleted)
 			continue;
+		/*
+		 * Reading perm bitmap might race with tomoyo_merge_*() because
+		 * caller does not hold tomoyo_policy_lock mutex. But exceeding
+		 * max_learning_entry parameter by a few entries does not harm.
+		 */
 		switch (ptr->type) {
 		case TOMOYO_TYPE_PATH_ACL:
-			perm = container_of(ptr, struct tomoyo_path_acl, head)
-				->perm;
+			data_race(perm = container_of(ptr, struct tomoyo_path_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_PATH2_ACL:
-			perm = container_of(ptr, struct tomoyo_path2_acl, head)
-				->perm;
+			data_race(perm = container_of(ptr, struct tomoyo_path2_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_PATH_NUMBER_ACL:
-			perm = container_of(ptr, struct tomoyo_path_number_acl,
-					    head)->perm;
+			data_race(perm = container_of(ptr, struct tomoyo_path_number_acl, head)
+				  ->perm);
 			break;
 		case TOMOYO_TYPE_MKDEV_ACL:
-			perm = container_of(ptr, struct tomoyo_mkdev_acl,
-					    head)->perm;
+			data_race(perm = container_of(ptr, struct tomoyo_mkdev_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_INET_ACL:
-			perm = container_of(ptr, struct tomoyo_inet_acl,
-					    head)->perm;
+			data_race(perm = container_of(ptr, struct tomoyo_inet_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_UNIX_ACL:
-			perm = container_of(ptr, struct tomoyo_unix_acl,
-					    head)->perm;
+			data_race(perm = container_of(ptr, struct tomoyo_unix_acl, head)->perm);
 			break;
 		case TOMOYO_TYPE_MANUAL_TASK_ACL:
 			perm = 0;

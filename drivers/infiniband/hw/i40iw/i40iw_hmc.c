@@ -46,7 +46,7 @@
  * i40iw_find_sd_index_limit - finds segment descriptor index limit
  * @hmc_info: pointer to the HMC configuration information structure
  * @type: type of HMC resources we're searching
- * @index: starting index for the object
+ * @idx: starting index for the object
  * @cnt: number of objects we're trying to create
  * @sd_idx: pointer to return index of the segment descriptor in question
  * @sd_limit: pointer to return the maximum number of segment descriptors
@@ -78,7 +78,7 @@ static inline void i40iw_find_sd_index_limit(struct i40iw_hmc_info *hmc_info,
  * @type: HMC resource type we're examining
  * @idx: starting index for the object
  * @cnt: number of objects we're trying to create
- * @pd_index: pointer to return page descriptor index
+ * @pd_idx: pointer to return page descriptor index
  * @pd_limit: pointer to return page descriptor index limit
  *
  * Calculates the page descriptor index and index limit for the resource

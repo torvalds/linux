@@ -1492,10 +1492,19 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	{ PCI_VDEVICE(INTEL, 0x43ab), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x43fb), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x43fd), LPSS_CNL_SSP },
+	/* ADL-P */
+	{ PCI_VDEVICE(INTEL, 0x51aa), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x51ab), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x51fb), LPSS_CNL_SSP },
 	/* APL */
 	{ PCI_VDEVICE(INTEL, 0x5ac2), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac4), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac6), LPSS_BXT_SSP },
+	/* ADL-S */
+	{ PCI_VDEVICE(INTEL, 0x7aaa), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7aab), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7af9), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7afb), LPSS_CNL_SSP },
 	/* CNL-LP */
 	{ PCI_VDEVICE(INTEL, 0x9daa), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x9dab), LPSS_CNL_SSP },
@@ -1686,9 +1695,9 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	}
 
 	if (platform_info->is_slave)
-		controller = spi_alloc_slave(dev, sizeof(struct driver_data));
+		controller = devm_spi_alloc_slave(dev, sizeof(*drv_data));
 	else
-		controller = spi_alloc_master(dev, sizeof(struct driver_data));
+		controller = devm_spi_alloc_master(dev, sizeof(*drv_data));
 
 	if (!controller) {
 		dev_err(&pdev->dev, "cannot alloc spi_controller\n");
@@ -1911,7 +1920,6 @@ out_error_dma_irq_alloc:
 	free_irq(ssp->irq, drv_data);
 
 out_error_controller_alloc:
-	spi_controller_put(controller);
 	pxa_ssp_free(ssp);
 	return status;
 }

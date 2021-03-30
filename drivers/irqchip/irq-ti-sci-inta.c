@@ -85,6 +85,17 @@ struct ti_sci_inta_vint_desc {
  * @base:		Base address of the memory mapped IO registers
  * @pdev:		Pointer to platform device.
  * @ti_sci_id:		TI-SCI device identifier
+ * @unmapped_cnt:	Number of @unmapped_dev_ids entries
+ * @unmapped_dev_ids:	Pointer to an array of TI-SCI device identifiers of
+ *			unmapped event sources.
+ *			Unmapped Events are not part of the Global Event Map and
+ *			they are converted to Global event within INTA to be
+ *			received by the same INTA to generate an interrupt.
+ *			In case an interrupt request comes for a device which is
+ *			generating Unmapped Event, we must use the INTA's TI-SCI
+ *			device identifier in place of the source device
+ *			identifier to let sysfw know where it has to program the
+ *			Global Event number.
  */
 struct ti_sci_inta_irq_domain {
 	const struct ti_sci_handle *sci;
@@ -96,10 +107,36 @@ struct ti_sci_inta_irq_domain {
 	void __iomem *base;
 	struct platform_device *pdev;
 	u32 ti_sci_id;
+
+	int unmapped_cnt;
+	u16 *unmapped_dev_ids;
 };
 
 #define to_vint_desc(e, i) container_of(e, struct ti_sci_inta_vint_desc, \
 					events[i])
+
+static u16 ti_sci_inta_get_dev_id(struct ti_sci_inta_irq_domain *inta, u32 hwirq)
+{
+	u16 dev_id = HWIRQ_TO_DEVID(hwirq);
+	int i;
+
+	if (inta->unmapped_cnt == 0)
+		return dev_id;
+
+	/*
+	 * For devices sending Unmapped Events we must use the INTA's TI-SCI
+	 * device identifier number to be able to convert it to a Global Event
+	 * and map it to an interrupt.
+	 */
+	for (i = 0; i < inta->unmapped_cnt; i++) {
+		if (dev_id == inta->unmapped_dev_ids[i]) {
+			dev_id = inta->ti_sci_id;
+			break;
+		}
+	}
+
+	return dev_id;
+}
 
 /**
  * ti_sci_inta_irq_handler() - Chained IRQ handler for the vint irqs
@@ -251,7 +288,7 @@ static struct ti_sci_inta_event_desc *ti_sci_inta_alloc_event(struct ti_sci_inta
 	u16 dev_id, dev_index;
 	int err;
 
-	dev_id = HWIRQ_TO_DEVID(hwirq);
+	dev_id = ti_sci_inta_get_dev_id(inta, hwirq);
 	dev_index = HWIRQ_TO_IRQID(hwirq);
 
 	event_desc = &vint_desc->events[free_bit];
@@ -352,14 +389,15 @@ static void ti_sci_inta_free_irq(struct ti_sci_inta_event_desc *event_desc,
 {
 	struct ti_sci_inta_vint_desc *vint_desc;
 	struct ti_sci_inta_irq_domain *inta;
+	u16 dev_id;
 
 	vint_desc = to_vint_desc(event_desc, event_desc->vint_bit);
 	inta = vint_desc->domain->host_data;
+	dev_id = ti_sci_inta_get_dev_id(inta, hwirq);
 	/* free event irq */
 	mutex_lock(&inta->vint_mutex);
 	inta->sci->ops.rm_irq_ops.free_event_map(inta->sci,
-						 HWIRQ_TO_DEVID(hwirq),
-						 HWIRQ_TO_IRQID(hwirq),
+						 dev_id, HWIRQ_TO_IRQID(hwirq),
 						 inta->ti_sci_id,
 						 vint_desc->vint_id,
 						 event_desc->global_event,
@@ -574,6 +612,41 @@ static struct msi_domain_info ti_sci_inta_msi_domain_info = {
 	.chip	= &ti_sci_inta_msi_irq_chip,
 };
 
+static int ti_sci_inta_get_unmapped_sources(struct ti_sci_inta_irq_domain *inta)
+{
+	struct device *dev = &inta->pdev->dev;
+	struct device_node *node = dev_of_node(dev);
+	struct of_phandle_iterator it;
+	int count, err, ret, i;
+
+	count = of_count_phandle_with_args(node, "ti,unmapped-event-sources", NULL);
+	if (count <= 0)
+		return 0;
+
+	inta->unmapped_dev_ids = devm_kcalloc(dev, count,
+					      sizeof(*inta->unmapped_dev_ids),
+					      GFP_KERNEL);
+	if (!inta->unmapped_dev_ids)
+		return -ENOMEM;
+
+	i = 0;
+	of_for_each_phandle(&it, err, node, "ti,unmapped-event-sources", NULL, 0) {
+		u32 dev_id;
+
+		ret = of_property_read_u32(it.node, "ti,sci-dev-id", &dev_id);
+		if (ret) {
+			dev_err(dev, "ti,sci-dev-id read failure for %pOFf\n", it.node);
+			of_node_put(it.node);
+			return ret;
+		}
+		inta->unmapped_dev_ids[i++] = dev_id;
+	}
+
+	inta->unmapped_cnt = count;
+
+	return 0;
+}
+
 static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain, *domain, *msi_domain;
@@ -629,6 +702,10 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 	if (IS_ERR(inta->base))
 		return PTR_ERR(inta->base);
 
+	ret = ti_sci_inta_get_unmapped_sources(inta);
+	if (ret)
+		return ret;
+
 	domain = irq_domain_add_linear(dev_of_node(dev),
 				       ti_sci_get_num_resources(inta->vint),
 				       &ti_sci_inta_irq_domain_ops, inta);
@@ -649,7 +726,7 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&inta->vint_list);
 	mutex_init(&inta->vint_mutex);
 
-	dev_info(dev, "Interrupt Aggregator domain %d created\n", pdev->id);
+	dev_info(dev, "Interrupt Aggregator domain %d created\n", inta->ti_sci_id);
 
 	return 0;
 }

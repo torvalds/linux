@@ -26,6 +26,15 @@
 #ifndef _DMUB_CMD_H_
 #define _DMUB_CMD_H_
 
+#if defined(_TEST_HARNESS) || defined(FPGA_USB4)
+#include "dmub_fw_types.h"
+#include "include_legacy/atomfirmware.h"
+
+#if defined(_TEST_HARNESS)
+#include <string.h>
+#endif
+#else
+
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -34,12 +43,14 @@
 
 #include "atomfirmware.h"
 
+#endif // defined(_TEST_HARNESS) || defined(FPGA_USB4)
+
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x9cf8f05fe
+#define DMUB_FW_VERSION_GIT_HASH 0x6444c02e7
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 35
+#define DMUB_FW_VERSION_REVISION 51
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -54,6 +65,8 @@
 
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
+
+#define __forceinline inline
 
 #define SET_ABM_PIPE_GRADUALLY_DISABLE           0
 #define SET_ABM_PIPE_IMMEDIATELY_DISABLE         255
@@ -104,11 +117,14 @@ union dmub_psr_debug_flags {
 	uint32_t u32All;
 };
 
+struct dmub_feature_caps {
+	uint8_t psr;
+	uint8_t reserved[7];
+};
+
 #if defined(__cplusplus)
 }
 #endif
-
-
 
 //==============================================================================
 //</DMUB_TYPES>=================================================================
@@ -189,7 +205,10 @@ union dmub_fw_boot_options {
 		uint32_t pemu_env : 1;
 		uint32_t fpga_env : 1;
 		uint32_t optimized_init : 1;
-		uint32_t reserved : 29;
+		uint32_t skip_phy_access : 1;
+		uint32_t disable_clk_gate: 1;
+		uint32_t skip_phy_init_panel_sequence: 1;
+		uint32_t reserved : 26;
 	} bits;
 	uint32_t all;
 };
@@ -272,6 +291,7 @@ enum dmub_gpint_command {
 	 * ARGS: Stream mask, 1 bit per active stream index.
 	 */
 	DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK = 8,
+	DMUB_GPINT__PSR_RESIDENCY = 9,
 };
 
 //==============================================================================
@@ -297,7 +317,9 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
 	DMUB_CMD__REG_REG_WAIT = 4,
 	DMUB_CMD__PLAT_54186_WA = 5,
+	DMUB_CMD__QUERY_FEATURE_CAPS = 6,
 	DMUB_CMD__PSR = 64,
+	DMUB_CMD__MALL = 65,
 	DMUB_CMD__ABM = 66,
 	DMUB_CMD__HW_LOCK = 69,
 	DMUB_CMD__DP_AUX_ACCESS = 70,
@@ -316,7 +338,8 @@ enum dmub_out_cmd_type {
 struct dmub_cmd_header {
 	unsigned int type : 8;
 	unsigned int sub_type : 8;
-	unsigned int reserved0 : 8;
+	unsigned int ret_status : 1;
+	unsigned int reserved0 : 7;
 	unsigned int payload_bytes : 6;  /* up to 60 bytes */
 	unsigned int reserved1 : 2;
 };
@@ -425,6 +448,22 @@ struct dmub_rb_cmd_PLAT_54186_wa {
 	struct dmub_cmd_PLAT_54186_wa flip;
 };
 
+struct dmub_rb_cmd_mall {
+	struct dmub_cmd_header header;
+	union dmub_addr cursor_copy_src;
+	union dmub_addr cursor_copy_dst;
+	uint32_t tmr_delay;
+	uint32_t tmr_scale;
+	uint16_t cursor_width;
+	uint16_t cursor_pitch;
+	uint16_t cursor_height;
+	uint8_t cursor_bpp;
+	uint8_t debug_bits;
+
+	uint8_t reserved1;
+	uint8_t reserved2;
+};
+
 struct dmub_cmd_digx_encoder_control_data {
 	union dig_encoder_control_parameters_v1_5 dig;
 };
@@ -452,13 +491,34 @@ struct dmub_rb_cmd_enable_disp_power_gating {
 	struct dmub_cmd_enable_disp_power_gating_data power_gating;
 };
 
-struct dmub_cmd_dig1_transmitter_control_data {
+struct dmub_dig_transmitter_control_data_v1_7 {
+	uint8_t phyid; /**< 0=UNIPHYA, 1=UNIPHYB, 2=UNIPHYC, 3=UNIPHYD, 4=UNIPHYE, 5=UNIPHYF */
+	uint8_t action; /**< Defined as ATOM_TRANSMITER_ACTION_xxx */
+	union {
+		uint8_t digmode; /**< enum atom_encode_mode_def */
+		uint8_t dplaneset; /**< DP voltage swing and pre-emphasis value, "DP_LANE_SET__xDB_y_zV" */
+	} mode_laneset;
+	uint8_t lanenum; /**< Number of lanes */
+	union {
+		uint32_t symclk_10khz; /**< Symbol Clock in 10Khz */
+	} symclk_units;
+	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is not assigned */
+	uint8_t digfe_sel; /**< DIG front-end selection, bit0 means DIG0 FE is enabled */
+	uint8_t connobj_id; /**< Connector Object Id defined in ObjectId.h */
+	uint8_t reserved0; /**< For future use */
+	uint8_t reserved1; /**< For future use */
+	uint8_t reserved2[3]; /**< For future use */
+	uint32_t reserved3[11]; /**< For future use */
+};
+
+union dmub_cmd_dig1_transmitter_control_data {
 	struct dig_transmitter_control_parameters_v1_6 dig;
+	struct dmub_dig_transmitter_control_data_v1_7 dig_v1_7;
 };
 
 struct dmub_rb_cmd_dig1_transmitter_control {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_dig1_transmitter_control_data transmitter_control;
+	union dmub_cmd_dig1_transmitter_control_data transmitter_control;
 };
 
 struct dmub_rb_cmd_dpphy_init {
@@ -477,6 +537,22 @@ enum dp_aux_request_action {
 	DP_AUX_REQ_ACTION_DPCD_READ		= 0x90
 };
 
+enum aux_return_code_type {
+	AUX_RET_SUCCESS = 0,
+	AUX_RET_ERROR_UNKNOWN,
+	AUX_RET_ERROR_INVALID_REPLY,
+	AUX_RET_ERROR_TIMEOUT,
+	AUX_RET_ERROR_HPD_DISCON,
+	AUX_RET_ERROR_ENGINE_ACQUIRE,
+	AUX_RET_ERROR_INVALID_OPERATION,
+	AUX_RET_ERROR_PROTOCOL_ERROR,
+};
+
+enum aux_channel_type {
+	AUX_CHANNEL_LEGACY_DDC,
+	AUX_CHANNEL_DPIA
+};
+
 /* DP AUX command */
 struct aux_transaction_parameters {
 	uint8_t is_i2c_over_aux;
@@ -489,9 +565,10 @@ struct aux_transaction_parameters {
 
 struct dmub_cmd_dp_aux_control_data {
 	uint32_t handle;
-	uint8_t port_index;
+	uint8_t instance;
 	uint8_t sw_crc_enabled;
 	uint16_t timeout;
+	enum aux_channel_type type;
 	struct aux_transaction_parameters dpaux;
 };
 
@@ -515,7 +592,7 @@ struct aux_reply_data {
 
 struct aux_reply_control_data {
 	uint32_t handle;
-	uint8_t phy_port_index;
+	uint8_t instance;
 	uint8_t result;
 	uint16_t pad;
 };
@@ -526,8 +603,19 @@ struct dmub_rb_cmd_dp_aux_reply {
 	struct aux_reply_data reply_data;
 };
 
+/* DP HPD Notify command - OutBox Cmd */
+enum dp_hpd_type {
+	DP_HPD = 0,
+	DP_IRQ
+};
+
+enum dp_hpd_status {
+	DP_HPD_UNPLUG = 0,
+	DP_HPD_PLUG
+};
+
 struct dp_hpd_data {
-	uint8_t phy_port_index;
+	uint8_t instance;
 	uint8_t hpd_type;
 	uint8_t hpd_status;
 	uint8_t pad;
@@ -549,6 +637,7 @@ enum dmub_cmd_psr_type {
 	DMUB_CMD__PSR_ENABLE			= 2,
 	DMUB_CMD__PSR_DISABLE			= 3,
 	DMUB_CMD__PSR_SET_LEVEL			= 4,
+	DMUB_CMD__PSR_FORCE_STATIC		= 5,
 };
 
 enum psr_version {
@@ -556,12 +645,23 @@ enum psr_version {
 	PSR_VERSION_UNSUPPORTED			= 0xFFFFFFFF,
 };
 
+enum dmub_cmd_mall_type {
+	DMUB_CMD__MALL_ACTION_ALLOW = 0,
+	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
+	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
+	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
+};
+
 struct dmub_cmd_psr_copy_settings_data {
 	union dmub_psr_debug_flags debug;
 	uint16_t psr_level;
 	uint8_t dpp_inst;
+	/* opp_inst and mpcc_inst will not be used in dmub fw,
+	 * dmub fw will get active opp by reading odm registers.
+	 */
 	uint8_t mpcc_inst;
 	uint8_t opp_inst;
+
 	uint8_t otg_inst;
 	uint8_t digfe_inst;
 	uint8_t digbe_inst;
@@ -570,9 +670,11 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t smu_optimizations_en;
 	uint8_t frame_delay;
 	uint8_t frame_cap_ind;
-	uint8_t pad[3];
+	uint8_t pad[2];
+	uint8_t multi_disp_optimizations_en;
 	uint16_t init_sdp_deadline;
 	uint16_t pad2;
+	uint32_t line_time_in_us;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
@@ -601,6 +703,10 @@ struct dmub_cmd_psr_set_version_data {
 struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_header header;
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
+};
+
+struct dmub_rb_cmd_psr_force_static {
+	struct dmub_cmd_header header;
 };
 
 union dmub_hw_lock_flags {
@@ -662,27 +768,30 @@ enum dmub_cmd_abm_type {
 struct abm_config_table {
 	/* Parameters for crgb conversion */
 	uint16_t crgb_thresh[NUM_POWER_FN_SEGS];                 // 0B
-	uint16_t crgb_offset[NUM_POWER_FN_SEGS];                 // 15B
-	uint16_t crgb_slope[NUM_POWER_FN_SEGS];                  // 31B
+	uint16_t crgb_offset[NUM_POWER_FN_SEGS];                 // 16B
+	uint16_t crgb_slope[NUM_POWER_FN_SEGS];                  // 32B
 
 	/* Parameters for custom curve */
-	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];        // 47B
-	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];           // 79B
+	uint16_t backlight_thresholds[NUM_BL_CURVE_SEGS];        // 48B
+	uint16_t backlight_offsets[NUM_BL_CURVE_SEGS];           // 78B
 
-	uint16_t ambient_thresholds_lux[NUM_AMBI_LEVEL];         // 111B
-	uint16_t min_abm_backlight;                              // 121B
+	uint16_t ambient_thresholds_lux[NUM_AMBI_LEVEL];         // 112B
+	uint16_t min_abm_backlight;                              // 122B
 
-	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 123B
-	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 143B
-	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL]; // 163B
-	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 183B
-	uint8_t hybrid_factor[NUM_AGGR_LEVEL];                   // 203B
-	uint8_t contrast_factor[NUM_AGGR_LEVEL];                 // 207B
-	uint8_t deviation_gain[NUM_AGGR_LEVEL];                  // 211B
-	uint8_t min_knee[NUM_AGGR_LEVEL];                        // 215B
-	uint8_t max_knee[NUM_AGGR_LEVEL];                        // 219B
-	uint8_t iir_curve[NUM_AMBI_LEVEL];                       // 223B
-	uint8_t pad3[3];                                         // 228B
+	uint8_t min_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 124B
+	uint8_t max_reduction[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 144B
+	uint8_t bright_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL]; // 164B
+	uint8_t dark_pos_gain[NUM_AMBI_LEVEL][NUM_AGGR_LEVEL];   // 184B
+	uint8_t hybrid_factor[NUM_AGGR_LEVEL];                   // 204B
+	uint8_t contrast_factor[NUM_AGGR_LEVEL];                 // 208B
+	uint8_t deviation_gain[NUM_AGGR_LEVEL];                  // 212B
+	uint8_t min_knee[NUM_AGGR_LEVEL];                        // 216B
+	uint8_t max_knee[NUM_AGGR_LEVEL];                        // 220B
+	uint8_t iir_curve[NUM_AMBI_LEVEL];                       // 224B
+	uint8_t pad3[3];                                         // 229B
+
+	uint16_t blRampReduction[NUM_AGGR_LEVEL];                // 232B
+	uint16_t blRampStart[NUM_AGGR_LEVEL];                    // 240B
 };
 
 struct dmub_cmd_abm_set_pipe_data {
@@ -744,7 +853,16 @@ struct dmub_rb_cmd_abm_init_config {
 	struct dmub_cmd_abm_init_config_data abm_init_config_data;
 };
 
-union dmub_rb_cmd {
+struct dmub_cmd_query_feature_caps_data {
+	 struct dmub_feature_caps feature_caps;
+};
+
+struct dmub_rb_cmd_query_feature_caps {
+	 struct dmub_cmd_header header;
+	 struct dmub_cmd_query_feature_caps_data query_feature_caps_data;
+};
+
+ union dmub_rb_cmd {
 	struct dmub_rb_cmd_lock_hw lock_hw;
 	struct dmub_rb_cmd_read_modify_write read_modify_write;
 	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
@@ -760,7 +878,9 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
+	struct dmub_rb_cmd_psr_force_static psr_force_static;
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
+	struct dmub_rb_cmd_mall mall;
 	struct dmub_rb_cmd_abm_set_pipe abm_set_pipe;
 	struct dmub_rb_cmd_abm_set_backlight abm_set_backlight;
 	struct dmub_rb_cmd_abm_set_level abm_set_level;
@@ -769,6 +889,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_init_config abm_init_config;
 	struct dmub_rb_cmd_dp_aux_access dp_aux_access;
 	struct dmub_rb_cmd_outbox1_enable outbox1_enable;
+	struct dmub_rb_cmd_query_feature_caps query_feature_caps;
 };
 
 union dmub_rb_out_cmd {
@@ -831,7 +952,7 @@ static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 {
 	uint64_t volatile *dst = (uint64_t volatile *)(rb->base_address) + rb->wrpt / sizeof(uint64_t);
 	const uint64_t *src = (const uint64_t *)cmd;
-	int i;
+	uint8_t i;
 
 	if (dmub_rb_full(rb))
 		return false;
@@ -868,14 +989,14 @@ static inline bool dmub_rb_out_push_front(struct dmub_rb *rb,
 }
 
 static inline bool dmub_rb_front(struct dmub_rb *rb,
-				 union dmub_rb_cmd  *cmd)
+				 union dmub_rb_cmd  **cmd)
 {
-	uint8_t *rd_ptr = (uint8_t *)rb->base_address + rb->rptr;
+	uint8_t *rb_cmd = (uint8_t *)(rb->base_address) + rb->rptr;
 
 	if (dmub_rb_empty(rb))
 		return false;
 
-	dmub_memcpy(cmd, rd_ptr, DMUB_RB_CMD_SIZE);
+	*cmd = (union dmub_rb_cmd *)rb_cmd;
 
 	return true;
 }
@@ -885,7 +1006,7 @@ static inline bool dmub_rb_out_front(struct dmub_rb *rb,
 {
 	const uint64_t volatile *src = (const uint64_t volatile *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
 	uint64_t *dst = (uint64_t *)cmd;
-	int i;
+	uint8_t i;
 
 	if (dmub_rb_empty(rb))
 		return false;
@@ -917,7 +1038,7 @@ static inline void dmub_rb_flush_pending(const struct dmub_rb *rb)
 
 	while (rptr != wptr) {
 		uint64_t volatile *data = (uint64_t volatile *)rb->base_address + rptr / sizeof(uint64_t);
-		int i;
+		uint8_t i;
 
 		for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
 			*data++;
@@ -935,6 +1056,17 @@ static inline void dmub_rb_init(struct dmub_rb *rb,
 	rb->capacity = init_params->capacity;
 	rb->rptr = init_params->read_ptr;
 	rb->wrpt = init_params->write_ptr;
+}
+
+static inline void dmub_rb_get_return_data(struct dmub_rb *rb,
+					   union dmub_rb_cmd *cmd)
+{
+	// Copy rb entry back into command
+	uint8_t *rd_ptr = (rb->rptr == 0) ?
+		(uint8_t *)rb->base_address + rb->capacity - DMUB_RB_CMD_SIZE :
+		(uint8_t *)rb->base_address + rb->rptr - DMUB_RB_CMD_SIZE;
+
+	dmub_memcpy(cmd, rd_ptr, DMUB_RB_CMD_SIZE);
 }
 
 #if defined(__cplusplus)

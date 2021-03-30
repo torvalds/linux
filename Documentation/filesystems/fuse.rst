@@ -47,7 +47,7 @@ filesystems.  A good example is sshfs: a secure network filesystem
 using the sftp protocol.
 
 The userspace library and utilities are available from the
-`FUSE homepage: <http://fuse.sourceforge.net/>`_
+`FUSE homepage: <https://github.com/libfuse/>`_
 
 Filesystem type
 ===============

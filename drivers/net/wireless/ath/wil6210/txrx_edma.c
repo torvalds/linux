@@ -147,9 +147,7 @@ out_free:
 	return rc;
 }
 
-/**
- * Allocate one skb for Rx descriptor RING
- */
+/* Allocate one skb for Rx descriptor RING */
 static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 				   struct wil_ring *ring, u32 i)
 {
@@ -1028,6 +1026,8 @@ skipping:
 		stats->last_mcs_rx = wil_rx_status_get_mcs(msg);
 		if (stats->last_mcs_rx < ARRAY_SIZE(stats->rx_per_mcs))
 			stats->rx_per_mcs[stats->last_mcs_rx]++;
+		else if (stats->last_mcs_rx == WIL_EXTENDED_MCS_26)
+			stats->rx_per_mcs[WIL_BASE_MCS_FOR_EXTENDED_26]++;
 
 		stats->last_cb_mode_rx  = wil_rx_status_get_cb_mode(msg);
 	}
@@ -1152,8 +1152,7 @@ wil_get_next_tx_status_msg(struct wil_status_ring *sring, u8 *dr_bit,
 	*msg = *_msg;
 }
 
-/**
- * Clean up transmitted skb's from the Tx descriptor RING.
+/* Clean up transmitted skb's from the Tx descriptor RING.
  * Return number of descriptors cleared.
  */
 int wil_tx_sring_handler(struct wil6210_priv *wil,
@@ -1314,8 +1313,7 @@ again:
 	return desc_cnt;
 }
 
-/**
- * Sets the descriptor @d up for csum and/or TSO offloading. The corresponding
+/* Sets the descriptor @d up for csum and/or TSO offloading. The corresponding
  * @skb is used to obtain the protocol and headers length.
  * @tso_desc_type is a descriptor type for TSO: 0 - a header, 1 - first data,
  * 2 - middle, 3 - last descriptor.

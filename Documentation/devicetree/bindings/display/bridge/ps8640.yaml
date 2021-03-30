@@ -35,41 +35,27 @@ properties:
     description: GPIO connected to active low reset.
 
   vdd12-supply:
-    maxItems: 1
     description: Regulator for 1.2V digital core power.
 
   vdd33-supply:
-    maxItems: 1
     description: Regulator for 3.3V digital core power.
 
   ports:
-    type: object
-    description:
-      A node containing DSI input & output port nodes with endpoint
-      definitions as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
-      Documentation/devicetree/bindings/graph.txt
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
       port@0:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for DSI input
 
       port@1:
-        type: object
-        description: |
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
           Video port for eDP output (panel or connector).
 
     required:
       - port@0
-
-    additionalProperties: false
 
 required:
   - compatible

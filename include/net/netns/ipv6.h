@@ -51,6 +51,7 @@ struct netns_sysctl_ipv6 {
 	int max_hbh_opts_len;
 	int seg6_flowlabel;
 	bool skip_notify_on_dev_down;
+	int fib_notify_on_flag_change;
 };
 
 struct netns_ipv6 {

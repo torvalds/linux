@@ -131,7 +131,7 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 
 	printk(KERN_INFO "System zones: ");
 	rcu_read_lock();
-	system_blks = rcu_dereference(sbi->system_blks);
+	system_blks = rcu_dereference(sbi->s_system_blks);
 	node = rb_first(&system_blks->root);
 	while (node) {
 		entry = rb_entry(node, struct ext4_system_zone, node);
@@ -176,12 +176,10 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 			err = add_system_zone(system_blks, map.m_pblk, n, ino);
 			if (err < 0) {
 				if (err == -EFSCORRUPTED) {
-					__ext4_error(sb, __func__, __LINE__,
-						     -err, map.m_pblk,
-						     "blocks %llu-%llu from inode %u overlap system zone",
-						     map.m_pblk,
-						     map.m_pblk + map.m_len - 1,
-						     ino);
+					EXT4_ERROR_INODE_ERR(inode, -err,
+						"blocks %llu-%llu from inode overlap system zone",
+						map.m_pblk,
+						map.m_pblk + map.m_len - 1);
 				}
 				break;
 			}
@@ -206,7 +204,7 @@ static void ext4_destroy_system_zone(struct rcu_head *rcu)
  *
  * The update of system_blks pointer in this function is protected by
  * sb->s_umount semaphore. However we have to be careful as we can be
- * racing with ext4_data_block_valid() calls reading system_blks rbtree
+ * racing with ext4_inode_block_valid() calls reading system_blks rbtree
  * protected only by RCU. That's why we first build the rbtree and then
  * swap it in place.
  */
@@ -258,10 +256,10 @@ int ext4_setup_system_zone(struct super_block *sb)
 
 	/*
 	 * System blks rbtree complete, announce it once to prevent racing
-	 * with ext4_data_block_valid() accessing the rbtree at the same
+	 * with ext4_inode_block_valid() accessing the rbtree at the same
 	 * time.
 	 */
-	rcu_assign_pointer(sbi->system_blks, system_blks);
+	rcu_assign_pointer(sbi->s_system_blks, system_blks);
 
 	if (test_opt(sb, DEBUG))
 		debug_print_tree(sbi);
@@ -278,7 +276,7 @@ err:
  *
  * The update of system_blks pointer in this function is protected by
  * sb->s_umount semaphore. However we have to be careful as we can be
- * racing with ext4_data_block_valid() calls reading system_blks rbtree
+ * racing with ext4_inode_block_valid() calls reading system_blks rbtree
  * protected only by RCU. So we first clear the system_blks pointer and
  * then free the rbtree only after RCU grace period expires.
  */
@@ -286,9 +284,9 @@ void ext4_release_system_zone(struct super_block *sb)
 {
 	struct ext4_system_blocks *system_blks;
 
-	system_blks = rcu_dereference_protected(EXT4_SB(sb)->system_blks,
+	system_blks = rcu_dereference_protected(EXT4_SB(sb)->s_system_blks,
 					lockdep_is_held(&sb->s_umount));
-	rcu_assign_pointer(EXT4_SB(sb)->system_blks, NULL);
+	rcu_assign_pointer(EXT4_SB(sb)->s_system_blks, NULL);
 
 	if (system_blks)
 		call_rcu(&system_blks->rcu, ext4_destroy_system_zone);
@@ -319,7 +317,7 @@ int ext4_inode_block_valid(struct inode *inode, ext4_fsblk_t start_blk,
 	 * mount option.
 	 */
 	rcu_read_lock();
-	system_blks = rcu_dereference(sbi->system_blks);
+	system_blks = rcu_dereference(sbi->s_system_blks);
 	if (system_blks == NULL)
 		goto out_rcu;
 

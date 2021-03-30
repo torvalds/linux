@@ -128,7 +128,7 @@ static int rcar_du_plane_hwalloc(struct rcar_du_plane *plane,
 int rcar_du_atomic_check_planes(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
-	struct rcar_du_device *rcdu = dev->dev_private;
+	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	unsigned int group_free_planes[RCAR_DU_MAX_GROUPS] = { 0, };
 	bool needs_realloc = false;
@@ -773,9 +773,9 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		plane->group = rgrp;
 
-		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
-					       &rcar_du_plane_funcs, formats,
-					       ARRAY_SIZE(formats),
+		ret = drm_universal_plane_init(&rcdu->ddev, &plane->plane,
+					       crtcs, &rcar_du_plane_funcs,
+					       formats, ARRAY_SIZE(formats),
 					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;

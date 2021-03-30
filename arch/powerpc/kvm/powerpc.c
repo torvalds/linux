@@ -611,8 +611,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!(hv_enabled && radix_enabled());
 		break;
 	case KVM_CAP_PPC_MMU_HASH_V3:
-		r = !!(hv_enabled && cpu_has_feature(CPU_FTR_ARCH_300) &&
-		       cpu_has_feature(CPU_FTR_HVMODE));
+		r = !!(hv_enabled && kvmppc_hv_ops->hash_v3_possible &&
+		       kvmppc_hv_ops->hash_v3_possible());
 		break;
 	case KVM_CAP_PPC_NESTED_HV:
 		r = !!(hv_enabled && kvmppc_hv_ops->enable_nested &&
@@ -677,6 +677,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PPC_SECURE_GUEST:
 		r = hv_enabled && kvmppc_hv_ops->enable_svm &&
 			!kvmppc_hv_ops->enable_svm(NULL);
+		break;
+	case KVM_CAP_PPC_DAWR1:
+		r = !!(hv_enabled && kvmppc_hv_ops->enable_dawr1 &&
+		       !kvmppc_hv_ops->enable_dawr1(NULL));
 		break;
 #endif
 	default:
@@ -1087,7 +1091,7 @@ static inline u64 sp_to_dp(u32 fprs)
 
 	preempt_disable();
 	enable_kernel_fp();
-	asm ("lfs%U1%X1 0,%1; stfd%U0%X0 0,%0" : "=m" (fprd) : "m" (fprs)
+	asm ("lfs%U1%X1 0,%1; stfd%U0%X0 0,%0" : "=m"UPD_CONSTR (fprd) : "m"UPD_CONSTR (fprs)
 	     : "fr0");
 	preempt_enable();
 	return fprd;
@@ -1099,7 +1103,7 @@ static inline u32 dp_to_sp(u64 fprd)
 
 	preempt_disable();
 	enable_kernel_fp();
-	asm ("lfd%U1%X1 0,%1; stfs%U0%X0 0,%0" : "=m" (fprs) : "m" (fprd)
+	asm ("lfd%U1%X1 0,%1; stfs%U0%X0 0,%0" : "=m"UPD_CONSTR (fprs) : "m"UPD_CONSTR (fprd)
 	     : "fr0");
 	preempt_enable();
 	return fprs;
@@ -2186,6 +2190,12 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		if (!is_kvmppc_hv_enabled(kvm) || !kvm->arch.kvm_ops->enable_svm)
 			break;
 		r = kvm->arch.kvm_ops->enable_svm(kvm);
+		break;
+	case KVM_CAP_PPC_DAWR1:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(kvm) || !kvm->arch.kvm_ops->enable_dawr1)
+			break;
+		r = kvm->arch.kvm_ops->enable_dawr1(kvm);
 		break;
 #endif
 	default:

@@ -16,6 +16,7 @@
 #define LLCC_AUDIO       6
 #define LLCC_MDMHPGRW    7
 #define LLCC_MDM         8
+#define LLCC_MODHW       9
 #define LLCC_CMPT        10
 #define LLCC_GPUHTW      11
 #define LLCC_GPU         12
@@ -26,6 +27,12 @@
 #define LLCC_MDMHPFX     20
 #define LLCC_MDMPNG      21
 #define LLCC_AUDHW       22
+#define LLCC_NPU         23
+#define LLCC_WLHW        24
+#define LLCC_CVP         28
+#define LLCC_MODPE       29
+#define LLCC_APTCM       30
+#define LLCC_WRCACHE     31
 
 /**
  * llcc_slice_desc - Cache slice descriptor
@@ -73,6 +80,7 @@ struct llcc_edac_reg_data {
  * @bitmap: Bit map to track the active slice ids
  * @offsets: Pointer to the bank offsets array
  * @ecc_irq: interrupt for llcc cache error detection and reporting
+ * @major_version: Indicates the LLCC major version
  */
 struct llcc_drv_data {
 	struct regmap *regmap;
@@ -85,6 +93,7 @@ struct llcc_drv_data {
 	unsigned long *bitmap;
 	u32 *offsets;
 	int ecc_irq;
+	u32 major_version;
 };
 
 #if IS_ENABLED(CONFIG_QCOM_LLCC)

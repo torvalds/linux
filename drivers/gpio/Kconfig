@@ -59,8 +59,9 @@ config DEBUG_GPIO
 	  that are most common when setting up new platforms or boards.
 
 config GPIO_SYSFS
-	bool "/sys/class/gpio/... (sysfs interface)"
+	bool "/sys/class/gpio/... (sysfs interface)" if EXPERT
 	depends on SYSFS
+	select GPIO_CDEV # We need to encourage the new ABI
 	help
 	  Say Y here to add the legacy sysfs interface for GPIOs.
 
@@ -255,6 +256,7 @@ config GPIO_EP93XX
 config GPIO_EXAR
 	tristate "Support for GPIO pins on XR17V352/354/358"
 	depends on SERIAL_8250_EXAR
+	select REGMAP_MMIO
 	help
 	  Selecting this option will enable handling of GPIO pins present
 	  on Exar XR17V352/354/358 chips.
@@ -295,6 +297,17 @@ config GPIO_GRGPIO
 	help
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
+
+config GPIO_HISI
+	tristate "HiSilicon GPIO controller driver"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to build support for the HiSilicon GPIO controller
+	  driver GPIO block.
+	  This GPIO controller support double-edge interrupt and multi-core
+	  concurrent access.
 
 config GPIO_HLWD
 	tristate "Nintendo Wii (Hollywood) GPIO"
@@ -428,8 +441,9 @@ config GPIO_MXC
 	select GENERIC_IRQ_CHIP
 
 config GPIO_MXS
-	def_bool y
+	bool "Freescale MXS GPIO support" if COMPILE_TEST
 	depends on ARCH_MXS || COMPILE_TEST
+	default y if ARCH_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
@@ -473,11 +487,11 @@ config GPIO_PXA
 	  Say yes here to support the PXA GPIO device
 
 config GPIO_RCAR
-	tristate "Renesas R-Car GPIO"
+	tristate "Renesas R-Car and RZ/G GPIO support"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support GPIO on Renesas R-Car SoCs.
+	  Say yes here to support GPIO on Renesas R-Car or RZ/G SoCs.
 
 config GPIO_RDA
 	bool "RDA Micro GPIO controller support"
@@ -508,7 +522,8 @@ config GPIO_SAMA5D2_PIOBU
 
 config GPIO_SIFIVE
 	bool "SiFive GPIO support"
-	depends on OF_GPIO && IRQ_DOMAIN_HIERARCHY
+	depends on OF_GPIO
+	select IRQ_DOMAIN_HIERARCHY
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select REGMAP_MMIO
@@ -580,10 +595,12 @@ config GPIO_TB10X
 	select OF_GPIO
 
 config GPIO_TEGRA
-	bool "NVIDIA Tegra GPIO support"
+	tristate "NVIDIA Tegra GPIO support"
 	default ARCH_TEGRA
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Say yes here to support GPIO pins on NVIDIA Tegra SoCs.
 
@@ -631,6 +648,16 @@ config GPIO_VF610
 	help
 	  Say yes here to support Vybrid vf610 GPIOs.
 
+config GPIO_VISCONTI
+	tristate "Toshiba Visconti GPIO support"
+	depends on ARCH_VISCONTI || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select GPIO_GENERIC
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to support GPIO on Tohisba Visconti.
+
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Uint support"
 	depends on CPU_VR41XX
@@ -653,7 +680,7 @@ config GPIO_WCD934X
 	tristate "Qualcomm Technologies Inc WCD9340/WCD9341 gpio controller driver"
 	depends on MFD_WCD934X && OF_GPIO
 	help
-         This driver is to supprot GPIO block found on the Qualcomm Technologies
+         This driver is to support GPIO block found on the Qualcomm Technologies
 	 Inc WCD9340/WCD9341 Audio Codec.
 
 config GPIO_XGENE
@@ -677,6 +704,8 @@ config GPIO_XGENE_SB
 
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
+	select GPIOLIB_IRQCHIP
+	depends on OF_GPIO
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
@@ -714,13 +743,6 @@ config GPIO_ZYNQ
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
-config GPIO_ZX
-	bool "ZTE ZX GPIO support"
-	depends on ARCH_ZX || COMPILE_TEST
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO device on ZTE ZX SoCs.
-
 config GPIO_LOONGSON1
 	tristate "Loongson1 GPIO support"
 	depends on MACH_LOONGSON32
@@ -737,6 +759,17 @@ config GPIO_AMD_FCH
 	  Note: This driver doesn't registers itself automatically, as it
 	  needs to be provided with platform specific configuration.
 	  (See eg. CONFIG_PCENGINES_APU2.)
+
+config GPIO_MSC313
+	bool "MStar MSC313 GPIO support"
+	depends on ARCH_MSTARV7
+	default ARCH_MSTARV7
+	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say Y here to support the main GPIO block on MStar/SigmaStar
+	  ARMv7 based SoCs.
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
@@ -1225,13 +1258,6 @@ config GPIO_MAX77650
 	  GPIO driver for MAX77650/77651 PMIC from Maxim Semiconductor.
 	  These chips have a single pin that can be configured as GPIO.
 
-config GPIO_MSIC
-	bool "Intel MSIC mixed signal gpio support"
-	depends on (X86 || COMPILE_TEST) && MFD_INTEL_MSIC
-	help
-	  Enable support for GPIO on intel MSIC controllers found in
-	  intel MID devices
-
 config GPIO_PALMAS
 	bool "TI PALMAS series PMICs GPIO"
 	depends on MFD_PALMAS
@@ -1427,13 +1453,6 @@ config GPIO_BT8XX
 
 	  If unsure, say N.
 
-config GPIO_INTEL_MID
-	bool "Intel MID GPIO support"
-	depends on X86_INTEL_MID
-	select GPIOLIB_IRQCHIP
-	help
-	  Say Y here to support Intel MID GPIO.
-
 config GPIO_MERRIFIELD
 	tristate "Intel Merrifield GPIO support"
 	depends on X86_INTEL_MID
@@ -1590,6 +1609,8 @@ config GPIO_VIPERBOARD
 
 endmenu
 
+menu "Virtual GPIO drivers"
+
 config GPIO_AGGREGATOR
 	tristate "GPIO Aggregator"
 	help
@@ -1607,10 +1628,11 @@ config GPIO_MOCKUP
 	select IRQ_SIM
 	help
 	  This enables GPIO Testing driver, which provides a way to test GPIO
-	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
-	  must be selected for this test.
+	  subsystem through sysfs (or char device) and debugfs.
 	  User could use it through the script in
 	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
 	  it.
+
+endmenu
 
 endif

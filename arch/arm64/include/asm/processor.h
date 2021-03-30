@@ -8,9 +8,6 @@
 #ifndef __ASM_PROCESSOR_H
 #define __ASM_PROCESSOR_H
 
-#define KERNEL_DS		UL(-1)
-#define USER_DS			((UL(1) << VA_BITS) - 1)
-
 /*
  * On arm64 systems, unaligned accesses by the CPU are cheap, and so there is
  * no point in shifting all network buffers by 2 bytes just to make some IP
@@ -48,6 +45,7 @@
 
 #define DEFAULT_MAP_WINDOW_64	(UL(1) << VA_BITS_MIN)
 #define TASK_SIZE_64		(UL(1) << vabits_actual)
+#define TASK_SIZE_MAX		(UL(1) << VA_BITS)
 
 #ifdef CONFIG_COMPAT
 #if defined(CONFIG_ARM64_64K_PAGES) && defined(CONFIG_KUSER_HELPERS)
@@ -154,7 +152,7 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_ARM64_MTE
 	u64			sctlr_tcf0;
-	u64			gcr_user_incl;
+	u64			gcr_user_excl;
 #endif
 };
 

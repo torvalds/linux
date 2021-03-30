@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * soc-apci-intel-tgl-match.c - tables and support for ICL ACPI enumeration.
+ * soc-acpi-intel-tgl-match.c - tables and support for TGL ACPI enumeration.
  *
  * Copyright (c) 2019, Intel Corporation.
  *
@@ -9,7 +9,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 
-static struct snd_soc_acpi_codecs tgl_codecs = {
+static const struct snd_soc_acpi_codecs tgl_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
 };
@@ -205,6 +205,20 @@ static const struct snd_soc_acpi_link_adr tgl_rvp[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr tgl_hp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_0_adr),
+		.adr_d = rt711_0_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1308_1_single_adr),
+		.adr_d = rt1308_1_single_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr tgl_chromebook_base[] = {
 	{
 		.mask = BIT(0),
@@ -305,9 +319,14 @@ static const struct snd_soc_acpi_link_adr tgl_3_in_1_sdca[] = {
 	{}
 };
 
-static struct snd_soc_acpi_codecs tgl_max98373_amp = {
+static const struct snd_soc_acpi_codecs tgl_max98373_amp = {
 	.num_codecs = 1,
 	.codecs = {"MX98373"}
+};
+
+static const struct snd_soc_acpi_codecs tgl_rt1011_amp = {
+	.num_codecs = 1,
+	.codecs = {"10EC1011"}
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
@@ -335,6 +354,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-max98373-rt5682.tplg",
 	},
+	{
+		.id = "10EC5682",
+		.drv_name = "tgl_rt1011_rt5682",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &tgl_rt1011_amp,
+		.sof_fw_filename = "sof-tgl.ri",
+		.sof_tplg_filename = "sof-tgl-rt1011-rt5682.tplg",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_machines);
@@ -345,14 +372,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.link_mask = 0x7,
 		.links = tgl_sdw_rt711_link1_rt1308_link2_rt715_link0,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt715-rt711-rt1308-mono.tplg",
 	},
 	{
 		.link_mask = 0xF, /* 4 active links required */
 		.links = tgl_3_in_1_default,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1308-rt715.tplg",
 	},
 	{
@@ -364,40 +389,38 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.link_mask = 0xF,
 		.links = tgl_3_in_1_mono_amp,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1308-mono-rt715.tplg",
 	},
 	{
 		.link_mask = 0xF, /* 4 active links required */
 		.links = tgl_3_in_1_sdca,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1316-rt714.tplg",
+	},
+	{
+		.link_mask = 0x3, /* rt711 on link 0 and 1 rt1308 on link 1 */
+		.links = tgl_hp,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-tgl-rt711-rt1308.tplg",
 	},
 	{
 		.link_mask = 0x3, /* rt711 on link 0 and 2 rt1308s on link 1 */
 		.links = tgl_rvp,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt711-rt1308.tplg",
 	},
 	{
 		.link_mask = 0x3, /* rt5682 on link0 & 2xmax98373 on link 1 */
 		.links = tgl_chromebook_base,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-sdw-max98373-rt5682.tplg",
 	},
 	{
 		.link_mask = 0x1, /* this will only enable rt5682 for now */
 		.links = tgl_chromebook_base,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-tgl.ri",
 		.sof_tplg_filename = "sof-tgl-rt5682.tplg",
 	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_sdw_machines);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Common ACPI Match module");

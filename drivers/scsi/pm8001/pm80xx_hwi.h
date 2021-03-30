@@ -220,8 +220,8 @@
 #define SAS_DOPNRJT_RTRY_TMO            128
 #define SAS_COPNRJT_RTRY_TMO            128
 
-#define SPCV_DOORBELL_CLEAR_TIMEOUT	(30 * 1000 * 1000) /* 30 sec */
-#define SPC_DOORBELL_CLEAR_TIMEOUT	(15 * 1000 * 1000) /* 15 sec */
+#define SPCV_DOORBELL_CLEAR_TIMEOUT	(30 * 50) /* 30 sec */
+#define SPC_DOORBELL_CLEAR_TIMEOUT	(15 * 50) /* 15 sec */
 
 /*
   Making ORR bigger than IT NEXUS LOSS which is 2000000us = 2 second.
@@ -1368,6 +1368,19 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define MSGU_HOST_SCRATCH_PAD_6			0x6C
 #define MSGU_HOST_SCRATCH_PAD_7			0x70
 
+#define MSGU_SCRATCHPAD1_RAAE_STATE_ERR(x) ((x & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_ILA_STATE_ERR(x) (((x >> 2) & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_BOOTLDR_STATE_ERR(x) ((((x >> 4) & 0x7) == 0x7) || \
+						(((x >> 4) & 0x7) == 0x4))
+#define MSGU_SCRATCHPAD1_IOP0_STATE_ERR(x) (((x >> 10) & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_IOP1_STATE_ERR(x) (((x >> 12) & 0x3) == 0x2)
+#define MSGU_SCRATCHPAD1_STATE_FATAL_ERROR(x)  \
+			(MSGU_SCRATCHPAD1_RAAE_STATE_ERR(x) ||      \
+			 MSGU_SCRATCHPAD1_ILA_STATE_ERR(x) ||       \
+			 MSGU_SCRATCHPAD1_BOOTLDR_STATE_ERR(x) ||   \
+			 MSGU_SCRATCHPAD1_IOP0_STATE_ERR(x) ||      \
+			 MSGU_SCRATCHPAD1_IOP1_STATE_ERR(x))
+
 /* bit definition for ODMR register */
 #define ODMR_MASK_ALL			0xFFFFFFFF/* mask all
 					interrupt vector */
@@ -1639,3 +1652,9 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 
 #define MEMBASE_II_SHIFT_REGISTER       0x1010
 #endif
+
+/**
+ * As we know sleep (1~20) ms may result in sleep longer than ~20 ms, hence we
+ * choose 20 ms interval.
+ */
+#define FW_READY_INTERVAL	20

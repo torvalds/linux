@@ -423,7 +423,7 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	meter = dp_meter_create(a);
-	if (IS_ERR_OR_NULL(meter))
+	if (IS_ERR(meter))
 		return PTR_ERR(meter);
 
 	reply = ovs_meter_cmd_reply_start(info, OVS_METER_CMD_SET,
@@ -672,7 +672,7 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 	return false;
 }
 
-static struct genl_ops dp_meter_genl_ops[] = {
+static const struct genl_small_ops dp_meter_genl_ops[] = {
 	{ .cmd = OVS_METER_CMD_FEATURES,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,		  /* OK for unprivileged users. */
@@ -711,8 +711,8 @@ struct genl_family dp_meter_genl_family __ro_after_init = {
 	.policy = meter_policy,
 	.netnsok = true,
 	.parallel_ops = true,
-	.ops = dp_meter_genl_ops,
-	.n_ops = ARRAY_SIZE(dp_meter_genl_ops),
+	.small_ops = dp_meter_genl_ops,
+	.n_small_ops = ARRAY_SIZE(dp_meter_genl_ops),
 	.mcgrps = &ovs_meter_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

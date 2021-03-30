@@ -1123,7 +1123,6 @@ static int csi_link_validate(struct v4l2_subdev *sd,
 	priv->upstream_ep = upstream_ep;
 	is_csi2 = !is_parallel_bus(&upstream_ep);
 	if (is_csi2) {
-		int vc_num = 0;
 		/*
 		 * NOTE! It seems the virtual channels from the mipi csi-2
 		 * receiver are used only for routing by the video mux's,
@@ -1131,14 +1130,7 @@ static int csi_link_validate(struct v4l2_subdev *sd,
 		 * enters the CSI's however, they are treated internally
 		 * in the IPU as virtual channel 0.
 		 */
-#if 0
-		mutex_unlock(&priv->lock);
-		vc_num = imx_media_find_mipi_csi2_channel(&priv->sd.entity);
-		if (vc_num < 0)
-			return vc_num;
-		mutex_lock(&priv->lock);
-#endif
-		ipu_csi_set_mipi_datatype(priv->csi, vc_num,
+		ipu_csi_set_mipi_datatype(priv->csi, 0,
 					  &priv->format_mbus[CSI_SINK_PAD]);
 	}
 
@@ -1930,19 +1922,13 @@ static int imx_csi_async_register(struct csi_priv *priv)
 					     port, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (ep) {
-		asd = kzalloc(sizeof(*asd), GFP_KERNEL);
-		if (!asd) {
-			fwnode_handle_put(ep);
-			return -ENOMEM;
-		}
-
-		ret = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&priv->notifier, ep, asd);
+		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+			&priv->notifier, ep, struct v4l2_async_subdev);
 
 		fwnode_handle_put(ep);
 
-		if (ret) {
-			kfree(asd);
+		if (IS_ERR(asd)) {
+			ret = PTR_ERR(asd);
 			/* OK if asd already exists */
 			if (ret != -EEXIST)
 				return ret;

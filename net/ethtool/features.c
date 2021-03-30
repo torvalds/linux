@@ -20,14 +20,9 @@ struct features_reply_data {
 #define FEATURES_REPDATA(__reply_base) \
 	container_of(__reply_base, struct features_reply_data, base)
 
-static const struct nla_policy
-features_get_policy[ETHTOOL_A_FEATURES_MAX + 1] = {
-	[ETHTOOL_A_FEATURES_UNSPEC]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEATURES_HW]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_WANTED]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_ACTIVE]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_NOCHANGE]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_features_get_policy[] = {
+	[ETHTOOL_A_FEATURES_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static void ethnl_features_to_bitmap32(u32 *dest, netdev_features_t src)
@@ -120,10 +115,8 @@ const struct ethnl_request_ops ethnl_features_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_FEATURES_GET,
 	.reply_cmd		= ETHTOOL_MSG_FEATURES_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_FEATURES_HEADER,
-	.max_attr		= ETHTOOL_A_FEATURES_MAX,
 	.req_info_size		= sizeof(struct features_req_info),
 	.reply_data_size	= sizeof(struct features_reply_data),
-	.request_policy		= features_get_policy,
 
 	.prepare_data		= features_prepare_data,
 	.reply_size		= features_reply_size,
@@ -132,14 +125,10 @@ const struct ethnl_request_ops ethnl_features_request_ops = {
 
 /* FEATURES_SET */
 
-static const struct nla_policy
-features_set_policy[ETHTOOL_A_FEATURES_MAX + 1] = {
-	[ETHTOOL_A_FEATURES_UNSPEC]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEATURES_HW]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_features_set_policy[] = {
+	[ETHTOOL_A_FEATURES_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_FEATURES_WANTED]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEATURES_ACTIVE]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_NOCHANGE]	= { .type = NLA_REJECT },
 };
 
 static void ethnl_features_to_bitmap(unsigned long *dest, netdev_features_t val)
@@ -229,17 +218,12 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 	DECLARE_BITMAP(new_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(req_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(req_mask, NETDEV_FEATURE_COUNT);
-	struct nlattr *tb[ETHTOOL_A_FEATURES_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_FEATURES_MAX, features_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	if (!tb[ETHTOOL_A_FEATURES_WANTED])
 		return -EINVAL;
 	ret = ethnl_parse_header_dev_get(&req_info,
@@ -296,7 +280,7 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 					  active_diff_mask, compact);
 	}
 	if (mod)
-		ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+		netdev_features_change(dev);
 
 out_rtnl:
 	rtnl_unlock();

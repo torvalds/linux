@@ -39,7 +39,7 @@ static void mlx5i_get_drvinfo(struct net_device *dev,
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
 	mlx5e_ethtool_get_drvinfo(priv, drvinfo);
-	strlcpy(drvinfo->driver, DRIVER_NAME "[ib_ipoib]",
+	strlcpy(drvinfo->driver, KBUILD_MODNAME "[ib_ipoib]",
 		sizeof(drvinfo->driver));
 }
 
@@ -130,14 +130,6 @@ static int mlx5i_flash_device(struct net_device *netdev,
 	return mlx5e_ethtool_flash_device(priv, flash);
 }
 
-enum mlx5_ptys_width {
-	MLX5_PTYS_WIDTH_1X	= 1 << 0,
-	MLX5_PTYS_WIDTH_2X	= 1 << 1,
-	MLX5_PTYS_WIDTH_4X	= 1 << 2,
-	MLX5_PTYS_WIDTH_8X	= 1 << 3,
-	MLX5_PTYS_WIDTH_12X	= 1 << 4,
-};
-
 static inline int mlx5_ptys_width_enum_to_int(enum mlx5_ptys_width width)
 {
 	switch (width) {
@@ -174,24 +166,6 @@ static inline int mlx5_ptys_rate_enum_to_int(enum mlx5_ptys_rate rate)
 	}
 }
 
-static int mlx5i_get_port_settings(struct net_device *netdev,
-				   u16 *ib_link_width_oper, u16 *ib_proto_oper)
-{
-	struct mlx5e_priv *priv    = mlx5i_epriv(netdev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
-	int ret;
-
-	ret = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_IB, 1);
-	if (ret)
-		return ret;
-
-	*ib_link_width_oper = MLX5_GET(ptys_reg, out, ib_link_width_oper);
-	*ib_proto_oper      = MLX5_GET(ptys_reg, out, ib_proto_oper);
-
-	return 0;
-}
-
 static int mlx5i_get_speed_settings(u16 ib_link_width_oper, u16 ib_proto_oper)
 {
 	int rate, width;
@@ -209,11 +183,14 @@ static int mlx5i_get_speed_settings(u16 ib_link_width_oper, u16 ib_proto_oper)
 static int mlx5i_get_link_ksettings(struct net_device *netdev,
 				    struct ethtool_link_ksettings *link_ksettings)
 {
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 ib_link_width_oper;
 	u16 ib_proto_oper;
 	int speed, ret;
 
-	ret = mlx5i_get_port_settings(netdev, &ib_link_width_oper, &ib_proto_oper);
+	ret = mlx5_query_ib_port_oper(mdev, &ib_link_width_oper, &ib_proto_oper,
+				      1);
 	if (ret)
 		return ret;
 

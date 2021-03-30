@@ -10,7 +10,7 @@
 #define REGION_MAP(type, inst) \
 	BIT((type) + INTEL_MEMORY_TYPE_SHIFT) | BIT(inst)
 
-const u32 intel_region_map[] = {
+static const u32 intel_region_map[] = {
 	[INTEL_REGION_SMEM] = REGION_MAP(INTEL_MEMORY_SYSTEM, 0),
 	[INTEL_REGION_LMEM] = REGION_MAP(INTEL_MEMORY_LOCAL, 0),
 	[INTEL_REGION_STOLEN] = REGION_MAP(INTEL_MEMORY_STOLEN, 0),
@@ -87,7 +87,7 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 		min_order = ilog2(size) - ilog2(mem->mm.chunk_size);
 	}
 
-	if (size > BIT(mem->mm.max_order) * mem->mm.chunk_size)
+	if (size > mem->mm.size)
 		return -E2BIG;
 
 	n_pages = size >> ilog2(mem->mm.chunk_size);
@@ -114,7 +114,7 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 		n_pages -= BIT(order);
 
 		block->private = mem;
-		list_add(&block->link, blocks);
+		list_add_tail(&block->link, blocks);
 
 		if (!n_pages)
 			break;

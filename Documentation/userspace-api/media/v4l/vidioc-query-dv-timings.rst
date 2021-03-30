@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_QUERY_DV_TIMINGS:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_QUERY_DV_TIMINGS - VIDIOC_SUBDEV_QUERY_DV_TIMINGS - Sense the DV preset received by the current input
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_QUERY_DV_TIMINGS, struct v4l2_dv_timings *argp )
-    :name: VIDIOC_QUERY_DV_TIMINGS
+.. c:macro:: VIDIOC_QUERY_DV_TIMINGS
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_QUERY_DV_TIMINGS, struct v4l2_dv_timings *argp )
-    :name: VIDIOC_SUBDEV_QUERY_DV_TIMINGS
+``int ioctl(int fd, VIDIOC_QUERY_DV_TIMINGS, struct v4l2_dv_timings *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_QUERY_DV_TIMINGS
+
+``int ioctl(int fd, VIDIOC_SUBDEV_QUERY_DV_TIMINGS, struct v4l2_dv_timings *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_dv_timings`.
-
 
 Description
 ===========
@@ -64,7 +64,6 @@ and returns ``ERANGE``. In that case the application can call
 :ref:`VIDIOC_DV_TIMINGS_CAP` to compare the
 found timings with the hardware's capabilities in order to give more
 precise feedback to the user.
-
 
 Return Value
 ============

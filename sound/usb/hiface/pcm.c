@@ -594,7 +594,7 @@ int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
 	pcm->private_data = rt;
 	pcm->private_free = hiface_pcm_free;
 
-	strlcpy(pcm->name, "USB-SPDIF Audio", sizeof(pcm->name));
+	strscpy(pcm->name, "USB-SPDIF Audio", sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pcm_ops);
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
 				       NULL, 0, 0);

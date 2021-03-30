@@ -450,9 +450,9 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 		vma_set_anonymous(vma);
 	}
 
-	if (vma->vm_file)
-		fput(vma->vm_file);
-	vma->vm_file = asma->file;
+	vma_set_file(vma, asma->file);
+	/* XXX: merge this with the get_file() above if possible */
+	fput(asma->file);
 
 out:
 	mutex_unlock(&ashmem_mutex);
@@ -933,7 +933,7 @@ static int __init ashmem_init(void)
 
 	ashmem_range_cachep = kmem_cache_create("ashmem_range_cache",
 						sizeof(struct ashmem_range),
-						0, 0, NULL);
+						0, SLAB_RECLAIM_ACCOUNT, NULL);
 	if (!ashmem_range_cachep) {
 		pr_err("failed to create slab cache\n");
 		goto out_free1;

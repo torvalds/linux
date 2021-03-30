@@ -92,9 +92,12 @@ enum {
 #define ETHTOOL_FLAG_COMPACT_BITSETS	(1 << 0)
 /* provide optional reply for SET or ACT requests */
 #define ETHTOOL_FLAG_OMIT_REPLY	(1 << 1)
+/* request statistics, if supported by the driver */
+#define ETHTOOL_FLAG_STATS		(1 << 2)
 
 #define ETHTOOL_FLAG_ALL (ETHTOOL_FLAG_COMPACT_BITSETS | \
-			  ETHTOOL_FLAG_OMIT_REPLY)
+			  ETHTOOL_FLAG_OMIT_REPLY | \
+			  ETHTOOL_FLAG_STATS)
 
 enum {
 	ETHTOOL_A_HEADER_UNSPEC,
@@ -224,6 +227,7 @@ enum {
 	ETHTOOL_A_LINKMODES_DUPLEX,		/* u8 */
 	ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG,	/* u8 */
 	ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE,	/* u8 */
+	ETHTOOL_A_LINKMODES_LANES,		/* u32 */
 
 	/* add new constants above here */
 	__ETHTOOL_A_LINKMODES_CNT,
@@ -377,10 +381,23 @@ enum {
 	ETHTOOL_A_PAUSE_AUTONEG,			/* u8 */
 	ETHTOOL_A_PAUSE_RX,				/* u8 */
 	ETHTOOL_A_PAUSE_TX,				/* u8 */
+	ETHTOOL_A_PAUSE_STATS,				/* nest - _PAUSE_STAT_* */
 
 	/* add new constants above here */
 	__ETHTOOL_A_PAUSE_CNT,
 	ETHTOOL_A_PAUSE_MAX = (__ETHTOOL_A_PAUSE_CNT - 1)
+};
+
+enum {
+	ETHTOOL_A_PAUSE_STAT_UNSPEC,
+	ETHTOOL_A_PAUSE_STAT_PAD,
+
+	ETHTOOL_A_PAUSE_STAT_TX_FRAMES,
+	ETHTOOL_A_PAUSE_STAT_RX_FRAMES,
+
+	/* add new constants above here */
+	__ETHTOOL_A_PAUSE_STAT_CNT,
+	ETHTOOL_A_PAUSE_STAT_MAX = (__ETHTOOL_A_PAUSE_STAT_CNT - 1)
 };
 
 /* EEE */

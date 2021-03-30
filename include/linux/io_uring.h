@@ -4,18 +4,48 @@
 
 #include <linux/sched.h>
 #include <linux/xarray.h>
-#include <linux/percpu-refcount.h>
+
+struct io_identity {
+	struct files_struct		*files;
+	struct mm_struct		*mm;
+#ifdef CONFIG_BLK_CGROUP
+	struct cgroup_subsys_state	*blkcg_css;
+#endif
+	const struct cred		*creds;
+	struct nsproxy			*nsproxy;
+	struct fs_struct		*fs;
+	unsigned long			fsize;
+#ifdef CONFIG_AUDIT
+	kuid_t				loginuid;
+	unsigned int			sessionid;
+#endif
+	refcount_t			count;
+};
+
+struct io_wq_work_node {
+	struct io_wq_work_node *next;
+};
+
+struct io_wq_work_list {
+	struct io_wq_work_node *first;
+	struct io_wq_work_node *last;
+};
 
 struct io_uring_task {
 	/* submission side */
 	struct xarray		xa;
 	struct wait_queue_head	wait;
 	struct file		*last;
-	atomic_long_t		req_issue;
+	struct percpu_counter	inflight;
+	struct io_identity	__identity;
+	struct io_identity	*identity;
+	atomic_t		in_idle;
+	bool			sqpoll;
 
-	/* completion side */
-	bool			in_idle ____cacheline_aligned_in_smp;
-	atomic_long_t		req_complete;
+	spinlock_t		task_lock;
+	struct io_wq_work_list	task_list;
+	unsigned long		task_state;
+	struct callback_head	task_work;
 };
 
 #if defined(CONFIG_IO_URING)

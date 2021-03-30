@@ -30,6 +30,7 @@
 #include "ta_xgmi_if.h"
 #include "ta_ras_if.h"
 #include "ta_rap_if.h"
+#include "ta_secureDisplay_if.h"
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
@@ -40,7 +41,9 @@
 #define PSP_HDCP_SHARED_MEM_SIZE	0x4000
 #define PSP_DTM_SHARED_MEM_SIZE	0x4000
 #define PSP_RAP_SHARED_MEM_SIZE	0x4000
+#define PSP_SECUREDISPLAY_SHARED_MEM_SIZE	0x4000
 #define PSP_SHARED_MEM_SIZE		0x4000
+#define PSP_FW_NAME_LEN		0x24
 
 struct psp_context;
 struct psp_xgmi_node_info;
@@ -170,6 +173,15 @@ struct psp_rap_context {
 	struct mutex		mutex;
 };
 
+struct psp_securedisplay_context {
+	bool			securedisplay_initialized;
+	uint32_t		session_id;
+	struct amdgpu_bo	*securedisplay_shared_bo;
+	uint64_t		securedisplay_shared_mc_addr;
+	void			*securedisplay_shared_buf;
+	struct mutex		mutex;
+};
+
 #define MEM_TRAIN_SYSTEM_SIGNATURE		0x54534942
 #define GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES	0x1000
 #define GDDR6_MEM_TRAINING_OFFSET		0x8000
@@ -253,6 +265,11 @@ struct psp_context
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
 
+	/* toc firmware */
+	const struct firmware		*toc_fw;
+	uint32_t			toc_fw_version;
+	uint32_t			toc_feature_version;
+
 	/* fence buffer */
 	struct amdgpu_bo		*fence_buf_bo;
 	uint64_t			fence_buf_mc_addr;
@@ -292,12 +309,17 @@ struct psp_context
 	uint32_t			ta_rap_ucode_size;
 	uint8_t				*ta_rap_start_addr;
 
+	uint32_t			ta_securedisplay_ucode_version;
+	uint32_t			ta_securedisplay_ucode_size;
+	uint8_t				*ta_securedisplay_start_addr;
+
 	struct psp_asd_context		asd_context;
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras;
 	struct psp_hdcp_context 	hdcp_context;
 	struct psp_dtm_context		dtm_context;
 	struct psp_rap_context		rap_context;
+	struct psp_securedisplay_context	securedisplay_context;
 	struct mutex			mutex;
 	struct psp_memory_training_context mem_train_ctx;
 };
@@ -374,6 +396,7 @@ int psp_ras_trigger_error(struct psp_context *psp,
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_rlc_autoload_start(struct psp_context *psp);
 
@@ -386,8 +409,12 @@ int psp_ring_cmd_submit(struct psp_context *psp,
 			int index);
 int psp_init_asd_microcode(struct psp_context *psp,
 			   const char *chip_name);
+int psp_init_toc_microcode(struct psp_context *psp,
+			   const char *chip_name);
 int psp_init_sos_microcode(struct psp_context *psp,
 			   const char *chip_name);
 int psp_init_ta_microcode(struct psp_context *psp,
 			  const char *chip_name);
+int psp_get_fw_attestation_records_addr(struct psp_context *psp,
+					uint64_t *output_ptr);
 #endif

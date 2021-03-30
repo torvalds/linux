@@ -226,7 +226,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	}
 
 	if (!cpu_online(cpu)) {
-		pr_info("Timeout: CPU%u FAILED to comeup !!!\n", cpu);
+		pr_info("Timeout: CPU%u FAILED to come up !!!\n", cpu);
 		return -1;
 	}
 

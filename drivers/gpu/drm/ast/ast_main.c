@@ -67,8 +67,9 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
-	struct device_node *np = dev->pdev->dev.of_node;
+	struct device_node *np = dev->dev->of_node;
 	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t data, jregd0, jregd1;
 
 	/* Defaults */
@@ -85,7 +86,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	}
 
 	/* Not all families have a P2A bridge */
-	if (dev->pdev->device != PCI_CHIP_AST2000)
+	if (pdev->device != PCI_CHIP_AST2000)
 		return;
 
 	/*
@@ -119,6 +120,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 {
 	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t jreg, scu_rev;
 
 	/*
@@ -143,16 +145,19 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	ast_detect_config_mode(dev, &scu_rev);
 
 	/* Identify chipset */
-	if (dev->pdev->revision >= 0x40) {
+	if (pdev->revision >= 0x50) {
+		ast->chip = AST2600;
+		drm_info(dev, "AST 2600 detected\n");
+	} else if (pdev->revision >= 0x40) {
 		ast->chip = AST2500;
 		drm_info(dev, "AST 2500 detected\n");
-	} else if (dev->pdev->revision >= 0x30) {
+	} else if (pdev->revision >= 0x30) {
 		ast->chip = AST2400;
 		drm_info(dev, "AST 2400 detected\n");
-	} else if (dev->pdev->revision >= 0x20) {
+	} else if (pdev->revision >= 0x20) {
 		ast->chip = AST2300;
 		drm_info(dev, "AST 2300 detected\n");
-	} else if (dev->pdev->revision >= 0x10) {
+	} else if (pdev->revision >= 0x10) {
 		switch (scu_rev & 0x0300) {
 		case 0x0200:
 			ast->chip = AST1100;
@@ -262,7 +267,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 
 static int ast_get_dram_info(struct drm_device *dev)
 {
-	struct device_node *np = dev->pdev->dev.of_node;
+	struct device_node *np = dev->dev->of_node;
 	struct ast_private *ast = to_ast_private(dev);
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;
@@ -392,7 +397,7 @@ static void ast_device_release(void *data)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
 }
 
-struct ast_private *ast_device_create(struct drm_driver *drv,
+struct ast_private *ast_device_create(const struct drm_driver *drv,
 				      struct pci_dev *pdev,
 				      unsigned long flags)
 {
@@ -406,10 +411,9 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 		return ast;
 	dev = &ast->base;
 
-	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
-	ast->regs = pci_iomap(dev->pdev, 1, 0);
+	ast->regs = pci_iomap(pdev, 1, 0);
 	if (!ast->regs)
 		return ERR_PTR(-EIO);
 
@@ -418,14 +422,14 @@ struct ast_private *ast_device_create(struct drm_driver *drv,
 	 * assume the chip has MMIO enabled by default (rev 0x20
 	 * and higher).
 	 */
-	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
+	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
 		drm_info(dev, "platform has no IO space, trying MMIO\n");
 		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 	}
 
 	/* "map" IO regs if the above hasn't done so already */
 	if (!ast->ioregs) {
-		ast->ioregs = pci_iomap(dev->pdev, 2, 0);
+		ast->ioregs = pci_iomap(pdev, 2, 0);
 		if (!ast->ioregs)
 			return ERR_PTR(-EIO);
 	}

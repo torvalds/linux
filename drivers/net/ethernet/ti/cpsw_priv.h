@@ -117,7 +117,6 @@ do {								\
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
 #define CPSW_ALE_AGEOUT_DEFAULT		10 /* sec */
-#define CPSW_ALE_NUM_ENTRIES		1024
 #define CPSW_FIFO_QUEUE_TYPE_SHIFT	16
 #define CPSW_FIFO_SHAPE_EN_SHIFT	16
 #define CPSW_FIFO_RATE_EN_SHIFT		20
@@ -294,7 +293,6 @@ struct cpsw_platform_data {
 	u32	channels;	/* number of cpdma channels (symmetric) */
 	u32	slaves;		/* number of slave cpgmac ports */
 	u32	active_slave;/* time stamping, ethtool and SIOCGMIIPHY slave */
-	u32	ale_entries;	/* ale table size */
 	u32	bd_ram_size;	/*buffer descriptor ram size */
 	u32	mac_control;	/* Mac control register */
 	u16	default_vlan;	/* Def VLAN for ALE lookup in VLAN aware mode*/
@@ -440,7 +438,7 @@ int cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 int cpsw_xdp_tx_frame(struct cpsw_priv *priv, struct xdp_frame *xdpf,
 		      struct page *page, int port);
 int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
-		 struct page *page, int port);
+		 struct page *page, int port, int *len);
 irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id);
 irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id);
 irqreturn_t cpsw_misc_interrupt(int irq, void *dev_id);

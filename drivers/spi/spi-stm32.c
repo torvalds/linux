@@ -5,6 +5,7 @@
 // Copyright (C) 2017, STMicroelectronics - All Rights Reserved
 // Author(s): Amelie Delaunay <amelie.delaunay@st.com> for STMicroelectronics.
 
+#include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -94,27 +95,22 @@
 #define STM32H7_SPI_CR1_SSI		BIT(12)
 
 /* STM32H7_SPI_CR2 bit fields */
-#define STM32H7_SPI_CR2_TSIZE_SHIFT	0
 #define STM32H7_SPI_CR2_TSIZE		GENMASK(15, 0)
+#define STM32H7_SPI_TSIZE_MAX		GENMASK(15, 0)
 
 /* STM32H7_SPI_CFG1 bit fields */
-#define STM32H7_SPI_CFG1_DSIZE_SHIFT	0
 #define STM32H7_SPI_CFG1_DSIZE		GENMASK(4, 0)
-#define STM32H7_SPI_CFG1_FTHLV_SHIFT	5
 #define STM32H7_SPI_CFG1_FTHLV		GENMASK(8, 5)
 #define STM32H7_SPI_CFG1_RXDMAEN	BIT(14)
 #define STM32H7_SPI_CFG1_TXDMAEN	BIT(15)
-#define STM32H7_SPI_CFG1_MBR_SHIFT	28
 #define STM32H7_SPI_CFG1_MBR		GENMASK(30, 28)
+#define STM32H7_SPI_CFG1_MBR_SHIFT	28
 #define STM32H7_SPI_CFG1_MBR_MIN	0
 #define STM32H7_SPI_CFG1_MBR_MAX	(GENMASK(30, 28) >> 28)
 
 /* STM32H7_SPI_CFG2 bit fields */
-#define STM32H7_SPI_CFG2_MIDI_SHIFT	4
 #define STM32H7_SPI_CFG2_MIDI		GENMASK(7, 4)
-#define STM32H7_SPI_CFG2_COMM_SHIFT	17
 #define STM32H7_SPI_CFG2_COMM		GENMASK(18, 17)
-#define STM32H7_SPI_CFG2_SP_SHIFT	19
 #define STM32H7_SPI_CFG2_SP		GENMASK(21, 19)
 #define STM32H7_SPI_CFG2_MASTER		BIT(22)
 #define STM32H7_SPI_CFG2_LSBFRST	BIT(23)
@@ -140,7 +136,6 @@
 #define STM32H7_SPI_SR_OVR		BIT(6)
 #define STM32H7_SPI_SR_MODF		BIT(9)
 #define STM32H7_SPI_SR_SUSP		BIT(11)
-#define STM32H7_SPI_SR_RXPLVL_SHIFT	13
 #define STM32H7_SPI_SR_RXPLVL		GENMASK(14, 13)
 #define STM32H7_SPI_SR_RXWNE		BIT(15)
 
@@ -166,8 +161,6 @@
 #define SPI_SIMPLEX_RX		2
 #define SPI_3WIRE_TX		3
 #define SPI_3WIRE_RX		4
-
-#define SPI_1HZ_NS		1000000000
 
 /*
  * use PIO for small transfers, avoiding DMA setup/teardown overhead for drivers
@@ -268,7 +261,6 @@ struct stm32_spi_cfg {
  * @base: virtual memory area
  * @clk: hw kernel clock feeding the SPI clock generator
  * @clk_rate: rate of the hw kernel clock feeding the SPI clock generator
- * @rst: SPI controller reset line
  * @lock: prevent I/O concurrent access
  * @irq: SPI controller interrupt line
  * @fifo_size: size of the embedded fifo in bytes
@@ -294,7 +286,6 @@ struct stm32_spi {
 	void __iomem *base;
 	struct clk *clk;
 	u32 clk_rate;
-	struct reset_control *rst;
 	spinlock_t lock; /* prevent I/O concurrent access */
 	int irq;
 	unsigned int fifo_size;
@@ -417,9 +408,7 @@ static int stm32h7_spi_get_bpw_mask(struct stm32_spi *spi)
 	stm32_spi_set_bits(spi, STM32H7_SPI_CFG1, STM32H7_SPI_CFG1_DSIZE);
 
 	cfg1 = readl_relaxed(spi->base + STM32H7_SPI_CFG1);
-	max_bpw = (cfg1 & STM32H7_SPI_CFG1_DSIZE) >>
-		  STM32H7_SPI_CFG1_DSIZE_SHIFT;
-	max_bpw += 1;
+	max_bpw = FIELD_GET(STM32H7_SPI_CFG1_DSIZE, cfg1) + 1;
 
 	spin_unlock_irqrestore(&spi->lock, flags);
 
@@ -473,34 +462,14 @@ static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz,
  */
 static u32 stm32h7_spi_prepare_fthlv(struct stm32_spi *spi, u32 xfer_len)
 {
-	u32 fthlv, half_fifo, packet;
+	u32 packet, bpw;
 
 	/* data packet should not exceed 1/2 of fifo space */
-	half_fifo = (spi->fifo_size / 2);
-
-	/* data_packet should not exceed transfer length */
-	if (half_fifo > xfer_len)
-		packet = xfer_len;
-	else
-		packet = half_fifo;
-
-	if (spi->cur_bpw <= 8)
-		fthlv = packet;
-	else if (spi->cur_bpw <= 16)
-		fthlv = packet / 2;
-	else
-		fthlv = packet / 4;
+	packet = clamp(xfer_len, 1U, spi->fifo_size / 2);
 
 	/* align packet size with data registers access */
-	if (spi->cur_bpw > 8)
-		fthlv -= (fthlv % 2); /* multiple of 2 */
-	else
-		fthlv -= (fthlv % 4); /* multiple of 4 */
-
-	if (!fthlv)
-		fthlv = 1;
-
-	return fthlv;
+	bpw = DIV_ROUND_UP(spi->cur_bpw, 8);
+	return DIV_ROUND_UP(packet, bpw);
 }
 
 /**
@@ -607,8 +576,7 @@ static void stm32f4_spi_read_rx(struct stm32_spi *spi)
 static void stm32h7_spi_read_rxfifo(struct stm32_spi *spi, bool flush)
 {
 	u32 sr = readl_relaxed(spi->base + STM32H7_SPI_SR);
-	u32 rxplvl = (sr & STM32H7_SPI_SR_RXPLVL) >>
-		     STM32H7_SPI_SR_RXPLVL_SHIFT;
+	u32 rxplvl = FIELD_GET(STM32H7_SPI_SR_RXPLVL, sr);
 
 	while ((spi->rx_len > 0) &&
 	       ((sr & STM32H7_SPI_SR_RXP) ||
@@ -635,8 +603,7 @@ static void stm32h7_spi_read_rxfifo(struct stm32_spi *spi, bool flush)
 		}
 
 		sr = readl_relaxed(spi->base + STM32H7_SPI_SR);
-		rxplvl = (sr & STM32H7_SPI_SR_RXPLVL) >>
-			 STM32H7_SPI_SR_RXPLVL_SHIFT;
+		rxplvl = FIELD_GET(STM32H7_SPI_SR_RXPLVL, sr);
 	}
 
 	dev_dbg(spi->dev, "%s%s: %d bytes left\n", __func__,
@@ -928,8 +895,8 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 		mask |= STM32H7_SPI_SR_RXP;
 
 	if (!(sr & mask)) {
-		dev_dbg(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
-			sr, ier);
+		dev_warn(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
+			 sr, ier);
 		spin_unlock_irqrestore(&spi->lock, flags);
 		return IRQ_NONE;
 	}
@@ -956,15 +923,8 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 	}
 
 	if (sr & STM32H7_SPI_SR_OVR) {
-		dev_warn(spi->dev, "Overrun: received value discarded\n");
-		if (!spi->cur_usedma && (spi->rx_buf && (spi->rx_len > 0)))
-			stm32h7_spi_read_rxfifo(spi, false);
-		/*
-		 * If overrun is detected while using DMA, it means that
-		 * something went wrong, so stop the current transfer
-		 */
-		if (spi->cur_usedma)
-			end = true;
+		dev_err(spi->dev, "Overrun: RX data lost\n");
+		end = true;
 	}
 
 	if (sr & STM32H7_SPI_SR_EOT) {
@@ -1028,10 +988,24 @@ static int stm32_spi_prepare_msg(struct spi_master *master,
 		clrb |= spi->cfg->regs->lsb_first.mask;
 
 	dev_dbg(spi->dev, "cpol=%d cpha=%d lsb_first=%d cs_high=%d\n",
-		spi_dev->mode & SPI_CPOL,
-		spi_dev->mode & SPI_CPHA,
-		spi_dev->mode & SPI_LSB_FIRST,
-		spi_dev->mode & SPI_CS_HIGH);
+		!!(spi_dev->mode & SPI_CPOL),
+		!!(spi_dev->mode & SPI_CPHA),
+		!!(spi_dev->mode & SPI_LSB_FIRST),
+		!!(spi_dev->mode & SPI_CS_HIGH));
+
+	/* On STM32H7, messages should not exceed a maximum size setted
+	 * afterward via the set_number_of_data function. In order to
+	 * ensure that, split large messages into several messages
+	 */
+	if (spi->cfg->set_number_of_data) {
+		int ret;
+
+		ret = spi_split_transfers_maxsize(master, msg,
+						  STM32H7_SPI_TSIZE_MAX,
+						  GFP_KERNEL | GFP_DMA);
+		if (ret)
+			return ret;
+	}
 
 	spin_lock_irqsave(&spi->lock, flags);
 
@@ -1405,15 +1379,13 @@ static void stm32h7_spi_set_bpw(struct stm32_spi *spi)
 	bpw = spi->cur_bpw - 1;
 
 	cfg1_clrb |= STM32H7_SPI_CFG1_DSIZE;
-	cfg1_setb |= (bpw << STM32H7_SPI_CFG1_DSIZE_SHIFT) &
-		     STM32H7_SPI_CFG1_DSIZE;
+	cfg1_setb |= FIELD_PREP(STM32H7_SPI_CFG1_DSIZE, bpw);
 
 	spi->cur_fthlv = stm32h7_spi_prepare_fthlv(spi, spi->cur_xferlen);
 	fthlv = spi->cur_fthlv - 1;
 
 	cfg1_clrb |= STM32H7_SPI_CFG1_FTHLV;
-	cfg1_setb |= (fthlv << STM32H7_SPI_CFG1_FTHLV_SHIFT) &
-		     STM32H7_SPI_CFG1_FTHLV;
+	cfg1_setb |= FIELD_PREP(STM32H7_SPI_CFG1_FTHLV, fthlv);
 
 	writel_relaxed(
 		(readl_relaxed(spi->base + STM32H7_SPI_CFG1) &
@@ -1431,8 +1403,7 @@ static void stm32_spi_set_mbr(struct stm32_spi *spi, u32 mbrdiv)
 	u32 clrb = 0, setb = 0;
 
 	clrb |= spi->cfg->regs->br.mask;
-	setb |= ((u32)mbrdiv << spi->cfg->regs->br.shift) &
-		spi->cfg->regs->br.mask;
+	setb |= (mbrdiv << spi->cfg->regs->br.shift) & spi->cfg->regs->br.mask;
 
 	writel_relaxed((readl_relaxed(spi->base + spi->cfg->regs->br.reg) &
 			~clrb) | setb,
@@ -1523,8 +1494,7 @@ static int stm32h7_spi_set_mode(struct stm32_spi *spi, unsigned int comm_type)
 	}
 
 	cfg2_clrb |= STM32H7_SPI_CFG2_COMM;
-	cfg2_setb |= (mode << STM32H7_SPI_CFG2_COMM_SHIFT) &
-		     STM32H7_SPI_CFG2_COMM;
+	cfg2_setb |= FIELD_PREP(STM32H7_SPI_CFG2_COMM, mode);
 
 	writel_relaxed(
 		(readl_relaxed(spi->base + STM32H7_SPI_CFG2) &
@@ -1546,15 +1516,16 @@ static void stm32h7_spi_data_idleness(struct stm32_spi *spi, u32 len)
 
 	cfg2_clrb |= STM32H7_SPI_CFG2_MIDI;
 	if ((len > 1) && (spi->cur_midi > 0)) {
-		u32 sck_period_ns = DIV_ROUND_UP(SPI_1HZ_NS, spi->cur_speed);
-		u32 midi = min((u32)DIV_ROUND_UP(spi->cur_midi, sck_period_ns),
-			       (u32)STM32H7_SPI_CFG2_MIDI >>
-			       STM32H7_SPI_CFG2_MIDI_SHIFT);
+		u32 sck_period_ns = DIV_ROUND_UP(NSEC_PER_SEC, spi->cur_speed);
+		u32 midi = min_t(u32,
+				 DIV_ROUND_UP(spi->cur_midi, sck_period_ns),
+				 FIELD_GET(STM32H7_SPI_CFG2_MIDI,
+				 STM32H7_SPI_CFG2_MIDI));
+
 
 		dev_dbg(spi->dev, "period=%dns, midi=%d(=%dns)\n",
 			sck_period_ns, midi, midi * sck_period_ns);
-		cfg2_setb |= (midi << STM32H7_SPI_CFG2_MIDI_SHIFT) &
-			     STM32H7_SPI_CFG2_MIDI;
+		cfg2_setb |= FIELD_PREP(STM32H7_SPI_CFG2_MIDI, midi);
 	}
 
 	writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CFG2) &
@@ -1569,14 +1540,8 @@ static void stm32h7_spi_data_idleness(struct stm32_spi *spi, u32 len)
  */
 static int stm32h7_spi_number_of_data(struct stm32_spi *spi, u32 nb_words)
 {
-	u32 cr2_clrb = 0, cr2_setb = 0;
-
-	if (nb_words <= (STM32H7_SPI_CR2_TSIZE >>
-			 STM32H7_SPI_CR2_TSIZE_SHIFT)) {
-		cr2_clrb |= STM32H7_SPI_CR2_TSIZE;
-		cr2_setb = nb_words << STM32H7_SPI_CR2_TSIZE_SHIFT;
-		writel_relaxed((readl_relaxed(spi->base + STM32H7_SPI_CR2) &
-				~cr2_clrb) | cr2_setb,
+	if (nb_words <= STM32H7_SPI_TSIZE_MAX) {
+		writel_relaxed(FIELD_PREP(STM32H7_SPI_CR2_TSIZE, nb_words),
 			       spi->base + STM32H7_SPI_CR2);
 	} else {
 		return -EMSGSIZE;
@@ -1676,6 +1641,10 @@ static int stm32_spi_transfer_one(struct spi_master *master,
 {
 	struct stm32_spi *spi = spi_master_get_devdata(master);
 	int ret;
+
+	/* Don't do anything on 0 bytes transfers */
+	if (transfer->len == 0)
+		return 0;
 
 	spi->tx_buf = transfer->tx_buf;
 	spi->rx_buf = transfer->rx_buf;
@@ -1831,6 +1800,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct stm32_spi *spi;
 	struct resource *res;
+	struct reset_control *rst;
 	int ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct stm32_spi));
@@ -1892,11 +1862,17 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	spi->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (!IS_ERR(spi->rst)) {
-		reset_control_assert(spi->rst);
+	rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (rst) {
+		if (IS_ERR(rst)) {
+			ret = dev_err_probe(&pdev->dev, PTR_ERR(rst),
+					    "failed to get reset\n");
+			goto err_clk_disable;
+		}
+
+		reset_control_assert(rst);
 		udelay(2);
-		reset_control_deassert(spi->rst);
+		reset_control_deassert(rst);
 	}
 
 	if (spi->cfg->has_fifo)
@@ -1957,12 +1933,6 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "spi master registration failed: %d\n",
 			ret);
-		goto err_pm_disable;
-	}
-
-	if (!master->cs_gpiods) {
-		dev_err(&pdev->dev, "no CS gpios available\n");
-		ret = -EINVAL;
 		goto err_pm_disable;
 	}
 
@@ -2062,6 +2032,7 @@ static int stm32_spi_resume(struct device *dev)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
 		dev_err(dev, "Unable to power device:%d\n", ret);
 		return ret;
 	}

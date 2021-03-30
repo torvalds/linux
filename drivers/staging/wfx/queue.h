@@ -8,9 +8,6 @@
 #ifndef WFX_QUEUE_H
 #define WFX_QUEUE_H
 
-#include <linux/skbuff.h>
-#include <linux/atomic.h>
-
 struct wfx_dev;
 struct wfx_vif;
 

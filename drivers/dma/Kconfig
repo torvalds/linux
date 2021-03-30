@@ -296,6 +296,16 @@ config INTEL_IDXD
 
 	  If unsure, say N.
 
+# Config symbol that collects all the dependencies that's necessary to
+# support shared virtual memory for the devices supported by idxd.
+config INTEL_IDXD_SVM
+	bool "Accelerator Shared Virtual Memory Support"
+	depends on INTEL_IDXD
+	depends on INTEL_IOMMU_SVM
+	depends on PCI_PRI
+	depends on PCI_PASID
+	depends on PCI_IOV
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86_64
@@ -317,24 +327,6 @@ config INTEL_IOP_ADMA
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
-
-config INTEL_MIC_X100_DMA
-	tristate "Intel MIC X100 DMA Driver"
-	depends on 64BIT && X86 && INTEL_MIC_BUS
-	select DMA_ENGINE
-	help
-	  This enables DMA support for the Intel Many Integrated Core
-	  (MIC) family of PCIe form factor coprocessor X100 devices that
-	  run a 64 bit Linux OS. This driver will be used by both MIC
-	  host and card drivers.
-
-	  If you are building host kernel with a MIC device or a card
-	  kernel for a MIC device, then say M (recommended) or Y, else
-	  say N. If unsure say N.
-
-	  More information about the Intel MIC family as well as the Linux
-	  OS and tools for MIC to use with this driver are available from
-	  <http://software.intel.com/en-us/mic-developer>.
 
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"

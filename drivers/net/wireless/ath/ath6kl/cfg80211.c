@@ -3648,7 +3648,7 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 		kfree(mc_filter);
 	}
 
-	unregister_netdevice(vif->ndev);
+	cfg80211_unregister_netdevice(vif->ndev);
 
 	ar->num_vif--;
 }
@@ -3821,7 +3821,7 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 
 	netdev_set_default_ethtool_ops(ndev, &ath6kl_ethtool_ops);
 
-	if (register_netdevice(ndev))
+	if (cfg80211_register_netdevice(ndev))
 		goto err;
 
 	ar->avail_idx_map &= ~BIT(fw_vif_idx);
@@ -3897,19 +3897,19 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	switch (ar->hw.cap) {
 	case WMI_11AN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11A_CAP:
 		band_5gig = true;
 		break;
 	case WMI_11GN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11G_CAP:
 		band_2gig = true;
 		break;
 	case WMI_11AGN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11AG_CAP:
 		band_2gig = true;
 		band_5gig = true;

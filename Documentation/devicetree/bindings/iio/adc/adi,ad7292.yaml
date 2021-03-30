@@ -45,10 +45,10 @@ required:
 
 patternProperties:
   "^channel@[0-7]$":
+    $ref: "adc.yaml"
     type: object
     description: |
       Represents the external channels which are connected to the ADC.
-      See Documentation/devicetree/bindings/iio/adc/adc.txt.
 
     properties:
       reg:
@@ -58,12 +58,12 @@ patternProperties:
           - minimum: 0
             maximum: 7
 
-      diff-channels:
-        description: see Documentation/devicetree/bindings/iio/adc/adc.txt
-        maxItems: 1
+      diff-channels: true
 
     required:
       - reg
+
+    additionalProperties: true
 
 additionalProperties: false
 

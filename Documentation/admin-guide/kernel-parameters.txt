@@ -373,6 +373,12 @@
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
 
+	arm64.nobti	[ARM64] Unconditionally disable Branch Target
+			Identification support
+
+	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
+
 	ataflop=	[HW,M68k]
 
 	atarimouse=	[HW,MOUSE] Atari Mouse
@@ -600,7 +606,7 @@
 			kernel/dma/contiguous.c
 
 	cma_pernuma=nn[MG]
-			[ARM64,KNL]
+			[ARM64,KNL,CMA]
 			Sets the size of kernel per-numa memory area for
 			contiguous memory allocations. A value of 0 disables
 			per-numa CMA altogether. And If this option is not
@@ -802,13 +808,14 @@
 			insecure, please do not use on production kernels.
 
 	debug_locks_verbose=
-			[KNL] verbose self-tests
-			Format=<0|1>
+			[KNL] verbose locking self-tests
+			Format: <int>
 			Print debugging info while doing the locking API
 			self-tests.
-			We default to 0 (no extra messages), setting it to
-			1 will print _a lot_ more information - normally
-			only useful to kernel developers.
+			Bitmask for the various LOCKTYPE_ tests. Defaults to 0
+			(no extra messages), setting it to -1 (all bits set)
+			will print _a_lot_ more information - normally only
+			useful to lockdep developers.
 
 	debug_objects	[KNL] Enable object debugging
 
@@ -943,12 +950,6 @@
 			disable BSP to wake up multiple CPUs without
 			causing system reset or hang due to sending
 			INIT from AP to BSP.
-
-	perf_v4_pmi=	[X86,INTEL]
-			Format: <bool>
-			Disable Intel PMU counter freezing feature.
-			The feature only exists starting from
-			Arch Perfmon v4 (Skylake and newer).
 
 	disable_ddw	[PPC/PSERIES]
 			Disable Dynamic DMA Window support. Use this
@@ -1343,11 +1344,17 @@
 			current integrity status.
 
 	failslab=
+	fail_usercopy=
 	fail_page_alloc=
 	fail_make_request=[KNL]
 			General fault injection mechanism.
 			Format: <interval>,<probability>,<space>,<times>
 			See also Documentation/fault-injection/.
+
+	fb_tunnels=	[NET]
+			Format: { initns | none }
+			See Documentation/admin-guide/sysctl/net.rst for
+			fb_tunnels_only_for_init_ns
 
 	floppy=		[HW]
 			See Documentation/admin-guide/blockdev/floppy.rst.
@@ -1379,7 +1386,7 @@
 
 	ftrace_filter=[function-list]
 			[FTRACE] Limit the functions traced by the function
-			tracer at boot up. function-list is a comma separated
+			tracer at boot up. function-list is a comma-separated
 			list of functions. This list can be changed at run
 			time by the set_ftrace_filter file in the debugfs
 			tracing directory.
@@ -1393,13 +1400,13 @@
 	ftrace_graph_filter=[function-list]
 			[FTRACE] Limit the top level callers functions traced
 			by the function graph tracer at boot up.
-			function-list is a comma separated list of functions
+			function-list is a comma-separated list of functions
 			that can be changed at run time by the
 			set_graph_function file in the debugfs tracing directory.
 
 	ftrace_graph_notrace=[function-list]
 			[FTRACE] Do not trace from the functions specified in
-			function-list.  This list is a comma separated list of
+			function-list.  This list is a comma-separated list of
 			functions that can be changed at run time by the
 			set_graph_notrace file in the debugfs tracing directory.
 
@@ -1518,12 +1525,12 @@
 	hpet_mmap=	[X86, HPET_MMAP] Allow userspace to mmap HPET
 			registers.  Default set by CONFIG_HPET_MMAP_DEFAULT.
 
-	hugetlb_cma=	[HW] The size of a cma area used for allocation
+	hugetlb_cma=	[HW,CMA] The size of a CMA area used for allocation
 			of gigantic hugepages.
 			Format: nn[KMGTPE]
 
-			Reserve a cma area of given size and allocate gigantic
-			hugepages using the cma allocator. If enabled, the
+			Reserve a CMA area of given size and allocate gigantic
+			hugepages using the CMA allocator. If enabled, the
 			boot-time allocation of gigantic hugepages is skipped.
 
 	hugepages=	[HW] Number of HugeTLB pages to allocate at boot.
@@ -1740,7 +1747,7 @@
 	ima_policy=	[IMA]
 			The builtin policies to load during IMA setup.
 			Format: "tcb | appraise_tcb | secure_boot |
-				 fail_securely"
+				 fail_securely | critical_data"
 
 			The "tcb" policy measures all programs exec'd, files
 			mmap'd for exec, and all files opened with the read
@@ -1758,6 +1765,9 @@
 			verification failure also on privileged mounted
 			filesystems with the SB_I_UNVERIFIABLE_SIGNATURE
 			flag.
+
+			The "critical_data" policy measures kernel integrity
+			critical data.
 
 	ima_tcb		[IMA] Deprecated.  Use ima_policy= instead.
 			Load a policy which meets the needs of the Trusted
@@ -1877,11 +1887,6 @@
 			Note that using this option lowers the security
 			provided by tboot because it makes the system
 			vulnerable to DMA attacks.
-		nobounce [Default off]
-			Disable bounce buffer for untrusted devices such as
-			the Thunderbolt devices. This will treat the untrusted
-			devices as the trusted ones, hence might expose security
-			risks of DMA attacks.
 
 	intel_idle.max_cstate=	[KNL,HW,ACPI,X86]
 			0	disables intel_idle and fall back on acpi_idle.
@@ -2253,6 +2258,19 @@
 			for all guests.
 			Default is 1 (enabled) if in 64-bit or 32-bit PAE mode.
 
+	kvm-arm.mode=
+			[KVM,ARM] Select one of KVM/arm64's modes of operation.
+
+			nvhe: Standard nVHE-based mode, without support for
+			      protected guests.
+
+			protected: nVHE-based mode with support for guests whose
+				   state is kept private from the host.
+				   Not valid if the kernel is running in EL2.
+
+			Defaults to VHE/nVHE based on hardware support and
+			the value of CONFIG_ARM64_VHE.
+
 	kvm-arm.vgic_v3_group0_trap=
 			[KVM,ARM] Trap guest accesses to GICv3 group-0
 			system registers
@@ -2410,7 +2428,7 @@
 			when set.
 			Format: <int>
 
-	libata.force=	[LIBATA] Force configurations.  The format is comma
+	libata.force=	[LIBATA] Force configurations.  The format is comma-
 			separated list of "[ID:]VAL" where ID is
 			PORT[.DEVICE].  PORT and DEVICE are decimal numbers
 			matching port, link or device.  Basically, it matches
@@ -2703,7 +2721,7 @@
 			option description.
 
 	memmap=nn[KMG]@ss[KMG]
-			[KNL] Force usage of a specific region of memory.
+			[KNL, X86, MIPS, XTENSA] Force usage of a specific region of memory.
 			Region of memory to be used is from ss to ss+nn.
 			If @ss[KMG] is omitted, it is equivalent to mem=nn[KMG],
 			which limits max address to nn[KMG].
@@ -2852,6 +2870,8 @@
 					       mds=off [X86]
 					       tsx_async_abort=off [X86]
 					       kvm.nx_huge_pages=off [X86]
+					       no_entry_flush [PPC]
+					       no_uaccess_flush [PPC]
 
 				Exceptions:
 					       This does not have any effect on
@@ -2945,7 +2965,7 @@
 	mtdset=		[ARM]
 			ARM/S3C2412 JIVE boot control
 
-			See arch/arm/mach-s3c2412/mach-jive.c
+			See arch/arm/mach-s3c/mach-jive.c
 
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
@@ -3089,6 +3109,10 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
+	nmi_backtrace.backtrace_idle [KNL]
+			Dump stacks even of idle CPUs in response to an
+			NMI stack-backtrace request.
+
 	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
@@ -3176,6 +3200,8 @@
 
 	noefi		Disable EFI runtime services support.
 
+	no_entry_flush  [PPC] Don't flush the L1-D cache when entering the kernel.
+
 	noexec		[IA-64]
 
 	noexec		[X86]
@@ -3225,6 +3251,9 @@
 	nospec_store_bypass_disable
 			[HW] Disable all mitigations for the Speculative Store Bypass vulnerability
 
+	no_uaccess_flush
+	                [PPC] Don't flush the L1-D cache after accessing user data.
+
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
 			enabling legacy floating-point and sse state.
@@ -3244,9 +3273,14 @@
 			parameter, xsave area per process might occupy more
 			memory on xsaves enabled systems.
 
-	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
-			wfi(ARM) instruction doesn't work correctly and not to
-			use it. This is also useful when using JTAG debugger.
+	nohlt		[ARM,ARM64,MICROBLAZE,SH] Forces the kernel to busy wait
+			in do_idle() and not use the arch_cpu_idle()
+			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
+			to be effective. This is useful on platforms where the
+			sleep(SH) or wfi(ARM,ARM64) instructions do not work
+			correctly or when doing power measurements to evalute
+			the impact of the sleep instructions. This is also
+			useful when using JTAG debugger.
 
 	no_file_caps	Tells the kernel not to honor file capabilities.  The
 			only way then for a file to be executed with privilege
@@ -3258,6 +3292,21 @@
 			interrupt wake-up latency, which may improve performance
 			in certain environments such as networked servers or
 			real-time systems.
+
+	no_hash_pointers
+			Force pointers printed to the console or buffers to be
+			unhashed.  By default, when a pointer is printed via %p
+			format string, that pointer is "hashed", i.e. obscured
+			by hashing the pointer value.  This is a security feature
+			that hides actual kernel addresses from unprivileged
+			users, but it also makes debugging the kernel more
+			difficult since unequal pointers can no longer be
+			compared.  However, if this command-line option is
+			specified, then all normal pointers will have their true
+			value printed.  Pointers printed via %pK may still be
+			hashed.  This option should only be specified when
+			debugging the kernel.  Please do not use on production
+			kernels.
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
@@ -3358,6 +3407,8 @@
 
 	nosep		[BUGS=X86-32] Disables x86 SYSENTER/SYSEXIT support.
 
+	nosgx		[X86-64,SGX] Disables Intel SGX kernel support.
+
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
@@ -3433,20 +3484,6 @@
 			Format: <mux_mode0.mode_name=value>...
 			For example, to override I2C bus2:
 			omap_mux=i2c2_scl.i2c2_scl=0x100,i2c2_sda.i2c2_sda=0x100
-
-	oprofile.timer=	[HW]
-			Use timer interrupt instead of performance counters
-
-	oprofile.cpu_type=	Force an oprofile cpu type
-			This might be useful if you have an older oprofile
-			userland or if you want common events.
-			Format: { arch_perfmon }
-			arch_perfmon: [X86] Force use of architectural
-				perfmon on Intel CPUs instead of the
-				CPU specific event set.
-			timer: [X86] Force use of architectural NMI
-				timer mode (see also oprofile.timer
-				for generic hr timer mode)
 
 	oops=panic	Always panic on oopses. Default is to just kill the
 			process, but there is a small probability of
@@ -3892,6 +3929,13 @@
 			Format: {"off"}
 			Disable Hardware Transactional Memory
 
+	preempt=	[KNL]
+			Select preemption mode if you have CONFIG_PREEMPT_DYNAMIC
+			none - Limited to cond_resched() calls
+			voluntary - Limited to cond_resched() and might_sleep() calls
+			full - Any section that isn't explicitly preempt disabled
+			       can be preempted anytime.
+
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
 
@@ -4068,6 +4112,10 @@
 			value, meaning that RCU_SOFTIRQ is used by default.
 			Specify rcutree.use_softirq=0 to use rcuc kthreads.
 
+			But note that CONFIG_PREEMPT_RT=y kernels disable
+			this kernel boot parameter, forcibly setting it
+			to zero.
+
 	rcutree.rcu_fanout_exact= [KNL]
 			Disable autobalancing of the rcu_node combining
 			tree.  This is used by rcutorture, and might
@@ -4155,12 +4203,6 @@
 			Set wakeup interval for idle CPUs that have
 			RCU callbacks (RCU_FAST_NO_HZ=y).
 
-	rcutree.rcu_idle_lazy_gp_delay= [KNL]
-			Set wakeup interval for idle CPUs that have
-			only "lazy" RCU callbacks (RCU_FAST_NO_HZ=y).
-			Lazy RCU callbacks are those which RCU can
-			prove do nothing more than free memory.
-
 	rcutree.rcu_kick_kthreads= [KNL]
 			Cause the grace-period kthread to get an extra
 			wake_up() if it sleeps three times longer than
@@ -4168,46 +4210,55 @@
 			This wake_up() will be accompanied by a
 			WARN_ONCE() splat and an ftrace_dump().
 
+	rcutree.rcu_unlock_delay= [KNL]
+			In CONFIG_RCU_STRICT_GRACE_PERIOD=y kernels,
+			this specifies an rcu_read_unlock()-time delay
+			in microseconds.  This defaults to zero.
+			Larger delays increase the probability of
+			catching RCU pointer leaks, that is, buggy use
+			of RCU-protected pointers after the relevant
+			rcu_read_unlock() has completed.
+
 	rcutree.sysrq_rcu= [KNL]
 			Commandeer a sysrq key to dump out Tree RCU's
 			rcu_node tree with an eye towards determining
 			why a new grace period has not yet started.
 
-	rcuperf.gp_async= [KNL]
+	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
 			grace-period primitives such as call_rcu().
 
-	rcuperf.gp_async_max= [KNL]
+	rcuscale.gp_async_max= [KNL]
 			Specify the maximum number of outstanding
 			callbacks per writer thread.  When a writer
 			thread exceeds this limit, it invokes the
 			corresponding flavor of rcu_barrier() to allow
 			previously posted callbacks to drain.
 
-	rcuperf.gp_exp= [KNL]
+	rcuscale.gp_exp= [KNL]
 			Measure performance of expedited synchronous
 			grace-period primitives.
 
-	rcuperf.holdoff= [KNL]
+	rcuscale.holdoff= [KNL]
 			Set test-start holdoff period.  The purpose of
 			this parameter is to delay the start of the
 			test until boot completes in order to avoid
 			interference.
 
-	rcuperf.kfree_rcu_test= [KNL]
+	rcuscale.kfree_rcu_test= [KNL]
 			Set to measure performance of kfree_rcu() flooding.
 
-	rcuperf.kfree_nthreads= [KNL]
+	rcuscale.kfree_nthreads= [KNL]
 			The number of threads running loops of kfree_rcu().
 
-	rcuperf.kfree_alloc_num= [KNL]
+	rcuscale.kfree_alloc_num= [KNL]
 			Number of allocations and frees done in an iteration.
 
-	rcuperf.kfree_loops= [KNL]
-			Number of loops doing rcuperf.kfree_alloc_num number
+	rcuscale.kfree_loops= [KNL]
+			Number of loops doing rcuscale.kfree_alloc_num number
 			of allocations and frees.
 
-	rcuperf.nreaders= [KNL]
+	rcuscale.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value
 			"n" less than -1 selects N-n+1, where N is again
@@ -4216,23 +4267,23 @@
 			A value of "n" less than or equal to -N selects
 			a single reader.
 
-	rcuperf.nwriters= [KNL]
+	rcuscale.nwriters= [KNL]
 			Set number of RCU writers.  The values operate
-			the same as for rcuperf.nreaders.
+			the same as for rcuscale.nreaders.
 			N, where N is the number of CPUs
 
-	rcuperf.perf_type= [KNL]
+	rcuscale.perf_type= [KNL]
 			Specify the RCU implementation to test.
 
-	rcuperf.shutdown= [KNL]
+	rcuscale.shutdown= [KNL]
 			Shut the system down after performance tests
 			complete.  This is useful for hands-off automated
 			testing.
 
-	rcuperf.verbose= [KNL]
+	rcuscale.verbose= [KNL]
 			Enable additional printk() statements.
 
-	rcuperf.writer_holdoff= [KNL]
+	rcuscale.writer_holdoff= [KNL]
 			Write-side holdoff between grace periods,
 			in microseconds.  The default of zero says
 			no holdoff.
@@ -4285,6 +4336,18 @@
 			are zero, rcutorture acts as if is interpreted
 			they are all non-zero.
 
+	rcutorture.irqreader= [KNL]
+			Run RCU readers from irq handlers, or, more
+			accurately, from a timer handler.  Not all RCU
+			flavors take kindly to this sort of thing.
+
+	rcutorture.leakpointer= [KNL]
+			Leak an RCU-protected pointer out of the reader.
+			This can of course result in splats, and is
+			intended to test the ability of things like
+			CONFIG_RCU_STRICT_GRACE_PERIOD=y to detect
+			such leaks.
+
 	rcutorture.n_barrier_cbs= [KNL]
 			Set callbacks/threads for rcu_barrier() testing.
 
@@ -4292,6 +4355,14 @@
 			Set number of concurrent RCU writers.  These just
 			stress RCU, they don't participate in the actual
 			test, hence the "fake".
+
+	rcutorture.nocbs_nthreads= [KNL]
+			Set number of RCU callback-offload togglers.
+			Zero (the default) disables toggling.
+
+	rcutorture.nocbs_toggle= [KNL]
+			Set the delay in milliseconds between successive
+			callback-offload toggling attempts.
 
 	rcutorture.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
@@ -4425,6 +4496,13 @@
 			only normal grace-period primitives.  No effect
 			on CONFIG_TINY_RCU kernels.
 
+			But note that CONFIG_PREEMPT_RT=y kernels enables
+			this kernel boot parameter, forcibly setting
+			it to the value one, that is, converting any
+			post-boot attempt at an expedited RCU grace
+			period to instead use normal non-expedited
+			grace-period processing.
+
 	rcupdate.rcu_task_ipi_delay= [KNL]
 			Set time in jiffies during which RCU tasks will
 			avoid sending IPIs, starting with the beginning
@@ -4506,11 +4584,17 @@
 	refscale.shutdown= [KNL]
 			Shut down the system at the end of the performance
 			test.  This defaults to 1 (shut it down) when
-			rcuperf is built into the kernel and to 0 (leave
-			it running) when rcuperf is built as a module.
+			refscale is built into the kernel and to 0 (leave
+			it running) when refscale is built as a module.
 
 	refscale.verbose= [KNL]
 			Enable additional printk() statements.
+
+	refscale.verbose_batched= [KNL]
+			Batch the additional printk() statements.  If zero
+			(the default) or negative, print everything.  Otherwise,
+			print every Nth verbose statement, where N is the value
+			specified.
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
@@ -4652,6 +4736,98 @@
 			and so on.
 			Format: integer between 0 and 10
 			Default is 0.
+
+	scftorture.holdoff= [KNL]
+			Number of seconds to hold off before starting
+			test.  Defaults to zero for module insertion and
+			to 10 seconds for built-in smp_call_function()
+			tests.
+
+	scftorture.longwait= [KNL]
+			Request ridiculously long waits randomly selected
+			up to the chosen limit in seconds.  Zero (the
+			default) disables this feature.  Please note
+			that requesting even small non-zero numbers of
+			seconds can result in RCU CPU stall warnings,
+			softlockup complaints, and so on.
+
+	scftorture.nthreads= [KNL]
+			Number of kthreads to spawn to invoke the
+			smp_call_function() family of functions.
+			The default of -1 specifies a number of kthreads
+			equal to the number of CPUs.
+
+	scftorture.onoff_holdoff= [KNL]
+			Number seconds to wait after the start of the
+			test before initiating CPU-hotplug operations.
+
+	scftorture.onoff_interval= [KNL]
+			Number seconds to wait between successive
+			CPU-hotplug operations.  Specifying zero (which
+			is the default) disables CPU-hotplug operations.
+
+	scftorture.shutdown_secs= [KNL]
+			The number of seconds following the start of the
+			test after which to shut down the system.  The
+			default of zero avoids shutting down the system.
+			Non-zero values are useful for automated tests.
+
+	scftorture.stat_interval= [KNL]
+			The number of seconds between outputting the
+			current test statistics to the console.  A value
+			of zero disables statistics output.
+
+	scftorture.stutter_cpus= [KNL]
+			The number of jiffies to wait between each change
+			to the set of CPUs under test.
+
+	scftorture.use_cpus_read_lock= [KNL]
+			Use use_cpus_read_lock() instead of the default
+			preempt_disable() to disable CPU hotplug
+			while invoking one of the smp_call_function*()
+			functions.
+
+	scftorture.verbose= [KNL]
+			Enable additional printk() statements.
+
+	scftorture.weight_single= [KNL]
+			The probability weighting to use for the
+			smp_call_function_single() function with a zero
+			"wait" parameter.  A value of -1 selects the
+			default if all other weights are -1.  However,
+			if at least one weight has some other value, a
+			value of -1 will instead select a weight of zero.
+
+	scftorture.weight_single_wait= [KNL]
+			The probability weighting to use for the
+			smp_call_function_single() function with a
+			non-zero "wait" parameter.  See weight_single.
+
+	scftorture.weight_many= [KNL]
+			The probability weighting to use for the
+			smp_call_function_many() function with a zero
+			"wait" parameter.  See weight_single.
+			Note well that setting a high probability for
+			this weighting can place serious IPI load
+			on the system.
+
+	scftorture.weight_many_wait= [KNL]
+			The probability weighting to use for the
+			smp_call_function_many() function with a
+			non-zero "wait" parameter.  See weight_single
+			and weight_many.
+
+	scftorture.weight_all= [KNL]
+			The probability weighting to use for the
+			smp_call_function_all() function with a zero
+			"wait" parameter.  See weight_single and
+			weight_many.
+
+	scftorture.weight_all_wait= [KNL]
+			The probability weighting to use for the
+			smp_call_function_all() function with a
+			non-zero "wait" parameter.  See weight_single
+			and weight_many.
 
 	skew_tick=	[KNL] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock
@@ -5008,7 +5184,7 @@
 
 	stacktrace_filter=[function-list]
 			[FTRACE] Limit the functions that the stack tracer
-			will trace at boot up. function-list is a comma separated
+			will trace at boot up. function-list is a comma-separated
 			list of functions. This list can be changed at run
 			time by the stack_trace_filter file in the debugfs
 			tracing directory. Note, this enables stack tracing
@@ -5194,6 +5370,14 @@
 			are running concurrently, especially on systems
 			with rotating-rust storage.
 
+	torture.verbose_sleep_frequency= [KNL]
+			Specifies how many verbose printk()s should be
+			emitted between each sleep.  The default of zero
+			disables verbose-printk() sleeping.
+
+	torture.verbose_sleep_duration= [KNL]
+			Duration of each verbose-printk() sleep in jiffies.
+
 	tp720=		[HW,PS2]
 
 	tpm_suspend_pcr=[HW,TPM]
@@ -5211,7 +5395,7 @@
 	trace_event=[event-list]
 			[FTRACE] Set and start specified trace events in order
 			to facilitate early boot debugging. The event-list is a
-			comma separated list of trace events to enable. See
+			comma-separated list of trace events to enable. See
 			also Documentation/trace/events.rst
 
 	trace_options=[option-list]
@@ -5533,6 +5717,7 @@
 					device);
 				j = NO_REPORT_LUNS (don't use report luns
 					command, uas only);
+				k = NO_SAME (do not use WRITE_SAME, uas only)
 				l = NOT_LOCKABLE (don't try to lock and
 					unlock ejectable media, not on uas);
 				m = MAX_SECTORS_64 (don't transfer more
@@ -5834,6 +6019,10 @@
 			This option is obsoleted by the "nopv" option, which
 			has equivalent effect for XEN platform.
 
+	xen_no_vector_callback
+			[KNL,X86,XEN] Disable the vector callback for Xen
+			event channel interrupts.
+
 	xen_scrub_pages=	[XEN]
 			Boolean option to control scrubbing pages before giving them back
 			to Xen, for use by other domains. Can be also changed at runtime
@@ -5846,6 +6035,21 @@
 			delta of virtualized Xen timers, where lower values
 			improve timer resolution at the expense of processing
 			more timer interrupts.
+
+	xen.event_eoi_delay=	[XEN]
+			How long to delay EOI handling in case of event
+			storms (jiffies). Default is 10.
+
+	xen.event_loop_timeout=	[XEN]
+			After which time (jiffies) the event handling loop
+			should start to delay EOI handling. Default is 2.
+
+	xen.fifo_events=	[XEN]
+			Boolean parameter to disable using fifo event handling
+			even if available. Normally fifo event handling is
+			preferred over the 2-level event handling, as it is
+			fairer and the number of possible event channels is
+			much higher. Default is on (use fifo events).
 
 	nopv=		[X86,XEN,KVM,HYPER_V,VMWARE]
 			Disables the PV optimizations forcing the guest to run

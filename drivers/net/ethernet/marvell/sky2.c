@@ -4900,7 +4900,7 @@ static const char *sky2_name(u8 chipid, char *buf, int sz)
 	};
 
 	if (chipid >= CHIP_ID_YUKON_XL && chipid <= CHIP_ID_YUKON_OP_2)
-		strncpy(buf, name[chipid - CHIP_ID_YUKON_XL], sz);
+		snprintf(buf, sz, "%s", name[chipid - CHIP_ID_YUKON_XL]);
 	else
 		snprintf(buf, sz, "(chip %#x)", chipid);
 	return buf;
@@ -5105,7 +5105,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&hw->restart_work, sky2_restart);
 
 	pci_set_drvdata(pdev, hw);
-	pdev->d3_delay = 300;
+	pdev->d3hot_delay = 300;
 
 	return 0;
 

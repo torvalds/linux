@@ -16,21 +16,19 @@ vostre patch accettate.
 
 Questo documento contiene un vasto numero di suggerimenti concisi.  Per
 maggiori dettagli su come funziona il processo di sviluppo del kernel leggete
-:ref:`Documentation/translations/it_IT/process <it_development_process_main>`.
-Leggete anche :ref:`Documentation/translations/it_IT/process/submit-checklist.rst <it_submitchecklist>`
-per una lista di punti da verificare prima di inviare del codice.  Se state
-inviando un driver, allora leggete anche :ref:`Documentation/translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`;
-per delle patch relative alle associazioni per Device Tree leggete
-Documentation/devicetree/bindings/submitting-patches.rst.
+:doc:`development-process`.
+Leggete anche :doc:`submit-checklist` per una lista di punti da
+verificare prima di inviare del codice.  Se state inviando un driver,
+allora leggete anche :doc:`submitting-drivers`; per delle patch
+relative alle associazioni per Device Tree leggete
+:doc:`submitting-patches`.
 
-Molti di questi passi descrivono il comportamento di base del sistema di
-controllo di versione ``git``; se utilizzate ``git`` per preparare le vostre
-patch molto del lavoro più ripetitivo lo troverete già fatto per voi, tuttavia
-dovete preparare e documentare un certo numero di patch.  Generalmente, l'uso
-di ``git`` renderà la vostra vita di sviluppatore del kernel più facile.
+Questa documentazione assume che sappiate usare ``git`` per preparare le patch.
+Se non siete pratici di ``git``, allora è bene che lo impariate;
+renderà la vostra vita di sviluppatore del kernel molto più semplice.
 
-0) Ottenere i sorgenti attuali
-------------------------------
+Ottenere i sorgenti attuali
+---------------------------
 
 Se non avete un repositorio coi sorgenti del kernel più recenti, allora usate
 ``git`` per ottenerli.  Vorrete iniziare col repositorio principale che può
@@ -45,69 +43,10 @@ Guardate l'elemento **T:** per un determinato sottosistema nel file MAINTANERS
 che troverete nei sorgenti, o semplicemente chiedete al manutentore nel caso
 in cui i sorgenti da usare non siano elencati il quel file.
 
-Esiste ancora la possibilità di scaricare un rilascio del kernel come archivio
-tar (come descritto in una delle prossime sezioni), ma questa è la via più
-complicata per sviluppare per il kernel.
-
-1) ``diff -up``
----------------
-
-Se dovete produrre le vostre patch a mano, usate ``diff -up`` o ``diff -uprN``
-per crearle.  Git produce di base le patch in questo formato; se state
-usando ``git``, potete saltare interamente questa sezione.
-
-Tutte le modifiche al kernel Linux avvengono mediate patch, come descritte
-in :manpage:`diff(1)`.  Quando create la vostra patch, assicuratevi di
-crearla nel formato "unified diff", come l'argomento ``-u`` di
-:manpage:`diff(1)`.
-Inoltre, per favore usate l'argomento ``-p`` per mostrare la funzione C
-alla quale si riferiscono le diverse modifiche - questo rende il risultato
-di ``diff`` molto più facile da leggere.  Le patch dovrebbero essere basate
-sulla radice dei sorgenti del kernel, e non sulle sue sottocartelle.
-
-Per creare una patch per un singolo file, spesso è sufficiente fare::
-
-	SRCTREE=linux
-	MYFILE=drivers/net/mydriver.c
-
-	cd $SRCTREE
-	cp $MYFILE $MYFILE.orig
-	vi $MYFILE	# make your change
-	cd ..
-	diff -up $SRCTREE/$MYFILE{.orig,} > /tmp/patch
-
-Per creare una patch per molteplici file, dovreste spacchettare i sorgenti
-"vergini", o comunque non modificati, e fare un ``diff`` coi vostri.
-Per esempio::
-
-	MYSRC=/devel/linux
-
-	tar xvfz linux-3.19.tar.gz
-	mv linux-3.19 linux-3.19-vanilla
-	diff -uprN -X linux-3.19-vanilla/Documentation/dontdiff \
-		linux-3.19-vanilla $MYSRC > /tmp/patch
-
-``dontdiff`` è una lista di file che sono generati durante il processo di
-compilazione del kernel; questi dovrebbero essere ignorati in qualsiasi
-patch generata con :manpage:`diff(1)`.
-
-Assicuratevi che la vostra patch non includa file che non ne fanno veramente
-parte.  Al fine di verificarne la correttezza, assicuratevi anche di
-revisionare la vostra patch -dopo- averla generata con :manpage:`diff(1)`.
-
-Se le vostre modifiche producono molte differenze, allora dovrete dividerle
-in patch indipendenti che modificano le cose in passi logici;  leggete
-:ref:`split_changes`.  Questo faciliterà la revisione da parte degli altri
-sviluppatori, il che è molto importante se volete che la patch venga accettata.
-
-Se state utilizzando ``git``, ``git rebase -i`` può aiutarvi nel procedimento.
-Se non usate ``git``, un'alternativa popolare è ``quilt``
-<http://savannah.nongnu.org/projects/quilt>.
-
 .. _it_describe_changes:
 
-2) Descrivete le vostre modifiche
----------------------------------
+Descrivete le vostre modifiche
+------------------------------
 
 Descrivete il vostro problema. Esiste sempre un problema che via ha spinto
 ha fare il vostro lavoro, che sia la correzione di un baco da una riga o una
@@ -208,10 +147,15 @@ precedente::
 	[pretty]
 		fixes = Fixes: %h (\"%s\")
 
+Un esempio::
+
+       $ git log -1 --pretty=fixes 54a4f0239f2e
+       Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
+
 .. _it_split_changes:
 
-3) Separate le vostre modifiche
--------------------------------
+Separate le vostre modifiche
+----------------------------
 
 Separate ogni **cambiamento logico** in patch distinte.
 
@@ -312,7 +256,8 @@ sfruttato, inviatela a security@kernel.org.  Per bachi importanti, un breve
 embargo potrebbe essere preso in considerazione per dare il tempo alle
 distribuzioni di prendere la patch e renderla disponibile ai loro utenti;
 in questo caso, ovviamente, la patch non dovrebbe essere inviata su alcuna
-lista di discussione pubblica.
+lista di discussione pubblica. Leggete anche
+:doc:`/admin-guide/security-bugs`.
 
 Patch che correggono bachi importanti su un kernel già rilasciato, dovrebbero
 essere inviate ai manutentori dei kernel stabili aggiungendo la seguente riga::
@@ -354,8 +299,8 @@ Le patch banali devono rientrare in una delle seguenti categorie:
   "patch monkey" in modalità ritrasmissione)
 
 
-6) Niente: MIME, links, compressione, allegati.  Solo puro testo
-----------------------------------------------------------------
+Niente: MIME, links, compressione, allegati.  Solo puro testo
+-------------------------------------------------------------
 
 Linus e gli altri sviluppatori del kernel devono poter commentare
 le modifiche che sottomettete.  Per uno sviluppatore è importante
@@ -364,7 +309,11 @@ programmi di posta elettronica, cosicché sia possibile commentare
 una porzione specifica del vostro codice.
 
 Per questa ragione tutte le patch devono essere inviate via e-mail
-come testo.
+come testo. Il modo più facile, e quello raccomandato, è con ``git
+send-email``.  Al sito https://git-send-email.io è disponibile una
+guida interattiva sull'uso di ``git send-email``.
+
+Se decidete di non usare ``git send-email``:
 
 .. warning::
 
@@ -381,28 +330,20 @@ così la possibilità che il vostro allegato-MIME venga accettato.
 Eccezione: se il vostro servizio di posta storpia le patch, allora qualcuno
 potrebbe chiedervi di rinviarle come allegato MIME.
 
-Leggete :ref:`Documentation/translations/it_IT/process/email-clients.rst <it_email_clients>`
+Leggete :doc:`/translations/it_IT/process/email-clients`
 per dei suggerimenti sulla configurazione del programmi di posta elettronica
 per l'invio di patch intatte.
 
-7) Dimensione delle e-mail
---------------------------
+Rispondere ai commenti di revisione
+-----------------------------------
 
-Le grosse modifiche non sono adatte ad una lista di discussione, e nemmeno
-per alcuni manutentori.  Se la vostra patch, non compressa, eccede i 300 kB
-di spazio, allora caricatela in una spazio accessibile su internet fornendo
-l'URL (collegamento) ad essa.  Ma notate che se la vostra patch eccede i 300 kB
-è quasi certo che necessiti comunque di essere spezzettata.
-
-8) Rispondere ai commenti di revisione
---------------------------------------
-
-Quasi certamente i revisori vi invieranno dei commenti su come migliorare
-la vostra patch.  Dovete rispondere a questi commenti; ignorare i revisori
-è un ottimo modo per essere ignorati.  Riscontri o domande che non conducono
-ad una modifica del codice quasi certamente dovrebbero portare ad un commento
-nel changelog cosicché il prossimo revisore potrà meglio comprendere cosa stia
-accadendo.
+In risposta alla vostra email, quasi certamente i revisori vi
+invieranno dei commenti su come migliorare la vostra patch.  Dovete
+rispondere a questi commenti; ignorare i revisori è un ottimo modo per
+essere ignorati.  Riscontri o domande che non conducono ad una
+modifica del codice quasi certamente dovrebbero portare ad un commento
+nel changelog cosicché il prossimo revisore potrà meglio comprendere
+cosa stia accadendo.
 
 Assicuratevi di dire ai revisori quali cambiamenti state facendo e di
 ringraziarli per il loro tempo.  Revisionare codice è un lavoro faticoso e che
@@ -410,8 +351,12 @@ richiede molto tempo, e a volte i revisori diventano burberi.  Tuttavia, anche
 in questo caso, rispondete con educazione e concentratevi sul problema che
 hanno evidenziato.
 
-9) Non scoraggiatevi - o impazientitevi
----------------------------------------
+Leggete :doc:`/translations/it_IT/process/email-clients` per
+le raccomandazioni sui programmi di posta elettronica e l'etichetta da usare
+sulle liste di discussione.
+
+Non scoraggiatevi - o impazientitevi
+------------------------------------
 
 Dopo che avete inviato le vostre modifiche, siate pazienti e aspettate.
 I revisori sono persone occupate e potrebbero non ricevere la vostra patch
@@ -424,17 +369,19 @@ aver inviato le patch correttamente.  Aspettate almeno una settimana prima di
 rinviare le modifiche o sollecitare i revisori - probabilmente anche di più
 durante la finestra d'integrazione.
 
-10) Aggiungete PATCH nell'oggetto
----------------------------------
+Aggiungete PATCH nell'oggetto
+-----------------------------
 
 Dato l'alto volume di e-mail per Linus, e la lista linux-kernel, è prassi
 prefiggere il vostro oggetto con [PATCH].  Questo permette a Linus e agli
 altri sviluppatori del kernel di distinguere facilmente le patch dalle altre
 discussioni.
 
+``git send-email`` lo fa automaticamente.
 
-11) Firmate il vostro lavoro - Il certificato d'origine dello sviluppatore
---------------------------------------------------------------------------
+
+Firmate il vostro lavoro - Il certificato d'origine dello sviluppatore
+----------------------------------------------------------------------
 
 Per migliorare la tracciabilità su "chi ha fatto cosa", specialmente per
 quelle patch che per raggiungere lo stadio finale passano attraverso
@@ -477,65 +424,17 @@ poi dovete solo aggiungere una riga che dice::
 	Signed-off-by: Random J Developer <random@developer.example.org>
 
 usando il vostro vero nome (spiacenti, non si accettano pseudonimi o
-contributi anonimi).
+contributi anonimi). Questo verrà fatto automaticamente se usate
+``git commit -s``. Anche il ripristino di uno stato precedente dovrebbe
+includere "Signed-off-by", se usate ``git revert -s`` questo verrà
+fatto automaticamente.
 
 Alcune persone aggiungono delle etichette alla fine.  Per ora queste verranno
 ignorate, ma potete farlo per meglio identificare procedure aziendali interne o
 per aggiungere dettagli circa la firma.
 
-Se siete un manutentore di un sottosistema o di un ramo, qualche volta dovrete
-modificare leggermente le patch che avete ricevuto al fine di poterle
-integrare; questo perché il codice non è esattamente lo stesso nei vostri
-sorgenti e in quelli dei vostri contributori.  Se rispettate rigidamente la
-regola (c), dovreste chiedere al mittente di rifare la patch, ma questo è
-controproducente e una totale perdita di tempo ed energia.  La regola (b)
-vi permette di correggere il codice, ma poi diventa davvero maleducato cambiare
-la patch di qualcuno e addossargli la responsabilità per i vostri bachi.
-Per risolvere questo problema dovreste aggiungere una riga, fra l'ultimo
-Signed-off-by e il vostro, che spiega la vostra modifica.  Nonostante non ci
-sia nulla di obbligatorio, un modo efficace è quello di indicare il vostro
-nome o indirizzo email fra parentesi quadre, seguito da una breve descrizione;
-questo renderà abbastanza visibile chi è responsabile per le modifiche
-dell'ultimo minuto.  Per esempio::
-
-	Signed-off-by: Random J Developer <random@developer.example.org>
-	[lucky@maintainer.example.org: struct foo moved from foo.c to foo.h]
-	Signed-off-by: Lucky K Maintainer <lucky@maintainer.example.org>
-
-Questa pratica è particolarmente utile se siete i manutentori di un ramo
-stabile ma al contempo volete dare credito agli autori, tracciare e integrare
-le modifiche, e proteggere i mittenti dalle lamentele.  Notate che in nessuna
-circostanza è permessa la modifica dell'identità dell'autore (l'intestazione
-From), dato che è quella che appare nei changelog.
-
-Un appunto speciale per chi porta il codice su vecchie versioni.  Sembra che
-sia comune l'utile pratica di inserire un'indicazione circa l'origine della
-patch all'inizio del messaggio di commit (appena dopo la riga dell'oggetto)
-al fine di migliorare la tracciabilità.  Per esempio, questo è quello che si
-vede nel rilascio stabile 3.x-stable::
-
-  Date:   Tue Oct 7 07:26:38 2014 -0400
-
-    libata: Un-break ATA blacklist
-
-    commit 1c40279960bcd7d52dbdf1d466b20d24b99176c8 upstream.
-
-E qui quello che potrebbe vedersi su un kernel più vecchio dove la patch è
-stata applicata::
-
-    Date:   Tue May 13 22:12:27 2008 +0200
-
-        wireless, airo: waitbusy() won't delay
-
-        [backport of 2.6 commit b7acbdfbd1f277c1eb23f344f899cfa4cd0bf36a]
-
-Qualunque sia il formato, questa informazione fornisce un importante aiuto
-alle persone che vogliono seguire i vostri sorgenti, e quelle che cercano
-dei bachi.
-
-
-12) Quando utilizzare Acked-by:, Cc:, e Co-developed-by:
---------------------------------------------------------
+Quando utilizzare Acked-by:, Cc:, e Co-developed-by:
+----------------------------------------------------
 
 L'etichetta Signed-off-by: indica che il firmatario è stato coinvolto nello
 sviluppo della patch, o che era nel suo percorso di consegna.
@@ -604,8 +503,8 @@ Esempio di una patch sottomessa dall'autore Co-developed-by:::
 	Co-developed-by: Submitting Co-Author <sub@coauthor.example.org>
 	Signed-off-by: Submitting Co-Author <sub@coauthor.example.org>
 
-13) Utilizzare Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: e Fixes:
------------------------------------------------------------------------------
+Utilizzare Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: e Fixes:
+-------------------------------------------------------------------------
 
 L'etichetta Reported-by da credito alle persone che trovano e riportano i bachi
 e si spera che questo possa ispirarli ad aiutarci nuovamente in futuro.
@@ -654,6 +553,13 @@ revisori conosciuti per la loro conoscenza sulla materia in oggetto e per la
 loro serietà nella revisione, accrescerà le probabilità che la vostra patch
 venga integrate nel kernel.
 
+Quando si riceve una email sulla lista di discussione da un tester o
+un revisore, le etichette Tested-by o Reviewd-by devono essere
+aggiunte dall'autore quando invierà nuovamente la patch. Tuttavia, se
+la patch è cambiata in modo significativo, queste etichette potrebbero
+non avere più senso e quindi andrebbero rimosse. Solitamente si tiene traccia
+della rimozione nel changelog della patch (subito dopo il separatore '---').
+
 L'etichetta Suggested-by: indica che l'idea della patch è stata suggerita
 dalla persona nominata e le da credito. Tenete a mente che questa etichetta
 non dovrebbe essere aggiunta senza un permesso esplicito, specialmente se
@@ -669,8 +575,8 @@ Questo è il modo suggerito per indicare che un baco è stato corretto nella
 patch. Per maggiori dettagli leggete :ref:`it_describe_changes`
 
 
-14) Il formato canonico delle patch
------------------------------------
+Il formato canonico delle patch
+-------------------------------
 
 Questa sezione descrive il formato che dovrebbe essere usato per le patch.
 Notate che se state usando un repositorio ``git`` per salvare le vostre patch
@@ -788,8 +694,8 @@ Maggiori dettagli sul formato delle patch nei riferimenti qui di seguito.
 
 .. _it_explicit_in_reply_to:
 
-15) Usare esplicitamente In-Reply-To nell'intestazione
-------------------------------------------------------
+Usare esplicitamente In-Reply-To nell'intestazione
+--------------------------------------------------
 
 Aggiungere manualmente In-Reply-To: nell'intestazione dell'e-mail
 potrebbe essere d'aiuto per associare una patch ad una discussione
@@ -801,65 +707,6 @@ giungla di riferimenti all'interno dei programmi di posta.  Se un collegamento
 è utile, potete usare https://lkml.kernel.org/ per ottenere i collegamenti
 ad una versione precedente di una serie di patch (per esempio, potete usarlo
 per l'email introduttiva alla serie).
-
-16) Inviare richieste ``git pull``
-----------------------------------
-
-Se avete una serie di patch, potrebbe essere più conveniente per un manutentore
-tirarle dentro al repositorio del sottosistema attraverso l'operazione
-``git pull``.  Comunque, tenete presente che prendere patch da uno sviluppatore
-in questo modo richiede un livello di fiducia più alto rispetto a prenderle da
-una lista di discussione.  Di conseguenza, molti manutentori sono riluttanti
-ad accettare richieste di *pull*, specialmente dagli sviluppatori nuovi e
-quindi sconosciuti.  Se siete in dubbio, potete fare una richiesta di *pull*
-come messaggio introduttivo ad una normale pubblicazione di patch, così
-il manutentore avrà la possibilità di scegliere come integrarle.
-
-Una richiesta di *pull* dovrebbe avere nell'oggetto [GIT] o [PULL].
-La richiesta stessa dovrebbe includere il nome del repositorio e quello del
-ramo su una singola riga; dovrebbe essere più o meno così::
-
-  Please pull from
-
-      git://jdelvare.pck.nerim.net/jdelvare-2.6 i2c-for-linus
-
-  to get these changes:
-
-Una richiesta di *pull* dovrebbe includere anche un messaggio generico
-che dica cos'è incluso, una lista delle patch usando ``git shortlog``, e una
-panoramica sugli effetti della serie di patch con ``diffstat``.  Il modo più
-semplice per ottenere tutte queste informazioni è, ovviamente, quello di
-lasciar fare tutto a ``git`` con il comando ``git request-pull``.
-
-Alcuni manutentori (incluso Linus) vogliono vedere le richieste di *pull*
-da commit firmati con GPG; questo fornisce una maggiore garanzia sul fatto
-che siate stati proprio voi a fare la richiesta.  In assenza di tale etichetta
-firmata Linus, in particolare, non prenderà alcuna patch da siti pubblici come
-GitHub.
-
-Il primo passo verso la creazione di questa etichetta firmata è quello di
-creare una chiave GNUPG ed averla fatta firmare da uno o più sviluppatori
-principali del kernel.  Questo potrebbe essere difficile per i nuovi
-sviluppatori, ma non ci sono altre vie.  Andare alle conferenze potrebbe
-essere un buon modo per trovare sviluppatori che possano firmare la vostra
-chiave.
-
-Una volta che avete preparato la vostra serie di patch in ``git``, e volete che
-qualcuno le prenda, create una etichetta firmata col comando ``git tag -s``.
-Questo creerà una nuova etichetta che identifica l'ultimo commit della serie
-contenente una firma creata con la vostra chiave privata.  Avrete anche
-l'opportunità di aggiungere un messaggio di changelog all'etichetta; questo è
-il posto ideale per descrivere gli effetti della richiesta di *pull*.
-
-Se i sorgenti da cui il manutentore prenderà le patch non sono gli stessi del
-repositorio su cui state lavorando, allora non dimenticatevi di caricare
-l'etichetta firmata anche sui sorgenti pubblici.
-
-Quando generate una richiesta di *pull*, usate l'etichetta firmata come
-obiettivo.  Un comando come il seguente farà il suo dovere::
-
-  git request-pull master git://my.public.tree/linux.git my-signed-tag
-
 
 Riferimenti
 -----------
@@ -884,13 +731,13 @@ Greg Kroah-Hartman, "Come scocciare un manutentore di un sottosistema"
   <http://www.kroah.com/log/linux/maintainer-06.html>
 
 No!!!! Basta gigantesche bombe patch alle persone sulla lista linux-kernel@vger.kernel.org!
-  <https://lkml.org/lkml/2005/7/11/336>
+  <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>
 
 Kernel Documentation/translations/it_IT/process/coding-style.rst:
   :ref:`Documentation/translations/it_IT/process/coding-style.rst <it_codingstyle>`
 
 E-mail di Linus Torvalds sul formato canonico di una patch:
-  <http://lkml.org/lkml/2005/4/7/183>
+  <https://lore.kernel.org/r/Pine.LNX.4.58.0504071023190.28951@ppc970.osdl.org>
 
 Andi Kleen, "Su come sottomettere patch del kernel"
   Alcune strategie su come sottomettere modifiche toste o controverse.

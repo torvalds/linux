@@ -42,6 +42,8 @@
 
 #define DMA_FL_PTE_PRESENT	BIT_ULL(0)
 #define DMA_FL_PTE_US		BIT_ULL(2)
+#define DMA_FL_PTE_ACCESS	BIT_ULL(5)
+#define DMA_FL_PTE_DIRTY	BIT_ULL(6)
 #define DMA_FL_PTE_XD		BIT_ULL(63)
 
 #define ADDR_WIDTH_5LEVEL	(57)
@@ -168,34 +170,37 @@
  * Extended Capability Register
  */
 
+#define	ecap_rps(e)		(((e) >> 49) & 0x1)
 #define ecap_smpwc(e)		(((e) >> 48) & 0x1)
 #define ecap_flts(e)		(((e) >> 47) & 0x1)
 #define ecap_slts(e)		(((e) >> 46) & 0x1)
+#define ecap_slads(e)		(((e) >> 45) & 0x1)
 #define ecap_vcs(e)		(((e) >> 44) & 0x1)
 #define ecap_smts(e)		(((e) >> 43) & 0x1)
-#define ecap_dit(e)		((e >> 41) & 0x1)
-#define ecap_pasid(e)		((e >> 40) & 0x1)
-#define ecap_pss(e)		((e >> 35) & 0x1f)
-#define ecap_eafs(e)		((e >> 34) & 0x1)
-#define ecap_nwfs(e)		((e >> 33) & 0x1)
-#define ecap_srs(e)		((e >> 31) & 0x1)
-#define ecap_ers(e)		((e >> 30) & 0x1)
-#define ecap_prs(e)		((e >> 29) & 0x1)
-#define ecap_broken_pasid(e)	((e >> 28) & 0x1)
-#define ecap_dis(e)		((e >> 27) & 0x1)
-#define ecap_nest(e)		((e >> 26) & 0x1)
-#define ecap_mts(e)		((e >> 25) & 0x1)
-#define ecap_ecs(e)		((e >> 24) & 0x1)
+#define ecap_dit(e)		(((e) >> 41) & 0x1)
+#define ecap_pds(e)		(((e) >> 42) & 0x1)
+#define ecap_pasid(e)		(((e) >> 40) & 0x1)
+#define ecap_pss(e)		(((e) >> 35) & 0x1f)
+#define ecap_eafs(e)		(((e) >> 34) & 0x1)
+#define ecap_nwfs(e)		(((e) >> 33) & 0x1)
+#define ecap_srs(e)		(((e) >> 31) & 0x1)
+#define ecap_ers(e)		(((e) >> 30) & 0x1)
+#define ecap_prs(e)		(((e) >> 29) & 0x1)
+#define ecap_broken_pasid(e)	(((e) >> 28) & 0x1)
+#define ecap_dis(e)		(((e) >> 27) & 0x1)
+#define ecap_nest(e)		(((e) >> 26) & 0x1)
+#define ecap_mts(e)		(((e) >> 25) & 0x1)
+#define ecap_ecs(e)		(((e) >> 24) & 0x1)
 #define ecap_iotlb_offset(e) 	((((e) >> 8) & 0x3ff) * 16)
 #define ecap_max_iotlb_offset(e) (ecap_iotlb_offset(e) + 16)
 #define ecap_coherent(e)	((e) & 0x1)
 #define ecap_qis(e)		((e) & 0x2)
-#define ecap_pass_through(e)	((e >> 6) & 0x1)
-#define ecap_eim_support(e)	((e >> 4) & 0x1)
-#define ecap_ir_support(e)	((e >> 3) & 0x1)
+#define ecap_pass_through(e)	(((e) >> 6) & 0x1)
+#define ecap_eim_support(e)	(((e) >> 4) & 0x1)
+#define ecap_ir_support(e)	(((e) >> 3) & 0x1)
 #define ecap_dev_iotlb_support(e)	(((e) >> 2) & 0x1)
-#define ecap_max_handle_mask(e) ((e >> 20) & 0xf)
-#define ecap_sc_support(e)	((e >> 7) & 0x1) /* Snooping Control */
+#define ecap_max_handle_mask(e) (((e) >> 20) & 0xf)
+#define ecap_sc_support(e)	(((e) >> 7) & 0x1) /* Snooping Control */
 
 /* Virtual command interface capability */
 #define vccap_pasid(v)		(((v) & DMA_VCS_PAS)) /* PASID allocation */
@@ -533,11 +538,10 @@ struct dmar_domain {
 					/* Domain ids per IOMMU. Use u16 since
 					 * domain ids are 16 bit wide according
 					 * to VT-d spec, section 9.3 */
-	unsigned int	auxd_refcnt;	/* Refcount of auxiliary attaching */
 
 	bool has_iotlb_device;
 	struct list_head devices;	/* all devices' list */
-	struct list_head auxd;		/* link to device's auxiliary list */
+	struct list_head subdevices;	/* all subdevices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
 	struct dma_pte	*pgd;		/* virtual address */
@@ -610,14 +614,21 @@ struct intel_iommu {
 	struct dmar_drhd_unit *drhd;
 };
 
+/* Per subdevice private data */
+struct subdev_domain_info {
+	struct list_head link_phys;	/* link to phys device siblings */
+	struct list_head link_domain;	/* link to domain siblings */
+	struct device *pdev;		/* physical device derived from */
+	struct dmar_domain *domain;	/* aux-domain */
+	int users;			/* user count */
+};
+
 /* PCI domain-device relationship */
 struct device_domain_info {
 	struct list_head link;	/* link to domain siblings */
 	struct list_head global; /* link to global list */
 	struct list_head table;	/* link to pasid table */
-	struct list_head auxiliary_domains; /* auxiliary domains
-					     * attached to this device
-					     */
+	struct list_head subdevices; /* subdevices sibling */
 	u32 segment;		/* PCI segment number */
 	u8 bus;			/* PCI bus number */
 	u8 devfn;		/* PCI devfn number */
@@ -656,7 +667,7 @@ static inline struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
  * 7: super page
  * 8-10: available
  * 11: snoop behavior
- * 12-63: Host physcial address
+ * 12-63: Host physical address
  */
 struct dma_pte {
 	u64 val;
@@ -758,6 +769,7 @@ struct intel_svm_dev {
 	struct list_head list;
 	struct rcu_head rcu;
 	struct device *dev;
+	struct intel_iommu *iommu;
 	struct svm_dev_ops *ops;
 	struct iommu_sva sva;
 	u32 pasid;
@@ -771,7 +783,6 @@ struct intel_svm {
 	struct mmu_notifier notifier;
 	struct mm_struct *mm;
 
-	struct intel_iommu *iommu;
 	unsigned int flags;
 	u32 pasid;
 	int gpasid; /* In case that guest PASID is different from host PASID */
@@ -798,7 +809,6 @@ extern int iommu_calculate_agaw(struct intel_iommu *iommu);
 extern int iommu_calculate_max_sagaw(struct intel_iommu *iommu);
 extern int dmar_disabled;
 extern int intel_iommu_enabled;
-extern int intel_iommu_tboot_noforce;
 extern int intel_iommu_gfx_mapped;
 #else
 static inline int iommu_calculate_agaw(struct intel_iommu *iommu)

@@ -62,7 +62,7 @@ struct rtrs_srv_op {
 
 /*
  * server side memory region context, when always_invalidate=Y, we need
- * queue_depth of memory regrion to invalidate each memory region.
+ * queue_depth of memory region to invalidate each memory region.
  */
 struct rtrs_srv_mr {
 	struct ib_mr	*mr;
@@ -116,6 +116,13 @@ struct rtrs_srv_ctx {
 	struct rdma_cm_id *cm_id_ib;
 	struct mutex srv_mutex;
 	struct list_head srv_list;
+};
+
+struct rtrs_srv_ib_ctx {
+	struct rtrs_srv_ctx	*srv_ctx;
+	u16			port;
+	struct mutex            ib_dev_mutex;
+	int			ib_dev_count;
 };
 
 extern struct class *rtrs_dev_class;

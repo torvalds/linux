@@ -547,10 +547,9 @@ static int snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
 	}
 }
 
-static int snd_sb16_isa_remove(struct device *pdev, unsigned int dev)
+static void snd_sb16_isa_remove(struct device *pdev, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	return 0;
 }
 
 #ifdef CONFIG_PM

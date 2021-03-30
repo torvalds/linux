@@ -495,7 +495,7 @@ con_insert_unipair(struct uni_pagedir *p, u_short unicode, u_short fontpos)
 
 	p2[unicode & 0x3f] = fontpos;
 	
-	p->sum += (fontpos << 20) + unicode;
+	p->sum += (fontpos << 20U) + unicode;
 
 	return 0;
 }
@@ -728,9 +728,8 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 }
 EXPORT_SYMBOL(con_copy_unimap);
 
-/**
+/*
  *	con_get_unimap		-	get the unicode map
- *	@vc: the console to read from
  *
  *	Read the console unicode data for this console. Called from the ioctl
  *	handlers.

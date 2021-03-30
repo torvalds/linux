@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
+#include <linux/dma-buf-map.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -200,7 +201,7 @@ static int lima_pm_busy(struct lima_device *ldev)
 	int ret;
 
 	/* resume GPU if it has been suspended by runtime PM */
-	ret = pm_runtime_get_sync(ldev->dev);
+	ret = pm_runtime_resume_and_get(ldev->dev);
 	if (ret < 0)
 		return ret;
 
@@ -223,7 +224,6 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_device *ldev = pipe->ldev;
 	struct lima_fence *fence;
-	struct dma_fence *ret;
 	int i, err;
 
 	/* after GPU reset */
@@ -245,7 +245,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	/* for caller usage of the fence, otherwise irq handler
 	 * may consume the fence before caller use it
 	 */
-	ret = dma_fence_get(task->fence);
+	dma_fence_get(task->fence);
 
 	pipe->current_task = task;
 
@@ -303,6 +303,8 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 	struct lima_dump_chunk_buffer *buffer_chunk;
 	u32 size, task_size, mem_size;
 	int i;
+	struct dma_buf_map map;
+	int ret;
 
 	mutex_lock(&dev->error_task_list_lock);
 
@@ -388,15 +390,15 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 		} else {
 			buffer_chunk->size = lima_bo_size(bo);
 
-			data = drm_gem_shmem_vmap(&bo->base.base);
-			if (IS_ERR_OR_NULL(data)) {
+			ret = drm_gem_shmem_vmap(&bo->base.base, &map);
+			if (ret) {
 				kvfree(et);
 				goto out;
 			}
 
-			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+			memcpy(buffer_chunk + 1, map.vaddr, buffer_chunk->size);
 
-			drm_gem_shmem_vunmap(&bo->base.base, data);
+			drm_gem_shmem_vunmap(&bo->base.base, &map);
 		}
 
 		buffer_chunk = (void *)(buffer_chunk + 1) + buffer_chunk->size;

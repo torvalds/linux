@@ -92,7 +92,7 @@ catpt_get_stream_template(struct snd_pcm_substream *substream)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return catpt_topology[type];
 }
@@ -324,6 +324,52 @@ static void catpt_dai_shutdown(struct snd_pcm_substream *substream,
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
+static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol);
+
+static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
+				     struct catpt_stream_runtime *stream)
+{
+	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
+	struct snd_soc_component *component = dai->component;
+	struct snd_kcontrol *pos;
+	const char *name;
+	int ret;
+	u32 id = stream->info.stream_hw_id;
+
+	/* only selected streams have individual controls */
+	switch (id) {
+	case CATPT_PIN_ID_OFFLOAD1:
+		name = "Media0 Playback Volume";
+		break;
+	case CATPT_PIN_ID_OFFLOAD2:
+		name = "Media1 Playback Volume";
+		break;
+	case CATPT_PIN_ID_CAPTURE1:
+		name = "Mic Capture Volume";
+		break;
+	case CATPT_PIN_ID_REFERENCE:
+		name = "Loopback Mute";
+		break;
+	default:
+		return 0;
+	}
+
+	list_for_each_entry(pos, &component->card->snd_card->controls, list) {
+		if (pos->private_data == component &&
+		    !strncmp(name, pos->id.name, sizeof(pos->id.name)))
+			break;
+	}
+	if (list_entry_is_head(pos, &component->card->snd_card->controls, list))
+		return -ENOENT;
+
+	if (stream->template->type != CATPT_STRM_TYPE_LOOPBACK)
+		return catpt_set_dspvol(cdev, id, (long *)pos->private_value);
+	ret = catpt_ipc_mute_loopback(cdev, id, *(bool *)pos->private_value);
+	if (ret)
+		return CATPT_IPC_ERROR(ret);
+	return 0;
+}
+
 static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
@@ -370,6 +416,10 @@ static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
 
+	ret = catpt_dai_apply_usettings(dai, stream);
+	if (ret)
+		return ret;
+
 	stream->allocated = true;
 	return 0;
 }
@@ -391,54 +441,6 @@ static int catpt_dai_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol);
-
-static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
-				     struct catpt_stream_runtime *stream)
-{
-	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
-	struct snd_soc_component *component = dai->component;
-	struct snd_kcontrol *pos, *kctl = NULL;
-	const char *name;
-	int ret;
-	u32 id = stream->info.stream_hw_id;
-
-	/* only selected streams have individual controls */
-	switch (id) {
-	case CATPT_PIN_ID_OFFLOAD1:
-		name = "Media0 Playback Volume";
-		break;
-	case CATPT_PIN_ID_OFFLOAD2:
-		name = "Media1 Playback Volume";
-		break;
-	case CATPT_PIN_ID_CAPTURE1:
-		name = "Mic Capture Volume";
-		break;
-	case CATPT_PIN_ID_REFERENCE:
-		name = "Loopback Mute";
-		break;
-	default:
-		return 0;
-	};
-
-	list_for_each_entry(pos, &component->card->snd_card->controls, list) {
-		if (pos->private_data == component &&
-		    !strncmp(name, pos->id.name, sizeof(pos->id.name))) {
-			kctl = pos;
-			break;
-		}
-	}
-	if (!kctl)
-		return -ENOENT;
-
-	if (stream->template->type != CATPT_STRM_TYPE_LOOPBACK)
-		return catpt_set_dspvol(cdev, id, (long *)kctl->private_value);
-	ret = catpt_ipc_mute_loopback(cdev, id, *(bool *)kctl->private_value);
-	if (ret)
-		return CATPT_IPC_ERROR(ret);
-	return 0;
-}
-
 static int catpt_dai_prepare(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
@@ -457,14 +459,6 @@ static int catpt_dai_prepare(struct snd_pcm_substream *substream,
 	ret = catpt_ipc_pause_stream(cdev, stream->info.stream_hw_id);
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
-
-	ret = catpt_dsp_update_lpclock(cdev);
-	if (ret)
-		return ret;
-
-	ret = catpt_dai_apply_usettings(dai, stream);
-	if (ret)
-		return ret;
 
 	stream->prepared = true;
 	return 0;
@@ -500,6 +494,7 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	resume_stream:
+		catpt_dsp_update_lpclock(cdev);
 		ret = catpt_ipc_resume_stream(cdev, stream->info.stream_hw_id);
 		if (ret)
 			return CATPT_IPC_ERROR(ret);
@@ -507,11 +502,11 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream->prepared = false;
-		catpt_dsp_update_lpclock(cdev);
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = catpt_ipc_pause_stream(cdev, stream->info.stream_hw_id);
+		catpt_dsp_update_lpclock(cdev);
 		if (ret)
 			return CATPT_IPC_ERROR(ret);
 		break;
@@ -534,6 +529,8 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 
 	dsppos = bytes_to_frames(r, pos->stream_position);
 
+	if (!stream->prepared)
+		goto exit;
 	/* only offload is set_write_pos driven */
 	if (stream->template->type != CATPT_STRM_TYPE_RENDER)
 		goto exit;
@@ -667,7 +664,17 @@ static int catpt_dai_pcm_new(struct snd_soc_pcm_runtime *rtm,
 		break;
 	}
 
+	/* see if this is a new configuration */
+	if (!memcmp(&cdev->devfmt[devfmt.iface], &devfmt, sizeof(devfmt)))
+		return 0;
+
+	pm_runtime_get_sync(cdev->dev);
+
 	ret = catpt_ipc_set_device_format(cdev, &devfmt);
+
+	pm_runtime_mark_last_busy(cdev->dev);
+	pm_runtime_put_autosuspend(cdev->dev);
+
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
 

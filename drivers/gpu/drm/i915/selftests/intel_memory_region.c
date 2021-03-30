@@ -129,6 +129,21 @@ static void igt_object_release(struct drm_i915_gem_object *obj)
 	i915_gem_object_put(obj);
 }
 
+static bool is_contiguous(struct drm_i915_gem_object *obj)
+{
+	struct scatterlist *sg;
+	dma_addr_t addr = -1;
+
+	for (sg = obj->mm.pages->sgl; sg; sg = sg_next(sg)) {
+		if (addr != -1 && sg_dma_address(sg) != addr)
+			return false;
+
+		addr = sg_dma_address(sg) + sg_dma_len(sg);
+	}
+
+	return true;
+}
+
 static int igt_mock_contiguous(void *arg)
 {
 	struct intel_memory_region *mem = arg;
@@ -150,8 +165,8 @@ static int igt_mock_contiguous(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	if (obj->mm.pages->nents != 1) {
-		pr_err("%s min object spans multiple sg entries\n", __func__);
+	if (!is_contiguous(obj)) {
+		pr_err("%s min object spans disjoint sg entries\n", __func__);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
@@ -163,8 +178,8 @@ static int igt_mock_contiguous(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	if (obj->mm.pages->nents != 1) {
-		pr_err("%s max object spans multiple sg entries\n", __func__);
+	if (!is_contiguous(obj)) {
+		pr_err("%s max object spans disjoint sg entries\n", __func__);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
@@ -189,8 +204,8 @@ static int igt_mock_contiguous(void *arg)
 		goto err_close_objects;
 	}
 
-	if (obj->mm.pages->nents != 1) {
-		pr_err("%s object spans multiple sg entries\n", __func__);
+	if (!is_contiguous(obj)) {
+		pr_err("%s object spans disjoint sg entries\n", __func__);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
@@ -258,6 +273,144 @@ static int igt_mock_contiguous(void *arg)
 err_close_objects:
 	list_splice_tail(&holes, &objects);
 	close_objects(mem, &objects);
+	return err;
+}
+
+static int igt_mock_splintered_region(void *arg)
+{
+	struct intel_memory_region *mem = arg;
+	struct drm_i915_private *i915 = mem->i915;
+	struct drm_i915_gem_object *obj;
+	unsigned int expected_order;
+	LIST_HEAD(objects);
+	u64 size;
+	int err = 0;
+
+	/*
+	 * Sanity check we can still allocate everything even if the
+	 * mm.max_order != mm.size. i.e our starting address space size is not a
+	 * power-of-two.
+	 */
+
+	size = (SZ_4G - 1) & PAGE_MASK;
+	mem = mock_region_create(i915, 0, size, PAGE_SIZE, 0);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	if (mem->mm.size != size) {
+		pr_err("%s size mismatch(%llu != %llu)\n",
+		       __func__, mem->mm.size, size);
+		err = -EINVAL;
+		goto out_put;
+	}
+
+	expected_order = get_order(rounddown_pow_of_two(size));
+	if (mem->mm.max_order != expected_order) {
+		pr_err("%s order mismatch(%u != %u)\n",
+		       __func__, mem->mm.max_order, expected_order);
+		err = -EINVAL;
+		goto out_put;
+	}
+
+	obj = igt_object_create(mem, &objects, size, 0);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_close;
+	}
+
+	close_objects(mem, &objects);
+
+	/*
+	 * While we should be able allocate everything without any flag
+	 * restrictions, if we consider I915_BO_ALLOC_CONTIGUOUS then we are
+	 * actually limited to the largest power-of-two for the region size i.e
+	 * max_order, due to the inner workings of the buddy allocator. So make
+	 * sure that does indeed hold true.
+	 */
+
+	obj = igt_object_create(mem, &objects, size, I915_BO_ALLOC_CONTIGUOUS);
+	if (!IS_ERR(obj)) {
+		pr_err("%s too large contiguous allocation was not rejected\n",
+		       __func__);
+		err = -EINVAL;
+		goto out_close;
+	}
+
+	obj = igt_object_create(mem, &objects, rounddown_pow_of_two(size),
+				I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj)) {
+		pr_err("%s largest possible contiguous allocation failed\n",
+		       __func__);
+		err = PTR_ERR(obj);
+		goto out_close;
+	}
+
+out_close:
+	close_objects(mem, &objects);
+out_put:
+	intel_memory_region_put(mem);
+	return err;
+}
+
+#ifndef SZ_8G
+#define SZ_8G BIT_ULL(33)
+#endif
+
+static int igt_mock_max_segment(void *arg)
+{
+	const unsigned int max_segment = i915_sg_segment_size();
+	struct intel_memory_region *mem = arg;
+	struct drm_i915_private *i915 = mem->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_buddy_block *block;
+	struct scatterlist *sg;
+	LIST_HEAD(objects);
+	u64 size;
+	int err = 0;
+
+	/*
+	 * While we may create very large contiguous blocks, we may need
+	 * to break those down for consumption elsewhere. In particular,
+	 * dma-mapping with scatterlist elements have an implicit limit of
+	 * UINT_MAX on each element.
+	 */
+
+	size = SZ_8G;
+	mem = mock_region_create(i915, 0, size, PAGE_SIZE, 0);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	obj = igt_object_create(mem, &objects, size, 0);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_put;
+	}
+
+	size = 0;
+	list_for_each_entry(block, &obj->mm.blocks, link) {
+		if (i915_buddy_block_size(&mem->mm, block) > size)
+			size = i915_buddy_block_size(&mem->mm, block);
+	}
+	if (size < max_segment) {
+		pr_err("%s: Failed to create a huge contiguous block [> %u], largest block %lld\n",
+		       __func__, max_segment, size);
+		err = -EINVAL;
+		goto out_close;
+	}
+
+	for (sg = obj->mm.pages->sgl; sg; sg = sg_next(sg)) {
+		if (sg->length > max_segment) {
+			pr_err("%s: Created an oversized scatterlist entry, %u > %u\n",
+			       __func__, sg->length, max_segment);
+			err = -EINVAL;
+			goto out_close;
+		}
+	}
+
+out_close:
+	close_objects(mem, &objects);
+out_put:
+	intel_memory_region_put(mem);
 	return err;
 }
 
@@ -699,14 +852,22 @@ static int _perf_memcpy(struct intel_memory_region *src_mr,
 		}
 
 		sort(t, ARRAY_SIZE(t), sizeof(*t), wrap_ktime_compare, NULL);
+		if (t[0] <= 0) {
+			/* ignore the impossible to protect our sanity */
+			pr_debug("Skipping %s src(%s, %s) -> dst(%s, %s) %14s %4lluKiB copy, unstable measurement [%lld, %lld]\n",
+				 __func__,
+				 src_mr->name, repr_type(src_type),
+				 dst_mr->name, repr_type(dst_type),
+				 tests[i].name, size >> 10,
+				 t[0], t[4]);
+			continue;
+		}
+
 		pr_info("%s src(%s, %s) -> dst(%s, %s) %14s %4llu KiB copy: %5lld MiB/s\n",
 			__func__,
-			src_mr->name,
-			repr_type(src_type),
-			dst_mr->name,
-			repr_type(dst_type),
-			tests[i].name,
-			size >> 10,
+			src_mr->name, repr_type(src_type),
+			dst_mr->name, repr_type(dst_type),
+			tests[i].name, size >> 10,
 			div64_u64(mul_u32_u32(4 * size,
 					      1000 * 1000 * 1000),
 				  t[1] + 2 * t[2] + t[3]) >> 20);
@@ -771,6 +932,8 @@ int intel_memory_region_mock_selftests(void)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_mock_fill),
 		SUBTEST(igt_mock_contiguous),
+		SUBTEST(igt_mock_splintered_region),
+		SUBTEST(igt_mock_max_segment),
 	};
 	struct intel_memory_region *mem;
 	struct drm_i915_private *i915;

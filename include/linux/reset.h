@@ -13,6 +13,7 @@ struct reset_control;
 #ifdef CONFIG_RESET_CONTROLLER
 
 int reset_control_reset(struct reset_control *rstc);
+int reset_control_rearm(struct reset_control *rstc);
 int reset_control_assert(struct reset_control *rstc);
 int reset_control_deassert(struct reset_control *rstc);
 int reset_control_status(struct reset_control *rstc);
@@ -359,6 +360,25 @@ __must_check devm_reset_control_get_exclusive_released(struct device *dev,
 						       const char *id)
 {
 	return __devm_reset_control_get(dev, id, 0, false, false, false);
+}
+
+/**
+ * devm_reset_control_get_optional_exclusive_released - resource managed
+ *                                                      reset_control_get_optional_exclusive_released()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed-and-optional variant of reset_control_get_exclusive_released(). For
+ * reset controllers returned from this function, reset_control_put() is called
+ * automatically on driver detach.
+ *
+ * See reset_control_get_exclusive_released() for more information.
+ */
+static inline struct reset_control *
+__must_check devm_reset_control_get_optional_exclusive_released(struct device *dev,
+								const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, false, true, false);
 }
 
 /**

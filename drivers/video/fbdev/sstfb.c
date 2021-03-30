@@ -1390,7 +1390,7 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	        fix->smem_start, info->screen_base,
 	        fix->smem_len >> 20);
 
-	f_ddprintk("regbase_virt: %#lx\n", par->mmio_vbase);
+	f_ddprintk("regbase_virt: %p\n", par->mmio_vbase);
 	f_ddprintk("membase_phys: %#lx\n", fix->smem_start);
 	f_ddprintk("fbbase_virt: %p\n", info->screen_base);
 

@@ -29,11 +29,18 @@ properties:
   interrupts:
     maxItems: 1
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
   vref-supply:
     description:
       ADC reference voltage supply
 
   adi,sync-in-gpios:
+    maxItems: 1
     description:
       Enables synchronization of multiple devices that require simultaneous
       sampling. A pulse is always required if the configuration is changed
@@ -46,7 +53,8 @@ properties:
   spi-max-frequency: true
 
   spi-cpol: true
-  spi-cpha : true
+
+  spi-cpha: true
 
   "#io-channel-cells":
     const: 1
@@ -60,6 +68,25 @@ required:
   - spi-cpol
   - spi-cpha
   - adi,sync-in-gpios
+
+patternProperties:
+  "^channel@([0-9]|1[0-5])$":
+    type: object
+    description: |
+      Represents the external channels which are connected to the device.
+
+    properties:
+      reg:
+        maxItems: 1
+        description: |
+          The channel number.
+
+      label:
+        description: |
+          Unique name to identify which channel this is.
+    required:
+      - reg
+    additionalProperties: false
 
 additionalProperties: false
 
@@ -84,6 +111,14 @@ examples:
             reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
             clocks = <&ad7768_mclk>;
             clock-names = "mclk";
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            channel@0 {
+                reg = <0>;
+                label = "channel_0";
+            };
         };
     };
 ...

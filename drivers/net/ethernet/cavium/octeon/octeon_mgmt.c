@@ -315,9 +315,9 @@ static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 		netif_wake_queue(p->netdev);
 }
 
-static void octeon_mgmt_clean_tx_tasklet(unsigned long arg)
+static void octeon_mgmt_clean_tx_tasklet(struct tasklet_struct *t)
 {
-	struct octeon_mgmt *p = (struct octeon_mgmt *)arg;
+	struct octeon_mgmt *p = from_tasklet(p, t, tx_clean_tasklet);
 	octeon_mgmt_clean_tx_buffers(p);
 	octeon_mgmt_enable_tx_irq(p);
 }
@@ -1491,8 +1491,8 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	skb_queue_head_init(&p->tx_list);
 	skb_queue_head_init(&p->rx_list);
-	tasklet_init(&p->tx_clean_tasklet,
-		     octeon_mgmt_clean_tx_tasklet, (unsigned long)p);
+	tasklet_setup(&p->tx_clean_tasklet,
+		      octeon_mgmt_clean_tx_tasklet);
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
@@ -1556,18 +1556,7 @@ static struct platform_driver octeon_mgmt_driver = {
 	.remove		= octeon_mgmt_remove,
 };
 
-static int __init octeon_mgmt_mod_init(void)
-{
-	return platform_driver_register(&octeon_mgmt_driver);
-}
-
-static void __exit octeon_mgmt_mod_exit(void)
-{
-	platform_driver_unregister(&octeon_mgmt_driver);
-}
-
-module_init(octeon_mgmt_mod_init);
-module_exit(octeon_mgmt_mod_exit);
+module_platform_driver(octeon_mgmt_driver);
 
 MODULE_SOFTDEP("pre: mdio-cavium");
 MODULE_DESCRIPTION(DRV_DESCRIPTION);

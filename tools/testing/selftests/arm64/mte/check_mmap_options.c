@@ -205,7 +205,11 @@ int main(int argc, char *argv[])
 	mte_register_signal(SIGBUS, mte_default_handler);
 	mte_register_signal(SIGSEGV, mte_default_handler);
 
+	/* Set test plan */
+	ksft_set_plan(22);
+
 	mte_enable_pstate_tco();
+
 	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
 	"Check anonymous memory with private mapping, sync error mode, mmap memory and tag check off\n");
 	evaluate_test(check_file_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_OFF),

@@ -185,7 +185,7 @@ static struct attribute *controller_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group controller_attribute_group = {
+static const struct attribute_group controller_attribute_group = {
 	.attrs = controller_attributes,
 };
 
@@ -206,7 +206,7 @@ static int can_power_is_enabled(struct regulator_dev *rdev)
 	return !(readb(cd->cpld_base + CPLD_STATUS1) & CPLD_STATUS1_CAN_POWER);
 }
 
-static struct regulator_ops can_power_ops = {
+static const struct regulator_ops can_power_ops = {
 	.is_enabled = can_power_is_enabled,
 };
 
@@ -293,7 +293,7 @@ static int controller_probe(struct platform_device *pdev)
 	regulator = devm_regulator_register(dev, &can_power_desc, &config);
 	if (IS_ERR(regulator)) {
 		err = PTR_ERR(regulator);
-		goto out_reset;
+		goto out_ida;
 	}
 	/* make controller info visible to userspace */
 	cd->class_dev = kzalloc(sizeof(*cd->class_dev), GFP_KERNEL);

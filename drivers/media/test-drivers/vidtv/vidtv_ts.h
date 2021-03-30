@@ -11,7 +11,6 @@
 #define VIDTV_TS_H
 
 #include <linux/types.h>
-#include <asm/byteorder.h>
 
 #define TS_SYNC_BYTE 0x47
 #define TS_PACKET_LEN 188
@@ -45,7 +44,6 @@ struct vidtv_mpeg_ts {
 		u8 adaptation_field:1;
 		u8 scrambling:2;
 	} __packed;
-	struct vidtv_mpeg_ts_adaption adaption[];
 } __packed;
 
 /**
@@ -54,7 +52,7 @@ struct vidtv_mpeg_ts {
  * @dest_offset: The byte offset into the buffer.
  * @pid: The TS PID for the PCR packets.
  * @buf_sz: The size of the buffer in bytes.
- * @countinuity_counter: The TS continuity_counter.
+ * @continuity_counter: The TS continuity_counter.
  * @pcr: A sample from the system clock.
  */
 struct pcr_write_args {
@@ -71,7 +69,7 @@ struct pcr_write_args {
  * @dest_buf: The buffer to write into.
  * @dest_offset: The byte offset into the buffer.
  * @buf_sz: The size of the buffer in bytes.
- * @countinuity_counter: The TS continuity_counter.
+ * @continuity_counter: The TS continuity_counter.
  */
 struct null_packet_write_args {
 	void *dest_buf;

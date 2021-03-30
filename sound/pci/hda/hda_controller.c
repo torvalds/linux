@@ -735,7 +735,7 @@ int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 			  &pcm);
 	if (err < 0)
 		return err;
-	strlcpy(pcm->name, cpcm->name, sizeof(pcm->name));
+	strscpy(pcm->name, cpcm->name, sizeof(pcm->name));
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
 	if (apcm == NULL) {
 		snd_device_free(chip->card, pcm);

@@ -35,7 +35,6 @@ static __inline__ int irq_canonicalize(int irq)
 
 extern int distribute_irqs;
 
-struct irqaction;
 struct pt_regs;
 
 #define __ARCH_HAS_DO_SOFTIRQ

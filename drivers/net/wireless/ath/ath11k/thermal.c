@@ -53,7 +53,7 @@ ath11k_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 	return ret;
 }
 
-static struct thermal_cooling_device_ops ath11k_thermal_ops = {
+static const struct thermal_cooling_device_ops ath11k_thermal_ops = {
 	.get_max_state = ath11k_thermal_get_max_throttle_state,
 	.get_cur_state = ath11k_thermal_get_cur_throttle_state,
 	.set_cur_state = ath11k_thermal_set_cur_throttle_state,

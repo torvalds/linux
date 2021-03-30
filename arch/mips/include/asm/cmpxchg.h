@@ -99,7 +99,7 @@ unsigned long __xchg(volatile void *ptr, unsigned long x, int size)
 	 * contains a completion barrier prior to the LL, so we don't	\
 	 * need to emit an extra one here.				\
 	 */								\
-	if (!__SYNC_loongson3_war)					\
+	if (__SYNC_loongson3_war == 0)					\
 		smp_mb__before_llsc();					\
 									\
 	__res = (__typeof__(*(ptr)))					\
@@ -191,7 +191,7 @@ unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	 * contains a completion barrier prior to the LL, so we don't	\
 	 * need to emit an extra one here.				\
 	 */								\
-	if (!__SYNC_loongson3_war)					\
+	if (__SYNC_loongson3_war == 0)					\
 		smp_mb__before_llsc();					\
 									\
 	__res = cmpxchg_local((ptr), (old), (new));			\
@@ -201,7 +201,7 @@ unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	 * contains a completion barrier after the SC, so we don't	\
 	 * need to emit an extra one here.				\
 	 */								\
-	if (!__SYNC_loongson3_war)					\
+	if (__SYNC_loongson3_war == 0)					\
 		smp_llsc_mb();						\
 									\
 	__res;								\

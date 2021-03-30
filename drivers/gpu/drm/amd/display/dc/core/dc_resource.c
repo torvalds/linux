@@ -54,9 +54,9 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-#include "../dcn30/dcn30_resource.h"
+#include "dcn30/dcn30_resource.h"
+#include "dcn301/dcn301_resource.h"
+#include "dcn302/dcn302_resource.h"
 #endif
 
 #define DC_LOGGER_INIT(logger)
@@ -120,16 +120,22 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCN_VERSION_1_01;
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_2_1;
+		if (ASICREV_IS_GREEN_SARDINE(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_2_1;
 		break;
-#endif
 
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_0;
-#endif
+		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_02;
 		break;
+
+	case FAMILY_VGH:
+		dc_version = DCN_VERSION_3_01;
+		break;
+#endif
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -195,21 +201,22 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	case DCN_VERSION_1_01:
 		res_pool = dcn10_create_resource_pool(init_data, dc);
 		break;
-
-
 	case DCN_VERSION_2_0:
 		res_pool = dcn20_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
 		break;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case DCN_VERSION_3_0:
 		res_pool = dcn30_create_resource_pool(init_data, dc);
 		break;
+	case DCN_VERSION_3_01:
+		res_pool = dcn301_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_02:
+		res_pool = dcn302_create_resource_pool(init_data, dc);
+		break;
 #endif
-
 	default:
 		break;
 	}
@@ -323,7 +330,7 @@ bool resource_construct(
 		}
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	for (i = 0; i < caps->num_mpc_3dlut; i++) {
 		pool->mpc_lut[i] = dc_create_3dlut_func();
 		if (pool->mpc_lut[i] == NULL)
@@ -794,6 +801,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	} else
 		data->recout.x = 0;
 
+	if (stream->src.x > surf_clip.x)
+		surf_clip.width -= stream->src.x - surf_clip.x;
 	data->recout.width = surf_clip.width * stream->dst.width / stream->src.width;
 	if (data->recout.width + data->recout.x > stream->dst.x + stream->dst.width)
 		data->recout.width = stream->dst.x + stream->dst.width - data->recout.x;
@@ -802,6 +811,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	if (stream->src.y < surf_clip.y)
 		data->recout.y += (surf_clip.y - stream->src.y) * stream->dst.height
 						/ stream->src.height;
+	else if (stream->src.y > surf_clip.y)
+		surf_clip.height -= stream->src.y - surf_clip.y;
 
 	data->recout.height = surf_clip.height * stream->dst.height / stream->src.height;
 	if (data->recout.height + data->recout.y > stream->dst.y + stream->dst.height)
@@ -1106,7 +1117,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
  * We also need to make sure pipe_ctx->plane_res.scl_data.h_active uses the
  * original h_border_left value in its calculation.
  */
-int shift_border_left_to_dst(struct pipe_ctx *pipe_ctx)
+static int shift_border_left_to_dst(struct pipe_ctx *pipe_ctx)
 {
 	int store_h_border_left = pipe_ctx->stream->timing.h_border_left;
 
@@ -1117,8 +1128,8 @@ int shift_border_left_to_dst(struct pipe_ctx *pipe_ctx)
 	return store_h_border_left;
 }
 
-void restore_border_left_from_dst(struct pipe_ctx *pipe_ctx,
-                                  int store_h_border_left)
+static void restore_border_left_from_dst(struct pipe_ctx *pipe_ctx,
+					 int store_h_border_left)
 {
 	pipe_ctx->stream->dst.x -= store_h_border_left;
 	pipe_ctx->stream->timing.h_border_left = store_h_border_left;
@@ -1142,8 +1153,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	calculate_viewport(pipe_ctx);
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 12 ||
-		pipe_ctx->plane_res.scl_data.viewport.width < 12) {
+	if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
+		pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE) {
 		if (store_h_border_left) {
 			restore_border_left_from_dst(pipe_ctx,
 				store_h_border_left);
@@ -1479,6 +1490,14 @@ bool dc_add_plane_to_context(
 			free_pipe->clock_source = tail_pipe->clock_source;
 			free_pipe->top_pipe = tail_pipe;
 			tail_pipe->bottom_pipe = free_pipe;
+			if (!free_pipe->next_odm_pipe && tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+				free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
+				tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
+			}
+			if (!free_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+				free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+				tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
+			}
 		}
 		head_pipe = head_pipe->next_odm_pipe;
 	}
@@ -1678,7 +1697,7 @@ static bool are_stream_backends_same(
 	return true;
 }
 
-/**
+/*
  * dc_is_stream_unchanged() - Compare two stream states for equivalence.
  *
  * Checks if there a difference between the two states
@@ -1699,7 +1718,7 @@ bool dc_is_stream_unchanged(
 	return true;
 }
 
-/**
+/*
  * dc_is_stream_scaling_unchanged() - Compare scaling rectangles of two streams.
  */
 bool dc_is_stream_scaling_unchanged(
@@ -1814,7 +1833,7 @@ static struct audio *find_first_free_audio(
 	return 0;
 }
 
-/**
+/*
  * dc_add_stream_to_ctx() - Add a new dc_stream_state to a dc_state.
  */
 enum dc_status dc_add_stream_to_ctx(
@@ -1841,7 +1860,7 @@ enum dc_status dc_add_stream_to_ctx(
 	return res;
 }
 
-/**
+/*
  * dc_remove_stream_from_ctx() - Remove a stream from a dc_state.
  */
 enum dc_status dc_remove_stream_from_ctx(
@@ -2056,6 +2075,20 @@ static int acquire_resource_from_hw_enabled_state(
 	return -1;
 }
 
+static void mark_seamless_boot_stream(
+		const struct dc  *dc,
+		struct dc_stream_state *stream)
+{
+	struct dc_bios *dcb = dc->ctx->dc_bios;
+
+	/* TODO: Check Linux */
+	if (dc->config.allow_seamless_boot_optimization &&
+			!dcb->funcs->is_accelerated_mode(dcb)) {
+		if (dc_validate_seamless_boot_timing(dc, stream->sink, &stream->timing))
+			stream->apply_seamless_boot_optimization = true;
+	}
+}
+
 enum dc_status resource_map_pool_resources(
 		const struct dc  *dc,
 		struct dc_state *context,
@@ -2066,22 +2099,20 @@ enum dc_status resource_map_pool_resources(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	int pipe_idx = -1;
-	struct dc_bios *dcb = dc->ctx->dc_bios;
 
 	calculate_phy_pix_clks(stream);
 
-	/* TODO: Check Linux */
-	if (dc->config.allow_seamless_boot_optimization &&
-			!dcb->funcs->is_accelerated_mode(dcb)) {
-		if (dc_validate_seamless_boot_timing(dc, stream->sink, &stream->timing))
-			stream->apply_seamless_boot_optimization = true;
-	}
+	mark_seamless_boot_stream(dc, stream);
 
-	if (stream->apply_seamless_boot_optimization)
+	if (stream->apply_seamless_boot_optimization) {
 		pipe_idx = acquire_resource_from_hw_enabled_state(
 				&context->res_ctx,
 				pool,
 				stream);
+		if (pipe_idx < 0)
+			/* hw resource was assigned to other stream */
+			stream->apply_seamless_boot_optimization = false;
+	}
 
 	if (pipe_idx < 0)
 		/* acquire new resources */
@@ -2128,7 +2159,7 @@ enum dc_status resource_map_pool_resources(
 
 	/* Add ABM to the resource if on EDP */
 	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal)) {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (pool->abm)
 			pipe_ctx->stream_res.abm = pool->abm;
 		else
@@ -2953,7 +2984,7 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
 #endif

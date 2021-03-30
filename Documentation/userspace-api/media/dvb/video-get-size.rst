@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_SIZE:
 
@@ -16,9 +17,9 @@ VIDEO_GET_SIZE
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, VIDEO_GET_SIZE, video_size_t *size)
-    :name: VIDEO_GET_SIZE
+.. c:macro:: VIDEO_GET_SIZE
 
+``int ioctl(int fd, VIDEO_GET_SIZE, video_size_t *size)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -46,7 +46,6 @@ Arguments
 
        -  Returns the size and aspect ratio.
 
-
 Description
 -----------
 
@@ -61,7 +60,6 @@ This ioctl returns the size and aspect ratio.
 		int h;
 		video_format_t aspect_ratio;
 	} video_size_t;
-
 
 Return Value
 ------------

@@ -47,12 +47,8 @@ int amdgpu_amdkfd_init(void)
 	amdgpu_amdkfd_total_mem_size = si.totalram - si.totalhigh;
 	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
-#ifdef CONFIG_HSA_AMD
 	ret = kgd2kfd_init();
 	amdgpu_amdkfd_gpuvm_init_mem_limits();
-#else
-	ret = -ENOENT;
-#endif
 	kfd_initialized = !ret;
 
 	return ret;
@@ -390,23 +386,17 @@ void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
 				      struct kfd_local_mem_info *mem_info)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
-					     ~((1ULL << 32) - 1);
-	resource_size_t aper_limit = adev->gmc.aper_base + adev->gmc.aper_size;
 
 	memset(mem_info, 0, sizeof(*mem_info));
-	if (!(adev->gmc.aper_base & address_mask || aper_limit & address_mask)) {
-		mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
-		mem_info->local_mem_size_private = adev->gmc.real_vram_size -
-				adev->gmc.visible_vram_size;
-	} else {
-		mem_info->local_mem_size_public = 0;
-		mem_info->local_mem_size_private = adev->gmc.real_vram_size;
-	}
+
+	mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
+	mem_info->local_mem_size_private = adev->gmc.real_vram_size -
+						adev->gmc.visible_vram_size;
+
 	mem_info->vram_width = adev->gmc.vram_width;
 
-	pr_debug("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
-			&adev->gmc.aper_base, &aper_limit,
+	pr_debug("Address base: %pap public 0x%llx private 0x%llx\n",
+			&adev->gmc.aper_base,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
 
@@ -648,6 +638,13 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
+	/* Temp workaround to fix the soft hang observed in certain compute
+	 * applications if GFXOFF is enabled.
+	 */
+	if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+		pr_debug("GFXOFF is %s\n", idle ? "enabled" : "disabled");
+		amdgpu_gfx_off_ctrl(adev, idle);
+	}
 	amdgpu_dpm_switch_power_profile(adev,
 					PP_SMC_POWER_PROFILE_COMPUTE,
 					!idle);
@@ -695,86 +692,3 @@ bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd)
 
 	return adev->have_atomics_support;
 }
-
-#ifndef CONFIG_HSA_AMD
-bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
-{
-	return false;
-}
-
-void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
-{
-}
-
-int amdgpu_amdkfd_remove_fence_on_pt_pd_bos(struct amdgpu_bo *bo)
-{
-	return 0;
-}
-
-void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
-					struct amdgpu_vm *vm)
-{
-}
-
-struct amdgpu_amdkfd_fence *to_amdgpu_amdkfd_fence(struct dma_fence *f)
-{
-	return NULL;
-}
-
-int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem, struct mm_struct *mm)
-{
-	return 0;
-}
-
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
-			      unsigned int asic_type, bool vf)
-{
-	return NULL;
-}
-
-bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			 struct drm_device *ddev,
-			 const struct kgd2kfd_shared_resources *gpu_resources)
-{
-	return false;
-}
-
-void kgd2kfd_device_exit(struct kfd_dev *kfd)
-{
-}
-
-void kgd2kfd_exit(void)
-{
-}
-
-void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
-{
-}
-
-int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
-{
-	return 0;
-}
-
-int kgd2kfd_pre_reset(struct kfd_dev *kfd)
-{
-	return 0;
-}
-
-int kgd2kfd_post_reset(struct kfd_dev *kfd)
-{
-	return 0;
-}
-
-void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
-{
-}
-
-void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
-{
-}
-
-void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask)
-{
-}
-#endif

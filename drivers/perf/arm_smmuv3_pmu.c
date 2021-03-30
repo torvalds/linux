@@ -74,6 +74,7 @@
 #define SMMU_PMCG_CFGR_NCTR             GENMASK(5, 0)
 #define SMMU_PMCG_CR                    0xE04
 #define SMMU_PMCG_CR_ENABLE             BIT(0)
+#define SMMU_PMCG_IIDR                  0xE08
 #define SMMU_PMCG_CEID0                 0xE20
 #define SMMU_PMCG_CEID1                 0xE28
 #define SMMU_PMCG_IRQ_CTRL              0xE50
@@ -112,6 +113,7 @@ struct smmu_pmu {
 	void __iomem *reloc_base;
 	u64 counter_mask;
 	u32 options;
+	u32 iidr;
 	bool global_filter;
 };
 
@@ -491,7 +493,7 @@ static struct attribute *smmu_pmu_cpumask_attrs[] = {
 	NULL
 };
 
-static struct attribute_group smmu_pmu_cpumask_group = {
+static const struct attribute_group smmu_pmu_cpumask_group = {
 	.attrs = smmu_pmu_cpumask_attrs,
 };
 
@@ -546,10 +548,44 @@ static umode_t smmu_pmu_event_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static struct attribute_group smmu_pmu_events_group = {
+static const struct attribute_group smmu_pmu_events_group = {
 	.name = "events",
 	.attrs = smmu_pmu_events,
 	.is_visible = smmu_pmu_event_is_visible,
+};
+
+static ssize_t smmu_pmu_identifier_attr_show(struct device *dev,
+					struct device_attribute *attr,
+					char *page)
+{
+	struct smmu_pmu *smmu_pmu = to_smmu_pmu(dev_get_drvdata(dev));
+
+	return snprintf(page, PAGE_SIZE, "0x%08x\n", smmu_pmu->iidr);
+}
+
+static umode_t smmu_pmu_identifier_attr_visible(struct kobject *kobj,
+						struct attribute *attr,
+						int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct smmu_pmu *smmu_pmu = to_smmu_pmu(dev_get_drvdata(dev));
+
+	if (!smmu_pmu->iidr)
+		return 0;
+	return attr->mode;
+}
+
+static struct device_attribute smmu_pmu_identifier_attr =
+	__ATTR(identifier, 0444, smmu_pmu_identifier_attr_show, NULL);
+
+static struct attribute *smmu_pmu_identifier_attrs[] = {
+	&smmu_pmu_identifier_attr.attr,
+	NULL
+};
+
+static const struct attribute_group smmu_pmu_identifier_group = {
+	.attrs = smmu_pmu_identifier_attrs,
+	.is_visible = smmu_pmu_identifier_attr_visible,
 };
 
 /* Formats */
@@ -566,7 +602,7 @@ static struct attribute *smmu_pmu_formats[] = {
 	NULL
 };
 
-static struct attribute_group smmu_pmu_format_group = {
+static const struct attribute_group smmu_pmu_format_group = {
 	.name = "format",
 	.attrs = smmu_pmu_formats,
 };
@@ -575,6 +611,7 @@ static const struct attribute_group *smmu_pmu_attr_grps[] = {
 	&smmu_pmu_cpumask_group,
 	&smmu_pmu_events_group,
 	&smmu_pmu_format_group,
+	&smmu_pmu_identifier_group,
 	NULL
 };
 
@@ -794,6 +831,8 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		dev_err(dev, "Setup irq failed, PMU @%pa\n", &res_0->start);
 		return err;
 	}
+
+	smmu_pmu->iidr = readl_relaxed(smmu_pmu->reg_base + SMMU_PMCG_IIDR);
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "smmuv3_pmcg_%llx",
 			      (res_0->start) >> SMMU_PMCG_PA_SHIFT);

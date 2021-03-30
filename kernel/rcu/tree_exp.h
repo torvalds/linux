@@ -545,7 +545,7 @@ static void synchronize_rcu_expedited_wait(void)
 			data_race(rnp_root->expmask),
 			".T"[!!data_race(rnp_root->exp_tasks)]);
 		if (ndetected) {
-			pr_err("blocking rcu_node structures:");
+			pr_err("blocking rcu_node structures (internal RCU debug):");
 			rcu_for_each_node_breadth_first(rnp) {
 				if (rnp == rnp_root)
 					continue; /* printed unconditionally */
@@ -732,11 +732,9 @@ static void rcu_exp_need_qs(void)
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
 static void rcu_exp_handler(void *unused)
 {
-	struct rcu_data *rdp;
-	struct rcu_node *rnp;
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
+	struct rcu_node *rnp = rdp->mynode;
 
-	rdp = this_cpu_ptr(&rcu_data);
-	rnp = rdp->mynode;
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
 	    __this_cpu_read(rcu_data.cpu_no_qs.b.exp))
 		return;

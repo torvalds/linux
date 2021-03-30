@@ -154,6 +154,7 @@ struct stm32_adc;
  * @start_conv:		routine to start conversions
  * @stop_conv:		routine to stop conversions
  * @unprepare:		optional unprepare routine (disable, power-down)
+ * @irq_clear:		routine to clear irqs
  * @smp_cycles:		programmable sampling time (ADC clock cycles)
  */
 struct stm32_adc_cfg {
@@ -166,6 +167,7 @@ struct stm32_adc_cfg {
 	void (*start_conv)(struct iio_dev *, bool dma);
 	void (*stop_conv)(struct iio_dev *);
 	void (*unprepare)(struct iio_dev *);
+	void (*irq_clear)(struct iio_dev *indio_dev, u32 msk);
 	const unsigned int *smp_cycles;
 };
 
@@ -544,8 +546,7 @@ static int stm32_adc_hw_stop(struct device *dev)
 	if (adc->cfg->unprepare)
 		adc->cfg->unprepare(indio_dev);
 
-	if (adc->clk)
-		clk_disable_unprepare(adc->clk);
+	clk_disable_unprepare(adc->clk);
 
 	return 0;
 }
@@ -556,11 +557,9 @@ static int stm32_adc_hw_start(struct device *dev)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 
-	if (adc->clk) {
-		ret = clk_prepare_enable(adc->clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(adc->clk);
+	if (ret)
+		return ret;
 
 	stm32_adc_set_res(adc);
 
@@ -573,8 +572,7 @@ static int stm32_adc_hw_start(struct device *dev)
 	return 0;
 
 err_clk_dis:
-	if (adc->clk)
-		clk_disable_unprepare(adc->clk);
+	clk_disable_unprepare(adc->clk);
 
 	return ret;
 }
@@ -621,6 +619,13 @@ static void stm32f4_adc_stop_conv(struct iio_dev *indio_dev)
 			   STM32F4_ADON | STM32F4_DMA | STM32F4_DDS);
 }
 
+static void stm32f4_adc_irq_clear(struct iio_dev *indio_dev, u32 msk)
+{
+	struct stm32_adc *adc = iio_priv(indio_dev);
+
+	stm32_adc_clr_bits(adc, adc->cfg->regs->isr_eoc.reg, msk);
+}
+
 static void stm32h7_adc_start_conv(struct iio_dev *indio_dev, bool dma)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
@@ -657,6 +662,13 @@ static void stm32h7_adc_stop_conv(struct iio_dev *indio_dev)
 		dev_warn(&indio_dev->dev, "stop failed\n");
 
 	stm32_adc_clr_bits(adc, STM32H7_ADC_CFGR, STM32H7_DMNGT_MASK);
+}
+
+static void stm32h7_adc_irq_clear(struct iio_dev *indio_dev, u32 msk)
+{
+	struct stm32_adc *adc = iio_priv(indio_dev);
+	/* On STM32H7 IRQs are cleared by writing 1 into ISR register */
+	stm32_adc_set_bits(adc, adc->cfg->regs->isr_eoc.reg, msk);
 }
 
 static int stm32h7_adc_exit_pwr_down(struct iio_dev *indio_dev)
@@ -1235,17 +1247,40 @@ static int stm32_adc_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static void stm32_adc_irq_clear(struct iio_dev *indio_dev, u32 msk)
+{
+	struct stm32_adc *adc = iio_priv(indio_dev);
+
+	adc->cfg->irq_clear(indio_dev, msk);
+}
+
 static irqreturn_t stm32_adc_threaded_isr(int irq, void *data)
 {
 	struct iio_dev *indio_dev = data;
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
+	u32 mask = stm32_adc_readl(adc, regs->ier_eoc.reg);
 
-	if (status & regs->isr_ovr.mask)
+	/* Check ovr status right now, as ovr mask should be already disabled */
+	if (status & regs->isr_ovr.mask) {
+		/*
+		 * Clear ovr bit to avoid subsequent calls to IRQ handler.
+		 * This requires to stop ADC first. OVR bit state in ISR,
+		 * is propaged to CSR register by hardware.
+		 */
+		adc->cfg->stop_conv(indio_dev);
+		stm32_adc_irq_clear(indio_dev, regs->isr_ovr.mask);
 		dev_err(&indio_dev->dev, "Overrun, stopping: restart needed\n");
+		return IRQ_HANDLED;
+	}
 
-	return IRQ_HANDLED;
+	if (!(status & mask))
+		dev_err_ratelimited(&indio_dev->dev,
+				    "Unexpected IRQ: IER=0x%08x, ISR=0x%08x\n",
+				    mask, status);
+
+	return IRQ_NONE;
 }
 
 static irqreturn_t stm32_adc_isr(int irq, void *data)
@@ -1254,6 +1289,10 @@ static irqreturn_t stm32_adc_isr(int irq, void *data)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
 	u32 status = stm32_adc_readl(adc, regs->isr_eoc.reg);
+	u32 mask = stm32_adc_readl(adc, regs->ier_eoc.reg);
+
+	if (!(status & mask))
+		return IRQ_WAKE_THREAD;
 
 	if (status & regs->isr_ovr.mask) {
 		/*
@@ -1310,7 +1349,7 @@ static int stm32_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	 * dma cyclic transfers are used, buffer is split into two periods.
 	 * There should be :
 	 * - always one buffer (period) dma is working on
-	 * - one buffer (period) driver can push with iio_trigger_poll().
+	 * - one buffer (period) driver can push data.
 	 */
 	watermark = min(watermark, val * (unsigned)(sizeof(u16)));
 	adc->rx_buf_sz = min(rx_buf_sz, watermark * 2 * adc->num_conv);
@@ -1573,31 +1612,14 @@ static irqreturn_t stm32_adc_trigger_handler(int irq, void *p)
 
 	dev_dbg(&indio_dev->dev, "%s bufi=%d\n", __func__, adc->bufi);
 
-	if (!adc->dma_chan) {
-		/* reset buffer index */
-		adc->bufi = 0;
-		iio_push_to_buffers_with_timestamp(indio_dev, adc->buffer,
-						   pf->timestamp);
-	} else {
-		int residue = stm32_adc_dma_residue(adc);
-
-		while (residue >= indio_dev->scan_bytes) {
-			u16 *buffer = (u16 *)&adc->rx_buf[adc->bufi];
-
-			iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-							   pf->timestamp);
-			residue -= indio_dev->scan_bytes;
-			adc->bufi += indio_dev->scan_bytes;
-			if (adc->bufi >= adc->rx_buf_sz)
-				adc->bufi = 0;
-		}
-	}
-
+	/* reset buffer index */
+	adc->bufi = 0;
+	iio_push_to_buffers_with_timestamp(indio_dev, adc->buffer,
+					   pf->timestamp);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	/* re-enable eoc irq */
-	if (!adc->dma_chan)
-		stm32_adc_conv_irq_enable(adc);
+	stm32_adc_conv_irq_enable(adc);
 
 	return IRQ_HANDLED;
 }
@@ -2046,6 +2068,7 @@ static const struct stm32_adc_cfg stm32f4_adc_cfg = {
 	.start_conv = stm32f4_adc_start_conv,
 	.stop_conv = stm32f4_adc_stop_conv,
 	.smp_cycles = stm32f4_adc_smp_cycles,
+	.irq_clear = stm32f4_adc_irq_clear,
 };
 
 static const struct stm32_adc_cfg stm32h7_adc_cfg = {
@@ -2057,6 +2080,7 @@ static const struct stm32_adc_cfg stm32h7_adc_cfg = {
 	.prepare = stm32h7_adc_prepare,
 	.unprepare = stm32h7_adc_unprepare,
 	.smp_cycles = stm32h7_adc_smp_cycles,
+	.irq_clear = stm32h7_adc_irq_clear,
 };
 
 static const struct stm32_adc_cfg stm32mp1_adc_cfg = {
@@ -2069,6 +2093,7 @@ static const struct stm32_adc_cfg stm32mp1_adc_cfg = {
 	.prepare = stm32h7_adc_prepare,
 	.unprepare = stm32h7_adc_unprepare,
 	.smp_cycles = stm32h7_adc_smp_cycles,
+	.irq_clear = stm32h7_adc_irq_clear,
 };
 
 static const struct of_device_id stm32_adc_of_match[] = {

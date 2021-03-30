@@ -285,7 +285,6 @@
 	};
 
 	#include "stingray-fs4.dtsi"
-	#include "stingray-sata.dtsi"
 	#include "stingray-pcie.dtsi"
 	#include "stingray-usb.dtsi"
 
@@ -305,12 +304,6 @@
 
 			mdio@0 { /* PCIe serdes */
 				reg = <0x0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			mdio@2 { /* SATA */
-				reg = <0x2>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -438,7 +431,7 @@
 			reg = <0x000c0000 0x1000>;
 			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&hsls_25m_div2_clk>, <&hsls_div4_clk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			timeout-sec = <60>;
 		};
 

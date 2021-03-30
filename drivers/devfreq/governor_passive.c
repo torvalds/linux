@@ -19,18 +19,16 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 			= (struct devfreq_passive_data *)devfreq->data;
 	struct devfreq *parent_devfreq = (struct devfreq *)p_data->parent;
 	unsigned long child_freq = ULONG_MAX;
-	struct dev_pm_opp *opp;
-	int i, count, ret = 0;
+	struct dev_pm_opp *opp, *p_opp;
+	int i, count;
 
 	/*
 	 * If the devfreq device with passive governor has the specific method
 	 * to determine the next frequency, should use the get_target_freq()
 	 * of struct devfreq_passive_data.
 	 */
-	if (p_data->get_target_freq) {
-		ret = p_data->get_target_freq(devfreq, freq);
-		goto out;
-	}
+	if (p_data->get_target_freq)
+		return p_data->get_target_freq(devfreq, freq);
 
 	/*
 	 * If the parent and passive devfreq device uses the OPP table,
@@ -56,26 +54,35 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	 * list of parent device. Because in this case, *freq is temporary
 	 * value which is decided by ondemand governor.
 	 */
-	opp = devfreq_recommended_opp(parent_devfreq->dev.parent, freq, 0);
-	if (IS_ERR(opp)) {
-		ret = PTR_ERR(opp);
-		goto out;
+	if (devfreq->opp_table && parent_devfreq->opp_table) {
+		p_opp = devfreq_recommended_opp(parent_devfreq->dev.parent,
+						freq, 0);
+		if (IS_ERR(p_opp))
+			return PTR_ERR(p_opp);
+
+		opp = dev_pm_opp_xlate_required_opp(parent_devfreq->opp_table,
+						    devfreq->opp_table, p_opp);
+		dev_pm_opp_put(p_opp);
+
+		if (IS_ERR(opp))
+			return PTR_ERR(opp);
+
+		*freq = dev_pm_opp_get_freq(opp);
+		dev_pm_opp_put(opp);
+
+		return 0;
 	}
 
-	dev_pm_opp_put(opp);
-
 	/*
-	 * Get the OPP table's index of decided freqeuncy by governor
+	 * Get the OPP table's index of decided frequency by governor
 	 * of parent device.
 	 */
 	for (i = 0; i < parent_devfreq->profile->max_state; i++)
 		if (parent_devfreq->profile->freq_table[i] == *freq)
 			break;
 
-	if (i == parent_devfreq->profile->max_state) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (i == parent_devfreq->profile->max_state)
+		return -EINVAL;
 
 	/* Get the suitable frequency by using index of parent device. */
 	if (i < devfreq->profile->max_state) {
@@ -87,37 +94,6 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 
 	/* Return the suitable frequency for passive device. */
 	*freq = child_freq;
-
-out:
-	return ret;
-}
-
-static int update_devfreq_passive(struct devfreq *devfreq, unsigned long freq)
-{
-	int ret;
-
-	if (!devfreq->governor)
-		return -EINVAL;
-
-	mutex_lock_nested(&devfreq->lock, SINGLE_DEPTH_NESTING);
-
-	ret = devfreq->governor->get_target_freq(devfreq, &freq);
-	if (ret < 0)
-		goto out;
-
-	ret = devfreq->profile->target(devfreq->dev.parent, &freq, 0);
-	if (ret < 0)
-		goto out;
-
-	if (devfreq->profile->freq_table
-		&& (devfreq_update_status(devfreq, freq)))
-		dev_err(&devfreq->dev,
-			"Couldn't update frequency transition information.\n");
-
-	devfreq->previous_freq = freq;
-
-out:
-	mutex_unlock(&devfreq->lock);
 
 	return 0;
 }
@@ -131,17 +107,25 @@ static int devfreq_passive_notifier_call(struct notifier_block *nb,
 	struct devfreq *parent = (struct devfreq *)data->parent;
 	struct devfreq_freqs *freqs = (struct devfreq_freqs *)ptr;
 	unsigned long freq = freqs->new;
+	int ret = 0;
 
+	mutex_lock_nested(&devfreq->lock, SINGLE_DEPTH_NESTING);
 	switch (event) {
 	case DEVFREQ_PRECHANGE:
 		if (parent->previous_freq > freq)
-			update_devfreq_passive(devfreq, freq);
+			ret = devfreq_update_target(devfreq, freq);
+
 		break;
 	case DEVFREQ_POSTCHANGE:
 		if (parent->previous_freq < freq)
-			update_devfreq_passive(devfreq, freq);
+			ret = devfreq_update_target(devfreq, freq);
 		break;
 	}
+	mutex_unlock(&devfreq->lock);
+
+	if (ret < 0)
+		dev_warn(&devfreq->dev,
+			"failed to update devfreq using passive governor\n");
 
 	return NOTIFY_DONE;
 }
@@ -180,7 +164,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 
 static struct devfreq_governor devfreq_passive = {
 	.name = DEVFREQ_GOV_PASSIVE,
-	.immutable = 1,
+	.flags = DEVFREQ_GOV_FLAG_IMMUTABLE,
 	.get_target_freq = devfreq_passive_get_target_freq,
 	.event_handler = devfreq_passive_event_handler,
 };

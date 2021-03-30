@@ -453,7 +453,11 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 		*dq_pointer = dq = &hisi_hba->dq[dq_index];
 	} else {
-		*dq_pointer = dq = sas_dev->dq;
+		struct Scsi_Host *shost = hisi_hba->shost;
+		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+		int queue = qmap->mq_map[raw_smp_processor_id()];
+
+		*dq_pointer = dq = &hisi_hba->dq[queue];
 	}
 
 	port = to_hisi_sas_port(sas_port);
@@ -585,13 +589,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	dev = hisi_hba->dev;
 
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
-		/*
-		 * For IOs from upper layer, it may already disable preempt
-		 * in the IO path, if disable preempt again in down(),
-		 * function schedule() will report schedule_bug(), so check
-		 * preemptible() before goto down().
-		 */
-		if (!preemptible())
+		if (!gfpflags_allow_blocking(gfp_flags))
 			return -EINVAL;
 
 		down(&hisi_hba->sem);
@@ -612,11 +610,11 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	return rc;
 }
 
-static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
+static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no,
+				 gfp_t gfp_flags)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct sas_ha_struct *sas_ha;
 
 	if (!phy->phy_attached)
 		return;
@@ -627,8 +625,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		return;
 	}
 
-	sas_ha = &hisi_hba->sha;
-	sas_ha->notify_phy_event(sas_phy, PHYE_OOB_DONE);
+	sas_notify_phy_event(sas_phy, PHYE_OOB_DONE, gfp_flags);
 
 	if (sas_phy->phy) {
 		struct sas_phy *sphy = sas_phy->phy;
@@ -656,7 +653,7 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 	}
 
 	sas_phy->frame_rcvd_size = phy->frame_rcvd_size;
-	sas_ha->notify_port_event(sas_phy, PORTE_BYTES_DMAED);
+	sas_notify_port_event(sas_phy, PORTE_BYTES_DMAED, gfp_flags);
 }
 
 static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
@@ -862,7 +859,7 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 
 	if (phy->identify.target_port_protocols == SAS_PROTOCOL_SSP)
 		hisi_hba->hw->sl_notify_ssp(hisi_hba, phy_no);
-	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+	hisi_sas_bytes_dmaed(hisi_hba, phy_no, GFP_KERNEL);
 }
 
 static void hisi_sas_linkreset_work(struct work_struct *work)
@@ -1411,7 +1408,6 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 {
-	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct asd_sas_port *_sas_port = NULL;
 	int phy_no;
 
@@ -1432,11 +1428,12 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 state)
 				_sas_port = sas_port;
 
 				if (dev_is_expander(dev->dev_type))
-					sas_ha->notify_port_event(sas_phy,
-							PORTE_BROADCAST_RCVD);
+					sas_notify_port_event(sas_phy,
+							PORTE_BROADCAST_RCVD,
+							GFP_KERNEL);
 			}
 		} else {
-			hisi_sas_phy_down(hisi_hba, phy_no, 0);
+			hisi_sas_phy_down(hisi_hba, phy_no, 0, GFP_KERNEL);
 		}
 	}
 }
@@ -1790,7 +1787,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 		/* report PHY down if timed out */
 		if (!ret)
-			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0);
+			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0, GFP_KERNEL);
 	} else if (sas_dev->dev_status != HISI_SAS_DEV_INIT) {
 		/*
 		 * If in init state, we rely on caller to wait for link to be
@@ -2190,16 +2187,16 @@ static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 	spin_unlock_irqrestore(&phy->lock, flags);
 }
 
-void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
+void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
+		       gfp_t gfp_flags)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 
 	if (rdy) {
 		/* Phy down but ready */
-		hisi_sas_bytes_dmaed(hisi_hba, phy_no);
+		hisi_sas_bytes_dmaed(hisi_hba, phy_no, gfp_flags);
 		hisi_sas_port_notify_formed(sas_phy);
 	} else {
 		struct hisi_sas_port *port  = phy->port;
@@ -2210,7 +2207,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 			return;
 		}
 		/* Phy down and not ready */
-		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
+		sas_notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL, gfp_flags);
 		sas_phy_disconnected(sas_phy);
 
 		if (port) {
@@ -2614,6 +2611,13 @@ err_out:
 	return NULL;
 }
 
+static int hisi_sas_interrupt_preinit(struct hisi_hba *hisi_hba)
+{
+	if (hisi_hba->hw->interrupt_preinit)
+		return hisi_hba->hw->interrupt_preinit(hisi_hba);
+	return 0;
+}
+
 int hisi_sas_probe(struct platform_device *pdev,
 		   const struct hisi_sas_hw *hw)
 {
@@ -2671,6 +2675,10 @@ int hisi_sas_probe(struct platform_device *pdev,
 		sha->sas_port[i] = &hisi_hba->port[i].sas_port;
 	}
 
+	rc = hisi_sas_interrupt_preinit(hisi_hba);
+	if (rc)
+		goto err_out_ha;
+
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha;
@@ -2690,1354 +2698,11 @@ int hisi_sas_probe(struct platform_device *pdev,
 err_out_register_ha:
 	scsi_remove_host(shost);
 err_out_ha:
-	hisi_sas_debugfs_exit(hisi_hba);
 	hisi_sas_free(hisi_hba);
 	scsi_host_put(shost);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_probe);
-
-struct dentry *hisi_sas_debugfs_dir;
-
-static void hisi_sas_debugfs_snapshot_cq_reg(struct hisi_hba *hisi_hba)
-{
-	int queue_entry_size = hisi_hba->hw->complete_hdr_size;
-	int dump_index = hisi_hba->debugfs_dump_index;
-	int i;
-
-	for (i = 0; i < hisi_hba->queue_count; i++)
-		memcpy(hisi_hba->debugfs_cq[dump_index][i].complete_hdr,
-		       hisi_hba->complete_hdr[i],
-		       HISI_SAS_QUEUE_SLOTS * queue_entry_size);
-}
-
-static void hisi_sas_debugfs_snapshot_dq_reg(struct hisi_hba *hisi_hba)
-{
-	int queue_entry_size = sizeof(struct hisi_sas_cmd_hdr);
-	int dump_index = hisi_hba->debugfs_dump_index;
-	int i;
-
-	for (i = 0; i < hisi_hba->queue_count; i++) {
-		struct hisi_sas_cmd_hdr *debugfs_cmd_hdr, *cmd_hdr;
-		int j;
-
-		debugfs_cmd_hdr = hisi_hba->debugfs_dq[dump_index][i].hdr;
-		cmd_hdr = hisi_hba->cmd_hdr[i];
-
-		for (j = 0; j < HISI_SAS_QUEUE_SLOTS; j++)
-			memcpy(&debugfs_cmd_hdr[j], &cmd_hdr[j],
-			       queue_entry_size);
-	}
-}
-
-static void hisi_sas_debugfs_snapshot_port_reg(struct hisi_hba *hisi_hba)
-{
-	int dump_index = hisi_hba->debugfs_dump_index;
-	const struct hisi_sas_debugfs_reg *port =
-		hisi_hba->hw->debugfs_reg_port;
-	int i, phy_cnt;
-	u32 offset;
-	u32 *databuf;
-
-	for (phy_cnt = 0; phy_cnt < hisi_hba->n_phy; phy_cnt++) {
-		databuf = hisi_hba->debugfs_port_reg[dump_index][phy_cnt].data;
-		for (i = 0; i < port->count; i++, databuf++) {
-			offset = port->base_off + 4 * i;
-			*databuf = port->read_port_reg(hisi_hba, phy_cnt,
-						       offset);
-		}
-	}
-}
-
-static void hisi_sas_debugfs_snapshot_global_reg(struct hisi_hba *hisi_hba)
-{
-	int dump_index = hisi_hba->debugfs_dump_index;
-	u32 *databuf = hisi_hba->debugfs_regs[dump_index][DEBUGFS_GLOBAL].data;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const struct hisi_sas_debugfs_reg *global =
-			hw->debugfs_reg_array[DEBUGFS_GLOBAL];
-	int i;
-
-	for (i = 0; i < global->count; i++, databuf++)
-		*databuf = global->read_global_reg(hisi_hba, 4 * i);
-}
-
-static void hisi_sas_debugfs_snapshot_axi_reg(struct hisi_hba *hisi_hba)
-{
-	int dump_index = hisi_hba->debugfs_dump_index;
-	u32 *databuf = hisi_hba->debugfs_regs[dump_index][DEBUGFS_AXI].data;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const struct hisi_sas_debugfs_reg *axi =
-			hw->debugfs_reg_array[DEBUGFS_AXI];
-	int i;
-
-	for (i = 0; i < axi->count; i++, databuf++)
-		*databuf = axi->read_global_reg(hisi_hba,
-						4 * i + axi->base_off);
-}
-
-static void hisi_sas_debugfs_snapshot_ras_reg(struct hisi_hba *hisi_hba)
-{
-	int dump_index = hisi_hba->debugfs_dump_index;
-	u32 *databuf = hisi_hba->debugfs_regs[dump_index][DEBUGFS_RAS].data;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const struct hisi_sas_debugfs_reg *ras =
-			hw->debugfs_reg_array[DEBUGFS_RAS];
-	int i;
-
-	for (i = 0; i < ras->count; i++, databuf++)
-		*databuf = ras->read_global_reg(hisi_hba,
-						4 * i + ras->base_off);
-}
-
-static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
-{
-	int dump_index = hisi_hba->debugfs_dump_index;
-	void *cachebuf = hisi_hba->debugfs_itct_cache[dump_index].cache;
-	void *databuf = hisi_hba->debugfs_itct[dump_index].itct;
-	struct hisi_sas_itct *itct;
-	int i;
-
-	hisi_hba->hw->read_iost_itct_cache(hisi_hba, HISI_SAS_ITCT_CACHE,
-					   cachebuf);
-
-	itct = hisi_hba->itct;
-
-	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, itct++) {
-		memcpy(databuf, itct, sizeof(struct hisi_sas_itct));
-		databuf += sizeof(struct hisi_sas_itct);
-	}
-}
-
-static void hisi_sas_debugfs_snapshot_iost_reg(struct hisi_hba *hisi_hba)
-{
-	int dump_index = hisi_hba->debugfs_dump_index;
-	int max_command_entries = HISI_SAS_MAX_COMMANDS;
-	void *cachebuf = hisi_hba->debugfs_iost_cache[dump_index].cache;
-	void *databuf = hisi_hba->debugfs_iost[dump_index].iost;
-	struct hisi_sas_iost *iost;
-	int i;
-
-	hisi_hba->hw->read_iost_itct_cache(hisi_hba, HISI_SAS_IOST_CACHE,
-					   cachebuf);
-
-	iost = hisi_hba->iost;
-
-	for (i = 0; i < max_command_entries; i++, iost++) {
-		memcpy(databuf, iost, sizeof(struct hisi_sas_iost));
-		databuf += sizeof(struct hisi_sas_iost);
-	}
-}
-
-static const char *
-hisi_sas_debugfs_to_reg_name(int off, int base_off,
-			     const struct hisi_sas_debugfs_reg_lu *lu)
-{
-	for (; lu->name; lu++) {
-		if (off == lu->off - base_off)
-			return lu->name;
-	}
-
-	return NULL;
-}
-
-static void hisi_sas_debugfs_print_reg(u32 *regs_val, const void *ptr,
-				       struct seq_file *s)
-{
-	const struct hisi_sas_debugfs_reg *reg = ptr;
-	int i;
-
-	for (i = 0; i < reg->count; i++) {
-		int off = i * 4;
-		const char *name;
-
-		name = hisi_sas_debugfs_to_reg_name(off, reg->base_off,
-						    reg->lu);
-
-		if (name)
-			seq_printf(s, "0x%08x 0x%08x %s\n", off,
-				   regs_val[i], name);
-		else
-			seq_printf(s, "0x%08x 0x%08x\n", off,
-				   regs_val[i]);
-	}
-}
-
-static int hisi_sas_debugfs_global_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_regs *global = s->private;
-	struct hisi_hba *hisi_hba = global->hisi_hba;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const void *reg_global = hw->debugfs_reg_array[DEBUGFS_GLOBAL];
-
-	hisi_sas_debugfs_print_reg(global->data,
-				   reg_global, s);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_global_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_global_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_global_fops = {
-	.open = hisi_sas_debugfs_global_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_axi_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_regs *axi = s->private;
-	struct hisi_hba *hisi_hba = axi->hisi_hba;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const void *reg_axi = hw->debugfs_reg_array[DEBUGFS_AXI];
-
-	hisi_sas_debugfs_print_reg(axi->data,
-				   reg_axi, s);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_axi_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_axi_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_axi_fops = {
-	.open = hisi_sas_debugfs_axi_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_ras_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_regs *ras = s->private;
-	struct hisi_hba *hisi_hba = ras->hisi_hba;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const void *reg_ras = hw->debugfs_reg_array[DEBUGFS_RAS];
-
-	hisi_sas_debugfs_print_reg(ras->data,
-				   reg_ras, s);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_ras_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_ras_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_ras_fops = {
-	.open = hisi_sas_debugfs_ras_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_port_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_port *port = s->private;
-	struct hisi_sas_phy *phy = port->phy;
-	struct hisi_hba *hisi_hba = phy->hisi_hba;
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const struct hisi_sas_debugfs_reg *reg_port = hw->debugfs_reg_port;
-
-	hisi_sas_debugfs_print_reg(port->data, reg_port, s);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_port_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_port_show, inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_port_fops = {
-	.open = hisi_sas_debugfs_port_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static void hisi_sas_show_row_64(struct seq_file *s, int index,
-				 int sz, __le64 *ptr)
-{
-	int i;
-
-	/* completion header size not fixed per HW version */
-	seq_printf(s, "index %04d:\n\t", index);
-	for (i = 1; i <= sz / 8; i++, ptr++) {
-		seq_printf(s, " 0x%016llx", le64_to_cpu(*ptr));
-		if (!(i % 2))
-			seq_puts(s, "\n\t");
-	}
-
-	seq_puts(s, "\n");
-}
-
-static void hisi_sas_show_row_32(struct seq_file *s, int index,
-				 int sz, __le32 *ptr)
-{
-	int i;
-
-	/* completion header size not fixed per HW version */
-	seq_printf(s, "index %04d:\n\t", index);
-	for (i = 1; i <= sz / 4; i++, ptr++) {
-		seq_printf(s, " 0x%08x", le32_to_cpu(*ptr));
-		if (!(i % 4))
-			seq_puts(s, "\n\t");
-	}
-	seq_puts(s, "\n");
-}
-
-static void hisi_sas_cq_show_slot(struct seq_file *s, int slot,
-				  struct hisi_sas_debugfs_cq *debugfs_cq)
-{
-	struct hisi_sas_cq *cq = debugfs_cq->cq;
-	struct hisi_hba *hisi_hba = cq->hisi_hba;
-	__le32 *complete_hdr = debugfs_cq->complete_hdr +
-			       (hisi_hba->hw->complete_hdr_size * slot);
-
-	hisi_sas_show_row_32(s, slot,
-			     hisi_hba->hw->complete_hdr_size,
-			     complete_hdr);
-}
-
-static int hisi_sas_debugfs_cq_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_cq *debugfs_cq = s->private;
-	int slot;
-
-	for (slot = 0; slot < HISI_SAS_QUEUE_SLOTS; slot++) {
-		hisi_sas_cq_show_slot(s, slot, debugfs_cq);
-	}
-	return 0;
-}
-
-static int hisi_sas_debugfs_cq_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_cq_show, inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_cq_fops = {
-	.open = hisi_sas_debugfs_cq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static void hisi_sas_dq_show_slot(struct seq_file *s, int slot, void *dq_ptr)
-{
-	struct hisi_sas_debugfs_dq *debugfs_dq = dq_ptr;
-	void *cmd_queue = debugfs_dq->hdr;
-	__le32 *cmd_hdr = cmd_queue +
-		sizeof(struct hisi_sas_cmd_hdr) * slot;
-
-	hisi_sas_show_row_32(s, slot, sizeof(struct hisi_sas_cmd_hdr), cmd_hdr);
-}
-
-static int hisi_sas_debugfs_dq_show(struct seq_file *s, void *p)
-{
-	int slot;
-
-	for (slot = 0; slot < HISI_SAS_QUEUE_SLOTS; slot++) {
-		hisi_sas_dq_show_slot(s, slot, s->private);
-	}
-	return 0;
-}
-
-static int hisi_sas_debugfs_dq_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_dq_show, inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_dq_fops = {
-	.open = hisi_sas_debugfs_dq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_iost_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_iost *debugfs_iost = s->private;
-	struct hisi_sas_iost *iost = debugfs_iost->iost;
-	int i, max_command_entries = HISI_SAS_MAX_COMMANDS;
-
-	for (i = 0; i < max_command_entries; i++, iost++) {
-		__le64 *data = &iost->qw0;
-
-		hisi_sas_show_row_64(s, i, sizeof(*iost), data);
-	}
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_iost_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_iost_show, inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_iost_fops = {
-	.open = hisi_sas_debugfs_iost_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_iost_cache_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_iost_cache *debugfs_iost_cache = s->private;
-	struct hisi_sas_iost_itct_cache *iost_cache = debugfs_iost_cache->cache;
-	u32 cache_size = HISI_SAS_IOST_ITCT_CACHE_DW_SZ * 4;
-	int i, tab_idx;
-	__le64 *iost;
-
-	for (i = 0; i < HISI_SAS_IOST_ITCT_CACHE_NUM; i++, iost_cache++) {
-		/*
-		 * Data struct of IOST cache:
-		 * Data[1]: BIT0~15: Table index
-		 *	    Bit16:   Valid mask
-		 * Data[2]~[9]: IOST table
-		 */
-		tab_idx = (iost_cache->data[1] & 0xffff);
-		iost = (__le64 *)iost_cache;
-
-		hisi_sas_show_row_64(s, tab_idx, cache_size, iost);
-	}
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_iost_cache_open(struct inode *inode,
-					    struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_iost_cache_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_iost_cache_fops = {
-	.open = hisi_sas_debugfs_iost_cache_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_itct_show(struct seq_file *s, void *p)
-{
-	int i;
-	struct hisi_sas_debugfs_itct *debugfs_itct = s->private;
-	struct hisi_sas_itct *itct = debugfs_itct->itct;
-
-	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, itct++) {
-		__le64 *data = &itct->qw0;
-
-		hisi_sas_show_row_64(s, i, sizeof(*itct), data);
-	}
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_itct_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_itct_show, inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_itct_fops = {
-	.open = hisi_sas_debugfs_itct_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int hisi_sas_debugfs_itct_cache_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_debugfs_itct_cache *debugfs_itct_cache = s->private;
-	struct hisi_sas_iost_itct_cache *itct_cache = debugfs_itct_cache->cache;
-	u32 cache_size = HISI_SAS_IOST_ITCT_CACHE_DW_SZ * 4;
-	int i, tab_idx;
-	__le64 *itct;
-
-	for (i = 0; i < HISI_SAS_IOST_ITCT_CACHE_NUM; i++, itct_cache++) {
-		/*
-		 * Data struct of ITCT cache:
-		 * Data[1]: BIT0~15: Table index
-		 *	    Bit16:   Valid mask
-		 * Data[2]~[9]: ITCT table
-		 */
-		tab_idx = itct_cache->data[1] & 0xffff;
-		itct = (__le64 *)itct_cache;
-
-		hisi_sas_show_row_64(s, tab_idx, cache_size, itct);
-	}
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_itct_cache_open(struct inode *inode,
-					    struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_itct_cache_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_itct_cache_fops = {
-	.open = hisi_sas_debugfs_itct_cache_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
-{
-	u64 *debugfs_timestamp;
-	int dump_index = hisi_hba->debugfs_dump_index;
-	struct dentry *dump_dentry;
-	struct dentry *dentry;
-	char name[256];
-	int p;
-	int c;
-	int d;
-
-	snprintf(name, 256, "%d", dump_index);
-
-	dump_dentry = debugfs_create_dir(name, hisi_hba->debugfs_dump_dentry);
-
-	debugfs_timestamp = &hisi_hba->debugfs_timestamp[dump_index];
-
-	debugfs_create_u64("timestamp", 0400, dump_dentry,
-			   debugfs_timestamp);
-
-	debugfs_create_file("global", 0400, dump_dentry,
-			   &hisi_hba->debugfs_regs[dump_index][DEBUGFS_GLOBAL],
-			   &hisi_sas_debugfs_global_fops);
-
-	/* Create port dir and files */
-	dentry = debugfs_create_dir("port", dump_dentry);
-	for (p = 0; p < hisi_hba->n_phy; p++) {
-		snprintf(name, 256, "%d", p);
-
-		debugfs_create_file(name, 0400, dentry,
-				    &hisi_hba->debugfs_port_reg[dump_index][p],
-				    &hisi_sas_debugfs_port_fops);
-	}
-
-	/* Create CQ dir and files */
-	dentry = debugfs_create_dir("cq", dump_dentry);
-	for (c = 0; c < hisi_hba->queue_count; c++) {
-		snprintf(name, 256, "%d", c);
-
-		debugfs_create_file(name, 0400, dentry,
-				    &hisi_hba->debugfs_cq[dump_index][c],
-				    &hisi_sas_debugfs_cq_fops);
-	}
-
-	/* Create DQ dir and files */
-	dentry = debugfs_create_dir("dq", dump_dentry);
-	for (d = 0; d < hisi_hba->queue_count; d++) {
-		snprintf(name, 256, "%d", d);
-
-		debugfs_create_file(name, 0400, dentry,
-				    &hisi_hba->debugfs_dq[dump_index][d],
-				    &hisi_sas_debugfs_dq_fops);
-	}
-
-	debugfs_create_file("iost", 0400, dump_dentry,
-			    &hisi_hba->debugfs_iost[dump_index],
-			    &hisi_sas_debugfs_iost_fops);
-
-	debugfs_create_file("iost_cache", 0400, dump_dentry,
-			    &hisi_hba->debugfs_iost_cache[dump_index],
-			    &hisi_sas_debugfs_iost_cache_fops);
-
-	debugfs_create_file("itct", 0400, dump_dentry,
-			    &hisi_hba->debugfs_itct[dump_index],
-			    &hisi_sas_debugfs_itct_fops);
-
-	debugfs_create_file("itct_cache", 0400, dump_dentry,
-			    &hisi_hba->debugfs_itct_cache[dump_index],
-			    &hisi_sas_debugfs_itct_cache_fops);
-
-	debugfs_create_file("axi", 0400, dump_dentry,
-			    &hisi_hba->debugfs_regs[dump_index][DEBUGFS_AXI],
-			    &hisi_sas_debugfs_axi_fops);
-
-	debugfs_create_file("ras", 0400, dump_dentry,
-			    &hisi_hba->debugfs_regs[dump_index][DEBUGFS_RAS],
-			    &hisi_sas_debugfs_ras_fops);
-
-	return;
-}
-
-static void hisi_sas_debugfs_snapshot_regs(struct hisi_hba *hisi_hba)
-{
-	hisi_hba->hw->snapshot_prepare(hisi_hba);
-
-	hisi_sas_debugfs_snapshot_global_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_port_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_axi_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_ras_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_cq_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_dq_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_itct_reg(hisi_hba);
-	hisi_sas_debugfs_snapshot_iost_reg(hisi_hba);
-
-	hisi_sas_debugfs_create_files(hisi_hba);
-
-	hisi_hba->hw->snapshot_restore(hisi_hba);
-}
-
-static ssize_t hisi_sas_debugfs_trigger_dump_write(struct file *file,
-						   const char __user *user_buf,
-						   size_t count, loff_t *ppos)
-{
-	struct hisi_hba *hisi_hba = file->f_inode->i_private;
-	char buf[8];
-
-	if (hisi_hba->debugfs_dump_index >= hisi_sas_debugfs_dump_count)
-		return -EFAULT;
-
-	if (count > 8)
-		return -EFAULT;
-
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	if (buf[0] != '1')
-		return -EFAULT;
-
-	queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
-
-	return count;
-}
-
-static const struct file_operations hisi_sas_debugfs_trigger_dump_fops = {
-	.write = &hisi_sas_debugfs_trigger_dump_write,
-	.owner = THIS_MODULE,
-};
-
-enum {
-	HISI_SAS_BIST_LOOPBACK_MODE_DIGITAL = 0,
-	HISI_SAS_BIST_LOOPBACK_MODE_SERDES,
-	HISI_SAS_BIST_LOOPBACK_MODE_REMOTE,
-};
-
-static const struct {
-	int		value;
-	char		*name;
-} hisi_sas_debugfs_loop_linkrate[] = {
-	{ SAS_LINK_RATE_1_5_GBPS, "1.5 Gbit" },
-	{ SAS_LINK_RATE_3_0_GBPS, "3.0 Gbit" },
-	{ SAS_LINK_RATE_6_0_GBPS, "6.0 Gbit" },
-	{ SAS_LINK_RATE_12_0_GBPS, "12.0 Gbit" },
-};
-
-static int hisi_sas_debugfs_bist_linkrate_show(struct seq_file *s, void *p)
-{
-	struct hisi_hba *hisi_hba = s->private;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hisi_sas_debugfs_loop_linkrate); i++) {
-		int match = (hisi_hba->debugfs_bist_linkrate ==
-			     hisi_sas_debugfs_loop_linkrate[i].value);
-
-		seq_printf(s, "%s%s%s ", match ? "[" : "",
-			   hisi_sas_debugfs_loop_linkrate[i].name,
-			   match ? "]" : "");
-	}
-	seq_puts(s, "\n");
-
-	return 0;
-}
-
-static ssize_t hisi_sas_debugfs_bist_linkrate_write(struct file *filp,
-						    const char __user *buf,
-						    size_t count, loff_t *ppos)
-{
-	struct seq_file *m = filp->private_data;
-	struct hisi_hba *hisi_hba = m->private;
-	char kbuf[16] = {}, *pkbuf;
-	bool found = false;
-	int i;
-
-	if (hisi_hba->debugfs_bist_enable)
-		return -EPERM;
-
-	if (count >= sizeof(kbuf))
-		return -EOVERFLOW;
-
-	if (copy_from_user(kbuf, buf, count))
-		return -EINVAL;
-
-	pkbuf = strstrip(kbuf);
-
-	for (i = 0; i < ARRAY_SIZE(hisi_sas_debugfs_loop_linkrate); i++) {
-		if (!strncmp(hisi_sas_debugfs_loop_linkrate[i].name,
-			     pkbuf, 16)) {
-			hisi_hba->debugfs_bist_linkrate =
-				hisi_sas_debugfs_loop_linkrate[i].value;
-			found = true;
-			break;
-		}
-	}
-
-	if (!found)
-		return -EINVAL;
-
-	return count;
-}
-
-static int hisi_sas_debugfs_bist_linkrate_open(struct inode *inode,
-					       struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_bist_linkrate_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_bist_linkrate_ops = {
-	.open = hisi_sas_debugfs_bist_linkrate_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_bist_linkrate_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static const struct {
-	int		value;
-	char		*name;
-} hisi_sas_debugfs_loop_code_mode[] = {
-	{ HISI_SAS_BIST_CODE_MODE_PRBS7, "PRBS7" },
-	{ HISI_SAS_BIST_CODE_MODE_PRBS23, "PRBS23" },
-	{ HISI_SAS_BIST_CODE_MODE_PRBS31, "PRBS31" },
-	{ HISI_SAS_BIST_CODE_MODE_JTPAT, "JTPAT" },
-	{ HISI_SAS_BIST_CODE_MODE_CJTPAT, "CJTPAT" },
-	{ HISI_SAS_BIST_CODE_MODE_SCRAMBED_0, "SCRAMBED_0" },
-	{ HISI_SAS_BIST_CODE_MODE_TRAIN, "TRAIN" },
-	{ HISI_SAS_BIST_CODE_MODE_TRAIN_DONE, "TRAIN_DONE" },
-	{ HISI_SAS_BIST_CODE_MODE_HFTP, "HFTP" },
-	{ HISI_SAS_BIST_CODE_MODE_MFTP, "MFTP" },
-	{ HISI_SAS_BIST_CODE_MODE_LFTP, "LFTP" },
-	{ HISI_SAS_BIST_CODE_MODE_FIXED_DATA, "FIXED_DATA" },
-};
-
-static int hisi_sas_debugfs_bist_code_mode_show(struct seq_file *s, void *p)
-{
-	struct hisi_hba *hisi_hba = s->private;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hisi_sas_debugfs_loop_code_mode); i++) {
-		int match = (hisi_hba->debugfs_bist_code_mode ==
-			     hisi_sas_debugfs_loop_code_mode[i].value);
-
-		seq_printf(s, "%s%s%s ", match ? "[" : "",
-			   hisi_sas_debugfs_loop_code_mode[i].name,
-			   match ? "]" : "");
-	}
-	seq_puts(s, "\n");
-
-	return 0;
-}
-
-static ssize_t hisi_sas_debugfs_bist_code_mode_write(struct file *filp,
-						     const char __user *buf,
-						     size_t count,
-						     loff_t *ppos)
-{
-	struct seq_file *m = filp->private_data;
-	struct hisi_hba *hisi_hba = m->private;
-	char kbuf[16] = {}, *pkbuf;
-	bool found = false;
-	int i;
-
-	if (hisi_hba->debugfs_bist_enable)
-		return -EPERM;
-
-	if (count >= sizeof(kbuf))
-		return -EINVAL;
-
-	if (copy_from_user(kbuf, buf, count))
-		return -EOVERFLOW;
-
-	pkbuf = strstrip(kbuf);
-
-	for (i = 0; i < ARRAY_SIZE(hisi_sas_debugfs_loop_code_mode); i++) {
-		if (!strncmp(hisi_sas_debugfs_loop_code_mode[i].name,
-			     pkbuf, 16)) {
-			hisi_hba->debugfs_bist_code_mode =
-				hisi_sas_debugfs_loop_code_mode[i].value;
-			found = true;
-			break;
-		}
-	}
-
-	if (!found)
-		return -EINVAL;
-
-	return count;
-}
-
-static int hisi_sas_debugfs_bist_code_mode_open(struct inode *inode,
-						struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_bist_code_mode_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_bist_code_mode_ops = {
-	.open = hisi_sas_debugfs_bist_code_mode_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_bist_code_mode_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static ssize_t hisi_sas_debugfs_bist_phy_write(struct file *filp,
-					       const char __user *buf,
-					       size_t count, loff_t *ppos)
-{
-	struct seq_file *m = filp->private_data;
-	struct hisi_hba *hisi_hba = m->private;
-	unsigned int phy_no;
-	int val;
-
-	if (hisi_hba->debugfs_bist_enable)
-		return -EPERM;
-
-	val = kstrtouint_from_user(buf, count, 0, &phy_no);
-	if (val)
-		return val;
-
-	if (phy_no >= hisi_hba->n_phy)
-		return -EINVAL;
-
-	hisi_hba->debugfs_bist_phy_no = phy_no;
-
-	return count;
-}
-
-static int hisi_sas_debugfs_bist_phy_show(struct seq_file *s, void *p)
-{
-	struct hisi_hba *hisi_hba = s->private;
-
-	seq_printf(s, "%d\n", hisi_hba->debugfs_bist_phy_no);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_bist_phy_open(struct inode *inode,
-					  struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_bist_phy_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_bist_phy_ops = {
-	.open = hisi_sas_debugfs_bist_phy_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_bist_phy_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static const struct {
-	int		value;
-	char		*name;
-} hisi_sas_debugfs_loop_modes[] = {
-	{ HISI_SAS_BIST_LOOPBACK_MODE_DIGITAL, "digital" },
-	{ HISI_SAS_BIST_LOOPBACK_MODE_SERDES, "serdes" },
-	{ HISI_SAS_BIST_LOOPBACK_MODE_REMOTE, "remote" },
-};
-
-static int hisi_sas_debugfs_bist_mode_show(struct seq_file *s, void *p)
-{
-	struct hisi_hba *hisi_hba = s->private;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hisi_sas_debugfs_loop_modes); i++) {
-		int match = (hisi_hba->debugfs_bist_mode ==
-			     hisi_sas_debugfs_loop_modes[i].value);
-
-		seq_printf(s, "%s%s%s ", match ? "[" : "",
-			   hisi_sas_debugfs_loop_modes[i].name,
-			   match ? "]" : "");
-	}
-	seq_puts(s, "\n");
-
-	return 0;
-}
-
-static ssize_t hisi_sas_debugfs_bist_mode_write(struct file *filp,
-						const char __user *buf,
-						size_t count, loff_t *ppos)
-{
-	struct seq_file *m = filp->private_data;
-	struct hisi_hba *hisi_hba = m->private;
-	char kbuf[16] = {}, *pkbuf;
-	bool found = false;
-	int i;
-
-	if (hisi_hba->debugfs_bist_enable)
-		return -EPERM;
-
-	if (count >= sizeof(kbuf))
-		return -EINVAL;
-
-	if (copy_from_user(kbuf, buf, count))
-		return -EOVERFLOW;
-
-	pkbuf = strstrip(kbuf);
-
-	for (i = 0; i < ARRAY_SIZE(hisi_sas_debugfs_loop_modes); i++) {
-		if (!strncmp(hisi_sas_debugfs_loop_modes[i].name, pkbuf, 16)) {
-			hisi_hba->debugfs_bist_mode =
-				hisi_sas_debugfs_loop_modes[i].value;
-			found = true;
-			break;
-		}
-	}
-
-	if (!found)
-		return -EINVAL;
-
-	return count;
-}
-
-static int hisi_sas_debugfs_bist_mode_open(struct inode *inode,
-					   struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_bist_mode_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_bist_mode_ops = {
-	.open = hisi_sas_debugfs_bist_mode_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_bist_mode_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static ssize_t hisi_sas_debugfs_bist_enable_write(struct file *filp,
-						  const char __user *buf,
-						  size_t count, loff_t *ppos)
-{
-	struct seq_file *m = filp->private_data;
-	struct hisi_hba *hisi_hba = m->private;
-	unsigned int enable;
-	int val;
-
-	val = kstrtouint_from_user(buf, count, 0, &enable);
-	if (val)
-		return val;
-
-	if (enable > 1)
-		return -EINVAL;
-
-	if (enable == hisi_hba->debugfs_bist_enable)
-		return count;
-
-	if (!hisi_hba->hw->set_bist)
-		return -EPERM;
-
-	val = hisi_hba->hw->set_bist(hisi_hba, enable);
-	if (val < 0)
-		return val;
-
-	hisi_hba->debugfs_bist_enable = enable;
-
-	return count;
-}
-
-static int hisi_sas_debugfs_bist_enable_show(struct seq_file *s, void *p)
-{
-	struct hisi_hba *hisi_hba = s->private;
-
-	seq_printf(s, "%d\n", hisi_hba->debugfs_bist_enable);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_bist_enable_open(struct inode *inode,
-					     struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_bist_enable_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_bist_enable_ops = {
-	.open = hisi_sas_debugfs_bist_enable_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_bist_enable_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static const struct {
-	char *name;
-} hisi_sas_debugfs_ffe_name[FFE_CFG_MAX] = {
-	{ "SAS_1_5_GBPS" },
-	{ "SAS_3_0_GBPS" },
-	{ "SAS_6_0_GBPS" },
-	{ "SAS_12_0_GBPS" },
-	{ "FFE_RESV" },
-	{ "SATA_1_5_GBPS" },
-	{ "SATA_3_0_GBPS" },
-	{ "SATA_6_0_GBPS" },
-};
-
-static ssize_t hisi_sas_debugfs_write(struct file *filp,
-				      const char __user *buf,
-				      size_t count, loff_t *ppos)
-{
-	struct seq_file *m = filp->private_data;
-	u32 *val = m->private;
-	int res;
-
-	res = kstrtouint_from_user(buf, count, 0, val);
-	if (res)
-		return res;
-
-	return count;
-}
-
-static int hisi_sas_debugfs_show(struct seq_file *s, void *p)
-{
-	u32 *val = s->private;
-
-	seq_printf(s, "0x%x\n", *val);
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_ops = {
-	.open = hisi_sas_debugfs_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static ssize_t hisi_sas_debugfs_phy_down_cnt_write(struct file *filp,
-						   const char __user *buf,
-						   size_t count, loff_t *ppos)
-{
-	struct seq_file *s = filp->private_data;
-	struct hisi_sas_phy *phy = s->private;
-	unsigned int set_val;
-	int res;
-
-	res = kstrtouint_from_user(buf, count, 0, &set_val);
-	if (res)
-		return res;
-
-	if (set_val > 0)
-		return -EINVAL;
-
-	atomic_set(&phy->down_cnt, 0);
-
-	return count;
-}
-
-static int hisi_sas_debugfs_phy_down_cnt_show(struct seq_file *s, void *p)
-{
-	struct hisi_sas_phy *phy = s->private;
-
-	seq_printf(s, "%d\n", atomic_read(&phy->down_cnt));
-
-	return 0;
-}
-
-static int hisi_sas_debugfs_phy_down_cnt_open(struct inode *inode,
-					      struct file *filp)
-{
-	return single_open(filp, hisi_sas_debugfs_phy_down_cnt_show,
-			   inode->i_private);
-}
-
-static const struct file_operations hisi_sas_debugfs_phy_down_cnt_ops = {
-	.open = hisi_sas_debugfs_phy_down_cnt_open,
-	.read = seq_read,
-	.write = hisi_sas_debugfs_phy_down_cnt_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-void hisi_sas_debugfs_work_handler(struct work_struct *work)
-{
-	struct hisi_hba *hisi_hba =
-		container_of(work, struct hisi_hba, debugfs_work);
-	int debugfs_dump_index = hisi_hba->debugfs_dump_index;
-	struct device *dev = hisi_hba->dev;
-	u64 timestamp = local_clock();
-
-	if (debugfs_dump_index >= hisi_sas_debugfs_dump_count) {
-		dev_warn(dev, "dump count exceeded!\n");
-		return;
-	}
-
-	do_div(timestamp, NSEC_PER_MSEC);
-	hisi_hba->debugfs_timestamp[debugfs_dump_index] = timestamp;
-
-	hisi_sas_debugfs_snapshot_regs(hisi_hba);
-	hisi_hba->debugfs_dump_index++;
-}
-EXPORT_SYMBOL_GPL(hisi_sas_debugfs_work_handler);
-
-static void hisi_sas_debugfs_release(struct hisi_hba *hisi_hba, int dump_index)
-{
-	struct device *dev = hisi_hba->dev;
-	int i;
-
-	devm_kfree(dev, hisi_hba->debugfs_iost_cache[dump_index].cache);
-	devm_kfree(dev, hisi_hba->debugfs_itct_cache[dump_index].cache);
-	devm_kfree(dev, hisi_hba->debugfs_iost[dump_index].iost);
-	devm_kfree(dev, hisi_hba->debugfs_itct[dump_index].itct);
-
-	for (i = 0; i < hisi_hba->queue_count; i++)
-		devm_kfree(dev, hisi_hba->debugfs_dq[dump_index][i].hdr);
-
-	for (i = 0; i < hisi_hba->queue_count; i++)
-		devm_kfree(dev,
-			   hisi_hba->debugfs_cq[dump_index][i].complete_hdr);
-
-	for (i = 0; i < DEBUGFS_REGS_NUM; i++)
-		devm_kfree(dev, hisi_hba->debugfs_regs[dump_index][i].data);
-
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		devm_kfree(dev, hisi_hba->debugfs_port_reg[dump_index][i].data);
-}
-
-static int hisi_sas_debugfs_alloc(struct hisi_hba *hisi_hba, int dump_index)
-{
-	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	struct device *dev = hisi_hba->dev;
-	int p, c, d, r, i;
-	size_t sz;
-
-	for (r = 0; r < DEBUGFS_REGS_NUM; r++) {
-		struct hisi_sas_debugfs_regs *regs =
-				&hisi_hba->debugfs_regs[dump_index][r];
-
-		sz = hw->debugfs_reg_array[r]->count * 4;
-		regs->data = devm_kmalloc(dev, sz, GFP_KERNEL);
-		if (!regs->data)
-			goto fail;
-		regs->hisi_hba = hisi_hba;
-	}
-
-	sz = hw->debugfs_reg_port->count * 4;
-	for (p = 0; p < hisi_hba->n_phy; p++) {
-		struct hisi_sas_debugfs_port *port =
-				&hisi_hba->debugfs_port_reg[dump_index][p];
-
-		port->data = devm_kmalloc(dev, sz, GFP_KERNEL);
-		if (!port->data)
-			goto fail;
-		port->phy = &hisi_hba->phy[p];
-	}
-
-	sz = hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
-	for (c = 0; c < hisi_hba->queue_count; c++) {
-		struct hisi_sas_debugfs_cq *cq =
-				&hisi_hba->debugfs_cq[dump_index][c];
-
-		cq->complete_hdr = devm_kmalloc(dev, sz, GFP_KERNEL);
-		if (!cq->complete_hdr)
-			goto fail;
-		cq->cq = &hisi_hba->cq[c];
-	}
-
-	sz = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
-	for (d = 0; d < hisi_hba->queue_count; d++) {
-		struct hisi_sas_debugfs_dq *dq =
-				&hisi_hba->debugfs_dq[dump_index][d];
-
-		dq->hdr = devm_kmalloc(dev, sz, GFP_KERNEL);
-		if (!dq->hdr)
-			goto fail;
-		dq->dq = &hisi_hba->dq[d];
-	}
-
-	sz = HISI_SAS_MAX_COMMANDS * sizeof(struct hisi_sas_iost);
-
-	hisi_hba->debugfs_iost[dump_index].iost =
-				devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_iost[dump_index].iost)
-		goto fail;
-
-	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
-	     sizeof(struct hisi_sas_iost_itct_cache);
-
-	hisi_hba->debugfs_iost_cache[dump_index].cache =
-				devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_iost_cache[dump_index].cache)
-		goto fail;
-
-	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
-	     sizeof(struct hisi_sas_iost_itct_cache);
-
-	hisi_hba->debugfs_itct_cache[dump_index].cache =
-				devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_itct_cache[dump_index].cache)
-		goto fail;
-
-	/* New memory allocation must be locate before itct */
-	sz = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
-
-	hisi_hba->debugfs_itct[dump_index].itct =
-				devm_kmalloc(dev, sz, GFP_KERNEL);
-	if (!hisi_hba->debugfs_itct[dump_index].itct)
-		goto fail;
-
-	return 0;
-fail:
-	for (i = 0; i < hisi_sas_debugfs_dump_count; i++)
-		hisi_sas_debugfs_release(hisi_hba, i);
-	return -ENOMEM;
-}
-
-static void hisi_sas_debugfs_phy_down_cnt_init(struct hisi_hba *hisi_hba)
-{
-	struct dentry *dir = debugfs_create_dir("phy_down_cnt",
-						hisi_hba->debugfs_dir);
-	char name[16];
-	int phy_no;
-
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		snprintf(name, 16, "%d", phy_no);
-		debugfs_create_file(name, 0600, dir,
-				    &hisi_hba->phy[phy_no],
-				    &hisi_sas_debugfs_phy_down_cnt_ops);
-	}
-}
-
-static void hisi_sas_debugfs_bist_init(struct hisi_hba *hisi_hba)
-{
-	struct dentry *ports_dentry;
-	int phy_no;
-
-	hisi_hba->debugfs_bist_dentry =
-			debugfs_create_dir("bist", hisi_hba->debugfs_dir);
-	debugfs_create_file("link_rate", 0600,
-			    hisi_hba->debugfs_bist_dentry, hisi_hba,
-			    &hisi_sas_debugfs_bist_linkrate_ops);
-
-	debugfs_create_file("code_mode", 0600,
-			    hisi_hba->debugfs_bist_dentry, hisi_hba,
-			    &hisi_sas_debugfs_bist_code_mode_ops);
-
-	debugfs_create_file("fixed_code", 0600,
-			    hisi_hba->debugfs_bist_dentry,
-			    &hisi_hba->debugfs_bist_fixed_code[0],
-			    &hisi_sas_debugfs_ops);
-
-	debugfs_create_file("fixed_code_1", 0600,
-			    hisi_hba->debugfs_bist_dentry,
-			    &hisi_hba->debugfs_bist_fixed_code[1],
-			    &hisi_sas_debugfs_ops);
-
-	debugfs_create_file("phy_id", 0600, hisi_hba->debugfs_bist_dentry,
-			    hisi_hba, &hisi_sas_debugfs_bist_phy_ops);
-
-	debugfs_create_u32("cnt", 0600, hisi_hba->debugfs_bist_dentry,
-			   &hisi_hba->debugfs_bist_cnt);
-
-	debugfs_create_file("loopback_mode", 0600,
-			    hisi_hba->debugfs_bist_dentry,
-			    hisi_hba, &hisi_sas_debugfs_bist_mode_ops);
-
-	debugfs_create_file("enable", 0600, hisi_hba->debugfs_bist_dentry,
-			    hisi_hba, &hisi_sas_debugfs_bist_enable_ops);
-
-	ports_dentry = debugfs_create_dir("port", hisi_hba->debugfs_bist_dentry);
-
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		struct dentry *port_dentry;
-		struct dentry *ffe_dentry;
-		char name[256];
-		int i;
-
-		snprintf(name, 256, "%d", phy_no);
-		port_dentry = debugfs_create_dir(name, ports_dentry);
-		ffe_dentry = debugfs_create_dir("ffe", port_dentry);
-		for (i = 0; i < FFE_CFG_MAX; i++) {
-			if (i == FFE_RESV)
-				continue;
-			debugfs_create_file(hisi_sas_debugfs_ffe_name[i].name,
-					    0600, ffe_dentry,
-					    &hisi_hba->debugfs_bist_ffe[phy_no][i],
-					    &hisi_sas_debugfs_ops);
-		}
-	}
-
-	hisi_hba->debugfs_bist_linkrate = SAS_LINK_RATE_1_5_GBPS;
-}
-
-void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
-{
-	struct device *dev = hisi_hba->dev;
-	int i;
-
-	hisi_hba->debugfs_dir = debugfs_create_dir(dev_name(dev),
-						   hisi_sas_debugfs_dir);
-	debugfs_create_file("trigger_dump", 0200,
-			    hisi_hba->debugfs_dir,
-			    hisi_hba,
-			    &hisi_sas_debugfs_trigger_dump_fops);
-
-	/* create bist structures */
-	hisi_sas_debugfs_bist_init(hisi_hba);
-
-	hisi_hba->debugfs_dump_dentry =
-			debugfs_create_dir("dump", hisi_hba->debugfs_dir);
-
-	hisi_sas_debugfs_phy_down_cnt_init(hisi_hba);
-
-	for (i = 0; i < hisi_sas_debugfs_dump_count; i++) {
-		if (hisi_sas_debugfs_alloc(hisi_hba, i)) {
-			debugfs_remove_recursive(hisi_hba->debugfs_dir);
-			dev_dbg(dev, "failed to init debugfs!\n");
-			break;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(hisi_sas_debugfs_init);
-
-void hisi_sas_debugfs_exit(struct hisi_hba *hisi_hba)
-{
-	debugfs_remove_recursive(hisi_hba->debugfs_dir);
-}
-EXPORT_SYMBOL_GPL(hisi_sas_debugfs_exit);
 
 int hisi_sas_remove(struct platform_device *pdev)
 {
@@ -4057,15 +2722,27 @@ int hisi_sas_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);
 
+#if IS_ENABLED(CONFIG_SCSI_HISI_SAS_DEBUGFS_DEFAULT_ENABLE)
+#define DEBUGFS_ENABLE_DEFAULT  "enabled"
+bool hisi_sas_debugfs_enable = true;
+u32 hisi_sas_debugfs_dump_count = 50;
+#else
+#define DEBUGFS_ENABLE_DEFAULT "disabled"
 bool hisi_sas_debugfs_enable;
+u32 hisi_sas_debugfs_dump_count = 1;
+#endif
+
 EXPORT_SYMBOL_GPL(hisi_sas_debugfs_enable);
 module_param_named(debugfs_enable, hisi_sas_debugfs_enable, bool, 0444);
-MODULE_PARM_DESC(hisi_sas_debugfs_enable, "Enable driver debugfs (default disabled)");
+MODULE_PARM_DESC(hisi_sas_debugfs_enable,
+		 "Enable driver debugfs (default "DEBUGFS_ENABLE_DEFAULT")");
 
-u32 hisi_sas_debugfs_dump_count = 1;
 EXPORT_SYMBOL_GPL(hisi_sas_debugfs_dump_count);
 module_param_named(debugfs_dump_count, hisi_sas_debugfs_dump_count, uint, 0444);
 MODULE_PARM_DESC(hisi_sas_debugfs_dump_count, "Number of debugfs dumps to allow");
+
+struct dentry *hisi_sas_debugfs_dir;
+EXPORT_SYMBOL_GPL(hisi_sas_debugfs_dir);
 
 static __init int hisi_sas_init(void)
 {

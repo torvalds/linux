@@ -180,6 +180,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		ql_log(ql_log_warn, vha, 0xd035,
 		    "Cmd access timeout, cmd=0x%x, Exiting.\n",
 		    mcp->mb[0]);
+		vha->hw_err_cnt++;
 		atomic_dec(&ha->num_pend_mbx_stage1);
 		return QLA_FUNCTION_TIMEOUT;
 	}
@@ -307,6 +308,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				atomic_dec(&ha->num_pend_mbx_stage2);
 				ql_dbg(ql_dbg_mbx, vha, 0x1012,
 				    "Pending mailbox timeout, exiting.\n");
+				vha->hw_err_cnt++;
 				rval = QLA_FUNCTION_TIMEOUT;
 				goto premature_exit;
 			}
@@ -418,6 +420,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			    "mb[0-3]=[0x%x 0x%x 0x%x 0x%x] mb7 0x%x host_status 0x%x hccr 0x%x\n",
 			    command, ictrl, jiffies, mb[0], mb[1], mb[2], mb[3],
 			    mb[7], host_status, hccr);
+			vha->hw_err_cnt++;
 
 		} else {
 			mb[0] = RD_MAILBOX_REG(ha, &reg->isp, 0);
@@ -425,6 +428,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1119,
 			    "MBX Command timeout for cmd %x, iocontrol=%x jiffies=%lx "
 			    "mb[0]=0x%x\n", command, ictrl, jiffies, mb[0]);
+			vha->hw_err_cnt++;
 		}
 		ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1019);
 
@@ -497,6 +501,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				    "mb[0]=0x%x, eeh_busy=0x%x. Scheduling ISP "
 				    "abort.\n", command, mcp->mb[0],
 				    ha->flags.eeh_busy);
+				vha->hw_err_cnt++;
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 				qla2xxx_wake_dpc(vha);
 			}
@@ -521,6 +526,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				    "Mailbox cmd timeout occurred, cmd=0x%x, "
 				    "mb[0]=0x%x. Scheduling ISP abort ",
 				    command, mcp->mb[0]);
+				vha->hw_err_cnt++;
 				set_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 				clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 				/* Allow next mbx cmd to come in. */
@@ -625,6 +631,7 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 		ql_dbg(ql_dbg_mbx, vha, 0x1023,
 		    "Failed=%x mb[0]=%x mb[1]=%x.\n",
 		    rval, mcp->mb[0], mcp->mb[1]);
+		vha->hw_err_cnt++;
 	} else {
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1024,
 		    "Done %s.\n", __func__);
@@ -736,6 +743,7 @@ again:
 
 		ql_dbg(ql_dbg_mbx, vha, 0x1026,
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+		vha->hw_err_cnt++;
 		return rval;
 	}
 
@@ -1129,7 +1137,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		if (ha->flags.scm_supported_a &&
 		    (ha->fw_attributes_ext[0] & FW_ATTR_EXT0_SCM_SUPPORTED)) {
 			ha->flags.scm_supported_f = 1;
-			ha->sf_init_cb->flags |= BIT_13;
+			ha->sf_init_cb->flags |= cpu_to_le16(BIT_13);
 		}
 		ql_log(ql_log_info, vha, 0x11a3, "SCM in FW: %s\n",
 		       (ha->flags.scm_supported_f) ? "Supported" :
@@ -1137,9 +1145,9 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 
 		if (vha->flags.nvme2_enabled) {
 			/* set BIT_15 of special feature control block for SLER */
-			ha->sf_init_cb->flags |= BIT_15;
+			ha->sf_init_cb->flags |= cpu_to_le16(BIT_15);
 			/* set BIT_14 of special feature control block for PI CTRL*/
-			ha->sf_init_cb->flags |= BIT_14;
+			ha->sf_init_cb->flags |= cpu_to_le16(BIT_14);
 		}
 	}
 
@@ -1313,6 +1321,7 @@ qla2x00_mbx_reg_test(scsi_qla_host_t *vha)
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
 		ql_dbg(ql_dbg_mbx, vha, 0x1033, "Failed=%x.\n", rval);
+		vha->hw_err_cnt++;
 	} else {
 		/*EMPTY*/
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1034,
@@ -3234,6 +3243,8 @@ qla24xx_abort_command(srb_t *sp)
 	abt->vp_index = fcport->vha->vp_idx;
 
 	abt->req_que_no = cpu_to_le16(req->id);
+	/* Need to pass original sp */
+	qla_nvme_abort_set_option(abt, sp);
 
 	rval = qla2x00_issue_iocb(vha, abt, abt_dma, 0);
 	if (rval != QLA_SUCCESS) {
@@ -3256,6 +3267,10 @@ qla24xx_abort_command(srb_t *sp)
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1091,
 		    "Done %s.\n", __func__);
 	}
+	if (rval == QLA_SUCCESS)
+		qla_nvme_abort_process_comp_status(abt, sp);
+
+	qla_wait_nvme_release_cmd_kref(sp);
 
 	dma_pool_free(ha->s_dma_pool, abt, abt_dma);
 
@@ -3998,9 +4013,6 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				fcport->scan_state = QLA_FCPORT_FOUND;
 				fcport->n2n_flag = 1;
 				fcport->keep_nport_handle = 1;
-				fcport->fc4_type = FS_FC4TYPE_FCP;
-				if (vha->flags.nvme_enabled)
-					fcport->fc4_type |= FS_FC4TYPE_NVME;
 
 				if (wwn_to_u64(vha->port_name) >
 				    wwn_to_u64(fcport->port_name)) {
@@ -4030,7 +4042,6 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 
 			set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
 			return;
-			break;
 		case TOPO_FL:
 			ha->current_topology = ISP_CFG_FL;
 			break;
@@ -4280,7 +4291,8 @@ qla2x00_dump_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t addr,
 	if (MSW(addr) || IS_FWI2_CAPABLE(vha->hw)) {
 		mcp->mb[0] = MBC_DUMP_RISC_RAM_EXTENDED;
 		mcp->mb[8] = MSW(addr);
-		mcp->out_mb = MBX_8|MBX_0;
+		mcp->mb[10] = 0;
+		mcp->out_mb = MBX_10|MBX_8|MBX_0;
 	} else {
 		mcp->mb[0] = MBC_DUMP_RISC_RAM;
 		mcp->out_mb = MBX_0;

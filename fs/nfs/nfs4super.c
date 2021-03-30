@@ -7,6 +7,7 @@
 #include <linux/mount.h>
 #include <linux/nfs4_mount.h>
 #include <linux/nfs_fs.h>
+#include <linux/nfs_ssc.h>
 #include "delegation.h"
 #include "internal.h"
 #include "nfs4_fs.h"
@@ -66,7 +67,7 @@ static void nfs4_evict_inode(struct inode *inode)
 	nfs_inode_evict_delegation(inode);
 	/* Note that above delegreturn would trigger pnfs return-on-close */
 	pnfs_return_layout(inode);
-	pnfs_destroy_layout(NFS_I(inode));
+	pnfs_destroy_layout_final(NFS_I(inode));
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
 	nfs4_xattr_cache_zap(inode);
@@ -226,7 +227,7 @@ int nfs4_try_get_tree(struct fs_context *fc)
 			   fc, ctx->nfs_server.hostname,
 			   ctx->nfs_server.export_path);
 	if (err) {
-		nfs_errorf(fc, "NFS4: Couldn't follow remote path");
+		nfs_ferrorf(fc, MOUNT, "NFS4: Couldn't follow remote path");
 		dfprintk(MOUNT, "<-- nfs4_try_get_tree() = %d [error]\n", err);
 	} else {
 		dfprintk(MOUNT, "<-- nfs4_try_get_tree() = 0\n");
@@ -249,7 +250,7 @@ int nfs4_get_referral_tree(struct fs_context *fc)
 			    fc, ctx->nfs_server.hostname,
 			    ctx->nfs_server.export_path);
 	if (err) {
-		nfs_errorf(fc, "NFS4: Couldn't follow remote path");
+		nfs_ferrorf(fc, MOUNT, "NFS4: Couldn't follow remote path");
 		dfprintk(MOUNT, "<-- nfs4_get_referral_tree() = %d [error]\n", err);
 	} else {
 		dfprintk(MOUNT, "<-- nfs4_get_referral_tree() = 0\n");
@@ -279,6 +280,9 @@ static int __init init_nfs_v4(void)
 	if (err)
 		goto out2;
 
+#ifdef CONFIG_NFS_V4_2
+	nfs42_ssc_register_ops();
+#endif
 	register_nfs_version(&nfs_v4);
 	return 0;
 out2:
@@ -297,6 +301,7 @@ static void __exit exit_nfs_v4(void)
 	unregister_nfs_version(&nfs_v4);
 #ifdef CONFIG_NFS_V4_2
 	nfs4_xattr_cache_exit();
+	nfs42_ssc_unregister_ops();
 #endif
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();

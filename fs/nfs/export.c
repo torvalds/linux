@@ -167,8 +167,29 @@ out:
 	return parent;
 }
 
+static u64 nfs_fetch_iversion(struct inode *inode)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+
+	/* Is this the right call?: */
+	nfs_revalidate_inode(server, inode);
+	/*
+	 * Also, note we're ignoring any returned error.  That seems to be
+	 * the practice for cache consistency information elsewhere in
+	 * the server, but I'm not sure why.
+	 */
+	if (server->nfs_client->rpc_ops->version >= 4)
+		return inode_peek_iversion_raw(inode);
+	else
+		return time_to_chattr(&inode->i_ctime);
+}
+
 const struct export_operations nfs_export_ops = {
 	.encode_fh = nfs_encode_fh,
 	.fh_to_dentry = nfs_fh_to_dentry,
 	.get_parent = nfs_get_parent,
+	.fetch_iversion = nfs_fetch_iversion,
+	.flags = EXPORT_OP_NOWCC|EXPORT_OP_NOSUBTREECHK|
+		EXPORT_OP_CLOSE_BEFORE_UNLINK|EXPORT_OP_REMOTE_FS|
+		EXPORT_OP_NOATOMIC_ATTR,
 };

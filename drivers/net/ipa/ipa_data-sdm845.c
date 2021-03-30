@@ -26,6 +26,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.seq_type	= IPA_SEQ_DMA_ONLY,
 			.config = {
+				.resource_group	= 1,
 				.dma_mode	= true,
 				.dma_endpoint	= IPA_ENDPOINT_AP_LAN_RX,
 			},
@@ -44,6 +45,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
+				.resource_group	= 1,
 				.aggregation	= true,
 				.status_enable	= true,
 				.rx = {
@@ -67,6 +69,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 			.seq_type	=
 				IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			.config = {
+				.resource_group	= 1,
 				.checksum	= true,
 				.qmap		= true,
 				.status_enable	= true,
@@ -90,6 +93,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 		.endpoint = {
 			.seq_type	= IPA_SEQ_INVALID,
 			.config = {
+				.resource_group	= 1,
 				.checksum	= true,
 				.qmap		= true,
 				.aggregation	= true,
@@ -146,11 +150,11 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 		.type = IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS,
 		.limits[0] = {
 			.min = 1,
-			.max = 63,
+			.max = 255,
 		},
 		.limits[1] = {
 			.min = 1,
-			.max = 63,
+			.max = 255,
 		},
 	},
 	{
@@ -325,6 +329,32 @@ static struct ipa_mem_data ipa_mem_data = {
 	.smem_size	= 0x00002000,
 };
 
+/* Interconnect bandwidths are in 1000 byte/second units */
+static struct ipa_interconnect_data ipa_interconnect_data[] = {
+	{
+		.name			= "memory",
+		.peak_bandwidth		= 600000,	/* 600 MBps */
+		.average_bandwidth	= 80000,	/* 80 MBps */
+	},
+	/* Average bandwidth is unused for the next two interconnects */
+	{
+		.name			= "imem",
+		.peak_bandwidth		= 350000,	/* 350 MBps */
+		.average_bandwidth	= 0,		/* unused */
+	},
+	{
+		.name			= "config",
+		.peak_bandwidth		= 40000,	/* 40 MBps */
+		.average_bandwidth	= 0,		/* unused */
+	},
+};
+
+static struct ipa_clock_data ipa_clock_data = {
+	.core_clock_rate	= 75 * 1000 * 1000,	/* Hz */
+	.interconnect_count	= ARRAY_SIZE(ipa_interconnect_data),
+	.interconnect_data	= ipa_interconnect_data,
+};
+
 /* Configuration data for the SDM845 SoC. */
 const struct ipa_data ipa_data_sdm845 = {
 	.version	= IPA_VERSION_3_5_1,
@@ -332,4 +362,5 @@ const struct ipa_data ipa_data_sdm845 = {
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
 	.mem_data	= &ipa_mem_data,
+	.clock_data	= &ipa_clock_data,
 };

@@ -159,8 +159,7 @@ __active_retire(struct i915_active *ref)
 		GEM_BUG_ON(ref->tree.rb_node != &ref->cache->node);
 
 		/* Make the cached node available for reuse with any timeline */
-		if (IS_ENABLED(CONFIG_64BIT))
-			ref->cache->timeline = 0; /* needs cmpxchg(u64) */
+		ref->cache->timeline = 0; /* needs cmpxchg(u64) */
 	}
 
 	spin_unlock_irqrestore(&ref->tree_lock, flags);
@@ -256,7 +255,6 @@ static struct active_node *__active_lookup(struct i915_active *ref, u64 idx)
 		if (cached == idx)
 			return it;
 
-#ifdef CONFIG_64BIT /* for cmpxchg(u64) */
 		/*
 		 * An unclaimed cache [.timeline=0] can only be claimed once.
 		 *
@@ -267,9 +265,8 @@ static struct active_node *__active_lookup(struct i915_active *ref, u64 idx)
 		 * only the winner of that race will cmpxchg return the old
 		 * value of 0).
 		 */
-		if (!cached && !cmpxchg(&it->timeline, 0, idx))
+		if (!cached && !cmpxchg64(&it->timeline, 0, idx))
 			return it;
-#endif
 	}
 
 	BUILD_BUG_ON(offsetof(typeof(*it), node));
@@ -631,24 +628,26 @@ static int flush_lazy_signals(struct i915_active *ref)
 
 int __i915_active_wait(struct i915_active *ref, int state)
 {
-	int err;
-
 	might_sleep();
 
-	if (!i915_active_acquire_if_busy(ref))
-		return 0;
-
 	/* Any fence added after the wait begins will not be auto-signaled */
-	err = flush_lazy_signals(ref);
-	i915_active_release(ref);
-	if (err)
-		return err;
+	if (i915_active_acquire_if_busy(ref)) {
+		int err;
 
-	if (!i915_active_is_idle(ref) &&
-	    ___wait_var_event(ref, i915_active_is_idle(ref),
-			      state, 0, 0, schedule()))
-		return -EINTR;
+		err = flush_lazy_signals(ref);
+		i915_active_release(ref);
+		if (err)
+			return err;
 
+		if (___wait_var_event(ref, i915_active_is_idle(ref),
+				      state, 0, 0, schedule()))
+			return -EINTR;
+	}
+
+	/*
+	 * After the wait is complete, the caller may free the active.
+	 * We have to flush any concurrent retirement before returning.
+	 */
 	flush_work(&ref->work);
 	return 0;
 }

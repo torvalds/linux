@@ -2,9 +2,7 @@
 #ifndef _TOOLS_LINUX_COMPILER_H_
 #define _TOOLS_LINUX_COMPILER_H_
 
-#ifdef __GNUC__
-#include <linux/compiler-gcc.h>
-#endif
+#include <linux/compiler_types.h>
 
 #ifndef __compiletime_error
 # define __compiletime_error(message)
@@ -46,9 +44,6 @@
 
 #ifndef noinline
 #define noinline
-#endif
-#ifndef __no_tail_call
-#define __no_tail_call
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */

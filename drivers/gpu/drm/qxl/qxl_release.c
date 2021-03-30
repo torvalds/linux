@@ -231,8 +231,8 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 	struct ttm_operation_ctx ctx = { true, false };
 	int ret;
 
-	if (!bo->pin_count) {
-		qxl_ttm_placement_from_domain(bo, bo->type, false);
+	if (!bo->tbo.pin_count) {
+		qxl_ttm_placement_from_domain(bo, bo->type);
 		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		if (ret)
 			return ret;
@@ -456,7 +456,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		bo = entry->bo;
 
 		dma_resv_add_shared_fence(bo->base.resv, &release->base);
-		ttm_bo_move_to_lru_tail(bo, NULL);
+		ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		dma_resv_unlock(bo->base.resv);
 	}
 	spin_unlock(&ttm_bo_glob.lru_lock);

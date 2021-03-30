@@ -26,7 +26,7 @@ static int vbox_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, vbox_modeset, int, 0400);
 
-static struct drm_driver driver;
+static const struct drm_driver driver;
 
 static const struct pci_device_id pciidlist[] = {
 	{ PCI_DEVICE(0x80ee, 0xbeef) },
@@ -51,7 +51,6 @@ static int vbox_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(vbox))
 		return PTR_ERR(vbox);
 
-	vbox->ddev.pdev = pdev;
 	pci_set_drvdata(pdev, vbox);
 	mutex_init(&vbox->hw_mutex);
 
@@ -109,15 +108,16 @@ static void vbox_pci_remove(struct pci_dev *pdev)
 static int vbox_pm_suspend(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int error;
 
 	error = drm_mode_config_helper_suspend(&vbox->ddev);
 	if (error)
 		return error;
 
-	pci_save_state(vbox->ddev.pdev);
-	pci_disable_device(vbox->ddev.pdev);
-	pci_set_power_state(vbox->ddev.pdev, PCI_D3hot);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
@@ -125,8 +125,9 @@ static int vbox_pm_suspend(struct device *dev)
 static int vbox_pm_resume(struct device *dev)
 {
 	struct vbox_private *vbox = dev_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 
-	if (pci_enable_device(vbox->ddev.pdev))
+	if (pci_enable_device(pdev))
 		return -EIO;
 
 	return drm_mode_config_helper_resume(&vbox->ddev);
@@ -175,7 +176,7 @@ static struct pci_driver vbox_pci_driver = {
 
 DEFINE_DRM_GEM_FOPS(vbox_fops);
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 

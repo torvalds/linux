@@ -32,6 +32,7 @@ properties:
       - maxim,max7327
       - nxp,pca6416
       - nxp,pca9505
+      - nxp,pca9506
       - nxp,pca9534
       - nxp,pca9535
       - nxp,pca9536
@@ -48,6 +49,7 @@ properties:
       - nxp,pcal6416
       - nxp,pcal6524
       - nxp,pcal9535
+      - nxp,pcal9554b
       - nxp,pcal9555a
       - onnn,cat9554
       - onnn,pca9654
@@ -69,7 +71,7 @@ properties:
 
   gpio-line-names:
     minItems: 1
-    maxItems: 32
+    maxItems: 40
 
   interrupts:
     maxItems: 1
@@ -80,6 +82,7 @@ properties:
     const: 2
 
   reset-gpios:
+    maxItems: 1
     description:
       GPIO specification for the RESET input. This is an active low signal to
       the PCA953x.  Not valid for Maxim MAX732x devices.

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_TUNER:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_G_TUNER - VIDIOC_S_TUNER - Get or set tuner attributes
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_TUNER, struct v4l2_tuner *argp )
-    :name: VIDIOC_G_TUNER
+.. c:macro:: VIDIOC_G_TUNER
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_TUNER, const struct v4l2_tuner *argp )
-    :name: VIDIOC_S_TUNER
+``int ioctl(int fd, VIDIOC_G_TUNER, struct v4l2_tuner *argp)``
 
+.. c:macro:: VIDIOC_S_TUNER
+
+``int ioctl(int fd, VIDIOC_S_TUNER, const struct v4l2_tuner *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_tuner`.
-
 
 Description
 ===========
@@ -58,7 +58,6 @@ to zero. The term 'tuner' means SDR receiver in this context.
 
 To change the radio frequency the
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
-
 
  .. tabularcolumns:: |p{1.3cm}|p{3.0cm}|p{6.6cm}|p{6.6cm}|
 
@@ -183,7 +182,6 @@ To change the radio frequency the
 	Drivers and applications must set the array to zero.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. c:type:: v4l2_tuner_type
@@ -206,7 +204,6 @@ To change the radio frequency the
     * - ``V4L2_TUNER_RF``
       - 5
       - Tuner controls the RF part of a Software Digital Radio (SDR)
-
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
@@ -299,7 +296,6 @@ To change the radio frequency the
 	instead of 62.5 kHz.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _tuner-rxsubchans:
@@ -336,7 +332,6 @@ To change the radio frequency the
     * - ``V4L2_TUNER_SUB_RDS``
       - 0x0010
       - The tuner receives an RDS channel.
-
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|

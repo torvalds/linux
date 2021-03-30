@@ -20,6 +20,10 @@ config DMA_OPS
 config DMA_OPS_BYPASS
 	bool
 
+# Lets platform IOMMU driver choose between bypass and IOMMU
+config ARCH_HAS_DMA_MAP_DIRECT
+	bool
+
 config NEED_SG_DMA_LENGTH
 	bool
 
@@ -28,9 +32,6 @@ config NEED_DMA_MAP_STATE
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool 64BIT || PHYS_ADDR_T_64BIT
-
-config ARCH_HAS_DMA_COHERENCE_H
-	bool
 
 config ARCH_HAS_DMA_SET_MASK
 	bool
@@ -74,11 +75,6 @@ config ARCH_HAS_DMA_PREP_COHERENT
 
 config ARCH_HAS_FORCE_DMA_UNENCRYPTED
 	bool
-
-config DMA_VIRT_OPS
-	bool
-	depends on HAS_DMA
-	select DMA_OPS
 
 config SWIOTLB
 	bool
@@ -225,3 +221,12 @@ config DMA_API_DEBUG_SG
 	  is technically out-of-spec.
 
 	  If unsure, say N.
+
+config DMA_MAP_BENCHMARK
+	bool "Enable benchmarking of streaming DMA mapping"
+	depends on DEBUG_FS
+	help
+	  Provides /sys/kernel/debug/dma_map_benchmark that helps with testing
+	  performance of dma_(un)map_page.
+
+	  See tools/testing/selftests/dma/dma_map_benchmark.c

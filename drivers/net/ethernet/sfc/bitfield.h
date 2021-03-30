@@ -285,7 +285,13 @@ typedef union efx_oword {
 				 field10, value10,			\
 				 field11, value11,			\
 				 field12, value12,			\
-				 field13, value13)			\
+				 field13, value13,			\
+				 field14, value14,			\
+				 field15, value15,			\
+				 field16, value16,			\
+				 field17, value17,			\
+				 field18, value18,			\
+				 field19, value19)			\
 	(EFX_INSERT_FIELD_NATIVE((min), (max), field1, (value1)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field2, (value2)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field3, (value3)) |	\
@@ -298,7 +304,13 @@ typedef union efx_oword {
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field10, (value10)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field11, (value11)) |	\
 	 EFX_INSERT_FIELD_NATIVE((min), (max), field12, (value12)) |	\
-	 EFX_INSERT_FIELD_NATIVE((min), (max), field13, (value13)))
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field13, (value13)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field14, (value14)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field15, (value15)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field16, (value16)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field17, (value17)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field18, (value18)) |	\
+	 EFX_INSERT_FIELD_NATIVE((min), (max), field19, (value19)))
 
 #define EFX_INSERT_FIELDS64(...)				\
 	cpu_to_le64(EFX_INSERT_FIELDS_NATIVE(__VA_ARGS__))
@@ -340,7 +352,19 @@ typedef union efx_oword {
 #endif
 
 /* Populate an octword field with various numbers of arguments */
-#define EFX_POPULATE_OWORD_13 EFX_POPULATE_OWORD
+#define EFX_POPULATE_OWORD_19 EFX_POPULATE_OWORD
+#define EFX_POPULATE_OWORD_18(oword, ...) \
+	EFX_POPULATE_OWORD_19(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_17(oword, ...) \
+	EFX_POPULATE_OWORD_18(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_16(oword, ...) \
+	EFX_POPULATE_OWORD_17(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_15(oword, ...) \
+	EFX_POPULATE_OWORD_16(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_14(oword, ...) \
+	EFX_POPULATE_OWORD_15(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_OWORD_13(oword, ...) \
+	EFX_POPULATE_OWORD_14(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_OWORD_12(oword, ...) \
 	EFX_POPULATE_OWORD_13(oword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_OWORD_11(oword, ...) \
@@ -375,7 +399,19 @@ typedef union efx_oword {
 			     EFX_DWORD_3, 0xffffffff)
 
 /* Populate a quadword field with various numbers of arguments */
-#define EFX_POPULATE_QWORD_13 EFX_POPULATE_QWORD
+#define EFX_POPULATE_QWORD_19 EFX_POPULATE_QWORD
+#define EFX_POPULATE_QWORD_18(qword, ...) \
+	EFX_POPULATE_QWORD_19(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_17(qword, ...) \
+	EFX_POPULATE_QWORD_18(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_16(qword, ...) \
+	EFX_POPULATE_QWORD_17(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_15(qword, ...) \
+	EFX_POPULATE_QWORD_16(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_14(qword, ...) \
+	EFX_POPULATE_QWORD_15(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_QWORD_13(qword, ...) \
+	EFX_POPULATE_QWORD_14(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_QWORD_12(qword, ...) \
 	EFX_POPULATE_QWORD_13(qword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_QWORD_11(qword, ...) \
@@ -408,7 +444,19 @@ typedef union efx_oword {
 			     EFX_DWORD_1, 0xffffffff)
 
 /* Populate a dword field with various numbers of arguments */
-#define EFX_POPULATE_DWORD_13 EFX_POPULATE_DWORD
+#define EFX_POPULATE_DWORD_19 EFX_POPULATE_DWORD
+#define EFX_POPULATE_DWORD_18(dword, ...) \
+	EFX_POPULATE_DWORD_19(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_17(dword, ...) \
+	EFX_POPULATE_DWORD_18(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_16(dword, ...) \
+	EFX_POPULATE_DWORD_17(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_15(dword, ...) \
+	EFX_POPULATE_DWORD_16(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_14(dword, ...) \
+	EFX_POPULATE_DWORD_15(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
+#define EFX_POPULATE_DWORD_13(dword, ...) \
+	EFX_POPULATE_DWORD_14(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_DWORD_12(dword, ...) \
 	EFX_POPULATE_DWORD_13(dword, EFX_DUMMY_FIELD, 0, __VA_ARGS__)
 #define EFX_POPULATE_DWORD_11(dword, ...) \

@@ -80,6 +80,12 @@ static int lpass_cpu_daiops_startup(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "error in enabling mi2s osr clk: %d\n", ret);
 		return ret;
 	}
+	ret = clk_prepare(drvdata->mi2s_bit_clk[dai->driver->id]);
+	if (ret) {
+		dev_err(dai->dev, "error in enabling mi2s bit clk: %d\n", ret);
+		clk_disable_unprepare(drvdata->mi2s_osr_clk[dai->driver->id]);
+		return ret;
+	}
 	return 0;
 }
 
@@ -88,9 +94,8 @@ static void lpass_cpu_daiops_shutdown(struct snd_pcm_substream *substream,
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 
-	clk_disable_unprepare(drvdata->mi2s_bit_clk[dai->driver->id]);
-
 	clk_disable_unprepare(drvdata->mi2s_osr_clk[dai->driver->id]);
+	clk_unprepare(drvdata->mi2s_bit_clk[dai->driver->id]);
 }
 
 static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
@@ -258,28 +263,6 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
-	struct lpaif_i2sctl *i2sctl = drvdata->i2sctl;
-	unsigned int id = dai->driver->id;
-	int ret;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = regmap_fields_write(i2sctl->spken, id,
-					 LPAIF_I2SCTL_SPKEN_ENABLE);
-	} else {
-		ret = regmap_fields_write(i2sctl->micen, id,
-					 LPAIF_I2SCTL_MICEN_ENABLE);
-	}
-
-	if (ret)
-		dev_err(dai->dev, "error writing to i2sctl enable: %d\n", ret);
-
-	return ret;
-}
-
 static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
@@ -303,13 +286,12 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 			dev_err(dai->dev, "error writing to i2sctl reg: %d\n",
 				ret);
 
-		ret = clk_prepare_enable(drvdata->mi2s_bit_clk[id]);
+		ret = clk_enable(drvdata->mi2s_bit_clk[id]);
 		if (ret) {
 			dev_err(dai->dev, "error in enabling mi2s bit clk: %d\n", ret);
-			clk_disable_unprepare(drvdata->mi2s_osr_clk[id]);
+			clk_disable(drvdata->mi2s_osr_clk[id]);
 			return ret;
 		}
-
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -324,6 +306,9 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 		if (ret)
 			dev_err(dai->dev, "error writing to i2sctl reg: %d\n",
 				ret);
+
+		clk_disable(drvdata->mi2s_bit_clk[dai->driver->id]);
+
 		break;
 	}
 
@@ -335,7 +320,6 @@ const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
 	.startup	= lpass_cpu_daiops_startup,
 	.shutdown	= lpass_cpu_daiops_shutdown,
 	.hw_params	= lpass_cpu_daiops_hw_params,
-	.prepare	= lpass_cpu_daiops_prepare,
 	.trigger	= lpass_cpu_daiops_trigger,
 };
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_ops);
@@ -355,8 +339,30 @@ int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai)
 }
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_probe);
 
+static int asoc_qcom_of_xlate_dai_name(struct snd_soc_component *component,
+				   struct of_phandle_args *args,
+				   const char **dai_name)
+{
+	struct lpass_data *drvdata = snd_soc_component_get_drvdata(component);
+	struct lpass_variant *variant = drvdata->variant;
+	int id = args->args[0];
+	int ret = -EINVAL;
+	int i;
+
+	for (i = 0; i  < variant->num_dai; i++) {
+		if (variant->dai_driver[i].id == id) {
+			*dai_name = variant->dai_driver[i].name;
+			ret = 0;
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static const struct snd_soc_component_driver lpass_cpu_comp_driver = {
 	.name = "lpass-cpu",
+	.of_xlate_dai_name = asoc_qcom_of_xlate_dai_name,
 };
 
 static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
@@ -469,6 +475,7 @@ static bool lpass_cpu_regmap_volatile(struct device *dev, unsigned int reg)
 }
 
 static struct regmap_config lpass_cpu_regmap_config = {
+	.name = "lpass_cpu",
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -588,7 +595,7 @@ static bool lpass_hdmi_regmap_writeable(struct device *dev, unsigned int reg)
 			return true;
 	}
 
-	for (i = 0; i < v->rdma_channels; ++i) {
+	for (i = 0; i < v->hdmi_rdma_channels; ++i) {
 		if (reg == LPAIF_HDMI_RDMACTL_REG(v, i))
 			return true;
 		if (reg == LPAIF_HDMI_RDMABASE_REG(v, i))
@@ -634,7 +641,7 @@ static bool lpass_hdmi_regmap_readable(struct device *dev, unsigned int reg)
 	if (reg == LPASS_HDMITX_APP_IRQSTAT_REG(v))
 		return true;
 
-	for (i = 0; i < v->rdma_channels; ++i) {
+	for (i = 0; i < v->hdmi_rdma_channels; ++i) {
 		if (reg == LPAIF_HDMI_RDMACTL_REG(v, i))
 			return true;
 		if (reg == LPAIF_HDMI_RDMABASE_REG(v, i))
@@ -661,14 +668,15 @@ static bool lpass_hdmi_regmap_volatile(struct device *dev, unsigned int reg)
 	if (reg == LPASS_HDMI_TX_LEGACY_ADDR(v))
 		return true;
 
-	for (i = 0; i < v->rdma_channels; ++i) {
+	for (i = 0; i < v->hdmi_rdma_channels; ++i) {
 		if (reg == LPAIF_HDMI_RDMACURR_REG(v, i))
 			return true;
 	}
 	return false;
 }
 
-struct regmap_config lpass_hdmi_regmap_config = {
+static struct regmap_config lpass_hdmi_regmap_config = {
+	.name = "lpass_hdmi",
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -737,7 +745,6 @@ static void of_lpass_cpu_parse_dai_data(struct device *dev,
 		}
 		if (id == LPASS_DP_RX) {
 			data->hdmi_port_enable = 1;
-			dev_err(dev, "HDMI Port is enabled: %d\n", id);
 		} else {
 			data->mi2s_playback_sd_mode[id] =
 				of_lpass_cpu_parse_sd_lines(dev, node,
@@ -782,11 +789,8 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpass-lpaif");
 
 	drvdata->lpaif = devm_ioremap_resource(dev, res);
-	if (IS_ERR((void const __force *)drvdata->lpaif)) {
-		dev_err(dev, "error mapping reg resource: %ld\n",
-				PTR_ERR((void const __force *)drvdata->lpaif));
-		return PTR_ERR((void const __force *)drvdata->lpaif);
-	}
+	if (IS_ERR(drvdata->lpaif))
+		return PTR_ERR(drvdata->lpaif);
 
 	lpass_cpu_regmap_config.max_register = LPAIF_WRDMAPER_REG(variant,
 						variant->wrdma_channels +
@@ -804,14 +808,11 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpass-hdmiif");
 
 		drvdata->hdmiif = devm_ioremap_resource(dev, res);
-		if (IS_ERR((void const __force *)drvdata->hdmiif)) {
-			dev_err(dev, "error mapping reg resource: %ld\n",
-					PTR_ERR((void const __force *)drvdata->hdmiif));
-			return PTR_ERR((void const __force *)drvdata->hdmiif);
-		}
+		if (IS_ERR(drvdata->hdmiif))
+			return PTR_ERR(drvdata->hdmiif);
 
 		lpass_hdmi_regmap_config.max_register = LPAIF_HDMI_RDMAPER_REG(variant,
-					variant->hdmi_rdma_channels);
+					variant->hdmi_rdma_channels - 1);
 		drvdata->hdmiif_map = devm_regmap_init_mmio(dev, drvdata->hdmiif,
 					&lpass_hdmi_regmap_config);
 		if (IS_ERR(drvdata->hdmiif_map)) {
@@ -907,6 +908,16 @@ int asoc_qcom_lpass_cpu_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_platform_remove);
+
+void asoc_qcom_lpass_cpu_platform_shutdown(struct platform_device *pdev)
+{
+	struct lpass_data *drvdata = platform_get_drvdata(pdev);
+
+	if (drvdata->variant->exit)
+		drvdata->variant->exit(pdev);
+
+}
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_platform_shutdown);
 
 MODULE_DESCRIPTION("QTi LPASS CPU Driver");
 MODULE_LICENSE("GPL v2");

@@ -84,7 +84,7 @@ static void dw_spi_bt1_dirmap_copy_from_map(void *to, void __iomem *from, size_t
 	if (shift) {
 		chunk = min_t(size_t, 4 - shift, len);
 		data = readl_relaxed(from - shift);
-		memcpy(to, &data + shift, chunk);
+		memcpy(to, (char *)&data + shift, chunk);
 		from += chunk;
 		to += chunk;
 		len -= chunk;
@@ -217,7 +217,7 @@ static int dw_spi_bt1_sys_init(struct platform_device *pdev,
 	if (mem) {
 		dwsbt1->map = devm_ioremap_resource(&pdev->dev, mem);
 		if (!IS_ERR(dwsbt1->map)) {
-			dwsbt1->map_len = (mem->end - mem->start + 1);
+			dwsbt1->map_len = resource_size(mem);
 			dws->mem_ops.dirmap_create = dw_spi_bt1_dirmap_create;
 			dws->mem_ops.dirmap_read = dw_spi_bt1_dirmap_read;
 		} else {
@@ -280,8 +280,10 @@ static int dw_spi_bt1_probe(struct platform_device *pdev)
 	dws->bus_num = pdev->id;
 	dws->reg_io_width = 4;
 	dws->max_freq = clk_get_rate(dwsbt1->clk);
-	if (!dws->max_freq)
+	if (!dws->max_freq) {
+		ret = -EINVAL;
 		goto err_disable_clk;
+	}
 
 	init_func = device_get_match_data(&pdev->dev);
 	ret = init_func(pdev, dwsbt1);

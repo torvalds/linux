@@ -122,7 +122,7 @@ struct smem_global_entry {
  * @free_offset:	index of the first unallocated byte in smem
  * @available:		number of bytes available for allocation
  * @reserved:		reserved field, must be 0
- * toc:			array of references to items
+ * @toc:		array of references to items
  */
 struct smem_header {
 	struct smem_proc_comm proc_comm[4];
@@ -255,6 +255,7 @@ struct smem_region {
  *		processor/host
  * @cacheline:	list of cacheline sizes for each host
  * @item_count: max accepted item number
+ * @socinfo:	platform device pointer
  * @num_regions: number of @regions
  * @regions:	list of the memory regions defining the shared memory
  */
@@ -731,9 +732,7 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 	header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
 
 	if (memcmp(header->magic, SMEM_PART_MAGIC, sizeof(header->magic))) {
-		dev_err(smem->dev, "bad partition magic %02x %02x %02x %02x\n",
-			header->magic[0], header->magic[1],
-			header->magic[2], header->magic[3]);
+		dev_err(smem->dev, "bad partition magic %4ph\n", header->magic);
 		return NULL;
 	}
 

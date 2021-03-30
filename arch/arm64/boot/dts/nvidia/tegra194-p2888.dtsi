@@ -57,6 +57,22 @@
 			status = "okay";
 		};
 
+		i2c@3160000 {
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+
+				label = "module";
+				vcc-supply = <&vdd_1v8ls>;
+				address-width = <8>;
+				pagesize = <8>;
+				size = <256>;
+				read-only;
+			};
+		};
+
 		/* SDMMC1 (SD/MMC) */
 		mmc@3400000 {
 			cd-gpios = <&gpio TEGRA194_MAIN_GPIO(A, 0) GPIO_ACTIVE_LOW>;
@@ -77,6 +93,10 @@
 			vclamp-usb-supply = <&vdd_1v8ao>;
 
 			ports {
+				usb2-0 {
+					vbus-supply = <&vdd_5v0_sys>;
+				};
+
 				usb2-1 {
 					vbus-supply = <&vdd_5v0_sys>;
 				};
@@ -86,6 +106,10 @@
 				};
 
 				usb3-0 {
+					vbus-supply = <&vdd_5v0_sys>;
+				};
+
+				usb3-2 {
 					vbus-supply = <&vdd_5v0_sys>;
 				};
 

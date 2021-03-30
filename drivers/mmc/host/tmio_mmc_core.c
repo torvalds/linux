@@ -175,6 +175,8 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	if (host->reset)
 		host->reset(host);
 
+	tmio_mmc_abort_dma(host);
+
 	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
@@ -223,8 +225,6 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	/* Ready for new calls */
 	host->mrq = NULL;
-
-	tmio_mmc_abort_dma(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -477,8 +477,10 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 	if (!data)
 		goto out;
 
-	if (stat & TMIO_STAT_CRCFAIL || stat & TMIO_STAT_STOPBIT_ERR ||
-	    stat & TMIO_STAT_TXUNDERRUN)
+	if (stat & TMIO_STAT_DATATIMEOUT)
+		data->error = -ETIMEDOUT;
+	else if (stat & TMIO_STAT_CRCFAIL || stat & TMIO_STAT_STOPBIT_ERR ||
+		 stat & TMIO_STAT_TXUNDERRUN)
 		data->error = -EILSEQ;
 	if (host->dma_on && (data->flags & MMC_DATA_WRITE)) {
 		u32 status = sd_ctrl_read16_and_16_as_32(host, CTL_STATUS);
@@ -796,11 +798,13 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	if (mrq->cmd->error || (mrq->data && mrq->data->error))
+	if (mrq->cmd->error || (mrq->data && mrq->data->error)) {
+		tmio_mmc_ack_mmc_irqs(host, TMIO_MASK_IRQ); /* Clear all */
 		tmio_mmc_abort_dma(host);
+	}
 
 	/* Error means retune, but executed command was still successful */
-	if (host->check_retune && host->check_retune(host))
+	if (host->check_retune && host->check_retune(host, mrq))
 		mmc_retune_needed(host->mmc);
 
 	/* If SET_BLOCK_COUNT, continue with main command */
@@ -885,6 +889,22 @@ static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
 	sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, reg);
 }
 
+static unsigned int tmio_mmc_get_timeout_cycles(struct tmio_mmc_host *host)
+{
+	u16 val = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT);
+
+	val = (val & CARD_OPT_TOP_MASK) >> CARD_OPT_TOP_SHIFT;
+	return 1 << (13 + val);
+}
+
+static void tmio_mmc_max_busy_timeout(struct tmio_mmc_host *host)
+{
+	unsigned int clk_rate = host->mmc->actual_clock ?: host->mmc->f_max;
+
+	host->mmc->max_busy_timeout = host->get_timeout_cycles(host) /
+				      (clk_rate / MSEC_PER_SEC);
+}
+
 /* Set MMC clock / power.
  * Note: This controller uses a simple divider scheme therefore it cannot
  * run a MMC card at full speed (20MHz). The max clock is 24MHz on SD, but as
@@ -927,6 +947,9 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
+		/* For R-Car Gen2+, we need to reset SDHI specific SCC */
+		if (host->pdata->flags & TMIO_MMC_MIN_RCAR2)
+			host->reset(host);
 		host->set_clock(host, 0);
 		break;
 	case MMC_POWER_UP:
@@ -939,6 +962,9 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		tmio_mmc_set_bus_width(host, ios->bus_width);
 		break;
 	}
+
+	if (host->pdata->flags & TMIO_MMC_USE_BUSY_TIMEOUT)
+		tmio_mmc_max_busy_timeout(host);
 
 	/* Let things settle. delay taken from winCE driver */
 	usleep_range(140, 200);
@@ -1095,6 +1121,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 
 	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
 		_host->write16_hook = NULL;
+
+	if (pdata->flags & TMIO_MMC_USE_BUSY_TIMEOUT && !_host->get_timeout_cycles)
+		_host->get_timeout_cycles = tmio_mmc_get_timeout_cycles;
 
 	_host->set_pwr = pdata->set_pwr;
 

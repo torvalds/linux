@@ -17,7 +17,7 @@ static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *att, char *buf,
 				  loff_t pos, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 	struct cros_ec_device *ecdev = ec->ec_dev;
 	struct ec_params_vbnvcontext *params;
@@ -57,7 +57,7 @@ static ssize_t vboot_context_write(struct file *filp, struct kobject *kobj,
 				   struct bin_attribute *attr, char *buf,
 				   loff_t pos, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 	struct cros_ec_device *ecdev = ec->ec_dev;
 	struct ec_params_vbnvcontext *params;
@@ -101,7 +101,7 @@ static struct bin_attribute *cros_ec_vbc_bin_attrs[] = {
 	NULL
 };
 
-static struct attribute_group cros_ec_vbc_attr_group = {
+static const struct attribute_group cros_ec_vbc_attr_group = {
 	.name = "vbc",
 	.bin_attrs = cros_ec_vbc_bin_attrs,
 };

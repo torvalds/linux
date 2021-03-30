@@ -15,6 +15,8 @@
 #include "mt76x02_dfs.h"
 #include "mt76x02_dma.h"
 
+#define MT76x02_TX_RING_SIZE	512
+#define MT76x02_PSD_RING_SIZE	128
 #define MT76x02_N_WCIDS 128
 #define MT_CALIBRATE_INTERVAL	HZ
 #define MT_MAC_WORK_INTERVAL	(HZ / 10)
@@ -79,8 +81,6 @@ struct mt76x02_dev {
 	struct mac_address macaddr_list[8];
 
 	struct mutex phy_mutex;
-
-	u16 chainmask;
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);

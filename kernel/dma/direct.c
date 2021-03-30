@@ -16,7 +16,7 @@
 #include "direct.h"
 
 /*
- * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use it
+ * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use
  * it for entirely different regions. In that case the arch code needs to
  * override the variable below for dma-direct to work properly.
  */
@@ -547,4 +547,3 @@ int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
 	dev->dma_range_map = map;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dma_direct_set_offset);

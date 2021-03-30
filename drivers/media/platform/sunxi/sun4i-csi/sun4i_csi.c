@@ -118,6 +118,7 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
+	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *ep;
 	int ret;
 
@@ -134,10 +135,12 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 
 	csi->bus = vep.bus.parallel;
 
-	ret = v4l2_async_notifier_add_fwnode_remote_subdev(&csi->notifier,
-							   ep, &csi->asd);
-	if (ret)
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&csi->notifier, ep,
+							   struct v4l2_async_subdev);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
 		goto out;
+	}
 
 	csi->notifier.ops = &sun4i_csi_notify_ops;
 
@@ -166,33 +169,6 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	csi->traits = of_device_get_match_data(&pdev->dev);
 	if (!csi->traits)
 		return -EINVAL;
-
-	/*
-	 * On Allwinner SoCs, some high memory bandwidth devices do DMA
-	 * directly over the memory bus (called MBUS), instead of the
-	 * system bus. The memory bus has a different addressing scheme
-	 * without the DRAM starting offset.
-	 *
-	 * In some cases this can be described by an interconnect in
-	 * the device tree. In other cases where the hardware is not
-	 * fully understood and the interconnect is left out of the
-	 * device tree, fall back to a default offset.
-	 */
-	if (of_find_property(csi->dev->of_node, "interconnects", NULL)) {
-		ret = of_dma_configure(csi->dev, csi->dev->of_node, true);
-		if (ret)
-			return ret;
-	} else {
-		/*
-		 * XXX(hch): this has no business in a driver and needs to move
-		 * to the device tree.
-		 */
-#ifdef PHYS_PFN_OFFSET
-		ret = dma_direct_set_offset(csi->dev, PHYS_OFFSET, 0, SZ_4G);
-		if (ret)
-			return ret;
-#endif
-	}
 
 	csi->mdev.dev = csi->dev;
 	strscpy(csi->mdev.model, "Allwinner Video Capture Device",

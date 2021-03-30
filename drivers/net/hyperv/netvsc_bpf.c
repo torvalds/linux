@@ -37,6 +37,12 @@ u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 	if (!prog)
 		goto out;
 
+	/* Ensure that the below memcpy() won't overflow the page buffer. */
+	if (len > ndev->mtu + ETH_HLEN) {
+		act = XDP_DROP;
+		goto out;
+	}
+
 	/* allocate page buffer for data */
 	page = alloc_page(GFP_ATOMIC);
 	if (!page) {
@@ -44,12 +50,8 @@ u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 		goto out;
 	}
 
-	xdp->data_hard_start = page_address(page);
-	xdp->data = xdp->data_hard_start + NETVSC_XDP_HDRM;
-	xdp_set_data_meta_invalid(xdp);
-	xdp->data_end = xdp->data + len;
-	xdp->rxq = &nvchan->xdp_rxq;
-	xdp->frame_sz = PAGE_SIZE;
+	xdp_init_buff(xdp, PAGE_SIZE, &nvchan->xdp_rxq);
+	xdp_prepare_buff(xdp, page_address(page), NETVSC_XDP_HDRM, len, false);
 
 	memcpy(xdp->data, data, len);
 

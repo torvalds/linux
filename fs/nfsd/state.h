@@ -649,8 +649,7 @@ void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *, struct nfsd_net *)
 extern void nfs4_release_reclaim(struct nfsd_net *);
 extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(struct xdr_netobj name,
 							struct nfsd_net *nn);
-extern __be32 nfs4_check_open_reclaim(clientid_t *clid,
-		struct nfsd4_compound_state *cstate, struct nfsd_net *nn);
+extern __be32 nfs4_check_open_reclaim(struct nfs4_client *);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
 extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
@@ -692,32 +691,5 @@ extern void nfsd4_client_record_create(struct nfs4_client *clp);
 extern void nfsd4_client_record_remove(struct nfs4_client *clp);
 extern int nfsd4_client_record_check(struct nfs4_client *clp);
 extern void nfsd4_record_grace_done(struct nfsd_net *nn);
-
-/* nfs fault injection functions */
-#ifdef CONFIG_NFSD_FAULT_INJECTION
-void nfsd_fault_inject_init(void);
-void nfsd_fault_inject_cleanup(void);
-
-u64 nfsd_inject_print_clients(void);
-u64 nfsd_inject_forget_client(struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_clients(u64);
-
-u64 nfsd_inject_print_locks(void);
-u64 nfsd_inject_forget_client_locks(struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_locks(u64);
-
-u64 nfsd_inject_print_openowners(void);
-u64 nfsd_inject_forget_client_openowners(struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_openowners(u64);
-
-u64 nfsd_inject_print_delegations(void);
-u64 nfsd_inject_forget_client_delegations(struct sockaddr_storage *, size_t);
-u64 nfsd_inject_forget_delegations(u64);
-u64 nfsd_inject_recall_client_delegations(struct sockaddr_storage *, size_t);
-u64 nfsd_inject_recall_delegations(u64);
-#else /* CONFIG_NFSD_FAULT_INJECTION */
-static inline void nfsd_fault_inject_init(void) {}
-static inline void nfsd_fault_inject_cleanup(void) {}
-#endif /* CONFIG_NFSD_FAULT_INJECTION */
 
 #endif   /* NFSD4_STATE_H */

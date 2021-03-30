@@ -20,7 +20,7 @@
 #include <linux/fs.h>
 #include <linux/ima.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
 #include <linux/kernel.h>
@@ -165,6 +165,11 @@ void kimage_file_post_load_cleanup(struct kimage *image)
 
 	vfree(pi->sechdrs);
 	pi->sechdrs = NULL;
+
+#ifdef CONFIG_IMA_KEXEC
+	vfree(image->ima_buffer);
+	image->ima_buffer = NULL;
+#endif /* CONFIG_IMA_KEXEC */
 
 	/* See if architecture has anything to cleanup post load */
 	arch_kimage_file_post_load_cleanup(image);
@@ -521,7 +526,7 @@ static int locate_mem_hole_callback(struct resource *res, void *arg)
 	/* Returning 0 will take to next memory range */
 
 	/* Don't use memory that will be detected and handled by a driver. */
-	if (res->flags & IORESOURCE_MEM_DRIVER_MANAGED)
+	if (res->flags & IORESOURCE_SYSRAM_DRIVER_MANAGED)
 		return 0;
 
 	if (sz < kbuf->memsz)

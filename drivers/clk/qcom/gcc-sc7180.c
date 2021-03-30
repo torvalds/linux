@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -642,7 +642,7 @@ static struct clk_rcg2 gcc_sdcc1_ice_core_clk_src = {
 		.name = "gcc_sdcc1_ice_core_clk_src",
 		.parent_data = gcc_parent_data_0,
 		.num_parents = 4,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -651,6 +651,7 @@ static const struct freq_tbl ftbl_gcc_sdcc2_apps_clk_src[] = {
 	F(9600000, P_BI_TCXO, 2, 0, 0),
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(25000000, P_GPLL0_OUT_EVEN, 12, 0, 0),
+	F(50000000, P_GPLL0_OUT_EVEN, 6, 0, 0),
 	F(100000000, P_GPLL0_OUT_EVEN, 3, 0, 0),
 	F(202000000, P_GPLL7_OUT_MAIN, 4, 0, 0),
 	{ }
@@ -666,7 +667,7 @@ static struct clk_rcg2 gcc_sdcc2_apps_clk_src = {
 		.name = "gcc_sdcc2_apps_clk_src",
 		.parent_data = gcc_parent_data_5,
 		.num_parents = 5,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -890,21 +891,6 @@ static struct clk_branch gcc_boot_rom_ahb_clk = {
 	},
 };
 
-static struct clk_branch gcc_camera_ahb_clk = {
-	.halt_reg = 0xb008,
-	.halt_check = BRANCH_HALT,
-	.hwcg_reg = 0xb008,
-	.hwcg_bit = 1,
-	.clkr = {
-		.enable_reg = 0xb008,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_camera_ahb_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gcc_camera_hf_axi_clk = {
 	.halt_reg = 0xb020,
 	.halt_check = BRANCH_HALT,
@@ -928,19 +914,6 @@ static struct clk_branch gcc_camera_throttle_hf_axi_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_camera_throttle_hf_axi_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_camera_xo_clk = {
-	.halt_reg = 0xb02c,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0xb02c,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_camera_xo_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1105,19 +1078,6 @@ static struct clk_branch gcc_disp_throttle_hf_axi_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_disp_throttle_hf_axi_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_disp_xo_clk = {
-	.halt_reg = 0xb030,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0xb030,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_disp_xo_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2173,19 +2133,6 @@ static struct clk_branch gcc_video_throttle_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_video_xo_clk = {
-	.halt_reg = 0xb028,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0xb028,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_video_xo_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gcc_mss_cfg_ahb_clk = {
 	.halt_reg = 0x8a000,
 	.halt_check = BRANCH_HALT,
@@ -2316,10 +2263,8 @@ static struct clk_regmap *gcc_sc7180_clocks[] = {
 	[GCC_AGGRE_UFS_PHY_AXI_CLK] = &gcc_aggre_ufs_phy_axi_clk.clkr,
 	[GCC_AGGRE_USB3_PRIM_AXI_CLK] = &gcc_aggre_usb3_prim_axi_clk.clkr,
 	[GCC_BOOT_ROM_AHB_CLK] = &gcc_boot_rom_ahb_clk.clkr,
-	[GCC_CAMERA_AHB_CLK] = &gcc_camera_ahb_clk.clkr,
 	[GCC_CAMERA_HF_AXI_CLK] = &gcc_camera_hf_axi_clk.clkr,
 	[GCC_CAMERA_THROTTLE_HF_AXI_CLK] = &gcc_camera_throttle_hf_axi_clk.clkr,
-	[GCC_CAMERA_XO_CLK] = &gcc_camera_xo_clk.clkr,
 	[GCC_CE1_AHB_CLK] = &gcc_ce1_ahb_clk.clkr,
 	[GCC_CE1_AXI_CLK] = &gcc_ce1_axi_clk.clkr,
 	[GCC_CE1_CLK] = &gcc_ce1_clk.clkr,
@@ -2332,7 +2277,6 @@ static struct clk_regmap *gcc_sc7180_clocks[] = {
 	[GCC_DISP_GPLL0_DIV_CLK_SRC] = &gcc_disp_gpll0_div_clk_src.clkr,
 	[GCC_DISP_HF_AXI_CLK] = &gcc_disp_hf_axi_clk.clkr,
 	[GCC_DISP_THROTTLE_HF_AXI_CLK] = &gcc_disp_throttle_hf_axi_clk.clkr,
-	[GCC_DISP_XO_CLK] = &gcc_disp_xo_clk.clkr,
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP1_CLK_SRC] = &gcc_gp1_clk_src.clkr,
 	[GCC_GP2_CLK] = &gcc_gp2_clk.clkr,
@@ -2428,7 +2372,6 @@ static struct clk_regmap *gcc_sc7180_clocks[] = {
 	[GCC_VIDEO_AXI_CLK] = &gcc_video_axi_clk.clkr,
 	[GCC_VIDEO_GPLL0_DIV_CLK_SRC] = &gcc_video_gpll0_div_clk_src.clkr,
 	[GCC_VIDEO_THROTTLE_AXI_CLK] = &gcc_video_throttle_axi_clk.clkr,
-	[GCC_VIDEO_XO_CLK] = &gcc_video_xo_clk.clkr,
 	[GPLL0] = &gpll0.clkr,
 	[GPLL0_OUT_EVEN] = &gpll0_out_even.clkr,
 	[GPLL6] = &gpll6.clkr,
@@ -2518,12 +2461,16 @@ static int gcc_sc7180_probe(struct platform_device *pdev)
 
 	/*
 	 * Keep the clocks always-ON
-	 * GCC_CPUSS_GNOC_CLK, GCC_VIDEO_AHB_CLK, GCC_DISP_AHB_CLK
-	 * GCC_GPU_CFG_AHB_CLK
+	 * GCC_CPUSS_GNOC_CLK, GCC_VIDEO_AHB_CLK, GCC_CAMERA_AHB_CLK,
+	 * GCC_DISP_AHB_CLK, GCC_GPU_CFG_AHB_CLK
 	 */
 	regmap_update_bits(regmap, 0x48004, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x0b004, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x0b008, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x0b00c, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x0b02c, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x0b028, BIT(0), BIT(0));
+	regmap_update_bits(regmap, 0x0b030, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x71004, BIT(0), BIT(0));
 
 	ret = qcom_cc_register_rcg_dfs(regmap, gcc_dfs_clocks,

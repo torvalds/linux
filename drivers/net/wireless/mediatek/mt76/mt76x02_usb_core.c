@@ -15,11 +15,10 @@ static void mt76x02u_remove_dma_hdr(struct sk_buff *skb)
 		mt76x02_remove_hdr_pad(skb, 2);
 }
 
-void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
-			      struct mt76_queue_entry *e)
+void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	mt76x02u_remove_dma_hdr(e->skb);
-	mt76_tx_complete_skb(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 
@@ -46,7 +45,7 @@ EXPORT_SYMBOL_GPL(mt76x02u_mac_start);
 
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
-	u32 info;
+	u32 info, pad;
 
 	/* Buffer layout:
 	 *	|   4B   | xfer len |      pad       |  4B  |
@@ -58,7 +57,8 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 
-	return mt76_skb_adjust_pad(skb);
+	pad = round_up(skb->len, 4) + 4 - skb->len;
+	return mt76_skb_adjust_pad(skb, pad);
 }
 
 int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
@@ -67,7 +67,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			    struct mt76_tx_info *tx_info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	int pid, len = tx_info->skb->len, ep = q2ep(mdev->q_tx[qid].q->hw_idx);
+	int pid, len = tx_info->skb->len, ep = q2ep(dev->mphy.q_tx[qid]->hw_idx);
 	struct mt76x02_txwi *txwi;
 	bool ampdu = IEEE80211_SKB_CB(tx_info->skb)->flags & IEEE80211_TX_CTL_AMPDU;
 	enum mt76_qsel qsel;

@@ -326,6 +326,23 @@ config ACPI_THERMAL
 	  To compile this driver as a module, choose M here:
 	  the module will be called thermal.
 
+config ACPI_PLATFORM_PROFILE
+	tristate "ACPI Platform Profile Driver"
+	default m
+	help
+	  This driver adds support for platform-profiles on platforms that
+	  support it.
+
+	  Platform-profiles can be used to control the platform behaviour. For
+	  example whether to operate in a lower power mode, in a higher
+	  power performance mode or between the two.
+
+	  This driver provides the sysfs interface and is used as the registration
+	  point for platform specific drivers.
+
+	  Which profiles are supported is determined on a per-platform basis and
+	  should be obtained from the platform specific driver.
+
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
 	default ""
@@ -395,9 +412,6 @@ config ACPI_CONTAINER
 
 	  This helps support hotplug of nodes, CPUs, and memory.
 
-	  To compile this driver as a module, choose M here:
-	  the module will be called container.
-
 config ACPI_HOTPLUG_MEMORY
 	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
@@ -410,9 +424,6 @@ config ACPI_HOTPLUG_MEMORY
 	  If your hardware and firmware do not support adding or
 	  removing memory devices at runtime, you need not enable
 	  this driver.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called acpi_memhotplug.
 
 config ACPI_HOTPLUG_IOAPIC
 	bool

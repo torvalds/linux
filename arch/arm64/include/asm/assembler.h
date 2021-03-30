@@ -219,6 +219,23 @@ lr	.req	x30		// link register
 	.endm
 
 	/*
+	 * @dst: destination register
+	 */
+#if defined(__KVM_NVHE_HYPERVISOR__) || defined(__KVM_VHE_HYPERVISOR__)
+	.macro	this_cpu_offset, dst
+	mrs	\dst, tpidr_el2
+	.endm
+#else
+	.macro	this_cpu_offset, dst
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	mrs	\dst, tpidr_el1
+alternative_else
+	mrs	\dst, tpidr_el2
+alternative_endif
+	.endm
+#endif
+
+	/*
 	 * @dst: Result of per_cpu(sym, smp_processor_id()) (can be SP)
 	 * @sym: The name of the per-cpu variable
 	 * @tmp: scratch register
@@ -226,11 +243,7 @@ lr	.req	x30		// link register
 	.macro adr_this_cpu, dst, sym, tmp
 	adrp	\tmp, \sym
 	add	\dst, \tmp, #:lo12:\sym
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	\tmp, tpidr_el1
-alternative_else
-	mrs	\tmp, tpidr_el2
-alternative_endif
+	this_cpu_offset \tmp
 	add	\dst, \dst, \tmp
 	.endm
 
@@ -241,11 +254,7 @@ alternative_endif
 	 */
 	.macro ldr_this_cpu dst, sym, tmp
 	adr_l	\dst, \sym
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	\tmp, tpidr_el1
-alternative_else
-	mrs	\tmp, tpidr_el2
-alternative_endif
+	this_cpu_offset \tmp
 	ldr	\dst, [\dst, \tmp]
 	.endm
 
@@ -464,7 +473,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 #define NOKPROBE(x)
 #endif
 
-#ifdef CONFIG_KASAN
+#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 #define EXPORT_SYMBOL_NOKASAN(name)
 #else
 #define EXPORT_SYMBOL_NOKASAN(name)	EXPORT_SYMBOL(name)
@@ -667,6 +676,23 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
+ * Set SCTLR_EL1 to the passed value, and invalidate the local icache
+ * in the process. This is called when setting the MMU on.
+ */
+.macro set_sctlr_el1, reg
+	msr	sctlr_el1, \reg
+	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
+.endm
+
+/*
  * Check whether to yield to another runnable task from kernel mode NEON code
  * (which runs with preemption disabled).
  *
@@ -734,6 +760,22 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endif
 	.previous
 .Lyield_out_\@ :
+	.endm
+
+	/*
+	 * Check whether preempt-disabled code should yield as soon as it
+	 * is able. This is the case if re-enabling preemption a single
+	 * time results in a preempt count of zero, and the TIF_NEED_RESCHED
+	 * flag is set. (Note that the latter is stored negated in the
+	 * top word of the thread_info::preempt_count field)
+	 */
+	.macro		cond_yield, lbl:req, tmp:req
+#ifdef CONFIG_PREEMPTION
+	get_current_task \tmp
+	ldr		\tmp, [\tmp, #TSK_TI_PREEMPT]
+	sub		\tmp, \tmp, #PREEMPT_DISABLE_OFFSET
+	cbz		\tmp, \lbl
+#endif
 	.endm
 
 /*

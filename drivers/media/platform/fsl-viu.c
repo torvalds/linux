@@ -31,12 +31,6 @@
 #define DRV_NAME		"fsl_viu"
 #define VIU_VERSION		"0.5.1"
 
-/* Allow building this driver with COMPILE_TEST */
-#if !defined(CONFIG_PPC) && !defined(CONFIG_MICROBLAZE) && !defined(CONFIG_M68K)
-#define out_be32(v, a)	iowrite32be(a, (void __iomem *)v)
-#define in_be32(a)	ioread32be((void __iomem *)a)
-#endif
-
 #define BUFFER_TIMEOUT		msecs_to_jiffies(500)  /* 0.5 seconds */
 
 #define	VIU_VID_MEM_LIMIT	4	/* Video memory limit, in Mb */
@@ -250,8 +244,8 @@ static void viu_start_dma(struct viu_dev *dev)
 	dev->field = 0;
 
 	/* Enable DMA operation */
-	out_be32(&vr->status_cfg, SOFT_RST);
-	out_be32(&vr->status_cfg, INT_FIELD_EN);
+	iowrite32be(SOFT_RST, &vr->status_cfg);
+	iowrite32be(INT_FIELD_EN, &vr->status_cfg);
 }
 
 static void viu_stop_dma(struct viu_dev *dev)
@@ -260,27 +254,27 @@ static void viu_stop_dma(struct viu_dev *dev)
 	int cnt = 100;
 	u32 status_cfg;
 
-	out_be32(&vr->status_cfg, 0);
+	iowrite32be(0, &vr->status_cfg);
 
 	/* Clear pending interrupts */
-	status_cfg = in_be32(&vr->status_cfg);
+	status_cfg = ioread32be(&vr->status_cfg);
 	if (status_cfg & 0x3f0000)
-		out_be32(&vr->status_cfg, status_cfg & 0x3f0000);
+		iowrite32be(status_cfg & 0x3f0000, &vr->status_cfg);
 
 	if (status_cfg & DMA_ACT) {
 		do {
-			status_cfg = in_be32(&vr->status_cfg);
+			status_cfg = ioread32be(&vr->status_cfg);
 			if (status_cfg & INT_DMA_END_STATUS)
 				break;
 		} while (cnt--);
 
 		if (cnt < 0) {
 			/* timed out, issue soft reset */
-			out_be32(&vr->status_cfg, SOFT_RST);
-			out_be32(&vr->status_cfg, 0);
+			iowrite32be(SOFT_RST, &vr->status_cfg);
+			iowrite32be(0, &vr->status_cfg);
 		} else {
 			/* clear DMA_END and other pending irqs */
-			out_be32(&vr->status_cfg, status_cfg & 0x3f0000);
+			iowrite32be(status_cfg & 0x3f0000, &vr->status_cfg);
 		}
 	}
 
@@ -381,8 +375,6 @@ static void free_buffer(struct videobuf_queue *vq, struct viu_buf *buf)
 	struct videobuf_buffer *vb = &buf->vb;
 	void *vaddr = NULL;
 
-	BUG_ON(in_interrupt());
-
 	videobuf_waiton(vq, &buf->vb, 0, 0);
 
 	if (vq->int_ops && vq->int_ops->vaddr)
@@ -436,9 +428,9 @@ inline int buffer_activate(struct viu_dev *dev, struct viu_buf *buf)
 	if (!V4L2_FIELD_HAS_BOTH(buf->vb.field))
 		reg_val.dma_inc = 0;
 
-	out_be32(&vr->dma_inc, reg_val.dma_inc);
-	out_be32(&vr->picture_count, reg_val.picture_count);
-	out_be32(&vr->field_base_addr, reg_val.field_base_addr);
+	iowrite32be(reg_val.dma_inc, &vr->dma_inc);
+	iowrite32be(reg_val.picture_count, &vr->picture_count);
+	iowrite32be(reg_val.field_base_addr, &vr->field_base_addr);
 	mod_timer(&dev->vidq.timeout, jiffies + BUFFER_TIMEOUT);
 	return 0;
 }
@@ -698,9 +690,9 @@ static int verify_preview(struct viu_dev *dev, struct v4l2_window *win)
 
 inline void viu_activate_overlay(struct viu_reg __iomem *vr)
 {
-	out_be32(&vr->field_base_addr, reg_val.field_base_addr);
-	out_be32(&vr->dma_inc, reg_val.dma_inc);
-	out_be32(&vr->picture_count, reg_val.picture_count);
+	iowrite32be(reg_val.field_base_addr, &vr->field_base_addr);
+	iowrite32be(reg_val.dma_inc, &vr->dma_inc);
+	iowrite32be(reg_val.picture_count, &vr->picture_count);
 }
 
 static int viu_setup_preview(struct viu_dev *dev, struct viu_fh *fh)
@@ -978,14 +970,14 @@ inline void viu_activate_next_buf(struct viu_dev *dev,
 
 inline void viu_default_settings(struct viu_reg __iomem *vr)
 {
-	out_be32(&vr->luminance, 0x9512A254);
-	out_be32(&vr->chroma_r, 0x03310000);
-	out_be32(&vr->chroma_g, 0x06600F38);
-	out_be32(&vr->chroma_b, 0x00000409);
-	out_be32(&vr->alpha, 0x000000ff);
-	out_be32(&vr->req_alarm, 0x00000090);
+	iowrite32be(0x9512A254, &vr->luminance);
+	iowrite32be(0x03310000, &vr->chroma_r);
+	iowrite32be(0x06600F38, &vr->chroma_g);
+	iowrite32be(0x00000409, &vr->chroma_b);
+	iowrite32be(0x000000ff, &vr->alpha);
+	iowrite32be(0x00000090, &vr->req_alarm);
 	dprintk(1, "status reg: 0x%08x, field base: 0x%08x\n",
-		in_be32(&vr->status_cfg), in_be32(&vr->field_base_addr));
+		ioread32be(&vr->status_cfg), ioread32be(&vr->field_base_addr));
 }
 
 static void viu_overlay_intr(struct viu_dev *dev, u32 status)
@@ -1003,17 +995,15 @@ static void viu_overlay_intr(struct viu_dev *dev, u32 status)
 			if (status & FIELD_NO)
 				addr += reg_val.dma_inc;
 
-			out_be32(&vr->field_base_addr, addr);
-			out_be32(&vr->dma_inc, reg_val.dma_inc);
-			out_be32(&vr->status_cfg,
-				 (status & 0xffc0ffff) |
+			iowrite32be(addr, &vr->field_base_addr);
+			iowrite32be(reg_val.dma_inc, &vr->dma_inc);
+			iowrite32be((status & 0xffc0ffff) |
 				 (status & INT_ALL_STATUS) |
-				 reg_val.status_cfg);
+				 reg_val.status_cfg, &vr->status_cfg);
 		} else if (status & INT_VSYNC_STATUS) {
-			out_be32(&vr->status_cfg,
-				 (status & 0xffc0ffff) |
+			iowrite32be((status & 0xffc0ffff) |
 				 (status & INT_ALL_STATUS) |
-				 reg_val.status_cfg);
+				 reg_val.status_cfg, &vr->status_cfg);
 		}
 	}
 }
@@ -1059,12 +1049,11 @@ static void viu_capture_intr(struct viu_dev *dev, u32 status)
 				dprintk(1, "field 1, 0x%lx, dev field %d\n",
 					(unsigned long)addr, dev->field);
 			}
-			out_be32(&vr->field_base_addr, addr);
-			out_be32(&vr->dma_inc, reg_val.dma_inc);
-			out_be32(&vr->status_cfg,
-				 (status & 0xffc0ffff) |
+			iowrite32be(addr, &vr->field_base_addr);
+			iowrite32be(reg_val.dma_inc, &vr->dma_inc);
+			iowrite32be((status & 0xffc0ffff) |
 				 (status & INT_ALL_STATUS) |
-				 reg_val.status_cfg);
+				 reg_val.status_cfg, &vr->status_cfg);
 			return;
 		}
 	}
@@ -1076,7 +1065,7 @@ static void viu_capture_intr(struct viu_dev *dev, u32 status)
 		dprintk(1, "viu/0: [%p/%d] 0x%lx/0x%lx: dma complete\n",
 			buf, buf->vb.i,
 			(unsigned long)videobuf_to_dma_contig(&buf->vb),
-			(unsigned long)in_be32(&vr->field_base_addr));
+			(unsigned long)ioread32be(&vr->field_base_addr));
 
 		if (waitqueue_active(&buf->vb.done)) {
 			list_del(&buf->vb.queue);
@@ -1097,7 +1086,7 @@ static irqreturn_t viu_intr(int irq, void *dev_id)
 	u32 status;
 	u32 error;
 
-	status = in_be32(&vr->status_cfg);
+	status = ioread32be(&vr->status_cfg);
 
 	if (status & INT_ERROR_STATUS) {
 		dev->irqs.error_irq++;
@@ -1106,8 +1095,8 @@ static irqreturn_t viu_intr(int irq, void *dev_id)
 			dprintk(1, "Err: error(%d), times:%d!\n",
 				error >> 4, dev->irqs.error_irq);
 		/* Clear interrupt error bit and error flags */
-		out_be32(&vr->status_cfg,
-			 (status & 0xffc0ffff) | INT_ERROR_STATUS);
+		iowrite32be((status & 0xffc0ffff) | INT_ERROR_STATUS,
+			    &vr->status_cfg);
 	}
 
 	if (status & INT_DMA_END_STATUS) {
@@ -1136,9 +1125,9 @@ static irqreturn_t viu_intr(int irq, void *dev_id)
 	}
 
 	/* clear all pending irqs */
-	status = in_be32(&vr->status_cfg);
-	out_be32(&vr->status_cfg,
-		 (status & 0xffc0ffff) | (status & INT_ALL_STATUS));
+	status = ioread32be(&vr->status_cfg);
+	iowrite32be((status & 0xffc0ffff) | (status & INT_ALL_STATUS),
+		    &vr->status_cfg);
 
 	if (dev->ovenable) {
 		viu_overlay_intr(dev, status);
@@ -1207,14 +1196,14 @@ static int viu_open(struct file *file)
 
 	viu_default_settings(vr);
 
-	status_cfg = in_be32(&vr->status_cfg);
-	out_be32(&vr->status_cfg,
-		 status_cfg & ~(INT_VSYNC_EN | INT_HSYNC_EN |
+	status_cfg = ioread32be(&vr->status_cfg);
+	iowrite32be(status_cfg & ~(INT_VSYNC_EN | INT_HSYNC_EN |
 				INT_FIELD_EN | INT_VSTART_EN |
-				INT_DMA_END_EN | INT_ERROR_EN | INT_ECC_EN));
+				INT_DMA_END_EN | INT_ERROR_EN | INT_ECC_EN),
+		    &vr->status_cfg);
 
-	status_cfg = in_be32(&vr->status_cfg);
-	out_be32(&vr->status_cfg, status_cfg | INT_ALL_STATUS);
+	status_cfg = ioread32be(&vr->status_cfg);
+	iowrite32be(status_cfg | INT_ALL_STATUS, &vr->status_cfg);
 
 	spin_lock_init(&fh->vbq_lock);
 	videobuf_queue_dma_contig_init(&fh->vb_vidq, &viu_video_qops,
@@ -1294,16 +1283,16 @@ static int viu_release(struct file *file)
 
 static void viu_reset(struct viu_reg __iomem *reg)
 {
-	out_be32(&reg->status_cfg, 0);
-	out_be32(&reg->luminance, 0x9512a254);
-	out_be32(&reg->chroma_r, 0x03310000);
-	out_be32(&reg->chroma_g, 0x06600f38);
-	out_be32(&reg->chroma_b, 0x00000409);
-	out_be32(&reg->field_base_addr, 0);
-	out_be32(&reg->dma_inc, 0);
-	out_be32(&reg->picture_count, 0x01e002d0);
-	out_be32(&reg->req_alarm, 0x00000090);
-	out_be32(&reg->alpha, 0x000000ff);
+	iowrite32be(0, &reg->status_cfg);
+	iowrite32be(0x9512a254, &reg->luminance);
+	iowrite32be(0x03310000, &reg->chroma_r);
+	iowrite32be(0x06600f38, &reg->chroma_g);
+	iowrite32be(0x00000409, &reg->chroma_b);
+	iowrite32be(0, &reg->field_base_addr);
+	iowrite32be(0, &reg->dma_inc);
+	iowrite32be(0x01e002d0, &reg->picture_count);
+	iowrite32be(0x00000090, &reg->req_alarm);
+	iowrite32be(0x000000ff, &reg->alpha);
 }
 
 static int viu_mmap(struct file *file, struct vm_area_struct *vma)

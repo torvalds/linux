@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _audio_fclose:
 
@@ -17,8 +18,6 @@ Synopsis
 --------
 
 .. c:function:: int close(int fd)
-    :name: dvb-audio-close
-
 
 Arguments
 ---------
@@ -27,19 +26,16 @@ Arguments
     :header-rows:  0
     :stub-columns: 0
 
-
     -  .. row 1
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-
 Description
 -----------
 
 This system call closes a previously opened audio device.
-
 
 Return Value
 ------------
@@ -47,7 +43,6 @@ Return Value
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

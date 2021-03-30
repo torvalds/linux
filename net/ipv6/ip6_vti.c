@@ -125,6 +125,7 @@ vti6_tnl_lookup(struct net *net, const struct in6_addr *remote,
 
 /**
  * vti6_tnl_bucket - get head of list matching given tunnel parameters
+ *   @ip6n: the private data for ip6_vti in the netns
  *   @p: parameters containing tunnel end-points
  *
  * Description:
@@ -347,7 +348,6 @@ static int vti6_rcv_cb(struct sk_buff *skb, int err)
 {
 	unsigned short family;
 	struct net_device *dev;
-	struct pcpu_sw_netstats *tstats;
 	struct xfrm_state *x;
 	const struct xfrm_mode *inner_mode;
 	struct ip6_tnl *t = XFRM_TUNNEL_SKB_CB(skb)->tunnel.ip6;
@@ -390,12 +390,7 @@ static int vti6_rcv_cb(struct sk_buff *skb, int err)
 
 	skb_scrub_packet(skb, !net_eq(t->net, dev_net(skb->dev)));
 	skb->dev = dev;
-
-	tstats = this_cpu_ptr(dev->tstats);
-	u64_stats_update_begin(&tstats->syncp);
-	tstats->rx_packets++;
-	tstats->rx_bytes += skb->len;
-	u64_stats_update_end(&tstats->syncp);
+	dev_sw_netstats_rx_add(dev, skb->len);
 
 	return 0;
 }
@@ -895,7 +890,7 @@ static const struct net_device_ops vti6_netdev_ops = {
 	.ndo_uninit	= vti6_dev_uninit,
 	.ndo_start_xmit = vti6_tnl_xmit,
 	.ndo_do_ioctl	= vti6_ioctl,
-	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_get_stats64 = dev_get_tstats64,
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 

@@ -3558,11 +3558,12 @@ login_logout:
 					if (fcport->flags & FCF_FCP2_DEVICE)
 						fcport->logout_on_delete = 0;
 
-					ql_dbg(ql_dbg_disc, vha, 0x20f0,
-					    "%s %d %8phC post del sess\n",
-					    __func__, __LINE__,
-					    fcport->port_name);
+					ql_log(ql_log_warn, vha, 0x20f0,
+					       "%s %d %8phC post del sess\n",
+					       __func__, __LINE__,
+					       fcport->port_name);
 
+					fcport->tgt_link_down_time = 0;
 					qlt_schedule_sess_for_deletion(fcport);
 					continue;
 				}

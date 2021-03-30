@@ -11,6 +11,7 @@
 #include <linux/if_xdp.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <linux/limits.h>
 #include <linux/udp.h>
 #include <arpa/inet.h>
 #include <locale.h>
@@ -23,10 +24,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/capability.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -78,6 +81,11 @@ static int opt_pkt_count;
 static u16 opt_pkt_size = MIN_PKT_SIZE;
 static u32 opt_pkt_fill_pattern = 0x12345678;
 static bool opt_extra_stats;
+static bool opt_quiet;
+static bool opt_app_stats;
+static const char *opt_irq_str = "";
+static u32 irq_no;
+static int irqs_at_init = -1;
 static int opt_poll;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
@@ -89,19 +97,10 @@ static int opt_timeout = 1000;
 static bool opt_need_wakeup = true;
 static u32 opt_num_xsks = 1;
 static u32 prog_id;
+static bool opt_busy_poll;
+static bool opt_reduced_cap;
 
-struct xsk_umem_info {
-	struct xsk_ring_prod fq;
-	struct xsk_ring_cons cq;
-	struct xsk_umem *umem;
-	void *buffer;
-};
-
-struct xsk_socket_info {
-	struct xsk_ring_cons rx;
-	struct xsk_ring_prod tx;
-	struct xsk_umem_info *umem;
-	struct xsk_socket *xsk;
+struct xsk_ring_stats {
 	unsigned long rx_npkts;
 	unsigned long tx_npkts;
 	unsigned long rx_dropped_npkts;
@@ -118,11 +117,47 @@ struct xsk_socket_info {
 	unsigned long prev_rx_full_npkts;
 	unsigned long prev_rx_fill_empty_npkts;
 	unsigned long prev_tx_empty_npkts;
+};
+
+struct xsk_driver_stats {
+	unsigned long intrs;
+	unsigned long prev_intrs;
+};
+
+struct xsk_app_stats {
+	unsigned long rx_empty_polls;
+	unsigned long fill_fail_polls;
+	unsigned long copy_tx_sendtos;
+	unsigned long tx_wakeup_sendtos;
+	unsigned long opt_polls;
+	unsigned long prev_rx_empty_polls;
+	unsigned long prev_fill_fail_polls;
+	unsigned long prev_copy_tx_sendtos;
+	unsigned long prev_tx_wakeup_sendtos;
+	unsigned long prev_opt_polls;
+};
+
+struct xsk_umem_info {
+	struct xsk_ring_prod fq;
+	struct xsk_ring_cons cq;
+	struct xsk_umem *umem;
+	void *buffer;
+};
+
+struct xsk_socket_info {
+	struct xsk_ring_cons rx;
+	struct xsk_ring_prod tx;
+	struct xsk_umem_info *umem;
+	struct xsk_socket *xsk;
+	struct xsk_ring_stats ring_stats;
+	struct xsk_app_stats app_stats;
+	struct xsk_driver_stats drv_stats;
 	u32 outstanding_tx;
 };
 
 static int num_socks;
 struct xsk_socket_info *xsks[MAX_SOCKS];
+int sock;
 
 static unsigned long get_nsecs(void)
 {
@@ -172,16 +207,149 @@ static int xsk_get_xdp_stats(int fd, struct xsk_socket_info *xsk)
 		return err;
 
 	if (optlen == sizeof(struct xdp_statistics)) {
-		xsk->rx_dropped_npkts = stats.rx_dropped;
-		xsk->rx_invalid_npkts = stats.rx_invalid_descs;
-		xsk->tx_invalid_npkts = stats.tx_invalid_descs;
-		xsk->rx_full_npkts = stats.rx_ring_full;
-		xsk->rx_fill_empty_npkts = stats.rx_fill_ring_empty_descs;
-		xsk->tx_empty_npkts = stats.tx_ring_empty_descs;
+		xsk->ring_stats.rx_dropped_npkts = stats.rx_dropped;
+		xsk->ring_stats.rx_invalid_npkts = stats.rx_invalid_descs;
+		xsk->ring_stats.tx_invalid_npkts = stats.tx_invalid_descs;
+		xsk->ring_stats.rx_full_npkts = stats.rx_ring_full;
+		xsk->ring_stats.rx_fill_empty_npkts = stats.rx_fill_ring_empty_descs;
+		xsk->ring_stats.tx_empty_npkts = stats.tx_ring_empty_descs;
 		return 0;
 	}
 
 	return -EINVAL;
+}
+
+static void dump_app_stats(long dt)
+{
+	int i;
+
+	for (i = 0; i < num_socks && xsks[i]; i++) {
+		char *fmt = "%-18s %'-14.0f %'-14lu\n";
+		double rx_empty_polls_ps, fill_fail_polls_ps, copy_tx_sendtos_ps,
+				tx_wakeup_sendtos_ps, opt_polls_ps;
+
+		rx_empty_polls_ps = (xsks[i]->app_stats.rx_empty_polls -
+					xsks[i]->app_stats.prev_rx_empty_polls) * 1000000000. / dt;
+		fill_fail_polls_ps = (xsks[i]->app_stats.fill_fail_polls -
+					xsks[i]->app_stats.prev_fill_fail_polls) * 1000000000. / dt;
+		copy_tx_sendtos_ps = (xsks[i]->app_stats.copy_tx_sendtos -
+					xsks[i]->app_stats.prev_copy_tx_sendtos) * 1000000000. / dt;
+		tx_wakeup_sendtos_ps = (xsks[i]->app_stats.tx_wakeup_sendtos -
+					xsks[i]->app_stats.prev_tx_wakeup_sendtos)
+										* 1000000000. / dt;
+		opt_polls_ps = (xsks[i]->app_stats.opt_polls -
+					xsks[i]->app_stats.prev_opt_polls) * 1000000000. / dt;
+
+		printf("\n%-18s %-14s %-14s\n", "", "calls/s", "count");
+		printf(fmt, "rx empty polls", rx_empty_polls_ps, xsks[i]->app_stats.rx_empty_polls);
+		printf(fmt, "fill fail polls", fill_fail_polls_ps,
+							xsks[i]->app_stats.fill_fail_polls);
+		printf(fmt, "copy tx sendtos", copy_tx_sendtos_ps,
+							xsks[i]->app_stats.copy_tx_sendtos);
+		printf(fmt, "tx wakeup sendtos", tx_wakeup_sendtos_ps,
+							xsks[i]->app_stats.tx_wakeup_sendtos);
+		printf(fmt, "opt polls", opt_polls_ps, xsks[i]->app_stats.opt_polls);
+
+		xsks[i]->app_stats.prev_rx_empty_polls = xsks[i]->app_stats.rx_empty_polls;
+		xsks[i]->app_stats.prev_fill_fail_polls = xsks[i]->app_stats.fill_fail_polls;
+		xsks[i]->app_stats.prev_copy_tx_sendtos = xsks[i]->app_stats.copy_tx_sendtos;
+		xsks[i]->app_stats.prev_tx_wakeup_sendtos = xsks[i]->app_stats.tx_wakeup_sendtos;
+		xsks[i]->app_stats.prev_opt_polls = xsks[i]->app_stats.opt_polls;
+	}
+}
+
+static bool get_interrupt_number(void)
+{
+	FILE *f_int_proc;
+	char line[4096];
+	bool found = false;
+
+	f_int_proc = fopen("/proc/interrupts", "r");
+	if (f_int_proc == NULL) {
+		printf("Failed to open /proc/interrupts.\n");
+		return found;
+	}
+
+	while (!feof(f_int_proc) && !found) {
+		/* Make sure to read a full line at a time */
+		if (fgets(line, sizeof(line), f_int_proc) == NULL ||
+				line[strlen(line) - 1] != '\n') {
+			printf("Error reading from interrupts file\n");
+			break;
+		}
+
+		/* Extract interrupt number from line */
+		if (strstr(line, opt_irq_str) != NULL) {
+			irq_no = atoi(line);
+			found = true;
+			break;
+		}
+	}
+
+	fclose(f_int_proc);
+
+	return found;
+}
+
+static int get_irqs(void)
+{
+	char count_path[PATH_MAX];
+	int total_intrs = -1;
+	FILE *f_count_proc;
+	char line[4096];
+
+	snprintf(count_path, sizeof(count_path),
+		"/sys/kernel/irq/%i/per_cpu_count", irq_no);
+	f_count_proc = fopen(count_path, "r");
+	if (f_count_proc == NULL) {
+		printf("Failed to open %s\n", count_path);
+		return total_intrs;
+	}
+
+	if (fgets(line, sizeof(line), f_count_proc) == NULL ||
+			line[strlen(line) - 1] != '\n') {
+		printf("Error reading from %s\n", count_path);
+	} else {
+		static const char com[2] = ",";
+		char *token;
+
+		total_intrs = 0;
+		token = strtok(line, com);
+		while (token != NULL) {
+			/* sum up interrupts across all cores */
+			total_intrs += atoi(token);
+			token = strtok(NULL, com);
+		}
+	}
+
+	fclose(f_count_proc);
+
+	return total_intrs;
+}
+
+static void dump_driver_stats(long dt)
+{
+	int i;
+
+	for (i = 0; i < num_socks && xsks[i]; i++) {
+		char *fmt = "%-18s %'-14.0f %'-14lu\n";
+		double intrs_ps;
+		int n_ints = get_irqs();
+
+		if (n_ints < 0) {
+			printf("error getting intr info for intr %i\n", irq_no);
+			return;
+		}
+		xsks[i]->drv_stats.intrs = n_ints - irqs_at_init;
+
+		intrs_ps = (xsks[i]->drv_stats.intrs - xsks[i]->drv_stats.prev_intrs) *
+			 1000000000. / dt;
+
+		printf("\n%-18s %-14s %-14s\n", "", "intrs/s", "count");
+		printf(fmt, "irqs", intrs_ps, xsks[i]->drv_stats.intrs);
+
+		xsks[i]->drv_stats.prev_intrs = xsks[i]->drv_stats.intrs;
+	}
 }
 
 static void dump_stats(void)
@@ -193,67 +361,83 @@ static void dump_stats(void)
 	prev_time = now;
 
 	for (i = 0; i < num_socks && xsks[i]; i++) {
-		char *fmt = "%-15s %'-11.0f %'-11lu\n";
+		char *fmt = "%-18s %'-14.0f %'-14lu\n";
 		double rx_pps, tx_pps, dropped_pps, rx_invalid_pps, full_pps, fill_empty_pps,
 			tx_invalid_pps, tx_empty_pps;
 
-		rx_pps = (xsks[i]->rx_npkts - xsks[i]->prev_rx_npkts) *
+		rx_pps = (xsks[i]->ring_stats.rx_npkts - xsks[i]->ring_stats.prev_rx_npkts) *
 			 1000000000. / dt;
-		tx_pps = (xsks[i]->tx_npkts - xsks[i]->prev_tx_npkts) *
+		tx_pps = (xsks[i]->ring_stats.tx_npkts - xsks[i]->ring_stats.prev_tx_npkts) *
 			 1000000000. / dt;
 
 		printf("\n sock%d@", i);
 		print_benchmark(false);
 		printf("\n");
 
-		printf("%-15s %-11s %-11s %-11.2f\n", "", "pps", "pkts",
+		printf("%-18s %-14s %-14s %-14.2f\n", "", "pps", "pkts",
 		       dt / 1000000000.);
-		printf(fmt, "rx", rx_pps, xsks[i]->rx_npkts);
-		printf(fmt, "tx", tx_pps, xsks[i]->tx_npkts);
+		printf(fmt, "rx", rx_pps, xsks[i]->ring_stats.rx_npkts);
+		printf(fmt, "tx", tx_pps, xsks[i]->ring_stats.tx_npkts);
 
-		xsks[i]->prev_rx_npkts = xsks[i]->rx_npkts;
-		xsks[i]->prev_tx_npkts = xsks[i]->tx_npkts;
+		xsks[i]->ring_stats.prev_rx_npkts = xsks[i]->ring_stats.rx_npkts;
+		xsks[i]->ring_stats.prev_tx_npkts = xsks[i]->ring_stats.tx_npkts;
 
 		if (opt_extra_stats) {
 			if (!xsk_get_xdp_stats(xsk_socket__fd(xsks[i]->xsk), xsks[i])) {
-				dropped_pps = (xsks[i]->rx_dropped_npkts -
-						xsks[i]->prev_rx_dropped_npkts) * 1000000000. / dt;
-				rx_invalid_pps = (xsks[i]->rx_invalid_npkts -
-						xsks[i]->prev_rx_invalid_npkts) * 1000000000. / dt;
-				tx_invalid_pps = (xsks[i]->tx_invalid_npkts -
-						xsks[i]->prev_tx_invalid_npkts) * 1000000000. / dt;
-				full_pps = (xsks[i]->rx_full_npkts -
-						xsks[i]->prev_rx_full_npkts) * 1000000000. / dt;
-				fill_empty_pps = (xsks[i]->rx_fill_empty_npkts -
-						xsks[i]->prev_rx_fill_empty_npkts)
-						* 1000000000. / dt;
-				tx_empty_pps = (xsks[i]->tx_empty_npkts -
-						xsks[i]->prev_tx_empty_npkts) * 1000000000. / dt;
+				dropped_pps = (xsks[i]->ring_stats.rx_dropped_npkts -
+						xsks[i]->ring_stats.prev_rx_dropped_npkts) *
+							1000000000. / dt;
+				rx_invalid_pps = (xsks[i]->ring_stats.rx_invalid_npkts -
+						xsks[i]->ring_stats.prev_rx_invalid_npkts) *
+							1000000000. / dt;
+				tx_invalid_pps = (xsks[i]->ring_stats.tx_invalid_npkts -
+						xsks[i]->ring_stats.prev_tx_invalid_npkts) *
+							1000000000. / dt;
+				full_pps = (xsks[i]->ring_stats.rx_full_npkts -
+						xsks[i]->ring_stats.prev_rx_full_npkts) *
+							1000000000. / dt;
+				fill_empty_pps = (xsks[i]->ring_stats.rx_fill_empty_npkts -
+						xsks[i]->ring_stats.prev_rx_fill_empty_npkts) *
+							1000000000. / dt;
+				tx_empty_pps = (xsks[i]->ring_stats.tx_empty_npkts -
+						xsks[i]->ring_stats.prev_tx_empty_npkts) *
+							1000000000. / dt;
 
 				printf(fmt, "rx dropped", dropped_pps,
-				       xsks[i]->rx_dropped_npkts);
+				       xsks[i]->ring_stats.rx_dropped_npkts);
 				printf(fmt, "rx invalid", rx_invalid_pps,
-				       xsks[i]->rx_invalid_npkts);
+				       xsks[i]->ring_stats.rx_invalid_npkts);
 				printf(fmt, "tx invalid", tx_invalid_pps,
-				       xsks[i]->tx_invalid_npkts);
+				       xsks[i]->ring_stats.tx_invalid_npkts);
 				printf(fmt, "rx queue full", full_pps,
-				       xsks[i]->rx_full_npkts);
+				       xsks[i]->ring_stats.rx_full_npkts);
 				printf(fmt, "fill ring empty", fill_empty_pps,
-				       xsks[i]->rx_fill_empty_npkts);
+				       xsks[i]->ring_stats.rx_fill_empty_npkts);
 				printf(fmt, "tx ring empty", tx_empty_pps,
-				       xsks[i]->tx_empty_npkts);
+				       xsks[i]->ring_stats.tx_empty_npkts);
 
-				xsks[i]->prev_rx_dropped_npkts = xsks[i]->rx_dropped_npkts;
-				xsks[i]->prev_rx_invalid_npkts = xsks[i]->rx_invalid_npkts;
-				xsks[i]->prev_tx_invalid_npkts = xsks[i]->tx_invalid_npkts;
-				xsks[i]->prev_rx_full_npkts = xsks[i]->rx_full_npkts;
-				xsks[i]->prev_rx_fill_empty_npkts = xsks[i]->rx_fill_empty_npkts;
-				xsks[i]->prev_tx_empty_npkts = xsks[i]->tx_empty_npkts;
+				xsks[i]->ring_stats.prev_rx_dropped_npkts =
+					xsks[i]->ring_stats.rx_dropped_npkts;
+				xsks[i]->ring_stats.prev_rx_invalid_npkts =
+					xsks[i]->ring_stats.rx_invalid_npkts;
+				xsks[i]->ring_stats.prev_tx_invalid_npkts =
+					xsks[i]->ring_stats.tx_invalid_npkts;
+				xsks[i]->ring_stats.prev_rx_full_npkts =
+					xsks[i]->ring_stats.rx_full_npkts;
+				xsks[i]->ring_stats.prev_rx_fill_empty_npkts =
+					xsks[i]->ring_stats.rx_fill_empty_npkts;
+				xsks[i]->ring_stats.prev_tx_empty_npkts =
+					xsks[i]->ring_stats.tx_empty_npkts;
 			} else {
 				printf("%-15s\n", "Error retrieving extra stats");
 			}
 		}
 	}
+
+	if (opt_app_stats)
+		dump_app_stats(dt);
+	if (irq_no)
+		dump_driver_stats(dt);
 }
 
 static bool is_benchmark_done(void)
@@ -281,6 +465,7 @@ static void *poller(void *arg)
 static void remove_xdp_program(void)
 {
 	u32 curr_prog_id = 0;
+	int cmd = CLOSE_CONN;
 
 	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
 		printf("bpf_get_link_xdp_id failed\n");
@@ -292,6 +477,13 @@ static void remove_xdp_program(void)
 		printf("couldn't find a prog id on a given interface\n");
 	else
 		printf("program on interface changed, not removing\n");
+
+	if (opt_reduced_cap) {
+		if (write(sock, &cmd, sizeof(int)) < 0) {
+			fprintf(stderr, "Error writing into stream socket: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
 }
 
 static void int_exit(int sig)
@@ -613,7 +805,16 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 {
 	struct xsk_umem_info *umem;
 	struct xsk_umem_config cfg = {
-		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
+		/* We recommend that you set the fill ring size >= HW RX ring size +
+		 * AF_XDP RX ring size. Make sure you fill up the fill ring
+		 * with buffers at regular intervals, and you will with this setting
+		 * avoid allocation failures in the driver. These are usually quite
+		 * expensive since drivers have not been written to assume that
+		 * allocation failures are common. For regular sockets, kernel
+		 * allocated memory is used that only runs out in OOM situations
+		 * that should be rare.
+		 */
+		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2,
 		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.frame_size = opt_xsk_frame_size,
 		.frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM,
@@ -640,13 +841,13 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem)
 	u32 idx;
 
 	ret = xsk_ring_prod__reserve(&umem->fq,
-				     XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
-	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS)
+				     XSK_RING_PROD__DEFAULT_NUM_DESCS * 2, &idx);
+	if (ret != XSK_RING_PROD__DEFAULT_NUM_DESCS * 2)
 		exit_with_error(-ret);
-	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
+	for (i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS * 2; i++)
 		*xsk_ring_prod__fill_addr(&umem->fq, idx++) =
 			i * opt_xsk_frame_size;
-	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
+	xsk_ring_prod__submit(&umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS * 2);
 }
 
 static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
@@ -665,7 +866,7 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 	xsk->umem = umem;
 	cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
-	if (opt_num_xsks > 1)
+	if (opt_num_xsks > 1 || opt_reduced_cap)
 		cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
 	else
 		cfg.libbpf_flags = 0;
@@ -682,6 +883,17 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 	ret = bpf_get_link_xdp_id(opt_ifindex, &prog_id, opt_xdp_flags);
 	if (ret)
 		exit_with_error(-ret);
+
+	xsk->app_stats.rx_empty_polls = 0;
+	xsk->app_stats.fill_fail_polls = 0;
+	xsk->app_stats.copy_tx_sendtos = 0;
+	xsk->app_stats.tx_wakeup_sendtos = 0;
+	xsk->app_stats.opt_polls = 0;
+	xsk->app_stats.prev_rx_empty_polls = 0;
+	xsk->app_stats.prev_fill_fail_polls = 0;
+	xsk->app_stats.prev_copy_tx_sendtos = 0;
+	xsk->app_stats.prev_tx_wakeup_sendtos = 0;
+	xsk->app_stats.prev_opt_polls = 0;
 
 	return xsk;
 }
@@ -709,6 +921,11 @@ static struct option long_options[] = {
 	{"tx-pkt-size", required_argument, 0, 's'},
 	{"tx-pkt-pattern", required_argument, 0, 'P'},
 	{"extra-stats", no_argument, 0, 'x'},
+	{"quiet", no_argument, 0, 'Q'},
+	{"app-stats", no_argument, 0, 'a'},
+	{"irq-string", no_argument, 0, 'I'},
+	{"busy-poll", no_argument, 0, 'B'},
+	{"reduce-cap", no_argument, 0, 'R'},
 	{0, 0, 0, 0}
 };
 
@@ -731,7 +948,7 @@ static void usage(const char *prog)
 		"  -m, --no-need-wakeup Turn off use of driver need wakeup flag.\n"
 		"  -f, --frame-size=n   Set the frame size (must be a power of two in aligned mode, default is %d).\n"
 		"  -u, --unaligned	Enable unaligned chunk placement\n"
-		"  -M, --shared-umem	Enable XDP_SHARED_UMEM\n"
+		"  -M, --shared-umem	Enable XDP_SHARED_UMEM (cannot be used with -R)\n"
 		"  -F, --force		Force loading the XDP prog\n"
 		"  -d, --duration=n	Duration in secs to run command.\n"
 		"			Default: forever.\n"
@@ -744,6 +961,11 @@ static void usage(const char *prog)
 		"			Min size: %d, Max size %d.\n"
 		"  -P, --tx-pkt-pattern=nPacket fill pattern. Default: 0x%x\n"
 		"  -x, --extra-stats	Display extra statistics.\n"
+		"  -Q, --quiet          Do not display any stats.\n"
+		"  -a, --app-stats	Display application (syscall) statistics.\n"
+		"  -I, --irq-string	Display driver interrupt statistics for interface associated with irq-string.\n"
+		"  -B, --busy-poll      Busy poll.\n"
+		"  -R, --reduce-cap	Use reduced capabilities (cannot be used with -M)\n"
 		"\n";
 	fprintf(stderr, str, prog, XSK_UMEM__DEFAULT_FRAME_SIZE,
 		opt_batch_size, MIN_PKT_SIZE, MIN_PKT_SIZE,
@@ -759,7 +981,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:x",
+		c = getopt_long(argc, argv, "Frtli:q:pSNn:czf:muMd:b:C:s:P:xQaI:BR",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -843,6 +1065,27 @@ static void parse_command_line(int argc, char **argv)
 		case 'x':
 			opt_extra_stats = 1;
 			break;
+		case 'Q':
+			opt_quiet = 1;
+			break;
+		case 'a':
+			opt_app_stats = 1;
+			break;
+		case 'I':
+			opt_irq_str = optarg;
+			if (get_interrupt_number())
+				irqs_at_init = get_irqs();
+			if (irqs_at_init < 0) {
+				fprintf(stderr, "ERROR: Failed to get irqs for %s\n", opt_irq_str);
+				usage(basename(argv[0]));
+			}
+			break;
+		case 'B':
+			opt_busy_poll = 1;
+			break;
+		case 'R':
+			opt_reduced_cap = true;
+			break;
 		default:
 			usage(basename(argv[0]));
 		}
@@ -864,6 +1107,11 @@ static void parse_command_line(int argc, char **argv)
 			opt_xsk_frame_size);
 		usage(basename(argv[0]));
 	}
+
+	if (opt_reduced_cap && opt_num_xsks > 1) {
+		fprintf(stderr, "ERROR: -M and -R cannot be used together\n");
+		usage(basename(argv[0]));
+	}
 }
 
 static void kick_tx(struct xsk_socket_info *xsk)
@@ -877,8 +1125,7 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	exit_with_error(errno);
 }
 
-static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
-				     struct pollfd *fds)
+static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk)
 {
 	struct xsk_umem_info *umem = xsk->umem;
 	u32 idx_cq = 0, idx_fq = 0;
@@ -888,8 +1135,15 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 	if (!xsk->outstanding_tx)
 		return;
 
-	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
+	/* In copy mode, Tx is driven by a syscall so we need to use e.g. sendto() to
+	 * really send the packets. In zero-copy mode we do not have to do this, since Tx
+	 * is driven by the NAPI loop. So as an optimization, we do not have to call
+	 * sendto() all the time in zero-copy mode for l2fwd.
+	 */
+	if (opt_xdp_bind_flags & XDP_COPY) {
+		xsk->app_stats.copy_tx_sendtos++;
 		kick_tx(xsk);
+	}
 
 	ndescs = (xsk->outstanding_tx > opt_batch_size) ? opt_batch_size :
 		xsk->outstanding_tx;
@@ -904,8 +1158,11 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 		while (ret != rcvd) {
 			if (ret < 0)
 				exit_with_error(-ret);
-			if (xsk_ring_prod__needs_wakeup(&umem->fq))
-				ret = poll(fds, num_socks, opt_timeout);
+			if (opt_busy_poll || xsk_ring_prod__needs_wakeup(&umem->fq)) {
+				xsk->app_stats.fill_fail_polls++;
+				recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL,
+					 NULL);
+			}
 			ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 		}
 
@@ -916,7 +1173,6 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 		xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
-		xsk->tx_npkts += rcvd;
 	}
 }
 
@@ -929,18 +1185,19 @@ static inline void complete_tx_only(struct xsk_socket_info *xsk,
 	if (!xsk->outstanding_tx)
 		return;
 
-	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx))
+	if (!opt_need_wakeup || xsk_ring_prod__needs_wakeup(&xsk->tx)) {
+		xsk->app_stats.tx_wakeup_sendtos++;
 		kick_tx(xsk);
+	}
 
 	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, batch_size, &idx);
 	if (rcvd > 0) {
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
-		xsk->tx_npkts += rcvd;
 	}
 }
 
-static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
+static void rx_drop(struct xsk_socket_info *xsk)
 {
 	unsigned int rcvd, i;
 	u32 idx_rx = 0, idx_fq = 0;
@@ -948,8 +1205,10 @@ static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 
 	rcvd = xsk_ring_cons__peek(&xsk->rx, opt_batch_size, &idx_rx);
 	if (!rcvd) {
-		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
-			ret = poll(fds, num_socks, opt_timeout);
+		if (opt_busy_poll || xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
+			xsk->app_stats.rx_empty_polls++;
+			recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
+		}
 		return;
 	}
 
@@ -957,8 +1216,10 @@ static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 	while (ret != rcvd) {
 		if (ret < 0)
 			exit_with_error(-ret);
-		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
-			ret = poll(fds, num_socks, opt_timeout);
+		if (opt_busy_poll || xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
+			xsk->app_stats.fill_fail_polls++;
+			recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
+		}
 		ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd, &idx_fq);
 	}
 
@@ -976,7 +1237,7 @@ static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 
 	xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
 	xsk_ring_cons__release(&xsk->rx, rcvd);
-	xsk->rx_npkts += rcvd;
+	xsk->ring_stats.rx_npkts += rcvd;
 }
 
 static void rx_drop_all(void)
@@ -991,20 +1252,22 @@ static void rx_drop_all(void)
 
 	for (;;) {
 		if (opt_poll) {
+			for (i = 0; i < num_socks; i++)
+				xsks[i]->app_stats.opt_polls++;
 			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
 		}
 
 		for (i = 0; i < num_socks; i++)
-			rx_drop(xsks[i], fds);
+			rx_drop(xsks[i]);
 
 		if (benchmark_done)
 			break;
 	}
 }
 
-static void tx_only(struct xsk_socket_info *xsk, u32 frame_nb, int batch_size)
+static void tx_only(struct xsk_socket_info *xsk, u32 *frame_nb, int batch_size)
 {
 	u32 idx;
 	unsigned int i;
@@ -1012,19 +1275,22 @@ static void tx_only(struct xsk_socket_info *xsk, u32 frame_nb, int batch_size)
 	while (xsk_ring_prod__reserve(&xsk->tx, batch_size, &idx) <
 				      batch_size) {
 		complete_tx_only(xsk, batch_size);
+		if (benchmark_done)
+			return;
 	}
 
 	for (i = 0; i < batch_size; i++) {
 		struct xdp_desc *tx_desc = xsk_ring_prod__tx_desc(&xsk->tx,
 								  idx + i);
-		tx_desc->addr = (frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
+		tx_desc->addr = (*frame_nb + i) << XSK_UMEM__DEFAULT_FRAME_SHIFT;
 		tx_desc->len = PKT_SIZE;
 	}
 
 	xsk_ring_prod__submit(&xsk->tx, batch_size);
+	xsk->ring_stats.tx_npkts += batch_size;
 	xsk->outstanding_tx += batch_size;
-	frame_nb += batch_size;
-	frame_nb %= NUM_FRAMES;
+	*frame_nb += batch_size;
+	*frame_nb %= NUM_FRAMES;
 	complete_tx_only(xsk, batch_size);
 }
 
@@ -1071,6 +1337,8 @@ static void tx_only_all(void)
 		int batch_size = get_batch_size(pkt_cnt);
 
 		if (opt_poll) {
+			for (i = 0; i < num_socks; i++)
+				xsks[i]->app_stats.opt_polls++;
 			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
@@ -1080,7 +1348,7 @@ static void tx_only_all(void)
 		}
 
 		for (i = 0; i < num_socks; i++)
-			tx_only(xsks[i], frame_nb[i], batch_size);
+			tx_only(xsks[i], &frame_nb[i], batch_size);
 
 		pkt_cnt += batch_size;
 
@@ -1092,27 +1360,33 @@ static void tx_only_all(void)
 		complete_tx_only_all();
 }
 
-static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
+static void l2fwd(struct xsk_socket_info *xsk)
 {
 	unsigned int rcvd, i;
 	u32 idx_rx = 0, idx_tx = 0;
 	int ret;
 
-	complete_tx_l2fwd(xsk, fds);
+	complete_tx_l2fwd(xsk);
 
 	rcvd = xsk_ring_cons__peek(&xsk->rx, opt_batch_size, &idx_rx);
 	if (!rcvd) {
-		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq))
-			ret = poll(fds, num_socks, opt_timeout);
+		if (opt_busy_poll || xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
+			xsk->app_stats.rx_empty_polls++;
+			recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
+		}
 		return;
 	}
+	xsk->ring_stats.rx_npkts += rcvd;
 
 	ret = xsk_ring_prod__reserve(&xsk->tx, rcvd, &idx_tx);
 	while (ret != rcvd) {
 		if (ret < 0)
 			exit_with_error(-ret);
-		if (xsk_ring_prod__needs_wakeup(&xsk->tx))
+		complete_tx_l2fwd(xsk);
+		if (opt_busy_poll || xsk_ring_prod__needs_wakeup(&xsk->tx)) {
+			xsk->app_stats.tx_wakeup_sendtos++;
 			kick_tx(xsk);
+		}
 		ret = xsk_ring_prod__reserve(&xsk->tx, rcvd, &idx_tx);
 	}
 
@@ -1134,7 +1408,7 @@ static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
 	xsk_ring_prod__submit(&xsk->tx, rcvd);
 	xsk_ring_cons__release(&xsk->rx, rcvd);
 
-	xsk->rx_npkts += rcvd;
+	xsk->ring_stats.tx_npkts += rcvd;
 	xsk->outstanding_tx += rcvd;
 }
 
@@ -1143,20 +1417,20 @@ static void l2fwd_all(void)
 	struct pollfd fds[MAX_SOCKS] = {};
 	int i, ret;
 
-	for (i = 0; i < num_socks; i++) {
-		fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
-		fds[i].events = POLLOUT | POLLIN;
-	}
-
 	for (;;) {
 		if (opt_poll) {
+			for (i = 0; i < num_socks; i++) {
+				fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
+				fds[i].events = POLLOUT | POLLIN;
+				xsks[i]->app_stats.opt_polls++;
+			}
 			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
 		}
 
 		for (i = 0; i < num_socks; i++)
-			l2fwd(xsks[i], fds);
+			l2fwd(xsks[i]);
 
 		if (benchmark_done)
 			break;
@@ -1214,26 +1488,139 @@ static void enter_xsks_into_map(struct bpf_object *obj)
 	}
 }
 
+static void apply_setsockopt(struct xsk_socket_info *xsk)
+{
+	int sock_opt;
+
+	if (!opt_busy_poll)
+		return;
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+
+	sock_opt = 20;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+
+	sock_opt = opt_batch_size;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+}
+
+static int recv_xsks_map_fd_from_ctrl_node(int sock, int *_fd)
+{
+	char cms[CMSG_SPACE(sizeof(int))];
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	struct iovec iov;
+	int value;
+	int len;
+
+	iov.iov_base = &value;
+	iov.iov_len = sizeof(int);
+
+	msg.msg_name = 0;
+	msg.msg_namelen = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_flags = 0;
+	msg.msg_control = (caddr_t)cms;
+	msg.msg_controllen = sizeof(cms);
+
+	len = recvmsg(sock, &msg, 0);
+
+	if (len < 0) {
+		fprintf(stderr, "Recvmsg failed length incorrect.\n");
+		return -EINVAL;
+	}
+
+	if (len == 0) {
+		fprintf(stderr, "Recvmsg failed no data\n");
+		return -EINVAL;
+	}
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	*_fd = *(int *)CMSG_DATA(cmsg);
+
+	return 0;
+}
+
+static int
+recv_xsks_map_fd(int *xsks_map_fd)
+{
+	struct sockaddr_un server;
+	int err;
+
+	sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) {
+		fprintf(stderr, "Error opening socket stream: %s", strerror(errno));
+		return errno;
+	}
+
+	server.sun_family = AF_UNIX;
+	strcpy(server.sun_path, SOCKET_NAME);
+
+	if (connect(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
+		close(sock);
+		fprintf(stderr, "Error connecting stream socket: %s", strerror(errno));
+		return errno;
+	}
+
+	err = recv_xsks_map_fd_from_ctrl_node(sock, xsks_map_fd);
+	if (err) {
+		fprintf(stderr, "Error %d receiving fd\n", err);
+		return err;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
+	struct __user_cap_header_struct hdr = { _LINUX_CAPABILITY_VERSION_3, 0 };
+	struct __user_cap_data_struct data[2] = { { 0 } };
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	bool rx = false, tx = false;
 	struct xsk_umem_info *umem;
 	struct bpf_object *obj;
+	int xsks_map_fd = 0;
 	pthread_t pt;
 	int i, ret;
 	void *bufs;
 
 	parse_command_line(argc, argv);
 
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		fprintf(stderr, "ERROR: setrlimit(RLIMIT_MEMLOCK) \"%s\"\n",
-			strerror(errno));
-		exit(EXIT_FAILURE);
-	}
+	if (opt_reduced_cap) {
+		if (capget(&hdr, data)  < 0)
+			fprintf(stderr, "Error getting capabilities\n");
 
-	if (opt_num_xsks > 1)
-		load_xdp_program(argv, &obj);
+		data->effective &= CAP_TO_MASK(CAP_NET_RAW);
+		data->permitted &= CAP_TO_MASK(CAP_NET_RAW);
+
+		if (capset(&hdr, data) < 0)
+			fprintf(stderr, "Setting capabilities failed\n");
+
+		if (capget(&hdr, data)  < 0) {
+			fprintf(stderr, "Error getting capabilities\n");
+		} else {
+			fprintf(stderr, "Capabilities EFF %x Caps INH %x Caps Per %x\n",
+				data[0].effective, data[0].inheritable, data[0].permitted);
+			fprintf(stderr, "Capabilities EFF %x Caps INH %x Caps Per %x\n",
+				data[1].effective, data[1].inheritable, data[1].permitted);
+		}
+	} else {
+		if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+			fprintf(stderr, "ERROR: setrlimit(RLIMIT_MEMLOCK) \"%s\"\n",
+				strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
+		if (opt_num_xsks > 1)
+			load_xdp_program(argv, &obj);
+	}
 
 	/* Reserve memory for the umem. Use hugepages if unaligned chunk mode */
 	bufs = mmap(NULL, NUM_FRAMES * opt_xsk_frame_size,
@@ -1255,6 +1642,9 @@ int main(int argc, char **argv)
 	for (i = 0; i < opt_num_xsks; i++)
 		xsks[num_socks++] = xsk_configure_socket(umem, rx, tx);
 
+	for (i = 0; i < opt_num_xsks; i++)
+		apply_setsockopt(xsks[i]);
+
 	if (opt_bench == BENCH_TXONLY) {
 		gen_eth_hdr_data();
 
@@ -1265,15 +1655,32 @@ int main(int argc, char **argv)
 	if (opt_num_xsks > 1 && opt_bench != BENCH_TXONLY)
 		enter_xsks_into_map(obj);
 
+	if (opt_reduced_cap) {
+		ret = recv_xsks_map_fd(&xsks_map_fd);
+		if (ret) {
+			fprintf(stderr, "Error %d receiving xsks_map_fd\n", ret);
+			exit_with_error(ret);
+		}
+		if (xsks[0]->xsk) {
+			ret = xsk_socket__update_xskmap(xsks[0]->xsk, xsks_map_fd);
+			if (ret) {
+				fprintf(stderr, "Update of BPF map failed(%d)\n", ret);
+				exit_with_error(ret);
+			}
+		}
+	}
+
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 	signal(SIGABRT, int_exit);
 
 	setlocale(LC_ALL, "");
 
-	ret = pthread_create(&pt, NULL, poller, NULL);
-	if (ret)
-		exit_with_error(ret);
+	if (!opt_quiet) {
+		ret = pthread_create(&pt, NULL, poller, NULL);
+		if (ret)
+			exit_with_error(ret);
+	}
 
 	prev_time = get_nsecs();
 	start_time = prev_time;
@@ -1287,7 +1694,8 @@ int main(int argc, char **argv)
 
 	benchmark_done = true;
 
-	pthread_join(pt, NULL);
+	if (!opt_quiet)
+		pthread_join(pt, NULL);
 
 	xdpsock_cleanup();
 

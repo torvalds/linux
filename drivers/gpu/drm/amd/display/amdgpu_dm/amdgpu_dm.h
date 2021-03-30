@@ -58,10 +58,10 @@
 /* Forward declarations */
 struct amdgpu_device;
 struct drm_device;
-struct amdgpu_dm_irq_handler_data;
 struct dc;
 struct amdgpu_bo;
 struct dmub_srv;
+struct dc_plane_state;
 
 struct common_irq_params {
 	struct amdgpu_device *adev;
@@ -86,7 +86,7 @@ struct irq_list_head {
  * @bo_ptr: Pointer to the buffer object
  * @gpu_addr: MMIO gpu addr
  */
-struct dm_comressor_info {
+struct dm_compressor_info {
 	void *cpu_addr;
 	struct amdgpu_bo *bo_ptr;
 	uint64_t gpu_addr;
@@ -148,7 +148,9 @@ struct amdgpu_dm_backlight_caps {
  * @soc_bounding_box: SOC bounding box values provided by gpu_info FW
  * @cached_state: Caches device atomic state for suspend/resume
  * @cached_dc_state: Cached state of content streams
- * @compressor: Frame buffer compression buffer. See &struct dm_comressor_info
+ * @compressor: Frame buffer compression buffer. See &struct dm_compressor_info
+ * @force_timing_sync: set via debugfs. When set, indicates that all connected
+ *		       displays will be forced to synchronize.
  */
 struct amdgpu_display_manager {
 
@@ -322,7 +324,7 @@ struct amdgpu_display_manager {
 	struct drm_atomic_state *cached_state;
 	struct dc_state *cached_dc_state;
 
-	struct dm_comressor_info compressor;
+	struct dm_compressor_info compressor;
 
 	const struct firmware *fw_dmcu;
 	uint32_t dmcu_fw_version;
@@ -333,6 +335,13 @@ struct amdgpu_display_manager {
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+
+	/**
+	 * @active_vblank_irq_count:
+	 *
+	 * number of currently active vblank irqs
+	 */
+	uint32_t active_vblank_irq_count;
 
 	/**
 	 * @mst_encoders:
@@ -410,16 +419,9 @@ struct amdgpu_dm_connector {
 
 extern const struct amdgpu_ip_block_version dm_ip_block;
 
-struct amdgpu_framebuffer;
-struct amdgpu_display_manager;
-struct dc_validation_set;
-struct dc_plane_state;
-
 struct dm_plane_state {
 	struct drm_plane_state base;
 	struct dc_plane_state *dc_state;
-	uint64_t tiling_flags;
-	bool tmz_surface;
 };
 
 struct dm_crtc_state {
@@ -438,6 +440,7 @@ struct dm_crtc_state {
 	bool freesync_timing_changed;
 	bool freesync_vrr_info_changed;
 
+	bool dsc_force_changed;
 	bool vrr_supported;
 	struct mod_freesync_config freesync_config;
 	struct dc_info_packet vrr_infopacket;
@@ -463,6 +466,9 @@ struct dm_connector_state {
 	uint8_t underscan_hborder;
 	bool underscan_enable;
 	bool freesync_capable;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	bool update_hdcp;
+#endif
 	uint8_t abm_level;
 	int vcpi_slots;
 	uint64_t pbn;

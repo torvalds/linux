@@ -146,7 +146,7 @@ int freeze_processes(void)
 	BUG_ON(in_atomic());
 
 	/*
-	 * Now that the whole userspace is frozen we need to disbale
+	 * Now that the whole userspace is frozen we need to disable
 	 * the OOM killer to disallow any further interference with
 	 * killable tasks. There is no guarantee oom victims will
 	 * ever reach a point they go away we have to wait with a timeout.
@@ -235,7 +235,7 @@ void thaw_kernel_threads(void)
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, p) {
-		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
+		if (p->flags & PF_KTHREAD)
 			__thaw_task(p);
 	}
 	read_unlock(&tasklist_lock);

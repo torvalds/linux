@@ -23,7 +23,7 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 #include "dc.h"
 #include "dc_link.h"
 #include "../display_mode_lib.h"
@@ -1219,13 +1219,13 @@ static bool CalculatePrefetchSchedule(
 			dml_print("DML: prefetch_bw_equ: %f\n", prefetch_bw_equ);
 
 			if (prefetch_bw_equ > 0) {
-				if (GPUVMEnable == true) {
+				if (GPUVMEnable) {
 					Tvm_equ = dml_max3(*Tno_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / prefetch_bw_equ, Tvm_trips, LineTime / 4);
 				} else {
 					Tvm_equ = LineTime / 4;
 				}
 
-				if ((GPUVMEnable == true || myPipe->DCCEnable == true)) {
+				if ((GPUVMEnable || myPipe->DCCEnable)) {
 					Tr0_equ = dml_max4(
 							(MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / prefetch_bw_equ,
 							Tr0_trips,
@@ -3628,7 +3628,7 @@ static double TruncToValidBPP(
 			}
 		}
 	} else {
-		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 || DesiredBPP == NonDSCBPP0)) ||
+		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 || DesiredBPP == NonDSCBPP0 || DesiredBPP == 18)) ||
 				(DSCEnable && DesiredBPP >= MinDSCBPP && DesiredBPP <= MaxDSCBPP))) {
 			return BPP_INVALID;
 		} else {
@@ -4263,7 +4263,7 @@ void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	for (i = 0; i < v->soc.num_states; i++) {
 		v->DIOSupport[i] = true;
 		for (k = 0; k <= v->NumberOfActivePlanes - 1; k++) {
-			if (v->BlendingAndTiming[k] == k && (v->Output[k] == dm_dp || v->Output[k] == dm_edp || v->Output[k] == dm_hdmi)
+			if (!v->skip_dio_check[k] && v->BlendingAndTiming[k] == k && (v->Output[k] == dm_dp || v->Output[k] == dm_edp || v->Output[k] == dm_hdmi)
 					&& (v->OutputBppPerState[i][k] == 0
 							|| (v->OutputFormat[k] == dm_420 && v->Interlace[k] == true && v->ProgressiveToInterlaceUnitInOPP == true))) {
 				v->DIOSupport[i] = false;
@@ -5558,7 +5558,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		}
 	}
 
-	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 0 && PrefetchMode == 0) {
+	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 0) {
 		*DRAMClockChangeSupport = dm_dram_clock_change_vactive;
 	} else if (((mode_lib->vba.SynchronizedVBlank == true || mode_lib->vba.TotalNumberOfActiveOTG == 1 || SecondMinActiveDRAMClockChangeMarginOneDisplayInVBLank > 0) && PrefetchMode == 0)) {
 		*DRAMClockChangeSupport = dm_dram_clock_change_vblank;
@@ -6870,4 +6870,4 @@ static void UseMinimumDCFCLK(
 	}
 }
 
-#endif /* CONFIG_DRM_AMD_DC_DCN3_0 */
+#endif /* CONFIG_DRM_AMD_DC_DCN */

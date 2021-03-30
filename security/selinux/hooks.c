@@ -484,6 +484,55 @@ static int selinux_is_sblabel_mnt(struct super_block *sb)
 	}
 }
 
+static int sb_check_xattr_support(struct super_block *sb)
+{
+	struct superblock_security_struct *sbsec = sb->s_security;
+	struct dentry *root = sb->s_root;
+	struct inode *root_inode = d_backing_inode(root);
+	u32 sid;
+	int rc;
+
+	/*
+	 * Make sure that the xattr handler exists and that no
+	 * error other than -ENODATA is returned by getxattr on
+	 * the root directory.  -ENODATA is ok, as this may be
+	 * the first boot of the SELinux kernel before we have
+	 * assigned xattr values to the filesystem.
+	 */
+	if (!(root_inode->i_opflags & IOP_XATTR)) {
+		pr_warn("SELinux: (dev %s, type %s) has no xattr support\n",
+			sb->s_id, sb->s_type->name);
+		goto fallback;
+	}
+
+	rc = __vfs_getxattr(root, root_inode, XATTR_NAME_SELINUX, NULL, 0);
+	if (rc < 0 && rc != -ENODATA) {
+		if (rc == -EOPNOTSUPP) {
+			pr_warn("SELinux: (dev %s, type %s) has no security xattr handler\n",
+				sb->s_id, sb->s_type->name);
+			goto fallback;
+		} else {
+			pr_warn("SELinux: (dev %s, type %s) getxattr errno %d\n",
+				sb->s_id, sb->s_type->name, -rc);
+			return rc;
+		}
+	}
+	return 0;
+
+fallback:
+	/* No xattr support - try to fallback to genfs if possible. */
+	rc = security_genfs_sid(&selinux_state, sb->s_type->name, "/",
+				SECCLASS_DIR, &sid);
+	if (rc)
+		return -EOPNOTSUPP;
+
+	pr_warn("SELinux: (dev %s, type %s) falling back to genfs\n",
+		sb->s_id, sb->s_type->name);
+	sbsec->behavior = SECURITY_FS_USE_GENFS;
+	sbsec->sid = sid;
+	return 0;
+}
+
 static int sb_finish_set_opts(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
@@ -492,30 +541,9 @@ static int sb_finish_set_opts(struct super_block *sb)
 	int rc = 0;
 
 	if (sbsec->behavior == SECURITY_FS_USE_XATTR) {
-		/* Make sure that the xattr handler exists and that no
-		   error other than -ENODATA is returned by getxattr on
-		   the root directory.  -ENODATA is ok, as this may be
-		   the first boot of the SELinux kernel before we have
-		   assigned xattr values to the filesystem. */
-		if (!(root_inode->i_opflags & IOP_XATTR)) {
-			pr_warn("SELinux: (dev %s, type %s) has no "
-			       "xattr support\n", sb->s_id, sb->s_type->name);
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-
-		rc = __vfs_getxattr(root, root_inode, XATTR_NAME_SELINUX, NULL, 0);
-		if (rc < 0 && rc != -ENODATA) {
-			if (rc == -EOPNOTSUPP)
-				pr_warn("SELinux: (dev %s, type "
-				       "%s) has no security xattr handler\n",
-				       sb->s_id, sb->s_type->name);
-			else
-				pr_warn("SELinux: (dev %s, type "
-				       "%s) getxattr errno %d\n", sb->s_id,
-				       sb->s_type->name, -rc);
-			goto out;
-		}
+		rc = sb_check_xattr_support(sb);
+		if (rc)
+			return rc;
 	}
 
 	sbsec->flags |= SE_SBINITIALIZED;
@@ -554,7 +582,6 @@ static int sb_finish_set_opts(struct super_block *sb)
 		spin_lock(&sbsec->isec_lock);
 	}
 	spin_unlock(&sbsec->isec_lock);
-out:
 	return rc;
 }
 
@@ -600,7 +627,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 {
 	const struct cred *cred = current_cred();
 	struct superblock_security_struct *sbsec = sb->s_security;
-	struct dentry *root = sbsec->sb->s_root;
+	struct dentry *root = sb->s_root;
 	struct selinux_mnt_opts *opts = mnt_opts;
 	struct inode_security_struct *root_isec;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
@@ -1080,7 +1107,7 @@ static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
 			return rc;
 	}
 	if (sbsec->flags & ROOTCONTEXT_MNT) {
-		struct dentry *root = sbsec->sb->s_root;
+		struct dentry *root = sb->s_root;
 		struct inode_security_struct *isec = backing_inode_security(root);
 		seq_putc(m, ',');
 		seq_puts(m, ROOTCONTEXT_STR);
@@ -1120,7 +1147,8 @@ static inline u16 inode_mode_to_security_class(umode_t mode)
 
 static inline int default_protocol_stream(int protocol)
 {
-	return (protocol == IPPROTO_IP || protocol == IPPROTO_TCP);
+	return (protocol == IPPROTO_IP || protocol == IPPROTO_TCP ||
+		protocol == IPPROTO_MPTCP);
 }
 
 static inline int default_protocol_dgram(int protocol)
@@ -1451,7 +1479,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			 * inode_doinit with a dentry, before these inodes could
 			 * be used again by userspace.
 			 */
-			goto out;
+			goto out_invalid;
 		}
 
 		rc = inode_doinit_use_xattr(inode, dentry, sbsec->def_sid,
@@ -1508,7 +1536,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			 * could be used again by userspace.
 			 */
 			if (!dentry)
-				goto out;
+				goto out_invalid;
 			rc = selinux_genfs_get_sid(dentry, sclass,
 						   sbsec->flags, &sid);
 			if (rc) {
@@ -1533,11 +1561,10 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 out:
 	spin_lock(&isec->lock);
 	if (isec->initialized == LABEL_PENDING) {
-		if (!sid || rc) {
+		if (rc) {
 			isec->initialized = LABEL_INVALID;
 			goto out_unlock;
 		}
-
 		isec->initialized = LABEL_INITIALIZED;
 		isec->sid = sid;
 	}
@@ -1545,6 +1572,15 @@ out:
 out_unlock:
 	spin_unlock(&isec->lock);
 	return rc;
+
+out_invalid:
+	spin_lock(&isec->lock);
+	if (isec->initialized == LABEL_PENDING) {
+		isec->initialized = LABEL_INVALID;
+		isec->sid = sid;
+	}
+	spin_unlock(&isec->lock);
+	return 0;
 }
 
 /* Convert a Linux signal to an access vector. */
@@ -2560,7 +2596,6 @@ static int selinux_sb_alloc_security(struct super_block *sb)
 	mutex_init(&sbsec->lock);
 	INIT_LIST_HEAD(&sbsec->isec_head);
 	spin_lock_init(&sbsec->isec_lock);
-	sbsec->sb = sb;
 	sbsec->sid = SECINITSID_UNLABELED;
 	sbsec->def_sid = SECINITSID_FILE;
 	sbsec->mntpoint_sid = SECINITSID_UNLABELED;
@@ -2925,6 +2960,62 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	}
 
 	return 0;
+}
+
+static int selinux_inode_init_security_anon(struct inode *inode,
+					    const struct qstr *name,
+					    const struct inode *context_inode)
+{
+	const struct task_security_struct *tsec = selinux_cred(current_cred());
+	struct common_audit_data ad;
+	struct inode_security_struct *isec;
+	int rc;
+
+	if (unlikely(!selinux_initialized(&selinux_state)))
+		return 0;
+
+	isec = selinux_inode(inode);
+
+	/*
+	 * We only get here once per ephemeral inode.  The inode has
+	 * been initialized via inode_alloc_security but is otherwise
+	 * untouched.
+	 */
+
+	if (context_inode) {
+		struct inode_security_struct *context_isec =
+			selinux_inode(context_inode);
+		if (context_isec->initialized != LABEL_INITIALIZED) {
+			pr_err("SELinux:  context_inode is not initialized");
+			return -EACCES;
+		}
+
+		isec->sclass = context_isec->sclass;
+		isec->sid = context_isec->sid;
+	} else {
+		isec->sclass = SECCLASS_ANON_INODE;
+		rc = security_transition_sid(
+			&selinux_state, tsec->sid, tsec->sid,
+			isec->sclass, name, &isec->sid);
+		if (rc)
+			return rc;
+	}
+
+	isec->initialized = LABEL_INITIALIZED;
+	/*
+	 * Now that we've initialized security, check whether we're
+	 * allowed to actually create this type of anonymous inode.
+	 */
+
+	ad.type = LSM_AUDIT_DATA_INODE;
+	ad.u.inode = inode;
+
+	return avc_has_perm(&selinux_state,
+			    tsec->sid,
+			    isec->sid,
+			    isec->sclass,
+			    FILE__CREATE,
+			    &ad);
 }
 
 static int selinux_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode)
@@ -3406,6 +3497,10 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
 {
 	const int len = sizeof(XATTR_NAME_SELINUX);
+
+	if (!selinux_initialized(&selinux_state))
+		return 0;
+
 	if (buffer && len <= buffer_size)
 		memcpy(buffer, XATTR_NAME_SELINUX, len);
 	return len;
@@ -4029,6 +4124,7 @@ static int selinux_kernel_load_data(enum kernel_load_data_id id, bool contents)
 	switch (id) {
 	case LOADING_MODULE:
 		rc = selinux_kernel_module_from_file(NULL);
+		break;
 	default:
 		break;
 	}
@@ -5355,7 +5451,7 @@ static void selinux_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
 	selinux_netlbl_sctp_sk_clone(sk, newsk);
 }
 
-static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
+static int selinux_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 				     struct request_sock *req)
 {
 	struct sk_security_struct *sksec = sk->sk_security;
@@ -5429,9 +5525,9 @@ static void selinux_secmark_refcount_dec(void)
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
-				      struct flowi *fl)
+				      struct flowi_common *flic)
 {
-	fl->flowi_secid = req->secid;
+	flic->flowic_secid = req->secid;
 }
 
 static int selinux_tun_dev_alloc_security(void **security)
@@ -6992,6 +7088,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(inode_free_security, selinux_inode_free_security),
 	LSM_HOOK_INIT(inode_init_security, selinux_inode_init_security),
+	LSM_HOOK_INIT(inode_init_security_anon, selinux_inode_init_security_anon),
 	LSM_HOOK_INIT(inode_create, selinux_inode_create),
 	LSM_HOOK_INIT(inode_link, selinux_inode_link),
 	LSM_HOOK_INIT(inode_unlink, selinux_inode_unlink),

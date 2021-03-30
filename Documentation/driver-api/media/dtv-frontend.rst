@@ -125,7 +125,7 @@ responsible for tuning the device. It supports multiple algorithms to
 detect a channel, as defined at enum :c:func:`dvbfe_algo`.
 
 The algorithm to be used is obtained via ``.get_frontend_algo``. If the driver
-doesn't fill its field at struct :c:type:`dvb_frontend_ops`, it will default to
+doesn't fill its field at struct dvb_frontend_ops, it will default to
 ``DVBFE_ALGO_SW``, meaning that the dvb-core will do a zigzag when tuning,
 e. g. it will try first to use the specified center frequency ``f``,
 then, it will do ``f`` + |delta|, ``f`` - |delta|, ``f`` + 2 x |delta|,
@@ -140,7 +140,7 @@ define a ``.get_frontend_algo`` function that would return ``DVBFE_ALGO_HW``.
    a third type (``DVBFE_ALGO_CUSTOM``), in order to allow the driver to
    define its own hardware-assisted algorithm. Very few hardware need to
    use it nowadays. Using ``DVBFE_ALGO_CUSTOM`` require to provide other
-   function callbacks at struct :c:type:`dvb_frontend_ops`.
+   function callbacks at struct dvb_frontend_ops.
 
 Attaching frontend driver to the bridge driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -244,7 +244,7 @@ Carrier Signal to Noise ratio (:ref:`DTV-STAT-CNR`)
     Having it available after inner FEC is more common.
 
 Bit counts post-FEC (:ref:`DTV-STAT-POST-ERROR-BIT-COUNT` and :ref:`DTV-STAT-POST-TOTAL-BIT-COUNT`)
-  - Those counters measure the number of bits and bit errors errors after
+  - Those counters measure the number of bits and bit errors after
     the forward error correction (FEC) on the inner coding block
     (after Viterbi, LDPC or other inner code).
 
@@ -253,7 +253,7 @@ Bit counts post-FEC (:ref:`DTV-STAT-POST-ERROR-BIT-COUNT` and :ref:`DTV-STAT-POS
     see :c:type:`fe_status`).
 
 Bit counts pre-FEC (:ref:`DTV-STAT-PRE-ERROR-BIT-COUNT` and :ref:`DTV-STAT-PRE-TOTAL-BIT-COUNT`)
-  - Those counters measure the number of bits and bit errors errors before
+  - Those counters measure the number of bits and bit errors before
     the forward error correction (FEC) on the inner coding block
     (before Viterbi, LDPC or other inner code).
 
@@ -263,7 +263,7 @@ Bit counts pre-FEC (:ref:`DTV-STAT-PRE-ERROR-BIT-COUNT` and :ref:`DTV-STAT-PRE-T
     after ``FE_HAS_VITERBI``, see :c:type:`fe_status`).
 
 Block counts (:ref:`DTV-STAT-ERROR-BLOCK-COUNT` and :ref:`DTV-STAT-TOTAL-BLOCK-COUNT`)
-  - Those counters measure the number of blocks and block errors errors after
+  - Those counters measure the number of blocks and block errors after
     the forward error correction (FEC) on the inner coding block
     (before Viterbi, LDPC or other inner code).
 

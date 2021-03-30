@@ -31,11 +31,13 @@ struct {
 #define PARSE_IP 3
 #define PARSE_IPV6 4
 
-/* protocol dispatch routine.
- * It tail-calls next BPF program depending on eth proto
- * Note, we could have used:
- * bpf_tail_call(skb, &jmp_table, proto);
- * but it would need large prog_array
+/* Protocol dispatch routine. It tail-calls next BPF program depending
+ * on eth proto. Note, we could have used ...
+ *
+ *   bpf_tail_call(skb, &jmp_table, proto);
+ *
+ * ... but it would need large prog_array and cannot be optimised given
+ * the map key is not static.
  */
 static inline void parse_eth_proto(struct __sk_buff *skb, u32 proto)
 {

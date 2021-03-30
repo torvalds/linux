@@ -50,9 +50,7 @@ static inline struct rcar_msi *to_rcar_msi(struct msi_controller *chip)
 /* Structure representing the PCIe interface */
 struct rcar_pcie_host {
 	struct rcar_pcie	pcie;
-	struct device		*dev;
 	struct phy		*phy;
-	void __iomem		*base;
 	struct clk		*bus_clk;
 	struct			rcar_msi msi;
 	int			(*phy_init_fn)(struct rcar_pcie_host *host);

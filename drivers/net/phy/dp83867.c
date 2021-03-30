@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Driver for the Texas Instruments DP83867 PHY
+/* Driver for the Texas Instruments DP83867 PHY
  *
  * Copyright (C) 2015 Texas Instruments Inc.
  */
@@ -112,7 +111,6 @@
 #define DP83867_RGMII_RX_CLK_DELAY_MAX		0xf
 #define DP83867_RGMII_RX_CLK_DELAY_SHIFT	0
 #define DP83867_RGMII_RX_CLK_DELAY_INV	(DP83867_RGMII_RX_CLK_DELAY_MAX + 1)
-
 
 /* IO_MUX_CFG bits */
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MASK	0x1f
@@ -290,9 +288,13 @@ static void dp83867_get_wol(struct phy_device *phydev,
 
 static int dp83867_config_intr(struct phy_device *phydev)
 {
-	int micr_status;
+	int micr_status, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83867_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		micr_status = phy_read(phydev, MII_DP83867_MICR);
 		if (micr_status < 0)
 			return micr_status;
@@ -305,11 +307,41 @@ static int dp83867_config_intr(struct phy_device *phydev)
 			MII_DP83867_MICR_DUP_MODE_CHNG_INT_EN |
 			MII_DP83867_MICR_SLEEP_MODE_CHNG_INT_EN);
 
-		return phy_write(phydev, MII_DP83867_MICR, micr_status);
+		err = phy_write(phydev, MII_DP83867_MICR, micr_status);
+	} else {
+		micr_status = 0x0;
+		err = phy_write(phydev, MII_DP83867_MICR, micr_status);
+		if (err)
+			return err;
+
+		err = dp83867_ack_interrupt(phydev);
 	}
 
-	micr_status = 0x0;
-	return phy_write(phydev, MII_DP83867_MICR, micr_status);
+	return err;
+}
+
+static irqreturn_t dp83867_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_enabled;
+
+	irq_status = phy_read(phydev, MII_DP83867_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_enabled = phy_read(phydev, MII_DP83867_MICR);
+	if (irq_enabled < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_enabled))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83867_read_status(struct phy_device *phydev)
@@ -384,22 +416,22 @@ static int dp83867_set_downshift(struct phy_device *phydev, u8 cnt)
 				      DP83867_DOWNSHIFT_EN);
 
 	switch (cnt) {
-		case DP83867_DOWNSHIFT_1_COUNT:
-			count = DP83867_DOWNSHIFT_1_COUNT_VAL;
-			break;
-		case DP83867_DOWNSHIFT_2_COUNT:
-			count = DP83867_DOWNSHIFT_2_COUNT_VAL;
-			break;
-		case DP83867_DOWNSHIFT_4_COUNT:
-			count = DP83867_DOWNSHIFT_4_COUNT_VAL;
-			break;
-		case DP83867_DOWNSHIFT_8_COUNT:
-			count = DP83867_DOWNSHIFT_8_COUNT_VAL;
-			break;
-		default:
-			phydev_err(phydev,
-				   "Downshift count must be 1, 2, 4 or 8\n");
-			return -EINVAL;
+	case DP83867_DOWNSHIFT_1_COUNT:
+		count = DP83867_DOWNSHIFT_1_COUNT_VAL;
+		break;
+	case DP83867_DOWNSHIFT_2_COUNT:
+		count = DP83867_DOWNSHIFT_2_COUNT_VAL;
+		break;
+	case DP83867_DOWNSHIFT_4_COUNT:
+		count = DP83867_DOWNSHIFT_4_COUNT_VAL;
+		break;
+	case DP83867_DOWNSHIFT_8_COUNT:
+		count = DP83867_DOWNSHIFT_8_COUNT_VAL;
+		break;
+	default:
+		phydev_err(phydev,
+			   "Downshift count must be 1, 2, 4 or 8\n");
+		return -EINVAL;
 	}
 
 	val = DP83867_DOWNSHIFT_EN;
@@ -411,7 +443,7 @@ static int dp83867_set_downshift(struct phy_device *phydev, u8 cnt)
 }
 
 static int dp83867_get_tunable(struct phy_device *phydev,
-				struct ethtool_tunable *tuna, void *data)
+			       struct ethtool_tunable *tuna, void *data)
 {
 	switch (tuna->id) {
 	case ETHTOOL_PHY_DOWNSHIFT:
@@ -422,7 +454,7 @@ static int dp83867_get_tunable(struct phy_device *phydev,
 }
 
 static int dp83867_set_tunable(struct phy_device *phydev,
-				struct ethtool_tunable *tuna, const void *data)
+			       struct ethtool_tunable *tuna, const void *data)
 {
 	switch (tuna->id) {
 	case ETHTOOL_PHY_DOWNSHIFT:
@@ -524,11 +556,10 @@ static int dp83867_of_init(struct phy_device *phydev)
 		dp83867->io_impedance = -1; /* leave at default */
 
 	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
-					"ti,dp83867-rxctrl-strap-quirk");
+							    "ti,dp83867-rxctrl-strap-quirk");
 
 	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_node,
-					"ti,sgmii-ref-clock-output-enable");
-
+							  "ti,sgmii-ref-clock-output-enable");
 
 	dp83867->rx_id_delay = DP83867_RGMII_RX_CLK_DELAY_INV;
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
@@ -828,8 +859,8 @@ static struct phy_driver dp83867_driver[] = {
 		.set_wol	= dp83867_set_wol,
 
 		/* IRQ related */
-		.ack_interrupt	= dp83867_ack_interrupt,
 		.config_intr	= dp83867_config_intr,
+		.handle_interrupt = dp83867_handle_interrupt,
 
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

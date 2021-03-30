@@ -210,7 +210,7 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 
 	case WLAN_CIPHER_SUITE_WEP104:
 		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
-		/* fall through */
+		fallthrough;
 	case WLAN_CIPHER_SUITE_WEP40:
 		tx_cmd->sec_ctl |= (TX_CMD_SEC_WEP |
 			(keyconf->keyidx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT);
@@ -803,7 +803,7 @@ static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,
 	rcu_read_unlock();
 }
 
-/**
+/*
  * translate ucode response to mac80211 tx status control values
  */
 static void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
@@ -1256,7 +1256,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 	}
 }
 
-/**
+/*
  * iwlagn_rx_reply_compressed_ba - Handler for REPLY_COMPRESSED_BA
  *
  * Handles block-acknowledge notification from device, which reports success

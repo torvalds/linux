@@ -8,7 +8,6 @@ title: Samsung Exynos SoC SlimSSS (Slim Security SubSystem) module
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
-  - Kamil Konieczny <k.konieczny@partner.samsung.com>
 
 description: |+
   The SlimSSS module in Exynos5433 SoC supports the following:

@@ -4,9 +4,9 @@
 
 Translator: Bailu Lin <bailu.lin@vivo.com>
 
-=================================
+==================================
 AArch64 Linux 中扩展的活动监控单元
-=================================
+==================================
 
 作者: Ionela Voinescu <ionela.voinescu@arm.com>
 

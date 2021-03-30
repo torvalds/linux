@@ -23,6 +23,12 @@ struct sdw_stream_data {
 	struct sdw_stream_runtime *sdw_stream;
 };
 
+static const u32 max98373_sdw_cache_reg[] = {
+	MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK,
+	MAX98373_R2055_MEAS_ADC_THERM_CH_READBACK,
+	MAX98373_R20B6_BDE_CUR_STATE_READBACK,
+};
+
 static struct reg_default max98373_reg[] = {
 	{MAX98373_R0040_SCP_INIT_STAT_1, 0x00},
 	{MAX98373_R0041_SCP_INIT_MASK_1, 0x00},
@@ -245,11 +251,18 @@ static const struct regmap_config max98373_sdw_regmap = {
 static __maybe_unused int max98373_suspend(struct device *dev)
 {
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
+	int i;
+
+	/* cache feedback register values before suspend */
+	for (i = 0; i < max98373->cache_num; i++)
+		regmap_read(max98373->regmap, max98373->cache[i].reg, &max98373->cache[i].val);
 
 	regcache_cache_only(max98373->regmap, true);
-	regcache_mark_dirty(max98373->regmap);
+
 	return 0;
 }
+
+#define MAX98373_PROBE_TIMEOUT 5000
 
 static __maybe_unused int max98373_resume(struct device *dev)
 {
@@ -264,7 +277,7 @@ static __maybe_unused int max98373_resume(struct device *dev)
 		goto regmap_sync;
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
-					   msecs_to_jiffies(2000));
+					   msecs_to_jiffies(MAX98373_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(dev, "Initialization not complete, timed out\n");
 		return -ETIMEDOUT;
@@ -757,6 +770,7 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 {
 	struct max98373_priv *max98373;
 	int ret;
+	int i;
 	struct device *dev = &slave->dev;
 
 	/*  Allocate and assign private driver data structure  */
@@ -767,6 +781,14 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	dev_set_drvdata(dev, max98373);
 	max98373->regmap = regmap;
 	max98373->slave = slave;
+
+	max98373->cache_num = ARRAY_SIZE(max98373_sdw_cache_reg);
+	max98373->cache = devm_kcalloc(dev, max98373->cache_num,
+				       sizeof(*max98373->cache),
+				       GFP_KERNEL);
+
+	for (i = 0; i < max98373->cache_num; i++)
+		max98373->cache[i].reg = max98373_sdw_cache_reg[i];
 
 	/* Read voltage and slot configuration */
 	max98373_slot_config(dev, max98373);

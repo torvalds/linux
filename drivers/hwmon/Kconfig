@@ -38,19 +38,6 @@ config HWMON_DEBUG_CHIP
 
 comment "Native drivers"
 
-config SENSORS_AB8500
-	tristate "AB8500 thermal monitoring"
-	depends on AB8500_GPADC && AB8500_BM && (IIO = y)
-	default n
-	help
-	  If you say yes here you get support for the thermal sensor part
-	  of the AB8500 chip. The driver includes thermal management for
-	  AB8500 die and two GPADC channels. The GPADC channel are preferably
-	  used to access sensors outside the AB8500 chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called abx500-temp.
-
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
 	depends on X86 && DMI
@@ -257,6 +244,16 @@ config SENSORS_ADT7475
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7475.
 
+config SENSORS_AHT10
+	tristate "Aosong AHT10"
+	depends on I2C
+	help
+	  If you say yes here, you get support for the Aosong AHT10
+	  temperature and humidity sensors
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aht10.
+
 config SENSORS_AS370
 	tristate "Synaptics AS370 SoC hardware monitoring driver"
 	help
@@ -448,6 +445,19 @@ config SENSORS_CORSAIR_CPRO
 
 	  This driver can also be built as a module. If so, the module
 	  will be called corsair-cpro.
+
+config SENSORS_CORSAIR_PSU
+	tristate "Corsair PSU HID controller"
+	depends on HID
+	help
+	  If you say yes here you get support for Corsair PSUs with a HID
+	  interface.
+	  Currently this driver supports the (RM/HX)550i, (RM/HX)650i,
+	  (RM/HX)750i, (RM/HX)850i, (RM/HX)1000i and HX1200i power supplies
+	  by Corsair.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called corsair-psu.
 
 config SENSORS_DRIVETEMP
 	tristate "Hard disk drives with temperature sensors"
@@ -858,6 +868,18 @@ config SENSORS_LTC2990
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2990.
 
+config SENSORS_LTC2992
+	tristate "Linear Technology LTC2992"
+	depends on I2C
+	depends on GPIOLIB
+	help
+	  If you say yes here you get support for Linear Technology LTC2992
+	  I2C System Monitor. The LTC2992 measures current, voltage, and
+	  power of two supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2992.
+
 config SENSORS_LTC4151
 	tristate "Linear Technology LTC4151"
 	depends on I2C
@@ -936,6 +958,15 @@ config SENSORS_MAX1111
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max1111.
+
+config SENSORS_MAX127
+	tristate "Maxim MAX127 12-bit 8-channel Data Acquisition System"
+	depends on I2C
+	help
+	  Say y here to support Maxim's MAX127 DAS chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max127.
 
 config SENSORS_MAX16065
 	tristate "Maxim MAX16065 System Manager and compatibles"
@@ -1101,6 +1132,17 @@ config SENSORS_TC654
 
 	  This driver can also be built as a module. If so, the module
 	  will be called tc654.
+
+config SENSORS_TPS23861
+	tristate "Texas Instruments TPS23861 PoE PSE"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments
+	  TPS23861 802.3at PoE PSE chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called tps23861.
 
 config SENSORS_MENF21BMC_HWMON
 	tristate "MEN 14F021P00 BMC Hardware Monitoring"
@@ -1498,6 +1540,16 @@ config SENSORS_SL28CPLD
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sl28cpld-hwmon.
+
+config SENSORS_SBTSI
+	tristate "Emulated SB-TSI temperature sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for emulated temperature
+	  sensors on AMD SoCs with SB-TSI interface connected to a BMC device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called sbtsi_temp.
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."

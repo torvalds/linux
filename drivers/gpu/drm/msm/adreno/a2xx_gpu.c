@@ -534,8 +534,10 @@ struct msm_gpu *a2xx_gpu_init(struct drm_device *dev)
 
 	if (!gpu->aspace) {
 		dev_err(dev->dev, "No memory protection without MMU\n");
-		ret = -ENXIO;
-		goto fail;
+		if (!allow_vram_carveout) {
+			ret = -ENXIO;
+			goto fail;
+		}
 	}
 
 	return gpu;

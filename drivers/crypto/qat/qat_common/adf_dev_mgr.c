@@ -151,8 +151,8 @@ int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 	mutex_lock(&table_lock);
 	atomic_set(&accel_dev->ref_count, 0);
 
-	/* PF on host or VF on guest */
-	if (!accel_dev->is_vf || (accel_dev->is_vf && !pf)) {
+	/* PF on host or VF on guest - optimized to remove redundant is_vf */
+	if (!accel_dev->is_vf || !pf) {
 		struct vf_id_map *map;
 
 		list_for_each(itr, &accel_table) {
@@ -248,7 +248,8 @@ void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
 		       struct adf_accel_dev *pf)
 {
 	mutex_lock(&table_lock);
-	if (!accel_dev->is_vf || (accel_dev->is_vf && !pf)) {
+	/* PF on host or VF on guest - optimized to remove redundant is_vf */
+	if (!accel_dev->is_vf || !pf) {
 		id_map[accel_dev->accel_id] = 0;
 		num_devices--;
 	} else if (accel_dev->is_vf && pf) {
@@ -285,9 +286,9 @@ struct adf_accel_dev *adf_devmgr_get_first(void)
 
 /**
  * adf_devmgr_pci_to_accel_dev() - Get accel_dev associated with the pci_dev.
- * @pci_dev:  Pointer to pci device.
+ * @pci_dev:  Pointer to PCI device.
  *
- * Function returns acceleration device associated with the given pci device.
+ * Function returns acceleration device associated with the given PCI device.
  * To be used by QAT device specific drivers.
  *
  * Return: pointer to accel_dev or NULL if not found.

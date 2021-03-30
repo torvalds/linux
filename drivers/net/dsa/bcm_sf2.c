@@ -14,6 +14,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/phylink.h>
 #include <linux/mii.h>
+#include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -30,6 +31,49 @@
 #include "bcm_sf2_regs.h"
 #include "b53/b53_priv.h"
 #include "b53/b53_regs.h"
+
+/* Return the number of active ports, not counting the IMP (CPU) port */
+static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int port, count = 0;
+
+	for (port = 0; port < ARRAY_SIZE(priv->port_sts); port++) {
+		if (dsa_is_cpu_port(ds, port))
+			continue;
+		if (priv->port_sts[port].enabled)
+			count++;
+	}
+
+	return count;
+}
+
+static void bcm_sf2_recalc_clock(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned long new_rate;
+	unsigned int ports_active;
+	/* Frequenty in Mhz */
+	static const unsigned long rate_table[] = {
+		59220000,
+		60820000,
+		62500000,
+		62500000,
+	};
+
+	ports_active = bcm_sf2_num_active_ports(ds);
+	if (ports_active == 0 || !priv->clk_mdiv)
+		return;
+
+	/* If we overflow our table, just use the recommended operational
+	 * frequency
+	 */
+	if (ports_active > ARRAY_SIZE(rate_table))
+		new_rate = 90000000;
+	else
+		new_rate = rate_table[ports_active - 1];
+	clk_set_rate(priv->clk_mdiv, new_rate);
+}
 
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
@@ -61,7 +105,8 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	b53_brcm_hdr_setup(ds, port);
 
 	if (port == 8) {
-		if (priv->type == BCM7445_DEVICE_ID)
+		if (priv->type == BCM4908_DEVICE_ID ||
+		    priv->type == BCM7445_DEVICE_ID)
 			offset = CORE_STS_OVERRIDE_IMP;
 		else
 			offset = CORE_STS_OVERRIDE_IMP2;
@@ -82,6 +127,8 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 		reg &= ~(RX_DIS | TX_DIS);
 		core_writel(priv, reg, CORE_G_PCTL_PORT(port));
 	}
+
+	priv->port_sts[port].enabled = true;
 }
 
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
@@ -166,6 +213,10 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 
 	if (!dsa_is_user_port(ds, port))
 		return 0;
+
+	priv->port_sts[port].enabled = true;
+
+	bcm_sf2_recalc_clock(ds);
 
 	/* Clear the memory power down */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -260,6 +311,10 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port)
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
 	reg |= P_TXQ_PSM_VDD(port);
 	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
+
+	priv->port_sts[port].enabled = false;
+
+	bcm_sf2_recalc_clock(ds);
 }
 
 
@@ -403,6 +458,7 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 {
 	struct device_node *port;
 	unsigned int port_num;
+	struct property *prop;
 	phy_interface_t mode;
 	int err;
 
@@ -429,28 +485,44 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 
 		if (of_property_read_bool(port, "brcm,use-bcm-hdr"))
 			priv->brcm_tag_mask |= 1 << port_num;
+
+		/* Ensure that port 5 is not picked up as a DSA CPU port
+		 * flavour but a regular port instead. We should be using
+		 * devlink to be able to set the port flavour.
+		 */
+		if (port_num == 5 && priv->type == BCM7278_DEVICE_ID) {
+			prop = of_find_property(port, "ethernet", NULL);
+			if (prop)
+				of_remove_property(port, prop);
+		}
 	}
 }
 
 static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct device_node *dn;
+	struct device_node *dn, *child;
+	struct phy_device *phydev;
+	struct property *prop;
 	static int index;
-	int err;
+	int err, reg;
 
 	/* Find our integrated MDIO bus node */
 	dn = of_find_compatible_node(NULL, NULL, "brcm,unimac-mdio");
 	priv->master_mii_bus = of_mdio_find_bus(dn);
-	if (!priv->master_mii_bus)
+	if (!priv->master_mii_bus) {
+		of_node_put(dn);
 		return -EPROBE_DEFER;
+	}
 
 	get_device(&priv->master_mii_bus->dev);
 	priv->master_mii_dn = dn;
 
 	priv->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
-	if (!priv->slave_mii_bus)
+	if (!priv->slave_mii_bus) {
+		of_node_put(dn);
 		return -ENOMEM;
+	}
 
 	priv->slave_mii_bus->priv = priv;
 	priv->slave_mii_bus->name = "sf2 slave mii";
@@ -471,7 +543,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	 * driver.
 	 */
 	if (of_machine_is_compatible("brcm,bcm7445d0"))
-		priv->indir_phy_mask |= (1 << BRCM_PSEUDO_PHY_ADDR);
+		priv->indir_phy_mask |= (1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0);
 	else
 		priv->indir_phy_mask = 0;
 
@@ -479,6 +551,31 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	ds->slave_mii_bus = priv->slave_mii_bus;
 	priv->slave_mii_bus->parent = ds->dev->parent;
 	priv->slave_mii_bus->phy_mask = ~priv->indir_phy_mask;
+
+	/* We need to make sure that of_phy_connect() will not work by
+	 * removing the 'phandle' and 'linux,phandle' properties and
+	 * unregister the existing PHY device that was already registered.
+	 */
+	for_each_available_child_of_node(dn, child) {
+		if (of_property_read_u32(child, "reg", &reg) ||
+		    reg >= PHY_MAX_ADDR)
+			continue;
+
+		if (!(priv->indir_phy_mask & BIT(reg)))
+			continue;
+
+		prop = of_find_property(child, "phandle", NULL);
+		if (prop)
+			of_remove_property(child, prop);
+
+		prop = of_find_property(child, "linux,phandle", NULL);
+		if (prop)
+			of_remove_property(child, prop);
+
+		phydev = of_phy_find_device(child);
+		if (phydev)
+			phy_device_remove(phydev);
+	}
 
 	err = mdiobus_register(priv->slave_mii_bus);
 	if (err && dn)
@@ -623,7 +720,8 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 	u32 reg, offset;
 
 	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
-		if (priv->type == BCM7445_DEVICE_ID)
+		if (priv->type == BCM4908_DEVICE_ID ||
+		    priv->type == BCM7445_DEVICE_ID)
 			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
 		else
 			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
@@ -650,7 +748,8 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 	bcm_sf2_sw_mac_link_set(ds, port, interface, true);
 
 	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
-		if (priv->type == BCM7445_DEVICE_ID)
+		if (priv->type == BCM4908_DEVICE_ID ||
+		    priv->type == BCM7445_DEVICE_ID)
 			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
 		else
 			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
@@ -750,6 +849,9 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 			bcm_sf2_port_disable(ds, port);
 	}
 
+	if (!priv->wol_ports_mask)
+		clk_disable_unprepare(priv->clk);
+
 	return 0;
 }
 
@@ -757,6 +859,9 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	int ret;
+
+	if (!priv->wol_ports_mask)
+		clk_prepare_enable(priv->clk);
 
 	ret = bcm_sf2_sw_rst(priv);
 	if (ret) {
@@ -849,7 +954,12 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	b53_configure_vlan(ds);
 	bcm_sf2_enable_acb(ds);
 
-	return 0;
+	return b53_setup_devlink_resources(ds);
+}
+
+static void bcm_sf2_sw_teardown(struct dsa_switch *ds)
+{
+	dsa_devlink_resources_unregister(ds);
 }
 
 /* The SWITCH_CORE register space is managed by b53 but operates on a page +
@@ -986,6 +1096,7 @@ static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
 static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= bcm_sf2_sw_setup,
+	.teardown		= bcm_sf2_sw_teardown,
 	.get_strings		= bcm_sf2_sw_get_strings,
 	.get_ethtool_stats	= bcm_sf2_sw_get_ethtool_stats,
 	.get_sset_count		= bcm_sf2_sw_get_sset_count,
@@ -1009,7 +1120,6 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_stp_state_set	= b53_br_set_stp_state,
 	.port_fast_age		= b53_br_fast_age,
 	.port_vlan_filtering	= b53_vlan_filtering,
-	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
 	.port_fdb_dump		= b53_fdb_dump,
@@ -1019,7 +1129,6 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_rxnfc		= bcm_sf2_set_rxnfc,
 	.port_mirror_add	= b53_mirror_add,
 	.port_mirror_del	= b53_mirror_del,
-	.port_mdb_prepare	= b53_mdb_prepare,
 	.port_mdb_add		= b53_mdb_add,
 	.port_mdb_del		= b53_mdb_del,
 };
@@ -1029,6 +1138,30 @@ struct bcm_sf2_of_data {
 	const u16 *reg_offsets;
 	unsigned int core_reg_align;
 	unsigned int num_cfp_rules;
+};
+
+static const u16 bcm_sf2_4908_reg_offsets[] = {
+	[REG_SWITCH_CNTRL]	= 0x00,
+	[REG_SWITCH_STATUS]	= 0x04,
+	[REG_DIR_DATA_WRITE]	= 0x08,
+	[REG_DIR_DATA_READ]	= 0x0c,
+	[REG_SWITCH_REVISION]	= 0x10,
+	[REG_PHY_REVISION]	= 0x14,
+	[REG_SPHY_CNTRL]	= 0x24,
+	[REG_CROSSBAR]		= 0xc8,
+	[REG_RGMII_0_CNTRL]	= 0xe0,
+	[REG_RGMII_1_CNTRL]	= 0xec,
+	[REG_RGMII_2_CNTRL]	= 0xf8,
+	[REG_LED_0_CNTRL]	= 0x40,
+	[REG_LED_1_CNTRL]	= 0x4c,
+	[REG_LED_2_CNTRL]	= 0x58,
+};
+
+static const struct bcm_sf2_of_data bcm_sf2_4908_data = {
+	.type		= BCM4908_DEVICE_ID,
+	.core_reg_align	= 0,
+	.reg_offsets	= bcm_sf2_4908_reg_offsets,
+	.num_cfp_rules	= 0, /* FIXME */
 };
 
 /* Register offsets for the SWITCH_REG_* block */
@@ -1079,6 +1212,9 @@ static const struct bcm_sf2_of_data bcm_sf2_7278_data = {
 };
 
 static const struct of_device_id bcm_sf2_of_match[] = {
+	{ .compatible = "brcm,bcm4908-switch",
+	  .data = &bcm_sf2_4908_data
+	},
 	{ .compatible = "brcm,bcm7445-switch-v4.0",
 	  .data = &bcm_sf2_7445_data
 	},
@@ -1189,10 +1325,24 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 		base++;
 	}
 
+	priv->clk = devm_clk_get_optional(&pdev->dev, "sw_switch");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	clk_prepare_enable(priv->clk);
+
+	priv->clk_mdiv = devm_clk_get_optional(&pdev->dev, "sw_switch_mdiv");
+	if (IS_ERR(priv->clk_mdiv)) {
+		ret = PTR_ERR(priv->clk_mdiv);
+		goto out_clk;
+	}
+
+	clk_prepare_enable(priv->clk_mdiv);
+
 	ret = bcm_sf2_sw_rst(priv);
 	if (ret) {
 		pr_err("unable to software reset switch: %d\n", ret);
-		return ret;
+		goto out_clk_mdiv;
 	}
 
 	bcm_sf2_gphy_enable_set(priv->dev->ds, true);
@@ -1200,7 +1350,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	ret = bcm_sf2_mdio_register(ds);
 	if (ret) {
 		pr_err("failed to register MDIO bus\n");
-		return ret;
+		goto out_clk_mdiv;
 	}
 
 	bcm_sf2_gphy_enable_set(priv->dev->ds, false);
@@ -1267,6 +1417,10 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 out_mdio:
 	bcm_sf2_mdio_unregister(priv);
+out_clk_mdiv:
+	clk_disable_unprepare(priv->clk_mdiv);
+out_clk:
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -1280,6 +1434,8 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	dsa_unregister_switch(priv->dev->ds);
 	bcm_sf2_cfp_exit(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
+	clk_disable_unprepare(priv->clk_mdiv);
+	clk_disable_unprepare(priv->clk);
 	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev))
 		reset_control_assert(priv->rcdev);
 

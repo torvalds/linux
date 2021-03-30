@@ -2506,12 +2506,12 @@ static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
 
 	val = GET_SMSTATE(u32, smstate, 0x7fcc);
 
-	if (ctxt->ops->set_dr(ctxt, 6, (val & DR6_VOLATILE) | DR6_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 6, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	val = GET_SMSTATE(u32, smstate, 0x7fc8);
 
-	if (ctxt->ops->set_dr(ctxt, 7, (val & DR7_VOLATILE) | DR7_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 7, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	selector =                 GET_SMSTATE(u32, smstate, 0x7fc4);
@@ -2564,14 +2564,14 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt,
 	ctxt->_eip   = GET_SMSTATE(u64, smstate, 0x7f78);
 	ctxt->eflags = GET_SMSTATE(u32, smstate, 0x7f70) | X86_EFLAGS_FIXED;
 
-	val = GET_SMSTATE(u32, smstate, 0x7f68);
+	val = GET_SMSTATE(u64, smstate, 0x7f68);
 
-	if (ctxt->ops->set_dr(ctxt, 6, (val & DR6_VOLATILE) | DR6_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 6, val))
 		return X86EMUL_UNHANDLEABLE;
 
-	val = GET_SMSTATE(u32, smstate, 0x7f60);
+	val = GET_SMSTATE(u64, smstate, 0x7f60);
 
-	if (ctxt->ops->set_dr(ctxt, 7, (val & DR7_VOLATILE) | DR7_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 7, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	cr0 =                       GET_SMSTATE(u64, smstate, 0x7f58);
@@ -2879,6 +2879,8 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 	ops->get_msr(ctxt, MSR_IA32_SYSENTER_ESP, &msr_data);
 	*reg_write(ctxt, VCPU_REGS_RSP) = (efer & EFER_LMA) ? msr_data :
 							      (u32)msr_data;
+	if (efer & EFER_LMA)
+		ctxt->mode = X86EMUL_MODE_PROT64;
 
 	return X86EMUL_CONTINUE;
 }
@@ -3606,7 +3608,7 @@ static int em_rdpid(struct x86_emulate_ctxt *ctxt)
 	u64 tsc_aux = 0;
 
 	if (ctxt->ops->get_msr(ctxt, MSR_TSC_AUX, &tsc_aux))
-		return emulate_gp(ctxt, 0);
+		return emulate_ud(ctxt);
 	ctxt->dst.val = tsc_aux;
 	return X86EMUL_CONTINUE;
 }
@@ -3701,21 +3703,35 @@ static int em_dr_write(struct x86_emulate_ctxt *ctxt)
 
 static int em_wrmsr(struct x86_emulate_ctxt *ctxt)
 {
+	u64 msr_index = reg_read(ctxt, VCPU_REGS_RCX);
 	u64 msr_data;
+	int r;
 
 	msr_data = (u32)reg_read(ctxt, VCPU_REGS_RAX)
 		| ((u64)reg_read(ctxt, VCPU_REGS_RDX) << 32);
-	if (ctxt->ops->set_msr(ctxt, reg_read(ctxt, VCPU_REGS_RCX), msr_data))
+	r = ctxt->ops->set_msr(ctxt, msr_index, msr_data);
+
+	if (r == X86EMUL_IO_NEEDED)
+		return r;
+
+	if (r > 0)
 		return emulate_gp(ctxt, 0);
 
-	return X86EMUL_CONTINUE;
+	return r < 0 ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
 }
 
 static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
 {
+	u64 msr_index = reg_read(ctxt, VCPU_REGS_RCX);
 	u64 msr_data;
+	int r;
 
-	if (ctxt->ops->get_msr(ctxt, reg_read(ctxt, VCPU_REGS_RCX), &msr_data))
+	r = ctxt->ops->get_msr(ctxt, msr_index, &msr_data);
+
+	if (r == X86EMUL_IO_NEEDED)
+		return r;
+
+	if (r)
 		return emulate_gp(ctxt, 0);
 
 	*reg_write(ctxt, VCPU_REGS_RAX) = (u32)msr_data;
@@ -4032,6 +4048,12 @@ static int em_clflush(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_clflushopt(struct x86_emulate_ctxt *ctxt)
+{
+	/* emulating clflushopt regardless of cpuid */
+	return X86EMUL_CONTINUE;
+}
+
 static int em_movsxd(struct x86_emulate_ctxt *ctxt)
 {
 	ctxt->dst.val = (s32) ctxt->src.val;
@@ -4307,7 +4329,7 @@ static int check_dr_read(struct x86_emulate_ctxt *ctxt)
 
 		ctxt->ops->get_dr(ctxt, 6, &dr6);
 		dr6 &= ~DR_TRAP_BITS;
-		dr6 |= DR6_BD | DR6_RTM;
+		dr6 |= DR6_BD | DR6_ACTIVE_LOW;
 		ctxt->ops->set_dr(ctxt, 6, dr6);
 		return emulate_db(ctxt);
 	}
@@ -4571,7 +4593,7 @@ static const struct opcode group11[] = {
 };
 
 static const struct gprefix pfx_0f_ae_7 = {
-	I(SrcMem | ByteOp, em_clflush), N, N, N,
+	I(SrcMem | ByteOp, em_clflush), I(SrcMem | ByteOp, em_clflushopt), N, N,
 };
 
 static const struct group_dual group15 = { {

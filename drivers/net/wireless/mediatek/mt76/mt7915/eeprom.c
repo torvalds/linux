@@ -4,16 +4,11 @@
 #include "mt7915.h"
 #include "eeprom.h"
 
-static inline bool mt7915_efuse_valid(u8 val)
-{
-	return !(val == 0xff);
-}
-
-u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
+static u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
 {
 	u8 *data = dev->mt76.eeprom.data;
 
-	if (!mt7915_efuse_valid(data[offset]))
+	if (data[offset] == 0xff)
 		mt7915_mcu_get_eeprom(dev, offset);
 
 	return data[offset];
@@ -27,17 +22,20 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
+	if (ret)
+		dev->flash_mode = true;
+	else
+		memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
 
 	return 0;
 }
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
 {
-	u16 val;
 	u8 *eeprom = dev->mt76.eeprom.data;
+	u16 val;
 
-	mt7915_eeprom_read(dev, 0);
+	mt7915_eeprom_read(dev, MT_EE_CHIP_ID);
 	val = get_unaligned_le16(eeprom);
 
 	switch (val) {
@@ -48,35 +46,57 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
 	}
 }
 
-static void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev)
+void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 {
-	u8 *eeprom = dev->mt76.eeprom.data;
-	u8 tx_mask, max_nss = 4;
-	u32 val = mt7915_eeprom_read(dev, MT_EE_WIFI_CONF);
+	struct mt7915_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	u32 val;
 
-	val = FIELD_GET(MT_EE_WIFI_CONF_BAND_SEL, val);
+	val = mt7915_eeprom_read(dev, MT_EE_WIFI_CONF + ext_phy);
+	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
+	if (val == MT_EE_BAND_SEL_DEFAULT && dev->dbdc_support)
+		val = ext_phy ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
+
 	switch (val) {
-	case MT_EE_5GHZ:
-		dev->mt76.cap.has_5ghz = true;
+	case MT_EE_BAND_SEL_5GHZ:
+		phy->mt76->cap.has_5ghz = true;
 		break;
-	case MT_EE_2GHZ:
-		dev->mt76.cap.has_2ghz = true;
+	case MT_EE_BAND_SEL_2GHZ:
+		phy->mt76->cap.has_2ghz = true;
 		break;
 	default:
-		dev->mt76.cap.has_2ghz = true;
-		dev->mt76.cap.has_5ghz = true;
+		phy->mt76->cap.has_2ghz = true;
+		phy->mt76->cap.has_5ghz = true;
 		break;
 	}
+}
+
+static void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev)
+{
+	u8 nss, nss_band, *eeprom = dev->mt76.eeprom.data;
+
+	mt7915_eeprom_parse_band_config(&dev->phy);
 
 	/* read tx mask from eeprom */
-	tx_mask =  FIELD_GET(MT_EE_WIFI_CONF_TX_MASK,
-			     eeprom[MT_EE_WIFI_CONF]);
-	if (!tx_mask || tx_mask > max_nss)
-		tx_mask = max_nss;
+	nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH, eeprom[MT_EE_WIFI_CONF]);
+	if (!nss || nss > 4)
+		nss = 4;
 
-	dev->chainmask = BIT(tx_mask) - 1;
-	dev->mphy.antenna_mask = dev->chainmask;
-	dev->phy.chainmask = dev->chainmask;
+	nss_band = nss;
+
+	if (dev->dbdc_support) {
+		nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
+				     eeprom[MT_EE_WIFI_CONF + 3]);
+		if (!nss_band || nss_band > 2)
+			nss_band = 2;
+
+		if (nss_band >= nss)
+			nss = 4;
+	}
+
+	dev->chainmask = BIT(nss) - 1;
+	dev->mphy.antenna_mask = BIT(nss_band) - 1;
+	dev->mphy.chainmask = dev->mphy.antenna_mask;
 }
 
 int mt7915_eeprom_init(struct mt7915_dev *dev)
@@ -92,10 +112,10 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
 		return ret;
 
 	mt7915_eeprom_parse_hw_cap(dev);
-	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
 
-	mt76_eeprom_override(&dev->mt76);
+	mt76_eeprom_override(&dev->mphy);
 
 	return 0;
 }

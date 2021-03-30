@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "util.h"
 #include "wow.h"
+#include "ps.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
@@ -183,6 +184,9 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 	case C2H_BT_MP_INFO:
 		rtw_coex_info_response(rtwdev, skb);
 		break;
+	case C2H_WLAN_RFON:
+		complete(&rtwdev->lps_leave_check);
+		break;
 	default:
 		/* pass offset for further operation */
 		*((u32 *)skb->cb) = pkt_offset;
@@ -192,6 +196,15 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 	}
 }
 EXPORT_SYMBOL(rtw_fw_c2h_cmd_rx_irqsafe);
+
+void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev)
+{
+	if (rtw_read8(rtwdev, REG_MCU_TST_CFG) == VAL_FW_TRIGGER)
+		rtw_fw_recovery(rtwdev);
+	else
+		rtw_warn(rtwdev, "unhandled firmware c2h interrupt\n");
+}
+EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
 
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
@@ -619,7 +632,7 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
 
 	SET_NLO_FUN_EN(h2c_pkt, enable);
 	if (enable) {
-		if (rtw_fw_lps_deep_mode)
+		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_NONE)
 			SET_NLO_PS_32K(h2c_pkt, enable);
 		SET_NLO_IGNORE_SECURITY(h2c_pkt, enable);
 		SET_NLO_LOC_NLO_INFO(h2c_pkt, loc_nlo);
@@ -1404,29 +1417,16 @@ free:
 	return ret;
 }
 
-int rtw_dump_drv_rsvd_page(struct rtw_dev *rtwdev,
-			   u32 offset, u32 size, u32 *buf)
+static void rtw_fw_read_fifo_page(struct rtw_dev *rtwdev, u32 offset, u32 size,
+				  u32 *buf, u32 residue, u16 start_pg)
 {
-	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
-	u32 residue, i;
-	u16 start_pg;
+	u32 i;
 	u16 idx = 0;
 	u16 ctl;
 	u8 rcr;
 
-	if (size & 0x3) {
-		rtw_warn(rtwdev, "should be 4-byte aligned\n");
-		return -EINVAL;
-	}
-
-	offset += fifo->rsvd_boundary << TX_PAGE_SIZE_SHIFT;
-	residue = offset & (FIFO_PAGE_SIZE - 1);
-	start_pg = offset >> FIFO_PAGE_SIZE_SHIFT;
-	start_pg += RSVD_PAGE_START_ADDR;
-
 	rcr = rtw_read8(rtwdev, REG_RCR + 2);
 	ctl = rtw_read16(rtwdev, REG_PKTBUF_DBG_CTRL) & 0xf000;
-
 	/* disable rx clock gate */
 	rtw_write8(rtwdev, REG_RCR, rcr | BIT(3));
 
@@ -1448,6 +1448,64 @@ int rtw_dump_drv_rsvd_page(struct rtw_dev *rtwdev,
 out:
 	rtw_write16(rtwdev, REG_PKTBUF_DBG_CTRL, ctl);
 	rtw_write8(rtwdev, REG_RCR + 2, rcr);
+}
+
+static void rtw_fw_read_fifo(struct rtw_dev *rtwdev, enum rtw_fw_fifo_sel sel,
+			     u32 offset, u32 size, u32 *buf)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u32 start_pg, residue;
+
+	if (sel >= RTW_FW_FIFO_MAX) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "wrong fw fifo sel\n");
+		return;
+	}
+	if (sel == RTW_FW_FIFO_SEL_RSVD_PAGE)
+		offset += rtwdev->fifo.rsvd_boundary << TX_PAGE_SIZE_SHIFT;
+	residue = offset & (FIFO_PAGE_SIZE - 1);
+	start_pg = (offset >> FIFO_PAGE_SIZE_SHIFT) + chip->fw_fifo_addr[sel];
+
+	rtw_fw_read_fifo_page(rtwdev, offset, size, buf, residue, start_pg);
+}
+
+static bool rtw_fw_dump_check_size(struct rtw_dev *rtwdev,
+				   enum rtw_fw_fifo_sel sel,
+				   u32 start_addr, u32 size)
+{
+	switch (sel) {
+	case RTW_FW_FIFO_SEL_TX:
+	case RTW_FW_FIFO_SEL_RX:
+		if ((start_addr + size) > rtwdev->chip->fw_fifo_addr[sel])
+			return false;
+		fallthrough;
+	default:
+		return true;
+	}
+}
+
+int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
+		     u32 *buffer)
+{
+	if (!rtwdev->chip->fw_fifo_addr[0]) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "chip not support dump fw fifo\n");
+		return -ENOTSUPP;
+	}
+
+	if (size == 0 || !buffer)
+		return -EINVAL;
+
+	if (size & 0x3) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "not 4byte alignment\n");
+		return -EINVAL;
+	}
+
+	if (!rtw_fw_dump_check_size(rtwdev, fifo_sel, addr, size)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fw fifo dump size overflow\n");
+		return -EINVAL;
+	}
+
+	rtw_fw_read_fifo(rtwdev, fifo_sel, addr, size, buffer);
+
 	return 0;
 }
 

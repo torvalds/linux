@@ -92,7 +92,7 @@ static irqreturn_t axp20x_usb_power_irq(int irq, void *devid)
 
 	power_supply_changed(power->supply);
 
-	mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+	mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 
 	return IRQ_HANDLED;
 }
@@ -117,7 +117,7 @@ static void axp20x_usb_power_poll_vbus(struct work_struct *work)
 
 out:
 	if (axp20x_usb_vbus_needs_polling(power))
-		mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+		mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 }
 
 static int axp20x_get_current_max(struct axp20x_usb_power *power, int *val)
@@ -397,7 +397,7 @@ static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
 
 	/*
-	 * The VBUS path select flag works differently on on AXP288 and newer:
+	 * The VBUS path select flag works differently on AXP288 and newer:
 	 *  - On AXP20x and AXP22x, the flag enables VBUS (ignoring N_VBUSEN).
 	 *  - On AXP288 and AXP8xx, the flag disables VBUS (ignoring N_VBUSEN).
 	 * We only expose the control on variants where it can be used to force
@@ -525,7 +525,7 @@ static int axp20x_usb_power_resume(struct device *dev)
 	while (i < power->num_irqs)
 		enable_irq(power->irqs[i++]);
 
-	mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+	mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 
 	return 0;
 }
@@ -593,6 +593,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	power->axp20x_id = axp_data->axp20x_id;
 	power->regmap = axp20x->regmap;
 	power->num_irqs = axp_data->num_irq_names;
+	INIT_DELAYED_WORK(&power->vbus_detect, axp20x_usb_power_poll_vbus);
 
 	if (power->axp20x_id == AXP202_ID) {
 		/* Enable vbus valid checking */
@@ -645,9 +646,8 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 		}
 	}
 
-	INIT_DELAYED_WORK(&power->vbus_detect, axp20x_usb_power_poll_vbus);
 	if (axp20x_usb_vbus_needs_polling(power))
-		queue_delayed_work(system_wq, &power->vbus_detect, 0);
+		queue_delayed_work(system_power_efficient_wq, &power->vbus_detect, 0);
 
 	return 0;
 }

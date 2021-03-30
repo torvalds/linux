@@ -5,7 +5,9 @@ obj-$(CONFIG_MAILBOX)		+= mailbox.o
 
 obj-$(CONFIG_MAILBOX_TEST)	+= mailbox-test.o
 
-obj-$(CONFIG_ARM_MHU)	+= arm_mhu.o
+obj-$(CONFIG_ARM_MHU)	+= arm_mhu.o arm_mhu_db.o
+
+obj-$(CONFIG_ARM_MHU_V2)	+= arm_mhuv2.o
 
 obj-$(CONFIG_IMX_MBOX)	+= imx-mailbox.o
 

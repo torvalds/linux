@@ -88,17 +88,29 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
 	 * attempt the ucode load again if this happens.)
 	 */
 	ret = wait_for(guc_ready(uncore, &status), 100);
-	DRM_DEBUG_DRIVER("GuC status %#x\n", status);
+	if (ret) {
+		struct drm_device *drm = &uncore->i915->drm;
 
-	if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
-		DRM_ERROR("GuC firmware signature verification failed\n");
-		ret = -ENOEXEC;
-	}
+		drm_dbg(drm, "GuC load failed: status = 0x%08X\n", status);
+		drm_dbg(drm, "GuC load failed: status: Reset = %d, "
+			"BootROM = 0x%02X, UKernel = 0x%02X, "
+			"MIA = 0x%02X, Auth = 0x%02X\n",
+			REG_FIELD_GET(GS_MIA_IN_RESET, status),
+			REG_FIELD_GET(GS_BOOTROM_MASK, status),
+			REG_FIELD_GET(GS_UKERNEL_MASK, status),
+			REG_FIELD_GET(GS_MIA_MASK, status),
+			REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
 
-	if ((status & GS_UKERNEL_MASK) == GS_UKERNEL_EXCEPTION) {
-		DRM_ERROR("GuC firmware exception. EIP: %#x\n",
-			  intel_uncore_read(uncore, SOFT_SCRATCH(13)));
-		ret = -ENXIO;
+		if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
+			drm_dbg(drm, "GuC firmware signature verification failed\n");
+			ret = -ENOEXEC;
+		}
+
+		if ((status & GS_UKERNEL_MASK) == GS_UKERNEL_EXCEPTION) {
+			drm_dbg(drm, "GuC firmware exception. EIP: %#x\n",
+				intel_uncore_read(uncore, SOFT_SCRATCH(13)));
+			ret = -ENXIO;
+		}
 	}
 
 	return ret;

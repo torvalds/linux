@@ -585,7 +585,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	rq->retries = retries;
 	req->end_io_data = SRpnt;
 
-	blk_execute_rq_nowait(req->q, NULL, req, 1, st_scsi_execute_end);
+	blk_execute_rq_nowait(NULL, req, 1, st_scsi_execute_end);
 	return 0;
 }
 
@@ -2846,7 +2846,6 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 	case MTNOP:
 		DEBC_printk(STp, "No op on tape.\n");
 		return 0;	/* Should do something ? */
-		break;
 	case MTRETEN:
 		cmd[0] = START_STOP;
 		if (STp->immediate) {

@@ -60,12 +60,9 @@ static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	snprintf(name, sizeof(name), "timer%u", pwm->hwpwm);
 
 	clk = clk_get(chip->dev, name);
-	if (IS_ERR(clk)) {
-		if (PTR_ERR(clk) != -EPROBE_DEFER)
-			dev_err(chip->dev, "Failed to get clock: %pe", clk);
-
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(chip->dev, PTR_ERR(clk),
+				     "Failed to get clock\n");
 
 	err = clk_prepare_enable(clk);
 	if (err < 0) {

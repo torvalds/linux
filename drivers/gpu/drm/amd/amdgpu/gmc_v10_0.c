@@ -27,8 +27,6 @@
 #include "gmc_v10_0.h"
 #include "umc_v8_7.h"
 
-#include "hdp/hdp_5_0_0_offset.h"
-#include "hdp/hdp_5_0_0_sh_mask.h"
 #include "athub/athub_2_0_0_sh_mask.h"
 #include "athub/athub_2_0_0_offset.h"
 #include "dcn/dcn_2_0_0_offset.h"
@@ -46,6 +44,7 @@
 #include "gfxhub_v2_0.h"
 #include "gfxhub_v2_1.h"
 #include "mmhub_v2_0.h"
+#include "mmhub_v2_3.h"
 #include "athub_v2_0.h"
 #include "athub_v2_1.h"
 
@@ -93,12 +92,38 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 				       struct amdgpu_irq_src *source,
 				       struct amdgpu_iv_entry *entry)
 {
+	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
+	struct amdgpu_task_info task_info;
 	uint32_t status = 0;
 	u64 addr;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
+
+	if (retry_fault) {
+		/* Returning 1 here also prevents sending the IV to the KFD */
+
+		/* Process it onyl if it's the first fault for this address */
+		if (entry->ih != &adev->irq.ih_soft &&
+		    amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
+					     entry->timestamp))
+			return 1;
+
+		/* Delegate it to a different ring if the hardware hasn't
+		 * already done it.
+		 */
+		if (in_interrupt()) {
+			amdgpu_irq_delegate(adev, entry, 8);
+			return 1;
+		}
+
+		/* Try to handle the recoverable page faults by filling page
+		 * tables
+		 */
+		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr))
+			return 1;
+	}
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/*
@@ -106,31 +131,33 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		 * be updated to avoid reading an incorrect value due to
 		 * the new fast GRBM interface.
 		 */
-		if (entry->vmid_src == AMDGPU_GFXHUB_0)
+		if ((entry->vmid_src == AMDGPU_GFXHUB_0) &&
+		    (adev->asic_type < CHIP_SIENNA_CICHLID))
 			RREG32(hub->vm_l2_pro_fault_status);
 
 		status = RREG32(hub->vm_l2_pro_fault_status);
 		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 	}
 
-	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info;
+	if (!printk_ratelimit())
+		return 0;
 
-		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
-		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
+	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
-		dev_err(adev->dev,
-			"[%s] page fault (src_id:%u ring:%u vmid:%u pasid:%u, "
-			"for process %s pid %d thread %s pid %d)\n",
-			entry->vmid_src ? "mmhub" : "gfxhub",
-			entry->src_id, entry->ring_id, entry->vmid,
-			entry->pasid, task_info.process_name, task_info.tgid,
-			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
-			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev))
-			hub->vmhub_funcs->print_l2_protection_fault_status(adev, status);
-	}
+	dev_err(adev->dev,
+		"[%s] page fault (src_id:%u ring:%u vmid:%u pasid:%u, "
+		"for process %s pid %d thread %s pid %d)\n",
+		entry->vmid_src ? "mmhub" : "gfxhub",
+		entry->src_id, entry->ring_id, entry->vmid,
+		entry->pasid, task_info.process_name, task_info.tgid,
+		task_info.task_name, task_info.pid);
+	dev_err(adev->dev, "  in page starting at address 0x%012llx from client %d\n",
+		addr, entry->client_id);
+
+	if (!amdgpu_sriov_vf(adev))
+		hub->vmhub_funcs->print_l2_protection_fault_status(adev,
+								   status);
 
 	return 0;
 }
@@ -145,7 +172,7 @@ static const struct amdgpu_irq_src_funcs gmc_v10_0_ecc_funcs = {
 	.process = amdgpu_umc_process_ecc_irq,
 };
 
- static void gmc_v10_0_set_irq_funcs(struct amdgpu_device *adev)
+static void gmc_v10_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v10_0_irq_funcs;
@@ -231,7 +258,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	 * Issue a dummy read to wait for the ACK register to be cleared
 	 * to avoid a false ACK due to the new fast GRBM interface.
 	 */
-	if (vmhub == AMDGPU_GFXHUB_0)
+	if ((vmhub == AMDGPU_GFXHUB_0) &&
+	    (adev->asic_type < CHIP_SIENNA_CICHLID))
 		RREG32_NO_KIQ(hub->vm_inv_eng0_req + hub->eng_distance * eng);
 
 	/* Wait for ACK with a delay.*/
@@ -267,6 +295,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
+ * @vmhub: vmhub type
+ * @flush_type: the flush type
  *
  * Flush the TLB for the requested page table.
  */
@@ -280,7 +310,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	int r;
 
 	/* flush hdp cache */
-	adev->nbio.funcs->hdp_flush(adev, NULL);
+	adev->hdp.funcs->flush_hdp(adev, NULL);
 
 	/* For SRIOV run time, driver shouldn't access the register through MMIO
 	 * Directly use kiq to do the vm invalidation instead
@@ -359,6 +389,8 @@ error_alloc:
  *
  * @adev: amdgpu_device pointer
  * @pasid: pasid to be flush
+ * @flush_type: the flush type
+ * @all_hub: Used with PACKET3_INVALIDATE_TLBS_ALL_HUB()
  *
  * Flush the TLB for the requested pasid.
  */
@@ -398,7 +430,7 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		return 0;
 	}
 
-	for (vmid = 1; vmid < 16; vmid++) {
+	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
 
 		ret = gmc_v10_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
 				&queried_pasid);
@@ -483,7 +515,8 @@ static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
 /*
  * PTE format on NAVI 10:
  * 63:59 reserved
- * 58:57 reserved
+ * 58 reserved and for sienna_cichlid is used for MALL noalloc
+ * 57 reserved
  * 56 F
  * 55 L
  * 54 reserved
@@ -631,7 +664,14 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
-	adev->mmhub.funcs = &mmhub_v2_0_funcs;
+	switch (adev->asic_type) {
+	case CHIP_VANGOGH:
+		adev->mmhub.funcs = &mmhub_v2_3_funcs;
+		break;
+	default:
+		adev->mmhub.funcs = &mmhub_v2_0_funcs;
+		break;
+	}
 }
 
 static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
@@ -639,6 +679,8 @@ static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		adev->gfxhub.funcs = &gfxhub_v2_1_funcs;
 		break;
 	default:
@@ -673,8 +715,6 @@ static int gmc_v10_0_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	amdgpu_bo_late_init(adev);
-
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)
 		return r;
@@ -698,6 +738,7 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
 	amdgpu_gmc_gart_location(adev, mc);
+	amdgpu_gmc_agp_location(adev, mc);
 
 	/* base offset of vram pages */
 	adev->vm_manager.vram_base_offset = adev->gfxhub.funcs->get_mc_fb_offset(adev);
@@ -733,6 +774,13 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
+#ifdef CONFIG_X86_64
+	if (adev->flags & AMD_IS_APU) {
+		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev);
+		adev->gmc.aper_size = adev->gmc.real_vram_size;
+	}
+#endif
+
 	/* In case the PCI BAR is larger than the actual amount of vram */
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
 	if (adev->gmc.visible_vram_size > adev->gmc.real_vram_size)
@@ -746,6 +794,8 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 		case CHIP_NAVI12:
 		case CHIP_SIENNA_CICHLID:
 		case CHIP_NAVY_FLOUNDER:
+		case CHIP_VANGOGH:
+		case CHIP_DIMGREY_CAVEFISH:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -790,7 +840,10 @@ static int gmc_v10_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID && amdgpu_emu_mode == 1) {
+	if ((adev->flags & AMD_IS_APU) && amdgpu_emu_mode == 1) {
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_DDR4;
+		adev->gmc.vram_width = 64;
+	} else if (amdgpu_emu_mode == 1) {
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_GDDR6;
 		adev->gmc.vram_width = 1 * 128; /* numchan * chansize */
 	} else {
@@ -808,6 +861,8 @@ static int gmc_v10_0_sw_init(void *handle)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
@@ -921,6 +976,8 @@ static void gmc_v10_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		break;
 	default:
 		break;
@@ -936,7 +993,6 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 {
 	int r;
 	bool value;
-	u32 tmp;
 
 	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
@@ -955,15 +1011,10 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	tmp = RREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL);
-	tmp |= HDP_MISC_CNTL__FLUSH_INVALIDATE_CACHE_MASK;
-	WREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL, tmp);
-
-	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
-	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
+	adev->hdp.funcs->init_registers(adev);
 
 	/* Flush HDP after it is initialized */
-	adev->nbio.funcs->hdp_flush(adev, NULL);
+	adev->hdp.funcs->flush_hdp(adev, NULL);
 
 	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
 		false : true;
@@ -1081,8 +1132,8 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 	if (r)
 		return r;
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
 		return athub_v2_1_set_clockgating(adev, state);
 	else
 		return athub_v2_0_set_clockgating(adev, state);
@@ -1094,8 +1145,8 @@ static void gmc_v10_0_get_clockgating_state(void *handle, u32 *flags)
 
 	adev->mmhub.funcs->get_clockgating(adev, flags);
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
 		athub_v2_1_get_clockgating(adev, flags);
 	else
 		athub_v2_0_get_clockgating(adev, flags);

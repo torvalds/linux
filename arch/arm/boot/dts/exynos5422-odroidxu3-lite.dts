@@ -16,6 +16,10 @@
 / {
 	model = "Hardkernel Odroid XU3 Lite";
 	compatible = "hardkernel,odroid-xu3-lite", "samsung,exynos5800", "samsung,exynos5";
+
+	aliases {
+		ethernet = &ethernet;
+	};
 };
 
 &arm_a7_pmu {
@@ -102,4 +106,22 @@
 
 &usbdrd_dwc3_1 {
 	dr_mode = "peripheral";
+};
+
+&usbhost2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@1 {
+		compatible = "usb0424,9514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: usbether@1 {
+			compatible = "usb0424,ec00";
+			reg = <1>;
+			local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
+		};
+	};
 };

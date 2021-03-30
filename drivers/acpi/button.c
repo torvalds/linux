@@ -21,8 +21,6 @@
 #include <linux/dmi.h>
 #include <acpi/button.h>
 
-#define PREFIX "ACPI: "
-
 #define ACPI_BUTTON_CLASS		"button"
 #define ACPI_BUTTON_FILE_STATE		"state"
 #define ACPI_BUTTON_TYPE_UNKNOWN	0x00
@@ -54,9 +52,6 @@ static const char * const lid_init_state_str[] = {
 	[ACPI_BUTTON_LID_INIT_DISABLED]		= "disabled",
 };
 
-#define _COMPONENT		ACPI_BUTTON_COMPONENT
-ACPI_MODULE_NAME("button");
-
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Button Driver");
 MODULE_LICENSE("GPL");
@@ -74,19 +69,6 @@ MODULE_DEVICE_TABLE(acpi, button_device_ids);
 /* Please keep this list sorted alphabetically by vendor and model */
 static const struct dmi_system_id dmi_lid_quirks[] = {
 	{
-		/*
-		 * Acer Switch 10 SW5-012. _LID method messes with home and
-		 * power button GPIO IRQ settings causing an interrupt storm on
-		 * both GPIOs. This is unfixable without a DSDT override, so we
-		 * have to disable the lid-switch functionality altogether :|
-		 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
-		},
-		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_DISABLED,
-	},
-	{
 		/* GP-electronic T701, _LID method points to a floating GPIO */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
@@ -102,7 +84,18 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "E2215T MD60198"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E2215T"),
+		},
+		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
+	},
+	{
+		/*
+		 * Medion Akoya E2228T, notification of the LID device only
+		 * happens on close, not on open and _LID always returns closed.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E2228T"),
 		},
 		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
 	},
@@ -287,7 +280,7 @@ static int acpi_button_add_fs(struct acpi_device *device)
 		return 0;
 
 	if (acpi_button_dir || acpi_lid_dir) {
-		printk(KERN_ERR PREFIX "More than one Lid device found!\n");
+		pr_info("More than one Lid device found!\n");
 		return -EEXIST;
 	}
 
@@ -436,8 +429,8 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 		}
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Unsupported event [0x%x]\n", event));
+		acpi_handle_debug(device->handle, "Unsupported event [0x%x]\n",
+				  event);
 		break;
 	}
 }
@@ -525,7 +518,7 @@ static int acpi_button_add(struct acpi_device *device)
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
 		input->open = acpi_lid_input_open;
 	} else {
-		printk(KERN_ERR PREFIX "Unsupported hid [%s]\n", hid);
+		pr_info("Unsupported hid [%s]\n", hid);
 		error = -ENODEV;
 		goto err_free_input;
 	}
@@ -569,7 +562,7 @@ static int acpi_button_add(struct acpi_device *device)
 	}
 
 	device_init_wakeup(&device->dev, true);
-	printk(KERN_INFO PREFIX "%s [%s]\n", name, acpi_device_bid(device));
+	pr_info("%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
  err_remove_fs:

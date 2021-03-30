@@ -60,6 +60,8 @@
 #include "dce/dce_i2c.h"
 /* TODO remove this include */
 
+#include "dce80_resource.h"
+
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
 #include "gmc/gmc_7_1_d.h"
 #include "gmc/gmc_7_1_sh_mask.h"
@@ -402,7 +404,7 @@ static const struct dc_plane_cap plane_cap = {
 	.pixel_format_support = {
 			.argb8888 = true,
 			.nv12 = false,
-			.fp16 = false
+			.fp16 = true
 	},
 
 	.max_upscale_factor = {
@@ -458,25 +460,18 @@ static int map_transmitter_id_to_phy_instance(
 	switch (transmitter) {
 	case TRANSMITTER_UNIPHY_A:
 		return 0;
-	break;
 	case TRANSMITTER_UNIPHY_B:
 		return 1;
-	break;
 	case TRANSMITTER_UNIPHY_C:
 		return 2;
-	break;
 	case TRANSMITTER_UNIPHY_D:
 		return 3;
-	break;
 	case TRANSMITTER_UNIPHY_E:
 		return 4;
-	break;
 	case TRANSMITTER_UNIPHY_F:
 		return 5;
-	break;
 	case TRANSMITTER_UNIPHY_G:
 		return 6;
-	break;
 	default:
 		ASSERT(0);
 		return 0;
@@ -970,7 +965,9 @@ static bool dce80_construct(
 	pool->base.timing_generator_count = res_cap.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
+	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.extended_aux_timeout_support = false;
 
@@ -1168,7 +1165,9 @@ static bool dce81_construct(
 	pool->base.timing_generator_count = res_cap_81.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
+	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.is_apu = true;
 
 	/*************************************************
@@ -1365,7 +1364,9 @@ static bool dce83_construct(
 	pool->base.timing_generator_count = res_cap_83.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
+	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.is_apu = true;
 
 	/*************************************************

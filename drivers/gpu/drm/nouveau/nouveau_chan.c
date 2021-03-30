@@ -107,7 +107,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
-		if (chan->push.buffer && chan->push.buffer->pin_refcnt)
+		if (chan->push.buffer && chan->push.buffer->bo.pin_count)
 			nouveau_bo_unpin(chan->push.buffer);
 		nouveau_bo_ref(NULL, &chan->push.buffer);
 		kfree(chan);
@@ -533,6 +533,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	if (ret) {
 		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
+		goto done;
 	}
 
 	ret = nouveau_svmm_join((*pchan)->vmm->svmm, (*pchan)->inst);
@@ -555,7 +556,7 @@ nouveau_channels_init(struct nouveau_drm *drm)
 	} args = {
 		.m.version = 1,
 		.m.count = sizeof(args.v) / sizeof(args.v.channels),
-		.v.channels.mthd = NV_DEVICE_FIFO_CHANNELS,
+		.v.channels.mthd = NV_DEVICE_HOST_CHANNELS,
 	};
 	struct nvif_object *device = &drm->client.device.object;
 	int ret;

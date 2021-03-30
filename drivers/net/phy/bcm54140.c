@@ -637,13 +637,29 @@ static int bcm54140_config_init(struct phy_device *phydev)
 				  BCM54140_RDB_C_PWR_ISOLATE, 0);
 }
 
-static int bcm54140_did_interrupt(struct phy_device *phydev)
+static irqreturn_t bcm54140_handle_interrupt(struct phy_device *phydev)
 {
-	int ret;
+	int irq_status, irq_mask;
 
-	ret = bcm_phy_read_rdb(phydev, BCM54140_RDB_ISR);
+	irq_status = bcm_phy_read_rdb(phydev, BCM54140_RDB_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
 
-	return (ret < 0) ? 0 : ret;
+	irq_mask = bcm_phy_read_rdb(phydev, BCM54140_RDB_IMR);
+	if (irq_mask < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+	irq_mask = ~irq_mask;
+
+	if (!(irq_status & irq_mask))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int bcm54140_ack_intr(struct phy_device *phydev)
@@ -665,7 +681,7 @@ static int bcm54140_config_intr(struct phy_device *phydev)
 		BCM54140_RDB_TOP_IMR_PORT0, BCM54140_RDB_TOP_IMR_PORT1,
 		BCM54140_RDB_TOP_IMR_PORT2, BCM54140_RDB_TOP_IMR_PORT3,
 	};
-	int reg;
+	int reg, err;
 
 	if (priv->port >= ARRAY_SIZE(port_to_imr_bit))
 		return -EINVAL;
@@ -674,12 +690,23 @@ static int bcm54140_config_intr(struct phy_device *phydev)
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg &= ~port_to_imr_bit[priv->port];
-	else
-		reg |= port_to_imr_bit[priv->port];
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = bcm54140_ack_intr(phydev);
+		if (err)
+			return err;
 
-	return bcm54140_base_write_rdb(phydev, BCM54140_RDB_TOP_IMR, reg);
+		reg &= ~port_to_imr_bit[priv->port];
+		err = bcm54140_base_write_rdb(phydev, BCM54140_RDB_TOP_IMR, reg);
+	} else {
+		reg |= port_to_imr_bit[priv->port];
+		err = bcm54140_base_write_rdb(phydev, BCM54140_RDB_TOP_IMR, reg);
+		if (err)
+			return err;
+
+		err = bcm54140_ack_intr(phydev);
+	}
+
+	return err;
 }
 
 static int bcm54140_get_downshift(struct phy_device *phydev, u8 *data)
@@ -834,8 +861,7 @@ static struct phy_driver bcm54140_drivers[] = {
 		.flags		= PHY_POLL_CABLE_TEST,
 		.features       = PHY_GBIT_FEATURES,
 		.config_init    = bcm54140_config_init,
-		.did_interrupt	= bcm54140_did_interrupt,
-		.ack_interrupt  = bcm54140_ack_intr,
+		.handle_interrupt = bcm54140_handle_interrupt,
 		.config_intr    = bcm54140_config_intr,
 		.probe		= bcm54140_probe,
 		.suspend	= genphy_suspend,

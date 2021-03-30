@@ -55,8 +55,14 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 	}
 
 	if (IS_ERR(key)) {
-		pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
-				   name, PTR_ERR(key));
+		if (keyring)
+			pr_err_ratelimited("Request for unknown key '%s' in '%s' keyring. err %ld\n",
+					   name, keyring->description,
+					   PTR_ERR(key));
+		else
+			pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
+					   name, PTR_ERR(key));
+
 		switch (PTR_ERR(key)) {
 			/* Hide some search errors */
 		case -EACCES:

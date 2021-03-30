@@ -529,14 +529,14 @@ static inline int generic_NCR5380_precv(struct NCR5380_hostdata *hostdata,
 		if (start == len - 128) {
 			/* Ignore End of DMA interrupt for the final buffer */
 			if (NCR5380_poll_politely(hostdata, hostdata->c400_ctl_status,
-			                          CSR_HOST_BUF_NOT_RDY, 0, HZ / 64) < 0)
+			                          CSR_HOST_BUF_NOT_RDY, 0, 0) < 0)
 				break;
 		} else {
 			if (NCR5380_poll_politely2(hostdata, hostdata->c400_ctl_status,
 			                           CSR_HOST_BUF_NOT_RDY, 0,
 			                           hostdata->c400_ctl_status,
 			                           CSR_GATED_53C80_IRQ,
-			                           CSR_GATED_53C80_IRQ, HZ / 64) < 0 ||
+			                           CSR_GATED_53C80_IRQ, 0) < 0 ||
 			    NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 				break;
 		}
@@ -565,7 +565,7 @@ static inline int generic_NCR5380_precv(struct NCR5380_hostdata *hostdata,
 	if (residual == 0 && NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                                           BASR_END_DMA_TRANSFER,
 	                                           BASR_END_DMA_TRANSFER,
-	                                           HZ / 64) < 0)
+						   0) < 0)
 		scmd_printk(KERN_ERR, hostdata->connected, "%s: End of DMA timeout\n",
 		            __func__);
 
@@ -597,7 +597,7 @@ static inline int generic_NCR5380_psend(struct NCR5380_hostdata *hostdata,
 		                           CSR_HOST_BUF_NOT_RDY, 0,
 		                           hostdata->c400_ctl_status,
 		                           CSR_GATED_53C80_IRQ,
-		                           CSR_GATED_53C80_IRQ, HZ / 64) < 0 ||
+		                           CSR_GATED_53C80_IRQ, 0) < 0 ||
 		    NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY) {
 			/* Both 128 B buffers are in use */
 			if (start >= 128)
@@ -644,13 +644,13 @@ static inline int generic_NCR5380_psend(struct NCR5380_hostdata *hostdata,
 	if (residual == 0) {
 		if (NCR5380_poll_politely(hostdata, TARGET_COMMAND_REG,
 		                          TCR_LAST_BYTE_SENT, TCR_LAST_BYTE_SENT,
-		                          HZ / 64) < 0)
+					  0) < 0)
 			scmd_printk(KERN_ERR, hostdata->connected,
 			            "%s: Last Byte Sent timeout\n", __func__);
 
 		if (NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 		                          BASR_END_DMA_TRANSFER, BASR_END_DMA_TRANSFER,
-		                          HZ / 64) < 0)
+					  0) < 0)
 			scmd_printk(KERN_ERR, hostdata->connected, "%s: End of DMA timeout\n",
 			            __func__);
 	}
@@ -720,12 +720,11 @@ static int generic_NCR5380_isa_match(struct device *pdev, unsigned int ndev)
 	return 1;
 }
 
-static int generic_NCR5380_isa_remove(struct device *pdev,
-                                      unsigned int ndev)
+static void generic_NCR5380_isa_remove(struct device *pdev,
+				       unsigned int ndev)
 {
 	generic_NCR5380_release_resources(dev_get_drvdata(pdev));
 	dev_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static struct isa_driver generic_NCR5380_isa_driver = {

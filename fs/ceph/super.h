@@ -32,7 +32,7 @@
 #define CEPH_BLOCK_SHIFT   22  /* 4 MB */
 #define CEPH_BLOCK         (1 << CEPH_BLOCK_SHIFT)
 
-#define CEPH_MOUNT_OPT_CLEANRECOVER    (1<<1) /* auto reonnect (clean mode) after blacklisted */
+#define CEPH_MOUNT_OPT_CLEANRECOVER    (1<<1) /* auto reonnect (clean mode) after blocklisted */
 #define CEPH_MOUNT_OPT_DIRSTAT         (1<<4) /* `cat dirname` for stats */
 #define CEPH_MOUNT_OPT_RBYTES          (1<<5) /* dir st_bytes = rbytes */
 #define CEPH_MOUNT_OPT_NOASYNCREADDIR  (1<<7) /* no dcache readdir */
@@ -106,10 +106,9 @@ struct ceph_fs_client {
 	struct ceph_mount_options *mount_options;
 	struct ceph_client *client;
 
-	unsigned long mount_state;
+	int mount_state;
 
-	unsigned long last_auto_reconnect;
-	bool blacklisted;
+	bool blocklisted;
 
 	bool have_copy_from2;
 
@@ -129,6 +128,7 @@ struct ceph_fs_client {
 	struct dentry *debugfs_bdi;
 	struct dentry *debugfs_mdsc, *debugfs_mdsmap;
 	struct dentry *debugfs_metric;
+	struct dentry *debugfs_status;
 	struct dentry *debugfs_mds_sessions;
 #endif
 
@@ -160,7 +160,8 @@ struct ceph_cap {
 			int issued;       /* latest, from the mds */
 			int implemented;  /* implemented superset of
 					     issued (for revocation) */
-			int mds, mds_wanted;
+			int mds;	  /* mds index for this cap */
+			int mds_wanted;   /* caps wanted from this mds */
 		};
 		/* caps to release */
 		struct {
@@ -449,6 +450,12 @@ static inline struct ceph_fs_client *
 ceph_sb_to_client(const struct super_block *sb)
 {
 	return (struct ceph_fs_client *)sb->s_fs_info;
+}
+
+static inline struct ceph_mds_client *
+ceph_sb_to_mdsc(const struct super_block *sb)
+{
+	return (struct ceph_mds_client *)ceph_sb_to_client(sb)->mdsc;
 }
 
 static inline struct ceph_vino
@@ -1215,14 +1222,13 @@ extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
 			      struct ceph_mds_session *session,
 			      struct ceph_msg *msg);
 extern bool ceph_quota_is_max_files_exceeded(struct inode *inode);
+extern bool ceph_quota_is_same_realm(struct inode *old, struct inode *new);
 extern bool ceph_quota_is_max_bytes_exceeded(struct inode *inode,
 					     loff_t newlen);
 extern bool ceph_quota_is_max_bytes_approaching(struct inode *inode,
 						loff_t newlen);
 extern bool ceph_quota_update_statfs(struct ceph_fs_client *fsc,
 				     struct kstatfs *buf);
-extern int ceph_quota_check_rename(struct ceph_mds_client *mdsc,
-				   struct inode *old, struct inode *new);
 extern void ceph_cleanup_quotarealms_inodes(struct ceph_mds_client *mdsc);
 
 #endif /* _FS_CEPH_SUPER_H */

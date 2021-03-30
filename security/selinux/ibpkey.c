@@ -40,7 +40,6 @@ struct sel_ib_pkey {
 	struct rcu_head rcu;
 };
 
-static LIST_HEAD(sel_ib_pkey_list);
 static DEFINE_SPINLOCK(sel_ib_pkey_lock);
 static struct sel_ib_pkey_bkt sel_ib_pkey_hash[SEL_PKEY_HASH_SIZE];
 
@@ -151,8 +150,10 @@ static int sel_ib_pkey_sid_slow(u64 subnet_prefix, u16 pkey_num, u32 *sid)
 	 * is valid, it just won't be added to the cache.
 	 */
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (!new)
+	if (!new) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	new->psec.subnet_prefix = subnet_prefix;
 	new->psec.pkey = pkey_num;

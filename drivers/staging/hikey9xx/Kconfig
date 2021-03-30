@@ -25,9 +25,11 @@ config SPMI_HISI3670
 # to be placed at drivers/mfd
 config MFD_HI6421_SPMI
 	tristate "HiSilicon Hi6421v600 SPMI PMU/Codec IC"
+	depends on HAS_IOMEM
 	depends on OF
 	depends on SPMI
 	select MFD_CORE
+	select REGMAP_SPMI
 	help
 	  Add support for HiSilicon Hi6421v600 SPMI PMIC. Hi6421 includes
 	  multi-functions, such as regulators, RTC, codec, Coulomb counter,
@@ -43,6 +45,7 @@ config REGULATOR_HI6421V600
 	tristate "HiSilicon Hi6421v600 PMIC voltage regulator support"
 	depends on MFD_HI6421_SPMI && OF
 	depends on REGULATOR
+	select REGMAP
 	help
 	  This driver provides support for the voltage regulators on
 	  HiSilicon Hi6421v600 PMU / Codec IC.

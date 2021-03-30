@@ -233,7 +233,7 @@ static void vema_get_class_port_info(struct opa_vnic_vema_port *port,
 
 	port_info = (struct opa_class_port_info *)rsp_mad->data;
 	memcpy(port_info, &port->class_port_info, sizeof(*port_info));
-	port_info->base_version = OPA_MGMT_BASE_VERSION,
+	port_info->base_version = OPA_MGMT_BASE_VERSION;
 	port_info->class_version = OPA_EMA_CLASS_VERSION;
 
 	/*

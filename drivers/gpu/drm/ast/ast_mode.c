@@ -742,7 +742,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 		if (ast->tx_chip_type == AST_TX_DP501)
 			ast_set_dp501_video_output(crtc->dev, 1);
-		ast_crtc_load_lut(ast, crtc);
 		break;
 	case DRM_MODE_DPMS_OFF:
 		if (ast->tx_chip_type == AST_TX_DP501)
@@ -752,24 +751,26 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					struct drm_crtc_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
 
-	if (!state->enable)
+	if (!crtc_state->enable)
 		return 0; /* no mode checks if CRTC is being disabled */
 
-	ast_state = to_ast_crtc_state(state);
+	ast_state = to_ast_crtc_state(crtc_state);
 
 	format = ast_state->format;
 	if (drm_WARN_ON_ONCE(dev, !format))
 		return -EINVAL; /* BUG: We didn't set format in primary check(). */
 
-	succ = ast_get_vbios_mode_info(format, &state->mode,
-				       &state->adjusted_mode,
+	succ = ast_get_vbios_mode_info(format, &crtc_state->mode,
+				       &crtc_state->adjusted_mode,
 				       &ast_state->vbios_mode_info);
 	if (!succ)
 		return -EINVAL;
@@ -778,8 +779,28 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 }
 
 static void
+ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
+			     struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
+	struct ast_private *ast = to_ast_private(crtc->dev);
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
+
+	/*
+	 * The gamma LUT has to be reloaded after changing the primary
+	 * plane's color format.
+	 */
+	if (old_ast_crtc_state->format != ast_crtc_state->format)
+		ast_crtc_load_lut(ast, crtc);
+}
+
+static void
 ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
@@ -802,8 +823,10 @@ ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 static void
 ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-			       struct drm_crtc_state *old_crtc_state)
+			       struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
 
@@ -830,6 +853,7 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.atomic_check = ast_crtc_helper_atomic_check,
+	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
 };
@@ -879,7 +903,6 @@ static void ast_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 
 static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.reset = ast_crtc_reset,
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -1083,6 +1106,7 @@ static const struct drm_mode_config_funcs ast_mode_config_funcs = {
 int ast_mode_config_init(struct ast_private *ast)
 {
 	struct drm_device *dev = &ast->base;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
 	ret = ast_cursor_init(ast);
@@ -1098,7 +1122,7 @@ int ast_mode_config_init(struct ast_private *ast)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
-	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
+	dev->mode_config.fb_base = pci_resource_start(pdev, 0);
 
 	if (ast->chip == AST2100 ||
 	    ast->chip == AST2200 ||
@@ -1235,7 +1259,7 @@ static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.class = I2C_CLASS_DDC;
-	i2c->adapter.dev.parent = &dev->pdev->dev;
+	i2c->adapter.dev.parent = dev->dev;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),

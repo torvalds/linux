@@ -764,10 +764,28 @@ enum vmbus_device_type {
 	HV_UNKNOWN,
 };
 
+/*
+ * Provides request ids for VMBus. Encapsulates guest memory
+ * addresses and stores the next available slot in req_arr
+ * to generate new ids in constant time.
+ */
+struct vmbus_requestor {
+	u64 *req_arr;
+	unsigned long *req_bitmap; /* is a given slot available? */
+	u32 size;
+	u64 next_request_id;
+	spinlock_t req_lock; /* provides atomicity */
+};
+
+#define VMBUS_NO_RQSTOR U64_MAX
+#define VMBUS_RQST_ERROR (U64_MAX - 1)
+#define VMBUS_RQST_ID_NO_RESPONSE (U64_MAX - 2)
+
 struct vmbus_device {
 	u16  dev_type;
 	guid_t guid;
 	bool perf_device;
+	bool allowed_in_isolated;
 };
 
 struct vmbus_channel {
@@ -786,6 +804,7 @@ struct vmbus_channel {
 	u8 monitor_bit;
 
 	bool rescind; /* got rescind msg */
+	bool rescind_ref; /* got rescind msg, got channel reference */
 	struct completion rescind_event;
 
 	u32 ringbuffer_gpadlhandle;
@@ -988,7 +1007,13 @@ struct vmbus_channel {
 	u32 fuzz_testing_interrupt_delay;
 	u32 fuzz_testing_message_delay;
 
+	/* request/transaction ids for VMBus */
+	struct vmbus_requestor requestor;
+	u32 rqstor_size;
 };
+
+u64 vmbus_next_request_id(struct vmbus_requestor *rqstor, u64 rqst_addr);
+u64 vmbus_request_addr(struct vmbus_requestor *rqstor, u64 trans_id);
 
 static inline bool is_hvsock_channel(const struct vmbus_channel *c)
 {
@@ -1448,6 +1473,7 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size);
 #define ICMSGTYPE_SHUTDOWN		3
 #define ICMSGTYPE_TIMESYNC		4
 #define ICMSGTYPE_VSS			5
+#define ICMSGTYPE_FCOPY			7
 
 #define ICMSGHDRFLAG_TRANSACTION	1
 #define ICMSGHDRFLAG_REQUEST		2
@@ -1491,11 +1517,17 @@ struct icmsg_hdr {
 	u8 reserved[2];
 } __packed;
 
+#define IC_VERSION_NEGOTIATION_MAX_VER_COUNT 100
+#define ICMSG_HDR (sizeof(struct vmbuspipe_hdr) + sizeof(struct icmsg_hdr))
+#define ICMSG_NEGOTIATE_PKT_SIZE(icframe_vercnt, icmsg_vercnt) \
+	(ICMSG_HDR + sizeof(struct icmsg_negotiate) + \
+	 (((icframe_vercnt) + (icmsg_vercnt)) * sizeof(struct ic_version)))
+
 struct icmsg_negotiate {
 	u16 icframe_vercnt;
 	u16 icmsg_vercnt;
 	u32 reserved;
-	struct ic_version icversion_data[1]; /* any size array */
+	struct ic_version icversion_data[]; /* any size array */
 } __packed;
 
 struct shutdown_msg_data {
@@ -1546,7 +1578,7 @@ struct hyperv_service_callback {
 };
 
 #define MAX_SRV_VER	0x7ffffff
-extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
+extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf, u32 buflen,
 				const int *fw_version, int fw_vercnt,
 				const int *srv_version, int srv_vercnt,
 				int *nego_fw_version, int *nego_srv_version);

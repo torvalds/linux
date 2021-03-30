@@ -11,8 +11,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
 #include "bpf-event.h"
+#endif
 #include "compress.h"
 #include "env.h"
 #include "namespaces.h"
@@ -172,9 +174,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			break;
 		}
 
-		build_id__sprintf(dso->build_id,
-				  sizeof(dso->build_id),
-				  build_id_hex);
+		build_id__sprintf(&dso->bid, build_id_hex);
 		len = __symbol__join_symfs(filename, size, "/usr/lib/debug/.build-id/");
 		snprintf(filename + len, size - len, "%.2s/%s.debug",
 			 build_id_hex, build_id_hex + 2);
@@ -279,17 +279,11 @@ bool dso__needs_decompress(struct dso *dso)
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
 }
 
-static int decompress_kmodule(struct dso *dso, const char *name,
-			      char *pathname, size_t len)
+int filename__decompress(const char *name, char *pathname,
+			 size_t len, int comp, int *err)
 {
 	char tmpbuf[] = KMOD_DECOMP_NAME;
 	int fd = -1;
-
-	if (!dso__needs_decompress(dso))
-		return -1;
-
-	if (dso->comp == COMP_ID__NONE)
-		return -1;
 
 	/*
 	 * We have proper compression id for DSO and yet the file
@@ -304,17 +298,17 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	 * To keep this transparent, we detect this and return the file
 	 * descriptor to the uncompressed file.
 	 */
-	if (!compressions[dso->comp].is_compressed(name))
+	if (!compressions[comp].is_compressed(name))
 		return open(name, O_RDONLY);
 
 	fd = mkstemp(tmpbuf);
 	if (fd < 0) {
-		dso->load_errno = errno;
+		*err = errno;
 		return -1;
 	}
 
-	if (compressions[dso->comp].decompress(name, fd)) {
-		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
+	if (compressions[comp].decompress(name, fd)) {
+		*err = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
 		close(fd);
 		fd = -1;
 	}
@@ -326,6 +320,19 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 		strlcpy(pathname, tmpbuf, len);
 
 	return fd;
+}
+
+static int decompress_kmodule(struct dso *dso, const char *name,
+			      char *pathname, size_t len)
+{
+	if (!dso__needs_decompress(dso))
+		return -1;
+
+	if (dso->comp == COMP_ID__NONE)
+		return -1;
+
+	return filename__decompress(name, pathname, len, dso->comp,
+				    &dso->load_errno);
 }
 
 int dso__decompress_kmodule_fd(struct dso *dso, const char *name)
@@ -730,6 +737,7 @@ bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
 	return false;
 }
 
+#ifdef HAVE_LIBBPF_SUPPORT
 static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 {
 	struct bpf_prog_info_node *node;
@@ -767,6 +775,7 @@ static int bpf_size(struct dso *dso)
 	dso->data.file_size = node->info_linear->info.jited_prog_len;
 	return 0;
 }
+#endif // HAVE_LIBBPF_SUPPORT
 
 static void
 dso_cache__free(struct dso *dso)
@@ -896,10 +905,12 @@ static struct dso_cache *dso_cache__populate(struct dso *dso,
 		*ret = -ENOMEM;
 		return NULL;
 	}
-
+#ifdef HAVE_LIBBPF_SUPPORT
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		*ret = bpf_read(dso, cache_offset, cache->data);
-	else if (dso->binary_type == DSO_BINARY_TYPE__OOL)
+	else
+#endif
+	if (dso->binary_type == DSO_BINARY_TYPE__OOL)
 		*ret = DSO__DATA_CACHE_SIZE;
 	else
 		*ret = file_read(dso, machine, cache_offset, cache->data);
@@ -1020,10 +1031,10 @@ int dso__data_file_size(struct dso *dso, struct machine *machine)
 
 	if (dso->data.status == DSO_DATA_STATUS_ERROR)
 		return -1;
-
+#ifdef HAVE_LIBBPF_SUPPORT
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return bpf_size(dso);
-
+#endif
 	return file_size(dso, machine);
 }
 
@@ -1328,15 +1339,16 @@ void dso__put(struct dso *dso)
 		dso__delete(dso);
 }
 
-void dso__set_build_id(struct dso *dso, void *build_id)
+void dso__set_build_id(struct dso *dso, struct build_id *bid)
 {
-	memcpy(dso->build_id, build_id, sizeof(dso->build_id));
+	dso->bid = *bid;
 	dso->has_build_id = 1;
 }
 
-bool dso__build_id_equal(const struct dso *dso, u8 *build_id)
+bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
 {
-	return memcmp(dso->build_id, build_id, sizeof(dso->build_id)) == 0;
+	return dso->bid.size == bid->size &&
+	       memcmp(dso->bid.data, bid->data, dso->bid.size) == 0;
 }
 
 void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
@@ -1346,8 +1358,7 @@ void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 	if (machine__is_default_guest(machine))
 		return;
 	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
-	if (sysfs__read_build_id(path, dso->build_id,
-				 sizeof(dso->build_id)) == 0)
+	if (sysfs__read_build_id(path, &dso->bid) == 0)
 		dso->has_build_id = true;
 }
 
@@ -1365,18 +1376,17 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
-	if (sysfs__read_build_id(filename, dso->build_id,
-				 sizeof(dso->build_id)) == 0)
+	if (sysfs__read_build_id(filename, &dso->bid) == 0)
 		dso->has_build_id = true;
 
 	return 0;
 }
 
-size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
+static size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
-	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
+	build_id__sprintf(&dso->bid, sbuild_id);
 	return fprintf(fp, "%s", sbuild_id);
 }
 

@@ -124,7 +124,7 @@ struct xfs_buf_ops {
 	xfs_failaddr_t (*verify_struct)(struct xfs_buf *bp);
 };
 
-typedef struct xfs_buf {
+struct xfs_buf {
 	/*
 	 * first cacheline holds all the fields needed for an uncontended cache
 	 * hit to be fully processed. The semaphore straddles the cacheline
@@ -152,7 +152,7 @@ typedef struct xfs_buf {
 	struct list_head	b_list;
 	struct xfs_perag	*b_pag;		/* contains rbtree root */
 	struct xfs_mount	*b_mount;
-	xfs_buftarg_t		*b_target;	/* buffer target (device) */
+	struct xfs_buftarg	*b_target;	/* buffer target (device) */
 	void			*b_addr;	/* virtual address of buffer */
 	struct work_struct	b_ioend_work;
 	struct completion	b_iowait;	/* queue for I/O waiters */
@@ -190,7 +190,7 @@ typedef struct xfs_buf {
 	int			b_last_error;
 
 	const struct xfs_buf_ops	*b_ops;
-} xfs_buf_t;
+};
 
 /* Finding and Reading Buffers */
 struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
@@ -253,16 +253,16 @@ int _xfs_buf_read(struct xfs_buf *bp, xfs_buf_flags_t flags);
 void xfs_buf_hold(struct xfs_buf *bp);
 
 /* Releasing Buffers */
-extern void xfs_buf_rele(xfs_buf_t *);
+extern void xfs_buf_rele(struct xfs_buf *);
 
 /* Locking and Unlocking Buffers */
-extern int xfs_buf_trylock(xfs_buf_t *);
-extern void xfs_buf_lock(xfs_buf_t *);
-extern void xfs_buf_unlock(xfs_buf_t *);
+extern int xfs_buf_trylock(struct xfs_buf *);
+extern void xfs_buf_lock(struct xfs_buf *);
+extern void xfs_buf_unlock(struct xfs_buf *);
 #define xfs_buf_islocked(bp) \
 	((bp)->b_sema.count <= 0)
 
-static inline void xfs_buf_relse(xfs_buf_t *bp)
+static inline void xfs_buf_relse(struct xfs_buf *bp)
 {
 	xfs_buf_unlock(bp);
 	xfs_buf_rele(bp);
@@ -344,11 +344,12 @@ xfs_buf_update_cksum(struct xfs_buf *bp, unsigned long cksum_offset)
 /*
  *	Handling of buftargs.
  */
-extern xfs_buftarg_t *xfs_alloc_buftarg(struct xfs_mount *,
-			struct block_device *, struct dax_device *);
+extern struct xfs_buftarg *xfs_alloc_buftarg(struct xfs_mount *,
+		struct block_device *, struct dax_device *);
 extern void xfs_free_buftarg(struct xfs_buftarg *);
-extern void xfs_wait_buftarg(xfs_buftarg_t *);
-extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int);
+extern void xfs_buftarg_wait(struct xfs_buftarg *);
+extern void xfs_buftarg_drain(struct xfs_buftarg *);
+extern int xfs_setsize_buftarg(struct xfs_buftarg *, unsigned int);
 
 #define xfs_getsize_buftarg(buftarg)	block_size((buftarg)->bt_bdev)
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)

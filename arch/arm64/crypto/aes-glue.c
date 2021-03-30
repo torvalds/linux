@@ -10,7 +10,7 @@
 #include <asm/simd.h>
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
@@ -24,6 +24,7 @@
 #ifdef USE_V8_CRYPTO_EXTENSIONS
 #define MODE			"ce"
 #define PRIO			300
+#define STRIDE			5
 #define aes_expandkey		ce_aes_expandkey
 #define aes_ecb_encrypt		ce_aes_ecb_encrypt
 #define aes_ecb_decrypt		ce_aes_ecb_decrypt
@@ -41,6 +42,7 @@ MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 Crypto Extensions");
 #else
 #define MODE			"neon"
 #define PRIO			200
+#define STRIDE			4
 #define aes_ecb_encrypt		neon_aes_ecb_encrypt
 #define aes_ecb_decrypt		neon_aes_ecb_decrypt
 #define aes_cbc_encrypt		neon_aes_cbc_encrypt
@@ -55,7 +57,7 @@ MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 Crypto Extensions");
 #define aes_mac_update		neon_aes_mac_update
 MODULE_DESCRIPTION("AES-ECB/CBC/CTR/XTS using ARMv8 NEON");
 #endif
-#if defined(USE_V8_CRYPTO_EXTENSIONS) || !defined(CONFIG_CRYPTO_AES_ARM64_BS)
+#if defined(USE_V8_CRYPTO_EXTENSIONS) || !IS_ENABLED(CONFIG_CRYPTO_AES_ARM64_BS)
 MODULE_ALIAS_CRYPTO("ecb(aes)");
 MODULE_ALIAS_CRYPTO("cbc(aes)");
 MODULE_ALIAS_CRYPTO("ctr(aes)");
@@ -87,7 +89,7 @@ asmlinkage void aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
 				int rounds, int bytes, u8 const iv[]);
 
 asmlinkage void aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int blocks, u8 ctr[]);
+				int rounds, int bytes, u8 ctr[], u8 finalbuf[]);
 
 asmlinkage void aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[],
 				int rounds, int bytes, u32 const rk2[], u8 iv[],
@@ -103,9 +105,9 @@ asmlinkage void aes_essiv_cbc_decrypt(u8 out[], u8 const in[], u32 const rk1[],
 				      int rounds, int blocks, u8 iv[],
 				      u32 const rk2[]);
 
-asmlinkage void aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-			       int blocks, u8 dg[], int enc_before,
-			       int enc_after);
+asmlinkage int aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+			      int blocks, u8 dg[], int enc_before,
+			      int enc_after);
 
 struct crypto_aes_xts_ctx {
 	struct crypto_aes_ctx key1;
@@ -448,34 +450,36 @@ static int ctr_encrypt(struct skcipher_request *req)
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int err, rounds = 6 + ctx->key_length / 4;
 	struct skcipher_walk walk;
-	int blocks;
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((blocks = (walk.nbytes / AES_BLOCK_SIZE))) {
-		kernel_neon_begin();
-		aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
-				ctx->key_enc, rounds, blocks, walk.iv);
-		kernel_neon_end();
-		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
-	}
-	if (walk.nbytes) {
-		u8 __aligned(8) tail[AES_BLOCK_SIZE];
+	while (walk.nbytes > 0) {
+		const u8 *src = walk.src.virt.addr;
 		unsigned int nbytes = walk.nbytes;
-		u8 *tdst = walk.dst.virt.addr;
-		u8 *tsrc = walk.src.virt.addr;
+		u8 *dst = walk.dst.virt.addr;
+		u8 buf[AES_BLOCK_SIZE];
+		unsigned int tail;
 
-		/*
-		 * Tell aes_ctr_encrypt() to process a tail block.
-		 */
-		blocks = -1;
+		if (unlikely(nbytes < AES_BLOCK_SIZE))
+			src = memcpy(buf, src, nbytes);
+		else if (nbytes < walk.total)
+			nbytes &= ~(AES_BLOCK_SIZE - 1);
 
 		kernel_neon_begin();
-		aes_ctr_encrypt(tail, NULL, ctx->key_enc, rounds,
-				blocks, walk.iv);
+		aes_ctr_encrypt(dst, src, ctx->key_enc, rounds, nbytes,
+				walk.iv, buf);
 		kernel_neon_end();
-		crypto_xor_cpy(tdst, tsrc, tail, nbytes);
-		err = skcipher_walk_done(&walk, 0);
+
+		tail = nbytes % (STRIDE * AES_BLOCK_SIZE);
+		if (tail > 0 && tail < AES_BLOCK_SIZE)
+			/*
+			 * The final partial block could not be returned using
+			 * an overlapping store, so it was passed via buf[]
+			 * instead.
+			 */
+			memcpy(dst + nbytes - tail, buf, tail);
+
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 	}
 
 	return err;
@@ -650,7 +654,7 @@ static int __maybe_unused xts_decrypt(struct skcipher_request *req)
 }
 
 static struct skcipher_alg aes_algs[] = { {
-#if defined(USE_V8_CRYPTO_EXTENSIONS) || !defined(CONFIG_CRYPTO_AES_ARM64_BS)
+#if defined(USE_V8_CRYPTO_EXTENSIONS) || !IS_ENABLED(CONFIG_CRYPTO_AES_ARM64_BS)
 	.base = {
 		.cra_name		= "__ecb(aes)",
 		.cra_driver_name	= "__ecb-aes-" MODE,
@@ -852,10 +856,17 @@ static void mac_do_update(struct crypto_aes_ctx *ctx, u8 const in[], int blocks,
 	int rounds = 6 + ctx->key_length / 4;
 
 	if (crypto_simd_usable()) {
-		kernel_neon_begin();
-		aes_mac_update(in, ctx->key_enc, rounds, blocks, dg, enc_before,
-			       enc_after);
-		kernel_neon_end();
+		int rem;
+
+		do {
+			kernel_neon_begin();
+			rem = aes_mac_update(in, ctx->key_enc, rounds, blocks,
+					     dg, enc_before, enc_after);
+			kernel_neon_end();
+			in += (blocks - rem) * AES_BLOCK_SIZE;
+			blocks = rem;
+			enc_before = 0;
+		} while (blocks);
 	} else {
 		if (enc_before)
 			aes_encrypt(ctx, dg, dg);

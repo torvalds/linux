@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2021 Intel Corporation. */
 
 #ifndef _I40E_TYPE_H_
 #define _I40E_TYPE_H_
@@ -517,6 +517,7 @@ struct i40e_dcbx_config {
 #define I40E_DCBX_MODE_CEE	0x1
 #define I40E_DCBX_MODE_IEEE	0x2
 	u8  app_mode;
+#define I40E_DCBX_APPS_NON_WILLING 0x1
 	u32 numapps;
 	u32 tlv_status; /* CEE mode TLV status */
 	struct i40e_dcb_ets_config etscfg;
@@ -595,6 +596,7 @@ struct i40e_hw {
 #define I40E_HW_FLAG_FW_LLDP_PERSISTENT     BIT_ULL(5)
 #define I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED BIT_ULL(6)
 #define I40E_HW_FLAG_DROP_MODE              BIT_ULL(7)
+#define I40E_HW_FLAG_X722_FEC_REQUEST_CAPABLE BIT_ULL(8)
 	u64 flags;
 
 	/* Used in set switch config AQ command */
@@ -628,7 +630,7 @@ union i40e_16byte_rx_desc {
 		__le64 hdr_addr; /* Header buffer address */
 	} read;
 	struct {
-		struct {
+		struct i40e_16b_rx_wb_qw0 {
 			struct {
 				union {
 					__le16 mirroring_status;
@@ -647,6 +649,9 @@ union i40e_16byte_rx_desc {
 			__le64 status_error_len;
 		} qword1;
 	} wb;  /* writeback */
+	struct {
+		u64 qword[2];
+	} raw;
 };
 
 union i40e_32byte_rx_desc {
@@ -1416,6 +1421,8 @@ struct i40e_lldp_variables {
 #define I40E_L4_DST_MASK		(0x1ULL << I40E_L4_DST_SHIFT)
 #define I40E_VERIFY_TAG_SHIFT		31
 #define I40E_VERIFY_TAG_MASK		(0x3ULL << I40E_VERIFY_TAG_SHIFT)
+#define I40E_VLAN_SRC_SHIFT		55
+#define I40E_VLAN_SRC_MASK		(0x1ULL << I40E_VLAN_SRC_SHIFT)
 
 #define I40E_FLEX_50_SHIFT		13
 #define I40E_FLEX_50_MASK		(0x1ULL << I40E_FLEX_50_SHIFT)

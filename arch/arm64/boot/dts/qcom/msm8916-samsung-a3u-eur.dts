@@ -28,6 +28,27 @@
 		       "0", "0", "1";
 };
 
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@20 {
+		compatible = "zinitix,bt541";
+
+		reg = <0x20>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <540>;
+		touchscreen-size-y = <960>;
+
+		vdd-supply = <&reg_vdd_tsp>;
+		vddo-supply = <&pm8916_l6>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default>;
+	};
+};
+
 &dsi0 {
 	panel@0 {
 		reg = <0>;
@@ -44,20 +65,24 @@
 			};
 		};
 	};
+};
 
-	ports {
-		port@1 {
-			dsi0_out: endpoint {
-				remote-endpoint = <&panel_in>;
-				data-lanes = <0 1>;
-			};
-		};
-	};
+&dsi0_out {
+	data-lanes = <0 1>;
+	remote-endpoint = <&panel_in>;
 };
 
 &msmgpio {
 	panel_vdd3_default: panel-vdd3-default {
 		pins = "gpio9";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	ts_int_default: ts-int-default {
+		pins = "gpio13";
 		function = "gpio";
 
 		drive-strength = <2>;

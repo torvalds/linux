@@ -233,7 +233,6 @@ struct btrfsic_stack_frame {
 struct btrfsic_state {
 	u32 print_mask;
 	int include_extent_data;
-	int csum_size;
 	struct list_head all_blocks_list;
 	struct btrfsic_block_hashtable block_hashtable;
 	struct btrfsic_block_link_hashtable block_link_hashtable;
@@ -660,8 +659,6 @@ static int btrfsic_process_superblock(struct btrfsic_state *state,
 		return -1;
 	}
 
-	state->csum_size = btrfs_super_csum_size(selected_super);
-
 	for (pass = 0; pass < 3; pass++) {
 		int num_copies;
 		int mirror_num;
@@ -954,7 +951,7 @@ static noinline_for_stack int btrfsic_process_metablock(
 	sf->prev = NULL;
 
 continue_with_new_stack_frame:
-	sf->block->generation = le64_to_cpu(sf->hdr->generation);
+	sf->block->generation = btrfs_stack_header_generation(sf->hdr);
 	if (0 == sf->hdr->level) {
 		struct btrfs_leaf *const leafhdr =
 		    (struct btrfs_leaf *)sf->hdr;
@@ -1723,7 +1720,7 @@ static noinline_for_stack int btrfsic_test_for_metadata(
 		crypto_shash_update(shash, data, sublen);
 	}
 	crypto_shash_final(shash, csum);
-	if (memcmp(csum, h->csum, state->csum_size))
+	if (memcmp(csum, h->csum, fs_info->csum_size))
 		return 1;
 
 	return 0; /* is metadata */
@@ -2677,7 +2674,7 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	mutex_lock(&btrfsic_mutex);
 	/* since btrfsic_submit_bio() is also called before
 	 * btrfsic_mount(), this might return NULL */
-	dev_state = btrfsic_dev_state_lookup(bio_dev(bio) + bio->bi_partno);
+	dev_state = btrfsic_dev_state_lookup(bio->bi_bdev->bd_dev);
 	if (NULL != dev_state &&
 	    (bio_op(bio) == REQ_OP_WRITE) && bio_has_data(bio)) {
 		unsigned int i = 0;
@@ -2693,10 +2690,9 @@ static void __btrfsic_submit_bio(struct bio *bio)
 		bio_is_patched = 0;
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
-			pr_info("submit_bio(rw=%d,0x%x, bi_vcnt=%u, bi_sector=%llu (bytenr %llu), bi_disk=%p)\n",
+			pr_info("submit_bio(rw=%d,0x%x, bi_vcnt=%u, bi_sector=%llu (bytenr %llu), bi_bdev=%p)\n",
 			       bio_op(bio), bio->bi_opf, segs,
-			       (unsigned long long)bio->bi_iter.bi_sector,
-			       dev_bytenr, bio->bi_disk);
+			       bio->bi_iter.bi_sector, dev_bytenr, bio->bi_bdev);
 
 		mapped_datav = kmalloc_array(segs,
 					     sizeof(*mapped_datav), GFP_NOFS);
@@ -2725,8 +2721,8 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	} else if (NULL != dev_state && (bio->bi_opf & REQ_PREFLUSH)) {
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
-			pr_info("submit_bio(rw=%d,0x%x FLUSH, disk=%p)\n",
-			       bio_op(bio), bio->bi_opf, bio->bi_disk);
+			pr_info("submit_bio(rw=%d,0x%x FLUSH, bdev=%p)\n",
+			       bio_op(bio), bio->bi_opf, bio->bi_bdev);
 		if (!dev_state->dummy_block_for_bio_bh_flush.is_iodone) {
 			if ((dev_state->state->print_mask &
 			     (BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |
@@ -2797,7 +2793,6 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 	state->fs_info = fs_info;
 	state->print_mask = print_mask;
 	state->include_extent_data = including_extent_data;
-	state->csum_size = 0;
 	state->metablock_size = fs_info->nodesize;
 	state->datablock_size = fs_info->sectorsize;
 	INIT_LIST_HEAD(&state->all_blocks_list);

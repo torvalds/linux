@@ -200,14 +200,14 @@ static void copy_cap_to_ref(const u8 *cap, const struct v4l2_fwht_pixfmt_info *i
 
 static bool validate_by_version(unsigned int flags, unsigned int version)
 {
-	if (!version || version > FWHT_VERSION)
+	if (!version || version > V4L2_FWHT_VERSION)
 		return false;
 
 	if (version >= 2) {
 		unsigned int components_num = 1 +
-			((flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
-			 FWHT_FL_COMPONENTS_NUM_OFFSET);
-		unsigned int pixenc = flags & FWHT_FL_PIXENC_MSK;
+			((flags & V4L2_FWHT_FL_COMPONENTS_NUM_MSK) >>
+			 V4L2_FWHT_FL_COMPONENTS_NUM_OFFSET);
+		unsigned int pixenc = flags & V4L2_FWHT_FL_PIXENC_MSK;
 
 		if (components_num == 0 || components_num > 4 || !pixenc)
 			return false;
@@ -219,18 +219,18 @@ static bool validate_stateless_params_flags(const struct v4l2_ctrl_fwht_params *
 					    const struct v4l2_fwht_pixfmt_info *cur_info)
 {
 	unsigned int width_div =
-		(params->flags & FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
+		(params->flags & V4L2_FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
 	unsigned int height_div =
-		(params->flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
+		(params->flags & V4L2_FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
 	unsigned int components_num = 3;
 	unsigned int pixenc = 0;
 
 	if (params->version < 3)
 		return false;
 
-	components_num = 1 + ((params->flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
-			      FWHT_FL_COMPONENTS_NUM_OFFSET);
-	pixenc = (params->flags & FWHT_FL_PIXENC_MSK);
+	components_num = 1 + ((params->flags & V4L2_FWHT_FL_COMPONENTS_NUM_MSK) >>
+			      V4L2_FWHT_FL_COMPONENTS_NUM_OFFSET);
+	pixenc = (params->flags & V4L2_FWHT_FL_PIXENC_MSK);
 	if (v4l2_fwht_validate_fmt(cur_info, width_div, height_div,
 				    components_num, pixenc))
 		return true;
@@ -278,7 +278,7 @@ static int device_process(struct vicodec_ctx *ctx,
 		 * set the reference buffer from the reference timestamp
 		 * only if this is a P-frame
 		 */
-		if (!(ntohl(ctx->state.header.flags) & FWHT_FL_I_FRAME)) {
+		if (!(ntohl(ctx->state.header.flags) & V4L2_FWHT_FL_I_FRAME)) {
 			struct vb2_buffer *ref_vb2_buf;
 			int ref_buf_idx;
 			struct vb2_queue *vq_cap =
@@ -331,7 +331,7 @@ static int device_process(struct vicodec_ctx *ctx,
 			copy_cap_to_ref(p_dst, ctx->state.info, &ctx->state);
 
 		vb2_set_plane_payload(&dst_vb->vb2_buf, 0, q_dst->sizeimage);
-		if (ntohl(ctx->state.header.flags) & FWHT_FL_I_FRAME)
+		if (ntohl(ctx->state.header.flags) & V4L2_FWHT_FL_I_FRAME)
 			dst_vb->flags |= V4L2_BUF_FLAG_KEYFRAME;
 		else
 			dst_vb->flags |= V4L2_BUF_FLAG_PFRAME;
@@ -480,16 +480,16 @@ static const struct v4l2_fwht_pixfmt_info *
 info_from_header(const struct fwht_cframe_hdr *p_hdr)
 {
 	unsigned int flags = ntohl(p_hdr->flags);
-	unsigned int width_div = (flags & FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
-	unsigned int height_div = (flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
+	unsigned int width_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
+	unsigned int height_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
 	unsigned int components_num = 3;
 	unsigned int pixenc = 0;
 	unsigned int version = ntohl(p_hdr->version);
 
 	if (version >= 2) {
-		components_num = 1 + ((flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
-				FWHT_FL_COMPONENTS_NUM_OFFSET);
-		pixenc = (flags & FWHT_FL_PIXENC_MSK);
+		components_num = 1 + ((flags & V4L2_FWHT_FL_COMPONENTS_NUM_MSK) >>
+				V4L2_FWHT_FL_COMPONENTS_NUM_OFFSET);
+		pixenc = (flags & V4L2_FWHT_FL_PIXENC_MSK);
 	}
 	return v4l2_fwht_find_nth_fmt(width_div, height_div,
 				     components_num, pixenc, 0);
@@ -522,8 +522,8 @@ static void update_capture_data_from_header(struct vicodec_ctx *ctx)
 	const struct fwht_cframe_hdr *p_hdr = &ctx->state.header;
 	const struct v4l2_fwht_pixfmt_info *info = info_from_header(p_hdr);
 	unsigned int flags = ntohl(p_hdr->flags);
-	unsigned int hdr_width_div = (flags & FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
-	unsigned int hdr_height_div = (flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
+	unsigned int hdr_width_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
+	unsigned int hdr_height_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
 
 	/*
 	 * This function should not be used by a stateless codec since
@@ -657,8 +657,8 @@ restart:
 	if (!is_header_valid(&ctx->state.header) && ctx->comp_has_frame)
 		return 1;
 	flags = ntohl(ctx->state.header.flags);
-	hdr_width_div = (flags & FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
-	hdr_height_div = (flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
+	hdr_width_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
+	hdr_height_div = (flags & V4L2_FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
 
 	if (ntohl(ctx->state.header.width) != q_dst->visible_width ||
 	    ntohl(ctx->state.header.height) != q_dst->visible_height ||
@@ -811,9 +811,6 @@ static int vidioc_g_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 		pix_mp->xfer_func = ctx->state.xfer_func;
 		pix_mp->ycbcr_enc = ctx->state.ycbcr_enc;
 		pix_mp->quantization = ctx->state.quantization;
-		memset(pix_mp->reserved, 0, sizeof(pix_mp->reserved));
-		memset(pix_mp->plane_fmt[0].reserved, 0,
-		       sizeof(pix_mp->plane_fmt[0].reserved));
 		break;
 	default:
 		return -EINVAL;
@@ -886,8 +883,6 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 			info->sizeimage_mult / info->sizeimage_div;
 		if (pix_mp->pixelformat == V4L2_PIX_FMT_FWHT)
 			plane->sizeimage += sizeof(struct fwht_cframe_hdr);
-		memset(pix_mp->reserved, 0, sizeof(pix_mp->reserved));
-		memset(plane->reserved, 0, sizeof(plane->reserved));
 		break;
 	default:
 		return -EINVAL;
@@ -1746,7 +1741,7 @@ static int vicodec_try_ctrl(struct v4l2_ctrl *ctrl)
 			V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
 	switch (ctrl->id) {
-	case V4L2_CID_MPEG_VIDEO_FWHT_PARAMS:
+	case V4L2_CID_STATELESS_FWHT_PARAMS:
 		if (!q_dst->info)
 			return -EINVAL;
 		params = ctrl->p_new.p_fwht_params;
@@ -1799,7 +1794,7 @@ static int vicodec_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_FWHT_P_FRAME_QP:
 		ctx->state.p_frame_qp = ctrl->val;
 		return 0;
-	case V4L2_CID_MPEG_VIDEO_FWHT_PARAMS:
+	case V4L2_CID_STATELESS_FWHT_PARAMS:
 		params = ctrl->p_new.p_fwht_params;
 		update_header_from_stateless_params(ctx, params);
 		ctx->state.ref_frame_ts = params->backward_ref_ts;
@@ -1815,7 +1810,7 @@ static const struct v4l2_ctrl_ops vicodec_ctrl_ops = {
 
 static const struct v4l2_ctrl_config vicodec_ctrl_stateless_state = {
 	.ops		= &vicodec_ctrl_ops,
-	.id		= V4L2_CID_MPEG_VIDEO_FWHT_PARAMS,
+	.id		= V4L2_CID_STATELESS_FWHT_PARAMS,
 	.elem_size      = sizeof(struct v4l2_ctrl_fwht_params),
 };
 

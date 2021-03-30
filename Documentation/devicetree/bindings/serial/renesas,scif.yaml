@@ -60,6 +60,7 @@ properties:
               - renesas,scif-r8a77980     # R-Car V3H
               - renesas,scif-r8a77990     # R-Car E3
               - renesas,scif-r8a77995     # R-Car D3
+              - renesas,scif-r8a779a0     # R-Car V3U
           - const: renesas,rcar-gen3-scif # R-Car Gen3 and RZ/G2
           - const: renesas,scif           # generic SCIF compatible UART
 
@@ -119,6 +120,8 @@ properties:
     maxItems: 1
 
   dmas:
+    minItems: 2
+    maxItems: 4
     description:
       Must contain a list of pairs of references to DMA specifiers, one for
       transmission, and one for reception.

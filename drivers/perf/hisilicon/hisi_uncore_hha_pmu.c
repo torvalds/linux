@@ -23,6 +23,7 @@
 #define HHA_INT_MASK		0x0804
 #define HHA_INT_STATUS		0x0808
 #define HHA_INT_CLEAR		0x080C
+#define HHA_VERSION		0x1cf0
 #define HHA_PERF_CTRL		0x1E00
 #define HHA_EVENT_CTRL		0x1E04
 #define HHA_EVENT_TYPE0		0x1E80
@@ -261,6 +262,8 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 		return PTR_ERR(hha_pmu->base);
 	}
 
+	hha_pmu->identifier = readl(hha_pmu->base + HHA_VERSION);
+
 	return 0;
 }
 
@@ -320,10 +323,23 @@ static const struct attribute_group hisi_hha_pmu_cpumask_attr_group = {
 	.attrs = hisi_hha_pmu_cpumask_attrs,
 };
 
+static struct device_attribute hisi_hha_pmu_identifier_attr =
+	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
+
+static struct attribute *hisi_hha_pmu_identifier_attrs[] = {
+	&hisi_hha_pmu_identifier_attr.attr,
+	NULL
+};
+
+static const struct attribute_group hisi_hha_pmu_identifier_group = {
+	.attrs = hisi_hha_pmu_identifier_attrs,
+};
+
 static const struct attribute_group *hisi_hha_pmu_attr_groups[] = {
 	&hisi_hha_pmu_format_group,
 	&hisi_hha_pmu_events_group,
 	&hisi_hha_pmu_cpumask_attr_group,
+	&hisi_hha_pmu_identifier_group,
 	NULL,
 };
 

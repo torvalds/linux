@@ -17,7 +17,7 @@ description: |-
 
 properties:
   compatible:
-   const: ti,hd3ss3220
+    const: ti,hd3ss3220
 
   reg:
     maxItems: 1
@@ -26,17 +26,17 @@ properties:
     maxItems: 1
 
   ports:
+    $ref: /schemas/graph.yaml#/properties/ports
     description: OF graph bindings (specified in bindings/graph.txt) that model
       SS data bus to the SS capable connector.
-    type: object
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Super Speed (SS) MUX inputs connected to SS capable connector.
-        $ref: /connector/usb-connector.yaml#/properties/ports/properties/port@1
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Output of 2:1 MUX connected to Super Speed (SS) data bus.
 
     required:

@@ -1167,7 +1167,7 @@ static ssize_t smk_write_net4addr(struct file *file, const char __user *buf,
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
-	if (count < SMK_NETLBLADDRMIN)
+	if (count < SMK_NETLBLADDRMIN || count > PAGE_SIZE - 1)
 		return -EINVAL;
 
 	data = memdup_user_nul(buf, count);
@@ -1427,7 +1427,7 @@ static ssize_t smk_write_net6addr(struct file *file, const char __user *buf,
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
-	if (count < SMK_NETLBLADDRMIN)
+	if (count < SMK_NETLBLADDRMIN || count > PAGE_SIZE - 1)
 		return -EINVAL;
 
 	data = memdup_user_nul(buf, count);
@@ -1834,6 +1834,10 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
+	/* Enough data must be present */
+	if (count == 0 || count > PAGE_SIZE)
+		return -EINVAL;
+
 	data = memdup_user_nul(buf, count);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
@@ -1942,7 +1946,7 @@ static void smk_list_swap_rcu(struct list_head *public,
  * smk_parse_label_list - parse list of Smack labels, separated by spaces
  *
  * @data: the string to parse
- * @private: destination list
+ * @list: destination list
  *
  * Returns zero on success or error code, as appropriate
  */
@@ -1973,7 +1977,7 @@ static int smk_parse_label_list(char *data, struct list_head *list)
 
 /**
  * smk_destroy_label_list - destroy a list of smack_known_list_elem
- * @head: header pointer of the list to destroy
+ * @list: header pointer of the list to destroy
  */
 void smk_destroy_label_list(struct list_head *list)
 {
@@ -2004,6 +2008,9 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 
 	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
+
+	if (count > PAGE_SIZE)
+		return -EINVAL;
 
 	data = memdup_user_nul(buf, count);
 	if (IS_ERR(data))
@@ -2092,6 +2099,9 @@ static ssize_t smk_write_unconfined(struct file *file, const char __user *buf,
 	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
+	if (count > PAGE_SIZE)
+		return -EINVAL;
+
 	data = memdup_user_nul(buf, count);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
@@ -2131,7 +2141,7 @@ static const struct file_operations smk_unconfined_ops = {
  * smk_read_logging - read() for /smack/logging
  * @filp: file pointer, not actually used
  * @buf: where to put the result
- * @cn: maximum to send along
+ * @count: maximum to send along
  * @ppos: where to start
  *
  * Returns number of bytes read or error code, as appropriate
@@ -2272,6 +2282,7 @@ static const struct file_operations smk_load_self_ops = {
  * @buf: data from user space
  * @count: bytes sent
  * @ppos: where to start - must be 0
+ * @format: /smack/load or /smack/load2 or /smack/change-rule format.
  */
 static ssize_t smk_user_access(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos, int format)
@@ -2647,6 +2658,10 @@ static ssize_t smk_write_syslog(struct file *file, const char __user *buf,
 	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
+	/* Enough data must be present */
+	if (count == 0 || count > PAGE_SIZE)
+		return -EINVAL;
+
 	data = memdup_user_nul(buf, count);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
@@ -2739,9 +2754,12 @@ static ssize_t smk_write_relabel_self(struct file *file, const char __user *buf,
 		return -EPERM;
 
 	/*
+	 * No partial write.
 	 * Enough data must be present.
 	 */
 	if (*ppos != 0)
+		return -EINVAL;
+	if (count == 0 || count > PAGE_SIZE)
 		return -EINVAL;
 
 	data = memdup_user_nul(buf, count);

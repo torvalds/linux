@@ -169,7 +169,7 @@ void __cpuidle arch_cpu_idle_dead(void)
 
 void __cpuidle arch_cpu_idle(void)
 {
-	local_irq_enable();
+	raw_local_irq_enable();
 
 	/* nop on real hardware, qemu will idle sleep. */
 	asm volatile("or %%r10,%%r10,%%r10\n":::);
@@ -260,6 +260,8 @@ get_wchan(struct task_struct *p)
 	do {
 		if (unwind_once(&info) < 0)
 			return 0;
+		if (p->state == TASK_RUNNING)
+                        return 0;
 		ip = info.ip;
 		if (!in_sched_functions(ip))
 			return ip;

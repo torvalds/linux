@@ -60,7 +60,8 @@
 #define PCI_DEVICE_ID_INTEL_TGL_U3_IMC		0x9a12
 #define PCI_DEVICE_ID_INTEL_TGL_U4_IMC		0x9a14
 #define PCI_DEVICE_ID_INTEL_TGL_H_IMC		0x9a36
-
+#define PCI_DEVICE_ID_INTEL_RKL_1_IMC		0x4c43
+#define PCI_DEVICE_ID_INTEL_RKL_2_IMC		0x4c53
 
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
@@ -405,6 +406,12 @@ static struct intel_uncore_type *tgl_msr_uncores[] = {
 	NULL,
 };
 
+static void rkl_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(SKL_UNC_PERF_GLOBAL_CTL, SNB_UNC_GLOBAL_CTL_EN);
+}
+
 void tgl_uncore_cpu_init(void)
 {
 	uncore_msr_uncores = tgl_msr_uncores;
@@ -412,6 +419,7 @@ void tgl_uncore_cpu_init(void)
 	icl_uncore_cbox.ops = &skl_uncore_msr_ops;
 	icl_uncore_clockbox.ops = &skl_uncore_msr_ops;
 	snb_uncore_arb.ops = &skl_uncore_msr_ops;
+	skl_uncore_msr_ops.init_box = rkl_uncore_msr_init_box;
 }
 
 enum {
@@ -475,7 +483,7 @@ enum perf_snb_uncore_imc_freerunning_types {
 static struct freerunning_counters snb_uncore_imc_freerunning[] = {
 	[SNB_PCI_UNCORE_IMC_DATA_READS]		= { SNB_UNCORE_PCI_IMC_DATA_READS_BASE,
 							0x0, 0x0, 1, 32 },
-	[SNB_PCI_UNCORE_IMC_DATA_READS]		= { SNB_UNCORE_PCI_IMC_DATA_WRITES_BASE,
+	[SNB_PCI_UNCORE_IMC_DATA_WRITES]	= { SNB_UNCORE_PCI_IMC_DATA_WRITES_BASE,
 							0x0, 0x0, 1, 32 },
 	[SNB_PCI_UNCORE_IMC_GT_REQUESTS]	= { SNB_UNCORE_PCI_IMC_GT_REQUESTS_BASE,
 							0x0, 0x0, 1, 32 },
@@ -649,7 +657,7 @@ int snb_pci2phy_map_init(int devid)
 		pci_dev_put(dev);
 		return -ENOMEM;
 	}
-	map->pbus_to_physid[bus] = 0;
+	map->pbus_to_dieid[bus] = 0;
 	raw_spin_unlock(&pci2phy_map_lock);
 
 	pci_dev_put(dev);
@@ -926,6 +934,14 @@ static const struct pci_device_id icl_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICL_U2_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RKL_1_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_RKL_2_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
 	{ /* end: all zeroes */ },
 };
 
@@ -1019,6 +1035,8 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(CML_S5_IMC, &skl_uncore_pci_driver),
 	IMC_DEV(ICL_U_IMC, &icl_uncore_pci_driver),	/* 10th Gen Core Mobile */
 	IMC_DEV(ICL_U2_IMC, &icl_uncore_pci_driver),	/* 10th Gen Core Mobile */
+	IMC_DEV(RKL_1_IMC, &icl_uncore_pci_driver),
+	IMC_DEV(RKL_2_IMC, &icl_uncore_pci_driver),
 	{  /* end marker */ }
 };
 

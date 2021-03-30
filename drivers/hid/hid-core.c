@@ -814,6 +814,13 @@ static void hid_scan_collection(struct hid_parser *parser, unsigned type)
 
 	if ((parser->global.usage_page << 16) >= HID_UP_MSVENDOR)
 		parser->scan_flags |= HID_SCAN_FLAG_VENDOR_SPECIFIC;
+
+	if ((parser->global.usage_page << 16) == HID_UP_GOOGLEVENDOR)
+		for (i = 0; i < parser->local.usage_index; i++)
+			if (parser->local.usage[i] ==
+					(HID_UP_GOOGLEVENDOR | 0x0001))
+				parser->device->group =
+					HID_GROUP_VIVALDI;
 }
 
 static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
@@ -920,7 +927,7 @@ static int hid_scan_report(struct hid_device *hid)
 /**
  * hid_parse_report - parse device report
  *
- * @device: hid device
+ * @hid: hid device
  * @start: report start
  * @size: report size
  *
@@ -945,7 +952,7 @@ static const char * const hid_report_names[] = {
 /**
  * hid_validate_values - validate existing device report's value indexes
  *
- * @device: hid device
+ * @hid: hid device
  * @type: which report type to examine
  * @id: which report ID to examine (0 for first)
  * @field_index: which report field to examine
@@ -1444,7 +1451,7 @@ static int search(__s32 *array, __s32 value, unsigned n)
  * hid_match_report - check if driver's raw_event should be called
  *
  * @hid: hid device
- * @report_type: type to match against
+ * @report: hid report to match against
  *
  * compare hid->driver->report_table->report_type to report->type
  */
@@ -2120,7 +2127,7 @@ struct hid_dynid {
 
 /**
  * store_new_id - add a new HID device ID to this driver and re-probe devices
- * @driver: target device driver
+ * @drv: target device driver
  * @buf: buffer for scanning device ID data
  * @count: input size
  *

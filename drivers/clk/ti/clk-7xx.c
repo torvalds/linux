@@ -252,6 +252,12 @@ static const struct omap_clkctrl_reg_data dra7_l3instr_clkctrl_regs[] __initcons
 	{ 0 },
 };
 
+static const struct omap_clkctrl_reg_data dra7_iva_clkctrl_regs[] __initconst = {
+	{ DRA7_IVA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_h12x2_ck" },
+	{ DRA7_SL2IF_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_h12x2_ck" },
+	{ 0 },
+};
+
 static const char * const dra7_dss_dss_clk_parents[] __initconst = {
 	"dpll_per_h12x2_ck",
 	NULL,
@@ -637,6 +643,7 @@ static const struct omap_clkctrl_reg_data dra7_l4sec_clkctrl_regs[] __initconst 
 	{ DRA7_L4SEC_DES_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ DRA7_L4SEC_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_root_clk_div" },
 	{ DRA7_L4SEC_SHAM_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
+	{ DRA7_L4SEC_SHAM2_CLKCTRL, NULL, CLKF_HW_SUP, "l3_iclk_div" },
 	{ 0 },
 };
 
@@ -826,6 +833,7 @@ const struct omap_clkctrl_data dra7_clkctrl_data[] __initconst = {
 	{ 0x4a008c00, dra7_atl_clkctrl_regs },
 	{ 0x4a008d20, dra7_l4cfg_clkctrl_regs },
 	{ 0x4a008e20, dra7_l3instr_clkctrl_regs },
+	{ 0x4a008f20, dra7_iva_clkctrl_regs },
 	{ 0x4a009020, dra7_cam_clkctrl_regs },
 	{ 0x4a009120, dra7_dss_clkctrl_regs },
 	{ 0x4a009220, dra7_gpu_clkctrl_regs },

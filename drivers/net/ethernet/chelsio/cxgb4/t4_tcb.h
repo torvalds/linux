@@ -40,6 +40,13 @@
 #define TCB_L2T_IX_M		0xfffULL
 #define TCB_L2T_IX_V(x)		((x) << TCB_L2T_IX_S)
 
+#define TCB_T_FLAGS_W           1
+#define TCB_T_FLAGS_S           0
+#define TCB_T_FLAGS_M           0xffffffffffffffffULL
+#define TCB_T_FLAGS_V(x)        ((__u64)(x) << TCB_T_FLAGS_S)
+
+#define TCB_FIELD_COOKIE_TFLAG	1
+
 #define TCB_SMAC_SEL_W		0
 #define TCB_SMAC_SEL_S		24
 #define TCB_SMAC_SEL_M		0xffULL
@@ -49,6 +56,10 @@
 #define TCB_T_FLAGS_S		0
 #define TCB_T_FLAGS_M		0xffffffffffffffffULL
 #define TCB_T_FLAGS_V(x)	((__u64)(x) << TCB_T_FLAGS_S)
+
+#define TF_DROP_S		22
+#define TF_DIRECT_STEER_S	23
+#define TF_LPBK_S		59
 
 #define TF_CCTRL_ECE_S		60
 #define TF_CCTRL_CWR_S		61

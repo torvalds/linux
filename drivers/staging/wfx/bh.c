@@ -5,7 +5,6 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
-#include <linux/gpio/consumer.h>
 #include <net/mac80211.h>
 
 #include "bh.h"
@@ -21,7 +20,7 @@ static void device_wakeup(struct wfx_dev *wdev)
 
 	if (!wdev->pdata.gpio_wakeup)
 		return;
-	if (gpiod_get_value_cansleep(wdev->pdata.gpio_wakeup) >= 0)
+	if (gpiod_get_value_cansleep(wdev->pdata.gpio_wakeup) > 0)
 		return;
 
 	if (wfx_api_older_than(wdev, 1, 4)) {

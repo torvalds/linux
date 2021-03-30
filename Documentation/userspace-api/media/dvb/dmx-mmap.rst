@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _dmx-mmap:
 
@@ -21,9 +22,7 @@ Synopsis
     #include <unistd.h>
     #include <sys/mman.h>
 
-
 .. c:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
-    :name: dmx-mmap
 
 Arguments
 =========
@@ -54,7 +53,7 @@ Arguments
 
     ``MAP_FIXED`` requests that the driver selects no other address than
     the one specified. If the specified address cannot be used,
-    :ref:`mmap() <dmx-mmap>` will fail. If ``MAP_FIXED`` is specified,
+    :c:func:`mmap()` will fail. If ``MAP_FIXED`` is specified,
     ``start`` must be a multiple of the pagesize. Use of this option is
     discouraged.
 
@@ -69,17 +68,16 @@ Arguments
        flags.
 
 ``fd``
-    File descriptor returned by :ref:`open() <dmx_fopen>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``offset``
     Offset of the buffer in device memory, as returned by
     :ref:`DMX_QUERYBUF` ioctl.
 
-
 Description
 ===========
 
-The :ref:`mmap() <dmx-mmap>` function asks to map ``length`` bytes starting at
+The :c:func:`mmap()` function asks to map ``length`` bytes starting at
 ``offset`` in the memory of the device specified by ``fd`` into the
 application address space, preferably at address ``start``. This latter
 address is a hint only, and is usually specified as 0.
@@ -88,13 +86,12 @@ Suitable length and offset parameters are queried with the
 :ref:`DMX_QUERYBUF` ioctl. Buffers must be allocated with the
 :ref:`DMX_REQBUFS` ioctl before they can be queried.
 
-To unmap buffers the :ref:`munmap() <dmx-munmap>` function is used.
-
+To unmap buffers the :c:func:`munmap()` function is used.
 
 Return Value
 ============
 
-On success :ref:`mmap() <dmx-mmap>` returns a pointer to the mapped buffer. On
+On success :c:func:`mmap()` returns a pointer to the mapped buffer. On
 error ``MAP_FAILED`` (-1) is returned, and the ``errno`` variable is set
 appropriately. Possible error codes are:
 

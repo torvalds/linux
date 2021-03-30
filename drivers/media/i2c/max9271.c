@@ -18,6 +18,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include "max9271.h"
 
@@ -223,12 +224,12 @@ int max9271_enable_gpios(struct max9271_device *dev, u8 gpio_mask)
 {
 	int ret;
 
-	ret = max9271_read(dev, 0x0f);
+	ret = max9271_read(dev, 0x0e);
 	if (ret < 0)
 		return 0;
 
 	/* BIT(0) reserved: GPO is always enabled. */
-	ret |= gpio_mask | BIT(0);
+	ret |= (gpio_mask & ~BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {
 		dev_err(&dev->client->dev, "Failed to enable gpio (%d)\n", ret);
@@ -245,12 +246,12 @@ int max9271_disable_gpios(struct max9271_device *dev, u8 gpio_mask)
 {
 	int ret;
 
-	ret = max9271_read(dev, 0x0f);
+	ret = max9271_read(dev, 0x0e);
 	if (ret < 0)
 		return 0;
 
 	/* BIT(0) reserved: GPO cannot be disabled */
-	ret &= (~gpio_mask | BIT(0));
+	ret &= ~(gpio_mask | BIT(0));
 	ret = max9271_write(dev, 0x0e, ret);
 	if (ret < 0) {
 		dev_err(&dev->client->dev, "Failed to disable gpio (%d)\n", ret);
@@ -339,3 +340,7 @@ int max9271_set_translation(struct max9271_device *dev, u8 source, u8 dest)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max9271_set_translation);
+
+MODULE_DESCRIPTION("Maxim MAX9271 GMSL Serializer");
+MODULE_AUTHOR("Jacopo Mondi");
+MODULE_LICENSE("GPL v2");

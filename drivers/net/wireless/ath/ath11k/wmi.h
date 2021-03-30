@@ -257,6 +257,16 @@ enum wmi_tlv_cmd_id {
 	WMI_PDEV_DMA_RING_CFG_REQ_CMDID,
 	WMI_PDEV_HE_TB_ACTION_FRM_CMDID,
 	WMI_PDEV_PKTLOG_FILTER_CMDID,
+	WMI_PDEV_SET_RAP_CONFIG_CMDID,
+	WMI_PDEV_DSM_FILTER_CMDID,
+	WMI_PDEV_FRAME_INJECT_CMDID,
+	WMI_PDEV_TBTT_OFFSET_SYNC_CMDID,
+	WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID,
+	WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID,
+	WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID,
+	WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID,
+	WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID,
+	WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID,
 	WMI_VDEV_CREATE_CMDID = WMI_TLV_CMD(WMI_GRP_VDEV),
 	WMI_VDEV_DELETE_CMDID,
 	WMI_VDEV_START_REQUEST_CMDID,
@@ -319,6 +329,7 @@ enum wmi_tlv_cmd_id {
 	WMI_BCN_OFFLOAD_CTRL_CMDID,
 	WMI_BSS_COLOR_CHANGE_ENABLE_CMDID,
 	WMI_VDEV_BCN_OFFLOAD_QUIET_CONFIG_CMDID,
+	WMI_FILS_DISCOVERY_TMPL_CMDID,
 	WMI_ADDBA_CLEAR_RESP_CMDID = WMI_TLV_CMD(WMI_GRP_BA_NEG),
 	WMI_ADDBA_SEND_CMDID,
 	WMI_ADDBA_STATUS_CMDID,
@@ -351,6 +362,8 @@ enum wmi_tlv_cmd_id {
 	WMI_ROAM_CONFIGURE_MAWC_CMDID,
 	WMI_ROAM_SET_MBO_PARAM_CMDID,
 	WMI_ROAM_PER_CONFIG_CMDID,
+	WMI_ROAM_BTM_CONFIG_CMDID,
+	WMI_ENABLE_FILS_CMDID,
 	WMI_OFL_SCAN_ADD_AP_PROFILE = WMI_TLV_CMD(WMI_GRP_OFL_SCAN),
 	WMI_OFL_SCAN_REMOVE_AP_PROFILE,
 	WMI_OFL_SCAN_PERIOD,
@@ -642,6 +655,8 @@ enum wmi_tlv_event_id {
 	WMI_MGMT_TX_COMPLETION_EVENTID,
 	WMI_MGMT_TX_BUNDLE_COMPLETION_EVENTID,
 	WMI_TBTTOFFSET_EXT_UPDATE_EVENTID,
+	WMI_OFFCHAN_DATA_TX_COMPLETION_EVENTID,
+	WMI_HOST_FILS_DISCOVERY_EVENTID,
 	WMI_TX_DELBA_COMPLETE_EVENTID = WMI_TLV_CMD(WMI_GRP_BA_NEG),
 	WMI_TX_ADDBA_COMPLETE_EVENTID,
 	WMI_BA_RSP_SSN_EVENTID,
@@ -914,6 +929,9 @@ enum wmi_tlv_pdev_param {
 	WMI_PDEV_PARAM_RADIO_CHAN_STATS_ENABLE,
 	WMI_PDEV_PARAM_RADIO_DIAGNOSIS_ENABLE,
 	WMI_PDEV_PARAM_MESH_MCAST_ENABLE,
+	WMI_PDEV_PARAM_SET_CMD_OBSS_PD_THRESHOLD = 0xbc,
+	WMI_PDEV_PARAM_SET_CMD_OBSS_PD_PER_AC = 0xbe,
+	WMI_PDEV_PARAM_ENABLE_SR_PROHIBIT = 0xc6,
 };
 
 enum wmi_tlv_vdev_param {
@@ -1032,7 +1050,7 @@ enum wmi_tlv_vdev_param {
 	WMI_VDEV_PARAM_PROTOTYPE = 0x8000,
 	WMI_VDEV_PARAM_BSS_COLOR,
 	WMI_VDEV_PARAM_SET_HEMU_MODE,
-	WMI_VDEV_PARAM_TX_OFDMA_CPLEN,
+	WMI_VDEV_PARAM_HEOPS_0_31 = 0x8003,
 };
 
 enum wmi_tlv_peer_flags {
@@ -1807,9 +1825,15 @@ enum wmi_tlv_tag {
 	WMI_TAG_NDP_CHANNEL_INFO,
 	WMI_TAG_NDP_CMD,
 	WMI_TAG_NDP_EVENT,
-	/* TODO add all the missing cmds */
 	WMI_TAG_PDEV_PEER_PKTLOG_FILTER_CMD = 0x301,
 	WMI_TAG_PDEV_PEER_PKTLOG_FILTER_INFO,
+	WMI_TAG_FILS_DISCOVERY_TMPL_CMD = 0x344,
+	WMI_TAG_PDEV_SRG_BSS_COLOR_BITMAP_CMD = 0x37b,
+	WMI_TAG_PDEV_SRG_PARTIAL_BSSID_BITMAP_CMD,
+	WMI_TAG_PDEV_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD = 0x381,
+	WMI_TAG_PDEV_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD,
+	WMI_TAG_PDEV_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD,
+	WMI_TAG_PDEV_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD,
 	WMI_TAG_MAX
 };
 
@@ -2033,6 +2057,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET = 213,
 	WMI_TLV_SERVICE_FREQINFO_IN_METADATA = 219,
 	WMI_TLV_SERVICE_EXT2_MSG = 220,
+	WMI_TLV_SERVICE_SRG_SRP_SPATIAL_REUSE_SUPPORT = 249,
 
 	WMI_MAX_EXT_SERVICE
 };
@@ -3348,7 +3373,6 @@ struct wmi_mgmt_params {
 	void *pdata;
 	u16 desc_id;
 	u8 *macaddr;
-	void *qdf_ctx;
 };
 
 enum wmi_sta_ps_mode {
@@ -4013,6 +4037,10 @@ struct wmi_regulatory_rule_struct {
 	u32  flag_info;
 };
 
+struct wmi_vdev_delete_resp_event {
+	u32 vdev_id;
+} __packed;
+
 struct wmi_peer_delete_resp_event {
 	u32 vdev_id;
 	struct wmi_mac_addr peer_macaddr;
@@ -4075,6 +4103,17 @@ struct wmi_peer_assoc_conf_arg {
 	u32 vdev_id;
 	const u8 *macaddr;
 };
+
+struct wmi_fils_discovery_event {
+	u32 vdev_id;
+	u32 fils_tt;
+	u32 tbtt;
+} __packed;
+
+struct wmi_probe_resp_tx_status_event {
+	u32 vdev_id;
+	u32 tx_status;
+} __packed;
 
 /*
  * PDEV statistics
@@ -4761,6 +4800,12 @@ struct wmi_obss_spatial_reuse_params_cmd {
 	u32 vdev_id;
 } __packed;
 
+struct wmi_pdev_obss_pd_bitmap_cmd {
+	u32 tlv_header;
+	u32 pdev_id;
+	u32 bitmap[2];
+} __packed;
+
 #define ATH11K_BSS_COLOR_COLLISION_SCAN_PERIOD_MS		200
 #define ATH11K_OBSS_COLOR_COLLISION_DETECTION_DISABLE		0
 #define ATH11K_OBSS_COLOR_COLLISION_DETECTION			1
@@ -4908,6 +4953,30 @@ struct wmi_dma_buf_release_meta_data {
 	u32 ch_width;
 } __packed;
 
+enum wmi_fils_discovery_cmd_type {
+	WMI_FILS_DISCOVERY_CMD,
+	WMI_UNSOL_BCAST_PROBE_RESP,
+};
+
+struct wmi_fils_discovery_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 interval;
+	u32 config; /* enum wmi_fils_discovery_cmd_type */
+} __packed;
+
+struct wmi_fils_discovery_tmpl_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 buf_len;
+} __packed;
+
+struct wmi_probe_tmpl_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 buf_len;
+} __packed;
+
 struct target_resource_config {
 	u32 num_vdevs;
 	u32 num_peers;
@@ -4998,6 +5067,169 @@ struct ath11k_wmi_base {
 	struct target_resource_config  wlan_resource_config;
 
 	struct ath11k_targ_cap *targ_cap;
+};
+
+/* WOW structures */
+enum wmi_wow_wakeup_event {
+	WOW_BMISS_EVENT = 0,
+	WOW_BETTER_AP_EVENT,
+	WOW_DEAUTH_RECVD_EVENT,
+	WOW_MAGIC_PKT_RECVD_EVENT,
+	WOW_GTK_ERR_EVENT,
+	WOW_FOURWAY_HSHAKE_EVENT,
+	WOW_EAPOL_RECVD_EVENT,
+	WOW_NLO_DETECTED_EVENT,
+	WOW_DISASSOC_RECVD_EVENT,
+	WOW_PATTERN_MATCH_EVENT,
+	WOW_CSA_IE_EVENT,
+	WOW_PROBE_REQ_WPS_IE_EVENT,
+	WOW_AUTH_REQ_EVENT,
+	WOW_ASSOC_REQ_EVENT,
+	WOW_HTT_EVENT,
+	WOW_RA_MATCH_EVENT,
+	WOW_HOST_AUTO_SHUTDOWN_EVENT,
+	WOW_IOAC_MAGIC_EVENT,
+	WOW_IOAC_SHORT_EVENT,
+	WOW_IOAC_EXTEND_EVENT,
+	WOW_IOAC_TIMER_EVENT,
+	WOW_DFS_PHYERR_RADAR_EVENT,
+	WOW_BEACON_EVENT,
+	WOW_CLIENT_KICKOUT_EVENT,
+	WOW_EVENT_MAX,
+};
+
+enum wmi_wow_interface_cfg {
+	WOW_IFACE_PAUSE_ENABLED,
+	WOW_IFACE_PAUSE_DISABLED
+};
+
+#define C2S(x) case x: return #x
+
+static inline const char *wow_wakeup_event(enum wmi_wow_wakeup_event ev)
+{
+	switch (ev) {
+	C2S(WOW_BMISS_EVENT);
+	C2S(WOW_BETTER_AP_EVENT);
+	C2S(WOW_DEAUTH_RECVD_EVENT);
+	C2S(WOW_MAGIC_PKT_RECVD_EVENT);
+	C2S(WOW_GTK_ERR_EVENT);
+	C2S(WOW_FOURWAY_HSHAKE_EVENT);
+	C2S(WOW_EAPOL_RECVD_EVENT);
+	C2S(WOW_NLO_DETECTED_EVENT);
+	C2S(WOW_DISASSOC_RECVD_EVENT);
+	C2S(WOW_PATTERN_MATCH_EVENT);
+	C2S(WOW_CSA_IE_EVENT);
+	C2S(WOW_PROBE_REQ_WPS_IE_EVENT);
+	C2S(WOW_AUTH_REQ_EVENT);
+	C2S(WOW_ASSOC_REQ_EVENT);
+	C2S(WOW_HTT_EVENT);
+	C2S(WOW_RA_MATCH_EVENT);
+	C2S(WOW_HOST_AUTO_SHUTDOWN_EVENT);
+	C2S(WOW_IOAC_MAGIC_EVENT);
+	C2S(WOW_IOAC_SHORT_EVENT);
+	C2S(WOW_IOAC_EXTEND_EVENT);
+	C2S(WOW_IOAC_TIMER_EVENT);
+	C2S(WOW_DFS_PHYERR_RADAR_EVENT);
+	C2S(WOW_BEACON_EVENT);
+	C2S(WOW_CLIENT_KICKOUT_EVENT);
+	C2S(WOW_EVENT_MAX);
+	default:
+		return NULL;
+	}
+}
+
+enum wmi_wow_wake_reason {
+	WOW_REASON_UNSPECIFIED = -1,
+	WOW_REASON_NLOD = 0,
+	WOW_REASON_AP_ASSOC_LOST,
+	WOW_REASON_LOW_RSSI,
+	WOW_REASON_DEAUTH_RECVD,
+	WOW_REASON_DISASSOC_RECVD,
+	WOW_REASON_GTK_HS_ERR,
+	WOW_REASON_EAP_REQ,
+	WOW_REASON_FOURWAY_HS_RECV,
+	WOW_REASON_TIMER_INTR_RECV,
+	WOW_REASON_PATTERN_MATCH_FOUND,
+	WOW_REASON_RECV_MAGIC_PATTERN,
+	WOW_REASON_P2P_DISC,
+	WOW_REASON_WLAN_HB,
+	WOW_REASON_CSA_EVENT,
+	WOW_REASON_PROBE_REQ_WPS_IE_RECV,
+	WOW_REASON_AUTH_REQ_RECV,
+	WOW_REASON_ASSOC_REQ_RECV,
+	WOW_REASON_HTT_EVENT,
+	WOW_REASON_RA_MATCH,
+	WOW_REASON_HOST_AUTO_SHUTDOWN,
+	WOW_REASON_IOAC_MAGIC_EVENT,
+	WOW_REASON_IOAC_SHORT_EVENT,
+	WOW_REASON_IOAC_EXTEND_EVENT,
+	WOW_REASON_IOAC_TIMER_EVENT,
+	WOW_REASON_ROAM_HO,
+	WOW_REASON_DFS_PHYERR_RADADR_EVENT,
+	WOW_REASON_BEACON_RECV,
+	WOW_REASON_CLIENT_KICKOUT_EVENT,
+	WOW_REASON_PAGE_FAULT = 0x3a,
+	WOW_REASON_DEBUG_TEST = 0xFF,
+};
+
+static inline const char *wow_reason(enum wmi_wow_wake_reason reason)
+{
+	switch (reason) {
+	C2S(WOW_REASON_UNSPECIFIED);
+	C2S(WOW_REASON_NLOD);
+	C2S(WOW_REASON_AP_ASSOC_LOST);
+	C2S(WOW_REASON_LOW_RSSI);
+	C2S(WOW_REASON_DEAUTH_RECVD);
+	C2S(WOW_REASON_DISASSOC_RECVD);
+	C2S(WOW_REASON_GTK_HS_ERR);
+	C2S(WOW_REASON_EAP_REQ);
+	C2S(WOW_REASON_FOURWAY_HS_RECV);
+	C2S(WOW_REASON_TIMER_INTR_RECV);
+	C2S(WOW_REASON_PATTERN_MATCH_FOUND);
+	C2S(WOW_REASON_RECV_MAGIC_PATTERN);
+	C2S(WOW_REASON_P2P_DISC);
+	C2S(WOW_REASON_WLAN_HB);
+	C2S(WOW_REASON_CSA_EVENT);
+	C2S(WOW_REASON_PROBE_REQ_WPS_IE_RECV);
+	C2S(WOW_REASON_AUTH_REQ_RECV);
+	C2S(WOW_REASON_ASSOC_REQ_RECV);
+	C2S(WOW_REASON_HTT_EVENT);
+	C2S(WOW_REASON_RA_MATCH);
+	C2S(WOW_REASON_HOST_AUTO_SHUTDOWN);
+	C2S(WOW_REASON_IOAC_MAGIC_EVENT);
+	C2S(WOW_REASON_IOAC_SHORT_EVENT);
+	C2S(WOW_REASON_IOAC_EXTEND_EVENT);
+	C2S(WOW_REASON_IOAC_TIMER_EVENT);
+	C2S(WOW_REASON_ROAM_HO);
+	C2S(WOW_REASON_DFS_PHYERR_RADADR_EVENT);
+	C2S(WOW_REASON_BEACON_RECV);
+	C2S(WOW_REASON_CLIENT_KICKOUT_EVENT);
+	C2S(WOW_REASON_PAGE_FAULT);
+	C2S(WOW_REASON_DEBUG_TEST);
+	default:
+		return NULL;
+	}
+}
+
+#undef C2S
+
+struct wmi_wow_enable_cmd {
+	u32 tlv_header;
+	u32 enable;
+	u32 pause_iface_config;
+	u32 flags;
+}  __packed;
+
+struct wmi_wow_host_wakeup_ind {
+	u32 tlv_header;
+	u32 reserved;
+} __packed;
+
+struct wmi_wow_ev_arg {
+	u32 vdev_id;
+	u32 flag;
+	enum wmi_wow_wake_reason wake_reason;
+	u32 data_len;
 };
 
 int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
@@ -5109,6 +5341,16 @@ int ath11k_wmi_send_twt_enable_cmd(struct ath11k *ar, u32 pdev_id);
 int ath11k_wmi_send_twt_disable_cmd(struct ath11k *ar, u32 pdev_id);
 int ath11k_wmi_send_obss_spr_cmd(struct ath11k *ar, u32 vdev_id,
 				 struct ieee80211_he_obss_pd *he_obss_pd);
+int ath11k_wmi_pdev_set_srg_bss_color_bitmap(struct ath11k *ar, u32 *bitmap);
+int ath11k_wmi_pdev_set_srg_patial_bssid_bitmap(struct ath11k *ar, u32 *bitmap);
+int ath11k_wmi_pdev_srg_obss_color_enable_bitmap(struct ath11k *ar,
+						 u32 *bitmap);
+int ath11k_wmi_pdev_srg_obss_bssid_enable_bitmap(struct ath11k *ar,
+						 u32 *bitmap);
+int ath11k_wmi_pdev_non_srg_obss_color_enable_bitmap(struct ath11k *ar,
+						     u32 *bitmap);
+int ath11k_wmi_pdev_non_srg_obss_bssid_enable_bitmap(struct ath11k *ar,
+						     u32 *bitmap);
 int ath11k_wmi_send_obss_color_collision_cfg_cmd(struct ath11k *ar, u32 vdev_id,
 						 u8 bss_color, u32 period,
 						 bool enable);
@@ -5121,4 +5363,15 @@ int ath11k_wmi_vdev_spectral_enable(struct ath11k *ar, u32 vdev_id,
 				    u32 trigger, u32 enable);
 int ath11k_wmi_vdev_spectral_conf(struct ath11k *ar,
 				  struct ath11k_wmi_vdev_spectral_conf_param *param);
+int ath11k_wmi_fils_discovery_tmpl(struct ath11k *ar, u32 vdev_id,
+				   struct sk_buff *tmpl);
+int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
+			      bool unsol_bcast_probe_resp_enabled);
+int ath11k_wmi_probe_resp_tmpl(struct ath11k *ar, u32 vdev_id,
+			       struct sk_buff *tmpl);
+int ath11k_wmi_set_hw_mode(struct ath11k_base *ab,
+			   enum wmi_host_hw_mode_config_type mode);
+int ath11k_wmi_wow_host_wakeup_ind(struct ath11k *ar);
+int ath11k_wmi_wow_enable(struct ath11k *ar);
+
 #endif

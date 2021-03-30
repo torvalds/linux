@@ -328,7 +328,6 @@ static int cdns_pcie_ep_send_legacy_irq(struct cdns_pcie_ep *ep, u8 fn, u8 intx)
 	cdns_pcie_ep_assert_intx(ep, fn, intx, true);
 	/*
 	 * The mdelay() value was taken from dra7xx_pcie_raise_legacy_irq()
-	 * from drivers/pci/dwc/pci-dra7xx.c
 	 */
 	mdelay(1);
 	cdns_pcie_ep_assert_intx(ep, fn, intx, false);
@@ -531,12 +530,9 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 	}
 	pcie->mem_res = res;
 
-	ret = of_property_read_u32(np, "cdns,max-outbound-regions",
-				   &ep->max_regions);
-	if (ret < 0) {
-		dev_err(dev, "missing \"cdns,max-outbound-regions\"\n");
-		return ret;
-	}
+	ep->max_regions = CDNS_PCIE_MAX_OB;
+	of_property_read_u32(np, "cdns,max-outbound-regions", &ep->max_regions);
+
 	ep->ob_addr = devm_kcalloc(dev,
 				   ep->max_regions, sizeof(*ep->ob_addr),
 				   GFP_KERNEL);

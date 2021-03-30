@@ -14,6 +14,8 @@
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <sound/sof/ext_manifest.h>
+#include <sound/sof/debug.h>
 #include "sof-priv.h"
 #include "ops.h"
 
@@ -350,7 +352,7 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 	char *string;
 	int ret;
 
-	string = kzalloc(count, GFP_KERNEL);
+	string = kzalloc(count+1, GFP_KERNEL);
 	if (!string)
 		return -ENOMEM;
 
@@ -626,6 +628,121 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL_GPL(snd_sof_debugfs_buf_item);
 
+static int memory_info_update(struct snd_sof_dev *sdev, char *buf, size_t buff_size)
+{
+	struct sof_ipc_cmd_hdr msg = {
+		.size = sizeof(struct sof_ipc_cmd_hdr),
+		.cmd = SOF_IPC_GLB_DEBUG | SOF_IPC_DEBUG_MEM_USAGE,
+	};
+	struct sof_ipc_dbg_mem_usage *reply;
+	int len;
+	int ret;
+	int i;
+
+	reply = kmalloc(SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!reply)
+		return -ENOMEM;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0 && ret != -EACCES) {
+		pm_runtime_put_noidle(sdev->dev);
+		dev_err(sdev->dev, "error: enabling device failed: %d\n", ret);
+		goto error;
+	}
+
+	ret = sof_ipc_tx_message(sdev->ipc, msg.cmd, &msg, msg.size, reply, SOF_IPC_MSG_MAX_SIZE);
+	pm_runtime_mark_last_busy(sdev->dev);
+	pm_runtime_put_autosuspend(sdev->dev);
+	if (ret < 0 || reply->rhdr.error < 0) {
+		ret = min(ret, reply->rhdr.error);
+		dev_err(sdev->dev, "error: reading memory info failed, %d\n", ret);
+		goto error;
+	}
+
+	if (struct_size(reply, elems, reply->num_elems) != reply->rhdr.hdr.size) {
+		dev_err(sdev->dev, "error: invalid memory info ipc struct size, %d\n",
+			reply->rhdr.hdr.size);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	for (i = 0, len = 0; i < reply->num_elems; i++) {
+		ret = snprintf(buf + len, buff_size - len, "zone %d.%d used %#8x free %#8x\n",
+			       reply->elems[i].zone, reply->elems[i].id,
+			       reply->elems[i].used, reply->elems[i].free);
+		if (ret < 0)
+			goto error;
+		len += ret;
+	}
+
+	ret = len;
+error:
+	kfree(reply);
+	return ret;
+}
+
+static ssize_t memory_info_read(struct file *file, char __user *to, size_t count, loff_t *ppos)
+{
+	struct snd_sof_dfsentry *dfse = file->private_data;
+	struct snd_sof_dev *sdev = dfse->sdev;
+	int data_length;
+
+	/* read memory info from FW only once for each file read */
+	if (!*ppos) {
+		dfse->buf_data_size = 0;
+		data_length = memory_info_update(sdev, dfse->buf, dfse->size);
+		if (data_length < 0)
+			return data_length;
+		dfse->buf_data_size = data_length;
+	}
+
+	return simple_read_from_buffer(to, count, ppos, dfse->buf, dfse->buf_data_size);
+}
+
+static int memory_info_open(struct inode *inode, struct file *file)
+{
+	struct snd_sof_dfsentry *dfse = inode->i_private;
+	struct snd_sof_dev *sdev = dfse->sdev;
+
+	file->private_data = dfse;
+
+	/* allocate buffer memory only in first open run, to save memory when unused */
+	if (!dfse->buf) {
+		dfse->buf = devm_kmalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
+		if (!dfse->buf)
+			return -ENOMEM;
+		dfse->size = PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+static const struct file_operations memory_info_fops = {
+	.open = memory_info_open,
+	.read = memory_info_read,
+	.llseek = default_llseek,
+};
+
+int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_dfsentry *dfse;
+
+	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
+	if (!dfse)
+		return -ENOMEM;
+
+	/* don't allocate buffer before first usage, to save memory when unused */
+	dfse->type = SOF_DFSENTRY_TYPE_BUF;
+	dfse->sdev = sdev;
+
+	debugfs_create_file("memory_info", 0444, sdev->debugfs_root, dfse, &memory_info_fops);
+
+	/* add to dfsentry list */
+	list_add(&dfse->list, &sdev->dfsentry_list);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_sof_dbg_memory_info_init);
+
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
 	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
@@ -700,7 +817,7 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 	}
 
 	/* dump vital information to the logs */
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
+	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_ipc_dump(sdev);
 	snd_sof_trace_notify_for_error(sdev);
 }

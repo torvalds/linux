@@ -97,7 +97,7 @@ u64 select_estimate_accuracy(struct timespec64 *tv)
 struct poll_table_page {
 	struct poll_table_page * next;
 	struct poll_table_entry * entry;
-	struct poll_table_entry entries[0];
+	struct poll_table_entry entries[];
 };
 
 #define POLL_TABLE_FULL(table) \
@@ -836,7 +836,7 @@ SYSCALL_DEFINE1(old_select, struct sel_arg_struct __user *, arg)
 struct poll_list {
 	struct poll_list *next;
 	int len;
-	struct pollfd entries[0];
+	struct pollfd entries[];
 };
 
 #define POLLFD_PER_PAGE  ((PAGE_SIZE-sizeof(struct poll_list)) / sizeof(struct pollfd))
@@ -1011,14 +1011,17 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 	fdcount = do_poll(head, &table, end_time);
 	poll_freewait(&table);
 
+	if (!user_write_access_begin(ufds, nfds * sizeof(*ufds)))
+		goto out_fds;
+
 	for (walk = head; walk; walk = walk->next) {
 		struct pollfd *fds = walk->entries;
 		int j;
 
-		for (j = 0; j < walk->len; j++, ufds++)
-			if (__put_user(fds[j].revents, &ufds->revents))
-				goto out_fds;
+		for (j = walk->len; j; fds++, ufds++, j--)
+			unsafe_put_user(fds->revents, &ufds->revents, Efault);
   	}
+	user_write_access_end();
 
 	err = fdcount;
 out_fds:
@@ -1030,6 +1033,11 @@ out_fds:
 	}
 
 	return err;
+
+Efault:
+	user_write_access_end();
+	err = -EFAULT;
+	goto out_fds;
 }
 
 static long do_restart_poll(struct restart_block *restart_block)

@@ -234,8 +234,10 @@ transfer_to_handler_cont:
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r10
 	mtlr	r9
-	SYNC
-	RFI				/* jump to handler, enable MMU */
+	rfi				/* jump to handler, enable MMU */
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 
 #if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
@@ -264,8 +266,10 @@ _ASM_NOKPROBE_SYMBOL(transfer_to_handler_cont)
 	LOAD_REG_IMMEDIATE(r0, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r0
-	SYNC
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 
 reenable_mmu:
 	/*
@@ -323,8 +327,10 @@ stack_ovf:
 #endif
 	mtspr	SPRN_SRR0,r9
 	mtspr	SPRN_SRR1,r10
-	SYNC
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(stack_ovf)
 #endif
 
@@ -411,7 +417,6 @@ ret_from_syscall:
 	/* disable interrupts so current_thread_info()->flags can't change */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
 	/* Note: We don't bother telling lockdep about it */
-	SYNC
 	mtmsr	r10
 	lwz	r9,TI_FLAGS(r2)
 	li	r8,-MAX_ERRNO
@@ -443,15 +448,13 @@ syscall_exit_cont:
 	andis.	r10,r0,DBCR0_IDM@h
 	bnel-	load_dbcr0
 #endif
-#ifdef CONFIG_44x
-BEGIN_MMU_FTR_SECTION
+#ifdef CONFIG_PPC_47x
 	lis	r4,icache_44x_need_flush@ha
 	lwz	r5,icache_44x_need_flush@l(r4)
 	cmplwi	cr0,r5,0
 	bne-	2f
+#endif /* CONFIG_PPC_47x */
 1:
-END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_47x)
-#endif /* CONFIG_44x */
 BEGIN_FTR_SECTION
 	lwarx	r7,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
@@ -474,8 +477,10 @@ syscall_exit_finish:
 #endif
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
-	SYNC
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(syscall_exit_finish)
 #ifdef CONFIG_44x
 2:	li	r7,0
@@ -567,7 +572,6 @@ syscall_exit_work:
 	 * lockdep as we are supposed to have IRQs on at this point
 	 */
 	ori	r10,r10,MSR_EE
-	SYNC
 	mtmsr	r10
 
 	/* Save NVGPRS if they're not saved already */
@@ -606,8 +610,10 @@ ret_from_kernel_syscall:
 #endif
 	mtspr	SPRN_SRR0, r9
 	mtspr	SPRN_SRR1, r10
-	SYNC
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(ret_from_kernel_syscall)
 
 /*
@@ -678,7 +684,7 @@ handle_page_fault:
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lwz	r4,_DAR(r1)
-	bl	bad_page_fault
+	bl	__bad_page_fault
 	b	ret_from_except_full
 
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -810,8 +816,10 @@ fast_exception_return:
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
 	lwz	r11,GPR11(r11)
-	SYNC
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
@@ -819,19 +827,11 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 1:	lis	r3,exc_exit_restart_end@ha
 	addi	r3,r3,exc_exit_restart_end@l
 	cmplw	r12,r3
-#ifdef CONFIG_PPC_BOOK3S_601
-	bge	2b
-#else
 	bge	3f
-#endif
 	lis	r4,exc_exit_restart@ha
 	addi	r4,r4,exc_exit_restart@l
 	cmplw	r12,r4
-#ifdef CONFIG_PPC_BOOK3S_601
-	blt	2b
-#else
 	blt	3f
-#endif
 	lis	r3,fee_restarts@ha
 	tophys(r3,r3)
 	lwz	r5,fee_restarts@l(r3)
@@ -848,7 +848,6 @@ fee_restarts:
 
 /* aargh, a nonrecoverable interrupt, panic */
 /* aargh, we don't know which trap this is */
-/* but the 601 doesn't implement the RI bit, so assume it's OK */
 3:
 	li	r10,-1
 	stw	r10,_TRAP(r11)
@@ -872,7 +871,6 @@ ret_from_except:
 	 * from the interrupt. */
 	/* Note: We don't bother telling lockdep about it */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
-	SYNC			/* Some chip revs have problems here... */
 	mtmsr	r10		/* disable interrupts */
 
 	lwz	r3,_MSR(r1)	/* Returning to user mode? */
@@ -966,10 +964,7 @@ restore_kuap:
 
 	/* interrupts are hard-disabled at this point */
 restore:
-#ifdef CONFIG_44x
-BEGIN_MMU_FTR_SECTION
-	b	1f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
+#if defined(CONFIG_44x) && !defined(CONFIG_PPC_47x)
 	lis	r4,icache_44x_need_flush@ha
 	lwz	r5,icache_44x_need_flush@l(r4)
 	cmplwi	cr0,r5,0
@@ -1035,7 +1030,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	 * exc_exit_restart below.  -- paulus
 	 */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL & ~MSR_RI)
-	SYNC
 	mtmsr	r10		/* clear the RI bit */
 	.globl exc_exit_restart
 exc_exit_restart:
@@ -1046,8 +1040,7 @@ exc_exit_restart:
 	lwz	r1,GPR1(r1)
 	.globl exc_exit_restart_end
 exc_exit_restart_end:
-	SYNC
-	RFI
+	rfi
 _ASM_NOKPROBE_SYMBOL(exc_exit_restart)
 _ASM_NOKPROBE_SYMBOL(exc_exit_restart_end)
 
@@ -1274,7 +1267,6 @@ do_resched:			/* r10 contains MSR_KERNEL here */
 	mfmsr	r10
 #endif
 	ori	r10,r10,MSR_EE
-	SYNC
 	mtmsr	r10		/* hard-enable interrupts */
 	bl	schedule
 recheck:
@@ -1283,7 +1275,6 @@ recheck:
 	 * TI_FLAGS aren't advertised.
 	 */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
-	SYNC
 	mtmsr	r10		/* disable interrupts */
 	lwz	r9,TI_FLAGS(r2)
 	andi.	r0,r9,_TIF_NEED_RESCHED
@@ -1292,7 +1283,6 @@ recheck:
 	beq	restore_user
 do_user_signal:			/* r10 contains MSR_KERNEL here */
 	ori	r10,r10,MSR_EE
-	SYNC
 	mtmsr	r10		/* hard-enable interrupts */
 	/* save r13-r31 in the exception frame, if not already done */
 	lwz	r3,_TRAP(r1)
@@ -1316,19 +1306,11 @@ nonrecoverable:
 	lis	r10,exc_exit_restart_end@ha
 	addi	r10,r10,exc_exit_restart_end@l
 	cmplw	r12,r10
-#ifdef CONFIG_PPC_BOOK3S_601
-	bgelr
-#else
 	bge	3f
-#endif
 	lis	r11,exc_exit_restart@ha
 	addi	r11,r11,exc_exit_restart@l
 	cmplw	r12,r11
-#ifdef CONFIG_PPC_BOOK3S_601
-	bltlr
-#else
 	blt	3f
-#endif
 	lis	r10,ee_restarts@ha
 	lwz	r12,ee_restarts@l(r10)
 	addi	r12,r12,1
@@ -1336,7 +1318,6 @@ nonrecoverable:
 	mr	r12,r11		/* restart at exc_exit_restart */
 	blr
 3:	/* OK, we can't recover, kill this process */
-	/* but the 601 doesn't implement the RI bit, so assume it's OK */
 	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
 	beq	5f
@@ -1382,14 +1363,13 @@ _GLOBAL(enter_rtas)
 	mfmsr	r9
 	stw	r9,8(r1)
 	LOAD_REG_IMMEDIATE(r0,MSR_KERNEL)
-	SYNC			/* disable interrupts so SRR0/1 */
-	mtmsr	r0		/* don't get trashed */
+	mtmsr	r0	/* disable interrupts so SRR0/1 don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
 	stw	r7, THREAD + RTAS_SP(r2)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
-	RFI
+	rfi
 1:	tophys_novmstack r9, r1
 #ifdef CONFIG_VMAP_STACK
 	li	r0, MSR_KERNEL & ~MSR_IR	/* can take DTLB miss */
@@ -1404,6 +1384,6 @@ _GLOBAL(enter_rtas)
 	stw	r0, THREAD + RTAS_SP(r7)
 	mtspr	SPRN_SRR0,r8
 	mtspr	SPRN_SRR1,r9
-	RFI			/* return to caller */
+	rfi			/* return to caller */
 _ASM_NOKPROBE_SYMBOL(enter_rtas)
 #endif /* CONFIG_PPC_RTAS */

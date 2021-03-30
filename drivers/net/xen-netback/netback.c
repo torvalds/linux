@@ -169,6 +169,10 @@ void xenvif_napi_schedule_or_enable_events(struct xenvif_queue *queue)
 
 	if (more_to_do)
 		napi_schedule(&queue->napi);
+	else if (atomic_fetch_andnot(NETBK_TX_EOI | NETBK_COMMON_EOI,
+				     &queue->eoi_pending) &
+		 (NETBK_TX_EOI | NETBK_COMMON_EOI))
+		xen_irq_lateeoi(queue->tx_irq, 0);
 }
 
 static void tx_add_credit(struct xenvif_queue *queue)
@@ -1087,7 +1091,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 	uarg = skb_shinfo(skb)->destructor_arg;
 	/* increase inflight counter to offset decrement in callback */
 	atomic_inc(&queue->inflight_packets);
-	uarg->callback(uarg, true);
+	uarg->callback(NULL, uarg, true);
 	skb_shinfo(skb)->destructor_arg = NULL;
 
 	/* Fill the skb with the new (local) frags. */
@@ -1224,7 +1228,8 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 	return work_done;
 }
 
-void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success)
+void xenvif_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *ubuf,
+			      bool zerocopy_success)
 {
 	unsigned long flags;
 	pending_ring_idx_t index;
@@ -1338,13 +1343,11 @@ int xenvif_tx_action(struct xenvif_queue *queue, int budget)
 		return 0;
 
 	gnttab_batch_copy(queue->tx_copy_ops, nr_cops);
-	if (nr_mops != 0) {
+	if (nr_mops != 0)
 		ret = gnttab_map_refs(queue->tx_map_ops,
 				      NULL,
 				      queue->pages_to_map,
 				      nr_mops);
-		BUG_ON(ret);
-	}
 
 	work_done = xenvif_tx_submit(queue);
 
@@ -1643,9 +1646,14 @@ static bool xenvif_ctrl_work_todo(struct xenvif *vif)
 irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data)
 {
 	struct xenvif *vif = data;
+	unsigned int eoi_flag = XEN_EOI_FLAG_SPURIOUS;
 
-	while (xenvif_ctrl_work_todo(vif))
+	while (xenvif_ctrl_work_todo(vif)) {
 		xenvif_ctrl_action(vif);
+		eoi_flag = 0;
+	}
+
+	xen_irq_lateeoi(irq, eoi_flag);
 
 	return IRQ_HANDLED;
 }

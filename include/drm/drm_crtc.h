@@ -325,6 +325,13 @@ struct drm_crtc_state {
 	bool self_refresh_active;
 
 	/**
+	 * @scaling_filter:
+	 *
+	 * Scaling filter to be applied
+	 */
+	enum drm_scaling_filter scaling_filter;
+
+	/**
 	 * @event:
 	 *
 	 * Optional pointer to a DRM event to signal upon completion of the
@@ -1084,6 +1091,12 @@ struct drm_crtc {
 	struct drm_object_properties properties;
 
 	/**
+	 * @scaling_filter_property: property to apply a particular filter while
+	 * scaling.
+	 */
+	struct drm_property *scaling_filter_property;
+
+	/**
 	 * @state:
 	 *
 	 * Current atomic state for this CRTC.
@@ -1210,6 +1223,39 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      const char *name, ...);
 void drm_crtc_cleanup(struct drm_crtc *crtc);
 
+__printf(7, 8)
+void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
+				    size_t size, size_t offset,
+				    struct drm_plane *primary,
+				    struct drm_plane *cursor,
+				    const struct drm_crtc_funcs *funcs,
+				    const char *name, ...);
+
+/**
+ * drmm_crtc_alloc_with_planes - Allocate and initialize a new CRTC object with
+ *    specified primary and cursor planes.
+ * @dev: DRM device
+ * @type: the type of the struct which contains struct &drm_crtc
+ * @member: the name of the &drm_crtc within @type.
+ * @primary: Primary plane for CRTC
+ * @cursor: Cursor plane for CRTC
+ * @funcs: callbacks for the new CRTC
+ * @name: printf style format string for the CRTC name, or NULL for default name
+ *
+ * Allocates and initializes a new crtc object. Cleanup is automatically
+ * handled through registering drmm_crtc_cleanup() with drmm_add_action().
+ *
+ * The @drm_crtc_funcs.destroy hook must be NULL.
+ *
+ * Returns:
+ * Pointer to new crtc, or ERR_PTR on failure.
+ */
+#define drmm_crtc_alloc_with_planes(dev, type, member, primary, cursor, funcs, name, ...) \
+	((type *)__drmm_crtc_alloc_with_planes(dev, sizeof(type), \
+					       offsetof(type, member), \
+					       primary, cursor, funcs, \
+					       name, ##__VA_ARGS__))
+
 /**
  * drm_crtc_index - find the index of a registered CRTC
  * @crtc: CRTC to find index for
@@ -1265,5 +1311,18 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
  */
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
+
+/**
+ * drm_for_each_crtc_reverse - iterate over all CRTCs in reverse order
+ * @crtc: a &struct drm_crtc as the loop cursor
+ * @dev: the &struct drm_device
+ *
+ * Iterate over all CRTCs of @dev.
+ */
+#define drm_for_each_crtc_reverse(crtc, dev) \
+	list_for_each_entry_reverse(crtc, &(dev)->mode_config.crtc_list, head)
+
+int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+					    unsigned int supported_filters);
 
 #endif /* __DRM_CRTC_H__ */

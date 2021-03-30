@@ -124,12 +124,20 @@ For zoned block devices (zoned attribute indicating "host-managed" or
 EXPLICIT OPEN, IMPLICIT OPEN or CLOSED, is limited by this value.
 If this value is 0, there is no limit.
 
+If the host attempts to exceed this limit, the driver should report this error
+with BLK_STS_ZONE_ACTIVE_RESOURCE, which user space may see as the EOVERFLOW
+errno.
+
 max_open_zones (RO)
 -------------------
 For zoned block devices (zoned attribute indicating "host-managed" or
 "host-aware"), the sum of zones belonging to any of the zone states:
 EXPLICIT OPEN or IMPLICIT OPEN, is limited by this value.
 If this value is 0, there is no limit.
+
+If the host attempts to exceed this limit, the driver should report this error
+with BLK_STS_ZONE_OPEN_RESOURCE, which user space may see as the ETOOMANYREFS
+errno.
 
 max_sectors_kb (RW)
 -------------------
@@ -253,6 +261,12 @@ For block drivers that support REQ_OP_WRITE_ZEROES, the maximum number of
 bytes that can be zeroed at once. The value 0 means that REQ_OP_WRITE_ZEROES
 is not supported.
 
+zone_append_max_bytes (RO)
+--------------------------
+This is the maximum number of bytes that can be written to a sequential
+zone of a zoned block device using a zone append write operation
+(REQ_OP_ZONE_APPEND). This value is always 0 for regular block devices.
+
 zoned (RO)
 ----------
 This indicates if the device is a zoned block device and the zone model of the
@@ -264,5 +278,12 @@ devices are described in the ZBC (Zoned Block Commands) and ZAC
 "drive-managed" zone model. However, since drive-managed zoned block devices
 do not support zone commands, they will be treated as regular block devices
 and zoned will report "none".
+
+zone_write_granularity (RO)
+---------------------------
+This indicates the alignment constraint, in bytes, for write operations in
+sequential zones of zoned block devices (devices with a zoned attributed
+that reports "host-managed" or "host-aware"). This value is always 0 for
+regular block devices.
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

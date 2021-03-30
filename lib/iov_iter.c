@@ -2,6 +2,7 @@
 #include <crypto/hash.h>
 #include <linux/export.h>
 #include <linux/bvec.h>
+#include <linux/fault-inject-usercopy.h>
 #include <linux/uio.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
@@ -71,8 +72,6 @@
 	__start.bi_bvec_done = skip;			\
 	__start.bi_idx = 0;				\
 	for_each_bvec(__v, i->bvec, __bi, __start) {	\
-		if (!__v.bv_len)			\
-			continue;			\
 		(void)(STEP);				\
 	}						\
 }
@@ -140,6 +139,8 @@
 
 static int copyout(void __user *to, const void *from, size_t n)
 {
+	if (should_fail_usercopy())
+		return n;
 	if (access_ok(to, n)) {
 		instrument_copy_to_user(to, from, n);
 		n = raw_copy_to_user(to, from, n);
@@ -149,6 +150,8 @@ static int copyout(void __user *to, const void *from, size_t n)
 
 static int copyin(void *to, const void __user *from, size_t n)
 {
+	if (should_fail_usercopy())
+		return n;
 	if (access_ok(from, n)) {
 		instrument_copy_from_user(to, from, n);
 		n = raw_copy_from_user(to, from, n);
@@ -587,14 +590,15 @@ static __wsum csum_and_memcpy(void *to, const void *from, size_t len,
 }
 
 static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
-				__wsum *csum, struct iov_iter *i)
+					 struct csum_state *csstate,
+					 struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
+	__wsum sum = csstate->csum;
+	size_t off = csstate->off;
 	unsigned int i_head;
 	size_t n, r;
-	size_t off = 0;
-	__wsum sum = *csum;
 
 	if (!sanity(i))
 		return 0;
@@ -616,7 +620,8 @@ static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
 		i_head++;
 	} while (n);
 	i->count -= bytes;
-	*csum = sum;
+	csstate->csum = sum;
+	csstate->off = off;
 	return bytes;
 }
 
@@ -1062,6 +1067,21 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 	pipe_truncate(i);
 }
 
+static void iov_iter_bvec_advance(struct iov_iter *i, size_t size)
+{
+	struct bvec_iter bi;
+
+	bi.bi_size = i->count;
+	bi.bi_bvec_done = i->iov_offset;
+	bi.bi_idx = 0;
+	bvec_iter_advance(i->bvec, &bi, size);
+
+	i->bvec += bi.bi_idx;
+	i->nr_segs -= bi.bi_idx;
+	i->count = bi.bi_size;
+	i->iov_offset = bi.bi_bvec_done;
+}
+
 void iov_iter_advance(struct iov_iter *i, size_t size)
 {
 	if (unlikely(iov_iter_is_pipe(i))) {
@@ -1070,6 +1090,10 @@ void iov_iter_advance(struct iov_iter *i, size_t size)
 	}
 	if (unlikely(iov_iter_is_discard(i))) {
 		i->count -= size;
+		return;
+	}
+	if (iov_iter_is_bvec(i)) {
+		iov_iter_bvec_advance(i, size);
 		return;
 	}
 	iterate_and_advance(i, size, v, 0, 0, 0)
@@ -1517,18 +1541,19 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
 }
 EXPORT_SYMBOL(csum_and_copy_from_iter_full);
 
-size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csump,
+size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 			     struct iov_iter *i)
 {
+	struct csum_state *csstate = _csstate;
 	const char *from = addr;
-	__wsum *csum = csump;
 	__wsum sum, next;
-	size_t off = 0;
+	size_t off;
 
 	if (unlikely(iov_iter_is_pipe(i)))
-		return csum_and_copy_to_pipe_iter(addr, bytes, csum, i);
+		return csum_and_copy_to_pipe_iter(addr, bytes, _csstate, i);
 
-	sum = *csum;
+	sum = csstate->csum;
+	off = csstate->off;
 	if (unlikely(iov_iter_is_discard(i))) {
 		WARN_ON(1);	/* for now */
 		return 0;
@@ -1556,7 +1581,8 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csump,
 		off += v.iov_len;
 	})
 	)
-	*csum = sum;
+	csstate->csum = sum;
+	csstate->off = off;
 	return bytes;
 }
 EXPORT_SYMBOL(csum_and_copy_to_iter);
@@ -1653,7 +1679,7 @@ static int copy_compat_iovec_from_user(struct iovec *iov,
 		(const struct compat_iovec __user *)uvec;
 	int ret = -EFAULT, i;
 
-	if (!user_access_begin(uvec, nr_segs * sizeof(*uvec)))
+	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;
 
 	for (i = 0; i < nr_segs; i++) {

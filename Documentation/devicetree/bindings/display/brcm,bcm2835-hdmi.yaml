@@ -37,6 +37,7 @@ properties:
       Phandle of the I2C controller used for DDC EDID probing
 
   hpd-gpios:
+    maxItems: 1
     description: >
       The GPIO pin for the HDMI hotplug detect (if it doesn't appear
       as an interrupt/status bit in the HDMI controller itself)

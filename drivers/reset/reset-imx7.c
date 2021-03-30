@@ -8,7 +8,7 @@
  */
 
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -178,6 +178,9 @@ static const struct imx7_src_signal imx8mq_src_signals[IMX8MQ_RESET_NUM] = {
 	[IMX8MQ_RESET_A53_SOC_DBG_RESET]	= { SRC_A53RCR0, BIT(20) },
 	[IMX8MQ_RESET_A53_L2RESET]		= { SRC_A53RCR0, BIT(21) },
 	[IMX8MQ_RESET_SW_NON_SCLR_M4C_RST]	= { SRC_M4RCR, BIT(0) },
+	[IMX8MQ_RESET_SW_M4C_RST]		= { SRC_M4RCR, BIT(1) },
+	[IMX8MQ_RESET_SW_M4P_RST]		= { SRC_M4RCR, BIT(2) },
+	[IMX8MQ_RESET_M4_ENABLE]		= { SRC_M4RCR, BIT(3) },
 	[IMX8MQ_RESET_OTG1_PHY_RESET]		= { SRC_USBOPHY1_RCR, BIT(0) },
 	[IMX8MQ_RESET_OTG2_PHY_RESET]		= { SRC_USBOPHY2_RCR, BIT(0) },
 	[IMX8MQ_RESET_MIPI_DSI_RESET_BYTE_N]	= { SRC_MIPIPHY_RCR, BIT(1) },
@@ -238,6 +241,7 @@ static int imx8mq_reset_set(struct reset_controller_dev *rcdev,
 	case IMX8MQ_RESET_MIPI_DSI_DPI_RESET_N:
 	case IMX8MQ_RESET_MIPI_DSI_RESET_N:
 	case IMX8MQ_RESET_MIPI_DSI_RESET_BYTE_N:
+	case IMX8MQ_RESET_M4_ENABLE:
 		value = assert ? 0 : bit;
 		break;
 	}
@@ -386,6 +390,7 @@ static const struct of_device_id imx7_reset_dt_ids[] = {
 	{ .compatible = "fsl,imx8mp-src", .data = &variant_imx8mp },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, imx7_reset_dt_ids);
 
 static struct platform_driver imx7_reset_driver = {
 	.probe	= imx7_reset_probe,
@@ -394,4 +399,8 @@ static struct platform_driver imx7_reset_driver = {
 		.of_match_table	= imx7_reset_dt_ids,
 	},
 };
-builtin_platform_driver(imx7_reset_driver);
+module_platform_driver(imx7_reset_driver);
+
+MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_DESCRIPTION("NXP i.MX7 reset driver");
+MODULE_LICENSE("GPL v2");

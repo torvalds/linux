@@ -646,7 +646,6 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			if ((vif->type == NL80211_IFTYPE_STATION) ||
-			    (vif->type == NL80211_IFTYPE_WDS) ||
 			    (vif->type == NL80211_IFTYPE_AP) ||
 			    (vif->type == NL80211_IFTYPE_MESH_POINT))
 				break;
@@ -1374,7 +1373,7 @@ static int carl9170_op_conf_tx(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&ar->mutex);
-	memcpy(&ar->edcf[ar9170_qmap[queue]], param, sizeof(*param));
+	memcpy(&ar->edcf[ar9170_qmap(queue)], param, sizeof(*param));
 	ret = carl9170_set_qos(ar);
 	mutex_unlock(&ar->mutex);
 	return ret;

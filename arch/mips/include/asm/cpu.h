@@ -302,7 +302,7 @@ enum cpu_type_enum {
 	/*
 	 * R4000 class processors
 	 */
-	CPU_R4000PC, CPU_R4000SC, CPU_R4000MC, CPU_R4200,
+	CPU_R4000PC, CPU_R4000SC, CPU_R4000MC, CPU_R4200, CPU_R4300, CPU_R4310,
 	CPU_R4400PC, CPU_R4400SC, CPU_R4400MC, CPU_R4600, CPU_R4640, CPU_R4650,
 	CPU_R4700, CPU_R5000, CPU_R5500, CPU_NEVADA, CPU_R10000,
 	CPU_R12000, CPU_R14000, CPU_R16000, CPU_VR41XX, CPU_VR4111, CPU_VR4121,
@@ -398,7 +398,6 @@ enum cpu_type_enum {
 #define MIPS_CPU_RW_LLB		BIT_ULL(32)	/* LLADDR/LLB writes are allowed */
 #define MIPS_CPU_LPA		BIT_ULL(33)	/* CPU supports Large Physical Addressing */
 #define MIPS_CPU_CDMM		BIT_ULL(34)	/* CPU has Common Device Memory Map */
-#define MIPS_CPU_BP_GHIST	BIT_ULL(35)	/* R12K+ Branch Prediction Global History */
 #define MIPS_CPU_SP		BIT_ULL(36)	/* Small (1KB) page support */
 #define MIPS_CPU_FTLB		BIT_ULL(37)	/* CPU has Fixed-page-size TLB */
 #define MIPS_CPU_NAN_LEGACY	BIT_ULL(38)	/* Legacy NaN implemented */

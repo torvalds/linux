@@ -87,7 +87,7 @@
 #define UVD_NO_OP				0x03ff
 #define UVD_BASE_SI				0x3800
 
-/**
+/*
  * amdgpu_uvd_cs_ctx - Command submission parser context
  *
  * Used for emulating virtual memory support on UVD 4.2.
@@ -240,7 +240,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
 		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
-		DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
+		DRM_INFO("Found UVD firmware Version: %u.%u Family ID: %u\n",
 			version_major, version_minor, family_id);
 
 		/*
@@ -267,7 +267,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		dec_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
 		enc_minor = (le32_to_cpu(hdr->ucode_version) >> 24) & 0x3f;
 		enc_major = (le32_to_cpu(hdr->ucode_version) >> 30) & 0x3;
-		DRM_INFO("Found UVD firmware ENC: %hu.%hu DEC: .%hu Family ID: %hu\n",
+		DRM_INFO("Found UVD firmware ENC: %u.%u DEC: .%u Family ID: %u\n",
 			enc_major, enc_minor, dec_minor, family_id);
 
 		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
@@ -545,8 +545,9 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 /**
  * amdgpu_uvd_cs_msg_decode - handle UVD decode message
  *
+ * @adev: amdgpu_device pointer
  * @msg: pointer to message structure
- * @buf_sizes: returned buffer sizes
+ * @buf_sizes: placeholder to put the different buffer lengths
  *
  * Peek into the decode message and calculate the necessary buffer sizes.
  */
@@ -1005,6 +1006,7 @@ static int amdgpu_uvd_cs_packets(struct amdgpu_uvd_cs_ctx *ctx,
  * amdgpu_uvd_ring_parse_cs - UVD command submission parser
  *
  * @parser: Command submission parser context
+ * @ib_idx: Which indirect buffer to use
  *
  * Parse the command stream, patch in addresses as necessary.
  */
@@ -1168,7 +1170,7 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	int r, i;
 
 	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &bo, NULL, (void **)&msg);
 	if (r)
 		return r;
@@ -1200,7 +1202,7 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	int r, i;
 
 	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
+				      AMDGPU_GEM_DOMAIN_GTT,
 				      &bo, NULL, (void **)&msg);
 	if (r)
 		return r;
@@ -1279,6 +1281,7 @@ void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
  * amdgpu_uvd_ring_test_ib - test ib execution
  *
  * @ring: amdgpu_ring pointer
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Test if we can successfully execute an IB
  */

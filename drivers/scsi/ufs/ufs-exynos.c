@@ -617,20 +617,7 @@ static int exynos_ufs_pre_pwr_mode(struct ufs_hba *hba,
 		goto out;
 	}
 
-
-	ufs_exynos_cap.tx_lanes = UFS_EXYNOS_LIMIT_NUM_LANES_TX;
-	ufs_exynos_cap.rx_lanes = UFS_EXYNOS_LIMIT_NUM_LANES_RX;
-	ufs_exynos_cap.hs_rx_gear = UFS_EXYNOS_LIMIT_HSGEAR_RX;
-	ufs_exynos_cap.hs_tx_gear = UFS_EXYNOS_LIMIT_HSGEAR_TX;
-	ufs_exynos_cap.pwm_rx_gear = UFS_EXYNOS_LIMIT_PWMGEAR_RX;
-	ufs_exynos_cap.pwm_tx_gear = UFS_EXYNOS_LIMIT_PWMGEAR_TX;
-	ufs_exynos_cap.rx_pwr_pwm = UFS_EXYNOS_LIMIT_RX_PWR_PWM;
-	ufs_exynos_cap.tx_pwr_pwm = UFS_EXYNOS_LIMIT_TX_PWR_PWM;
-	ufs_exynos_cap.rx_pwr_hs = UFS_EXYNOS_LIMIT_RX_PWR_HS;
-	ufs_exynos_cap.tx_pwr_hs = UFS_EXYNOS_LIMIT_TX_PWR_HS;
-	ufs_exynos_cap.hs_rate = UFS_EXYNOS_LIMIT_HS_RATE;
-	ufs_exynos_cap.desired_working_mode =
-				UFS_EXYNOS_LIMIT_DESIRED_MODE;
+	ufshcd_init_pwr_dev_param(&ufs_exynos_cap);
 
 	ret = ufshcd_get_pwr_dev_param(&ufs_exynos_cap,
 				       dev_max_params, dev_req_params);
@@ -652,6 +639,11 @@ static int exynos_ufs_pre_pwr_mode(struct ufs_hba *hba,
 			break;
 		}
 	}
+
+	/* setting for three timeout values for traffic class #0 */
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_PWRMODEUSERDATA0), 8064);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_PWRMODEUSERDATA1), 28224);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_PWRMODEUSERDATA2), 20160);
 
 	return 0;
 out:
@@ -1249,7 +1241,9 @@ struct exynos_ufs_drv_data exynos_ufs_drvs = {
 				  UFSHCI_QUIRK_BROKEN_HCE |
 				  UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 				  UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
-				  UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL,
+				  UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL |
+				  UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING |
+				  UFSHCD_QUIRK_ALIGN_SG_WITH_PAGE_SIZE,
 	.opts			= EXYNOS_UFS_OPT_HAS_APB_CLK_CTRL |
 				  EXYNOS_UFS_OPT_BROKEN_AUTO_CLK_CTRL |
 				  EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX |

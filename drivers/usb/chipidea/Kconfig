@@ -53,9 +53,8 @@ config USB_CHIPIDEA_GENERIC
 	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_TEGRA
-	tristate "Enable Tegra UDC glue driver" if EMBEDDED
+	tristate "Enable Tegra USB glue driver" if EMBEDDED
 	depends on OF
-	depends on USB_CHIPIDEA_UDC
 	default USB_CHIPIDEA
 
 endif

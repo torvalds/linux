@@ -12,6 +12,7 @@
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/types.h>
+#include <sound/dmaengine_pcm.h>
 
 /* Register values with reference to KMB databook v1.1 */
 /* common register for all channel */
@@ -58,7 +59,7 @@
 #define PSS_CPR_CLK_CLR		0x000
 #define PSS_CPR_AUX_RST_EN	0x070
 
-#define MASTER_MODE		BIT(13)
+#define CLOCK_PROVIDER_MODE	BIT(13)
 
 /* Interrupt Flag */
 #define TX_INT_FLAG		GENMASK(5, 4)
@@ -99,11 +100,16 @@
 
 #define DWC_I2S_PLAY	BIT(0)
 #define DWC_I2S_RECORD	BIT(1)
-#define DW_I2S_SLAVE	BIT(2)
-#define DW_I2S_MASTER	BIT(3)
+#define DW_I2S_CONSUMER	BIT(2)
+#define DW_I2S_PROVIDER	BIT(3)
 
 #define I2S_RXDMA	0x01C0
+#define I2S_RRXDMA	0x01C4
 #define I2S_TXDMA	0x01C8
+#define I2S_RTXDMA	0x01CC
+#define I2S_DMACR	0x0200
+#define I2S_DMAEN_RXBLOCK	(1 << 16)
+#define I2S_DMAEN_TXBLOCK	(1 << 17)
 
 /*
  * struct i2s_clk_config_data - represent i2s clk configuration data
@@ -130,7 +136,10 @@ struct kmb_i2s_info {
 	u32 ccr;
 	u32 xfer_resolution;
 	u32 fifo_th;
-	bool master;
+	bool clock_provider;
+	/* data related to DMA transfers b/w i2s and DMAC */
+	struct snd_dmaengine_dai_dma_data play_dma_data;
+	struct snd_dmaengine_dai_dma_data capture_dma_data;
 
 	struct i2s_clk_config_data config;
 	int (*i2s_clk_cfg)(struct i2s_clk_config_data *config);
@@ -141,6 +150,7 @@ struct kmb_i2s_info {
 	struct snd_pcm_substream *rx_substream;
 	unsigned int tx_ptr;
 	unsigned int rx_ptr;
+	bool iec958_fmt;
 };
 
 #endif /* KMB_PLATFORM_H_ */

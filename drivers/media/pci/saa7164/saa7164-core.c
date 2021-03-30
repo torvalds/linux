@@ -1139,32 +1139,21 @@ static int saa7164_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations saa7164_seq_ops = {
+static const struct seq_operations saa7164_sops = {
 	.start = saa7164_seq_start,
 	.next = saa7164_seq_next,
 	.stop = saa7164_seq_stop,
 	.show = saa7164_seq_show,
 };
 
-static int saa7164_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &saa7164_seq_ops);
-}
-
-static const struct file_operations saa7164_operations = {
-	.owner          = THIS_MODULE,
-	.open           = saa7164_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(saa7164);
 
 static struct dentry *saa7614_dentry;
 
 static void __init saa7164_debugfs_create(void)
 {
 	saa7614_dentry = debugfs_create_file("saa7164", 0444, NULL, NULL,
-					     &saa7164_operations);
+					     &saa7164_fops);
 }
 
 static void __exit saa7164_debugfs_remove(void)
@@ -1284,7 +1273,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 
 	pci_set_master(pci_dev);
 	/* TODO */
-	err = pci_set_dma_mask(pci_dev, 0xffffffff);
+	err = dma_set_mask(&pci_dev->dev, 0xffffffff);
 	if (err) {
 		printk("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
 		goto fail_irq;

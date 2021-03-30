@@ -871,11 +871,11 @@ static enum vxge_hw_status
 __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 			      struct vxge_hw_device_hw_info *hw_info)
 {
+	__be64 *serial_number = (void *)hw_info->serial_number;
+	__be64 *product_desc = (void *)hw_info->product_desc;
+	__be64 *part_number = (void *)hw_info->part_number;
 	enum vxge_hw_status status;
 	u64 data0, data1 = 0, steer_ctrl = 0;
-	u8 *serial_number = hw_info->serial_number;
-	u8 *part_number = hw_info->part_number;
-	u8 *product_desc = hw_info->product_desc;
 	u32 i, j = 0;
 
 	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_SERIAL_NUMBER;
@@ -887,8 +887,8 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 	if (status != VXGE_HW_OK)
 		return status;
 
-	((u64 *)serial_number)[0] = be64_to_cpu(data0);
-	((u64 *)serial_number)[1] = be64_to_cpu(data1);
+	serial_number[0] = cpu_to_be64(data0);
+	serial_number[1] = cpu_to_be64(data1);
 
 	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_PART_NUMBER;
 	data1 = steer_ctrl = 0;
@@ -900,8 +900,8 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 	if (status != VXGE_HW_OK)
 		return status;
 
-	((u64 *)part_number)[0] = be64_to_cpu(data0);
-	((u64 *)part_number)[1] = be64_to_cpu(data1);
+	part_number[0] = cpu_to_be64(data0);
+	part_number[1] = cpu_to_be64(data1);
 
 	for (i = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_0;
 	     i <= VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_3; i++) {
@@ -915,8 +915,8 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
 		if (status != VXGE_HW_OK)
 			return status;
 
-		((u64 *)product_desc)[j++] = be64_to_cpu(data0);
-		((u64 *)product_desc)[j++] = be64_to_cpu(data1);
+		product_desc[j++] = cpu_to_be64(data0);
+		product_desc[j++] = cpu_to_be64(data1);
 	}
 
 	return status;
@@ -988,6 +988,9 @@ exit:
 
 /**
  * vxge_hw_device_hw_info_get - Get the hw information
+ * @bar0: the bar
+ * @hw_info: the hw_info struct
+ *
  * Returns the vpath mask that has the bits set for each vpath allocated
  * for the driver, FW version information, and the first mac address for
  * each vpath
@@ -1118,7 +1121,7 @@ static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
 
 	list_for_each_safe(p, n, &blockpool->free_entry_list) {
 		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
-		kfree((void *)p);
+		kfree(p);
 	}
 
 	return;
@@ -2303,16 +2306,9 @@ exit:
 static inline void
 vxge_os_dma_malloc_async(struct pci_dev *pdev, void *devh, unsigned long size)
 {
-	gfp_t flags;
 	void *vaddr;
 
-	if (in_interrupt())
-		flags = GFP_ATOMIC | GFP_DMA;
-	else
-		flags = GFP_KERNEL | GFP_DMA;
-
-	vaddr = kmalloc((size), flags);
-
+	vaddr = kmalloc(size, GFP_KERNEL | GFP_DMA);
 	vxge_hw_blockpool_block_add(devh, vaddr, size, pdev, pdev);
 }
 
@@ -3926,7 +3922,7 @@ exit:
 
 /**
  * vxge_hw_vpath_check_leak - Check for memory leak
- * @ringh: Handle to the ring object used for receive
+ * @ring: Handle to the ring object used for receive
  *
  * If PRC_RXD_DOORBELL_VPn.NEW_QW_CNT is larger or equal to
  * PRC_CFG6_VPn.RXD_SPAT then a leak has occurred.

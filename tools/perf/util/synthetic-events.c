@@ -563,6 +563,9 @@ int perf_event__synthesize_cgroups(struct perf_tool *tool,
 	char cgrp_root[PATH_MAX];
 	size_t mount_len;  /* length of mount point in the path */
 
+	if (!tool || !tool->cgroup_events)
+		return 0;
+
 	if (cgroupfs_find_mountpoint(cgrp_root, PATH_MAX, "perf_event") < 0) {
 		pr_debug("cannot find cgroup mount point\n");
 		return -1;
@@ -1406,6 +1409,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 	if (type & PERF_SAMPLE_CGROUP)
 		result += sizeof(u64);
 
+	if (type & PERF_SAMPLE_DATA_PAGE_SIZE)
+		result += sizeof(u64);
+
 	if (type & PERF_SAMPLE_AUX) {
 		result += sizeof(u64);
 		result += sample->aux_sample.size;
@@ -1585,6 +1591,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 		array++;
 	}
 
+	if (type & PERF_SAMPLE_DATA_PAGE_SIZE) {
+		*array = sample->data_page_size;
+		array++;
+	}
+
 	if (type & PERF_SAMPLE_AUX) {
 		sz = sample->aux_sample.size;
 		*array++ = sz;
@@ -1640,7 +1651,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 
 			e->id = evsel->core.id[j];
 
-			sid = perf_evlist__id2sid(evlist, e->id);
+			sid = evlist__id2sid(evlist, e->id);
 			if (!sid) {
 				free(ev);
 				return -ENOENT;
@@ -1961,7 +1972,7 @@ int perf_event__synthesize_build_id(struct perf_tool *tool, struct dso *pos, u16
 
 	len = pos->long_name_len + 1;
 	len = PERF_ALIGN(len, NAME_ALIGN);
-	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
+	memcpy(&ev.build_id.build_id, pos->bid.data, sizeof(pos->bid.data));
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
 	ev.build_id.header.misc = misc;
 	ev.build_id.pid = machine->pid;
@@ -2003,14 +2014,6 @@ int perf_event__synthesize_stat_events(struct perf_stat_config *config, struct p
 		return err;
 	}
 
-	return 0;
-}
-
-int __weak perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
-				       struct perf_tool *tool __maybe_unused,
-				       perf_event__handler_t process __maybe_unused,
-				       struct machine *machine __maybe_unused)
-{
 	return 0;
 }
 

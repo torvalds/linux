@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/utsname.h>
+#include <linux/bitfield.h>
 
 #include <linux/usb/composite.h>
 #include <linux/usb/otg.h>
@@ -392,8 +393,11 @@ int usb_function_deactivate(struct usb_function *function)
 
 	spin_lock_irqsave(&cdev->lock, flags);
 
-	if (cdev->deactivations == 0)
+	if (cdev->deactivations == 0) {
+		spin_unlock_irqrestore(&cdev->lock, flags);
 		status = usb_gadget_deactivate(cdev->gadget);
+		spin_lock_irqsave(&cdev->lock, flags);
+	}
 	if (status == 0)
 		cdev->deactivations++;
 
@@ -424,8 +428,11 @@ int usb_function_activate(struct usb_function *function)
 		status = -EINVAL;
 	else {
 		cdev->deactivations--;
-		if (cdev->deactivations == 0)
+		if (cdev->deactivations == 0) {
+			spin_unlock_irqrestore(&cdev->lock, flags);
 			status = usb_gadget_activate(cdev->gadget);
+			spin_lock_irqsave(&cdev->lock, flags);
+		}
 	}
 
 	spin_unlock_irqrestore(&cdev->lock, flags);
@@ -728,47 +735,77 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	/* The SuperSpeedPlus USB Device Capability descriptor */
 	if (gadget_is_superspeed_plus(cdev->gadget)) {
 		struct usb_ssp_cap_descriptor *ssp_cap;
+		u8 ssac = 1;
+		u8 ssic;
+		int i;
+
+		if (cdev->gadget->max_ssp_rate == USB_SSP_GEN_2x2)
+			ssac = 3;
+
+		/*
+		 * Paired RX and TX sublink speed attributes share
+		 * the same SSID.
+		 */
+		ssic = (ssac + 1) / 2 - 1;
 
 		ssp_cap = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
 		bos->bNumDeviceCaps++;
 
-		/*
-		 * Report typical values.
-		 */
-
-		le16_add_cpu(&bos->wTotalLength, USB_DT_USB_SSP_CAP_SIZE(1));
-		ssp_cap->bLength = USB_DT_USB_SSP_CAP_SIZE(1);
+		le16_add_cpu(&bos->wTotalLength, USB_DT_USB_SSP_CAP_SIZE(ssac));
+		ssp_cap->bLength = USB_DT_USB_SSP_CAP_SIZE(ssac);
 		ssp_cap->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
 		ssp_cap->bDevCapabilityType = USB_SSP_CAP_TYPE;
 		ssp_cap->bReserved = 0;
 		ssp_cap->wReserved = 0;
 
-		/* SSAC = 1 (2 attributes) */
-		ssp_cap->bmAttributes = cpu_to_le32(1);
+		ssp_cap->bmAttributes =
+			cpu_to_le32(FIELD_PREP(USB_SSP_SUBLINK_SPEED_ATTRIBS, ssac) |
+				    FIELD_PREP(USB_SSP_SUBLINK_SPEED_IDS, ssic));
 
-		/* Min RX/TX Lane Count = 1 */
 		ssp_cap->wFunctionalitySupport =
-			cpu_to_le16((1 << 8) | (1 << 12));
+			cpu_to_le16(FIELD_PREP(USB_SSP_MIN_SUBLINK_SPEED_ATTRIBUTE_ID, 0) |
+				    FIELD_PREP(USB_SSP_MIN_RX_LANE_COUNT, 1) |
+				    FIELD_PREP(USB_SSP_MIN_TX_LANE_COUNT, 1));
 
 		/*
-		 * bmSublinkSpeedAttr[0]:
-		 *   ST  = Symmetric, RX
-		 *   LSE =  3 (Gbps)
-		 *   LP  =  1 (SuperSpeedPlus)
-		 *   LSM = 10 (10 Gbps)
+		 * Use 1 SSID if the gadget supports up to gen2x1 or not
+		 * specified:
+		 * - SSID 0 for symmetric RX/TX sublink speed of 10 Gbps.
+		 *
+		 * Use 1 SSID if the gadget supports up to gen1x2:
+		 * - SSID 0 for symmetric RX/TX sublink speed of 5 Gbps.
+		 *
+		 * Use 2 SSIDs if the gadget supports up to gen2x2:
+		 * - SSID 0 for symmetric RX/TX sublink speed of 5 Gbps.
+		 * - SSID 1 for symmetric RX/TX sublink speed of 10 Gbps.
 		 */
-		ssp_cap->bmSublinkSpeedAttr[0] =
-			cpu_to_le32((3 << 4) | (1 << 14) | (0xa << 16));
-		/*
-		 * bmSublinkSpeedAttr[1] =
-		 *   ST  = Symmetric, TX
-		 *   LSE =  3 (Gbps)
-		 *   LP  =  1 (SuperSpeedPlus)
-		 *   LSM = 10 (10 Gbps)
-		 */
-		ssp_cap->bmSublinkSpeedAttr[1] =
-			cpu_to_le32((3 << 4) | (1 << 14) |
-				    (0xa << 16) | (1 << 7));
+		for (i = 0; i < ssac + 1; i++) {
+			u8 ssid;
+			u8 mantissa;
+			u8 type;
+
+			ssid = i >> 1;
+
+			if (cdev->gadget->max_ssp_rate == USB_SSP_GEN_2x1 ||
+			    cdev->gadget->max_ssp_rate == USB_SSP_GEN_UNKNOWN)
+				mantissa = 10;
+			else
+				mantissa = 5 << ssid;
+
+			if (i % 2)
+				type = USB_SSP_SUBLINK_SPEED_ST_SYM_TX;
+			else
+				type = USB_SSP_SUBLINK_SPEED_ST_SYM_RX;
+
+			ssp_cap->bmSublinkSpeedAttr[i] =
+				cpu_to_le32(FIELD_PREP(USB_SSP_SUBLINK_SPEED_SSID, ssid) |
+					    FIELD_PREP(USB_SSP_SUBLINK_SPEED_LSE,
+						       USB_SSP_SUBLINK_SPEED_LSE_GBPS) |
+					    FIELD_PREP(USB_SSP_SUBLINK_SPEED_ST, type) |
+					    FIELD_PREP(USB_SSP_SUBLINK_SPEED_LP,
+						       USB_SSP_SUBLINK_SPEED_LP_SSP) |
+					    FIELD_PREP(USB_SSP_SUBLINK_SPEED_LSM, mantissa));
+		}
 	}
 
 	return le16_to_cpu(bos->wTotalLength);
@@ -1245,7 +1282,7 @@ int usb_string_id(struct usb_composite_dev *cdev)
 EXPORT_SYMBOL_GPL(usb_string_id);
 
 /**
- * usb_string_ids() - allocate unused string IDs in batch
+ * usb_string_ids_tab() - allocate unused string IDs in batch
  * @cdev: the device whose string descriptor IDs are being allocated
  * @str: an array of usb_string objects to assign numbers to
  * Context: single threaded during gadget setup
@@ -2036,7 +2073,7 @@ done:
 	return value;
 }
 
-void composite_disconnect(struct usb_gadget *gadget)
+static void __composite_disconnect(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 	unsigned long			flags;
@@ -2051,6 +2088,23 @@ void composite_disconnect(struct usb_gadget *gadget)
 	if (cdev->driver->disconnect)
 		cdev->driver->disconnect(cdev);
 	spin_unlock_irqrestore(&cdev->lock, flags);
+}
+
+void composite_disconnect(struct usb_gadget *gadget)
+{
+	usb_gadget_vbus_draw(gadget, 0);
+	__composite_disconnect(gadget);
+}
+
+void composite_reset(struct usb_gadget *gadget)
+{
+	/*
+	 * Section 1.4.13 Standard Downstream Port of the USB battery charging
+	 * specification v1.2 states that a device connected on a SDP shall only
+	 * draw at max 100mA while in a connected, but unconfigured state.
+	 */
+	usb_gadget_vbus_draw(gadget, 100);
+	__composite_disconnect(gadget);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2373,7 +2427,7 @@ static const struct usb_gadget_driver composite_driver_template = {
 	.unbind		= composite_unbind,
 
 	.setup		= composite_setup,
-	.reset		= composite_disconnect,
+	.reset		= composite_reset,
 	.disconnect	= composite_disconnect,
 
 	.suspend	= composite_suspend,

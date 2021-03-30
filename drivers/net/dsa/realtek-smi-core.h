@@ -25,6 +25,9 @@ struct rtl8366_mib_counter {
 	const char	*name;
 };
 
+/**
+ * struct rtl8366_vlan_mc - Virtual LAN member configuration
+ */
 struct rtl8366_vlan_mc {
 	u16	vid;
 	u16	untag;
@@ -68,6 +71,7 @@ struct realtek_smi {
 	int			vlan4k_enabled;
 
 	char			buf[4096];
+	void			*chip_data; /* Per-chip extra variant data */
 };
 
 /**
@@ -108,6 +112,7 @@ struct realtek_smi_variant {
 	unsigned int clk_delay;
 	u8 cmd_read;
 	u8 cmd_write;
+	size_t chip_data_sz;
 };
 
 /* SMI core calls */
@@ -119,19 +124,17 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi);
 int rtl8366_mc_is_used(struct realtek_smi *smi, int mc_index, int *used);
 int rtl8366_set_vlan(struct realtek_smi *smi, int vid, u32 member,
 		     u32 untag, u32 fid);
-int rtl8366_get_pvid(struct realtek_smi *smi, int port, int *val);
 int rtl8366_set_pvid(struct realtek_smi *smi, unsigned int port,
 		     unsigned int vid);
 int rtl8366_enable_vlan4k(struct realtek_smi *smi, bool enable);
 int rtl8366_enable_vlan(struct realtek_smi *smi, bool enable);
 int rtl8366_reset_vlan(struct realtek_smi *smi);
 int rtl8366_init_vlan(struct realtek_smi *smi);
-int rtl8366_vlan_filtering(struct dsa_switch *ds, int port,
-			   bool vlan_filtering);
-int rtl8366_vlan_prepare(struct dsa_switch *ds, int port,
-			 const struct switchdev_obj_port_vlan *vlan);
-void rtl8366_vlan_add(struct dsa_switch *ds, int port,
-		      const struct switchdev_obj_port_vlan *vlan);
+int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+			   struct netlink_ext_ack *extack);
+int rtl8366_vlan_add(struct dsa_switch *ds, int port,
+		     const struct switchdev_obj_port_vlan *vlan,
+		     struct netlink_ext_ack *extack);
 int rtl8366_vlan_del(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan);
 void rtl8366_get_strings(struct dsa_switch *ds, int port, u32 stringset,

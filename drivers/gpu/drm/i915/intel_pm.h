@@ -9,8 +9,10 @@
 #include <linux/types.h>
 
 #include "display/intel_bw.h"
+#include "display/intel_display.h"
 #include "display/intel_global_state.h"
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 
 struct drm_device;
@@ -40,7 +42,6 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 			       struct skl_ddb_entry *ddb_y,
 			       struct skl_ddb_entry *ddb_uv);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv);
-u16 intel_get_ddb_size(struct drm_i915_private *dev_priv);
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 			    const struct skl_ddb_entry *entry);
 void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
@@ -49,8 +50,6 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
 void vlv_wm_sanitize(struct drm_i915_private *dev_priv);
 bool intel_can_enable_sagv(struct drm_i915_private *dev_priv,
 			   const struct intel_bw_state *bw_state);
-int intel_enable_sagv(struct drm_i915_private *dev_priv);
-int intel_disable_sagv(struct drm_i915_private *dev_priv);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
 bool skl_wm_level_equals(const struct skl_wm_level *l1,
@@ -70,6 +69,10 @@ bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable);
 
 struct intel_dbuf_state {
 	struct intel_global_state base;
+
+	struct skl_ddb_entry ddb[I915_MAX_PIPES];
+	unsigned int weight[I915_MAX_PIPES];
+	u8 slices[I915_MAX_PIPES];
 
 	u8 enabled_slices;
 	u8 active_pipes;
