@@ -629,7 +629,6 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 				      const struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int ret = 0;
 
 	/* Make sure the NIC is still alive in the bus */
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
@@ -638,34 +637,24 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	if (!trans->trans_cfg->base_params->apmg_wake_up_wa)
 		return 0;
 
-	spin_lock(&trans_pcie->reg_lock);
 	/*
 	 * wake up the NIC to make sure that the firmware will see the host
 	 * command - we will let the NIC sleep once all the host commands
 	 * returned. This needs to be done only on NICs that have
 	 * apmg_wake_up_wa set (see above.)
 	 */
-	if (!trans_pcie->cmd_hold_nic_awake) {
-		__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-					 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	if (!iwl_trans_grab_nic_access(trans))
+		return -EIO;
 
-		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
-				   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
-				    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP),
-				   15000);
-		if (ret < 0) {
-			__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			IWL_ERR(trans, "Failed to wake NIC for hcmd\n");
-			ret = -EIO;
-		} else {
-			trans_pcie->cmd_hold_nic_awake = true;
-		}
-	}
-	spin_unlock(&trans_pcie->reg_lock);
+	/*
+	 * In iwl_trans_grab_nic_access(), we've acquired the reg_lock.
+	 * There, we also returned immediately if cmd_hold_nic_awake is
+	 * already true, so it's OK to unconditionally set it to true.
+	 */
+	trans_pcie->cmd_hold_nic_awake = true;
+	spin_unlock_bh(&trans_pcie->reg_lock);
 
-	return ret;
+	return 0;
 }
 
 /*
