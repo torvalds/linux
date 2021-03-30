@@ -1143,6 +1143,12 @@ icmp_echo_ignore_all - BOOLEAN
 
 	Default: 0
 
+icmp_echo_enable_probe - BOOLEAN
+        If set to one, then the kernel will respond to RFC 8335 PROBE
+        requests sent to it.
+
+        Default: 0
+
 icmp_echo_ignore_broadcasts - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO and
 	TIMESTAMP requests sent to it via broadcast/multicast.

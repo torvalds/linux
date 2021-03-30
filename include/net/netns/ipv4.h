@@ -84,6 +84,7 @@ struct netns_ipv4 {
 #endif
 
 	u8 sysctl_icmp_echo_ignore_all;
+	u8 sysctl_icmp_echo_enable_probe;
 	u8 sysctl_icmp_echo_ignore_broadcasts;
 	u8 sysctl_icmp_ignore_bogus_error_responses;
 	u8 sysctl_icmp_errors_use_inbound_ifaddr;
