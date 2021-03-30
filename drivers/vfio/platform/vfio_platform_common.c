@@ -659,8 +659,7 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 	struct iommu_group *group;
 	int ret;
 
-	if (!vdev)
-		return -EINVAL;
+	vfio_init_group_dev(&vdev->vdev, dev, &vfio_platform_ops, vdev);
 
 	ret = vfio_platform_acpi_probe(vdev, dev);
 	if (ret)
@@ -685,13 +684,13 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 		goto put_reset;
 	}
 
-	ret = vfio_add_group_dev(dev, &vfio_platform_ops, vdev);
+	ret = vfio_register_group_dev(&vdev->vdev);
 	if (ret)
 		goto put_iommu;
 
 	mutex_init(&vdev->igate);
 
-	pm_runtime_enable(vdev->device);
+	pm_runtime_enable(dev);
 	return 0;
 
 put_iommu:
@@ -702,19 +701,13 @@ put_reset:
 }
 EXPORT_SYMBOL_GPL(vfio_platform_probe_common);
 
-struct vfio_platform_device *vfio_platform_remove_common(struct device *dev)
+void vfio_platform_remove_common(struct vfio_platform_device *vdev)
 {
-	struct vfio_platform_device *vdev;
+	vfio_unregister_group_dev(&vdev->vdev);
 
-	vdev = vfio_del_group_dev(dev);
-
-	if (vdev) {
-		pm_runtime_disable(vdev->device);
-		vfio_platform_put_reset(vdev);
-		vfio_iommu_group_put(dev->iommu_group, dev);
-	}
-
-	return vdev;
+	pm_runtime_disable(vdev->device);
+	vfio_platform_put_reset(vdev);
+	vfio_iommu_group_put(vdev->vdev.dev->iommu_group, vdev->vdev.dev);
 }
 EXPORT_SYMBOL_GPL(vfio_platform_remove_common);
 
