@@ -363,6 +363,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (device_property_read_bool(tmpdev, "quirk-skip-phy-init"))
 			xhci->quirks |= XHCI_SKIP_PHY_INIT;
 
+		if (device_property_read_bool(tmpdev,
+					      "xhci-u2-broken-suspend"))
+			xhci->quirks |= XHCI_U2_BROKEN_SUSPEND;
+
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);
 	}
