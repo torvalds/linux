@@ -286,6 +286,15 @@ bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id)
 		icl_hdr_plane_mask() & BIT(plane_id);
 }
 
+static int icl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			       const struct intel_plane_state *plane_state)
+{
+	unsigned int pixel_rate = intel_plane_pixel_rate(crtc_state, plane_state);
+
+	/* two pixels per clock */
+	return DIV_ROUND_UP(pixel_rate, 2);
+}
+
 static void
 glk_plane_ratio(const struct intel_plane_state *plane_state,
 		unsigned int *num, unsigned int *den)
@@ -1980,7 +1989,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		plane->min_width = icl_plane_min_width;
 		plane->max_width = icl_plane_max_width;
 		plane->max_height = icl_plane_max_height;
-		plane->min_cdclk = glk_plane_min_cdclk;
+		plane->min_cdclk = icl_plane_min_cdclk;
 	} else if (DISPLAY_VER(dev_priv) >= 10) {
 		plane->max_width = glk_plane_max_width;
 		plane->max_height = skl_plane_max_height;
