@@ -18,6 +18,12 @@
 
 /* Miscellaneous res name, keep it in sync with enum misc_res_type */
 static const char *const misc_res_name[] = {
+#ifdef CONFIG_KVM_AMD_SEV
+	/* AMD SEV ASIDs resource */
+	"sev",
+	/* AMD SEV-ES ASIDs resource */
+	"sev_es",
+#endif
 };
 
 /* Root misc cgroup */

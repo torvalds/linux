@@ -12,6 +12,12 @@
  * Types of misc cgroup entries supported by the host.
  */
 enum misc_res_type {
+#ifdef CONFIG_KVM_AMD_SEV
+	/* AMD SEV ASIDs resource */
+	MISC_CG_RES_SEV,
+	/* AMD SEV-ES ASIDs resource */
+	MISC_CG_RES_SEV_ES,
+#endif
 	MISC_CG_RES_TYPES
 };
 
