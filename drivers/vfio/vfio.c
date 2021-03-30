@@ -546,13 +546,11 @@ struct vfio_device *vfio_group_create_device(struct vfio_group *group,
 
 	kref_init(&device->kref);
 	device->dev = dev;
+	/* Our reference on group is moved to the device */
 	device->group = group;
 	device->ops = ops;
 	device->device_data = device_data;
 	dev_set_drvdata(dev, device);
-
-	/* No need to get group_lock, caller has group reference */
-	vfio_group_get(group);
 
 	mutex_lock(&group->device_lock);
 	list_add(&device->group_next, &group->device_list);
@@ -585,13 +583,11 @@ void vfio_device_put(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
 	kref_put_mutex(&device->kref, vfio_device_release, &group->device_lock);
-	vfio_group_put(group);
 }
 EXPORT_SYMBOL_GPL(vfio_device_put);
 
 static void vfio_device_get(struct vfio_device *device)
 {
-	vfio_group_get(device->group);
 	kref_get(&device->kref);
 }
 
@@ -841,14 +837,6 @@ int vfio_add_group_dev(struct device *dev,
 		vfio_group_put(group);
 		return PTR_ERR(device);
 	}
-
-	/*
-	 * Drop all but the vfio_device reference.  The vfio_device holds
-	 * a reference to the vfio_group, which holds a reference to the
-	 * iommu_group.
-	 */
-	vfio_group_put(group);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_add_group_dev);
@@ -929,12 +917,6 @@ void *vfio_del_group_dev(struct device *dev)
 	bool interrupted = false;
 
 	/*
-	 * The group exists so long as we have a device reference.  Get
-	 * a group reference and use it to scan for the device going away.
-	 */
-	vfio_group_get(group);
-
-	/*
 	 * When the device is removed from the group, the group suddenly
 	 * becomes non-viable; the device has a driver (until the unbind
 	 * completes), but it's not present in the group.  This is bad news
@@ -1008,6 +990,7 @@ void *vfio_del_group_dev(struct device *dev)
 	if (list_empty(&group->device_list))
 		wait_event(group->container_q, !group->container);
 
+	/* Matches the get in vfio_group_create_device() */
 	vfio_group_put(group);
 
 	return device_data;
