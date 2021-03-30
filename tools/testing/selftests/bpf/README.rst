@@ -179,3 +179,17 @@ types, which was introduced in `Clang 13`__. The older Clang versions will
 either crash when compiling these tests, or generate an incorrect BTF.
 
 __  https://reviews.llvm.org/D83289
+
+Kernel function call test and Clang version
+===========================================
+
+Some selftests (e.g. kfunc_call and bpf_tcp_ca) require a LLVM support
+to generate extern function in BTF.  It was introduced in `Clang 13`__.
+
+Without it, the error from compiling bpf selftests looks like:
+
+.. code-block:: console
+
+  libbpf: failed to find BTF for extern 'tcp_slow_start' [25] section: -2
+
+__ https://reviews.llvm.org/D93563
