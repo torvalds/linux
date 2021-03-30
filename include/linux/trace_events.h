@@ -404,7 +404,6 @@ trace_get_fields(struct trace_event_call *event_call)
 	return event_call->class->get_fields(event_call);
 }
 
-struct trace_array;
 struct trace_subsystem_dir;
 
 enum {
