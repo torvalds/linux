@@ -1174,7 +1174,7 @@ static int alloc_preauth_hash(struct ksmbd_session *sess,
 	if (sess->Preauth_HashValue)
 		return 0;
 
-	sess->Preauth_HashValue = ksmbd_alloc(PREAUTH_HASHVALUE_SIZE);
+	sess->Preauth_HashValue = kmalloc(PREAUTH_HASHVALUE_SIZE, GFP_KERNEL);
 	if (!sess->Preauth_HashValue)
 		return -ENOMEM;
 
@@ -8345,7 +8345,7 @@ int smb3_encrypt_resp(struct ksmbd_work *work)
 	if (ARRAY_SIZE(iov) < rq_nvec)
 		return -ENOMEM;
 
-	tr_hdr = ksmbd_alloc_response(sizeof(struct smb2_transform_hdr));
+	tr_hdr = kzalloc(sizeof(struct smb2_transform_hdr), GFP_KERNEL);
 	if (!tr_hdr)
 		return rc;
 

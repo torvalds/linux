@@ -63,7 +63,7 @@ static int register_wm_size_class(size_t sz)
 {
 	struct wm_list *l, *nl;
 
-	nl = kvmalloc(sizeof(struct wm_list), GFP_KERNEL);
+	nl = kmalloc(sizeof(struct wm_list), GFP_KERNEL);
 	if (!nl)
 		return -ENOMEM;
 

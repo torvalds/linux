@@ -101,7 +101,7 @@ int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
 	if (!method)
 		return -EINVAL;
 
-	entry = ksmbd_alloc(sizeof(struct ksmbd_session_rpc));
+	entry = kzalloc(sizeof(struct ksmbd_session_rpc), GFP_KERNEL);
 	if (!entry)
 		return -EINVAL;
 
@@ -266,7 +266,7 @@ static struct ksmbd_session *__session_create(int protocol)
 	struct ksmbd_session *sess;
 	int ret;
 
-	sess = ksmbd_alloc(sizeof(struct ksmbd_session));
+	sess = kzalloc(sizeof(struct ksmbd_session), GFP_KERNEL);
 	if (!sess)
 		return NULL;
 

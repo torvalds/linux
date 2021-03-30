@@ -830,7 +830,7 @@ int ksmbd_file_table_flush(struct ksmbd_work *work)
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 {
-	ft->idr = ksmbd_alloc(sizeof(struct idr));
+	ft->idr = kzalloc(sizeof(struct idr), GFP_KERNEL);
 	if (!ft->idr)
 		return -ENOMEM;
 

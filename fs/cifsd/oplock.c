@@ -593,7 +593,7 @@ static int oplock_break_pending(struct oplock_info *opinfo, int req_op_level)
 
 static inline int allocate_oplock_break_buf(struct ksmbd_work *work)
 {
-	work->response_buf = ksmbd_alloc_response(MAX_CIFS_SMALL_BUFFER_SIZE);
+	work->response_buf = kzalloc(MAX_CIFS_SMALL_BUFFER_SIZE, GFP_KERNEL);
 	if (!work->response_buf)
 		return -ENOMEM;
 	work->response_sz = MAX_CIFS_SMALL_BUFFER_SIZE;
