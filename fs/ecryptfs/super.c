@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/**
+/*
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 1997-2003 Erez Zadok
@@ -81,7 +81,7 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 
 /**
  * ecryptfs_statfs
- * @sb: The ecryptfs super block
+ * @dentry: The ecryptfs dentry
  * @buf: The struct kstatfs to fill in with stats
  *
  * Get the filesystem statistics. Currently, we let this pass right through
@@ -108,7 +108,7 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 /**
  * ecryptfs_evict_inode
- * @inode - The ecryptfs inode
+ * @inode: The ecryptfs inode
  *
  * Called by iput() when the inode reference count reached zero
  * and the inode is not hashed anywhere.  Used to clear anything
@@ -123,7 +123,7 @@ static void ecryptfs_evict_inode(struct inode *inode)
 	iput(ecryptfs_inode_to_lower(inode));
 }
 
-/**
+/*
  * ecryptfs_show_options
  *
  * Prints the mount options for a given superblock.
