@@ -412,7 +412,6 @@ struct pl022 {
  * @enable_dma: Whether to enable DMA or not
  * @read: function ptr to be used to read when doing xfer for this chip
  * @write: function ptr to be used to write when doing xfer for this chip
- * @cs_control: chip select callback provided by chip
  * @xfer_type: polling/interrupt/DMA
  *
  * Runtime state of the SSP controller, maintained per chip,
@@ -427,21 +426,8 @@ struct chip_data {
 	bool enable_dma;
 	enum ssp_reading read;
 	enum ssp_writing write;
-	void (*cs_control) (u32 command);
 	int xfer_type;
 };
-
-/**
- * null_cs_control - Dummy chip select function
- * @command: select/delect the chip
- *
- * If no chip select function is provided by client this is used as dummy
- * chip select
- */
-static void null_cs_control(u32 command)
-{
-	pr_debug("pl022: dummy chip select control, CS=0x%x\n", command);
-}
 
 /**
  * internal_cs_control - Control chip select signals via SSP_CSR.
@@ -470,8 +456,6 @@ static void pl022_cs_control(struct pl022 *pl022, u32 command)
 		internal_cs_control(pl022, command);
 	else if (gpio_is_valid(pl022->cur_cs))
 		gpio_set_value(pl022->cur_cs, command);
-	else
-		pl022->cur_chip->cs_control(command);
 }
 
 /**
@@ -1829,7 +1813,6 @@ static const struct pl022_config_chip pl022_default_chip_info = {
 	.ctrl_len = SSP_BITS_8,
 	.wait_state = SSP_MWIRE_WAIT_ZERO,
 	.duplex = SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
-	.cs_control = null_cs_control,
 };
 
 /**
@@ -1940,13 +1923,8 @@ static int pl022_setup(struct spi_device *spi)
 
 	/* Now set controller state based on controller data */
 	chip->xfer_type = chip_info->com_mode;
-	if (!chip_info->cs_control) {
-		chip->cs_control = null_cs_control;
-		if (!gpio_is_valid(pl022->chipselects[spi->chip_select]))
-			dev_warn(&spi->dev,
-				 "invalid chip select\n");
-	} else
-		chip->cs_control = chip_info->cs_control;
+	if (!gpio_is_valid(pl022->chipselects[spi->chip_select]))
+		dev_warn(&spi->dev, "invalid chip select\n");
 
 	/* Check bits per word with vendor specific range */
 	if ((bits <= 3) || (bits > pl022->vendor->max_bpw)) {

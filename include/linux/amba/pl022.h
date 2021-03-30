@@ -265,8 +265,6 @@ struct pl022_ssp_controller {
  * @duplex: Microwire interface: Full/Half duplex
  * @clkdelay: on the PL023 variant, the delay in feeback clock cycles
  * before sampling the incoming line
- * @cs_control: function pointer to board-specific function to
- * assert/deassert I/O port to control HW generation of devices chip-select.
  */
 struct pl022_config_chip {
 	enum ssp_interface iface;
@@ -280,7 +278,6 @@ struct pl022_config_chip {
 	enum ssp_microwire_wait_state wait_state;
 	enum ssp_duplex duplex;
 	enum ssp_clkdelay clkdelay;
-	void (*cs_control) (u32 control);
 };
 
 #endif /* _SSP_PL022_H */
