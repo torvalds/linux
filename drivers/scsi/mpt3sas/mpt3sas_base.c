@@ -7405,6 +7405,8 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 
 	ioc_info(ioc, "sending diag reset !!\n");
 
+	pci_cfg_access_lock(ioc->pdev);
+
 	drsprintk(ioc, ioc_info(ioc, "clear interrupts\n"));
 
 	count = 0;
@@ -7495,10 +7497,12 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		goto out;
 	}
 
+	pci_cfg_access_unlock(ioc->pdev);
 	ioc_info(ioc, "diag reset: SUCCESS\n");
 	return 0;
 
  out:
+	pci_cfg_access_unlock(ioc->pdev);
 	ioc_err(ioc, "diag reset: FAILED\n");
 	return -EFAULT;
 }
