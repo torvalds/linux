@@ -16,6 +16,7 @@
 #include <linux/input/mt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include "hid-ids.h"
 
@@ -128,6 +129,9 @@ struct magicmouse_sc {
 		u8 size;
 	} touches[16];
 	int tracking_ids[16];
+
+	struct hid_device *hdev;
+	struct delayed_work work;
 };
 
 static int magicmouse_firm_touch(struct magicmouse_sc *msc)
@@ -631,9 +635,7 @@ static int magicmouse_input_configured(struct hid_device *hdev,
 	return 0;
 }
 
-
-static int magicmouse_probe(struct hid_device *hdev,
-	const struct hid_device_id *id)
+static int magicmouse_enable_multitouch(struct hid_device *hdev)
 {
 	const u8 *feature;
 	const u8 feature_mt[] = { 0xD7, 0x01 };
@@ -641,10 +643,52 @@ static int magicmouse_probe(struct hid_device *hdev,
 	const u8 feature_mt_trackpad2_usb[] = { 0x02, 0x01 };
 	const u8 feature_mt_trackpad2_bt[] = { 0xF1, 0x02, 0x01 };
 	u8 *buf;
+	int ret;
+	int feature_size;
+
+	if (hdev->product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2) {
+		if (hdev->vendor == BT_VENDOR_ID_APPLE) {
+			feature_size = sizeof(feature_mt_trackpad2_bt);
+			feature = feature_mt_trackpad2_bt;
+		} else { /* USB_VENDOR_ID_APPLE */
+			feature_size = sizeof(feature_mt_trackpad2_usb);
+			feature = feature_mt_trackpad2_usb;
+		}
+	} else if (hdev->product == USB_DEVICE_ID_APPLE_MAGICMOUSE2) {
+		feature_size = sizeof(feature_mt_mouse2);
+		feature = feature_mt_mouse2;
+	} else {
+		feature_size = sizeof(feature_mt);
+		feature = feature_mt;
+	}
+
+	buf = kmemdup(feature, feature_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(hdev, buf[0], buf, feature_size,
+				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	kfree(buf);
+	return ret;
+}
+
+static void magicmouse_enable_mt_work(struct work_struct *work)
+{
+	struct magicmouse_sc *msc =
+		container_of(work, struct magicmouse_sc, work.work);
+	int ret;
+
+	ret = magicmouse_enable_multitouch(msc->hdev);
+	if (ret < 0)
+		hid_err(msc->hdev, "unable to request touch data (%d)\n", ret);
+}
+
+static int magicmouse_probe(struct hid_device *hdev,
+	const struct hid_device_id *id)
+{
 	struct magicmouse_sc *msc;
 	struct hid_report *report;
 	int ret;
-	int feature_size;
 
 	if (id->vendor == USB_VENDOR_ID_APPLE &&
 	    id->product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2 &&
@@ -658,6 +702,8 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 
 	msc->scroll_accel = SCROLL_ACCEL_DEFAULT;
+	msc->hdev = hdev;
+	INIT_DEFERRABLE_WORK(&msc->work, magicmouse_enable_mt_work);
 
 	msc->quirks = id->driver_data;
 	hid_set_drvdata(hdev, msc);
@@ -707,28 +753,6 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 	report->size = 6;
 
-	if (id->product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD2) {
-		if (id->vendor == BT_VENDOR_ID_APPLE) {
-			feature_size = sizeof(feature_mt_trackpad2_bt);
-			feature = feature_mt_trackpad2_bt;
-		} else { /* USB_VENDOR_ID_APPLE */
-			feature_size = sizeof(feature_mt_trackpad2_usb);
-			feature = feature_mt_trackpad2_usb;
-		}
-	} else if (id->product == USB_DEVICE_ID_APPLE_MAGICMOUSE2) {
-		feature_size = sizeof(feature_mt_mouse2);
-		feature = feature_mt_mouse2;
-	} else {
-		feature_size = sizeof(feature_mt);
-		feature = feature_mt;
-	}
-
-	buf = kmemdup(feature, feature_size, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto err_stop_hw;
-	}
-
 	/*
 	 * Some devices repond with 'invalid report id' when feature
 	 * report switching it into multitouch mode is sent to it.
@@ -737,18 +761,26 @@ static int magicmouse_probe(struct hid_device *hdev,
 	 * but there seems to be no other way of switching the mode.
 	 * Thus the super-ugly hacky success check below.
 	 */
-	ret = hid_hw_raw_request(hdev, buf[0], buf, feature_size,
-				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-	kfree(buf);
-	if (ret != -EIO && ret != feature_size) {
+	ret = magicmouse_enable_multitouch(hdev);
+	if (ret != -EIO && ret < 0) {
 		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;
+	}
+	if (ret == -EIO && id->product == USB_DEVICE_ID_APPLE_MAGICMOUSE2) {
+		schedule_delayed_work(&msc->work, msecs_to_jiffies(500));
 	}
 
 	return 0;
 err_stop_hw:
 	hid_hw_stop(hdev);
 	return ret;
+}
+
+static void magicmouse_remove(struct hid_device *hdev)
+{
+	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
+	cancel_delayed_work_sync(&msc->work);
+	hid_hw_stop(hdev);
 }
 
 static const struct hid_device_id magic_mice[] = {
@@ -770,6 +802,7 @@ static struct hid_driver magicmouse_driver = {
 	.name = "magicmouse",
 	.id_table = magic_mice,
 	.probe = magicmouse_probe,
+	.remove = magicmouse_remove,
 	.raw_event = magicmouse_raw_event,
 	.event = magicmouse_event,
 	.input_mapping = magicmouse_input_mapping,
