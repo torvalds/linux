@@ -564,6 +564,7 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 static void mhi_pm_sys_error_transition(struct mhi_controller *mhi_cntrl)
 {
 	enum mhi_pm_state cur_state, prev_state;
+	enum dev_st_transition next_state;
 	struct mhi_event *mhi_event;
 	struct mhi_cmd_ctxt *cmd_ctxt;
 	struct mhi_cmd *mhi_cmd;
@@ -677,7 +678,23 @@ static void mhi_pm_sys_error_transition(struct mhi_controller *mhi_cntrl)
 		er_ctxt->wp = er_ctxt->rbase;
 	}
 
-	mhi_ready_state_transition(mhi_cntrl);
+	/* Transition to next state */
+	if (MHI_IN_PBL(mhi_get_exec_env(mhi_cntrl))) {
+		write_lock_irq(&mhi_cntrl->pm_lock);
+		cur_state = mhi_tryset_pm_state(mhi_cntrl, MHI_PM_POR);
+		write_unlock_irq(&mhi_cntrl->pm_lock);
+		if (cur_state != MHI_PM_POR) {
+			dev_err(dev, "Error moving to state %s from %s\n",
+				to_mhi_pm_state_str(MHI_PM_POR),
+				to_mhi_pm_state_str(cur_state));
+			goto exit_sys_error_transition;
+		}
+		next_state = DEV_ST_TRANSITION_PBL;
+	} else {
+		next_state = DEV_ST_TRANSITION_READY;
+	}
+
+	mhi_queue_state_transition(mhi_cntrl, next_state);
 
 exit_sys_error_transition:
 	dev_dbg(dev, "Exiting with PM state: %s, MHI state: %s\n",
