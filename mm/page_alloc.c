@@ -2360,6 +2360,13 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 	debug_pagealloc_map_pages(page, 1 << order);
 
 	/*
+	 * Page unpoisoning must happen before memory initialization.
+	 * Otherwise, the poison pattern will be overwritten for __GFP_ZERO
+	 * allocations and the page unpoisoning code will complain.
+	 */
+	kernel_unpoison_pages(page, 1 << order);
+
+	/*
 	 * As memory initialization might be integrated into KASAN,
 	 * kasan_alloc_pages and kernel_init_free_pages must be
 	 * kept together to avoid discrepancies in behavior.
@@ -2375,7 +2382,6 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 					       gfp_flags & __GFP_ZEROTAGS);
 	}
 
-	kernel_unpoison_pages(page, 1 << order);
 	set_page_owner(page, order, gfp_flags);
 }
 
