@@ -146,6 +146,31 @@ size_t get_trans_hugepagesz(void)
 	return size;
 }
 
+size_t get_def_hugetlb_pagesz(void)
+{
+	char buf[64];
+	const char *tag = "Hugepagesize:";
+	FILE *f;
+
+	f = fopen("/proc/meminfo", "r");
+	TEST_ASSERT(f != NULL, "Error in opening /proc/meminfo");
+
+	while (fgets(buf, sizeof(buf), f) != NULL) {
+		if (strstr(buf, tag) == buf) {
+			fclose(f);
+			return strtoull(buf + strlen(tag), NULL, 10) << 10;
+		}
+	}
+
+	if (feof(f))
+		TEST_FAIL("HUGETLB is not configured in host kernel");
+	else
+		TEST_FAIL("Error in reading /proc/meminfo");
+
+	fclose(f);
+	return 0;
+}
+
 void backing_src_help(void)
 {
 	int i;
