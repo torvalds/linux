@@ -83,8 +83,8 @@ static int pvpanic_pci_probe(struct pci_dev *pdev,
 		return ret;
 
 	base = pci_iomap(pdev, 0, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (!base)
+		return -ENOMEM;
 
 	pi = kmalloc(sizeof(*pi), GFP_ATOMIC);
 	if (!pi)
