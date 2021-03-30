@@ -146,7 +146,6 @@ struct usb_serial {
 	struct usb_serial_driver	*type;
 	struct usb_interface		*interface;
 	unsigned char			disconnected:1;
-	unsigned char			suspending:1;
 	unsigned char			attached:1;
 	unsigned char			minors_reserved:1;
 	unsigned char			num_ports;

@@ -1114,8 +1114,6 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	int i, r = 0;
 
-	serial->suspending = 1;
-
 	/*
 	 * serial->type->suspend() MUST return 0 in system sleep context,
 	 * otherwise, the resume callback has to recover device from
@@ -1123,10 +1121,8 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	 */
 	if (serial->type->suspend) {
 		r = serial->type->suspend(serial, message);
-		if (r < 0) {
-			serial->suspending = 0;
+		if (r < 0)
 			goto err_out;
-		}
 	}
 
 	for (i = 0; i < serial->num_ports; ++i)
@@ -1151,7 +1147,6 @@ int usb_serial_resume(struct usb_interface *intf)
 
 	usb_serial_unpoison_port_urbs(serial);
 
-	serial->suspending = 0;
 	if (serial->type->resume)
 		rv = serial->type->resume(serial);
 	else
@@ -1168,7 +1163,6 @@ static int usb_serial_reset_resume(struct usb_interface *intf)
 
 	usb_serial_unpoison_port_urbs(serial);
 
-	serial->suspending = 0;
 	if (serial->type->reset_resume) {
 		rv = serial->type->reset_resume(serial);
 	} else {
