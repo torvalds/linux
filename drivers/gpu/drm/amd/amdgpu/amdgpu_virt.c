@@ -466,6 +466,8 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->vf2pf_update_interval_ms;
 		adev->virt.gim_feature =
 			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->feature_flags.all;
+		adev->virt.reg_access =
+			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->reg_access_flags.all;
 
 		break;
 	default:
