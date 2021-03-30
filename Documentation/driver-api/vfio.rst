@@ -269,20 +269,22 @@ ready before calling it. The driver provides an ops structure for callbacks
 similar to a file operations structure::
 
 	struct vfio_device_ops {
-		int	(*open)(void *device_data);
-		void	(*release)(void *device_data);
-		ssize_t	(*read)(void *device_data, char __user *buf,
+		int	(*open)(struct vfio_device *vdev);
+		void	(*release)(struct vfio_device *vdev);
+		ssize_t	(*read)(struct vfio_device *vdev, char __user *buf,
 				size_t count, loff_t *ppos);
-		ssize_t	(*write)(void *device_data, const char __user *buf,
+		ssize_t	(*write)(struct vfio_device *vdev,
+				 const char __user *buf,
 				 size_t size, loff_t *ppos);
-		long	(*ioctl)(void *device_data, unsigned int cmd,
+		long	(*ioctl)(struct vfio_device *vdev, unsigned int cmd,
 				 unsigned long arg);
-		int	(*mmap)(void *device_data, struct vm_area_struct *vma);
+		int	(*mmap)(struct vfio_device *vdev,
+				struct vm_area_struct *vma);
 	};
 
-Each function is passed the device_data that was originally registered
+Each function is passed the vdev that was originally registered
 in the vfio_register_group_dev() call above.  This allows the bus driver
-an easy place to store its opaque, private data.  The open/release
+to obtain its private data using container_of().  The open/release
 callbacks are issued when a new file descriptor is created for a
 device (via VFIO_GROUP_GET_DEVICE_FD).  The ioctl interface provides
 a direct pass through for VFIO_DEVICE_* ioctls.  The read/write/mmap

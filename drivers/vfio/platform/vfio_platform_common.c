@@ -218,9 +218,10 @@ static int vfio_platform_call_reset(struct vfio_platform_device *vdev,
 	return -EINVAL;
 }
 
-static void vfio_platform_release(void *device_data)
+static void vfio_platform_release(struct vfio_device *core_vdev)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 
 	mutex_lock(&driver_lock);
 
@@ -244,9 +245,10 @@ static void vfio_platform_release(void *device_data)
 	module_put(vdev->parent_module);
 }
 
-static int vfio_platform_open(void *device_data)
+static int vfio_platform_open(struct vfio_device *core_vdev)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	int ret;
 
 	if (!try_module_get(vdev->parent_module))
@@ -293,10 +295,12 @@ err_reg:
 	return ret;
 }
 
-static long vfio_platform_ioctl(void *device_data,
+static long vfio_platform_ioctl(struct vfio_device *core_vdev,
 				unsigned int cmd, unsigned long arg)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
+
 	unsigned long minsz;
 
 	if (cmd == VFIO_DEVICE_GET_INFO) {
@@ -455,10 +459,11 @@ err:
 	return -EFAULT;
 }
 
-static ssize_t vfio_platform_read(void *device_data, char __user *buf,
-				  size_t count, loff_t *ppos)
+static ssize_t vfio_platform_read(struct vfio_device *core_vdev,
+				  char __user *buf, size_t count, loff_t *ppos)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	unsigned int index = VFIO_PLATFORM_OFFSET_TO_INDEX(*ppos);
 	loff_t off = *ppos & VFIO_PLATFORM_OFFSET_MASK;
 
@@ -531,10 +536,11 @@ err:
 	return -EFAULT;
 }
 
-static ssize_t vfio_platform_write(void *device_data, const char __user *buf,
+static ssize_t vfio_platform_write(struct vfio_device *core_vdev, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	unsigned int index = VFIO_PLATFORM_OFFSET_TO_INDEX(*ppos);
 	loff_t off = *ppos & VFIO_PLATFORM_OFFSET_MASK;
 
@@ -573,9 +579,10 @@ static int vfio_platform_mmap_mmio(struct vfio_platform_region region,
 			       req_len, vma->vm_page_prot);
 }
 
-static int vfio_platform_mmap(void *device_data, struct vm_area_struct *vma)
+static int vfio_platform_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma)
 {
-	struct vfio_platform_device *vdev = device_data;
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
 	unsigned int index;
 
 	index = vma->vm_pgoff >> (VFIO_PLATFORM_OFFSET_SHIFT - PAGE_SHIFT);

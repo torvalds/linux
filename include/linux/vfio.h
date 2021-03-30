@@ -44,17 +44,17 @@ struct vfio_device {
  */
 struct vfio_device_ops {
 	char	*name;
-	int	(*open)(void *device_data);
-	void	(*release)(void *device_data);
-	ssize_t	(*read)(void *device_data, char __user *buf,
+	int	(*open)(struct vfio_device *vdev);
+	void	(*release)(struct vfio_device *vdev);
+	ssize_t	(*read)(struct vfio_device *vdev, char __user *buf,
 			size_t count, loff_t *ppos);
-	ssize_t	(*write)(void *device_data, const char __user *buf,
+	ssize_t	(*write)(struct vfio_device *vdev, const char __user *buf,
 			 size_t count, loff_t *size);
-	long	(*ioctl)(void *device_data, unsigned int cmd,
+	long	(*ioctl)(struct vfio_device *vdev, unsigned int cmd,
 			 unsigned long arg);
-	int	(*mmap)(void *device_data, struct vm_area_struct *vma);
-	void	(*request)(void *device_data, unsigned int count);
-	int	(*match)(void *device_data, char *buf);
+	int	(*mmap)(struct vfio_device *vdev, struct vm_area_struct *vma);
+	void	(*request)(struct vfio_device *vdev, unsigned int count);
+	int	(*match)(struct vfio_device *vdev, char *buf);
 };
 
 extern struct iommu_group *vfio_iommu_group_get(struct device *dev);
