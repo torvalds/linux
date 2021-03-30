@@ -115,6 +115,7 @@ struct ethsw_port_priv {
 	struct dpaa2_switch_fdb	*fdb;
 	bool			bcast_flood;
 	bool			ucast_flood;
+	bool			learn_ena;
 
 	u16			acl_tbl;
 };

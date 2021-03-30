@@ -1329,6 +1329,7 @@ static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
 		err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
 		if (err)
 			return err;
+		port_priv->learn_ena = learn_ena;
 	}
 
 	if (flags.mask & (BR_BCAST_FLOOD | BR_FLOOD | BR_MCAST_FLOOD)) {
@@ -1637,6 +1638,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	/* Inherit the initial bridge port learning state */
 	learn_ena = br_port_flag_is_set(netdev, BR_LEARNING);
 	err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
+	port_priv->learn_ena = learn_ena;
 
 	/* Setup the egress flood policy (broadcast, unknown unicast) */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
@@ -1719,6 +1721,7 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		return err;
+	port_priv->learn_ena = false;
 
 	/* Add the VLAN 1 as PVID when not under a bridge. We need this since
 	 * the dpaa2 switch interfaces are not capable to be VLAN unaware
@@ -2839,6 +2842,7 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		goto err_port_probe;
+	port_priv->learn_ena = false;
 
 	return 0;
 
