@@ -1,6 +1,7 @@
 config SMB_SERVER
 	tristate "SMB server support (EXPERIMENTAL)"
 	depends on INET
+	depends on MULTIUSER
 	select NLS
 	select NLS_UTF8
 	select CRYPTO
