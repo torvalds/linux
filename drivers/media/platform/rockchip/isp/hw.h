@@ -56,6 +56,7 @@ struct rkisp_hw_dev {
 	struct rkisp_dummy_buffer dummy_buf;
 	const struct vb2_mem_ops *mem_ops;
 	u64 iq_feature;
+	int buf_init_cnt;
 	bool is_feature_on;
 	bool is_dma_contig;
 	bool is_mmu;

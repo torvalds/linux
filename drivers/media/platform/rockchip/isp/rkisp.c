@@ -812,15 +812,12 @@ static int rkisp_config_path(struct rkisp_device *dev)
 static int rkisp_config_cif(struct rkisp_device *dev)
 {
 	int ret = 0;
-	u32 cif_id;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "SP streaming = %d, MP streaming = %d\n",
+		 "%s CIF_ID:0x%x SP:%d, MP:%d\n", __func__,
+		 readl(dev->base_addr + CIF_VI_ID),
 		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming,
 		 dev->cap_dev.stream[RKISP_STREAM_MP].streaming);
-
-	cif_id = readl(dev->base_addr + CIF_VI_ID);
-	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "CIF_ID 0x%08x\n", cif_id);
 
 	ret = rkisp_config_isp(dev);
 	if (ret < 0)
@@ -900,9 +897,8 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 	u32 i;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "SP streaming = %d, MP streaming = %d\n",
-		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming,
-		 dev->cap_dev.stream[RKISP_STREAM_MP].streaming);
+		 "%s refcnt:%d\n", __func__,
+		 atomic_read(&dev->hw_dev->refcnt));
 
 	if (atomic_read(&dev->hw_dev->refcnt) > 1)
 		goto end;
@@ -964,12 +960,8 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 	readx_poll_timeout_atomic(readl, base + CIF_ISP_RIS,
 				  val, val & CIF_ISP_OFF, 20, 100);
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "streaming(MP:%d, SP:%d), MI_CTRL:%x, ISP_CTRL:%x, MIPI_CTRL:%x\n",
-		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming,
-		 dev->cap_dev.stream[RKISP_STREAM_MP].streaming,
-		 readl(base + CIF_MI_CTRL),
-		 readl(base + CIF_ISP_CTRL),
-		 readl(base + CIF_MIPI_CTRL));
+		 "MI_CTRL:%x, ISP_CTRL:%x\n",
+		 readl(base + CIF_MI_CTRL), readl(base + CIF_ISP_CTRL));
 
 	val = rkisp_read(dev, CTRL_VI_ISP_CLK_CTRL, true);
 	if (!in_interrupt()) {
@@ -1027,9 +1019,8 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	bool is_direct = true;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "SP streaming = %d, MP streaming = %d\n",
-		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming,
-		 dev->cap_dev.stream[RKISP_STREAM_MP].streaming);
+		 "%s refcnt:%d\n", __func__,
+		 atomic_read(&dev->hw_dev->refcnt));
 
 	/* Activate MIPI */
 	if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2) {
@@ -1070,13 +1061,8 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 		usleep_range(1000, 1200);
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "SP streaming = %d, MP streaming = %d MI_CTRL 0x%08x\n"
-		 "  ISP_CTRL 0x%08x MIPI_CTRL 0x%08x\n",
-		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming,
-		 dev->cap_dev.stream[RKISP_STREAM_MP].streaming,
-		 readl(base + CIF_MI_CTRL),
-		 readl(base + CIF_ISP_CTRL),
-		 readl(base + CIF_MIPI_CTRL));
+		 "%s MI_CTRL 0x%08x ISP_CTRL 0x%08x\n", __func__,
+		 readl(base + CIF_MI_CTRL), readl(base + CIF_ISP_CTRL));
 
 	rkisp_csi_trigger_event(dev, T_CMD_QUEUE, NULL);
 	return 0;
@@ -1645,6 +1631,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 
 	if (!on) {
 		rkisp_stop_3a_run(isp_dev);
+		atomic_dec(&isp_dev->hw_dev->refcnt);
 		wait_event_timeout(isp_dev->sync_onoff,
 			isp_dev->irq_ends_mask == (ISP_FRAME_END | ISP_FRAME_IN) &&
 			(!IS_HDR_RDBK(isp_dev->csi_dev.rd_mode) ||
@@ -1653,13 +1640,17 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	}
 
 	rkisp_start_3a_run(isp_dev);
-
+	atomic_inc(&isp_dev->hw_dev->refcnt);
 	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
 	ret = rkisp_config_cif(isp_dev);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	return rkisp_isp_start(isp_dev);
+	ret = rkisp_isp_start(isp_dev);
+out:
+	if (ret < 0)
+		atomic_dec(&isp_dev->hw_dev->refcnt);
+	return ret;
 }
 
 static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)

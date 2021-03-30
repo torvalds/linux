@@ -760,13 +760,15 @@ static void free_bridge_buf(struct rkisp_bridge_device *dev)
 	unsigned long lock_flags = 0;
 	int i, j;
 
-	if (atomic_dec_return(&hw->refcnt))
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (--hw->buf_init_cnt > 0) {
+		spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 		return;
+	}
 
 	v4l2_dbg(1, rkisp_debug, &dev->ispdev->v4l2_dev,
 		 "%s\n", __func__);
 
-	spin_lock_irqsave(&hw->buf_lock, lock_flags);
 	if (hw->cur_buf) {
 		list_add_tail(&hw->cur_buf->list, &hw->list);
 		if (hw->cur_buf == hw->nxt_buf)
@@ -817,8 +819,12 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 	int i, j, val, ret = 0;
 	unsigned long lock_flags = 0;
 
-	if (atomic_inc_return(&hw->refcnt) > 1)
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (++hw->buf_init_cnt > 1) {
+		spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 		return 0;
+	}
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 
 	v4l2_dbg(1, rkisp_debug, &dev->ispdev->v4l2_dev,
 		 "%s pic size:%d gain size:%d\n",
@@ -1201,11 +1207,12 @@ static int bridge_s_rx_buffer(struct v4l2_subdev *sd,
 	struct rkisp_ispp_buf *dbufs = buf;
 	unsigned long lock_flags = 0;
 
-	/* size isn't using now */
-	if (!dbufs || !atomic_read(&hw->refcnt))
-		return -EINVAL;
-
 	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	/* size isn't using now */
+	if (!dbufs || !hw->buf_init_cnt) {
+		spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+		return -EINVAL;
+	}
 	list_add_tail(&dbufs->list, &hw->list);
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 	return 0;
@@ -1302,13 +1309,12 @@ int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd 
 	struct rkisp_bridge_buf *buf;
 	struct rkisp_dummy_buffer *dummy;
 	unsigned long lock_flags = 0;
-	int i, j, buf_idx, ret = 0;
+	int i, j, buf_idx;
 
 	spin_lock_irqsave(&hw->buf_lock, lock_flags);
 	if (!hw->is_buf_init) {
 		spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
-		ret = -EAGAIN;
-		return ret;
+		return -EAGAIN;
 	}
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 
@@ -1327,7 +1333,7 @@ int rkisp_bridge_get_fbcbuf_fd(struct rkisp_device *dev, struct isp2x_buf_idxfd 
 
 	idxfd->buf_num = buf_idx;
 
-	return ret;
+	return 0;
 }
 
 void rkisp_bridge_sendtopp_buffer(struct rkisp_device *dev, u32 dev_id, u32 buf_idx)

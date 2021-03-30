@@ -717,6 +717,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	spin_lock_init(&hw_dev->buf_lock);
 	INIT_LIST_HEAD(&hw_dev->list);
 	INIT_LIST_HEAD(&hw_dev->rpt_list);
+	hw_dev->buf_init_cnt = 0;
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
 	hw_dev->is_mi_update = false;
