@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020 Hisilicon Limited.
+ * Copyright (C) 2020 HiSilicon Limited.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
