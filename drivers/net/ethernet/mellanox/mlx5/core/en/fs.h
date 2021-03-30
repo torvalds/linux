@@ -137,11 +137,13 @@ enum {
 	MLX5E_L2_FT_LEVEL,
 	MLX5E_TTC_FT_LEVEL,
 	MLX5E_INNER_TTC_FT_LEVEL,
+	MLX5E_FS_TT_UDP_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
+	MLX5E_FS_TT_ANY_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
 #ifdef CONFIG_MLX5_EN_TLS
-	MLX5E_ACCEL_FS_TCP_FT_LEVEL,
+	MLX5E_ACCEL_FS_TCP_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
 #endif
 #ifdef CONFIG_MLX5_EN_ARFS
-	MLX5E_ARFS_FT_LEVEL,
+	MLX5E_ARFS_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
 #endif
 #ifdef CONFIG_MLX5_EN_IPSEC
 	MLX5E_ACCEL_FS_ESP_FT_LEVEL = MLX5E_INNER_TTC_FT_LEVEL + 1,
@@ -241,6 +243,10 @@ static inline int mlx5e_arfs_disable(struct mlx5e_priv *priv) {	return -EOPNOTSU
 struct mlx5e_accel_fs_tcp;
 #endif
 
+struct mlx5e_fs_udp;
+struct mlx5e_fs_any;
+struct mlx5e_ptp_fs;
+
 struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
 	struct mlx5_flow_namespace      *egress_ns;
@@ -259,6 +265,9 @@ struct mlx5e_flow_steering {
 #ifdef CONFIG_MLX5_EN_TLS
 	struct mlx5e_accel_fs_tcp      *accel_tcp;
 #endif
+	struct mlx5e_fs_udp            *udp;
+	struct mlx5e_fs_any            *any;
+	struct mlx5e_ptp_fs            *ptp_fs;
 };
 
 struct ttc_params {
