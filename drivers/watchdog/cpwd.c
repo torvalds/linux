@@ -172,7 +172,6 @@ MODULE_PARM_DESC(wd2_timeout, "Default watchdog2 timeout in 1/10secs");
 MODULE_AUTHOR("Eric Brower <ebrower@usa.net>");
 MODULE_DESCRIPTION("Hardware watchdog driver for Sun Microsystems CP1400/1500");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("watchdog");
 
 static void cpwd_writew(u16 val, void __iomem *addr)
 {

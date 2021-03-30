@@ -3259,6 +3259,17 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 }
 
 /**
+ * i40e_rx_offset - Return expected offset into page to access data
+ * @rx_ring: Ring we are requesting offset of
+ *
+ * Returns the offset value for ring into the data buffer.
+ */
+static unsigned int i40e_rx_offset(struct i40e_ring *rx_ring)
+{
+	return ring_uses_build_skb(rx_ring) ? I40E_SKB_PAD : 0;
+}
+
+/**
  * i40e_configure_rx_ring - Configure a receive ring context
  * @ring: The Rx ring to configure
  *
@@ -3368,6 +3379,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		clear_ring_build_skb_enabled(ring);
 	else
 		set_ring_build_skb_enabled(ring);
+
+	ring->rx_offset = i40e_rx_offset(ring);
 
 	/* cache tail for quicker writes, and clear the reg before use */
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);

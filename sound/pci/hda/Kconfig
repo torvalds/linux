@@ -221,10 +221,8 @@ comment "Set to Y if you want auto-loading the codec driver"
 
 config SND_HDA_GENERIC
 	tristate "Enable generic HD-audio codec parser"
-	select NEW_LEDS if SND_HDA_GENERIC_LEDS
+	select SND_CTL_LED if SND_HDA_GENERIC_LEDS
 	select LEDS_CLASS if SND_HDA_GENERIC_LEDS
-	select LEDS_TRIGGERS if SND_HDA_GENERIC_LEDS
-	select LEDS_TRIGGER_AUDIO if SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
