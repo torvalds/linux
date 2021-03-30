@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/usb.h>
+#include <linux/usb/cdc.h>
 #include <linux/usb/serial.h>
 
 struct xr_txrx_clk_mask {
@@ -550,15 +551,34 @@ static void xr_close(struct usb_serial_port *port)
 
 static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 {
-	/* Don't bind to control interface */
-	if (serial->interface->cur_altsetting->desc.bInterfaceNumber == 0)
+	struct usb_interface *control = serial->interface;
+	struct usb_host_interface *alt = control->cur_altsetting;
+	struct usb_cdc_parsed_header hdrs;
+	struct usb_cdc_union_desc *desc;
+	struct usb_interface *data;
+	int ret;
+
+	ret = cdc_parse_cdc_header(&hdrs, control, alt->extra, alt->extralen);
+	if (ret < 0)
 		return -ENODEV;
+
+	desc = hdrs.usb_cdc_union_desc;
+	if (!desc)
+		return -ENODEV;
+
+	data = usb_ifnum_to_if(serial->dev, desc->bSlaveInterface0);
+	if (!data)
+		return -ENODEV;
+
+	ret = usb_serial_claim_interface(serial, data);
+	if (ret)
+		return ret;
 
 	return 0;
 }
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0x04e2, 0x1410) }, /* XR21V141X */
+	{ USB_DEVICE_INTERFACE_CLASS(0x04e2, 0x1410, USB_CLASS_COMM) }, /* XR21V141X */
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, id_table);
