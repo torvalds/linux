@@ -653,6 +653,20 @@ static uint64_t vop2_soc_id_fixup(uint64_t soc_id)
 	}
 }
 
+void vop2_standby(struct drm_crtc *crtc, bool standby)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	if (standby) {
+		VOP_MODULE_SET(vop2, vp, standby, 1);
+		mdelay(20);
+	} else {
+		VOP_MODULE_SET(vop2, vp, standby, 0);
+	}
+}
+EXPORT_SYMBOL(vop2_standby);
+
 static inline const struct vop2_win_regs *vop2_get_win_regs(struct vop2_win *win,
 							    const struct vop_reg *reg)
 {
