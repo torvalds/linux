@@ -133,9 +133,9 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	kfree(plane_state);
 }
 
-static unsigned int intel_adjusted_rate(const struct drm_rect *src,
-					const struct drm_rect *dst,
-					unsigned int rate)
+unsigned int intel_adjusted_rate(const struct drm_rect *src,
+				 const struct drm_rect *dst,
+				 unsigned int rate)
 {
 	unsigned int src_w, src_h, dst_w, dst_h;
 

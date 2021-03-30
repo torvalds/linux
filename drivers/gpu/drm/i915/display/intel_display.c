@@ -3984,7 +3984,7 @@ static bool intel_crtc_supports_double_wide(const struct intel_crtc *crtc)
 static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *crtc_state)
 {
 	u32 pixel_rate = crtc_state->hw.pipe_mode.crtc_clock;
-	unsigned int pipe_w, pipe_h, pfit_w, pfit_h;
+	struct drm_rect src;
 
 	/*
 	 * We only use IF-ID interlacing. If we ever use
@@ -3994,23 +3994,12 @@ static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->pch_pfit.enabled)
 		return pixel_rate;
 
-	pipe_w = crtc_state->pipe_src_w;
-	pipe_h = crtc_state->pipe_src_h;
+	drm_rect_init(&src, 0, 0,
+		      crtc_state->pipe_src_w << 16,
+		      crtc_state->pipe_src_h << 16);
 
-	pfit_w = drm_rect_width(&crtc_state->pch_pfit.dst);
-	pfit_h = drm_rect_height(&crtc_state->pch_pfit.dst);
-
-	if (pipe_w < pfit_w)
-		pipe_w = pfit_w;
-	if (pipe_h < pfit_h)
-		pipe_h = pfit_h;
-
-	if (drm_WARN_ON(crtc_state->uapi.crtc->dev,
-			!pfit_w || !pfit_h))
-		return pixel_rate;
-
-	return div_u64(mul_u32_u32(pixel_rate, pipe_w * pipe_h),
-		       pfit_w * pfit_h);
+	return intel_adjusted_rate(&src, &crtc_state->pch_pfit.dst,
+				   pixel_rate);
 }
 
 static void intel_mode_from_crtc_timings(struct drm_display_mode *mode,
