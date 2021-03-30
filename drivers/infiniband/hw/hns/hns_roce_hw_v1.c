@@ -538,7 +538,7 @@ static void hns_roce_set_sdb_ext(struct hns_roce_dev *hr_dev, u32 ext_sdb_alept,
 	/*
 	 * 44 = 32 + 12, When evaluating addr to hardware, shift 12 because of
 	 * using 4K page, and shift more 32 because of
-	 * caculating the high 32 bit value evaluated to hardware.
+	 * calculating the high 32 bit value evaluated to hardware.
 	 */
 	roce_set_field(tmp, ROCEE_EXT_DB_SQ_H_EXT_DB_SQ_BA_H_M,
 		       ROCEE_EXT_DB_SQ_H_EXT_DB_SQ_BA_H_S, sdb_dma_addr >> 44);
@@ -1189,7 +1189,7 @@ static int hns_roce_raq_init(struct hns_roce_dev *hr_dev)
 	/*
 	 * 44 = 32 + 12, When evaluating addr to hardware, shift 12 because of
 	 * using 4K page, and shift more 32 because of
-	 * caculating the high 32 bit value evaluated to hardware.
+	 * calculating the high 32 bit value evaluated to hardware.
 	 */
 	roce_set_field(tmp, ROCEE_EXT_RAQ_H_EXT_RAQ_BA_H_M,
 		       ROCEE_EXT_RAQ_H_EXT_RAQ_BA_H_S,
@@ -2041,7 +2041,7 @@ static void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 	/**
 	 * 44 = 32 + 12, When evaluating addr to hardware, shift 12 because of
 	 * using 4K page, and shift more 32 because of
-	 * caculating the high 32 bit value evaluated to hardware.
+	 * calculating the high 32 bit value evaluated to hardware.
 	 */
 	roce_set_field(cq_context->cqc_byte_20,
 		       CQ_CONTEXT_CQC_BYTE_20_CQE_TPTR_ADDR_H_M,
@@ -4170,7 +4170,7 @@ static int hns_roce_v1_create_eq(struct hns_roce_dev *hr_dev,
 	 * Configure eq extended address 45~49 bit.
 	 * 44 = 32 + 12, When evaluating addr to hardware, shift 12 because of
 	 * using 4K page, and shift more 32 because of
-	 * caculating the high 32 bit value evaluated to hardware.
+	 * calculating the high 32 bit value evaluated to hardware.
 	 */
 	roce_set_field(tmp1, ROCEE_CAEP_AEQE_CUR_IDX_CAEP_AEQ_BT_H_M,
 		       ROCEE_CAEP_AEQE_CUR_IDX_CAEP_AEQ_BT_H_S,
