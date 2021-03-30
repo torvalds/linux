@@ -110,9 +110,9 @@
 			no-map;
 		};
 
-		rmtfs_mem: memory@84400000 {
+		rmtfs_mem: memory@94600000 {
 			compatible = "qcom,rmtfs-mem";
-			reg = <0x0 0x84400000 0x0 0x200000>;
+			reg = <0x0 0x94600000 0x0 0x200000>;
 			no-map;
 
 			qcom,client-id = <1>;
