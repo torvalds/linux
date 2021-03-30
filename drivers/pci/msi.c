@@ -94,11 +94,7 @@ int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	return 0;
 }
 
-/*
- * We have a default implementation available as a separate non-weak
- * function, as it is used by the Xen x86 PCI code
- */
-void default_teardown_msi_irqs(struct pci_dev *dev)
+void __weak arch_teardown_msi_irqs(struct pci_dev *dev)
 {
 	int i;
 	struct msi_desc *entry;
@@ -107,11 +103,6 @@ void default_teardown_msi_irqs(struct pci_dev *dev)
 		if (entry->irq)
 			for (i = 0; i < entry->nvec_used; i++)
 				arch_teardown_msi_irq(entry->irq + i);
-}
-
-void __weak arch_teardown_msi_irqs(struct pci_dev *dev)
-{
-	return default_teardown_msi_irqs(dev);
 }
 #endif /* CONFIG_PCI_MSI_ARCH_FALLBACKS */
 
