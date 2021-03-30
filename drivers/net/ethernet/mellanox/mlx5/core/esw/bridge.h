@@ -40,5 +40,10 @@ void mlx5_esw_bridge_fdb_remove(struct net_device *dev, struct mlx5_eswitch *esw
 void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads);
 int mlx5_esw_bridge_ageing_time_set(unsigned long ageing_time, struct mlx5_eswitch *esw,
 				    struct mlx5_vport *vport);
+int mlx5_esw_bridge_vlan_filtering_set(bool enable, struct mlx5_eswitch *esw,
+				       struct mlx5_vport *vport);
+int mlx5_esw_bridge_port_vlan_add(u16 vid, u16 flags, struct mlx5_eswitch *esw,
+				  struct mlx5_vport *vport, struct netlink_ext_ack *extack);
+void mlx5_esw_bridge_port_vlan_del(u16 vid, struct mlx5_eswitch *esw, struct mlx5_vport *vport);
 
 #endif /* __MLX5_ESW_BRIDGE_H__ */

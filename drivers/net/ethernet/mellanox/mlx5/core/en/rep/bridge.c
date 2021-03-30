@@ -75,6 +75,66 @@ static int mlx5_esw_bridge_switchdev_port_event(struct notifier_block *nb,
 	return notifier_from_errno(err);
 }
 
+static int mlx5_esw_bridge_port_obj_add(struct net_device *dev,
+					const struct switchdev_obj *obj,
+					struct netlink_ext_ack *extack)
+{
+	const struct switchdev_obj_port_vlan *vlan;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+	struct mlx5_vport *vport;
+	struct mlx5e_priv *priv;
+	u16 vport_num;
+	int err = 0;
+
+	priv = netdev_priv(dev);
+	rpriv = priv->ppriv;
+	vport_num = rpriv->rep->vport;
+	esw = priv->mdev->priv.eswitch;
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
+		err = mlx5_esw_bridge_port_vlan_add(vlan->vid, vlan->flags, esw, vport, extack);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return err;
+}
+
+static int mlx5_esw_bridge_port_obj_del(struct net_device *dev,
+					const struct switchdev_obj *obj)
+{
+	const struct switchdev_obj_port_vlan *vlan;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+	struct mlx5_vport *vport;
+	struct mlx5e_priv *priv;
+	u16 vport_num;
+
+	priv = netdev_priv(dev);
+	rpriv = priv->ppriv;
+	vport_num = rpriv->rep->vport;
+	esw = priv->mdev->priv.eswitch;
+	vport = mlx5_eswitch_get_vport(esw, vport_num);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
+		mlx5_esw_bridge_port_vlan_del(vlan->vid, esw, vport);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
 static int mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
 					     const struct switchdev_attr *attr,
 					     struct netlink_ext_ack *extack)
@@ -106,6 +166,9 @@ static int mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
 		err = mlx5_esw_bridge_ageing_time_set(attr->u.ageing_time, esw, vport);
 		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		err = mlx5_esw_bridge_vlan_filtering_set(attr->u.vlan_filtering, esw, vport);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 	}
@@ -120,6 +183,16 @@ static int mlx5_esw_bridge_event_blocking(struct notifier_block *unused,
 	int err;
 
 	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = switchdev_handle_port_obj_add(dev, ptr,
+						    mlx5e_eswitch_rep,
+						    mlx5_esw_bridge_port_obj_add);
+		break;
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = switchdev_handle_port_obj_del(dev, ptr,
+						    mlx5e_eswitch_rep,
+						    mlx5_esw_bridge_port_obj_del);
+		break;
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     mlx5e_eswitch_rep,
