@@ -32,7 +32,7 @@
 #include <linux/scatterlist.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 
 /*
@@ -362,8 +362,8 @@ struct vendor_data {
  * @sgt_tx: scattertable for the TX transfer
  * @dummypage: a dummy page used for driving data on the bus with DMA
  * @dma_running: indicates whether DMA is in operation
- * @cur_cs: current chip select (gpio)
- * @chipselects: list of chipselects (gpios)
+ * @cur_cs: current chip select index
+ * @cur_gpio: current chip select GPIO line
  */
 struct pl022 {
 	struct amba_device		*adev;
@@ -398,7 +398,7 @@ struct pl022 {
 	bool				dma_running;
 #endif
 	int cur_cs;
-	int *chipselects;
+	int cur_gpio;
 };
 
 /**
@@ -454,8 +454,8 @@ static void pl022_cs_control(struct pl022 *pl022, u32 command)
 {
 	if (pl022->vendor->internal_cs_ctrl)
 		internal_cs_control(pl022, command);
-	else if (gpio_is_valid(pl022->cur_cs))
-		gpio_set_value(pl022->cur_cs, command);
+	else if (gpio_is_valid(pl022->cur_gpio))
+		gpio_set_value(pl022->cur_gpio, command);
 }
 
 /**
@@ -1580,7 +1580,9 @@ static int pl022_transfer_one_message(struct spi_master *master,
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(msg->spi);
-	pl022->cur_cs = pl022->chipselects[msg->spi->chip_select];
+	pl022->cur_cs = msg->spi->chip_select;
+	/* This is always available but may be set to -ENOENT */
+	pl022->cur_gpio = msg->spi->cs_gpio;
 
 	restore_state(pl022);
 	flush(pl022);
@@ -1923,8 +1925,6 @@ static int pl022_setup(struct spi_device *spi)
 
 	/* Now set controller state based on controller data */
 	chip->xfer_type = chip_info->com_mode;
-	if (!gpio_is_valid(pl022->chipselects[spi->chip_select]))
-		dev_warn(&spi->dev, "invalid chip select\n");
 
 	/* Check bits per word with vendor specific range */
 	if ((bits <= 3) || (bits > pl022->vendor->max_bpw)) {
@@ -2072,7 +2072,6 @@ pl022_platform_data_dt_get(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct pl022_ssp_controller *pd;
-	u32 tmp = 0;
 
 	if (!np) {
 		dev_err(dev, "no dt node defined\n");
@@ -2085,8 +2084,6 @@ pl022_platform_data_dt_get(struct device *dev)
 
 	pd->bus_id = -1;
 	pd->enable_dma = 1;
-	of_property_read_u32(np, "num-cs", &tmp);
-	pd->num_chipselect = tmp;
 	of_property_read_u32(np, "pl022,autosuspend-delay",
 			     &pd->autosuspend_delay);
 	pd->rt = of_property_read_bool(np, "pl022,rt");
@@ -2101,8 +2098,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			dev_get_platdata(&adev->dev);
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
-	struct device_node *np = adev->dev.of_node;
-	int status = 0, i, num_cs;
+	int status = 0;
 
 	dev_info(&adev->dev,
 		 "ARM PL022 driver, device ID: 0x%08x\n", adev->periphid);
@@ -2111,13 +2107,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	if (!platform_info) {
 		dev_err(dev, "probe: no platform data defined\n");
-		return -ENODEV;
-	}
-
-	if (platform_info->num_chipselect) {
-		num_cs = platform_info->num_chipselect;
-	} else {
-		dev_err(dev, "probe: no chip select defined\n");
 		return -ENODEV;
 	}
 
@@ -2133,19 +2122,12 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->master_info = platform_info;
 	pl022->adev = adev;
 	pl022->vendor = id->data;
-	pl022->chipselects = devm_kcalloc(dev, num_cs, sizeof(int),
-					  GFP_KERNEL);
-	if (!pl022->chipselects) {
-		status = -ENOMEM;
-		goto err_no_mem;
-	}
 
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
 	 * on this board
 	 */
 	master->bus_num = platform_info->bus_id;
-	master->num_chipselect = num_cs;
 	master->cleanup = pl022_cleanup;
 	master->setup = pl022_setup;
 	master->auto_runtime_pm = true;
@@ -2153,36 +2135,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
 	master->dev.of_node = dev->of_node;
-
-	if (platform_info->num_chipselect && platform_info->chipselects) {
-		for (i = 0; i < num_cs; i++)
-			pl022->chipselects[i] = platform_info->chipselects[i];
-	} else if (pl022->vendor->internal_cs_ctrl) {
-		for (i = 0; i < num_cs; i++)
-			pl022->chipselects[i] = i;
-	} else if (IS_ENABLED(CONFIG_OF)) {
-		for (i = 0; i < num_cs; i++) {
-			int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
-
-			if (cs_gpio == -EPROBE_DEFER) {
-				status = -EPROBE_DEFER;
-				goto err_no_gpio;
-			}
-
-			pl022->chipselects[i] = cs_gpio;
-
-			if (gpio_is_valid(cs_gpio)) {
-				if (devm_gpio_request(dev, cs_gpio, "ssp-pl022"))
-					dev_err(&adev->dev,
-						"could not request %d gpio\n",
-						cs_gpio);
-				else if (gpio_direction_output(cs_gpio, 1))
-					dev_err(&adev->dev,
-						"could not set gpio %d as output\n",
-						cs_gpio);
-			}
-		}
-	}
 
 	/*
 	 * Supports mode 0-3, loopback, and active low CS. Transfers are
@@ -2286,8 +2238,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_no_ioremap:
 	amba_release_regions(adev);
  err_no_ioregion:
- err_no_gpio:
- err_no_mem:
 	spi_master_put(master);
 	return status;
 }

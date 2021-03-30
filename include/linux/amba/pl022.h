@@ -223,10 +223,6 @@ struct dma_chan;
 /**
  * struct pl022_ssp_master - device.platform_data for SPI controller devices.
  * @bus_id: identifier for this bus
- * @num_chipselect: chipselects are used to distinguish individual
- *     SPI slaves, and are numbered from zero to num_chipselects - 1.
- *     each slave has a chipselect signal, but it's common that not
- *     every chipselect is connected to a slave.
  * @enable_dma: if true enables DMA driven transfers.
  * @dma_rx_param: parameter to locate an RX DMA channel.
  * @dma_tx_param: parameter to locate a TX DMA channel.
@@ -235,18 +231,15 @@ struct dma_chan;
  *     indicates no delay and the device will be suspended immediately.
  * @rt: indicates the controller should run the message pump with realtime
  *     priority to minimise the transfer latency on the bus.
- * @chipselects: list of <num_chipselects> chip select gpios
  */
 struct pl022_ssp_controller {
 	u16 bus_id;
-	u8 num_chipselect;
 	u8 enable_dma:1;
 	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
 	void *dma_rx_param;
 	void *dma_tx_param;
 	int autosuspend_delay;
 	bool rt;
-	int *chipselects;
 };
 
 /**
