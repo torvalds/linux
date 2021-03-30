@@ -2409,7 +2409,7 @@ static int __init vfio_pci_init(void)
 {
 	int ret;
 
-	/* Allocate shared config space permision data used by all devices */
+	/* Allocate shared config space permission data used by all devices */
 	ret = vfio_pci_init_perm_bits();
 	if (ret)
 		return ret;
