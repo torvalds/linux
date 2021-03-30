@@ -379,7 +379,8 @@ extern const char * const mhi_ee_str[MHI_EE_MAX];
 #define MHI_IN_PBL(ee) (ee == MHI_EE_PBL || ee == MHI_EE_PTHRU || \
 			ee == MHI_EE_EDL)
 
-#define MHI_IN_MISSION_MODE(ee) (ee == MHI_EE_AMSS || ee == MHI_EE_WFW)
+#define MHI_IN_MISSION_MODE(ee) (ee == MHI_EE_AMSS || ee == MHI_EE_WFW || \
+				 ee == MHI_EE_FP)
 
 enum dev_st_transition {
 	DEV_ST_TRANSITION_PBL,
