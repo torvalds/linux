@@ -468,6 +468,11 @@ static void xr_set_termios(struct tty_struct *tty,
 		if (old_termios)
 			termios->c_cflag |= old_termios->c_cflag & CSIZE;
 		else
+			termios->c_cflag |= CS8;
+
+		if (C_CSIZE(tty) == CS7)
+			bits |= XR21V141X_UART_DATA_7;
+		else
 			bits |= XR21V141X_UART_DATA_8;
 		break;
 	case CS7:
