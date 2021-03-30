@@ -26,7 +26,6 @@
 #include "vfs_cache.h"
 #include "misc.h"
 
-#include "time_wrappers.h"
 #include "server.h"
 #include "smb_common.h"
 #include "smbstatus.h"

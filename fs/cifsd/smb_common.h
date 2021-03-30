@@ -541,4 +541,10 @@ static inline void inc_rfc1001_len(void *buf, int count)
 {
 	be32_add_cpu((__be32 *)buf, count);
 }
+
+#define NTFS_TIME_OFFSET	((u64)(369 * 365 + 89) * 24 * 3600 * 10000000)
+
+struct timespec64 ksmbd_NTtimeToUnix(__le64 ntutc);
+u64 ksmbd_UnixTimeToNT(struct timespec64 t);
+long long ksmbd_systime(void);
 #endif /* __SMB_COMMON_H__ */
