@@ -651,18 +651,30 @@ static int rkispp_params_querycap(struct file *file,
 }
 
 static int rkispp_params_subs_evt(struct v4l2_fh *fh,
-				 const struct v4l2_event_subscription *sub)
+				  const struct v4l2_event_subscription *sub)
 {
+	struct rkispp_params_vdev *params_vdev = video_get_drvdata(fh->vdev);
+
 	if (sub->id != 0)
 		return -EINVAL;
 
 	switch (sub->type) {
 	case CIFISP_V4L2_EVENT_STREAM_START:
 	case CIFISP_V4L2_EVENT_STREAM_STOP:
+		params_vdev->is_subs_evt = true;
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return -EINVAL;
 	}
+}
+
+static int rkispp_params_unsubs_evt(struct v4l2_fh *fh,
+				    const struct v4l2_event_subscription *sub)
+{
+	struct rkispp_params_vdev *params_vdev = video_get_drvdata(fh->vdev);
+
+	params_vdev->is_subs_evt = false;
+	return v4l2_event_unsubscribe(fh, sub);
 }
 
 static const struct v4l2_ioctl_ops rkispp_params_ioctl = {
@@ -681,7 +693,7 @@ static const struct v4l2_ioctl_ops rkispp_params_ioctl = {
 	.vidioc_try_fmt_meta_out = rkispp_params_g_fmt_meta_out,
 	.vidioc_querycap = rkispp_params_querycap,
 	.vidioc_subscribe_event = rkispp_params_subs_evt,
-	.vidioc_unsubscribe_event = v4l2_event_unsubscribe
+	.vidioc_unsubscribe_event = rkispp_params_unsubs_evt,
 };
 
 static int
@@ -1053,6 +1065,7 @@ int rkispp_register_params_vdev(struct rkispp_device *dev)
 	int ret;
 
 	params_vdev->dev = dev;
+	params_vdev->is_subs_evt = false;
 	params_vdev->cur_params = vmalloc(sizeof(*params_vdev->cur_params));
 	if (!params_vdev->cur_params)
 		return -ENOMEM;

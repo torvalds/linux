@@ -66,16 +66,28 @@ static int rkisp_params_querycap(struct file *file,
 static int rkisp_params_subs_evt(struct v4l2_fh *fh,
 				 const struct v4l2_event_subscription *sub)
 {
+	struct rkisp_isp_params_vdev *params_vdev = video_get_drvdata(fh->vdev);
+
 	if (sub->id != 0)
 		return -EINVAL;
 
 	switch (sub->type) {
 	case CIFISP_V4L2_EVENT_STREAM_START:
 	case CIFISP_V4L2_EVENT_STREAM_STOP:
+		params_vdev->is_subs_evt = true;
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return -EINVAL;
 	}
+}
+
+static int rkisp_params_unsubs_evt(struct v4l2_fh *fh,
+				   const struct v4l2_event_subscription *sub)
+{
+	struct rkisp_isp_params_vdev *params_vdev = video_get_drvdata(fh->vdev);
+
+	params_vdev->is_subs_evt = false;
+	return v4l2_event_unsubscribe(fh, sub);
 }
 
 /* ISP params video device IOCTLs */
@@ -95,7 +107,7 @@ static const struct v4l2_ioctl_ops rkisp_params_ioctl = {
 	.vidioc_try_fmt_meta_out = rkisp_params_g_fmt_meta_out,
 	.vidioc_querycap = rkisp_params_querycap,
 	.vidioc_subscribe_event = rkisp_params_subs_evt,
-	.vidioc_unsubscribe_event = v4l2_event_unsubscribe
+	.vidioc_unsubscribe_event = rkisp_params_unsubs_evt,
 };
 
 static int rkisp_params_vb2_queue_setup(struct vb2_queue *vq,
@@ -362,6 +374,7 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 	struct media_entity *source, *sink;
 
 	params_vdev->dev = dev;
+	params_vdev->is_subs_evt = false;
 	spin_lock_init(&params_vdev->config_lock);
 
 	strlcpy(vdev->name, PARAMS_NAME, sizeof(vdev->name));

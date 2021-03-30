@@ -26,6 +26,7 @@ struct rkispp_params_vdev {
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 	bool first_params;
+	bool is_subs_evt;
 
 	struct rkispp_dummy_buffer buf_fec[FEC_MESH_BUF_NUM];
 	u32 buf_fec_idx;

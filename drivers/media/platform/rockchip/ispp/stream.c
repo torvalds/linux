@@ -1045,6 +1045,9 @@ static void rkispp_start_3a_run(struct rkispp_device *dev)
 	};
 	int ret;
 
+	if (!params_vdev->is_subs_evt)
+		return;
+
 	v4l2_event_queue(vdev, &ev);
 	ret = wait_event_timeout(dev->sync_onoff,
 			params_vdev->streamon && !params_vdev->first_params,
@@ -1065,6 +1068,9 @@ static void rkispp_stop_3a_run(struct rkispp_device *dev)
 		.type = CIFISP_V4L2_EVENT_STREAM_STOP,
 	};
 	int ret;
+
+	if (!params_vdev->is_subs_evt)
+		return;
 
 	v4l2_event_queue(vdev, &ev);
 	ret = wait_event_timeout(dev->sync_onoff, !params_vdev->streamon,
@@ -1095,8 +1101,7 @@ static int config_modules(struct rkispp_device *dev)
 {
 	int ret;
 
-	if (dev->inp == INP_ISP)
-		rkispp_start_3a_run(dev);
+	rkispp_start_3a_run(dev);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "stream module ens:0x%x\n", dev->stream_vdev.module_ens);
@@ -1562,8 +1567,7 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 	stream->stopping = true;
 	if (atomic_read(&dev->stream_vdev.refcnt) == 1) {
 		v4l2_subdev_call(&dev->ispp_sdev.sd, video, s_stream, false);
-		if (dev->inp == INP_ISP)
-			rkispp_stop_3a_run(dev);
+		rkispp_stop_3a_run(dev);
 		if (dev->stream_vdev.fec.is_end &&
 		    (dev->dev_id != dev->hw_dev->cur_dev_id || dev->hw_dev->is_idle))
 			is_wait = false;
