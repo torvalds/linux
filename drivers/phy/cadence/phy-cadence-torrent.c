@@ -371,6 +371,10 @@ static const struct phy_ops cdns_torrent_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static const struct phy_ops noop_ops = {
+	.owner		= THIS_MODULE,
+};
+
 struct cdns_reg_pairs {
 	u32 val;
 	u32 off;
@@ -2306,6 +2310,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	struct device_node *child;
 	int ret, subnodes, node = 0, i;
 	u32 total_num_lanes = 0;
+	int already_configured;
 	u8 init_dp_regmap = 0;
 	u32 phy_type;
 
@@ -2344,16 +2349,20 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = cdns_torrent_reset(cdns_phy);
-	if (ret)
-		goto clk_cleanup;
+	regmap_field_read(cdns_phy->phy_pma_cmn_ctrl_1, &already_configured);
 
-	ret = cdns_torrent_clk(cdns_phy);
-	if (ret)
-		goto clk_cleanup;
+	if (!already_configured) {
+		ret = cdns_torrent_reset(cdns_phy);
+		if (ret)
+			goto clk_cleanup;
 
-	/* Enable APB */
-	reset_control_deassert(cdns_phy->apb_rst);
+		ret = cdns_torrent_clk(cdns_phy);
+		if (ret)
+			goto clk_cleanup;
+
+		/* Enable APB */
+		reset_control_deassert(cdns_phy->apb_rst);
+	}
 
 	for_each_available_child_of_node(dev->of_node, child) {
 		struct phy *gphy;
@@ -2423,7 +2432,10 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		of_property_read_u32(child, "cdns,ssc-mode",
 				     &cdns_phy->phys[node].ssc_mode);
 
-		gphy = devm_phy_create(dev, child, &cdns_torrent_phy_ops);
+		if (!already_configured)
+			gphy = devm_phy_create(dev, child, &cdns_torrent_phy_ops);
+		else
+			gphy = devm_phy_create(dev, child, &noop_ops);
 		if (IS_ERR(gphy)) {
 			ret = PTR_ERR(gphy);
 			goto put_child;
@@ -2507,7 +2519,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		goto put_lnk_rst;
 	}
 
-	if (cdns_phy->nsubnodes > 1) {
+	if (cdns_phy->nsubnodes > 1 && !already_configured) {
 		ret = cdns_torrent_phy_configure_multilink(cdns_phy);
 		if (ret)
 			goto put_lnk_rst;
