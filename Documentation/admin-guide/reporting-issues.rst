@@ -9,25 +9,6 @@
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.
 
-.. important::
-
-   This document is being prepared to replace
-   'Documentation/admin-guide/reporting-bugs.rst'. The main work is done and
-   you are already free to follow its instructions when reporting issues to the
-   Linux kernel developers. But keep in mind, below text still needs a few
-   finishing touches and review. It was merged to the Linux kernel sources at
-   this stage to make this process easier and increase the text's visibility.
-
-   Any improvements for the text or other feedback is thus very much welcome.
-   Please send it to 'Thorsten Leemhuis <linux@leemhuis.info>' and 'Jonathan
-   Corbet <corbet@lwn.net>', ideally with 'Linux kernel mailing list (LKML)
-   <linux-kernel@vger.kernel.org>' and the 'Linux Kernel Documentation List
-   <linux-doc@vger.kernel.org>' in CC.
-
-   Areas in the text that still need work or discussion contain a hint like this
-   which point out the remaining issues; all of them start with the word "FIXME"
-   to make them easy to find.
-
 
 Reporting issues
 ++++++++++++++++
@@ -710,26 +691,6 @@ example above does not have such a line. That is the case for most sections, as
 Linux kernel development is completely driven by mail. Very few subsystems use
 a bug tracker, and only some of those rely on bugzilla.kernel.org.
 
-
-.. note::
-
-   FIXME: The old text took a totally different approach to bugzilla.kernel.org,
-   as it mentions it as the place to file issue for people that don't known how
-   to contact the appropriate people. The new one mentions it rarely; and when
-   it does like here, it warns users that it's often the wrong place to go.
-
-   This approach was chosen as the main author of this document noticed quite a
-   few users (or even a lot?) get no reply to the bugs they file in bugzilla.
-   That's kind of expected, as quite a few (many? most?) of the maintainers
-   don't even get notified when reports for their subsystem get filed there. And
-   not getting a single reply to report is something that is just annoying for
-   users and might make them angry. Improving bugzilla.k.o would be an option,
-   but on the kernel and maintainers summit 2017 it was agreed on to first go
-   this route (sorry it took so long): it's easier to achieve and less
-   controversial, as putting additional burden on already overworked maintainers
-   is unlikely to get well received.
-
-
 In this and many other cases you thus have to look for lines starting with
 'Mail:' instead. Those mention the name and the email addresses for the
 maintainers of the particular code. Also look for a line starting with 'Mailing
@@ -740,21 +701,6 @@ issue reports sent by email, make sure to add the Linux Kernel Mailing List
 lists when sending your issue report by mail later! Maintainers are busy people
 and might leave some work for other developers on the subsystem specific list;
 and LKML is important to have one place where all issue reports can be found.
-
-
-.. note::
-
-   FIXME: Above section tells users to always CC LKML. These days it's a kind of
-   "catch-all" list anyway, which nearly nobody seems to follow closely. So it
-   seems appropriate to go "all in" and make people send their reports here,
-   too, as everything (reports, fixes, ...) then can be found in one place (at
-   least for all reports sent by mail and all subsystems that CC LKML).
-
-   Related: Should we create mailing list like 'linux-issues@vger.kernel.org'
-   and tell users above to always CC it when reporting issues? Then there would
-   be one central place reporters could search for existing reports (at least
-   for issues reported by mail) without getting regular LKML traffic mixed into
-   the results.
 
 
 Finding the maintainers with the help of a script
@@ -1776,3 +1722,13 @@ issues to the Linux kernel developers: the length and complexity of this
 document and the implications between the lines illustrate that. But that's how
 it is for now. The main author of this text hopes documenting the state of the
 art will lay some groundwork to improve the situation over time.
+
+
+..
+   This text is maintained by Thorsten Leemhuis <linux@leemhuis.info>. If you
+   spot a typo or small mistake, feel free to let him know directly and he'll
+   fix it. You are free to do the same in a mostly informal way if you want
+   to contribute changes to the text, but for copyright reasons please CC
+   linux-doc@vger.kernel.org and "sign-off" your contribution as
+   Documentation/process/submitting-patches.rst outlines in the section "Sign
+   your work - the Developer's Certificate of Origin".
