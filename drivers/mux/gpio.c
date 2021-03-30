@@ -7,6 +7,7 @@
  * Author: Peter Rosin <peda@axentia.se>
  */
 
+#include <linux/bitmap.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -23,8 +24,9 @@ static int mux_gpio_set(struct mux_control *mux, int state)
 {
 	struct mux_gpio *mux_gpio = mux_chip_priv(mux->chip);
 	DECLARE_BITMAP(values, BITS_PER_TYPE(state));
+	u32 value = state;
 
-	values[0] = state;
+	bitmap_from_arr32(values, &value, BITS_PER_TYPE(value));
 
 	gpiod_set_array_value_cansleep(mux_gpio->gpios->ndescs,
 				       mux_gpio->gpios->desc,
@@ -71,7 +73,7 @@ static int mux_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 	WARN_ON(pins != mux_gpio->gpios->ndescs);
-	mux_chip->mux->states = 1 << pins;
+	mux_chip->mux->states = BIT(pins);
 
 	ret = device_property_read_u32(dev, "idle-state", (u32 *)&idle_state);
 	if (ret >= 0 && idle_state != MUX_IDLE_AS_IS) {
