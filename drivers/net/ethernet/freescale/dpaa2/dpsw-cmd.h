@@ -74,6 +74,11 @@
 #define DPSW_CMDID_FDB_REMOVE_MULTICAST     DPSW_CMD_ID(0x087)
 #define DPSW_CMDID_FDB_DUMP                 DPSW_CMD_ID(0x08A)
 
+#define DPSW_CMDID_ACL_ADD                  DPSW_CMD_ID(0x090)
+#define DPSW_CMDID_ACL_REMOVE               DPSW_CMD_ID(0x091)
+#define DPSW_CMDID_ACL_ADD_IF               DPSW_CMD_ID(0x094)
+#define DPSW_CMDID_ACL_REMOVE_IF            DPSW_CMD_ID(0x095)
+
 #define DPSW_CMDID_IF_GET_PORT_MAC_ADDR     DPSW_CMD_ID(0x0A7)
 
 #define DPSW_CMDID_CTRL_IF_GET_ATTR         DPSW_CMD_ID(0x0A0)
@@ -457,5 +462,26 @@ struct dpsw_cmd_if_set_learning_mode {
 	/* only the first 4 bits from LSB */
 	u8 mode;
 };
+
+struct dpsw_cmd_acl_add {
+	__le16 pad;
+	__le16 max_entries;
+};
+
+struct dpsw_rsp_acl_add {
+	__le16 acl_id;
+};
+
+struct dpsw_cmd_acl_remove {
+	__le16 acl_id;
+};
+
+struct dpsw_cmd_acl_if {
+	__le16 acl_id;
+	__le16 num_ifs;
+	__le32 pad;
+	__le64 if_id;
+};
+
 #pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */

@@ -628,4 +628,33 @@ int dpsw_set_egress_flood(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 int dpsw_if_set_learning_mode(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 			      u16 if_id, enum dpsw_learning_mode mode);
 
+/**
+ * struct dpsw_acl_cfg - ACL Configuration
+ * @max_entries: Number of ACL rules
+ */
+struct dpsw_acl_cfg {
+	u16 max_entries;
+};
+
+int dpsw_acl_add(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token, u16 *acl_id,
+		 const struct dpsw_acl_cfg *cfg);
+
+int dpsw_acl_remove(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		    u16 acl_id);
+
+/**
+ * struct dpsw_acl_if_cfg - List of interfaces to associate with an ACL table
+ * @num_ifs: Number of interfaces
+ * @if_id: List of interfaces
+ */
+struct dpsw_acl_if_cfg {
+	u16 num_ifs;
+	u16 if_id[DPSW_MAX_IF];
+};
+
+int dpsw_acl_add_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		    u16 acl_id, const struct dpsw_acl_if_cfg *cfg);
+
+int dpsw_acl_remove_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		       u16 acl_id, const struct dpsw_acl_if_cfg *cfg);
 #endif /* __FSL_DPSW_H */

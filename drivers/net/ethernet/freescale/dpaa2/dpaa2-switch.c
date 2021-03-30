@@ -2659,8 +2659,10 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	struct net_device *netdev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_fdb_cfg fdb_cfg = {0};
-	struct dpaa2_switch_fdb *fdb;
+	struct dpsw_acl_if_cfg acl_if_cfg;
 	struct dpsw_if_attr dpsw_if_attr;
+	struct dpaa2_switch_fdb *fdb;
+	struct dpsw_acl_cfg acl_cfg;
 	u16 fdb_id;
 	int err;
 
@@ -2701,6 +2703,25 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
 	if (err)
 		return err;
+
+	/* Create an ACL table to be used by this switch port */
+	acl_cfg.max_entries = DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES;
+	err = dpsw_acl_add(ethsw->mc_io, 0, ethsw->dpsw_handle,
+			   &port_priv->acl_tbl, &acl_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add err %d\n", err);
+		return err;
+	}
+
+	acl_if_cfg.if_id[0] = port_priv->idx;
+	acl_if_cfg.num_ifs = 1;
+	err = dpsw_acl_add_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
+			      port_priv->acl_tbl, &acl_if_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
+		dpsw_acl_remove(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				port_priv->acl_tbl);
+	}
 
 	return err;
 }
