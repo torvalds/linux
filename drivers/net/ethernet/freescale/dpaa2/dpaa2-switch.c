@@ -2652,8 +2652,72 @@ err_close:
 	return err;
 }
 
+/* Add an ACL to redirect frames with specific destination MAC address to
+ * control interface
+ */
+static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
+					   const char *mac)
+{
+	struct net_device *netdev = port_priv->netdev;
+	struct dpsw_acl_entry_cfg acl_entry_cfg;
+	struct dpsw_acl_fields *acl_h;
+	struct dpsw_acl_fields *acl_m;
+	struct dpsw_acl_key acl_key;
+	struct device *dev;
+	u8 *cmd_buff;
+	int err;
+
+	dev = port_priv->netdev->dev.parent;
+	acl_h = &acl_key.match;
+	acl_m = &acl_key.mask;
+
+	if (port_priv->acl_num_rules >= DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES) {
+		netdev_err(netdev, "ACL full\n");
+		return -ENOMEM;
+	}
+
+	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
+	memset(&acl_key, 0, sizeof(acl_key));
+
+	/* Match on the destination MAC address */
+	ether_addr_copy(acl_h->l2_dest_mac, mac);
+	eth_broadcast_addr(acl_m->l2_dest_mac);
+
+	cmd_buff = kzalloc(DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE, GFP_KERNEL);
+	if (!cmd_buff)
+		return -ENOMEM;
+	dpsw_acl_prepare_entry_cfg(&acl_key, cmd_buff);
+
+	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
+	acl_entry_cfg.precedence = port_priv->acl_num_rules;
+	acl_entry_cfg.result.action = DPSW_ACL_ACTION_REDIRECT_TO_CTRL_IF;
+	acl_entry_cfg.key_iova = dma_map_single(dev, cmd_buff,
+						DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE,
+						DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, acl_entry_cfg.key_iova))) {
+		netdev_err(netdev, "DMA mapping failed\n");
+		return -EFAULT;
+	}
+
+	err = dpsw_acl_add_entry(port_priv->ethsw_data->mc_io, 0,
+				 port_priv->ethsw_data->dpsw_handle,
+				 port_priv->acl_tbl, &acl_entry_cfg);
+
+	dma_unmap_single(dev, acl_entry_cfg.key_iova, sizeof(cmd_buff),
+			 DMA_TO_DEVICE);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add_entry() failed %d\n", err);
+		return err;
+	}
+
+	port_priv->acl_num_rules++;
+
+	return 0;
+}
+
 static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 {
+	const char stpa[ETH_ALEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
 	struct switchdev_obj_port_vlan vlan = {
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.vid = DEFAULT_VLAN_ID,
@@ -2725,6 +2789,10 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 		dpsw_acl_remove(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				port_priv->acl_tbl);
 	}
+
+	err = dpaa2_switch_port_trap_mac_addr(port_priv, stpa);
+	if (err)
+		return err;
 
 	return err;
 }

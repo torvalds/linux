@@ -1466,3 +1466,81 @@ int dpsw_acl_remove_if(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpsw_acl_prepare_entry_cfg() - Setup an ACL entry
+ * @key:		Key
+ * @entry_cfg_buf:	Zeroed 256 bytes of memory before mapping it to DMA
+ *
+ * This function has to be called before adding or removing acl_entry
+ *
+ */
+void dpsw_acl_prepare_entry_cfg(const struct dpsw_acl_key *key,
+				u8 *entry_cfg_buf)
+{
+	struct dpsw_prep_acl_entry *ext_params;
+	int i;
+
+	ext_params = (struct dpsw_prep_acl_entry *)entry_cfg_buf;
+
+	for (i = 0; i < 6; i++) {
+		ext_params->match_l2_dest_mac[i] = key->match.l2_dest_mac[5 - i];
+		ext_params->match_l2_source_mac[i] = key->match.l2_source_mac[5 - i];
+		ext_params->mask_l2_dest_mac[i] = key->mask.l2_dest_mac[5 - i];
+		ext_params->mask_l2_source_mac[i] = key->mask.l2_source_mac[5 - i];
+	}
+
+	ext_params->match_l2_tpid = cpu_to_le16(key->match.l2_tpid);
+	ext_params->match_l2_vlan_id = cpu_to_le16(key->match.l2_vlan_id);
+	ext_params->match_l3_dest_ip = cpu_to_le32(key->match.l3_dest_ip);
+	ext_params->match_l3_source_ip = cpu_to_le32(key->match.l3_source_ip);
+	ext_params->match_l4_dest_port = cpu_to_le16(key->match.l4_dest_port);
+	ext_params->match_l4_source_port = cpu_to_le16(key->match.l4_source_port);
+	ext_params->match_l2_ether_type = cpu_to_le16(key->match.l2_ether_type);
+	ext_params->match_l2_pcp_dei = key->match.l2_pcp_dei;
+	ext_params->match_l3_dscp = key->match.l3_dscp;
+
+	ext_params->mask_l2_tpid = cpu_to_le16(key->mask.l2_tpid);
+	ext_params->mask_l2_vlan_id = cpu_to_le16(key->mask.l2_vlan_id);
+	ext_params->mask_l3_dest_ip = cpu_to_le32(key->mask.l3_dest_ip);
+	ext_params->mask_l3_source_ip = cpu_to_le32(key->mask.l3_source_ip);
+	ext_params->mask_l4_dest_port = cpu_to_le16(key->mask.l4_dest_port);
+	ext_params->mask_l4_source_port = cpu_to_le16(key->mask.l4_source_port);
+	ext_params->mask_l2_ether_type = cpu_to_le16(key->mask.l2_ether_type);
+	ext_params->mask_l2_pcp_dei = key->mask.l2_pcp_dei;
+	ext_params->mask_l3_dscp = key->mask.l3_dscp;
+	ext_params->match_l3_protocol = key->match.l3_protocol;
+	ext_params->mask_l3_protocol = key->mask.l3_protocol;
+}
+
+/**
+ * dpsw_acl_add_entry() - Add a rule to the ACL table.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @acl_id:	ACL ID
+ * @cfg:	Entry configuration
+ *
+ * warning: This function has to be called after dpsw_acl_prepare_entry_cfg()
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_acl_add_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+		       u16 acl_id, const struct dpsw_acl_entry_cfg *cfg)
+{
+	struct dpsw_cmd_acl_entry *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_ACL_ADD_ENTRY, cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_acl_entry *)cmd.params;
+	cmd_params->acl_id = cpu_to_le16(acl_id);
+	cmd_params->result_if_id = cpu_to_le16(cfg->result.if_id);
+	cmd_params->precedence = cpu_to_le32(cfg->precedence);
+	cmd_params->key_iova = cpu_to_le64(cfg->key_iova);
+	dpsw_set_field(cmd_params->result_action,
+		       RESULT_ACTION,
+		       cfg->result.action);
+
+	return mc_send_command(mc_io, &cmd);
+}
