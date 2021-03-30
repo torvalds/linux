@@ -140,6 +140,15 @@ enum npc_kpu_lh_ltype {
 	NPC_LT_LH_CUSTOM1 = 0xF,
 };
 
+/* NPC port kind defines how the incoming or outgoing packets
+ * are processed. NPC accepts packets from up to 64 pkinds.
+ * Software assigns pkind for each incoming port such as CGX
+ * Ethernet interfaces, LBK interfaces, etc.
+ */
+enum npc_pkind_type {
+	NPC_TX_DEF_PKIND = 63ULL,	/* NIX-TX PKIND */
+};
+
 struct npc_kpu_profile_cam {
 	u8 state;
 	u8 state_mask;
@@ -299,6 +308,28 @@ struct nix_rx_action {
 
 /* NPC_AF_INTFX_KEX_CFG field masks */
 #define NPC_PARSE_NIBBLE		GENMASK_ULL(30, 0)
+
+/* NPC_PARSE_KEX_S nibble definitions for each field */
+#define NPC_PARSE_NIBBLE_CHAN		GENMASK_ULL(2, 0)
+#define NPC_PARSE_NIBBLE_ERRLEV		BIT_ULL(3)
+#define NPC_PARSE_NIBBLE_ERRCODE	GENMASK_ULL(5, 4)
+#define NPC_PARSE_NIBBLE_L2L3_BCAST	BIT_ULL(6)
+#define NPC_PARSE_NIBBLE_LA_FLAGS	GENMASK_ULL(8, 7)
+#define NPC_PARSE_NIBBLE_LA_LTYPE	BIT_ULL(9)
+#define NPC_PARSE_NIBBLE_LB_FLAGS	GENMASK_ULL(11, 10)
+#define NPC_PARSE_NIBBLE_LB_LTYPE	BIT_ULL(12)
+#define NPC_PARSE_NIBBLE_LC_FLAGS	GENMASK_ULL(14, 13)
+#define NPC_PARSE_NIBBLE_LC_LTYPE	BIT_ULL(15)
+#define NPC_PARSE_NIBBLE_LD_FLAGS	GENMASK_ULL(17, 16)
+#define NPC_PARSE_NIBBLE_LD_LTYPE	BIT_ULL(18)
+#define NPC_PARSE_NIBBLE_LE_FLAGS	GENMASK_ULL(20, 19)
+#define NPC_PARSE_NIBBLE_LE_LTYPE	BIT_ULL(21)
+#define NPC_PARSE_NIBBLE_LF_FLAGS	GENMASK_ULL(23, 22)
+#define NPC_PARSE_NIBBLE_LF_LTYPE	BIT_ULL(24)
+#define NPC_PARSE_NIBBLE_LG_FLAGS	GENMASK_ULL(26, 25)
+#define NPC_PARSE_NIBBLE_LG_LTYPE	BIT_ULL(27)
+#define NPC_PARSE_NIBBLE_LH_FLAGS	GENMASK_ULL(29, 28)
+#define NPC_PARSE_NIBBLE_LH_LTYPE	BIT_ULL(30)
 
 /* NIX Receive Vtag Action Structure */
 #define VTAG0_VALID_BIT		BIT_ULL(15)

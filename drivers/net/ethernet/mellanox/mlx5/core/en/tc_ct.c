@@ -1182,7 +1182,8 @@ int mlx5_tc_ct_add_no_trk_match(struct mlx5_flow_spec *spec)
 
 	mlx5e_tc_match_to_reg_get_match(spec, CTSTATE_TO_REG,
 					&ctstate, &ctstate_mask);
-	if (ctstate_mask)
+
+	if ((ctstate & ctstate_mask) == MLX5_CT_STATE_TRK_BIT)
 		return -EOPNOTSUPP;
 
 	ctstate_mask |= MLX5_CT_STATE_TRK_BIT;

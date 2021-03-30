@@ -1449,6 +1449,7 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	phydev->asym_pause = 0;
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->port = fiber ? PORT_FIBRE : PORT_TP;
 
 	if (phydev->autoneg == AUTONEG_ENABLE)
 		err = marvell_read_status_page_an(phydev, fiber, status);
