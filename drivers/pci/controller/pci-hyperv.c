@@ -473,7 +473,6 @@ struct hv_pcibus_device {
 	struct list_head dr_list;
 
 	struct msi_domain_info msi_info;
-	struct msi_controller msi_chip;
 	struct irq_domain *irq_domain;
 
 	spinlock_t retarget_msi_interrupt_lock;
@@ -1865,9 +1864,6 @@ static int create_root_hv_pci_bus(struct hv_pcibus_device *hbus)
 					    &hbus->resources_for_children);
 	if (!hbus->pci_bus)
 		return -ENODEV;
-
-	hbus->pci_bus->msi = &hbus->msi_chip;
-	hbus->pci_bus->msi->dev = &hbus->hdev->device;
 
 	pci_lock_rescan_remove();
 	pci_scan_child_bus(hbus->pci_bus);
