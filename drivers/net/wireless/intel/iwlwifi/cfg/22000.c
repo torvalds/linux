@@ -604,7 +604,7 @@ const struct iwl_cfg iwl_qnj_b0_hr_b0_cfg = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-const struct iwl_cfg iwlax210_2ax_cfg_so_jf_a0 = {
+const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0 = {
 	.name = "Intel(R) Wireless-AC 9560 160MHz",
 	.fw_name_pre = IWL_SO_A_JF_B_FW_PRE,
 	IWL_DEVICE_AX210,
