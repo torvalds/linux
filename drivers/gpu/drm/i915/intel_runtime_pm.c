@@ -420,7 +420,7 @@ intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm)
  * already active and ensures that it is powered up. It is illegal to try
  * and access the HW should intel_runtime_pm_get_if_active() report failure.
  *
- * If @ignore_usecount=true, a reference will be acquired even if there is no
+ * If @ignore_usecount is true, a reference will be acquired even if there is no
  * user requiring the device to be powered up (dev->power.usage_count == 0).
  * If the function returns false in this case then it's guaranteed that the
  * device's runtime suspend hook has been called already or that it will be
