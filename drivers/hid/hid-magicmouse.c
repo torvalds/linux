@@ -440,6 +440,23 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 	return 1;
 }
 
+static int magicmouse_event(struct hid_device *hdev, struct hid_field *field,
+		struct hid_usage *usage, __s32 value)
+{
+	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
+	if (msc->input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE2 &&
+	    field->report->id == MOUSE2_REPORT_ID) {
+		/*
+		 * magic_mouse_raw_event has done all the work. Skip hidinput.
+		 *
+		 * Specifically, hidinput may modify BTN_LEFT and BTN_RIGHT,
+		 * breaking emulate_3button.
+		 */
+		return 1;
+	}
+	return 0;
+}
+
 static int magicmouse_setup_input(struct input_dev *input, struct hid_device *hdev)
 {
 	int error;
@@ -754,6 +771,7 @@ static struct hid_driver magicmouse_driver = {
 	.id_table = magic_mice,
 	.probe = magicmouse_probe,
 	.raw_event = magicmouse_raw_event,
+	.event = magicmouse_event,
 	.input_mapping = magicmouse_input_mapping,
 	.input_configured = magicmouse_input_configured,
 };
