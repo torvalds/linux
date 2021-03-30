@@ -18,7 +18,6 @@
 #include <unistd.h>
 #include <linux/kernel.h>
 
-#define KVM_UTIL_PGS_PER_HUGEPG 512
 #define KVM_UTIL_MIN_PFN	2
 
 static int vcpu_mmap_sz(void);
@@ -688,7 +687,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 {
 	int ret;
 	struct userspace_mem_region *region;
-	size_t huge_page_size = KVM_UTIL_PGS_PER_HUGEPG * vm->page_size;
+	size_t backing_src_pagesz = get_backing_src_pagesz(src_type);
 	size_t alignment;
 
 	TEST_ASSERT(vm_adjust_num_guest_pages(vm->mode, npages) == npages,
@@ -750,7 +749,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 #endif
 
 	if (src_type == VM_MEM_SRC_ANONYMOUS_THP)
-		alignment = max(huge_page_size, alignment);
+		alignment = max(backing_src_pagesz, alignment);
 
 	/* Add enough memory to align up if necessary */
 	if (alignment > 1)
@@ -769,22 +768,13 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	region->host_mem = align(region->mmap_start, alignment);
 
 	/* As needed perform madvise */
-	if (src_type == VM_MEM_SRC_ANONYMOUS || src_type == VM_MEM_SRC_ANONYMOUS_THP) {
-		struct stat statbuf;
-
-		ret = stat("/sys/kernel/mm/transparent_hugepage", &statbuf);
-		TEST_ASSERT(ret == 0 || (ret == -1 && errno == ENOENT),
-			    "stat /sys/kernel/mm/transparent_hugepage");
-
-		TEST_ASSERT(ret == 0 || src_type != VM_MEM_SRC_ANONYMOUS_THP,
-			    "VM_MEM_SRC_ANONYMOUS_THP requires THP to be configured in the host kernel");
-
-		if (ret == 0) {
-			ret = madvise(region->host_mem, npages * vm->page_size,
-				      src_type == VM_MEM_SRC_ANONYMOUS ? MADV_NOHUGEPAGE : MADV_HUGEPAGE);
-			TEST_ASSERT(ret == 0, "madvise failed, addr: %p length: 0x%lx src_type: %x",
-				    region->host_mem, npages * vm->page_size, src_type);
-		}
+	if ((src_type == VM_MEM_SRC_ANONYMOUS ||
+	     src_type == VM_MEM_SRC_ANONYMOUS_THP) && thp_configured()) {
+		ret = madvise(region->host_mem, npages * vm->page_size,
+			      src_type == VM_MEM_SRC_ANONYMOUS ? MADV_NOHUGEPAGE : MADV_HUGEPAGE);
+		TEST_ASSERT(ret == 0, "madvise failed, addr: %p length: 0x%lx src_type: %s",
+			    region->host_mem, npages * vm->page_size,
+			    vm_mem_backing_src_alias(src_type)->name);
 	}
 
 	region->unused_phy_pages = sparsebit_alloc();
