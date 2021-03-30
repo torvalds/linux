@@ -35,6 +35,7 @@
 /dirty_log_perf_test
 /hardware_disable_test
 /kvm_create_max_vcpus
+/kvm_page_table_test
 /memslot_modification_stress_test
 /set_memory_region_test
 /steal_time
