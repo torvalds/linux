@@ -649,10 +649,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 static int sti_pwm_remove(struct platform_device *pdev)
 {
 	struct sti_pwm_chip *pc = platform_get_drvdata(pdev);
-	unsigned int i;
 
-	for (i = 0; i < pc->cdata->pwm_num_devs; i++)
-		pwm_disable(&pc->chip.pwms[i]);
 
 	clk_unprepare(pc->pwm_clk);
 	clk_unprepare(pc->cpt_clk);
