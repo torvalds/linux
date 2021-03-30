@@ -1479,7 +1479,7 @@ int gfs2_iomap_alloc(struct inode *inode, loff_t pos, loff_t length,
 /**
  * sweep_bh_for_rgrps - find an rgrp in a meta buffer and free blocks therein
  * @ip: inode
- * @rg_gh: holder of resource group glock
+ * @rd_gh: holder of resource group glock
  * @bh: buffer head to sweep
  * @start: starting point in bh
  * @end: end point in bh
@@ -1660,8 +1660,11 @@ static bool mp_eq_to_hgt(struct metapath *mp, __u16 *list, unsigned int h)
 
 /**
  * find_nonnull_ptr - find a non-null pointer given a metapath and height
+ * @sdp: The superblock
  * @mp: starting metapath
  * @h: desired height to search
+ * @end_list: See punch_hole().
+ * @end_aligned: See punch_hole().
  *
  * Assumes the metapath is valid (with buffers) out to height h.
  * Returns: true if a non-null pointer was found in the metapath buffer
