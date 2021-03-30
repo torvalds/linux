@@ -5068,8 +5068,9 @@ mlxsw_sp_nexthop_obj_bucket_adj_update(struct mlxsw_sp *mlxsw_sp,
 	/* No point in trying an atomic replacement if the idle timer interval
 	 * is smaller than the interval in which we query and clear activity.
 	 */
-	force = info->nh_res_bucket->idle_timer_ms <
-		MLXSW_SP_NH_GRP_ACTIVITY_UPDATE_INTERVAL;
+	if (!force && info->nh_res_bucket->idle_timer_ms <
+	    MLXSW_SP_NH_GRP_ACTIVITY_UPDATE_INTERVAL)
+		force = true;
 
 	adj_index = nh->nhgi->adj_index + bucket_index;
 	err = mlxsw_sp_nexthop_update(mlxsw_sp, adj_index, nh, force, ratr_pl);
