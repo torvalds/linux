@@ -145,6 +145,12 @@ static inline bool udp_unexpected_gso(struct sock *sk, struct sk_buff *skb)
 	return false;
 }
 
+static inline void udp_allow_gso(struct sock *sk)
+{
+	udp_sk(sk)->accept_udp_l4 = 1;
+	udp_sk(sk)->accept_udp_fraglist = 1;
+}
+
 #define udp_portaddr_for_each_entry(__sk, list) \
 	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_node)
 
