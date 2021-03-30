@@ -219,7 +219,7 @@ int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev)
 	unsigned long events = VFIO_GROUP_NOTIFY_SET_KVM;
 
 	/*
-	 * PCI config space does not tell us about NVLink presense but
+	 * PCI config space does not tell us about NVLink presence but
 	 * platform does, use this.
 	 */
 	npu_dev = pnv_pci_get_npu_dev(vdev->pdev, 0);
@@ -402,7 +402,7 @@ int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 	u32 link_speed = 0xff;
 
 	/*
-	 * PCI config space does not tell us about NVLink presense but
+	 * PCI config space does not tell us about NVLink presence but
 	 * platform does, use this.
 	 */
 	if (!pnv_pci_get_gpu_dev(vdev->pdev))
