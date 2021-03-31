@@ -280,7 +280,6 @@ struct stmmac_dma_ops {
 struct mac_device_info;
 struct net_device;
 struct rgmii_adv;
-struct stmmac_safety_stats;
 struct stmmac_tc_entry;
 struct stmmac_pps_cfg;
 struct stmmac_rss;
