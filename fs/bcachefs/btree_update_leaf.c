@@ -984,16 +984,13 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			goto out;
 		}
 
-		/*
-		 * We're not using bch2_btree_iter_upgrade here because
-		 * we know trans->nounlock can't be set:
-		 */
-		if (unlikely(!btree_node_intent_locked(i->iter, i->iter->level) &&
-			     !__bch2_btree_iter_upgrade(i->iter, i->iter->level + 1))) {
+		if (unlikely(!bch2_btree_iter_upgrade(i->iter, i->level + 1))) {
 			trace_trans_restart_upgrade(trans->ip);
 			ret = -EINTR;
 			goto out;
 		}
+
+		BUG_ON(!btree_node_intent_locked(i->iter, i->level));
 
 		u64s = jset_u64s(i->k->k.u64s);
 		if (btree_iter_type(i->iter) == BTREE_ITER_CACHED &&

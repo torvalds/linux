@@ -94,7 +94,7 @@ btree_lock_want(struct btree_iter *iter, int level)
 	return BTREE_NODE_UNLOCKED;
 }
 
-static inline void __btree_node_unlock(struct btree_iter *iter, unsigned level)
+static inline void btree_node_unlock(struct btree_iter *iter, unsigned level)
 {
 	int lock_type = btree_node_locked_type(iter, level);
 
@@ -103,13 +103,6 @@ static inline void __btree_node_unlock(struct btree_iter *iter, unsigned level)
 	if (lock_type != BTREE_NODE_UNLOCKED)
 		six_unlock_type(&iter->l[level].b->c.lock, lock_type);
 	mark_btree_node_unlocked(iter, level);
-}
-
-static inline void btree_node_unlock(struct btree_iter *iter, unsigned level)
-{
-	EBUG_ON(!level && iter->trans->nounlock);
-
-	__btree_node_unlock(iter, level);
 }
 
 static inline void __bch2_btree_iter_unlock(struct btree_iter *iter)

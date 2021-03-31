@@ -374,7 +374,6 @@ struct btree_trans {
 	u8			nr_updates2;
 	unsigned		used_mempool:1;
 	unsigned		error:1;
-	unsigned		nounlock:1;
 	unsigned		in_traverse_all:1;
 
 	u64			iters_linked;
