@@ -251,6 +251,13 @@ static bool nested_vmcb_check_save(struct vcpu_svm *svm, struct vmcb *vmcb12)
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	bool vmcb12_lma;
 
+	/*
+	 * FIXME: these should be done after copying the fields,
+	 * to avoid TOC/TOU races.  For these save area checks
+	 * the possible damage is limited since kvm_set_cr0 and
+	 * kvm_set_cr4 handle failure; EFER_SVME is an exception
+	 * so it is force-set later in nested_prepare_vmcb_save.
+	 */
 	if ((vmcb12->save.efer & EFER_SVME) == 0)
 		return false;
 
@@ -396,7 +403,14 @@ static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *vmcb12)
 	svm->vmcb->save.gdtr = vmcb12->save.gdtr;
 	svm->vmcb->save.idtr = vmcb12->save.idtr;
 	kvm_set_rflags(&svm->vcpu, vmcb12->save.rflags);
-	svm_set_efer(&svm->vcpu, vmcb12->save.efer);
+
+	/*
+	 * Force-set EFER_SVME even though it is checked earlier on the
+	 * VMCB12, because the guest can flip the bit between the check
+	 * and now.  Clearing EFER_SVME would call svm_free_nested.
+	 */
+	svm_set_efer(&svm->vcpu, vmcb12->save.efer | EFER_SVME);
+
 	svm_set_cr0(&svm->vcpu, vmcb12->save.cr0);
 	svm_set_cr4(&svm->vcpu, vmcb12->save.cr4);
 	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = vmcb12->save.cr2;
@@ -1206,6 +1220,8 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	 * TODO: validate reserved bits for all saved state.
 	 */
 	if (!(save->cr0 & X86_CR0_PG))
+		goto out_free;
+	if (!(save->efer & EFER_SVME))
 		goto out_free;
 
 	/*
