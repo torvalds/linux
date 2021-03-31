@@ -410,7 +410,7 @@ static struct sk_msg *sk_psock_create_ingress_msg(struct sock *sk,
 	if (!sk_rmem_schedule(sk, skb, skb->truesize))
 		return NULL;
 
-	msg = kzalloc(sizeof(*msg), __GFP_NOWARN | GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), __GFP_NOWARN | GFP_KERNEL);
 	if (unlikely(!msg))
 		return NULL;
 
