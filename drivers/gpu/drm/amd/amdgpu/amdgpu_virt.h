@@ -110,11 +110,11 @@ enum AMDGIM_FEATURE_FLAG {
 
 enum AMDGIM_REG_ACCESS_FLAG {
 	/* Use PSP to program IH_RB_CNTL */
-	AMDGIM_FEATURE_IH_REG_PSP_EN = (1 << 0),
+	AMDGIM_FEATURE_IH_REG_PSP_EN     = (1 << 0),
 	/* Use RLC to program MMHUB regs */
-	AMDGIM_FEATURE_RLC_MMHUB_EN  = (1 << 1),
+	AMDGIM_FEATURE_MMHUB_REG_RLC_EN  = (1 << 1),
 	/* Use RLC to program GC regs */
-	AMDGIM_FEATURE_RLC_GC_EN     = (1 << 2),
+	AMDGIM_FEATURE_GC_REG_RLC_EN     = (1 << 2),
 };
 
 struct amdgim_pf2vf_info_v1 {
