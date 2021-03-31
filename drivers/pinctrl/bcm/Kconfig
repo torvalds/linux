@@ -31,10 +31,12 @@ config PINCTRL_BCM2835
 
 config PINCTRL_BCM63XX
 	bool
-	select GENERIC_PINCONF
-	select GPIO_REGMAP
-	select PINCONF
+	depends on OF
 	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIO_REGMAP
 
 config PINCTRL_BCM6318
 	bool "Broadcom BCM6318 GPIO driver"
