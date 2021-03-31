@@ -63,8 +63,19 @@ static const struct xive_ops *xive_ops;
 static struct irq_domain *xive_irq_domain;
 
 #ifdef CONFIG_SMP
-/* The IPIs all use the same logical irq number */
-static u32 xive_ipi_irq;
+/* The IPIs use the same logical irq number when on the same chip */
+static struct xive_ipi_desc {
+	unsigned int irq;
+	char name[16];
+} *xive_ipis;
+
+/*
+ * Use early_cpu_to_node() for hot-plugged CPUs
+ */
+static unsigned int xive_ipi_cpu_to_irq(unsigned int cpu)
+{
+	return xive_ipis[early_cpu_to_node(cpu)].irq;
+}
 #endif
 
 /* Xive state for each CPU */
@@ -1106,33 +1117,53 @@ static int __init xive_request_ipi(void)
 {
 	struct fwnode_handle *fwnode;
 	struct irq_domain *ipi_domain;
-	unsigned int virq;
+	unsigned int node;
 	int ret = -ENOMEM;
 
 	fwnode = irq_domain_alloc_named_fwnode("XIVE-IPI");
 	if (!fwnode)
 		goto out;
 
-	ipi_domain = irq_domain_create_linear(fwnode, 1,
+	ipi_domain = irq_domain_create_linear(fwnode, nr_node_ids,
 					      &xive_ipi_irq_domain_ops, NULL);
 	if (!ipi_domain)
 		goto out_free_fwnode;
 
-	/* Initialize it */
-	virq = irq_create_mapping(ipi_domain, XIVE_IPI_HW_IRQ);
-	if (!virq) {
-		ret = -EINVAL;
+	xive_ipis = kcalloc(nr_node_ids, sizeof(*xive_ipis), GFP_KERNEL | __GFP_NOFAIL);
+	if (!xive_ipis)
 		goto out_free_domain;
+
+	for_each_node(node) {
+		struct xive_ipi_desc *xid = &xive_ipis[node];
+		irq_hw_number_t ipi_hwirq = node;
+
+		/* Skip nodes without CPUs */
+		if (cpumask_empty(cpumask_of_node(node)))
+			continue;
+
+		/*
+		 * Map one IPI interrupt per node for all cpus of that node.
+		 * Since the HW interrupt number doesn't have any meaning,
+		 * simply use the node number.
+		 */
+		xid->irq = irq_create_mapping(ipi_domain, ipi_hwirq);
+		if (!xid->irq) {
+			ret = -EINVAL;
+			goto out_free_xive_ipis;
+		}
+
+		snprintf(xid->name, sizeof(xid->name), "IPI-%d", node);
+
+		ret = request_irq(xid->irq, xive_muxed_ipi_action,
+				  IRQF_PERCPU | IRQF_NO_THREAD, xid->name, NULL);
+
+		WARN(ret < 0, "Failed to request IPI %d: %d\n", xid->irq, ret);
 	}
 
-	xive_ipi_irq = virq;
-
-	ret = request_irq(virq, xive_muxed_ipi_action,
-			  IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL);
-
-	WARN(ret < 0, "Failed to request IPI %d: %d\n", virq, ret);
 	return ret;
 
+out_free_xive_ipis:
+	kfree(xive_ipis);
 out_free_domain:
 	irq_domain_remove(ipi_domain);
 out_free_fwnode:
@@ -1143,6 +1174,7 @@ out:
 
 static int xive_setup_cpu_ipi(unsigned int cpu)
 {
+	unsigned int xive_ipi_irq = xive_ipi_cpu_to_irq(cpu);
 	struct xive_cpu *xc;
 	int rc;
 
@@ -1185,6 +1217,8 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 
 static void xive_cleanup_cpu_ipi(unsigned int cpu, struct xive_cpu *xc)
 {
+	unsigned int xive_ipi_irq = xive_ipi_cpu_to_irq(cpu);
+
 	/* Disable the IPI and free the IRQ data */
 
 	/* Already cleaned up ? */
