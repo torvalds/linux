@@ -57,17 +57,17 @@ struct netns_ipv4 {
 	struct mutex		ra_mutex;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
-	bool			fib_has_custom_rules;
-	unsigned int		fib_rules_require_fldissect;
 	struct fib_table __rcu	*fib_main;
 	struct fib_table __rcu	*fib_default;
+	unsigned int		fib_rules_require_fldissect;
+	bool			fib_has_custom_rules;
 #endif
 	bool			fib_has_custom_local_routes;
+	bool			fib_offload_disabled;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	int			fib_num_tclassid_users;
 #endif
 	struct hlist_head	*fib_table_hash;
-	bool			fib_offload_disabled;
 	struct sock		*fibnl;
 
 	struct sock  * __percpu	*icmp_sk;
