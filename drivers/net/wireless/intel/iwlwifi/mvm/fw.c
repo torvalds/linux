@@ -1213,6 +1213,10 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 		cmd.config_bitmap |=
 			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
 
+	ret = iwl_acpi_eval_dsm_11ax_enablement((&mvm->fwrt)->dev);
+	cmd.config_bitmap |=
+		cpu_to_le32((ret &= IWL_11AX_UKRAINE_MASK) << IWL_11AX_UKRAINE_SHIFT);
+
 	/* apply more config masks here */
 
 	if (cmd.config_bitmap) {

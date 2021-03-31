@@ -695,3 +695,32 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_init);
+
+u32 iwl_acpi_eval_dsm_11ax_enablement(struct device *dev)
+{
+	union acpi_object *obj;
+	u32 ret;
+
+	obj = iwl_acpi_get_dsm_object(dev, 0,
+				      DSM_FUNC_11AX_ENABLEMENT, NULL,
+				      &iwl_guid);
+	if (IS_ERR(obj))
+		return 0;
+
+	if (obj->type != ACPI_TYPE_INTEGER) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM method did not return a valid object, type=%d\n",
+				    obj->type);
+		ret = 0;
+		goto out;
+	}
+
+	ret = obj->integer.value;
+	IWL_DEBUG_DEV_RADIO(dev,
+			    "ACPI: DSM method evaluated: func=DSM_FUNC_11AX_ENABLEMENT, ret=%d\n",
+			    ret);
+out:
+	ACPI_FREE(obj);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_eval_dsm_11ax_enablement);
