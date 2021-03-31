@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
-#include <linux/memblock.h>
 #include <linux/printk.h>
 #include <asm/tlbflush.h>
 
@@ -49,11 +48,11 @@ static void init_bounce_bioset(void)
 	bounce_bs_setup = true;
 }
 
-#if defined(CONFIG_HIGHMEM)
 static __init int init_emergency_pool(void)
 {
 	int ret;
-#if defined(CONFIG_HIGHMEM) && !defined(CONFIG_MEMORY_HOTPLUG)
+
+#ifndef CONFIG_MEMORY_HOTPLUG
 	if (max_pfn <= max_low_pfn)
 		return 0;
 #endif
@@ -67,9 +66,7 @@ static __init int init_emergency_pool(void)
 }
 
 __initcall(init_emergency_pool);
-#endif
 
-#ifdef CONFIG_HIGHMEM
 /*
  * highmem version, map in to vec
  */
@@ -81,13 +78,6 @@ static void bounce_copy_vec(struct bio_vec *to, unsigned char *vfrom)
 	memcpy(vto + to->bv_offset, vfrom, to->bv_len);
 	kunmap_atomic(vto);
 }
-
-#else /* CONFIG_HIGHMEM */
-
-#define bounce_copy_vec(to, vfrom)	\
-	memcpy(page_address((to)->bv_page) + (to)->bv_offset, vfrom, (to)->bv_len)
-
-#endif /* CONFIG_HIGHMEM */
 
 /*
  * Simple bounce buffer support for highmem pages. Depending on the
@@ -236,8 +226,7 @@ err_put:
 	return NULL;
 }
 
-
-void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
+void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 {
 	struct bio *bio;
 	int rw = bio_data_dir(*bio_orig);
@@ -247,24 +236,10 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	bool bounce = false;
 	int sectors = 0;
 
-	/*
-	 * Data-less bio, nothing to bounce
-	 */
-	if (!bio_has_data(*bio_orig))
-		return;
-
-	/*
-	 * Just check if the bounce pfn is equal to or bigger than the highest
-	 * pfn in the system -- in that case, don't waste time iterating over
-	 * bio segments
-	 */
-	if (q->limits.bounce_pfn >= blk_max_pfn)
-		return;
-
 	bio_for_each_segment(from, *bio_orig, iter) {
 		if (i++ < BIO_MAX_VECS)
 			sectors += from.bv_len >> 9;
-		if (page_to_pfn(from.bv_page) > q->limits.bounce_pfn)
+		if (PageHighMem(from.bv_page))
 			bounce = true;
 	}
 	if (!bounce)
@@ -287,7 +262,7 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	for (i = 0, to = bio->bi_io_vec; i < bio->bi_vcnt; to++, i++) {
 		struct page *page = to->bv_page;
 
-		if (page_to_pfn(page) <= q->limits.bounce_pfn)
+		if (!PageHighMem(page))
 			continue;
 
 		to->bv_page = mempool_alloc(&page_pool, GFP_NOIO);
