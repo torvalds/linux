@@ -225,12 +225,23 @@ out:
 	return psock;
 }
 
+static bool sock_map_redirect_allowed(const struct sock *sk);
+
 static int sock_map_link(struct bpf_map *map, struct sock *sk)
 {
-	struct bpf_prog *msg_parser, *stream_parser, *stream_verdict;
 	struct sk_psock_progs *progs = sock_map_progs(map);
+	struct bpf_prog *stream_verdict = NULL;
+	struct bpf_prog *stream_parser = NULL;
+	struct bpf_prog *msg_parser = NULL;
 	struct sk_psock *psock;
 	int ret;
+
+	/* Only sockets we can redirect into/from in BPF need to hold
+	 * refs to parser/verdict progs and have their sk_data_ready
+	 * and sk_write_space callbacks overridden.
+	 */
+	if (!sock_map_redirect_allowed(sk))
+		goto no_progs;
 
 	stream_verdict = READ_ONCE(progs->stream_verdict);
 	if (stream_verdict) {
@@ -257,6 +268,7 @@ static int sock_map_link(struct bpf_map *map, struct sock *sk)
 		}
 	}
 
+no_progs:
 	psock = sock_map_psock_get_checked(sk);
 	if (IS_ERR(psock)) {
 		ret = PTR_ERR(psock);
@@ -313,27 +325,6 @@ out_put_stream_parser:
 out_put_stream_verdict:
 	if (stream_verdict)
 		bpf_prog_put(stream_verdict);
-	return ret;
-}
-
-static int sock_map_link_no_progs(struct bpf_map *map, struct sock *sk)
-{
-	struct sk_psock *psock;
-	int ret;
-
-	psock = sock_map_psock_get_checked(sk);
-	if (IS_ERR(psock))
-		return PTR_ERR(psock);
-
-	if (!psock) {
-		psock = sk_psock_init(sk, map->numa_node);
-		if (IS_ERR(psock))
-			return PTR_ERR(psock);
-	}
-
-	ret = sock_map_init_proto(sk, psock);
-	if (ret < 0)
-		sk_psock_put(sk, psock);
 	return ret;
 }
 
@@ -467,8 +458,6 @@ static int sock_map_get_next_key(struct bpf_map *map, void *key, void *next)
 	return 0;
 }
 
-static bool sock_map_redirect_allowed(const struct sock *sk);
-
 static int sock_map_update_common(struct bpf_map *map, u32 idx,
 				  struct sock *sk, u64 flags)
 {
@@ -488,14 +477,7 @@ static int sock_map_update_common(struct bpf_map *map, u32 idx,
 	if (!link)
 		return -ENOMEM;
 
-	/* Only sockets we can redirect into/from in BPF need to hold
-	 * refs to parser/verdict progs and have their sk_data_ready
-	 * and sk_write_space callbacks overridden.
-	 */
-	if (sock_map_redirect_allowed(sk))
-		ret = sock_map_link(map, sk);
-	else
-		ret = sock_map_link_no_progs(map, sk);
+	ret = sock_map_link(map, sk);
 	if (ret < 0)
 		goto out_free;
 
@@ -1000,14 +982,7 @@ static int sock_hash_update_common(struct bpf_map *map, void *key,
 	if (!link)
 		return -ENOMEM;
 
-	/* Only sockets we can redirect into/from in BPF need to hold
-	 * refs to parser/verdict progs and have their sk_data_ready
-	 * and sk_write_space callbacks overridden.
-	 */
-	if (sock_map_redirect_allowed(sk))
-		ret = sock_map_link(map, sk);
-	else
-		ret = sock_map_link_no_progs(map, sk);
+	ret = sock_map_link(map, sk);
 	if (ret < 0)
 		goto out_free;
 
