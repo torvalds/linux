@@ -110,15 +110,6 @@ static struct rockchip_pll_rate_table rk3568_pll_rates[] = {
 #define RK3568_MUX_CLK_PVTPLL_MASK	0x1
 #define RK3568_MUX_CLK_PVTPLL_SHIFT	15
 
-#define RK3568_CLKSEL0(_apllcore, _pvtpll)			\
-{								\
-	.reg = RK3568_CLKSEL_CON(0),				\
-	.val = HIWORD_UPDATE(_apllcore, RK3568_MUX_CLK_CORE_APLL_MASK,	\
-			RK3568_MUX_CLK_CORE_APLL_SHIFT) |		\
-		HIWORD_UPDATE(_pvtpll, RK3568_MUX_CLK_PVTPLL_MASK,	\
-			RK3568_MUX_CLK_PVTPLL_SHIFT),			\
-}
-
 #define RK3568_CLKSEL1(_sclk_core)					\
 {								\
 	.reg = RK3568_CLKSEL_CON(2),				\
@@ -155,84 +146,64 @@ static struct rockchip_pll_rate_table rk3568_pll_rates[] = {
 			RK3568_DIV_PERIPHCLK_CORE_SHIFT),		\
 }
 
-#define RK3568_CLKSEL5(_sclk_core_src)					\
-{								\
-	.reg = RK3568_CLKSEL_CON(2),				\
-	.val = HIWORD_UPDATE(_sclk_core_src, RK3568_MUX_SCLK_CORE_MASK, \
-			RK3568_MUX_SCLK_CORE_SHIFT),		\
-}
-
-#define RK3568_CPUCLK_RATE(_prate, _pvtpll, _apllcore, _sclk, _acore, _atcore, _gicclk, _pclk, _periph) \
+#define RK3568_CPUCLK_RATE(_prate, _sclk, _acore, _atcore, _gicclk, _pclk, _periph) \
 {								\
 	.prate = _prate##U,					\
 	.divs = {						\
+		RK3568_CLKSEL1(_sclk),				\
 		RK3568_CLKSEL2(_acore),				\
 		RK3568_CLKSEL3(_atcore, _gicclk),		\
 		RK3568_CLKSEL4(_pclk, _periph),			\
 	},							\
-	.pre_muxs = {						\
-		RK3568_CLKSEL0(0, _pvtpll),			\
-		RK3568_CLKSEL5(1),				\
-	},							\
-	.post_muxs = {						\
-		RK3568_CLKSEL0(_apllcore, _pvtpll),		\
-		RK3568_CLKSEL1(_sclk),				\
-	},							\
 }
 
 static struct rockchip_cpuclk_rate_table rk3568_cpuclk_rates[] __initdata = {
-	RK3568_CPUCLK_RATE(2208000000, 1, 1, 1, 1, 9, 9, 9, 9),
-	RK3568_CPUCLK_RATE(2184000000, 1, 1, 1, 1, 9, 9, 9, 9),
-	RK3568_CPUCLK_RATE(2088000000, 1, 1, 1, 1, 9, 9, 9, 9),
-	RK3568_CPUCLK_RATE(2040000000, 1, 1, 1, 1, 9, 9, 9, 9),
-	RK3568_CPUCLK_RATE(2016000000, 1, 1, 1, 1, 7, 7, 7, 7),
-	RK3568_CPUCLK_RATE(1992000000, 1, 1, 1, 1, 7, 7, 7, 7),
-	RK3568_CPUCLK_RATE(1896000000, 1, 1, 1, 1, 7, 7, 7, 7),
-	RK3568_CPUCLK_RATE(1800000000, 1, 1, 1, 1, 7, 7, 7, 7),
-	RK3568_CPUCLK_RATE(1704000000, 0, 1, 1, 1, 7, 7, 7, 7),
-	RK3568_CPUCLK_RATE(1608000000, 0, 1, 1, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1584000000, 0, 1, 1, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1560000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1536000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1512000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1488000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1464000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1440000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1416000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1392000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1368000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1344000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1320000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1296000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1272000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1248000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1224000000, 0, 0, 0, 1, 5, 5, 5, 5),
-	RK3568_CPUCLK_RATE(1200000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(1104000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(1008000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(912000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(816000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(696000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(600000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(408000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(312000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(216000000, 0, 0, 0, 1, 3, 3, 3, 3),
-	RK3568_CPUCLK_RATE(96000000, 0, 0, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(1800000000, 0, 1, 7, 7, 7, 7),
+	RK3568_CPUCLK_RATE(1704000000, 0, 1, 7, 7, 7, 7),
+	RK3568_CPUCLK_RATE(1608000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1584000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1560000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1536000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1512000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1488000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1464000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1440000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1416000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1392000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1368000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1344000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1320000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1296000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1272000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1248000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1224000000, 0, 1, 5, 5, 5, 5),
+	RK3568_CPUCLK_RATE(1200000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(1104000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(1008000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(912000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(816000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(696000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(600000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(408000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(312000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(216000000, 0, 1, 3, 3, 3, 3),
+	RK3568_CPUCLK_RATE(96000000, 0, 1, 3, 3, 3, 3),
 };
 
 static const struct rockchip_cpuclk_reg_data rk3568_cpuclk_data = {
-	.core_reg = RK3568_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0x1f,
-	.core1_reg = RK3568_CLKSEL_CON(0),
-	.div_core1_shift = 8,
-	.div_core1_mask = 0x1f,
-	.core2_reg = RK3568_CLKSEL_CON(1),
-	.div_core2_shift = 0,
-	.div_core2_mask = 0x1f,
-	.core3_reg = RK3568_CLKSEL_CON(1),
-	.div_core3_shift = 8,
-	.div_core3_mask = 0x1f,
+	.core_reg[0] = RK3568_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0x1f,
+	.core_reg[1] = RK3568_CLKSEL_CON(0),
+	.div_core_shift[1] = 8,
+	.div_core_mask[1] = 0x1f,
+	.core_reg[2] = RK3568_CLKSEL_CON(1),
+	.div_core_shift[2] = 0,
+	.div_core_mask[2] = 0x1f,
+	.core_reg[3] = RK3568_CLKSEL_CON(1),
+	.div_core_shift[3] = 8,
+	.div_core_mask[3] = 0x1f,
+	.num_cores = 4,
 	.mux_core_alt = 1,
 	.mux_core_main = 0,
 	.mux_core_shift = 6,
@@ -620,9 +591,6 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(3), 12, GFLAGS),
 
 	/* PD_DDR */
-	COMPOSITE_DDRCLK(SCLK_DDRCLK, "sclk_ddrc", dpll_gpll_cpll_p,
-			CLK_IGNORE_UNUSED, RK3568_CLKSEL_CON(9), 6, 2, 0, 5,
-			ROCKCHIP_DDRCLK_SIP_V2),
 	COMPOSITE(CLK_DDRPHY1X_SRC, "clk_ddrphy1x_src", dpll_gpll_cpll_p, CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(9), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(4), 0, GFLAGS),
