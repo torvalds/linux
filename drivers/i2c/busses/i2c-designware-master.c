@@ -82,7 +82,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	 * difference is the timing parameter values since the registers are
 	 * the same.
 	 */
-	if (t->bus_freq_hz == 1000000) {
+	if (t->bus_freq_hz == I2C_MAX_FAST_MODE_PLUS_FREQ) {
 		/*
 		 * Check are Fast Mode Plus parameters available. Calculate
 		 * SCL timing parameters for Fast Mode Plus if not set.
