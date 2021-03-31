@@ -1897,7 +1897,7 @@ out_err:
 	return err;
 }
 
-void _kvm_host_prot_finalize(void *discard)
+static void _kvm_host_prot_finalize(void *discard)
 {
 	WARN_ON(kvm_call_hyp_nvhe(__pkvm_prot_finalize));
 }
