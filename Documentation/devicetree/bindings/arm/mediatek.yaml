@@ -144,6 +144,15 @@ properties:
           - const: google,kakadu-rev2
           - const: google,kakadu
           - const: mediatek,mt8183
+      - description: Google Kodama (Lenovo 10e Chromebook Tablet)
+        items:
+          - enum:
+              - google,kodama-sku16
+              - google,kodama-sku272
+              - google,kodama-sku288
+              - google,kodama-sku32
+          - const: google,kodama
+          - const: mediatek,mt8183
       - items:
           - enum:
               - mediatek,mt8516-pumpkin
