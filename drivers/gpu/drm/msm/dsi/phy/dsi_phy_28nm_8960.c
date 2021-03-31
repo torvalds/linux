@@ -78,7 +78,7 @@ static bool pll_28nm_poll_for_ready(struct dsi_pll_28nm *pll_28nm,
 	u32 val;
 
 	while (nb_tries--) {
-		val = pll_read(pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_RDY);
+		val = dsi_phy_read(pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_RDY);
 		pll_locked = !!(val & DSI_28nm_8960_PHY_PLL_RDY_PLL_RDY);
 
 		if (pll_locked)
@@ -107,29 +107,29 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	val = VCO_REF_CLK_RATE / 10;
 	fb_divider = (temp * VCO_PREF_DIV_RATIO) / val;
 	fb_divider = fb_divider / 2 - 1;
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1,
 			fb_divider & 0xff);
 
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2);
+	val = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2);
 
 	val |= (fb_divider >> 8) & 0x07;
 
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2,
 			val);
 
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3);
+	val = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3);
 
 	val |= (VCO_PREF_DIV_RATIO - 1) & 0x3f;
 
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3,
 			val);
 
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_6,
 			0xf);
 
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
+	val = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
 	val |= 0x7 << 4;
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
 			val);
 
 	return 0;
@@ -153,16 +153,16 @@ static unsigned long dsi_pll_28nm_clk_recalc_rate(struct clk_hw *hw,
 
 	VERB("parent_rate=%lu", parent_rate);
 
-	status = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0);
+	status = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0);
 
 	if (status & DSI_28nm_8960_PHY_PLL_CTRL_0_ENABLE) {
-		fb_divider = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1);
+		fb_divider = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_1);
 		fb_divider &= 0xff;
-		temp = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2) & 0x07;
+		temp = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_2) & 0x07;
 		fb_divider = (temp << 8) | fb_divider;
 		fb_divider += 1;
 
-		ref_divider = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3);
+		ref_divider = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_3);
 		ref_divider &= 0x3f;
 		ref_divider += 1;
 
@@ -199,17 +199,17 @@ static int dsi_pll_28nm_vco_prepare(struct clk_hw *hw)
 	 * 2: divide by 8 to get bit clock divider
 	 * 3: write it to POSTDIV1
 	 */
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9);
+	val = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9);
 	byte_div = val + 1;
 	bit_div = byte_div / 8;
 
-	val = pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
+	val = dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
 	val &= ~0xf;
 	val |= (bit_div - 1);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8, val);
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8, val);
 
 	/* enable the PLL */
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0,
 			DSI_28nm_8960_PHY_PLL_CTRL_0_ENABLE);
 
 	locked = pll_28nm_poll_for_ready(pll_28nm, max_reads, timeout_us);
@@ -234,7 +234,7 @@ static void dsi_pll_28nm_vco_unprepare(struct clk_hw *hw)
 	if (unlikely(!pll_28nm->phy->pll_on))
 		return;
 
-	pll_write(pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_CTRL_0, 0x00);
+	dsi_phy_write(pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_CTRL_0, 0x00);
 
 	pll_28nm->phy->pll_on = false;
 }
@@ -281,7 +281,7 @@ static unsigned long clk_bytediv_recalc_rate(struct clk_hw *hw,
 	struct clk_bytediv *bytediv = to_clk_bytediv(hw);
 	unsigned int div;
 
-	div = pll_read(bytediv->reg) & 0xff;
+	div = dsi_phy_read(bytediv->reg) & 0xff;
 
 	return parent_rate / (div + 1);
 }
@@ -327,9 +327,9 @@ static int clk_bytediv_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	factor = get_vco_mul_factor(rate);
 
-	val = pll_read(bytediv->reg);
+	val = dsi_phy_read(bytediv->reg);
 	val |= (factor - 1) & 0xff;
-	pll_write(bytediv->reg, val);
+	dsi_phy_write(bytediv->reg, val);
 
 	return 0;
 }
@@ -351,11 +351,11 @@ static void dsi_28nm_pll_save_state(struct msm_dsi_phy *phy)
 	void __iomem *base = pll_28nm->mmio;
 
 	cached_state->postdiv3 =
-			pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10);
+			dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10);
 	cached_state->postdiv2 =
-			pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9);
+			dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9);
 	cached_state->postdiv1 =
-			pll_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
+			dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8);
 
 	cached_state->vco_rate = clk_hw_get_rate(phy->vco_hw);
 }
@@ -375,11 +375,11 @@ static int dsi_28nm_pll_restore_state(struct msm_dsi_phy *phy)
 		return ret;
 	}
 
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
 			cached_state->postdiv3);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9,
 			cached_state->postdiv2);
-	pll_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
+	dsi_phy_write(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_8,
 			cached_state->postdiv1);
 
 	return 0;

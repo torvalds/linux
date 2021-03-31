@@ -14,6 +14,8 @@
 
 #define dsi_phy_read(offset) msm_readl((offset))
 #define dsi_phy_write(offset, data) msm_writel((data), (offset))
+#define dsi_phy_write_udelay(offset, data, delay_us) { msm_writel((data), (offset)); udelay(delay_us); }
+#define dsi_phy_write_ndelay(offset, data, delay_ns) { msm_writel((data), (offset)); ndelay(delay_ns); }
 
 struct msm_dsi_phy_ops {
 	int (*pll_init)(struct msm_dsi_phy *phy);
@@ -120,27 +122,5 @@ int msm_dsi_dphy_timing_calc_v4(struct msm_dsi_dphy_timing *timing,
 				struct msm_dsi_phy_clk_request *clk_req);
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask);
-/* PLL accessors */
-static inline void pll_write(void __iomem *reg, u32 data)
-{
-	msm_writel(data, reg);
-}
-
-static inline u32 pll_read(const void __iomem *reg)
-{
-	return msm_readl(reg);
-}
-
-static inline void pll_write_udelay(void __iomem *reg, u32 data, u32 delay_us)
-{
-	pll_write(reg, data);
-	udelay(delay_us);
-}
-
-static inline void pll_write_ndelay(void __iomem *reg, u32 data, u32 delay_ns)
-{
-	pll_write((reg), data);
-	ndelay(delay_ns);
-}
 
 #endif /* __DSI_PHY_H__ */
