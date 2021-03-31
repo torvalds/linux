@@ -94,4 +94,5 @@ struct mlx5e_tc_tunnel gre_tunnel = {
 	.generate_ip_tun_hdr  = mlx5e_gen_ip_tunnel_header_gretap,
 	.parse_udp_ports      = NULL,
 	.parse_tunnel         = mlx5e_tc_tun_parse_gretap,
+	.encap_info_equal     = mlx5e_tc_tun_encap_info_equal_generic,
 };
