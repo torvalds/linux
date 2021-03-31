@@ -31,6 +31,7 @@
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec_altmode.h>
 
+#include <trace/hooks/typec.h>
 #include <uapi/linux/sched/types.h>
 
 #define FOREACH_STATE(S)			\
@@ -3722,8 +3723,9 @@ static void run_state_machine(struct tcpm_port *port)
 {
 	int ret;
 	enum typec_pwr_opmode opmode;
-	unsigned int msecs;
+	unsigned int msecs, timer_val_msecs;
 	enum tcpm_state upcoming_state;
+	const char *state_name;
 
 	port->enter_state = port->state;
 	switch (port->state) {
@@ -3753,17 +3755,20 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SRC_ATTACH_WAIT:
 		port->debouncing = true;
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SRC_ATTACH_WAIT],
+						      CC_DEBOUNCE, &timer_val_msecs);
 		if (tcpm_port_is_debug(port))
 			tcpm_set_state(port, DEBUG_ACC_ATTACHED,
-				       PD_T_CC_DEBOUNCE);
+				       timer_val_msecs);
 		else if (tcpm_port_is_audio(port))
 			tcpm_set_state(port, AUDIO_ACC_ATTACHED,
-				       PD_T_CC_DEBOUNCE);
+				       timer_val_msecs);
 		else if (tcpm_port_is_source(port) && port->vbus_vsafe0v)
 			tcpm_set_state(port,
 				       tcpm_try_snk(port) ? SNK_TRY
 							  : SRC_ATTACHED,
-				       PD_T_CC_DEBOUNCE);
+				       timer_val_msecs);
 		break;
 
 	case SNK_TRY:
@@ -3815,7 +3820,10 @@ static void run_state_machine(struct tcpm_port *port)
 		}
 		break;
 	case SRC_TRYWAIT_DEBOUNCE:
-		tcpm_set_state(port, SRC_ATTACHED, PD_T_CC_DEBOUNCE);
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SRC_TRYWAIT_DEBOUNCE],
+						      CC_DEBOUNCE, &timer_val_msecs);
+		tcpm_set_state(port, SRC_ATTACHED, timer_val_msecs);
 		break;
 	case SRC_TRYWAIT_UNATTACHED:
 		tcpm_set_state(port, SNK_UNATTACHED, 0);
@@ -3986,15 +3994,18 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_ATTACH_WAIT:
 		port->debouncing = true;
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_ATTACH_WAIT],
+						      CC_DEBOUNCE, &timer_val_msecs);
 		if ((port->cc1 == TYPEC_CC_OPEN &&
 		     port->cc2 != TYPEC_CC_OPEN) ||
 		    (port->cc1 != TYPEC_CC_OPEN &&
 		     port->cc2 == TYPEC_CC_OPEN))
 			tcpm_set_state(port, SNK_DEBOUNCED,
-				       PD_T_CC_DEBOUNCE);
+				       timer_val_msecs);
 		else if (tcpm_port_is_disconnected(port))
 			tcpm_set_state(port, SNK_UNATTACHED,
-				       PD_T_PD_DEBOUNCE);
+				       timer_val_msecs);
 		break;
 	case SNK_DEBOUNCED:
 		if (tcpm_port_is_disconnected(port)) {
@@ -4037,8 +4048,11 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state(port, SRC_ATTACHED, PD_T_PD_DEBOUNCE);
 		break;
 	case SNK_TRYWAIT:
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_TRYWAIT],
+						      CC_DEBOUNCE, &timer_val_msecs);
 		tcpm_set_cc(port, TYPEC_CC_RD);
-		tcpm_set_state(port, SNK_TRYWAIT_VBUS, PD_T_CC_DEBOUNCE);
+		tcpm_set_state(port, SNK_TRYWAIT_VBUS, timer_val_msecs);
 		break;
 	case SNK_TRYWAIT_VBUS:
 		/*
@@ -4078,7 +4092,10 @@ static void run_state_machine(struct tcpm_port *port)
 			/* SRC -> SNK POWER/FAST_ROLE_SWAP finished */
 			tcpm_ams_finish(port);
 
-		tcpm_set_state(port, SNK_DISCOVERY, 0);
+		timer_val_msecs = 0;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_STARTUP],
+						      SINK_DISCOVERY_BC12, &timer_val_msecs);
+		tcpm_set_state(port, SNK_DISCOVERY, 500);
 		break;
 	case SNK_DISCOVERY:
 		if (port->vbus_present) {
@@ -4099,8 +4116,10 @@ static void run_state_machine(struct tcpm_port *port)
 					PD_T_DB_DETECT : PD_T_NO_RESPONSE);
 		break;
 	case SNK_DISCOVERY_DEBOUNCE:
-		tcpm_set_state(port, SNK_DISCOVERY_DEBOUNCE_DONE,
-			       PD_T_CC_DEBOUNCE);
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_DISCOVERY_DEBOUNCE],
+						      CC_DEBOUNCE, &timer_val_msecs);
+		tcpm_set_state(port, SNK_DISCOVERY_DEBOUNCE_DONE, timer_val_msecs);
 		break;
 	case SNK_DISCOVERY_DEBOUNCE_DONE:
 		if (!tcpm_port_is_disconnected(port) &&
@@ -4118,6 +4137,9 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, SNK_READY, 0);
 			break;
 		}
+		timer_val_msecs = PD_T_SINK_WAIT_CAP;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SNK_WAIT_CAPABILITIES],
+						      SINK_WAIT_CAP, &timer_val_msecs);
 		/*
 		 * If VBUS has never been low, and we time out waiting
 		 * for source cap, try a soft reset first, in case we
@@ -4127,10 +4149,10 @@ static void run_state_machine(struct tcpm_port *port)
 		if (port->vbus_never_low) {
 			port->vbus_never_low = false;
 			tcpm_set_state(port, SNK_SOFT_RESET,
-				       PD_T_SINK_WAIT_CAP);
+				       timer_val_msecs);
 		} else {
 			tcpm_set_state(port, hard_reset_state(port),
-				       PD_T_SINK_WAIT_CAP);
+				       timer_val_msecs);
 		}
 		break;
 	case SNK_NEGOTIATE_CAPABILITIES:
@@ -4218,7 +4240,10 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, ACC_UNATTACHED, 0);
 		break;
 	case AUDIO_ACC_DEBOUNCE:
-		tcpm_set_state(port, ACC_UNATTACHED, PD_T_CC_DEBOUNCE);
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[AUDIO_ACC_DEBOUNCE],
+						      CC_DEBOUNCE, &timer_val_msecs);
+		tcpm_set_state(port, ACC_UNATTACHED, timer_val_msecs);
 		break;
 
 	/* Hard_Reset states */
@@ -4406,7 +4431,10 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state(port, ERROR_RECOVERY, 0);
 		break;
 	case FR_SWAP_SNK_SRC_TRANSITION_TO_OFF:
-		tcpm_set_state(port, ERROR_RECOVERY, PD_T_PS_SOURCE_OFF);
+		timer_val_msecs = PD_T_PS_SOURCE_OFF;
+		state_name = tcpm_states[FR_SWAP_SNK_SRC_TRANSITION_TO_OFF];
+		trace_android_vh_typec_tcpm_get_timer(state_name, SOURCE_OFF, &timer_val_msecs);
+		tcpm_set_state(port, ERROR_RECOVERY, timer_val_msecs);
 		break;
 	case FR_SWAP_SNK_SRC_NEW_SINK_READY:
 		if (port->vbus_source)
@@ -4457,10 +4485,13 @@ static void run_state_machine(struct tcpm_port *port)
 			       PD_T_SRCSWAPSTDBY);
 		break;
 	case PR_SWAP_SRC_SNK_SOURCE_OFF:
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[PR_SWAP_SRC_SNK_SOURCE_OFF],
+						      CC_DEBOUNCE, &timer_val_msecs);
 		tcpm_set_cc(port, TYPEC_CC_RD);
 		/* allow CC debounce */
 		tcpm_set_state(port, PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED,
-			       PD_T_CC_DEBOUNCE);
+			       timer_val_msecs);
 		break;
 	case PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED:
 		/*
@@ -4483,6 +4514,9 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state(port, SNK_STARTUP, 0);
 		break;
 	case PR_SWAP_SNK_SRC_SINK_OFF:
+		timer_val_msecs = PD_T_PS_SOURCE_OFF;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[PR_SWAP_SNK_SRC_SINK_OFF],
+						      SOURCE_OFF, &timer_val_msecs);
 		/*
 		 * Prevent vbus discharge circuit from turning on during PR_SWAP
 		 * as this is not a disconnect.
@@ -4490,8 +4524,7 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_auto_vbus_discharge_threshold(port, TYPEC_PWR_MODE_USB,
 						       port->pps_data.active, 0);
 		tcpm_set_charge(port, false);
-		tcpm_set_state(port, hard_reset_state(port),
-			       PD_T_PS_SOURCE_OFF);
+		tcpm_set_state(port, hard_reset_state(port), timer_val_msecs);
 		break;
 	case PR_SWAP_SNK_SRC_SOURCE_ON:
 		tcpm_set_cc(port, tcpm_rp_cc(port));
@@ -4628,9 +4661,12 @@ static void run_state_machine(struct tcpm_port *port)
 			       PD_T_ERROR_RECOVERY);
 		break;
 	case PORT_RESET_WAIT_OFF:
+		timer_val_msecs = PD_T_PS_SOURCE_OFF;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[PORT_RESET_WAIT_OFF],
+						      SOURCE_OFF, &timer_val_msecs);
 		tcpm_set_state(port,
 			       tcpm_default_state(port),
-			       port->vbus_present ? PD_T_PS_SOURCE_OFF : 0);
+			       port->vbus_present ? timer_val_msecs : 0);
 		break;
 
 	/* AMS intermediate state */
@@ -5094,6 +5130,8 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 
 static void _tcpm_pd_vbus_vsafe0v(struct tcpm_port *port)
 {
+	unsigned int timer_val_msecs;
+
 	tcpm_log_force(port, "VBUS VSAFE0V");
 	port->vbus_vsafe0v = true;
 	switch (port->state) {
@@ -5105,9 +5143,12 @@ static void _tcpm_pd_vbus_vsafe0v(struct tcpm_port *port)
 		tcpm_set_state(port, SRC_HARD_RESET_VBUS_ON, PD_T_SRC_RECOVER);
 		break;
 	case SRC_ATTACH_WAIT:
+		timer_val_msecs = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[SRC_ATTACH_WAIT],
+						      CC_DEBOUNCE, &timer_val_msecs);
 		if (tcpm_port_is_source(port))
 			tcpm_set_state(port, tcpm_try_snk(port) ? SNK_TRY : SRC_ATTACHED,
-				       PD_T_CC_DEBOUNCE);
+				       timer_val_msecs);
 		break;
 	case SRC_STARTUP:
 	case SRC_SEND_CAPABILITIES:

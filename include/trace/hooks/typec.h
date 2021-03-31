@@ -13,6 +13,16 @@
 struct tcpci;
 struct tcpci_data;
 
+#ifndef TYPEC_TIMER
+#define TYPEC_TIMER
+enum typec_timer {
+	SINK_WAIT_CAP,
+	SOURCE_OFF,
+	CC_DEBOUNCE,
+	SINK_DISCOVERY_BC12,
+};
+#endif
+
 DECLARE_HOOK(android_vh_typec_tcpci_override_toggling,
 	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *override_toggling),
 	TP_ARGS(tcpci, data, override_toggling));
@@ -31,6 +41,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_typec_tcpci_chk_contaminant,
 DECLARE_RESTRICTED_HOOK(android_rvh_typec_tcpci_get_vbus,
 	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *vbus, int *bypass),
 	TP_ARGS(tcpci, data, vbus, bypass), 1);
+
+DECLARE_HOOK(android_vh_typec_tcpm_get_timer,
+	TP_PROTO(const char *state, enum typec_timer timer, unsigned int *msecs),
+	TP_ARGS(state, timer, msecs));
 
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
