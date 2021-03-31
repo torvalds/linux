@@ -32,14 +32,18 @@ struct inet_hashinfo;
 
 struct inet_timewait_death_row {
 	atomic_t		tw_count;
+	char			tw_pad[L1_CACHE_BYTES - sizeof(atomic_t)];
 
-	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
+	struct inet_hashinfo 	*hashinfo;
 	int			sysctl_max_tw_buckets;
 };
 
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
+	/* Please keep tcp_death_row at first field in netns_ipv4 */
+	struct inet_timewait_death_row tcp_death_row ____cacheline_aligned_in_smp;
+
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
 	struct ctl_table_header	*frags_hdr;
@@ -175,7 +179,6 @@ struct netns_ipv4 {
 	int sysctl_tcp_comp_sack_nr;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
 	unsigned long sysctl_tcp_comp_sack_slack_ns;
-	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
 	const struct tcp_congestion_ops __rcu  *tcp_congestion_control;
