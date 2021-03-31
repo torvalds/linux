@@ -1816,10 +1816,6 @@ static void __ice_write_itr(struct ice_q_vector *q_vector,
  * ice_write_itr - write throttle rate to queue specific register
  * @rc: pointer to ring container
  * @itr: throttle rate in microseconds to write
- *
- * This function is resilient to having the 0x8000 bit set which
- * is indicating that an ITR value is "DYNAMIC", and will write
- * the correct value to the register.
  */
 void ice_write_itr(struct ice_ring_container *rc, u16 itr)
 {
@@ -1829,9 +1825,6 @@ void ice_write_itr(struct ice_ring_container *rc, u16 itr)
 		return;
 
 	q_vector = rc->ring->q_vector;
-
-	/* clear the "DYNAMIC" bit */
-	itr = ITR_TO_REG(itr);
 
 	__ice_write_itr(q_vector, rc, itr);
 }

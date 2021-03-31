@@ -1236,7 +1236,7 @@ static void ice_net_dim(struct ice_q_vector *q_vector)
 	struct ice_ring_container *tx = &q_vector->tx;
 	struct ice_ring_container *rx = &q_vector->rx;
 
-	if (ITR_IS_DYNAMIC(tx->itr_setting)) {
+	if (ITR_IS_DYNAMIC(tx)) {
 		struct dim_sample dim_sample = {};
 		u64 packets = 0, bytes = 0;
 		struct ice_ring *ring;
@@ -1252,7 +1252,7 @@ static void ice_net_dim(struct ice_q_vector *q_vector)
 		net_dim(&tx->dim, dim_sample);
 	}
 
-	if (ITR_IS_DYNAMIC(rx->itr_setting)) {
+	if (ITR_IS_DYNAMIC(rx)) {
 		struct dim_sample dim_sample = {};
 		u64 packets = 0, bytes = 0;
 		struct ice_ring *ring;

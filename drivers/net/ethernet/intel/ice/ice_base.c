@@ -113,6 +113,9 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	q_vector->v_idx = v_idx;
 	q_vector->tx.itr_setting = ICE_DFLT_TX_ITR;
 	q_vector->rx.itr_setting = ICE_DFLT_RX_ITR;
+	q_vector->tx.itr_mode = ITR_DYNAMIC;
+	q_vector->rx.itr_mode = ITR_DYNAMIC;
+
 	if (vsi->type == ICE_VSI_VF)
 		goto out;
 	/* only set affinity_mask if the CPU is online */
