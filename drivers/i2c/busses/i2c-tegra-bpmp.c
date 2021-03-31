@@ -38,7 +38,7 @@ struct tegra_bpmp_i2c {
  * firmware I2C driver to avoid any issues in future if Linux I2C flags are
  * changed.
  */
-static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
+static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 {
 	if (flags & I2C_M_TEN)
 		*out |= SERIALI2C_TEN;
@@ -63,8 +63,6 @@ static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 
 	if (flags & I2C_M_RECV_LEN)
 		*out |= SERIALI2C_RECV_LEN;
-
-	return 0;
 }
 
 /**
@@ -81,22 +79,19 @@ static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  *
  * See deserialize_i2c documentation for the data format in the other direction.
  */
-static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
+static void tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 					struct mrq_i2c_request *request,
 					struct i2c_msg *msgs,
 					unsigned int num)
 {
 	char *buf = request->xfer.data_buf;
 	unsigned int i, j, pos = 0;
-	int err;
 
 	for (i = 0; i < num; i++) {
 		struct i2c_msg *msg = &msgs[i];
 		u16 flags = 0;
 
-		err = tegra_bpmp_xlate_flags(msg->flags, &flags);
-		if (err < 0)
-			return err;
+		tegra_bpmp_xlate_flags(msg->flags, &flags);
 
 		buf[pos++] = msg->addr & 0xff;
 		buf[pos++] = (msg->addr & 0xff00) >> 8;
@@ -112,8 +107,6 @@ static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 	}
 
 	request->xfer.data_size = pos;
-
-	return 0;
 }
 
 /**
@@ -247,12 +240,7 @@ static int tegra_bpmp_i2c_xfer_common(struct i2c_adapter *adapter,
 	memset(&request, 0, sizeof(request));
 	memset(&response, 0, sizeof(response));
 
-	err = tegra_bpmp_serialize_i2c_msg(i2c, &request, msgs, num);
-	if (err < 0) {
-		dev_err(i2c->dev, "failed to serialize message: %d\n", err);
-		return err;
-	}
-
+	tegra_bpmp_serialize_i2c_msg(i2c, &request, msgs, num);
 	err = tegra_bpmp_i2c_msg_xfer(i2c, &request, &response, atomic);
 	if (err < 0) {
 		dev_err(i2c->dev, "failed to transfer message: %d\n", err);
