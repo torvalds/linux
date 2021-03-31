@@ -102,10 +102,7 @@ struct sk_psock {
 	struct mutex			work_mutex;
 	struct sk_psock_work_state	work_state;
 	struct work_struct		work;
-	union {
-		struct rcu_head		rcu;
-		struct work_struct	gc;
-	};
+	struct rcu_work			rwork;
 };
 
 int sk_msg_alloc(struct sock *sk, struct sk_msg *msg, int len,

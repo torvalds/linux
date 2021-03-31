@@ -666,10 +666,10 @@ void sk_psock_stop(struct sk_psock *psock, bool wait)
 
 static void sk_psock_done_strp(struct sk_psock *psock);
 
-static void sk_psock_destroy_deferred(struct work_struct *gc)
+static void sk_psock_destroy(struct work_struct *work)
 {
-	struct sk_psock *psock = container_of(gc, struct sk_psock, gc);
-
+	struct sk_psock *psock = container_of(to_rcu_work(work),
+					      struct sk_psock, rwork);
 	/* No sk_callback_lock since already detached. */
 
 	sk_psock_done_strp(psock);
@@ -688,14 +688,6 @@ static void sk_psock_destroy_deferred(struct work_struct *gc)
 	kfree(psock);
 }
 
-static void sk_psock_destroy(struct rcu_head *rcu)
-{
-	struct sk_psock *psock = container_of(rcu, struct sk_psock, rcu);
-
-	INIT_WORK(&psock->gc, sk_psock_destroy_deferred);
-	schedule_work(&psock->gc);
-}
-
 void sk_psock_drop(struct sock *sk, struct sk_psock *psock)
 {
 	sk_psock_stop(psock, false);
@@ -709,7 +701,8 @@ void sk_psock_drop(struct sock *sk, struct sk_psock *psock)
 		sk_psock_stop_verdict(sk, psock);
 	write_unlock_bh(&sk->sk_callback_lock);
 
-	call_rcu(&psock->rcu, sk_psock_destroy);
+	INIT_RCU_WORK(&psock->rwork, sk_psock_destroy);
+	queue_rcu_work(system_wq, &psock->rwork);
 }
 EXPORT_SYMBOL_GPL(sk_psock_drop);
 
