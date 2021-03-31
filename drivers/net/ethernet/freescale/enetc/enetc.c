@@ -157,6 +157,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	temp_bd.flags = flags;
 	*txbd = temp_bd;
 
+	tx_ring->tx_swbd[i].is_eof = true;
 	tx_ring->tx_swbd[i].skb = skb;
 
 	enetc_bdr_idx_inc(tx_ring, &i);
@@ -316,8 +317,6 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 	do_tstamp = false;
 
 	while (bds_to_clean && tx_frm_cnt < ENETC_DEFAULT_TX_WORK) {
-		bool is_eof = !!tx_swbd->skb;
-
 		if (unlikely(tx_swbd->check_wb)) {
 			struct enetc_ndev_priv *priv = netdev_priv(ndev);
 			union enetc_tx_bd *txbd;
@@ -335,7 +334,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 		if (likely(tx_swbd->dma))
 			enetc_unmap_tx_buff(tx_ring, tx_swbd);
 
-		if (is_eof) {
+		if (tx_swbd->skb) {
 			if (unlikely(do_tstamp)) {
 				enetc_tstamp_tx(tx_swbd->skb, tstamp);
 				do_tstamp = false;
@@ -355,7 +354,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 		}
 
 		/* BD iteration loop end */
-		if (is_eof) {
+		if (tx_swbd->is_eof) {
 			tx_frm_cnt++;
 			/* re-arm interrupt source */
 			enetc_wr_reg_hot(tx_ring->idr, BIT(tx_ring->index) |

@@ -25,6 +25,7 @@ struct enetc_tx_swbd {
 	u8 is_dma_page:1;
 	u8 check_wb:1;
 	u8 do_tstamp:1;
+	u8 is_eof:1;
 };
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
