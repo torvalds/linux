@@ -24,6 +24,9 @@ static void ionic_watchdog_cb(struct timer_list *t)
 		return;
 
 	hb = ionic_heartbeat_check(ionic);
+	dev_dbg(ionic->dev, "%s: hb %d running %d UP %d\n",
+		__func__, hb, netif_running(lif->netdev),
+		test_bit(IONIC_LIF_F_UP, lif->state));
 
 	if (hb >= 0 &&
 	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
@@ -91,9 +94,17 @@ int ionic_dev_setup(struct ionic *ionic)
 		return -EFAULT;
 	}
 
-	idev->last_fw_status = 0xff;
 	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
 	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
+
+	/* set times to ensure the first check will proceed */
+	atomic_long_set(&idev->last_check_time, jiffies - 2 * HZ);
+	idev->last_hb_time = jiffies - 2 * ionic->watchdog_period;
+	/* init as ready, so no transition if the first check succeeds */
+	idev->last_fw_hb = 0;
+	idev->fw_hb_ready = true;
+	idev->fw_status_ready = true;
+
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
@@ -107,29 +118,38 @@ int ionic_dev_setup(struct ionic *ionic)
 int ionic_heartbeat_check(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
-	unsigned long hb_time;
+	unsigned long check_time, last_check_time;
+	bool fw_status_ready, fw_hb_ready;
 	u8 fw_status;
-	u32 hb;
+	u32 fw_hb;
 
-	/* wait a little more than one second before testing again */
-	hb_time = jiffies;
-	if (time_before(hb_time, (idev->last_hb_time + ionic->watchdog_period)))
+	/* wait a least one second before testing again */
+	check_time = jiffies;
+	last_check_time = atomic_long_read(&idev->last_check_time);
+do_check_time:
+	if (time_before(check_time, last_check_time + HZ))
 		return 0;
+	if (!atomic_long_try_cmpxchg_relaxed(&idev->last_check_time,
+					     &last_check_time, check_time)) {
+		/* if called concurrently, only the first should proceed. */
+		dev_dbg(ionic->dev, "%s: do_check_time again\n", __func__);
+		goto do_check_time;
+	}
 
 	/* firmware is useful only if the running bit is set and
 	 * fw_status != 0xff (bad PCI read)
 	 */
 	fw_status = ioread8(&idev->dev_info_regs->fw_status);
-	if (fw_status != 0xff)
-		fw_status &= IONIC_FW_STS_F_RUNNING;  /* use only the run bit */
+	fw_status_ready = (fw_status != 0xff) && (fw_status & IONIC_FW_STS_F_RUNNING);
 
 	/* is this a transition? */
-	if (fw_status != idev->last_fw_status &&
-	    idev->last_fw_status != 0xff) {
+	if (fw_status_ready != idev->fw_status_ready) {
 		struct ionic_lif *lif = ionic->lif;
 		bool trigger = false;
 
-		if (!fw_status || fw_status == 0xff) {
+		idev->fw_status_ready = fw_status_ready;
+
+		if (!fw_status_ready) {
 			dev_info(ionic->dev, "FW stopped %u\n", fw_status);
 			if (lif && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 				trigger = true;
@@ -143,44 +163,47 @@ int ionic_heartbeat_check(struct ionic *ionic)
 			struct ionic_deferred_work *work;
 
 			work = kzalloc(sizeof(*work), GFP_ATOMIC);
-			if (!work) {
-				dev_err(ionic->dev, "LIF reset trigger dropped\n");
-			} else {
+			if (work) {
 				work->type = IONIC_DW_TYPE_LIF_RESET;
-				if (fw_status & IONIC_FW_STS_F_RUNNING &&
-				    fw_status != 0xff)
-					work->fw_status = 1;
+				work->fw_status = fw_status_ready;
 				ionic_lif_deferred_enqueue(&lif->deferred, work);
 			}
 		}
 	}
-	idev->last_fw_status = fw_status;
 
-	if (!fw_status || fw_status == 0xff)
+	if (!fw_status_ready)
 		return -ENXIO;
 
-	/* early FW has no heartbeat, else FW will return non-zero */
-	hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
-	if (!hb)
+	/* wait at least one watchdog period since the last heartbeat */
+	last_check_time = idev->last_hb_time;
+	if (time_before(check_time, last_check_time + ionic->watchdog_period))
 		return 0;
 
-	/* are we stalled? */
-	if (hb == idev->last_hb) {
-		/* only complain once for each stall seen */
-		if (idev->last_hb_time != 1) {
-			dev_info(ionic->dev, "FW heartbeat stalled at %d\n",
-				 idev->last_hb);
-			idev->last_hb_time = 1;
-		}
+	fw_hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
+	fw_hb_ready = fw_hb != idev->last_fw_hb;
 
-		return -ENXIO;
+	/* early FW version had no heartbeat, so fake it */
+	if (!fw_hb_ready && !fw_hb)
+		fw_hb_ready = true;
+
+	dev_dbg(ionic->dev, "%s: fw_hb %u last_fw_hb %u ready %u\n",
+		__func__, fw_hb, idev->last_fw_hb, fw_hb_ready);
+
+	idev->last_fw_hb = fw_hb;
+
+	/* log a transition */
+	if (fw_hb_ready != idev->fw_hb_ready) {
+		idev->fw_hb_ready = fw_hb_ready;
+		if (!fw_hb_ready)
+			dev_info(ionic->dev, "FW heartbeat stalled at %d\n", fw_hb);
+		else
+			dev_info(ionic->dev, "FW heartbeat restored at %d\n", fw_hb);
 	}
 
-	if (idev->last_hb_time == 1)
-		dev_info(ionic->dev, "FW heartbeat restored at %d\n", hb);
+	if (!fw_hb_ready)
+		return -ENXIO;
 
-	idev->last_hb = hb;
-	idev->last_hb_time = hb_time;
+	idev->last_hb_time = check_time;
 
 	return 0;
 }

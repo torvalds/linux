@@ -4,6 +4,7 @@
 #ifndef _IONIC_DEV_H_
 #define _IONIC_DEV_H_
 
+#include <linux/atomic.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
@@ -135,9 +136,11 @@ struct ionic_dev {
 	union ionic_dev_info_regs __iomem *dev_info_regs;
 	union ionic_dev_cmd_regs __iomem *dev_cmd_regs;
 
+	atomic_long_t last_check_time;
 	unsigned long last_hb_time;
-	u32 last_hb;
-	u8 last_fw_status;
+	u32 last_fw_hb;
+	bool fw_hb_ready;
+	bool fw_status_ready;
 
 	u64 __iomem *db_pages;
 	dma_addr_t phy_db_pages;

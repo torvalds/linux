@@ -609,6 +609,7 @@ static int ionic_tx_map_skb(struct ionic_queue *q, struct sk_buff *skb,
 			    struct ionic_desc_info *desc_info)
 {
 	struct ionic_buf_info *buf_info = desc_info->bufs;
+	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 	unsigned int nfrags;
@@ -616,8 +617,10 @@ static int ionic_tx_map_skb(struct ionic_queue *q, struct sk_buff *skb,
 	int frag_idx;
 
 	dma_addr = ionic_tx_map_single(q, skb->data, skb_headlen(skb));
-	if (dma_mapping_error(dev, dma_addr))
+	if (dma_mapping_error(dev, dma_addr)) {
+		stats->dma_map_err++;
 		return -EIO;
+	}
 	buf_info->dma_addr = dma_addr;
 	buf_info->len = skb_headlen(skb);
 	buf_info++;
@@ -626,8 +629,10 @@ static int ionic_tx_map_skb(struct ionic_queue *q, struct sk_buff *skb,
 	nfrags = skb_shinfo(skb)->nr_frags;
 	for (frag_idx = 0; frag_idx < nfrags; frag_idx++, frag++) {
 		dma_addr = ionic_tx_map_frag(q, frag, 0, skb_frag_size(frag));
-		if (dma_mapping_error(dev, dma_addr))
+		if (dma_mapping_error(dev, dma_addr)) {
+			stats->dma_map_err++;
 			goto dma_fail;
+		}
 		buf_info->dma_addr = dma_addr;
 		buf_info->len = skb_frag_size(frag);
 		buf_info++;
