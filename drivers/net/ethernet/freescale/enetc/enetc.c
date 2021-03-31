@@ -344,6 +344,10 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 		}
 
 		tx_byte_cnt += tx_swbd->len;
+		/* Scrub the swbd here so we don't have to do that
+		 * when we reuse it during xmit
+		 */
+		memset(tx_swbd, 0, sizeof(*tx_swbd));
 
 		bds_to_clean--;
 		tx_swbd++;
