@@ -27,6 +27,10 @@
 	};
 
 	soc {
+		rng11: rng@8a8a000 {
+			status = "disabled";
+		};
+
 		usb2_picophy1: phy2@0 {
 			compatible = "st,stih407-usb2-phy";
 			reg = <0 0>;
