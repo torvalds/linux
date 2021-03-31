@@ -58,10 +58,24 @@ struct static_call_site {
 	__raw_static_call(name);					\
 })
 
+struct static_call_key {
+	void *func;
+	union {
+		/* bit 0: 0 = mods, 1 = sites */
+		unsigned long type;
+		struct static_call_mod *mods;
+		struct static_call_site *sites;
+	};
+};
+
 #else /* !CONFIG_HAVE_STATIC_CALL_INLINE */
 
 #define __STATIC_CALL_ADDRESSABLE(name)
 #define __static_call(name)	__raw_static_call(name)
+
+struct static_call_key {
+	void *func;
+};
 
 #endif /* CONFIG_HAVE_STATIC_CALL_INLINE */
 
@@ -76,6 +90,10 @@ struct static_call_site {
 #define static_call(name)	__static_call(name)
 
 #else
+
+struct static_call_key {
+	void *func;
+};
 
 #define static_call(name)						\
 	((typeof(STATIC_CALL_TRAMP(name))*)(STATIC_CALL_KEY(name).func))
