@@ -8,28 +8,32 @@ __modinst:
 
 include $(srctree)/scripts/Kbuild.include
 
-modules := $(sort $(shell cat $(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD)/)modules.order))
+modules := $(sort $(shell cat $(MODORDER)))
 
-PHONY += $(modules)
+ifeq ($(KBUILD_EXTMOD),)
+dst := $(MODLIB)/kernel
+else
+INSTALL_MOD_DIR ?= extra
+dst := $(MODLIB)/$(INSTALL_MOD_DIR)
+endif
+
+modules := $(patsubst $(extmod_prefix)%, $(dst)/%, $(modules))
+
 __modinst: $(modules)
 	@:
 
 # Don't stop modules_install if we can't sign external modules.
-quiet_cmd_modules_install = INSTALL $@
-      cmd_modules_install = \
-    mkdir -p $(2) ; \
-    cp $@ $(2) ; \
-    $(mod_strip_cmd) $(2)/$(notdir $@) ; \
-    $(mod_sign_cmd) $(2)/$(notdir $@) $(patsubst %,|| true,$(KBUILD_EXTMOD)) ; \
-    $(mod_compress_cmd) $(2)/$(notdir $@)
+quiet_cmd_install = INSTALL $@
+      cmd_install = \
+    mkdir -p $(dir $@); cp $< $@; \
+    $(mod_strip_cmd) $@; \
+    $(mod_sign_cmd) $@ $(patsubst %,|| true,$(KBUILD_EXTMOD)) ; \
+    $(mod_compress_cmd) $@
 
-# Modules built outside the kernel source tree go into extra by default
-INSTALL_MOD_DIR ?= extra
-ext-mod-dir = $(INSTALL_MOD_DIR)$(subst $(patsubst %/,%,$(KBUILD_EXTMOD)),,$(@D))
+$(modules): $(dst)/%: $(extmod_prefix)% FORCE
+	$(call cmd,install)
 
-modinst_dir = $(if $(KBUILD_EXTMOD),$(ext-mod-dir),kernel/$(@D))
-
-$(modules):
-	$(call cmd,modules_install,$(MODLIB)/$(modinst_dir))
+PHONY += FORCE
+FORCE:
 
 .PHONY: $(PHONY)
