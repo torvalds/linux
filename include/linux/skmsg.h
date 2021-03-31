@@ -89,6 +89,7 @@ struct sk_psock {
 #endif
 	struct sk_buff_head		ingress_skb;
 	struct list_head		ingress_msg;
+	spinlock_t			ingress_lock;
 	unsigned long			state;
 	struct list_head		link;
 	spinlock_t			link_lock;
@@ -284,12 +285,57 @@ static inline struct sk_psock *sk_psock(const struct sock *sk)
 static inline void sk_psock_queue_msg(struct sk_psock *psock,
 				      struct sk_msg *msg)
 {
+	spin_lock_bh(&psock->ingress_lock);
 	list_add_tail(&msg->list, &psock->ingress_msg);
+	spin_unlock_bh(&psock->ingress_lock);
+}
+
+static inline struct sk_msg *sk_psock_dequeue_msg(struct sk_psock *psock)
+{
+	struct sk_msg *msg;
+
+	spin_lock_bh(&psock->ingress_lock);
+	msg = list_first_entry_or_null(&psock->ingress_msg, struct sk_msg, list);
+	if (msg)
+		list_del(&msg->list);
+	spin_unlock_bh(&psock->ingress_lock);
+	return msg;
+}
+
+static inline struct sk_msg *sk_psock_peek_msg(struct sk_psock *psock)
+{
+	struct sk_msg *msg;
+
+	spin_lock_bh(&psock->ingress_lock);
+	msg = list_first_entry_or_null(&psock->ingress_msg, struct sk_msg, list);
+	spin_unlock_bh(&psock->ingress_lock);
+	return msg;
+}
+
+static inline struct sk_msg *sk_psock_next_msg(struct sk_psock *psock,
+					       struct sk_msg *msg)
+{
+	struct sk_msg *ret;
+
+	spin_lock_bh(&psock->ingress_lock);
+	if (list_is_last(&msg->list, &psock->ingress_msg))
+		ret = NULL;
+	else
+		ret = list_next_entry(msg, list);
+	spin_unlock_bh(&psock->ingress_lock);
+	return ret;
 }
 
 static inline bool sk_psock_queue_empty(const struct sk_psock *psock)
 {
 	return psock ? list_empty(&psock->ingress_msg) : true;
+}
+
+static inline void kfree_sk_msg(struct sk_msg *msg)
+{
+	if (msg->skb)
+		consume_skb(msg->skb);
+	kfree(msg);
 }
 
 static inline void sk_psock_report_error(struct sk_psock *psock, int err)
