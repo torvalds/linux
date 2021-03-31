@@ -118,9 +118,6 @@ struct dsi_pll_14nm {
 	int id;
 	struct platform_device *pdev;
 
-	void __iomem *phy_cmn_mmio;
-	void __iomem *mmio;
-
 	struct msm_dsi_phy *phy;
 
 	struct dsi_pll_input in;
@@ -167,7 +164,7 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 				    u32 nb_tries, u32 timeout_us)
 {
 	bool pll_locked = false;
-	void __iomem *base = pll_14nm->mmio;
+	void __iomem *base = pll_14nm->phy->pll_base;
 	u32 tries, val;
 
 	tries = nb_tries;
@@ -380,7 +377,7 @@ static void pll_14nm_calc_vco_count(struct dsi_pll_14nm *pll)
 
 static void pll_db_commit_ssc(struct dsi_pll_14nm *pll)
 {
-	void __iomem *base = pll->mmio;
+	void __iomem *base = pll->phy->pll_base;
 	struct dsi_pll_input *pin = &pll->in;
 	struct dsi_pll_output *pout = &pll->out;
 	u8 data;
@@ -418,7 +415,7 @@ static void pll_db_commit_common(struct dsi_pll_14nm *pll,
 				 struct dsi_pll_input *pin,
 				 struct dsi_pll_output *pout)
 {
-	void __iomem *base = pll->mmio;
+	void __iomem *base = pll->phy->pll_base;
 	u8 data;
 
 	/* confgiure the non frequency dependent pll registers */
@@ -478,7 +475,7 @@ static void pll_db_commit_common(struct dsi_pll_14nm *pll,
 
 static void pll_14nm_software_reset(struct dsi_pll_14nm *pll_14nm)
 {
-	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
+	void __iomem *cmn_base = pll_14nm->phy->base;
 
 	/* de assert pll start and apply pll sw reset */
 
@@ -497,8 +494,8 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 			       struct dsi_pll_input *pin,
 			       struct dsi_pll_output *pout)
 {
-	void __iomem *base = pll->mmio;
-	void __iomem *cmn_base = pll->phy_cmn_mmio;
+	void __iomem *base = pll->phy->pll_base;
+	void __iomem *cmn_base = pll->phy->base;
 	u8 data;
 
 	DBG("DSI%d PLL", pll->id);
@@ -614,7 +611,7 @@ static unsigned long dsi_pll_14nm_vco_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
-	void __iomem *base = pll_14nm->mmio;
+	void __iomem *base = pll_14nm->phy->pll_base;
 	u64 vco_rate, multiplier = BIT(20);
 	u32 div_frac_start;
 	u32 dec_start;
@@ -653,8 +650,8 @@ static unsigned long dsi_pll_14nm_vco_recalc_rate(struct clk_hw *hw,
 static int dsi_pll_14nm_vco_prepare(struct clk_hw *hw)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
-	void __iomem *base = pll_14nm->mmio;
-	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
+	void __iomem *base = pll_14nm->phy->pll_base;
+	void __iomem *cmn_base = pll_14nm->phy->base;
 	bool locked;
 
 	DBG("");
@@ -682,7 +679,7 @@ static int dsi_pll_14nm_vco_prepare(struct clk_hw *hw)
 static void dsi_pll_14nm_vco_unprepare(struct clk_hw *hw)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
-	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
+	void __iomem *cmn_base = pll_14nm->phy->base;
 
 	DBG("");
 
@@ -724,7 +721,7 @@ static unsigned long dsi_pll_14nm_postdiv_recalc_rate(struct clk_hw *hw,
 {
 	struct dsi_pll_14nm_postdiv *postdiv = to_pll_14nm_postdiv(hw);
 	struct dsi_pll_14nm *pll_14nm = postdiv->pll;
-	void __iomem *base = pll_14nm->phy_cmn_mmio;
+	void __iomem *base = pll_14nm->phy->base;
 	u8 shift = postdiv->shift;
 	u8 width = postdiv->width;
 	u32 val;
@@ -757,7 +754,7 @@ static int dsi_pll_14nm_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct dsi_pll_14nm_postdiv *postdiv = to_pll_14nm_postdiv(hw);
 	struct dsi_pll_14nm *pll_14nm = postdiv->pll;
-	void __iomem *base = pll_14nm->phy_cmn_mmio;
+	void __iomem *base = pll_14nm->phy->base;
 	spinlock_t *lock = &pll_14nm->postdiv_lock;
 	u8 shift = postdiv->shift;
 	u8 width = postdiv->width;
@@ -784,7 +781,7 @@ static int dsi_pll_14nm_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	 */
 	if (pll_14nm->phy->usecase == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
-		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
+		void __iomem *slave_base = pll_14nm_slave->phy->base;
 
 		dsi_phy_write(slave_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, val);
 	}
@@ -808,7 +805,7 @@ static void dsi_14nm_pll_save_state(struct msm_dsi_phy *phy)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->vco_hw);
 	struct pll_14nm_cached_state *cached_state = &pll_14nm->cached_state;
-	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
+	void __iomem *cmn_base = pll_14nm->phy->base;
 	u32 data;
 
 	data = dsi_phy_read(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0);
@@ -826,7 +823,7 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->vco_hw);
 	struct pll_14nm_cached_state *cached_state = &pll_14nm->cached_state;
-	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
+	void __iomem *cmn_base = pll_14nm->phy->base;
 	u32 data;
 	int ret;
 
@@ -848,7 +845,7 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 	/* also restore post-dividers for slave DSI PLL */
 	if (phy->usecase == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
-		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
+		void __iomem *slave_base = pll_14nm_slave->phy->base;
 
 		dsi_phy_write(slave_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
 	}
@@ -859,7 +856,7 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 static int dsi_14nm_set_usecase(struct msm_dsi_phy *phy)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->vco_hw);
-	void __iomem *base = pll_14nm->mmio;
+	void __iomem *base = phy->pll_base;
 	u32 clkbuflr_en, bandgap = 0;
 
 	switch (phy->usecase) {
@@ -1010,18 +1007,6 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 	pll_14nm->pdev = pdev;
 	pll_14nm->id = id;
 	pll_14nm_list[id] = pll_14nm;
-
-	pll_14nm->phy_cmn_mmio = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
-	if (IS_ERR_OR_NULL(pll_14nm->phy_cmn_mmio)) {
-		DRM_DEV_ERROR(&pdev->dev, "failed to map CMN PHY base\n");
-		return -ENOMEM;
-	}
-
-	pll_14nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
-	if (IS_ERR_OR_NULL(pll_14nm->mmio)) {
-		DRM_DEV_ERROR(&pdev->dev, "failed to map PLL base\n");
-		return -ENOMEM;
-	}
 
 	spin_lock_init(&pll_14nm->postdiv_lock);
 

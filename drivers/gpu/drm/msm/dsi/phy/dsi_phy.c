@@ -682,6 +682,13 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	phy->pll_base = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
+	if (IS_ERR(phy->pll_base)) {
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map pll base\n", __func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
+
 	if (phy->cfg->has_phy_lane) {
 		phy->lane_base = msm_ioremap(pdev, "dsi_phy_lane", "DSI_PHY_LANE");
 		if (IS_ERR(phy->lane_base)) {

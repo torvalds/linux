@@ -88,6 +88,7 @@ struct msm_dsi_dphy_timing {
 struct msm_dsi_phy {
 	struct platform_device *pdev;
 	void __iomem *base;
+	void __iomem *pll_base;
 	void __iomem *reg_base;
 	void __iomem *lane_base;
 	int id;

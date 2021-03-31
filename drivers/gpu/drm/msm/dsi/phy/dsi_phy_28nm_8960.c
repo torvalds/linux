@@ -64,8 +64,6 @@ struct dsi_pll_28nm {
 
 	struct msm_dsi_phy *phy;
 
-	void __iomem *mmio;
-
 	struct pll_28nm_cached_state cached_state;
 };
 
@@ -78,7 +76,7 @@ static bool pll_28nm_poll_for_ready(struct dsi_pll_28nm *pll_28nm,
 	u32 val;
 
 	while (nb_tries--) {
-		val = dsi_phy_read(pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_RDY);
+		val = dsi_phy_read(pll_28nm->phy->pll_base + REG_DSI_28nm_8960_PHY_PLL_RDY);
 		pll_locked = !!(val & DSI_28nm_8960_PHY_PLL_RDY_PLL_RDY);
 
 		if (pll_locked)
@@ -98,7 +96,7 @@ static int dsi_pll_28nm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(hw);
-	void __iomem *base = pll_28nm->mmio;
+	void __iomem *base = pll_28nm->phy->pll_base;
 	u32 val, temp, fb_divider;
 
 	DBG("rate=%lu, parent's=%lu", rate, parent_rate);
@@ -147,7 +145,7 @@ static unsigned long dsi_pll_28nm_clk_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(hw);
-	void __iomem *base = pll_28nm->mmio;
+	void __iomem *base = pll_28nm->phy->pll_base;
 	unsigned long vco_rate;
 	u32 status, fb_divider, temp, ref_divider;
 
@@ -181,7 +179,7 @@ static int dsi_pll_28nm_vco_prepare(struct clk_hw *hw)
 {
 	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(hw);
 	struct device *dev = &pll_28nm->pdev->dev;
-	void __iomem *base = pll_28nm->mmio;
+	void __iomem *base = pll_28nm->phy->pll_base;
 	bool locked;
 	unsigned int bit_div, byte_div;
 	int max_reads = 1000, timeout_us = 100;
@@ -234,7 +232,7 @@ static void dsi_pll_28nm_vco_unprepare(struct clk_hw *hw)
 	if (unlikely(!pll_28nm->phy->pll_on))
 		return;
 
-	dsi_phy_write(pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_CTRL_0, 0x00);
+	dsi_phy_write(pll_28nm->phy->pll_base + REG_DSI_28nm_8960_PHY_PLL_CTRL_0, 0x00);
 
 	pll_28nm->phy->pll_on = false;
 }
@@ -348,7 +346,7 @@ static void dsi_28nm_pll_save_state(struct msm_dsi_phy *phy)
 {
 	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(phy->vco_hw);
 	struct pll_28nm_cached_state *cached_state = &pll_28nm->cached_state;
-	void __iomem *base = pll_28nm->mmio;
+	void __iomem *base = pll_28nm->phy->pll_base;
 
 	cached_state->postdiv3 =
 			dsi_phy_read(base + REG_DSI_28nm_8960_PHY_PLL_CTRL_10);
@@ -364,7 +362,7 @@ static int dsi_28nm_pll_restore_state(struct msm_dsi_phy *phy)
 {
 	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(phy->vco_hw);
 	struct pll_28nm_cached_state *cached_state = &pll_28nm->cached_state;
-	void __iomem *base = pll_28nm->mmio;
+	void __iomem *base = pll_28nm->phy->pll_base;
 	int ret;
 
 	ret = dsi_pll_28nm_clk_set_rate(phy->vco_hw,
@@ -425,7 +423,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 
 	/* prepare and register bytediv */
 	bytediv->hw.init = &bytediv_init;
-	bytediv->reg = pll_28nm->mmio + REG_DSI_28nm_8960_PHY_PLL_CTRL_9;
+	bytediv->reg = pll_28nm->phy->pll_base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9;
 
 	snprintf(parent_name, 32, "dsi%dvco_clk", pll_28nm->id);
 	snprintf(clk_name, 32, "dsi%dpllbyte", pll_28nm->id);
@@ -445,7 +443,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 	snprintf(clk_name, 32, "dsi%dpll", pll_28nm->id);
 	/* DIV3 */
 	hw = devm_clk_hw_register_divider(dev, clk_name,
-				parent_name, 0, pll_28nm->mmio +
+				parent_name, 0, pll_28nm->phy->pll_base +
 				REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
 				0, 8, 0, NULL);
 	if (IS_ERR(hw))
@@ -471,13 +469,6 @@ static int dsi_pll_28nm_8960_init(struct msm_dsi_phy *phy)
 
 	pll_28nm->pdev = pdev;
 	pll_28nm->id = id + 1;
-
-	pll_28nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
-	if (IS_ERR_OR_NULL(pll_28nm->mmio)) {
-		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map pll base\n", __func__);
-		return -ENOMEM;
-	}
-
 	pll_28nm->phy = phy;
 
 	ret = pll_28nm_register(pll_28nm, phy->provided_clocks->hws);
