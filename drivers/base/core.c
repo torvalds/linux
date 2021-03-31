@@ -1647,8 +1647,9 @@ static int fw_devlink_relax_cycle(struct device *con, void *sup)
 
 /**
  * fw_devlink_create_devlink - Create a device link from a consumer to fwnode
- * @con - Consumer device for the device link
- * @sup_handle - fwnode handle of supplier
+ * @con: consumer device for the device link
+ * @sup_handle: fwnode handle of supplier
+ * @flags: devlink flags
  *
  * This function will try to create a device link between the consumer device
  * @con and the supplier device represented by @sup_handle.
@@ -1744,7 +1745,7 @@ out:
 
 /**
  * __fw_devlink_link_to_consumers - Create device links to consumers of a device
- * @dev - Device that needs to be linked to its consumers
+ * @dev: Device that needs to be linked to its consumers
  *
  * This function looks at all the consumer fwnodes of @dev and creates device
  * links between the consumer device and @dev (supplier).
@@ -1814,8 +1815,8 @@ static void __fw_devlink_link_to_consumers(struct device *dev)
 
 /**
  * __fw_devlink_link_to_suppliers - Create device links to suppliers of a device
- * @dev - The consumer device that needs to be linked to its suppliers
- * @fwnode - Root of the fwnode tree that is used to create device links
+ * @dev: The consumer device that needs to be linked to its suppliers
+ * @fwnode: Root of the fwnode tree that is used to create device links
  *
  * This function looks at all the supplier fwnodes of fwnode tree rooted at
  * @fwnode and creates device links between @dev (consumer) and all the
