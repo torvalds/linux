@@ -453,7 +453,7 @@ static int sprd_iommu_clk_enable(struct sprd_iommu_device *sdev)
 {
 	struct clk *eb;
 
-	eb = clk_get_optional(sdev->dev, 0);
+	eb = devm_clk_get_optional(sdev->dev, NULL);
 	if (!eb)
 		return 0;
 
