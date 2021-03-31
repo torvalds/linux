@@ -76,10 +76,11 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 	/* As this is the terminating action then the termination table is the
 	 * same prio as the slow path
 	 */
-	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION |
+	ft_attr.flags = MLX5_FLOW_TABLE_TERMINATION | MLX5_FLOW_TABLE_UNMANAGED |
 			MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	ft_attr.prio = FDB_SLOW_PATH;
+	ft_attr.prio = FDB_TC_OFFLOAD;
 	ft_attr.max_fte = 1;
+	ft_attr.level = 1;
 	ft_attr.autogroup.max_num_groups = 1;
 	tt->termtbl = mlx5_create_auto_grouped_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(tt->termtbl)) {
@@ -217,6 +218,7 @@ mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
 	int i;
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
+	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level) ||
 	    attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH ||
 	    !mlx5_eswitch_offload_is_uplink_port(esw, spec))
 		return false;
@@ -289,6 +291,7 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 	/* create the FTE */
 	flow_act->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 	flow_act->pkt_reformat = NULL;
+	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	rule = mlx5_add_flow_rules(fdb, spec, flow_act, dest, num_dest);
 	if (IS_ERR(rule))
 		goto revert_changes;
