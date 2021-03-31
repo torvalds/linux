@@ -1067,8 +1067,7 @@ In the whole process keep in mind: an issue only qualifies as regression if the
 older and the newer kernel got built with a similar configuration. The best way
 to archive this: copy the configuration file (``.config``) from the old working
 kernel freshly to each newer kernel version you try. Afterwards run ``make
-oldnoconfig`` to adjust it for the needs of the new version without enabling
-any new feature, as those are allowed to cause regressions.
+olddefconfig`` to adjust it for the needs of the new version.
 
 
 Write and send the report
