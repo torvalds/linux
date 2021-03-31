@@ -122,8 +122,6 @@ struct dsi_pll_14nm {
 	void __iomem *phy_cmn_mmio;
 	void __iomem *mmio;
 
-	int vco_delay;
-
 	struct dsi_pll_input in;
 	struct dsi_pll_output out;
 
@@ -1011,8 +1009,6 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 
 	pll = &pll_14nm->base;
 	pll->cfg = phy->cfg;
-
-	pll_14nm->vco_delay = 1;
 
 	ret = pll_14nm_register(pll_14nm, phy->provided_clocks->hws);
 	if (ret) {

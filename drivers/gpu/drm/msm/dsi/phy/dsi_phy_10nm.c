@@ -99,7 +99,6 @@ struct dsi_pll_10nm {
 	/* protects REG_DSI_10nm_PHY_CMN_CLK_CFG0 register */
 	spinlock_t postdiv_lock;
 
-	int vco_delay;
 	struct dsi_pll_config pll_configuration;
 	struct dsi_pll_regs reg_setup;
 
@@ -770,8 +769,6 @@ static int dsi_pll_10nm_init(struct msm_dsi_phy *phy)
 
 	pll = &pll_10nm->base;
 	pll->cfg = phy->cfg;
-
-	pll_10nm->vco_delay = 1;
 
 	ret = pll_10nm_register(pll_10nm, phy->provided_clocks->hws);
 	if (ret) {
