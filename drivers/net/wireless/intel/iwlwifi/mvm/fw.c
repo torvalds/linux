@@ -1112,33 +1112,6 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }
 
-static u8 iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
-{
-	u8 value;
-
-	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
-				      DSM_FUNC_ENABLE_INDONESIA_5G2,
-				      &iwl_guid, &value);
-
-	if (ret < 0)
-		IWL_DEBUG_RADIO(mvm,
-				"Failed to evaluate DSM function ENABLE_INDONESIA_5G2, ret=%d\n",
-				ret);
-
-	else if (value >= DSM_VALUE_INDONESIA_MAX)
-		IWL_DEBUG_RADIO(mvm,
-				"DSM function ENABLE_INDONESIA_5G2 return invalid value, value=%d\n",
-				value);
-
-	else if (value == DSM_VALUE_INDONESIA_ENABLE) {
-		IWL_DEBUG_RADIO(mvm,
-				"Evaluated DSM function ENABLE_INDONESIA_5G2: Enabling 5g2\n");
-		return DSM_VALUE_INDONESIA_ENABLE;
-	}
-	/* default behaviour is disabled */
-	return DSM_VALUE_INDONESIA_DISABLE;
-}
-
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
 	u8 value;
@@ -1163,59 +1136,12 @@ static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 	return DSM_VALUE_RFI_DISABLE;
 }
 
-static u8 iwl_mvm_eval_dsm_disable_srd(struct iwl_mvm *mvm)
-{
-	u8 value;
-	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
-				      DSM_FUNC_DISABLE_SRD,
-				      &iwl_guid, &value);
-
-	if (ret < 0)
-		IWL_DEBUG_RADIO(mvm,
-				"Failed to evaluate DSM function DISABLE_SRD, ret=%d\n",
-				ret);
-
-	else if (value >= DSM_VALUE_SRD_MAX)
-		IWL_DEBUG_RADIO(mvm,
-				"DSM function DISABLE_SRD return invalid value, value=%d\n",
-				value);
-
-	else if (value == DSM_VALUE_SRD_PASSIVE) {
-		IWL_DEBUG_RADIO(mvm,
-				"Evaluated DSM function DISABLE_SRD: setting SRD to passive\n");
-		return DSM_VALUE_SRD_PASSIVE;
-
-	} else if (value == DSM_VALUE_SRD_DISABLE) {
-		IWL_DEBUG_RADIO(mvm,
-				"Evaluated DSM function DISABLE_SRD: disabling SRD\n");
-		return DSM_VALUE_SRD_DISABLE;
-	}
-	/* default behaviour is active */
-	return DSM_VALUE_SRD_ACTIVE;
-}
-
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
-	u8 ret;
 	int cmd_ret;
 	struct iwl_lari_config_change_cmd_v2 cmd = {};
 
-	if (iwl_mvm_eval_dsm_indonesia_5g2(mvm) == DSM_VALUE_INDONESIA_ENABLE)
-		cmd.config_bitmap |=
-			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
-
-	ret = iwl_mvm_eval_dsm_disable_srd(mvm);
-	if (ret == DSM_VALUE_SRD_PASSIVE)
-		cmd.config_bitmap |=
-			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
-
-	else if (ret == DSM_VALUE_SRD_DISABLE)
-		cmd.config_bitmap |=
-			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
-
-	ret = iwl_acpi_eval_dsm_11ax_enablement((&mvm->fwrt)->dev);
-	cmd.config_bitmap |=
-		cpu_to_le32((ret &= IWL_11AX_UKRAINE_MASK) << IWL_11AX_UKRAINE_SHIFT);
+	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
 	/* apply more config masks here */
 

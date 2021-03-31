@@ -696,20 +696,27 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_init);
 
-u32 iwl_acpi_eval_dsm_11ax_enablement(struct device *dev)
+static u32 iwl_acpi_eval_dsm_func(struct device *dev, enum iwl_dsm_funcs_rev_0 eval_func)
 {
 	union acpi_object *obj;
 	u32 ret;
 
 	obj = iwl_acpi_get_dsm_object(dev, 0,
-				      DSM_FUNC_11AX_ENABLEMENT, NULL,
+				      eval_func, NULL,
 				      &iwl_guid);
-	if (IS_ERR(obj))
+
+	if (IS_ERR(obj)) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM func '%d': Got Error in obj = %ld\n",
+				    eval_func,
+				    PTR_ERR(obj));
 		return 0;
+	}
 
 	if (obj->type != ACPI_TYPE_INTEGER) {
 		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM method did not return a valid object, type=%d\n",
+				    "ACPI: DSM func '%d' did not return a valid object, type=%d\n",
+				    eval_func,
 				    obj->type);
 		ret = 0;
 		goto out;
@@ -717,10 +724,49 @@ u32 iwl_acpi_eval_dsm_11ax_enablement(struct device *dev)
 
 	ret = obj->integer.value;
 	IWL_DEBUG_DEV_RADIO(dev,
-			    "ACPI: DSM method evaluated: func=DSM_FUNC_11AX_ENABLEMENT, ret=%d\n",
+			    "ACPI: DSM method evaluated: func='%d', ret=%d\n",
+			    eval_func,
 			    ret);
 out:
 	ACPI_FREE(obj);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_eval_dsm_11ax_enablement);
+
+__le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
+{
+	u32 ret;
+	__le32 config_bitmap = 0;
+
+	/*
+	 ** Evaluate func 'DSM_FUNC_ENABLE_INDONESIA_5G2'
+	 */
+	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_ENABLE_INDONESIA_5G2);
+
+	if (ret == DSM_VALUE_INDONESIA_ENABLE)
+		config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+
+	/*
+	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
+	 */
+	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_DISABLE_SRD);
+
+	if (ret == DSM_VALUE_SRD_PASSIVE)
+		config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
+
+	else if (ret == DSM_VALUE_SRD_DISABLE)
+		config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+
+	/*
+	 ** Evaluate func 'DSM_FUNC_11AX_ENABLEMENT'
+	 */
+	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_11AX_ENABLEMENT);
+
+	config_bitmap |=
+		cpu_to_le32((ret &= IWL_11AX_UKRAINE_MASK) << IWL_11AX_UKRAINE_SHIFT);
+
+	return config_bitmap;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_lari_config_bitmap);

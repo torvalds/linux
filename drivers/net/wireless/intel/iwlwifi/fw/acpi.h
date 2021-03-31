@@ -161,7 +161,7 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt, __le32 *block_list_array,
 		     int *block_list_size);
 
-u32 iwl_acpi_eval_dsm_11ax_enablement(struct device *dev);
+__le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
 #else /* CONFIG_ACPI */
 
@@ -239,7 +239,7 @@ static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 	return -ENOENT;
 }
 
-static inline u32 iwl_acpi_eval_dsm_11ax_enablement(struct device *dev)
+static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	return 0;
 }
