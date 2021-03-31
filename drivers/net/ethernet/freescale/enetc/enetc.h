@@ -19,12 +19,21 @@
 				(ETH_FCS_LEN + ETH_HLEN + VLAN_HLEN))
 
 struct enetc_tx_swbd {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdp_frame;
+	};
 	dma_addr_t dma;
+	struct page *page;	/* valid only if is_xdp_tx */
+	u16 page_offset;	/* valid only if is_xdp_tx */
 	u16 len;
+	enum dma_data_direction dir;
 	u8 is_dma_page:1;
 	u8 check_wb:1;
 	u8 do_tstamp:1;
+	u8 is_eof:1;
+	u8 is_xdp_tx:1;
+	u8 is_xdp_redirect:1;
 };
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
@@ -32,20 +41,44 @@ struct enetc_tx_swbd {
 #define ENETC_RXB_PAD		NET_SKB_PAD /* add extra space if needed */
 #define ENETC_RXB_DMA_SIZE	\
 	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - ENETC_RXB_PAD)
+#define ENETC_RXB_DMA_SIZE_XDP	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - XDP_PACKET_HEADROOM)
 
 struct enetc_rx_swbd {
 	dma_addr_t dma;
 	struct page *page;
 	u16 page_offset;
+	enum dma_data_direction dir;
+	u16 len;
 };
+
+/* ENETC overhead: optional extension BD + 1 BD gap */
+#define ENETC_TXBDS_NEEDED(val)	((val) + 2)
+/* max # of chained Tx BDs is 15, including head and extension BD */
+#define ENETC_MAX_SKB_FRAGS	13
+#define ENETC_TXBDS_MAX_NEEDED	ENETC_TXBDS_NEEDED(ENETC_MAX_SKB_FRAGS + 1)
 
 struct enetc_ring_stats {
 	unsigned int packets;
 	unsigned int bytes;
 	unsigned int rx_alloc_errs;
+	unsigned int xdp_drops;
+	unsigned int xdp_tx;
+	unsigned int xdp_tx_drops;
+	unsigned int xdp_redirect;
+	unsigned int xdp_redirect_failures;
+	unsigned int xdp_redirect_sg;
+	unsigned int recycles;
+	unsigned int recycle_failures;
 };
 
-#define ENETC_RX_RING_DEFAULT_SIZE	512
+struct enetc_xdp_data {
+	struct xdp_rxq_info rxq;
+	struct bpf_prog *prog;
+	int xdp_tx_in_flight;
+};
+
+#define ENETC_RX_RING_DEFAULT_SIZE	2048
 #define ENETC_TX_RING_DEFAULT_SIZE	256
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
@@ -71,6 +104,9 @@ struct enetc_bdr {
 	};
 	void __iomem *idr; /* Interrupt Detect Register pointer */
 
+	int buffer_offset;
+	struct enetc_xdp_data xdp;
+
 	struct enetc_ring_stats stats;
 
 	dma_addr_t bd_dma_base;
@@ -90,6 +126,14 @@ static inline int enetc_bd_unused(struct enetc_bdr *bdr)
 		return bdr->next_to_clean - bdr->next_to_use - 1;
 
 	return bdr->bd_count + bdr->next_to_clean - bdr->next_to_use - 1;
+}
+
+static inline int enetc_swbd_unused(struct enetc_bdr *bdr)
+{
+	if (bdr->next_to_clean > bdr->next_to_alloc)
+		return bdr->next_to_clean - bdr->next_to_alloc - 1;
+
+	return bdr->bd_count + bdr->next_to_clean - bdr->next_to_alloc - 1;
 }
 
 /* Control BD ring */
@@ -275,6 +319,8 @@ struct enetc_ndev_priv {
 	struct phylink *phylink;
 	int ic_mode;
 	u32 tx_ictt;
+
+	struct bpf_prog *xdp_prog;
 };
 
 /* Messaging */
@@ -314,6 +360,9 @@ int enetc_set_features(struct net_device *ndev,
 int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
 int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		   void *type_data);
+int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp);
+int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
+		   struct xdp_frame **frames, u32 flags);
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
