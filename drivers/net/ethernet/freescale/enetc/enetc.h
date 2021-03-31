@@ -33,6 +33,8 @@ struct enetc_tx_swbd {
 #define ENETC_RXB_PAD		NET_SKB_PAD /* add extra space if needed */
 #define ENETC_RXB_DMA_SIZE	\
 	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - ENETC_RXB_PAD)
+#define ENETC_RXB_DMA_SIZE_XDP	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - XDP_PACKET_HEADROOM)
 
 struct enetc_rx_swbd {
 	dma_addr_t dma;
@@ -44,6 +46,12 @@ struct enetc_ring_stats {
 	unsigned int packets;
 	unsigned int bytes;
 	unsigned int rx_alloc_errs;
+	unsigned int xdp_drops;
+};
+
+struct enetc_xdp_data {
+	struct xdp_rxq_info rxq;
+	struct bpf_prog *prog;
 };
 
 #define ENETC_RX_RING_DEFAULT_SIZE	512
@@ -71,6 +79,9 @@ struct enetc_bdr {
 		int next_to_alloc; /* Rx */
 	};
 	void __iomem *idr; /* Interrupt Detect Register pointer */
+
+	int buffer_offset;
+	struct enetc_xdp_data xdp;
 
 	struct enetc_ring_stats stats;
 
@@ -276,6 +287,8 @@ struct enetc_ndev_priv {
 	struct phylink *phylink;
 	int ic_mode;
 	u32 tx_ictt;
+
+	struct bpf_prog *xdp_prog;
 };
 
 /* Messaging */
@@ -315,6 +328,7 @@ int enetc_set_features(struct net_device *ndev,
 int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
 int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		   void *type_data);
+int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp);
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);

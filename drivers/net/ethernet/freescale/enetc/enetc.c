@@ -2,6 +2,7 @@
 /* Copyright 2017-2019 NXP */
 
 #include "enetc.h"
+#include <linux/bpf_trace.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/vmalloc.h>
@@ -420,7 +421,7 @@ static bool enetc_new_page(struct enetc_bdr *rx_ring,
 
 	rx_swbd->dma = addr;
 	rx_swbd->page = page;
-	rx_swbd->page_offset = ENETC_RXB_PAD;
+	rx_swbd->page_offset = rx_ring->buffer_offset;
 
 	return true;
 }
@@ -550,6 +551,8 @@ static void enetc_put_rx_buff(struct enetc_bdr *rx_ring,
 			      struct enetc_rx_swbd *rx_swbd)
 {
 	if (likely(enetc_page_reusable(rx_swbd->page))) {
+		size_t buffer_size = ENETC_RXB_TRUESIZE - rx_ring->buffer_offset;
+
 		rx_swbd->page_offset ^= ENETC_RXB_TRUESIZE;
 		page_ref_inc(rx_swbd->page);
 
@@ -558,8 +561,7 @@ static void enetc_put_rx_buff(struct enetc_bdr *rx_ring,
 		/* sync for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
 						 rx_swbd->page_offset,
-						 ENETC_RXB_DMA_SIZE,
-						 DMA_FROM_DEVICE);
+						 buffer_size, DMA_FROM_DEVICE);
 	} else {
 		dma_unmap_page(rx_ring->dev, rx_swbd->dma,
 			       PAGE_SIZE, DMA_FROM_DEVICE);
@@ -576,13 +578,13 @@ static struct sk_buff *enetc_map_rx_buff_to_skb(struct enetc_bdr *rx_ring,
 	void *ba;
 
 	ba = page_address(rx_swbd->page) + rx_swbd->page_offset;
-	skb = build_skb(ba - ENETC_RXB_PAD, ENETC_RXB_TRUESIZE);
+	skb = build_skb(ba - rx_ring->buffer_offset, ENETC_RXB_TRUESIZE);
 	if (unlikely(!skb)) {
 		rx_ring->stats.rx_alloc_errs++;
 		return NULL;
 	}
 
-	skb_reserve(skb, ENETC_RXB_PAD);
+	skb_reserve(skb, rx_ring->buffer_offset);
 	__skb_put(skb, size);
 
 	enetc_put_rx_buff(rx_ring, rx_swbd);
@@ -625,7 +627,7 @@ static bool enetc_check_bd_errors_and_consume(struct enetc_bdr *rx_ring,
 
 static struct sk_buff *enetc_build_skb(struct enetc_bdr *rx_ring,
 				       u32 bd_status, union enetc_rx_bd **rxbd,
-				       int *i, int *cleaned_cnt)
+				       int *i, int *cleaned_cnt, int buffer_size)
 {
 	struct sk_buff *skb;
 	u16 size;
@@ -644,7 +646,7 @@ static struct sk_buff *enetc_build_skb(struct enetc_bdr *rx_ring,
 	/* not last BD in frame? */
 	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
 		bd_status = le32_to_cpu((*rxbd)->r.lstatus);
-		size = ENETC_RXB_DMA_SIZE;
+		size = buffer_size;
 
 		if (bd_status & ENETC_RXBD_LSTATUS_F) {
 			dma_rmb();
@@ -698,7 +700,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			break;
 
 		skb = enetc_build_skb(rx_ring, bd_status, &rxbd, &i,
-				      &cleaned_cnt);
+				      &cleaned_cnt, ENETC_RXB_DMA_SIZE);
 		if (!skb)
 			break;
 
@@ -716,10 +718,174 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 	return rx_frm_cnt;
 }
 
+static void enetc_map_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
+				     struct xdp_buff *xdp_buff, u16 size)
+{
+	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
+	void *hard_start = page_address(rx_swbd->page) + rx_swbd->page_offset;
+	struct skb_shared_info *shinfo;
+
+	xdp_prepare_buff(xdp_buff, hard_start - rx_ring->buffer_offset,
+			 rx_ring->buffer_offset, size, false);
+
+	shinfo = xdp_get_shared_info_from_buff(xdp_buff);
+	shinfo->nr_frags = 0;
+}
+
+static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
+				     u16 size, struct xdp_buff *xdp_buff)
+{
+	struct skb_shared_info *shinfo = xdp_get_shared_info_from_buff(xdp_buff);
+	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
+	skb_frag_t *frag = &shinfo->frags[shinfo->nr_frags];
+
+	skb_frag_off_set(frag, rx_swbd->page_offset);
+	skb_frag_size_set(frag, size);
+	__skb_frag_set_page(frag, rx_swbd->page);
+
+	shinfo->nr_frags++;
+}
+
+static void enetc_build_xdp_buff(struct enetc_bdr *rx_ring, u32 bd_status,
+				 union enetc_rx_bd **rxbd, int *i,
+				 int *cleaned_cnt, struct xdp_buff *xdp_buff)
+{
+	u16 size = le16_to_cpu((*rxbd)->r.buf_len);
+
+	xdp_init_buff(xdp_buff, ENETC_RXB_TRUESIZE, &rx_ring->xdp.rxq);
+
+	enetc_map_rx_buff_to_xdp(rx_ring, *i, xdp_buff, size);
+	(*cleaned_cnt)++;
+	enetc_rxbd_next(rx_ring, rxbd, i);
+
+	/* not last BD in frame? */
+	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
+		bd_status = le32_to_cpu((*rxbd)->r.lstatus);
+		size = ENETC_RXB_DMA_SIZE_XDP;
+
+		if (bd_status & ENETC_RXBD_LSTATUS_F) {
+			dma_rmb();
+			size = le16_to_cpu((*rxbd)->r.buf_len);
+		}
+
+		enetc_add_rx_buff_to_xdp(rx_ring, *i, size, xdp_buff);
+		(*cleaned_cnt)++;
+		enetc_rxbd_next(rx_ring, rxbd, i);
+	}
+}
+
+/* Reuse the current page without performing half-page buffer flipping */
+static void enetc_put_xdp_buff(struct enetc_bdr *rx_ring,
+			       struct enetc_rx_swbd *rx_swbd)
+{
+	enetc_reuse_page(rx_ring, rx_swbd);
+
+	/* sync for use by the device */
+	dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
+					 rx_swbd->page_offset,
+					 ENETC_RXB_DMA_SIZE_XDP,
+					 DMA_FROM_DEVICE);
+
+	rx_swbd->page = NULL;
+}
+
+static void enetc_xdp_drop(struct enetc_bdr *rx_ring, int rx_ring_first,
+			   int rx_ring_last)
+{
+	while (rx_ring_first != rx_ring_last) {
+		enetc_put_xdp_buff(rx_ring,
+				   &rx_ring->rx_swbd[rx_ring_first]);
+		enetc_bdr_idx_inc(rx_ring, &rx_ring_first);
+	}
+	rx_ring->stats.xdp_drops++;
+}
+
+static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
+				   struct napi_struct *napi, int work_limit,
+				   struct bpf_prog *prog)
+{
+	int rx_frm_cnt = 0, rx_byte_cnt = 0;
+	int cleaned_cnt, i;
+	u32 xdp_act;
+
+	cleaned_cnt = enetc_bd_unused(rx_ring);
+	/* next descriptor to process */
+	i = rx_ring->next_to_clean;
+
+	while (likely(rx_frm_cnt < work_limit)) {
+		union enetc_rx_bd *rxbd, *orig_rxbd;
+		int orig_i, orig_cleaned_cnt;
+		struct xdp_buff xdp_buff;
+		struct sk_buff *skb;
+		u32 bd_status;
+
+		if (cleaned_cnt >= ENETC_RXBD_BUNDLE)
+			cleaned_cnt -= enetc_refill_rx_ring(rx_ring,
+							    cleaned_cnt);
+
+		rxbd = enetc_rxbd(rx_ring, i);
+		bd_status = le32_to_cpu(rxbd->r.lstatus);
+		if (!bd_status)
+			break;
+
+		enetc_wr_reg_hot(rx_ring->idr, BIT(rx_ring->index));
+		dma_rmb(); /* for reading other rxbd fields */
+
+		if (enetc_check_bd_errors_and_consume(rx_ring, bd_status,
+						      &rxbd, &i))
+			break;
+
+		orig_rxbd = rxbd;
+		orig_cleaned_cnt = cleaned_cnt;
+		orig_i = i;
+
+		enetc_build_xdp_buff(rx_ring, bd_status, &rxbd, &i,
+				     &cleaned_cnt, &xdp_buff);
+
+		xdp_act = bpf_prog_run_xdp(prog, &xdp_buff);
+
+		switch (xdp_act) {
+		case XDP_ABORTED:
+			trace_xdp_exception(rx_ring->ndev, prog, xdp_act);
+			fallthrough;
+		case XDP_DROP:
+			enetc_xdp_drop(rx_ring, orig_i, i);
+			break;
+		case XDP_PASS:
+			rxbd = orig_rxbd;
+			cleaned_cnt = orig_cleaned_cnt;
+			i = orig_i;
+
+			skb = enetc_build_skb(rx_ring, bd_status, &rxbd,
+					      &i, &cleaned_cnt,
+					      ENETC_RXB_DMA_SIZE_XDP);
+			if (unlikely(!skb))
+				/* Exit the switch/case, not the loop */
+				break;
+
+			napi_gro_receive(napi, skb);
+			break;
+		default:
+			bpf_warn_invalid_xdp_action(xdp_act);
+		}
+
+		rx_frm_cnt++;
+	}
+
+	rx_ring->next_to_clean = i;
+
+	rx_ring->stats.packets += rx_frm_cnt;
+	rx_ring->stats.bytes += rx_byte_cnt;
+
+	return rx_frm_cnt;
+}
+
 static int enetc_poll(struct napi_struct *napi, int budget)
 {
 	struct enetc_int_vector
 		*v = container_of(napi, struct enetc_int_vector, napi);
+	struct enetc_bdr *rx_ring = &v->rx_ring;
+	struct bpf_prog *prog;
 	bool complete = true;
 	int work_done;
 	int i;
@@ -730,7 +896,11 @@ static int enetc_poll(struct napi_struct *napi, int budget)
 		if (!enetc_clean_tx_ring(&v->tx_ring[i], budget))
 			complete = false;
 
-	work_done = enetc_clean_rx_ring(&v->rx_ring, napi, budget);
+	prog = rx_ring->xdp.prog;
+	if (prog)
+		work_done = enetc_clean_rx_ring_xdp(rx_ring, napi, budget, prog);
+	else
+		work_done = enetc_clean_rx_ring(rx_ring, napi, budget);
 	if (work_done == budget)
 		complete = false;
 	if (work_done)
@@ -1120,7 +1290,10 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring)
 	enetc_rxbdr_wr(hw, idx, ENETC_RBLENR,
 		       ENETC_RTBLENR_LEN(rx_ring->bd_count));
 
-	enetc_rxbdr_wr(hw, idx, ENETC_RBBSR, ENETC_RXB_DMA_SIZE);
+	if (rx_ring->xdp.prog)
+		enetc_rxbdr_wr(hw, idx, ENETC_RBBSR, ENETC_RXB_DMA_SIZE_XDP);
+	else
+		enetc_rxbdr_wr(hw, idx, ENETC_RBBSR, ENETC_RXB_DMA_SIZE);
 
 	enetc_rxbdr_wr(hw, idx, ENETC_RBPIR, 0);
 
@@ -1511,6 +1684,54 @@ int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	}
 }
 
+static int enetc_setup_xdp_prog(struct net_device *dev, struct bpf_prog *prog,
+				struct netlink_ext_ack *extack)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+	struct bpf_prog *old_prog;
+	bool is_up;
+	int i;
+
+	/* The buffer layout is changing, so we need to drain the old
+	 * RX buffers and seed new ones.
+	 */
+	is_up = netif_running(dev);
+	if (is_up)
+		dev_close(dev);
+
+	old_prog = xchg(&priv->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	for (i = 0; i < priv->num_rx_rings; i++) {
+		struct enetc_bdr *rx_ring = priv->rx_ring[i];
+
+		rx_ring->xdp.prog = prog;
+
+		if (prog)
+			rx_ring->buffer_offset = XDP_PACKET_HEADROOM;
+		else
+			rx_ring->buffer_offset = ENETC_RXB_PAD;
+	}
+
+	if (is_up)
+		return dev_open(dev, extack);
+
+	return 0;
+}
+
+int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return enetc_setup_xdp_prog(dev, xdp->prog, xdp->extack);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 struct net_device_stats *enetc_get_stats(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
@@ -1727,6 +1948,28 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 
 		priv->int_vector[i] = v;
 
+		bdr = &v->rx_ring;
+		bdr->index = i;
+		bdr->ndev = priv->ndev;
+		bdr->dev = priv->dev;
+		bdr->bd_count = priv->rx_bd_count;
+		bdr->buffer_offset = ENETC_RXB_PAD;
+		priv->rx_ring[i] = bdr;
+
+		err = xdp_rxq_info_reg(&bdr->xdp.rxq, priv->ndev, i, 0);
+		if (err) {
+			kfree(v);
+			goto fail;
+		}
+
+		err = xdp_rxq_info_reg_mem_model(&bdr->xdp.rxq,
+						 MEM_TYPE_PAGE_SHARED, NULL);
+		if (err) {
+			xdp_rxq_info_unreg(&bdr->xdp.rxq);
+			kfree(v);
+			goto fail;
+		}
+
 		/* init defaults for adaptive IC */
 		if (priv->ic_mode & ENETC_IC_RX_ADAPTIVE) {
 			v->rx_ictt = 0x1;
@@ -1754,22 +1997,20 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 			bdr->bd_count = priv->tx_bd_count;
 			priv->tx_ring[idx] = bdr;
 		}
-
-		bdr = &v->rx_ring;
-		bdr->index = i;
-		bdr->ndev = priv->ndev;
-		bdr->dev = priv->dev;
-		bdr->bd_count = priv->rx_bd_count;
-		priv->rx_ring[i] = bdr;
 	}
 
 	return 0;
 
 fail:
 	while (i--) {
-		netif_napi_del(&priv->int_vector[i]->napi);
-		cancel_work_sync(&priv->int_vector[i]->rx_dim.work);
-		kfree(priv->int_vector[i]);
+		struct enetc_int_vector *v = priv->int_vector[i];
+		struct enetc_bdr *rx_ring = &v->rx_ring;
+
+		xdp_rxq_info_unreg_mem_model(&rx_ring->xdp.rxq);
+		xdp_rxq_info_unreg(&rx_ring->xdp.rxq);
+		netif_napi_del(&v->napi);
+		cancel_work_sync(&v->rx_dim.work);
+		kfree(v);
 	}
 
 	pci_free_irq_vectors(pdev);
@@ -1783,7 +2024,10 @@ void enetc_free_msix(struct enetc_ndev_priv *priv)
 
 	for (i = 0; i < priv->bdr_int_num; i++) {
 		struct enetc_int_vector *v = priv->int_vector[i];
+		struct enetc_bdr *rx_ring = &v->rx_ring;
 
+		xdp_rxq_info_unreg_mem_model(&rx_ring->xdp.rxq);
+		xdp_rxq_info_unreg(&rx_ring->xdp.rxq);
 		netif_napi_del(&v->napi);
 		cancel_work_sync(&v->rx_dim.work);
 	}

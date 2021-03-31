@@ -192,6 +192,7 @@ static const struct {
 static const char rx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Rx ring %2d frames",
 	"Rx ring %2d alloc errors",
+	"Rx ring %2d XDP drops",
 };
 
 static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
@@ -273,6 +274,7 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 	for (i = 0; i < priv->num_rx_rings; i++) {
 		data[o++] = priv->rx_ring[i]->stats.packets;
 		data[o++] = priv->rx_ring[i]->stats.rx_alloc_errs;
+		data[o++] = priv->rx_ring[i]->stats.xdp_drops;
 	}
 
 	if (!enetc_si_is_pf(priv->si))
