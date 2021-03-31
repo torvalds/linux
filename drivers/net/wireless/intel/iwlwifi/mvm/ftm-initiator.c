@@ -490,6 +490,15 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->bss_conf.assoc &&
 	    !memcmp(peer->addr, vif->bss_conf.bssid, ETH_ALEN)) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		struct ieee80211_sta *sta;
+
+		rcu_read_lock();
+
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
+		if (sta->mfp)
+			FTM_PUT_FLAG(PMF);
+
+		rcu_read_unlock();
 
 		target->sta_id = mvmvif->ap_sta_id;
 	} else {
