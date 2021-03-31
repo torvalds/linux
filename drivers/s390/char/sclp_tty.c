@@ -37,9 +37,9 @@
 /* Lock to guard over changes to global variables. */
 static DEFINE_SPINLOCK(sclp_tty_lock);
 /* List of free pages that can be used for console output buffering. */
-static struct list_head sclp_tty_pages;
+static LIST_HEAD(sclp_tty_pages);
 /* List of full struct sclp_buffer structures ready for output. */
-static struct list_head sclp_tty_outqueue;
+static LIST_HEAD(sclp_tty_outqueue);
 /* Counter how many buffers are emitted. */
 static int sclp_tty_buffer_count;
 /* Pointer to current console buffer. */
@@ -516,7 +516,6 @@ sclp_tty_init(void)
 		return rc;
 	}
 	/* Allocate pages for output buffering */
-	INIT_LIST_HEAD(&sclp_tty_pages);
 	for (i = 0; i < MAX_KMEM_PAGES; i++) {
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (page == NULL) {
@@ -525,7 +524,6 @@ sclp_tty_init(void)
 		}
 		list_add_tail((struct list_head *) page, &sclp_tty_pages);
 	}
-	INIT_LIST_HEAD(&sclp_tty_outqueue);
 	timer_setup(&sclp_tty_timer, sclp_tty_timeout, 0);
 	sclp_ttybuf = NULL;
 	sclp_tty_buffer_count = 0;

@@ -28,9 +28,9 @@
 /* Lock to guard over changes to global variables */
 static DEFINE_SPINLOCK(sclp_con_lock);
 /* List of free pages that can be used for console output buffering */
-static struct list_head sclp_con_pages;
+static LIST_HEAD(sclp_con_pages);
 /* List of full struct sclp_buffer structures ready for output */
-static struct list_head sclp_con_outqueue;
+static LIST_HEAD(sclp_con_outqueue);
 /* Pointer to current console buffer */
 static struct sclp_buffer *sclp_conbuf;
 /* Timer for delayed output of console messages */
@@ -323,12 +323,10 @@ sclp_console_init(void)
 	if (rc)
 		return rc;
 	/* Allocate pages for output buffering */
-	INIT_LIST_HEAD(&sclp_con_pages);
 	for (i = 0; i < sclp_console_pages; i++) {
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		list_add_tail(page, &sclp_con_pages);
 	}
-	INIT_LIST_HEAD(&sclp_con_outqueue);
 	sclp_conbuf = NULL;
 	timer_setup(&sclp_con_timer, sclp_console_timeout, 0);
 
