@@ -44,6 +44,8 @@ description: |
       For PM6150, smps1 - smps5, ldo1 - ldo19
       For PM6150L, smps1 - smps8, ldo1 - ldo11, bob
       For PMX55, smps1 - smps7, ldo1 - ldo16
+      For PM7325, smps1 - smps8, ldo1 - ldo19
+      For PMR735A, smps1 - smps3, ldo1 - ldo7
 
 properties:
   compatible:
@@ -60,6 +62,8 @@ properties:
       - qcom,pm6150-rpmh-regulators
       - qcom,pm6150l-rpmh-regulators
       - qcom,pmx55-rpmh-regulators
+      - qcom,pm7325-rpmh-regulators
+      - qcom,pmr735a-rpmh-regulators
 
   qcom,pmic-id:
     description: |
