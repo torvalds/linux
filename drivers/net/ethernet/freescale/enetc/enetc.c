@@ -513,13 +513,6 @@ static void enetc_get_offloads(struct enetc_bdr *rx_ring,
 #endif
 }
 
-static void enetc_process_skb(struct enetc_bdr *rx_ring,
-			      struct sk_buff *skb)
-{
-	skb_record_rx_queue(skb, rx_ring->index);
-	skb->protocol = eth_type_trans(skb, rx_ring->ndev);
-}
-
 static bool enetc_page_reusable(struct page *page)
 {
 	return (!page_is_pfmemalloc(page) && page_ref_count(page) == 1);
@@ -627,6 +620,47 @@ static bool enetc_check_bd_errors_and_consume(struct enetc_bdr *rx_ring,
 	return true;
 }
 
+static struct sk_buff *enetc_build_skb(struct enetc_bdr *rx_ring,
+				       u32 bd_status, union enetc_rx_bd **rxbd,
+				       int *i, int *cleaned_cnt)
+{
+	struct sk_buff *skb;
+	u16 size;
+
+	size = le16_to_cpu((*rxbd)->r.buf_len);
+	skb = enetc_map_rx_buff_to_skb(rx_ring, *i, size);
+	if (!skb)
+		return NULL;
+
+	enetc_get_offloads(rx_ring, *rxbd, skb);
+
+	(*cleaned_cnt)++;
+
+	enetc_rxbd_next(rx_ring, rxbd, i);
+
+	/* not last BD in frame? */
+	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
+		bd_status = le32_to_cpu((*rxbd)->r.lstatus);
+		size = ENETC_RXB_DMA_SIZE;
+
+		if (bd_status & ENETC_RXBD_LSTATUS_F) {
+			dma_rmb();
+			size = le16_to_cpu((*rxbd)->r.buf_len);
+		}
+
+		enetc_add_rx_buff_to_skb(rx_ring, *i, size, skb);
+
+		(*cleaned_cnt)++;
+
+		enetc_rxbd_next(rx_ring, rxbd, i);
+	}
+
+	skb_record_rx_queue(skb, rx_ring->index);
+	skb->protocol = eth_type_trans(skb, rx_ring->ndev);
+
+	return skb;
+}
+
 #define ENETC_RXBD_BUNDLE 16 /* # of BDs to update at once */
 
 static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
@@ -643,7 +677,6 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 		union enetc_rx_bd *rxbd;
 		struct sk_buff *skb;
 		u32 bd_status;
-		u16 size;
 
 		if (cleaned_cnt >= ENETC_RXBD_BUNDLE)
 			cleaned_cnt -= enetc_refill_rx_ring(rx_ring,
@@ -661,41 +694,15 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 						      &rxbd, &i))
 			break;
 
-		size = le16_to_cpu(rxbd->r.buf_len);
-		skb = enetc_map_rx_buff_to_skb(rx_ring, i, size);
+		skb = enetc_build_skb(rx_ring, bd_status, &rxbd, &i,
+				      &cleaned_cnt);
 		if (!skb)
 			break;
 
-		enetc_get_offloads(rx_ring, rxbd, skb);
-
-		cleaned_cnt++;
-
-		enetc_rxbd_next(rx_ring, &rxbd, &i);
-
-		/* not last BD in frame? */
-		while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
-			bd_status = le32_to_cpu(rxbd->r.lstatus);
-			size = ENETC_RXB_DMA_SIZE;
-
-			if (bd_status & ENETC_RXBD_LSTATUS_F) {
-				dma_rmb();
-				size = le16_to_cpu(rxbd->r.buf_len);
-			}
-
-			enetc_add_rx_buff_to_skb(rx_ring, i, size, skb);
-
-			cleaned_cnt++;
-
-			enetc_rxbd_next(rx_ring, &rxbd, &i);
-		}
-
 		rx_byte_cnt += skb->len;
-
-		enetc_process_skb(rx_ring, skb);
+		rx_frm_cnt++;
 
 		napi_gro_receive(napi, skb);
-
-		rx_frm_cnt++;
 	}
 
 	rx_ring->next_to_clean = i;
