@@ -53,49 +53,16 @@
 #endif
 
 static struct kmem_cache *scsi_sense_cache;
-static struct kmem_cache *scsi_sense_isadma_cache;
 static DEFINE_MUTEX(scsi_sense_cache_mutex);
 
 static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd);
 
-static inline struct kmem_cache *
-scsi_select_sense_cache(bool unchecked_isa_dma)
-{
-	return unchecked_isa_dma ? scsi_sense_isadma_cache : scsi_sense_cache;
-}
-
-static void scsi_free_sense_buffer(bool unchecked_isa_dma,
-				   unsigned char *sense_buffer)
-{
-	kmem_cache_free(scsi_select_sense_cache(unchecked_isa_dma),
-			sense_buffer);
-}
-
-static unsigned char *scsi_alloc_sense_buffer(bool unchecked_isa_dma,
-	gfp_t gfp_mask, int numa_node)
-{
-	return kmem_cache_alloc_node(scsi_select_sense_cache(unchecked_isa_dma),
-				     gfp_mask, numa_node);
-}
-
 int scsi_init_sense_cache(struct Scsi_Host *shost)
 {
-	struct kmem_cache *cache;
 	int ret = 0;
 
 	mutex_lock(&scsi_sense_cache_mutex);
-	cache = scsi_select_sense_cache(shost->unchecked_isa_dma);
-	if (cache)
-		goto exit;
-
-	if (shost->unchecked_isa_dma) {
-		scsi_sense_isadma_cache =
-			kmem_cache_create("scsi_sense_cache(DMA)",
-				SCSI_SENSE_BUFFERSIZE, 0,
-				SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA, NULL);
-		if (!scsi_sense_isadma_cache)
-			ret = -ENOMEM;
-	} else {
+	if (!scsi_sense_cache) {
 		scsi_sense_cache =
 			kmem_cache_create_usercopy("scsi_sense_cache",
 				SCSI_SENSE_BUFFERSIZE, 0, SLAB_HWCACHE_ALIGN,
@@ -103,7 +70,6 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
 		if (!scsi_sense_cache)
 			ret = -ENOMEM;
 	}
- exit:
 	mutex_unlock(&scsi_sense_cache_mutex);
 	return ret;
 }
@@ -1748,15 +1714,12 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 				unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct Scsi_Host *shost = set->driver_data;
-	const bool unchecked_isa_dma = shost->unchecked_isa_dma;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	struct scatterlist *sg;
 	int ret = 0;
 
-	if (unchecked_isa_dma)
-		cmd->flags |= SCMD_UNCHECKED_ISA_DMA;
-	cmd->sense_buffer = scsi_alloc_sense_buffer(unchecked_isa_dma,
-						    GFP_KERNEL, numa_node);
+	cmd->sense_buffer =
+		kmem_cache_alloc_node(scsi_sense_cache, GFP_KERNEL, numa_node);
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
 	cmd->req.sense = cmd->sense_buffer;
@@ -1770,8 +1733,7 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	if (shost->hostt->init_cmd_priv) {
 		ret = shost->hostt->init_cmd_priv(shost, cmd);
 		if (ret < 0)
-			scsi_free_sense_buffer(unchecked_isa_dma,
-					       cmd->sense_buffer);
+			kmem_cache_free(scsi_sense_cache, cmd->sense_buffer);
 	}
 
 	return ret;
@@ -1785,8 +1747,7 @@ static void scsi_mq_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 
 	if (shost->hostt->exit_cmd_priv)
 		shost->hostt->exit_cmd_priv(shost, cmd);
-	scsi_free_sense_buffer(cmd->flags & SCMD_UNCHECKED_ISA_DMA,
-			       cmd->sense_buffer);
+	kmem_cache_free(scsi_sense_cache, cmd->sense_buffer);
 }
 
 static int scsi_map_queues(struct blk_mq_tag_set *set)
@@ -1821,8 +1782,6 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 				dma_max_mapping_size(dev) >> SECTOR_SHIFT);
 	}
 	blk_queue_max_hw_sectors(q, shost->max_sectors);
-	if (shost->unchecked_isa_dma)
-		blk_queue_bounce_limit(q, BLK_BOUNCE_ISA);
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	dma_set_seg_boundary(dev, shost->dma_boundary);
 
@@ -1988,7 +1947,6 @@ EXPORT_SYMBOL(scsi_unblock_requests);
 void scsi_exit_queue(void)
 {
 	kmem_cache_destroy(scsi_sense_cache);
-	kmem_cache_destroy(scsi_sense_isadma_cache);
 }
 
 /**
