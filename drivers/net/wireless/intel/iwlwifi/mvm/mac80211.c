@@ -5144,28 +5144,50 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 }
 
 void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
-				     struct iwl_mvm_internal_rxq_notif *notif,
-				     u32 size)
+				     enum iwl_mvm_rxq_notif_type type,
+				     bool sync,
+				     const void *data, u32 size)
 {
-	u32 qmask = BIT(mvm->trans->num_rx_queues) - 1;
+	struct {
+		struct iwl_rxq_sync_cmd cmd;
+		struct iwl_mvm_internal_rxq_notif notif;
+	} __packed cmd = {
+		.cmd.rxq_mask = cpu_to_le32(BIT(mvm->trans->num_rx_queues) - 1),
+		.cmd.count =
+			cpu_to_le32(sizeof(struct iwl_mvm_internal_rxq_notif) +
+				    size),
+		.notif.type = type,
+		.notif.sync = sync,
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(DATA_PATH_GROUP, TRIGGER_RX_QUEUES_NOTIF_CMD),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+		.data[1] = data,
+		.len[1] = size,
+		.flags = sync ? 0 : CMD_ASYNC,
+	};
 	int ret;
 
+	/* size must be a multiple of DWORD */
+	if (WARN_ON(cmd.cmd.count & cpu_to_le32(3)))
+		return;
 
 	if (!iwl_mvm_has_new_rx_api(mvm))
 		return;
 
-	if (notif->sync) {
-		notif->cookie = mvm->queue_sync_cookie;
+	if (sync) {
+		cmd.notif.cookie = mvm->queue_sync_cookie;
 		mvm->queue_sync_state = (1 << mvm->trans->num_rx_queues) - 1;
 	}
 
-	ret = iwl_mvm_notify_rx_queue(mvm, qmask, notif, size, !notif->sync);
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to trigger RX queues sync (%d)\n", ret);
 		goto out;
 	}
 
-	if (notif->sync) {
+	if (sync) {
 		lockdep_assert_held(&mvm->mutex);
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
 					 READ_ONCE(mvm->queue_sync_state) == 0 ||
@@ -5177,7 +5199,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	}
 
 out:
-	if (notif->sync) {
+	if (sync) {
 		mvm->queue_sync_state = 0;
 		mvm->queue_sync_cookie++;
 	}
@@ -5186,13 +5208,9 @@ out:
 static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_internal_rxq_notif data = {
-		.type = IWL_MVM_RXQ_EMPTY,
-		.sync = 1,
-	};
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_sync_rx_queues_internal(mvm, &data, sizeof(data));
+	iwl_mvm_sync_rx_queues_internal(mvm, IWL_MVM_RXQ_EMPTY, true, NULL, 0);
 	mutex_unlock(&mvm->mutex);
 }
 

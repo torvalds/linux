@@ -281,6 +281,36 @@ struct iwl_mvm_key_pn {
 	} ____cacheline_aligned_in_smp q[];
 };
 
+/**
+ * enum iwl_mvm_rxq_notif_type - Internal message identifier
+ *
+ * @IWL_MVM_RXQ_EMPTY: empty sync notification
+ * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+ * @IWL_MVM_RXQ_NSSN_SYNC: notify all the RSS queues with the new NSSN
+ */
+enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_EMPTY,
+	IWL_MVM_RXQ_NOTIF_DEL_BA,
+	IWL_MVM_RXQ_NSSN_SYNC,
+};
+
+/**
+ * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
+ * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
+ * FW is agnostic to the payload, so there are no endianity requirements.
+ *
+ * @type: value from &iwl_mvm_rxq_notif_type
+ * @sync: ctrl path is waiting for all notifications to be received
+ * @cookie: internal cookie to identify old notifications
+ * @data: payload
+ */
+struct iwl_mvm_internal_rxq_notif {
+	u16 type;
+	u16 sync;
+	u32 cookie;
+	u8 data[];
+} __packed;
+
 struct iwl_mvm_delba_data {
 	u32 baid;
 } __packed;
@@ -288,14 +318,6 @@ struct iwl_mvm_delba_data {
 struct iwl_mvm_nssn_sync_data {
 	u32 baid;
 	u32 nssn;
-} __packed;
-
-struct iwl_mvm_rss_sync_notif {
-	struct iwl_mvm_internal_rxq_notif metadata;
-	union {
-		struct iwl_mvm_delba_data delba;
-		struct iwl_mvm_nssn_sync_data nssn_sync;
-	};
 } __packed;
 
 /**
