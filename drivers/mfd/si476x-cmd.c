@@ -390,7 +390,7 @@ static int si476x_cmd_tune_seek_freq(struct si476x_core *core,
 }
 
 /**
- * si476x_cmd_func_info() - send 'FUNC_INFO' command to the device
+ * si476x_core_cmd_func_info() - send 'FUNC_INFO' command to the device
  * @core: device to send the command to
  * @info:  struct si476x_func_info to fill all the information
  *         returned by the command
@@ -424,7 +424,7 @@ int si476x_core_cmd_func_info(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_func_info);
 
 /**
- * si476x_cmd_set_property() - send 'SET_PROPERTY' command to the device
+ * si476x_core_cmd_set_property() - send 'SET_PROPERTY' command to the device
  * @core:    device to send the command to
  * @property: property address
  * @value:    property value
@@ -452,7 +452,7 @@ int si476x_core_cmd_set_property(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_set_property);
 
 /**
- * si476x_cmd_get_property() - send 'GET_PROPERTY' command to the device
+ * si476x_core_cmd_get_property() - send 'GET_PROPERTY' command to the device
  * @core:    device to send the command to
  * @property: property address
  *
@@ -481,7 +481,7 @@ int si476x_core_cmd_get_property(struct si476x_core *core, u16 property)
 EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
 
 /**
- * si476x_cmd_dig_audio_pin_cfg() - send 'DIG_AUDIO_PIN_CFG' command to
+ * si476x_core_cmd_dig_audio_pin_cfg() - send 'DIG_AUDIO_PIN_CFG' command to
  * the device
  * @core: device to send the command to
  * @dclk:  DCLK pin function configuration:
@@ -539,7 +539,7 @@ int si476x_core_cmd_dig_audio_pin_cfg(struct  si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_dig_audio_pin_cfg);
 
 /**
- * si476x_cmd_zif_pin_cfg - send 'ZIF_PIN_CFG_COMMAND'
+ * si476x_core_cmd_zif_pin_cfg - send 'ZIF_PIN_CFG_COMMAND'
  * @core: - device to send the command to
  * @iqclk: - IQCL pin function configuration:
  *       SI476X_IQCLK_NOOP     - do not modify the behaviour
@@ -588,7 +588,7 @@ int si476x_core_cmd_zif_pin_cfg(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_zif_pin_cfg);
 
 /**
- * si476x_cmd_ic_link_gpo_ctl_pin_cfg - send
+ * si476x_core_cmd_ic_link_gpo_ctl_pin_cfg - send
  * 'IC_LINK_GPIO_CTL_PIN_CFG' comand to the device
  * @core: - device to send the command to
  * @icin: - ICIN pin function configuration:
@@ -645,7 +645,7 @@ int si476x_core_cmd_ic_link_gpo_ctl_pin_cfg(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_ic_link_gpo_ctl_pin_cfg);
 
 /**
- * si476x_cmd_ana_audio_pin_cfg - send 'ANA_AUDIO_PIN_CFG' to the
+ * si476x_core_cmd_ana_audio_pin_cfg - send 'ANA_AUDIO_PIN_CFG' to the
  * device
  * @core: - device to send the command to
  * @lrout: - LROUT pin function configuration:
@@ -674,7 +674,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_ana_audio_pin_cfg);
 
 
 /**
- * si476x_cmd_intb_pin_cfg - send 'INTB_PIN_CFG' command to the device
+ * si476x_core_cmd_intb_pin_cfg_a10 - send 'INTB_PIN_CFG' command to the device
  * @core: - device to send the command to
  * @intb: - INTB pin function configuration:
  *      SI476X_INTB_NOOP     - do not modify the behaviour
@@ -726,7 +726,7 @@ static int si476x_core_cmd_intb_pin_cfg_a20(struct si476x_core *core,
 
 
 /**
- * si476x_cmd_am_rsq_status - send 'AM_RSQ_STATUS' command to the
+ * si476x_core_cmd_am_rsq_status - send 'AM_RSQ_STATUS' command to the
  * device
  * @core:  - device to send the command to
  * @rsqargs: - pointer to a structure containing a group of sub-args
@@ -856,7 +856,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_am_acf_status);
 
 
 /**
- * si476x_cmd_fm_seek_start - send 'FM_SEEK_START' command to the
+ * si476x_core_cmd_fm_seek_start - send 'FM_SEEK_START' command to the
  * device
  * @core:  - device to send the command to
  * @seekup: - if set the direction of the search is 'up'
@@ -884,7 +884,7 @@ int si476x_core_cmd_fm_seek_start(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_seek_start);
 
 /**
- * si476x_cmd_fm_rds_status - send 'FM_RDS_STATUS' command to the
+ * si476x_core_cmd_fm_rds_status - send 'FM_RDS_STATUS' command to the
  * device
  * @core: - device to send the command to
  * @status_only: - if set the data is not removed from RDSFIFO,
@@ -1032,7 +1032,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_phase_div_status);
 
 
 /**
- * si476x_cmd_am_seek_start - send 'FM_SEEK_START' command to the
+ * si476x_core_cmd_am_seek_start - send 'FM_SEEK_START' command to the
  * device
  * @core:  - device to send the command to
  * @seekup: - if set the direction of the search is 'up'
