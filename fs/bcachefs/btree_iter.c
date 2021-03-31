@@ -504,13 +504,12 @@ void bch2_trans_downgrade(struct btree_trans *trans)
 bool bch2_trans_relock(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
-	bool ret = true;
 
 	trans_for_each_iter(trans, iter)
-		if (iter->uptodate == BTREE_ITER_NEED_RELOCK)
-			ret &= bch2_btree_iter_relock(iter, true);
-
-	return ret;
+		if (btree_iter_keep(trans, iter) &&
+		    !bch2_btree_iter_relock(iter, true))
+			return false;
+	return true;
 }
 
 void bch2_trans_unlock(struct btree_trans *trans)
