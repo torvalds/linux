@@ -8760,11 +8760,13 @@ static int ov2718_initialize_controls(struct ov2718 *ov2718)
 		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	if (mode->bus_fmt == MEDIA_BUS_FMT_SBGGR10_1X10)
-		v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-				  0, OV2718_PIXEL_RATE_10BIT, 1, OV2718_PIXEL_RATE_10BIT);
+		ov2718->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
+				     V4L2_CID_PIXEL_RATE, 0, OV2718_PIXEL_RATE_10BIT,
+				     1, OV2718_PIXEL_RATE_10BIT);
 	else
-		v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-				  0, OV2718_PIXEL_RATE_10BIT, 1, OV2718_PIXEL_RATE_12BIT);
+		ov2718->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
+				     V4L2_CID_PIXEL_RATE, 0, OV2718_PIXEL_RATE_10BIT,
+				     1, OV2718_PIXEL_RATE_12BIT);
 
 	h_blank = mode->hts_def - mode->width;
 	ov2718->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
