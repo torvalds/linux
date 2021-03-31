@@ -936,7 +936,7 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 				 }, pagepool);
 
 out:
-	/* must handle all compressed pages before endding pages */
+	/* must handle all compressed pages before ending pages */
 	for (i = 0; i < clusterpages; ++i) {
 		page = compressed_pages[i];
 
