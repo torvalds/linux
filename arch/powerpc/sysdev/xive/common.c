@@ -289,6 +289,20 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 	return 0;
 }
 
+void xmon_xive_get_irq_all(void)
+{
+	unsigned int i;
+	struct irq_desc *desc;
+
+	for_each_irq_desc(i, desc) {
+		struct irq_data *d = irq_desc_get_irq_data(desc);
+		unsigned int hwirq = (unsigned int)irqd_to_hwirq(d);
+
+		if (d->domain == xive_irq_domain)
+			xmon_xive_get_irq_config(hwirq, d);
+	}
+}
+
 #endif /* CONFIG_XMON */
 
 static unsigned int xive_get_irq(void)

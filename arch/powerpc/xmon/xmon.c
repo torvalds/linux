@@ -2727,30 +2727,6 @@ static void dump_all_xives(void)
 		dump_one_xive(cpu);
 }
 
-static void dump_one_xive_irq(u32 num, struct irq_data *d)
-{
-	xmon_xive_get_irq_config(num, d);
-}
-
-static void dump_all_xive_irq(void)
-{
-	unsigned int i;
-	struct irq_desc *desc;
-
-	for_each_irq_desc(i, desc) {
-		struct irq_data *d = irq_desc_get_irq_data(desc);
-		unsigned int hwirq;
-
-		if (!d)
-			continue;
-
-		hwirq = (unsigned int)irqd_to_hwirq(d);
-		/* IPIs are special (HW number 0) */
-		if (hwirq)
-			dump_one_xive_irq(hwirq, d);
-	}
-}
-
 static void dump_xives(void)
 {
 	unsigned long num;
@@ -2767,9 +2743,9 @@ static void dump_xives(void)
 		return;
 	} else if (c == 'i') {
 		if (scanhex(&num))
-			dump_one_xive_irq(num, NULL);
+			xmon_xive_get_irq_config(num, NULL);
 		else
-			dump_all_xive_irq();
+			xmon_xive_get_irq_all();
 		return;
 	}
 
