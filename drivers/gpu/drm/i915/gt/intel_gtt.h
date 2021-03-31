@@ -238,6 +238,7 @@ struct i915_address_space {
 	atomic_t open;
 
 	struct mutex mutex; /* protects vma and our lists */
+	struct dma_resv resv; /* reservation lock for all pd objects, and buffer pool */
 #define VM_CLASS_GGTT 0
 #define VM_CLASS_PPGTT 1
 
@@ -345,6 +346,9 @@ struct i915_ppgtt {
 };
 
 #define i915_is_ggtt(vm) ((vm)->is_ggtt)
+
+int __must_check
+i915_vm_lock_objects(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww);
 
 static inline bool
 i915_vm_is_4lvl(const struct i915_address_space *vm)
@@ -522,6 +526,7 @@ struct i915_page_directory *alloc_pd(struct i915_address_space *vm);
 struct i915_page_directory *__alloc_pd(int npde);
 
 int pin_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj);
+int pin_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj);
 
 void free_px(struct i915_address_space *vm,
 	     struct i915_page_table *pt, int lvl);
@@ -575,6 +580,9 @@ void i915_vm_free_pt_stash(struct i915_address_space *vm,
 
 struct i915_vma *
 __vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size);
+
+struct i915_vma *
+__vm_create_scratch_for_read_pinned(struct i915_address_space *vm, unsigned long size);
 
 static inline struct sgt_dma {
 	struct scatterlist *sg;

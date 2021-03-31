@@ -904,10 +904,10 @@ i915_drop_caches_set(void *data, u64 val)
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
-		i915_gem_shrink(i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
+		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
 	if (val & DROP_UNBOUND)
-		i915_gem_shrink(i915, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
+		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
 
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);

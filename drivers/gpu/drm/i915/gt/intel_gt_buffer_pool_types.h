@@ -31,6 +31,7 @@ struct intel_gt_buffer_pool_node {
 	};
 	unsigned long age;
 	enum i915_map_type type;
+	u32 pinned;
 };
 
 #endif /* INTEL_GT_BUFFER_POOL_TYPES_H */

@@ -75,11 +75,12 @@ static int live_mocs_init(struct live_mocs *arg, struct intel_gt *gt)
 	if (flags & (HAS_GLOBAL_MOCS | HAS_ENGINE_MOCS))
 		arg->mocs = table;
 
-	arg->scratch = __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
+	arg->scratch =
+		__vm_create_scratch_for_read_pinned(&gt->ggtt->vm, PAGE_SIZE);
 	if (IS_ERR(arg->scratch))
 		return PTR_ERR(arg->scratch);
 
-	arg->vaddr = i915_gem_object_pin_map(arg->scratch->obj, I915_MAP_WB);
+	arg->vaddr = i915_gem_object_pin_map_unlocked(arg->scratch->obj, I915_MAP_WB);
 	if (IS_ERR(arg->vaddr)) {
 		err = PTR_ERR(arg->vaddr);
 		goto err_scratch;

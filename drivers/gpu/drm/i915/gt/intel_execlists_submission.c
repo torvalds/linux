@@ -470,6 +470,11 @@ static void reset_active(struct i915_request *rq,
 	ce->lrc.lrca = lrc_update_regs(ce, engine, head);
 }
 
+static bool bad_request(const struct i915_request *rq)
+{
+	return rq->fence.error && i915_request_started(rq);
+}
+
 static struct intel_engine_cs *
 __execlists_schedule_in(struct i915_request *rq)
 {
@@ -482,7 +487,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		     !intel_engine_has_heartbeat(engine)))
 		intel_context_set_banned(ce);
 
-	if (unlikely(intel_context_is_banned(ce)))
+	if (unlikely(intel_context_is_banned(ce) || bad_request(rq)))
 		reset_active(rq, engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -752,9 +757,8 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 {
 	struct intel_engine_cs *engine =
 		container_of(execlists, typeof(*engine), execlists);
-	struct i915_request * const *port, *rq;
+	struct i915_request * const *port, *rq, *prev = NULL;
 	struct intel_context *ce = NULL;
-	bool sentinel = false;
 	u32 ccid = -1;
 
 	trace_ports(execlists, msg, execlists->pending);
@@ -804,15 +808,20 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		 * Sentinels are supposed to be the last request so they flush
 		 * the current execution off the HW. Check that they are the only
 		 * request in the pending submission.
+		 *
+		 * NB: Due to the async nature of preempt-to-busy and request
+		 * cancellation we need to handle the case where request
+		 * becomes a sentinel in parallel to CSB processing.
 		 */
-		if (sentinel) {
+		if (prev && i915_request_has_sentinel(prev) &&
+		    !READ_ONCE(prev->fence.error)) {
 			GEM_TRACE_ERR("%s: context:%llx after sentinel in pending[%zd]\n",
 				      engine->name,
 				      ce->timeline->fence_context,
 				      port - execlists->pending);
 			return false;
 		}
-		sentinel = i915_request_has_sentinel(rq);
+		prev = rq;
 
 		/*
 		 * We want virtual requests to only be in the first slot so
@@ -948,7 +957,7 @@ static bool can_merge_rq(const struct i915_request *prev,
 	if (__i915_request_is_complete(next))
 		return true;
 
-	if (unlikely((i915_request_flags(prev) ^ i915_request_flags(next)) &
+	if (unlikely((i915_request_flags(prev) | i915_request_flags(next)) &
 		     (BIT(I915_FENCE_FLAG_NOPREEMPT) |
 		      BIT(I915_FENCE_FLAG_SENTINEL))))
 		return false;
@@ -1208,7 +1217,7 @@ static unsigned long active_preempt_timeout(struct intel_engine_cs *engine,
 		return 0;
 
 	/* Force a fast reset for terminated contexts (ignoring sysfs!) */
-	if (unlikely(intel_context_is_banned(rq->context)))
+	if (unlikely(intel_context_is_banned(rq->context) || bad_request(rq)))
 		return 1;
 
 	return READ_ONCE(engine->props.preempt_timeout_ms);
@@ -2457,11 +2466,31 @@ static void execlists_submit_request(struct i915_request *request)
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
+static int
+__execlists_context_pre_pin(struct intel_context *ce,
+			    struct intel_engine_cs *engine,
+			    struct i915_gem_ww_ctx *ww, void **vaddr)
+{
+	int err;
+
+	err = lrc_pre_pin(ce, engine, ww, vaddr);
+	if (err)
+		return err;
+
+	if (!__test_and_set_bit(CONTEXT_INIT_BIT, &ce->flags)) {
+		lrc_init_state(ce, engine, *vaddr);
+
+		 __i915_gem_object_flush_map(ce->state->obj, 0, engine->context_size);
+	}
+
+	return 0;
+}
+
 static int execlists_context_pre_pin(struct intel_context *ce,
 				     struct i915_gem_ww_ctx *ww,
 				     void **vaddr)
 {
-	return lrc_pre_pin(ce, ce->engine, ww, vaddr);
+	return __execlists_context_pre_pin(ce, ce->engine, ww, vaddr);
 }
 
 static int execlists_context_pin(struct intel_context *ce, void *vaddr)
@@ -3365,8 +3394,8 @@ static int virtual_context_pre_pin(struct intel_context *ce,
 {
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 
-	/* Note: we must use a real engine class for setting up reg state */
-	return lrc_pre_pin(ce, ve->siblings[0], ww, vaddr);
+	 /* Note: we must use a real engine class for setting up reg state */
+	return __execlists_context_pre_pin(ce, ve->siblings[0], ww, vaddr);
 }
 
 static int virtual_context_pin(struct intel_context *ce, void *vaddr)
