@@ -1302,6 +1302,7 @@ static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
 static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 {
 	struct ice_vsi *vsi = q_vector->vsi;
+	bool wb_en = q_vector->wb_on_itr;
 	u32 itr_val;
 
 	if (test_bit(ICE_DOWN, vsi->state))
@@ -1310,7 +1311,7 @@ static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 	/* When exiting WB_ON_ITR, let ITR resume its normal
 	 * interrupts-enabled path.
 	 */
-	if (q_vector->wb_on_itr)
+	if (wb_en)
 		q_vector->wb_on_itr = false;
 
 	/* This will do nothing if dynamic updates are not enabled. */
@@ -1318,6 +1319,16 @@ static void ice_update_ena_itr(struct ice_q_vector *q_vector)
 
 	/* net_dim() updates ITR out-of-band using a work item */
 	itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	/* trigger an immediate software interrupt when exiting
+	 * busy poll, to make sure to catch any pending cleanups
+	 * that might have been missed due to interrupt state
+	 * transition.
+	 */
+	if (wb_en) {
+		itr_val |= GLINT_DYN_CTL_SWINT_TRIG_M |
+			   GLINT_DYN_CTL_SW_ITR_INDX_M |
+			   GLINT_DYN_CTL_SW_ITR_INDX_ENA_M;
+	}
 	wr32(&vsi->back->hw, GLINT_DYN_CTL(q_vector->reg_idx), itr_val);
 }
 
