@@ -1199,6 +1199,16 @@ config I2C_DLN2
 	 This driver can also be built as a module.  If so, the module
 	 will be called i2c-dln2.
 
+config I2C_CP2615
+	tristate "Silicon Labs CP2615 USB sound card and I2C adapter"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for Silicon
+	  Labs CP2615's I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-cp2615.
+
 config I2C_PARPORT
 	tristate "Parallel port adapter"
 	depends on PARPORT
