@@ -763,7 +763,11 @@ static int sx9310_write_far_debounce(struct sx9310_data *data, int val)
 	int ret;
 	unsigned int regval;
 
-	val = ilog2(val);
+	if (val > 0)
+		val = ilog2(val);
+	if (!FIELD_FIT(SX9310_REG_PROX_CTRL10_FAR_DEBOUNCE_MASK, val))
+		return -EINVAL;
+
 	regval = FIELD_PREP(SX9310_REG_PROX_CTRL10_FAR_DEBOUNCE_MASK, val);
 
 	mutex_lock(&data->mutex);
@@ -780,7 +784,11 @@ static int sx9310_write_close_debounce(struct sx9310_data *data, int val)
 	int ret;
 	unsigned int regval;
 
-	val = ilog2(val);
+	if (val > 0)
+		val = ilog2(val);
+	if (!FIELD_FIT(SX9310_REG_PROX_CTRL10_CLOSE_DEBOUNCE_MASK, val))
+		return -EINVAL;
+
 	regval = FIELD_PREP(SX9310_REG_PROX_CTRL10_CLOSE_DEBOUNCE_MASK, val);
 
 	mutex_lock(&data->mutex);
