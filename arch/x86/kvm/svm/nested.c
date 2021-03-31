@@ -272,6 +272,13 @@ static bool nested_vmcb_check_cr3_cr4(struct kvm_vcpu *vcpu,
 static bool nested_vmcb_valid_sregs(struct kvm_vcpu *vcpu,
 				    struct vmcb_save_area *save)
 {
+	/*
+	 * FIXME: these should be done after copying the fields,
+	 * to avoid TOC/TOU races.  For these save area checks
+	 * the possible damage is limited since kvm_set_cr0 and
+	 * kvm_set_cr4 handle failure; EFER_SVME is an exception
+	 * so it is force-set later in nested_prepare_vmcb_save.
+	 */
 	if (CC(!(save->efer & EFER_SVME)))
 		return false;
 
@@ -289,14 +296,6 @@ static bool nested_vmcb_valid_sregs(struct kvm_vcpu *vcpu,
 		return false;
 
 	return true;
-}
-
-static bool nested_vmcb_checks(struct kvm_vcpu *vcpu, struct vmcb *vmcb12)
-{
-	if (!nested_vmcb_valid_sregs(vcpu, &vmcb12->save))
-		return false;
-
-	return nested_vmcb_check_controls(&vmcb12->control);
 }
 
 static void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
@@ -449,7 +448,14 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	}
 
 	kvm_set_rflags(&svm->vcpu, vmcb12->save.rflags | X86_EFLAGS_FIXED);
-	svm_set_efer(&svm->vcpu, vmcb12->save.efer);
+
+	/*
+	 * Force-set EFER_SVME even though it is checked earlier on the
+	 * VMCB12, because the guest can flip the bit between the check
+	 * and now.  Clearing EFER_SVME would call svm_free_nested.
+	 */
+	svm_set_efer(&svm->vcpu, vmcb12->save.efer | EFER_SVME);
+
 	svm_set_cr0(&svm->vcpu, vmcb12->save.cr0);
 	svm_set_cr4(&svm->vcpu, vmcb12->save.cr4);
 
@@ -564,7 +570,6 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 	WARN_ON(svm->vmcb == svm->nested.vmcb02.ptr);
 
 	nested_svm_copy_common_state(svm->vmcb01.ptr, svm->nested.vmcb02.ptr);
-	nested_load_control_from_vmcb12(svm, &vmcb12->control);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
 	nested_vmcb02_prepare_control(svm);
@@ -614,7 +619,10 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 	if (WARN_ON_ONCE(!svm->nested.initialized))
 		return -EINVAL;
 
-	if (!nested_vmcb_checks(vcpu, vmcb12)) {
+	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+
+	if (!nested_vmcb_valid_sregs(vcpu, &vmcb12->save) ||
+	    !nested_vmcb_check_controls(&svm->nested.ctl)) {
 		vmcb12->control.exit_code    = SVM_EXIT_ERR;
 		vmcb12->control.exit_code_hi = 0;
 		vmcb12->control.exit_info_1  = 0;
@@ -1251,7 +1259,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 
 	/*
 	 * Processor state contains L2 state.  Check that it is
-	 * valid for guest mode (see nested_vmcb_checks).
+	 * valid for guest mode (see nested_vmcb_check_save).
 	 */
 	cr0 = kvm_read_cr0(vcpu);
         if (((cr0 & X86_CR0_CD) == 0) && (cr0 & X86_CR0_NW))
