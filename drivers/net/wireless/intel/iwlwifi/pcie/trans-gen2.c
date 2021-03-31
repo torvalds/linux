@@ -108,8 +108,8 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
 				 trans_pcie->fw_reset_done, FW_RESET_TIMEOUT);
 	if (!ret)
-		IWL_ERR(trans,
-			"firmware didn't ACK the reset - continue anyway\n");
+		IWL_INFO(trans,
+			 "firmware didn't ACK the reset - continue anyway\n");
 }
 
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
