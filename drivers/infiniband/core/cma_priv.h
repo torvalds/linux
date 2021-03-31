@@ -86,9 +86,11 @@ struct rdma_id_private {
 	u8			tos;
 	u8			tos_set:1;
 	u8                      timeout_set:1;
+	u8			min_rnr_timer_set:1;
 	u8			reuseaddr;
 	u8			afonly;
 	u8			timeout;
+	u8			min_rnr_timer;
 	enum ib_gid_type	gid_type;
 
 	/*

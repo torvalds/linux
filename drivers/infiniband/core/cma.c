@@ -843,6 +843,7 @@ __rdma_create_id(struct net *net, rdma_cm_event_handler event_handler,
 	id_priv->id.qp_type = qp_type;
 	id_priv->tos_set = false;
 	id_priv->timeout_set = false;
+	id_priv->min_rnr_timer_set = false;
 	id_priv->gid_type = IB_GID_TYPE_IB;
 	spin_lock_init(&id_priv->lock);
 	mutex_init(&id_priv->qp_mutex);
@@ -1132,6 +1133,9 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 
 	if ((*qp_attr_mask & IB_QP_TIMEOUT) && id_priv->timeout_set)
 		qp_attr->timeout = id_priv->timeout;
+
+	if ((*qp_attr_mask & IB_QP_MIN_RNR_TIMER) && id_priv->min_rnr_timer_set)
+		qp_attr->min_rnr_timer = id_priv->min_rnr_timer;
 
 	return ret;
 }
@@ -2607,6 +2611,43 @@ int rdma_set_ack_timeout(struct rdma_cm_id *id, u8 timeout)
 	return 0;
 }
 EXPORT_SYMBOL(rdma_set_ack_timeout);
+
+/**
+ * rdma_set_min_rnr_timer() - Set the minimum RNR Retry timer of the
+ *			      QP associated with a connection identifier.
+ * @id: Communication identifier to associated with service type.
+ * @min_rnr_timer: 5-bit value encoded as Table 45: "Encoding for RNR NAK
+ *		   Timer Field" in the IBTA specification.
+ *
+ * This function should be called before rdma_connect() on active
+ * side, and on passive side before rdma_accept(). The timer value
+ * will be associated with the local QP. When it receives a send it is
+ * not read to handle, typically if the receive queue is empty, an RNR
+ * Retry NAK is returned to the requester with the min_rnr_timer
+ * encoded. The requester will then wait at least the time specified
+ * in the NAK before retrying. The default is zero, which translates
+ * to a minimum RNR Timer value of 655 ms.
+ *
+ * Return: 0 for success
+ */
+int rdma_set_min_rnr_timer(struct rdma_cm_id *id, u8 min_rnr_timer)
+{
+	struct rdma_id_private *id_priv;
+
+	/* It is a five-bit value */
+	if (min_rnr_timer & 0xe0)
+		return -EINVAL;
+
+	if (WARN_ON(id->qp_type != IB_QPT_RC && id->qp_type != IB_QPT_XRC_TGT))
+		return -EINVAL;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	id_priv->min_rnr_timer = min_rnr_timer;
+	id_priv->min_rnr_timer_set = true;
+
+	return 0;
+}
+EXPORT_SYMBOL(rdma_set_min_rnr_timer);
 
 static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 			      void *context)
