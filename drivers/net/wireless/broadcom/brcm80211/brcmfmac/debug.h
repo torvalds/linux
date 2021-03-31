@@ -112,7 +112,6 @@ do {									\
 
 extern int brcmf_msg_level;
 
-struct brcmf_bus;
 struct brcmf_pub;
 #ifdef DEBUG
 struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
