@@ -195,6 +195,9 @@ static const char rx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Rx ring %2d XDP drops",
 	"Rx ring %2d recycles",
 	"Rx ring %2d recycle failures",
+	"Rx ring %2d redirects",
+	"Rx ring %2d redirect failures",
+	"Rx ring %2d redirect S/G",
 };
 
 static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
@@ -284,6 +287,9 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 		data[o++] = priv->rx_ring[i]->stats.xdp_drops;
 		data[o++] = priv->rx_ring[i]->stats.recycles;
 		data[o++] = priv->rx_ring[i]->stats.recycle_failures;
+		data[o++] = priv->rx_ring[i]->stats.xdp_redirect;
+		data[o++] = priv->rx_ring[i]->stats.xdp_redirect_failures;
+		data[o++] = priv->rx_ring[i]->stats.xdp_redirect_sg;
 	}
 
 	if (!enetc_si_is_pf(priv->si))

@@ -19,7 +19,10 @@
 				(ETH_FCS_LEN + ETH_HLEN + VLAN_HLEN))
 
 struct enetc_tx_swbd {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdp_frame;
+	};
 	dma_addr_t dma;
 	struct page *page;	/* valid only if is_xdp_tx */
 	u16 page_offset;	/* valid only if is_xdp_tx */
@@ -30,6 +33,7 @@ struct enetc_tx_swbd {
 	u8 do_tstamp:1;
 	u8 is_eof:1;
 	u8 is_xdp_tx:1;
+	u8 is_xdp_redirect:1;
 };
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
@@ -61,6 +65,9 @@ struct enetc_ring_stats {
 	unsigned int xdp_drops;
 	unsigned int xdp_tx;
 	unsigned int xdp_tx_drops;
+	unsigned int xdp_redirect;
+	unsigned int xdp_redirect_failures;
+	unsigned int xdp_redirect_sg;
 	unsigned int recycles;
 	unsigned int recycle_failures;
 };
@@ -354,6 +361,8 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd);
 int enetc_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		   void *type_data);
 int enetc_setup_bpf(struct net_device *dev, struct netdev_bpf *xdp);
+int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
+		   struct xdp_frame **frames, u32 flags);
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
