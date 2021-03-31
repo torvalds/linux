@@ -95,7 +95,8 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi);
 
 int ice_status_to_errno(enum ice_status err);
 
-u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
+void ice_write_intrl(struct ice_q_vector *q_vector, u8 intrl);
+void ice_write_itr(struct ice_ring_container *rc, u16 itr);
 
 enum ice_status
 ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set);

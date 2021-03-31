@@ -1773,13 +1773,65 @@ int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi)
  * This function converts a decimal interrupt rate limit in usecs to the format
  * expected by firmware.
  */
-u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
+static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 {
 	u32 val = intrl / gran;
 
 	if (val)
 		return val | GLINT_RATE_INTRL_ENA_M;
 	return 0;
+}
+
+/**
+ * ice_write_intrl - write throttle rate limit to interrupt specific register
+ * @q_vector: pointer to interrupt specific structure
+ * @intrl: throttle rate limit in microseconds to write
+ */
+void ice_write_intrl(struct ice_q_vector *q_vector, u8 intrl)
+{
+	struct ice_hw *hw = &q_vector->vsi->back->hw;
+
+	wr32(hw, GLINT_RATE(q_vector->reg_idx),
+	     ice_intrl_usec_to_reg(intrl, ICE_INTRL_GRAN_ABOVE_25));
+}
+
+/**
+ * __ice_write_itr - write throttle rate to register
+ * @q_vector: pointer to interrupt data structure
+ * @rc: pointer to ring container
+ * @itr: throttle rate in microseconds to write
+ */
+static void __ice_write_itr(struct ice_q_vector *q_vector,
+			    struct ice_ring_container *rc, u16 itr)
+{
+	struct ice_hw *hw = &q_vector->vsi->back->hw;
+
+	wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
+	     ITR_REG_ALIGN(itr) >> ICE_ITR_GRAN_S);
+}
+
+/**
+ * ice_write_itr - write throttle rate to queue specific register
+ * @rc: pointer to ring container
+ * @itr: throttle rate in microseconds to write
+ *
+ * This function is resilient to having the 0x8000 bit set which
+ * is indicating that an ITR value is "DYNAMIC", and will write
+ * the correct value to the register.
+ */
+void ice_write_itr(struct ice_ring_container *rc, u16 itr)
+{
+	struct ice_q_vector *q_vector;
+
+	if (!rc->ring)
+		return;
+
+	q_vector = rc->ring->q_vector;
+
+	/* clear the "DYNAMIC" bit */
+	itr = ITR_TO_REG(itr);
+
+	__ice_write_itr(q_vector, rc, itr);
 }
 
 /**
@@ -1801,9 +1853,6 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		u16 reg_idx = q_vector->reg_idx;
 
 		ice_cfg_itr(hw, q_vector);
-
-		wr32(hw, GLINT_RATE(reg_idx),
-		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
 
 		/* Both Transmit Queue Interrupt Cause Control register
 		 * and Receive Queue Interrupt Cause control register
@@ -2492,11 +2541,10 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 
 	for (i = 0; i < vsi->num_q_vectors; i++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
-		u16 reg_idx = q_vector->reg_idx;
 
-		wr32(hw, GLINT_ITR(ICE_IDX_ITR0, reg_idx), 0);
-		wr32(hw, GLINT_ITR(ICE_IDX_ITR1, reg_idx), 0);
+		ice_write_intrl(q_vector, 0);
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
+			ice_write_itr(&q_vector->tx, 0);
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), 0);
 			if (ice_is_xdp_ena_vsi(vsi)) {
 				u32 xdp_txq = txq + vsi->num_xdp_txq;
@@ -2507,6 +2555,7 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
+			ice_write_itr(&q_vector->rx, 0);
 			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), 0);
 			rxq++;
 		}
@@ -2844,47 +2893,6 @@ int ice_vsi_release(struct ice_vsi *vsi)
 }
 
 /**
- * ice_vsi_rebuild_update_coalesce_intrl - set interrupt rate limit for a q_vector
- * @q_vector: pointer to q_vector which is being updated
- * @stored_intrl_setting: original INTRL setting
- *
- * Set coalesce param in q_vector and update these parameters in HW.
- */
-static void
-ice_vsi_rebuild_update_coalesce_intrl(struct ice_q_vector *q_vector,
-				      u16 stored_intrl_setting)
-{
-	struct ice_hw *hw = &q_vector->vsi->back->hw;
-
-	q_vector->intrl = stored_intrl_setting;
-	wr32(hw, GLINT_RATE(q_vector->reg_idx),
-	     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
-}
-
-/**
- * ice_vsi_rebuild_update_coalesce_itr - set coalesce for a q_vector
- * @q_vector: pointer to q_vector which is being updated
- * @rc: pointer to ring container
- * @stored_itr_setting: original ITR setting
- *
- * Set coalesce param in q_vector and update these parameters in HW.
- */
-static void
-ice_vsi_rebuild_update_coalesce_itr(struct ice_q_vector *q_vector,
-				    struct ice_ring_container *rc,
-				    u16 stored_itr_setting)
-{
-	struct ice_hw *hw = &q_vector->vsi->back->hw;
-
-	rc->itr_setting = stored_itr_setting;
-
-	/* dynamic ITR values will be updated during Tx/Rx */
-	if (!ITR_IS_DYNAMIC(rc->itr_setting))
-		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
-		     ITR_REG_ALIGN(rc->itr_setting) >> ICE_ITR_GRAN_S);
-}
-
-/**
  * ice_vsi_rebuild_get_coalesce - get coalesce from all q_vectors
  * @vsi: VSI connected with q_vectors
  * @coalesce: array of struct with stored coalesce
@@ -2927,6 +2935,7 @@ static void
 ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
 			     struct ice_coalesce_stored *coalesce, int size)
 {
+	struct ice_ring_container *rc;
 	int i;
 
 	if ((size && !coalesce) || !vsi)
@@ -2949,41 +2958,51 @@ ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
 		 *   rings is less than are allocated (this means the number of
 		 *   rings increased from previously), then write out the
 		 *   values in the first element
+		 *
+		 *   Also, always write the ITR, even if in ITR_IS_DYNAMIC
+		 *   as there is no harm because the dynamic algorithm
+		 *   will just overwrite.
 		 */
-		if (i < vsi->alloc_rxq && coalesce[i].rx_valid)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->rx,
-							    coalesce[i].itr_rx);
-		else if (i < vsi->alloc_rxq)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->rx,
-							    coalesce[0].itr_rx);
+		if (i < vsi->alloc_rxq && coalesce[i].rx_valid) {
+			rc = &vsi->q_vectors[i]->rx;
+			rc->itr_setting = coalesce[i].itr_rx;
+			ice_write_itr(rc, rc->itr_setting);
+		} else if (i < vsi->alloc_rxq) {
+			rc = &vsi->q_vectors[i]->rx;
+			rc->itr_setting = coalesce[0].itr_rx;
+			ice_write_itr(rc, rc->itr_setting);
+		}
 
-		if (i < vsi->alloc_txq && coalesce[i].tx_valid)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->tx,
-							    coalesce[i].itr_tx);
-		else if (i < vsi->alloc_txq)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->tx,
-							    coalesce[0].itr_tx);
+		if (i < vsi->alloc_txq && coalesce[i].tx_valid) {
+			rc = &vsi->q_vectors[i]->tx;
+			rc->itr_setting = coalesce[i].itr_tx;
+			ice_write_itr(rc, rc->itr_setting);
+		} else if (i < vsi->alloc_txq) {
+			rc = &vsi->q_vectors[i]->tx;
+			rc->itr_setting = coalesce[0].itr_tx;
+			ice_write_itr(rc, rc->itr_setting);
+		}
 
-		ice_vsi_rebuild_update_coalesce_intrl(vsi->q_vectors[i],
-						      coalesce[i].intrl);
+		vsi->q_vectors[i]->intrl = coalesce[i].intrl;
+		ice_write_intrl(vsi->q_vectors[i], coalesce[i].intrl);
 	}
 
 	/* the number of queue vectors increased so write whatever is in
 	 * the first element
 	 */
 	for (; i < vsi->num_q_vectors; i++) {
-		ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-						    &vsi->q_vectors[i]->tx,
-						    coalesce[0].itr_tx);
-		ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-						    &vsi->q_vectors[i]->rx,
-						    coalesce[0].itr_rx);
-		ice_vsi_rebuild_update_coalesce_intrl(vsi->q_vectors[i],
-						      coalesce[0].intrl);
+		/* transmit */
+		rc = &vsi->q_vectors[i]->tx;
+		rc->itr_setting = coalesce[0].itr_tx;
+		ice_write_itr(rc, rc->itr_setting);
+
+		/* receive */
+		rc = &vsi->q_vectors[i]->rx;
+		rc->itr_setting = coalesce[0].itr_rx;
+		ice_write_itr(rc, rc->itr_setting);
+
+		vsi->q_vectors[i]->intrl = coalesce[0].intrl;
+		ice_write_intrl(vsi->q_vectors[i], coalesce[0].intrl);
 	}
 }
 

@@ -3636,9 +3636,8 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		}
 		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl) {
 			rc->ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
-			wr32(&pf->hw, GLINT_RATE(rc->ring->q_vector->reg_idx),
-			     ice_intrl_usec_to_reg(ec->rx_coalesce_usecs_high,
-						   pf->hw.intrl_gran));
+			ice_write_intrl(rc->ring->q_vector,
+					ec->rx_coalesce_usecs_high);
 		}
 
 		use_adaptive_coalesce = ec->use_adaptive_rx_coalesce;
@@ -3672,10 +3671,15 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 	if (use_adaptive_coalesce) {
 		rc->itr_setting |= ICE_ITR_DYNAMIC;
 	} else {
-		/* save the user set usecs */
+		/* store user facing value how it was set */
 		rc->itr_setting = coalesce_usecs;
-		/* device ITR granularity is in 2 usec increments */
-		rc->target_itr = ITR_REG_ALIGN(rc->itr_setting);
+		/* write the change to the register */
+		ice_write_itr(rc, coalesce_usecs);
+		/* force writes to take effect immediately, the flush shouldn't
+		 * be done in the functions above because the intent is for
+		 * them to do lazy writes.
+		 */
+		ice_flush(&pf->hw);
 	}
 
 	return 0;
@@ -3793,7 +3797,6 @@ __ice_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 		return -EINVAL;
 
 set_complete:
-
 	return 0;
 }
 

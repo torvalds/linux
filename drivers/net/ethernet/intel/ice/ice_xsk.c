@@ -108,9 +108,6 @@ ice_qvec_cfg_msix(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
 
 	ice_cfg_itr(hw, q_vector);
 
-	wr32(hw, GLINT_RATE(reg_idx),
-	     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
-
 	ice_for_each_ring(ring, q_vector->tx)
 		ice_cfg_txq_interrupt(vsi, ring->reg_idx, reg_idx,
 				      q_vector->tx.itr_idx);
