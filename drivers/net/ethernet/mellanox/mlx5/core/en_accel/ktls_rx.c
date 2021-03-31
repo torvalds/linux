@@ -119,8 +119,7 @@ out:
 	complete(&priv_rx->add_ctx);
 }
 
-static void accel_rule_init(struct accel_rule *rule, struct mlx5e_priv *priv,
-			    struct sock *sk)
+static void accel_rule_init(struct accel_rule *rule, struct mlx5e_priv *priv)
 {
 	INIT_WORK(&rule->work, accel_rule_handle_work);
 	rule->priv = priv;
@@ -618,7 +617,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 
 	init_completion(&priv_rx->add_ctx);
 
-	accel_rule_init(&priv_rx->rule, priv, sk);
+	accel_rule_init(&priv_rx->rule, priv);
 	resync = &priv_rx->resync;
 	resync_init(resync, priv);
 	tls_offload_ctx_rx(tls_ctx)->resync_async = &resync->core;
