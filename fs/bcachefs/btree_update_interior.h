@@ -48,6 +48,7 @@ struct btree_update {
 	} mode;
 
 	unsigned			nodes_written:1;
+	unsigned			took_gc_lock:1;
 
 	enum btree_id			btree_id;
 
@@ -120,8 +121,7 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 
 void bch2_btree_update_done(struct btree_update *);
 struct btree_update *
-bch2_btree_update_start(struct btree_trans *, enum btree_id, unsigned,
-			unsigned, struct closure *);
+bch2_btree_update_start(struct btree_iter *, unsigned, unsigned, unsigned);
 
 void bch2_btree_interior_update_will_free_node(struct btree_update *,
 					       struct btree *);
