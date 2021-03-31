@@ -8615,15 +8615,6 @@ int nft_parse_u32_check(const struct nlattr *attr, int max, u32 *dest)
 }
 EXPORT_SYMBOL_GPL(nft_parse_u32_check);
 
-/**
- *	nft_parse_register - parse a register value from a netlink attribute
- *
- *	@attr: netlink attribute
- *
- *	Parse and translate a register value from a netlink attribute.
- *	Registers used to be 128 bit wide, these register numbers will be
- *	mapped to the corresponding 32 bit register numbers.
- */
 static unsigned int nft_parse_register(const struct nlattr *attr)
 {
 	unsigned int reg;
@@ -8659,15 +8650,6 @@ int nft_dump_register(struct sk_buff *skb, unsigned int attr, unsigned int reg)
 }
 EXPORT_SYMBOL_GPL(nft_dump_register);
 
-/**
- *	nft_validate_register_load - validate a load from a register
- *
- *	@reg: the register number
- *	@len: the length of the data
- *
- * 	Validate that the input register is one of the general purpose
- * 	registers and that the length of the load is within the bounds.
- */
 static int nft_validate_register_load(enum nft_registers reg, unsigned int len)
 {
 	if (reg < NFT_REG_1 * NFT_REG_SIZE / NFT_REG32_SIZE)
@@ -8695,20 +8677,6 @@ int nft_parse_register_load(const struct nlattr *attr, u8 *sreg, u32 len)
 }
 EXPORT_SYMBOL_GPL(nft_parse_register_load);
 
-/**
- *	nft_validate_register_store - validate an expressions' register store
- *
- *	@ctx: context of the expression performing the load
- * 	@reg: the destination register number
- * 	@data: the data to load
- * 	@type: the data type
- * 	@len: the length of the data
- *
- * 	Validate that a data load uses the appropriate data type for
- * 	the destination register and the length is within the bounds.
- * 	A value of NULL for the data means that its runtime gathered
- * 	data.
- */
 static int nft_validate_register_store(const struct nft_ctx *ctx,
 				       enum nft_registers reg,
 				       const struct nft_data *data,
