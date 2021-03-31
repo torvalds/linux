@@ -26,6 +26,7 @@ struct bpf_stab {
 
 static int sock_map_prog_update(struct bpf_map *map, struct bpf_prog *prog,
 				struct bpf_prog *old, u32 which);
+static struct sk_psock_progs *sock_map_progs(struct bpf_map *map);
 
 static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 {
@@ -224,10 +225,10 @@ out:
 	return psock;
 }
 
-static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
-			 struct sock *sk)
+static int sock_map_link(struct bpf_map *map, struct sock *sk)
 {
 	struct bpf_prog *msg_parser, *stream_parser, *stream_verdict;
+	struct sk_psock_progs *progs = sock_map_progs(map);
 	struct sk_psock *psock;
 	int ret;
 
@@ -492,7 +493,7 @@ static int sock_map_update_common(struct bpf_map *map, u32 idx,
 	 * and sk_write_space callbacks overridden.
 	 */
 	if (sock_map_redirect_allowed(sk))
-		ret = sock_map_link(map, &stab->progs, sk);
+		ret = sock_map_link(map, sk);
 	else
 		ret = sock_map_link_no_progs(map, sk);
 	if (ret < 0)
@@ -1004,7 +1005,7 @@ static int sock_hash_update_common(struct bpf_map *map, void *key,
 	 * and sk_write_space callbacks overridden.
 	 */
 	if (sock_map_redirect_allowed(sk))
-		ret = sock_map_link(map, &htab->progs, sk);
+		ret = sock_map_link(map, sk);
 	else
 		ret = sock_map_link_no_progs(map, sk);
 	if (ret < 0)
