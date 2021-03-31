@@ -1279,18 +1279,33 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 	u64 search;
 	u64 target;
 	u64 nread = 0;
+	u64 nread_max;
 	struct extent_buffer *eb;
 	u32 nr;
 	u32 blocksize;
 	u32 nscan = 0;
 
-	if (level != 1)
+	if (level != 1 && path->reada != READA_FORWARD_ALWAYS)
 		return;
 
 	if (!path->nodes[level])
 		return;
 
 	node = path->nodes[level];
+
+	/*
+	 * Since the time between visiting leaves is much shorter than the time
+	 * between visiting nodes, limit read ahead of nodes to 1, to avoid too
+	 * much IO at once (possibly random).
+	 */
+	if (path->reada == READA_FORWARD_ALWAYS) {
+		if (level > 1)
+			nread_max = node->fs_info->nodesize;
+		else
+			nread_max = SZ_128K;
+	} else {
+		nread_max = SZ_64K;
+	}
 
 	search = btrfs_node_blockptr(node, slot);
 	blocksize = fs_info->nodesize;
@@ -1310,7 +1325,8 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 			if (nr == 0)
 				break;
 			nr--;
-		} else if (path->reada == READA_FORWARD) {
+		} else if (path->reada == READA_FORWARD ||
+			   path->reada == READA_FORWARD_ALWAYS) {
 			nr++;
 			if (nr >= nritems)
 				break;
@@ -1321,13 +1337,14 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 				break;
 		}
 		search = btrfs_node_blockptr(node, nr);
-		if ((search <= target && target - search <= 65536) ||
+		if (path->reada == READA_FORWARD_ALWAYS ||
+		    (search <= target && target - search <= 65536) ||
 		    (search > target && search - target <= 65536)) {
 			btrfs_readahead_node_child(node, nr);
 			nread += blocksize;
 		}
 		nscan++;
-		if ((nread > 65536 || nscan > 32))
+		if (nread > nread_max || nscan > 32)
 			break;
 	}
 }
@@ -1436,6 +1453,9 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 
 	tmp = find_extent_buffer(fs_info, blocknr);
 	if (tmp) {
+		if (p->reada == READA_FORWARD_ALWAYS)
+			reada_for_search(fs_info, p, level, slot, key->objectid);
+
 		/* first we do an atomic uptodate check */
 		if (btrfs_buffer_uptodate(tmp, gen, 1) > 0) {
 			/*
