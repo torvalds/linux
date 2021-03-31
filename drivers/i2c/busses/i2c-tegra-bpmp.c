@@ -40,45 +40,29 @@ struct tegra_bpmp_i2c {
  */
 static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
 {
-	if (flags & I2C_M_TEN) {
+	if (flags & I2C_M_TEN)
 		*out |= SERIALI2C_TEN;
-		flags &= ~I2C_M_TEN;
-	}
 
-	if (flags & I2C_M_RD) {
+	if (flags & I2C_M_RD)
 		*out |= SERIALI2C_RD;
-		flags &= ~I2C_M_RD;
-	}
 
-	if (flags & I2C_M_STOP) {
+	if (flags & I2C_M_STOP)
 		*out |= SERIALI2C_STOP;
-		flags &= ~I2C_M_STOP;
-	}
 
-	if (flags & I2C_M_NOSTART) {
+	if (flags & I2C_M_NOSTART)
 		*out |= SERIALI2C_NOSTART;
-		flags &= ~I2C_M_NOSTART;
-	}
 
-	if (flags & I2C_M_REV_DIR_ADDR) {
+	if (flags & I2C_M_REV_DIR_ADDR)
 		*out |= SERIALI2C_REV_DIR_ADDR;
-		flags &= ~I2C_M_REV_DIR_ADDR;
-	}
 
-	if (flags & I2C_M_IGNORE_NAK) {
+	if (flags & I2C_M_IGNORE_NAK)
 		*out |= SERIALI2C_IGNORE_NAK;
-		flags &= ~I2C_M_IGNORE_NAK;
-	}
 
-	if (flags & I2C_M_NO_RD_ACK) {
+	if (flags & I2C_M_NO_RD_ACK)
 		*out |= SERIALI2C_NO_RD_ACK;
-		flags &= ~I2C_M_NO_RD_ACK;
-	}
 
-	if (flags & I2C_M_RECV_LEN) {
+	if (flags & I2C_M_RECV_LEN)
 		*out |= SERIALI2C_RECV_LEN;
-		flags &= ~I2C_M_RECV_LEN;
-	}
 
 	return 0;
 }
