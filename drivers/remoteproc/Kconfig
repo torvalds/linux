@@ -26,6 +26,7 @@ config REMOTEPROC_CDEV
 config IMX_REMOTEPROC
 	tristate "i.MX remoteproc support"
 	depends on ARCH_MXC
+	select MAILBOX
 	help
 	  Say y here to support iMX's remote processors via the remote
 	  processor framework.
