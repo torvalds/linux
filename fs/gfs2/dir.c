@@ -159,7 +159,7 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 	unsigned int o;
 	int copied = 0;
 	int error = 0;
-	int new = 0;
+	bool new = false;
 
 	if (!size)
 		return 0;
@@ -189,9 +189,9 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 			amount = sdp->sd_sb.sb_bsize - o;
 
 		if (!extlen) {
-			new = 1;
-			error = gfs2_extent_map(&ip->i_inode, lblock, &new,
-						&dblock, &extlen);
+			extlen = 1;
+			error = gfs2_alloc_extent(&ip->i_inode, lblock, &dblock,
+						  &extlen, &new);
 			if (error)
 				goto fail;
 			error = -EIO;
@@ -286,15 +286,14 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, __be64 *buf,
 	while (copied < size) {
 		unsigned int amount;
 		struct buffer_head *bh;
-		int new;
 
 		amount = size - copied;
 		if (amount > sdp->sd_sb.sb_bsize - o)
 			amount = sdp->sd_sb.sb_bsize - o;
 
 		if (!extlen) {
-			new = 0;
-			error = gfs2_extent_map(&ip->i_inode, lblock, &new,
+			extlen = 32;
+			error = gfs2_get_extent(&ip->i_inode, lblock,
 						&dblock, &extlen);
 			if (error || !dblock)
 				goto fail;

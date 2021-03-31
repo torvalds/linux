@@ -34,12 +34,12 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_glock *gl = ip->i_gl;
-	int new = 0;
 	u64 dblock;
 	u32 extlen;
 	int error;
 
-	error = gfs2_extent_map(&ip->i_inode, blk, &new, &dblock, &extlen);
+	extlen = 32;
+	error = gfs2_get_extent(&ip->i_inode, blk, &dblock, &extlen);
 	if (error)
 		return error;
 	if (!dblock) {

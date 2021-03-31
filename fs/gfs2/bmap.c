@@ -1320,28 +1320,47 @@ out:
 	return ret;
 }
 
-/*
- * Deprecated: do not use in new code
- */
-int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
+int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
+		    unsigned int *extlen)
 {
-	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0 };
+	unsigned int blkbits = inode->i_blkbits;
+	struct iomap iomap = { };
+	unsigned int len;
 	int ret;
-	int create = *new;
 
-	BUG_ON(!extlen);
-	BUG_ON(!dblock);
-	BUG_ON(!new);
+	ret = gfs2_iomap_get(inode, lblock << blkbits, *extlen << blkbits,
+			     &iomap);
+	if (ret)
+		return ret;
+	if (iomap.type != IOMAP_MAPPED)
+		return -EIO;
+	*dblock = iomap.addr >> blkbits;
+	len = iomap.length >> blkbits;
+	if (len < *extlen)
+		*extlen = len;
+	return 0;
+}
 
-	bh.b_size = BIT(inode->i_blkbits + (create ? 0 : 5));
-	ret = gfs2_block_map(inode, lblock, &bh, create);
-	*extlen = bh.b_size >> inode->i_blkbits;
-	*dblock = bh.b_blocknr;
-	if (buffer_new(&bh))
-		*new = 1;
-	else
-		*new = 0;
-	return ret;
+int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
+		      unsigned int *extlen, bool *new)
+{
+	unsigned int blkbits = inode->i_blkbits;
+	struct iomap iomap = { };
+	unsigned int len;
+	int ret;
+
+	ret = gfs2_iomap_alloc(inode, lblock << blkbits, *extlen << blkbits,
+			       &iomap);
+	if (ret)
+		return ret;
+	if (iomap.type != IOMAP_MAPPED)
+		return -EIO;
+	*dblock = iomap.addr >> blkbits;
+	len = iomap.length >> blkbits;
+	if (len < *extlen)
+		*extlen = len;
+	*new = iomap.flags & IOMAP_F_NEW;
+	return 0;
 }
 
 /*

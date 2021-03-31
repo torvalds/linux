@@ -53,8 +53,10 @@ extern int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
 			  struct iomap *iomap);
 extern int gfs2_iomap_alloc(struct inode *inode, loff_t pos, loff_t length,
 			    struct iomap *iomap);
-extern int gfs2_extent_map(struct inode *inode, u64 lblock, int *new,
-			   u64 *dblock, unsigned *extlen);
+extern int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
+			   unsigned int *extlen);
+extern int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
+			     unsigned *extlen, bool *new);
 extern int gfs2_setattr_size(struct inode *inode, u64 size);
 extern void gfs2_trim_blocks(struct inode *inode);
 extern int gfs2_truncatei_resume(struct gfs2_inode *ip);
