@@ -1102,15 +1102,26 @@ static struct irq_chip xive_ipi_chip = {
  * IPIs are marked per-cpu. We use separate HW interrupts under the
  * hood but associated with the same "linux" interrupt
  */
-static int xive_ipi_irq_domain_map(struct irq_domain *h, unsigned int virq,
-				   irq_hw_number_t hw)
+struct xive_ipi_alloc_info {
+	irq_hw_number_t hwirq;
+};
+
+static int xive_ipi_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				     unsigned int nr_irqs, void *arg)
 {
-	irq_set_chip_and_handler(virq, &xive_ipi_chip, handle_percpu_irq);
+	struct xive_ipi_alloc_info *info = arg;
+	int i;
+
+	for (i = 0; i < nr_irqs; i++) {
+		irq_domain_set_info(domain, virq + i, info->hwirq + i, &xive_ipi_chip,
+				    domain->host_data, handle_percpu_irq,
+				    NULL, NULL);
+	}
 	return 0;
 }
 
 static const struct irq_domain_ops xive_ipi_irq_domain_ops = {
-	.map = xive_ipi_irq_domain_map,
+	.alloc  = xive_ipi_irq_domain_alloc,
 };
 
 static int __init xive_request_ipi(void)
@@ -1135,7 +1146,7 @@ static int __init xive_request_ipi(void)
 
 	for_each_node(node) {
 		struct xive_ipi_desc *xid = &xive_ipis[node];
-		irq_hw_number_t ipi_hwirq = node;
+		struct xive_ipi_alloc_info info = { node };
 
 		/* Skip nodes without CPUs */
 		if (cpumask_empty(cpumask_of_node(node)))
@@ -1146,9 +1157,9 @@ static int __init xive_request_ipi(void)
 		 * Since the HW interrupt number doesn't have any meaning,
 		 * simply use the node number.
 		 */
-		xid->irq = irq_create_mapping(ipi_domain, ipi_hwirq);
-		if (!xid->irq) {
-			ret = -EINVAL;
+		xid->irq = irq_domain_alloc_irqs(ipi_domain, 1, node, &info);
+		if (xid->irq < 0) {
+			ret = xid->irq;
 			goto out_free_xive_ipis;
 		}
 
