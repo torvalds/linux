@@ -158,6 +158,8 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 
 	if (vsi->type == ICE_VSI_VF)
 		vsi->vf_id = vf_id;
+	else
+		vsi->vf_id = ICE_INVAL_VFID;
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
