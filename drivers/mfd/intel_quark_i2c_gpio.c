@@ -18,7 +18,7 @@
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/gpio-dwapb.h>
-#include <linux/platform_data/i2c-designware.h>
+#include <linux/property.h>
 
 /* PCI BAR for register base address */
 #define MFD_I2C_BAR		0
@@ -50,24 +50,44 @@ struct intel_quark_mfd {
 	struct clk_lookup	*i2c_clk_lookup;
 };
 
+static const struct property_entry intel_quark_i2c_controller_standard_properties[] = {
+	PROPERTY_ENTRY_U32("clock-frequency", I2C_MAX_STANDARD_MODE_FREQ),
+	{ }
+};
+
+static const struct software_node intel_quark_i2c_controller_standard_node = {
+	.name = "intel-quark-i2c-controller",
+	.properties = intel_quark_i2c_controller_standard_properties,
+};
+
+static const struct property_entry intel_quark_i2c_controller_fast_properties[] = {
+	PROPERTY_ENTRY_U32("clock-frequency", I2C_MAX_FAST_MODE_FREQ),
+	{ }
+};
+
+static const struct software_node intel_quark_i2c_controller_fast_node = {
+	.name = "intel-quark-i2c-controller",
+	.properties = intel_quark_i2c_controller_fast_properties,
+};
+
 static const struct dmi_system_id dmi_platform_info[] = {
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Galileo"),
 		},
-		.driver_data = (void *)I2C_MAX_STANDARD_MODE_FREQ,
+		.driver_data = (void *)&intel_quark_i2c_controller_standard_node,
 	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "GalileoGen2"),
 		},
-		.driver_data = (void *)I2C_MAX_FAST_MODE_FREQ,
+		.driver_data = (void *)&intel_quark_i2c_controller_fast_node,
 	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SIMATIC IOT2000"),
 		},
-		.driver_data = (void *)I2C_MAX_FAST_MODE_FREQ,
+		.driver_data = (void *)&intel_quark_i2c_controller_fast_node,
 	},
 	{}
 };
@@ -160,8 +180,6 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev)
 	struct mfd_cell *cell = &intel_quark_mfd_cells[MFD_I2C_BAR];
 	struct resource *res = intel_quark_i2c_res;
 	const struct dmi_system_id *dmi_id;
-	struct dw_i2c_platform_data *pdata;
-	struct device *dev = &pdev->dev;
 
 	res[INTEL_QUARK_IORES_MEM].start = pci_resource_start(pdev, MFD_I2C_BAR);
 	res[INTEL_QUARK_IORES_MEM].end = pci_resource_end(pdev, MFD_I2C_BAR);
@@ -169,19 +187,12 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev)
 	res[INTEL_QUARK_IORES_IRQ].start = pci_irq_vector(pdev, 0);
 	res[INTEL_QUARK_IORES_IRQ].end = pci_irq_vector(pdev, 0);
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-
 	/* Normal mode by default */
-	pdata->i2c_scl_freq = I2C_MAX_STANDARD_MODE_FREQ;
+	cell->swnode = &intel_quark_i2c_controller_standard_node;
 
 	dmi_id = dmi_first_match(dmi_platform_info);
 	if (dmi_id)
-		pdata->i2c_scl_freq = (uintptr_t)dmi_id->driver_data;
-
-	cell->platform_data = pdata;
-	cell->pdata_size = sizeof(*pdata);
+		cell->swnode = (struct software_node *)dmi_id->driver_data;
 
 	return 0;
 }
