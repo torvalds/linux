@@ -1063,15 +1063,6 @@ export INSTALL_DTBS_PATH ?= $(INSTALL_PATH)/dtbs/$(KERNELRELEASE)
 MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
-ifdef CONFIG_MODULE_SIG_ALL
-$(eval $(call config_filename,MODULE_SIG_KEY))
-
-mod_sign_cmd = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) $(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY) certs/signing_key.x509
-else
-mod_sign_cmd = true
-endif
-export mod_sign_cmd
-
 HOST_LIBELF_LIBS = $(shell pkg-config libelf --libs 2>/dev/null || echo -lelf)
 
 has_libelf = $(call try-run,\
@@ -1439,7 +1430,26 @@ PHONY += modules_prepare
 modules_prepare: prepare
 	$(Q)$(MAKE) $(build)=scripts scripts/module.lds
 
-modules_install: __modinst_pre
+export modules_sign_only :=
+
+ifeq ($(CONFIG_MODULE_SIG),y)
+PHONY += modules_sign
+modules_sign: modules_install
+	@:
+
+# modules_sign is a subset of modules_install.
+# 'make modules_install modules_sign' is equivalent to 'make modules_install'.
+ifeq ($(filter modules_install,$(MAKECMDGOALS)),)
+modules_sign_only := y
+endif
+endif
+
+modinst_pre :=
+ifneq ($(filter modules_install,$(MAKECMDGOALS)),)
+modinst_pre := __modinst_pre
+endif
+
+modules_install: $(modinst_pre)
 PHONY += __modinst_pre
 __modinst_pre:
 	@rm -rf $(MODLIB)/kernel
@@ -1453,12 +1463,6 @@ __modinst_pre:
 	@sed 's:^:kernel/:' modules.order > $(MODLIB)/modules.order
 	@cp -f modules.builtin $(MODLIB)/
 	@cp -f $(objtree)/modules.builtin.modinfo $(MODLIB)/
-
-ifeq ($(CONFIG_MODULE_SIG), y)
-PHONY += modules_sign
-modules_sign:
-	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modsign
-endif
 
 endif # CONFIG_MODULES
 

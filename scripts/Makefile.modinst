@@ -74,10 +74,19 @@ quiet_cmd_sign :=
       cmd_sign := :
 endif
 
+ifeq ($(modules_sign_only),)
+
 $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,install)
 	$(call cmd,strip)
 	$(call cmd,sign)
+
+else
+
+$(dst)/%.ko: FORCE
+	$(call cmd,sign)
+
+endif
 
 #
 # Compression
