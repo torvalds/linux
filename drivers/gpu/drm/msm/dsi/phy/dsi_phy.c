@@ -744,7 +744,6 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 fail:
 	if (phy->pll) {
 		of_clk_del_provider(dev->of_node);
-		msm_dsi_pll_destroy(phy->pll);
 		phy->pll = NULL;
 	}
 
@@ -757,7 +756,6 @@ static int dsi_phy_driver_remove(struct platform_device *pdev)
 
 	if (phy && phy->pll) {
 		of_clk_del_provider(pdev->dev.of_node);
-		msm_dsi_pll_destroy(phy->pll);
 		phy->pll = NULL;
 	}
 

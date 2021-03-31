@@ -74,10 +74,6 @@ struct dsi_pll_28nm {
 
 	int vco_delay;
 
-	/* private clocks: */
-	struct clk *clks[NUM_DSI_CLOCKS_MAX];
-	u32 num_clks;
-
 	struct pll_28nm_cached_state cached_state;
 };
 
@@ -486,15 +482,6 @@ static int dsi_pll_28nm_restore_state(struct msm_dsi_pll *pll)
 	return 0;
 }
 
-static void dsi_pll_28nm_destroy(struct msm_dsi_pll *pll)
-{
-	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(pll);
-
-	msm_dsi_pll_helper_unregister_clks(pll_28nm->clks, pll_28nm->num_clks);
-
-	pll_28nm->num_clks = 0;
-}
-
 static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **provided_clocks)
 {
 	char clk_name[32], parent1[32], parent2[32], vco_name[32];
@@ -506,53 +493,63 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 		.ops = &clk_ops_dsi_pll_28nm_vco,
 	};
 	struct device *dev = &pll_28nm->pdev->dev;
-	struct clk **clks = pll_28nm->clks;
-	int num = 0;
+	struct clk_hw *hw;
+	int ret;
 
 	DBG("%d", pll_28nm->id);
 
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_28nm->id);
 	pll_28nm->base.clk_hw.init = &vco_init;
-	clks[num++] = clk_register(dev, &pll_28nm->base.clk_hw);
+	ret = devm_clk_hw_register(dev, &pll_28nm->base.clk_hw);
+	if (ret)
+		return ret;
 
 	snprintf(clk_name, 32, "dsi%danalog_postdiv_clk", pll_28nm->id);
 	snprintf(parent1, 32, "dsi%dvco_clk", pll_28nm->id);
-	clks[num++] = clk_register_divider(dev, clk_name,
+	hw = devm_clk_hw_register_divider(dev, clk_name,
 			parent1, CLK_SET_RATE_PARENT,
 			pll_28nm->mmio +
 			REG_DSI_28nm_PHY_PLL_POSTDIV1_CFG,
 			0, 4, 0, NULL);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
 	snprintf(clk_name, 32, "dsi%dindirect_path_div2_clk", pll_28nm->id);
 	snprintf(parent1, 32, "dsi%danalog_postdiv_clk", pll_28nm->id);
-	clks[num++] = clk_register_fixed_factor(dev, clk_name,
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name,
 			parent1, CLK_SET_RATE_PARENT,
 			1, 2);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
 	snprintf(clk_name, 32, "dsi%dpll", pll_28nm->id);
 	snprintf(parent1, 32, "dsi%dvco_clk", pll_28nm->id);
-	clks[num++] = clk_register_divider(dev, clk_name,
+	hw = devm_clk_hw_register_divider(dev, clk_name,
 				parent1, 0, pll_28nm->mmio +
 				REG_DSI_28nm_PHY_PLL_POSTDIV3_CFG,
 				0, 8, 0, NULL);
-	provided_clocks[DSI_PIXEL_PLL_CLK] = __clk_get_hw(clks[num - 1]);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	provided_clocks[DSI_PIXEL_PLL_CLK] = hw;
 
 	snprintf(clk_name, 32, "dsi%dbyte_mux", pll_28nm->id);
 	snprintf(parent1, 32, "dsi%dvco_clk", pll_28nm->id);
 	snprintf(parent2, 32, "dsi%dindirect_path_div2_clk", pll_28nm->id);
-	clks[num++] = clk_register_mux(dev, clk_name,
+	hw = devm_clk_hw_register_mux(dev, clk_name,
 			((const char *[]){
 				parent1, parent2
 			}), 2, CLK_SET_RATE_PARENT, pll_28nm->mmio +
 			REG_DSI_28nm_PHY_PLL_VREG_CFG, 1, 1, 0, NULL);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
 
 	snprintf(clk_name, 32, "dsi%dpllbyte", pll_28nm->id);
 	snprintf(parent1, 32, "dsi%dbyte_mux", pll_28nm->id);
-	clks[num++] = clk_register_fixed_factor(dev, clk_name,
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name,
 				parent1, CLK_SET_RATE_PARENT, 1, 4);
-	provided_clocks[DSI_BYTE_PLL_CLK] = __clk_get_hw(clks[num - 1]);
-
-	pll_28nm->num_clks = num;
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	provided_clocks[DSI_BYTE_PLL_CLK] = hw;
 
 	return 0;
 }
@@ -758,7 +755,6 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs = {
 		.pll_init = dsi_pll_28nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_28nm_destroy,
 		.save_state = dsi_pll_28nm_save_state,
 		.restore_state = dsi_pll_28nm_restore_state,
 		.disable_seq = dsi_pll_28nm_disable_seq,
@@ -785,7 +781,6 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_famb_cfgs = {
 		.pll_init = dsi_pll_28nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_28nm_destroy,
 		.save_state = dsi_pll_28nm_save_state,
 		.restore_state = dsi_pll_28nm_restore_state,
 		.disable_seq = dsi_pll_28nm_disable_seq,
@@ -812,7 +807,6 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_lp_cfgs = {
 		.pll_init = dsi_pll_28nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_28nm_destroy,
 		.save_state = dsi_pll_28nm_save_state,
 		.restore_state = dsi_pll_28nm_restore_state,
 		.disable_seq = dsi_pll_28nm_disable_seq,

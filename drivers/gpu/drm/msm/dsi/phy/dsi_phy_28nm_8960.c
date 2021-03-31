@@ -64,13 +64,6 @@ struct dsi_pll_28nm {
 	struct platform_device *pdev;
 	void __iomem *mmio;
 
-	/* custom byte clock divider */
-	struct clk_bytediv *bytediv;
-
-	/* private clocks: */
-	struct clk *clks[NUM_DSI_CLOCKS_MAX];
-	u32 num_clks;
-
 	struct pll_28nm_cached_state cached_state;
 };
 
@@ -368,13 +361,6 @@ static int dsi_pll_28nm_restore_state(struct msm_dsi_pll *pll)
 	return 0;
 }
 
-static void dsi_pll_28nm_destroy(struct msm_dsi_pll *pll)
-{
-	struct dsi_pll_28nm *pll_28nm = to_pll_28nm(pll);
-
-	msm_dsi_pll_helper_unregister_clks(pll_28nm->clks, pll_28nm->num_clks);
-}
-
 static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **provided_clocks)
 {
 	char *clk_name, *parent_name, *vco_name;
@@ -385,10 +371,10 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 		.ops = &clk_ops_dsi_pll_28nm_vco,
 	};
 	struct device *dev = &pll_28nm->pdev->dev;
-	struct clk **clks = pll_28nm->clks;
+	struct clk_hw *hw;
 	struct clk_bytediv *bytediv;
 	struct clk_init_data bytediv_init = { };
-	int num = 0;
+	int ret;
 
 	DBG("%d", pll_28nm->id);
 
@@ -404,14 +390,14 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 	if (!clk_name)
 		return -ENOMEM;
 
-	pll_28nm->bytediv = bytediv;
-
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_28nm->id);
 	vco_init.name = vco_name;
 
 	pll_28nm->base.clk_hw.init = &vco_init;
 
-	clks[num++] = clk_register(dev, &pll_28nm->base.clk_hw);
+	ret = devm_clk_hw_register(dev, &pll_28nm->base.clk_hw);
+	if (ret)
+		return ret;
 
 	/* prepare and register bytediv */
 	bytediv->hw.init = &bytediv_init;
@@ -427,18 +413,20 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 	bytediv_init.num_parents = 1;
 
 	/* DIV2 */
-	clks[num++] = clk_register(dev, &bytediv->hw);
-	provided_clocks[DSI_BYTE_PLL_CLK] = __clk_get_hw(clks[num - 1]);
+	ret = devm_clk_hw_register(dev, &bytediv->hw);
+	if (ret)
+		return ret;
+	provided_clocks[DSI_BYTE_PLL_CLK] = &bytediv->hw;
 
 	snprintf(clk_name, 32, "dsi%dpll", pll_28nm->id);
 	/* DIV3 */
-	clks[num++] = clk_register_divider(dev, clk_name,
+	hw = devm_clk_hw_register_divider(dev, clk_name,
 				parent_name, 0, pll_28nm->mmio +
 				REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
 				0, 8, 0, NULL);
-	provided_clocks[DSI_PIXEL_PLL_CLK] = __clk_get_hw(clks[num - 1]);
-
-	pll_28nm->num_clks = num;
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	provided_clocks[DSI_PIXEL_PLL_CLK] = hw;
 
 	return 0;
 }
@@ -662,7 +650,6 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_8960_cfgs = {
 		.pll_init = dsi_pll_28nm_8960_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_28nm_destroy,
 		.save_state = dsi_pll_28nm_save_state,
 		.restore_state = dsi_pll_28nm_restore_state,
 		.disable_seq = dsi_pll_28nm_disable_seq,

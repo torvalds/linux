@@ -133,10 +133,6 @@ struct dsi_pll_14nm {
 	u64 vco_current_rate;
 	u64 vco_ref_clk_rate;
 
-	/* private clocks: */
-	struct clk_hw *hws[NUM_DSI_CLOCKS_MAX];
-	u32 num_hws;
-
 	struct pll_14nm_cached_state cached_state;
 
 	enum msm_dsi_phy_usecase uc;
@@ -872,15 +868,6 @@ static int dsi_pll_14nm_set_usecase(struct msm_dsi_pll *pll,
 	return 0;
 }
 
-static void dsi_pll_14nm_destroy(struct msm_dsi_pll *pll)
-{
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
-	int num_hws = pll_14nm->num_hws;
-
-	while (num_hws--)
-		clk_hw_unregister(pll_14nm->hws[num_hws]);
-}
-
 static struct clk_hw *pll_14nm_postdiv_register(struct dsi_pll_14nm *pll_14nm,
 						const char *name,
 						const char *parent_name,
@@ -910,7 +897,7 @@ static struct clk_hw *pll_14nm_postdiv_register(struct dsi_pll_14nm *pll_14nm,
 	pll_postdiv->flags = CLK_DIVIDER_ONE_BASED;
 	pll_postdiv->hw.init = &postdiv_init;
 
-	ret = clk_hw_register(dev, &pll_postdiv->hw);
+	ret = devm_clk_hw_register(dev, &pll_postdiv->hw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -928,9 +915,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 		.ops = &clk_ops_dsi_pll_14nm_vco,
 	};
 	struct device *dev = &pll_14nm->pdev->dev;
-	struct clk_hw **hws = pll_14nm->hws;
 	struct clk_hw *hw;
-	int num = 0;
 	int ret;
 
 	DBG("DSI%d", pll_14nm->id);
@@ -938,11 +923,9 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_14nm->id);
 	pll_14nm->base.clk_hw.init = &vco_init;
 
-	ret = clk_hw_register(dev, &pll_14nm->base.clk_hw);
+	ret = devm_clk_hw_register(dev, &pll_14nm->base.clk_hw);
 	if (ret)
 		return ret;
-
-	hws[num++] = &pll_14nm->base.clk_hw;
 
 	snprintf(clk_name, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
 	snprintf(parent, 32, "dsi%dvco_clk", pll_14nm->id);
@@ -953,18 +936,15 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	hws[num++] = hw;
-
 	snprintf(clk_name, 32, "dsi%dpllbyte", pll_14nm->id);
 	snprintf(parent, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
 
 	/* DSI Byte clock = VCO_CLK / N1 / 8 */
-	hw = clk_hw_register_fixed_factor(dev, clk_name, parent,
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
 					  CLK_SET_RATE_PARENT, 1, 8);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	hws[num++] = hw;
 	provided_clocks[DSI_BYTE_PLL_CLK] = hw;
 
 	snprintf(clk_name, 32, "dsi%dn1_postdivby2_clk", pll_14nm->id);
@@ -974,11 +954,9 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	 * Skip the mux for now, force DSICLK_SEL to 1, Add a /2 divider
 	 * on the way. Don't let it set parent.
 	 */
-	hw = clk_hw_register_fixed_factor(dev, clk_name, parent, 0, 1, 2);
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent, 0, 1, 2);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
-
-	hws[num++] = hw;
 
 	snprintf(clk_name, 32, "dsi%dpll", pll_14nm->id);
 	snprintf(parent, 32, "dsi%dn1_postdivby2_clk", pll_14nm->id);
@@ -991,10 +969,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	hws[num++] = hw;
 	provided_clocks[DSI_PIXEL_PLL_CLK]	= hw;
-
-	pll_14nm->num_hws = num;
 
 	return 0;
 }
@@ -1184,7 +1159,6 @@ const struct msm_dsi_phy_cfg dsi_phy_14nm_cfgs = {
 		.pll_init = dsi_pll_14nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_14nm_destroy,
 		.save_state = dsi_pll_14nm_save_state,
 		.restore_state = dsi_pll_14nm_restore_state,
 		.disable_seq = dsi_pll_14nm_disable_seq,
@@ -1211,7 +1185,6 @@ const struct msm_dsi_phy_cfg dsi_phy_14nm_660_cfgs = {
 		.pll_init = dsi_pll_14nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_14nm_destroy,
 		.save_state = dsi_pll_14nm_save_state,
 		.restore_state = dsi_pll_14nm_restore_state,
 		.disable_seq = dsi_pll_14nm_disable_seq,

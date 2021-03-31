@@ -57,26 +57,9 @@ void msm_dsi_pll_helper_clk_unprepare(struct clk_hw *hw)
 	pll->pll_on = false;
 }
 
-void msm_dsi_pll_helper_unregister_clks(struct clk **clks, u32 num_clks)
-{
-	if (!num_clks || !clks)
-		return;
-
-	do {
-		clk_unregister(clks[--num_clks]);
-		clks[num_clks] = NULL;
-	} while (num_clks);
-}
-
 /*
  * DSI PLL API
  */
-void msm_dsi_pll_destroy(struct msm_dsi_pll *pll)
-{
-	if (pll->cfg->pll_ops.destroy)
-		pll->cfg->pll_ops.destroy(pll);
-}
-
 void msm_dsi_pll_save_state(struct msm_dsi_pll *pll)
 {
 	if (pll->cfg->pll_ops.save_state) {

@@ -103,15 +103,6 @@ struct dsi_pll_7nm {
 	struct dsi_pll_config pll_configuration;
 	struct dsi_pll_regs reg_setup;
 
-	/* private clocks: */
-	struct clk_hw *out_div_clk_hw;
-	struct clk_hw *bit_clk_hw;
-	struct clk_hw *byte_clk_hw;
-	struct clk_hw *by_2_bit_clk_hw;
-	struct clk_hw *post_out_div_clk_hw;
-	struct clk_hw *pclk_mux_hw;
-	struct clk_hw *out_dsiclk_hw;
-
 	struct pll_7nm_cached_state cached_state;
 
 	enum msm_dsi_phy_usecase uc;
@@ -639,22 +630,6 @@ static int dsi_pll_7nm_set_usecase(struct msm_dsi_pll *pll,
 	return 0;
 }
 
-static void dsi_pll_7nm_destroy(struct msm_dsi_pll *pll)
-{
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(pll);
-
-	DBG("DSI PLL%d", pll_7nm->id);
-
-	clk_hw_unregister_divider(pll_7nm->out_dsiclk_hw);
-	clk_hw_unregister_mux(pll_7nm->pclk_mux_hw);
-	clk_hw_unregister_fixed_factor(pll_7nm->post_out_div_clk_hw);
-	clk_hw_unregister_fixed_factor(pll_7nm->by_2_bit_clk_hw);
-	clk_hw_unregister_fixed_factor(pll_7nm->byte_clk_hw);
-	clk_hw_unregister_divider(pll_7nm->bit_clk_hw);
-	clk_hw_unregister_divider(pll_7nm->out_div_clk_hw);
-	clk_hw_unregister(&pll_7nm->base.clk_hw);
-}
-
 /*
  * The post dividers and mux clocks are created using the standard divider and
  * mux API. Unlike the 14nm PHY, the slave PLL doesn't need its dividers/mux
@@ -681,30 +656,28 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_7nm->id);
 	pll_7nm->base.clk_hw.init = &vco_init;
 
-	ret = clk_hw_register(dev, &pll_7nm->base.clk_hw);
+	ret = devm_clk_hw_register(dev, &pll_7nm->base.clk_hw);
 	if (ret)
 		return ret;
 
 	snprintf(clk_name, 32, "dsi%d_pll_out_div_clk", pll_7nm->id);
 	snprintf(parent, 32, "dsi%dvco_clk", pll_7nm->id);
 
-	hw = clk_hw_register_divider(dev, clk_name,
+	hw = devm_clk_hw_register_divider(dev, clk_name,
 				     parent, CLK_SET_RATE_PARENT,
 				     pll_7nm->mmio +
 				     REG_DSI_7nm_PHY_PLL_PLL_OUTDIV_RATE,
 				     0, 2, CLK_DIVIDER_POWER_OF_TWO, NULL);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_base_clk_hw;
+		goto fail;
 	}
-
-	pll_7nm->out_div_clk_hw = hw;
 
 	snprintf(clk_name, 32, "dsi%d_pll_bit_clk", pll_7nm->id);
 	snprintf(parent, 32, "dsi%d_pll_out_div_clk", pll_7nm->id);
 
 	/* BIT CLK: DIV_CTRL_3_0 */
-	hw = clk_hw_register_divider(dev, clk_name, parent,
+	hw = devm_clk_hw_register_divider(dev, clk_name, parent,
 				     CLK_SET_RATE_PARENT,
 				     pll_7nm->phy_cmn_mmio +
 				     REG_DSI_7nm_PHY_CMN_CLK_CFG0,
@@ -712,48 +685,41 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
 				     &pll_7nm->postdiv_lock);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_out_div_clk_hw;
+		goto fail;
 	}
-
-	pll_7nm->bit_clk_hw = hw;
 
 	snprintf(clk_name, 32, "dsi%d_phy_pll_out_byteclk", pll_7nm->id);
 	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_7nm->id);
 
 	/* DSI Byte clock = VCO_CLK / OUT_DIV / BIT_DIV / 8 */
-	hw = clk_hw_register_fixed_factor(dev, clk_name, parent,
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
 					  CLK_SET_RATE_PARENT, 1, 8);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_bit_clk_hw;
+		goto fail;
 	}
 
-	pll_7nm->byte_clk_hw = hw;
 	provided_clocks[DSI_BYTE_PLL_CLK] = hw;
 
 	snprintf(clk_name, 32, "dsi%d_pll_by_2_bit_clk", pll_7nm->id);
 	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_7nm->id);
 
-	hw = clk_hw_register_fixed_factor(dev, clk_name, parent,
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
 					  0, 1, 2);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_byte_clk_hw;
+		goto fail;
 	}
-
-	pll_7nm->by_2_bit_clk_hw = hw;
 
 	snprintf(clk_name, 32, "dsi%d_pll_post_out_div_clk", pll_7nm->id);
 	snprintf(parent, 32, "dsi%d_pll_out_div_clk", pll_7nm->id);
 
-	hw = clk_hw_register_fixed_factor(dev, clk_name, parent,
+	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
 					  0, 1, 4);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_by_2_bit_clk_hw;
+		goto fail;
 	}
-
-	pll_7nm->post_out_div_clk_hw = hw;
 
 	snprintf(clk_name, 32, "dsi%d_pclk_mux", pll_7nm->id);
 	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_7nm->id);
@@ -761,7 +727,7 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
 	snprintf(parent3, 32, "dsi%d_pll_out_div_clk", pll_7nm->id);
 	snprintf(parent4, 32, "dsi%d_pll_post_out_div_clk", pll_7nm->id);
 
-	hw = clk_hw_register_mux(dev, clk_name,
+	hw = devm_clk_hw_register_mux(dev, clk_name,
 				 ((const char *[]){
 				 parent, parent2, parent3, parent4
 				 }), 4, 0, pll_7nm->phy_cmn_mmio +
@@ -769,44 +735,28 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
 				 0, 2, 0, NULL);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_post_out_div_clk_hw;
+		goto fail;
 	}
-
-	pll_7nm->pclk_mux_hw = hw;
 
 	snprintf(clk_name, 32, "dsi%d_phy_pll_out_dsiclk", pll_7nm->id);
 	snprintf(parent, 32, "dsi%d_pclk_mux", pll_7nm->id);
 
 	/* PIX CLK DIV : DIV_CTRL_7_4*/
-	hw = clk_hw_register_divider(dev, clk_name, parent,
+	hw = devm_clk_hw_register_divider(dev, clk_name, parent,
 				     0, pll_7nm->phy_cmn_mmio +
 					REG_DSI_7nm_PHY_CMN_CLK_CFG0,
 				     4, 4, CLK_DIVIDER_ONE_BASED,
 				     &pll_7nm->postdiv_lock);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto err_pclk_mux_hw;
+		goto fail;
 	}
 
-	pll_7nm->out_dsiclk_hw = hw;
 	provided_clocks[DSI_PIXEL_PLL_CLK] = hw;
 
 	return 0;
 
-err_pclk_mux_hw:
-	clk_hw_unregister_mux(pll_7nm->pclk_mux_hw);
-err_post_out_div_clk_hw:
-	clk_hw_unregister_fixed_factor(pll_7nm->post_out_div_clk_hw);
-err_by_2_bit_clk_hw:
-	clk_hw_unregister_fixed_factor(pll_7nm->by_2_bit_clk_hw);
-err_byte_clk_hw:
-	clk_hw_unregister_fixed_factor(pll_7nm->byte_clk_hw);
-err_bit_clk_hw:
-	clk_hw_unregister_divider(pll_7nm->bit_clk_hw);
-err_out_div_clk_hw:
-	clk_hw_unregister_divider(pll_7nm->out_div_clk_hw);
-err_base_clk_hw:
-	clk_hw_unregister(&pll_7nm->base.clk_hw);
+fail:
 
 	return ret;
 }
@@ -1093,7 +1043,6 @@ const struct msm_dsi_phy_cfg dsi_phy_7nm_cfgs = {
 		.pll_init = dsi_pll_7nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_7nm_destroy,
 		.save_state = dsi_pll_7nm_save_state,
 		.restore_state = dsi_pll_7nm_restore_state,
 	},
@@ -1119,7 +1068,6 @@ const struct msm_dsi_phy_cfg dsi_phy_7nm_8150_cfgs = {
 		.pll_init = dsi_pll_7nm_init,
 	},
 	.pll_ops = {
-		.destroy = dsi_pll_7nm_destroy,
 		.save_state = dsi_pll_7nm_save_state,
 		.restore_state = dsi_pll_7nm_restore_state,
 	},
