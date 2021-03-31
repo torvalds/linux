@@ -25,8 +25,8 @@ MODULE_AUTHOR("Mihai Carabas <mihai.carabas@oracle.com>");
 MODULE_DESCRIPTION("pvpanic device driver ");
 MODULE_LICENSE("GPL");
 
-struct list_head pvpanic_list;
-spinlock_t pvpanic_lock;
+static struct list_head pvpanic_list;
+static spinlock_t pvpanic_lock;
 
 static void
 pvpanic_send_event(unsigned int event)
