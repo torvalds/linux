@@ -180,12 +180,8 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    asking for trouble and would force extra work on
 	 *    __bio_clone_fast() anyways.
 	 */
-	if (bio_is_passthrough(bio_src))
-		bio = bio_kmalloc(GFP_NOIO | __GFP_NOFAIL,
-				  bio_segments(bio_src));
-	else
-		bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
-				       &bounce_bio_set);
+	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
+			       &bounce_bio_set);
 	bio->bi_bdev		= bio_src->bi_bdev;
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
@@ -245,8 +241,7 @@ void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	if (!bounce)
 		return;
 
-	if (!bio_is_passthrough(*bio_orig) &&
-	    sectors < bio_sectors(*bio_orig)) {
+	if (sectors < bio_sectors(*bio_orig)) {
 		bio = bio_split(*bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
 		bio_chain(bio, *bio_orig);
 		submit_bio_noacct(*bio_orig);
