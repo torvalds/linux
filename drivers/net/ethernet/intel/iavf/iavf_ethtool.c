@@ -939,7 +939,7 @@ iavf_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
 	if (!(fsp->flow_type & FLOW_EXT))
 		return 0;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < IAVF_FLEX_WORD_NUM; i++) {
 #define IAVF_USERDEF_FLEX_WORD_M	GENMASK(15, 0)
 #define IAVF_USERDEF_FLEX_OFFS_S	16
 #define IAVF_USERDEF_FLEX_OFFS_M	GENMASK(31, IAVF_USERDEF_FLEX_OFFS_S)
