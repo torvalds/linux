@@ -168,6 +168,8 @@ static inline int sve_get_current_vl(void)
 static inline void sve_user_disable(void) { BUILD_BUG(); }
 static inline void sve_user_enable(void) { BUILD_BUG(); }
 
+#define sve_cond_update_zcr_vq(val, reg) do { } while (0)
+
 static inline void sve_init_vq_map(void) { }
 static inline void sve_update_vq_map(void) { }
 static inline int sve_verify_vq_map(void) { return 0; }
