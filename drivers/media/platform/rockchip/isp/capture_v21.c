@@ -738,6 +738,13 @@ static int mi_frame_end(struct rkisp_stream *stream)
 			ns = ktime_get_ns();
 		vb2_buf->timestamp = ns;
 
+		ns = ktime_get_ns();
+		stream->dbg.interval = ns - stream->dbg.timestamp;
+		stream->dbg.timestamp = ns;
+		stream->dbg.id = stream->curr_buf->vb.sequence;
+		if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
+			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
+
 		if (is_rdbk_stream(stream) &&
 		    dev->dmarx_dev.trigger == T_MANUAL) {
 			if (stream->id == RKISP_STREAM_DMATX0) {

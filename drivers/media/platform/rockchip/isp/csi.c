@@ -658,6 +658,7 @@ static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
 		isp->dmarx_dev.cur_frame.id = t.frame_id;
 		isp->dmarx_dev.cur_frame.sof_timestamp = t.sof_timestamp;
 		isp->dmarx_dev.cur_frame.timestamp = t.frame_timestamp;
+		isp->isp_sdev.frm_timestamp = t.sof_timestamp;
 		mode = t.mode;
 		times = t.times;
 		hw->cur_dev_id = id;

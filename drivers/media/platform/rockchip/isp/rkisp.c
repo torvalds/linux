@@ -1836,6 +1836,8 @@ rkisp_isp_queue_event_sof(struct rkisp_isp_subdev *isp)
 		.u.frame_sync.frame_sequence =
 			atomic_inc_return(&isp->frm_sync_seq) - 1,
 	};
+
+	event.timestamp = ns_to_timespec(ktime_get_ns());
 	v4l2_event_queue(isp->sd.devnode, &event);
 }
 
@@ -2318,6 +2320,8 @@ void rkisp_isp_isr(unsigned int isp_mis,
 	dev->isp_isr_cnt++;
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
+		if (!(dev->isp_state & ISP_FRAME_VS))
+			dev->isp_sdev.dbg.timestamp = ktime_get_ns();
 		rkisp_set_state(dev, ISP_FRAME_VS);
 		/* last vsync to config next buf */
 		if (!dev->csi_dev.filt_state[CSI_F_VS])
@@ -2352,8 +2356,10 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			}
 		}
 
-		if (dev->vs_irq < 0)
+		if (dev->vs_irq < 0) {
+			dev->isp_sdev.frm_timestamp = ktime_get_ns();
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
+		}
 vs_skip:
 		writel(CIF_ISP_V_START, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
@@ -2410,6 +2416,8 @@ vs_skip:
 
 	/* frame was completely put out */
 	if (isp_mis & CIF_ISP_FRAME) {
+		dev->isp_sdev.dbg.interval =
+			ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
 		/* Clear Frame In (ISP) */
 		rkisp_set_state(dev, ISP_FRAME_END);
 		writel(CIF_ISP_FRAME, base + CIF_ISP_ICR);
@@ -2417,7 +2425,7 @@ vs_skip:
 		if (isp_mis_tmp & CIF_ISP_FRAME)
 			v4l2_err(&dev->v4l2_dev,
 				 "isp icr frame end err: 0x%x\n", isp_mis_tmp);
-
+		rkisp_dmarx_get_frame(dev, &dev->isp_sdev.dbg.id, NULL, NULL, true);
 		rkisp_isp_read_add_fifo_data(dev);
 	}
 

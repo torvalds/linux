@@ -38,6 +38,7 @@
 #include "common.h"
 #include "capture_v1x.h"
 #include "capture_v2x.h"
+#include "isp_ispp.h"
 
 #define RDBK_MAX		3
 #define RDBK_L			0
@@ -223,6 +224,7 @@ struct rkisp_stream {
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;
+	struct frame_debug_info dbg;
 	union {
 		struct rkisp_stream_sp sp;
 		struct rkisp_stream_mp mp;
