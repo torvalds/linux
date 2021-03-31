@@ -5213,14 +5213,15 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 }
 
 static bool __io_poll_remove_one(struct io_kiocb *req,
-				 struct io_poll_iocb *poll)
+				 struct io_poll_iocb *poll, bool do_cancel)
 {
 	bool do_complete = false;
 
 	if (!poll->head)
 		return false;
 	spin_lock(&poll->head->lock);
-	WRITE_ONCE(poll->canceled, true);
+	if (do_cancel)
+		WRITE_ONCE(poll->canceled, true);
 	if (!list_empty(&poll->wait.entry)) {
 		list_del_init(&poll->wait.entry);
 		do_complete = true;
@@ -5237,12 +5238,12 @@ static bool io_poll_remove_waitqs(struct io_kiocb *req)
 	io_poll_remove_double(req);
 
 	if (req->opcode == IORING_OP_POLL_ADD) {
-		do_complete = __io_poll_remove_one(req, &req->poll);
+		do_complete = __io_poll_remove_one(req, &req->poll, true);
 	} else {
 		struct async_poll *apoll = req->apoll;
 
 		/* non-poll requests have submit ref still */
-		do_complete = __io_poll_remove_one(req, &apoll->poll);
+		do_complete = __io_poll_remove_one(req, &apoll->poll, true);
 		if (do_complete) {
 			io_put_req(req);
 			kfree(apoll->double_poll);
@@ -5451,10 +5452,11 @@ static int io_poll_update(struct io_kiocb *req)
 		ret = -EACCES;
 		goto err;
 	}
-	if (!__io_poll_remove_one(preq, &preq->poll)) {
-		/* in process of completing/removal */
-		ret = -EALREADY;
-		goto err;
+	if (!__io_poll_remove_one(preq, &preq->poll, false)) {
+		if (preq->poll.events & EPOLLONESHOT) {
+			ret = -EALREADY;
+			goto err;
+		}
 	}
 	/* we now have a detached poll request. reissue. */
 	ret = 0;
