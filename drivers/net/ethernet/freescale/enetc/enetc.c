@@ -8,21 +8,20 @@
 #include <linux/vmalloc.h>
 #include <net/pkt_sched.h>
 
-/* ENETC overhead: optional extension BD + 1 BD gap */
-#define ENETC_TXBDS_NEEDED(val)	((val) + 2)
-/* max # of chained Tx BDs is 15, including head and extension BD */
-#define ENETC_MAX_SKB_FRAGS	13
-#define ENETC_TXBDS_MAX_NEEDED	ENETC_TXBDS_NEEDED(ENETC_MAX_SKB_FRAGS + 1)
-
 static void enetc_unmap_tx_buff(struct enetc_bdr *tx_ring,
 				struct enetc_tx_swbd *tx_swbd)
 {
+	/* For XDP_TX, pages come from RX, whereas for the other contexts where
+	 * we have is_dma_page_set, those come from skb_frag_dma_map. We need
+	 * to match the DMA mapping length, so we need to differentiate those.
+	 */
 	if (tx_swbd->is_dma_page)
 		dma_unmap_page(tx_ring->dev, tx_swbd->dma,
-			       tx_swbd->len, DMA_TO_DEVICE);
+			       tx_swbd->is_xdp_tx ? PAGE_SIZE : tx_swbd->len,
+			       tx_swbd->dir);
 	else
 		dma_unmap_single(tx_ring->dev, tx_swbd->dma,
-				 tx_swbd->len, DMA_TO_DEVICE);
+				 tx_swbd->len, tx_swbd->dir);
 	tx_swbd->dma = 0;
 }
 
@@ -36,6 +35,13 @@ static void enetc_free_tx_skb(struct enetc_bdr *tx_ring,
 		dev_kfree_skb_any(tx_swbd->skb);
 		tx_swbd->skb = NULL;
 	}
+}
+
+/* Let H/W know BD ring has been updated */
+static void enetc_update_tx_ring_tail(struct enetc_bdr *tx_ring)
+{
+	/* includes wmb() */
+	enetc_wr_reg_hot(tx_ring->tpir, tx_ring->next_to_use);
 }
 
 static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
@@ -68,6 +74,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	tx_swbd->dma = dma;
 	tx_swbd->len = len;
 	tx_swbd->is_dma_page = 0;
+	tx_swbd->dir = DMA_TO_DEVICE;
 	count++;
 
 	do_vlan = skb_vlan_tag_present(skb);
@@ -150,6 +157,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 		tx_swbd->dma = dma;
 		tx_swbd->len = len;
 		tx_swbd->is_dma_page = 1;
+		tx_swbd->dir = DMA_TO_DEVICE;
 		count++;
 	}
 
@@ -166,8 +174,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	/* let H/W know BD ring has been updated */
-	enetc_wr_reg_hot(tx_ring->tpir, i); /* includes wmb() */
+	enetc_update_tx_ring_tail(tx_ring);
 
 	return count;
 
@@ -320,6 +327,43 @@ static void enetc_tstamp_tx(struct sk_buff *skb, u64 tstamp)
 	}
 }
 
+static void enetc_recycle_xdp_tx_buff(struct enetc_bdr *tx_ring,
+				      struct enetc_tx_swbd *tx_swbd)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(tx_ring->ndev);
+	struct enetc_bdr *rx_ring = priv->rx_ring[tx_ring->index];
+	struct enetc_rx_swbd rx_swbd = {
+		.dma = tx_swbd->dma,
+		.page = tx_swbd->page,
+		.page_offset = tx_swbd->page_offset,
+		.dir = tx_swbd->dir,
+		.len = tx_swbd->len,
+	};
+
+	if (likely(enetc_swbd_unused(rx_ring))) {
+		enetc_reuse_page(rx_ring, &rx_swbd);
+
+		/* sync for use by the device */
+		dma_sync_single_range_for_device(rx_ring->dev, rx_swbd.dma,
+						 rx_swbd.page_offset,
+						 ENETC_RXB_DMA_SIZE_XDP,
+						 rx_swbd.dir);
+
+		rx_ring->stats.recycles++;
+	} else {
+		/* RX ring is already full, we need to unmap and free the
+		 * page, since there's nothing useful we can do with it.
+		 */
+		rx_ring->stats.recycle_failures++;
+
+		dma_unmap_page(rx_ring->dev, rx_swbd.dma, PAGE_SIZE,
+			       rx_swbd.dir);
+		__free_page(rx_swbd.page);
+	}
+
+	rx_ring->xdp.xdp_tx_in_flight--;
+}
+
 static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 {
 	struct net_device *ndev = tx_ring->ndev;
@@ -351,7 +395,9 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 			}
 		}
 
-		if (likely(tx_swbd->dma))
+		if (tx_swbd->is_xdp_tx)
+			enetc_recycle_xdp_tx_buff(tx_ring, tx_swbd);
+		else if (likely(tx_swbd->dma))
 			enetc_unmap_tx_buff(tx_ring, tx_swbd);
 
 		if (tx_swbd->skb) {
@@ -405,6 +451,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 static bool enetc_new_page(struct enetc_bdr *rx_ring,
 			   struct enetc_rx_swbd *rx_swbd)
 {
+	bool xdp = !!(rx_ring->xdp.prog);
 	struct page *page;
 	dma_addr_t addr;
 
@@ -412,7 +459,10 @@ static bool enetc_new_page(struct enetc_bdr *rx_ring,
 	if (unlikely(!page))
 		return false;
 
-	addr = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
+	/* For XDP_TX, we forgo dma_unmap -> dma_map */
+	rx_swbd->dir = xdp ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
+
+	addr = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE, rx_swbd->dir);
 	if (unlikely(dma_mapping_error(rx_ring->dev, addr))) {
 		__free_page(page);
 
@@ -536,6 +586,10 @@ static void enetc_get_offloads(struct enetc_bdr *rx_ring,
 #endif
 }
 
+/* This gets called during the non-XDP NAPI poll cycle as well as on XDP_PASS,
+ * so it needs to work with both DMA_FROM_DEVICE as well as DMA_BIDIRECTIONAL
+ * mapped buffers.
+ */
 static struct enetc_rx_swbd *enetc_get_rx_buff(struct enetc_bdr *rx_ring,
 					       int i, u16 size)
 {
@@ -543,7 +597,7 @@ static struct enetc_rx_swbd *enetc_get_rx_buff(struct enetc_bdr *rx_ring,
 
 	dma_sync_single_range_for_cpu(rx_ring->dev, rx_swbd->dma,
 				      rx_swbd->page_offset,
-				      size, DMA_FROM_DEVICE);
+				      size, rx_swbd->dir);
 	return rx_swbd;
 }
 
@@ -561,10 +615,10 @@ static void enetc_put_rx_buff(struct enetc_bdr *rx_ring,
 		/* sync for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
 						 rx_swbd->page_offset,
-						 buffer_size, DMA_FROM_DEVICE);
+						 buffer_size, rx_swbd->dir);
 	} else {
-		dma_unmap_page(rx_ring->dev, rx_swbd->dma,
-			       PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_unmap_page(rx_ring->dev, rx_swbd->dma, PAGE_SIZE,
+			       rx_swbd->dir);
 	}
 
 	rx_swbd->page = NULL;
@@ -718,12 +772,70 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 	return rx_frm_cnt;
 }
 
+static void enetc_xdp_map_tx_buff(struct enetc_bdr *tx_ring, int i,
+				  struct enetc_tx_swbd *tx_swbd,
+				  int frm_len)
+{
+	union enetc_tx_bd *txbd = ENETC_TXBD(*tx_ring, i);
+
+	prefetchw(txbd);
+
+	enetc_clear_tx_bd(txbd);
+	txbd->addr = cpu_to_le64(tx_swbd->dma + tx_swbd->page_offset);
+	txbd->buf_len = cpu_to_le16(tx_swbd->len);
+	txbd->frm_len = cpu_to_le16(frm_len);
+
+	memcpy(&tx_ring->tx_swbd[i], tx_swbd, sizeof(*tx_swbd));
+}
+
+/* Puts in the TX ring one XDP frame, mapped as an array of TX software buffer
+ * descriptors.
+ */
+static bool enetc_xdp_tx(struct enetc_bdr *tx_ring,
+			 struct enetc_tx_swbd *xdp_tx_arr, int num_tx_swbd)
+{
+	struct enetc_tx_swbd *tmp_tx_swbd = xdp_tx_arr;
+	int i, k, frm_len = tmp_tx_swbd->len;
+
+	if (unlikely(enetc_bd_unused(tx_ring) < ENETC_TXBDS_NEEDED(num_tx_swbd)))
+		return false;
+
+	while (unlikely(!tmp_tx_swbd->is_eof)) {
+		tmp_tx_swbd++;
+		frm_len += tmp_tx_swbd->len;
+	}
+
+	i = tx_ring->next_to_use;
+
+	for (k = 0; k < num_tx_swbd; k++) {
+		struct enetc_tx_swbd *xdp_tx_swbd = &xdp_tx_arr[k];
+
+		enetc_xdp_map_tx_buff(tx_ring, i, xdp_tx_swbd, frm_len);
+
+		/* last BD needs 'F' bit set */
+		if (xdp_tx_swbd->is_eof) {
+			union enetc_tx_bd *txbd = ENETC_TXBD(*tx_ring, i);
+
+			txbd->flags = ENETC_TXBD_FLAGS_F;
+		}
+
+		enetc_bdr_idx_inc(tx_ring, &i);
+	}
+
+	tx_ring->next_to_use = i;
+
+	return true;
+}
+
 static void enetc_map_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 				     struct xdp_buff *xdp_buff, u16 size)
 {
 	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
 	void *hard_start = page_address(rx_swbd->page) + rx_swbd->page_offset;
 	struct skb_shared_info *shinfo;
+
+	/* To be used for XDP_TX */
+	rx_swbd->len = size;
 
 	xdp_prepare_buff(xdp_buff, hard_start - rx_ring->buffer_offset,
 			 rx_ring->buffer_offset, size, false);
@@ -738,6 +850,9 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 	struct skb_shared_info *shinfo = xdp_get_shared_info_from_buff(xdp_buff);
 	struct enetc_rx_swbd *rx_swbd = enetc_get_rx_buff(rx_ring, i, size);
 	skb_frag_t *frag = &shinfo->frags[shinfo->nr_frags];
+
+	/* To be used for XDP_TX */
+	rx_swbd->len = size;
 
 	skb_frag_off_set(frag, rx_swbd->page_offset);
 	skb_frag_size_set(frag, size);
@@ -780,13 +895,46 @@ static void enetc_put_xdp_buff(struct enetc_bdr *rx_ring,
 {
 	enetc_reuse_page(rx_ring, rx_swbd);
 
-	/* sync for use by the device */
 	dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
 					 rx_swbd->page_offset,
 					 ENETC_RXB_DMA_SIZE_XDP,
-					 DMA_FROM_DEVICE);
+					 rx_swbd->dir);
 
 	rx_swbd->page = NULL;
+}
+
+/* Convert RX buffer descriptors to TX buffer descriptors. These will be
+ * recycled back into the RX ring in enetc_clean_tx_ring. We need to scrub the
+ * RX software BDs because the ownership of the buffer no longer belongs to the
+ * RX ring, so enetc_refill_rx_ring may not reuse rx_swbd->page.
+ */
+static int enetc_rx_swbd_to_xdp_tx_swbd(struct enetc_tx_swbd *xdp_tx_arr,
+					struct enetc_bdr *rx_ring,
+					int rx_ring_first, int rx_ring_last)
+{
+	int n = 0;
+
+	for (; rx_ring_first != rx_ring_last;
+	     n++, enetc_bdr_idx_inc(rx_ring, &rx_ring_first)) {
+		struct enetc_rx_swbd *rx_swbd = &rx_ring->rx_swbd[rx_ring_first];
+		struct enetc_tx_swbd *tx_swbd = &xdp_tx_arr[n];
+
+		/* No need to dma_map, we already have DMA_BIDIRECTIONAL */
+		tx_swbd->dma = rx_swbd->dma;
+		tx_swbd->dir = rx_swbd->dir;
+		tx_swbd->page = rx_swbd->page;
+		tx_swbd->page_offset = rx_swbd->page_offset;
+		tx_swbd->len = rx_swbd->len;
+		tx_swbd->is_dma_page = true;
+		tx_swbd->is_xdp_tx = true;
+		tx_swbd->is_eof = false;
+		memset(rx_swbd, 0, sizeof(*rx_swbd));
+	}
+
+	/* We rely on caller providing an rx_ring_last > rx_ring_first */
+	xdp_tx_arr[n - 1].is_eof = true;
+
+	return n;
 }
 
 static void enetc_xdp_drop(struct enetc_bdr *rx_ring, int rx_ring_first,
@@ -804,6 +952,10 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				   struct napi_struct *napi, int work_limit,
 				   struct bpf_prog *prog)
 {
+	struct enetc_tx_swbd xdp_tx_arr[ENETC_MAX_SKB_FRAGS] = {0};
+	struct enetc_ndev_priv *priv = netdev_priv(rx_ring->ndev);
+	struct enetc_bdr *tx_ring = priv->tx_ring[rx_ring->index];
+	int xdp_tx_bd_cnt, xdp_tx_frm_cnt = 0;
 	int rx_frm_cnt = 0, rx_byte_cnt = 0;
 	int cleaned_cnt, i;
 	u32 xdp_act;
@@ -818,10 +970,6 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 		struct xdp_buff xdp_buff;
 		struct sk_buff *skb;
 		u32 bd_status;
-
-		if (cleaned_cnt >= ENETC_RXBD_BUNDLE)
-			cleaned_cnt -= enetc_refill_rx_ring(rx_ring,
-							    cleaned_cnt);
 
 		rxbd = enetc_rxbd(rx_ring, i);
 		bd_status = le32_to_cpu(rxbd->r.lstatus);
@@ -865,6 +1013,20 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 
 			napi_gro_receive(napi, skb);
 			break;
+		case XDP_TX:
+			xdp_tx_bd_cnt = enetc_rx_swbd_to_xdp_tx_swbd(xdp_tx_arr,
+								     rx_ring,
+								     orig_i, i);
+
+			if (!enetc_xdp_tx(tx_ring, xdp_tx_arr, xdp_tx_bd_cnt)) {
+				enetc_xdp_drop(rx_ring, orig_i, i);
+				tx_ring->stats.xdp_tx_drops++;
+			} else {
+				tx_ring->stats.xdp_tx += xdp_tx_bd_cnt;
+				rx_ring->xdp.xdp_tx_in_flight += xdp_tx_bd_cnt;
+				xdp_tx_frm_cnt++;
+			}
+			break;
 		default:
 			bpf_warn_invalid_xdp_action(xdp_act);
 		}
@@ -876,6 +1038,13 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 
 	rx_ring->stats.packets += rx_frm_cnt;
 	rx_ring->stats.bytes += rx_byte_cnt;
+
+	if (xdp_tx_frm_cnt)
+		enetc_update_tx_ring_tail(tx_ring);
+
+	if (cleaned_cnt > rx_ring->xdp.xdp_tx_in_flight)
+		enetc_refill_rx_ring(rx_ring, enetc_bd_unused(rx_ring) -
+				     rx_ring->xdp.xdp_tx_in_flight);
 
 	return rx_frm_cnt;
 }
@@ -1141,8 +1310,8 @@ static void enetc_free_rx_ring(struct enetc_bdr *rx_ring)
 		if (!rx_swbd->page)
 			continue;
 
-		dma_unmap_page(rx_ring->dev, rx_swbd->dma,
-			       PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_unmap_page(rx_ring->dev, rx_swbd->dma, PAGE_SIZE,
+			       rx_swbd->dir);
 		__free_page(rx_swbd->page);
 		rx_swbd->page = NULL;
 	}
