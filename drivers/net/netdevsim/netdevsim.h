@@ -60,9 +60,12 @@ struct nsim_ethtool_pauseparam {
 };
 
 struct nsim_ethtool {
+	u32 get_err;
+	u32 set_err;
 	struct nsim_ethtool_pauseparam pauseparam;
 	struct ethtool_coalesce coalesce;
 	struct ethtool_ringparam ring;
+	struct ethtool_fecparam fec;
 };
 
 struct netdevsim {
