@@ -604,6 +604,9 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 
 		min_nr = max(min_nr, bch2_nr_btree_keys_want_flush(c));
 
+		/* Don't do too many without delivering wakeup: */
+		min_nr = min(min_nr, 128UL);
+
 		trace_journal_reclaim_start(c,
 				min_nr,
 				j->prereserved.reserved,
@@ -620,6 +623,9 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 		else
 			j->nr_background_reclaim += nr_flushed;
 		trace_journal_reclaim_finish(c, nr_flushed);
+
+		if (nr_flushed)
+			wake_up(&j->reclaim_wait);
 	} while (min_nr && nr_flushed);
 
 	memalloc_noreclaim_restore(flags);

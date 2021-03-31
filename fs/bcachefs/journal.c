@@ -1116,6 +1116,7 @@ int bch2_fs_journal_init(struct journal *j)
 	spin_lock_init(&j->err_lock);
 	init_waitqueue_head(&j->wait);
 	INIT_DELAYED_WORK(&j->write_work, journal_write_work);
+	init_waitqueue_head(&j->reclaim_wait);
 	init_waitqueue_head(&j->pin_flush_wait);
 	mutex_init(&j->reclaim_lock);
 	mutex_init(&j->discard_lock);

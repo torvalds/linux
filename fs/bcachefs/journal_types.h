@@ -243,6 +243,7 @@ struct journal {
 	spinlock_t		err_lock;
 
 	struct mutex		reclaim_lock;
+	wait_queue_head_t	reclaim_wait;
 	struct task_struct	*reclaim_thread;
 	bool			reclaim_kicked;
 	u64			nr_direct_reclaim;
