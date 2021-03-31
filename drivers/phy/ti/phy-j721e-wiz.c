@@ -340,6 +340,8 @@ static int wiz_mode_select(struct wiz *wiz)
 			mode = LANE_MODE_GEN1;
 		else if (wiz->lane_phy_type[i] == PHY_TYPE_QSGMII)
 			mode = LANE_MODE_GEN2;
+		else
+			continue;
 
 		ret = regmap_field_write(wiz->p_standard_mode[i], mode);
 		if (ret)
