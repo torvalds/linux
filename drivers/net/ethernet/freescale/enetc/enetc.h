@@ -71,7 +71,7 @@ struct enetc_xdp_data {
 	int xdp_tx_in_flight;
 };
 
-#define ENETC_RX_RING_DEFAULT_SIZE	512
+#define ENETC_RX_RING_DEFAULT_SIZE	2048
 #define ENETC_TX_RING_DEFAULT_SIZE	256
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
