@@ -36,43 +36,24 @@
  */
 
 #define VCO_REF_CLK_RATE		19200000
-
-struct dsi_pll_regs {
-	u32 pll_prop_gain_rate;
-	u32 pll_lockdet_rate;
-	u32 decimal_div_start;
-	u32 frac_div_start_low;
-	u32 frac_div_start_mid;
-	u32 frac_div_start_high;
-	u32 pll_clock_inverters;
-	u32 ssc_stepsize_low;
-	u32 ssc_stepsize_high;
-	u32 ssc_div_per_low;
-	u32 ssc_div_per_high;
-	u32 ssc_adjper_low;
-	u32 ssc_adjper_high;
-	u32 ssc_control;
-};
+#define FRAC_BITS 18
 
 /* Hardware is V4.1 */
 #define DSI_PHY_7NM_QUIRK_V4_1		BIT(0)
 
 struct dsi_pll_config {
-	u32 ref_freq;
-	bool div_override;
-	u32 output_div;
-	bool ignore_frac;
-	bool disable_prescaler;
 	bool enable_ssc;
 	bool ssc_center;
-	u32 dec_bits;
-	u32 frac_bits;
-	u32 lock_timer;
 	u32 ssc_freq;
 	u32 ssc_offset;
 	u32 ssc_adj_per;
-	u32 thresh_cycles;
-	u32 refclk_cycles;
+
+	/* out */
+	u32 decimal_div_start;
+	u32 frac_div_start;
+	u32 pll_clock_inverters;
+	u32 ssc_stepsize;
+	u32 ssc_div_per;
 };
 
 struct pll_7nm_cached_state {
@@ -88,14 +69,10 @@ struct dsi_pll_7nm {
 
 	struct msm_dsi_phy *phy;
 
-	u64 vco_ref_clk_rate;
 	u64 vco_current_rate;
 
 	/* protects REG_DSI_7nm_PHY_CMN_CLK_CFG0 register */
 	spinlock_t postdiv_lock;
-
-	struct dsi_pll_config pll_configuration;
-	struct dsi_pll_regs reg_setup;
 
 	struct pll_7nm_cached_state cached_state;
 
@@ -110,35 +87,20 @@ struct dsi_pll_7nm {
  */
 static struct dsi_pll_7nm *pll_7nm_list[DSI_MAX];
 
-static void dsi_pll_setup_config(struct dsi_pll_7nm *pll)
+static void dsi_pll_setup_config(struct dsi_pll_config *config)
 {
-	struct dsi_pll_config *config = &pll->pll_configuration;
-
-	config->ref_freq = pll->vco_ref_clk_rate;
-	config->output_div = 1;
-	config->dec_bits = 8;
-	config->frac_bits = 18;
-	config->lock_timer = 64;
 	config->ssc_freq = 31500;
 	config->ssc_offset = 4800;
 	config->ssc_adj_per = 2;
-	config->thresh_cycles = 32;
-	config->refclk_cycles = 256;
-
-	config->div_override = false;
-	config->ignore_frac = false;
-	config->disable_prescaler = false;
 
 	/* TODO: ssc enable */
 	config->enable_ssc = false;
 	config->ssc_center = 0;
 }
 
-static void dsi_pll_calc_dec_frac(struct dsi_pll_7nm *pll)
+static void dsi_pll_calc_dec_frac(struct dsi_pll_7nm *pll, struct dsi_pll_config *config)
 {
-	struct dsi_pll_config *config = &pll->pll_configuration;
-	struct dsi_pll_regs *regs = &pll->reg_setup;
-	u64 fref = pll->vco_ref_clk_rate;
+	u64 fref = VCO_REF_CLK_RATE;
 	u64 pll_freq;
 	u64 divider;
 	u64 dec, dec_multiple;
@@ -147,42 +109,34 @@ static void dsi_pll_calc_dec_frac(struct dsi_pll_7nm *pll)
 
 	pll_freq = pll->vco_current_rate;
 
-	if (config->disable_prescaler)
-		divider = fref;
-	else
-		divider = fref * 2;
+	divider = fref * 2;
 
-	multiplier = 1 << config->frac_bits;
+	multiplier = 1 << FRAC_BITS;
 	dec_multiple = div_u64(pll_freq * multiplier, divider);
 	div_u64_rem(dec_multiple, multiplier, &frac);
 
 	dec = div_u64(dec_multiple, multiplier);
 
 	if (!(pll->phy->cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1))
-		regs->pll_clock_inverters = 0x28;
+		config->pll_clock_inverters = 0x28;
 	else if (pll_freq <= 1000000000ULL)
-		regs->pll_clock_inverters = 0xa0;
+		config->pll_clock_inverters = 0xa0;
 	else if (pll_freq <= 2500000000ULL)
-		regs->pll_clock_inverters = 0x20;
+		config->pll_clock_inverters = 0x20;
 	else if (pll_freq <= 3020000000ULL)
-		regs->pll_clock_inverters = 0x00;
+		config->pll_clock_inverters = 0x00;
 	else
-		regs->pll_clock_inverters = 0x40;
+		config->pll_clock_inverters = 0x40;
 
-	regs->pll_lockdet_rate = config->lock_timer;
-	regs->decimal_div_start = dec;
-	regs->frac_div_start_low = (frac & 0xff);
-	regs->frac_div_start_mid = (frac & 0xff00) >> 8;
-	regs->frac_div_start_high = (frac & 0x30000) >> 16;
+	config->decimal_div_start = dec;
+	config->frac_div_start = frac;
 }
 
 #define SSC_CENTER		BIT(0)
 #define SSC_EN			BIT(1)
 
-static void dsi_pll_calc_ssc(struct dsi_pll_7nm *pll)
+static void dsi_pll_calc_ssc(struct dsi_pll_7nm *pll, struct dsi_pll_config *config)
 {
-	struct dsi_pll_config *config = &pll->pll_configuration;
-	struct dsi_pll_regs *regs = &pll->reg_setup;
 	u32 ssc_per;
 	u32 ssc_mod;
 	u64 ssc_step_size;
@@ -193,58 +147,49 @@ static void dsi_pll_calc_ssc(struct dsi_pll_7nm *pll)
 		return;
 	}
 
-	ssc_per = DIV_ROUND_CLOSEST(config->ref_freq, config->ssc_freq) / 2 - 1;
+	ssc_per = DIV_ROUND_CLOSEST(VCO_REF_CLK_RATE, config->ssc_freq) / 2 - 1;
 	ssc_mod = (ssc_per + 1) % (config->ssc_adj_per + 1);
 	ssc_per -= ssc_mod;
 
-	frac = regs->frac_div_start_low |
-			(regs->frac_div_start_mid << 8) |
-			(regs->frac_div_start_high << 16);
-	ssc_step_size = regs->decimal_div_start;
-	ssc_step_size *= (1 << config->frac_bits);
+	frac = config->frac_div_start;
+	ssc_step_size = config->decimal_div_start;
+	ssc_step_size *= (1 << FRAC_BITS);
 	ssc_step_size += frac;
 	ssc_step_size *= config->ssc_offset;
 	ssc_step_size *= (config->ssc_adj_per + 1);
 	ssc_step_size = div_u64(ssc_step_size, (ssc_per + 1));
 	ssc_step_size = DIV_ROUND_CLOSEST_ULL(ssc_step_size, 1000000);
 
-	regs->ssc_div_per_low = ssc_per & 0xFF;
-	regs->ssc_div_per_high = (ssc_per & 0xFF00) >> 8;
-	regs->ssc_stepsize_low = (u32)(ssc_step_size & 0xFF);
-	regs->ssc_stepsize_high = (u32)((ssc_step_size & 0xFF00) >> 8);
-	regs->ssc_adjper_low = config->ssc_adj_per & 0xFF;
-	regs->ssc_adjper_high = (config->ssc_adj_per & 0xFF00) >> 8;
-
-	regs->ssc_control = config->ssc_center ? SSC_CENTER : 0;
+	config->ssc_div_per = ssc_per;
+	config->ssc_stepsize = ssc_step_size;
 
 	pr_debug("SCC: Dec:%d, frac:%llu, frac_bits:%d\n",
-		 regs->decimal_div_start, frac, config->frac_bits);
+		 config->decimal_div_start, frac, FRAC_BITS);
 	pr_debug("SSC: div_per:0x%X, stepsize:0x%X, adjper:0x%X\n",
 		 ssc_per, (u32)ssc_step_size, config->ssc_adj_per);
 }
 
-static void dsi_pll_ssc_commit(struct dsi_pll_7nm *pll)
+static void dsi_pll_ssc_commit(struct dsi_pll_7nm *pll, struct dsi_pll_config *config)
 {
 	void __iomem *base = pll->phy->pll_base;
-	struct dsi_pll_regs *regs = &pll->reg_setup;
 
-	if (pll->pll_configuration.enable_ssc) {
+	if (config->enable_ssc) {
 		pr_debug("SSC is enabled\n");
 
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_STEPSIZE_LOW_1,
-			  regs->ssc_stepsize_low);
+			  config->ssc_stepsize & 0xff);
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_STEPSIZE_HIGH_1,
-			  regs->ssc_stepsize_high);
+			  config->ssc_stepsize >> 8);
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_DIV_PER_LOW_1,
-			  regs->ssc_div_per_low);
+			  config->ssc_div_per & 0xff);
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_DIV_PER_HIGH_1,
-			  regs->ssc_div_per_high);
+			  config->ssc_div_per >> 8);
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_ADJPER_LOW_1,
-			  regs->ssc_adjper_low);
+			  config->ssc_adj_per & 0xff);
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_ADJPER_HIGH_1,
-			  regs->ssc_adjper_high);
+			  config->ssc_adj_per >> 8);
 		dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_SSC_CONTROL,
-			  SSC_EN | regs->ssc_control);
+			  SSC_EN | (config->ssc_center ? SSC_CENTER : 0));
 	}
 }
 
@@ -296,44 +241,46 @@ static void dsi_pll_config_hzindep_reg(struct dsi_pll_7nm *pll)
 	}
 }
 
-static void dsi_pll_commit(struct dsi_pll_7nm *pll)
+static void dsi_pll_commit(struct dsi_pll_7nm *pll, struct dsi_pll_config *config)
 {
 	void __iomem *base = pll->phy->pll_base;
-	struct dsi_pll_regs *reg = &pll->reg_setup;
 
 	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_CORE_INPUT_OVERRIDE, 0x12);
-	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_DECIMAL_DIV_START_1, reg->decimal_div_start);
-	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_FRAC_DIV_START_LOW_1, reg->frac_div_start_low);
-	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_FRAC_DIV_START_MID_1, reg->frac_div_start_mid);
-	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_FRAC_DIV_START_HIGH_1, reg->frac_div_start_high);
-	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_PLL_LOCKDET_RATE_1, reg->pll_lockdet_rate);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_DECIMAL_DIV_START_1, config->decimal_div_start);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_FRAC_DIV_START_LOW_1,
+		  config->frac_div_start & 0xff);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_FRAC_DIV_START_MID_1,
+		  (config->frac_div_start & 0xff00) >> 8);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_FRAC_DIV_START_HIGH_1,
+		  (config->frac_div_start & 0x30000) >> 16);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_PLL_LOCKDET_RATE_1, 0x40);
 	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_PLL_LOCK_DELAY, 0x06);
 	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_CMODE_1, 0x10); /* TODO: 0x00 for CPHY */
-	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_CLOCK_INVERTERS, reg->pll_clock_inverters);
+	dsi_phy_write(base + REG_DSI_7nm_PHY_PLL_CLOCK_INVERTERS, config->pll_clock_inverters);
 }
 
 static int dsi_pll_7nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
+	struct dsi_pll_config config;
 
 	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_7nm->phy->id, rate,
 	    parent_rate);
 
 	pll_7nm->vco_current_rate = rate;
-	pll_7nm->vco_ref_clk_rate = VCO_REF_CLK_RATE;
 
-	dsi_pll_setup_config(pll_7nm);
+	dsi_pll_setup_config(&config);
 
-	dsi_pll_calc_dec_frac(pll_7nm);
+	dsi_pll_calc_dec_frac(pll_7nm, &config);
 
-	dsi_pll_calc_ssc(pll_7nm);
+	dsi_pll_calc_ssc(pll_7nm, &config);
 
-	dsi_pll_commit(pll_7nm);
+	dsi_pll_commit(pll_7nm, &config);
 
 	dsi_pll_config_hzindep_reg(pll_7nm);
 
-	dsi_pll_ssc_commit(pll_7nm);
+	dsi_pll_ssc_commit(pll_7nm, &config);
 
 	/* flush, ensure all register writes are done*/
 	wmb();
@@ -486,9 +433,8 @@ static unsigned long dsi_pll_7nm_vco_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
-	struct dsi_pll_config *config = &pll_7nm->pll_configuration;
 	void __iomem *base = pll_7nm->phy->pll_base;
-	u64 ref_clk = pll_7nm->vco_ref_clk_rate;
+	u64 ref_clk = VCO_REF_CLK_RATE;
 	u64 vco_rate = 0x0;
 	u64 multiplier;
 	u32 frac;
@@ -508,7 +454,7 @@ static unsigned long dsi_pll_7nm_vco_recalc_rate(struct clk_hw *hw,
 	 * TODO:
 	 *	1. Assumes prescaler is disabled
 	 */
-	multiplier = 1 << config->frac_bits;
+	multiplier = 1 << FRAC_BITS;
 	pll_freq = dec * (ref_clk * 2);
 	tmp64 = (ref_clk * 2 * frac);
 	pll_freq += div_u64(tmp64, multiplier);
@@ -592,7 +538,7 @@ static int dsi_7nm_pll_restore_state(struct msm_dsi_phy *phy)
 
 	ret = dsi_pll_7nm_vco_set_rate(phy->vco_hw,
 			pll_7nm->vco_current_rate,
-			pll_7nm->vco_ref_clk_rate);
+			VCO_REF_CLK_RATE);
 	if (ret) {
 		DRM_DEV_ERROR(&pll_7nm->phy->pdev->dev,
 			"restore vco rate failed. ret=%d\n", ret);

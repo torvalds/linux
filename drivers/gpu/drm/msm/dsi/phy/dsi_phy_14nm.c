@@ -37,51 +37,19 @@
 #define VCO_MIN_RATE			1300000000UL
 #define VCO_MAX_RATE			2600000000UL
 
-#define DSI_PLL_DEFAULT_VCO_POSTDIV	1
+struct dsi_pll_config {
+	u64 vco_current_rate;
 
-struct dsi_pll_input {
-	u32 fref;	/* reference clk */
-	u32 fdata;	/* bit clock rate */
-	u32 dsiclk_sel; /* Mux configuration (see diagram) */
 	u32 ssc_en;	/* SSC enable/disable */
-	u32 ldo_en;
 
 	/* fixed params */
-	u32 refclk_dbler_en;
-	u32 vco_measure_time;
-	u32 kvco_measure_time;
-	u32 bandgap_timer;
-	u32 pll_wakeup_timer;
 	u32 plllock_cnt;
-	u32 plllock_rng;
 	u32 ssc_center;
 	u32 ssc_adj_period;
 	u32 ssc_spread;
 	u32 ssc_freq;
-	u32 pll_ie_trim;
-	u32 pll_ip_trim;
-	u32 pll_iptat_trim;
-	u32 pll_cpcset_cur;
-	u32 pll_cpmset_cur;
 
-	u32 pll_icpmset;
-	u32 pll_icpcset;
-
-	u32 pll_icpmset_p;
-	u32 pll_icpmset_m;
-
-	u32 pll_icpcset_p;
-	u32 pll_icpcset_m;
-
-	u32 pll_lpf_res1;
-	u32 pll_lpf_cap1;
-	u32 pll_lpf_cap2;
-	u32 pll_c3ctrl;
-	u32 pll_r3ctrl;
-};
-
-struct dsi_pll_output {
-	u32 pll_txclk_en;
+	/* calculated */
 	u32 dec_start;
 	u32 div_frac_start;
 	u32 ssc_period;
@@ -91,19 +59,6 @@ struct dsi_pll_output {
 	u32 pll_vco_count;
 	u32 pll_kvco_div_ref;
 	u32 pll_kvco_count;
-	u32 pll_misc1;
-	u32 pll_lpf2_postdiv;
-	u32 pll_resetsm_cntrl;
-	u32 pll_resetsm_cntrl2;
-	u32 pll_resetsm_cntrl5;
-	u32 pll_kvco_code;
-
-	u32 cmn_clk_cfg0;
-	u32 cmn_clk_cfg1;
-	u32 cmn_ldo_cntrl;
-
-	u32 pll_postdiv;
-	u32 fcvo;
 };
 
 struct pll_14nm_cached_state {
@@ -117,14 +72,8 @@ struct dsi_pll_14nm {
 
 	struct msm_dsi_phy *phy;
 
-	struct dsi_pll_input in;
-	struct dsi_pll_output out;
-
 	/* protects REG_DSI_14nm_PHY_CMN_CLK_CFG0 register */
 	spinlock_t postdiv_lock;
-
-	u64 vco_current_rate;
-	u64 vco_ref_clk_rate;
 
 	struct pll_14nm_cached_state cached_state;
 
@@ -195,78 +144,50 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 	return pll_locked;
 }
 
-static void dsi_pll_14nm_input_init(struct dsi_pll_14nm *pll)
+static void dsi_pll_14nm_config_init(struct dsi_pll_config *pconf)
 {
-	pll->in.fref = pll->vco_ref_clk_rate;
-	pll->in.fdata = 0;
-	pll->in.dsiclk_sel = 1;	/* Use the /2 path in Mux */
-	pll->in.ldo_en = 0;	/* disabled for now */
-
 	/* fixed input */
-	pll->in.refclk_dbler_en = 0;
-	pll->in.vco_measure_time = 5;
-	pll->in.kvco_measure_time = 5;
-	pll->in.bandgap_timer = 4;
-	pll->in.pll_wakeup_timer = 5;
-	pll->in.plllock_cnt = 1;
-	pll->in.plllock_rng = 0;
+	pconf->plllock_cnt = 1;
 
 	/*
 	 * SSC is enabled by default. We might need DT props for configuring
 	 * some SSC params like PPM and center/down spread etc.
 	 */
-	pll->in.ssc_en = 1;
-	pll->in.ssc_center = 0;		/* down spread by default */
-	pll->in.ssc_spread = 5;		/* PPM / 1000 */
-	pll->in.ssc_freq = 31500;	/* default recommended */
-	pll->in.ssc_adj_period = 37;
-
-	pll->in.pll_ie_trim = 4;
-	pll->in.pll_ip_trim = 4;
-	pll->in.pll_cpcset_cur = 1;
-	pll->in.pll_cpmset_cur = 1;
-	pll->in.pll_icpmset = 4;
-	pll->in.pll_icpcset = 4;
-	pll->in.pll_icpmset_p = 0;
-	pll->in.pll_icpmset_m = 0;
-	pll->in.pll_icpcset_p = 0;
-	pll->in.pll_icpcset_m = 0;
-	pll->in.pll_lpf_res1 = 3;
-	pll->in.pll_lpf_cap1 = 11;
-	pll->in.pll_lpf_cap2 = 1;
-	pll->in.pll_iptat_trim = 7;
-	pll->in.pll_c3ctrl = 2;
-	pll->in.pll_r3ctrl = 1;
+	pconf->ssc_en = 1;
+	pconf->ssc_center = 0;		/* down spread by default */
+	pconf->ssc_spread = 5;		/* PPM / 1000 */
+	pconf->ssc_freq = 31500;	/* default recommended */
+	pconf->ssc_adj_period = 37;
 }
 
 #define CEIL(x, y)		(((x) + ((y) - 1)) / (y))
 
-static void pll_14nm_ssc_calc(struct dsi_pll_14nm *pll)
+static void pll_14nm_ssc_calc(struct dsi_pll_14nm *pll, struct dsi_pll_config *pconf)
 {
 	u32 period, ssc_period;
 	u32 ref, rem;
 	u64 step_size;
 
-	DBG("vco=%lld ref=%lld", pll->vco_current_rate, pll->vco_ref_clk_rate);
+	DBG("vco=%lld ref=%d", pconf->vco_current_rate, VCO_REF_CLK_RATE);
 
-	ssc_period = pll->in.ssc_freq / 500;
-	period = (u32)pll->vco_ref_clk_rate / 1000;
+	ssc_period = pconf->ssc_freq / 500;
+	period = (u32)VCO_REF_CLK_RATE / 1000;
 	ssc_period  = CEIL(period, ssc_period);
 	ssc_period -= 1;
-	pll->out.ssc_period = ssc_period;
+	pconf->ssc_period = ssc_period;
 
-	DBG("ssc freq=%d spread=%d period=%d", pll->in.ssc_freq,
-	    pll->in.ssc_spread, pll->out.ssc_period);
+	DBG("ssc freq=%d spread=%d period=%d", pconf->ssc_freq,
+	    pconf->ssc_spread, pconf->ssc_period);
 
-	step_size = (u32)pll->vco_current_rate;
-	ref = pll->vco_ref_clk_rate;
+	step_size = (u32)pconf->vco_current_rate;
+	ref = VCO_REF_CLK_RATE;
 	ref /= 1000;
 	step_size = div_u64(step_size, ref);
 	step_size <<= 20;
 	step_size = div_u64(step_size, 1000);
-	step_size *= pll->in.ssc_spread;
+	step_size *= pconf->ssc_spread;
 	step_size = div_u64(step_size, 1000);
-	step_size *= (pll->in.ssc_adj_period + 1);
+	step_size *= (pconf->ssc_adj_period + 1);
 
 	rem = 0;
 	step_size = div_u64_rem(step_size, ssc_period + 1, &rem);
@@ -277,18 +198,16 @@ static void pll_14nm_ssc_calc(struct dsi_pll_14nm *pll)
 
 	step_size &= 0x0ffff;	/* take lower 16 bits */
 
-	pll->out.ssc_step_size = step_size;
+	pconf->ssc_step_size = step_size;
 }
 
-static void pll_14nm_dec_frac_calc(struct dsi_pll_14nm *pll)
+static void pll_14nm_dec_frac_calc(struct dsi_pll_14nm *pll, struct dsi_pll_config *pconf)
 {
-	struct dsi_pll_input *pin = &pll->in;
-	struct dsi_pll_output *pout = &pll->out;
 	u64 multiplier = BIT(20);
 	u64 dec_start_multiple, dec_start, pll_comp_val;
 	u32 duration, div_frac_start;
-	u64 vco_clk_rate = pll->vco_current_rate;
-	u64 fref = pll->vco_ref_clk_rate;
+	u64 vco_clk_rate = pconf->vco_current_rate;
+	u64 fref = VCO_REF_CLK_RATE;
 
 	DBG("vco_clk_rate=%lld ref_clk_rate=%lld", vco_clk_rate, fref);
 
@@ -297,14 +216,14 @@ static void pll_14nm_dec_frac_calc(struct dsi_pll_14nm *pll)
 
 	dec_start = div_u64(dec_start_multiple, multiplier);
 
-	pout->dec_start = (u32)dec_start;
-	pout->div_frac_start = div_frac_start;
+	pconf->dec_start = (u32)dec_start;
+	pconf->div_frac_start = div_frac_start;
 
-	if (pin->plllock_cnt == 0)
+	if (pconf->plllock_cnt == 0)
 		duration = 1024;
-	else if (pin->plllock_cnt == 1)
+	else if (pconf->plllock_cnt == 1)
 		duration = 256;
-	else if (pin->plllock_cnt == 2)
+	else if (pconf->plllock_cnt == 2)
 		duration = 128;
 	else
 		duration = 32;
@@ -313,10 +232,7 @@ static void pll_14nm_dec_frac_calc(struct dsi_pll_14nm *pll)
 	pll_comp_val = div_u64(pll_comp_val, multiplier);
 	do_div(pll_comp_val, 10);
 
-	pout->plllock_cmp = (u32)pll_comp_val;
-
-	pout->pll_txclk_en = 1;
-	pout->cmn_ldo_cntrl = 0x3c;
+	pconf->plllock_cmp = (u32)pll_comp_val;
 }
 
 static u32 pll_14nm_kvco_slop(u32 vrate)
@@ -333,74 +249,66 @@ static u32 pll_14nm_kvco_slop(u32 vrate)
 	return slop;
 }
 
-static void pll_14nm_calc_vco_count(struct dsi_pll_14nm *pll)
+static void pll_14nm_calc_vco_count(struct dsi_pll_14nm *pll, struct dsi_pll_config *pconf)
 {
-	struct dsi_pll_input *pin = &pll->in;
-	struct dsi_pll_output *pout = &pll->out;
-	u64 vco_clk_rate = pll->vco_current_rate;
-	u64 fref = pll->vco_ref_clk_rate;
+	u64 vco_clk_rate = pconf->vco_current_rate;
+	u64 fref = VCO_REF_CLK_RATE;
+	u32 vco_measure_time = 5;
+	u32 kvco_measure_time = 5;
 	u64 data;
 	u32 cnt;
 
-	data = fref * pin->vco_measure_time;
+	data = fref * vco_measure_time;
 	do_div(data, 1000000);
 	data &= 0x03ff;	/* 10 bits */
 	data -= 2;
-	pout->pll_vco_div_ref = data;
+	pconf->pll_vco_div_ref = data;
 
 	data = div_u64(vco_clk_rate, 1000000);	/* unit is Mhz */
-	data *= pin->vco_measure_time;
+	data *= vco_measure_time;
 	do_div(data, 10);
-	pout->pll_vco_count = data;
+	pconf->pll_vco_count = data;
 
-	data = fref * pin->kvco_measure_time;
+	data = fref * kvco_measure_time;
 	do_div(data, 1000000);
 	data &= 0x03ff;	/* 10 bits */
 	data -= 1;
-	pout->pll_kvco_div_ref = data;
+	pconf->pll_kvco_div_ref = data;
 
 	cnt = pll_14nm_kvco_slop(vco_clk_rate);
 	cnt *= 2;
 	cnt /= 100;
-	cnt *= pin->kvco_measure_time;
-	pout->pll_kvco_count = cnt;
-
-	pout->pll_misc1 = 16;
-	pout->pll_resetsm_cntrl = 48;
-	pout->pll_resetsm_cntrl2 = pin->bandgap_timer << 3;
-	pout->pll_resetsm_cntrl5 = pin->pll_wakeup_timer;
-	pout->pll_kvco_code = 0;
+	cnt *= kvco_measure_time;
+	pconf->pll_kvco_count = cnt;
 }
 
-static void pll_db_commit_ssc(struct dsi_pll_14nm *pll)
+static void pll_db_commit_ssc(struct dsi_pll_14nm *pll, struct dsi_pll_config *pconf)
 {
 	void __iomem *base = pll->phy->pll_base;
-	struct dsi_pll_input *pin = &pll->in;
-	struct dsi_pll_output *pout = &pll->out;
 	u8 data;
 
-	data = pin->ssc_adj_period;
+	data = pconf->ssc_adj_period;
 	data &= 0x0ff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_ADJ_PER1, data);
-	data = (pin->ssc_adj_period >> 8);
+	data = (pconf->ssc_adj_period >> 8);
 	data &= 0x03;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_ADJ_PER2, data);
 
-	data = pout->ssc_period;
+	data = pconf->ssc_period;
 	data &= 0x0ff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_PER1, data);
-	data = (pout->ssc_period >> 8);
+	data = (pconf->ssc_period >> 8);
 	data &= 0x0ff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_PER2, data);
 
-	data = pout->ssc_step_size;
+	data = pconf->ssc_step_size;
 	data &= 0x0ff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_STEP_SIZE1, data);
-	data = (pout->ssc_step_size >> 8);
+	data = (pconf->ssc_step_size >> 8);
 	data &= 0x0ff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_STEP_SIZE2, data);
 
-	data = (pin->ssc_center & 0x01);
+	data = (pconf->ssc_center & 0x01);
 	data <<= 1;
 	data |= 0x01; /* enable */
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SSC_EN_CENTER, data);
@@ -409,8 +317,7 @@ static void pll_db_commit_ssc(struct dsi_pll_14nm *pll)
 }
 
 static void pll_db_commit_common(struct dsi_pll_14nm *pll,
-				 struct dsi_pll_input *pin,
-				 struct dsi_pll_output *pout)
+				 struct dsi_pll_config *pconf)
 {
 	void __iomem *base = pll->phy->pll_base;
 	u8 data;
@@ -419,55 +326,41 @@ static void pll_db_commit_common(struct dsi_pll_14nm *pll,
 	data = 0;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_SYSCLK_EN_RESET, data);
 
-	data = pout->pll_txclk_en;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_TXCLK_EN, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_TXCLK_EN, 1);
 
-	data = pout->pll_resetsm_cntrl;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL, data);
-	data = pout->pll_resetsm_cntrl2;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL2, data);
-	data = pout->pll_resetsm_cntrl5;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL5, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL, 48);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL2, 4 << 3); /* bandgap_timer */
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL5, 5); /* pll_wakeup_timer */
 
-	data = pout->pll_vco_div_ref & 0xff;
+	data = pconf->pll_vco_div_ref & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_VCO_DIV_REF1, data);
-	data = (pout->pll_vco_div_ref >> 8) & 0x3;
+	data = (pconf->pll_vco_div_ref >> 8) & 0x3;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_VCO_DIV_REF2, data);
 
-	data = pout->pll_kvco_div_ref & 0xff;
+	data = pconf->pll_kvco_div_ref & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_KVCO_DIV_REF1, data);
-	data = (pout->pll_kvco_div_ref >> 8) & 0x3;
+	data = (pconf->pll_kvco_div_ref >> 8) & 0x3;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_KVCO_DIV_REF2, data);
 
-	data = pout->pll_misc1;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_MISC1, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_MISC1, 16);
 
-	data = pin->pll_ie_trim;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_IE_TRIM, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_IE_TRIM, 4);
 
-	data = pin->pll_ip_trim;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_IP_TRIM, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_IP_TRIM, 4);
 
-	data = pin->pll_cpmset_cur << 3 | pin->pll_cpcset_cur;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_CP_SET_CUR, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_CP_SET_CUR, 1 << 3 | 1);
 
-	data = pin->pll_icpcset_p << 3 | pin->pll_icpcset_m;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_ICPCSET, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_ICPCSET, 0 << 3 | 0);
 
-	data = pin->pll_icpmset_p << 3 | pin->pll_icpcset_m;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_ICPMSET, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_ICPMSET, 0 << 3 | 0);
 
-	data = pin->pll_icpmset << 3 | pin->pll_icpcset;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_ICP_SET, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_ICP_SET, 4 << 3 | 4);
 
-	data = pin->pll_lpf_cap2 << 4 | pin->pll_lpf_cap1;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_LPF1, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_LPF1, 1 << 4 | 11);
 
-	data = pin->pll_iptat_trim;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_IPTAT_TRIM, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_IPTAT_TRIM, 7);
 
-	data = pin->pll_c3ctrl | pin->pll_r3ctrl << 4;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_CRCTRL, data);
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_CRCTRL, 1 << 4 | 2);
 }
 
 static void pll_14nm_software_reset(struct dsi_pll_14nm *pll_14nm)
@@ -488,8 +381,7 @@ static void pll_14nm_software_reset(struct dsi_pll_14nm *pll_14nm)
 }
 
 static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
-			       struct dsi_pll_input *pin,
-			       struct dsi_pll_output *pout)
+			       struct dsi_pll_config *pconf)
 {
 	void __iomem *base = pll->phy->pll_base;
 	void __iomem *cmn_base = pll->phy->base;
@@ -497,57 +389,64 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 
 	DBG("DSI%d PLL", pll->phy->id);
 
-	data = pout->cmn_ldo_cntrl;
-	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_LDO_CNTRL, data);
+	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_LDO_CNTRL, 0x3c);
 
-	pll_db_commit_common(pll, pin, pout);
+	pll_db_commit_common(pll, pconf);
 
 	pll_14nm_software_reset(pll);
 
-	data = pin->dsiclk_sel; /* set dsiclk_sel = 1  */
-	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG1, data);
+	/* Use the /2 path in Mux */
+	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG1, 1);
 
 	data = 0xff; /* data, clk, pll normal operation */
 	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_CTRL_0, data);
 
 	/* configure the frequency dependent pll registers */
-	data = pout->dec_start;
+	data = pconf->dec_start;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_DEC_START, data);
 
-	data = pout->div_frac_start & 0xff;
+	data = pconf->div_frac_start & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_DIV_FRAC_START1, data);
-	data = (pout->div_frac_start >> 8) & 0xff;
+	data = (pconf->div_frac_start >> 8) & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_DIV_FRAC_START2, data);
-	data = (pout->div_frac_start >> 16) & 0xf;
+	data = (pconf->div_frac_start >> 16) & 0xf;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_DIV_FRAC_START3, data);
 
-	data = pout->plllock_cmp & 0xff;
+	data = pconf->plllock_cmp & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP1, data);
 
-	data = (pout->plllock_cmp >> 8) & 0xff;
+	data = (pconf->plllock_cmp >> 8) & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP2, data);
 
-	data = (pout->plllock_cmp >> 16) & 0x3;
+	data = (pconf->plllock_cmp >> 16) & 0x3;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP3, data);
 
-	data = pin->plllock_cnt << 1 | pin->plllock_rng << 3;
+	data = pconf->plllock_cnt << 1 | 0 << 3; /* plllock_rng */
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP_EN, data);
 
-	data = pout->pll_vco_count & 0xff;
+	data = pconf->pll_vco_count & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_VCO_COUNT1, data);
-	data = (pout->pll_vco_count >> 8) & 0xff;
+	data = (pconf->pll_vco_count >> 8) & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_VCO_COUNT2, data);
 
-	data = pout->pll_kvco_count & 0xff;
+	data = pconf->pll_kvco_count & 0xff;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_KVCO_COUNT1, data);
-	data = (pout->pll_kvco_count >> 8) & 0x3;
+	data = (pconf->pll_kvco_count >> 8) & 0x3;
 	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_KVCO_COUNT2, data);
 
-	data = (pout->pll_postdiv - 1) << 4 | pin->pll_lpf_res1;
-	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_LPF2_POSTDIV, data);
+	/*
+	 * High nibble configures the post divider internal to the VCO. It's
+	 * fixed to divide by 1 for now.
+	 *
+	 * 0: divided by 1
+	 * 1: divided by 2
+	 * 2: divided by 4
+	 * 3: divided by 8
+	 */
+	dsi_phy_write(base + REG_DSI_14nm_PHY_PLL_PLL_LPF2_POSTDIV, 0 << 4 | 3);
 
-	if (pin->ssc_en)
-		pll_db_commit_ssc(pll);
+	if (pconf->ssc_en)
+		pll_db_commit_ssc(pll, pconf);
 
 	wmb();	/* make sure register committed */
 }
@@ -559,35 +458,20 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
-	struct dsi_pll_input *pin = &pll_14nm->in;
-	struct dsi_pll_output *pout = &pll_14nm->out;
+	struct dsi_pll_config conf;
 
 	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_14nm->phy->id, rate,
 	    parent_rate);
 
-	pll_14nm->vco_current_rate = rate;
-	pll_14nm->vco_ref_clk_rate = VCO_REF_CLK_RATE;
+	dsi_pll_14nm_config_init(&conf);
+	conf.vco_current_rate = rate;
 
-	dsi_pll_14nm_input_init(pll_14nm);
+	pll_14nm_dec_frac_calc(pll_14nm, &conf);
 
-	/*
-	 * This configures the post divider internal to the VCO. It's
-	 * fixed to divide by 1 for now.
-	 *
-	 * tx_band = pll_postdiv.
-	 * 0: divided by 1
-	 * 1: divided by 2
-	 * 2: divided by 4
-	 * 3: divided by 8
-	 */
-	pout->pll_postdiv = DSI_PLL_DEFAULT_VCO_POSTDIV;
+	if (conf.ssc_en)
+		pll_14nm_ssc_calc(pll_14nm, &conf);
 
-	pll_14nm_dec_frac_calc(pll_14nm);
-
-	if (pin->ssc_en)
-		pll_14nm_ssc_calc(pll_14nm);
-
-	pll_14nm_calc_vco_count(pll_14nm);
+	pll_14nm_calc_vco_count(pll_14nm, &conf);
 
 	/* commit the slave DSI PLL registers if we're master. Note that we
 	 * don't lock the slave PLL. We just ensure that the PLL/PHY registers
@@ -596,10 +480,10 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (pll_14nm->phy->usecase == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
 
-		pll_db_commit_14nm(pll_14nm_slave, pin, pout);
+		pll_db_commit_14nm(pll_14nm_slave, &conf);
 	}
 
-	pll_db_commit_14nm(pll_14nm, pin, pout);
+	pll_db_commit_14nm(pll_14nm, &conf);
 
 	return 0;
 }
