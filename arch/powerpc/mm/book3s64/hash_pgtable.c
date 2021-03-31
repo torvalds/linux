@@ -400,10 +400,23 @@ EXPORT_SYMBOL_GPL(hash__has_transparent_hugepage);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
+static void change_memory_range(unsigned long start, unsigned long end,
+				unsigned int step, unsigned long newpp)
+{
+	unsigned long idx;
+
+	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
+		 start, end, newpp, step);
+
+	for (idx = start; idx < end; idx += step)
+		/* Not sure if we can do much with the return value */
+		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
+							mmu_kernel_ssize);
+}
+
 static bool hash__change_memory_range(unsigned long start, unsigned long end,
 				      unsigned long newpp)
 {
-	unsigned long idx;
 	unsigned int step, shift;
 
 	shift = mmu_psize_defs[mmu_linear_psize].shift;
@@ -415,13 +428,7 @@ static bool hash__change_memory_range(unsigned long start, unsigned long end,
 	if (start >= end)
 		return false;
 
-	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
-		 start, end, newpp, step);
-
-	for (idx = start; idx < end; idx += step)
-		/* Not sure if we can do much with the return value */
-		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
-							mmu_kernel_ssize);
+	change_memory_range(start, end, step, newpp);
 
 	return true;
 }
