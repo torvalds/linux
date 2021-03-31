@@ -8,7 +8,6 @@
 #include <linux/delay.h>
 
 #include "dsi_phy.h"
-#include "dsi_pll.h"
 #include "dsi.xml.h"
 
 #define PHY_14NM_CKLN_IDX	4
@@ -114,13 +113,15 @@ struct pll_14nm_cached_state {
 };
 
 struct dsi_pll_14nm {
-	struct msm_dsi_pll base;
+	struct clk_hw clk_hw;
 
 	int id;
 	struct platform_device *pdev;
 
 	void __iomem *phy_cmn_mmio;
 	void __iomem *mmio;
+
+	struct msm_dsi_phy *phy;
 
 	struct dsi_pll_input in;
 	struct dsi_pll_output out;
@@ -133,11 +134,10 @@ struct dsi_pll_14nm {
 
 	struct pll_14nm_cached_state cached_state;
 
-	enum msm_dsi_phy_usecase uc;
 	struct dsi_pll_14nm *slave;
 };
 
-#define to_pll_14nm(x)	container_of(x, struct dsi_pll_14nm, base)
+#define to_pll_14nm(x)	container_of(x, struct dsi_pll_14nm, clk_hw)
 
 /*
  * Private struct for N1/N2 post-divider clocks. These clocks are similar to
@@ -564,8 +564,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
 	struct dsi_pll_input *pin = &pll_14nm->in;
 	struct dsi_pll_output *pout = &pll_14nm->out;
 
@@ -600,7 +599,7 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * don't lock the slave PLL. We just ensure that the PLL/PHY registers
 	 * of the master and slave are identical
 	 */
-	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
+	if (pll_14nm->phy->usecase == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
 
 		pll_db_commit_14nm(pll_14nm_slave, pin, pout);
@@ -614,8 +613,7 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 static unsigned long dsi_pll_14nm_vco_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
 	void __iomem *base = pll_14nm->mmio;
 	u64 vco_rate, multiplier = BIT(20);
 	u32 div_frac_start;
@@ -654,15 +652,14 @@ static unsigned long dsi_pll_14nm_vco_recalc_rate(struct clk_hw *hw,
 
 static int dsi_pll_14nm_vco_prepare(struct clk_hw *hw)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
 	void __iomem *base = pll_14nm->mmio;
 	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
 	bool locked;
 
 	DBG("");
 
-	if (unlikely(pll->pll_on))
+	if (unlikely(pll_14nm->phy->pll_on))
 		return 0;
 
 	pll_write(base + REG_DSI_14nm_PHY_PLL_VREF_CFG1, 0x10);
@@ -677,29 +674,41 @@ static int dsi_pll_14nm_vco_prepare(struct clk_hw *hw)
 	}
 
 	DBG("DSI PLL lock success");
-	pll->pll_on = true;
+	pll_14nm->phy->pll_on = true;
 
 	return 0;
 }
 
 static void dsi_pll_14nm_vco_unprepare(struct clk_hw *hw)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
 	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
 
 	DBG("");
 
-	if (unlikely(!pll->pll_on))
+	if (unlikely(!pll_14nm->phy->pll_on))
 		return;
 
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_PLL_CNTRL, 0);
 
-	pll->pll_on = false;
+	pll_14nm->phy->pll_on = false;
+}
+
+static long dsi_pll_14nm_clk_round_rate(struct clk_hw *hw,
+		unsigned long rate, unsigned long *parent_rate)
+{
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(hw);
+
+	if      (rate < pll_14nm->phy->cfg->min_pll_rate)
+		return  pll_14nm->phy->cfg->min_pll_rate;
+	else if (rate > pll_14nm->phy->cfg->max_pll_rate)
+		return  pll_14nm->phy->cfg->max_pll_rate;
+	else
+		return rate;
 }
 
 static const struct clk_ops clk_ops_dsi_pll_14nm_vco = {
-	.round_rate = msm_dsi_pll_helper_clk_round_rate,
+	.round_rate = dsi_pll_14nm_clk_round_rate,
 	.set_rate = dsi_pll_14nm_vco_set_rate,
 	.recalc_rate = dsi_pll_14nm_vco_recalc_rate,
 	.prepare = dsi_pll_14nm_vco_prepare,
@@ -773,7 +782,7 @@ static int dsi_pll_14nm_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* If we're master in dual DSI mode, then the slave PLL's post-dividers
 	 * follow the master's post dividers
 	 */
-	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
+	if (pll_14nm->phy->usecase == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
 		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
 
@@ -797,7 +806,7 @@ static const struct clk_ops clk_ops_dsi_pll_14nm_postdiv = {
 
 static void dsi_14nm_pll_save_state(struct msm_dsi_phy *phy)
 {
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->vco_hw);
 	struct pll_14nm_cached_state *cached_state = &pll_14nm->cached_state;
 	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
 	u32 data;
@@ -810,18 +819,18 @@ static void dsi_14nm_pll_save_state(struct msm_dsi_phy *phy)
 	DBG("DSI%d PLL save state %x %x", pll_14nm->id,
 	    cached_state->n1postdiv, cached_state->n2postdiv);
 
-	cached_state->vco_rate = clk_hw_get_rate(&phy->pll->clk_hw);
+	cached_state->vco_rate = clk_hw_get_rate(phy->vco_hw);
 }
 
 static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 {
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->vco_hw);
 	struct pll_14nm_cached_state *cached_state = &pll_14nm->cached_state;
 	void __iomem *cmn_base = pll_14nm->phy_cmn_mmio;
 	u32 data;
 	int ret;
 
-	ret = dsi_pll_14nm_vco_set_rate(&phy->pll->clk_hw,
+	ret = dsi_pll_14nm_vco_set_rate(phy->vco_hw,
 					cached_state->vco_rate, 0);
 	if (ret) {
 		DRM_DEV_ERROR(&pll_14nm->pdev->dev,
@@ -837,7 +846,7 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
 
 	/* also restore post-dividers for slave DSI PLL */
-	if (pll_14nm->uc == MSM_DSI_PHY_MASTER) {
+	if (phy->usecase == MSM_DSI_PHY_MASTER) {
 		struct dsi_pll_14nm *pll_14nm_slave = pll_14nm->slave;
 		void __iomem *slave_base = pll_14nm_slave->phy_cmn_mmio;
 
@@ -847,14 +856,13 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 	return 0;
 }
 
-static int dsi_pll_14nm_set_usecase(struct msm_dsi_pll *pll,
-				    enum msm_dsi_phy_usecase uc)
+static int dsi_14nm_set_usecase(struct msm_dsi_phy *phy)
 {
-	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(pll);
+	struct dsi_pll_14nm *pll_14nm = to_pll_14nm(phy->vco_hw);
 	void __iomem *base = pll_14nm->mmio;
 	u32 clkbuflr_en, bandgap = 0;
 
-	switch (uc) {
+	switch (phy->usecase) {
 	case MSM_DSI_PHY_STANDALONE:
 		clkbuflr_en = 0x1;
 		break;
@@ -873,8 +881,6 @@ static int dsi_pll_14nm_set_usecase(struct msm_dsi_pll *pll,
 	pll_write(base + REG_DSI_14nm_PHY_PLL_CLKBUFLR_EN, clkbuflr_en);
 	if (bandgap)
 		pll_write(base + REG_DSI_14nm_PHY_PLL_PLL_BANDGAP, bandgap);
-
-	pll_14nm->uc = uc;
 
 	return 0;
 }
@@ -932,9 +938,9 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	DBG("DSI%d", pll_14nm->id);
 
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_14nm->id);
-	pll_14nm->base.clk_hw.init = &vco_init;
+	pll_14nm->clk_hw.init = &vco_init;
 
-	ret = devm_clk_hw_register(dev, &pll_14nm->base.clk_hw);
+	ret = devm_clk_hw_register(dev, &pll_14nm->clk_hw);
 	if (ret)
 		return ret;
 
@@ -990,7 +996,6 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 	struct platform_device *pdev = phy->pdev;
 	int id = phy->id;
 	struct dsi_pll_14nm *pll_14nm;
-	struct msm_dsi_pll *pll;
 	int ret;
 
 	if (!pdev)
@@ -1020,8 +1025,7 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 
 	spin_lock_init(&pll_14nm->postdiv_lock);
 
-	pll = &pll_14nm->base;
-	pll->cfg = phy->cfg;
+	pll_14nm->phy = phy;
 
 	ret = pll_14nm_register(pll_14nm, phy->provided_clocks->hws);
 	if (ret) {
@@ -1029,7 +1033,7 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 		return ret;
 	}
 
-	phy->pll = pll;
+	phy->vco_hw = &pll_14nm->clk_hw;
 
 	return 0;
 }
@@ -1131,7 +1135,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 				REG_DSI_14nm_PHY_CMN_GLBL_TEST_CTRL,
 				DSI_14nm_PHY_CMN_GLBL_TEST_CTRL_BITCLK_HS_SEL);
 
-	ret = dsi_pll_14nm_set_usecase(phy->pll, phy->usecase);
+	ret = dsi_14nm_set_usecase(phy);
 	if (ret) {
 		DRM_DEV_ERROR(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
 			__func__, ret);

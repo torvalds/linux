@@ -7,7 +7,6 @@
 #include <linux/clk-provider.h>
 #include <linux/iopoll.h>
 
-#include "dsi_pll.h"
 #include "dsi_phy.h"
 #include "dsi.xml.h"
 
@@ -85,10 +84,12 @@ struct pll_7nm_cached_state {
 };
 
 struct dsi_pll_7nm {
-	struct msm_dsi_pll base;
+	struct clk_hw clk_hw;
 
 	int id;
 	struct platform_device *pdev;
+
+	struct msm_dsi_phy *phy;
 
 	void __iomem *phy_cmn_mmio;
 	void __iomem *mmio;
@@ -104,11 +105,10 @@ struct dsi_pll_7nm {
 
 	struct pll_7nm_cached_state cached_state;
 
-	enum msm_dsi_phy_usecase uc;
 	struct dsi_pll_7nm *slave;
 };
 
-#define to_pll_7nm(x)	container_of(x, struct dsi_pll_7nm, base)
+#define to_pll_7nm(x)	container_of(x, struct dsi_pll_7nm, clk_hw)
 
 /*
  * Global list of private DSI PLL struct pointers. We need this for Dual DSI
@@ -164,7 +164,7 @@ static void dsi_pll_calc_dec_frac(struct dsi_pll_7nm *pll)
 
 	dec = div_u64(dec_multiple, multiplier);
 
-	if (!(pll->base.cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1))
+	if (!(pll->phy->cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1))
 		regs->pll_clock_inverters = 0x28;
 	else if (pll_freq <= 1000000000ULL)
 		regs->pll_clock_inverters = 0xa0;
@@ -259,7 +259,7 @@ static void dsi_pll_config_hzindep_reg(struct dsi_pll_7nm *pll)
 	void __iomem *base = pll->mmio;
 	u8 analog_controls_five_1 = 0x01, vco_config_1 = 0x00;
 
-	if (pll->base.cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1) {
+	if (pll->phy->cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1) {
 		if (pll->vco_current_rate >= 3100000000ULL)
 			analog_controls_five_1 = 0x03;
 
@@ -293,9 +293,9 @@ static void dsi_pll_config_hzindep_reg(struct dsi_pll_7nm *pll)
 	pll_write(base + REG_DSI_7nm_PHY_PLL_PFILT, 0x2f);
 	pll_write(base + REG_DSI_7nm_PHY_PLL_IFILT, 0x2a);
 	pll_write(base + REG_DSI_7nm_PHY_PLL_IFILT,
-		  pll->base.cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1 ? 0x3f : 0x22);
+		  pll->phy->cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1 ? 0x3f : 0x22);
 
-	if (pll->base.cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1) {
+	if (pll->phy->cfg->quirks & DSI_PHY_7NM_QUIRK_V4_1) {
 		pll_write(base + REG_DSI_7nm_PHY_PLL_PERF_OPTIMIZE, 0x22);
 		if (pll->slave)
 			pll_write(pll->slave->mmio + REG_DSI_7nm_PHY_PLL_PERF_OPTIMIZE, 0x22);
@@ -321,8 +321,7 @@ static void dsi_pll_commit(struct dsi_pll_7nm *pll)
 static int dsi_pll_7nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
 
 	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_7nm->id, rate,
 	    parent_rate);
@@ -420,8 +419,7 @@ static void dsi_pll_phy_dig_reset(struct dsi_pll_7nm *pll)
 
 static int dsi_pll_7nm_vco_prepare(struct clk_hw *hw)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
 	int rc;
 
 	dsi_pll_enable_pll_bias(pll_7nm);
@@ -444,7 +442,7 @@ static int dsi_pll_7nm_vco_prepare(struct clk_hw *hw)
 		goto error;
 	}
 
-	pll->pll_on = true;
+	pll_7nm->phy->pll_on = true;
 
 	/*
 	 * assert power on reset for PHY digital in case the PLL is
@@ -471,8 +469,7 @@ static void dsi_pll_disable_sub(struct dsi_pll_7nm *pll)
 
 static void dsi_pll_7nm_vco_unprepare(struct clk_hw *hw)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
 
 	/*
 	 * To avoid any stray glitches while abruptly powering down the PLL
@@ -488,14 +485,13 @@ static void dsi_pll_7nm_vco_unprepare(struct clk_hw *hw)
 	}
 	/* flush, ensure all register writes are done */
 	wmb();
-	pll->pll_on = false;
+	pll_7nm->phy->pll_on = false;
 }
 
 static unsigned long dsi_pll_7nm_vco_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
-	struct msm_dsi_pll *pll = hw_clk_to_pll(hw);
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
 	struct dsi_pll_config *config = &pll_7nm->pll_configuration;
 	void __iomem *base = pll_7nm->mmio;
 	u64 ref_clk = pll_7nm->vco_ref_clk_rate;
@@ -531,8 +527,21 @@ static unsigned long dsi_pll_7nm_vco_recalc_rate(struct clk_hw *hw,
 	return (unsigned long)vco_rate;
 }
 
+static long dsi_pll_7nm_clk_round_rate(struct clk_hw *hw,
+		unsigned long rate, unsigned long *parent_rate)
+{
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(hw);
+
+	if      (rate < pll_7nm->phy->cfg->min_pll_rate)
+		return  pll_7nm->phy->cfg->min_pll_rate;
+	else if (rate > pll_7nm->phy->cfg->max_pll_rate)
+		return  pll_7nm->phy->cfg->max_pll_rate;
+	else
+		return rate;
+}
+
 static const struct clk_ops clk_ops_dsi_pll_7nm_vco = {
-	.round_rate = msm_dsi_pll_helper_clk_round_rate,
+	.round_rate = dsi_pll_7nm_clk_round_rate,
 	.set_rate = dsi_pll_7nm_vco_set_rate,
 	.recalc_rate = dsi_pll_7nm_vco_recalc_rate,
 	.prepare = dsi_pll_7nm_vco_prepare,
@@ -545,7 +554,7 @@ static const struct clk_ops clk_ops_dsi_pll_7nm_vco = {
 
 static void dsi_7nm_pll_save_state(struct msm_dsi_phy *phy)
 {
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(phy->pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(phy->vco_hw);
 	struct pll_7nm_cached_state *cached = &pll_7nm->cached_state;
 	void __iomem *phy_base = pll_7nm->phy_cmn_mmio;
 	u32 cmn_clk_cfg0, cmn_clk_cfg1;
@@ -568,7 +577,7 @@ static void dsi_7nm_pll_save_state(struct msm_dsi_phy *phy)
 
 static int dsi_7nm_pll_restore_state(struct msm_dsi_phy *phy)
 {
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(phy->pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(phy->vco_hw);
 	struct pll_7nm_cached_state *cached = &pll_7nm->cached_state;
 	void __iomem *phy_base = pll_7nm->phy_cmn_mmio;
 	u32 val;
@@ -587,7 +596,7 @@ static int dsi_7nm_pll_restore_state(struct msm_dsi_phy *phy)
 	val |= cached->pll_mux;
 	pll_write(phy_base + REG_DSI_7nm_PHY_CMN_CLK_CFG1, val);
 
-	ret = dsi_pll_7nm_vco_set_rate(&phy->pll->clk_hw,
+	ret = dsi_pll_7nm_vco_set_rate(phy->vco_hw,
 			pll_7nm->vco_current_rate,
 			pll_7nm->vco_ref_clk_rate);
 	if (ret) {
@@ -601,16 +610,15 @@ static int dsi_7nm_pll_restore_state(struct msm_dsi_phy *phy)
 	return 0;
 }
 
-static int dsi_pll_7nm_set_usecase(struct msm_dsi_pll *pll,
-				    enum msm_dsi_phy_usecase uc)
+static int dsi_7nm_set_usecase(struct msm_dsi_phy *phy)
 {
-	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(pll);
+	struct dsi_pll_7nm *pll_7nm = to_pll_7nm(phy->vco_hw);
 	void __iomem *base = pll_7nm->phy_cmn_mmio;
 	u32 data = 0x0;	/* internal PLL */
 
 	DBG("DSI PLL%d", pll_7nm->id);
 
-	switch (uc) {
+	switch (phy->usecase) {
 	case MSM_DSI_PHY_STANDALONE:
 		break;
 	case MSM_DSI_PHY_MASTER:
@@ -625,8 +633,6 @@ static int dsi_pll_7nm_set_usecase(struct msm_dsi_pll *pll,
 
 	/* set PLL src */
 	pll_write(base + REG_DSI_7nm_PHY_CMN_CLK_CFG1, (data << 2));
-
-	pll_7nm->uc = uc;
 
 	return 0;
 }
@@ -655,9 +661,9 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
 	DBG("DSI%d", pll_7nm->id);
 
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_7nm->id);
-	pll_7nm->base.clk_hw.init = &vco_init;
+	pll_7nm->clk_hw.init = &vco_init;
 
-	ret = devm_clk_hw_register(dev, &pll_7nm->base.clk_hw);
+	ret = devm_clk_hw_register(dev, &pll_7nm->clk_hw);
 	if (ret)
 		return ret;
 
@@ -767,7 +773,6 @@ static int dsi_pll_7nm_init(struct msm_dsi_phy *phy)
 	struct platform_device *pdev = phy->pdev;
 	int id = phy->id;
 	struct dsi_pll_7nm *pll_7nm;
-	struct msm_dsi_pll *pll;
 	int ret;
 
 	pll_7nm = devm_kzalloc(&pdev->dev, sizeof(*pll_7nm), GFP_KERNEL);
@@ -794,8 +799,7 @@ static int dsi_pll_7nm_init(struct msm_dsi_phy *phy)
 
 	spin_lock_init(&pll_7nm->postdiv_lock);
 
-	pll = &pll_7nm->base;
-	pll->cfg = phy->cfg;
+	pll_7nm->phy = phy;
 
 	ret = pll_7nm_register(pll_7nm, phy->provided_clocks->hws);
 	if (ret) {
@@ -803,7 +807,7 @@ static int dsi_pll_7nm_init(struct msm_dsi_phy *phy)
 		return ret;
 	}
 
-	phy->pll = pll;
+	phy->vco_hw = &pll_7nm->clk_hw;
 
 	/* TODO: Remove this when we have proper display handover support */
 	msm_dsi_phy_pll_save_state(phy);
@@ -968,7 +972,7 @@ static int dsi_7nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	/* Select full-rate mode */
 	dsi_phy_write(base + REG_DSI_7nm_PHY_CMN_CTRL_2, 0x40);
 
-	ret = dsi_pll_7nm_set_usecase(phy->pll, phy->usecase);
+	ret = dsi_7nm_set_usecase(phy);
 	if (ret) {
 		DRM_DEV_ERROR(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
 			__func__, ret);
