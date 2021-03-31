@@ -476,6 +476,8 @@ engine_event_status(struct intel_engine_cs *engine,
 static int
 config_status(struct drm_i915_private *i915, u64 config)
 {
+	struct intel_gt *gt = &i915->gt;
+
 	switch (config) {
 	case I915_PMU_ACTUAL_FREQUENCY:
 		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
@@ -489,7 +491,7 @@ config_status(struct drm_i915_private *i915, u64 config)
 	case I915_PMU_INTERRUPTS:
 		break;
 	case I915_PMU_RC6_RESIDENCY:
-		if (!HAS_RC6(i915))
+		if (!gt->rc6.supported)
 			return -ENODEV;
 		break;
 	case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
