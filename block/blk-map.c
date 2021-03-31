@@ -181,7 +181,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 
 			i++;
 		} else {
-			page = alloc_page(rq->q->bounce_gfp | gfp_mask);
+			page = alloc_page(GFP_NOIO | gfp_mask);
 			if (!page) {
 				ret = -ENOMEM;
 				goto cleanup;
@@ -486,7 +486,7 @@ static struct bio *bio_copy_kern(struct request_queue *q, void *data,
 		if (bytes > len)
 			bytes = len;
 
-		page = alloc_page(q->bounce_gfp | gfp_mask);
+		page = alloc_page(GFP_NOIO | gfp_mask);
 		if (!page)
 			goto cleanup;
 

@@ -436,11 +436,6 @@ struct request_queue {
 	 */
 	int			id;
 
-	/*
-	 * queue needs bounce pages for pages above this limit
-	 */
-	gfp_t			bounce_gfp;
-
 	spinlock_t		queue_lock;
 
 	/*
@@ -847,7 +842,6 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
  *
  * BLK_BOUNCE_HIGH	: bounce all highmem pages
  * BLK_BOUNCE_ANY	: don't bounce anything
- * BLK_BOUNCE_ISA	: bounce pages above ISA DMA boundary
  */
 
 #if BITS_PER_LONG == 32
@@ -856,7 +850,6 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
 #define BLK_BOUNCE_HIGH		-1ULL
 #endif
 #define BLK_BOUNCE_ANY		(-1ULL)
-#define BLK_BOUNCE_ISA		(DMA_BIT_MASK(24))
 
 /*
  * default timeout for SG_IO if none specified

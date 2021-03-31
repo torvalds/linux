@@ -103,28 +103,17 @@ EXPORT_SYMBOL(blk_set_stacking_limits);
 void blk_queue_bounce_limit(struct request_queue *q, u64 max_addr)
 {
 	unsigned long b_pfn = max_addr >> PAGE_SHIFT;
-	int dma = 0;
 
-	q->bounce_gfp = GFP_NOIO;
 #if BITS_PER_LONG == 64
 	/*
 	 * Assume anything <= 4GB can be handled by IOMMU.  Actually
 	 * some IOMMUs can handle everything, but I don't know of a
 	 * way to test this here.
 	 */
-	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
-		dma = 1;
 	q->limits.bounce_pfn = max(max_low_pfn, b_pfn);
 #else
-	if (b_pfn < blk_max_low_pfn)
-		dma = 1;
 	q->limits.bounce_pfn = b_pfn;
 #endif
-	if (dma) {
-		init_emergency_isa_pool();
-		q->bounce_gfp = GFP_NOIO | GFP_DMA;
-		q->limits.bounce_pfn = b_pfn;
-	}
 }
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 

@@ -431,7 +431,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 
 	bytes = max(in_len, out_len);
 	if (bytes) {
-		buffer = kzalloc(bytes, q->bounce_gfp | GFP_USER| __GFP_NOWARN);
+		buffer = kzalloc(bytes, GFP_NOIO | GFP_USER | __GFP_NOWARN);
 		if (!buffer)
 			return -ENOMEM;
 
