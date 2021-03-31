@@ -515,12 +515,18 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	struct scsi_sense_hdr sense_hdr;
 	struct alua_port_group *tmp_pg;
 	int len, k, off, bufflen = ALUA_RTPG_SIZE;
+	int group_id_old, state_old, pref_old, valid_states_old;
 	unsigned char *desc, *buff;
 	unsigned err, retval;
 	unsigned int tpg_desc_tbl_off;
 	unsigned char orig_transition_tmo;
 	unsigned long flags;
 	bool transitioning_sense = false;
+
+	group_id_old = pg->group_id;
+	state_old = pg->state;
+	pref_old = pg->pref;
+	valid_states_old = pg->valid_states;
 
 	if (!pg->expiry) {
 		unsigned long transition_tmo = ALUA_FAILOVER_TIMEOUT * HZ;
@@ -686,17 +692,19 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	if (transitioning_sense)
 		pg->state = SCSI_ACCESS_STATE_TRANSITIONING;
 
-	sdev_printk(KERN_INFO, sdev,
-		    "%s: port group %02x state %c %s supports %c%c%c%c%c%c%c\n",
-		    ALUA_DH_NAME, pg->group_id, print_alua_state(pg->state),
-		    pg->pref ? "preferred" : "non-preferred",
-		    pg->valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
-		    pg->valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
-		    pg->valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
-		    pg->valid_states&TPGS_SUPPORT_UNAVAILABLE?'U':'u',
-		    pg->valid_states&TPGS_SUPPORT_STANDBY?'S':'s',
-		    pg->valid_states&TPGS_SUPPORT_NONOPTIMIZED?'N':'n',
-		    pg->valid_states&TPGS_SUPPORT_OPTIMIZED?'A':'a');
+	if (group_id_old != pg->group_id || state_old != pg->state ||
+		pref_old != pg->pref || valid_states_old != pg->valid_states)
+		sdev_printk(KERN_INFO, sdev,
+			"%s: port group %02x state %c %s supports %c%c%c%c%c%c%c\n",
+			ALUA_DH_NAME, pg->group_id, print_alua_state(pg->state),
+			pg->pref ? "preferred" : "non-preferred",
+			pg->valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
+			pg->valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
+			pg->valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
+			pg->valid_states&TPGS_SUPPORT_UNAVAILABLE?'U':'u',
+			pg->valid_states&TPGS_SUPPORT_STANDBY?'S':'s',
+			pg->valid_states&TPGS_SUPPORT_NONOPTIMIZED?'N':'n',
+			pg->valid_states&TPGS_SUPPORT_OPTIMIZED?'A':'a');
 
 	switch (pg->state) {
 	case SCSI_ACCESS_STATE_TRANSITIONING:
