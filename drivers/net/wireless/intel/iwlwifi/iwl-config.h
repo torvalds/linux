@@ -503,6 +503,8 @@ extern const char iwl_ax200_killer_1650w_name[];
 extern const char iwl_ax200_killer_1650x_name[];
 extern const char iwl_ax201_killer_1650s_name[];
 extern const char iwl_ax201_killer_1650i_name[];
+extern const char iwl_ax210_killer_1675w_name[];
+extern const char iwl_ax210_killer_1675x_name[];
 extern const char iwl_ma_name[];
 extern const char iwl_ax211_name[];
 extern const char iwl_ax411_name[];
