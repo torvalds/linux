@@ -621,8 +621,6 @@ static void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk)
 			WRITE_ONCE(msk->pm.accept_addr, true);
 
 			__MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RMADDR);
-
-			break;
 		}
 	}
 }
@@ -695,8 +693,6 @@ void mptcp_pm_nl_rm_subflow_received(struct mptcp_sock *msk,
 			msk->pm.subflows--;
 
 			__MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RMSUBFLOW);
-
-			break;
 		}
 	}
 }
