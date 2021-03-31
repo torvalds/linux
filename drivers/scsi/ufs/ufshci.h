@@ -486,17 +486,21 @@ struct utp_task_req_desc {
 	struct request_desc_header header;
 
 	/* DW 4-11 - Task request UPIU structure */
-	struct utp_upiu_header	req_header;
-	__be32			input_param1;
-	__be32			input_param2;
-	__be32			input_param3;
-	__be32			__reserved1[2];
+	struct {
+		struct utp_upiu_header	req_header;
+		__be32			input_param1;
+		__be32			input_param2;
+		__be32			input_param3;
+		__be32			__reserved1[2];
+	} upiu_req;
 
 	/* DW 12-19 - Task Management Response UPIU structure */
-	struct utp_upiu_header	rsp_header;
-	__be32			output_param1;
-	__be32			output_param2;
-	__be32			__reserved2[3];
+	struct {
+		struct utp_upiu_header	rsp_header;
+		__be32			output_param1;
+		__be32			output_param2;
+		__be32			__reserved2[3];
+	} upiu_rsp;
 };
 
 #endif /* End of Header */
