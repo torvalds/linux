@@ -86,9 +86,6 @@ struct pll_10nm_cached_state {
 struct dsi_pll_10nm {
 	struct clk_hw clk_hw;
 
-	int id;
-	struct platform_device *pdev;
-
 	struct msm_dsi_phy *phy;
 
 	u64 vco_ref_clk_rate;
@@ -301,7 +298,7 @@ static int dsi_pll_10nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct dsi_pll_10nm *pll_10nm = to_pll_10nm(hw);
 
-	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_10nm->id, rate,
+	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_10nm->phy->id, rate,
 	    parent_rate);
 
 	pll_10nm->vco_current_rate = rate;
@@ -327,7 +324,7 @@ static int dsi_pll_10nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static int dsi_pll_10nm_lock_status(struct dsi_pll_10nm *pll)
 {
-	struct device *dev = &pll->pdev->dev;
+	struct device *dev = &pll->phy->pdev->dev;
 	int rc;
 	u32 status = 0;
 	u32 const delay_us = 100;
@@ -341,7 +338,7 @@ static int dsi_pll_10nm_lock_status(struct dsi_pll_10nm *pll)
 				       timeout_us);
 	if (rc)
 		DRM_DEV_ERROR(dev, "DSI PLL(%d) lock failed, status=0x%08x\n",
-			      pll->id, status);
+			      pll->phy->id, status);
 
 	return rc;
 }
@@ -387,7 +384,7 @@ static void dsi_pll_enable_global_clk(struct dsi_pll_10nm *pll)
 static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
 {
 	struct dsi_pll_10nm *pll_10nm = to_pll_10nm(hw);
-	struct device *dev = &pll_10nm->pdev->dev;
+	struct device *dev = &pll_10nm->phy->pdev->dev;
 	int rc;
 
 	dsi_pll_enable_pll_bias(pll_10nm);
@@ -413,7 +410,7 @@ static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
 	/* Check for PLL lock */
 	rc = dsi_pll_10nm_lock_status(pll_10nm);
 	if (rc) {
-		DRM_DEV_ERROR(dev, "PLL(%d) lock failed\n", pll_10nm->id);
+		DRM_DEV_ERROR(dev, "PLL(%d) lock failed\n", pll_10nm->phy->id);
 		goto error;
 	}
 
@@ -494,7 +491,7 @@ static unsigned long dsi_pll_10nm_vco_recalc_rate(struct clk_hw *hw,
 	vco_rate = pll_freq;
 
 	DBG("DSI PLL%d returning vco rate = %lu, dec = %x, frac = %x",
-	    pll_10nm->id, (unsigned long)vco_rate, dec, frac);
+	    pll_10nm->phy->id, (unsigned long)vco_rate, dec, frac);
 
 	return (unsigned long)vco_rate;
 }
@@ -543,7 +540,7 @@ static void dsi_10nm_pll_save_state(struct msm_dsi_phy *phy)
 	cached->pll_mux = cmn_clk_cfg1 & 0x3;
 
 	DBG("DSI PLL%d outdiv %x bit_clk_div %x pix_clk_div %x pll_mux %x",
-	    pll_10nm->id, cached->pll_out_div, cached->bit_clk_div,
+	    pll_10nm->phy->id, cached->pll_out_div, cached->bit_clk_div,
 	    cached->pix_clk_div, cached->pll_mux);
 }
 
@@ -572,12 +569,12 @@ static int dsi_10nm_pll_restore_state(struct msm_dsi_phy *phy)
 			pll_10nm->vco_current_rate,
 			pll_10nm->vco_ref_clk_rate);
 	if (ret) {
-		DRM_DEV_ERROR(&pll_10nm->pdev->dev,
+		DRM_DEV_ERROR(&pll_10nm->phy->pdev->dev,
 			"restore vco rate failed. ret=%d\n", ret);
 		return ret;
 	}
 
-	DBG("DSI PLL%d", pll_10nm->id);
+	DBG("DSI PLL%d", pll_10nm->phy->id);
 
 	return 0;
 }
@@ -588,13 +585,13 @@ static int dsi_10nm_set_usecase(struct msm_dsi_phy *phy)
 	void __iomem *base = phy->base;
 	u32 data = 0x0;	/* internal PLL */
 
-	DBG("DSI PLL%d", pll_10nm->id);
+	DBG("DSI PLL%d", pll_10nm->phy->id);
 
 	switch (phy->usecase) {
 	case MSM_DSI_PHY_STANDALONE:
 		break;
 	case MSM_DSI_PHY_MASTER:
-		pll_10nm->slave = pll_10nm_list[(pll_10nm->id + 1) % DSI_MAX];
+		pll_10nm->slave = pll_10nm_list[(pll_10nm->phy->id + 1) % DSI_MAX];
 		break;
 	case MSM_DSI_PHY_SLAVE:
 		data = 0x1; /* external PLL */
@@ -626,21 +623,21 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		.flags = CLK_IGNORE_UNUSED,
 		.ops = &clk_ops_dsi_pll_10nm_vco,
 	};
-	struct device *dev = &pll_10nm->pdev->dev;
+	struct device *dev = &pll_10nm->phy->pdev->dev;
 	struct clk_hw *hw;
 	int ret;
 
-	DBG("DSI%d", pll_10nm->id);
+	DBG("DSI%d", pll_10nm->phy->id);
 
-	snprintf(vco_name, 32, "dsi%dvco_clk", pll_10nm->id);
+	snprintf(vco_name, 32, "dsi%dvco_clk", pll_10nm->phy->id);
 	pll_10nm->clk_hw.init = &vco_init;
 
 	ret = devm_clk_hw_register(dev, &pll_10nm->clk_hw);
 	if (ret)
 		return ret;
 
-	snprintf(clk_name, 32, "dsi%d_pll_out_div_clk", pll_10nm->id);
-	snprintf(parent, 32, "dsi%dvco_clk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_pll_out_div_clk", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%dvco_clk", pll_10nm->phy->id);
 
 	hw = devm_clk_hw_register_divider(dev, clk_name,
 				     parent, CLK_SET_RATE_PARENT,
@@ -652,8 +649,8 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		goto fail;
 	}
 
-	snprintf(clk_name, 32, "dsi%d_pll_bit_clk", pll_10nm->id);
-	snprintf(parent, 32, "dsi%d_pll_out_div_clk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_pll_bit_clk", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%d_pll_out_div_clk", pll_10nm->phy->id);
 
 	/* BIT CLK: DIV_CTRL_3_0 */
 	hw = devm_clk_hw_register_divider(dev, clk_name, parent,
@@ -667,8 +664,8 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		goto fail;
 	}
 
-	snprintf(clk_name, 32, "dsi%d_phy_pll_out_byteclk", pll_10nm->id);
-	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_phy_pll_out_byteclk", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->phy->id);
 
 	/* DSI Byte clock = VCO_CLK / OUT_DIV / BIT_DIV / 8 */
 	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
@@ -680,8 +677,8 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 
 	provided_clocks[DSI_BYTE_PLL_CLK] = hw;
 
-	snprintf(clk_name, 32, "dsi%d_pll_by_2_bit_clk", pll_10nm->id);
-	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_pll_by_2_bit_clk", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->phy->id);
 
 	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
 					  0, 1, 2);
@@ -690,8 +687,8 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		goto fail;
 	}
 
-	snprintf(clk_name, 32, "dsi%d_pll_post_out_div_clk", pll_10nm->id);
-	snprintf(parent, 32, "dsi%d_pll_out_div_clk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_pll_post_out_div_clk", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%d_pll_out_div_clk", pll_10nm->phy->id);
 
 	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
 					  0, 1, 4);
@@ -700,11 +697,11 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		goto fail;
 	}
 
-	snprintf(clk_name, 32, "dsi%d_pclk_mux", pll_10nm->id);
-	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->id);
-	snprintf(parent2, 32, "dsi%d_pll_by_2_bit_clk", pll_10nm->id);
-	snprintf(parent3, 32, "dsi%d_pll_out_div_clk", pll_10nm->id);
-	snprintf(parent4, 32, "dsi%d_pll_post_out_div_clk", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_pclk_mux", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->phy->id);
+	snprintf(parent2, 32, "dsi%d_pll_by_2_bit_clk", pll_10nm->phy->id);
+	snprintf(parent3, 32, "dsi%d_pll_out_div_clk", pll_10nm->phy->id);
+	snprintf(parent4, 32, "dsi%d_pll_post_out_div_clk", pll_10nm->phy->id);
 
 	hw = devm_clk_hw_register_mux(dev, clk_name,
 				 ((const char *[]){
@@ -717,8 +714,8 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 		goto fail;
 	}
 
-	snprintf(clk_name, 32, "dsi%d_phy_pll_out_dsiclk", pll_10nm->id);
-	snprintf(parent, 32, "dsi%d_pclk_mux", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_phy_pll_out_dsiclk", pll_10nm->phy->id);
+	snprintf(parent, 32, "dsi%d_pclk_mux", pll_10nm->phy->id);
 
 	/* PIX CLK DIV : DIV_CTRL_7_4*/
 	hw = devm_clk_hw_register_divider(dev, clk_name, parent,
@@ -743,7 +740,6 @@ fail:
 static int dsi_pll_10nm_init(struct msm_dsi_phy *phy)
 {
 	struct platform_device *pdev = phy->pdev;
-	int id = phy->id;
 	struct dsi_pll_10nm *pll_10nm;
 	int ret;
 
@@ -751,11 +747,9 @@ static int dsi_pll_10nm_init(struct msm_dsi_phy *phy)
 	if (!pll_10nm)
 		return -ENOMEM;
 
-	DBG("DSI PLL%d", id);
+	DBG("DSI PLL%d", phy->id);
 
-	pll_10nm->pdev = pdev;
-	pll_10nm->id = id;
-	pll_10nm_list[id] = pll_10nm;
+	pll_10nm_list[phy->id] = pll_10nm;
 
 	spin_lock_init(&pll_10nm->postdiv_lock);
 

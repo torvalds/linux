@@ -115,9 +115,6 @@ struct pll_14nm_cached_state {
 struct dsi_pll_14nm {
 	struct clk_hw clk_hw;
 
-	int id;
-	struct platform_device *pdev;
-
 	struct msm_dsi_phy *phy;
 
 	struct dsi_pll_input in;
@@ -498,7 +495,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 	void __iomem *cmn_base = pll->phy->base;
 	u8 data;
 
-	DBG("DSI%d PLL", pll->id);
+	DBG("DSI%d PLL", pll->phy->id);
 
 	data = pout->cmn_ldo_cntrl;
 	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_LDO_CNTRL, data);
@@ -565,7 +562,7 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct dsi_pll_input *pin = &pll_14nm->in;
 	struct dsi_pll_output *pout = &pll_14nm->out;
 
-	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_14nm->id, rate,
+	DBG("DSI PLL%d rate=%lu, parent's=%lu", pll_14nm->phy->id, rate,
 	    parent_rate);
 
 	pll_14nm->vco_current_rate = rate;
@@ -666,7 +663,7 @@ static int dsi_pll_14nm_vco_prepare(struct clk_hw *hw)
 					 POLL_TIMEOUT_US);
 
 	if (unlikely(!locked)) {
-		DRM_DEV_ERROR(&pll_14nm->pdev->dev, "DSI PLL lock failed\n");
+		DRM_DEV_ERROR(&pll_14nm->phy->pdev->dev, "DSI PLL lock failed\n");
 		return -EINVAL;
 	}
 
@@ -726,7 +723,7 @@ static unsigned long dsi_pll_14nm_postdiv_recalc_rate(struct clk_hw *hw,
 	u8 width = postdiv->width;
 	u32 val;
 
-	DBG("DSI%d PLL parent rate=%lu", pll_14nm->id, parent_rate);
+	DBG("DSI%d PLL parent rate=%lu", pll_14nm->phy->id, parent_rate);
 
 	val = dsi_phy_read(base + REG_DSI_14nm_PHY_CMN_CLK_CFG0) >> shift;
 	val &= div_mask(width);
@@ -742,7 +739,7 @@ static long dsi_pll_14nm_postdiv_round_rate(struct clk_hw *hw,
 	struct dsi_pll_14nm_postdiv *postdiv = to_pll_14nm_postdiv(hw);
 	struct dsi_pll_14nm *pll_14nm = postdiv->pll;
 
-	DBG("DSI%d PLL parent rate=%lu", pll_14nm->id, rate);
+	DBG("DSI%d PLL parent rate=%lu", pll_14nm->phy->id, rate);
 
 	return divider_round_rate(hw, rate, prate, NULL,
 				  postdiv->width,
@@ -762,7 +759,7 @@ static int dsi_pll_14nm_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags = 0;
 	u32 val;
 
-	DBG("DSI%d PLL parent rate=%lu parent rate %lu", pll_14nm->id, rate,
+	DBG("DSI%d PLL parent rate=%lu parent rate %lu", pll_14nm->phy->id, rate,
 	    parent_rate);
 
 	value = divider_get_val(rate, parent_rate, NULL, postdiv->width,
@@ -813,7 +810,7 @@ static void dsi_14nm_pll_save_state(struct msm_dsi_phy *phy)
 	cached_state->n1postdiv = data & 0xf;
 	cached_state->n2postdiv = (data >> 4) & 0xf;
 
-	DBG("DSI%d PLL save state %x %x", pll_14nm->id,
+	DBG("DSI%d PLL save state %x %x", pll_14nm->phy->id,
 	    cached_state->n1postdiv, cached_state->n2postdiv);
 
 	cached_state->vco_rate = clk_hw_get_rate(phy->vco_hw);
@@ -830,14 +827,14 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 	ret = dsi_pll_14nm_vco_set_rate(phy->vco_hw,
 					cached_state->vco_rate, 0);
 	if (ret) {
-		DRM_DEV_ERROR(&pll_14nm->pdev->dev,
+		DRM_DEV_ERROR(&pll_14nm->phy->pdev->dev,
 			"restore vco rate failed. ret=%d\n", ret);
 		return ret;
 	}
 
 	data = cached_state->n1postdiv | (cached_state->n2postdiv << 4);
 
-	DBG("DSI%d PLL restore state %x %x", pll_14nm->id,
+	DBG("DSI%d PLL restore state %x %x", pll_14nm->phy->id,
 	    cached_state->n1postdiv, cached_state->n2postdiv);
 
 	dsi_phy_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG0, data);
@@ -865,7 +862,7 @@ static int dsi_14nm_set_usecase(struct msm_dsi_phy *phy)
 		break;
 	case MSM_DSI_PHY_MASTER:
 		clkbuflr_en = 0x3;
-		pll_14nm->slave = pll_14nm_list[(pll_14nm->id + 1) % DSI_MAX];
+		pll_14nm->slave = pll_14nm_list[(pll_14nm->phy->id + 1) % DSI_MAX];
 		break;
 	case MSM_DSI_PHY_SLAVE:
 		clkbuflr_en = 0x0;
@@ -889,7 +886,7 @@ static struct clk_hw *pll_14nm_postdiv_register(struct dsi_pll_14nm *pll_14nm,
 						u8 shift)
 {
 	struct dsi_pll_14nm_postdiv *pll_postdiv;
-	struct device *dev = &pll_14nm->pdev->dev;
+	struct device *dev = &pll_14nm->phy->pdev->dev;
 	struct clk_init_data postdiv_init = {
 		.parent_names = (const char *[]) { parent_name },
 		.num_parents = 1,
@@ -928,21 +925,21 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 		.flags = CLK_IGNORE_UNUSED,
 		.ops = &clk_ops_dsi_pll_14nm_vco,
 	};
-	struct device *dev = &pll_14nm->pdev->dev;
+	struct device *dev = &pll_14nm->phy->pdev->dev;
 	struct clk_hw *hw;
 	int ret;
 
-	DBG("DSI%d", pll_14nm->id);
+	DBG("DSI%d", pll_14nm->phy->id);
 
-	snprintf(vco_name, 32, "dsi%dvco_clk", pll_14nm->id);
+	snprintf(vco_name, 32, "dsi%dvco_clk", pll_14nm->phy->id);
 	pll_14nm->clk_hw.init = &vco_init;
 
 	ret = devm_clk_hw_register(dev, &pll_14nm->clk_hw);
 	if (ret)
 		return ret;
 
-	snprintf(clk_name, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
-	snprintf(parent, 32, "dsi%dvco_clk", pll_14nm->id);
+	snprintf(clk_name, 32, "dsi%dn1_postdiv_clk", pll_14nm->phy->id);
+	snprintf(parent, 32, "dsi%dvco_clk", pll_14nm->phy->id);
 
 	/* N1 postdiv, bits 0-3 in REG_DSI_14nm_PHY_CMN_CLK_CFG0 */
 	hw = pll_14nm_postdiv_register(pll_14nm, clk_name, parent,
@@ -950,8 +947,8 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	snprintf(clk_name, 32, "dsi%dpllbyte", pll_14nm->id);
-	snprintf(parent, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
+	snprintf(clk_name, 32, "dsi%dpllbyte", pll_14nm->phy->id);
+	snprintf(parent, 32, "dsi%dn1_postdiv_clk", pll_14nm->phy->id);
 
 	/* DSI Byte clock = VCO_CLK / N1 / 8 */
 	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
@@ -961,8 +958,8 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 
 	provided_clocks[DSI_BYTE_PLL_CLK] = hw;
 
-	snprintf(clk_name, 32, "dsi%dn1_postdivby2_clk", pll_14nm->id);
-	snprintf(parent, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
+	snprintf(clk_name, 32, "dsi%dn1_postdivby2_clk", pll_14nm->phy->id);
+	snprintf(parent, 32, "dsi%dn1_postdiv_clk", pll_14nm->phy->id);
 
 	/*
 	 * Skip the mux for now, force DSICLK_SEL to 1, Add a /2 divider
@@ -972,8 +969,8 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	snprintf(clk_name, 32, "dsi%dpll", pll_14nm->id);
-	snprintf(parent, 32, "dsi%dn1_postdivby2_clk", pll_14nm->id);
+	snprintf(clk_name, 32, "dsi%dpll", pll_14nm->phy->id);
+	snprintf(parent, 32, "dsi%dn1_postdivby2_clk", pll_14nm->phy->id);
 
 	/* DSI pixel clock = VCO_CLK / N1 / 2 / N2
 	 * This is the output of N2 post-divider, bits 4-7 in
@@ -991,7 +988,6 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 {
 	struct platform_device *pdev = phy->pdev;
-	int id = phy->id;
 	struct dsi_pll_14nm *pll_14nm;
 	int ret;
 
@@ -1002,11 +998,9 @@ static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 	if (!pll_14nm)
 		return -ENOMEM;
 
-	DBG("PLL%d", id);
+	DBG("PLL%d", phy->id);
 
-	pll_14nm->pdev = pdev;
-	pll_14nm->id = id;
-	pll_14nm_list[id] = pll_14nm;
+	pll_14nm_list[phy->id] = pll_14nm;
 
 	spin_lock_init(&pll_14nm->postdiv_lock);
 
