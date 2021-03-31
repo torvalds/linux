@@ -46,7 +46,6 @@ static int tcp_syn_retries_min = 1;
 static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
-static int comp_sack_nr_max = 255;
 static u32 u32_max_div_HZ = UINT_MAX / HZ;
 static int one_day_secs = 24 * 3600;
 
@@ -456,7 +455,7 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 	    ipv4.sysctl_fib_multipath_hash_policy);
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
@@ -848,9 +847,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "igmp_link_local_mcast_reports",
 		.data		= &init_net.ipv4.sysctl_igmp_llm_reports,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dou8vec_minmax,
 	},
 	{
 		.procname	= "igmp_max_memberships",
@@ -1038,16 +1037,16 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "fib_multipath_use_neigh",
 		.data		= &init_net.ipv4.sysctl_fib_multipath_use_neigh,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "fib_multipath_hash_policy",
 		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_policy,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_fib_multipath_hash_policy,
 		.extra1		= SYSCTL_ZERO,
@@ -1065,9 +1064,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "udp_l3mdev_accept",
 		.data		= &init_net.ipv4.sysctl_udp_l3mdev_accept,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
@@ -1330,11 +1329,10 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_comp_sack_nr",
 		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_nr,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= &comp_sack_nr_max,
 	},
 	{
 		.procname       = "tcp_reflect_tos",
@@ -1364,9 +1362,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "fib_notify_on_flag_change",
 		.data		= &init_net.ipv4.sysctl_fib_notify_on_flag_change,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &two,
 	},

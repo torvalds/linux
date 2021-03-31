@@ -20,7 +20,6 @@ struct netns_sysctl_ipv6 {
 	struct ctl_table_header *frags_hdr;
 	struct ctl_table_header *xfrm6_hdr;
 #endif
-	int bindv6only;
 	int flush_delay;
 	int ip6_rt_max_size;
 	int ip6_rt_gc_min_interval;
@@ -29,21 +28,22 @@ struct netns_sysctl_ipv6 {
 	int ip6_rt_gc_elasticity;
 	int ip6_rt_mtu_expires;
 	int ip6_rt_min_advmss;
-	int multipath_hash_policy;
-	int flowlabel_consistency;
-	int auto_flowlabels;
+	u8 bindv6only;
+	u8 multipath_hash_policy;
+	u8 flowlabel_consistency;
+	u8 auto_flowlabels;
 	int icmpv6_time;
-	int icmpv6_echo_ignore_all;
-	int icmpv6_echo_ignore_multicast;
-	int icmpv6_echo_ignore_anycast;
+	u8 icmpv6_echo_ignore_all;
+	u8 icmpv6_echo_ignore_multicast;
+	u8 icmpv6_echo_ignore_anycast;
 	DECLARE_BITMAP(icmpv6_ratemask, ICMPV6_MSG_MAX + 1);
 	unsigned long *icmpv6_ratemask_ptr;
-	int anycast_src_echo_reply;
-	int ip_nonlocal_bind;
-	int fwmark_reflect;
+	u8 anycast_src_echo_reply;
+	u8 ip_nonlocal_bind;
+	u8 fwmark_reflect;
+	u8 flowlabel_state_ranges;
 	int idgen_retries;
 	int idgen_delay;
-	int flowlabel_state_ranges;
 	int flowlabel_reflect;
 	int max_dst_opts_cnt;
 	int max_hbh_opts_cnt;
@@ -51,10 +51,13 @@ struct netns_sysctl_ipv6 {
 	int max_hbh_opts_len;
 	int seg6_flowlabel;
 	bool skip_notify_on_dev_down;
-	int fib_notify_on_flag_change;
+	u8 fib_notify_on_flag_change;
 };
 
 struct netns_ipv6 {
+	/* Keep ip6_dst_ops at the beginning of netns_sysctl_ipv6 */
+	struct dst_ops		ip6_dst_ops;
+
 	struct netns_sysctl_ipv6 sysctl;
 	struct ipv6_devconf	*devconf_all;
 	struct ipv6_devconf	*devconf_dflt;
@@ -76,7 +79,6 @@ struct netns_ipv6 {
 	struct hlist_head       *fib_table_hash;
 	struct fib6_table       *fib6_main_tbl;
 	struct list_head	fib6_walkers;
-	struct dst_ops		ip6_dst_ops;
 	rwlock_t		fib6_walker_lock;
 	spinlock_t		fib6_gc_lock;
 	unsigned int		 ip6_rt_gc_expire;

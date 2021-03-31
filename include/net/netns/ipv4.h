@@ -32,14 +32,18 @@ struct inet_hashinfo;
 
 struct inet_timewait_death_row {
 	atomic_t		tw_count;
+	char			tw_pad[L1_CACHE_BYTES - sizeof(atomic_t)];
 
-	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
+	struct inet_hashinfo 	*hashinfo;
 	int			sysctl_max_tw_buckets;
 };
 
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
+	/* Please keep tcp_death_row at first field in netns_ipv4 */
+	struct inet_timewait_death_row tcp_death_row ____cacheline_aligned_in_smp;
+
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
 	struct ctl_table_header	*frags_hdr;
@@ -53,17 +57,17 @@ struct netns_ipv4 {
 	struct mutex		ra_mutex;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
-	bool			fib_has_custom_rules;
-	unsigned int		fib_rules_require_fldissect;
 	struct fib_table __rcu	*fib_main;
 	struct fib_table __rcu	*fib_default;
+	unsigned int		fib_rules_require_fldissect;
+	bool			fib_has_custom_rules;
 #endif
 	bool			fib_has_custom_local_routes;
+	bool			fib_offload_disabled;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	int			fib_num_tclassid_users;
 #endif
 	struct hlist_head	*fib_table_hash;
-	bool			fib_offload_disabled;
 	struct sock		*fibnl;
 
 	struct sock  * __percpu	*icmp_sk;
@@ -167,15 +171,14 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_min_tso_segs;
 	u8 sysctl_tcp_autocorking;
 	u8 sysctl_tcp_reflect_tos;
+	u8 sysctl_tcp_comp_sack_nr;
 	int sysctl_tcp_invalid_ratelimit;
 	int sysctl_tcp_pacing_ss_ratio;
 	int sysctl_tcp_pacing_ca_ratio;
 	int sysctl_tcp_wmem[3];
 	int sysctl_tcp_rmem[3];
-	int sysctl_tcp_comp_sack_nr;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
 	unsigned long sysctl_tcp_comp_sack_slack_ns;
-	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
 	const struct tcp_congestion_ops __rcu  *tcp_congestion_control;
@@ -188,15 +191,15 @@ struct netns_ipv4 {
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
 
-	int sysctl_fib_notify_on_flag_change;
+	u8 sysctl_fib_notify_on_flag_change;
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
-	int sysctl_udp_l3mdev_accept;
+	u8 sysctl_udp_l3mdev_accept;
 #endif
 
+	u8 sysctl_igmp_llm_reports;
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
-	int sysctl_igmp_llm_reports;
 	int sysctl_igmp_qrv;
 
 	struct ping_group_range ping_group_range;
@@ -217,8 +220,8 @@ struct netns_ipv4 {
 #endif
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int sysctl_fib_multipath_use_neigh;
-	int sysctl_fib_multipath_hash_policy;
+	u8 sysctl_fib_multipath_use_neigh;
+	u8 sysctl_fib_multipath_hash_policy;
 #endif
 
 	struct fib_notifier_ops	*notifier_ops;
