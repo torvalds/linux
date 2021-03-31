@@ -9,9 +9,6 @@ title: Marvel SSPA Digital Audio Interface Bindings
 maintainers:
   - Lubomir Rintel <lkundrak@v3.sk>
 
-allOf:
-  - $ref: audio-graph-port.yaml#
-
 properties:
   $nodename:
     pattern: "^audio-controller(@.*)?$"
@@ -54,7 +51,8 @@ properties:
       - const: rx
 
   port:
-    type: object
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
 
     properties:
       endpoint:
