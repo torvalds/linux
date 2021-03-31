@@ -181,14 +181,13 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 	/*
 	 * We need at least two packages, one for the revision and one
 	 * for the data itself.  Also check that the revision is valid
-	 * (i.e. it is an integer smaller than 2, as we currently support only
-	 * 2 revisions).
+	 * (i.e. it is an integer (each caller has to check by itself
+	 * if the returned revision is supported)).
 	 */
 	if (data->type != ACPI_TYPE_PACKAGE ||
 	    data->package.count < 2 ||
-	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    data->package.elements[0].integer.value > 1) {
-		IWL_DEBUG_DEV_RADIO(dev, "Unsupported packages structure\n");
+	    data->package.elements[0].type != ACPI_TYPE_INTEGER) {
+		IWL_DEBUG_DEV_RADIO(dev, "Invalid packages structure\n");
 		return ERR_PTR(-EINVAL);
 	}
 
