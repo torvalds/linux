@@ -253,16 +253,19 @@ notrace void xmon_xive_do_dump(int cpu)
 	xmon_printf("\n");
 }
 
+static struct irq_data *xive_get_irq_data(u32 hw_irq)
+{
+	unsigned int irq = irq_find_mapping(xive_irq_domain, hw_irq);
+
+	return irq ? irq_get_irq_data(irq) : NULL;
+}
+
 int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 {
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	int rc;
 	u32 target;
 	u8 prio;
 	u32 lirq;
-
-	if (!is_xive_irq(chip))
-		return -EINVAL;
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
@@ -272,6 +275,9 @@ int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 
 	xmon_printf("IRQ 0x%08x : target=0x%x prio=%02x lirq=0x%x ",
 		    hw_irq, target, prio, lirq);
+
+	if (!d)
+		d = xive_get_irq_data(hw_irq);
 
 	if (d) {
 		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
