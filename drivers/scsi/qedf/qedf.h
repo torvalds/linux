@@ -333,6 +333,7 @@ struct qedf_ctx {
 	unsigned int curr_conn_id;
 	struct workqueue_struct *ll2_recv_wq;
 	struct workqueue_struct *link_update_wq;
+	struct devlink *devlink;
 	struct delayed_work link_update;
 	struct delayed_work link_recovery;
 	struct completion flogi_compl;
