@@ -16,7 +16,6 @@
 MODULE_AUTHOR("Simon Kelley");
 MODULE_DESCRIPTION("Support for Atmel at76c50x 802.11 wireless ethernet cards.");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("Atmel at76c506 PCI wireless cards");
 
 static const struct pci_device_id card_ids[] = {
 	{ 0x1114, 0x0506, PCI_ANY_ID, PCI_ANY_ID },

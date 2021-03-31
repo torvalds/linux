@@ -8,6 +8,10 @@
 #ifndef WFX_HIF_API_CMD_H
 #define WFX_HIF_API_CMD_H
 
+#include <linux/ieee80211.h>
+
+#include "hif_api_general.h"
+
 enum hif_requests_ids {
 	HIF_REQ_ID_RESET                = 0x0a,
 	HIF_REQ_ID_READ_MIB             = 0x05,
