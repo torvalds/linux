@@ -5727,6 +5727,7 @@ set_pit2_out:
 	}
 #endif
 	case KVM_SET_CLOCK: {
+		struct kvm_arch *ka = &kvm->arch;
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
 
@@ -5745,8 +5746,22 @@ set_pit2_out:
 		 * pvclock_update_vm_gtod_copy().
 		 */
 		kvm_gen_update_masterclock(kvm);
-		now_ns = get_kvmclock_ns(kvm);
-		kvm->arch.kvmclock_offset += user_ns.clock - now_ns;
+
+		/*
+		 * This pairs with kvm_guest_time_update(): when masterclock is
+		 * in use, we use master_kernel_ns + kvmclock_offset to set
+		 * unsigned 'system_time' so if we use get_kvmclock_ns() (which
+		 * is slightly ahead) here we risk going negative on unsigned
+		 * 'system_time' when 'user_ns.clock' is very small.
+		 */
+		spin_lock_irq(&ka->pvclock_gtod_sync_lock);
+		if (kvm->arch.use_master_clock)
+			now_ns = ka->master_kernel_ns;
+		else
+			now_ns = get_kvmclock_base_ns();
+		ka->kvmclock_offset = user_ns.clock - now_ns;
+		spin_unlock_irq(&ka->pvclock_gtod_sync_lock);
+
 		kvm_make_all_cpus_request(kvm, KVM_REQ_CLOCK_UPDATE);
 		break;
 	}
