@@ -605,6 +605,28 @@ static void enetc_add_rx_buff_to_skb(struct enetc_bdr *rx_ring, int i,
 	enetc_put_rx_buff(rx_ring, rx_swbd);
 }
 
+static bool enetc_check_bd_errors_and_consume(struct enetc_bdr *rx_ring,
+					      u32 bd_status,
+					      union enetc_rx_bd **rxbd, int *i)
+{
+	if (likely(!(bd_status & ENETC_RXBD_LSTATUS(ENETC_RXBD_ERR_MASK))))
+		return false;
+
+	enetc_rxbd_next(rx_ring, rxbd, i);
+
+	while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
+		dma_rmb();
+		bd_status = le32_to_cpu((*rxbd)->r.lstatus);
+
+		enetc_rxbd_next(rx_ring, rxbd, i);
+	}
+
+	rx_ring->ndev->stats.rx_dropped++;
+	rx_ring->ndev->stats.rx_errors++;
+
+	return true;
+}
+
 #define ENETC_RXBD_BUNDLE 16 /* # of BDs to update at once */
 
 static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
@@ -634,6 +656,11 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 
 		enetc_wr_reg_hot(rx_ring->idr, BIT(rx_ring->index));
 		dma_rmb(); /* for reading other rxbd fields */
+
+		if (enetc_check_bd_errors_and_consume(rx_ring, bd_status,
+						      &rxbd, &i))
+			break;
+
 		size = le16_to_cpu(rxbd->r.buf_len);
 		skb = enetc_map_rx_buff_to_skb(rx_ring, i, size);
 		if (!skb)
@@ -644,22 +671,6 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 		cleaned_cnt++;
 
 		enetc_rxbd_next(rx_ring, &rxbd, &i);
-
-		if (unlikely(bd_status &
-			     ENETC_RXBD_LSTATUS(ENETC_RXBD_ERR_MASK))) {
-			dev_kfree_skb(skb);
-			while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
-				dma_rmb();
-				bd_status = le32_to_cpu(rxbd->r.lstatus);
-
-				enetc_rxbd_next(rx_ring, &rxbd, &i);
-			}
-
-			rx_ring->ndev->stats.rx_dropped++;
-			rx_ring->ndev->stats.rx_errors++;
-
-			break;
-		}
 
 		/* not last BD in frame? */
 		while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
