@@ -246,6 +246,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 	struct btree_iter *linked, *deadlock_iter = NULL;
 	u64 start_time = local_clock();
 	unsigned reason = 9;
+	bool ret;
 
 	/* Check if it's safe to block: */
 	trans_for_each_iter(trans, linked) {
@@ -354,12 +355,23 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 	if (six_trylock_type(&b->c.lock, type))
 		return true;
 
-	if (six_lock_type(&b->c.lock, type, should_sleep_fn, p))
-		return false;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	trans->locking_iter_idx = iter->idx;
+	trans->locking_pos	= pos;
+	trans->locking_btree_id	= iter->btree_id;
+	trans->locking_level	= level;
+	trans->locking		= b;
+#endif
 
-	bch2_time_stats_update(&trans->c->times[lock_to_time_stat(type)],
-			       start_time);
-	return true;
+	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p) == 0;
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	trans->locking = NULL;
+#endif
+	if (ret)
+		bch2_time_stats_update(&trans->c->times[lock_to_time_stat(type)],
+				       start_time);
+	return ret;
 }
 
 /* Btree iterator locking: */

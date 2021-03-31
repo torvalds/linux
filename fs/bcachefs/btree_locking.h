@@ -186,27 +186,14 @@ static inline bool btree_node_lock(struct btree *b,
 			unsigned long ip)
 {
 	struct btree_trans *trans = iter->trans;
-	bool ret;
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 	EBUG_ON(!(trans->iters_linked & (1ULL << iter->idx)));
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-	trans->locking		= b;
-	trans->locking_iter_idx = iter->idx;
-	trans->locking_pos	= pos;
-	trans->locking_btree_id	= iter->btree_id;
-	trans->locking_level	= level;
-#endif
-	ret   = likely(six_trylock_type(&b->c.lock, type)) ||
+	return likely(six_trylock_type(&b->c.lock, type)) ||
 		btree_node_lock_increment(trans, b, level, type) ||
 		__bch2_btree_node_lock(b, pos, level, iter, type,
 				       should_sleep_fn, p, ip);
-
-#ifdef CONFIG_BCACHEFS_DEBUG
-	trans->locking = NULL;
-#endif
-	return ret;
 }
 
 bool __bch2_btree_node_relock(struct btree_iter *, unsigned);
