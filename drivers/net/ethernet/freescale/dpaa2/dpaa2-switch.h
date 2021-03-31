@@ -79,6 +79,9 @@
 #define DPAA2_SWITCH_NEEDED_HEADROOM \
 	(DPAA2_SWITCH_TX_DATA_OFFSET + DPAA2_SWITCH_TX_BUF_ALIGN)
 
+#define DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES	16
+#define DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE	256
+
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
@@ -113,6 +116,10 @@ struct ethsw_port_priv {
 	struct dpaa2_switch_fdb	*fdb;
 	bool			bcast_flood;
 	bool			ucast_flood;
+	bool			learn_ena;
+
+	u16			acl_tbl;
+	u8			acl_num_rules;
 };
 
 /* Switch data */

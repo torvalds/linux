@@ -318,17 +318,34 @@ static int dpaa2_switch_port_add_vlan(struct ethsw_port_priv *port_priv,
 	return 0;
 }
 
+static enum dpsw_stp_state br_stp_state_to_dpsw(u8 state)
+{
+	switch (state) {
+	case BR_STATE_DISABLED:
+		return DPSW_STP_STATE_DISABLED;
+	case BR_STATE_LISTENING:
+		return DPSW_STP_STATE_LISTENING;
+	case BR_STATE_LEARNING:
+		return DPSW_STP_STATE_LEARNING;
+	case BR_STATE_FORWARDING:
+		return DPSW_STP_STATE_FORWARDING;
+	case BR_STATE_BLOCKING:
+		return DPSW_STP_STATE_BLOCKING;
+	default:
+		return DPSW_STP_STATE_DISABLED;
+	}
+}
+
 static int dpaa2_switch_port_set_stp_state(struct ethsw_port_priv *port_priv, u8 state)
 {
-	struct dpsw_stp_cfg stp_cfg = {
-		.state = state,
-	};
+	struct dpsw_stp_cfg stp_cfg = {0};
 	int err;
 	u16 vid;
 
 	if (!netif_running(port_priv->netdev) || state == port_priv->stp_state)
 		return 0;	/* Nothing to do */
 
+	stp_cfg.state = br_stp_state_to_dpsw(state);
 	for (vid = 0; vid <= VLAN_VID_MASK; vid++) {
 		if (port_priv->vlans[vid] & ETHSW_VLAN_MEMBER) {
 			stp_cfg.vlan_id = vid;
@@ -1233,14 +1250,6 @@ static void dpaa2_switch_teardown_irqs(struct fsl_mc_device *sw_dev)
 	fsl_mc_free_irqs(sw_dev);
 }
 
-static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
-						u8 state)
-{
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-
-	return dpaa2_switch_port_set_stp_state(port_priv, state);
-}
-
 static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, bool enable)
 {
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
@@ -1259,6 +1268,32 @@ static int dpaa2_switch_port_set_learning(struct ethsw_port_priv *port_priv, boo
 
 	if (!enable)
 		dpaa2_switch_port_fast_age(port_priv);
+
+	return err;
+}
+
+static int dpaa2_switch_port_attr_stp_state_set(struct net_device *netdev,
+						u8 state)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int err;
+
+	err = dpaa2_switch_port_set_stp_state(port_priv, state);
+	if (err)
+		return err;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		err = dpaa2_switch_port_set_learning(port_priv, false);
+		break;
+	case BR_STATE_LEARNING:
+	case BR_STATE_FORWARDING:
+		err = dpaa2_switch_port_set_learning(port_priv,
+						     port_priv->learn_ena);
+		break;
+	}
 
 	return err;
 }
@@ -1312,6 +1347,7 @@ static int dpaa2_switch_port_bridge_flags(struct net_device *netdev,
 		err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
 		if (err)
 			return err;
+		port_priv->learn_ena = learn_ena;
 	}
 
 	if (flags.mask & (BR_BCAST_FLOOD | BR_FLOOD | BR_MCAST_FLOOD)) {
@@ -1620,6 +1656,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 	/* Inherit the initial bridge port learning state */
 	learn_ena = br_port_flag_is_set(netdev, BR_LEARNING);
 	err = dpaa2_switch_port_set_learning(port_priv, learn_ena);
+	port_priv->learn_ena = learn_ena;
 
 	/* Setup the egress flood policy (broadcast, unknown unicast) */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
@@ -1702,6 +1739,7 @@ static int dpaa2_switch_port_bridge_leave(struct net_device *netdev)
 	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		return err;
+	port_priv->learn_ena = false;
 
 	/* Add the VLAN 1 as PVID when not under a bridge. We need this since
 	 * the dpaa2 switch interfaces are not capable to be VLAN unaware
@@ -2632,8 +2670,72 @@ err_close:
 	return err;
 }
 
+/* Add an ACL to redirect frames with specific destination MAC address to
+ * control interface
+ */
+static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
+					   const char *mac)
+{
+	struct net_device *netdev = port_priv->netdev;
+	struct dpsw_acl_entry_cfg acl_entry_cfg;
+	struct dpsw_acl_fields *acl_h;
+	struct dpsw_acl_fields *acl_m;
+	struct dpsw_acl_key acl_key;
+	struct device *dev;
+	u8 *cmd_buff;
+	int err;
+
+	dev = port_priv->netdev->dev.parent;
+	acl_h = &acl_key.match;
+	acl_m = &acl_key.mask;
+
+	if (port_priv->acl_num_rules >= DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES) {
+		netdev_err(netdev, "ACL full\n");
+		return -ENOMEM;
+	}
+
+	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
+	memset(&acl_key, 0, sizeof(acl_key));
+
+	/* Match on the destination MAC address */
+	ether_addr_copy(acl_h->l2_dest_mac, mac);
+	eth_broadcast_addr(acl_m->l2_dest_mac);
+
+	cmd_buff = kzalloc(DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE, GFP_KERNEL);
+	if (!cmd_buff)
+		return -ENOMEM;
+	dpsw_acl_prepare_entry_cfg(&acl_key, cmd_buff);
+
+	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
+	acl_entry_cfg.precedence = port_priv->acl_num_rules;
+	acl_entry_cfg.result.action = DPSW_ACL_ACTION_REDIRECT_TO_CTRL_IF;
+	acl_entry_cfg.key_iova = dma_map_single(dev, cmd_buff,
+						DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE,
+						DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, acl_entry_cfg.key_iova))) {
+		netdev_err(netdev, "DMA mapping failed\n");
+		return -EFAULT;
+	}
+
+	err = dpsw_acl_add_entry(port_priv->ethsw_data->mc_io, 0,
+				 port_priv->ethsw_data->dpsw_handle,
+				 port_priv->acl_tbl, &acl_entry_cfg);
+
+	dma_unmap_single(dev, acl_entry_cfg.key_iova, sizeof(cmd_buff),
+			 DMA_TO_DEVICE);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add_entry() failed %d\n", err);
+		return err;
+	}
+
+	port_priv->acl_num_rules++;
+
+	return 0;
+}
+
 static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 {
+	const char stpa[ETH_ALEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
 	struct switchdev_obj_port_vlan vlan = {
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.vid = DEFAULT_VLAN_ID,
@@ -2642,8 +2744,10 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	struct net_device *netdev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_fdb_cfg fdb_cfg = {0};
-	struct dpaa2_switch_fdb *fdb;
+	struct dpsw_acl_if_cfg acl_if_cfg;
 	struct dpsw_if_attr dpsw_if_attr;
+	struct dpaa2_switch_fdb *fdb;
+	struct dpsw_acl_cfg acl_cfg;
 	u16 fdb_id;
 	int err;
 
@@ -2682,6 +2786,29 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 
 	/* Setup the egress flooding domains (broadcast, unknown unicast */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
+	if (err)
+		return err;
+
+	/* Create an ACL table to be used by this switch port */
+	acl_cfg.max_entries = DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES;
+	err = dpsw_acl_add(ethsw->mc_io, 0, ethsw->dpsw_handle,
+			   &port_priv->acl_tbl, &acl_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add err %d\n", err);
+		return err;
+	}
+
+	acl_if_cfg.if_id[0] = port_priv->idx;
+	acl_if_cfg.num_ifs = 1;
+	err = dpsw_acl_add_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
+			      port_priv->acl_tbl, &acl_if_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
+		dpsw_acl_remove(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				port_priv->acl_tbl);
+	}
+
+	err = dpaa2_switch_port_trap_mac_addr(port_priv, stpa);
 	if (err)
 		return err;
 
@@ -2801,6 +2928,7 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	err = dpaa2_switch_port_set_learning(port_priv, false);
 	if (err)
 		goto err_port_probe;
+	port_priv->learn_ena = false;
 
 	return 0;
 
