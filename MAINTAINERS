@@ -1582,6 +1582,7 @@ F:	arch/arm64/boot/dts/allwinner/
 F:	drivers/clk/sunxi-ng/
 F:	drivers/pinctrl/sunxi/
 F:	drivers/soc/sunxi/
+N:	allwinner
 N:	sun[x456789]i
 N:	sun50i
 
