@@ -1096,6 +1096,9 @@ struct iwl_mvm {
 	/* sniffer data to include in radiotap */
 	__le16 cur_aid;
 	u8 cur_bssid[ETH_ALEN];
+
+	unsigned long last_6ghz_passive_scan_jiffies;
+	unsigned long last_reset_or_resume_time_jiffies;
 };
 
 /* Extract MVM priv from op_mode and _hw */
