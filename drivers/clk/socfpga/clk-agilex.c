@@ -358,7 +358,8 @@ static int agilex_clk_register_cnt_perip(const struct stratix10_perip_cnt_clock 
 	return 0;
 }
 
-static int agilex_clk_register_gate(const struct stratix10_gate_clock *clks,					    int nums, struct stratix10_clock_data *data)
+static int agilex_clk_register_gate(const struct stratix10_gate_clock *clks,
+				    int nums, struct stratix10_clock_data *data)
 {
 	struct clk_hw *hw_clk;
 	void __iomem *base = data->base;
