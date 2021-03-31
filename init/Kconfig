@@ -2225,40 +2225,47 @@ config MODULE_SIG_HASH
 	default "sha384" if MODULE_SIG_SHA384
 	default "sha512" if MODULE_SIG_SHA512
 
-config MODULE_COMPRESS
-	bool "Compress modules on installation"
-	help
-
-	  Compresses kernel modules when 'make modules_install' is run; gzip or
-	  xz depending on "Compression algorithm" below.
-
-	  module-init-tools MAY support gzip, and kmod MAY support gzip and xz.
-
-	  Out-of-tree kernel modules installed using Kbuild will also be
-	  compressed upon installation.
-
-	  Note: for modules inside an initrd or initramfs, it's more efficient
-	  to compress the whole initrd or initramfs instead.
-
-	  Note: This is fully compatible with signed modules.
-
-	  If in doubt, say N.
-
 choice
-	prompt "Compression algorithm"
-	depends on MODULE_COMPRESS
-	default MODULE_COMPRESS_GZIP
+	prompt "Module compression mode"
 	help
-	  This determines which sort of compression will be used during
-	  'make modules_install'.
+	  This option allows you to choose the algorithm which will be used to
+	  compress modules when 'make modules_install' is run. (or, you can
+	  choose to not compress modules at all.)
 
-	  GZIP (default) and XZ are supported.
+	  External modules will also be compressed in the same way during the
+	  installation.
+
+	  For modules inside an initrd or initramfs, it's more efficient to
+	  compress the whole initrd or initramfs instead.
+
+	  This is fully compatible with signed modules.
+
+	  Please note that the tool used to load modules needs to support the
+	  corresponding algorithm. module-init-tools MAY support gzip, and kmod
+	  MAY support gzip and xz.
+
+	  Your build system needs to provide the appropriate compression tool
+	  to compress the modules.
+
+	  If in doubt, select 'None'.
+
+config MODULE_COMPRESS_NONE
+	bool "None"
+	help
+	  Do not compress modules. The installed modules are suffixed
+	  with .ko.
 
 config MODULE_COMPRESS_GZIP
 	bool "GZIP"
+	help
+	  Compress modules with GZIP. The installed modules are suffixed
+	  with .ko.gz.
 
 config MODULE_COMPRESS_XZ
 	bool "XZ"
+	help
+	  Compress modules with XZ. The installed modules are suffixed
+	  with .ko.xz.
 
 endchoice
 
