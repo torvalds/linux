@@ -1421,13 +1421,12 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		struct irq_desc *desc = irq_to_desc(irq);
 		struct irq_data *d = irq_desc_get_irq_data(desc);
 		struct xive_irq_data *xd;
-		unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
 		/*
 		 * Ignore anything that isn't a XIVE irq and ignore
 		 * IPIs, so can just be dropped.
 		 */
-		if (d->domain != xive_irq_domain || hw_irq == XIVE_IPI_HW_IRQ)
+		if (d->domain != xive_irq_domain)
 			continue;
 
 		/*
