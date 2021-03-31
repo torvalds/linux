@@ -4275,9 +4275,7 @@ static void vop2_parse_alpha(struct vop2_alpha_config *alpha_config,
 	alpha->src_alpha_ctrl.bits.factor_mode = ALPHA_ONE;
 
 	alpha->dst_alpha_ctrl.bits.alpha_mode = ALPHA_STRAIGHT;
-	if (!alpha_config->dst_pixel_alpha_en)
-		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_GLOBAL;
-	else if (alpha_config->dst_pixel_alpha_en && !dst_glb_alpha_en)
+	if (alpha_config->dst_pixel_alpha_en && !dst_glb_alpha_en)
 		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX;
 	else
 		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX_GLOBAL;
@@ -4321,7 +4319,7 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	struct vop2_plane_state *sub_vpstate;
 	struct vop2_plane_state *top_win_vpstate;
 	struct vop2_plane_state *bottom_win_vpstate;
-	bool src_pixel_alpha_en = false, dst_pixel_alpha_en = false;
+	bool src_pixel_alpha_en = false;
 	u16 src_glb_alpha_val = 0xff, dst_glb_alpha_val = 0xff;
 	bool premulti_en = false;
 	bool swap = false;
@@ -4364,11 +4362,10 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	fb = bottom_win_vpstate->base.fb;
 	if (!fb)
 		return;
-	dst_pixel_alpha_en = is_alpha_support(fb->format->format);
 	alpha_config.src_premulti_en = premulti_en;
 	alpha_config.dst_premulti_en = false;
 	alpha_config.src_pixel_alpha_en = src_pixel_alpha_en;
-	alpha_config.dst_pixel_alpha_en = dst_pixel_alpha_en;
+	alpha_config.dst_pixel_alpha_en = true; /* alpha value need transfer to next mix */
 	alpha_config.src_glb_alpha_value = src_glb_alpha_val;
 	alpha_config.dst_glb_alpha_value = dst_glb_alpha_val;
 	vop2_parse_alpha(&alpha_config, &alpha);
@@ -4421,6 +4418,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	}
 
 	mixer_id = vop2_find_start_mixer_id_for_vp(vop2, vp->id);
+	alpha_config.dst_pixel_alpha_en = true; /* alpha value need transfer to next mix */
 	for (i = 1; i < vp->nr_layers; i++) {
 		zpos = &vop2_zpos[i];
 		win = vop2_find_win_by_phys_id(vop2, zpos->win_phys_id);
@@ -4434,7 +4432,6 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 		pixel_alpha_en = is_alpha_support(fb->format->format);
 
 		alpha_config.src_premulti_en = premulti_en;
-		alpha_config.dst_pixel_alpha_en = false;
 		if (bottom_layer_alpha_en && i == 1) {/* Cd = Cs + (1 - As) * Cd * Agd */
 			alpha_config.dst_premulti_en = false;
 			alpha_config.src_pixel_alpha_en = pixel_alpha_en;
@@ -4465,7 +4462,6 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 				alpha_config.src_premulti_en = premulti_en;
 				alpha_config.dst_premulti_en = true;
 				alpha_config.src_pixel_alpha_en = true;
-				alpha_config.dst_pixel_alpha_en = true;
 				alpha_config.src_glb_alpha_value = 0xff;
 				alpha_config.dst_glb_alpha_value = 0xff;
 				vop2_parse_alpha(&alpha_config, &alpha);
@@ -4488,10 +4484,10 @@ static void vop2_setup_alpha(struct vop2_video_port *vp,
 	alpha_config.src_premulti_en = true;
 	alpha_config.dst_premulti_en = true;
 	alpha_config.src_pixel_alpha_en = true;
-	alpha_config.dst_pixel_alpha_en = true;
 	alpha_config.src_glb_alpha_value = 0xff;
 	alpha_config.dst_glb_alpha_value = 0xff;
 	vop2_parse_alpha(&alpha_config, &alpha);
+
 	for (; i < hweight32(vp->win_mask); i++) {
 		offset = (mixer_id + i - 1) * 0x10;
 		vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
