@@ -202,7 +202,7 @@ static int devcd_match_failing(struct device *dev, const void *failing)
  * NOTE: if two tables allocated with devcd_alloc_sgtable and then chained
  * using the sg_chain function then that function should be called only once
  * on the chained table
- * @table: pointer to sg_table to free
+ * @data: pointer to sg_table to free
  */
 static void devcd_free_sgtable(void *data)
 {
@@ -210,7 +210,7 @@ static void devcd_free_sgtable(void *data)
 }
 
 /**
- * devcd_read_from_table - copy data from sg_table to a given buffer
+ * devcd_read_from_sgtable - copy data from sg_table to a given buffer
  * and return the number of bytes read
  * @buffer: the buffer to copy the data to it
  * @buf_len: the length of the buffer
