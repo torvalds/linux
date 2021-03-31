@@ -73,56 +73,6 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
 }
 
-static int iwl_configure_rxq(struct iwl_mvm *mvm)
-{
-	int i, num_queues, size, ret;
-	struct iwl_rfh_queue_config *cmd;
-	struct iwl_host_cmd hcmd = {
-		.id = WIDE_ID(DATA_PATH_GROUP, RFH_QUEUE_CONFIG_CMD),
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-	};
-
-	/*
-	 * The default queue is configured via context info, so if we
-	 * have a single queue, there's nothing to do here.
-	 */
-	if (mvm->trans->num_rx_queues == 1)
-		return 0;
-
-	/* skip the default queue */
-	num_queues = mvm->trans->num_rx_queues - 1;
-
-	size = struct_size(cmd, data, num_queues);
-
-	cmd = kzalloc(size, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
-	cmd->num_queues = num_queues;
-
-	for (i = 0; i < num_queues; i++) {
-		struct iwl_trans_rxq_dma_data data;
-
-		cmd->data[i].q_num = i + 1;
-		iwl_trans_get_rxq_dma_data(mvm->trans, i + 1, &data);
-
-		cmd->data[i].fr_bd_cb = cpu_to_le64(data.fr_bd_cb);
-		cmd->data[i].urbd_stts_wrptr =
-			cpu_to_le64(data.urbd_stts_wrptr);
-		cmd->data[i].ur_bd_cb = cpu_to_le64(data.ur_bd_cb);
-		cmd->data[i].fr_bd_wid = cpu_to_le32(data.fr_bd_wid);
-	}
-
-	hcmd.data[0] = cmd;
-	hcmd.len[0] = size;
-
-	ret = iwl_mvm_send_cmd(mvm, &hcmd);
-
-	kfree(cmd);
-
-	return ret;
-}
-
 static int iwl_mvm_send_dqa_cmd(struct iwl_mvm *mvm)
 {
 	struct iwl_dqa_enable_cmd dqa_cmd = {
@@ -1503,14 +1453,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* Init RSS configuration */
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
-		ret = iwl_configure_rxq(mvm);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to configure RX queues: %d\n",
-				ret);
-			goto error;
-		}
-	}
+	ret = iwl_configure_rxq(&mvm->fwrt);
+	if (ret)
+		goto error;
 
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		ret = iwl_send_rss_cfg_cmd(mvm);
