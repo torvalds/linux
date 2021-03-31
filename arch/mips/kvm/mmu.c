@@ -489,9 +489,7 @@ static int kvm_unmap_hva_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end,
 			unsigned flags)
 {
-	handle_hva_to_gpa(kvm, start, end, &kvm_unmap_hva_handler, NULL);
-	kvm_flush_remote_tlbs(kvm);
-	return 0;
+	return handle_hva_to_gpa(kvm, start, end, &kvm_unmap_hva_handler, NULL);
 }
 
 static int kvm_set_spte_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
@@ -528,12 +526,7 @@ static int kvm_set_spte_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
 int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
 	unsigned long end = hva + PAGE_SIZE;
-	int ret;
-
-	ret = handle_hva_to_gpa(kvm, hva, end, &kvm_set_spte_handler, &pte);
-	if (ret)
-		kvm_flush_remote_tlbs(kvm);
-	return 0;
+	return handle_hva_to_gpa(kvm, hva, end, &kvm_set_spte_handler, &pte);
 }
 
 static int kvm_age_hva_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
