@@ -111,7 +111,7 @@
  * 11. fix extend line with isp input crop case
  * 12. set lgmean related regs for tmo in hdr isr
  *
- * v1.5.2:
+ * v1.6.0:
  * 1. reorder of subdev stream
  * 2. fix media link err for name don't match
  * 3. switch hdr_done interrupt according to hdrtmo cnt mode

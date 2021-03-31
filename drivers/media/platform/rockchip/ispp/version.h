@@ -87,7 +87,7 @@
  * 2. fix config of clk_dbg
  * 3. check frame id when apply params
  *
- * v1.5.2 (match aiq v1.56.4)
+ * v1.6.0 (match aiq v1.66.0)
  * 1. limit min clk to 50
  * 2. check scl stop if fec enable
  * 3. sync to free buf for multi dev stream off
