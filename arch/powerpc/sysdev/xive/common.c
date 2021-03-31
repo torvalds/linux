@@ -1604,16 +1604,13 @@ static void xive_debug_show_cpu(struct seq_file *m, int cpu)
 	seq_puts(m, "\n");
 }
 
-static void xive_debug_show_irq(struct seq_file *m, u32 hw_irq, struct irq_data *d)
+static void xive_debug_show_irq(struct seq_file *m, struct irq_data *d)
 {
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 	int rc;
 	u32 target;
 	u8 prio;
 	u32 lirq;
-
-	if (!is_xive_irq(chip))
-		return;
 
 	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
 	if (rc) {
@@ -1652,16 +1649,9 @@ static int xive_core_debug_show(struct seq_file *m, void *private)
 
 	for_each_irq_desc(i, desc) {
 		struct irq_data *d = irq_desc_get_irq_data(desc);
-		unsigned int hw_irq;
 
-		if (!d)
-			continue;
-
-		hw_irq = (unsigned int)irqd_to_hwirq(d);
-
-		/* IPIs are special (HW number 0) */
-		if (hw_irq != XIVE_IPI_HW_IRQ)
-			xive_debug_show_irq(m, hw_irq, d);
+		if (d->domain == xive_irq_domain)
+			xive_debug_show_irq(m, d);
 	}
 	return 0;
 }
