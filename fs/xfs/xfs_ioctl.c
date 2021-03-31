@@ -1672,8 +1672,6 @@ xfs_ioc_getbmap(
 		bmx.bmv_iflags = BMV_IF_ATTRFORK;
 		/*FALLTHRU*/
 	case XFS_IOC_GETBMAP:
-		if (file->f_mode & FMODE_NOCMTIME)
-			bmx.bmv_iflags |= BMV_IF_NO_DMAPI_READ;
 		/* struct getbmap is a strict subset of struct getbmapx. */
 		recsize = sizeof(struct getbmap);
 		break;
