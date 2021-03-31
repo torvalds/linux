@@ -1616,14 +1616,12 @@ static bool __init blogic_rdconfig(struct blogic_adapter *adapter)
 	   hardware bug whereby when the BIOS is enabled, transfers to/from
 	   the same address range the BIOS occupies modulo 16MB are handled
 	   incorrectly.  Only properly functioning BT-445S Host Adapters
-	   have firmware version 3.37, so require that ISA Bounce Buffers
-	   be used for the buggy BT-445S models if there is more than 16MB
-	   memory.
+	   have firmware version 3.37.
 	 */
-	if (adapter->bios_addr > 0 && strcmp(adapter->model, "BT-445S") == 0 &&
-			strcmp(adapter->fw_ver, "3.37") < 0 &&
-			(void *) high_memory > (void *) MAX_DMA_ADDRESS)
-		adapter->need_bouncebuf = true;
+	if (adapter->bios_addr > 0 &&
+	    strcmp(adapter->model, "BT-445S") == 0 &&
+	    strcmp(adapter->fw_ver, "3.37") < 0)
+		return blogic_failure(adapter, "Too old firmware");
 	/*
 	   Initialize parameters common to MultiMaster and FlashPoint
 	   Host Adapters.
@@ -1646,14 +1644,9 @@ common:
 		if (adapter->drvr_opts != NULL &&
 				adapter->drvr_opts->qdepth[tgt_id] > 0)
 			qdepth = adapter->drvr_opts->qdepth[tgt_id];
-		else if (adapter->need_bouncebuf)
-			qdepth = BLOGIC_TAG_DEPTH_BB;
 		adapter->qdepth[tgt_id] = qdepth;
 	}
-	if (adapter->need_bouncebuf)
-		adapter->untag_qdepth = BLOGIC_UNTAG_DEPTH_BB;
-	else
-		adapter->untag_qdepth = BLOGIC_UNTAG_DEPTH;
+	adapter->untag_qdepth = BLOGIC_UNTAG_DEPTH;
 	if (adapter->drvr_opts != NULL)
 		adapter->common_qdepth = adapter->drvr_opts->common_qdepth;
 	if (adapter->common_qdepth > 0 &&
@@ -2155,7 +2148,6 @@ static void __init blogic_inithoststruct(struct blogic_adapter *adapter,
 	host->this_id = adapter->scsi_id;
 	host->can_queue = adapter->drvr_qdepth;
 	host->sg_tablesize = adapter->drvr_sglimit;
-	host->unchecked_isa_dma = adapter->need_bouncebuf;
 	host->cmd_per_lun = adapter->untag_qdepth;
 }
 
@@ -3677,7 +3669,6 @@ static struct scsi_host_template blogic_template = {
 #if 0
 	.eh_abort_handler = blogic_abort,
 #endif
-	.unchecked_isa_dma = 1,
 	.max_sectors = 128,
 };
 

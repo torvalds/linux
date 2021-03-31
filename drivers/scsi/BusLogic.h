@@ -1003,7 +1003,6 @@ struct blogic_adapter {
 	bool terminfo_valid:1;
 	bool low_term:1;
 	bool high_term:1;
-	bool need_bouncebuf:1;
 	bool strict_rr:1;
 	bool scam_enabled:1;
 	bool scam_lev2:1;
