@@ -12,5 +12,3 @@ obj-y    := bindec.o binstr.o decbin.o do_func.o gen_except.o get_op.o \
 	    x_unfl.o x_unimp.o x_unsupp.o bugfix.o skeleton.o
 
 EXTRA_LDFLAGS := -x
-
-$(OS_OBJS): fpsp.h
