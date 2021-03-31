@@ -1067,24 +1067,58 @@ static struct irq_chip xive_ipi_chip = {
 	.irq_unmask = xive_ipi_do_nothing,
 };
 
-static void __init xive_request_ipi(void)
+/*
+ * IPIs are marked per-cpu. We use separate HW interrupts under the
+ * hood but associated with the same "linux" interrupt
+ */
+static int xive_ipi_irq_domain_map(struct irq_domain *h, unsigned int virq,
+				   irq_hw_number_t hw)
 {
-	unsigned int virq;
+	irq_set_chip_and_handler(virq, &xive_ipi_chip, handle_percpu_irq);
+	return 0;
+}
 
-	/*
-	 * Initialization failed, move on, we might manage to
-	 * reach the point where we display our errors before
-	 * the system falls appart
-	 */
-	if (!xive_irq_domain)
-		return;
+static const struct irq_domain_ops xive_ipi_irq_domain_ops = {
+	.map = xive_ipi_irq_domain_map,
+};
+
+static int __init xive_request_ipi(void)
+{
+	struct fwnode_handle *fwnode;
+	struct irq_domain *ipi_domain;
+	unsigned int virq;
+	int ret = -ENOMEM;
+
+	fwnode = irq_domain_alloc_named_fwnode("XIVE-IPI");
+	if (!fwnode)
+		goto out;
+
+	ipi_domain = irq_domain_create_linear(fwnode, 1,
+					      &xive_ipi_irq_domain_ops, NULL);
+	if (!ipi_domain)
+		goto out_free_fwnode;
 
 	/* Initialize it */
-	virq = irq_create_mapping(xive_irq_domain, XIVE_IPI_HW_IRQ);
+	virq = irq_create_mapping(ipi_domain, XIVE_IPI_HW_IRQ);
+	if (!virq) {
+		ret = -EINVAL;
+		goto out_free_domain;
+	}
+
 	xive_ipi_irq = virq;
 
-	WARN_ON(request_irq(virq, xive_muxed_ipi_action,
-			    IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL));
+	ret = request_irq(virq, xive_muxed_ipi_action,
+			  IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL);
+
+	WARN(ret < 0, "Failed to request IPI %d: %d\n", virq, ret);
+	return ret;
+
+out_free_domain:
+	irq_domain_remove(ipi_domain);
+out_free_fwnode:
+	irq_domain_free_fwnode(fwnode);
+out:
+	return ret;
 }
 
 static int xive_setup_cpu_ipi(unsigned int cpu)
@@ -1178,19 +1212,6 @@ static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 	 */
 	irq_clear_status_flags(virq, IRQ_LEVEL);
 
-#ifdef CONFIG_SMP
-	/* IPIs are special and come up with HW number 0 */
-	if (hw == XIVE_IPI_HW_IRQ) {
-		/*
-		 * IPIs are marked per-cpu. We use separate HW interrupts under
-		 * the hood but associated with the same "linux" interrupt
-		 */
-		irq_set_chip_and_handler(virq, &xive_ipi_chip,
-					 handle_percpu_irq);
-		return 0;
-	}
-#endif
-
 	rc = xive_irq_alloc_data(virq, hw);
 	if (rc)
 		return rc;
@@ -1202,15 +1223,7 @@ static int xive_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 static void xive_irq_domain_unmap(struct irq_domain *d, unsigned int virq)
 {
-	struct irq_data *data = irq_get_irq_data(virq);
-	unsigned int hw_irq;
-
-	/* XXX Assign BAD number */
-	if (!data)
-		return;
-	hw_irq = (unsigned int)irqd_to_hwirq(data);
-	if (hw_irq != XIVE_IPI_HW_IRQ)
-		xive_irq_free_data(virq);
+	xive_irq_free_data(virq);
 }
 
 static int xive_irq_domain_xlate(struct irq_domain *h, struct device_node *ct,
