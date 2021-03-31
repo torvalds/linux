@@ -55,6 +55,9 @@ struct netns_sysctl_ipv6 {
 };
 
 struct netns_ipv6 {
+	/* Keep ip6_dst_ops at the beginning of netns_sysctl_ipv6 */
+	struct dst_ops		ip6_dst_ops;
+
 	struct netns_sysctl_ipv6 sysctl;
 	struct ipv6_devconf	*devconf_all;
 	struct ipv6_devconf	*devconf_dflt;
@@ -76,7 +79,6 @@ struct netns_ipv6 {
 	struct hlist_head       *fib_table_hash;
 	struct fib6_table       *fib6_main_tbl;
 	struct list_head	fib6_walkers;
-	struct dst_ops		ip6_dst_ops;
 	rwlock_t		fib6_walker_lock;
 	spinlock_t		fib6_gc_lock;
 	unsigned int		 ip6_rt_gc_expire;
