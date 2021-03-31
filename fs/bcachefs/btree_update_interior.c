@@ -1527,16 +1527,16 @@ int bch2_btree_split_leaf(struct bch_fs *c, struct btree_iter *iter,
 	bch2_btree_update_done(as);
 
 	for (l = iter->level + 1; btree_iter_node(iter, l) && !ret; l++)
-		bch2_foreground_maybe_merge(c, iter, l, flags);
+		ret = bch2_foreground_maybe_merge(c, iter, l, flags);
 
 	return ret;
 }
 
-void __bch2_foreground_maybe_merge(struct bch_fs *c,
-				   struct btree_iter *iter,
-				   unsigned level,
-				   unsigned flags,
-				   enum btree_node_sibling sib)
+int __bch2_foreground_maybe_merge(struct bch_fs *c,
+				  struct btree_iter *iter,
+				  unsigned level,
+				  unsigned flags,
+				  enum btree_node_sibling sib)
 {
 	struct btree_trans *trans = iter->trans;
 	struct btree_iter *sib_iter = NULL;
@@ -1547,10 +1547,7 @@ void __bch2_foreground_maybe_merge(struct bch_fs *c,
 	struct btree *b, *m, *n, *prev, *next, *parent;
 	struct bpos sib_pos;
 	size_t sib_u64s;
-	int ret = 0;
-
-	if (trans->nounlock)
-		return;
+	int ret = 0, ret2 = 0;
 
 	BUG_ON(!btree_node_locked(iter, level));
 retry:
@@ -1689,17 +1686,16 @@ out:
 	 * split path, and downgrading to read locks in there is potentially
 	 * confusing:
 	 */
-	return;
+	return ret ?: ret2;
 err:
 	bch2_trans_iter_put(trans, sib_iter);
 	sib_iter = NULL;
 
-	if (ret == -EINTR && bch2_trans_relock(trans)) {
-		ret = 0;
+	if (ret == -EINTR && bch2_trans_relock(trans))
 		goto retry;
-	}
 
 	if (ret == -EINTR && !(flags & BTREE_INSERT_NOUNLOCK)) {
+		ret2 = ret;
 		ret = bch2_btree_iter_traverse_all(trans);
 		if (!ret)
 			goto retry;
