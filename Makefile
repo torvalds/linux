@@ -1459,10 +1459,6 @@ endif
 PHONY += modules
 modules: $(if $(KBUILD_BUILTIN),vmlinux) modules_check modules_prepare
 
-PHONY += modules_check
-modules_check: modules.order
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh $<
-
 cmd_modules_order = $(AWK) '!x[$$0]++' $(real-prereqs) > $@
 
 modules.order: $(subdir-modorder) FORCE
@@ -1775,8 +1771,12 @@ PHONY += modules modules_install
 
 ifdef CONFIG_MODULES
 
-modules: $(MODORDER)
+modules: modules_check
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
+
+PHONY += modules_check
+modules_check: $(MODORDER)
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh $<
 
 quiet_cmd_depmod = DEPMOD  $(MODLIB)
       cmd_depmod = $(CONFIG_SHELL) $(srctree)/scripts/depmod.sh $(DEPMOD) \
