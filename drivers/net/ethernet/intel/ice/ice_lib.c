@@ -385,6 +385,8 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
 
+	q_vector->total_events++;
+
 	napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -3270,20 +3272,15 @@ out:
 /**
  * ice_update_ring_stats - Update ring statistics
  * @ring: ring to update
- * @cont: used to increment per-vector counters
  * @pkts: number of processed packets
  * @bytes: number of processed bytes
  *
  * This function assumes that caller has acquired a u64_stats_sync lock.
  */
-static void
-ice_update_ring_stats(struct ice_ring *ring, struct ice_ring_container *cont,
-		      u64 pkts, u64 bytes)
+static void ice_update_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes)
 {
 	ring->stats.bytes += bytes;
 	ring->stats.pkts += pkts;
-	cont->total_bytes += bytes;
-	cont->total_pkts += pkts;
 }
 
 /**
@@ -3295,7 +3292,7 @@ ice_update_ring_stats(struct ice_ring *ring, struct ice_ring_container *cont,
 void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
 {
 	u64_stats_update_begin(&tx_ring->syncp);
-	ice_update_ring_stats(tx_ring, &tx_ring->q_vector->tx, pkts, bytes);
+	ice_update_ring_stats(tx_ring, pkts, bytes);
 	u64_stats_update_end(&tx_ring->syncp);
 }
 
@@ -3308,7 +3305,7 @@ void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
 void ice_update_rx_ring_stats(struct ice_ring *rx_ring, u64 pkts, u64 bytes)
 {
 	u64_stats_update_begin(&rx_ring->syncp);
-	ice_update_ring_stats(rx_ring, &rx_ring->q_vector->rx, pkts, bytes);
+	ice_update_ring_stats(rx_ring, pkts, bytes);
 	u64_stats_update_end(&rx_ring->syncp);
 }
 

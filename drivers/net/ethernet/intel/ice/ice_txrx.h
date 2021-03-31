@@ -339,12 +339,8 @@ static inline bool ice_ring_is_xdp(struct ice_ring *ring)
 struct ice_ring_container {
 	/* head of linked-list of rings */
 	struct ice_ring *ring;
-	unsigned long next_update;	/* jiffies value of next queue update */
-	unsigned int total_bytes;	/* total bytes processed this int */
-	unsigned int total_pkts;	/* total packets processed this int */
+	struct dim dim;		/* data for net_dim algorithm */
 	u16 itr_idx;		/* index in the interrupt vector */
-	u16 target_itr;		/* value in usecs divided by the hw->itr_gran */
-	u16 current_itr;	/* value in usecs divided by the hw->itr_gran */
 	/* high bit set means dynamic ITR, rest is used to store user
 	 * readable ITR value in usecs and must be converted before programming
 	 * to a register.

@@ -3634,6 +3634,12 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 				    ICE_MAX_INTRL);
 			return -EINVAL;
 		}
+		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl &&
+		    (ec->use_adaptive_rx_coalesce || ec->use_adaptive_tx_coalesce)) {
+			netdev_info(vsi->netdev, "Invalid value, %s-usecs-high cannot be changed if adaptive-tx or adaptive-rx is enabled\n",
+				    c_type_str);
+			return -EINVAL;
+		}
 		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl) {
 			rc->ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
 			ice_write_intrl(rc->ring->q_vector,

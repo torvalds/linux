@@ -36,6 +36,7 @@
 #include <linux/bpf.h>
 #include <linux/avf/virtchnl.h>
 #include <linux/cpu_rmap.h>
+#include <linux/dim.h>
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock.h>
@@ -351,7 +352,7 @@ struct ice_q_vector {
 	u16 reg_idx;
 	u8 num_ring_rx;			/* total number of Rx rings in vector */
 	u8 num_ring_tx;			/* total number of Tx rings in vector */
-	u8 itr_countdown;		/* when 0 should adjust adaptive ITR */
+	u8 wb_on_itr:1;			/* if true, WB on ITR is enabled */
 	/* in usecs, need to use ice_intrl_to_usecs_reg() before writing this
 	 * value to the device
 	 */
@@ -366,6 +367,8 @@ struct ice_q_vector {
 	struct irq_affinity_notify affinity_notify;
 
 	char name[ICE_INT_NAME_STR_LEN];
+
+	u16 total_events;	/* net_dim(): number of interrupts processed */
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {

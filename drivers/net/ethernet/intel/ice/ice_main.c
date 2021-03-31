@@ -5196,6 +5196,105 @@ int ice_vsi_cfg(struct ice_vsi *vsi)
 	return err;
 }
 
+/* THEORY OF MODERATION:
+ * The below code creates custom DIM profiles for use by this driver, because
+ * the ice driver hardware works differently than the hardware that DIMLIB was
+ * originally made for. ice hardware doesn't have packet count limits that
+ * can trigger an interrupt, but it *does* have interrupt rate limit support,
+ * and this code adds that capability to be used by the driver when it's using
+ * DIMLIB. The DIMLIB code was always designed to be a suggestion to the driver
+ * for how to "respond" to traffic and interrupts, so this driver uses a
+ * slightly different set of moderation parameters to get best performance.
+ */
+struct ice_dim {
+	/* the throttle rate for interrupts, basically worst case delay before
+	 * an initial interrupt fires, value is stored in microseconds.
+	 */
+	u16 itr;
+	/* the rate limit for interrupts, which can cap a delay from a small
+	 * ITR at a certain amount of interrupts per second. f.e. a 2us ITR
+	 * could yield as much as 500,000 interrupts per second, but with a
+	 * 10us rate limit, it limits to 100,000 interrupts per second. Value
+	 * is stored in microseconds.
+	 */
+	u16 intrl;
+};
+
+/* Make a different profile for Rx that doesn't allow quite so aggressive
+ * moderation at the high end (it maxes out at 128us or about 8k interrupts a
+ * second. The INTRL/rate parameters here are only useful to cap small ITR
+ * values, which is why for larger ITR's - like 128, which can only generate
+ * 8k interrupts per second, there is no point to rate limit and the values
+ * are set to zero. The rate limit values do affect latency, and so must
+ * be reasonably small so to not impact latency sensitive tests.
+ */
+static const struct ice_dim rx_profile[] = {
+	{2, 10},
+	{8, 16},
+	{32, 0},
+	{96, 0},
+	{128, 0}
+};
+
+/* The transmit profile, which has the same sorts of values
+ * as the previous struct
+ */
+static const struct ice_dim tx_profile[] = {
+	{2, 10},
+	{8, 16},
+	{64, 0},
+	{128, 0},
+	{256, 0}
+};
+
+static void ice_tx_dim_work(struct work_struct *work)
+{
+	struct ice_ring_container *rc;
+	struct ice_q_vector *q_vector;
+	struct dim *dim;
+	u16 itr, intrl;
+
+	dim = container_of(work, struct dim, work);
+	rc = container_of(dim, struct ice_ring_container, dim);
+	q_vector = container_of(rc, struct ice_q_vector, tx);
+
+	if (dim->profile_ix >= ARRAY_SIZE(tx_profile))
+		dim->profile_ix = ARRAY_SIZE(tx_profile) - 1;
+
+	/* look up the values in our local table */
+	itr = tx_profile[dim->profile_ix].itr;
+	intrl = tx_profile[dim->profile_ix].intrl;
+
+	ice_write_itr(rc, itr);
+	ice_write_intrl(q_vector, intrl);
+
+	dim->state = DIM_START_MEASURE;
+}
+
+static void ice_rx_dim_work(struct work_struct *work)
+{
+	struct ice_ring_container *rc;
+	struct ice_q_vector *q_vector;
+	struct dim *dim;
+	u16 itr, intrl;
+
+	dim = container_of(work, struct dim, work);
+	rc = container_of(dim, struct ice_ring_container, dim);
+	q_vector = container_of(rc, struct ice_q_vector, rx);
+
+	if (dim->profile_ix >= ARRAY_SIZE(rx_profile))
+		dim->profile_ix = ARRAY_SIZE(rx_profile) - 1;
+
+	/* look up the values in our local table */
+	itr = rx_profile[dim->profile_ix].itr;
+	intrl = rx_profile[dim->profile_ix].intrl;
+
+	ice_write_itr(rc, itr);
+	ice_write_intrl(q_vector, intrl);
+
+	dim->state = DIM_START_MEASURE;
+}
+
 /**
  * ice_napi_enable_all - Enable NAPI for all q_vectors in the VSI
  * @vsi: the VSI being configured
@@ -5209,6 +5308,12 @@ static void ice_napi_enable_all(struct ice_vsi *vsi)
 
 	ice_for_each_q_vector(vsi, q_idx) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[q_idx];
+
+		INIT_WORK(&q_vector->tx.dim.work, ice_tx_dim_work);
+		q_vector->tx.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+
+		INIT_WORK(&q_vector->rx.dim.work, ice_rx_dim_work);
+		q_vector->rx.dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 
 		if (q_vector->rx.ring || q_vector->tx.ring)
 			napi_enable(&q_vector->napi);
@@ -5618,6 +5723,9 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 
 		if (q_vector->rx.ring || q_vector->tx.ring)
 			napi_disable(&q_vector->napi);
+
+		cancel_work_sync(&q_vector->tx.dim.work);
+		cancel_work_sync(&q_vector->rx.dim.work);
 	}
 }
 
