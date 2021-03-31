@@ -2268,6 +2268,8 @@ static const struct qmp_phy_init_tbl sm8350_usb3_uniphy_pcs_tbl[] = {
 	QMP_PHY_INIT_CFG(QPHY_V4_PCS_REFGEN_REQ_CONFIG1, 0x21),
 };
 
+struct qmp_phy;
+
 /* struct qmp_phy_cfg - per-PHY initialization config */
 struct qmp_phy_cfg {
 	/* phy-type - PCIE/UFS/USB */
@@ -2306,6 +2308,12 @@ struct qmp_phy_cfg {
 	int serdes_tbl_hbr2_num;
 	const struct qmp_phy_init_tbl *serdes_tbl_hbr3;
 	int serdes_tbl_hbr3_num;
+
+	/* DP PHY callbacks */
+	int (*configure_dp_phy)(struct qmp_phy *qphy);
+	void (*configure_dp_tx)(struct qmp_phy *qphy);
+	int (*calibrate_dp_phy)(struct qmp_phy *qphy);
+	void (*dp_aux_init)(struct qmp_phy *qphy);
 
 	/* clock ids to be requested */
 	const char * const *clk_list;
@@ -2422,6 +2430,11 @@ struct qcom_qmp {
 
 	struct reset_control *ufs_reset;
 };
+
+static void qcom_qmp_v3_phy_dp_aux_init(struct qmp_phy *qphy);
+static void qcom_qmp_v3_phy_configure_dp_tx(struct qmp_phy *qphy);
+static int qcom_qmp_v3_phy_configure_dp_phy(struct qmp_phy *qphy);
+static int qcom_qmp_v3_dp_phy_calibrate(struct qmp_phy *qphy);
 
 static inline void qphy_setbits(void __iomem *base, u32 offset, u32 val)
 {
@@ -2871,6 +2884,11 @@ static const struct qmp_phy_cfg sc7180_dpphy_cfg = {
 
 	.has_phy_dp_com_ctrl	= true,
 	.is_dual_lane_phy	= true,
+
+	.dp_aux_init = qcom_qmp_v3_phy_dp_aux_init,
+	.configure_dp_tx = qcom_qmp_v3_phy_configure_dp_tx,
+	.configure_dp_phy = qcom_qmp_v3_phy_configure_dp_phy,
+	.calibrate_dp_phy = qcom_qmp_v3_dp_phy_calibrate,
 };
 
 static const struct qmp_phy_combo_cfg sc7180_usb3dpphy_cfg = {
@@ -3332,7 +3350,7 @@ static int qcom_qmp_phy_serdes_init(struct qmp_phy *qphy)
 	return 0;
 }
 
-static void qcom_qmp_phy_dp_aux_init(struct qmp_phy *qphy)
+static void qcom_qmp_v3_phy_dp_aux_init(struct qmp_phy *qphy)
 {
 	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
 	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
@@ -3403,7 +3421,7 @@ static const u8 qmp_dp_v3_voltage_swing_hbr_rbr[4][4] = {
 	{ 0x1f, 0xff, 0xff, 0xff }
 };
 
-static void qcom_qmp_phy_configure_dp_tx(struct qmp_phy *qphy)
+static void qcom_qmp_v3_phy_configure_dp_tx(struct qmp_phy *qphy)
 {
 	const struct phy_configure_opts_dp *dp_opts = &qphy->dp_opts;
 	unsigned int v_level = 0, p_level = 0;
@@ -3451,21 +3469,7 @@ static void qcom_qmp_phy_configure_dp_tx(struct qmp_phy *qphy)
 	writel(bias_en, qphy->tx2 + QSERDES_V3_TX_TRANSCEIVER_BIAS_EN);
 }
 
-static int qcom_qmp_dp_phy_configure(struct phy *phy, union phy_configure_opts *opts)
-{
-	const struct phy_configure_opts_dp *dp_opts = &opts->dp;
-	struct qmp_phy *qphy = phy_get_drvdata(phy);
-
-	memcpy(&qphy->dp_opts, dp_opts, sizeof(*dp_opts));
-	if (qphy->dp_opts.set_voltages) {
-		qcom_qmp_phy_configure_dp_tx(qphy);
-		qphy->dp_opts.set_voltages = 0;
-	}
-
-	return 0;
-}
-
-static int qcom_qmp_phy_configure_dp_phy(struct qmp_phy *qphy)
+static int qcom_qmp_v3_phy_configure_dp_phy(struct qmp_phy *qphy)
 {
 	const struct qmp_phy_dp_clks *dp_clks = qphy->dp_clks;
 	const struct phy_configure_opts_dp *dp_opts = &qphy->dp_opts;
@@ -3561,9 +3565,8 @@ static int qcom_qmp_phy_configure_dp_phy(struct qmp_phy *qphy)
  * We need to calibrate the aux setting here as many times
  * as the caller tries
  */
-static int qcom_qmp_dp_phy_calibrate(struct phy *phy)
+static int qcom_qmp_v3_dp_phy_calibrate(struct qmp_phy *qphy)
 {
-	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	static const u8 cfg1_settings[] = { 0x13, 0x23, 0x1d };
 	u8 val;
 
@@ -3572,6 +3575,32 @@ static int qcom_qmp_dp_phy_calibrate(struct phy *phy)
 	val = cfg1_settings[qphy->dp_aux_cfg];
 
 	writel(val, qphy->pcs + QSERDES_V3_DP_PHY_AUX_CFG1);
+
+	return 0;
+}
+
+static int qcom_qmp_dp_phy_configure(struct phy *phy, union phy_configure_opts *opts)
+{
+	const struct phy_configure_opts_dp *dp_opts = &opts->dp;
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
+	const struct qmp_phy_cfg *cfg = qphy->cfg;
+
+	memcpy(&qphy->dp_opts, dp_opts, sizeof(*dp_opts));
+	if (qphy->dp_opts.set_voltages) {
+		cfg->configure_dp_tx(qphy);
+		qphy->dp_opts.set_voltages = 0;
+	}
+
+	return 0;
+}
+
+static int qcom_qmp_dp_phy_calibrate(struct phy *phy)
+{
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
+	const struct qmp_phy_cfg *cfg = qphy->cfg;
+
+	if (cfg->calibrate_dp_phy)
+		return cfg->calibrate_dp_phy(qphy);
 
 	return 0;
 }
@@ -3748,7 +3777,7 @@ static int qcom_qmp_phy_init(struct phy *phy)
 		return ret;
 
 	if (cfg->type == PHY_TYPE_DP)
-		qcom_qmp_phy_dp_aux_init(qphy);
+		cfg->dp_aux_init(qphy);
 
 	return 0;
 }
@@ -3802,7 +3831,7 @@ static int qcom_qmp_phy_power_on(struct phy *phy)
 
 	/* Configure special DP tx tunings */
 	if (cfg->type == PHY_TYPE_DP)
-		qcom_qmp_phy_configure_dp_tx(qphy);
+		cfg->configure_dp_tx(qphy);
 
 	qcom_qmp_phy_configure_lane(rx, cfg->regs,
 				    cfg->rx_tbl, cfg->rx_tbl_num, 1);
@@ -3821,7 +3850,7 @@ static int qcom_qmp_phy_power_on(struct phy *phy)
 
 	/* Configure link rate, swing, etc. */
 	if (cfg->type == PHY_TYPE_DP) {
-		qcom_qmp_phy_configure_dp_phy(qphy);
+		cfg->configure_dp_phy(qphy);
 	} else {
 		qcom_qmp_phy_configure(pcs, cfg->regs, cfg->pcs_tbl, cfg->pcs_tbl_num);
 		if (cfg->pcs_tbl_sec)
