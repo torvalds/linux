@@ -4,7 +4,7 @@
 
 common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o eventfd.o binary_stats.o)
 
-EXTRA_CFLAGS += -Ivirt/kvm -Iarch/mips/kvm
+ccflags-y += -Ivirt/kvm -Iarch/mips/kvm
 
 common-objs-$(CONFIG_CPU_HAS_MSA) += msa.o
 
