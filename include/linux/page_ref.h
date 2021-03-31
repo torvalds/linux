@@ -67,9 +67,31 @@ static inline int page_ref_count(const struct page *page)
 	return atomic_read(&page->_refcount);
 }
 
+/**
+ * folio_ref_count - The reference count on this folio.
+ * @folio: The folio.
+ *
+ * The refcount is usually incremented by calls to folio_get() and
+ * decremented by calls to folio_put().  Some typical users of the
+ * folio refcount:
+ *
+ * - Each reference from a page table
+ * - The page cache
+ * - Filesystem private data
+ * - The LRU list
+ * - Pipes
+ * - Direct IO which references this page in the process address space
+ *
+ * Return: The number of references to this folio.
+ */
+static inline int folio_ref_count(const struct folio *folio)
+{
+	return page_ref_count(&folio->page);
+}
+
 static inline int page_count(const struct page *page)
 {
-	return atomic_read(&compound_head(page)->_refcount);
+	return folio_ref_count(page_folio(page));
 }
 
 static inline void set_page_count(struct page *page, int v)
@@ -77,6 +99,11 @@ static inline void set_page_count(struct page *page, int v)
 	atomic_set(&page->_refcount, v);
 	if (page_ref_tracepoint_active(page_ref_set))
 		__page_ref_set(page, v);
+}
+
+static inline void folio_set_count(struct folio *folio, int v)
+{
+	set_page_count(&folio->page, v);
 }
 
 /*
@@ -95,11 +122,21 @@ static inline void page_ref_add(struct page *page, int nr)
 		__page_ref_mod(page, nr);
 }
 
+static inline void folio_ref_add(struct folio *folio, int nr)
+{
+	page_ref_add(&folio->page, nr);
+}
+
 static inline void page_ref_sub(struct page *page, int nr)
 {
 	atomic_sub(nr, &page->_refcount);
 	if (page_ref_tracepoint_active(page_ref_mod))
 		__page_ref_mod(page, -nr);
+}
+
+static inline void folio_ref_sub(struct folio *folio, int nr)
+{
+	page_ref_sub(&folio->page, nr);
 }
 
 static inline int page_ref_sub_return(struct page *page, int nr)
@@ -111,6 +148,11 @@ static inline int page_ref_sub_return(struct page *page, int nr)
 	return ret;
 }
 
+static inline int folio_ref_sub_return(struct folio *folio, int nr)
+{
+	return page_ref_sub_return(&folio->page, nr);
+}
+
 static inline void page_ref_inc(struct page *page)
 {
 	atomic_inc(&page->_refcount);
@@ -118,11 +160,21 @@ static inline void page_ref_inc(struct page *page)
 		__page_ref_mod(page, 1);
 }
 
+static inline void folio_ref_inc(struct folio *folio)
+{
+	page_ref_inc(&folio->page);
+}
+
 static inline void page_ref_dec(struct page *page)
 {
 	atomic_dec(&page->_refcount);
 	if (page_ref_tracepoint_active(page_ref_mod))
 		__page_ref_mod(page, -1);
+}
+
+static inline void folio_ref_dec(struct folio *folio)
+{
+	page_ref_dec(&folio->page);
 }
 
 static inline int page_ref_sub_and_test(struct page *page, int nr)
@@ -134,6 +186,11 @@ static inline int page_ref_sub_and_test(struct page *page, int nr)
 	return ret;
 }
 
+static inline int folio_ref_sub_and_test(struct folio *folio, int nr)
+{
+	return page_ref_sub_and_test(&folio->page, nr);
+}
+
 static inline int page_ref_inc_return(struct page *page)
 {
 	int ret = atomic_inc_return(&page->_refcount);
@@ -141,6 +198,11 @@ static inline int page_ref_inc_return(struct page *page)
 	if (page_ref_tracepoint_active(page_ref_mod_and_return))
 		__page_ref_mod_and_return(page, 1, ret);
 	return ret;
+}
+
+static inline int folio_ref_inc_return(struct folio *folio)
+{
+	return page_ref_inc_return(&folio->page);
 }
 
 static inline int page_ref_dec_and_test(struct page *page)
@@ -152,6 +214,11 @@ static inline int page_ref_dec_and_test(struct page *page)
 	return ret;
 }
 
+static inline int folio_ref_dec_and_test(struct folio *folio)
+{
+	return page_ref_dec_and_test(&folio->page);
+}
+
 static inline int page_ref_dec_return(struct page *page)
 {
 	int ret = atomic_dec_return(&page->_refcount);
@@ -159,6 +226,11 @@ static inline int page_ref_dec_return(struct page *page)
 	if (page_ref_tracepoint_active(page_ref_mod_and_return))
 		__page_ref_mod_and_return(page, -1, ret);
 	return ret;
+}
+
+static inline int folio_ref_dec_return(struct folio *folio)
+{
+	return page_ref_dec_return(&folio->page);
 }
 
 static inline bool page_ref_add_unless(struct page *page, int nr, int u)
@@ -170,6 +242,11 @@ static inline bool page_ref_add_unless(struct page *page, int nr, int u)
 	return ret;
 }
 
+static inline bool folio_ref_add_unless(struct folio *folio, int nr, int u)
+{
+	return page_ref_add_unless(&folio->page, nr, u);
+}
+
 static inline int page_ref_freeze(struct page *page, int count)
 {
 	int ret = likely(atomic_cmpxchg(&page->_refcount, count, 0) == count);
@@ -177,6 +254,11 @@ static inline int page_ref_freeze(struct page *page, int count)
 	if (page_ref_tracepoint_active(page_ref_freeze))
 		__page_ref_freeze(page, count, ret);
 	return ret;
+}
+
+static inline int folio_ref_freeze(struct folio *folio, int count)
+{
+	return page_ref_freeze(&folio->page, count);
 }
 
 static inline void page_ref_unfreeze(struct page *page, int count)
@@ -189,4 +271,8 @@ static inline void page_ref_unfreeze(struct page *page, int count)
 		__page_ref_unfreeze(page, count);
 }
 
+static inline void folio_ref_unfreeze(struct folio *folio, int count)
+{
+	page_ref_unfreeze(&folio->page, count);
+}
 #endif

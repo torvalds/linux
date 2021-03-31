@@ -98,4 +98,5 @@ More Memory Management Functions
 .. kernel-doc:: include/linux/page-flags.h
 .. kernel-doc:: include/linux/mm.h
    :internal:
+.. kernel-doc:: include/linux/page_ref.h
 .. kernel-doc:: include/linux/mmzone.h
