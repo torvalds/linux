@@ -201,7 +201,7 @@ static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
 		return;
 
 	for (i = 0; i < num_rows; i++) {
-		if (mbs > bw_tbl[i].mbs_per_sec)
+		if (i != 0 && mbs > bw_tbl[i].mbs_per_sec)
 			break;
 
 		if (inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE) {
