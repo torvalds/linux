@@ -14,8 +14,6 @@
 #define NUM_DSI_CLOCKS_MAX	6
 
 struct msm_dsi_pll {
-	enum msm_dsi_phy_type type;
-
 	struct clk_hw	clk_hw;
 	bool		pll_on;
 	bool		state_saved;
@@ -23,16 +21,7 @@ struct msm_dsi_pll {
 	unsigned long	min_rate;
 	unsigned long	max_rate;
 
-	int (*enable_seq)(struct msm_dsi_pll *pll);
-	void (*disable_seq)(struct msm_dsi_pll *pll);
-	int (*get_provider)(struct msm_dsi_pll *pll,
-			struct clk **byte_clk_provider,
-			struct clk **pixel_clk_provider);
-	void (*destroy)(struct msm_dsi_pll *pll);
-	void (*save_state)(struct msm_dsi_pll *pll);
-	int (*restore_state)(struct msm_dsi_pll *pll);
-	int (*set_usecase)(struct msm_dsi_pll *pll,
-			   enum msm_dsi_phy_usecase uc);
+	const struct msm_dsi_phy_cfg *cfg;
 };
 
 #define hw_clk_to_pll(x) container_of(x, struct msm_dsi_pll, clk_hw)
@@ -71,60 +60,6 @@ void msm_dsi_pll_helper_clk_unprepare(struct clk_hw *hw);
 /* misc */
 void msm_dsi_pll_helper_unregister_clks(struct platform_device *pdev,
 					struct clk **clks, u32 num_clks);
-
-/*
- * Initialization for Each PLL Type
- */
-#ifdef CONFIG_DRM_MSM_DSI_28NM_PHY
-struct msm_dsi_pll *msm_dsi_pll_28nm_init(struct platform_device *pdev,
-					enum msm_dsi_phy_type type, int id);
-#else
-static inline struct msm_dsi_pll *msm_dsi_pll_28nm_init(
-	struct platform_device *pdev, enum msm_dsi_phy_type type, int id)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
-#ifdef CONFIG_DRM_MSM_DSI_28NM_8960_PHY
-struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
-					       int id);
-#else
-static inline struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(
-	struct platform_device *pdev, int id)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
-
-#ifdef CONFIG_DRM_MSM_DSI_14NM_PHY
-struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id);
-#else
-static inline struct msm_dsi_pll *
-msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
-#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
-struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id);
-#else
-static inline struct msm_dsi_pll *
-msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
-#ifdef CONFIG_DRM_MSM_DSI_7NM_PHY
-struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev,
-					enum msm_dsi_phy_type type, int id);
-#else
-static inline struct msm_dsi_pll *
-msm_dsi_pll_7nm_init(struct platform_device *pdev,
-					enum msm_dsi_phy_type type, int id)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 #endif /* __DSI_PLL_H__ */
 

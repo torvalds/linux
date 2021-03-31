@@ -17,15 +17,30 @@
 #define V3_0_0_10NM_OLD_TIMINGS_QUIRK	BIT(0)
 
 struct msm_dsi_phy_ops {
+	int (*pll_init)(struct msm_dsi_phy *phy);
 	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
 			struct msm_dsi_phy_clk_request *clk_req);
 	void (*disable)(struct msm_dsi_phy *phy);
+};
+
+struct msm_dsi_pll_ops {
+	int (*enable_seq)(struct msm_dsi_pll *pll);
+	void (*disable_seq)(struct msm_dsi_pll *pll);
+	int (*get_provider)(struct msm_dsi_pll *pll,
+			struct clk **byte_clk_provider,
+			struct clk **pixel_clk_provider);
+	void (*destroy)(struct msm_dsi_pll *pll);
+	void (*save_state)(struct msm_dsi_pll *pll);
+	int (*restore_state)(struct msm_dsi_pll *pll);
+	int (*set_usecase)(struct msm_dsi_pll *pll,
+			   enum msm_dsi_phy_usecase uc);
 };
 
 struct msm_dsi_phy_cfg {
 	enum msm_dsi_phy_type type;
 	struct dsi_reg_config reg_cfg;
 	struct msm_dsi_phy_ops ops;
+	const struct msm_dsi_pll_ops pll_ops;
 
 	/*
 	 * Each cell {phy_id, pll_id} of the truth table indicates

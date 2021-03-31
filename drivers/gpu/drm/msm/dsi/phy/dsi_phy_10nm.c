@@ -828,15 +828,17 @@ err_base_clk_hw:
 	return ret;
 }
 
-struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
+static int dsi_pll_10nm_init(struct msm_dsi_phy *phy)
 {
+	struct platform_device *pdev = phy->pdev;
+	int id = phy->id;
 	struct dsi_pll_10nm *pll_10nm;
 	struct msm_dsi_pll *pll;
 	int ret;
 
 	pll_10nm = devm_kzalloc(&pdev->dev, sizeof(*pll_10nm), GFP_KERNEL);
 	if (!pll_10nm)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	DBG("DSI PLL%d", id);
 
@@ -847,13 +849,13 @@ struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
 	pll_10nm->phy_cmn_mmio = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR_OR_NULL(pll_10nm->phy_cmn_mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to map CMN PHY base\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	pll_10nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_10nm->mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to map PLL base\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	spin_lock_init(&pll_10nm->postdiv_lock);
@@ -861,24 +863,22 @@ struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
 	pll = &pll_10nm->base;
 	pll->min_rate = 1000000000UL;
 	pll->max_rate = 3500000000UL;
-	pll->get_provider = dsi_pll_10nm_get_provider;
-	pll->destroy = dsi_pll_10nm_destroy;
-	pll->save_state = dsi_pll_10nm_save_state;
-	pll->restore_state = dsi_pll_10nm_restore_state;
-	pll->set_usecase = dsi_pll_10nm_set_usecase;
+	pll->cfg = phy->cfg;
 
 	pll_10nm->vco_delay = 1;
 
 	ret = pll_10nm_register(pll_10nm);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to register PLL: %d\n", ret);
-		return ERR_PTR(ret);
+		return ret;
 	}
+
+	phy->pll = pll;
 
 	/* TODO: Remove this when we have proper display handover support */
 	msm_dsi_pll_save_state(pll);
 
-	return pll;
+	return 0;
 }
 
 static int dsi_phy_hw_v3_0_is_pll_on(struct msm_dsi_phy *phy)
@@ -1102,6 +1102,14 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 	.ops = {
 		.enable = dsi_10nm_phy_enable,
 		.disable = dsi_10nm_phy_disable,
+		.pll_init = dsi_pll_10nm_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_10nm_get_provider,
+		.destroy = dsi_pll_10nm_destroy,
+		.save_state = dsi_pll_10nm_save_state,
+		.restore_state = dsi_pll_10nm_restore_state,
+		.set_usecase = dsi_pll_10nm_set_usecase,
 	},
 	.io_start = { 0xae94400, 0xae96400 },
 	.num_dsi_phy = 2,
@@ -1120,6 +1128,14 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_8998_cfgs = {
 	.ops = {
 		.enable = dsi_10nm_phy_enable,
 		.disable = dsi_10nm_phy_disable,
+		.pll_init = dsi_pll_10nm_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_10nm_get_provider,
+		.destroy = dsi_pll_10nm_destroy,
+		.save_state = dsi_pll_10nm_save_state,
+		.restore_state = dsi_pll_10nm_restore_state,
+		.set_usecase = dsi_pll_10nm_set_usecase,
 	},
 	.io_start = { 0xc994400, 0xc996400 },
 	.num_dsi_phy = 2,

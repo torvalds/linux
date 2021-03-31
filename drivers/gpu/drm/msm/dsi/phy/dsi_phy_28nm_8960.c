@@ -483,19 +483,20 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 	return 0;
 }
 
-struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
-					       int id)
+static int dsi_pll_28nm_8960_init(struct msm_dsi_phy *phy)
 {
+	struct platform_device *pdev = phy->pdev;
+	int id = phy->id;
 	struct dsi_pll_28nm *pll_28nm;
 	struct msm_dsi_pll *pll;
 	int ret;
 
 	if (!pdev)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	pll_28nm = devm_kzalloc(&pdev->dev, sizeof(*pll_28nm), GFP_KERNEL);
 	if (!pll_28nm)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	pll_28nm->pdev = pdev;
 	pll_28nm->id = id + 1;
@@ -503,27 +504,24 @@ struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
 	pll_28nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_28nm->mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map pll base\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	pll = &pll_28nm->base;
 	pll->min_rate = VCO_MIN_RATE;
 	pll->max_rate = VCO_MAX_RATE;
-	pll->get_provider = dsi_pll_28nm_get_provider;
-	pll->destroy = dsi_pll_28nm_destroy;
-	pll->disable_seq = dsi_pll_28nm_disable_seq;
-	pll->save_state = dsi_pll_28nm_save_state;
-	pll->restore_state = dsi_pll_28nm_restore_state;
 
-	pll->enable_seq = dsi_pll_28nm_enable_seq;
+	pll->cfg = phy->cfg;
 
 	ret = pll_28nm_register(pll_28nm);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to register PLL: %d\n", ret);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
-	return pll;
+	phy->pll = pll;
+
+	return 0;
 }
 
 static void dsi_28nm_dphy_set_timing(struct msm_dsi_phy *phy,
@@ -704,6 +702,15 @@ const struct msm_dsi_phy_cfg dsi_phy_28nm_8960_cfgs = {
 	.ops = {
 		.enable = dsi_28nm_phy_enable,
 		.disable = dsi_28nm_phy_disable,
+		.pll_init = dsi_pll_28nm_8960_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_28nm_get_provider,
+		.destroy = dsi_pll_28nm_destroy,
+		.save_state = dsi_pll_28nm_save_state,
+		.restore_state = dsi_pll_28nm_restore_state,
+		.disable_seq = dsi_pll_28nm_disable_seq,
+		.enable_seq = dsi_pll_28nm_enable_seq,
 	},
 	.io_start = { 0x4700300, 0x5800300 },
 	.num_dsi_phy = 2,

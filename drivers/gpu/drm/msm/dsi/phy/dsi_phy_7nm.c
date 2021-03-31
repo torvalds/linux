@@ -178,7 +178,7 @@ static void dsi_pll_calc_dec_frac(struct dsi_pll_7nm *pll)
 
 	dec = div_u64(dec_multiple, multiplier);
 
-	if (pll->base.type != MSM_DSI_PHY_7NM_V4_1)
+	if (pll->base.cfg->type != MSM_DSI_PHY_7NM_V4_1)
 		regs->pll_clock_inverters = 0x28;
 	else if (pll_freq <= 1000000000ULL)
 		regs->pll_clock_inverters = 0xa0;
@@ -273,7 +273,7 @@ static void dsi_pll_config_hzindep_reg(struct dsi_pll_7nm *pll)
 	void __iomem *base = pll->mmio;
 	u8 analog_controls_five_1 = 0x01, vco_config_1 = 0x00;
 
-	if (pll->base.type == MSM_DSI_PHY_7NM_V4_1) {
+	if (pll->base.cfg->type == MSM_DSI_PHY_7NM_V4_1) {
 		if (pll->vco_current_rate >= 3100000000ULL)
 			analog_controls_five_1 = 0x03;
 
@@ -307,9 +307,9 @@ static void dsi_pll_config_hzindep_reg(struct dsi_pll_7nm *pll)
 	pll_write(base + REG_DSI_7nm_PHY_PLL_PFILT, 0x2f);
 	pll_write(base + REG_DSI_7nm_PHY_PLL_IFILT, 0x2a);
 	pll_write(base + REG_DSI_7nm_PHY_PLL_IFILT,
-		  pll->base.type == MSM_DSI_PHY_7NM_V4_1 ? 0x3f : 0x22);
+		  pll->base.cfg->type == MSM_DSI_PHY_7NM_V4_1 ? 0x3f : 0x22);
 
-	if (pll->base.type == MSM_DSI_PHY_7NM_V4_1) {
+	if (pll->base.cfg->type == MSM_DSI_PHY_7NM_V4_1) {
 		pll_write(base + REG_DSI_7nm_PHY_PLL_PERF_OPTIMIZE, 0x22);
 		if (pll->slave)
 			pll_write(pll->slave->mmio + REG_DSI_7nm_PHY_PLL_PERF_OPTIMIZE, 0x22);
@@ -853,16 +853,17 @@ err_base_clk_hw:
 	return ret;
 }
 
-struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev,
-					enum msm_dsi_phy_type type, int id)
+static int dsi_pll_7nm_init(struct msm_dsi_phy *phy)
 {
+	struct platform_device *pdev = phy->pdev;
+	int id = phy->id;
 	struct dsi_pll_7nm *pll_7nm;
 	struct msm_dsi_pll *pll;
 	int ret;
 
 	pll_7nm = devm_kzalloc(&pdev->dev, sizeof(*pll_7nm), GFP_KERNEL);
 	if (!pll_7nm)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	DBG("DSI PLL%d", id);
 
@@ -873,13 +874,13 @@ struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev,
 	pll_7nm->phy_cmn_mmio = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR_OR_NULL(pll_7nm->phy_cmn_mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to map CMN PHY base\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	pll_7nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_7nm->mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to map PLL base\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	spin_lock_init(&pll_7nm->postdiv_lock);
@@ -887,30 +888,28 @@ struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev,
 	pll = &pll_7nm->base;
 	pll->min_rate = 1000000000UL;
 	pll->max_rate = 3500000000UL;
-	if (type == MSM_DSI_PHY_7NM_V4_1) {
+	if (phy->cfg->type == MSM_DSI_PHY_7NM_V4_1) {
 		pll->min_rate = 600000000UL;
 		pll->max_rate = (unsigned long)5000000000ULL;
 		/* workaround for max rate overflowing on 32-bit builds: */
 		pll->max_rate = max(pll->max_rate, 0xffffffffUL);
 	}
-	pll->get_provider = dsi_pll_7nm_get_provider;
-	pll->destroy = dsi_pll_7nm_destroy;
-	pll->save_state = dsi_pll_7nm_save_state;
-	pll->restore_state = dsi_pll_7nm_restore_state;
-	pll->set_usecase = dsi_pll_7nm_set_usecase;
+	pll->cfg = phy->cfg;
 
 	pll_7nm->vco_delay = 1;
 
 	ret = pll_7nm_register(pll_7nm);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to register PLL: %d\n", ret);
-		return ERR_PTR(ret);
+		return ret;
 	}
+
+	phy->pll = pll;
 
 	/* TODO: Remove this when we have proper display handover support */
 	msm_dsi_pll_save_state(pll);
 
-	return pll;
+	return 0;
 }
 
 static int dsi_phy_hw_v4_0_is_pll_on(struct msm_dsi_phy *phy)
@@ -1142,6 +1141,14 @@ const struct msm_dsi_phy_cfg dsi_phy_7nm_cfgs = {
 	.ops = {
 		.enable = dsi_7nm_phy_enable,
 		.disable = dsi_7nm_phy_disable,
+		.pll_init = dsi_pll_7nm_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_7nm_get_provider,
+		.destroy = dsi_pll_7nm_destroy,
+		.save_state = dsi_pll_7nm_save_state,
+		.restore_state = dsi_pll_7nm_restore_state,
+		.set_usecase = dsi_pll_7nm_set_usecase,
 	},
 	.io_start = { 0xae94400, 0xae96400 },
 	.num_dsi_phy = 2,
@@ -1160,6 +1167,14 @@ const struct msm_dsi_phy_cfg dsi_phy_7nm_8150_cfgs = {
 	.ops = {
 		.enable = dsi_7nm_phy_enable,
 		.disable = dsi_7nm_phy_disable,
+		.pll_init = dsi_pll_7nm_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_7nm_get_provider,
+		.destroy = dsi_pll_7nm_destroy,
+		.save_state = dsi_pll_7nm_save_state,
+		.restore_state = dsi_pll_7nm_restore_state,
+		.set_usecase = dsi_pll_7nm_set_usecase,
 	},
 	.io_start = { 0xae94400, 0xae96400 },
 	.num_dsi_phy = 2,

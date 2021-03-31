@@ -3,6 +3,7 @@
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  */
 
+#include "dsi_phy.h"
 #include "dsi_pll.h"
 
 /*
@@ -33,7 +34,7 @@ int msm_dsi_pll_helper_clk_prepare(struct clk_hw *hw)
 	if (unlikely(pll->pll_on))
 		return 0;
 
-	ret = pll->enable_seq(pll);
+	ret = pll->cfg->pll_ops.enable_seq(pll);
 	if (ret) {
 		DRM_ERROR("DSI PLL failed to lock\n");
 		return ret;
@@ -51,7 +52,7 @@ void msm_dsi_pll_helper_clk_unprepare(struct clk_hw *hw)
 	if (unlikely(!pll->pll_on))
 		return;
 
-	pll->disable_seq(pll);
+	pll->cfg->pll_ops.disable_seq(pll);
 
 	pll->pll_on = false;
 }
@@ -76,8 +77,8 @@ void msm_dsi_pll_helper_unregister_clks(struct platform_device *pdev,
 int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
 	struct clk **byte_clk_provider, struct clk **pixel_clk_provider)
 {
-	if (pll->get_provider)
-		return pll->get_provider(pll,
+	if (pll->cfg->pll_ops.get_provider)
+		return pll->cfg->pll_ops.get_provider(pll,
 					byte_clk_provider,
 					pixel_clk_provider);
 
@@ -86,14 +87,14 @@ int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
 
 void msm_dsi_pll_destroy(struct msm_dsi_pll *pll)
 {
-	if (pll->destroy)
-		pll->destroy(pll);
+	if (pll->cfg->pll_ops.destroy)
+		pll->cfg->pll_ops.destroy(pll);
 }
 
 void msm_dsi_pll_save_state(struct msm_dsi_pll *pll)
 {
-	if (pll->save_state) {
-		pll->save_state(pll);
+	if (pll->cfg->pll_ops.save_state) {
+		pll->cfg->pll_ops.save_state(pll);
 		pll->state_saved = true;
 	}
 }
@@ -102,8 +103,8 @@ int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
 {
 	int ret;
 
-	if (pll->restore_state && pll->state_saved) {
-		ret = pll->restore_state(pll);
+	if (pll->cfg->pll_ops.restore_state && pll->state_saved) {
+		ret = pll->cfg->pll_ops.restore_state(pll);
 		if (ret)
 			return ret;
 
@@ -116,50 +117,8 @@ int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
 int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
 			    enum msm_dsi_phy_usecase uc)
 {
-	if (pll->set_usecase)
-		return pll->set_usecase(pll, uc);
+	if (pll->cfg->pll_ops.set_usecase)
+		return pll->cfg->pll_ops.set_usecase(pll, uc);
 
 	return 0;
 }
-
-struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
-			enum msm_dsi_phy_type type, int id)
-{
-	struct device *dev = &pdev->dev;
-	struct msm_dsi_pll *pll;
-
-	switch (type) {
-	case MSM_DSI_PHY_28NM_HPM:
-	case MSM_DSI_PHY_28NM_LP:
-		pll = msm_dsi_pll_28nm_init(pdev, type, id);
-		break;
-	case MSM_DSI_PHY_28NM_8960:
-		pll = msm_dsi_pll_28nm_8960_init(pdev, id);
-		break;
-	case MSM_DSI_PHY_14NM:
-		pll = msm_dsi_pll_14nm_init(pdev, id);
-		break;
-	case MSM_DSI_PHY_10NM:
-		pll = msm_dsi_pll_10nm_init(pdev, id);
-		break;
-	case MSM_DSI_PHY_7NM:
-	case MSM_DSI_PHY_7NM_V4_1:
-		pll = msm_dsi_pll_7nm_init(pdev, type, id);
-		break;
-	default:
-		pll = ERR_PTR(-ENXIO);
-		break;
-	}
-
-	if (IS_ERR(pll)) {
-		DRM_DEV_ERROR(dev, "%s: failed to init DSI PLL\n", __func__);
-		return pll;
-	}
-
-	pll->type = type;
-
-	DBG("DSI:%d PLL registered", id);
-
-	return pll;
-}
-

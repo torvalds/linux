@@ -1042,18 +1042,20 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	return 0;
 }
 
-struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
+static int dsi_pll_14nm_init(struct msm_dsi_phy *phy)
 {
+	struct platform_device *pdev = phy->pdev;
+	int id = phy->id;
 	struct dsi_pll_14nm *pll_14nm;
 	struct msm_dsi_pll *pll;
 	int ret;
 
 	if (!pdev)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	pll_14nm = devm_kzalloc(&pdev->dev, sizeof(*pll_14nm), GFP_KERNEL);
 	if (!pll_14nm)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	DBG("PLL%d", id);
 
@@ -1064,13 +1066,13 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 	pll_14nm->phy_cmn_mmio = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR_OR_NULL(pll_14nm->phy_cmn_mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to map CMN PHY base\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	pll_14nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_14nm->mmio)) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to map PLL base\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	spin_lock_init(&pll_14nm->postdiv_lock);
@@ -1078,24 +1080,19 @@ struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 	pll = &pll_14nm->base;
 	pll->min_rate = VCO_MIN_RATE;
 	pll->max_rate = VCO_MAX_RATE;
-	pll->get_provider = dsi_pll_14nm_get_provider;
-	pll->destroy = dsi_pll_14nm_destroy;
-	pll->disable_seq = dsi_pll_14nm_disable_seq;
-	pll->save_state = dsi_pll_14nm_save_state;
-	pll->restore_state = dsi_pll_14nm_restore_state;
-	pll->set_usecase = dsi_pll_14nm_set_usecase;
+	pll->cfg = phy->cfg;
 
 	pll_14nm->vco_delay = 1;
-
-	pll->enable_seq = dsi_pll_14nm_enable_seq;
 
 	ret = pll_14nm_register(pll_14nm);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to register PLL: %d\n", ret);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
-	return pll;
+	phy->pll = pll;
+
+	return 0;
 }
 
 static void dsi_14nm_dphy_set_timing(struct msm_dsi_phy *phy,
@@ -1230,6 +1227,16 @@ const struct msm_dsi_phy_cfg dsi_phy_14nm_cfgs = {
 	.ops = {
 		.enable = dsi_14nm_phy_enable,
 		.disable = dsi_14nm_phy_disable,
+		.pll_init = dsi_pll_14nm_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_14nm_get_provider,
+		.destroy = dsi_pll_14nm_destroy,
+		.save_state = dsi_pll_14nm_save_state,
+		.restore_state = dsi_pll_14nm_restore_state,
+		.set_usecase = dsi_pll_14nm_set_usecase,
+		.disable_seq = dsi_pll_14nm_disable_seq,
+		.enable_seq = dsi_pll_14nm_enable_seq,
 	},
 	.io_start = { 0x994400, 0x996400 },
 	.num_dsi_phy = 2,
@@ -1248,6 +1255,16 @@ const struct msm_dsi_phy_cfg dsi_phy_14nm_660_cfgs = {
 	.ops = {
 		.enable = dsi_14nm_phy_enable,
 		.disable = dsi_14nm_phy_disable,
+		.pll_init = dsi_pll_14nm_init,
+	},
+	.pll_ops = {
+		.get_provider = dsi_pll_14nm_get_provider,
+		.destroy = dsi_pll_14nm_destroy,
+		.save_state = dsi_pll_14nm_save_state,
+		.restore_state = dsi_pll_14nm_restore_state,
+		.set_usecase = dsi_pll_14nm_set_usecase,
+		.disable_seq = dsi_pll_14nm_disable_seq,
+		.enable_seq = dsi_pll_14nm_enable_seq,
 	},
 	.io_start = { 0xc994400, 0xc996000 },
 	.num_dsi_phy = 2,
