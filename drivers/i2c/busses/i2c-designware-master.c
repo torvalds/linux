@@ -23,6 +23,10 @@
 
 #include "i2c-designware-core.h"
 
+#define AMD_TIMEOUT_MIN_US	25
+#define AMD_TIMEOUT_MAX_US	250
+#define AMD_MASTERCFG_MASK	GENMASK(15, 0)
+
 static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 {
 	/* Configure Tx/Rx FIFO threshold levels */
@@ -259,6 +263,108 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_MASTER_MASK);
 }
 
+static int i2c_dw_check_stopbit(struct dw_i2c_dev *dev)
+{
+	u32 val;
+	int ret;
+
+	ret = regmap_read_poll_timeout(dev->map, DW_IC_INTR_STAT, val,
+				       !(val & DW_IC_INTR_STOP_DET),
+					1100, 20000);
+	if (ret)
+		dev_err(dev->dev, "i2c timeout error %d\n", ret);
+
+	return ret;
+}
+
+static int i2c_dw_status(struct dw_i2c_dev *dev)
+{
+	int status;
+
+	status = i2c_dw_wait_bus_not_busy(dev);
+	if (status)
+		return status;
+
+	return i2c_dw_check_stopbit(dev);
+}
+
+/*
+ * Initiate and continue master read/write transaction with polling
+ * based transfer routine afterward write messages into the Tx buffer.
+ */
+static int amd_i2c_dw_xfer_quirk(struct i2c_adapter *adap, struct i2c_msg *msgs, int num_msgs)
+{
+	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
+	int msg_wrt_idx, msg_itr_lmt, buf_len, data_idx;
+	int cmd = 0, status;
+	u8 *tx_buf;
+	u32 val;
+
+	/*
+	 * In order to enable the interrupt for UCSI i.e. AMD NAVI GPU card,
+	 * it is mandatory to set the right value in specific register
+	 * (offset:0x474) as per the hardware IP specification.
+	 */
+	regmap_write(dev->map, AMD_UCSI_INTR_REG, AMD_UCSI_INTR_EN);
+
+	dev->msgs = msgs;
+	dev->msgs_num = num_msgs;
+	i2c_dw_xfer_init(dev);
+	i2c_dw_disable_int(dev);
+
+	/* Initiate messages read/write transaction */
+	for (msg_wrt_idx = 0; msg_wrt_idx < num_msgs; msg_wrt_idx++) {
+		tx_buf = msgs[msg_wrt_idx].buf;
+		buf_len = msgs[msg_wrt_idx].len;
+
+		if (!(msgs[msg_wrt_idx].flags & I2C_M_RD))
+			regmap_write(dev->map, DW_IC_TX_TL, buf_len - 1);
+		/*
+		 * Initiate the i2c read/write transaction of buffer length,
+		 * and poll for bus busy status. For the last message transfer,
+		 * update the command with stopbit enable.
+		 */
+		for (msg_itr_lmt = buf_len; msg_itr_lmt > 0; msg_itr_lmt--) {
+			if (msg_wrt_idx == num_msgs - 1 && msg_itr_lmt == 1)
+				cmd |= BIT(9);
+
+			if (msgs[msg_wrt_idx].flags & I2C_M_RD) {
+				/* Due to hardware bug, need to write the same command twice. */
+				regmap_write(dev->map, DW_IC_DATA_CMD, 0x100);
+				regmap_write(dev->map, DW_IC_DATA_CMD, 0x100 | cmd);
+				if (cmd) {
+					regmap_write(dev->map, DW_IC_TX_TL, 2 * (buf_len - 1));
+					regmap_write(dev->map, DW_IC_RX_TL, 2 * (buf_len - 1));
+					/*
+					 * Need to check the stop bit. However, it cannot be
+					 * detected from the registers so we check it always
+					 * when read/write the last byte.
+					 */
+					status = i2c_dw_status(dev);
+					if (status)
+						return status;
+
+					for (data_idx = 0; data_idx < buf_len; data_idx++) {
+						regmap_read(dev->map, DW_IC_DATA_CMD, &val);
+						tx_buf[data_idx] = val;
+					}
+					status = i2c_dw_check_stopbit(dev);
+					if (status)
+						return status;
+				}
+			} else {
+				regmap_write(dev->map, DW_IC_DATA_CMD, *tx_buf++ | cmd);
+				usleep_range(AMD_TIMEOUT_MIN_US, AMD_TIMEOUT_MAX_US);
+			}
+		}
+		status = i2c_dw_check_stopbit(dev);
+		if (status)
+			return status;
+	}
+
+	return 0;
+}
+
 /*
  * Initiate (and continue) low level master read/write transaction.
  * This function is only called from i2c_dw_isr, and pumping i2c_msg
@@ -461,6 +567,16 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
 	pm_runtime_get_sync(dev->dev);
+
+	/*
+	 * Initiate I2C message transfer when AMD NAVI GPU card is enabled,
+	 * As it is polling based transfer mechanism, which does not support
+	 * interrupt based functionalities of existing DesignWare driver.
+	 */
+	if ((dev->flags & MODEL_MASK) == MODEL_AMD_NAVI_GPU) {
+		ret = amd_i2c_dw_xfer_quirk(adap, msgs, num);
+		goto done_nolock;
+	}
 
 	if (dev_WARN_ONCE(dev->dev, dev->suspended, "Transfer while suspended\n")) {
 		ret = -ESHUTDOWN;
@@ -738,6 +854,20 @@ static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 	return 0;
 }
 
+static int amd_i2c_adap_quirk(struct dw_i2c_dev *dev)
+{
+	struct i2c_adapter *adap = &dev->adapter;
+	int ret;
+
+	pm_runtime_get_noresume(dev->dev);
+	ret = i2c_add_numbered_adapter(adap);
+	if (ret)
+		dev_err(dev->dev, "Failed to add adapter: %d\n", ret);
+	pm_runtime_put_noidle(dev->dev);
+
+	return ret;
+}
+
 int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
@@ -773,6 +903,9 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	adap->quirks = &i2c_dw_quirks;
 	adap->dev.parent = dev->dev;
 	i2c_set_adapdata(adap, dev);
+
+	if ((dev->flags & MODEL_MASK) == MODEL_AMD_NAVI_GPU)
+		return amd_i2c_adap_quirk(dev);
 
 	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
 		irq_flags = IRQF_NO_SUSPEND;
