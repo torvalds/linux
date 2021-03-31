@@ -98,6 +98,7 @@
 #define ADDR				GENMASK(15, 0)
 #define MTL_RXP_IACC_DATA		0x00000cb4
 #define MTL_ECC_CONTROL			0x00000cc0
+#define MEEAO				BIT(8)
 #define TSOEE				BIT(4)
 #define MRXPEE				BIT(3)
 #define MESTEE				BIT(2)

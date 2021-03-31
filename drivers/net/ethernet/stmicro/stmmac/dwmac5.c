@@ -192,6 +192,7 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 
 	/* 1. Enable Safety Features */
 	value = readl(ioaddr + MTL_ECC_CONTROL);
+	value |= MEEAO; /* MTL ECC Error Addr Status Override */
 	value |= TSOEE; /* TSO ECC */
 	value |= MRXPEE; /* MTL RX Parser ECC */
 	value |= MESTEE; /* MTL EST ECC */
