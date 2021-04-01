@@ -550,7 +550,7 @@ int ksmbd_vfs_fsync(struct ksmbd_work *work, u64 fid, u64 p_id)
 int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 {
 	struct path parent;
-	struct dentry *dir, *dentry;
+	struct dentry *dentry;
 	char *last;
 	int err;
 
@@ -569,12 +569,8 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 		return err;
 	}
 
-	dir = parent.dentry;
-	if (!d_inode(dir))
-		goto out;
-
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
-	dentry = lookup_one_len(last, dir, strlen(last));
+	inode_lock_nested(d_inode(parent.dentry), I_MUTEX_PARENT);
+	dentry = lookup_one_len(last, parent.dentry, strlen(last));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
 		ksmbd_debug(VFS, "%s: lookup failed, err %d\n", last, err);
@@ -588,12 +584,12 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 	}
 
 	if (S_ISDIR(d_inode(dentry)->i_mode)) {
-		err = vfs_rmdir(&init_user_ns, d_inode(dir), dentry);
+		err = vfs_rmdir(&init_user_ns, d_inode(parent.dentry), dentry);
 		if (err && err != -ENOTEMPTY)
 			ksmbd_debug(VFS, "%s: rmdir failed, err %d\n", name,
 				err);
 	} else {
-		err = vfs_unlink(&init_user_ns, d_inode(dir), dentry, NULL);
+		err = vfs_unlink(&init_user_ns, d_inode(parent.dentry), dentry, NULL);
 		if (err)
 			ksmbd_debug(VFS, "%s: unlink failed, err %d\n", name,
 				err);
@@ -601,8 +597,7 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 
 	dput(dentry);
 out_err:
-	inode_unlock(d_inode(dir));
-out:
+	inode_unlock(d_inode(parent.dentry));
 	rollback_path_modification(last);
 	path_put(&parent);
 	ksmbd_revert_fsids(work);
