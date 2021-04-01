@@ -100,12 +100,14 @@ static unsigned int cpg_div6_clock_calc_div(unsigned long rate,
 	return clamp(div, 1U, 64U);
 }
 
-static long cpg_div6_clock_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *parent_rate)
+static int cpg_div6_clock_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
-	unsigned int div = cpg_div6_clock_calc_div(rate, *parent_rate);
+	unsigned int div = cpg_div6_clock_calc_div(req->rate,
+						   req->best_parent_rate);
 
-	return *parent_rate / div;
+	req->rate = req->best_parent_rate / div;
+	return 0;
 }
 
 static int cpg_div6_clock_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -166,7 +168,7 @@ static const struct clk_ops cpg_div6_clock_ops = {
 	.get_parent = cpg_div6_clock_get_parent,
 	.set_parent = cpg_div6_clock_set_parent,
 	.recalc_rate = cpg_div6_clock_recalc_rate,
-	.round_rate = cpg_div6_clock_round_rate,
+	.determine_rate = cpg_div6_clock_determine_rate,
 	.set_rate = cpg_div6_clock_set_rate,
 };
 
