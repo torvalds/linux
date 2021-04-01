@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 &l4_cfg {						/* 0x4a000000 */
-	compatible = "ti,omap4-l4-cfg", "simple-bus";
+	compatible = "ti,omap4-l4-cfg", "simple-pm-bus";
+	power-domains = <&prm_core>;
+	clocks = <&l4_cfg_clkctrl OMAP4_L4_CFG_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x4a000000 0x800>,
 	      <0x4a000800 0x800>,
 	      <0x4a001000 0x1000>;
@@ -16,7 +19,7 @@
 		 <0x00300000 0x4a300000 0x080000>;	/* segment 6 */
 
 	segment@0 {					/* 0x4a000000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -43,7 +46,6 @@
 
 		target-module@2000 {			/* 0x4a002000, ap 3 06.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_core";
 			reg = <0x2000 0x4>,
 			      <0x2010 0x4>;
 			reg-names = "rev", "sysc";
@@ -347,7 +349,7 @@
 	};
 
 	segment@80000 {					/* 0x4a080000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00059000 0x000d9000 0x001000>,	/* ap 13 */
@@ -639,7 +641,7 @@
 	};
 
 	segment@100000 {					/* 0x4a100000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00100000 0x001000>,	/* ap 21 */
@@ -653,7 +655,6 @@
 
 		target-module@0 {			/* 0x4a100000, ap 21 2a.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_pad_core";
 			reg = <0x0 0x4>,
 			      <0x10 0x4>;
 			reg-names = "rev", "sysc";
@@ -741,13 +742,13 @@
 	};
 
 	segment@180000 {					/* 0x4a180000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 
 	segment@200000 {					/* 0x4a200000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0001e000 0x0021e000 0x001000>,	/* ap 31 */
@@ -903,13 +904,13 @@
 	};
 
 	segment@280000 {					/* 0x4a280000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 
 	l4_cfg_segment_300000: segment@300000 {			/* 0x4a300000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00300000 0x020000>,	/* ap 67 */
@@ -944,7 +945,10 @@
 };
 
 &l4_wkup {						/* 0x4a300000 */
-	compatible = "ti,omap4-l4-wkup", "simple-bus";
+	compatible = "ti,omap4-l4-wkup", "simple-pm-bus";
+	power-domains = <&prm_wkup>;
+	clocks = <&l4_wkup_clkctrl OMAP4_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x4a300000 0x800>,
 	      <0x4a300800 0x800>,
 	      <0x4a301000 0x1000>;
@@ -956,7 +960,7 @@
 		 <0x00020000 0x4a320000 0x010000>;	/* segment 2 */
 
 	segment@0 {					/* 0x4a300000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -1041,7 +1045,6 @@
 
 		target-module@c000 {			/* 0x4a30c000, ap 19 2c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_wkup";
 			reg = <0xc000 0x4>,
 			      <0xc010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1062,7 +1065,7 @@
 	};
 
 	segment@10000 {					/* 0x4a310000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00010000 0x001000>,	/* ap 5 */
@@ -1202,7 +1205,6 @@
 
 		target-module@e000 {			/* 0x4a31e000, ap 21 30.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "ctrl_module_pad_wkup";
 			reg = <0xe000 0x4>,
 			      <0xe010 0x4>;
 			reg-names = "rev", "sysc";
@@ -1231,7 +1233,7 @@
 	};
 
 	segment@20000 {					/* 0x4a320000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00006000 0x00026000 0x001000>,	/* ap 13 */
@@ -1284,7 +1286,10 @@
 };
 
 &l4_per {						/* 0x48000000 */
-	compatible = "ti,omap4-l4-per", "simple-bus";
+	compatible = "ti,omap4-l4-per", "simple-pm-bus";
+	power-domains = <&prm_l4per>;
+	clocks = <&l4_per_clkctrl OMAP4_L4_PER_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x48000000 0x800>,
 	      <0x48000800 0x800>,
 	      <0x48001000 0x400>,
@@ -1298,7 +1303,7 @@
 		 <0x00200000 0x48200000 0x200000>;	/* segment 1 */
 
 	segment@0 {					/* 0x48000000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -2437,7 +2442,7 @@
 	};
 
 	segment@200000 {					/* 0x48200000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00150000 0x00350000 0x001000>,	/* ap 77 */

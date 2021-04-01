@@ -1,5 +1,8 @@
 &l4_cfg {						/* 0x4a000000 */
-	compatible = "ti,omap5-l4-cfg", "simple-bus";
+	compatible = "ti,omap5-l4-cfg", "simple-pm-bus";
+	power-domains = <&prm_core>;
+	clocks = <&l4cfg_clkctrl OMAP5_L4_CFG_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x4a000000 0x800>,
 	      <0x4a000800 0x800>,
 	      <0x4a001000 0x1000>;
@@ -15,7 +18,7 @@
 		 <0x00300000 0x4a300000 0x080000>;	/* segment 6 */
 
 	segment@0 {					/* 0x4a000000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -391,7 +394,7 @@
 	};
 
 	segment@80000 {					/* 0x4a080000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00059000 0x000d9000 0x001000>,	/* ap 13 */
@@ -654,7 +657,7 @@
 	};
 
 	segment@100000 {					/* 0x4a100000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00002000 0x00102000 0x001000>,	/* ap 59 */
@@ -691,22 +694,44 @@
 		};
 
 		target-module@40000 {			/* 0x4a140000, ap 101 16.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
-			#address-cells = <1>;
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x400fc 4>,
+			      <0x41100 4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			power-domains = <&prm_l3init>;
+			clocks = <&l3init_clkctrl OMAP5_SATA_CLKCTRL 0>;
+			clock-names = "fck";
 			#size-cells = <1>;
+			#address-cells = <1>;
 			ranges = <0x0 0x40000 0x10000>;
+
+			sata: sata@0 {
+				compatible = "snps,dwc-ahci";
+				reg = <0 0x1100>, <0x1100 0x8>;
+				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&sata_phy>;
+				phy-names = "sata-phy";
+				clocks = <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
+				ports-implemented = <0x1>;
+			};
 		};
 	};
 
 	segment@180000 {					/* 0x4a180000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 
 	segment@200000 {					/* 0x4a200000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0001e000 0x0021e000 0x001000>,	/* ap 29 */
@@ -912,20 +937,23 @@
 	};
 
 	segment@280000 {					/* 0x4a280000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 
 	segment@300000 {					/* 0x4a300000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 };
 
 &l4_per {						/* 0x48000000 */
-	compatible = "ti,omap5-l4-per", "simple-bus";
+	compatible = "ti,omap5-l4-per", "simple-pm-bus";
+	power-domains = <&prm_core>;
+	clocks = <&l4per_clkctrl OMAP5_L4_PER_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x48000000 0x800>,
 	      <0x48000800 0x800>,
 	      <0x48001000 0x400>,
@@ -939,7 +967,7 @@
 		 <0x00200000 0x48200000 0x200000>;	/* segment 1 */
 
 	segment@0 {					/* 0x48000000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -2148,14 +2176,17 @@
 	};
 
 	segment@200000 {					/* 0x48200000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
 };
 
 &l4_wkup {						/* 0x4ae00000 */
-	compatible = "ti,omap5-l4-wkup", "simple-bus";
+	compatible = "ti,omap5-l4-wkup", "simple-pm-bus";
+	power-domains = <&prm_wkupaon>;
+	clocks = <&wkupaon_clkctrl OMAP5_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck";
 	reg = <0x4ae00000 0x800>,
 	      <0x4ae00800 0x800>,
 	      <0x4ae01000 0x1000>;
@@ -2167,7 +2198,7 @@
 		 <0x00020000 0x4ae20000 0x010000>;	/* segment 2 */
 
 	segment@0 {					/* 0x4ae00000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x000800>,	/* ap 0 */
@@ -2296,7 +2327,7 @@
 	};
 
 	segment@10000 {					/* 0x4ae10000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00010000 0x001000>,	/* ap 5 */
@@ -2423,7 +2454,7 @@
 	};
 
 	segment@20000 {					/* 0x4ae20000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00006000 0x00026000 0x001000>,	/* ap 13 */
