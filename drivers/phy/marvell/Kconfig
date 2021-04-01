@@ -70,7 +70,7 @@ config PHY_MVEBU_CP110_COMPHY
 config PHY_MVEBU_CP110_UTMI
 	tristate "Marvell CP110 UTMI driver"
 	depends on ARCH_MVEBU || COMPILE_TEST
-	depends on OF
+	depends on OF && USB_COMMON
 	select GENERIC_PHY
 	help
 	  Enable this to support Marvell CP110 UTMI PHY driver.
