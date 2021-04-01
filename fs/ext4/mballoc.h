@@ -79,6 +79,18 @@
 #define MB_DEFAULT_MAX_INODE_PREALLOC	512
 
 /*
+ * Number of groups to search linearly before performing group scanning
+ * optimization.
+ */
+#define MB_DEFAULT_LINEAR_LIMIT		4
+
+/*
+ * Minimum number of groups that should be present in the file system to perform
+ * group scanning optimizations.
+ */
+#define MB_DEFAULT_LINEAR_SCAN_THRESHOLD	16
+
+/*
  * Number of valid buddy orders
  */
 #define MB_NUM_ORDERS(sb)		((sb)->s_blocksize_bits + 2)
@@ -166,11 +178,14 @@ struct ext4_allocation_context {
 	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
+	ext4_group_t ac_last_optimal_group;
+	__u32 ac_groups_considered;
+	__u32 ac_flags;		/* allocation hints */
 	__u16 ac_groups_scanned;
+	__u16 ac_groups_linear_remaining;
 	__u16 ac_found;
 	__u16 ac_tail;
 	__u16 ac_buddy;
-	__u16 ac_flags;		/* allocation hints */
 	__u8 ac_status;
 	__u8 ac_criteria;
 	__u8 ac_2order;		/* if request is to allocate 2^N blocks and
