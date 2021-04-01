@@ -731,17 +731,23 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 	value |= pcfg->si;
 
 	ret = ctrl->reg_write(ctrl, reg, value);
+	if (ret)
+		goto err;
 
 	if (pcfg->lane_control != SWR_INVALID_PARAM) {
 		reg = SWRM_DP_PORT_CTRL_2_BANK(params->port_num, bank);
 		value = pcfg->lane_control;
 		ret = ctrl->reg_write(ctrl, reg, value);
+		if (ret)
+			goto err;
 	}
 
 	if (pcfg->blk_group_count != SWR_INVALID_PARAM) {
 		reg = SWRM_DP_BLOCK_CTRL2_BANK(params->port_num, bank);
 		value = pcfg->blk_group_count;
 		ret = ctrl->reg_write(ctrl, reg, value);
+		if (ret)
+			goto err;
 	}
 
 	if (pcfg->hstart != SWR_INVALID_PARAM
@@ -755,11 +761,15 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 		ret = ctrl->reg_write(ctrl, reg, value);
 	}
 
+	if (ret)
+		goto err;
+
 	if (pcfg->bp_mode != SWR_INVALID_PARAM) {
 		reg = SWRM_DP_BLOCK_CTRL3_BANK(params->port_num, bank);
 		ret = ctrl->reg_write(ctrl, reg, pcfg->bp_mode);
 	}
 
+err:
 	return ret;
 }
 
