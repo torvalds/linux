@@ -2442,10 +2442,10 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 			else
 				multi_id_sel = BT656_1120_MULTI_ID_SEL_MSB;
 
-			if (((bt1120_flags & RKMODULE_CAMERA_BT656_CHANNELS) >> 2) > 1)
+			if (((bt1120_flags & RKMODULE_CAMERA_BT656_CHANNELS) >> 2) > 3)
 				multi_id_mode = BT656_1120_MULTI_ID_MODE_4;
-			else
-				multi_id_mode = BT656_1120_MULTI_ID_MODE_1;
+			else if (((bt1120_flags & RKMODULE_CAMERA_BT656_CHANNELS) >> 2) > 1)
+				multi_id_mode = BT656_1120_MULTI_ID_MODE_2;
 
 			multi_id = DVP_SW_MULTI_ID(stream->id, stream->id, bt1120_info.id_en_bits);
 			rkcif_write_register_or(dev, CIF_REG_DVP_MULTI_ID, multi_id);
