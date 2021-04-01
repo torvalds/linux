@@ -6,7 +6,6 @@
 #include <linux/kvm_host.h>
 
 hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu);
-void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root);
 
 static inline void kvm_tdp_mmu_get_root(struct kvm *kvm,
 					struct kvm_mmu_page *root)
@@ -17,14 +16,7 @@ static inline void kvm_tdp_mmu_get_root(struct kvm *kvm,
 	++root->root_count;
 }
 
-static inline bool kvm_tdp_mmu_put_root(struct kvm *kvm,
-					struct kvm_mmu_page *root)
-{
-	lockdep_assert_held(&kvm->mmu_lock);
-	--root->root_count;
-
-	return !root->root_count;
-}
+void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root);
 
 bool __kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, int as_id, gfn_t start,
 				 gfn_t end, bool can_yield, bool flush);
