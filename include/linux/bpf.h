@@ -928,7 +928,6 @@ struct bpf_link_primer {
 };
 
 struct bpf_struct_ops_value;
-struct btf_type;
 struct btf_member;
 
 #define BPF_STRUCT_OPS_MAX_NR_MEMBERS 64
