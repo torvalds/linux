@@ -215,24 +215,6 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 	return true;
 }
 
-static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	if (WARN_ON(!is_guest_mode(vcpu)))
-		return true;
-
-	if (!nested_svm_vmrun_msrpm(svm)) {
-		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		vcpu->run->internal.suberror =
-			KVM_INTERNAL_ERROR_EMULATION;
-		vcpu->run->internal.ndata = 0;
-		return false;
-	}
-
-	return true;
-}
-
 static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
 {
 	if (CC(!vmcb_is_intercept(control, INTERCEPT_VMRUN)))
@@ -1328,6 +1310,28 @@ out_free:
 	kfree(ctl);
 
 	return ret;
+}
+
+static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (WARN_ON(!is_guest_mode(vcpu)))
+		return true;
+
+	if (nested_svm_load_cr3(&svm->vcpu, vcpu->arch.cr3,
+				nested_npt_enabled(svm)))
+		return false;
+
+	if (!nested_svm_vmrun_msrpm(svm)) {
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->internal.suberror =
+			KVM_INTERNAL_ERROR_EMULATION;
+		vcpu->run->internal.ndata = 0;
+		return false;
+	}
+
+	return true;
 }
 
 struct kvm_x86_nested_ops svm_nested_ops = {
