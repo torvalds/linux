@@ -3228,6 +3228,8 @@ static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		MPTCP_INC_STATS(sock_net(ssock->sk), MPTCP_MIB_TOKENFALLBACKINIT);
 		mptcp_subflow_early_fallback(msk, subflow);
 	}
+	if (likely(!__mptcp_check_fallback(msk)))
+		MPTCP_INC_STATS(sock_net(sock->sk), MPTCP_MIB_MPCAPABLEACTIVE);
 
 do_connect:
 	err = ssock->ops->connect(ssock, uaddr, addr_len, flags);
