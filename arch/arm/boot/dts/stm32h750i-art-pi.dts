@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 - Alexandre Torgue <alexandre.torgue@st.com>
+ * Copyright 2021 - Dillon Min <dillon.minfei@gmail.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -38,62 +38,77 @@
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * For art-pi board resources, you can refer to link:
+ * 	https://art-pi.gitee.io/website/
  */
 
 /dts-v1/;
-#include "stm32h743.dtsi"
+#include "stm32h750.dtsi"
 #include "stm32h7-pinctrl.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "STMicroelectronics STM32H743i-EVAL board";
-	compatible = "st,stm32h743i-eval", "st,stm32h743";
+	model = "RT-Thread STM32H750i-ART-PI board";
+	compatible = "st,stm32h750i-art-pi", "st,stm32h750";
 
 	chosen {
 		bootargs = "root=/dev/ram";
-		stdout-path = "serial0:115200n8";
+		stdout-path = "serial0:2000000n8";
 	};
 
-	memory@d0000000 {
+	memory@c0000000 {
 		device_type = "memory";
-		reg = <0xd0000000 0x2000000>;
+		reg = <0xc0000000 0x2000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			no-map;
+			size = <0x100000>;
+			linux,dma-default;
+		};
 	};
 
 	aliases {
-		serial0 = &usart1;
+		serial0 = &uart4;
+		serial1 = &usart3;
 	};
 
-	vdda: regulator-vdda {
+	leds {
+		compatible = "gpio-leds";
+		led-red {
+			gpios = <&gpioi 8 0>;
+		};
+		led-green {
+			gpios = <&gpioc 15 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	v3v3: regulator-v3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "vdda";
+		regulator-name = "v3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
 
-	v2v9_sd: regulator-v2v9_sd {
+	wlan_pwr: regulator-wlan {
 		compatible = "regulator-fixed";
-		regulator-name = "v2v9_sd";
-		regulator-min-microvolt = <2900000>;
-		regulator-max-microvolt = <2900000>;
-		regulator-always-on;
-	};
 
-	usbotg_hs_phy: usb-phy {
-		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
-		clocks = <&rcc USB1ULPI_CK>;
-		clock-names = "main_clk";
-	};
-};
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 
-&adc_12 {
-	vdda-supply = <&vdda>;
-	vref-supply = <&vdda>;
-	status = "okay";
-	adc1: adc@0 {
-		/* potentiometer */
-		st,adc-channels = <0>;
-		status = "okay";
+		gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
@@ -101,15 +116,11 @@
 	clock-frequency = <25000000>;
 };
 
-&i2c1 {
-	pinctrl-0 = <&i2c1_pins_a>;
-	pinctrl-names = "default";
-	i2c-scl-rising-time-ns = <185>;
-	i2c-scl-falling-time-ns = <20>;
+&dma1 {
 	status = "okay";
 };
 
-&rtc {
+&dma2 {
 	status = "okay";
 };
 
@@ -132,29 +143,87 @@
 
 &sdmmc1 {
 	pinctrl-names = "default", "opendrain", "sleep";
-	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
-	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_a>;
-	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_a>;
+	pinctrl-0 = <&sdmmc1_b4_pins_a>;
+	pinctrl-1 = <&sdmmc1_b4_od_pins_a>;
+	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a>;
 	broken-cd;
-	st,sig-dir;
 	st,neg-edge;
-	st,use-ckin;
 	bus-width = <4>;
-	vmmc-supply = <&v2v9_sd>;
+	vmmc-supply = <&v3v3>;
 	status = "okay";
 };
 
-&usart1 {
-	pinctrl-0 = <&usart1_pins>;
+&sdmmc2 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc2_b4_pins_a>;
+	pinctrl-1 = <&sdmmc2_b4_od_pins_a>;
+	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a>;
+	broken-cd;
+	non-removable;
+	st,neg-edge;
+	bus-width = <4>;
+	vmmc-supply = <&wlan_pwr>;
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpioa 4 GPIO_ACTIVE_LOW>;
+	dmas = <&dmamux1 37 0x400 0x05>,
+	       <&dmamux1 38 0x400 0x05>;
+	dma-names = "rx", "tx";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "winbond,w25q128", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+
+		partition@0 {
+			label = "root filesystem";
+			reg = <0 0x1000000>;
+		};
+	};
+};
+
+&usart2 {
+	pinctrl-0 = <&usart2_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&usart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usart3_pins>;
+	dmas = <&dmamux1 45 0x400 0x05>,
+	       <&dmamux1 46 0x400 0x05>;
+	dma-names = "rx", "tx";
+	st,hw-flow-ctrl;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		host-wakeup-gpios = <&gpioc 0 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpioi 10 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpioi 11 GPIO_ACTIVE_HIGH>;
+		max-speed = <115200>;
+	};
+};
+
+&uart4 {
+	pinctrl-0 = <&uart4_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
-&usbotg_hs {
-	pinctrl-0 = <&usbotg_hs_pins_a>;
-	pinctrl-names = "default";
-	phys = <&usbotg_hs_phy>;
-	phy-names = "usb2-phy";
-	dr_mode = "otg";
-	status = "okay";
-};
+

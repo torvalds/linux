@@ -57,22 +57,22 @@
 
 &gpioc {
 	gpio-line-names = "", "", "", "",
-			  "", "", "In1", "",
+			  "", "", "PicoITX-In1", "",
 			  "", "", "", "",
 			  "", "", "", "";
 };
 
 &gpiod {
 	gpio-line-names = "", "", "", "",
-			  "", "", "", "",
-			  "", "", "", "Out1",
-			  "Out2", "", "", "";
+			  "", "", "DHCOM-B", "",
+			  "", "", "", "PicoITX-Out1",
+			  "PicoITX-Out2", "", "", "";
 };
 
 &gpiog {
-	gpio-line-names = "In2", "", "", "",
+	gpio-line-names = "PicoITX-In2", "", "", "",
 			  "", "", "", "",
-			  "", "", "", "",
+			  "DHCOM-L", "", "", "",
 			  "", "", "", "";
 };
 
