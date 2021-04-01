@@ -69,46 +69,6 @@ static void ksmbd_vfs_inherit_owner(struct ksmbd_work *work,
 	i_uid_write(inode, i_uid_read(parent_inode));
 }
 
-static void ksmbd_vfs_inherit_smack(struct ksmbd_work *work,
-		struct dentry *dir_dentry, struct dentry *dentry)
-{
-	char *name, *xattr_list = NULL, *smack_buf;
-	int value_len, xattr_list_len;
-
-	if (!test_share_config_flag(work->tcon->share_conf,
-				    KSMBD_SHARE_FLAG_INHERIT_SMACK))
-		return;
-
-	xattr_list_len = ksmbd_vfs_listxattr(dir_dentry, &xattr_list);
-	if (xattr_list_len < 0) {
-		goto out;
-	} else if (!xattr_list_len) {
-		ksmbd_err("no ea data in the file\n");
-		return;
-	}
-
-	for (name = xattr_list; name - xattr_list < xattr_list_len;
-			name += strlen(name) + 1) {
-		int rc;
-
-		ksmbd_debug(VFS, "%s, len %zd\n", name, strlen(name));
-		if (strcmp(name, XATTR_NAME_SMACK))
-			continue;
-
-		value_len = ksmbd_vfs_getxattr(dir_dentry, name, &smack_buf);
-		if (value_len <= 0)
-			continue;
-
-		rc = ksmbd_vfs_setxattr(dentry, XATTR_NAME_SMACK, smack_buf,
-					value_len, 0);
-		ksmbd_free(smack_buf);
-		if (rc < 0)
-			ksmbd_err("ksmbd_vfs_setxattr() failed: %d\n", rc);
-	}
-out:
-	ksmbd_vfs_xattr_free(xattr_list);
-}
-
 int ksmbd_vfs_inode_permission(struct dentry *dentry, int acc_mode, bool delete)
 {
 	int mask;
@@ -198,7 +158,6 @@ int ksmbd_vfs_create(struct ksmbd_work *work, const char *name, umode_t mode)
 	if (!err) {
 		ksmbd_vfs_inherit_owner(work, d_inode(path.dentry),
 			d_inode(dentry));
-		ksmbd_vfs_inherit_smack(work, path.dentry, dentry);
 	} else {
 		ksmbd_err("File(%s): creation failed (err:%d)\n", name, err);
 	}
@@ -234,7 +193,6 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 	if (!err) {
 		ksmbd_vfs_inherit_owner(work, d_inode(path.dentry),
 			d_inode(dentry));
-		ksmbd_vfs_inherit_smack(work, path.dentry, dentry);
 	} else {
 		ksmbd_err("mkdir(%s): creation failed (err:%d)\n", name, err);
 	}
