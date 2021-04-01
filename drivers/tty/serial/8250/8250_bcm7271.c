@@ -239,7 +239,7 @@ struct brcmuart_priv {
 	u32		rx_abort;
 };
 
-struct dentry *brcmuart_debugfs_root;
+static struct dentry *brcmuart_debugfs_root;
 
 /*
  * Register access routines
