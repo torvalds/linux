@@ -335,7 +335,7 @@ int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 
 	rbuf = work->aux_payload_buf;
 	filp = fp->filp;
-	inode = d_inode(filp->f_path.dentry);
+	inode = file_inode(filp);
 	if (S_ISDIR(inode->i_mode))
 		return -EISDIR;
 
