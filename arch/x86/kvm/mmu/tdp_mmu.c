@@ -798,6 +798,23 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 }
 
 /*
+ * Mark each TDP MMU root as invalid so that other threads
+ * will drop their references and allow the root count to
+ * go to 0.
+ *
+ * This has essentially the same effect for the TDP MMU
+ * as updating mmu_valid_gen does for the shadow MMU.
+ */
+void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
+{
+	struct kvm_mmu_page *root;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+	list_for_each_entry(root, &kvm->arch.tdp_mmu_roots, link)
+		root->role.invalid = true;
+}
+
+/*
  * Installs a last-level SPTE to handle a TDP page fault.
  * (NPT/EPT violation/misconfiguration)
  */
