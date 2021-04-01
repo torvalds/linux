@@ -6718,7 +6718,7 @@ static int io_sq_thread(void *data)
 	char buf[TASK_COMM_LEN];
 	DEFINE_WAIT(wait);
 
-	sprintf(buf, "iou-sqp-%d", sqd->task_pid);
+	snprintf(buf, sizeof(buf), "iou-sqp-%d", sqd->task_pid);
 	set_task_comm(current, buf);
 	current->pf_io_worker = NULL;
 

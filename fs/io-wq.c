@@ -484,7 +484,7 @@ static int io_wqe_worker(void *data)
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
 	io_wqe_inc_running(worker);
 
-	sprintf(buf, "iou-wrk-%d", wq->task_pid);
+	snprintf(buf, sizeof(buf), "iou-wrk-%d", wq->task_pid);
 	set_task_comm(current, buf);
 
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
@@ -711,7 +711,7 @@ static int io_wq_manager(void *data)
 	char buf[TASK_COMM_LEN];
 	int node;
 
-	sprintf(buf, "iou-mgr-%d", wq->task_pid);
+	snprintf(buf, sizeof(buf), "iou-mgr-%d", wq->task_pid);
 	set_task_comm(current, buf);
 
 	do {
