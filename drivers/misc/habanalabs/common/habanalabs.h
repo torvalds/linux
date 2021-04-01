@@ -19,6 +19,7 @@
 #include <linux/dma-direction.h>
 #include <linux/scatterlist.h>
 #include <linux/hashtable.h>
+#include <linux/debugfs.h>
 #include <linux/bitfield.h>
 #include <linux/genalloc.h>
 #include <linux/sched/signal.h>
@@ -854,8 +855,12 @@ enum div_select_defs {
  * @update_eq_ci: update event queue CI.
  * @context_switch: called upon ASID context switch.
  * @restore_phase_topology: clear all SOBs amd MONs.
- * @debugfs_read32: debug interface for reading u32 from DRAM/SRAM.
- * @debugfs_write32: debug interface for writing u32 to DRAM/SRAM.
+ * @debugfs_read32: debug interface for reading u32 from DRAM/SRAM/Host memory.
+ * @debugfs_write32: debug interface for writing u32 to DRAM/SRAM/Host memory.
+ * @debugfs_read64: debug interface for reading u64 from DRAM/SRAM/Host memory.
+ * @debugfs_write64: debug interface for writing u64 to DRAM/SRAM/Host memory.
+ * @debugfs_read_dma: debug interface for reading up to 2MB from the device's
+ *                    internal memory via DMA engine.
  * @add_device_attr: add ASIC specific device attributes.
  * @handle_eqe: handle event queue entry (IRQ) from CPU-CP.
  * @set_pll_profile: change PLL profile (manual/automatic).
@@ -979,6 +984,8 @@ struct hl_asic_funcs {
 				bool user_address, u64 *val);
 	int (*debugfs_write64)(struct hl_device *hdev, u64 addr,
 				bool user_address, u64 val);
+	int (*debugfs_read_dma)(struct hl_device *hdev, u64 addr, u32 size,
+				void *blob_addr);
 	void (*add_device_attr)(struct hl_device *hdev,
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
@@ -1569,12 +1576,13 @@ struct hl_debugfs_entry {
  * @userptr_spinlock: protects userptr_list.
  * @ctx_mem_hash_list: list of available contexts with MMU mappings.
  * @ctx_mem_hash_spinlock: protects cb_list.
+ * @blob_desc: descriptor of blob
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
  * @mmu_asid: ASID to use while translating in mmu_show.
  * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
- * @i2c_bus: generic u8 debugfs file for address value to use in i2c_data_read.
- * @i2c_bus: generic u8 debugfs file for register value to use in i2c_data_read.
+ * @i2c_addr: generic u8 debugfs file for address value to use in i2c_data_read.
+ * @i2c_reg: generic u8 debugfs file for register value to use in i2c_data_read.
  */
 struct hl_dbg_device_entry {
 	struct dentry			*root;
@@ -1592,6 +1600,7 @@ struct hl_dbg_device_entry {
 	spinlock_t			userptr_spinlock;
 	struct list_head		ctx_mem_hash_list;
 	spinlock_t			ctx_mem_hash_spinlock;
+	struct debugfs_blob_wrapper	blob_desc;
 	u64				addr;
 	u64				mmu_addr;
 	u32				mmu_asid;

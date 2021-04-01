@@ -6175,6 +6175,164 @@ static int gaudi_debugfs_write64(struct hl_device *hdev, u64 addr,
 	return rc;
 }
 
+static int gaudi_dma_core_transfer(struct hl_device *hdev, int dma_id, u64 addr,
+					u32 size_to_dma, dma_addr_t dma_addr)
+{
+	u32 err_cause, val;
+	u64 dma_offset;
+	int rc;
+
+	dma_offset = dma_id * DMA_CORE_OFFSET;
+
+	WREG32(mmDMA0_CORE_SRC_BASE_LO + dma_offset, lower_32_bits(addr));
+	WREG32(mmDMA0_CORE_SRC_BASE_HI + dma_offset, upper_32_bits(addr));
+	WREG32(mmDMA0_CORE_DST_BASE_LO + dma_offset, lower_32_bits(dma_addr));
+	WREG32(mmDMA0_CORE_DST_BASE_HI + dma_offset, upper_32_bits(dma_addr));
+	WREG32(mmDMA0_CORE_DST_TSIZE_0 + dma_offset, size_to_dma);
+	WREG32(mmDMA0_CORE_COMMIT + dma_offset,
+			(1 << DMA0_CORE_COMMIT_LIN_SHIFT));
+
+	rc = hl_poll_timeout(
+		hdev,
+		mmDMA0_CORE_STS0 + dma_offset,
+		val,
+		((val & DMA0_CORE_STS0_BUSY_MASK) == 0),
+		0,
+		1000000);
+
+	if (rc) {
+		dev_err(hdev->dev,
+			"DMA %d timed-out during reading of 0x%llx\n",
+			dma_id, addr);
+		return -EIO;
+	}
+
+	/* Verify DMA is OK */
+	err_cause = RREG32(mmDMA0_CORE_ERR_CAUSE + dma_offset);
+	if (err_cause) {
+		dev_err(hdev->dev, "DMA Failed, cause 0x%x\n", err_cause);
+		dev_dbg(hdev->dev,
+			"Clearing DMA0 engine from errors (cause 0x%x)\n",
+			err_cause);
+		WREG32(mmDMA0_CORE_ERR_CAUSE + dma_offset, err_cause);
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
+				void *blob_addr)
+{
+	u32 dma_core_sts0, err_cause, cfg1, size_left, pos, size_to_dma;
+	struct gaudi_device *gaudi = hdev->asic_specific;
+	u64 dma_offset, qm_offset;
+	dma_addr_t dma_addr;
+	void *kernel_addr;
+	bool is_eng_idle;
+	int rc, dma_id;
+
+	kernel_addr = hdev->asic_funcs->asic_dma_alloc_coherent(
+						hdev, SZ_2M,
+						&dma_addr,
+						GFP_KERNEL | __GFP_ZERO);
+
+	if (!kernel_addr)
+		return -ENOMEM;
+
+	mutex_lock(&gaudi->clk_gate_mutex);
+
+	hdev->asic_funcs->disable_clock_gating(hdev);
+
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	dma_id = gaudi_dma_assignment[GAUDI_PCI_DMA_1];
+	dma_offset = dma_id * DMA_CORE_OFFSET;
+	qm_offset = dma_id * DMA_QMAN_OFFSET;
+	dma_core_sts0 = RREG32(mmDMA0_CORE_STS0 + dma_offset);
+	is_eng_idle = IS_DMA_IDLE(dma_core_sts0);
+
+	if (!is_eng_idle) {
+		dma_id = gaudi_dma_assignment[GAUDI_PCI_DMA_2];
+		dma_offset = dma_id * DMA_CORE_OFFSET;
+		qm_offset = dma_id * DMA_QMAN_OFFSET;
+		dma_core_sts0 = RREG32(mmDMA0_CORE_STS0 + dma_offset);
+		is_eng_idle = IS_DMA_IDLE(dma_core_sts0);
+
+		if (!is_eng_idle) {
+			dev_err_ratelimited(hdev->dev,
+				"Can't read via DMA because it is BUSY\n");
+			rc = -EAGAIN;
+			goto out;
+		}
+	}
+
+	cfg1 = RREG32(mmDMA0_QM_GLBL_CFG1 + qm_offset);
+	WREG32(mmDMA0_QM_GLBL_CFG1 + qm_offset,
+			0xF << DMA0_QM_GLBL_CFG1_CP_STOP_SHIFT);
+
+	/* TODO: remove this by mapping the DMA temporary buffer to the MMU
+	 * using the compute ctx ASID, if exists. If not, use the kernel ctx
+	 * ASID
+	 */
+	WREG32_OR(mmDMA0_CORE_PROT + dma_offset, BIT(DMA0_CORE_PROT_VAL_SHIFT));
+
+	/* Verify DMA is OK */
+	err_cause = RREG32(mmDMA0_CORE_ERR_CAUSE + dma_offset);
+	if (err_cause) {
+		dev_dbg(hdev->dev,
+			"Clearing DMA0 engine from errors (cause 0x%x)\n",
+			err_cause);
+		WREG32(mmDMA0_CORE_ERR_CAUSE + dma_offset, err_cause);
+	}
+
+	pos = 0;
+	size_left = size;
+	size_to_dma = SZ_2M;
+
+	while (size_left > 0) {
+
+		if (size_left < SZ_2M)
+			size_to_dma = size_left;
+
+		rc = gaudi_dma_core_transfer(hdev, dma_id, addr, size_to_dma,
+						dma_addr);
+		if (rc)
+			break;
+
+		memcpy(blob_addr + pos, kernel_addr, size_to_dma);
+
+		if (size_left <= SZ_2M)
+			break;
+
+		pos += SZ_2M;
+		addr += SZ_2M;
+		size_left -= SZ_2M;
+	}
+
+	/* TODO: remove this by mapping the DMA temporary buffer to the MMU
+	 * using the compute ctx ASID, if exists. If not, use the kernel ctx
+	 * ASID
+	 */
+	WREG32_AND(mmDMA0_CORE_PROT + dma_offset,
+			~BIT(DMA0_CORE_PROT_VAL_SHIFT));
+
+	WREG32(mmDMA0_QM_GLBL_CFG1 + qm_offset, cfg1);
+
+out:
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	hdev->asic_funcs->set_clock_gating(hdev);
+
+	mutex_unlock(&gaudi->clk_gate_mutex);
+
+	hdev->asic_funcs->asic_dma_free_coherent(hdev, SZ_2M, kernel_addr,
+						dma_addr);
+
+	return rc;
+}
+
 static u64 gaudi_read_pte(struct hl_device *hdev, u64 addr)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -8639,6 +8797,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.debugfs_write32 = gaudi_debugfs_write32,
 	.debugfs_read64 = gaudi_debugfs_read64,
 	.debugfs_write64 = gaudi_debugfs_write64,
+	.debugfs_read_dma = gaudi_debugfs_read_dma,
 	.add_device_attr = gaudi_add_device_attr,
 	.handle_eqe = gaudi_handle_eqe,
 	.set_pll_profile = gaudi_set_pll_profile,

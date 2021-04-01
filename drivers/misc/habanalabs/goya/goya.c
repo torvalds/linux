@@ -4329,6 +4329,13 @@ static int goya_debugfs_write64(struct hl_device *hdev, u64 addr,
 	return rc;
 }
 
+static int goya_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
+				void *blob_addr)
+{
+	dev_err(hdev->dev, "Reading via DMA is unimplemented yet\n");
+	return -EPERM;
+}
+
 static u64 goya_read_pte(struct hl_device *hdev, u64 addr)
 {
 	struct goya_device *goya = hdev->asic_specific;
@@ -5521,6 +5528,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.debugfs_write32 = goya_debugfs_write32,
 	.debugfs_read64 = goya_debugfs_read64,
 	.debugfs_write64 = goya_debugfs_write64,
+	.debugfs_read_dma = goya_debugfs_read_dma,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,

@@ -9,8 +9,8 @@
 #include "../include/hw_ip/mmu/mmu_general.h"
 
 #include <linux/pci.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 
 #define MMU_ADDR_BUF_SIZE	40
 #define MMU_ASID_BUF_SIZE	10
@@ -457,6 +457,34 @@ out:
 	return false;
 }
 
+static bool hl_is_device_internal_memory_va(struct hl_device *hdev, u64 addr,
+						u32 size)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 dram_start_addr, dram_end_addr;
+
+	if (!hdev->mmu_enable)
+		return false;
+
+	if (prop->dram_supports_virtual_memory) {
+		dram_start_addr = prop->dmmu.start_addr;
+		dram_end_addr = prop->dmmu.end_addr;
+	} else {
+		dram_start_addr = prop->dram_base_address;
+		dram_end_addr = prop->dram_end_address;
+	}
+
+	if (hl_mem_area_inside_range(addr, size, dram_start_addr,
+					dram_end_addr))
+		return true;
+
+	if (hl_mem_area_inside_range(addr, size, prop->sram_base_address,
+					prop->sram_end_address))
+		return true;
+
+	return false;
+}
+
 static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 			u64 *phys_addr)
 {
@@ -599,6 +627,11 @@ static ssize_t hl_data_read64(struct file *f, char __user *buf,
 	ssize_t rc;
 	u64 val;
 
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't read during reset\n");
+		return 0;
+	}
+
 	if (*ppos)
 		return 0;
 
@@ -630,6 +663,11 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 	u64 value;
 	ssize_t rc;
 
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't write during reset\n");
+		return 0;
+	}
+
 	rc = kstrtoull_from_user(buf, count, 16, &value);
 	if (rc)
 		return rc;
@@ -647,6 +685,63 @@ static ssize_t hl_data_write64(struct file *f, const char __user *buf,
 			value, addr);
 		return rc;
 	}
+
+	return count;
+}
+
+static ssize_t hl_dma_size_write(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u64 addr = entry->addr;
+	ssize_t rc;
+	u32 size;
+
+	if (atomic_read(&hdev->in_reset)) {
+		dev_warn_ratelimited(hdev->dev, "Can't DMA during reset\n");
+		return 0;
+	}
+	rc = kstrtouint_from_user(buf, count, 16, &size);
+	if (rc)
+		return rc;
+
+	if (!size) {
+		dev_err(hdev->dev, "DMA read failed. size can't be 0\n");
+		return -EINVAL;
+	}
+
+	if (size > SZ_128M) {
+		dev_err(hdev->dev,
+			"DMA read failed. size can't be larger than 128MB\n");
+		return -EINVAL;
+	}
+
+	if (!hl_is_device_internal_memory_va(hdev, addr, size)) {
+		dev_err(hdev->dev,
+			"DMA read failed. Invalid 0x%010llx + 0x%08x\n",
+			addr, size);
+		return -EINVAL;
+	}
+
+	/* Free the previous allocation, if there was any */
+	entry->blob_desc.size = 0;
+	vfree(entry->blob_desc.data);
+
+	entry->blob_desc.data = vmalloc(size);
+	if (!entry->blob_desc.data)
+		return -ENOMEM;
+
+	rc = hdev->asic_funcs->debugfs_read_dma(hdev, addr, size,
+						entry->blob_desc.data);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to DMA from 0x%010llx\n", addr);
+		vfree(entry->blob_desc.data);
+		entry->blob_desc.data = NULL;
+		return -EIO;
+	}
+
+	entry->blob_desc.size = size;
 
 	return count;
 }
@@ -960,6 +1055,11 @@ static const struct file_operations hl_data64b_fops = {
 	.write = hl_data_write64
 };
 
+static const struct file_operations hl_dma_size_fops = {
+	.owner = THIS_MODULE,
+	.write = hl_dma_size_write
+};
+
 static const struct file_operations hl_i2c_data_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_i2c_data_read,
@@ -1061,6 +1161,9 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 					GFP_KERNEL);
 	if (!dev_entry->entry_arr)
 		return;
+
+	dev_entry->blob_desc.size = 0;
+	dev_entry->blob_desc.data = NULL;
 
 	INIT_LIST_HEAD(&dev_entry->file_list);
 	INIT_LIST_HEAD(&dev_entry->cb_list);
@@ -1164,6 +1267,17 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry,
 				&hl_security_violations_fops);
 
+	debugfs_create_file("dma_size",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_dma_size_fops);
+
+	debugfs_create_blob("data_dma",
+				0400,
+				dev_entry->root,
+				&dev_entry->blob_desc);
+
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,
@@ -1182,6 +1296,9 @@ void hl_debugfs_remove_device(struct hl_device *hdev)
 	debugfs_remove_recursive(entry->root);
 
 	mutex_destroy(&entry->file_mutex);
+
+	vfree(entry->blob_desc.data);
+
 	kfree(entry->entry_arr);
 }
 
