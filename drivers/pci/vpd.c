@@ -412,33 +412,14 @@ void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev)
 
 int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 {
-	int i;
+	int i = 0;
 
-	for (i = 0; i < len; ) {
-		u8 val = buf[i];
+	/* look for LRDT tags only, end tag is the only SRDT tag */
+	while (i + PCI_VPD_LRDT_TAG_SIZE <= len && buf[i] & PCI_VPD_LRDT) {
+		if (buf[i] == rdt)
+			return i;
 
-		if (val & PCI_VPD_LRDT) {
-			/* Don't return success of the tag isn't complete */
-			if (i + PCI_VPD_LRDT_TAG_SIZE > len)
-				break;
-
-			if (val == rdt)
-				return i;
-
-			i += PCI_VPD_LRDT_TAG_SIZE +
-			     pci_vpd_lrdt_size(&buf[i]);
-		} else {
-			u8 tag = val & ~PCI_VPD_SRDT_LEN_MASK;
-
-			if (tag == rdt)
-				return i;
-
-			if (tag == PCI_VPD_SRDT_END)
-				break;
-
-			i += PCI_VPD_SRDT_TAG_SIZE +
-			     pci_vpd_srdt_size(&buf[i]);
-		}
+		i += PCI_VPD_LRDT_TAG_SIZE + pci_vpd_lrdt_size(buf + i);
 	}
 
 	return -ENOENT;
