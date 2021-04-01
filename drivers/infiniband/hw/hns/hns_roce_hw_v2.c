@@ -1209,6 +1209,9 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 		ring->desc_dma_addr = 0;
 		kfree(ring->desc);
 		ring->desc = NULL;
+
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to map cmq desc addr.\n");
 		return -ENOMEM;
 	}
 
@@ -1283,14 +1286,16 @@ static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
 	/* Init CSQ */
 	ret = hns_roce_init_cmq_ring(hr_dev, TYPE_CSQ);
 	if (ret) {
-		dev_err(hr_dev->dev, "Init CSQ error, ret = %d.\n", ret);
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to init CSQ, ret = %d.\n", ret);
 		return ret;
 	}
 
 	/* Init CRQ */
 	ret = hns_roce_init_cmq_ring(hr_dev, TYPE_CRQ);
 	if (ret) {
-		dev_err(hr_dev->dev, "Init CRQ error, ret = %d.\n", ret);
+		dev_err_ratelimited(hr_dev->dev,
+				    "failed to init CRQ, ret = %d.\n", ret);
 		goto err_crq;
 	}
 
