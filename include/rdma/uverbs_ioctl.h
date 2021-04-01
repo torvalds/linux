@@ -926,14 +926,15 @@ uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
 {
 	return -EINVAL;
 }
-static int
-_uverbs_get_const_signed(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+static inline int
+_uverbs_get_const_signed(s64 *to,
+			 const struct uverbs_attr_bundle *attrs_bundle,
 			 size_t idx, s64 lower_bound, u64 upper_bound,
 			 s64 *def_val)
 {
 	return -EINVAL;
 }
-static int
+static inline int
 _uverbs_get_const_unsigned(u64 *to,
 			   const struct uverbs_attr_bundle *attrs_bundle,
 			   size_t idx, u64 upper_bound, u64 *def_val)
