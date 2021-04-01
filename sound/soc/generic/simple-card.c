@@ -499,6 +499,17 @@ static int simple_count_noml(struct asoc_simple_priv *priv,
 			     struct device_node *codec,
 			     struct link_info *li, bool is_top)
 {
+	if (li->link >= SNDRV_MINOR_DEVICES) {
+		struct device *dev = simple_priv_to_dev(priv);
+
+		dev_err(dev, "too many links\n");
+		return -EINVAL;
+	}
+
+	li->num[li->link].cpus		= 1;
+	li->num[li->link].codecs	= 1;
+	li->num[li->link].platforms	= 1;
+
 	li->link += 1;
 	li->dais += 2;
 
@@ -510,10 +521,25 @@ static int simple_count_dpcm(struct asoc_simple_priv *priv,
 			     struct device_node *codec,
 			     struct link_info *li, bool is_top)
 {
+	if (li->link >= SNDRV_MINOR_DEVICES) {
+		struct device *dev = simple_priv_to_dev(priv);
+
+		dev_err(dev, "too many links\n");
+		return -EINVAL;
+	}
+
 	if (li->cpu) {
+		li->num[li->link].cpus		= 1;
+		li->num[li->link].codecs	= 1;
+		li->num[li->link].platforms	= 1;
+
 		li->link++; /* CPU-dummy */
 		li->dais++;
 	} else {
+		li->num[li->link].cpus		= 1;
+		li->num[li->link].codecs	= 1;
+		li->num[li->link].platforms	= 1;
+
 		li->link++; /* dummy-Codec */
 		li->dais++;
 		li->conf++;
@@ -575,6 +601,10 @@ static void simple_get_dais_count(struct asoc_simple_priv *priv,
 	 *	=> 1 ccnf  = 1xdummy-Codec
 	 */
 	if (!top) {
+		li->num[0].cpus		= 1;
+		li->num[0].codecs	= 1;
+		li->num[0].platforms	= 1;
+
 		li->link = 1;
 		li->dais = 2;
 		li->conf = 0;

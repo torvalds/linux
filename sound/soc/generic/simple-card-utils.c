@@ -604,37 +604,33 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
-	int i;
+	int i, dai_num = 0, dlc_num = 0;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
-	dais      = devm_kcalloc(dev, li->dais, sizeof(*dais),      GFP_KERNEL);
-	dlcs      = devm_kcalloc(dev, li->link * 3, sizeof(*dai_props), GFP_KERNEL);
-	if (!dai_props || !dai_link || !dais || !dlcs)
+	if (!dai_props || !dai_link)
+		return -ENOMEM;
+
+	/*
+	 * dais (= CPU+Codec)
+	 * dlcs (= CPU+Codec+Platform)
+	 */
+	for (i = 0; i < li->link; i++) {
+		int cc = li->num[i].cpus + li->num[i].codecs;
+
+		dai_num += cc;
+		dlc_num += cc + li->num[i].platforms;
+	}
+
+	dais = devm_kcalloc(dev, dai_num, sizeof(*dais),      GFP_KERNEL);
+	dlcs = devm_kcalloc(dev, dlc_num, sizeof(*dai_props), GFP_KERNEL);
+	if (!dais || !dlcs)
 		return -ENOMEM;
 
 	if (li->conf) {
 		cconf = devm_kcalloc(dev, li->conf, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
 			return -ENOMEM;
-	}
-
-	/*
-	 * "platform" might be removed
-	 * see
-	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
-	 */
-	for (i = 0; i < li->link; i++) {
-		dai_props[i].cpus	= dlcs + (3 * i) + 0;
-		dai_props[i].codecs	= dlcs + (3 * i) + 1;
-		dai_props[i].platforms	= dlcs + (3 * i) + 2;
-
-		dai_link[i].cpus		= dai_props[i].cpus;
-		dai_link[i].num_cpus		= 1;
-		dai_link[i].codecs		= dai_props[i].codecs;
-		dai_link[i].num_codecs		= 1;
-		dai_link[i].platforms		= dai_props[i].platforms;
-		dai_link[i].num_platforms	= 1;
 	}
 
 	priv->dai_props		= dai_props;
@@ -647,6 +643,38 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	card->num_links		= li->link;
 	card->codec_conf	= cconf;
 	card->num_configs	= li->conf;
+
+	for (i = 0; i < li->link; i++) {
+		if (li->num[i].cpus) {
+			/* Normal CPU */
+			dai_props[i].cpus	=
+			dai_link[i].cpus	= dlcs;
+			dai_props[i].num.cpus	=
+			dai_link[i].num_cpus	= li->num[i].cpus;
+
+			dlcs += li->num[i].cpus;
+		}
+
+		if (li->num[i].codecs) {
+			/* Normal Codec */
+			dai_props[i].codecs	=
+			dai_link[i].codecs	= dlcs;
+			dai_props[i].num.codecs	=
+			dai_link[i].num_codecs	= li->num[i].codecs;
+
+			dlcs += li->num[i].codecs;
+		}
+
+		if (li->num[i].platforms) {
+			/* Have Platform */
+			dai_props[i].platforms		=
+			dai_link[i].platforms		= dlcs;
+			dai_props[i].num.platforms	=
+			dai_link[i].num_platforms	= li->num[i].platforms;
+
+			dlcs += li->num[i].platforms;
+		}
+	}
 
 	return 0;
 }

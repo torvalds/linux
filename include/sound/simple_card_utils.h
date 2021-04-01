@@ -38,6 +38,12 @@ struct asoc_simple_jack {
 	struct snd_soc_jack_gpio gpio;
 };
 
+struct prop_nums {
+	int cpus;
+	int codecs;
+	int platforms;
+};
+
 struct asoc_simple_priv {
 	struct snd_soc_card snd_card;
 	struct simple_dai_props {
@@ -48,6 +54,7 @@ struct asoc_simple_priv {
 		struct snd_soc_dai_link_component *platforms;
 		struct asoc_simple_data adata;
 		struct snd_soc_codec_conf *codec_conf;
+		struct prop_nums num;
 		unsigned int mclk_fs;
 	} *dai_props;
 	struct asoc_simple_jack hp_jack;
@@ -71,6 +78,7 @@ struct link_info {
 	int link; /* number of link */
 	int conf; /* number of codec_conf */
 	int cpu;  /* turn for CPU / Codec */
+	struct prop_nums num[SNDRV_MINOR_DEVICES];
 };
 
 int asoc_simple_parse_daifmt(struct device *dev,
