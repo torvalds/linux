@@ -36,12 +36,18 @@ struct stmmac_resources {
 	int tx_irq[MTL_MAX_TX_QUEUES];
 };
 
+enum stmmac_txbuf_type {
+	STMMAC_TXBUF_T_SKB,
+	STMMAC_TXBUF_T_XDP_TX,
+};
+
 struct stmmac_tx_info {
 	dma_addr_t buf;
 	bool map_as_page;
 	unsigned len;
 	bool last_segment;
 	bool is_jumbo;
+	enum stmmac_txbuf_type buf_type;
 };
 
 #define STMMAC_TBS_AVAIL	BIT(0)
@@ -57,7 +63,10 @@ struct stmmac_tx_queue {
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
 	struct dma_edesc *dma_entx;
 	struct dma_desc *dma_tx;
-	struct sk_buff **tx_skbuff;
+	union {
+		struct sk_buff **tx_skbuff;
+		struct xdp_frame **xdpf;
+	};
 	struct stmmac_tx_info *tx_skbuff_dma;
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
@@ -77,6 +86,7 @@ struct stmmac_rx_buffer {
 struct stmmac_rx_queue {
 	u32 rx_count_frames;
 	u32 queue_index;
+	struct xdp_rxq_info xdp_rxq;
 	struct page_pool *page_pool;
 	struct stmmac_rx_buffer *buf_pool;
 	struct stmmac_priv *priv_data;
