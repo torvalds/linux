@@ -1318,6 +1318,48 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 	return -ETIMEDOUT;
 }
 
+static int usb4_port_set_router_offline(struct tb_port *port, bool offline)
+{
+	u32 val = !offline;
+	int ret;
+
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				  USB4_SB_METADATA, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	val = USB4_SB_OPCODE_ROUTER_OFFLINE;
+	return usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				  USB4_SB_OPCODE, &val, sizeof(val));
+}
+
+/**
+ * usb4_port_router_offline() - Put the USB4 port to offline mode
+ * @port: USB4 port
+ *
+ * This function puts the USB4 port into offline mode. In this mode the
+ * port does not react on hotplug events anymore. This needs to be
+ * called before retimer access is done when the USB4 links is not up.
+ *
+ * Returns %0 in case of success and negative errno if there was an
+ * error.
+ */
+int usb4_port_router_offline(struct tb_port *port)
+{
+	return usb4_port_set_router_offline(port, true);
+}
+
+/**
+ * usb4_port_router_online() - Put the USB4 port back to online
+ * @port: USB4 port
+ *
+ * Makes the USB4 port functional again.
+ */
+int usb4_port_router_online(struct tb_port *port)
+{
+	return usb4_port_set_router_offline(port, false);
+}
+
 /**
  * usb4_port_enumerate_retimers() - Send RT broadcast transaction
  * @port: USB4 port
@@ -1341,6 +1383,33 @@ static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,
 {
 	return usb4_port_sb_op(port, USB4_SB_TARGET_RETIMER, index, opcode,
 			       timeout_msec);
+}
+
+/**
+ * usb4_port_retimer_set_inbound_sbtx() - Enable sideband channel transactions
+ * @port: USB4 port
+ * @index: Retimer index
+ *
+ * Enables sideband channel transations on SBTX. Can be used when USB4
+ * link does not go up, for example if there is no device connected.
+ */
+int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
+{
+	int ret;
+
+	ret = usb4_port_retimer_op(port, index, USB4_SB_OPCODE_SET_INBOUND_SBTX,
+				   500);
+
+	if (ret != -ENODEV)
+		return ret;
+
+	/*
+	 * Per the USB4 retimer spec, the retimer is not required to
+	 * send an RT (Retimer Transaction) response for the first
+	 * SET_INBOUND_SBTX command
+	 */
+	return usb4_port_retimer_op(port, index, USB4_SB_OPCODE_SET_INBOUND_SBTX,
+				    500);
 }
 
 /**
