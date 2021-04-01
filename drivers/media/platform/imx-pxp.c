@@ -1654,11 +1654,8 @@ static int pxp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->mmio = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->mmio)) {
-		ret = PTR_ERR(dev->mmio);
-		dev_err(&pdev->dev, "Failed to map register space: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(dev->mmio))
+		return PTR_ERR(dev->mmio);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
