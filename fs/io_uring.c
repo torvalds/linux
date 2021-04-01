@@ -5824,8 +5824,6 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
 		struct io_uring_task *tctx = node->task->io_uring;
 
-		if (!tctx || !tctx->io_wq)
-			continue;
 		ret = io_async_cancel_one(tctx, req->cancel.addr, ctx);
 		if (ret != -ENOENT)
 			break;
