@@ -714,8 +714,8 @@
 			dcdc_boost: BOOST {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <4700000>;
-				regulator-max-microvolt = <5400000>;
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
 				regulator-name = "boost";
 				regulator-state-mem {
 					regulator-off-in-suspend;
