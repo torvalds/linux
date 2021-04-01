@@ -47,6 +47,9 @@ struct nf_conntrack_net {
 	unsigned int users4;
 	unsigned int users6;
 	unsigned int users_bridge;
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_header	*sysctl_header;
+#endif
 };
 
 #include <linux/types.h>
