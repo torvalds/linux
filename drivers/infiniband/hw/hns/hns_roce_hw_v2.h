@@ -260,10 +260,20 @@ enum {
 };
 
 enum hns_roce_cmd_return_status {
-	CMD_EXEC_SUCCESS	= 0,
-	CMD_NO_AUTH		= 1,
-	CMD_NOT_EXEC		= 2,
-	CMD_QUEUE_FULL		= 3,
+	CMD_EXEC_SUCCESS,
+	CMD_NO_AUTH,
+	CMD_NOT_EXIST,
+	CMD_CRQ_FULL,
+	CMD_NEXT_ERR,
+	CMD_NOT_EXEC,
+	CMD_PARA_ERR,
+	CMD_RESULT_ERR,
+	CMD_TIMEOUT,
+	CMD_HILINK_ERR,
+	CMD_INFO_ILLEGAL,
+	CMD_INVALID,
+	CMD_ROH_CHECK_FAIL,
+	CMD_OTHER_ERR = 0xff
 };
 
 enum hns_roce_sgid_type {
