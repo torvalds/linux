@@ -186,6 +186,20 @@ enum vop2_pending {
 	VOP_PENDING_FB_UNREF,
 };
 
+enum vop2_layer_phy_id {
+	ROCKCHIP_VOP2_CLUSTER0 = 0,
+	ROCKCHIP_VOP2_CLUSTER1,
+	ROCKCHIP_VOP2_ESMART0,
+	ROCKCHIP_VOP2_ESMART1,
+	ROCKCHIP_VOP2_SMART0,
+	ROCKCHIP_VOP2_SMART1,
+	ROCKCHIP_VOP2_CLUSTER2,
+	ROCKCHIP_VOP2_CLUSTER3,
+	ROCKCHIP_VOP2_ESMART2,
+	ROCKCHIP_VOP2_ESMART3,
+	ROCKCHIP_VOP2_PHY_ID_INVALID = -1,
+};
+
 struct vop2_zpos {
 	int win_phys_id;
 	int zpos;
@@ -494,6 +508,23 @@ struct vop2_video_port {
 	 * @loader_protect: loader logo protect state
 	 */
 	bool loader_protect;
+
+	/**
+	 * @plane_mask: show the plane attach to this vp,
+	 * it maybe init at dts file or uboot driver
+	 */
+	uint32_t plane_mask;
+
+	/**
+	 * @plane_mask_prop: plane mask interaction with userspace
+	 */
+	struct drm_property *plane_mask_prop;
+
+	/**
+	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
+	 * will be used to show uboot logo and kernel logo
+	 */
+	enum vop2_layer_phy_id primary_plane_phy_id;
 };
 
 struct vop2 {
@@ -2317,7 +2348,6 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 	const struct vop2_data *vop2_data = vop2->data;
 	struct vop2_layer *layer = &vop2->layers[0];
 	struct vop2_video_port *vp = &vop2->vps[0];
-	struct vop2_video_port *last_active_vp;
 	struct vop2_win *win;
 	const struct vop2_win_data *win_data = NULL;
 	uint32_t used_layers = 0;
@@ -2347,8 +2377,6 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 			active_vp_mask |= BIT(i);
 	}
 
-	last_active_vp = &vop2->vps[fls(active_vp_mask) - 1];
-
 	for (i = 0; i < vop2->data->nr_vps; i++) {
 		vp = &vop2->vps[i];
 		vp->win_mask = 0;
@@ -2357,21 +2385,8 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 			shift = vop2->data->ctrl->win_vp_id[j].shift;
 			vp_id = (win_map >> shift) & 0x3;
 			if (vp_id == i) {
-				/*
-				 * If the Video Port is not activated,
-				 * move the attached win to the last Video Port
-				 * we want enabled.
-				 */
-				if (active_vp_mask & BIT(vp_id)) {
-					vp->win_mask |=  BIT(j);
-					win->vp_mask = BIT(vp_id);
-
-				} else {
-					last_active_vp->win_mask |= BIT(j);
-					win->vp_mask = BIT(last_active_vp->id);
-					VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], last_active_vp->id);
-
-				}
+				vp->win_mask |=  BIT(j);
+				win->vp_mask = BIT(vp_id);
 				win->old_vp_mask = win->vp_mask;
 			}
 		}
@@ -5636,6 +5651,40 @@ static int vop2_gamma_init(struct vop2 *vop2)
 }
 
 
+static int vop2_crtc_create_plane_mask_property(struct vop2 *vop2,
+						struct drm_crtc *crtc)
+{
+	struct drm_property *prop;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+
+	static const struct drm_prop_enum_list props[] = {
+		{ ROCKCHIP_VOP2_CLUSTER0, "Cluster0" },
+		{ ROCKCHIP_VOP2_CLUSTER1, "Cluster1" },
+		{ ROCKCHIP_VOP2_ESMART0, "Esmart0" },
+		{ ROCKCHIP_VOP2_ESMART1, "Esmart1" },
+		{ ROCKCHIP_VOP2_SMART0, "Smart0" },
+		{ ROCKCHIP_VOP2_SMART1, "Smart1" },
+		{ ROCKCHIP_VOP2_CLUSTER2, "Cluster2" },
+		{ ROCKCHIP_VOP2_CLUSTER3, "Cluster3" },
+		{ ROCKCHIP_VOP2_ESMART2, "Esmart2" },
+		{ ROCKCHIP_VOP2_ESMART3, "Esmart3" },
+	};
+
+	prop = drm_property_create_bitmask(vop2->drm_dev,
+					   DRM_MODE_PROP_IMMUTABLE, "PLANE_MASK",
+					   props, ARRAY_SIZE(props),
+					   0xffffffff);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create plane_mask prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+
+	vp->plane_mask_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->plane_mask_prop, vp->plane_mask);
+
+	return 0;
+}
+
 static int vop2_create_crtc(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -5650,8 +5699,10 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	uint32_t possible_crtcs;
 	uint64_t soc_id;
 	char dclk_name[9];
-	int i = 0, j = 0;
+	int i = 0, j = 0, k = 0;
 	int ret = 0;
+	bool be_used_for_primary_plane = false;
+	bool find_primary_plane = false;
 
 	/* all planes can attach to any crtc */
 	possible_crtcs = (1 << vop2_data->nr_vps) - 1;
@@ -5681,16 +5732,41 @@ static int vop2_create_crtc(struct vop2 *vop2)
 
 		crtc = &vp->crtc;
 
-		while (j < vop2->registered_num_wins) {
-			win = &vop2->win[j];
-			j++;
+		if (vp->primary_plane_phy_id >= 0) {
+			win = vop2_find_win_by_phys_id(vop2, vp->primary_plane_phy_id);
+			if (win)
+				find_primary_plane = true;
+		} else {
+			while (j < vop2->registered_num_wins) {
+				be_used_for_primary_plane = false;
+				win = &vop2->win[j];
+				j++;
 
-			if (win->type == DRM_PLANE_TYPE_PRIMARY)
+				if (win->parent || (win->feature & WIN_FEATURE_CLUSTER_SUB))
+					continue;
+
+				if (win->type != DRM_PLANE_TYPE_PRIMARY)
+					continue;
+
+				for (k = 0; k < vop2_data->nr_vps; k++) {
+					if (win->phys_id == vop2->vps[k].primary_plane_phy_id) {
+						be_used_for_primary_plane = true;
+						break;
+					}
+				}
+
+				if (be_used_for_primary_plane)
+					continue;
+
+				find_primary_plane = true;
 				break;
-			win = NULL;
+			}
+
+			if (find_primary_plane)
+				vp->primary_plane_phy_id = win->phys_id;
 		}
 
-		if (!win) {
+		if (!find_primary_plane) {
 			DRM_DEV_ERROR(vop2->dev, "No primary plane find for video_port%d\n", i);
 			break;
 		}
@@ -5734,14 +5810,25 @@ static int vop2_create_crtc(struct vop2 *vop2)
 					   drm_dev->mode_config.tv_top_margin_property, 100);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_bottom_margin_property, 100);
+		vop2_crtc_create_plane_mask_property(vop2, crtc);
 	}
 
 	/*
 	 * change the unused primary window to overlay window
 	 */
-	for (; j < vop2->registered_num_wins; j++) {
+	for (j = 0; j < vop2->registered_num_wins; j++) {
 		win = &vop2->win[j];
-		if (win->type == DRM_PLANE_TYPE_PRIMARY)
+		be_used_for_primary_plane = false;
+
+		for (k = 0; k < vop2_data->nr_vps; k++) {
+			if (vop2->vps[k].primary_plane_phy_id == win->phys_id) {
+				be_used_for_primary_plane = true;
+				break;
+			}
+		}
+
+		if (win->type == DRM_PLANE_TYPE_PRIMARY &&
+		    !be_used_for_primary_plane)
 			win->type = DRM_PLANE_TYPE_OVERLAY;
 	}
 
@@ -5912,6 +5999,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	size_t alloc_size;
 	int ret, i;
 	int num_wins = 0;
+	struct device_node *vop_out_node;
 
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
@@ -5980,6 +6068,31 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (vop2->irq < 0) {
 		DRM_DEV_ERROR(dev, "cannot find irq for vop2\n");
 		return vop2->irq;
+	}
+
+	vop_out_node = of_get_child_by_name(dev->of_node, "ports");
+	if (vop_out_node) {
+		struct device_node *child;
+
+		for_each_child_of_node(vop_out_node, child) {
+			u32 plane_mask = 0;
+			u32 primary_plane_phy_id = 0;
+			u32 vp_id = 0;
+
+			of_property_read_u32(child, "rockchip,plane-mask", &plane_mask);
+			of_property_read_u32(child, "rockchip,primary-plane", &primary_plane_phy_id);
+			of_property_read_u32(child, "reg", &vp_id);
+
+			vop2->vps[vp_id].plane_mask = plane_mask;
+			if (plane_mask)
+				vop2->vps[vp_id].primary_plane_phy_id = primary_plane_phy_id;
+			else
+				vop2->vps[vp_id].primary_plane_phy_id = ROCKCHIP_VOP2_PHY_ID_INVALID;
+
+			DRM_DEV_INFO(dev, "vp%d assign plane mask: 0x%x, primary plane phy id: %d\n",
+				     vp_id, vop2->vps[vp_id].plane_mask,
+				     vop2->vps[vp_id].primary_plane_phy_id);
+		}
 	}
 
 	spin_lock_init(&vop2->reg_lock);
