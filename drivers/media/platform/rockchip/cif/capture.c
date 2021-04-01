@@ -1322,13 +1322,17 @@ static void rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 			stream->curr_buf = list_first_entry(&stream->buf_head,
 							    struct rkcif_buffer, queue);
-			list_del(&stream->curr_buf->queue);
-			buffer = stream->curr_buf;
+			if (stream->curr_buf) {
+				list_del(&stream->curr_buf->queue);
+				buffer = stream->curr_buf;
+			}
 		} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
 			stream->next_buf = list_first_entry(&stream->buf_head,
 							    struct rkcif_buffer, queue);
-			list_del(&stream->next_buf->queue);
-			buffer = stream->next_buf;
+			if (stream->next_buf) {
+				list_del(&stream->next_buf->queue);
+				buffer = stream->next_buf;
+			}
 		}
 	} else {
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY)
@@ -4575,9 +4579,14 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	struct vb2_v4l2_buffer *vb_done = NULL;
 	unsigned long lock_flags = 0;
 
-	if (stream->frame_phase == (CIF_CSI_FRAME0_READY | CIF_CSI_FRAME1_READY))
+	if (stream->frame_phase == (CIF_CSI_FRAME0_READY | CIF_CSI_FRAME1_READY)) {
+
 		v4l2_err(&cif_dev->v4l2_dev, "stream[%d], frm0/frm1 end simultaneously,frm id:%d\n",
 			 stream->id, stream->frame_idx);
+
+		stream->frame_idx++;
+		return;
+	}
 
 	spin_lock(&stream->fps_lock);
 	if (stream->frame_phase & CIF_CSI_FRAME0_READY) {
