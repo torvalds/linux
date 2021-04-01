@@ -731,6 +731,7 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 			.ring_base = cpu_to_le64(q->base_pa),
 			.cq_ring_base = cpu_to_le64(cq->base_pa),
 			.sg_ring_base = cpu_to_le64(q->sg_base_pa),
+			.features = cpu_to_le64(q->features),
 		},
 	};
 	unsigned int intr_index;
@@ -791,6 +792,7 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 			.ring_base = cpu_to_le64(q->base_pa),
 			.cq_ring_base = cpu_to_le64(cq->base_pa),
 			.sg_ring_base = cpu_to_le64(q->sg_base_pa),
+			.features = cpu_to_le64(q->features),
 		},
 	};
 	int err;
@@ -2214,6 +2216,7 @@ static const struct net_device_ops ionic_netdev_ops = {
 static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 {
 	/* only swapping the queues, not the napi, flags, or other stuff */
+	swap(a->q.features,   b->q.features);
 	swap(a->q.num_descs,  b->q.num_descs);
 	swap(a->q.base,       b->q.base);
 	swap(a->q.base_pa,    b->q.base_pa);

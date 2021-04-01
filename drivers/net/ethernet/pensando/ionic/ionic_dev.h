@@ -222,6 +222,7 @@ struct ionic_queue {
 	u64 stop;
 	u64 wake;
 	u64 drop;
+	u64 features;
 	struct ionic_dev *idev;
 	unsigned int type;
 	unsigned int hw_index;

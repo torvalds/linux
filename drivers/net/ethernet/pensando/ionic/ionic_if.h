@@ -346,6 +346,23 @@ enum ionic_logical_qtype {
 };
 
 /**
+ * enum ionic_q_feature - Common Features for most queue types
+ *
+ * Common features use bits 0-15. Per-queue-type features use higher bits.
+ *
+ * @IONIC_QIDENT_F_CQ:      Queue has completion ring
+ * @IONIC_QIDENT_F_SG:      Queue has scatter/gather ring
+ * @IONIC_QIDENT_F_EQ:      Queue can use event queue
+ * @IONIC_QIDENT_F_CMB:     Queue is in cmb bar
+ */
+enum ionic_q_feature {
+	IONIC_QIDENT_F_CQ		= BIT_ULL(0),
+	IONIC_QIDENT_F_SG		= BIT_ULL(1),
+	IONIC_QIDENT_F_EQ		= BIT_ULL(2),
+	IONIC_QIDENT_F_CMB		= BIT_ULL(3),
+};
+
+/**
  * struct ionic_lif_logical_qtype - Descriptor of logical to HW queue type
  * @qtype:          Hardware Queue Type
  * @qid_count:      Number of Queue IDs of the logical type
@@ -529,7 +546,7 @@ struct ionic_q_identify_comp {
  * union ionic_q_identity - queue identity information
  *     @version:        Queue type version that can be used with FW
  *     @supported:      Bitfield of queue versions, first bit = ver 0
- *     @features:       Queue features
+ *     @features:       Queue features (enum ionic_q_feature, etc)
  *     @desc_sz:        Descriptor size
  *     @comp_sz:        Completion descriptor size
  *     @sg_desc_sz:     Scatter/Gather descriptor size
@@ -541,10 +558,6 @@ union ionic_q_identity {
 		u8      version;
 		u8      supported;
 		u8      rsvd[6];
-#define IONIC_QIDENT_F_CQ	0x01	/* queue has completion ring */
-#define IONIC_QIDENT_F_SG	0x02	/* queue has scatter/gather ring */
-#define IONIC_QIDENT_F_EQ	0x04	/* queue can use event queue */
-#define IONIC_QIDENT_F_CMB	0x08	/* queue is in cmb bar */
 		__le64  features;
 		__le16  desc_sz;
 		__le16  comp_sz;
@@ -585,6 +598,7 @@ union ionic_q_identity {
  * @ring_base:    Queue ring base address
  * @cq_ring_base: Completion queue ring base address
  * @sg_ring_base: Scatter/Gather ring base address
+ * @features:     Mask of queue features to enable, if not in the flags above.
  */
 struct ionic_q_init_cmd {
 	u8     opcode;
@@ -608,7 +622,8 @@ struct ionic_q_init_cmd {
 	__le64 ring_base;
 	__le64 cq_ring_base;
 	__le64 sg_ring_base;
-	u8     rsvd2[20];
+	u8     rsvd2[12];
+	__le64 features;
 } __packed;
 
 /**
