@@ -2,7 +2,7 @@
 /*
  * Alienware AlienFX control
  *
- * Copyright (C) 2014 Dell Inc <mario_limonciello@dell.com>
+ * Copyright (C) 2014 Dell Inc <Dell.Client.Kernel@dell.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
