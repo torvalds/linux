@@ -3224,8 +3224,10 @@ static int mptcp_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (rcu_access_pointer(tcp_sk(ssock->sk)->md5sig_info))
 		mptcp_subflow_early_fallback(msk, subflow);
 #endif
-	if (subflow->request_mptcp && mptcp_token_new_connect(ssock->sk))
+	if (subflow->request_mptcp && mptcp_token_new_connect(ssock->sk)) {
+		MPTCP_INC_STATS(sock_net(ssock->sk), MPTCP_MIB_TOKENFALLBACKINIT);
 		mptcp_subflow_early_fallback(msk, subflow);
+	}
 
 do_connect:
 	err = ssock->ops->connect(ssock, uaddr, addr_len, flags);

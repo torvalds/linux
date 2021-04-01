@@ -165,6 +165,7 @@ again:
 			if (mptcp_token_exists(subflow_req->token)) {
 				if (retries-- > 0)
 					goto again;
+				SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_TOKENFALLBACKINIT);
 			} else {
 				subflow_req->mp_capable = 1;
 			}
@@ -176,6 +177,8 @@ again:
 			subflow_req->mp_capable = 1;
 		else if (retries-- > 0)
 			goto again;
+		else
+			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_TOKENFALLBACKINIT);
 
 	} else if (mp_opt.mp_join && listener->request_mptcp) {
 		subflow_req->ssn_offset = TCP_SKB_CB(skb)->seq;
