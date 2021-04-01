@@ -50,6 +50,10 @@ struct nf_conntrack_net {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	struct delayed_work ecache_dwork;
+	struct netns_ct *ct_net;
+#endif
 };
 
 #include <linux/types.h>
