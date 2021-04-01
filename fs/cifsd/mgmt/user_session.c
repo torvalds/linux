@@ -6,6 +6,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/rwsem.h>
+#include <linux/version.h>
+#include <linux/xarray.h>
 
 #include "ksmbd_ida.h"
 #include "user_session.h"
@@ -275,7 +277,7 @@ static struct ksmbd_session *__session_create(int protocol)
 
 	set_session_flag(sess, protocol);
 	INIT_LIST_HEAD(&sess->sessions_entry);
-	INIT_LIST_HEAD(&sess->tree_conn_list);
+	xa_init(&sess->tree_conns);
 	INIT_LIST_HEAD(&sess->ksmbd_chann_list);
 	INIT_LIST_HEAD(&sess->rpc_handle_list);
 	sess->sequence_number = 1;
