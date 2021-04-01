@@ -99,7 +99,7 @@ static unsigned int cpg_div6_clock_calc_div(unsigned long rate,
 		rate = 1;
 
 	div = DIV_ROUND_CLOSEST(parent_rate, rate);
-	return clamp_t(unsigned int, div, 1, 64);
+	return clamp(div, 1U, 64U);
 }
 
 static long cpg_div6_clock_round_rate(struct clk_hw *hw, unsigned long rate,
