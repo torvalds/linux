@@ -5244,7 +5244,7 @@ static bool io_poll_remove_waitqs(struct io_kiocb *req)
 		/* non-poll requests have submit ref still */
 		do_complete = __io_poll_remove_one(req, &apoll->poll, true);
 		if (do_complete) {
-			io_put_req(req);
+			req_ref_put(req);
 			kfree(apoll->double_poll);
 			kfree(apoll);
 		}
