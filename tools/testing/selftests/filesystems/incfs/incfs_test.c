@@ -4277,6 +4277,56 @@ out:
 	return result;
 }
 
+static int stat_file_test(const char *mount_dir, int cmd_fd,
+			  struct test_file *file)
+{
+	int result = TEST_FAILURE;
+	struct stat st;
+	char *filename = NULL;
+
+	TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
+				     file->size, NULL), 0);
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TESTEQUAL(stat(filename, &st), 0);
+	TESTCOND(st.st_blocks < 32);
+	TESTEQUAL(emit_test_file_data(mount_dir, file), 0);
+	TESTEQUAL(stat(filename, &st), 0);
+	TESTCOND(st.st_blocks > file->size / 512);
+
+	result = TEST_SUCCESS;
+out:
+	free(filename);
+	return result;
+}
+
+static int stat_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		TESTEQUAL(stat_file_test(mount_dir, cmd_fd, file), 0);
+	}
+
+	result = TEST_SUCCESS;
+out:
+
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -4395,6 +4445,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(enable_verity_test),
 		MAKE_TEST(mmap_test),
 		MAKE_TEST(truncate_test),
+		MAKE_TEST(stat_test),
 	};
 #undef MAKE_TEST
 
