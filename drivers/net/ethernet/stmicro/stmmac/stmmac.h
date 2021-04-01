@@ -39,6 +39,7 @@ struct stmmac_resources {
 enum stmmac_txbuf_type {
 	STMMAC_TXBUF_T_SKB,
 	STMMAC_TXBUF_T_XDP_TX,
+	STMMAC_TXBUF_T_XDP_NDO,
 };
 
 struct stmmac_tx_info {
