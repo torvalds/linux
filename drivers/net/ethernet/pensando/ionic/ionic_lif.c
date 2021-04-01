@@ -1540,6 +1540,9 @@ static int ionic_set_nic_features(struct ionic_lif *lif,
 
 	ctx.cmd.lif_setattr.features = ionic_netdev_features_to_nic(features);
 
+	if (lif->phc)
+		ctx.cmd.lif_setattr.features |= cpu_to_le64(IONIC_ETH_HW_TIMESTAMP);
+
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
 		return err;
@@ -1587,6 +1590,8 @@ static int ionic_set_nic_features(struct ionic_lif *lif,
 		dev_dbg(dev, "feature ETH_HW_TSO_UDP\n");
 	if (lif->hw_features & IONIC_ETH_HW_TSO_UDP_CSUM)
 		dev_dbg(dev, "feature ETH_HW_TSO_UDP_CSUM\n");
+	if (lif->hw_features & IONIC_ETH_HW_TIMESTAMP)
+		dev_dbg(dev, "feature ETH_HW_TIMESTAMP\n");
 
 	return 0;
 }
@@ -2260,6 +2265,20 @@ static int ionic_stop(struct net_device *netdev)
 	return 0;
 }
 
+static int ionic_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	struct ionic_lif *lif = netdev_priv(netdev);
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return ionic_lif_hwstamp_set(lif, ifr);
+	case SIOCGHWTSTAMP:
+		return ionic_lif_hwstamp_get(lif, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int ionic_get_vf_config(struct net_device *netdev,
 			       int vf, struct ifla_vf_info *ivf)
 {
@@ -2508,6 +2527,7 @@ static int ionic_set_vf_link_state(struct net_device *netdev, int vf, int set)
 static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_open               = ionic_open,
 	.ndo_stop               = ionic_stop,
+	.ndo_do_ioctl		= ionic_do_ioctl,
 	.ndo_start_xmit		= ionic_start_xmit,
 	.ndo_get_stats64	= ionic_get_stats64,
 	.ndo_set_rx_mode	= ionic_ndo_set_rx_mode,
@@ -3331,6 +3351,8 @@ int ionic_lif_register(struct ionic_lif *lif)
 {
 	int err;
 
+	ionic_lif_register_phc(lif);
+
 	INIT_WORK(&lif->ionic->nb_work, ionic_lif_notify_work);
 
 	lif->ionic->nb.notifier_call = ionic_lif_notify;
@@ -3343,6 +3365,7 @@ int ionic_lif_register(struct ionic_lif *lif)
 	err = register_netdev(lif->netdev);
 	if (err) {
 		dev_err(lif->ionic->dev, "Cannot register net device, aborting\n");
+		ionic_lif_unregister_phc(lif);
 		return err;
 	}
 
@@ -3363,6 +3386,8 @@ void ionic_lif_unregister(struct ionic_lif *lif)
 
 	if (lif->netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(lif->netdev);
+
+	ionic_lif_unregister_phc(lif);
 
 	lif->registered = false;
 }
