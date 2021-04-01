@@ -59,21 +59,23 @@ journal_seq_to_buf(struct journal *j, u64 seq)
 	return buf;
 }
 
-static void journal_pin_new_entry(struct journal *j, int count)
+static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 {
-	struct journal_entry_pin_list *p;
+	INIT_LIST_HEAD(&p->list);
+	INIT_LIST_HEAD(&p->key_cache_list);
+	INIT_LIST_HEAD(&p->flushed);
+	atomic_set(&p->count, count);
+	p->devs.nr = 0;
+}
 
+static void journal_pin_new_entry(struct journal *j)
+{
 	/*
 	 * The fifo_push() needs to happen at the same time as j->seq is
 	 * incremented for journal_last_seq() to be calculated correctly
 	 */
 	atomic64_inc(&j->seq);
-	p = fifo_push_ref(&j->pin);
-
-	INIT_LIST_HEAD(&p->list);
-	INIT_LIST_HEAD(&p->flushed);
-	atomic_set(&p->count, count);
-	p->devs.nr = 0;
+	journal_pin_list_init(fifo_push_ref(&j->pin), 1);
 }
 
 static void bch2_journal_buf_init(struct journal *j)
@@ -192,7 +194,7 @@ static bool __journal_entry_close(struct journal *j)
 	__bch2_journal_pin_put(j, le64_to_cpu(buf->data->seq));
 
 	/* Initialize new buffer: */
-	journal_pin_new_entry(j, 1);
+	journal_pin_new_entry(j);
 
 	bch2_journal_buf_init(j);
 
@@ -1030,12 +1032,8 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	j->pin.back		= cur_seq;
 	atomic64_set(&j->seq, cur_seq - 1);
 
-	fifo_for_each_entry_ptr(p, &j->pin, seq) {
-		INIT_LIST_HEAD(&p->list);
-		INIT_LIST_HEAD(&p->flushed);
-		atomic_set(&p->count, 1);
-		p->devs.nr = 0;
-	}
+	fifo_for_each_entry_ptr(p, &j->pin, seq)
+		journal_pin_list_init(p, 1);
 
 	list_for_each_entry(i, journal_entries, list) {
 		unsigned ptr;
@@ -1058,7 +1056,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	set_bit(JOURNAL_STARTED, &j->flags);
 	j->last_flush_write = jiffies;
 
-	journal_pin_new_entry(j, 1);
+	journal_pin_new_entry(j);
 
 	j->reservations.idx = j->reservations.unwritten_idx = journal_cur_seq(j);
 

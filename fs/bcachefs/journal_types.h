@@ -43,6 +43,7 @@ struct journal_buf {
 
 struct journal_entry_pin_list {
 	struct list_head		list;
+	struct list_head		key_cache_list;
 	struct list_head		flushed;
 	atomic_t			count;
 	struct bch_devs_list		devs;

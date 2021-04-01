@@ -445,9 +445,8 @@ out:
 	return ret;
 }
 
-static int btree_key_cache_journal_flush(struct journal *j,
-					 struct journal_entry_pin *pin,
-					 u64 seq)
+int bch2_btree_key_cache_journal_flush(struct journal *j,
+				struct journal_entry_pin *pin, u64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bkey_cached *ck =
@@ -528,7 +527,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	}
 
 	bch2_journal_pin_update(&c->journal, trans->journal_res.seq,
-				&ck->journal, btree_key_cache_journal_flush);
+				&ck->journal, bch2_btree_key_cache_journal_flush);
 
 	if (kick_reclaim)
 		journal_reclaim_kick(&c->journal);

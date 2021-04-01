@@ -716,6 +716,11 @@ DEFINE_EVENT(transaction_restart,	trans_restart_iter_upgrade,
 	TP_ARGS(ip)
 );
 
+DEFINE_EVENT(transaction_restart,	trans_restart_relock,
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
+);
+
 DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
 	TP_PROTO(unsigned long ip),
 	TP_ARGS(ip)

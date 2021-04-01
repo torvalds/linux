@@ -473,8 +473,10 @@ bool bch2_trans_relock(struct btree_trans *trans)
 
 	trans_for_each_iter(trans, iter)
 		if (btree_iter_keep(trans, iter) &&
-		    !bch2_btree_iter_relock(iter, true))
+		    !bch2_btree_iter_relock(iter, true)) {
+			trace_trans_restart_relock(trans->ip);
 			return false;
+		}
 	return true;
 }
 

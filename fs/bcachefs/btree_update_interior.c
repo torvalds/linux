@@ -974,20 +974,25 @@ retry:
 		 * closure argument
 		 */
 		if (flags & BTREE_INSERT_NOUNLOCK) {
+			trace_trans_restart_journal_preres_get(trans->ip);
 			ret = -EINTR;
 			goto err;
 		}
 
 		bch2_trans_unlock(trans);
 
-		if (flags & BTREE_INSERT_JOURNAL_RECLAIM)
-			goto err;
+		if (flags & BTREE_INSERT_JOURNAL_RECLAIM) {
+			bch2_btree_update_free(as);
+			return ERR_PTR(ret);
+		}
 
 		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
 				BTREE_UPDATE_JOURNAL_RES,
 				journal_flags);
-		if (ret)
+		if (ret) {
+			trace_trans_restart_journal_preres_get(trans->ip);
 			goto err;
+		}
 
 		if (!bch2_trans_relock(trans)) {
 			ret = -EINTR;
