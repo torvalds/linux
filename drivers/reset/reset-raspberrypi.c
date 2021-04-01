@@ -82,7 +82,7 @@ static int rpi_reset_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	fw = rpi_firmware_get(np);
+	fw = devm_rpi_firmware_get(&pdev->dev, np);
 	of_node_put(np);
 	if (!fw)
 		return -EPROBE_DEFER;
