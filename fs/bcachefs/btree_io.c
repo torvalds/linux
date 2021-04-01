@@ -1551,6 +1551,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 
 	b->written += sectors_to_write;
 
+	atomic64_inc(&c->btree_writes_nr);
+	atomic64_add(sectors_to_write, &c->btree_writes_sectors);
+
 	/* XXX: submitting IO with btree locks held: */
 	bch2_submit_wbio_replicas(&wbio->wbio, c, BCH_DATA_btree, k.k);
 	bch2_bkey_buf_exit(&k, c);

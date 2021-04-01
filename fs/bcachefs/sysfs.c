@@ -153,6 +153,8 @@ read_attribute(io_latency_stats_read);
 read_attribute(io_latency_stats_write);
 read_attribute(congested);
 
+read_attribute(btree_avg_write_size);
+
 read_attribute(bucket_quantiles_last_read);
 read_attribute(bucket_quantiles_last_write);
 read_attribute(bucket_quantiles_fragmentation);
@@ -226,6 +228,14 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 	mutex_unlock(&c->btree_cache.lock);
 	return ret;
+}
+
+static size_t bch2_btree_avg_write_size(struct bch_fs *c)
+{
+	u64 nr = atomic64_read(&c->btree_writes_nr);
+	u64 sectors = atomic64_read(&c->btree_writes_sectors);
+
+	return nr ? div64_u64(sectors, nr) : 0;
 }
 
 static int fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
@@ -316,6 +326,7 @@ SHOW(bch2_fs)
 	sysfs_print(block_size,			block_bytes(c));
 	sysfs_print(btree_node_size,		btree_bytes(c));
 	sysfs_hprint(btree_cache_size,		bch2_btree_cache_size(c));
+	sysfs_hprint(btree_avg_write_size,	bch2_btree_avg_write_size(c));
 
 	sysfs_print(read_realloc_races,
 		    atomic_long_read(&c->read_realloc_races));
@@ -507,6 +518,7 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_block_size,
 	&sysfs_btree_node_size,
 	&sysfs_btree_cache_size,
+	&sysfs_btree_avg_write_size,
 
 	&sysfs_journal_write_delay_ms,
 	&sysfs_journal_reclaim_delay_ms,
