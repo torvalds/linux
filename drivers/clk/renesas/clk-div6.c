@@ -28,8 +28,7 @@
  * @hw: handle between common and hardware-specific interfaces
  * @reg: IO-remapped register
  * @div: divisor value (1-64)
- * @src_shift: Shift to access the register bits to select the parent clock
- * @src_width: Number of register bits to select the parent clock (may be 0)
+ * @src_mask: Bitmask covering the register bits to select the parent clock
  * @nb: Notifier block to save/restore clock state for system resume
  * @parents: Array to map from valid parent clocks indices to hardware indices
  */
@@ -37,8 +36,7 @@ struct div6_clock {
 	struct clk_hw hw;
 	void __iomem *reg;
 	unsigned int div;
-	u32 src_shift;
-	u32 src_width;
+	u32 src_mask;
 	struct notifier_block nb;
 	u8 parents[];
 };
@@ -133,11 +131,11 @@ static u8 cpg_div6_clock_get_parent(struct clk_hw *hw)
 	unsigned int i;
 	u8 hw_index;
 
-	if (clock->src_width == 0)
+	if (clock->src_mask == 0)
 		return 0;
 
-	hw_index = (readl(clock->reg) >> clock->src_shift) &
-		   (BIT(clock->src_width) - 1);
+	hw_index = (readl(clock->reg) & clock->src_mask) >>
+		   __ffs(clock->src_mask);
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		if (clock->parents[i] == hw_index)
 			return i;
@@ -151,18 +149,13 @@ static u8 cpg_div6_clock_get_parent(struct clk_hw *hw)
 static int cpg_div6_clock_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct div6_clock *clock = to_div6_clock(hw);
-	u8 hw_index;
-	u32 mask;
+	u32 src;
 
 	if (index >= clk_hw_get_num_parents(hw))
 		return -EINVAL;
 
-	mask = ~((BIT(clock->src_width) - 1) << clock->src_shift);
-	hw_index = clock->parents[index];
-
-	writel((readl(clock->reg) & mask) | (hw_index << clock->src_shift),
-	       clock->reg);
-
+	src = clock->parents[index] << __ffs(clock->src_mask);
+	writel((readl(clock->reg) & ~clock->src_mask) | src, clock->reg);
 	return 0;
 }
 
@@ -236,17 +229,15 @@ struct clk * __init cpg_div6_register(const char *name,
 	switch (num_parents) {
 	case 1:
 		/* fixed parent clock */
-		clock->src_shift = clock->src_width = 0;
+		clock->src_mask = 0;
 		break;
 	case 4:
 		/* clock with EXSRC bits 6-7 */
-		clock->src_shift = 6;
-		clock->src_width = 2;
+		clock->src_mask = GENMASK(7, 6);
 		break;
 	case 8:
 		/* VCLK with EXSRC bits 12-14 */
-		clock->src_shift = 12;
-		clock->src_width = 3;
+		clock->src_mask = GENMASK(14, 12);
 		break;
 	default:
 		pr_err("%s: invalid number of parents for DIV6 clock %s\n",
