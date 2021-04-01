@@ -18,8 +18,13 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x00000000 0x08000000
-		       0x88000000 0x08000000>;
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
+	};
+
+	nvram@1c080000 {
+		compatible = "brcm,nvram";
+		reg = <0x1c080000 0x100000>;
 	};
 
 	gpio-keys {
@@ -70,6 +75,7 @@
 		power {
 			label = "bcm53xx:white:power";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
 		};
 
 		wifi-disabled {
@@ -274,7 +280,7 @@
 
 &nandcs {
 	partitions {
-		compatible = "fixed-partitions";
+		compatible = "linksys,ns-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -295,20 +301,18 @@
 		};
 
 		partition@200000 {
-			label = "firmware";
-			reg = <0x0200000 0x01D00000>;
-			compatible = "brcm,trx";
+			reg = <0x0200000 0x01d00000>;
+			compatible = "linksys,ns-firmware", "brcm,trx";
 		};
 
-		partition@1F00000 {
-			label = "failsafe";
-			reg = <0x01F00000 0x01D00000>;
-			read-only;
+		partition@1f00000 {
+			reg = <0x01f00000 0x01d00000>;
+			compatible = "linksys,ns-firmware", "brcm,trx";
 		};
 
 		partition@5200000 {
 			label = "system";
-			reg = <0x05200000 0x02E00000>;
+			reg = <0x05200000 0x02e00000>;
 		};
 	};
 };
