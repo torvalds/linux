@@ -67,7 +67,7 @@ static struct mon_proc *get_proc(pid_t pid)
 	if (!task)
 		return ERR_PTR(-ESRCH);
 
-	p = kmalloc(sizeof(p), GFP_ATOMIC);
+	p = kmalloc(sizeof(*p), GFP_ATOMIC);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
