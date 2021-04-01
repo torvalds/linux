@@ -2785,8 +2785,8 @@ static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter)
 	size_t len = req->rw.len;
 	struct io_mapped_ubuf *imu;
 	u16 index, buf_index = req->buf_index;
+	u64 buf_end, buf_addr = req->rw.addr;
 	size_t offset;
-	u64 buf_addr;
 
 	if (unlikely(buf_index >= ctx->nr_user_bufs))
 		return -EFAULT;
@@ -2794,11 +2794,10 @@ static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter)
 	imu = &ctx->user_bufs[index];
 	buf_addr = req->rw.addr;
 
-	/* overflow */
-	if (buf_addr + len < buf_addr)
+	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
-	if (buf_addr < imu->ubuf || buf_addr + len > imu->ubuf + imu->len)
+	if (buf_addr < imu->ubuf || buf_end > imu->ubuf + imu->len)
 		return -EFAULT;
 
 	/*
