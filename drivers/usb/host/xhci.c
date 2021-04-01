@@ -5619,6 +5619,12 @@ void xhci_init_driver(struct hc_driver *drv,
 			drv->reset_bandwidth = over->reset_bandwidth;
 		if (over->update_hub_device)
 			drv->update_hub_device = over->update_hub_device;
+		if (over->address_device)
+			drv->address_device = over->address_device;
+		if (over->bus_suspend)
+			drv->bus_suspend = over->bus_suspend;
+		if (over->bus_resume)
+			drv->bus_resume = over->bus_resume;
 	}
 }
 EXPORT_SYMBOL_GPL(xhci_init_driver);
