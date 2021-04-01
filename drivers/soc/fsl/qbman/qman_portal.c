@@ -65,13 +65,6 @@ static void portal_set_cpu(struct qm_portal_config *pcfg, int cpu)
 			__func__, ret);
 		goto out_domain_free;
 	}
-	ret = iommu_domain_window_enable(pcfg->iommu_domain, 0, 0, 1ULL << 36,
-					 IOMMU_READ | IOMMU_WRITE);
-	if (ret < 0) {
-		dev_err(dev, "%s(): iommu_domain_window_enable() = %d",
-			__func__, ret);
-		goto out_domain_free;
-	}
 	ret = iommu_attach_device(pcfg->iommu_domain, dev);
 	if (ret < 0) {
 		dev_err(dev, "%s(): iommu_device_attach() = %d", __func__,

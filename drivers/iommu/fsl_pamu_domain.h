@@ -9,24 +9,10 @@
 
 #include "fsl_pamu.h"
 
-struct dma_window {
-	phys_addr_t paddr;
-	u64 size;
-	int valid;
-	int prot;
-};
-
 struct fsl_dma_domain {
-	/*
-	 * win_arr contains information of the configured
-	 * windows for a domain.
-	 */
-	struct dma_window		win_arr[1];
 	/* list of devices associated with the domain */
 	struct list_head		devices;
 	/* dma_domain states:
-	 * mapped - A particular mapping has been created
-	 * within the configured geometry.
 	 * enabled - DMA has been enabled for the given
 	 * domain. This translates to setting of the
 	 * valid bit for the primary PAACE in the PAMU
@@ -35,7 +21,6 @@ struct fsl_dma_domain {
 	 * enabled for it.
 	 *
 	 */
-	int				mapped;
 	int				enabled;
 	/* stash_id obtained from the stash attribute details */
 	u32				stash_id;
