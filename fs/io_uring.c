@@ -1227,10 +1227,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 	switch (req->opcode) {
 	case IORING_OP_SPLICE:
 	case IORING_OP_TEE:
-		/*
-		 * Splice operation will be punted aync, and here need to
-		 * modify io_wq_work.flags, so initialize io_wq_work firstly.
-		 */
 		if (!S_ISREG(file_inode(req->splice.file_in)->i_mode))
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 		break;
