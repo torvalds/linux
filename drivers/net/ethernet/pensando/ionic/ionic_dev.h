@@ -220,11 +220,11 @@ struct ionic_queue {
 	unsigned int index;
 	unsigned int num_descs;
 	unsigned int max_sg_elems;
+	u64 features;
 	u64 dbell_count;
 	u64 stop;
 	u64 wake;
 	u64 drop;
-	u64 features;
 	struct ionic_dev *idev;
 	unsigned int type;
 	unsigned int hw_index;
