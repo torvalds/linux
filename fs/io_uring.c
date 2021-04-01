@@ -455,8 +455,6 @@ struct io_ring_ctx {
 	/* exit task_work */
 	struct callback_head		*exit_task_work;
 
-	struct wait_queue_head		hash_wait;
-
 	/* Keep this last, we don't need it for the fast path */
 	struct work_struct		exit_work;
 	struct list_head		tctx_list;
