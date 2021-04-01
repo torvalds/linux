@@ -10047,7 +10047,7 @@ F:	drivers/misc/eeprom/eeprom.c
 LEGO MINDSTORMS EV3
 R:	David Lechner <david@lechnology.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/power/supply/lego_ev3_battery.txt
+F:	Documentation/devicetree/bindings/power/supply/lego,ev3-battery.yaml
 F:	arch/arm/boot/dts/da850-lego-ev3.dts
 F:	drivers/power/supply/lego_ev3_battery.c
 
