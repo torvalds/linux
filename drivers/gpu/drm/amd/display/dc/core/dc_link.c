@@ -247,6 +247,16 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
+	/* Link may not have physical HPD pin. */
+	if (link->ep_type != DISPLAY_ENDPOINT_PHY) {
+		if (link->hpd_status)
+			*type = dc_connection_single;
+		else
+			*type = dc_connection_none;
+
+		return true;
+	}
+
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id,
 			       link->ctx->gpio_service);
@@ -432,8 +442,18 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 static enum signal_type link_detect_sink(struct dc_link *link,
 					 enum dc_detect_reason reason)
 {
-	enum signal_type result = get_basic_signal_type(link->link_enc->id,
-							link->link_id);
+	enum signal_type result;
+	struct graphics_object_id enc_id;
+
+	if (link->is_dig_mapping_flexible)
+		enc_id = (struct graphics_object_id){.id = ENCODER_ID_UNKNOWN};
+	else
+		enc_id = link->link_enc->id;
+	result = get_basic_signal_type(enc_id, link->link_id);
+
+	/* Use basic signal type for link without physical connector. */
+	if (link->ep_type != DISPLAY_ENDPOINT_PHY)
+		return result;
 
 	/* Internal digital encoder will detect only dongles
 	 * that require digital signal
@@ -955,7 +975,8 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
 			/* wa HPD high coming too early*/
-			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
+			if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+			    link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
 				/* if alt mode times out, return false */
 				if (!wait_for_entering_dp_alt_mode(link))
 					return false;

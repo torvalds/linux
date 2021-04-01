@@ -113,6 +113,7 @@ struct dc_link {
 	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
 	 * DIG encoder. */
 	bool is_dig_mapping_flexible;
+	bool hpd_status; /* HPD status of link without physical HPD pin. */
 
 	bool edp_sink_present;
 
