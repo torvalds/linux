@@ -2310,9 +2310,6 @@ int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids)
 	unsigned long flags;
 	int levels, ret;
 
-	if (pasids <= 0 || pasids > (PASID_MASK + 1))
-		return -EINVAL;
-
 	/* Number of GCR3 table levels required */
 	for (levels = 0; (pasids - 1) & ~0x1ff; pasids >>= 9)
 		levels += 1;
