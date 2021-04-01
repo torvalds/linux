@@ -58,10 +58,22 @@
 
 #define OF_CAMERA_MODULE_REGULATORS		"rockchip,regulator-names"
 #define OF_CAMERA_MODULE_REGULATOR_VOLTAGES	"rockchip,regulator-voltages"
+#define RK_CAMERA_MODULE_DEFAULT_RECT		"rockchip,default_rect"
+
+#define JAGUAR1_DEFAULT_WIDTH		1920
+#define JAGUAR1_DEFAULT_HEIGHT		1080
 
 #define JAGUAR1_NAME				"jaguar1"
 
 /* #define FORCE_720P */
+
+enum jaguar1_max_pad {
+	PAD0,
+	PAD1,
+	PAD2,
+	PAD3,
+	PAD_MAX,
+};
 
 struct jaguar1_gpio {
 	int pltfrm_gpio;
@@ -90,6 +102,11 @@ struct jaguar1_framesize {
 	enum NC_VIVO_CH_FORMATDEF fmt_idx;
 };
 
+struct jaguar1_default_rect {
+	unsigned int width;
+	unsigned int height;
+};
+
 struct jaguar1 {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
@@ -105,7 +122,7 @@ struct jaguar1 {
 	struct pinctrl_state	*pins_sleep;
 
 	struct v4l2_subdev	subdev;
-	struct media_pad	pad;
+	struct media_pad	pad[PAD_MAX];
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct mutex		mutex;
 	bool			power_on;
@@ -119,18 +136,13 @@ struct jaguar1 {
 	struct v4l2_mbus_framefmt format;
 	const struct jaguar1_framesize *frame_size;
 	int streaming;
+	struct jaguar1_default_rect defrect;
 };
 
 #define to_jaguar1(sd) container_of(sd, struct jaguar1, subdev)
 
 static const struct jaguar1_framesize jaguar1_framesizes[] = {
-#ifdef FORCE_720P
-	{
-		.width		= 1280,
-		.height		= 720,
-		.fmt_idx	= AHD20_720P_25P,
-	}
-#elif defined CONFIG_VIDEO_ROCKCHIP_USBACM_CONTROL
+#if defined CONFIG_VIDEO_ROCKCHIP_USBACM_CONTROL
 	{
 		.width		= 2560,
 		.height		= 1440,
@@ -140,7 +152,7 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 	{
 		.width		= 1280,
 		.height		= 720,
-		.fmt_idx	= AHD20_720P_25P,
+		.fmt_idx	= AHD20_720P_25P_EX_Btype,
 	},
 	{
 		.width		= 1920,
@@ -157,7 +169,7 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 
 static const struct jaguar1_pixfmt jaguar1_formats[] = {
 	{
-		.code = MEDIA_BUS_FMT_YUYV8_2X8
+		.code = MEDIA_BUS_FMT_UYVY8_2X8
 	},
 };
 
@@ -352,12 +364,33 @@ err_free_handler:
 
 	return ret;
 }
-static void jaguar1_get_default_format(struct v4l2_mbus_framefmt *format)
+static void jaguar1_get_default_format(struct jaguar1 *jaguar1)
 {
-	format->width = jaguar1_framesizes[0].width;
-	format->height = jaguar1_framesizes[0].height;
+	const struct jaguar1_framesize *fsize = &jaguar1_framesizes[0];
+	const struct jaguar1_framesize *match = NULL;
+	int i = ARRAY_SIZE(jaguar1_framesizes);
+	unsigned int min_err = UINT_MAX;
+	struct v4l2_mbus_framefmt *format = &jaguar1->format;
+	struct jaguar1_default_rect *rect =  &jaguar1->defrect;
+
+	while (i--) {
+		unsigned int err = abs(fsize->width - rect->width)
+				+ abs(fsize->height - rect->height);
+		if (err < min_err) {
+			min_err = err;
+			match = fsize;
+		}
+		fsize++;
+	}
+
+	if (!match)
+		match = &jaguar1_framesizes[0];
+
+	format->width = match->width;
+	format->height = match->height;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 	format->code = jaguar1_formats[0].code;
+	jaguar1->frame_size = match;
 	format->field = V4L2_FIELD_NONE;
 }
 
@@ -571,6 +604,9 @@ static long jaguar1_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_MODULE_INFO:
 		jaguar1_get_module_inf(jaguar1, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_GET_START_STREAM_SEQ:
+		*(int *)arg = RKMODULE_START_STREAM_FRONT;
+		break;
 	default:
 		ret = -ENOTTY;
 		break;
@@ -587,6 +623,7 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	long ret;
+	int *seq;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -612,6 +649,18 @@ static long jaguar1_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = jaguar1_ioctl(sd, cmd, cfg);
 		kfree(cfg);
+		break;
+	case RKMODULE_GET_START_STREAM_SEQ:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = jaguar1_ioctl(sd, cmd, seq);
+		if (!ret)
+			ret = copy_to_user(up, seq, sizeof(*seq));
+		kfree(seq);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -758,6 +807,22 @@ static int jaguar1_analyze_dts(struct jaguar1 *jaguar1)
 			} while (--elem_size);
 		}
 	}
+	if (of_property_read_u32_array(np,
+		RK_CAMERA_MODULE_DEFAULT_RECT,
+		(unsigned int *)&jaguar1->defrect, 2)) {
+		jaguar1->defrect.width = JAGUAR1_DEFAULT_WIDTH;
+		jaguar1->defrect.height = JAGUAR1_DEFAULT_HEIGHT;
+		dev_warn(dev,
+			"can not get module %s from dts, use default wxh(%dx%d)!\n",
+			RK_CAMERA_MODULE_DEFAULT_RECT,
+			JAGUAR1_DEFAULT_WIDTH, JAGUAR1_DEFAULT_HEIGHT);
+	} else {
+		dev_info(dev,
+			"get module %s from dts, wxh(%dx%d)!\n",
+			RK_CAMERA_MODULE_DEFAULT_RECT,
+			jaguar1->defrect.width,
+			jaguar1->defrect.height);
+	}
 
 	jaguar1->pd_gpio = devm_gpiod_get(dev, "pd", GPIOD_OUT_LOW);
 	if (IS_ERR(jaguar1->pd_gpio))
@@ -800,7 +865,7 @@ static int jaguar1_probe(struct i2c_client *client,
 	struct jaguar1 *jaguar1;
 	struct v4l2_subdev *sd;
 	__maybe_unused char facing[2];
-	int ret;
+	int ret, index;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		 DRIVER_VERSION >> 16,
@@ -833,8 +898,7 @@ static int jaguar1_probe(struct i2c_client *client,
 	}
 
 	mutex_init(&jaguar1->mutex);
-	jaguar1_get_default_format(&jaguar1->format);
-	jaguar1->frame_size = &jaguar1_framesizes[0];
+	jaguar1_get_default_format(jaguar1);
 
 	sd = &jaguar1->subdev;
 	v4l2_i2c_subdev_init(sd, client, &jaguar1_subdev_ops);
@@ -862,9 +926,10 @@ static int jaguar1_probe(struct i2c_client *client,
 #endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	jaguar1->pad.flags = MEDIA_PAD_FL_SOURCE;
+	for (index = 0; index < PAD_MAX; index++)
+		jaguar1->pad[index].flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret = media_entity_pads_init(&sd->entity, 1, &jaguar1->pad);
+	ret = media_entity_pads_init(&sd->entity, PAD_MAX, jaguar1->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
