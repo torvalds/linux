@@ -306,6 +306,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
 	TP_ARGS(rq, p, flags), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_post_init_entity_util_avg,
+	TP_PROTO(struct sched_entity *se),
+	TP_ARGS(se), 1);
+
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
