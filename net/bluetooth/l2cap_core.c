@@ -652,7 +652,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	if (test_bit(CONF_NOT_COMPLETE, &chan->conf_state))
 		return;
 
-	switch(chan->mode) {
+	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
 		break;
 
@@ -7770,7 +7770,8 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	return conn;
 }
 
-static bool is_valid_psm(u16 psm, u8 dst_type) {
+static bool is_valid_psm(u16 psm, u8 dst_type)
+{
 	if (!psm)
 		return false;
 

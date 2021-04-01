@@ -1647,9 +1647,8 @@ static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 {
 	u8 scan_rsp_len = 0;
 
-	if (hdev->appearance) {
+	if (hdev->appearance)
 		scan_rsp_len = append_appearance(hdev, ptr, scan_rsp_len);
-	}
 
 	return append_local_name(hdev, ptr, scan_rsp_len);
 }
@@ -1667,9 +1666,8 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 
 	instance_flags = adv_instance->flags;
 
-	if ((instance_flags & MGMT_ADV_FLAG_APPEARANCE) && hdev->appearance) {
+	if ((instance_flags & MGMT_ADV_FLAG_APPEARANCE) && hdev->appearance)
 		scan_rsp_len = append_appearance(hdev, ptr, scan_rsp_len);
-	}
 
 	memcpy(&ptr[scan_rsp_len], adv_instance->scan_rsp_data,
 	       adv_instance->scan_rsp_len);

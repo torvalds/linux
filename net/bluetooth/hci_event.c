@@ -5891,7 +5891,7 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 			params->conn_latency = latency;
 			params->supervision_timeout = timeout;
 			store_hint = 0x01;
-		} else{
+		} else {
 			store_hint = 0x00;
 		}
 
