@@ -1255,7 +1255,6 @@ static void can_dellink(struct net_device *dev, struct list_head *head)
 
 static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.kind		= "can",
-	.netns_refund	= true,
 	.maxtype	= IFLA_CAN_MAX,
 	.policy		= can_policy,
 	.setup		= can_setup,
