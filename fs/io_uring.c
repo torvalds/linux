@@ -4323,9 +4323,11 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
-	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	sr->len = READ_ONCE(sqe->len);
+	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
+	if (sr->msg_flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -4354,12 +4356,9 @@ static int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 		kmsg = &iomsg;
 	}
 
-	flags = req->sr_msg.msg_flags | MSG_NOSIGNAL;
-	if (flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
-	else if (issue_flags & IO_URING_F_NONBLOCK)
+	flags = req->sr_msg.msg_flags;
+	if (issue_flags & IO_URING_F_NONBLOCK)
 		flags |= MSG_DONTWAIT;
-
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
@@ -4402,12 +4401,9 @@ static int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
 
-	flags = req->sr_msg.msg_flags | MSG_NOSIGNAL;
-	if (flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
-	else if (issue_flags & IO_URING_F_NONBLOCK)
+	flags = req->sr_msg.msg_flags;
+	if (issue_flags & IO_URING_F_NONBLOCK)
 		flags |= MSG_DONTWAIT;
-
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
 
@@ -4550,10 +4546,12 @@ static int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
-	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	sr->len = READ_ONCE(sqe->len);
 	sr->bgid = READ_ONCE(sqe->buf_group);
+	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
+	if (sr->msg_flags & MSG_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -4594,12 +4592,9 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 				1, req->sr_msg.len);
 	}
 
-	flags = req->sr_msg.msg_flags | MSG_NOSIGNAL;
-	if (flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
-	else if (force_nonblock)
+	flags = req->sr_msg.msg_flags;
+	if (force_nonblock)
 		flags |= MSG_DONTWAIT;
-
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
@@ -4657,12 +4652,9 @@ static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_iocb = NULL;
 	msg.msg_flags = 0;
 
-	flags = req->sr_msg.msg_flags | MSG_NOSIGNAL;
-	if (flags & MSG_DONTWAIT)
-		req->flags |= REQ_F_NOWAIT;
-	else if (force_nonblock)
+	flags = req->sr_msg.msg_flags;
+	if (force_nonblock)
 		flags |= MSG_DONTWAIT;
-
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
 
