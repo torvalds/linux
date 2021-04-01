@@ -2120,7 +2120,7 @@ config KEEMBAY_WATCHDOG
 	 This option enable support for an In-secure watchdog timer driver for
 	 Intel Keem Bay SoC. This WDT has a 32 bit timer and decrements in every
 	 count unit. An interrupt will be triggered, when the count crosses
-	 the thershold configured in the register.
+	 the threshold configured in the register.
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called keembay_wdt.
