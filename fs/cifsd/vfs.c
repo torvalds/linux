@@ -190,14 +190,32 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 
 	mode |= S_IFDIR;
 	err = vfs_mkdir(&init_user_ns, d_inode(path.dentry), dentry, mode);
-	if (!err) {
-		ksmbd_vfs_inherit_owner(work, d_inode(path.dentry),
-			d_inode(dentry));
-	} else {
-		ksmbd_err("mkdir(%s): creation failed (err:%d)\n", name, err);
-	}
+	if (err)
+		goto out;
+	else if (d_unhashed(dentry)) {
+		struct dentry *d;
 
+		d = lookup_one_len(dentry->d_name.name,
+			       dentry->d_parent,
+			       dentry->d_name.len);
+		if (IS_ERR(d)) {
+			err = PTR_ERR(d);
+			goto out;
+		}
+		if (unlikely(d_is_negative(d))) {
+			dput(d);
+			err = -ENOENT;
+			goto out;
+		}
+
+		ksmbd_vfs_inherit_owner(work, d_inode(path.dentry),
+			d_inode(d));
+		dput(d);
+	}
+out:
 	done_path_create(&path, dentry);
+	if (err)
+		ksmbd_err("mkdir(%s): creation failed (err:%d)\n", name, err);
 	return err;
 }
 
