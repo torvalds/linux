@@ -2701,6 +2701,17 @@ int iommu_enable_nesting(struct iommu_domain *domain)
 }
 EXPORT_SYMBOL_GPL(iommu_enable_nesting);
 
+int iommu_set_pgtable_quirks(struct iommu_domain *domain,
+		unsigned long quirk)
+{
+	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
+		return -EINVAL;
+	if (!domain->ops->set_pgtable_quirks)
+		return -EINVAL;
+	return domain->ops->set_pgtable_quirks(domain, quirk);
+}
+EXPORT_SYMBOL_GPL(iommu_set_pgtable_quirks);
+
 void iommu_get_resv_regions(struct device *dev, struct list_head *list)
 {
 	const struct iommu_ops *ops = dev->bus->iommu_ops;

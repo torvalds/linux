@@ -107,7 +107,6 @@ enum iommu_cap {
  */
 
 enum iommu_attr {
-	DOMAIN_ATTR_IO_PGTABLE_CFG,
 	DOMAIN_ATTR_MAX,
 };
 
@@ -209,6 +208,7 @@ struct iommu_iotlb_gather {
  * @domain_get_attr: Query domain attributes
  * @domain_set_attr: Change domain attributes
  * @enable_nesting: Enable nesting
+ * @set_pgtable_quirks: Set io page table quirks (IO_PGTABLE_QUIRK_*)
  * @get_resv_regions: Request list of reserved regions for a device
  * @put_resv_regions: Free list of reserved regions for a device
  * @apply_resv_region: Temporary helper call-back for iova reserved ranges
@@ -262,6 +262,8 @@ struct iommu_ops {
 	int (*domain_set_attr)(struct iommu_domain *domain,
 			       enum iommu_attr attr, void *data);
 	int (*enable_nesting)(struct iommu_domain *domain);
+	int (*set_pgtable_quirks)(struct iommu_domain *domain,
+				  unsigned long quirks);
 
 	/* Request/Free a list of reserved regions for a device */
 	void (*get_resv_regions)(struct device *dev, struct list_head *list);
@@ -512,6 +514,8 @@ extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 int iommu_enable_nesting(struct iommu_domain *domain);
+int iommu_set_pgtable_quirks(struct iommu_domain *domain,
+		unsigned long quirks);
 
 void iommu_set_dma_strict(bool val);
 bool iommu_get_dma_strict(struct iommu_domain *domain);
@@ -889,6 +893,12 @@ static inline int iommu_domain_set_attr(struct iommu_domain *domain,
 					enum iommu_attr attr, void *data)
 {
 	return -EINVAL;
+}
+
+static inline int iommu_set_pgtable_quirks(struct iommu_domain *domain,
+		unsigned long quirks)
+{
+	return 0;
 }
 
 static inline int  iommu_device_register(struct iommu_device *iommu)
