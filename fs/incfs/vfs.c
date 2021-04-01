@@ -1618,18 +1618,29 @@ static int incfs_getattr(struct user_namespace *ns, const struct path *path,
 {
 	struct inode *inode = d_inode(path->dentry);
 
+	generic_fillattr(ns, inode, stat);
+
+	stat->attributes &= ~STATX_ATTR_VERITY;
 	if (IS_VERITY(inode))
 		stat->attributes |= STATX_ATTR_VERITY;
 	stat->attributes_mask |= STATX_ATTR_VERITY;
-	generic_fillattr(ns, inode, stat);
 
-	/*
-	 * TODO: stat->blocks is wrong at this point. It should be number of
-	 * blocks in the backing file. But that information is not (necessarily)
-	 * available yet - incfs_open_dir_file may not have been called.
-	 * Solution is probably to store the backing file block count in an
-	 * xattr whenever it's changed.
-	 */
+	if (request_mask & STATX_BLOCKS) {
+		struct kstat backing_kstat;
+		struct dentry_info *di = get_incfs_dentry(path->dentry);
+		int error = 0;
+		struct path *backing_path;
+
+		if (!di)
+			return -EFSCORRUPTED;
+		backing_path = &di->backing_path;
+		error = vfs_getattr(backing_path, &backing_kstat, STATX_BLOCKS,
+				    AT_STATX_SYNC_AS_STAT);
+		if (error)
+			return error;
+
+		stat->blocks = backing_kstat.blocks;
+	}
 
 	return 0;
 }
