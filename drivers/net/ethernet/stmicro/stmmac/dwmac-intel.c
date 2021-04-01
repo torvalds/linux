@@ -924,7 +924,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	/* Enable pci device */
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: ERROR: failed to enable device\n",
 			__func__);
@@ -1006,13 +1006,9 @@ static void intel_eth_pci_remove(struct pci_dev *pdev)
 
 	stmmac_dvr_remove(&pdev->dev);
 
-	pci_free_irq_vectors(pdev);
-
 	clk_unregister_fixed_rate(priv->plat->stmmac_clk);
 
 	pcim_iounmap_regions(pdev, BIT(0));
-
-	pci_disable_device(pdev);
 }
 
 static int __maybe_unused intel_eth_pci_suspend(struct device *dev)
@@ -1028,7 +1024,6 @@ static int __maybe_unused intel_eth_pci_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	pci_disable_device(pdev);
 	pci_wake_from_d3(pdev, true);
 	return 0;
 }
@@ -1041,7 +1036,7 @@ static int __maybe_unused intel_eth_pci_resume(struct device *dev)
 	pci_restore_state(pdev);
 	pci_set_power_state(pdev, PCI_D0);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
