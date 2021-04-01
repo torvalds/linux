@@ -18,12 +18,6 @@ struct dma_window {
 
 struct fsl_dma_domain {
 	/*
-	 * Indicates the geometry size for the domain.
-	 * This would be set when the geometry is
-	 * configured for the domain.
-	 */
-	dma_addr_t			geom_size;
-	/*
 	 * Number of windows assocaited with this domain.
 	 * During domain initialization, it is set to the
 	 * the maximum number of subwindows allowed for a LIODN.
