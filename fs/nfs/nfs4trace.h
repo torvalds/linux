@@ -701,7 +701,7 @@ TRACE_EVENT(nfs4_xdr_bad_operation,
 		)
 );
 
-TRACE_EVENT(nfs4_xdr_status,
+DECLARE_EVENT_CLASS(nfs4_xdr_event,
 		TP_PROTO(
 			const struct xdr_stream *xdr,
 			u32 op,
@@ -736,6 +736,15 @@ TRACE_EVENT(nfs4_xdr_status,
 			__entry->op
 		)
 );
+#define DEFINE_NFS4_XDR_EVENT(name) \
+	DEFINE_EVENT(nfs4_xdr_event, name, \
+			TP_PROTO( \
+				const struct xdr_stream *xdr, \
+				u32 op, \
+				u32 error \
+			), \
+			TP_ARGS(xdr, op, error))
+DEFINE_NFS4_XDR_EVENT(nfs4_xdr_status);
 
 DECLARE_EVENT_CLASS(nfs4_cb_error_class,
 		TP_PROTO(

@@ -1401,7 +1401,7 @@ TRACE_DEFINE_ENUM(NFSERR_JUKEBOX);
 			{ NFSERR_BADTYPE, "BADTYPE" }, \
 			{ NFSERR_JUKEBOX, "JUKEBOX" })
 
-TRACE_EVENT(nfs_xdr_status,
+DECLARE_EVENT_CLASS(nfs_xdr_event,
 		TP_PROTO(
 			const struct xdr_stream *xdr,
 			int error
@@ -1443,6 +1443,14 @@ TRACE_EVENT(nfs_xdr_status,
 			nfs_show_status(__entry->error)
 		)
 );
+#define DEFINE_NFS_XDR_EVENT(name) \
+	DEFINE_EVENT(nfs_xdr_event, name, \
+			TP_PROTO( \
+				const struct xdr_stream *xdr, \
+				int error \
+			), \
+			TP_ARGS(xdr, error))
+DEFINE_NFS_XDR_EVENT(nfs_xdr_status);
 
 #endif /* _TRACE_NFS_H */
 
