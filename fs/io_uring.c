@@ -207,6 +207,11 @@ struct io_overflow_cqe {
 	struct list_head list;
 };
 
+struct io_fixed_file {
+	/* file * with additional FFS_* flags */
+	unsigned long file_ptr;
+};
+
 struct io_rsrc_put {
 	struct list_head list;
 	union {
@@ -216,7 +221,7 @@ struct io_rsrc_put {
 };
 
 struct fixed_rsrc_table {
-	struct file		**files;
+	struct io_fixed_file *files;
 };
 
 struct io_rsrc_node {
@@ -6275,8 +6280,8 @@ static void io_wq_submit_work(struct io_wq_work *work)
 #endif
 #define FFS_MASK		~(FFS_ASYNC_READ|FFS_ASYNC_WRITE|FFS_ISREG)
 
-static inline struct file **io_fixed_file_slot(struct io_rsrc_data *file_data,
-					       unsigned i)
+static inline struct io_fixed_file *io_fixed_file_slot(struct io_rsrc_data *file_data,
+						      unsigned i)
 {
 	struct fixed_rsrc_table *table;
 
@@ -6287,12 +6292,12 @@ static inline struct file **io_fixed_file_slot(struct io_rsrc_data *file_data,
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 					      int index)
 {
-	struct file **file_slot = io_fixed_file_slot(ctx->file_data, index);
+	struct io_fixed_file *slot = io_fixed_file_slot(ctx->file_data, index);
 
-	return (struct file *) ((unsigned long) *file_slot & FFS_MASK);
+	return (struct file *) (slot->file_ptr & FFS_MASK);
 }
 
-static void io_fixed_file_set(struct file **file_slot, struct file *file)
+static void io_fixed_file_set(struct io_fixed_file *file_slot, struct file *file)
 {
 	unsigned long file_ptr = (unsigned long) file;
 
@@ -6302,7 +6307,7 @@ static void io_fixed_file_set(struct file **file_slot, struct file *file)
 		file_ptr |= FFS_ASYNC_WRITE;
 	if (S_ISREG(file_inode(file)->i_mode))
 		file_ptr |= FFS_ISREG;
-	*file_slot = (struct file *)file_ptr;
+	file_slot->file_ptr = file_ptr;
 }
 
 static struct file *io_file_get(struct io_submit_state *state,
@@ -6317,7 +6322,7 @@ static struct file *io_file_get(struct io_submit_state *state,
 		if (unlikely((unsigned int)fd >= ctx->nr_user_files))
 			return NULL;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
-		file_ptr = (unsigned long) *io_fixed_file_slot(ctx->file_data, fd);
+		file_ptr = io_fixed_file_slot(ctx->file_data, fd)->file_ptr;
 		file = (struct file *) (file_ptr & FFS_MASK);
 		file_ptr &= ~FFS_MASK;
 		/* mask in overlapping REQ_F and FFS bits */
@@ -7756,7 +7761,8 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 unsigned nr_args)
 {
 	struct io_rsrc_data *data = ctx->file_data;
-	struct file *file, **file_slot;
+	struct io_fixed_file *file_slot;
+	struct file *file;
 	__s32 __user *fds;
 	int fd, i, err;
 	__u32 done;
@@ -7783,12 +7789,12 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		i = array_index_nospec(up->offset + done, ctx->nr_user_files);
 		file_slot = io_fixed_file_slot(ctx->file_data, i);
 
-		if (*file_slot) {
-			file = (struct file *) ((unsigned long) *file_slot & FFS_MASK);
+		if (file_slot->file_ptr) {
+			file = (struct file *)(file_slot->file_ptr & FFS_MASK);
 			err = io_queue_rsrc_removal(data, ctx->rsrc_node, file);
 			if (err)
 				break;
-			*file_slot = NULL;
+			file_slot->file_ptr = 0;
 			needs_switch = true;
 		}
 		if (fd != -1) {
@@ -7813,7 +7819,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			io_fixed_file_set(file_slot, file);
 			err = io_sqe_file_register(ctx, file, i);
 			if (err) {
-				*file_slot = NULL;
+				file_slot->file_ptr = 0;
 				fput(file);
 				break;
 			}
