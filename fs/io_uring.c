@@ -194,7 +194,7 @@ enum io_uring_cmd_flags {
 
 struct io_mapped_ubuf {
 	u64		ubuf;
-	size_t		len;
+	u64		ubuf_end;
 	struct		bio_vec *bvec;
 	unsigned int	nr_bvecs;
 	unsigned long	acct_pages;
@@ -2797,7 +2797,7 @@ static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter)
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
-	if (buf_addr < imu->ubuf || buf_end > imu->ubuf + imu->len)
+	if (unlikely(buf_addr < imu->ubuf || buf_end > imu->ubuf_end))
 		return -EFAULT;
 
 	/*
@@ -8319,7 +8319,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	}
 	/* store original address for later verification */
 	imu->ubuf = ubuf;
-	imu->len = iov->iov_len;
+	imu->ubuf_end = ubuf + iov->iov_len;
 	imu->nr_bvecs = nr_pages;
 	ret = 0;
 done:
@@ -9378,9 +9378,9 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 	seq_printf(m, "UserBufs:\t%u\n", ctx->nr_user_bufs);
 	for (i = 0; has_lock && i < ctx->nr_user_bufs; i++) {
 		struct io_mapped_ubuf *buf = &ctx->user_bufs[i];
+		unsigned int len = buf->ubuf_end - buf->ubuf;
 
-		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf,
-						(unsigned int) buf->len);
+		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, len);
 	}
 	if (has_lock && !xa_empty(&ctx->personalities)) {
 		unsigned long index;
