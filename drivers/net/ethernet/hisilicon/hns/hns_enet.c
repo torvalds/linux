@@ -1235,7 +1235,7 @@ static int hns_nic_init_affinity_mask(int q_num, int ring_idx,
 {
 	int cpu;
 
-	/* Diffrent irq banlance between 16core and 32core.
+	/* Different irq balance between 16core and 32core.
 	 * The cpu mask set by ring index according to the ring flag
 	 * which indicate the ring is tx or rx.
 	 */
@@ -1592,7 +1592,7 @@ static void hns_disable_serdes_lb(struct net_device *ndev)
  *       which buffer size is 4096.
  *    2. we set the chip serdes loopback and set rss indirection to the ring.
  *    3. construct 64-bytes ip broadcast packages, wait the associated rx ring
- *       recieving all packages and it will fetch new descriptions.
+ *       receiving all packages and it will fetch new descriptions.
  *    4. recover to the original state.
  *
  *@ndev: net device
@@ -1621,7 +1621,7 @@ static int hns_nic_clear_all_rx_fetch(struct net_device *ndev)
 	if (!org_indir)
 		return -ENOMEM;
 
-	/* store the orginal indirection */
+	/* store the original indirection */
 	ops->get_rss(h, org_indir, NULL, NULL);
 
 	cur_indir = kzalloc(indir_size, GFP_KERNEL);
