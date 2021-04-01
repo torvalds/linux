@@ -824,6 +824,8 @@ void post_init_entity_util_avg(struct task_struct *p)
 		return;
 	}
 
+	/* Hook before this se's util is attached to cfs_rq's util */
+	trace_android_rvh_post_init_entity_util_avg(se);
 	attach_entity_cfs_rq(se);
 }
 
