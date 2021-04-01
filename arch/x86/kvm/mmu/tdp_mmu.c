@@ -1257,7 +1257,8 @@ static bool zap_collapsible_spte_range(struct kvm *kvm,
 	rcu_read_lock();
 
 	tdp_root_for_each_pte(iter, root, start, end) {
-		if (tdp_mmu_iter_cond_resched(kvm, &iter, flush, false)) {
+retry:
+		if (tdp_mmu_iter_cond_resched(kvm, &iter, flush, true)) {
 			flush = false;
 			continue;
 		}
@@ -1272,8 +1273,14 @@ static bool zap_collapsible_spte_range(struct kvm *kvm,
 							    pfn, PG_LEVEL_NUM))
 			continue;
 
-		tdp_mmu_set_spte(kvm, &iter, 0);
-
+		if (!tdp_mmu_zap_spte_atomic(kvm, &iter)) {
+			/*
+			 * The iter must explicitly re-read the SPTE because
+			 * the atomic cmpxchg failed.
+			 */
+			iter.old_spte = READ_ONCE(*rcu_dereference(iter.sptep));
+			goto retry;
+		}
 		flush = true;
 	}
 
@@ -1292,7 +1299,9 @@ bool kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 {
 	struct kvm_mmu_page *root;
 
-	for_each_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, false)
+	lockdep_assert_held_read(&kvm->mmu_lock);
+
+	for_each_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, true)
 		flush = zap_collapsible_spte_range(kvm, root, slot, flush);
 
 	return flush;
