@@ -634,17 +634,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 		 stream->id, ispbuf->buff_addr[0]);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-
-	/* XXX: replace dummy to speed up  */
-	if (stream->streaming &&
-	    !stream->next_buf &&
-	    !stream->interlaced &&
-	    atomic_read(&stream->ispdev->isp_sdev.frm_sync_seq) == 0) {
-		stream->next_buf = ispbuf;
-		stream->ops->update_mi(stream);
-	} else {
-		list_add_tail(&ispbuf->queue, &stream->buf_queue);
-	}
+	list_add_tail(&ispbuf->queue, &stream->buf_queue);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
