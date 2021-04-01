@@ -29,6 +29,10 @@
  *    The framework needs some proper extension to support multi power
  *    domain cases.
  *
+ *    Update: Genpd assigns the ->of_node for the virtual device before it
+ *    invokes ->attach_dev() callback, hence parsing for device resources via
+ *    DT should work fine.
+ *
  * 2. It also breaks most of current drivers as the driver probe sequence
  *    behavior changed if removing ->power_on|off() callback and use
  *    ->start() and ->stop() instead. genpd_dev_pm_attach will only power
@@ -39,8 +43,11 @@
  *    domain enabled will trigger a HW access error. That means we need fix
  *    most drivers probe sequence with proper runtime pm.
  *
- * In summary, we need fix above two issue before being able to switch to
- * the "single global power domain" way.
+ *    Update: Runtime PM support isn't necessary. Instead, this can easily be
+ *    fixed in drivers by adding a call to dev_pm_domain_start() during probe.
+ *
+ * In summary, the second part needs to be addressed via minor updates to the
+ * relevant drivers, before the "single global power domain" model can be used.
  *
  */
 
@@ -85,6 +92,8 @@ struct imx_sc_pd_soc {
 	const struct imx_sc_pd_range *pd_ranges;
 	u8 num_ranges;
 };
+
+static int imx_con_rsrc;
 
 static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	/* LSIO SS */
@@ -134,7 +143,7 @@ static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	{ "can", IMX_SC_R_CAN_0, 3, true, 0 },
 	{ "ftm", IMX_SC_R_FTM_0, 2, true, 0 },
 	{ "lpi2c", IMX_SC_R_I2C_0, 4, true, 0 },
-	{ "adc", IMX_SC_R_ADC_0, 1, true, 0 },
+	{ "adc", IMX_SC_R_ADC_0, 2, true, 0 },
 	{ "lcd", IMX_SC_R_LCD_0, 1, true, 0 },
 	{ "lcd0-pwm", IMX_SC_R_LCD_0_PWM_0, 1, true, 0 },
 	{ "lpuart", IMX_SC_R_UART_0, 4, true, 0 },
@@ -207,6 +216,23 @@ to_imx_sc_pd(struct generic_pm_domain *genpd)
 	return container_of(genpd, struct imx_sc_pm_domain, pd);
 }
 
+static void imx_sc_pd_get_console_rsrc(void)
+{
+	struct of_phandle_args specs;
+	int ret;
+
+	if (!of_stdout)
+		return;
+
+	ret = of_parse_phandle_with_args(of_stdout, "power-domains",
+					 "#power-domain-cells",
+					 0, &specs);
+	if (ret)
+		return;
+
+	imx_con_rsrc = specs.args[0];
+}
+
 static int imx_sc_pd_power(struct generic_pm_domain *domain, bool power_on)
 {
 	struct imx_sc_msg_req_set_resource_power_mode msg;
@@ -267,6 +293,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 		      const struct imx_sc_pd_range *pd_ranges)
 {
 	struct imx_sc_pm_domain *sc_pd;
+	bool is_off = true;
 	int ret;
 
 	if (!imx_sc_rm_is_resource_owned(pm_ipc_handle, pd_ranges->rsrc + idx))
@@ -288,6 +315,10 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 			 "%s", pd_ranges->name);
 
 	sc_pd->pd.name = sc_pd->name;
+	if (imx_con_rsrc == sc_pd->rsrc) {
+		sc_pd->pd.flags = GENPD_FLAG_RPM_ALWAYS_ON;
+		is_off = false;
+	}
 
 	if (sc_pd->rsrc >= IMX_SC_R_LAST) {
 		dev_warn(dev, "invalid pd %s rsrc id %d found",
@@ -297,7 +328,7 @@ imx_scu_add_pm_domain(struct device *dev, int idx,
 		return NULL;
 	}
 
-	ret = pm_genpd_init(&sc_pd->pd, NULL, true);
+	ret = pm_genpd_init(&sc_pd->pd, NULL, is_off);
 	if (ret) {
 		dev_warn(dev, "failed to init pd %s rsrc id %d",
 			 sc_pd->name, sc_pd->rsrc);
@@ -362,6 +393,8 @@ static int imx_sc_pd_probe(struct platform_device *pdev)
 	pd_soc = of_device_get_match_data(&pdev->dev);
 	if (!pd_soc)
 		return -ENODEV;
+
+	imx_sc_pd_get_console_rsrc();
 
 	return imx_scu_init_pm_domains(&pdev->dev, pd_soc);
 }
