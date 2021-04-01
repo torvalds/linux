@@ -11,8 +11,6 @@
 #include <scsi/fc/fc_fip.h>
 #include <scsi/fc/fc_fc2.h>
 #include <scsi/scsi_tcq.h>
-#include <linux/version.h>
-
 
 /* qedf_hsi.h needs to before included any qed includes */
 #include "qedf_hsi.h"
