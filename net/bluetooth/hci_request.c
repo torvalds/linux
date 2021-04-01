@@ -2950,6 +2950,9 @@ static int bredr_inquiry(struct hci_request *req, unsigned long opt)
 	const u8 liac[3] = { 0x00, 0x8b, 0x9e };
 	struct hci_cp_inquiry cp;
 
+	if (test_bit(HCI_INQUIRY, &req->hdev->flags))
+		return 0;
+
 	bt_dev_dbg(req->hdev, "");
 
 	hci_dev_lock(req->hdev);
