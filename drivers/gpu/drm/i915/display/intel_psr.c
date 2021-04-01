@@ -655,6 +655,13 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	u32 exit_scanlines;
 
 	/*
+	 * FIXME: Due to the changed sequence of activating/deactivating DC3CO,
+	 * disable DC3CO until the changed dc3co activating/deactivating sequence
+	 * is applied. B.Specs:49196
+	 */
+	return;
+
+	/*
 	 * DMC's DC3CO exit mechanism has an issue with Selective Fecth
 	 * TODO: when the issue is addressed, this restriction should be removed.
 	 */
