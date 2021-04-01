@@ -4396,8 +4396,7 @@ int __init intel_iommu_init(void)
 		iommu_device_sysfs_add(&iommu->iommu, NULL,
 				       intel_iommu_groups,
 				       "%s", iommu->name);
-		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
-		iommu_device_register(&iommu->iommu);
+		iommu_device_register(&iommu->iommu, &intel_iommu_ops, NULL);
 	}
 	up_read(&dmar_global_lock);
 

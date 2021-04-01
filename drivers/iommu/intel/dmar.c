@@ -1140,9 +1140,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		if (err)
 			goto err_unmap;
 
-		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
-
-		err = iommu_device_register(&iommu->iommu);
+		err = iommu_device_register(&iommu->iommu, &intel_iommu_ops, NULL);
 		if (err)
 			goto err_unmap;
 	}

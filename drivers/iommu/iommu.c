@@ -142,8 +142,25 @@ static int __init iommu_subsys_init(void)
 }
 subsys_initcall(iommu_subsys_init);
 
-int iommu_device_register(struct iommu_device *iommu)
+/**
+ * iommu_device_register() - Register an IOMMU hardware instance
+ * @iommu: IOMMU handle for the instance
+ * @ops:   IOMMU ops to associate with the instance
+ * @hwdev: (optional) actual instance device, used for fwnode lookup
+ *
+ * Return: 0 on success, or an error.
+ */
+int iommu_device_register(struct iommu_device *iommu,
+			  const struct iommu_ops *ops, struct device *hwdev)
 {
+	/* We need to be able to take module references appropriately */
+	if (WARN_ON(is_module_address((unsigned long)ops) && !ops->owner))
+		return -EINVAL;
+
+	iommu->ops = ops;
+	if (hwdev)
+		iommu->fwnode = hwdev->fwnode;
+
 	spin_lock(&iommu_device_lock);
 	list_add_tail(&iommu->list, &iommu_device_list);
 	spin_unlock(&iommu_device_lock);

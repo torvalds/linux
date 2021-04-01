@@ -474,9 +474,7 @@ int __init pamu_domain_init(void)
 	if (ret)
 		return ret;
 
-	iommu_device_set_ops(&pamu_iommu, &fsl_pamu_ops);
-
-	ret = iommu_device_register(&pamu_iommu);
+	ret = iommu_device_register(&pamu_iommu, &fsl_pamu_ops, NULL);
 	if (ret) {
 		iommu_device_sysfs_remove(&pamu_iommu);
 		pr_err("Can't register iommu device\n");

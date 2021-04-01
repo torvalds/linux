@@ -508,10 +508,7 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 	if (ret)
 		goto put_group;
 
-	iommu_device_set_ops(&sdev->iommu, &sprd_iommu_ops);
-	iommu_device_set_fwnode(&sdev->iommu, &dev->of_node->fwnode);
-
-	ret = iommu_device_register(&sdev->iommu);
+	ret = iommu_device_register(&sdev->iommu, &sprd_iommu_ops, dev);
 	if (ret)
 		goto remove_sysfs;
 
