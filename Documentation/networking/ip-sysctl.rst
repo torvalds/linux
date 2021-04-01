@@ -1073,7 +1073,9 @@ ip_local_reserved_ports - list of comma separated ranges
 
 	although this is redundant. However such a setting is useful
 	if later the port range is changed to a value that will
-	include the reserved ports.
+	include the reserved ports. Also keep in mind, that overlapping
+	of these ranges may affect probability of selecting ephemeral
+	ports which are right after block of reserved ports.
 
 	Default: Empty
 
