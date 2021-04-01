@@ -221,10 +221,6 @@ struct nlm_cop2_state {
 #define COP2_INIT
 #endif
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 #ifdef CONFIG_CPU_HAS_MSA
 # define ARCH_MIN_TASKALIGN	16
 # define FPU_ALIGN		__aligned(16)
