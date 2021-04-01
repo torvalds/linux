@@ -96,21 +96,18 @@ struct mbox_cmd {
  * @dev: driver core device object
  * @cdev: char dev core object for ioctl operations
  * @cxlm: pointer to the parent device driver data
- * @ops_active: active user of @cxlm in ops handlers
- * @ops_dead: completion when all @cxlm ops users have exited
  * @id: id number of this memdev instance.
  */
 struct cxl_memdev {
 	struct device dev;
 	struct cdev cdev;
 	struct cxl_mem *cxlm;
-	struct percpu_ref ops_active;
-	struct completion ops_dead;
 	int id;
 };
 
 static int cxl_mem_major;
 static DEFINE_IDA(cxl_memdev_ida);
+static DECLARE_RWSEM(cxl_memdev_rwsem);
 static struct dentry *cxl_debugfs;
 static bool cxl_raw_allow_all;
 
@@ -776,26 +773,43 @@ static long __cxl_memdev_ioctl(struct cxl_memdev *cxlmd, unsigned int cmd,
 static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	struct cxl_memdev *cxlmd;
-	struct inode *inode;
-	int rc = -ENOTTY;
+	struct cxl_memdev *cxlmd = file->private_data;
+	int rc = -ENXIO;
 
-	inode = file_inode(file);
-	cxlmd = container_of(inode->i_cdev, typeof(*cxlmd), cdev);
-
-	if (!percpu_ref_tryget_live(&cxlmd->ops_active))
-		return -ENXIO;
-
-	rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
-
-	percpu_ref_put(&cxlmd->ops_active);
+	down_read(&cxl_memdev_rwsem);
+	if (cxlmd->cxlm)
+		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
+	up_read(&cxl_memdev_rwsem);
 
 	return rc;
+}
+
+static int cxl_memdev_open(struct inode *inode, struct file *file)
+{
+	struct cxl_memdev *cxlmd =
+		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+
+	get_device(&cxlmd->dev);
+	file->private_data = cxlmd;
+
+	return 0;
+}
+
+static int cxl_memdev_release_file(struct inode *inode, struct file *file)
+{
+	struct cxl_memdev *cxlmd =
+		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+
+	put_device(&cxlmd->dev);
+
+	return 0;
 }
 
 static const struct file_operations cxl_memdev_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = cxl_memdev_ioctl,
+	.open = cxl_memdev_open,
+	.release = cxl_memdev_release_file,
 	.compat_ioctl = compat_ptr_ioctl,
 	.llseek = noop_llseek,
 };
@@ -1049,7 +1063,6 @@ static void cxl_memdev_release(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
-	percpu_ref_exit(&cxlmd->ops_active);
 	ida_free(&cxl_memdev_ida, cxlmd->id);
 	kfree(cxlmd);
 }
@@ -1150,24 +1163,21 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
-static void cxlmdev_unregister(void *_cxlmd)
+static void cxl_memdev_shutdown(struct cxl_memdev *cxlmd)
+{
+	down_write(&cxl_memdev_rwsem);
+	cxlmd->cxlm = NULL;
+	up_write(&cxl_memdev_rwsem);
+}
+
+static void cxl_memdev_unregister(void *_cxlmd)
 {
 	struct cxl_memdev *cxlmd = _cxlmd;
 	struct device *dev = &cxlmd->dev;
 
-	percpu_ref_kill(&cxlmd->ops_active);
 	cdev_device_del(&cxlmd->cdev, dev);
-	wait_for_completion(&cxlmd->ops_dead);
-	cxlmd->cxlm = NULL;
+	cxl_memdev_shutdown(cxlmd);
 	put_device(dev);
-}
-
-static void cxlmdev_ops_active_release(struct percpu_ref *ref)
-{
-	struct cxl_memdev *cxlmd =
-		container_of(ref, typeof(*cxlmd), ops_active);
-
-	complete(&cxlmd->ops_dead);
 }
 
 static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
@@ -1181,17 +1191,6 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	cxlmd = kzalloc(sizeof(*cxlmd), GFP_KERNEL);
 	if (!cxlmd)
 		return -ENOMEM;
-	init_completion(&cxlmd->ops_dead);
-
-	/*
-	 * @cxlm is deallocated when the driver unbinds so operations
-	 * that are using it need to hold a live reference.
-	 */
-	cxlmd->cxlm = cxlm;
-	rc = percpu_ref_init(&cxlmd->ops_active, cxlmdev_ops_active_release, 0,
-			     GFP_KERNEL);
-	if (rc)
-		goto err_ref;
 
 	rc = ida_alloc_range(&cxl_memdev_ida, 0, CXL_MEM_MAX_DEVS, GFP_KERNEL);
 	if (rc < 0)
@@ -1209,23 +1208,27 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	cdev = &cxlmd->cdev;
 	cdev_init(cdev, &cxl_memdev_fops);
 
+	/*
+	 * Activate ioctl operations, no cxl_memdev_rwsem manipulation
+	 * needed as this is ordered with cdev_add() publishing the device.
+	 */
+	cxlmd->cxlm = cxlm;
+
 	rc = cdev_device_add(cdev, dev);
 	if (rc)
 		goto err_add;
 
-	return devm_add_action_or_reset(dev->parent, cxlmdev_unregister, cxlmd);
+	return devm_add_action_or_reset(dev->parent, cxl_memdev_unregister,
+					cxlmd);
 
 err_add:
+	/*
+	 * The cdev was briefly live, shutdown any ioctl operations that
+	 * saw that state.
+	 */
+	cxl_memdev_shutdown(cxlmd);
 	ida_free(&cxl_memdev_ida, cxlmd->id);
 err_id:
-	/*
-	 * Theoretically userspace could have already entered the fops,
-	 * so flush ops_active.
-	 */
-	percpu_ref_kill(&cxlmd->ops_active);
-	wait_for_completion(&cxlmd->ops_dead);
-	percpu_ref_exit(&cxlmd->ops_active);
-err_ref:
 	kfree(cxlmd);
 
 	return rc;
