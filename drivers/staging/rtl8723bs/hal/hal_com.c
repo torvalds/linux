@@ -924,13 +924,8 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	c2h_evt->seq = rtw_read8(adapter, REG_C2HEVT_CMD_SEQ_88XX);
 	c2h_evt->plen = rtw_read8(adapter, REG_C2HEVT_CMD_LEN_88XX);
 
-	RT_PRINT_DATA(
-		_module_hal_init_c_,
-		_drv_info_,
-		"c2h_evt_read(): ",
-		&c2h_evt,
-		sizeof(c2h_evt)
-	);
+	print_hex_dump_debug(DRIVER_PREFIX ": c2h_evt_read(): ", DUMP_PREFIX_NONE,
+			     16, 1, &c2h_evt, sizeof(c2h_evt), false);
 
 	DBG_871X(
 		"%s id:%u, len:%u, seq:%u, trigger:0x%02x\n",
@@ -945,8 +940,8 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	for (i = 0; i < c2h_evt->plen; i++)
 		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 2 + i);
 
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): Command Content:\n",
-		c2h_evt->payload, c2h_evt->plen);
+	print_hex_dump_debug(DRIVER_PREFIX ": c2h_evt_read(): Command Content:\n",
+			     DUMP_PREFIX_NONE, 16, 1, c2h_evt->payload, c2h_evt->plen, false);
 
 	ret = _SUCCESS;
 
