@@ -63,19 +63,6 @@ static const struct of_device_id l3_device_ids[] = {
 /* maximum subwindows permitted per liodn */
 static u32 max_subwindow_count;
 
-/* Pool for fspi allocation */
-static struct gen_pool *spaace_pool;
-
-/**
- * pamu_get_max_subwin_cnt() - Return the maximum supported
- * subwindow count per liodn.
- *
- */
-u32 pamu_get_max_subwin_cnt(void)
-{
-	return max_subwindow_count;
-}
-
 /**
  * pamu_get_ppaace() - Return the primary PACCE
  * @liodn: liodn PAACT index for desired PAACE
@@ -155,13 +142,6 @@ static unsigned int map_addrspace_size_to_wse(phys_addr_t addrspace_size)
 	return fls64(addrspace_size) - 2;
 }
 
-/* Derive the PAACE window count encoding for the subwindow count */
-static unsigned int map_subwindow_cnt_to_wce(u32 subwindow_cnt)
-{
-	/* window count is 2^(WCE+1) bytes */
-	return __ffs(subwindow_cnt) - 1;
-}
-
 /*
  * Set the PAACE type as primary and set the coherency required domain
  * attribute
@@ -175,88 +155,10 @@ static void pamu_init_ppaace(struct paace *ppaace)
 }
 
 /*
- * Set the PAACE type as secondary and set the coherency required domain
- * attribute.
- */
-static void pamu_init_spaace(struct paace *spaace)
-{
-	set_bf(spaace->addr_bitfields, PAACE_AF_PT, PAACE_PT_SECONDARY);
-	set_bf(spaace->domain_attr.to_host.coherency_required, PAACE_DA_HOST_CR,
-	       PAACE_M_COHERENCE_REQ);
-}
-
-/*
- * Return the spaace (corresponding to the secondary window index)
- * for a particular ppaace.
- */
-static struct paace *pamu_get_spaace(struct paace *paace, u32 wnum)
-{
-	u32 subwin_cnt;
-	struct paace *spaace = NULL;
-
-	subwin_cnt = 1UL << (get_bf(paace->impl_attr, PAACE_IA_WCE) + 1);
-
-	if (wnum < subwin_cnt)
-		spaace = &spaact[paace->fspi + wnum];
-	else
-		pr_debug("secondary paace out of bounds\n");
-
-	return spaace;
-}
-
-/**
- * pamu_get_fspi_and_allocate() - Allocates fspi index and reserves subwindows
- *                                required for primary PAACE in the secondary
- *                                PAACE table.
- * @subwin_cnt: Number of subwindows to be reserved.
- *
- * A PPAACE entry may have a number of associated subwindows. A subwindow
- * corresponds to a SPAACE entry in the SPAACT table. Each PAACE entry stores
- * the index (fspi) of the first SPAACE entry in the SPAACT table. This
- * function returns the index of the first SPAACE entry. The remaining
- * SPAACE entries are reserved contiguously from that index.
- *
- * Returns a valid fspi index in the range of 0 - SPAACE_NUMBER_ENTRIES on success.
- * If no SPAACE entry is available or the allocator can not reserve the required
- * number of contiguous entries function returns ULONG_MAX indicating a failure.
- *
- */
-static unsigned long pamu_get_fspi_and_allocate(u32 subwin_cnt)
-{
-	unsigned long spaace_addr;
-
-	spaace_addr = gen_pool_alloc(spaace_pool, subwin_cnt * sizeof(struct paace));
-	if (!spaace_addr)
-		return ULONG_MAX;
-
-	return (spaace_addr - (unsigned long)spaact) / (sizeof(struct paace));
-}
-
-/* Release the subwindows reserved for a particular LIODN */
-void pamu_free_subwins(int liodn)
-{
-	struct paace *ppaace;
-	u32 subwin_cnt, size;
-
-	ppaace = pamu_get_ppaace(liodn);
-	if (!ppaace) {
-		pr_debug("Invalid liodn entry\n");
-		return;
-	}
-
-	if (get_bf(ppaace->addr_bitfields, PPAACE_AF_MW)) {
-		subwin_cnt = 1UL << (get_bf(ppaace->impl_attr, PAACE_IA_WCE) + 1);
-		size = (subwin_cnt - 1) * sizeof(struct paace);
-		gen_pool_free(spaace_pool, (unsigned long)&spaact[ppaace->fspi], size);
-		set_bf(ppaace->addr_bitfields, PPAACE_AF_MW, 0);
-	}
-}
-
-/*
  * Function used for updating stash destination for the coressponding
  * LIODN.
  */
-int  pamu_update_paace_stash(int liodn, u32 subwin, u32 value)
+int pamu_update_paace_stash(int liodn, u32 value)
 {
 	struct paace *paace;
 
@@ -264,38 +166,8 @@ int  pamu_update_paace_stash(int liodn, u32 subwin, u32 value)
 	if (!paace) {
 		pr_debug("Invalid liodn entry\n");
 		return -ENOENT;
-	}
-	if (subwin) {
-		paace = pamu_get_spaace(paace, subwin - 1);
-		if (!paace)
-			return -ENOENT;
 	}
 	set_bf(paace->impl_attr, PAACE_IA_CID, value);
-
-	mb();
-
-	return 0;
-}
-
-/* Disable a subwindow corresponding to the LIODN */
-int pamu_disable_spaace(int liodn, u32 subwin)
-{
-	struct paace *paace;
-
-	paace = pamu_get_ppaace(liodn);
-	if (!paace) {
-		pr_debug("Invalid liodn entry\n");
-		return -ENOENT;
-	}
-	if (subwin) {
-		paace = pamu_get_spaace(paace, subwin - 1);
-		if (!paace)
-			return -ENOENT;
-		set_bf(paace->addr_bitfields, PAACE_AF_V, PAACE_V_INVALID);
-	} else {
-		set_bf(paace->addr_bitfields, PAACE_AF_AP,
-		       PAACE_AP_PERMS_DENIED);
-	}
 
 	mb();
 
@@ -314,17 +186,15 @@ int pamu_disable_spaace(int liodn, u32 subwin)
  *	     stashid not defined
  * @snoopid: snoop id for hardware coherency -- if ~snoopid == 0 then
  *	     snoopid not defined
- * @subwin_cnt: number of sub-windows
  * @prot: window permissions
  *
  * Returns 0 upon success else error code < 0 returned
  */
 int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 		       u32 omi, unsigned long rpn, u32 snoopid, u32 stashid,
-		       u32 subwin_cnt, int prot)
+		       int prot)
 {
 	struct paace *ppaace;
-	unsigned long fspi;
 
 	if ((win_size & (win_size - 1)) || win_size < PAMU_PAGE_SIZE) {
 		pr_debug("window size too small or not a power of two %pa\n",
@@ -368,116 +238,12 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 	if (~snoopid != 0)
 		ppaace->domain_attr.to_host.snpid = snoopid;
 
-	if (subwin_cnt) {
-		/* The first entry is in the primary PAACE instead */
-		fspi = pamu_get_fspi_and_allocate(subwin_cnt - 1);
-		if (fspi == ULONG_MAX) {
-			pr_debug("spaace indexes exhausted\n");
-			return -EINVAL;
-		}
-
-		/* window count is 2^(WCE+1) bytes */
-		set_bf(ppaace->impl_attr, PAACE_IA_WCE,
-		       map_subwindow_cnt_to_wce(subwin_cnt));
-		set_bf(ppaace->addr_bitfields, PPAACE_AF_MW, 0x1);
-		ppaace->fspi = fspi;
-	} else {
-		set_bf(ppaace->impl_attr, PAACE_IA_ATM, PAACE_ATM_WINDOW_XLATE);
-		ppaace->twbah = rpn >> 20;
-		set_bf(ppaace->win_bitfields, PAACE_WIN_TWBAL, rpn);
-		set_bf(ppaace->addr_bitfields, PAACE_AF_AP, prot);
-		set_bf(ppaace->impl_attr, PAACE_IA_WCE, 0);
-		set_bf(ppaace->addr_bitfields, PPAACE_AF_MW, 0);
-	}
-	mb();
-
-	return 0;
-}
-
-/**
- * pamu_config_spaace() - Sets up SPAACE entry for specified subwindow
- *
- * @liodn:  Logical IO device number
- * @subwin_cnt:  number of sub-windows associated with dma-window
- * @subwin: subwindow index
- * @subwin_size: size of subwindow
- * @omi: Operation mapping index
- * @rpn: real (true physical) page number
- * @snoopid: snoop id for hardware coherency -- if ~snoopid == 0 then
- *			  snoopid not defined
- * @stashid: cache stash id for associated cpu
- * @enable: enable/disable subwindow after reconfiguration
- * @prot: sub window permissions
- *
- * Returns 0 upon success else error code < 0 returned
- */
-int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin,
-		       phys_addr_t subwin_size, u32 omi, unsigned long rpn,
-		       u32 snoopid, u32 stashid, int enable, int prot)
-{
-	struct paace *paace;
-
-	/* setup sub-windows */
-	if (!subwin_cnt) {
-		pr_debug("Invalid subwindow count\n");
-		return -EINVAL;
-	}
-
-	paace = pamu_get_ppaace(liodn);
-	if (subwin > 0 && subwin < subwin_cnt && paace) {
-		paace = pamu_get_spaace(paace, subwin - 1);
-
-		if (paace && !(paace->addr_bitfields & PAACE_V_VALID)) {
-			pamu_init_spaace(paace);
-			set_bf(paace->addr_bitfields, SPAACE_AF_LIODN, liodn);
-		}
-	}
-
-	if (!paace) {
-		pr_debug("Invalid liodn entry\n");
-		return -ENOENT;
-	}
-
-	if ((subwin_size & (subwin_size - 1)) || subwin_size < PAMU_PAGE_SIZE) {
-		pr_debug("subwindow size out of range, or not a power of 2\n");
-		return -EINVAL;
-	}
-
-	if (rpn == ULONG_MAX) {
-		pr_debug("real page number out of range\n");
-		return -EINVAL;
-	}
-
-	/* window size is 2^(WSE+1) bytes */
-	set_bf(paace->win_bitfields, PAACE_WIN_SWSE,
-	       map_addrspace_size_to_wse(subwin_size));
-
-	set_bf(paace->impl_attr, PAACE_IA_ATM, PAACE_ATM_WINDOW_XLATE);
-	paace->twbah = rpn >> 20;
-	set_bf(paace->win_bitfields, PAACE_WIN_TWBAL, rpn);
-	set_bf(paace->addr_bitfields, PAACE_AF_AP, prot);
-
-	/* configure snoop id */
-	if (~snoopid != 0)
-		paace->domain_attr.to_host.snpid = snoopid;
-
-	/* set up operation mapping if it's configured */
-	if (omi < OME_NUMBER_ENTRIES) {
-		set_bf(paace->impl_attr, PAACE_IA_OTM, PAACE_OTM_INDEXED);
-		paace->op_encode.index_ot.omi = omi;
-	} else if (~omi != 0) {
-		pr_debug("bad operation mapping index: %d\n", omi);
-		return -EINVAL;
-	}
-
-	if (~stashid != 0)
-		set_bf(paace->impl_attr, PAACE_IA_CID, stashid);
-
-	smp_wmb();
-
-	if (enable)
-		set_bf(paace->addr_bitfields, PAACE_AF_V, PAACE_V_VALID);
-
+	set_bf(ppaace->impl_attr, PAACE_IA_ATM, PAACE_ATM_WINDOW_XLATE);
+	ppaace->twbah = rpn >> 20;
+	set_bf(ppaace->win_bitfields, PAACE_WIN_TWBAL, rpn);
+	set_bf(ppaace->addr_bitfields, PAACE_AF_AP, prot);
+	set_bf(ppaace->impl_attr, PAACE_IA_WCE, 0);
+	set_bf(ppaace->addr_bitfields, PPAACE_AF_MW, 0);
 	mb();
 
 	return 0;
@@ -1129,17 +895,6 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	spaact_phys = virt_to_phys(spaact);
 	omt_phys = virt_to_phys(omt);
 
-	spaace_pool = gen_pool_create(ilog2(sizeof(struct paace)), -1);
-	if (!spaace_pool) {
-		ret = -ENOMEM;
-		dev_err(dev, "Failed to allocate spaace gen pool\n");
-		goto error;
-	}
-
-	ret = gen_pool_add(spaace_pool, (unsigned long)spaact, SPAACT_SIZE, -1);
-	if (ret)
-		goto error_genpool;
-
 	pamubypenr = in_be32(&guts_regs->pamubypenr);
 
 	for (pamu_reg_off = 0, pamu_counter = 0x80000000; pamu_reg_off < size;
@@ -1166,9 +921,6 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	probed = true;
 
 	return 0;
-
-error_genpool:
-	gen_pool_destroy(spaace_pool);
 
 error:
 	if (irq != NO_IRQ)

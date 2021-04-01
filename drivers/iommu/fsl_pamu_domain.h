@@ -18,22 +18,10 @@ struct dma_window {
 
 struct fsl_dma_domain {
 	/*
-	 * Number of windows assocaited with this domain.
-	 * During domain initialization, it is set to the
-	 * the maximum number of subwindows allowed for a LIODN.
-	 * Minimum value for this is 1 indicating a single PAMU
-	 * window, without any sub windows. Value can be set/
-	 * queried by set_attr/get_attr API for DOMAIN_ATTR_WINDOWS.
-	 * Value can only be set once the geometry has been configured.
-	 */
-	u32				win_cnt;
-	/*
 	 * win_arr contains information of the configured
-	 * windows for a domain. This is allocated only
-	 * when the number of windows for the domain are
-	 * set.
+	 * windows for a domain.
 	 */
-	struct dma_window		*win_arr;
+	struct dma_window		win_arr[1];
 	/* list of devices associated with the domain */
 	struct list_head		devices;
 	/* dma_domain states:
