@@ -593,20 +593,16 @@ int msm_csiphy_subdev_init(struct camss *camss,
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
 	csiphy->base = devm_ioremap_resource(dev, r);
-	if (IS_ERR(csiphy->base)) {
-		dev_err(dev, "could not map memory\n");
+	if (IS_ERR(csiphy->base))
 		return PTR_ERR(csiphy->base);
-	}
 
 	if (camss->version == CAMSS_8x16 ||
 	    camss->version == CAMSS_8x96) {
 		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						 res->reg[1]);
 		csiphy->base_clk_mux = devm_ioremap_resource(dev, r);
-		if (IS_ERR(csiphy->base_clk_mux)) {
-			dev_err(dev, "could not map memory\n");
+		if (IS_ERR(csiphy->base_clk_mux))
 			return PTR_ERR(csiphy->base_clk_mux);
-		}
 	} else {
 		csiphy->base_clk_mux = NULL;
 	}
