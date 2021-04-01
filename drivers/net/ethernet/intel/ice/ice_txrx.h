@@ -195,6 +195,11 @@ struct ice_rxq_stats {
 	u64 gro_dropped; /* GRO returned dropped */
 };
 
+enum ice_ring_state_t {
+	ICE_TX_XPS_INIT_DONE,
+	ICE_TX_NBITS,
+};
+
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
  * registers and QINT registers or more generally anywhere in the manual
  * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
@@ -292,6 +297,7 @@ struct ice_ring {
 	};
 
 	struct rcu_head rcu;		/* to avoid race on free */
+	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
 	struct bpf_prog *xdp_prog;
 	struct xsk_buff_pool *xsk_pool;
 	u16 rx_offset;
@@ -351,6 +357,8 @@ struct ice_coalesce_stored {
 	u16 itr_tx;
 	u16 itr_rx;
 	u8 intrl;
+	u8 tx_valid;
+	u8 rx_valid;
 };
 
 /* iterator for handling rings in ring container */
