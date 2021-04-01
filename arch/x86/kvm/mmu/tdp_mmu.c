@@ -1190,7 +1190,7 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
  */
 static bool zap_collapsible_spte_range(struct kvm *kvm,
 				       struct kvm_mmu_page *root,
-				       struct kvm_memory_slot *slot,
+				       const struct kvm_memory_slot *slot,
 				       bool flush)
 {
 	gfn_t start = slot->base_gfn;
@@ -1231,7 +1231,8 @@ static bool zap_collapsible_spte_range(struct kvm *kvm,
  * be replaced by large mappings, for GFNs within the slot.
  */
 bool kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
-				       struct kvm_memory_slot *slot, bool flush)
+				       const struct kvm_memory_slot *slot,
+				       bool flush)
 {
 	struct kvm_mmu_page *root;
 
