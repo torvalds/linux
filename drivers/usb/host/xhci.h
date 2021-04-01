@@ -2222,6 +2222,8 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
  * @alloc_transfer_ring: called when remote transfer ring allocation is required
  * @free_transfer_ring: called to free vendor specific transfer ring
  * @sync_dev_ctx: called when synchronization for device context is required
+ * @alloc_container_ctx: called when allocating vendor specific container context
+ * @free_container_ctx: called to free vendor specific container context
  */
 struct xhci_vendor_ops {
 	int (*vendor_init)(struct xhci_hcd *xhci);
@@ -2242,6 +2244,9 @@ struct xhci_vendor_ops {
 			struct xhci_virt_device *virt_dev, unsigned int ep_index);
 	int (*sync_dev_ctx)(struct xhci_hcd *xhci, unsigned int slot_id);
 	bool (*usb_offload_skip_urb)(struct xhci_hcd *xhci, struct urb *urb);
+	void (*alloc_container_ctx)(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx,
+				    int type, gfp_t flags);
+	void (*free_container_ctx)(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
 };
 
 struct xhci_vendor_ops *xhci_vendor_get_ops(struct xhci_hcd *xhci);
