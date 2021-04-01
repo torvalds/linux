@@ -43,7 +43,7 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
 
 static void tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
-	if (kvm_mmu_put_root(kvm, root))
+	if (kvm_tdp_mmu_put_root(kvm, root))
 		kvm_tdp_mmu_free_root(kvm, root);
 }
 
@@ -55,7 +55,7 @@ static inline bool tdp_mmu_next_root_valid(struct kvm *kvm,
 	if (list_entry_is_head(root, &kvm->arch.tdp_mmu_roots, link))
 		return false;
 
-	kvm_mmu_get_root(kvm, root);
+	kvm_tdp_mmu_get_root(kvm, root);
 	return true;
 
 }
@@ -154,7 +154,7 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 	/* Check for an existing root before allocating a new one. */
 	for_each_tdp_mmu_root(kvm, root, kvm_mmu_role_as_id(role)) {
 		if (root->role.word == role.word) {
-			kvm_mmu_get_root(kvm, root);
+			kvm_tdp_mmu_get_root(kvm, root);
 			goto out;
 		}
 	}
