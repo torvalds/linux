@@ -115,6 +115,16 @@ static bool subflow_use_different_sport(struct mptcp_sock *msk, const struct soc
 	return inet_sk(sk)->inet_sport != inet_sk((struct sock *)msk)->inet_sport;
 }
 
+static void subflow_add_reset_reason(struct sk_buff *skb, u8 reason)
+{
+	struct mptcp_ext *mpext = skb_ext_add(skb, SKB_EXT_MPTCP);
+
+	if (mpext) {
+		memset(mpext, 0, sizeof(*mpext));
+		mpext->reset_reason = reason;
+	}
+}
+
 /* Init mptcp request socket.
  *
  * Returns an error code if a JOIN has failed and a TCP reset
@@ -190,8 +200,10 @@ again:
 		subflow_req->msk = subflow_token_join_request(req);
 
 		/* Can't fall back to TCP in this case. */
-		if (!subflow_req->msk)
+		if (!subflow_req->msk) {
+			subflow_add_reset_reason(skb, MPTCP_RST_EMPTCP);
 			return -EPERM;
+		}
 
 		if (subflow_use_different_sport(subflow_req->msk, sk_listener)) {
 			pr_debug("syn inet_sport=%d %d",
@@ -400,8 +412,10 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 	} else if (subflow->request_join) {
 		u8 hmac[SHA256_DIGEST_SIZE];
 
-		if (!mp_opt.mp_join)
+		if (!mp_opt.mp_join) {
+			subflow->reset_reason = MPTCP_RST_EMPTCP;
 			goto do_reset;
+		}
 
 		subflow->thmac = mp_opt.thmac;
 		subflow->remote_nonce = mp_opt.nonce;
@@ -410,6 +424,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 
 		if (!subflow_thmac_valid(subflow)) {
 			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_JOINACKMAC);
+			subflow->reset_reason = MPTCP_RST_EMPTCP;
 			goto do_reset;
 		}
 
@@ -438,6 +453,7 @@ fallback:
 	return;
 
 do_reset:
+	subflow->reset_transient = 0;
 	mptcp_subflow_reset(sk);
 }
 
@@ -654,8 +670,10 @@ create_child:
 		 * to reset the context to non MPTCP status.
 		 */
 		if (!ctx || fallback) {
-			if (fallback_is_fatal)
+			if (fallback_is_fatal) {
+				subflow_add_reset_reason(skb, MPTCP_RST_EMPTCP);
 				goto dispose_child;
+			}
 
 			subflow_drop_ctx(child);
 			goto out;
@@ -690,8 +708,10 @@ create_child:
 			struct mptcp_sock *owner;
 
 			owner = subflow_req->msk;
-			if (!owner)
+			if (!owner) {
+				subflow_add_reset_reason(skb, MPTCP_RST_EPROHIBIT);
 				goto dispose_child;
+			}
 
 			/* move the msk reference ownership to the subflow */
 			subflow_req->msk = NULL;
@@ -1056,6 +1076,8 @@ fatal:
 	smp_wmb();
 	ssk->sk_error_report(ssk);
 	tcp_set_state(ssk, TCP_CLOSE);
+	subflow->reset_transient = 0;
+	subflow->reset_reason = MPTCP_RST_EMPTCP;
 	tcp_send_active_reset(ssk, GFP_ATOMIC);
 	subflow->data_avail = 0;
 	return false;

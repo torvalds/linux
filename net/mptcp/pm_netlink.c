@@ -1687,7 +1687,19 @@ static int mptcp_event_sub_closed(struct sk_buff *skb,
 				  const struct mptcp_sock *msk,
 				  const struct sock *ssk)
 {
+	const struct mptcp_subflow_context *sf;
+
 	if (mptcp_event_put_token_and_ssk(skb, msk, ssk))
+		return -EMSGSIZE;
+
+	sf = mptcp_subflow_ctx(ssk);
+	if (!sf->reset_seen)
+		return 0;
+
+	if (nla_put_u32(skb, MPTCP_ATTR_RESET_REASON, sf->reset_reason))
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, MPTCP_ATTR_RESET_FLAGS, sf->reset_transient))
 		return -EMSGSIZE;
 
 	return 0;
