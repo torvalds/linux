@@ -610,15 +610,10 @@ static void bnxt_re_dev_unprobe(struct net_device *netdev,
 
 static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 {
-	struct bnxt *bp = netdev_priv(netdev);
 	struct bnxt_en_dev *en_dev;
 	struct pci_dev *pdev;
 
-	/* Call bnxt_en's RoCE probe via indirect API */
-	if (!bp->ulp_probe)
-		return ERR_PTR(-EINVAL);
-
-	en_dev = bp->ulp_probe(netdev);
+	en_dev = bnxt_ulp_probe(netdev);
 	if (IS_ERR(en_dev))
 		return en_dev;
 
