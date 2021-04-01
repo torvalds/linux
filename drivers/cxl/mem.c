@@ -1180,7 +1180,7 @@ static void cxl_memdev_unregister(void *_cxlmd)
 	put_device(dev);
 }
 
-static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
+static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm)
 {
 	struct pci_dev *pdev = cxlm->pdev;
 	struct cxl_memdev *cxlmd;
@@ -1190,11 +1190,11 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 
 	cxlmd = kzalloc(sizeof(*cxlmd), GFP_KERNEL);
 	if (!cxlmd)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	rc = ida_alloc_range(&cxl_memdev_ida, 0, CXL_MEM_MAX_DEVS, GFP_KERNEL);
 	if (rc < 0)
-		goto err_id;
+		goto err;
 	cxlmd->id = rc;
 
 	dev = &cxlmd->dev;
@@ -1203,10 +1203,31 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
-	dev_set_name(dev, "mem%d", cxlmd->id);
 
 	cdev = &cxlmd->cdev;
 	cdev_init(cdev, &cxl_memdev_fops);
+	return cxlmd;
+
+err:
+	kfree(cxlmd);
+	return ERR_PTR(rc);
+}
+
+static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
+{
+	struct cxl_memdev *cxlmd;
+	struct device *dev;
+	struct cdev *cdev;
+	int rc;
+
+	cxlmd = cxl_memdev_alloc(cxlm);
+	if (IS_ERR(cxlmd))
+		return PTR_ERR(cxlmd);
+
+	dev = &cxlmd->dev;
+	rc = dev_set_name(dev, "mem%d", cxlmd->id);
+	if (rc)
+		goto err;
 
 	/*
 	 * Activate ioctl operations, no cxl_memdev_rwsem manipulation
@@ -1214,23 +1235,21 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	 */
 	cxlmd->cxlm = cxlm;
 
+	cdev = &cxlmd->cdev;
 	rc = cdev_device_add(cdev, dev);
 	if (rc)
-		goto err_add;
+		goto err;
 
 	return devm_add_action_or_reset(dev->parent, cxl_memdev_unregister,
 					cxlmd);
 
-err_add:
+err:
 	/*
 	 * The cdev was briefly live, shutdown any ioctl operations that
 	 * saw that state.
 	 */
 	cxl_memdev_shutdown(cxlmd);
-	ida_free(&cxl_memdev_ida, cxlmd->id);
-err_id:
-	kfree(cxlmd);
-
+	put_device(dev);
 	return rc;
 }
 
