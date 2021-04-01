@@ -14,22 +14,7 @@ msm_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct msm_drm_private *priv =
 		container_of(shrinker, struct msm_drm_private, shrinker);
-	struct msm_gem_object *msm_obj;
-	unsigned long count = 0;
-
-	mutex_lock(&priv->mm_lock);
-
-	list_for_each_entry(msm_obj, &priv->inactive_dontneed, mm_list) {
-		if (!msm_gem_trylock(&msm_obj->base))
-			continue;
-		if (is_purgeable(msm_obj))
-			count += msm_obj->base.size >> PAGE_SHIFT;
-		msm_gem_unlock(&msm_obj->base);
-	}
-
-	mutex_unlock(&priv->mm_lock);
-
-	return count;
+	return priv->shrinkable_count;
 }
 
 static unsigned long
@@ -45,6 +30,9 @@ msm_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	list_for_each_entry(msm_obj, &priv->inactive_dontneed, mm_list) {
 		if (freed >= sc->nr_to_scan)
 			break;
+		/* Use trylock, because we cannot block on a obj that
+		 * might be trying to acquire mm_lock
+		 */
 		if (!msm_gem_trylock(&msm_obj->base))
 			continue;
 		if (is_purgeable(msm_obj)) {
@@ -56,8 +44,11 @@ msm_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 
 	mutex_unlock(&priv->mm_lock);
 
-	if (freed > 0)
+	if (freed > 0) {
 		trace_msm_gem_purge(freed << PAGE_SHIFT);
+	} else {
+		return SHRINK_STOP;
+	}
 
 	return freed;
 }
@@ -75,6 +66,9 @@ vmap_shrink(struct list_head *mm_list)
 	unsigned unmapped = 0;
 
 	list_for_each_entry(msm_obj, mm_list, mm_list) {
+		/* Use trylock, because we cannot block on a obj that
+		 * might be trying to acquire mm_lock
+		 */
 		if (!msm_gem_trylock(&msm_obj->base))
 			continue;
 		if (is_vunmapable(msm_obj)) {

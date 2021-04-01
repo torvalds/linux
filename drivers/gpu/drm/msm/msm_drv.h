@@ -179,8 +179,8 @@ struct msm_drm_private {
 	 * inactive lists (depending on whether or not it is shrinkable) or
 	 * gpu->active_list (for the gpu it is active on[1])
 	 *
-	 * These lists are protected by mm_lock.  If struct_mutex is involved, it
-	 * should be aquired prior to mm_lock.  One should *not* hold mm_lock in
+	 * These lists are protected by mm_lock (which should be acquired
+	 * before per GEM object lock).  One should *not* hold mm_lock in
 	 * get_pages()/vmap()/etc paths, as they can trigger the shrinker.
 	 *
 	 * [1] if someone ever added support for the old 2d cores, there could be
@@ -188,6 +188,8 @@ struct msm_drm_private {
 	 */
 	struct list_head inactive_willneed;  /* inactive + !shrinkable */
 	struct list_head inactive_dontneed;  /* inactive +  shrinkable */
+	struct list_head inactive_purged;    /* inactive +  purged */
+	long shrinkable_count;               /* write access under mm_lock */
 	struct mutex mm_lock;
 
 	struct workqueue_struct *wq;
