@@ -260,7 +260,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 	parent = tb_switch_parent(sw);
 	downstream_port = tb_port_at(tb_route(sw), parent);
 	sw->link_usb4 = link_is_usb4(downstream_port);
-	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT3");
+	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT");
 
 	xhci = val & ROUTER_CS_6_HCI;
 	tbt3 = !(val & ROUTER_CS_6_TNS);
