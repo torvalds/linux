@@ -6,74 +6,15 @@
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
  */
 
-#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/usb/pd_vdo.h>
+#include <linux/usb/typec_mux.h>
 
 #include "bus.h"
-
-struct typec_plug {
-	struct device			dev;
-	enum typec_plug_index		index;
-	struct ida			mode_ids;
-	int				num_altmodes;
-};
-
-struct typec_cable {
-	struct device			dev;
-	enum typec_plug_type		type;
-	struct usb_pd_identity		*identity;
-	unsigned int			active:1;
-	u16				pd_revision; /* 0300H = "3.0" */
-};
-
-struct typec_partner {
-	struct device			dev;
-	unsigned int			usb_pd:1;
-	struct usb_pd_identity		*identity;
-	enum typec_accessory		accessory;
-	struct ida			mode_ids;
-	int				num_altmodes;
-	u16				pd_revision; /* 0300H = "3.0" */
-	enum usb_pd_svdm_ver		svdm_version;
-};
-
-struct typec_port {
-	unsigned int			id;
-	struct device			dev;
-	struct ida			mode_ids;
-
-	int				prefer_role;
-	enum typec_data_role		data_role;
-	enum typec_role			pwr_role;
-	enum typec_role			vconn_role;
-	enum typec_pwr_opmode		pwr_opmode;
-	enum typec_port_type		port_type;
-	struct mutex			port_type_lock;
-
-	enum typec_orientation		orientation;
-	struct typec_switch		*sw;
-	struct typec_mux		*mux;
-
-	const struct typec_capability	*cap;
-	const struct typec_operations   *ops;
-};
-
-#define to_typec_port(_dev_) container_of(_dev_, struct typec_port, dev)
-#define to_typec_plug(_dev_) container_of(_dev_, struct typec_plug, dev)
-#define to_typec_cable(_dev_) container_of(_dev_, struct typec_cable, dev)
-#define to_typec_partner(_dev_) container_of(_dev_, struct typec_partner, dev)
-
-static const struct device_type typec_partner_dev_type;
-static const struct device_type typec_cable_dev_type;
-static const struct device_type typec_plug_dev_type;
-
-#define is_typec_partner(_dev_) (_dev_->type == &typec_partner_dev_type)
-#define is_typec_cable(_dev_) (_dev_->type == &typec_cable_dev_type)
-#define is_typec_plug(_dev_) (_dev_->type == &typec_plug_dev_type)
+#include "class.h"
 
 static DEFINE_IDA(typec_index_ida);
 static struct class *typec_class;
@@ -726,7 +667,7 @@ static void typec_partner_release(struct device *dev)
 	kfree(partner);
 }
 
-static const struct device_type typec_partner_dev_type = {
+const struct device_type typec_partner_dev_type = {
 	.name = "typec_partner",
 	.groups = typec_partner_groups,
 	.release = typec_partner_release,
@@ -941,7 +882,7 @@ static const struct attribute_group *typec_plug_groups[] = {
 	NULL
 };
 
-static const struct device_type typec_plug_dev_type = {
+const struct device_type typec_plug_dev_type = {
 	.name = "typec_plug",
 	.groups = typec_plug_groups,
 	.release = typec_plug_release,
@@ -1089,7 +1030,7 @@ static void typec_cable_release(struct device *dev)
 	kfree(cable);
 }
 
-static const struct device_type typec_cable_dev_type = {
+const struct device_type typec_cable_dev_type = {
 	.name = "typec_cable",
 	.groups = typec_cable_groups,
 	.release = typec_cable_release,
