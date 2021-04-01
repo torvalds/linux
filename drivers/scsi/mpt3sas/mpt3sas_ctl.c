@@ -2507,7 +2507,7 @@ _ctl_addnl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		    __func__, karg.unique_id);
 		return -EPERM;
 	}
-	memset(&karg.buffer_rel_condition, 0, sizeof(struct htb_rel_query));
+	memset(&karg.rel_query, 0, sizeof(karg.rel_query));
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
 		ioc_info(ioc, "%s: buffer_type(0x%02x) is not registered\n",
@@ -2520,8 +2520,7 @@ _ctl_addnl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		    __func__, buffer_type);
 		return -EPERM;
 	}
-	memcpy(&karg.buffer_rel_condition, &ioc->htb_rel,
-	    sizeof(struct  htb_rel_query));
+	memcpy(&karg.rel_query, &ioc->htb_rel, sizeof(karg.rel_query));
 out:
 	if (copy_to_user(arg, &karg, sizeof(struct mpt3_addnl_diag_query))) {
 		ioc_err(ioc, "%s: unable to write mpt3_addnl_diag_query data @ %p\n",
