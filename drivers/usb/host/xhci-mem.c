@@ -384,13 +384,13 @@ static void xhci_vendor_alloc_container_ctx(struct xhci_hcd *xhci, struct xhci_c
 
 static struct xhci_ring *xhci_vendor_alloc_transfer_ring(struct xhci_hcd *xhci,
 		u32 endpoint_type, enum xhci_ring_type ring_type,
-		gfp_t mem_flags)
+		unsigned int max_packet, gfp_t mem_flags)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
 
 	if (ops && ops->alloc_transfer_ring)
 		return ops->alloc_transfer_ring(xhci, endpoint_type, ring_type,
-						mem_flags);
+				max_packet, mem_flags);
 	return 0;
 }
 
@@ -1558,7 +1558,8 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	if (xhci_vendor_is_usb_offload_enabled(xhci, virt_dev, ep_index) &&
 	    usb_endpoint_xfer_isoc(&ep->desc)) {
 		virt_dev->eps[ep_index].new_ring =
-			xhci_vendor_alloc_transfer_ring(xhci, endpoint_type, ring_type, mem_flags);
+			xhci_vendor_alloc_transfer_ring(xhci, endpoint_type, ring_type,
+							max_packet, mem_flags);
 	} else {
 		virt_dev->eps[ep_index].new_ring =
 			xhci_ring_alloc(xhci, 2, 1, ring_type, max_packet, mem_flags);

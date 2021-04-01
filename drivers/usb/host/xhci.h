@@ -2239,7 +2239,7 @@ struct xhci_vendor_ops {
 
 	struct xhci_ring *(*alloc_transfer_ring)(struct xhci_hcd *xhci,
 			u32 endpoint_type, enum xhci_ring_type ring_type,
-			gfp_t mem_flags);
+			unsigned int max_packet, gfp_t mem_flags);
 	void (*free_transfer_ring)(struct xhci_hcd *xhci,
 			struct xhci_virt_device *virt_dev, unsigned int ep_index);
 	int (*sync_dev_ctx)(struct xhci_hcd *xhci, unsigned int slot_id);
