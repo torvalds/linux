@@ -106,8 +106,8 @@ static int cpg_div6_clock_determine_rate(struct clk_hw *hw,
 	unsigned long prate, calc_rate, diff, best_rate, best_prate;
 	unsigned int num_parents = clk_hw_get_num_parents(hw);
 	struct clk_hw *parent, *best_parent = NULL;
+	unsigned int i, min_div, max_div, div;
 	unsigned long min_diff = ULONG_MAX;
-	unsigned int i, div;
 
 	for (i = 0; i < num_parents; i++) {
 		parent = clk_hw_get_parent_by_index(hw, i);
@@ -118,7 +118,13 @@ static int cpg_div6_clock_determine_rate(struct clk_hw *hw,
 		if (!prate)
 			continue;
 
+		min_div = max(DIV_ROUND_UP(prate, req->max_rate), 1UL);
+		max_div = req->min_rate ? min(prate / req->min_rate, 64UL) : 64;
+		if (max_div < min_div)
+			continue;
+
 		div = cpg_div6_clock_calc_div(req->rate, prate);
+		div = clamp(div, min_div, max_div);
 		calc_rate = prate / div;
 		diff = calc_rate > req->rate ? calc_rate - req->rate
 					     : req->rate - calc_rate;
