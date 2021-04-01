@@ -550,6 +550,7 @@ struct hns_roce_cmd_context {
 	int			next;
 	u64			out_param;
 	u16			token;
+	u16			busy;
 };
 
 struct hns_roce_cmdq {
@@ -565,11 +566,6 @@ struct hns_roce_cmdq {
 	spinlock_t		context_lock;
 	int			free_head;
 	struct hns_roce_cmd_context *context;
-	/*
-	 * Result of get integer part
-	 * which max_comds compute according a power of 2
-	 */
-	u16			token_mask;
 	/*
 	 * Process whether use event mode, init default non-zero
 	 * After the event queue of cmd event ready,
