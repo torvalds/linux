@@ -136,6 +136,7 @@ struct ionic_devinfo {
 struct ionic_dev {
 	union ionic_dev_info_regs __iomem *dev_info_regs;
 	union ionic_dev_cmd_regs __iomem *dev_cmd_regs;
+	struct ionic_hwstamp_regs __iomem *hwstamp_regs;
 
 	atomic_long_t last_check_time;
 	unsigned long last_hb_time;

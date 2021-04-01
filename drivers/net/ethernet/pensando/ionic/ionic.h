@@ -20,6 +20,10 @@ struct ionic_lif;
 
 #define DEVCMD_TIMEOUT  10
 
+#define IONIC_PHC_UPDATE_NS	10000000000	    /* 10s in nanoseconds */
+#define NORMAL_PPB		1000000000	    /* one billion parts per billion */
+#define SCALED_PPM		(1000000ull << 16)  /* 2^16 million parts per 2^16 million */
+
 struct ionic_vf {
 	u16	 index;
 	u8	 macaddr[6];

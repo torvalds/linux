@@ -148,6 +148,8 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_LIF_SETATTR";
 	case IONIC_CMD_LIF_GETATTR:
 		return "IONIC_CMD_LIF_GETATTR";
+	case IONIC_CMD_LIF_SETPHC:
+		return "IONIC_CMD_LIF_SETPHC";
 	case IONIC_CMD_RX_MODE_SET:
 		return "IONIC_CMD_RX_MODE_SET";
 	case IONIC_CMD_RX_FILTER_ADD:

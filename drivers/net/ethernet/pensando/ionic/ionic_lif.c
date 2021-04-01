@@ -830,6 +830,31 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	return 0;
 }
 
+int ionic_lif_create_hwstamp_txq(struct ionic_lif *lif)
+{
+	return 0;
+}
+
+int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif)
+{
+	return 0;
+}
+
+int ionic_lif_config_hwstamp_rxq_all(struct ionic_lif *lif, bool rx_all)
+{
+	return 0;
+}
+
+int ionic_lif_set_hwstamp_txmode(struct ionic_lif *lif, u16 txstamp_mode)
+{
+	return 0;
+}
+
+int ionic_lif_set_hwstamp_rxfilt(struct ionic_lif *lif, u64 pkt_class)
+{
+	return 0;
+}
+
 static bool ionic_notifyq_service(struct ionic_cq *cq,
 				  struct ionic_cq_info *cq_info)
 {
