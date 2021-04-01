@@ -407,7 +407,6 @@ int register_pernet_device(struct pernet_operations *);
 void unregister_pernet_device(struct pernet_operations *);
 
 struct ctl_table;
-struct ctl_table_header;
 
 #ifdef CONFIG_SYSCTL
 int net_sysctl_init(void);
