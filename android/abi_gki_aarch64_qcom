@@ -510,6 +510,7 @@
   dev_pm_opp_unregister_notifier
   dev_pm_qos_add_notifier
   dev_pm_qos_add_request
+  dev_pm_qos_read_value
   dev_pm_qos_remove_notifier
   dev_pm_qos_remove_request
   dev_pm_qos_update_request
@@ -2322,6 +2323,7 @@
   trace_event_reg
   trace_handle_return
   __traceiter_cpu_frequency
+  __traceiter_gpu_mem_total
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
@@ -2393,6 +2395,7 @@
   __tracepoint_cpu_frequency
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
+  __tracepoint_gpu_mem_total
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
   __tracepoint_irq_handler_entry
