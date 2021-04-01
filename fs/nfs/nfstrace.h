@@ -1451,6 +1451,7 @@ DECLARE_EVENT_CLASS(nfs_xdr_event,
 			), \
 			TP_ARGS(xdr, error))
 DEFINE_NFS_XDR_EVENT(nfs_xdr_status);
+DEFINE_NFS_XDR_EVENT(nfs_xdr_bad_filehandle);
 
 #endif /* _TRACE_NFS_H */
 

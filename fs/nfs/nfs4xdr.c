@@ -3495,8 +3495,11 @@ static int decode_attr_filehandle(struct xdr_stream *xdr, uint32_t *bitmap, stru
 		if (unlikely(!p))
 			return -EIO;
 		len = be32_to_cpup(p);
-		if (len > NFS4_FHSIZE)
-			return -EIO;
+		if (len > NFS4_FHSIZE || len == 0) {
+			trace_nfs4_xdr_bad_filehandle(xdr, OP_READDIR,
+						      NFS4ERR_BADHANDLE);
+			return -EREMOTEIO;
+		}
 		p = xdr_inline_decode(xdr, len);
 		if (unlikely(!p))
 			return -EIO;
@@ -4952,8 +4955,10 @@ static int decode_getfh(struct xdr_stream *xdr, struct nfs_fh *fh)
 	if (unlikely(!p))
 		return -EIO;
 	len = be32_to_cpup(p);
-	if (len > NFS4_FHSIZE)
-		return -EIO;
+	if (len > NFS4_FHSIZE || len == 0) {
+		trace_nfs4_xdr_bad_filehandle(xdr, OP_GETFH, NFS4ERR_BADHANDLE);
+		return -EREMOTEIO;
+	}
 	fh->size = len;
 	p = xdr_inline_decode(xdr, len);
 	if (unlikely(!p))
