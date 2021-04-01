@@ -249,11 +249,13 @@ struct tb_port {
  * @port: Pointer to the lane 0 adapter
  * @can_offline: Does the port have necessary platform support to moved
  *		 it into offline mode and back
+ * @offline: The port is currently in offline mode
  */
 struct usb4_port {
 	struct device dev;
 	struct tb_port *port;
 	bool can_offline;
+	bool offline;
 };
 
 /**
@@ -1017,7 +1019,7 @@ void tb_xdomain_remove(struct tb_xdomain *xd);
 struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
 						 u8 depth);
 
-int tb_retimer_scan(struct tb_port *port);
+int tb_retimer_scan(struct tb_port *port, bool add);
 void tb_retimer_remove_all(struct tb_port *port);
 
 static inline bool tb_is_retimer(const struct device *dev)
@@ -1105,6 +1107,7 @@ static inline struct usb4_port *tb_to_usb4_port_device(struct device *dev)
 
 struct usb4_port *usb4_port_device_add(struct tb_port *port);
 void usb4_port_device_remove(struct usb4_port *usb4);
+int usb4_port_device_resume(struct usb4_port *usb4);
 
 /* Keep link controller awake during update */
 #define QUIRK_FORCE_POWER_LINK_CONTROLLER		BIT(0)

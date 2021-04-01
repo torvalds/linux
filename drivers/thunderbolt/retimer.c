@@ -401,18 +401,17 @@ static struct tb_retimer *tb_port_find_retimer(struct tb_port *port, u8 index)
 /**
  * tb_retimer_scan() - Scan for on-board retimers under port
  * @port: USB4 port to scan
+ * @add: If true also registers found retimers
  *
- * Tries to enumerate on-board retimers connected to @port. Found
- * retimers are registered as children of @port. Does not scan for cable
- * retimers for now.
+ * Brings the sideband into a state where retimers can be accessed.
+ * Then Tries to enumerate on-board retimers connected to @port. Found
+ * retimers are registered as children of @port if @add is set.  Does
+ * not scan for cable retimers for now.
  */
-int tb_retimer_scan(struct tb_port *port)
+int tb_retimer_scan(struct tb_port *port, bool add)
 {
 	u32 status[TB_MAX_RETIMER_INDEX + 1] = {};
 	int ret, i, last_idx = 0;
-
-	if (!port->cap_usb4)
-		return 0;
 
 	/*
 	 * Send broadcast RT to make sure retimer indices facing this
@@ -421,6 +420,13 @@ int tb_retimer_scan(struct tb_port *port)
 	ret = usb4_port_enumerate_retimers(port);
 	if (ret)
 		return ret;
+
+	/*
+	 * Enable sideband channel for each retimer. We can do this
+	 * regardless whether there is device connected or not.
+	 */
+	for (i = 1; i <= TB_MAX_RETIMER_INDEX; i++)
+		usb4_port_retimer_set_inbound_sbtx(port, i);
 
 	/*
 	 * Before doing anything else, read the authentication status.
@@ -453,10 +459,10 @@ int tb_retimer_scan(struct tb_port *port)
 		rt = tb_port_find_retimer(port, i);
 		if (rt) {
 			put_device(&rt->dev);
-		} else {
+		} else if (add) {
 			ret = tb_retimer_add(port, i, status[i]);
 			if (ret && ret != -EOPNOTSUPP)
-				return ret;
+				break;
 		}
 	}
 

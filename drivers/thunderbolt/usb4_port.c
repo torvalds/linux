@@ -44,8 +44,166 @@ static const struct attribute_group common_group = {
 	.attrs = common_attrs,
 };
 
+static int usb4_port_offline(struct usb4_port *usb4)
+{
+	struct tb_port *port = usb4->port;
+	int ret;
+
+	ret = tb_acpi_power_on_retimers(port);
+	if (ret)
+		return ret;
+
+	ret = usb4_port_router_offline(port);
+	if (ret) {
+		tb_acpi_power_off_retimers(port);
+		return ret;
+	}
+
+	ret = tb_retimer_scan(port, false);
+	if (ret) {
+		usb4_port_router_online(port);
+		tb_acpi_power_off_retimers(port);
+	}
+
+	return ret;
+}
+
+static void usb4_port_online(struct usb4_port *usb4)
+{
+	struct tb_port *port = usb4->port;
+
+	usb4_port_router_online(port);
+	tb_acpi_power_off_retimers(port);
+}
+
+static ssize_t offline_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb4_port *usb4 = tb_to_usb4_port_device(dev);
+
+	return sysfs_emit(buf, "%d\n", usb4->offline);
+}
+
+static ssize_t offline_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb4_port *usb4 = tb_to_usb4_port_device(dev);
+	struct tb_port *port = usb4->port;
+	struct tb *tb = port->sw->tb;
+	bool val;
+	int ret;
+
+	ret = kstrtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	pm_runtime_get_sync(&usb4->dev);
+
+	if (mutex_lock_interruptible(&tb->lock)) {
+		ret = -ERESTARTSYS;
+		goto out_rpm;
+	}
+
+	if (val == usb4->offline)
+		goto out_unlock;
+
+	/* Offline mode works only for ports that are not connected */
+	if (tb_port_has_remote(port)) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	if (val) {
+		ret = usb4_port_offline(usb4);
+		if (ret)
+			goto out_unlock;
+	} else {
+		usb4_port_online(usb4);
+		tb_retimer_remove_all(port);
+	}
+
+	usb4->offline = val;
+	tb_port_dbg(port, "%s offline mode\n", val ? "enter" : "exit");
+
+out_unlock:
+	mutex_unlock(&tb->lock);
+out_rpm:
+	pm_runtime_mark_last_busy(&usb4->dev);
+	pm_runtime_put_autosuspend(&usb4->dev);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(offline);
+
+static ssize_t rescan_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb4_port *usb4 = tb_to_usb4_port_device(dev);
+	struct tb_port *port = usb4->port;
+	struct tb *tb = port->sw->tb;
+	bool val;
+	int ret;
+
+	ret = kstrtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	if (!val)
+		return count;
+
+	pm_runtime_get_sync(&usb4->dev);
+
+	if (mutex_lock_interruptible(&tb->lock)) {
+		ret = -ERESTARTSYS;
+		goto out_rpm;
+	}
+
+	/* Must be in offline mode already */
+	if (!usb4->offline) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	tb_retimer_remove_all(port);
+	ret = tb_retimer_scan(port, true);
+
+out_unlock:
+	mutex_unlock(&tb->lock);
+out_rpm:
+	pm_runtime_mark_last_busy(&usb4->dev);
+	pm_runtime_put_autosuspend(&usb4->dev);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_WO(rescan);
+
+static struct attribute *service_attrs[] = {
+	&dev_attr_offline.attr,
+	&dev_attr_rescan.attr,
+	NULL
+};
+
+static umode_t service_attr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb4_port *usb4 = tb_to_usb4_port_device(dev);
+
+	/*
+	 * Always need some platform help to cycle the modes so that
+	 * retimers can be accessed through the sideband.
+	 */
+	return usb4->can_offline ? attr->mode : 0;
+}
+
+static const struct attribute_group service_group = {
+	.attrs = service_attrs,
+	.is_visible = service_attr_is_visible,
+};
+
 static const struct attribute_group *usb4_port_device_groups[] = {
 	&common_group,
+	&service_group,
 	NULL
 };
 
@@ -109,4 +267,15 @@ struct usb4_port *usb4_port_device_add(struct tb_port *port)
 void usb4_port_device_remove(struct usb4_port *usb4)
 {
 	device_unregister(&usb4->dev);
+}
+
+/**
+ * usb4_port_device_resume() - Resumes USB4 port device
+ * @usb4: USB4 port device
+ *
+ * Used to resume USB4 port device after sleep state.
+ */
+int usb4_port_device_resume(struct usb4_port *usb4)
+{
+	return usb4->offline ? usb4_port_offline(usb4) : 0;
 }

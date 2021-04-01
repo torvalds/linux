@@ -297,6 +297,32 @@ Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	Returns the current link mode. Possible values are
 		"usb4", "tbt" and "none".
 
+What:		/sys/bus/thunderbolt/devices/usb4_portX/offline
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Rajmohan Mani <rajmohan.mani@intel.com>
+Description:	Writing 1 to this attribute puts the USB4 port into
+		offline mode. Only allowed when there is nothing
+		connected to the port (link attribute returns "none").
+		Once the port is in offline mode it does not receive any
+		hotplug events. This is used to update NVM firmware of
+		on-board retimers. Writing 0 puts the port back to
+		online mode.
+
+		This attribute is only visible if the platform supports
+		powering on retimers when there is no cable connected.
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/rescan
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Rajmohan Mani <rajmohan.mani@intel.com>
+Description:	When the USB4 port is in offline mode writing 1 to this
+		attribute forces rescan of the sideband for on-board
+		retimers. Each retimer appear under the USB4 port as if
+		the USB4 link was up. These retimers act in the same way
+		as if the cable was connected so upgrading their NVM
+		firmware can be done the usual way.
+
 What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/device
 Date:		Oct 2020
 KernelVersion:	v5.9
