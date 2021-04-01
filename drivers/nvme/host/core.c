@@ -3659,7 +3659,7 @@ static ssize_t nvme_ctrl_loss_tmo_store(struct device *dev,
 	if (err)
 		return -EINVAL;
 
-	else if (ctrl_loss_tmo < 0)
+	if (ctrl_loss_tmo < 0)
 		opts->max_reconnects = -1;
 	else
 		opts->max_reconnects = DIV_ROUND_UP(ctrl_loss_tmo,
