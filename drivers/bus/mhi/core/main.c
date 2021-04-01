@@ -1246,7 +1246,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 				    struct mhi_chan *mhi_chan,
 				    enum mhi_ch_state_type to_state)
 {
-	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct device *dev = &mhi_chan->mhi_dev->dev;
 	enum mhi_cmd_type cmd = MHI_CMD_NOP;
 	int ret;
 
@@ -1324,7 +1324,7 @@ static void __mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
 				    struct mhi_chan *mhi_chan)
 {
 	int ret;
-	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct device *dev = &mhi_chan->mhi_dev->dev;
 
 	mutex_lock(&mhi_chan->mutex);
 
@@ -1348,13 +1348,11 @@ int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 			struct mhi_chan *mhi_chan)
 {
 	int ret = 0;
-	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	struct device *dev = &mhi_chan->mhi_dev->dev;
 
 	if (!(BIT(mhi_cntrl->ee) & mhi_chan->ee_mask)) {
-		dev_err(dev,
-			"Current EE: %s Required EE Mask: 0x%x for chan: %s\n",
-			TO_MHI_EXEC_STR(mhi_cntrl->ee), mhi_chan->ee_mask,
-			mhi_chan->name);
+		dev_err(dev, "Current EE: %s Required EE Mask: 0x%x\n",
+			TO_MHI_EXEC_STR(mhi_cntrl->ee), mhi_chan->ee_mask);
 		return -ENOTCONN;
 	}
 
