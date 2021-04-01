@@ -7135,6 +7135,7 @@ static int io_rsrc_ref_quiesce(struct io_rsrc_data *data, struct io_ring_ctx *ct
 {
 	int ret;
 
+	/* As we may drop ->uring_lock, other task may have started quiesce */
 	if (data->quiesce)
 		return -ENXIO;
 
@@ -7197,12 +7198,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	unsigned nr_tables, i;
 	int ret;
 
-	/*
-	 * percpu_ref_is_dying() is to stop parallel files unregister
-	 * Since we possibly drop uring lock later in this function to
-	 * run task work.
-	 */
-	if (!data || percpu_ref_is_dying(&data->refs))
+	if (!data)
 		return -ENXIO;
 	ret = io_rsrc_ref_quiesce(data, ctx);
 	if (ret)
