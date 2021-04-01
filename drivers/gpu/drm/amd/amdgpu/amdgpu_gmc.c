@@ -685,3 +685,39 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
 }
+
+/**
+ * amdgpu_gmc_vram_mc2pa - calculate vram buffer's physical address from MC
+ * address
+ *
+ * @adev: amdgpu_device pointer
+ * @mc_addr: MC address of buffer
+ */
+uint64_t amdgpu_gmc_vram_mc2pa(struct amdgpu_device *adev, uint64_t mc_addr)
+{
+	return mc_addr - adev->gmc.vram_start + adev->vm_manager.vram_base_offset;
+}
+
+/**
+ * amdgpu_gmc_vram_pa - calculate vram buffer object's physical address from
+ * GPU's view
+ *
+ * @adev: amdgpu_device pointer
+ * @bo: amdgpu buffer object
+ */
+uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
+{
+	return amdgpu_gmc_vram_mc2pa(adev, amdgpu_bo_gpu_offset(bo));
+}
+
+/**
+ * amdgpu_gmc_vram_cpu_pa - calculate vram buffer object's physical address
+ * from CPU's view
+ *
+ * @adev: amdgpu_device pointer
+ * @bo: amdgpu buffer object
+ */
+uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
+{
+	return amdgpu_bo_gpu_offset(bo) - adev->gmc.vram_start + adev->gmc.aper_base;
+}
