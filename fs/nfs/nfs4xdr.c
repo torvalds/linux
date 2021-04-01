@@ -3210,9 +3210,7 @@ out_status:
 	*nfs_retval = nfs4_stat_to_errno(nfserr);
 	return true;
 out_bad_operation:
-	dprintk("nfs: Server returned operation"
-		" %d but we issued a request for %d\n",
-			opnum, expected);
+	trace_nfs4_xdr_bad_operation(xdr, opnum, expected);
 	*nfs_retval = -EREMOTEIO;
 	return false;
 out_overflow:
