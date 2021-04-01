@@ -952,7 +952,7 @@ bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool us
 	 * should match. If they mismatch, the peer is misbehaving and
 	 * we will prefer the most recent information.
 	 */
-	if (READ_ONCE(msk->rcv_data_fin) || !READ_ONCE(msk->first))
+	if (READ_ONCE(msk->rcv_data_fin))
 		return false;
 
 	WRITE_ONCE(msk->rcv_data_fin_seq,

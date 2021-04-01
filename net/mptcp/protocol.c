@@ -493,7 +493,7 @@ static bool mptcp_check_data_fin(struct sock *sk)
 	u64 rcv_data_fin_seq;
 	bool ret = false;
 
-	if (__mptcp_check_fallback(msk) || !msk->first)
+	if (__mptcp_check_fallback(msk))
 		return ret;
 
 	/* Need to ack a DATA_FIN received from a peer while this side
