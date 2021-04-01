@@ -3177,7 +3177,7 @@
 		reset-names = "tsadc", "tsadc-apb", "tsadc-phy";
 		#thermal-sensor-cells = <1>;
 		rockchip,hw-tshut-temp = <120000>;
-		rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
+		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
 		pinctrl-names = "gpio", "otpout";
 		pinctrl-0 = <&tsadc_gpio>;
