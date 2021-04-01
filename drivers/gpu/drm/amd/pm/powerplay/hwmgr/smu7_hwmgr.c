@@ -3330,7 +3330,8 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	disable_mclk_switching_for_display = ((1 < hwmgr->display_config->num_display) &&
 						!hwmgr->display_config->multi_monitor_in_sync) ||
-						smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time);
+						(hwmgr->display_config->num_display &&
+						smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time));
 
 	disable_mclk_switching = disable_mclk_switching_for_frame_lock ||
 					 disable_mclk_switching_for_display;
