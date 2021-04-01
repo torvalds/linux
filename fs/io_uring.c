@@ -6292,6 +6292,19 @@ static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 	return (struct file *) ((unsigned long) *file_slot & FFS_MASK);
 }
 
+static void io_fixed_file_set(struct file **file_slot, struct file *file)
+{
+	unsigned long file_ptr = (unsigned long) file;
+
+	if (__io_file_supports_async(file, READ))
+		file_ptr |= FFS_ASYNC_READ;
+	if (__io_file_supports_async(file, WRITE))
+		file_ptr |= FFS_ASYNC_WRITE;
+	if (S_ISREG(file_inode(file)->i_mode))
+		file_ptr |= FFS_ISREG;
+	*file_slot = (struct file *)file_ptr;
+}
+
 static struct file *io_file_get(struct io_submit_state *state,
 				struct io_kiocb *req, int fd, bool fixed)
 {
@@ -7631,8 +7644,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		goto out_free;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
-		unsigned long file_ptr;
-
 		if (copy_from_user(&fd, &fds[i], sizeof(fd))) {
 			ret = -EFAULT;
 			goto out_fput;
@@ -7657,14 +7668,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			fput(file);
 			goto out_fput;
 		}
-		file_ptr = (unsigned long) file;
-		if (__io_file_supports_async(file, READ))
-			file_ptr |= FFS_ASYNC_READ;
-		if (__io_file_supports_async(file, WRITE))
-			file_ptr |= FFS_ASYNC_WRITE;
-		if (S_ISREG(file_inode(file)->i_mode))
-			file_ptr |= FFS_ISREG;
-		*io_fixed_file_slot(file_data, i) = (struct file *) file_ptr;
+		io_fixed_file_set(io_fixed_file_slot(file_data, i), file);
 	}
 
 	ret = io_sqe_files_scm(ctx);
@@ -7806,7 +7810,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			*file_slot = file;
+			io_fixed_file_set(file_slot, file);
 			err = io_sqe_file_register(ctx, file, i);
 			if (err) {
 				*file_slot = NULL;
