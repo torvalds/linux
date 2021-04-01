@@ -2741,11 +2741,16 @@ int tb_switch_add(struct tb_switch *sw)
 				 sw->device_name);
 	}
 
+	ret = usb4_switch_add_ports(sw);
+	if (ret) {
+		dev_err(&sw->dev, "failed to add USB4 ports\n");
+		goto err_del;
+	}
+
 	ret = tb_switch_nvm_add(sw);
 	if (ret) {
 		dev_err(&sw->dev, "failed to add NVM devices\n");
-		device_del(&sw->dev);
-		return ret;
+		goto err_ports;
 	}
 
 	/*
@@ -2766,6 +2771,13 @@ int tb_switch_add(struct tb_switch *sw)
 
 	tb_switch_debugfs_init(sw);
 	return 0;
+
+err_ports:
+	usb4_switch_remove_ports(sw);
+err_del:
+	device_del(&sw->dev);
+
+	return ret;
 }
 
 /**
@@ -2805,6 +2817,7 @@ void tb_switch_remove(struct tb_switch *sw)
 		tb_plug_events_active(sw, false);
 
 	tb_switch_nvm_remove(sw);
+	usb4_switch_remove_ports(sw);
 
 	if (tb_route(sw))
 		dev_info(&sw->dev, "device disconnected\n");

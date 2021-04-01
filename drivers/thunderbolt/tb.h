@@ -202,6 +202,7 @@ struct tb_switch {
  * @cap_tmu: Offset of the adapter specific TMU capability (%0 if not present)
  * @cap_adap: Offset of the adapter specific capability (%0 if not present)
  * @cap_usb4: Offset to the USB4 port capability (%0 if not present)
+ * @usb4: Pointer to the USB4 port structure (only if @cap_usb4 is != %0)
  * @port: Port number on switch
  * @disabled: Disabled by eeprom or enabled but not implemented
  * @bonded: true if the port is bonded (two lanes combined as one)
@@ -228,6 +229,7 @@ struct tb_port {
 	int cap_tmu;
 	int cap_adap;
 	int cap_usb4;
+	struct usb4_port *usb4;
 	u8 port;
 	bool disabled;
 	bool bonded;
@@ -239,6 +241,16 @@ struct tb_port {
 	unsigned int total_credits;
 	unsigned int ctl_credits;
 	unsigned int dma_credits;
+};
+
+/**
+ * struct usb4_port - USB4 port device
+ * @dev: Device for the port
+ * @port: Pointer to the lane 0 adapter
+ */
+struct usb4_port {
+	struct device dev;
+	struct tb_port *port;
 };
 
 /**
@@ -645,6 +657,7 @@ struct tb *tb_probe(struct tb_nhi *nhi);
 extern struct device_type tb_domain_type;
 extern struct device_type tb_retimer_type;
 extern struct device_type tb_switch_type;
+extern struct device_type usb4_port_device_type;
 
 int tb_domain_init(void);
 void tb_domain_exit(void);
@@ -1038,6 +1051,8 @@ struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 					  const struct tb_port *port);
 struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port);
+int usb4_switch_add_ports(struct tb_switch *sw);
+void usb4_switch_remove_ports(struct tb_switch *sw);
 
 int usb4_port_unlock(struct tb_port *port);
 int usb4_port_configure(struct tb_port *port);
@@ -1069,6 +1084,21 @@ int usb4_usb3_port_allocate_bandwidth(struct tb_port *port, int *upstream_bw,
 				      int *downstream_bw);
 int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 				     int *downstream_bw);
+
+static inline bool tb_is_usb4_port_device(const struct device *dev)
+{
+	return dev->type == &usb4_port_device_type;
+}
+
+static inline struct usb4_port *tb_to_usb4_port_device(struct device *dev)
+{
+	if (tb_is_usb4_port_device(dev))
+		return container_of(dev, struct usb4_port, dev);
+	return NULL;
+}
+
+struct usb4_port *usb4_port_device_add(struct tb_port *port);
+void usb4_port_device_remove(struct usb4_port *usb4);
 
 /* Keep link controller awake during update */
 #define QUIRK_FORCE_POWER_LINK_CONTROLLER		BIT(0)

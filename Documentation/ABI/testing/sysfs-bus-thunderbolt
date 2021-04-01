@@ -290,6 +290,13 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This contains XDomain service specific settings as
 		bitmask. Format: %x
 
+What:		/sys/bus/thunderbolt/devices/usb4_portX/link
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Returns the current link mode. Possible values are
+		"usb4", "tbt" and "none".
+
 What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/device
 Date:		Oct 2020
 KernelVersion:	v5.9

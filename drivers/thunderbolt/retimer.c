@@ -283,11 +283,13 @@ struct device_type tb_retimer_type = {
 
 static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 {
+	struct usb4_port *usb4;
 	struct tb_retimer *rt;
 	u32 vendor, device;
 	int ret;
 
-	if (!port->cap_usb4)
+	usb4 = port->usb4;
+	if (!usb4)
 		return -EINVAL;
 
 	ret = usb4_port_retimer_read(port, index, USB4_SB_VENDOR_ID, &vendor,
@@ -331,7 +333,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	rt->port = port;
 	rt->tb = port->sw->tb;
 
-	rt->dev.parent = &port->sw->dev;
+	rt->dev.parent = &usb4->dev;
 	rt->dev.bus = &tb_bus_type;
 	rt->dev.type = &tb_retimer_type;
 	dev_set_name(&rt->dev, "%s:%u.%u", dev_name(&port->sw->dev),
@@ -389,7 +391,7 @@ static struct tb_retimer *tb_port_find_retimer(struct tb_port *port, u8 index)
 	struct tb_retimer_lookup lookup = { .port = port, .index = index };
 	struct device *dev;
 
-	dev = device_find_child(&port->sw->dev, &lookup, retimer_match);
+	dev = device_find_child(&port->usb4->dev, &lookup, retimer_match);
 	if (dev)
 		return tb_to_retimer(dev);
 
@@ -479,7 +481,10 @@ static int remove_retimer(struct device *dev, void *data)
  */
 void tb_retimer_remove_all(struct tb_port *port)
 {
-	if (port->cap_usb4)
-		device_for_each_child_reverse(&port->sw->dev, port,
+	struct usb4_port *usb4;
+
+	usb4 = port->usb4;
+	if (usb4)
+		device_for_each_child_reverse(&usb4->dev, port,
 					      remove_retimer);
 }

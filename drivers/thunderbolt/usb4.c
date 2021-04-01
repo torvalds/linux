@@ -986,6 +986,60 @@ struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 }
 
 /**
+ * usb4_switch_add_ports() - Add USB4 ports for this router
+ * @sw: USB4 router
+ *
+ * For USB4 router finds all USB4 ports and registers devices for each.
+ * Can be called to any router.
+ *
+ * Return %0 in case of success and negative errno in case of failure.
+ */
+int usb4_switch_add_ports(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	if (tb_switch_is_icm(sw) || !tb_switch_is_usb4(sw))
+		return 0;
+
+	tb_switch_for_each_port(sw, port) {
+		struct usb4_port *usb4;
+
+		if (!tb_port_is_null(port))
+			continue;
+		if (!port->cap_usb4)
+			continue;
+
+		usb4 = usb4_port_device_add(port);
+		if (IS_ERR(usb4)) {
+			usb4_switch_remove_ports(sw);
+			return PTR_ERR(usb4);
+		}
+
+		port->usb4 = usb4;
+	}
+
+	return 0;
+}
+
+/**
+ * usb4_switch_remove_ports() - Removes USB4 ports from this router
+ * @sw: USB4 router
+ *
+ * Unregisters previously registered USB4 ports.
+ */
+void usb4_switch_remove_ports(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	tb_switch_for_each_port(sw, port) {
+		if (port->usb4) {
+			usb4_port_device_remove(port->usb4);
+			port->usb4 = NULL;
+		}
+	}
+}
+
+/**
  * usb4_port_unlock() - Unlock USB4 downstream port
  * @port: USB4 port to unlock
  *
