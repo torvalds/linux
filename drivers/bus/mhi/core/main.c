@@ -1286,16 +1286,18 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 		return -EINVAL;
 	}
 
-	mhi_cntrl->wake_toggle(mhi_cntrl);
+	/* bring host and device out of suspended states */
+	ret = mhi_device_get_sync(mhi_cntrl->mhi_dev);
+	if (ret)
+		return ret;
 	mhi_cntrl->runtime_get(mhi_cntrl);
-	mhi_cntrl->runtime_put(mhi_cntrl);
 
 	reinit_completion(&mhi_chan->completion);
 	ret = mhi_send_cmd(mhi_cntrl, mhi_chan, cmd);
 	if (ret) {
 		dev_err(dev, "%d: Failed to send %s channel command\n",
 			mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
-		return ret;
+		goto exit_channel_update;
 	}
 
 	ret = wait_for_completion_timeout(&mhi_chan->completion,
@@ -1304,8 +1306,11 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 		dev_err(dev,
 			"%d: Failed to receive %s channel command completion\n",
 			mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
-		return -EIO;
+		ret = -EIO;
+		goto exit_channel_update;
 	}
+
+	ret = 0;
 
 	if (to_state != MHI_CH_STATE_TYPE_RESET) {
 		write_lock_irq(&mhi_chan->lock);
@@ -1317,7 +1322,11 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 	dev_dbg(dev, "%d: Channel state change to %s successful\n",
 		mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
 
-	return 0;
+exit_channel_update:
+	mhi_cntrl->runtime_put(mhi_cntrl);
+	mhi_device_put(mhi_cntrl->mhi_dev);
+
+	return ret;
 }
 
 static void __mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
