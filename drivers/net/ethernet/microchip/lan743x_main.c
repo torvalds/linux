@@ -3004,7 +3004,7 @@ static int lan743x_pm_suspend(struct device *dev)
 		lan743x_pm_set_wol(adapter);
 
 	/* Host sets PME_En, put D3hot */
-	return pci_prepare_to_sleep(pdev);;
+	return pci_prepare_to_sleep(pdev);
 }
 
 static int lan743x_pm_resume(struct device *dev)
