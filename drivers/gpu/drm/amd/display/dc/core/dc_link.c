@@ -1726,6 +1726,7 @@ static bool dc_link_construct_dpia(struct dc_link *link,
 	/* Dummy Init for linkid */
 	link->link_id.type = OBJECT_TYPE_CONNECTOR;
 	link->link_id.id = CONNECTOR_ID_DISPLAY_PORT;
+	link->link_id.enum_id = ENUM_ID_1 + init_params->connector_index;
 	link->is_internal_display = false;
 	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 	LINK_INFO("Connector[%d] description:signal %d\n",
@@ -1733,6 +1734,7 @@ static bool dc_link_construct_dpia(struct dc_link *link,
 		  link->connector_signal);
 
 	link->ep_type = DISPLAY_ENDPOINT_USB4_DPIA;
+	link->is_dig_mapping_flexible = true;
 
 	/* TODO: Initialize link : funcs->link_init */
 
