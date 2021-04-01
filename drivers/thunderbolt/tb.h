@@ -247,10 +247,13 @@ struct tb_port {
  * struct usb4_port - USB4 port device
  * @dev: Device for the port
  * @port: Pointer to the lane 0 adapter
+ * @can_offline: Does the port have necessary platform support to moved
+ *		 it into offline mode and back
  */
 struct usb4_port {
 	struct device dev;
 	struct tb_port *port;
+	bool can_offline;
 };
 
 /**
@@ -1113,6 +1116,11 @@ bool tb_acpi_may_tunnel_usb3(void);
 bool tb_acpi_may_tunnel_dp(void);
 bool tb_acpi_may_tunnel_pcie(void);
 bool tb_acpi_is_xdomain_allowed(void);
+
+int tb_acpi_init(void);
+void tb_acpi_exit(void);
+int tb_acpi_power_on_retimers(struct tb_port *port);
+int tb_acpi_power_off_retimers(struct tb_port *port);
 #else
 static inline void tb_acpi_add_links(struct tb_nhi *nhi) { }
 
@@ -1121,6 +1129,11 @@ static inline bool tb_acpi_may_tunnel_usb3(void) { return true; }
 static inline bool tb_acpi_may_tunnel_dp(void) { return true; }
 static inline bool tb_acpi_may_tunnel_pcie(void) { return true; }
 static inline bool tb_acpi_is_xdomain_allowed(void) { return true; }
+
+static inline int tb_acpi_init(void) { return 0; }
+static inline void tb_acpi_exit(void) { }
+static inline int tb_acpi_power_on_retimers(struct tb_port *port) { return 0; }
+static inline int tb_acpi_power_off_retimers(struct tb_port *port) { return 0; }
 #endif
 
 #ifdef CONFIG_DEBUG_FS
