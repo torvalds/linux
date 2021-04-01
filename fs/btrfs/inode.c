@@ -3043,24 +3043,10 @@ void btrfs_writepage_endio_finish_ordered(struct btrfs_inode *inode,
 					  struct page *page, u64 start,
 					  u64 end, int uptodate)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_ordered_extent *ordered_extent = NULL;
-	struct btrfs_workqueue *wq;
-
 	trace_btrfs_writepage_end_io_hook(inode, start, end, uptodate);
 
-	ClearPagePrivate2(page);
-	if (!btrfs_dec_test_ordered_pending(inode, &ordered_extent, start,
-					    end - start + 1, uptodate))
-		return;
-
-	if (btrfs_is_free_space_inode(inode))
-		wq = fs_info->endio_freespace_worker;
-	else
-		wq = fs_info->endio_write_workers;
-
-	btrfs_init_work(&ordered_extent->work, finish_ordered_fn, NULL, NULL);
-	btrfs_queue_work(wq, &ordered_extent->work);
+	btrfs_mark_ordered_io_finished(inode, page, start, end + 1 - start,
+				       finish_ordered_fn, uptodate);
 }
 
 /*
@@ -7959,41 +7945,8 @@ static void __endio_write_update_ordered(struct btrfs_inode *inode,
 					 const u64 offset, const u64 bytes,
 					 const bool uptodate)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_ordered_extent *ordered = NULL;
-	struct btrfs_workqueue *wq;
-	u64 ordered_offset = offset;
-	u64 ordered_bytes = bytes;
-	u64 last_offset;
-
-	if (btrfs_is_free_space_inode(inode))
-		wq = fs_info->endio_freespace_worker;
-	else
-		wq = fs_info->endio_write_workers;
-
-	while (ordered_offset < offset + bytes) {
-		last_offset = ordered_offset;
-		if (btrfs_dec_test_first_ordered_pending(inode, &ordered,
-							 &ordered_offset,
-							 ordered_bytes,
-							 uptodate)) {
-			btrfs_init_work(&ordered->work, finish_ordered_fn, NULL,
-					NULL);
-			btrfs_queue_work(wq, &ordered->work);
-		}
-
-		/* No ordered extent found in the range, exit */
-		if (ordered_offset == last_offset)
-			return;
-		/*
-		 * Our bio might span multiple ordered extents. In this case
-		 * we keep going until we have accounted the whole dio.
-		 */
-		if (ordered_offset < offset + bytes) {
-			ordered_bytes = offset + bytes - ordered_offset;
-			ordered = NULL;
-		}
-	}
+	btrfs_mark_ordered_io_finished(inode, NULL, offset, bytes,
+				       finish_ordered_fn, uptodate);
 }
 
 static blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,

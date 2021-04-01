@@ -300,81 +300,142 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 }
 
 /*
- * Finish IO for one ordered extent across a given range.  The range can
- * contain several ordered extents.
+ * Mark all ordered extents io inside the specified range finished.
  *
- * @found_ret:	 Return the finished ordered extent
- * @file_offset: File offset for the finished IO
- * 		 Will also be updated to one byte past the range that is
- * 		 recordered as finished. This allows caller to walk forward.
- * @io_size:	 Length of the finish IO range
- * @uptodate:	 If the IO finished without problem
+ * @page:	 The invovled page for the opeartion.
+ *		 For uncompressed buffered IO, the page status also needs to be
+ *		 updated to indicate whether the pending ordered io is finished.
+ *		 Can be NULL for direct IO and compressed write.
+ *		 For these cases, callers are ensured they won't execute the
+ *		 endio function twice.
+ * @finish_func: The function to be executed when all the IO of an ordered
+ *		 extent are finished.
  *
- * Return true if any ordered extent is finished in the range, and update
- * @found_ret and @file_offset.
- * Return false otherwise.
- *
- * NOTE: Although The range can cross multiple ordered extents, only one
- * ordered extent will be updated during one call. The caller is responsible to
- * iterate all ordered extents in the range.
+ * This function is called for endio, thus the range must have ordered
+ * extent(s) coveri it.
  */
-bool btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
-				   struct btrfs_ordered_extent **finished_ret,
-				   u64 *file_offset, u64 io_size, int uptodate)
+void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
+				struct page *page, u64 file_offset,
+				u64 num_bytes, btrfs_func_t finish_func,
+				bool uptodate)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_workqueue *wq;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
-	bool finished = false;
 	unsigned long flags;
-	u64 dec_end;
-	u64 dec_start;
-	u64 to_dec;
+	u64 cur = file_offset;
+
+	if (btrfs_is_free_space_inode(inode))
+		wq = fs_info->endio_freespace_worker;
+	else
+		wq = fs_info->endio_write_workers;
+
+	if (page)
+		ASSERT(page->mapping && page_offset(page) <= file_offset &&
+		       file_offset + num_bytes <= page_offset(page) + PAGE_SIZE);
 
 	spin_lock_irqsave(&tree->lock, flags);
-	node = tree_search(tree, *file_offset);
-	if (!node)
-		goto out;
+	while (cur < file_offset + num_bytes) {
+		u64 entry_end;
+		u64 end;
+		u32 len;
 
-	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
-	if (!in_range(*file_offset, entry->file_offset, entry->num_bytes))
-		goto out;
+		node = tree_search(tree, cur);
+		/* No ordered extents at all */
+		if (!node)
+			break;
 
-	dec_start = max(*file_offset, entry->file_offset);
-	dec_end = min(*file_offset + io_size,
-		      entry->file_offset + entry->num_bytes);
-	*file_offset = dec_end;
-	if (dec_start > dec_end) {
-		btrfs_crit(fs_info, "bad ordering dec_start %llu end %llu",
-			   dec_start, dec_end);
-	}
-	to_dec = dec_end - dec_start;
-	if (to_dec > entry->bytes_left) {
-		btrfs_crit(fs_info,
-			   "bad ordered accounting left %llu size %llu",
-			   entry->bytes_left, to_dec);
-	}
-	entry->bytes_left -= to_dec;
-	if (!uptodate)
-		set_bit(BTRFS_ORDERED_IOERR, &entry->flags);
-
-	if (entry->bytes_left == 0) {
+		entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+		entry_end = entry->file_offset + entry->num_bytes;
 		/*
-		 * Ensure only one caller can set the flag and finished_ret
-		 * accordingly
+		 * |<-- OE --->|  |
+		 *		  cur
+		 * Go to next OE.
 		 */
-		finished = !test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
-		/* test_and_set_bit implies a barrier */
-		cond_wake_up_nomb(&entry->wait);
-	}
-out:
-	if (finished && finished_ret && entry) {
-		*finished_ret = entry;
-		refcount_inc(&entry->refs);
+		if (cur >= entry_end) {
+			node = rb_next(node);
+			/* No more ordered extents, exit */
+			if (!node)
+				break;
+			entry = rb_entry(node, struct btrfs_ordered_extent,
+					 rb_node);
+
+			/* Go to next ordered extent and continue */
+			cur = entry->file_offset;
+			continue;
+		}
+		/*
+		 * |	|<--- OE --->|
+		 * cur
+		 * Go to the start of OE.
+		 */
+		if (cur < entry->file_offset) {
+			cur = entry->file_offset;
+			continue;
+		}
+
+		/*
+		 * Now we are definitely inside one ordered extent.
+		 *
+		 * |<--- OE --->|
+		 *	|
+		 *	cur
+		 */
+		end = min(entry->file_offset + entry->num_bytes,
+			  file_offset + num_bytes) - 1;
+		ASSERT(end + 1 - cur < U32_MAX);
+		len = end + 1 - cur;
+
+		if (page) {
+			/*
+			 * Private2 bit indicates whether we still have pending
+			 * io unfinished for the ordered extent.
+			 *
+			 * If there's no such bit, we need to skip to next range.
+			 */
+			if (!PagePrivate2(page)) {
+				cur += len;
+				continue;
+			}
+			ClearPagePrivate2(page);
+		}
+
+		/* Now we're fine to update the accounting */
+		if (unlikely(len > entry->bytes_left)) {
+			WARN_ON(1);
+			btrfs_crit(fs_info,
+"bad ordered extent accounting, root=%llu ino=%llu OE offset=%llu OE len=%llu to_dec=%u left=%llu",
+				   inode->root->root_key.objectid,
+				   btrfs_ino(inode),
+				   entry->file_offset,
+				   entry->num_bytes,
+				   len, entry->bytes_left);
+			entry->bytes_left = 0;
+		} else {
+			entry->bytes_left -= len;
+		}
+
+		if (!uptodate)
+			set_bit(BTRFS_ORDERED_IOERR, &entry->flags);
+
+		/*
+		 * All the IO of the ordered extent is finished, we need to queue
+		 * the finish_func to be executed.
+		 */
+		if (entry->bytes_left == 0) {
+			set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+			cond_wake_up(&entry->wait);
+			refcount_inc(&entry->refs);
+			spin_unlock_irqrestore(&tree->lock, flags);
+			btrfs_init_work(&entry->work, finish_func, NULL, NULL);
+			btrfs_queue_work(wq, &entry->work);
+			spin_lock_irqsave(&tree->lock, flags);
+		}
+		cur += len;
 	}
 	spin_unlock_irqrestore(&tree->lock, flags);
-	return finished;
 }
 
 /*
