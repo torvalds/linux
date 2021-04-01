@@ -355,6 +355,18 @@ do {									\
 	(val) = __gu_tmp.t;						\
 }
 
+#define HAVE_GET_KERNEL_NOFAULT
+
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	int __gu_err;							\
+									\
+	__get_kernel_common(*((type *)(dst)), sizeof(type),		\
+			    (__force type *)(src));			\
+	if (unlikely(__gu_err))						\
+		goto err_label;						\
+} while (0)
+
 #ifndef CONFIG_EVA
 #define __put_kernel_common(ptr, size) __put_user_common(ptr, size)
 #else
@@ -482,6 +494,18 @@ do {									\
 }
 
 extern void __put_user_unknown(void);
+
+#define __put_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	type __pu_val;					\
+	int __pu_err = 0;						\
+									\
+	__pu_val = *(__force type *)(src);				\
+	__put_kernel_common(((type *)(dst)), sizeof(type));		\
+	if (unlikely(__pu_err))						\
+		goto err_label;						\
+} while (0)
+
 
 /*
  * We're generating jump to subroutines which will be outside the range of

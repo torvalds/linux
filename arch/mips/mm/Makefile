@@ -22,6 +22,10 @@ else
 obj-y				+= uasm-mips.o
 endif
 
+ifndef CONFIG_EVA
+obj-y				+= maccess.o
+endif
+
 obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
 obj-$(CONFIG_64BIT)		+= ioremap64.o pgtable-64.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
