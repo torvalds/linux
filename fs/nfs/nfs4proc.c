@@ -1176,6 +1176,14 @@ nfs4_inc_nlink_locked(struct inode *inode)
 }
 
 static void
+nfs4_inc_nlink(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	nfs4_inc_nlink_locked(inode);
+	spin_unlock(&inode->i_lock);
+}
+
+static void
 nfs4_dec_nlink_locked(struct inode *inode)
 {
 	nfs_set_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
@@ -4791,6 +4799,7 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 	if (!status) {
 		nfs4_update_changeattr(dir, &res.cinfo, res.fattr->time_start,
 				       NFS_INO_INVALID_DATA);
+		nfs4_inc_nlink(inode);
 		status = nfs_post_op_update_inode(inode, res.fattr);
 		if (!status)
 			nfs_setsecurity(inode, res.fattr, res.label);

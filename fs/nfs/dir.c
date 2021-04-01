@@ -1711,7 +1711,7 @@ static void nfs_drop_nlink(struct inode *inode)
 	NFS_I(inode)->attr_gencount = nfs_inc_attr_generation_counter();
 	nfs_set_cache_invalid(
 		inode, NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_CTIME |
-			       NFS_INO_INVALID_NLINK | NFS_INO_REVAL_FORCED);
+			       NFS_INO_INVALID_NLINK);
 	spin_unlock(&inode->i_lock);
 }
 
