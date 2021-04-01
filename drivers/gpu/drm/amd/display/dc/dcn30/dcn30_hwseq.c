@@ -49,6 +49,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "inc/dc_link_dp.h"
+#include "inc/link_dpcd.h"
 
 
 
