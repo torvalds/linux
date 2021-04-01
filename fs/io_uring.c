@@ -7623,13 +7623,6 @@ static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 	return ref_node;
 }
 
-static void init_fixed_file_ref_node(struct io_ring_ctx *ctx,
-				     struct io_rsrc_node *ref_node)
-{
-	ref_node->rsrc_data = ctx->file_data;
-	ref_node->rsrc_put = io_ring_file_put;
-}
-
 static void io_rsrc_node_destroy(struct io_rsrc_node *ref_node)
 {
 	percpu_ref_exit(&ref_node->refs);
@@ -7642,7 +7635,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	__s32 __user *fds = (__s32 __user *) arg;
 	unsigned nr_tables, i;
 	struct file *file;
-	int fd, ret = -ENOMEM;
+	int fd, ret;
 	struct io_rsrc_node *ref_node;
 	struct io_rsrc_data *file_data;
 
@@ -7652,12 +7645,16 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EINVAL;
 	if (nr_args > IORING_MAX_FIXED_FILES)
 		return -EMFILE;
+	ret = io_rsrc_node_prealloc(ctx);
+	if (ret)
+		return ret;
 
 	file_data = io_rsrc_data_alloc(ctx);
 	if (!file_data)
 		return -ENOMEM;
 	ctx->file_data = file_data;
 
+	ret = -ENOMEM;
 	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
 	file_data->table = kcalloc(nr_tables, sizeof(*file_data->table),
 				   GFP_KERNEL);
@@ -7710,13 +7707,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return ret;
 	}
 
-	ref_node = io_rsrc_node_alloc(ctx);
-	if (!ref_node) {
-		io_sqe_files_unregister(ctx);
-		return -ENOMEM;
-	}
-	init_fixed_file_ref_node(ctx, ref_node);
-
+	ref_node = io_rsrc_node_get(ctx, ctx->file_data, io_ring_file_put);
 	io_rsrc_node_set(ctx, file_data, ref_node);
 	return ret;
 out_fput:
