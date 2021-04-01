@@ -175,7 +175,7 @@
 			status = "disabled";
 		};
 
-		i2c3: i2c@40005C00 {
+		i2c3: i2c@40005c00 {
 			compatible = "st,stm32f7-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -423,7 +423,7 @@
 			status = "disabled";
 		};
 
-		i2c4: i2c@58001C00 {
+		i2c4: i2c@58001c00 {
 			compatible = "st,stm32f7-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
