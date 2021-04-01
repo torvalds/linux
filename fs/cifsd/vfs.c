@@ -312,9 +312,8 @@ int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 {
 	struct file *filp;
 	ssize_t nbytes = 0;
-	char *rbuf, *name;
+	char *rbuf;
 	struct inode *inode;
-	char namebuf[NAME_MAX];
 
 	rbuf = work->aux_payload_buf;
 	filp = fp->filp;
@@ -348,11 +347,8 @@ int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 
 	nbytes = kernel_read(filp, rbuf, count, pos);
 	if (nbytes < 0) {
-		name = d_path(&filp->f_path, namebuf, sizeof(namebuf));
-		if (IS_ERR(name))
-			name = "(error)";
 		ksmbd_err("smb read failed for (%s), err = %zd\n",
-				name, nbytes);
+				fp->filename, nbytes);
 		return nbytes;
 	}
 
