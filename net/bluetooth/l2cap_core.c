@@ -676,8 +676,6 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		skb_queue_purge(&chan->tx_q);
 		break;
 	}
-
-	return;
 }
 EXPORT_SYMBOL_GPL(l2cap_chan_del);
 

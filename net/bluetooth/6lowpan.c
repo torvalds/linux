@@ -841,8 +841,6 @@ static void chan_close_cb(struct l2cap_chan *chan)
 	} else {
 		spin_unlock(&devices_lock);
 	}
-
-	return;
 }
 
 static void chan_state_change_cb(struct l2cap_chan *chan, int state, int err)
