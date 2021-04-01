@@ -78,8 +78,6 @@ static int update_liodn_stash(int liodn, struct fsl_dma_domain *dma_domain,
 static int pamu_set_liodn(struct fsl_dma_domain *dma_domain, struct device *dev,
 			  int liodn)
 {
-	struct iommu_domain *domain = &dma_domain->iommu_domain;
-	struct iommu_domain_geometry *geom = &domain->geometry;
 	u32 omi_index = ~(u32)0;
 	unsigned long flags;
 	int ret;
@@ -95,14 +93,10 @@ static int pamu_set_liodn(struct fsl_dma_domain *dma_domain, struct device *dev,
 	ret = pamu_disable_liodn(liodn);
 	if (ret)
 		goto out_unlock;
-	ret = pamu_config_ppaace(liodn, geom->aperture_start,
-				 geom->aperture_end + 1, omi_index,
-				 dma_domain->stash_id, 0);
+	ret = pamu_config_ppaace(liodn, omi_index, dma_domain->stash_id, 0);
 	if (ret)
 		goto out_unlock;
-	ret = pamu_config_ppaace(liodn, geom->aperture_start,
-				 geom->aperture_end + 1, ~(u32)0,
-				 dma_domain->stash_id,
+	ret = pamu_config_ppaace(liodn, ~(u32)0, dma_domain->stash_id,
 				 PAACE_AP_PERMS_QUERY | PAACE_AP_PERMS_UPDATE);
 out_unlock:
 	spin_unlock_irqrestore(&iommu_lock, flags);
