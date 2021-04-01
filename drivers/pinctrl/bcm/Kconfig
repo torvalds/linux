@@ -31,7 +31,6 @@ config PINCTRL_BCM2835
 
 config PINCTRL_BCM63XX
 	bool
-	depends on OF
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
@@ -41,6 +40,7 @@ config PINCTRL_BCM63XX
 config PINCTRL_BCM6318
 	bool "Broadcom BCM6318 GPIO driver"
 	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
 	select PINCTRL_BCM63XX
 	default BMIPS_GENERIC
 	help
@@ -49,6 +49,7 @@ config PINCTRL_BCM6318
 config PINCTRL_BCM6328
 	bool "Broadcom BCM6328 GPIO driver"
 	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
 	select PINCTRL_BCM63XX
 	default BMIPS_GENERIC
 	help
@@ -57,6 +58,7 @@ config PINCTRL_BCM6328
 config PINCTRL_BCM6358
 	bool "Broadcom BCM6358 GPIO driver"
 	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
 	select PINCTRL_BCM63XX
 	default BMIPS_GENERIC
 	help
@@ -65,6 +67,7 @@ config PINCTRL_BCM6358
 config PINCTRL_BCM6362
 	bool "Broadcom BCM6362 GPIO driver"
 	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
 	select PINCTRL_BCM63XX
 	default BMIPS_GENERIC
 	help
@@ -73,6 +76,7 @@ config PINCTRL_BCM6362
 config PINCTRL_BCM6368
 	bool "Broadcom BCM6368 GPIO driver"
 	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
 	select PINCTRL_BCM63XX
 	default BMIPS_GENERIC
 	help
@@ -81,6 +85,7 @@ config PINCTRL_BCM6368
 config PINCTRL_BCM63268
 	bool "Broadcom BCM63268 GPIO driver"
 	depends on (BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF
 	select PINCTRL_BCM63XX
 	default BMIPS_GENERIC
 	help
