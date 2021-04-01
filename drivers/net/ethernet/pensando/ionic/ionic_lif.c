@@ -1722,10 +1722,14 @@ static void ionic_txrx_free(struct ionic_lif *lif)
 
 static int ionic_txrx_alloc(struct ionic_lif *lif)
 {
-	unsigned int sg_desc_sz;
+	unsigned int num_desc, desc_sz, comp_sz, sg_desc_sz;
 	unsigned int flags;
 	unsigned int i;
 	int err = 0;
+
+	num_desc = lif->ntxq_descs;
+	desc_sz = sizeof(struct ionic_txq_desc);
+	comp_sz = sizeof(struct ionic_txq_comp);
 
 	if (lif->qtype_info[IONIC_QTYPE_TXQ].version >= 1 &&
 	    lif->qtype_info[IONIC_QTYPE_TXQ].sg_desc_sz ==
@@ -1739,10 +1743,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 		flags |= IONIC_QCQ_F_INTR;
 	for (i = 0; i < lif->nxqs; i++) {
 		err = ionic_qcq_alloc(lif, IONIC_QTYPE_TXQ, i, "tx", flags,
-				      lif->ntxq_descs,
-				      sizeof(struct ionic_txq_desc),
-				      sizeof(struct ionic_txq_comp),
-				      sg_desc_sz,
+				      num_desc, desc_sz, comp_sz, sg_desc_sz,
 				      lif->kern_pid, &lif->txqcqs[i]);
 		if (err)
 			goto err_out;
@@ -1759,15 +1760,23 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 	}
 
 	flags = IONIC_QCQ_F_RX_STATS | IONIC_QCQ_F_SG | IONIC_QCQ_F_INTR;
+
+	num_desc = lif->nrxq_descs;
+	desc_sz = sizeof(struct ionic_rxq_desc);
+	comp_sz = sizeof(struct ionic_rxq_comp);
+	sg_desc_sz = sizeof(struct ionic_rxq_sg_desc);
+
+	if (lif->rxq_features & IONIC_Q_F_2X_CQ_DESC)
+		comp_sz *= 2;
+
 	for (i = 0; i < lif->nxqs; i++) {
 		err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
-				      lif->nrxq_descs,
-				      sizeof(struct ionic_rxq_desc),
-				      sizeof(struct ionic_rxq_comp),
-				      sizeof(struct ionic_rxq_sg_desc),
+				      num_desc, desc_sz, comp_sz, sg_desc_sz,
 				      lif->kern_pid, &lif->rxqcqs[i]);
 		if (err)
 			goto err_out;
+
+		lif->rxqcqs[i]->q.features = lif->rxq_features;
 
 		ionic_intr_coal_init(lif->ionic->idev.intr_ctrl,
 				     lif->rxqcqs[i]->intr.index,
@@ -2218,6 +2227,7 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	/* only swapping the queues, not the napi, flags, or other stuff */
 	swap(a->q.features,   b->q.features);
 	swap(a->q.num_descs,  b->q.num_descs);
+	swap(a->q.desc_size,  b->q.desc_size);
 	swap(a->q.base,       b->q.base);
 	swap(a->q.base_pa,    b->q.base_pa);
 	swap(a->q.info,       b->q.info);
@@ -2225,6 +2235,7 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	swap(a->q_base_pa,    b->q_base_pa);
 	swap(a->q_size,       b->q_size);
 
+	swap(a->q.sg_desc_size, b->q.sg_desc_size);
 	swap(a->q.sg_base,    b->q.sg_base);
 	swap(a->q.sg_base_pa, b->q.sg_base_pa);
 	swap(a->sg_base,      b->sg_base);
@@ -2232,6 +2243,7 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	swap(a->sg_size,      b->sg_size);
 
 	swap(a->cq.num_descs, b->cq.num_descs);
+	swap(a->cq.desc_size, b->cq.desc_size);
 	swap(a->cq.base,      b->cq.base);
 	swap(a->cq.base_pa,   b->cq.base_pa);
 	swap(a->cq.info,      b->cq.info);
@@ -2246,9 +2258,9 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 int ionic_reconfigure_queues(struct ionic_lif *lif,
 			     struct ionic_queue_params *qparam)
 {
+	unsigned int num_desc, desc_sz, comp_sz, sg_desc_sz;
 	struct ionic_qcq **tx_qcqs = NULL;
 	struct ionic_qcq **rx_qcqs = NULL;
-	unsigned int sg_desc_sz;
 	unsigned int flags;
 	int err = -ENOMEM;
 	unsigned int i;
@@ -2260,7 +2272,9 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 		if (!tx_qcqs)
 			goto err_out;
 	}
-	if (qparam->nxqs != lif->nxqs || qparam->nrxq_descs != lif->nrxq_descs) {
+	if (qparam->nxqs != lif->nxqs ||
+	    qparam->nrxq_descs != lif->nrxq_descs ||
+	    qparam->rxq_features != lif->rxq_features) {
 		rx_qcqs = devm_kcalloc(lif->ionic->dev, lif->ionic->nrxqs_per_lif,
 				       sizeof(struct ionic_qcq *), GFP_KERNEL);
 		if (!rx_qcqs)
@@ -2270,21 +2284,22 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	/* allocate new desc_info and rings, but leave the interrupt setup
 	 * until later so as to not mess with the still-running queues
 	 */
-	if (lif->qtype_info[IONIC_QTYPE_TXQ].version >= 1 &&
-	    lif->qtype_info[IONIC_QTYPE_TXQ].sg_desc_sz ==
-					  sizeof(struct ionic_txq_sg_desc_v1))
-		sg_desc_sz = sizeof(struct ionic_txq_sg_desc_v1);
-	else
-		sg_desc_sz = sizeof(struct ionic_txq_sg_desc);
-
 	if (tx_qcqs) {
+		num_desc = qparam->ntxq_descs;
+		desc_sz = sizeof(struct ionic_txq_desc);
+		comp_sz = sizeof(struct ionic_txq_comp);
+
+		if (lif->qtype_info[IONIC_QTYPE_TXQ].version >= 1 &&
+		    lif->qtype_info[IONIC_QTYPE_TXQ].sg_desc_sz ==
+		    sizeof(struct ionic_txq_sg_desc_v1))
+			sg_desc_sz = sizeof(struct ionic_txq_sg_desc_v1);
+		else
+			sg_desc_sz = sizeof(struct ionic_txq_sg_desc);
+
 		for (i = 0; i < qparam->nxqs; i++) {
 			flags = lif->txqcqs[i]->flags & ~IONIC_QCQ_F_INTR;
 			err = ionic_qcq_alloc(lif, IONIC_QTYPE_TXQ, i, "tx", flags,
-					      qparam->ntxq_descs,
-					      sizeof(struct ionic_txq_desc),
-					      sizeof(struct ionic_txq_comp),
-					      sg_desc_sz,
+					      num_desc, desc_sz, comp_sz, sg_desc_sz,
 					      lif->kern_pid, &tx_qcqs[i]);
 			if (err)
 				goto err_out;
@@ -2292,16 +2307,23 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	}
 
 	if (rx_qcqs) {
+		num_desc = qparam->nrxq_descs;
+		desc_sz = sizeof(struct ionic_rxq_desc);
+		comp_sz = sizeof(struct ionic_rxq_comp);
+		sg_desc_sz = sizeof(struct ionic_rxq_sg_desc);
+
+		if (qparam->rxq_features & IONIC_Q_F_2X_CQ_DESC)
+			comp_sz *= 2;
+
 		for (i = 0; i < qparam->nxqs; i++) {
 			flags = lif->rxqcqs[i]->flags & ~IONIC_QCQ_F_INTR;
 			err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
-					      qparam->nrxq_descs,
-					      sizeof(struct ionic_rxq_desc),
-					      sizeof(struct ionic_rxq_comp),
-					      sizeof(struct ionic_rxq_sg_desc),
+					      num_desc, desc_sz, comp_sz, sg_desc_sz,
 					      lif->kern_pid, &rx_qcqs[i]);
 			if (err)
 				goto err_out;
+
+			rx_qcqs[i]->q.features = qparam->rxq_features;
 		}
 	}
 
@@ -2388,6 +2410,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	}
 
 	swap(lif->nxqs, qparam->nxqs);
+	swap(lif->rxq_features, qparam->rxq_features);
 
 err_out_reinit_unlock:
 	/* re-init the queues, but don't lose an error code */

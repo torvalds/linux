@@ -183,6 +183,7 @@ struct ionic_lif {
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
 	u32 rx_copybreak;
+	u64 rxq_features;
 	unsigned int rx_mode;
 	u64 hw_features;
 	bool registered;
@@ -221,6 +222,7 @@ struct ionic_queue_params {
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
 	unsigned int intr_split;
+	u64 rxq_features;
 };
 
 static inline void ionic_init_queue_params(struct ionic_lif *lif,
@@ -230,6 +232,7 @@ static inline void ionic_init_queue_params(struct ionic_lif *lif,
 	qparam->ntxq_descs = lif->ntxq_descs;
 	qparam->nrxq_descs = lif->nrxq_descs;
 	qparam->intr_split = test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+	qparam->rxq_features = lif->rxq_features;
 }
 
 static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)

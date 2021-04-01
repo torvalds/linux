@@ -229,11 +229,13 @@ static void ionic_rx_clean(struct ionic_queue *q,
 			   struct ionic_cq_info *cq_info,
 			   void *cb_arg)
 {
-	struct ionic_rxq_comp *comp = cq_info->rxcq;
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
 	struct ionic_rx_stats *stats;
+	struct ionic_rxq_comp *comp;
 	struct sk_buff *skb;
+
+	comp = cq_info->cq_desc + qcq->cq.desc_size - sizeof(*comp);
 
 	stats = q_to_rx_stats(q);
 
@@ -304,9 +306,11 @@ static void ionic_rx_clean(struct ionic_queue *q,
 
 static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
-	struct ionic_rxq_comp *comp = cq_info->rxcq;
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
+	struct ionic_rxq_comp *comp;
+
+	comp = cq_info->cq_desc + cq->desc_size - sizeof(*comp);
 
 	if (!color_match(comp->pkt_type_color, cq->done_color))
 		return false;
@@ -693,12 +697,14 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
-	struct ionic_txq_comp *comp = cq_info->txcq;
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
+	struct ionic_txq_comp *comp;
 	int bytes = 0;
 	int pkts = 0;
 	u16 index;
+
+	comp = cq_info->cq_desc + cq->desc_size - sizeof(*comp);
 
 	if (!color_match(comp->color, cq->done_color))
 		return false;

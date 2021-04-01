@@ -354,12 +354,24 @@ enum ionic_logical_qtype {
  * @IONIC_QIDENT_F_SG:      Queue has scatter/gather ring
  * @IONIC_QIDENT_F_EQ:      Queue can use event queue
  * @IONIC_QIDENT_F_CMB:     Queue is in cmb bar
+ * @IONIC_Q_F_2X_DESC:      Double main descriptor size
+ * @IONIC_Q_F_2X_CQ_DESC:   Double cq descriptor size
+ * @IONIC_Q_F_2X_SG_DESC:   Double sg descriptor size
+ * @IONIC_Q_F_4X_DESC:      Quadruple main descriptor size
+ * @IONIC_Q_F_4X_CQ_DESC:   Quadruple cq descriptor size
+ * @IONIC_Q_F_4X_SG_DESC:   Quadruple sg descriptor size
  */
 enum ionic_q_feature {
 	IONIC_QIDENT_F_CQ		= BIT_ULL(0),
 	IONIC_QIDENT_F_SG		= BIT_ULL(1),
 	IONIC_QIDENT_F_EQ		= BIT_ULL(2),
 	IONIC_QIDENT_F_CMB		= BIT_ULL(3),
+	IONIC_Q_F_2X_DESC		= BIT_ULL(4),
+	IONIC_Q_F_2X_CQ_DESC		= BIT_ULL(5),
+	IONIC_Q_F_2X_SG_DESC		= BIT_ULL(6),
+	IONIC_Q_F_4X_DESC		= BIT_ULL(7),
+	IONIC_Q_F_4X_CQ_DESC		= BIT_ULL(8),
+	IONIC_Q_F_4X_SG_DESC		= BIT_ULL(9),
 };
 
 /**
