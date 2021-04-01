@@ -59,6 +59,7 @@ static_assert(sizeof(struct ionic_dev_getattr_cmd) == 64);
 static_assert(sizeof(struct ionic_dev_getattr_comp) == 16);
 static_assert(sizeof(struct ionic_dev_setattr_cmd) == 64);
 static_assert(sizeof(struct ionic_dev_setattr_comp) == 16);
+static_assert(sizeof(struct ionic_lif_setphc_cmd) == 64);
 
 /* Port commands */
 static_assert(sizeof(struct ionic_port_identify_cmd) == 64);
