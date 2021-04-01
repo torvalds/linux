@@ -3533,7 +3533,7 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
 	return filp;
 }
 
-struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
+struct file *do_file_open_root(const struct path *root,
 		const char *name, const struct open_flags *op)
 {
 	struct nameidata nd;
@@ -3541,16 +3541,14 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	struct filename *filename;
 	int flags = op->lookup_flags | LOOKUP_ROOT;
 
-	nd.root.mnt = mnt;
-	nd.root.dentry = dentry;
-
-	if (d_is_symlink(dentry) && op->intent & LOOKUP_OPEN)
+	if (d_is_symlink(root->dentry) && op->intent & LOOKUP_OPEN)
 		return ERR_PTR(-ELOOP);
 
 	filename = getname_kernel(name);
 	if (IS_ERR(filename))
 		return ERR_CAST(filename);
 
+	nd.root = *root;
 	set_nameidata(&nd, -1, filename);
 	file = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(file == ERR_PTR(-ECHILD)))
