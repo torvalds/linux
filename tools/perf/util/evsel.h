@@ -175,7 +175,6 @@ struct perf_missing_features {
 extern struct perf_missing_features perf_missing_features;
 
 struct perf_cpu_map;
-struct target;
 struct thread_map;
 struct record_opts;
 
