@@ -1062,7 +1062,13 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu->arch.exception.pending) {
-		if (block_nested_events)
+		/*
+		 * Only a pending nested run can block a pending exception.
+		 * Otherwise an injected NMI/interrupt should either be
+		 * lost or delivered to the nested hypervisor in the EXITINTINFO
+		 * vmcb field, while delivering the pending exception.
+		 */
+		if (svm->nested.nested_run_pending)
                         return -EBUSY;
 		if (!nested_exit_on_exception(svm))
 			return 0;
