@@ -3156,15 +3156,9 @@ static int ftrace_allocate_records(struct ftrace_page *pg, int count)
 	if (WARN_ON(!count))
 		return -EINVAL;
 
+	/* We want to fill as much as possible, with no empty pages */
 	pages = DIV_ROUND_UP(count, ENTRIES_PER_PAGE);
-	order = get_count_order(pages);
-
-	/*
-	 * We want to fill as much as possible. No more than a page
-	 * may be empty.
-	 */
-	if (!is_power_of_2(pages))
-		order--;
+	order = fls(pages) - 1;
 
  again:
 	pg->records = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
