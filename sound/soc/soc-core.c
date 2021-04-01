@@ -413,6 +413,14 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 	 * it is alloced *before* rtd.
 	 * see
 	 *	soc_new_pcm_runtime()
+	 *
+	 * We don't need to mind freeing for rtd,
+	 * because it was created from dev (= rtd->dev)
+	 * see
+	 *	soc_new_pcm_runtime()
+	 *
+	 *		rtd = devm_kzalloc(dev, ...);
+	 *		rtd->dev = dev
 	 */
 	device_unregister(rtd->dev);
 }
@@ -462,8 +470,10 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 						 dai_link->num_codecs +
 						 dai_link->num_platforms),
 			   GFP_KERNEL);
-	if (!rtd)
-		goto free_rtd;
+	if (!rtd) {
+		device_unregister(dev);
+		return NULL;
+	}
 
 	rtd->dev = dev;
 	INIT_LIST_HEAD(&rtd->list);
