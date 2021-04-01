@@ -136,7 +136,7 @@ chmod +x $T/bin/kvm-remote-*.sh
 # Check first to avoid the need for cleanup for system-name typos
 for i in $systems
 do
-	ncpus="`ssh $i lscpu | grep '^CPU(' | awk '{ print $2 }'`"
+	ncpus="`ssh $i getconf _NPROCESSORS_ONLN 2> /dev/null`"
 	echo $i: $ncpus CPUs " " `date` | tee -a "$oldrun/remote-log"
 	ret=$?
 	if test "$ret" -ne 0
