@@ -888,11 +888,6 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
-#define KVM_GUESTDBG_VALID_MASK (KVM_GUESTDBG_ENABLE |    \
-			    KVM_GUESTDBG_USE_SW_BP | \
-			    KVM_GUESTDBG_USE_HW | \
-			    KVM_GUESTDBG_SINGLESTEP)
-
 /**
  * kvm_arch_vcpu_ioctl_set_guest_debug - set up guest debugging
  * @kvm:	pointer to the KVM struct
