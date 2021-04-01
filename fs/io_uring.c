@@ -335,7 +335,6 @@ struct io_ring_ctx {
 	struct {
 		unsigned int		flags;
 		unsigned int		compat: 1;
-		unsigned int		cq_overflow_flushed: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		eventfd_async: 1;
 		unsigned int		restricted: 1;
@@ -1525,8 +1524,7 @@ static bool __io_cqring_fill_event(struct io_kiocb *req, long res,
 		WRITE_ONCE(cqe->flags, cflags);
 		return true;
 	}
-	if (!ctx->cq_overflow_flushed &&
-	    !atomic_read(&req->task->io_uring->in_idle)) {
+	if (!atomic_read(&req->task->io_uring->in_idle)) {
 		struct io_overflow_cqe *ocqe;
 
 		ocqe = kmalloc(sizeof(*ocqe), GFP_ATOMIC | __GFP_ACCOUNT);
@@ -8491,6 +8489,8 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 
 	mutex_lock(&ctx->uring_lock);
 	io_sqe_files_unregister(ctx);
+	if (ctx->rings)
+		__io_cqring_overflow_flush(ctx, true);
 	mutex_unlock(&ctx->uring_lock);
 	io_eventfd_unregister(ctx);
 	io_destroy_buffers(ctx);
@@ -8692,8 +8692,6 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 
 	mutex_lock(&ctx->uring_lock);
 	percpu_ref_kill(&ctx->refs);
-	/* if force is set, the ring is going away. always drop after that */
-	ctx->cq_overflow_flushed = 1;
 	if (ctx->rings)
 		__io_cqring_overflow_flush(ctx, true);
 	xa_for_each(&ctx->personalities, index, creds)
