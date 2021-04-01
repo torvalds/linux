@@ -56,7 +56,7 @@ void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
-	if (--root->root_count)
+	if (!refcount_dec_and_test(&root->tdp_mmu_root_count))
 		return;
 
 	WARN_ON(!root->tdp_mmu_page);
@@ -168,7 +168,7 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 	}
 
 	root = alloc_tdp_mmu_page(vcpu, 0, vcpu->arch.mmu->shadow_root_level);
-	root->root_count = 1;
+	refcount_set(&root->tdp_mmu_root_count, 1);
 
 	list_add(&root->link, &kvm->arch.tdp_mmu_roots);
 
