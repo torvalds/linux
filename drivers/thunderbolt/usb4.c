@@ -13,7 +13,6 @@
 #include "sb_regs.h"
 #include "tb.h"
 
-#define USB4_DATA_DWORDS		16
 #define USB4_DATA_RETRIES		3
 
 enum usb4_sb_target {
@@ -37,9 +36,6 @@ enum usb4_sb_target {
 
 #define USB4_NVM_SECTOR_SIZE_MASK	GENMASK(23, 0)
 
-typedef int (*read_block_fn)(void *, unsigned int, void *, size_t);
-typedef int (*write_block_fn)(void *, const void *, size_t);
-
 static int usb4_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
 				    u32 value, int timeout_msec)
 {
@@ -60,76 +56,6 @@ static int usb4_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
-}
-
-static int usb4_do_read_data(u16 address, void *buf, size_t size,
-			     read_block_fn read_block, void *read_block_data)
-{
-	unsigned int retries = USB4_DATA_RETRIES;
-	unsigned int offset;
-
-	do {
-		unsigned int dwaddress, dwords;
-		u8 data[USB4_DATA_DWORDS * 4];
-		size_t nbytes;
-		int ret;
-
-		offset = address & 3;
-		nbytes = min_t(size_t, size + offset, USB4_DATA_DWORDS * 4);
-
-		dwaddress = address / 4;
-		dwords = ALIGN(nbytes, 4) / 4;
-
-		ret = read_block(read_block_data, dwaddress, data, dwords);
-		if (ret) {
-			if (ret != -ENODEV && retries--)
-				continue;
-			return ret;
-		}
-
-		nbytes -= offset;
-		memcpy(buf, data + offset, nbytes);
-
-		size -= nbytes;
-		address += nbytes;
-		buf += nbytes;
-	} while (size > 0);
-
-	return 0;
-}
-
-static int usb4_do_write_data(unsigned int address, const void *buf, size_t size,
-	write_block_fn write_next_block, void *write_block_data)
-{
-	unsigned int retries = USB4_DATA_RETRIES;
-	unsigned int offset;
-
-	offset = address & 3;
-	address = address & ~3;
-
-	do {
-		u32 nbytes = min_t(u32, size, USB4_DATA_DWORDS * 4);
-		u8 data[USB4_DATA_DWORDS * 4];
-		int ret;
-
-		memcpy(data + offset, buf, nbytes);
-
-		ret = write_next_block(write_block_data, data, nbytes / 4);
-		if (ret) {
-			if (ret == -ETIMEDOUT) {
-				if (retries--)
-					continue;
-				ret = -EIO;
-			}
-			return ret;
-		}
-
-		size -= nbytes;
-		address += nbytes;
-		buf += nbytes;
-	} while (size > 0);
-
-	return 0;
 }
 
 static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
@@ -193,7 +119,7 @@ static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 {
 	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
 
-	if (tx_dwords > USB4_DATA_DWORDS || rx_dwords > USB4_DATA_DWORDS)
+	if (tx_dwords > NVM_DATA_DWORDS || rx_dwords > NVM_DATA_DWORDS)
 		return -EINVAL;
 
 	/*
@@ -414,8 +340,8 @@ static int usb4_switch_drom_read_block(void *data,
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size)
 {
-	return usb4_do_read_data(address, buf, size,
-				 usb4_switch_drom_read_block, sw);
+	return tb_nvm_read_data(address, buf, size, USB4_DATA_RETRIES,
+				usb4_switch_drom_read_block, sw);
 }
 
 /**
@@ -595,8 +521,8 @@ static int usb4_switch_nvm_read_block(void *data,
 int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 			 size_t size)
 {
-	return usb4_do_read_data(address, buf, size,
-				 usb4_switch_nvm_read_block, sw);
+	return tb_nvm_read_data(address, buf, size, USB4_DATA_RETRIES,
+				usb4_switch_nvm_read_block, sw);
 }
 
 static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
@@ -618,8 +544,8 @@ static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
 	return status ? -EIO : 0;
 }
 
-static int usb4_switch_nvm_write_next_block(void *data, const void *buf,
-					    size_t dwords)
+static int usb4_switch_nvm_write_next_block(void *data, unsigned int dwaddress,
+					    const void *buf, size_t dwords)
 {
 	struct tb_switch *sw = data;
 	u8 status;
@@ -652,8 +578,8 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 	if (ret)
 		return ret;
 
-	return usb4_do_write_data(address, buf, size,
-				  usb4_switch_nvm_write_next_block, sw);
+	return tb_nvm_write_data(address, buf, size, USB4_DATA_RETRIES,
+				 usb4_switch_nvm_write_next_block, sw);
 }
 
 /**
@@ -1029,7 +955,7 @@ static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 
 static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 {
-	if (dwords > USB4_DATA_DWORDS)
+	if (dwords > NVM_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_read(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1039,7 +965,7 @@ static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 static int usb4_port_write_data(struct tb_port *port, const void *data,
 				size_t dwords)
 {
-	if (dwords > USB4_DATA_DWORDS)
+	if (dwords > NVM_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_write(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1316,8 +1242,8 @@ struct retimer_info {
 	u8 index;
 };
 
-static int usb4_port_retimer_nvm_write_next_block(void *data, const void *buf,
-						  size_t dwords)
+static int usb4_port_retimer_nvm_write_next_block(void *data,
+	unsigned int dwaddress, const void *buf, size_t dwords)
 
 {
 	const struct retimer_info *info = data;
@@ -1357,8 +1283,8 @@ int usb4_port_retimer_nvm_write(struct tb_port *port, u8 index, unsigned int add
 	if (ret)
 		return ret;
 
-	return usb4_do_write_data(address, buf, size,
-			usb4_port_retimer_nvm_write_next_block, &info);
+	return tb_nvm_write_data(address, buf, size, USB4_DATA_RETRIES,
+				 usb4_port_retimer_nvm_write_next_block, &info);
 }
 
 /**
@@ -1442,7 +1368,7 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	int ret;
 
 	metadata = dwaddress << USB4_NVM_READ_OFFSET_SHIFT;
-	if (dwords < USB4_DATA_DWORDS)
+	if (dwords < NVM_DATA_DWORDS)
 		metadata |= dwords << USB4_NVM_READ_LENGTH_SHIFT;
 
 	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
@@ -1475,8 +1401,8 @@ int usb4_port_retimer_nvm_read(struct tb_port *port, u8 index,
 {
 	struct retimer_info info = { .port = port, .index = index };
 
-	return usb4_do_read_data(address, buf, size,
-			usb4_port_retimer_nvm_read_block, &info);
+	return tb_nvm_read_data(address, buf, size, USB4_DATA_RETRIES,
+				usb4_port_retimer_nvm_read_block, &info);
 }
 
 /**
