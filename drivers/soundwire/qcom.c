@@ -724,7 +724,7 @@ static int qcom_swrm_transport_params(struct sdw_bus *bus,
 	int reg = SWRM_DP_PORT_CTRL_BANK((params->port_num), bank);
 	int ret;
 
-	pcfg = &ctrl->pconfig[params->port_num - 1];
+	pcfg = &ctrl->pconfig[params->port_num];
 
 	value = pcfg->off1 << SWRM_DP_PORT_CTRL_OFFSET1_SHFT;
 	value |= pcfg->off2 << SWRM_DP_PORT_CTRL_OFFSET2_SHFT;
@@ -801,11 +801,11 @@ static int qcom_swrm_compute_params(struct sdw_bus *bus)
 	struct qcom_swrm_port_config *pcfg;
 	struct sdw_slave *slave;
 	unsigned int m_port;
-	int i = 0;
+	int i = 1;
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
 		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
-			pcfg = &ctrl->pconfig[p_rt->num - 1];
+			pcfg = &ctrl->pconfig[p_rt->num];
 			p_rt->transport_params.port_num = p_rt->num;
 			if (pcfg->word_length != SWR_INVALID_PARAM) {
 				sdw_fill_port_params(&p_rt->port_params,
@@ -822,7 +822,7 @@ static int qcom_swrm_compute_params(struct sdw_bus *bus)
 				m_port = slave->m_port_map[p_rt->num];
 				/* port config starts at offset 0 so -1 from actual port number */
 				if (m_port)
-					pcfg = &ctrl->pconfig[m_port - 1];
+					pcfg = &ctrl->pconfig[m_port];
 				else
 					pcfg = &ctrl->pconfig[i];
 				p_rt->transport_params.port_num = p_rt->num;
@@ -1159,15 +1159,16 @@ static int qcom_swrm_get_port_config(struct qcom_swrm_ctrl *ctrl)
 	of_property_read_u8_array(np, "qcom,ports-lane-control", lane_control, nports);
 
 	for (i = 0; i < nports; i++) {
-		ctrl->pconfig[i].si = si[i];
-		ctrl->pconfig[i].off1 = off1[i];
-		ctrl->pconfig[i].off2 = off2[i];
-		ctrl->pconfig[i].bp_mode = bp_mode[i];
-		ctrl->pconfig[i].hstart = hstart[i];
-		ctrl->pconfig[i].hstop = hstop[i];
-		ctrl->pconfig[i].word_length = word_length[i];
-		ctrl->pconfig[i].blk_group_count = blk_group_count[i];
-		ctrl->pconfig[i].lane_control = lane_control[i];
+		/* Valid port number range is from 1-14 */
+		ctrl->pconfig[i + 1].si = si[i];
+		ctrl->pconfig[i + 1].off1 = off1[i];
+		ctrl->pconfig[i + 1].off2 = off2[i];
+		ctrl->pconfig[i + 1].bp_mode = bp_mode[i];
+		ctrl->pconfig[i + 1].hstart = hstart[i];
+		ctrl->pconfig[i + 1].hstop = hstop[i];
+		ctrl->pconfig[i + 1].word_length = word_length[i];
+		ctrl->pconfig[i + 1].blk_group_count = blk_group_count[i];
+		ctrl->pconfig[i + 1].lane_control = lane_control[i];
 	}
 
 	return 0;
