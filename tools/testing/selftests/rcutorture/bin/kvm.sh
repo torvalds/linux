@@ -20,6 +20,9 @@ mkdir $T
 
 cd `dirname $scriptname`/../../../../../
 
+# This script knows only English.
+LANG=en_US.UTF-8; export LANG
+
 dur=$((30*60))
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
