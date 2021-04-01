@@ -506,7 +506,7 @@ static char *parse_iface(char *s, unsigned int *val)
 static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, size_t count,
 			  bool attach)
 {
-	char buf2[256], *s;
+	char buf2[256], *s, *os;
 	size_t len = max(sizeof(s) - 1, count);
 	struct snd_ctl_elem_id id;
 	int err;
@@ -517,6 +517,7 @@ static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, si
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	s = buf2;
 	while (*s) {
+		os = s;
 		if (!strncasecmp(s, "numid=", 6)) {
 			s = parse_uint(s + 6, &id.numid);
 		} else if (!strncasecmp(s, "iface=", 6)) {
@@ -546,6 +547,8 @@ static ssize_t set_led_id(struct snd_ctl_led_card *led_card, const char *buf, si
 		}
 		if (*s == ',')
 			s++;
+		if (s == os)
+			break;
 	}
 
 	err = snd_ctl_led_set_id(led_card->number, &id, led_card->led->group, attach);
