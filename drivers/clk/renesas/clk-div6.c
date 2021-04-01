@@ -103,10 +103,39 @@ static unsigned int cpg_div6_clock_calc_div(unsigned long rate,
 static int cpg_div6_clock_determine_rate(struct clk_hw *hw,
 					 struct clk_rate_request *req)
 {
-	unsigned int div = cpg_div6_clock_calc_div(req->rate,
-						   req->best_parent_rate);
+	unsigned long prate, calc_rate, diff, best_rate, best_prate;
+	unsigned int num_parents = clk_hw_get_num_parents(hw);
+	struct clk_hw *parent, *best_parent = NULL;
+	unsigned long min_diff = ULONG_MAX;
+	unsigned int i, div;
 
-	req->rate = req->best_parent_rate / div;
+	for (i = 0; i < num_parents; i++) {
+		parent = clk_hw_get_parent_by_index(hw, i);
+		if (!parent)
+			continue;
+
+		prate = clk_hw_get_rate(parent);
+		if (!prate)
+			continue;
+
+		div = cpg_div6_clock_calc_div(req->rate, prate);
+		calc_rate = prate / div;
+		diff = calc_rate > req->rate ? calc_rate - req->rate
+					     : req->rate - calc_rate;
+		if (diff < min_diff) {
+			best_rate = calc_rate;
+			best_parent = parent;
+			best_prate = prate;
+			min_diff = diff;
+		}
+	}
+
+	if (!best_parent)
+		return -EINVAL;
+
+	req->best_parent_rate = best_prate;
+	req->best_parent_hw = best_parent;
+	req->rate = best_rate;
 	return 0;
 }
 
