@@ -5040,19 +5040,19 @@ F:	drivers/platform/x86/dell/dell_rbu.c
 
 DELL SMBIOS DRIVER
 M:	Pali Rohár <pali@kernel.org>
-M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	Dell.Client.Kernel@dell.com
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell/dell-smbios.*
 
 DELL SMBIOS SMM DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	Dell.Client.Kernel@dell.com
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell/dell-smbios-smm.c
 
 DELL SMBIOS WMI DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	Dell.Client.Kernel@dell.com
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell/dell-smbios-wmi.c
@@ -5066,14 +5066,14 @@ F:	Documentation/driver-api/dcdbas.rst
 F:	drivers/platform/x86/dell/dcdbas.*
 
 DELL WMI DESCRIPTOR DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	Dell.Client.Kernel@dell.com
 S:	Maintained
 F:	drivers/platform/x86/dell/dell-wmi-descriptor.c
 
 DELL WMI SYSMAN DRIVER
 M:	Divya Bharathi <divya.bharathi@dell.com>
-M:	Mario Limonciello <mario.limonciello@dell.com>
 M:	Prasanth Ksr <prasanth.ksr@dell.com>
+L:	Dell.Client.Kernel@dell.com
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-firmware-attributes
@@ -9250,7 +9250,7 @@ W:	https://slimbootloader.github.io/security/firmware-update.html
 F:	drivers/platform/x86/intel-wmi-sbl-fw-update.c
 
 INTEL WMI THUNDERBOLT FORCE POWER DRIVER
-M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	Dell.Client.Kernel@dell.com
 S:	Maintained
 F:	drivers/platform/x86/intel-wmi-thunderbolt.c
 
