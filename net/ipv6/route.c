@@ -2085,13 +2085,10 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 
 	if (rt->rt6i_flags & RTF_GATEWAY) {
 		struct neighbour *neigh;
-		__u8 neigh_flags = 0;
 
 		neigh = __ipv6_neigh_lookup_noref(rt->dst.dev, &rt->rt6i_gateway);
-		if (neigh)
-			neigh_flags = neigh->flags;
 
-		if (!(neigh_flags & NTF_ROUTER)) {
+		if (!(neigh && (neigh->flags & NTF_ROUTER))) {
 			RT6_TRACE("purging route %p via non-router but gateway\n",
 				  rt);
 			rt6_remove_exception(bucket, rt6_ex);
