@@ -138,6 +138,7 @@ struct io_pgtable_cfg {
  * struct io_pgtable_ops - Page table manipulation API for IOMMU drivers.
  *
  * @map:          Map a physically contiguous memory region.
+ * @map_pages:    Map a physically contiguous range of pages of the same size.
  * @map_sg:       Map a scatter-gather list of physically contiguous memory
  *                chunks. The mapped pointer argument is used to store how
  *                many bytes are mapped.
@@ -151,6 +152,9 @@ struct io_pgtable_cfg {
 struct io_pgtable_ops {
 	int (*map)(struct io_pgtable_ops *ops, unsigned long iova,
 		   phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
+	int (*map_pages)(struct io_pgtable_ops *ops, unsigned long iova,
+			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			 int prot, gfp_t gfp, size_t *mapped);
 	int (*map_sg)(struct io_pgtable_ops *ops, unsigned long iova,
 		      struct scatterlist *sg, unsigned int nents, int prot,
 		      gfp_t gfp, size_t *mapped);
