@@ -410,11 +410,11 @@ void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev)
 	}
 }
 
-int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt)
+int pci_vpd_find_tag(const u8 *buf, unsigned int len, u8 rdt)
 {
 	int i;
 
-	for (i = off; i < len; ) {
+	for (i = 0; i < len; ) {
 		u8 val = buf[i];
 
 		if (val & PCI_VPD_LRDT) {
