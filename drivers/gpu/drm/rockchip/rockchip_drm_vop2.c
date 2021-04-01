@@ -856,33 +856,15 @@ static void vop2_wait_for_fs_by_raw_status(struct vop2_video_port *vp)
 
 }
 
-static inline void vop2_cfg_done(struct drm_crtc *crtc)
+static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 {
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct vop2_video_port *done_vp;
-	struct drm_display_mode *adjusted_mode;
 	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *adjusted_mode;
+	struct vop2_video_port *done_vp;
 	uint32_t done_bits;
 	uint32_t vp_id;
 	uint32_t vcnt;
-	uint32_t val;
 
-	/*
-	 * This is a workaround, the config done bits of VP0,
-	 * VP1, VP2 on RK3568 stands on the first three bits
-	 * on REG_CFG_DONE register without mask bit.
-	 * If two or three config done events happens one after
-	 * another in a very shot time, the flowing config done
-	 * write may override the previous config done bit before
-	 * it take effect:
-	 * 1: config done 0x8001 for VP0
-	 * 2: config done 0x8002 for VP1
-	 *
-	 * 0x8002 may override 0x8001 before it take effect.
-	 *
-	 * So we do a read | write here.
-	 *
-	 */
 	done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
 	/* we have some vp wait for config done take effect */
 	if (done_bits) {
@@ -901,15 +883,53 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 			}
 		}
 	}
+
+	return done_bits;
+}
+
+static inline void vop2_cfg_done(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	uint32_t done_bits;
+	uint32_t val;
+
+	/*
+	 * This is a workaround, the config done bits of VP0,
+	 * VP1, VP2 on RK3568 stands on the first three bits
+	 * on REG_CFG_DONE register without mask bit.
+	 * If two or three config done events happens one after
+	 * another in a very shot time, the flowing config done
+	 * write may override the previous config done bit before
+	 * it take effect:
+	 * 1: config done 0x8001 for VP0
+	 * 2: config done 0x8002 for VP1
+	 *
+	 * 0x8002 may override 0x8001 before it take effect.
+	 *
+	 * So we do a read | write here.
+	 *
+	 */
+	done_bits = vop2_pending_done_bits(vp);
 	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | done_bits;
 	vop2_writel(vop2, 0, val);
 }
 
-static inline void vop2_wb_cfg_done(struct vop2 *vop2)
+static inline void vop2_wb_cfg_done(struct vop2_video_port *vp)
 {
+	struct vop2 *vop2 = vp->vop2;
 	uint32_t val = RK3568_VOP2_WB_CFG_DONE | (RK3568_VOP2_WB_CFG_DONE << 16);
+	uint32_t done_bits;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	done_bits = vop2_pending_done_bits(vp);
+
+	val |=  RK3568_VOP2_GLB_CFG_DONE_EN | done_bits;
 
 	vop2_writel(vop2, 0, val);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
 }
 
 static void vop2_win_disable(struct vop2_win *win)
@@ -2390,7 +2410,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		VOP_MODULE_SET(vop2, wb, axi_yrgb_id, 0xd);
 		VOP_MODULE_SET(vop2, wb, axi_uv_id, 0xe);
-		vop2_wb_cfg_done(vop2);
+		vop2_wb_cfg_done(vp);
 
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
 		/*
@@ -5230,7 +5250,7 @@ static void vop2_wb_disable(struct vop2_video_port *vp)
 	struct vop2_wb *wb = &vop2->wb;
 
 	VOP_MODULE_SET(vop2, wb, enable, 0);
-	vop2_wb_cfg_done(vop2);
+	vop2_wb_cfg_done(vp);
 }
 
 static void vop2_wb_handler(struct vop2_video_port *vp)
