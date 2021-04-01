@@ -819,16 +819,16 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (security_status & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_security_status_valid = 1;
 
+		/* FW security should be derived from PCI ID, we keep this
+		 * check for backward compatibility
+		 */
 		if (security_status & CPU_BOOT_DEV_STS0_SECURITY_EN)
 			prop->fw_security_disabled = false;
-		else
-			prop->fw_security_disabled = true;
 
 		if (security_status & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
 	} else {
 		prop->fw_security_status_valid = 0;
-		prop->fw_security_disabled = true;
 	}
 
 	dev_dbg(hdev->dev, "Firmware preboot security status %#x\n",

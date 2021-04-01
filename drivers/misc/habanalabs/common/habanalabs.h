@@ -766,11 +766,13 @@ struct hl_eq {
  * @ASIC_INVALID: Invalid ASIC type.
  * @ASIC_GOYA: Goya device.
  * @ASIC_GAUDI: Gaudi device.
+ * @ASIC_GAUDI_SEC: Gaudi secured device (HL-2000).
  */
 enum hl_asic_type {
 	ASIC_INVALID,
 	ASIC_GOYA,
-	ASIC_GAUDI
+	ASIC_GAUDI,
+	ASIC_GAUDI_SEC
 };
 
 struct hl_cs_parser;

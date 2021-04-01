@@ -327,6 +327,10 @@ static int device_early_init(struct hl_device *hdev)
 		gaudi_set_asic_funcs(hdev);
 		strscpy(hdev->asic_name, "GAUDI", sizeof(hdev->asic_name));
 		break;
+	case ASIC_GAUDI_SEC:
+		gaudi_set_asic_funcs(hdev);
+		strscpy(hdev->asic_name, "GAUDI SEC", sizeof(hdev->asic_name));
+		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 			hdev->asic_type);
