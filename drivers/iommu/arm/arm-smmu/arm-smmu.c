@@ -761,6 +761,9 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		.iommu_dev	= smmu->dev,
 	};
 
+	if (!iommu_get_dma_strict(domain))
+		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
+
 	if (smmu->impl && smmu->impl->init_context) {
 		ret = smmu->impl->init_context(smmu_domain, &pgtbl_cfg, dev);
 		if (ret)
@@ -1499,18 +1502,6 @@ static int arm_smmu_domain_get_attr(struct iommu_domain *domain,
 			return -ENODEV;
 		}
 		break;
-	case IOMMU_DOMAIN_DMA:
-		switch (attr) {
-		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE: {
-			bool non_strict = smmu_domain->pgtbl_cfg.quirks &
-					  IO_PGTABLE_QUIRK_NON_STRICT;
-			*(int *)data = non_strict;
-			return 0;
-		}
-		default:
-			return -ENODEV;
-		}
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -1553,18 +1544,6 @@ static int arm_smmu_domain_set_attr(struct iommu_domain *domain,
 			smmu_domain->pgtbl_cfg = *pgtbl_cfg;
 			break;
 		}
-		default:
-			ret = -ENODEV;
-		}
-		break;
-	case IOMMU_DOMAIN_DMA:
-		switch (attr) {
-		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
-			if (*(int *)data)
-				smmu_domain->pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
-			else
-				smmu_domain->pgtbl_cfg.quirks &= ~IO_PGTABLE_QUIRK_NON_STRICT;
-			break;
 		default:
 			ret = -ENODEV;
 		}

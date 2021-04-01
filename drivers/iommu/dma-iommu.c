@@ -306,10 +306,7 @@ static void iommu_dma_flush_iotlb_all(struct iova_domain *iovad)
 
 	cookie = container_of(iovad, struct iommu_dma_cookie, iovad);
 	domain = cookie->fq_domain;
-	/*
-	 * The IOMMU driver supporting DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE
-	 * implies that ops->flush_iotlb_all must be non-NULL.
-	 */
+
 	domain->ops->flush_iotlb_all(domain);
 }
 
@@ -336,7 +333,6 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	unsigned long order, base_pfn;
 	struct iova_domain *iovad;
-	int attr;
 
 	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
 		return -EINVAL;
@@ -373,8 +369,7 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	init_iova_domain(iovad, 1UL << order, base_pfn);
 
 	if (!cookie->fq_domain && (!dev || !dev_is_untrusted(dev)) &&
-	    !iommu_domain_get_attr(domain, DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE, &attr) &&
-	    attr) {
+	    domain->ops->flush_iotlb_all && !iommu_get_dma_strict(domain)) {
 		if (init_iova_flush_queue(iovad, iommu_dma_flush_iotlb_all,
 					  iommu_dma_entry_dtor))
 			pr_warn("iova flush queue initialization failed\n");

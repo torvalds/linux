@@ -1771,26 +1771,6 @@ static struct iommu_group *amd_iommu_device_group(struct device *dev)
 	return acpihid_device_group(dev);
 }
 
-static int amd_iommu_domain_get_attr(struct iommu_domain *domain,
-		enum iommu_attr attr, void *data)
-{
-	switch (domain->type) {
-	case IOMMU_DOMAIN_UNMANAGED:
-		return -ENODEV;
-	case IOMMU_DOMAIN_DMA:
-		switch (attr) {
-		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
-			*(int *)data = !amd_iommu_unmap_flush;
-			return 0;
-		default:
-			return -ENODEV;
-		}
-		break;
-	default:
-		return -EINVAL;
-	}
-}
-
 /*****************************************************************************
  *
  * The next functions belong to the dma_ops mapping/unmapping code.
@@ -1855,7 +1835,7 @@ int __init amd_iommu_init_dma_ops(void)
 		pr_info("IO/TLB flush on unmap enabled\n");
 	else
 		pr_info("Lazy IO/TLB flushing enabled\n");
-
+	iommu_set_dma_strict(amd_iommu_unmap_flush);
 	return 0;
 
 }
@@ -2257,7 +2237,6 @@ const struct iommu_ops amd_iommu_ops = {
 	.release_device = amd_iommu_release_device,
 	.probe_finalize = amd_iommu_probe_finalize,
 	.device_group = amd_iommu_device_group,
-	.domain_get_attr = amd_iommu_domain_get_attr,
 	.get_resv_regions = amd_iommu_get_resv_regions,
 	.put_resv_regions = generic_iommu_put_resv_regions,
 	.is_attach_deferred = amd_iommu_is_attach_deferred,

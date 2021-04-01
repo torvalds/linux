@@ -69,6 +69,7 @@ static const char * const iommu_group_resv_type_string[] = {
 };
 
 #define IOMMU_CMD_LINE_DMA_API		BIT(0)
+#define IOMMU_CMD_LINE_STRICT		BIT(1)
 
 static int iommu_alloc_default_domain(struct iommu_group *group,
 				      struct device *dev);
@@ -318,9 +319,28 @@ early_param("iommu.passthrough", iommu_set_def_domain_type);
 
 static int __init iommu_dma_setup(char *str)
 {
-	return kstrtobool(str, &iommu_dma_strict);
+	int ret = kstrtobool(str, &iommu_dma_strict);
+
+	if (!ret)
+		iommu_cmd_line |= IOMMU_CMD_LINE_STRICT;
+	return ret;
 }
 early_param("iommu.strict", iommu_dma_setup);
+
+void iommu_set_dma_strict(bool strict)
+{
+	if (strict || !(iommu_cmd_line & IOMMU_CMD_LINE_STRICT))
+		iommu_dma_strict = strict;
+}
+
+bool iommu_get_dma_strict(struct iommu_domain *domain)
+{
+	/* only allow lazy flushing for DMA domains */
+	if (domain->type == IOMMU_DOMAIN_DMA)
+		return iommu_dma_strict;
+	return true;
+}
+EXPORT_SYMBOL_GPL(iommu_get_dma_strict);
 
 static ssize_t iommu_group_attr_show(struct kobject *kobj,
 				     struct attribute *__attr, char *buf)
@@ -1500,14 +1520,6 @@ static int iommu_group_alloc_default_domain(struct bus_type *bus,
 	group->default_domain = dom;
 	if (!group->domain)
 		group->domain = dom;
-
-	if (!iommu_dma_strict) {
-		int attr = 1;
-		iommu_domain_set_attr(dom,
-				      DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE,
-				      &attr);
-	}
-
 	return 0;
 }
 

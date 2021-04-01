@@ -677,7 +677,6 @@ struct arm_smmu_domain {
 	struct mutex			init_mutex; /* Protects smmu pointer */
 
 	struct io_pgtable_ops		*pgtbl_ops;
-	bool				non_strict;
 	atomic_t			nr_ats_masters;
 
 	enum arm_smmu_domain_stage	stage;

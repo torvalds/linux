@@ -4347,6 +4347,17 @@ int __init intel_iommu_init(void)
 
 	down_read(&dmar_global_lock);
 	for_each_active_iommu(iommu, drhd) {
+		/*
+		 * The flush queue implementation does not perform
+		 * page-selective invalidations that are required for efficient
+		 * TLB flushes in virtual environments.  The benefit of batching
+		 * is likely to be much lower than the overhead of synchronizing
+		 * the virtual and physical IOMMU page-tables.
+		 */
+		if (!intel_iommu_strict && cap_caching_mode(iommu->cap)) {
+			pr_warn("IOMMU batching is disabled due to virtualization");
+			intel_iommu_strict = 1;
+		}
 		iommu_device_sysfs_add(&iommu->iommu, NULL,
 				       intel_iommu_groups,
 				       "%s", iommu->name);
@@ -4355,6 +4366,7 @@ int __init intel_iommu_init(void)
 	}
 	up_read(&dmar_global_lock);
 
+	iommu_set_dma_strict(intel_iommu_strict);
 	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 	if (si_domain && !hw_pass_through)
 		register_memory_notifier(&intel_iommu_memory_nb);
@@ -5413,57 +5425,6 @@ intel_iommu_enable_nesting(struct iommu_domain *domain)
 	return ret;
 }
 
-static bool domain_use_flush_queue(void)
-{
-	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu;
-	bool r = true;
-
-	if (intel_iommu_strict)
-		return false;
-
-	/*
-	 * The flush queue implementation does not perform page-selective
-	 * invalidations that are required for efficient TLB flushes in virtual
-	 * environments. The benefit of batching is likely to be much lower than
-	 * the overhead of synchronizing the virtual and physical IOMMU
-	 * page-tables.
-	 */
-	rcu_read_lock();
-	for_each_active_iommu(iommu, drhd) {
-		if (!cap_caching_mode(iommu->cap))
-			continue;
-
-		pr_warn_once("IOMMU batching is disabled due to virtualization");
-		r = false;
-		break;
-	}
-	rcu_read_unlock();
-
-	return r;
-}
-
-static int
-intel_iommu_domain_get_attr(struct iommu_domain *domain,
-			    enum iommu_attr attr, void *data)
-{
-	switch (domain->type) {
-	case IOMMU_DOMAIN_UNMANAGED:
-		return -ENODEV;
-	case IOMMU_DOMAIN_DMA:
-		switch (attr) {
-		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
-			*(int *)data = domain_use_flush_queue();
-			return 0;
-		default:
-			return -ENODEV;
-		}
-		break;
-	default:
-		return -EINVAL;
-	}
-}
-
 /*
  * Check that the device does not live on an external facing PCI port that is
  * marked as untrusted. Such devices should not be able to apply quirks and
@@ -5536,7 +5497,6 @@ const struct iommu_ops intel_iommu_ops = {
 	.capable		= intel_iommu_capable,
 	.domain_alloc		= intel_iommu_domain_alloc,
 	.domain_free		= intel_iommu_domain_free,
-	.domain_get_attr        = intel_iommu_domain_get_attr,
 	.enable_nesting		= intel_iommu_enable_nesting,
 	.attach_dev		= intel_iommu_attach_device,
 	.detach_dev		= intel_iommu_detach_device,
