@@ -327,18 +327,18 @@ static const struct pci_vpd_ops pci_vpd_f0_ops = {
 	.write = pci_vpd_f0_write,
 };
 
-int pci_vpd_init(struct pci_dev *dev)
+void pci_vpd_init(struct pci_dev *dev)
 {
 	struct pci_vpd *vpd;
 	u8 cap;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_VPD);
 	if (!cap)
-		return -ENODEV;
+		return;
 
 	vpd = kzalloc(sizeof(*vpd), GFP_ATOMIC);
 	if (!vpd)
-		return -ENOMEM;
+		return;
 
 	vpd->len = PCI_VPD_MAX_SIZE;
 	if (dev->dev_flags & PCI_DEV_FLAGS_VPD_REF_F0)
@@ -350,7 +350,6 @@ int pci_vpd_init(struct pci_dev *dev)
 	vpd->busy = 0;
 	vpd->valid = 0;
 	dev->vpd = vpd;
-	return 0;
 }
 
 void pci_vpd_release(struct pci_dev *dev)
