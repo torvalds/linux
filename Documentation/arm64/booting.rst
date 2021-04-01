@@ -270,6 +270,12 @@ Before jumping into the kernel, the following conditions must be met:
       having 0b1 set for the corresponding bit for each of the auxiliary
       counters present.
 
+  For CPUs with the Fine Grained Traps (FEAT_FGT) extension present:
+
+  - If EL3 is present and the kernel is entered at EL2:
+
+    - SCR_EL3.FGTEn (bit 27) must be initialised to 0b1.
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
 enter the kernel in the same exception level.
