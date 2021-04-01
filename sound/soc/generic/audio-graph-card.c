@@ -240,9 +240,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		int is_single_links = 0;
 
 		/* Codec is dummy */
-		codecs->of_node		= NULL;
-		codecs->dai_name	= "snd-soc-dummy-dai";
-		codecs->name		= "snd-soc-dummy";
 
 		/* FE settings */
 		dai_link->dynamic		= 1;
@@ -281,13 +278,11 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		/* card->num_links includes Codec */
 		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
+		asoc_simple_canonicalize_platform(dai_link);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
 		/* CPU is dummy */
-		cpus->of_node		= NULL;
-		cpus->dai_name		= "snd-soc-dummy-dai";
-		cpus->name		= "snd-soc-dummy";
 
 		/* BE settings */
 		dai_link->no_pcm		= 1;
@@ -327,8 +322,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 	graph_parse_convert(dev, ep, &dai_props->adata);
 	graph_parse_mclk_fs(top, ep, dai_props);
-
-	asoc_simple_canonicalize_platform(dai_link);
 
 	ret = asoc_simple_parse_tdm(ep, dai);
 	if (ret)
@@ -659,15 +652,12 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 
 	if (li->cpu) {
 		li->num[li->link].cpus		= 1;
-		li->num[li->link].codecs	= 1;
 		li->num[li->link].platforms	= 1;
 
 		li->link++; /* 1xCPU-dummy */
 		li->dais++; /* 1xCPU */
 	} else {
-		li->num[li->link].cpus		= 1;
 		li->num[li->link].codecs	= 1;
-		li->num[li->link].platforms	= 1;
 
 		li->link++; /* 1xdummy-Codec */
 		li->conf++; /* 1xdummy-Codec */

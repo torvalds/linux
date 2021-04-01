@@ -141,9 +141,6 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		int is_single_links = 0;
 
 		/* Codec is dummy */
-		codecs->of_node		= NULL;
-		codecs->dai_name	= "snd-soc-dummy-dai";
-		codecs->name		= "snd-soc-dummy";
 
 		/* FE settings */
 		dai_link->dynamic		= 1;
@@ -167,13 +164,11 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 			goto out_put_node;
 
 		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
+		asoc_simple_canonicalize_platform(dai_link);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
 		/* CPU is dummy */
-		cpus->of_node		= NULL;
-		cpus->dai_name		= "snd-soc-dummy-dai";
-		cpus->name		= "snd-soc-dummy";
 
 		/* BE settings */
 		dai_link->no_pcm		= 1;
@@ -210,8 +205,6 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 	simple_parse_convert(dev, np, &dai_props->adata);
 	simple_parse_mclk_fs(top, np, codec, dai_props, prefix);
-
-	asoc_simple_canonicalize_platform(dai_link);
 
 	ret = asoc_simple_parse_tdm(np, dai);
 	if (ret)
@@ -530,15 +523,12 @@ static int simple_count_dpcm(struct asoc_simple_priv *priv,
 
 	if (li->cpu) {
 		li->num[li->link].cpus		= 1;
-		li->num[li->link].codecs	= 1;
 		li->num[li->link].platforms	= 1;
 
 		li->link++; /* CPU-dummy */
 		li->dais++;
 	} else {
-		li->num[li->link].cpus		= 1;
 		li->num[li->link].codecs	= 1;
-		li->num[li->link].platforms	= 1;
 
 		li->link++; /* dummy-Codec */
 		li->dais++;

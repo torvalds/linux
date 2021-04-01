@@ -404,13 +404,6 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 	/* Assumes platform == cpu */
 	if (!dai_link->platforms->of_node)
 		dai_link->platforms->of_node = dai_link->cpus->of_node;
-
-	/*
-	 * DPCM BE can be no platform.
-	 * Alloced memory will be waste, but not leak.
-	 */
-	if (!dai_link->platforms->of_node)
-		dai_link->num_platforms = 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
@@ -633,6 +626,11 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			return -ENOMEM;
 	}
 
+	/* dummy CPU/Codec */
+	priv->dummy.of_node	= NULL;
+	priv->dummy.dai_name	= "snd-soc-dummy-dai";
+	priv->dummy.name	= "snd-soc-dummy";
+
 	priv->dai_props		= dai_props;
 	priv->dai_link		= dai_link;
 	priv->dais		= dais;
@@ -653,6 +651,12 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dai_link[i].num_cpus	= li->num[i].cpus;
 
 			dlcs += li->num[i].cpus;
+		} else {
+			/* DPCM Be's CPU = dummy */
+			dai_props[i].cpus	=
+			dai_link[i].cpus	= &priv->dummy;
+			dai_props[i].num.cpus	=
+			dai_link[i].num_cpus	= 1;
 		}
 
 		if (li->num[i].codecs) {
@@ -663,6 +667,12 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dai_link[i].num_codecs	= li->num[i].codecs;
 
 			dlcs += li->num[i].codecs;
+		} else {
+			/* DPCM Fe's Codec = dummy */
+			dai_props[i].codecs	=
+			dai_link[i].codecs	= &priv->dummy;
+			dai_props[i].num.codecs	=
+			dai_link[i].num_codecs	= 1;
 		}
 
 		if (li->num[i].platforms) {
@@ -673,6 +683,12 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dai_link[i].num_platforms	= li->num[i].platforms;
 
 			dlcs += li->num[i].platforms;
+		} else {
+			/* Doesn't have Platform */
+			dai_props[i].platforms		=
+			dai_link[i].platforms		= NULL;
+			dai_props[i].num.platforms	=
+			dai_link[i].num_platforms	= 0;
 		}
 	}
 
