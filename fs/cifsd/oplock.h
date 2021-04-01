@@ -123,9 +123,6 @@ void create_mxac_rsp_buf(char *cc, int maximal_access);
 void create_disk_id_rsp_buf(char *cc, __u64 file_id, __u64 vol_id);
 void create_posix_rsp_buf(char *cc, struct ksmbd_file *fp);
 struct create_context *smb2_find_context_vals(void *open_req, const char *str);
-int ksmbd_durable_verify_and_del_oplock(struct ksmbd_session *curr_sess,
-		struct ksmbd_session *prev_sess, int fid, struct file **filp,
-		u64 sess_id);
 struct oplock_info *lookup_lease_in_table(struct ksmbd_conn *conn,
 		char *lease_key);
 int find_same_lease_key(struct ksmbd_session *sess, struct ksmbd_inode *ci,

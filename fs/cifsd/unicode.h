@@ -71,8 +71,6 @@ int smbConvertToUTF16(__le16 *target, const char *source, int srclen,
 char *ksmbd_extract_sharename(char *treename);
 #endif
 
-wchar_t cifs_toupper(wchar_t in);
-
 /*
  * UniStrcat:  Concatenate the second string to the first
  *

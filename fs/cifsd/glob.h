@@ -19,7 +19,6 @@
 /* @FIXME clean up this code */
 
 extern int ksmbd_debug_types;
-extern int ksmbd_caseless_search;
 
 #define DATA_STREAM	1
 #define DIR_STREAM	2

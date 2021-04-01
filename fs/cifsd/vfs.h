@@ -205,8 +205,6 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name);
 int ksmbd_vfs_link(struct ksmbd_work *work,
 		const char *oldname, const char *newname);
 int ksmbd_vfs_getattr(struct path *path, struct kstat *stat);
-int ksmbd_vfs_symlink(const char *name, const char *symname);
-int ksmbd_vfs_readlink(struct path *path, char *buf, int lenp);
 
 int ksmbd_vfs_fp_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 		char *newname);
@@ -230,7 +228,6 @@ int ksmbd_vfs_setxattr(struct dentry *dentry, const char *attr_name,
 		const void *attr_value, size_t attr_size, int flags);
 int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 		size_t *xattr_stream_name_size, int s_type);
-int ksmbd_vfs_truncate_xattr(struct dentry *dentry, int wo_streams);
 int ksmbd_vfs_remove_xattr(struct dentry *dentry, char *attr_name);
 void ksmbd_vfs_xattr_free(char *xattr);
 int ksmbd_vfs_kern_path(char *name, unsigned int flags, struct path *path,

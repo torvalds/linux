@@ -17,8 +17,6 @@
 #define SERVER_CONF_SERVER_STRING	1
 #define SERVER_CONF_WORK_GROUP		2
 
-extern int ksmbd_debugging;
-
 struct ksmbd_server_config {
 	unsigned int		flags;
 	unsigned int		state;

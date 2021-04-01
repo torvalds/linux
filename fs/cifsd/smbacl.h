@@ -193,7 +193,6 @@ int smb_inherit_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 		unsigned int uid, unsigned int gid);
 int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 		__le32 *pdaccess, int uid);
-int store_init_posix_acl(struct inode *inode, umode_t perm);
 int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 		struct dentry *dentry, struct smb_ntsd *pntsd, int ntsd_len,
 		bool type_check);
