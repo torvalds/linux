@@ -121,6 +121,16 @@
 #define TRACE_BUFFER_ENTRY_OFFSET  16
 
 /**
+ * ABM backlight control version legacy
+ */
+#define DMUB_CMD_ABM_SET_BACKLIGHT_VERSION_UNKNOWN 0x0
+
+/**
+ * ABM backlight control version with multi edp support
+ */
+#define DMUB_CMD_ABM_SET_BACKLIGHT_VERSION_1 0x1
+
+/**
  * Physical framebuffer address location, 64-bit.
  */
 #ifndef PHYSICAL_ADDRESS_LOC
@@ -1625,6 +1635,23 @@ struct dmub_cmd_abm_set_backlight_data {
 	 * Requested backlight level from user.
 	 */
 	uint32_t backlight_user_level;
+
+	/**
+	 * Backlight data version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
