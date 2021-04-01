@@ -635,13 +635,15 @@ static SIMPLE_DEV_PM_OPS(stk8312_pm_ops, stk8312_suspend, stk8312_resume);
 #endif
 
 static const struct i2c_device_id stk8312_i2c_id[] = {
-	{"STK8312", 0},
+	/* Deprecated in favour of lowercase form */
+	{ "STK8312", 0 },
+	{ "stk8312", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, stk8312_i2c_id);
 
 static const struct acpi_device_id stk8312_acpi_id[] = {
-	{"STK8312", 0},
+	{ "STK8312", 0 },
 	{}
 };
 
