@@ -173,8 +173,14 @@ properties:
           - meas,tsys01
             # MEMSIC magnetometer
           - memsic,mmc35240
+            # MEMSIC 3-axis accelerometer
+          - memsic,mx4005
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # MEMSIC 2-axis 8-bit digital accelerometer
+          - memsic,mxc6255
+            # MEMSIC 3-axis accelerometer
+          - memsic,mxc6655
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
