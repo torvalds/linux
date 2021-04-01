@@ -261,8 +261,6 @@ struct mod_hdcp_config {
 	uint8_t index;
 };
 
-struct mod_hdcp;
-
 /* dm allocates memory of mod_hdcp per dc_link on dm init based on memory size*/
 size_t mod_hdcp_get_memory_size(void);
 
