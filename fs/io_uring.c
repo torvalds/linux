@@ -7583,7 +7583,7 @@ static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
 	struct io_rsrc_data *data = node->rsrc_data;
 	struct io_ring_ctx *ctx = data->ctx;
 	bool first_add = false;
-	int delay = HZ;
+	int delay;
 
 	io_rsrc_ref_lock(ctx);
 	node->done = true;
@@ -7599,13 +7599,9 @@ static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
 	}
 	io_rsrc_ref_unlock(ctx);
 
-	if (percpu_ref_is_dying(&data->refs))
-		delay = 0;
-
-	if (!delay)
-		mod_delayed_work(system_wq, &ctx->rsrc_put_work, 0);
-	else if (first_add)
-		queue_delayed_work(system_wq, &ctx->rsrc_put_work, delay);
+	delay = percpu_ref_is_dying(&data->refs) ? 0 : HZ;
+	if (first_add || !delay)
+		mod_delayed_work(system_wq, &ctx->rsrc_put_work, delay);
 }
 
 static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
