@@ -114,8 +114,8 @@ How to run
 	# ksmbd.adduser -a <Enter USERNAME for SMB share access>
 
 3. Create /etc/ksmbd/smb.conf file, add SMB share in smb.conf file
-	- Refer smb.conf.example and Documentation/configuration.txt
-	  in ksmbd-tools
+	- Refer smb.conf.example and
+          https://github.com/cifsd-team/ksmbd-tools/blob/master/Documentation/configuration.txt
 
 4. Insert ksmbd.ko module
 
