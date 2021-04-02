@@ -577,7 +577,7 @@ struct nameidata {
 #define ND_ROOT_GRABBED 2
 #define ND_JUMPED 4
 
-static void set_nameidata(struct nameidata *p, int dfd, struct filename *name)
+static void __set_nameidata(struct nameidata *p, int dfd, struct filename *name)
 {
 	struct nameidata *old = current->nameidata;
 	p->stack = p->internal;
@@ -587,8 +587,18 @@ static void set_nameidata(struct nameidata *p, int dfd, struct filename *name)
 	p->path.dentry = NULL;
 	p->total_link_count = old ? old->total_link_count : 0;
 	p->saved = old;
-	p->state = 0;
 	current->nameidata = p;
+}
+
+static inline void set_nameidata(struct nameidata *p, int dfd, struct filename *name,
+			  const struct path *root)
+{
+	__set_nameidata(p, dfd, name);
+	p->state = 0;
+	if (unlikely(root)) {
+		p->state = ND_ROOT_PRESET;
+		p->root = *root;
+	}
 }
 
 static void restore_nameidata(void)
@@ -2454,11 +2464,7 @@ int filename_lookup(int dfd, struct filename *name, unsigned flags,
 	struct nameidata nd;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	set_nameidata(&nd, dfd, name);
-	if (unlikely(root)) {
-		nd.root = *root;
-		nd.state = ND_ROOT_PRESET;
-	}
+	set_nameidata(&nd, dfd, name, root);
 	retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
 	if (unlikely(retval == -ECHILD))
 		retval = path_lookupat(&nd, flags, path);
@@ -2499,7 +2505,7 @@ static struct filename *filename_parentat(int dfd, struct filename *name,
 
 	if (IS_ERR(name))
 		return name;
-	set_nameidata(&nd, dfd, name);
+	set_nameidata(&nd, dfd, name, NULL);
 	retval = path_parentat(&nd, flags | LOOKUP_RCU, parent);
 	if (unlikely(retval == -ECHILD))
 		retval = path_parentat(&nd, flags, parent);
@@ -3530,7 +3536,7 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
 	int flags = op->lookup_flags;
 	struct file *filp;
 
-	set_nameidata(&nd, dfd, pathname);
+	set_nameidata(&nd, dfd, pathname, NULL);
 	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
 		filp = path_openat(&nd, op, flags);
@@ -3555,9 +3561,7 @@ struct file *do_file_open_root(const struct path *root,
 	if (IS_ERR(filename))
 		return ERR_CAST(filename);
 
-	set_nameidata(&nd, -1, filename);
-	nd.root = *root;
-	nd.state = ND_ROOT_PRESET;
+	set_nameidata(&nd, -1, filename, root);
 	file = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(file == ERR_PTR(-ECHILD)))
 		file = path_openat(&nd, op, flags);
