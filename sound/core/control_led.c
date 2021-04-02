@@ -391,7 +391,7 @@ static ssize_t store_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct snd_ctl_led *led = container_of(dev, struct snd_ctl_led, dev);
 	char _buf[16];
-	size_t l = min(count, sizeof(_buf) - 1) + 1;
+	size_t l = min(count, sizeof(_buf) - 1);
 	enum snd_ctl_led_mode mode;
 
 	memcpy(_buf, buf, l);
