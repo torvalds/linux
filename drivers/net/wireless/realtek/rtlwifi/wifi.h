@@ -3086,14 +3086,9 @@ static inline __le16 rtl_get_fc(struct sk_buff *skb)
 	return rtl_get_hdr(skb)->frame_control;
 }
 
-static inline u16 rtl_get_tid_h(struct ieee80211_hdr *hdr)
-{
-	return (ieee80211_get_qos_ctl(hdr))[0] & IEEE80211_QOS_CTL_TID_MASK;
-}
-
 static inline u16 rtl_get_tid(struct sk_buff *skb)
 {
-	return rtl_get_tid_h(rtl_get_hdr(skb));
+	return ieee80211_get_tid(rtl_get_hdr(skb));
 }
 
 static inline struct ieee80211_sta *get_sta(struct ieee80211_hw *hw,
