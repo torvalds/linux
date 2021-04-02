@@ -1895,7 +1895,7 @@ static int finalize_btf_ext(struct bpf_linker *linker)
 	hdr->func_info_len = funcs_sz;
 	hdr->line_info_off = funcs_sz;
 	hdr->line_info_len = lines_sz;
-	hdr->core_relo_off = funcs_sz + lines_sz;;
+	hdr->core_relo_off = funcs_sz + lines_sz;
 	hdr->core_relo_len = core_relos_sz;
 
 	if (funcs_sz) {
