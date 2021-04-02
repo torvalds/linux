@@ -17,9 +17,8 @@
 static int hotmod_handler(const char *val, const struct kernel_param *kp);
 
 module_param_call(hotmod, hotmod_handler, NULL, NULL, 0200);
-MODULE_PARM_DESC(hotmod, "Add and remove interfaces.  See"
-		 " Documentation/driver-api/ipmi.rst in the kernel sources for the"
-		 " gory details.");
+MODULE_PARM_DESC(hotmod,
+		 "Add and remove interfaces.  See Documentation/driver-api/ipmi.rst in the kernel sources for the gory details.");
 
 /*
  * Parms come in as <op1>[:op2[:op3...]].  ops are:

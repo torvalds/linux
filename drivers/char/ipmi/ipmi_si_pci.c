@@ -16,8 +16,8 @@ static bool pci_registered;
 static bool si_trypci = true;
 
 module_param_named(trypci, si_trypci, bool, 0);
-MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
-		 " default scan of the interfaces identified via pci");
+MODULE_PARM_DESC(trypci,
+		 "Setting this to zero will disable the default scan of the interfaces identified via pci");
 
 #define PCI_DEVICE_ID_HP_MMC 0x121A
 
