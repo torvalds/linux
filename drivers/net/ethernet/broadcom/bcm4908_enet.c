@@ -172,6 +172,7 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 
 err_free_buf_descs:
 	dma_free_coherent(dev, size, ring->cpu_addr, ring->dma_addr);
+	ring->cpu_addr = NULL;
 	return -ENOMEM;
 }
 
