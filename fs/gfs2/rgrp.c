@@ -1783,7 +1783,7 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
 			goto next_bitmap;
 		}
 		rbm->offset = offset;
-		if (!rs)
+		if (!rs || !minext)
 			return 0;
 
 		ret = gfs2_reservation_check_and_update(rbm, rs, *minext,
