@@ -11,6 +11,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/types.h>
 #include <media/v4l2-mem2mem.h>
 
@@ -847,6 +848,52 @@ skip_pmdomains:
 	dev_pm_opp_detach_genpd(core->opp_table);
 }
 
+static int core_resets_reset(struct venus_core *core)
+{
+	const struct venus_resources *res = core->res;
+	unsigned char i;
+	int ret;
+
+	if (!res->resets_num)
+		return 0;
+
+	for (i = 0; i < res->resets_num; i++) {
+		ret = reset_control_assert(core->resets[i]);
+		if (ret)
+			goto err;
+
+		usleep_range(150, 250);
+		ret = reset_control_deassert(core->resets[i]);
+		if (ret)
+			goto err;
+	}
+
+err:
+	return ret;
+}
+
+static int core_resets_get(struct venus_core *core)
+{
+	struct device *dev = core->dev;
+	const struct venus_resources *res = core->res;
+	unsigned char i;
+	int ret;
+
+	if (!res->resets_num)
+		return 0;
+
+	for (i = 0; i < res->resets_num; i++) {
+		core->resets[i] =
+			devm_reset_control_get_exclusive(dev, res->resets[i]);
+		if (IS_ERR(core->resets[i])) {
+			ret = PTR_ERR(core->resets[i]);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int core_get_v4(struct venus_core *core)
 {
 	struct device *dev = core->dev;
@@ -867,6 +914,10 @@ static int core_get_v4(struct venus_core *core)
 		return ret;
 
 	ret = vcodec_clks_get(core, dev, core->vcodec1_clks, res->vcodec1_clks);
+	if (ret)
+		return ret;
+
+	ret = core_resets_get(core);
 	if (ret)
 		return ret;
 
@@ -929,6 +980,13 @@ static int core_power_v4(struct venus_core *core, int on)
 			}
 		}
 
+		ret = core_resets_reset(core);
+		if (ret) {
+			if (pmctrl)
+				pm_runtime_put_sync(pmctrl);
+			return ret;
+		}
+
 		ret = core_clks_enable(core);
 		if (ret < 0 && pmctrl)
 			pm_runtime_put_sync(pmctrl);
@@ -938,6 +996,8 @@ static int core_power_v4(struct venus_core *core, int on)
 			dev_pm_opp_set_rate(dev, 0);
 
 		core_clks_disable(core);
+
+		ret = core_resets_reset(core);
 
 		if (pmctrl)
 			pm_runtime_put_sync(pmctrl);
