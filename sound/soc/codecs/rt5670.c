@@ -3007,6 +3007,45 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	{}
 };
 
+const char *rt5670_components(void)
+{
+	unsigned long quirk;
+	bool dmic1 = false;
+	bool dmic2 = false;
+	bool dmic3 = false;
+
+	if (quirk_override) {
+		quirk = quirk_override;
+	} else {
+		dmi_check_system(dmi_platform_intel_quirks);
+		quirk = rt5670_quirk;
+	}
+
+	if ((quirk & RT5670_DMIC1_IN2P) ||
+	    (quirk & RT5670_DMIC1_GPIO6) ||
+	    (quirk & RT5670_DMIC1_GPIO7))
+		dmic1 = true;
+
+	if ((quirk & RT5670_DMIC2_INR) ||
+	    (quirk & RT5670_DMIC2_GPIO8))
+		dmic2 = true;
+
+	if (quirk & RT5670_DMIC3_GPIO5)
+		dmic3 = true;
+
+	if (dmic1 && dmic2)
+		return "cfg-spk:2 cfg-mic:dmics12";
+	else if (dmic1)
+		return "cfg-spk:2 cfg-mic:dmic1";
+	else if (dmic2)
+		return "cfg-spk:2 cfg-mic:dmic2";
+	else if (dmic3)
+		return "cfg-spk:2 cfg-mic:dmic3";
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(rt5670_components);
+
 static int rt5670_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
