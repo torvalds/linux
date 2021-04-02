@@ -74,6 +74,14 @@ static const struct dmi_system_id byt_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "RU2"),
 		},
 	},
+	{
+		/* Dell Venue 10 Pro 5055 */
+		.callback = byt_rt5672_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 10 Pro 5055"),
+		},
+	},
 	{ }
 };
 
