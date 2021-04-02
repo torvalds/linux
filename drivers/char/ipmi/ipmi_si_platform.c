@@ -316,7 +316,6 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	acpi_status status;
 	unsigned long long tmp;
 	struct resource *res;
-	int rv = -EINVAL;
 
 	if (!si_tryacpi)
 		return -ENODEV;
@@ -336,7 +335,7 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	if (ACPI_FAILURE(status)) {
 		dev_err(&pdev->dev,
 			"Could not find ACPI IPMI interface type\n");
-		goto err_free;
+		return -EINVAL;
 	}
 
 	switch (tmp) {
@@ -350,21 +349,18 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 		io.si_type = SI_BT;
 		break;
 	case 4: /* SSIF, just ignore */
-		rv = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	default:
 		dev_info(&pdev->dev, "unknown IPMI type %lld\n", tmp);
-		goto err_free;
+		return -EINVAL;
 	}
 
 	io.regsize = DEFAULT_REGSIZE;
 	io.regshift = 0;
 
 	res = ipmi_get_info_from_resources(pdev, &io);
-	if (!res) {
-		rv = -EINVAL;
-		goto err_free;
-	}
+	if (!res)
+		return -EINVAL;
 
 	/* If _GPE exists, use it; otherwise use standard interrupts */
 	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
@@ -390,9 +386,6 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 	request_module("acpi_ipmi");
 
 	return ipmi_si_add_smi(&io);
-
-err_free:
-	return rv;
 }
 
 static const struct acpi_device_id acpi_ipmi_match[] = {
