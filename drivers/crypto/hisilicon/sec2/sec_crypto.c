@@ -7,6 +7,7 @@
 #include <crypto/des.h>
 #include <crypto/hash.h>
 #include <crypto/internal/aead.h>
+#include <crypto/internal/des.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
@@ -571,10 +572,18 @@ static void sec_skcipher_uninit(struct crypto_skcipher *tfm)
 	sec_ctx_base_uninit(ctx);
 }
 
-static int sec_skcipher_3des_setkey(struct sec_cipher_ctx *c_ctx,
+static int sec_skcipher_3des_setkey(struct crypto_skcipher *tfm, const u8 *key,
 				    const u32 keylen,
 				    const enum sec_cmode c_mode)
 {
+	struct sec_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct sec_cipher_ctx *c_ctx = &ctx->c_ctx;
+	int ret;
+
+	ret = verify_skcipher_des3_key(tfm, key);
+	if (ret)
+		return ret;
+
 	switch (keylen) {
 	case SEC_DES3_2KEY_SIZE:
 		c_ctx->c_key_len = SEC_CKEY_3DES_2KEY;
@@ -647,7 +656,7 @@ static int sec_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	switch (c_alg) {
 	case SEC_CALG_3DES:
-		ret = sec_skcipher_3des_setkey(c_ctx, keylen, c_mode);
+		ret = sec_skcipher_3des_setkey(tfm, key, keylen, c_mode);
 		break;
 	case SEC_CALG_AES:
 	case SEC_CALG_SM4:
