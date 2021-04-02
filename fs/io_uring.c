@@ -697,6 +697,7 @@ enum {
 	REQ_F_NO_FILE_TABLE_BIT,
 	REQ_F_LTIMEOUT_ACTIVE_BIT,
 	REQ_F_COMPLETE_INLINE_BIT,
+	REQ_F_REISSUE_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -740,6 +741,8 @@ enum {
 	REQ_F_LTIMEOUT_ACTIVE	= BIT(REQ_F_LTIMEOUT_ACTIVE_BIT),
 	/* completion is deferred through io_comp_state */
 	REQ_F_COMPLETE_INLINE	= BIT(REQ_F_COMPLETE_INLINE_BIT),
+	/* caller should reissue async */
+	REQ_F_REISSUE		= BIT(REQ_F_REISSUE_BIT),
 };
 
 struct async_poll {
@@ -2503,8 +2506,10 @@ static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 
 	if (req->rw.kiocb.ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
-	if ((res == -EAGAIN || res == -EOPNOTSUPP) && io_rw_reissue(req))
+	if ((res == -EAGAIN || res == -EOPNOTSUPP) && io_rw_should_reissue(req)) {
+		req->flags |= REQ_F_REISSUE;
 		return;
+	}
 	if (res != req->result)
 		req_set_fail_links(req);
 	if (req->flags & REQ_F_BUFFER_SELECTED)
@@ -3283,9 +3288,7 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = io_iter_do_read(req, iter);
 
-	if (ret == -EIOCBQUEUED) {
-		goto out_free;
-	} else if (ret == -EAGAIN) {
+	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto done;
@@ -3295,6 +3298,8 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, io_size - iov_iter_count(iter));
 		ret = 0;
+	} else if (ret == -EIOCBQUEUED) {
+		goto out_free;
 	} else if (ret <= 0 || ret == io_size || !force_nonblock ||
 		   (req->flags & REQ_F_NOWAIT) || !(req->flags & REQ_F_ISREG)) {
 		/* read all, failed, already did sync or don't want to retry */
@@ -3406,6 +3411,9 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		ret2 = loop_rw_iter(WRITE, req, iter);
 	else
 		ret2 = -EINVAL;
+
+	if (req->flags & REQ_F_REISSUE)
+		ret2 = -EAGAIN;
 
 	/*
 	 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
@@ -6160,6 +6168,7 @@ static void io_wq_submit_work(struct io_wq_work *work)
 		ret = -ECANCELED;
 
 	if (!ret) {
+		req->flags &= ~REQ_F_REISSUE;
 		do {
 			ret = io_issue_sqe(req, 0);
 			/*
