@@ -804,8 +804,9 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 			adev->mmhub.funcs->query_ras_error_status(adev);
 		break;
 	case AMDGPU_RAS_BLOCK__PCIE_BIF:
-		if (adev->nbio.funcs->query_ras_error_count)
-			adev->nbio.funcs->query_ras_error_count(adev, &err_data);
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->query_ras_error_count)
+			adev->nbio.ras_funcs->query_ras_error_count(adev, &err_data);
 		break;
 	case AMDGPU_RAS_BLOCK__XGMI_WAFL:
 		amdgpu_xgmi_query_ras_error_count(adev, &err_data);
@@ -2030,14 +2031,31 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	/* Might need get this flag from vbios. */
 	con->flags = RAS_DEFAULT_FLAGS;
 
-	if (adev->nbio.funcs->init_ras_controller_interrupt) {
-		r = adev->nbio.funcs->init_ras_controller_interrupt(adev);
+	/* initialize nbio ras function ahead of any other
+	 * ras functions so hardware fatal error interrupt
+	 * can be enabled as early as possible */
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
+		if (!adev->gmc.xgmi.connected_to_cpu)
+			adev->nbio.ras_funcs = &nbio_v7_4_ras_funcs;
+		break;
+	default:
+		/* nbio ras is not available */
+		break;
+	}
+
+	if (adev->nbio.ras_funcs &&
+	    adev->nbio.ras_funcs->init_ras_controller_interrupt) {
+		r = adev->nbio.ras_funcs->init_ras_controller_interrupt(adev);
 		if (r)
 			goto release_con;
 	}
 
-	if (adev->nbio.funcs->init_ras_err_event_athub_interrupt) {
-		r = adev->nbio.funcs->init_ras_err_event_athub_interrupt(adev);
+	if (adev->nbio.ras_funcs &&
+	    adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt) {
+		r = adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt(adev);
 		if (r)
 			goto release_con;
 	}

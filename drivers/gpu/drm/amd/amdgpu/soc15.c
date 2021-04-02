@@ -1523,8 +1523,9 @@ static int soc15_common_late_init(void *handle)
 	if (adev->hdp.funcs->reset_ras_error_count)
 		adev->hdp.funcs->reset_ras_error_count(adev);
 
-	if (adev->nbio.funcs->ras_late_init)
-		r = adev->nbio.funcs->ras_late_init(adev);
+	if (adev->nbio.ras_funcs &&
+	    adev->nbio.ras_funcs->ras_late_init)
+		r = adev->nbio.ras_funcs->ras_late_init(adev);
 
 	return r;
 }
@@ -1545,7 +1546,9 @@ static int soc15_common_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_nbio_ras_fini(adev);
+	if (adev->nbio.ras_funcs &&
+	    adev->nbio.ras_funcs->ras_fini)
+		adev->nbio.ras_funcs->ras_fini(adev);
 	adev->df.funcs->sw_fini(adev);
 	return 0;
 }
@@ -1609,9 +1612,11 @@ static int soc15_common_hw_fini(void *handle)
 
 	if (adev->nbio.ras_if &&
 	    amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
-		if (adev->nbio.funcs->init_ras_controller_interrupt)
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->init_ras_controller_interrupt)
 			amdgpu_irq_put(adev, &adev->nbio.ras_controller_irq, 0);
-		if (adev->nbio.funcs->init_ras_err_event_athub_interrupt)
+		if (adev->nbio.ras_funcs &&
+		    adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt)
 			amdgpu_irq_put(adev, &adev->nbio.ras_err_event_athub_irq, 0);
 	}
 
