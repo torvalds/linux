@@ -600,3 +600,59 @@ tc and eswitch offloads tracepoints:
     $ cat /sys/kernel/debug/tracing/trace
     ...
     kworker/u48:7-2221  [009] ...1  1475.387435: mlx5e_rep_neigh_update: netdev: ens1f0 MAC: 24:8a:07:9a:17:9a IPv4: 1.1.1.10 IPv6: ::ffff:1.1.1.10 neigh_connected=1
+
+Bridge offloads tracepoints:
+
+- mlx5_esw_bridge_fdb_entry_init: trace bridge FDB entry offloaded to mlx5::
+
+    $ echo mlx5:mlx5_esw_bridge_fdb_entry_init >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u20:9-2217    [003] ...1   318.582243: mlx5_esw_bridge_fdb_entry_init: net_device=enp8s0f0_0 addr=e4:fd:05:08:00:02 vid=0 flags=0 used=0
+
+- mlx5_esw_bridge_fdb_entry_cleanup: trace bridge FDB entry deleted from mlx5::
+
+    $ echo mlx5:mlx5_esw_bridge_fdb_entry_cleanup >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-2581    [005] ...1   318.629871: mlx5_esw_bridge_fdb_entry_cleanup: net_device=enp8s0f0_1 addr=e4:fd:05:08:00:03 vid=0 flags=0 used=16
+
+- mlx5_esw_bridge_fdb_entry_refresh: trace bridge FDB entry offload refreshed in
+  mlx5::
+
+    $ echo mlx5:mlx5_esw_bridge_fdb_entry_refresh >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u20:8-3849    [003] ...1       466716: mlx5_esw_bridge_fdb_entry_refresh: net_device=enp8s0f0_0 addr=e4:fd:05:08:00:02 vid=3 flags=0 used=0
+
+- mlx5_esw_bridge_vlan_create: trace bridge VLAN object add on mlx5
+  representor::
+
+    $ echo mlx5:mlx5_esw_bridge_vlan_create >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-2560    [007] ...1   318.460258: mlx5_esw_bridge_vlan_create: vid=1 flags=6
+
+- mlx5_esw_bridge_vlan_cleanup: trace bridge VLAN object delete from mlx5
+  representor::
+
+    $ echo mlx5:mlx5_esw_bridge_vlan_cleanup >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    bridge-2582    [007] ...1   318.653496: mlx5_esw_bridge_vlan_cleanup: vid=2 flags=8
+
+- mlx5_esw_bridge_vport_init: trace mlx5 vport assigned with bridge upper
+  device::
+
+    $ echo mlx5:mlx5_esw_bridge_vport_init >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-2560    [007] ...1   318.458915: mlx5_esw_bridge_vport_init: vport_num=1
+
+- mlx5_esw_bridge_vport_cleanup: trace mlx5 vport removed from bridge upper
+  device::
+
+    $ echo mlx5:mlx5_esw_bridge_vport_cleanup >> set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    ip-5387    [000] ...1       573713: mlx5_esw_bridge_vport_cleanup: vport_num=1

@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2021 Mellanox Technologies. */
 
-#include <linux/netdevice.h>
 #include <linux/list.h>
-#include <linux/rhashtable.h>
-#include <linux/xarray.h>
-#include <linux/if_bridge.h>
-#include <linux/if_vlan.h>
-#include <linux/if_ether.h>
+#include <linux/notifier.h>
+#include <net/netevent.h>
 #include <net/switchdev.h>
 #include "bridge.h"
 #include "eswitch.h"
-#include "fs_core.h"
+#include "bridge_priv.h"
+#define CREATE_TRACE_POINTS
+#include "diag/bridge_tracepoint.h"
 
 #define MLX5_ESW_BRIDGE_INGRESS_TABLE_SIZE 64000
 #define MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_GRP_IDX_FROM 0
@@ -39,49 +37,11 @@ enum {
 	MLX5_ESW_BRIDGE_LEVEL_SKIP_TABLE,
 };
 
-struct mlx5_esw_bridge_fdb_key {
-	unsigned char addr[ETH_ALEN];
-	u16 vid;
-};
-
-enum {
-	MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER = BIT(0),
-};
-
-struct mlx5_esw_bridge_fdb_entry {
-	struct mlx5_esw_bridge_fdb_key key;
-	struct rhash_head ht_node;
-	struct net_device *dev;
-	struct list_head list;
-	struct list_head vlan_list;
-	u16 vport_num;
-	u16 flags;
-
-	struct mlx5_flow_handle *ingress_handle;
-	struct mlx5_fc *ingress_counter;
-	unsigned long lastuse;
-	struct mlx5_flow_handle *egress_handle;
-	struct mlx5_flow_handle *filter_handle;
-};
-
 static const struct rhashtable_params fdb_ht_params = {
 	.key_offset = offsetof(struct mlx5_esw_bridge_fdb_entry, key),
 	.key_len = sizeof(struct mlx5_esw_bridge_fdb_key),
 	.head_offset = offsetof(struct mlx5_esw_bridge_fdb_entry, ht_node),
 	.automatic_shrinking = true,
-};
-
-struct mlx5_esw_bridge_vlan {
-	u16 vid;
-	u16 flags;
-	struct list_head fdb_list;
-	struct mlx5_pkt_reformat *pkt_reformat_push;
-	struct mlx5_pkt_reformat *pkt_reformat_pop;
-};
-
-struct mlx5_esw_bridge_port {
-	u16 vport_num;
-	struct xarray vlans;
 };
 
 enum {
@@ -697,10 +657,23 @@ static void mlx5_esw_bridge_port_erase(struct mlx5_esw_bridge_port *port,
 	xa_erase(&bridge->vports, port->vport_num);
 }
 
+static void mlx5_esw_bridge_fdb_entry_refresh(unsigned long lastuse,
+					      struct mlx5_esw_bridge_fdb_entry *entry)
+{
+	trace_mlx5_esw_bridge_fdb_entry_refresh(entry);
+
+	entry->lastuse = lastuse;
+	mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
+					   entry->key.vid,
+					   SWITCHDEV_FDB_ADD_TO_BRIDGE);
+}
+
 static void
 mlx5_esw_bridge_fdb_entry_cleanup(struct mlx5_esw_bridge_fdb_entry *entry,
 				  struct mlx5_esw_bridge *bridge)
 {
+	trace_mlx5_esw_bridge_fdb_entry_cleanup(entry);
+
 	rhashtable_remove_fast(&bridge->fdb_ht, &entry->ht_node, fdb_ht_params);
 	mlx5_del_flow_rules(entry->egress_handle);
 	if (entry->filter_handle)
@@ -842,6 +815,7 @@ mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *por
 	if (err)
 		goto err_xa_insert;
 
+	trace_mlx5_esw_bridge_vlan_create(vlan);
 	return vlan;
 
 err_xa_insert:
@@ -884,6 +858,7 @@ static void mlx5_esw_bridge_vlan_cleanup(struct mlx5_esw_bridge_port *port,
 					 struct mlx5_esw_bridge_vlan *vlan,
 					 struct mlx5_esw_bridge *bridge)
 {
+	trace_mlx5_esw_bridge_vlan_cleanup(vlan);
 	mlx5_esw_bridge_vlan_flush(vlan, bridge);
 	mlx5_esw_bridge_vlan_erase(port, vlan);
 	kvfree(vlan);
@@ -1007,6 +982,8 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsi
 	else
 		INIT_LIST_HEAD(&entry->vlan_list);
 	list_add(&entry->list, &bridge->fdb_list);
+
+	trace_mlx5_esw_bridge_fdb_entry_init(entry);
 	return entry;
 
 err_ht_init:
@@ -1078,6 +1055,7 @@ static int mlx5_esw_bridge_vport_init(struct mlx5_esw_bridge_offloads *br_offloa
 			 vport->vport, err);
 		goto err_port_insert;
 	}
+	trace_mlx5_esw_bridge_vport_init(port);
 
 	vport->bridge = bridge;
 	return 0;
@@ -1106,6 +1084,7 @@ static int mlx5_esw_bridge_vport_cleanup(struct mlx5_esw_bridge_offloads *br_off
 		return -EINVAL;
 	}
 
+	trace_mlx5_esw_bridge_vport_cleanup(port);
 	mlx5_esw_bridge_port_vlans_flush(port, bridge);
 	mlx5_esw_bridge_port_erase(port, bridge);
 	kvfree(port);
@@ -1266,11 +1245,7 @@ void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
 				continue;
 
 			if (time_after(lastuse, entry->lastuse)) {
-				entry->lastuse = lastuse;
-				/* refresh existing bridge entry */
-				mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
-								   entry->key.vid,
-								   SWITCHDEV_FDB_ADD_TO_BRIDGE);
+				mlx5_esw_bridge_fdb_entry_refresh(lastuse, entry);
 			} else if (time_is_before_jiffies(entry->lastuse + bridge->ageing_time)) {
 				mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
 								   entry->key.vid,
