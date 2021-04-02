@@ -873,142 +873,118 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	return ret;
 }
 
-typedef int (*tdp_handler_t)(struct kvm *kvm, struct kvm_memory_slot *slot,
-			     struct kvm_mmu_page *root, gfn_t start, gfn_t end,
-			     unsigned long data);
-
-static __always_inline int kvm_tdp_mmu_handle_hva_range(struct kvm *kvm,
-							unsigned long start,
-							unsigned long end,
-							unsigned long data,
-							tdp_handler_t handler)
+bool kvm_tdp_mmu_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range,
+				 bool flush)
 {
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
 	struct kvm_mmu_page *root;
-	int ret = 0;
-	int as_id;
 
-	for (as_id = 0; as_id < KVM_ADDRESS_SPACE_NUM; as_id++) {
-		for_each_tdp_mmu_root_yield_safe(kvm, root, as_id) {
-			slots = __kvm_memslots(kvm, as_id);
-			kvm_for_each_memslot(memslot, slots) {
-				unsigned long hva_start, hva_end;
-				gfn_t gfn_start, gfn_end;
+	for_each_tdp_mmu_root(kvm, root, range->slot->as_id)
+		flush |= zap_gfn_range(kvm, root, range->start, range->end,
+				       false, flush);
 
-				hva_start = max(start, memslot->userspace_addr);
-				hva_end = min(end, memslot->userspace_addr +
-					(memslot->npages << PAGE_SHIFT));
-				if (hva_start >= hva_end)
-					continue;
-				/*
-				 * {gfn(page) | page intersects with [hva_start, hva_end)} =
-				 * {gfn_start, gfn_start+1, ..., gfn_end-1}.
-				 */
-				gfn_start = hva_to_gfn_memslot(hva_start, memslot);
-				gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
+	return flush;
+}
 
-				ret |= handler(kvm, memslot, root, gfn_start,
-					gfn_end, data);
-			}
-		}
+typedef bool (*tdp_handler_t)(struct kvm *kvm, struct tdp_iter *iter,
+			      struct kvm_gfn_range *range);
+
+static __always_inline bool kvm_tdp_mmu_handle_gfn(struct kvm *kvm,
+						   struct kvm_gfn_range *range,
+						   tdp_handler_t handler)
+{
+	struct kvm_mmu_page *root;
+	struct tdp_iter iter;
+	bool ret = false;
+
+	rcu_read_lock();
+
+	for_each_tdp_mmu_root(kvm, root, range->slot->as_id) {
+		tdp_root_for_each_leaf_pte(iter, root, range->start, range->end)
+			ret |= handler(kvm, &iter, range);
 	}
 
+	rcu_read_unlock();
+
 	return ret;
-}
-
-static __always_inline int kvm_tdp_mmu_handle_hva(struct kvm *kvm,
-						  unsigned long addr,
-						  unsigned long data,
-						  tdp_handler_t handler)
-{
-	return kvm_tdp_mmu_handle_hva_range(kvm, addr, addr + 1, data, handler);
-}
-
-static int zap_gfn_range_hva_wrapper(struct kvm *kvm,
-				     struct kvm_memory_slot *slot,
-				     struct kvm_mmu_page *root, gfn_t start,
-				     gfn_t end, unsigned long unused)
-{
-	return zap_gfn_range(kvm, root, start, end, false, false);
-}
-
-int kvm_tdp_mmu_zap_hva_range(struct kvm *kvm, unsigned long start,
-			      unsigned long end)
-{
-	return kvm_tdp_mmu_handle_hva_range(kvm, start, end, 0,
-					    zap_gfn_range_hva_wrapper);
 }
 
 /*
  * Mark the SPTEs range of GFNs [start, end) unaccessed and return non-zero
  * if any of the GFNs in the range have been accessed.
  */
-static int age_gfn_range(struct kvm *kvm, struct kvm_memory_slot *slot,
-			 struct kvm_mmu_page *root, gfn_t start, gfn_t end,
-			 unsigned long unused)
+static bool age_gfn_range(struct kvm *kvm, struct tdp_iter *iter,
+			  struct kvm_gfn_range *range)
 {
-	struct tdp_iter iter;
-	int young = 0;
-	u64 new_spte;
+	u64 new_spte = 0;
 
-	rcu_read_lock();
+	/* If we have a non-accessed entry we don't need to change the pte. */
+	if (!is_accessed_spte(iter->old_spte))
+		return false;
 
-	tdp_root_for_each_leaf_pte(iter, root, start, end) {
+	new_spte = iter->old_spte;
+
+	if (spte_ad_enabled(new_spte)) {
+		new_spte &= ~shadow_accessed_mask;
+	} else {
 		/*
-		 * If we have a non-accessed entry we don't need to change the
-		 * pte.
+		 * Capture the dirty status of the page, so that it doesn't get
+		 * lost when the SPTE is marked for access tracking.
 		 */
-		if (!is_accessed_spte(iter.old_spte))
-			continue;
+		if (is_writable_pte(new_spte))
+			kvm_set_pfn_dirty(spte_to_pfn(new_spte));
 
-		new_spte = iter.old_spte;
-
-		if (spte_ad_enabled(new_spte)) {
-			new_spte &= ~shadow_accessed_mask;
-		} else {
-			/*
-			 * Capture the dirty status of the page, so that it doesn't get
-			 * lost when the SPTE is marked for access tracking.
-			 */
-			if (is_writable_pte(new_spte))
-				kvm_set_pfn_dirty(spte_to_pfn(new_spte));
-
-			new_spte = mark_spte_for_access_track(new_spte);
-		}
-
-		tdp_mmu_set_spte_no_acc_track(kvm, &iter, new_spte);
-		young = 1;
+		new_spte = mark_spte_for_access_track(new_spte);
 	}
 
-	rcu_read_unlock();
+	tdp_mmu_set_spte_no_acc_track(kvm, iter, new_spte);
 
-	return young;
+	return true;
 }
 
-int kvm_tdp_mmu_age_hva_range(struct kvm *kvm, unsigned long start,
-			      unsigned long end)
+bool kvm_tdp_mmu_age_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	return kvm_tdp_mmu_handle_hva_range(kvm, start, end, 0,
-					    age_gfn_range);
+	return kvm_tdp_mmu_handle_gfn(kvm, range, age_gfn_range);
 }
 
-static int test_age_gfn(struct kvm *kvm, struct kvm_memory_slot *slot,
-			struct kvm_mmu_page *root, gfn_t gfn, gfn_t end,
-			unsigned long unused)
+static bool test_age_gfn(struct kvm *kvm, struct tdp_iter *iter,
+			 struct kvm_gfn_range *range)
 {
-	struct tdp_iter iter;
-
-	tdp_root_for_each_leaf_pte(iter, root, gfn, end)
-		if (is_accessed_spte(iter.old_spte))
-			return 1;
-
-	return 0;
+	return is_accessed_spte(iter->old_spte);
 }
 
-int kvm_tdp_mmu_test_age_hva(struct kvm *kvm, unsigned long hva)
+bool kvm_tdp_mmu_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	return kvm_tdp_mmu_handle_hva(kvm, hva, 0, test_age_gfn);
+	return kvm_tdp_mmu_handle_gfn(kvm, range, test_age_gfn);
+}
+
+static bool set_spte_gfn(struct kvm *kvm, struct tdp_iter *iter,
+			 struct kvm_gfn_range *range)
+{
+	u64 new_spte;
+
+	/* Huge pages aren't expected to be modified without first being zapped. */
+	WARN_ON(pte_huge(range->pte) || range->start + 1 != range->end);
+
+	if (iter->level != PG_LEVEL_4K ||
+	    !is_shadow_present_pte(iter->old_spte))
+		return false;
+
+	/*
+	 * Note, when changing a read-only SPTE, it's not strictly necessary to
+	 * zero the SPTE before setting the new PFN, but doing so preserves the
+	 * invariant that the PFN of a present * leaf SPTE can never change.
+	 * See __handle_changed_spte().
+	 */
+	tdp_mmu_set_spte(kvm, iter, 0);
+
+	if (!pte_write(range->pte)) {
+		new_spte = kvm_mmu_changed_pte_notifier_make_spte(iter->old_spte,
+								  pte_pfn(range->pte));
+
+		tdp_mmu_set_spte(kvm, iter, new_spte);
+	}
+
+	return true;
 }
 
 /*
@@ -1017,60 +993,15 @@ int kvm_tdp_mmu_test_age_hva(struct kvm *kvm, unsigned long hva)
  * notifier.
  * Returns non-zero if a flush is needed before releasing the MMU lock.
  */
-static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
-			struct kvm_mmu_page *root, gfn_t gfn, gfn_t end,
-			unsigned long data)
+bool kvm_tdp_mmu_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	struct tdp_iter iter;
-	pte_t *ptep = (pte_t *)data;
-	kvm_pfn_t new_pfn;
-	u64 new_spte;
-	int need_flush = 0;
+	bool flush = kvm_tdp_mmu_handle_gfn(kvm, range, set_spte_gfn);
 
-	rcu_read_lock();
+	/* FIXME: return 'flush' instead of flushing here. */
+	if (flush)
+		kvm_flush_remote_tlbs_with_address(kvm, range->start, 1);
 
-	WARN_ON(pte_huge(*ptep) || (gfn + 1) != end);
-
-	new_pfn = pte_pfn(*ptep);
-
-	tdp_root_for_each_leaf_pte(iter, root, gfn, gfn + 1) {
-		if (iter.level != PG_LEVEL_4K)
-			continue;
-
-		if (!is_shadow_present_pte(iter.old_spte))
-			break;
-
-		/*
-		 * Note, when changing a read-only SPTE, it's not strictly
-		 * necessary to zero the SPTE before setting the new PFN, but
-		 * doing so preserves the invariant that the PFN of a present
-		 * leaf SPTE can never change.  See __handle_changed_spte().
-		 */
-		tdp_mmu_set_spte(kvm, &iter, 0);
-
-		if (!pte_write(*ptep)) {
-			new_spte = kvm_mmu_changed_pte_notifier_make_spte(
-					iter.old_spte, new_pfn);
-
-			tdp_mmu_set_spte(kvm, &iter, new_spte);
-		}
-
-		need_flush = 1;
-	}
-
-	if (need_flush)
-		kvm_flush_remote_tlbs_with_address(kvm, gfn, 1);
-
-	rcu_read_unlock();
-
-	return 0;
-}
-
-int kvm_tdp_mmu_set_spte_hva(struct kvm *kvm, unsigned long address,
-			     pte_t *host_ptep)
-{
-	return kvm_tdp_mmu_handle_hva(kvm, address, (unsigned long)host_ptep,
-				      set_tdp_spte);
+	return false;
 }
 
 /*
