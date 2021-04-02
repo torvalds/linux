@@ -1010,7 +1010,7 @@ int mmc_cmdq_disable(struct mmc_card *card)
 }
 EXPORT_SYMBOL_GPL(mmc_cmdq_disable);
 
-int mmc_sanitize(struct mmc_card *card)
+int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms)
 {
 	struct mmc_host *host = card->host;
 	int err;
@@ -1020,12 +1020,15 @@ int mmc_sanitize(struct mmc_card *card)
 		return -EOPNOTSUPP;
 	}
 
+	if (!timeout_ms)
+		timeout_ms = MMC_SANITIZE_TIMEOUT_MS;
+
 	pr_debug("%s: Sanitize in progress...\n", mmc_hostname(host));
 
 	mmc_retune_hold(host);
 
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START,
-			 1, MMC_SANITIZE_TIMEOUT_MS);
+			 1, timeout_ms);
 	if (err)
 		pr_err("%s: Sanitize failed err=%d\n", mmc_hostname(host), err);
 
