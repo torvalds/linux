@@ -22,6 +22,13 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_gfp_zone_flags,
 DECLARE_RESTRICTED_HOOK(android_rvh_set_readahead_gfp_mask,
 			TP_PROTO(gfp_t *flags),
 			TP_ARGS(flags), 1);
+DECLARE_HOOK(android_vh_cma_alloc_start,
+	TP_PROTO(s64 *ts),
+	TP_ARGS(ts));
+DECLARE_HOOK(android_vh_cma_alloc_finish,
+	TP_PROTO(struct cma *cma, struct page *page, unsigned long count,
+		 unsigned int align, gfp_t gfp_mask, s64 ts),
+	TP_ARGS(cma, page, count, align, gfp_mask, ts));
 DECLARE_HOOK(android_vh_rmqueue,
 	TP_PROTO(struct zone *preferred_zone, struct zone *zone,
 		unsigned int order, gfp_t gfp_flags,
