@@ -148,6 +148,8 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_LIF_SETATTR";
 	case IONIC_CMD_LIF_GETATTR:
 		return "IONIC_CMD_LIF_GETATTR";
+	case IONIC_CMD_LIF_SETPHC:
+		return "IONIC_CMD_LIF_SETPHC";
 	case IONIC_CMD_RX_MODE_SET:
 		return "IONIC_CMD_RX_MODE_SET";
 	case IONIC_CMD_RX_FILTER_ADD:
@@ -256,7 +258,7 @@ static void ionic_adminq_cb(struct ionic_queue *q,
 	complete_all(&ctx->work);
 }
 
-static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
+int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
 	struct ionic_desc_info *desc_info;
 	unsigned long irqflags;
@@ -295,14 +297,12 @@ err_out:
 	return err;
 }
 
-int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
+int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx, int err)
 {
 	struct net_device *netdev = lif->netdev;
 	unsigned long remaining;
 	const char *name;
-	int err;
 
-	err = ionic_adminq_post(lif, ctx);
 	if (err) {
 		if (!test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
 			name = ionic_opcode_to_str(ctx->cmd.cmd.opcode);
@@ -315,6 +315,15 @@ int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	remaining = wait_for_completion_timeout(&ctx->work,
 						HZ * (ulong)DEVCMD_TIMEOUT);
 	return ionic_adminq_check_err(lif, ctx, (remaining == 0));
+}
+
+int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
+{
+	int err;
+
+	err = ionic_adminq_post(lif, ctx);
+
+	return ionic_adminq_wait(lif, ctx, err);
 }
 
 static void ionic_dev_cmd_clean(struct ionic *ionic)
