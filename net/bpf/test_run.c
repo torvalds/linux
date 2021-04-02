@@ -2,6 +2,7 @@
 /* Copyright (c) 2017 Facebook
  */
 #include <linux/bpf.h>
+#include <linux/btf_ids.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
@@ -106,12 +107,16 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 
 	bpf_test_timer_enter(&t);
 	do {
-		bpf_cgroup_storage_set(storage);
+		ret = bpf_cgroup_storage_set(storage);
+		if (ret)
+			break;
 
 		if (xdp)
 			*retval = bpf_prog_run_xdp(prog, ctx);
 		else
 			*retval = BPF_PROG_RUN(prog, ctx);
+
+		bpf_cgroup_storage_unset();
 	} while (bpf_test_timer_continue(&t, repeat, &ret, time));
 	bpf_test_timer_leave(&t);
 
@@ -209,9 +214,36 @@ int noinline bpf_modify_return_test(int a, int *b)
 	*b += 1;
 	return a + *b;
 }
+
+u64 noinline bpf_kfunc_call_test1(struct sock *sk, u32 a, u64 b, u32 c, u64 d)
+{
+	return a + b + c + d;
+}
+
+int noinline bpf_kfunc_call_test2(struct sock *sk, u32 a, u32 b)
+{
+	return a + b;
+}
+
+struct sock * noinline bpf_kfunc_call_test3(struct sock *sk)
+{
+	return sk;
+}
+
 __diag_pop();
 
 ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
+
+BTF_SET_START(test_sk_kfunc_ids)
+BTF_ID(func, bpf_kfunc_call_test1)
+BTF_ID(func, bpf_kfunc_call_test2)
+BTF_ID(func, bpf_kfunc_call_test3)
+BTF_SET_END(test_sk_kfunc_ids)
+
+bool bpf_prog_test_check_kfunc_call(u32 kfunc_id)
+{
+	return btf_id_set_contains(&test_sk_kfunc_ids, kfunc_id);
+}
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 			   u32 headroom, u32 tailroom)

@@ -24,15 +24,15 @@ EXIT_STATUS_FILE="${LOG_FILE_BASE}.exit_status"
 usage()
 {
 	cat <<EOF
-Usage: $0 [-i] [-d <output_dir>] -- [<command>]
+Usage: $0 [-i] [-s] [-d <output_dir>] -- [<command>]
 
 <command> is the command you would normally run when you are in
 tools/testing/selftests/bpf. e.g:
 
 	$0 -- ./test_progs -t test_lsm
 
-If no command is specified, "${DEFAULT_COMMAND}" will be run by
-default.
+If no command is specified and a debug shell (-s) is not requested,
+"${DEFAULT_COMMAND}" will be run by default.
 
 If you build your kernel using KBUILD_OUTPUT= or O= options, these
 can be passed as environment variables to the script:
@@ -49,6 +49,9 @@ Options:
 	-d)		Update the output directory (default: ${OUTPUT_DIR})
 	-j)		Number of jobs for compilation, similar to -j in make
 			(default: ${NUM_COMPILE_JOBS})
+	-s)		Instead of powering off the VM, start an interactive
+			shell. If <command> is specified, the shell runs after
+			the command finishes executing
 EOF
 }
 
@@ -149,6 +152,7 @@ update_init_script()
 	local init_script_dir="${OUTPUT_DIR}/${MOUNT_DIR}/etc/rcS.d"
 	local init_script="${init_script_dir}/S50-startup"
 	local command="$1"
+	local exit_command="$2"
 
 	mount_image
 
@@ -162,9 +166,10 @@ EOF
 
 	fi
 
-	sudo bash -c "cat >${init_script}" <<EOF
-#!/bin/bash
+	sudo bash -c "echo '#!/bin/bash' > ${init_script}"
 
+	if [[ "${command}" != "" ]]; then
+		sudo bash -c "cat >>${init_script}" <<EOF
 # Have a default value in the exit status file
 # incase the VM is forcefully stopped.
 echo "130" > "/root/${EXIT_STATUS_FILE}"
@@ -175,9 +180,12 @@ echo "130" > "/root/${EXIT_STATUS_FILE}"
 	stdbuf -oL -eL ${command}
 	echo "\$?" > "/root/${EXIT_STATUS_FILE}"
 } 2>&1 | tee "/root/${LOG_FILE}"
-poweroff -f
+# Ensure that the logs are written to disk
+sync
 EOF
+	fi
 
+	sudo bash -c "echo ${exit_command} >> ${init_script}"
 	sudo chmod a+x "${init_script}"
 	unmount_image
 }
@@ -277,8 +285,10 @@ main()
 	local kernel_bzimage="${kernel_checkout}/${X86_BZIMAGE}"
 	local command="${DEFAULT_COMMAND}"
 	local update_image="no"
+	local exit_command="poweroff -f"
+	local debug_shell="no"
 
-	while getopts 'hkid:j:' opt; do
+	while getopts 'hskid:j:' opt; do
 		case ${opt} in
 		i)
 			update_image="yes"
@@ -288,6 +298,11 @@ main()
 			;;
 		j)
 			NUM_COMPILE_JOBS="$OPTARG"
+			;;
+		s)
+			command=""
+			debug_shell="yes"
+			exit_command="bash"
 			;;
 		h)
 			usage
@@ -307,7 +322,7 @@ main()
 	done
 	shift $((OPTIND -1))
 
-	if [[ $# -eq 0 ]]; then
+	if [[ $# -eq 0  && "${debug_shell}" == "no" ]]; then
 		echo "No command specified, will run ${DEFAULT_COMMAND} in the vm"
 	else
 		command="$@"
@@ -355,10 +370,12 @@ main()
 	fi
 
 	update_selftests "${kernel_checkout}" "${make_command}"
-	update_init_script "${command}"
+	update_init_script "${command}" "${exit_command}"
 	run_vm "${kernel_bzimage}"
-	copy_logs
-	echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
+	if [[ "${command}" != "" ]]; then
+		copy_logs
+		echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
+	fi
 }
 
 catch()
