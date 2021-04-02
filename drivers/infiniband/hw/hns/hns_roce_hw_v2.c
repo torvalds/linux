@@ -4098,8 +4098,12 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 	roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_VLAN_ID_M,
 		       V2_QPC_BYTE_24_VLAN_ID_S, 0xfff);
 
-	if (ibqp->qp_type == IB_QPT_XRC_TGT)
+	if (ibqp->qp_type == IB_QPT_XRC_TGT) {
 		context->qkey_xrcd = cpu_to_le32(hr_qp->xrcdn);
+
+		roce_set_bit(context->byte_80_rnr_rx_cqn,
+			     V2_QPC_BYTE_80_XRC_QP_TYPE_S, 1);
+	}
 
 	if (hr_qp->en_flags & HNS_ROCE_QP_CAP_RQ_RECORD_DB)
 		roce_set_bit(context->byte_68_rq_db,
@@ -4157,11 +4161,6 @@ static void modify_qp_init_to_init(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_4_TST_S, to_hr_qp_type(ibqp->qp_type));
 	roce_set_field(qpc_mask->byte_4_sqpn_tst, V2_QPC_BYTE_4_TST_M,
 		       V2_QPC_BYTE_4_TST_S, 0);
-
-	if (ibqp->qp_type == IB_QPT_XRC_TGT) {
-		context->qkey_xrcd = cpu_to_le32(hr_qp->xrcdn);
-		qpc_mask->qkey_xrcd = 0;
-	}
 
 	roce_set_field(context->byte_16_buf_ba_pg_sz, V2_QPC_BYTE_16_PD_M,
 		       V2_QPC_BYTE_16_PD_S, get_pdn(ibqp->pd));
@@ -5595,6 +5594,8 @@ static int hns_roce_v2_write_srqc(struct hns_roce_srq *srq, void *mb_buf)
 	}
 
 	hr_reg_write(ctx, SRQC_SRQ_ST, 1);
+	hr_reg_write(ctx, SRQC_SRQ_TYPE,
+		     !!(srq->ibsrq.srq_type == IB_SRQT_XRC));
 	hr_reg_write(ctx, SRQC_PD, to_hr_pd(srq->ibsrq.pd)->pdn);
 	hr_reg_write(ctx, SRQC_SRQN, srq->srqn);
 	hr_reg_write(ctx, SRQC_XRCD, srq->xrcdn);
