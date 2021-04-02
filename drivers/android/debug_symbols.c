@@ -11,6 +11,11 @@
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 
+#include <linux/cma.h>
+#include "../../mm/slab.h"
+#include <linux/memblock.h>
+#include <linux/page_owner.h>
+
 struct ads_entry {
 	char *name;
 	void *addr;
@@ -37,6 +42,19 @@ static const struct ads_entry ads_entries[ADS_END] = {
 	ADS_ENTRY(ADS_START_RO_AFTER_INIT, __start_ro_after_init),
 	ADS_ENTRY(ADS_END_RO_AFTER_INIT, __end_ro_after_init),
 	ADS_ENTRY(ADS_LINUX_BANNER, linux_banner),
+#ifdef CONFIG_CMA
+	ADS_ENTRY(ADS_TOTAL_CMA, &totalcma_pages),
+#endif
+	ADS_ENTRY(ADS_SLAB_CACHES, &slab_caches),
+	ADS_ENTRY(ADS_SLAB_MUTEX, &slab_mutex),
+	ADS_ENTRY(ADS_MIN_LOW_PFN, &min_low_pfn),
+	ADS_ENTRY(ADS_MAX_PFN, &max_pfn),
+#ifdef CONFIG_PAGE_OWNER
+	ADS_ENTRY(ADS_PAGE_OWNER_ENABLED, &page_owner_enabled),
+#endif
+#ifdef CONFIG_SLUB_DEBUG
+	ADS_ENTRY(ADS_SLUB_DEBUG, &slub_debug),
+#endif
 };
 
 /*
