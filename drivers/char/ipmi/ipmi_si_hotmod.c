@@ -223,8 +223,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 				if (strcmp(pdev->name, "hotmod-ipmi-si") == 0)
 					platform_device_unregister(pdev);
 			}
-			if (dev)
-				put_device(dev);
+			put_device(dev);
 		}
 	}
 	rv = strlen(val);
