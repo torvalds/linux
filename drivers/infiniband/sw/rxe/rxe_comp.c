@@ -676,7 +676,6 @@ int rxe_completer(void *arg)
 
 			/* there is nothing to retry in this case */
 			if (!wqe || (wqe->state == wqe_state_posted)) {
-				pr_warn("Retry attempted without a valid wqe\n");
 				ret = -EAGAIN;
 				goto done;
 			}
