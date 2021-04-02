@@ -184,7 +184,8 @@ struct msm_drm_private {
 	/**
 	 * Lists of inactive GEM objects.  Every bo is either in one of the
 	 * inactive lists (depending on whether or not it is shrinkable) or
-	 * gpu->active_list (for the gpu it is active on[1])
+	 * gpu->active_list (for the gpu it is active on[1]), or transiently
+	 * on a temporary list as the shrinker is running.
 	 *
 	 * These lists are protected by mm_lock (which should be acquired
 	 * before per GEM object lock).  One should *not* hold mm_lock in
