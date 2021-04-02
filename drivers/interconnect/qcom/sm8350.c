@@ -228,20 +228,20 @@ static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
 };
 
 static struct qcom_icc_node *aggre2_noc_nodes[] = {
-	[SM8350_MASTER_QDSS_BAM] = &qhm_qdss_bam,
-	[SM8350_MASTER_QUP_0] = &qhm_qup0,
-	[SM8350_MASTER_QUP_2] = &qhm_qup2,
-	[SM8350_MASTER_A2NOC_CFG] = &qnm_a2noc_cfg,
-	[SM8350_MASTER_CRYPTO] = &qxm_crypto,
-	[SM8350_MASTER_IPA] = &qxm_ipa,
-	[SM8350_MASTER_PCIE_0] = &xm_pcie3_0,
-	[SM8350_MASTER_PCIE_1] = &xm_pcie3_1,
-	[SM8350_MASTER_QDSS_ETR] = &xm_qdss_etr,
-	[SM8350_MASTER_SDCC_2] = &xm_sdc2,
-	[SM8350_MASTER_UFS_CARD] = &xm_ufs_card,
-	[SM8350_SLAVE_A2NOC_SNOC] = &qns_a2noc_snoc,
-	[SM8350_SLAVE_ANOC_PCIE_GEM_NOC] = &qns_pcie_mem_noc,
-	[SM8350_SLAVE_SERVICE_A2NOC] = &srvc_aggre2_noc,
+	[MASTER_QDSS_BAM] = &qhm_qdss_bam,
+	[MASTER_QUP_0] = &qhm_qup0,
+	[MASTER_QUP_2] = &qhm_qup2,
+	[MASTER_A2NOC_CFG] = &qnm_a2noc_cfg,
+	[MASTER_CRYPTO] = &qxm_crypto,
+	[MASTER_IPA] = &qxm_ipa,
+	[MASTER_PCIE_0] = &xm_pcie3_0,
+	[MASTER_PCIE_1] = &xm_pcie3_1,
+	[MASTER_QDSS_ETR] = &xm_qdss_etr,
+	[MASTER_SDCC_2] = &xm_sdc2,
+	[MASTER_UFS_CARD] = &xm_ufs_card,
+	[SLAVE_A2NOC_SNOC] = &qns_a2noc_snoc,
+	[SLAVE_ANOC_PCIE_GEM_NOC] = &qns_pcie_mem_noc,
+	[SLAVE_SERVICE_A2NOC] = &srvc_aggre2_noc,
 };
 
 static struct qcom_icc_desc sm8350_aggre2_noc = {
@@ -414,10 +414,10 @@ static struct qcom_icc_bcm *mc_virt_bcms[] = {
 };
 
 static struct qcom_icc_node *mc_virt_nodes[] = {
-	[SM8350_MASTER_LLCC] = &llcc_mc,
-	[SM8350_SLAVE_EBI1] = &ebi,
-	[SM8350_MASTER_LLCC_DISP] = &llcc_mc_disp,
-	[SM8350_SLAVE_EBI1_DISP] = &ebi_disp,
+	[MASTER_LLCC] = &llcc_mc,
+	[SLAVE_EBI1] = &ebi,
+	[MASTER_LLCC_DISP] = &llcc_mc_disp,
+	[SLAVE_EBI1_DISP] = &ebi_disp,
 };
 
 static struct qcom_icc_desc sm8350_mc_virt = {
@@ -439,24 +439,24 @@ static struct qcom_icc_bcm *mmss_noc_bcms[] = {
 };
 
 static struct qcom_icc_node *mmss_noc_nodes[] = {
-	[SM8350_MASTER_CAMNOC_HF] = &qnm_camnoc_hf,
-	[SM8350_MASTER_CAMNOC_ICP] = &qnm_camnoc_icp,
-	[SM8350_MASTER_CAMNOC_SF] = &qnm_camnoc_sf,
-	[SM8350_MASTER_CNOC_MNOC_CFG] = &qnm_mnoc_cfg,
-	[SM8350_MASTER_VIDEO_P0] = &qnm_video0,
-	[SM8350_MASTER_VIDEO_P1] = &qnm_video1,
-	[SM8350_MASTER_VIDEO_PROC] = &qnm_video_cvp,
-	[SM8350_MASTER_MDP0] = &qxm_mdp0,
-	[SM8350_MASTER_MDP1] = &qxm_mdp1,
-	[SM8350_MASTER_ROTATOR] = &qxm_rot,
-	[SM8350_SLAVE_MNOC_HF_MEM_NOC] = &qns_mem_noc_hf,
-	[SM8350_SLAVE_MNOC_SF_MEM_NOC] = &qns_mem_noc_sf,
-	[SM8350_SLAVE_SERVICE_MNOC] = &srvc_mnoc,
-	[SM8350_MASTER_MDP0_DISP] = &qxm_mdp0_disp,
-	[SM8350_MASTER_MDP1_DISP] = &qxm_mdp1_disp,
-	[SM8350_MASTER_ROTATOR_DISP] = &qxm_rot_disp,
-	[SM8350_SLAVE_MNOC_HF_MEM_NOC_DISP] = &qns_mem_noc_hf_disp,
-	[SM8350_SLAVE_MNOC_SF_MEM_NOC_DISP] = &qns_mem_noc_sf_disp,
+	[MASTER_CAMNOC_HF] = &qnm_camnoc_hf,
+	[MASTER_CAMNOC_ICP] = &qnm_camnoc_icp,
+	[MASTER_CAMNOC_SF] = &qnm_camnoc_sf,
+	[MASTER_CNOC_MNOC_CFG] = &qnm_mnoc_cfg,
+	[MASTER_VIDEO_P0] = &qnm_video0,
+	[MASTER_VIDEO_P1] = &qnm_video1,
+	[MASTER_VIDEO_PROC] = &qnm_video_cvp,
+	[MASTER_MDP0] = &qxm_mdp0,
+	[MASTER_MDP1] = &qxm_mdp1,
+	[MASTER_ROTATOR] = &qxm_rot,
+	[SLAVE_MNOC_HF_MEM_NOC] = &qns_mem_noc_hf,
+	[SLAVE_MNOC_SF_MEM_NOC] = &qns_mem_noc_sf,
+	[SLAVE_SERVICE_MNOC] = &srvc_mnoc,
+	[MASTER_MDP0_DISP] = &qxm_mdp0_disp,
+	[MASTER_MDP1_DISP] = &qxm_mdp1_disp,
+	[MASTER_ROTATOR_DISP] = &qxm_rot_disp,
+	[SLAVE_MNOC_HF_MEM_NOC_DISP] = &qns_mem_noc_hf_disp,
+	[SLAVE_MNOC_SF_MEM_NOC_DISP] = &qns_mem_noc_sf_disp,
 };
 
 static struct qcom_icc_desc sm8350_mmss_noc = {
@@ -472,10 +472,10 @@ static struct qcom_icc_bcm *nsp_noc_bcms[] = {
 };
 
 static struct qcom_icc_node *nsp_noc_nodes[] = {
-	[SM8350_MASTER_CDSP_NOC_CFG] = &qhm_nsp_noc_config,
-	[SM8350_MASTER_CDSP_PROC] = &qxm_nsp,
-	[SM8350_SLAVE_CDSP_MEM_NOC] = &qns_nsp_gemnoc,
-	[SM8350_SLAVE_SERVICE_NSP_NOC] = &service_nsp_noc,
+	[MASTER_CDSP_NOC_CFG] = &qhm_nsp_noc_config,
+	[MASTER_CDSP_PROC] = &qxm_nsp,
+	[SLAVE_CDSP_MEM_NOC] = &qns_nsp_gemnoc,
+	[SLAVE_SERVICE_NSP_NOC] = &service_nsp_noc,
 };
 
 static struct qcom_icc_desc sm8350_compute_noc = {
