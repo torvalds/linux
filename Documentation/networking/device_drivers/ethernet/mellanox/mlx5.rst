@@ -241,6 +241,14 @@ Following bridge VLAN functions are supported by mlx5:
     $ ip link set bridge1 type bridge vlan_filtering 1
     $ bridge vlan add dev enp8s0f0 vid 2-3
 
+- VLAN push on bridge ingress::
+
+    $ bridge vlan add dev enp8s0f0 vid 3 pvid
+
+- VLAN pop on bridge egress::
+
+    $ bridge vlan add dev enp8s0f0 vid 3 untagged
+
 mlx5 subfunction
 ================
 mlx5 supports subfunction management using devlink port (see :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>`) interface.

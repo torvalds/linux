@@ -6,6 +6,8 @@
 #include <linux/rhashtable.h>
 #include <linux/xarray.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
+#include <linux/if_ether.h>
 #include <net/switchdev.h>
 #include "bridge.h"
 #include "eswitch.h"
@@ -44,6 +46,7 @@ struct mlx5_esw_bridge_fdb_entry {
 	struct rhash_head ht_node;
 	struct net_device *dev;
 	struct list_head list;
+	struct list_head vlan_list;
 	u16 vport_num;
 	u16 flags;
 
@@ -63,6 +66,9 @@ static const struct rhashtable_params fdb_ht_params = {
 struct mlx5_esw_bridge_vlan {
 	u16 vid;
 	u16 flags;
+	struct list_head fdb_list;
+	struct mlx5_pkt_reformat *pkt_reformat_push;
+	struct mlx5_pkt_reformat *pkt_reformat_pop;
 };
 
 struct mlx5_esw_bridge_port {
@@ -117,6 +123,7 @@ mlx5_esw_bridge_table_create(int max_fte, u32 level, struct mlx5_eswitch *esw)
 		return ERR_PTR(-ENOENT);
 	}
 
+	ft_attr.flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 	ft_attr.max_fte = max_fte;
 	ft_attr.level = level;
 	ft_attr.prio = FDB_BR_OFFLOAD;
@@ -395,7 +402,10 @@ mlx5_esw_bridge_ingress_flow_create(u16 vport_num, const unsigned char *addr,
 	MLX5_SET(fte_match_param, rule_spec->match_value, misc_parameters_2.metadata_reg_c_0,
 		 mlx5_eswitch_get_vport_metadata_for_match(br_offloads->esw, vport_num));
 
-	if (vlan) {
+	if (vlan && vlan->pkt_reformat_push) {
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+		flow_act.pkt_reformat = vlan->pkt_reformat_push;
+	} else if (vlan) {
 		MLX5_SET_TO_ONES(fte_match_param, rule_spec->match_criteria,
 				 outer_headers.cvlan_tag);
 		MLX5_SET_TO_ONES(fte_match_param, rule_spec->match_value,
@@ -449,6 +459,11 @@ mlx5_esw_bridge_egress_flow_create(u16 vport_num, const unsigned char *addr,
 	eth_broadcast_addr(dmac_c);
 
 	if (vlan) {
+		if (vlan->pkt_reformat_pop) {
+			flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+			flow_act.pkt_reformat = vlan->pkt_reformat_pop;
+		}
+
 		MLX5_SET_TO_ONES(fte_match_param, rule_spec->match_criteria,
 				 outer_headers.cvlan_tag);
 		MLX5_SET_TO_ONES(fte_match_param, rule_spec->match_value,
@@ -597,8 +612,90 @@ mlx5_esw_bridge_vlan_lookup(u16 vid, struct mlx5_esw_bridge_port *port)
 	return xa_load(&port->vlans, vid);
 }
 
+static int
+mlx5_esw_bridge_vlan_push_create(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
+{
+	struct {
+		__be16	h_vlan_proto;
+		__be16	h_vlan_TCI;
+	} vlan_hdr = { htons(ETH_P_8021Q), htons(vlan->vid) };
+	struct mlx5_pkt_reformat_params reformat_params = {};
+	struct mlx5_pkt_reformat *pkt_reformat;
+
+	if (!BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, reformat_insert)) ||
+	    MLX5_CAP_GEN_2(esw->dev, max_reformat_insert_size) < sizeof(vlan_hdr) ||
+	    MLX5_CAP_GEN_2(esw->dev, max_reformat_insert_offset) <
+	    offsetof(struct vlan_ethhdr, h_vlan_proto)) {
+		esw_warn(esw->dev, "Packet reformat INSERT_HEADER is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	reformat_params.type = MLX5_REFORMAT_TYPE_INSERT_HDR;
+	reformat_params.param_0 = MLX5_REFORMAT_CONTEXT_ANCHOR_MAC_START;
+	reformat_params.param_1 = offsetof(struct vlan_ethhdr, h_vlan_proto);
+	reformat_params.size = sizeof(vlan_hdr);
+	reformat_params.data = &vlan_hdr;
+	pkt_reformat = mlx5_packet_reformat_alloc(esw->dev,
+						  &reformat_params,
+						  MLX5_FLOW_NAMESPACE_FDB);
+	if (IS_ERR(pkt_reformat)) {
+		esw_warn(esw->dev, "Failed to alloc packet reformat INSERT_HEADER (err=%ld)\n",
+			 PTR_ERR(pkt_reformat));
+		return PTR_ERR(pkt_reformat);
+	}
+
+	vlan->pkt_reformat_push = pkt_reformat;
+	return 0;
+}
+
+static void
+mlx5_esw_bridge_vlan_push_cleanup(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
+{
+	mlx5_packet_reformat_dealloc(esw->dev, vlan->pkt_reformat_push);
+	vlan->pkt_reformat_push = NULL;
+}
+
+static int
+mlx5_esw_bridge_vlan_pop_create(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
+{
+	struct mlx5_pkt_reformat_params reformat_params = {};
+	struct mlx5_pkt_reformat *pkt_reformat;
+
+	if (!BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, reformat_remove)) ||
+	    MLX5_CAP_GEN_2(esw->dev, max_reformat_remove_size) < sizeof(struct vlan_hdr) ||
+	    MLX5_CAP_GEN_2(esw->dev, max_reformat_remove_offset) <
+	    offsetof(struct vlan_ethhdr, h_vlan_proto)) {
+		esw_warn(esw->dev, "Packet reformat REMOVE_HEADER is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	reformat_params.type = MLX5_REFORMAT_TYPE_REMOVE_HDR;
+	reformat_params.param_0 = MLX5_REFORMAT_CONTEXT_ANCHOR_MAC_START;
+	reformat_params.param_1 = offsetof(struct vlan_ethhdr, h_vlan_proto);
+	reformat_params.size = sizeof(struct vlan_hdr);
+	pkt_reformat = mlx5_packet_reformat_alloc(esw->dev,
+						  &reformat_params,
+						  MLX5_FLOW_NAMESPACE_FDB);
+	if (IS_ERR(pkt_reformat)) {
+		esw_warn(esw->dev, "Failed to alloc packet reformat REMOVE_HEADER (err=%ld)\n",
+			 PTR_ERR(pkt_reformat));
+		return PTR_ERR(pkt_reformat);
+	}
+
+	vlan->pkt_reformat_pop = pkt_reformat;
+	return 0;
+}
+
+static void
+mlx5_esw_bridge_vlan_pop_cleanup(struct mlx5_esw_bridge_vlan *vlan, struct mlx5_eswitch *esw)
+{
+	mlx5_packet_reformat_dealloc(esw->dev, vlan->pkt_reformat_pop);
+	vlan->pkt_reformat_pop = NULL;
+}
+
 static struct mlx5_esw_bridge_vlan *
-mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *port)
+mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *port,
+			    struct mlx5_eswitch *esw)
 {
 	struct mlx5_esw_bridge_vlan *vlan;
 	int err;
@@ -609,13 +706,34 @@ mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *por
 
 	vlan->vid = vid;
 	vlan->flags = flags;
-	err = xa_insert(&port->vlans, vid, vlan, GFP_KERNEL);
-	if (err) {
-		kvfree(vlan);
-		return ERR_PTR(err);
+	INIT_LIST_HEAD(&vlan->fdb_list);
+
+	if (flags & BRIDGE_VLAN_INFO_PVID) {
+		err = mlx5_esw_bridge_vlan_push_create(vlan, esw);
+		if (err)
+			goto err_vlan_push;
+	}
+	if (flags & BRIDGE_VLAN_INFO_UNTAGGED) {
+		err = mlx5_esw_bridge_vlan_pop_create(vlan, esw);
+		if (err)
+			goto err_vlan_pop;
 	}
 
+	err = xa_insert(&port->vlans, vid, vlan, GFP_KERNEL);
+	if (err)
+		goto err_xa_insert;
+
 	return vlan;
+
+err_xa_insert:
+	if (vlan->pkt_reformat_pop)
+		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
+err_vlan_pop:
+	if (vlan->pkt_reformat_push)
+		mlx5_esw_bridge_vlan_push_cleanup(vlan, esw);
+err_vlan_push:
+	kvfree(vlan);
+	return ERR_PTR(err);
 }
 
 static void mlx5_esw_bridge_vlan_erase(struct mlx5_esw_bridge_port *port,
@@ -624,20 +742,42 @@ static void mlx5_esw_bridge_vlan_erase(struct mlx5_esw_bridge_port *port,
 	xa_erase(&port->vlans, vlan->vid);
 }
 
-static void mlx5_esw_bridge_vlan_cleanup(struct mlx5_esw_bridge_port *port,
-					 struct mlx5_esw_bridge_vlan *vlan)
+static void mlx5_esw_bridge_vlan_flush(struct mlx5_esw_bridge_vlan *vlan,
+				       struct mlx5_esw_bridge *bridge)
 {
+	struct mlx5_esw_bridge_fdb_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &vlan->fdb_list, vlan_list) {
+		if (!(entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER))
+			mlx5_esw_bridge_fdb_offload_notify(entry->dev, entry->key.addr,
+							   entry->key.vid,
+							   SWITCHDEV_FDB_DEL_TO_BRIDGE);
+		mlx5_esw_bridge_fdb_entry_cleanup(entry, bridge);
+	}
+
+	if (vlan->pkt_reformat_pop)
+		mlx5_esw_bridge_vlan_pop_cleanup(vlan, bridge->br_offloads->esw);
+	if (vlan->pkt_reformat_push)
+		mlx5_esw_bridge_vlan_push_cleanup(vlan, bridge->br_offloads->esw);
+}
+
+static void mlx5_esw_bridge_vlan_cleanup(struct mlx5_esw_bridge_port *port,
+					 struct mlx5_esw_bridge_vlan *vlan,
+					 struct mlx5_esw_bridge *bridge)
+{
+	mlx5_esw_bridge_vlan_flush(vlan, bridge);
 	mlx5_esw_bridge_vlan_erase(port, vlan);
 	kvfree(vlan);
 }
 
-static void mlx5_esw_bridge_port_vlans_flush(struct mlx5_esw_bridge_port *port)
+static void mlx5_esw_bridge_port_vlans_flush(struct mlx5_esw_bridge_port *port,
+					     struct mlx5_esw_bridge *bridge)
 {
 	struct mlx5_esw_bridge_vlan *vlan;
 	unsigned long index;
 
 	xa_for_each(&port->vlans, index, vlan)
-		mlx5_esw_bridge_vlan_cleanup(port, vlan);
+		mlx5_esw_bridge_vlan_cleanup(port, vlan, bridge);
 }
 
 static struct mlx5_esw_bridge_vlan *
@@ -685,8 +825,6 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsi
 		vlan = mlx5_esw_bridge_port_vlan_lookup(vid, vport_num, bridge, esw);
 		if (IS_ERR(vlan))
 			return ERR_CAST(vlan);
-		if (vlan->flags & (BRIDGE_VLAN_INFO_PVID | BRIDGE_VLAN_INFO_UNTAGGED))
-			return ERR_PTR(-EOPNOTSUPP); /* can't offload vlan push/pop */
 	}
 
 	priv = netdev_priv(dev);
@@ -734,6 +872,10 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, const unsi
 		goto err_ht_init;
 	}
 
+	if (vlan)
+		list_add(&entry->vlan_list, &vlan->fdb_list);
+	else
+		INIT_LIST_HEAD(&entry->vlan_list);
 	list_add(&entry->list, &bridge->fdb_list);
 	return entry;
 
@@ -831,7 +973,7 @@ static int mlx5_esw_bridge_vport_cleanup(struct mlx5_esw_bridge_offloads *br_off
 		return -EINVAL;
 	}
 
-	mlx5_esw_bridge_port_vlans_flush(port);
+	mlx5_esw_bridge_port_vlans_flush(port, bridge);
 	mlx5_esw_bridge_port_erase(port, bridge);
 	kvfree(port);
 	mlx5_esw_bridge_put(br_offloads, bridge);
@@ -892,11 +1034,12 @@ int mlx5_esw_bridge_port_vlan_add(u16 vid, u16 flags, struct mlx5_eswitch *esw,
 
 	vlan = mlx5_esw_bridge_vlan_lookup(vid, port);
 	if (vlan) {
-		vlan->flags = flags;
-		return 0;
+		if (vlan->flags == flags)
+			return 0;
+		mlx5_esw_bridge_vlan_cleanup(port, vlan, vport->bridge);
 	}
 
-	vlan = mlx5_esw_bridge_vlan_create(vid, flags, port);
+	vlan = mlx5_esw_bridge_vlan_create(vid, flags, port, esw);
 	if (IS_ERR(vlan)) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to create VLAN entry");
 		return PTR_ERR(vlan);
@@ -916,7 +1059,7 @@ void mlx5_esw_bridge_port_vlan_del(u16 vid, struct mlx5_eswitch *esw, struct mlx
 	vlan = mlx5_esw_bridge_vlan_lookup(vid, port);
 	if (!vlan)
 		return;
-	mlx5_esw_bridge_vlan_cleanup(port, vlan);
+	mlx5_esw_bridge_vlan_cleanup(port, vlan, vport->bridge);
 }
 
 void mlx5_esw_bridge_fdb_create(struct net_device *dev, struct mlx5_eswitch *esw,
