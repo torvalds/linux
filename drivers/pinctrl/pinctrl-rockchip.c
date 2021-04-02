@@ -2350,6 +2350,32 @@ static void rk3399_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit = (pin_num % 8) * 2;
 }
 
+#define RK3568_SR_PMU_OFFSET		0x60
+#define RK3568_SR_GRF_OFFSET		0x0180
+#define RK3568_SR_BANK_STRIDE		0x10
+#define RK3568_SR_PINS_PER_REG		16
+
+static int rk3568_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
+					     int pin_num,
+					     struct regmap **regmap,
+					     int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+
+	if (bank->bank_num == 0) {
+		*regmap = info->regmap_pmu;
+		*reg = RK3568_SR_PMU_OFFSET;
+	} else {
+		*regmap = info->regmap_base;
+		*reg = RK3568_SR_GRF_OFFSET;
+		*reg += (bank->bank_num  - 1) * RK3568_SR_BANK_STRIDE;
+	}
+	*reg += ((pin_num / RK3568_SR_PINS_PER_REG) * 4);
+	*bit = pin_num % RK3568_SR_PINS_PER_REG;
+
+	return 0;
+}
+
 #define RK3568_PULL_PMU_OFFSET		0x20
 #define RK3568_PULL_GRF_OFFSET		0x80
 #define RK3568_PULL_BITS_PER_PIN	2
@@ -4788,6 +4814,7 @@ static struct rockchip_pin_ctrl rk3568_pin_ctrl = {
 	.niomux_routes		= ARRAY_SIZE(rk3568_mux_route_data),
 	.pull_calc_reg		= rk3568_calc_pull_reg_and_bit,
 	.drv_calc_reg		= rk3568_calc_drv_reg_and_bit,
+	.slew_rate_calc_reg	= rk3568_calc_slew_rate_reg_and_bit,
 	.schmitt_calc_reg	= rk3568_calc_schmitt_reg_and_bit,
 };
 
