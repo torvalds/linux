@@ -42,6 +42,7 @@ struct kd35t133 {
 	struct gpio_desc *reset_gpio;
 	struct regulator *vdd;
 	struct regulator *iovcc;
+	enum drm_panel_orientation orientation;
 	bool prepared;
 };
 
@@ -216,6 +217,7 @@ static int kd35t133_get_modes(struct drm_panel *panel,
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
 	drm_mode_probed_add(connector, mode);
+	drm_connector_set_panel_orientation(connector, ctx->orientation);
 
 	return 1;
 }
@@ -255,6 +257,12 @@ static int kd35t133_probe(struct mipi_dsi_device *dsi)
 		ret = PTR_ERR(ctx->iovcc);
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to request iovcc regulator: %d\n", ret);
+		return ret;
+	}
+
+	ret = of_drm_get_panel_orientation(dev->of_node, &ctx->orientation);
+	if (ret < 0) {
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
 		return ret;
 	}
 
