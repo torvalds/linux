@@ -863,7 +863,6 @@ config GPIO_SCH
 	depends on (X86 || COMPILE_TEST) && ACPI
 	depends on LPC_SCH
 	select GPIOLIB_IRQCHIP
-	select MFD_CORE
 	help
 	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
 	  Intel Tunnel Creek processor, Intel Centerton processor or
