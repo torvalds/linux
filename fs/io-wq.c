@@ -986,6 +986,16 @@ err_wq:
 	return ERR_PTR(ret);
 }
 
+static bool io_task_work_match(struct callback_head *cb, void *data)
+{
+	struct create_worker_data *cwd;
+
+	if (cb->func != create_worker_cb)
+		return false;
+	cwd = container_of(cb, struct create_worker_data, work);
+	return cwd->wqe->wq == data;
+}
+
 static void io_wq_exit_workers(struct io_wq *wq)
 {
 	struct callback_head *cb;
@@ -996,7 +1006,7 @@ static void io_wq_exit_workers(struct io_wq *wq)
 	if (!wq->task)
 		return;
 
-	while ((cb = task_work_cancel(wq->task, create_worker_cb)) != NULL) {
+	while ((cb = task_work_cancel_match(wq->task, io_task_work_match, wq)) != NULL) {
 		struct create_worker_data *cwd;
 
 		cwd = container_of(cb, struct create_worker_data, work);
