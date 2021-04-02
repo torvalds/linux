@@ -30,6 +30,7 @@
   amba_driver_unregister
   android_debug_per_cpu_symbol
   android_debug_symbol
+  android_rvh_probe_register
   anon_inode_getfile
   __arch_clear_user
   __arch_copy_from_user
