@@ -5560,7 +5560,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 	flush = slot_handle_level(kvm, memslot, slot_rmap_write_protect,
 				start_level, KVM_MAX_HUGEPAGE_LEVEL, false);
 	if (is_tdp_mmu_enabled(kvm))
-		flush |= kvm_tdp_mmu_wrprot_slot(kvm, memslot, PG_LEVEL_4K);
+		flush |= kvm_tdp_mmu_wrprot_slot(kvm, memslot, start_level);
 	write_unlock(&kvm->mmu_lock);
 
 	/*
