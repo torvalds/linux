@@ -109,7 +109,7 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 	struct avtab_node *prev, *cur, *newnode;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->nslot)
 		return -EINVAL;
 
 	hvalue = avtab_hash(key, h->mask);
@@ -154,7 +154,7 @@ avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datu
 	struct avtab_node *prev, *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->nslot)
 		return NULL;
 	hvalue = avtab_hash(key, h->mask);
 	for (prev = NULL, cur = h->htable[hvalue];
@@ -184,7 +184,7 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 	struct avtab_node *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->nslot)
 		return NULL;
 
 	hvalue = avtab_hash(key, h->mask);
@@ -220,7 +220,7 @@ avtab_search_node(struct avtab *h, struct avtab_key *key)
 	struct avtab_node *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->nslot)
 		return NULL;
 
 	hvalue = avtab_hash(key, h->mask);
@@ -295,6 +295,7 @@ void avtab_destroy(struct avtab *h)
 	}
 	kvfree(h->htable);
 	h->htable = NULL;
+	h->nel = 0;
 	h->nslot = 0;
 	h->mask = 0;
 }
@@ -303,14 +304,15 @@ void avtab_init(struct avtab *h)
 {
 	h->htable = NULL;
 	h->nel = 0;
+	h->nslot = 0;
+	h->mask = 0;
 }
 
 int avtab_alloc(struct avtab *h, u32 nrules)
 {
-	u32 mask = 0;
 	u32 shift = 0;
 	u32 work = nrules;
-	u32 nslot = 0;
+	u32 nslot;
 
 	if (nrules == 0)
 		goto avtab_alloc_out;
@@ -324,16 +326,15 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	nslot = 1 << shift;
 	if (nslot > MAX_AVTAB_HASH_BUCKETS)
 		nslot = MAX_AVTAB_HASH_BUCKETS;
-	mask = nslot - 1;
 
 	h->htable = kvcalloc(nslot, sizeof(void *), GFP_KERNEL);
 	if (!h->htable)
 		return -ENOMEM;
 
- avtab_alloc_out:
-	h->nel = 0;
 	h->nslot = nslot;
-	h->mask = mask;
+	h->mask = nslot - 1;
+
+avtab_alloc_out:
 	pr_debug("SELinux: %d avtab hash slots, %d rules.\n",
 	       h->nslot, nrules);
 	return 0;
