@@ -2194,51 +2194,15 @@ void mlx5e_close_channels(struct mlx5e_channels *chs)
 	chs->num = 0;
 }
 
-static int
-mlx5e_create_rqt(struct mlx5e_priv *priv, int sz, struct mlx5e_rqt *rqt)
-{
-	struct mlx5_core_dev *mdev = priv->mdev;
-	void *rqtc;
-	int inlen;
-	int err;
-	u32 *in;
-	int i;
-
-	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
-
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
-	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
-
-	for (i = 0; i < sz; i++)
-		MLX5_SET(rqtc, rqtc, rq_num[i], priv->drop_rq.rqn);
-
-	err = mlx5_core_create_rqt(mdev, in, inlen, &rqt->rqtn);
-	if (!err)
-		rqt->enabled = true;
-
-	kvfree(in);
-	return err;
-}
-
-void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt)
-{
-	rqt->enabled = false;
-	mlx5_core_destroy_rqt(priv->mdev, rqt->rqtn);
-}
-
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv)
 {
-	struct mlx5e_rqt *rqt = &priv->indir_rqt;
 	int err;
 
-	err = mlx5e_create_rqt(priv, MLX5E_INDIR_RQT_SIZE, rqt);
+	err = mlx5e_rqt_init_direct(&priv->indir_rqt, priv->mdev, true, priv->drop_rq.rqn);
 	if (err)
 		mlx5_core_warn(priv->mdev, "create indirect rqts failed, %d\n", err);
+	else
+		priv->indir_rqt_enabled = true;
 	return err;
 }
 
@@ -2248,17 +2212,21 @@ int mlx5e_create_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, in
 	int ix;
 
 	for (ix = 0; ix < n; ix++) {
-		err = mlx5e_create_rqt(priv, 1 /*size */, &tirs[ix].rqt);
+		err = mlx5e_rqt_init_direct(&tirs[ix].rqt, priv->mdev, false,
+					    priv->drop_rq.rqn);
 		if (unlikely(err))
 			goto err_destroy_rqts;
+		tirs[ix].rqt_enabled = true;
 	}
 
 	return 0;
 
 err_destroy_rqts:
 	mlx5_core_warn(priv->mdev, "create rqts failed, %d\n", err);
-	for (ix--; ix >= 0; ix--)
-		mlx5e_destroy_rqt(priv, &tirs[ix].rqt);
+	for (ix--; ix >= 0; ix--) {
+		tirs[ix].rqt_enabled = false;
+		mlx5e_rqt_destroy(&tirs[ix].rqt);
+	}
 
 	return err;
 }
@@ -2267,8 +2235,10 @@ void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, 
 {
 	int i;
 
-	for (i = 0; i < n; i++)
-		mlx5e_destroy_rqt(priv, &tirs[i].rqt);
+	for (i = 0; i < n; i++) {
+		tirs[i].rqt_enabled = false;
+		mlx5e_rqt_destroy(&tirs[i].rqt);
+	}
 }
 
 static int mlx5e_rx_hash_fn(int hfunc)
@@ -2278,149 +2248,64 @@ static int mlx5e_rx_hash_fn(int hfunc)
 	       MLX5_RX_HASH_FN_INVERTED_XOR8;
 }
 
-int mlx5e_bits_invert(unsigned long a, int size)
-{
-	int inv = 0;
-	int i;
-
-	for (i = 0; i < size; i++)
-		inv |= (test_bit(size - i - 1, &a) ? 1 : 0) << i;
-
-	return inv;
-}
-
-static void mlx5e_fill_rqt_rqns(struct mlx5e_priv *priv, int sz,
-				struct mlx5e_redirect_rqt_param rrp, void *rqtc)
-{
-	int i;
-
-	for (i = 0; i < sz; i++) {
-		u32 rqn;
-
-		if (rrp.is_rss) {
-			int ix = i;
-
-			if (rrp.rss.hfunc == ETH_RSS_HASH_XOR)
-				ix = mlx5e_bits_invert(i, ilog2(sz));
-
-			ix = priv->rss_params.indirection_rqt[ix];
-			rqn = rrp.rss.channels->c[ix]->rq.rqn;
-		} else {
-			rqn = rrp.rqn;
-		}
-		MLX5_SET(rqtc, rqtc, rq_num[i], rqn);
-	}
-}
-
-int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
-		       struct mlx5e_redirect_rqt_param rrp)
-{
-	struct mlx5_core_dev *mdev = priv->mdev;
-	void *rqtc;
-	int inlen;
-	u32 *in;
-	int err;
-
-	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + sizeof(u32) * sz;
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	rqtc = MLX5_ADDR_OF(modify_rqt_in, in, ctx);
-
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
-	MLX5_SET(modify_rqt_in, in, bitmask.rqn_list, 1);
-	mlx5e_fill_rqt_rqns(priv, sz, rrp, rqtc);
-	err = mlx5_core_modify_rqt(mdev, rqtn, in, inlen);
-
-	kvfree(in);
-	return err;
-}
-
-static u32 mlx5e_get_direct_rqn(struct mlx5e_priv *priv, int ix,
-				struct mlx5e_redirect_rqt_param rrp)
-{
-	if (!rrp.is_rss)
-		return rrp.rqn;
-
-	if (ix >= rrp.rss.channels->num)
-		return priv->drop_rq.rqn;
-
-	return rrp.rss.channels->c[ix]->rq.rqn;
-}
-
-static void mlx5e_redirect_rqts(struct mlx5e_priv *priv,
-				struct mlx5e_redirect_rqt_param rrp,
-				struct mlx5e_redirect_rqt_param *ptp_rrp)
-{
-	u32 rqtn;
-	int ix;
-
-	if (priv->indir_rqt.enabled) {
-		/* RSS RQ table */
-		rqtn = priv->indir_rqt.rqtn;
-		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
-	}
-
-	for (ix = 0; ix < priv->max_nch; ix++) {
-		struct mlx5e_redirect_rqt_param direct_rrp = {
-			.is_rss = false,
-			{
-				.rqn    = mlx5e_get_direct_rqn(priv, ix, rrp)
-			},
-		};
-
-		/* Direct RQ Tables */
-		if (!priv->direct_tir[ix].rqt.enabled)
-			continue;
-
-		rqtn = priv->direct_tir[ix].rqt.rqtn;
-		mlx5e_redirect_rqt(priv, rqtn, 1, direct_rrp);
-	}
-	if (ptp_rrp) {
-		rqtn = priv->ptp_tir.rqt.rqtn;
-		mlx5e_redirect_rqt(priv, rqtn, 1, *ptp_rrp);
-	}
-}
-
 static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 					    struct mlx5e_channels *chs)
 {
-	bool rx_ptp_support = priv->profile->rx_ptp_support;
-	struct mlx5e_redirect_rqt_param *ptp_rrp_p = NULL;
-	struct mlx5e_redirect_rqt_param rrp = {
-		.is_rss        = true,
-		{
-			.rss = {
-				.channels  = chs,
-				.hfunc     = priv->rss_params.hfunc,
-			}
-		},
-	};
-	struct mlx5e_redirect_rqt_param ptp_rrp;
+	unsigned int ix;
 
-	if (rx_ptp_support) {
-		u32 ptp_rqn;
+	if (priv->indir_rqt_enabled) {
+		u32 *rqns;
 
-		ptp_rrp.is_rss = false;
-		ptp_rrp.rqn = mlx5e_ptp_get_rqn(priv->channels.ptp, &ptp_rqn) ?
-			      priv->drop_rq.rqn : ptp_rqn;
-		ptp_rrp_p = &ptp_rrp;
+		rqns = kvmalloc_array(chs->num, sizeof(*rqns), GFP_KERNEL);
+		if (rqns) {
+			for (ix = 0; ix < chs->num; ix++)
+				rqns[ix] = chs->c[ix]->rq.rqn;
+
+			mlx5e_rqt_redirect_indir(&priv->indir_rqt, rqns, chs->num,
+						 priv->rss_params.hfunc,
+						 &priv->rss_params.indir);
+			kvfree(rqns);
+		}
 	}
-	mlx5e_redirect_rqts(priv, rrp, ptp_rrp_p);
+
+	for (ix = 0; ix < priv->max_nch; ix++) {
+		u32 rqn = priv->drop_rq.rqn;
+
+		if (!priv->direct_tir[ix].rqt_enabled)
+			continue;
+
+		if (ix < chs->num)
+			rqn = chs->c[ix]->rq.rqn;
+
+		mlx5e_rqt_redirect_direct(&priv->direct_tir[ix].rqt, rqn);
+	}
+
+	if (priv->profile->rx_ptp_support) {
+		u32 rqn;
+
+		if (mlx5e_ptp_get_rqn(priv->channels.ptp, &rqn))
+			rqn = priv->drop_rq.rqn;
+
+		mlx5e_rqt_redirect_direct(&priv->ptp_tir.rqt, rqn);
+	}
 }
 
 static void mlx5e_redirect_rqts_to_drop(struct mlx5e_priv *priv)
 {
-	bool rx_ptp_support = priv->profile->rx_ptp_support;
-	struct mlx5e_redirect_rqt_param drop_rrp = {
-		.is_rss = false,
-		{
-			.rqn = priv->drop_rq.rqn,
-		},
-	};
+	unsigned int ix;
 
-	mlx5e_redirect_rqts(priv, drop_rrp, rx_ptp_support ? &drop_rrp : NULL);
+	if (priv->indir_rqt_enabled)
+		mlx5e_rqt_redirect_direct(&priv->indir_rqt, priv->drop_rq.rqn);
+
+	for (ix = 0; ix < priv->max_nch; ix++) {
+		if (!priv->direct_tir[ix].rqt_enabled)
+			continue;
+
+		mlx5e_rqt_redirect_direct(&priv->direct_tir[ix].rqt, priv->drop_rq.rqn);
+	}
+
+	if (priv->profile->rx_ptp_support)
+		mlx5e_rqt_redirect_direct(&priv->ptp_tir.rqt, priv->drop_rq.rqn);
 }
 
 static const struct mlx5e_tirc_config tirc_default_config[MLX5E_NUM_INDIR_TIRS] = {
@@ -2777,7 +2662,7 @@ int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 	mlx5e_set_default_xps_cpumasks(priv, &priv->channels.params);
 
 	if (!netif_is_rxfh_configured(priv->netdev))
-		mlx5e_build_default_indir_rqt(priv->rss_params.indirection_rqt,
+		mlx5e_build_default_indir_rqt(priv->rss_params.indir.table,
 					      MLX5E_INDIR_RQT_SIZE, count);
 
 	return 0;
@@ -4644,7 +4529,7 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 	rss_params->hfunc = ETH_RSS_HASH_TOP;
 	netdev_rss_key_fill(rss_params->toeplitz_hash_key,
 			    sizeof(rss_params->toeplitz_hash_key));
-	mlx5e_build_default_indir_rqt(rss_params->indirection_rqt,
+	mlx5e_build_default_indir_rqt(rss_params->indir.table,
 				      MLX5E_INDIR_RQT_SIZE, num_channels);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
 		rss_params->rx_hash_fields[tt] =
@@ -5067,7 +4952,8 @@ err_destroy_indirect_tirs:
 err_destroy_direct_rqts:
 	mlx5e_destroy_direct_rqts(priv, priv->direct_tir, max_nch);
 err_destroy_indirect_rqts:
-	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
+	priv->indir_rqt_enabled = false;
+	mlx5e_rqt_destroy(&priv->indir_rqt);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
 err_destroy_q_counters:
@@ -5089,7 +4975,8 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 	mlx5e_destroy_direct_tirs(priv, priv->direct_tir, max_nch);
 	mlx5e_destroy_indirect_tirs(priv);
 	mlx5e_destroy_direct_rqts(priv, priv->direct_tir, max_nch);
-	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
+	priv->indir_rqt_enabled = false;
+	mlx5e_rqt_destroy(&priv->indir_rqt);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);
 }

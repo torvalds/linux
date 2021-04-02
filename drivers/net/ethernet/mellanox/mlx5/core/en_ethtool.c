@@ -1201,8 +1201,7 @@ int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	struct mlx5e_rss_params *rss = &priv->rss_params;
 
 	if (indir)
-		memcpy(indir, rss->indirection_rqt,
-		       sizeof(rss->indirection_rqt));
+		memcpy(indir, rss->indir.table, sizeof(rss->indir.table));
 
 	if (key)
 		memcpy(key, rss->toeplitz_hash_key,
@@ -1242,8 +1241,7 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (indir) {
-		memcpy(rss->indirection_rqt, indir,
-		       sizeof(rss->indirection_rqt));
+		memcpy(rss->indir.table, indir, sizeof(rss->indir.table));
 		refresh_rqt = true;
 	}
 
@@ -1254,18 +1252,19 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (refresh_rqt && test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		struct mlx5e_redirect_rqt_param rrp = {
-			.is_rss = true,
-			{
-				.rss = {
-					.hfunc = rss->hfunc,
-					.channels  = &priv->channels,
-				},
-			},
-		};
-		u32 rqtn = priv->indir_rqt.rqtn;
+		u32 *rqns;
 
-		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
+		rqns = kvmalloc_array(priv->channels.num, sizeof(*rqns), GFP_KERNEL);
+		if (rqns) {
+			unsigned int ix;
+
+			for (ix = 0; ix < priv->channels.num; ix++)
+				rqns[ix] = priv->channels.c[ix]->rq.rqn;
+
+			mlx5e_rqt_redirect_indir(&priv->indir_rqt, rqns, priv->channels.num,
+						 rss->hfunc, &rss->indir);
+			kvfree(rqns);
+		}
 	}
 
 	if (refresh_tirs)

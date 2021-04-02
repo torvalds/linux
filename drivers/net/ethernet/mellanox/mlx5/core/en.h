@@ -58,6 +58,7 @@
 #include "en/qos.h"
 #include "lib/hv_vhca.h"
 #include "lib/clock.h"
+#include "en/rqt.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
 struct page_pool;
@@ -139,8 +140,6 @@ struct page_pool;
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES                0x80
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES_MPW            0x2
 
-#define MLX5E_LOG_INDIR_RQT_SIZE       0x8
-#define MLX5E_INDIR_RQT_SIZE           BIT(MLX5E_LOG_INDIR_RQT_SIZE)
 #define MLX5E_MIN_NUM_CHANNELS         0x1
 #define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE / 2)
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
@@ -745,14 +744,10 @@ enum {
 	MLX5E_STATE_XDP_ACTIVE,
 };
 
-struct mlx5e_rqt {
-	u32              rqtn;
-	bool		 enabled;
-};
-
 struct mlx5e_tir {
 	u32		  tirn;
 	struct mlx5e_rqt  rqt;
+	bool              rqt_enabled;
 	struct list_head  list;
 };
 
@@ -762,7 +757,7 @@ enum {
 };
 
 struct mlx5e_rss_params {
-	u32	indirection_rqt[MLX5E_INDIR_RQT_SIZE];
+	struct mlx5e_rss_params_indir indir;
 	u32	rx_hash_fields[MLX5E_NUM_INDIR_TIRS];
 	u8	toeplitz_hash_key[40];
 	u8	hfunc;
@@ -838,6 +833,7 @@ struct mlx5e_priv {
 	struct mlx5e_channels      channels;
 	u32                        tisn[MLX5_MAX_PORTS][MLX5E_MAX_NUM_TC];
 	struct mlx5e_rqt           indir_rqt;
+	bool                       indir_rqt_enabled;
 	struct mlx5e_tir           indir_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_tir           inner_indir_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_tir           direct_tir[MLX5E_MAX_NUM_CHANNELS];
@@ -948,19 +944,6 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_timestamp_init(struct mlx5e_priv *priv);
 
-struct mlx5e_redirect_rqt_param {
-	bool is_rss;
-	union {
-		u32 rqn; /* Direct RQN (Non-RSS) */
-		struct {
-			u8 hfunc;
-			struct mlx5e_channels *channels;
-		} rss; /* RSS data */
-	};
-};
-
-int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
-		       struct mlx5e_redirect_rqt_param rrp);
 void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_rss_params *rss_params,
 				    const struct mlx5e_tirc_config *ttconfig,
 				    void *tirc, bool inner);
@@ -1093,7 +1076,6 @@ int mlx5e_create_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, in
 void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n);
 int mlx5e_create_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n);
 void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n);
-void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt);
 
 int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn);
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);
@@ -1106,7 +1088,6 @@ int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 
 void mlx5e_queue_update_stats(struct mlx5e_priv *priv);
-int mlx5e_bits_invert(unsigned long a, int size);
 
 int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv);
 int mlx5e_set_dev_port_mtu_ctx(struct mlx5e_priv *priv, void *context);

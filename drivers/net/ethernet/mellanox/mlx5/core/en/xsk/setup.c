@@ -184,28 +184,14 @@ void mlx5e_deactivate_xsk(struct mlx5e_channel *c)
 	/* TX queue is disabled on close. */
 }
 
-static int mlx5e_redirect_xsk_rqt(struct mlx5e_priv *priv, u16 ix, u32 rqn)
-{
-	struct mlx5e_redirect_rqt_param direct_rrp = {
-		.is_rss = false,
-		{
-			.rqn = rqn,
-		},
-	};
-
-	u32 rqtn = priv->xsk_tir[ix].rqt.rqtn;
-
-	return mlx5e_redirect_rqt(priv, rqtn, 1, direct_rrp);
-}
-
 int mlx5e_xsk_redirect_rqt_to_channel(struct mlx5e_priv *priv, struct mlx5e_channel *c)
 {
-	return mlx5e_redirect_xsk_rqt(priv, c->ix, c->xskrq.rqn);
+	return mlx5e_rqt_redirect_direct(&priv->xsk_tir[c->ix].rqt, c->xskrq.rqn);
 }
 
 int mlx5e_xsk_redirect_rqt_to_drop(struct mlx5e_priv *priv, u16 ix)
 {
-	return mlx5e_redirect_xsk_rqt(priv, ix, priv->drop_rq.rqn);
+	return mlx5e_rqt_redirect_direct(&priv->xsk_tir[ix].rqt, priv->drop_rq.rqn);
 }
 
 int mlx5e_xsk_redirect_rqts_to_channels(struct mlx5e_priv *priv, struct mlx5e_channels *chs)

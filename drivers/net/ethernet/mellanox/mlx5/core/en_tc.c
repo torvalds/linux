@@ -494,60 +494,22 @@ static void mlx5e_hairpin_destroy_transport(struct mlx5e_hairpin *hp)
 	mlx5_core_dealloc_transport_domain(hp->func_mdev, hp->tdn);
 }
 
-static int mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
-{
-	struct mlx5e_priv *priv = hp->func_priv;
-	int i, ix, sz = MLX5E_INDIR_RQT_SIZE;
-	u32 *indirection_rqt, rqn;
-
-	indirection_rqt = kcalloc(sz, sizeof(*indirection_rqt), GFP_KERNEL);
-	if (!indirection_rqt)
-		return -ENOMEM;
-
-	mlx5e_build_default_indir_rqt(indirection_rqt, sz,
-				      hp->num_channels);
-
-	for (i = 0; i < sz; i++) {
-		ix = i;
-		if (priv->rss_params.hfunc == ETH_RSS_HASH_XOR)
-			ix = mlx5e_bits_invert(i, ilog2(sz));
-		ix = indirection_rqt[ix];
-		rqn = hp->pair->rqn[ix];
-		MLX5_SET(rqtc, rqtc, rq_num[i], rqn);
-	}
-
-	kfree(indirection_rqt);
-	return 0;
-}
-
 static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 {
-	int inlen, err, sz = MLX5E_INDIR_RQT_SIZE;
 	struct mlx5e_priv *priv = hp->func_priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	void *rqtc;
-	u32 *in;
+	struct mlx5e_rss_params_indir *indir;
+	int err;
 
-	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
+	indir = kvmalloc(sizeof(*indir), GFP_KERNEL);
+	if (!indir)
 		return -ENOMEM;
 
-	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
+	mlx5e_build_default_indir_rqt(indir->table, MLX5E_INDIR_RQT_SIZE, hp->num_channels);
+	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, hp->num_channels,
+				   priv->rss_params.hfunc, indir);
 
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
-	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
-
-	err = mlx5e_hairpin_fill_rqt_rqns(hp, rqtc);
-	if (err)
-		goto out;
-
-	err = mlx5_core_create_rqt(mdev, in, inlen, &hp->indir_rqt.rqtn);
-	if (!err)
-		hp->indir_rqt.enabled = true;
-
-out:
-	kvfree(in);
+	kvfree(indir);
 	return err;
 }
 
@@ -637,7 +599,7 @@ static int mlx5e_hairpin_rss_init(struct mlx5e_hairpin *hp)
 err_create_ttc_table:
 	mlx5e_hairpin_destroy_indirect_tirs(hp);
 err_create_indirect_tirs:
-	mlx5e_destroy_rqt(priv, &hp->indir_rqt);
+	mlx5e_rqt_destroy(&hp->indir_rqt);
 
 	return err;
 }
@@ -648,7 +610,7 @@ static void mlx5e_hairpin_rss_cleanup(struct mlx5e_hairpin *hp)
 
 	mlx5e_destroy_ttc_table(priv, &hp->ttc);
 	mlx5e_hairpin_destroy_indirect_tirs(hp);
-	mlx5e_destroy_rqt(priv, &hp->indir_rqt);
+	mlx5e_rqt_destroy(&hp->indir_rqt);
 }
 
 static struct mlx5e_hairpin *
