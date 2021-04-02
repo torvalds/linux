@@ -2841,6 +2841,36 @@ static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
 	return regmap_update_bits(regmap, reg, rmask, data);
 }
 
+#define PX30_SLEW_RATE_PMU_OFFSET		0x30
+#define PX30_SLEW_RATE_GRF_OFFSET		0x90
+#define PX30_SLEW_RATE_PINS_PER_PMU_REG		16
+#define PX30_SLEW_RATE_BANK_STRIDE		16
+#define PX30_SLEW_RATE_PINS_PER_GRF_REG		8
+
+static int px30_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
+					   int pin_num,
+					   struct regmap **regmap,
+					   int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	int pins_per_reg;
+
+	if (bank->bank_num == 0) {
+		*regmap = info->regmap_pmu;
+		*reg = PX30_SLEW_RATE_PMU_OFFSET;
+		pins_per_reg = PX30_SLEW_RATE_PINS_PER_PMU_REG;
+	} else {
+		*regmap = info->regmap_base;
+		*reg = PX30_SLEW_RATE_GRF_OFFSET;
+		pins_per_reg = PX30_SLEW_RATE_PINS_PER_GRF_REG;
+		*reg += (bank->bank_num  - 1) * PX30_SLEW_RATE_BANK_STRIDE;
+	}
+	*reg += ((pin_num / pins_per_reg) * 4);
+	*bit = pin_num % pins_per_reg;
+
+	return 0;
+}
+
 static int rockchip_get_slew_rate(struct rockchip_pin_bank *bank, int pin_num)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
@@ -4372,6 +4402,7 @@ static struct rockchip_pin_ctrl px30_pin_ctrl = {
 		.pull_calc_reg		= px30_calc_pull_reg_and_bit,
 		.drv_calc_reg		= px30_calc_drv_reg_and_bit,
 		.schmitt_calc_reg	= px30_calc_schmitt_reg_and_bit,
+		.slew_rate_calc_reg	= px30_calc_slew_rate_reg_and_bit,
 };
 
 static struct rockchip_pin_bank rv1108_pin_banks[] = {
