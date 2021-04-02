@@ -482,10 +482,10 @@ static void kvm_null_fn(void)
 static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 						  const struct kvm_hva_range *range)
 {
+	bool ret = false, locked = false;
 	struct kvm_gfn_range gfn_range;
 	struct kvm_memory_slot *slot;
 	struct kvm_memslots *slots;
-	bool ret = false;
 	int i, idx;
 
 	/* A null handler is allowed if and only if on_lock() is provided. */
@@ -493,11 +493,13 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 			 IS_KVM_NULL_FN(range->handler)))
 		return 0;
 
-	KVM_MMU_LOCK(kvm);
-
 	idx = srcu_read_lock(&kvm->srcu);
 
+	/* The on_lock() path does not yet support lock elision. */
 	if (!IS_KVM_NULL_FN(range->on_lock)) {
+		locked = true;
+		KVM_MMU_LOCK(kvm);
+
 		range->on_lock(kvm, range->start, range->end);
 
 		if (IS_KVM_NULL_FN(range->handler))
@@ -532,6 +534,10 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 			gfn_range.end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, slot);
 			gfn_range.slot = slot;
 
+			if (!locked) {
+				locked = true;
+				KVM_MMU_LOCK(kvm);
+			}
 			ret |= range->handler(kvm, &gfn_range);
 		}
 	}
@@ -540,7 +546,8 @@ static __always_inline int __kvm_handle_hva_range(struct kvm *kvm,
 		kvm_flush_remote_tlbs(kvm);
 
 out_unlock:
-	KVM_MMU_UNLOCK(kvm);
+	if (locked)
+		KVM_MMU_UNLOCK(kvm);
 
 	srcu_read_unlock(&kvm->srcu, idx);
 
