@@ -296,6 +296,8 @@ static void deferred_probe_timeout_work_func(struct work_struct *work)
 {
 	struct device_private *private, *p;
 
+	fw_devlink_drivers_done();
+
 	driver_deferred_probe_timeout = 0;
 	driver_deferred_probe_trigger();
 	flush_work(&deferred_probe_work);
@@ -323,6 +325,9 @@ static int deferred_probe_initcall(void)
 	/* Sort as many dependencies as possible before exiting initcalls */
 	flush_work(&deferred_probe_work);
 	initcalls_done = true;
+
+	if (!IS_ENABLED(CONFIG_MODULES))
+		fw_devlink_drivers_done();
 
 	/*
 	 * Trigger deferred probe again, this time we won't defer anything
