@@ -33,24 +33,6 @@ extern int amd_iommu_detect(void);
 extern int amd_iommu_init_hardware(void);
 
 /**
- * amd_iommu_enable_device_erratum() - Enable erratum workaround for device
- *				       in the IOMMUv2 driver
- * @pdev: The PCI device the workaround is necessary for
- * @erratum: The erratum workaround to enable
- *
- * The function needs to be called before amd_iommu_init_device().
- * Possible values for the erratum number are for now:
- * - AMD_PRI_DEV_ERRATUM_ENABLE_RESET - Reset PRI capability when PRI
- *					is enabled
- * - AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE - Limit number of outstanding PRI
- *					 requests to one
- */
-#define AMD_PRI_DEV_ERRATUM_ENABLE_RESET		0
-#define AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE		1
-
-extern void amd_iommu_enable_device_erratum(struct pci_dev *pdev, u32 erratum);
-
-/**
  * amd_iommu_init_device() - Init device for use with IOMMUv2 driver
  * @pdev: The PCI device to initialize
  * @pasids: Number of PASIDs to support for this device
