@@ -140,12 +140,11 @@ static int my_seq_open(struct inode *inode, struct file *file)
 	return single_open(file, my_seq_show, NULL);
 }
 
-static const struct file_operations my_proc_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = my_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
+static const struct proc_ops my_proc_ops = {
+	.proc_open    = my_seq_open,
+	.proc_read    = seq_read,
+	.proc_lseek   = seq_lseek,
+	.proc_release = single_release,
 };
 
 static int __init my_init(void)
@@ -155,7 +154,7 @@ static int __init my_init(void)
 	/* TODO 3/7: create a new entry in procfs */
 	struct proc_dir_entry *entry;
 
-	entry = proc_create(PROC_ENTRY_NAME, 0, NULL, &my_proc_file_ops);
+	entry = proc_create(PROC_ENTRY_NAME, 0, NULL, &my_proc_ops);
 	if (!entry) {
 		ret = -ENOMEM;
 		goto out;
