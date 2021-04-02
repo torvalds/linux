@@ -18,6 +18,9 @@
 #include "hfi_platform.h"
 #include "hfi_parser.h"
 
+#define NUM_MBS_720P	(((1280 + 15) >> 4) * ((720 + 15) >> 4))
+#define NUM_MBS_4K	(((4096 + 15) >> 4) * ((2304 + 15) >> 4))
+
 struct intbuf {
 	struct list_head list;
 	u32 type;
@@ -1090,14 +1093,38 @@ int venus_helper_set_output_resolution(struct venus_inst *inst,
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_output_resolution);
 
-int venus_helper_set_work_mode(struct venus_inst *inst, u32 mode)
+static u32 venus_helper_get_work_mode(struct venus_inst *inst)
+{
+	u32 mode;
+	u32 num_mbs;
+
+	mode = VIDC_WORK_MODE_2;
+	if (inst->session_type == VIDC_SESSION_TYPE_DEC) {
+		num_mbs = (ALIGN(inst->height, 16) * ALIGN(inst->width, 16)) / 256;
+		if (inst->hfi_codec == HFI_VIDEO_CODEC_MPEG2 ||
+		    inst->pic_struct != HFI_INTERLACE_FRAME_PROGRESSIVE ||
+		    num_mbs <= NUM_MBS_720P)
+			mode = VIDC_WORK_MODE_1;
+	} else {
+		num_mbs = (ALIGN(inst->out_height, 16) * ALIGN(inst->out_width, 16)) / 256;
+		if (inst->hfi_codec == HFI_VIDEO_CODEC_VP8 &&
+		    num_mbs <= NUM_MBS_4K)
+			mode = VIDC_WORK_MODE_1;
+	}
+
+	return mode;
+}
+
+int venus_helper_set_work_mode(struct venus_inst *inst)
 {
 	const u32 ptype = HFI_PROPERTY_PARAM_WORK_MODE;
 	struct hfi_video_work_mode wm;
+	u32 mode;
 
 	if (!IS_V4(inst->core) && !IS_V6(inst->core))
 		return 0;
 
+	mode = venus_helper_get_work_mode(inst);
 	wm.video_work_mode = mode;
 	return hfi_session_set_property(inst, ptype, &wm);
 }
