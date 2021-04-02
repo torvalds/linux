@@ -7828,7 +7828,7 @@ static void nf_tables_commit_audit_collect(struct list_head *adl,
 		if (adp->table == table)
 			goto found;
 	}
-	WARN_ONCE("table=%s not expected in commit list", table->name);
+	WARN_ONCE(1, "table=%s not expected in commit list", table->name);
 	return;
 found:
 	adp->entries++;
