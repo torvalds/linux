@@ -543,11 +543,11 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 		return PTR_ERR(raw);
 
 	if (type == BPF_TYPE_PROG)
-		ret = bpf_prog_new_fd(raw);
+		ret = (f_flags != O_RDWR) ? -EINVAL : bpf_prog_new_fd(raw);
 	else if (type == BPF_TYPE_MAP)
 		ret = bpf_map_new_fd(raw, f_flags);
 	else if (type == BPF_TYPE_LINK)
-		ret = bpf_link_new_fd(raw);
+		ret = (f_flags != O_RDWR) ? -EINVAL : bpf_link_new_fd(raw);
 	else
 		return -ENOENT;
 
