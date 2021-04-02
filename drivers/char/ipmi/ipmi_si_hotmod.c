@@ -185,24 +185,16 @@ static atomic_t hotmod_nr;
 
 static int hotmod_handler(const char *val, const struct kernel_param *kp)
 {
-	char *str = kstrdup(val, GFP_KERNEL), *curr, *next;
 	int  rv;
 	struct ipmi_plat_data h;
-	unsigned int len;
-	int ival;
+	char *str, *curr, *next;
 
+	str = kstrdup(val, GFP_KERNEL);
 	if (!str)
 		return -ENOMEM;
 
 	/* Kill any trailing spaces, as we can get a "\n" from echo. */
-	len = strlen(str);
-	ival = len - 1;
-	while ((ival >= 0) && isspace(str[ival])) {
-		str[ival] = '\0';
-		ival--;
-	}
-
-	for (curr = str; curr; curr = next) {
+	for (curr = strstrip(str); curr; curr = next) {
 		enum hotmod_op op;
 
 		next = strchr(curr, ':');
@@ -235,7 +227,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 				put_device(dev);
 		}
 	}
-	rv = len;
+	rv = strlen(val);
 out:
 	kfree(str);
 	return rv;
