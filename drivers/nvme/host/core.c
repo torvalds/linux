@@ -3049,9 +3049,11 @@ out:
 
 static inline u32 nvme_mps_to_sectors(struct nvme_ctrl *ctrl, u32 units)
 {
-	u32 page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
+	u32 page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12, val;
 
-	return 1 << (units + page_shift - 9);
+	if (check_shl_overflow(1U, units + page_shift - 9, &val))
+		return UINT_MAX;
+	return val;
 }
 
 static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
