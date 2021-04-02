@@ -1196,9 +1196,11 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		pr_warn_once("Witness protocol support is experimental\n");
 		break;
 	case Opt_rootfs:
-#ifdef CONFIG_CIFS_ROOT
-		ctx->rootfs = true;
+#ifndef CONFIG_CIFS_ROOT
+		cifs_dbg(VFS, "rootfs support requires CONFIG_CIFS_ROOT config option\n");
+		goto cifs_parse_mount_err;
 #endif
+		ctx->rootfs = true;
 		break;
 	case Opt_posixpaths:
 		if (result.negated)

@@ -1495,7 +1495,8 @@ Fails if any VCPU has already been created.
 
 Define which vcpu is the Bootstrap Processor (BSP).  Values are the same
 as the vcpu id in KVM_CREATE_VCPU.  If this ioctl is not called, the default
-is vcpu 0.
+is vcpu 0. This ioctl has to be called before vcpu creation,
+otherwise it will return EBUSY error.
 
 
 4.42 KVM_GET_XSAVE
@@ -4806,8 +4807,10 @@ If an MSR access is not permitted through the filtering, it generates a
 allows user space to deflect and potentially handle various MSR accesses
 into user space.
 
-If a vCPU is in running state while this ioctl is invoked, the vCPU may
-experience inconsistent filtering behavior on MSR accesses.
+Note, invoking this ioctl with a vCPU is running is inherently racy.  However,
+KVM does guarantee that vCPUs will see either the previous filter or the new
+filter, e.g. MSRs with identical settings in both the old and new filter will
+have deterministic behavior.
 
 4.127 KVM_XEN_HVM_SET_ATTR
 --------------------------
