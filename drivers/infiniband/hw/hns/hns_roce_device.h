@@ -910,33 +910,17 @@ struct hns_roce_hw {
 	int (*clear_hem)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_hem_table *table, int obj,
 			 int step_idx);
-	int (*query_qp)(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
-			int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			 int attr_mask, enum ib_qp_state cur_state,
 			 enum ib_qp_state new_state);
-	int (*destroy_qp)(struct ib_qp *ibqp, struct ib_udata *udata);
 	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_qp *hr_qp);
-	int (*post_send)(struct ib_qp *ibqp, const struct ib_send_wr *wr,
-			 const struct ib_send_wr **bad_wr);
-	int (*post_recv)(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
-			 const struct ib_recv_wr **bad_recv_wr);
-	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
-	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 			struct ib_udata *udata);
 	int (*destroy_cq)(struct ib_cq *ibcq, struct ib_udata *udata);
-	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 	int (*write_srqc)(struct hns_roce_srq *srq, void *mb_buf);
-	int (*modify_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
-		       enum ib_srq_attr_mask srq_attr_mask,
-		       struct ib_udata *udata);
-	int (*query_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
-	int (*post_srq_recv)(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
-			     const struct ib_recv_wr **bad_wr);
 	const struct ib_device_ops *hns_roce_dev_ops;
 	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
