@@ -423,11 +423,12 @@ static struct sk_buff *dpaa2_eth_copybreak(struct dpaa2_eth_channel *ch,
 					   void *fd_vaddr)
 {
 	u16 fd_offset = dpaa2_fd_get_offset(fd);
+	struct dpaa2_eth_priv *priv = ch->priv;
 	u32 fd_length = dpaa2_fd_get_len(fd);
 	struct sk_buff *skb = NULL;
 	unsigned int skb_len;
 
-	if (fd_length > DPAA2_ETH_DEFAULT_COPYBREAK)
+	if (fd_length > priv->rx_copybreak)
 		return NULL;
 
 	skb_len = fd_length + dpaa2_eth_needed_headroom(NULL);
@@ -441,7 +442,7 @@ static struct sk_buff *dpaa2_eth_copybreak(struct dpaa2_eth_channel *ch,
 
 	memcpy(skb->data, fd_vaddr + fd_offset, fd_length);
 
-	dpaa2_eth_recycle_buf(ch->priv, ch, dpaa2_fd_get_addr(fd));
+	dpaa2_eth_recycle_buf(priv, ch, dpaa2_fd_get_addr(fd));
 
 	return skb;
 }
@@ -4332,6 +4333,8 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	INIT_WORK(&priv->tx_onestep_tstamp, dpaa2_eth_tx_onestep_tstamp);
 
 	skb_queue_head_init(&priv->tx_skbs);
+
+	priv->rx_copybreak = DPAA2_ETH_DEFAULT_COPYBREAK;
 
 	/* Obtain a MC portal */
 	err = fsl_mc_portal_allocate(dpni_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
