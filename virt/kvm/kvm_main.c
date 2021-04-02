@@ -451,8 +451,6 @@ static void kvm_mmu_notifier_invalidate_range(struct mmu_notifier *mn,
 	srcu_read_unlock(&kvm->srcu, idx);
 }
 
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-
 typedef bool (*hva_handler_t)(struct kvm *kvm, struct kvm_gfn_range *range);
 
 struct kvm_hva_range {
@@ -564,8 +562,6 @@ static __always_inline int kvm_handle_hva_range_no_flush(struct mmu_notifier *mn
 
 	return ret;
 }
-#endif /* KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS */
-
 static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 					struct mm_struct *mm,
 					unsigned long address,
@@ -573,9 +569,6 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
 
-#ifndef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-	int idx;
-#endif
 	trace_kvm_set_spte_hva(address);
 
 	/*
@@ -585,26 +578,13 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 	 */
 	WARN_ON_ONCE(!kvm->mmu_notifier_count);
 
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
 	kvm_handle_hva_range(mn, address, address + 1, pte, kvm_set_spte_gfn);
-#else
-	idx = srcu_read_lock(&kvm->srcu);
-
-	KVM_MMU_LOCK(kvm);
-
-	if (kvm_set_spte_hva(kvm, address, pte))
-		kvm_flush_remote_tlbs(kvm);
-
-	KVM_MMU_UNLOCK(kvm);
-	srcu_read_unlock(&kvm->srcu, idx);
-#endif
 }
 
 static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 					const struct mmu_notifier_range *range)
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
 	const struct kvm_hva_range hva_range = {
 		.start		= range->start,
 		.end		= range->end,
@@ -613,15 +593,8 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		.flush_on_ret	= true,
 		.may_block	= mmu_notifier_range_blockable(range),
 	};
-#else
-	int need_tlb_flush = 0, idx;
-#endif
 
 	trace_kvm_unmap_hva_range(range->start, range->end);
-
-#ifndef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-	idx = srcu_read_lock(&kvm->srcu);
-#endif
 
 	KVM_MMU_LOCK(kvm);
 	/*
@@ -649,20 +622,9 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 			max(kvm->mmu_notifier_range_end, range->end);
 	}
 
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
 	__kvm_handle_hva_range(kvm, &hva_range);
-#else
-	need_tlb_flush = kvm_unmap_hva_range(kvm, range->start, range->end,
-					     range->flags);
-	/* we've to flush the tlb before the pages can be freed */
-	if (need_tlb_flush || kvm->tlbs_dirty)
-		kvm_flush_remote_tlbs(kvm);
-#endif
 
 	KVM_MMU_UNLOCK(kvm);
-#ifndef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-	srcu_read_unlock(&kvm->srcu, idx);
-#endif
 
 	return 0;
 }
@@ -696,27 +658,9 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
 					      unsigned long start,
 					      unsigned long end)
 {
-#ifndef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int young, idx;
-#endif
 	trace_kvm_age_hva(start, end);
 
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
 	return kvm_handle_hva_range(mn, start, end, __pte(0), kvm_age_gfn);
-#else
-	idx = srcu_read_lock(&kvm->srcu);
-	KVM_MMU_LOCK(kvm);
-
-	young = kvm_age_hva(kvm, start, end);
-	if (young)
-		kvm_flush_remote_tlbs(kvm);
-
-	KVM_MMU_UNLOCK(kvm);
-	srcu_read_unlock(&kvm->srcu, idx);
-
-	return young;
-#endif
 }
 
 static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
@@ -724,11 +668,6 @@ static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
 					unsigned long start,
 					unsigned long end)
 {
-#ifndef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int young, idx;
-#endif
-
 	trace_kvm_age_hva(start, end);
 
 	/*
@@ -744,41 +683,17 @@ static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
 	 * cadence. If we find this inaccurate, we might come up with a
 	 * more sophisticated heuristic later.
 	 */
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
 	return kvm_handle_hva_range_no_flush(mn, start, end, kvm_age_gfn);
-#else
-	idx = srcu_read_lock(&kvm->srcu);
-	KVM_MMU_LOCK(kvm);
-	young = kvm_age_hva(kvm, start, end);
-	KVM_MMU_UNLOCK(kvm);
-	srcu_read_unlock(&kvm->srcu, idx);
-
-	return young;
-#endif
 }
 
 static int kvm_mmu_notifier_test_young(struct mmu_notifier *mn,
 				       struct mm_struct *mm,
 				       unsigned long address)
 {
-#ifndef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int young, idx;
-#endif
 	trace_kvm_test_age_hva(address);
 
-#ifdef KVM_ARCH_WANT_NEW_MMU_NOTIFIER_APIS
 	return kvm_handle_hva_range_no_flush(mn, address, address + 1,
 					     kvm_test_age_gfn);
-#else
-	idx = srcu_read_lock(&kvm->srcu);
-	KVM_MMU_LOCK(kvm);
-	young = kvm_test_age_hva(kvm, address);
-	KVM_MMU_UNLOCK(kvm);
-	srcu_read_unlock(&kvm->srcu, idx);
-
-	return young;
-#endif
 }
 
 static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
