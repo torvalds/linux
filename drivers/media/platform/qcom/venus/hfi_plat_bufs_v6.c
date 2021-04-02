@@ -1233,7 +1233,7 @@ static int bufreq_dec(struct hfi_plat_buffers_params *params, u32 buftype,
 	} else if (buftype == HFI_BUFFER_INTERNAL_PERSIST_1) {
 		bufreq->size = dec_ops->persist1();
 	} else {
-		return -EINVAL;
+		bufreq->size = 0;
 	}
 
 	return 0;
@@ -1301,7 +1301,7 @@ static int bufreq_enc(struct hfi_plat_buffers_params *params, u32 buftype,
 	} else if (buftype == HFI_BUFFER_INTERNAL_PERSIST) {
 		bufreq->size = enc_ops->persist();
 	} else {
-		return -EINVAL;
+		bufreq->size = 0;
 	}
 
 	return 0;
