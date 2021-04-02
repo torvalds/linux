@@ -5638,7 +5638,7 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 }
 
 void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
-					struct kvm_memory_slot *memslot)
+					const struct kvm_memory_slot *memslot)
 {
 	/*
 	 * All current use cases for flushing the TLBs for a specific memslot

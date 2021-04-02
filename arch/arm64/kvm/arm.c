@@ -1270,7 +1270,7 @@ void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 }
 
 void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
-					struct kvm_memory_slot *memslot)
+					const struct kvm_memory_slot *memslot)
 {
 	kvm_flush_remote_tlbs(kvm);
 }
