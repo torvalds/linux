@@ -3449,8 +3449,7 @@ static int hns_roce_v1_q_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 				   ((roce_get_bit(context->qpc_bytes_4,
 			QP_CONTEXT_QPC_BYTE_4_ATOMIC_OPERATION_ENABLE_S)) << 3);
 
-	if (hr_qp->ibqp.qp_type == IB_QPT_RC ||
-	    hr_qp->ibqp.qp_type == IB_QPT_UC) {
+	if (hr_qp->ibqp.qp_type == IB_QPT_RC) {
 		struct ib_global_route *grh =
 			rdma_ah_retrieve_grh(&qp_attr->ah_attr);
 

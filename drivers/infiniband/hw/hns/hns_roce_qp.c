@@ -1189,8 +1189,6 @@ int to_hr_qp_type(int qp_type)
 	switch (qp_type) {
 	case IB_QPT_RC:
 		return SERV_TYPE_RC;
-	case IB_QPT_UC:
-		return SERV_TYPE_UC;
 	case IB_QPT_UD:
 	case IB_QPT_GSI:
 		return SERV_TYPE_UD;
