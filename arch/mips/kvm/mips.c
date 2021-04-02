@@ -204,9 +204,6 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
 	/* Flush whole GPA */
 	kvm_mips_flush_gpa_pt(kvm, 0, ~0);
-
-	/* Let implementation do the rest */
-	kvm_mips_callbacks->prepare_flush_shadow(kvm);
 	kvm_flush_remote_tlbs(kvm);
 }
 
@@ -995,11 +992,15 @@ void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 
 }
 
+int kvm_arch_flush_remote_tlb(struct kvm *kvm)
+{
+	kvm_mips_callbacks->prepare_flush_shadow(kvm);
+	return 1;
+}
+
 void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
 					const struct kvm_memory_slot *memslot)
 {
-	/* Let implementation handle TLB/GVA invalidation */
-	kvm_mips_callbacks->prepare_flush_shadow(kvm);
 	kvm_flush_remote_tlbs(kvm);
 }
 

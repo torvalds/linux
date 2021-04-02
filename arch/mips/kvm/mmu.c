@@ -490,8 +490,6 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end,
 			unsigned flags)
 {
 	handle_hva_to_gpa(kvm, start, end, &kvm_unmap_hva_handler, NULL);
-
-	kvm_mips_callbacks->prepare_flush_shadow(kvm);
 	kvm_flush_remote_tlbs(kvm);
 	return 0;
 }
@@ -533,10 +531,8 @@ int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 	int ret;
 
 	ret = handle_hva_to_gpa(kvm, hva, end, &kvm_set_spte_handler, &pte);
-	if (ret) {
-		kvm_mips_callbacks->prepare_flush_shadow(kvm);
+	if (ret)
 		kvm_flush_remote_tlbs(kvm);
-	}
 	return 0;
 }
 
