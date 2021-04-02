@@ -9,14 +9,6 @@
 void *ksmbd_find_buffer(size_t size);
 void ksmbd_release_buffer(void *buffer);
 
-void *ksmbd_alloc(size_t size);
-void ksmbd_free(void *ptr);
-
-void ksmbd_free_request(void *addr);
-void *ksmbd_alloc_request(size_t size);
-void ksmbd_free_response(void *buffer);
-void *ksmbd_alloc_response(size_t size);
-
 void *ksmbd_realloc_response(void *ptr, size_t old_sz, size_t new_sz);
 
 void ksmbd_free_file_struct(void *filp);

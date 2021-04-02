@@ -229,7 +229,6 @@ int ksmbd_vfs_setxattr(struct dentry *dentry, const char *attr_name,
 int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 		size_t *xattr_stream_name_size, int s_type);
 int ksmbd_vfs_remove_xattr(struct dentry *dentry, char *attr_name);
-void ksmbd_vfs_xattr_free(char *xattr);
 int ksmbd_vfs_kern_path(char *name, unsigned int flags, struct path *path,
 		bool caseless);
 int ksmbd_vfs_empty_dir(struct ksmbd_file *fp);

@@ -4,6 +4,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/mm.h>
 
 #include "user_config.h"
 #include "../buffer_pool.h"
@@ -23,7 +24,7 @@ struct ksmbd_user *ksmbd_login_user(const char *account)
 
 	user = ksmbd_alloc_user(resp);
 out:
-	ksmbd_free(resp);
+	kvfree(resp);
 	return user;
 }
 

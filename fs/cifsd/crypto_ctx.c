@@ -105,7 +105,7 @@ static struct shash_desc *alloc_shash_desc(int id)
 
 static struct ksmbd_crypto_ctx *ctx_alloc(void)
 {
-	return ksmbd_alloc(sizeof(struct ksmbd_crypto_ctx));
+	return kzalloc(sizeof(struct ksmbd_crypto_ctx), GFP_KERNEL);
 }
 
 static void ctx_free(struct ksmbd_crypto_ctx *ctx)
@@ -116,7 +116,7 @@ static void ctx_free(struct ksmbd_crypto_ctx *ctx)
 		free_shash(ctx->desc[i]);
 	for (i = 0; i < CRYPTO_AEAD_MAX; i++)
 		free_aead(ctx->ccmaes[i]);
-	ksmbd_free(ctx);
+	kfree(ctx);
 }
 
 static struct ksmbd_crypto_ctx *ksmbd_find_crypto_ctx(void)

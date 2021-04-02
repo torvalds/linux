@@ -53,7 +53,7 @@ static void __session_rpc_close(struct ksmbd_session *sess,
 	if (!resp)
 		pr_err("Unable to close RPC pipe %d\n", entry->id);
 
-	ksmbd_free(resp);
+	kvfree(resp);
 	ksmbd_rpc_id_free(entry->id);
 	kfree(entry);
 }
@@ -117,7 +117,7 @@ int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
 	if (!resp)
 		goto error;
 
-	ksmbd_free(resp);
+	kvfree(resp);
 	return entry->id;
 error:
 	list_del(&entry->list);

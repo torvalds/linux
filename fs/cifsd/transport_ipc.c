@@ -233,7 +233,7 @@ static struct ksmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 	struct ksmbd_ipc_msg *msg;
 	size_t msg_sz = sz + sizeof(struct ksmbd_ipc_msg);
 
-	msg = ksmbd_alloc(msg_sz);
+	msg = kvmalloc(msg_sz, GFP_KERNEL | __GFP_ZERO);
 	if (msg)
 		msg->sz = sz;
 	return msg;
@@ -241,7 +241,7 @@ static struct ksmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 
 static void ipc_msg_free(struct ksmbd_ipc_msg *msg)
 {
-	ksmbd_free(msg);
+	kvfree(msg);
 }
 
 static void ipc_msg_handle_free(int handle)
@@ -272,7 +272,7 @@ static int handle_response(int type, void *payload, size_t sz)
 				entry->type + 1, type);
 		}
 
-		entry->response = ksmbd_alloc(sz);
+		entry->response = kvmalloc(sz, GFP_KERNEL | __GFP_ZERO);
 		if (!entry->response) {
 			ret = -ENOMEM;
 			break;

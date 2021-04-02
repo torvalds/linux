@@ -42,16 +42,16 @@ void ksmbd_free_work_struct(struct ksmbd_work *work)
 			work->set_trans_buf)
 		ksmbd_release_buffer(work->response_buf);
 	else
-		ksmbd_free_response(work->response_buf);
+		kvfree(work->response_buf);
 
 	if (server_conf.flags & KSMBD_GLOBAL_FLAG_CACHE_RBUF &&
 			work->set_read_buf)
 		ksmbd_release_buffer(work->aux_payload_buf);
 	else
-		ksmbd_free_response(work->aux_payload_buf);
+		kvfree(work->aux_payload_buf);
 
-	ksmbd_free_response(work->tr_buf);
-	ksmbd_free_request(work->request_buf);
+	kfree(work->tr_buf);
+	kvfree(work->request_buf);
 	if (work->async_id)
 		ksmbd_release_id(work->conn->async_ida, work->async_id);
 	kmem_cache_free(work_cache, work);

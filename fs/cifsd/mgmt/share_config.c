@@ -10,6 +10,7 @@
 #include <linux/parser.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
+#include <linux/mm.h>
 
 #include "share_config.h"
 #include "user_config.h"
@@ -182,7 +183,7 @@ static struct ksmbd_share_config *share_config_request(char *name)
 	up_write(&shares_table_lock);
 
 out:
-	ksmbd_free(resp);
+	kvfree(resp);
 	return share;
 }
 
