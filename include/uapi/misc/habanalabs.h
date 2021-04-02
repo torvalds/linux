@@ -644,17 +644,10 @@ struct hl_cs_in {
 	/* holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
 
-	union {
-		/* this holds address of array of hl_cs_chunk for store phase -
-		 * Currently not in use
-		 */
-		__u64 chunks_store;
-
-		/* Sequence number of a staged submission CS
-		 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set
-		 */
-		__u64 seq;
-	};
+	/* Sequence number of a staged submission CS
+	 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set
+	 */
+	__u64 seq;
 
 	/* Number of chunks in restore phase array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
@@ -666,18 +659,10 @@ struct hl_cs_in {
 	 */
 	__u32 num_chunks_execute;
 
-	union {
-		/* Number of chunks in restore phase array -
-		 * Currently not in use
-		 */
-		__u32 num_chunks_store;
-
-		/* timeout in seconds - valid only if HL_CS_FLAGS_CUSTOM_TIMEOUT
-		 * is set. this parameter is ignored in case of future multiple
-		 * users support.
-		 */
-		__u32 timeout;
-	};
+	/* timeout in seconds - valid only if HL_CS_FLAGS_CUSTOM_TIMEOUT
+	 * is set
+	 */
+	__u32 timeout;
 
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;
@@ -1051,8 +1036,8 @@ struct hl_debug_args {
  * Each JOB will be enqueued on a specific queue, according to the user's input.
  * There can be more then one JOB per queue.
  *
- * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
- * a second set is for "execution" phase and a third set is for "store" phase.
+ * The CS IOCTL will receive two sets of JOBS. One set is for "restore" phase
+ * and a second set is for "execution" phase.
  * The JOBS on the "restore" phase are enqueued only after context-switch
  * (or if its the first CS for this context). The user can also order the
  * driver to run the "restore" phase explicitly
