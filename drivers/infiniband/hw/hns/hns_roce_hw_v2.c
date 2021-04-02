@@ -4111,8 +4111,11 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		       ((u32)hr_qp->rdb.dma) >> 1);
 	context->rq_db_record_addr = cpu_to_le32(hr_qp->rdb.dma >> 32);
 
-	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S,
-		    (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) ? 1 : 0);
+	if (ibqp->qp_type != IB_QPT_UD && ibqp->qp_type != IB_QPT_GSI)
+		roce_set_bit(context->byte_76_srqn_op_en,
+			     V2_QPC_BYTE_76_RQIE_S,
+			     !!(hr_dev->caps.flags &
+				HNS_ROCE_CAP_FLAG_RQ_INLINE));
 
 	roce_set_field(context->byte_80_rnr_rx_cqn, V2_QPC_BYTE_80_RX_CQN_M,
 		       V2_QPC_BYTE_80_RX_CQN_S, get_cqn(ibqp->recv_cq));
