@@ -48,7 +48,8 @@
 #define roce_set_field(origin, mask, shift, val)                               \
 	do {                                                                   \
 		(origin) &= ~cpu_to_le32(mask);                                \
-		(origin) |= cpu_to_le32(((u32)(val) << (u32)(shift)) & (mask));     \
+		(origin) |=                                                    \
+			cpu_to_le32(((u32)(val) << (u32)(shift)) & (mask));    \
 	} while (0)
 
 #define roce_set_bit(origin, shift, val)                                       \
@@ -59,9 +60,9 @@
 #define _hr_reg_enable(ptr, field_type, field_h, field_l)                      \
 	({                                                                     \
 		const field_type *_ptr = ptr;                                  \
-		*((__le32 *)_ptr + (field_h) / 32) |=                          \
-			cpu_to_le32(BIT((field_l) % 32)) +                     \
-			BUILD_BUG_ON_ZERO((field_h) != (field_l));             \
+		*((__le32 *)_ptr + (field_h) / 32) |= cpu_to_le32(             \
+			BIT((field_l) % 32) +                                  \
+			BUILD_BUG_ON_ZERO((field_h) != (field_l)));            \
 	})
 
 #define hr_reg_enable(ptr, field) _hr_reg_enable(ptr, field)
@@ -69,11 +70,9 @@
 #define _hr_reg_clear(ptr, field_type, field_h, field_l)                       \
 	({                                                                     \
 		const field_type *_ptr = ptr;                                  \
+		BUILD_BUG_ON(((field_h) / 32) != ((field_l) / 32));            \
 		*((__le32 *)_ptr + (field_h) / 32) &=                          \
-			cpu_to_le32(                                           \
-				~GENMASK((field_h) % 32, (field_l) % 32)) +    \
-			BUILD_BUG_ON_ZERO(((field_h) / 32) !=                  \
-					  ((field_l) / 32));                   \
+			~cpu_to_le32(GENMASK((field_h) % 32, (field_l) % 32)); \
 	})
 
 #define hr_reg_clear(ptr, field) _hr_reg_clear(ptr, field)
