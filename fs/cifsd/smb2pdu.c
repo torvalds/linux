@@ -1611,7 +1611,7 @@ int smb2_sess_setup(struct ksmbd_work *work)
 
 			ksmbd_conn_set_good(work);
 			sess->state = SMB2_SESSION_VALID;
-			ksmbd_free(sess->Preauth_HashValue);
+			kfree(sess->Preauth_HashValue);
 			sess->Preauth_HashValue = NULL;
 		} else if (conn->preferred_auth_mech == KSMBD_AUTH_NTLMSSP) {
 			rc = generate_preauth_hash(work);
@@ -1637,7 +1637,7 @@ int smb2_sess_setup(struct ksmbd_work *work)
 
 				ksmbd_conn_set_good(work);
 				sess->state = SMB2_SESSION_VALID;
-				ksmbd_free(sess->Preauth_HashValue);
+				kfree(sess->Preauth_HashValue);
 				sess->Preauth_HashValue = NULL;
 			}
 		} else {

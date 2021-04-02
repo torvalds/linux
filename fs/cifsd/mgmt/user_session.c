@@ -55,7 +55,7 @@ static void __session_rpc_close(struct ksmbd_session *sess,
 
 	ksmbd_free(resp);
 	ksmbd_rpc_id_free(entry->id);
-	ksmbd_free(entry);
+	kfree(entry);
 }
 
 static void ksmbd_session_rpc_clear_list(struct ksmbd_session *sess)
@@ -121,7 +121,7 @@ int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name)
 	return entry->id;
 error:
 	list_del(&entry->list);
-	ksmbd_free(entry);
+	kfree(entry);
 	return -EINVAL;
 }
 
@@ -176,7 +176,7 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	ksmbd_release_id(session_ida, sess->id);
 
 	ksmbd_ida_free(sess->tree_conn_ida);
-	ksmbd_free(sess);
+	kfree(sess);
 }
 
 static struct ksmbd_session *__session_lookup(unsigned long long id)

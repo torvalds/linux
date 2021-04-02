@@ -551,7 +551,7 @@ void ksmbd_tcp_destroy(void)
 	list_for_each_entry_safe(iface, tmp, &iface_list, entry) {
 		list_del(&iface->entry);
 		kfree(iface->name);
-		ksmbd_free(iface);
+		kfree(iface);
 	}
 }
 

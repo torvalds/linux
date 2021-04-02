@@ -102,7 +102,7 @@ static int parse_veto_list(struct ksmbd_share_config *share,
 
 		p->pattern = kstrdup(veto_list, GFP_KERNEL);
 		if (!p->pattern) {
-			ksmbd_free(p);
+			kfree(p);
 			return -ENOMEM;
 		}
 

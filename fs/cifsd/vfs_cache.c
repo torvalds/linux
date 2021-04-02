@@ -829,6 +829,6 @@ void ksmbd_destroy_file_table(struct ksmbd_file_table *ft)
 
 	__close_file_table_ids(ft, NULL, session_fd_check);
 	idr_destroy(ft->idr);
-	ksmbd_free(ft->idr);
+	kfree(ft->idr);
 	ft->idr = NULL;
 }

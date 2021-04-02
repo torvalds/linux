@@ -78,7 +78,7 @@ static int register_wm_size_class(size_t sz)
 	list_for_each_entry(l, &wm_lists, list) {
 		if (l->sz == sz) {
 			write_unlock(&wm_lists_lock);
-			kvfree(nl);
+			kfree(nl);
 			return 0;
 		}
 	}
@@ -181,7 +181,7 @@ static void wm_list_free(struct wm_list *l)
 		list_del(&wm->list);
 		kvfree(wm);
 	}
-	kvfree(l);
+	kfree(l);
 }
 
 static void wm_lists_destroy(void)
