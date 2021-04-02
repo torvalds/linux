@@ -1161,13 +1161,11 @@ static int alloc_preauth_hash(struct ksmbd_session *sess,
 	if (sess->Preauth_HashValue)
 		return 0;
 
-	sess->Preauth_HashValue = kmalloc(PREAUTH_HASHVALUE_SIZE, GFP_KERNEL);
+	sess->Preauth_HashValue = kmemdup(conn->preauth_info->Preauth_HashValue,
+			PREAUTH_HASHVALUE_SIZE, GFP_KERNEL);
 	if (!sess->Preauth_HashValue)
 		return -ENOMEM;
 
-	memcpy(sess->Preauth_HashValue,
-	       conn->preauth_info->Preauth_HashValue,
-	       PREAUTH_HASHVALUE_SIZE);
 	return 0;
 }
 
