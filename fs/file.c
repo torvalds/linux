@@ -629,17 +629,30 @@ int close_fd(unsigned fd)
 }
 EXPORT_SYMBOL(close_fd); /* for ksys_close() */
 
+/**
+ * last_fd - return last valid index into fd table
+ * @cur_fds: files struct
+ *
+ * Context: Either rcu read lock or files_lock must be held.
+ *
+ * Returns: Last valid index into fdtable.
+ */
+static inline unsigned last_fd(struct fdtable *fdt)
+{
+	return fdt->max_fds - 1;
+}
+
 static inline void __range_cloexec(struct files_struct *cur_fds,
 				   unsigned int fd, unsigned int max_fd)
 {
 	struct fdtable *fdt;
 
-	if (fd > max_fd)
-		return;
-
+	/* make sure we're using the correct maximum value */
 	spin_lock(&cur_fds->file_lock);
 	fdt = files_fdtable(cur_fds);
-	bitmap_set(fdt->close_on_exec, fd, max_fd - fd + 1);
+	max_fd = min(last_fd(fdt), max_fd);
+	if (fd <= max_fd)
+		bitmap_set(fdt->close_on_exec, fd, max_fd - fd + 1);
 	spin_unlock(&cur_fds->file_lock);
 }
 
