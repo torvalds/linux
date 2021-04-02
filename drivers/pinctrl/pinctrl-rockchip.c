@@ -428,6 +428,9 @@ struct rockchip_pin_ctrl {
 	int	(*schmitt_calc_reg)(struct rockchip_pin_bank *bank,
 				    int pin_num, struct regmap **regmap,
 				    int *reg, u8 *bit);
+	int	(*slew_rate_calc_reg)(struct rockchip_pin_bank *bank,
+				      int pin_num, struct regmap **regmap,
+				      int *reg, u8 *bit);
 };
 
 struct rockchip_pin_config {
@@ -2838,6 +2841,51 @@ static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
 	return regmap_update_bits(regmap, reg, rmask, data);
 }
 
+static int rockchip_get_slew_rate(struct rockchip_pin_bank *bank, int pin_num)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct regmap *regmap;
+	int reg, ret;
+	u8 bit;
+	u32 data;
+
+	ret = ctrl->slew_rate_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, reg, &data);
+	if (ret)
+		return ret;
+
+	data >>= bit;
+	return data & 0x1;
+}
+
+static int rockchip_set_slew_rate(struct rockchip_pin_bank *bank,
+				  int pin_num, int speed)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct regmap *regmap;
+	int reg, ret;
+	u8 bit;
+	u32 data, rmask;
+
+	dev_dbg(info->dev, "setting slew rate of GPIO%d-%d to %d\n",
+		bank->bank_num, pin_num, speed);
+
+	ret = ctrl->slew_rate_calc_reg(bank, pin_num, &regmap, &reg, &bit);
+	if (ret)
+		return ret;
+
+	/* enable the write to the equivalent lower bits */
+	data = BIT(bit + 16) | (speed << bit);
+	rmask = BIT(bit + 16) | BIT(bit);
+
+	return regmap_update_bits(regmap, reg, rmask, data);
+}
+
 /*
  * Pinmux_ops handling
  */
@@ -3077,6 +3125,15 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (rc < 0)
 				return rc;
 			break;
+		case PIN_CONFIG_SLEW_RATE:
+			if (!info->ctrl->slew_rate_calc_reg)
+				return -ENOTSUPP;
+
+			rc = rockchip_set_slew_rate(bank,
+						    pin - bank->pin_base, arg);
+			if (rc < 0)
+				return rc;
+			break;
 		default:
 			return -ENOTSUPP;
 			break;
@@ -3142,6 +3199,16 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -ENOTSUPP;
 
 		rc = rockchip_get_schmitt(bank, pin - bank->pin_base);
+		if (rc < 0)
+			return rc;
+
+		arg = rc;
+		break;
+	case PIN_CONFIG_SLEW_RATE:
+		if (!info->ctrl->slew_rate_calc_reg)
+			return -ENOTSUPP;
+
+		rc = rockchip_get_slew_rate(bank, pin - bank->pin_base);
 		if (rc < 0)
 			return rc;
 
