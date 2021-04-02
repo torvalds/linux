@@ -18,9 +18,13 @@
 #define DEFAULT_REGSPACING	1
 #define DEFAULT_REGSIZE		1
 
+/* Numbers in this enumerator should be mapped to si_to_str[] */
 enum si_type {
-	SI_TYPE_INVALID, SI_KCS, SI_SMIC, SI_BT
+	SI_TYPE_INVALID, SI_KCS, SI_SMIC, SI_BT, SI_TYPE_MAX
 };
+
+/* Array is defined in the ipmi_si_intf.c */
+extern const char *const si_to_str[];
 
 enum ipmi_addr_space {
 	IPMI_IO_ADDR_SPACE, IPMI_MEM_ADDR_SPACE

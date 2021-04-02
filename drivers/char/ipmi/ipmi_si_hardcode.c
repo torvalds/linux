@@ -80,26 +80,21 @@ static void __init ipmi_hardcode_init_one(const char *si_type_str,
 					  enum ipmi_addr_space addr_space)
 {
 	struct ipmi_plat_data p;
+	int t;
 
 	memset(&p, 0, sizeof(p));
 
 	p.iftype = IPMI_PLAT_IF_SI;
-	if (!si_type_str || !*si_type_str || strcmp(si_type_str, "kcs") == 0) {
+	if (!si_type_str || !*si_type_str) {
 		p.type = SI_KCS;
-	} else if (strcmp(si_type_str, "smic") == 0) {
-		p.type = SI_SMIC;
-	} else if (strcmp(si_type_str, "bt") == 0) {
-		p.type = SI_BT;
-	} else if (strcmp(si_type_str, "invalid") == 0) {
-		/*
-		 * Allow a firmware-specified interface to be
-		 * disabled.
-		 */
-		p.type = SI_TYPE_INVALID;
 	} else {
-		pr_warn("Interface type specified for interface %d, was invalid: %s\n",
-			i, si_type_str);
-		return;
+		t = match_string(si_to_str, -1, si_type_str);
+		if (t < 0) {
+			pr_warn("Interface type specified for interface %d, was invalid: %s\n",
+				i, si_type_str);
+			return;
+		}
+		p.type = t;
 	}
 
 	p.regsize = regsizes[i];
