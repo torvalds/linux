@@ -499,7 +499,6 @@ struct macsec_ops;
  *
  * @speed: Current link speed
  * @duplex: Current duplex
- * @port: Current port
  * @pause: Current pause
  * @asym_pause: Current asymmetric pause
  * @supported: Combined MAC/PHY supported linkmodes
@@ -578,7 +577,6 @@ struct phy_device {
 	 */
 	int speed;
 	int duplex;
-	int port;
 	int pause;
 	int asym_pause;
 	u8 master_slave_get;
