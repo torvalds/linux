@@ -36,18 +36,19 @@ static void adis_trigger_setup(struct adis *adis)
 
 static int adis_validate_irq_flag(struct adis *adis)
 {
+	unsigned long direction = adis->irq_flag & IRQF_TRIGGER_MASK;
 	/*
 	 * Typically this devices have data ready either on the rising edge or
 	 * on the falling edge of the data ready pin. This checks enforces that
 	 * one of those is set in the drivers... It defaults to
-	 * IRQF_TRIGGER_RISING for backward compatibility wiht devices that
+	 * IRQF_TRIGGER_RISING for backward compatibility with devices that
 	 * don't support changing the pin polarity.
 	 */
-	if (!adis->irq_flag) {
-		adis->irq_flag = IRQF_TRIGGER_RISING;
+	if (direction == IRQF_TRIGGER_NONE) {
+		adis->irq_flag |= IRQF_TRIGGER_RISING;
 		return 0;
-	} else if (adis->irq_flag != IRQF_TRIGGER_RISING &&
-		   adis->irq_flag != IRQF_TRIGGER_FALLING) {
+	} else if (direction != IRQF_TRIGGER_RISING &&
+		   direction != IRQF_TRIGGER_FALLING) {
 		dev_err(&adis->spi->dev, "Invalid IRQ mask: %08lx\n",
 			adis->irq_flag);
 		return -EINVAL;
