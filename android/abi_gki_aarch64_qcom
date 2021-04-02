@@ -552,6 +552,7 @@
   dma_buf_unmap_attachment
   dma_buf_vmap
   dma_buf_vunmap
+  dma_contiguous_default_area
   dma_fence_add_callback
   dma_fence_array_create
   dma_fence_array_ops
@@ -932,13 +933,17 @@
   getboottime64
   get_cpu_device
   get_device
+  get_each_dmabuf
+  get_each_object_track
   __get_free_pages
   get_governor_parent_kobj
   get_option
+  get_page_owner_handle
   get_pid_task
   get_random_bytes
   get_random_u32
   get_sg_io_hdr
+  get_slabinfo
   get_state_synchronize_rcu
   __get_task_comm
   get_task_mm
@@ -1311,6 +1316,7 @@
   lock_sock_nested
   log_buf_addr_get
   log_buf_len_get
+  lookup_page_ext
   __log_post_read_mmio
   __log_read_mmio
   __log_write_mmio
@@ -1614,6 +1620,7 @@
   pci_walk_bus
   pci_write_config_dword
   pci_write_config_word
+  pcpu_nr_pages
   PDE_DATA
   __percpu_down_read
   percpu_down_write
@@ -2067,6 +2074,7 @@
   show_regs
   sigprocmask
   si_meminfo
+  si_mem_available
   simple_attr_open
   simple_attr_read
   simple_attr_release
@@ -2222,6 +2230,7 @@
   sscanf
   __stack_chk_fail
   __stack_chk_guard
+  stack_depot_fetch
   stack_trace_print
   stack_trace_save
   static_key_disable
@@ -2681,6 +2690,7 @@
   vm_insert_page
   vm_iomap_memory
   vm_map_pages
+  vm_memory_committed
   vm_mmap
   vm_munmap
   vm_node_stat
