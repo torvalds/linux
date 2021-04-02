@@ -30,8 +30,8 @@ struct mptcp_ext {
 			ack64:1,
 			mpc_map:1,
 			frozen:1,
-			__unused:1;
-	/* one byte hole */
+			reset_transient:1;
+	u8		reset_reason:4;
 };
 
 #define MPTCP_RM_IDS_MAX	8
@@ -58,6 +58,8 @@ struct mptcp_out_options {
 	struct mptcp_rm_list rm_list;
 	u8 join_id;
 	u8 backup;
+	u8 reset_reason:4;
+	u8 reset_transient:1;
 	u32 nonce;
 	u64 thmac;
 	u32 token;
@@ -156,6 +158,16 @@ void mptcp_seq_show(struct seq_file *seq);
 int mptcp_subflow_init_cookie_req(struct request_sock *req,
 				  const struct sock *sk_listener,
 				  struct sk_buff *skb);
+
+__be32 mptcp_get_reset_option(const struct sk_buff *skb);
+
+static inline __be32 mptcp_reset_option(const struct sk_buff *skb)
+{
+	if (skb_ext_exist(skb, SKB_EXT_MPTCP))
+		return mptcp_get_reset_option(skb);
+
+	return htonl(0u);
+}
 #else
 
 static inline void mptcp_init(void)
@@ -236,6 +248,8 @@ static inline int mptcp_subflow_init_cookie_req(struct request_sock *req,
 {
 	return 0; /* TCP fallback */
 }
+
+static inline __be32 mptcp_reset_option(const struct sk_buff *skb)  { return htonl(0u); }
 #endif /* CONFIG_MPTCP */
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)

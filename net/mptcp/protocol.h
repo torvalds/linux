@@ -26,6 +26,7 @@
 #define OPTION_MPTCP_RM_ADDR	BIT(8)
 #define OPTION_MPTCP_FASTCLOSE	BIT(9)
 #define OPTION_MPTCP_PRIO	BIT(10)
+#define OPTION_MPTCP_RST	BIT(11)
 
 /* MPTCP option subtypes */
 #define MPTCPOPT_MP_CAPABLE	0
@@ -36,6 +37,7 @@
 #define MPTCPOPT_MP_PRIO	5
 #define MPTCPOPT_MP_FAIL	6
 #define MPTCPOPT_MP_FASTCLOSE	7
+#define MPTCPOPT_RST		8
 
 /* MPTCP suboption lengths */
 #define TCPOLEN_MPTCP_MPC_SYN		4
@@ -65,6 +67,7 @@
 #define TCPOLEN_MPTCP_PRIO		3
 #define TCPOLEN_MPTCP_PRIO_ALIGN	4
 #define TCPOLEN_MPTCP_FASTCLOSE		12
+#define TCPOLEN_MPTCP_RST		4
 
 /* MPTCP MP_JOIN flags */
 #define MPTCPOPT_BACKUP		BIT(0)
@@ -93,6 +96,9 @@
 
 /* MPTCP MP_PRIO flags */
 #define MPTCP_PRIO_BKUP		BIT(0)
+
+/* MPTCP TCPRST flags */
+#define MPTCP_RST_TRANSIENT	BIT(0)
 
 /* MPTCP socket flags */
 #define MPTCP_DATA_READY	0
@@ -123,6 +129,7 @@ struct mptcp_options_received {
 	u16	mp_capable : 1,
 		mp_join : 1,
 		fastclose : 1,
+		reset : 1,
 		dss : 1,
 		add_addr : 1,
 		rm_addr : 1,
@@ -152,6 +159,8 @@ struct mptcp_options_received {
 	};
 	u64	ahmac;
 	u16	port;
+	u8	reset_reason:4;
+	u8	reset_transient:1;
 };
 
 static inline __be32 mptcp_option(u8 subopt, u8 len, u8 nib, u8 field)
@@ -422,6 +431,9 @@ struct mptcp_subflow_context {
 	u8	hmac[MPTCPOPT_HMAC_LEN];
 	u8	local_id;
 	u8	remote_id;
+	u8	reset_seen:1;
+	u8	reset_transient:1;
+	u8	reset_reason:4;
 
 	long	delegated_status;
 	struct	list_head delegated_node;   /* link into delegated_action, protected by local BH */
@@ -742,7 +754,7 @@ unsigned int mptcp_pm_get_add_addr_accept_max(struct mptcp_sock *msk);
 unsigned int mptcp_pm_get_subflows_max(struct mptcp_sock *msk);
 unsigned int mptcp_pm_get_local_addr_max(struct mptcp_sock *msk);
 
-static inline struct mptcp_ext *mptcp_get_ext(struct sk_buff *skb)
+static inline struct mptcp_ext *mptcp_get_ext(const struct sk_buff *skb)
 {
 	return (struct mptcp_ext *)skb_ext_find(skb, SKB_EXT_MPTCP);
 }
