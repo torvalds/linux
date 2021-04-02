@@ -41,7 +41,7 @@ struct mt6315_chip {
 		.type = REGULATOR_VOLTAGE,			\
 		.id = _bid,					\
 		.owner = THIS_MODULE,				\
-		.n_voltages = 0xbf,				\
+		.n_voltages = 0xc0,				\
 		.linear_ranges = mt_volt_range1,		\
 		.n_linear_ranges = ARRAY_SIZE(mt_volt_range1),	\
 		.vsel_reg = _vsel,				\

@@ -1055,8 +1055,6 @@ config HW_PERF_EVENTS
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
-config ARCH_WANT_HUGE_PMD_SHARE
-
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
@@ -1157,8 +1155,8 @@ config XEN
 
 config FORCE_MAX_ZONEORDER
 	int
-	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
-	default "12" if (ARM64_16K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "14" if ARM64_64K_PAGES
+	default "12" if ARM64_16K_PAGES
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -1854,12 +1852,6 @@ config CMDLINE_FROM_BOOTLOADER
 	  Uses the command-line options passed by the boot loader. If
 	  the boot loader doesn't provide any, the default kernel command
 	  string provided in CMDLINE will be used.
-
-config CMDLINE_EXTEND
-	bool "Extend bootloader kernel arguments"
-	help
-	  The command-line arguments provided by the boot loader will be
-	  appended to the default kernel command string.
 
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"

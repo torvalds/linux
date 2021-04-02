@@ -54,10 +54,9 @@ static int pseries_rng_probe(struct vio_dev *dev,
 	return hwrng_register(&pseries_rng);
 }
 
-static int pseries_rng_remove(struct vio_dev *dev)
+static void pseries_rng_remove(struct vio_dev *dev)
 {
 	hwrng_unregister(&pseries_rng);
-	return 0;
 }
 
 static const struct vio_device_id pseries_rng_driver_ids[] = {

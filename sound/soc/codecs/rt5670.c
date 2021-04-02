@@ -629,21 +629,69 @@ static SOC_ENUM_SINGLE_DECL(rt5670_if2_dac_enum, RT5670_DIG_INF1_DATA,
 static SOC_ENUM_SINGLE_DECL(rt5670_if2_adc_enum, RT5670_DIG_INF1_DATA,
 				RT5670_IF2_ADC_SEL_SFT, rt5670_data_select);
 
+/*
+ * For reliable output-mute LED control we need a "DAC1 Playback Switch" control.
+ * We emulate this by only clearing the RT5670_M_DAC1_L/_R AD_DA_MIXER register
+ * bits when both our emulated DAC1 Playback Switch control and the DAC1 MIXL/R
+ * DAPM-mixer DAC1 input are enabled.
+ */
+static void rt5670_update_ad_da_mixer_dac1_m_bits(struct rt5670_priv *rt5670)
+{
+	int val = RT5670_M_DAC1_L | RT5670_M_DAC1_R;
+
+	if (rt5670->dac1_mixl_dac1_switch && rt5670->dac1_playback_switch_l)
+		val &= ~RT5670_M_DAC1_L;
+
+	if (rt5670->dac1_mixr_dac1_switch && rt5670->dac1_playback_switch_r)
+		val &= ~RT5670_M_DAC1_R;
+
+	regmap_update_bits(rt5670->regmap, RT5670_AD_DA_MIXER,
+			   RT5670_M_DAC1_L | RT5670_M_DAC1_R, val);
+}
+
+static int rt5670_dac1_playback_switch_get(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = rt5670->dac1_playback_switch_l;
+	ucontrol->value.integer.value[1] = rt5670->dac1_playback_switch_r;
+
+	return 0;
+}
+
+static int rt5670_dac1_playback_switch_put(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
+
+	if (rt5670->dac1_playback_switch_l == ucontrol->value.integer.value[0] &&
+	    rt5670->dac1_playback_switch_r == ucontrol->value.integer.value[1])
+		return 0;
+
+	rt5670->dac1_playback_switch_l = ucontrol->value.integer.value[0];
+	rt5670->dac1_playback_switch_r = ucontrol->value.integer.value[1];
+
+	rt5670_update_ad_da_mixer_dac1_m_bits(rt5670);
+
+	return 1;
+}
+
 static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 	/* Headphone Output Volume */
-	SOC_DOUBLE("HP Playback Switch", RT5670_HP_VOL,
-		RT5670_L_MUTE_SFT, RT5670_R_MUTE_SFT, 1, 1),
 	SOC_DOUBLE_TLV("HP Playback Volume", RT5670_HP_VOL,
 		RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
 		39, 1, out_vol_tlv),
 	/* OUTPUT Control */
-	SOC_DOUBLE("OUT Channel Switch", RT5670_LOUT1,
-		RT5670_VOL_L_SFT, RT5670_VOL_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("OUT Playback Volume", RT5670_LOUT1,
 		RT5670_L_VOL_SFT, RT5670_R_VOL_SFT, 39, 1, out_vol_tlv),
 	/* DAC Digital Volume */
 	SOC_DOUBLE("DAC2 Playback Switch", RT5670_DAC_CTRL,
 		RT5670_M_DAC_L2_VOL_SFT, RT5670_M_DAC_R2_VOL_SFT, 1, 1),
+	SOC_DOUBLE_EXT("DAC1 Playback Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+			rt5670_dac1_playback_switch_get, rt5670_dac1_playback_switch_put),
 	SOC_DOUBLE_TLV("DAC1 Playback Volume", RT5670_DAC1_DIG_VOL,
 			RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
@@ -913,18 +961,44 @@ static const struct snd_kcontrol_new rt5670_mono_adc_r_mix[] = {
 			RT5670_M_MONO_ADC_R2_SFT, 1, 1),
 };
 
+/* See comment above rt5670_update_ad_da_mixer_dac1_m_bits() */
+static int rt5670_put_dac1_mix_dac1_switch(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	if (mc->shift == 0)
+		rt5670->dac1_mixl_dac1_switch = ucontrol->value.integer.value[0];
+	else
+		rt5670->dac1_mixr_dac1_switch = ucontrol->value.integer.value[0];
+
+	/* Apply the update (if any) */
+	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
+	if (ret == 0)
+		return 0;
+
+	rt5670_update_ad_da_mixer_dac1_m_bits(rt5670);
+
+	return 1;
+}
+
+#define SOC_DAPM_SINGLE_RT5670_DAC1_SW(name, shift) \
+	SOC_SINGLE_EXT(name, SND_SOC_NOPM, shift, 1, 0, \
+		       snd_soc_dapm_get_volsw, rt5670_put_dac1_mix_dac1_switch)
+
 static const struct snd_kcontrol_new rt5670_dac_l_mix[] = {
 	SOC_DAPM_SINGLE("Stereo ADC Switch", RT5670_AD_DA_MIXER,
 			RT5670_M_ADCMIX_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 Switch", RT5670_AD_DA_MIXER,
-			RT5670_M_DAC1_L_SFT, 1, 1),
+	SOC_DAPM_SINGLE_RT5670_DAC1_SW("DAC1 Switch", 0),
 };
 
 static const struct snd_kcontrol_new rt5670_dac_r_mix[] = {
 	SOC_DAPM_SINGLE("Stereo ADC Switch", RT5670_AD_DA_MIXER,
 			RT5670_M_ADCMIX_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 Switch", RT5670_AD_DA_MIXER,
-			RT5670_M_DAC1_R_SFT, 1, 1),
+	SOC_DAPM_SINGLE_RT5670_DAC1_SW("DAC1 Switch", 1),
 };
 
 static const struct snd_kcontrol_new rt5670_sto_dac_l_mix[] = {
@@ -1656,12 +1730,10 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 			    RT5670_PWR_ADC_S1F_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("ADC Stereo2 Filter", RT5670_PWR_DIG2,
 			    RT5670_PWR_ADC_S2F_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Sto1 ADC MIXL", RT5670_STO1_ADC_DIG_VOL,
-			   RT5670_L_MUTE_SFT, 1, rt5670_sto1_adc_l_mix,
-			   ARRAY_SIZE(rt5670_sto1_adc_l_mix)),
-	SND_SOC_DAPM_MIXER("Sto1 ADC MIXR", RT5670_STO1_ADC_DIG_VOL,
-			   RT5670_R_MUTE_SFT, 1, rt5670_sto1_adc_r_mix,
-			   ARRAY_SIZE(rt5670_sto1_adc_r_mix)),
+	SND_SOC_DAPM_MIXER("Sto1 ADC MIXL", SND_SOC_NOPM, 0, 0,
+			   rt5670_sto1_adc_l_mix, ARRAY_SIZE(rt5670_sto1_adc_l_mix)),
+	SND_SOC_DAPM_MIXER("Sto1 ADC MIXR", SND_SOC_NOPM, 0, 0,
+			   rt5670_sto1_adc_r_mix, ARRAY_SIZE(rt5670_sto1_adc_r_mix)),
 	SND_SOC_DAPM_MIXER("Sto2 ADC MIXL", SND_SOC_NOPM, 0, 0,
 			   rt5670_sto2_adc_l_mix,
 			   ARRAY_SIZE(rt5670_sto2_adc_l_mix)),
@@ -2998,6 +3070,16 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		rt5670->jd_mode = 3;
 		dev_info(&i2c->dev, "quirk JD mode 3\n");
 	}
+
+	/*
+	 * Enable the emulated "DAC1 Playback Switch" by default to avoid
+	 * muting the output with older UCM profiles.
+	 */
+	rt5670->dac1_playback_switch_l = true;
+	rt5670->dac1_playback_switch_r = true;
+	/* The Power-On-Reset values for the DAC1 mixer have the DAC1 input enabled. */
+	rt5670->dac1_mixl_dac1_switch = true;
+	rt5670->dac1_mixr_dac1_switch = true;
 
 	rt5670->regmap = devm_regmap_init_i2c(i2c, &rt5670_regmap);
 	if (IS_ERR(rt5670->regmap)) {

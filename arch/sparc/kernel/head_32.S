@@ -515,7 +515,7 @@ continue_boot:
 
 		/* I want a kernel stack NOW! */
 		set	init_thread_union, %g1
-		set	(THREAD_SIZE - STACKFRAME_SZ), %g2
+		set	(THREAD_SIZE - STACKFRAME_SZ - TRACEREG_SZ), %g2
 		add	%g1, %g2, %sp
 		mov	0, %fp			/* And for good luck */
 

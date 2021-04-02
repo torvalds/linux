@@ -29,7 +29,7 @@ orig_args="$@"
 # Get the first line of the --version output.
 IFS='
 '
-set -- $("$@" --version)
+set -- $(LC_ALL=C "$@" --version)
 
 # Split the line on spaces.
 IFS=' '
@@ -44,14 +44,20 @@ if [ "$1" = GNU -a "$2" = ld ]; then
 elif [ "$1" = GNU -a "$2" = gold ]; then
 	echo "gold linker is not supported as it is not capable of linking the kernel proper." >&2
 	exit 1
-elif [ "$1" = LLD ]; then
-	version=$2
-	min_version=$lld_min_version
-	name=LLD
-	disp_name=LLD
 else
-	echo "$orig_args: unknown linker" >&2
-	exit 1
+	while [ $# -gt 1 -a "$1" != "LLD" ]; do
+		shift
+	done
+
+	if [ "$1" = LLD ]; then
+		version=$2
+		min_version=$lld_min_version
+		name=LLD
+		disp_name=LLD
+	else
+		echo "$orig_args: unknown linker" >&2
+		exit 1
+	fi
 fi
 
 # Some distributions append a package release number, as in 2.34-4.fc32

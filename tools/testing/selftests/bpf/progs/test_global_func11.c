@@ -15,5 +15,5 @@ __noinline int foo(const struct S *s)
 SEC("cgroup_skb/ingress")
 int test_cls(struct __sk_buff *skb)
 {
-	return foo(skb);
+	return foo((const void *)skb);
 }
