@@ -619,6 +619,7 @@ nf_flow_rule_route_common(struct net *net, const struct flow_offload *flow,
 			  struct nf_flow_rule *flow_rule)
 {
 	const struct flow_offload_tuple *other_tuple;
+	const struct flow_offload_tuple *tuple;
 	int i;
 
 	flow_offload_decap_tunnel(flow, dir, flow_rule);
@@ -627,6 +628,20 @@ nf_flow_rule_route_common(struct net *net, const struct flow_offload *flow,
 	if (flow_offload_eth_src(net, flow, dir, flow_rule) < 0 ||
 	    flow_offload_eth_dst(net, flow, dir, flow_rule) < 0)
 		return -1;
+
+	tuple = &flow->tuplehash[dir].tuple;
+
+	for (i = 0; i < tuple->encap_num; i++) {
+		struct flow_action_entry *entry;
+
+		if (tuple->in_vlan_ingress & BIT(i))
+			continue;
+
+		if (tuple->encap[i].proto == htons(ETH_P_8021Q)) {
+			entry = flow_action_entry_next(flow_rule);
+			entry->id = FLOW_ACTION_VLAN_POP;
+		}
+	}
 
 	other_tuple = &flow->tuplehash[!dir].tuple;
 
