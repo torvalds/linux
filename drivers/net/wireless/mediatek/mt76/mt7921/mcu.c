@@ -474,29 +474,27 @@ mt7921_mcu_bss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 static void
 mt7921_mcu_debug_msg_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
-	struct debug_msg {
+	struct mt7921_debug_msg {
 		__le16 id;
 		u8 type;
 		u8 flag;
 		__le32 value;
 		__le16 len;
 		u8 content[512];
-	} __packed * debug_msg;
-	u16 cur_len;
-	int i;
+	} __packed * msg;
 
-	skb_pull(skb, sizeof(*rxd));
-	debug_msg = (struct debug_msg *)skb->data;
+	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	msg = (struct mt7921_debug_msg *)skb->data;
 
-	cur_len = min_t(u16, le16_to_cpu(debug_msg->len), 512);
+	if (msg->type == 3) { /* fw log */
+		u16 len = min_t(u16, le16_to_cpu(msg->len), 512);
+		int i;
 
-	if (debug_msg->type == 0x3) {
-		for (i = 0 ; i < cur_len; i++)
-			if (!debug_msg->content[i])
-				debug_msg->content[i] = ' ';
-
-		dev_dbg(dev->mt76.dev, "%s", debug_msg->content);
+		for (i = 0 ; i < len; i++) {
+			if (!msg->content[i])
+				msg->content[i] = ' ';
+		}
+		wiphy_info(mt76_hw(dev)->wiphy, "%*s", len, msg->content);
 	}
 }
 
