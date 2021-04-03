@@ -109,6 +109,12 @@ The test script assumes that the kernel module is called `tracer`.
 Tips
 ----
 
+Create the skeleton by running the command below:
+
+.. code-block:: console
+
+    $ LABS=assignments/1-tracer make skels
+
 To increase your chances of getting the highest grade, read and follow the Linux kernel
 coding style described in the `Coding Style document <https://elixir.bootlin.com/linux/v4.19.19/source/Documentation/process/coding-style.rst>`__.
 
