@@ -73,7 +73,6 @@ struct peak_usb_adapter {
 	u8 ep_msg_in;
 	u8 ep_msg_out[PCAN_USB_MAX_CHANNEL];
 	u8 ts_used_bits;
-	u32 ts_period;
 	u8 us_per_ts_shift;
 	u32 us_per_ts_scale;
 

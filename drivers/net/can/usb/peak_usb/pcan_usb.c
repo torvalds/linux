@@ -1050,7 +1050,6 @@ const struct peak_usb_adapter pcan_usb = {
 
 	/* timestamps usage */
 	.ts_used_bits = 16,
-	.ts_period = 24575, /* calibration period in ts. */
 	.us_per_ts_scale = PCAN_USB_TS_US_PER_TICK, /* us=(ts*scale) */
 	.us_per_ts_shift = PCAN_USB_TS_DIV_SHIFTER, /*  >> shift     */
 
