@@ -1392,7 +1392,7 @@ static int bch2_fs_usage_apply(struct bch_fs *c,
 			       struct disk_reservation *disk_res,
 			       unsigned journal_seq)
 {
-	struct bch_fs_usage *dst = fs_usage_ptr(c, journal_seq, false);
+	struct bch_fs_usage *dst;
 	s64 added = src->u.data + src->u.reserved;
 	s64 should_not_have_added;
 	int ret = 0;
@@ -1420,6 +1420,7 @@ static int bch2_fs_usage_apply(struct bch_fs *c,
 	this_cpu_add(*c->online_reserved, src->online_reserved);
 
 	preempt_disable();
+	dst = fs_usage_ptr(c, journal_seq, false);
 	acc_u64s((u64 *) dst, (u64 *) &src->u, fs_usage_u64s(c));
 	preempt_enable();
 
