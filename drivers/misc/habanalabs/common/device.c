@@ -321,11 +321,11 @@ static int device_early_init(struct hl_device *hdev)
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
 		goya_set_asic_funcs(hdev);
-		strlcpy(hdev->asic_name, "GOYA", sizeof(hdev->asic_name));
+		strscpy(hdev->asic_name, "GOYA", sizeof(hdev->asic_name));
 		break;
 	case ASIC_GAUDI:
 		gaudi_set_asic_funcs(hdev);
-		sprintf(hdev->asic_name, "GAUDI");
+		strscpy(hdev->asic_name, "GAUDI", sizeof(hdev->asic_name));
 		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
