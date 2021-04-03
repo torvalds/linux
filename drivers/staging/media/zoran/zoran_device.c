@@ -295,7 +295,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	unsigned int disp_mode;
 	unsigned int vid_win_wid, vid_win_ht;
 	unsigned int hcrop1, hcrop2, vcrop1, vcrop2;
-	unsigned int wa, we, ha, He;
+	unsigned int wa, we, ha, he;
 	unsigned int X, Y, hor_dcm, ver_dcm;
 	u32 reg;
 
@@ -344,10 +344,10 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	disp_mode = !(video_height > BUZ_MAX_HEIGHT / 2);
 	vid_win_ht = disp_mode ? video_height : video_height / 2;
 	Y = DIV_ROUND_UP(vid_win_ht * 64 * 2, tvn->ha);
-	He = (vid_win_ht * 64) / Y;
+	he = (vid_win_ht * 64) / Y;
 	ver_dcm = 64 - Y;
-	vcrop1 = (tvn->ha / 2 - He) / 2;
-	vcrop2 = tvn->ha / 2 - He - vcrop1;
+	vcrop1 = (tvn->ha / 2 - he) / 2;
+	vcrop2 = tvn->ha / 2 - he - vcrop1;
 	v_start = tvn->v_start;
 	v_end = v_start + tvn->ha / 2;	// - 1; FIXME SnapShot times out with -1 in 768*576 on the DC10 - LP
 	v_start += vcrop1;
