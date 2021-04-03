@@ -565,6 +565,7 @@ static inline void update_replicas_list(struct btree_trans *trans,
 	n->delta = sectors;
 	memcpy((void *) n + offsetof(struct replicas_delta, r),
 	       r, replicas_entry_bytes(r));
+	bch2_replicas_entry_sort(&n->r);
 	d->used += b;
 }
 
@@ -613,6 +614,18 @@ unwind:
 	for (d = r->d; d != top; d = replicas_delta_next(d))
 		update_replicas(c, fs_usage, &d->r, -d->delta);
 	return -1;
+}
+
+int bch2_replicas_delta_list_mark(struct bch_fs *c,
+				  struct replicas_delta_list *r)
+{
+	struct replicas_delta *d = r->d;
+	struct replicas_delta *top = (void *) r->d + r->used;
+	int ret = 0;
+
+	for (d = r->d; !ret && d != top; d = replicas_delta_next(d))
+		ret = bch2_mark_replicas(c, &d->r);
+	return ret;
 }
 
 #define do_mark_fn(fn, c, pos, flags, ...)				\

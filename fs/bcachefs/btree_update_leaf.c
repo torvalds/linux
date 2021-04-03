@@ -707,11 +707,9 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
 		bch2_trans_unlock(trans);
 
-		trans_for_each_update(trans, i) {
-			ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(i->k));
-			if (ret)
-				return ret;
-		}
+		ret = bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas);
+		if (ret)
+			return ret;
 
 		if (bch2_trans_relock(trans))
 			return 0;

@@ -253,6 +253,8 @@ int bch2_mark_update(struct btree_trans *, struct btree_iter *,
 int bch2_replicas_delta_list_apply(struct bch_fs *,
 				   struct bch_fs_usage *,
 				   struct replicas_delta_list *);
+int bch2_replicas_delta_list_mark(struct bch_fs *,
+				  struct replicas_delta_list *);
 int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c, struct bkey_s_c,
 			unsigned, s64, unsigned);
 int bch2_trans_mark_update(struct btree_trans *, struct btree_iter *iter,
