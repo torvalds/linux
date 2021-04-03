@@ -2479,6 +2479,11 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 		return false;
 	return true;
 }
+#else
+static bool io_rw_should_reissue(struct io_kiocb *req)
+{
+	return false;
+}
 #endif
 
 static bool io_rw_reissue(struct io_kiocb *req)
