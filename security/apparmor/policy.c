@@ -678,7 +678,7 @@ bool aa_policy_view_capable(struct aa_label *label, struct aa_ns *ns)
 bool aa_policy_admin_capable(struct aa_label *label, struct aa_ns *ns)
 {
 	struct user_namespace *user_ns = current_user_ns();
-	bool capable = policy_ns_capable(label, user_ns, CAP_MAC_ADMIN);
+	bool capable = policy_ns_capable(label, user_ns, CAP_MAC_ADMIN) == 0;
 
 	AA_DEBUG("cap_mac_admin? %d\n", capable);
 	AA_DEBUG("policy locked? %d\n", aa_g_lock_policy);
