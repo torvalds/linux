@@ -581,6 +581,7 @@ static void __set_nameidata(struct nameidata *p, int dfd, struct filename *name)
 {
 	struct nameidata *old = current->nameidata;
 	p->stack = p->internal;
+	p->depth = 0;
 	p->dfd = dfd;
 	p->name = name;
 	p->path.mnt = NULL;
@@ -2320,7 +2321,6 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 
 	nd->flags = flags;
 	nd->state |= ND_JUMPED;
-	nd->depth = 0;
 
 	nd->m_seq = __read_seqcount_begin(&mount_lock.seqcount);
 	nd->r_seq = __read_seqcount_begin(&rename_lock.seqcount);
