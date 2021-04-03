@@ -7474,8 +7474,9 @@ F:	include/uapi/asm-generic/
 GENERIC PHY FRAMEWORK
 M:	Kishon Vijay Abraham I <kishon@ti.com>
 M:	Vinod Koul <vkoul@kernel.org>
-L:	linux-kernel@vger.kernel.org
+L:	linux-phy@lists.infradead.org
 S:	Supported
+Q:	https://patchwork.kernel.org/project/linux-phy/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/phy/linux-phy.git
 F:	Documentation/devicetree/bindings/phy/
 F:	drivers/phy/
