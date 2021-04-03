@@ -292,7 +292,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 {
 	const struct tvnorm *tvn;
 	unsigned int h_start, h_end, v_start, v_end;
-	unsigned int DispMode;
+	unsigned int disp_mode;
 	unsigned int VidWinWid, VidWinHt;
 	unsigned int hcrop1, hcrop2, vcrop1, vcrop2;
 	unsigned int wa, We, ha, He;
@@ -341,8 +341,8 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	btwrite(reg, ZR36057_VFEHCR);
 
 	/* Vertical */
-	DispMode = !(video_height > BUZ_MAX_HEIGHT / 2);
-	VidWinHt = DispMode ? video_height : video_height / 2;
+	disp_mode = !(video_height > BUZ_MAX_HEIGHT / 2);
+	VidWinHt = disp_mode ? video_height : video_height / 2;
 	Y = DIV_ROUND_UP(VidWinHt * 64 * 2, tvn->ha);
 	He = (VidWinHt * 64) / Y;
 	ver_dcm = 64 - Y;
@@ -362,7 +362,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	reg = 0;
 	reg |= (hor_dcm << ZR36057_VFESPFR_HOR_DCM);
 	reg |= (ver_dcm << ZR36057_VFESPFR_VER_DCM);
-	reg |= (DispMode << ZR36057_VFESPFR_DISP_MODE);
+	reg |= (disp_mode << ZR36057_VFESPFR_DISP_MODE);
 	/* RJ: I don't know, why the following has to be the opposite
 	 * of the corresponding ZR36060 setting, but only this way
 	 * we get the correct colors when uncompressing to the screen  */
