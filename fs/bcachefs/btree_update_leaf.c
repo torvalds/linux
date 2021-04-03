@@ -426,6 +426,14 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		fs_usage = bch2_fs_usage_scratch_get(c);
 	}
 
+	/* Must be called under mark_lock: */
+	if (marking && trans->fs_usage_deltas &&
+	    bch2_replicas_delta_list_apply(c, &fs_usage->u,
+					   trans->fs_usage_deltas)) {
+		ret = BTREE_INSERT_NEED_MARK_REPLICAS;
+		goto err;
+	}
+
 	/*
 	 * Don't get journal reservation until after we know insert will
 	 * succeed:
@@ -460,14 +468,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		else if (bch2_inject_invalid_keys)
 			trans_for_each_update2(trans, i)
 				i->k->k.version = MAX_VERSION;
-	}
-
-	/* Must be called under mark_lock: */
-	if (marking && trans->fs_usage_deltas &&
-	    bch2_replicas_delta_list_apply(c, &fs_usage->u,
-					   trans->fs_usage_deltas)) {
-		ret = BTREE_INSERT_NEED_MARK_REPLICAS;
-		goto err;
 	}
 
 	trans_for_each_update(trans, i)
