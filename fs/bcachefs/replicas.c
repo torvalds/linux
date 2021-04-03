@@ -975,11 +975,18 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 
 	percpu_down_read(&c->mark_lock);
 	for_each_cpu_replicas_entry(&c->replicas, e) {
-		unsigned i, nr_online = 0, dflags = 0;
+		unsigned i, nr_online = 0, nr_failed = 0, dflags = 0;
 		bool metadata = e->data_type < BCH_DATA_user;
 
-		for (i = 0; i < e->nr_devs; i++)
+		for (i = 0; i < e->nr_devs; i++) {
+			struct bch_dev *ca = bch_dev_bkey_exists(c, e->devs[i]);
+
 			nr_online += test_bit(e->devs[i], devs.d);
+			nr_failed += ca->mi.state == BCH_MEMBER_STATE_FAILED;
+		}
+
+		if (nr_failed == e->nr_devs)
+			continue;
 
 		if (nr_online < e->nr_required)
 			dflags |= metadata
