@@ -295,7 +295,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	unsigned int disp_mode;
 	unsigned int vid_win_wid, vid_win_ht;
 	unsigned int hcrop1, hcrop2, vcrop1, vcrop2;
-	unsigned int wa, We, ha, He;
+	unsigned int wa, we, ha, He;
 	unsigned int X, Y, hor_dcm, ver_dcm;
 	u32 reg;
 
@@ -318,10 +318,10 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	/* horizontal */
 	vid_win_wid = video_width;
 	X = DIV_ROUND_UP(vid_win_wid * 64, tvn->wa);
-	We = (vid_win_wid * 64) / X;
+	we = (vid_win_wid * 64) / X;
 	hor_dcm = 64 - X;
-	hcrop1 = 2 * ((tvn->wa - We) / 4);
-	hcrop2 = tvn->wa - We - hcrop1;
+	hcrop1 = 2 * ((tvn->wa - we) / 4);
+	hcrop2 = tvn->wa - we - hcrop1;
 	h_start = tvn->h_start ? tvn->h_start : 1;
 	/* (Ronald) Original comment:
 	 * "| 1 Doesn't have any effect, tested on both a DC10 and a DC10+"
