@@ -293,7 +293,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	const struct tvnorm *tvn;
 	unsigned int h_start, h_end, v_start, v_end;
 	unsigned int disp_mode;
-	unsigned int vid_win_wid, VidWinHt;
+	unsigned int vid_win_wid, vid_win_ht;
 	unsigned int hcrop1, hcrop2, vcrop1, vcrop2;
 	unsigned int wa, We, ha, He;
 	unsigned int X, Y, hor_dcm, ver_dcm;
@@ -342,9 +342,9 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 
 	/* Vertical */
 	disp_mode = !(video_height > BUZ_MAX_HEIGHT / 2);
-	VidWinHt = disp_mode ? video_height : video_height / 2;
-	Y = DIV_ROUND_UP(VidWinHt * 64 * 2, tvn->ha);
-	He = (VidWinHt * 64) / Y;
+	vid_win_ht = disp_mode ? video_height : video_height / 2;
+	Y = DIV_ROUND_UP(vid_win_ht * 64 * 2, tvn->ha);
+	He = (vid_win_ht * 64) / Y;
 	ver_dcm = 64 - Y;
 	vcrop1 = (tvn->ha / 2 - He) / 2;
 	vcrop2 = tvn->ha / 2 - He - vcrop1;
@@ -383,7 +383,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 
 	/* display configuration */
 	reg = (16 << ZR36057_VDCR_MIN_PIX)
-	    | (VidWinHt << ZR36057_VDCR_VID_WIN_HT)
+	    | (vid_win_ht << ZR36057_VDCR_VID_WIN_HT)
 	    | (vid_win_wid << ZR36057_VDCR_VID_WIN_WID);
 	if (pci_pci_problems & PCIPCI_TRITON)
 		// || zr->revision < 1) // Revision 1 has also Triton support
