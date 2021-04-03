@@ -1004,7 +1004,7 @@ static void *mlx5_ib_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 	 */
 	might_sleep();
 
-	gfp_mask |= __GFP_ZERO;
+	gfp_mask |= __GFP_ZERO | __GFP_NORETRY;
 
 	/*
 	 * If the system already has a suitable high order page then just use
