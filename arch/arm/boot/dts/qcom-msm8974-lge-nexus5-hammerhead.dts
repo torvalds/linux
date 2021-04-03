@@ -529,6 +529,10 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mpu6515_pin>;
 
+			mount-matrix = "0", "-1", "0",
+				       "-1", "0", "0",
+				       "0", "0", "1";
+
 			i2c-gate {
 				#address-cells = <1>;
 				#size-cells = <0>;
