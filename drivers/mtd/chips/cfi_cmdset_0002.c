@@ -80,7 +80,7 @@ static int cfi_amdstd_read_fact_prot_reg(struct mtd_info *, loff_t, size_t,
 static int cfi_amdstd_read_user_prot_reg(struct mtd_info *, loff_t, size_t,
 					 size_t *, u_char *);
 static int cfi_amdstd_write_user_prot_reg(struct mtd_info *, loff_t, size_t,
-					  size_t *, u_char *);
+					  size_t *, const u_char *);
 static int cfi_amdstd_lock_user_prot_reg(struct mtd_info *, loff_t, size_t);
 
 static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
@@ -1635,9 +1635,9 @@ static int cfi_amdstd_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
 
 static int cfi_amdstd_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
 					  size_t len, size_t *retlen,
-					  u_char *buf)
+					  const u_char *buf)
 {
-	return cfi_amdstd_otp_walk(mtd, from, len, retlen, buf,
+	return cfi_amdstd_otp_walk(mtd, from, len, retlen, (u_char *)buf,
 				   do_otp_write, 1);
 }
 

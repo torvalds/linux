@@ -70,7 +70,8 @@ int spi_nor_otp_read_secr(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf)
  *
  * Return: number of bytes written successfully, -errno otherwise
  */
-int spi_nor_otp_write_secr(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf)
+int spi_nor_otp_write_secr(struct spi_nor *nor, loff_t addr, size_t len,
+			   const u8 *buf)
 {
 	enum spi_nor_protocol write_proto;
 	struct spi_mem_dirmap_desc *wdesc;
@@ -241,7 +242,7 @@ out:
 
 static int spi_nor_mtd_otp_read_write(struct mtd_info *mtd, loff_t ofs,
 				      size_t total_len, size_t *retlen,
-				      u8 *buf, bool is_write)
+				      const u8 *buf, bool is_write)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
 	const struct spi_nor_otp_ops *ops = nor->params->otp.ops;
@@ -285,7 +286,7 @@ static int spi_nor_mtd_otp_read_write(struct mtd_info *mtd, loff_t ofs,
 		if (is_write)
 			ret = ops->write(nor, rstart + rofs, len, buf);
 		else
-			ret = ops->read(nor, rstart + rofs, len, buf);
+			ret = ops->read(nor, rstart + rofs, len, (u8 *)buf);
 		if (ret == 0)
 			ret = -EIO;
 		if (ret < 0)
@@ -310,7 +311,7 @@ static int spi_nor_mtd_otp_read(struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 static int spi_nor_mtd_otp_write(struct mtd_info *mtd, loff_t to, size_t len,
-				 size_t *retlen, u8 *buf)
+				 size_t *retlen, const u8 *buf)
 {
 	return spi_nor_mtd_otp_read_write(mtd, to, len, retlen, buf, true);
 }

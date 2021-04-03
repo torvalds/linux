@@ -1889,7 +1889,7 @@ int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
 EXPORT_SYMBOL_GPL(mtd_read_user_prot_reg);
 
 int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
-			    size_t *retlen, u_char *buf)
+			    size_t *retlen, const u_char *buf)
 {
 	struct mtd_info *master = mtd_get_master(mtd);
 	int ret;

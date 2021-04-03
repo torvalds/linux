@@ -211,7 +211,8 @@ struct spi_nor_otp_organization {
  */
 struct spi_nor_otp_ops {
 	int (*read)(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf);
-	int (*write)(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf);
+	int (*write)(struct spi_nor *nor, loff_t addr, size_t len,
+		     const u8 *buf);
 	int (*lock)(struct spi_nor *nor, unsigned int region);
 	int (*is_locked)(struct spi_nor *nor, unsigned int region);
 };
@@ -504,7 +505,8 @@ ssize_t spi_nor_write_data(struct spi_nor *nor, loff_t to, size_t len,
 			   const u8 *buf);
 
 int spi_nor_otp_read_secr(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf);
-int spi_nor_otp_write_secr(struct spi_nor *nor, loff_t addr, size_t len, u8 *buf);
+int spi_nor_otp_write_secr(struct spi_nor *nor, loff_t addr, size_t len,
+			   const u8 *buf);
 int spi_nor_otp_lock_sr2(struct spi_nor *nor, unsigned int region);
 int spi_nor_otp_is_locked_sr2(struct spi_nor *nor, unsigned int region);
 
