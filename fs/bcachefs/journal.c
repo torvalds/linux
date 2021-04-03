@@ -11,6 +11,7 @@
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "error.h"
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
@@ -448,6 +449,27 @@ unlock:
 
 	if (!ret)
 		goto retry;
+
+	if ((ret == cur_entry_journal_full ||
+	     ret == cur_entry_journal_pin_full) &&
+	    !can_discard &&
+	    j->reservations.idx == j->reservations.unwritten_idx &&
+	    (flags & JOURNAL_RES_GET_RESERVED)) {
+		char *journal_debug_buf = kmalloc(4096, GFP_ATOMIC);
+
+		bch_err(c, "Journal stuck!");
+		if (journal_debug_buf) {
+			bch2_journal_debug_to_text(&_PBUF(journal_debug_buf, 4096), j);
+			bch_err(c, "%s", journal_debug_buf);
+
+			bch2_journal_pins_to_text(&_PBUF(journal_debug_buf, 4096), j);
+			bch_err(c, "Journal pins:\n%s", journal_debug_buf);
+			kfree(journal_debug_buf);
+		}
+
+		bch2_fatal_error(c);
+		dump_stack();
+	}
 
 	/*
 	 * Journal is full - can't rely on reclaim from work item due to
@@ -1169,6 +1191,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       "last_seq_ondisk:\t%llu\n"
 	       "flushed_seq_ondisk:\t%llu\n"
 	       "prereserved:\t\t%u/%u\n"
+	       "each entry reserved:\t%u\n"
 	       "nr flush writes:\t%llu\n"
 	       "nr noflush writes:\t%llu\n"
 	       "nr direct reclaim:\t%llu\n"
@@ -1183,6 +1206,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       j->flushed_seq_ondisk,
 	       j->prereserved.reserved,
 	       j->prereserved.remaining,
+	       j->entry_u64s_reserved,
 	       j->nr_flush_writes,
 	       j->nr_noflush_writes,
 	       j->nr_direct_reclaim,

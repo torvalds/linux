@@ -239,7 +239,7 @@ void bch2_journal_space_available(struct journal *j)
 	u64s_remaining  = (u64) clean << 6;
 	u64s_remaining -= (u64) total << 3;
 	u64s_remaining = max(0LL, u64s_remaining);
-	u64s_remaining /= 2;
+	u64s_remaining /= 4;
 	u64s_remaining = min_t(u64, u64s_remaining, U32_MAX);
 out:
 	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
@@ -353,6 +353,9 @@ static inline void __journal_pin_drop(struct journal *j,
 	if (!journal_pin_active(pin))
 		return;
 
+	if (j->flush_in_progress == pin)
+		j->flush_in_progress_dropped = true;
+
 	pin_list = journal_seq_pin(j, pin->seq);
 	pin->seq = 0;
 	list_del_init(&pin->list);
@@ -439,34 +442,27 @@ journal_get_next_pin(struct journal *j, u64 max_seq, u64 *seq)
 	struct journal_entry_pin_list *pin_list;
 	struct journal_entry_pin *ret = NULL;
 
-	if (!test_bit(JOURNAL_RECLAIM_STARTED, &j->flags))
-		return NULL;
-
-	spin_lock(&j->lock);
-
 	fifo_for_each_entry_ptr(pin_list, &j->pin, *seq)
 		if (*seq > max_seq ||
 		    (ret = list_first_entry_or_null(&pin_list->list,
 				struct journal_entry_pin, list)))
 			break;
 
-	if (ret) {
-		list_move(&ret->list, &pin_list->flushed);
-		BUG_ON(j->flush_in_progress);
-		j->flush_in_progress = ret;
-	}
-
-	spin_unlock(&j->lock);
-
 	return ret;
 }
 
 /* returns true if we did work */
-static u64 journal_flush_pins(struct journal *j, u64 seq_to_flush,
-			      unsigned min_nr)
+static size_t journal_flush_pins(struct journal *j, u64 seq_to_flush,
+				 unsigned min_nr)
 {
 	struct journal_entry_pin *pin;
-	u64 seq, ret = 0;
+	size_t nr_flushed = 0;
+	journal_pin_flush_fn flush_fn;
+	u64 seq;
+	int err;
+
+	if (!test_bit(JOURNAL_RECLAIM_STARTED, &j->flags))
+		return 0;
 
 	lockdep_assert_held(&j->reclaim_lock);
 
@@ -475,23 +471,42 @@ static u64 journal_flush_pins(struct journal *j, u64 seq_to_flush,
 
 		j->last_flushed = jiffies;
 
+		spin_lock(&j->lock);
 		pin = journal_get_next_pin(j, min_nr
 				? U64_MAX : seq_to_flush, &seq);
+		if (pin) {
+			BUG_ON(j->flush_in_progress);
+			j->flush_in_progress = pin;
+			j->flush_in_progress_dropped = false;
+			flush_fn = pin->flush;
+		}
+		spin_unlock(&j->lock);
+
 		if (!pin)
 			break;
 
 		if (min_nr)
 			min_nr--;
 
-		pin->flush(j, pin, seq);
+		err = flush_fn(j, pin, seq);
 
-		BUG_ON(j->flush_in_progress != pin);
+		spin_lock(&j->lock);
+		/* Pin might have been dropped or rearmed: */
+		if (likely(!err && !j->flush_in_progress_dropped))
+			list_move(&pin->list, &journal_seq_pin(j, seq)->flushed);
 		j->flush_in_progress = NULL;
+		j->flush_in_progress_dropped = false;
+		spin_unlock(&j->lock);
+
 		wake_up(&j->pin_flush_wait);
-		ret++;
+
+		if (err)
+			break;
+
+		nr_flushed++;
 	}
 
-	return ret;
+	return nr_flushed;
 }
 
 static u64 journal_seq_to_flush(struct journal *j)
@@ -556,8 +571,8 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
-	u64 seq_to_flush, nr_flushed = 0;
-	size_t min_nr;
+	u64 seq_to_flush;
+	size_t min_nr, nr_flushed;
 	unsigned flags;
 	int ret = 0;
 

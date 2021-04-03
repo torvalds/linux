@@ -50,7 +50,7 @@ struct journal_entry_pin_list {
 
 struct journal;
 struct journal_entry_pin;
-typedef void (*journal_pin_flush_fn)(struct journal *j,
+typedef int (*journal_pin_flush_fn)(struct journal *j,
 				struct journal_entry_pin *, u64);
 
 struct journal_entry_pin {
@@ -251,6 +251,7 @@ struct journal {
 
 	unsigned long		last_flushed;
 	struct journal_entry_pin *flush_in_progress;
+	bool			flush_in_progress_dropped;
 	wait_queue_head_t	pin_flush_wait;
 
 	/* protects advancing ja->discard_idx: */

@@ -308,7 +308,6 @@ int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
 #define JOURNAL_RES_GET_NONBLOCK	(1 << 0)
 #define JOURNAL_RES_GET_CHECK		(1 << 1)
 #define JOURNAL_RES_GET_RESERVED	(1 << 2)
-#define JOURNAL_RES_GET_RECLAIM		(1 << 3)
 
 static inline int journal_res_get_fast(struct journal *j,
 				       struct journal_res *res,
@@ -446,7 +445,7 @@ static inline int bch2_journal_preres_get_fast(struct journal *j,
 		 * into the reclaim path and deadlock:
 		 */
 
-		if (!(flags & JOURNAL_RES_GET_RECLAIM) &&
+		if (!(flags & JOURNAL_RES_GET_RESERVED) &&
 		    new.reserved > new.remaining)
 			return 0;
 	} while ((v = atomic64_cmpxchg(&j->prereserved.counter,

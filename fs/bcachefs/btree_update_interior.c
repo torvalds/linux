@@ -916,9 +916,11 @@ bch2_btree_update_start(struct btree_iter *iter, unsigned level,
 	struct closure cl;
 	int disk_res_flags = (flags & BTREE_INSERT_NOFAIL)
 		? BCH_DISK_RESERVATION_NOFAIL : 0;
-	int journal_flags = (flags & BTREE_INSERT_JOURNAL_RESERVED)
-		? JOURNAL_RES_GET_RECLAIM : 0;
+	int journal_flags = 0;
 	int ret = 0;
+
+	if (flags & BTREE_INSERT_JOURNAL_RESERVED)
+		journal_flags |= JOURNAL_RES_GET_RESERVED;
 
 	closure_init_stack(&cl);
 retry:
@@ -981,6 +983,9 @@ retry:
 		}
 
 		bch2_trans_unlock(trans);
+
+		if (flags & BTREE_INSERT_JOURNAL_RECLAIM)
+			goto err;
 
 		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
 				BTREE_UPDATE_JOURNAL_RES,

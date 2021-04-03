@@ -134,7 +134,7 @@ fix_iter:
 	return true;
 }
 
-static void __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
+static int __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 			       unsigned i, u64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
@@ -145,14 +145,15 @@ static void __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 	bch2_btree_node_write_cond(c, b,
 		(btree_current_write(b) == w && w->journal.seq == seq));
 	six_unlock_read(&b->c.lock);
+	return 0;
 }
 
-static void btree_node_flush0(struct journal *j, struct journal_entry_pin *pin, u64 seq)
+static int btree_node_flush0(struct journal *j, struct journal_entry_pin *pin, u64 seq)
 {
 	return __btree_node_flush(j, pin, 0, seq);
 }
 
-static void btree_node_flush1(struct journal *j, struct journal_entry_pin *pin, u64 seq)
+static int btree_node_flush1(struct journal *j, struct journal_entry_pin *pin, u64 seq)
 {
 	return __btree_node_flush(j, pin, 1, seq);
 }
@@ -563,8 +564,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	ret = bch2_journal_preres_get(&c->journal,
 			&trans->journal_preres, trans->journal_preres_u64s,
 			JOURNAL_RES_GET_NONBLOCK|
-			((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM)
-			 ? JOURNAL_RES_GET_RECLAIM : 0));
+			((trans->flags & BTREE_INSERT_JOURNAL_RESERVED)
+			 ? JOURNAL_RES_GET_RESERVED : 0));
 	if (unlikely(ret == -EAGAIN))
 		ret = bch2_trans_journal_preres_get_cold(trans,
 						trans->journal_preres_u64s);
@@ -720,6 +721,10 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
 		bch2_trans_unlock(trans);
+
+		if ((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
+		    !(trans->flags & BTREE_INSERT_JOURNAL_RESERVED))
+			return -EAGAIN;
 
 		ret = bch2_trans_journal_res_get(trans, JOURNAL_RES_GET_CHECK);
 		if (ret)
