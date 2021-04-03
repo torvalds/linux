@@ -1072,6 +1072,7 @@ int iwl_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq, int slots_num,
 	return 0;
 err_free_tfds:
 	dma_free_coherent(trans->dev, tfd_sz, txq->tfds, txq->dma_addr);
+	txq->tfds = NULL;
 error:
 	if (txq->entries && cmd_queue)
 		for (i = 0; i < slots_num; i++)
