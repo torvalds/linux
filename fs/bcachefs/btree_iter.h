@@ -131,8 +131,10 @@ void __bch2_btree_iter_downgrade(struct btree_iter *, unsigned);
 
 static inline void bch2_btree_iter_downgrade(struct btree_iter *iter)
 {
-	if (iter->locks_want > (iter->flags & BTREE_ITER_INTENT) ? 1 : 0)
-		__bch2_btree_iter_downgrade(iter, 0);
+	unsigned new_locks_want = (iter->flags & BTREE_ITER_INTENT ? 1 : 0);
+
+	if (iter->locks_want > new_locks_want)
+		__bch2_btree_iter_downgrade(iter, new_locks_want);
 }
 
 void bch2_trans_downgrade(struct btree_trans *);
@@ -258,14 +260,17 @@ int bch2_trans_iter_free(struct btree_trans *, struct btree_iter *);
 void bch2_trans_unlink_iters(struct btree_trans *);
 
 struct btree_iter *__bch2_trans_get_iter(struct btree_trans *, enum btree_id,
-					 struct bpos, unsigned);
+					 struct bpos, unsigned,
+					 unsigned, unsigned);
 
 static inline struct btree_iter *
 bch2_trans_get_iter(struct btree_trans *trans, enum btree_id btree_id,
 		    struct bpos pos, unsigned flags)
 {
 	struct btree_iter *iter =
-		__bch2_trans_get_iter(trans, btree_id, pos, flags);
+		__bch2_trans_get_iter(trans, btree_id, pos,
+				      (flags & BTREE_ITER_INTENT) != 0, 0,
+				      flags);
 	iter->ip_allocated = _THIS_IP_;
 	return iter;
 }
