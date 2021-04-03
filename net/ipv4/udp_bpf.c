@@ -110,7 +110,6 @@ int udp_bpf_update_proto(struct sock *sk, bool restore)
 
 	if (restore) {
 		sk->sk_write_space = psock->saved_write_space;
-		/* Pairs with lockless read in sk_clone_lock() */
 		WRITE_ONCE(sk->sk_prot, psock->sk_proto);
 		return 0;
 	}
@@ -118,7 +117,6 @@ int udp_bpf_update_proto(struct sock *sk, bool restore)
 	if (sk->sk_family == AF_INET6)
 		udp_bpf_check_v6_needs_rebuild(psock->sk_proto);
 
-	/* Pairs with lockless read in sk_clone_lock() */
 	WRITE_ONCE(sk->sk_prot, &udp_bpf_prots[family]);
 	return 0;
 }
