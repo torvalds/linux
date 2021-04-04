@@ -42,6 +42,9 @@ static struct wm *wm_alloc(size_t sz, gfp_t flags)
 	struct wm *wm;
 	size_t alloc_sz = sz + sizeof(struct wm);
 
+	if (sz > SIZE_MAX - sizeof(struct wm))
+		return NULL;
+
 	wm = kvmalloc(alloc_sz, flags);
 	if (!wm)
 		return NULL;
