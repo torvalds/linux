@@ -1209,7 +1209,7 @@ static int qede_rx_build_jumbo(struct qede_dev *edev,
 		dma_unmap_page(rxq->dev, bd->mapping,
 			       PAGE_SIZE, DMA_FROM_DEVICE);
 
-		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags++,
+		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 				   bd->data, rxq->rx_headroom, cur_size);
 
 		skb->truesize += PAGE_SIZE;
