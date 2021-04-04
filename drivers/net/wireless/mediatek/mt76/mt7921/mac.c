@@ -1272,7 +1272,7 @@ mt7921_dma_reset(struct mt7921_dev *dev)
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 
-	mt76_set(dev, 0x54000120, BIT(1));
+	mt76_set(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
 
 	/* enable interrupts for TX/RX rings */
 	mt7921_irq_enable(dev,
