@@ -1658,9 +1658,9 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 	struct net_device *ndev = ag->ndev;
 	int ring_mask, ring_size, done = 0;
 	unsigned int pktlen_mask, offset;
-	struct sk_buff *next, *skb;
 	struct ag71xx_ring *ring;
 	struct list_head rx_list;
+	struct sk_buff *skb;
 
 	ring = &ag->rx_ring;
 	pktlen_mask = ag->dcfg->desc_pktlen_mask;
@@ -1725,7 +1725,7 @@ next:
 
 	ag71xx_ring_rx_refill(ag);
 
-	list_for_each_entry_safe(skb, next, &rx_list, list)
+	list_for_each_entry(skb, &rx_list, list)
 		skb->protocol = eth_type_trans(skb, ndev);
 	netif_receive_skb_list(&rx_list);
 
