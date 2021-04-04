@@ -219,6 +219,7 @@ union recv_frame *r8712_decryptor(struct _adapter *padapter,
 	}
 	return return_packet;
 }
+
 /*###set the security information in the recv_frame */
 union recv_frame *r8712_portctrl(struct _adapter *adapter,
 				 union recv_frame *precv_frame)

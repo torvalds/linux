@@ -66,6 +66,7 @@ struct phy_stat {
 	__le32 phydw6;
 	__le32 phydw7;
 };
+
 #define PHY_STAT_GAIN_TRSW_SHT 0
 #define PHY_STAT_PWDB_ALL_SHT 4
 #define PHY_STAT_CFOSHO_SHT 5
