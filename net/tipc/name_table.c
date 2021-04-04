@@ -553,7 +553,9 @@ exit:
  *
  * On entry, a non-zero 'sk->node' indicates the node where we want lookup to be
  * performed, which may not be this one.
+ *
  * On exit:
+ *
  * - If lookup is deferred to another node, leave 'sk->node' unchanged and
  *   return 'true'.
  * - If lookup is successful, set the 'sk->node' and 'sk->ref' (== portid) which
