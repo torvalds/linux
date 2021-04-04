@@ -345,6 +345,8 @@ static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_no
 {
 	return __irq_domain_add(of_node_to_fwnode(of_node), size, size, 0, ops, host_data);
 }
+
+#ifdef CONFIG_IRQ_DOMAIN_NOMAP
 static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
 					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
@@ -352,6 +354,10 @@ static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_nod
 {
 	return __irq_domain_add(of_node_to_fwnode(of_node), 0, max_irq, max_irq, ops, host_data);
 }
+
+extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
+#endif
+
 static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
@@ -407,8 +413,6 @@ static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
 {
 	return irq_find_mapping(domain, hwirq);
 }
-
-extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
 
 extern const struct irq_domain_ops irq_domain_simple_ops;
 

@@ -604,6 +604,7 @@ void irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 }
 EXPORT_SYMBOL_GPL(irq_domain_associate_many);
 
+#ifdef CONFIG_IRQ_DOMAIN_NOMAP
 /**
  * irq_create_direct_mapping() - Allocate an irq for direct mapping
  * @domain: domain to allocate the irq for or NULL for default domain
@@ -644,6 +645,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_direct_mapping);
+#endif
 
 /**
  * irq_create_mapping_affinity() - Map a hardware interrupt into linux irq space
