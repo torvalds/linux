@@ -820,6 +820,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.check_fw_version = smu_v13_0_1_check_fw_version,
 	.init_smc_tables = yellow_carp_init_smc_tables,
 	.fini_smc_tables = smu_v13_0_1_fini_smc_tables,
+	.get_vbios_bootup_values = smu_v13_0_1_get_vbios_bootup_values,
 	.system_features_control = yellow_carp_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
