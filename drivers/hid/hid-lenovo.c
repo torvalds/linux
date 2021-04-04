@@ -266,6 +266,54 @@ static int lenovo_input_mapping_tp10_ultrabook_kbd(struct hid_device *hdev,
 	return 0;
 }
 
+static int lenovo_input_mapping_x1_tab_kbd(struct hid_device *hdev,
+		struct hid_input *hi, struct hid_field *field,
+		struct hid_usage *usage, unsigned long **bit, int *max)
+{
+	/*
+	 * The ThinkPad X1 Tablet Thin Keyboard uses 0x000c0001 usage for
+	 * a bunch of keys which have no standard consumer page code.
+	 */
+	if (usage->hid == 0x000c0001) {
+		switch (usage->usage_index) {
+		case 0: /* Fn-F10: Enable/disable bluetooth */
+			map_key_clear(KEY_BLUETOOTH);
+			return 1;
+		case 1: /* Fn-F11: Keyboard settings */
+			map_key_clear(KEY_KEYBOARD);
+			return 1;
+		case 2: /* Fn-F12: User function / Cortana */
+			map_key_clear(KEY_MACRO1);
+			return 1;
+		case 3: /* Fn-PrtSc: Snipping tool */
+			map_key_clear(KEY_SELECTIVE_SCREENSHOT);
+			return 1;
+		case 8: /* Fn-Esc: Fn-lock toggle */
+			map_key_clear(KEY_FN_ESC);
+			return 1;
+		case 9: /* Fn-F4: Mute/unmute microphone */
+			map_key_clear(KEY_MICMUTE);
+			return 1;
+		case 10: /* Fn-F9: Settings */
+			map_key_clear(KEY_CONFIG);
+			return 1;
+		case 13: /* Fn-F7: Manage external displays */
+			map_key_clear(KEY_SWITCHVIDEOMODE);
+			return 1;
+		case 14: /* Fn-F8: Enable/disable wifi */
+			map_key_clear(KEY_WLAN);
+			return 1;
+		}
+	}
+
+	if (usage->hid == (HID_UP_KEYBOARD | 0x009a)) {
+		map_key_clear(KEY_SYSRQ);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int lenovo_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
@@ -289,6 +337,8 @@ static int lenovo_input_mapping(struct hid_device *hdev,
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
 		return lenovo_input_mapping_tp10_ultrabook_kbd(hdev, hi, field,
 							       usage, bit, max);
+	case USB_DEVICE_ID_LENOVO_X1_TAB:
+		return lenovo_input_mapping_x1_tab_kbd(hdev, hi, field, usage, bit, max);
 	default:
 		return 0;
 	}
@@ -375,6 +425,7 @@ static ssize_t attr_fn_lock_store(struct device *dev,
 		lenovo_features_set_cptkbd(hdev);
 		break;
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+	case USB_DEVICE_ID_LENOVO_X1_TAB:
 		ret = lenovo_led_set_tp10ubkbd(hdev, TP10UBKBD_FN_LOCK_LED, value);
 		if (ret)
 			return ret;
@@ -519,6 +570,7 @@ static int lenovo_event(struct hid_device *hdev, struct hid_field *field,
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		return lenovo_event_cptkbd(hdev, field, usage, value);
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+	case USB_DEVICE_ID_LENOVO_X1_TAB:
 		return lenovo_event_tp10ubkbd(hdev, field, usage, value);
 	default:
 		return 0;
@@ -800,6 +852,7 @@ static int lenovo_led_brightness_set(struct led_classdev *led_cdev,
 		lenovo_led_set_tpkbd(hdev);
 		break;
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+	case USB_DEVICE_ID_LENOVO_X1_TAB:
 		ret = lenovo_led_set_tp10ubkbd(hdev, tp10ubkbd_led[led_nr], value);
 		break;
 	}
@@ -1038,6 +1091,7 @@ static int lenovo_probe(struct hid_device *hdev,
 		ret = lenovo_probe_cptkbd(hdev);
 		break;
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+	case USB_DEVICE_ID_LENOVO_X1_TAB:
 		ret = lenovo_probe_tp10ubkbd(hdev);
 		break;
 	default:
@@ -1103,6 +1157,7 @@ static void lenovo_remove(struct hid_device *hdev)
 		lenovo_remove_cptkbd(hdev);
 		break;
 	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+	case USB_DEVICE_ID_LENOVO_X1_TAB:
 		lenovo_remove_tp10ubkbd(hdev);
 		break;
 	}
@@ -1142,6 +1197,12 @@ static const struct hid_device_id lenovo_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL_PRO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_TP10UBKBD) },
+	/*
+	 * Note bind to the HID_GROUP_GENERIC group, so that we only bind to the keyboard
+	 * part, while letting hid-multitouch.c handle the touchpad and trackpoint.
+	 */
+	{ HID_DEVICE(BUS_USB, HID_GROUP_GENERIC,
+		     USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X1_TAB) },
 	{ }
 };
 
