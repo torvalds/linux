@@ -26,6 +26,7 @@ choice
 
 	config SOC_RT288X
 		bool "RT288x"
+		select MIPS_AUTO_PFN_OFFSET
 		select MIPS_L1_CACHE_SHIFT_4
 		select HAVE_LEGACY_CLK
 		select HAVE_PCI
