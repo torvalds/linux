@@ -95,7 +95,7 @@ static inline void put_misc_cg(struct misc_cg *cg)
 
 #else /* !CONFIG_CGROUP_MISC */
 
-unsigned long misc_cg_res_total_usage(enum misc_res_type type)
+static inline unsigned long misc_cg_res_total_usage(enum misc_res_type type)
 {
 	return 0;
 }
