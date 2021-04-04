@@ -959,11 +959,24 @@ static const struct attribute_group lenovo_attr_group_tp10ubkbd = {
 
 static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
 {
+	struct hid_report_enum *rep_enum;
 	struct lenovo_drvdata *data;
+	struct hid_report *rep;
+	bool found;
 	int ret;
 
-	/* All the custom action happens on the USBMOUSE device for USB */
-	if (hdev->type != HID_TYPE_USBMOUSE)
+	/*
+	 * The LEDs and the Fn-lock functionality use output report 9,
+	 * with an application of 0xffa0001, add the LEDs on the interface
+	 * with this output report.
+	 */
+	found = false;
+	rep_enum = &hdev->report_enum[HID_OUTPUT_REPORT];
+	list_for_each_entry(rep, &rep_enum->report_list, list) {
+		if (rep->application == 0xffa00001)
+			found = true;
+	}
+	if (!found)
 		return 0;
 
 	data = devm_kzalloc(&hdev->dev, sizeof(*data), GFP_KERNEL);
