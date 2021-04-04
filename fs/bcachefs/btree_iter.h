@@ -174,8 +174,11 @@ static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos 
 	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
 		new_pos.snapshot = iter->snapshot;
 
-	bkey_init(&iter->k);
-	iter->k.p = iter->pos = new_pos;
+	iter->k.type = KEY_TYPE_deleted;
+	iter->k.p.inode		= iter->pos.inode	= new_pos.inode;
+	iter->k.p.offset	= iter->pos.offset	= new_pos.offset;
+	iter->k.p.snapshot	= iter->pos.snapshot	= new_pos.snapshot;
+	iter->k.size = 0;
 }
 
 /* Sort order for locking btree iterators: */
