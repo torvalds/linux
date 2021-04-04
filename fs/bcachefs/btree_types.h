@@ -47,8 +47,6 @@ struct bset_tree {
 	u16			data_offset;
 	u16			aux_data_offset;
 	u16			end_offset;
-
-	struct bpos		max_key;
 };
 
 struct btree_write {
@@ -98,6 +96,11 @@ struct btree {
 	u8			byte_order;
 	u8			unpack_fn_len;
 
+	struct btree_write	writes[2];
+
+	/* Key/pointer for this btree node */
+	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
+
 	/*
 	 * XXX: add a delete sequence number, so when bch2_btree_node_relock()
 	 * fails because the lock sequence number has changed - i.e. the
@@ -128,11 +131,6 @@ struct btree {
 
 	/* lru list */
 	struct list_head	list;
-
-	struct btree_write	writes[2];
-
-	/* Key/pointer for this btree node */
-	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 };
 
 struct btree_cache {

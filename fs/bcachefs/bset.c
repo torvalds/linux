@@ -686,7 +686,7 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 		if (!bkey_pack_pos(max_key, b->data->max_key, b)) {
 			k = (void *) max_key;
 			bkey_init(&k->k);
-			k->k.p = t->max_key;
+			k->k.p = b->data->max_key;
 		}
 	}
 
@@ -770,8 +770,6 @@ retry:
 	while (k != btree_bkey_last(b, t))
 		prev = k, k = bkey_next(k);
 
-	t->max_key = bkey_unpack_pos(b, prev);
-
 	if (!bkey_pack_pos(bkey_to_packed(&min_key), b->data->min_key, b)) {
 		bkey_init(&min_key.k);
 		min_key.k.p = b->data->min_key;
@@ -779,7 +777,7 @@ retry:
 
 	if (!bkey_pack_pos(bkey_to_packed(&max_key), b->data->max_key, b)) {
 		bkey_init(&max_key.k);
-		max_key.k.p = t->max_key;
+		max_key.k.p = b->data->max_key;
 	}
 
 	/* Then we build the tree */
@@ -958,8 +956,6 @@ static void ro_aux_tree_fix_invalidated_key(struct btree *b,
 	min_key.u64s = max_key.u64s = 0;
 
 	if (bkey_next(k) == btree_bkey_last(b, t)) {
-		t->max_key = bkey_unpack_pos(b, k);
-
 		for (j = 1; j < t->size; j = j * 2 + 1)
 			make_bfloat(b, t, j, &min_key, &max_key);
 	}
@@ -1299,16 +1295,6 @@ struct bkey_packed *__bch2_bset_search(struct btree *b,
 	case BSET_RW_AUX_TREE:
 		return bset_search_write_set(b, t, search);
 	case BSET_RO_AUX_TREE:
-		/*
-		 * Each node in the auxiliary search tree covers a certain range
-		 * of bits, and keys above and below the set it covers might
-		 * differ outside those bits - so we have to special case the
-		 * start and end - handle that here:
-		 */
-
-		if (bpos_cmp(*search, t->max_key) > 0)
-			return btree_bkey_last(b, t);
-
 		return bset_search_tree(b, t, search, lossy_packed_search);
 	default:
 		unreachable();
@@ -1343,23 +1329,6 @@ struct bkey_packed *bch2_bset_search_linear(struct btree *b,
 	}
 
 	return m;
-}
-
-/*
- * Returns the first key greater than or equal to @search
- */
-static __always_inline __flatten
-struct bkey_packed *bch2_bset_search(struct btree *b,
-				struct bset_tree *t,
-				struct bpos *search,
-				struct bkey_packed *packed_search,
-				const struct bkey_packed *lossy_packed_search)
-{
-	struct bkey_packed *m = __bch2_bset_search(b, t, search,
-						   lossy_packed_search);
-
-	return bch2_bset_search_linear(b, t, search,
-				 packed_search, lossy_packed_search, m);
 }
 
 /* Btree node iterator */
@@ -1457,6 +1426,7 @@ void bch2_btree_node_iter_init(struct btree_node_iter *iter,
 	unsigned i;
 
 	EBUG_ON(bpos_cmp(*search, b->data->min_key) < 0);
+	EBUG_ON(bpos_cmp(*search, b->data->max_key) > 0);
 	bset_aux_tree_verify(b);
 
 	memset(iter, 0, sizeof(*iter));
