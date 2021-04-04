@@ -64,7 +64,6 @@ struct lynx_accel {
 			   u32 x, u32 y, u32 width, u32 height,
 			   u32 color, u32 rop);
 
-
 	int (*de_copyarea)(struct lynx_accel *accel,
 			   u32 s_base, u32 s_pitch,
 			   u32 sx, u32 sy,
