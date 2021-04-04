@@ -216,9 +216,6 @@ static inline unsigned dev_usage_u64s(void)
 	return sizeof(struct bch_dev_usage) / sizeof(u64);
 }
 
-void bch2_fs_usage_scratch_put(struct bch_fs *, struct bch_fs_usage_online *);
-struct bch_fs_usage_online *bch2_fs_usage_scratch_get(struct bch_fs *);
-
 u64 bch2_fs_usage_read_one(struct bch_fs *, u64 *);
 
 struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *);
@@ -250,16 +247,11 @@ int bch2_mark_key(struct bch_fs *, struct bkey_s_c, unsigned,
 int bch2_mark_update(struct btree_trans *, struct btree_iter *,
 		     struct bkey_i *, struct bch_fs_usage *, unsigned);
 
-int bch2_replicas_delta_list_apply(struct bch_fs *,
-				   struct bch_fs_usage *,
-				   struct replicas_delta_list *);
-int bch2_replicas_delta_list_mark(struct bch_fs *,
-				  struct replicas_delta_list *);
 int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c, struct bkey_s_c,
 			unsigned, s64, unsigned);
 int bch2_trans_mark_update(struct btree_trans *, struct btree_iter *iter,
 			   struct bkey_i *insert, unsigned);
-void bch2_trans_fs_usage_apply(struct btree_trans *, struct bch_fs_usage_online *);
+void bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *,
 			struct disk_reservation *, struct bch_dev *,

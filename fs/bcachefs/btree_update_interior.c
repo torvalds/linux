@@ -437,10 +437,6 @@ static int bch2_btree_reserve_get(struct btree_update *as, unsigned nr_nodes,
 			goto err_free;
 		}
 
-		ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(&b->key));
-		if (ret)
-			goto err_free;
-
 		as->prealloc_nodes[as->nr_prealloc_nodes++] = b;
 	}
 

@@ -376,7 +376,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 			       struct btree_insert_entry **stopped_at)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
 	struct btree_trans_commit_hook *h;
 	unsigned u64s = 0;
@@ -424,13 +423,11 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 	if (marking) {
 		percpu_down_read(&c->mark_lock);
-		fs_usage = bch2_fs_usage_scratch_get(c);
 	}
 
 	/* Must be called under mark_lock: */
 	if (marking && trans->fs_usage_deltas &&
-	    bch2_replicas_delta_list_apply(c, &fs_usage->u,
-					   trans->fs_usage_deltas)) {
+	    !bch2_replicas_delta_list_marked(c, trans->fs_usage_deltas)) {
 		ret = BTREE_INSERT_NEED_MARK_REPLICAS;
 		goto err;
 	}
@@ -474,10 +471,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	trans_for_each_update(trans, i)
 		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type))
 			bch2_mark_update(trans, i->iter, i->k,
-					 &fs_usage->u, i->trigger_flags);
+					 NULL, i->trigger_flags);
 
-	if (marking)
-		bch2_trans_fs_usage_apply(trans, fs_usage);
+	if (marking && trans->fs_usage_deltas)
+		bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas);
 
 	if (unlikely(c->gc_pos.phase))
 		bch2_trans_mark_gc(trans);
@@ -486,7 +483,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		do_btree_insert_one(trans, i->iter, i->k);
 err:
 	if (marking) {
-		bch2_fs_usage_scratch_put(c, fs_usage);
 		percpu_up_read(&c->mark_lock);
 	}
 

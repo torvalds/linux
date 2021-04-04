@@ -471,6 +471,36 @@ static int __bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
+/* replicas delta list: */
+
+bool bch2_replicas_delta_list_marked(struct bch_fs *c,
+				     struct replicas_delta_list *r)
+{
+	struct replicas_delta *d = r->d;
+	struct replicas_delta *top = (void *) r->d + r->used;
+
+	percpu_rwsem_assert_held(&c->mark_lock);
+
+	for (d = r->d; d != top; d = replicas_delta_next(d))
+		if (bch2_replicas_entry_idx(c, &d->r) < 0)
+			return false;
+	return true;
+}
+
+int bch2_replicas_delta_list_mark(struct bch_fs *c,
+				  struct replicas_delta_list *r)
+{
+	struct replicas_delta *d = r->d;
+	struct replicas_delta *top = (void *) r->d + r->used;
+	int ret = 0;
+
+	for (d = r->d; !ret && d != top; d = replicas_delta_next(d))
+		ret = bch2_mark_replicas(c, &d->r);
+	return ret;
+}
+
+/* bkey replicas: */
+
 bool bch2_bkey_replicas_marked(struct bch_fs *c,
 			       struct bkey_s_c k)
 {
@@ -481,6 +511,11 @@ int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 {
 	return __bch2_mark_bkey_replicas(c, k, false);
 }
+
+/*
+ * Old replicas_gc mechanism: only used for journal replicas entries now, should
+ * die at some point:
+ */
 
 int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 {
@@ -574,6 +609,8 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 
 	return 0;
 }
+
+/* New much simpler mechanism for clearing out unneeded replicas entries: */
 
 int bch2_replicas_gc2(struct bch_fs *c)
 {

@@ -12,6 +12,7 @@
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
+#include "replicas.h"
 #include "trace.h"
 
 #include <linux/prefetch.h>
