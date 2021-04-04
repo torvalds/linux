@@ -1235,7 +1235,7 @@ static int esw_vport_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 		return err;
 
 	/* Attach vport to the eswitch rate limiter */
-	esw_vport_enable_qos(esw, vport, vport->info.max_rate, vport->qos.bw_share);
+	esw_vport_enable_qos(esw, vport, vport->qos.max_rate, vport->qos.bw_share);
 
 	if (mlx5_esw_is_manager_vport(esw, vport_num))
 		return 0;
@@ -2078,8 +2078,8 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	ivi->qos = evport->info.qos;
 	ivi->spoofchk = evport->info.spoofchk;
 	ivi->trusted = evport->info.trusted;
-	ivi->min_tx_rate = evport->info.min_rate;
-	ivi->max_tx_rate = evport->info.max_rate;
+	ivi->min_tx_rate = evport->qos.min_rate;
+	ivi->max_tx_rate = evport->qos.max_rate;
 	mutex_unlock(&esw->state_lock);
 
 	return 0;
@@ -2319,9 +2319,9 @@ static u32 calculate_vports_min_rate_divider(struct mlx5_eswitch *esw)
 	int i;
 
 	mlx5_esw_for_all_vports(esw, i, evport) {
-		if (!evport->enabled || evport->info.min_rate < max_guarantee)
+		if (!evport->enabled || evport->qos.min_rate < max_guarantee)
 			continue;
-		max_guarantee = evport->info.min_rate;
+		max_guarantee = evport->qos.min_rate;
 	}
 
 	if (max_guarantee)
@@ -2343,8 +2343,8 @@ static int normalize_vports_min_rate(struct mlx5_eswitch *esw)
 	mlx5_esw_for_all_vports(esw, i, evport) {
 		if (!evport->enabled)
 			continue;
-		vport_min_rate = evport->info.min_rate;
-		vport_max_rate = evport->info.max_rate;
+		vport_min_rate = evport->qos.min_rate;
+		vport_max_rate = evport->qos.max_rate;
 		bw_share = 0;
 
 		if (divider)
@@ -2391,24 +2391,24 @@ int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 
 	mutex_lock(&esw->state_lock);
 
-	if (min_rate == evport->info.min_rate)
+	if (min_rate == evport->qos.min_rate)
 		goto set_max_rate;
 
-	previous_min_rate = evport->info.min_rate;
-	evport->info.min_rate = min_rate;
+	previous_min_rate = evport->qos.min_rate;
+	evport->qos.min_rate = min_rate;
 	err = normalize_vports_min_rate(esw);
 	if (err) {
-		evport->info.min_rate = previous_min_rate;
+		evport->qos.min_rate = previous_min_rate;
 		goto unlock;
 	}
 
 set_max_rate:
-	if (max_rate == evport->info.max_rate)
+	if (max_rate == evport->qos.max_rate)
 		goto unlock;
 
 	err = esw_vport_qos_config(esw, evport, max_rate, evport->qos.bw_share);
 	if (!err)
-		evport->info.max_rate = max_rate;
+		evport->qos.max_rate = max_rate;
 
 unlock:
 	mutex_unlock(&esw->state_lock);

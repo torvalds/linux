@@ -906,7 +906,7 @@ mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
 			if (IS_ERR(dest[dest_ix].ft))
 				return ERR_CAST(dest[dest_ix].ft);
 		} else {
-			dest[dest_ix].ft = priv->fs.vlan.ft.t;
+			dest[dest_ix].ft = mlx5e_vlan_get_flowtable(priv->fs.vlan);
 		}
 		dest_ix++;
 	}
@@ -3111,6 +3111,13 @@ static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 	return (fsystem_guid == psystem_guid);
 }
 
+static bool same_vf_reps(struct mlx5e_priv *priv,
+			 struct net_device *out_dev)
+{
+	return mlx5e_eswitch_vf_rep(priv->netdev) &&
+	       priv->netdev == out_dev;
+}
+
 static int add_vlan_rewrite_action(struct mlx5e_priv *priv, int namespace,
 				   const struct flow_action_entry *act,
 				   struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -3793,6 +3800,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "devices are not on same switch HW, can't offload forwarding");
+					return -EOPNOTSUPP;
+				}
+
+				if (same_vf_reps(priv, out_dev)) {
+					NL_SET_ERR_MSG_MOD(extack,
+							   "can't forward from a VF to itself");
 					return -EOPNOTSUPP;
 				}
 
@@ -4740,7 +4753,7 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 	attr.ns = MLX5_FLOW_NAMESPACE_KERNEL;
 	attr.max_ft_sz = mlx5e_tc_nic_get_ft_size(dev);
 	attr.max_grp_num = MLX5E_TC_TABLE_NUM_GROUPS;
-	attr.default_ft = priv->fs.vlan.ft.t;
+	attr.default_ft = mlx5e_vlan_get_flowtable(priv->fs.vlan);
 
 	tc->chains = mlx5_chains_create(dev, &attr);
 	if (IS_ERR(tc->chains)) {
