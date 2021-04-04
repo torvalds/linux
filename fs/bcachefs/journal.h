@@ -411,7 +411,12 @@ static inline void bch2_journal_preres_put(struct journal *j,
 
 	s.v = atomic64_sub_return(s.v, &j->prereserved.counter);
 	res->u64s = 0;
-	closure_wake_up(&j->preres_wait);
+
+	if (unlikely(s.waiting)) {
+		clear_bit(ilog2((((union journal_preres_state) { .waiting = 1 }).v)),
+			  (unsigned long *) &j->prereserved.v);
+		closure_wake_up(&j->preres_wait);
+	}
 
 	if (s.reserved <= s.remaining &&
 	    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags)) {
@@ -427,32 +432,32 @@ int __bch2_journal_preres_get(struct journal *,
 static inline int bch2_journal_preres_get_fast(struct journal *j,
 					       struct journal_preres *res,
 					       unsigned new_u64s,
-					       unsigned flags)
+					       unsigned flags,
+					       bool set_waiting)
 {
 	int d = new_u64s - res->u64s;
 	union journal_preres_state old, new;
 	u64 v = atomic64_read(&j->prereserved.counter);
+	int ret;
 
 	do {
 		old.v = new.v = v;
+		ret = 0;
 
-		new.reserved += d;
-
-		/*
-		 * If we're being called from the journal reclaim path, we have
-		 * to unconditionally give out the pre-reservation, there's
-		 * nothing else sensible we can do - otherwise we'd recurse back
-		 * into the reclaim path and deadlock:
-		 */
-
-		if (!(flags & JOURNAL_RES_GET_RESERVED) &&
-		    new.reserved > new.remaining)
+		if ((flags & JOURNAL_RES_GET_RESERVED) ||
+		    new.reserved + d < new.remaining) {
+			new.reserved += d;
+			ret = 1;
+		} else if (set_waiting && !new.waiting)
+			new.waiting = true;
+		else
 			return 0;
 	} while ((v = atomic64_cmpxchg(&j->prereserved.counter,
 				       old.v, new.v)) != old.v);
 
-	res->u64s += d;
-	return 1;
+	if (ret)
+		res->u64s += d;
+	return ret;
 }
 
 static inline int bch2_journal_preres_get(struct journal *j,
@@ -463,7 +468,7 @@ static inline int bch2_journal_preres_get(struct journal *j,
 	if (new_u64s <= res->u64s)
 		return 0;
 
-	if (bch2_journal_preres_get_fast(j, res, new_u64s, flags))
+	if (bch2_journal_preres_get_fast(j, res, new_u64s, flags, false))
 		return 0;
 
 	if (flags & JOURNAL_RES_GET_NONBLOCK)

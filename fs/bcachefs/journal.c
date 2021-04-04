@@ -520,7 +520,7 @@ static bool journal_preres_available(struct journal *j,
 				     unsigned new_u64s,
 				     unsigned flags)
 {
-	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s, flags);
+	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s, flags, true);
 
 	if (!ret && mutex_trylock(&j->reclaim_lock)) {
 		bch2_journal_reclaim(j);

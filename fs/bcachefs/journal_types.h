@@ -105,8 +105,9 @@ union journal_preres_state {
 	};
 
 	struct {
-		u32		reserved;
-		u32		remaining;
+		u64		waiting:1,
+				reserved:31,
+				remaining:32;
 	};
 };
 
