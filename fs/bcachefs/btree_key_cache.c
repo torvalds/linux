@@ -692,17 +692,16 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
 	int ret;
 
-	bc->shrink.seeks		= 1;
-	bc->shrink.count_objects	= bch2_btree_key_cache_count;
-	bc->shrink.scan_objects		= bch2_btree_key_cache_scan;
-
-	ret =   register_shrinker(&bc->shrink, "%s/btree_key_cache", c->name) ?:
-		rhashtable_init(&bc->table, &bch2_btree_key_cache_params);
+	ret = rhashtable_init(&bc->table, &bch2_btree_key_cache_params);
 	if (ret)
 		return ret;
 
 	bc->table_init_done = true;
-	return 0;
+
+	bc->shrink.seeks		= 1;
+	bc->shrink.count_objects	= bch2_btree_key_cache_count;
+	bc->shrink.scan_objects		= bch2_btree_key_cache_scan;
+	return register_shrinker(&bc->shrink, "%s/btree_key_cache", c->name);
 }
 
 void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *c)
