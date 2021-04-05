@@ -395,7 +395,7 @@ static int rtw_drv_init(
 	struct dvobj_priv *dvobj;
 
 	dvobj = sdio_dvobj_init(func);
-	if (dvobj == NULL)
+	if (!dvobj)
 		goto exit;
 
 	if1 = rtw_sdio_if1_init(dvobj, id);
