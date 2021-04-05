@@ -1785,7 +1785,6 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	/*
 	if (band_type == BAND_ON_5G && pwr_lmt == MAX_POWER_INDEX) {
 		if (idx_bandwidth == 0 || idx_bandwidth == 1) {
-			RT_TRACE(COMP_INIT, DBG_LOUD, ("No power limit table of the specified band %d, bandwidth %d, ratesection %d, rf path %d\n",
 				 idx_band, idx_bandwidth,
 				 idx_rate_sctn, rf_path));
 			if (idx_rate_sctn == 2)
