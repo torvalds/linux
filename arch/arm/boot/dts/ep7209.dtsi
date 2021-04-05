@@ -10,6 +10,8 @@
 	model = "Cirrus Logic EP7209";
 	compatible = "cirrus,ep7209";
 
+	chosen { };
+
 	aliases {
 		gpio0 = &porta;
 		gpio1 = &portb;
