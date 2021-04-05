@@ -345,8 +345,7 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 					if (pattrib->physt)
 						update_recvframe_phyinfo(precvframe, (struct phy_stat *)ptr);
 
-					if (rtw_recv_entry(precvframe) != _SUCCESS) {
-					}
+					rtw_recv_entry(precvframe);
 				} else if (pattrib->pkt_rpt_type == C2H_PACKET) {
 					struct c2h_evt_hdr_t	C2hEvent;
 

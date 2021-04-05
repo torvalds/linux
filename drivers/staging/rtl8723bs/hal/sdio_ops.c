@@ -1040,7 +1040,6 @@ void sd_int_hdl(struct adapter *adapter)
 			SdioLocalCmd52Write4Byte(adapter, SDIO_REG_HISR, v32);
 
 		sd_int_dpc(adapter);
-	} else {
 	}
 }
 

@@ -64,9 +64,6 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 	blockCount_p1 = buffSize / blockSize_p1;
 	remainSize_p1 = buffSize % blockSize_p1;
 
-	if (blockCount_p1) {
-	}
-
 	for (i = 0; i < blockCount_p1; i++) {
 		ret = rtw_write32(padapter, (FW_8723B_START_ADDRESS + i * blockSize_p1), *((u32 *)(bufferPtr + i * blockSize_p1)));
 		if (ret == _FAIL) {
@@ -81,10 +78,6 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 
 		blockCount_p2 = remainSize_p1/blockSize_p2;
 		remainSize_p2 = remainSize_p1%blockSize_p2;
-
-		if (blockCount_p2) {
-		}
-
 	}
 
 	/* 3 Phase #3 */
@@ -2266,8 +2259,6 @@ static bool Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
 			*pGroup = 3;
 		else if (12 <= Channel && Channel <= 14)
 			*pGroup = 4;
-		else {
-		}
 	} else {
 		bIn24G = false;
 
@@ -2299,9 +2290,6 @@ static bool Hal_GetChnlGroup8723B(u8 Channel, u8 *pGroup)
 			*pGroup = 12;
 		else if (173  <= Channel && Channel <= 177)
 			*pGroup = 13;
-		else {
-		}
-
 	}
 	return bIn24G;
 }
@@ -3022,7 +3010,6 @@ static void rtl8723b_fill_default_txdesc(
 			ptxdesc->spe_rpt = 1;
 			ptxdesc->sw_define = (u8)(GET_PRIMARY_ADAPTER(padapter)->xmitpriv.seq_no);
 		}
-	} else if (pxmitframe->frame_tag == TXAGG_FRAMETAG) {
 	} else {
 		ptxdesc->macid = pattrib->mac_id; /*  CAM_ID(MAC_ID) */
 		ptxdesc->rate_id = pattrib->raid; /*  Rate ID */
@@ -4258,8 +4245,6 @@ void rtl8723b_start_thread(struct adapter *padapter)
 	struct xmit_priv *xmitpriv = &padapter->xmitpriv;
 
 	xmitpriv->SdioXmitThread = kthread_run(rtl8723bs_xmit_thread, padapter, "RTWHALXT");
-	if (IS_ERR(xmitpriv->SdioXmitThread)) {
-	}
 }
 
 void rtl8723b_stop_thread(struct adapter *padapter)

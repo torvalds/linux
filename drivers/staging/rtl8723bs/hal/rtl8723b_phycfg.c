@@ -550,7 +550,6 @@ void PHY_SetTxPowerIndex(
 			DBG_871X("Invalid Rate!!\n");
 			break;
 		}
-	} else {
 	}
 }
 
@@ -648,8 +647,6 @@ static u8 phy_GetSecondaryChnl_8723B(struct adapter *Adapter)
 			SCSettingOf40 = VHT_DATA_SC_40_LOWER_OF_80MHZ;
 		else if (pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
 			SCSettingOf40 = VHT_DATA_SC_40_UPPER_OF_80MHZ;
-		else
-			{}
 
 		if (
 			(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) &&
@@ -671,15 +668,11 @@ static u8 phy_GetSecondaryChnl_8723B(struct adapter *Adapter)
 			(pHalData->nCur80MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
 		)
 			SCSettingOf20 = VHT_DATA_SC_20_UPPERST_OF_80MHZ;
-		else
-			{}
 	} else if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_40) {
 		if (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
 			SCSettingOf20 = VHT_DATA_SC_20_UPPER_OF_80MHZ;
 		else if (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER)
 			SCSettingOf20 = VHT_DATA_SC_20_LOWER_OF_80MHZ;
-		else
-			{}
 	}
 
 	return  (SCSettingOf40 << 4) | SCSettingOf20;
