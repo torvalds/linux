@@ -852,7 +852,7 @@ static int mark_stripe_bucket(struct bch_fs *c, struct bkey_s_c k,
 	if (g->stripe && g->stripe != k.k->p.offset) {
 		bch2_fs_inconsistent(c,
 			      "bucket %u:%zu gen %u: multiple stripes using same bucket\n%s",
-			      ptr->dev, PTR_BUCKET_NR(ca, ptr), new.gen,
+			      ptr->dev, PTR_BUCKET_NR(ca, ptr), g->mark.gen,
 			      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
 		return -EINVAL;
 	}
