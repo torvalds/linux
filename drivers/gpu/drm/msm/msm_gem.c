@@ -162,6 +162,7 @@ static void put_pages(struct drm_gem_object *obj)
 
 			sg_free_table(msm_obj->sgt);
 			kfree(msm_obj->sgt);
+			msm_obj->sgt = NULL;
 		}
 
 		if (use_pages(obj))
