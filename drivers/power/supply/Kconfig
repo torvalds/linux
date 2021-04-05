@@ -801,4 +801,20 @@ config BATTERY_ACER_A500
 	help
 	  Say Y to include support for Acer Iconia Tab A500 battery fuel gauge.
 
+config BATTERY_SURFACE
+	tristate "Battery driver for 7th-generation Microsoft Surface devices"
+	depends on SURFACE_AGGREGATOR_REGISTRY
+	help
+	  Driver for battery devices connected via/managed by the Surface System
+	  Aggregator Module (SSAM).
+
+	  This driver provides battery-information and -status support for
+	  Surface devices where said data is not exposed via the standard ACPI
+	  devices. On those models (7th-generation), battery-information is
+	  instead handled directly via SSAM client devices and this driver.
+
+	  Say M or Y here to include battery status support for 7th-generation
+	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
+	  Surface Book 3, and Surface Laptop Go.
+
 endif # POWER_SUPPLY

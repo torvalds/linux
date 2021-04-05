@@ -11861,6 +11861,13 @@ F:	drivers/scsi/smartpqi/smartpqi*.[ch]
 F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
 
+MICROSOFT SURFACE BATTERY AND AC DRIVERS
+M:	Maximilian Luz <luzmaximilian@gmail.com>
+L:	linux-pm@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/power/supply/surface_battery.c
+
 MICROSOFT SURFACE GPE LID SUPPORT DRIVER
 M:	Maximilian Luz <luzmaximilian@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
