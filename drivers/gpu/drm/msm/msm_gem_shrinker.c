@@ -9,12 +9,29 @@
 #include "msm_gpu.h"
 #include "msm_gpu_trace.h"
 
+/* Default disabled for now until it has some more testing on the different
+ * iommu combinations that can be paired with the driver:
+ */
+bool enable_eviction = false;
+MODULE_PARM_DESC(enable_eviction, "Enable swappable GEM buffers");
+module_param(enable_eviction, bool, 0600);
+
+static bool can_swap(void)
+{
+	return enable_eviction && get_nr_swap_pages() > 0;
+}
+
 static unsigned long
 msm_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct msm_drm_private *priv =
 		container_of(shrinker, struct msm_drm_private, shrinker);
-	return priv->shrinkable_count;
+	unsigned count = priv->shrinkable_count;
+
+	if (can_swap())
+		count += priv->evictable_count;
+
+	return count;
 }
 
 static bool
@@ -28,6 +45,17 @@ purge(struct msm_gem_object *msm_obj)
 	 * the purged list
 	 */
 	msm_gem_purge(&msm_obj->base);
+
+	return true;
+}
+
+static bool
+evict(struct msm_gem_object *msm_obj)
+{
+	if (is_unevictable(msm_obj))
+		return false;
+
+	msm_gem_evict(&msm_obj->base);
 
 	return true;
 }
@@ -103,6 +131,16 @@ msm_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 
 	if (freed > 0)
 		trace_msm_gem_purge(freed << PAGE_SHIFT);
+
+	if (can_swap() && freed < sc->nr_to_scan) {
+		int evicted = scan(priv, sc->nr_to_scan - freed,
+				&priv->inactive_willneed, evict);
+
+		if (evicted > 0)
+			trace_msm_gem_evict(evicted << PAGE_SHIFT);
+
+		freed += evicted;
+	}
 
 	return (freed > 0) ? freed : SHRINK_STOP;
 }

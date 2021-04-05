@@ -759,6 +759,29 @@ void msm_gem_purge(struct drm_gem_object *obj)
 			0, (loff_t)-1);
 }
 
+/**
+ * Unpin the backing pages and make them available to be swapped out.
+ */
+void msm_gem_evict(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(is_unevictable(msm_obj));
+	GEM_WARN_ON(!msm_obj->evictable);
+	GEM_WARN_ON(msm_obj->active_count);
+
+	/* Get rid of any iommu mapping(s): */
+	put_iova_spaces(obj, false);
+
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+
+	put_pages(obj);
+
+	update_inactive(msm_obj);
+}
+
 void msm_gem_vunmap(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
