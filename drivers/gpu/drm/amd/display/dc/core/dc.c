@@ -1323,11 +1323,10 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 	struct dc_link *link = sink->link;
 	unsigned int i, enc_inst, tg_inst = 0;
 
-	// Seamless port only support single DP and EDP so far
-	if ((sink->sink_signal != SIGNAL_TYPE_DISPLAY_PORT &&
-		sink->sink_signal != SIGNAL_TYPE_EDP) ||
-		sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+	/* Support seamless boot on EDP displays only */
+	if (sink->sink_signal != SIGNAL_TYPE_EDP) {
 		return false;
+	}
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
