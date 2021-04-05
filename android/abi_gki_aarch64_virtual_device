@@ -47,7 +47,6 @@
   complete
   __const_udelay
   consume_skb
-  contig_page_data
   __cpuhp_remove_state
   __cpuhp_setup_state
   __cpuhp_state_add_instance
@@ -116,7 +115,6 @@
   free_netdev
   __free_pages
   free_pages
-  freezing_slow_path
   fs_bio_set
   get_device
   __get_free_pages
@@ -170,7 +168,6 @@
   kstrtoint
   kstrtouint
   kstrtoull
-  kthread_create_on_node
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_raw_ts64
@@ -286,12 +283,10 @@
   __rcu_read_lock
   __rcu_read_unlock
   refcount_warn_saturate
-  __refrigerator
   register_blkdev
   register_netdev
   register_netdevice
   register_netdevice_notifier
-  register_shrinker
   register_virtio_device
   register_virtio_driver
   regmap_exit
@@ -378,7 +373,6 @@
   __sysfs_match_string
   sysfs_remove_group
   sysfs_remove_link
-  system_freezing_cnt
   system_wq
   trace_event_buffer_commit
   trace_event_buffer_reserve
@@ -429,7 +423,6 @@
   vring_transport_features
   wait_for_completion
   __wake_up
-  wake_up_process
   __warn_printk
 
 # required by ambakmi.ko
@@ -481,9 +474,6 @@
   devm_of_clk_add_hw_provider
   of_clk_hw_simple_get
   of_property_read_string
-
-# required by deferred-free-helper.ko
-  sched_set_normal
 
 # required by dummy-cpufreq.ko
   cpufreq_generic_attr
@@ -675,6 +665,7 @@
   kobject_del
   kobject_get
   kstrtoll
+  kthread_create_on_node
   kthread_parkme
   kthread_should_park
   kthread_should_stop
@@ -710,6 +701,7 @@
   unregister_reboot_notifier
   unregister_sysctl_table
   vfs_fsync
+  wake_up_process
 
 # required by nd_virtio.ko
   bio_chain
@@ -731,9 +723,6 @@
   netdev_lower_state_changed
   netdev_pick_tx
   pci_bus_type
-
-# required by page_pool.ko
-  mod_node_page_state
 
 # required by psmouse.ko
   bus_register_notifier
@@ -876,6 +865,11 @@
   snd_pcm_hw_constraint_msbits
 
 # required by system_heap.ko
+  deferred_free
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_heap_add
   dma_heap_get_dev
   dma_heap_get_name
@@ -1116,6 +1110,7 @@
   cdev_del
   device_destroy
   fasync_helper
+  freezing_slow_path
   hvc_alloc
   hvc_instantiate
   hvc_kick
@@ -1125,10 +1120,12 @@
   kill_fasync
   pipe_lock
   pipe_unlock
+  __refrigerator
   __register_chrdev
   single_open
   single_release
   __splice_from_pipe
+  system_freezing_cnt
   __unregister_chrdev
 
 # required by virtio_mmio.ko
@@ -1284,6 +1281,7 @@
 # required by zsmalloc.ko
   alloc_anon_inode
   __ClearPageMovable
+  contig_page_data
   dec_zone_page_state
   inc_zone_page_state
   init_pseudo
@@ -1297,5 +1295,6 @@
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
+  register_shrinker
   __SetPageMovable
   unregister_shrinker
