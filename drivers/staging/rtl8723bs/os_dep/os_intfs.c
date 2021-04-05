@@ -869,9 +869,8 @@ static int _netdev_open(struct net_device *pnetdev)
 		padapter->bCardDisableWOHSM = false;
 
 		status = rtw_hal_init(padapter);
-		if (status == _FAIL) {
+		if (status == _FAIL)
 			goto netdev_open_error;
-		}
 
 		DBG_871X("MAC Address = %pM\n", MAC_ARG(pnetdev->dev_addr));
 
@@ -948,9 +947,8 @@ static int  ips_netdrv_open(struct adapter *padapter)
 	/* padapter->bup = true; */
 
 	status = rtw_hal_init(padapter);
-	if (status == _FAIL) {
+	if (status == _FAIL)
 		goto netdev_open_error;
-	}
 
 	if (padapter->intf_start)
 		padapter->intf_start(padapter);

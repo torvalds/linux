@@ -3937,9 +3937,8 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		{
 			u32 usNavUpper = *((u32 *)val);
 
-			if (usNavUpper > HAL_NAV_UPPER_UNIT_8723B * 0xFF) {
+			if (usNavUpper > HAL_NAV_UPPER_UNIT_8723B * 0xFF)
 				break;
-			}
 
 			usNavUpper = DIV_ROUND_UP(usNavUpper,
 						  HAL_NAV_UPPER_UNIT_8723B);

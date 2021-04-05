@@ -56,9 +56,8 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 
 	/*  only cmd52 can be used before power on(card enable) */
 	ret = CardEnable(padapter);
-	if (!ret) {
+	if (!ret)
 		return _FAIL;
-	}
 
 	/*  Radio-Off Pin Trigger */
 	value8 = rtw_read8(padapter, REG_GPIO_INTM + 1);
@@ -674,9 +673,8 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 /* 	rtw_hal_disable_interrupt(padapter); */
 
 	ret = _InitPowerOn_8723BS(padapter);
-	if (_FAIL == ret) {
+	if (_FAIL == ret)
 		return _FAIL;
-	}
 
 	rtw_write8(padapter, REG_EARLY_MODE_CONTROL, 0);
 
@@ -710,18 +708,16 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 #if (HAL_MAC_ENABLE == 1)
 	ret = PHY_MACConfig8723B(padapter);
-	if (ret != _SUCCESS) {
+	if (ret != _SUCCESS)
 		return ret;
-	}
 #endif
 	/*  */
 	/* d. Initialize BB related configurations. */
 	/*  */
 #if (HAL_BB_ENABLE == 1)
 	ret = PHY_BBConfig8723B(padapter);
-	if (ret != _SUCCESS) {
+	if (ret != _SUCCESS)
 		return ret;
-	}
 #endif
 
 	/*  If RF is on, we need to init RF. Otherwise, skip the procedure. */
@@ -730,9 +726,8 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	{
 #if (HAL_RF_ENABLE == 1)
 		ret = PHY_RFConfig8723B(padapter);
-		if (ret != _SUCCESS) {
+		if (ret != _SUCCESS)
 			return ret;
-		}
 #endif
 	}
 

@@ -101,9 +101,8 @@ query_free_page:
 	if (
 		(padapter->bSurpriseRemoved) ||
 		(padapter->bDriverStopped)
-	) {
+	)
 		goto free_xmitbuf;
-	}
 
 	if (rtw_sdio_wait_enough_TxOQT_space(padapter, pxmitbuf->agg_num) == false)
 		goto free_xmitbuf;
@@ -145,9 +144,8 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
 	}
 
 	ret = (padapter->bDriverStopped) || (padapter->bSurpriseRemoved);
-	if (ret) {
+	if (ret)
 		return _FAIL;
-	}
 
 	queue_pending = check_pending_xmitbuf(pxmitpriv);
 
@@ -406,9 +404,8 @@ next:
 	if (
 		(padapter->bDriverStopped) ||
 		(padapter->bSurpriseRemoved)
-	) {
+	)
 		return _FAIL;
-	}
 
 	spin_lock_bh(&pxmitpriv->lock);
 	ret = rtw_txframes_pending(padapter);

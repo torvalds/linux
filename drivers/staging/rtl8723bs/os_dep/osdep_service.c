@@ -160,9 +160,8 @@ int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 	else
 		ret = register_netdevice(pnetdev);
 
-	if (ret != 0) {
+	if (ret != 0)
 		goto error;
-	}
 
 	return 0;
 

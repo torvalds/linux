@@ -873,9 +873,8 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 	/* 3 3. read data from rxfifo */
 	readbuf = recvbuf->pskb->data;
 	ret = sdio_read_port(&adapter->iopriv.intf, WLAN_RX0FF_DEVICE_ID, readsize, readbuf);
-	if (ret == _FAIL) {
+	if (ret == _FAIL)
 		return NULL;
-	}
 
 	/* 3 4. init recvbuf */
 	recvbuf->len = size;

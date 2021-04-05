@@ -197,9 +197,9 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 	psdio = &dvobj->intf_data;
 	psdio->func = func;
 
-	if (sdio_init(dvobj) != _SUCCESS) {
+	if (sdio_init(dvobj) != _SUCCESS)
 		goto free_dvobj;
-	}
+
 	rtw_reset_continual_io_error(dvobj);
 	status = _SUCCESS;
 
@@ -301,9 +301,8 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	padapter->intf_alloc_irq = &sdio_alloc_irq;
 	padapter->intf_free_irq = &sdio_free_irq;
 
-	if (rtw_init_io_priv(padapter, sdio_set_intf_ops) == _FAIL) {
+	if (rtw_init_io_priv(padapter, sdio_set_intf_ops) == _FAIL)
 		goto free_hal_data;
-	}
 
 	rtw_hal_read_chip_version(padapter);
 
@@ -315,9 +314,8 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	rtw_hal_read_chip_info(padapter);
 
 	/* 3 7. init driver common data */
-	if (rtw_init_drv_sw(padapter) == _FAIL) {
+	if (rtw_init_drv_sw(padapter) == _FAIL)
 		goto free_hal_data;
-	}
 
 	rtw_wdev_alloc(padapter, dvobj_to_dev(dvobj));
 
@@ -397,9 +395,8 @@ static int rtw_drv_init(
 	struct dvobj_priv *dvobj;
 
 	dvobj = sdio_dvobj_init(func);
-	if (dvobj == NULL) {
+	if (dvobj == NULL)
 		goto exit;
-	}
 
 	if1 = rtw_sdio_if1_init(dvobj, id);
 	if (if1 == NULL) {

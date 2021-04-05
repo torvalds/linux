@@ -201,9 +201,8 @@ int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 
 	skb = precv_frame->u.hdr.pkt;
-	if (skb == NULL) {
+	if (skb == NULL)
 		goto _recv_indicatepkt_drop;
-	}
 
 	skb->data = precv_frame->u.hdr.rx_data;
 
