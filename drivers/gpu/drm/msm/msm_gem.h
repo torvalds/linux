@@ -162,13 +162,13 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
 __printf(2, 3)
 void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...);
-#ifdef CONFIG_DEBUG_FS
 
+#ifdef CONFIG_DEBUG_FS
 struct msm_gem_stats {
 	struct {
 		unsigned count;
 		size_t size;
-	} all, active, purgeable, purged;
+	} all, active, resident, purgeable, purged;
 };
 
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,

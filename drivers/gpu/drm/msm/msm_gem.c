@@ -902,6 +902,11 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 		stats->active.size += obj->size;
 	}
 
+	if (msm_obj->pages) {
+		stats->resident.count++;
+		stats->resident.size += obj->size;
+	}
+
 	switch (msm_obj->madv) {
 	case __MSM_MADV_PURGED:
 		stats->purged.count++;
@@ -991,6 +996,8 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 			stats.all.count, stats.all.size);
 	seq_printf(m, "Active:    %4d objects, %9zu bytes\n",
 			stats.active.count, stats.active.size);
+	seq_printf(m, "Resident:  %4d objects, %9zu bytes\n",
+			stats.resident.count, stats.resident.size);
 	seq_printf(m, "Purgeable: %4d objects, %9zu bytes\n",
 			stats.purgeable.count, stats.purgeable.size);
 	seq_printf(m, "Purged:    %4d objects, %9zu bytes\n",
