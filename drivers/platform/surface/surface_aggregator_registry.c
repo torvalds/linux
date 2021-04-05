@@ -13,10 +13,10 @@
 #include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include <linux/surface_aggregator/controller.h>
 #include <linux/surface_aggregator/device.h>
@@ -287,6 +287,13 @@ err:
 
 /* -- SSAM base-hub driver. ------------------------------------------------- */
 
+/*
+ * Some devices (especially battery) may need a bit of time to be fully usable
+ * after being (re-)connected. This delay has been determined via
+ * experimentation.
+ */
+#define SSAM_BASE_UPDATE_CONNECT_DELAY		msecs_to_jiffies(2500)
+
 enum ssam_base_hub_state {
 	SSAM_BASE_HUB_UNINITIALIZED,
 	SSAM_BASE_HUB_CONNECTED,
@@ -296,8 +303,8 @@ enum ssam_base_hub_state {
 struct ssam_base_hub {
 	struct ssam_device *sdev;
 
-	struct mutex lock;  /* Guards state update checks and transitions. */
 	enum ssam_base_hub_state state;
+	struct delayed_work update_work;
 
 	struct ssam_event_notifier notif;
 };
@@ -335,11 +342,7 @@ static ssize_t ssam_base_hub_state_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct ssam_base_hub *hub = dev_get_drvdata(dev);
-	bool connected;
-
-	mutex_lock(&hub->lock);
-	connected = hub->state == SSAM_BASE_HUB_CONNECTED;
-	mutex_unlock(&hub->lock);
+	bool connected = hub->state == SSAM_BASE_HUB_CONNECTED;
 
 	return sysfs_emit(buf, "%d\n", connected);
 }
@@ -356,16 +359,20 @@ static const struct attribute_group ssam_base_hub_group = {
 	.attrs = ssam_base_hub_attrs,
 };
 
-static int __ssam_base_hub_update(struct ssam_base_hub *hub, enum ssam_base_hub_state new)
+static void ssam_base_hub_update_workfn(struct work_struct *work)
 {
+	struct ssam_base_hub *hub = container_of(work, struct ssam_base_hub, update_work.work);
 	struct fwnode_handle *node = dev_fwnode(&hub->sdev->dev);
+	enum ssam_base_hub_state state;
 	int status = 0;
 
-	lockdep_assert_held(&hub->lock);
+	status = ssam_base_hub_query_state(hub, &state);
+	if (status)
+		return;
 
-	if (hub->state == new)
-		return 0;
-	hub->state = new;
+	if (hub->state == state)
+		return;
+	hub->state = state;
 
 	if (hub->state == SSAM_BASE_HUB_CONNECTED)
 		status = ssam_hub_add_devices(&hub->sdev->dev, hub->sdev->ctrl, node);
@@ -374,51 +381,28 @@ static int __ssam_base_hub_update(struct ssam_base_hub *hub, enum ssam_base_hub_
 
 	if (status)
 		dev_err(&hub->sdev->dev, "failed to update base-hub devices: %d\n", status);
-
-	return status;
-}
-
-static int ssam_base_hub_update(struct ssam_base_hub *hub)
-{
-	enum ssam_base_hub_state state;
-	int status;
-
-	mutex_lock(&hub->lock);
-
-	status = ssam_base_hub_query_state(hub, &state);
-	if (!status)
-		status = __ssam_base_hub_update(hub, state);
-
-	mutex_unlock(&hub->lock);
-	return status;
 }
 
 static u32 ssam_base_hub_notif(struct ssam_event_notifier *nf, const struct ssam_event *event)
 {
-	struct ssam_base_hub *hub;
-	struct ssam_device *sdev;
-	enum ssam_base_hub_state new;
-
-	hub = container_of(nf, struct ssam_base_hub, notif);
-	sdev = hub->sdev;
+	struct ssam_base_hub *hub = container_of(nf, struct ssam_base_hub, notif);
+	unsigned long delay;
 
 	if (event->command_id != SSAM_EVENT_BAS_CID_CONNECTION)
 		return 0;
 
 	if (event->length < 1) {
-		dev_err(&sdev->dev, "unexpected payload size: %u\n",
-			event->length);
+		dev_err(&hub->sdev->dev, "unexpected payload size: %u\n", event->length);
 		return 0;
 	}
 
-	if (event->data[0])
-		new = SSAM_BASE_HUB_CONNECTED;
-	else
-		new = SSAM_BASE_HUB_DISCONNECTED;
+	/*
+	 * Delay update when the base is being connected to give devices/EC
+	 * some time to set up.
+	 */
+	delay = event->data[0] ? SSAM_BASE_UPDATE_CONNECT_DELAY : 0;
 
-	mutex_lock(&hub->lock);
-	__ssam_base_hub_update(hub, new);
-	mutex_unlock(&hub->lock);
+	schedule_delayed_work(&hub->update_work, delay);
 
 	/*
 	 * Do not return SSAM_NOTIF_HANDLED: The event should be picked up and
@@ -430,7 +414,10 @@ static u32 ssam_base_hub_notif(struct ssam_event_notifier *nf, const struct ssam
 
 static int __maybe_unused ssam_base_hub_resume(struct device *dev)
 {
-	return ssam_base_hub_update(dev_get_drvdata(dev));
+	struct ssam_base_hub *hub = dev_get_drvdata(dev);
+
+	schedule_delayed_work(&hub->update_work, 0);
+	return 0;
 }
 static SIMPLE_DEV_PM_OPS(ssam_base_hub_pm_ops, NULL, ssam_base_hub_resume);
 
@@ -443,8 +430,6 @@ static int ssam_base_hub_probe(struct ssam_device *sdev)
 	if (!hub)
 		return -ENOMEM;
 
-	mutex_init(&hub->lock);
-
 	hub->sdev = sdev;
 	hub->state = SSAM_BASE_HUB_UNINITIALIZED;
 
@@ -456,27 +441,25 @@ static int ssam_base_hub_probe(struct ssam_device *sdev)
 	hub->notif.event.mask = SSAM_EVENT_MASK_NONE;
 	hub->notif.event.flags = SSAM_EVENT_SEQUENCED;
 
+	INIT_DELAYED_WORK(&hub->update_work, ssam_base_hub_update_workfn);
+
 	ssam_device_set_drvdata(sdev, hub);
 
 	status = ssam_notifier_register(sdev->ctrl, &hub->notif);
 	if (status)
-		goto err_register;
-
-	status = ssam_base_hub_update(hub);
-	if (status)
-		goto err_update;
+		return status;
 
 	status = sysfs_create_group(&sdev->dev.kobj, &ssam_base_hub_group);
 	if (status)
-		goto err_update;
+		goto err;
 
+	schedule_delayed_work(&hub->update_work, 0);
 	return 0;
 
-err_update:
+err:
 	ssam_notifier_unregister(sdev->ctrl, &hub->notif);
+	cancel_delayed_work_sync(&hub->update_work);
 	ssam_hub_remove_devices(&sdev->dev);
-err_register:
-	mutex_destroy(&hub->lock);
 	return status;
 }
 
@@ -487,9 +470,8 @@ static void ssam_base_hub_remove(struct ssam_device *sdev)
 	sysfs_remove_group(&sdev->dev.kobj, &ssam_base_hub_group);
 
 	ssam_notifier_unregister(sdev->ctrl, &hub->notif);
+	cancel_delayed_work_sync(&hub->update_work);
 	ssam_hub_remove_devices(&sdev->dev);
-
-	mutex_destroy(&hub->lock);
 }
 
 static const struct ssam_device_id ssam_base_hub_match[] = {
