@@ -182,6 +182,13 @@
 		};
 	};
 
+	keypad: keypad {
+		compatible = "cirrus,ep7209-keypad";
+		interrupts = <16>;
+		syscon = <&syscon1>;
+		status = "disabled";
+	};
+
 	mctrl: mctrl {
 		compatible = "cirrus,ep7209-mctrl-gpio";
 		gpio,syscon-dev = <&syscon1 0 0>;
