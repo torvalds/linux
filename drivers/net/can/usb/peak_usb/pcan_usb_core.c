@@ -624,6 +624,7 @@ static int peak_usb_ndo_stop(struct net_device *netdev)
 	/* can set bus off now */
 	if (dev->adapter->dev_set_bus) {
 		int err = dev->adapter->dev_set_bus(dev, 0);
+
 		if (err)
 			return err;
 	}

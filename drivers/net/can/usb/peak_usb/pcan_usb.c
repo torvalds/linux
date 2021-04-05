@@ -401,7 +401,7 @@ static int pcan_usb_update_ts(struct pcan_usb_msg_context *mc)
 {
 	__le16 tmp16;
 
-	if ((mc->ptr+2) > mc->end)
+	if ((mc->ptr + 2) > mc->end)
 		return -EINVAL;
 
 	memcpy(&tmp16, mc->ptr, 2);
@@ -1039,7 +1039,7 @@ const struct peak_usb_adapter pcan_usb = {
 			      CAN_CTRLMODE_BERR_REPORTING |
 			      CAN_CTRLMODE_CC_LEN8_DLC,
 	.clock = {
-		.freq = PCAN_USB_CRYSTAL_HZ / 2 ,
+		.freq = PCAN_USB_CRYSTAL_HZ / 2,
 	},
 	.bittiming_const = &pcan_usb_const,
 

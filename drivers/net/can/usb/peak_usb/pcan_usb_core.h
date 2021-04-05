@@ -31,7 +31,7 @@
 /* usb adapters maximum channels per usb interface */
 #define PCAN_USB_MAX_CHANNEL		2
 
-/* maximum length of the usb commands sent to/received from  the devices */
+/* maximum length of the usb commands sent to/received from the devices */
 #define PCAN_USB_MAX_CMD_LEN		32
 
 struct peak_usb_device;
