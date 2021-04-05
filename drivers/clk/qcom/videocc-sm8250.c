@@ -158,8 +158,8 @@ static struct clk_regmap_div video_cc_mvs0c_div2_div_clk_src = {
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "video_cc_mvs0c_div2_div_clk_src",
-		.parent_data = &(const struct clk_parent_data){
-			.hw = &video_cc_mvs0_clk_src.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]){
+			&video_cc_mvs0_clk_src.clkr.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -173,8 +173,8 @@ static struct clk_regmap_div video_cc_mvs0_div_clk_src = {
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "video_cc_mvs0_div_clk_src",
-		.parent_data = &(const struct clk_parent_data){
-			.hw = &video_cc_mvs0_clk_src.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]){
+			&video_cc_mvs0_clk_src.clkr.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -188,8 +188,8 @@ static struct clk_regmap_div video_cc_mvs1c_div2_div_clk_src = {
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "video_cc_mvs1c_div2_div_clk_src",
-		.parent_data = &(const struct clk_parent_data){
-			.hw = &video_cc_mvs1_clk_src.clkr.hw,
+		.parent_hws = (const struct clk_hw*[]){
+			&video_cc_mvs1_clk_src.clkr.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -205,8 +205,8 @@ static struct clk_branch video_cc_mvs0c_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "video_cc_mvs0c_clk",
-			.parent_data = &(const struct clk_parent_data){
-				.hw = &video_cc_mvs0c_div2_div_clk_src.clkr.hw,
+			.parent_hws = (const struct clk_hw*[]){
+				&video_cc_mvs0c_div2_div_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -223,8 +223,8 @@ static struct clk_branch video_cc_mvs0_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "video_cc_mvs0_clk",
-			.parent_data = &(const struct clk_parent_data){
-				.hw = &video_cc_mvs0_div_clk_src.clkr.hw,
+			.parent_hws = (const struct clk_hw*[]){
+				&video_cc_mvs0_div_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -241,8 +241,8 @@ static struct clk_branch video_cc_mvs1_div2_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "video_cc_mvs1_div2_clk",
-			.parent_data = &(const struct clk_parent_data){
-				.hw = &video_cc_mvs1c_div2_div_clk_src.clkr.hw,
+			.parent_hws = (const struct clk_hw*[]){
+				&video_cc_mvs1c_div2_div_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -259,8 +259,8 @@ static struct clk_branch video_cc_mvs1c_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "video_cc_mvs1c_clk",
-			.parent_data = &(const struct clk_parent_data){
-				.hw = &video_cc_mvs1c_div2_div_clk_src.clkr.hw,
+			.parent_hws = (const struct clk_hw*[]){
+				&video_cc_mvs1c_div2_div_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
