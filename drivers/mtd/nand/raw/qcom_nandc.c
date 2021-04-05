@@ -3051,7 +3051,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	nandc->base_dma = dma_map_resource(dev, res->start,
 					   resource_size(res),
 					   DMA_BIDIRECTIONAL, 0);
-	if (!nandc->base_dma)
+	if (dma_mapping_error(dev, nandc->base_dma))
 		return -ENXIO;
 
 	ret = qcom_nandc_alloc(nandc);
