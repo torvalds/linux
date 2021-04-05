@@ -425,7 +425,8 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		u16 ix;
 
 		mlx5e_qid_get_ch_and_group(params, fs->ring_cookie, &ix, &group);
-		tir = group == MLX5E_RQ_GROUP_XSK ? priv->xsk_tir : priv->direct_tir;
+		tir = group == MLX5E_RQ_GROUP_XSK ? priv->rx_res->xsk_tirs :
+						    priv->rx_res->direct_tirs;
 
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
@@ -854,10 +855,10 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 
 	mutex_lock(&priv->state_lock);
 
-	if (rx_hash_field == priv->rss_params.rx_hash_fields[tt])
+	if (rx_hash_field == priv->rx_res->rss_params.rx_hash_fields[tt])
 		goto out;
 
-	priv->rss_params.rx_hash_fields[tt] = rx_hash_field;
+	priv->rx_res->rss_params.rx_hash_fields[tt] = rx_hash_field;
 	mlx5e_modify_tirs_hash(priv, in);
 
 out:
@@ -876,7 +877,7 @@ static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 	if (tt == MLX5E_NUM_INDIR_TIRS)
 		return -EINVAL;
 
-	hash_field = priv->rss_params.rx_hash_fields[tt];
+	hash_field = priv->rx_res->rss_params.rx_hash_fields[tt];
 	nfc->data = 0;
 
 	if (hash_field & MLX5_HASH_FIELD_SEL_SRC_IP)

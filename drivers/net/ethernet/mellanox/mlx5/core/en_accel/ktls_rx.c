@@ -635,7 +635,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	priv_rx->sw_stats = &priv->tls->sw_stats;
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, priv_rx);
 
-	rqtn = priv->direct_tir[rxq].rqt.rqtn;
+	rqtn = priv->rx_res->direct_tirs[rxq].rqt.rqtn;
 
 	err = mlx5e_ktls_create_tir(mdev, &priv_rx->tirn, rqtn);
 	if (err)

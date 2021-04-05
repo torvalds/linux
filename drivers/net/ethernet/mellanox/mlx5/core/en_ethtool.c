@@ -1172,7 +1172,7 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv)
 {
-	return sizeof(priv->rss_params.toeplitz_hash_key);
+	return sizeof(priv->rx_res->rss_params.toeplitz_hash_key);
 }
 
 static u32 mlx5e_get_rxfh_key_size(struct net_device *netdev)
@@ -1198,7 +1198,9 @@ int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		   u8 *hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rss_params *rss = &priv->rss_params;
+	struct mlx5e_rss_params *rss;
+
+	rss = &priv->rx_res->rss_params;
 
 	if (indir)
 		memcpy(indir, rss->indir.table, sizeof(rss->indir.table));
@@ -1217,8 +1219,8 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		   const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_rss_params *rss = &priv->rss_params;
 	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	struct mlx5e_rss_params *rss;
 	bool refresh_tirs = false;
 	bool refresh_rqt = false;
 	void *in;
@@ -1233,6 +1235,8 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		return -ENOMEM;
 
 	mutex_lock(&priv->state_lock);
+
+	rss = &priv->rx_res->rss_params;
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hfunc) {
 		rss->hfunc = hfunc;
@@ -1261,7 +1265,8 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 			for (ix = 0; ix < priv->channels.num; ix++)
 				rqns[ix] = priv->channels.c[ix]->rq.rqn;
 
-			mlx5e_rqt_redirect_indir(&priv->indir_rqt, rqns, priv->channels.num,
+			mlx5e_rqt_redirect_indir(&priv->rx_res->indir_rqt, rqns,
+						 priv->channels.num,
 						 rss->hfunc, &rss->indir);
 			kvfree(rqns);
 		}

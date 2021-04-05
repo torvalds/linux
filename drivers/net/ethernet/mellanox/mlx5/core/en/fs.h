@@ -160,6 +160,8 @@ enum {
 					 MLX5E_INNER_TTC_GROUP2_SIZE +\
 					 MLX5E_INNER_TTC_GROUP3_SIZE)
 
+struct mlx5e_priv;
+
 #ifdef CONFIG_MLX5_EN_RXNFC
 
 struct mlx5e_ethtool_table {

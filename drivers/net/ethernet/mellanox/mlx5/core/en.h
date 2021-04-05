@@ -58,7 +58,7 @@
 #include "en/qos.h"
 #include "lib/hv_vhca.h"
 #include "lib/clock.h"
-#include "en/rqt.h"
+#include "en/rx_res.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
 struct page_pool;
@@ -141,7 +141,6 @@ struct page_pool;
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES_MPW            0x2
 
 #define MLX5E_MIN_NUM_CHANNELS         0x1
-#define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE / 2)
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_TX_XSK_POLL_BUDGET       64
@@ -744,23 +743,9 @@ enum {
 	MLX5E_STATE_XDP_ACTIVE,
 };
 
-struct mlx5e_tir {
-	u32		  tirn;
-	struct mlx5e_rqt  rqt;
-	bool              rqt_enabled;
-	struct list_head  list;
-};
-
 enum {
 	MLX5E_TC_PRIO = 0,
 	MLX5E_NIC_PRIO
-};
-
-struct mlx5e_rss_params {
-	struct mlx5e_rss_params_indir indir;
-	u32	rx_hash_fields[MLX5E_NUM_INDIR_TIRS];
-	u8	toeplitz_hash_key[40];
-	u8	hfunc;
 };
 
 struct mlx5e_modify_sq_param {
@@ -832,14 +817,7 @@ struct mlx5e_priv {
 
 	struct mlx5e_channels      channels;
 	u32                        tisn[MLX5_MAX_PORTS][MLX5E_MAX_NUM_TC];
-	struct mlx5e_rqt           indir_rqt;
-	bool                       indir_rqt_enabled;
-	struct mlx5e_tir           indir_tir[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_tir           inner_indir_tir[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_tir           direct_tir[MLX5E_MAX_NUM_CHANNELS];
-	struct mlx5e_tir           xsk_tir[MLX5E_MAX_NUM_CHANNELS];
-	struct mlx5e_tir           ptp_tir;
-	struct mlx5e_rss_params    rss_params;
+	struct mlx5e_rx_res       *rx_res;
 	u32                        tx_rates[MLX5E_MAX_NUM_SQS];
 
 	struct mlx5e_flow_steering fs;

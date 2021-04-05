@@ -507,7 +507,7 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 
 	mlx5e_build_default_indir_rqt(indir->table, MLX5E_INDIR_RQT_SIZE, hp->num_channels);
 	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, hp->num_channels,
-				   priv->rss_params.hfunc, indir);
+				   priv->rx_res->rss_params.hfunc, indir);
 
 	kvfree(indir);
 	return err;
@@ -529,7 +529,8 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 		MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
 		MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
 		MLX5_SET(tirc, tirc, indirect_table, hp->indir_rqt.rqtn);
-		mlx5e_build_indir_tir_ctx_hash(&priv->rss_params, &ttconfig, tirc, false);
+		mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params, &ttconfig,
+					       tirc, false);
 
 		err = mlx5_core_create_tir(hp->func_mdev, in,
 					   &hp->indir_tirn[tt]);

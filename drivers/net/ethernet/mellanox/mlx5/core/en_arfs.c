@@ -192,7 +192,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 				 enum arfs_type type)
 {
 	struct arfs_table *arfs_t = &priv->fs.arfs->arfs_tables[type];
-	struct mlx5e_tir *tir = priv->indir_tir;
+	struct mlx5e_tir *tir = priv->rx_res->indir_tirs;
 	struct mlx5_flow_destination dest = {};
 	MLX5_DECLARE_FLOW_ACT(flow_act);
 	enum mlx5e_traffic_types tt;
@@ -553,7 +553,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 		       16);
 	}
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	dest.tir_num = priv->direct_tir[arfs_rule->rxq].tirn;
+	dest.tir_num = priv->rx_res->direct_tirs[arfs_rule->rxq].tirn;
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -576,7 +576,7 @@ static void arfs_modify_rule_rq(struct mlx5e_priv *priv,
 	int err = 0;
 
 	dst.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	dst.tir_num = priv->direct_tir[rxq].tirn;
+	dst.tir_num = priv->rx_res->direct_tirs[rxq].tirn;
 	err =  mlx5_modify_rule_destination(rule, &dst, NULL);
 	if (err)
 		netdev_warn(priv->netdev,
