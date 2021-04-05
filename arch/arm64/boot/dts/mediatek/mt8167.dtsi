@@ -7,6 +7,7 @@
 
 #include <dt-bindings/clock/mt8167-clk.h>
 #include <dt-bindings/memory/mt8167-larb-port.h>
+#include <dt-bindings/power/mt8167-power.h>
 
 #include "mt8167-pinfunc.h"
 
@@ -32,6 +33,73 @@
 			compatible = "mediatek,mt8167-apmixedsys", "syscon";
 			reg = <0 0x10018000 0 0x710>;
 			#clock-cells = <1>;
+		};
+
+		scpsys: syscon@10006000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0 0x10006000 0 0x1000>;
+			#power-domain-cells = <1>;
+
+			spm: power-controller {
+				compatible = "mediatek,mt8167-power-controller";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#power-domain-cells = <1>;
+
+				/* power domains of the SoC */
+				power-domain@MT8167_POWER_DOMAIN_MM {
+					reg = <MT8167_POWER_DOMAIN_MM>;
+					clocks = <&topckgen CLK_TOP_SMI_MM>;
+					clock-names = "mm";
+					#power-domain-cells = <0>;
+					mediatek,infracfg = <&infracfg>;
+				};
+
+				power-domain@MT8167_POWER_DOMAIN_VDEC {
+					reg = <MT8167_POWER_DOMAIN_VDEC>;
+					clocks = <&topckgen CLK_TOP_SMI_MM>,
+						 <&topckgen CLK_TOP_RG_VDEC>;
+					clock-names = "mm", "vdec";
+					#power-domain-cells = <0>;
+				};
+
+				power-domain@MT8167_POWER_DOMAIN_ISP {
+					reg = <MT8167_POWER_DOMAIN_ISP>;
+					clocks = <&topckgen CLK_TOP_SMI_MM>;
+					clock-names = "mm";
+					#power-domain-cells = <0>;
+				};
+
+				power-domain@MT8167_POWER_DOMAIN_MFG_ASYNC {
+					reg = <MT8167_POWER_DOMAIN_MFG_ASYNC>;
+					clocks = <&topckgen CLK_TOP_RG_AXI_MFG>,
+						 <&topckgen CLK_TOP_RG_SLOW_MFG>;
+					clock-names = "axi_mfg", "mfg";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#power-domain-cells = <1>;
+					mediatek,infracfg = <&infracfg>;
+
+					power-domain@MT8167_POWER_DOMAIN_MFG_2D {
+						reg = <MT8167_POWER_DOMAIN_MFG_2D>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#power-domain-cells = <1>;
+
+						power-domain@MT8167_POWER_DOMAIN_MFG {
+							reg = <MT8167_POWER_DOMAIN_MFG>;
+							#power-domain-cells = <0>;
+							mediatek,infracfg = <&infracfg>;
+						};
+					};
+				};
+
+				power-domain@MT8167_POWER_DOMAIN_CONN {
+					reg = <MT8167_POWER_DOMAIN_CONN>;
+					#power-domain-cells = <0>;
+					mediatek,infracfg = <&infracfg>;
+				};
+			};
 		};
 
 		imgsys: syscon@15000000 {
