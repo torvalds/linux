@@ -151,7 +151,7 @@ struct irq_domain_chip_generic;
  * Revmap data, used internally by irq_domain
  * @revmap_size: Size of the linear map table @revmap[]
  * @revmap_tree: Radix map tree for hwirqs that don't fit in the linear map
- * @revmap: Linear table of hwirq->virq reverse mappings
+ * @revmap: Linear table of irq_data pointers
  */
 struct irq_domain {
 	struct list_head link;
@@ -174,7 +174,7 @@ struct irq_domain {
 	unsigned int revmap_size;
 	struct radix_tree_root revmap_tree;
 	struct mutex revmap_tree_mutex;
-	unsigned int revmap[];
+	struct irq_data *revmap[];
 };
 
 /* Irq domain flags */

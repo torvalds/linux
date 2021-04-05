@@ -505,7 +505,7 @@ static void irq_domain_clear_mapping(struct irq_domain *domain,
 		return;
 
 	if (hwirq < domain->revmap_size) {
-		domain->revmap[hwirq] = 0;
+		domain->revmap[hwirq] = NULL;
 	} else {
 		mutex_lock(&domain->revmap_tree_mutex);
 		radix_tree_delete(&domain->revmap_tree, hwirq);
@@ -521,7 +521,7 @@ static void irq_domain_set_mapping(struct irq_domain *domain,
 		return;
 
 	if (hwirq < domain->revmap_size) {
-		domain->revmap[hwirq] = irq_data->irq;
+		domain->revmap[hwirq] = irq_data;
 	} else {
 		mutex_lock(&domain->revmap_tree_mutex);
 		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
@@ -913,7 +913,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 
 	/* Check if the hwirq is in the linear revmap. */
 	if (hwirq < domain->revmap_size)
-		return domain->revmap[hwirq];
+		return domain->revmap[hwirq]->irq;
 
 	rcu_read_lock();
 	data = radix_tree_lookup(&domain->revmap_tree, hwirq);
@@ -1496,8 +1496,14 @@ static void irq_domain_fix_revmap(struct irq_data *d)
 {
 	void __rcu **slot;
 
-	if (irq_domain_is_nomap(d->domain) || d->hwirq < d->domain->revmap_size)
-		return; /* Not using radix tree. */
+	if (irq_domain_is_nomap(d->domain))
+		return;
+
+	if (d->hwirq < d->domain->revmap_size) {
+		/* Not using radix tree */
+		d->domain->revmap[d->hwirq] = d;
+		return;
+	}
 
 	/* Fix up the revmap. */
 	mutex_lock(&d->domain->revmap_tree_mutex);
