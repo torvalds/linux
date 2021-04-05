@@ -19,18 +19,29 @@ struct mlx5e_rss_params {
 
 struct mlx5e_tir {
 	u32 tirn;
-	struct mlx5e_rqt rqt;
 	struct list_head list;
 };
 
 struct mlx5e_rx_res {
-	struct mlx5e_rqt indir_rqt;
-	struct mlx5e_tir indir_tirs[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_tir inner_indir_tirs[MLX5E_NUM_INDIR_TIRS];
-	struct mlx5e_tir direct_tirs[MLX5E_MAX_NUM_CHANNELS];
-	struct mlx5e_tir xsk_tirs[MLX5E_MAX_NUM_CHANNELS];
-	struct mlx5e_tir ptp_tir;
 	struct mlx5e_rss_params rss_params;
+
+	struct mlx5e_rqt indir_rqt;
+	struct {
+		struct mlx5e_tir indir_tir;
+		struct mlx5e_tir inner_indir_tir;
+	} rss[MLX5E_NUM_INDIR_TIRS];
+
+	struct {
+		struct mlx5e_rqt direct_rqt;
+		struct mlx5e_tir direct_tir;
+		struct mlx5e_rqt xsk_rqt;
+		struct mlx5e_tir xsk_tir;
+	} channels[MLX5E_MAX_NUM_CHANNELS];
+
+	struct {
+		struct mlx5e_rqt rqt;
+		struct mlx5e_tir tir;
+	} ptp;
 };
 
 #endif /* __MLX5_EN_RX_RES_H__ */

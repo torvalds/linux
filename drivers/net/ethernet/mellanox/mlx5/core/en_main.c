@@ -2205,14 +2205,14 @@ int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv)
 	return err;
 }
 
-int mlx5e_create_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n)
+int mlx5e_create_direct_rqts(struct mlx5e_priv *priv)
 {
 	int err;
 	int ix;
 
-	for (ix = 0; ix < n; ix++) {
-		err = mlx5e_rqt_init_direct(&tirs[ix].rqt, priv->mdev, false,
-					    priv->drop_rq.rqn);
+	for (ix = 0; ix < priv->max_nch; ix++) {
+		err = mlx5e_rqt_init_direct(&priv->rx_res->channels[ix].direct_rqt,
+					    priv->mdev, false, priv->drop_rq.rqn);
 		if (unlikely(err))
 			goto err_destroy_rqts;
 	}
@@ -2220,19 +2220,49 @@ int mlx5e_create_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, in
 	return 0;
 
 err_destroy_rqts:
-	mlx5_core_warn(priv->mdev, "create rqts failed, %d\n", err);
-	for (ix--; ix >= 0; ix--)
-		mlx5e_rqt_destroy(&tirs[ix].rqt);
+	mlx5_core_warn(priv->mdev, "create direct rqts failed, %d\n", err);
+	while (--ix >= 0)
+		mlx5e_rqt_destroy(&priv->rx_res->channels[ix].direct_rqt);
 
 	return err;
 }
 
-void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n)
+static int mlx5e_create_xsk_rqts(struct mlx5e_priv *priv)
 {
-	int i;
+	int err;
+	int ix;
 
-	for (i = 0; i < n; i++)
-		mlx5e_rqt_destroy(&tirs[i].rqt);
+	for (ix = 0; ix < priv->max_nch; ix++) {
+		err = mlx5e_rqt_init_direct(&priv->rx_res->channels[ix].xsk_rqt,
+					    priv->mdev, false, priv->drop_rq.rqn);
+		if (unlikely(err))
+			goto err_destroy_rqts;
+	}
+
+	return 0;
+
+err_destroy_rqts:
+	mlx5_core_warn(priv->mdev, "create xsk rqts failed, %d\n", err);
+	while (--ix >= 0)
+		mlx5e_rqt_destroy(&priv->rx_res->channels[ix].xsk_rqt);
+
+	return err;
+}
+
+void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv)
+{
+	unsigned int ix;
+
+	for (ix = 0; ix < priv->max_nch; ix++)
+		mlx5e_rqt_destroy(&priv->rx_res->channels[ix].direct_rqt);
+}
+
+static void mlx5e_destroy_xsk_rqts(struct mlx5e_priv *priv)
+{
+	unsigned int ix;
+
+	for (ix = 0; ix < priv->max_nch; ix++)
+		mlx5e_rqt_destroy(&priv->rx_res->channels[ix].xsk_rqt);
 }
 
 static int mlx5e_rx_hash_fn(int hfunc)
@@ -2266,7 +2296,7 @@ static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 		if (ix < chs->num)
 			rqn = chs->c[ix]->rq.rqn;
 
-		mlx5e_rqt_redirect_direct(&res->direct_tirs[ix].rqt, rqn);
+		mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, rqn);
 	}
 
 	if (priv->profile->rx_ptp_support) {
@@ -2275,7 +2305,7 @@ static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 		if (mlx5e_ptp_get_rqn(priv->channels.ptp, &rqn))
 			rqn = priv->drop_rq.rqn;
 
-		mlx5e_rqt_redirect_direct(&res->ptp_tir.rqt, rqn);
+		mlx5e_rqt_redirect_direct(&res->ptp.rqt, rqn);
 	}
 }
 
@@ -2287,10 +2317,10 @@ static void mlx5e_redirect_rqts_to_drop(struct mlx5e_priv *priv)
 	mlx5e_rqt_redirect_direct(&res->indir_rqt, priv->drop_rq.rqn);
 
 	for (ix = 0; ix < priv->max_nch; ix++)
-		mlx5e_rqt_redirect_direct(&res->direct_tirs[ix].rqt, priv->drop_rq.rqn);
+		mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, priv->drop_rq.rqn);
 
 	if (priv->profile->rx_ptp_support)
-		mlx5e_rqt_redirect_direct(&res->ptp_tir.rqt, priv->drop_rq.rqn);
+		mlx5e_rqt_redirect_direct(&res->ptp.rqt, priv->drop_rq.rqn);
 }
 
 static const struct mlx5e_tirc_config tirc_default_config[MLX5E_NUM_INDIR_TIRS] = {
@@ -2406,11 +2436,11 @@ void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in)
 		mlx5e_update_rx_hash_fields(&ttconfig, tt,
 					    rss->rx_hash_fields[tt]);
 		mlx5e_build_indir_tir_ctx_hash(rss, &ttconfig, tirc, false);
-		mlx5_core_modify_tir(mdev, res->indir_tirs[tt].tirn, in);
+		mlx5_core_modify_tir(mdev, res->rss[tt].indir_tir.tirn, in);
 	}
 
 	/* Verify inner tirs resources allocated */
-	if (!res->inner_indir_tirs[0].tirn)
+	if (!res->rss[0].inner_indir_tir.tirn)
 		return;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
@@ -2418,7 +2448,7 @@ void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in)
 		mlx5e_update_rx_hash_fields(&ttconfig, tt,
 					    rss->rx_hash_fields[tt]);
 		mlx5e_build_indir_tir_ctx_hash(rss, &ttconfig, tirc, true);
-		mlx5_core_modify_tir(mdev, res->inner_indir_tirs[tt].tirn, in);
+		mlx5_core_modify_tir(mdev, res->rss[tt].inner_indir_tir.tirn, in);
 	}
 }
 
@@ -2445,21 +2475,21 @@ static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
 	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		err = mlx5_core_modify_tir(mdev, res->indir_tirs[tt].tirn, in);
+		err = mlx5_core_modify_tir(mdev, res->rss[tt].indir_tir.tirn, in);
 		if (err)
 			goto free_in;
 
 		/* Verify inner tirs resources allocated */
-		if (!res->inner_indir_tirs[0].tirn)
+		if (!res->rss[0].inner_indir_tir.tirn)
 			continue;
 
-		err = mlx5_core_modify_tir(mdev, res->inner_indir_tirs[tt].tirn, in);
+		err = mlx5_core_modify_tir(mdev, res->rss[tt].inner_indir_tir.tirn, in);
 		if (err)
 			goto free_in;
 	}
 
 	for (ix = 0; ix < priv->max_nch; ix++) {
-		err = mlx5_core_modify_tir(mdev, res->direct_tirs[ix].tirn, in);
+		err = mlx5_core_modify_tir(mdev, res->channels[ix].direct_tir.tirn, in);
 		if (err)
 			goto free_in;
 	}
@@ -3151,7 +3181,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
 		memset(in, 0, inlen);
-		tir = &res->indir_tirs[tt];
+		tir = &res->rss[tt].indir_tir;
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 		mlx5e_build_indir_tir_ctx(priv, tt, tirc);
 		err = mlx5e_create_tir(priv->mdev, tir, in);
@@ -3166,7 +3196,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++) {
 		memset(in, 0, inlen);
-		tir = &res->inner_indir_tirs[i];
+		tir = &res->rss[i].inner_indir_tir;
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 		mlx5e_build_inner_indir_tir_ctx(priv, i, tirc);
 		err = mlx5e_create_tir(priv->mdev, tir, in);
@@ -3183,49 +3213,78 @@ out:
 
 err_destroy_inner_tirs:
 	for (i--; i >= 0; i--)
-		mlx5e_destroy_tir(priv->mdev, &res->inner_indir_tirs[i]);
+		mlx5e_destroy_tir(priv->mdev, &res->rss[i].inner_indir_tir);
 
 	for (tt--; tt >= 0; tt--)
-		mlx5e_destroy_tir(priv->mdev, &res->indir_tirs[tt]);
+		mlx5e_destroy_tir(priv->mdev, &res->rss[tt].indir_tir);
 
 	kvfree(in);
 
 	return err;
 }
 
-int mlx5e_create_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n)
+static int mlx5e_create_direct_tir(struct mlx5e_priv *priv, struct mlx5e_tir *tir,
+				   struct mlx5e_rqt *rqt)
 {
-	struct mlx5e_tir *tir;
 	void *tirc;
 	int inlen;
 	int err = 0;
 	u32 *in;
-	int ix;
 
 	inlen = MLX5_ST_SZ_BYTES(create_tir_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
-	for (ix = 0; ix < n; ix++) {
-		memset(in, 0, inlen);
-		tir = &tirs[ix];
-		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-		mlx5e_build_direct_tir_ctx(priv, tir->rqt.rqtn, tirc);
-		err = mlx5e_create_tir(priv->mdev, tir, in);
-		if (unlikely(err))
-			goto err_destroy_ch_tirs;
+	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
+	mlx5e_build_direct_tir_ctx(priv, rqt->rqtn, tirc);
+	err = mlx5e_create_tir(priv->mdev, tir, in);
+	if (unlikely(err))
+		mlx5_core_warn(priv->mdev, "create tirs failed, %d\n", err);
+
+	kvfree(in);
+
+	return err;
+}
+
+int mlx5e_create_direct_tirs(struct mlx5e_priv *priv)
+{
+	int err;
+	int ix;
+
+	for (ix = 0; ix < priv->max_nch; ix++) {
+		err = mlx5e_create_direct_tir(priv, &priv->rx_res->channels[ix].direct_tir,
+					      &priv->rx_res->channels[ix].direct_rqt);
+		if (err)
+			goto err_destroy_tirs;
 	}
 
-	goto out;
+	return 0;
 
-err_destroy_ch_tirs:
-	mlx5_core_warn(priv->mdev, "create tirs failed, %d\n", err);
-	for (ix--; ix >= 0; ix--)
-		mlx5e_destroy_tir(priv->mdev, &tirs[ix]);
+err_destroy_tirs:
+	while (--ix >= 0)
+		mlx5e_destroy_tir(priv->mdev, &priv->rx_res->channels[ix].direct_tir);
 
-out:
-	kvfree(in);
+	return err;
+}
+
+static int mlx5e_create_xsk_tirs(struct mlx5e_priv *priv)
+{
+	int err;
+	int ix;
+
+	for (ix = 0; ix < priv->max_nch; ix++) {
+		err = mlx5e_create_direct_tir(priv, &priv->rx_res->channels[ix].xsk_tir,
+					      &priv->rx_res->channels[ix].xsk_rqt);
+		if (err)
+			goto err_destroy_tirs;
+	}
+
+	return 0;
+
+err_destroy_tirs:
+	while (--ix >= 0)
+		mlx5e_destroy_tir(priv->mdev, &priv->rx_res->channels[ix].xsk_tir);
 
 	return err;
 }
@@ -3236,22 +3295,30 @@ void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv)
 	int i;
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++)
-		mlx5e_destroy_tir(priv->mdev, &res->indir_tirs[i]);
+		mlx5e_destroy_tir(priv->mdev, &res->rss[i].indir_tir);
 
 	/* Verify inner tirs resources allocated */
-	if (!res->inner_indir_tirs[0].tirn)
+	if (!res->rss[0].inner_indir_tir.tirn)
 		return;
 
 	for (i = 0; i < MLX5E_NUM_INDIR_TIRS; i++)
-		mlx5e_destroy_tir(priv->mdev, &res->inner_indir_tirs[i]);
+		mlx5e_destroy_tir(priv->mdev, &res->rss[i].inner_indir_tir);
 }
 
-void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv, struct mlx5e_tir *tirs, int n)
+void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv)
 {
-	int i;
+	unsigned int ix;
 
-	for (i = 0; i < n; i++)
-		mlx5e_destroy_tir(priv->mdev, &tirs[i]);
+	for (ix = 0; ix < priv->max_nch; ix++)
+		mlx5e_destroy_tir(priv->mdev, &priv->rx_res->channels[ix].direct_tir);
+}
+
+static void mlx5e_destroy_xsk_tirs(struct mlx5e_priv *priv)
+{
+	unsigned int ix;
+
+	for (ix = 0; ix < priv->max_nch; ix++)
+		mlx5e_destroy_tir(priv->mdev, &priv->rx_res->channels[ix].xsk_tir);
 }
 
 static int mlx5e_modify_channels_scatter_fcs(struct mlx5e_channels *chs, bool enable)
@@ -4859,7 +4926,6 @@ static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 max_nch = priv->max_nch;
 	int err;
 
 	priv->rx_res = kvzalloc(sizeof(*priv->rx_res), GFP_KERNEL);
@@ -4880,7 +4946,7 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_close_drop_rq;
 
-	err = mlx5e_create_direct_rqts(priv, priv->rx_res->direct_tirs, max_nch);
+	err = mlx5e_create_direct_rqts(priv);
 	if (err)
 		goto err_destroy_indirect_rqts;
 
@@ -4888,23 +4954,24 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_direct_rqts;
 
-	err = mlx5e_create_direct_tirs(priv, priv->rx_res->direct_tirs, max_nch);
+	err = mlx5e_create_direct_tirs(priv);
 	if (err)
 		goto err_destroy_indirect_tirs;
 
-	err = mlx5e_create_direct_rqts(priv, priv->rx_res->xsk_tirs, max_nch);
+	err = mlx5e_create_xsk_rqts(priv);
 	if (unlikely(err))
 		goto err_destroy_direct_tirs;
 
-	err = mlx5e_create_direct_tirs(priv, priv->rx_res->xsk_tirs, max_nch);
+	err = mlx5e_create_xsk_tirs(priv);
 	if (unlikely(err))
 		goto err_destroy_xsk_rqts;
 
-	err = mlx5e_create_direct_rqts(priv, &priv->rx_res->ptp_tir, 1);
+	err = mlx5e_rqt_init_direct(&priv->rx_res->ptp.rqt, priv->mdev, false,
+				    priv->drop_rq.rqn);
 	if (err)
 		goto err_destroy_xsk_tirs;
 
-	err = mlx5e_create_direct_tirs(priv, &priv->rx_res->ptp_tir, 1);
+	err = mlx5e_create_direct_tir(priv, &priv->rx_res->ptp.tir, &priv->rx_res->ptp.rqt);
 	if (err)
 		goto err_destroy_ptp_rqt;
 
@@ -4933,19 +5000,19 @@ err_tc_nic_cleanup:
 err_destroy_flow_steering:
 	mlx5e_destroy_flow_steering(priv);
 err_destroy_ptp_direct_tir:
-	mlx5e_destroy_direct_tirs(priv, &priv->rx_res->ptp_tir, 1);
+	mlx5e_destroy_tir(priv->mdev, &priv->rx_res->ptp.tir);
 err_destroy_ptp_rqt:
-	mlx5e_destroy_direct_rqts(priv, &priv->rx_res->ptp_tir, 1);
+	mlx5e_rqt_destroy(&priv->rx_res->ptp.rqt);
 err_destroy_xsk_tirs:
-	mlx5e_destroy_direct_tirs(priv, priv->rx_res->xsk_tirs, max_nch);
+	mlx5e_destroy_xsk_tirs(priv);
 err_destroy_xsk_rqts:
-	mlx5e_destroy_direct_rqts(priv, priv->rx_res->xsk_tirs, max_nch);
+	mlx5e_destroy_xsk_rqts(priv);
 err_destroy_direct_tirs:
-	mlx5e_destroy_direct_tirs(priv, priv->rx_res->direct_tirs, max_nch);
+	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
 	mlx5e_destroy_indirect_tirs(priv);
 err_destroy_direct_rqts:
-	mlx5e_destroy_direct_rqts(priv, priv->rx_res->direct_tirs, max_nch);
+	mlx5e_destroy_direct_rqts(priv);
 err_destroy_indirect_rqts:
 	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
 err_close_drop_rq:
@@ -4959,18 +5026,16 @@ err_destroy_q_counters:
 
 static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
-	u16 max_nch = priv->max_nch;
-
 	mlx5e_accel_cleanup_rx(priv);
 	mlx5e_tc_nic_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
-	mlx5e_destroy_direct_tirs(priv, &priv->rx_res->ptp_tir, 1);
-	mlx5e_destroy_direct_rqts(priv, &priv->rx_res->ptp_tir, 1);
-	mlx5e_destroy_direct_tirs(priv, priv->rx_res->xsk_tirs, max_nch);
-	mlx5e_destroy_direct_rqts(priv, priv->rx_res->xsk_tirs, max_nch);
-	mlx5e_destroy_direct_tirs(priv, priv->rx_res->direct_tirs, max_nch);
+	mlx5e_destroy_tir(priv->mdev, &priv->rx_res->ptp.tir);
+	mlx5e_rqt_destroy(&priv->rx_res->ptp.rqt);
+	mlx5e_destroy_xsk_tirs(priv);
+	mlx5e_destroy_xsk_rqts(priv);
+	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);
-	mlx5e_destroy_direct_rqts(priv, priv->rx_res->direct_tirs, max_nch);
+	mlx5e_destroy_direct_rqts(priv);
 	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);

@@ -421,12 +421,9 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	} else {
 		struct mlx5e_params *params = &priv->channels.params;
 		enum mlx5e_rq_group group;
-		struct mlx5e_tir *tir;
 		u16 ix;
 
 		mlx5e_qid_get_ch_and_group(params, fs->ring_cookie, &ix, &group);
-		tir = group == MLX5E_RQ_GROUP_XSK ? priv->rx_res->xsk_tirs :
-						    priv->rx_res->direct_tirs;
 
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
@@ -435,7 +432,10 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		}
 
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-		dst->tir_num = tir[ix].tirn;
+		if (group == MLX5E_RQ_GROUP_XSK)
+			dst->tir_num = priv->rx_res->channels[ix].xsk_tir.tirn;
+		else
+			dst->tir_num = priv->rx_res->channels[ix].direct_tir.tirn;
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
