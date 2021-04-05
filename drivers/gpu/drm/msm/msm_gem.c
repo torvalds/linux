@@ -729,13 +729,15 @@ void msm_gem_purge(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 	GEM_WARN_ON(!is_purgeable(msm_obj));
-	GEM_WARN_ON(obj->import_attach);
 
 	/* Get rid of any iommu mapping(s): */
 	put_iova_spaces(obj, true);
 
 	msm_gem_vunmap(obj);
+
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
 
 	put_pages(obj);
 
@@ -744,7 +746,6 @@ void msm_gem_purge(struct drm_gem_object *obj)
 	msm_obj->madv = __MSM_MADV_PURGED;
 	update_inactive(msm_obj);
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
 	drm_gem_free_mmap_offset(obj);
 
 	/* Our goal here is to return as much of the memory as
