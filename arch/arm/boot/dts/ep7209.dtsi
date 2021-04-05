@@ -133,7 +133,7 @@
 			#pwm-cells = <1>;
 		};
 
-		uart1: uart@80000480 {
+		uart1: serial@80000480 {
 			compatible = "cirrus,ep7209-uart";
 			reg = <0x80000480 0x80>;
 			interrupts = <12 13>;
@@ -157,7 +157,7 @@
 			reg = <0x80001100 0x80>;
 		};
 
-		uart2: uart@80001480 {
+		uart2: serial@80001480 {
 			compatible = "cirrus,ep7209-uart";
 			reg = <0x80001480 0x80>;
 			interrupts = <28 29>;
