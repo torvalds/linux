@@ -368,12 +368,8 @@ static int pcan_usb_get_serial(struct peak_usb_device *dev, u32 *serial_number)
 	if (err)
 		return err;
 
-	if (serial_number) {
-		__le32 tmp32;
-
-		memcpy(&tmp32, args, 4);
-		*serial_number = le32_to_cpu(tmp32);
-	}
+	if (serial_number)
+		*serial_number = le32_to_cpup((__le32 *)args);
 
 	return 0;
 }
