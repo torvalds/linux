@@ -57,11 +57,6 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 	/*  only cmd52 can be used before power on(card enable) */
 	ret = CardEnable(padapter);
 	if (!ret) {
-		RT_TRACE(
-			_module_hci_hal_init_c_,
-			_drv_emerg_,
-			("%s: run power on flow fail\n", __func__)
-		);
 		return _FAIL;
 	}
 
@@ -680,7 +675,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 	ret = _InitPowerOn_8723BS(padapter);
 	if (_FAIL == ret) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Failed to init Power On!\n"));
 		return _FAIL;
 	}
 
@@ -688,12 +682,10 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 	ret = rtl8723b_FirmwareDownload(padapter, false);
 	if (ret != _SUCCESS) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("%s: Download Firmware failed!!\n", __func__));
 		padapter->bFWReady = false;
 		pHalData->fw_ractrl = false;
 		return ret;
 	} else {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("rtl8723bs_hal_init(): Download Firmware Success!!\n"));
 		padapter->bFWReady = true;
 		pHalData->fw_ractrl = true;
 	}
@@ -719,7 +711,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 #if (HAL_MAC_ENABLE == 1)
 	ret = PHY_MACConfig8723B(padapter);
 	if (ret != _SUCCESS) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializepadapter8192CSdio(): Fail to configure MAC!!\n"));
 		return ret;
 	}
 #endif
@@ -729,7 +720,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 #if (HAL_BB_ENABLE == 1)
 	ret = PHY_BBConfig8723B(padapter);
 	if (ret != _SUCCESS) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializepadapter8192CSdio(): Fail to configure BB!!\n"));
 		return ret;
 	}
 #endif
@@ -741,7 +731,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 #if (HAL_RF_ENABLE == 1)
 		ret = PHY_RFConfig8723B(padapter);
 		if (ret != _SUCCESS) {
-			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializepadapter8192CSdio(): Fail to configure RF!!\n"));
 			return ret;
 		}
 #endif
@@ -893,8 +882,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	/*  Init BT hw config. */
 	hal_btcoex_InitHwConfig(padapter, false);
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("-%s\n", __func__));
-
 	return _SUCCESS;
 }
 
@@ -1030,10 +1017,6 @@ static u32 rtl8723bs_inirp_init(struct adapter *padapter)
 
 static u32 rtl8723bs_inirp_deinit(struct adapter *padapter)
 {
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+rtl8723bs_inirp_deinit\n"));
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("-rtl8723bs_inirp_deinit\n"));
-
 	return _SUCCESS;
 }
 
@@ -1130,10 +1113,6 @@ static void Hal_EfuseParseMACAddr_8723BS(
 		/* Read Permanent MAC address */
 		memcpy(pEEPROM->mac_addr, &hwinfo[EEPROM_MAC_ADDR_8723BS], ETH_ALEN);
 	}
-/* 	NicIFSetMacAddress(padapter, padapter->PermanentAddress); */
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8723BS: Permanent Address = %pM\n", pEEPROM->mac_addr));
 }
 
 static void Hal_EfuseParseBoardType_8723BS(
@@ -1148,15 +1127,12 @@ static void Hal_EfuseParseBoardType_8723BS(
 			pHalData->BoardType = (EEPROM_DEFAULT_BOARD_OPTION & 0xE0) >> 5;
 	} else
 		pHalData->BoardType = 0;
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Board Type: 0x%2x\n", pHalData->BoardType));
 }
 
 static void _ReadEfuseInfo8723BS(struct adapter *padapter)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 	u8 *hwinfo = NULL;
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("====>_ReadEfuseInfo8723BS()\n"));
 
 	/*  */
 	/*  This part read and parse the eeprom/efuse content */
@@ -1191,8 +1167,6 @@ static void _ReadEfuseInfo8723BS(struct adapter *padapter)
 	Hal_EfuseParseVoltage_8723B(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 
 	Hal_ReadRFGainOffset(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("<==== _ReadEfuseInfo8723BS()\n"));
 }
 
 static void _ReadPROMContent(struct adapter *padapter)
@@ -1204,12 +1178,6 @@ static void _ReadPROMContent(struct adapter *padapter)
 	/*  To check system boot selection. */
 	pEEPROM->EepromOrEfuse = (eeValue & BOOT_FROM_EEPROM) ? true : false;
 	pEEPROM->bautoload_fail_flag = (eeValue & EEPROM_EN) ? false : true;
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("%s: 9346CR = 0x%02X, Boot from %s, Autoload %s\n",
-		  __func__, eeValue,
-		  (pEEPROM->EepromOrEfuse ? "EEPROM" : "EFUSE"),
-		  (pEEPROM->bautoload_fail_flag ? "Fail" : "OK")));
 
 /* 	pHalData->EEType = IS_BOOT_FROM_EEPROM(Adapter) ? EEPROM_93C46 : EEPROM_BOOT_EFUSE; */
 
@@ -1232,8 +1200,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 {
 	u8 val8;
 	unsigned long start;
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+_ReadAdapterInfo8723BS\n"));
 
 	/*  before access eFuse, make sure card enable has been called */
 	if (!padapter->hw_init_completed)
