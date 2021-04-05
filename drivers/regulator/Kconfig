@@ -204,6 +204,17 @@ config REGULATOR_BD70528
 	  This driver can also be built as a module. If so, the module
 	  will be called bd70528-regulator.
 
+config REGULATOR_BD71815
+	tristate "ROHM BD71815 Power Regulator"
+	depends on MFD_ROHM_BD71828
+	help
+	  This driver supports voltage regulators on ROHM BD71815 PMIC.
+	  This will enable support for the software controllable buck
+	  and LDO regulators and a current regulator for LEDs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd71815-regulator.
+
 config REGULATOR_BD71828
 	tristate "ROHM BD71828 Power Regulator"
 	depends on MFD_ROHM_BD71828
