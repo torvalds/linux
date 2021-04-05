@@ -295,10 +295,6 @@ struct dvobj_priv {
 	struct cam_ctl_t cam_ctl;
 	struct cam_entry_cache cam_cache[TOTAL_CAM_ENTRY];
 
-	/* For 92D, DMDP have 2 interface. */
-	u8 InterfaceNumber;
-	u8 NumInterfaces;
-
 	/* In /Out Pipe information */
 	int	RtInPipe[2];
 	int	RtOutPipe[4];
