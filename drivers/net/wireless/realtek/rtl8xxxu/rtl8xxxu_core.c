@@ -5423,7 +5423,6 @@ static void rtl8xxxu_c2hcmd_callback(struct work_struct *work)
 	struct rtl8xxxu_priv *priv;
 	struct rtl8723bu_c2h *c2h;
 	struct sk_buff *skb = NULL;
-	unsigned long flags;
 	u8 bt_info = 0;
 	struct rtl8xxxu_btcoex *btcoex;
 	struct rtl8xxxu_ra_report *rarpt;
@@ -5439,9 +5438,7 @@ static void rtl8xxxu_c2hcmd_callback(struct work_struct *work)
 		goto out;
 
 	while (!skb_queue_empty(&priv->c2hcmd_queue)) {
-		spin_lock_irqsave(&priv->c2hcmd_lock, flags);
-		skb = __skb_dequeue(&priv->c2hcmd_queue);
-		spin_unlock_irqrestore(&priv->c2hcmd_lock, flags);
+		skb = skb_dequeue(&priv->c2hcmd_queue);
 
 		c2h = (struct rtl8723bu_c2h *)skb->data;
 
@@ -5499,7 +5496,6 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 	struct rtl8723bu_c2h *c2h = (struct rtl8723bu_c2h *)skb->data;
 	struct device *dev = &priv->udev->dev;
 	int len;
-	unsigned long flags;
 
 	len = skb->len - 2;
 
@@ -5538,9 +5534,7 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 		break;
 	}
 
-	spin_lock_irqsave(&priv->c2hcmd_lock, flags);
-	__skb_queue_tail(&priv->c2hcmd_queue, skb);
-	spin_unlock_irqrestore(&priv->c2hcmd_lock, flags);
+	skb_queue_tail(&priv->c2hcmd_queue, skb);
 
 	schedule_work(&priv->c2hcmd_work);
 }
@@ -6606,7 +6600,6 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	spin_lock_init(&priv->rx_urb_lock);
 	INIT_WORK(&priv->rx_urb_wq, rtl8xxxu_rx_urb_work);
 	INIT_DELAYED_WORK(&priv->ra_watchdog, rtl8xxxu_watchdog_callback);
-	spin_lock_init(&priv->c2hcmd_lock);
 	INIT_WORK(&priv->c2hcmd_work, rtl8xxxu_c2hcmd_callback);
 	skb_queue_head_init(&priv->c2hcmd_queue);
 
