@@ -673,7 +673,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 /* 	rtw_hal_disable_interrupt(padapter); */
 
 	ret = _InitPowerOn_8723BS(padapter);
-	if (_FAIL == ret)
+	if (ret == _FAIL)
 		return _FAIL;
 
 	rtw_write8(padapter, REG_EARLY_MODE_CONTROL, 0);
