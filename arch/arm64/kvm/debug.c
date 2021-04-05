@@ -263,3 +263,26 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 		}
 	}
 }
+
+void kvm_arch_vcpu_load_debug_state_flags(struct kvm_vcpu *vcpu)
+{
+	u64 dfr0;
+
+	/* For VHE, there is nothing to do */
+	if (has_vhe())
+		return;
+
+	dfr0 = read_sysreg(id_aa64dfr0_el1);
+	/*
+	 * If SPE is present on this CPU and is available at current EL,
+	 * we may need to check if the host state needs to be saved.
+	 */
+	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_PMSVER_SHIFT) &&
+	    !(read_sysreg_s(SYS_PMBIDR_EL1) & BIT(SYS_PMBIDR_EL1_P_SHIFT)))
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_STATE_SAVE_SPE;
+}
+
+void kvm_arch_vcpu_put_debug_state_flags(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.flags &= ~KVM_ARM64_DEBUG_STATE_SAVE_SPE;
+}
