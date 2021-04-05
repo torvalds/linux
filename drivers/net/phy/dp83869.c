@@ -821,6 +821,10 @@ static int dp83869_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	if (dp83869->mode == DP83869_RGMII_100_BASE ||
+	    dp83869->mode == DP83869_RGMII_1000_BASE)
+		phydev->port = PORT_FIBRE;
+
 	return dp83869_config_init(phydev);
 }
 

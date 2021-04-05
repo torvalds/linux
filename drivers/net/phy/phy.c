@@ -327,7 +327,7 @@ void phy_ethtool_ksettings_get(struct phy_device *phydev,
 	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
 		cmd->base.port = PORT_BNC;
 	else
-		cmd->base.port = PORT_MII;
+		cmd->base.port = phydev->port;
 	cmd->base.transceiver = phy_is_internal(phydev) ?
 				XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->base.phy_address = phydev->mdio.addr;
