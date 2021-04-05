@@ -394,14 +394,10 @@ static int pcan_usb_get_device_id(struct peak_usb_device *dev, u32 *device_id)
  */
 static int pcan_usb_update_ts(struct pcan_usb_msg_context *mc)
 {
-	__le16 tmp16;
-
 	if ((mc->ptr + 2) > mc->end)
 		return -EINVAL;
 
-	memcpy(&tmp16, mc->ptr, 2);
-
-	mc->ts16 = le16_to_cpu(tmp16);
+	mc->ts16 = get_unaligned_le16(mc->ptr);
 
 	if (mc->rec_idx > 0)
 		peak_usb_update_ts_now(&mc->pdev->time_ref, mc->ts16);
@@ -418,16 +414,13 @@ static int pcan_usb_decode_ts(struct pcan_usb_msg_context *mc, u8 first_packet)
 {
 	/* only 1st packet supplies a word timestamp */
 	if (first_packet) {
-		__le16 tmp16;
-
 		if ((mc->ptr + 2) > mc->end)
 			return -EINVAL;
 
-		memcpy(&tmp16, mc->ptr, 2);
-		mc->ptr += 2;
-
-		mc->ts16 = le16_to_cpu(tmp16);
+		mc->ts16 = get_unaligned_le16(mc->ptr);
 		mc->prev_ts8 = mc->ts16 & 0x00ff;
+
+		mc->ptr += 2;
 	} else {
 		u8 ts8;
 
@@ -717,25 +710,17 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		return -ENOMEM;
 
 	if (status_len & PCAN_USB_STATUSLEN_EXT_ID) {
-		__le32 tmp32;
-
 		if ((mc->ptr + 4) > mc->end)
 			goto decode_failed;
 
-		memcpy(&tmp32, mc->ptr, 4);
+		cf->can_id = get_unaligned_le32(mc->ptr) >> 3 | CAN_EFF_FLAG;
 		mc->ptr += 4;
-
-		cf->can_id = (le32_to_cpu(tmp32) >> 3) | CAN_EFF_FLAG;
 	} else {
-		__le16 tmp16;
-
 		if ((mc->ptr + 2) > mc->end)
 			goto decode_failed;
 
-		memcpy(&tmp16, mc->ptr, 2);
+		cf->can_id = get_unaligned_le16(mc->ptr) >> 5;
 		mc->ptr += 2;
-
-		cf->can_id = le16_to_cpu(tmp16) >> 5;
 	}
 
 	can_frame_set_cc_len(cf, rec_len, mc->pdev->dev.can.ctrlmode);
@@ -849,15 +834,15 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 
 	/* can id */
 	if (cf->can_id & CAN_EFF_FLAG) {
-		__le32 tmp32 = cpu_to_le32((cf->can_id & CAN_ERR_MASK) << 3);
-
 		*pc |= PCAN_USB_STATUSLEN_EXT_ID;
-		memcpy(++pc, &tmp32, 4);
+		pc++;
+
+		put_unaligned_le32((cf->can_id & CAN_ERR_MASK) << 3, pc);
 		pc += 4;
 	} else {
-		__le16 tmp16 = cpu_to_le16((cf->can_id & CAN_ERR_MASK) << 5);
+		pc++;
 
-		memcpy(++pc, &tmp16, 2);
+		put_unaligned_le16((cf->can_id & CAN_ERR_MASK) << 5, pc);
 		pc += 2;
 	}
 
