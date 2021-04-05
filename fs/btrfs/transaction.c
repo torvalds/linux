@@ -1950,7 +1950,6 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 	 */
 	BUG_ON(list_empty(&cur_trans->list));
 
-	list_del_init(&cur_trans->list);
 	if (cur_trans == fs_info->running_transaction) {
 		cur_trans->state = TRANS_STATE_COMMIT_DOING;
 		spin_unlock(&fs_info->trans_lock);
@@ -1959,6 +1958,17 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 
 		spin_lock(&fs_info->trans_lock);
 	}
+
+	/*
+	 * Now that we know no one else is still using the transaction we can
+	 * remove the transaction from the list of transactions. This avoids
+	 * the transaction kthread from cleaning up the transaction while some
+	 * other task is still using it, which could result in a use-after-free
+	 * on things like log trees, as it forces the transaction kthread to
+	 * wait for this transaction to be cleaned up by us.
+	 */
+	list_del_init(&cur_trans->list);
+
 	spin_unlock(&fs_info->trans_lock);
 
 	btrfs_cleanup_one_transaction(trans->transaction, fs_info);
