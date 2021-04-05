@@ -96,7 +96,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	if (!msm_obj->pages) {
 		struct drm_device *dev = obj->dev;
@@ -180,7 +180,7 @@ struct page **msm_gem_get_pages(struct drm_gem_object *obj)
 
 	msm_gem_lock(obj);
 
-	if (WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
+	if (GEM_WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
 		msm_gem_unlock(obj);
 		return ERR_PTR(-EBUSY);
 	}
@@ -256,7 +256,7 @@ static vm_fault_t msm_gem_fault(struct vm_fault *vmf)
 		goto out;
 	}
 
-	if (WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
+	if (GEM_WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
 		msm_gem_unlock(obj);
 		return VM_FAULT_SIGBUS;
 	}
@@ -289,7 +289,7 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	int ret;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	/* Make it mmapable */
 	ret = drm_gem_create_mmap_offset(obj);
@@ -318,7 +318,7 @@ static struct msm_gem_vma *add_vma(struct drm_gem_object *obj,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (!vma)
@@ -337,7 +337,7 @@ static struct msm_gem_vma *lookup_vma(struct drm_gem_object *obj,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	list_for_each_entry(vma, &msm_obj->vmas, list) {
 		if (vma->aspace == aspace)
@@ -363,7 +363,7 @@ put_iova_spaces(struct drm_gem_object *obj)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	list_for_each_entry(vma, &msm_obj->vmas, list) {
 		if (vma->aspace) {
@@ -380,7 +380,7 @@ put_iova_vmas(struct drm_gem_object *obj)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma, *tmp;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	list_for_each_entry_safe(vma, tmp, &msm_obj->vmas, list) {
 		del_vma(vma);
@@ -394,7 +394,7 @@ static int get_iova_locked(struct drm_gem_object *obj,
 	struct msm_gem_vma *vma;
 	int ret = 0;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	vma = lookup_vma(obj, aspace);
 
@@ -429,13 +429,13 @@ static int msm_gem_pin_iova(struct drm_gem_object *obj,
 	if (msm_obj->flags & MSM_BO_MAP_PRIV)
 		prot |= IOMMU_PRIV;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
-	if (WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED))
+	if (GEM_WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED))
 		return -EBUSY;
 
 	vma = lookup_vma(obj, aspace);
-	if (WARN_ON(!vma))
+	if (GEM_WARN_ON(!vma))
 		return -EINVAL;
 
 	pages = get_pages(obj);
@@ -453,7 +453,7 @@ static int get_and_pin_iova_range_locked(struct drm_gem_object *obj,
 	u64 local;
 	int ret;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	ret = get_iova_locked(obj, aspace, &local,
 		range_start, range_end);
@@ -524,7 +524,7 @@ uint64_t msm_gem_iova(struct drm_gem_object *obj,
 	msm_gem_lock(obj);
 	vma = lookup_vma(obj, aspace);
 	msm_gem_unlock(obj);
-	WARN_ON(!vma);
+	GEM_WARN_ON(!vma);
 
 	return vma ? vma->iova : 0;
 }
@@ -537,11 +537,11 @@ void msm_gem_unpin_iova_locked(struct drm_gem_object *obj,
 {
 	struct msm_gem_vma *vma;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	vma = lookup_vma(obj, aspace);
 
-	if (!WARN_ON(!vma))
+	if (!GEM_WARN_ON(!vma))
 		msm_gem_unmap_vma(aspace, vma);
 }
 
@@ -593,12 +593,12 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	if (obj->import_attach)
 		return ERR_PTR(-ENODEV);
 
-	if (WARN_ON(msm_obj->madv > madv)) {
+	if (GEM_WARN_ON(msm_obj->madv > madv)) {
 		DRM_DEV_ERROR(obj->dev->dev, "Invalid madv state: %u vs %u\n",
 			msm_obj->madv, madv);
 		return ERR_PTR(-EBUSY);
@@ -664,8 +664,8 @@ void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	WARN_ON(!msm_gem_is_locked(obj));
-	WARN_ON(msm_obj->vmap_count < 1);
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(msm_obj->vmap_count < 1);
 
 	msm_obj->vmap_count--;
 }
@@ -707,8 +707,8 @@ void msm_gem_purge(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	WARN_ON(!is_purgeable(msm_obj));
-	WARN_ON(obj->import_attach);
+	GEM_WARN_ON(!is_purgeable(msm_obj));
+	GEM_WARN_ON(obj->import_attach);
 
 	put_iova_spaces(obj);
 
@@ -739,9 +739,9 @@ void msm_gem_vunmap(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
-	if (!msm_obj->vaddr || WARN_ON(!is_vunmapable(msm_obj)))
+	if (!msm_obj->vaddr || GEM_WARN_ON(!is_vunmapable(msm_obj)))
 		return;
 
 	vunmap(msm_obj->vaddr);
@@ -789,9 +789,9 @@ void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu)
 	struct msm_drm_private *priv = obj->dev->dev_private;
 
 	might_sleep();
-	WARN_ON(!msm_gem_is_locked(obj));
-	WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
-	WARN_ON(msm_obj->dontneed);
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
+	GEM_WARN_ON(msm_obj->dontneed);
 
 	if (msm_obj->active_count++ == 0) {
 		mutex_lock(&priv->mm_lock);
@@ -806,7 +806,7 @@ void msm_gem_active_put(struct drm_gem_object *obj)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
 	might_sleep();
-	WARN_ON(!msm_gem_is_locked(obj));
+	GEM_WARN_ON(!msm_gem_is_locked(obj));
 
 	if (--msm_obj->active_count == 0) {
 		update_inactive(msm_obj);
@@ -818,7 +818,7 @@ static void update_inactive(struct msm_gem_object *msm_obj)
 	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
 
 	mutex_lock(&priv->mm_lock);
-	WARN_ON(msm_obj->active_count != 0);
+	GEM_WARN_ON(msm_obj->active_count != 0);
 
 	if (msm_obj->dontneed)
 		mark_unpurgeable(msm_obj);
@@ -830,7 +830,7 @@ static void update_inactive(struct msm_gem_object *msm_obj)
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_dontneed);
 		mark_purgeable(msm_obj);
 	} else {
-		WARN_ON(msm_obj->madv != __MSM_MADV_PURGED);
+		GEM_WARN_ON(msm_obj->madv != __MSM_MADV_PURGED);
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_purged);
 	}
 
@@ -1010,12 +1010,12 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	msm_gem_lock(obj);
 
 	/* object should not be on active list: */
-	WARN_ON(is_active(msm_obj));
+	GEM_WARN_ON(is_active(msm_obj));
 
 	put_iova_spaces(obj);
 
 	if (obj->import_attach) {
-		WARN_ON(msm_obj->vaddr);
+		GEM_WARN_ON(msm_obj->vaddr);
 
 		/* Don't drop the pages for imported dmabuf, as they are not
 		 * ours, just free the array we allocated:
@@ -1131,7 +1131,7 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	else if ((flags & (MSM_BO_STOLEN | MSM_BO_SCANOUT)) && priv->vram.size)
 		use_vram = true;
 
-	if (WARN_ON(use_vram && !priv->vram.size))
+	if (GEM_WARN_ON(use_vram && !priv->vram.size))
 		return ERR_PTR(-EINVAL);
 
 	/* Disallow zero sized objects as they make the underlying

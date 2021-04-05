@@ -11,6 +11,11 @@
 #include <linux/dma-resv.h>
 #include "msm_drv.h"
 
+/* Make all GEM related WARN_ON()s ratelimited.. when things go wrong they
+ * tend to go wrong 1000s of times in a short timespan.
+ */
+#define GEM_WARN_ON(x)  WARN_RATELIMIT(x, "%s", __stringify(x))
+
 /* Additional internal-use only BO flags: */
 #define MSM_BO_STOLEN        0x10000000    /* try to use stolen/splash memory */
 #define MSM_BO_MAP_PRIV      0x20000000    /* use IOMMU_PRIV when mapping */
@@ -203,7 +208,7 @@ msm_gem_is_locked(struct drm_gem_object *obj)
 
 static inline bool is_active(struct msm_gem_object *msm_obj)
 {
-	WARN_ON(!msm_gem_is_locked(&msm_obj->base));
+	GEM_WARN_ON(!msm_gem_is_locked(&msm_obj->base));
 	return msm_obj->active_count;
 }
 
@@ -221,7 +226,7 @@ static inline bool is_purgeable(struct msm_gem_object *msm_obj)
 
 static inline bool is_vunmapable(struct msm_gem_object *msm_obj)
 {
-	WARN_ON(!msm_gem_is_locked(&msm_obj->base));
+	GEM_WARN_ON(!msm_gem_is_locked(&msm_obj->base));
 	return (msm_obj->vmap_count == 0) && msm_obj->vaddr;
 }
 
@@ -229,12 +234,12 @@ static inline void mark_purgeable(struct msm_gem_object *msm_obj)
 {
 	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
 
-	WARN_ON(!mutex_is_locked(&priv->mm_lock));
+	GEM_WARN_ON(!mutex_is_locked(&priv->mm_lock));
 
 	if (is_unpurgeable(msm_obj))
 		return;
 
-	if (WARN_ON(msm_obj->dontneed))
+	if (GEM_WARN_ON(msm_obj->dontneed))
 		return;
 
 	priv->shrinkable_count += msm_obj->base.size >> PAGE_SHIFT;
@@ -245,16 +250,16 @@ static inline void mark_unpurgeable(struct msm_gem_object *msm_obj)
 {
 	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
 
-	WARN_ON(!mutex_is_locked(&priv->mm_lock));
+	GEM_WARN_ON(!mutex_is_locked(&priv->mm_lock));
 
 	if (is_unpurgeable(msm_obj))
 		return;
 
-	if (WARN_ON(!msm_obj->dontneed))
+	if (GEM_WARN_ON(!msm_obj->dontneed))
 		return;
 
 	priv->shrinkable_count -= msm_obj->base.size >> PAGE_SHIFT;
-	WARN_ON(priv->shrinkable_count < 0);
+	GEM_WARN_ON(priv->shrinkable_count < 0);
 	msm_obj->dontneed = false;
 }
 
