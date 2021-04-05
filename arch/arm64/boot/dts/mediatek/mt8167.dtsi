@@ -131,5 +131,14 @@
 			reg = <0 0x14000000 0 0x1000>;
 			#clock-cells = <1>;
 		};
+
+		smi_common: smi@14017000 {
+			compatible = "mediatek,mt8167-smi-common";
+			reg = <0 0x14017000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_SMI_COMMON>,
+				 <&mmsys CLK_MM_SMI_COMMON>;
+			clock-names = "apb", "smi";
+			power-domains = <&spm MT8167_POWER_DOMAIN_MM>;
+		};
 	};
 };
