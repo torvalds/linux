@@ -1217,7 +1217,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 
 		/* ACK */
 		if (ddev->atn_count) {
-			/* The target has previously recevied one or more ATN
+			/* The target has previously received one or more ATN
 			 * PDUs.
 			 */
 			ddev->atn_count = 0;
