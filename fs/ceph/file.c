@@ -1513,7 +1513,6 @@ static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	size_t len = iov_iter_count(to);
 	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct page *pinned_page = NULL;
 	bool direct_lock = iocb->ki_flags & IOCB_DIRECT;
 	ssize_t ret;
 	int want, got = 0;
@@ -1532,8 +1531,7 @@ again:
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
 		want = CEPH_CAP_FILE_CACHE;
-	ret = ceph_get_caps(filp, CEPH_CAP_FILE_RD, want, -1,
-			    &got, &pinned_page);
+	ret = ceph_get_caps(filp, CEPH_CAP_FILE_RD, want, -1, &got);
 	if (ret < 0) {
 		if (iocb->ki_flags & IOCB_DIRECT)
 			ceph_end_io_direct(inode);
@@ -1574,10 +1572,6 @@ again:
 
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);
-	if (pinned_page) {
-		put_page(pinned_page);
-		pinned_page = NULL;
-	}
 	ceph_put_cap_refs(ci, got);
 
 	if (direct_lock)
@@ -1756,8 +1750,7 @@ retry_snap:
 	else
 		want = CEPH_CAP_FILE_BUFFER;
 	got = 0;
-	err = ceph_get_caps(file, CEPH_CAP_FILE_WR, want, pos + count,
-			    &got, NULL);
+	err = ceph_get_caps(file, CEPH_CAP_FILE_WR, want, pos + count, &got);
 	if (err < 0)
 		goto out;
 
@@ -2086,7 +2079,7 @@ static long ceph_fallocate(struct file *file, int mode,
 	else
 		want = CEPH_CAP_FILE_BUFFER;
 
-	ret = ceph_get_caps(file, CEPH_CAP_FILE_WR, want, endoff, &got, NULL);
+	ret = ceph_get_caps(file, CEPH_CAP_FILE_WR, want, endoff, &got);
 	if (ret < 0)
 		goto unlock;
 
@@ -2124,7 +2117,7 @@ static int get_rd_wr_caps(struct file *src_filp, int *src_got,
 
 retry_caps:
 	ret = ceph_get_caps(dst_filp, CEPH_CAP_FILE_WR, CEPH_CAP_FILE_BUFFER,
-			    dst_endoff, dst_got, NULL);
+			    dst_endoff, dst_got);
 	if (ret < 0)
 		return ret;
 
@@ -2146,7 +2139,7 @@ retry_caps:
 			return ret;
 		}
 		ret = ceph_get_caps(src_filp, CEPH_CAP_FILE_RD,
-				    CEPH_CAP_FILE_SHARED, -1, src_got, NULL);
+				    CEPH_CAP_FILE_SHARED, -1, src_got);
 		if (ret < 0)
 			return ret;
 		/*... drop src_ci caps too, and retry */
