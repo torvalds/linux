@@ -1975,19 +1975,20 @@ config MFD_ROHM_BD70528
 	  charger.
 
 config MFD_ROHM_BD71828
-	tristate "ROHM BD71828 Power Management IC"
+	tristate "ROHM BD71828 and BD71815 Power Management IC"
 	depends on I2C=y
 	depends on OF
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE
 	help
-	  Select this option to get support for the ROHM BD71828 Power
-	  Management IC. BD71828GW is a single-chip power management IC for
-	  battery-powered portable devices. The IC integrates 7 buck
-	  converters, 7 LDOs, and a 1500 mA single-cell linear charger.
-	  Also included is a Coulomb counter, a real-time clock (RTC), and
-	  a 32.768 kHz clock gate.
+	  Select this option to get support for the ROHM BD71828 and BD71815
+	  Power Management ICs. BD71828GW and BD71815AGW are single-chip power
+	  management ICs mainly for battery-powered portable devices.
+	  The BD71828 integrates 7 buck converters and 7 LDOs. The BD71815
+	  has 5 bucks, 7 LDOs, and a boost for driving LEDs. Both ICs provide
+	  also a single-cell linear charger, a Coulomb counter, a real-time
+	  clock (RTC), GPIOs and a 32.768 kHz clock gate.
 
 config MFD_STM32_LPTIMER
 	tristate "Support for STM32 Low-Power Timer"
