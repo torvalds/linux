@@ -551,15 +551,6 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 	*size = fpu_kernel_xstate_size;
 }
 
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
-
 static inline void
 native_load_sp0(unsigned long sp0)
 {

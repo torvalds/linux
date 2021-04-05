@@ -80,7 +80,6 @@
 MODULE_AUTHOR("Hewlett-Packard Company");
 MODULE_DESCRIPTION("Driver for HP Smart Array Controller version " \
 	HPSA_DRIVER_VERSION);
-MODULE_SUPPORTED_DEVICE("HP Smart Array Controllers");
 MODULE_VERSION(HPSA_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("cciss");

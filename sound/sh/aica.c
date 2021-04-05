@@ -32,7 +32,6 @@
 MODULE_AUTHOR("Adrian McMenamin <adrian@mcmen.demon.co.uk>");
 MODULE_DESCRIPTION("Dreamcast AICA sound (pcm) driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Yamaha/SEGA, AICA}}");
 MODULE_FIRMWARE("aica_firmware.bin");
 
 /* module parameters */
