@@ -22,13 +22,26 @@ static int set_dvs_level(const struct regulator_desc *desc,
 			return ret;
 		return 0;
 	}
-
+	/* If voltage is set to 0 => disable */
 	if (uv == 0) {
 		if (omask)
 			return regmap_update_bits(regmap, oreg, omask, 0);
 	}
+	/* Some setups don't allow setting own voltage but do allow enabling */
+	if (!mask) {
+		if (omask)
+			return regmap_update_bits(regmap, oreg, omask, omask);
+
+		return -EINVAL;
+	}
 	for (i = 0; i < desc->n_voltages; i++) {
-		ret = regulator_desc_list_voltage_linear_range(desc, i);
+		/* NOTE to next hacker - Does not support pickable ranges */
+		if (desc->linear_range_selectors)
+			return -EINVAL;
+		if (desc->n_linear_ranges)
+			ret = regulator_desc_list_voltage_linear_range(desc, i);
+		else
+			ret = regulator_desc_list_voltage_linear(desc, i);
 		if (ret < 0)
 			continue;
 		if (ret == uv) {
