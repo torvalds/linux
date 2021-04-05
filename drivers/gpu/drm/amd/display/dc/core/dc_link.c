@@ -48,6 +48,7 @@
 #include "dce/dmub_psr.h"
 #include "dmub/dmub_srv.h"
 #include "inc/hw/panel_cntl.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -3737,8 +3738,22 @@ void dc_link_overwrite_extended_receiver_cap(
 
 bool dc_link_is_fec_supported(const struct dc_link *link)
 {
+	struct link_encoder *link_enc = NULL;
+
+	/* Links supporting dynamically assigned link encoder will be assigned next
+	 * available encoder if one not already assigned.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign) {
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		if (link_enc == NULL)
+			link_enc = link_enc_cfg_get_next_avail_link_enc(link->dc, link->dc->current_state);
+	} else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
+
 	return (dc_is_dp_signal(link->connector_signal) &&
-			link->link_enc->features.fec_supported &&
+			link_enc->features.fec_supported &&
 			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
 			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
 }
