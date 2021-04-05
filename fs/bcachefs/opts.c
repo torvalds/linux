@@ -23,6 +23,13 @@ const char * const bch2_sb_features[] = {
 	NULL
 };
 
+const char * const bch2_sb_compat[] = {
+#define x(f, n) #f,
+	BCH_SB_COMPAT()
+#undef x
+	NULL
+};
+
 const char * const bch2_csum_opts[] = {
 	"none",
 	"crc32c",

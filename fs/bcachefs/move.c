@@ -757,6 +757,9 @@ next:
 out:
 	bch2_trans_exit(&trans);
 
+	if (ret)
+		bch_err(c, "error %i in bch2_move_btree", ret);
+
 	return ret;
 }
 
@@ -880,8 +883,8 @@ int bch2_scan_old_btree_nodes(struct bch_fs *c, struct bch_move_stats *stats)
 			      rewrite_old_nodes_pred, c, stats);
 	if (!ret) {
 		mutex_lock(&c->sb_lock);
-		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE;
-		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_BFORMAT_OVERFLOW_DONE;
+		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_extents_above_btree_updates_done;
+		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_bformat_overflow_done;
 		c->disk_sb.sb->version_min = c->disk_sb.sb->version;
 		bch2_write_super(c);
 		mutex_unlock(&c->sb_lock);

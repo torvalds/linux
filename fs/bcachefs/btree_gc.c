@@ -762,7 +762,7 @@ static int bch2_gc_done(struct bch_fs *c,
 {
 	struct bch_dev *ca;
 	bool verify = (!initial ||
-		       (c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)));
+		       (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
 	unsigned i, dev;
 	int ret = 0;
 

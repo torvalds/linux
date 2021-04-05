@@ -1370,11 +1370,17 @@ enum bch_sb_feature {
 	BCH_FEATURE_NR,
 };
 
+#define BCH_SB_COMPAT()					\
+	x(alloc_info,				0)	\
+	x(alloc_metadata,			1)	\
+	x(extents_above_btree_updates_done,	2)	\
+	x(bformat_overflow_done,		3)
+
 enum bch_sb_compat {
-	BCH_COMPAT_FEAT_ALLOC_INFO		= 0,
-	BCH_COMPAT_FEAT_ALLOC_METADATA		= 1,
-	BCH_COMPAT_FEAT_EXTENTS_ABOVE_BTREE_UPDATES_DONE = 2,
-	BCH_COMPAT_FEAT_BFORMAT_OVERFLOW_DONE	= 3,
+#define x(f, n) BCH_COMPAT_##f,
+	BCH_SB_COMPAT()
+#undef x
+	BCH_COMPAT_NR,
 };
 
 /* options: */
