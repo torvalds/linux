@@ -439,8 +439,7 @@ static int pcan_usb_pro_get_device_id(struct peak_usb_device *dev,
 		return err;
 
 	pdn = (struct pcan_usb_pro_devid *)pc;
-	if (device_id)
-		*device_id = le32_to_cpu(pdn->serial_num);
+	*device_id = le32_to_cpu(pdn->serial_num);
 
 	return err;
 }

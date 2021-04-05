@@ -388,8 +388,8 @@ static int pcan_usb_get_device_id(struct peak_usb_device *dev, u32 *device_id)
 	err = pcan_usb_wait_rsp(dev, PCAN_USB_CMD_DEVID, PCAN_USB_GET, args);
 	if (err)
 		netdev_err(dev->netdev, "getting device id failure: %d\n", err);
-	else if (device_id)
-		*device_id = args[0];
+
+	*device_id = args[0];
 
 	return err;
 }
