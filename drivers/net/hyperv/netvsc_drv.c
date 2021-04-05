@@ -2354,7 +2354,7 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	 */
 	if (!net_eq(dev_net(ndev), dev_net(vf_netdev))) {
 		ret = dev_change_net_namespace(vf_netdev,
-					       dev_net(ndev), "eth%d");
+					       dev_net(ndev), "eth%d", 0);
 		if (ret)
 			netdev_err(vf_netdev,
 				   "could not move to same namespace as %s: %d\n",
