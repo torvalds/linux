@@ -1729,6 +1729,83 @@ int _kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 }
 
 /*
+ * Device Ioctl
+ */
+
+int _kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
+{
+	struct kvm_device_attr attribute = {
+		.group = group,
+		.attr = attr,
+		.flags = 0,
+	};
+	int ret = ioctl(dev_fd, KVM_HAS_DEVICE_ATTR, &attribute);
+
+	if (ret == -1)
+		return -errno;
+	return 0;
+}
+
+int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
+{
+	int ret = _kvm_device_check_attr(dev_fd, group, attr);
+
+	TEST_ASSERT(ret >= 0, "KVM_HAS_DEVICE_ATTR failed, errno: %i", errno);
+	return ret;
+}
+
+int _kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test)
+{
+	struct kvm_create_device create_dev;
+	int ret;
+
+	create_dev.type = type;
+	create_dev.fd = -1;
+	create_dev.flags = test ? KVM_CREATE_DEVICE_TEST : 0;
+	ret = ioctl(vm_get_fd(vm), KVM_CREATE_DEVICE, &create_dev);
+	if (ret == -1)
+		return -errno;
+	return test ? 0 : create_dev.fd;
+}
+
+int kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test)
+{
+	int ret = _kvm_create_device(vm, type, test);
+
+	TEST_ASSERT(ret >= 0, "KVM_CREATE_DEVICE IOCTL failed,\n"
+		"  errno: %i", errno);
+	return ret;
+}
+
+int _kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
+		      void *val, bool write)
+{
+	struct kvm_device_attr kvmattr = {
+		.group = group,
+		.attr = attr,
+		.flags = 0,
+		.addr = (uintptr_t)val,
+	};
+	int ret;
+
+	ret = ioctl(dev_fd, write ? KVM_SET_DEVICE_ATTR : KVM_GET_DEVICE_ATTR,
+		    &kvmattr);
+	if (ret < 0)
+		return -errno;
+	return ret;
+}
+
+int kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
+		      void *val, bool write)
+{
+	int ret = _kvm_device_access(dev_fd, group, attr, val, write);
+
+	TEST_ASSERT(ret >= 0, "KVM_SET|GET_DEVICE_ATTR IOCTL failed,\n"
+		    "  errno: %i", errno);
+	return ret;
+}
+
+/*
  * VM Dump
  *
  * Input Args:
