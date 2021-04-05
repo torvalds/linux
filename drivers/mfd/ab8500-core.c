@@ -19,7 +19,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -609,14 +608,14 @@ int ab8500_suspend(struct ab8500 *ab8500)
 }
 
 static const struct mfd_cell ab8500_bm_devs[] = {
-	MFD_CELL_OF("ab8500-charger", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-charger"),
-	MFD_CELL_OF("ab8500-btemp", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-btemp"),
-	MFD_CELL_OF("ab8500-fg", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-fg"),
-	MFD_CELL_OF("ab8500-chargalg", NULL, &ab8500_bm_data,
-		    sizeof(ab8500_bm_data), 0, "stericsson,ab8500-chargalg"),
+	MFD_CELL_OF("ab8500-charger", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-charger"),
+	MFD_CELL_OF("ab8500-btemp", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-btemp"),
+	MFD_CELL_OF("ab8500-fg", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-fg"),
+	MFD_CELL_OF("ab8500-chargalg", NULL, NULL, 0, 0,
+		    "stericsson,ab8500-chargalg"),
 };
 
 static const struct mfd_cell ab8500_devs[] = {

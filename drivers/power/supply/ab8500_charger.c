@@ -28,11 +28,12 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
-#include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/usb/otg.h>
 #include <linux/mutex.h>
 #include <linux/iio/consumer.h>
+
+#include "ab8500-bm.h"
+#include "ab8500-chargalg.h"
 
 /* Charger constants */
 #define NO_PW_CONN			0
@@ -3344,7 +3345,6 @@ static const struct power_supply_desc ab8500_usb_chg_desc = {
 static int ab8500_charger_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct abx500_bm_data *plat = pdev->dev.platform_data;
 	struct power_supply_config ac_psy_cfg = {}, usb_psy_cfg = {};
 	struct ab8500_charger *di;
 	int irq, i, charger_status, ret = 0, ch_stat;
@@ -3354,21 +3354,14 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	if (!di)
 		return -ENOMEM;
 
-	if (!plat) {
-		dev_err(dev, "no battery management data supplied\n");
-		return -EINVAL;
-	}
-	di->bm = plat;
+	di->bm = &ab8500_bm_data;
 
-	if (np) {
-		ret = ab8500_bm_of_probe(dev, np, di->bm);
-		if (ret) {
-			dev_err(dev, "failed to get battery information\n");
-			return ret;
-		}
-		di->autopower_cfg = of_property_read_bool(np, "autopower_cfg");
-	} else
-		di->autopower_cfg = false;
+	ret = ab8500_bm_of_probe(dev, np, di->bm);
+	if (ret) {
+		dev_err(dev, "failed to get battery information\n");
+		return ret;
+	}
+	di->autopower_cfg = of_property_read_bool(np, "autopower_cfg");
 
 	/* get parent data */
 	di->dev = dev;
