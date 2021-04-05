@@ -1017,7 +1017,7 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	const void *new_fdt;
 	int ret;
 	u32 size;
-	struct device_node *overlay_root;
+	struct device_node *overlay_root = NULL;
 
 	*ovcs_id = 0;
 	ret = 0;
