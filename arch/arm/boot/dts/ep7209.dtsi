@@ -108,6 +108,7 @@
 			compatible = "cirrus,ep7209-fb";
 			reg = <0x800002c0 0xd44>, <0x60000000 0xc000>;
 			clocks = <&clks CLPS711X_CLK_BUS>;
+			syscon = <&syscon1>;
 			status = "disabled";
 		};
 
@@ -147,6 +148,7 @@
 			reg = <0x80000500 0x4>;
 			interrupts = <15>;
 			clocks = <&clks CLPS711X_CLK_SPI>;
+			syscon = <&syscon3>;
 			status = "disabled";
 		};
 
@@ -170,6 +172,7 @@
 			clocks = <&clks CLPS711X_CLK_PLL>;
 			clock-names = "pll";
 			interrupts = <32>;
+			syscon = <&syscon3>;
 			status = "disabled";
 		};
 
@@ -181,6 +184,7 @@
 
 	mctrl: mctrl {
 		compatible = "cirrus,ep7209-mctrl-gpio";
+		gpio,syscon-dev = <&syscon1 0 0>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
