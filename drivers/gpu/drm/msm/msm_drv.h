@@ -182,10 +182,14 @@ struct msm_drm_private {
 	struct mutex obj_lock;
 
 	/**
-	 * Lists of inactive GEM objects.  Every bo is either in one of the
+	 * LRUs of inactive GEM objects.  Every bo is either in one of the
 	 * inactive lists (depending on whether or not it is shrinkable) or
 	 * gpu->active_list (for the gpu it is active on[1]), or transiently
 	 * on a temporary list as the shrinker is running.
+	 *
+	 * Note that inactive_willneed also contains pinned and vmap'd bos,
+	 * but the number of pinned-but-not-active objects is small (scanout
+	 * buffers, ringbuffer, etc).
 	 *
 	 * These lists are protected by mm_lock (which should be acquired
 	 * before per GEM object lock).  One should *not* hold mm_lock in
@@ -194,10 +198,11 @@ struct msm_drm_private {
 	 * [1] if someone ever added support for the old 2d cores, there could be
 	 *     more than one gpu object
 	 */
-	struct list_head inactive_willneed;  /* inactive + !shrinkable */
-	struct list_head inactive_dontneed;  /* inactive +  shrinkable */
-	struct list_head inactive_purged;    /* inactive +  purged */
+	struct list_head inactive_willneed;  /* inactive + potentially unpin/evictable */
+	struct list_head inactive_dontneed;  /* inactive + shrinkable */
+	struct list_head inactive_unpinned;  /* inactive + purged or unpinned */
 	long shrinkable_count;               /* write access under mm_lock */
+	long evictable_count;                /* write access under mm_lock */
 	struct mutex mm_lock;
 
 	struct workqueue_struct *wq;
