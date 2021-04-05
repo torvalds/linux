@@ -20,6 +20,7 @@ config DRM_MSM
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
 	select PM_OPP
+	select NVMEM
 	help
 	  DRM/KMS driver for MSM/snapdragon.
 
