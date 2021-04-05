@@ -366,6 +366,7 @@
   devfreq_suspend_device
   dev_fwnode
   __dev_get_by_index
+  dev_get_by_index
   dev_get_by_name
   dev_get_regmap
   device_add
@@ -1053,6 +1054,7 @@
   in6_pton
   inc_zone_page_state
   in_egroup_p
+  inet_proto_csum_replace4
   init_dummy_netdev
   init_iova_domain
   init_net
@@ -2079,6 +2081,7 @@
   skb_copy_expand
   skb_dequeue
   skb_dequeue_tail
+  skb_ensure_writable
   skb_free_datagram
   __skb_get_hash
   __skb_gso_segment
