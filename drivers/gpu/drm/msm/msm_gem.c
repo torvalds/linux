@@ -357,9 +357,14 @@ static void del_vma(struct msm_gem_vma *vma)
 	kfree(vma);
 }
 
-/* Called with msm_obj locked */
+/**
+ * If close is true, this also closes the VMA (releasing the allocated
+ * iova range) in addition to removing the iommu mapping.  In the eviction
+ * case (!close), we keep the iova allocated, but only remove the iommu
+ * mapping.
+ */
 static void
-put_iova_spaces(struct drm_gem_object *obj)
+put_iova_spaces(struct drm_gem_object *obj, bool close)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma;
@@ -369,7 +374,8 @@ put_iova_spaces(struct drm_gem_object *obj)
 	list_for_each_entry(vma, &msm_obj->vmas, list) {
 		if (vma->aspace) {
 			msm_gem_purge_vma(vma->aspace, vma);
-			msm_gem_close_vma(vma->aspace, vma);
+			if (close)
+				msm_gem_close_vma(vma->aspace, vma);
 		}
 	}
 }
@@ -711,7 +717,8 @@ void msm_gem_purge(struct drm_gem_object *obj)
 	GEM_WARN_ON(!is_purgeable(msm_obj));
 	GEM_WARN_ON(obj->import_attach);
 
-	put_iova_spaces(obj);
+	/* Get rid of any iommu mapping(s): */
+	put_iova_spaces(obj, true);
 
 	msm_gem_vunmap(obj);
 
@@ -1013,7 +1020,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	/* object should not be on active list: */
 	GEM_WARN_ON(is_active(msm_obj));
 
-	put_iova_spaces(obj);
+	put_iova_spaces(obj, true);
 
 	if (obj->import_attach) {
 		GEM_WARN_ON(msm_obj->vaddr);
