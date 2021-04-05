@@ -31,6 +31,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 
+#include <asm/barrier.h>
 #include <asm/sections.h>
 #include <asm/sysreg.h>
 #include <asm/local.h>
@@ -654,6 +655,7 @@ static int etm4_enable(struct coresight_device *csdev,
 static void etm4_disable_hw(void *info)
 {
 	u32 control;
+	u64 trfcr;
 	struct etmv4_drvdata *drvdata = info;
 	struct etmv4_config *config = &drvdata->config;
 	struct coresight_device *csdev = drvdata->csdev;
@@ -677,18 +679,32 @@ static void etm4_disable_hw(void *info)
 	control &= ~0x1;
 
 	/*
+	 * If the CPU supports v8.4 Trace filter Control,
+	 * set the ETM to trace prohibited region.
+	 */
+	if (drvdata->trfc) {
+		trfcr = read_sysreg_s(SYS_TRFCR_EL1);
+		write_sysreg_s(trfcr & ~(TRFCR_ELx_ExTRE | TRFCR_ELx_E0TRE),
+			       SYS_TRFCR_EL1);
+		isb();
+	}
+	/*
 	 * Make sure everything completes before disabling, as recommended
 	 * by section 7.3.77 ("TRCVICTLR, ViewInst Main Control Register,
 	 * SSTATUS") of ARM IHI 0064D
 	 */
 	dsb(sy);
 	isb();
+	/* Trace synchronization barrier, is a nop if not supported */
+	tsb_csync();
 	etm4x_relaxed_write32(csa, control, TRCPRGCTLR);
 
 	/* wait for TRCSTATR.PMSTABLE to go to '1' */
 	if (coresight_timeout(csa, TRCSTATR, TRCSTATR_PMSTABLE_BIT, 1))
 		dev_err(etm_dev,
 			"timeout while waiting for PM stable Trace Status\n");
+	if (drvdata->trfc)
+		write_sysreg_s(trfcr, SYS_TRFCR_EL1);
 
 	/* read the status of the single shot comparators */
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
@@ -873,7 +889,7 @@ static bool etm4_init_csdev_access(struct etmv4_drvdata *drvdata,
 	return false;
 }
 
-static void cpu_enable_tracing(void)
+static void cpu_enable_tracing(struct etmv4_drvdata *drvdata)
 {
 	u64 dfr0 = read_sysreg(id_aa64dfr0_el1);
 	u64 trfcr;
@@ -881,6 +897,7 @@ static void cpu_enable_tracing(void)
 	if (!cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_TRACE_FILT_SHIFT))
 		return;
 
+	drvdata->trfc = true;
 	/*
 	 * If the CPU supports v8.4 SelfHosted Tracing, enable
 	 * tracing at the kernel EL and EL0, forcing to use the
@@ -1082,7 +1099,7 @@ static void etm4_init_arch_data(void *info)
 	/* NUMCNTR, bits[30:28] number of counters available for tracing */
 	drvdata->nr_cntr = BMVAL(etmidr5, 28, 30);
 	etm4_cs_lock(drvdata, csa);
-	cpu_enable_tracing();
+	cpu_enable_tracing(drvdata);
 }
 
 static inline u32 etm4_get_victlr_access_type(struct etmv4_config *config)
