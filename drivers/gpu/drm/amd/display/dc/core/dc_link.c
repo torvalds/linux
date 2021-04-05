@@ -1679,21 +1679,27 @@ void link_destroy(struct dc_link **link)
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->link;
-	union down_spread_ctrl old_downspread;
-	union down_spread_ctrl new_downspread;
 
-	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&old_downspread.raw, sizeof(old_downspread));
+	if (pipe_ctx->stream->signal != SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		struct dc_link *link = stream->link;
+		union down_spread_ctrl old_downspread;
+		union down_spread_ctrl new_downspread;
 
-	new_downspread.raw = old_downspread.raw;
+		core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
+				&old_downspread.raw, sizeof(old_downspread));
 
-	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
-			(stream->ignore_msa_timing_param) ? 1 : 0;
+		new_downspread.raw = old_downspread.raw;
 
-	if (new_downspread.raw != old_downspread.raw) {
-		core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&new_downspread.raw, sizeof(new_downspread));
+		new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
+				(stream->ignore_msa_timing_param) ? 1 : 0;
+
+		if (new_downspread.raw != old_downspread.raw) {
+			core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
+				&new_downspread.raw, sizeof(new_downspread));
+		}
+
+	} else {
+		dm_helpers_mst_enable_stream_features(stream);
 	}
 }
 
