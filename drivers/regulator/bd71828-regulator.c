@@ -90,38 +90,7 @@ static const struct linear_range bd71828_ldo_volts[] = {
 	REGULATOR_LINEAR_RANGE(3300000, 0x32, 0x3f, 0),
 };
 
-static int bd71828_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	unsigned int val;
-
-	switch (ramp_delay) {
-	case 1 ... 2500:
-		val = 0;
-		break;
-	case 2501 ... 5000:
-		val = 1;
-		break;
-	case 5001 ... 10000:
-		val = 2;
-		break;
-	case 10001 ... 20000:
-		val = 3;
-		break;
-	default:
-		val = 3;
-		dev_err(&rdev->dev,
-			"ramp_delay: %d not supported, setting 20mV/uS",
-			 ramp_delay);
-	}
-
-	/*
-	 * On BD71828 the ramp delay level control reg is at offset +2 to
-	 * enable reg
-	 */
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg + 2,
-				  BD71828_MASK_RAMP_DELAY,
-				  val << (ffs(BD71828_MASK_RAMP_DELAY) - 1));
-}
+static const unsigned int bd71828_ramp_delay[] = { 2500, 5000, 10000, 20000 };
 
 static int buck_set_hw_dvs_levels(struct device_node *np,
 				  const struct regulator_desc *desc,
@@ -185,7 +154,7 @@ static const struct regulator_ops bd71828_dvs_buck_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay = bd71828_set_ramp_delay,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
 static const struct regulator_ops bd71828_ldo_ops = {
@@ -219,6 +188,10 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.enable_mask = BD71828_MASK_RUN_EN,
 			.vsel_reg = BD71828_REG_BUCK1_VOLT,
 			.vsel_mask = BD71828_MASK_BUCK1267_VOLT,
+			.ramp_delay_table = bd71828_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd71828_ramp_delay),
+			.ramp_reg = BD71828_REG_BUCK1_MODE,
+			.ramp_mask = BD71828_MASK_RAMP_DELAY,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -261,6 +234,10 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.enable_mask = BD71828_MASK_RUN_EN,
 			.vsel_reg = BD71828_REG_BUCK2_VOLT,
 			.vsel_mask = BD71828_MASK_BUCK1267_VOLT,
+			.ramp_delay_table = bd71828_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd71828_ramp_delay),
+			.ramp_reg = BD71828_REG_BUCK2_MODE,
+			.ramp_mask = BD71828_MASK_RAMP_DELAY,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -421,6 +398,10 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.enable_mask = BD71828_MASK_RUN_EN,
 			.vsel_reg = BD71828_REG_BUCK6_VOLT,
 			.vsel_mask = BD71828_MASK_BUCK1267_VOLT,
+			.ramp_delay_table = bd71828_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd71828_ramp_delay),
+			.ramp_reg = BD71828_REG_BUCK6_MODE,
+			.ramp_mask = BD71828_MASK_RAMP_DELAY,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
@@ -458,6 +439,10 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.enable_mask = BD71828_MASK_RUN_EN,
 			.vsel_reg = BD71828_REG_BUCK7_VOLT,
 			.vsel_mask = BD71828_MASK_BUCK1267_VOLT,
+			.ramp_delay_table = bd71828_ramp_delay,
+			.n_ramp_values = ARRAY_SIZE(bd71828_ramp_delay),
+			.ramp_reg = BD71828_REG_BUCK7_MODE,
+			.ramp_mask = BD71828_MASK_RAMP_DELAY,
 			.owner = THIS_MODULE,
 			.of_parse_cb = buck_set_hw_dvs_levels,
 		},
