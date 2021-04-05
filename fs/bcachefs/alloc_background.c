@@ -1127,6 +1127,7 @@ static int bch2_allocator_thread(void *arg)
 		pr_debug("free_inc now empty");
 
 		do {
+			cond_resched();
 			/*
 			 * Find some buckets that we can invalidate, either
 			 * they're completely unused, or only contain clean data
