@@ -3466,7 +3466,6 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 {
 	struct c2h_evt_hdr_88xx *pC2hEvent = (struct c2h_evt_hdr_88xx *)buf;
 	s32 ret = _SUCCESS;
-	u8 index = 0;
 
 	if (!pC2hEvent) {
 		DBG_8192C("%s(): pC2hEventis NULL\n", __func__);
@@ -3491,8 +3490,6 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 		break;
 
 	case C2H_HW_INFO_EXCH:
-		for (index = 0; index < pC2hEvent->plen; index++) {
-		}
 		break;
 
 	case C2H_8723B_BT_INFO:
@@ -3513,8 +3510,6 @@ exit:
 
 static void process_c2h_event(struct adapter *padapter, struct c2h_evt_hdr_t *pC2hEvent, u8 *c2hBuf)
 {
-	u8 index = 0;
-
 	if (!c2hBuf) {
 		DBG_8192C("%s c2hbuff is NULL\n", __func__);
 		return;
@@ -3537,8 +3532,6 @@ static void process_c2h_event(struct adapter *padapter, struct c2h_evt_hdr_t *pC
 		break;
 
 	case C2H_HW_INFO_EXCH:
-		for (index = 0; index < pC2hEvent->CmdLen; index++) {
-		}
 		break;
 
 	case C2H_8723B_BT_INFO:
