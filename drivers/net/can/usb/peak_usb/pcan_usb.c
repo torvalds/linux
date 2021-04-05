@@ -367,9 +367,7 @@ static int pcan_usb_get_serial(struct peak_usb_device *dev, u32 *serial_number)
 	err = pcan_usb_wait_rsp(dev, PCAN_USB_CMD_SN, PCAN_USB_GET, args);
 	if (err)
 		return err;
-
-	if (serial_number)
-		*serial_number = le32_to_cpup((__le32 *)args);
+	*serial_number = le32_to_cpup((__le32 *)args);
 
 	return 0;
 }
