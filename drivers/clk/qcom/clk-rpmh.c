@@ -510,9 +510,12 @@ static const struct clk_rpmh_desc clk_rpmh_sm8350 = {
 	.num_clks = ARRAY_SIZE(sm8350_rpmh_clocks),
 };
 
+/* Resource name must match resource id present in cmd-db */
+DEFINE_CLK_RPMH_ARC(sc7280, bi_tcxo, bi_tcxo_ao, "xo.lvl", 0x3, 4);
+
 static struct clk_hw *sc7280_rpmh_clocks[] = {
-	[RPMH_CXO_CLK]      = &sdm845_bi_tcxo.hw,
-	[RPMH_CXO_CLK_A]    = &sdm845_bi_tcxo_ao.hw,
+	[RPMH_CXO_CLK]      = &sc7280_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]    = &sc7280_bi_tcxo_ao.hw,
 	[RPMH_LN_BB_CLK2]   = &sdm845_ln_bb_clk2.hw,
 	[RPMH_LN_BB_CLK2_A] = &sdm845_ln_bb_clk2_ao.hw,
 	[RPMH_RF_CLK1]      = &sdm845_rf_clk1.hw,
