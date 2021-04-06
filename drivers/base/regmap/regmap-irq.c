@@ -901,9 +901,11 @@ err_alloc:
 	kfree(d->mask_buf);
 	kfree(d->status_buf);
 	kfree(d->status_reg_buf);
-	for (i = 0; i < chip->num_virt_regs; i++)
-		kfree(d->virt_buf[i]);
-	kfree(d->virt_buf);
+	if (d->virt_buf) {
+		for (i = 0; i < chip->num_virt_regs; i++)
+			kfree(d->virt_buf[i]);
+		kfree(d->virt_buf);
+	}
 	kfree(d);
 	return ret;
 }
