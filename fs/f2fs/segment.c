@@ -1794,7 +1794,7 @@ static int issue_discard_thread(void *data)
 		if (issued > 0) {
 			__wait_all_discard_cmd(sbi, &dpolicy);
 			wait_ms = dpolicy.min_interval;
-		} else if (issued == -1){
+		} else if (issued == -1) {
 			wait_ms = f2fs_time_to_wait(sbi, DISCARD_TIME);
 			if (!wait_ms)
 				wait_ms = dpolicy.mid_interval;
@@ -2171,6 +2171,7 @@ static void __set_sit_entry_type(struct f2fs_sb_info *sbi, int type,
 					unsigned int segno, int modified)
 {
 	struct seg_entry *se = get_seg_entry(sbi, segno);
+
 	se->type = type;
 	if (modified)
 		__mark_sit_entry_dirty(sbi, segno);
@@ -2362,6 +2363,7 @@ static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	void *addr = curseg->sum_blk;
+
 	addr += curseg->next_blkoff * sizeof(struct f2fs_summary);
 	memcpy(addr, sum, sizeof(struct f2fs_summary));
 }
@@ -3779,6 +3781,7 @@ static int read_compacted_summaries(struct f2fs_sb_info *sbi)
 
 		for (j = 0; j < blk_off; j++) {
 			struct f2fs_summary *s;
+
 			s = (struct f2fs_summary *)(kaddr + offset);
 			seg_i->sum_blk->entries[j] = *s;
 			offset += SUMMARY_SIZE;
@@ -3841,6 +3844,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 		if (__exist_node_summaries(sbi)) {
 			struct f2fs_summary *ns = &sum->entries[0];
 			int i;
+
 			for (i = 0; i < sbi->blocks_per_seg; i++, ns++) {
 				ns->version = 0;
 				ns->ofs_in_node = 0;
@@ -3942,6 +3946,7 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 	/* Step 3: write summary entries */
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
 		unsigned short blkoff;
+
 		seg_i = CURSEG_I(sbi, i);
 		if (sbi->ckpt->alloc_type[i] == SSR)
 			blkoff = sbi->blocks_per_seg;
@@ -3978,6 +3983,7 @@ static void write_normal_summaries(struct f2fs_sb_info *sbi,
 					block_t blkaddr, int type)
 {
 	int i, end;
+
 	if (IS_DATASEG(type))
 		end = type + NR_CURSEG_DATA_TYPE;
 	else
@@ -4561,6 +4567,7 @@ static void init_free_segmap(struct f2fs_sb_info *sbi)
 	/* set use the current segments */
 	for (type = CURSEG_HOT_DATA; type <= CURSEG_COLD_NODE; type++) {
 		struct curseg_info *curseg_t = CURSEG_I(sbi, type);
+
 		__set_test_and_inuse(sbi, curseg_t->segno);
 	}
 }
@@ -4793,7 +4800,8 @@ static struct f2fs_dev_info *get_target_zoned_dev(struct f2fs_sb_info *sbi,
 }
 
 static int report_one_zone_cb(struct blk_zone *zone, unsigned int idx,
-			      void *data) {
+			      void *data)
+{
 	memcpy(data, zone, sizeof(struct blk_zone));
 	return 0;
 }
@@ -4909,8 +4917,10 @@ struct check_zone_write_pointer_args {
 };
 
 static int check_zone_write_pointer_cb(struct blk_zone *zone, unsigned int idx,
-				      void *data) {
+				      void *data)
+{
 	struct check_zone_write_pointer_args *args;
+
 	args = (struct check_zone_write_pointer_args *)data;
 
 	return check_zone_write_pointer(args->sbi, args->fdev, zone);
@@ -5189,6 +5199,7 @@ static void discard_dirty_segmap(struct f2fs_sb_info *sbi,
 static void destroy_victim_secmap(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
+
 	kvfree(dirty_i->victim_secmap);
 }
 
@@ -5233,6 +5244,7 @@ static void destroy_curseg(struct f2fs_sb_info *sbi)
 static void destroy_free_segmap(struct f2fs_sb_info *sbi)
 {
 	struct free_segmap_info *free_i = SM_I(sbi)->free_info;
+
 	if (!free_i)
 		return;
 	SM_I(sbi)->free_info = NULL;
