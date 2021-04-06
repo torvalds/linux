@@ -68,7 +68,7 @@
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049D, March 2018
+ * Document number: ARM DEN 0049E.b, Feb 2021
  *
  ******************************************************************************/
 
@@ -86,7 +86,7 @@ struct acpi_iort_node {
 	u8 type;
 	u16 length;
 	u8 revision;
-	u32 reserved;
+	u32 identifier;
 	u32 mapping_count;
 	u32 mapping_offset;
 	char node_data[1];
@@ -100,7 +100,8 @@ enum acpi_iort_node_type {
 	ACPI_IORT_NODE_PCI_ROOT_COMPLEX = 0x02,
 	ACPI_IORT_NODE_SMMU = 0x03,
 	ACPI_IORT_NODE_SMMU_V3 = 0x04,
-	ACPI_IORT_NODE_PMCG = 0x05
+	ACPI_IORT_NODE_PMCG = 0x05,
+	ACPI_IORT_NODE_RMR = 0x06,
 };
 
 struct acpi_iort_id_mapping {
@@ -167,10 +168,11 @@ struct acpi_iort_root_complex {
 	u8 reserved[3];		/* Reserved, must be zero */
 };
 
-/* Values for ats_attribute field above */
+/* Masks for ats_attribute field above */
 
-#define ACPI_IORT_ATS_SUPPORTED         0x00000001	/* The root complex supports ATS */
-#define ACPI_IORT_ATS_UNSUPPORTED       0x00000000	/* The root complex doesn't support ATS */
+#define ACPI_IORT_ATS_SUPPORTED         (1)	/* The root complex ATS support */
+#define ACPI_IORT_PRI_SUPPORTED         (1<<1)	/* The root complex PRI support */
+#define ACPI_IORT_PASID_FWD_SUPPORTED   (1<<2)	/* The root complex PASID forward support */
 
 struct acpi_iort_smmu {
 	u64 base_address;	/* SMMU base address */
@@ -239,6 +241,18 @@ struct acpi_iort_pmcg {
 	u32 overflow_gsiv;
 	u32 node_reference;
 	u64 page1_base_address;
+};
+
+struct acpi_iort_rmr {
+	u32 flags;
+	u32 rmr_count;
+	u32 rmr_offset;
+};
+
+struct acpi_iort_rmr_desc {
+	u64 base_address;
+	u64 length;
+	u32 reserved;
 };
 
 /*******************************************************************************
