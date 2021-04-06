@@ -1311,14 +1311,6 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
 	svm->current_vmcb = target_vmcb;
 	svm->vmcb = target_vmcb->ptr;
 	svm->vmcb_pa = target_vmcb->pa;
-
-	/*
-	* Track the physical CPU the target_vmcb is running on
-	* in order to mark the VMCB dirty if the cpu changes at
-	* its next vmrun.
-	*/
-
-	svm->current_vmcb->cpu = svm->vcpu.cpu;
 }
 
 static int svm_create_vcpu(struct kvm_vcpu *vcpu)
