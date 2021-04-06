@@ -73,7 +73,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 	return x;
 }
 
-#define xchg(ptr, x)							\
+#define arch_xchg(ptr, x)						\
 ({									\
 	__typeof__(*(ptr)) __ret;					\
 									\
@@ -154,7 +154,7 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	return old;
 }
 
-#define cmpxchg(ptr, o, n)						\
+#define arch_cmpxchg(ptr, o, n)						\
 ({									\
 	__typeof__(*(ptr)) __ret;					\
 									\
@@ -164,9 +164,9 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	__ret;								\
 })
 
-#define cmpxchg64	cmpxchg
-#define cmpxchg_local	cmpxchg
-#define cmpxchg64_local cmpxchg
+#define arch_cmpxchg64		arch_cmpxchg
+#define arch_cmpxchg_local	arch_cmpxchg
+#define arch_cmpxchg64_local	arch_cmpxchg
 
 #define system_has_cmpxchg_double()	1
 
@@ -188,7 +188,7 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	!cc;								\
 })
 
-#define cmpxchg_double(p1, p2, o1, o2, n1, n2)				\
+#define arch_cmpxchg_double(p1, p2, o1, o2, n1, n2)			\
 ({									\
 	__typeof__(p1) __p1 = (p1);					\
 	__typeof__(p2) __p2 = (p2);					\
