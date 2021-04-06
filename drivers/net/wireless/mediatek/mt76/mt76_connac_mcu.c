@@ -1395,11 +1395,14 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		req->ies_len = cpu_to_le16(sreq->ie_len);
 	}
 
+	if (is_mt7921(phy->dev))
+		req->scan_func |= SCAN_FUNC_SPLIT_SCAN;
+
 	memcpy(req->bssid, sreq->bssid, ETH_ALEN);
 	if (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
 		get_random_mask_addr(req->random_mac, sreq->mac_addr,
 				     sreq->mac_addr_mask);
-		req->scan_func = 1;
+		req->scan_func |= SCAN_FUNC_RANDOM_MAC;
 	}
 
 	err = mt76_mcu_skb_send_msg(mdev, skb, MCU_CMD_START_HW_SCAN, false);
