@@ -161,81 +161,6 @@ static void part_in_flight_rw(struct block_device *part,
 		inflight[1] = 0;
 }
 
-/**
- * disk_part_iter_init - initialize partition iterator
- * @piter: iterator to initialize
- * @disk: disk to iterate over
- * @flags: DISK_PITER_* flags
- *
- * Initialize @piter so that it iterates over partitions of @disk.
- *
- * CONTEXT:
- * Don't care.
- */
-void disk_part_iter_init(struct disk_part_iter *piter, struct gendisk *disk,
-			  unsigned int flags)
-{
-	piter->disk = disk;
-	piter->part = NULL;
-	if (flags & (DISK_PITER_INCL_PART0 | DISK_PITER_INCL_EMPTY_PART0))
-		piter->idx = 0;
-	else
-		piter->idx = 1;
-	piter->flags = flags;
-}
-
-/**
- * disk_part_iter_next - proceed iterator to the next partition and return it
- * @piter: iterator of interest
- *
- * Proceed @piter to the next partition and return it.
- *
- * CONTEXT:
- * Don't care.
- */
-struct block_device *disk_part_iter_next(struct disk_part_iter *piter)
-{
-	struct block_device *part;
-	unsigned long idx;
-
-	/* put the last partition */
-	disk_part_iter_exit(piter);
-
-	rcu_read_lock();
-	xa_for_each_start(&piter->disk->part_tbl, idx, part, piter->idx) {
-		if (!bdev_nr_sectors(part) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
-		      piter->idx == 0))
-			continue;
-
-		piter->part = bdgrab(part);
-		if (!piter->part)
-			continue;
-		piter->idx = idx + 1;
-		break;
-	}
-	rcu_read_unlock();
-
-	return piter->part;
-}
-
-/**
- * disk_part_iter_exit - finish up partition iteration
- * @piter: iter of interest
- *
- * Called when iteration is over.  Cleans up @piter.
- *
- * CONTEXT:
- * Don't care.
- */
-void disk_part_iter_exit(struct disk_part_iter *piter)
-{
-	if (piter->part)
-		bdput(piter->part);
-	piter->part = NULL;
-}
-
 /*
  * Can be deleted altogether. Later.
  *
@@ -472,13 +397,22 @@ static char *bdevt_str(dev_t devt, char *buf)
 
 void disk_uevent(struct gendisk *disk, enum kobject_action action)
 {
-	struct disk_part_iter piter;
 	struct block_device *part;
+	unsigned long idx;
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY_PART0);
-	while ((part = disk_part_iter_next(&piter)))
+	rcu_read_lock();
+	xa_for_each(&disk->part_tbl, idx, part) {
+		if (bdev_is_partition(part) && !bdev_nr_sectors(part))
+			continue;
+		if (!bdgrab(part))
+			continue;
+
+		rcu_read_unlock();
 		kobject_uevent(bdev_kobj(part), action);
-	disk_part_iter_exit(&piter);
+		bdput(part);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(disk_uevent);
 
