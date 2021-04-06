@@ -285,7 +285,8 @@ struct acpi_srat_generic_affinity {
 
 /* Flags for struct acpi_srat_generic_affinity */
 
-#define ACPI_SRAT_GENERIC_AFFINITY_ENABLED (1)	/* 00: Use affinity structure */
+#define ACPI_SRAT_GENERIC_AFFINITY_ENABLED     (1)	/* 00: Use affinity structure */
+#define ACPI_SRAT_ARCHITECTURAL_TRANSACTIONS   (1<<1)	/* ACPI 6.4 */
 
 /*******************************************************************************
  *
