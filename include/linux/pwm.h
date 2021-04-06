@@ -91,6 +91,11 @@ struct pwm_device {
  * pwm_get_state() - retrieve the current PWM state
  * @pwm: PWM device
  * @state: state to fill with the current PWM state
+ *
+ * The returned PWM state represents the state that was applied by a previous call to
+ * pwm_apply_state(). Drivers may have to slightly tweak that state before programming it to
+ * hardware. If pwm_apply_state() was never called, this returns either the current hardware
+ * state (if supported) or the default settings.
  */
 static inline void pwm_get_state(const struct pwm_device *pwm,
 				 struct pwm_state *state)
