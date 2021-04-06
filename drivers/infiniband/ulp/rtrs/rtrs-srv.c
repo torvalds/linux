@@ -518,8 +518,9 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 
 	if (unlikely(sess->state != RTRS_SRV_CONNECTED)) {
 		rtrs_err_rl(s,
-			     "Sending I/O response failed,  session is disconnected, sess state %s\n",
-			     rtrs_srv_state_str(sess->state));
+			    "Sending I/O response failed,  session %s is disconnected, sess state %s\n",
+			    kobject_name(&sess->kobj),
+			    rtrs_srv_state_str(sess->state));
 		goto out;
 	}
 	if (always_invalidate) {
@@ -529,7 +530,9 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 	}
 	if (unlikely(atomic_sub_return(1,
 				       &con->sq_wr_avail) < 0)) {
-		pr_err("IB send queue full\n");
+		rtrs_err(s, "IB send queue full: sess=%s cid=%d\n",
+			 kobject_name(&sess->kobj),
+			 con->c.cid);
 		atomic_add(1, &con->sq_wr_avail);
 		spin_lock(&con->rsp_wr_wait_lock);
 		list_add_tail(&id->wait_list, &con->rsp_wr_wait_list);
@@ -543,7 +546,8 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 		err = rdma_write_sg(id);
 
 	if (unlikely(err)) {
-		rtrs_err_rl(s, "IO response failed: %d\n", err);
+		rtrs_err_rl(s, "IO response failed: %d: sess=%s\n", err,
+			    kobject_name(&sess->kobj));
 		close_sess(sess);
 	}
 out:
