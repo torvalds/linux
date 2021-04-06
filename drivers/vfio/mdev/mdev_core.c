@@ -29,7 +29,7 @@ static DEFINE_MUTEX(mdev_list_lock);
 
 struct device *mdev_parent_dev(struct mdev_device *mdev)
 {
-	return mdev->parent->dev;
+	return mdev->type->parent->dev;
 }
 EXPORT_SYMBOL(mdev_parent_dev);
 
@@ -58,12 +58,11 @@ void mdev_release_parent(struct kref *kref)
 /* Caller must hold parent unreg_sem read or write lock */
 static void mdev_device_remove_common(struct mdev_device *mdev)
 {
-	struct mdev_parent *parent;
+	struct mdev_parent *parent = mdev->type->parent;
 	int ret;
 
 	mdev_remove_sysfs_files(mdev);
 	device_del(&mdev->dev);
-	parent = mdev->parent;
 	lockdep_assert_held(&parent->unreg_sem);
 	ret = parent->ops->remove(mdev);
 	if (ret)
@@ -212,7 +211,7 @@ static void mdev_device_release(struct device *dev)
 	struct mdev_device *mdev = to_mdev_device(dev);
 
 	/* Pairs with the get in mdev_device_create() */
-	mdev_put_parent(mdev->parent);
+	kobject_put(&mdev->type->kobj);
 
 	mutex_lock(&mdev_list_lock);
 	list_del(&mdev->next);
@@ -250,9 +249,8 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	mdev->dev.release = mdev_device_release;
 	mdev->dev.groups = parent->ops->mdev_attr_groups;
 	mdev->type = type;
-	mdev->parent = parent;
 	/* Pairs with the put in mdev_device_release() */
-	mdev_get_parent(parent);
+	kobject_get(&type->kobj);
 
 	guid_copy(&mdev->uuid, uuid);
 	list_add(&mdev->next, &mdev_list);
@@ -300,7 +298,7 @@ out_put_device:
 int mdev_device_remove(struct mdev_device *mdev)
 {
 	struct mdev_device *tmp;
-	struct mdev_parent *parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	mutex_lock(&mdev_list_lock);
 	list_for_each_entry(tmp, &mdev_list, next) {
@@ -321,7 +319,6 @@ int mdev_device_remove(struct mdev_device *mdev)
 	mdev->active = false;
 	mutex_unlock(&mdev_list_lock);
 
-	parent = mdev->parent;
 	/* Check if parent unregistration has started */
 	if (!down_read_trylock(&parent->unreg_sem))
 		return -ENODEV;

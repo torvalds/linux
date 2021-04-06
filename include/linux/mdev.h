@@ -14,7 +14,6 @@ struct mdev_type;
 
 struct mdev_device {
 	struct device dev;
-	struct mdev_parent *parent;
 	guid_t uuid;
 	void *driver_data;
 	struct list_head next;

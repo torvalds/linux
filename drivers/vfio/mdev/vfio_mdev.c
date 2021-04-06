@@ -24,7 +24,7 @@
 static int vfio_mdev_open(struct vfio_device *core_vdev)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	int ret;
 
@@ -44,7 +44,7 @@ static int vfio_mdev_open(struct vfio_device *core_vdev)
 static void vfio_mdev_release(struct vfio_device *core_vdev)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	if (likely(parent->ops->release))
 		parent->ops->release(mdev);
@@ -56,7 +56,7 @@ static long vfio_mdev_unlocked_ioctl(struct vfio_device *core_vdev,
 				     unsigned int cmd, unsigned long arg)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	if (unlikely(!parent->ops->ioctl))
 		return -EINVAL;
@@ -68,7 +68,7 @@ static ssize_t vfio_mdev_read(struct vfio_device *core_vdev, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	if (unlikely(!parent->ops->read))
 		return -EINVAL;
@@ -81,7 +81,7 @@ static ssize_t vfio_mdev_write(struct vfio_device *core_vdev,
 			       loff_t *ppos)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	if (unlikely(!parent->ops->write))
 		return -EINVAL;
@@ -93,7 +93,7 @@ static int vfio_mdev_mmap(struct vfio_device *core_vdev,
 			  struct vm_area_struct *vma)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	if (unlikely(!parent->ops->mmap))
 		return -EINVAL;
@@ -104,7 +104,7 @@ static int vfio_mdev_mmap(struct vfio_device *core_vdev,
 static void vfio_mdev_request(struct vfio_device *core_vdev, unsigned int count)
 {
 	struct mdev_device *mdev = to_mdev_device(core_vdev->dev);
-	struct mdev_parent *parent = mdev->parent;
+	struct mdev_parent *parent = mdev->type->parent;
 
 	if (parent->ops->request)
 		parent->ops->request(mdev, count);
