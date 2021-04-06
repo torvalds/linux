@@ -2,6 +2,10 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
 
+MAKE_GOALS="${MAKE_GOALS}
+Image.lz4
+"
+
 ABI_DEFINITION=android/abi_gki_aarch64.xml
 KMI_SYMBOL_LIST=android/abi_gki_aarch64
 ADDITIONAL_KMI_SYMBOL_LISTS="
@@ -10,6 +14,11 @@ android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_virtual_device
 android/abi_gki_aarch64_hikey960
 "
+
+FILES="${FILES}
+arch/arm64/boot/Image.lz4
+"
+
 TRIM_NONLISTED_KMI=1
 KMI_SYMBOL_LIST_STRICT_MODE=1
 MODULES_ORDER=android/gki_aarch64_modules
