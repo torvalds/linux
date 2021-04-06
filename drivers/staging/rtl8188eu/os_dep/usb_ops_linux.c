@@ -487,14 +487,10 @@ void rtw_hal_inirp_deinit(struct adapter *padapter)
 
 int usb_write8(struct adapter *adapter, u32 addr, u8 val)
 {
-	u16 wvalue;
-	u16 len;
-	u8 data;
+	u16 wvalue = (u16)(addr & 0xffff);
+	u8 data = val;
 
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = 1;
-	data = val;
-	return usbctrl_vendorreq(adapter, wvalue, &data, len, REALTEK_USB_VENQT_WRITE);
+	return usbctrl_vendorreq(adapter, wvalue, &data, 1, REALTEK_USB_VENQT_WRITE);
 }
 
 int usb_write16(struct adapter *adapter, u32 addr, u16 val)
