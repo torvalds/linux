@@ -514,6 +514,7 @@ enum acpi_viot_node_type {
 	ACPI_VIOT_NODE_MMIO = 0x02,
 	ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI = 0x03,
 	ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO = 0x04,
+	ACPI_VIOT_RESERVED = 0x05
 };
 
 /* VIOT subtables */
