@@ -360,6 +360,7 @@ config ARM_GLOBAL_TIMER
 
 config ARM_GT_INITIAL_PRESCALER_VAL
 	int "ARM global timer initial prescaler value"
+	default 2 if ARCH_ZYNQ
 	default 1
 	depends on ARM_GLOBAL_TIMER
 	help
