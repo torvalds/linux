@@ -1410,7 +1410,11 @@ struct acpi_pdtt_channel {
 
 struct acpi_table_pmtt {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u32 reserved;
+	u32 memory_device_count;
+	/*
+	 * Immediately followed by:
+	 * MEMORY_DEVICE memory_device_struct[memory_device_count];
+	 */
 };
 
 /* Common header for PMTT subtables that follow main table */
@@ -1421,6 +1425,12 @@ struct acpi_pmtt_header {
 	u16 length;
 	u16 flags;
 	u16 reserved2;
+	u32 memory_device_count;	/* Zero means no memory device structs follow */
+	/*
+	 * Immediately followed by:
+	 * u8 type_specific_data[]
+	 * MEMORY_DEVICE memory_device_struct[memory_device_count];
+	 */
 };
 
 /* Values for Type field above */
@@ -1428,7 +1438,8 @@ struct acpi_pmtt_header {
 #define ACPI_PMTT_TYPE_SOCKET           0
 #define ACPI_PMTT_TYPE_CONTROLLER       1
 #define ACPI_PMTT_TYPE_DIMM             2
-#define ACPI_PMTT_TYPE_RESERVED         3	/* 0x03-0xFF are reserved */
+#define ACPI_PMTT_TYPE_RESERVED         3	/* 0x03-0xFE are reserved */
+#define ACPI_PMTT_TYPE_VENDOR           0xFF
 
 /* Values for Flags field above */
 
@@ -1447,35 +1458,41 @@ struct acpi_pmtt_socket {
 	u16 socket_id;
 	u16 reserved;
 };
+	/*
+	 * Immediately followed by:
+	 * MEMORY_DEVICE memory_device_struct[memory_device_count];
+	 */
 
 /* 1: Memory Controller subtable */
 
 struct acpi_pmtt_controller {
 	struct acpi_pmtt_header header;
-	u32 read_latency;
-	u32 write_latency;
-	u32 read_bandwidth;
-	u32 write_bandwidth;
-	u16 access_width;
-	u16 alignment;
+	u16 controller_id;
 	u16 reserved;
-	u16 domain_count;
 };
-
-/* 1a: Proximity Domain substructure */
-
-struct acpi_pmtt_domain {
-	u32 proximity_domain;
-};
+	/*
+	 * Immediately followed by:
+	 * MEMORY_DEVICE memory_device_struct[memory_device_count];
+	 */
 
 /* 2: Physical Component Identifier (DIMM) */
 
 struct acpi_pmtt_physical_component {
 	struct acpi_pmtt_header header;
-	u16 component_id;
-	u16 reserved;
-	u32 memory_size;
 	u32 bios_handle;
+};
+
+/* 0xFF: Vendor Specific Data */
+
+struct acpi_pmtt_vendor_specific {
+	struct acpi_pmtt_header header;
+	u8 type_uuid[16];
+	u8 specific[];
+	/*
+	 * Immediately followed by:
+	 * u8 vendor_specific_data[];
+	 * MEMORY_DEVICE memory_device_struct[memory_device_count];
+	 */
 };
 
 /*******************************************************************************
