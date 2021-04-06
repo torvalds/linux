@@ -144,8 +144,7 @@ void bch2_btree_complete_write(struct bch_fs *, struct btree *,
 			      struct btree_write *);
 void bch2_btree_write_error_work(struct work_struct *);
 
-void __bch2_btree_node_write(struct bch_fs *, struct btree *,
-			    enum six_lock_type);
+void __bch2_btree_node_write(struct bch_fs *, struct btree *);
 bool bch2_btree_post_write_cleanup(struct bch_fs *, struct btree *);
 
 void bch2_btree_node_write(struct bch_fs *, struct btree *,

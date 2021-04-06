@@ -215,7 +215,7 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 		if (bch2_verify_btree_ondisk)
 			bch2_btree_node_write(c, b, SIX_LOCK_intent);
 		else
-			__bch2_btree_node_write(c, b, SIX_LOCK_read);
+			__bch2_btree_node_write(c, b);
 
 		/* wait for any in flight btree write */
 		btree_node_wait_on_io(b);

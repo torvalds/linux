@@ -256,13 +256,15 @@ static inline size_t bch_btree_keys_u64s_remaining(struct bch_fs *c,
 	return remaining;
 }
 
+#define BTREE_WRITE_SET_U64s_BITS	9
+
 static inline unsigned btree_write_set_buffer(struct btree *b)
 {
 	/*
 	 * Could buffer up larger amounts of keys for btrees with larger keys,
 	 * pending benchmarking:
 	 */
-	return 4 << 10;
+	return 8 << BTREE_WRITE_SET_U64s_BITS;
 }
 
 static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
