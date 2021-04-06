@@ -768,7 +768,6 @@ struct hns_roce_caps {
 	int		num_other_vectors;
 	u32		num_mtpts;
 	u32		num_mtt_segs;
-	u32		num_cqe_segs;
 	u32		num_srqwqe_segs;
 	u32		num_idx_segs;
 	int		reserved_mrws;
