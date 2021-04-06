@@ -36,6 +36,7 @@
 #define ACPI_SIG_NFIT           "NFIT"	/* NVDIMM Firmware Interface Table */
 #define ACPI_SIG_PCCT           "PCCT"	/* Platform Communications Channel Table */
 #define ACPI_SIG_PDTT           "PDTT"	/* Platform Debug Trigger Table */
+#define ACPI_SIG_PHAT           "PHAT"	/* Platform Health Assessment Table */
 #define ACPI_SIG_PMTT           "PMTT"	/* Platform Memory Topology Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
@@ -1400,6 +1401,66 @@ struct acpi_pdtt_channel {
 #define ACPI_PDTT_RUNTIME_TRIGGER           (1)
 #define ACPI_PDTT_WAIT_COMPLETION           (1<<1)
 #define ACPI_PDTT_TRIGGER_ORDER             (1<<2)
+
+/*******************************************************************************
+ *
+ * PHAT - Platform Health Assessment Table (ACPI 6.4)
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_phat {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+/* Common header for PHAT subtables that follow main table */
+
+struct acpi_phat_header {
+	u16 type;
+	u16 length;
+	u8 revision;
+};
+
+/* Values for Type field above */
+
+#define ACPI_PHAT_TYPE_FW_VERSION_DATA  0
+#define ACPI_PHAT_TYPE_FW_HEALTH_DATA   1
+#define ACPI_PHAT_TYPE_RESERVED         2	/* 0x02-0xFFFF are reserved */
+
+/*
+ * PHAT subtables, correspond to Type in struct acpi_phat_header
+ */
+
+/* 0: Firmware Version Data Record */
+
+struct acpi_phat_version_data {
+	struct acpi_phat_header header;
+	u8 reserved[3];
+	u32 element_count;
+};
+
+struct acpi_phat_version_element {
+	u8 guid[16];
+	u64 version_value;
+	u32 producer_id;
+};
+
+/* 1: Firmware Health Data Record */
+
+struct acpi_phat_health_data {
+	struct acpi_phat_header header;
+	u8 reserved[2];
+	u8 health;
+	u8 device_guid[16];
+	u32 device_specific_offset;	/* Zero if no Device-specific data */
+};
+
+/* Values for Health field above */
+
+#define ACPI_PHAT_ERRORS_FOUND          0
+#define ACPI_PHAT_NO_ERRORS             1
+#define ACPI_PHAT_UNKNOWN_ERRORS        2
+#define ACPI_PHAT_ADVISORY              3
 
 /*******************************************************************************
  *
