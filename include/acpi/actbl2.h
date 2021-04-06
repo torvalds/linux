@@ -1008,12 +1008,14 @@ struct acpi_nfit_system_address {
 	u64 address;
 	u64 length;
 	u64 memory_mapping;
+	u64 location_cookie;	/* ACPI 6.4 */
 };
 
 /* Flags */
 
 #define ACPI_NFIT_ADD_ONLINE_ONLY       (1)	/* 00: Add/Online Operation Only */
 #define ACPI_NFIT_PROXIMITY_VALID       (1<<1)	/* 01: Proximity Domain Valid */
+#define ACPI_NFIT_LOCATION_COOKIE_VALID (1<<2)	/* 02: SPA location cookie valid (ACPI 6.4) */
 
 /* Range Type GUIDs appear in the include/acuuid.h file */
 

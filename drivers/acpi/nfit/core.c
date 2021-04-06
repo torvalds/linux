@@ -3831,7 +3831,7 @@ static __init int nfit_init(void)
 	int ret;
 
 	BUILD_BUG_ON(sizeof(struct acpi_table_nfit) != 40);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_system_address) != 56);
+	BUILD_BUG_ON(sizeof(struct acpi_nfit_system_address) != 64);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_memory_map) != 48);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_interleave) != 20);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_smbios) != 9);
