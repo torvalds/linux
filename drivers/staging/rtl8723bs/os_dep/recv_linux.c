@@ -98,7 +98,6 @@ struct sk_buff *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_L
 void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, struct rx_pkt_attrib *pattrib)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int ret;
 
 	/* Indicate the packets to upper layer */
 	if (pkt) {
@@ -140,7 +139,7 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, str
 
 		pkt->ip_summed = CHECKSUM_NONE;
 
-		ret = rtw_netif_rx(padapter->pnetdev, pkt);
+		rtw_netif_rx(padapter->pnetdev, pkt);
 	}
 }
 
