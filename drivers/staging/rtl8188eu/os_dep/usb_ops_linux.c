@@ -503,15 +503,10 @@ int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 
 int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 {
-	u16 wvalue;
-	u16 len;
-	__le32 data;
+	u16 wvalue = (u16)(addr & 0xffff);
+	__le32 data = cpu_to_le32(val);
 
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = 4;
-	data = cpu_to_le32(val);
-
-	return usbctrl_vendorreq(adapter, wvalue, &data, len, REALTEK_USB_VENQT_WRITE);
+	return usbctrl_vendorreq(adapter, wvalue, &data, 4, REALTEK_USB_VENQT_WRITE);
 }
 
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
