@@ -586,6 +586,10 @@ struct hci_dev {
 	void			*msft_data;
 #endif
 
+#if IS_ENABLED(CONFIG_BT_AOSPEXT)
+	bool			aosp_capable;
+#endif
+
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
 	int (*flush)(struct hci_dev *hdev);
@@ -1236,6 +1240,13 @@ static inline void hci_set_msft_opcode(struct hci_dev *hdev, __u16 opcode)
 {
 #if IS_ENABLED(CONFIG_BT_MSFTEXT)
 	hdev->msft_opcode = opcode;
+#endif
+}
+
+static inline void hci_set_aosp_capable(struct hci_dev *hdev)
+{
+#if IS_ENABLED(CONFIG_BT_AOSPEXT)
+	hdev->aosp_capable = true;
 #endif
 }
 
