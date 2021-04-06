@@ -144,7 +144,7 @@ static noinline_for_stack char *translate_scan_wpa(struct iw_request_info *info,
 		for (i = 0; i < wpa_len; i++) {
 			n += scnprintf(buf + n, MAX_WPA_IE_LEN - n,
 						"%02x", wpa_ie[i]);
-			if (n == MAX_WPA_IE_LEN-1)
+			if (n == MAX_WPA_IE_LEN - 1)
 				break;
 		}
 		memset(iwe, 0, sizeof(*iwe));
@@ -164,7 +164,7 @@ static noinline_for_stack char *translate_scan_wpa(struct iw_request_info *info,
 		for (i = 0; i < rsn_len; i++) {
 			n += scnprintf(buf + n, MAX_WPA_IE_LEN - n,
 						"%02x", rsn_ie[i]);
-			if (n == MAX_WPA_IE_LEN-1)
+			if (n == MAX_WPA_IE_LEN - 1)
 				break;
 		}
 		memset(iwe, 0, sizeof(*iwe));
