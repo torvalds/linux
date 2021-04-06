@@ -1221,16 +1221,26 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	if (!iommu->clocks)
 		return -ENOMEM;
 
+	/* RK1808 isp iommu has an extra sclk */
+	err = of_property_match_string(dev->of_node, "clock-names", "sclk");
+	if (err >= 0)
+		iommu->num_clocks++;
+
 	for (i = 0; i < iommu->num_clocks; ++i) {
-		err = of_property_match_string(dev->of_node, "clock-names",
-					       rk_iommu_clocks[i]);
-		if (err < 0) {
-			if (!strcmp(rk_iommu_clocks[i], "iface")) {
-				iommu->clocks[i].id = "hclk";
-				dev_warn(dev, "iommu hclk need to update to iface\n");
-			}
+		if (i == 2) {
+			iommu->clocks[i].id = "sclk";
 		} else {
-			iommu->clocks[i].id = rk_iommu_clocks[i];
+			err = of_property_match_string(dev->of_node,
+						       "clock-names",
+						       rk_iommu_clocks[i]);
+			if (err < 0) {
+				if (!strcmp(rk_iommu_clocks[i], "iface")) {
+					iommu->clocks[i].id = "hclk";
+					dev_warn(dev, "iommu hclk need to update to iface\n");
+				}
+			} else {
+				iommu->clocks[i].id = rk_iommu_clocks[i];
+			}
 		}
 	}
 
