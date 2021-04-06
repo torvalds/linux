@@ -317,7 +317,6 @@ void r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 			 0x0000ffff)));
 }
 
-
 void r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 			      struct xmit_frame *pxmitframe)
 {
