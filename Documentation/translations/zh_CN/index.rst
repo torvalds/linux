@@ -24,6 +24,7 @@
    sound/index
    cpu-freq/index
    mips/index
+   iio/index
 
 目录和表格
 ----------
