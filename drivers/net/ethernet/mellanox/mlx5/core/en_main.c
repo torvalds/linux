@@ -3130,7 +3130,6 @@ static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 }
 
 static void mlx5e_build_indir_tir_ctx_common(struct mlx5_core_dev *mdev,
-					     struct mlx5e_lro_param *lro_param,
 					     bool inner_ft_support,
 					     u32 rqtn, u32 *tirc)
 {
@@ -3138,8 +3137,6 @@ static void mlx5e_build_indir_tir_ctx_common(struct mlx5_core_dev *mdev,
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
 	MLX5_SET(tirc, tirc, indirect_table, rqtn);
 	MLX5_SET(tirc, tirc, tunneled_offload_en, inner_ft_support);
-
-	mlx5e_build_tir_ctx_lro(lro_param, tirc);
 }
 
 static void mlx5e_build_direct_tir_ctx(struct mlx5_core_dev *mdev,
@@ -3147,7 +3144,8 @@ static void mlx5e_build_direct_tir_ctx(struct mlx5_core_dev *mdev,
 				       bool inner_ft_support,
 				       u32 rqtn, u32 *tirc)
 {
-	mlx5e_build_indir_tir_ctx_common(mdev, lro_param, inner_ft_support, rqtn, tirc);
+	mlx5e_build_indir_tir_ctx_common(mdev, inner_ft_support, rqtn, tirc);
+	mlx5e_build_tir_ctx_lro(lro_param, tirc);
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
 }
 
@@ -3176,9 +3174,10 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		memset(in, 0, inlen);
 		tir = &res->rss[tt].indir_tir;
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-		mlx5e_build_indir_tir_ctx_common(priv->mdev, &lro_param,
+		mlx5e_build_indir_tir_ctx_common(priv->mdev,
 						 priv->channels.params.tunneled_offload_en,
 						 indir_rqtn, tirc);
+		mlx5e_build_tir_ctx_lro(&lro_param, tirc);
 		mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params,
 					       &tirc_default_config[tt], tirc, false);
 
@@ -3196,9 +3195,10 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		memset(in, 0, inlen);
 		tir = &res->rss[i].inner_indir_tir;
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-		mlx5e_build_indir_tir_ctx_common(priv->mdev, &lro_param,
+		mlx5e_build_indir_tir_ctx_common(priv->mdev,
 						 priv->channels.params.tunneled_offload_en,
 						 indir_rqtn, tirc);
+		mlx5e_build_tir_ctx_lro(&lro_param, tirc);
 		mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params,
 					       &tirc_default_config[i], tirc, true);
 		err = mlx5e_create_tir(priv->mdev, tir, in);
