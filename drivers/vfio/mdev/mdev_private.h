@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Mediated device interal definitions
+ * Mediated device internal definitions
  *
  * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *     Author: Neo Jia <cjia@nvidia.com>

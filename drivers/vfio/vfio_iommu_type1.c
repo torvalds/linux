@@ -16,7 +16,7 @@
  * IOMMU to support the IOMMU API and have few to no restrictions around
  * the IOVA range that can be mapped.  The Type1 IOMMU is currently
  * optimized for relatively static mappings of a userspace process with
- * userpsace pages pinned into memory.  We also assume devices and IOMMU
+ * userspace pages pinned into memory.  We also assume devices and IOMMU
  * domains are PCI based as the IOMMU API is still centered around a
  * device/bus interface rather than a group interface.
  */
@@ -877,7 +877,7 @@ again:
 
 	/*
 	 * If iommu capable domain exist in the container then all pages are
-	 * already pinned and accounted. Accouting should be done if there is no
+	 * already pinned and accounted. Accounting should be done if there is no
 	 * iommu capable domain in the container.
 	 */
 	do_accounting = !IS_IOMMU_CAP_DOMAIN_IN_CONTAINER(iommu);
@@ -960,7 +960,7 @@ static int vfio_iommu_type1_unpin_pages(void *iommu_data,
 	bool do_accounting;
 	int i;
 
-	if (!iommu || !user_pfn)
+	if (!iommu || !user_pfn || npage <= 0)
 		return -EINVAL;
 
 	/* Supported for v2 version only */
@@ -977,13 +977,13 @@ static int vfio_iommu_type1_unpin_pages(void *iommu_data,
 		iova = user_pfn[i] << PAGE_SHIFT;
 		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
 		if (!dma)
-			goto unpin_exit;
+			break;
+
 		vfio_unpin_page_external(dma, iova, do_accounting);
 	}
 
-unpin_exit:
 	mutex_unlock(&iommu->lock);
-	return i > npage ? npage : (i > 0 ? i : -EINVAL);
+	return i > 0 ? i : -EINVAL;
 }
 
 static long vfio_sync_unpin(struct vfio_dma *dma, struct vfio_domain *domain,
@@ -2177,7 +2177,7 @@ static int vfio_iommu_resv_exclude(struct list_head *iova,
 				continue;
 			/*
 			 * Insert a new node if current node overlaps with the
-			 * reserve region to exlude that from valid iova range.
+			 * reserve region to exclude that from valid iova range.
 			 * Note that, new node is inserted before the current
 			 * node and finally the current node is deleted keeping
 			 * the list updated and sorted.
