@@ -327,6 +327,7 @@ struct acpi_cedt_header {
 
 enum acpi_cedt_type {
 	ACPI_CEDT_TYPE_CHBS = 0,
+	ACPI_CEDT_TYPE_RESERVED = 1
 };
 
 /*
@@ -336,7 +337,7 @@ enum acpi_cedt_type {
 /* 0: CXL Host Bridge Structure */
 
 struct acpi_cedt_chbs {
-	ACPI_CEDT_HEADER header;
+	struct acpi_cedt_header header;
 	u32 uid;
 	u32 cxl_version;
 	u32 reserved;
