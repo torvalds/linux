@@ -1341,10 +1341,12 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 			rc = hisi_sas_exec_internal_tmf_task(device, fis,
 							     s, NULL);
 			if (rc != TMF_RESP_FUNC_COMPLETE)
-				dev_err(dev, "ata disk de-reset failed\n");
+				dev_err(dev, "ata disk %016llx de-reset failed\n",
+					SAS_ADDR(device->sas_addr));
 		}
 	} else {
-		dev_err(dev, "ata disk reset failed\n");
+		dev_err(dev, "ata disk %016llx reset failed\n",
+			SAS_ADDR(device->sas_addr));
 	}
 
 	if (rc == TMF_RESP_FUNC_COMPLETE)
