@@ -677,8 +677,6 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, struct xmit_buf 
 
 	ret = _SUCCESS;
 
-/*    We add the URB_ZERO_PACKET flag to urb so that the host will send the zero packet automatically. */
-
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("-%s\n", __func__));
 
 exit:
