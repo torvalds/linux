@@ -234,6 +234,7 @@ static int sev_do_cmd(int cmd, void *data, int *psp_ret)
 static int __sev_platform_init_locked(int *error)
 {
 	struct psp_device *psp = psp_master;
+	struct sev_data_init data;
 	struct sev_device *sev;
 	int rc = 0;
 
@@ -245,6 +246,7 @@ static int __sev_platform_init_locked(int *error)
 	if (sev->state == SEV_STATE_INIT)
 		return 0;
 
+	memset(&data, 0, sizeof(data));
 	if (sev_es_tmr) {
 		u64 tmr_pa;
 
@@ -254,12 +256,12 @@ static int __sev_platform_init_locked(int *error)
 		 */
 		tmr_pa = __pa(sev_es_tmr);
 
-		sev->init_cmd_buf.flags |= SEV_INIT_FLAGS_SEV_ES;
-		sev->init_cmd_buf.tmr_address = tmr_pa;
-		sev->init_cmd_buf.tmr_len = SEV_ES_TMR_SIZE;
+		data.flags |= SEV_INIT_FLAGS_SEV_ES;
+		data.tmr_address = tmr_pa;
+		data.tmr_len = SEV_ES_TMR_SIZE;
 	}
 
-	rc = __sev_do_cmd_locked(SEV_CMD_INIT, &sev->init_cmd_buf, error);
+	rc = __sev_do_cmd_locked(SEV_CMD_INIT, &data, error);
 	if (rc)
 		return rc;
 
