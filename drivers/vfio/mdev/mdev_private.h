@@ -40,11 +40,10 @@ struct mdev_type {
 int  parent_create_sysfs_files(struct mdev_parent *parent);
 void parent_remove_sysfs_files(struct mdev_parent *parent);
 
-int  mdev_create_sysfs_files(struct mdev_device *mdev, struct mdev_type *type);
-void mdev_remove_sysfs_files(struct mdev_device *mdev, struct mdev_type *type);
+int  mdev_create_sysfs_files(struct mdev_device *mdev);
+void mdev_remove_sysfs_files(struct mdev_device *mdev);
 
-int  mdev_device_create(struct kobject *kobj,
-			struct device *dev, const guid_t *uuid);
+int mdev_device_create(struct mdev_type *kobj, const guid_t *uuid);
 int  mdev_device_remove(struct mdev_device *dev);
 
 #endif /* MDEV_PRIVATE_H */

@@ -73,11 +73,9 @@ static void mdev_put_parent(struct mdev_parent *parent)
 static void mdev_device_remove_common(struct mdev_device *mdev)
 {
 	struct mdev_parent *parent;
-	struct mdev_type *type;
 	int ret;
 
-	type = to_mdev_type(mdev->type_kobj);
-	mdev_remove_sysfs_files(mdev, type);
+	mdev_remove_sysfs_files(mdev);
 	device_del(&mdev->dev);
 	parent = mdev->parent;
 	lockdep_assert_held(&parent->unreg_sem);
@@ -241,13 +239,11 @@ static void mdev_device_release(struct device *dev)
 	mdev_device_free(mdev);
 }
 
-int mdev_device_create(struct kobject *kobj,
-		       struct device *dev, const guid_t *uuid)
+int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 {
 	int ret;
 	struct mdev_device *mdev, *tmp;
 	struct mdev_parent *parent;
-	struct mdev_type *type = to_mdev_type(kobj);
 
 	parent = mdev_get_parent(type->parent);
 	if (!parent)
@@ -285,14 +281,14 @@ int mdev_device_create(struct kobject *kobj,
 	}
 
 	device_initialize(&mdev->dev);
-	mdev->dev.parent  = dev;
+	mdev->dev.parent = parent->dev;
 	mdev->dev.bus     = &mdev_bus_type;
 	mdev->dev.release = mdev_device_release;
 	dev_set_name(&mdev->dev, "%pUl", uuid);
 	mdev->dev.groups = parent->ops->mdev_attr_groups;
-	mdev->type_kobj = kobj;
+	mdev->type = type;
 
-	ret = parent->ops->create(kobj, mdev);
+	ret = parent->ops->create(&type->kobj, mdev);
 	if (ret)
 		goto ops_create_fail;
 
@@ -300,7 +296,7 @@ int mdev_device_create(struct kobject *kobj,
 	if (ret)
 		goto add_fail;
 
-	ret = mdev_create_sysfs_files(mdev, type);
+	ret = mdev_create_sysfs_files(mdev);
 	if (ret)
 		goto sysfs_fail;
 

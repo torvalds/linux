@@ -10,13 +10,15 @@
 #ifndef MDEV_H
 #define MDEV_H
 
+struct mdev_type;
+
 struct mdev_device {
 	struct device dev;
 	struct mdev_parent *parent;
 	guid_t uuid;
 	void *driver_data;
 	struct list_head next;
-	struct kobject *type_kobj;
+	struct mdev_type *type;
 	struct device *iommu_device;
 	bool active;
 };
