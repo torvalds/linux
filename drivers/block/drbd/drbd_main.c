@@ -125,7 +125,7 @@ struct bio_set drbd_io_bio_set;
 	 member of struct page.
  */
 struct page *drbd_pp_pool;
-spinlock_t   drbd_pp_lock;
+DEFINE_SPINLOCK(drbd_pp_lock);
 int          drbd_pp_vacant;
 wait_queue_head_t drbd_pp_wait;
 
@@ -2159,9 +2159,6 @@ static int drbd_create_mempools(void)
 	ret = mempool_init_slab_pool(&drbd_ee_mempool, number, drbd_ee_cache);
 	if (ret)
 		goto Enomem;
-
-	/* drbd's page pool */
-	spin_lock_init(&drbd_pp_lock);
 
 	for (i = 0; i < number; i++) {
 		page = alloc_page(GFP_HIGHUSER);
