@@ -628,8 +628,6 @@ struct em28xx_audio {
 	atomic_t       stream_started;	/* stream should be running if true */
 };
 
-struct em28xx;
-
 enum em28xx_i2c_algo_type {
 	EM28XX_I2C_ALGO_EM28XX = 0,
 	EM28XX_I2C_ALGO_EM2800,
