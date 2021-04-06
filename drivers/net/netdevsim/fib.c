@@ -566,7 +566,7 @@ nsim_fib6_rt_create(struct nsim_fib_data *data,
 err_fib6_rt_nh_del:
 	for (i--; i >= 0; i--) {
 		nsim_fib6_rt_nh_del(fib6_rt, rt_arr[i]);
-	};
+	}
 	nsim_fib_rt_fini(&fib6_rt->common);
 	kfree(fib6_rt);
 	return ERR_PTR(err);
