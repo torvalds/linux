@@ -65,7 +65,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 {
 	const struct mfd_cell_acpi_match *match = cell->acpi_match;
 	struct acpi_device *parent, *child;
-	struct acpi_device *adev;
+	struct acpi_device *adev = NULL;
 
 	parent = ACPI_COMPANION(pdev->dev.parent);
 	if (!parent)
@@ -77,10 +77,9 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 	 * _ADR or it will use the parent handle if is no ID is given.
 	 *
 	 * Note that use of _ADR is a grey area in the ACPI specification,
-	 * though Intel Galileo Gen2 is using it to distinguish the children
-	 * devices.
+	 * though at least Intel Galileo Gen 2 is using it to distinguish
+	 * the children devices.
 	 */
-	adev = parent;
 	if (match) {
 		if (match->pnpid) {
 			struct acpi_device_id ids[2] = {};
@@ -93,22 +92,11 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 				}
 			}
 		} else {
-			unsigned long long adr;
-			acpi_status status;
-
-			list_for_each_entry(child, &parent->children, node) {
-				status = acpi_evaluate_integer(child->handle,
-							       "_ADR", NULL,
-							       &adr);
-				if (ACPI_SUCCESS(status) && match->adr == adr) {
-					adev = child;
-					break;
-				}
-			}
+			adev = acpi_find_child_device(parent, match->adr, false);
 		}
 	}
 
-	ACPI_COMPANION_SET(&pdev->dev, adev);
+	ACPI_COMPANION_SET(&pdev->dev, adev ?: parent);
 }
 #else
 static inline void mfd_acpi_add_device(const struct mfd_cell *cell,
