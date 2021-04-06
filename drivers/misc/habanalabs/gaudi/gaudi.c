@@ -7086,7 +7086,8 @@ static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
 		}
 
 		/* Write 1 clear errors */
-		WREG32(glbl_sts_addr + 4 * i, glbl_sts_clr_val);
+		if (!hdev->stop_on_err)
+			WREG32(glbl_sts_addr + 4 * i, glbl_sts_clr_val);
 	}
 
 	arb_err_val = RREG32(arb_err_addr);
