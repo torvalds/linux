@@ -296,14 +296,10 @@ exit:
 
 u8 usb_read8(struct adapter *adapter, u32 addr)
 {
-	u16 wvalue;
-	u16 len;
-	u8 data = 0;
+	u16 wvalue = (u16)(addr & 0xffff);
+	u8 data;
 
-	wvalue = (u16)(addr & 0x0000ffff);
-	len = 1;
-
-	usbctrl_vendorreq(adapter, wvalue, &data, len, REALTEK_USB_VENQT_READ);
+	usbctrl_vendorreq(adapter, wvalue, &data, 1, REALTEK_USB_VENQT_READ);
 
 	return data;
 }
