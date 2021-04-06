@@ -10,6 +10,9 @@
 #include <linux/genhd.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/blk_types.h>
+#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/bio.h>
 #include <linux/vmalloc.h>
 
@@ -32,7 +35,7 @@ MODULE_LICENSE("GPL");
 
 
 static struct my_block_dev {
-	spinlock_t lock;
+	struct blk_mq_tag_set tag_set;
 	struct request_queue *queue;
 	struct gendisk *gd;
 	u8 *data;
@@ -93,47 +96,53 @@ static void my_xfer_request(struct my_block_dev *dev, struct request *req)
 }
 #endif
 
-static void my_block_request(struct request_queue *q)
+static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
+				     const struct blk_mq_queue_data *bd)
 {
 	struct request *rq;
-	struct my_block_dev *dev = q->queuedata;
+	struct my_block_dev *dev = hctx->queue->queuedata;
 
-	while (1) {
+	/* TODO 2: get pointer to request */
+	rq = bd->rq;
 
-		/* TODO 2/3: fetch request */
-		rq = blk_fetch_request(q);
-		if (rq == NULL)
-			break;
+	/* TODO 2: start request processing. */
+	blk_mq_start_request(rq);
 
-		/* TODO 2/5: check fs request */
-		if (blk_rq_is_passthrough(rq)) {
-			printk(KERN_NOTICE "Skip non-fs request\n");
-			__blk_end_request_all(rq, -EIO);
-			continue;
-		}
+	/* TODO 2/5: check fs request. Return if passthrough. */
+	if (blk_rq_is_passthrough(rq)) {
+		printk(KERN_NOTICE "Skip non-fs request\n");
+		blk_mq_end_request(rq, BLK_STS_IOERR);
+		goto out;
+	}
 
-		/* TODO 2/6: print request information */
-		printk(KERN_LOG_LEVEL
-			"request received: pos=%llu bytes=%u "
-			"cur_bytes=%u dir=%c\n",
-			(unsigned long long) blk_rq_pos(rq),
-			blk_rq_bytes(rq), blk_rq_cur_bytes(rq),
-			rq_data_dir(rq) ? 'W' : 'R');
+	/* TODO 2/6: print request information */
+	printk(KERN_LOG_LEVEL
+		"request received: pos=%llu bytes=%u "
+		"cur_bytes=%u dir=%c\n",
+		(unsigned long long) blk_rq_pos(rq),
+		blk_rq_bytes(rq), blk_rq_cur_bytes(rq),
+		rq_data_dir(rq) ? 'W' : 'R');
 
 #if USE_BIO_TRANSFER == 1
-		/* TODO 6/1: process the request by calling my_xfer_request */
-		my_xfer_request(dev, rq);
+	/* TODO 6/1: process the request by calling my_xfer_request */
+	my_xfer_request(dev, rq);
 #else
-		/* TODO 3/3: process the request by calling my_block_transfer */
-		my_block_transfer(dev, blk_rq_pos(rq),
-				  blk_rq_bytes(rq),
-				  bio_data(rq->bio), rq_data_dir(rq));
+	/* TODO 3/3: process the request by calling my_block_transfer */
+	my_block_transfer(dev, blk_rq_pos(rq),
+			  blk_rq_bytes(rq),
+			  bio_data(rq->bio), rq_data_dir(rq));
 #endif
 
-		/* TODO 2/1: end request successfully */
-		__blk_end_request_all(rq, 0);
-	}
+	/* TODO 2/1: end request successfully */
+	blk_mq_end_request(rq, BLK_STS_OK);
+
+out:
+	return BLK_STS_OK;
 }
+
+static struct blk_mq_ops my_queue_ops = {
+	.queue_rq = my_block_request,
+};
 
 static int create_block_device(struct my_block_dev *dev)
 {
@@ -147,11 +156,23 @@ static int create_block_device(struct my_block_dev *dev)
 		goto out_vmalloc;
 	}
 
-	/* initialize the I/O queue */
-	spin_lock_init(&dev->lock);
-	dev->queue = blk_init_queue(my_block_request, &dev->lock);
-	if (dev->queue == NULL) {
-		printk(KERN_ERR "blk_init_queue: out of memory\n");
+	/* Initialize tag set. */
+	dev->tag_set.ops = &my_queue_ops;
+	dev->tag_set.nr_hw_queues = 1;
+	dev->tag_set.queue_depth = 128;
+	dev->tag_set.numa_node = NUMA_NO_NODE;
+	dev->tag_set.cmd_size = 0;
+	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	err = blk_mq_alloc_tag_set(&dev->tag_set);
+	if (err) {
+	    printk(KERN_ERR "blk_mq_alloc_tag_set: can't allocate tag set\n");
+	    goto out_alloc_tag_set;
+	}
+
+	/* Allocate queue. */
+	dev->queue = blk_mq_init_queue(&dev->tag_set);
+	if (IS_ERR(dev->queue)) {
+		printk(KERN_ERR "blk_mq_init_queue: out of memory\n");
 		err = -ENOMEM;
 		goto out_blk_init;
 	}
@@ -181,6 +202,8 @@ static int create_block_device(struct my_block_dev *dev)
 out_alloc_disk:
 	blk_cleanup_queue(dev->queue);
 out_blk_init:
+	blk_mq_free_tag_set(&dev->tag_set);
+out_alloc_tag_set:
 	vfree(dev->data);
 out_vmalloc:
 	return err;
@@ -216,8 +239,11 @@ static void delete_block_device(struct my_block_dev *dev)
 		del_gendisk(dev->gd);
 		put_disk(dev->gd);
 	}
+
 	if (dev->queue)
 		blk_cleanup_queue(dev->queue);
+	if (dev->tag_set.tags)
+		blk_mq_free_tag_set(&dev->tag_set);
 	if (dev->data)
 		vfree(dev->data);
 }

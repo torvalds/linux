@@ -285,6 +285,7 @@ are presented below:
        int (*media_changed) (struct gendisk *);
        int (*revalidate_disk) (struct gendisk *);
        int (*getgeo)(struct block_device *, struct hd_geometry *);
+       blk_qc_t (*submit_bio) (struct bio *bio);
        struct module *owner;
    }
 
@@ -341,29 +342,108 @@ Please notice that there are no read or write operations. These operations are
 performed by the :c:func:`request` function associated with the request queue
 of the disk.
 
-Request queues
-==============
+Request Queues - Multi-Queue Block Layer
+========================================
 
 Drivers for block devices use queues to store the block I/O requests that will
 be processed. A request queue is represented by the
 :c:type:`struct request_queue` structure. The request queue is made up of a
 double-linked list of requests and their associated control information. The
 requests are added to the queue by higher-level kernel code (for example, file
-systems). As long as the request queue is not empty, the queue's associated
-driver will have to retrieve the first request from the queue and pass it to the
-associated block device. Each item in the request queue is a request represented
-by the :c:type:`struct request` structure.
+systems).
 
-Request queues implement an interface that allows the use of multiple I/O
-schedulers. A scheduler must sort the requests and present them to the driver
-in order to maximize performance. The scheduler also deals with the combination
-of adjacent requests (which refer to adjacent sectors of the disk).
+The block device driver associates each queue with a handling function, which
+will be called for each request in the queue
+(the :c:type:`struct request` structure).
+
+In earlier version of the Linux kernel, each device driver had associated one or
+more request queues (:c:type:`struct request_queue`), where any client could add
+requests, while also being able to reorder them.
+The problem with this approach is that it requires a per-queue lock, making it
+inefficient in distributed systems.
+
+The `Multi-Queue Block Queing Mechanism <https://www.kernel.org/doc/html/latest/block/blk-mq.html>`_
+solves this issue by splitting the device driver queue in two parts:
+ 1. Software staging queues
+ 2. Hardware dispatch queues
+
+Software staging queues
+-----------------------
+
+The staging queues hold requests from the clients before sending them to the
+block device driver. To prevent the waiting for a per-queue lock, a staging
+queue is allocated for each CPU or node. A software queue is associated to
+only one hardware queue.
+
+While in this queue, the requests can be merged or reordered, according to an
+I/O Scheduler, in order to maximize performance. This means that only the
+requests coming from the same CPU or node can be optimized.
+
+Staging queues are usually not used by the block device drivers, but only
+internally by the I/O subsystem to optimize requests before sending them to the
+device drivers.
+
+Hardware dispatch queues
+------------------------
+
+The hardware queues (:c:type:`struct blk_mq_hw_ctx`) are used to send the
+requests from the staging queues to the block device driver.
+Once in this queue, the requests can't be merged or reordered.
+
+Depending on the underlying hardware, a block device driver can create multiple
+hardware queues in order to improve parallelism and maximize performance.
+
+Tag sets
+--------
+
+A block device driver can accept a request before the previous one is completed.
+As a consequence, the upper layers need a way to know when a request is
+completed. For this, a "tag" is added to each request upon submission and sent
+back using a completion notification after the request is completed.
+
+The tags are part of a tag set (:c:type:`struct blk_mq_tag_set`), which is
+unique to a device.
+The tag set structure is allocated and initialized before the request queues
+and also stores some of the queues properties.
+
+.. code-block:: c
+
+    struct blk_mq_tag_set {
+      ...
+      const struct blk_mq_ops   *ops;
+      unsigned int               nr_hw_queues;
+      unsigned int               queue_depth;
+      unsigned int               cmd_size;
+      int                        numa_node;
+      void                      *driver_data;
+      struct blk_mq_tags       **tags;
+      struct list_head           tag_list;
+      ...
+    };
+
+Some of the fields in :c:type:`struct blk_mq_tag_set` are:
+
+ * ``ops`` - Queue operations, most notably the request handling function.
+ * ``nr_hw_queues`` - The number of hardware queues allocated for the device
+ * ``queue_depth`` - Hardware queues size
+ * ``cmd_size`` - Number of extra bytes allocated at the end of the device, to
+   be used by the block device driver, if needed.
+ * ``numa_node`` - In NUMA systems, the index of the node the storage device is
+   connected to.
+ * ``driver_data`` - Data private to the driver, if needed.
+ * ``tags`` - Pointer to an array of ``nr_hw_queues`` tag sets.
+ * ``tag_list`` - List of request queues using this tag set.
 
 Create and delete a request queue
 ---------------------------------
 
-A request queue is created with the :c:func:`blk_init_queue` function and is
-deleted using the :c:func:`blk_cleanup_queue` function.
+Request queues are created using the :c:func:`blk_mq_init_queue` function and
+are deleted using :c:func:`blk_cleanup_queue`. The first function creates both
+the hardware and the software queues and initializes their structures.
+
+Queue properties, including the number of hardware queues, their capacity and
+request handling function are configured using the :c:type:`blk_mq_tag_set`
+structure, as described above.
 
 An example of using these functions is as follows:
 
@@ -375,24 +455,47 @@ An example of using these functions is as follows:
 
    static struct my_block_dev {
        //...
+       struct blk_mq_tag_set tag_set;
        struct request_queue *queue;
        //...
    } dev;
 
-   static void my_block_request(struct request_queue *q);
+   static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
+                                        const struct blk_mq_queue_data *bd)
    //...
+
+   static struct blk_mq_ops my_queue_ops = {
+      .queue_rq = my_block_request,
+   };
 
    static int create_block_device(struct my_block_dev *dev)
    {
-       /* Initialize the I/O queue */
-       spin_lock_init(&dev->lock);
-       dev->queue = blk_init_queue(my_block_request, &dev->lock);
-       if (dev->queue == NULL)
+       /* Initialize tag set. */
+       dev->tag_set.ops = &my_queue_ops;
+       dev->tag_set.nr_hw_queues = 1;
+       dev->tag_set.queue_depth = 128;
+       dev->tag_set.numa_node = NUMA_NO_NODE;
+       dev->tag_set.cmd_size = 0;
+       dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+       err = blk_mq_alloc_tag_set(&dev->tag_set);
+       if (err) {
            goto out_err;
+       }
+
+       /* Allocate queue. */
+       dev->queue = blk_mq_init_queue(&dev->tag_set);
+       if (IS_ERR(dev->queue)) {
+           goto out_blk_init;
+       }
+
        blk_queue_logical_block_size(dev->queue, KERNEL_SECTOR_SIZE);
+
+        /* Assign private data to queue structure. */
        dev->queue->queuedata = dev;
        //...
 
+   out_blk_init:
+       blk_mq_free_tag_set(&dev->tag_set);
    out_err:
        return -ENOMEM;
    }
@@ -410,8 +513,8 @@ An example of using these functions is as follows:
    static void delete_block_device(struct block_dev *dev)
    {
        //...
-       if (dev->queue)
-           blk_cleanup_queue(dev->queue);
+       blk_mq_free_tag_set(&dev->tag_set);
+       blk_cleanup_queue(dev->queue);
    }
 
    static void my_block_exit(void)
@@ -420,14 +523,14 @@ An example of using these functions is as follows:
        //...
    }
 
-The :c:func:`blk_init_queue` function receives as first argument a pointer to
-the function which processes the requests for the device (of type
-:c:type:`request_fn_proc`). In the example above, the function is
-:c:func:`my_block_request`. The lock parameter is a spinlock (initialized by the
-driver) that the kernel holds during the :c:func:`request` function call to
-ensure exclusive access to the queue. This spinlock can also be used in other
-driver functions to protect access to shared data with the :c:func:`request`
-function.
+After initializing the tag set structure, the tag lists are allocated using the
+:c:func:`blk_mq_alloc_tag_set` function.
+The pointer to the function which will process the requests
+(:c:func:`my_block_request`) is filled in the ``my_queue_ops`` structure and
+then the pointer to this structure is added to the tag set.
+
+The queue is created using the :c:func:`blk_mq_init_queue` function, based on
+the information added in the tag set.
 
 As part of the request queue initialization, you can configure the
 :c:member:`queuedata` field, which is equivalent to the :c:member:`private_data`
@@ -436,29 +539,19 @@ field in other structures.
 Useful functions for processing request queues
 ----------------------------------------------
 
-The function of type :c:type:`request_fn_proc` is used to handle requests for
-working  with the block device. This function is the equivalent of read and
-write  functions encountered on character devices. The function receives the
-request queue associated with the device as an argument and can use various
-functions for processing the requests from the request queue.
+The ``queue_rq`` function from :c:type:`struct blk_mq_ops` is used to handle
+requests for working with the block device.
+This function is the equivalent of read and write functions encountered on
+character devices. The function receives the requests for the device as
+arguments and can use various functions for processing them.
 
-The functions used to process the requests from the request queue are
-described below:
+The functions used to process the requests in the handler are described below:
 
-   * :c:func:`blk_peek_request` - retrieves a reference to the first request
-     from the queue; the respective request must be started using
-     :c:func:`blk_start_request`;
-   * :c:func:`blk_start_request` - extracts the request from the queue and
-     starts it for processing; in general, the function receives as a reference
-     a pointer to a request returned by :c:func:`blk_peek_request`;
-   * :c:func:`blk_fetch_request` - retrieves the first request from the queue
-     (using :c:func:`blk_peek_request`) and starts it (using
-     :c:func:`blk_start_request`);
-   * :c:func:`blk_requeue_request` - to re-enter queue.
-
-Before calling any of the functions above, the spinlock associated to the queue
-must be acquired. If the function is called from the function of type
-:c:type:`request_fn_proc`, then the spinlock is already held.
+   * :c:func:`blk_mq_start_request` - must be called before starting processing
+     a request;
+   * :c:func:`blk_mq_requeue_request` - to re-send the request in the queue;
+   * :c:func:`blk_mq_end_request` - to end request processing and notify the
+     upper layers.
 
 Requests for block devices
 ==========================
@@ -500,96 +593,69 @@ under the responsibility of the I/O subsystem are adding requests to the queue
 of the specific block device and sorting and merging requests according to
 performance considerations.
 
-Finish a request
-----------------
-
-When the driver has finished transferring all the sectors of a request to /from
-the device, it must inform the I/O subsystem by calling the
-:c:func:`blk_end_request` function. If the lock associated to the request queue
-is already acquired, the :c:func:`__blk_end_request` function can be used.
-
-If the driver wants to close the request even if it did not transfer all the
-related sectors, it can call the :c:func:`blk_end_request_all` or
-:c:func:`__blk_end_request_all` function. The :c:func:`__blk_end_request_all`
-function is called if the lock associated to the request queue is already
-acquired.
-
 Process a request
 -----------------
 
-The central part of a block device driver is the :c:type:`request_fn_proc`
-function type. In previous examples, the function that fulfilled this role was
+The central part of a block device driver is the request handling function
+(``queue_rq``). In previous examples, the function that fulfilled this role was
 :c:func:`my_block_request`. As stated in the
 `Create and delete a request queue`_ section, this function is associated to the
-driver by calling :c:func:`blk_init_queue` function.
+driver when creating the tag set structure.
 
 This function is called when the kernel considers that the driver should process
 I/O requests. The function must start processing the requests from the queue,
 but it is not mandatory to finish them, as requests may be finished by other
 parts of the driver.
 
-The :c:data:`lock` parameter, sent when creating a request queue, is a spinlock
-that the kernel holds when executing the request method. For this reason, the
-request function runs in an atomic context and must follow the rules for
+The request function runs in an atomic context and must follow the rules for
 atomic code (it does not need to call functions that can cause sleep, etc.).
-This lock also ensures that no other requests for the device will be added to
-the queue while the request function is running.
 
-Calling the function that processes the request queue is asynchronous relative
+Calling the function that processes the requests is asynchronous relative
 to the actions of any userspace process and no assumptions about the process
 in which the respective function is running should be made. Also, it should not
 be assumed that the buffer provided by a request is from kernel space or user
 space, any operation that accesses the userspace being erroneous.
 
-Below is presented one of the simplest function of type
-:c:type:`request_fn_proc`:
+One of the simplest request handling function is presented below:
 
 .. code-block:: c
 
-   static void my_block_request(struct request_queue *q)
-   {
-       struct request *rq;
-       struct my_block_dev *dev = q->queuedata;
+    static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
+                                         const struct blk_mq_queue_data *bd)
+    {
+        struct request *rq = bd->rq;
+        struct my_block_dev *dev = q->queuedata;
 
-       while (1) {
-       	   rq = blk_fetch_request(q);
-       	   if (rq == NULL)
-               break;
+        blk_mq_start_request(rq);
 
-       	   if (blk_rq_is_passthrough(rq)) {
-               printk (KERN_NOTICE "Skip non-fs request\n");
-               __blk_end_request_all(rq, -EIO);
-              continue;
-       	   }
+        if (blk_rq_is_passthrough(rq)) {
+            printk (KERN_NOTICE "Skip non-fs request\n");
+            blk_mq_end_request(rq, BLK_STS_IOERR);
+            goto out;
+        }
 
-           /* do work */
-           ...
+        /* do work */
+        ...
 
-       	   __blk_end_request_all(rq, 0);
-       }
-   }
+        blk_mq_end_request(rq, BLK_STS_OK);
 
-The :c:func:`my_block_request` function contains a :c:func:`while` loop for
-iterating through the request queue sent as argument. The operations performed
-within this loop are:
+    out:
+        return BLK_STS_OK;
+    }
 
-   * Read the first request from the queue using :c:func:`blk_fetch_request`.
-     As described in `Useful functions for processing request queues`_ section,
-     the :c:func:`blk_fetch_request` function retrieves the first item from the
-     request queue and starts the request.
-   * If the function returns NULL, it has reached the end of the request queue
-     (there is no remaining request to be processed) and exits
-     :c:func:`my_block_request`.
+The :c:func:`my_block_request` function performs the following operations:
+
+   * Get a pointer to the request structure from the ``bd`` argument and start
+     its processing using the :c:func:`blk_mq_start_request` function.
    * A block device can receive calls which do not transfer data blocks (e.g.
      low level operations on the disk, instructions referring to special ways of
      accessing the device). Most drivers do not know how to handle these
      requests and return an error.
-   * To return an error, :c:func:`__blk_end_request_all` function is called,
-     -EIO being the second argument.
+   * To return an error, :c:func:`blk_mq_end_request` function is called,
+     ``BLK_STS_IOERR`` being the second argument.
    * The request is processed according to the needs of the associated device.
-   * The request ends. In this case, :c:func:`__blk_end_request_all` function is
-     called in order to complete the request entirely. If all request sectors
-     have been processed, the :c:func:`__blk_end_request` function is used.
+   * The request ends. In this case, :c:func:`blk_mq_end_request` function is
+     called in order to complete the request.
 
 .. bio_structure:
 
@@ -814,37 +880,29 @@ release the reference to it. This is done by calling :c:func:`bio_put` function.
 Set up a request queue at :c:type:`struct bio` level
 ----------------------------------------------------
 
-The function :c:func:`blk_init_queue` may specify a function to be used to
-process requests sent to the driver. The function receives as argument the
-request queue as queries and carries out processing at
-:c:type:`struct request` level.
+We have previously seen how we can specify a function to be used to process
+requests sent to the driver. The function receives as argument the requests and
+carries out processing at :c:type:`struct request` level.
 
-If, for flexibility reasons, it is needed to specify a function that carries
-out processing at :c:type:`struct bio` structure level, the function
-:c:func:`blk_queue_make_request` in conjunction with the
-:c:func:`blk_alloc_queue` function should be used.
+If, for flexibility reasons, we need to specify a function that carries
+out processing at :c:type:`struct bio` structure level, we no longer
+use request queues and we will need to fill the ``submit_bio`` field in the
+:c:type:`struct block_device_operations` associated to the driver.
 
 Below is a typical example of initializing a function that carries out
 processing at :c:type:`struct bio` structure level:
 
 .. code-block:: c
 
-   // the declaration of the function that carries out processing
-   // :c:type:`struct bio` structures
-   static void my_make_request(struct request_queue *q, struct bio *bio);
+    // the declaration of the function that carries out processing
+    // :c:type:`struct bio` structures
+    static blk_qc_t my_submit_bio(struct bio *bio);
 
-
-   // ...
-   // queue creation
-   dev->queue = blk_alloc_queue (GFP_KERNEL);
-   if (dev->queue == NULL) {
-       printk(KERN_ERR "cannot allocate block device queue\n");
-       return -ENOMEM;
-   }
-   // the registration of the function that carries out processing
-   // :c:type:`struct bio` structures
-   blk_queue_make_request(dev->queue, my_make_request);
-   dev->queue->queuedata = dev;
+    struct block_device_operations my_block_ops = {
+       .owner = THIS_MODULE,
+       .submit_bio = my_submit_bio
+       ...
+    };
 
 Further reading
 ===============
@@ -919,17 +977,17 @@ Follow the comments marked with **TODO 2**. Use the
 
 .. hint:: Review the `Register a disk`_ and `Process a request`_ sections.
 
-Fill in the :c:func:`my_block_request` function to process the request queue
+Fill in the :c:func:`my_block_request` function to process the request
 without actually processing your request: display the "request received" message
 and the following information: start sector, total size, data size from the
 current :c:type:`struct bio` structure, direction. To validate a request type,
 use the :c:func:`blk_rq_is_passthrough` (the function returns 0 in the case in
 which we are interested, i.e. when the request is generated by the file system).
 
-.. hint:: To retrieve the needed info, review the `Requests for block devices`_
+.. hint:: To find the needed info, review the `Requests for block devices`_
           section.
 
-Use the :c:func:`__blk_end_request_all` function to finish processing the
+Use the :c:func:`blk_mq_end_request` function to finish processing the
 request.
 
 Insert the module into the kernel and inspect the messages printed
@@ -975,7 +1033,7 @@ information, use the fields of the :c:type:`struct request` structure.
           :c:macro:`blk_rq_bytes` macro.
 
 .. hint:: To find out the buffer associated to the request, use
-          :c:data:`bio_data` (:c:data:`rq->bio`).
+          :c:data:`bio_data`(:c:data:`rq->bio`).
 
 .. hint:: A description of useful macros is in the `Requests for block devices`_
           section.
