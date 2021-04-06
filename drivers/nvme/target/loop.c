@@ -141,7 +141,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (!nvmf_check_ready(&queue->ctrl->ctrl, req, queue_ready))
 		return nvmf_fail_nonready_command(&queue->ctrl->ctrl, req);
 
-	ret = nvme_setup_cmd(ns, req, &iod->cmd);
+	ret = nvme_setup_cmd(ns, req);
 	if (ret)
 		return ret;
 
@@ -205,8 +205,10 @@ static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 		unsigned int numa_node)
 {
 	struct nvme_loop_ctrl *ctrl = set->driver_data;
+	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
 
 	nvme_req(req)->ctrl = &ctrl->ctrl;
+	nvme_req(req)->cmd = &iod->cmd;
 	return nvme_loop_init_iod(ctrl, blk_mq_rq_to_pdu(req),
 			(set == &ctrl->tag_set) ? hctx_idx + 1 : 0);
 }
@@ -396,7 +398,7 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 
 	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
 
-	error = nvme_init_identify(&ctrl->ctrl);
+	error = nvme_init_ctrl_finish(&ctrl->ctrl);
 	if (error)
 		goto out_cleanup_queue;
 
