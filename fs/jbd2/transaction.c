@@ -349,7 +349,12 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	}
 
 alloc_transaction:
-	if (!journal->j_running_transaction) {
+	/*
+	 * This check is racy but it is just an optimization of allocating new
+	 * transaction early if there are high chances we'll need it. If we
+	 * guess wrong, we'll retry or free unused transaction.
+	 */
+	if (!data_race(journal->j_running_transaction)) {
 		/*
 		 * If __GFP_FS is not present, then we may be being called from
 		 * inside the fs writeback layer, so we MUST NOT fail.
