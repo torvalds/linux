@@ -979,13 +979,13 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 		msm_gem_describe(obj, m, &stats);
 	}
 
-	seq_printf(m, "Total:    %4d objects, %9zu bytes\n",
+	seq_printf(m, "Total:     %4d objects, %9zu bytes\n",
 			stats.all.count, stats.all.size);
-	seq_printf(m, "Active:   %4d objects, %9zu bytes\n",
+	seq_printf(m, "Active:    %4d objects, %9zu bytes\n",
 			stats.active.count, stats.active.size);
-	seq_printf(m, "Purgable: %4d objects, %9zu bytes\n",
+	seq_printf(m, "Purgeable: %4d objects, %9zu bytes\n",
 			stats.purgable.count, stats.purgable.size);
-	seq_printf(m, "Purged:   %4d objects, %9zu bytes\n",
+	seq_printf(m, "Purged:    %4d objects, %9zu bytes\n",
 			stats.purged.count, stats.purged.size);
 }
 #endif
