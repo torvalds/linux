@@ -907,8 +907,8 @@ static void *show_partition_start(struct seq_file *seqf, loff_t *pos)
 static int show_partition(struct seq_file *seqf, void *v)
 {
 	struct gendisk *sgp = v;
-	struct disk_part_iter piter;
 	struct block_device *part;
+	unsigned long idx;
 	char buf[BDEVNAME_SIZE];
 
 	/* Don't show non-partitionable removeable devices or empty devices */
@@ -918,15 +918,16 @@ static int show_partition(struct seq_file *seqf, void *v)
 	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
 		return 0;
 
-	/* show the full disk and all non-0 size partitions of it */
-	disk_part_iter_init(&piter, sgp, DISK_PITER_INCL_PART0);
-	while ((part = disk_part_iter_next(&piter)))
+	rcu_read_lock();
+	xa_for_each(&sgp->part_tbl, idx, part) {
+		if (!bdev_nr_sectors(part))
+			continue;
 		seq_printf(seqf, "%4d  %7d %10llu %s\n",
 			   MAJOR(part->bd_dev), MINOR(part->bd_dev),
 			   bdev_nr_sectors(part) >> 1,
 			   disk_name(sgp, part->bd_partno, buf));
-	disk_part_iter_exit(&piter);
-
+	}
+	rcu_read_unlock();
 	return 0;
 }
 
