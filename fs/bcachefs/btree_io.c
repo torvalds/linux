@@ -1340,6 +1340,13 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 	return ret;
 }
 
+static void btree_write_submit(struct work_struct *work)
+{
+	struct btree_write_bio *wbio = container_of(work, struct btree_write_bio, work);
+
+	bch2_submit_wbio_replicas(&wbio->wbio, wbio->wbio.c, BCH_DATA_btree, &wbio->key);
+}
+
 void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 {
 	struct btree_write_bio *wbio;
@@ -1347,7 +1354,6 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	struct bset *i;
 	struct btree_node *bn = NULL;
 	struct btree_node_entry *bne = NULL;
-	struct bkey_buf k;
 	struct bch_extent_ptr *ptr;
 	struct sort_iter sort_iter;
 	struct nonce nonce;
@@ -1357,8 +1363,6 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	unsigned long old, new;
 	bool validate_before_checksum = false;
 	void *data;
-
-	bch2_bkey_buf_init(&k);
 
 	if (test_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags))
 		return;
@@ -1538,6 +1542,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	wbio_init(&wbio->wbio.bio);
 	wbio->data			= data;
 	wbio->bytes			= bytes;
+	wbio->wbio.c			= c;
 	wbio->wbio.used_mempool		= used_mempool;
 	wbio->wbio.bio.bi_end_io	= btree_node_write_endio;
 	wbio->wbio.bio.bi_private	= b;
@@ -1559,9 +1564,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	 * just make all btree node writes FUA to keep things sane.
 	 */
 
-	bch2_bkey_buf_copy(&k, c, &b->key);
+	bkey_copy(&wbio->key, &b->key);
 
-	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(k.k)), ptr)
+	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&wbio->key)), ptr)
 		ptr->offset += b->written;
 
 	b->written += sectors_to_write;
@@ -1569,9 +1574,8 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 	atomic64_inc(&c->btree_writes_nr);
 	atomic64_add(sectors_to_write, &c->btree_writes_sectors);
 
-	/* XXX: submitting IO with btree locks held: */
-	bch2_submit_wbio_replicas(&wbio->wbio, c, BCH_DATA_btree, k.k);
-	bch2_bkey_buf_exit(&k, c);
+	INIT_WORK(&wbio->work, btree_write_submit);
+	schedule_work(&wbio->work);
 	return;
 err:
 	set_btree_node_noevict(b);
