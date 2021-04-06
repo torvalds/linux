@@ -1345,14 +1345,15 @@ static const struct dpu_irq_type dpu_irq_map[] = {
 	{ DPU_IRQ_TYPE_RESERVED, 0, 0, 12},
 };
 
-static int dpu_hw_intr_irqidx_lookup(enum dpu_intr_type intr_type,
-		u32 instance_idx)
+static int dpu_hw_intr_irqidx_lookup(struct dpu_hw_intr *intr,
+	enum dpu_intr_type intr_type, u32 instance_idx)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dpu_irq_map); i++) {
 		if (intr_type == dpu_irq_map[i].intr_type &&
-			instance_idx == dpu_irq_map[i].instance_idx)
+			instance_idx == dpu_irq_map[i].instance_idx &&
+			!(intr->obsolete_irq & BIT(dpu_irq_map[i].intr_type)))
 			return i;
 	}
 
@@ -1404,7 +1405,9 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 				(irq_idx < end_idx) && irq_status;
 				irq_idx++)
 			if ((irq_status & dpu_irq_map[irq_idx].irq_mask) &&
-				(dpu_irq_map[irq_idx].reg_idx == reg_idx)) {
+				(dpu_irq_map[irq_idx].reg_idx == reg_idx) &&
+				!(intr->obsolete_irq &
+				BIT(dpu_irq_map[irq_idx].intr_type))) {
 				/*
 				 * Once a match on irq mask, perform a callback
 				 * to the given cbfunc. cbfunc will take care
@@ -1716,6 +1719,8 @@ struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
 	}
 
 	intr->irq_mask = m->mdss_irqs;
+	intr->obsolete_irq = m->obsolete_irq;
+
 	spin_lock_init(&intr->irq_lock);
 
 	return intr;

@@ -56,6 +56,13 @@
 
 #define INTF_SC7280_MASK INTF_SC7180_MASK | BIT(DPU_DATA_HCTL_EN)
 
+#define INTR_SC7180_MASK \
+	(BIT(DPU_IRQ_TYPE_PING_PONG_RD_PTR) |\
+	BIT(DPU_IRQ_TYPE_PING_PONG_WR_PTR) |\
+	BIT(DPU_IRQ_TYPE_PING_PONG_AUTO_REF) |\
+	BIT(DPU_IRQ_TYPE_PING_PONG_TEAR_CHECK) |\
+	BIT(DPU_IRQ_TYPE_PING_PONG_TE_CHECK))
+
 #define DEFAULT_PIXEL_RAM_SIZE		(50 * 1024)
 #define DEFAULT_DPU_LINE_WIDTH		2048
 #define DEFAULT_DPU_OUTPUT_LINE_WIDTH	2560
@@ -1085,6 +1092,7 @@ static void sc7180_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.dma_cfg = sdm845_regdma,
 		.perf = sc7180_perf_data,
 		.mdss_irqs = 0x3f,
+		.obsolete_irq = INTR_SC7180_MASK,
 	};
 }
 
@@ -1174,6 +1182,7 @@ static void sc7280_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.vbif = sdm845_vbif,
 		.perf = sc7280_perf_data,
 		.mdss_irqs = 0x1c07,
+		.obsolete_irq = INTR_SC7180_MASK,
 	};
 }
 
