@@ -2138,21 +2138,17 @@ static int cm_req_handler(struct cm_work *work)
 		goto destroy;
 	}
 
-	if (cm_id_priv->av.ah_attr.type != RDMA_AH_ATTR_TYPE_ROCE)
-		cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
-
 	memset(&work->path[0], 0, sizeof(work->path[0]));
 	if (cm_req_has_alt_path(req_msg))
 		memset(&work->path[1], 0, sizeof(work->path[1]));
 	grh = rdma_ah_read_grh(&cm_id_priv->av.ah_attr);
 	gid_attr = grh->sgid_attr;
 
-	if (gid_attr &&
-	    rdma_protocol_roce(work->port->cm_dev->ib_device,
-			       work->port->port_num)) {
+	if (cm_id_priv->av.ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE) {
 		work->path[0].rec_type =
 			sa_conv_gid_to_pathrec_type(gid_attr->gid_type);
 	} else {
+		cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
 		cm_path_set_rec_type(
 			work->port->cm_dev->ib_device, work->port->port_num,
 			&work->path[0],
