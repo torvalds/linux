@@ -3115,6 +3115,18 @@ optional features it should have.  This will cause a reset of the cpu
 registers to their initial values.  If this is not called, KVM_RUN will
 return ENOEXEC for that vcpu.
 
+The initial values are defined as:
+	- Processor state:
+		* AArch64: EL1h, D, A, I and F bits set. All other bits
+		  are cleared.
+		* AArch32: SVC, A, I and F bits set. All other bits are
+		  cleared.
+	- General Purpose registers, including PC and SP: set to 0
+	- FPSIMD/NEON registers: set to 0
+	- SVE registers: set to 0
+	- System registers: Reset to their architecturally defined
+	  values as for a warm reset to EL1 (resp. SVC)
+
 Note that because some registers reflect machine topology, all vcpus
 should be created before this ioctl is invoked.
 
