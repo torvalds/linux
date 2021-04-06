@@ -1130,25 +1130,6 @@ void amdgpu_bo_fini(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_bo_fbdev_mmap - mmap fbdev memory
- * @bo: &amdgpu_bo buffer object
- * @vma: vma as input from the fbdev mmap method
- *
- * Calls ttm_fbdev_mmap() to mmap fbdev memory if it is backed by a bo.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
-			     struct vm_area_struct *vma)
-{
-	if (vma->vm_pgoff != 0)
-		return -EACCES;
-
-	return ttm_bo_mmap_obj(vma, &bo->tbo);
-}
-
-/**
  * amdgpu_bo_set_tiling_flags - set tiling flags
  * @bo: &amdgpu_bo buffer object
  * @tiling_flags: new flags
