@@ -12,26 +12,163 @@
 #include <linux/types.h>
 #include <linux/bug.h>
 
+void __xchg_called_with_bad_pointer(void);
+
+static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
+{
+	unsigned long addr, old;
+	int shift;
+
+	switch (size) {
+	case 1:
+		addr = (unsigned long) ptr;
+		shift = (3 ^ (addr & 3)) << 3;
+		addr ^= addr & 3;
+		asm volatile(
+			"       l       %0,%1\n"
+			"0:     lr      0,%0\n"
+			"       nr      0,%3\n"
+			"       or      0,%2\n"
+			"       cs      %0,0,%1\n"
+			"       jl      0b\n"
+			: "=&d" (old), "+Q" (*(int *) addr)
+			: "d" ((x & 0xff) << shift), "d" (~(0xff << shift))
+			: "memory", "cc", "0");
+		return old >> shift;
+	case 2:
+		addr = (unsigned long) ptr;
+		shift = (2 ^ (addr & 2)) << 3;
+		addr ^= addr & 2;
+		asm volatile(
+			"       l       %0,%1\n"
+			"0:     lr      0,%0\n"
+			"       nr      0,%3\n"
+			"       or      0,%2\n"
+			"       cs      %0,0,%1\n"
+			"       jl      0b\n"
+			: "=&d" (old), "+Q" (*(int *) addr)
+			: "d" ((x & 0xffff) << shift), "d" (~(0xffff << shift))
+			: "memory", "cc", "0");
+		return old >> shift;
+	case 4:
+		asm volatile(
+			"       l       %0,%1\n"
+			"0:     cs      %0,%2,%1\n"
+			"       jl      0b\n"
+			: "=&d" (old), "+Q" (*(int *) ptr)
+			: "d" (x)
+			: "memory", "cc");
+		return old;
+	case 8:
+		asm volatile(
+			"       lg      %0,%1\n"
+			"0:     csg     %0,%2,%1\n"
+			"       jl      0b\n"
+			: "=&d" (old), "+S" (*(long *) ptr)
+			: "d" (x)
+			: "memory", "cc");
+		return old;
+	}
+	__xchg_called_with_bad_pointer();
+	return x;
+}
+
+#define xchg(ptr, x)							\
+({									\
+	__typeof__(*(ptr)) __ret;					\
+									\
+	__ret = (__typeof__(*(ptr)))					\
+		__xchg((unsigned long)(x), (void *)(ptr), sizeof(*(ptr))); \
+	__ret;								\
+})
+
+void __cmpxchg_called_with_bad_pointer(void);
+
+static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
+				      unsigned long new, int size)
+{
+	unsigned long addr, prev, tmp;
+	int shift;
+
+	switch (size) {
+	case 1:
+		addr = (unsigned long) ptr;
+		shift = (3 ^ (addr & 3)) << 3;
+		addr ^= addr & 3;
+		asm volatile(
+			"       l       %0,%2\n"
+			"0:     nr      %0,%5\n"
+			"       lr      %1,%0\n"
+			"       or      %0,%3\n"
+			"       or      %1,%4\n"
+			"       cs      %0,%1,%2\n"
+			"       jnl     1f\n"
+			"       xr      %1,%0\n"
+			"       nr      %1,%5\n"
+			"       jnz     0b\n"
+			"1:"
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "d" ((old & 0xff) << shift),
+			  "d" ((new & 0xff) << shift),
+			  "d" (~(0xff << shift))
+			: "memory", "cc");
+		return prev >> shift;
+	case 2:
+		addr = (unsigned long) ptr;
+		shift = (2 ^ (addr & 2)) << 3;
+		addr ^= addr & 2;
+		asm volatile(
+			"       l       %0,%2\n"
+			"0:     nr      %0,%5\n"
+			"       lr      %1,%0\n"
+			"       or      %0,%3\n"
+			"       or      %1,%4\n"
+			"       cs      %0,%1,%2\n"
+			"       jnl     1f\n"
+			"       xr      %1,%0\n"
+			"       nr      %1,%5\n"
+			"       jnz     0b\n"
+			"1:"
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "d" ((old & 0xffff) << shift),
+			  "d" ((new & 0xffff) << shift),
+			  "d" (~(0xffff << shift))
+			: "memory", "cc");
+		return prev >> shift;
+	case 4:
+		asm volatile(
+			"       cs      %0,%3,%1\n"
+			: "=&d" (prev), "+Q" (*(int *) ptr)
+			: "0" (old), "d" (new)
+			: "memory", "cc");
+		return prev;
+	case 8:
+		asm volatile(
+			"       csg     %0,%3,%1\n"
+			: "=&d" (prev), "+S" (*(long *) ptr)
+			: "0" (old), "d" (new)
+			: "memory", "cc");
+		return prev;
+	}
+	__cmpxchg_called_with_bad_pointer();
+	return old;
+}
+
 #define cmpxchg(ptr, o, n)						\
 ({									\
-	__typeof__(*(ptr)) __o = (o);					\
-	__typeof__(*(ptr)) __n = (n);					\
-	(__typeof__(*(ptr))) __sync_val_compare_and_swap((ptr),__o,__n);\
+	__typeof__(*(ptr)) __ret;					\
+									\
+	__ret = (__typeof__(*(ptr)))					\
+		__cmpxchg((ptr), (unsigned long)(o),			\
+			  (unsigned long)(n), sizeof(*(ptr)));		\
+	__ret;								\
 })
 
 #define cmpxchg64	cmpxchg
 #define cmpxchg_local	cmpxchg
-#define cmpxchg64_local	cmpxchg
+#define cmpxchg64_local cmpxchg
 
-#define xchg(ptr, x)							\
-({									\
-	__typeof__(ptr) __ptr = (ptr);					\
-	__typeof__(*(ptr)) __old;					\
-	do {								\
-		__old = *__ptr;						\
-	} while (!__sync_bool_compare_and_swap(__ptr, __old, x));	\
-	__old;								\
-})
+#define system_has_cmpxchg_double()	1
 
 #define __cmpxchg_double(p1, p2, o1, o2, n1, n2)			\
 ({									\
@@ -60,7 +197,5 @@
 	VM_BUG_ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
 	__cmpxchg_double(__p1, __p2, o1, o2, n1, n2);			\
 })
-
-#define system_has_cmpxchg_double()	1
 
 #endif /* __ASM_CMPXCHG_H */
