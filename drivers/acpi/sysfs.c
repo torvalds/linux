@@ -58,7 +58,6 @@ static const struct acpi_dlayer acpi_debug_layers[] = {
 	ACPI_DEBUG_INIT(ACPI_CONTAINER_COMPONENT),
 	ACPI_DEBUG_INIT(ACPI_SYSTEM_COMPONENT),
 	ACPI_DEBUG_INIT(ACPI_MEMORY_DEVICE_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_PROCESSOR_COMPONENT),
 };
 
 static const struct acpi_dlevel acpi_debug_levels[] = {
