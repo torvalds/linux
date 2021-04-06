@@ -109,7 +109,7 @@ static u32 unaligned_action;
 extern void show_registers(struct pt_regs *regs);
 
 static void emulate_load_store_insn(struct pt_regs *regs,
-	void __user *addr, unsigned int __user *pc)
+	void __user *addr, unsigned int *pc)
 {
 	unsigned long origpc, orig31, value;
 	union mips_instruction insn;
@@ -1475,7 +1475,7 @@ sigill:
 asmlinkage void do_ade(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
-	unsigned int __user *pc;
+	unsigned int *pc;
 
 	prev_state = exception_enter();
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS,
@@ -1526,7 +1526,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 
 	if (unaligned_action == UNALIGNED_ACTION_SHOW)
 		show_registers(regs);
-	pc = (unsigned int __user *)exception_epc(regs);
+	pc = (unsigned int *)exception_epc(regs);
 
 	emulate_load_store_insn(regs, (void __user *)regs->cp0_badvaddr, pc);
 
