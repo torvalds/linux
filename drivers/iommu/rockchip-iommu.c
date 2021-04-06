@@ -1107,6 +1107,14 @@ static struct iommu_device *rk_iommu_probe_device(struct device *dev)
 
 	data->defer_attach = false;
 
+	/* set max segment size for dev, needed for single chunk map */
+	if (!dev->dma_parms)
+		dev->dma_parms = kzalloc(sizeof(*dev->dma_parms), GFP_KERNEL);
+	if (!dev->dma_parms)
+		return ERR_PTR(-ENOMEM);
+
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
 	return &iommu->iommu;
 }
 
