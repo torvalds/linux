@@ -680,7 +680,11 @@ void del_gendisk(struct gendisk *disk)
 	 * disk is marked as dead (GENHD_FL_UP cleared).
 	 */
 	down_write(&bdev_lookup_sem);
+
+	mutex_lock(&disk->part0->bd_mutex);
 	blk_drop_partitions(disk);
+	mutex_unlock(&disk->part0->bd_mutex);
+
 	fsync_bdev(disk->part0);
 	__invalidate_device(disk->part0, true);
 

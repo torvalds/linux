@@ -531,6 +531,8 @@ void blk_drop_partitions(struct gendisk *disk)
 	struct disk_part_iter piter;
 	struct block_device *part;
 
+	lockdep_assert_held(&disk->part0->bd_mutex);
+
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
 		delete_partition(part);
