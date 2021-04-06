@@ -40,9 +40,7 @@
 #define HNS_ROCE_VF_SRQC_BT_NUM			64
 #define HNS_ROCE_VF_CQC_BT_NUM			64
 #define HNS_ROCE_VF_MPT_BT_NUM			64
-#define HNS_ROCE_VF_EQC_NUM			64
 #define HNS_ROCE_VF_SMAC_NUM			32
-#define HNS_ROCE_VF_SGID_NUM			32
 #define HNS_ROCE_VF_SL_NUM			8
 #define HNS_ROCE_VF_GMV_BT_NUM			256
 

@@ -805,6 +805,9 @@ struct hns_roce_caps {
 	u32		cqc_bt_num;
 	u32		cqc_timer_bt_num;
 	u32		mpt_bt_num;
+	u32		eqc_bt_num;
+	u32		smac_bt_num;
+	u32		sgid_bt_num;
 	u32		sccc_bt_num;
 	u32		gmv_bt_num;
 	u32		qpc_ba_pg_sz;
