@@ -1334,7 +1334,7 @@ static const struct attribute_group mdev_dev_group = {
 	.attrs = mdev_dev_attrs,
 };
 
-const struct attribute_group *mdev_dev_groups[] = {
+static const struct attribute_group *mdev_dev_groups[] = {
 	&mdev_dev_group,
 	NULL,
 };
@@ -1344,7 +1344,7 @@ name_show(struct kobject *kobj, struct device *dev, char *buf)
 {
 	return sprintf(buf, "%s\n", kobj->name);
 }
-MDEV_TYPE_ATTR_RO(name);
+static MDEV_TYPE_ATTR_RO(name);
 
 static ssize_t
 description_show(struct kobject *kobj, struct device *dev, char *buf)
@@ -1354,7 +1354,7 @@ description_show(struct kobject *kobj, struct device *dev, char *buf)
 	return sprintf(buf, "virtual display, %d MB video memory\n",
 		       type ? type->mbytes  : 0);
 }
-MDEV_TYPE_ATTR_RO(description);
+static MDEV_TYPE_ATTR_RO(description);
 
 static ssize_t
 available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
@@ -1364,14 +1364,14 @@ available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
 
 	return sprintf(buf, "%d\n", count);
 }
-MDEV_TYPE_ATTR_RO(available_instances);
+static MDEV_TYPE_ATTR_RO(available_instances);
 
 static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
 			       char *buf)
 {
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }
-MDEV_TYPE_ATTR_RO(device_api);
+static MDEV_TYPE_ATTR_RO(device_api);
 
 static struct attribute *mdev_types_attrs[] = {
 	&mdev_type_attr_name.attr,
