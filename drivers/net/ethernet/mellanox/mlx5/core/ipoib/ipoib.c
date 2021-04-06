@@ -362,6 +362,8 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 	u16 max_nch = priv->max_nch;
 	int err;
 
+	mlx5e_build_rss_params(&priv->rss_params, priv->channels.params.num_channels);
+
 	mlx5e_create_q_counters(priv);
 
 	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);

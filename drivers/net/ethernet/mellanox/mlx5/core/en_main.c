@@ -4538,7 +4538,6 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 
 void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 mtu)
 {
-	struct mlx5e_rss_params *rss_params = &priv->rss_params;
 	struct mlx5e_params *params = &priv->channels.params;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 rx_cq_period_mode;
@@ -4598,10 +4597,7 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	/* TX inline */
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 
-	/* RSS */
-	mlx5e_build_rss_params(rss_params, params->num_channels);
-	params->tunneled_offload_en =
-		mlx5e_tunnel_inner_ft_supported(mdev);
+	params->tunneled_offload_en = mlx5e_tunnel_inner_ft_supported(mdev);
 
 	/* AF_XDP */
 	params->xsk = xsk;
@@ -4872,6 +4868,8 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 max_nch = priv->max_nch;
 	int err;
+
+	mlx5e_build_rss_params(&priv->rss_params, priv->channels.params.num_channels);
 
 	mlx5e_create_q_counters(priv);
 

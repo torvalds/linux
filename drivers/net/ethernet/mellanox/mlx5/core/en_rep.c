@@ -585,9 +585,6 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	params->tunneled_offload_en = false;
 
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
-
-	/* RSS */
-	mlx5e_build_rss_params(&priv->rss_params, params->num_channels);
 }
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev,
@@ -762,6 +759,8 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 max_nch = priv->max_nch;
 	int err;
+
+	mlx5e_build_rss_params(&priv->rss_params, priv->channels.params.num_channels);
 
 	mlx5e_init_l2_addr(priv);
 
