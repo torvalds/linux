@@ -600,7 +600,7 @@ Inspecting the x86 interrupt handling
 
    |_|
 
-   .. asciicast:: intr_x86.cast
+   .. asciicast:: ../res/intr_x86.cast
 
 
 Quiz: x86 interrupt handling
@@ -878,7 +878,7 @@ should be in the context of the `ksoftirqd` thread.
 
    |_|
 
-   .. asciicast:: ksoftirqd-packet-flood.cast
+   .. asciicast:: ../res/ksoftirqd-packet-flood.cast
 
 
 Tasklets

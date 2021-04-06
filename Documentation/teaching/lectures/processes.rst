@@ -151,7 +151,7 @@ the task_struct for each process.
 
    |_|
 
-   .. asciicast:: inspect_task_struct.cast
+   .. asciicast:: ../res/inspect_task_struct.cast
 
 
 Quiz: Inspect a task to determine opened files
@@ -662,7 +662,7 @@ __switch_to_asm and examine the stack during the context switch:
 
    |_|
 
-   .. asciicast:: context_switch.cast
+   .. asciicast:: ../res/context_switch.cast
 
 
 Quiz: context switch
@@ -1202,7 +1202,7 @@ The following screencast takes a closer look at kernel threads:
 
    |_|
 
-   .. asciicast:: kernel_threads.cast
+   .. asciicast:: ../res/kernel_threads.cast
 
 
 Using gdb scripts for kernel inspection

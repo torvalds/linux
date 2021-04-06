@@ -309,7 +309,7 @@ Inspecting selectors and segments
 
    |_|
 
-   .. asciicast:: selectors-and-segments.cast
+   .. asciicast:: ../res/selectors-and-segments.cast
 
 
 x86 Paging

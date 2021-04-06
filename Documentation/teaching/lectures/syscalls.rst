@@ -182,7 +182,7 @@ dup2 system call and inspect the state.
 
    |_|
 
-   .. asciicast:: syscalls-inspection.cast
+   .. asciicast:: ../res/syscalls-inspection.cast
 
 
 In summary, this is what happens during a system call:
@@ -388,7 +388,7 @@ With VDSO the system call interface is decided by the kernel:
 
    |_|
 
-   .. asciicast:: syscalls-vdso.cast
+   .. asciicast:: ../res/syscalls-vdso.cast
 
 
 
