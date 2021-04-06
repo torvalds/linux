@@ -19,8 +19,8 @@ extern __printf(3, 4) void __kunit_fail_current_test(const char *file, int line,
 
 #else
 
-static __printf(3, 4) void __kunit_fail_current_test(const char *file, int line,
-						    const char *fmt, ...)
+static inline __printf(3, 4) void __kunit_fail_current_test(const char *file, int line,
+							    const char *fmt, ...)
 {
 }
 
