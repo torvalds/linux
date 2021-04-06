@@ -531,6 +531,7 @@ module_param(prot_mask, int, 0);
 MODULE_PARM_DESC(prot_mask, " host protection capabilities mask, def=0x0 ");
 
 static void debugfs_work_handler_v3_hw(struct work_struct *work);
+static void debugfs_snapshot_regs_v3_hw(struct hisi_hba *hisi_hba);
 
 static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -3182,6 +3183,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.get_events = phy_get_events_v3_hw,
 	.write_gpio = write_gpio_v3_hw,
 	.wait_cmds_complete_timeout = wait_cmds_complete_timeout_v3_hw,
+	.debugfs_snapshot_regs = debugfs_snapshot_regs_v3_hw,
 };
 
 static struct Scsi_Host *
@@ -3666,6 +3668,19 @@ static void debugfs_create_files_v3_hw(struct hisi_hba *hisi_hba)
 
 static void debugfs_snapshot_regs_v3_hw(struct hisi_hba *hisi_hba)
 {
+	int debugfs_dump_index = hisi_hba->debugfs_dump_index;
+	struct device *dev = hisi_hba->dev;
+	u64 timestamp = local_clock();
+
+	if (debugfs_dump_index >= hisi_sas_debugfs_dump_count) {
+		dev_warn(dev, "dump count exceeded!\n");
+		return;
+	}
+
+	do_div(timestamp, NSEC_PER_MSEC);
+	hisi_hba->debugfs_timestamp[debugfs_dump_index] = timestamp;
+	hisi_hba->debugfs_dump_index++;
+
 	debugfs_snapshot_prepare_v3_hw(hisi_hba);
 
 	debugfs_snapshot_global_reg_v3_hw(hisi_hba);
@@ -4408,20 +4423,8 @@ static void debugfs_work_handler_v3_hw(struct work_struct *work)
 {
 	struct hisi_hba *hisi_hba =
 		container_of(work, struct hisi_hba, debugfs_work);
-	int debugfs_dump_index = hisi_hba->debugfs_dump_index;
-	struct device *dev = hisi_hba->dev;
-	u64 timestamp = local_clock();
-
-	if (debugfs_dump_index >= hisi_sas_debugfs_dump_count) {
-		dev_warn(dev, "dump count exceeded!\n");
-		return;
-	}
-
-	do_div(timestamp, NSEC_PER_MSEC);
-	hisi_hba->debugfs_timestamp[debugfs_dump_index] = timestamp;
 
 	debugfs_snapshot_regs_v3_hw(hisi_hba);
-	hisi_hba->debugfs_dump_index++;
 }
 
 static void debugfs_release_v3_hw(struct hisi_hba *hisi_hba, int dump_index)
