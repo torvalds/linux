@@ -22,6 +22,7 @@
 #include "osdep_intf.h"
 #include "usb_ops.h"
 
+#include <linux/ieee80211.h>
 
 static const u8 P802_1H_OUI[P80211_OUI_LEN] = {0x00, 0x00, 0xf8};
 static const u8 RFC1042_OUI[P80211_OUI_LEN] = {0x00, 0x00, 0x00};
@@ -709,7 +710,7 @@ void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len)
 		break;
 	case AUTO_VCS:
 	default:
-		perp = r8712_get_ie(ie, _ERPINFO_IE_, &erp_len, ie_len);
+		perp = r8712_get_ie(ie, WLAN_EID_ERP_INFO, &erp_len, ie_len);
 		if (!perp) {
 			pxmitpriv->vcs = NONE_VCS;
 		} else {
