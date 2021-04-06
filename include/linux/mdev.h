@@ -137,20 +137,16 @@ struct mdev_type_attribute mdev_type_attr_##_name =		\
 
 /**
  * struct mdev_driver - Mediated device driver
- * @name: driver name
  * @probe: called when new device created
  * @remove: called when device removed
  * @driver: device driver structure
  *
  **/
 struct mdev_driver {
-	const char *name;
 	int (*probe)(struct mdev_device *dev);
 	void (*remove)(struct mdev_device *dev);
 	struct device_driver driver;
 };
-
-#define to_mdev_driver(drv)	container_of(drv, struct mdev_driver, driver)
 
 static inline void *mdev_get_drvdata(struct mdev_device *mdev)
 {
@@ -170,7 +166,7 @@ extern struct bus_type mdev_bus_type;
 int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops);
 void mdev_unregister_device(struct device *dev);
 
-int mdev_register_driver(struct mdev_driver *drv, struct module *owner);
+int mdev_register_driver(struct mdev_driver *drv);
 void mdev_unregister_driver(struct mdev_driver *drv);
 
 struct device *mdev_parent_dev(struct mdev_device *mdev);

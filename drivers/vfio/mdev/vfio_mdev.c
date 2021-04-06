@@ -152,14 +152,18 @@ static void vfio_mdev_remove(struct mdev_device *mdev)
 }
 
 static struct mdev_driver vfio_mdev_driver = {
-	.name	= "vfio_mdev",
+	.driver = {
+		.name = "vfio_mdev",
+		.owner = THIS_MODULE,
+		.mod_name = KBUILD_MODNAME,
+	},
 	.probe	= vfio_mdev_probe,
 	.remove	= vfio_mdev_remove,
 };
 
 static int __init vfio_mdev_init(void)
 {
-	return mdev_register_driver(&vfio_mdev_driver, THIS_MODULE);
+	return mdev_register_driver(&vfio_mdev_driver);
 }
 
 static void __exit vfio_mdev_exit(void)
