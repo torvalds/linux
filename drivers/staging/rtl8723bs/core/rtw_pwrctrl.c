@@ -89,7 +89,7 @@ int ips_leave(struct adapter *padapter)
 	ret = _ips_leave(padapter);
 	mutex_unlock(&pwrpriv->lock);
 
-	if (_SUCCESS == ret)
+	if (ret == _SUCCESS)
 		hal_btcoex_IpsNotify(padapter, IPS_NONE);
 
 	return ret;
@@ -372,7 +372,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 		return;
 
 	if (pwrpriv->pwr_mode == ps_mode)
-		if (PS_MODE_ACTIVE == ps_mode)
+		if (ps_mode == PS_MODE_ACTIVE)
 			return;
 
 
@@ -805,7 +805,7 @@ s32 rtw_register_task_alive(struct adapter *padapter, u32 task)
 
 	mutex_unlock(&pwrctrl->lock);
 
-	if (_FAIL == res)
+	if (res == _FAIL)
 		if (pwrctrl->cpwm >= PS_STATE_S2)
 			res = _SUCCESS;
 
@@ -890,7 +890,7 @@ s32 rtw_register_tx_alive(struct adapter *padapter)
 
 	mutex_unlock(&pwrctrl->lock);
 
-	if (_FAIL == res)
+	if (res == _FAIL)
 		if (pwrctrl->cpwm >= PS_STATE_S2)
 			res = _SUCCESS;
 
@@ -935,7 +935,7 @@ s32 rtw_register_cmd_alive(struct adapter *padapter)
 
 	mutex_unlock(&pwrctrl->lock);
 
-	if (_FAIL == res)
+	if (res == _FAIL)
 		if (pwrctrl->cpwm >= PS_STATE_S2)
 			res = _SUCCESS;
 
@@ -1146,7 +1146,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	if (rf_off == pwrpriv->rf_pwrstate) {
 		{
 			DBG_8192C("%s call ips_leave....\n", __func__);
-			if (_FAIL ==  ips_leave(padapter)) {
+			if (ips_leave(padapter) == _FAIL) {
 				DBG_8192C("======> ips_leave fail.............\n");
 				ret = _FAIL;
 				goto exit;
@@ -1180,7 +1180,7 @@ int rtw_pm_set_lps(struct adapter *padapter, u8 mode)
 
 	if (mode < PS_MODE_NUM) {
 		if (pwrctrlpriv->power_mgnt != mode) {
-			if (PS_MODE_ACTIVE == mode)
+			if (mode == PS_MODE_ACTIVE)
 				LeaveAllPowerSaveMode(padapter);
 			else
 				pwrctrlpriv->LpsIdleCount = 2;
@@ -1206,7 +1206,7 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
 	} else if (mode == IPS_NONE) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
 		DBG_871X("%s %s\n", __func__, "IPS_NONE");
-		if ((padapter->bSurpriseRemoved == 0) && (_FAIL == rtw_pwr_wakeup(padapter)))
+		if ((padapter->bSurpriseRemoved == 0) && (rtw_pwr_wakeup(padapter) == _FAIL))
 			return -EFAULT;
 	} else
 		return -EINVAL;
