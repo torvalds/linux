@@ -44,7 +44,6 @@ bool is_mem_loads_aux_event(struct evsel *leader);
 
 void perf_mem_events__list(void);
 
-struct mem_info;
 int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
