@@ -1059,6 +1059,13 @@ static int gmc_v10_0_hw_init(void *handle)
 	/* The sequence of these two function calls matters.*/
 	gmc_v10_0_init_golden_registers(adev);
 
+	/*
+	 * harvestable groups in gc_utcl2 need to be programmed before any GFX block
+	 * register setup within GMC, or else system hang when harvesting SA.
+	 */
+	if (adev->gfxhub.funcs && adev->gfxhub.funcs->utcl2_harvest)
+		adev->gfxhub.funcs->utcl2_harvest(adev);
+
 	r = gmc_v10_0_gart_enable(adev);
 	if (r)
 		return r;
