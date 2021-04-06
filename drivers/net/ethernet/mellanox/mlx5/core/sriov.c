@@ -34,6 +34,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
+#include "mlx5_irq.h"
 #include "eswitch.h"
 
 static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf)

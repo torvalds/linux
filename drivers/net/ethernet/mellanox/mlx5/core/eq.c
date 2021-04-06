@@ -45,6 +45,7 @@
 #include "eswitch.h"
 #include "lib/clock.h"
 #include "diag/fw_tracer.h"
+#include "mlx5_irq.h"
 
 enum {
 	MLX5_EQE_OWNER_INIT_VAL	= 0x1,
@@ -309,13 +310,19 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	mlx5_init_fbc(eq->frag_buf.frags, log_eq_stride, log_eq_size, &eq->fbc);
 	init_eq_buf(eq);
 
+	eq->irq = mlx5_irq_request(dev, vecidx);
+	if (IS_ERR(eq->irq)) {
+		err = PTR_ERR(eq->irq);
+		goto err_buf;
+	}
+
 	inlen = MLX5_ST_SZ_BYTES(create_eq_in) +
 		MLX5_FLD_SZ_BYTES(create_eq_in, pas[0]) * eq->frag_buf.npages;
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
-		goto err_buf;
+		goto err_irq;
 	}
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_eq_in, in, pas);
@@ -359,6 +366,8 @@ err_eq:
 err_in:
 	kvfree(in);
 
+err_irq:
+	mlx5_irq_release(eq->irq);
 err_buf:
 	mlx5_frag_buf_free(dev, &eq->frag_buf);
 	return err;
@@ -377,10 +386,9 @@ err_buf:
 int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		   struct notifier_block *nb)
 {
-	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int err;
 
-	err = mlx5_irq_attach_nb(eq_table->irq_table, eq->vecidx, nb);
+	err = mlx5_irq_attach_nb(eq->irq, nb);
 	if (!err)
 		eq_update_ci(eq, 1);
 
@@ -399,9 +407,7 @@ EXPORT_SYMBOL(mlx5_eq_enable);
 void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		     struct notifier_block *nb)
 {
-	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
-
-	mlx5_irq_detach_nb(eq_table->irq_table, eq->vecidx, nb);
+	mlx5_irq_detach_nb(eq->irq, nb);
 }
 EXPORT_SYMBOL(mlx5_eq_disable);
 
@@ -415,10 +421,9 @@ static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	if (err)
 		mlx5_core_warn(dev, "failed to destroy a previously created eq: eqn %d\n",
 			       eq->eqn);
-	synchronize_irq(eq->irqn);
+	mlx5_irq_release(eq->irq);
 
 	mlx5_frag_buf_free(dev, &eq->frag_buf);
-
 	return err;
 }
 
@@ -863,7 +868,6 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	}
 
 	return 0;
-
 clean:
 	destroy_comp_eqs(dev);
 	return err;

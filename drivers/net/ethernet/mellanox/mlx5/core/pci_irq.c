@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
+#include "mlx5_irq.h"
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
@@ -160,13 +161,10 @@ static void irq_put(struct mlx5_irq *irq)
 	kref_put(&irq->kref, irq_release);
 }
 
-int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
-		       struct notifier_block *nb)
+int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
 {
-	struct mlx5_irq *irq;
 	int err;
 
-	irq = &irq_table->irq[vecidx];
 	err = kref_get_unless_zero(&irq->kref);
 	if (WARN_ON_ONCE(!err))
 		/* Something very bad happens here, we are enabling EQ
@@ -179,14 +177,29 @@ int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
 	return err;
 }
 
-int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
-		       struct notifier_block *nb)
+int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
 {
-	struct mlx5_irq *irq;
-
-	irq = &irq_table->irq[vecidx];
 	irq_put(irq);
 	return atomic_notifier_chain_unregister(&irq->nh, nb);
+}
+
+void mlx5_irq_release(struct mlx5_irq *irq)
+{
+	synchronize_irq(irq->irqn);
+	irq_put(irq);
+}
+
+struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx)
+{
+	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
+	struct mlx5_irq *irq = &table->irq[vecidx];
+	int err;
+
+	err = kref_get_unless_zero(&irq->kref);
+	if (!err)
+		return ERR_PTR(-ENOENT);
+
+	return irq;
 }
 
 static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
