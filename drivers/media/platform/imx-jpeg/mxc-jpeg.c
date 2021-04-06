@@ -2101,7 +2101,6 @@ static int mxc_jpeg_remove(struct platform_device *pdev)
 		mxc_jpeg_free_slot_data(jpeg, slot);
 
 	video_unregister_device(jpeg->dec_vdev);
-	video_device_release(jpeg->dec_vdev);
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 	mxc_jpeg_detach_pm_domains(jpeg);
