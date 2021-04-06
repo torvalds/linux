@@ -301,6 +301,11 @@ struct vop2_win {
 	 * one win can only attach to one vp at the one time.
 	 */
 	uint8_t vp_mask;
+	/**
+	 * @old_vp_mask: Bitmask of video_port0/1/2 this win attached of last commit,
+	 * this is used for trackng the change of VOP2_PORT_SEL register.
+	 */
+	uint8_t old_vp_mask;
 	uint8_t zpos;
 	uint32_t offset;
 	enum drm_plane_type type;
@@ -2364,6 +2369,7 @@ static void vop2_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 					VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], last_active_vp->id);
 
 				}
+				win->old_vp_mask = win->vp_mask;
 			}
 		}
 	}
@@ -2840,6 +2846,18 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 	if (!pstate->visible) {
 		vop2_plane_atomic_disable(plane, old_state);
+		return;
+	}
+
+	/*
+	 * This means this window is moved from another vp
+	 * so the VOP2_PORT_SEL register is changed
+	 * in this commit, we should not change this
+	 * win register before the VOP2_PORT_SEL take effect
+	 * on this VP, so skip this frame for safe.
+	 */
+	if (win->old_vp_mask != win->vp_mask) {
+		win->old_vp_mask = win->vp_mask;
 		return;
 	}
 
