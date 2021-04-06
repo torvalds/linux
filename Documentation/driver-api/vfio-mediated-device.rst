@@ -105,8 +105,8 @@ structure to represent a mediated device's driver::
       */
      struct mdev_driver {
 	     const char *name;
-	     int  (*probe)  (struct device *dev);
-	     void (*remove) (struct device *dev);
+	     int  (*probe)  (struct mdev_device *dev);
+	     void (*remove) (struct mdev_device *dev);
 	     struct device_driver    driver;
      };
 

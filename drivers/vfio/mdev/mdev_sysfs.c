@@ -225,6 +225,7 @@ create_err:
 static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
+	struct mdev_device *mdev = to_mdev_device(dev);
 	unsigned long val;
 
 	if (kstrtoul(buf, 0, &val) < 0)
@@ -233,7 +234,7 @@ static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 	if (val && device_remove_file_self(dev, attr)) {
 		int ret;
 
-		ret = mdev_device_remove(dev);
+		ret = mdev_device_remove(mdev);
 		if (ret)
 			return ret;
 	}
@@ -248,34 +249,37 @@ static const struct attribute *mdev_device_attrs[] = {
 	NULL,
 };
 
-int  mdev_create_sysfs_files(struct device *dev, struct mdev_type *type)
+int mdev_create_sysfs_files(struct mdev_device *mdev, struct mdev_type *type)
 {
+	struct kobject *kobj = &mdev->dev.kobj;
 	int ret;
 
-	ret = sysfs_create_link(type->devices_kobj, &dev->kobj, dev_name(dev));
+	ret = sysfs_create_link(type->devices_kobj, kobj, dev_name(&mdev->dev));
 	if (ret)
 		return ret;
 
-	ret = sysfs_create_link(&dev->kobj, &type->kobj, "mdev_type");
+	ret = sysfs_create_link(kobj, &type->kobj, "mdev_type");
 	if (ret)
 		goto type_link_failed;
 
-	ret = sysfs_create_files(&dev->kobj, mdev_device_attrs);
+	ret = sysfs_create_files(kobj, mdev_device_attrs);
 	if (ret)
 		goto create_files_failed;
 
 	return ret;
 
 create_files_failed:
-	sysfs_remove_link(&dev->kobj, "mdev_type");
+	sysfs_remove_link(kobj, "mdev_type");
 type_link_failed:
-	sysfs_remove_link(type->devices_kobj, dev_name(dev));
+	sysfs_remove_link(type->devices_kobj, dev_name(&mdev->dev));
 	return ret;
 }
 
-void mdev_remove_sysfs_files(struct device *dev, struct mdev_type *type)
+void mdev_remove_sysfs_files(struct mdev_device *mdev, struct mdev_type *type)
 {
-	sysfs_remove_files(&dev->kobj, mdev_device_attrs);
-	sysfs_remove_link(&dev->kobj, "mdev_type");
-	sysfs_remove_link(type->devices_kobj, dev_name(dev));
+	struct kobject *kobj = &mdev->dev.kobj;
+
+	sysfs_remove_files(kobj, mdev_device_attrs);
+	sysfs_remove_link(kobj, "mdev_type");
+	sysfs_remove_link(type->devices_kobj, dev_name(&mdev->dev));
 }

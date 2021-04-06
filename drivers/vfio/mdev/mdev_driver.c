@@ -48,7 +48,7 @@ static int mdev_probe(struct device *dev)
 		return ret;
 
 	if (drv && drv->probe) {
-		ret = drv->probe(dev);
+		ret = drv->probe(mdev);
 		if (ret)
 			mdev_detach_iommu(mdev);
 	}
@@ -62,7 +62,7 @@ static int mdev_remove(struct device *dev)
 	struct mdev_device *mdev = to_mdev_device(dev);
 
 	if (drv && drv->remove)
-		drv->remove(dev);
+		drv->remove(mdev);
 
 	mdev_detach_iommu(mdev);
 

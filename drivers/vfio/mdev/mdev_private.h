@@ -24,23 +24,6 @@ struct mdev_parent {
 	struct rw_semaphore unreg_sem;
 };
 
-struct mdev_device {
-	struct device dev;
-	struct mdev_parent *parent;
-	guid_t uuid;
-	void *driver_data;
-	struct list_head next;
-	struct kobject *type_kobj;
-	struct device *iommu_device;
-	bool active;
-};
-
-static inline struct mdev_device *to_mdev_device(struct device *dev)
-{
-	return container_of(dev, struct mdev_device, dev);
-}
-#define dev_is_mdev(d)		((d)->bus == &mdev_bus_type)
-
 struct mdev_type {
 	struct kobject kobj;
 	struct kobject *devices_kobj;
@@ -57,11 +40,11 @@ struct mdev_type {
 int  parent_create_sysfs_files(struct mdev_parent *parent);
 void parent_remove_sysfs_files(struct mdev_parent *parent);
 
-int  mdev_create_sysfs_files(struct device *dev, struct mdev_type *type);
-void mdev_remove_sysfs_files(struct device *dev, struct mdev_type *type);
+int  mdev_create_sysfs_files(struct mdev_device *mdev, struct mdev_type *type);
+void mdev_remove_sysfs_files(struct mdev_device *mdev, struct mdev_type *type);
 
 int  mdev_device_create(struct kobject *kobj,
 			struct device *dev, const guid_t *uuid);
-int  mdev_device_remove(struct device *dev);
+int  mdev_device_remove(struct mdev_device *dev);
 
 #endif /* MDEV_PRIVATE_H */

@@ -33,36 +33,6 @@ struct device *mdev_parent_dev(struct mdev_device *mdev)
 }
 EXPORT_SYMBOL(mdev_parent_dev);
 
-void *mdev_get_drvdata(struct mdev_device *mdev)
-{
-	return mdev->driver_data;
-}
-EXPORT_SYMBOL(mdev_get_drvdata);
-
-void mdev_set_drvdata(struct mdev_device *mdev, void *data)
-{
-	mdev->driver_data = data;
-}
-EXPORT_SYMBOL(mdev_set_drvdata);
-
-struct device *mdev_dev(struct mdev_device *mdev)
-{
-	return &mdev->dev;
-}
-EXPORT_SYMBOL(mdev_dev);
-
-struct mdev_device *mdev_from_dev(struct device *dev)
-{
-	return dev_is_mdev(dev) ? to_mdev_device(dev) : NULL;
-}
-EXPORT_SYMBOL(mdev_from_dev);
-
-const guid_t *mdev_uuid(struct mdev_device *mdev)
-{
-	return &mdev->uuid;
-}
-EXPORT_SYMBOL(mdev_uuid);
-
 /* Should be called holding parent_list_lock */
 static struct mdev_parent *__find_parent_device(struct device *dev)
 {
@@ -107,7 +77,7 @@ static void mdev_device_remove_common(struct mdev_device *mdev)
 	int ret;
 
 	type = to_mdev_type(mdev->type_kobj);
-	mdev_remove_sysfs_files(&mdev->dev, type);
+	mdev_remove_sysfs_files(mdev, type);
 	device_del(&mdev->dev);
 	parent = mdev->parent;
 	lockdep_assert_held(&parent->unreg_sem);
@@ -122,12 +92,10 @@ static void mdev_device_remove_common(struct mdev_device *mdev)
 
 static int mdev_device_remove_cb(struct device *dev, void *data)
 {
-	if (dev_is_mdev(dev)) {
-		struct mdev_device *mdev;
+	struct mdev_device *mdev = mdev_from_dev(dev);
 
-		mdev = to_mdev_device(dev);
+	if (mdev)
 		mdev_device_remove_common(mdev);
-	}
 	return 0;
 }
 
@@ -332,7 +300,7 @@ int mdev_device_create(struct kobject *kobj,
 	if (ret)
 		goto add_fail;
 
-	ret = mdev_create_sysfs_files(&mdev->dev, type);
+	ret = mdev_create_sysfs_files(mdev, type);
 	if (ret)
 		goto sysfs_fail;
 
@@ -354,12 +322,10 @@ mdev_fail:
 	return ret;
 }
 
-int mdev_device_remove(struct device *dev)
+int mdev_device_remove(struct mdev_device *mdev)
 {
-	struct mdev_device *mdev, *tmp;
+	struct mdev_device *tmp;
 	struct mdev_parent *parent;
-
-	mdev = to_mdev_device(dev);
 
 	mutex_lock(&mdev_list_lock);
 	list_for_each_entry(tmp, &mdev_list, next) {
@@ -389,24 +355,6 @@ int mdev_device_remove(struct device *dev)
 	up_read(&parent->unreg_sem);
 	return 0;
 }
-
-int mdev_set_iommu_device(struct device *dev, struct device *iommu_device)
-{
-	struct mdev_device *mdev = to_mdev_device(dev);
-
-	mdev->iommu_device = iommu_device;
-
-	return 0;
-}
-EXPORT_SYMBOL(mdev_set_iommu_device);
-
-struct device *mdev_get_iommu_device(struct device *dev)
-{
-	struct mdev_device *mdev = to_mdev_device(dev);
-
-	return mdev->iommu_device;
-}
-EXPORT_SYMBOL(mdev_get_iommu_device);
 
 static int __init mdev_init(void)
 {
