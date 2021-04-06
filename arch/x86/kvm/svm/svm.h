@@ -111,7 +111,6 @@ struct svm_nested_state {
 struct vcpu_svm {
 	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
-	unsigned long vmcb_pa;
 	struct kvm_vmcb_info vmcb01;
 	struct kvm_vmcb_info *current_vmcb;
 	struct svm_cpu_data *svm_data;

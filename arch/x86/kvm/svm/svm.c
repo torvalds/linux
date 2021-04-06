@@ -1310,7 +1310,6 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
 {
 	svm->current_vmcb = target_vmcb;
 	svm->vmcb = target_vmcb->ptr;
-	svm->vmcb_pa = target_vmcb->pa;
 }
 
 static int svm_create_vcpu(struct kvm_vcpu *vcpu)
@@ -3704,6 +3703,7 @@ static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	unsigned long vmcb_pa = svm->current_vmcb->pa;
 
 	/*
 	 * VMENTER enables interrupts (host state), but the kernel state is
@@ -3726,12 +3726,18 @@ static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 	lockdep_hardirqs_on(CALLER_ADDR0);
 
 	if (sev_es_guest(vcpu->kvm)) {
-		__svm_sev_es_vcpu_run(svm->vmcb_pa);
+		__svm_sev_es_vcpu_run(vmcb_pa);
 	} else {
 		struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
 
+		/*
+		 * Use a single vmcb (vmcb01 because it's always valid) for
+		 * context switching guest state via VMLOAD/VMSAVE, that way
+		 * the state doesn't need to be copied between vmcb01 and
+		 * vmcb02 when switching vmcbs for nested virtualization.
+		 */
 		vmload(svm->vmcb01.pa);
-		__svm_vcpu_run(svm->vmcb_pa, (unsigned long *)&vcpu->arch.regs);
+		__svm_vcpu_run(vmcb_pa, (unsigned long *)&vcpu->arch.regs);
 		vmsave(svm->vmcb01.pa);
 
 		vmload(__sme_page_pa(sd->save_area));
