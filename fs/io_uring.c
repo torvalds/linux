@@ -5432,6 +5432,7 @@ static int io_poll_update(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *preq;
+	bool completing;
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
@@ -5444,17 +5445,22 @@ static int io_poll_update(struct io_kiocb *req)
 		ret = -EACCES;
 		goto err;
 	}
-	if (!__io_poll_remove_one(preq, &preq->poll, false)) {
-		if (preq->poll.events & EPOLLONESHOT) {
-			ret = -EALREADY;
-			goto err;
-		}
+
+	/*
+	 * Don't allow racy completion with singleshot, as we cannot safely
+	 * update those. For multishot, if we're racing with completion, just
+	 * let completion re-add it.
+	 */
+	completing = !__io_poll_remove_one(preq, &preq->poll, false);
+	if (completing && (preq->poll.events & EPOLLONESHOT)) {
+		ret = -EALREADY;
+		goto err;
 	}
 	/* we now have a detached poll request. reissue. */
 	ret = 0;
 err:
-	spin_unlock_irq(&ctx->completion_lock);
 	if (ret < 0) {
+		spin_unlock_irq(&ctx->completion_lock);
 		req_set_fail_links(req);
 		io_req_complete(req, ret);
 		return 0;
@@ -5468,13 +5474,17 @@ err:
 	if (req->poll.update_user_data)
 		preq->user_data = req->poll.new_user_data;
 
+	spin_unlock_irq(&ctx->completion_lock);
+
 	/* complete update request, we're done with it */
 	io_req_complete(req, ret);
 
-	ret = __io_poll_add(preq);
-	if (ret < 0) {
-		req_set_fail_links(preq);
-		io_req_complete(preq, ret);
+	if (!completing) {
+		ret = __io_poll_add(preq);
+		if (ret < 0) {
+			req_set_fail_links(preq);
+			io_req_complete(preq, ret);
+		}
 	}
 	return 0;
 }
