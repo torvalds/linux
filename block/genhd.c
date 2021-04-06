@@ -667,9 +667,6 @@ EXPORT_SYMBOL(device_add_disk_no_queue_reg);
  */
 void del_gendisk(struct gendisk *disk)
 {
-	struct disk_part_iter piter;
-	struct block_device *part;
-
 	might_sleep();
 
 	if (WARN_ON_ONCE(!disk->queue))
@@ -683,13 +680,7 @@ void del_gendisk(struct gendisk *disk)
 	 * disk is marked as dead (GENHD_FL_UP cleared).
 	 */
 	down_write(&bdev_lookup_sem);
-
-	/* invalidate stuff */
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
-	while ((part = disk_part_iter_next(&piter)))
-		delete_partition(part);
-	disk_part_iter_exit(&piter);
-
+	blk_drop_partitions(disk);
 	fsync_bdev(disk->part0);
 	__invalidate_device(disk->part0, true);
 

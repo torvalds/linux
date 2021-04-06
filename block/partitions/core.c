@@ -285,7 +285,7 @@ struct device_type part_type = {
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct block_device *part)
+static void delete_partition(struct block_device *part)
 {
 	fsync_bdev(part);
 	__invalidate_device(part, true);
@@ -526,23 +526,15 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	}
 }
 
-int blk_drop_partitions(struct block_device *bdev)
+void blk_drop_partitions(struct gendisk *disk)
 {
 	struct disk_part_iter piter;
 	struct block_device *part;
 
-	if (bdev->bd_part_count)
-		return -EBUSY;
-
-	sync_blockdev(bdev);
-	invalidate_bdev(bdev);
-
-	disk_part_iter_init(&piter, bdev->bd_disk, DISK_PITER_INCL_EMPTY);
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
 		delete_partition(part);
 	disk_part_iter_exit(&piter);
-
-	return 0;
 }
 
 static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,

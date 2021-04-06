@@ -273,7 +273,7 @@ static inline sector_t get_capacity(struct gendisk *disk)
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
-int blk_drop_partitions(struct block_device *bdev);
+void blk_drop_partitions(struct gendisk *disk);
 
 extern struct gendisk *__alloc_disk_node(int minors, int node_id);
 extern void put_disk(struct gendisk *disk);
