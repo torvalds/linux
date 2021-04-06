@@ -142,6 +142,9 @@ static bool read_supported_features(struct hci_dev *hdev,
 	msft->evt_prefix_len = rp->evt_prefix_len;
 	msft->features = __le64_to_cpu(rp->features);
 
+	if (msft->features & MSFT_FEATURE_MASK_CURVE_VALIDITY)
+		hdev->msft_curve_validity = true;
+
 	kfree_skb(skb);
 	return true;
 
@@ -604,4 +607,9 @@ int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 	err = hci_req_run_skb(&req, msft_le_set_advertisement_filter_enable_cb);
 
 	return err;
+}
+
+bool msft_curve_validity(struct hci_dev *hdev)
+{
+	return hdev->msft_curve_validity;
 }

@@ -584,6 +584,7 @@ struct hci_dev {
 #if IS_ENABLED(CONFIG_BT_MSFTEXT)
 	__u16			msft_opcode;
 	void			*msft_data;
+	bool			msft_curve_validity;
 #endif
 
 #if IS_ENABLED(CONFIG_BT_AOSPEXT)
