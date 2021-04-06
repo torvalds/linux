@@ -8318,15 +8318,11 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	struct extent_io_tree *tree = &inode->io_tree;
-	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	u64 page_start = page_offset(page);
 	u64 page_end = page_start + PAGE_SIZE - 1;
-	u64 start;
-	u64 end;
+	u64 cur;
 	int inode_evicting = inode->vfs_inode.i_state & I_FREEING;
-	bool found_ordered = false;
-	bool completed_ordered = false;
 
 	/*
 	 * We have page locked so no new ordered extent can be created on this
@@ -8350,93 +8346,120 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 	if (!inode_evicting)
 		lock_extent_bits(tree, page_start, page_end, &cached_state);
 
-	start = page_start;
-again:
-	ordered = btrfs_lookup_ordered_range(inode, start, page_end - start + 1);
-	if (ordered) {
-		found_ordered = true;
-		end = min(page_end,
-			  ordered->file_offset + ordered->num_bytes - 1);
+	cur = page_start;
+	while (cur < page_end) {
+		struct btrfs_ordered_extent *ordered;
+		bool delete_states;
+		u64 range_end;
+
+		ordered = btrfs_lookup_first_ordered_range(inode, cur,
+							   page_end + 1 - cur);
+		if (!ordered) {
+			range_end = page_end;
+			/*
+			 * No ordered extent covering this range, we are safe
+			 * to delete all extent states in the range.
+			 */
+			delete_states = true;
+			goto next;
+		}
+		if (ordered->file_offset > cur) {
+			/*
+			 * There is a range between [cur, oe->file_offset) not
+			 * covered by any ordered extent.
+			 * We are safe to delete all extent states, and handle
+			 * the ordered extent in the next iteration.
+			 */
+			range_end = ordered->file_offset - 1;
+			delete_states = true;
+			goto next;
+		}
+
+		range_end = min(ordered->file_offset + ordered->num_bytes - 1,
+				page_end);
+		if (!PagePrivate2(page)) {
+			/*
+			 * If Private2 is cleared, it means endio has already
+			 * been executed for the range.
+			 * We can't delete the extent states as
+			 * btrfs_finish_ordered_io() may still use some of them.
+			 */
+			delete_states = false;
+			goto next;
+		}
+		ClearPagePrivate2(page);
+
 		/*
 		 * IO on this page will never be started, so we need to account
 		 * for any ordered extents now. Don't clear EXTENT_DELALLOC_NEW
 		 * here, must leave that up for the ordered extent completion.
+		 *
+		 * This will also unlock the range for incoming
+		 * btrfs_finish_ordered_io().
 		 */
 		if (!inode_evicting)
-			clear_extent_bit(tree, start, end,
+			clear_extent_bit(tree, cur, range_end,
 					 EXTENT_DELALLOC |
 					 EXTENT_LOCKED | EXTENT_DO_ACCOUNTING |
 					 EXTENT_DEFRAG, 1, 0, &cached_state);
+
+		spin_lock_irq(&inode->ordered_tree.lock);
+		set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
+		ordered->truncated_len = min(ordered->truncated_len,
+					     cur - ordered->file_offset);
+		spin_unlock_irq(&inode->ordered_tree.lock);
+
+		if (btrfs_dec_test_ordered_pending(inode, &ordered,
+					cur, range_end + 1 - cur, 1)) {
+			btrfs_finish_ordered_io(ordered);
+			/*
+			 * The ordered extent has finished, now we're again
+			 * safe to delete all extent states of the range.
+			 */
+			delete_states = true;
+		} else {
+			/*
+			 * btrfs_finish_ordered_io() will get executed by endio
+			 * of other pages, thus we can't delete extent states
+			 * anymore
+			 */
+			delete_states = false;
+		}
+next:
+		if (ordered)
+			btrfs_put_ordered_extent(ordered);
 		/*
-		 * A page with Private2 bit means no bio has been submitted
-		 * covering the page, thus we have to manually do the ordered
-		 * extent accounting.
+		 * Qgroup reserved space handler
+		 * Sector(s) here will be either:
 		 *
-		 * For page without Private2, the ordered extent accounting is
-		 * done in its endio function of the submitted bio.
+		 * 1) Already written to disk or bio already finished
+		 *    Then its QGROUP_RESERVED bit in io_tree is already cleared.
+		 *    Qgroup will be handled by its qgroup_record then.
+		 *    btrfs_qgroup_free_data() call will do nothing here.
+		 *
+		 * 2) Not written to disk yet
+		 *    Then btrfs_qgroup_free_data() call will clear the
+		 *    QGROUP_RESERVED bit of its io_tree, and free the qgroup
+		 *    reserved data space.
+		 *    Since the IO will never happen for this page.
 		 */
-		if (TestClearPagePrivate2(page)) {
-			spin_lock_irq(&inode->ordered_tree.lock);
-			set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
-			ordered->truncated_len = min(ordered->truncated_len,
-						     start - ordered->file_offset);
-			spin_unlock_irq(&inode->ordered_tree.lock);
-
-			if (btrfs_dec_test_ordered_pending(inode, &ordered,
-							   start,
-							   end - start + 1, 1)) {
-				btrfs_finish_ordered_io(ordered);
-				completed_ordered = true;
-			}
-		}
-		btrfs_put_ordered_extent(ordered);
+		btrfs_qgroup_free_data(inode, NULL, cur, range_end + 1 - cur);
 		if (!inode_evicting) {
-			cached_state = NULL;
-			lock_extent_bits(tree, start, end,
-					 &cached_state);
-		}
-
-		start = end + 1;
-		if (start < page_end)
-			goto again;
-	}
-
-	/*
-	 * Qgroup reserved space handler
-	 * Page here will be either
-	 * 1) Already written to disk or ordered extent already submitted
-	 *    Then its QGROUP_RESERVED bit in io_tree is already cleaned.
-	 *    Qgroup will be handled by its qgroup_record then.
-	 *    btrfs_qgroup_free_data() call will do nothing here.
-	 *
-	 * 2) Not written to disk yet
-	 *    Then btrfs_qgroup_free_data() call will clear the QGROUP_RESERVED
-	 *    bit of its io_tree, and free the qgroup reserved data space.
-	 *    Since the IO will never happen for this page.
-	 */
-	btrfs_qgroup_free_data(inode, NULL, page_start, PAGE_SIZE);
-	if (!inode_evicting) {
-		bool delete = true;
-
-		/*
-		 * If there's an ordered extent for this range and we have not
-		 * finished it ourselves, we must leave EXTENT_DELALLOC_NEW set
-		 * in the range for the ordered extent completion. We must also
-		 * not delete the range, otherwise we would lose that bit (and
-		 * any other bits set in the range). Make sure EXTENT_UPTODATE
-		 * is cleared if we don't delete, otherwise it can lead to
-		 * corruptions if the i_size is extented later.
-		 */
-		if (found_ordered && !completed_ordered)
-			delete = false;
-		clear_extent_bit(tree, page_start, page_end, EXTENT_LOCKED |
+			clear_extent_bit(tree, cur, range_end, EXTENT_LOCKED |
 				 EXTENT_DELALLOC | EXTENT_UPTODATE |
 				 EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG, 1,
-				 delete, &cached_state);
-
-		__btrfs_releasepage(page, GFP_NOFS);
+				 delete_states, &cached_state);
+		}
+		cur = range_end + 1;
 	}
-
+	/*
+	 * We have iterated through all ordered extents of the page, the page
+	 * should not have Private2 anymore, or the above iteration does
+	 * something wrong.
+	 */
+	ASSERT(!PagePrivate2(page));
+	if (!inode_evicting)
+		__btrfs_releasepage(page, GFP_NOFS);
 	ClearPageChecked(page);
 	clear_page_extent_mapped(page);
 }
