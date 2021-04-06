@@ -875,6 +875,7 @@ xfs_init_new_inode(
 	if (init_xattrs && xfs_sb_version_hasattr(&mp->m_sb)) {
 		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
 		ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
+		ip->i_afp->if_flags = XFS_IFEXTENTS;
 	}
 
 	/*
