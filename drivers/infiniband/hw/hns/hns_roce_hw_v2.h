@@ -1710,9 +1710,9 @@ struct hns_roce_cmq_desc {
 	union {
 		__le32 data[6];
 		struct {
-			__le32 rsv1;
+			__le32 own_func_num;
 			__le32 own_mac_id;
-			__le32 rsv2[4];
+			__le32 rsv[4];
 		} func_info;
 	};
 

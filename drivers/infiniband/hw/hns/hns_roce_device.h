@@ -986,6 +986,7 @@ struct hns_roce_dev {
 	void			*priv;
 	struct workqueue_struct *irq_workq;
 	const struct hns_roce_dfx_hw *dfx;
+	u32 func_num;
 	u32 cong_algo_tmpl_id;
 };
 

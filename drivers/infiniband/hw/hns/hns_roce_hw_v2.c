@@ -1612,15 +1612,20 @@ static int hns_roce_query_func_info(struct hns_roce_dev *hr_dev)
 	struct hns_roce_cmq_desc desc;
 	int ret;
 
-	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
+	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09) {
+		hr_dev->func_num = 1;
 		return 0;
+	}
 
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_QUERY_FUNC_INFO,
 				      true);
 	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
-	if (ret)
+	if (ret) {
+		hr_dev->func_num = 1;
 		return ret;
+	}
 
+	hr_dev->func_num = le32_to_cpu(desc.func_info.own_func_num);
 	hr_dev->cong_algo_tmpl_id = le32_to_cpu(desc.func_info.own_mac_id);
 
 	return 0;
