@@ -267,7 +267,7 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
 	default:
 		WARN_ON_ONCE(1);
 		return -EINVAL;
-	};
+	}
 
 	for (i = 0; i < 4; i++)
 		src[i] = be32_to_cpu(src_addr[i]);
