@@ -623,6 +623,8 @@ static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC7_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 3,
 					SCALE_HW_CALIB_DEFAULT)
+	[ADC7_USB_IN_V_16]	= ADC5_CHAN_VOLT("usb_in_v_div_16", 8,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC7_AMUX_THM3]	= ADC5_CHAN_TEMP("smb_temp", 0,
 					SCALE_HW_CALIB_PM7_SMB_TEMP)
 	[ADC7_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
