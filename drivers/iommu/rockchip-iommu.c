@@ -592,7 +592,7 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 			 */
 			if (iommu->domain)
 				report_iommu_fault(iommu->domain, iommu->dev, iova,
-						   flags);
+						   status);
 			else
 				dev_err(iommu->dev, "Page fault while iommu not attached to domain?\n");
 
