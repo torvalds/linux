@@ -154,7 +154,7 @@ void bch2_flags_to_text(struct printbuf *out,
 u64 bch2_read_flag_list(char *opt, const char * const list[])
 {
 	u64 ret = 0;
-	char *p, *s, *d = kstrndup(opt, PAGE_SIZE - 1, GFP_KERNEL);
+	char *p, *s, *d = kstrdup(opt, GFP_KERNEL);
 
 	if (!d)
 		return -ENOMEM;

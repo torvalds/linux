@@ -7,7 +7,7 @@ struct bch_sb_handle {
 	struct block_device	*bdev;
 	struct bio		*bio;
 	void			*holder;
-	unsigned		page_order;
+	size_t			buffer_size;
 	fmode_t			mode;
 	unsigned		have_layout:1;
 	unsigned		have_bio:1;

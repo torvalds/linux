@@ -53,8 +53,7 @@ static struct bch_sb_field *__bch2_sb_field_resize(struct bch_sb_handle *sb,
 	unsigned old_u64s = f ? le32_to_cpu(f->u64s) : 0;
 	unsigned sb_u64s = le32_to_cpu(sb->sb->u64s) + u64s - old_u64s;
 
-	BUG_ON(get_order(__vstruct_bytes(struct bch_sb, sb_u64s)) >
-	       sb->page_order);
+	BUG_ON(__vstruct_bytes(struct bch_sb, sb_u64s) > sb->buffer_size);
 
 	if (!f && !u64s) {
 		/* nothing to do: */
@@ -105,18 +104,23 @@ void bch2_free_super(struct bch_sb_handle *sb)
 		blkdev_put(sb->bdev, sb->holder);
 	kfree(sb->holder);
 
-	free_pages((unsigned long) sb->sb, sb->page_order);
+	kfree(sb->sb);
 	memset(sb, 0, sizeof(*sb));
 }
 
 int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 {
 	size_t new_bytes = __vstruct_bytes(struct bch_sb, u64s);
-	unsigned order = get_order(new_bytes);
+	size_t new_buffer_size;
 	struct bch_sb *new_sb;
 	struct bio *bio;
 
-	if (sb->sb && sb->page_order >= order)
+	if (sb->bdev)
+		new_bytes = max_t(size_t, new_bytes, bdev_logical_block_size(sb->bdev));
+
+	new_buffer_size = roundup_pow_of_two(new_bytes);
+
+	if (sb->sb && sb->buffer_size >= new_buffer_size)
 		return 0;
 
 	if (sb->have_layout) {
@@ -129,14 +133,14 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		}
 	}
 
-	if (sb->page_order >= order && sb->sb)
+	if (sb->buffer_size >= new_buffer_size && sb->sb)
 		return 0;
 
 	if (dynamic_fault("bcachefs:add:super_realloc"))
 		return -ENOMEM;
 
 	if (sb->have_bio) {
-		unsigned nr_bvecs = 1 << order;
+		unsigned nr_bvecs = DIV_ROUND_UP(new_buffer_size, PAGE_SIZE);
 
 		bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
 		if (!bio)
@@ -149,17 +153,12 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		sb->bio = bio;
 	}
 
-	new_sb = (void *) __get_free_pages(GFP_NOFS|__GFP_ZERO, order);
+	new_sb = krealloc(sb->sb, new_buffer_size, GFP_NOFS|__GFP_ZERO);
 	if (!new_sb)
 		return -ENOMEM;
 
-	if (sb->sb)
-		memcpy(new_sb, sb->sb, PAGE_SIZE << sb->page_order);
-
-	free_pages((unsigned long) sb->sb, sb->page_order);
 	sb->sb = new_sb;
-
-	sb->page_order = order;
+	sb->buffer_size = new_buffer_size;
 
 	return 0;
 }
@@ -480,7 +479,7 @@ static const char *read_one_super(struct bch_sb_handle *sb, u64 offset)
 reread:
 	bio_reset(sb->bio, sb->bdev, REQ_OP_READ|REQ_SYNC|REQ_META);
 	sb->bio->bi_iter.bi_sector = offset;
-	bch2_bio_map(sb->bio, sb->sb, PAGE_SIZE << sb->page_order);
+	bch2_bio_map(sb->bio, sb->sb, sb->buffer_size);
 
 	if (submit_bio_wait(sb->bio))
 		return "IO error";
@@ -498,7 +497,7 @@ reread:
 	if (bytes > 512 << sb->sb->layout.sb_max_size_bits)
 		return "Bad superblock: too big";
 
-	if (get_order(bytes) > sb->page_order) {
+	if (bytes > sb->buffer_size) {
 		if (bch2_sb_realloc(sb, le32_to_cpu(sb->sb->u64s)))
 			return "cannot allocate memory";
 		goto reread;

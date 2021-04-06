@@ -509,8 +509,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	if (c->wq)
 		destroy_workqueue(c->wq);
 
-	free_pages((unsigned long) c->disk_sb.sb,
-		   c->disk_sb.page_order);
+	bch2_free_super(&c->disk_sb);
 	kvpfree(c, sizeof(*c));
 	module_put(THIS_MODULE);
 }

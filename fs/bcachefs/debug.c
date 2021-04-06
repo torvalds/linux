@@ -150,7 +150,7 @@ struct dump_iter {
 	struct bch_fs	*c;
 	enum btree_id		id;
 
-	char			buf[PAGE_SIZE];
+	char			buf[1 << 12];
 	size_t			bytes;	/* what's currently in buf */
 
 	char __user		*ubuf;	/* destination user buffer */
@@ -230,7 +230,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	while (k.k && !(err = bkey_err(k))) {
 		bch2_bkey_val_to_text(&PBUF(i->buf), i->c, k);
 		i->bytes = strlen(i->buf);
-		BUG_ON(i->bytes >= PAGE_SIZE);
+		BUG_ON(i->bytes >= sizeof(i->buf));
 		i->buf[i->bytes] = '\n';
 		i->bytes++;
 
