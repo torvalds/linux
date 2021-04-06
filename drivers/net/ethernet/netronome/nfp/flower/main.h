@@ -47,6 +47,7 @@ struct nfp_app;
 #define NFP_FL_FEATS_PRE_TUN_RULES	BIT(6)
 #define NFP_FL_FEATS_IPV6_TUN		BIT(7)
 #define NFP_FL_FEATS_VLAN_QINQ		BIT(8)
+#define NFP_FL_FEATS_QOS_PPS		BIT(9)
 #define NFP_FL_FEATS_HOST_ACK		BIT(31)
 
 #define NFP_FL_ENABLE_FLOW_MERGE	BIT(0)
@@ -61,7 +62,8 @@ struct nfp_app;
 	NFP_FL_FEATS_FLOW_MOD | \
 	NFP_FL_FEATS_PRE_TUN_RULES | \
 	NFP_FL_FEATS_IPV6_TUN | \
-	NFP_FL_FEATS_VLAN_QINQ)
+	NFP_FL_FEATS_VLAN_QINQ | \
+	NFP_FL_FEATS_QOS_PPS)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
