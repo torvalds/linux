@@ -86,6 +86,16 @@
 
 #define hr_reg_write(ptr, field, val) _hr_reg_write(ptr, field, val)
 
+#define _hr_reg_read(ptr, field_type, field_h, field_l)                        \
+	({                                                                     \
+		const field_type *_ptr = ptr;                                  \
+		BUILD_BUG_ON(((field_h) / 32) != ((field_l) / 32));            \
+		FIELD_GET(GENMASK((field_h) % 32, (field_l) % 32),             \
+			  le32_to_cpu(*((__le32 *)_ptr + (field_h) / 32)));    \
+	})
+
+#define hr_reg_read(ptr, field) _hr_reg_read(ptr, field)
+
 #define ROCEE_GLB_CFG_ROCEE_DB_SQ_MODE_S 3
 #define ROCEE_GLB_CFG_ROCEE_DB_OTH_MODE_S 4
 
