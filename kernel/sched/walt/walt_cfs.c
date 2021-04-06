@@ -92,7 +92,7 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
 
-static inline bool walt_get_rtg_status(struct task_struct *p)
+bool walt_get_rtg_status(struct task_struct *p)
 {
 	struct walt_related_thread_group *grp;
 	bool ret = false;
@@ -648,8 +648,7 @@ unlock:
 done:
 	trace_sched_task_util(p, cpumask_bits(candidates)[0], best_energy_cpu,
 			sync, fbt_env.need_idle, fbt_env.fastpath,
-			task_boost_policy(p), start_t, boosted, is_rtg,
-			walt_get_rtg_status(p), start_cpu);
+			start_t, boosted, is_rtg, start_cpu);
 
 	return best_energy_cpu;
 

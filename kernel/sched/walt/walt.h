@@ -738,6 +738,7 @@ static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
 extern void sched_get_nr_running_avg(struct sched_avg_stats *stats);
 extern void sched_update_hyst_times(void);
 
+extern bool walt_get_rtg_status(struct task_struct *p);
 extern enum sched_boost_policy sched_boost_policy(void);
 extern void walt_rt_init(void);
 extern void walt_cfs_init(void);

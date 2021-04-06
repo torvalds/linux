@@ -905,12 +905,11 @@ TRACE_EVENT(sched_task_util,
 
 	TP_PROTO(struct task_struct *p, unsigned long candidates,
 		int best_energy_cpu, bool sync, int need_idle, int fastpath,
-		bool placement_boost, u64 start_t,
-		bool uclamp_boosted, bool is_rtg, bool rtg_skip_min,
+		u64 start_t, bool uclamp_boosted, bool is_rtg,
 		int start_cpu),
 
 	TP_ARGS(p, candidates, best_energy_cpu, sync, need_idle, fastpath,
-		placement_boost, start_t, uclamp_boosted, is_rtg, rtg_skip_min,
+		start_t, uclamp_boosted, is_rtg,
 		start_cpu),
 
 	TP_STRUCT__entry(
@@ -946,11 +945,11 @@ TRACE_EVENT(sched_task_util,
 		__entry->sync			= sync;
 		__entry->need_idle		= need_idle;
 		__entry->fastpath		= fastpath;
-		__entry->placement_boost	= placement_boost;
+		__entry->placement_boost	= task_boost_policy(p);
 		__entry->latency		= (sched_clock() - start_t);
 		__entry->uclamp_boosted		= uclamp_boosted;
 		__entry->is_rtg			= is_rtg;
-		__entry->rtg_skip_min		= rtg_skip_min;
+		__entry->rtg_skip_min		= walt_get_rtg_status(p);
 		__entry->start_cpu		= start_cpu;
 		__entry->unfilter		=
 			((struct walt_task_struct *) p->android_vendor_data1)->unfilter;
