@@ -38,6 +38,7 @@
 #define QM_MB_CMD_SQC_BT		0x4
 #define QM_MB_CMD_CQC_BT		0x5
 #define QM_MB_CMD_SQC_VFT_V2		0x6
+#define QM_MB_CMD_STOP_QP		0x8
 
 #define QM_MB_CMD_SEND_BASE		0x300
 #define QM_MB_EVENT_SHIFT		8
@@ -349,6 +350,7 @@ struct hisi_qm_hw_ops {
 	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe);
 	void (*hw_error_uninit)(struct hisi_qm *qm);
 	enum acc_err_result (*hw_error_handle)(struct hisi_qm *qm);
+	int (*stop_qp)(struct hisi_qp *qp);
 };
 
 struct qm_dfx_item {
@@ -1711,6 +1713,11 @@ static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 	return ACC_ERR_RECOVERED;
 }
 
+static int qm_stop_qp(struct hisi_qp *qp)
+{
+	return qm_mb(qp->qm, QM_MB_CMD_STOP_QP, 0, qp->qp_id, 0);
+}
+
 static const struct hisi_qm_hw_ops qm_hw_ops_v1 = {
 	.qm_db = qm_db_v1,
 	.get_irq_num = qm_get_irq_num_v1,
@@ -1724,6 +1731,16 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
 	.hw_error_init = qm_hw_error_init_v2,
 	.hw_error_uninit = qm_hw_error_uninit_v2,
 	.hw_error_handle = qm_hw_error_handle_v2,
+};
+
+static const struct hisi_qm_hw_ops qm_hw_ops_v3 = {
+	.get_vft = qm_get_vft_v2,
+	.qm_db = qm_db_v2,
+	.get_irq_num = qm_get_irq_num_v2,
+	.hw_error_init = qm_hw_error_init_v2,
+	.hw_error_uninit = qm_hw_error_uninit_v2,
+	.hw_error_handle = qm_hw_error_handle_v2,
+	.stop_qp = qm_stop_qp,
 };
 
 static void *qm_get_avail_sqe(struct hisi_qp *qp)
@@ -2004,6 +2021,14 @@ static int qm_drain_qp(struct hisi_qp *qp)
 	 */
 	if (qm->err_status.is_qm_ecc_mbit || qm->err_status.is_dev_ecc_mbit)
 		return 0;
+
+	/* Kunpeng930 supports drain qp by device */
+	if (qm->ops->stop_qp) {
+		ret = qm->ops->stop_qp(qp);
+		if (ret)
+			dev_err(dev, "Failed to stop qp(%u)!\n", qp->qp_id);
+		return ret;
+	}
 
 	addr = qm_ctx_alloc(qm, size, &dma_addr);
 	if (IS_ERR(addr)) {
@@ -2565,8 +2590,10 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 
 	if (qm->ver == QM_HW_V1)
 		qm->ops = &qm_hw_ops_v1;
-	else
+	else if (qm->ver == QM_HW_V2)
 		qm->ops = &qm_hw_ops_v2;
+	else
+		qm->ops = &qm_hw_ops_v3;
 
 	pci_set_drvdata(pdev, qm);
 	mutex_init(&qm->mailbox_lock);
