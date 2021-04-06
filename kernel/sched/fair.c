@@ -7265,9 +7265,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	if (unlikely(p->policy != SCHED_NORMAL) || !sched_feat(WAKEUP_PREEMPTION))
 		return;
 
-	trace_android_rvh_check_preempt_wakeup(rq, p, &preempt);
-	if (preempt)
-		goto preempt;
 	find_matching_se(&se, &pse);
 	BUG_ON(!pse);
 
@@ -7284,6 +7281,12 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 		return;
 
 	update_curr(cfs_rq_of(se));
+	trace_android_rvh_check_preempt_wakeup(rq, p, &preempt, &ignore);
+	if (preempt)
+		goto preempt;
+	if (ignore)
+		return;
+
 	if (wakeup_preempt_entity(se, pse) == 1) {
 		/*
 		 * Bias pick_next to pick the sched entity that is
