@@ -3129,22 +3129,20 @@ static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 	mlx5e_destroy_tises(priv);
 }
 
-static void mlx5e_build_indir_tir_ctx_common(struct mlx5_core_dev *mdev,
-					     bool inner_ft_support,
+static void mlx5e_build_indir_tir_ctx_common(u32 tdn, bool inner_ft_support,
 					     u32 rqtn, u32 *tirc)
 {
-	MLX5_SET(tirc, tirc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
+	MLX5_SET(tirc, tirc, transport_domain, tdn);
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
 	MLX5_SET(tirc, tirc, indirect_table, rqtn);
 	MLX5_SET(tirc, tirc, tunneled_offload_en, inner_ft_support);
 }
 
-static void mlx5e_build_direct_tir_ctx(struct mlx5_core_dev *mdev,
-				       struct mlx5e_lro_param *lro_param,
-				       bool inner_ft_support,
+static void mlx5e_build_direct_tir_ctx(struct mlx5e_lro_param *lro_param,
+				       u32 tdn, bool inner_ft_support,
 				       u32 rqtn, u32 *tirc)
 {
-	mlx5e_build_indir_tir_ctx_common(mdev, inner_ft_support, rqtn, tirc);
+	mlx5e_build_indir_tir_ctx_common(tdn, inner_ft_support, rqtn, tirc);
 	mlx5e_build_tir_ctx_lro(lro_param, tirc);
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
 }
@@ -3174,7 +3172,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		memset(in, 0, inlen);
 		tir = &res->rss[tt].indir_tir;
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-		mlx5e_build_indir_tir_ctx_common(priv->mdev,
+		mlx5e_build_indir_tir_ctx_common(priv->mdev->mlx5e_res.hw_objs.td.tdn,
 						 priv->channels.params.tunneled_offload_en,
 						 indir_rqtn, tirc);
 		mlx5e_build_tir_ctx_lro(&lro_param, tirc);
@@ -3195,7 +3193,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		memset(in, 0, inlen);
 		tir = &res->rss[i].inner_indir_tir;
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-		mlx5e_build_indir_tir_ctx_common(priv->mdev,
+		mlx5e_build_indir_tir_ctx_common(priv->mdev->mlx5e_res.hw_objs.td.tdn,
 						 priv->channels.params.tunneled_offload_en,
 						 indir_rqtn, tirc);
 		mlx5e_build_tir_ctx_lro(&lro_param, tirc);
@@ -3241,7 +3239,8 @@ static int mlx5e_create_direct_tir(struct mlx5e_priv *priv, struct mlx5e_tir *ti
 
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 	lro_param = mlx5e_get_lro_param(&priv->channels.params);
-	mlx5e_build_direct_tir_ctx(priv->mdev, &lro_param,
+	mlx5e_build_direct_tir_ctx(&lro_param,
+				   priv->mdev->mlx5e_res.hw_objs.td.tdn,
 				   priv->channels.params.tunneled_offload_en,
 				   mlx5e_rqt_get_rqtn(rqt), tirc);
 	err = mlx5e_create_tir(priv->mdev, tir, in);
