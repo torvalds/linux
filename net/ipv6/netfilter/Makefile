@@ -18,9 +18,6 @@ obj-$(CONFIG_NF_DEFRAG_IPV6) += nf_defrag_ipv6.o
 obj-$(CONFIG_NF_SOCKET_IPV6) += nf_socket_ipv6.o
 obj-$(CONFIG_NF_TPROXY_IPV6) += nf_tproxy_ipv6.o
 
-# logging
-obj-$(CONFIG_NF_LOG_IPV6) += nf_log_ipv6.o
-
 # reject
 obj-$(CONFIG_NF_REJECT_IPV6) += nf_reject_ipv6.o
 

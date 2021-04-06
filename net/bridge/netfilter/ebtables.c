@@ -24,6 +24,7 @@
 #include <linux/cpumask.h>
 #include <linux/audit.h>
 #include <net/sock.h>
+#include <net/netns/generic.h>
 /* needed for logical [in,out]-dev filtering */
 #include "../br_private.h"
 
@@ -39,8 +40,11 @@
 #define COUNTER_BASE(c, n, cpu) ((struct ebt_counter *)(((char *)c) + \
 				 COUNTER_OFFSET(n) * cpu))
 
+struct ebt_pernet {
+	struct list_head tables;
+};
 
-
+static unsigned int ebt_pernet_id __read_mostly;
 static DEFINE_MUTEX(ebt_mutex);
 
 #ifdef CONFIG_COMPAT
@@ -336,7 +340,9 @@ static inline struct ebt_table *
 find_table_lock(struct net *net, const char *name, int *error,
 		struct mutex *mutex)
 {
-	return find_inlist_lock(&net->xt.tables[NFPROTO_BRIDGE], name,
+	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
+
+	return find_inlist_lock(&ebt_net->tables, name,
 				"ebtable_", error, mutex);
 }
 
@@ -1136,6 +1142,7 @@ static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
 int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 		       const struct nf_hook_ops *ops, struct ebt_table **res)
 {
+	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t, *table;
 	struct ebt_replace_kernel *repl;
@@ -1194,7 +1201,7 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 	table->private = newinfo;
 	rwlock_init(&table->lock);
 	mutex_lock(&ebt_mutex);
-	list_for_each_entry(t, &net->xt.tables[NFPROTO_BRIDGE], list) {
+	list_for_each_entry(t, &ebt_net->tables, list) {
 		if (strcmp(t->name, table->name) == 0) {
 			ret = -EEXIST;
 			goto free_unlock;
@@ -1206,7 +1213,7 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 		ret = -ENOENT;
 		goto free_unlock;
 	}
-	list_add(&table->list, &net->xt.tables[NFPROTO_BRIDGE]);
+	list_add(&table->list, &ebt_net->tables);
 	mutex_unlock(&ebt_mutex);
 
 	WRITE_ONCE(*res, table);
@@ -2412,6 +2419,20 @@ static struct nf_sockopt_ops ebt_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
+static int __net_init ebt_pernet_init(struct net *net)
+{
+	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
+
+	INIT_LIST_HEAD(&ebt_net->tables);
+	return 0;
+}
+
+static struct pernet_operations ebt_net_ops = {
+	.init = ebt_pernet_init,
+	.id   = &ebt_pernet_id,
+	.size = sizeof(struct ebt_pernet),
+};
+
 static int __init ebtables_init(void)
 {
 	int ret;
@@ -2425,13 +2446,21 @@ static int __init ebtables_init(void)
 		return ret;
 	}
 
+	ret = register_pernet_subsys(&ebt_net_ops);
+	if (ret < 0) {
+		nf_unregister_sockopt(&ebt_sockopts);
+		xt_unregister_target(&ebt_standard_target);
+		return ret;
+	}
+
 	return 0;
 }
 
-static void __exit ebtables_fini(void)
+static void ebtables_fini(void)
 {
 	nf_unregister_sockopt(&ebt_sockopts);
 	xt_unregister_target(&ebt_standard_target);
+	unregister_pernet_subsys(&ebt_net_ops);
 }
 
 EXPORT_SYMBOL(ebt_register_table);

@@ -656,6 +656,7 @@ static void nf_ct_delete_from_lists(struct nf_conn *ct)
 bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 {
 	struct nf_conn_tstamp *tstamp;
+	struct net *net;
 
 	if (test_and_set_bit(IPS_DYING_BIT, &ct->status))
 		return false;
@@ -670,11 +671,13 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 		 * be done by event cache worker on redelivery.
 		 */
 		nf_ct_delete_from_lists(ct);
-		nf_conntrack_ecache_delayed_work(nf_ct_net(ct));
+		nf_conntrack_ecache_work(nf_ct_net(ct), NFCT_ECACHE_DESTROY_FAIL);
 		return false;
 	}
 
-	nf_conntrack_ecache_work(nf_ct_net(ct));
+	net = nf_ct_net(ct);
+	if (nf_conntrack_ecache_dwork_pending(net))
+		nf_conntrack_ecache_work(net, NFCT_ECACHE_DESTROY_SENT);
 	nf_ct_delete_from_lists(ct);
 	nf_ct_put(ct);
 	return true;
