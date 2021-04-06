@@ -22,6 +22,7 @@
    filesystems/index
    arm64/index
    sound/index
+   cpu-freq/index
 
 目录和表格
 ----------
