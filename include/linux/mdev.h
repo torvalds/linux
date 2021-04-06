@@ -46,6 +46,9 @@ static inline struct device *mdev_get_iommu_device(struct mdev_device *mdev)
 	return mdev->iommu_device;
 }
 
+unsigned int mdev_get_type_group_id(struct mdev_device *mdev);
+unsigned int mtype_get_type_group_id(struct kobject *mtype_kobj);
+
 /**
  * struct mdev_parent_ops - Structure to be registered for each parent device to
  * register the device to mdev module.

@@ -29,7 +29,7 @@ struct mdev_type {
 	struct kobject *devices_kobj;
 	struct mdev_parent *parent;
 	struct list_head next;
-	struct attribute_group *group;
+	unsigned int type_group_id;
 };
 
 #define to_mdev_type_attr(_attr)	\

@@ -92,9 +92,11 @@ static struct kobj_type mdev_type_ktype = {
 };
 
 static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
-						 struct attribute_group *group)
+						 unsigned int type_group_id)
 {
 	struct mdev_type *type;
+	struct attribute_group *group =
+		parent->ops->supported_type_groups[type_group_id];
 	int ret;
 
 	if (!group->name) {
@@ -110,6 +112,7 @@ static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
 	type->parent = parent;
 	/* Pairs with the put in mdev_type_release() */
 	mdev_get_parent(parent);
+	type->type_group_id = type_group_id;
 
 	ret = kobject_init_and_add(&type->kobj, &mdev_type_ktype, NULL,
 				   "%s-%s", dev_driver_string(parent->dev),
@@ -135,8 +138,6 @@ static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
 		ret = -ENOMEM;
 		goto attrs_failed;
 	}
-
-	type->group = group;
 	return type;
 
 attrs_failed:
@@ -151,8 +152,11 @@ attr_create_failed:
 
 static void remove_mdev_supported_type(struct mdev_type *type)
 {
+	struct attribute_group *group =
+		type->parent->ops->supported_type_groups[type->type_group_id];
+
 	sysfs_remove_files(&type->kobj,
-			   (const struct attribute **)type->group->attrs);
+			   (const struct attribute **)group->attrs);
 	kobject_put(type->devices_kobj);
 	sysfs_remove_file(&type->kobj, &mdev_type_attr_create.attr);
 	kobject_del(&type->kobj);
@@ -166,8 +170,7 @@ static int add_mdev_supported_type_groups(struct mdev_parent *parent)
 	for (i = 0; parent->ops->supported_type_groups[i]; i++) {
 		struct mdev_type *type;
 
-		type = add_mdev_supported_type(parent,
-					parent->ops->supported_type_groups[i]);
+		type = add_mdev_supported_type(parent, i);
 		if (IS_ERR(type)) {
 			struct mdev_type *ltype, *tmp;
 
