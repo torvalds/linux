@@ -94,6 +94,15 @@ xfs_bmap_compute_maxlevels(
 	mp->m_bm_maxlevels[whichfork] = level;
 }
 
+unsigned int
+xfs_bmap_compute_attr_offset(
+	struct xfs_mount	*mp)
+{
+	if (mp->m_sb.sb_inodesize == 256)
+		return XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(MINABTPTRS);
+	return XFS_BMDR_SPACE_CALC(6 * MINABTPTRS);
+}
+
 STATIC int				/* error */
 xfs_bmbt_lookup_eq(
 	struct xfs_btree_cur	*cur,
@@ -192,19 +201,9 @@ uint
 xfs_default_attroffset(
 	struct xfs_inode	*ip)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	uint			offset;
-
 	if (ip->i_df.if_format == XFS_DINODE_FMT_DEV)
 		return roundup(sizeof(xfs_dev_t), 8);
-
-	if (mp->m_sb.sb_inodesize == 256)
-		offset = XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(MINABTPTRS);
-	else
-		offset = XFS_BMDR_SPACE_CALC(6 * MINABTPTRS);
-
-	ASSERT(offset < XFS_LITINO(mp));
-	return offset;
+	return M_IGEO(ip->i_mount)->attr_fork_offset;
 }
 
 /*
