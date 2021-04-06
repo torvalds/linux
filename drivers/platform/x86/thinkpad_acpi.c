@@ -10073,6 +10073,7 @@ static struct ibm_struct proxsensor_driver_data = {
  */
 
 #define DYTC_CMD_SET          1 /* To enable/disable IC function mode */
+#define DYTC_CMD_MMC_GET      8 /* To get current MMC function and mode */
 #define DYTC_CMD_RESET    0x1ff /* To reset back to default */
 
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
@@ -10089,6 +10090,10 @@ static struct ibm_struct proxsensor_driver_data = {
 #define DYTC_MODE_PERFORM     2  /* High power mode aka performance */
 #define DYTC_MODE_LOWPOWER    3  /* Low power mode */
 #define DYTC_MODE_BALANCE   0xF  /* Default mode aka balanced */
+#define DYTC_MODE_MMC_BALANCE 0  /* Default mode from MMC_GET, aka balanced */
+
+#define DYTC_ERR_MASK       0xF  /* Bits 0-3 in cmd result are the error result */
+#define DYTC_ERR_SUCCESS      1  /* CMD completed successful */
 
 #define DYTC_SET_COMMAND(function, mode, on) \
 	(DYTC_CMD_SET | (function) << DYTC_SET_FUNCTION_BIT | \
@@ -10103,6 +10108,7 @@ static bool dytc_profile_available;
 static enum platform_profile_option dytc_current_profile;
 static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dytc_mutex);
+static bool dytc_mmc_get_available;
 
 static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *profile)
 {
@@ -10111,6 +10117,7 @@ static int convert_dytc_to_profile(int dytcmode, enum platform_profile_option *p
 		*profile = PLATFORM_PROFILE_LOW_POWER;
 		break;
 	case DYTC_MODE_BALANCE:
+	case DYTC_MODE_MMC_BALANCE:
 		*profile =  PLATFORM_PROFILE_BALANCED;
 		break;
 	case DYTC_MODE_PERFORM:
@@ -10188,7 +10195,6 @@ static int dytc_cql_command(int command, int *output)
 		if (err)
 			return err;
 	}
-
 	return cmd_err;
 }
 
@@ -10245,7 +10251,10 @@ static void dytc_profile_refresh(void)
 	int perfmode;
 
 	mutex_lock(&dytc_mutex);
-	err = dytc_cql_command(DYTC_CMD_GET, &output);
+	if (dytc_mmc_get_available)
+		err = dytc_command(DYTC_CMD_MMC_GET, &output);
+	else
+		err = dytc_cql_command(DYTC_CMD_GET, &output);
 	mutex_unlock(&dytc_mutex);
 	if (err)
 		return;
@@ -10294,6 +10303,16 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	if (dytc_version >= 5) {
 		dbg_printk(TPACPI_DBG_INIT,
 				"DYTC version %d: thermal mode available\n", dytc_version);
+		/*
+		 * Check if MMC_GET functionality available
+		 * Version > 6 and return success from MMC_GET command
+		 */
+		dytc_mmc_get_available = false;
+		if (dytc_version >= 6) {
+			err = dytc_command(DYTC_CMD_MMC_GET, &output);
+			if (!err && ((output & DYTC_ERR_MASK) == DYTC_ERR_SUCCESS))
+				dytc_mmc_get_available = true;
+		}
 		/* Create platform_profile structure and register */
 		err = platform_profile_register(&dytc_profile);
 		/*
