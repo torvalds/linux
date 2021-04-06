@@ -45,7 +45,7 @@ A physical page of memory is identified by the Page Frame Number
 dividing it with the size of the page (or by shifting the physical
 address with PAGE_SHIFT bits to the right).
 
-.. image:: ../img/paging.png
+.. image:: ../res/paging.png
    :width: 49 %
 
 For efficiency reasons, the virtual address space is divided into
@@ -64,7 +64,7 @@ physically contiguous. Memory allocated by :c:func:`vmalloc` is not
 contiguous and does not reside in lowmem (it has a dedicated zone in
 highmem).
 
-.. image:: ../img/kernel-virtmem-map.png
+.. image:: ../res/kernel-virtmem-map.png
    :width: 49 %
 
 Structures used for memory mapping

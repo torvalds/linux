@@ -619,7 +619,7 @@ The rest of the operations will be implemented in the next lab.
 
 Follow the diagram below to clarify the role of structures within the ``minfs`` file system.
 
-.. image:: ../img/minfs.png
+.. image:: ../res/minfs.png
 
 1. Registering and unregistering the minfs file system
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

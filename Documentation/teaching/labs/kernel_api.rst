@@ -338,7 +338,7 @@ The following code shows how to use these routines:
 
 The evolution of the list can be seen in the following figure:
 
-.. image:: ../img/list_evolution.png
+.. image:: ../res/list_evolution.png
    :width: 85%
 
 You see the stack type behavior introduced by the :c:macro:`list_add` macro,

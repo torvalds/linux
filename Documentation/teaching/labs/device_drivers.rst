@@ -551,9 +551,9 @@ transferred between the userspace and the driver:
       position) to accurately transfer the required size (SIZE) to the user.
    2. when a smaller amount is transferred than required.
 
-.. image:: ../img/read.png
+.. image:: ../res/read.png
    :width: 49 %
-.. image:: ../img/read2.png
+.. image:: ../res/read2.png
    :width: 49 %
 
 We can look at the read operation implemented by the driver as a response to a
@@ -588,9 +588,9 @@ The write operation will respond to a write request from userspace. In
 this case, depending on the maximum driver capacity (MAXSIZ), it can
 write more or less than the required size.
 
-.. image:: ../img/write.png
+.. image:: ../res/write.png
    :width: 49 %
-.. image:: ../img/write2.png
+.. image:: ../res/write2.png
    :width: 49 %
 
 .. _ioctl:
