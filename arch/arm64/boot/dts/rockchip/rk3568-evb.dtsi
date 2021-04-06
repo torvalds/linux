@@ -191,20 +191,6 @@
 		};
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		rknpu_reserved: rknpu {
-			compatible = "shared-dma-pool";
-			inactive;
-			reusable;
-			size = <0x0 0x08000000>;
-			alignment = <0x0 0x1000>;
-		};
-	};
-
 	rk809_sound: rk809-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -1652,13 +1638,12 @@
 };
 
 &rknpu {
-	memory-region = <&rknpu_reserved>;
 	rknpu-supply = <&vdd_npu>;
 	status = "okay";
 };
 
 &rknpu_mmu {
-	status = "disabled";
+	status = "okay";
 };
 
 &route_hdmi {
