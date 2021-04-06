@@ -209,7 +209,9 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	uint32_t stage_idx, lm_idx;
 	int zpos_cnt[DPU_STAGE_MAX + 1] = { 0 };
 	bool bg_alpha_enable = false;
+	DECLARE_BITMAP(fetch_active, SSPP_MAX);
 
+	memset(fetch_active, 0, sizeof(fetch_active));
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		state = plane->state;
 		if (!state)
@@ -219,7 +221,7 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 		fb = state->fb;
 
 		dpu_plane_get_ctl_flush(plane, ctl, &flush_mask);
-
+		set_bit(dpu_plane_pipe(plane), fetch_active);
 		DPU_DEBUG("crtc %d stage:%d - plane %d sspp %d fb %d\n",
 				crtc->base.id,
 				pstate->stage,
@@ -258,6 +260,9 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 						1 << pstate->stage;
 		}
 	}
+
+	if (ctl->ops.set_active_pipes)
+		ctl->ops.set_active_pipes(ctl, fetch_active);
 
 	 _dpu_crtc_program_lm_output_roi(crtc);
 }
