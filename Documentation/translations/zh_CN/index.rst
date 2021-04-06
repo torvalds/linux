@@ -25,6 +25,7 @@
    cpu-freq/index
    mips/index
    iio/index
+   riscv/index
 
 目录和表格
 ----------
