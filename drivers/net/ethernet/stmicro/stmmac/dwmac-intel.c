@@ -153,6 +153,11 @@ static int intel_serdes_powerup(struct net_device *ndev, void *priv_data)
 		return data;
 	}
 
+	/* PSE only - ungate SGMII PHY Rx Clock */
+	if (intel_priv->is_pse)
+		mdiobus_modify(priv->mii, serdes_phy_addr, SERDES_GCR0,
+			       0, SERDES_PHY_RX_CLK);
+
 	return 0;
 }
 
@@ -167,6 +172,11 @@ static void intel_serdes_powerdown(struct net_device *ndev, void *intel_data)
 		return;
 
 	serdes_phy_addr = intel_priv->mdio_adhoc_addr;
+
+	/* PSE only - gate SGMII PHY Rx Clock */
+	if (intel_priv->is_pse)
+		mdiobus_modify(priv->mii, serdes_phy_addr, SERDES_GCR0,
+			       SERDES_PHY_RX_CLK, 0);
 
 	/*  move power state to P3 */
 	data = mdiobus_read(priv->mii, serdes_phy_addr, SERDES_GCR0);
