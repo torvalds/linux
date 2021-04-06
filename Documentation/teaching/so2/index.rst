@@ -12,8 +12,8 @@ Operating Systems 2
    lec3-processes.rst
    lec4-interrupts.rst
    lec5-smp.rst
-   lec6-virtmem.rst
-   lec7-physmem.rst
+   lec6-address-space.rst
+   lec7-memory-management.rst
    lec8-filesystems.rst
    lec9-debugging.rst
    lec10-networking.rst
