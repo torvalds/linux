@@ -700,10 +700,9 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	pdev = mdev_parent_dev(mdev);
 	gvt = kdev_to_i915(pdev)->gvt;
 
-	type = intel_gvt_ops->gvt_find_vgpu_type(gvt, kobject_name(kobj));
+	type = intel_gvt_ops->gvt_find_vgpu_type(gvt,
+						 mdev_get_type_group_id(mdev));
 	if (!type) {
-		gvt_vgpu_err("failed to find type %s to create\n",
-						kobject_name(kobj));
 		ret = -EINVAL;
 		goto out;
 	}

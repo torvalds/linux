@@ -46,22 +46,12 @@ static const char * const supported_hypervisors[] = {
 	[INTEL_GVT_HYPERVISOR_KVM] = "KVM",
 };
 
-static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,
-		const char *name)
+static struct intel_vgpu_type *
+intel_gvt_find_vgpu_type(struct intel_gvt *gvt, unsigned int type_group_id)
 {
-	const char *driver_name =
-		dev_driver_string(&gvt->gt->i915->drm.pdev->dev);
-	int i;
-
-	name += strlen(driver_name) + 1;
-	for (i = 0; i < gvt->num_types; i++) {
-		struct intel_vgpu_type *t = &gvt->types[i];
-
-		if (!strncmp(t->name, name, sizeof(t->name)))
-			return t;
-	}
-
-	return NULL;
+	if (WARN_ON(type_group_id >= gvt->num_types))
+		return NULL;
+	return &gvt->types[type_group_id];
 }
 
 static ssize_t available_instances_show(struct kobject *kobj,
@@ -71,7 +61,7 @@ static ssize_t available_instances_show(struct kobject *kobj,
 	unsigned int num = 0;
 	void *gvt = kdev_to_i915(dev)->gvt;
 
-	type = intel_gvt_find_vgpu_type(gvt, kobject_name(kobj));
+	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(kobj));
 	if (!type)
 		num = 0;
 	else
@@ -92,7 +82,7 @@ static ssize_t description_show(struct kobject *kobj, struct device *dev,
 	struct intel_vgpu_type *type;
 	void *gvt = kdev_to_i915(dev)->gvt;
 
-	type = intel_gvt_find_vgpu_type(gvt, kobject_name(kobj));
+	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(kobj));
 	if (!type)
 		return 0;
 
