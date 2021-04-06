@@ -4739,8 +4739,10 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	core_link_read_dpcd(link, DP_LINK_BW_SET,
 				&link_bw_set, sizeof(link_bw_set));
 
-	if (link_bw_set)
+	if (link_bw_set) {
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS used link_bw_set\n");
 		return true;
+	}
 
 	// Read DPCD 00115h to find the edp link rate set used
 	core_link_read_dpcd(link, DP_LINK_RATE_SET,
@@ -4755,9 +4757,12 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	decide_edp_link_settings(link, &link_setting, req_bw);
 
 	if (link->dpcd_caps.edp_supported_link_rates[link_rate_set] != link_setting.link_rate ||
-			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count)
+			lane_count_set.bits.LANE_COUNT_SET != link_setting.lane_count) {
+		DC_LOG_EVENT_LINK_TRAINING("eDP ILR: Optimization required, VBIOS link_rate_set not optimal\n");
 		return true;
+	}
 
+	DC_LOG_EVENT_LINK_TRAINING("eDP ILR: No optimization required, VBIOS set optimal link_rate_set\n");
 	return false;
 }
 
