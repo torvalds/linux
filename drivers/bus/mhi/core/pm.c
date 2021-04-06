@@ -848,7 +848,7 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 		return -EBUSY;
 	}
 
-	dev_info(dev, "Allowing M3 transition\n");
+	dev_dbg(dev, "Allowing M3 transition\n");
 	new_state = mhi_tryset_pm_state(mhi_cntrl, MHI_PM_M3_ENTER);
 	if (new_state != MHI_PM_M3_ENTER) {
 		write_unlock_irq(&mhi_cntrl->pm_lock);
@@ -862,7 +862,7 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 	/* Set MHI to M3 and wait for completion */
 	mhi_set_mhi_state(mhi_cntrl, MHI_STATE_M3);
 	write_unlock_irq(&mhi_cntrl->pm_lock);
-	dev_info(dev, "Wait for M3 completion\n");
+	dev_dbg(dev, "Waiting for M3 completion\n");
 
 	ret = wait_event_timeout(mhi_cntrl->state_event,
 				 mhi_cntrl->dev_state == MHI_STATE_M3 ||
@@ -896,9 +896,9 @@ int mhi_pm_resume(struct mhi_controller *mhi_cntrl)
 	enum mhi_pm_state cur_state;
 	int ret;
 
-	dev_info(dev, "Entered with PM state: %s, MHI state: %s\n",
-		 to_mhi_pm_state_str(mhi_cntrl->pm_state),
-		 TO_MHI_STATE_STR(mhi_cntrl->dev_state));
+	dev_dbg(dev, "Entered with PM state: %s, MHI state: %s\n",
+		to_mhi_pm_state_str(mhi_cntrl->pm_state),
+		TO_MHI_STATE_STR(mhi_cntrl->dev_state));
 
 	if (mhi_cntrl->pm_state == MHI_PM_DISABLE)
 		return 0;
