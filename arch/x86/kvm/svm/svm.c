@@ -3336,11 +3336,10 @@ static void pre_svm_run(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	/*
-	 * If the previous vmrun of the vmcb occurred on
-	 * a different physical cpu then we must mark the vmcb dirty.
-	 * and assign a new asid.
-	*/
-
+	 * If the previous vmrun of the vmcb occurred on a different physical
+	 * cpu, then mark the vmcb dirty and assign a new asid.  Hardware's
+	 * vmcb clean bits are per logical CPU, as are KVM's asid assignments.
+	 */
 	if (unlikely(svm->current_vmcb->cpu != vcpu->cpu)) {
 		svm->current_vmcb->asid_generation = 0;
 		vmcb_mark_all_dirty(svm->vmcb);
