@@ -1278,7 +1278,7 @@ implementation:
 
 
 Quiz: Kernel gdb scripts
------------------
+------------------------
 
 .. slide:: Quiz: Kernel gdb scripts
    :inline-contents: True
