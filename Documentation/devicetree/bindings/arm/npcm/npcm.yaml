@@ -14,6 +14,12 @@ properties:
     const: '/'
   compatible:
     oneOf:
+      - description: WPCM450 based boards
+        items:
+          - enum:
+              - supermicro,x9sci-ln4f-bmc   # Supermicro X9SCI-LN4F server's BMC
+          - const: nuvoton,wpcm450
+
       - description: NPCM750 based boards
         items:
           - enum:
