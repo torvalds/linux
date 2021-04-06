@@ -520,7 +520,7 @@ enum acpi_viot_node_type {
 /* VIOT subtables */
 
 struct acpi_viot_pci_range {
-	ACPI_VIOT_HEADER header;
+	struct acpi_viot_header header;
 	u32 endpoint_start;
 	u16 segment_start;
 	u16 segment_end;
@@ -531,7 +531,7 @@ struct acpi_viot_pci_range {
 };
 
 struct acpi_viot_mmio {
-	ACPI_VIOT_HEADER header;
+	struct acpi_viot_header header;
 	u32 endpoint;
 	u64 base_address;
 	u16 output_node;
@@ -539,14 +539,14 @@ struct acpi_viot_mmio {
 };
 
 struct acpi_viot_virtio_iommu_pci {
-	ACPI_VIOT_HEADER header;
+	struct acpi_viot_header header;
 	u16 segment;
 	u16 bdf;
 	u8 reserved[8];
 };
 
 struct acpi_viot_virtio_iommu_mmio {
-	ACPI_VIOT_HEADER header;
+	struct acpi_viot_header header;
 	u8 reserved[4];
 	u64 base_address;
 };
