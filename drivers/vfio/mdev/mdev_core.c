@@ -258,7 +258,9 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	list_add(&mdev->next, &mdev_list);
 	mutex_unlock(&mdev_list_lock);
 
-	dev_set_name(&mdev->dev, "%pUl", uuid);
+	ret = dev_set_name(&mdev->dev, "%pUl", uuid);
+	if (ret)
+		goto out_put_device;
 
 	/* Check if parent unregistration has started */
 	if (!down_read_trylock(&parent->unreg_sem)) {
