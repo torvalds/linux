@@ -146,10 +146,12 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 	ret = mt7921_register_device(dev);
 	if (ret)
-		goto err_free_dev;
+		goto err_free_irq;
 
 	return 0;
 
+err_free_irq:
+	devm_free_irq(&pdev->dev, pdev->irq, dev);
 err_free_dev:
 	mt76_free_device(&dev->mt76);
 err_free_pci_vec:
