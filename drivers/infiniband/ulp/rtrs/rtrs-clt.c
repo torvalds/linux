@@ -437,6 +437,13 @@ static void complete_rdma_req(struct rtrs_clt_io_req *req, int errno,
 	req->in_use = false;
 	req->con = NULL;
 
+	if (errno) {
+		rtrs_err_rl(con->c.sess,
+			    "IO request failed: error=%d path=%s [%s:%u]\n",
+			    errno, kobject_name(&sess->kobj), sess->hca_name,
+			    sess->hca_port);
+	}
+
 	if (notify)
 		req->conf(req->priv, errno);
 }
@@ -1075,7 +1082,10 @@ static int rtrs_clt_write_req(struct rtrs_clt_io_req *req)
 				       req->usr_len + sizeof(*msg),
 				       imm);
 	if (unlikely(ret)) {
-		rtrs_err(s, "Write request failed: %d\n", ret);
+		rtrs_err_rl(s,
+			    "Write request failed: error=%d path=%s [%s:%u]\n",
+			    ret, kobject_name(&sess->kobj), sess->hca_name,
+			    sess->hca_port);
 		if (sess->clt->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&sess->stats->inflight);
 		if (req->sg_cnt)
@@ -1193,7 +1203,10 @@ static int rtrs_clt_read_req(struct rtrs_clt_io_req *req)
 	ret = rtrs_post_send_rdma(req->con, req, &sess->rbufs[buf_id],
 				   req->data_len, imm, wr);
 	if (unlikely(ret)) {
-		rtrs_err(s, "Read request failed: %d\n", ret);
+		rtrs_err_rl(s,
+			    "Read request failed: error=%d path=%s [%s:%u]\n",
+			    ret, kobject_name(&sess->kobj), sess->hca_name,
+			    sess->hca_port);
 		if (sess->clt->mp_policy == MP_POLICY_MIN_INFLIGHT)
 			atomic_dec(&sess->stats->inflight);
 		req->need_inv = false;
@@ -2513,12 +2526,33 @@ static int init_sess(struct rtrs_clt_sess *sess)
 	mutex_lock(&sess->init_mutex);
 	err = init_conns(sess);
 	if (err) {
-		rtrs_err(sess->clt, "init_conns(), err: %d\n", err);
+		char str[NAME_MAX];
+		int err;
+		struct rtrs_addr path = {
+			.src = &sess->s.src_addr,
+			.dst = &sess->s.dst_addr,
+		};
+
+		rtrs_addr_to_str(&path, str, sizeof(str));
+		rtrs_err(sess->clt,
+			 "init_conns() failed: err=%d path=%s [%s:%u]\n", err,
+			 str, sess->hca_name, sess->hca_port);
 		goto out;
 	}
 	err = rtrs_send_sess_info(sess);
 	if (err) {
-		rtrs_err(sess->clt, "rtrs_send_sess_info(), err: %d\n", err);
+		char str[NAME_MAX];
+		int err;
+		struct rtrs_addr path = {
+			.src = &sess->s.src_addr,
+			.dst = &sess->s.dst_addr,
+		};
+
+		rtrs_addr_to_str(&path, str, sizeof(str));
+		rtrs_err(
+			sess->clt,
+			"rtrs_send_sess_info() failed: err=%d path=%s [%s:%u]\n",
+			err, str, sess->hca_name, sess->hca_port);
 		goto out;
 	}
 	rtrs_clt_sess_up(sess);
