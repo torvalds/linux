@@ -1882,7 +1882,7 @@ static int __gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
  * Returns: errno
  */
 
-int gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
+static int gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
 {
 	int error;
 
