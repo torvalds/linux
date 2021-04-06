@@ -2522,18 +2522,17 @@ out:
 static int init_sess(struct rtrs_clt_sess *sess)
 {
 	int err;
+	char str[NAME_MAX];
+	struct rtrs_addr path = {
+		.src = &sess->s.src_addr,
+		.dst = &sess->s.dst_addr,
+	};
+
+	rtrs_addr_to_str(&path, str, sizeof(str));
 
 	mutex_lock(&sess->init_mutex);
 	err = init_conns(sess);
 	if (err) {
-		char str[NAME_MAX];
-		int err;
-		struct rtrs_addr path = {
-			.src = &sess->s.src_addr,
-			.dst = &sess->s.dst_addr,
-		};
-
-		rtrs_addr_to_str(&path, str, sizeof(str));
 		rtrs_err(sess->clt,
 			 "init_conns() failed: err=%d path=%s [%s:%u]\n", err,
 			 str, sess->hca_name, sess->hca_port);
@@ -2541,14 +2540,6 @@ static int init_sess(struct rtrs_clt_sess *sess)
 	}
 	err = rtrs_send_sess_info(sess);
 	if (err) {
-		char str[NAME_MAX];
-		int err;
-		struct rtrs_addr path = {
-			.src = &sess->s.src_addr,
-			.dst = &sess->s.dst_addr,
-		};
-
-		rtrs_addr_to_str(&path, str, sizeof(str));
 		rtrs_err(
 			sess->clt,
 			"rtrs_send_sess_info() failed: err=%d path=%s [%s:%u]\n",
