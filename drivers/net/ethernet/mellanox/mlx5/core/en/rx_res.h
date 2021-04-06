@@ -6,24 +6,15 @@
 
 #include <linux/kernel.h>
 #include "rqt.h"
+#include "tir.h"
 #include "fs.h"
 
 #define MLX5E_MAX_NUM_CHANNELS (MLX5E_INDIR_RQT_SIZE / 2)
-
-struct mlx5e_rss_params_hash {
-	u8 hfunc;
-	u8 toeplitz_hash_key[40];
-};
 
 struct mlx5e_rss_params {
 	struct mlx5e_rss_params_hash hash;
 	struct mlx5e_rss_params_indir indir;
 	u32 rx_hash_fields[MLX5E_NUM_INDIR_TIRS];
-};
-
-struct mlx5e_tir {
-	u32 tirn;
-	struct list_head list;
 };
 
 struct mlx5e_rx_res {

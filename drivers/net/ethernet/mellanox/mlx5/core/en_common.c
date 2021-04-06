@@ -36,34 +36,6 @@
  * Global resources are common to all the netdevices crated on the same nic.
  */
 
-int mlx5e_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 *in)
-{
-	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
-	int err;
-
-	err = mlx5_core_create_tir(mdev, in, &tir->tirn);
-	if (err)
-		return err;
-
-	mutex_lock(&res->td.list_lock);
-	list_add(&tir->list, &res->td.tirs_list);
-	mutex_unlock(&res->td.list_lock);
-
-	return 0;
-}
-
-void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
-		       struct mlx5e_tir *tir)
-{
-	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
-
-	mutex_lock(&res->td.list_lock);
-	list_del(&tir->list);
-	mutex_unlock(&res->td.list_lock);
-
-	mlx5_core_destroy_tir(mdev, tir->tirn);
-}
-
 void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
 {
 	bool ro_pci_enable = pcie_relaxed_ordering_enabled(mdev->pdev);

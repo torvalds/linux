@@ -1218,20 +1218,14 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		   const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	struct mlx5e_rss_params *rss;
 	bool refresh_tirs = false;
 	bool refresh_rqt = false;
-	void *in;
 
 	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
 	    (hfunc != ETH_RSS_HASH_XOR) &&
 	    (hfunc != ETH_RSS_HASH_TOP))
 		return -EINVAL;
-
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
 
 	mutex_lock(&priv->state_lock);
 
@@ -1271,11 +1265,9 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (refresh_tirs)
-		mlx5e_modify_tirs_hash(priv, in);
+		mlx5e_modify_tirs_hash(priv);
 
 	mutex_unlock(&priv->state_lock);
-
-	kvfree(in);
 
 	return 0;
 }

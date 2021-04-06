@@ -340,11 +340,11 @@ struct mlx5e_hairpin {
 	struct mlx5_core_dev *func_mdev;
 	struct mlx5e_priv *func_priv;
 	u32 tdn;
-	u32 tirn;
+	struct mlx5e_tir direct_tir;
 
 	int num_channels;
 	struct mlx5e_rqt indir_rqt;
-	u32 indir_tirn[MLX5E_NUM_INDIR_TIRS];
+	struct mlx5e_tir indir_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_ttc_table ttc;
 };
 
@@ -462,35 +462,35 @@ struct mlx5_core_dev *mlx5e_hairpin_get_mdev(struct net *net, int ifindex)
 
 static int mlx5e_hairpin_create_transport(struct mlx5e_hairpin *hp)
 {
-	u32 in[MLX5_ST_SZ_DW(create_tir_in)] = {};
-	void *tirc;
+	struct mlx5e_tir_builder *builder;
 	int err;
+
+	builder = mlx5e_tir_builder_alloc(false);
+	if (!builder)
+		return -ENOMEM;
 
 	err = mlx5_core_alloc_transport_domain(hp->func_mdev, &hp->tdn);
 	if (err)
-		goto alloc_tdn_err;
+		goto out;
 
-	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-
-	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
-	MLX5_SET(tirc, tirc, inline_rqn, hp->pair->rqn[0]);
-	MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
-
-	err = mlx5_core_create_tir(hp->func_mdev, in, &hp->tirn);
+	mlx5e_tir_builder_build_inline(builder, hp->tdn, hp->pair->rqn[0]);
+	err = mlx5e_tir_init(&hp->direct_tir, builder, hp->func_mdev, false);
 	if (err)
 		goto create_tir_err;
 
-	return 0;
+out:
+	mlx5e_tir_builder_free(builder);
+	return err;
 
 create_tir_err:
 	mlx5_core_dealloc_transport_domain(hp->func_mdev, hp->tdn);
-alloc_tdn_err:
-	return err;
+
+	goto out;
 }
 
 static void mlx5e_hairpin_destroy_transport(struct mlx5e_hairpin *hp)
 {
-	mlx5_core_destroy_tir(hp->func_mdev, hp->tirn);
+	mlx5e_tir_destroy(&hp->direct_tir);
 	mlx5_core_dealloc_transport_domain(hp->func_mdev, hp->tdn);
 }
 
@@ -515,36 +515,52 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 
 static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 {
+	struct mlx5e_rss_params_traffic_type rss_tt;
 	struct mlx5e_priv *priv = hp->func_priv;
-	u32 in[MLX5_ST_SZ_DW(create_tir_in)];
-	int tt, i, err;
-	void *tirc;
+	struct mlx5e_rss_params_hash *rss_hash;
+	enum mlx5e_traffic_types tt, max_tt;
+	struct mlx5e_tir_builder *builder;
+	int err = 0;
+
+	builder = mlx5e_tir_builder_alloc(false);
+	if (!builder)
+		return -ENOMEM;
+
+	rss_hash = &priv->rx_res->rss_params.hash;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
 		struct mlx5e_tirc_config ttconfig = mlx5e_tirc_get_default_config(tt);
 
-		memset(in, 0, MLX5_ST_SZ_BYTES(create_tir_in));
-		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
+		rss_tt = (struct mlx5e_rss_params_traffic_type) {
+			.l3_prot_type = ttconfig.l3_prot_type,
+			.l4_prot_type = ttconfig.l4_prot_type,
+			.rx_hash_fields = ttconfig.rx_hash_fields,
+		};
 
-		MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
-		MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
-		MLX5_SET(tirc, tirc, indirect_table, mlx5e_rqt_get_rqtn(&hp->indir_rqt));
-		mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params, &ttconfig,
-					       tirc, false);
+		mlx5e_tir_builder_build_rqt(builder, hp->tdn,
+					    mlx5e_rqt_get_rqtn(&hp->indir_rqt),
+					    false);
+		mlx5e_tir_builder_build_rss(builder, rss_hash, &rss_tt, false);
 
-		err = mlx5_core_create_tir(hp->func_mdev, in,
-					   &hp->indir_tirn[tt]);
+		err = mlx5e_tir_init(&hp->indir_tir[tt], builder, hp->func_mdev, false);
 		if (err) {
 			mlx5_core_warn(hp->func_mdev, "create indirect tirs failed, %d\n", err);
 			goto err_destroy_tirs;
 		}
+
+		mlx5e_tir_builder_clear(builder);
 	}
-	return 0;
+
+out:
+	mlx5e_tir_builder_free(builder);
+	return err;
 
 err_destroy_tirs:
-	for (i = 0; i < tt; i++)
-		mlx5_core_destroy_tir(hp->func_mdev, hp->indir_tirn[i]);
-	return err;
+	max_tt = tt;
+	for (tt = 0; tt < max_tt; tt++)
+		mlx5e_tir_destroy(&hp->indir_tir[tt]);
+
+	goto out;
 }
 
 static void mlx5e_hairpin_destroy_indirect_tirs(struct mlx5e_hairpin *hp)
@@ -552,7 +568,7 @@ static void mlx5e_hairpin_destroy_indirect_tirs(struct mlx5e_hairpin *hp)
 	int tt;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		mlx5_core_destroy_tir(hp->func_mdev, hp->indir_tirn[tt]);
+		mlx5e_tir_destroy(&hp->indir_tir[tt]);
 }
 
 static void mlx5e_hairpin_set_ttc_params(struct mlx5e_hairpin *hp,
@@ -563,10 +579,10 @@ static void mlx5e_hairpin_set_ttc_params(struct mlx5e_hairpin *hp,
 
 	memset(ttc_params, 0, sizeof(*ttc_params));
 
-	ttc_params->any_tt_tirn = hp->tirn;
+	ttc_params->any_tt_tirn = mlx5e_tir_get_tirn(&hp->direct_tir);
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params->indir_tirn[tt] = hp->indir_tirn[tt];
+		ttc_params->indir_tirn[tt] = mlx5e_tir_get_tirn(&hp->indir_tir[tt]);
 
 	ft_attr->max_fte = MLX5E_TTC_TABLE_SIZE;
 	ft_attr->level = MLX5E_TC_TTC_FT_LEVEL;
@@ -837,7 +853,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	}
 
 	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d (log) data %d packets %d\n",
-		   hp->tirn, hp->pair->rqn[0],
+		   mlx5e_tir_get_tirn(&hp->direct_tir), hp->pair->rqn[0],
 		   dev_name(hp->pair->peer_mdev->device),
 		   hp->pair->sqn[0], match_prio, params.log_data_size, params.log_num_packets);
 
@@ -846,7 +862,7 @@ attach_flow:
 		flow_flag_set(flow, HAIRPIN_RSS);
 		flow->attr->nic_attr->hairpin_ft = hpe->hp->ttc.ft.t;
 	} else {
-		flow->attr->nic_attr->hairpin_tirn = hpe->hp->tirn;
+		flow->attr->nic_attr->hairpin_tirn = mlx5e_tir_get_tirn(&hpe->hp->direct_tir);
 	}
 
 	flow->hpe = hpe;
