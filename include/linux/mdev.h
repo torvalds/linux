@@ -47,7 +47,8 @@ static inline struct device *mdev_get_iommu_device(struct mdev_device *mdev)
 }
 
 unsigned int mdev_get_type_group_id(struct mdev_device *mdev);
-unsigned int mtype_get_type_group_id(struct kobject *mtype_kobj);
+unsigned int mtype_get_type_group_id(struct mdev_type *mtype);
+struct device *mtype_get_parent_dev(struct mdev_type *mtype);
 
 /**
  * struct mdev_parent_ops - Structure to be registered for each parent device to
@@ -123,9 +124,11 @@ struct mdev_parent_ops {
 /* interface for exporting mdev supported type attributes */
 struct mdev_type_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj, struct device *dev, char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct device *dev,
-			 const char *buf, size_t count);
+	ssize_t (*show)(struct mdev_type *mtype,
+			struct mdev_type_attribute *attr, char *buf);
+	ssize_t (*store)(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, const char *buf,
+			 size_t count);
 };
 
 #define MDEV_TYPE_ATTR(_name, _mode, _show, _store)		\

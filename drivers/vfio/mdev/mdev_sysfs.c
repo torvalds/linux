@@ -26,7 +26,7 @@ static ssize_t mdev_type_attr_show(struct kobject *kobj,
 	ssize_t ret = -EIO;
 
 	if (attr->show)
-		ret = attr->show(kobj, type->parent->dev, buf);
+		ret = attr->show(type, attr, buf);
 	return ret;
 }
 
@@ -39,7 +39,7 @@ static ssize_t mdev_type_attr_store(struct kobject *kobj,
 	ssize_t ret = -EIO;
 
 	if (attr->store)
-		ret = attr->store(&type->kobj, type->parent->dev, buf, count);
+		ret = attr->store(type, attr, buf, count);
 	return ret;
 }
 
@@ -48,8 +48,9 @@ static const struct sysfs_ops mdev_type_sysfs_ops = {
 	.store = mdev_type_attr_store,
 };
 
-static ssize_t create_store(struct kobject *kobj, struct device *dev,
-			    const char *buf, size_t count)
+static ssize_t create_store(struct mdev_type *mtype,
+			    struct mdev_type_attribute *attr, const char *buf,
+			    size_t count)
 {
 	char *str;
 	guid_t uuid;
@@ -67,7 +68,7 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = mdev_device_create(to_mdev_type(kobj), &uuid);
+	ret = mdev_device_create(mtype, &uuid);
 	if (ret)
 		return ret;
 

@@ -54,14 +54,15 @@ intel_gvt_find_vgpu_type(struct intel_gvt *gvt, unsigned int type_group_id)
 	return &gvt->types[type_group_id];
 }
 
-static ssize_t available_instances_show(struct kobject *kobj,
-					struct device *dev, char *buf)
+static ssize_t available_instances_show(struct mdev_type *mtype,
+					struct mdev_type_attribute *attr,
+					char *buf)
 {
 	struct intel_vgpu_type *type;
 	unsigned int num = 0;
-	void *gvt = kdev_to_i915(dev)->gvt;
+	void *gvt = kdev_to_i915(mtype_get_parent_dev(mtype))->gvt;
 
-	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(kobj));
+	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(mtype));
 	if (!type)
 		num = 0;
 	else
@@ -70,19 +71,19 @@ static ssize_t available_instances_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", num);
 }
 
-static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
-		char *buf)
+static ssize_t device_api_show(struct mdev_type *mtype,
+			       struct mdev_type_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }
 
-static ssize_t description_show(struct kobject *kobj, struct device *dev,
-		char *buf)
+static ssize_t description_show(struct mdev_type *mtype,
+				struct mdev_type_attribute *attr, char *buf)
 {
 	struct intel_vgpu_type *type;
-	void *gvt = kdev_to_i915(dev)->gvt;
+	void *gvt = kdev_to_i915(mtype_get_parent_dev(mtype))->gvt;
 
-	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(kobj));
+	type = intel_gvt_find_vgpu_type(gvt, mtype_get_type_group_id(mtype));
 	if (!type)
 		return 0;
 

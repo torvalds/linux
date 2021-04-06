@@ -1292,23 +1292,24 @@ static const struct attribute_group *mdev_dev_groups[] = {
 	NULL,
 };
 
-static ssize_t
-name_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t name_show(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, char *buf)
 {
 	static const char *name_str[2] = { "Single port serial",
 					   "Dual port serial" };
 
 	return sysfs_emit(buf, "%s\n",
-			  name_str[mtype_get_type_group_id(kobj)]);
+			  name_str[mtype_get_type_group_id(mtype)]);
 }
 
 static MDEV_TYPE_ATTR_RO(name);
 
-static ssize_t
-available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
+static ssize_t available_instances_show(struct mdev_type *mtype,
+					struct mdev_type_attribute *attr,
+					char *buf)
 {
 	struct mdev_state *mds;
-	unsigned int ports = mtype_get_type_group_id(kobj) + 1;
+	unsigned int ports = mtype_get_type_group_id(mtype) + 1;
 	int used = 0;
 
 	list_for_each_entry(mds, &mdev_devices_list, next)
@@ -1319,9 +1320,8 @@ available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
 
 static MDEV_TYPE_ATTR_RO(available_instances);
 
-
-static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
-			       char *buf)
+static ssize_t device_api_show(struct mdev_type *mtype,
+			       struct mdev_type_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }

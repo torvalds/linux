@@ -47,11 +47,21 @@ EXPORT_SYMBOL(mdev_get_type_group_id);
  * Used in mdev_type_attribute sysfs functions to return the index in the
  * supported_type_groups that the sysfs is called from.
  */
-unsigned int mtype_get_type_group_id(struct kobject *mtype_kobj)
+unsigned int mtype_get_type_group_id(struct mdev_type *mtype)
 {
-	return container_of(mtype_kobj, struct mdev_type, kobj)->type_group_id;
+	return mtype->type_group_id;
 }
 EXPORT_SYMBOL(mtype_get_type_group_id);
+
+/*
+ * Used in mdev_type_attribute sysfs functions to return the parent struct
+ * device
+ */
+struct device *mtype_get_parent_dev(struct mdev_type *mtype)
+{
+	return mtype->parent->dev;
+}
+EXPORT_SYMBOL(mtype_get_parent_dev);
 
 /* Should be called holding parent_list_lock */
 static struct mdev_parent *__find_parent_device(struct device *dev)
