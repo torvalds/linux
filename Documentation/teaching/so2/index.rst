@@ -43,3 +43,4 @@ Operating Systems 2
 
    assign0-kernel-api.rst
    assign1-kprobe-based-tracer.rst
+   assign2-driver-uart.rst
