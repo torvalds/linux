@@ -451,7 +451,7 @@ static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f,
 	ret = amdgpu_ras_eeprom_reset_table(
 		&(amdgpu_ras_get_context(adev)->eeprom_control));
 
-	if (ret > 0) {
+	if (!ret) {
 		/* Something was written to EEPROM.
 		 */
 		amdgpu_ras_get_context(adev)->flags = RAS_DEFAULT_FLAGS;
@@ -1821,9 +1821,9 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	save_count = data->count - control->ras_num_recs;
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (amdgpu_ras_eeprom_write(control,
-					    &data->bps[control->ras_num_recs],
-					    save_count)) {
+		if (amdgpu_ras_eeprom_append(control,
+					     &data->bps[control->ras_num_recs],
+					     save_count)) {
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
 		}

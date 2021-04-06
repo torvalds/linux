@@ -28,7 +28,7 @@
 
 struct amdgpu_device;
 
-enum amdgpu_ras_eeprom_err_type{
+enum amdgpu_ras_eeprom_err_type {
 	AMDGPU_RAS_EEPROM_ERR_PLACE_HOLDER,
 	AMDGPU_RAS_EEPROM_ERR_RECOVERABLE,
 	AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE
@@ -51,17 +51,34 @@ struct amdgpu_ras_eeprom_control {
 	 */
 	u32 i2c_address;
 
-	uint32_t next_addr;
+	/* The byte offset off of @i2c_address
+	 * where the table header is found,
+	 * and where the records start--always
+	 * right after the header.
+	 */
+	u32 ras_header_offset;
+	u32 ras_record_offset;
 
 	/* Number of records in the table.
 	 */
-	unsigned int ras_num_recs;
+	u32 ras_num_recs;
+
+	/* First record index to read, 0-based.
+	 * Range is [0, num_recs-1]. This is
+	 * an absolute index, starting right after
+	 * the table header.
+	 */
+	u32 ras_fri;
+
+	/* Maximum possible number of records
+	 * we could store, i.e. the maximum capacity
+	 * of the table.
+	 */
+	u32 ras_max_record_count;
 
 	/* Protect table access via this mutex.
 	 */
 	struct mutex ras_tbl_mutex;
-
-	u8 tbl_byte_sum;
 };
 
 /*
@@ -91,6 +108,7 @@ struct eeprom_table_record {
 
 int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 			   bool *exceed_err_limit);
+
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control);
 
 bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev);
@@ -98,8 +116,8 @@ bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev);
 int amdgpu_ras_eeprom_read(struct amdgpu_ras_eeprom_control *control,
 			   struct eeprom_table_record *records, const u32 num);
 
-int amdgpu_ras_eeprom_write(struct amdgpu_ras_eeprom_control *control,
-			    struct eeprom_table_record *records, const u32 num);
+int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
+			     struct eeprom_table_record *records, const u32 num);
 
 inline uint32_t amdgpu_ras_eeprom_max_record_count(void);
 
