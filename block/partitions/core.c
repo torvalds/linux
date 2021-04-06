@@ -287,6 +287,9 @@ struct device_type part_type = {
  */
 void delete_partition(struct block_device *part)
 {
+	fsync_bdev(part);
+	__invalidate_device(part, true);
+
 	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
 	kobject_put(part->bd_holder_dir);
 	device_del(&part->bd_device);
@@ -467,9 +470,6 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	ret = -EBUSY;
 	if (part->bd_openers)
 		goto out_unlock;
-
-	sync_blockdev(part);
-	invalidate_bdev(part);
 
 	delete_partition(part);
 	ret = 0;

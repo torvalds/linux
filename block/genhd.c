@@ -686,11 +686,8 @@ void del_gendisk(struct gendisk *disk)
 
 	/* invalidate stuff */
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
-	while ((part = disk_part_iter_next(&piter))) {
-		fsync_bdev(part);
-		__invalidate_device(part, true);
+	while ((part = disk_part_iter_next(&piter)))
 		delete_partition(part);
-	}
 	disk_part_iter_exit(&piter);
 
 	fsync_bdev(disk->part0);
