@@ -82,10 +82,6 @@ struct aic3x_priv {
 	int master;
 	int gpio_reset;
 	int power;
-#define AIC3X_MODEL_3X 0
-#define AIC3X_MODEL_33 1
-#define AIC3X_MODEL_3007 2
-#define AIC3X_MODEL_3104 3
 	u16 model;
 
 	/* Selects the micbias voltage */

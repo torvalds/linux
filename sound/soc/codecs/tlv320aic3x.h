@@ -9,6 +9,11 @@
 #ifndef _AIC3X_H
 #define _AIC3X_H
 
+#define AIC3X_MODEL_3X 0
+#define AIC3X_MODEL_33 1
+#define AIC3X_MODEL_3007 2
+#define AIC3X_MODEL_3104 3
+
 /* AIC3X register space */
 #define AIC3X_CACHEREGNUM		110
 
