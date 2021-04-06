@@ -99,16 +99,6 @@ struct mdev_state {
 	void *memblk;
 };
 
-static const struct mdpy_type *mdpy_find_type(struct kobject *kobj)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mdpy_types); i++)
-		if (strcmp(mdpy_types[i].name, kobj->name) == 0)
-			return mdpy_types + i;
-	return NULL;
-}
-
 static void mdpy_create_config_space(struct mdev_state *mdev_state)
 {
 	STORE_LE16((u16 *) &mdev_state->vconfig[PCI_VENDOR_ID],
@@ -228,7 +218,8 @@ static int mdpy_reset(struct mdev_device *mdev)
 
 static int mdpy_create(struct kobject *kobj, struct mdev_device *mdev)
 {
-	const struct mdpy_type *type = mdpy_find_type(kobj);
+	const struct mdpy_type *type =
+		&mdpy_types[mdev_get_type_group_id(mdev)];
 	struct device *dev = mdev_dev(mdev);
 	struct mdev_state *mdev_state;
 	u32 fbsize;
@@ -246,8 +237,6 @@ static int mdpy_create(struct kobject *kobj, struct mdev_device *mdev)
 		return -ENOMEM;
 	}
 
-	if (!type)
-		type = &mdpy_types[0];
 	fbsize = roundup_pow_of_two(type->width * type->height * type->bytepp);
 
 	mdev_state->memblk = vmalloc_user(fbsize);
@@ -256,8 +245,8 @@ static int mdpy_create(struct kobject *kobj, struct mdev_device *mdev)
 		kfree(mdev_state);
 		return -ENOMEM;
 	}
-	dev_info(dev, "%s: %s (%dx%d)\n",
-		 __func__, kobj->name, type->width, type->height);
+	dev_info(dev, "%s: %s (%dx%d)\n", __func__, type->name, type->width,
+		 type->height);
 
 	mutex_init(&mdev_state->ops_lock);
 	mdev_state->mdev = mdev;
@@ -673,7 +662,8 @@ static MDEV_TYPE_ATTR_RO(name);
 static ssize_t
 description_show(struct kobject *kobj, struct device *dev, char *buf)
 {
-	const struct mdpy_type *type = mdpy_find_type(kobj);
+	const struct mdpy_type *type =
+		&mdpy_types[mtype_get_type_group_id(kobj)];
 
 	return sprintf(buf, "virtual display, %dx%d framebuffer\n",
 		       type ? type->width  : 0,
