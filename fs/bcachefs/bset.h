@@ -188,7 +188,7 @@ static inline enum bset_aux_tree_type bset_aux_tree_type(const struct bset_tree 
  * gets to the second cacheline.
  */
 
-#define BSET_CACHELINE		128
+#define BSET_CACHELINE		256
 
 static inline size_t btree_keys_cachelines(const struct btree *b)
 {
