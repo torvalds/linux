@@ -31,6 +31,8 @@
 #define INTF_TEST_CTL                   0x054
 #define INTF_TP_COLOR0                  0x058
 #define INTF_TP_COLOR1                  0x05C
+#define INTF_CONFIG2                    0x060
+#define INTF_DISPLAY_DATA_HCTL          0x064
 #define INTF_FRAME_LINE_COUNT_EN        0x0A8
 #define INTF_FRAME_COUNT                0x0AC
 #define   INTF_LINE_COUNT               0x0B0
@@ -93,7 +95,7 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	u32 active_hctl, display_hctl, hsync_ctl;
 	u32 polarity_ctl, den_polarity, hsync_polarity, vsync_polarity;
 	u32 panel_format;
-	u32 intf_cfg;
+	u32 intf_cfg, intf_cfg2 = 0, display_data_hctl = 0;
 
 	/* read interface_cfg */
 	intf_cfg = DPU_REG_READ(c, INTF_CONFIG);
@@ -177,6 +179,13 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 				(COLOR_8BIT << 2) |
 				(COLOR_8BIT << 4) |
 				(0x21 << 8));
+
+	if (ctx->cap->features & BIT(DPU_DATA_HCTL_EN)) {
+		intf_cfg2 |= BIT(4);
+		display_data_hctl = display_hctl;
+		DPU_REG_WRITE(c, INTF_CONFIG2, intf_cfg2);
+		DPU_REG_WRITE(c, INTF_DISPLAY_DATA_HCTL, display_data_hctl);
+	}
 
 	DPU_REG_WRITE(c, INTF_HSYNC_CTL, hsync_ctl);
 	DPU_REG_WRITE(c, INTF_VSYNC_PERIOD_F0, vsync_period * hsync_period);
