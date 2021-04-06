@@ -11,6 +11,7 @@
 #include <rtw_sreset.h>
 
 #define REALTEK_USB_VENQT_CMD_REQ	0x05
+#define REALTEK_USB_VENQT_CMD_IDX	0x00
 
 static void interrupt_handler_8188eu(struct adapter *adapt, u16 pkt_len, u8 *pbuf)
 {
@@ -201,7 +202,7 @@ unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 }
 
 static int
-usbctrl_vendorreq(struct adapter *adapt, u16 value, u16 index, void *pdata, u16 len, u8 requesttype)
+usbctrl_vendorreq(struct adapter *adapt, u16 value, void *pdata, u16 len, u8 requesttype)
 {
 	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
@@ -251,7 +252,8 @@ usbctrl_vendorreq(struct adapter *adapt, u16 value, u16 index, void *pdata, u16 
 		}
 
 		status = usb_control_msg(udev, pipe, REALTEK_USB_VENQT_CMD_REQ,
-					 reqtype, value, index, pIo_buf, len, RTW_USB_CONTROL_MSG_TIMEOUT);
+					 reqtype, value, REALTEK_USB_VENQT_CMD_IDX,
+					 pIo_buf, len, RTW_USB_CONTROL_MSG_TIMEOUT);
 
 		if (status == len) {   /*  Success this control transfer. */
 			if (requesttype == 0x01)
@@ -292,17 +294,15 @@ u8 usb_read8(struct adapter *adapter, u32 addr)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	u8 data = 0;
 
 	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 
-	usbctrl_vendorreq(adapter, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(adapter, wvalue, &data, len, requesttype);
 
 	return data;
 }
@@ -311,15 +311,13 @@ u16 usb_read16(struct adapter *adapter, u32 addr)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 
 	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
-	usbctrl_vendorreq(adapter, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(adapter, wvalue, &data, len, requesttype);
 
 	return (u16)(le32_to_cpu(data) & 0xffff);
 }
@@ -328,17 +326,15 @@ u32 usb_read32(struct adapter *adapter, u32 addr)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 
 	requesttype = 0x01;/* read_in */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 
-	usbctrl_vendorreq(adapter, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(adapter, wvalue, &data, len, requesttype);
 
 	return le32_to_cpu(data);
 }
@@ -508,56 +504,47 @@ int usb_write8(struct adapter *adapter, u32 addr, u8 val)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	u8 data;
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 	data = val;
-	return usbctrl_vendorreq(adapter, wvalue,
-				 index, &data, len, requesttype);
+	return usbctrl_vendorreq(adapter, wvalue, &data, len, requesttype);
 }
 
 int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 
 	data = cpu_to_le32(val & 0x0000ffff);
 
-	return usbctrl_vendorreq(adapter, wvalue,
-				 index, &data, len, requesttype);
+	return usbctrl_vendorreq(adapter, wvalue, &data, len, requesttype);
 }
 
 int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 {
 	u8 requesttype;
 	u16 wvalue;
-	u16 index;
 	u16 len;
 	__le32 data;
 
 	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = cpu_to_le32(val);
 
-	return usbctrl_vendorreq(adapter, wvalue,
-				 index, &data, len, requesttype);
+	return usbctrl_vendorreq(adapter, wvalue, &data, len, requesttype);
 }
 
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
