@@ -151,35 +151,22 @@ static void sev_asid_free(int asid)
 
 static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 {
-	struct sev_data_decommission *decommission;
-	struct sev_data_deactivate *data;
+	struct sev_data_decommission decommission;
+	struct sev_data_deactivate deactivate;
 
 	if (!handle)
 		return;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return;
-
-	/* deactivate handle */
-	data->handle = handle;
+	deactivate.handle = handle;
 
 	/* Guard DEACTIVATE against WBINVD/DF_FLUSH used in ASID recycling */
 	down_read(&sev_deactivate_lock);
-	sev_guest_deactivate(data, NULL);
+	sev_guest_deactivate(&deactivate, NULL);
 	up_read(&sev_deactivate_lock);
 
-	kfree(data);
-
-	decommission = kzalloc(sizeof(*decommission), GFP_KERNEL);
-	if (!decommission)
-		return;
-
 	/* decommission handle */
-	decommission->handle = handle;
-	sev_guest_decommission(decommission, NULL);
-
-	kfree(decommission);
+	decommission.handle = handle;
+	sev_guest_decommission(&decommission, NULL);
 }
 
 static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -217,19 +204,14 @@ e_free:
 
 static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 {
-	struct sev_data_activate *data;
+	struct sev_data_activate activate;
 	int asid = sev_get_asid(kvm);
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
-
 	/* activate ASID on the given handle */
-	data->handle = handle;
-	data->asid   = asid;
-	ret = sev_guest_activate(data, error);
-	kfree(data);
+	activate.handle = handle;
+	activate.asid   = asid;
+	ret = sev_guest_activate(&activate, error);
 
 	return ret;
 }
@@ -259,7 +241,7 @@ static int sev_issue_cmd(struct kvm *kvm, int id, void *data, int *error)
 static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_launch_start *start;
+	struct sev_data_launch_start start;
 	struct kvm_sev_launch_start params;
 	void *dh_blob, *session_blob;
 	int *error = &argp->error;
@@ -271,20 +253,16 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
 		return -EFAULT;
 
-	start = kzalloc(sizeof(*start), GFP_KERNEL_ACCOUNT);
-	if (!start)
-		return -ENOMEM;
+	memset(&start, 0, sizeof(start));
 
 	dh_blob = NULL;
 	if (params.dh_uaddr) {
 		dh_blob = psp_copy_user_blob(params.dh_uaddr, params.dh_len);
-		if (IS_ERR(dh_blob)) {
-			ret = PTR_ERR(dh_blob);
-			goto e_free;
-		}
+		if (IS_ERR(dh_blob))
+			return PTR_ERR(dh_blob);
 
-		start->dh_cert_address = __sme_set(__pa(dh_blob));
-		start->dh_cert_len = params.dh_len;
+		start.dh_cert_address = __sme_set(__pa(dh_blob));
+		start.dh_cert_len = params.dh_len;
 	}
 
 	session_blob = NULL;
@@ -295,40 +273,38 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 			goto e_free_dh;
 		}
 
-		start->session_address = __sme_set(__pa(session_blob));
-		start->session_len = params.session_len;
+		start.session_address = __sme_set(__pa(session_blob));
+		start.session_len = params.session_len;
 	}
 
-	start->handle = params.handle;
-	start->policy = params.policy;
+	start.handle = params.handle;
+	start.policy = params.policy;
 
 	/* create memory encryption context */
-	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_LAUNCH_START, start, error);
+	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_LAUNCH_START, &start, error);
 	if (ret)
 		goto e_free_session;
 
 	/* Bind ASID to this guest */
-	ret = sev_bind_asid(kvm, start->handle, error);
+	ret = sev_bind_asid(kvm, start.handle, error);
 	if (ret)
 		goto e_free_session;
 
 	/* return handle to userspace */
-	params.handle = start->handle;
+	params.handle = start.handle;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params))) {
-		sev_unbind_asid(kvm, start->handle);
+		sev_unbind_asid(kvm, start.handle);
 		ret = -EFAULT;
 		goto e_free_session;
 	}
 
-	sev->handle = start->handle;
+	sev->handle = start.handle;
 	sev->fd = argp->sev_fd;
 
 e_free_session:
 	kfree(session_blob);
 e_free_dh:
 	kfree(dh_blob);
-e_free:
-	kfree(start);
 	return ret;
 }
 
@@ -447,7 +423,7 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	unsigned long vaddr, vaddr_end, next_vaddr, npages, pages, size, i;
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct kvm_sev_launch_update_data params;
-	struct sev_data_launch_update_data *data;
+	struct sev_data_launch_update_data data;
 	struct page **inpages;
 	int ret;
 
@@ -457,26 +433,23 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
 		return -EFAULT;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
-
 	vaddr = params.uaddr;
 	size = params.len;
 	vaddr_end = vaddr + size;
 
 	/* Lock the user memory. */
 	inpages = sev_pin_memory(kvm, vaddr, size, &npages, 1);
-	if (IS_ERR(inpages)) {
-		ret = PTR_ERR(inpages);
-		goto e_free;
-	}
+	if (IS_ERR(inpages))
+		return PTR_ERR(inpages);
 
 	/*
 	 * Flush (on non-coherent CPUs) before LAUNCH_UPDATE encrypts pages in
 	 * place; the cache may contain the data that was written unencrypted.
 	 */
 	sev_clflush_pages(inpages, npages);
+
+	data.reserved = 0;
+	data.handle = sev->handle;
 
 	for (i = 0; vaddr < vaddr_end; vaddr = next_vaddr, i += pages) {
 		int offset, len;
@@ -492,10 +465,9 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 		len = min_t(size_t, ((pages * PAGE_SIZE) - offset), size);
 
-		data->handle = sev->handle;
-		data->len = len;
-		data->address = __sme_page_pa(inpages[i]) + offset;
-		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_DATA, data, &argp->error);
+		data.len = len;
+		data.address = __sme_page_pa(inpages[i]) + offset;
+		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_DATA, &data, &argp->error);
 		if (ret)
 			goto e_unpin;
 
@@ -511,8 +483,6 @@ e_unpin:
 	}
 	/* unlock the user pages */
 	sev_unpin_memory(kvm, inpages, npages);
-e_free:
-	kfree(data);
 	return ret;
 }
 
@@ -564,16 +534,14 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_launch_update_vmsa *vmsa;
+	struct sev_data_launch_update_vmsa vmsa;
 	struct kvm_vcpu *vcpu;
 	int i, ret;
 
 	if (!sev_es_guest(kvm))
 		return -ENOTTY;
 
-	vmsa = kzalloc(sizeof(*vmsa), GFP_KERNEL);
-	if (!vmsa)
-		return -ENOMEM;
+	vmsa.reserved = 0;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct vcpu_svm *svm = to_svm(vcpu);
@@ -581,7 +549,7 @@ static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		/* Perform some pre-encryption checks against the VMSA */
 		ret = sev_es_sync_vmsa(svm);
 		if (ret)
-			goto e_free;
+			return ret;
 
 		/*
 		 * The LAUNCH_UPDATE_VMSA command will perform in-place
@@ -591,27 +559,25 @@ static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		 */
 		clflush_cache_range(svm->vmsa, PAGE_SIZE);
 
-		vmsa->handle = sev->handle;
-		vmsa->address = __sme_pa(svm->vmsa);
-		vmsa->len = PAGE_SIZE;
-		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, vmsa,
+		vmsa.handle = sev->handle;
+		vmsa.address = __sme_pa(svm->vmsa);
+		vmsa.len = PAGE_SIZE;
+		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, &vmsa,
 				    &argp->error);
 		if (ret)
-			goto e_free;
+			return ret;
 
 		svm->vcpu.arch.guest_state_protected = true;
 	}
 
-e_free:
-	kfree(vmsa);
-	return ret;
+	return 0;
 }
 
 static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	void __user *measure = (void __user *)(uintptr_t)argp->data;
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_launch_measure *data;
+	struct sev_data_launch_measure data;
 	struct kvm_sev_launch_measure params;
 	void __user *p = NULL;
 	void *blob = NULL;
@@ -623,9 +589,7 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, measure, sizeof(params)))
 		return -EFAULT;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
+	memset(&data, 0, sizeof(data));
 
 	/* User wants to query the blob length */
 	if (!params.len)
@@ -633,23 +597,20 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	p = (void __user *)(uintptr_t)params.uaddr;
 	if (p) {
-		if (params.len > SEV_FW_BLOB_MAX_SIZE) {
-			ret = -EINVAL;
-			goto e_free;
-		}
+		if (params.len > SEV_FW_BLOB_MAX_SIZE)
+			return -EINVAL;
 
-		ret = -ENOMEM;
 		blob = kmalloc(params.len, GFP_KERNEL_ACCOUNT);
 		if (!blob)
-			goto e_free;
+			return -ENOMEM;
 
-		data->address = __psp_pa(blob);
-		data->len = params.len;
+		data.address = __psp_pa(blob);
+		data.len = params.len;
 	}
 
 cmd:
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_MEASURE, data, &argp->error);
+	data.handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_MEASURE, &data, &argp->error);
 
 	/*
 	 * If we query the session length, FW responded with expected data.
@@ -666,63 +627,50 @@ cmd:
 	}
 
 done:
-	params.len = data->len;
+	params.len = data.len;
 	if (copy_to_user(measure, &params, sizeof(params)))
 		ret = -EFAULT;
 e_free_blob:
 	kfree(blob);
-e_free:
-	kfree(data);
 	return ret;
 }
 
 static int sev_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_launch_finish *data;
-	int ret;
+	struct sev_data_launch_finish data;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
-
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_FINISH, data, &argp->error);
-
-	kfree(data);
-	return ret;
+	data.handle = sev->handle;
+	return sev_issue_cmd(kvm, SEV_CMD_LAUNCH_FINISH, &data, &argp->error);
 }
 
 static int sev_guest_status(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct kvm_sev_guest_status params;
-	struct sev_data_guest_status *data;
+	struct sev_data_guest_status data;
 	int ret;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
+	memset(&data, 0, sizeof(data));
 
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_GUEST_STATUS, data, &argp->error);
+	data.handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_GUEST_STATUS, &data, &argp->error);
 	if (ret)
-		goto e_free;
+		return ret;
 
-	params.policy = data->policy;
-	params.state = data->state;
-	params.handle = data->handle;
+	params.policy = data.policy;
+	params.state = data.state;
+	params.handle = data.handle;
 
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params)))
 		ret = -EFAULT;
-e_free:
-	kfree(data);
+
 	return ret;
 }
 
@@ -731,23 +679,17 @@ static int __sev_issue_dbg_cmd(struct kvm *kvm, unsigned long src,
 			       int *error, bool enc)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_dbg *data;
-	int ret;
+	struct sev_data_dbg data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
+	data.reserved = 0;
+	data.handle = sev->handle;
+	data.dst_addr = dst;
+	data.src_addr = src;
+	data.len = size;
 
-	data->handle = sev->handle;
-	data->dst_addr = dst;
-	data->src_addr = src;
-	data->len = size;
-
-	ret = sev_issue_cmd(kvm,
-			    enc ? SEV_CMD_DBG_ENCRYPT : SEV_CMD_DBG_DECRYPT,
-			    data, error);
-	kfree(data);
-	return ret;
+	return sev_issue_cmd(kvm,
+			     enc ? SEV_CMD_DBG_ENCRYPT : SEV_CMD_DBG_DECRYPT,
+			     &data, error);
 }
 
 static int __sev_dbg_decrypt(struct kvm *kvm, unsigned long src_paddr,
@@ -967,7 +909,7 @@ err:
 static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_launch_secret *data;
+	struct sev_data_launch_secret data;
 	struct kvm_sev_launch_secret params;
 	struct page **pages;
 	void *blob, *hdr;
@@ -999,41 +941,36 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_unpin_memory;
 	}
 
-	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		goto e_unpin_memory;
+	memset(&data, 0, sizeof(data));
 
 	offset = params.guest_uaddr & (PAGE_SIZE - 1);
-	data->guest_address = __sme_page_pa(pages[0]) + offset;
-	data->guest_len = params.guest_len;
+	data.guest_address = __sme_page_pa(pages[0]) + offset;
+	data.guest_len = params.guest_len;
 
 	blob = psp_copy_user_blob(params.trans_uaddr, params.trans_len);
 	if (IS_ERR(blob)) {
 		ret = PTR_ERR(blob);
-		goto e_free;
+		goto e_unpin_memory;
 	}
 
-	data->trans_address = __psp_pa(blob);
-	data->trans_len = params.trans_len;
+	data.trans_address = __psp_pa(blob);
+	data.trans_len = params.trans_len;
 
 	hdr = psp_copy_user_blob(params.hdr_uaddr, params.hdr_len);
 	if (IS_ERR(hdr)) {
 		ret = PTR_ERR(hdr);
 		goto e_free_blob;
 	}
-	data->hdr_address = __psp_pa(hdr);
-	data->hdr_len = params.hdr_len;
+	data.hdr_address = __psp_pa(hdr);
+	data.hdr_len = params.hdr_len;
 
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_SECRET, data, &argp->error);
+	data.handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_SECRET, &data, &argp->error);
 
 	kfree(hdr);
 
 e_free_blob:
 	kfree(blob);
-e_free:
-	kfree(data);
 e_unpin_memory:
 	/* content of memory is updated, mark pages dirty */
 	for (i = 0; i < n; i++) {
@@ -1048,7 +985,7 @@ static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	void __user *report = (void __user *)(uintptr_t)argp->data;
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_attestation_report *data;
+	struct sev_data_attestation_report data;
 	struct kvm_sev_attestation_report params;
 	void __user *p;
 	void *blob = NULL;
@@ -1060,9 +997,7 @@ static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
 		return -EFAULT;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
+	memset(&data, 0, sizeof(data));
 
 	/* User wants to query the blob length */
 	if (!params.len)
@@ -1070,23 +1005,20 @@ static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	p = (void __user *)(uintptr_t)params.uaddr;
 	if (p) {
-		if (params.len > SEV_FW_BLOB_MAX_SIZE) {
-			ret = -EINVAL;
-			goto e_free;
-		}
+		if (params.len > SEV_FW_BLOB_MAX_SIZE)
+			return -EINVAL;
 
-		ret = -ENOMEM;
 		blob = kmalloc(params.len, GFP_KERNEL_ACCOUNT);
 		if (!blob)
-			goto e_free;
+			return -ENOMEM;
 
-		data->address = __psp_pa(blob);
-		data->len = params.len;
-		memcpy(data->mnonce, params.mnonce, sizeof(params.mnonce));
+		data.address = __psp_pa(blob);
+		data.len = params.len;
+		memcpy(data.mnonce, params.mnonce, sizeof(params.mnonce));
 	}
 cmd:
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_ATTESTATION_REPORT, data, &argp->error);
+	data.handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_ATTESTATION_REPORT, &data, &argp->error);
 	/*
 	 * If we query the session length, FW responded with expected data.
 	 */
@@ -1102,13 +1034,11 @@ cmd:
 	}
 
 done:
-	params.len = data->len;
+	params.len = data.len;
 	if (copy_to_user(report, &params, sizeof(params)))
 		ret = -EFAULT;
 e_free_blob:
 	kfree(blob);
-e_free:
-	kfree(data);
 	return ret;
 }
 
@@ -1118,32 +1048,26 @@ __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 				      struct kvm_sev_send_start *params)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_send_start *data;
+	struct sev_data_send_start data;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (data == NULL)
-		return -ENOMEM;
-
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, data, &argp->error);
+	data.handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	params->session_len = data->session_len;
+	params->session_len = data.session_len;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
 				sizeof(struct kvm_sev_send_start)))
 		ret = -EFAULT;
 
-out:
-	kfree(data);
 	return ret;
 }
 
 static int sev_send_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_send_start *data;
+	struct sev_data_send_start data;
 	struct kvm_sev_send_start params;
 	void *amd_certs, *session_data;
 	void *pdh_cert, *plat_certs;
@@ -1193,39 +1117,32 @@ static int sev_send_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_free_plat_cert;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (data == NULL) {
-		ret = -ENOMEM;
-		goto e_free_amd_cert;
-	}
-
 	/* populate the FW SEND_START field with system physical address */
-	data->pdh_cert_address = __psp_pa(pdh_cert);
-	data->pdh_cert_len = params.pdh_cert_len;
-	data->plat_certs_address = __psp_pa(plat_certs);
-	data->plat_certs_len = params.plat_certs_len;
-	data->amd_certs_address = __psp_pa(amd_certs);
-	data->amd_certs_len = params.amd_certs_len;
-	data->session_address = __psp_pa(session_data);
-	data->session_len = params.session_len;
-	data->handle = sev->handle;
+	memset(&data, 0, sizeof(data));
+	data.pdh_cert_address = __psp_pa(pdh_cert);
+	data.pdh_cert_len = params.pdh_cert_len;
+	data.plat_certs_address = __psp_pa(plat_certs);
+	data.plat_certs_len = params.plat_certs_len;
+	data.amd_certs_address = __psp_pa(amd_certs);
+	data.amd_certs_len = params.amd_certs_len;
+	data.session_address = __psp_pa(session_data);
+	data.session_len = params.session_len;
+	data.handle = sev->handle;
 
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, data, &argp->error);
+	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
 
 	if (!ret && copy_to_user((void __user *)(uintptr_t)params.session_uaddr,
 			session_data, params.session_len)) {
 		ret = -EFAULT;
-		goto e_free;
+		goto e_free_amd_cert;
 	}
 
-	params.policy = data->policy;
-	params.session_len = data->session_len;
+	params.policy = data.policy;
+	params.session_len = data.session_len;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params,
 				sizeof(struct kvm_sev_send_start)))
 		ret = -EFAULT;
 
-e_free:
-	kfree(data);
 e_free_amd_cert:
 	kfree(amd_certs);
 e_free_plat_cert:
@@ -1243,34 +1160,28 @@ __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 				     struct kvm_sev_send_update_data *params)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_send_update_data *data;
+	struct sev_data_send_update_data data;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL_ACCOUNT);
-	if (!data)
-		return -ENOMEM;
-
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, data, &argp->error);
+	data.handle = sev->handle;
+	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	params->hdr_len = data->hdr_len;
-	params->trans_len = data->trans_len;
+	params->hdr_len = data.hdr_len;
+	params->trans_len = data.trans_len;
 
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
 			 sizeof(struct kvm_sev_send_update_data)))
 		ret = -EFAULT;
 
-out:
-	kfree(data);
 	return ret;
 }
 
 static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_send_update_data *data;
+	struct sev_data_send_update_data data;
 	struct kvm_sev_send_update_data params;
 	void *hdr, *trans_data;
 	struct page **guest_page;
@@ -1313,40 +1224,34 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!trans_data)
 		goto e_free_hdr;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		goto e_free_trans_data;
-
-	data->hdr_address = __psp_pa(hdr);
-	data->hdr_len = params.hdr_len;
-	data->trans_address = __psp_pa(trans_data);
-	data->trans_len = params.trans_len;
+	memset(&data, 0, sizeof(data));
+	data.hdr_address = __psp_pa(hdr);
+	data.hdr_len = params.hdr_len;
+	data.trans_address = __psp_pa(trans_data);
+	data.trans_len = params.trans_len;
 
 	/* The SEND_UPDATE_DATA command requires C-bit to be always set. */
-	data->guest_address = (page_to_pfn(guest_page[0]) << PAGE_SHIFT) +
-				offset;
-	data->guest_address |= sev_me_mask;
-	data->guest_len = params.guest_len;
-	data->handle = sev->handle;
+	data.guest_address = (page_to_pfn(guest_page[0]) << PAGE_SHIFT) + offset;
+	data.guest_address |= sev_me_mask;
+	data.guest_len = params.guest_len;
+	data.handle = sev->handle;
 
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, data, &argp->error);
+	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
 
 	if (ret)
-		goto e_free;
+		goto e_free_trans_data;
 
 	/* copy transport buffer to user space */
 	if (copy_to_user((void __user *)(uintptr_t)params.trans_uaddr,
 			 trans_data, params.trans_len)) {
 		ret = -EFAULT;
-		goto e_free;
+		goto e_free_trans_data;
 	}
 
 	/* Copy packet header to userspace. */
 	ret = copy_to_user((void __user *)(uintptr_t)params.hdr_uaddr, hdr,
 				params.hdr_len);
 
-e_free:
-	kfree(data);
 e_free_trans_data:
 	kfree(trans_data);
 e_free_hdr:
@@ -1360,47 +1265,31 @@ e_unpin:
 static int sev_send_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_send_finish *data;
-	int ret;
+	struct sev_data_send_finish data;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_FINISH, data, &argp->error);
-
-	kfree(data);
-	return ret;
+	data.handle = sev->handle;
+	return sev_issue_cmd(kvm, SEV_CMD_SEND_FINISH, &data, &argp->error);
 }
 
 static int sev_send_cancel(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_send_cancel *data;
-	int ret;
+	struct sev_data_send_cancel data;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_CANCEL, data, &argp->error);
-
-	kfree(data);
-	return ret;
+	data.handle = sev->handle;
+	return sev_issue_cmd(kvm, SEV_CMD_SEND_CANCEL, &data, &argp->error);
 }
 
 static int sev_receive_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_receive_start *start;
+	struct sev_data_receive_start start;
 	struct kvm_sev_receive_start params;
 	int *error = &argp->error;
 	void *session_data;
@@ -1431,42 +1320,36 @@ static int sev_receive_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_free_pdh;
 	}
 
-	ret = -ENOMEM;
-	start = kzalloc(sizeof(*start), GFP_KERNEL);
-	if (!start)
-		goto e_free_session;
-
-	start->handle = params.handle;
-	start->policy = params.policy;
-	start->pdh_cert_address = __psp_pa(pdh_data);
-	start->pdh_cert_len = params.pdh_len;
-	start->session_address = __psp_pa(session_data);
-	start->session_len = params.session_len;
+	memset(&start, 0, sizeof(start));
+	start.handle = params.handle;
+	start.policy = params.policy;
+	start.pdh_cert_address = __psp_pa(pdh_data);
+	start.pdh_cert_len = params.pdh_len;
+	start.session_address = __psp_pa(session_data);
+	start.session_len = params.session_len;
 
 	/* create memory encryption context */
-	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_RECEIVE_START, start,
+	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_RECEIVE_START, &start,
 				error);
 	if (ret)
-		goto e_free;
+		goto e_free_session;
 
 	/* Bind ASID to this guest */
-	ret = sev_bind_asid(kvm, start->handle, error);
+	ret = sev_bind_asid(kvm, start.handle, error);
 	if (ret)
-		goto e_free;
+		goto e_free_session;
 
-	params.handle = start->handle;
+	params.handle = start.handle;
 	if (copy_to_user((void __user *)(uintptr_t)argp->data,
 			 &params, sizeof(struct kvm_sev_receive_start))) {
 		ret = -EFAULT;
-		sev_unbind_asid(kvm, start->handle);
-		goto e_free;
+		sev_unbind_asid(kvm, start.handle);
+		goto e_free_session;
 	}
 
-	sev->handle = start->handle;
+    	sev->handle = start.handle;
 	sev->fd = argp->sev_fd;
 
-e_free:
-	kfree(start);
 e_free_session:
 	kfree(session_data);
 e_free_pdh:
@@ -1479,7 +1362,7 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct kvm_sev_receive_update_data params;
-	struct sev_data_receive_update_data *data;
+	struct sev_data_receive_update_data data;
 	void *hdr = NULL, *trans = NULL;
 	struct page **guest_page;
 	unsigned long n;
@@ -1512,37 +1395,30 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_free_hdr;
 	}
 
-	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		goto e_free_trans;
-
-	data->hdr_address = __psp_pa(hdr);
-	data->hdr_len = params.hdr_len;
-	data->trans_address = __psp_pa(trans);
-	data->trans_len = params.trans_len;
+	memset(&data, 0, sizeof(data));
+	data.hdr_address = __psp_pa(hdr);
+	data.hdr_len = params.hdr_len;
+	data.trans_address = __psp_pa(trans);
+	data.trans_len = params.trans_len;
 
 	/* Pin guest memory */
 	ret = -EFAULT;
 	guest_page = sev_pin_memory(kvm, params.guest_uaddr & PAGE_MASK,
 				    PAGE_SIZE, &n, 0);
 	if (!guest_page)
-		goto e_free;
+		goto e_free_trans;
 
 	/* The RECEIVE_UPDATE_DATA command requires C-bit to be always set. */
-	data->guest_address = (page_to_pfn(guest_page[0]) << PAGE_SHIFT) +
-				offset;
-	data->guest_address |= sev_me_mask;
-	data->guest_len = params.guest_len;
-	data->handle = sev->handle;
+	data.guest_address = (page_to_pfn(guest_page[0]) << PAGE_SHIFT) + offset;
+	data.guest_address |= sev_me_mask;
+	data.guest_len = params.guest_len;
+	data.handle = sev->handle;
 
-	ret = sev_issue_cmd(kvm, SEV_CMD_RECEIVE_UPDATE_DATA, data,
+	ret = sev_issue_cmd(kvm, SEV_CMD_RECEIVE_UPDATE_DATA, &data,
 				&argp->error);
 
 	sev_unpin_memory(kvm, guest_page, n);
 
-e_free:
-	kfree(data);
 e_free_trans:
 	kfree(trans);
 e_free_hdr:
@@ -1554,21 +1430,13 @@ e_free_hdr:
 static int sev_receive_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	struct sev_data_receive_finish *data;
-	int ret;
+	struct sev_data_receive_finish data;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_RECEIVE_FINISH, data, &argp->error);
-
-	kfree(data);
-	return ret;
+	data.handle = sev->handle;
+	return sev_issue_cmd(kvm, SEV_CMD_RECEIVE_FINISH, &data, &argp->error);
 }
 
 int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
