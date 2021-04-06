@@ -23,6 +23,7 @@
    arm64/index
    sound/index
    cpu-freq/index
+   mips/index
 
 目录和表格
 ----------
