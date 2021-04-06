@@ -528,15 +528,17 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 
 void blk_drop_partitions(struct gendisk *disk)
 {
-	struct disk_part_iter piter;
 	struct block_device *part;
+	unsigned long idx;
 
 	lockdep_assert_held(&disk->part0->bd_mutex);
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
-	while ((part = disk_part_iter_next(&piter)))
+	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
+		if (!bdgrab(part))
+			continue;
 		delete_partition(part);
-	disk_part_iter_exit(&piter);
+		bdput(part);
+	}
 }
 
 static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
