@@ -1172,7 +1172,7 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv)
 {
-	return sizeof(priv->rx_res->rss_params.toeplitz_hash_key);
+	return sizeof(priv->rx_res->rss_params.hash.toeplitz_hash_key);
 }
 
 static u32 mlx5e_get_rxfh_key_size(struct net_device *netdev)
@@ -1206,11 +1206,10 @@ int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		memcpy(indir, rss->indir.table, sizeof(rss->indir.table));
 
 	if (key)
-		memcpy(key, rss->toeplitz_hash_key,
-		       sizeof(rss->toeplitz_hash_key));
+		memcpy(key, rss->hash.toeplitz_hash_key, sizeof(rss->hash.toeplitz_hash_key));
 
 	if (hfunc)
-		*hfunc = rss->hfunc;
+		*hfunc = rss->hash.hfunc;
 
 	return 0;
 }
@@ -1238,8 +1237,8 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 
 	rss = &priv->rx_res->rss_params;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hfunc) {
-		rss->hfunc = hfunc;
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hash.hfunc) {
+		rss->hash.hfunc = hfunc;
 		refresh_rqt = true;
 		refresh_tirs = true;
 	}
@@ -1250,9 +1249,8 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (key) {
-		memcpy(rss->toeplitz_hash_key, key,
-		       sizeof(rss->toeplitz_hash_key));
-		refresh_tirs = refresh_tirs || rss->hfunc == ETH_RSS_HASH_TOP;
+		memcpy(rss->hash.toeplitz_hash_key, key, sizeof(rss->hash.toeplitz_hash_key));
+		refresh_tirs = refresh_tirs || rss->hash.hfunc == ETH_RSS_HASH_TOP;
 	}
 
 	if (refresh_rqt && test_bit(MLX5E_STATE_OPENED, &priv->state)) {
@@ -1267,7 +1265,7 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 
 			mlx5e_rqt_redirect_indir(&priv->rx_res->indir_rqt, rqns,
 						 priv->channels.num,
-						 rss->hfunc, &rss->indir);
+						 rss->hash.hfunc, &rss->indir);
 			kvfree(rqns);
 		}
 	}

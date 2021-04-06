@@ -2285,7 +2285,7 @@ static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 			rqns[ix] = chs->c[ix]->rq.rqn;
 
 		mlx5e_rqt_redirect_indir(&res->indir_rqt, rqns, chs->num,
-					 res->rss_params.hfunc,
+					 res->rss_params.hash.hfunc,
 					 &res->rss_params.indir);
 		kvfree(rqns);
 	}
@@ -2393,15 +2393,15 @@ void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_rss_params *rss_params,
 	void *hfso = inner ? MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_inner) :
 			     MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
 
-	MLX5_SET(tirc, tirc, rx_hash_fn, mlx5e_rx_hash_fn(rss_params->hfunc));
-	if (rss_params->hfunc == ETH_RSS_HASH_TOP) {
+	MLX5_SET(tirc, tirc, rx_hash_fn, mlx5e_rx_hash_fn(rss_params->hash.hfunc));
+	if (rss_params->hash.hfunc == ETH_RSS_HASH_TOP) {
 		void *rss_key = MLX5_ADDR_OF(tirc, tirc,
 					     rx_hash_toeplitz_key);
 		size_t len = MLX5_FLD_SZ_BYTES(tirc,
 					       rx_hash_toeplitz_key);
 
 		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
-		memcpy(rss_key, rss_params->toeplitz_hash_key, len);
+		memcpy(rss_key, rss_params->hash.toeplitz_hash_key, len);
 	}
 	MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
 		 ttconfig->l3_prot_type);
@@ -4591,9 +4591,9 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 {
 	enum mlx5e_traffic_types tt;
 
-	rss_params->hfunc = ETH_RSS_HASH_TOP;
-	netdev_rss_key_fill(rss_params->toeplitz_hash_key,
-			    sizeof(rss_params->toeplitz_hash_key));
+	rss_params->hash.hfunc = ETH_RSS_HASH_TOP;
+	netdev_rss_key_fill(rss_params->hash.toeplitz_hash_key,
+			    sizeof(rss_params->hash.toeplitz_hash_key));
 	mlx5e_build_default_indir_rqt(rss_params->indir.table,
 				      MLX5E_INDIR_RQT_SIZE, num_channels);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
