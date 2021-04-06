@@ -708,7 +708,7 @@ accessfailed:
 	return ret;
 }
 
-static int mtty_create(struct kobject *kobj, struct mdev_device *mdev)
+static int mtty_create(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state;
 	int nr_ports = mdev_get_type_group_id(mdev) + 1;

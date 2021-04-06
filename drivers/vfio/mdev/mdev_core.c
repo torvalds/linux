@@ -286,7 +286,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 		goto out_put_device;
 	}
 
-	ret = parent->ops->create(&type->kobj, mdev);
+	ret = parent->ops->create(mdev);
 	if (ret)
 		goto out_unlock;
 

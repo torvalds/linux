@@ -61,7 +61,6 @@ unsigned int mtype_get_type_group_id(struct kobject *mtype_kobj);
  * @create:		Called to allocate basic resources in parent device's
  *			driver for a particular mediated device. It is
  *			mandatory to provide create ops.
- *			@kobj: kobject of type for which 'create' is called.
  *			@mdev: mdev_device structure on of mediated device
  *			      that is being created
  *			Returns integer: success (0) or error (< 0)
@@ -107,7 +106,7 @@ struct mdev_parent_ops {
 	const struct attribute_group **mdev_attr_groups;
 	struct attribute_group **supported_type_groups;
 
-	int     (*create)(struct kobject *kobj, struct mdev_device *mdev);
+	int     (*create)(struct mdev_device *mdev);
 	int     (*remove)(struct mdev_device *mdev);
 	int     (*open)(struct mdev_device *mdev);
 	void    (*release)(struct mdev_device *mdev);
