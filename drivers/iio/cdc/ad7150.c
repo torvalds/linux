@@ -235,7 +235,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 				     enum iio_event_direction dir, int state)
 {
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
-	int ret;
+	int ret = 0;
 
 	/*
 	 * There is only a single shared control and no on chip
