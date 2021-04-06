@@ -821,14 +821,14 @@ static void update_inactive(struct msm_gem_object *msm_obj)
 	WARN_ON(msm_obj->active_count != 0);
 
 	if (msm_obj->dontneed)
-		mark_unpurgable(msm_obj);
+		mark_unpurgeable(msm_obj);
 
 	list_del(&msm_obj->mm_list);
 	if (msm_obj->madv == MSM_MADV_WILLNEED) {
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_willneed);
 	} else if (msm_obj->madv == MSM_MADV_DONTNEED) {
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_dontneed);
-		mark_purgable(msm_obj);
+		mark_purgeable(msm_obj);
 	} else {
 		WARN_ON(msm_obj->madv != __MSM_MADV_PURGED);
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_purged);
@@ -901,8 +901,8 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 		madv = " purged";
 		break;
 	case MSM_MADV_DONTNEED:
-		stats->purgable.count++;
-		stats->purgable.size += obj->size;
+		stats->purgeable.count++;
+		stats->purgeable.size += obj->size;
 		madv = " purgeable";
 		break;
 	case MSM_MADV_WILLNEED:
@@ -984,7 +984,7 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 	seq_printf(m, "Active:    %4d objects, %9zu bytes\n",
 			stats.active.count, stats.active.size);
 	seq_printf(m, "Purgeable: %4d objects, %9zu bytes\n",
-			stats.purgable.count, stats.purgable.size);
+			stats.purgeable.count, stats.purgeable.size);
 	seq_printf(m, "Purged:    %4d objects, %9zu bytes\n",
 			stats.purged.count, stats.purged.size);
 }
@@ -1003,7 +1003,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 	mutex_lock(&priv->mm_lock);
 	if (msm_obj->dontneed)
-		mark_unpurgable(msm_obj);
+		mark_unpurgeable(msm_obj);
 	list_del(&msm_obj->mm_list);
 	mutex_unlock(&priv->mm_lock);
 

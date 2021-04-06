@@ -49,7 +49,7 @@ msm_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 		/*
 		 * Now that we own a reference, we can drop mm_lock for the
 		 * rest of the loop body, to reduce contention with the
-		 * retire_submit path (which could make more objects purgable)
+		 * retire_submit path (which could make more objects purgeable)
 		 */
 
 		mutex_unlock(&priv->mm_lock);
