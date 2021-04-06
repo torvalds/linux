@@ -1732,6 +1732,7 @@ enum acpi_sdev_type {
 /* Values for flags above */
 
 #define ACPI_SDEV_HANDOFF_TO_UNSECURE_OS    (1)
+#define ACPI_SDEV_SECURE_COMPONENTS_PRESENT (1<<1)
 
 /*
  * SDEV subtables
@@ -1745,6 +1746,46 @@ struct acpi_sdev_namespace {
 	u16 device_id_length;
 	u16 vendor_data_offset;
 	u16 vendor_data_length;
+};
+
+struct acpi_sdev_secure_component {
+	u16 secure_component_offset;
+	u16 secure_component_length;
+};
+
+/*
+ * SDEV sub-subtables ("Components") for above
+ */
+struct acpi_sdev_component {
+	struct acpi_sdev_header header;
+};
+
+/* Values for sub-subtable type above */
+
+enum acpi_sac_type {
+	ACPI_SDEV_TYPE_ID_COMPONENT = 0,
+	ACPI_SDEV_TYPE_MEM_COMPONENT = 1
+};
+
+struct acpi_sdev_id_component {
+	struct acpi_sdev_header header;
+	u16 hardware_id_offset;
+	u16 hardware_id_length;
+	u16 subsystem_id_offset;
+	u16 subsystem_id_length;
+	u16 hardware_revision;
+	u8 hardware_rev_present;
+	u8 class_code_present;
+	u8 pci_base_class;
+	u8 pci_sub_class;
+	u8 pci_programming_xface;
+};
+
+struct acpi_sdev_mem_component {
+	struct acpi_sdev_header header;
+	u32 reserved;
+	u64 memory_base_address;
+	u64 memory_length;
 };
 
 /* 1: PCIe Endpoint Device Based Device Structure */
