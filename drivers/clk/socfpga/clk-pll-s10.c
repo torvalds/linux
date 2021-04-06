@@ -107,7 +107,7 @@ static unsigned long clk_boot_clk_recalc_rate(struct clk_hw *hwclk,
 					 unsigned long parent_rate)
 {
 	struct socfpga_pll *socfpgaclk = to_socfpga_clk(hwclk);
-	u32 div = 1;
+	u32 div;
 
 	div = ((readl(socfpgaclk->hw.reg) &
 		SWCTRLBTCLKSEL_MASK) >>

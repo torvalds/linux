@@ -31,7 +31,7 @@ static unsigned long socfpga_dbg_clk_recalc_rate(struct clk_hw *hwclk,
 						  unsigned long parent_rate)
 {
 	struct socfpga_gate_clk *socfpgaclk = to_socfpga_gate_clk(hwclk);
-	u32 div = 1, val;
+	u32 div, val;
 
 	val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
 	val &= GENMASK(socfpgaclk->width - 1, 0);
