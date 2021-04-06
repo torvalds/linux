@@ -3143,7 +3143,9 @@ static void mlx5e_build_indir_tir_ctx(struct mlx5e_priv *priv,
 				      enum mlx5e_traffic_types tt,
 				      u32 *tirc)
 {
-	mlx5e_build_indir_tir_ctx_common(priv, priv->rx_res->indir_rqt.rqtn, tirc);
+	u32 rqtn = mlx5e_rqt_get_rqtn(&priv->rx_res->indir_rqt);
+
+	mlx5e_build_indir_tir_ctx_common(priv, rqtn, tirc);
 	mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params,
 				       &tirc_default_config[tt], tirc, false);
 }
@@ -3158,7 +3160,9 @@ static void mlx5e_build_inner_indir_tir_ctx(struct mlx5e_priv *priv,
 					    enum mlx5e_traffic_types tt,
 					    u32 *tirc)
 {
-	mlx5e_build_indir_tir_ctx_common(priv, priv->rx_res->indir_rqt.rqtn, tirc);
+	u32 rqtn = mlx5e_rqt_get_rqtn(&priv->rx_res->indir_rqt);
+
+	mlx5e_build_indir_tir_ctx_common(priv, rqtn, tirc);
 	mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params,
 				       &tirc_default_config[tt], tirc, true);
 }
@@ -3237,7 +3241,7 @@ static int mlx5e_create_direct_tir(struct mlx5e_priv *priv, struct mlx5e_tir *ti
 		return -ENOMEM;
 
 	tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
-	mlx5e_build_direct_tir_ctx(priv, rqt->rqtn, tirc);
+	mlx5e_build_direct_tir_ctx(priv, mlx5e_rqt_get_rqtn(rqt), tirc);
 	err = mlx5e_create_tir(priv->mdev, tir, in);
 	if (unlikely(err))
 		mlx5_core_warn(priv->mdev, "create tirs failed, %d\n", err);

@@ -528,7 +528,7 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 
 		MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
 		MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
-		MLX5_SET(tirc, tirc, indirect_table, hp->indir_rqt.rqtn);
+		MLX5_SET(tirc, tirc, indirect_table, mlx5e_rqt_get_rqtn(&hp->indir_rqt));
 		mlx5e_build_indir_tir_ctx_hash(&priv->rx_res->rss_params, &ttconfig,
 					       tirc, false);
 
