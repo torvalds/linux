@@ -24,7 +24,7 @@
     "EventName": "bp_l1_tlb_fetch_hit",
     "EventCode": "0x94",
     "BriefDescription": "The number of instruction fetches that hit in the L1 ITLB.",
-    "UMask": "0xFF"
+    "UMask": "0xff"
   },
   {
     "EventName": "bp_l1_tlb_fetch_hit.if1g",

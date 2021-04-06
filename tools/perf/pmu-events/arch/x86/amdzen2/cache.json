@@ -353,7 +353,7 @@
   },
   {
     "EventName": "xi_ccx_sdp_req1.all_l3_miss_req_typs",
-    "EventCode": "0x9A",
+    "EventCode": "0x9a",
     "BriefDescription": "All L3 Miss Request Types. Ignores SliceMask and ThreadMask.",
     "UMask": "0x3f",
     "Unit": "L3PMC"

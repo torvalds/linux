@@ -60,17 +60,17 @@
   },
   {
     "EventName": "ls_smi_rx",
-    "EventCode": "0x2B",
+    "EventCode": "0x2b",
     "BriefDescription": "Number of SMIs received."
   },
   {
     "EventName": "ls_int_taken",
-    "EventCode": "0x2C",
+    "EventCode": "0x2c",
     "BriefDescription": "Number of interrupts taken."
   },
   {
     "EventName": "ls_rdtsc",
-    "EventCode": "0x2D",
+    "EventCode": "0x2d",
     "BriefDescription": "Number of reads of the TSC (RDTSC instructions). The count is speculative."
   },
   {
@@ -300,31 +300,31 @@
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_rmt_dram",
-    "EventCode": "0x5A",
+    "EventCode": "0x5a",
     "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home node remote).",
     "UMask": "0x40"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_rmt_cache",
-    "EventCode": "0x5A",
+    "EventCode": "0x5a",
     "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From another cache (home node remote).",
     "UMask": "0x10"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_dram",
-    "EventCode": "0x5A",
+    "EventCode": "0x5a",
     "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home node local).",
     "UMask": "0x8"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_cache",
-    "EventCode": "0x5A",
+    "EventCode": "0x5a",
     "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From another cache (home node local).",
     "UMask": "0x2"
   },
   {
     "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_l2",
-    "EventCode": "0x5A",
+    "EventCode": "0x5a",
     "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. Local L2 hit.",
     "UMask": "0x1"
   },
