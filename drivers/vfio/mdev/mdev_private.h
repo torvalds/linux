@@ -46,4 +46,16 @@ void mdev_remove_sysfs_files(struct mdev_device *mdev);
 int mdev_device_create(struct mdev_type *kobj, const guid_t *uuid);
 int  mdev_device_remove(struct mdev_device *dev);
 
+void mdev_release_parent(struct kref *kref);
+
+static inline void mdev_get_parent(struct mdev_parent *parent)
+{
+	kref_get(&parent->ref);
+}
+
+static inline void mdev_put_parent(struct mdev_parent *parent)
+{
+	kref_put(&parent->ref, mdev_release_parent);
+}
+
 #endif /* MDEV_PRIVATE_H */

@@ -45,7 +45,7 @@ static struct mdev_parent *__find_parent_device(struct device *dev)
 	return NULL;
 }
 
-static void mdev_release_parent(struct kref *kref)
+void mdev_release_parent(struct kref *kref)
 {
 	struct mdev_parent *parent = container_of(kref, struct mdev_parent,
 						  ref);
@@ -53,20 +53,6 @@ static void mdev_release_parent(struct kref *kref)
 
 	kfree(parent);
 	put_device(dev);
-}
-
-static struct mdev_parent *mdev_get_parent(struct mdev_parent *parent)
-{
-	if (parent)
-		kref_get(&parent->ref);
-
-	return parent;
-}
-
-static void mdev_put_parent(struct mdev_parent *parent)
-{
-	if (parent)
-		kref_put(&parent->ref, mdev_release_parent);
 }
 
 /* Caller must hold parent unreg_sem read or write lock */
@@ -243,12 +229,9 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 {
 	int ret;
 	struct mdev_device *mdev, *tmp;
-	struct mdev_parent *parent;
+	struct mdev_parent *parent = type->parent;
 
-	parent = mdev_get_parent(type->parent);
-	if (!parent)
-		return -EINVAL;
-
+	mdev_get_parent(parent);
 	mutex_lock(&mdev_list_lock);
 
 	/* Check for duplicate */
