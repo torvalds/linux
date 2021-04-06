@@ -1610,7 +1610,7 @@ static bool aic3x_is_shared_reset(struct aic3x_priv *aic3x)
 	return false;
 }
 
-static int aic3x_probe(struct snd_soc_component *component)
+static int aic3x_component_probe(struct snd_soc_component *component)
 {
 	struct aic3x_priv *aic3x = snd_soc_component_get_drvdata(component);
 	int ret, i;
@@ -1689,7 +1689,7 @@ static int aic3x_probe(struct snd_soc_component *component)
 
 static const struct snd_soc_component_driver soc_component_dev_aic3x = {
 	.set_bias_level		= aic3x_set_bias_level,
-	.probe			= aic3x_probe,
+	.probe			= aic3x_component_probe,
 	.controls		= aic3x_snd_controls,
 	.num_controls		= ARRAY_SIZE(aic3x_snd_controls),
 	.dapm_widgets		= aic3x_dapm_widgets,
