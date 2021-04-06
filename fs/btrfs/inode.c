@@ -8329,11 +8329,16 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 	bool completed_ordered = false;
 
 	/*
-	 * we have the page locked, so new writeback can't start,
-	 * and the dirty bit won't be cleared while we are here.
+	 * We have page locked so no new ordered extent can be created on this
+	 * page, nor bio can be submitted for this page.
 	 *
-	 * Wait for IO on this page so that we can safely clear
-	 * the PagePrivate2 bit and do ordered accounting
+	 * But already submitted bio can still be finished on this page.
+	 * Furthermore, endio function won't skip page which has Private2
+	 * already cleared, so it's possible for endio and invalidatepage to do
+	 * the same ordered extent accounting twice on one page.
+	 *
+	 * So here we wait for any submitted bios to finish, so that we won't
+	 * do double ordered extent accounting on the same page.
 	 */
 	wait_on_page_writeback(page);
 
@@ -8363,8 +8368,12 @@ again:
 					 EXTENT_LOCKED | EXTENT_DO_ACCOUNTING |
 					 EXTENT_DEFRAG, 1, 0, &cached_state);
 		/*
-		 * whoever cleared the private bit is responsible
-		 * for the finish_ordered_io
+		 * A page with Private2 bit means no bio has been submitted
+		 * covering the page, thus we have to manually do the ordered
+		 * extent accounting.
+		 *
+		 * For page without Private2, the ordered extent accounting is
+		 * done in its endio function of the submitted bio.
 		 */
 		if (TestClearPagePrivate2(page)) {
 			spin_lock_irq(&inode->ordered_tree.lock);
