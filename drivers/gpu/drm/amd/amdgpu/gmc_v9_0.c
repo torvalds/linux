@@ -1186,6 +1186,24 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	}
 }
 
+static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		adev->mmhub.ras_funcs = &mmhub_v1_0_ras_funcs;
+		break;
+	case CHIP_ARCTURUS:
+		adev->mmhub.ras_funcs = &mmhub_v9_4_ras_funcs;
+		break;
+	case CHIP_ALDEBARAN:
+		adev->mmhub.ras_funcs = &mmhub_v1_7_ras_funcs;
+		break;
+	default:
+		/* mmhub ras is not available */
+		break;
+	}
+}
+
 static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
 	adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
@@ -1209,6 +1227,7 @@ static int gmc_v9_0_early_init(void *handle)
 	gmc_v9_0_set_irq_funcs(adev);
 	gmc_v9_0_set_umc_funcs(adev);
 	gmc_v9_0_set_mmhub_funcs(adev);
+	gmc_v9_0_set_mmhub_ras_funcs(adev);
 	gmc_v9_0_set_gfxhub_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
