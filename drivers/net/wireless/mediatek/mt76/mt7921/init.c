@@ -273,8 +273,6 @@ void mt7921_unregister_device(struct mt7921_dev *dev)
 {
 	mt76_unregister_device(&dev->mt76);
 	mt7921_mcu_exit(dev);
-	mt7921_dma_cleanup(dev);
-
 	mt7921_tx_token_put(dev);
 
 	tasklet_disable(&dev->irq_tasklet);

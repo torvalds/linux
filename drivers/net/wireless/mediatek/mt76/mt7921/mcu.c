@@ -960,18 +960,7 @@ int mt7921_mcu_init(struct mt7921_dev *dev)
 
 void mt7921_mcu_exit(struct mt7921_dev *dev)
 {
-	u32 reg = mt7921_reg_map_l1(dev, MT_TOP_MISC);
-
-	__mt76_mcu_restart(&dev->mt76);
-	if (!mt76_poll_msec(dev, reg, MT_TOP_MISC_FW_STATE,
-			    FIELD_PREP(MT_TOP_MISC_FW_STATE,
-				       FW_STATE_FW_DOWNLOAD), 1000)) {
-		dev_err(dev->mt76.dev, "Failed to exit mcu\n");
-		return;
-	}
-
-	reg = mt7921_reg_map_l1(dev, MT_TOP_LPCR_HOST_BAND0);
-	mt76_wr(dev, reg, MT_TOP_LPCR_HOST_FW_OWN);
+	mt7921_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
 

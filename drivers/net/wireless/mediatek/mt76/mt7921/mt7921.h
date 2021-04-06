@@ -351,4 +351,5 @@ void mt7921_coredump_work(struct work_struct *work);
 int mt7921_mcu_update_arp_filter(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info);
+int mt7921_wfsys_reset(struct mt7921_dev *dev);
 #endif
