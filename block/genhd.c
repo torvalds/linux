@@ -1236,11 +1236,11 @@ const struct device_type disk_type = {
 static int diskstats_show(struct seq_file *seqf, void *v)
 {
 	struct gendisk *gp = v;
-	struct disk_part_iter piter;
 	struct block_device *hd;
 	char buf[BDEVNAME_SIZE];
 	unsigned int inflight;
 	struct disk_stats stat;
+	unsigned long idx;
 
 	/*
 	if (&disk_to_dev(gp)->kobj.entry == block_class.devices.next)
@@ -1250,8 +1250,10 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 				"\n\n");
 	*/
 
-	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
-	while ((hd = disk_part_iter_next(&piter))) {
+	rcu_read_lock();
+	xa_for_each(&gp->part_tbl, idx, hd) {
+		if (bdev_is_partition(hd) && !bdev_nr_sectors(hd))
+			continue;
 		part_stat_read_all(hd, &stat);
 		if (queue_is_mq(gp->queue))
 			inflight = blk_mq_in_flight(gp->queue, hd);
@@ -1294,7 +1296,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 						 NSEC_PER_MSEC)
 			);
 	}
-	disk_part_iter_exit(&piter);
+	rcu_read_unlock();
 
 	return 0;
 }
