@@ -15,7 +15,7 @@
 #define	BT_INFO_8723B_1ANT_B_CONNECTION		BIT0
 
 #define	BT_INFO_8723B_1ANT_A2DP_BASIC_RATE(_BT_INFO_EXT_)	\
-		(((_BT_INFO_EXT_&BIT0)) ? true : false)
+		(((_BT_INFO_EXT_ & BIT0)) ? true : false)
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8723B_1ANT 2
 
