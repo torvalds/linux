@@ -1698,7 +1698,8 @@ static int hns_roce_query_pf_timer_resource(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-static int hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev, int vf_id)
+static int __hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev,
+					  u32 vf_id)
 {
 	struct hns_roce_cmq_desc desc;
 	struct hns_roce_vf_switch *swt;
@@ -1721,6 +1722,19 @@ static int hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev, int vf_id)
 	roce_set_bit(swt->cfg, VF_SWITCH_DATA_CFG_ALW_DST_OVRD_S, 1);
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
+static int hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev)
+{
+	u32 vf_id;
+	int ret;
+
+	for (vf_id = 0; vf_id < hr_dev->func_num; vf_id++) {
+		ret = __hns_roce_set_vf_switch_param(hr_dev, vf_id);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static int __hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev, int vf_id)
@@ -2324,7 +2338,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
-	ret = hns_roce_set_vf_switch_param(hr_dev, 0);
+	ret = hns_roce_set_vf_switch_param(hr_dev);
 	if (ret) {
 		dev_err(hr_dev->dev,
 			"failed to set function switch param, ret = %d.\n",
