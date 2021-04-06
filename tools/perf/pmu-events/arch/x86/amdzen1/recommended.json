@@ -10,7 +10,7 @@
     "EventName": "all_dc_accesses",
     "EventCode": "0x29",
     "BriefDescription": "All L1 Data Cache Accesses",
-    "UMask": "0x7"
+    "UMask": "0x07"
   },
   {
     "MetricName": "all_l2_cache_accesses",
