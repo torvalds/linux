@@ -925,21 +925,39 @@ static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
 	return 0;
 }
 
-static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev, u32 reg_lo,
-				      u32 reg_hi)
+static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cxl_mem *cxlm;
-	void __iomem *regs;
-	u64 offset;
-	u8 bar;
-	int rc;
 
 	cxlm = devm_kzalloc(dev, sizeof(*cxlm), GFP_KERNEL);
 	if (!cxlm) {
 		dev_err(dev, "No memory available\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
+
+	mutex_init(&cxlm->mbox_mutex);
+	cxlm->pdev = pdev;
+	cxlm->enabled_cmds =
+		devm_kmalloc_array(dev, BITS_TO_LONGS(cxl_cmd_count),
+				   sizeof(unsigned long),
+				   GFP_KERNEL | __GFP_ZERO);
+	if (!cxlm->enabled_cmds) {
+		dev_err(dev, "No memory available for bitmap\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return cxlm;
+}
+
+static int cxl_mem_map_regblock(struct cxl_mem *cxlm, u32 reg_lo, u32 reg_hi)
+{
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+	void __iomem *regs;
+	u64 offset;
+	u8 bar;
+	int rc;
 
 	offset = ((u64)reg_hi << 32) | (reg_lo & CXL_REGLOC_ADDR_MASK);
 	bar = FIELD_GET(CXL_REGLOC_BIR_MASK, reg_lo);
@@ -948,30 +966,20 @@ static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev, u32 reg_lo,
 	if (pci_resource_len(pdev, bar) < offset) {
 		dev_err(dev, "BAR%d: %pr: too small (offset: %#llx)\n", bar,
 			&pdev->resource[bar], (unsigned long long)offset);
-		return NULL;
+		return -ENXIO;
 	}
 
 	rc = pcim_iomap_regions(pdev, BIT(bar), pci_name(pdev));
 	if (rc) {
 		dev_err(dev, "failed to map registers\n");
-		return NULL;
+		return rc;
 	}
 	regs = pcim_iomap_table(pdev)[bar];
 
-	mutex_init(&cxlm->mbox_mutex);
-	cxlm->pdev = pdev;
 	cxlm->base = regs + offset;
-	cxlm->enabled_cmds =
-		devm_kmalloc_array(dev, BITS_TO_LONGS(cxl_cmd_count),
-				   sizeof(unsigned long),
-				   GFP_KERNEL | __GFP_ZERO);
-	if (!cxlm->enabled_cmds) {
-		dev_err(dev, "No memory available for bitmap\n");
-		return NULL;
-	}
 
 	dev_dbg(dev, "Mapped CXL Memory Device resource\n");
-	return cxlm;
+	return 0;
 }
 
 static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
@@ -1417,13 +1425,17 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
-	struct cxl_mem *cxlm = NULL;
 	u32 regloc_size, regblocks;
+	struct cxl_mem *cxlm;
 	int rc, regloc, i;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
+
+	cxlm = cxl_mem_create(pdev);
+	if (IS_ERR(cxlm))
+		return PTR_ERR(cxlm);
 
 	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
 	if (!regloc) {
@@ -1449,13 +1461,17 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
 
 		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
-			cxlm = cxl_mem_create(pdev, reg_lo, reg_hi);
+			rc = cxl_mem_map_regblock(cxlm, reg_lo, reg_hi);
+			if (rc)
+				return rc;
 			break;
 		}
 	}
 
-	if (!cxlm)
-		return -ENODEV;
+	if (i == regblocks) {
+		dev_err(dev, "Missing register locator for device registers\n");
+		return -ENXIO;
+	}
 
 	rc = cxl_mem_setup_regs(cxlm);
 	if (rc)
