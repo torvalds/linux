@@ -652,8 +652,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	*size = len;
 	if (drop_other_suboptions)
 		*size -= opt_size;
+	opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
 	if (opts->addr.family == AF_INET) {
-		opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
 		if (!echo) {
 			opts->ahmac = add_addr_generate_hmac(msk->local_key,
 							     msk->remote_key,
@@ -664,7 +664,6 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else if (opts->addr.family == AF_INET6) {
-		opts->suboptions |= OPTION_MPTCP_ADD_ADDR6;
 		if (!echo) {
 			opts->ahmac = add_addr6_generate_hmac(msk->local_key,
 							      msk->remote_key,
@@ -1198,16 +1197,12 @@ void mptcp_write_options(__be32 *ptr, const struct tcp_sock *tp,
 	}
 
 mp_capable_done:
-	if ((OPTION_MPTCP_ADD_ADDR
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	     | OPTION_MPTCP_ADD_ADDR6
-#endif
-	    ) & opts->suboptions) {
+	if (OPTION_MPTCP_ADD_ADDR & opts->suboptions) {
 		u8 len = TCPOLEN_MPTCP_ADD_ADDR_BASE;
 		u8 echo = MPTCP_ADDR_ECHO;
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-		if (OPTION_MPTCP_ADD_ADDR6 & opts->suboptions)
+		if (opts->addr.family == AF_INET6)
 			len = TCPOLEN_MPTCP_ADD_ADDR6_BASE;
 #endif
 
@@ -1221,12 +1216,12 @@ mp_capable_done:
 
 		*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
 				      len, echo, opts->addr.id);
-		if (OPTION_MPTCP_ADD_ADDR & opts->suboptions) {
+		if (opts->addr.family == AF_INET) {
 			memcpy((u8 *)ptr, (u8 *)&opts->addr.addr.s_addr, 4);
 			ptr += 1;
 		}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-		else if (OPTION_MPTCP_ADD_ADDR6 & opts->suboptions) {
+		else if (opts->addr.family == AF_INET6) {
 			memcpy((u8 *)ptr, opts->addr.addr6.s6_addr, 16);
 			ptr += 4;
 		}
