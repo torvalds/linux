@@ -272,7 +272,6 @@ on downward growing arches, it looks like this:
 	regs->gr[23] = 0;				\
 } while(0)
 
-struct task_struct;
 struct mm_struct;
 
 /* Free all resources held by a thread. */
