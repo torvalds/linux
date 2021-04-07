@@ -112,6 +112,10 @@ struct mv3310_chip {
 	void (*init_supported_interfaces)(unsigned long *mask);
 	int (*get_mactype)(struct phy_device *phydev);
 	int (*init_interface)(struct phy_device *phydev, int mactype);
+
+#ifdef CONFIG_HWMON
+	int (*hwmon_read_temp_reg)(struct phy_device *phydev);
+#endif
 };
 
 struct mv3310_priv {
@@ -152,18 +156,11 @@ static int mv2110_hwmon_read_temp_reg(struct phy_device *phydev)
 	return phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_TEMP);
 }
 
-static int mv10g_hwmon_read_temp_reg(struct phy_device *phydev)
-{
-	if (phydev->drv->phy_id == MARVELL_PHY_ID_88X3310)
-		return mv3310_hwmon_read_temp_reg(phydev);
-	else /* MARVELL_PHY_ID_88E2110 */
-		return mv2110_hwmon_read_temp_reg(phydev);
-}
-
 static int mv3310_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			     u32 attr, int channel, long *value)
 {
 	struct phy_device *phydev = dev_get_drvdata(dev);
+	const struct mv3310_chip *chip = to_mv3310_chip(phydev);
 	int temp;
 
 	if (type == hwmon_chip && attr == hwmon_chip_update_interval) {
@@ -172,7 +169,7 @@ static int mv3310_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 
 	if (type == hwmon_temp && attr == hwmon_temp_input) {
-		temp = mv10g_hwmon_read_temp_reg(phydev);
+		temp = chip->hwmon_read_temp_reg(phydev);
 		if (temp < 0)
 			return temp;
 
@@ -882,12 +879,20 @@ static const struct mv3310_chip mv3310_type = {
 	.init_supported_interfaces = mv3310_init_supported_interfaces,
 	.get_mactype = mv3310_get_mactype,
 	.init_interface = mv3310_init_interface,
+
+#ifdef CONFIG_HWMON
+	.hwmon_read_temp_reg = mv3310_hwmon_read_temp_reg,
+#endif
 };
 
 static const struct mv3310_chip mv2110_type = {
 	.init_supported_interfaces = mv2110_init_supported_interfaces,
 	.get_mactype = mv2110_get_mactype,
 	.init_interface = mv2110_init_interface,
+
+#ifdef CONFIG_HWMON
+	.hwmon_read_temp_reg = mv2110_hwmon_read_temp_reg,
+#endif
 };
 
 static struct phy_driver mv3310_drivers[] = {
