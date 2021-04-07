@@ -39,7 +39,7 @@ enum {
 /* Page starts writeback, clear dirty bit and set writeback bit */
 #define PAGE_START_WRITEBACK	(1 << 1)
 #define PAGE_END_WRITEBACK	(1 << 2)
-#define PAGE_SET_PRIVATE2	(1 << 3)
+#define PAGE_SET_ORDERED	(1 << 3)
 #define PAGE_SET_ERROR		(1 << 4)
 #define PAGE_LOCK		(1 << 5)
 

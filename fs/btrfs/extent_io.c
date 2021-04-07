@@ -1975,8 +1975,8 @@ static int __process_pages_contig(struct address_space *mapping,
 		}
 
 		for (i = 0; i < ret; i++) {
-			if (page_ops & PAGE_SET_PRIVATE2)
-				SetPagePrivate2(pages[i]);
+			if (page_ops & PAGE_SET_ORDERED)
+				SetPageOrdered(pages[i]);
 
 			if (locked_page && pages[i] == locked_page) {
 				put_page(pages[i]);

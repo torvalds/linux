@@ -390,16 +390,16 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 
 		if (page) {
 			/*
-			 * Private2 bit indicates whether we still have pending
-			 * io unfinished for the ordered extent.
+			 * Ordered (Private2) bit indicates whether we still
+			 * have pending io unfinished for the ordered extent.
 			 *
 			 * If there's no such bit, we need to skip to next range.
 			 */
-			if (!PagePrivate2(page)) {
+			if (!PageOrdered(page)) {
 				cur += len;
 				continue;
 			}
-			ClearPagePrivate2(page);
+			ClearPageOrdered(page);
 		}
 
 		/* Now we're fine to update the accounting */

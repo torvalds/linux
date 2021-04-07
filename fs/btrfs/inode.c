@@ -170,7 +170,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		index++;
 		if (!page)
 			continue;
-		ClearPagePrivate2(page);
+		ClearPageOrdered(page);
 		put_page(page);
 	}
 
@@ -1151,15 +1151,16 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
-		/* we're not doing compressed IO, don't unlock the first
-		 * page (which the caller expects to stay locked), don't
-		 * clear any dirty bits and don't set any writeback bits
+		/*
+		 * We're not doing compressed IO, don't unlock the first page
+		 * (which the caller expects to stay locked), don't clear any
+		 * dirty bits and don't set any writeback bits
 		 *
-		 * Do set the Private2 bit so we know this page was properly
-		 * setup for writepage
+		 * Do set the Ordered (Private2) bit so we know this page was
+		 * properly setup for writepage.
 		 */
 		page_ops = unlock ? PAGE_UNLOCK : 0;
-		page_ops |= PAGE_SET_PRIVATE2;
+		page_ops |= PAGE_SET_ORDERED;
 
 		extent_clear_unlock_delalloc(inode, start, start + ram_size - 1,
 					     locked_page,
@@ -1823,7 +1824,7 @@ out_check:
 					     locked_page, EXTENT_LOCKED |
 					     EXTENT_DELALLOC |
 					     EXTENT_CLEAR_DATA_RESV,
-					     PAGE_UNLOCK | PAGE_SET_PRIVATE2);
+					     PAGE_UNLOCK | PAGE_SET_ORDERED);
 
 		cur_offset = extent_end;
 
@@ -2571,7 +2572,7 @@ again:
 	lock_extent_bits(&inode->io_tree, page_start, page_end, &cached_state);
 
 	/* already ordered? We're done */
-	if (PagePrivate2(page))
+	if (PageOrdered(page))
 		goto out_reserved;
 
 	ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
@@ -2646,8 +2647,8 @@ int btrfs_writepage_cow_fixup(struct page *page, u64 start, u64 end)
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_writepage_fixup *fixup;
 
-	/* this page is properly in the ordered list */
-	if (PagePrivate2(page))
+	/* This page has ordered extent covering it already */
+	if (PageOrdered(page))
 		return 0;
 
 	/*
@@ -8300,9 +8301,9 @@ static int btrfs_migratepage(struct address_space *mapping,
 	if (page_has_private(page))
 		attach_page_private(newpage, detach_page_private(page));
 
-	if (PagePrivate2(page)) {
-		ClearPagePrivate2(page);
-		SetPagePrivate2(newpage);
+	if (PageOrdered(page)) {
+		ClearPageOrdered(page);
+		SetPageOrdered(newpage);
 	}
 
 	if (mode != MIGRATE_SYNC_NO_COPY)
@@ -8329,9 +8330,10 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 	 * page, nor bio can be submitted for this page.
 	 *
 	 * But already submitted bio can still be finished on this page.
-	 * Furthermore, endio function won't skip page which has Private2
-	 * already cleared, so it's possible for endio and invalidatepage to do
-	 * the same ordered extent accounting twice on one page.
+	 * Furthermore, endio function won't skip page which has Ordered
+	 * (Private2) already cleared, so it's possible for endio and
+	 * invalidatepage to do the same ordered extent accounting twice
+	 * on one page.
 	 *
 	 * So here we wait for any submitted bios to finish, so that we won't
 	 * do double ordered extent accounting on the same page.
@@ -8377,17 +8379,17 @@ static void btrfs_invalidatepage(struct page *page, unsigned int offset,
 
 		range_end = min(ordered->file_offset + ordered->num_bytes - 1,
 				page_end);
-		if (!PagePrivate2(page)) {
+		if (!PageOrdered(page)) {
 			/*
-			 * If Private2 is cleared, it means endio has already
-			 * been executed for the range.
+			 * If Ordered (Private2) is cleared, it means endio has
+			 * already been executed for the range.
 			 * We can't delete the extent states as
 			 * btrfs_finish_ordered_io() may still use some of them.
 			 */
 			delete_states = false;
 			goto next;
 		}
-		ClearPagePrivate2(page);
+		ClearPageOrdered(page);
 
 		/*
 		 * IO on this page will never be started, so we need to account
@@ -8454,10 +8456,10 @@ next:
 	}
 	/*
 	 * We have iterated through all ordered extents of the page, the page
-	 * should not have Private2 anymore, or the above iteration does
-	 * something wrong.
+	 * should not have Ordered (Private2) anymore, or the above iteration
+	 * did something wrong.
 	 */
-	ASSERT(!PagePrivate2(page));
+	ASSERT(!PageOrdered(page));
 	if (!inode_evicting)
 		__btrfs_releasepage(page, GFP_NOFS);
 	ClearPageChecked(page);
