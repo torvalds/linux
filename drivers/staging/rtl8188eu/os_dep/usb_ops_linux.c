@@ -267,7 +267,7 @@ usbctrl_vendorreq(struct adapter *adapt, u16 value, void *pdata, u16 len, u8 req
 				len, status, *(u32 *)pdata, vendorreq_times);
 
 			if (status < 0) {
-				if (status == (-ESHUTDOWN) || status == -ENODEV)
+				if (status == -ESHUTDOWN || status == -ENODEV)
 					adapt->bSurpriseRemoved = true;
 				else
 					adapt->HalData->srestpriv.wifi_error_status = USB_VEN_REQ_CMD_FAIL;
