@@ -81,6 +81,9 @@
 	keyboard {
 		compatible = "gpio-keys";
 
+		pinctrl-0 = <&sw2_pins>;
+		pinctrl-names = "default";
+
 		key-1 {
 			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_1>;
@@ -617,6 +620,11 @@
 	sound_clk_pins: sound_clk {
 		groups = "audio_clk_a";
 		function = "audio_clk";
+	};
+
+	sw2_pins: sw2 {
+		pins = "GP_5_0", "GP_5_1", "GP_5_2", "GP_5_3";
+		bias-pull-up;
 	};
 };
 
