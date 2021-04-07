@@ -2195,9 +2195,8 @@ static void intel_pstate_update_perf_limits(struct cpudata *cpu,
 					    unsigned int policy_min,
 					    unsigned int policy_max)
 {
+	int scaling = cpu->pstate.scaling;
 	int32_t max_policy_perf, min_policy_perf;
-	int max_state, turbo_max;
-	int max_freq;
 
 	/*
 	 * HWP needs some special consideration, because HWP_REQUEST uses
@@ -2206,33 +2205,24 @@ static void intel_pstate_update_perf_limits(struct cpudata *cpu,
 	if (hwp_active)
 		intel_pstate_get_hwp_cap(cpu);
 
-	if (global.no_turbo || global.turbo_disabled) {
-		max_state = cpu->pstate.max_pstate;
-		max_freq = cpu->pstate.max_freq;
-	} else {
-		max_state = cpu->pstate.turbo_pstate;
-		max_freq = cpu->pstate.turbo_freq;
-	}
-
-	turbo_max = cpu->pstate.turbo_pstate;
-
-	max_policy_perf = max_state * policy_max / max_freq;
+	max_policy_perf = policy_max / scaling;
 	if (policy_max == policy_min) {
 		min_policy_perf = max_policy_perf;
 	} else {
-		min_policy_perf = max_state * policy_min / max_freq;
+		min_policy_perf = policy_min / scaling;
 		min_policy_perf = clamp_t(int32_t, min_policy_perf,
 					  0, max_policy_perf);
 	}
 
-	pr_debug("cpu:%d max_state %d min_policy_perf:%d max_policy_perf:%d\n",
-		 cpu->cpu, max_state, min_policy_perf, max_policy_perf);
+	pr_debug("cpu:%d min_policy_perf:%d max_policy_perf:%d\n",
+		 cpu->cpu, min_policy_perf, max_policy_perf);
 
 	/* Normalize user input to [min_perf, max_perf] */
 	if (per_cpu_limits) {
 		cpu->min_perf_ratio = min_policy_perf;
 		cpu->max_perf_ratio = max_policy_perf;
 	} else {
+		int turbo_max = cpu->pstate.turbo_pstate;
 		int32_t global_min, global_max;
 
 		/* Global limits are in percent of the maximum turbo P-state. */
