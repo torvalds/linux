@@ -2015,9 +2015,8 @@ static void ionic_txrx_free(struct ionic_lif *lif)
 
 static int ionic_txrx_alloc(struct ionic_lif *lif)
 {
-	unsigned int num_desc, desc_sz, comp_sz, sg_desc_sz;
-	unsigned int flags;
-	unsigned int i;
+	unsigned int comp_sz, desc_sz, num_desc, sg_desc_sz;
+	unsigned int flags, i;
 	int err = 0;
 
 	num_desc = lif->ntxq_descs;
@@ -2584,12 +2583,11 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 int ionic_reconfigure_queues(struct ionic_lif *lif,
 			     struct ionic_queue_params *qparam)
 {
-	unsigned int num_desc, desc_sz, comp_sz, sg_desc_sz;
+	unsigned int comp_sz, desc_sz, num_desc, sg_desc_sz;
 	struct ionic_qcq **tx_qcqs = NULL;
 	struct ionic_qcq **rx_qcqs = NULL;
-	unsigned int flags;
+	unsigned int flags, i;
 	int err = -ENOMEM;
-	unsigned int i;
 
 	/* allocate temporary qcq arrays to hold new queue structs */
 	if (qparam->nxqs != lif->nxqs || qparam->ntxq_descs != lif->ntxq_descs) {
