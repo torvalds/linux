@@ -132,8 +132,8 @@ static int navi_amd_register_client(struct dw_i2c_dev *dev)
 	info.irq = dev->irq;
 
 	dev->slave = i2c_new_client_device(&dev->adapter, &info);
-	if (!dev->slave)
-		return -ENODEV;
+	if (IS_ERR(dev->slave))
+		return PTR_ERR(dev->slave);
 
 	return 0;
 }
