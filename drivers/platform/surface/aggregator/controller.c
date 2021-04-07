@@ -2483,7 +2483,8 @@ int ssam_irq_setup(struct ssam_controller *ctrl)
 	 * interrupt, and let the SAM resume callback during the controller
 	 * resume process clear it.
 	 */
-	const int irqf = IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_RISING;
+	const int irqf = IRQF_SHARED | IRQF_ONESHOT |
+			 IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN;
 
 	gpiod = gpiod_get(dev, "ssam_wakeup-int", GPIOD_ASIS);
 	if (IS_ERR(gpiod))
@@ -2501,7 +2502,6 @@ int ssam_irq_setup(struct ssam_controller *ctrl)
 		return status;
 
 	ctrl->irq.num = irq;
-	disable_irq(ctrl->irq.num);
 	return 0;
 }
 
