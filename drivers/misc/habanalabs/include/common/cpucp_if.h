@@ -11,6 +11,8 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
+#include "hl_boot_if.h"
+
 #define NUM_HBM_PSEUDO_CH				2
 #define NUM_HBM_CH_PER_DEV				8
 #define CPUCP_PKT_HBM_ECC_INFO_WR_PAR_SHIFT		0
@@ -564,7 +566,6 @@ struct eq_generic_event {
  */
 
 #define CARD_NAME_MAX_LEN		16
-#define VERSION_MAX_LEN			128
 #define CPUCP_MAX_SENSORS		128
 #define CPUCP_MAX_NICS			128
 #define CPUCP_LANES_PER_NIC		4
