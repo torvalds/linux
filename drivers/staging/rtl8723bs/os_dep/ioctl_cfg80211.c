@@ -2191,7 +2191,7 @@ static int cfg80211_rtw_del_pmksa(struct wiphy *wiphy,
 		}
 	}
 
-	if (false == bMatched)
+	if (!bMatched)
 		return -EINVAL;
 
 	return 0;

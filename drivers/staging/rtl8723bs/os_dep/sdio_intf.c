@@ -389,7 +389,7 @@ static int rtw_drv_init(
 		goto exit;
 
 	if1 = rtw_sdio_if1_init(dvobj, id);
-	if (if1 == NULL)
+	if (!if1)
 		goto free_dvobj;
 
 	/* dev_alloc_name && register_netdev */

@@ -1171,7 +1171,7 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 		goto xmitframe_coalesce_success;
 
 	/* IGTK key is not install, it may not support 802.11w */
-	if (padapter->securitypriv.binstallBIPkey != true)
+	if (!padapter->securitypriv.binstallBIPkey)
 		goto xmitframe_coalesce_success;
 
 	/* station mode doesn't need TX BIP, just ready the code */

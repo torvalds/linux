@@ -3059,7 +3059,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
 			pwep = kzalloc(wep_total_len, GFP_KERNEL);
-			if (pwep == NULL)
+			if (!pwep)
 				goto exit;
 
 			pwep->KeyLength = wep_key_len;
@@ -3507,7 +3507,7 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 	if (ie_len > 0) {
 		pmlmepriv->wps_beacon_ie = rtw_malloc(ie_len);
 		pmlmepriv->wps_beacon_ie_len = ie_len;
-		if (pmlmepriv->wps_beacon_ie == NULL)
+		if (!pmlmepriv->wps_beacon_ie)
 			return -EINVAL;
 
 		memcpy(pmlmepriv->wps_beacon_ie, param->u.bcn_ie.buf, ie_len);
@@ -3541,7 +3541,7 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 	if (ie_len > 0) {
 		pmlmepriv->wps_probe_resp_ie = rtw_malloc(ie_len);
 		pmlmepriv->wps_probe_resp_ie_len = ie_len;
-		if (pmlmepriv->wps_probe_resp_ie == NULL)
+		if (!pmlmepriv->wps_probe_resp_ie)
 			return -EINVAL;
 
 		memcpy(pmlmepriv->wps_probe_resp_ie, param->u.bcn_ie.buf, ie_len);
@@ -3571,7 +3571,7 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 	if (ie_len > 0) {
 		pmlmepriv->wps_assoc_resp_ie = rtw_malloc(ie_len);
 		pmlmepriv->wps_assoc_resp_ie_len = ie_len;
-		if (pmlmepriv->wps_assoc_resp_ie == NULL)
+		if (!pmlmepriv->wps_assoc_resp_ie)
 			return -EINVAL;
 
 		memcpy(pmlmepriv->wps_assoc_resp_ie, param->u.bcn_ie.buf, ie_len);
@@ -3925,7 +3925,7 @@ static int rtw_test(
 	len = wrqu->data.length;
 
 	pbuf = rtw_zmalloc(len);
-	if (pbuf == NULL)
+	if (!pbuf)
 		return -ENOMEM;
 
 	if (copy_from_user(pbuf, wrqu->data.pointer, len)) {
