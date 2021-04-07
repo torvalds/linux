@@ -59,7 +59,7 @@ static int lookup_inode(struct btree_trans *trans, u64 inode_nr,
 		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
 		: -ENOENT;
 err:
-	bch2_trans_iter_put(trans, iter);
+	bch2_trans_iter_free(trans, iter);
 	return ret;
 }
 
@@ -134,27 +134,26 @@ static int __reattach_inode(struct btree_trans *trans,
 {
 	struct bch_hash_info dir_hash =
 		bch2_hash_info_init(trans->c, lostfound);
-	struct btree_iter *dir_iter = NULL, *inode_iter = NULL;
 	struct bch_inode_unpacked inode_u;
 	char name_buf[20];
 	struct qstr name;
 	u64 dir_offset = 0;
+	u32 snapshot;
 	int ret;
 
 	snprintf(name_buf, sizeof(name_buf), "%llu", inum);
 	name = (struct qstr) QSTR(name_buf);
 
-	inode_iter = bch2_inode_peek(trans, &inode_u, inum, 0);
-	ret = PTR_ERR_OR_ZERO(inode_iter);
+	ret = lookup_inode(trans, inum, &inode_u, &snapshot);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (S_ISDIR(inode_u.bi_mode)) {
 		lostfound->bi_nlink++;
 
 		ret = write_inode(trans, lostfound, U32_MAX);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	ret = bch2_dirent_create(trans, lostfound->bi_inum, &dir_hash,
@@ -162,18 +161,12 @@ static int __reattach_inode(struct btree_trans *trans,
 				 &name, inum, &dir_offset,
 				 BCH_HASH_SET_MUST_CREATE);
 	if (ret)
-		goto err;
+		return ret;
 
 	inode_u.bi_dir		= lostfound->bi_inum;
 	inode_u.bi_dir_offset	= dir_offset;
 
-	ret = write_inode(trans, &inode_u, U32_MAX);
-	if (ret)
-		goto err;
-err:
-	bch2_trans_iter_put(trans, dir_iter);
-	bch2_trans_iter_put(trans, inode_iter);
-	return ret;
+	return write_inode(trans, &inode_u, U32_MAX);
 }
 
 static int reattach_inode(struct btree_trans *trans,
@@ -188,6 +181,30 @@ static int reattach_inode(struct btree_trans *trans,
 	if (ret)
 		bch_err(c, "error %i reattaching inode %llu", ret, inum);
 
+	return ret;
+}
+
+static int remove_backpointer(struct btree_trans *trans,
+			      struct bch_inode_unpacked *inode)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_dirents,
+				   POS(inode->bi_dir, inode->bi_dir_offset), 0);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto out;
+	if (k.k->type != KEY_TYPE_dirent) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	ret = remove_dirent(trans, bkey_s_c_to_dirent(k));
+out:
+	bch2_trans_iter_put(trans, iter);
 	return ret;
 }
 
@@ -420,26 +437,18 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
-	if (!S_ISDIR(u.bi_mode) &&
-	    u.bi_nlink &&
-	    !(u.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
-	    (fsck_err_on(c->sb.version >= bcachefs_metadata_version_inode_backpointers, c,
-			 "inode missing BCH_INODE_BACKPTR_UNTRUSTED flags") ||
-	     c->opts.version_upgrade)) {
-		u.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
+	if (u.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) {
+		u.bi_dir = 0;
+		u.bi_dir_offset = 0;
+		u.bi_flags &= ~BCH_INODE_BACKPTR_UNTRUSTED;
 		do_update = true;
 	}
 
 	if (do_update) {
-		struct bkey_inode_buf p;
-
-		bch2_inode_pack(c, &p, &u);
-		p.inode.k.p = iter->pos;
-
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-			(bch2_trans_update(trans, iter, &p.inode.k_i, 0), 0));
+				bch2_inode_write(trans, iter, &u));
 		if (ret)
 			bch_err(c, "error in fsck: error %i "
 				"updating inode", ret);
@@ -704,7 +713,8 @@ retry:
 				mode_to_type(w.inode.bi_mode),
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
 						       k), buf))) {
-			ret = bch2_btree_delete_at(&trans, iter, 0);
+			ret = lockrestart_do(&trans,
+					bch2_btree_delete_at(&trans, iter, 0));
 			if (ret)
 				goto err;
 			goto next;
@@ -751,6 +761,16 @@ retry:
 		if (!have_target)
 			goto next;
 
+		if (!target.bi_dir &&
+		    !target.bi_dir_offset) {
+			target.bi_dir		= k.k->p.inode;
+			target.bi_dir_offset	= k.k->p.offset;
+
+			ret = write_inode(&trans, &target, target_snapshot);
+			if (ret)
+				goto err;
+		}
+
 		if (!inode_backpointer_matches(d, &target)) {
 			ret = inode_backpointer_exists(&trans, &target);
 			if (ret < 0)
@@ -758,52 +778,47 @@ retry:
 
 			backpointer_exists = ret;
 			ret = 0;
-		}
 
-		if (fsck_err_on(S_ISDIR(target.bi_mode) &&
-				!inode_backpointer_matches(d, &target) &&
-				backpointer_exists, c,
-				"directory %llu with multiple links",
-				target.bi_inum)) {
-			ret = remove_dirent(&trans, d);
-			if (ret)
-				goto err;
-			continue;
-		}
-
-		if (!inode_backpointer_matches(d, &target) &&
-		    (S_ISDIR(target.bi_mode) || !target.bi_nlink)) {
-			if (backpointer_exists) {
-				if (!fsck_err(c, "inode %llu has multiple links but i_nlink 0",
-					      d_inum))
-					goto check_type;
-
-				target.bi_nlink++;
-				target.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
-			} else {
-				if (c->sb.version >= bcachefs_metadata_version_inode_backpointers &&
-				    !(target.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
-				    !fsck_err(c, "inode %llu has wrong backpointer:\n"
-					      "got       %llu:%llu\n"
-					      "should be %llu:%llu",
-					      d_inum,
-					      target.bi_dir,
-					      target.bi_dir_offset,
-					      k.k->p.inode,
-					      k.k->p.offset))
-					goto check_type;
-
-				target.bi_dir		= k.k->p.inode;
-				target.bi_dir_offset	= k.k->p.offset;
-				target.bi_flags &= ~BCH_INODE_BACKPTR_UNTRUSTED;
+			if (fsck_err_on(S_ISDIR(target.bi_mode) &&
+					backpointer_exists, c,
+					"directory %llu with multiple links",
+					target.bi_inum)) {
+				ret = remove_dirent(&trans, d);
+				if (ret)
+					goto err;
+				continue;
 			}
 
-			ret = write_inode(&trans, &target, target_snapshot);
-			if (ret)
-				goto err;
-			continue;
+			if (fsck_err_on(backpointer_exists &&
+					!target.bi_nlink, c,
+					"inode %llu has multiple links but i_nlink 0",
+					d_inum)) {
+				target.bi_nlink++;
+				target.bi_flags &= ~BCH_INODE_UNLINKED;
+
+				ret = write_inode(&trans, &target, target_snapshot);
+				if (ret)
+					goto err;
+			}
+
+			if (fsck_err_on(!backpointer_exists, c,
+					"inode %llu has wrong backpointer:\n"
+					"got       %llu:%llu\n"
+					"should be %llu:%llu",
+					d_inum,
+					target.bi_dir,
+					target.bi_dir_offset,
+					k.k->p.inode,
+					k.k->p.offset)) {
+				target.bi_dir		= k.k->p.inode;
+				target.bi_dir_offset	= k.k->p.offset;
+
+				ret = write_inode(&trans, &target, target_snapshot);
+				if (ret)
+					goto err;
+			}
 		}
-check_type:
+
 		if (fsck_err_on(d.v->d_type != mode_to_type(target.bi_mode), c,
 				"incorrect d_type: should be %u:\n%s",
 				mode_to_type(target.bi_mode),
@@ -900,13 +915,13 @@ fsck_err:
 static int check_root(struct bch_fs *c, struct bch_inode_unpacked *root_inode)
 {
 	struct bkey_inode_buf packed;
+	u32 snapshot;
 	int ret;
 
 	bch_verbose(c, "checking root directory");
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		__bch2_inode_find_by_inum_trans(&trans, BCACHEFS_ROOT_INO,
-						root_inode, 0));
+		lookup_inode(&trans, BCACHEFS_ROOT_INO, root_inode, &snapshot));
 	if (ret && ret != -ENOENT)
 		return ret;
 
@@ -942,6 +957,7 @@ static int check_lostfound(struct bch_fs *c,
 	struct bch_hash_info root_hash_info =
 		bch2_hash_info_init(c, root_inode);
 	u64 inum;
+	u32 snapshot;
 	int ret;
 
 	bch_verbose(c, "checking lost+found");
@@ -954,7 +970,7 @@ static int check_lostfound(struct bch_fs *c,
 	}
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		__bch2_inode_find_by_inum_trans(&trans, inum, lostfound_inode, 0));
+		lookup_inode(&trans, inum, lostfound_inode, &snapshot));
 	if (ret && ret != -ENOENT)
 		return ret;
 
@@ -984,32 +1000,12 @@ create_lostfound:
 	return ret;
 }
 
-typedef GENRADIX(unsigned long) inode_bitmap;
-
-static inline bool inode_bitmap_test(inode_bitmap *b, size_t nr)
-{
-	unsigned long *w = genradix_ptr(b, nr / BITS_PER_LONG);
-	return w ? test_bit(nr & (BITS_PER_LONG - 1), w) : false;
-}
-
-static inline int inode_bitmap_set(inode_bitmap *b, size_t nr)
-{
-	unsigned long *w = genradix_ptr_alloc(b, nr / BITS_PER_LONG, GFP_KERNEL);
-
-	if (!w)
-		return -ENOMEM;
-
-	*w |= 1UL << (nr & (BITS_PER_LONG - 1));
-	return 0;
-}
-
 struct pathbuf {
 	size_t		nr;
 	size_t		size;
 
 	struct pathbuf_entry {
 		u64	inum;
-		u64	offset;
 	}		*entries;
 };
 
@@ -1020,8 +1016,9 @@ static int path_down(struct pathbuf *p, u64 inum)
 		void *n = krealloc(p->entries,
 				   new_size * sizeof(p->entries[0]),
 				   GFP_KERNEL);
-		if (!n)
+		if (!n) {
 			return -ENOMEM;
+		}
 
 		p->entries = n;
 		p->size = new_size;
@@ -1029,149 +1026,119 @@ static int path_down(struct pathbuf *p, u64 inum)
 
 	p->entries[p->nr++] = (struct pathbuf_entry) {
 		.inum = inum,
-		.offset = 0,
 	};
 	return 0;
 }
 
-noinline_for_stack
-static int check_directory_structure(struct bch_fs *c,
-				     struct bch_inode_unpacked *lostfound_inode)
+static int check_path(struct btree_trans *trans,
+		      struct bch_inode_unpacked *lostfound,
+		      struct pathbuf *p,
+		      struct bch_inode_unpacked *inode)
 {
-	inode_bitmap dirs_done;
-	struct pathbuf path = { 0, 0, NULL };
-	struct pathbuf_entry *e;
+	struct bch_fs *c = trans->c;
+	u32 snapshot;
+	size_t i;
+	int ret = 0;
+
+	p->nr = 0;
+
+	while (inode->bi_inum != BCACHEFS_ROOT_INO) {
+		ret = lockrestart_do(trans,
+			inode_backpointer_exists(trans, inode));
+		if (ret < 0)
+			break;
+
+		if (!ret) {
+			if (fsck_err(c,  "unreachable inode %llu, type %u nlink %u backptr %llu:%llu",
+				     inode->bi_inum,
+				     mode_to_type(inode->bi_mode),
+				     inode->bi_nlink,
+				     inode->bi_dir,
+				     inode->bi_dir_offset))
+				ret = reattach_inode(trans, lostfound, inode->bi_inum);
+			break;
+		}
+		ret = 0;
+
+		if (!S_ISDIR(inode->bi_mode))
+			break;
+
+		ret = path_down(p, inode->bi_inum);
+		if (ret) {
+			bch_err(c, "memory allocation failure");
+			return ret;
+		}
+
+		for (i = 0; i < p->nr; i++) {
+			if (inode->bi_dir != p->entries[i].inum)
+				continue;
+
+			/* XXX print path */
+			if (!fsck_err(c, "directory structure loop"))
+				return 0;
+
+			ret = lockrestart_do(trans,
+					 remove_backpointer(trans, inode));
+			if (ret) {
+				bch_err(c, "error removing dirent: %i", ret);
+				break;
+			}
+
+			ret = reattach_inode(trans, lostfound, inode->bi_inum);
+			break;
+		}
+
+		ret = lockrestart_do(trans,
+				lookup_inode(trans, inode->bi_dir, inode, &snapshot));
+		if (ret) {
+			/* Should have been caught in dirents pass */
+			bch_err(c, "error looking up parent directory: %i", ret);
+			break;
+		}
+	}
+fsck_err:
+	if (ret)
+		bch_err(c, "%s: err %i", __func__, ret);
+	return ret;
+}
+
+/*
+ * Check for unreachable inodes, as well as loops in the directory structure:
+ * After check_dirents(), if an inode backpointer doesn't exist that means it's
+ * unreachable:
+ */
+static int check_directory_structure(struct bch_fs *c,
+				     struct bch_inode_unpacked *lostfound)
+{
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey_s_c_dirent dirent;
-	bool had_unreachable;
-	u64 d_inum;
-	int ret = 0;
+	struct bch_inode_unpacked u;
+	struct pathbuf path = { 0, 0, NULL };
+	int ret;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	bch_verbose(c, "checking directory structure");
-
-	/* DFS: */
-restart_dfs:
-	genradix_init(&dirs_done);
-	had_unreachable = false;
-
-	ret = inode_bitmap_set(&dirs_done, BCACHEFS_ROOT_INO);
-	if (ret) {
-		bch_err(c, "memory allocation failure in inode_bitmap_set()");
-		goto err;
-	}
-
-	ret = path_down(&path, BCACHEFS_ROOT_INO);
-	if (ret)
-		goto err;
-
-	while (path.nr) {
-next:
-		e = &path.entries[path.nr - 1];
-
-		if (e->offset == U64_MAX)
-			goto up;
-
-		for_each_btree_key(&trans, iter, BTREE_ID_dirents,
-				   POS(e->inum, e->offset + 1), 0, k, ret) {
-			if (k.k->p.inode != e->inum)
-				break;
-
-			e->offset = k.k->p.offset;
-
-			if (k.k->type != KEY_TYPE_dirent)
-				continue;
-
-			dirent = bkey_s_c_to_dirent(k);
-
-			if (dirent.v->d_type != DT_DIR)
-				continue;
-
-			d_inum = le64_to_cpu(dirent.v->d_inum);
-
-			if (fsck_err_on(inode_bitmap_test(&dirs_done, d_inum), c,
-					"directory %llu has multiple hardlinks",
-					d_inum)) {
-				ret = remove_dirent(&trans, dirent);
-				if (ret)
-					goto err;
-				continue;
-			}
-
-			ret = inode_bitmap_set(&dirs_done, d_inum);
-			if (ret) {
-				bch_err(c, "memory allocation failure in inode_bitmap_set()");
-				goto err;
-			}
-
-			ret = path_down(&path, d_inum);
-			if (ret) {
-				goto err;
-			}
-
-			ret = bch2_trans_iter_free(&trans, iter);
-			if (ret) {
-				bch_err(c, "btree error %i in fsck", ret);
-				goto err;
-			}
-			goto next;
-		}
-		ret = bch2_trans_iter_free(&trans, iter) ?: ret;
-		if (ret) {
-			bch_err(c, "btree error %i in fsck", ret);
-			goto err;
-		}
-up:
-		path.nr--;
-	}
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS_MIN, 0);
-retry:
-	for_each_btree_key_continue(iter, 0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN, 0, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
-		if (!S_ISDIR(le16_to_cpu(bkey_s_c_to_inode(k).v->bi_mode)))
-			continue;
-
-		ret = bch2_empty_dir_trans(&trans, k.k->p.inode);
-		if (ret == -EINTR)
-			goto retry;
-		if (!ret)
-			continue;
-
-		if (fsck_err_on(!inode_bitmap_test(&dirs_done, k.k->p.offset), c,
-				"unreachable directory found (inum %llu)",
-				k.k->p.offset)) {
-			ret = reattach_inode(&trans, lostfound_inode, k.k->p.offset);
-			if (ret) {
-				goto err;
-			}
-
-			had_unreachable = true;
+		ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &u);
+		if (ret) {
+			/* Should have been caught earlier in fsck: */
+			bch_err(c, "error unpacking inode %llu: %i", k.k->p.offset, ret);
+			break;
 		}
-	}
-	bch2_trans_iter_free(&trans, iter);
-	if (ret)
-		goto err;
 
-	if (had_unreachable) {
-		bch_info(c, "reattached unreachable directories, restarting pass to check for loops");
-		genradix_free(&dirs_done);
-		kfree(path.entries);
-		memset(&dirs_done, 0, sizeof(dirs_done));
-		memset(&path, 0, sizeof(path));
-		goto restart_dfs;
+		ret = check_path(&trans, lostfound, &path, &u);
+		if (ret)
+			break;
 	}
-err:
-fsck_err:
-	ret = bch2_trans_exit(&trans) ?: ret;
-	genradix_free(&dirs_done);
-	kfree(path.entries);
-	return ret;
+	bch2_trans_iter_put(&trans, iter);
+
+	BUG_ON(ret == -EINTR);
+
+	return bch2_trans_exit(&trans) ?: ret;
 }
 
 struct nlink {
@@ -1254,6 +1221,11 @@ static int check_inode_nlink(struct btree_trans *trans,
 	if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
 		return 0;
 
+	if (!nlink) {
+		bch_err(c, "no links found to inode %llu", inode.k->p.offset);
+		return -EINVAL;
+	}
+
 	ret = bch2_inode_unpack(inode, &u);
 
 	/* Should never happen, checked by bch2_inode_invalid: */
@@ -1262,34 +1234,16 @@ static int check_inode_nlink(struct btree_trans *trans,
 			 inode.k->p.inode))
 		return ret;
 
-	/* Improved directory structure pass will catch this: */
-	if (fsck_err_on(!nlink, c,
-			"unreachable inode %llu not marked as unlinked (type %u)",
-			u.bi_inum, mode_to_type(u.bi_mode))) {
-		ret = reattach_inode(trans, lostfound_inode, u.bi_inum);
-		if (ret)
-			return ret;
-
-		nlink = 1;
-	}
-
 	if (fsck_err_on(bch2_inode_nlink_get(&u) != nlink, c,
 			"inode %llu has wrong i_nlink (type %u i_nlink %u, should be %u)",
 			u.bi_inum, mode_to_type(u.bi_mode),
 			bch2_inode_nlink_get(&u), nlink)) {
-		struct bkey_inode_buf p;
-
-		if (nlink > 1)
-			u.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
-
 		bch2_inode_nlink_set(&u, nlink);
-		bch2_inode_pack(c, &p, &u);
-		p.inode.k.p = iter->pos;
 
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-			(bch2_trans_update(trans, iter, &p.inode.k_i, 0), 0));
+				bch2_inode_write(trans, iter, &u));
 		if (ret)
 			bch_err(c, "error in fsck: error %i updating inode", ret);
 	}

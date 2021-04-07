@@ -307,7 +307,7 @@ struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	ret = k.k->type == KEY_TYPE_inode ? 0 : -EIO;
+	ret = k.k->type == KEY_TYPE_inode ? 0 : -ENOENT;
 	if (ret)
 		goto err;
 
@@ -637,37 +637,16 @@ err:
 	return ret;
 }
 
-int __bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
-				    struct bch_inode_unpacked *inode,
-				    unsigned flags)
+static int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
+					 struct bch_inode_unpacked *inode)
 {
 	struct btree_iter *iter;
-	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes,
-			POS(0, inode_nr), flags);
-	k = (flags & BTREE_ITER_TYPE) == BTREE_ITER_CACHED
-		? bch2_btree_iter_peek_cached(iter)
-		: bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	ret = k.k->type == KEY_TYPE_inode
-		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
-		: -ENOENT;
-err:
+	iter = bch2_inode_peek(trans, inode, inode_nr, 0);
+	ret = PTR_ERR_OR_ZERO(iter);
 	bch2_trans_iter_put(trans, iter);
 	return ret;
-}
-
-int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
-				  struct bch_inode_unpacked *inode)
-{
-	return __bch2_inode_find_by_inum_trans(trans, inode_nr,
-					       inode, BTREE_ITER_CACHED);
-
 }
 
 int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,

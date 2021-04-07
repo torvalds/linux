@@ -103,13 +103,12 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	return __bch2_trans_commit(trans);
 }
 
-#define __bch2_trans_do(_trans, _disk_res, _journal_seq, _flags, _do)	\
+#define lockrestart_do(_trans, _do)					\
 ({									\
 	int _ret;							\
 									\
 	while (1) {							\
-		_ret = (_do) ?:	bch2_trans_commit(_trans, (_disk_res),	\
-					(_journal_seq), (_flags));	\
+		_ret = (_do);						\
 		if (_ret != -EINTR)					\
 			break;						\
 		bch2_trans_reset(_trans, 0);				\
@@ -117,6 +116,10 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 									\
 	_ret;								\
 })
+
+#define __bch2_trans_do(_trans, _disk_res, _journal_seq, _flags, _do)	\
+	lockrestart_do(_trans, _do ?: bch2_trans_commit(_trans, (_disk_res),\
+					(_journal_seq), (_flags)))
 
 #define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
 ({									\

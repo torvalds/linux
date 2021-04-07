@@ -110,8 +110,6 @@ int bch2_link_trans(struct btree_trans *trans, u64 dir_inum,
 	inode_u->bi_ctime = now;
 	bch2_inode_nlink_inc(inode_u);
 
-	inode_u->bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
-
 	dir_iter = bch2_inode_peek(trans, dir_u, dir_inum, 0);
 	ret = PTR_ERR_OR_ZERO(dir_iter);
 	if (ret)
@@ -174,6 +172,12 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	ret = PTR_ERR_OR_ZERO(inode_iter);
 	if (ret)
 		goto err;
+
+	if (inode_u->bi_dir		== k.k->p.inode &&
+	    inode_u->bi_dir_offset	== k.k->p.offset) {
+		inode_u->bi_dir		= 0;
+		inode_u->bi_dir_offset	= 0;
+	}
 
 	dir_u->bi_mtime = dir_u->bi_ctime = inode_u->bi_ctime = now;
 	dir_u->bi_nlink -= S_ISDIR(inode_u->bi_mode);
