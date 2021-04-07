@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Google Trogdor board device tree source
+ * Google CoachZ board device tree source
  *
  * Copyright 2020 Google LLC.
  */
-
-/dts-v1/;
 
 #include "sc7180.dtsi"
 
@@ -14,99 +12,139 @@ ap_h1_spi: &spi0 {};
 
 #include "sc7180-trogdor.dtsi"
 
+/* Deleted nodes from trogdor.dtsi */
+
+/delete-node/ &alc5682;
+/delete-node/ &pp3300_codec;
+
 / {
-	model = "Google Trogdor (rev1+)";
-	compatible = "google,trogdor", "qcom,sc7180";
+	/* BOARD-SPECIFIC TOP LEVEL NODES */
+
+	adau7002: audio-codec-1 {
+		compatible = "adi,adau7002";
+		IOVDD-supply = <&pp1800_l15a>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&ap_spi_fp {
+	status = "okay";
+};
+
+&backlight {
+	pwms = <&cros_ec_pwm 0>;
+};
+
+&camcc {
+	status = "okay";
+};
+
+&cros_ec {
+	cros_ec_proximity: proximity {
+		compatible = "google,cros-ec-mkbp-proximity";
+		label = "proximity-wifi";
+	};
 };
 
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
 
-	ap_ts: touchscreen@10 {
-		compatible = "elan,ekth3500";
-		reg = <0x10>;
+	ap_ts: touchscreen@5d {
+		compatible = "goodix,gt7375p";
+		reg = <0x5d>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_l>, <&ts_reset_l>;
 
 		interrupt-parent = <&tlmm>;
 		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 
-		vcc33-supply = <&pp3300_ts>;
-
 		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
+
+		vdd-supply = <&pp3300_ts>;
 	};
 };
 
+&i2c7 {
+	status = "disabled";
+};
+
+&i2c9 {
+	status = "disabled";
+};
+
 &panel {
-	compatible = "auo,b116xa01";
+	compatible = "boe,nv110wtm-n61";
 };
 
-&pp3300_hub {
-	/* pp3300_l7c is used to power the USB hub */
-	/delete-property/regulator-always-on;
-	/delete-property/regulator-boot-on;
-};
-
-&pp3300_l7c {
-	regulator-always-on;
-	regulator-boot-on;
+&pp3300_dx_edp {
+	gpio = <&tlmm 67 GPIO_ACTIVE_HIGH>;
 };
 
 &sdhc_2 {
 	status = "okay";
 };
 
-&trackpad {
-	interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
+&sn65dsi86_out {
+	data-lanes = <0 1 2 3>;
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
-&trackpad_int_1v8_odl {
-	pinmux {
-		pins = "gpio58";
+&en_pp3300_dx_edp {
+	pinmux  {
+		pins = "gpio67";
 	};
 
 	pinconf {
-		pins = "gpio58";
+		pins = "gpio67";
+	};
+};
+
+&ts_reset_l {
+	pinconf {
+		/*
+		 * We want reset state by default and it will be up to the
+		 * driver to disable this when it's ready.
+		 */
+		output-low;
 	};
 };
 
 /* PINCTRL - board-specific pinctrl */
 
 &tlmm {
-	gpio-line-names = "ESIM_MISO",
-			  "ESIM_MOSI",
-			  "ESIM_CLK",
-			  "ESIM_CS_L",
+	gpio-line-names = "HUB_RST_L",
+			  "AP_RAM_ID0",
+			  "AP_SKU_ID2",
+			  "AP_RAM_ID1",
 			  "FP_TO_AP_IRQ_L",
-			  "FP_RST_L",
-			  "AP_TP_I2C_SDA",
-			  "AP_TP_I2C_SCL",
+			  "AP_RAM_ID2",
+			  "UF_CAM_EN",
+			  "WF_CAM_EN",
 			  "TS_RESET_L",
 			  "TS_INT_L",
 			  "FPMCU_BOOT0",
 			  "EDP_BRIJ_IRQ",
 			  "AP_EDP_BKLTEN",
-			  "",
-			  "",
+			  "UF_CAM_MCLK",
+			  "WF_CAM_CLK",
 			  "EDP_BRIJ_I2C_SDA",
 			  "EDP_BRIJ_I2C_SCL",
-			  "HUB_RST_L",
-			  "PEN_RST_ODL",
-			  "AP_RAM_ID1",
-			  "AP_RAM_ID2",
-			  "PEN_IRQ_L",
-			  "FPMCU_SEL",
+			  "UF_CAM_SDA",
+			  "UF_CAM_SCL",
+			  "WF_CAM_SDA",
+			  "WF_CAM_SCL",
+			  "WLC_IRQ",
+			  "FP_RST_L",
 			  "AMP_EN",
-			  "P_SENSOR_INT_L",
+			  "WLC_NRST",
 			  "AP_SAR_SENSOR_SDA",
 			  "AP_SAR_SENSOR_SCL",
 			  "",
-			  "HP_IRQ",
-			  "AP_RAM_ID0",
-			  "EN_PP3300_DX_EDP",
+			  "",
+			  "WF_CAM_RST_L",
+			  "UF_CAM_RST_L",
 			  "AP_BRD_ID2",
 			  "BRIJ_SUSPEND",
 			  "AP_BRD_ID0",
@@ -122,19 +160,19 @@ ap_ts_pen_1v8: &i2c4 {
 			  "",
 			  "UART_AP_TX_DBG_RX",
 			  "UART_DBG_TX_AP_RX",
-			  "HP_I2C_SDA",
-			  "HP_I2C_SCL",
+			  "",
+			  "",
 			  "FORCED_USB_BOOT",
-			  "",
-			  "",
+			  "AMP_BCLK",
+			  "AMP_LRCLK",
 			  "AMP_DIN",
-			  "PEN_PDCT_L",
+			  "",
 			  "HP_BCLK",
 			  "HP_LRCLK",
 			  "HP_DOUT",
 			  "HP_DIN",
 			  "HP_MCLK",
-			  "TRACKPAD_INT_1V8_ODL",
+			  "AP_SKU_ID0",
 			  "AP_EC_SPI_MISO",
 			  "AP_EC_SPI_MOSI",
 			  "AP_EC_SPI_CLK",
@@ -147,24 +185,24 @@ ap_ts_pen_1v8: &i2c4 {
 			   * call it BIOS_FLASH_WP_L.
 			   */
 			  "AP_FLASH_WP_L",
-			  "DBG_SPI_HOLD_L",
+			  "EN_PP3300_DX_EDP",
 			  "AP_SPI_CS0_L",
 			  "SD_CD_ODL",
 			  "",
 			  "",
 			  "",
 			  "",
-			  "",
+			  "EN_FP_RAILS",
 			  "UIM2_DATA",
 			  "UIM2_CLK",
 			  "UIM2_RST",
-			  "UIM2_PRESENT",
+			  "UIM2_PRESENT_L",
 			  "UIM1_DATA",
 			  "UIM1_CLK",
 			  "UIM1_RST",
 			  "",
-			  "EN_PP3300_CODEC",
-			  "EN_PP3300_HUB",
+			  "",
+			  "HUB_EN",
 			  "",
 			  "AP_SPI_FP_MISO",
 			  "AP_SPI_FP_MOSI",
@@ -185,7 +223,7 @@ ap_ts_pen_1v8: &i2c4 {
 			  "",
 			  "",
 			  "EDP_BRIJ_EN",
-			  "AP_SKU_ID0",
+			  "",
 			  "",
 			  "",
 			  "",

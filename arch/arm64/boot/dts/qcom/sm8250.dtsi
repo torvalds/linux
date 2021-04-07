@@ -279,7 +279,7 @@
 
 	pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	psci {
@@ -548,8 +548,6 @@
 				reg = <0 0x00880000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S0_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi14_default>;
 				interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -576,8 +574,6 @@
 				reg = <0 0x00884000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S1_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi15_default>;
 				interrupts = <GIC_SPI 583 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -604,8 +600,6 @@
 				reg = <0 0x00888000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S2_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi16_default>;
 				interrupts = <GIC_SPI 584 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -632,8 +626,6 @@
 				reg = <0 0x0088c000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S3_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi17_default>;
 				interrupts = <GIC_SPI 585 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -673,8 +665,6 @@
 				reg = <0 0x00890000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S4_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi18_default>;
 				interrupts = <GIC_SPI 586 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -714,8 +704,6 @@
 				reg = <0 0x00894000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP2_S5_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi19_default>;
 				interrupts = <GIC_SPI 587 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -755,8 +743,6 @@
 				reg = <0 0x00980000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S0_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi0_default>;
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -783,8 +769,6 @@
 				reg = <0 0x00984000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi1_default>;
 				interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -811,8 +795,6 @@
 				reg = <0 0x00988000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S2_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi2_default>;
 				interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -852,8 +834,6 @@
 				reg = <0 0x0098c000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S3_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi3_default>;
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -880,8 +860,6 @@
 				reg = <0 0x00990000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi4_default>;
 				interrupts = <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -908,8 +886,6 @@
 				reg = <0 0x00994000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S5_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi5_default>;
 				interrupts = <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -936,8 +912,6 @@
 				reg = <0 0x00998000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S6_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi6_default>;
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -977,8 +951,6 @@
 				reg = <0 0x0099c000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP0_S7_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi7_default>;
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1018,8 +990,6 @@
 				reg = <0 0x00a80000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S0_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi8_default>;
 				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1046,8 +1016,6 @@
 				reg = <0 0x00a84000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S1_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi9_default>;
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1074,8 +1042,6 @@
 				reg = <0 0x00a88000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S2_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi10_default>;
 				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1102,8 +1068,6 @@
 				reg = <0 0x00a8c000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S3_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi11_default>;
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1130,8 +1094,6 @@
 				reg = <0 0x00a90000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S4_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi12_default>;
 				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1171,8 +1133,6 @@
 				reg = <0 0x00a94000 0 0x4000>;
 				clock-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S5_CLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&qup_spi13_default>;
 				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -2647,7 +2607,7 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		aoss_qmp: qmp@c300000 {
+		aoss_qmp: power-controller@c300000 {
 			compatible = "qcom,sm8250-aoss-qmp";
 			reg = <0 0x0c300000 0 0x100000>;
 			interrupts-extended = <&ipcc IPCC_CLIENT_AOP
@@ -2689,7 +2649,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			gpio-ranges = <&tlmm 0 0 180>;
+			gpio-ranges = <&tlmm 0 0 181>;
 			wakeup-parent = <&pdc>;
 
 			pri_mi2s_active: pri-mi2s-active {
@@ -2983,304 +2943,324 @@
 				};
 			};
 
-			qup_spi0_default: qup-spi0-default {
-				mux {
-					pins = "gpio28", "gpio29",
-					       "gpio30", "gpio31";
-					function = "qup0";
-				};
-
-				config {
-					pins = "gpio28", "gpio29",
-					       "gpio30", "gpio31";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi0_cs: qup-spi0-cs {
+				pins = "gpio31";
+				function = "qup0";
 			};
 
-			qup_spi1_default: qup-spi1-default {
-				mux {
-					pins = "gpio4", "gpio5",
-					       "gpio6", "gpio7";
-					function = "qup1";
-				};
-
-				config {
-					pins = "gpio4", "gpio5",
-					       "gpio6", "gpio7";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi0_cs_gpio: qup-spi0-cs-gpio {
+				pins = "gpio31";
+				function = "gpio";
 			};
 
-			qup_spi2_default: qup-spi2-default {
-				mux {
-					pins = "gpio115", "gpio116",
-					       "gpio117", "gpio118";
-					function = "qup2";
-				};
-
-				config {
-					pins = "gpio115", "gpio116",
-					       "gpio117", "gpio118";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi0_data_clk: qup-spi0-data-clk {
+				pins = "gpio28", "gpio29",
+				       "gpio30";
+				function = "qup0";
 			};
 
-			qup_spi3_default: qup-spi3-default {
-				mux {
-					pins = "gpio119", "gpio120",
-					       "gpio121", "gpio122";
-					function = "qup3";
-				};
-
-				config {
-					pins = "gpio119", "gpio120",
-					       "gpio121", "gpio122";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi1_cs: qup-spi1-cs {
+				pins = "gpio7";
+				function = "qup1";
 			};
 
-			qup_spi4_default: qup-spi4-default {
-				mux {
-					pins = "gpio8", "gpio9",
-					       "gpio10", "gpio11";
-					function = "qup4";
-				};
-
-				config {
-					pins = "gpio8", "gpio9",
-					       "gpio10", "gpio11";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi1_cs_gpio: qup-spi1-cs-gpio {
+				pins = "gpio7";
+				function = "gpio";
 			};
 
-			qup_spi5_default: qup-spi5-default {
-				mux {
-					pins = "gpio12", "gpio13",
-					       "gpio14", "gpio15";
-					function = "qup5";
-				};
-
-				config {
-					pins = "gpio12", "gpio13",
-					       "gpio14", "gpio15";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi1_data_clk: qup-spi1-data-clk {
+				pins = "gpio4", "gpio5",
+				       "gpio6";
+				function = "qup1";
 			};
 
-			qup_spi6_default: qup-spi6-default {
-				mux {
-					pins = "gpio16", "gpio17",
-					       "gpio18", "gpio19";
-					function = "qup6";
-				};
-
-				config {
-					pins = "gpio16", "gpio17",
-					       "gpio18", "gpio19";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi2_cs: qup-spi2-cs {
+				pins = "gpio118";
+				function = "qup2";
 			};
 
-			qup_spi7_default: qup-spi7-default {
-				mux {
-					pins = "gpio20", "gpio21",
-					       "gpio22", "gpio23";
-					function = "qup7";
-				};
-
-				config {
-					pins = "gpio20", "gpio21",
-					       "gpio22", "gpio23";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi2_cs_gpio: qup-spi2-cs-gpio {
+				pins = "gpio118";
+				function = "gpio";
 			};
 
-			qup_spi8_default: qup-spi8-default {
-				mux {
-					pins = "gpio24", "gpio25",
-					       "gpio26", "gpio27";
-					function = "qup8";
-				};
-
-				config {
-					pins = "gpio24", "gpio25",
-					       "gpio26", "gpio27";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi2_data_clk: qup-spi2-data-clk {
+				pins = "gpio115", "gpio116",
+				       "gpio117";
+				function = "qup2";
 			};
 
-			qup_spi9_default: qup-spi9-default {
-				mux {
-					pins = "gpio125", "gpio126",
-					       "gpio127", "gpio128";
-					function = "qup9";
-				};
-
-				config {
-					pins = "gpio125", "gpio126",
-					       "gpio127", "gpio128";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi3_cs: qup-spi3-cs {
+				pins = "gpio122";
+				function = "qup3";
 			};
 
-			qup_spi10_default: qup-spi10-default {
-				mux {
-					pins = "gpio129", "gpio130",
-					       "gpio131", "gpio132";
-					function = "qup10";
-				};
-
-				config {
-					pins = "gpio129", "gpio130",
-					       "gpio131", "gpio132";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi3_cs_gpio: qup-spi3-cs-gpio {
+				pins = "gpio122";
+				function = "gpio";
 			};
 
-			qup_spi11_default: qup-spi11-default {
-				mux {
-					pins = "gpio60", "gpio61",
-					       "gpio62", "gpio63";
-					function = "qup11";
-				};
-
-				config {
-					pins = "gpio60", "gpio61",
-					       "gpio62", "gpio63";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi3_data_clk: qup-spi3-data-clk {
+				pins = "gpio119", "gpio120",
+				       "gpio121";
+				function = "qup3";
 			};
 
-			qup_spi12_default: qup-spi12-default {
-				mux {
-					pins = "gpio32", "gpio33",
-					       "gpio34", "gpio35";
-					function = "qup12";
-				};
-
-				config {
-					pins = "gpio32", "gpio33",
-					       "gpio34", "gpio35";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi4_cs: qup-spi4-cs {
+				pins = "gpio11";
+				function = "qup4";
 			};
 
-			qup_spi13_default: qup-spi13-default {
-				mux {
-					pins = "gpio36", "gpio37",
-					       "gpio38", "gpio39";
-					function = "qup13";
-				};
-
-				config {
-					pins = "gpio36", "gpio37",
-					       "gpio38", "gpio39";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi4_cs_gpio: qup-spi4-cs-gpio {
+				pins = "gpio11";
+				function = "gpio";
 			};
 
-			qup_spi14_default: qup-spi14-default {
-				mux {
-					pins = "gpio40", "gpio41",
-					       "gpio42", "gpio43";
-					function = "qup14";
-				};
-
-				config {
-					pins = "gpio40", "gpio41",
-					       "gpio42", "gpio43";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi4_data_clk: qup-spi4-data-clk {
+				pins = "gpio8", "gpio9",
+				       "gpio10";
+				function = "qup4";
 			};
 
-			qup_spi15_default: qup-spi15-default {
-				mux {
-					pins = "gpio44", "gpio45",
-					       "gpio46", "gpio47";
-					function = "qup15";
-				};
-
-				config {
-					pins = "gpio44", "gpio45",
-					       "gpio46", "gpio47";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi5_cs: qup-spi5-cs {
+				pins = "gpio15";
+				function = "qup5";
 			};
 
-			qup_spi16_default: qup-spi16-default {
-				mux {
-					pins = "gpio48", "gpio49",
-					       "gpio50", "gpio51";
-					function = "qup16";
-				};
-
-				config {
-					pins = "gpio48", "gpio49",
-					       "gpio50", "gpio51";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi5_cs_gpio: qup-spi5-cs-gpio {
+				pins = "gpio15";
+				function = "gpio";
 			};
 
-			qup_spi17_default: qup-spi17-default {
-				mux {
-					pins = "gpio52", "gpio53",
-					       "gpio54", "gpio55";
-					function = "qup17";
-				};
-
-				config {
-					pins = "gpio52", "gpio53",
-					       "gpio54", "gpio55";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi5_data_clk: qup-spi5-data-clk {
+				pins = "gpio12", "gpio13",
+				       "gpio14";
+				function = "qup5";
 			};
 
-			qup_spi18_default: qup-spi18-default {
-				mux {
-					pins = "gpio56", "gpio57",
-					       "gpio58", "gpio59";
-					function = "qup18";
-				};
-
-				config {
-					pins = "gpio56", "gpio57",
-					       "gpio58", "gpio59";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi6_cs: qup-spi6-cs {
+				pins = "gpio19";
+				function = "qup6";
 			};
 
-			qup_spi19_default: qup-spi19-default {
-				mux {
-					pins = "gpio0", "gpio1",
-					       "gpio2", "gpio3";
-					function = "qup19";
-				};
+			qup_spi6_cs_gpio: qup-spi6-cs-gpio {
+				pins = "gpio19";
+				function = "gpio";
+			};
 
-				config {
-					pins = "gpio0", "gpio1",
-					       "gpio2", "gpio3";
-					drive-strength = <6>;
-					bias-disable;
-				};
+			qup_spi6_data_clk: qup-spi6-data-clk {
+				pins = "gpio16", "gpio17",
+				       "gpio18";
+				function = "qup6";
+			};
+
+			qup_spi7_cs: qup-spi7-cs {
+				pins = "gpio23";
+				function = "qup7";
+			};
+
+			qup_spi7_cs_gpio: qup-spi7-cs-gpio {
+				pins = "gpio23";
+				function = "gpio";
+			};
+
+			qup_spi7_data_clk: qup-spi7-data-clk {
+				pins = "gpio20", "gpio21",
+				       "gpio22";
+				function = "qup7";
+			};
+
+			qup_spi8_cs: qup-spi8-cs {
+				pins = "gpio27";
+				function = "qup8";
+			};
+
+			qup_spi8_cs_gpio: qup-spi8-cs-gpio {
+				pins = "gpio27";
+				function = "gpio";
+			};
+
+			qup_spi8_data_clk: qup-spi8-data-clk {
+				pins = "gpio24", "gpio25",
+				       "gpio26";
+				function = "qup8";
+			};
+
+			qup_spi9_cs: qup-spi9-cs {
+				pins = "gpio128";
+				function = "qup9";
+			};
+
+			qup_spi9_cs_gpio: qup-spi9-cs-gpio {
+				pins = "gpio128";
+				function = "gpio";
+			};
+
+			qup_spi9_data_clk: qup-spi9-data-clk {
+				pins = "gpio125", "gpio126",
+				       "gpio127";
+				function = "qup9";
+			};
+
+			qup_spi10_cs: qup-spi10-cs {
+				pins = "gpio132";
+				function = "qup10";
+			};
+
+			qup_spi10_cs_gpio: qup-spi10-cs-gpio {
+				pins = "gpio132";
+				function = "gpio";
+			};
+
+			qup_spi10_data_clk: qup-spi10-data-clk {
+				pins = "gpio129", "gpio130",
+				       "gpio131";
+				function = "qup10";
+			};
+
+			qup_spi11_cs: qup-spi11-cs {
+				pins = "gpio63";
+				function = "qup11";
+			};
+
+			qup_spi11_cs_gpio: qup-spi11-cs-gpio {
+				pins = "gpio63";
+				function = "gpio";
+			};
+
+			qup_spi11_data_clk: qup-spi11-data-clk {
+				pins = "gpio60", "gpio61",
+				       "gpio62";
+				function = "qup11";
+			};
+
+			qup_spi12_cs: qup-spi12-cs {
+				pins = "gpio35";
+				function = "qup12";
+			};
+
+			qup_spi12_cs_gpio: qup-spi12-cs-gpio {
+				pins = "gpio35";
+				function = "gpio";
+			};
+
+			qup_spi12_data_clk: qup-spi12-data-clk {
+				pins = "gpio32", "gpio33",
+				       "gpio34";
+				function = "qup12";
+			};
+
+			qup_spi13_cs: qup-spi13-cs {
+				pins = "gpio39";
+				function = "qup13";
+			};
+
+			qup_spi13_cs_gpio: qup-spi13-cs-gpio {
+				pins = "gpio39";
+				function = "gpio";
+			};
+
+			qup_spi13_data_clk: qup-spi13-data-clk {
+				pins = "gpio36", "gpio37",
+				       "gpio38";
+				function = "qup13";
+			};
+
+			qup_spi14_cs: qup-spi14-cs {
+				pins = "gpio43";
+				function = "qup14";
+			};
+
+			qup_spi14_cs_gpio: qup-spi14-cs-gpio {
+				pins = "gpio43";
+				function = "gpio";
+			};
+
+			qup_spi14_data_clk: qup-spi14-data-clk {
+				pins = "gpio40", "gpio41",
+				       "gpio42";
+				function = "qup14";
+			};
+
+			qup_spi15_cs: qup-spi15-cs {
+				pins = "gpio47";
+				function = "qup15";
+			};
+
+			qup_spi15_cs_gpio: qup-spi15-cs-gpio {
+				pins = "gpio47";
+				function = "gpio";
+			};
+
+			qup_spi15_data_clk: qup-spi15-data-clk {
+				pins = "gpio44", "gpio45",
+				       "gpio46";
+				function = "qup15";
+			};
+
+			qup_spi16_cs: qup-spi16-cs {
+				pins = "gpio51";
+				function = "qup16";
+			};
+
+			qup_spi16_cs_gpio: qup-spi16-cs-gpio {
+				pins = "gpio51";
+				function = "gpio";
+			};
+
+			qup_spi16_data_clk: qup-spi16-data-clk {
+				pins = "gpio48", "gpio49",
+				       "gpio50";
+				function = "qup16";
+			};
+
+			qup_spi17_cs: qup-spi17-cs {
+				pins = "gpio55";
+				function = "qup17";
+			};
+
+			qup_spi17_cs_gpio: qup-spi17-cs-gpio {
+				pins = "gpio55";
+				function = "gpio";
+			};
+
+			qup_spi17_data_clk: qup-spi17-data-clk {
+				pins = "gpio52", "gpio53",
+				       "gpio54";
+				function = "qup17";
+			};
+
+			qup_spi18_cs: qup-spi18-cs {
+				pins = "gpio59";
+				function = "qup18";
+			};
+
+			qup_spi18_cs_gpio: qup-spi18-cs-gpio {
+				pins = "gpio59";
+				function = "gpio";
+			};
+
+			qup_spi18_data_clk: qup-spi18-data-clk {
+				pins = "gpio56", "gpio57",
+				       "gpio58";
+				function = "qup18";
+			};
+
+			qup_spi19_cs: qup-spi19-cs {
+				pins = "gpio3";
+				function = "qup19";
+			};
+
+			qup_spi19_cs_gpio: qup-spi19-cs-gpio {
+				pins = "gpio3";
+				function = "gpio";
+			};
+
+			qup_spi19_data_clk: qup-spi19-data-clk {
+				pins = "gpio0", "gpio1",
+				       "gpio2";
+				function = "qup19";
 			};
 
 			qup_uart2_default: qup-uart2-default {
@@ -3754,7 +3734,7 @@
 				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11
 				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 12
+			     <GIC_PPI 10
 				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 

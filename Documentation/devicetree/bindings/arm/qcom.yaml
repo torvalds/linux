@@ -37,6 +37,7 @@ description: |
         msm8994
         msm8996
         sc7180
+        sc7280
         sdm630
         sdm660
         sdm845
@@ -137,6 +138,16 @@ properties:
           - const: qcom,msm8916
 
       - items:
+          - enum:
+              - sony,karin_windy
+              - sony,karin-row
+              - sony,satsuki-row
+              - sony,sumire-row
+              - sony,suzuran-row
+              - qcom,msm8994
+          - const: qcom,apq8094
+
+      - items:
           - const: qcom,msm8996-mtp
 
       - items:
@@ -166,6 +177,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sc7280-idp
+          - const: qcom,sc7280
+
+      - items:
+          - enum:
               - xiaomi,lavender
           - const: qcom,sdm660
 
@@ -176,6 +192,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
 
@@ -187,6 +204,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,sm8350-hdk
               - qcom,sm8350-mtp
           - const: qcom,sm8350
 

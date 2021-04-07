@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2020, Linaro Limited
+ * Copyright (c) 2020-2021, Linaro Limited
  */
 
 /dts-v1/;
@@ -8,16 +8,10 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sm8350.dtsi"
-#include "pm8350.dtsi"
-#include "pm8350b.dtsi"
-#include "pm8350c.dtsi"
-#include "pmk8350.dtsi"
-#include "pmr735a.dtsi"
-#include "pmr735b.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. sm8350 MTP";
-	compatible = "qcom,sm8350-mtp", "qcom,sm8350";
+	model = "Qualcomm Technologies, Inc. SM8350 HDK";
+	compatible = "qcom,sm8350-hdk", "qcom,sm8350";
 
 	aliases {
 		serial0 = &uart2;
@@ -65,24 +59,26 @@
 		vdd-l2-l7-supply = <&vreg_bob>;
 		vdd-l3-l5-supply = <&vreg_bob>;
 		vdd-l6-l9-l10-supply = <&vreg_s11b_0p95>;
-		vdd-l8-supply = <&vreg_s2c_0p8>;
 
 		vreg_s10b_1p8: smps10 {
 			regulator-name = "vreg_s10b_1p8";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_s11b_0p95: smps11 {
 			regulator-name = "vreg_s11b_0p95";
-			regulator-min-microvolt = <752000>;
-			regulator-max-microvolt = <1000000>;
+			regulator-min-microvolt = <952000>;
+			regulator-max-microvolt = <952000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_s12b_1p25: smps12 {
 			regulator-name = "vreg_s12b_1p25";
-			regulator-min-microvolt = <1224000>;
-			regulator-max-microvolt = <1360000>;
+			regulator-min-microvolt = <1256000>;
+			regulator-max-microvolt = <1256000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l1b_0p88: ldo1 {
@@ -107,10 +103,11 @@
 		};
 
 		vreg_l5b_0p88: ldo5 {
-			regulator-name = "vreg_l3b_0p9";
+			regulator-name = "vreg_l5b_0p88";
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <888000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
 		};
 
 		vreg_l6b_1p2: ldo6 {
@@ -118,13 +115,15 @@
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1208000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
 		};
 
 		vreg_l7b_2p96: ldo7 {
 			regulator-name = "vreg_l7b_2p96";
-			regulator-min-microvolt = <2400000>;
-			regulator-max-microvolt = <3008000>;
+			regulator-min-microvolt = <2504000>;
+			regulator-max-microvolt = <2504000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
 		};
 
 		vreg_l9b_1p2: ldo9 {
@@ -132,6 +131,7 @@
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
 		};
 	};
 
@@ -160,20 +160,9 @@
 
 		vreg_s1c_1p86: smps1 {
 			regulator-name = "vreg_s1c_1p86";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1952000>;
-		};
-
-		vreg_s2c_0p8: smps2 {
-			regulator-name = "vreg_s2c_0p8";
-			regulator-min-microvolt = <640000>;
-			regulator-max-microvolt = <1000000>;
-		};
-
-		vreg_s10c_1p05: smps10 {
-			regulator-name = "vreg_s10c_1p05";
-			regulator-min-microvolt = <1048000>;
-			regulator-max-microvolt = <1128000>;
+			regulator-min-microvolt = <1856000>;
+			regulator-max-microvolt = <1880000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_bob: bob {
@@ -197,45 +186,10 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		vreg_l3c_3p0: ldo3 {
-			regulator-name = "vreg_l3c_3p0";
-			regulator-min-microvolt = <3008000>;
-			regulator-max-microvolt = <3008000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l4c_uim1: ldo4 {
-			regulator-name = "vreg_l4c_uim1";
-			regulator-min-microvolt = <1704000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l5c_uim2: ldo5 {
-			regulator-name = "vreg_l5c_uim2";
-			regulator-min-microvolt = <1704000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
 		vreg_l6c_1p8: ldo6 {
 			regulator-name = "vreg_l6c_1p8";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2960000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l7c_3p0: ldo7 {
-			regulator-name = "vreg_l7c_3p0";
-			regulator-min-microvolt = <3008000>;
-			regulator-max-microvolt = <3008000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l8c_1p8: ldo8 {
-			regulator-name = "vreg_l8c_1p8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -250,27 +204,6 @@
 			regulator-name = "vreg_l10c_1p2";
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l11c_2p96: ldo11 {
-			regulator-name = "vreg_l11c_2p96";
-			regulator-min-microvolt = <2400000>;
-			regulator-max-microvolt = <3008000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l12c_1p8: ldo12 {
-			regulator-name = "vreg_l12c_1p8";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2000000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};
-
-		vreg_l13c_3p0: ldo13 {
-			regulator-name = "vreg_l13c_3p0";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
@@ -328,6 +261,7 @@
 };
 
 &usb_1_dwc3 {
+	/* TODO: Define USB-C connector properly */
 	dr_mode = "peripheral";
 };
 
@@ -350,6 +284,13 @@
 	status = "okay";
 };
 
+&usb_2_dwc3 {
+	dr_mode = "host";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb_hub_enabled_state>;
+};
+
 &usb_2_hsphy {
 	status = "okay";
 
@@ -363,4 +304,16 @@
 
 	vdda-phy-supply = <&vreg_l6b_1p2>;
 	vdda-pll-supply = <&vreg_l5b_0p88>;
+};
+
+/* PINCTRL - additions to nodes defined in sm8350.dtsi */
+
+&tlmm {
+	usb_hub_enabled_state: usb-hub-enabled-state {
+		pins = "gpio42";
+		function = "gpio";
+
+		drive-strength = <2>;
+		output-low;
+	};
 };
