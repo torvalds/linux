@@ -273,6 +273,7 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(10000, KR, Full),
 	[ETHTOOL_LINK_MODE_10000baseR_FEC_BIT] = {
 		.speed	= SPEED_10000,
+		.lanes	= 1,
 		.duplex = DUPLEX_FULL,
 	},
 	__DEFINE_LINK_MODE_PARAMS(20000, MLD2, Full),
