@@ -2648,7 +2648,8 @@ static int rtw_dbg_port(struct net_device *dev,
 					struct registry_priv *pregpriv = &padapter->registrypriv;
 					/*  0: disable, bit(0):enable 2.4g, bit(1):enable 5g, 0x3: enable both 2.4g and 5g */
 					/* default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ */
-					if (extra_arg == 0 || extra_arg == 1 || extra_arg == 2 || extra_arg == 3)
+					if (extra_arg == 0 || extra_arg == 1 ||
+					    extra_arg == 2 || extra_arg == 3)
 						pregpriv->rx_stbc = extra_arg;
 				}
 				break;
