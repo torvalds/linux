@@ -4727,6 +4727,28 @@ static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr)
 	queue_work(system_long_wq, &mgr->tx_work);
 }
 
+/*
+ * Helper function for parsing DP device types into convenient strings
+ * for use with dp_mst_topology
+ */
+static const char *pdt_to_string(u8 pdt)
+{
+	switch (pdt) {
+	case DP_PEER_DEVICE_NONE:
+		return "NONE";
+	case DP_PEER_DEVICE_SOURCE_OR_SST:
+		return "SOURCE OR SST";
+	case DP_PEER_DEVICE_MST_BRANCHING:
+		return "MST BRANCHING";
+	case DP_PEER_DEVICE_SST_SINK:
+		return "SST SINK";
+	case DP_PEER_DEVICE_DP_LEGACY_CONV:
+		return "DP LEGACY CONV";
+	default:
+		return "ERR";
+	}
+}
+
 static void drm_dp_mst_dump_mstb(struct seq_file *m,
 				 struct drm_dp_mst_branch *mstb)
 {
@@ -4739,9 +4761,20 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 		prefix[i] = '\t';
 	prefix[i] = '\0';
 
-	seq_printf(m, "%smst: %p, %d\n", prefix, mstb, mstb->num_ports);
+	seq_printf(m, "%smstb - [%p]: num_ports: %d\n", prefix, mstb, mstb->num_ports);
 	list_for_each_entry(port, &mstb->ports, next) {
-		seq_printf(m, "%sport: %d: input: %d: pdt: %d, ddps: %d ldps: %d, sdp: %d/%d, %p, conn: %p\n", prefix, port->port_num, port->input, port->pdt, port->ddps, port->ldps, port->num_sdp_streams, port->num_sdp_stream_sinks, port, port->connector);
+		seq_printf(m, "%sport %d - [%p] (%s - %s): ddps: %d, ldps: %d, sdp: %d/%d, fec: %s, conn: %p\n", 
+			   prefix,
+			   port->port_num,
+			   port,
+			   port->input ? "input" : "output",
+			   pdt_to_string(port->pdt),
+			   port->ddps,
+			   port->ldps,
+			   port->num_sdp_streams,
+			   port->num_sdp_stream_sinks,
+			   port->fec_capable ? "true" : "false",
+			   port->connector);
 		if (port->mstb)
 			drm_dp_mst_dump_mstb(m, port->mstb);
 	}
@@ -4794,33 +4827,37 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	mutex_unlock(&mgr->lock);
 
 	mutex_lock(&mgr->payload_lock);
-	seq_printf(m, "vcpi: %lx %lx %d\n", mgr->payload_mask, mgr->vcpi_mask,
-		mgr->max_payloads);
+	seq_printf(m, "\n*** VCPI Info ***\n");
+	seq_printf(m, "payload_mask: %lx, vcpi_mask: %lx, max_payloads: %d\n", mgr->payload_mask, mgr->vcpi_mask, mgr->max_payloads);
 
+	seq_printf(m, "\n|   idx   |  port # |  vcp_id | # slots |     sink name     |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
 		if (mgr->proposed_vcpis[i]) {
 			char name[14];
 
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
 			fetch_monitor_name(mgr, port, name, sizeof(name));
-			seq_printf(m, "vcpi %d: %d %d %d sink name: %s\n", i,
-				   port->port_num, port->vcpi.vcpi,
+			seq_printf(m, "%10d%10d%10d%10d%20s\n",
+				   i,
+				   port->port_num,
+				   port->vcpi.vcpi,
 				   port->vcpi.num_slots,
-				   (*name != 0) ? name :  "Unknown");
+				   (*name != 0) ? name : "Unknown");
 		} else
-			seq_printf(m, "vcpi %d:unused\n", i);
+			seq_printf(m, "%6d - Unused\n", i);
 	}
+	seq_printf(m, "\n*** Payload Info ***\n");
+	seq_printf(m, "|   idx   |  state  |  start slot  | # slots |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
-		seq_printf(m, "payload %d: %d, %d, %d\n",
+		seq_printf(m, "%10d%10d%15d%10d\n",
 			   i,
 			   mgr->payloads[i].payload_state,
 			   mgr->payloads[i].start_slot,
 			   mgr->payloads[i].num_slots);
-
-
 	}
 	mutex_unlock(&mgr->payload_lock);
 
+	seq_printf(m, "\n*** DPCD Info ***\n");
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		u8 buf[DP_PAYLOAD_TABLE_SIZE];

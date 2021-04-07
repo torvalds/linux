@@ -69,7 +69,6 @@ struct ttm_lru_bulk_move_pos {
 struct ttm_lru_bulk_move {
 	struct ttm_lru_bulk_move_pos tt[TTM_MAX_BO_PRIORITY];
 	struct ttm_lru_bulk_move_pos vram[TTM_MAX_BO_PRIORITY];
-	struct ttm_lru_bulk_move_pos swap[TTM_MAX_BO_PRIORITY];
 };
 
 /*
@@ -181,9 +180,9 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 static inline void
 ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
 {
-	spin_lock(&ttm_glob.lru_lock);
+	spin_lock(&bo->bdev->lru_lock);
 	ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
-	spin_unlock(&ttm_glob.lru_lock);
+	spin_unlock(&bo->bdev->lru_lock);
 }
 
 static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,

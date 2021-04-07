@@ -56,17 +56,11 @@ extern struct ttm_global {
 	 */
 
 	struct page *dummy_read_page;
-	spinlock_t lru_lock;
 
 	/**
 	 * Protected by ttm_global_mutex.
 	 */
 	struct list_head device_list;
-
-	/**
-	 * Protected by the lru_lock.
-	 */
-	struct list_head swap_lru[TTM_MAX_BO_PRIORITY];
 
 	/**
 	 * Internal protection.
@@ -282,8 +276,9 @@ struct ttm_device {
 	struct ttm_pool pool;
 
 	/*
-	 * Protected by the global:lru lock.
+	 * Protection for the per manager LRU and ddestroy lists.
 	 */
+	spinlock_t lru_lock;
 	struct list_head ddestroy;
 
 	/*
@@ -296,6 +291,10 @@ struct ttm_device {
 	 */
 	struct delayed_work wq;
 };
+
+int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags);
+int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
+		       gfp_t gfp_flags);
 
 static inline struct ttm_resource_manager *
 ttm_manager_type(struct ttm_device *bdev, int mem_type)

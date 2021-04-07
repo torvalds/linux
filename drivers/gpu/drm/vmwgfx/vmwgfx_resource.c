@@ -847,13 +847,15 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
  * vmw_query_move_notify - Read back cached query states
  *
  * @bo: The TTM buffer object about to move.
- * @mem: The memory region @bo is moving to.
+ * @old_mem: The memory region @bo is moving from.
+ * @new_mem: The memory region @bo is moving to.
  *
  * Called before the query MOB is swapped out to read back cached query
  * states from the device.
  */
 void vmw_query_move_notify(struct ttm_buffer_object *bo,
-			   struct ttm_resource *mem)
+			   struct ttm_resource *old_mem,
+			   struct ttm_resource *new_mem)
 {
 	struct vmw_buffer_object *dx_query_mob;
 	struct ttm_device *bdev = bo->bdev;
@@ -871,7 +873,8 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 	}
 
 	/* If BO is being moved from MOB to system memory */
-	if (mem->mem_type == TTM_PL_SYSTEM && bo->mem.mem_type == VMW_PL_MOB) {
+	if (new_mem->mem_type == TTM_PL_SYSTEM &&
+	    old_mem->mem_type == VMW_PL_MOB) {
 		struct vmw_fence_obj *fence;
 
 		(void) vmw_query_readback_all(dx_query_mob);

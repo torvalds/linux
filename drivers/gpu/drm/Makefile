@@ -7,7 +7,7 @@ drm-y       :=	drm_auth.o drm_cache.o \
 		drm_file.o drm_gem.o drm_ioctl.o drm_irq.o \
 		drm_drv.o \
 		drm_sysfs.o drm_hashtab.o drm_mm.o \
-		drm_crtc.o drm_fourcc.o drm_modes.o drm_edid.o \
+		drm_crtc.o drm_fourcc.o drm_modes.o drm_edid.o drm_displayid.o \
 		drm_encoder_slave.o \
 		drm_trace_points.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o drm_flip_work.o \
@@ -125,3 +125,4 @@ obj-$(CONFIG_DRM_ASPEED_GFX) += aspeed/
 obj-$(CONFIG_DRM_MCDE) += mcde/
 obj-$(CONFIG_DRM_TIDSS) += tidss/
 obj-y			+= xlnx/
+obj-y			+= gud/

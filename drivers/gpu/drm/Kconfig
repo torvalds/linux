@@ -384,6 +384,8 @@ source "drivers/gpu/drm/tidss/Kconfig"
 
 source "drivers/gpu/drm/xlnx/Kconfig"
 
+source "drivers/gpu/drm/gud/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY

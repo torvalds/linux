@@ -121,7 +121,6 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 }
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
-			       bool evict,
 			       struct ttm_resource *new_mem)
 {
 	struct qxl_bo *qbo;
@@ -144,29 +143,22 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 
-	qxl_bo_move_notify(bo, evict, new_mem);
+	qxl_bo_move_notify(bo, new_mem);
 
 	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		ttm_bo_move_null(bo, new_mem);
 		return 0;
 	}
-	ret = ttm_bo_move_memcpy(bo, ctx, new_mem);
-out:
-	if (ret) {
-		swap(*new_mem, bo->mem);
-		qxl_bo_move_notify(bo, false, new_mem);
-		swap(*new_mem, bo->mem);
-	}
-	return ret;
+	return ttm_bo_move_memcpy(bo, ctx, new_mem);
 }
 
 static void qxl_bo_delete_mem_notify(struct ttm_buffer_object *bo)
 {
-	qxl_bo_move_notify(bo, false, NULL);
+	qxl_bo_move_notify(bo, NULL);
 }
 
 static struct ttm_device_funcs qxl_bo_driver = {
