@@ -416,9 +416,6 @@ static union recv_frame *decryptor(struct adapter *padapter, union recv_frame *p
 	if ((prxattrib->encrypt > 0) && ((prxattrib->bdecrypted == 0) || (psecuritypriv->sw_decrypt == true))) {
 		psecuritypriv->hw_decrypted = false;
 
-		#ifdef DBG_RX_DECRYPTOR
-		#endif
-
 		switch (prxattrib->encrypt) {
 		case _WEP40_:
 		case _WEP104_:
@@ -437,12 +434,7 @@ static union recv_frame *decryptor(struct adapter *padapter, union recv_frame *p
 		   (psecuritypriv->busetkipkey == 1 || prxattrib->encrypt != _TKIP_)
 		) {
 		psecuritypriv->hw_decrypted = true;
-		#ifdef DBG_RX_DECRYPTOR
-
-		#endif
 	} else {
-		#ifdef DBG_RX_DECRYPTOR
-		#endif
 	}
 
 	if (res == _FAIL) {
@@ -765,16 +757,12 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 
 		/*  filter packets that SA is myself or multicast or broadcast */
 		if (!memcmp(myhwaddr, pattrib->src, ETH_ALEN)) {
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 			ret = _FAIL;
 			goto exit;
 		}
 
 		/*  da should be for me */
 		if ((memcmp(myhwaddr, pattrib->dst, ETH_ALEN)) && (!bmcast)) {
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 			ret = _FAIL;
 			goto exit;
 		}
@@ -784,8 +772,6 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 		if (!memcmp(pattrib->bssid, "\x0\x0\x0\x0\x0\x0", ETH_ALEN) ||
 		     !memcmp(mybssid, "\x0\x0\x0\x0\x0\x0", ETH_ALEN) ||
 		     (memcmp(pattrib->bssid, mybssid, ETH_ALEN))) {
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 
 			if (!bmcast) {
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
@@ -801,8 +787,6 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 			*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); /*  get ap_info */
 
 		if (!*psta) {
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 			ret = _FAIL;
 			goto exit;
 		}
@@ -828,8 +812,6 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 
 		*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); /*  get sta_info */
 		if (!*psta) {
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 			ret = _FAIL;
 			goto exit;
 		}
@@ -856,8 +838,6 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 		}
 
 		ret = _FAIL;
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 	}
 
 exit:
@@ -1267,8 +1247,6 @@ static signed int validate_recv_data_frame(struct adapter *adapter, union recv_f
 	pbssid = get_hdr_bssid(ptr);
 
 	if (!pbssid) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		ret = _FAIL;
 		goto exit;
 	}
@@ -1310,8 +1288,6 @@ static signed int validate_recv_data_frame(struct adapter *adapter, union recv_f
 	}
 
 	if (ret == _FAIL) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		goto exit;
 	} else if (ret == RTW_RX_HANDLED) {
 		goto exit;
@@ -1319,8 +1295,6 @@ static signed int validate_recv_data_frame(struct adapter *adapter, union recv_f
 
 
 	if (!psta) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		ret = _FAIL;
 		goto exit;
 	}
@@ -1355,8 +1329,6 @@ static signed int validate_recv_data_frame(struct adapter *adapter, union recv_f
 
 	/*  decache, drop duplicate recv packets */
 	if (recv_decache(precv_frame, bretry, &psta->sta_recvpriv.rxcache) == _FAIL) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		ret = _FAIL;
 		goto exit;
 	}
@@ -1523,8 +1495,6 @@ static signed int validate_recv_frame(struct adapter *adapter, union recv_frame 
 		}
 		break;
 	default:
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		retval = _FAIL;
 		break;
 	}
@@ -1681,8 +1651,6 @@ static int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_n
 	/*  Rx Reorder initialize condition. */
 	if (preorder_ctrl->indicate_seq == 0xFFFF) {
 		preorder_ctrl->indicate_seq = seq_num;
-		#ifdef DBG_RX_SEQ
-		#endif
 
 		/* DbgPrint("check_indicate_seq, 1st->indicate_seq =%d\n", precvpriv->indicate_seq); */
 	}
@@ -1692,10 +1660,6 @@ static int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_n
 	/*  Drop out the packet which SeqNum is smaller than WinStart */
 	if (SN_LESS(seq_num, preorder_ctrl->indicate_seq)) {
 		/* DbgPrint("CheckRxTsIndicateSeq(): Packet Drop! IndicateSeq: %d, NewSeq: %d\n", precvpriv->indicate_seq, seq_num); */
-
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
-
 
 		return false;
 	}
@@ -1708,8 +1672,6 @@ static int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_n
 	if (SN_EQUAL(seq_num, preorder_ctrl->indicate_seq)) {
 		preorder_ctrl->indicate_seq = (preorder_ctrl->indicate_seq + 1) & 0xFFF;
 
-		#ifdef DBG_RX_SEQ
-		#endif
 	} else if (SN_LESS(wend, seq_num)) {
 		/* DbgPrint("CheckRxTsIndicateSeq(): Window Shift! IndicateSeq: %d, NewSeq: %d\n", precvpriv->indicate_seq, seq_num); */
 
@@ -1719,8 +1681,6 @@ static int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_n
 		else
 			preorder_ctrl->indicate_seq = 0xFFF - (wsize - (seq_num + 1)) + 1;
 		pdbgpriv->dbg_rx_ampdu_window_shift_cnt++;
-		#ifdef DBG_RX_SEQ
-		#endif
 	}
 
 	/* DbgPrint("exit->check_indicate_seq(): IndicateSeq: %d, NewSeq: %d\n", precvpriv->indicate_seq, seq_num); */
@@ -1818,8 +1778,6 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 		prframe = (union recv_frame *)plist;
 		pattrib = &prframe->u.hdr.attrib;
 
-		#ifdef DBG_RX_SEQ
-		#endif
 		recv_indicatepkts_pkt_loss_cnt(pdbgpriv, preorder_ctrl->indicate_seq, pattrib->seq_num);
 		preorder_ctrl->indicate_seq = pattrib->seq_num;
 
@@ -1838,8 +1796,6 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 
 			if (SN_EQUAL(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
 				preorder_ctrl->indicate_seq = (preorder_ctrl->indicate_seq + 1) & 0xFFF;
-				#ifdef DBG_RX_SEQ
-				#endif
 			}
 
 			/* Set this as a lock to make sure that only one thread is indicating packet. */
@@ -1904,9 +1860,6 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 
 			}
 
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
-
 			return _FAIL;
 
 		}
@@ -1914,32 +1867,22 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 		if (preorder_ctrl->enable == false) {
 			/* indicate this recv_frame */
 			preorder_ctrl->indicate_seq = pattrib->seq_num;
-			#ifdef DBG_RX_SEQ
-			#endif
 
 			rtw_recv_indicatepkt(padapter, prframe);
 
 			preorder_ctrl->indicate_seq = (preorder_ctrl->indicate_seq + 1)%4096;
-			#ifdef DBG_RX_SEQ
-			#endif
 
 			return _SUCCESS;
 		}
 	} else if (pattrib->amsdu == 1) { /* temp filter -> means didn't support A-MSDUs in a A-MPDU */
 		if (preorder_ctrl->enable == false) {
 			preorder_ctrl->indicate_seq = pattrib->seq_num;
-			#ifdef DBG_RX_SEQ
-			#endif
 
 			retval = amsdu_to_msdu(padapter, prframe);
 
 			preorder_ctrl->indicate_seq = (preorder_ctrl->indicate_seq + 1)%4096;
-			#ifdef DBG_RX_SEQ
-			#endif
 
 			if (retval != _SUCCESS) {
-				#ifdef DBG_RX_DROP_FRAME
-				#endif
 			}
 
 			return retval;
@@ -1951,8 +1894,6 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 	/* s2. check if winstart_b(indicate_seq) needs to been updated */
 	if (!check_indicate_seq(preorder_ctrl, pattrib->seq_num)) {
 		pdbgpriv->dbg_rx_ampdu_drop_count++;
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		goto _err_exit;
 	}
 
@@ -1962,8 +1903,6 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 		/* DbgPrint("recv_indicatepkt_reorder, enqueue_reorder_recvframe fail!\n"); */
 		/* spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql); */
 		/* return _FAIL; */
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		goto _err_exit;
 	}
 
@@ -2028,8 +1967,6 @@ static int process_recv_indicatepkts(struct adapter *padapter, union recv_frame 
 		/* prframe->u.hdr.preorder_ctrl = &precvpriv->recvreorder_ctrl[pattrib->priority]; */
 
 		if (recv_indicatepkt_reorder(padapter, prframe) != _SUCCESS) { /*  including perform A-MPDU Rx Ordering Buffer Control */
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 
 			if ((padapter->bDriverStopped == false) &&
 			    (padapter->bSurpriseRemoved == false)) {
@@ -2040,8 +1977,6 @@ static int process_recv_indicatepkts(struct adapter *padapter, union recv_frame 
 	} else { /* B/G mode */
 		retval = wlanhdr_to_ethhdr(prframe);
 		if (retval != _SUCCESS) {
-			#ifdef DBG_RX_DROP_FRAME
-			#endif
 			return retval;
 		}
 
@@ -2084,23 +2019,17 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 
 	prframe = decryptor(padapter, prframe);
 	if (!prframe) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		ret = _FAIL;
 		goto _recv_data_drop;
 	}
 
 	prframe = recvframe_chk_defrag(padapter, prframe);
 	if (!prframe)	{
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		goto _recv_data_drop;
 	}
 
 	prframe = portctrl(padapter, prframe);
 	if (!prframe) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		ret = _FAIL;
 		goto _recv_data_drop;
 	}
@@ -2109,8 +2038,6 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 
 	ret = process_recv_indicatepkts(padapter, prframe);
 	if (ret != _SUCCESS) {
-		#ifdef DBG_RX_DROP_FRAME
-		#endif
 		rtw_free_recvframe(orig_prframe, pfree_recv_queue);/* free this recv_frame */
 		goto _recv_data_drop;
 	}
@@ -2261,9 +2188,6 @@ static void rtw_signal_stat_timer_hdl(struct timer_list *t)
 		recvpriv->signal_strength = tmp_s;
 		recvpriv->rssi = (s8)translate_percentage_to_dbm(tmp_s);
 		recvpriv->signal_qual = tmp_q;
-
-		#if defined(DBG_RX_SIGNAL_DISPLAY_PROCESSING) && 1
-		#endif
 	}
 
 set_timer:

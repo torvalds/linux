@@ -194,8 +194,6 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 	s32 res = 0;
 
 	if (rtw_if_up(padapter) == false) {
-		#ifdef DBG_TX_DROP_FRAME
-		#endif
 		goto drop_packet;
 	}
 
@@ -216,8 +214,6 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 
 	res = rtw_xmit(padapter, &pkt);
 	if (res < 0) {
-		#ifdef DBG_TX_DROP_FRAME
-		#endif
 		goto drop_packet;
 	}
 

@@ -170,9 +170,6 @@ static void update_BCNTIM(struct adapter *padapter)
 u8 chk_sta_is_alive(struct sta_info *psta);
 u8 chk_sta_is_alive(struct sta_info *psta)
 {
-	#ifdef DBG_EXPIRATION_CHK
-	#endif
-
 	sta_update_last_rx_pkts(psta);
 
 	return true;
@@ -194,8 +191,6 @@ void expire_timeout_chk(struct adapter *padapter)
 	plist = get_next(phead);
 
 	/* check auth_queue */
-	#ifdef DBG_EXPIRATION_CHK
-	#endif
 	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, auth_list);
 
@@ -225,8 +220,6 @@ void expire_timeout_chk(struct adapter *padapter)
 	plist = get_next(phead);
 
 	/* check asoc_queue */
-	#ifdef DBG_EXPIRATION_CHK
-	#endif
 	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 		plist = get_next(plist);

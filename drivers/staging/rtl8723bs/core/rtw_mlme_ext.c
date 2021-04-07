@@ -1802,8 +1802,6 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 				preorder_ctrl =  &psta->recvreorder_ctrl[tid];
 				preorder_ctrl->enable = false;
 				preorder_ctrl->indicate_seq = 0xffff;
-				#ifdef DBG_RX_SEQ
-				#endif
 			}
 			/* todo: how to notify the host while receiving DELETE BA */
 			break;
@@ -3864,8 +3862,6 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
 				psta->recvreorder_ctrl[tid].enable = false;
 				psta->recvreorder_ctrl[tid].indicate_seq = 0xffff;
-				#ifdef DBG_RX_SEQ
-				#endif
 			}
 		}
 	} else if (initiator == 1) {/*  originator */
@@ -3938,10 +3934,6 @@ void site_survey(struct adapter *padapter)
 			ScanType = (ch->flags & RTW_IEEE80211_CHAN_PASSIVE_SCAN) ? SCAN_PASSIVE : SCAN_ACTIVE;
 		}
 	}
-
-#ifdef DBG_FIXED_CHAN
-	
-#endif
 
 	if (survey_channel != 0) {
 		/* PAUSE 4-AC Queue when site_survey */
@@ -4189,9 +4181,6 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 		} else
 			pmlmepriv->num_sta_no_ht++;
 	}
-
-	#if defined(DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) & 1
-	#endif
 
 	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
 	if (bssid->Configuration.DSConfig != rtw_get_oper_ch(padapter))
@@ -5203,9 +5192,6 @@ static u8 chk_ap_is_alive(struct adapter *padapter, struct sta_info *psta)
 {
 	u8 ret = false;
 
-	#ifdef DBG_EXPIRATION_CHK
-	#endif
-
 	if ((sta_rx_data_pkts(psta) == sta_last_rx_data_pkts(psta))
 		&& sta_rx_beacon_pkts(psta) == sta_last_rx_beacon_pkts(psta)
 		&& sta_rx_probersp_pkts(psta) == sta_last_rx_probersp_pkts(psta)
@@ -5258,8 +5244,6 @@ void linked_status_chk(struct adapter *padapter)
 			{
 				if (rx_chk != _SUCCESS) {
 					if (pmlmeext->retry == 0) {
-						#ifdef DBG_EXPIRATION_CHK
-						#endif
 						issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress, 0, 0, 0, 0);
 						issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress, 0, 0, 0, 0);
 						issue_probereq_ex(padapter, &pmlmeinfo->network.Ssid, pmlmeinfo->network.MacAddress, 0, 0, 0, 0);
@@ -5267,8 +5251,6 @@ void linked_status_chk(struct adapter *padapter)
 				}
 
 				if (tx_chk != _SUCCESS && pmlmeinfo->link_count++ == link_count_limit) {
-					#ifdef DBG_EXPIRATION_CHK
-					#endif
 					tx_chk = issue_nulldata_in_interrupt(padapter, NULL);
 				}
 			}
