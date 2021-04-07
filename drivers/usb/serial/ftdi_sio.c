@@ -1496,27 +1496,16 @@ static int set_serial_info(struct tty_struct *tty,
 	mutex_lock(&priv->cfg_lock);
 	old_priv = *priv;
 
-	/* Do error checking and permission checking */
-
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((ss->flags ^ priv->flags) & ~ASYNC_USR_MASK) {
 			mutex_unlock(&priv->cfg_lock);
 			return -EPERM;
 		}
-		priv->flags = ((priv->flags & ~ASYNC_USR_MASK) |
-			       (ss->flags & ASYNC_USR_MASK));
-		priv->custom_divisor = ss->custom_divisor;
-		goto check_and_exit;
 	}
 
-
-	/* Make the changes - these are privileged changes! */
-
-	priv->flags = ((priv->flags & ~ASYNC_FLAGS) |
-					(ss->flags & ASYNC_FLAGS));
+	priv->flags = ss->flags & ASYNC_FLAGS;
 	priv->custom_divisor = ss->custom_divisor;
 
-check_and_exit:
 	write_latency_timer(port);
 
 	if ((priv->flags ^ old_priv.flags) & ASYNC_SPD_MASK ||
