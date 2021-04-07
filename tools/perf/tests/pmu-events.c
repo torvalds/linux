@@ -539,7 +539,7 @@ out_err:
 
 static int test_parsing(void)
 {
-	struct pmu_events_map *cpus_map = perf_pmu__find_map(NULL);
+	struct pmu_events_map *cpus_map = pmu_events_map__find();
 	struct pmu_events_map *map;
 	struct pmu_event *pe;
 	int i, j, k;

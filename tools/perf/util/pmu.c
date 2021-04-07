@@ -717,6 +717,11 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 	return map;
 }
 
+struct pmu_events_map *__weak pmu_events_map__find(void)
+{
+	return perf_pmu__find_map(NULL);
+}
+
 bool pmu_uncore_alias_match(const char *pmu_name, const char *name)
 {
 	char *tmp = NULL, *tok, *str;
