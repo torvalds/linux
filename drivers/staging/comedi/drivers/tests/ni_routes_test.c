@@ -63,24 +63,24 @@ static const int no_val_dest = O(7), no_val_index = 4;
 
 /* I1 and I2 should not call O(...).  Mostly here to shut checkpatch.pl up */
 #define I1(x1)	\
-	(int[]){ \
-		x1, 0 \
-	}
+	((int[]){ \
+		(x1), 0 \
+	 })
 #define I2(x1, x2)	\
-	(int[]){ \
+	((int[]){ \
 		(x1), (x2), 0 \
-	}
+	 })
 #define I3(x1, x2, x3)	\
-	(int[]){ \
+	((int[]){ \
 		(x1), (x2), (x3), 0 \
-	}
+	 })
 
 /* O9 is build to call O(...) for each arg */
 #define O9(x1, x2, x3, x4, x5, x6, x7, x8, x9)	\
-	(int[]){ \
+	((int[]){ \
 		O(x1), O(x2), O(x3), O(x4), O(x5), O(x6), O(x7), O(x8), O(x9), \
 		0 \
-	}
+	 })
 
 static struct ni_device_routes DR = {
 	.device = "testdev",
