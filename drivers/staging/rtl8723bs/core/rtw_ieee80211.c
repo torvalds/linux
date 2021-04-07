@@ -819,8 +819,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 	 * OUI of the vendor. The following byte is used a vendor specific
 	 * sub-type. */
 	if (elen < 4) {
-		if (show_errors) {
-		}
 		return -1;
 	}
 
@@ -908,8 +906,6 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 		left -= 2;
 
 		if (elen > left) {
-			if (show_errors) {
-			}
 			return ParseFailed;
 		}
 

@@ -274,13 +274,9 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 			{
 				DBG_8192C("ssid =%s, len =%d\n", pssid->Ssid, pssid->SsidLength);
 
-				if (ssids[0].ssid_len == 0) {
-				}
-				else if (pssid->SsidLength == ssids[0].ssid_len &&
-					!memcmp(pssid->Ssid, ssids[0].ssid, ssids[0].ssid_len))
-				{
-				}
-				else
+				if (ssids[0].ssid_len != 0 &&
+				    (pssid->SsidLength != ssids[0].ssid_len ||
+				     memcmp(pssid->Ssid, ssids[0].ssid, ssids[0].ssid_len)))
 				{
 					if (psr)
 						*psr = 0; /* clear sr */
@@ -405,10 +401,7 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 		{
 
 			memcpy(&cur_network->network, pnetwork, sizeof(struct wlan_bssid_ex));
-			if (!rtw_cfg80211_inform_bss(padapter, cur_network))
-				{}
-			else
-				{}
+			rtw_cfg80211_inform_bss(padapter, cur_network);
 		}
 		else
 		{
@@ -419,9 +412,7 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 			if (!memcmp(&(scanned->network.Ssid), &(pnetwork->Ssid), sizeof(struct ndis_802_11_ssid))
 				&& !memcmp(scanned->network.MacAddress, pnetwork->MacAddress, sizeof(NDIS_802_11_MAC_ADDRESS))
 			) {
-				if (!rtw_cfg80211_inform_bss(padapter, scanned)) {
-				} else {
-				}
+				rtw_cfg80211_inform_bss(padapter, scanned);
 			} else {
 				rtw_warn_on(1);
 			}
@@ -462,9 +453,7 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 		if (!memcmp(scanned->network.MacAddress, pnetwork->MacAddress, sizeof(NDIS_802_11_MAC_ADDRESS))
 			&& !memcmp(&(scanned->network.Ssid), &(pnetwork->Ssid), sizeof(struct ndis_802_11_ssid))
 		) {
-			if (!rtw_cfg80211_inform_bss(padapter, scanned)) {
-			} else {
-			}
+			rtw_cfg80211_inform_bss(padapter, scanned);
 		} else {
 			rtw_warn_on(1);
 		}
@@ -2354,10 +2343,6 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 
 		DBG_8192C("RTW_Tx:da =%pM via "FUNC_NDEV_FMT"\n",
 			MAC_ARG(GetAddr1Ptr(buf)), FUNC_NDEV_ARG(ndev));
-		if (category == RTW_WLAN_CATEGORY_PUBLIC)
-			{}
-		else
-			{}
 
 		/* starting alloc mgmt frame to dump it */
 		pmgntframe = alloc_mgtxmitframe(pxmitpriv);
@@ -2773,10 +2758,6 @@ void rtw_cfg80211_rx_action(struct adapter *adapter, u8 *frame, uint frame_len, 
 	rtw_action_frame_parse(frame, frame_len, &category, &action);
 
 	DBG_8192C("RTW_Rx:cur_ch =%d\n", channel);
-	if (msg)
-		{}
-	else
-		{}
 
 	freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 
@@ -2901,10 +2882,6 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy,
 	}
 
 	DBG_8192C("RTW_Tx:tx_ch =%d, da =%pM\n", tx_ch, MAC_ARG(GetAddr1Ptr(buf)));
-	if (category == RTW_WLAN_CATEGORY_PUBLIC)
-		{}
-	else
-		{}
 
 	rtw_ps_deny(padapter, PS_DENY_MGNT_TX);
 	if (_FAIL == rtw_pwr_wakeup(padapter)) {
@@ -2916,9 +2893,6 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy,
 		dump_cnt++;
 		tx_ret = _cfg80211_rtw_mgmt_tx(padapter, tx_ch, buf, len);
 	} while (dump_cnt < dump_limit && tx_ret != _SUCCESS);
-
-	if (tx_ret != _SUCCESS || dump_cnt > 1) {
-	}
 
 	switch (type) {
 	case P2P_GO_NEGO_CONF:

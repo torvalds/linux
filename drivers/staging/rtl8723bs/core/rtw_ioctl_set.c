@@ -422,8 +422,7 @@ u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 		rtw_indicate_disconnect(padapter);
 		/* modify for CONFIG_IEEE80211W, none 11w can use it */
 		rtw_free_assoc_resources_cmd(padapter);
-		if (_FAIL == rtw_pwr_wakeup(padapter))
-			{}
+		rtw_pwr_wakeup(padapter);
 	}
 
 	spin_unlock_bh(&pmlmepriv->lock);

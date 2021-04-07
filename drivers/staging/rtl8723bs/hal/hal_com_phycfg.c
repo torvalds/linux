@@ -88,8 +88,7 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 		default:
 			break;
 		}
-	} else
-		{}
+	}
 
 	return value;
 }
@@ -177,8 +176,7 @@ phy_SetTxPowerByRateBase(
 		default:
 			break;
 		}
-	} else
-		{}
+	}
 }
 
 static void
@@ -770,9 +768,7 @@ void PHY_StoreTxPowerByRate(
 			pHalData->pwrGroupCnt++;
 		else if (RegAddr == rTxAGC_B_Mcs15_Mcs12 && pHalData->rf_type != RF_1T1R)
 			pHalData->pwrGroupCnt++;
-	} else
-		{}
-
+	}
 }
 
 static void
@@ -963,8 +959,7 @@ void PHY_SetTxPowerIndexByRateSection(
 					       pHalData->CurrentChannelBW,
 					       Channel, vhtRates4T,
 					       ARRAY_SIZE(vhtRates4T));
-	} else
-		{}
+	}
 }
 
 static bool phy_GetChnlIndex(u8 Channel, u8 *ChannelIdx)
@@ -1020,8 +1015,6 @@ u8 PHY_GetTxPowerIndexBase(
 			txPower = pHalData->Index24G_CCK_Base[RFPath][chnlIdx];
 		else if (MGN_6M <= Rate)
 			txPower = pHalData->Index24G_BW40_Base[RFPath][chnlIdx];
-		else
-			{}
 
 		/*  OFDM-1T */
 		if ((MGN_6M <= Rate && Rate <= MGN_54M) && !IS_CCK_RATE(Rate)) {
@@ -1063,8 +1056,6 @@ u8 PHY_GetTxPowerIndexBase(
 	} else {/* 3 ============================== 5 G ============================== */
 		if (MGN_6M <= Rate)
 			txPower = pHalData->Index5G_BW40_Base[RFPath][chnlIdx];
-		else
-			{}
 
 		/*  OFDM-1T */
 		if ((MGN_6M <= Rate && Rate <= MGN_54M) && !IS_CCK_RATE(Rate)) {
@@ -1520,11 +1511,7 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 			if (channel5G[i] == Channel)
 				channelIndex = i;
 		}
-	} else
-		{}
-
-	if (channelIndex == -1)
-		{}
+	}
 
 	return channelIndex;
 }
@@ -1635,9 +1622,6 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	idx_bandwidth = get_bandwidth_idx(bandwidth);
 	idx_rate_sctn = get_rate_sctn_idx(data_rate);
 
-	if (band_type == BAND_ON_5G && idx_rate_sctn == 0)
-		{}
-
 	/*  workaround for wrong index combination to obtain tx power limit, */
 	/*  OFDM only exists in BW 20M */
 	/*  CCK table will only be given in BW 20M */
@@ -1692,7 +1676,6 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 					       [idx_rate_sctn]
 					       [idx_channel]
 					       [rf_path];
-	} else {
 	}
 
 	return pwr_lmt;
@@ -1831,9 +1814,8 @@ void PHY_SetTxPowerLimit(
 	u8 regulation = 0, bandwidth = 0, rateSection = 0, channel;
 	s8 powerLimit = 0, prevPowerLimit, channelIndex;
 
-	if (!GetU1ByteIntegerFromStringInDecimal((s8 *)Channel, &channel) ||
-		 !GetU1ByteIntegerFromStringInDecimal((s8 *)PowerLimit, &powerLimit))
-		{}
+	GetU1ByteIntegerFromStringInDecimal((s8 *)Channel, &channel);
+	GetU1ByteIntegerFromStringInDecimal((s8 *)PowerLimit, &powerLimit);
 
 	powerLimit = powerLimit > MAX_POWER_INDEX ? MAX_POWER_INDEX : powerLimit;
 

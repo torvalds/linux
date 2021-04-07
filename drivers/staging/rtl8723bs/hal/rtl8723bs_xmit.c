@@ -26,8 +26,6 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 		HalQueryTxOQTBufferStatus8723BSdio(padapter);
 
 		if ((++n % 60) == 0) {
-			if ((n % 300) == 0) {
-			}
 			msleep(1);
 			/* yield(); */
 		}

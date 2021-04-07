@@ -195,8 +195,6 @@ void expire_timeout_chk(struct adapter *padapter)
 
 	/* check auth_queue */
 	#ifdef DBG_EXPIRATION_CHK
-	if (phead != plist) {
-	}
 	#endif
 	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, auth_list);
@@ -228,8 +226,6 @@ void expire_timeout_chk(struct adapter *padapter)
 
 	/* check asoc_queue */
 	#ifdef DBG_EXPIRATION_CHK
-	if (phead != plist) {
-	}
 	#endif
 	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
@@ -392,7 +388,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 		arg[3] = psta->init_rate;
 
 		rtw_hal_add_ra_tid(padapter, tx_ra_bitmap, arg, rssi_level);
-	} else {
 	}
 }
 
@@ -468,7 +463,6 @@ void update_bmc_sta(struct adapter *padapter)
 		psta->state = _FW_LINKED;
 		spin_unlock_bh(&psta->lock);
 
-	} else {
 	}
 }
 
@@ -662,8 +656,6 @@ static void update_hw_ht_param(struct adapter *padapter)
 	pmlmeinfo->SM_PS = (le16_to_cpu(
 		pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info
 	) & 0x0C) >> 2;
-	if (pmlmeinfo->SM_PS == WLAN_HT_CAP_SM_PS_STATIC)
-		{}
 
 	/*  */
 	/*  Config current HT Protection mode. */
@@ -832,8 +824,7 @@ void start_bss_network(struct adapter *padapter, u8 *pbuf)
 		update_beacon(padapter, WLAN_EID_TIM, NULL, true);
 
 		/* issue beacon frame */
-		if (send_beacon(padapter) == _FAIL)
-			{}
+		send_beacon(padapter);
 	}
 
 	/* update bc/mc sta_info */
@@ -1573,9 +1564,6 @@ static void update_bcn_vendor_spec_ie(struct adapter *padapter, u8 *oui)
 
 	else if (!memcmp(P2P_OUI, oui, 4))
 		update_bcn_p2p_ie(padapter);
-
-	else
-		{}
 }
 
 void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
@@ -1863,8 +1851,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 			psta->no_ht_set = 1;
 			pmlmepriv->num_sta_no_ht++;
 		}
-		if (pmlmepriv->htpriv.ht_option == true) {
-		}
 	}
 
 	if (rtw_ht_operation_update(padapter) > 0) {
@@ -2117,8 +2103,10 @@ void rtw_ap_restore_network(struct adapter *padapter)
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
 
-		if (psta == NULL) {
-		} else if (psta->state & _FW_LINKED) {
+		if (psta == NULL)
+			continue;
+
+		if (psta->state & _FW_LINKED) {
 			rtw_sta_media_status_rpt(padapter, psta, 1);
 			Update_RA_Entry(padapter, psta);
 			/* pairwise key */

@@ -958,8 +958,7 @@ void sd_int_dpc(struct adapter *adapter)
 			}
 		} else {
 			/* Error handling for malloc fail */
-			if (rtw_cbuf_push(adapter->evtpriv.c2h_queue, NULL) != _SUCCESS)
-				{}
+			rtw_cbuf_push(adapter->evtpriv.c2h_queue, NULL);
 			_set_workitem(&adapter->evtpriv.c2h_wk);
 		}
 	}
@@ -997,10 +996,6 @@ void sd_int_dpc(struct adapter *adapter)
 			if (!hisr)
 				break;
 		} while (1);
-
-		if (alloc_fail_time == 10)
-			{}
-
 	}
 }
 

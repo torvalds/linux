@@ -174,8 +174,8 @@ int rtw_inc_and_chk_continual_io_error(struct dvobj_priv *dvobj)
 	int value = atomic_inc_return(&dvobj->continual_io_error);
 	if (value > MAX_CONTINUAL_IO_ERR) {
 		ret = true;
-	} else {
 	}
+
 	return ret;
 }
 

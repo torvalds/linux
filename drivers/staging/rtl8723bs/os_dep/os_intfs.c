@@ -1088,7 +1088,6 @@ void rtw_dev_unload(struct adapter *padapter)
 
 		padapter->bup = false;
 
-	} else {
 	}
 }
 
@@ -1259,8 +1258,6 @@ static int rtw_resume_process_normal(struct adapter *padapter)
 
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		rtw_ap_restore_network(padapter);
-	} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-	} else {
 	}
 
 exit:

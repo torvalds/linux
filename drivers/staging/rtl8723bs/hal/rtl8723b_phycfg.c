@@ -741,9 +741,6 @@ static void phy_SwChnlAndSetBwMode8723B(struct adapter *Adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
-	if (Adapter->bNotifyChannelChange) {
-	}
-
 	if (Adapter->bDriverStopped || Adapter->bSurpriseRemoved)
 		return;
 

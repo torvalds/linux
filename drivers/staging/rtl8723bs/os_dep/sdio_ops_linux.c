@@ -52,8 +52,6 @@ u8 sd_f0_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 	v = sdio_f0_readb(func, addr, err);
 	if (claim_needed)
 		sdio_release_host(func);
-	if (err && *err)
-		{}
 	return v;
 }
 
@@ -217,8 +215,6 @@ u8 sd_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 	v = sdio_readb(func, addr, err);
 	if (claim_needed)
 		sdio_release_host(func);
-	if (err && *err)
-		{}
 	return v;
 }
 
@@ -272,12 +268,6 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 				}
 			}
 		}
-
-		if (i == SD_IO_TRY_CNT)
-			{}
-		else
-			{}
-
 	}
 	return  v;
 }
@@ -306,8 +296,6 @@ void sd_write8(struct intf_hdl *pintfhdl, u32 addr, u8 v, s32 *err)
 	sdio_writeb(func, v, addr, err);
 	if (claim_needed)
 		sdio_release_host(func);
-	if (err && *err)
-		{}
 }
 
 void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
@@ -359,10 +347,6 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 			}
 		}
 
-		if (i == SD_IO_TRY_CNT)
-			{}
-		else
-			{}
 	}
 }
 
@@ -415,8 +399,6 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	}
 
 	err = sdio_memcpy_fromio(func, pdata, addr, cnt);
-	if (err)
-		{}
 
 	return err;
 }
@@ -514,8 +496,6 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 
 	size = cnt;
 	err = sdio_memcpy_toio(func, addr, pdata, size);
-	if (err)
-		{}
 
 	return err;
 }

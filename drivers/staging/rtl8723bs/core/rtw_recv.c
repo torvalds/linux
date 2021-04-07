@@ -248,9 +248,6 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 		cnt++;
 	}
 
-	if (cnt)
-		{}
-
 	return cnt;
 }
 
@@ -367,7 +364,6 @@ static signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *p
 
 				if ((prxattrib->bdecrypted == true) && (brpt_micerror == true)) {
 					rtw_handle_tkip_mic_err(adapter, (u8)IS_MCAST(prxattrib->ra));
-				} else {
 				}
 
 				res = _FAIL;
@@ -2157,9 +2153,6 @@ static int recv_func(struct adapter *padapter, union recv_frame *rframe)
 			cnt++;
 			recv_func_posthandle(padapter, pending_frame);
 		}
-
-		if (cnt)
-			{}
 	}
 
 	ret = recv_func_prehandle(padapter, rframe);

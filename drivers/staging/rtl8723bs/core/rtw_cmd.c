@@ -388,7 +388,6 @@ int rtw_cmd_thread(void *context)
 	struct cmd_obj *pcmd;
 	u8 *pcmdbuf;
 	unsigned long cmd_start_time;
-	unsigned long cmd_process_time;
 	u8 (*cmd_hdl)(struct adapter *padapter, u8 *pbuf);
 	void (*pcmd_callback)(struct adapter *dev, struct cmd_obj *pcmd);
 	struct adapter *padapter = context;
@@ -481,10 +480,6 @@ post_process:
 					rtw_sctx_done_err(&pcmd->sctx, RTW_SCTX_DONE_CMD_ERROR);
 			}
 			mutex_unlock(&(pcmd->padapter->cmdpriv.sctx_mutex));
-		}
-
-		cmd_process_time = jiffies_to_msecs(jiffies - cmd_start_time);
-		if (cmd_process_time > 1000) {
 		}
 
 		/* call callback function for post-processed */

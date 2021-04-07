@@ -1373,8 +1373,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 
 
 	/* get a unique AID */
-	if (pstat->aid > 0) {
-	} else {
+	if (pstat->aid == 0) {
 		for (pstat->aid = 1; pstat->aid <= NUM_STA; pstat->aid++)
 			if (pstapriv->sta_aid[pstat->aid - 1] == NULL)
 				break;
@@ -2684,12 +2683,6 @@ int issue_probereq_ex(struct adapter *padapter, struct ndis_802_11_ssid *pssid, 
 		#endif
 	}
 
-	if (try_cnt && wait_ms) {
-		if (da)
-			{}
-		else
-			{}
-	}
 exit:
 	return ret;
 }
@@ -3044,12 +3037,10 @@ void issue_assocreq(struct adapter *padapter)
 			if ((pmlmeinfo->network.SupportedRates[i]|IEEE80211_BASIC_RATE_MASK)
 					== (sta_bssrate[j]|IEEE80211_BASIC_RATE_MASK)) {
 				break;
-			} else {
 			}
 		}
 
-		if (j == sta_bssrate_len) {
-		} else {
+		if (j != sta_bssrate_len) {
 			/*  the rate is supported by STA */
 			bssrate[index++] = pmlmeinfo->network.SupportedRates[i];
 		}
@@ -3252,12 +3243,6 @@ int issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int pow
 		#endif
 	}
 
-	if (try_cnt && wait_ms) {
-		if (da)
-			{}
-		else
-			{}
-	}
 exit:
 	return ret;
 }
@@ -3394,12 +3379,6 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int
 		#endif
 	}
 
-	if (try_cnt && wait_ms) {
-		if (da)
-			{}
-		else
-			{}
-	}
 exit:
 	return ret;
 }
@@ -3495,12 +3474,6 @@ int issue_deauth_ex(struct adapter *padapter, u8 *da, unsigned short reason, int
 		#endif
 	}
 
-	if (try_cnt && wait_ms) {
-		if (da)
-			{}
-		else
-			{}
-	}
 exit:
 	return ret;
 }
@@ -3915,7 +3888,6 @@ unsigned int send_beacon(struct adapter *padapter)
 	u8 bxmitok = false;
 	int	issue = 0;
 	int poll = 0;
-	unsigned long start = jiffies;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_VALID, NULL);
 	rtw_hal_set_hwreg(padapter, HW_VAR_DL_BCN_SEL, NULL);
@@ -3938,12 +3910,6 @@ unsigned int send_beacon(struct adapter *padapter)
 	if (false == bxmitok) {
 		return _FAIL;
 	} else {
-		unsigned long passing_time = jiffies_to_msecs(jiffies - start);
-
-		if (passing_time > 100 || issue > 3)
-			{}
-		/* else */
-
 		return _SUCCESS;
 	}
 }
@@ -4225,8 +4191,6 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	}
 
 	#if defined(DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) & 1
-	if (strcmp(bssid->Ssid.Ssid, DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) == 0) {
-	}
 	#endif
 
 	/*  mark bss info receiving from nearby channel as SignalQuality 101 */

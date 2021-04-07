@@ -120,8 +120,8 @@ uint rtw_hal_deinit(struct adapter *padapter)
 	if (status == _SUCCESS) {
 		padapter = dvobj->padapters;
 		padapter->hw_init_completed = false;
-	} else {
 	}
+
 	return status;
 }
 
@@ -173,16 +173,12 @@ void rtw_hal_enable_interrupt(struct adapter *padapter)
 {
 	if (padapter->HalFunc.enable_interrupt)
 		padapter->HalFunc.enable_interrupt(padapter);
-	else
-		{}
 }
 
 void rtw_hal_disable_interrupt(struct adapter *padapter)
 {
 	if (padapter->HalFunc.disable_interrupt)
 		padapter->HalFunc.disable_interrupt(padapter);
-	else
-		{}
 }
 
 u8 rtw_hal_check_ips_status(struct adapter *padapter)
@@ -190,8 +186,6 @@ u8 rtw_hal_check_ips_status(struct adapter *padapter)
 	u8 val = false;
 	if (padapter->HalFunc.check_ips_status)
 		val = padapter->HalFunc.check_ips_status(padapter);
-	else
-		{}
 
 	return val;
 }
@@ -443,8 +437,6 @@ s32 rtw_hal_fill_h2c_cmd(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 
 
 	if (padapter->HalFunc.fill_h2c_cmd)
 		ret = padapter->HalFunc.fill_h2c_cmd(padapter, ElementID, CmdLen, pCmdBuffer);
-	else
-		{}
 
 	return ret;
 }

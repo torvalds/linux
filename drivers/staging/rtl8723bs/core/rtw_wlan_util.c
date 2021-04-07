@@ -379,9 +379,6 @@ void set_channel_bwmode(struct adapter *padapter, unsigned char channel, unsigne
 {
 	u8 center_ch, chnl_offset80 = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-	if (padapter->bNotifyChannelChange)
-		{}
-
 	center_ch = rtw_get_center_ch(channel, bwmode, channel_offset);
 
 	if (bwmode == CHANNEL_WIDTH_80) {
@@ -625,11 +622,6 @@ static s16 _rtw_camid_search(struct adapter *adapter, u8 *addr, s16 kid)
 		cam_id = i;
 		break;
 	}
-
-	if (addr)
-		{}
-	else
-		{}
 
 	return cam_id;
 }

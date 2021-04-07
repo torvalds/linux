@@ -369,7 +369,6 @@ static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 			padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
 			padapter->securitypriv.dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		}
-	} else if (value & WLAN_AUTH_LEAP) {
 	} else {
 		ret = -EINVAL;
 	}
@@ -1223,7 +1222,6 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 			spin_unlock_bh(&pmlmepriv->lock);
 
-		} else if (req->scan_type == IW_SCAN_TYPE_PASSIVE) {
 		}
 
 	} else if (wrqu->data.length >= WEXT_CSCAN_HEADER_SIZE
@@ -1411,9 +1409,6 @@ static int rtw_wx_set_essid(struct net_device *dev,
 	authmode = padapter->securitypriv.ndisauthtype;
 	if (wrqu->essid.flags && wrqu->essid.length) {
 		len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length : IW_ESSID_MAX_SIZE;
-
-		if (wrqu->essid.length != 33)
-			{}
 
 		memset(&ndis_ssid, 0, sizeof(struct ndis_802_11_ssid));
 		ndis_ssid.SsidLength = len;
@@ -2204,9 +2199,7 @@ static int rtw_wx_set_channel_plan(struct net_device *dev,
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	u8 channel_plan_req = (u8)(*((int *)wrqu));
 
-	if (_SUCCESS == rtw_set_chplan_cmd(padapter, channel_plan_req, 1, 1))
-		{}
-	 else
+	if (_SUCCESS != rtw_set_chplan_cmd(padapter, channel_plan_req, 1, 1))
 		return -EPERM;
 
 	return 0;
@@ -2360,8 +2353,6 @@ static int rtw_set_pid(struct net_device *dev,
 	if (selector < 3 && selector >= 0) {
 		padapter->pid[selector] = *(pdata+1);
 	}
-	else
-		{}
 
 exit:
 
@@ -2585,11 +2576,8 @@ static int rtw_dbg_port(struct net_device *dev,
 
 						for (i = 0; i < 16; i++) {
 							preorder_ctrl = &psta->recvreorder_ctrl[i];
-							if (preorder_ctrl->enable)
-								{}
 						}
 
-					} else {
 					}
 					break;
 				case 0x06:
@@ -2626,8 +2614,6 @@ static int rtw_dbg_port(struct net_device *dev,
 								if (extra_arg == psta->aid) {
 									for (j = 0; j < 16; j++) {
 										preorder_ctrl = &psta->recvreorder_ctrl[j];
-										if (preorder_ctrl->enable)
-											{}
 									}
 								}
 							}
@@ -2695,9 +2681,7 @@ static int rtw_dbg_port(struct net_device *dev,
 					/* default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ */
 					if (extra_arg == 0 || extra_arg == 1 || extra_arg == 2 || extra_arg == 3) {
 						pregpriv->rx_stbc = extra_arg;
-					} else
-						{}
-
+					}
 				}
 				break;
 				case 0x13: /* set ampdu_enable */
@@ -2706,9 +2690,7 @@ static int rtw_dbg_port(struct net_device *dev,
 					/*  0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec) */
 					if (extra_arg < 3) {
 						pregpriv->ampdu_enable = extra_arg;
-					} else
-						{}
-
+					}
 				}
 				break;
 				case 0x14:
@@ -3435,10 +3417,7 @@ static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
 
 		psta = NULL;
 
-	} else {
-		/* ret = -1; */
 	}
-
 
 	return ret;
 
@@ -3535,7 +3514,6 @@ static int rtw_get_sta_wpaie(struct net_device *dev, struct ieee_param *param)
 			param->u.wpa_ie.len = copy_len;
 
 			memcpy(param->u.wpa_ie.reserved, psta->wpa_ie, copy_len);
-		} else {
 		}
 	} else {
 		ret = -1;
@@ -3674,16 +3652,10 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 		memcpy(ssid, ssid_ie+2, ssid_len);
 		ssid[ssid_len] = 0x0;
 
-		if (0)
-			{}
-
 		memcpy(pbss_network->Ssid.Ssid, (void *)ssid, ssid_len);
 		pbss_network->Ssid.SsidLength = ssid_len;
 		memcpy(pbss_network_ext->Ssid.Ssid, (void *)ssid, ssid_len);
 		pbss_network_ext->Ssid.SsidLength = ssid_len;
-
-		if (0)
-			{}
 	}
 
 	return ret;

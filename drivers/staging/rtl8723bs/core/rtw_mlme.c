@@ -519,8 +519,6 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 	dst->Rssi = rssi_final;
 
 	#if defined(DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) && 1
-	if (strcmp(dst->Ssid.Ssid, DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) == 0) {
-	}
 	#endif
 }
 
@@ -1051,8 +1049,6 @@ void rtw_scan_abort(struct adapter *adapter)
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
-		if (!adapter->bDriverStopped && !adapter->bSurpriseRemoved)
-			{}
 		rtw_indicate_scan_done(adapter, true);
 	}
 	pmlmeext->scan_abort = false;
@@ -1705,9 +1701,6 @@ void rtw_dynamic_check_timer_handler(struct adapter *adapter)
 	if (adapter->net_closed)
 		return;
 
-	if (is_primary_adapter(adapter))
-		{}
-
 	if ((adapter_to_pwrctl(adapter)->bFwCurrentInPSMode)
 		&& !(hal_btcoex_IsBtControlLps(adapter))
 		) {
@@ -1882,9 +1875,6 @@ static int rtw_check_join_candidate(struct mlme_priv *mlme
 	if (*candidate == NULL || (*candidate)->network.Rssi < competitor->network.Rssi) {
 		*candidate = competitor;
 		updated = true;
-	}
-
-	if (updated) {
 	}
 
 exit:
@@ -2350,8 +2340,6 @@ void rtw_ht_use_default_setting(struct adapter *padapter)
 		if (TEST_FLAG(pregistrypriv->ldpc_cap, BIT5))
 			SET_FLAG(phtpriv->ldpc_cap, LDPC_HT_ENABLE_TX);
 	}
-	if (phtpriv->ldpc_cap)
-		{}
 
 	/*  STBC */
 	rtw_hal_get_def_var(padapter, HAL_DEF_TX_STBC, (u8 *)&bHwSTBCSupport);
@@ -2365,8 +2353,6 @@ void rtw_ht_use_default_setting(struct adapter *padapter)
 		if (TEST_FLAG(pregistrypriv->stbc_cap, BIT4))
 			SET_FLAG(phtpriv->stbc_cap, STBC_HT_ENABLE_RX);
 	}
-	if (phtpriv->stbc_cap)
-		{}
 
 	/*  Beamforming setting */
 	rtw_hal_get_def_var(padapter, HAL_DEF_EXPLICIT_BEAMFORMER, (u8 *)&bHwSupportBeamformer);
@@ -2644,8 +2630,6 @@ void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len, u8 channe
 	pmlmeinfo->SM_PS =
 		(le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) &
 		 0x0C) >> 2;
-	if (pmlmeinfo->SM_PS == WLAN_HT_CAP_SM_PS_STATIC)
-		{}
 
 	/*  */
 	/*  Config current HT Protection mode. */

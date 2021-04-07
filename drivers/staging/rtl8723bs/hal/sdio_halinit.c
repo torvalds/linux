@@ -960,7 +960,6 @@ static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 						cnt++;
 						mdelay(10);
 					} while (cnt < 100 && (val8 != 0xEA));
-				} else {
 				}
 
 				adapter_to_pwrctl(padapter)->pre_ips_type = 0;
@@ -1109,9 +1108,6 @@ static void _ReadEfuseInfo8723BS(struct adapter *padapter)
 	/*  */
 	/*  This part read and parse the eeprom/efuse content */
 	/*  */
-
-	if (sizeof(pEEPROM->efuse_eeprom_data) < HWSET_MAX_SIZE_8723B)
-		{}
 
 	hwinfo = pEEPROM->efuse_eeprom_data;
 

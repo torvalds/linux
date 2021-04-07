@@ -211,7 +211,6 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 			res = rtw_mlcst2unicst(padapter, pkt);
 			if (res)
 				goto exit;
-		} else {
 		}
 	}
 

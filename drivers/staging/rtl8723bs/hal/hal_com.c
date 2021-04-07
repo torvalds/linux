@@ -1648,8 +1648,6 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 			/* res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15; */
 			/* rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res); */
 			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
-		} else
-			{}
-	} else
-		{}
+		}
+	}
 }

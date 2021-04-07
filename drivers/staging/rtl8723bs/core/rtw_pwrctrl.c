@@ -249,8 +249,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	pslv = PS_STATE(pslv);
 
-	if (pwrpriv->brpwmtimeout) {
-	} else {
+	if (!pwrpriv->brpwmtimeout) {
 		if (pwrpriv->rpwm == pslv ||
 		    (pwrpriv->rpwm >= PS_STATE_S2 && pslv >= PS_STATE_S2))
 			return;
@@ -535,8 +534,7 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 		rtw_lps_ctrl_wk_cmd(pri_padapter, LPS_CTRL_LEAVE, 0);
 	} else {
 		if (pwrpriv->rf_pwrstate == rf_off)
-			if (!ips_leave(pri_padapter))
-				{}
+			ips_leave(pri_padapter);
 	}
 }
 
@@ -569,8 +567,7 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 		LPS_Leave_check(Adapter);
 	} else {
 		if (adapter_to_pwrctl(Adapter)->rf_pwrstate == rf_off) {
-			if (!ips_leave(Adapter))
-				{}
+			ips_leave(Adapter);
 		}
 	}
 }
@@ -1059,10 +1056,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	if (pwrpriv->ps_processing) {
 		while (pwrpriv->ps_processing && jiffies_to_msecs(jiffies - start) <= 3000)
 			mdelay(10);
-		if (pwrpriv->ps_processing)
-			{}
-		else
-			{}
 	}
 
 	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {
@@ -1070,10 +1063,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 		) {
 			mdelay(10);
 		}
-		if (pwrpriv->bInSuspend)
-			{}
-		else
-			{}
 	}
 
 	/* System suspend is not allowed to wakeup */
@@ -1174,8 +1163,6 @@ void rtw_ps_deny(struct adapter *padapter, enum ps_deny_reason reason)
 	pwrpriv = adapter_to_pwrctl(padapter);
 
 	mutex_lock(&pwrpriv->lock);
-	if (pwrpriv->ps_deny & BIT(reason)) {
-	}
 	pwrpriv->ps_deny |= BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
 }
@@ -1191,8 +1178,6 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum ps_deny_reason reason)
 	pwrpriv = adapter_to_pwrctl(padapter);
 
 	mutex_lock(&pwrpriv->lock);
-	if ((pwrpriv->ps_deny & BIT(reason)) == 0) {
-	}
 	pwrpriv->ps_deny &= ~BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
 }

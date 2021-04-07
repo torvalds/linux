@@ -420,9 +420,6 @@ s32 rtl8723bs_init_recv_priv(struct adapter *padapter)
 				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
 				skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 			}
-
-			if (!precvbuf->pskb) {
-			}
 		}
 
 		list_add_tail(&precvbuf->list, &precvpriv->free_recv_buf_queue.queue);

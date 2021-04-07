@@ -389,11 +389,6 @@ void rtl8723b_set_FwPwrMode_cmd(struct adapter *padapter, u8 psmode)
 	u8 u1H2CPwrModeParm[H2C_PWRMODE_LEN] = {0};
 	u8 PowerState = 0, awake_intvl = 1, byte5 = 0, rlbm = 0;
 
-	if (pwrpriv->dtim > 0)
-		{}
-	else
-		{}
-
 	if (pwrpriv->dtim > 0 && pwrpriv->dtim < 16)
 		awake_intvl = pwrpriv->dtim+1;/* DTIM = (awake_intvl - 1) */
 	else
@@ -468,7 +463,6 @@ void rtl8723b_set_FwPwrMode_cmd(struct adapter *padapter, u8 psmode)
 			pmlmeext->bcn_cnt = 0;
 			pmlmeext->adaptive_tsf_done = true;
 
-		} else {
 		}
 
 /* offload to FW if fw version > v15.10
@@ -732,9 +726,7 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 		} while (!bcn_valid && DLBcnCount <= 100 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
 
 		if (padapter->bSurpriseRemoved || padapter->bDriverStopped) {
-		} else if (!bcn_valid)
-			{}
-		else {
+		} else {
 			struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 			pwrctl->fw_psmode_iface_id = padapter->iface_id;
 		}
