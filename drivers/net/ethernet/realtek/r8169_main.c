@@ -4660,6 +4660,7 @@ static void rtl8169_down(struct rtl8169_private *tp)
 static void rtl8169_up(struct rtl8169_private *tp)
 {
 	pci_set_master(tp->pci_dev);
+	phy_init_hw(tp->phydev);
 	phy_resume(tp->phydev);
 	rtl8169_init_phy(tp);
 	napi_enable(&tp->napi);
@@ -5084,6 +5085,8 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 			tp->phydev->phy_id);
 		return -EUNATCH;
 	}
+
+	tp->phydev->mac_managed_pm = 1;
 
 	/* PHY will be woken up in rtl_open() */
 	phy_suspend(tp->phydev);
