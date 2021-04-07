@@ -2193,15 +2193,4 @@ static struct pci_driver de_driver = {
 	.driver.pm	= &de_pm_ops,
 };
 
-static int __init de_init (void)
-{
-	return pci_register_driver(&de_driver);
-}
-
-static void __exit de_exit (void)
-{
-	pci_unregister_driver (&de_driver);
-}
-
-module_init(de_init);
-module_exit(de_exit);
+module_pci_driver(de_driver);
