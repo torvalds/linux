@@ -46,6 +46,11 @@
 
 /* Register map definition */
 
+/* CSIS version */
+#define MIPI_CSIS_VERSION			0x00
+#define MIPI_CSIS_VERSION_IMX7D			0x03030505
+#define MIPI_CSIS_VERSION_IMX8MP		0x03060301
+
 /* CSIS common control */
 #define MIPI_CSIS_CMN_CTRL			0x04
 #define MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW	BIT(16)
