@@ -392,8 +392,9 @@ static int ark3116_get_serial_info(struct tty_struct *tty,
 
 	ss->type = PORT_16654;
 	ss->line = port->minor;
-	ss->port = port->port_number;
-	ss->baud_base = 460800;
+	ss->close_delay = 50;
+	ss->closing_wait = 3000;
+
 	return 0;
 }
 
