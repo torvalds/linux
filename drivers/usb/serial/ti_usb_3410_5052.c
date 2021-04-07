@@ -270,8 +270,6 @@ struct ti_firmware_header {
 
 #define TI_TRANSFER_TIMEOUT	2
 
-#define TI_DEFAULT_CLOSING_WAIT	4000		/* in .01 secs */
-
 /* read urb states */
 #define TI_READ_URB_RUNNING	0
 #define TI_READ_URB_STOPPING	1
@@ -602,7 +600,6 @@ static int ti_port_probe(struct usb_serial_port *port)
 		tport->tp_uart_base_addr = TI_UART1_BASE_ADDR;
 	else
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
-	port->port.closing_wait = msecs_to_jiffies(10 * TI_DEFAULT_CLOSING_WAIT);
 	tport->tp_port = port;
 	tport->tp_tdev = usb_get_serial_data(port->serial);
 
