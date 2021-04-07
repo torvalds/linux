@@ -759,8 +759,6 @@ static int uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
 	struct uart_port *uport;
 	int ret = -ENODEV;
 
-	memset(retinfo, 0, sizeof(*retinfo));
-
 	/*
 	 * Ensure the state we copy is consistent and no hardware changes
 	 * occur as we go
