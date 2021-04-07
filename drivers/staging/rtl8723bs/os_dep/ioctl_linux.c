@@ -2199,7 +2199,7 @@ static int rtw_wx_set_channel_plan(struct net_device *dev,
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	u8 channel_plan_req = (u8)(*((int *)wrqu));
 
-	if (_SUCCESS != rtw_set_chplan_cmd(padapter, channel_plan_req, 1, 1))
+	if (rtw_set_chplan_cmd(padapter, channel_plan_req, 1, 1) != _SUCCESS)
 		return -EPERM;
 
 	return 0;
