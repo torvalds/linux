@@ -294,7 +294,7 @@ static bool nvme_available_path(struct nvme_ns_head *head)
 	return false;
 }
 
-blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
+static blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
 {
 	struct nvme_ns_head *head = bio->bi_bdev->bd_disk->private_data;
 	struct device *dev = disk_to_dev(head->disk);
@@ -333,6 +333,29 @@ blk_qc_t nvme_ns_head_submit_bio(struct bio *bio)
 	srcu_read_unlock(&head->srcu, srcu_idx);
 	return ret;
 }
+
+static int nvme_ns_head_open(struct block_device *bdev, fmode_t mode)
+{
+	if (!nvme_tryget_ns_head(bdev->bd_disk->private_data))
+		return -ENXIO;
+	return 0;
+}
+
+static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
+{
+	nvme_put_ns_head(disk->private_data);
+}
+
+const struct block_device_operations nvme_ns_head_ops = {
+	.owner		= THIS_MODULE,
+	.submit_bio	= nvme_ns_head_submit_bio,
+	.open		= nvme_ns_head_open,
+	.release	= nvme_ns_head_release,
+	.ioctl		= nvme_ns_head_ioctl,
+	.getgeo		= nvme_getgeo,
+	.report_zones	= nvme_report_zones,
+	.pr_ops		= &nvme_pr_ops,
+};
 
 static void nvme_requeue_work(struct work_struct *work)
 {

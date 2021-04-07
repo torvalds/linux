@@ -549,12 +549,12 @@ static void nvme_free_ns_head(struct kref *ref)
 	kfree(head);
 }
 
-static bool nvme_tryget_ns_head(struct nvme_ns_head *head)
+bool nvme_tryget_ns_head(struct nvme_ns_head *head)
 {
 	return kref_get_unless_zero(&head->ref);
 }
 
-static void nvme_put_ns_head(struct nvme_ns_head *head)
+void nvme_put_ns_head(struct nvme_ns_head *head)
 {
 	kref_put(&head->ref, nvme_free_ns_head);
 }
@@ -1511,7 +1511,7 @@ static void nvme_release(struct gendisk *disk, fmode_t mode)
 	nvme_put_ns(ns);
 }
 
-static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	/* some standard values */
 	geo->heads = 1 << 6;
@@ -1937,7 +1937,7 @@ static int nvme_pr_release(struct block_device *bdev, u64 key, enum pr_type type
 	return nvme_pr_command(bdev, cdw10, key, 0, nvme_cmd_resv_release);
 }
 
-static const struct pr_ops nvme_pr_ops = {
+const struct pr_ops nvme_pr_ops = {
 	.pr_register	= nvme_pr_register,
 	.pr_reserve	= nvme_pr_reserve,
 	.pr_release	= nvme_pr_release,
@@ -1978,18 +1978,6 @@ static const struct block_device_operations nvme_bdev_ops = {
 };
 
 #ifdef CONFIG_NVME_MULTIPATH
-static int nvme_ns_head_open(struct block_device *bdev, fmode_t mode)
-{
-	if (!nvme_tryget_ns_head(bdev->bd_disk->private_data))
-		return -ENXIO;
-	return 0;
-}
-
-static void nvme_ns_head_release(struct gendisk *disk, fmode_t mode)
-{
-	nvme_put_ns_head(disk->private_data);
-}
-
 struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys)
 {
 	struct nvme_ctrl *ctrl;
@@ -2009,17 +1997,6 @@ found:
 	mutex_unlock(&nvme_subsystems_lock);
 	return ctrl;
 }
-
-const struct block_device_operations nvme_ns_head_ops = {
-	.owner		= THIS_MODULE,
-	.submit_bio	= nvme_ns_head_submit_bio,
-	.open		= nvme_ns_head_open,
-	.release	= nvme_ns_head_release,
-	.ioctl		= nvme_ns_head_ioctl,
-	.getgeo		= nvme_getgeo,
-	.report_zones	= nvme_report_zones,
-	.pr_ops		= &nvme_pr_ops,
-};
 #endif /* CONFIG_NVME_MULTIPATH */
 
 static int nvme_wait_ready(struct nvme_ctrl *ctrl, u64 cap, bool enabled)
