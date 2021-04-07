@@ -1230,16 +1230,22 @@ mlxsw_sp1_from_ptys_link_mode(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 			      u32 ptys_eth_proto,
 			      struct ethtool_link_ksettings *cmd)
 {
+	struct mlxsw_sp1_port_link_mode link;
 	int i;
 
-	cmd->link_mode = -1;
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->lanes = 0;
 
 	if (!carrier_ok)
 		return;
 
 	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
-		if (ptys_eth_proto & mlxsw_sp1_port_link_mode[i].mask)
-			cmd->link_mode = mlxsw_sp1_port_link_mode[i].mask_ethtool;
+		if (ptys_eth_proto & mlxsw_sp1_port_link_mode[i].mask) {
+			link = mlxsw_sp1_port_link_mode[i];
+			ethtool_params_from_link_mode(cmd,
+						      link.mask_ethtool);
+		}
 	}
 }
 
@@ -1672,7 +1678,9 @@ mlxsw_sp2_from_ptys_link_mode(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 	struct mlxsw_sp2_port_link_mode link;
 	int i;
 
-	cmd->link_mode = -1;
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->lanes = 0;
 
 	if (!carrier_ok)
 		return;
@@ -1680,7 +1688,8 @@ mlxsw_sp2_from_ptys_link_mode(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
 		if (ptys_eth_proto & mlxsw_sp2_port_link_mode[i].mask) {
 			link = mlxsw_sp2_port_link_mode[i];
-			cmd->link_mode = link.mask_ethtool[1];
+			ethtool_params_from_link_mode(cmd,
+						      link.mask_ethtool[1]);
 		}
 	}
 }

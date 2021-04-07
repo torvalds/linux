@@ -127,7 +127,6 @@ struct ethtool_link_ksettings {
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
 	} link_modes;
 	u32	lanes;
-	enum ethtool_link_mode_bit_indices link_mode;
 };
 
 /**
@@ -574,4 +573,12 @@ struct ethtool_phy_ops {
  */
 void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops);
 
+/*
+ * ethtool_params_from_link_mode - Derive link parameters from a given link mode
+ * @link_ksettings: Link parameters to be derived from the link mode
+ * @link_mode: Link mode
+ */
+void
+ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
+			      enum ethtool_link_mode_bit_indices link_mode);
 #endif /* _LINUX_ETHTOOL_H */
