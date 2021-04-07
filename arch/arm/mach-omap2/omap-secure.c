@@ -9,6 +9,7 @@
  */
 
 #include <linux/arm-smccc.h>
+#include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -20,6 +21,7 @@
 
 #include "common.h"
 #include "omap-secure.h"
+#include "soc.h"
 
 static phys_addr_t omap_secure_memblock_base;
 
@@ -213,3 +215,40 @@ void __init omap_secure_init(void)
 {
 	omap_optee_init_check();
 }
+
+/*
+ * Dummy dispatcher call after core OSWR and MPU off. Updates the ROM return
+ * address after MMU has been re-enabled after CPU1 has been woken up again.
+ * Otherwise the ROM code will attempt to use the earlier physical return
+ * address that got set with MMU off when waking up CPU1. Only used on secure
+ * devices.
+ */
+static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_EXIT:
+		omap_secure_dispatcher(OMAP4_PPA_SERVICE_0,
+				       FLAG_START_CRITICAL,
+				       0, 0, 0, 0, 0);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block secure_notifier_block = {
+	.notifier_call = cpu_notifier,
+};
+
+static int __init secure_pm_init(void)
+{
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP || !soc_is_omap44xx())
+		return 0;
+
+	cpu_pm_register_notifier(&secure_notifier_block);
+
+	return 0;
+}
+omap_arch_initcall(secure_pm_init);
