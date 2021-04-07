@@ -284,7 +284,7 @@ static int pru_handle_intrmap(struct rproc *rproc)
 	struct pru_rproc *pru = rproc->priv;
 	struct pru_irq_rsc *rsc = pru->pru_interrupt_map;
 	struct irq_fwspec fwspec;
-	struct device_node *irq_parent;
+	struct device_node *parent, *irq_parent;
 	int i, ret = 0;
 
 	/* not having pru_interrupt_map is not an error */
@@ -312,9 +312,16 @@ static int pru_handle_intrmap(struct rproc *rproc)
 
 	/*
 	 * parse and fill in system event to interrupt channel and
-	 * channel-to-host mapping
+	 * channel-to-host mapping. The interrupt controller to be used
+	 * for these mappings for a given PRU remoteproc is always its
+	 * corresponding sibling PRUSS INTC node.
 	 */
-	irq_parent = of_irq_find_parent(pru->dev->of_node);
+	parent = of_get_parent(dev_of_node(pru->dev));
+	if (!parent)
+		return -ENODEV;
+
+	irq_parent = of_get_child_by_name(parent, "interrupt-controller");
+	of_node_put(parent);
 	if (!irq_parent) {
 		kfree(pru->mapped_irq);
 		return -ENODEV;
@@ -337,11 +344,13 @@ static int pru_handle_intrmap(struct rproc *rproc)
 			goto map_fail;
 		}
 	}
+	of_node_put(irq_parent);
 
 	return ret;
 
 map_fail:
 	pru_dispose_irq_mapping(pru);
+	of_node_put(irq_parent);
 
 	return ret;
 }
