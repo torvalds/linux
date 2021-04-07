@@ -4621,7 +4621,7 @@ static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	/* If no dgid is found, a new dip and a mapping between dgid and
 	 * dip_idx will be created.
 	 */
-	hr_dip = kzalloc(sizeof(*hr_dip), GFP_KERNEL);
+	hr_dip = kzalloc(sizeof(*hr_dip), GFP_ATOMIC);
 	if (!hr_dip) {
 		ret = -ENOMEM;
 		goto out;
