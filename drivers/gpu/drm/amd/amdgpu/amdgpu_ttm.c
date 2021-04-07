@@ -165,13 +165,6 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 
-	/*
-	 * Don't verify access for KFD BOs. They don't have a GEM
-	 * object associated with them.
-	 */
-	if (abo->kfd_bo)
-		return 0;
-
 	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
 		return -EPERM;
 	return drm_vma_node_verify_access(&abo->tbo.base.vma_node,
