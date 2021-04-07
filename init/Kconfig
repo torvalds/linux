@@ -2242,7 +2242,7 @@ choice
 
 	  Please note that the tool used to load modules needs to support the
 	  corresponding algorithm. module-init-tools MAY support gzip, and kmod
-	  MAY support gzip and xz.
+	  MAY support gzip, xz and zstd.
 
 	  Your build system needs to provide the appropriate compression tool
 	  to compress the modules.
@@ -2266,6 +2266,12 @@ config MODULE_COMPRESS_XZ
 	help
 	  Compress modules with XZ. The installed modules are suffixed
 	  with .ko.xz.
+
+config MODULE_COMPRESS_ZSTD
+	bool "ZSTD"
+	help
+	  Compress modules with ZSTD. The installed modules are suffixed
+	  with .ko.zst.
 
 endchoice
 
