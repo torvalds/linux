@@ -297,7 +297,7 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 
 static const char *phys_state_to_str(enum ib_port_phys_state phys_state)
 {
-	static const char * phys_state_str[] = {
+	static const char *phys_state_str[] = {
 		"<unknown>",
 		"Sleep",
 		"Polling",
@@ -470,14 +470,14 @@ static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
 struct port_table_attribute port_pma_attr_##_name = {			\
 	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
 	.index = (_offset) | ((_width) << 16) | ((_counter) << 24),	\
-	.attr_id = IB_PMA_PORT_COUNTERS ,				\
+	.attr_id = IB_PMA_PORT_COUNTERS,				\
 }
 
 #define PORT_PMA_ATTR_EXT(_name, _width, _offset)			\
 struct port_table_attribute port_pma_attr_ext_##_name = {		\
 	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
 	.index = (_offset) | ((_width) << 16),				\
-	.attr_id = IB_PMA_PORT_COUNTERS_EXT ,				\
+	.attr_id = IB_PMA_PORT_COUNTERS_EXT,				\
 }
 
 /*

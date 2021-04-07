@@ -165,8 +165,8 @@ static void ib_umad_dev_put(struct ib_umad_device *dev)
 
 static int hdr_size(struct ib_umad_file *file)
 {
-	return file->use_pkey_index ? sizeof (struct ib_user_mad_hdr) :
-		sizeof (struct ib_user_mad_hdr_old);
+	return file->use_pkey_index ? sizeof(struct ib_user_mad_hdr) :
+				      sizeof(struct ib_user_mad_hdr_old);
 }
 
 /* caller must hold file->mutex */

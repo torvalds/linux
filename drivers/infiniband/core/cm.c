@@ -420,8 +420,7 @@ static int cm_alloc_response_msg(struct cm_port *port,
 	return 0;
 }
 
-static void * cm_copy_private_data(const void *private_data,
-				   u8 private_data_len)
+static void *cm_copy_private_data(const void *private_data, u8 private_data_len)
 {
 	void *data;
 
@@ -680,8 +679,8 @@ static struct cm_id_private *cm_insert_listen(struct cm_id_private *cm_id_priv,
 	return cm_id_priv;
 }
 
-static struct cm_id_private * cm_find_listen(struct ib_device *device,
-					     __be64 service_id)
+static struct cm_id_private *cm_find_listen(struct ib_device *device,
+					    __be64 service_id)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
@@ -708,8 +707,8 @@ static struct cm_id_private * cm_find_listen(struct ib_device *device,
 	return NULL;
 }
 
-static struct cm_timewait_info * cm_insert_remote_id(struct cm_timewait_info
-						     *timewait_info)
+static struct cm_timewait_info *
+cm_insert_remote_id(struct cm_timewait_info *timewait_info)
 {
 	struct rb_node **link = &cm.remote_id_table.rb_node;
 	struct rb_node *parent = NULL;
@@ -767,8 +766,8 @@ static struct cm_id_private *cm_find_remote_id(__be64 remote_ca_guid,
 	return res;
 }
 
-static struct cm_timewait_info * cm_insert_remote_qpn(struct cm_timewait_info
-						      *timewait_info)
+static struct cm_timewait_info *
+cm_insert_remote_qpn(struct cm_timewait_info *timewait_info)
 {
 	struct rb_node **link = &cm.remote_qp_table.rb_node;
 	struct rb_node *parent = NULL;
@@ -797,8 +796,8 @@ static struct cm_timewait_info * cm_insert_remote_qpn(struct cm_timewait_info
 	return NULL;
 }
 
-static struct cm_id_private * cm_insert_remote_sidr(struct cm_id_private
-						    *cm_id_priv)
+static struct cm_id_private *
+cm_insert_remote_sidr(struct cm_id_private *cm_id_priv)
 {
 	struct rb_node **link = &cm.remote_sidr_table.rb_node;
 	struct rb_node *parent = NULL;
@@ -897,7 +896,7 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_create_cm_id);
 
-static struct cm_work * cm_dequeue_work(struct cm_id_private *cm_id_priv)
+static struct cm_work *cm_dequeue_work(struct cm_id_private *cm_id_priv)
 {
 	struct cm_work *work;
 
@@ -986,7 +985,7 @@ static void cm_remove_remote(struct cm_id_private *cm_id_priv)
 	}
 }
 
-static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id)
+static struct cm_timewait_info *cm_create_timewait_info(__be32 local_id)
 {
 	struct cm_timewait_info *timewait_info;
 
@@ -1977,8 +1976,8 @@ unlock:	spin_unlock_irq(&cm_id_priv->lock);
 free:	cm_free_msg(msg);
 }
 
-static struct cm_id_private * cm_match_req(struct cm_work *work,
-					   struct cm_id_private *cm_id_priv)
+static struct cm_id_private *cm_match_req(struct cm_work *work,
+					  struct cm_id_private *cm_id_priv)
 {
 	struct cm_id_private *listen_cm_id_priv, *cur_cm_id_priv;
 	struct cm_timewait_info *timewait_info;
@@ -2994,7 +2993,7 @@ static void cm_format_rej_event(struct cm_work *work)
 		IBA_GET_MEM_PTR(CM_REJ_PRIVATE_DATA, rej_msg);
 }
 
-static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
+static struct cm_id_private *cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 {
 	struct cm_id_private *cm_id_priv;
 	__be32 remote_id;
@@ -3156,7 +3155,7 @@ error2:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 }
 EXPORT_SYMBOL(ib_send_cm_mra);
 
-static struct cm_id_private * cm_acquire_mraed_id(struct cm_mra_msg *mra_msg)
+static struct cm_id_private *cm_acquire_mraed_id(struct cm_mra_msg *mra_msg)
 {
 	switch (IBA_GET(CM_MRA_MESSAGE_MRAED, mra_msg)) {
 	case CM_MSG_RESPONSE_REQ:

@@ -807,7 +807,7 @@ static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
 
 	/* Allocate data segments. */
 	for (left = send_buf->data_len + pad; left > 0; left -= seg_size) {
-		seg = kmalloc(sizeof (*seg) + seg_size, gfp_mask);
+		seg = kmalloc(sizeof(*seg) + seg_size, gfp_mask);
 		if (!seg) {
 			free_send_rmpp_list(send_wr);
 			return -ENOMEM;
@@ -837,12 +837,11 @@ int ib_mad_kernel_rmpp_agent(const struct ib_mad_agent *agent)
 }
 EXPORT_SYMBOL(ib_mad_kernel_rmpp_agent);
 
-struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
-					    u32 remote_qpn, u16 pkey_index,
-					    int rmpp_active,
-					    int hdr_len, int data_len,
-					    gfp_t gfp_mask,
-					    u8 base_version)
+struct ib_mad_send_buf *ib_create_send_mad(struct ib_mad_agent *mad_agent,
+					   u32 remote_qpn, u16 pkey_index,
+					   int rmpp_active, int hdr_len,
+					   int data_len, gfp_t gfp_mask,
+					   u8 base_version)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_wr_private *mad_send_wr;
@@ -1677,9 +1676,10 @@ static inline int rcv_has_same_class(const struct ib_mad_send_wr_private *wr,
 		rwc->recv_buf.mad->mad_hdr.mgmt_class;
 }
 
-static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_priv,
-				   const struct ib_mad_send_wr_private *wr,
-				   const struct ib_mad_recv_wc *rwc )
+static inline int
+rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_priv,
+		 const struct ib_mad_send_wr_private *wr,
+		 const struct ib_mad_recv_wc *rwc)
 {
 	struct rdma_ah_attr attr;
 	u8 send_resp, rcv_resp;
@@ -2256,7 +2256,7 @@ void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 	adjust_timeout(mad_agent_priv);
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
-	if (mad_send_wr->status != IB_WC_SUCCESS )
+	if (mad_send_wr->status != IB_WC_SUCCESS)
 		mad_send_wc->status = mad_send_wr->status;
 	if (ret == IB_RMPP_RESULT_INTERNAL)
 		ib_rmpp_send_handler(mad_send_wc);
