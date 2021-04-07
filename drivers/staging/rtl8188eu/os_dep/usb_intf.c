@@ -48,7 +48,7 @@ static const struct usb_device_id rtw_usb_id_tbl[] = {
 
 MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 
-static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
+static int usb_dvobj_init(struct usb_interface *usb_intf)
 {
 	int	i;
 	struct dvobj_priv *pdvobjpriv;
@@ -61,7 +61,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
 	if (!pdvobjpriv)
-		return NULL;
+		return -ENOMEM;
 
 	pdvobjpriv->pusbintf = usb_intf;
 	pusbd = interface_to_usbdev(usb_intf);
@@ -108,7 +108,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	mutex_init(&pdvobjpriv->usb_vendor_req_mutex);
 	usb_get_dev(pusbd);
 
-	return pdvobjpriv;
+	return 0;
 }
 
 static void usb_dvobj_deinit(struct usb_interface *usb_intf)
@@ -450,27 +450,21 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 
 static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
 {
-	struct dvobj_priv *dvobj;
+	int err;
 
-	/* Initialize dvobj_priv */
-	dvobj = usb_dvobj_init(pusb_intf);
-	if (!dvobj) {
-		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("initialize device object priv Failed!\n"));
-		goto exit;
+	err = usb_dvobj_init(pusb_intf);
+	if (err) {
+		pr_debug("usb_dvobj_init failed\n");
+		return err;
 	}
 
 	if (!rtw_usb_if1_init(pusb_intf)) {
 		pr_debug("rtw_usb_if1_init failed\n");
-		goto free_dvobj;
+		usb_dvobj_deinit(pusb_intf);
+		return -ENODEV;
 	}
 
 	return 0;
-
-free_dvobj:
-	usb_dvobj_deinit(pusb_intf);
-exit:
-	return -ENODEV;
 }
 
 /*
