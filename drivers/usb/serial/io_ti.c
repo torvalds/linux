@@ -211,7 +211,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static int closing_wait = EDGE_CLOSING_WAIT;
 static bool ignore_cpu_rev;
 static int default_uart_mode;		/* RS232 */
 
@@ -2593,7 +2592,7 @@ static int edge_port_probe(struct usb_serial_port *port)
 	if (ret)
 		goto err;
 
-	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
+	port->port.closing_wait = msecs_to_jiffies(EDGE_CLOSING_WAIT * 10);
 	port->port.drain_delay = 1;
 
 	return 0;
@@ -2758,9 +2757,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("edgeport/down3.bin");
-
-module_param(closing_wait, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(closing_wait, "Maximum wait for data to drain, in .01 secs");
 
 module_param(ignore_cpu_rev, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ignore_cpu_rev,
