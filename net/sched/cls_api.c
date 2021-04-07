@@ -3065,10 +3065,9 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 						rate_tlv, "police", ovr,
 						TCA_ACT_BIND, a_o, init_res,
 						rtnl_held, extack);
-			if (IS_ERR(act)) {
-				module_put(a_o->owner);
+			module_put(a_o->owner);
+			if (IS_ERR(act))
 				return PTR_ERR(act);
-			}
 
 			act->type = exts->type = TCA_OLD_COMPAT;
 			exts->actions[0] = act;
