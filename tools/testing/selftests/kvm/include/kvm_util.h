@@ -225,7 +225,7 @@ void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid);
 
 int _kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr);
 int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr);
-int _kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test);
+int _kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test, int *fd);
 int kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test);
 int _kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 		       void *val, bool write);
