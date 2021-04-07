@@ -1706,12 +1706,6 @@ static bool is_timing_changed(struct dc_stream_state *cur_stream,
 	if (cur_stream == NULL)
 		return true;
 
-	/* If sink pointer changed, it means this is a hotplug, we should do
-	 * full hw setting.
-	 */
-	if (cur_stream->sink != new_stream->sink)
-		return true;
-
 	/* If output color space is changed, need to reprogram info frames */
 	if (cur_stream->output_color_space != new_stream->output_color_space)
 		return true;
