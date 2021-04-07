@@ -1894,6 +1894,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.get_ppt_limit = vangogh_get_ppt_limit,
 	.get_power_limit = vangogh_get_power_limit,
 	.set_power_limit = vangogh_set_power_limit,
+	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 };
 
 void vangogh_set_ppt_funcs(struct smu_context *smu)
