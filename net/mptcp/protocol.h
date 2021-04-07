@@ -169,18 +169,6 @@ static inline __be32 mptcp_option(u8 subopt, u8 len, u8 nib, u8 field)
 		     ((nib & 0xF) << 8) | field);
 }
 
-struct mptcp_addr_info {
-	sa_family_t		family;
-	__be16			port;
-	u8			id;
-	union {
-		struct in_addr addr;
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-		struct in6_addr addr6;
-#endif
-	};
-};
-
 enum mptcp_pm_status {
 	MPTCP_PM_ADD_ADDR_RECEIVED,
 	MPTCP_PM_ADD_ADDR_SEND_ACK,
