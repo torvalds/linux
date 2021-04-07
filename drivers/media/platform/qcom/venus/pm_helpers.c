@@ -868,7 +868,7 @@ skip_pmdomains:
 static int core_resets_reset(struct venus_core *core)
 {
 	const struct venus_resources *res = core->res;
-	unsigned char i;
+	unsigned int i;
 	int ret;
 
 	if (!res->resets_num)
@@ -893,7 +893,7 @@ static int core_resets_get(struct venus_core *core)
 {
 	struct device *dev = core->dev;
 	const struct venus_resources *res = core->res;
-	unsigned char i;
+	unsigned int i;
 	int ret;
 
 	if (!res->resets_num)
