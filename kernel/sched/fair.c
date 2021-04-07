@@ -7211,8 +7211,11 @@ simple:
 		put_prev_task(rq, prev);
 
 	trace_android_rvh_replace_next_task_fair(rq, &p, &se, &repick, true);
-	if (repick)
+	if (repick) {
+		for_each_sched_entity(se)
+			set_next_entity(cfs_rq_of(se), se);
 		goto done;
+	}
 
 	do {
 		se = pick_next_entity(cfs_rq, NULL);
