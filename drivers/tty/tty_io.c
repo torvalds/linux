@@ -2624,23 +2624,31 @@ static int tty_tiocgicount(struct tty_struct *tty, void __user *arg)
 	return 0;
 }
 
-static int tty_tiocsserial(struct tty_struct *tty, struct serial_struct __user *ss)
+static int tty_set_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
 	char comm[TASK_COMM_LEN];
-	struct serial_struct v;
 	int flags;
 
-	if (copy_from_user(&v, ss, sizeof(*ss)))
-		return -EFAULT;
-
-	flags = v.flags & ASYNC_DEPRECATED;
+	flags = ss->flags & ASYNC_DEPRECATED;
 
 	if (flags)
 		pr_warn_ratelimited("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
 				__func__, get_task_comm(comm, current), flags);
+
 	if (!tty->ops->set_serial)
 		return -ENOTTY;
-	return tty->ops->set_serial(tty, &v);
+
+	return tty->ops->set_serial(tty, ss);
+}
+
+static int tty_tiocsserial(struct tty_struct *tty, struct serial_struct __user *ss)
+{
+	struct serial_struct v;
+
+	if (copy_from_user(&v, ss, sizeof(*ss)))
+		return -EFAULT;
+
+	return tty_set_serial(tty, &v);
 }
 
 static int tty_tiocgserial(struct tty_struct *tty, struct serial_struct __user *ss)
@@ -2838,10 +2846,8 @@ struct serial_struct32 {
 static int compat_tty_tiocsserial(struct tty_struct *tty,
 		struct serial_struct32 __user *ss)
 {
-	char comm[TASK_COMM_LEN];
 	struct serial_struct32 v32;
 	struct serial_struct v;
-	int flags;
 
 	if (copy_from_user(&v32, ss, sizeof(*ss)))
 		return -EFAULT;
@@ -2852,14 +2858,7 @@ static int compat_tty_tiocsserial(struct tty_struct *tty,
 	v.port_high = v32.port_high;
 	v.iomap_base = 0;
 
-	flags = v.flags & ASYNC_DEPRECATED;
-
-	if (flags)
-		pr_warn_ratelimited("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
-				__func__, get_task_comm(comm, current), flags);
-	if (!tty->ops->set_serial)
-		return -ENOTTY;
-	return tty->ops->set_serial(tty, &v);
+	return tty_set_serial(tty, &v);
 }
 
 static int compat_tty_tiocgserial(struct tty_struct *tty,
