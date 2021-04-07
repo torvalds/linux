@@ -180,7 +180,7 @@
 		ranges;
 
 		ospi0: spi@47040000 {
-			compatible = "ti,am654-ospi";
+			compatible = "ti,am654-ospi", "cdns,qspi-nor";
 			reg = <0x0 0x47040000 0x0 0x100>,
 				<0x5 0x00000000 0x1 0x0000000>;
 			interrupts = <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>;
@@ -197,7 +197,7 @@
 		};
 
 		ospi1: spi@47050000 {
-			compatible = "ti,am654-ospi";
+			compatible = "ti,am654-ospi", "cdns,qspi-nor";
 			reg = <0x0 0x47050000 0x0 0x100>,
 				<0x7 0x00000000 0x1 0x00000000>;
 			interrupts = <GIC_SPI 841 IRQ_TYPE_LEVEL_HIGH>;
