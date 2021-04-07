@@ -771,6 +771,7 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 {
 	int retval = tty_ldisc_open(tty, tty->ldisc);
+
 	if (retval)
 		return retval;
 
@@ -829,6 +830,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_release);
 int tty_ldisc_init(struct tty_struct *tty)
 {
 	struct tty_ldisc *ld = tty_ldisc_get(tty, N_TTY);
+
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 	tty->ldisc = ld;
