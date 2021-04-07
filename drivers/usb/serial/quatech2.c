@@ -459,12 +459,9 @@ static int get_serial_info(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 
 	ss->line		= port->minor;
-	ss->port		= 0;
-	ss->irq			= 0;
-	ss->xmit_fifo_size	= port->bulk_out_size;
-	ss->baud_base		= 9600;
-	ss->close_delay		= 5*HZ;
-	ss->closing_wait	= 30*HZ;
+	ss->close_delay		= 50;
+	ss->closing_wait	= 3000;
+
 	return 0;
 }
 
