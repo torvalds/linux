@@ -255,7 +255,8 @@ struct cm_id_private {
 	struct completion comp;
 	refcount_t refcount;
 	/* Number of clients sharing this ib_cm_id. Only valid for listeners.
-	 * Protected by the cm.lock spinlock. */
+	 * Protected by the cm.lock spinlock.
+	 */
 	int listen_sharecount;
 	struct rcu_head rcu;
 

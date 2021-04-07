@@ -1829,7 +1829,8 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 				deref_mad_agent(mad_agent_priv);
 			} else {
 				/* not user rmpp, revert to normal behavior and
-				 * drop the mad */
+				 * drop the mad
+				 */
 				ib_free_recv_mad(mad_recv_wc);
 				deref_mad_agent(mad_agent_priv);
 				return;
