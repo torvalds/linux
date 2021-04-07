@@ -828,8 +828,10 @@ static int f81232_get_serial_info(struct tty_struct *tty,
 
 	ss->type = PORT_16550A;
 	ss->line = port->minor;
-	ss->port = port->port_number;
 	ss->baud_base = priv->baud_base;
+	ss->close_delay = 50;
+	ss->closing_wait = 3000;
+
 	return 0;
 }
 
