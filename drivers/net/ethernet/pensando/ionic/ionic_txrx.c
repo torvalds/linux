@@ -1203,6 +1203,7 @@ static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 	if (unlikely(!ionic_q_has_space(q, ndescs)))
 		goto err_out_drop;
 
+	skb_shinfo(skb)->tx_flags |= SKBTX_HW_TSTAMP;
 	if (skb_is_gso(skb))
 		err = ionic_tx_tso(q, skb);
 	else
