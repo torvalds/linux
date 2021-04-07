@@ -549,6 +549,11 @@ static void nvme_free_ns_head(struct kref *ref)
 	kfree(head);
 }
 
+static bool nvme_tryget_ns_head(struct nvme_ns_head *head)
+{
+	return kref_get_unless_zero(&head->ref);
+}
+
 static void nvme_put_ns_head(struct nvme_ns_head *head)
 {
 	kref_put(&head->ref, nvme_free_ns_head);
@@ -1975,9 +1980,7 @@ static const struct block_device_operations nvme_bdev_ops = {
 #ifdef CONFIG_NVME_MULTIPATH
 static int nvme_ns_head_open(struct block_device *bdev, fmode_t mode)
 {
-	struct nvme_ns_head *head = bdev->bd_disk->private_data;
-
-	if (!kref_get_unless_zero(&head->ref))
+	if (!nvme_tryget_ns_head(bdev->bd_disk->private_data))
 		return -ENXIO;
 	return 0;
 }
@@ -3404,7 +3407,7 @@ static struct nvme_ns_head *nvme_find_ns_head(struct nvme_subsystem *subsys,
 	lockdep_assert_held(&subsys->lock);
 
 	list_for_each_entry(h, &subsys->nsheads, entry) {
-		if (h->ns_id == nsid && kref_get_unless_zero(&h->ref))
+		if (h->ns_id == nsid && nvme_tryget_ns_head(h))
 			return h;
 	}
 
