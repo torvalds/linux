@@ -200,8 +200,6 @@ void _rtw_free_network(struct	mlme_priv *pmlmepriv, struct wlan_network *pnetwor
 
 	pmlmepriv->num_of_scanned--;
 
-	/* DBG_871X("_rtw_free_network:SSID =%s\n", pnetwork->network.Ssid.Ssid); */
-
 	spin_unlock_bh(&free_queue->lock);
 }
 
@@ -866,7 +864,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 		}
 	}
 
-	/* DBG_871X("scan complete in %dms\n", jiffies_to_msecs(jiffies - pmlmepriv->scan_start_time)); */
 unlock:
 	spin_unlock_bh(&pmlmepriv->lock);
 
@@ -1003,8 +1000,6 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING|WIFI_UNDER_WPS);
-
-	/* DBG_871X("clear wps when %s\n", __func__); */
 
 	if (rtw_to_roam(padapter) > 0)
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
@@ -2583,7 +2578,6 @@ void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len, u8 channe
 		max_ampdu_sz = (pht_capie->ampdu_params_info & IEEE80211_HT_CAP_AMPDU_FACTOR);
 		max_ampdu_sz = 1 << (max_ampdu_sz+3); /*  max_ampdu_sz (kbytes); */
 
-		/* DBG_871X("rtw_update_ht_cap(): max_ampdu_sz =%d\n", max_ampdu_sz); */
 		phtpriv->rx_ampdu_maxlen = max_ampdu_sz;
 
 	}

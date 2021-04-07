@@ -421,7 +421,6 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 			) {
 				if (!rtw_cfg80211_inform_bss(padapter, scanned)) {
 				} else {
-					/* DBG_871X(FUNC_ADPT_FMT" inform success !!\n", FUNC_ADPT_ARG(padapter)); */
 				}
 			} else {
 				rtw_warn_on(1);
@@ -455,8 +454,6 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 		struct wlan_bssid_ex  *pnetwork = &(padapter->mlmeextpriv.mlmext_info.network);
 		struct wlan_network *scanned = pmlmepriv->cur_network_scanned;
 
-		/* DBG_871X(FUNC_ADPT_FMT" BSS not found\n", FUNC_ADPT_ARG(padapter)); */
-
 		if (scanned == NULL) {
 			rtw_warn_on(1);
 			goto check_bss;
@@ -467,7 +464,6 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 		) {
 			if (!rtw_cfg80211_inform_bss(padapter, scanned)) {
 			} else {
-				/* DBG_871X(FUNC_ADPT_FMT" inform success !!\n", FUNC_ADPT_ARG(padapter)); */
 			}
 		} else {
 			rtw_warn_on(1);
@@ -959,13 +955,12 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 					}
 					else if (strcmp(param->u.crypt.alg, "BIP") == 0)
 					{
-						/* DBG_871X("BIP key_len =%d , index =%d @@@@@@@@@@@@@@@@@@\n", param->u.crypt.key_len, param->u.crypt.idx); */
 						/* save the IGTK key, length 16 bytes */
 						memcpy(padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey, param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
-						/*DBG_871X("IGTK key below:\n");
+						/*
 						for (no = 0;no<16;no++)
 							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[no]);
-						DBG_871X("\n");*/
+						*/
 						padapter->securitypriv.dot11wBIPKeyid = param->u.crypt.idx;
 						padapter->securitypriv.binstallBIPkey = true;
 					}

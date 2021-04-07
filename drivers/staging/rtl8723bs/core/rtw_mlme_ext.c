@@ -605,9 +605,6 @@ unsigned int OnProbeReq(struct adapter *padapter, union recv_frame *precv_frame)
 		return _SUCCESS;
 	}
 
-
-	/* DBG_871X("+OnProbeReq\n"); */
-
 	p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + _PROBEREQ_IE_OFFSET_, WLAN_EID_SSID, (int *)&ielen,
 			len - WLAN_HDR_A3_LEN - _PROBEREQ_IE_OFFSET_);
 
@@ -625,7 +622,6 @@ unsigned int OnProbeReq(struct adapter *padapter, union recv_frame *precv_frame)
 _issue_probersp:
 		if ((check_fwstate(pmlmepriv, _FW_LINKED)  &&
 			pmlmepriv->cur_network.join_res) || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
-			/* DBG_871X("+issue_probersp during ap mode\n"); */
 			issue_probersp(padapter, get_sa(pframe), is_valid_p2p_probereq);
 		}
 
@@ -720,7 +716,6 @@ unsigned int OnBeacon(struct adapter *padapter, union recv_frame *precv_frame)
 				/* update WMM, ERP in the beacon */
 				/* todo: the timer is used instead of the number of the beacon received */
 				if ((sta_rx_pkts(psta) & 0xf) == 0)
-					/* DBG_871X("update_bcn_info\n"); */
 					update_beacon_info(padapter, pframe, len, psta);
 
 				adaptive_early_32k(pmlmeext, pframe, len);
@@ -731,7 +726,6 @@ unsigned int OnBeacon(struct adapter *padapter, union recv_frame *precv_frame)
 				/* update WMM, ERP in the beacon */
 				/* todo: the timer is used instead of the number of the beacon received */
 				if ((sta_rx_pkts(psta) & 0xf) == 0) {
-					/* DBG_871X("update_bcn_info\n"); */
 					update_beacon_info(padapter, pframe, len, psta);
 				}
 			} else {
@@ -986,7 +980,6 @@ unsigned int OnAuthClient(struct adapter *padapter, union recv_frame *precv_fram
 				pkt_len - WLAN_HDR_A3_LEN - _AUTH_IE_OFFSET_);
 
 			if (p == NULL) {
-				/* DBG_871X("marc: no challenge text?\n"); */
 				goto authclnt_fail;
 			}
 
@@ -1008,7 +1001,6 @@ unsigned int OnAuthClient(struct adapter *padapter, union recv_frame *precv_fram
 		}
 	} else {
 		/*  this is also illegal */
-		/* DBG_871X("marc: clnt auth failed due to illegal seq =%x\n", seq); */
 		goto authclnt_fail;
 	}
 
@@ -1794,7 +1786,6 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 				psta->state ^= WIFI_STA_ALIVE_CHK_STATE;
 			}
 
-			/* DBG_871X("marc: ADDBA RSP: %x\n", pmlmeinfo->agg_enable_bitmap); */
 			break;
 
 		case WLAN_ACTION_DELBA: /* DELBA */
@@ -2020,8 +2011,6 @@ unsigned int OnAction(struct adapter *padapter, union recv_frame *precv_frame)
 
 unsigned int DoReserved(struct adapter *padapter, union recv_frame *precv_frame)
 {
-
-	/* DBG_871X("rcvd mgt frame(%x, %x)\n", (GetFrameSubType(pframe) >> 4), *(unsigned int *)GetAddr1Ptr(pframe)); */
 	return _SUCCESS;
 }
 
@@ -2072,7 +2061,6 @@ void update_mgnt_tx_rate(struct adapter *padapter, u8 rate)
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 
 	pmlmeext->tx_rate = rate;
-	/* DBG_871X("%s(): rate = %x\n", __func__, rate); */
 }
 
 void update_mgntframe_attrib(struct adapter *padapter, struct pkt_attrib *pattrib)
@@ -2203,8 +2191,6 @@ static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
 
 	ssid_ie = rtw_get_ie(ies,  WLAN_EID_SSID, &ssid_len_ori, ies_len);
 
-	/* DBG_871X("%s hidden_ssid_mode:%u, ssid_ie:%p, ssid_len_ori:%d\n", __func__, hidden_ssid_mode, ssid_ie, ssid_len_ori); */
-
 	if (ssid_ie && ssid_len_ori > 0) {
 		switch (hidden_ssid_mode) {
 		case 1:
@@ -2279,7 +2265,6 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
-		/* DBG_871X("ie len =%d\n", cur_network->IELength); */
 		{
 			int len_diff;
 
@@ -2375,7 +2360,6 @@ _issue_bcn:
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
-	/* DBG_871X("issue bcn_sz =%d\n", pattrib->last_txcmdsz); */
 	if (timeout_ms > 0)
 		dump_mgntframe_and_wait(padapter, pmgntframe, timeout_ms);
 	else
@@ -2793,13 +2777,11 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short 
 			use_shared_key = 1;
 		}
 		le_tmp = cpu_to_le16(val16);
-		/* DBG_871X("%s auth_algo = %s auth_seq =%d\n", __func__, (pmlmeinfo->auth_algo == 0)?"OPEN":"SHARED", pmlmeinfo->auth_seq); */
 
 		/* setting IV for auth seq #3 */
 		if ((pmlmeinfo->auth_seq == 3) && (pmlmeinfo->state & WIFI_FW_AUTH_STATE) && (use_shared_key == 1)) {
 			__le32 le_tmp32;
 
-			/* DBG_871X("==> iv(%d), key_index(%d)\n", pmlmeinfo->iv, pmlmeinfo->key_index); */
 			val32 = ((pmlmeinfo->iv++) | (pmlmeinfo->key_index << 30));
 			le_tmp32 = cpu_to_le32(val32);
 			pframe = rtw_set_fixed_ie(pframe, 4, (unsigned char *)&le_tmp32, &(pattrib->pktlen));
@@ -3037,14 +3019,12 @@ void issue_assocreq(struct adapter *padapter)
 
 	/*  Check if the AP's supported rates are also supported by STA. */
 	get_rate_set(padapter, sta_bssrate, &sta_bssrate_len);
-	/* DBG_871X("sta_bssrate_len =%d\n", sta_bssrate_len); */
 
 	if (pmlmeext->cur_channel == 14) /*  for JAPAN, channel 14 can only uses B Mode(CCK) */
 		sta_bssrate_len = 4;
 
 
 	/* for (i = 0; i < sta_bssrate_len; i++) { */
-	/* 	DBG_871X("sta_bssrate[%d]=%02X\n", i, sta_bssrate[i]); */
 	/*  */
 
 	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
@@ -3063,10 +3043,8 @@ void issue_assocreq(struct adapter *padapter)
 			 /*  Avoid the proprietary data rate (22Mbps) of Handlink WSG-4000 AP */
 			if ((pmlmeinfo->network.SupportedRates[i]|IEEE80211_BASIC_RATE_MASK)
 					== (sta_bssrate[j]|IEEE80211_BASIC_RATE_MASK)) {
-				/* DBG_871X("match i = %d, j =%d\n", i, j); */
 				break;
 			} else {
-				/* DBG_871X("not match: %02X != %02X\n", (pmlmeinfo->network.SupportedRates[i]|IEEE80211_BASIC_RATE_MASK), (sta_bssrate[j]|IEEE80211_BASIC_RATE_MASK)); */
 			}
 		}
 
@@ -3168,8 +3146,6 @@ static int _issue_nulldata(struct adapter *padapter, unsigned char *da,
 	struct xmit_priv *pxmitpriv;
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
-
-	/* DBG_871X("%s:%d\n", __func__, power_mode); */
 
 	if (!padapter)
 		goto exit;
@@ -3441,8 +3417,6 @@ static int _issue_deauth(struct adapter *padapter, unsigned char *da,
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	int ret = _FAIL;
 	__le16 le_tmp;
-
-	/* DBG_871X("%s to %pM\n", __func__, MAC_ARG(da)); */
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (pmgntframe == NULL) {
@@ -3911,8 +3885,6 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 	if (psta == NULL)
 		return _SUCCESS;
 
-	/* DBG_871X("%s:%s\n", __func__, (initiator == 0)?"RX_DIR":"TX_DIR"); */
-
 	if (initiator == 0) {/*  recipient */
 		for (tid = 0; tid < MAXTID; tid++) {
 			if (psta->recvreorder_ctrl[tid].enable) {
@@ -3924,7 +3896,6 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 			}
 		}
 	} else if (initiator == 1) {/*  originator */
-		/* DBG_871X("tx agg_enable_bitmap(0x%08x)\n", psta->htpriv.agg_enable_bitmap); */
 		for (tid = 0; tid < MAXTID; tid++) {
 			if (psta->htpriv.agg_enable_bitmap & BIT(tid)) {
 				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
@@ -3972,7 +3943,6 @@ unsigned int send_beacon(struct adapter *padapter)
 		if (passing_time > 100 || issue > 3)
 			{}
 		/* else */
-		/* 	DBG_871X("%s success, issue:%d, poll:%d, %u ms\n", __func__, issue, poll, passing_time); */
 
 		return _SUCCESS;
 	}
@@ -4121,7 +4091,6 @@ u8 collect_bss_info(struct adapter *padapter, union recv_frame *precv_frame, str
 	len = packet_len - sizeof(struct ieee80211_hdr_3addr);
 
 	if (len > MAX_IE_SZ) {
-		/* DBG_871X("IE too long for survey event\n"); */
 		return _FAIL;
 	}
 
@@ -4375,7 +4344,6 @@ void start_clnt_join(struct adapter *padapter)
 
 		report_join_res(padapter, 1);
 	} else {
-		/* DBG_871X("marc: invalid cap:%x\n", caps); */
 		return;
 	}
 
@@ -5134,8 +5102,6 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 
 		pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
 
-		/* DBG_871X("set_sta_rate\n"); */
-
 		psta->wireless_mode = pmlmeext->cur_wireless_mode;
 
 		/* set per sta rate after updating HT cap. */
@@ -5406,8 +5372,6 @@ void survey_timer_hdl(struct timer_list *t)
 	struct sitesurvey_parm	*psurveyPara;
 	struct cmd_priv 				*pcmdpriv = &padapter->cmdpriv;
 	struct mlme_ext_priv 	*pmlmeext = &padapter->mlmeextpriv;
-
-	/* DBG_871X("marc: survey timer\n"); */
 
 	/* issue rtw_sitesurvey_cmd */
 	if (pmlmeext->sitesurvey_res.state > SCAN_START) {

@@ -1629,7 +1629,6 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 	u32 res, i = 0;
 	u32 *Array = Array_kfreemap;
 	u32 v1 = 0, v2 = 0, target = 0;
-	/* DBG_871X("+%s value: 0x%02x+\n", __func__, value); */
 
 	if (value & BIT4) {
 		if (padapter->eeprompriv.EEPROMRFGainVal != 0xff) {

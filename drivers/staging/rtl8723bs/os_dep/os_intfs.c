@@ -304,7 +304,6 @@ static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!padapter->bup) {
-		/* DBG_871X("r8711_net_set_mac_address(), MAC =%x:%x:%x:%x:%x:%x\n", addr->sa_data[0], addr->sa_data[1], addr->sa_data[2], addr->sa_data[3], */
 		/* addr->sa_data[4], addr->sa_data[5]); */
 		memcpy(padapter->eeprompriv.mac_addr, addr->sa_data, ETH_ALEN);
 		/* memcpy(pnetdev->dev_addr, addr->sa_data, ETH_ALEN); */
@@ -1004,7 +1003,6 @@ static int netdev_close(struct net_device *pnetdev)
 
 /*if (!padapter->hw_init_completed)
 	{
-		DBG_871X("(1)871x_drv - drv_close, bup =%d, hw_init_completed =%d\n", padapter->bup, padapter->hw_init_completed);
 
 		padapter->bDriverStopped = true;
 

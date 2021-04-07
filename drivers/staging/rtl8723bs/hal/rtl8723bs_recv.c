@@ -38,7 +38,6 @@ static void update_recvframe_attrib(struct adapter *padapter,
 
 	/*  update rx report to recv_frame attribute */
 	pattrib->pkt_rpt_type = prxreport->c2h_ind ? C2H_PACKET : NORMAL_RX;
-/* 	DBG_871X("%s: pkt_rpt_type =%d\n", __func__, pattrib->pkt_rpt_type); */
 
 	if (pattrib->pkt_rpt_type == NORMAL_RX) {
 		/*  Normal rx packet */
@@ -165,8 +164,6 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
 	if (length == 0)
 		return;
 
-	/* DBG_871X("+%s() length =%d\n", __func__, length); */
-
 	tmp = rtw_zmalloc(length);
 	if (!tmp)
 		return;
@@ -177,8 +174,6 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
 
 	if (!res)
 		kfree(tmp);
-
-	/* DBG_871X("-%s res(%d)\n", __func__, res); */
 }
 
 static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,

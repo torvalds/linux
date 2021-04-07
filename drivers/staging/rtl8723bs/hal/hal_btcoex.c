@@ -1523,7 +1523,6 @@ u32 hal_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 
 	pstr = pStrBuf;
 	leftSize = bufSize;
-/* 	DBG_871X(FUNC_ADPT_FMT ": bufsize =%d\n", FUNC_ADPT_ARG(padapter), bufSize); */
 
 	count = rtw_sprintf(pstr, leftSize, "#define DBG\t%d\n", DBG);
 	if ((count < 0) || (count >= leftSize))
@@ -1632,7 +1631,6 @@ u32 hal_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 
 exit:
 	count = pstr - pStrBuf;
-/* 	DBG_871X(FUNC_ADPT_FMT ": usedsize =%d\n", FUNC_ADPT_ARG(padapter), count); */
 
 	return count;
 }

@@ -42,8 +42,6 @@ void indicate_wx_scan_complete_event(struct adapter *padapter)
 	union iwreq_data wrqu;
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
-
-	/* DBG_871X("+rtw_indicate_wx_scan_complete_event\n"); */
 }
 
 
@@ -213,7 +211,6 @@ static char *translate_scan(struct adapter *padapter,
 		if (mcs_rate&0x8000) { /* MCS15 */
 			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
 		} else { /* default MCS7 */
-			/* DBG_871X("wx_get_scan, mcs_rate_bitmap = 0x%x\n", mcs_rate); */
 			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
 		}
 
@@ -328,8 +325,6 @@ static char *translate_scan(struct adapter *padapter,
 	iwe.u.qual.qual = (u8)sq;   /*  signal quality */
 
 	iwe.u.qual.noise = 0; /*  noise level */
-
-	/* DBG_871X("iqual =%d, ilevel =%d, inoise =%d, iupdated =%d\n", iwe.u.qual.qual, iwe.u.qual.level , iwe.u.qual.noise, iwe.u.qual.updated); */
 
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 
@@ -1239,14 +1234,11 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		char sec_len;
 		int ssid_index = 0;
 
-		/* DBG_871X("%s COMBO_SCAN header is recognized\n", __func__); */
-
 		while (len >= 1) {
 			section = *(pos++); len -= 1;
 
 			switch (section) {
 			case WEXT_CSCAN_SSID_SECTION:
-				/* DBG_871X("WEXT_CSCAN_SSID_SECTION\n"); */
 				if (len < 1) {
 					len = 0;
 					break;
@@ -1257,8 +1249,6 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 				if (sec_len > 0 && sec_len <= len) {
 					ssid[ssid_index].SsidLength = sec_len;
 					memcpy(ssid[ssid_index].Ssid, pos, ssid[ssid_index].SsidLength);
-					/* DBG_871X("%s COMBO_SCAN with specific ssid:%s, %d\n", __func__ */
-					/* 	, ssid[ssid_index].Ssid, ssid[ssid_index].SsidLength); */
 					ssid_index++;
 				}
 
@@ -1267,31 +1257,23 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 
 			case WEXT_CSCAN_CHANNEL_SECTION:
-				/* DBG_871X("WEXT_CSCAN_CHANNEL_SECTION\n"); */
 				pos += 1; len -= 1;
 				break;
 			case WEXT_CSCAN_ACTV_DWELL_SECTION:
-				/* DBG_871X("WEXT_CSCAN_ACTV_DWELL_SECTION\n"); */
 				pos += 2; len -= 2;
 				break;
 			case WEXT_CSCAN_PASV_DWELL_SECTION:
-				/* DBG_871X("WEXT_CSCAN_PASV_DWELL_SECTION\n"); */
 				pos += 2; len -= 2;
 				break;
 			case WEXT_CSCAN_HOME_DWELL_SECTION:
-				/* DBG_871X("WEXT_CSCAN_HOME_DWELL_SECTION\n"); */
 				pos += 2; len -= 2;
 				break;
 			case WEXT_CSCAN_TYPE_SECTION:
-				/* DBG_871X("WEXT_CSCAN_TYPE_SECTION\n"); */
 				pos += 1; len -= 1;
 				break;
 			default:
-				/* DBG_871X("Unknown CSCAN section %c\n", section); */
 				len = 0; /*  stop parsing */
 			}
-			/* DBG_871X("len:%d\n", len); */
-
 		}
 
 		/* jeff: it has still some scan parameter to parse, we only do this now... */
@@ -2194,7 +2176,6 @@ static int rtw_wx_write_rf(struct net_device *dev,
 	path = *(u32 *)extra;
 	addr = *((u32 *)extra + 1);
 	data32 = *((u32 *)extra + 2);
-/* 	DBG_871X("%s: path =%d addr = 0x%02x data = 0x%05x\n", __func__, path, addr, data32); */
 	rtw_hal_write_rfreg(padapter, path, addr, 0xFFFFF, data32);
 
 	return 0;
@@ -2211,8 +2192,6 @@ static int dummy(struct net_device *dev, struct iw_request_info *a,
 {
 	/* struct adapter *padapter = rtw_netdev_priv(dev); */
 	/* struct mlme_priv *pmlmepriv = &(padapter->mlmepriv); */
-
-	/* DBG_871X("cmd_code =%x, fwstate = 0x%x\n", a->cmd, get_fwstate(pmlmepriv)); */
 
 	return -1;
 
@@ -2462,7 +2441,6 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 		rereg_priv->old_ifname[IFNAMSIZ-1] = 0;
 	}
 
-	/* DBG_871X("%s wrqu->data.length:%d\n", __func__, wrqu->data.length); */
 	if (wrqu->data.length > IFNAMSIZ)
 		return -EFAULT;
 
@@ -2967,7 +2945,6 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 	case IEEE_PARAM_WPAX_SELECT:
 
 		/*  added for WPA2 mixed mode */
-		/* DBG_871X(KERN_WARNING "------------------------>wpax value = %x\n", value); */
 		/*
 		spin_lock_irqsave(&ieee->wpax_suitlist_lock, flags);
 		ieee->wpax_type_set = 1;
@@ -3375,7 +3352,6 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 	psta = rtw_get_stainfo(pstapriv, param->sta_addr);
 	if (psta)
 	{
-		DBG_871X("rtw_add_sta(), free has been added psta =%p\n", psta);
 		spin_lock_bh(&(pstapriv->sta_hash_lock));
 		rtw_free_stainfo(padapter,  psta);
 		spin_unlock_bh(&(pstapriv->sta_hash_lock));
@@ -3387,8 +3363,6 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 	psta = rtw_get_stainfo(pstapriv, param->sta_addr);
 	if (psta) {
 		int flags = param->u.add_sta.flags;
-
-		/* DBG_871X("rtw_add_sta(), init sta's variables, psta =%p\n", psta); */
 
 		psta->aid = param->u.add_sta.aid;/* aid = 1~2007 */
 
@@ -3447,8 +3421,6 @@ static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
 	psta = rtw_get_stainfo(pstapriv, param->sta_addr);
 	if (psta) {
 		u8 updated = false;
-
-		/* DBG_871X("free psta =%p, aid =%d\n", psta, psta->aid); */
 
 		spin_lock_bh(&pstapriv->asoc_list_lock);
 		if (list_empty(&psta->asoc_list) == false) {
@@ -3794,8 +3766,6 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 		return -EFAULT;
 	}
 
-	/* DBG_871X("%s, cmd =%d\n", __func__, param->cmd); */
-
 	switch (param->cmd) {
 	case RTL871X_HOSTAPD_FLUSH:
 
@@ -3981,9 +3951,6 @@ FREE_EXT:
 	#ifdef DEBUG_RTW_WX_SET_PRIV
 	vfree(ext_dbg);
 	#endif
-
-	/* DBG_871X("rtw_wx_set_priv: (SIOCSIWPRIV) %s ret =%d\n", */
-	/* 		dev->name, ret); */
 
 	return ret;
 
@@ -4298,7 +4265,6 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		piwstats->qual.qual = 0;
 		piwstats->qual.level = 0;
 		piwstats->qual.noise = 0;
-		/* DBG_871X("No link  level:%d, qual:%d, noise:%d\n", tmp_level, tmp_qual, tmp_noise); */
 	} else {
 		tmp_level = padapter->recvpriv.signal_strength;
 		tmp_qual = padapter->recvpriv.signal_qual;

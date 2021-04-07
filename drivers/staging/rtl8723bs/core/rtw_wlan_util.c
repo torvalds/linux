@@ -1295,7 +1295,6 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 			if (pht_info) {
 					bcn_channel = pht_info->primary_channel;
 			} else { /* we don't find channel IE, so don't check it */
-					/* DBG_871X("Oops: %s we don't find channel IE, so don't check it\n", __func__); */
 					bcn_channel = Adapter->mlmeextpriv.cur_channel;
 			}
 	}
@@ -1792,8 +1791,6 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 	tsf = tsf << 32;
 	tsf |= le32_to_cpu(*pbuf);
 
-	/* DBG_871X("%s(): tsf_upper = 0x%08x, tsf_lower = 0x%08x\n", __func__, (u32)(tsf>>32), (u32)tsf); */
-
 	/* delay = (timestamp mod 1024*100)/1000 (unit: ms) */
 	/* delay_ms = do_div(tsf, (pmlmeinfo->bcn_interval*1024))/1000; */
 	delay_ms = do_div(tsf, (pmlmeinfo->bcn_interval*1024));
@@ -1807,11 +1804,9 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 		/* pmlmeext->bcn_delay_ratio[delay_ms] = (pmlmeext->bcn_delay_cnt[delay_ms] * 100) /pmlmeext->bcn_cnt; */
 
 /*
-	DBG_871X("%s(): (a)bcn_cnt = %d\n", __func__, pmlmeext->bcn_cnt);
 
 	for (i = 0; i<9; i++)
 	{
-		DBG_871X("%s():bcn_delay_cnt[%d]=%d,  bcn_delay_ratio[%d]=%d\n", __func__, i,
 			pmlmeext->bcn_delay_cnt[i] , i, pmlmeext->bcn_delay_ratio[i]);
 	}
 */

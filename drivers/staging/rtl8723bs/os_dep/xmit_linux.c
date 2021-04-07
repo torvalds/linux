@@ -113,7 +113,6 @@ static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pk
 	if (padapter->registrypriv.wifi_spec) {
 		/* No free space for Tx, tx_worker is too slow */
 		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD) {
-			/* DBG_871X("%s(): stop netif_subqueue[%d]\n", __func__, queue); */
 			netif_stop_subqueue(padapter->pnetdev, queue);
 		}
 	} else {
@@ -213,8 +212,6 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 			if (res)
 				goto exit;
 		} else {
-			/* DBG_871X("Stop M2U(%d, %d)! ", pxmitpriv->free_xmitframe_cnt, pxmitpriv->free_xmitbuf_cnt); */
-			/* DBG_871X("!m2u); */
 		}
 	}
 

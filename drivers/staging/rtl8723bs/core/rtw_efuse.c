@@ -252,9 +252,6 @@ bool		bPseudoTest)
 	u8 bResult;
 	u8 readbyte;
 
-	/* DBG_871X("===> EFUSE_OneByteRead(), addr = %x\n", addr); */
-	/* DBG_871X("===> EFUSE_OneByteRead() start, 0x34 = 0x%X\n", rtw_read32(padapter, EFUSE_TEST)); */
-
 	if (bPseudoTest) {
 		return Efuse_Read1ByteFromFakeContent(padapter, addr, data);
 	}
@@ -296,9 +293,6 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 	u8 tmpidx = 0;
 	u8 bResult = false;
 	u32 efuseValue = 0;
-
-	/* DBG_871X("===> EFUSE_OneByteWrite(), addr = %x data =%x\n", addr, data); */
-	/* DBG_871X("===> EFUSE_OneByteWrite() start, 0x34 = 0x%X\n", rtw_read32(padapter, EFUSE_TEST)); */
 
 	if (bPseudoTest) {
 		return Efuse_Write1ByteToFakeContent(padapter, addr, data);

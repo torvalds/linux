@@ -314,12 +314,6 @@ int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	if ((pcmdpriv->padapter->hw_init_completed == false && bAllow == false)
 		|| atomic_read(&(pcmdpriv->cmdthd_running)) == false	/* com_thread not running */
 	) {
-		/* DBG_871X("%s:%s: drop cmdcode:%u, hw_init_completed:%u, cmdthd_running:%u\n", caller_func, __func__, */
-		/* 	cmd_obj->cmdcode, */
-		/* 	pcmdpriv->padapter->hw_init_completed, */
-		/* 	pcmdpriv->cmdthd_running */
-		/*  */
-
 		return _FAIL;
 	}
 	return _SUCCESS;
@@ -427,7 +421,6 @@ int rtw_cmd_thread(void *context)
 		}
 
 		if (list_empty(&(pcmdpriv->cmd_queue.queue))) {
-			/* DBG_871X("%s: cmd queue is empty!\n", __func__); */
 			continue;
 		}
 
@@ -520,8 +513,6 @@ post_process:
 			rtw_unregister_cmd_alive(padapter);
 			break;
 		}
-
-		/* DBG_871X("%s: leaving... drop cmdcode:%u size:%d\n", __func__, pcmd->cmdcode, pcmd->cmdsz); */
 
 		if (pcmd->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
 			extra_parm = (struct drvextra_cmd_parm *)pcmd->parmbuf;
@@ -1049,8 +1040,6 @@ u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr)
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, paddbareq_parm, GEN_CMD_CODE(_AddBAReq));
 
-	/* DBG_871X("rtw_addbareq_cmd, tid =%d\n", tid); */
-
 	/* rtw_enqueue_cmd(pcmdpriv, ph2c); */
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
@@ -1288,7 +1277,6 @@ u8 traffic_status_watchdog(struct adapter *padapter, u8 from_timer)
 		/*  check traffic for  powersaving. */
 		if (((pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod + pmlmepriv->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
 			(pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod > 2)) {
-			/* DBG_871X("(-)Tx = %d, Rx = %d\n", pmlmepriv->LinkDetectInfo.NumTxOkInPeriod, pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod); */
 			bEnterPS = false;
 
 			if (bBusyTraffic == true) {
@@ -1297,14 +1285,10 @@ u8 traffic_status_watchdog(struct adapter *padapter, u8 from_timer)
 
 				pmlmepriv->LinkDetectInfo.TrafficTransitionCount++;
 
-				/* DBG_871X("Set TrafficTransitionCount to %d\n", pmlmepriv->LinkDetectInfo.TrafficTransitionCount); */
-
 				if (pmlmepriv->LinkDetectInfo.TrafficTransitionCount > 30/*TrafficTransitionLevel*/)
 					pmlmepriv->LinkDetectInfo.TrafficTransitionCount = 30;
 			}
 		} else {
-			/* DBG_871X("(+)Tx = %d, Rx = %d\n", pmlmepriv->LinkDetectInfo.NumTxOkInPeriod, pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod); */
-
 			if (pmlmepriv->LinkDetectInfo.TrafficTransitionCount >= 2)
 				pmlmepriv->LinkDetectInfo.TrafficTransitionCount -= 2;
 			else
@@ -1396,7 +1380,6 @@ void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type)
 
 	switch (lps_ctrl_type) {
 	case LPS_CTRL_SCAN:
-		/* DBG_871X("LPS_CTRL_SCAN\n"); */
 		hal_btcoex_ScanNotify(padapter, true);
 
 		if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
@@ -1405,11 +1388,9 @@ void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type)
 		}
 		break;
 	case LPS_CTRL_JOINBSS:
-		/* DBG_871X("LPS_CTRL_JOINBSS\n"); */
 		LPS_Leave(padapter, "LPS_CTRL_JOINBSS");
 		break;
 	case LPS_CTRL_CONNECT:
-		/* DBG_871X("LPS_CTRL_CONNECT\n"); */
 		mstatus = 1;/* connect */
 		/*  Reset LPS Setting */
 		pwrpriv->LpsIdleCount = 0;
@@ -1417,20 +1398,17 @@ void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type)
 		rtw_btcoex_MediaStatusNotify(padapter, mstatus);
 		break;
 	case LPS_CTRL_DISCONNECT:
-		/* DBG_871X("LPS_CTRL_DISCONNECT\n"); */
 		mstatus = 0;/* disconnect */
 		rtw_btcoex_MediaStatusNotify(padapter, mstatus);
 		LPS_Leave(padapter, "LPS_CTRL_DISCONNECT");
 		rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_JOINBSSRPT, (u8 *)(&mstatus));
 		break;
 	case LPS_CTRL_SPECIAL_PACKET:
-		/* DBG_871X("LPS_CTRL_SPECIAL_PACKET\n"); */
 		pwrpriv->DelayLPSLastTimeStamp = jiffies;
 		hal_btcoex_SpecialPacketNotify(padapter, PACKET_DHCP);
 		LPS_Leave(padapter, "LPS_CTRL_SPECIAL_PACKET");
 		break;
 	case LPS_CTRL_LEAVE:
-		/* DBG_871X("LPS_CTRL_LEAVE\n"); */
 		LPS_Leave(padapter, "LPS_CTRL_LEAVE");
 		break;
 	case LPS_CTRL_TRAFFIC_BUSY:
@@ -1541,8 +1519,6 @@ static void rtw_lps_change_dtim_hdl(struct adapter *padapter, u8 dtim)
 
 	if ((pwrpriv->bFwCurrentInPSMode == true) && (pwrpriv->pwr_mode > PS_MODE_ACTIVE)) {
 		u8 ps_mode = pwrpriv->pwr_mode;
-
-		/* DBG_871X("change DTIM from %d to %d, ps_mode =%d\n", pwrpriv->dtim, dtim, ps_mode); */
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 	}

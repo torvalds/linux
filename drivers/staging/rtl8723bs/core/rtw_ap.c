@@ -258,8 +258,6 @@ void expire_timeout_chk(struct adapter *padapter)
 					psta->expire_to = pstapriv->expire_to;
 					psta->state |= WIFI_STA_ALIVE_CHK_STATE;
 
-					/* DBG_871X("alive chk, sta:%pM is at ps mode!\n", MAC_ARG(psta->hwaddr)); */
-
 					/* to update bcn with tim_bitmap for this station */
 					pstapriv->tim_bitmap |= BIT(psta->aid);
 					update_beacon(padapter, WLAN_EID_TIM, NULL, true);

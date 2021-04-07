@@ -129,7 +129,6 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, str
 				}
 			} else {
 				/*  to APself */
-				/* DBG_871X("to APSelf\n"); */
 			}
 		}
 

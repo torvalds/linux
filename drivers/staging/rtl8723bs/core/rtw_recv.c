@@ -333,7 +333,6 @@ static signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *p
 				/* rxdata_key_idx =(((iv[3])>>6)&0x3) ; */
 				mickey = &psecuritypriv->dot118021XGrprxmickey[prxattrib->key_index].skey[0];
 
-				/* DBG_871X("\n recvframe_chkmic: bcmc key psecuritypriv->dot118021XGrpKeyid(%d), pmlmeinfo->key_index(%d) , recv key_id(%d)\n", */
 				/* psecuritypriv->dot118021XGrpKeyid, pmlmeinfo->key_index, rxdata_key_idx); */
 
 				if (psecuritypriv->binstallGrpkey == false) {
@@ -568,7 +567,6 @@ static void process_pwrbit_data(struct adapter *padapter, union recv_frame *prec
 
 				stop_sta_xmit(padapter, psta);
 
-				/* DBG_871X("to sleep, sta_dz_bitmap =%x\n", pstapriv->sta_dz_bitmap); */
 			}
 		} else {
 			if (psta->state & WIFI_SLEEP_STATE) {
@@ -576,8 +574,6 @@ static void process_pwrbit_data(struct adapter *padapter, union recv_frame *prec
 				/* pstapriv->sta_dz_bitmap &= ~BIT(psta->aid); */
 
 				wakeup_sta_to_xmit(padapter, psta);
-
-				/* DBG_871X("to wakeup, sta_dz_bitmap =%x\n", pstapriv->sta_dz_bitmap); */
 			}
 		}
 
@@ -678,8 +674,6 @@ static signed int sta2sta_data_frame(struct adapter *adapter, union recv_frame *
 	u8 *myhwaddr = myid(&adapter->eeprompriv);
 	u8 *sta_addr = NULL;
 	signed int bmcast = IS_MCAST(pattrib->dst);
-
-	/* DBG_871X("[%s] %d, seqnum:%d\n", __func__, __LINE__, pattrib->seq_num); */
 
 	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) ||
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
@@ -857,8 +851,6 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 				/* for AP multicast issue , modify by yiwei */
 				static unsigned long send_issue_deauth_time;
 
-				/* DBG_871X("After send deauth , %u ms has elapsed.\n", jiffies_to_msecs(jiffies - send_issue_deauth_time)); */
-
 				if (jiffies_to_msecs(jiffies - send_issue_deauth_time) > 10000 || send_issue_deauth_time == 0) {
 					send_issue_deauth_time = jiffies;
 
@@ -934,8 +926,6 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 	u8 *pframe = precv_frame->u.hdr.rx_data;
 	struct sta_info *psta = NULL;
 	/* uint len = precv_frame->u.hdr.len; */
-
-	/* DBG_871X("+validate_recv_ctrl_frame\n"); */
 
 	if (GetFrameType(pframe) != WIFI_CTRL_TYPE)
 		return _FAIL;
@@ -1015,14 +1005,10 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 
 				pxmitframe->attrib.triggered = 1;
 
-				/* DBG_871X("handling ps-poll, q_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
-
 				rtw_hal_xmitframe_enqueue(padapter, pxmitframe);
 
 				if (psta->sleepq_len == 0) {
 					pstapriv->tim_bitmap &= ~BIT(psta->aid);
-
-					/* DBG_871X("after handling ps-poll, tim =%x\n", pstapriv->tim_bitmap); */
 
 					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
@@ -1036,7 +1022,6 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 				/* spin_unlock_bh(&psta->sleep_q.lock); */
 				spin_unlock_bh(&pxmitpriv->lock);
 
-				/* DBG_871X("no buffered packets to xmit\n"); */
 				if (pstapriv->tim_bitmap&BIT(psta->aid)) {
 					if (psta->sleepq_len == 0) {
 						/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
@@ -1441,10 +1426,8 @@ static signed int validate_80211w_mgmt(struct adapter *adapter, union recv_frame
 			/* verify BIP MME IE of broadcast/multicast de-auth/disassoc packet */
 			BIP_ret = rtw_BIP_verify(adapter, (u8 *)precv_frame);
 			if (BIP_ret == _FAIL) {
-				/* DBG_871X("802.11w BIP verify fail\n"); */
 				goto validate_80211w_fail;
 			} else if (BIP_ret == RTW_RX_HANDLED) {
-				/* DBG_871X("802.11w recv none protected packet\n"); */
 				/* issue sa query request */
 				issue_action_SA_Query(adapter, NULL, 0, 0);
 				goto validate_80211w_fail;
@@ -1889,8 +1872,6 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 			/* indicate this recv_frame */
 			/* DbgPrint("recv_indicatepkts_in_order, indicate_seq =%d, seq_num =%d\n", precvpriv->indicate_seq, pattrib->seq_num); */
 			if (!pattrib->amsdu) {
-				/* DBG_871X("recv_indicatepkts_in_order, amsdu!= 1, indicate_seq =%d, seq_num =%d\n", preorder_ctrl->indicate_seq, pattrib->seq_num); */
-
 				if ((padapter->bDriverStopped == false) &&
 				    (padapter->bSurpriseRemoved == false))
 					rtw_recv_indicatepkt(padapter, prframe);/* indicate this recv_frame */
@@ -2046,8 +2027,6 @@ void rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
 	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 		return;
 
-	/* DBG_871X("+rtw_reordering_ctrl_timeout_handler() =>\n"); */
-
 	spin_lock_bh(&ppending_recvframe_queue->lock);
 
 	if (recv_indicatepkts_in_order(padapter, preorder_ctrl, true) == true)
@@ -2194,7 +2173,6 @@ static int recv_func(struct adapter *padapter, union recv_frame *rframe)
 			psecuritypriv->ndisauthtype == Ndis802_11AuthModeWPAPSK &&
 			!psecuritypriv->busetkipkey) {
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
-			/* DBG_871X("%s: no key, enqueue uc_swdec_pending_queue\n", __func__); */
 
 			if (recvpriv->free_recvframe_cnt < NR_RECVFRAME/4) {
 				/* to prevent from recvframe starvation, get recvframe from uc_swdec_pending_queue to free_recvframe_cnt  */

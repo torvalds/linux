@@ -98,12 +98,10 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 	bool ret = false;
 
 	if (adapter_to_pwrctl(adapter)->bpower_saving) {
-		/* DBG_871X("%s: already in LPS or IPS mode\n", __func__); */
 		goto exit;
 	}
 
 	if (time_before(jiffies, adapter_to_pwrctl(adapter)->ips_deny_time)) {
-		/* DBG_871X("%s ips_deny_time\n", __func__); */
 		goto exit;
 	}
 
@@ -230,7 +228,6 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 	}
 
 	if (bLeaveLPS)
-		/* DBG_871X("leave lps via %s, Tx = %d, Rx = %d\n", tx?"Tx":"Rx", pmlmepriv->LinkDetectInfo.NumTxOkInPeriod, pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod); */
 		/* rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_LEAVE, 1); */
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_LEAVE, tx?0:1);
 }
@@ -483,8 +480,6 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 		} else
 			pwrpriv->LpsIdleCount++;
 	}
-
-/* 	DBG_871X("-LeisurePSEnter\n"); */
 }
 
 /*  */
@@ -498,8 +493,6 @@ void LPS_Leave(struct adapter *padapter, const char *msg)
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(dvobj);
 	char buf[32] = {0};
-
-/* 	DBG_871X("+LeisurePSLeave\n"); */
 
 	if (hal_btcoex_IsBtControlLps(padapter))
 		return;
@@ -515,8 +508,6 @@ void LPS_Leave(struct adapter *padapter, const char *msg)
 	}
 
 	pwrpriv->bpower_saving = false;
-/* 	DBG_871X("-LeisurePSLeave\n"); */
-
 }
 
 void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
@@ -673,7 +664,6 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 	pwrpriv = container_of(work, struct pwrctrl_priv, rpwmtimeoutwi);
 	dvobj = pwrctl_to_dvobj(pwrpriv);
 	padapter = dvobj->if1;
-/* 	DBG_871X("+%s: rpwm = 0x%02X cpwm = 0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm); */
 
 	mutex_lock(&pwrpriv->lock);
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
@@ -1181,9 +1171,6 @@ void rtw_ps_deny(struct adapter *padapter, enum ps_deny_reason reason)
 {
 	struct pwrctrl_priv *pwrpriv;
 
-	/* DBG_871X("+" FUNC_ADPT_FMT ": Request PS deny for %d (0x%08X)\n", */
-	/* FUNC_ADPT_ARG(padapter), reason, BIT(reason)); */
-
 	pwrpriv = adapter_to_pwrctl(padapter);
 
 	mutex_lock(&pwrpriv->lock);
@@ -1191,9 +1178,6 @@ void rtw_ps_deny(struct adapter *padapter, enum ps_deny_reason reason)
 	}
 	pwrpriv->ps_deny |= BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
-
-	/* DBG_871X("-" FUNC_ADPT_FMT ": Now PS deny for 0x%08X\n", */
-	/* FUNC_ADPT_ARG(padapter), pwrpriv->ps_deny); */
 }
 
 /*
@@ -1204,10 +1188,6 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum ps_deny_reason reason)
 {
 	struct pwrctrl_priv *pwrpriv;
 
-
-	/* DBG_871X("+" FUNC_ADPT_FMT ": Cancel PS deny for %d(0x%08X)\n", */
-	/* FUNC_ADPT_ARG(padapter), reason, BIT(reason)); */
-
 	pwrpriv = adapter_to_pwrctl(padapter);
 
 	mutex_lock(&pwrpriv->lock);
@@ -1215,9 +1195,6 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum ps_deny_reason reason)
 	}
 	pwrpriv->ps_deny &= ~BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
-
-	/* DBG_871X("-" FUNC_ADPT_FMT ": Now PS deny for 0x%08X\n", */
-	/* FUNC_ADPT_ARG(padapter), pwrpriv->ps_deny); */
 }
 
 /*

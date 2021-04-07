@@ -811,12 +811,9 @@ void ODM_TXPowerTrackingCheck(struct dm_odm_t *pDM_Odm)
 	if (!pDM_Odm->RFCalibrateInfo.TM_Trigger) { /* at least delay 1 sec */
 		PHY_SetRFReg(pDM_Odm->Adapter, ODM_RF_PATH_A, RF_T_METER_NEW, (BIT17 | BIT16), 0x03);
 
-		/* DBG_871X("Trigger Thermal Meter!!\n"); */
-
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;
 		return;
 	} else {
-		/* DBG_871X("Schedule TxPowerTracking direct call!!\n"); */
 		ODM_TXPowerTrackingCallback_ThermalMeter(Adapter);
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 0;
 	}

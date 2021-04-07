@@ -125,9 +125,6 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 	struct wlan_bssid_ex *cur_network = &(pmlmeinfo->network);
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-
-	/* DBG_871X("%s\n", __func__); */
-
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	fctrl = &(pwlanhdr->frame_control);
@@ -161,7 +158,6 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 	pktlen += 2;
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
-		/* DBG_871X("ie len =%d\n", cur_network->IELength); */
 		pktlen += cur_network->IELength - sizeof(struct ndis_802_11_fix_ie);
 		memcpy(pframe, cur_network->IEs+sizeof(struct ndis_802_11_fix_ie), pktlen);
 
@@ -207,8 +203,6 @@ _ConstructBeacon:
 
 	*pLength = pktlen;
 
-	/* DBG_871X("%s bcn_sz =%d\n", __func__, pktlen); */
-
 }
 
 static void ConstructPSPoll(struct adapter *padapter, u8 *pframe, u32 *pLength)
@@ -217,8 +211,6 @@ static void ConstructPSPoll(struct adapter *padapter, u8 *pframe, u32 *pLength)
 	__le16 *fctrl;
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-
-	/* DBG_871X("%s\n", __func__); */
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
@@ -258,9 +250,6 @@ static void ConstructNullFunctionData(
 	struct wlan_network *cur_network = &pmlmepriv->cur_network;
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-
-
-	/* DBG_871X("%s:%d\n", __func__, bForcePowerSave); */
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
@@ -381,9 +370,6 @@ void rtl8723b_set_rssi_cmd(struct adapter *padapter, u8 *param)
 	u8 mac_id = *param;
 	u8 rssi = *(param+2);
 	u8 uldl_state = 0;
-
-	/* DBG_871X("%s(): param =%.2x-%.2x-%.2x\n", __func__, *param, *(param+1), *(param+2)); */
-	/* DBG_871X("%s(): mac_id =%d rssi =%d\n", __func__, mac_id, rssi); */
 
 	SET_8723B_H2CCMD_RSSI_SETTING_MACID(u1H2CRssiSettingParm, mac_id);
 	SET_8723B_H2CCMD_RSSI_SETTING_RSSI(u1H2CRssiSettingParm, rssi);
@@ -511,8 +497,6 @@ void rtl8723b_set_FwPsTuneParam_cmd(struct adapter *padapter)
 	u8 ps_timeout = 20;  /* ms Keep awake when tx */
 	u8 dtim_period = 3;
 
-	/* DBG_871X("%s(): FW LPS mode = %d\n", __func__, psmode); */
-
 	SET_8723B_H2CCMD_PSTUNE_PARM_BCN_TO_LIMIT(u1H2CPsTuneParm, bcn_to_limit);
 	SET_8723B_H2CCMD_PSTUNE_PARM_DTIM_TIMEOUT(u1H2CPsTuneParm, dtim_timeout);
 	SET_8723B_H2CCMD_PSTUNE_PARM_PS_TIMEOUT(u1H2CPsTuneParm, ps_timeout);
@@ -566,8 +550,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 
 	struct rsvdpage_loc RsvdPageLoc;
 
-	/* DBG_871X("%s---->\n", __func__); */
-
 	pxmitpriv = &padapter->xmitpriv;
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
@@ -604,9 +586,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	ConstructPSPoll(padapter, &ReservedPagePacket[BufIndex], &PSPollLength);
 	rtl8723b_fill_fake_txdesc(padapter, &ReservedPagePacket[BufIndex-TxDescLen], PSPollLength, true, false, false);
 
-	/* DBG_871X("%s(): HW_VAR_SET_TX_CMD: PS-POLL %p %d\n", */
-	/* 	__func__, &ReservedPagePacket[BufIndex-TxDescLen], (PSPollLength+TxDescLen)); */
-
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + PSPollLength);
 
 	TotalPageNum += CurtPktPageNum;
@@ -623,9 +602,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 		false, 0, 0, false
 	);
 	rtl8723b_fill_fake_txdesc(padapter, &ReservedPagePacket[BufIndex-TxDescLen], NullDataLength, false, false, false);
-
-	/* DBG_871X("%s(): HW_VAR_SET_TX_CMD: NULL DATA %p %d\n", */
-	/* 	__func__, &ReservedPagePacket[BufIndex-TxDescLen], (NullDataLength+TxDescLen)); */
 
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + NullDataLength);
 
@@ -644,9 +620,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	);
 	rtl8723b_fill_fake_txdesc(padapter, &ReservedPagePacket[BufIndex-TxDescLen], QosNullLength, false, false, false);
 
-	/* DBG_871X("%s(): HW_VAR_SET_TX_CMD: QOS NULL DATA %p %d\n", */
-	/* 	__func__, &ReservedPagePacket[BufIndex-TxDescLen], (QosNullLength+TxDescLen)); */
-
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + QosNullLength);
 
 	TotalPageNum += CurtPktPageNum;
@@ -663,9 +636,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 		true, 0, 0, false
 	);
 	rtl8723b_fill_fake_txdesc(padapter, &ReservedPagePacket[BufIndex-TxDescLen], BTQosNullLength, false, true, false);
-
-	/* DBG_871X("%s(): HW_VAR_SET_TX_CMD: BT QOS NULL DATA %p %d\n", */
-	/* 	__func__, &ReservedPagePacket[BufIndex-TxDescLen], (BTQosNullLength+TxDescLen)); */
 
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + BTQosNullLength);
 
