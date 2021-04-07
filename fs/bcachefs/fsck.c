@@ -413,6 +413,151 @@ err_redo:
 	goto err;
 }
 
+static int check_inode(struct btree_trans *trans,
+		       struct btree_iter *iter,
+		       struct bkey_s_c_inode inode)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_inode_unpacked u;
+	bool do_update = false;
+	int ret = 0;
+
+	ret = bch2_inode_unpack(inode, &u);
+
+	if (bch2_fs_inconsistent_on(ret, c,
+			 "error unpacking inode %llu in fsck",
+			 inode.k->p.inode))
+		return ret;
+
+	if (u.bi_flags & BCH_INODE_UNLINKED &&
+	    (!c->sb.clean ||
+	     fsck_err(c, "filesystem marked clean, but inode %llu unlinked",
+		      u.bi_inum))) {
+		bch_verbose(c, "deleting inode %llu", u.bi_inum);
+
+		bch2_trans_unlock(trans);
+		bch2_fs_lazy_rw(c);
+
+		ret = bch2_inode_rm(c, u.bi_inum, false);
+		if (ret)
+			bch_err(c, "error in fsck: error %i while deleting inode", ret);
+		return ret;
+	}
+
+	if (u.bi_flags & BCH_INODE_I_SIZE_DIRTY &&
+	    (!c->sb.clean ||
+	     fsck_err(c, "filesystem marked clean, but inode %llu has i_size dirty",
+		      u.bi_inum))) {
+		bch_verbose(c, "truncating inode %llu", u.bi_inum);
+
+		bch2_trans_unlock(trans);
+		bch2_fs_lazy_rw(c);
+
+		/*
+		 * XXX: need to truncate partial blocks too here - or ideally
+		 * just switch units to bytes and that issue goes away
+		 */
+		ret = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
+				POS(u.bi_inum, round_up(u.bi_size, block_bytes(c)) >> 9),
+				POS(u.bi_inum, U64_MAX),
+				NULL);
+		if (ret) {
+			bch_err(c, "error in fsck: error %i truncating inode", ret);
+			return ret;
+		}
+
+		/*
+		 * We truncated without our normal sector accounting hook, just
+		 * make sure we recalculate it:
+		 */
+		u.bi_flags |= BCH_INODE_I_SECTORS_DIRTY;
+
+		u.bi_flags &= ~BCH_INODE_I_SIZE_DIRTY;
+		do_update = true;
+	}
+
+	if (u.bi_flags & BCH_INODE_I_SECTORS_DIRTY &&
+	    (!c->sb.clean ||
+	     fsck_err(c, "filesystem marked clean, but inode %llu has i_sectors dirty",
+		      u.bi_inum))) {
+		s64 sectors;
+
+		bch_verbose(c, "recounting sectors for inode %llu",
+			    u.bi_inum);
+
+		sectors = bch2_count_inode_sectors(trans, u.bi_inum);
+		if (sectors < 0) {
+			bch_err(c, "error in fsck: error %i recounting inode sectors",
+				(int) sectors);
+			return sectors;
+		}
+
+		u.bi_sectors = sectors;
+		u.bi_flags &= ~BCH_INODE_I_SECTORS_DIRTY;
+		do_update = true;
+	}
+
+	if (!S_ISDIR(u.bi_mode) &&
+	    u.bi_nlink &&
+	    !(u.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
+	    (fsck_err_on(c->sb.version >= bcachefs_metadata_version_inode_backpointers, c,
+			 "inode missing BCH_INODE_BACKPTR_UNTRUSTED flags") ||
+	     c->opts.version_upgrade)) {
+		u.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
+		do_update = true;
+	}
+
+	if (do_update) {
+		struct bkey_inode_buf p;
+
+		bch2_inode_pack(c, &p, &u);
+		p.inode.k.p = iter->pos;
+
+		ret = __bch2_trans_do(trans, NULL, NULL,
+				      BTREE_INSERT_NOFAIL|
+				      BTREE_INSERT_LAZY_RW,
+			(bch2_trans_update(trans, iter, &p.inode.k_i, 0), 0));
+		if (ret)
+			bch_err(c, "error in fsck: error %i "
+				"updating inode", ret);
+	}
+fsck_err:
+	return ret;
+}
+
+noinline_for_stack
+static int check_inodes(struct bch_fs *c, bool full)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	struct bkey_s_c_inode inode;
+	int ret;
+
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN, 0, k, ret) {
+		if (k.k->type != KEY_TYPE_inode)
+			continue;
+
+		inode = bkey_s_c_to_inode(k);
+
+		if (full ||
+		    (inode.v->bi_flags & (BCH_INODE_I_SIZE_DIRTY|
+					  BCH_INODE_I_SECTORS_DIRTY|
+					  BCH_INODE_UNLINKED))) {
+			ret = check_inode(&trans, iter, inode);
+			if (ret)
+				break;
+		}
+	}
+	bch2_trans_iter_put(&trans, iter);
+
+	BUG_ON(ret == -EINTR);
+
+	return bch2_trans_exit(&trans) ?: ret;
+}
+
 static int fix_overlapping_extent(struct btree_trans *trans,
 				       struct bkey_s_c k, struct bpos cut_at)
 {
@@ -1131,61 +1276,70 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 	return ret;
 }
 
-static int check_inode_nlink(struct bch_fs *c,
+static int check_inode_nlink(struct btree_trans *trans,
 			     struct bch_inode_unpacked *lostfound_inode,
-			     struct bch_inode_unpacked *u,
-			     struct nlink *link,
-			     bool *do_update)
+			     struct btree_iter *iter,
+			     struct bkey_s_c_inode inode,
+			     struct nlink *link)
 {
-	u32 i_nlink = bch2_inode_nlink_get(u);
-	u32 real_i_nlink =
-		link->count * nlink_bias(u->bi_mode) +
-		link->dir_count;
+	struct bch_fs *c = trans->c;
+	struct bch_inode_unpacked u;
+	u32 i_nlink, real_i_nlink;
 	int ret = 0;
+
+	ret = bch2_inode_unpack(inode, &u);
+	/* Should never happen, checked by bch2_inode_invalid: */
+	if (bch2_fs_inconsistent_on(ret, c,
+			 "error unpacking inode %llu in fsck",
+			 inode.k->p.inode))
+		return ret;
+
+	i_nlink = bch2_inode_nlink_get(&u);
+	real_i_nlink = link->count * nlink_bias(u.bi_mode) + link->dir_count;
 
 	/*
 	 * These should have been caught/fixed by earlier passes, we don't
 	 * repair them here:
 	 */
-	if (S_ISDIR(u->bi_mode) && link->count > 1) {
+	if (S_ISDIR(u.bi_mode) && link->count > 1) {
 		need_fsck_err(c, "directory %llu with multiple hardlinks: %u",
-			      u->bi_inum, link->count);
+			      u.bi_inum, link->count);
 		return 0;
 	}
 
-	if (S_ISDIR(u->bi_mode) && !link->count) {
+	if (S_ISDIR(u.bi_mode) && !link->count) {
 		need_fsck_err(c, "unreachable directory found (inum %llu)",
-			      u->bi_inum);
+			      u.bi_inum);
 		return 0;
 	}
 
-	if (!S_ISDIR(u->bi_mode) && link->dir_count) {
+	if (!S_ISDIR(u.bi_mode) && link->dir_count) {
 		need_fsck_err(c, "non directory with subdirectories (inum %llu)",
-			      u->bi_inum);
+			      u.bi_inum);
 		return 0;
 	}
 
 	if (!link->count &&
-	    !(u->bi_flags & BCH_INODE_UNLINKED) &&
+	    !(u.bi_flags & BCH_INODE_UNLINKED) &&
 	    (c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
 		if (fsck_err(c, "unreachable inode %llu not marked as unlinked (type %u)",
-			     u->bi_inum, mode_to_type(u->bi_mode)) ==
+			     u.bi_inum, mode_to_type(u.bi_mode)) ==
 		    FSCK_ERR_IGNORE)
 			return 0;
 
-		ret = reattach_inode(c, lostfound_inode, u->bi_inum);
+		ret = reattach_inode(c, lostfound_inode, u.bi_inum);
 		if (ret)
 			return ret;
 
 		link->count = 1;
-		real_i_nlink = nlink_bias(u->bi_mode) + link->dir_count;
+		real_i_nlink = nlink_bias(u.bi_mode) + link->dir_count;
 		goto set_i_nlink;
 	}
 
 	if (i_nlink < link->count) {
 		if (fsck_err(c, "inode %llu i_link too small (%u < %u, type %i)",
-			     u->bi_inum, i_nlink, link->count,
-			     mode_to_type(u->bi_mode)) == FSCK_ERR_IGNORE)
+			     u.bi_inum, i_nlink, link->count,
+			     mode_to_type(u.bi_mode)) == FSCK_ERR_IGNORE)
 			return 0;
 		goto set_i_nlink;
 	}
@@ -1195,7 +1349,7 @@ static int check_inode_nlink(struct bch_fs *c,
 		if (fsck_err(c, "filesystem marked clean, "
 			     "but inode %llu has wrong i_nlink "
 			     "(type %u i_nlink %u, should be %u)",
-			     u->bi_inum, mode_to_type(u->bi_mode),
+			     u.bi_inum, mode_to_type(u.bi_mode),
 			     i_nlink, real_i_nlink) == FSCK_ERR_IGNORE)
 			return 0;
 		goto set_i_nlink;
@@ -1205,7 +1359,7 @@ static int check_inode_nlink(struct bch_fs *c,
 	    (c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
 		if (fsck_err(c, "inode %llu has wrong i_nlink "
 			     "(type %u i_nlink %u, should be %u)",
-			     u->bi_inum, mode_to_type(u->bi_mode),
+			     u.bi_inum, mode_to_type(u.bi_mode),
 			     i_nlink, real_i_nlink) == FSCK_ERR_IGNORE)
 			return 0;
 		goto set_i_nlink;
@@ -1213,122 +1367,12 @@ static int check_inode_nlink(struct bch_fs *c,
 
 	if (real_i_nlink && i_nlink != real_i_nlink)
 		bch_verbose(c, "setting inode %llu nlink from %u to %u",
-			    u->bi_inum, i_nlink, real_i_nlink);
+			    u.bi_inum, i_nlink, real_i_nlink);
 set_i_nlink:
 	if (i_nlink != real_i_nlink) {
-		bch2_inode_nlink_set(u, real_i_nlink);
-		*do_update = true;
-	}
-fsck_err:
-	return ret;
-}
-
-static int check_inode(struct btree_trans *trans,
-		       struct bch_inode_unpacked *lostfound_inode,
-		       struct btree_iter *iter,
-		       struct bkey_s_c_inode inode,
-		       struct nlink *link)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_inode_unpacked u;
-	bool do_update = false;
-	int ret = 0;
-
-	ret = bch2_inode_unpack(inode, &u);
-
-	bch2_trans_unlock(trans);
-
-	if (bch2_fs_inconsistent_on(ret, c,
-			 "error unpacking inode %llu in fsck",
-			 inode.k->p.inode))
-		return ret;
-
-	if (link) {
-		ret = check_inode_nlink(c, lostfound_inode, &u, link,
-					&do_update);
-		if (ret)
-			return ret;
-	}
-
-	if (u.bi_flags & BCH_INODE_UNLINKED &&
-	    (!c->sb.clean ||
-	     fsck_err(c, "filesystem marked clean, but inode %llu unlinked",
-		      u.bi_inum))) {
-		bch_verbose(c, "deleting inode %llu", u.bi_inum);
-
-		bch2_fs_lazy_rw(c);
-
-		ret = bch2_inode_rm(c, u.bi_inum, false);
-		if (ret)
-			bch_err(c, "error in fsck: error %i while deleting inode", ret);
-		return ret;
-	}
-
-	if (u.bi_flags & BCH_INODE_I_SIZE_DIRTY &&
-	    (!c->sb.clean ||
-	     fsck_err(c, "filesystem marked clean, but inode %llu has i_size dirty",
-		      u.bi_inum))) {
-		bch_verbose(c, "truncating inode %llu", u.bi_inum);
-
-		bch2_fs_lazy_rw(c);
-
-		/*
-		 * XXX: need to truncate partial blocks too here - or ideally
-		 * just switch units to bytes and that issue goes away
-		 */
-		ret = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
-				POS(u.bi_inum, round_up(u.bi_size, block_bytes(c)) >> 9),
-				POS(u.bi_inum, U64_MAX),
-				NULL);
-		if (ret) {
-			bch_err(c, "error in fsck: error %i truncating inode", ret);
-			return ret;
-		}
-
-		/*
-		 * We truncated without our normal sector accounting hook, just
-		 * make sure we recalculate it:
-		 */
-		u.bi_flags |= BCH_INODE_I_SECTORS_DIRTY;
-
-		u.bi_flags &= ~BCH_INODE_I_SIZE_DIRTY;
-		do_update = true;
-	}
-
-	if (u.bi_flags & BCH_INODE_I_SECTORS_DIRTY &&
-	    (!c->sb.clean ||
-	     fsck_err(c, "filesystem marked clean, but inode %llu has i_sectors dirty",
-		      u.bi_inum))) {
-		s64 sectors;
-
-		bch_verbose(c, "recounting sectors for inode %llu",
-			    u.bi_inum);
-
-		sectors = bch2_count_inode_sectors(trans, u.bi_inum);
-		if (sectors < 0) {
-			bch_err(c, "error in fsck: error %i recounting inode sectors",
-				(int) sectors);
-			return sectors;
-		}
-
-		u.bi_sectors = sectors;
-		u.bi_flags &= ~BCH_INODE_I_SECTORS_DIRTY;
-		do_update = true;
-	}
-
-	if (!S_ISDIR(u.bi_mode) &&
-	    u.bi_nlink &&
-	    !(u.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
-	    (fsck_err_on(c->sb.version >= bcachefs_metadata_version_inode_backpointers, c,
-			 "inode missing BCH_INODE_BACKPTR_UNTRUSTED flags") ||
-	     c->opts.version_upgrade)) {
-		u.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
-		do_update = true;
-	}
-
-	if (do_update) {
 		struct bkey_inode_buf p;
 
+		bch2_inode_nlink_set(&u, real_i_nlink);
 		bch2_inode_pack(c, &p, &u);
 		p.inode.k.p = iter->pos;
 
@@ -1337,8 +1381,7 @@ static int check_inode(struct btree_trans *trans,
 				      BTREE_INSERT_LAZY_RW,
 			(bch2_trans_update(trans, iter, &p.inode.k_i, 0), 0));
 		if (ret)
-			bch_err(c, "error in fsck: error %i "
-				"updating inode", ret);
+			bch_err(c, "error in fsck: error %i updating inode", ret);
 	}
 fsck_err:
 	return ret;
@@ -1387,8 +1430,8 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 			link = &zero_links;
 
 		if (k.k && k.k->type == KEY_TYPE_inode) {
-			ret = check_inode(&trans, lostfound_inode, iter,
-					  bkey_s_c_to_inode(k), link);
+			ret = check_inode_nlink(&trans, lostfound_inode, iter,
+						bkey_s_c_to_inode(k), link);
 			BUG_ON(ret == -EINTR);
 			if (ret)
 				break;
@@ -1416,7 +1459,7 @@ fsck_err:
 }
 
 noinline_for_stack
-static int check_inode_nlinks(struct bch_fs *c,
+static int check_nlinks(struct bch_fs *c,
 			      struct bch_inode_unpacked *lostfound_inode)
 {
 	nlink_table links;
@@ -1459,43 +1502,17 @@ int bch2_fsck_full(struct bch_fs *c)
 {
 	struct bch_inode_unpacked root_inode, lostfound_inode;
 
-	return  check_extents(c) ?:
+	return  check_inodes(c, true) ?:
+		check_extents(c) ?:
 		check_dirents(c) ?:
 		check_xattrs(c) ?:
 		check_root(c, &root_inode) ?:
 		check_lostfound(c, &root_inode, &lostfound_inode) ?:
 		check_directory_structure(c, &lostfound_inode) ?:
-		check_inode_nlinks(c, &lostfound_inode);
+		check_nlinks(c, &lostfound_inode);
 }
 
 int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 {
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
-	struct bkey_s_c_inode inode;
-	int ret;
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN, 0, k, ret) {
-		if (k.k->type != KEY_TYPE_inode)
-			continue;
-
-		inode = bkey_s_c_to_inode(k);
-
-		if (inode.v->bi_flags &
-		    (BCH_INODE_I_SIZE_DIRTY|
-		     BCH_INODE_I_SECTORS_DIRTY|
-		     BCH_INODE_UNLINKED)) {
-			ret = check_inode(&trans, NULL, iter, inode, NULL);
-			if (ret)
-				break;
-		}
-	}
-	bch2_trans_iter_put(&trans, iter);
-
-	BUG_ON(ret == -EINTR);
-
-	return bch2_trans_exit(&trans) ?: ret;
+	return check_inodes(c, false);
 }
