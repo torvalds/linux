@@ -17,7 +17,7 @@ not a persuasive case.
 
 # Common Kernel patch requirements
 
-- All patches must conform to the Linux kernel coding standards and pass `script/checkpatch.pl`
+- All patches must conform to the Linux kernel coding standards and pass `scripts/checkpatch.pl`
 - Patches shall not break gki_defconfig or allmodconfig builds for arm, arm64, x86, x86_64 architectures
 (see  https://source.android.com/setup/build/building-kernels)
 - If the patch is not merged from an upstream branch, the subject must be tagged with the type of patch:
