@@ -821,9 +821,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 	 * sub-type. */
 	if (elen < 4) {
 		if (show_errors) {
-			DBG_871X("short vendor specific "
-				   "information element ignored (len =%lu)\n",
-				   (unsigned long) elen);
 		}
 		return -1;
 	}
@@ -842,10 +839,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			break;
 		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
 			if (elen < 5) {
-				DBG_871X("short WME "
-					   "information element ignored "
-					   "(len =%lu)\n",
-					   (unsigned long) elen);
 				return -1;
 			}
 			switch (pos[4]) {
@@ -859,10 +852,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 				elems->wme_tspec_len = elen;
 				break;
 			default:
-				DBG_871X("unknown WME "
-					   "information element ignored "
-					   "(subtype =%d len =%lu)\n",
-					   pos[4], (unsigned long) elen);
 				return -1;
 			}
 			break;
@@ -872,10 +861,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			elems->wps_ie_len = elen;
 			break;
 		default:
-			DBG_871X("Unknown Microsoft "
-				   "information element ignored "
-				   "(type =%d len =%lu)\n",
-				   pos[3], (unsigned long) elen);
 			return -1;
 		}
 		break;
@@ -887,19 +872,11 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			elems->vendor_ht_cap_len = elen;
 			break;
 		default:
-			DBG_871X("Unknown Broadcom "
-				   "information element ignored "
-				   "(type =%d len =%lu)\n",
-				   pos[3], (unsigned long) elen);
 			return -1;
 		}
 		break;
 
 	default:
-		DBG_871X("unknown vendor specific information "
-			   "element ignored (vendor OUI %02x:%02x:%02x "
-			   "len =%lu)\n",
-			   pos[0], pos[1], pos[2], (unsigned long) elen);
 		return -1;
 	}
 
@@ -933,10 +910,6 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 
 		if (elen > left) {
 			if (show_errors) {
-				DBG_871X("IEEE 802.11 element "
-					   "parse failed (id =%d elen =%d "
-					   "left =%lu)\n",
-					   id, elen, (unsigned long) left);
 			}
 			return ParseFailed;
 		}
@@ -1036,9 +1009,6 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			unknown++;
 			if (!show_errors)
 				break;
-			DBG_871X("IEEE 802.11 element parse "
-				   "ignored unknown element (id =%d elen =%d)\n",
-				   id, elen);
 			break;
 		}
 
@@ -1077,11 +1047,8 @@ void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 			ether_addr_copy(mac_addr, addr);
 		} else {
 			eth_random_addr(mac_addr);
-			DBG_871X("MAC Address from efuse error, assign random one !!!\n");
 		}
 	}
-
-	DBG_871X("rtw_macaddr_cfg MAC Address  = %pM\n", MAC_ARG(mac_addr));
 }
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)

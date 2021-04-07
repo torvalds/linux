@@ -44,7 +44,6 @@ static void Init_ODM_ComInfo_8723b(struct adapter *Adapter)
 	fab_ver = ODM_TSMC;
 	cut_ver = ODM_CUT_A;
 
-	DBG_871X("%s(): fab_ver =%d cut_ver =%d\n", __func__, fab_ver, cut_ver);
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_FAB_VER, fab_ver);
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_CUT_VER, cut_ver);
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_MP_TEST_CHIP, IS_NORMAL_CHIP(pHalData->VersionID));
@@ -204,8 +203,6 @@ void rtl8723b_hal_dm_in_lps(struct adapter *padapter)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *psta = NULL;
 
-	DBG_871X("%s, RSSI_Min =%d\n", __func__, pDM_Odm->RSSI_Min);
-
 	/* update IGI */
 	ODM_Write_DIG(pDM_Odm, pDM_Odm->RSSI_Min);
 
@@ -256,8 +253,6 @@ void rtl8723b_HalDmWatchDog_in_LPS(struct adapter *Adapter)
 		goto skip_lps_dm;
 
 	pdmpriv->EntryMinUndecoratedSmoothedPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
-
-	DBG_871X("CurIGValue =%d, EntryMinUndecoratedSmoothedPWDB = %d\n", pDM_DigTable->CurIGValue, pdmpriv->EntryMinUndecoratedSmoothedPWDB);
 
 	if (pdmpriv->EntryMinUndecoratedSmoothedPWDB <= 0)
 		goto skip_lps_dm;

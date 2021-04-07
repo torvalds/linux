@@ -1588,11 +1588,6 @@ static signed int aes_decipher(u8 *key, uint	hdrlen,
 	/* compare the mic */
 	for (i = 0; i < 8; i++) {
 		if (pframe[hdrlen+8+plen-8+i] != message[hdrlen+8+plen-8+i]) {
-			DBG_871X("%s:mic check error mic[%d]: pframe(%x) != message(%x)\n",
-					__func__,
-					i,
-					pframe[hdrlen + 8 + plen - 8 + i],
-					message[hdrlen + 8 + plen - 8 + i]);
 			res = _FAIL;
 		}
 	}
@@ -1658,8 +1653,6 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				if (psecuritypriv->dot118021XGrpKeyid != prxattrib->key_index) {
-					DBG_871X("not match packet_index =%d, install_index =%d\n"
-					, prxattrib->key_index, psecuritypriv->dot118021XGrpKeyid);
 					res = _FAIL;
 					goto exit;
 				}
@@ -1696,7 +1689,6 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 	BIP_AAD = rtw_zmalloc(ori_len);
 
 	if (BIP_AAD == NULL) {
-		DBG_871X("BIP AAD allocate fail\n");
 		return _FAIL;
 	}
 	/* PKT start */
@@ -1716,14 +1708,12 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 		temp_ipn = le64_to_cpu(le_tmp64);
 		/* BIP packet number should bigger than previous BIP packet */
 		if (temp_ipn <= pmlmeext->mgnt_80211w_IPN_rx) {
-			DBG_871X("replay BIP packet\n");
 			goto BIP_exit;
 		}
 		/* copy key index */
 		memcpy(&le_tmp, p+2, 2);
 		keyid = le16_to_cpu(le_tmp);
 		if (keyid != padapter->securitypriv.dot11wBIPKeyid) {
-			DBG_871X("BIP key index error!\n");
 			goto BIP_exit;
 		}
 		/* clear the MIC field of MME to zero */
@@ -1746,7 +1736,6 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 			pmlmeext->mgnt_80211w_IPN_rx = temp_ipn;
 			res = _SUCCESS;
 		} else {
-			DBG_871X("BIP MIC error!\n");
 		}
 
 	} else {

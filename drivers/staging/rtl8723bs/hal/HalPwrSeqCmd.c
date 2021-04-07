@@ -117,11 +117,6 @@ u8 HalPwrSeqCmdParsing(
 						udelay(10);
 
 					if (pollingCount++ > maxPollingCnt) {
-						DBG_871X(
-							"Fail to polling Offset[%#x]=%02x\n",
-							offset,
-							value
-						);
 						return false;
 					}
 				} while (!bPollingBit);

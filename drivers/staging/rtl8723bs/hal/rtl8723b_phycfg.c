@@ -547,7 +547,6 @@ void PHY_SetTxPowerIndex(
 			break;
 
 		default:
-			DBG_871X("Invalid Rate!!\n");
 			break;
 		}
 	}
@@ -632,7 +631,6 @@ static void phy_SetRegBW_8723B(
 		break;
 
 	default:
-		DBG_871X("phy_PostSetBWMode8723B():	unknown Bandwidth: %#X\n", CurrentBW);
 		break;
 	}
 }
@@ -744,12 +742,6 @@ static void phy_SwChnlAndSetBwMode8723B(struct adapter *Adapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
 	if (Adapter->bNotifyChannelChange) {
-		DBG_871X("[%s] bSwChnl =%d, ch =%d, bSetChnlBW =%d, bw =%d\n",
-			__func__,
-			pHalData->bSwChnl,
-			pHalData->CurrentChannel,
-			pHalData->bSetChnlBW,
-			pHalData->CurrentChannelBW);
 	}
 
 	if (Adapter->bDriverStopped || Adapter->bSurpriseRemoved)
@@ -789,7 +781,6 @@ static void PHY_HandleSwChnlAndSetBW8723B(
 
 	/* check is swchnl or setbw */
 	if (!bSwitchChannel && !bSetBandWidth) {
-		DBG_871X("PHY_HandleSwChnlAndSetBW8812:  not switch channel and not set bandwidth\n");
 		return;
 	}
 

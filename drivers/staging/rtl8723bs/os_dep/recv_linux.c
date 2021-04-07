@@ -63,7 +63,6 @@ struct sk_buff *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_L
 
 	sub_skb = rtw_skb_alloc(nSubframe_Length + 12);
 	if (!sub_skb) {
-		DBG_871X("%s(): rtw_skb_alloc() Fail!!!\n", __func__);
 		return NULL;
 	}
 

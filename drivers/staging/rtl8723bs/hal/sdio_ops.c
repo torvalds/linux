@@ -470,7 +470,6 @@ static u32 sdio_write_port(
 	psdio = &adapter_to_dvobj(adapter)->intf_data;
 
 	if (!adapter->hw_init_completed) {
-		DBG_871X("%s [addr = 0x%x cnt =%d] adapter->hw_init_completed == false\n", __func__, addr, cnt);
 		return _FAIL;
 	}
 
@@ -817,13 +816,6 @@ void DisableInterrupt8723BSdio(struct adapter *adapter)
 /*  */
 u8 CheckIPSStatus(struct adapter *adapter)
 {
-	DBG_871X(
-		"%s(): Read 0x100 = 0x%02x 0x86 = 0x%02x\n",
-		__func__,
-		rtw_read8(adapter, 0x100),
-		rtw_read8(adapter, 0x86)
-	);
-
 	if (rtw_read8(adapter, 0x100) == 0xEA)
 		return true;
 	else
@@ -865,7 +857,6 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 		}
 
 		if (!recvbuf->pskb) {
-			DBG_871X("%s: alloc_skb fail! read =%d\n", __func__, readsize);
 			return NULL;
 		}
 	}
@@ -968,7 +959,7 @@ void sd_int_dpc(struct adapter *adapter)
 		} else {
 			/* Error handling for malloc fail */
 			if (rtw_cbuf_push(adapter->evtpriv.c2h_queue, NULL) != _SUCCESS)
-				DBG_871X("%s rtw_cbuf_push fail\n", __func__);
+				{}
 			_set_workitem(&adapter->evtpriv.c2h_wk);
 		}
 	}
@@ -993,7 +984,6 @@ void sd_int_dpc(struct adapter *adapter)
 					sd_rxhandler(adapter, recvbuf);
 				else {
 					alloc_fail_time++;
-					DBG_871X("recvbuf is Null for %d times because alloc memory failed\n", alloc_fail_time);
 					if (alloc_fail_time >= 10)
 						break;
 				}
@@ -1009,7 +999,7 @@ void sd_int_dpc(struct adapter *adapter)
 		} while (1);
 
 		if (alloc_fail_time == 10)
-			DBG_871X("exit because alloc memory failed more than 10 times\n");
+			{}
 
 	}
 }

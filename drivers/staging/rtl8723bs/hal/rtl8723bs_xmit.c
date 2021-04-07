@@ -20,7 +20,6 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 			(padapter->bSurpriseRemoved) ||
 			(padapter->bDriverStopped)
 		) {
-			DBG_871X("%s: bSurpriseRemoved or bDriverStopped (wait TxOQT)\n", __func__);
 			return false;
 		}
 
@@ -28,8 +27,6 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 
 		if ((++n % 60) == 0) {
 			if ((n % 300) == 0) {
-				DBG_871X("%s(%d): QOT free space(%d), agg_num: %d\n",
-				__func__, n, pHalData->SdioTxOQTFreeSpace, agg_num);
 			}
 			msleep(1);
 			/* yield(); */
@@ -236,20 +233,6 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 			sta_plist = get_next(sta_plist);
 
 #ifdef DBG_XMIT_BUF
-			DBG_871X(
-				"%s idx:%d hwxmit_pkt_num:%d ptxservq_pkt_num:%d\n",
-				__func__,
-				idx,
-				phwxmit->accnt,
-				ptxservq->qcnt
-			);
-			DBG_871X(
-				"%s free_xmit_extbuf_cnt =%d free_xmitbuf_cnt =%d free_xmitframe_cnt =%d\n",
-				__func__,
-				pxmitpriv->free_xmit_extbuf_cnt,
-				pxmitpriv->free_xmitbuf_cnt,
-				pxmitpriv->free_xmitframe_cnt
-			);
 #endif
 			pframe_queue = &ptxservq->sta_pending;
 
@@ -301,11 +284,6 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 						(pxmitframe->attrib.psta->state & WIFI_SLEEP_STATE) &&
 						(pxmitframe->attrib.triggered == 0)
 					) {
-						DBG_871X(
-							"%s: one not triggered pkt in queue when this STA sleep,"
-							" break and goto next sta\n",
-							__func__
-						);
 						break;
 					}
 				}
@@ -450,8 +428,6 @@ int rtl8723bs_xmit_thread(void *context)
 
 	rtw_sprintf(thread_name, 20, "RTWHALXT-%s", ADPT_ARG(padapter));
 	thread_enter(thread_name);
-
-	DBG_871X("start "FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
 
 	do {
 		ret = rtl8723bs_xmit_handler(padapter);

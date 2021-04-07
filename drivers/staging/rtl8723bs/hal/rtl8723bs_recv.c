@@ -427,7 +427,6 @@ s32 rtl8723bs_init_recv_priv(struct adapter *padapter)
 			}
 
 			if (!precvbuf->pskb) {
-				DBG_871X("%s: alloc_skb fail!\n", __func__);
 			}
 		}
 

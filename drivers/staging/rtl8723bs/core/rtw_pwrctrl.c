@@ -22,11 +22,9 @@ void _ips_enter(struct adapter *padapter)
 	pwrpriv->ips_mode = pwrpriv->ips_mode_req;
 
 	pwrpriv->ips_enter_cnts++;
-	DBG_871X("==>ips_enter cnts:%d\n", pwrpriv->ips_enter_cnts);
 
 	if (rf_off == pwrpriv->change_rfpwrstate) {
 		pwrpriv->bpower_saving = true;
-		DBG_871X("nolinked power save enter\n");
 
 		if (pwrpriv->ips_mode == IPS_LEVEL_2)
 			pwrpriv->bkeepfwalive = true;
@@ -59,15 +57,11 @@ int _ips_leave(struct adapter *padapter)
 		pwrpriv->bips_processing = true;
 		pwrpriv->change_rfpwrstate = rf_on;
 		pwrpriv->ips_leave_cnts++;
-		DBG_871X("==>ips_leave cnts:%d\n", pwrpriv->ips_leave_cnts);
 
 		result = rtw_ips_pwr_up(padapter);
 		if (result == _SUCCESS) {
 			pwrpriv->rf_pwrstate = rf_on;
 		}
-		DBG_871X("nolinked power save leave\n");
-
-		DBG_871X("==> ips_leave.....LED(0x%08x)...\n", rtw_read32(padapter, 0x4c));
 		pwrpriv->bips_processing = false;
 
 		pwrpriv->bkeepfwalive = false;
@@ -162,14 +156,11 @@ void rtw_ps_processor(struct adapter *padapter)
 	ps_deny = rtw_ps_deny_get(padapter);
 	mutex_unlock(&adapter_to_pwrctl(padapter)->lock);
 	if (ps_deny != 0) {
-		DBG_871X(FUNC_ADPT_FMT ": ps_deny = 0x%08X, skip power save!\n",
-			FUNC_ADPT_ARG(padapter), ps_deny);
 		goto exit;
 	}
 
 	if (pwrpriv->bInSuspend) {/* system suspend or autosuspend */
 		pdbgpriv->dbg_ps_insuspend_cnt++;
-		DBG_871X("%s, pwrpriv->bInSuspend == true ignore this process\n", __func__);
 		return;
 	}
 
@@ -220,7 +211,6 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 				if (adapter_to_pwrctl(padapter)->bLeisurePs
 				    && (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE)
 				    && !(hal_btcoex_IsBtControlLps(padapter))) {
-					DBG_871X("leave lps via Tx = %d\n", xmit_cnt);
 					bLeaveLPS = true;
 				}
 			}
@@ -234,7 +224,6 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 			if (adapter_to_pwrctl(padapter)->bLeisurePs
 			    && (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE)
 			    && !(hal_btcoex_IsBtControlLps(padapter))) {
-				DBG_871X("leave lps via Rx = %d\n", pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod);
 				bLeaveLPS = true;
 			}
 		}
@@ -264,7 +253,6 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	pslv = PS_STATE(pslv);
 
 	if (pwrpriv->brpwmtimeout) {
-		DBG_871X("%s: RPWM timeout, force to set RPWM(0x%02X) again!\n", __func__, pslv);
 	} else {
 		if (pwrpriv->rpwm == pslv ||
 		    (pwrpriv->rpwm >= PS_STATE_S2 && pslv >= PS_STATE_S2))
@@ -320,7 +308,6 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 			}
 
 			if (jiffies_to_msecs(jiffies - start_time) > LPS_RPWM_WAIT_MS) {
-				DBG_871X("%s: polling cpwm timeout! poll_cnt =%d, cpwm_orig =%02x, cpwm_now =%02x\n", __func__, poll_cnt, cpwm_orig, cpwm_now);
 				_set_timer(&pwrpriv->pwr_rpwm_timer, 1);
 				break;
 			}
@@ -354,7 +341,6 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 		return false;
 
 	if ((padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) && !(padapter->securitypriv.binstallGrpkey)) {
-		DBG_871X("Group handshake still in progress !!!\n");
 		return false;
 	}
 
@@ -383,9 +369,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 		if (!(hal_btcoex_IsBtControlLps(padapter))
 				|| (hal_btcoex_IsBtControlLps(padapter)
 					&& !(hal_btcoex_IsLpsOn(padapter)))) {
-			DBG_871X(FUNC_ADPT_FMT" Leave 802.11 power save - %s\n",
-				FUNC_ADPT_ARG(padapter), msg);
-
 			pwrpriv->pwr_mode = ps_mode;
 			rtw_set_rpwm(padapter, PS_STATE_S4);
 
@@ -399,9 +382,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 		    ((hal_btcoex_IsBtControlLps(padapter)) && (hal_btcoex_IsLpsOn(padapter)))
 			) {
 			u8 pslv;
-
-			DBG_871X(FUNC_ADPT_FMT" Enter 802.11 power save - %s\n",
-				FUNC_ADPT_ARG(padapter), msg);
 
 			hal_btcoex_LpsNotify(padapter, ps_mode);
 
@@ -452,13 +432,11 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 
 		if (padapter->bSurpriseRemoved) {
 			err = -2;
-			DBG_871X("%s: device surprise removed!!\n", __func__);
 			break;
 		}
 
 		if (jiffies_to_msecs(jiffies - start_time) > delay_ms) {
 			err = -1;
-			DBG_871X("%s: Wait for FW LPS leave more than %u ms!!!\n", __func__, delay_ms);
 			break;
 		}
 		msleep(1);
@@ -548,15 +526,12 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(Adapter);
 
 	if (Adapter->bSurpriseRemoved) {
-		DBG_871X(FUNC_ADPT_FMT ": bSurpriseRemoved =%d Skip!\n",
-			FUNC_ADPT_ARG(Adapter), Adapter->bSurpriseRemoved);
 		return;
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) { /* connect */
 
 		if (pwrpriv->pwr_mode == PS_MODE_ACTIVE) {
-			DBG_871X("%s: Driver Already Leave LPS\n", __func__);
 			return;
 		}
 
@@ -570,7 +545,7 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 	} else {
 		if (pwrpriv->rf_pwrstate == rf_off)
 			if (!ips_leave(pri_padapter))
-				DBG_871X("======> ips_leave fail.............\n");
+				{}
 	}
 }
 
@@ -585,14 +560,10 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 	int n_assoc_iface = 0;
 
 	if (!Adapter->bup) {
-		DBG_871X(FUNC_ADPT_FMT ": bup =%d Skip!\n",
-			FUNC_ADPT_ARG(Adapter), Adapter->bup);
 		return;
 	}
 
 	if (Adapter->bSurpriseRemoved) {
-		DBG_871X(FUNC_ADPT_FMT ": bSurpriseRemoved =%d Skip!\n",
-			FUNC_ADPT_ARG(Adapter), Adapter->bSurpriseRemoved);
 		return;
 	}
 
@@ -608,7 +579,7 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 	} else {
 		if (adapter_to_pwrctl(Adapter)->rf_pwrstate == rf_off) {
 			if (!ips_leave(Adapter))
-				DBG_871X("======> ips_leave fail.............\n");
+				{}
 		}
 	}
 }
@@ -640,7 +611,6 @@ void LPS_Leave_check(struct adapter *padapter)
 			break;
 
 		if (jiffies_to_msecs(jiffies - start_time) > 100) {
-			DBG_871X("Wait for cpwm event  than 100 ms!!!\n");
 			break;
 		}
 		msleep(1);
@@ -663,7 +633,6 @@ void cpwm_int_hdl(struct adapter *padapter, struct reportpwrstate_parm *preportp
 	mutex_lock(&pwrpriv->lock);
 
 	if (pwrpriv->rpwm < PS_STATE_S2) {
-		DBG_871X("%s: Redundant CPWM Int. RPWM = 0x%02X CPWM = 0x%02x\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
 		goto exit;
 	}
 
@@ -708,7 +677,6 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 
 	mutex_lock(&pwrpriv->lock);
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
-		DBG_871X("%s: rpwm = 0x%02X cpwm = 0x%02X CPWM done!\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
 		goto exit;
 	}
 	mutex_unlock(&pwrpriv->lock);
@@ -717,7 +685,6 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 		struct reportpwrstate_parm report;
 
 		report.state = PS_STATE_S2;
-		DBG_871X("\n%s: FW already leave 32K!\n\n", __func__);
 		cpwm_int_hdl(padapter, &report);
 
 		return;
@@ -726,7 +693,6 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 	mutex_lock(&pwrpriv->lock);
 
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
-		DBG_871X("%s: cpwm =%d, nothing to do!\n", __func__, pwrpriv->cpwm);
 		goto exit;
 	}
 	pwrpriv->brpwmtimeout = true;
@@ -744,10 +710,7 @@ static void pwr_rpwm_timeout_handler(struct timer_list *t)
 {
 	struct pwrctrl_priv *pwrpriv = from_timer(pwrpriv, t, pwr_rpwm_timer);
 
-	DBG_871X("+%s: rpwm = 0x%02X cpwm = 0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
-
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
-		DBG_871X("+%s: cpwm =%d, nothing to do!\n", __func__, pwrpriv->cpwm);
 		return;
 	}
 
@@ -1104,25 +1067,23 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 
 
 	if (pwrpriv->ps_processing) {
-		DBG_871X("%s wait ps_processing...\n", __func__);
 		while (pwrpriv->ps_processing && jiffies_to_msecs(jiffies - start) <= 3000)
 			mdelay(10);
 		if (pwrpriv->ps_processing)
-			DBG_871X("%s wait ps_processing timeout\n", __func__);
+			{}
 		else
-			DBG_871X("%s wait ps_processing done\n", __func__);
+			{}
 	}
 
 	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {
-		DBG_871X("%s wait bInSuspend...\n", __func__);
 		while (pwrpriv->bInSuspend && jiffies_to_msecs(jiffies - start) <= 3000
 		) {
 			mdelay(10);
 		}
 		if (pwrpriv->bInSuspend)
-			DBG_871X("%s wait bInSuspend timeout\n", __func__);
+			{}
 		else
-			DBG_871X("%s wait bInSuspend done\n", __func__);
+			{}
 	}
 
 	/* System suspend is not allowed to wakeup */
@@ -1201,11 +1162,9 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
 
 	if (mode == IPS_NORMAL || mode == IPS_LEVEL_2) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
-		DBG_871X("%s %s\n", __func__, mode == IPS_NORMAL?"IPS_NORMAL":"IPS_LEVEL_2");
 		return 0;
 	} else if (mode == IPS_NONE) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
-		DBG_871X("%s %s\n", __func__, "IPS_NONE");
 		if ((padapter->bSurpriseRemoved == 0) && (rtw_pwr_wakeup(padapter) == _FAIL))
 			return -EFAULT;
 	} else
@@ -1229,8 +1188,6 @@ void rtw_ps_deny(struct adapter *padapter, enum ps_deny_reason reason)
 
 	mutex_lock(&pwrpriv->lock);
 	if (pwrpriv->ps_deny & BIT(reason)) {
-		DBG_871X(FUNC_ADPT_FMT ": [WARNING] Reason %d had been set before!!\n",
-			FUNC_ADPT_ARG(padapter), reason);
 	}
 	pwrpriv->ps_deny |= BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
@@ -1255,8 +1212,6 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum ps_deny_reason reason)
 
 	mutex_lock(&pwrpriv->lock);
 	if ((pwrpriv->ps_deny & BIT(reason)) == 0) {
-		DBG_871X(FUNC_ADPT_FMT ": [ERROR] Reason %d had been canceled before!!\n",
-			FUNC_ADPT_ARG(padapter), reason);
 	}
 	pwrpriv->ps_deny &= ~BIT(reason);
 	mutex_unlock(&pwrpriv->lock);

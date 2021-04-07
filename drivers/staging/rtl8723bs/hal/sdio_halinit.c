@@ -629,8 +629,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		u8 cpwm_orig, cpwm_now;
 		u8 val8, bMacPwrCtrlOn = true;
 
-		DBG_871X("%s: Leaving IPS in FWLPS state\n", __func__);
-
 		/* for polling cpwm */
 		cpwm_orig = 0;
 		rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_orig);
@@ -641,7 +639,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		val8 += 0x80;
 		val8 |= BIT(6);
 		rtw_write8(padapter, SDIO_LOCAL_BASE | SDIO_REG_HRPWM1, val8);
-		DBG_871X("%s: write rpwm =%02x\n", __func__, val8);
 		adapter_to_pwrctl(padapter)->tog = (val8 + 0x80) & 0x80;
 
 		/* do polling cpwm */
@@ -655,7 +652,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 				break;
 
 			if (jiffies_to_msecs(jiffies - start_time) > 100) {
-				DBG_871X("%s: polling cpwm timeout when leaving IPS in FWLPS state\n", __func__);
 				break;
 			}
 		} while (1);
@@ -943,14 +939,11 @@ static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 				int cnt = 0;
 				u8 val8 = 0;
 
-				DBG_871X("%s: issue H2C to FW when entering IPS\n", __func__);
-
 				rtl8723b_set_FwPwrModeInIPS_cmd(padapter, 0x3);
 				/* poll 0x1cc to make sure H2C command already finished by FW; MAC_0x1cc = 0 means H2C done by FW. */
 				do {
 					val8 = rtw_read8(padapter, REG_HMETFR);
 					cnt++;
-					DBG_871X("%s  polling REG_HMETFR = 0x%x, cnt =%d\n", __func__, val8, cnt);
 					mdelay(10);
 				} while (cnt < 100 && (val8 != 0));
 				/* H2C done, enter 32k */
@@ -960,31 +953,15 @@ static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 					val8 += 0x80;
 					val8 |= BIT(0);
 					rtw_write8(padapter, SDIO_LOCAL_BASE | SDIO_REG_HRPWM1, val8);
-					DBG_871X("%s: write rpwm =%02x\n", __func__, val8);
 					adapter_to_pwrctl(padapter)->tog = (val8 + 0x80) & 0x80;
 					cnt = val8 = 0;
 					do {
 						val8 = rtw_read8(padapter, REG_CR);
 						cnt++;
-						DBG_871X("%s  polling 0x100 = 0x%x, cnt =%d\n", __func__, val8, cnt);
 						mdelay(10);
 					} while (cnt < 100 && (val8 != 0xEA));
 				} else {
-					DBG_871X(
-						"MAC_1C0 =%08x, MAC_1C4 =%08x, MAC_1C8 =%08x, MAC_1CC =%08x\n",
-						rtw_read32(padapter, 0x1c0),
-						rtw_read32(padapter, 0x1c4),
-						rtw_read32(padapter, 0x1c8),
-						rtw_read32(padapter, 0x1cc)
-					);
 				}
-
-				DBG_871X(
-					"polling done when entering IPS, check result : 0x100 = 0x%x, cnt =%d, MAC_1cc = 0x%02x\n",
-					rtw_read8(padapter, REG_CR),
-					cnt,
-					rtw_read8(padapter, REG_HMETFR)
-				);
 
 				adapter_to_pwrctl(padapter)->pre_ips_type = 0;
 
@@ -1134,7 +1111,7 @@ static void _ReadEfuseInfo8723BS(struct adapter *padapter)
 	/*  */
 
 	if (sizeof(pEEPROM->efuse_eeprom_data) < HWSET_MAX_SIZE_8723B)
-		DBG_871X("[WARNING] size of efuse_eeprom_data is less than HWSET_MAX_SIZE_8723B!\n");
+		{}
 
 	hwinfo = pEEPROM->efuse_eeprom_data;
 

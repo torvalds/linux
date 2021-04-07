@@ -492,9 +492,6 @@ post_process:
 
 		cmd_process_time = jiffies_to_msecs(jiffies - cmd_start_time);
 		if (cmd_process_time > 1000) {
-			DBG_871X("%s cmd= %d process_time= %lu > 1 sec\n",
-				 ADPT_ARG(pcmd->padapter), pcmd->cmdcode,
-				 cmd_process_time);
 		}
 
 		/* call callback function for post-processed */
@@ -582,9 +579,6 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 			if (ssid[i].SsidLength) {
 				memcpy(&psurveyPara->ssid[i], &ssid[i], sizeof(struct ndis_802_11_ssid));
 				psurveyPara->ssid_num++;
-
-				DBG_871X(FUNC_ADPT_FMT" ssid:(%s, %d)\n", FUNC_ADPT_ARG(padapter),
-					psurveyPara->ssid[i].Ssid, psurveyPara->ssid[i].SsidLength);
 			}
 		}
 	}
@@ -596,9 +590,6 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 			if (ch[i].hw_value && !(ch[i].flags & RTW_IEEE80211_CHAN_DISABLED)) {
 				memcpy(&psurveyPara->ch[i], &ch[i], sizeof(struct rtw_ieee80211_channel));
 				psurveyPara->ch_num++;
-
-				DBG_871X(FUNC_ADPT_FMT" ch:%u\n", FUNC_ADPT_ARG(padapter),
-					psurveyPara->ch[i].hw_value);
 			}
 		}
 	}
@@ -1545,9 +1536,6 @@ static void rtw_lps_change_dtim_hdl(struct adapter *padapter, u8 dtim)
 	mutex_lock(&pwrpriv->lock);
 
 	if (pwrpriv->dtim != dtim) {
-		DBG_871X("change DTIM from %d to %d, bFwCurrentInPSMode =%d, ps_mode =%d\n", pwrpriv->dtim, dtim,
-			pwrpriv->bFwCurrentInPSMode, pwrpriv->pwr_mode);
-
 		pwrpriv->dtim = dtim;
 	}
 

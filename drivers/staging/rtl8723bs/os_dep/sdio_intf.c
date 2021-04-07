@@ -59,7 +59,6 @@ static void sd_sync_int_hdl(struct sdio_func *func)
 	psdpriv = sdio_get_drvdata(func);
 
 	if (!psdpriv->if1) {
-		DBG_871X("%s if1 == NULL\n", __func__);
 		return;
 	}
 
@@ -325,13 +324,6 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 
 	rtw_hal_disable_interrupt(padapter);
 
-	DBG_871X("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n"
-		, padapter->bDriverStopped
-		, padapter->bSurpriseRemoved
-		, padapter->bup
-		, padapter->hw_init_completed
-	);
-
 	status = _SUCCESS;
 
 free_hal_data:
@@ -368,7 +360,6 @@ static void rtw_sdio_if1_deinit(struct adapter *if1)
 	rtw_cancel_all_timer(if1);
 
 	rtw_dev_unload(if1);
-	DBG_871X("+r871xu_dev_remove, hw_init_completed =%d\n", if1->hw_init_completed);
 
 	if (if1->rtw_wdev) {
 		rtw_wdev_free(if1->rtw_wdev);
@@ -400,7 +391,6 @@ static int rtw_drv_init(
 
 	if1 = rtw_sdio_if1_init(dvobj, id);
 	if (if1 == NULL) {
-		DBG_871X("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
 	}
 
@@ -446,7 +436,6 @@ static void rtw_dev_remove(struct sdio_func *func)
 		sdio_release_host(func);
 		if (err == -ENOMEDIUM) {
 			padapter->bSurpriseRemoved = true;
-			DBG_871X(KERN_NOTICE "%s: device had been removed!\n", __func__);
 		}
 	}
 
@@ -473,12 +462,10 @@ static int rtw_sdio_suspend(struct device *dev)
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (padapter->bDriverStopped) {
-		DBG_871X("%s bDriverStopped = %d\n", __func__, padapter->bDriverStopped);
 		return 0;
 	}
 
 	if (pwrpriv->bInSuspend) {
-		DBG_871X("%s bInSuspend = %d\n", __func__, pwrpriv->bInSuspend);
 		pdbgpriv->dbg_suspend_error_cnt++;
 		return 0;
 	}
@@ -494,7 +481,6 @@ static int rtw_resume_process(struct adapter *padapter)
 
 	if (!pwrpriv->bInSuspend) {
 		pdbgpriv->dbg_resume_error_cnt++;
-		DBG_871X("%s bInSuspend = %d\n", __func__, pwrpriv->bInSuspend);
 		return -1;
 	}
 
@@ -510,14 +496,11 @@ static int rtw_sdio_resume(struct device *dev)
 	int ret = 0;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	DBG_871X("==> %s (%s:%d)\n", __func__, current->comm, current->pid);
-
 	pdbgpriv->dbg_resume_cnt++;
 
 	ret = rtw_resume_process(padapter);
 
 	pmlmeext->last_scan_time = jiffies;
-	DBG_871X("<========  %s return %d\n", __func__, ret);
 	return ret;
 }
 
@@ -537,7 +520,6 @@ static int __init rtw_drv_entry(void)
 	if (ret != 0) {
 		sdio_drvpriv.drv_registered = false;
 		rtw_ndev_notifier_unregister();
-		DBG_871X("%s: register driver failed!!(%d)\n", __func__, ret);
 		goto exit;
 	}
 

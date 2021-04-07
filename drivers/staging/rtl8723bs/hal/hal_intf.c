@@ -105,7 +105,6 @@ uint rtw_hal_init(struct adapter *padapter)
 		rtw_bb_rf_gain_offset(padapter);
 	} else {
 		dvobj->padapters->hw_init_completed = false;
-		DBG_871X("rtw_hal_init: hal__init fail\n");
 	}
 
 	return status;
@@ -122,7 +121,6 @@ uint rtw_hal_deinit(struct adapter *padapter)
 		padapter = dvobj->padapters;
 		padapter->hw_init_completed = false;
 	} else {
-		DBG_871X("\n rtw_hal_deinit: hal_init fail\n");
 	}
 	return status;
 }
@@ -176,7 +174,7 @@ void rtw_hal_enable_interrupt(struct adapter *padapter)
 	if (padapter->HalFunc.enable_interrupt)
 		padapter->HalFunc.enable_interrupt(padapter);
 	else
-		DBG_871X("%s: HalFunc.enable_interrupt is NULL!\n", __func__);
+		{}
 }
 
 void rtw_hal_disable_interrupt(struct adapter *padapter)
@@ -184,7 +182,7 @@ void rtw_hal_disable_interrupt(struct adapter *padapter)
 	if (padapter->HalFunc.disable_interrupt)
 		padapter->HalFunc.disable_interrupt(padapter);
 	else
-		DBG_871X("%s: HalFunc.disable_interrupt is NULL!\n", __func__);
+		{}
 }
 
 u8 rtw_hal_check_ips_status(struct adapter *padapter)
@@ -193,7 +191,7 @@ u8 rtw_hal_check_ips_status(struct adapter *padapter)
 	if (padapter->HalFunc.check_ips_status)
 		val = padapter->HalFunc.check_ips_status(padapter);
 	else
-		DBG_871X("%s: HalFunc.check_ips_status is NULL!\n", __func__);
+		{}
 
 	return val;
 }
@@ -446,7 +444,7 @@ s32 rtw_hal_fill_h2c_cmd(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 
 	if (padapter->HalFunc.fill_h2c_cmd)
 		ret = padapter->HalFunc.fill_h2c_cmd(padapter, ElementID, CmdLen, pCmdBuffer);
 	else
-		DBG_871X("%s:  func[fill_h2c_cmd] not defined!\n", __func__);
+		{}
 
 	return ret;
 }

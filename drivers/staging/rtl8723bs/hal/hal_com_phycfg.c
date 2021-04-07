@@ -18,7 +18,6 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 	u8	value = 0;
 
 	if (RfPath > ODM_RF_PATH_D) {
-		DBG_871X("Invalid Rf Path %d in PHY_GetTxPowerByRateBase()\n", RfPath);
 		return 0;
 	}
 
@@ -55,8 +54,6 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			value = pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][9];
 			break;
 		default:
-			DBG_871X("Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
-					 RateSection, RfPath, TxNum);
 			break;
 		}
 	} else if (Band == BAND_ON_5G) {
@@ -89,12 +86,10 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			value = pHalData->TxPwrByRateBase5G[RfPath][TxNum][8];
 			break;
 		default:
-			DBG_871X("Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
-					 RateSection, RfPath, TxNum);
 			break;
 		}
 	} else
-		DBG_871X("Invalid Band %d in PHY_GetTxPowerByRateBase()\n", Band);
+		{}
 
 	return value;
 }
@@ -112,7 +107,6 @@ phy_SetTxPowerByRateBase(
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 
 	if (RfPath > ODM_RF_PATH_D) {
-		DBG_871X("Invalid Rf Path %d in phy_SetTxPowerByRatBase()\n", RfPath);
 		return;
 	}
 
@@ -149,8 +143,6 @@ phy_SetTxPowerByRateBase(
 			pHalData->TxPwrByRateBase2_4G[RfPath][TxNum][9] = Value;
 			break;
 		default:
-			DBG_871X("Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in phy_SetTxPowerByRateBase()\n",
-					 RateSection, RfPath, TxNum);
 			break;
 		}
 	} else if (Band == BAND_ON_5G) {
@@ -183,12 +175,10 @@ phy_SetTxPowerByRateBase(
 			pHalData->TxPwrByRateBase5G[RfPath][TxNum][8] = Value;
 			break;
 		default:
-			DBG_871X("Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in phy_SetTxPowerByRateBase()\n",
-					 RateSection, RfPath, TxNum);
 			break;
 		}
 	} else
-		DBG_871X("Invalid Band %d in phy_SetTxPowerByRateBase()\n", Band);
+		{}
 }
 
 static void
@@ -321,7 +311,6 @@ u8 PHY_GetRateSectionIndexOfTxPowerByRate(
 			index = 13;
 			break;
 		default:
-			DBG_871X("Invalid RegAddr 0x3%x in PHY_GetRateSectionIndexOfTxPowerByRate()", RegAddr);
 			break;
 		}
 	}
@@ -711,7 +700,6 @@ PHY_GetRateValuesOfTxPowerByRate(
 		break;
 
 	default:
-		DBG_871X("Invalid RegAddr 0x%x in %s()\n", RegAddr, __func__);
 		break;
 	}
 }
@@ -733,17 +721,14 @@ static void PHY_StoreTxPowerByRateNew(
 	PHY_GetRateValuesOfTxPowerByRate(padapter, RegAddr, BitMask, Data, rateIndex, PwrByRateVal, &rateNum);
 
 	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G) {
-		DBG_871X("Invalid Band %d\n", Band);
 		return;
 	}
 
 	if (RfPath > ODM_RF_PATH_D) {
-		DBG_871X("Invalid RfPath %d\n", RfPath);
 		return;
 	}
 
 	if (TxNum > ODM_RF_PATH_D) {
-		DBG_871X("Invalid TxNum %d\n", TxNum);
 		return;
 	}
 
@@ -803,7 +788,7 @@ void PHY_StoreTxPowerByRate(
 		else if (RegAddr == rTxAGC_B_Mcs15_Mcs12 && pHalData->rf_type != RF_1T1R)
 			pHalData->pwrGroupCnt++;
 	} else
-		DBG_871X("Invalid PHY_REG_PG.txt version %d\n",  pDM_Odm->PhyRegPgVersion);
+		{}
 
 }
 
@@ -1000,7 +985,7 @@ void PHY_SetTxPowerIndexByRateSection(
 					       Channel, vhtRates4T,
 					       ARRAY_SIZE(vhtRates4T));
 	} else
-		DBG_871X("Invalid RateSection %d in %s", RateSection, __func__);
+		{}
 }
 
 static bool phy_GetChnlIndex(u8 Channel, u8 *ChannelIdx)
@@ -1047,7 +1032,6 @@ u8 PHY_GetTxPowerIndexBase(
 
 	if (HAL_IsLegalChannel(padapter, Channel) == false) {
 		chnlIdx = 0;
-		DBG_871X("Illegal channel!!\n");
 	}
 
 	*bIn24G = phy_GetChnlIndex(Channel, &chnlIdx);
@@ -1060,7 +1044,7 @@ u8 PHY_GetTxPowerIndexBase(
 		else if (MGN_6M <= Rate)
 			txPower = pHalData->Index24G_BW40_Base[RFPath][chnlIdx];
 		else
-			DBG_871X("PHY_GetTxPowerIndexBase: INVALID Rate.\n");
+			{}
 
 		/* DBG_871X("Base Tx power(RF-%c, Rate #%d, Channel Index %d) = 0x%X\n", */
 		/*		((RFPath == 0)?'A':'B'), Rate, chnlIdx, txPower); */
@@ -1116,7 +1100,7 @@ u8 PHY_GetTxPowerIndexBase(
 		if (MGN_6M <= Rate)
 			txPower = pHalData->Index5G_BW40_Base[RFPath][chnlIdx];
 		else
-			DBG_871X("===> mpt_ProQueryCalTxPower_Jaguar: INVALID Rate.\n");
+			{}
 
 		/* DBG_871X("Base Tx power(RF-%c, Rate #%d, Channel Index %d) = 0x%X\n", */
 		/*	((RFPath == 0)?'A':'B'), Rate, chnlIdx, txPower); */
@@ -1459,7 +1443,6 @@ u8 PHY_GetRateIndexOfTxPowerByRate(u8 Rate)
 		index = 83;
 		break;
 	default:
-		DBG_871X("Invalid rate 0x%x in %s\n", Rate, __func__);
 		break;
 	}
 	return index;
@@ -1478,19 +1461,15 @@ s8 PHY_GetTxPowerByRate(
 		return 0;
 
 	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G) {
-		DBG_871X("Invalid band %d in %s\n", Band, __func__);
 		return value;
 	}
 	if (RFPath > ODM_RF_PATH_D) {
-		DBG_871X("Invalid RfPath %d in %s\n", RFPath, __func__);
 		return value;
 	}
 	if (TxNum >= RF_MAX_TX_NUM) {
-		DBG_871X("Invalid TxNum %d in %s\n", TxNum, __func__);
 		return value;
 	}
 	if (rateIndex >= TX_PWR_BY_RATE_NUM_RATE) {
-		DBG_871X("Invalid RateIndex %d in %s\n", rateIndex, __func__);
 		return value;
 	}
 
@@ -1511,19 +1490,15 @@ void PHY_SetTxPowerByRate(
 	u8 rateIndex = PHY_GetRateIndexOfTxPowerByRate(Rate);
 
 	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G) {
-		DBG_871X("Invalid band %d in %s\n", Band, __func__);
 		return;
 	}
 	if (RFPath > ODM_RF_PATH_D) {
-		DBG_871X("Invalid RfPath %d in %s\n", RFPath, __func__);
 		return;
 	}
 	if (TxNum >= RF_MAX_TX_NUM) {
-		DBG_871X("Invalid TxNum %d in %s\n", TxNum, __func__);
 		return;
 	}
 	if (rateIndex >= TX_PWR_BY_RATE_NUM_RATE) {
-		DBG_871X("Invalid RateIndex %d in %s\n", rateIndex, __func__);
 		return;
 	}
 
@@ -1598,10 +1573,10 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 				channelIndex = i;
 		}
 	} else
-		DBG_871X("Invalid Band %d in %s", Band, __func__);
+		{}
 
 	if (channelIndex == -1)
-		DBG_871X("Invalid Channel %d of Band %d in %s", Channel, Band, __func__);
+		{}
 
 	return channelIndex;
 }
@@ -1663,7 +1638,6 @@ static s16 get_rate_sctn_idx(const u8 rate)
 	case MGN_VHT4SS_MCS9:
 		return 9;
 	default:
-		DBG_871X("Wrong rate 0x%x\n", rate);
 		return -1;
 	}
 }
@@ -1717,7 +1691,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	idx_rate_sctn = get_rate_sctn_idx(data_rate);
 
 	if (band_type == BAND_ON_5G && idx_rate_sctn == 0)
-		DBG_871X("Wrong rate 0x%x: No CCK in 5G Band\n", DataRate);
+		{}
 
 	/*  workaround for wrong index combination to obtain tx power limit, */
 	/*  OFDM only exists in BW 20M */
@@ -1777,7 +1751,6 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 					       [idx_channel]
 					       [rf_path];
 	} else {
-		DBG_871X("No power limit table of the specified band\n");
 	}
 
 	/* DBG_871X("TxPwrLmt[Regulation %d][Band %d][BW %d][RFPath %d][Rate 0x%x][Chnl %d] = %d\n", */
@@ -1934,7 +1907,7 @@ void PHY_SetTxPowerLimit(
 
 	if (!GetU1ByteIntegerFromStringInDecimal((s8 *)Channel, &channel) ||
 		 !GetU1ByteIntegerFromStringInDecimal((s8 *)PowerLimit, &powerLimit))
-		DBG_871X("Illegal index of power limit table [chnl %s][val %s]\n", Channel, PowerLimit);
+		{}
 
 	powerLimit = powerLimit > MAX_POWER_INDEX ? MAX_POWER_INDEX : powerLimit;
 
@@ -1968,7 +1941,6 @@ void PHY_SetTxPowerLimit(
 	else if (eqNByte(RateSection, (u8 *)("VHT"), 3) && eqNByte(RfPath, (u8 *)("4T"), 2))
 		rateSection = 9;
 	else {
-		DBG_871X("Wrong rate section!\n");
 		return;
 	}
 
@@ -2009,7 +1981,6 @@ void PHY_SetTxPowerLimit(
 		/* DBG_871X("5G Band value : [regulation %d][bw %d][rate_section %d][chnl %d][val %d]\n", */
 		/*	  regulation, bandwidth, rateSection, channel, pHalData->TxPwrLimit_5G[regulation][bandwidth][rateSection][channelIndex][ODM_RF_PATH_A]); */
 	} else {
-		DBG_871X("Cannot recognize the band info in %s\n", Band);
 		return;
 	}
 }

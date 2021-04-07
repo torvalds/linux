@@ -84,8 +84,6 @@ void dump_chip_info(struct hal_version	ChipVersion)
 				"UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
 
 	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", ChipVersion.ROMVer);
-
-	DBG_871X("%s", buf);
 }
 
 
@@ -155,11 +153,9 @@ bool HAL_IsLegalChannel(struct adapter *Adapter, u32 Channel)
 	if ((Channel <= 14) && (Channel >= 1)) {
 		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false) {
 			bLegalChannel = false;
-			DBG_871X("(Channel <= 14) && (Channel >= 1) but wireless_mode do not support 2.4G\n");
 		}
 	} else {
 		bLegalChannel = false;
-		DBG_871X("Channel is Invalid !!!\n");
 	}
 
 	return bLegalChannel;
@@ -688,7 +684,6 @@ u8 HwRateToMRate(u8 rate)
 		break;
 
 	default:
-		DBG_871X("HwRateToMRate(): Non supported Rate [%x]!!!\n", rate);
 		break;
 	}
 
@@ -927,15 +922,6 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 	print_hex_dump_debug(DRIVER_PREFIX ": c2h_evt_read(): ", DUMP_PREFIX_NONE,
 			     16, 1, &c2h_evt, sizeof(c2h_evt), false);
 
-	DBG_871X(
-		"%s id:%u, len:%u, seq:%u, trigger:0x%02x\n",
-		__func__,
-		c2h_evt->id,
-		c2h_evt->plen,
-		c2h_evt->seq,
-		trigger
-	);
-
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)
 		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 2 + i);
@@ -1124,14 +1110,8 @@ u8 SetHalDefVar(
 			odm->DebugComponents &= ~(ODM_COMP_DIG | ODM_COMP_FA_CNT);
 		break;
 	case HAL_DEF_DBG_RX_INFO_DUMP:
-		DBG_871X("============ Rx Info dump ===================\n");
-		DBG_871X("bLinked = %d, RSSI_Min = %d(%%)\n",
-			odm->bLinked, odm->RSSI_Min);
 
 		if (odm->bLinked) {
-			DBG_871X("RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
-				HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);
-
 			#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
 			rtw_dump_raw_rssi_info(adapter);
 			#endif
@@ -1356,8 +1336,6 @@ bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
 
 	/*  Check input parameter. */
 	if (!szStr || !pu4bVal || !pu4bMove) {
-		DBG_871X("GetHexValueFromString(): Invalid input arguments! szStr: %p, pu4bVal: %p, pu4bMove: %p\n",
-			 szStr, pu4bVal, pu4bMove);
 		return false;
 	}
 
@@ -1533,8 +1511,6 @@ void linked_info_dump(struct adapter *padapter, u8 benable)
 	if (padapter->bLinkInfoDump == benable)
 		return;
 
-	DBG_871X("%s %s\n", __func__, (benable) ? "enable" : "disable");
-
 	if (benable) {
 		pwrctrlpriv->org_power_mgnt = pwrctrlpriv->power_mgnt;/* keep org value */
 		rtw_pm_set_lps(padapter, PS_MODE_ACTIVE);
@@ -1592,9 +1568,6 @@ void rtw_dump_raw_rssi_info(struct adapter *padapter)
 	u8 isCCKrate, rf_path;
 	struct hal_com_data *pHalData =  GET_HAL_DATA(padapter);
 	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
-	DBG_871X("============ RAW Rx Info dump ===================\n");
-	DBG_871X("RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
-			HDATA_RATE(psample_pkt_rssi->data_rate), psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all);
 
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
@@ -1602,9 +1575,6 @@ void rtw_dump_raw_rssi_info(struct adapter *padapter)
 		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		DBG_871X("RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)"
-			, rf_path, psample_pkt_rssi->mimo_signal_strength[rf_path], psample_pkt_rssi->mimo_signal_quality[rf_path]);
-
 		if (!isCCKrate) {
 			printk(", rx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
 			psample_pkt_rssi->ofdm_pwr[rf_path], psample_pkt_rssi->ofdm_snr[rf_path]);
@@ -1662,31 +1632,25 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 	/* DBG_871X("+%s value: 0x%02x+\n", __func__, value); */
 
 	if (value & BIT4) {
-		DBG_871X("Offset RF Gain.\n");
-		DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal = 0x%x\n", padapter->eeprompriv.EEPROMRFGainVal);
 		if (padapter->eeprompriv.EEPROMRFGainVal != 0xff) {
 			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
 			res &= 0xfff87fff;
-			DBG_871X("Offset RF Gain. before reg 0x7f = 0x%08x\n", res);
 			/* res &= 0xfff87fff; */
 			for (i = 0; i < ARRAY_SIZE(Array_kfreemap); i += 2) {
 				v1 = Array[i];
 				v2 = Array[i+1];
 				if (v1 == padapter->eeprompriv.EEPROMRFGainVal) {
-					DBG_871X("Offset RF Gain. got v1 = 0x%x , v2 = 0x%x\n", v1, v2);
 					target = v2;
 					break;
 				}
 			}
-			DBG_871X("padapter->eeprompriv.EEPROMRFGainVal = 0x%x , Gain offset Target Value = 0x%x\n", padapter->eeprompriv.EEPROMRFGainVal, target);
 			PHY_SetRFReg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, BIT18|BIT17|BIT16|BIT15, target);
 
 			/* res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15; */
 			/* rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res); */
 			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
-			DBG_871X("Offset RF Gain. After reg 0x7f = 0x%08x\n", res);
 		} else
-			DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal = 0x%x	!= 0xff, didn't run Kfree\n", padapter->eeprompriv.EEPROMRFGainVal);
+			{}
 	} else
-		DBG_871X("Using the default RF gain.\n");
+		{}
 }

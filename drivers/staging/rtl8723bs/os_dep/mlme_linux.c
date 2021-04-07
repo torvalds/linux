@@ -149,8 +149,6 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	if (authmode == WLAN_EID_VENDOR_SPECIFIC) {
 		buff = rtw_zmalloc(IW_CUSTOM_MAX);
 		if (NULL == buff) {
-			DBG_871X(FUNC_ADPT_FMT ": alloc memory FAIL!!\n",
-				FUNC_ADPT_ARG(adapter));
 			return;
 		}
 		p = buff;
