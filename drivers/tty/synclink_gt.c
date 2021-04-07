@@ -3511,8 +3511,6 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->max_frame_size = 4096;
 		info->base_clock = 14745600;
 		info->rbuf_fill_level = DMABUFSIZE;
-		info->port.close_delay = 5*HZ/10;
-		info->port.closing_wait = 30*HZ;
 		init_waitqueue_head(&info->status_event_wait_q);
 		init_waitqueue_head(&info->event_wait_q);
 		spin_lock_init(&info->netlock);
