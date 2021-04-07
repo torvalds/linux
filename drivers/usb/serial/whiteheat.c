@@ -83,7 +83,7 @@ static void whiteheat_port_remove(struct usb_serial_port *port);
 static int  whiteheat_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void whiteheat_close(struct usb_serial_port *port);
-static int  whiteheat_get_serial(struct tty_struct *tty,
+static void whiteheat_get_serial(struct tty_struct *tty,
 			struct serial_struct *ss);
 static void whiteheat_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
@@ -439,18 +439,10 @@ static int whiteheat_tiocmset(struct tty_struct *tty,
 }
 
 
-static int whiteheat_get_serial(struct tty_struct *tty,
-				struct serial_struct *ss)
+static void whiteheat_get_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
-	struct usb_serial_port *port = tty->driver_data;
-
 	ss->type = PORT_16654;
-	ss->line = port->minor;
 	ss->baud_base = 460800;
-	ss->close_delay = 50;
-	ss->closing_wait = 3000;
-
-	return 0;
 }
 
 

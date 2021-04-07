@@ -331,18 +331,6 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return usb_serial_generic_open(tty, port);
 }
 
-static int get_serial_info(struct tty_struct *tty,
-			   struct serial_struct *ss)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	ss->line		= port->minor;
-	ss->close_delay		= 50;
-	ss->closing_wait	= 3000;
-
-	return 0;
-}
-
 static int ssu100_attach(struct usb_serial *serial)
 {
 	return ssu100_initdevice(serial->dev);
@@ -542,7 +530,6 @@ static struct usb_serial_driver ssu100_device = {
 	.tiocmset            = ssu100_tiocmset,
 	.tiocmiwait          = usb_serial_generic_tiocmiwait,
 	.get_icount	     = usb_serial_generic_get_icount,
-	.get_serial          = get_serial_info,
 	.set_termios         = ssu100_set_termios,
 };
 

@@ -437,19 +437,62 @@ static void serial_unthrottle(struct tty_struct *tty)
 static int serial_get_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct tty_port *tport = &port->port;
+	unsigned int close_delay, closing_wait;
+
+	mutex_lock(&tport->mutex);
+
+	close_delay = jiffies_to_msecs(tport->close_delay) / 10;
+	closing_wait = tport->closing_wait;
+	if (closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		closing_wait = jiffies_to_msecs(closing_wait) / 10;
+
+	ss->line = port->minor;
+	ss->close_delay = close_delay;
+	ss->closing_wait = closing_wait;
 
 	if (port->serial->type->get_serial)
-		return port->serial->type->get_serial(tty, ss);
-	return -ENOTTY;
+		port->serial->type->get_serial(tty, ss);
+
+	mutex_unlock(&tport->mutex);
+
+	return 0;
 }
 
 static int serial_set_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct tty_port *tport = &port->port;
+	unsigned int close_delay, closing_wait;
+	int ret = 0;
 
-	if (port->serial->type->set_serial)
-		return port->serial->type->set_serial(tty, ss);
-	return -ENOTTY;
+	close_delay = msecs_to_jiffies(ss->close_delay * 10);
+	closing_wait = ss->closing_wait;
+	if (closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		closing_wait = msecs_to_jiffies(closing_wait * 10);
+
+	mutex_lock(&tport->mutex);
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		if (close_delay != tport->close_delay ||
+				closing_wait != tport->closing_wait) {
+			ret = -EPERM;
+			goto out_unlock;
+		}
+	}
+
+	if (port->serial->type->set_serial) {
+		ret = port->serial->type->set_serial(tty, ss);
+		if (ret)
+			goto out_unlock;
+	}
+
+	tport->close_delay = close_delay;
+	tport->closing_wait = closing_wait;
+out_unlock:
+	mutex_unlock(&tport->mutex);
+
+	return ret;
 }
 
 static int serial_ioctl(struct tty_struct *tty,

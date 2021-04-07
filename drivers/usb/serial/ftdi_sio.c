@@ -1082,8 +1082,7 @@ static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
-static int get_serial_info(struct tty_struct *tty,
-				struct serial_struct *ss);
+static void get_serial_info(struct tty_struct *tty, struct serial_struct *ss);
 static int set_serial_info(struct tty_struct *tty,
 				struct serial_struct *ss);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
@@ -1477,20 +1476,14 @@ static int read_latency_timer(struct usb_serial_port *port)
 	return 0;
 }
 
-static int get_serial_info(struct tty_struct *tty,
-				struct serial_struct *ss)
+static void get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
-	ss->line = port->minor;
 	ss->flags = priv->flags;
 	ss->baud_base = priv->baud_base;
 	ss->custom_divisor = priv->custom_divisor;
-	ss->close_delay = 50;
-	ss->closing_wait = 3000;
-
-	return 0;
 }
 
 static int set_serial_info(struct tty_struct *tty,

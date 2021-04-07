@@ -385,17 +385,10 @@ err_free:
 	return result;
 }
 
-static int ark3116_get_serial_info(struct tty_struct *tty,
+static void ark3116_get_serial_info(struct tty_struct *tty,
 			struct serial_struct *ss)
 {
-	struct usb_serial_port *port = tty->driver_data;
-
 	ss->type = PORT_16654;
-	ss->line = port->minor;
-	ss->close_delay = 50;
-	ss->closing_wait = 3000;
-
-	return 0;
 }
 
 static int ark3116_tiocmget(struct tty_struct *tty)

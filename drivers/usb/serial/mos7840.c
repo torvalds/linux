@@ -1388,17 +1388,9 @@ static int mos7840_get_lsr_info(struct tty_struct *tty,
  *      function to get information about serial port
  *****************************************************************************/
 
-static int mos7840_get_serial_info(struct tty_struct *tty,
-				   struct serial_struct *ss)
+static void mos7840_get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
-	struct usb_serial_port *port = tty->driver_data;
-
 	ss->type = PORT_16550A;
-	ss->line = port->minor;
-	ss->close_delay = 50;
-	ss->closing_wait = 3000;
-
-	return 0;
 }
 
 /*****************************************************************************
