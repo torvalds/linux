@@ -110,7 +110,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 0);
 
 	/*
-	 * Work out the nubmer of subdevices needed to support all the
+	 * Work out the number of subdevices needed to support all the
 	 * digital i/o channels on the board. Each subdevice supports
 	 * up to 32 channels.
 	 */
