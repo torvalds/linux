@@ -290,6 +290,9 @@ struct ethtool_pause_stats {
  *	do not attach ext_substate attribute to netlink message). If link_ext_state
  *	and link_ext_substate are unknown, return -ENODATA. If not implemented,
  *	link_ext_state and link_ext_substate will not be sent to userspace.
+ * @get_eeprom_len: Read range of EEPROM addresses for validation of
+ *	@get_eeprom and @set_eeprom requests.
+ *	Returns 0 if device does not support EEPROM access.
  * @get_eeprom: Read data from the device EEPROM.
  *	Should fill in the magic field.  Don't need to check len for zero
  *	or wraparound.  Fill in the data argument with the eeprom values
@@ -382,6 +385,8 @@ struct ethtool_pause_stats {
  * @get_module_eeprom: Get the eeprom information from the plug-in module
  * @get_eee: Get Energy-Efficient (EEE) supported and status.
  * @set_eee: Set EEE status (enable/disable) as well as LPI timers.
+ * @get_tunable: Read the value of a driver / device tunable.
+ * @set_tunable: Set the value of a driver / device tunable.
  * @get_per_queue_coalesce: Get interrupt coalescing parameters per queue.
  *	It must check that the given queue number is valid. If neither a RX nor
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
@@ -545,8 +550,8 @@ struct phy_tdr_config;
  * @get_sset_count: Get number of strings that @get_strings will write.
  * @get_strings: Return a set of strings that describe the requested objects
  * @get_stats: Return extended statistics about the PHY device.
- * @start_cable_test - Start a cable test
- * @start_cable_test_tdr - Start a Time Domain Reflectometry cable test
+ * @start_cable_test: Start a cable test
+ * @start_cable_test_tdr: Start a Time Domain Reflectometry cable test
  *
  * All operations are optional (i.e. the function pointer may be set to %NULL)
  * and callers must take this into account. Callers must hold the RTNL lock.
