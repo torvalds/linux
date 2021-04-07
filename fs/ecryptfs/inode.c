@@ -18,6 +18,7 @@
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
+#include <linux/fileattr.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
@@ -1118,6 +1119,23 @@ out:
 	return rc;
 }
 
+static int ecryptfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	return vfs_fileattr_get(ecryptfs_dentry_to_lower(dentry), fa);
+}
+
+static int ecryptfs_fileattr_set(struct user_namespace *mnt_userns,
+				 struct dentry *dentry, struct fileattr *fa)
+{
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+	int rc;
+
+	rc = vfs_fileattr_set(&init_user_ns, lower_dentry, fa);
+	fsstack_copy_attr_all(d_inode(dentry), d_inode(lower_dentry));
+
+	return rc;
+}
+
 const struct inode_operations ecryptfs_symlink_iops = {
 	.get_link = ecryptfs_get_link,
 	.permission = ecryptfs_permission,
@@ -1139,6 +1157,8 @@ const struct inode_operations ecryptfs_dir_iops = {
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.listxattr = ecryptfs_listxattr,
+	.fileattr_get = ecryptfs_fileattr_get,
+	.fileattr_set = ecryptfs_fileattr_set,
 };
 
 const struct inode_operations ecryptfs_main_iops = {
@@ -1146,6 +1166,8 @@ const struct inode_operations ecryptfs_main_iops = {
 	.setattr = ecryptfs_setattr,
 	.getattr = ecryptfs_getattr,
 	.listxattr = ecryptfs_listxattr,
+	.fileattr_get = ecryptfs_fileattr_get,
+	.fileattr_set = ecryptfs_fileattr_set,
 };
 
 static int ecryptfs_xattr_get(const struct xattr_handler *handler,
