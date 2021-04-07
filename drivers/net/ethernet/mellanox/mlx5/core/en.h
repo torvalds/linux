@@ -922,7 +922,6 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 void mlx5e_timestamp_init(struct mlx5e_priv *priv);
 
 int mlx5e_modify_tirs_hash(struct mlx5e_priv *priv);
-struct mlx5e_tirc_config mlx5e_tirc_get_default_config(enum mlx5e_traffic_types tt);
 
 struct mlx5e_xsk_param;
 

@@ -39,4 +39,9 @@ struct mlx5e_rx_res {
 	} ptp;
 };
 
+struct mlx5e_rss_params_traffic_type
+mlx5e_rss_get_default_tt_config(enum mlx5e_traffic_types tt);
+struct mlx5e_rss_params_traffic_type
+mlx5e_rx_res_rss_get_current_tt_config(struct mlx5e_rx_res *res, enum mlx5e_traffic_types tt);
+
 #endif /* __MLX5_EN_RX_RES_H__ */

@@ -2316,69 +2316,9 @@ static void mlx5e_redirect_rqts_to_drop(struct mlx5e_priv *priv)
 		mlx5e_rqt_redirect_direct(&res->ptp.rqt, priv->drop_rq.rqn);
 }
 
-static const struct mlx5e_tirc_config tirc_default_config[MLX5E_NUM_INDIR_TIRS] = {
-	[MLX5E_TT_IPV4_TCP] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
-				.l4_prot_type = MLX5_L4_PROT_TYPE_TCP,
-				.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
-	},
-	[MLX5E_TT_IPV6_TCP] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
-				.l4_prot_type = MLX5_L4_PROT_TYPE_TCP,
-				.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
-	},
-	[MLX5E_TT_IPV4_UDP] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
-				.l4_prot_type = MLX5_L4_PROT_TYPE_UDP,
-				.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
-	},
-	[MLX5E_TT_IPV6_UDP] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
-				.l4_prot_type = MLX5_L4_PROT_TYPE_UDP,
-				.rx_hash_fields = MLX5_HASH_IP_L4PORTS,
-	},
-	[MLX5E_TT_IPV4_IPSEC_AH] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
-				     .l4_prot_type = 0,
-				     .rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
-	},
-	[MLX5E_TT_IPV6_IPSEC_AH] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
-				     .l4_prot_type = 0,
-				     .rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
-	},
-	[MLX5E_TT_IPV4_IPSEC_ESP] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
-				      .l4_prot_type = 0,
-				      .rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
-	},
-	[MLX5E_TT_IPV6_IPSEC_ESP] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
-				      .l4_prot_type = 0,
-				      .rx_hash_fields = MLX5_HASH_IP_IPSEC_SPI,
-	},
-	[MLX5E_TT_IPV4] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV4,
-			    .l4_prot_type = 0,
-			    .rx_hash_fields = MLX5_HASH_IP,
-	},
-	[MLX5E_TT_IPV6] = { .l3_prot_type = MLX5_L3_PROT_TYPE_IPV6,
-			    .l4_prot_type = 0,
-			    .rx_hash_fields = MLX5_HASH_IP,
-	},
-};
-
-struct mlx5e_tirc_config mlx5e_tirc_get_default_config(enum mlx5e_traffic_types tt)
-{
-	return tirc_default_config[tt];
-}
-
-static void mlx5e_update_rx_hash_fields(struct mlx5e_rss_params_traffic_type *rss_tt,
-					enum mlx5e_traffic_types tt,
-					u32 rx_hash_fields)
-{
-	*rss_tt = (struct mlx5e_rss_params_traffic_type) {
-		.l3_prot_type = tirc_default_config[tt].l3_prot_type,
-		.l4_prot_type = tirc_default_config[tt].l4_prot_type,
-		.rx_hash_fields = rx_hash_fields,
-	};
-}
-
 int mlx5e_modify_tirs_hash(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rss_params_hash *rss_hash = &priv->rx_res->rss_params.hash;
-	struct mlx5e_rss_params *rss = &priv->rx_res->rss_params;
 	struct mlx5e_rss_params_traffic_type rss_tt;
 	struct mlx5e_rx_res *res = priv->rx_res;
 	struct mlx5e_tir_builder *builder;
@@ -2389,7 +2329,7 @@ int mlx5e_modify_tirs_hash(struct mlx5e_priv *priv)
 		return -ENOMEM;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		mlx5e_update_rx_hash_fields(&rss_tt, tt, rss->rx_hash_fields[tt]);
+		rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
 		mlx5e_tir_builder_build_rss(builder, rss_hash, &rss_tt, false);
 		mlx5e_tir_modify(&res->rss[tt].indir_tir, builder);
 		mlx5e_tir_builder_clear(builder);
@@ -2400,7 +2340,7 @@ int mlx5e_modify_tirs_hash(struct mlx5e_priv *priv)
 		goto out;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
-		mlx5e_update_rx_hash_fields(&rss_tt, tt, rss->rx_hash_fields[tt]);
+		rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
 		mlx5e_tir_builder_build_rss(builder, rss_hash, &rss_tt, true);
 		mlx5e_tir_modify(&res->rss[tt].indir_tir, builder);
 		mlx5e_tir_builder_clear(builder);
@@ -3083,7 +3023,6 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 {
 	struct mlx5e_rss_params_hash *rss_hash = &priv->rx_res->rss_params.hash;
 	bool inner_ft_support = priv->channels.params.tunneled_offload_en;
-	struct mlx5e_rss_params *rss = &priv->rx_res->rss_params;
 	struct mlx5e_rss_params_traffic_type rss_tt;
 	struct mlx5e_rx_res *res = priv->rx_res;
 	enum mlx5e_traffic_types tt, max_tt;
@@ -3103,7 +3042,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		mlx5e_tir_builder_build_rqt(builder, priv->mdev->mlx5e_res.hw_objs.td.tdn,
 					    indir_rqtn, inner_ft_support);
 		mlx5e_tir_builder_build_lro(builder, &lro_param);
-		mlx5e_update_rx_hash_fields(&rss_tt, tt, rss->rx_hash_fields[tt]);
+		rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
 		mlx5e_tir_builder_build_rss(builder, rss_hash, &rss_tt, false);
 
 		err = mlx5e_tir_init(&res->rss[tt].indir_tir, builder, priv->mdev, true);
@@ -3122,7 +3061,7 @@ int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
 		mlx5e_tir_builder_build_rqt(builder, priv->mdev->mlx5e_res.hw_objs.td.tdn,
 					    indir_rqtn, inner_ft_support);
 		mlx5e_tir_builder_build_lro(builder, &lro_param);
-		mlx5e_update_rx_hash_fields(&rss_tt, tt, rss->rx_hash_fields[tt]);
+		rss_tt = mlx5e_rx_res_rss_get_current_tt_config(res, tt);
 		mlx5e_tir_builder_build_rss(builder, rss_hash, &rss_tt, true);
 
 		err = mlx5e_tir_init(&res->rss[tt].inner_indir_tir, builder, priv->mdev, true);
@@ -4540,7 +4479,7 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 				      MLX5E_INDIR_RQT_SIZE, num_channels);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
 		rss_params->rx_hash_fields[tt] =
-			tirc_default_config[tt].rx_hash_fields;
+			mlx5e_rss_get_default_tt_config(tt).rx_hash_fields;
 }
 
 void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 mtu)
