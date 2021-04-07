@@ -508,7 +508,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
  * 'mknod' + 'open' requests.
  */
 static int fuse_create_open(struct inode *dir, struct dentry *entry,
-			    struct file *file, unsigned flags,
+			    struct file *file, unsigned int flags,
 			    umode_t mode)
 {
 	int err;

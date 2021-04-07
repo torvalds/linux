@@ -255,7 +255,7 @@ out:
 }
 
 static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
-				 int flags, int opcode)
+				 unsigned int flags, int opcode)
 {
 	struct fuse_conn *fc = ff->fm->fc;
 	struct fuse_release_args *ra = ff->release_args;
@@ -332,7 +332,8 @@ static int fuse_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff, int flags)
+void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff,
+		       unsigned int flags)
 {
 	WARN_ON(refcount_read(&ff->count) > 1);
 	fuse_prepare_release(fi, ff, flags, FUSE_RELEASE);
