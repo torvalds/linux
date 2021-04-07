@@ -583,39 +583,32 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 	return true;
 }
 
-static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
-				  struct in_addr *addr, u16 port)
+static u64 add_addr_generate_hmac(u64 key1, u64 key2,
+				  struct mptcp_addr_info *addr)
 {
-	u8 hmac[SHA256_DIGEST_SIZE];
-	u8 msg[7];
-
-	msg[0] = addr_id;
-	memcpy(&msg[1], &addr->s_addr, 4);
-	msg[5] = port >> 8;
-	msg[6] = port & 0xFF;
-
-	mptcp_crypto_hmac_sha(key1, key2, msg, 7, hmac);
-
-	return get_unaligned_be64(&hmac[SHA256_DIGEST_SIZE - sizeof(u64)]);
-}
-
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
-				   struct in6_addr *addr, u16 port)
-{
+	u16 port = ntohs(addr->port);
 	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[19];
+	int i = 0;
 
-	msg[0] = addr_id;
-	memcpy(&msg[1], &addr->s6_addr, 16);
-	msg[17] = port >> 8;
-	msg[18] = port & 0xFF;
+	msg[i++] = addr->id;
+	if (addr->family == AF_INET) {
+		memcpy(&msg[i], &addr->addr.s_addr, 4);
+		i += 4;
+	}
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	else if (addr->family == AF_INET6) {
+		memcpy(&msg[i], &addr->addr6.s6_addr, 16);
+		i += 16;
+	}
+#endif
+	msg[i++] = port >> 8;
+	msg[i++] = port & 0xFF;
 
-	mptcp_crypto_hmac_sha(key1, key2, msg, 19, hmac);
+	mptcp_crypto_hmac_sha(key1, key2, msg, i, hmac);
 
 	return get_unaligned_be64(&hmac[SHA256_DIGEST_SIZE - sizeof(u64)]);
 }
-#endif
 
 static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *skb,
 					       unsigned int *size,
@@ -653,26 +646,11 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	if (drop_other_suboptions)
 		*size -= opt_size;
 	opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
-	if (opts->addr.family == AF_INET) {
-		if (!echo) {
-			opts->ahmac = add_addr_generate_hmac(msk->local_key,
-							     msk->remote_key,
-							     opts->addr.id,
-							     &opts->addr.addr,
-							     ntohs(opts->addr.port));
-		}
+	if (!echo) {
+		opts->ahmac = add_addr_generate_hmac(msk->local_key,
+						     msk->remote_key,
+						     &opts->addr);
 	}
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	else if (opts->addr.family == AF_INET6) {
-		if (!echo) {
-			opts->ahmac = add_addr6_generate_hmac(msk->local_key,
-							      msk->remote_key,
-							      opts->addr.id,
-							      &opts->addr.addr6,
-							      ntohs(opts->addr.port));
-		}
-	}
-#endif
 	pr_debug("addr_id=%d, ahmac=%llu, echo=%d, port=%d",
 		 opts->addr.id, opts->ahmac, echo, ntohs(opts->addr.port));
 
@@ -991,18 +969,9 @@ static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 	if (mp_opt->echo)
 		return true;
 
-	if (mp_opt->addr.family == AF_INET)
-		hmac = add_addr_generate_hmac(msk->remote_key,
-					      msk->local_key,
-					      mp_opt->addr.id, &mp_opt->addr.addr,
-					      ntohs(mp_opt->addr.port));
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	else
-		hmac = add_addr6_generate_hmac(msk->remote_key,
-					       msk->local_key,
-					       mp_opt->addr.id, &mp_opt->addr.addr6,
-					       ntohs(mp_opt->addr.port));
-#endif
+	hmac = add_addr_generate_hmac(msk->remote_key,
+				      msk->local_key,
+				      &mp_opt->addr);
 
 	pr_debug("msk=%p, ahmac=%llu, mp_opt->ahmac=%llu\n",
 		 msk, (unsigned long long)hmac,
