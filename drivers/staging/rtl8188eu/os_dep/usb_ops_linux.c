@@ -249,18 +249,20 @@ usbctrl_vendorreq(struct adapter *adapt, u16 value, void *pdata, u16 len, u8 req
 		goto release_mutex;
 	}
 
-	while (++vendorreq_times <= MAX_USBCTRL_VENDORREQ_TIMES) {
-		memset(pIo_buf, 0, len);
+	if (reqtype == REALTEK_USB_VENQT_READ) {
+		pipe = usb_rcvctrlpipe(udev, 0);
+	} else if (reqtype == REALTEK_USB_VENQT_WRITE) {
+		pipe = usb_sndctrlpipe(udev, 0);
+	} else {
+		status = -EINVAL;
+		goto free_buf;
+	}
 
-		if (reqtype == REALTEK_USB_VENQT_READ) {
-			pipe = usb_rcvctrlpipe(udev, 0);/* read_in */
-		} else if (reqtype == REALTEK_USB_VENQT_WRITE) {
-			pipe = usb_sndctrlpipe(udev, 0);/* write_out */
+	while (++vendorreq_times <= MAX_USBCTRL_VENDORREQ_TIMES) {
+		if (reqtype == REALTEK_USB_VENQT_READ)
+			memset(pIo_buf, 0, len);
+		else
 			memcpy(pIo_buf, pdata, len);
-		} else {
-			status = -EINVAL;
-			goto free_buf;
-		}
 
 		status = usb_control_msg(udev, pipe, REALTEK_USB_VENQT_CMD_REQ,
 					 reqtype, value, REALTEK_USB_VENQT_CMD_IDX,
