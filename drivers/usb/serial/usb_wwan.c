@@ -138,8 +138,6 @@ int usb_wwan_get_serial_info(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 
 	ss->line            = port->minor;
-	ss->port            = port->port_number;
-	ss->baud_base       = tty_get_baud_rate(port->port.tty);
 	ss->close_delay	    = jiffies_to_msecs(port->port.close_delay) / 10;
 	ss->closing_wait    = port->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
 				 ASYNC_CLOSING_WAIT_NONE :
