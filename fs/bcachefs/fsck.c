@@ -38,6 +38,49 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum)
 	return ret ?: sectors;
 }
 
+static int lookup_inode(struct btree_trans *trans, u64 inode_nr,
+			struct bch_inode_unpacked *inode,
+			u32 *snapshot)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes,
+			POS(0, inode_nr), 0);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (snapshot)
+		*snapshot = iter->pos.snapshot;
+	ret = k.k->type == KEY_TYPE_inode
+		? bch2_inode_unpack(bkey_s_c_to_inode(k), inode)
+		: -ENOENT;
+err:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
+static int write_inode(struct btree_trans *trans,
+		       struct bch_inode_unpacked *inode,
+		       u32 snapshot)
+{
+	struct btree_iter *inode_iter =
+		bch2_trans_get_iter(trans, BTREE_ID_inodes,
+				    SPOS(0, inode->bi_inum, snapshot),
+				    BTREE_ITER_INTENT);
+	int ret = __bch2_trans_do(trans, NULL, NULL,
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_LAZY_RW,
+				  bch2_inode_write(trans, inode_iter, inode));
+	bch2_trans_iter_put(trans, inode_iter);
+	if (ret)
+		bch_err(trans->c, "error in fsck: error %i updating inode", ret);
+	return ret;
+}
+
 static int __remove_dirent(struct btree_trans *trans,
 			   struct bkey_s_c_dirent dirent)
 {
@@ -58,7 +101,7 @@ static int __remove_dirent(struct btree_trans *trans,
 	buf[name.len] = '\0';
 	name.name = buf;
 
-	ret = __bch2_inode_find_by_inum_trans(trans, dir_inum, &dir_inode, 0);
+	ret = lookup_inode(trans, dir_inum, &dir_inode, NULL);
 	if (ret && ret != -EINTR)
 		bch_err(c, "remove_dirent: err %i looking up directory inode", ret);
 	if (ret)
@@ -111,6 +154,7 @@ struct inode_walker {
 	bool			first_this_inode;
 	bool			have_inode;
 	u64			cur_inum;
+	u32			snapshot;
 	struct bch_inode_unpacked inode;
 };
 
@@ -126,8 +170,7 @@ static int walk_inode(struct btree_trans *trans,
 		      struct inode_walker *w, u64 inum)
 {
 	if (inum != w->cur_inum) {
-		int ret = __bch2_inode_find_by_inum_trans(trans, inum,
-							  &w->inode, 0);
+		int ret = lookup_inode(trans, inum, &w->inode, &w->snapshot);
 
 		if (ret && ret != -ENOENT)
 			return ret;
@@ -432,6 +475,35 @@ static int fix_overlapping_extent(struct btree_trans *trans,
 				 BTREE_INSERT_LAZY_RW);
 }
 
+static int inode_backpointer_exists(struct btree_trans *trans,
+				    struct bch_inode_unpacked *inode)
+{
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_dirents,
+				   POS(inode->bi_dir, inode->bi_dir_offset), 0);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto out;
+	if (k.k->type != KEY_TYPE_dirent)
+		goto out;
+
+	ret = le64_to_cpu(bkey_s_c_to_dirent(k).v->d_inum) == inode->bi_inum;
+out:
+	bch2_trans_iter_free(trans, iter);
+	return ret;
+}
+
+static bool inode_backpointer_matches(struct bkey_s_c_dirent d,
+				      struct bch_inode_unpacked *inode)
+{
+	return d.k->p.inode == inode->bi_dir &&
+		d.k->p.offset == inode->bi_dir_offset;
+}
+
 /*
  * Walk extents: verify that extents have a corresponding S_ISREG inode, and
  * that i_size an i_sectors are consistent
@@ -466,18 +538,9 @@ retry:
 				"inode %llu has incorrect i_sectors: got %llu, should be %llu",
 				w.inode.bi_inum,
 				w.inode.bi_sectors, i_sectors)) {
-			struct btree_iter *inode_iter =
-				bch2_trans_get_iter(&trans, BTREE_ID_inodes,
-						    POS(0, w.cur_inum),
-						    BTREE_ITER_INTENT);
-
 			w.inode.bi_sectors = i_sectors;
 
-			ret = __bch2_trans_do(&trans, NULL, NULL,
-					      BTREE_INSERT_NOFAIL|
-					      BTREE_INSERT_LAZY_RW,
-					      bch2_inode_write(&trans, inode_iter, &w.inode));
-			bch2_trans_iter_put(&trans, inode_iter);
+			ret = write_inode(&trans, &w.inode, w.snapshot);
 			if (ret)
 				break;
 		}
@@ -554,6 +617,7 @@ static int check_dirents(struct bch_fs *c)
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	char buf[200];
+	unsigned nr_subdirs = 0;
 	int ret = 0;
 
 	bch_verbose(c, "checking dirents");
@@ -567,12 +631,28 @@ retry:
 	       !(ret = bkey_err(k))) {
 		struct bkey_s_c_dirent d;
 		struct bch_inode_unpacked target;
+		u32 target_snapshot;
 		bool have_target;
+		bool backpointer_exists = true;
 		u64 d_inum;
+
+		if (w.have_inode &&
+		    w.cur_inum != k.k->p.inode &&
+		    fsck_err_on(w.inode.bi_nlink != nr_subdirs, c,
+				"directory %llu with wrong i_nlink: got %u, should be %u",
+				w.inode.bi_inum, w.inode.bi_nlink, nr_subdirs)) {
+			w.inode.bi_nlink = nr_subdirs;
+			ret = write_inode(&trans, &w.inode, w.snapshot);
+			if (ret)
+				break;
+		}
 
 		ret = walk_inode(&trans, &w, k.k->p.inode);
 		if (ret)
 			break;
+
+		if (w.first_this_inode)
+			nr_subdirs = 0;
 
 		if (fsck_err_on(!w.have_inode, c,
 				"dirent in nonexisting directory:\n%s",
@@ -610,7 +690,7 @@ retry:
 		d = bkey_s_c_to_dirent(k);
 		d_inum = le64_to_cpu(d.v->d_inum);
 
-		ret = __bch2_inode_find_by_inum_trans(&trans, d_inum, &target, 0);
+		ret = lookup_inode(&trans, d_inum, &target, &target_snapshot);
 		if (ret && ret != -ENOENT)
 			break;
 
@@ -630,41 +710,60 @@ retry:
 		if (!have_target)
 			goto next;
 
-		if (!target.bi_nlink &&
-		    !(target.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
-		    (target.bi_dir != k.k->p.inode ||
-		     target.bi_dir_offset != k.k->p.offset) &&
-		    (fsck_err_on(c->sb.version >= bcachefs_metadata_version_inode_backpointers, c,
-				 "inode %llu has wrong backpointer:\n"
-				 "got       %llu:%llu\n"
-				 "should be %llu:%llu",
-				 d_inum,
-				 target.bi_dir,
-				 target.bi_dir_offset,
-				 k.k->p.inode,
-				 k.k->p.offset) ||
-		     c->opts.version_upgrade)) {
-			struct bkey_inode_buf p;
-
-			target.bi_dir		= k.k->p.inode;
-			target.bi_dir_offset	= k.k->p.offset;
-			bch2_trans_unlock(&trans);
-
-			bch2_inode_pack(c, &p, &target);
-
-			ret = bch2_btree_insert(c, BTREE_ID_inodes,
-						&p.inode.k_i, NULL, NULL,
-						BTREE_INSERT_NOFAIL|
-						BTREE_INSERT_LAZY_RW);
-			if (ret) {
-				bch_err(c, "error in fsck: error %i updating inode", ret);
+		if (!inode_backpointer_matches(d, &target)) {
+			ret = inode_backpointer_exists(&trans, &target);
+			if (ret < 0)
 				goto err;
-			}
+
+			backpointer_exists = ret;
+			ret = 0;
+		}
+
+		if (fsck_err_on(S_ISDIR(target.bi_mode) &&
+				!inode_backpointer_matches(d, &target) &&
+				backpointer_exists, c,
+				"directory %llu with multiple links",
+				target.bi_inum)) {
+			ret = remove_dirent(&trans, d);
+			if (ret)
+				goto err;
 			continue;
 		}
 
-		if (fsck_err_on(d.v->d_type !=
-				mode_to_type(target.bi_mode), c,
+		if (!inode_backpointer_matches(d, &target) &&
+		    (S_ISDIR(target.bi_mode) || !target.bi_nlink)) {
+			if (backpointer_exists) {
+				if (!fsck_err(c, "inode %llu has multiple links but i_nlink 0",
+					      d_inum))
+					goto check_type;
+
+				target.bi_nlink++;
+				target.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
+			} else {
+				if (c->sb.version >= bcachefs_metadata_version_inode_backpointers &&
+				    !(target.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
+				    !fsck_err(c, "inode %llu has wrong backpointer:\n"
+					      "got       %llu:%llu\n"
+					      "should be %llu:%llu",
+					      d_inum,
+					      target.bi_dir,
+					      target.bi_dir_offset,
+					      k.k->p.inode,
+					      k.k->p.offset))
+					goto check_type;
+
+				target.bi_dir		= k.k->p.inode;
+				target.bi_dir_offset	= k.k->p.offset;
+				target.bi_flags &= ~BCH_INODE_BACKPTR_UNTRUSTED;
+			}
+
+			ret = write_inode(&trans, &target, target_snapshot);
+			if (ret)
+				goto err;
+			continue;
+		}
+check_type:
+		if (fsck_err_on(d.v->d_type != mode_to_type(target.bi_mode), c,
 				"incorrect d_type: should be %u:\n%s",
 				mode_to_type(target.bi_mode),
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
@@ -689,6 +788,8 @@ retry:
 				goto err;
 
 		}
+
+		nr_subdirs += d.v->d_type == DT_DIR;
 next:
 		bch2_btree_iter_advance(iter);
 	}

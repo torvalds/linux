@@ -1024,6 +1024,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	}
 
+	if (c->sb.version < bcachefs_metadata_version_inode_backpointers) {
+		bch_info(c, "version prior to inode backpointers, upgrade and fsck required");
+		c->opts.version_upgrade	= true;
+		c->opts.fsck		= true;
+		c->opts.fix_errors	= FSCK_OPT_YES;
+	}
+
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
 		bch_err(c, "error initializing blacklist table");
