@@ -571,13 +571,6 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 
 		memcpy(buf, pie, ielen);
 
-		/* dump */
-		{
-			int i;
-			for (i = 0; i < ielen; i = i + 8)
-				{}
-		}
-
 		if (ielen < RSN_HEADER_LEN) {
 			ret  = -1;
 			goto exit;

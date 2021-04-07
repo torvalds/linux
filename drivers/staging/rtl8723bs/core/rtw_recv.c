@@ -1454,10 +1454,6 @@ validate_80211w_fail:
 
 static inline void dump_rx_packet(u8 *ptr)
 {
-	int i;
-
-	for (i = 0; i < 64; i = i+8)
-		{}
 }
 
 static signed int validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
