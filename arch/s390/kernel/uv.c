@@ -460,8 +460,10 @@ static int __init uv_info_init(void)
 		goto out_kobj;
 
 	uv_query_kset = kset_create_and_add("query", NULL, uv_kobj);
-	if (!uv_query_kset)
+	if (!uv_query_kset) {
+		rc = -ENOMEM;
 		goto out_ind_files;
+	}
 
 	rc = sysfs_create_group(&uv_query_kset->kobj, &uv_query_attr_group);
 	if (!rc)
