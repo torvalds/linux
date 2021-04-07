@@ -1877,6 +1877,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 				    .len = ALTIFNAMSIZ - 1 },
 	[IFLA_PERM_ADDRESS]	= { .type = NLA_REJECT },
 	[IFLA_PROTO_DOWN_REASON] = { .type = NLA_NESTED },
+	[IFLA_NEW_IFINDEX]	= NLA_POLICY_MIN(NLA_S32, 1),
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -2265,9 +2266,6 @@ static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 		    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
 			return -EINVAL;
 	}
-
-	if (tb[IFLA_NEW_IFINDEX] && nla_get_s32(tb[IFLA_NEW_IFINDEX]) <= 0)
-		return -EINVAL;
 
 	if (tb[IFLA_AF_SPEC]) {
 		struct nlattr *af;
