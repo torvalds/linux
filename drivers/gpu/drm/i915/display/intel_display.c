@@ -5951,7 +5951,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 
 	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_set);
 
-	if (IS_GEN9_LP(dev_priv) &&
+	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
 	    bxt_get_dsi_transcoder_state(crtc, pipe_config, &power_domain_set)) {
 		drm_WARN_ON(&dev_priv->drm, active);
 		active = true;
@@ -6869,7 +6869,8 @@ static u16 skl_linetime_wm(const struct intel_crtc_state *crtc_state)
 				   crtc_state->pixel_rate);
 
 	/* Display WA #1135: BXT:ALL GLK:ALL */
-	if (IS_GEN9_LP(dev_priv) && dev_priv->ipc_enabled)
+	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    dev_priv->ipc_enabled)
 		linetime_wm /= 2;
 
 	return min(linetime_wm, 0x1ff);
@@ -10871,7 +10872,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			intel_ddi_init(dev_priv, PORT_F);
 
 		icl_dsi_init(dev_priv);
-	} else if (IS_GEN9_LP(dev_priv)) {
+	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		/*
 		 * FIXME: Broxton doesn't support port detection via the
 		 * DDI_BUF_CTL_A or SFUSE_STRAP registers, find another way to
@@ -10896,7 +10897,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 */
 		found = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_A)) & DDI_INIT_DISPLAY_DETECTED;
 		/* WaIgnoreDDIAStrap: skl */
-		if (found || IS_GEN9_BC(dev_priv))
+		if (found || IS_DISPLAY_VER(dev_priv, 9))
 			intel_ddi_init(dev_priv, PORT_A);
 
 		/* DDI B, C, D, and F detection is indicated by the SFUSE_STRAP
@@ -10921,7 +10922,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		/*
 		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
 		 */
-		if (IS_GEN9_BC(dev_priv) &&
+		if (IS_DISPLAY_VER(dev_priv, 9) &&
 		    intel_bios_is_port_present(dev_priv, PORT_E))
 			intel_ddi_init(dev_priv, PORT_E);
 

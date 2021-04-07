@@ -1631,7 +1631,8 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
 	 * enable otherwise.
 	 */
-	if (IS_GEN9_LP(dev_priv) && cdclk >= 500000)
+	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    cdclk >= 500000)
 		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 	intel_de_write(dev_priv, CDCLK_CTL, val);
 
@@ -1732,7 +1733,8 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
 	 * enable otherwise.
 	 */
-	if (IS_GEN9_LP(dev_priv) && dev_priv->cdclk.hw.cdclk >= 500000)
+	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
+	    dev_priv->cdclk.hw.cdclk >= 500000)
 		expected |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
 	if (cdctl == expected)
@@ -1797,9 +1799,9 @@ static void bxt_cdclk_uninit_hw(struct drm_i915_private *dev_priv)
  */
 void intel_cdclk_init_hw(struct drm_i915_private *i915)
 {
-	if (IS_GEN9_LP(i915) || DISPLAY_VER(i915) >= 10)
+	if (DISPLAY_VER(i915) >= 10 || IS_BROXTON(i915))
 		bxt_cdclk_init_hw(i915);
-	else if (IS_GEN9_BC(i915))
+	else if (IS_DISPLAY_VER(i915, 9))
 		skl_cdclk_init_hw(i915);
 }
 
@@ -1812,9 +1814,9 @@ void intel_cdclk_init_hw(struct drm_i915_private *i915)
  */
 void intel_cdclk_uninit_hw(struct drm_i915_private *i915)
 {
-	if (DISPLAY_VER(i915) >= 10 || IS_GEN9_LP(i915))
+	if (DISPLAY_VER(i915) >= 10 || IS_BROXTON(i915))
 		bxt_cdclk_uninit_hw(i915);
-	else if (IS_GEN9_BC(i915))
+	else if (IS_DISPLAY_VER(i915, 9))
 		skl_cdclk_uninit_hw(i915);
 }
 
@@ -1852,7 +1854,7 @@ static bool intel_cdclk_can_cd2x_update(struct drm_i915_private *dev_priv,
 					const struct intel_cdclk_config *b)
 {
 	/* Older hw doesn't have the capability */
-	if (DISPLAY_VER(dev_priv) < 10 && !IS_GEN9_LP(dev_priv))
+	if (DISPLAY_VER(dev_priv) < 10 && !IS_BROXTON(dev_priv))
 		return false;
 
 	return a->cdclk != b->cdclk &&
@@ -2625,7 +2627,11 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 			dev_priv->max_cdclk_freq = 652800;
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		dev_priv->max_cdclk_freq = 528000;
-	} else if (IS_GEN9_BC(dev_priv)) {
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		dev_priv->max_cdclk_freq = 316800;
+	} else if (IS_BROXTON(dev_priv)) {
+		dev_priv->max_cdclk_freq = 624000;
+	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
 		u32 limit = intel_de_read(dev_priv, SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
 		int max_cdclk, vco;
 
@@ -2647,10 +2653,6 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 			max_cdclk = 308571;
 
 		dev_priv->max_cdclk_freq = skl_calc_cdclk(max_cdclk, vco);
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		dev_priv->max_cdclk_freq = 316800;
-	} else if (IS_BROXTON(dev_priv)) {
-		dev_priv->max_cdclk_freq = 624000;
 	} else if (IS_BROADWELL(dev_priv))  {
 		/*
 		 * FIXME with extra cooling we can allow
@@ -2878,7 +2880,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = cnl_calc_voltage_level;
 		dev_priv->cdclk.table = cnl_cdclk_table;
-	} else if (IS_GEN9_LP(dev_priv)) {
+	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
@@ -2887,7 +2889,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 			dev_priv->cdclk.table = glk_cdclk_table;
 		else
 			dev_priv->cdclk.table = bxt_cdclk_table;
-	} else if (IS_GEN9_BC(dev_priv)) {
+	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = skl_modeset_calc_cdclk;
@@ -2908,9 +2910,9 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = fixed_modeset_calc_cdclk;
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 10 || IS_GEN9_LP(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10 || IS_BROXTON(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;
-	else if (IS_GEN9_BC(dev_priv))
+	else if (IS_DISPLAY_VER(dev_priv, 9))
 		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.get_cdclk = bdw_get_cdclk;
