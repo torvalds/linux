@@ -1088,6 +1088,10 @@
   input_unregister_handle
   input_unregister_handler
   int_sqrt
+  interval_tree_insert
+  interval_tree_iter_first
+  interval_tree_iter_next
+  interval_tree_remove
   invalidate_mapping_pages
   iomem_resource
   iommu_alloc_resv_region
