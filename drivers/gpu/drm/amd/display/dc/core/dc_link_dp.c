@@ -2406,9 +2406,9 @@ bool perform_link_training_with_retries(
 			dc_link_dp_perform_link_training_skip_aux(link, &current_setting);
 			return true;
 		} else {
-			if (link->is_dig_mapping_flexible)
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
 				status = dc_link_dpia_perform_link_training(link,
-									    link_setting,
+									    &current_setting,
 									    skip_video_pattern);
 			else
 				status = dc_link_dp_perform_link_training(link,
