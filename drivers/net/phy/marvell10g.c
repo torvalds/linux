@@ -462,9 +462,11 @@ static int mv3310_config_init(struct phy_device *phydev)
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
+	    phydev->interface != PHY_INTERFACE_MODE_5GBASER &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_RXAUI &&
-	    phydev->interface != PHY_INTERFACE_MODE_10GBASER)
+	    phydev->interface != PHY_INTERFACE_MODE_10GBASER &&
+	    phydev->interface != PHY_INTERFACE_MODE_USXGMII)
 		return -ENODEV;
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
@@ -599,6 +601,7 @@ static void mv3310_update_interface(struct phy_device *phydev)
 
 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
 	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
+	     phydev->interface == PHY_INTERFACE_MODE_5GBASER ||
 	     phydev->interface == PHY_INTERFACE_MODE_10GBASER) &&
 	    phydev->link) {
 		/* The PHY automatically switches its serdes interface (and
@@ -610,6 +613,9 @@ static void mv3310_update_interface(struct phy_device *phydev)
 		switch (phydev->speed) {
 		case SPEED_10000:
 			phydev->interface = PHY_INTERFACE_MODE_10GBASER;
+			break;
+		case SPEED_5000:
+			phydev->interface = PHY_INTERFACE_MODE_5GBASER;
 			break;
 		case SPEED_2500:
 			phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
