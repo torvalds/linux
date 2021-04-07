@@ -701,7 +701,6 @@ void sa_query_timer_hdl(struct timer_list *t);
 	} while (0)
 #define set_sa_query_timer(mlmeext, ms) \
 	do { \
-		DBG_871X("%s set_sa_query_timer(%p, %d)\n", __func__, (mlmeext), (ms)); \
 		_set_timer(&(mlmeext)->sa_query_timer, (ms)); \
 	} while (0)
 
