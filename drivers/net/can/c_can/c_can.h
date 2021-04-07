@@ -149,7 +149,6 @@ static const u16 __maybe_unused reg_map_d_can[] = {
 };
 
 enum c_can_dev_id {
-	BOSCH_C_CAN_PLATFORM,
 	BOSCH_C_CAN,
 	BOSCH_D_CAN,
 };

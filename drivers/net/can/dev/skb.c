@@ -183,8 +183,11 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 
 	skb = netdev_alloc_skb(dev, sizeof(struct can_skb_priv) +
 			       sizeof(struct can_frame));
-	if (unlikely(!skb))
+	if (unlikely(!skb)) {
+		*cf = NULL;
+
 		return NULL;
+	}
 
 	skb->protocol = htons(ETH_P_CAN);
 	skb->pkt_type = PACKET_BROADCAST;
@@ -211,8 +214,11 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 
 	skb = netdev_alloc_skb(dev, sizeof(struct can_skb_priv) +
 			       sizeof(struct canfd_frame));
-	if (unlikely(!skb))
+	if (unlikely(!skb)) {
+		*cfd = NULL;
+
 		return NULL;
+	}
 
 	skb->protocol = htons(ETH_P_CANFD);
 	skb->pkt_type = PACKET_BROADCAST;

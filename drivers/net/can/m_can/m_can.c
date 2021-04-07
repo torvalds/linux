@@ -466,10 +466,17 @@ static void m_can_receive_skb(struct m_can_classdev *cdev,
 			      struct sk_buff *skb,
 			      u32 timestamp)
 {
-	if (cdev->is_peripheral)
-		can_rx_offload_queue_sorted(&cdev->offload, skb, timestamp);
-	else
+	if (cdev->is_peripheral) {
+		struct net_device_stats *stats = &cdev->net->stats;
+		int err;
+
+		err = can_rx_offload_queue_sorted(&cdev->offload, skb,
+						  timestamp);
+		if (err)
+			stats->rx_fifo_errors++;
+	} else {
 		netif_receive_skb(skb);
+	}
 }
 
 static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
