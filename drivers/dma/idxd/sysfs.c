@@ -923,7 +923,7 @@ static ssize_t wq_size_store(struct device *dev,
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
-	if (wq->state != IDXD_WQ_DISABLED)
+	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
 	if (size + total_claimed_wq_size(idxd) - wq->size > idxd->max_wq_size)
