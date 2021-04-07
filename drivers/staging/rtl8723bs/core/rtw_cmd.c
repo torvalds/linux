@@ -419,7 +419,7 @@ int rtw_cmd_thread(void *context)
 			break;
 		}
 
-		if (list_empty(&(pcmdpriv->cmd_queue.queue)))
+		if (list_empty(&pcmdpriv->cmd_queue.queue))
 			continue;
 
 		if (rtw_register_cmd_alive(padapter) != _SUCCESS)
