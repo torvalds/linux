@@ -35,14 +35,14 @@ static struct comedi_device dev = {
 /* *** END fake board data *** */
 
 /* *** BEGIN fake data init *** */
-void init_fake(void)
+static void init_fake(void)
 {
 	dev.item = 10;
 }
 
 /* *** END fake data init *** */
 
-void test0(void)
+static void test0(void)
 {
 	init_fake();
 	unittest(dev.item != 11, "negative result\n");
