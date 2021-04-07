@@ -362,7 +362,7 @@ static signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *p
 				if ((IS_MCAST(prxattrib->ra) == true)  && (prxattrib->key_index != pmlmeinfo->key_index))
 					brpt_micerror = false;
 
-				if ((prxattrib->bdecrypted) && (brpt_micerror))
+				if (prxattrib->bdecrypted && brpt_micerror)
 					rtw_handle_tkip_mic_err(adapter, (u8)IS_MCAST(prxattrib->ra));
 
 				res = _FAIL;
