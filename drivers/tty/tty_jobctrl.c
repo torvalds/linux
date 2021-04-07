@@ -75,6 +75,7 @@ void proc_clear_tty(struct task_struct *p)
 {
 	unsigned long flags;
 	struct tty_struct *tty;
+
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 	tty = p->signal->tty;
 	p->signal->tty = NULL;
@@ -173,6 +174,7 @@ EXPORT_SYMBOL_GPL(get_current_tty);
 void session_clear_tty(struct pid *session)
 {
 	struct task_struct *p;
+
 	do_each_pid_task(session, PIDTYPE_SID, p) {
 		proc_clear_tty(p);
 	} while_each_pid_task(session, PIDTYPE_SID, p);
@@ -269,6 +271,7 @@ void disassociate_ctty(int on_exit)
 			tty_vhangup_session(tty);
 		} else {
 			struct pid *tty_pgrp = tty_get_pgrp(tty);
+
 			if (tty_pgrp) {
 				kill_pgrp(tty_pgrp, SIGHUP, on_exit);
 				if (!on_exit)
@@ -280,6 +283,7 @@ void disassociate_ctty(int on_exit)
 
 	} else if (on_exit) {
 		struct pid *old_pgrp;
+
 		spin_lock_irq(&current->sighand->siglock);
 		old_pgrp = current->signal->tty_old_pgrp;
 		current->signal->tty_old_pgrp = NULL;
@@ -328,6 +332,7 @@ void no_tty(void)
 	   between a new association and proc_clear_tty but possible we need
 	   to protect against this anyway */
 	struct task_struct *tsk = current;
+
 	disassociate_ctty(0);
 	proc_clear_tty(tsk);
 }
