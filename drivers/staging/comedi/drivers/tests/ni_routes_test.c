@@ -24,7 +24,7 @@
 #include "../ni_routes.h"
 #include "unittest.h"
 
-#define RVi(table, src, dest)	((table)[(dest) * NI_NUM_NAMES + (src)])
+#define RVI(table, src, dest)	((table)[(dest) * NI_NUM_NAMES + (src)])
 #define O(x)	((x) + NI_NAMES_BASE)
 #define B(x)	((x) - NI_NAMES_BASE)
 #define V(x)	((x) | 0x80)
@@ -244,10 +244,10 @@ void test_ni_assign_device_routes(void)
 		 "all pci-6070e route_set->src's in order of signal source\n");
 
 	unittest(
-	  RVi(table, B(PXI_Star), B(NI_AI_SampleClock)) == V(17) &&
-	  RVi(table, B(NI_10MHzRefClock), B(TRIGGER_LINE(0))) == 0 &&
-	  RVi(table, B(NI_AI_ConvertClock), B(NI_PFI(0))) == 0 &&
-	  RVi(table, B(NI_AI_ConvertClock), B(NI_PFI(2))) ==
+	  RVI(table, B(PXI_Star), B(NI_AI_SampleClock)) == V(17) &&
+	  RVI(table, B(NI_10MHzRefClock), B(TRIGGER_LINE(0))) == 0 &&
+	  RVI(table, B(NI_AI_ConvertClock), B(NI_PFI(0))) == 0 &&
+	  RVI(table, B(NI_AI_ConvertClock), B(NI_PFI(2))) ==
 		V(NI_PFI_OUTPUT_AI_CONVERT),
 	  "pci-6070e finds e-series route_values table\n");
 
@@ -264,10 +264,10 @@ void test_ni_assign_device_routes(void)
 	unittest(oldtable != table, "pci-6220 find other route_values table\n");
 
 	unittest(
-	  RVi(table, B(PXI_Star), B(NI_AI_SampleClock)) == V(20) &&
-	  RVi(table, B(NI_10MHzRefClock), B(TRIGGER_LINE(0))) == V(12) &&
-	  RVi(table, B(NI_AI_ConvertClock), B(NI_PFI(0))) == V(3) &&
-	  RVi(table, B(NI_AI_ConvertClock), B(NI_PFI(2))) == V(3),
+	  RVI(table, B(PXI_Star), B(NI_AI_SampleClock)) == V(20) &&
+	  RVI(table, B(NI_10MHzRefClock), B(TRIGGER_LINE(0))) == V(12) &&
+	  RVI(table, B(NI_AI_ConvertClock), B(NI_PFI(0))) == V(3) &&
+	  RVI(table, B(NI_AI_ConvertClock), B(NI_PFI(2))) == V(3),
 	  "pci-6220 finds m-series route_values table\n");
 }
 
