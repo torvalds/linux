@@ -1452,10 +1452,6 @@ validate_80211w_fail:
 
 }
 
-static inline void dump_rx_packet(u8 *ptr)
-{
-}
-
 static signed int validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 {
 	/* shall check frame subtype, to / from ds, da, bssid */
@@ -1492,12 +1488,6 @@ static signed int validate_recv_frame(struct adapter *adapter, union recv_frame 
 	pattrib->privacy = GetPrivacy(ptr);
 	pattrib->order = GetOrder(ptr);
 	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
-	if (bDumpRxPkt == 1) /* dump all rx packets */
-		dump_rx_packet(ptr);
-	else if ((bDumpRxPkt == 2) && (type == WIFI_MGT_TYPE))
-		dump_rx_packet(ptr);
-	else if ((bDumpRxPkt == 3) && (type == WIFI_DATA_TYPE))
-		dump_rx_packet(ptr);
 
 	switch (type) {
 	case WIFI_MGT_TYPE: /* mgnt */
@@ -1529,8 +1519,6 @@ static signed int validate_recv_frame(struct adapter *adapter, union recv_frame 
 			/*  get ether_type */
 			memcpy(&eth_type, ptr + pattrib->hdrlen + pattrib->iv_len + LLC_HEADER_SIZE, 2);
 			eth_type = ntohs((unsigned short) eth_type);
-			if ((bDumpRxPkt == 4) && (eth_type == 0x888e))
-				dump_rx_packet(ptr);
 #endif
 		}
 		break;
