@@ -25,6 +25,8 @@ static int pm_nl_pernet_id;
 struct mptcp_pm_addr_entry {
 	struct list_head	list;
 	struct mptcp_addr_info	addr;
+	u8			flags;
+	int			ifindex;
 	struct rcu_head		rcu;
 	struct socket		*lsk;
 };
@@ -168,7 +170,7 @@ select_local_address(const struct pm_nl_pernet *pernet,
 	rcu_read_lock();
 	__mptcp_flush_join_list(msk);
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
-		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
+		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
 			continue;
 
 		if (entry->addr.family != sk->sk_family) {
@@ -206,7 +208,7 @@ select_signal_address(struct pm_nl_pernet *pernet, unsigned int pos)
 	 * can lead to additional addresses not being announced.
 	 */
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
-		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL))
+		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_SIGNAL))
 			continue;
 		if (i++ == pos) {
 			ret = entry;
@@ -459,7 +461,8 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 			check_work_pending(msk);
 			remote_address((struct sock_common *)sk, &remote);
 			spin_unlock_bh(&msk->pm.lock);
-			__mptcp_subflow_connect(sk, &local->addr, &remote);
+			__mptcp_subflow_connect(sk, &local->addr, &remote,
+						local->flags, local->ifindex);
 			spin_lock_bh(&msk->pm.lock);
 			return;
 		}
@@ -514,7 +517,7 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	local.family = remote.family;
 
 	spin_unlock_bh(&msk->pm.lock);
-	__mptcp_subflow_connect(sk, &local, &remote);
+	__mptcp_subflow_connect(sk, &local, &remote, 0, 0);
 	spin_lock_bh(&msk->pm.lock);
 
 add_addr_echo:
@@ -683,7 +686,7 @@ void mptcp_pm_nl_work(struct mptcp_sock *msk)
 
 static bool address_use_port(struct mptcp_pm_addr_entry *entry)
 {
-	return (entry->addr.flags &
+	return (entry->flags &
 		(MPTCP_PM_ADDR_FLAG_SIGNAL | MPTCP_PM_ADDR_FLAG_SUBFLOW)) ==
 		MPTCP_PM_ADDR_FLAG_SIGNAL;
 }
@@ -735,11 +738,11 @@ find_next:
 	if (entry->addr.id > pernet->next_id)
 		pernet->next_id = entry->addr.id;
 
-	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL) {
+	if (entry->flags & MPTCP_PM_ADDR_FLAG_SIGNAL) {
 		addr_max = pernet->add_addr_signal_max;
 		WRITE_ONCE(pernet->add_addr_signal_max, addr_max + 1);
 	}
-	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
+	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
 		addr_max = pernet->local_addr_max;
 		WRITE_ONCE(pernet->local_addr_max, addr_max + 1);
 	}
@@ -841,10 +844,10 @@ int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 		return -ENOMEM;
 
 	entry->addr = skc_local;
-	entry->addr.ifindex = 0;
-	entry->addr.flags = 0;
 	entry->addr.id = 0;
 	entry->addr.port = 0;
+	entry->ifindex = 0;
+	entry->flags = 0;
 	entry->lsk = NULL;
 	ret = mptcp_pm_nl_append_new_local_addr(pernet, entry);
 	if (ret < 0)
@@ -959,14 +962,14 @@ skip_family:
 	if (tb[MPTCP_PM_ADDR_ATTR_IF_IDX]) {
 		u32 val = nla_get_s32(tb[MPTCP_PM_ADDR_ATTR_IF_IDX]);
 
-		entry->addr.ifindex = val;
+		entry->ifindex = val;
 	}
 
 	if (tb[MPTCP_PM_ADDR_ATTR_ID])
 		entry->addr.id = nla_get_u8(tb[MPTCP_PM_ADDR_ATTR_ID]);
 
 	if (tb[MPTCP_PM_ADDR_ATTR_FLAGS])
-		entry->addr.flags = nla_get_u32(tb[MPTCP_PM_ADDR_ATTR_FLAGS]);
+		entry->flags = nla_get_u32(tb[MPTCP_PM_ADDR_ATTR_FLAGS]);
 
 	if (tb[MPTCP_PM_ADDR_ATTR_PORT])
 		entry->addr.port = htons(nla_get_u16(tb[MPTCP_PM_ADDR_ATTR_PORT]));
@@ -1218,11 +1221,11 @@ static int mptcp_nl_cmd_del_addr(struct sk_buff *skb, struct genl_info *info)
 		spin_unlock_bh(&pernet->lock);
 		return -EINVAL;
 	}
-	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SIGNAL) {
+	if (entry->flags & MPTCP_PM_ADDR_FLAG_SIGNAL) {
 		addr_max = pernet->add_addr_signal_max;
 		WRITE_ONCE(pernet->add_addr_signal_max, addr_max - 1);
 	}
-	if (entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
+	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
 		addr_max = pernet->local_addr_max;
 		WRITE_ONCE(pernet->local_addr_max, addr_max - 1);
 	}
@@ -1338,10 +1341,10 @@ static int mptcp_nl_fill_addr(struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nla_put_u8(skb, MPTCP_PM_ADDR_ATTR_ID, addr->id))
 		goto nla_put_failure;
-	if (nla_put_u32(skb, MPTCP_PM_ADDR_ATTR_FLAGS, entry->addr.flags))
+	if (nla_put_u32(skb, MPTCP_PM_ADDR_ATTR_FLAGS, entry->flags))
 		goto nla_put_failure;
-	if (entry->addr.ifindex &&
-	    nla_put_s32(skb, MPTCP_PM_ADDR_ATTR_IF_IDX, entry->addr.ifindex))
+	if (entry->ifindex &&
+	    nla_put_s32(skb, MPTCP_PM_ADDR_ATTR_IF_IDX, entry->ifindex))
 		goto nla_put_failure;
 
 	if (addr->family == AF_INET &&
@@ -1569,7 +1572,7 @@ static int mptcp_nl_cmd_set_flags(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0)
 		return ret;
 
-	if (addr.addr.flags & MPTCP_PM_ADDR_FLAG_BACKUP)
+	if (addr.flags & MPTCP_PM_ADDR_FLAG_BACKUP)
 		bkup = 1;
 
 	list_for_each_entry(entry, &pernet->local_addr_list, list) {
@@ -1579,9 +1582,9 @@ static int mptcp_nl_cmd_set_flags(struct sk_buff *skb, struct genl_info *info)
 				return ret;
 
 			if (bkup)
-				entry->addr.flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
+				entry->flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
 			else
-				entry->addr.flags &= ~MPTCP_PM_ADDR_FLAG_BACKUP;
+				entry->flags &= ~MPTCP_PM_ADDR_FLAG_BACKUP;
 		}
 	}
 
