@@ -988,7 +988,7 @@ static struct phy_driver mv3310_drivers[] = {
 	{
 		.phy_id		= MARVELL_PHY_ID_88E2110,
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
-		.name		= "mv88x2110",
+		.name		= "mv88e2110",
 		.driver_data	= &mv2110_type,
 		.probe		= mv3310_probe,
 		.suspend	= mv3310_suspend,
