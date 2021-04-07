@@ -79,7 +79,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 int smu_cmn_wait_for_response(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t cur_value, i, timeout = adev->usec_timeout * 10;
+	uint32_t cur_value, i, timeout = adev->usec_timeout * 20;
 
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
