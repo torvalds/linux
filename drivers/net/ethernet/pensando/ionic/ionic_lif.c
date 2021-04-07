@@ -135,7 +135,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 		if (netdev->flags & IFF_UP && netif_running(netdev)) {
 			mutex_lock(&lif->queue_lock);
 			err = ionic_start_queues(lif);
-			if (err) {
+			if (err && err != -EBUSY) {
 				netdev_err(lif->netdev,
 					   "Failed to start queues: %d\n", err);
 				set_bit(IONIC_LIF_F_BROKEN, lif->state);
