@@ -180,14 +180,14 @@ static struct proc_dir_entry *proc_pmu_options;
 static int option_server_mode;
 
 int pmu_battery_count;
-int pmu_cur_battery;
+static int pmu_cur_battery;
 unsigned int pmu_power_flags = PMU_PWR_AC_PRESENT;
 struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 static int query_batt_timer = BATTERY_POLLING_COUNT;
 static struct adb_request batt_req;
 static struct proc_dir_entry *proc_pmu_batt[PMU_MAX_BATTERIES];
 
-int __fake_sleep;
+static int __fake_sleep;
 int asleep;
 
 #ifdef CONFIG_ADB
