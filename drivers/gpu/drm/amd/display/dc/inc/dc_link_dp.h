@@ -65,7 +65,8 @@ bool perform_link_training_with_retries(
 	bool skip_video_pattern,
 	int attempts,
 	struct pipe_ctx *pipe_ctx,
-	enum signal_type signal);
+	enum signal_type signal,
+	bool do_fallback);
 
 bool is_mst_supported(struct dc_link *link);
 

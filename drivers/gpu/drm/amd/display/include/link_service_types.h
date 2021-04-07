@@ -68,6 +68,8 @@ enum link_training_result {
 	LINK_TRAINING_LQA_FAIL,
 	/* one of the CR,EQ or symbol lock is dropped */
 	LINK_TRAINING_LINK_LOSS,
+	/* Abort link training (because sink unplugged) */
+	LINK_TRAINING_ABORT,
 };
 
 struct link_training_settings {

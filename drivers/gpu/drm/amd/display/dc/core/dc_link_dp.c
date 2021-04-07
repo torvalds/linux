@@ -1701,18 +1701,31 @@ bool perform_link_training_with_retries(
 	bool skip_video_pattern,
 	int attempts,
 	struct pipe_ctx *pipe_ctx,
-	enum signal_type signal)
+	enum signal_type signal,
+	bool do_fallback)
 {
 	uint8_t j;
 	uint8_t delay_between_attempts = LINK_TRAINING_RETRY_DELAY;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	enum dp_panel_mode panel_mode;
+	struct link_encoder *link_enc;
+	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
+	struct dc_link_settings currnet_setting = *link_setting;
+
+	/* Dynamically assigned link encoders associated with stream rather than
+	 * link.
+	 */
+	if (link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = stream->link_enc;
+	else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
 
 	/* We need to do this before the link training to ensure the idle pattern in SST
 	 * mode will be sent right after the link training
 	 */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+	link_enc->funcs->connect_dig_be_to_fe(link_enc,
 							pipe_ctx->stream_res.stream_enc->id, true);
 
 	for (j = 0; j < attempts; ++j) {
@@ -1724,7 +1737,7 @@ bool perform_link_training_with_retries(
 			link,
 			signal,
 			pipe_ctx->clock_source->id,
-			link_setting);
+			&currnet_setting);
 
 		if (stream->sink_patches.dppowerup_delay > 0) {
 			int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
@@ -1739,14 +1752,12 @@ bool perform_link_training_with_retries(
 			 panel_mode != DP_PANEL_MODE_DEFAULT);
 
 		if (link->aux_access_disabled) {
-			dc_link_dp_perform_link_training_skip_aux(link, link_setting);
+			dc_link_dp_perform_link_training_skip_aux(link, &currnet_setting);
 			return true;
 		} else {
-			enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
-
 				status = dc_link_dp_perform_link_training(
 										link,
-										link_setting,
+										&currnet_setting,
 										skip_video_pattern);
 			if (status == LINK_TRAINING_SUCCESS)
 				return true;
@@ -1754,13 +1765,26 @@ bool perform_link_training_with_retries(
 
 		/* latest link training still fail, skip delay and keep PHY on
 		 */
-		if (j == (attempts - 1))
+		if (j == (attempts - 1) && link->ep_type == DISPLAY_ENDPOINT_PHY)
 			break;
 
 		DC_LOG_WARNING("%s: Link training attempt %u of %d failed\n",
 			__func__, (unsigned int)j + 1, attempts);
 
 		dp_disable_link_phy(link, signal);
+
+		/* Abort link training if failure due to sink being unplugged. */
+		if (status == LINK_TRAINING_ABORT)
+			break;
+		else if (do_fallback) {
+			decide_fallback_link_setting(*link_setting, &currnet_setting, status);
+			/* Fail link training if reduced link bandwidth no longer meets
+			 * stream requirements.
+			 */
+			if (dc_bandwidth_in_kbps_from_timing(&stream->timing) <
+					dc_link_bandwidth_kbps(link, &currnet_setting))
+				break;
+		}
 
 		msleep(delay_between_attempts);
 
