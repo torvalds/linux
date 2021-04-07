@@ -843,10 +843,8 @@ bool dp_link_send_edid_checksum(struct dp_link *dp_link, u8 checksum)
 	return ret == 1;
 }
 
-static int dp_link_parse_vx_px(struct dp_link_private *link)
+static void dp_link_parse_vx_px(struct dp_link_private *link)
 {
-	int ret = 0;
-
 	DRM_DEBUG_DP("vx: 0=%d, 1=%d, 2=%d, 3=%d\n",
 		drm_dp_get_adjust_request_voltage(link->link_status, 0),
 		drm_dp_get_adjust_request_voltage(link->link_status, 1),
@@ -876,8 +874,6 @@ static int dp_link_parse_vx_px(struct dp_link_private *link)
 	DRM_DEBUG_DP("Requested: v_level = 0x%x, p_level = 0x%x\n",
 			link->dp_link.phy_params.v_level,
 			link->dp_link.phy_params.p_level);
-
-	return ret;
 }
 
 /**
@@ -891,8 +887,6 @@ static int dp_link_parse_vx_px(struct dp_link_private *link)
 static int dp_link_process_phy_test_pattern_request(
 		struct dp_link_private *link)
 {
-	int ret = 0;
-
 	if (!(link->request.test_requested & DP_TEST_LINK_PHY_TEST_PATTERN)) {
 		DRM_DEBUG_DP("no phy test\n");
 		return -EINVAL;
@@ -918,12 +912,9 @@ static int dp_link_process_phy_test_pattern_request(
 	link->dp_link.link_params.rate =
 		drm_dp_bw_code_to_link_rate(link->request.test_link_rate);
 
-	ret = dp_link_parse_vx_px(link);
+	dp_link_parse_vx_px(link);
 
-	if (ret)
-		DRM_ERROR("parse_vx_px failed. ret=%d\n", ret);
-
-	return ret;
+	return 0;
 }
 
 static u8 get_link_status(const u8 link_status[DP_LINK_STATUS_SIZE], int r)
