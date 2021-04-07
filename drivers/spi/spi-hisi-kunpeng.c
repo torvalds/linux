@@ -358,7 +358,7 @@ static int hisi_spi_transfer_one(struct spi_controller *master,
 	smp_mb();
 
 	/* Enable all interrupts and the controller */
-	writel(~IMR_MASK, hs->regs + HISI_SPI_IMR);
+	writel(~(u32)IMR_MASK, hs->regs + HISI_SPI_IMR);
 	writel(1, hs->regs + HISI_SPI_ENR);
 
 	return 1;
