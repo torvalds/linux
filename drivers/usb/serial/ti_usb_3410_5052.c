@@ -1406,10 +1406,10 @@ static int ti_get_serial_info(struct tty_struct *tty,
 
 	ss->type = PORT_16550A;
 	ss->line = port->minor;
-	ss->port = port->port_number;
-	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
 	ss->baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
+	ss->close_delay = 50;
 	ss->closing_wait = cwait;
+
 	return 0;
 }
 
