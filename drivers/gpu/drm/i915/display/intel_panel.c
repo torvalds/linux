@@ -2161,7 +2161,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
 		return;
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		panel->backlight.pwm_funcs = &bxt_pwm_funcs;
 	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP) {
 		panel->backlight.pwm_funcs = &cnp_pwm_funcs;

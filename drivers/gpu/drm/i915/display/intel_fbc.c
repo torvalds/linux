@@ -302,7 +302,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	int threshold = dev_priv->fbc.threshold;
 
 	/* Display WA #0529: skl, kbl, bxt. */
-	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) {
+	if (IS_DISPLAY_VER(dev_priv, 9)) {
 		u32 val = intel_de_read(dev_priv, CHICKEN_MISC_4);
 
 		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
@@ -445,7 +445,8 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 * reserved range size, so it always assumes the maximum (8mb) is used.
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
 	 * underruns, even if that range is not reserved by the BIOS. */
-	if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv))
+	if (IS_BROADWELL(dev_priv) || (IS_DISPLAY_VER(dev_priv, 9) &&
+				       !IS_BROXTON(dev_priv)))
 		end = resource_size(&dev_priv->dsm) - 8 * 1024 * 1024;
 	else
 		end = U64_MAX;
@@ -759,7 +760,7 @@ static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
-	if ((IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv)) &&
+	if ((IS_DISPLAY_VER(dev_priv, 9)) &&
 	    cache->fb.modifier != I915_FORMAT_MOD_X_TILED)
 		return DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
 	else
