@@ -925,6 +925,22 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 	return 0;
 }
 #endif
+
+/*
+ * Returns whether the connected display is internal and not hotpluggable.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/internal_display
+ */
+static int internal_display_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+
+	seq_printf(m, "Internal: %u\n", link->is_internal_display);
+
+	return 0;
+}
+
 /* function description
  *
  * generic SDP message access for testing
@@ -2369,6 +2385,7 @@ DEFINE_SHOW_ATTRIBUTE(dp_lttpr_status);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 #endif
+DEFINE_SHOW_ATTRIBUTE(internal_display);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2600,7 +2617,8 @@ static const struct {
 } connector_debugfs_entries[] = {
 		{"force_yuv420_output", &force_yuv420_output_fops},
 		{"output_bpc", &output_bpc_fops},
-		{"trigger_hotplug", &trigger_hotplug_debugfs_fops}
+		{"trigger_hotplug", &trigger_hotplug_debugfs_fops},
+		{"internal_display", &internal_display_fops}
 };
 
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
