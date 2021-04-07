@@ -233,6 +233,13 @@ config PCIE_ROCKCHIP_EP
 	  endpoint mode on Rockchip SoC. There is 1 internal PCIe port
 	  available to support GEN2 with 4 slots.
 
+config ROCKCHIP_PCIE_DMA_OBJ
+	bool "Rockchip PCIe uDMA transfer support"
+	depends on PCIE_ROCKCHIP_HOST || PCIE_DW_ROCKCHIP
+	default n
+	help
+	  Say y to enable p2p DMA transfer between PCIe components.
+
 config PCIE_MEDIATEK
 	tristate "MediaTek PCIe controller"
 	depends on ARCH_MEDIATEK || COMPILE_TEST

@@ -4,6 +4,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
