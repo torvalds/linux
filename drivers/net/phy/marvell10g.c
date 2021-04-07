@@ -108,13 +108,24 @@ enum {
 	MV_V2_TEMP_UNKNOWN	= 0x9600, /* unknown function */
 };
 
+struct mv3310_chip {
+	int (*get_mactype)(struct phy_device *phydev);
+	int (*init_interface)(struct phy_device *phydev, int mactype);
+};
+
 struct mv3310_priv {
 	u32 firmware_ver;
 	bool rate_match;
+	phy_interface_t const_interface;
 
 	struct device *hwmon_dev;
 	char *hwmon_name;
 };
+
+static const struct mv3310_chip *to_mv3310_chip(struct phy_device *phydev)
+{
+	return phydev->drv->driver_data;
+}
 
 #ifdef CONFIG_HWMON
 static umode_t mv3310_hwmon_is_visible(const void *data,
@@ -470,11 +481,67 @@ static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
 		MV_PHY_ALASKA_NBT_QUIRK_MASK) == MV_PHY_ALASKA_NBT_QUIRK_REV;
 }
 
-static int mv3310_config_init(struct phy_device *phydev)
+static int mv2110_get_mactype(struct phy_device *phydev)
+{
+	int mactype;
+
+	mactype = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MV_PMA_21X0_PORT_CTRL);
+	if (mactype < 0)
+		return mactype;
+
+	return mactype & MV_PMA_21X0_PORT_CTRL_MACTYPE_MASK;
+}
+
+static int mv3310_get_mactype(struct phy_device *phydev)
+{
+	int mactype;
+
+	mactype = phy_read_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL);
+	if (mactype < 0)
+		return mactype;
+
+	return mactype & MV_V2_33X0_PORT_CTRL_MACTYPE_MASK;
+}
+
+static int mv2110_init_interface(struct phy_device *phydev, int mactype)
 {
 	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
-	int err;
-	int val;
+
+	priv->rate_match = false;
+
+	if (mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH) {
+		priv->rate_match = true;
+		priv->const_interface = PHY_INTERFACE_MODE_10GBASER;
+	}
+
+	return 0;
+}
+
+static int mv3310_init_interface(struct phy_device *phydev, int mactype)
+{
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+
+	priv->rate_match = false;
+
+	if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH ||
+	    mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI_RATE_MATCH ||
+	    mactype == MV_V2_3310_PORT_CTRL_MACTYPE_XAUI_RATE_MATCH)
+		priv->rate_match = true;
+
+	if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH)
+		priv->const_interface = PHY_INTERFACE_MODE_10GBASER;
+	else if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI_RATE_MATCH)
+		priv->const_interface = PHY_INTERFACE_MODE_RXAUI;
+	else if (mactype == MV_V2_3310_PORT_CTRL_MACTYPE_XAUI_RATE_MATCH)
+		priv->const_interface = PHY_INTERFACE_MODE_XAUI;
+
+	return 0;
+}
+
+static int mv3310_config_init(struct phy_device *phydev)
+{
+	const struct mv3310_chip *chip = to_mv3310_chip(phydev);
+	int err, mactype;
 
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -493,11 +560,13 @@ static int mv3310_config_init(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL);
-	if (val < 0)
-		return val;
-	priv->rate_match = ((val & MV_V2_33X0_PORT_CTRL_MACTYPE_MASK) ==
-			MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH);
+	mactype = chip->get_mactype(phydev);
+	if (mactype < 0)
+		return mactype;
+
+	err = chip->init_interface(phydev, mactype);
+	if (err)
+		return err;
 
 	/* Enable EDPD mode - saving 600mW */
 	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
@@ -607,12 +676,12 @@ static void mv3310_update_interface(struct phy_device *phydev)
 {
 	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
 
-	/* In "XFI with Rate Matching" mode the PHY interface is fixed at
-	 * 10Gb. The PHY adapts the rate to actual wire speed with help of
+	/* In all of the "* with Rate Matching" modes the PHY interface is fixed
+	 * at 10Gb. The PHY adapts the rate to actual wire speed with help of
 	 * internal 16KB buffer.
 	 */
 	if (priv->rate_match) {
-		phydev->interface = PHY_INTERFACE_MODE_10GBASER;
+		phydev->interface = priv->const_interface;
 		return;
 	}
 
@@ -788,11 +857,22 @@ static int mv3310_set_tunable(struct phy_device *phydev,
 	}
 }
 
+static const struct mv3310_chip mv3310_type = {
+	.get_mactype = mv3310_get_mactype,
+	.init_interface = mv3310_init_interface,
+};
+
+static const struct mv3310_chip mv2110_type = {
+	.get_mactype = mv2110_get_mactype,
+	.init_interface = mv2110_init_interface,
+};
+
 static struct phy_driver mv3310_drivers[] = {
 	{
 		.phy_id		= MARVELL_PHY_ID_88X3310,
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
+		.driver_data	= &mv3310_type,
 		.get_features	= mv3310_get_features,
 		.config_init	= mv3310_config_init,
 		.probe		= mv3310_probe,
@@ -810,6 +890,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.phy_id		= MARVELL_PHY_ID_88E2110,
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x2110",
+		.driver_data	= &mv2110_type,
 		.probe		= mv3310_probe,
 		.suspend	= mv3310_suspend,
 		.resume		= mv3310_resume,
