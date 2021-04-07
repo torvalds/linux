@@ -52,7 +52,7 @@ void test0(void)
 /* **** BEGIN simple module entry/exit functions **** */
 static int __init unittest_enter(void)
 {
-	const unittest_fptr unit_tests[] = {
+	static const unittest_fptr unit_tests[] = {
 		test0,
 		NULL,
 	};
