@@ -870,34 +870,6 @@ static int cxl_mem_mbox_send_cmd(struct cxl_mem *cxlm, u16 opcode,
 	return 0;
 }
 
-/**
- * cxl_mem_setup_regs() - Setup necessary MMIO.
- * @cxlm: The CXL memory device to communicate with.
- *
- * Return: 0 if all necessary registers mapped.
- *
- * A memory device is required by spec to implement a certain set of MMIO
- * regions. The purpose of this function is to enumerate and map those
- * registers.
- */
-static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
-{
-	struct device *dev = &cxlm->pdev->dev;
-	struct cxl_regs *regs = &cxlm->regs;
-
-	cxl_setup_device_regs(dev, cxlm->base, &regs->device_regs);
-
-	if (!regs->status || !regs->mbox || !regs->memdev) {
-		dev_err(dev, "registers not found: %s%s%s\n",
-			!regs->status ? "status " : "",
-			!regs->mbox ? "mbox " : "",
-			!regs->memdev ? "memdev" : "");
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
 static int cxl_mem_setup_mailbox(struct cxl_mem *cxlm)
 {
 	const int cap = readl(cxlm->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
@@ -1000,6 +972,73 @@ static int cxl_mem_dvsec(struct pci_dev *pdev, int dvsec)
 
 		pos = pci_find_next_ext_capability(pdev, pos,
 						   PCI_EXT_CAP_ID_DVSEC);
+	}
+
+	return 0;
+}
+
+/**
+ * cxl_mem_setup_regs() - Setup necessary MMIO.
+ * @cxlm: The CXL memory device to communicate with.
+ *
+ * Return: 0 if all necessary registers mapped.
+ *
+ * A memory device is required by spec to implement a certain set of MMIO
+ * regions. The purpose of this function is to enumerate and map those
+ * registers.
+ */
+static int cxl_mem_setup_regs(struct cxl_mem *cxlm)
+{
+	struct cxl_regs *regs = &cxlm->regs;
+	struct pci_dev *pdev = cxlm->pdev;
+	struct device *dev = &pdev->dev;
+	u32 regloc_size, regblocks;
+	int rc, regloc, i;
+
+	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
+	if (!regloc) {
+		dev_err(dev, "register location dvsec not found\n");
+		return -ENXIO;
+	}
+
+	/* Get the size of the Register Locator DVSEC */
+	pci_read_config_dword(pdev, regloc + PCI_DVSEC_HEADER1, &regloc_size);
+	regloc_size = FIELD_GET(PCI_DVSEC_HEADER1_LENGTH_MASK, regloc_size);
+
+	regloc += PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET;
+	regblocks = (regloc_size - PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET) / 8;
+
+	for (i = 0; i < regblocks; i++, regloc += 8) {
+		u32 reg_lo, reg_hi;
+		u8 reg_type;
+
+		/* "register low and high" contain other bits */
+		pci_read_config_dword(pdev, regloc, &reg_lo);
+		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
+
+		reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
+
+		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
+			rc = cxl_mem_map_regblock(cxlm, reg_lo, reg_hi);
+			if (rc)
+				return rc;
+			break;
+		}
+	}
+
+	if (i == regblocks) {
+		dev_err(dev, "Missing register locator for device registers\n");
+		return -ENXIO;
+	}
+
+	cxl_setup_device_regs(dev, cxlm->base, &regs->device_regs);
+
+	if (!regs->status || !regs->mbox || !regs->memdev) {
+		dev_err(dev, "registers not found: %s%s%s\n",
+			!regs->status ? "status " : "",
+			!regs->mbox ? "mbox " : "",
+			!regs->memdev ? "memdev" : "");
+		return -ENXIO;
 	}
 
 	return 0;
@@ -1424,10 +1463,8 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 
 static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct device *dev = &pdev->dev;
-	u32 regloc_size, regblocks;
 	struct cxl_mem *cxlm;
-	int rc, regloc, i;
+	int rc;
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -1436,42 +1473,6 @@ static int cxl_mem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	cxlm = cxl_mem_create(pdev);
 	if (IS_ERR(cxlm))
 		return PTR_ERR(cxlm);
-
-	regloc = cxl_mem_dvsec(pdev, PCI_DVSEC_ID_CXL_REGLOC_OFFSET);
-	if (!regloc) {
-		dev_err(dev, "register location dvsec not found\n");
-		return -ENXIO;
-	}
-
-	/* Get the size of the Register Locator DVSEC */
-	pci_read_config_dword(pdev, regloc + PCI_DVSEC_HEADER1, &regloc_size);
-	regloc_size = FIELD_GET(PCI_DVSEC_HEADER1_LENGTH_MASK, regloc_size);
-
-	regloc += PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET;
-	regblocks = (regloc_size - PCI_DVSEC_ID_CXL_REGLOC_BLOCK1_OFFSET) / 8;
-
-	for (i = 0; i < regblocks; i++, regloc += 8) {
-		u32 reg_lo, reg_hi;
-		u8 reg_type;
-
-		/* "register low and high" contain other bits */
-		pci_read_config_dword(pdev, regloc, &reg_lo);
-		pci_read_config_dword(pdev, regloc + 4, &reg_hi);
-
-		reg_type = FIELD_GET(CXL_REGLOC_RBI_MASK, reg_lo);
-
-		if (reg_type == CXL_REGLOC_RBI_MEMDEV) {
-			rc = cxl_mem_map_regblock(cxlm, reg_lo, reg_hi);
-			if (rc)
-				return rc;
-			break;
-		}
-	}
-
-	if (i == regblocks) {
-		dev_err(dev, "Missing register locator for device registers\n");
-		return -ENXIO;
-	}
 
 	rc = cxl_mem_setup_regs(cxlm);
 	if (rc)
