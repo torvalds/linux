@@ -142,42 +142,10 @@ static int walk_inode(struct btree_trans *trans,
 	return 0;
 }
 
-struct hash_check {
-	struct bch_hash_info	info;
-
-	/* start of current chain of hash collisions: */
-	struct btree_iter	*chain;
-
-	/* next offset in current chain of hash collisions: */
-	u64			chain_end;
-};
-
-static void hash_check_init(struct hash_check *h)
-{
-	h->chain = NULL;
-	h->chain_end = 0;
-}
-
-static void hash_stop_chain(struct btree_trans *trans,
-			    struct hash_check *h)
-{
-	if (h->chain)
-		bch2_trans_iter_free(trans, h->chain);
-	h->chain = NULL;
-}
-
-static void hash_check_set_inode(struct btree_trans *trans,
-				 struct hash_check *h,
-				 const struct bch_inode_unpacked *bi)
-{
-	h->info = bch2_hash_info_init(trans->c, bi);
-	hash_stop_chain(trans, h);
-}
-
-static int hash_redo_key(const struct bch_hash_desc desc,
-			 struct btree_trans *trans, struct hash_check *h,
-			 struct btree_iter *k_iter, struct bkey_s_c k,
-			 u64 hashed)
+static int hash_redo_key(struct btree_trans *trans,
+			 const struct bch_hash_desc desc,
+			 struct bch_hash_info *hash_info,
+			 struct btree_iter *k_iter, struct bkey_s_c k)
 {
 	struct bkey_i delete;
 	struct bkey_i *tmp;
@@ -192,7 +160,7 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 	delete.k.p = k_iter->pos;
 	bch2_trans_update(trans, k_iter, &delete, 0);
 
-	return bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
+	return bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode,
 			     tmp, 0);
 }
 
@@ -216,201 +184,72 @@ retry:
 	return ret;
 }
 
-static int hash_check_duplicates(struct btree_trans *trans,
-			const struct bch_hash_desc desc, struct hash_check *h,
-			struct btree_iter *k_iter, struct bkey_s_c k)
+static int hash_check_key(struct btree_trans *trans,
+			  const struct bch_hash_desc desc,
+			  struct bch_hash_info *hash_info,
+			  struct btree_iter *k_iter, struct bkey_s_c hash_k)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter *iter;
-	struct bkey_s_c k2;
+	struct btree_iter *iter = NULL;
 	char buf[200];
+	struct bkey_s_c k;
+	u64 hash;
 	int ret = 0;
 
-	if (!bkey_cmp(h->chain->pos, k_iter->pos))
+	if (hash_k.k->type != desc.key_type)
 		return 0;
 
-	iter = bch2_trans_copy_iter(trans, h->chain);
+	hash = desc.hash_bkey(hash_info, hash_k);
 
-	for_each_btree_key_continue(iter, 0, k2, ret) {
-		if (bkey_cmp(k2.k->p, k.k->p) >= 0)
+	if (likely(hash == hash_k.k->p.offset))
+		return 0;
+
+	if (hash_k.k->p.offset < hash)
+		goto bad_hash;
+
+	for_each_btree_key(trans, iter, desc.btree_id, POS(hash_k.k->p.inode, hash),
+			   BTREE_ITER_SLOTS, k, ret) {
+		if (!bkey_cmp(k.k->p, hash_k.k->p))
 			break;
 
-		if (fsck_err_on(k2.k->type == desc.key_type &&
-				!desc.cmp_bkey(k, k2), c,
+		if (fsck_err_on(k.k->type == desc.key_type &&
+				!desc.cmp_bkey(k, hash_k), c,
 				"duplicate hash table keys:\n%s",
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       k), buf))) {
-			ret = fsck_hash_delete_at(trans, desc, &h->info, k_iter);
+						       hash_k), buf))) {
+			ret = fsck_hash_delete_at(trans, desc, hash_info, k_iter);
 			if (ret)
 				return ret;
 			ret = 1;
 			break;
 		}
+
+		if (bkey_deleted(k.k)) {
+			bch2_trans_iter_free(trans, iter);
+			goto bad_hash;
+		}
+
 	}
-fsck_err:
 	bch2_trans_iter_free(trans, iter);
 	return ret;
-}
-
-static void hash_set_chain_start(struct btree_trans *trans,
-			const struct bch_hash_desc desc,
-			struct hash_check *h,
-			struct btree_iter *k_iter, struct bkey_s_c k)
-{
-	bool hole = (k.k->type != KEY_TYPE_hash_whiteout &&
-		     k.k->type != desc.key_type);
-
-	if (hole || k.k->p.offset > h->chain_end + 1)
-		hash_stop_chain(trans, h);
-
-	if (!hole) {
-		if (!h->chain)
-			h->chain = bch2_trans_copy_iter(trans, k_iter);
-
-		h->chain_end = k.k->p.offset;
-	}
-}
-
-static bool key_has_correct_hash(struct btree_trans *trans,
-			const struct bch_hash_desc desc,
-			struct hash_check *h,
-			struct btree_iter *k_iter, struct bkey_s_c k)
-{
-	u64 hash;
-
-	hash_set_chain_start(trans, desc, h, k_iter, k);
-
-	if (k.k->type != desc.key_type)
-		return true;
-
-	hash = desc.hash_bkey(&h->info, k);
-
-	return hash >= h->chain->pos.offset &&
-		hash <= k.k->p.offset;
-}
-
-static int hash_check_key(struct btree_trans *trans,
-			const struct bch_hash_desc desc, struct hash_check *h,
-			struct btree_iter *k_iter, struct bkey_s_c k)
-{
-	struct bch_fs *c = trans->c;
-	char buf[200];
-	u64 hashed;
-	int ret = 0;
-
-	hash_set_chain_start(trans, desc, h, k_iter, k);
-
-	if (k.k->type != desc.key_type)
+bad_hash:
+	if (fsck_err(c, "hash table key at wrong offset: btree %u inode %llu offset %llu, "
+		     "hashed to %llu should be at %llu\n%s",
+		     desc.btree_id, hash_k.k->p.inode, hash_k.k->p.offset,
+		     hash, iter->pos.offset,
+		     (bch2_bkey_val_to_text(&PBUF(buf), c, hash_k), buf)) == FSCK_ERR_IGNORE)
 		return 0;
 
-	hashed = desc.hash_bkey(&h->info, k);
-
-	if (fsck_err_on(hashed < h->chain->pos.offset ||
-			hashed > k.k->p.offset, c,
-			"hash table key at wrong offset: btree %u, %llu, "
-			"hashed to %llu chain starts at %llu\n%s",
-			desc.btree_id, k.k->p.offset,
-			hashed, h->chain->pos.offset,
-			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf))) {
-		ret = __bch2_trans_do(trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
-			hash_redo_key(desc, trans, h, k_iter, k, hashed));
-		if (ret) {
-			bch_err(c, "hash_redo_key err %i", ret);
-			return ret;
-		}
-		return -EINTR;
+	ret = __bch2_trans_do(trans, NULL, NULL,
+			      BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		hash_redo_key(trans, desc, hash_info, k_iter, hash_k));
+	if (ret) {
+		bch_err(c, "hash_redo_key err %i", ret);
+		return ret;
 	}
-
-	ret = hash_check_duplicates(trans, desc, h, k_iter, k);
+	return -EINTR;
 fsck_err:
 	return ret;
-}
-
-static int check_dirent_hash(struct btree_trans *trans, struct hash_check *h,
-			     struct btree_iter *iter, struct bkey_s_c *k)
-{
-	struct bch_fs *c = trans->c;
-	struct bkey_i_dirent *d = NULL;
-	int ret = -EINVAL;
-	char buf[200];
-	unsigned len;
-	u64 hash;
-
-	if (key_has_correct_hash(trans, bch2_dirent_hash_desc, h, iter, *k))
-		return 0;
-
-	len = bch2_dirent_name_bytes(bkey_s_c_to_dirent(*k));
-	BUG_ON(!len);
-
-	memcpy(buf, bkey_s_c_to_dirent(*k).v->d_name, len);
-	buf[len] = '\0';
-
-	d = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
-	if (!d) {
-		bch_err(c, "memory allocation failure");
-		return -ENOMEM;
-	}
-
-	bkey_reassemble(&d->k_i, *k);
-
-	do {
-		--len;
-		if (!len)
-			goto err_redo;
-
-		d->k.u64s = BKEY_U64s + dirent_val_u64s(len);
-
-		BUG_ON(bkey_val_bytes(&d->k) <
-		       offsetof(struct bch_dirent, d_name) + len);
-
-		memset(d->v.d_name + len, 0,
-		       bkey_val_bytes(&d->k) -
-		       offsetof(struct bch_dirent, d_name) - len);
-
-		hash = bch2_dirent_hash_desc.hash_bkey(&h->info,
-						bkey_i_to_s_c(&d->k_i));
-	} while (hash < h->chain->pos.offset ||
-		 hash > k->k->p.offset);
-
-	if (fsck_err(c, "dirent with junk at end, was %s (%zu) now %s (%u)",
-		     buf, strlen(buf), d->v.d_name, len)) {
-		ret = __bch2_trans_do(trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
-			(bch2_trans_update(trans, iter, &d->k_i, 0), 0));
-		if (ret)
-			goto err;
-
-		*k = bch2_btree_iter_peek(iter);
-
-		BUG_ON(k->k->type != KEY_TYPE_dirent);
-	}
-err:
-fsck_err:
-	kfree(d);
-	return ret;
-err_redo:
-	hash = bch2_dirent_hash_desc.hash_bkey(&h->info, *k);
-
-	if (fsck_err(c, "cannot fix dirent by removing trailing garbage %s (%zu)\n"
-		     "hash table key at wrong offset: btree %u, offset %llu, "
-		     "hashed to %llu chain starts at %llu\n%s",
-		     buf, strlen(buf), BTREE_ID_dirents,
-		     k->k->p.offset, hash, h->chain->pos.offset,
-		     (bch2_bkey_val_to_text(&PBUF(buf), c,
-					    *k), buf))) {
-		ret = __bch2_trans_do(trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
-			hash_redo_key(bch2_dirent_hash_desc, trans,
-				      h, iter, *k, hash));
-		if (ret)
-			bch_err(c, "hash_redo_key err %i", ret);
-		else
-			ret = 1;
-	}
-
-	goto err;
 }
 
 static int check_inode(struct btree_trans *trans,
@@ -710,7 +549,7 @@ noinline_for_stack
 static int check_dirents(struct bch_fs *c)
 {
 	struct inode_walker w = inode_walker_init();
-	struct hash_check h;
+	struct bch_hash_info hash_info;
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
@@ -720,8 +559,6 @@ static int check_dirents(struct bch_fs *c)
 	bch_verbose(c, "checking dirents");
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	hash_check_init(&h);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_dirents,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
@@ -749,25 +586,26 @@ retry:
 			ret = bch2_btree_delete_at(&trans, iter, 0);
 			if (ret)
 				goto err;
-			continue;
+			goto next;
 		}
 
-		if (w.first_this_inode && w.have_inode)
-			hash_check_set_inode(&trans, &h, &w.inode);
+		if (!w.have_inode)
+			goto next;
 
-		ret = check_dirent_hash(&trans, &h, iter, &k);
+		if (w.first_this_inode)
+			hash_info = bch2_hash_info_init(c, &w.inode);
+
+		ret = hash_check_key(&trans, bch2_dirent_hash_desc,
+				     &hash_info, iter, k);
 		if (ret > 0) {
 			ret = 0;
-			continue;
+			goto next;
 		}
-		if (ret)
-			goto fsck_err;
-
 		if (ret)
 			goto fsck_err;
 
 		if (k.k->type != KEY_TYPE_dirent)
-			continue;
+			goto next;
 
 		d = bkey_s_c_to_dirent(k);
 		d_inum = le64_to_cpu(d.v->d_inum);
@@ -786,8 +624,11 @@ retry:
 			ret = remove_dirent(&trans, d);
 			if (ret)
 				goto err;
-			continue;
+			goto next;
 		}
+
+		if (!have_target)
+			goto next;
 
 		if (!target.bi_nlink &&
 		    !(target.bi_flags & BCH_INODE_BACKPTR_UNTRUSTED) &&
@@ -822,8 +663,7 @@ retry:
 			continue;
 		}
 
-		if (fsck_err_on(have_target &&
-				d.v->d_type !=
+		if (fsck_err_on(d.v->d_type !=
 				mode_to_type(target.bi_mode), c,
 				"incorrect d_type: should be %u:\n%s",
 				mode_to_type(target.bi_mode),
@@ -849,17 +689,14 @@ retry:
 				goto err;
 
 		}
-
+next:
 		bch2_btree_iter_advance(iter);
 	}
-
-	hash_stop_chain(&trans, &h);
 err:
 fsck_err:
 	if (ret == -EINTR)
 		goto retry;
 
-	bch2_trans_iter_put(&trans, h.chain);
 	bch2_trans_iter_put(&trans, iter);
 	return bch2_trans_exit(&trans) ?: ret;
 }
@@ -871,15 +708,13 @@ noinline_for_stack
 static int check_xattrs(struct bch_fs *c)
 {
 	struct inode_walker w = inode_walker_init();
-	struct hash_check h;
+	struct bch_hash_info hash_info;
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
 	bch_verbose(c, "checking xattrs");
-
-	hash_check_init(&h);
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
@@ -902,10 +737,10 @@ retry:
 		}
 
 		if (w.first_this_inode && w.have_inode)
-			hash_check_set_inode(&trans, &h, &w.inode);
+			hash_info = bch2_hash_info_init(c, &w.inode);
 
 		ret = hash_check_key(&trans, bch2_xattr_hash_desc,
-				     &h, iter, k);
+				     &hash_info, iter, k);
 		if (ret)
 			break;
 
@@ -915,7 +750,6 @@ fsck_err:
 	if (ret == -EINTR)
 		goto retry;
 
-	bch2_trans_iter_put(&trans, h.chain);
 	bch2_trans_iter_put(&trans, iter);
 	return bch2_trans_exit(&trans) ?: ret;
 }
