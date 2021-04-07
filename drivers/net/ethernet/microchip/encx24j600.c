@@ -1117,17 +1117,7 @@ static struct spi_driver encx24j600_spi_net_driver = {
 	.id_table	= encx24j600_spi_id_table,
 };
 
-static int __init encx24j600_init(void)
-{
-	return spi_register_driver(&encx24j600_spi_net_driver);
-}
-module_init(encx24j600_init);
-
-static void encx24j600_exit(void)
-{
-	spi_unregister_driver(&encx24j600_spi_net_driver);
-}
-module_exit(encx24j600_exit);
+module_spi_driver(encx24j600_spi_net_driver);
 
 MODULE_DESCRIPTION(DRV_NAME " ethernet driver");
 MODULE_AUTHOR("Jon Ringle <jringle@gridpoint.com>");
