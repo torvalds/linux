@@ -60,8 +60,6 @@
 #define EDGE_READ_URB_STOPPING	1
 #define EDGE_READ_URB_STOPPED	2
 
-#define EDGE_CLOSING_WAIT	4000	/* in .01 sec */
-
 
 /* Product information read from the Edgeport */
 struct product_info {
@@ -2592,7 +2590,6 @@ static int edge_port_probe(struct usb_serial_port *port)
 	if (ret)
 		goto err;
 
-	port->port.closing_wait = msecs_to_jiffies(EDGE_CLOSING_WAIT * 10);
 	port->port.drain_delay = 1;
 
 	return 0;
