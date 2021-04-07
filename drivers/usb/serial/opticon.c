@@ -360,12 +360,9 @@ static int get_serial_info(struct tty_struct *tty,
 	/* fake emulate a 16550 uart to make userspace code happy */
 	ss->type		= PORT_16550A;
 	ss->line		= port->minor;
-	ss->port		= 0;
-	ss->irq			= 0;
-	ss->xmit_fifo_size	= 1024;
-	ss->baud_base		= 9600;
-	ss->close_delay		= 5*HZ;
-	ss->closing_wait	= 30*HZ;
+	ss->close_delay		= 50;
+	ss->closing_wait	= 3000;
+
 	return 0;
 }
 
