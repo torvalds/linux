@@ -118,6 +118,7 @@ static const struct sysrq_key_op sysrq_loglevel_op = {
 static void sysrq_handle_SAK(int key)
 {
 	struct work_struct *SAK_work = &vc_cons[fg_console].SAK_work;
+
 	schedule_work(SAK_work);
 }
 static const struct sysrq_key_op sysrq_SAK_op = {
