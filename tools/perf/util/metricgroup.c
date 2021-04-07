@@ -900,7 +900,8 @@ static int __add_metric(struct list_head *metric_list,
 		    (match_metric(__pe->metric_group, __metric) ||	\
 		     match_metric(__pe->metric_name, __metric)))
 
-static struct pmu_event *find_metric(const char *metric, struct pmu_events_map *map)
+struct pmu_event *metricgroup__find_metric(const char *metric,
+					   struct pmu_events_map *map)
 {
 	struct pmu_event *pe;
 	int i;
@@ -985,7 +986,7 @@ static int __resolve_metric(struct metric *m,
 			struct expr_id *parent;
 			struct pmu_event *pe;
 
-			pe = find_metric(cur->key, map);
+			pe = metricgroup__find_metric(cur->key, map);
 			if (!pe)
 				continue;
 
