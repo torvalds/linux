@@ -2499,22 +2499,18 @@ static int tegra_dc_couple(struct tegra_dc *dc)
 	 * POWER_CONTROL registers during CRTC enabling.
 	 */
 	if (dc->soc->coupled_pm && dc->pipe == 1) {
-		u32 flags = DL_FLAG_PM_RUNTIME | DL_FLAG_AUTOREMOVE_CONSUMER;
-		struct device_link *link;
-		struct device *partner;
+		struct device *companion;
+		struct tegra_dc *parent;
 
-		partner = driver_find_device(dc->dev->driver, NULL, NULL,
-					     tegra_dc_match_by_pipe);
-		if (!partner)
+		companion = driver_find_device(dc->dev->driver, NULL, (const void *)0,
+					       tegra_dc_match_by_pipe);
+		if (!companion)
 			return -EPROBE_DEFER;
 
-		link = device_link_add(dc->dev, partner, flags);
-		if (!link) {
-			dev_err(dc->dev, "failed to link controllers\n");
-			return -EINVAL;
-		}
+		parent = dev_get_drvdata(companion);
+		dc->client.parent = &parent->client;
 
-		dev_dbg(dc->dev, "coupled to %s\n", dev_name(partner));
+		dev_dbg(dc->dev, "coupled to %s\n", dev_name(companion));
 	}
 
 	return 0;
