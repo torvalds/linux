@@ -263,6 +263,10 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 			dev_err(priv->dev, "FCS Abort\n");
 			ret = -EOPNOTSUPP;
 			goto err_irqrestore;
+		} else if (priv->status & ASPEED_PECI_INT_W_FCS_BAD) {
+			dev_err(priv->dev, "FCS Bad\n");
+			ret = -EILSEQ;
+			goto err_irqrestore;
 		}
 		dev_err(priv->dev, "No valid response!\n");
 		ret = -EIO;
