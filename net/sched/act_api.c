@@ -1042,9 +1042,6 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
 
-	if (!bind && ovr && err == ACT_P_CREATED)
-		refcount_set(&a->tcfa_refcnt, 2);
-
 	return a;
 
 err_out:
