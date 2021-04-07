@@ -79,6 +79,8 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 	if (!lif->phc || !lif->phc->ptp)
 		return -EOPNOTSUPP;
 
+	mutex_lock(&lif->phc->config_lock);
+
 	if (new_ts) {
 		config = new_ts;
 	} else {
@@ -96,12 +98,16 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 	}
 
 	tx_mode = ionic_hwstamp_tx_mode(config->tx_type);
-	if (tx_mode < 0)
-		return tx_mode;
+	if (tx_mode < 0) {
+		err = tx_mode;
+		goto err_queues;
+	}
 
 	mask = cpu_to_le64(BIT_ULL(tx_mode));
-	if ((ionic->ident.lif.eth.hwstamp_tx_modes & mask) != mask)
-		return -ERANGE;
+	if ((ionic->ident.lif.eth.hwstamp_tx_modes & mask) != mask) {
+		err = -ERANGE;
+		goto err_queues;
+	}
 
 	rx_filt = ionic_hwstamp_rx_filt(config->rx_filter);
 	rx_all = config->rx_filter != HWTSTAMP_FILTER_NONE && !rx_filt;
@@ -115,8 +121,6 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 
 	dev_dbg(ionic->dev, "config_rx_filter %d rx_filt %#llx rx_all %d\n",
 		config->rx_filter, rx_filt, rx_all);
-
-	mutex_lock(&lif->phc->config_lock);
 
 	if (tx_mode) {
 		err = ionic_lif_create_hwstamp_txq(lif);
