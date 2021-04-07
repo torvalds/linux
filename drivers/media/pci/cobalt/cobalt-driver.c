@@ -572,7 +572,7 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 		.addr = 0x20,
 		.platform_data = &adv7842_pdata,
 	};
-	static struct v4l2_subdev_format sd_fmt = {
+	struct v4l2_subdev_format sd_fmt = {
 		.pad = ADV7842_PAD_SOURCE,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format.code = MEDIA_BUS_FMT_YUYV8_1X16,
