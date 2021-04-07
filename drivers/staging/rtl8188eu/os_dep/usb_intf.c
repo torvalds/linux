@@ -450,7 +450,6 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 
 static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
 {
-	struct adapter *if1 = NULL;
 	struct dvobj_priv *dvobj;
 
 	/* Initialize dvobj_priv */
@@ -461,9 +460,8 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 		goto exit;
 	}
 
-	if1 = rtw_usb_if1_init(dvobj, pusb_intf);
-	if (!if1) {
-		pr_debug("rtw_init_primarystruct adapter Failed!\n");
+	if (!rtw_usb_if1_init(dvobj, pusb_intf)) {
+		pr_debug("rtw_usb_if1_init failed\n");
 		goto free_dvobj;
 	}
 
