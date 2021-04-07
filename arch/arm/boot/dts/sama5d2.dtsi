@@ -40,7 +40,7 @@
 		interrupts = <2 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	etb {
+	etb@740000 {
 		compatible = "arm,coresight-etb10", "arm,primecell";
 		reg = <0x740000 0x1000>;
 
@@ -56,7 +56,7 @@
 		};
 	};
 
-	etm {
+	etm@73C000 {
 		compatible = "arm,coresight-etm3x", "arm,primecell";
 		reg = <0x73C000 0x1000>;
 
