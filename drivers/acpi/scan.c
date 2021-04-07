@@ -1831,7 +1831,7 @@ static void acpi_scan_init_hotplug(struct acpi_device *adev)
 	}
 }
 
-static u32 acpi_scan_check_dep(acpi_handle handle)
+static u32 acpi_scan_check_dep(acpi_handle handle, bool check_dep)
 {
 	struct acpi_handle_list dep_devices;
 	acpi_status status;
@@ -1844,7 +1844,8 @@ static u32 acpi_scan_check_dep(acpi_handle handle)
 	 * 2. ACPI nodes describing USB ports.
 	 * Still, checking for _HID catches more then just these cases ...
 	 */
-	if (!acpi_has_method(handle, "_DEP") || !acpi_has_method(handle, "_HID"))
+	if (!check_dep || !acpi_has_method(handle, "_DEP") ||
+	    !acpi_has_method(handle, "_HID"))
 		return 0;
 
 	status = acpi_evaluate_reference(handle, "_DEP", NULL, &dep_devices);
@@ -1925,6 +1926,12 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 		if (acpi_device_should_be_hidden(handle))
 			return AE_OK;
 
+		/* Bail out if there are dependencies. */
+		if (acpi_scan_check_dep(handle, check_dep) > 0) {
+			acpi_bus_scan_second_pass = true;
+			return AE_CTRL_DEPTH;
+		}
+
 		fallthrough;
 	case ACPI_TYPE_ANY:	/* for ACPI_ROOT_OBJECT */
 		type = ACPI_BUS_TYPE_DEVICE;
@@ -1942,25 +1949,10 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 		break;
 
 	case ACPI_TYPE_POWER:
-		type = ACPI_BUS_TYPE_POWER;
-		break;
-
+		acpi_add_power_resource(handle);
+		fallthrough;
 	default:
 		return AE_OK;
-	}
-
-	if (type == ACPI_BUS_TYPE_POWER) {
-		acpi_add_power_resource(handle);
-		return AE_OK;
-	}
-
-	if (type == ACPI_BUS_TYPE_DEVICE && check_dep) {
-		u32 count = acpi_scan_check_dep(handle);
-		/* Bail out if the number of recorded dependencies is not 0. */
-		if (count > 0) {
-			acpi_bus_scan_second_pass = true;
-			return AE_CTRL_DEPTH;
-		}
 	}
 
 	acpi_add_single_object(&device, handle, type, sta);
