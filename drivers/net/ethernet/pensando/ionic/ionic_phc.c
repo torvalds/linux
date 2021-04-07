@@ -18,10 +18,8 @@ static int ionic_hwstamp_tx_mode(int config_tx_type)
 		return IONIC_TXSTAMP_ON;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		return IONIC_TXSTAMP_ONESTEP_SYNC;
-#ifdef HAVE_HWSTAMP_TX_ONESTEP_P2P
 	case HWTSTAMP_TX_ONESTEP_P2P:
 		return IONIC_TXSTAMP_ONESTEP_P2P;
-#endif
 	default:
 		return -ERANGE;
 	}
