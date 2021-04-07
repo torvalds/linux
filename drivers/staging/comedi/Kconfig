@@ -1319,4 +1319,37 @@ config COMEDI_NI_TIO
 config COMEDI_NI_ROUTING
 	tristate
 
+config COMEDI_TESTS
+	tristate "Comedi unit tests"
+	help
+	  Enable comedi unit-test modules to be built.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about comedi unit-test modules.
+
+if COMEDI_TESTS
+
+config COMEDI_TESTS_EXAMPLE
+	tristate "Comedi example unit-test module"
+	help
+	  Enable support for an example unit-test module.  This is just a
+	  silly example to be used as a basis for writing other unit-test
+	  modules.
+
+	  To compile this as a module, choose M here: the module will be called
+	  comedi_example_test.
+
+config COMEDI_TESTS_NI_ROUTES
+	tristate "NI routing unit-test module"
+	select NI_ROUTING
+	help
+	  Enable support for a unit-test module to test the signal routing
+	  code used by comedi drivers for various National Instruments cards.
+
+	  To compile this as a module, choose M here: the module will be called
+	  ni_routes_test.
+
+endif # COMEDI_TESTS
+
 endif # COMEDI
