@@ -63,7 +63,7 @@ ssize_t iio_hrtimer_store_sampling_frequency(struct device *dev,
 	if (integer < 0 || fract < 0)
 		return -ERANGE;
 
-	val = fract + 1000 * integer;  /* mHz */
+	val = fract + 1000ULL * integer;  /* mHz */
 
 	if (!val || val > UINT_MAX)
 		return -EINVAL;

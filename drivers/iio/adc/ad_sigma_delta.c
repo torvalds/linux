@@ -485,18 +485,15 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 	sigma_delta->trig->ops = &ad_sd_trigger_ops;
 	init_completion(&sigma_delta->completion);
 
+	sigma_delta->irq_dis = true;
 	ret = request_irq(sigma_delta->spi->irq,
 			  ad_sd_data_rdy_trig_poll,
-			  sigma_delta->info->irq_flags,
+			  sigma_delta->info->irq_flags | IRQF_NO_AUTOEN,
 			  indio_dev->name,
 			  sigma_delta);
 	if (ret)
 		goto error_free_trig;
 
-	if (!sigma_delta->irq_dis) {
-		sigma_delta->irq_dis = true;
-		disable_irq_nosync(sigma_delta->spi->irq);
-	}
 	iio_trigger_set_drvdata(sigma_delta->trig, sigma_delta);
 
 	ret = iio_trigger_register(sigma_delta->trig);

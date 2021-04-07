@@ -702,7 +702,7 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 	if (iio_channel_has_info(chan->channel, IIO_CHAN_INFO_PROCESSED)) {
 		ret = iio_channel_read(chan, val, NULL,
 				       IIO_CHAN_INFO_PROCESSED);
-		if (ret)
+		if (ret < 0)
 			goto err_unlock;
 		*val *= scale;
 	} else {
