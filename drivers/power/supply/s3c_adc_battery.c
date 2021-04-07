@@ -390,7 +390,7 @@ static int s3c_adc_bat_remove(struct platform_device *pdev)
 	if (main_bat.charge_finished)
 		free_irq(gpiod_to_irq(main_bat.charge_finished), NULL);
 
-	cancel_delayed_work(&bat_work);
+	cancel_delayed_work_sync(&bat_work);
 
 	if (pdata->exit)
 		pdata->exit();
