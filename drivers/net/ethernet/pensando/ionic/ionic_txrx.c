@@ -1233,7 +1233,7 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
-		if (lif->hwstamp_txq)
+		if (lif->hwstamp_txq && lif->phc->ts_config_tx_mode)
 			return ionic_start_hwstamp_xmit(skb, netdev);
 
 	if (unlikely(queue_index >= lif->nxqs))
