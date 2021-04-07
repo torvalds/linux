@@ -1486,15 +1486,13 @@ static void get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	ss->custom_divisor = priv->custom_divisor;
 }
 
-static int set_serial_info(struct tty_struct *tty,
-	struct serial_struct *ss)
+static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct ftdi_private old_priv;
+	int old_flags, old_divisor;
 
 	mutex_lock(&priv->cfg_lock);
-	old_priv = *priv;
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if ((ss->flags ^ priv->flags) & ~ASYNC_USR_MASK) {
@@ -1503,14 +1501,17 @@ static int set_serial_info(struct tty_struct *tty,
 		}
 	}
 
+	old_flags = priv->flags;
+	old_divisor = priv->custom_divisor;
+
 	priv->flags = ss->flags & ASYNC_FLAGS;
 	priv->custom_divisor = ss->custom_divisor;
 
 	write_latency_timer(port);
 
-	if ((priv->flags ^ old_priv.flags) & ASYNC_SPD_MASK ||
+	if ((priv->flags ^ old_flags) & ASYNC_SPD_MASK ||
 			((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
-			 priv->custom_divisor != old_priv.custom_divisor)) {
+			 priv->custom_divisor != old_divisor)) {
 
 		/* warn about deprecation unless clearing */
 		if (priv->flags & ASYNC_SPD_MASK)
