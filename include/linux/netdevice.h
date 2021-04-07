@@ -4026,8 +4026,14 @@ void __dev_notify_flags(struct net_device *, unsigned int old_flags,
 int dev_change_name(struct net_device *, const char *);
 int dev_set_alias(struct net_device *, const char *, size_t);
 int dev_get_alias(const struct net_device *, char *, size_t);
+int __dev_change_net_namespace(struct net_device *dev, struct net *net,
+			       const char *pat, int new_ifindex);
+static inline
 int dev_change_net_namespace(struct net_device *dev, struct net *net,
-			     const char *pat, int new_ifindex);
+			     const char *pat)
+{
+	return __dev_change_net_namespace(dev, net, pat, 0);
+}
 int __dev_set_mtu(struct net_device *, int);
 int dev_validate_mtu(struct net_device *dev, int mtu,
 		     struct netlink_ext_ack *extack);

@@ -2619,7 +2619,7 @@ static int do_setlink(const struct sk_buff *skb,
 		else
 			new_ifindex = 0;
 
-		err = dev_change_net_namespace(dev, net, ifname, new_ifindex);
+		err = __dev_change_net_namespace(dev, net, ifname, new_ifindex);
 		put_net(net);
 		if (err)
 			goto errout;
@@ -3461,7 +3461,7 @@ replay:
 	if (err < 0)
 		goto out_unregister;
 	if (link_net) {
-		err = dev_change_net_namespace(dev, dest_net, ifname, 0);
+		err = dev_change_net_namespace(dev, dest_net, ifname);
 		if (err < 0)
 			goto out_unregister;
 	}

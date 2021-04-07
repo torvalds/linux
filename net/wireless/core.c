@@ -165,7 +165,7 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 		if (!wdev->netdev)
 			continue;
 		wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
-		err = dev_change_net_namespace(wdev->netdev, net, "wlan%d", 0);
+		err = dev_change_net_namespace(wdev->netdev, net, "wlan%d");
 		if (err)
 			break;
 		wdev->netdev->features |= NETIF_F_NETNS_LOCAL;
@@ -182,7 +182,7 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 				continue;
 			wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
 			err = dev_change_net_namespace(wdev->netdev, net,
-							"wlan%d", 0);
+							"wlan%d");
 			WARN_ON(err);
 			wdev->netdev->features |= NETIF_F_NETNS_LOCAL;
 		}
