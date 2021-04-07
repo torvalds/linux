@@ -1,7 +1,6 @@
 # If we ever add another OWNERS above this directory, it's likely to be
 # more permissive, so don't inherit from it
 set noparent
-gki-abi-approvers@google.com
 adelva@google.com
 maennich@google.com
 saravanak@google.com
