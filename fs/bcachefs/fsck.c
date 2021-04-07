@@ -569,7 +569,6 @@ static int check_dirents(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	unsigned name_len;
 	char buf[200];
 	int ret = 0;
 
@@ -627,36 +626,6 @@ retry:
 
 		d = bkey_s_c_to_dirent(k);
 		d_inum = le64_to_cpu(d.v->d_inum);
-
-		name_len = bch2_dirent_name_bytes(d);
-
-		if (fsck_err_on(!name_len, c, "empty dirent") ||
-		    fsck_err_on(name_len == 1 &&
-				!memcmp(d.v->d_name, ".", 1), c,
-				". dirent") ||
-		    fsck_err_on(name_len == 2 &&
-				!memcmp(d.v->d_name, "..", 2), c,
-				".. dirent") ||
-		    fsck_err_on(name_len == 2 &&
-				!memcmp(d.v->d_name, "..", 2), c,
-				".. dirent") ||
-		    fsck_err_on(memchr(d.v->d_name, '/', name_len), c,
-				"dirent name has invalid chars")) {
-			ret = remove_dirent(&trans, d);
-			if (ret)
-				goto err;
-			continue;
-		}
-
-		if (fsck_err_on(d_inum == d.k->p.inode, c,
-				"dirent points to own directory:\n%s",
-				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       k), buf))) {
-			ret = remove_dirent(&trans, d);
-			if (ret)
-				goto err;
-			continue;
-		}
 
 		ret = __bch2_inode_find_by_inum_trans(&trans, d_inum, &target, 0);
 		if (ret && ret != -ENOENT)

@@ -84,15 +84,23 @@ const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	if (!len)
 		return "empty name";
 
-	/*
-	 * older versions of bcachefs were buggy and creating dirent
-	 * keys that were bigger than necessary:
-	 */
-	if (bkey_val_u64s(k.k) > dirent_val_u64s(len + 7))
+	if (bkey_val_u64s(k.k) > dirent_val_u64s(len))
 		return "value too big";
 
 	if (len > BCH_NAME_MAX)
 		return "dirent name too big";
+
+	if (len == 1 && !memcmp(d.v->d_name, ".", 1))
+		return "invalid name";
+
+	if (len == 2 && !memcmp(d.v->d_name, "..", 2))
+		return "invalid name";
+
+	if (memchr(d.v->d_name, '/', len))
+		return "invalid name";
+
+	if (le64_to_cpu(d.v->d_inum) == d.k->p.inode)
+		return "dirent points to own directory";
 
 	return NULL;
 }
