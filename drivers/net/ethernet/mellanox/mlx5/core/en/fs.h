@@ -29,6 +29,7 @@ struct mlx5e_tc_table {
 	struct netdev_net_notifier	netdevice_nn;
 
 	struct mlx5_tc_ct_priv         *ct;
+	struct mapping_ctx             *mapping;
 };
 
 struct mlx5e_flow_table {

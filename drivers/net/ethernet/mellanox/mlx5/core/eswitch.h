@@ -46,6 +46,24 @@
 #include "lib/fs_chains.h"
 #include "sf/sf.h"
 #include "en/tc_ct.h"
+#include "esw/sample.h"
+
+enum mlx5_mapped_obj_type {
+	MLX5_MAPPED_OBJ_CHAIN,
+	MLX5_MAPPED_OBJ_SAMPLE,
+};
+
+struct mlx5_mapped_obj {
+	enum mlx5_mapped_obj_type type;
+	union {
+		u32 chain;
+		struct {
+			u32 group_id;
+			u32 rate;
+			u32 trunc_size;
+		} sample;
+	};
+};
 
 #ifdef CONFIG_MLX5_ESWITCH
 
@@ -206,6 +224,7 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_table *ft_offloads_restore;
 	struct mlx5_flow_group *restore_group;
 	struct mlx5_modify_hdr *restore_copy_hdr_id;
+	struct mapping_ctx *reg_c0_obj_pool;
 
 	struct mlx5_flow_table *ft_offloads;
 	struct mlx5_flow_group *vport_rx_group;
@@ -357,6 +376,9 @@ void
 mlx5_eswitch_termtbl_put(struct mlx5_eswitch *esw,
 			 struct mlx5_termtbl_handle *tt);
 
+void
+mlx5_eswitch_clear_rule_source_port(struct mlx5_eswitch *esw, struct mlx5_flow_spec *spec);
+
 struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
@@ -404,6 +426,7 @@ enum {
 	MLX5_ESW_ATTR_FLAG_SLOW_PATH     = BIT(1),
 	MLX5_ESW_ATTR_FLAG_NO_IN_PORT    = BIT(2),
 	MLX5_ESW_ATTR_FLAG_SRC_REWRITE   = BIT(3),
+	MLX5_ESW_ATTR_FLAG_SAMPLE        = BIT(4),
 };
 
 struct mlx5_esw_flow_attr {
@@ -428,6 +451,7 @@ struct mlx5_esw_flow_attr {
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5_rx_tun_attr *rx_tun_attr;
 	struct mlx5_pkt_reformat *decap_pkt_reformat;
+	struct mlx5_sample_attr *sample;
 };
 
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
@@ -713,13 +737,26 @@ void
 esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 				      struct mlx5_vport *vport);
 
-int mlx5_esw_vport_tbl_get(struct mlx5_eswitch *esw);
-void mlx5_esw_vport_tbl_put(struct mlx5_eswitch *esw);
+struct esw_vport_tbl_namespace {
+	int max_fte;
+	int max_num_groups;
+	u32 flags;
+};
+
+struct mlx5_vport_tbl_attr {
+	u16 chain;
+	u16 prio;
+	u16 vport;
+	const struct esw_vport_tbl_namespace *vport_ns;
+};
+
+struct mlx5_flow_table *
+mlx5_esw_vporttbl_get(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr);
+void
+mlx5_esw_vporttbl_put(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr);
 
 struct mlx5_flow_handle *
 esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag);
-u32
-esw_get_max_restore_tag(struct mlx5_eswitch *esw);
 
 int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num);
 void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num);
