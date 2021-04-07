@@ -2433,11 +2433,6 @@ static int edge_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static void get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
-{
-	ss->type = PORT_16550A;
-}
-
 static void edge_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -2696,7 +2691,6 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.release		= edge_release,
 	.port_probe		= edge_port_probe,
 	.port_remove		= edge_port_remove,
-	.get_serial		= get_serial_info,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
@@ -2735,7 +2729,6 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.release		= edge_release,
 	.port_probe		= edge_port_probe,
 	.port_remove		= edge_port_remove,
-	.get_serial		= get_serial_info,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,

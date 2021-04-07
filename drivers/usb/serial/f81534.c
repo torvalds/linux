@@ -1147,7 +1147,6 @@ static void f81534_get_serial_info(struct tty_struct *tty, struct serial_struct 
 
 	port_priv = usb_get_serial_port_data(port);
 
-	ss->type = PORT_16550A;
 	ss->baud_base = port_priv->baud_base;
 }
 

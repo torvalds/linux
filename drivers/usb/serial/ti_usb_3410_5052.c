@@ -1393,7 +1393,6 @@ static void ti_get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 	struct usb_serial_port *port = tty->driver_data;
 	struct ti_port *tport = usb_get_serial_port_data(port);
 
-	ss->type = PORT_16550A;
 	ss->baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
 }
 

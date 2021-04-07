@@ -825,7 +825,6 @@ static void f81232_get_serial(struct tty_struct *tty, struct serial_struct *ss)
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81232_private *priv = usb_get_serial_port_data(port);
 
-	ss->type = PORT_16550A;
 	ss->baud_base = priv->baud_base;
 }
 

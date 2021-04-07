@@ -441,7 +441,6 @@ static int whiteheat_tiocmset(struct tty_struct *tty,
 
 static void whiteheat_get_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
-	ss->type = PORT_16654;
 	ss->baud_base = 460800;
 }
 
