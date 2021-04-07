@@ -3998,8 +3998,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	struct nvme_ns *ns;
 	struct gendisk *disk;
 	struct nvme_id_ns *id;
-	char disk_name[DISK_NAME_LEN];
-	int node = ctrl->numa_node, flags = GENHD_FL_EXT_DEVT;
+	int node = ctrl->numa_node;
 
 	if (nvme_identify_ns(ctrl, nsid, ids, &id))
 		return;
@@ -4025,7 +4024,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 
 	if (nvme_init_ns_head(ns, nsid, ids, id->nmic & NVME_NS_NMIC_SHARED))
 		goto out_free_queue;
-	nvme_set_disk_name(disk_name, ns, ctrl, &flags);
 
 	disk = alloc_disk_node(0, node);
 	if (!disk)
@@ -4034,15 +4032,22 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	disk->fops = &nvme_bdev_ops;
 	disk->private_data = ns;
 	disk->queue = ns->queue;
-	disk->flags = flags;
-	memcpy(disk->disk_name, disk_name, DISK_NAME_LEN);
+	disk->flags = GENHD_FL_EXT_DEVT;
+	/*
+	 * Without the multipath code enabled, multiple controller per
+	 * subsystems are visible as devices and thus we cannot use the
+	 * subsystem instance.
+	 */
+	if (!nvme_mpath_set_disk_name(ns, disk->disk_name, &disk->flags))
+		sprintf(disk->disk_name, "nvme%dn%d", ctrl->instance,
+			ns->head->instance);
 	ns->disk = disk;
 
 	if (nvme_update_ns_info(ns, id))
 		goto out_put_disk;
 
 	if ((ctrl->quirks & NVME_QUIRK_LIGHTNVM) && id->vs[0] == 0x1) {
-		if (nvme_nvm_register(ns, disk_name, node)) {
+		if (nvme_nvm_register(ns, disk->disk_name, node)) {
 			dev_warn(ctrl->device, "LightNVM init failure\n");
 			goto out_put_disk;
 		}

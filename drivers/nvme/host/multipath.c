@@ -50,19 +50,19 @@ void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
  * and those that have a single controller and use the controller node
  * directly.
  */
-void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
-			struct nvme_ctrl *ctrl, int *flags)
+bool nvme_mpath_set_disk_name(struct nvme_ns *ns, char *disk_name, int *flags)
 {
-	if (!multipath) {
-		sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->head->instance);
-	} else if (ns->head->disk) {
-		sprintf(disk_name, "nvme%dc%dn%d", ctrl->subsys->instance,
-				ctrl->instance, ns->head->instance);
-		*flags = GENHD_FL_HIDDEN;
-	} else {
-		sprintf(disk_name, "nvme%dn%d", ctrl->subsys->instance,
-				ns->head->instance);
+	if (!multipath)
+		return false;
+	if (!ns->head->disk) {
+		sprintf(disk_name, "nvme%dn%d", ns->ctrl->subsys->instance,
+			ns->head->instance);
+		return true;
 	}
+	sprintf(disk_name, "nvme%dc%dn%d", ns->ctrl->subsys->instance,
+		ns->ctrl->instance, ns->head->instance);
+	*flags = GENHD_FL_HIDDEN;
+	return true;
 }
 
 void nvme_failover_req(struct request *req)
