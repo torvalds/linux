@@ -322,17 +322,17 @@ static int rtw_resume(struct usb_interface *pusb_intf)
  *        We accept the new device by returning 0.
  */
 
-static struct adapter *rtw_usb_if1_init(struct usb_interface *pusb_intf)
+static int rtw_usb_if1_init(struct usb_interface *pusb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
 	struct adapter *padapter;
 	struct net_device *pnetdev;
 	struct net_device *pmondev;
-	int status = _FAIL;
+	int err = 0;
 
 	pnetdev = rtw_init_netdev();
 	if (!pnetdev)
-		return NULL;
+		return -ENOMEM;
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 
 	padapter = netdev_priv(pnetdev);
@@ -352,6 +352,7 @@ static struct adapter *rtw_usb_if1_init(struct usb_interface *pusb_intf)
 	padapter->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
 	if (!padapter->HalData) {
 		DBG_88E("Failed to allocate memory for HAL data\n");
+		err = -ENOMEM;
 		goto free_adapter;
 	}
 
@@ -368,6 +369,7 @@ static struct adapter *rtw_usb_if1_init(struct usb_interface *pusb_intf)
 	if (rtw_init_drv_sw(padapter) == _FAIL) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
 			 ("Initialize driver software resource Failed!\n"));
+		err = -ENOMEM;
 		goto free_hal_data;
 	}
 
@@ -397,7 +399,8 @@ static struct adapter *rtw_usb_if1_init(struct usb_interface *pusb_intf)
 		 pnetdev->dev_addr);
 
 	/* step 6. Tell the network stack we exist */
-	if (register_netdev(pnetdev) != 0) {
+	err = register_netdev(pnetdev);
+	if (err) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("register_netdev() failed\n"));
 		goto free_hal_data;
 	}
@@ -409,17 +412,13 @@ static struct adapter *rtw_usb_if1_init(struct usb_interface *pusb_intf)
 		, padapter->hw_init_completed
 	);
 
-	status = _SUCCESS;
+	return 0;
 
 free_hal_data:
-	if (status != _SUCCESS)
-		kfree(padapter->HalData);
+	kfree(padapter->HalData);
 free_adapter:
-	if (status != _SUCCESS) {
-		free_netdev(pnetdev);
-		padapter = NULL;
-	}
-	return padapter;
+	free_netdev(pnetdev);
+	return err;
 }
 
 static void rtw_usb_if1_deinit(struct adapter *if1)
@@ -458,10 +457,11 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 		return err;
 	}
 
-	if (!rtw_usb_if1_init(pusb_intf)) {
+	err = rtw_usb_if1_init(pusb_intf);
+	if (err) {
 		pr_debug("rtw_usb_if1_init failed\n");
 		usb_dvobj_deinit(pusb_intf);
-		return -ENODEV;
+		return err;
 	}
 
 	return 0;
