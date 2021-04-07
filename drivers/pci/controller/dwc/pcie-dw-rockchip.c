@@ -29,6 +29,7 @@
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
+#include <linux/phy/pcie.h>
 #include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/regmap.h>
@@ -118,6 +119,7 @@ struct rk_pcie {
 	struct dw_pcie			*pci;
 	enum rk_pcie_device_mode	mode;
 	enum phy_mode			phy_mode;
+	int				phy_sub_mode;
 	unsigned char			bar_to_atu[6];
 	phys_addr_t			*outbound_addr;
 	unsigned long			*ib_window_map;
@@ -241,6 +243,7 @@ static int rk_pcie_ep_inbound_atu(struct rk_pcie *rk_pcie,
 {
 	int ret;
 	u32 free_win;
+	u8 func_no = 0x0;
 
 	if (rk_pcie->in_suspend) {
 		free_win = rk_pcie->bar_to_atu[bar];
@@ -253,7 +256,7 @@ static int rk_pcie_ep_inbound_atu(struct rk_pcie *rk_pcie,
 		}
 	}
 
-	ret = dw_pcie_prog_inbound_atu(rk_pcie->pci, free_win, bar, cpu_addr,
+	ret = dw_pcie_prog_inbound_atu(rk_pcie->pci, func_no, free_win, bar, cpu_addr,
 				       as_type);
 	if (ret < 0) {
 		dev_err(rk_pcie->pci->dev, "Failed to program IB window\n");
@@ -671,9 +674,6 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie)
 
 	pp->ops = &rk_pcie_host_ops;
 
-	if (device_property_read_bool(dev, "msi-map"))
-		pp->msi_ext = 1;
-
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "failed to initialize host\n");
@@ -844,23 +844,27 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
-		rk_pcie->phy_mode = PHY_MODE_PCIE_RC;
+		rk_pcie->phy_mode = PHY_MODE_PCIE; /* make no sense */
+		rk_pcie->phy_sub_mode = PHY_MODE_PCIE_RC;
 		break;
 	case RK_PCIE_EP_TYPE:
-		rk_pcie->phy_mode = PHY_MODE_PCIE_EP;
+		rk_pcie->phy_mode = PHY_MODE_PCIE;
+		rk_pcie->phy_sub_mode = PHY_MODE_PCIE_EP;
 		break;
 	}
 
-	ret = phy_set_mode(rk_pcie->phy, rk_pcie->phy_mode);
+	ret = phy_set_mode_ext(rk_pcie->phy, rk_pcie->phy_mode,
+			       rk_pcie->phy_sub_mode);
 	if (ret) {
 		dev_err(dev, "fail to set phy to  mode %s, err %d\n",
-			(rk_pcie->phy_mode == PHY_MODE_PCIE_RC) ? "RC" : "EP",
+			(rk_pcie->phy_sub_mode == PHY_MODE_PCIE_RC) ? "RC" : "EP",
 			ret);
 		return ret;
 	}
 
 	if (rk_pcie->bifurcation)
-		ret = phy_set_mode(rk_pcie->phy, PHY_MODE_PCIE_BIFURCATION);
+		ret = phy_set_mode_ext(rk_pcie->phy, rk_pcie->phy_mode,
+				       PHY_MODE_PCIE_BIFURCATION);
 
 	ret = phy_init(rk_pcie->phy);
 	if (ret < 0) {
@@ -1456,10 +1460,11 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 		return ret;
 	}
 
-	ret = phy_set_mode(rk_pcie->phy, rk_pcie->phy_mode);
+	ret = phy_set_mode_ext(rk_pcie->phy, rk_pcie->phy_mode,
+			       rk_pcie->phy_sub_mode);
 	if (ret) {
 		dev_err(dev, "fail to set phy to mode %s, err %d\n",
-			(rk_pcie->phy_mode == PHY_MODE_PCIE_RC) ? "RC" : "EP",
+			(rk_pcie->phy_sub_mode == PHY_MODE_PCIE_RC) ? "RC" : "EP",
 			ret);
 		return ret;
 	}
