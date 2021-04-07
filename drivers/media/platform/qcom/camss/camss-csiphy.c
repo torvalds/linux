@@ -617,13 +617,12 @@ int msm_csiphy_subdev_init(struct camss *camss,
 		 dev_name(dev), MSM_CSIPHY_NAME, csiphy->id);
 
 	ret = devm_request_irq(dev, csiphy->irq, csiphy->ops->isr,
-			       IRQF_TRIGGER_RISING, csiphy->irq_name, csiphy);
+			       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN,
+			       csiphy->irq_name, csiphy);
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
 		return ret;
 	}
-
-	disable_irq(csiphy->irq);
 
 	/* Clocks */
 
