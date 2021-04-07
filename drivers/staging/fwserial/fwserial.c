@@ -1218,13 +1218,12 @@ static int get_serial_info(struct tty_struct *tty,
 	struct fwtty_port *port = tty->driver_data;
 
 	mutex_lock(&port->port.mutex);
-	ss->type =  PORT_UNKNOWN;
-	ss->line =  port->port.tty->index;
-	ss->flags = port->port.flags;
-	ss->xmit_fifo_size = FWTTY_PORT_TXFIFO_LEN;
+	ss->line = port->index;
 	ss->baud_base = 400000000;
 	ss->close_delay = jiffies_to_msecs(port->port.close_delay) / 10;
+	ss->closing_wait = 3000;
 	mutex_unlock(&port->port.mutex);
+
 	return 0;
 }
 
