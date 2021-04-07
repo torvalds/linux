@@ -577,7 +577,7 @@ void test_ni_get_reg_value(void)
 /* **** BEGIN simple module entry/exit functions **** */
 static int __init ni_routes_unittest(void)
 {
-	const unittest_fptr unit_tests[] = {
+	static const unittest_fptr unit_tests[] = {
 		test_ni_assign_device_routes,
 		test_ni_sort_device_routes,
 		test_ni_find_route_set,
