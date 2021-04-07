@@ -413,8 +413,8 @@ struct nvme_ns_head {
 	bool			shared;
 	int			instance;
 	struct nvme_effects_log *effects;
-#ifdef CONFIG_NVME_MULTIPATH
 	struct gendisk		*disk;
+#ifdef CONFIG_NVME_MULTIPATH
 	struct bio_list		requeue_list;
 	spinlock_t		requeue_lock;
 	struct work_struct	requeue_work;
@@ -424,6 +424,11 @@ struct nvme_ns_head {
 	struct nvme_ns __rcu	*current_path[];
 #endif
 };
+
+static inline bool nvme_ns_head_multipath(struct nvme_ns_head *head)
+{
+	return IS_ENABLED(CONFIG_NVME_MULTIPATH) && head->disk;
+}
 
 enum nvme_ns_features {
 	NVME_NS_EXT_LBAS = 1 << 0, /* support extended LBA format */
