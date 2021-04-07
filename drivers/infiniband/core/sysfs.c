@@ -1049,7 +1049,6 @@ err_free_hsag:
 	kfree(hsag);
 err_free_stats:
 	kfree(stats);
-	return;
 }
 
 static int add_port(struct ib_core_device *coredev, int port_num)
