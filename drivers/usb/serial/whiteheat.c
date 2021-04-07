@@ -170,7 +170,6 @@ static int firm_report_tx_done(struct usb_serial_port *port);
 #define COMMAND_PORT		4
 #define COMMAND_TIMEOUT		(2*HZ)	/* 2 second timeout for a command */
 #define	COMMAND_TIMEOUT_MS	2000
-#define CLOSING_DELAY		(30 * HZ)
 
 
 /*****************************************************************************
@@ -447,12 +446,9 @@ static int whiteheat_get_serial(struct tty_struct *tty,
 
 	ss->type = PORT_16654;
 	ss->line = port->minor;
-	ss->port = port->port_number;
-	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
-	ss->custom_divisor = 0;
 	ss->baud_base = 460800;
-	ss->close_delay = CLOSING_DELAY;
-	ss->closing_wait = CLOSING_DELAY;
+	ss->close_delay = 50;
+	ss->closing_wait = 3000;
 
 	return 0;
 }
