@@ -1763,50 +1763,6 @@ static bool acpi_device_should_be_hidden(acpi_handle handle)
 	return true;
 }
 
-static int acpi_bus_type_and_status(acpi_handle handle, int *type,
-				    unsigned long long *sta)
-{
-	acpi_status status;
-	acpi_object_type acpi_type;
-
-	status = acpi_get_type(handle, &acpi_type);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	switch (acpi_type) {
-	case ACPI_TYPE_ANY:		/* for ACPI_ROOT_OBJECT */
-	case ACPI_TYPE_DEVICE:
-		if (acpi_device_should_be_hidden(handle))
-			return -ENODEV;
-
-		*type = ACPI_BUS_TYPE_DEVICE;
-		/*
-		 * acpi_add_single_object updates this once we've an acpi_device
-		 * so that acpi_bus_get_status' quirk handling can be used.
-		 */
-		*sta = ACPI_STA_DEFAULT;
-		break;
-	case ACPI_TYPE_PROCESSOR:
-		*type = ACPI_BUS_TYPE_PROCESSOR;
-		status = acpi_bus_get_status_handle(handle, sta);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-		break;
-	case ACPI_TYPE_THERMAL:
-		*type = ACPI_BUS_TYPE_THERMAL;
-		*sta = ACPI_STA_DEFAULT;
-		break;
-	case ACPI_TYPE_POWER:
-		*type = ACPI_BUS_TYPE_POWER;
-		*sta = ACPI_STA_DEFAULT;
-		break;
-	default:
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 bool acpi_device_is_present(const struct acpi_device *adev)
 {
 	return adev->status.present || adev->status.functional;
@@ -1953,17 +1909,45 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 				      struct acpi_device **adev_p)
 {
 	struct acpi_device *device = NULL;
-	unsigned long long sta;
+	unsigned long long sta = ACPI_STA_DEFAULT;
+	acpi_object_type acpi_type;
 	int type;
-	int result;
 
 	acpi_bus_get_device(handle, &device);
 	if (device)
 		goto out;
 
-	result = acpi_bus_type_and_status(handle, &type, &sta);
-	if (result)
+	if (ACPI_FAILURE(acpi_get_type(handle, &acpi_type)))
 		return AE_OK;
+
+	switch (acpi_type) {
+	case ACPI_TYPE_DEVICE:
+		if (acpi_device_should_be_hidden(handle))
+			return AE_OK;
+
+		fallthrough;
+	case ACPI_TYPE_ANY:	/* for ACPI_ROOT_OBJECT */
+		type = ACPI_BUS_TYPE_DEVICE;
+		break;
+
+	case ACPI_TYPE_PROCESSOR:
+		if (ACPI_FAILURE(acpi_bus_get_status_handle(handle, &sta)))
+			return AE_OK;
+
+		type = ACPI_BUS_TYPE_PROCESSOR;
+		break;
+
+	case ACPI_TYPE_THERMAL:
+		type = ACPI_BUS_TYPE_THERMAL;
+		break;
+
+	case ACPI_TYPE_POWER:
+		type = ACPI_BUS_TYPE_POWER;
+		break;
+
+	default:
+		return AE_OK;
+	}
 
 	if (type == ACPI_BUS_TYPE_POWER) {
 		acpi_add_power_resource(handle);
