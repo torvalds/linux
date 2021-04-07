@@ -3099,7 +3099,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	switch(cm_id_priv->id.state) {
+	switch (cm_id_priv->id.state) {
 	case IB_CM_REQ_RCVD:
 		cm_state = IB_CM_MRA_REQ_SENT;
 		lap_state = cm_id->lap_state;

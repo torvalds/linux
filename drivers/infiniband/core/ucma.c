@@ -231,7 +231,7 @@ static void ucma_copy_conn_event(struct rdma_ucm_conn_param *dst,
 		memcpy(dst->private_data, src->private_data,
 		       src->private_data_len);
 	dst->private_data_len = src->private_data_len;
-	dst->responder_resources =src->responder_resources;
+	dst->responder_resources = src->responder_resources;
 	dst->initiator_depth = src->initiator_depth;
 	dst->flow_control = src->flow_control;
 	dst->retry_count = src->retry_count;
@@ -1034,7 +1034,7 @@ static void ucma_copy_conn_param(struct rdma_cm_id *id,
 {
 	dst->private_data = src->private_data;
 	dst->private_data_len = src->private_data_len;
-	dst->responder_resources =src->responder_resources;
+	dst->responder_resources = src->responder_resources;
 	dst->initiator_depth = src->initiator_depth;
 	dst->flow_control = src->flow_control;
 	dst->retry_count = src->retry_count;
