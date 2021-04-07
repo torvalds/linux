@@ -31,6 +31,7 @@
 #define   PCIE_CLIENT_CONF_ENABLE	  HIWORD_UPDATE_BIT(0x0001)
 #define   PCIE_CLIENT_CONF_DISABLE       HIWORD_UPDATE(0x0001, 0)
 #define   PCIE_CLIENT_LINK_TRAIN_ENABLE	  HIWORD_UPDATE_BIT(0x0002)
+#define   PCIE_CLIENT_LINK_TRAIN_DISABLE  HIWORD_UPDATE(0x0002, 0x0000)
 #define   PCIE_CLIENT_ARI_ENABLE	  HIWORD_UPDATE_BIT(0x0008)
 #define   PCIE_CLIENT_CONF_LANE_NUM(x)	  HIWORD_UPDATE(0x0030, ENCODE_LANES(x))
 #define   PCIE_CLIENT_MODE_RC		  HIWORD_UPDATE_BIT(0x0040)
@@ -39,6 +40,7 @@
 #define   PCIE_CLIENT_GEN_SEL_2		  HIWORD_UPDATE_BIT(0x0080)
 #define PCIE_CLIENT_DEBUG_OUT_0		(PCIE_CLIENT_BASE + 0x3c)
 #define   PCIE_CLIENT_DEBUG_LTSSM_MASK		GENMASK(5, 0)
+#define   PCIE_CLIENT_DEBUG_LTSSM_L0		0x10
 #define   PCIE_CLIENT_DEBUG_LTSSM_L1		0x18
 #define   PCIE_CLIENT_DEBUG_LTSSM_L2		0x19
 #define PCIE_CLIENT_BASIC_STATUS1	(PCIE_CLIENT_BASE + 0x48)
@@ -74,7 +76,20 @@
 	PCIE_CLIENT_INT_FATAL_ERR | PCIE_CLIENT_INT_DPA | \
 	PCIE_CLIENT_INT_HOT_RST | PCIE_CLIENT_INT_MSG | \
 	PCIE_CLIENT_INT_LEGACY_DONE | PCIE_CLIENT_INT_LEGACY | \
-	PCIE_CLIENT_INT_PHY)
+	PCIE_CLIENT_INT_PHY | PCIE_CLIENT_INT_UDMA)
+
+#define PCIE_APB_CORE_UDMA_BASE	(BIT(23) | BIT(22) | BIT(21))
+#define PCIE_CH0_DONE_ENABLE	BIT(0)
+#define PCIE_CH1_DONE_ENABLE	BIT(1)
+#define PCIE_CH0_ERR_ENABLE	BIT(8)
+#define PCIE_CH1_ERR_ENABLE	BIT(9)
+
+#define PCIE_UDMA_INT_REG			0xa0
+#define PCIE_UDMA_INT_ENABLE_REG	0xa4
+
+#define PCIE_UDMA_INT_ENABLE_MASK \
+	(PCIE_CH0_DONE_ENABLE | PCIE_CH1_DONE_ENABLE | \
+	PCIE_CH0_ERR_ENABLE | PCIE_CH1_ERR_ENABLE)
 
 #define PCIE_CORE_CTRL_MGMT_BASE	0x900000
 #define PCIE_CORE_CTRL			(PCIE_CORE_CTRL_MGMT_BASE + 0x000)
@@ -185,6 +200,8 @@
 #define PCIE_ECAM_ADDR(bus, dev, func, reg) \
 	  (PCIE_ECAM_BUS(bus) | PCIE_ECAM_DEV(dev) | \
 	   PCIE_ECAM_FUNC(func) | PCIE_ECAM_REG(reg))
+#define PCIE_LINK_IS_L0(x) \
+	(((x) & PCIE_CLIENT_DEBUG_LTSSM_MASK) == PCIE_CLIENT_DEBUG_LTSSM_L0)
 #define PCIE_LINK_IS_L2(x) \
 	(((x) & PCIE_CLIENT_DEBUG_LTSSM_MASK) == PCIE_CLIENT_DEBUG_LTSSM_L2)
 #define PCIE_LINK_UP(x) \
@@ -275,6 +292,9 @@
 		(((c) << ((b) * 8 + 5)) & \
 		 ROCKCHIP_PCIE_CORE_EP_FUNC_BAR_CFG_BAR_CTRL_MASK(b))
 
+#define PCIE_USER_RELINK 0x1
+#define PCIE_USER_UNLINK 0x2
+
 struct rockchip_pcie {
 	void	__iomem *reg_base;		/* DT axi-base */
 	void	__iomem *apb_base;		/* DT apb-base */
@@ -306,6 +326,15 @@ struct rockchip_pcie {
 	phys_addr_t msg_bus_addr;
 	bool is_rc;
 	struct resource *mem_res;
+	phys_addr_t mem_reserve_start;
+	size_t mem_reserve_size;
+	int dma_trx_enabled;
+	int deferred;
+	int wait_ep;
+	struct dma_trx_obj *dma_obj;
+	struct list_head resources;
+	struct pci_host_bridge *bridge;
+	int in_remove;
 };
 
 static u32 rockchip_pcie_read(struct rockchip_pcie *rockchip, u32 reg)
