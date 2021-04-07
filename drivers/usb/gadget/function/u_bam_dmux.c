@@ -1409,6 +1409,7 @@ destroy_wq:
 void gbam_cleanup(enum bam_dmux_func_type func)
 {
 	gbam_debugfs_remove();
+	flush_workqueue(gbam_wq);
 	gbam_port_free(func);
 }
 
