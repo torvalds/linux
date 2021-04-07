@@ -339,8 +339,10 @@ static int pru_handle_intrmap(struct rproc *rproc)
 
 		pru->mapped_irq[i] = irq_create_fwspec_mapping(&fwspec);
 		if (!pru->mapped_irq[i]) {
-			dev_err(dev, "failed to get virq\n");
-			ret = pru->mapped_irq[i];
+			dev_err(dev, "failed to get virq for fw mapping %d: event %d chnl %d host %d\n",
+				i, fwspec.param[0], fwspec.param[1],
+				fwspec.param[2]);
+			ret = -EINVAL;
 			goto map_fail;
 		}
 	}
