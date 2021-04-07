@@ -35,6 +35,7 @@ int main(void)
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
 	OFFSET(__PT_CR1, pt_regs, cr1);
+	OFFSET(__PT_LAST_BREAK, pt_regs, last_break);
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	/* stack_frame offsets */
@@ -127,6 +128,7 @@ int main(void)
 	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
 	OFFSET(__LC_BR_R1, lowcore, br_r1_trampoline);
+	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
@@ -140,6 +142,7 @@ int main(void)
 	OFFSET(__LC_TOD_PROGREG_SAVE_AREA, lowcore, tod_progreg_save_area);
 	OFFSET(__LC_CPU_TIMER_SAVE_AREA, lowcore, cpu_timer_save_area);
 	OFFSET(__LC_CLOCK_COMP_SAVE_AREA, lowcore, clock_comp_save_area);
+	OFFSET(__LC_LAST_BREAK_SAVE_AREA, lowcore, last_break_save_area);
 	OFFSET(__LC_AREGS_SAVE_AREA, lowcore, access_regs_save_area);
 	OFFSET(__LC_CREGS_SAVE_AREA, lowcore, cregs_save_area);
 	OFFSET(__LC_PGM_TDB, lowcore, pgm_tdb);

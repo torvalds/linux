@@ -8,6 +8,7 @@
 #include <linux/kasan.h>
 #include <asm/ptdump.h>
 #include <asm/kasan.h>
+#include <asm/nospec-branch.h>
 #include <asm/sections.h>
 
 static unsigned long max_addr;
@@ -116,8 +117,13 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 		return;
 	if (st->current_prot & _PAGE_NOEXEC)
 		return;
-	/* The first lowcore page is currently still W+X. */
-	if (addr == PAGE_SIZE)
+	/*
+	 * The first lowcore page is W+X if spectre mitigations are using
+	 * trampolines or the BEAR enhancements facility is not installed,
+	 * in which case we have two lpswe instructions in lowcore that need
+	 * to be executable.
+	 */
+	if (addr == PAGE_SIZE && (nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)))
 		return;
 	WARN_ONCE(1, "s390/mm: Found insecure W+X mapping at address %pS\n",
 		  (void *)st->start_address);
@@ -203,7 +209,9 @@ void ptdump_check_wx(void)
 	if (st.wx_pages)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n", st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no unexpected W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, no %sW+X pages found\n",
+			(nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) ?
+			"unexpected " : "");
 }
 #endif /* CONFIG_DEBUG_WX */
 
