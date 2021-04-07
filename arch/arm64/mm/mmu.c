@@ -1512,7 +1512,7 @@ int check_range_driver_managed(u64 start, u64 size, const char *resource_name)
 
 	res = lookup_resource(&iomem_resource, start);
 	if (!res) {
-		pr_err("%s: couldn't find memory resource for start 0x%lx\n",
+		pr_err("%s: couldn't find memory resource for start 0x%llx\n",
 			   __func__, start);
 		return -EINVAL;
 	}
