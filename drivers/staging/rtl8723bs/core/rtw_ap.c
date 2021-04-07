@@ -1008,7 +1008,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		}
 
 		if ((p == NULL) || (ie_len == 0))
-				break;
+			break;
 	}
 
 	/* wmm */
