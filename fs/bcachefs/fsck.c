@@ -1468,15 +1468,6 @@ int bch2_fsck_full(struct bch_fs *c)
 		check_inode_nlinks(c, &lostfound_inode);
 }
 
-int bch2_fsck_inode_nlink(struct bch_fs *c)
-{
-	struct bch_inode_unpacked root_inode, lostfound_inode;
-
-	return  check_root(c, &root_inode) ?:
-		check_lostfound(c, &root_inode, &lostfound_inode) ?:
-		check_inode_nlinks(c, &lostfound_inode);
-}
-
 int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 {
 	struct btree_trans trans;
