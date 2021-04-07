@@ -1113,8 +1113,9 @@ int ib_find_cached_pkey(struct ib_device *device, u32 port_num,
 				*index = i;
 				ret = 0;
 				break;
-			} else
+			} else {
 				partial_ix = i;
+			}
 		}
 
 	if (ret && partial_ix >= 0) {

@@ -1126,8 +1126,9 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 						 qp_attr_mask);
 		qp_attr->port_num = id_priv->id.port_num;
 		*qp_attr_mask |= IB_QP_PORT;
-	} else
+	} else {
 		ret = -ENOSYS;
+	}
 
 	if ((*qp_attr_mask & IB_QP_TIMEOUT) && id_priv->timeout_set)
 		qp_attr->timeout = id_priv->timeout;
@@ -4116,10 +4117,11 @@ int rdma_connect_locked(struct rdma_cm_id *id,
 			ret = cma_resolve_ib_udp(id_priv, conn_param);
 		else
 			ret = cma_connect_ib(id_priv, conn_param);
-	} else if (rdma_cap_iw_cm(id->device, id->port_num))
+	} else if (rdma_cap_iw_cm(id->device, id->port_num)) {
 		ret = cma_connect_iw(id_priv, conn_param);
-	else
+	} else {
 		ret = -ENOSYS;
+	}
 	if (ret)
 		goto err_state;
 	return 0;
@@ -4226,9 +4228,9 @@ static int cma_accept_iw(struct rdma_id_private *id_priv,
 	iw_param.ird = conn_param->responder_resources;
 	iw_param.private_data = conn_param->private_data;
 	iw_param.private_data_len = conn_param->private_data_len;
-	if (id_priv->id.qp) {
+	if (id_priv->id.qp)
 		iw_param.qpn = id_priv->qp_num;
-	} else
+	else
 		iw_param.qpn = conn_param->qp_num;
 
 	return iw_cm_accept(id_priv->cm_id.iw, &iw_param);
@@ -4311,11 +4313,11 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 			else
 				ret = cma_rep_recv(id_priv);
 		}
-	} else if (rdma_cap_iw_cm(id->device, id->port_num))
+	} else if (rdma_cap_iw_cm(id->device, id->port_num)) {
 		ret = cma_accept_iw(id_priv, conn_param);
-	else
+	} else {
 		ret = -ENOSYS;
-
+	}
 	if (ret)
 		goto reject;
 
@@ -4401,8 +4403,9 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 	} else if (rdma_cap_iw_cm(id->device, id->port_num)) {
 		ret = iw_cm_reject(id_priv->cm_id.iw,
 				   private_data, private_data_len);
-	} else
+	} else {
 		ret = -ENOSYS;
+	}
 
 	return ret;
 }

@@ -1074,9 +1074,8 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	ret = kobject_init_and_add(&p->kobj, &port_type,
 				   coredev->ports_kobj,
 				   "%d", port_num);
-	if (ret) {
+	if (ret)
 		goto err_put;
-	}
 
 	p->gid_attr_group = kzalloc(sizeof(*p->gid_attr_group), GFP_KERNEL);
 	if (!p->gid_attr_group) {
@@ -1087,9 +1086,8 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	p->gid_attr_group->port = p;
 	ret = kobject_init_and_add(&p->gid_attr_group->kobj, &gid_attr_type,
 				   &p->kobj, "gid_attrs");
-	if (ret) {
+	if (ret)
 		goto err_put_gid_attrs;
-	}
 
 	if (device->ops.process_mad && is_full_dev) {
 		p->pma_table = get_counter_table(device, port_num);

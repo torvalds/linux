@@ -3917,8 +3917,7 @@ static int cm_establish(struct ib_cm_id *cm_id)
 
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	switch (cm_id->state)
-	{
+	switch (cm_id->state) {
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 		cm_id->state = IB_CM_ESTABLISHED;
