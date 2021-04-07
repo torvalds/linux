@@ -562,3 +562,19 @@ void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops)
 	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(ethtool_set_ethtool_phy_ops);
+
+void
+ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
+			      enum ethtool_link_mode_bit_indices link_mode)
+{
+	const struct link_mode_info *link_info;
+
+	if (WARN_ON_ONCE(link_mode >= __ETHTOOL_LINK_MODE_MASK_NBITS))
+		return;
+
+	link_info = &link_mode_params[link_mode];
+	link_ksettings->base.speed = link_info->speed;
+	link_ksettings->lanes = link_info->lanes;
+	link_ksettings->base.duplex = link_info->duplex;
+}
+EXPORT_SYMBOL_GPL(ethtool_params_from_link_mode);
