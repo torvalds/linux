@@ -90,8 +90,6 @@
 
 /* MPTCP ADD_ADDR flags */
 #define MPTCP_ADDR_ECHO		BIT(0)
-#define MPTCP_ADDR_IPVERSION_4	4
-#define MPTCP_ADDR_IPVERSION_6	6
 
 /* MPTCP MP_PRIO flags */
 #define MPTCP_PRIO_BKUP		BIT(0)

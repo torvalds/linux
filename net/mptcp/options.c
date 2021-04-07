@@ -220,22 +220,22 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		if (!mp_opt->echo) {
 			if (opsize == TCPOLEN_MPTCP_ADD_ADDR ||
 			    opsize == TCPOLEN_MPTCP_ADD_ADDR_PORT)
-				mp_opt->addr.family = MPTCP_ADDR_IPVERSION_4;
+				mp_opt->addr.family = AF_INET;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 			else if (opsize == TCPOLEN_MPTCP_ADD_ADDR6 ||
 				 opsize == TCPOLEN_MPTCP_ADD_ADDR6_PORT)
-				mp_opt->addr.family = MPTCP_ADDR_IPVERSION_6;
+				mp_opt->addr.family = AF_INET6;
 #endif
 			else
 				break;
 		} else {
 			if (opsize == TCPOLEN_MPTCP_ADD_ADDR_BASE ||
 			    opsize == TCPOLEN_MPTCP_ADD_ADDR_BASE_PORT)
-				mp_opt->addr.family = MPTCP_ADDR_IPVERSION_4;
+				mp_opt->addr.family = AF_INET;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 			else if (opsize == TCPOLEN_MPTCP_ADD_ADDR6_BASE ||
 				 opsize == TCPOLEN_MPTCP_ADD_ADDR6_BASE_PORT)
-				mp_opt->addr.family = MPTCP_ADDR_IPVERSION_6;
+				mp_opt->addr.family = AF_INET6;
 #endif
 			else
 				break;
@@ -243,7 +243,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 
 		mp_opt->add_addr = 1;
 		mp_opt->addr.id = *ptr++;
-		if (mp_opt->addr.family == MPTCP_ADDR_IPVERSION_4) {
+		if (mp_opt->addr.family == AF_INET) {
 			memcpy((u8 *)&mp_opt->addr.addr.s_addr, (u8 *)ptr, 4);
 			ptr += 4;
 			if (opsize == TCPOLEN_MPTCP_ADD_ADDR_PORT ||
@@ -268,7 +268,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 			ptr += 8;
 		}
 		pr_debug("ADD_ADDR%s: id=%d, ahmac=%llu, echo=%d, port=%d",
-			 (mp_opt->addr.family == MPTCP_ADDR_IPVERSION_6) ? "6" : "",
+			 (mp_opt->addr.family == AF_INET6) ? "6" : "",
 			 mp_opt->addr.id, mp_opt->ahmac, mp_opt->echo, ntohs(mp_opt->addr.port));
 		break;
 
@@ -991,7 +991,7 @@ static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 	if (mp_opt->echo)
 		return true;
 
-	if (mp_opt->addr.family == MPTCP_ADDR_IPVERSION_4)
+	if (mp_opt->addr.family == AF_INET)
 		hmac = add_addr_generate_hmac(msk->remote_key,
 					      msk->local_key,
 					      mp_opt->addr.id, &mp_opt->addr.addr,
