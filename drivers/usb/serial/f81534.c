@@ -1149,9 +1149,11 @@ static int f81534_get_serial_info(struct tty_struct *tty,
 	port_priv = usb_get_serial_port_data(port);
 
 	ss->type = PORT_16550A;
-	ss->port = port->port_number;
 	ss->line = port->minor;
 	ss->baud_base = port_priv->baud_base;
+	ss->close_delay = 50;
+	ss->closing_wait = 3000;
+
 	return 0;
 }
 
