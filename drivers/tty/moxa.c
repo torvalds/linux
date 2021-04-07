@@ -2055,11 +2055,6 @@ static int moxa_set_serial_info(struct tty_struct *tty,
 	if (!info)
 		return -ENODEV;
 
-	if (ss->irq != 0 || ss->port != 0 ||
-			ss->custom_divisor != 0 ||
-			ss->baud_base != 921600)
-		return -EPERM;
-
 	close_delay = msecs_to_jiffies(ss->close_delay * 10);
 
 	mutex_lock(&info->port.mutex);
