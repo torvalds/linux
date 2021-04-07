@@ -77,6 +77,7 @@ struct ucsi_dev {
 	struct mutex			read_lock;
 	struct mutex			write_lock;
 	struct mutex			notify_lock;
+	struct mutex			state_lock;
 	struct ucsi_read_buf_resp_msg	rx_buf;
 	unsigned long			flags;
 	atomic_t			rx_valid;
@@ -201,6 +202,19 @@ static int handle_ucsi_notify(struct ucsi_dev *udev, void *data, size_t len)
 		return -EINVAL;
 	}
 
+	mutex_lock(&udev->state_lock);
+	if (atomic_read(&udev->state) == PMIC_GLINK_STATE_DOWN) {
+		pr_err("glink state is down\n");
+		mutex_unlock(&udev->state_lock);
+		return -ENOTCONN;
+	}
+
+	if (!udev->ucsi) {
+		pr_err("ucsi is NULL\n");
+		mutex_unlock(&udev->state_lock);
+		return -ENODEV;
+	}
+
 	msg_ptr = data;
 	cci = msg_ptr->notification;
 	ucsi_log("notify:", UCSI_CCI, (u8 *)&cci, sizeof(cci));
@@ -221,6 +235,7 @@ static int handle_ucsi_notify(struct ucsi_dev *udev, void *data, size_t len)
 		if (con && con->ucsi)
 			ucsi_connector_change(udev->ucsi, con_num);
 	}
+	mutex_unlock(&udev->state_lock);
 
 	return 0;
 }
@@ -485,11 +500,13 @@ static int ucsi_setup(struct ucsi_dev *udev)
 		return -EINVAL;
 	}
 
+	mutex_lock(&udev->state_lock);
 	udev->ucsi = ucsi_create(udev->dev, &ucsi_qti_ops);
 	if (IS_ERR(udev->ucsi)) {
 		rc = PTR_ERR(udev->ucsi);
 		dev_err(udev->dev, "ucsi_create failed rc=%d\n", rc);
 		udev->ucsi = NULL;
+		mutex_unlock(&udev->state_lock);
 		return rc;
 	}
 
@@ -500,9 +517,11 @@ static int ucsi_setup(struct ucsi_dev *udev)
 		dev_err(udev->dev, "ucsi_register failed rc=%d\n", rc);
 		ucsi_destroy(udev->ucsi);
 		udev->ucsi = NULL;
+		mutex_unlock(&udev->state_lock);
 		return rc;
 	}
 
+	mutex_unlock(&udev->state_lock);
 	return 0;
 }
 
@@ -520,12 +539,14 @@ static void ucsi_qti_state_cb(void *priv, enum pmic_glink_state state)
 
 	dev_dbg(udev->dev, "state: %d\n", state);
 
+	mutex_lock(&udev->state_lock);
 	atomic_set(&udev->state, state);
 
 	switch (state) {
 	case PMIC_GLINK_STATE_DOWN:
 		if (!udev->ucsi) {
 			dev_err(udev->dev, "ucsi is NULL\n");
+			mutex_unlock(&udev->state_lock);
 			return;
 		}
 
@@ -539,6 +560,7 @@ static void ucsi_qti_state_cb(void *priv, enum pmic_glink_state state)
 	default:
 		break;
 	}
+	mutex_unlock(&udev->state_lock);
 }
 
 static int ucsi_probe(struct platform_device *pdev)
@@ -557,6 +579,7 @@ static int ucsi_probe(struct platform_device *pdev)
 	mutex_init(&udev->read_lock);
 	mutex_init(&udev->write_lock);
 	mutex_init(&udev->notify_lock);
+	mutex_init(&udev->state_lock);
 	init_completion(&udev->read_ack);
 	init_completion(&udev->write_ack);
 	init_completion(&udev->sync_write_ack);
