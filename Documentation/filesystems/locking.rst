@@ -80,13 +80,16 @@ prototypes::
 				struct file *, unsigned open_flag,
 				umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*fileattr_set)(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, struct fileattr *fa);
+	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
 
 locking rules:
 	all may block
 
-============	=============================================
+=============	=============================================
 ops		i_rwsem(inode)
-============	=============================================
+=============	=============================================
 lookup:		shared
 create:		exclusive
 link:		exclusive (both)
@@ -107,7 +110,9 @@ fiemap:		no
 update_time:	no
 atomic_open:	shared (exclusive if O_CREAT is set in open flags)
 tmpfile:	no
-============	=============================================
+fileattr_get:	no or exclusive
+fileattr_set:	exclusive
+=============	=============================================
 
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_rwsem

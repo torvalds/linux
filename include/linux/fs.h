@@ -70,6 +70,7 @@ struct fsverity_info;
 struct fsverity_operations;
 struct fs_context;
 struct fs_parameter_spec;
+struct fileattr;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -1963,6 +1964,9 @@ struct inode_operations {
 			struct dentry *, umode_t);
 	int (*set_acl)(struct user_namespace *, struct inode *,
 		       struct posix_acl *, int);
+	int (*fileattr_set)(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, struct fileattr *fa);
+	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
 } ____cacheline_aligned;
 
 static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
