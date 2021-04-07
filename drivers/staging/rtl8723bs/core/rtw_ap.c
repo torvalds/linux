@@ -2103,7 +2103,7 @@ void rtw_ap_restore_network(struct adapter *padapter)
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
 
-		if (psta == NULL)
+		if (!psta)
 			continue;
 
 		if (psta->state & _FW_LINKED) {
