@@ -1708,8 +1708,8 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_err_once("ucma_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
-			    task_tgid_vnr(current), current->comm);
+		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    __func__, task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
 

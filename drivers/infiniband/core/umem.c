@@ -305,8 +305,8 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 	int ret;
 
 	if (offset > umem->length || length > umem->length - offset) {
-		pr_err("ib_umem_copy_from not in range. offset: %zd umem length: %zd end: %zd\n",
-		       offset, umem->length, end);
+		pr_err("%s not in range. offset: %zd umem length: %zd end: %zd\n",
+		       __func__, offset, umem->length, end);
 		return -EINVAL;
 	}
 
