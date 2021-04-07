@@ -512,10 +512,18 @@ static int mv2110_init_interface(struct phy_device *phydev, int mactype)
 
 	priv->rate_match = false;
 
-	if (mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH) {
+	if (mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH)
 		priv->rate_match = true;
+
+	if (mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_USXGMII)
+		priv->const_interface = PHY_INTERFACE_MODE_USXGMII;
+	else if (mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH)
 		priv->const_interface = PHY_INTERFACE_MODE_10GBASER;
-	}
+	else if (mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER ||
+		 mactype == MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER_NO_SGMII_AN)
+		priv->const_interface = PHY_INTERFACE_MODE_NA;
+	else
+		return -EINVAL;
 
 	return 0;
 }
@@ -531,12 +539,20 @@ static int mv3310_init_interface(struct phy_device *phydev, int mactype)
 	    mactype == MV_V2_3310_PORT_CTRL_MACTYPE_XAUI_RATE_MATCH)
 		priv->rate_match = true;
 
-	if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH)
+	if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_USXGMII)
+		priv->const_interface = PHY_INTERFACE_MODE_USXGMII;
+	else if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH ||
+		 mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_NO_SGMII_AN ||
+		 mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER)
 		priv->const_interface = PHY_INTERFACE_MODE_10GBASER;
-	else if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI_RATE_MATCH)
+	else if (mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI_RATE_MATCH ||
+		 mactype == MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI)
 		priv->const_interface = PHY_INTERFACE_MODE_RXAUI;
-	else if (mactype == MV_V2_3310_PORT_CTRL_MACTYPE_XAUI_RATE_MATCH)
+	else if (mactype == MV_V2_3310_PORT_CTRL_MACTYPE_XAUI_RATE_MATCH ||
+		 mactype == MV_V2_3310_PORT_CTRL_MACTYPE_XAUI)
 		priv->const_interface = PHY_INTERFACE_MODE_XAUI;
+	else
+		return -EINVAL;
 
 	return 0;
 }
@@ -563,8 +579,10 @@ static int mv3310_config_init(struct phy_device *phydev)
 		return mactype;
 
 	err = chip->init_interface(phydev, mactype);
-	if (err)
+	if (err) {
+		phydev_err(phydev, "MACTYPE configuration invalid\n");
 		return err;
+	}
 
 	/* Enable EDPD mode - saving 600mW */
 	return mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
@@ -674,44 +692,44 @@ static void mv3310_update_interface(struct phy_device *phydev)
 {
 	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
 
+	if (!phydev->link)
+		return;
+
 	/* In all of the "* with Rate Matching" modes the PHY interface is fixed
 	 * at 10Gb. The PHY adapts the rate to actual wire speed with help of
 	 * internal 16KB buffer.
+	 *
+	 * In USXGMII mode the PHY interface mode is also fixed.
 	 */
-	if (priv->rate_match) {
+	if (priv->rate_match ||
+	    priv->const_interface == PHY_INTERFACE_MODE_USXGMII) {
 		phydev->interface = priv->const_interface;
 		return;
 	}
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
-	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
-	     phydev->interface == PHY_INTERFACE_MODE_5GBASER ||
-	     phydev->interface == PHY_INTERFACE_MODE_10GBASER) &&
-	    phydev->link) {
-		/* The PHY automatically switches its serdes interface (and
-		 * active PHYXS instance) between Cisco SGMII, 10GBase-R and
-		 * 2500BaseX modes according to the speed.  Florian suggests
-		 * setting phydev->interface to communicate this to the MAC.
-		 * Only do this if we are already in one of the above modes.
-		 */
-		switch (phydev->speed) {
-		case SPEED_10000:
-			phydev->interface = PHY_INTERFACE_MODE_10GBASER;
-			break;
-		case SPEED_5000:
-			phydev->interface = PHY_INTERFACE_MODE_5GBASER;
-			break;
-		case SPEED_2500:
-			phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
-			break;
-		case SPEED_1000:
-		case SPEED_100:
-		case SPEED_10:
-			phydev->interface = PHY_INTERFACE_MODE_SGMII;
-			break;
-		default:
-			break;
-		}
+	/* The PHY automatically switches its serdes interface (and active PHYXS
+	 * instance) between Cisco SGMII, 2500BaseX, 5GBase-R and 10GBase-R /
+	 * xaui / rxaui modes according to the speed.
+	 * Florian suggests setting phydev->interface to communicate this to the
+	 * MAC. Only do this if we are already in one of the above modes.
+	 */
+	switch (phydev->speed) {
+	case SPEED_10000:
+		phydev->interface = priv->const_interface;
+		break;
+	case SPEED_5000:
+		phydev->interface = PHY_INTERFACE_MODE_5GBASER;
+		break;
+	case SPEED_2500:
+		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
+		break;
+	case SPEED_1000:
+	case SPEED_100:
+	case SPEED_10:
+		phydev->interface = PHY_INTERFACE_MODE_SGMII;
+		break;
+	default:
+		break;
 	}
 }
 
