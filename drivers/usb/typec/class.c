@@ -18,7 +18,7 @@
 
 static DEFINE_IDA(typec_index_ida);
 
-static struct class typec_class = {
+struct class typec_class = {
 	.name = "typec",
 	.owner = THIS_MODULE,
 };
@@ -1601,6 +1601,7 @@ static void typec_release(struct device *dev)
 	ida_destroy(&port->mode_ids);
 	typec_switch_put(port->sw);
 	typec_mux_put(port->mux);
+	free_pld(port->pld);
 	kfree(port->cap);
 	kfree(port);
 }
@@ -1983,6 +1984,8 @@ struct typec_port *typec_register_port(struct device *parent,
 
 	ida_init(&port->mode_ids);
 	mutex_init(&port->port_type_lock);
+	mutex_init(&port->port_list_lock);
+	INIT_LIST_HEAD(&port->port_list);
 
 	port->id = id;
 	port->ops = cap->ops;
@@ -2023,6 +2026,8 @@ struct typec_port *typec_register_port(struct device *parent,
 		put_device(&port->dev);
 		return ERR_PTR(ret);
 	}
+
+	port->pld = get_pld(&port->dev);
 
 	return port;
 }
