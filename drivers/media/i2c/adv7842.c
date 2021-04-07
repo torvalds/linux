@@ -88,7 +88,7 @@ struct adv7842_format_info {
 struct adv7842_state {
 	struct adv7842_platform_data pdata;
 	struct v4l2_subdev sd;
-	struct media_pad pad;
+	struct media_pad pads[ADV7842_PAD_SOURCE + 1];
 	struct v4l2_ctrl_handler hdl;
 	enum adv7842_mode mode;
 	struct v4l2_dv_timings timings;
@@ -3429,6 +3429,7 @@ static int adv7842_probe(struct i2c_client *client,
 	struct v4l2_ctrl_handler *hdl;
 	struct v4l2_ctrl *ctrl;
 	struct v4l2_subdev *sd;
+	unsigned int i;
 	u16 rev;
 	int err;
 
@@ -3532,8 +3533,11 @@ static int adv7842_probe(struct i2c_client *client,
 			adv7842_delayed_work_enable_hotplug);
 
 	sd->entity.function = MEDIA_ENT_F_DV_DECODER;
-	state->pad.flags = MEDIA_PAD_FL_SOURCE;
-	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
+	for (i = 0; i < ADV7842_PAD_SOURCE; ++i)
+		state->pads[i].flags = MEDIA_PAD_FL_SINK;
+	state->pads[ADV7842_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	err = media_entity_pads_init(&sd->entity, ADV7842_PAD_SOURCE + 1,
+				     state->pads);
 	if (err)
 		goto err_work_queues;
 
