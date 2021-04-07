@@ -1649,15 +1649,14 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 }
 
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
-			     int type, unsigned long long sta,
-			     struct acpi_device_info *info)
+			     int type, struct acpi_device_info *info)
 {
 	INIT_LIST_HEAD(&device->pnp.ids);
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
 	fwnode_init(&device->fwnode, &acpi_device_fwnode_ops);
-	acpi_set_device_status(device, sta);
+	acpi_set_device_status(device, ACPI_STA_DEFAULT);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type, info);
 	acpi_init_properties(device);
@@ -1680,19 +1679,21 @@ void acpi_device_add_finalize(struct acpi_device *device)
 	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
 }
 
+static void acpi_scan_init_status(struct acpi_device *adev)
+{
+	if (acpi_bus_get_status(adev))
+		acpi_set_device_status(adev, 0);
+}
+
 static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type)
 {
 	struct acpi_device_info *info = NULL;
-	unsigned long long sta = ACPI_STA_DEFAULT;
 	struct acpi_device *device;
 	int result;
 
 	if (type == ACPI_BUS_TYPE_DEVICE && handle != ACPI_ROOT_OBJECT)
 		acpi_get_object_info(handle, &info);
-	else if (type == ACPI_BUS_TYPE_PROCESSOR &&
-		 ACPI_FAILURE(acpi_bus_get_status_handle(handle, &sta)))
-		return -ENODEV;
 
 	device = kzalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
@@ -1700,16 +1701,15 @@ static int acpi_add_single_object(struct acpi_device **child,
 		return -ENOMEM;
 	}
 
-	acpi_init_device_object(device, handle, type, sta, info);
+	acpi_init_device_object(device, handle, type, info);
 	kfree(info);
 	/*
-	 * For ACPI_BUS_TYPE_DEVICE getting the status is delayed till here so
-	 * that we can call acpi_bus_get_status() and use its quirk handling.
-	 * Note this must be done before the get power-/wakeup_dev-flags calls.
+	 * Getting the status is delayed till here so that we can call
+	 * acpi_bus_get_status() and use its quirk handling.  Note that
+	 * this must be done before the get power-/wakeup_dev-flags calls.
 	 */
-	if (type == ACPI_BUS_TYPE_DEVICE)
-		if (acpi_bus_get_status(device) < 0)
-			acpi_set_device_status(device, 0);
+	if (type == ACPI_BUS_TYPE_DEVICE || type == ACPI_BUS_TYPE_PROCESSOR)
+		acpi_scan_init_status(device);
 
 	acpi_bus_get_power_flags(device);
 	acpi_bus_get_wakeup_device_flags(device);
