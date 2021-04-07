@@ -2,7 +2,7 @@
 /*
  * Common definition for Hardkernel's Exynos4412 based ODROID-X/X2/U2/U3 boards
  * device tree source
-*/
+ */
 
 #include <dt-bindings/sound/samsung-i2s.h>
 #include <dt-bindings/input/input.h>
@@ -122,6 +122,7 @@
 };
 
 &clock {
+	clocks = <&clock CLK_XUSBXTI>;
 	assigned-clocks = <&clock CLK_FOUT_EPLL>;
 	assigned-clock-rates = <45158401>;
 };
@@ -278,7 +279,7 @@
 	max77686: pmic@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
-		interrupts = <2 IRQ_TYPE_NONE>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77686_irq>;
 		reg = <0x09>;
