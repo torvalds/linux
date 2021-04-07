@@ -19,9 +19,8 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 		if (
 			(padapter->bSurpriseRemoved) ||
 			(padapter->bDriverStopped)
-		) {
+		)
 			return false;
-		}
 
 		HalQueryTxOQTBufferStatus8723BSdio(padapter);
 
@@ -275,14 +274,12 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 				}
 
 				/*  ok to send, remove frame from queue */
-				if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true) {
+				if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)
 					if (
 						(pxmitframe->attrib.psta->state & WIFI_SLEEP_STATE) &&
 						(pxmitframe->attrib.triggered == 0)
-					) {
+					)
 						break;
-					}
-				}
 
 				list_del_init(&pxmitframe->list);
 				ptxservq->qcnt--;

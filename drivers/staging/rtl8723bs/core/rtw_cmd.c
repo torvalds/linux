@@ -313,9 +313,9 @@ int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 
 	if ((pcmdpriv->padapter->hw_init_completed == false && bAllow == false)
 		|| atomic_read(&(pcmdpriv->cmdthd_running)) == false	/* com_thread not running */
-	) {
+	)
 		return _FAIL;
-	}
+
 	return _SUCCESS;
 }
 
@@ -419,9 +419,8 @@ int rtw_cmd_thread(void *context)
 			break;
 		}
 
-		if (list_empty(&(pcmdpriv->cmd_queue.queue))) {
+		if (list_empty(&(pcmdpriv->cmd_queue.queue)))
 			continue;
-		}
 
 		if (rtw_register_cmd_alive(padapter) != _SUCCESS)
 			continue;
@@ -1508,9 +1507,8 @@ static void rtw_lps_change_dtim_hdl(struct adapter *padapter, u8 dtim)
 
 	mutex_lock(&pwrpriv->lock);
 
-	if (pwrpriv->dtim != dtim) {
+	if (pwrpriv->dtim != dtim)
 		pwrpriv->dtim = dtim;
-	}
 
 	if ((pwrpriv->bFwCurrentInPSMode == true) && (pwrpriv->pwr_mode > PS_MODE_ACTIVE)) {
 		u8 ps_mode = pwrpriv->pwr_mode;

@@ -469,9 +469,8 @@ static u32 sdio_write_port(
 	adapter = intfhdl->padapter;
 	psdio = &adapter_to_dvobj(adapter)->intf_data;
 
-	if (!adapter->hw_init_completed) {
+	if (!adapter->hw_init_completed)
 		return _FAIL;
-	}
 
 	cnt = round_up(cnt, 4);
 	HalSdioGetCmdAddr8723BSdio(adapter, addr, cnt >> 2, &addr);
@@ -856,9 +855,8 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 			skb_reserve(recvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 		}
 
-		if (!recvbuf->pskb) {
+		if (!recvbuf->pskb)
 			return NULL;
-		}
 	}
 
 	/* 3 3. read data from rxfifo */

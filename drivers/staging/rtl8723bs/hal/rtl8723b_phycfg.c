@@ -777,9 +777,8 @@ static void PHY_HandleSwChnlAndSetBW8723B(
 	u8 tmpCenterFrequencyIndex1 = pHalData->CurrentCenterFrequencyIndex1;
 
 	/* check is swchnl or setbw */
-	if (!bSwitchChannel && !bSetBandWidth) {
+	if (!bSwitchChannel && !bSetBandWidth)
 		return;
-	}
 
 	/* skip change for channel or bandwidth is the same */
 	if (bSwitchChannel) {

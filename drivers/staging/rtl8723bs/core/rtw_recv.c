@@ -362,9 +362,8 @@ static signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *p
 				if ((IS_MCAST(prxattrib->ra) == true)  && (prxattrib->key_index != pmlmeinfo->key_index))
 					brpt_micerror = false;
 
-				if ((prxattrib->bdecrypted == true) && (brpt_micerror == true)) {
+				if ((prxattrib->bdecrypted == true) && (brpt_micerror == true))
 					rtw_handle_tkip_mic_err(adapter, (u8)IS_MCAST(prxattrib->ra));
-				}
 
 				res = _FAIL;
 
@@ -773,9 +772,8 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 		     !memcmp(mybssid, "\x0\x0\x0\x0\x0\x0", ETH_ALEN) ||
 		     (memcmp(pattrib->bssid, mybssid, ETH_ALEN))) {
 
-			if (!bmcast) {
+			if (!bmcast)
 				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
-			}
 
 			ret = _FAIL;
 			goto exit;
@@ -1592,14 +1590,12 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 		/* Offset 12 denote 2 mac address */
 		nSubframe_Length = get_unaligned_be16(pdata + 12);
 
-		if (a_len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
+		if (a_len < (ETHERNET_HEADER_SIZE + nSubframe_Length))
 			break;
-		}
 
 		sub_pkt = rtw_os_alloc_msdu_pkt(prframe, nSubframe_Length, pdata);
-		if (!sub_pkt) {
+		if (!sub_pkt)
 			break;
-		}
 
 		/* move the data point to data content */
 		pdata += ETH_HLEN;
@@ -1607,9 +1603,8 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 
 		subframes[nr_subframes++] = sub_pkt;
 
-		if (nr_subframes >= MAX_SUBFRAME_COUNT) {
+		if (nr_subframes >= MAX_SUBFRAME_COUNT)
 			break;
-		}
 
 		pdata += nSubframe_Length;
 		a_len -= nSubframe_Length;
@@ -1618,9 +1613,9 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 			if (padding_len == 4)
 				padding_len = 0;
 
-			if (a_len < padding_len) {
+			if (a_len < padding_len)
 				break;
-			}
+
 			pdata += padding_len;
 			a_len -= padding_len;
 		}
@@ -1794,9 +1789,8 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 			plist = get_next(plist);
 			list_del_init(&(prframe->u.hdr.list));
 
-			if (SN_EQUAL(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
+			if (SN_EQUAL(preorder_ctrl->indicate_seq, pattrib->seq_num))
 				preorder_ctrl->indicate_seq = (preorder_ctrl->indicate_seq + 1) & 0xFFF;
-			}
 
 			/* Set this as a lock to make sure that only one thread is indicating packet. */
 			/* pTS->RxIndicateState = RXTS_INDICATE_PROCESSING; */
@@ -1976,9 +1970,8 @@ static int process_recv_indicatepkts(struct adapter *padapter, union recv_frame 
 		}
 	} else { /* B/G mode */
 		retval = wlanhdr_to_ethhdr(prframe);
-		if (retval != _SUCCESS) {
+		if (retval != _SUCCESS)
 			return retval;
-		}
 
 		if ((padapter->bDriverStopped == false) && (padapter->bSurpriseRemoved == false)) {
 			/* indicate this recv_frame */
@@ -2024,9 +2017,8 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 	}
 
 	prframe = recvframe_chk_defrag(padapter, prframe);
-	if (!prframe)	{
+	if (!prframe)
 		goto _recv_data_drop;
-	}
 
 	prframe = portctrl(padapter, prframe);
 	if (!prframe) {

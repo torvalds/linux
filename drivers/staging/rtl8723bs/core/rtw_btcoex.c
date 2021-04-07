@@ -21,13 +21,11 @@ void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
 
 void rtw_btcoex_HaltNotify(struct adapter *padapter)
 {
-	if (!padapter->bup) {
+	if (!padapter->bup)
 		return;
-	}
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return;
-	}
 
 	hal_btcoex_HaltNotify(padapter);
 }

@@ -1587,9 +1587,8 @@ static signed int aes_decipher(u8 *key, uint	hdrlen,
 
 	/* compare the mic */
 	for (i = 0; i < 8; i++) {
-		if (pframe[hdrlen+8+plen-8+i] != message[hdrlen+8+plen-8+i]) {
+		if (pframe[hdrlen+8+plen-8+i] != message[hdrlen+8+plen-8+i])
 			res = _FAIL;
-		}
 	}
 	return res;
 }
@@ -1688,9 +1687,9 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 	ori_len = pattrib->pkt_len-WLAN_HDR_A3_LEN+BIP_AAD_SIZE;
 	BIP_AAD = rtw_zmalloc(ori_len);
 
-	if (BIP_AAD == NULL) {
+	if (BIP_AAD == NULL)
 		return _FAIL;
-	}
+
 	/* PKT start */
 	pframe = (unsigned char *)((union recv_frame *)precvframe)->u.hdr.rx_data;
 	/* mapping to wlan header */
@@ -1707,15 +1706,15 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 		memcpy(&le_tmp64, p+4, 6);
 		temp_ipn = le64_to_cpu(le_tmp64);
 		/* BIP packet number should bigger than previous BIP packet */
-		if (temp_ipn <= pmlmeext->mgnt_80211w_IPN_rx) {
+		if (temp_ipn <= pmlmeext->mgnt_80211w_IPN_rx)
 			goto BIP_exit;
-		}
+
 		/* copy key index */
 		memcpy(&le_tmp, p+2, 2);
 		keyid = le16_to_cpu(le_tmp);
-		if (keyid != padapter->securitypriv.dot11wBIPKeyid) {
+		if (keyid != padapter->securitypriv.dot11wBIPKeyid)
 			goto BIP_exit;
-		}
+
 		/* clear the MIC field of MME to zero */
 		memset(p+2+len-8, 0, 8);
 

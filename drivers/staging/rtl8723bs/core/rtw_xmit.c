@@ -710,9 +710,8 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 		goto exit;
 	}
 
-	if (!(psta->state & _FW_LINKED)) {
+	if (!(psta->state & _FW_LINKED))
 		return _FAIL;
-	}
 
 	/* TODO:_lock */
 	if (update_attrib_sec_info(padapter, pattrib, psta) == _FAIL) {
@@ -931,17 +930,14 @@ s32 rtw_make_wlanhdr(struct adapter *padapter, u8 *hdr, struct pkt_attrib *pattr
 			struct sta_info *psta;
 
 			psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
-			if (pattrib->psta != psta) {
+			if (pattrib->psta != psta)
 				return _FAIL;
-			}
 
-			if (!psta) {
+			if (!psta)
 				return _FAIL;
-			}
 
-			if (!(psta->state & _FW_LINKED)) {
+			if (!(psta->state & _FW_LINKED))
 				return _FAIL;
-			}
 
 			if (psta) {
 				psta->sta_xmitpriv.txseq_tid[pattrib->priority]++;
@@ -1175,9 +1171,9 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 		goto xmitframe_coalesce_success;
 
 	/* IGTK key is not install, it may not support 802.11w */
-	if (padapter->securitypriv.binstallBIPkey != true) {
+	if (padapter->securitypriv.binstallBIPkey != true)
 		goto xmitframe_coalesce_success;
-	}
+
 	/* station mode doesn't need TX BIP, just ready the code */
 	if (bmcst) {
 		int frame_body_len;
@@ -1231,13 +1227,11 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 			else
 				psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
 
-			if (!psta) {
+			if (!psta)
 				goto xmitframe_coalesce_fail;
-			}
 
-			if (!(psta->state & _FW_LINKED) || !pxmitframe->buf_addr) {
+			if (!(psta->state & _FW_LINKED) || !pxmitframe->buf_addr)
 				goto xmitframe_coalesce_fail;
-			}
 
 			/* according 802.11-2012 standard, these five types are not robust types */
 			if (subtype == WIFI_ACTION &&
@@ -1414,9 +1408,8 @@ static struct xmit_buf *__rtw_alloc_cmd_xmitbuf(struct xmit_priv *pxmitpriv,
 		pxmitbuf->agg_num = 0;
 		pxmitbuf->pg_num = 0;
 
-		if (pxmitbuf->sctx) {
+		if (pxmitbuf->sctx)
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
-		}
 	}
 
 	return pxmitbuf;
@@ -1429,9 +1422,8 @@ struct xmit_frame *__rtw_alloc_cmdxmitframe(struct xmit_priv *pxmitpriv,
 	struct xmit_buf		*pxmitbuf;
 
 	pcmdframe = rtw_alloc_xmitframe(pxmitpriv);
-	if (!pcmdframe) {
+	if (!pcmdframe)
 		return NULL;
-	}
 
 	pxmitbuf = __rtw_alloc_cmd_xmitbuf(pxmitpriv, buf_type);
 	if (!pxmitbuf) {
@@ -1480,9 +1472,8 @@ struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
 		pxmitbuf->pdata = pxmitbuf->ptail = pxmitbuf->phead;
 		pxmitbuf->agg_num = 1;
 
-		if (pxmitbuf->sctx) {
+		if (pxmitbuf->sctx)
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
-		}
 	}
 
 	spin_unlock_irqrestore(&pfree_queue->lock, irqL);
@@ -1541,9 +1532,8 @@ struct xmit_buf *rtw_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 		pxmitbuf->agg_num = 0;
 		pxmitbuf->pg_num = 0;
 
-		if (pxmitbuf->sctx) {
+		if (pxmitbuf->sctx)
 			rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_ALLOC);
-		}
 	}
 
 	spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irqL);
@@ -1559,9 +1549,8 @@ s32 rtw_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 	if (!pxmitbuf)
 		return _FAIL;
 
-	if (pxmitbuf->sctx) {
+	if (pxmitbuf->sctx)
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_BUF_FREE);
-	}
 
 	if (pxmitbuf->buf_tag == XMITBUF_CMD) {
 	} else if (pxmitbuf->buf_tag == XMITBUF_MGNT) {
@@ -1814,9 +1803,8 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	signed int res = _SUCCESS;
 
 	psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
-	if (pattrib->psta != psta) {
+	if (pattrib->psta != psta)
 		return _FAIL;
-	}
 
 	if (!psta) {
 		res = _FAIL;
@@ -1824,9 +1812,8 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 		goto exit;
 	}
 
-	if (!(psta->state & _FW_LINKED)) {
+	if (!(psta->state & _FW_LINKED))
 		return _FAIL;
-	}
 
 	ptxservq = rtw_get_sta_pending(padapter, psta, pattrib->priority, (u8 *)(&ac_index));
 
@@ -2016,9 +2003,9 @@ inline bool xmitframe_hiq_filter(struct xmit_frame *xmitframe)
 		if (attrib->ether_type == 0x0806 ||
 		    attrib->ether_type == 0x888e ||
 		    attrib->dhcp_pkt
-		) {
+		)
 			allow = true;
-		}
+
 	} else if (registry->hiq_filter == RTW_HIQ_FILTER_ALLOW_ALL)
 		allow = true;
 	else if (registry->hiq_filter == RTW_HIQ_FILTER_DENY_ALL) {
@@ -2041,17 +2028,14 @@ signed int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct x
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)
 		return ret;
 	psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
-	if (pattrib->psta != psta) {
+	if (pattrib->psta != psta)
 		return false;
-	}
 
-	if (!psta) {
+	if (!psta)
 		return false;
-	}
 
-	if (!(psta->state & _FW_LINKED)) {
+	if (!(psta->state & _FW_LINKED))
 		return false;
-	}
 
 	if (pattrib->triggered == 1) {
 		if (bmcst && xmitframe_hiq_filter(pxmitframe))
@@ -2552,12 +2536,11 @@ int rtw_sctx_wait(struct submit_ctx *sctx, const char *msg)
 	int status = 0;
 
 	expire = sctx->timeout_ms ? msecs_to_jiffies(sctx->timeout_ms) : MAX_SCHEDULE_TIMEOUT;
-	if (!wait_for_completion_timeout(&sctx->done, expire)) {
+	if (!wait_for_completion_timeout(&sctx->done, expire))
 		/* timeout, do something?? */
 		status = RTW_SCTX_DONE_TIMEOUT;
-	} else {
+	else
 		status = sctx->status;
-	}
 
 	if (status == RTW_SCTX_DONE_SUCCESS)
 		ret = _SUCCESS;

@@ -17,9 +17,8 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 	u8	value = 0;
 
-	if (RfPath > ODM_RF_PATH_D) {
+	if (RfPath > ODM_RF_PATH_D)
 		return 0;
-	}
 
 	if (Band == BAND_ON_2_4G) {
 		switch (RateSection) {
@@ -105,9 +104,8 @@ phy_SetTxPowerByRateBase(
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 
-	if (RfPath > ODM_RF_PATH_D) {
+	if (RfPath > ODM_RF_PATH_D)
 		return;
-	}
 
 	if (Band == BAND_ON_2_4G) {
 		switch (RateSection) {
@@ -703,17 +701,14 @@ static void PHY_StoreTxPowerByRateNew(
 
 	PHY_GetRateValuesOfTxPowerByRate(padapter, RegAddr, BitMask, Data, rateIndex, PwrByRateVal, &rateNum);
 
-	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G) {
+	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G)
 		return;
-	}
 
-	if (RfPath > ODM_RF_PATH_D) {
+	if (RfPath > ODM_RF_PATH_D)
 		return;
-	}
 
-	if (TxNum > ODM_RF_PATH_D) {
+	if (TxNum > ODM_RF_PATH_D)
 		return;
-	}
 
 	for (i = 0; i < rateNum; ++i) {
 		if (rateIndex[i] == PHY_GetRateIndexOfTxPowerByRate(MGN_VHT2SS_MCS0) ||
@@ -1004,9 +999,8 @@ u8 PHY_GetTxPowerIndexBase(
 	u8 txPower = 0;
 	u8 chnlIdx = (Channel-1);
 
-	if (HAL_IsLegalChannel(padapter, Channel) == false) {
+	if (HAL_IsLegalChannel(padapter, Channel) == false)
 		chnlIdx = 0;
-	}
 
 	*bIn24G = phy_GetChnlIndex(Channel, &chnlIdx);
 
@@ -1017,9 +1011,9 @@ u8 PHY_GetTxPowerIndexBase(
 			txPower = pHalData->Index24G_BW40_Base[RFPath][chnlIdx];
 
 		/*  OFDM-1T */
-		if ((MGN_6M <= Rate && Rate <= MGN_54M) && !IS_CCK_RATE(Rate)) {
+		if ((MGN_6M <= Rate && Rate <= MGN_54M) && !IS_CCK_RATE(Rate))
 			txPower += pHalData->OFDM_24G_Diff[RFPath][TX_1S];
-		}
+
 		if (BandWidth == CHANNEL_WIDTH_20) { /*  BW20-1S, BW20-2S */
 			if ((MGN_MCS0 <= Rate && Rate <= MGN_MCS31) || (MGN_VHT1SS_MCS0 <= Rate && Rate <= MGN_VHT4SS_MCS9))
 				txPower += pHalData->BW20_24G_Diff[RFPath][TX_1S];
@@ -1058,9 +1052,8 @@ u8 PHY_GetTxPowerIndexBase(
 			txPower = pHalData->Index5G_BW40_Base[RFPath][chnlIdx];
 
 		/*  OFDM-1T */
-		if ((MGN_6M <= Rate && Rate <= MGN_54M) && !IS_CCK_RATE(Rate)) {
+		if ((MGN_6M <= Rate && Rate <= MGN_54M) && !IS_CCK_RATE(Rate))
 			txPower += pHalData->OFDM_5G_Diff[RFPath][TX_1S];
-		}
 
 		/*  BW20-1S, BW20-2S */
 		if (BandWidth == CHANNEL_WIDTH_20) {
@@ -1115,12 +1108,10 @@ s8 PHY_GetTxPowerTrackingOffset(struct adapter *padapter, u8 RFPath, u8 Rate)
 	if (pDM_Odm->RFCalibrateInfo.TxPowerTrackControl  == false)
 		return offset;
 
-	if ((Rate == MGN_1M) || (Rate == MGN_2M) || (Rate == MGN_5_5M) || (Rate == MGN_11M)) {
+	if ((Rate == MGN_1M) || (Rate == MGN_2M) || (Rate == MGN_5_5M) || (Rate == MGN_11M))
 		offset = pDM_Odm->Remnant_CCKSwingIdx;
-	} else {
+	else
 		offset = pDM_Odm->Remnant_OFDMSwingIdx[RFPath];
-
-	}
 
 	return offset;
 }
@@ -1399,18 +1390,17 @@ s8 PHY_GetTxPowerByRate(
 		   padapter->registrypriv.RegEnableTxPowerByRate == 0)
 		return 0;
 
-	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G) {
+	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G)
 		return value;
-	}
-	if (RFPath > ODM_RF_PATH_D) {
+
+	if (RFPath > ODM_RF_PATH_D)
 		return value;
-	}
-	if (TxNum >= RF_MAX_TX_NUM) {
+
+	if (TxNum >= RF_MAX_TX_NUM)
 		return value;
-	}
-	if (rateIndex >= TX_PWR_BY_RATE_NUM_RATE) {
+
+	if (rateIndex >= TX_PWR_BY_RATE_NUM_RATE)
 		return value;
-	}
 
 	return pHalData->TxPwrByRateOffset[Band][RFPath][TxNum][rateIndex];
 
@@ -1428,18 +1418,17 @@ void PHY_SetTxPowerByRate(
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 	u8 rateIndex = PHY_GetRateIndexOfTxPowerByRate(Rate);
 
-	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G) {
+	if (Band != BAND_ON_2_4G && Band != BAND_ON_5G)
 		return;
-	}
-	if (RFPath > ODM_RF_PATH_D) {
+
+	if (RFPath > ODM_RF_PATH_D)
 		return;
-	}
-	if (TxNum >= RF_MAX_TX_NUM) {
+
+	if (TxNum >= RF_MAX_TX_NUM)
 		return;
-	}
-	if (rateIndex >= TX_PWR_BY_RATE_NUM_RATE) {
+
+	if (rateIndex >= TX_PWR_BY_RATE_NUM_RATE)
 		return;
-	}
 
 	pHalData->TxPwrByRateOffset[Band][RFPath][TxNum][rateIndex] = Value;
 }
@@ -1636,10 +1625,8 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 		channel = phy_GetChannelIndexOfTxPowerLimit(band_type, channel);
 
 	if (idx_band == -1 || idx_regulation == -1 || idx_bandwidth == -1 ||
-	    idx_rate_sctn == -1 || idx_channel == -1) {
-
+	    idx_rate_sctn == -1 || idx_channel == -1)
 		return MAX_POWER_INDEX;
-	}
 
 	if (band_type == BAND_ON_2_4G) {
 		s8 limits[10] = {0}; u8 i = 0;
@@ -1848,10 +1835,8 @@ void PHY_SetTxPowerLimit(
 		rateSection = 8;
 	else if (eqNByte(RateSection, (u8 *)("VHT"), 3) && eqNByte(RfPath, (u8 *)("4T"), 2))
 		rateSection = 9;
-	else {
+	else
 		return;
-	}
-
 
 	if (eqNByte(Bandwidth, (u8 *)("20M"), 3))
 		bandwidth = 0;

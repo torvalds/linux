@@ -116,9 +116,9 @@ u8 HalPwrSeqCmdParsing(
 					else
 						udelay(10);
 
-					if (pollingCount++ > maxPollingCnt) {
+					if (pollingCount++ > maxPollingCnt)
 						return false;
-					}
+
 				} while (!bPollingBit);
 
 				break;

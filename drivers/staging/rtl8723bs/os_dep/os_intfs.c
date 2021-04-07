@@ -863,9 +863,8 @@ static int _netdev_open(struct net_device *pnetdev)
 			goto netdev_open_error;
 
 		status = rtw_start_drv_threads(padapter);
-		if (status == _FAIL) {
+		if (status == _FAIL)
 			goto netdev_open_error;
-		}
 
 		if (padapter->intf_start)
 			padapter->intf_start(padapter);
@@ -904,9 +903,8 @@ int netdev_open(struct net_device *pnetdev)
 	struct adapter *padapter = rtw_netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
 
-	if (pwrctrlpriv->bInSuspend) {
+	if (pwrctrlpriv->bInSuspend)
 		return 0;
-	}
 
 	if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->hw_init_mutex)))
 		return -1;
@@ -1179,21 +1177,19 @@ int rtw_suspend_common(struct adapter *padapter)
 	rtw_stop_cmd_thread(padapter);
 
 	/*  wait for the latest FW to remove this condition. */
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		hal_btcoex_SuspendNotify(padapter, 0);
-	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+	else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		hal_btcoex_SuspendNotify(padapter, 1);
-	}
 
 	rtw_ps_deny_cancel(padapter, PS_DENY_SUSPEND);
 
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		rtw_suspend_normal(padapter);
-	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
+	else if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		rtw_suspend_normal(padapter);
-	} else {
+	else
 		rtw_suspend_normal(padapter);
-	}
 
 	DBG_871X_LEVEL(_drv_always_, "rtw suspend success in %d ms\n",
 		jiffies_to_msecs(jiffies - start_time));
@@ -1248,14 +1244,12 @@ static int rtw_resume_process_normal(struct adapter *padapter)
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	if (padapter->pid[1] != 0) {
+	if (padapter->pid[1] != 0)
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
-	}
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		if (rtw_chk_roam_flags(padapter, RTW_ROAM_ON_RESUME))
 			rtw_roaming(padapter, NULL);
-
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		rtw_ap_restore_network(padapter);
 	}

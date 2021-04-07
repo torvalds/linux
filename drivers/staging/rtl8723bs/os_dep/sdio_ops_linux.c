@@ -40,9 +40,8 @@ u8 sd_f0_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return v;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -73,17 +72,15 @@ s32 _sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 
 	for (i = 0; i < cnt; i++) {
 		pdata[i] = sdio_readb(func, addr + i, &err);
-		if (err) {
+		if (err)
 			break;
-		}
 	}
 	return err;
 }
@@ -107,9 +104,8 @@ s32 sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -140,17 +136,15 @@ s32 _sd_cmd52_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 
 	for (i = 0; i < cnt; i++) {
 		sdio_writeb(func, pdata[i], addr + i, &err);
-		if (err) {
+		if (err)
 			break;
-		}
 	}
 	return err;
 }
@@ -174,9 +168,8 @@ s32 sd_cmd52_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -203,9 +196,8 @@ u8 sd_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return v;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -231,9 +223,8 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return v;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -284,9 +275,8 @@ void sd_write8(struct intf_hdl *pintfhdl, u32 addr, u8 v, s32 *err)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -310,9 +300,8 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
@@ -378,9 +367,8 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 
@@ -391,9 +379,8 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 		for (i = 0; i < cnt; i++) {
 			*(pbuf + i) = sdio_readb(func, addr + i, &err);
 
-			if (err) {
+			if (err)
 				break;
-			}
 		}
 		return err;
 	}
@@ -430,9 +417,9 @@ s32 sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
+
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);
 
@@ -473,9 +460,8 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 /*	size = sdio_align_size(func, cnt); */
@@ -486,9 +472,8 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 
 		for (i = 0; i < cnt; i++) {
 			sdio_writeb(func, *(pbuf + i), addr + i, &err);
-			if (err) {
+			if (err)
 				break;
-			}
 		}
 
 		return err;
@@ -526,9 +511,8 @@ s32 sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if (padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved)
 		return err;
-	}
 
 	func = psdio->func;
 	claim_needed = rtw_sdio_claim_host_needed(func);

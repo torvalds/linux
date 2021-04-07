@@ -651,9 +651,9 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 			if ((cpwm_orig ^ cpwm_now) & 0x80)
 				break;
 
-			if (jiffies_to_msecs(jiffies - start_time) > 100) {
+			if (jiffies_to_msecs(jiffies - start_time) > 100)
 				break;
-			}
+
 		} while (1);
 
 		rtl8723b_set_FwPwrModeInIPS_cmd(padapter, 0);

@@ -151,9 +151,8 @@ bool HAL_IsLegalChannel(struct adapter *Adapter, u32 Channel)
 	bool bLegalChannel = true;
 
 	if ((Channel <= 14) && (Channel >= 1)) {
-		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false) {
+		if (IsSupported24G(Adapter->registrypriv.wireless_mode) == false)
 			bLegalChannel = false;
-		}
 	} else {
 		bLegalChannel = false;
 	}
@@ -1335,9 +1334,8 @@ bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
 	char *szScan = szStr;
 
 	/*  Check input parameter. */
-	if (!szStr || !pu4bVal || !pu4bMove) {
+	if (!szStr || !pu4bVal || !pu4bMove)
 		return false;
-	}
 
 	/*  Initialize output. */
 	*pu4bMove = 0;

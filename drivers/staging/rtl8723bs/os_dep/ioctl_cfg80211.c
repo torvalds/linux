@@ -236,9 +236,8 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
 	bssinf_len = pnetwork->network.IELength + sizeof(struct ieee80211_hdr_3addr);
-	if (bssinf_len > MAX_BSSINFO_LEN) {
+	if (bssinf_len > MAX_BSSINFO_LEN)
 		goto exit;
-	}
 
 	{
 		u16 wapi_len = 0;
@@ -246,9 +245,7 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 		if (rtw_get_wapi_ie(pnetwork->network.IEs, pnetwork->network.IELength, NULL, &wapi_len) > 0)
 		{
 			if (wapi_len > 0)
-			{
 				goto exit;
-			}
 		}
 	}
 
@@ -411,11 +408,10 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 			}
 			if (!memcmp(&(scanned->network.Ssid), &(pnetwork->Ssid), sizeof(struct ndis_802_11_ssid))
 				&& !memcmp(scanned->network.MacAddress, pnetwork->MacAddress, sizeof(NDIS_802_11_MAC_ADDRESS))
-			) {
+			)
 				rtw_cfg80211_inform_bss(padapter, scanned);
-			} else {
+			else
 				rtw_warn_on(1);
-			}
 		}
 
 		if (!rtw_cfg80211_check_bss(padapter))
@@ -452,11 +448,10 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 
 		if (!memcmp(scanned->network.MacAddress, pnetwork->MacAddress, sizeof(NDIS_802_11_MAC_ADDRESS))
 			&& !memcmp(&(scanned->network.Ssid), &(pnetwork->Ssid), sizeof(struct ndis_802_11_ssid))
-		) {
+		)
 			rtw_cfg80211_inform_bss(padapter, scanned);
-		} else {
+		else
 			rtw_warn_on(1);
-		}
 	}
 
 check_bss:
@@ -2196,9 +2191,8 @@ static int cfg80211_rtw_del_pmksa(struct wiphy *wiphy,
 		}
 	}
 
-	if (false == bMatched) {
+	if (false == bMatched)
 		return -EINVAL;
-	}
 
 	return 0;
 }

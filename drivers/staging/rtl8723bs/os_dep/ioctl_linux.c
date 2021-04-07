@@ -208,11 +208,10 @@ static char *translate_scan(struct adapter *padapter,
 	if (vht_cap) {
 		max_rate = vht_data_rate;
 	} else if (ht_cap) {
-		if (mcs_rate&0x8000) { /* MCS15 */
+		if (mcs_rate&0x8000) /* MCS15 */
 			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-		} else { /* default MCS7 */
+		else /* default MCS7 */
 			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);
-		}
 
 		max_rate = max_rate*2;/* Mbps/2; */
 	}
@@ -2325,9 +2324,8 @@ static int rtw_set_pid(struct net_device *dev,
 	}
 
 	selector = *pdata;
-	if (selector < 3 && selector >= 0) {
+	if (selector < 3 && selector >= 0)
 		padapter->pid[selector] = *(pdata+1);
-	}
 
 exit:
 
@@ -2549,9 +2547,8 @@ static int rtw_dbg_port(struct net_device *dev,
 						int i;
 						struct recv_reorder_ctrl *preorder_ctrl;
 
-						for (i = 0; i < 16; i++) {
+						for (i = 0; i < 16; i++)
 							preorder_ctrl = &psta->recvreorder_ctrl[i];
-						}
 
 					}
 					break;
@@ -2586,11 +2583,9 @@ static int rtw_dbg_port(struct net_device *dev,
 
 								plist = get_next(plist);
 
-								if (extra_arg == psta->aid) {
-									for (j = 0; j < 16; j++) {
+								if (extra_arg == psta->aid)
+									for (j = 0; j < 16; j++)
 										preorder_ctrl = &psta->recvreorder_ctrl[j];
-									}
-								}
 							}
 						}
 
@@ -2619,12 +2614,11 @@ static int rtw_dbg_port(struct net_device *dev,
 					break;
 				case 0x0c:/* dump rx/tx packet */
 					{
-						if (arg == 0) {
+						if (arg == 0)
 							/* pHalData->bDumpRxPkt =extra_arg; */
 							rtw_hal_set_def_var(padapter, HAL_DEF_DBG_DUMP_RXPKT, &(extra_arg));
-						} else if (arg == 1) {
+						else if (arg == 1)
 							rtw_hal_set_def_var(padapter, HAL_DEF_DBG_DUMP_TXPKT, &(extra_arg));
-						}
 					}
 					break;
 				case 0x0e:
@@ -2654,18 +2648,16 @@ static int rtw_dbg_port(struct net_device *dev,
 					struct registry_priv *pregpriv = &padapter->registrypriv;
 					/*  0: disable, bit(0):enable 2.4g, bit(1):enable 5g, 0x3: enable both 2.4g and 5g */
 					/* default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ */
-					if (extra_arg == 0 || extra_arg == 1 || extra_arg == 2 || extra_arg == 3) {
+					if (extra_arg == 0 || extra_arg == 1 || extra_arg == 2 || extra_arg == 3)
 						pregpriv->rx_stbc = extra_arg;
-					}
 				}
 				break;
 				case 0x13: /* set ampdu_enable */
 				{
 					struct registry_priv *pregpriv = &padapter->registrypriv;
 					/*  0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec) */
-					if (extra_arg < 3) {
+					if (extra_arg < 3)
 						pregpriv->ampdu_enable = extra_arg;
-					}
 				}
 				break;
 				case 0x14:
@@ -2704,11 +2696,10 @@ static int rtw_dbg_port(struct net_device *dev,
 						/*  extra_arg : */
 						/*  BIT0: Enable VHT LDPC Rx, BIT1: Enable VHT LDPC Tx, */
 						/*  BIT4: Enable HT LDPC Rx, BIT5: Enable HT LDPC Tx */
-						if (arg == 0) {
+						if (arg == 0)
 							pregistrypriv->ldpc_cap = 0x00;
-						} else if (arg == 1) {
+						else if (arg == 1)
 							pregistrypriv->ldpc_cap = (u8)(extra_arg&0x33);
-						}
 					}
 					break;
 				case 0x1a:
@@ -2717,11 +2708,10 @@ static int rtw_dbg_port(struct net_device *dev,
 						/*  extra_arg : */
 						/*  BIT0: Enable VHT STBC Rx, BIT1: Enable VHT STBC Tx, */
 						/*  BIT4: Enable HT STBC Rx, BIT5: Enable HT STBC Tx */
-						if (arg == 0) {
+						if (arg == 0)
 							pregistrypriv->stbc_cap = 0x00;
-						} else if (arg == 1) {
+						else if (arg == 1)
 							pregistrypriv->stbc_cap = (u8)(extra_arg&0x33);
-						}
 					}
 					break;
 				case 0x1b:
@@ -3038,10 +3028,9 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		}
 	} else {
 		psta = rtw_get_stainfo(pstapriv, param->sta_addr);
-		if (!psta) {
+		if (!psta)
 			/* ret = -EINVAL; */
 			goto exit;
-		}
 	}
 
 	if (strcmp(param->u.crypt.alg, "none") == 0 && (psta == NULL)) {
@@ -3070,9 +3059,8 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
 			pwep = kzalloc(wep_total_len, GFP_KERNEL);
-			if (pwep == NULL) {
+			if (pwep == NULL)
 				goto exit;
-			}
 
 			pwep->KeyLength = wep_key_len;
 			pwep->Length = wep_total_len;
@@ -3519,9 +3507,8 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 	if (ie_len > 0) {
 		pmlmepriv->wps_beacon_ie = rtw_malloc(ie_len);
 		pmlmepriv->wps_beacon_ie_len = ie_len;
-		if (pmlmepriv->wps_beacon_ie == NULL) {
+		if (pmlmepriv->wps_beacon_ie == NULL)
 			return -EINVAL;
-		}
 
 		memcpy(pmlmepriv->wps_beacon_ie, param->u.bcn_ie.buf, ie_len);
 
@@ -3554,9 +3541,9 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 	if (ie_len > 0) {
 		pmlmepriv->wps_probe_resp_ie = rtw_malloc(ie_len);
 		pmlmepriv->wps_probe_resp_ie_len = ie_len;
-		if (pmlmepriv->wps_probe_resp_ie == NULL) {
+		if (pmlmepriv->wps_probe_resp_ie == NULL)
 			return -EINVAL;
-		}
+
 		memcpy(pmlmepriv->wps_probe_resp_ie, param->u.bcn_ie.buf, ie_len);
 	}
 
@@ -3584,9 +3571,8 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 	if (ie_len > 0) {
 		pmlmepriv->wps_assoc_resp_ie = rtw_malloc(ie_len);
 		pmlmepriv->wps_assoc_resp_ie_len = ie_len;
-		if (pmlmepriv->wps_assoc_resp_ie == NULL) {
+		if (pmlmepriv->wps_assoc_resp_ie == NULL)
 			return -EINVAL;
-		}
 
 		memcpy(pmlmepriv->wps_assoc_resp_ie, param->u.bcn_ie.buf, ie_len);
 	}
@@ -3939,9 +3925,8 @@ static int rtw_test(
 	len = wrqu->data.length;
 
 	pbuf = rtw_zmalloc(len);
-	if (pbuf == NULL) {
+	if (pbuf == NULL)
 		return -ENOMEM;
-	}
 
 	if (copy_from_user(pbuf, wrqu->data.pointer, len)) {
 		kfree(pbuf);

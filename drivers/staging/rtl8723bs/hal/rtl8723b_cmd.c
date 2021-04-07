@@ -197,9 +197,8 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 
 _ConstructBeacon:
 
-	if ((pktlen + TXDESC_SIZE) > 512) {
+	if ((pktlen + TXDESC_SIZE) > 512)
 		return;
-	}
 
 	*pLength = pktlen;
 
@@ -446,13 +445,11 @@ void rtl8723b_set_FwPwrMode_cmd(struct adapter *padapter, u8 psmode)
 				ratio_20_delay += pmlmeext->bcn_delay_ratio[i];
 				ratio_80_delay += pmlmeext->bcn_delay_ratio[i];
 
-				if (ratio_20_delay > 20 && pmlmeext->DrvBcnEarly == 0xff) {
+				if (ratio_20_delay > 20 && pmlmeext->DrvBcnEarly == 0xff)
 					pmlmeext->DrvBcnEarly = i;
-				}
 
-				if (ratio_80_delay > 80 && pmlmeext->DrvBcnTimeOut == 0xff) {
+				if (ratio_80_delay > 80 && pmlmeext->DrvBcnTimeOut == 0xff)
 					pmlmeext->DrvBcnTimeOut = i;
-				}
 
 				/* reset adaptive_early_32k cnt */
 				pmlmeext->bcn_delay_cnt[i] = 0;
@@ -553,9 +550,8 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
 
 	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
-	if (!pcmdframe) {
+	if (!pcmdframe)
 		return;
-	}
 
 	ReservedPagePacket = pcmdframe->buf_addr;
 	memset(&RsvdPageLoc, 0, sizeof(struct rsvdpage_loc));

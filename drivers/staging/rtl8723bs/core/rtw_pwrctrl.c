@@ -97,13 +97,11 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 
 	bool ret = false;
 
-	if (adapter_to_pwrctl(adapter)->bpower_saving) {
+	if (adapter_to_pwrctl(adapter)->bpower_saving)
 		goto exit;
-	}
 
-	if (time_before(jiffies, adapter_to_pwrctl(adapter)->ips_deny_time)) {
+	if (time_before(jiffies, adapter_to_pwrctl(adapter)->ips_deny_time))
 		goto exit;
-	}
 
 	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
 		|| check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
@@ -153,9 +151,8 @@ void rtw_ps_processor(struct adapter *padapter)
 	mutex_lock(&adapter_to_pwrctl(padapter)->lock);
 	ps_deny = rtw_ps_deny_get(padapter);
 	mutex_unlock(&adapter_to_pwrctl(padapter)->lock);
-	if (ps_deny != 0) {
+	if (ps_deny != 0)
 		goto exit;
-	}
 
 	if (pwrpriv->bInSuspend) {/* system suspend or autosuspend */
 		pdbgpriv->dbg_ps_insuspend_cnt++;
@@ -221,9 +218,8 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 		if (pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod > 4/*2*/) {
 			if (adapter_to_pwrctl(padapter)->bLeisurePs
 			    && (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE)
-			    && !(hal_btcoex_IsBtControlLps(padapter))) {
+			    && !(hal_btcoex_IsBtControlLps(padapter)))
 				bLeaveLPS = true;
-			}
 		}
 	}
 
@@ -336,9 +332,8 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	)
 		return false;
 
-	if ((padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) && !(padapter->securitypriv.binstallGrpkey)) {
+	if ((padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) && !(padapter->securitypriv.binstallGrpkey))
 		return false;
-	}
 
 	if (!rtw_cfg80211_pwr_mgmt(padapter))
 		return false;
@@ -515,15 +510,13 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(Adapter);
 
-	if (Adapter->bSurpriseRemoved) {
+	if (Adapter->bSurpriseRemoved)
 		return;
-	}
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) { /* connect */
 
-		if (pwrpriv->pwr_mode == PS_MODE_ACTIVE) {
+		if (pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			return;
-		}
 
 		mutex_lock(&pwrpriv->lock);
 
@@ -548,13 +541,11 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 	u8 enqueue = 0;
 	int n_assoc_iface = 0;
 
-	if (!Adapter->bup) {
+	if (!Adapter->bup)
 		return;
-	}
 
-	if (Adapter->bSurpriseRemoved) {
+	if (Adapter->bSurpriseRemoved)
 		return;
-	}
 
 	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
 		n_assoc_iface++;
@@ -598,9 +589,9 @@ void LPS_Leave_check(struct adapter *padapter)
 		if (bReady)
 			break;
 
-		if (jiffies_to_msecs(jiffies - start_time) > 100) {
+		if (jiffies_to_msecs(jiffies - start_time) > 100)
 			break;
-		}
+
 		msleep(1);
 	}
 }
@@ -620,9 +611,8 @@ void cpwm_int_hdl(struct adapter *padapter, struct reportpwrstate_parm *preportp
 
 	mutex_lock(&pwrpriv->lock);
 
-	if (pwrpriv->rpwm < PS_STATE_S2) {
+	if (pwrpriv->rpwm < PS_STATE_S2)
 		goto exit;
-	}
 
 	pwrpriv->cpwm = PS_STATE(preportpwrstate->state);
 	pwrpriv->cpwm_tog = preportpwrstate->state & PS_TOGGLE;
@@ -663,9 +653,9 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 	padapter = dvobj->if1;
 
 	mutex_lock(&pwrpriv->lock);
-	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
+	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
 		goto exit;
-	}
+
 	mutex_unlock(&pwrpriv->lock);
 
 	if (rtw_read8(padapter, 0x100) != 0xEA) {
@@ -679,9 +669,9 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 
 	mutex_lock(&pwrpriv->lock);
 
-	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
+	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
 		goto exit;
-	}
+
 	pwrpriv->brpwmtimeout = true;
 	rtw_set_rpwm(padapter, pwrpriv->rpwm);
 	pwrpriv->brpwmtimeout = false;
@@ -697,9 +687,8 @@ static void pwr_rpwm_timeout_handler(struct timer_list *t)
 {
 	struct pwrctrl_priv *pwrpriv = from_timer(pwrpriv, t, pwr_rpwm_timer);
 
-	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
+	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
 		return;
-	}
 
 	_set_workitem(&pwrpriv->rpwmtimeoutwi);
 }
@@ -1053,17 +1042,14 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 		pwrpriv->ips_deny_time = deny_time;
 
 
-	if (pwrpriv->ps_processing) {
+	if (pwrpriv->ps_processing)
 		while (pwrpriv->ps_processing && jiffies_to_msecs(jiffies - start) <= 3000)
 			mdelay(10);
-	}
 
-	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {
+	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend)
 		while (pwrpriv->bInSuspend && jiffies_to_msecs(jiffies - start) <= 3000
-		) {
+		)
 			mdelay(10);
-		}
-	}
 
 	/* System suspend is not allowed to wakeup */
 	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {

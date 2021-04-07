@@ -112,9 +112,8 @@ static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pk
 	queue = skb_get_queue_mapping(pkt);
 	if (padapter->registrypriv.wifi_spec) {
 		/* No free space for Tx, tx_worker is too slow */
-		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD) {
+		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD)
 			netif_stop_subqueue(padapter->pnetdev, queue);
-		}
 	} else {
 		if (pxmitpriv->free_xmitframe_cnt <= 4) {
 			if (!netif_tx_queue_stopped(netdev_get_tx_queue(padapter->pnetdev, queue)))
@@ -193,9 +192,8 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	s32 res = 0;
 
-	if (rtw_if_up(padapter) == false) {
+	if (rtw_if_up(padapter) == false)
 		goto drop_packet;
-	}
 
 	rtw_check_xmit_resource(padapter, pkt);
 
@@ -213,9 +211,8 @@ int _rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 	}
 
 	res = rtw_xmit(padapter, &pkt);
-	if (res < 0) {
+	if (res < 0)
 		goto drop_packet;
-	}
 
 	goto exit;
 

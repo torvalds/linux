@@ -58,9 +58,8 @@ static void sd_sync_int_hdl(struct sdio_func *func)
 
 	psdpriv = sdio_get_drvdata(func);
 
-	if (!psdpriv->if1) {
+	if (!psdpriv->if1)
 		return;
-	}
 
 	rtw_sdio_set_irq_thd(psdpriv, current);
 	sd_int_hdl(psdpriv->if1);
@@ -390,9 +389,8 @@ static int rtw_drv_init(
 		goto exit;
 
 	if1 = rtw_sdio_if1_init(dvobj, id);
-	if (if1 == NULL) {
+	if (if1 == NULL)
 		goto free_dvobj;
-	}
 
 	/* dev_alloc_name && register_netdev */
 	status = rtw_drv_register_netdev(if1);
@@ -461,9 +459,8 @@ static int rtw_sdio_suspend(struct device *dev)
 	struct adapter *padapter = psdpriv->if1;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	if (padapter->bDriverStopped) {
+	if (padapter->bDriverStopped)
 		return 0;
-	}
 
 	if (pwrpriv->bInSuspend) {
 		pdbgpriv->dbg_suspend_error_cnt++;
