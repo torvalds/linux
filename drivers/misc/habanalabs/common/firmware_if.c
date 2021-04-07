@@ -791,43 +791,43 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	switch (status) {
 	case CPU_BOOT_STATUS_NA:
 		dev_err(hdev->dev,
-			"Device boot error - BTL did NOT run\n");
+			"Device boot progress - BTL did NOT run\n");
 		break;
 	case CPU_BOOT_STATUS_IN_WFE:
 		dev_err(hdev->dev,
-			"Device boot error - Stuck inside WFE loop\n");
+			"Device boot progress - Stuck inside WFE loop\n");
 		break;
 	case CPU_BOOT_STATUS_IN_BTL:
 		dev_err(hdev->dev,
-			"Device boot error - Stuck in BTL\n");
+			"Device boot progress - Stuck in BTL\n");
 		break;
 	case CPU_BOOT_STATUS_IN_PREBOOT:
 		dev_err(hdev->dev,
-			"Device boot error - Stuck in Preboot\n");
+			"Device boot progress - Stuck in Preboot\n");
 		break;
 	case CPU_BOOT_STATUS_IN_SPL:
 		dev_err(hdev->dev,
-			"Device boot error - Stuck in SPL\n");
+			"Device boot progress - Stuck in SPL\n");
 		break;
 	case CPU_BOOT_STATUS_IN_UBOOT:
 		dev_err(hdev->dev,
-			"Device boot error - Stuck in u-boot\n");
+			"Device boot progress - Stuck in u-boot\n");
 		break;
 	case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
 		dev_err(hdev->dev,
-			"Device boot error - DRAM initialization failed\n");
+			"Device boot progress - DRAM initialization failed\n");
 		break;
 	case CPU_BOOT_STATUS_UBOOT_NOT_READY:
 		dev_err(hdev->dev,
-			"Device boot error - u-boot stopped by user\n");
+			"Device boot progress - Cannot boot\n");
 		break;
 	case CPU_BOOT_STATUS_TS_INIT_FAIL:
 		dev_err(hdev->dev,
-			"Device boot error - Thermal Sensor initialization failed\n");
+			"Device boot progress - Thermal Sensor initialization failed\n");
 		break;
 	default:
 		dev_err(hdev->dev,
-			"Device boot error - Invalid status code %d\n",
+			"Device boot progress - Invalid status code %d\n",
 			status);
 		break;
 	}
