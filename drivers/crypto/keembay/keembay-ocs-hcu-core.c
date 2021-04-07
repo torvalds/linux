@@ -1192,10 +1192,8 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 	}
 
 	hcu_dev->io_base = devm_ioremap_resource(dev, hcu_mem);
-	if (IS_ERR(hcu_dev->io_base)) {
-		dev_err(dev, "Could not io-remap mem resource.\n");
+	if (IS_ERR(hcu_dev->io_base))
 		return PTR_ERR(hcu_dev->io_base);
-	}
 
 	init_completion(&hcu_dev->irq_done);
 
