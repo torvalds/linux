@@ -53,7 +53,7 @@ void test0(void)
 static int __init unittest_enter(void)
 {
 	const unittest_fptr unit_tests[] = {
-		(unittest_fptr)test0,
+		test0,
 		NULL,
 	};
 

@@ -27,7 +27,7 @@ static struct unittest_results {
 	int failed;
 } unittest_results;
 
-typedef void *(*unittest_fptr)(void);
+typedef void (*unittest_fptr)(void);
 
 #define unittest(result, fmt, ...) ({ \
 	bool failed = !(result); \
