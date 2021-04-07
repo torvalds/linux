@@ -208,7 +208,7 @@ static char *translate_scan(struct adapter *padapter,
 	if (vht_cap) {
 		max_rate = vht_data_rate;
 	} else if (ht_cap) {
-		if (mcs_rate&0x8000) /* MCS15 */
+		if (mcs_rate & 0x8000) /* MCS15 */
 			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
 		else /* default MCS7 */
 			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);

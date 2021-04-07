@@ -1846,7 +1846,7 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 	}
 	spin_unlock_bh(&pdvobj->lock);
 
-	if (i > (NUM_STA-1))
+	if (i > (NUM_STA - 1))
 		psta->mac_id = NUM_STA;
 	else
 		psta->mac_id = i;
