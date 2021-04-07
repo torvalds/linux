@@ -209,8 +209,9 @@ static void rk628_post_process_scaler_init(struct rk628_post_process *pp,
 static void rk628_post_process_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct rk628_post_process *pp = bridge_to_pp(bridge);
-	const struct drm_display_mode *src = &pp->src_mode;
-	const struct drm_display_mode *dst = &pp->dst_mode;
+	struct drm_display_mode *src = &pp->src_mode;
+	struct drm_display_mode *dst = &pp->dst_mode;
+	u64 dst_rate, src_rate;
 
 	reset_control_assert(pp->rstc_decoder);
 	udelay(10);
@@ -223,6 +224,12 @@ static void rk628_post_process_bridge_pre_enable(struct drm_bridge *bridge)
 	udelay(10);
 	reset_control_deassert(pp->rstc_clk_rx);
 	udelay(10);
+
+	src_rate = src->clock * 1000;
+	dst_rate = src_rate * dst->vdisplay * dst->htotal;
+	do_div(dst_rate, src->vdisplay * src->htotal);
+	do_div(dst_rate, 1000);
+	dst->clock = dst_rate;
 
 	clk_set_rate(pp->sclk_vop, dst->clock * 1000);
 	clk_prepare_enable(pp->sclk_vop);
