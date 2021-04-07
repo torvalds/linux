@@ -204,8 +204,10 @@ int tty_signal_session_leader(struct tty_struct *tty, int exit_session)
 			spin_lock_irq(&p->sighand->siglock);
 			if (p->signal->tty == tty) {
 				p->signal->tty = NULL;
-				/* We defer the dereferences outside fo
-				   the tasklist lock */
+				/*
+				 * We defer the dereferences outside of
+				 * the tasklist lock.
+				 */
 				refs++;
 			}
 			if (!p->signal->leader) {
@@ -328,9 +330,11 @@ void disassociate_ctty(int on_exit)
  */
 void no_tty(void)
 {
-	/* FIXME: Review locking here. The tty_lock never covered any race
-	   between a new association and proc_clear_tty but possible we need
-	   to protect against this anyway */
+	/*
+	 * FIXME: Review locking here. The tty_lock never covered any race
+	 * between a new association and proc_clear_tty but possibly we need
+	 * to protect against this anyway.
+	 */
 	struct task_struct *tsk = current;
 
 	disassociate_ctty(0);
@@ -536,7 +540,7 @@ static int tiocgsid(struct tty_struct *tty, struct tty_struct *real_tty, pid_t _
 	/*
 	 * (tty == real_tty) is a cheap way of
 	 * testing if the tty is NOT a master pty.
-	*/
+	 */
 	if (tty == real_tty && current->signal->tty != real_tty)
 		return -ENOTTY;
 
