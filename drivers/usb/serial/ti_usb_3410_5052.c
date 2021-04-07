@@ -344,8 +344,6 @@ static int ti_write_byte(struct usb_serial_port *port, struct ti_device *tdev,
 
 static int ti_download_firmware(struct ti_device *tdev);
 
-static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
-
 static const struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
@@ -497,10 +495,6 @@ MODULE_FIRMWARE("moxa/moxa-1131.fw");
 MODULE_FIRMWARE("moxa/moxa-1150.fw");
 MODULE_FIRMWARE("moxa/moxa-1151.fw");
 
-module_param(closing_wait, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(closing_wait,
-    "Maximum wait for data to drain in close, in .01 secs, default is 4000");
-
 MODULE_DEVICE_TABLE(usb, ti_id_table_combined);
 
 module_usb_serial_driver(serial_drivers, ti_id_table_combined);
@@ -608,7 +602,7 @@ static int ti_port_probe(struct usb_serial_port *port)
 		tport->tp_uart_base_addr = TI_UART1_BASE_ADDR;
 	else
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
-	port->port.closing_wait = msecs_to_jiffies(10 * closing_wait);
+	port->port.closing_wait = msecs_to_jiffies(10 * TI_DEFAULT_CLOSING_WAIT);
 	tport->tp_port = port;
 	tport->tp_tdev = usb_get_serial_data(port->serial);
 
