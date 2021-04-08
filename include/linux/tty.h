@@ -349,21 +349,6 @@ struct tty_file_private {
 #define TTY_LDISC_CHANGING	20	/* Change pending - non-block IO */
 #define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
-/* Values for tty->flow_change */
-#define TTY_THROTTLE_SAFE 1
-#define TTY_UNTHROTTLE_SAFE 2
-
-static inline void __tty_set_flow_change(struct tty_struct *tty, int val)
-{
-	tty->flow_change = val;
-}
-
-static inline void tty_set_flow_change(struct tty_struct *tty, int val)
-{
-	tty->flow_change = val;
-	smp_mb();
-}
-
 static inline bool tty_io_nonblock(struct tty_struct *tty, struct file *file)
 {
 	return file->f_flags & O_NONBLOCK ||
@@ -395,7 +380,6 @@ extern struct tty_struct *tty_kopen_exclusive(dev_t device);
 extern struct tty_struct *tty_kopen_shared(dev_t device);
 extern void tty_kclose(struct tty_struct *tty);
 extern int tty_dev_name_to_number(const char *name, dev_t *number);
-extern ssize_t redirected_tty_write(struct kiocb *, struct iov_iter *);
 #else
 static inline void tty_kref_put(struct tty_struct *tty)
 { }

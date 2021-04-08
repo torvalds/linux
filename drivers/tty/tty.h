@@ -40,6 +40,21 @@ enum {
 	TTY_LOCK_SLAVE,
 };
 
+/* Values for tty->flow_change */
+#define TTY_THROTTLE_SAFE	1
+#define TTY_UNTHROTTLE_SAFE	2
+
+static inline void __tty_set_flow_change(struct tty_struct *tty, int val)
+{
+	tty->flow_change = val;
+}
+
+static inline void tty_set_flow_change(struct tty_struct *tty, int val)
+{
+	tty->flow_change = val;
+	smp_mb();
+}
+
 int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout);
 void tty_ldisc_unlock(struct tty_struct *tty);
 
@@ -56,5 +71,7 @@ static inline void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
 }
 #endif
+
+ssize_t redirected_tty_write(struct kiocb *, struct iov_iter *);
 
 #endif
