@@ -1622,21 +1622,17 @@ fail_put_tty_driver:
 
 static int __exit amiga_serial_remove(struct platform_device *pdev)
 {
-	int error;
 	struct serial_state *state = platform_get_drvdata(pdev);
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
-	error = tty_unregister_driver(serial_driver);
-	if (error)
-		printk("SERIAL: failed to unregister serial driver (%d)\n",
-		       error);
+	tty_unregister_driver(serial_driver);
 	put_tty_driver(serial_driver);
 	tty_port_destroy(&state->tport);
 
 	free_irq(IRQ_AMIGA_TBE, state);
 	free_irq(IRQ_AMIGA_RBF, state);
 
-	return error;
+	return 0;
 }
 
 static struct platform_driver amiga_serial_driver = {

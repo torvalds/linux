@@ -395,7 +395,6 @@ static void cx81801_wakeup(struct tty_struct *tty)
 }
 
 static struct tty_ldisc_ops cx81801_ops = {
-	.magic = TTY_LDISC_MAGIC,
 	.name = "cx81801",
 	.owner = THIS_MODULE,
 	.open = cx81801_open,

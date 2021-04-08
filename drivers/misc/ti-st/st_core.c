@@ -845,7 +845,6 @@ static void st_tty_flush_buffer(struct tty_struct *tty)
 }
 
 static struct tty_ldisc_ops st_ldisc_ops = {
-	.magic = TTY_LDISC_MAGIC,
 	.name = "n_st",
 	.open = st_tty_open,
 	.close = st_tty_close,

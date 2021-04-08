@@ -181,7 +181,7 @@ config SERIAL_NONSTANDARD
 	help
 	  Say Y here if you have any non-standard serial boards -- boards
 	  which aren't supported using the standard "dumb" serial driver.
-	  This includes intelligent serial boards such as Cyclades,
+	  This includes intelligent serial boards such as
 	  Digiboards, etc. These are usually used for systems that need many
 	  serial ports because they serve many terminals or dial-in
 	  connections.
@@ -191,50 +191,6 @@ config SERIAL_NONSTANDARD
 	  the questions about non-standard serial boards.
 
 	  Most people can say N here.
-
-config ROCKETPORT
-	tristate "Comtrol RocketPort support"
-	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
-	help
-	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
-	  These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
-	  modems.  For information about the RocketPort/RocketModem  boards
-	  and this driver read <file:Documentation/driver-api/serial/rocket.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rocket.
-
-	  If you want to compile this driver into the kernel, say Y here.  If
-	  you don't have a Comtrol RocketPort/RocketModem card installed, say N.
-
-config CYCLADES
-	tristate "Cyclades async mux support"
-	depends on SERIAL_NONSTANDARD && (PCI || ISA)
-	select FW_LOADER
-	help
-	  This driver supports Cyclades Z and Y multiserial boards.
-	  You would need something like this to connect more than two modems to
-	  your Linux box, for instance in order to become a dial-in server.
-
-	  For information about the Cyclades-Z card, read
-	  <file:Documentation/driver-api/serial/cyclades_z.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cyclades.
-
-	  If you haven't heard about it, it's safe to say N.
-
-config CYZ_INTR
-	bool "Cyclades-Z interrupt mode operation"
-	depends on CYCLADES && PCI
-	help
-	  The Cyclades-Z family of multiport cards allows 2 (two) driver op
-	  modes: polling and interrupt. In polling mode, the driver will check
-	  the status of the Cyclades-Z ports every certain amount of time
-	  (which is called polling cycle and is configurable). In interrupt
-	  mode, it will use an interrupt line (IRQ) in order to check the
-	  status of the Cyclades-Z ports. The default op mode is polling. If
-	  unsure, say N.
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
@@ -266,16 +222,6 @@ config SYNCLINK_GT
 	  Support for SyncLink GT and SyncLink AC families of
 	  synchronous and asynchronous serial adapters
 	  manufactured by Microgate Systems, Ltd. (www.microgate.com)
-
-config ISI
-	tristate "Multi-Tech multiport card support"
-	depends on SERIAL_NONSTANDARD && PCI
-	select FW_LOADER
-	help
-	  This is a driver for the Multi-Tech cards which provide several
-	  serial ports.  The driver is experimental and can currently only be
-	  built as a module. The module will be called isicom.
-	  If you want to do that, choose M here.
 
 config N_HDLC
 	tristate "HDLC line discipline support"

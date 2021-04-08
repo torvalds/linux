@@ -137,37 +137,14 @@ MODULE_PARM_DESC(maxframe, "Maximum frame size used by device (4096 to 65535)");
  */
 static struct tty_driver *serial_driver;
 
-static int  open(struct tty_struct *tty, struct file * filp);
-static void close(struct tty_struct *tty, struct file * filp);
-static void hangup(struct tty_struct *tty);
-static void set_termios(struct tty_struct *tty, struct ktermios *old_termios);
-
-static int  write(struct tty_struct *tty, const unsigned char *buf, int count);
-static int put_char(struct tty_struct *tty, unsigned char ch);
-static void send_xchar(struct tty_struct *tty, char ch);
 static void wait_until_sent(struct tty_struct *tty, int timeout);
-static int  write_room(struct tty_struct *tty);
-static void flush_chars(struct tty_struct *tty);
 static void flush_buffer(struct tty_struct *tty);
-static void tx_hold(struct tty_struct *tty);
 static void tx_release(struct tty_struct *tty);
 
-static int  ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
-static int  chars_in_buffer(struct tty_struct *tty);
-static void throttle(struct tty_struct * tty);
-static void unthrottle(struct tty_struct * tty);
-static int set_break(struct tty_struct *tty, int break_state);
-
 /*
- * generic HDLC support and callbacks
+ * generic HDLC support
  */
-#if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
-static void hdlcdev_tx_done(struct slgt_info *info);
-static void hdlcdev_rx(struct slgt_info *info, char *buf, int size);
-static int  hdlcdev_init(struct slgt_info *info);
-static void hdlcdev_exit(struct slgt_info *info);
-#endif
 
 
 /*
@@ -186,9 +163,6 @@ struct cond_wait {
 	wait_queue_entry_t wait;
 	unsigned int data;
 };
-static void init_cond_wait(struct cond_wait *w, unsigned int data);
-static void add_cond_wait(struct cond_wait **head, struct cond_wait *w);
-static void remove_cond_wait(struct cond_wait **head, struct cond_wait *w);
 static void flush_cond_wait(struct cond_wait **head);
 
 /*
@@ -443,12 +417,8 @@ static void shutdown(struct slgt_info *info);
 static void program_hw(struct slgt_info *info);
 static void change_params(struct slgt_info *info);
 
-static int  register_test(struct slgt_info *info);
-static int  irq_test(struct slgt_info *info);
-static int  loopback_test(struct slgt_info *info);
 static int  adapter_test(struct slgt_info *info);
 
-static void reset_adapter(struct slgt_info *info);
 static void reset_port(struct slgt_info *info);
 static void async_mode(struct slgt_info *info);
 static void sync_mode(struct slgt_info *info);
@@ -457,14 +427,12 @@ static void rx_stop(struct slgt_info *info);
 static void rx_start(struct slgt_info *info);
 static void reset_rbufs(struct slgt_info *info);
 static void free_rbufs(struct slgt_info *info, unsigned int first, unsigned int last);
-static void rdma_reset(struct slgt_info *info);
 static bool rx_get_frame(struct slgt_info *info);
 static bool rx_get_buf(struct slgt_info *info);
 
 static void tx_start(struct slgt_info *info);
 static void tx_stop(struct slgt_info *info);
 static void tx_set_idle(struct slgt_info *info);
-static unsigned int free_tbuf_count(struct slgt_info *info);
 static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
@@ -472,26 +440,10 @@ static bool tx_load(struct slgt_info *info, const char *buf, unsigned int count)
 
 static void get_signals(struct slgt_info *info);
 static void set_signals(struct slgt_info *info);
-static void enable_loopback(struct slgt_info *info);
 static void set_rate(struct slgt_info *info, u32 data_rate);
 
-static int  bh_action(struct slgt_info *info);
-static void bh_handler(struct work_struct *work);
 static void bh_transmit(struct slgt_info *info);
-static void isr_serial(struct slgt_info *info);
-static void isr_rdma(struct slgt_info *info);
 static void isr_txeom(struct slgt_info *info, unsigned short status);
-static void isr_tdma(struct slgt_info *info);
-
-static int  alloc_dma_bufs(struct slgt_info *info);
-static void free_dma_bufs(struct slgt_info *info);
-static int  alloc_desc(struct slgt_info *info);
-static void free_desc(struct slgt_info *info);
-static int  alloc_bufs(struct slgt_info *info, struct slgt_desc *bufs, int count);
-static void free_bufs(struct slgt_info *info, struct slgt_desc *bufs, int count);
-
-static int  alloc_tmp_rbuf(struct slgt_info *info);
-static void free_tmp_rbuf(struct slgt_info *info);
 
 static void tx_timeout(struct timer_list *t);
 static void rx_timeout(struct timer_list *t);
@@ -509,10 +461,6 @@ static int  tx_abort(struct slgt_info *info);
 static int  rx_enable(struct slgt_info *info, int enable);
 static int  modem_input_wait(struct slgt_info *info,int arg);
 static int  wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr);
-static int  tiocmget(struct tty_struct *tty);
-static int  tiocmset(struct tty_struct *tty,
-				unsigned int set, unsigned int clear);
-static int set_break(struct tty_struct *tty, int break_state);
 static int  get_interface(struct slgt_info *info, int __user *if_mode);
 static int  set_interface(struct slgt_info *info, int if_mode);
 static int  set_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
@@ -526,9 +474,6 @@ static int  set_xctrl(struct slgt_info *info, int if_mode);
 /*
  * driver functions
  */
-static void add_device(struct slgt_info *info);
-static void device_init(int adapter_num, struct pci_dev *pdev);
-static int  claim_resources(struct slgt_info *info);
 static void release_resources(struct slgt_info *info);
 
 /*
@@ -3705,7 +3650,6 @@ static const struct tty_operations ops = {
 
 static void slgt_cleanup(void)
 {
-	int rc;
 	struct slgt_info *info;
 	struct slgt_info *tmp;
 
@@ -3714,9 +3658,7 @@ static void slgt_cleanup(void)
 	if (serial_driver) {
 		for (info=slgt_device_list ; info != NULL ; info=info->next_device)
 			tty_unregister_device(serial_driver, info->line);
-		rc = tty_unregister_driver(serial_driver);
-		if (rc)
-			DBGERR(("tty_unregister_driver error=%d\n", rc));
+		tty_unregister_driver(serial_driver);
 		put_tty_driver(serial_driver);
 	}
 

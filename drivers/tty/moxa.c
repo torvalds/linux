@@ -1118,9 +1118,7 @@ static void __exit moxa_exit(void)
 
 	del_timer_sync(&moxaTimer);
 
-	if (tty_unregister_driver(moxaDriver))
-		printk(KERN_ERR "Couldn't unregister MOXA Intellio family "
-				"serial driver\n");
+	tty_unregister_driver(moxaDriver);
 	put_tty_driver(moxaDriver);
 }
 

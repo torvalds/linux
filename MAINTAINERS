@@ -4876,16 +4876,8 @@ S:	Maintained
 W:	http://www.armlinux.org.uk/
 F:	drivers/video/fbdev/cyber2000fb.*
 
-CYCLADES ASYNC MUX DRIVER
-S:	Orphan
-W:	http://www.cyclades.com/
-F:	drivers/tty/cyclades.c
-F:	include/linux/cyclades.h
-F:	include/uapi/linux/cyclades.h
-
 CYCLADES PC300 DRIVER
 S:	Orphan
-W:	http://www.cyclades.com/
 F:	drivers/net/wan/pc300*
 
 CYPRESS_FIRMWARE MEDIA DRIVER
@@ -12089,8 +12081,7 @@ F:	drivers/media/pci/meye/
 F:	include/uapi/linux/meye.h
 
 MOXA SMARTIO/INDUSTIO/INTELLIO SERIAL CARD
-M:	Jiri Slaby <jirislaby@kernel.org>
-S:	Maintained
+S:	Orphan
 F:	Documentation/driver-api/serial/moxa-smartio.rst
 F:	drivers/tty/mxser.*
 
@@ -12233,11 +12224,6 @@ F:	Documentation/devicetree/bindings/mux/
 F:	drivers/mux/
 F:	include/dt-bindings/mux/
 F:	include/linux/mux/
-
-MULTITECH MULTIPORT CARD (ISICOM)
-S:	Orphan
-F:	drivers/tty/isicom.c
-F:	include/linux/isicom.h
 
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
 M:	Bin Liu <b-liu@ti.com>
@@ -15408,12 +15394,6 @@ M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/rocker/
-
-ROCKETPORT DRIVER
-S:	Maintained
-W:	http://www.comtrol.com
-F:	Documentation/driver-api/serial/rocket.rst
-F:	drivers/tty/rocket*
 
 ROCKETPORT EXPRESS/INFINITY DRIVER
 M:	Kevin Cernekee <cernekee@gmail.com>

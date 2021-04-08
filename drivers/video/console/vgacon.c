@@ -96,7 +96,7 @@ static bool 		vga_is_gfx;
 static bool 		vga_512_chars;
 static int 		vga_video_font_height;
 static int 		vga_scan_lines		__read_mostly;
-static unsigned int 	vga_rolled_over;
+static unsigned int 	vga_rolled_over; /* last vc_origin offset before wrap */
 
 static bool vgacon_text_mode_force;
 static bool vga_hardscroll_enabled;
