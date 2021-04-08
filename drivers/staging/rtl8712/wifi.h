@@ -276,40 +276,5 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
  */
 #define _WMM_IE_Length_				7  /* for WMM STA */
 
-/*-----------------------------------------------------------------------------
- *			Below is the definition for 802.11n
- *------------------------------------------------------------------------------
- */
-
-/*
- * struct rtl_ieee80211_ht_cap - HT capabilities
- *
- * This structure refers to "HT capabilities element" as
- * described in 802.11n draft section 7.3.2.52
- */
-
-struct rtl_ieee80211_ht_cap {
-	__le16	cap_info;
-	unsigned char	ampdu_params_info;
-	unsigned char	supp_mcs_set[16];
-	__le16	extended_ht_cap_info;
-	__le32	tx_BF_cap_info;
-	unsigned char	       antenna_selection_info;
-} __packed;
-
-/**
- * struct ieee80211_ht_addt_info - HT additional information
- *
- * This structure refers to "HT information element" as
- * described in 802.11n draft section 7.3.2.53
- */
-struct ieee80211_ht_addt_info {
-	unsigned char	control_chan;
-	unsigned char		ht_param;
-	__le16	operation_mode;
-	__le16	stbc_param;
-	unsigned char		basic_set[16];
-} __packed;
-
 #endif /* _WIFI_H_ */
 
