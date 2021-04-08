@@ -302,7 +302,6 @@ static void mt7915_init_work(struct work_struct *work)
 static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 {
 	u32 val = MT_TOP_PWR_KEY | MT_TOP_PWR_SW_PWR_ON | MT_TOP_PWR_PWR_ON;
-	u32 reg = mt7915_reg_map_l1(dev, MT_TOP_MISC);
 
 #define MT_MCU_DUMMY_RANDOM	GENMASK(15, 0)
 #define MT_MCU_DUMMY_DEFAULT	GENMASK(31, 16)
@@ -334,7 +333,7 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 	}
 
 	/* wfsys reset won't clear host registers */
-	mt76_clear(dev, reg, MT_TOP_MISC_FW_STATE);
+	mt76_clear(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE);
 
 	msleep(100);
 }
@@ -342,7 +341,6 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 static int mt7915_init_hardware(struct mt7915_dev *dev)
 {
 	int ret, idx;
-	u32 val;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
@@ -350,12 +348,11 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 	spin_lock_init(&dev->token_lock);
 	idr_init(&dev->token);
 
-	dev->dbdc_support = !!(mt7915_l1_rr(dev, MT_HW_BOUND) & BIT(5));
-
-	val = mt76_rr(dev, mt7915_reg_map_l1(dev, MT_TOP_MISC));
+	dev->dbdc_support = !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5));
 
 	/* If MCU was already running, it is likely in a bad state */
-	if (FIELD_GET(MT_TOP_MISC_FW_STATE, val) > FW_STATE_FW_DOWNLOAD)
+	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >
+	    FW_STATE_FW_DOWNLOAD)
 		mt7915_wfsys_reset(dev);
 
 	ret = mt7915_dma_init(dev);

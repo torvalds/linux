@@ -1300,8 +1300,8 @@ void mt7915_mac_cca_stats_reset(struct mt7915_phy *phy)
 	bool ext_phy = phy != &dev->phy;
 	u32 reg = MT_WF_PHY_RX_CTRL1(ext_phy);
 
-	mt7915_l2_clear(dev, reg, MT_WF_PHY_RX_CTRL1_STSCNT_EN);
-	mt7915_l2_set(dev, reg, BIT(11) | BIT(9));
+	mt76_clear(dev, reg, MT_WF_PHY_RX_CTRL1_STSCNT_EN);
+	mt76_set(dev, reg, BIT(11) | BIT(9));
 }
 
 void mt7915_mac_reset_counters(struct mt7915_phy *phy)
@@ -1394,12 +1394,12 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 
 void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool ext_phy)
 {
-	mt7915_l2_set(dev, MT_WF_PHY_RXTD12(ext_phy),
-		      MT_WF_PHY_RXTD12_IRPI_SW_CLR_ONLY |
-		      MT_WF_PHY_RXTD12_IRPI_SW_CLR);
+	mt76_set(dev, MT_WF_PHY_RXTD12(ext_phy),
+		 MT_WF_PHY_RXTD12_IRPI_SW_CLR_ONLY |
+		 MT_WF_PHY_RXTD12_IRPI_SW_CLR);
 
-	mt7915_l2_set(dev, MT_WF_PHY_RX_CTRL1(ext_phy),
-		      FIELD_PREP(MT_WF_PHY_RX_CTRL1_IPI_EN, 0x5));
+	mt76_set(dev, MT_WF_PHY_RX_CTRL1(ext_phy),
+		 FIELD_PREP(MT_WF_PHY_RX_CTRL1_IPI_EN, 0x5));
 }
 
 static u8
@@ -1414,7 +1414,7 @@ mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
 		u32 reg = MT_WF_IRPI(nss + (idx << dev->dbdc_support));
 
 		for (i = 0; i < ARRAY_SIZE(nf_power); i++, reg += 4) {
-			val = mt7915_l2_rr(dev, reg);
+			val = mt76_rr(dev, reg);
 			sum += val * nf_power[i];
 			n += val;
 		}
