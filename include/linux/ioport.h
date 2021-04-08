@@ -331,7 +331,7 @@ static inline void irqresource_disabled(struct resource *res, u32 irq)
 {
 	res->start = irq;
 	res->end = irq;
-	res->flags = IORESOURCE_IRQ | IORESOURCE_DISABLED | IORESOURCE_UNSET;
+	res->flags |= IORESOURCE_IRQ | IORESOURCE_DISABLED | IORESOURCE_UNSET;
 }
 
 extern struct address_space *iomem_get_mapping(void);
