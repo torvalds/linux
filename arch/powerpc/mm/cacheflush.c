@@ -152,16 +152,16 @@ static void flush_dcache_icache_hugepage(struct page *page)
 {
 	int i;
 	int nr = compound_nr(page);
-	void *start;
 
 	if (!PageHighMem(page)) {
 		for (i = 0; i < nr; i++)
 			__flush_dcache_icache(lowmem_page_address(page + i));
 	} else {
 		for (i = 0; i < nr; i++) {
-			start = kmap_atomic(page+i);
+			void *start = kmap_local_page(page + i);
+
 			__flush_dcache_icache(start);
-			kunmap_atomic(start);
+			kunmap_local(start);
 		}
 	}
 }
@@ -177,9 +177,10 @@ void flush_dcache_icache_page(struct page *page)
 	if (!PageHighMem(page)) {
 		__flush_dcache_icache(lowmem_page_address(page));
 	} else if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
-		void *start = kmap_atomic(page);
+		void *start = kmap_local_page(page);
+
 		__flush_dcache_icache(start);
-		kunmap_atomic(start);
+		kunmap_local(start);
 	} else {
 		flush_dcache_icache_phys(page_to_phys(page));
 	}
@@ -225,9 +226,9 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 void flush_icache_user_page(struct vm_area_struct *vma, struct page *page,
 			     unsigned long addr, int len)
 {
-	unsigned long maddr;
+	void *maddr;
 
-	maddr = (unsigned long) kmap(page) + (addr & ~PAGE_MASK);
-	flush_icache_range(maddr, maddr + len);
-	kunmap(page);
+	maddr = kmap_local_page(page) + (addr & ~PAGE_MASK);
+	flush_icache_range((unsigned long)maddr, (unsigned long)maddr + len);
+	kunmap_local(maddr);
 }
