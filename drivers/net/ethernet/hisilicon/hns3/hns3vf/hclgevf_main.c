@@ -2114,10 +2114,11 @@ static void hclgevf_enable_vector(struct hclgevf_misc_vector *vector, bool en)
 	writel(en ? 1 : 0, vector->addr);
 }
 
-static void hclgevf_flr_prepare(struct hnae3_ae_dev *ae_dev)
+static void hclgevf_reset_prepare_general(struct hnae3_ae_dev *ae_dev,
+					  enum hnae3_reset_type rst_type)
 {
-#define HCLGEVF_FLR_RETRY_WAIT_MS	500
-#define HCLGEVF_FLR_RETRY_CNT		5
+#define HCLGEVF_RESET_RETRY_WAIT_MS	500
+#define HCLGEVF_RESET_RETRY_CNT		5
 
 	struct hclgevf_dev *hdev = ae_dev->priv;
 	int retry_cnt = 0;
@@ -2126,29 +2127,31 @@ static void hclgevf_flr_prepare(struct hnae3_ae_dev *ae_dev)
 retry:
 	down(&hdev->reset_sem);
 	set_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
-	hdev->reset_type = HNAE3_FLR_RESET;
+	hdev->reset_type = rst_type;
 	ret = hclgevf_reset_prepare(hdev);
 	if (ret) {
-		dev_err(&hdev->pdev->dev, "fail to prepare FLR, ret=%d\n",
+		dev_err(&hdev->pdev->dev, "fail to prepare to reset, ret=%d\n",
 			ret);
 		if (hdev->reset_pending ||
-		    retry_cnt++ < HCLGEVF_FLR_RETRY_CNT) {
+		    retry_cnt++ < HCLGEVF_RESET_RETRY_CNT) {
 			dev_err(&hdev->pdev->dev,
 				"reset_pending:0x%lx, retry_cnt:%d\n",
 				hdev->reset_pending, retry_cnt);
 			clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 			up(&hdev->reset_sem);
-			msleep(HCLGEVF_FLR_RETRY_WAIT_MS);
+			msleep(HCLGEVF_RESET_RETRY_WAIT_MS);
 			goto retry;
 		}
 	}
 
-	/* disable misc vector before FLR done */
+	/* disable misc vector before reset done */
 	hclgevf_enable_vector(&hdev->misc_vector, false);
-	hdev->rst_stats.flr_rst_cnt++;
+
+	if (hdev->reset_type == HNAE3_FLR_RESET)
+		hdev->rst_stats.flr_rst_cnt++;
 }
 
-static void hclgevf_flr_done(struct hnae3_ae_dev *ae_dev)
+static void hclgevf_reset_done(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclgevf_dev *hdev = ae_dev->priv;
 	int ret;
@@ -3748,8 +3751,8 @@ void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
-	.flr_prepare = hclgevf_flr_prepare,
-	.flr_done = hclgevf_flr_done,
+	.reset_prepare = hclgevf_reset_prepare_general,
+	.reset_done = hclgevf_reset_done,
 	.init_client_instance = hclgevf_init_client_instance,
 	.uninit_client_instance = hclgevf_uninit_client_instance,
 	.start = hclgevf_ae_start,

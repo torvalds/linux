@@ -2423,8 +2423,8 @@ static void hns3_reset_prepare(struct pci_dev *pdev)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
 	dev_info(&pdev->dev, "FLR prepare\n");
-	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_prepare)
-		ae_dev->ops->flr_prepare(ae_dev);
+	if (ae_dev && ae_dev->ops && ae_dev->ops->reset_prepare)
+		ae_dev->ops->reset_prepare(ae_dev, HNAE3_FLR_RESET);
 }
 
 static void hns3_reset_done(struct pci_dev *pdev)
@@ -2432,8 +2432,8 @@ static void hns3_reset_done(struct pci_dev *pdev)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
 	dev_info(&pdev->dev, "FLR done\n");
-	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_done)
-		ae_dev->ops->flr_done(ae_dev);
+	if (ae_dev && ae_dev->ops && ae_dev->ops->reset_done)
+		ae_dev->ops->reset_done(ae_dev);
 }
 
 static const struct pci_error_handlers hns3_err_handler = {

@@ -474,8 +474,9 @@ struct hnae3_ae_dev {
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
 	void (*uninit_ae_dev)(struct hnae3_ae_dev *ae_dev);
-	void (*flr_prepare)(struct hnae3_ae_dev *ae_dev);
-	void (*flr_done)(struct hnae3_ae_dev *ae_dev);
+	void (*reset_prepare)(struct hnae3_ae_dev *ae_dev,
+			      enum hnae3_reset_type rst_type);
+	void (*reset_done)(struct hnae3_ae_dev *ae_dev);
 	int (*init_client_instance)(struct hnae3_client *client,
 				    struct hnae3_ae_dev *ae_dev);
 	void (*uninit_client_instance)(struct hnae3_client *client,
