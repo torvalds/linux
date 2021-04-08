@@ -281,7 +281,7 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	return tty_port_open(&port->port, tty, filp);
 }
@@ -310,7 +310,7 @@ static void serial_hangup(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	tty_port_hangup(&port->port);
 }
@@ -319,7 +319,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	tty_port_close(&port->port, tty, filp);
 }
@@ -339,7 +339,7 @@ static void serial_cleanup(struct tty_struct *tty)
 	struct usb_serial *serial;
 	struct module *owner;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	/* The console is magical.  Do not hang up the console hardware
 	 * or there will be tears.
@@ -367,7 +367,7 @@ static int serial_write(struct tty_struct *tty, const unsigned char *buf,
 	if (port->serial->dev->state == USB_STATE_NOTATTACHED)
 		goto exit;
 
-	dev_dbg(tty->dev, "%s - %d byte(s)\n", __func__, count);
+	dev_dbg(&port->dev, "%s - %d byte(s)\n", __func__, count);
 
 	retval = port->serial->type->write(tty, port, buf, count);
 	if (retval < 0)
@@ -380,7 +380,7 @@ static int serial_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	return port->serial->type->write_room(tty);
 }
@@ -390,7 +390,7 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (serial->disconnected)
 		return 0;
@@ -403,7 +403,7 @@ static void serial_wait_until_sent(struct tty_struct *tty, int timeout)
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (!port->serial->type->wait_until_sent)
 		return;
@@ -418,7 +418,7 @@ static void serial_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->throttle)
 		port->serial->type->throttle(tty);
@@ -428,7 +428,7 @@ static void serial_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->unthrottle)
 		port->serial->type->unthrottle(tty);
@@ -501,7 +501,7 @@ static int serial_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENOIOCTLCMD;
 
-	dev_dbg(tty->dev, "%s - cmd 0x%04x\n", __func__, cmd);
+	dev_dbg(&port->dev, "%s - cmd 0x%04x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCMIWAIT:
@@ -520,7 +520,7 @@ static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->set_termios)
 		port->serial->type->set_termios(tty, port, old);
@@ -532,7 +532,7 @@ static int serial_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->break_ctl)
 		port->serial->type->break_ctl(tty, break_state);
@@ -579,7 +579,7 @@ static int serial_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->tiocmget)
 		return port->serial->type->tiocmget(tty);
@@ -591,7 +591,7 @@ static int serial_tiocmset(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->tiocmset)
 		return port->serial->type->tiocmset(tty, set, clear);
@@ -603,7 +603,7 @@ static int serial_get_icount(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->get_icount)
 		return port->serial->type->get_icount(tty, icount);
