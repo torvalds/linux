@@ -704,7 +704,7 @@ int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
 int pm8001_mpi_dereg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
 int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 							void *piomb);
-int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha , void *piomb);
+int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha, void *piomb);
 int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
 struct sas_task *pm8001_alloc_task(void);
 void pm8001_task_done(struct sas_task *task);

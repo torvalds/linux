@@ -877,8 +877,8 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 			   pm8001_dev->device_id, pm8001_dev->dev_type);
 		if (atomic_read(&pm8001_dev->running_req)) {
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-			pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
-				dev, 1, 0);
+			pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
+							dev, 1, 0);
 			while (atomic_read(&pm8001_dev->running_req))
 				msleep(20);
 			spin_lock_irqsave(&pm8001_ha->lock, flags);
@@ -1014,8 +1014,8 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 			goto out;
 		}
 		msleep(2000);
-		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
-			dev, 1, 0);
+		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
+						     dev, 1, 0);
 		if (rc) {
 			pm8001_dbg(pm8001_ha, EH, "task abort failed %x\n"
 				   "with rc %d\n", pm8001_dev->device_id, rc);
@@ -1060,8 +1060,8 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 			goto out;
 		}
 		/* send internal ssp/sata/smp abort command to FW */
-		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
-							dev, 1, 0);
+		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
+						     dev, 1, 0);
 		msleep(100);
 
 		/* deregister the target device */
@@ -1076,8 +1076,8 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 		wait_for_completion(&completion_setstate);
 	} else {
 		/* send internal ssp/sata/smp abort command to FW */
-		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
-							dev, 1, 0);
+		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
+						     dev, 1, 0);
 		msleep(100);
 
 		/* deregister the target device */
@@ -1105,8 +1105,8 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 	DECLARE_COMPLETION_ONSTACK(completion_setstate);
 	if (dev_is_sata(dev)) {
 		struct sas_phy *phy = sas_get_local_phy(dev);
-		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
-			dev, 1, 0);
+		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
+						     dev, 1, 0);
 		rc = sas_phy_reset(phy, 1);
 		sas_put_local_phy(phy);
 		pm8001_dev->setds_completion = &completion_setstate;

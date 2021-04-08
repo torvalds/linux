@@ -1826,7 +1826,7 @@ static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
  * that the task has been finished.
  */
 static void
-mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
+mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
 	struct sas_task *t;
 	struct pm8001_ccb_info *ccb;
@@ -2058,7 +2058,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 }
 
 /*See the comments for mpi_ssp_completion */
-static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
+static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
 	struct sas_task *t;
 	unsigned long flags;
@@ -2294,9 +2294,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		(status != IO_UNDERFLOW)) {
 		if (!((t->dev->parent) &&
 			(dev_is_expander(t->dev->parent->dev_type)))) {
-			for (i = 0 , j = 4; j <= 7 && i <= 3; i++ , j++)
+			for (i = 0, j = 4; j <= 7 && i <= 3; i++, j++)
 				sata_addr_low[i] = pm8001_ha->sas_addr[j];
-			for (i = 0 , j = 0; j <= 3 && i <= 3; i++ , j++)
+			for (i = 0, j = 0; j <= 3 && i <= 3; i++, j++)
 				sata_addr_hi[i] = pm8001_ha->sas_addr[j];
 			memcpy(&temp_sata_addr_low, sata_addr_low,
 				sizeof(sata_addr_low));
@@ -2625,7 +2625,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 }
 
 /*See the comments for mpi_ssp_completion */
-static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
+static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
 	struct sas_task *t;
 	struct task_status_struct *ts;
@@ -3602,7 +3602,7 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 	return 0;
 }
 
-int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
+int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
 	u32 status;
 	int i;
@@ -3685,7 +3685,7 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
  * @pm8001_ha: our hba card information
  * @piomb: IO message buffer
  */
-static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void* piomb)
+static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
 	unsigned long flags;
 	struct hw_event_resp *pPayload =

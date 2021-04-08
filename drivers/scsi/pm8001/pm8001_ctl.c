@@ -369,24 +369,22 @@ static ssize_t pm8001_ctl_aap_log_show(struct device *cdev,
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	u8 *ptr = (u8 *)pm8001_ha->memoryMap.region[AAP1].virt_ptr;
 	int i;
-#define AAP1_MEMMAP(r, c) \
-	(*(u32 *)((u8*)pm8001_ha->memoryMap.region[AAP1].virt_ptr + (r) * 32 \
-	+ (c)))
 
 	char *str = buf;
 	int max = 2;
 	for (i = 0; i < max; i++) {
 		str += sprintf(str, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x"
 			       "0x%08x 0x%08x\n",
-			       AAP1_MEMMAP(i, 0),
-			       AAP1_MEMMAP(i, 4),
-			       AAP1_MEMMAP(i, 8),
-			       AAP1_MEMMAP(i, 12),
-			       AAP1_MEMMAP(i, 16),
-			       AAP1_MEMMAP(i, 20),
-			       AAP1_MEMMAP(i, 24),
-			       AAP1_MEMMAP(i, 28));
+			       pm8001_ctl_aap1_memmap(ptr, i, 0),
+			       pm8001_ctl_aap1_memmap(ptr, i, 4),
+			       pm8001_ctl_aap1_memmap(ptr, i, 8),
+			       pm8001_ctl_aap1_memmap(ptr, i, 12),
+			       pm8001_ctl_aap1_memmap(ptr, i, 16),
+			       pm8001_ctl_aap1_memmap(ptr, i, 20),
+			       pm8001_ctl_aap1_memmap(ptr, i, 24),
+			       pm8001_ctl_aap1_memmap(ptr, i, 28));
 	}
 
 	return str - buf;
