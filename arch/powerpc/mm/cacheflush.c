@@ -135,6 +135,36 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
+/**
+ * __flush_dcache_icache(): Flush a particular page from the data cache to RAM.
+ * Note: this is necessary because the instruction cache does *not*
+ * snoop from the data cache.
+ *
+ * @p: the address of the page to flush
+ */
+static void __flush_dcache_icache(void *p)
+{
+	unsigned long addr = (unsigned long)p;
+
+	if (flush_coherent_icache(addr))
+		return;
+
+	clean_dcache_range(addr, addr + PAGE_SIZE);
+
+	/*
+	 * We don't flush the icache on 44x. Those have a virtual icache and we
+	 * don't have access to the virtual address here (it's not the page
+	 * vaddr but where it's mapped in user space). The flushing of the
+	 * icache on these is handled elsewhere, when a change in the address
+	 * space occurs, before returning to user space.
+	 */
+
+	if (mmu_has_feature(MMU_FTR_TYPE_44x))
+		return;
+
+	invalidate_icache_range(addr, addr + PAGE_SIZE);
+}
+
 static void flush_dcache_icache_hugepage(struct page *page)
 {
 	int i;
@@ -177,36 +207,6 @@ void flush_dcache_icache_page(struct page *page)
 #endif
 }
 EXPORT_SYMBOL(flush_dcache_icache_page);
-
-/**
- * __flush_dcache_icache(): Flush a particular page from the data cache to RAM.
- * Note: this is necessary because the instruction cache does *not*
- * snoop from the data cache.
- *
- * @page: the address of the page to flush
- */
-void __flush_dcache_icache(void *p)
-{
-	unsigned long addr = (unsigned long)p;
-
-	if (flush_coherent_icache(addr))
-		return;
-
-	clean_dcache_range(addr, addr + PAGE_SIZE);
-
-	/*
-	 * We don't flush the icache on 44x. Those have a virtual icache and we
-	 * don't have access to the virtual address here (it's not the page
-	 * vaddr but where it's mapped in user space). The flushing of the
-	 * icache on these is handled elsewhere, when a change in the address
-	 * space occurs, before returning to user space.
-	 */
-
-	if (mmu_has_feature(MMU_FTR_TYPE_44x))
-		return;
-
-	invalidate_icache_range(addr, addr + PAGE_SIZE);
-}
 
 void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 {
