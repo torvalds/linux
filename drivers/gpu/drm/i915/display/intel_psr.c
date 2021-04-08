@@ -739,6 +739,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	/* Wa_16011181250 */
+	if (IS_ROCKETLAKE(dev_priv) || IS_ALDERLAKE_S(dev_priv)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 is defeatured for this platform\n");
+		return false;
+	}
+
 	if (!transcoder_has_psr2(dev_priv, crtc_state->cpu_transcoder)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 not supported in transcoder %s\n",
