@@ -1333,7 +1333,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, io_rsrc_no) ||
-	    pnp_port_len(pdev, io_rsrc_no) != dev_desc->io_region_size) {
+	    pnp_port_len(pdev, io_rsrc_no) < dev_desc->io_region_size) {
 		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
 		goto exit_free_dev_rdev;
 	}
