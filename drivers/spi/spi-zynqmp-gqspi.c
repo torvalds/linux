@@ -521,7 +521,7 @@ static void zynqmp_qspi_filltxfifo(struct zynqmp_qspi *xqspi, int size)
 {
 	u32 count = 0, intermediate;
 
-	while ((xqspi->bytes_to_transfer > 0) && (count < size)) {
+	while ((xqspi->bytes_to_transfer > 0) && (count < size) && (xqspi->txbuf)) {
 		memcpy(&intermediate, xqspi->txbuf, 4);
 		zynqmp_gqspi_write(xqspi, GQSPI_TXD_OFST, intermediate);
 
@@ -580,7 +580,7 @@ static void zynqmp_qspi_fillgenfifo(struct zynqmp_qspi *xqspi, u8 nbits,
 		genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
 		genfifoentry |= GQSPI_GENFIFO_TX;
 		transfer_len = xqspi->bytes_to_transfer;
-	} else {
+	} else if (xqspi->rxbuf) {
 		genfifoentry &= ~GQSPI_GENFIFO_TX;
 		genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
 		genfifoentry |= GQSPI_GENFIFO_RX;
@@ -588,6 +588,11 @@ static void zynqmp_qspi_fillgenfifo(struct zynqmp_qspi *xqspi, u8 nbits,
 			transfer_len = xqspi->dma_rx_bytes;
 		else
 			transfer_len = xqspi->bytes_to_receive;
+	} else {
+		/* Sending dummy circles here */
+		genfifoentry &= ~(GQSPI_GENFIFO_TX | GQSPI_GENFIFO_RX);
+		genfifoentry |= GQSPI_GENFIFO_DATA_XFER;
+		transfer_len = xqspi->bytes_to_transfer;
 	}
 	genfifoentry |= zynqmp_qspi_selectspimode(xqspi, nbits);
 	xqspi->genfifoentry = genfifoentry;
@@ -1011,32 +1016,23 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 	}
 
 	if (op->dummy.nbytes) {
-		tmpbuf = kzalloc(op->dummy.nbytes, GFP_KERNEL | GFP_DMA);
-		if (!tmpbuf)
-			return -ENOMEM;
-		memset(tmpbuf, 0xff, op->dummy.nbytes);
-		reinit_completion(&xqspi->data_completion);
-		xqspi->txbuf = tmpbuf;
+		xqspi->txbuf = NULL;
 		xqspi->rxbuf = NULL;
-		xqspi->bytes_to_transfer = op->dummy.nbytes;
+		/*
+		 * xqspi->bytes_to_transfer here represents the dummy circles
+		 * which need to be sent.
+		 */
+		xqspi->bytes_to_transfer = op->dummy.nbytes * 8 / op->dummy.buswidth;
 		xqspi->bytes_to_receive = 0;
-		zynqmp_qspi_write_op(xqspi, op->dummy.buswidth,
+		/*
+		 * Using op->data.buswidth instead of op->dummy.buswidth here because
+		 * we need to use it to configure the correct SPI mode.
+		 */
+		zynqmp_qspi_write_op(xqspi, op->data.buswidth,
 				     genfifoentry);
 		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST,
 				   zynqmp_gqspi_read(xqspi, GQSPI_CONFIG_OFST) |
 				   GQSPI_CFG_START_GEN_FIFO_MASK);
-		zynqmp_gqspi_write(xqspi, GQSPI_IER_OFST,
-				   GQSPI_IER_TXEMPTY_MASK |
-				   GQSPI_IER_GENFIFOEMPTY_MASK |
-				   GQSPI_IER_TXNOT_FULL_MASK);
-		if (!wait_for_completion_interruptible_timeout
-		    (&xqspi->data_completion, msecs_to_jiffies(1000))) {
-			err = -ETIMEDOUT;
-			kfree(tmpbuf);
-			goto return_err;
-		}
-
-		kfree(tmpbuf);
 	}
 
 	if (op->data.nbytes) {
