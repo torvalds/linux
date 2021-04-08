@@ -2137,6 +2137,7 @@ static int of_dev_hwmod_lookup(struct device_node *np,
 		if (res == 0) {
 			*found = fc;
 			*index = i;
+			of_node_put(np0);
 			return 0;
 		}
 	}
