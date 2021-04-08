@@ -76,7 +76,7 @@ void flush_icache_range(unsigned long start, unsigned long stop)
 }
 EXPORT_SYMBOL(flush_icache_range);
 
-#if !defined(CONFIG_PPC_8xx) && !defined(CONFIG_PPC64)
+#ifdef CONFIG_HIGHMEM
 /**
  * flush_dcache_icache_phys() - Flush a page by it's physical address
  * @physaddr: the physical address of the page
@@ -115,7 +115,11 @@ static void flush_dcache_icache_phys(unsigned long physaddr)
 		: "ctr", "memory");
 }
 NOKPROBE_SYMBOL(flush_dcache_icache_phys)
-#endif // !defined(CONFIG_PPC_8xx) && !defined(CONFIG_PPC64)
+#else
+static void flush_dcache_icache_phys(unsigned long physaddr)
+{
+}
+#endif
 
 /*
  * This is called when a page has been modified by the kernel.
@@ -185,18 +189,15 @@ void flush_dcache_icache_page(struct page *page)
 	if (PageCompound(page))
 		return flush_dcache_icache_hugepage(page);
 
-#if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC64)
-	/* On 8xx there is no need to kmap since highmem is not supported */
-	__flush_dcache_icache(page_address(page));
-#else
-	if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
+	if (!PageHighMem(page)) {
+		__flush_dcache_icache(lowmem_page_address(page));
+	} else if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
 		void *start = kmap_atomic(page);
 		__flush_dcache_icache(start);
 		kunmap_atomic(start);
 	} else {
 		flush_dcache_icache_phys(page_to_phys(page));
 	}
-#endif
 }
 EXPORT_SYMBOL(flush_dcache_icache_page);
 
