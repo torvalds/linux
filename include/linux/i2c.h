@@ -51,6 +51,9 @@ struct module;
 struct property_entry;
 
 #if IS_ENABLED(CONFIG_I2C)
+/* Return the Frequency mode string based on the bus frequency */
+const char *i2c_freq_mode_string(u32 bus_freq_hz);
+
 /*
  * The master routines are the ones normally used to transmit data to devices
  * on a bus (or read from them). Apart from two basic transfer functions to
