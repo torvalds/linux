@@ -1657,9 +1657,9 @@ void iio_device_free(struct iio_dev *dev)
 }
 EXPORT_SYMBOL(iio_device_free);
 
-static void devm_iio_device_release(struct device *dev, void *res)
+static void devm_iio_device_release(void *iio_dev)
 {
-	iio_device_free(*(struct iio_dev **)res);
+	iio_device_free(iio_dev);
 }
 
 /**
@@ -1675,20 +1675,17 @@ static void devm_iio_device_release(struct device *dev, void *res)
  */
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv)
 {
-	struct iio_dev **ptr, *iio_dev;
-
-	ptr = devres_alloc(devm_iio_device_release, sizeof(*ptr),
-			   GFP_KERNEL);
-	if (!ptr)
-		return NULL;
+	struct iio_dev *iio_dev;
+	int ret;
 
 	iio_dev = iio_device_alloc(parent, sizeof_priv);
-	if (iio_dev) {
-		*ptr = iio_dev;
-		devres_add(parent, ptr);
-	} else {
-		devres_free(ptr);
-	}
+	if (!iio_dev)
+		return NULL;
+
+	ret = devm_add_action_or_reset(parent, devm_iio_device_release,
+				       iio_dev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return iio_dev;
 }
@@ -1944,29 +1941,21 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_device_unregister);
 
-static void devm_iio_device_unreg(struct device *dev, void *res)
+static void devm_iio_device_unreg(void *indio_dev)
 {
-	iio_device_unregister(*(struct iio_dev **)res);
+	iio_device_unregister(indio_dev);
 }
 
 int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 			       struct module *this_mod)
 {
-	struct iio_dev **ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_iio_device_unreg, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	*ptr = indio_dev;
 	ret = __iio_device_register(indio_dev, this_mod);
-	if (!ret)
-		devres_add(dev, ptr);
-	else
-		devres_free(ptr);
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action_or_reset(dev, devm_iio_device_unreg, indio_dev);
 }
 EXPORT_SYMBOL_GPL(__devm_iio_device_register);
 
