@@ -224,7 +224,6 @@ SYM_FUNC_END(__hyp_reset_vectors)
  * Entry point to switch to VHE if deemed capable
  */
 SYM_FUNC_START(switch_to_vhe)
-#ifdef CONFIG_ARM64_VHE
 	// Need to have booted at EL2
 	adr_l	x1, __boot_cpu_mode
 	ldr	w0, [x1]
@@ -240,6 +239,5 @@ SYM_FUNC_START(switch_to_vhe)
 	mov	x0, #HVC_VHE_RESTART
 	hvc	#0
 1:
-#endif
 	ret
 SYM_FUNC_END(switch_to_vhe)
