@@ -645,6 +645,16 @@ config I2C_HIGHLANDER
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-highlander.
 
+config I2C_HISI
+	tristate "HiSilicon I2C controller"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Say Y here if you want to have Hisilicon I2C controller support
+	  available on the Kunpeng Server.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-hisi.
+
 config I2C_IBM_IIC
 	tristate "IBM PPC 4xx on-chip I2C interface"
 	depends on 4xx
