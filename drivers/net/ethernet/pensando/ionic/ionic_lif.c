@@ -135,7 +135,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 		if (netdev->flags & IFF_UP && netif_running(netdev)) {
 			mutex_lock(&lif->queue_lock);
 			err = ionic_start_queues(lif);
-			if (err) {
+			if (err && err != -EBUSY) {
 				netdev_err(lif->netdev,
 					   "Failed to start queues: %d\n", err);
 				set_bit(IONIC_LIF_F_BROKEN, lif->state);
@@ -2015,9 +2015,8 @@ static void ionic_txrx_free(struct ionic_lif *lif)
 
 static int ionic_txrx_alloc(struct ionic_lif *lif)
 {
-	unsigned int num_desc, desc_sz, comp_sz, sg_desc_sz;
-	unsigned int flags;
-	unsigned int i;
+	unsigned int comp_sz, desc_sz, num_desc, sg_desc_sz;
+	unsigned int flags, i;
 	int err = 0;
 
 	num_desc = lif->ntxq_descs;
@@ -2584,12 +2583,11 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 int ionic_reconfigure_queues(struct ionic_lif *lif,
 			     struct ionic_queue_params *qparam)
 {
-	unsigned int num_desc, desc_sz, comp_sz, sg_desc_sz;
+	unsigned int comp_sz, desc_sz, num_desc, sg_desc_sz;
 	struct ionic_qcq **tx_qcqs = NULL;
 	struct ionic_qcq **rx_qcqs = NULL;
-	unsigned int flags;
+	unsigned int flags, i;
 	int err = -ENOMEM;
-	unsigned int i;
 
 	/* allocate temporary qcq arrays to hold new queue structs */
 	if (qparam->nxqs != lif->nxqs || qparam->ntxq_descs != lif->ntxq_descs) {
@@ -2989,13 +2987,13 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 			goto err_txrx_free;
 	}
 
-	/* restore the hardware timestamping queues */
-	ionic_lif_hwstamp_set(lif, NULL);
-
 	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
 	ionic_link_status_check_request(lif, CAN_SLEEP);
 	netif_device_attach(lif->netdev);
 	dev_info(ionic->dev, "FW Up: LIFs restarted\n");
+
+	/* restore the hardware timestamping queues */
+	ionic_lif_hwstamp_replay(lif);
 
 	return;
 

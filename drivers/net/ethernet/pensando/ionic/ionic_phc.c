@@ -18,10 +18,8 @@ static int ionic_hwstamp_tx_mode(int config_tx_type)
 		return IONIC_TXSTAMP_ON;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		return IONIC_TXSTAMP_ONESTEP_SYNC;
-#ifdef HAVE_HWSTAMP_TX_ONESTEP_P2P
 	case HWTSTAMP_TX_ONESTEP_P2P:
 		return IONIC_TXSTAMP_ONESTEP_P2P;
-#endif
 	default:
 		return -ERANGE;
 	}
@@ -66,10 +64,12 @@ static u64 ionic_hwstamp_rx_filt(int config_rx_filter)
 	}
 }
 
-int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
+static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
+					   struct hwtstamp_config *new_ts)
 {
 	struct ionic *ionic = lif->ionic;
-	struct hwtstamp_config config;
+	struct hwtstamp_config *config;
+	struct hwtstamp_config ts;
 	int tx_mode = 0;
 	u64 rx_filt = 0;
 	int err, err2;
@@ -79,39 +79,48 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 	if (!lif->phc || !lif->phc->ptp)
 		return -EOPNOTSUPP;
 
-	if (ifr) {
-		if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-			return -EFAULT;
+	mutex_lock(&lif->phc->config_lock);
+
+	if (new_ts) {
+		config = new_ts;
 	} else {
-		/* if called with ifr == NULL, behave as if called with the
-		 * current ts_config from the initial cleared state.
+		/* If called with new_ts == NULL, replay the previous request
+		 * primarily for recovery after a FW_RESET.
+		 * We saved the previous configuration request info, so copy
+		 * the previous request for reference, clear the current state
+		 * to match the device's reset state, and run with it.
 		 */
-		memcpy(&config, &lif->phc->ts_config, sizeof(config));
-		memset(&lif->phc->ts_config, 0, sizeof(config));
+		config = &ts;
+		memcpy(config, &lif->phc->ts_config, sizeof(*config));
+		memset(&lif->phc->ts_config, 0, sizeof(lif->phc->ts_config));
+		lif->phc->ts_config_tx_mode = 0;
+		lif->phc->ts_config_rx_filt = 0;
 	}
 
-	tx_mode = ionic_hwstamp_tx_mode(config.tx_type);
-	if (tx_mode < 0)
-		return tx_mode;
+	tx_mode = ionic_hwstamp_tx_mode(config->tx_type);
+	if (tx_mode < 0) {
+		err = tx_mode;
+		goto err_queues;
+	}
 
 	mask = cpu_to_le64(BIT_ULL(tx_mode));
-	if ((ionic->ident.lif.eth.hwstamp_tx_modes & mask) != mask)
-		return -ERANGE;
+	if ((ionic->ident.lif.eth.hwstamp_tx_modes & mask) != mask) {
+		err = -ERANGE;
+		goto err_queues;
+	}
 
-	rx_filt = ionic_hwstamp_rx_filt(config.rx_filter);
-	rx_all = config.rx_filter != HWTSTAMP_FILTER_NONE && !rx_filt;
+	rx_filt = ionic_hwstamp_rx_filt(config->rx_filter);
+	rx_all = config->rx_filter != HWTSTAMP_FILTER_NONE && !rx_filt;
 
 	mask = cpu_to_le64(rx_filt);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) != mask) {
 		rx_filt = 0;
 		rx_all = true;
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
 	dev_dbg(ionic->dev, "config_rx_filter %d rx_filt %#llx rx_all %d\n",
-		config.rx_filter, rx_filt, rx_all);
-
-	mutex_lock(&lif->phc->config_lock);
+		config->rx_filter, rx_filt, rx_all);
 
 	if (tx_mode) {
 		err = ionic_lif_create_hwstamp_txq(lif);
@@ -143,15 +152,7 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 			goto err_rxall;
 	}
 
-	if (ifr) {
-		err = copy_to_user(ifr->ifr_data, &config, sizeof(config));
-		if (err) {
-			err = -EFAULT;
-			goto err_final;
-		}
-	}
-
-	memcpy(&lif->phc->ts_config, &config, sizeof(config));
+	memcpy(&lif->phc->ts_config, config, sizeof(*config));
 	lif->phc->ts_config_rx_filt = rx_filt;
 	lif->phc->ts_config_tx_mode = tx_mode;
 
@@ -159,14 +160,6 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 
 	return 0;
 
-err_final:
-	if (rx_all != (lif->phc->ts_config.rx_filter == HWTSTAMP_FILTER_ALL)) {
-		rx_all = lif->phc->ts_config.rx_filter == HWTSTAMP_FILTER_ALL;
-		err2 = ionic_lif_config_hwstamp_rxq_all(lif, rx_all);
-		if (err2)
-			dev_err(ionic->dev,
-				"Failed to revert all-rxq timestamp config: %d\n", err2);
-	}
 err_rxall:
 	if (rx_filt != lif->phc->ts_config_rx_filt) {
 		rx_filt = lif->phc->ts_config_rx_filt;
@@ -187,6 +180,37 @@ err_txmode:
 	/* special queues remain allocated, just unused */
 err_queues:
 	mutex_unlock(&lif->phc->config_lock);
+	return err;
+}
+
+int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
+{
+	struct hwtstamp_config config;
+	int err;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	err = ionic_lif_hwstamp_set_ts_config(lif, &config);
+	if (err) {
+		netdev_info(lif->netdev, "hwstamp set failed: %d\n", err);
+		return err;
+	}
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+
+	return 0;
+}
+
+int ionic_lif_hwstamp_replay(struct ionic_lif *lif)
+{
+	int err;
+
+	err = ionic_lif_hwstamp_set_ts_config(lif, NULL);
+	if (err)
+		netdev_info(lif->netdev, "hwstamp replay failed: %d\n", err);
+
 	return err;
 }
 
