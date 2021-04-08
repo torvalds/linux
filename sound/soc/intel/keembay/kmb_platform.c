@@ -729,7 +729,7 @@ static int kmb_dai_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops kmb_dai_ops = {
+static const struct snd_soc_dai_ops kmb_dai_ops = {
 	.startup	= kmb_dai_startup,
 	.trigger	= kmb_dai_trigger,
 	.hw_params	= kmb_dai_hw_params,
