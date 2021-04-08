@@ -45,6 +45,7 @@ static const struct spi_device_id aic3x_spi_id[] = {
 	{ "tlv320aic33", AIC3X_MODEL_33 },
 	{ "tlv320aic3007", AIC3X_MODEL_3007 },
 	{ "tlv320aic3104", AIC3X_MODEL_3104 },
+	{ "tlv320aic3106", AIC3X_MODEL_3106 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, aic3x_spi_id);
@@ -54,6 +55,7 @@ static const struct of_device_id aic3x_of_id[] = {
 	{ .compatible = "ti,tlv320aic33" },
 	{ .compatible = "ti,tlv320aic3007" },
 	{ .compatible = "ti,tlv320aic3104" },
+	{ .compatible = "ti,tlv320aic3106" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, aic3x_of_id);
