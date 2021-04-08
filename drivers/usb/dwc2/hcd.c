@@ -3281,15 +3281,18 @@ static int dwc2_host_is_b_hnp_enabled(struct dwc2_hsotg *hsotg)
  * @hsotg: Programming view of the DWC_otg controller
  * @windex: The control request wIndex field
  *
+ * Return: non-zero if failed to enter suspend mode for host.
+ *
  * This function is for entering Host mode suspend.
  * Must NOT be called with interrupt disabled or spinlock held.
  */
-void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
+int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 {
 	unsigned long flags;
 	u32 hprt0;
 	u32 pcgctl;
 	u32 gotgctl;
+	int ret = 0;
 
 	dev_dbg(hsotg->dev, "%s()\n", __func__);
 
@@ -3302,22 +3305,31 @@ void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 		hsotg->op_state = OTG_STATE_A_SUSPEND;
 	}
 
-	hprt0 = dwc2_read_hprt0(hsotg);
-	hprt0 |= HPRT0_SUSP;
-	dwc2_writel(hsotg, hprt0, HPRT0);
-
-	hsotg->bus_suspended = true;
-
-	/*
-	 * If power_down is supported, Phy clock will be suspended
-	 * after registers are backuped.
-	 */
-	if (!hsotg->params.power_down) {
-		/* Suspend the Phy Clock */
-		pcgctl = dwc2_readl(hsotg, PCGCTL);
-		pcgctl |= PCGCTL_STOPPCLK;
-		dwc2_writel(hsotg, pcgctl, PCGCTL);
-		udelay(10);
+	switch (hsotg->params.power_down) {
+	case DWC2_POWER_DOWN_PARAM_PARTIAL:
+		ret = dwc2_enter_partial_power_down(hsotg);
+		if (ret)
+			dev_err(hsotg->dev,
+				"enter partial_power_down failed.\n");
+		break;
+	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+	case DWC2_POWER_DOWN_PARAM_NONE:
+	default:
+		hprt0 = dwc2_read_hprt0(hsotg);
+		hprt0 |= HPRT0_SUSP;
+		dwc2_writel(hsotg, hprt0, HPRT0);
+		hsotg->bus_suspended = true;
+		/*
+		 * If power_down is supported, Phy clock will be suspended
+		 * after registers are backuped.
+		 */
+		if (!hsotg->params.power_down) {
+			/* Suspend the Phy Clock */
+			pcgctl = dwc2_readl(hsotg, PCGCTL);
+			pcgctl |= PCGCTL_STOPPCLK;
+			dwc2_writel(hsotg, pcgctl, PCGCTL);
+			udelay(10);
+		}
 	}
 
 	/* For HNP the bus must be suspended for at least 200ms */
@@ -3332,6 +3344,8 @@ void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 	} else {
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
+
+	return ret;
 }
 
 /**
