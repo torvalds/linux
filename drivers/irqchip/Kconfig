@@ -579,7 +579,7 @@ config MST_IRQ
 
 config WPCM450_AIC
 	bool "Nuvoton WPCM450 Advanced Interrupt Controller"
-	depends on ARCH_WPCM450 || COMPILE_TEST
+	depends on ARCH_WPCM450
 	help
 	  Support for the interrupt controller in the Nuvoton WPCM450 BMC SoC.
 
