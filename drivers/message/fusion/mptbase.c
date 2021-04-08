@@ -3084,7 +3084,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 	int			 req_sz;
 	int			 reply_sz;
 	int			 sz;
-	u32			 status, vv;
+	u32			 vv;
 	u8			 shiftFactor=1;
 
 	/* IOC *must* NOT be in RESET state! */
@@ -3142,7 +3142,6 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 		facts->IOCExceptions = le16_to_cpu(facts->IOCExceptions);
 		facts->IOCStatus = le16_to_cpu(facts->IOCStatus);
 		facts->IOCLogInfo = le32_to_cpu(facts->IOCLogInfo);
-		status = le16_to_cpu(facts->IOCStatus) & MPI_IOCSTATUS_MASK;
 		/* CHECKME! IOCStatus, IOCLogInfo */
 
 		facts->ReplyQueueDepth = le16_to_cpu(facts->ReplyQueueDepth);
