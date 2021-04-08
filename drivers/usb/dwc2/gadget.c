@@ -5351,3 +5351,131 @@ int dwc2_gadget_exit_hibernation(struct dwc2_hsotg *hsotg,
 
 	return ret;
 }
+
+/**
+ * dwc2_gadget_enter_partial_power_down() - Put controller in partial
+ * power down.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
+ * Return: non-zero if failed to enter device partial power down.
+ *
+ * This function is for entering device mode partial power down.
+ */
+int dwc2_gadget_enter_partial_power_down(struct dwc2_hsotg *hsotg)
+{
+	u32 pcgcctl;
+	int ret = 0;
+
+	dev_dbg(hsotg->dev, "Entering device partial power down started.\n");
+
+	/* Backup all registers */
+	ret = dwc2_backup_global_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
+			__func__);
+		return ret;
+	}
+
+	ret = dwc2_backup_device_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup device registers\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Clear any pending interrupts since dwc2 will not be able to
+	 * clear them after entering partial_power_down.
+	 */
+	dwc2_writel(hsotg, 0xffffffff, GINTSTS);
+
+	/* Put the controller in low power state */
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+
+	pcgcctl |= PCGCTL_PWRCLMP;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+	udelay(5);
+
+	pcgcctl |= PCGCTL_RSTPDWNMODULE;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+	udelay(5);
+
+	pcgcctl |= PCGCTL_STOPPCLK;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+
+	/* Set in_ppd flag to 1 as here core enters suspend. */
+	hsotg->in_ppd = 1;
+	hsotg->lx_state = DWC2_L2;
+
+	dev_dbg(hsotg->dev, "Entering device partial power down completed.\n");
+
+	return ret;
+}
+
+/*
+ * dwc2_gadget_exit_partial_power_down() - Exit controller from device partial
+ * power down.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @restore: indicates whether need to restore the registers or not.
+ *
+ * Return: non-zero if failed to exit device partial power down.
+ *
+ * This function is for exiting from device mode partial power down.
+ */
+int dwc2_gadget_exit_partial_power_down(struct dwc2_hsotg *hsotg,
+					bool restore)
+{
+	u32 pcgcctl;
+	u32 dctl;
+	struct dwc2_dregs_backup *dr;
+	int ret = 0;
+
+	dr = &hsotg->dr_backup;
+
+	dev_dbg(hsotg->dev, "Exiting device partial Power Down started.\n");
+
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+	pcgcctl &= ~PCGCTL_STOPPCLK;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+	pcgcctl &= ~PCGCTL_PWRCLMP;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+	pcgcctl &= ~PCGCTL_RSTPDWNMODULE;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+
+	udelay(100);
+	if (restore) {
+		ret = dwc2_restore_global_registers(hsotg);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to restore registers\n",
+				__func__);
+			return ret;
+		}
+		/* Restore DCFG */
+		dwc2_writel(hsotg, dr->dcfg, DCFG);
+
+		ret = dwc2_restore_device_registers(hsotg, 0);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to restore device registers\n",
+				__func__);
+			return ret;
+		}
+	}
+
+	/* Set the Power-On Programming done bit */
+	dctl = dwc2_readl(hsotg, DCTL);
+	dctl |= DCTL_PWRONPRGDONE;
+	dwc2_writel(hsotg, dctl, DCTL);
+
+	/* Set in_ppd flag to 0 as here core exits from suspend. */
+	hsotg->in_ppd = 0;
+	hsotg->lx_state = DWC2_L0;
+
+	dev_dbg(hsotg->dev, "Exiting device partial Power Down completed.\n");
+	return ret;
+}
