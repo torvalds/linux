@@ -409,6 +409,10 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 #define ioremap_uc(X,Y)			ioremap((X),(Y))
 #define ioremap_wc(X,Y)			ioremap((X),(Y))
 #define ioremap_wt(X,Y)			ioremap((X),(Y))
+static inline void __iomem *ioremap_np(unsigned long offset, unsigned long size)
+{
+	return NULL;
+}
 
 static inline void iounmap(volatile void __iomem *addr)
 {

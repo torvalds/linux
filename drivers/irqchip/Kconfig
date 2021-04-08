@@ -577,4 +577,12 @@ config MST_IRQ
 	help
 	  Support MStar Interrupt Controller.
 
+config APPLE_AIC
+	bool "Apple Interrupt Controller (AIC)"
+	depends on ARM64
+	default ARCH_APPLE
+	help
+	  Support for the Apple Interrupt Controller found on Apple Silicon SoCs,
+	  such as the M1.
+
 endmenu
