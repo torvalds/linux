@@ -271,7 +271,6 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 
 err_clk_put:
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
-	clk_bulk_put_all(priv_data->num_clocks, priv_data->clks);
 
 	return ret;
 }
@@ -284,7 +283,6 @@ static int dwc3_xlnx_remove(struct platform_device *pdev)
 	of_platform_depopulate(dev);
 
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
-	clk_bulk_put_all(priv_data->num_clocks, priv_data->clks);
 	priv_data->num_clocks = 0;
 
 	pm_runtime_disable(dev);
