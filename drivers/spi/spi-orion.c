@@ -676,7 +676,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->dev = &pdev->dev;
 
 	devdata = device_get_match_data(&pdev->dev);
-	spi->devdata = devdata ? devdata : &orion_spi_dev_data;
+	devdata = devdata ? devdata : &orion_spi_dev_data;
+	spi->devdata = devdata;
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk)) {
