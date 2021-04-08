@@ -1344,6 +1344,7 @@ dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
 	armada-382-rd-ac3x-48g4x2xl.dtb \
+	armada-385-atl-x530.dtb\
 	armada-385-clearfog-gtr-s4.dtb \
 	armada-385-clearfog-gtr-l8.dtb \
 	armada-385-db-88f6820-amc.dtb \
