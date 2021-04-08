@@ -12,6 +12,47 @@
 #include <linux/slab.h>
 
 #define FW_FILE_MAX_SIZE	0x1400000 /* maximum size of 20MB */
+
+static int hl_request_fw(struct hl_device *hdev,
+				const struct firmware **firmware_p,
+				const char *fw_name)
+{
+	size_t fw_size;
+	int rc;
+
+	rc = request_firmware(firmware_p, fw_name, hdev->dev);
+	if (rc) {
+		dev_err(hdev->dev, "Firmware file %s is not found! (error %d)\n",
+				fw_name, rc);
+		goto out;
+	}
+
+	fw_size = (*firmware_p)->size;
+	if ((fw_size % 4) != 0) {
+		dev_err(hdev->dev, "Illegal %s firmware size %zu\n",
+				fw_name, fw_size);
+		rc = -EINVAL;
+		goto release_fw;
+	}
+
+	dev_dbg(hdev->dev, "%s firmware size == %zu\n", fw_name, fw_size);
+
+	if (fw_size > FW_FILE_MAX_SIZE) {
+		dev_err(hdev->dev,
+			"FW file size %zu exceeds maximum of %u bytes\n",
+			fw_size, FW_FILE_MAX_SIZE);
+		rc = -EINVAL;
+		goto release_fw;
+	}
+
+	return 0;
+
+release_fw:
+	release_firmware(*firmware_p);
+out:
+	return rc;
+}
+
 /**
  * hl_fw_load_fw_to_device() - Load F/W code to device's memory.
  *
@@ -33,29 +74,11 @@ int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 	size_t fw_size;
 	int rc;
 
-	rc = request_firmware(&fw, fw_name, hdev->dev);
-	if (rc) {
-		dev_err(hdev->dev, "Firmware file %s is not found!\n", fw_name);
-		goto out;
-	}
+	rc = hl_request_fw(hdev, &fw, fw_name);
+	if (rc)
+		return rc;
 
 	fw_size = fw->size;
-	if ((fw_size % 4) != 0) {
-		dev_err(hdev->dev, "Illegal %s firmware size %zu\n",
-			fw_name, fw_size);
-		rc = -EINVAL;
-		goto out;
-	}
-
-	dev_dbg(hdev->dev, "%s firmware size == %zu\n", fw_name, fw_size);
-
-	if (fw_size > FW_FILE_MAX_SIZE) {
-		dev_err(hdev->dev,
-			"FW file size %zu exceeds maximum of %u bytes\n",
-			fw_size, FW_FILE_MAX_SIZE);
-		rc = -EINVAL;
-		goto out;
-	}
 
 	if (size - src_offset > fw_size) {
 		dev_err(hdev->dev,
