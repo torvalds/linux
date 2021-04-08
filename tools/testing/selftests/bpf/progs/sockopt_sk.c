@@ -6,7 +6,6 @@
 #include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1;
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
