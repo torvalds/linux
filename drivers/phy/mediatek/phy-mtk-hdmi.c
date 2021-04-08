@@ -119,9 +119,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hdmi_phy->regs = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(hdmi_phy->regs)) {
-		ret = PTR_ERR(hdmi_phy->regs);
-		dev_err(dev, "Failed to get memory resource: %d\n", ret);
-		return ret;
+		return PTR_ERR(hdmi_phy->regs);
 	}
 
 	ref_clk = devm_clk_get(dev, "pll_ref");
