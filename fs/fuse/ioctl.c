@@ -196,16 +196,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		struct iovec *iov = iov_page;
 
 		iov->iov_base = (void __user *)arg;
-
-		switch (cmd) {
-		case FS_IOC_GETFLAGS:
-		case FS_IOC_SETFLAGS:
-			iov->iov_len = sizeof(int);
-			break;
-		default:
-			iov->iov_len = _IOC_SIZE(cmd);
-			break;
-		}
+		iov->iov_len = _IOC_SIZE(cmd);
 
 		if (_IOC_DIR(cmd) & _IOC_WRITE) {
 			in_iov = iov;
@@ -363,4 +354,137 @@ long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	return fuse_ioctl_common(file, cmd, arg, FUSE_IOCTL_COMPAT);
+}
+
+static int fuse_priv_ioctl(struct inode *inode, struct fuse_file *ff,
+			   unsigned int cmd, void *ptr, size_t size)
+{
+	struct fuse_mount *fm = ff->fm;
+	struct fuse_ioctl_in inarg;
+	struct fuse_ioctl_out outarg;
+	FUSE_ARGS(args);
+	int err;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.fh = ff->fh;
+	inarg.cmd = cmd;
+
+#if BITS_PER_LONG == 32
+	inarg.flags |= FUSE_IOCTL_32BIT;
+#endif
+	if (S_ISDIR(inode->i_mode))
+		inarg.flags |= FUSE_IOCTL_DIR;
+
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		inarg.out_size = size;
+	if (_IOC_DIR(cmd) & _IOC_WRITE)
+		inarg.in_size = size;
+
+	args.opcode = FUSE_IOCTL;
+	args.nodeid = ff->nodeid;
+	args.in_numargs = 2;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.in_args[1].size = inarg.in_size;
+	args.in_args[1].value = ptr;
+	args.out_numargs = 2;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
+	args.out_args[1].size = inarg.out_size;
+	args.out_args[1].value = ptr;
+
+	err = fuse_simple_request(fm, &args);
+	if (!err && outarg.flags & FUSE_IOCTL_RETRY)
+		err = -EIO;
+
+	return err;
+}
+
+static struct fuse_file *fuse_priv_ioctl_prepare(struct inode *inode)
+{
+	struct fuse_mount *fm = get_fuse_mount(inode);
+	bool isdir = S_ISDIR(inode->i_mode);
+
+	if (!S_ISREG(inode->i_mode) && !isdir)
+		return ERR_PTR(-ENOTTY);
+
+	return fuse_file_open(fm, get_node_id(inode), O_RDONLY, isdir);
+}
+
+static void fuse_priv_ioctl_cleanup(struct inode *inode, struct fuse_file *ff)
+{
+	fuse_file_release(inode, ff, O_RDONLY, NULL, S_ISDIR(inode->i_mode));
+}
+
+int fuse_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct fuse_file *ff;
+	unsigned int flags;
+	struct fsxattr xfa;
+	int err;
+
+	ff = fuse_priv_ioctl_prepare(inode);
+	if (IS_ERR(ff))
+		return PTR_ERR(ff);
+
+	if (fa->flags_valid) {
+		err = fuse_priv_ioctl(inode, ff, FS_IOC_GETFLAGS,
+				      &flags, sizeof(flags));
+		if (err)
+			goto cleanup;
+
+		fileattr_fill_flags(fa, flags);
+	} else {
+		err = fuse_priv_ioctl(inode, ff, FS_IOC_FSGETXATTR,
+				      &xfa, sizeof(xfa));
+		if (err)
+			goto cleanup;
+
+		fileattr_fill_xflags(fa, xfa.fsx_xflags);
+		fa->fsx_extsize = xfa.fsx_extsize;
+		fa->fsx_nextents = xfa.fsx_nextents;
+		fa->fsx_projid = xfa.fsx_projid;
+		fa->fsx_cowextsize = xfa.fsx_cowextsize;
+	}
+cleanup:
+	fuse_priv_ioctl_cleanup(inode, ff);
+
+	return err;
+}
+
+int fuse_fileattr_set(struct user_namespace *mnt_userns,
+		      struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct fuse_file *ff;
+	unsigned int flags = fa->flags;
+	struct fsxattr xfa;
+	int err;
+
+	ff = fuse_priv_ioctl_prepare(inode);
+	if (IS_ERR(ff))
+		return PTR_ERR(ff);
+
+	if (fa->flags_valid) {
+		err = fuse_priv_ioctl(inode, ff, FS_IOC_SETFLAGS,
+				      &flags, sizeof(flags));
+		if (err)
+			goto cleanup;
+	} else {
+		memset(&xfa, 0, sizeof(xfa));
+		xfa.fsx_xflags = fa->fsx_xflags;
+		xfa.fsx_extsize = fa->fsx_extsize;
+		xfa.fsx_nextents = fa->fsx_nextents;
+		xfa.fsx_projid = fa->fsx_projid;
+		xfa.fsx_cowextsize = fa->fsx_cowextsize;
+
+		err = fuse_priv_ioctl(inode, ff, FS_IOC_FSSETXATTR,
+				      &xfa, sizeof(xfa));
+	}
+
+cleanup:
+	fuse_priv_ioctl_cleanup(inode, ff);
+
+	return err;
 }
