@@ -349,10 +349,19 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 	mhi_ctrl->read_reg = ath11k_mhi_op_read_reg;
 	mhi_ctrl->write_reg = ath11k_mhi_op_write_reg;
 
-	if (ab->hw_rev == ATH11K_HW_QCA6390_HW20)
-		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
-	else if (ab->hw_rev == ATH11K_HW_QCN9074_HW10)
+	switch (ab->hw_rev) {
+	case ATH11K_HW_QCN9074_HW10:
 		ath11k_mhi_config = &ath11k_mhi_config_qcn9074;
+		break;
+	case ATH11K_HW_QCA6390_HW20:
+		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
+		break;
+	default:
+		ath11k_err(ab, "failed assign mhi_config for unknown hw rev %d\n",
+			   ab->hw_rev);
+		mhi_free_controller(mhi_ctrl);
+		return -EINVAL;
+	}
 
 	ret = mhi_register_controller(mhi_ctrl, ath11k_mhi_config);
 	if (ret) {
