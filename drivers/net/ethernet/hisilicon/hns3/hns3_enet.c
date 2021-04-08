@@ -2365,6 +2365,32 @@ static void hns3_shutdown(struct pci_dev *pdev)
 		pci_set_power_state(pdev, PCI_D3hot);
 }
 
+static int __maybe_unused hns3_suspend(struct device *dev)
+{
+	struct hnae3_ae_dev *ae_dev = dev_get_drvdata(dev);
+
+	if (hns3_is_phys_func(ae_dev->pdev)) {
+		dev_info(dev, "Begin to suspend.\n");
+		if (ae_dev && ae_dev->ops && ae_dev->ops->reset_prepare)
+			ae_dev->ops->reset_prepare(ae_dev, HNAE3_FUNC_RESET);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused hns3_resume(struct device *dev)
+{
+	struct hnae3_ae_dev *ae_dev = dev_get_drvdata(dev);
+
+	if (hns3_is_phys_func(ae_dev->pdev)) {
+		dev_info(dev, "Begin to resume.\n");
+		if (ae_dev && ae_dev->ops && ae_dev->ops->reset_done)
+			ae_dev->ops->reset_done(ae_dev);
+	}
+
+	return 0;
+}
+
 static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 					    pci_channel_state_t state)
 {
@@ -2443,12 +2469,15 @@ static const struct pci_error_handlers hns3_err_handler = {
 	.reset_done	= hns3_reset_done,
 };
 
+static SIMPLE_DEV_PM_OPS(hns3_pm_ops, hns3_suspend, hns3_resume);
+
 static struct pci_driver hns3_driver = {
 	.name     = hns3_driver_name,
 	.id_table = hns3_pci_tbl,
 	.probe    = hns3_probe,
 	.remove   = hns3_remove,
 	.shutdown = hns3_shutdown,
+	.driver.pm  = &hns3_pm_ops,
 	.sriov_configure = hns3_pci_sriov_configure,
 	.err_handler    = &hns3_err_handler,
 };

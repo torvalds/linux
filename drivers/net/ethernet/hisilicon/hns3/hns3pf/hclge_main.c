@@ -11094,6 +11094,8 @@ retry:
 
 	if (hdev->reset_type == HNAE3_FLR_RESET)
 		hdev->rst_stats.flr_rst_cnt++;
+	else if (hdev->reset_type == HNAE3_FUNC_RESET)
+		hdev->rst_stats.pf_rst_cnt++;
 }
 
 static void hclge_reset_done(struct hnae3_ae_dev *ae_dev)
