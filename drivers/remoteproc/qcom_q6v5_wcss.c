@@ -913,7 +913,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->gcc_abhs_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get gcc abhs clock");
-		return PTR_ERR(wcss->gcc_abhs_cbcr);
+		return ret;
 	}
 
 	wcss->gcc_axim_cbcr = devm_clk_get(wcss->dev, "gcc_axim_cbcr");
@@ -921,7 +921,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->gcc_axim_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get gcc axim clock\n");
-		return PTR_ERR(wcss->gcc_axim_cbcr);
+		return ret;
 	}
 
 	wcss->ahbfabric_cbcr_clk = devm_clk_get(wcss->dev,
@@ -930,7 +930,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->ahbfabric_cbcr_clk);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get ahbfabric clock\n");
-		return PTR_ERR(wcss->ahbfabric_cbcr_clk);
+		return ret;
 	}
 
 	wcss->lcc_csr_cbcr = devm_clk_get(wcss->dev, "tcsr_lcc_cbc");
@@ -938,7 +938,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->lcc_csr_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get csr cbcr clk\n");
-		return PTR_ERR(wcss->lcc_csr_cbcr);
+		return ret;
 	}
 
 	wcss->ahbs_cbcr = devm_clk_get(wcss->dev,
@@ -947,7 +947,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->ahbs_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get ahbs_cbcr clk\n");
-		return PTR_ERR(wcss->ahbs_cbcr);
+		return ret;
 	}
 
 	wcss->tcm_slave_cbcr = devm_clk_get(wcss->dev,
@@ -956,7 +956,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->tcm_slave_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get tcm cbcr clk\n");
-		return PTR_ERR(wcss->tcm_slave_cbcr);
+		return ret;
 	}
 
 	wcss->qdsp6ss_abhm_cbcr = devm_clk_get(wcss->dev, "lcc_abhm_cbc");
@@ -964,7 +964,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->qdsp6ss_abhm_cbcr);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get abhm cbcr clk\n");
-		return PTR_ERR(wcss->qdsp6ss_abhm_cbcr);
+		return ret;
 	}
 
 	wcss->qdsp6ss_axim_cbcr = devm_clk_get(wcss->dev, "lcc_axim_cbc");
@@ -980,7 +980,7 @@ static int q6v5_wcss_init_clock(struct q6v5_wcss *wcss)
 		ret = PTR_ERR(wcss->lcc_bcr_sleep);
 		if (ret != -EPROBE_DEFER)
 			dev_err(wcss->dev, "failed to get bcr cbcr clk\n");
-		return PTR_ERR(wcss->lcc_bcr_sleep);
+		return ret;
 	}
 
 	return 0;
