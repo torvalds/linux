@@ -1,30 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright © 2008-2010 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * Authors:
- *    Eric Anholt <eric@anholt.net>
- *    Zou Nan hai <nanhai.zou@intel.com>
- *    Xiang Hai hao<haihao.xiang@intel.com>
- *
+ * Copyright © 2008-2021 Intel Corporation
  */
 
 #include "gen2_engine_cs.h"
@@ -183,15 +159,36 @@ static void set_pp_dir(struct intel_engine_cs *engine)
 	}
 }
 
+static bool stop_ring(struct intel_engine_cs *engine)
+{
+	/* Empty the ring by skipping to the end */
+	ENGINE_WRITE_FW(engine, RING_HEAD, ENGINE_READ_FW(engine, RING_TAIL));
+	ENGINE_POSTING_READ(engine, RING_HEAD);
+
+	/* The ring must be empty before it is disabled */
+	ENGINE_WRITE_FW(engine, RING_CTL, 0);
+	ENGINE_POSTING_READ(engine, RING_CTL);
+
+	/* Then reset the disabled ring */
+	ENGINE_WRITE_FW(engine, RING_HEAD, 0);
+	ENGINE_WRITE_FW(engine, RING_TAIL, 0);
+
+	return (ENGINE_READ_FW(engine, RING_HEAD) & HEAD_ADDR) == 0;
+}
+
 static int xcs_resume(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_ring *ring = engine->legacy.ring;
 
 	ENGINE_TRACE(engine, "ring:{HEAD:%04x, TAIL:%04x}\n",
 		     ring->head, ring->tail);
 
-	if (HWS_NEEDS_PHYSICAL(dev_priv))
+	/* Double check the ring is empty & disabled before we resume */
+	synchronize_hardirq(engine->i915->drm.irq);
+	if (!stop_ring(engine))
+		goto err;
+
+	if (HWS_NEEDS_PHYSICAL(engine->i915))
 		ring_setup_phys_status_page(engine);
 	else
 		ring_setup_status_page(engine);
@@ -228,21 +225,10 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	if (__intel_wait_for_register_fw(engine->uncore,
 					 RING_CTL(engine->mmio_base),
 					 RING_VALID, RING_VALID,
-					 5000, 0, NULL)) {
-		drm_err(&dev_priv->drm,
-			"%s initialization failed; "
-			"ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
-			engine->name,
-			ENGINE_READ(engine, RING_CTL),
-			ENGINE_READ(engine, RING_CTL) & RING_VALID,
-			ENGINE_READ(engine, RING_HEAD), ring->head,
-			ENGINE_READ(engine, RING_TAIL), ring->tail,
-			ENGINE_READ(engine, RING_START),
-			i915_ggtt_offset(ring->vma));
-		return -EIO;
-	}
+					 5000, 0, NULL))
+		goto err;
 
-	if (INTEL_GEN(dev_priv) > 2)
+	if (INTEL_GEN(engine->i915) > 2)
 		ENGINE_WRITE_FW(engine,
 				RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 
@@ -255,6 +241,19 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	/* Papering over lost _interrupts_ immediately following the restart */
 	intel_engine_signal_breadcrumbs(engine);
 	return 0;
+
+err:
+	drm_err(&engine->i915->drm,
+		"%s initialization failed; "
+		"ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
+		engine->name,
+		ENGINE_READ(engine, RING_CTL),
+		ENGINE_READ(engine, RING_CTL) & RING_VALID,
+		ENGINE_READ(engine, RING_HEAD), ring->head,
+		ENGINE_READ(engine, RING_TAIL), ring->tail,
+		ENGINE_READ(engine, RING_START),
+		i915_ggtt_offset(ring->vma));
+	return -EIO;
 }
 
 static void sanitize_hwsp(struct intel_engine_cs *engine)
@@ -290,23 +289,6 @@ static void xcs_sanitize(struct intel_engine_cs *engine)
 	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
 }
 
-static bool stop_ring(struct intel_engine_cs *engine)
-{
-	/* Empty the ring by skipping to the end */
-	ENGINE_WRITE_FW(engine, RING_HEAD, ENGINE_READ_FW(engine, RING_TAIL));
-	ENGINE_POSTING_READ(engine, RING_HEAD);
-
-	/* The ring must be empty before it is disabled */
-	ENGINE_WRITE_FW(engine, RING_CTL, 0);
-	ENGINE_POSTING_READ(engine, RING_CTL);
-
-	/* Then reset the disabled ring */
-	ENGINE_WRITE_FW(engine, RING_HEAD, 0);
-	ENGINE_WRITE_FW(engine, RING_TAIL, 0);
-
-	return (ENGINE_READ_FW(engine, RING_HEAD) & HEAD_ADDR) == 0;
-}
-
 static void reset_prepare(struct intel_engine_cs *engine)
 {
 	/*
@@ -329,25 +311,23 @@ static void reset_prepare(struct intel_engine_cs *engine)
 
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
-		drm_dbg(&engine->i915->drm,
-			"%s head not reset to zero "
-			"ctl %08x head %08x tail %08x start %08x\n",
-			engine->name,
-			ENGINE_READ_FW(engine, RING_CTL),
-			ENGINE_READ_FW(engine, RING_HEAD),
-			ENGINE_READ_FW(engine, RING_TAIL),
-			ENGINE_READ_FW(engine, RING_START));
-	}
-
-	if (!stop_ring(engine)) {
-		drm_err(&engine->i915->drm,
-			"failed to set %s head to zero "
-			"ctl %08x head %08x tail %08x start %08x\n",
-			engine->name,
-			ENGINE_READ_FW(engine, RING_CTL),
-			ENGINE_READ_FW(engine, RING_HEAD),
-			ENGINE_READ_FW(engine, RING_TAIL),
-			ENGINE_READ_FW(engine, RING_START));
+		ENGINE_TRACE(engine,
+			     "HEAD not reset to zero, "
+			     "{ CTL:%08x, HEAD:%08x, TAIL:%08x, START:%08x }\n",
+			     ENGINE_READ_FW(engine, RING_CTL),
+			     ENGINE_READ_FW(engine, RING_HEAD),
+			     ENGINE_READ_FW(engine, RING_TAIL),
+			     ENGINE_READ_FW(engine, RING_START));
+		if (!stop_ring(engine)) {
+			drm_err(&engine->i915->drm,
+				"failed to set %s head to zero "
+				"ctl %08x head %08x tail %08x start %08x\n",
+				engine->name,
+				ENGINE_READ_FW(engine, RING_CTL),
+				ENGINE_READ_FW(engine, RING_HEAD),
+				ENGINE_READ_FW(engine, RING_TAIL),
+				ENGINE_READ_FW(engine, RING_START));
+		}
 	}
 }
 
@@ -431,7 +411,7 @@ static void reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all submitted requests as skipped. */
 	list_for_each_entry(request, &engine->active.requests, sched.link)
-		i915_request_mark_eio(request);
+		i915_request_put(i915_request_mark_eio(request));
 	intel_engine_signal_breadcrumbs(engine);
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
@@ -770,13 +750,14 @@ static int mi_set_context(struct i915_request *rq,
 
 static int remap_l3_slice(struct i915_request *rq, int slice)
 {
+#define L3LOG_DW (GEN7_L3LOG_SIZE / sizeof(u32))
 	u32 *cs, *remap_info = rq->engine->i915->l3_parity.remap_info[slice];
 	int i;
 
 	if (!remap_info)
 		return 0;
 
-	cs = intel_ring_begin(rq, GEN7_L3LOG_SIZE/4 * 2 + 2);
+	cs = intel_ring_begin(rq, L3LOG_DW * 2 + 2);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -785,8 +766,8 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 	 * here because no other code should access these registers other than
 	 * at initialization time.
 	 */
-	*cs++ = MI_LOAD_REGISTER_IMM(GEN7_L3LOG_SIZE/4);
-	for (i = 0; i < GEN7_L3LOG_SIZE/4; i++) {
+	*cs++ = MI_LOAD_REGISTER_IMM(L3LOG_DW);
+	for (i = 0; i < L3LOG_DW; i++) {
 		*cs++ = i915_mmio_reg_offset(GEN7_L3LOG(slice, i));
 		*cs++ = remap_info[i];
 	}
@@ -794,6 +775,7 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 	intel_ring_advance(rq, cs);
 
 	return 0;
+#undef L3LOG_DW
 }
 
 static int remap_l3(struct i915_request *rq)

@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2008-2018 Intel Corporation
  */
 
@@ -787,18 +786,15 @@ static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
 
 static void nop_submit_request(struct i915_request *request)
 {
-	struct intel_engine_cs *engine = request->engine;
-	unsigned long flags;
-
 	RQ_TRACE(request, "-EIO\n");
-	i915_request_set_error_once(request, -EIO);
 
-	spin_lock_irqsave(&engine->active.lock, flags);
-	__i915_request_submit(request);
-	i915_request_mark_complete(request);
-	spin_unlock_irqrestore(&engine->active.lock, flags);
+	request = i915_request_mark_eio(request);
+	if (request) {
+		i915_request_submit(request);
+		intel_engine_signal_breadcrumbs(request->engine);
 
-	intel_engine_signal_breadcrumbs(engine);
+		i915_request_put(request);
+	}
 }
 
 static void __intel_gt_set_wedged(struct intel_gt *gt)

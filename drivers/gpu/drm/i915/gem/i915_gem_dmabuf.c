@@ -250,6 +250,9 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 		}
 	}
 
+	if (i915_gem_object_size_2big(dma_buf->size))
+		return ERR_PTR(-E2BIG);
+
 	/* need to attach */
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))

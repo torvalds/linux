@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2018 Intel Corporation
  */
 
@@ -1242,7 +1241,11 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		intel_engine_reset(engine, "live_workarounds:idle");
+		ret = intel_engine_reset(engine, "live_workarounds:idle");
+		if (ret) {
+			pr_err("%s: Reset failed while idle\n", engine->name);
+			goto err;
+		}
 
 		ok = verify_wa_lists(gt, &lists, "after idle reset");
 		if (!ok) {
@@ -1263,12 +1266,18 @@ live_engine_reset_workarounds(void *arg)
 
 		ret = request_add_spin(rq, &spin);
 		if (ret) {
-			pr_err("Spinner failed to start\n");
+			pr_err("%s: Spinner failed to start\n", engine->name);
 			igt_spinner_fini(&spin);
 			goto err;
 		}
 
-		intel_engine_reset(engine, "live_workarounds:active");
+		ret = intel_engine_reset(engine, "live_workarounds:active");
+		if (ret) {
+			pr_err("%s: Reset failed on an active spinner\n",
+			       engine->name);
+			igt_spinner_fini(&spin);
+			goto err;
+		}
 
 		igt_spinner_end(&spin);
 		igt_spinner_fini(&spin);

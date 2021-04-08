@@ -612,15 +612,20 @@ bool i915_request_set_error_once(struct i915_request *rq, int error)
 	return true;
 }
 
-void i915_request_mark_eio(struct i915_request *rq)
+struct i915_request *i915_request_mark_eio(struct i915_request *rq)
 {
 	if (__i915_request_is_complete(rq))
-		return;
+		return NULL;
 
 	GEM_BUG_ON(i915_request_signaled(rq));
 
+	/* As soon as the request is completed, it may be retired */
+	rq = i915_request_get(rq);
+
 	i915_request_set_error_once(rq, -EIO);
 	i915_request_mark_complete(rq);
+
+	return rq;
 }
 
 bool __i915_request_submit(struct i915_request *request)

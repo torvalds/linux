@@ -3,6 +3,8 @@
  * Copyright © 2014 Intel Corporation
  */
 
+#include "gem/i915_gem_lmem.h"
+
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
@@ -808,7 +810,9 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 		context_size += PAGE_SIZE;
 	}
 
-	obj = i915_gem_object_create_shmem(engine->i915, context_size);
+	obj = i915_gem_object_create_lmem(engine->i915, context_size, 0);
+	if (IS_ERR(obj))
+		obj = i915_gem_object_create_shmem(engine->i915, context_size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
