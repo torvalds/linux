@@ -13,6 +13,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/phy/pcie.h>
 #include <linux/phy/phy.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -34,12 +35,12 @@ struct rockchip_p3phy_priv {
 	bool is_bifurcation;
 };
 
-static int rockchip_p3phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int rockchip_p3phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct rockchip_p3phy_priv *priv = phy_get_drvdata(phy);
 
 	/* Acutally We don't care EP/RC mode, but just record it */
-	switch (mode) {
+	switch (submode) {
 	case PHY_MODE_PCIE_RC:
 		priv->mode = PHY_MODE_PCIE_RC;
 		break;
