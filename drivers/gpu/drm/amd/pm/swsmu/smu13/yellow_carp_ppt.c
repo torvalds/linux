@@ -602,7 +602,12 @@ static ssize_t yellow_carp_get_gpu_metrics(struct smu_context *smu,
 static int yellow_carp_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type,
 					long input[], uint32_t size)
 {
+	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	int ret = 0;
+
+	/* Only allowed in manual mode */
+	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
 
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
@@ -1049,6 +1054,84 @@ force_level_out:
 	return ret;
 }
 
+static int yellow_carp_set_performance_level(struct smu_context *smu,
+						enum amd_dpm_forced_level level)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t sclk_min = 0, sclk_max = 0;
+	uint32_t mclk_min = 0, mclk_max = 0;
+	uint32_t socclk_min = 0, socclk_max = 0;
+	int ret = 0;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &sclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_MCLK, NULL, &mclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &socclk_max);
+		sclk_min = sclk_max;
+		mclk_min = mclk_max;
+		socclk_min = socclk_max;
+		break;
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, NULL);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_MCLK, &mclk_min, NULL);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, NULL);
+		sclk_max = sclk_min;
+		mclk_max = mclk_min;
+		socclk_max = socclk_min;
+		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, &sclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_MCLK, &mclk_min, &mclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, &socclk_max);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		/* Temporarily do nothing since the optimal clocks haven't been provided yet */
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+		return 0;
+	default:
+		dev_err(adev->dev, "Invalid performance level %d\n", level);
+		return -EINVAL;
+	}
+
+	if (sclk_min && sclk_max) {
+		ret = yellow_carp_set_soft_freq_limited_range(smu,
+							    SMU_SCLK,
+							    sclk_min,
+							    sclk_max);
+		if (ret)
+			return ret;
+
+		smu->gfx_actual_hard_min_freq = sclk_min;
+		smu->gfx_actual_soft_max_freq = sclk_max;
+	}
+
+	if (mclk_min && mclk_max) {
+		ret = yellow_carp_set_soft_freq_limited_range(smu,
+							    SMU_MCLK,
+							    mclk_min,
+							    mclk_max);
+		if (ret)
+			return ret;
+	}
+
+	if (socclk_min && socclk_max) {
+		ret = yellow_carp_set_soft_freq_limited_range(smu,
+							    SMU_SOCCLK,
+							    socclk_min,
+							    socclk_max);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static int yellow_carp_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
@@ -1088,6 +1171,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.od_edit_dpm_table = yellow_carp_od_edit_dpm_table,
 	.print_clk_levels = yellow_carp_print_clk_levels,
 	.force_clk_levels = yellow_carp_force_clk_levels,
+	.set_performance_level = yellow_carp_set_performance_level,
 	.set_fine_grain_gfx_freq_parameters = yellow_carp_set_fine_grain_gfx_freq_parameters,
 };
 
