@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/kernel.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
@@ -1408,6 +1409,7 @@ static void attach_node_and_children(struct device_node *np)
 static int __init unittest_data_add(void)
 {
 	void *unittest_data;
+	void *unittest_data_align;
 	struct device_node *unittest_data_node = NULL, *np;
 	/*
 	 * __dtb_testcases_begin[] and __dtb_testcases_end[] are magically
@@ -1425,11 +1427,14 @@ static int __init unittest_data_add(void)
 	}
 
 	/* creating copy */
-	unittest_data = kmemdup(__dtb_testcases_begin, size, GFP_KERNEL);
+	unittest_data = kmalloc(size + FDT_ALIGN_SIZE, GFP_KERNEL);
 	if (!unittest_data)
 		return -ENOMEM;
 
-	ret = of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_node);
+	unittest_data_align = PTR_ALIGN(unittest_data, FDT_ALIGN_SIZE);
+	memcpy(unittest_data_align, __dtb_testcases_begin, size);
+
+	ret = of_fdt_unflatten_tree(unittest_data_align, NULL, &unittest_data_node);
 	if (!ret) {
 		pr_warn("%s: unflatten testcases tree failed\n", __func__);
 		kfree(unittest_data);
