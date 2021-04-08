@@ -394,11 +394,7 @@ static void imx_uart_rts_inactive(struct imx_port *sport, u32 *ucr2)
 
 static void start_hrtimer_ms(struct hrtimer *hrt, unsigned long msec)
 {
-       long sec = msec / MSEC_PER_SEC;
-       long nsec = (msec % MSEC_PER_SEC) * 1000000;
-       ktime_t t = ktime_set(sec, nsec);
-
-       hrtimer_start(hrt, t, HRTIMER_MODE_REL);
+       hrtimer_start(hrt, ms_to_ktime(msec), HRTIMER_MODE_REL);
 }
 
 /* called with port.lock taken and irqs off */

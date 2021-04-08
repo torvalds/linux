@@ -236,7 +236,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || ARCH_APPLE || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -498,6 +498,7 @@ config SERIAL_IMX_EARLYCON
 	bool "Earlycon on IMX serial port"
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
+	select SERIAL_CORE
 	select SERIAL_EARLYCON
 	select SERIAL_CORE_CONSOLE
 	default y if SERIAL_IMX_CONSOLE

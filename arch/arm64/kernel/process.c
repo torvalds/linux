@@ -84,7 +84,7 @@ static void noinstr __cpu_do_idle_irqprio(void)
 	unsigned long daif_bits;
 
 	daif_bits = read_sysreg(daif);
-	write_sysreg(daif_bits | PSR_I_BIT, daif);
+	write_sysreg(daif_bits | PSR_I_BIT | PSR_F_BIT, daif);
 
 	/*
 	 * Unmask PMR before going idle to make sure interrupts can
