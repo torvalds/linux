@@ -1240,6 +1240,18 @@
 			reg = <3>;
 			tach-pulses = <2>;
 		};
+
+		fan4: fan@4 {
+			compatible = "pmbus-fan";
+			reg = <4>;
+			tach-pulses = <2>;
+		};
+
+		fan5: fan@5 {
+			compatible = "pmbus-fan";
+			reg = <5>;
+			tach-pulses = <2>;
+		};
 	};
 
 	pca0: pca9552@61 {
