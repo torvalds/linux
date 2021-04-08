@@ -937,6 +937,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #define DMUB_TRACE_MAX_READ 64
 static void dm_dmub_trace_high_irq(void *interrupt_params)
 {
@@ -963,7 +964,6 @@ static void dm_dmub_trace_high_irq(void *interrupt_params)
 	ASSERT(count <= DMUB_TRACE_MAX_READ);
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_addr_space_config *pa_config)
 {
 	uint64_t pt_base;
