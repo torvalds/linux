@@ -2537,6 +2537,10 @@ static void nr_work_event(struct rkispp_device *dev,
 			dbuf = vdev->nr.cur_rd->dbuf[GROUP_BUF_PIC];
 			dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
 			val = dummy->dma_addr;
+			if (dev->hw_dev->is_first && dev->hw_dev->first_frame_dma != -1) {
+				val = dev->hw_dev->first_frame_dma;
+				dev->hw_dev->first_frame_dma = -1;
+			}
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
 			val += vdev->nr.uv_offset;
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV, val);
@@ -2718,13 +2722,10 @@ static void tnr_work_event(struct rkispp_device *dev,
 	if (!buf_rd && !buf_wr && is_isr) {
 		vdev->tnr.is_end = true;
 
-		if (dev->hw_dev->is_first && vdev->tnr.nxt_rd && vdev->tnr.cur_wr) {
+		if (dev->hw_dev->is_first && vdev->tnr.nxt_rd) {
 			struct rkispp_isp_buf_pool *tbuf = get_pool_buf(dev, vdev->tnr.nxt_rd);
 
-			dbuf = vdev->tnr.cur_wr->dbuf[GROUP_BUF_PIC];
-			dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
-			memcpy(dummy->vaddr, tbuf->vaddr[GROUP_BUF_PIC], dummy->size);
-			rkispp_prepare_buffer(dev, dummy);
+			dev->hw_dev->first_frame_dma = tbuf->dma[GROUP_BUF_PIC];
 		}
 
 		if (vdev->tnr.cur_rd) {
