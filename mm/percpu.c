@@ -306,6 +306,25 @@ static unsigned long pcpu_block_off_to_off(int index, int off)
 	return index * PCPU_BITMAP_BLOCK_BITS + off;
 }
 
+/**
+ * pcpu_check_block_hint - check against the contig hint
+ * @block: block of interest
+ * @bits: size of allocation
+ * @align: alignment of area (max PAGE_SIZE)
+ *
+ * Check to see if the allocation can fit in the block's contig hint.
+ * Note, a chunk uses the same hints as a block so this can also check against
+ * the chunk's contig hint.
+ */
+static bool pcpu_check_block_hint(struct pcpu_block_md *block, int bits,
+				  size_t align)
+{
+	int bit_off = ALIGN(block->contig_hint_start, align) -
+		block->contig_hint_start;
+
+	return bit_off + bits <= block->contig_hint;
+}
+
 /*
  * pcpu_next_hint - determine which hint to use
  * @block: block of interest
@@ -1066,14 +1085,11 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
 	int bit_off, bits, next_off;
 
 	/*
-	 * Check to see if the allocation can fit in the chunk's contig hint.
-	 * This is an optimization to prevent scanning by assuming if it
-	 * cannot fit in the global hint, there is memory pressure and creating
-	 * a new chunk would happen soon.
+	 * This is an optimization to prevent scanning by assuming if the
+	 * allocation cannot fit in the global hint, there is memory pressure
+	 * and creating a new chunk would happen soon.
 	 */
-	bit_off = ALIGN(chunk_md->contig_hint_start, align) -
-		  chunk_md->contig_hint_start;
-	if (bit_off + alloc_bits > chunk_md->contig_hint)
+	if (!pcpu_check_block_hint(chunk_md, alloc_bits, align))
 		return -1;
 
 	bit_off = pcpu_next_hint(chunk_md, alloc_bits);
