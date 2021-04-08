@@ -317,7 +317,7 @@ static int imx_rproc_mem_release(struct rproc *rproc,
 	return 0;
 }
 
-static int imx_rproc_parse_memory_regions(struct rproc *rproc)
+static int imx_rproc_prepare(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
 	struct device_node *np = priv->dev->of_node;
@@ -363,10 +363,7 @@ static int imx_rproc_parse_memory_regions(struct rproc *rproc)
 
 static int imx_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
-	int ret = imx_rproc_parse_memory_regions(rproc);
-
-	if (ret)
-		return ret;
+	int ret;
 
 	ret = rproc_elf_load_rsc_table(rproc, fw);
 	if (ret)
@@ -399,6 +396,7 @@ static void imx_rproc_kick(struct rproc *rproc, int vqid)
 }
 
 static const struct rproc_ops imx_rproc_ops = {
+	.prepare	= imx_rproc_prepare,
 	.start		= imx_rproc_start,
 	.stop		= imx_rproc_stop,
 	.kick		= imx_rproc_kick,
