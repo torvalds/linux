@@ -356,7 +356,7 @@ static int acp_pdm_dai_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_dai_ops acp_pdm_dai_ops = {
+static const struct snd_soc_dai_ops acp_pdm_dai_ops = {
 	.trigger   = acp_pdm_dai_trigger,
 };
 
