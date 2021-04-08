@@ -25,6 +25,10 @@
 
 #include "cpufreq-dt.h"
 
+/* Clk register set */
+#define ARMADA_37XX_CLK_TBG_SEL		0
+#define ARMADA_37XX_CLK_TBG_SEL_CPU_OFF	22
+
 /* Power management in North Bridge register set */
 #define ARMADA_37XX_NB_L0L1	0x18
 #define ARMADA_37XX_NB_L2L3	0x1C
@@ -120,10 +124,15 @@ static struct armada_37xx_dvfs *armada_37xx_cpu_freq_info_get(u32 freq)
  * will be configured then the DVFS will be enabled.
  */
 static void __init armada37xx_cpufreq_dvfs_setup(struct regmap *base,
-						 struct clk *clk, u8 *divider)
+						 struct regmap *clk_base, u8 *divider)
 {
+	u32 cpu_tbg_sel;
 	int load_lvl;
-	struct clk *parent;
+
+	/* Determine to which TBG clock is CPU connected */
+	regmap_read(clk_base, ARMADA_37XX_CLK_TBG_SEL, &cpu_tbg_sel);
+	cpu_tbg_sel >>= ARMADA_37XX_CLK_TBG_SEL_CPU_OFF;
+	cpu_tbg_sel &= ARMADA_37XX_NB_TBG_SEL_MASK;
 
 	for (load_lvl = 0; load_lvl < LOAD_LEVEL_NR; load_lvl++) {
 		unsigned int reg, mask, val, offset = 0;
@@ -141,6 +150,11 @@ static void __init armada37xx_cpufreq_dvfs_setup(struct regmap *base,
 		val = ARMADA_37XX_NB_CLK_SEL_TBG << ARMADA_37XX_NB_CLK_SEL_OFF;
 		mask = (ARMADA_37XX_NB_CLK_SEL_MASK
 			<< ARMADA_37XX_NB_CLK_SEL_OFF);
+
+		/* Set TBG index, for all levels we use the same TBG */
+		val = cpu_tbg_sel << ARMADA_37XX_NB_TBG_SEL_OFF;
+		mask = (ARMADA_37XX_NB_TBG_SEL_MASK
+			<< ARMADA_37XX_NB_TBG_SEL_OFF);
 
 		/*
 		 * Set cpu divider based on the pre-computed array in
@@ -160,14 +174,6 @@ static void __init armada37xx_cpufreq_dvfs_setup(struct regmap *base,
 
 		regmap_update_bits(base, reg, mask, val);
 	}
-
-	/*
-	 * Set cpu clock source, for all the level we keep the same
-	 * clock source that the one already configured. For this one
-	 * we need to use the clock framework
-	 */
-	parent = clk_get_parent(clk);
-	clk_set_parent(clk, parent);
 }
 
 /*
@@ -358,10 +364,15 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	struct platform_device *pdev;
 	unsigned long freq;
 	unsigned int cur_frequency, base_frequency;
-	struct regmap *nb_pm_base, *avs_base;
+	struct regmap *nb_clk_base, *nb_pm_base, *avs_base;
 	struct device *cpu_dev;
 	int load_lvl, ret;
 	struct clk *clk, *parent;
+
+	nb_clk_base =
+		syscon_regmap_lookup_by_compatible("marvell,armada-3700-periph-clock-nb");
+	if (IS_ERR(nb_clk_base))
+		return -ENODEV;
 
 	nb_pm_base =
 		syscon_regmap_lookup_by_compatible("marvell,armada-3700-nb-pm");
@@ -439,7 +450,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	armada37xx_cpufreq_avs_configure(avs_base, dvfs);
 	armada37xx_cpufreq_avs_setup(avs_base, dvfs);
 
-	armada37xx_cpufreq_dvfs_setup(nb_pm_base, clk, dvfs->divider);
+	armada37xx_cpufreq_dvfs_setup(nb_pm_base, nb_clk_base, dvfs->divider);
 	clk_put(clk);
 
 	for (load_lvl = ARMADA_37XX_DVFS_LOAD_0; load_lvl < LOAD_LEVEL_NR;
