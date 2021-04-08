@@ -359,6 +359,47 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
+/* enable busif buffer over/under run interrupt. */
+#define rsnd_ssi_busif_err_irq_enable(mod)  rsnd_ssi_busif_err_irq_ctrl(mod, 1)
+#define rsnd_ssi_busif_err_irq_disable(mod) rsnd_ssi_busif_err_irq_ctrl(mod, 0)
+static void rsnd_ssi_busif_err_irq_ctrl(struct rsnd_mod *mod, int enable)
+{
+	u32 sys_int_enable = 0;
+	int id = rsnd_mod_id(mod);
+	int i;
+
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		for (i = 0; i < 4; i++) {
+			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE(i * 2));
+			if (enable)
+				sys_int_enable |= 0xf << (id * 4);
+			else
+				sys_int_enable &= ~(0xf << (id * 4));
+			rsnd_mod_write(mod,
+				       SSI_SYS_INT_ENABLE(i * 2),
+				       sys_int_enable);
+		}
+		break;
+	case 9:
+		for (i = 0; i < 4; i++) {
+			sys_int_enable = rsnd_mod_read(mod, SSI_SYS_INT_ENABLE((i * 2) + 1));
+			if (enable)
+				sys_int_enable |= 0xf << 4;
+			else
+				sys_int_enable &= ~(0xf << 4);
+			rsnd_mod_write(mod,
+				       SSI_SYS_INT_ENABLE((i * 2) + 1),
+				       sys_int_enable);
+		}
+		break;
+	}
+}
+
 static bool rsnd_ssi_busif_err_status_clear(struct rsnd_mod *mod)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
@@ -421,9 +462,6 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	u32 wsr		= ssi->wsr;
 	int width;
 	int is_tdm, is_tdm_split;
-	int id = rsnd_mod_id(mod);
-	int i;
-	u32 sys_int_enable = 0;
 
 	is_tdm		= rsnd_runtime_is_tdm(io);
 	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
@@ -499,36 +537,8 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	}
 
 	/* enable busif buffer over/under run interrupt. */
-	if (is_tdm || is_tdm_split) {
-		switch (id) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-			for (i = 0; i < 4; i++) {
-				sys_int_enable = rsnd_mod_read(mod,
-					SSI_SYS_INT_ENABLE(i * 2));
-				sys_int_enable |= 0xf << (id * 4);
-				rsnd_mod_write(mod,
-					       SSI_SYS_INT_ENABLE(i * 2),
-					       sys_int_enable);
-			}
-
-			break;
-		case 9:
-			for (i = 0; i < 4; i++) {
-				sys_int_enable = rsnd_mod_read(mod,
-					SSI_SYS_INT_ENABLE((i * 2) + 1));
-				sys_int_enable |= 0xf << 4;
-				rsnd_mod_write(mod,
-					       SSI_SYS_INT_ENABLE((i * 2) + 1),
-					       sys_int_enable);
-			}
-
-			break;
-		}
-	}
+	if (is_tdm || is_tdm_split)
+		rsnd_ssi_busif_err_irq_enable(mod);
 
 init_end:
 	ssi->cr_own	= cr_own;
@@ -585,8 +595,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int is_tdm, is_tdm_split;
-	int id = rsnd_mod_id(mod);
-	u32 sys_int_enable = 0;
 
 	is_tdm		= rsnd_runtime_is_tdm(io);
 	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
@@ -612,38 +620,8 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	}
 
 	/* disable busif buffer over/under run interrupt. */
-	if (is_tdm || is_tdm_split) {
-		int i;
-
-		switch (id) {
-		case 0:
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-			for (i = 0; i < 4; i++) {
-				sys_int_enable = rsnd_mod_read(mod,
-						SSI_SYS_INT_ENABLE(i * 2));
-				sys_int_enable &= ~(0xf << (id * 4));
-				rsnd_mod_write(mod,
-					       SSI_SYS_INT_ENABLE(i * 2),
-					       sys_int_enable);
-			}
-
-			break;
-		case 9:
-			for (i = 0; i < 4; i++) {
-				sys_int_enable = rsnd_mod_read(mod,
-					SSI_SYS_INT_ENABLE((i * 2) + 1));
-				sys_int_enable &= ~(0xf << 4);
-				rsnd_mod_write(mod,
-					       SSI_SYS_INT_ENABLE((i * 2) + 1),
-					       sys_int_enable);
-			}
-
-			break;
-		}
-	}
+	if (is_tdm || is_tdm_split)
+		rsnd_ssi_busif_err_irq_disable(mod);
 
 	return 0;
 }
