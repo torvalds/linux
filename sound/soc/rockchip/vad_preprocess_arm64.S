@@ -50,7 +50,7 @@ vad_preprocess:
 	mul	w2, w7, w2
 	mul	w5, w0, w8
 	sxtw	x2, w2
-	add	x2, x2, x5, sxtw
+	add	x2, x2, w5, sxtw
 	smaddl	x3, w3, w8, x2
 	mov	w2, -30632
 	smsubl	x2, w6, w2, x3
