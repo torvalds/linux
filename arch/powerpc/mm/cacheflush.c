@@ -145,7 +145,7 @@ EXPORT_SYMBOL(flush_dcache_page);
  */
 static void __flush_dcache_icache(void *p)
 {
-	unsigned long addr = (unsigned long)p;
+	unsigned long addr = (unsigned long)p & PAGE_MASK;
 
 	clean_dcache_range(addr, addr + PAGE_SIZE);
 
