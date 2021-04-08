@@ -1185,8 +1185,8 @@ static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 	if (err)
 		goto out;
 
-	/* Upper fs should not be r/o */
-	if (sb_rdonly(upperpath->mnt->mnt_sb)) {
+	/* Upperdir path should not be r/o */
+	if (__mnt_is_readonly(upperpath->mnt)) {
 		pr_err("upper fs is r/o, try multi-lower layers mount\n");
 		err = -EINVAL;
 		goto out;
