@@ -92,22 +92,6 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
 
-bool walt_get_rtg_status(struct task_struct *p)
-{
-	struct walt_related_thread_group *grp;
-	bool ret = false;
-
-	rcu_read_lock();
-
-	grp = task_related_thread_group(p);
-	if (grp)
-		ret = grp->skip_min;
-
-	rcu_read_unlock();
-
-	return ret;
-}
-
 static inline bool walt_task_skip_min_cpu(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -648,7 +632,7 @@ unlock:
 done:
 	trace_sched_task_util(p, cpumask_bits(candidates)[0], best_energy_cpu,
 			sync, fbt_env.need_idle, fbt_env.fastpath,
-			start_t, boosted, is_rtg, start_cpu);
+			start_t, boosted, start_cpu);
 
 	return best_energy_cpu;
 

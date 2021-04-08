@@ -738,7 +738,6 @@ static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
 extern void sched_get_nr_running_avg(struct sched_avg_stats *stats);
 extern void sched_update_hyst_times(void);
 
-extern bool walt_get_rtg_status(struct task_struct *p);
 extern enum sched_boost_policy sched_boost_policy(void);
 extern void walt_rt_init(void);
 extern void walt_cfs_init(void);
@@ -793,6 +792,22 @@ static inline struct walt_related_thread_group
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	return rcu_dereference(wts->grp);
+}
+
+static inline bool walt_get_rtg_status(struct task_struct *p)
+{
+	struct walt_related_thread_group *grp;
+	bool ret = false;
+
+	rcu_read_lock();
+
+	grp = task_related_thread_group(p);
+	if (grp)
+		ret = grp->skip_min;
+
+	rcu_read_unlock();
+
+	return ret;
 }
 
 #define CPU_RESERVED 1

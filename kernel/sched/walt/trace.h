@@ -905,12 +905,10 @@ TRACE_EVENT(sched_task_util,
 
 	TP_PROTO(struct task_struct *p, unsigned long candidates,
 		int best_energy_cpu, bool sync, int need_idle, int fastpath,
-		u64 start_t, bool uclamp_boosted, bool is_rtg,
-		int start_cpu),
+		u64 start_t, bool uclamp_boosted, int start_cpu),
 
 	TP_ARGS(p, candidates, best_energy_cpu, sync, need_idle, fastpath,
-		start_t, uclamp_boosted, is_rtg,
-		start_cpu),
+		start_t, uclamp_boosted, start_cpu),
 
 	TP_STRUCT__entry(
 		__field(int,		pid)
@@ -948,7 +946,7 @@ TRACE_EVENT(sched_task_util,
 		__entry->placement_boost	= task_boost_policy(p);
 		__entry->latency		= (sched_clock() - start_t);
 		__entry->uclamp_boosted		= uclamp_boosted;
-		__entry->is_rtg			= is_rtg;
+		__entry->is_rtg			= task_in_related_thread_group(p);
 		__entry->rtg_skip_min		= walt_get_rtg_status(p);
 		__entry->start_cpu		= start_cpu;
 		__entry->unfilter		=
