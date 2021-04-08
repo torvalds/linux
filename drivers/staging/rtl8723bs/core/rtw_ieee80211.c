@@ -1000,8 +1000,6 @@ enum ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			break;
 		default:
 			unknown++;
-			if (!show_errors)
-				break;
 			break;
 		}
 
