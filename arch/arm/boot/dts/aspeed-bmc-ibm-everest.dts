@@ -872,6 +872,8 @@
 
 			max31785@52 {
 				compatible = "maxim,max31785a";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x52>;
 
 				fan@0 {
@@ -901,6 +903,8 @@
 
 			pca0: pca9552@61 {
 				compatible = "nxp,pca9552";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x61>;
 
 				gpio-controller;
