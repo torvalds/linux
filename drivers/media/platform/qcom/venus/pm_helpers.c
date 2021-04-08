@@ -1083,7 +1083,7 @@ static int load_scale_v4(struct venus_inst *inst)
 
 	freq = max(freq_core1, freq_core2);
 
-	if (freq >= table[0].freq) {
+	if (freq > table[0].freq) {
 		freq = table[0].freq;
 		dev_warn(dev, "HW is overloaded, needed: %lu max: %lu\n",
 			 freq, table[0].freq);
