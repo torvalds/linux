@@ -217,8 +217,6 @@ _next:
 			} else {
 				pcmd->res = H2C_PARAMETERS_ERROR;
 			}
-
-			cmd_hdl = NULL;
 		}
 
 		/* call callback function for post-processed */
