@@ -334,7 +334,7 @@ u32 usb_read32(struct adapter *adapter, u32 addr)
 	return le32_to_cpu(data);
 }
 
-static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_read_port_complete(struct urb *purb)
 {
 	struct recv_buf *precvbuf = (struct recv_buf *)purb->context;
 	struct adapter *adapt = (struct adapter *)precvbuf->adapter;
@@ -519,7 +519,7 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 	return usbctrl_vendorreq(adapter, wvalue, &data, 4, REALTEK_USB_VENQT_WRITE);
 }
 
-static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
+static void usb_write_port_complete(struct urb *purb)
 {
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)purb->context;
 	struct adapter *padapter = pxmitbuf->padapter;
