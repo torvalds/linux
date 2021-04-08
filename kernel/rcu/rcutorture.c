@@ -340,6 +340,7 @@ struct rcu_torture_ops {
 	void (*fqs)(void);
 	void (*stats)(void);
 	void (*gp_kthread_dbg)(void);
+	bool (*check_boost_failed)(unsigned long gp_state, int *cpup);
 	int (*stall_dur)(void);
 	int irq_capable;
 	int can_boost;
@@ -483,31 +484,32 @@ static void rcu_sync_torture_init(void)
 }
 
 static struct rcu_torture_ops rcu_ops = {
-	.ttype		= RCU_FLAVOR,
-	.init		= rcu_sync_torture_init,
-	.readlock	= rcu_torture_read_lock,
-	.read_delay	= rcu_read_delay,
-	.readunlock	= rcu_torture_read_unlock,
-	.readlock_held	= torture_readlock_not_held,
-	.get_gp_seq	= rcu_get_gp_seq,
-	.gp_diff	= rcu_seq_diff,
-	.deferred_free	= rcu_torture_deferred_free,
-	.sync		= synchronize_rcu,
-	.exp_sync	= synchronize_rcu_expedited,
-	.get_gp_state	= get_state_synchronize_rcu,
-	.start_gp_poll	= start_poll_synchronize_rcu,
-	.poll_gp_state	= poll_state_synchronize_rcu,
-	.cond_sync	= cond_synchronize_rcu,
-	.call		= call_rcu,
-	.cb_barrier	= rcu_barrier,
-	.fqs		= rcu_force_quiescent_state,
-	.stats		= NULL,
-	.gp_kthread_dbg	= show_rcu_gp_kthreads,
-	.stall_dur	= rcu_jiffies_till_stall_check,
-	.irq_capable	= 1,
-	.can_boost	= IS_ENABLED(CONFIG_RCU_BOOST),
-	.extendables	= RCUTORTURE_MAX_EXTEND,
-	.name		= "rcu"
+	.ttype			= RCU_FLAVOR,
+	.init			= rcu_sync_torture_init,
+	.readlock		= rcu_torture_read_lock,
+	.read_delay		= rcu_read_delay,
+	.readunlock		= rcu_torture_read_unlock,
+	.readlock_held		= torture_readlock_not_held,
+	.get_gp_seq		= rcu_get_gp_seq,
+	.gp_diff		= rcu_seq_diff,
+	.deferred_free		= rcu_torture_deferred_free,
+	.sync			= synchronize_rcu,
+	.exp_sync		= synchronize_rcu_expedited,
+	.get_gp_state		= get_state_synchronize_rcu,
+	.start_gp_poll		= start_poll_synchronize_rcu,
+	.poll_gp_state		= poll_state_synchronize_rcu,
+	.cond_sync		= cond_synchronize_rcu,
+	.call			= call_rcu,
+	.cb_barrier		= rcu_barrier,
+	.fqs			= rcu_force_quiescent_state,
+	.stats			= NULL,
+	.gp_kthread_dbg		= show_rcu_gp_kthreads,
+	.check_boost_failed	= rcu_check_boost_fail,
+	.stall_dur		= rcu_jiffies_till_stall_check,
+	.irq_capable		= 1,
+	.can_boost		= IS_ENABLED(CONFIG_RCU_BOOST),
+	.extendables		= RCUTORTURE_MAX_EXTEND,
+	.name			= "rcu"
 };
 
 /*
@@ -918,14 +920,27 @@ static void rcu_torture_enable_rt_throttle(void)
 
 static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start, unsigned long end)
 {
+	int cpu;
 	static int dbg_done;
 	bool gp_done;
+	unsigned long j;
+	static unsigned long last_persist;
+	unsigned long lp;
+	unsigned long mininterval = test_boost_duration * HZ - HZ / 2;
 
-	if (end - start > test_boost_duration * HZ - HZ / 2) {
+	if (end - start > mininterval) {
 		// Recheck after checking time to avoid false positives.
 		smp_mb(); // Time check before grace-period check.
 		if (cur_ops->poll_gp_state(gp_state))
 			return false; // passed, though perhaps just barely
+		if (cur_ops->check_boost_failed && !cur_ops->check_boost_failed(gp_state, &cpu)) {
+			// At most one persisted message per boost test.
+			j = jiffies;
+			lp = READ_ONCE(last_persist);
+			if (time_after(j, lp + mininterval) && cmpxchg(&last_persist, lp, j) == lp)
+				pr_info("Boost inversion persisted: No QS from CPU %d\n", cpu);
+			return false; // passed on a technicality
+		}
 		VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
 		n_rcu_torture_boost_failure++;
 		if (!xchg(&dbg_done, 1) && cur_ops->gp_kthread_dbg) {

@@ -717,6 +717,42 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 
 /*
+ * Check to see if a failure to end RCU priority inversion was due to
+ * a CPU not passing through a quiescent state.  When this happens, there
+ * is nothing that RCU priority boosting can do to help, so we shouldn't
+ * count this as an RCU priority boosting failure.  A return of true says
+ * RCU priority boosting is to blame, and false says otherwise.  If false
+ * is returned, the first of the CPUs to blame is stored through cpup.
+ */
+bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
+{
+	int cpu;
+	unsigned long flags;
+	struct rcu_node *rnp;
+
+	rcu_for_each_leaf_node(rnp) {
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		if (!rnp->qsmask) {
+			// No CPUs without quiescent states for this rnp.
+			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+			continue;
+		}
+		// Find the first holdout CPU.
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			if (rnp->qsmask & (1UL << (cpu - rnp->grplo))) {
+				raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+				*cpup = cpu;
+				return false;
+			}
+		}
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	}
+	// Can't blame CPUs, so must blame RCU priority boosting.
+	return true;
+}
+EXPORT_SYMBOL_GPL(rcu_check_boost_fail);
+
+/*
  * Show the state of the grace-period kthreads.
  */
 void show_rcu_gp_kthreads(void)
