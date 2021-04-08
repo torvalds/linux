@@ -4367,8 +4367,6 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
 	unsigned long flags;
 	int ret = 0;
-	u32 hprt0;
-	u32 pcgctl;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
@@ -4384,46 +4382,31 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL)
 		goto unlock;
 
-	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_PARTIAL ||
-	    hsotg->flags.b.port_connect_status == 0)
+	if (hsotg->bus_suspended)
 		goto skip_power_saving;
 
-	/*
-	 * Drive USB suspend and disable port Power
-	 * if usb bus is not suspended.
-	 */
-	if (!hsotg->bus_suspended) {
-		hprt0 = dwc2_read_hprt0(hsotg);
-		if (hprt0 & HPRT0_CONNSTS) {
-			hprt0 |= HPRT0_SUSP;
-			if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_PARTIAL)
-				hprt0 &= ~HPRT0_PWR;
-			dwc2_writel(hsotg, hprt0, HPRT0);
-		}
-		if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_PARTIAL) {
-			spin_unlock_irqrestore(&hsotg->lock, flags);
-			dwc2_vbus_supply_exit(hsotg);
-			spin_lock_irqsave(&hsotg->lock, flags);
-		} else {
-			pcgctl = readl(hsotg->regs + PCGCTL);
-			pcgctl |= PCGCTL_STOPPCLK;
-			writel(pcgctl, hsotg->regs + PCGCTL);
-		}
-	}
+	if (hsotg->flags.b.port_connect_status == 0)
+		goto skip_power_saving;
 
-	if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_PARTIAL) {
+	switch (hsotg->params.power_down) {
+	case DWC2_POWER_DOWN_PARAM_PARTIAL:
 		/* Enter partial_power_down */
 		ret = dwc2_enter_partial_power_down(hsotg);
-		if (ret) {
-			if (ret != -ENOTSUPP)
-				dev_err(hsotg->dev,
-					"enter partial_power_down failed\n");
-			goto skip_power_saving;
-		}
-
-		/* After entering partial_power_down, hardware is no more accessible */
+		if (ret)
+			dev_err(hsotg->dev,
+				"enter partial_power_down failed\n");
+		/* After entering suspend, hardware is not accessible */
 		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+		break;
+	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+	case DWC2_POWER_DOWN_PARAM_NONE:
+	default:
+		goto skip_power_saving;
 	}
+
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+	dwc2_vbus_supply_exit(hsotg);
+	spin_lock_irqsave(&hsotg->lock, flags);
 
 	/* Ask phy to be suspended */
 	if (!IS_ERR_OR_NULL(hsotg->uphy)) {
