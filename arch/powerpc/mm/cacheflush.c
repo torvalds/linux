@@ -143,9 +143,6 @@ static void __flush_dcache_icache(void *p)
 {
 	unsigned long addr = (unsigned long)p;
 
-	if (flush_coherent_icache())
-		return;
-
 	clean_dcache_range(addr, addr + PAGE_SIZE);
 
 	/*
@@ -182,6 +179,8 @@ static void flush_dcache_icache_hugepage(struct page *page)
 
 void flush_dcache_icache_page(struct page *page)
 {
+	if (flush_coherent_icache())
+		return;
 
 	if (PageCompound(page))
 		return flush_dcache_icache_hugepage(page);
@@ -195,11 +194,7 @@ void flush_dcache_icache_page(struct page *page)
 		__flush_dcache_icache(start);
 		kunmap_atomic(start);
 	} else {
-		unsigned long addr = page_to_pfn(page) << PAGE_SHIFT;
-
-		if (flush_coherent_icache())
-			return;
-		flush_dcache_icache_phys(addr);
+		flush_dcache_icache_phys(page_to_phys(page));
 	}
 #endif
 }
