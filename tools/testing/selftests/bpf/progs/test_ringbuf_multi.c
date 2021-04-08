@@ -30,6 +30,17 @@ struct {
 	},
 };
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__array(values, struct ringbuf_map);
+} ringbuf_hash SEC(".maps") = {
+	.values = {
+		[0] = &ringbuf1,
+	},
+};
+
 /* inputs */
 int pid = 0;
 int target_ring = 0;

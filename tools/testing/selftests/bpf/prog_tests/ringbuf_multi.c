@@ -44,6 +44,7 @@ void test_ringbuf_multi(void)
 	struct ring_buffer *ringbuf = NULL;
 	int err;
 	int page_size = getpagesize();
+	int proto_fd = -1;
 
 	skel = test_ringbuf_multi__open();
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
@@ -61,9 +62,20 @@ void test_ringbuf_multi(void)
 	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
 		goto cleanup;
 
+	proto_fd = bpf_create_map(BPF_MAP_TYPE_RINGBUF, 0, 0, page_size, 0);
+	if (CHECK(proto_fd == -1, "bpf_create_map", "bpf_create_map failed\n"))
+		goto cleanup;
+
+	err = bpf_map__set_inner_map_fd(skel->maps.ringbuf_hash, proto_fd);
+	if (CHECK(err != 0, "bpf_map__set_inner_map_fd", "bpf_map__set_inner_map_fd failed\n"))
+		goto cleanup;
+
 	err = test_ringbuf_multi__load(skel);
 	if (CHECK(err != 0, "skel_load", "skeleton load failed\n"))
 		goto cleanup;
+
+	close(proto_fd);
+	proto_fd = -1;
 
 	/* only trigger BPF program for current process */
 	skel->bss->pid = getpid();
@@ -114,6 +126,8 @@ void test_ringbuf_multi(void)
 	      2L, skel->bss->total);
 
 cleanup:
+	if (proto_fd >= 0)
+		close(proto_fd);
 	ring_buffer__free(ringbuf);
 	test_ringbuf_multi__destroy(skel);
 }
