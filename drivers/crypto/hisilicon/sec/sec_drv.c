@@ -233,7 +233,7 @@ static int sec_queue_map_io(struct sec_queue *queue)
 				    IORESOURCE_MEM,
 				    2 + queue->queue_id);
 	if (!res) {
-		dev_err(dev, "Failed to get queue %d memory resource\n",
+		dev_err(dev, "Failed to get queue %u memory resource\n",
 			queue->queue_id);
 		return -ENOMEM;
 	}
@@ -653,12 +653,12 @@ static int sec_queue_free(struct sec_queue *queue)
 	struct sec_dev_info *info = queue->dev_info;
 
 	if (queue->queue_id >= SEC_Q_NUM) {
-		dev_err(info->dev, "No queue %d\n", queue->queue_id);
+		dev_err(info->dev, "No queue %u\n", queue->queue_id);
 		return -ENODEV;
 	}
 
 	if (!queue->in_use) {
-		dev_err(info->dev, "Queue %d is idle\n", queue->queue_id);
+		dev_err(info->dev, "Queue %u is idle\n", queue->queue_id);
 		return -ENODEV;
 	}
 
