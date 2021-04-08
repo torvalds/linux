@@ -164,8 +164,13 @@ int ipoib_open(struct net_device *dev)
 			dev_change_flags(cpriv->dev, flags | IFF_UP, NULL);
 		}
 		up_read(&priv->vlan_rwsem);
-	}
+	} else if (priv->parent) {
+		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
 
+		if (!test_bit(IPOIB_FLAG_ADMIN_UP, &ppriv->flags))
+			ipoib_dbg(priv, "parent device %s is not up, so child device may be not functioning.\n",
+				  ppriv->dev->name);
+	}
 	netif_start_queue(dev);
 
 	return 0;
