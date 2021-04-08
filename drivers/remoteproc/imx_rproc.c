@@ -459,6 +459,8 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 			return err;
 		}
 
+		of_node_put(node);
+
 		if (b >= IMX7D_RPROC_MEM_MAX)
 			break;
 
