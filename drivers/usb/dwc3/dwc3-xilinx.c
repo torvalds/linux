@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-xilinx.c - Xilinx DWC3 controller specific glue driver
  *
  * Authors: Manish Narani <manish.narani@xilinx.com>
