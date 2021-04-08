@@ -5607,3 +5607,163 @@ bool dwc2_host_can_poweroff_phy(struct dwc2_hsotg *dwc2)
 	/* No reason to keep the PHY powered, so allow poweroff */
 	return true;
 }
+
+/**
+ * dwc2_host_enter_partial_power_down() - Put controller in partial
+ * power down.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
+ * Return: non-zero if failed to enter host partial power down.
+ *
+ * This function is for entering Host mode partial power down.
+ */
+int dwc2_host_enter_partial_power_down(struct dwc2_hsotg *hsotg)
+{
+	u32 pcgcctl;
+	u32 hprt0;
+	int ret = 0;
+
+	dev_dbg(hsotg->dev, "Entering host partial power down started.\n");
+
+	/* Put this port in suspend mode. */
+	hprt0 = dwc2_read_hprt0(hsotg);
+	hprt0 |= HPRT0_SUSP;
+	dwc2_writel(hsotg, hprt0, HPRT0);
+	udelay(5);
+
+	/* Wait for the HPRT0.PrtSusp register field to be set */
+	if (dwc2_hsotg_wait_bit_set(hsotg, HPRT0, HPRT0_SUSP, 3000))
+		dev_warn(hsotg->dev, "Suspend wasn't generated\n");
+
+	/* Backup all registers */
+	ret = dwc2_backup_global_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
+			__func__);
+		return ret;
+	}
+
+	ret = dwc2_backup_host_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup host registers\n",
+			__func__);
+		return ret;
+	}
+
+	/*
+	 * Clear any pending interrupts since dwc2 will not be able to
+	 * clear them after entering partial_power_down.
+	 */
+	dwc2_writel(hsotg, 0xffffffff, GINTSTS);
+
+	/* Put the controller in low power state */
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+
+	pcgcctl |= PCGCTL_PWRCLMP;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+	udelay(5);
+
+	pcgcctl |= PCGCTL_RSTPDWNMODULE;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+	udelay(5);
+
+	pcgcctl |= PCGCTL_STOPPCLK;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+
+	/* Set in_ppd flag to 1 as here core enters suspend. */
+	hsotg->in_ppd = 1;
+	hsotg->lx_state = DWC2_L2;
+	hsotg->bus_suspended = true;
+
+	dev_dbg(hsotg->dev, "Entering host partial power down completed.\n");
+
+	return ret;
+}
+
+/*
+ * dwc2_host_exit_partial_power_down() - Exit controller from host partial
+ * power down.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @rem_wakeup: indicates whether resume is initiated by Reset.
+ * @restore: indicates whether need to restore the registers or not.
+ *
+ * Return: non-zero if failed to exit host partial power down.
+ *
+ * This function is for exiting from Host mode partial power down.
+ */
+int dwc2_host_exit_partial_power_down(struct dwc2_hsotg *hsotg,
+				      int rem_wakeup, bool restore)
+{
+	u32 pcgcctl;
+	int ret = 0;
+	u32 hprt0;
+
+	dev_dbg(hsotg->dev, "Exiting host partial power down started.\n");
+
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+	pcgcctl &= ~PCGCTL_STOPPCLK;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+	udelay(5);
+
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+	pcgcctl &= ~PCGCTL_PWRCLMP;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+	udelay(5);
+
+	pcgcctl = dwc2_readl(hsotg, PCGCTL);
+	pcgcctl &= ~PCGCTL_RSTPDWNMODULE;
+	dwc2_writel(hsotg, pcgcctl, PCGCTL);
+
+	udelay(100);
+	if (restore) {
+		ret = dwc2_restore_global_registers(hsotg);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to restore registers\n",
+				__func__);
+			return ret;
+		}
+
+		ret = dwc2_restore_host_registers(hsotg);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to restore host registers\n",
+				__func__);
+			return ret;
+		}
+	}
+
+	/* Drive resume signaling and exit suspend mode on the port. */
+	hprt0 = dwc2_read_hprt0(hsotg);
+	hprt0 |= HPRT0_RES;
+	hprt0 &= ~HPRT0_SUSP;
+	dwc2_writel(hsotg, hprt0, HPRT0);
+	udelay(5);
+
+	if (!rem_wakeup) {
+		/* Stop driveing resume signaling on the port. */
+		hprt0 = dwc2_read_hprt0(hsotg);
+		hprt0 &= ~HPRT0_RES;
+		dwc2_writel(hsotg, hprt0, HPRT0);
+
+		hsotg->bus_suspended = false;
+	} else {
+		/* Turn on the port power bit. */
+		hprt0 = dwc2_read_hprt0(hsotg);
+		hprt0 |= HPRT0_PWR;
+		dwc2_writel(hsotg, hprt0, HPRT0);
+
+		/* Connect hcd. */
+		dwc2_hcd_connect(hsotg);
+
+		mod_timer(&hsotg->wkp_timer,
+			  jiffies + msecs_to_jiffies(71));
+	}
+
+	/* Set lx_state to and in_ppd to 0 as here core exits from suspend. */
+	hsotg->in_ppd = 0;
+	hsotg->lx_state = DWC2_L0;
+
+	dev_dbg(hsotg->dev, "Exiting host partial power down completed.\n");
+	return ret;
+}

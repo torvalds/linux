@@ -1474,6 +1474,9 @@ int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg);
 int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg);
 int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg,
 			       int rem_wakeup, int reset);
+int dwc2_host_enter_partial_power_down(struct dwc2_hsotg *hsotg);
+int dwc2_host_exit_partial_power_down(struct dwc2_hsotg *hsotg,
+				      int rem_wakeup, bool restore);
 bool dwc2_host_can_poweroff_phy(struct dwc2_hsotg *dwc2);
 static inline void dwc2_host_schedule_phy_reset(struct dwc2_hsotg *hsotg)
 { schedule_work(&hsotg->phy_reset_work); }
@@ -1499,6 +1502,11 @@ static inline int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg,
 					     int rem_wakeup, int reset)
+{ return 0; }
+static inline int dwc2_host_enter_partial_power_down(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_host_exit_partial_power_down(struct dwc2_hsotg *hsotg,
+						    int rem_wakeup, bool restore)
 { return 0; }
 static inline bool dwc2_host_can_poweroff_phy(struct dwc2_hsotg *dwc2)
 { return false; }
