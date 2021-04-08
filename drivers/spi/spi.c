@@ -2793,9 +2793,9 @@ free_bus_id:
 }
 EXPORT_SYMBOL_GPL(spi_register_controller);
 
-static void devm_spi_unregister(struct device *dev, void *res)
+static void devm_spi_unregister(void *ctlr)
 {
-	spi_unregister_controller(*(struct spi_controller **)res);
+	spi_unregister_controller(ctlr);
 }
 
 /**
@@ -2814,22 +2814,13 @@ static void devm_spi_unregister(struct device *dev, void *res)
 int devm_spi_register_controller(struct device *dev,
 				 struct spi_controller *ctlr)
 {
-	struct spi_controller **ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_spi_unregister, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
 	ret = spi_register_controller(ctlr);
-	if (!ret) {
-		*ptr = ctlr;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action_or_reset(dev, devm_spi_unregister, ctlr);
 }
 EXPORT_SYMBOL_GPL(devm_spi_register_controller);
 
