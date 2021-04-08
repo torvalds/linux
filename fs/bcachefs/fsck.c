@@ -1137,14 +1137,12 @@ fsck_err:
 
 struct nlink {
 	u32	count;
-	u32	dir_count;
 };
 
 typedef GENRADIX(struct nlink) nlink_table;
 
 static void inc_link(struct bch_fs *c, nlink_table *links,
-		     u64 range_start, u64 *range_end,
-		     u64 inum, bool dir)
+		     u64 range_start, u64 *range_end, u64 inum)
 {
 	struct nlink *link;
 
@@ -1163,10 +1161,7 @@ static void inc_link(struct bch_fs *c, nlink_table *links,
 		return;
 	}
 
-	if (dir)
-		link->dir_count++;
-	else
-		link->count++;
+	link->count++;
 }
 
 noinline_for_stack
@@ -1177,26 +1172,18 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent d;
-	u64 d_inum;
 	int ret;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	inc_link(c, links, range_start, range_end, BCACHEFS_ROOT_INO, false);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_dirents, POS_MIN, 0, k, ret) {
 		switch (k.k->type) {
 		case KEY_TYPE_dirent:
 			d = bkey_s_c_to_dirent(k);
-			d_inum = le64_to_cpu(d.v->d_inum);
 
-			if (d.v->d_type == DT_DIR)
+			if (d.v->d_type != DT_DIR)
 				inc_link(c, links, range_start, range_end,
-					 d.k->p.inode, true);
-
-			inc_link(c, links, range_start, range_end,
-				 d_inum, false);
-
+					 le64_to_cpu(d.v->d_inum));
 			break;
 		}
 
@@ -1215,99 +1202,48 @@ static int check_inode_nlink(struct btree_trans *trans,
 			     struct bch_inode_unpacked *lostfound_inode,
 			     struct btree_iter *iter,
 			     struct bkey_s_c_inode inode,
-			     struct nlink *link)
+			     unsigned nlink)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_inode_unpacked u;
-	u32 i_nlink, real_i_nlink;
 	int ret = 0;
 
+	/*
+	 * Backpointer and directory structure checks are sufficient for
+	 * directories, since they can't have hardlinks:
+	 */
+	if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
+		return 0;
+
 	ret = bch2_inode_unpack(inode, &u);
+
 	/* Should never happen, checked by bch2_inode_invalid: */
 	if (bch2_fs_inconsistent_on(ret, c,
 			 "error unpacking inode %llu in fsck",
 			 inode.k->p.inode))
 		return ret;
 
-	i_nlink = bch2_inode_nlink_get(&u);
-	real_i_nlink = link->count * nlink_bias(u.bi_mode) + link->dir_count;
-
-	/*
-	 * These should have been caught/fixed by earlier passes, we don't
-	 * repair them here:
-	 */
-	if (S_ISDIR(u.bi_mode) && link->count > 1) {
-		need_fsck_err(c, "directory %llu with multiple hardlinks: %u",
-			      u.bi_inum, link->count);
-		return 0;
-	}
-
-	if (S_ISDIR(u.bi_mode) && !link->count) {
-		need_fsck_err(c, "unreachable directory found (inum %llu)",
-			      u.bi_inum);
-		return 0;
-	}
-
-	if (!S_ISDIR(u.bi_mode) && link->dir_count) {
-		need_fsck_err(c, "non directory with subdirectories (inum %llu)",
-			      u.bi_inum);
-		return 0;
-	}
-
-	if (!link->count &&
-	    !(u.bi_flags & BCH_INODE_UNLINKED) &&
-	    (c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
-		if (fsck_err(c, "unreachable inode %llu not marked as unlinked (type %u)",
-			     u.bi_inum, mode_to_type(u.bi_mode)) ==
-		    FSCK_ERR_IGNORE)
-			return 0;
-
+	/* Improved directory structure pass will catch this: */
+	if (fsck_err_on(!nlink, c,
+			"unreachable inode %llu not marked as unlinked (type %u)",
+			u.bi_inum, mode_to_type(u.bi_mode))) {
 		ret = reattach_inode(c, lostfound_inode, u.bi_inum);
 		if (ret)
 			return ret;
 
-		link->count = 1;
-		real_i_nlink = nlink_bias(u.bi_mode) + link->dir_count;
-		goto set_i_nlink;
+		nlink = 1;
 	}
 
-	if (i_nlink < link->count) {
-		if (fsck_err(c, "inode %llu i_link too small (%u < %u, type %i)",
-			     u.bi_inum, i_nlink, link->count,
-			     mode_to_type(u.bi_mode)) == FSCK_ERR_IGNORE)
-			return 0;
-		goto set_i_nlink;
-	}
-
-	if (i_nlink != real_i_nlink &&
-	    c->sb.clean) {
-		if (fsck_err(c, "filesystem marked clean, "
-			     "but inode %llu has wrong i_nlink "
-			     "(type %u i_nlink %u, should be %u)",
-			     u.bi_inum, mode_to_type(u.bi_mode),
-			     i_nlink, real_i_nlink) == FSCK_ERR_IGNORE)
-			return 0;
-		goto set_i_nlink;
-	}
-
-	if (i_nlink != real_i_nlink &&
-	    (c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
-		if (fsck_err(c, "inode %llu has wrong i_nlink "
-			     "(type %u i_nlink %u, should be %u)",
-			     u.bi_inum, mode_to_type(u.bi_mode),
-			     i_nlink, real_i_nlink) == FSCK_ERR_IGNORE)
-			return 0;
-		goto set_i_nlink;
-	}
-
-	if (real_i_nlink && i_nlink != real_i_nlink)
-		bch_verbose(c, "setting inode %llu nlink from %u to %u",
-			    u.bi_inum, i_nlink, real_i_nlink);
-set_i_nlink:
-	if (i_nlink != real_i_nlink) {
+	if (fsck_err_on(bch2_inode_nlink_get(&u) != nlink, c,
+			"inode %llu has wrong i_nlink (type %u i_nlink %u, should be %u)",
+			u.bi_inum, mode_to_type(u.bi_mode),
+			bch2_inode_nlink_get(&u), nlink)) {
 		struct bkey_inode_buf p;
 
-		bch2_inode_nlink_set(&u, real_i_nlink);
+		if (nlink > 1)
+			u.bi_flags |= BCH_INODE_BACKPTR_UNTRUSTED;
+
+		bch2_inode_nlink_set(&u, nlink);
 		bch2_inode_pack(c, &p, &u);
 		p.inode.k.p = iter->pos;
 
@@ -1331,66 +1267,33 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct nlink *link, zero_links = { 0, 0 };
-	struct genradix_iter nlinks_iter;
-	int ret = 0, ret2 = 0;
-	u64 nlinks_pos;
+	struct nlink *link;
+	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes,
-				   POS(0, range_start), 0);
-	nlinks_iter = genradix_iter_init(links, 0);
-
-	while ((k = bch2_btree_iter_peek(iter)).k &&
-	       !(ret2 = bkey_err(k)) &&
-	       iter->pos.offset < range_end) {
-peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
-
-		if (!link && (!k.k || iter->pos.offset >= range_end))
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes,
+			   POS(0, range_start), 0, k, ret) {
+		if (!k.k || k.k->p.offset >= range_end)
 			break;
 
-		nlinks_pos = range_start + nlinks_iter.pos;
+		if (k.k->type != KEY_TYPE_inode)
+			continue;
 
-		if (link && nlinks_pos < iter->pos.offset) {
-			/* Should have been caught by dirents pass: */
-			need_fsck_err_on(link->count, c,
-				"missing inode %llu (nlink %u)",
-				nlinks_pos, link->count);
-			genradix_iter_advance(&nlinks_iter, links);
-			goto peek_nlinks;
-		}
+		link = genradix_ptr(links, k.k->p.offset - range_start);
+		ret = check_inode_nlink(&trans, lostfound_inode, iter,
+					bkey_s_c_to_inode(k), link ? link->count : 0);
+		if (ret)
+			break;
 
-		if (!link || nlinks_pos > iter->pos.offset)
-			link = &zero_links;
-
-		if (k.k && k.k->type == KEY_TYPE_inode) {
-			ret = check_inode_nlink(&trans, lostfound_inode, iter,
-						bkey_s_c_to_inode(k), link);
-			BUG_ON(ret == -EINTR);
-			if (ret)
-				break;
-		} else {
-			/* Should have been caught by dirents pass: */
-			need_fsck_err_on(link->count, c,
-				"missing inode %llu (nlink %u)",
-				nlinks_pos, link->count);
-		}
-
-		if (nlinks_pos == iter->pos.offset)
-			genradix_iter_advance(&nlinks_iter, links);
-
-		bch2_btree_iter_advance(iter);
-		bch2_trans_cond_resched(&trans);
 	}
-fsck_err:
 	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 
-	if (ret2)
-		bch_err(c, "error in fsck: btree error %i while walking inodes", ret2);
+	if (ret)
+		bch_err(c, "error in fsck: btree error %i while walking inodes", ret);
 
-	return ret ?: ret2;
+	return ret;
 }
 
 noinline_for_stack
