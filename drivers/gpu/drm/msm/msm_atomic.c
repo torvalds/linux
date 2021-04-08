@@ -5,7 +5,7 @@
  */
 
 #include <drm/drm_atomic_uapi.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "msm_atomic_trace.h"
@@ -22,7 +22,7 @@ int msm_atomic_prepare_fb(struct drm_plane *plane,
 	if (!new_state->fb)
 		return 0;
 
-	drm_gem_fb_prepare_fb(plane, new_state);
+	drm_gem_plane_helper_prepare_fb(plane, new_state);
 
 	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
 }

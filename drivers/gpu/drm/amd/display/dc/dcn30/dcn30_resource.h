@@ -60,6 +60,7 @@ void dcn30_calculate_wm_and_dlg(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
 		int vlevel);
+void dcn30_update_soc_for_wm_a(struct dc *dc, struct dc_state *context);
 void dcn30_populate_dml_writeback_from_context(
 		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
 

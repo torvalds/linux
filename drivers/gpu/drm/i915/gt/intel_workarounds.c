@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2014-2018 Intel Corporation
  */
 
@@ -242,7 +241,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for for a possible hang in the unlikely event a TLB
+	 * workaround for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
 	/* WaForceEnableNonCoherent:bdw,chv */
@@ -719,7 +718,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	else if (IS_GEN(i915, 6))
 		gen6_ctx_workarounds_init(engine, wal);
 	else if (INTEL_GEN(i915) < 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -1073,11 +1072,10 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	/* Wa_1607087056:icl,ehl,jsl */
 	if (IS_ICELAKE(i915) ||
-		IS_JSL_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
+	    IS_JSL_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
-	}
 }
 
 static void
@@ -1172,7 +1170,7 @@ gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	else if (IS_GEN(i915, 4))
 		gen4_gt_workarounds_init(i915, wal);
 	else if (INTEL_GEN(i915) <= 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 }
@@ -1547,7 +1545,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	else if (IS_SKYLAKE(i915))
 		skl_whitelist_build(engine);
 	else if (INTEL_GEN(i915) <= 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -2174,10 +2172,15 @@ retry:
 	if (err)
 		goto err_pm;
 
+	err = i915_vma_pin_ww(vma, &ww, 0, 0,
+			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
+	if (err)
+		goto err_unpin;
+
 	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
-		goto err_unpin;
+		goto err_vma;
 	}
 
 	err = i915_request_await_object(rq, vma->obj, true);
@@ -2218,6 +2221,8 @@ retry:
 
 err_rq:
 	i915_request_put(rq);
+err_vma:
+	i915_vma_unpin(vma);
 err_unpin:
 	intel_context_unpin(ce);
 err_pm:
@@ -2228,7 +2233,6 @@ err_pm:
 	}
 	i915_gem_ww_ctx_fini(&ww);
 	intel_engine_pm_put(ce->engine);
-	i915_vma_unpin(vma);
 	i915_vma_put(vma);
 	return err;
 }

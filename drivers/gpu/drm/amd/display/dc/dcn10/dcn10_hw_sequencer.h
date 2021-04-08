@@ -123,6 +123,11 @@ void dcn10_enable_timing_synchronization(
 		int group_index,
 		int group_size,
 		struct pipe_ctx *grouped_pipes[]);
+void dcn10_enable_vblanks_synchronization(
+		struct dc *dc,
+		int group_index,
+		int group_size,
+		struct pipe_ctx *grouped_pipes[]);
 void dcn10_enable_per_frame_crtc_position_reset(
 		struct dc *dc,
 		int group_size,
@@ -204,8 +209,5 @@ void dcn10_wait_for_pending_cleared(struct dc *dc,
 		struct dc_state *context);
 void dcn10_set_hdr_multiplier(struct pipe_ctx *pipe_ctx);
 void dcn10_verify_allow_pstate_change_high(struct dc *dc);
-void dcn10_set_hubp_blank(const struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				bool blank_enable);
 
 #endif /* __DC_HWSS_DCN10_H__ */

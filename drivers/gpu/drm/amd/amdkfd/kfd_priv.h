@@ -169,6 +169,11 @@ extern bool hws_gws_support;
 /* Queue preemption timeout in ms */
 extern int queue_preemption_timeout_ms;
 
+/*
+ * Don't evict process queues on vm fault
+ */
+extern int amdgpu_no_queue_eviction_on_vm_fault;
+
 /* Enable eviction debug messages */
 extern bool debug_evictions;
 
@@ -943,6 +948,10 @@ bool interrupt_is_wanted(struct kfd_dev *dev,
 
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
+
+void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
+				  uint64_t tba_addr,
+				  uint64_t tma_addr);
 
 /* Queue Context Management */
 int init_queue(struct queue **q, const struct queue_properties *properties);

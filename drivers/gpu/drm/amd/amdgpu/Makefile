@@ -71,7 +71,7 @@ amdgpu-y += \
 	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o \
 	vega20_reg_init.o nbio_v7_4.o nbio_v2_3.o nv.o navi10_reg_init.o navi14_reg_init.o \
 	arct_reg_init.o navi12_reg_init.o mxgpu_nv.o sienna_cichlid_reg_init.o vangogh_reg_init.o \
-	nbio_v7_2.o dimgrey_cavefish_reg_init.o hdp_v4_0.o hdp_v5_0.o
+	nbio_v7_2.o dimgrey_cavefish_reg_init.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o
 
 # add DF block
 amdgpu-y += \
@@ -83,7 +83,8 @@ amdgpu-y += \
 	gmc_v7_0.o \
 	gmc_v8_0.o \
 	gfxhub_v1_0.o mmhub_v1_0.o gmc_v9_0.o gfxhub_v1_1.o mmhub_v9_4.o \
-	gfxhub_v2_0.o mmhub_v2_0.o gmc_v10_0.o gfxhub_v2_1.o mmhub_v2_3.o
+	gfxhub_v2_0.o mmhub_v2_0.o gmc_v10_0.o gfxhub_v2_1.o mmhub_v2_3.o \
+	mmhub_v1_7.o
 
 # add UMC block
 amdgpu-y += \
@@ -106,7 +107,8 @@ amdgpu-y += \
 	psp_v3_1.o \
 	psp_v10_0.o \
 	psp_v11_0.o \
-	psp_v12_0.o
+	psp_v12_0.o \
+	psp_v13_0.o
 
 # add DCE block
 amdgpu-y += \
@@ -121,6 +123,7 @@ amdgpu-y += \
 	gfx_v8_0.o \
 	gfx_v9_0.o \
 	gfx_v9_4.o \
+	gfx_v9_4_2.o \
 	gfx_v10_0.o
 
 # add async DMA block
@@ -129,6 +132,7 @@ amdgpu-y += \
 	sdma_v2_4.o \
 	sdma_v3_0.o \
 	sdma_v4_0.o \
+	sdma_v4_4.o \
 	sdma_v5_0.o \
 	sdma_v5_2.o
 
@@ -172,7 +176,8 @@ amdgpu-y += \
 amdgpu-y += \
 	smuio_v9_0.o \
 	smuio_v11_0.o \
-	smuio_v11_0_6.o
+	smuio_v11_0_6.o \
+	smuio_v13_0.o
 
 # add amdkfd interfaces
 amdgpu-y += amdgpu_amdkfd.o
@@ -187,6 +192,7 @@ amdgpu-y += \
 	amdgpu_amdkfd_gfx_v8.o \
 	amdgpu_amdkfd_gfx_v9.o \
 	amdgpu_amdkfd_arcturus.o \
+	amdgpu_amdkfd_aldebaran.o \
 	amdgpu_amdkfd_gfx_v10.o \
 	amdgpu_amdkfd_gfx_v10_3.o
 

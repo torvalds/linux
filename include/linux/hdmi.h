@@ -156,7 +156,7 @@ enum hdmi_content_type {
 };
 
 enum hdmi_metadata_type {
-	HDMI_STATIC_METADATA_TYPE1 = 1,
+	HDMI_STATIC_METADATA_TYPE1 = 0,
 };
 
 enum hdmi_eotf {

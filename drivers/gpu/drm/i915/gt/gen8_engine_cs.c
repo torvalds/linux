@@ -338,15 +338,14 @@ static u32 preempt_address(struct intel_engine_cs *engine)
 
 static u32 hwsp_offset(const struct i915_request *rq)
 {
-	const struct intel_timeline_cacheline *cl;
+	const struct intel_timeline *tl;
 
-	/* Before the request is executed, the timeline/cachline is fixed */
+	/* Before the request is executed, the timeline is fixed */
+	tl = rcu_dereference_protected(rq->timeline,
+				       !i915_request_signaled(rq));
 
-	cl = rcu_dereference_protected(rq->hwsp_cacheline, 1);
-	if (cl)
-		return cl->ggtt_offset;
-
-	return rcu_dereference_protected(rq->timeline, 1)->hwsp_offset;
+	/* See the comment in i915_request_active_seqno(). */
+	return page_mask_bits(tl->hwsp_offset) + offset_in_page(rq->hwsp_seqno);
 }
 
 int gen8_emit_init_breadcrumb(struct i915_request *rq)

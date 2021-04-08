@@ -100,7 +100,6 @@ struct amdgpu_bo {
 	struct amdgpu_bo		*parent;
 	struct amdgpu_bo		*shadow;
 
-	struct amdgpu_mn		*mn;
 
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -329,7 +328,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);
 u64 amdgpu_bo_print_info(int id, struct amdgpu_bo *bo, struct seq_file *m);
 #endif
-int amdgpu_debugfs_sa_init(struct amdgpu_device *adev);
+void amdgpu_debugfs_sa_init(struct amdgpu_device *adev);
 
 bool amdgpu_bo_support_uswc(u64 bo_flags);
 

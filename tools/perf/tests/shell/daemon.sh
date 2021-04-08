@@ -140,10 +140,10 @@ test_list()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -159,14 +159,14 @@ EOF
 	# check 1st session
 	# pid:size:-e cpu-clock:base/size:base/size/output:base/size/control:base/size/ack:0
 	local line=`perf daemon --config ${config} -x: | head -2 | tail -1`
-	check_line_other "${line}" size "-e cpu-clock" ${base}/session-size \
+	check_line_other "${line}" size "-e cpu-clock -m 1 sleep 10" ${base}/session-size \
 			 ${base}/session-size/output ${base}/session-size/control \
 			 ${base}/session-size/ack "0"
 
 	# check 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
 	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
-	check_line_other "${line}" time "-e task-clock" ${base}/session-time \
+	check_line_other "${line}" time "-e task-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control \
 			 ${base}/session-time/ack "0"
 
@@ -190,10 +190,10 @@ test_reconfig()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -204,7 +204,7 @@ EOF
 	# check 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
 	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
-	check_line_other "${line}" time "-e task-clock" ${base}/session-time \
+	check_line_other "${line}" time "-e task-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control ${base}/session-time/ack "0"
 	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
 
@@ -215,10 +215,10 @@ EOF
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 EOF
 
 	# TEST 1 - change config
@@ -238,7 +238,7 @@ EOF
 	# check reconfigured 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
 	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
-	check_line_other "${line}" time "-e cpu-clock" ${base}/session-time \
+	check_line_other "${line}" time "-e cpu-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control ${base}/session-time/ack "0"
 
 	# TEST 2 - empty config
@@ -309,10 +309,10 @@ test_stop()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -361,7 +361,7 @@ test_signal()
 base=BASE
 
 [session-test]
-run = -e cpu-clock --switch-output
+run = -e cpu-clock --switch-output -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -400,10 +400,10 @@ test_ping()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 
 [session-time]
-run = -e task-clock
+run = -e task-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}
@@ -439,7 +439,7 @@ test_lock()
 base=BASE
 
 [session-size]
-run = -e cpu-clock
+run = -e cpu-clock -m 1 sleep 10
 EOF
 
 	sed -i -e "s|BASE|${base}|" ${config}

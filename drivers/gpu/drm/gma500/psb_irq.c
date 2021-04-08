@@ -101,30 +101,6 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 	}
 }
 
-static void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
-{
-	if (gma_power_begin(dev_priv->dev, false)) {
-		u32 pipe_event = mid_pipe_event(pipe);
-		dev_priv->vdc_irq_mask |= pipe_event;
-		PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
-		PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
-		gma_power_end(dev_priv->dev);
-	}
-}
-
-static void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
-{
-	if (dev_priv->pipestat[pipe] == 0) {
-		if (gma_power_begin(dev_priv->dev, false)) {
-			u32 pipe_event = mid_pipe_event(pipe);
-			dev_priv->vdc_irq_mask &= ~pipe_event;
-			PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
-			PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
-			gma_power_end(dev_priv->dev);
-		}
-	}
-}
-
 /*
  * Display controller interrupt handler for pipe event.
  */
@@ -390,92 +366,6 @@ void psb_irq_uninstall(struct drm_device *dev)
 	/* This register is safe even if display island is off */
 	PSB_WVDC32(PSB_RVDC32(PSB_INT_IDENTITY_R), PSB_INT_IDENTITY_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-}
-
-void psb_irq_turn_on_dpst(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv =
-		(struct drm_psb_private *) dev->dev_private;
-	u32 hist_reg;
-	u32 pwm_reg;
-
-	if (gma_power_begin(dev, false)) {
-		PSB_WVDC32(1 << 31, HISTOGRAM_LOGIC_CONTROL);
-		hist_reg = PSB_RVDC32(HISTOGRAM_LOGIC_CONTROL);
-		PSB_WVDC32(1 << 31, HISTOGRAM_INT_CONTROL);
-		hist_reg = PSB_RVDC32(HISTOGRAM_INT_CONTROL);
-
-		PSB_WVDC32(0x80010100, PWM_CONTROL_LOGIC);
-		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-		PSB_WVDC32(pwm_reg | PWM_PHASEIN_ENABLE
-						| PWM_PHASEIN_INT_ENABLE,
-							   PWM_CONTROL_LOGIC);
-		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-
-		psb_enable_pipestat(dev_priv, 0, PIPE_DPST_EVENT_ENABLE);
-
-		hist_reg = PSB_RVDC32(HISTOGRAM_INT_CONTROL);
-		PSB_WVDC32(hist_reg | HISTOGRAM_INT_CTRL_CLEAR,
-							HISTOGRAM_INT_CONTROL);
-		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-		PSB_WVDC32(pwm_reg | 0x80010100 | PWM_PHASEIN_ENABLE,
-							PWM_CONTROL_LOGIC);
-
-		gma_power_end(dev);
-	}
-}
-
-int psb_irq_enable_dpst(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv =
-		(struct drm_psb_private *) dev->dev_private;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
-
-	/* enable DPST */
-	mid_enable_pipe_event(dev_priv, 0);
-	psb_irq_turn_on_dpst(dev);
-
-	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-	return 0;
-}
-
-void psb_irq_turn_off_dpst(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
-	u32 pwm_reg;
-
-	if (gma_power_begin(dev, false)) {
-		PSB_WVDC32(0x00000000, HISTOGRAM_INT_CONTROL);
-		PSB_RVDC32(HISTOGRAM_INT_CONTROL);
-
-		psb_disable_pipestat(dev_priv, 0, PIPE_DPST_EVENT_ENABLE);
-
-		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-		PSB_WVDC32(pwm_reg & ~PWM_PHASEIN_INT_ENABLE,
-							PWM_CONTROL_LOGIC);
-		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-
-		gma_power_end(dev);
-	}
-}
-
-int psb_irq_disable_dpst(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
-
-	mid_disable_pipe_event(dev_priv, 0);
-	psb_irq_turn_off_dpst(dev);
-
-	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-
-	return 0;
 }
 
 /*

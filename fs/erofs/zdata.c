@@ -1235,7 +1235,7 @@ submit_bio_retry:
 			}
 
 			if (!bio) {
-				bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
+				bio = bio_alloc(GFP_NOIO, BIO_MAX_VECS);
 
 				bio->bi_end_io = z_erofs_decompressqueue_endio;
 				bio_set_dev(bio, sb->s_bdev);

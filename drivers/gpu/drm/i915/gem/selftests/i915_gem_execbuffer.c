@@ -116,7 +116,7 @@ static int igt_gpu_reloc(void *arg)
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
-	map = i915_gem_object_pin_map(scratch, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(scratch, I915_MAP_WC);
 	if (IS_ERR(map)) {
 		err = PTR_ERR(map);
 		goto err_scratch;

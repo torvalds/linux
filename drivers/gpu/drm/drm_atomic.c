@@ -53,6 +53,45 @@ void __drm_crtc_commit_free(struct kref *kref)
 EXPORT_SYMBOL(__drm_crtc_commit_free);
 
 /**
+ * drm_crtc_commit_wait - Waits for a commit to complete
+ * @commit: &drm_crtc_commit to wait for
+ *
+ * Waits for a given &drm_crtc_commit to be programmed into the
+ * hardware and flipped to.
+ *
+ * Returns:
+ *
+ * 0 on success, a negative error code otherwise.
+ */
+int drm_crtc_commit_wait(struct drm_crtc_commit *commit)
+{
+	unsigned long timeout = 10 * HZ;
+	int ret;
+
+	if (!commit)
+		return 0;
+
+	ret = wait_for_completion_timeout(&commit->hw_done, timeout);
+	if (!ret) {
+		DRM_ERROR("hw_done timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/*
+	 * Currently no support for overwriting flips, hence
+	 * stall for previous one to execute completely.
+	 */
+	ret = wait_for_completion_timeout(&commit->flip_done, timeout);
+	if (!ret) {
+		DRM_ERROR("flip_done timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_crtc_commit_wait);
+
+/**
  * drm_atomic_state_default_release -
  * release memory initialized by drm_atomic_state_init
  * @state: atomic state
@@ -578,13 +617,9 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 	ret = drm_plane_check_pixel_format(plane, fb->format->format,
 					   fb->modifier);
 	if (ret) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %s, modifier 0x%llx\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %p4cc, modifier 0x%llx\n",
 				 plane->base.id, plane->name,
-				 drm_get_format_name(fb->format->format,
-						     &format_name),
-				 fb->modifier);
+				 &fb->format->format, fb->modifier);
 		return ret;
 	}
 

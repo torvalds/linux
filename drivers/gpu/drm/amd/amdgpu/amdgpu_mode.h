@@ -602,6 +602,14 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode);
 
+int amdgpu_display_gem_fb_init(struct drm_device *dev,
+			       struct amdgpu_framebuffer *rfb,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       struct drm_gem_object *obj);
+int amdgpu_display_gem_fb_verify_and_init(
+	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	struct drm_gem_object *obj);
 int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    struct amdgpu_framebuffer *rfb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,

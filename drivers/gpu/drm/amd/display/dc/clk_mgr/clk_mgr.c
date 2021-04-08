@@ -87,12 +87,16 @@ int clk_mgr_helper_get_active_plane_cnt(
 
 void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_link *edp_link = NULL;
+	int edp_num;
 
+	get_edp_links(dc, edp_links, &edp_num);
 	if (dc->hwss.exit_optimized_pwr_state)
 		dc->hwss.exit_optimized_pwr_state(dc, dc->current_state);
 
-	if (edp_link) {
+	if (edp_num) {
+		edp_link = edp_links[0];
 		clk_mgr->psr_allow_active_cache = edp_link->psr_settings.psr_allow_active;
 		dc_link_set_psr_allow_active(edp_link, false, false, false);
 	}
@@ -101,11 +105,16 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 
 void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_link *edp_link = NULL;
+	int edp_num;
 
-	if (edp_link)
+	get_edp_links(dc, edp_links, &edp_num);
+	if (edp_num) {
+		edp_link = edp_links[0];
 		dc_link_set_psr_allow_active(edp_link,
 				clk_mgr->psr_allow_active_cache, false, false);
+	}
 
 	if (dc->hwss.optimize_pwr_state)
 		dc->hwss.optimize_pwr_state(dc, dc->current_state);

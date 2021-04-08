@@ -171,6 +171,7 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.gfxoff_controlled_by_driver = 1;
 	data->gfxoff_allowed = false;
 	data->counter_gfxoff = 0;
+	data->registry_data.pcie_dpm_key_disabled = !(hwmgr->feature_mask & PP_PCIE_DPM_MASK);
 }
 
 static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
@@ -831,7 +832,9 @@ static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
-	uint32_t pcie_gen = 0, pcie_width = 0, smu_pcie_arg;
+	uint32_t pcie_gen = 0, pcie_width = 0, smu_pcie_arg, pcie_gen_arg, pcie_width_arg;
+	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
+	int i;
 	int ret;
 
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
@@ -860,17 +863,51 @@ static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 	 * Bit 15:8:  PCIE GEN, 0 to 3 corresponds to GEN1 to GEN4
 	 * Bit 7:0:   PCIE lane width, 1 to 7 corresponds is x1 to x32
 	 */
-	smu_pcie_arg = (1 << 16) | (pcie_gen << 8) | pcie_width;
-	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_OverridePcieParameters, smu_pcie_arg,
-			NULL);
-	PP_ASSERT_WITH_CODE(!ret,
-		"[OverridePcieParameters] Attempt to override pcie params failed!",
-		return ret);
+	for (i = 0; i < NUM_LINK_LEVELS; i++) {
+		pcie_gen_arg = (pp_table->PcieGenSpeed[i] > pcie_gen) ? pcie_gen :
+			pp_table->PcieGenSpeed[i];
+		pcie_width_arg = (pp_table->PcieLaneCount[i] > pcie_width) ? pcie_width :
+			pp_table->PcieLaneCount[i];
 
-	data->pcie_parameters_override = true;
-	data->pcie_gen_level1 = pcie_gen;
-	data->pcie_width_level1 = pcie_width;
+		if (pcie_gen_arg != pp_table->PcieGenSpeed[i] || pcie_width_arg !=
+		    pp_table->PcieLaneCount[i]) {
+			smu_pcie_arg = (i << 16) | (pcie_gen_arg << 8) | pcie_width_arg;
+			ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_OverridePcieParameters, smu_pcie_arg,
+				NULL);
+			PP_ASSERT_WITH_CODE(!ret,
+				"[OverridePcieParameters] Attempt to override pcie params failed!",
+				return ret);
+		}
+
+		/* update the pptable */
+		pp_table->PcieGenSpeed[i] = pcie_gen_arg;
+		pp_table->PcieLaneCount[i] = pcie_width_arg;
+	}
+
+	/* override to the highest if it's disabled from ppfeaturmask */
+	if (data->registry_data.pcie_dpm_key_disabled) {
+		for (i = 0; i < NUM_LINK_LEVELS; i++) {
+			smu_pcie_arg = (i << 16) | (pcie_gen << 8) | pcie_width;
+			ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_OverridePcieParameters, smu_pcie_arg,
+				NULL);
+			PP_ASSERT_WITH_CODE(!ret,
+				"[OverridePcieParameters] Attempt to override pcie params failed!",
+				return ret);
+
+			pp_table->PcieGenSpeed[i] = pcie_gen;
+			pp_table->PcieLaneCount[i] = pcie_width;
+		}
+		ret = vega20_enable_smc_features(hwmgr,
+				false,
+				data->smu_features[GNLD_DPM_LINK].smu_feature_bitmap);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Attempt to Disable DPM LINK Failed!",
+				return ret);
+		data->smu_features[GNLD_DPM_LINK].enabled = false;
+		data->smu_features[GNLD_DPM_LINK].supported = false;
+	}
 
 	return 0;
 }
@@ -2240,7 +2277,7 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			*size = 8;
 		break;
 	default:
-		ret = -EINVAL;
+		ret = -EOPNOTSUPP;
 		break;
 	}
 	return ret;
@@ -3319,9 +3356,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 			data->od8_settings.od8_settings_array;
 	OverDriveTable_t *od_table =
 			&(data->smc_state_table.overdrive_table);
-	struct phm_ppt_v3_information *pptable_information =
-		(struct phm_ppt_v3_information *)hwmgr->pptable;
-	PPTable_t *pptable = (PPTable_t *)pptable_information->smc_pptable;
+	PPTable_t *pptable = &(data->smc_state_table.pp_table);
 	struct pp_clock_levels_with_latency clocks;
 	struct vega20_single_dpm_table *fclk_dpm_table =
 			&(data->dpm_table.fclk_table);
@@ -3420,13 +3455,9 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		current_lane_width =
 			vega20_get_current_pcie_link_width_level(hwmgr);
 		for (i = 0; i < NUM_LINK_LEVELS; i++) {
-			if (i == 1 && data->pcie_parameters_override) {
-				gen_speed = data->pcie_gen_level1;
-				lane_width = data->pcie_width_level1;
-			} else {
-				gen_speed = pptable->PcieGenSpeed[i];
-				lane_width = pptable->PcieLaneCount[i];
-			}
+			gen_speed = pptable->PcieGenSpeed[i];
+			lane_width = pptable->PcieLaneCount[i];
+
 			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
 					(gen_speed == 0) ? "2.5GT/s," :
 					(gen_speed == 1) ? "5.0GT/s," :

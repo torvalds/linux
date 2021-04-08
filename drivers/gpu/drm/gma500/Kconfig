@@ -9,12 +9,5 @@ config DRM_GMA500
 	select INPUT if ACPI
 	help
 	  Say yes for an experimental 2D KMS framebuffer driver for the
-	  Intel GMA500 ('Poulsbo') and other Intel IMG based graphics
-	  devices.
-
-config DRM_GMA600
-	bool "Intel GMA600 support (Experimental)"
-	depends on DRM_GMA500
-	help
-	  Say yes to include support for GMA600 (Intel Moorestown/Oaktrail)
-	  platforms with LVDS ports. MIPI is not currently supported.
+	  Intel GMA500 (Poulsbo), Intel GMA600 (Moorestown/Oak Trail) and
+	  Intel GMA3600/3650 (Cedar Trail).

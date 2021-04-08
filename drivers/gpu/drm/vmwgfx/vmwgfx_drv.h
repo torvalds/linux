@@ -55,10 +55,10 @@
 
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20200114"
+#define VMWGFX_DRIVER_DATE "20210218"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 18
-#define VMWGFX_DRIVER_PATCHLEVEL 0
+#define VMWGFX_DRIVER_PATCHLEVEL 1
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_VALIDATIONS 2048
@@ -484,7 +484,7 @@ enum vmw_sm_type {
 
 struct vmw_private {
 	struct drm_device drm;
-	struct ttm_bo_device bdev;
+	struct ttm_device bdev;
 
 	struct vmw_fifo_state fifo;
 
@@ -775,7 +775,8 @@ extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   struct vmw_buffer_object *new_backup,
 				   unsigned long new_backup_offset);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
-				  struct ttm_resource *mem);
+				  struct ttm_resource *old_mem,
+				  struct ttm_resource *new_mem);
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
@@ -999,7 +1000,7 @@ extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
-extern struct ttm_bo_driver vmw_bo_driver;
+extern struct ttm_device_funcs vmw_bo_driver;
 extern const struct vmw_sg_table *
 vmw_bo_sg_table(struct ttm_buffer_object *bo);
 extern int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
@@ -1525,6 +1526,8 @@ static inline void vmw_bo_unreference(struct vmw_buffer_object **buf)
 
 	*buf = NULL;
 	if (tmp_buf != NULL) {
+		if (tmp_buf->base.pin_count > 0)
+			ttm_bo_unpin(&tmp_buf->base);
 		ttm_bo_put(&tmp_buf->base);
 	}
 }

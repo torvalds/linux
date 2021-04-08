@@ -523,7 +523,6 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	};
 	struct amdgpu_bo *bo;
 	unsigned long page_align, size = bp->size;
-	size_t acc_size;
 	int r;
 
 	/* Note that GDS/GWS/OA allocates 1 page per byte/resource. */
@@ -545,9 +544,6 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	*bo_ptr = NULL;
-
-	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
-				       sizeof(struct amdgpu_bo));
 
 	bo = kzalloc(sizeof(struct amdgpu_bo), GFP_KERNEL);
 	if (bo == NULL)
@@ -577,8 +573,8 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 		bo->tbo.priority = 1;
 
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, bp->type,
-				 &bo->placement, page_align, &ctx, acc_size,
-				 NULL, bp->resv, &amdgpu_bo_destroy);
+				 &bo->placement, page_align, &ctx,  NULL,
+				 bp->resv, &amdgpu_bo_destroy);
 	if (unlikely(r != 0))
 		return r;
 
@@ -1065,13 +1061,17 @@ static const char *amdgpu_vram_names[] = {
  */
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
-	/* reserve PAT memory space to WC for VRAM */
-	arch_io_reserve_memtype_wc(adev->gmc.aper_base,
-				   adev->gmc.aper_size);
+	/* On A+A platform, VRAM can be mapped as WB */
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		/* reserve PAT memory space to WC for VRAM */
+		arch_io_reserve_memtype_wc(adev->gmc.aper_base,
+				adev->gmc.aper_size);
 
-	/* Add an MTRR for the VRAM */
-	adev->gmc.vram_mtrr = arch_phys_wc_add(adev->gmc.aper_base,
-					      adev->gmc.aper_size);
+		/* Add an MTRR for the VRAM */
+		adev->gmc.vram_mtrr = arch_phys_wc_add(adev->gmc.aper_base,
+				adev->gmc.aper_size);
+	}
+
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		 adev->gmc.mc_vram_size >> 20,
 		 (unsigned long long)adev->gmc.aper_size >> 20);
@@ -1089,8 +1089,10 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
 	amdgpu_ttm_fini(adev);
-	arch_phys_wc_del(adev->gmc.vram_mtrr);
-	arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		arch_phys_wc_del(adev->gmc.vram_mtrr);
+		arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
+	}
 }
 
 /**

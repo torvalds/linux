@@ -775,10 +775,8 @@ struct kfd_process *kfd_create_process(struct file *filep)
 			goto out;
 
 		ret = kfd_process_init_cwsr_apu(process, filep);
-		if (ret) {
-			process = ERR_PTR(ret);
-			goto out;
-		}
+		if (ret)
+			goto out_destroy;
 
 		if (!procfs.kobj)
 			goto out;
@@ -826,6 +824,14 @@ out:
 	mutex_unlock(&kfd_processes_mutex);
 
 	return process;
+
+out_destroy:
+	hash_del_rcu(&process->kfd_processes);
+	mutex_unlock(&kfd_processes_mutex);
+	synchronize_srcu(&kfd_processes_srcu);
+	/* kfd_process_free_notifier will trigger the cleanup */
+	mmu_notifier_put(&process->mmu_notifier);
+	return ERR_PTR(ret);
 }
 
 struct kfd_process *kfd_get_process(const struct task_struct *thread)
@@ -1011,6 +1017,16 @@ static void kfd_process_ref_release(struct kref *ref)
 	queue_work(kfd_process_wq, &p->release_work);
 }
 
+static struct mmu_notifier *kfd_process_alloc_notifier(struct mm_struct *mm)
+{
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+	struct kfd_process *p = find_process_by_mm(mm);
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+
+	return p ? &p->mmu_notifier : ERR_PTR(-ESRCH);
+}
+
 static void kfd_process_free_notifier(struct mmu_notifier *mn)
 {
 	kfd_unref_process(container_of(mn, struct kfd_process, mmu_notifier));
@@ -1075,6 +1091,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
 	.release = kfd_process_notifier_release,
+	.alloc_notifier = kfd_process_alloc_notifier,
 	.free_notifier = kfd_process_free_notifier,
 };
 
@@ -1145,6 +1162,25 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 	return 0;
 }
 
+void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
+				  uint64_t tba_addr,
+				  uint64_t tma_addr)
+{
+	if (qpd->cwsr_kaddr) {
+		/* KFD trap handler is bound, record as second-level TBA/TMA
+		 * in first-level TMA. First-level trap will jump to second.
+		 */
+		uint64_t *tma =
+			(uint64_t *)(qpd->cwsr_kaddr + KFD_CWSR_TMA_OFFSET);
+		tma[0] = tba_addr;
+		tma[1] = tma_addr;
+	} else {
+		/* No trap handler bound, bind as first-level TBA/TMA. */
+		qpd->tba_addr = tba_addr;
+		qpd->tma_addr = tma_addr;
+	}
+}
+
 /*
  * On return the kfd_process is fully operational and will be freed when the
  * mm is released
@@ -1152,6 +1188,7 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 static struct kfd_process *create_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
+	struct mmu_notifier *mn;
 	int err = -ENOMEM;
 
 	process = kzalloc(sizeof(*process), GFP_KERNEL);
@@ -1182,19 +1219,28 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (err != 0)
 		goto err_init_apertures;
 
-	/* Must be last, have to use release destruction after this */
-	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
-	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
-	if (err)
-		goto err_register_notifier;
-
-	get_task_struct(process->lead_thread);
+	/* alloc_notifier needs to find the process in the hash table */
 	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
 			(uintptr_t)process->mm);
+
+	/* MMU notifier registration must be the last call that can fail
+	 * because after this point we cannot unwind the process creation.
+	 * After this point, mmu_notifier_put will trigger the cleanup by
+	 * dropping the last process reference in the free_notifier.
+	 */
+	mn = mmu_notifier_get(&kfd_process_mmu_notifier_ops, process->mm);
+	if (IS_ERR(mn)) {
+		err = PTR_ERR(mn);
+		goto err_register_notifier;
+	}
+	BUG_ON(mn != &process->mmu_notifier);
+
+	get_task_struct(process->lead_thread);
 
 	return process;
 
 err_register_notifier:
+	hash_del_rcu(&process->kfd_processes);
 	kfd_process_free_outstanding_kfd_bos(process);
 	kfd_process_destroy_pdds(process);
 err_init_apertures:

@@ -93,8 +93,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
-	p->relocs = kvmalloc_array(p->nrelocs, sizeof(struct radeon_bo_list),
-			GFP_KERNEL | __GFP_ZERO);
+	p->relocs = kvcalloc(p->nrelocs, sizeof(struct radeon_bo_list),
+			GFP_KERNEL);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
@@ -288,7 +288,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->chunk_relocs = NULL;
 	p->chunk_flags = NULL;
 	p->chunk_const_ib = NULL;
-	p->chunks_array = kcalloc(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
+	p->chunks_array = kvmalloc_array(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (p->chunks_array == NULL) {
 		return -ENOMEM;
 	}
@@ -299,7 +299,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	}
 	p->cs_flags = 0;
 	p->nchunks = cs->num_chunks;
-	p->chunks = kcalloc(p->nchunks, sizeof(struct radeon_cs_chunk), GFP_KERNEL);
+	p->chunks = kvcalloc(p->nchunks, sizeof(struct radeon_cs_chunk), GFP_KERNEL);
 	if (p->chunks == NULL) {
 		return -ENOMEM;
 	}
@@ -452,8 +452,8 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	kvfree(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		kvfree(parser->chunks[i].kdata);
-	kfree(parser->chunks);
-	kfree(parser->chunks_array);
+	kvfree(parser->chunks);
+	kvfree(parser->chunks_array);
 	radeon_ib_free(parser->rdev, &parser->ib);
 	radeon_ib_free(parser->rdev, &parser->const_ib);
 }

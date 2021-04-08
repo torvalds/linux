@@ -33,7 +33,10 @@
 #include "gem/i915_gem_context.h"
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"
+#include "gt/intel_engine.h"
+#include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_gpu_commands.h"
+#include "gt/intel_reset.h"
 #include "gt/intel_ring.h"
 #include "gt/intel_rps.h"
 
@@ -244,6 +247,50 @@ static void __i915_request_fill(struct i915_request *rq, u8 val)
 	memset(vaddr + head, val, rq->postfix - head);
 }
 
+/**
+ * i915_request_active_engine
+ * @rq: request to inspect
+ * @active: pointer in which to return the active engine
+ *
+ * Fills the currently active engine to the @active pointer if the request
+ * is active and still not completed.
+ *
+ * Returns true if request was active or false otherwise.
+ */
+bool
+i915_request_active_engine(struct i915_request *rq,
+			   struct intel_engine_cs **active)
+{
+	struct intel_engine_cs *engine, *locked;
+	bool ret = false;
+
+	/*
+	 * Serialise with __i915_request_submit() so that it sees
+	 * is-banned?, or we know the request is already inflight.
+	 *
+	 * Note that rq->engine is unstable, and so we double
+	 * check that we have acquired the lock on the final engine.
+	 */
+	locked = READ_ONCE(rq->engine);
+	spin_lock_irq(&locked->active.lock);
+	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
+		spin_unlock(&locked->active.lock);
+		locked = engine;
+		spin_lock(&locked->active.lock);
+	}
+
+	if (i915_request_is_active(rq)) {
+		if (!__i915_request_is_complete(rq))
+			*active = locked;
+		ret = true;
+	}
+
+	spin_unlock_irq(&locked->active.lock);
+
+	return ret;
+}
+
+
 static void remove_from_engine(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine, *locked;
@@ -274,6 +321,53 @@ static void remove_from_engine(struct i915_request *rq)
 	__notify_execute_cb_imm(rq);
 }
 
+static void __rq_init_watchdog(struct i915_request *rq)
+{
+	rq->watchdog.timer.function = NULL;
+}
+
+static enum hrtimer_restart __rq_watchdog_expired(struct hrtimer *hrtimer)
+{
+	struct i915_request *rq =
+		container_of(hrtimer, struct i915_request, watchdog.timer);
+	struct intel_gt *gt = rq->engine->gt;
+
+	if (!i915_request_completed(rq)) {
+		if (llist_add(&rq->watchdog.link, &gt->watchdog.list))
+			schedule_work(&gt->watchdog.work);
+	} else {
+		i915_request_put(rq);
+	}
+
+	return HRTIMER_NORESTART;
+}
+
+static void __rq_arm_watchdog(struct i915_request *rq)
+{
+	struct i915_request_watchdog *wdg = &rq->watchdog;
+	struct intel_context *ce = rq->context;
+
+	if (!ce->watchdog.timeout_us)
+		return;
+
+	hrtimer_init(&wdg->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	wdg->timer.function = __rq_watchdog_expired;
+	hrtimer_start_range_ns(&wdg->timer,
+			       ns_to_ktime(ce->watchdog.timeout_us *
+					   NSEC_PER_USEC),
+			       NSEC_PER_MSEC,
+			       HRTIMER_MODE_REL);
+	i915_request_get(rq);
+}
+
+static void __rq_cancel_watchdog(struct i915_request *rq)
+{
+	struct i915_request_watchdog *wdg = &rq->watchdog;
+
+	if (wdg->timer.function && hrtimer_try_to_cancel(&wdg->timer) > 0)
+		i915_request_put(rq);
+}
+
 bool i915_request_retire(struct i915_request *rq)
 {
 	if (!__i915_request_is_complete(rq))
@@ -284,6 +378,8 @@ bool i915_request_retire(struct i915_request *rq)
 	GEM_BUG_ON(!i915_sw_fence_signaled(&rq->submit));
 	trace_i915_request_retire(rq);
 	i915_request_mark_complete(rq);
+
+	__rq_cancel_watchdog(rq);
 
 	/*
 	 * We know the GPU must have read the request to have
@@ -498,31 +594,38 @@ void __i915_request_skip(struct i915_request *rq)
 	rq->infix = rq->postfix;
 }
 
-void i915_request_set_error_once(struct i915_request *rq, int error)
+bool i915_request_set_error_once(struct i915_request *rq, int error)
 {
 	int old;
 
 	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
 
 	if (i915_request_signaled(rq))
-		return;
+		return false;
 
 	old = READ_ONCE(rq->fence.error);
 	do {
 		if (fatal_error(old))
-			return;
+			return false;
 	} while (!try_cmpxchg(&rq->fence.error, &old, error));
+
+	return true;
 }
 
-void i915_request_mark_eio(struct i915_request *rq)
+struct i915_request *i915_request_mark_eio(struct i915_request *rq)
 {
 	if (__i915_request_is_complete(rq))
-		return;
+		return NULL;
 
 	GEM_BUG_ON(i915_request_signaled(rq));
 
+	/* As soon as the request is completed, it may be retired */
+	rq = i915_request_get(rq);
+
 	i915_request_set_error_once(rq, -EIO);
 	i915_request_mark_complete(rq);
+
+	return rq;
 }
 
 bool __i915_request_submit(struct i915_request *request)
@@ -678,6 +781,28 @@ void i915_request_unsubmit(struct i915_request *request)
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
+static void __cancel_request(struct i915_request *rq)
+{
+	struct intel_engine_cs *engine = NULL;
+
+	i915_request_active_engine(rq, &engine);
+
+	if (engine && intel_engine_pulse(engine))
+		intel_gt_handle_error(engine->gt, engine->mask, 0,
+				      "request cancellation by %s",
+				      current->comm);
+}
+
+void i915_request_cancel(struct i915_request *rq, int error)
+{
+	if (!i915_request_set_error_once(rq, error))
+		return;
+
+	set_bit(I915_FENCE_FLAG_SENTINEL, &rq->fence.flags);
+
+	__cancel_request(rq);
+}
+
 static int __i915_sw_fence_call
 submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
@@ -690,6 +815,8 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 
 		if (unlikely(fence->error))
 			i915_request_set_error_once(request, fence->error);
+		else
+			__rq_arm_watchdog(request);
 
 		/*
 		 * We need to serialize use of the submit_request() callback
@@ -863,7 +990,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->fence.seqno = seqno;
 
 	RCU_INIT_POINTER(rq->timeline, tl);
-	RCU_INIT_POINTER(rq->hwsp_cacheline, tl->hwsp_cacheline);
 	rq->hwsp_seqno = tl->hwsp_seqno;
 	GEM_BUG_ON(__i915_request_is_complete(rq));
 
@@ -877,6 +1003,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 
 	/* No zalloc, everything must be cleared after use */
 	rq->batch = NULL;
+	__rq_init_watchdog(rq);
 	GEM_BUG_ON(rq->capture_list);
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
 
@@ -1106,9 +1233,6 @@ emit_semaphore_wait(struct i915_request *to,
 		goto await_fence;
 
 	if (i915_request_has_initial_breadcrumb(to))
-		goto await_fence;
-
-	if (!rcu_access_pointer(from->hwsp_cacheline))
 		goto await_fence;
 
 	/*

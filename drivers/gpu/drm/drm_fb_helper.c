@@ -2048,7 +2048,7 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 
 	if (shadow)
 		vfree(shadow);
-	else
+	else if (fb_helper->buffer)
 		drm_client_buffer_vunmap(fb_helper->buffer);
 
 	drm_client_framebuffer_delete(fb_helper->buffer);

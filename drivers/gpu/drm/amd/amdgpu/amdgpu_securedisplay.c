@@ -69,6 +69,9 @@ void psp_securedisplay_parse_resp_status(struct psp_context *psp,
 	case TA_SECUREDISPLAY_STATUS__READ_CRC_ERROR:
 		dev_err(psp->adev->dev, "Secure display: Failed to Read CRC");
 		break;
+	case TA_SECUREDISPLAY_STATUS__I2C_INIT_ERROR:
+		dev_err(psp->adev->dev, "Secure display: Failed to initialize I2C.");
+		break;
 	default:
 		dev_err(psp->adev->dev, "Secure display: Failed to parse status: %d\n", status);
 	}

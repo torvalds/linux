@@ -23,10 +23,6 @@ int  psb_irq_postinstall(struct drm_device *dev);
 void psb_irq_uninstall(struct drm_device *dev);
 irqreturn_t psb_irq_handler(int irq, void *arg);
 
-int psb_irq_enable_dpst(struct drm_device *dev);
-int psb_irq_disable_dpst(struct drm_device *dev);
-void psb_irq_turn_on_dpst(struct drm_device *dev);
-void psb_irq_turn_off_dpst(struct drm_device *dev);
 int  psb_enable_vblank(struct drm_crtc *crtc);
 void psb_disable_vblank(struct drm_crtc *crtc);
 u32  psb_get_vblank_counter(struct drm_crtc *crtc);

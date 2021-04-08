@@ -91,7 +91,7 @@ void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
 	if (!list_empty(&entity->list))
 		return;
 	spin_lock(&rq->lock);
-	atomic_inc(&rq->sched->score);
+	atomic_inc(rq->sched->score);
 	list_add_tail(&entity->list, &rq->entities);
 	spin_unlock(&rq->lock);
 }
@@ -110,7 +110,7 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 	if (list_empty(&entity->list))
 		return;
 	spin_lock(&rq->lock);
-	atomic_dec(&rq->sched->score);
+	atomic_dec(rq->sched->score);
 	list_del_init(&entity->list);
 	if (rq->current_entity == entity)
 		rq->current_entity = NULL;
@@ -173,7 +173,7 @@ static void drm_sched_job_done(struct drm_sched_job *s_job)
 	struct drm_gpu_scheduler *sched = s_fence->sched;
 
 	atomic_dec(&sched->hw_rq_count);
-	atomic_dec(&sched->score);
+	atomic_dec(sched->score);
 
 	trace_drm_sched_process_job(s_fence);
 
@@ -527,7 +527,7 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 EXPORT_SYMBOL(drm_sched_start);
 
 /**
- * drm_sched_resubmit_jobs - helper to relunch job from pending ring list
+ * drm_sched_resubmit_jobs - helper to relaunch jobs from the pending list
  *
  * @sched: scheduler instance
  *
@@ -561,8 +561,6 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 		} else {
 			s_job->s_fence->parent = fence;
 		}
-
-
 	}
 }
 EXPORT_SYMBOL(drm_sched_resubmit_jobs);
@@ -734,7 +732,7 @@ drm_sched_pick_best(struct drm_gpu_scheduler **sched_list,
 			continue;
 		}
 
-		num_score = atomic_read(&sched->score);
+		num_score = atomic_read(sched->score);
 		if (num_score < min_score) {
 			min_score = num_score;
 			picked_sched = sched;
@@ -844,16 +842,15 @@ static int drm_sched_main(void *param)
  * @hw_submission: number of hw submissions that can be in flight
  * @hang_limit: number of times to allow a job to hang before dropping it
  * @timeout: timeout value in jiffies for the scheduler
+ * @score: optional score atomic shared with other schedulers
  * @name: name used for debugging
  *
  * Return 0 on success, otherwise error code.
  */
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
-		   unsigned hw_submission,
-		   unsigned hang_limit,
-		   long timeout,
-		   const char *name)
+		   unsigned hw_submission, unsigned hang_limit, long timeout,
+		   atomic_t *score, const char *name)
 {
 	int i, ret;
 	sched->ops = ops;
@@ -861,6 +858,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	sched->name = name;
 	sched->timeout = timeout;
 	sched->hang_limit = hang_limit;
+	sched->score = score ? score : &sched->_score;
 	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_COUNT; i++)
 		drm_sched_rq_init(sched, &sched->sched_rq[i]);
 
@@ -870,7 +868,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
 	INIT_DELAYED_WORK(&sched->work_tdr, drm_sched_job_timedout);
-	atomic_set(&sched->score, 0);
+	atomic_set(&sched->_score, 0);
 	atomic64_set(&sched->job_id_count, 0);
 
 	/* Each scheduler will run on a seperate kernel thread */

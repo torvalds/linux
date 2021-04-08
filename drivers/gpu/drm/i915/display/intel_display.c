@@ -1018,6 +1018,7 @@ static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
+			   bool phys_cursor,
 			   const struct i915_ggtt_view *view,
 			   bool uses_fence,
 			   unsigned long *out_flags)
@@ -1026,14 +1027,19 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	intel_wakeref_t wakeref;
+	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	unsigned int pinctl;
 	u32 alignment;
+	int ret;
 
 	if (drm_WARN_ON(dev, !i915_gem_object_is_framebuffer(obj)))
 		return ERR_PTR(-EINVAL);
 
-	alignment = intel_surf_alignment(fb, 0);
+	if (phys_cursor)
+		alignment = intel_cursor_alignment(dev_priv);
+	else
+		alignment = intel_surf_alignment(fb, 0);
 	if (drm_WARN_ON(dev, alignment && !is_power_of_2(alignment)))
 		return ERR_PTR(-EINVAL);
 
@@ -1068,14 +1074,26 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	if (HAS_GMCH(dev_priv))
 		pinctl |= PIN_MAPPABLE;
 
-	vma = i915_gem_object_pin_to_display_plane(obj,
-						   alignment, view, pinctl);
-	if (IS_ERR(vma))
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	ret = i915_gem_object_lock(obj, &ww);
+	if (!ret && phys_cursor)
+		ret = i915_gem_object_attach_phys(obj, alignment);
+	if (!ret)
+		ret = i915_gem_object_pin_pages(obj);
+	if (ret)
 		goto err;
 
-	if (uses_fence && i915_vma_is_map_and_fenceable(vma)) {
-		int ret;
+	if (!ret) {
+		vma = i915_gem_object_pin_to_display_plane(obj, &ww, alignment,
+							   view, pinctl);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			goto err_unpin;
+		}
+	}
 
+	if (uses_fence && i915_vma_is_map_and_fenceable(vma)) {
 		/*
 		 * Install a fence for tiled scan-out. Pre-i965 always needs a
 		 * fence, whereas 965+ only requires a fence if using
@@ -1096,16 +1114,28 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 		ret = i915_vma_pin_fence(vma);
 		if (ret != 0 && DISPLAY_VER(dev_priv) < 4) {
 			i915_vma_unpin(vma);
-			vma = ERR_PTR(ret);
-			goto err;
+			goto err_unpin;
 		}
+		ret = 0;
 
-		if (ret == 0 && vma->fence)
+		if (vma->fence)
 			*out_flags |= PLANE_HAS_FENCE;
 	}
 
 	i915_vma_get(vma);
+
+err_unpin:
+	i915_gem_object_unpin_pages(obj);
 err:
+	if (ret == -EDEADLK) {
+		ret = i915_gem_ww_ctx_backoff(&ww);
+		if (!ret)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	if (ret)
+		vma = ERR_PTR(ret);
+
 	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return vma;
@@ -7191,7 +7221,6 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct drm_format_name_buf format_name;
 
 	if (!fb) {
 		drm_dbg_kms(&i915->drm,
@@ -7202,10 +7231,9 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "[PLANE:%d:%s] fb: [FB:%d] %ux%u format = %s modifier = 0x%llx, visible: %s\n",
+		    "[PLANE:%d:%s] fb: [FB:%d] %ux%u format = %p4cc modifier = 0x%llx, visible: %s\n",
 		    plane->base.base.id, plane->base.name,
-		    fb->base.id, fb->width, fb->height,
-		    drm_get_format_name(fb->format->format, &format_name),
+		    fb->base.id, fb->width, fb->height, &fb->format->format,
 		    fb->modifier, yesno(plane_state->uapi.visible));
 	drm_dbg_kms(&i915->drm, "\trotation: 0x%x, scaler: %d\n",
 		    plane_state->hw.rotation, plane_state->scaler_id);
@@ -10509,19 +10537,11 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct i915_vma *vma;
+	bool phys_cursor =
+		plane->id == PLANE_CURSOR &&
+		INTEL_INFO(dev_priv)->display.cursor_needs_physical;
 
-	if (plane->id == PLANE_CURSOR &&
-	    INTEL_INFO(dev_priv)->display.cursor_needs_physical) {
-		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-		const int align = intel_cursor_alignment(dev_priv);
-		int err;
-
-		err = i915_gem_object_attach_phys(obj, align);
-		if (err)
-			return err;
-	}
-
-	vma = intel_pin_and_fence_fb_obj(fb,
+	vma = intel_pin_and_fence_fb_obj(fb, phys_cursor,
 					 &plane_state->view.gtt,
 					 intel_plane_uses_fence(plane_state),
 					 &plane_state->flags);
@@ -10558,9 +10578,7 @@ int
 intel_prepare_plane_fb(struct drm_plane *_plane,
 		       struct drm_plane_state *_new_plane_state)
 {
-	struct i915_sched_attr attr = {
-		.priority = I915_USER_PRIORITY(I915_PRIORITY_DISPLAY),
-	};
+	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
 	struct intel_plane *plane = to_intel_plane(_plane);
 	struct intel_plane_state *new_plane_state =
 		to_intel_plane_state(_new_plane_state);
@@ -10613,13 +10631,8 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	if (!obj)
 		return 0;
 
-	ret = i915_gem_object_pin_pages(obj);
-	if (ret)
-		return ret;
 
 	ret = intel_plane_pin_fb(new_plane_state);
-
-	i915_gem_object_unpin_pages(obj);
 	if (ret)
 		return ret;
 
@@ -11081,7 +11094,7 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	if (obj->userptr.mm) {
+	if (i915_gem_object_is_userptr(obj)) {
 		drm_dbg(&i915->drm,
 			"attempting to use a userptr for a framebuffer, denied\n");
 		return -EINVAL;
@@ -11154,13 +11167,9 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (!drm_any_plane_has_format(&dev_priv->drm,
 				      mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
-		struct drm_format_name_buf format_name;
-
 		drm_dbg_kms(&dev_priv->drm,
-			    "unsupported pixel format %s / modifier 0x%llx\n",
-			    drm_get_format_name(mode_cmd->pixel_format,
-						&format_name),
-			    mode_cmd->modifier[0]);
+			    "unsupported pixel format %p4cc / modifier 0x%llx\n",
+			    &mode_cmd->pixel_format, mode_cmd->modifier[0]);
 		goto err;
 	}
 

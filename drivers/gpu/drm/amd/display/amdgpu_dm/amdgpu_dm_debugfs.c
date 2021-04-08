@@ -25,8 +25,6 @@
 
 #include <linux/uaccess.h>
 
-#include <drm/drm_debugfs.h>
-
 #include "dc.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -36,6 +34,7 @@
 #include "resource.h"
 #include "dsc.h"
 #include "dc_link_dp.h"
+#include "dc/dc_dmub_srv.h"
 
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
@@ -2154,6 +2153,149 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 	return result;
 }
 
+
+/*
+ * function description: Read max_requested_bpc property from the connector
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/max_bpc
+ *
+ */
+static ssize_t dp_max_bpc_read(struct file *f, char __user *buf,
+		size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_device *dev = connector->dev;
+	struct dm_connector_state *state;
+	ssize_t result = 0;
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	const uint32_t rd_buf_size = 10;
+	int r;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+
+	if (connector->state == NULL)
+		goto unlock;
+
+	state = to_dm_connector_state(connector->state);
+
+	rd_buf_ptr = rd_buf;
+	snprintf(rd_buf_ptr, rd_buf_size,
+		"%u\n",
+		state->base.max_requested_bpc);
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r) {
+			result = r; /* r = -EFAULT */
+			goto unlock;
+		}
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+unlock:
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
+	kfree(rd_buf);
+	return result;
+}
+
+
+/*
+ * function description: Set max_requested_bpc property on the connector
+ *
+ * This function will not force the input BPC on connector, it will only
+ * change the max value. This is equivalent to setting max_bpc through
+ * xrandr.
+ *
+ * The BPC value written must be >= 6 and <= 16. Values outside of this
+ * range will result in errors.
+ *
+ * BPC values:
+ *	0x6 - 6 BPC
+ *	0x8 - 8 BPC
+ *	0xa - 10 BPC
+ *	0xc - 12 BPC
+ *	0x10 - 16 BPC
+ *
+ * Write the max_bpc in the following way:
+ *
+ * echo 0x6 > /sys/kernel/debug/dri/0/DP-X/max_bpc
+ *
+ */
+static ssize_t dp_max_bpc_write(struct file *f, const char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct drm_connector *connector = &aconnector->base;
+	struct dm_connector_state *state;
+	struct drm_device *dev = connector->dev;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param[1] = {0};
+	uint8_t param_nums = 0;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param[0] < 6 || param[0] > 16) {
+		DRM_DEBUG_DRIVER("bad max_bpc value\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+
+	if (connector->state == NULL)
+		goto unlock;
+
+	state = to_dm_connector_state(connector->state);
+	state->base.max_requested_bpc = param[0];
+unlock:
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	kfree(wr_buf);
+	return size;
+}
+
 DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
 DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
 DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
@@ -2265,6 +2407,13 @@ static const struct file_operations dp_dpcd_data_debugfs_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations dp_max_bpc_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_max_bpc_read,
+	.write = dp_max_bpc_write,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -2287,7 +2436,8 @@ static const struct {
 		{"dsc_pic_height", &dp_dsc_pic_height_debugfs_fops},
 		{"dsc_chunk_size", &dp_dsc_chunk_size_debugfs_fops},
 		{"dsc_slice_bpg", &dp_dsc_slice_bpg_offset_debugfs_fops},
-		{"dp_dsc_fec_support", &dp_dsc_fec_support_fops}
+		{"dp_dsc_fec_support", &dp_dsc_fec_support_fops},
+		{"max_bpc", &dp_max_bpc_debugfs_fops}
 };
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP
@@ -2341,8 +2491,50 @@ static int psr_get(void *data, u64 *val)
 	return 0;
 }
 
+/*
+ * Set dmcub trace event IRQ enable or disable.
+ * Usage to enable dmcub trace event IRQ: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+ * Usage to disable dmcub trace event IRQ: echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+ */
+static int dmcub_trace_event_state_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	if (val == 1 || val == 0) {
+		dc_dmub_trace_event_control(adev->dm.dc, val);
+		adev->dm.dmcub_trace_event_en = (bool)val;
+	} else
+		return 0;
+
+	return 0;
+}
+
+/*
+ * The interface doesn't need get function, so it will return the
+ * value of zero
+ * Usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+ */
+static int dmcub_trace_event_state_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dmcub_trace_event_en;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(dmcub_trace_event_state_fops, dmcub_trace_event_state_get,
+			 dmcub_trace_event_state_set, "%llu\n");
 
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
+
+static const struct {
+	char *name;
+	const struct file_operations *fops;
+} connector_debugfs_entries[] = {
+		{"force_yuv420_output", &force_yuv420_output_fops},
+		{"output_bpc", &output_bpc_fops},
+		{"trigger_hotplug", &trigger_hotplug_debugfs_fops}
+};
 
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
@@ -2360,14 +2552,11 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
 
-	debugfs_create_file_unsafe("force_yuv420_output", 0644, dir, connector,
-				   &force_yuv420_output_fops);
-
-	debugfs_create_file("output_bpc", 0644, dir, connector,
-			    &output_bpc_fops);
-
-	debugfs_create_file("trigger_hotplug", 0644, dir, connector,
-			    &trigger_hotplug_debugfs_fops);
+	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
+		debugfs_create_file(connector_debugfs_entries[i].name,
+				    0644, dir, connector,
+				    connector_debugfs_entries[i].fops);
+	}
 
 	connector->debugfs_dpcd_address = 0;
 	connector->debugfs_dpcd_size = 0;
@@ -2383,6 +2572,225 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 #endif
 }
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+/*
+ * Set crc window coordinate x start
+ */
+static int crc_win_x_start_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.x_start = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate x start
+ */
+static int crc_win_x_start_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.x_start;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_x_start_fops, crc_win_x_start_get,
+			 crc_win_x_start_set, "%llu\n");
+
+
+/*
+ * Set crc window coordinate y start
+ */
+static int crc_win_y_start_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.y_start = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate y start
+ */
+static int crc_win_y_start_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.y_start;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_y_start_fops, crc_win_y_start_get,
+			 crc_win_y_start_set, "%llu\n");
+
+/*
+ * Set crc window coordinate x end
+ */
+static int crc_win_x_end_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.x_end = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate x end
+ */
+static int crc_win_x_end_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.x_end;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_x_end_fops, crc_win_x_end_get,
+			 crc_win_x_end_set, "%llu\n");
+
+/*
+ * Set crc window coordinate y end
+ */
+static int crc_win_y_end_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	acrtc->dm_irq_params.crc_window.y_end = (uint16_t) val;
+	acrtc->dm_irq_params.crc_window.update_win = false;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+/*
+ * Get crc window coordinate y end
+ */
+static int crc_win_y_end_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_window.y_end;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_y_end_fops, crc_win_y_end_get,
+			 crc_win_y_end_set, "%llu\n");
+/*
+ * Trigger to commit crc window
+ */
+static int crc_win_update_set(void *data, u64 val)
+{
+	struct drm_crtc *new_crtc = data;
+	struct drm_crtc *old_crtc = NULL;
+	struct amdgpu_crtc *new_acrtc, *old_acrtc;
+	struct amdgpu_device *adev = drm_to_adev(new_crtc->dev);
+	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
+
+	if (val) {
+		spin_lock_irq(&adev_to_drm(adev)->event_lock);
+		spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
+		if (crc_rd_wrk && crc_rd_wrk->crtc) {
+			old_crtc = crc_rd_wrk->crtc;
+			old_acrtc = to_amdgpu_crtc(old_crtc);
+		}
+		new_acrtc = to_amdgpu_crtc(new_crtc);
+
+		if (old_crtc && old_crtc != new_crtc) {
+			old_acrtc->dm_irq_params.crc_window.activated = false;
+			old_acrtc->dm_irq_params.crc_window.update_win = false;
+			old_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+
+			new_acrtc->dm_irq_params.crc_window.activated = true;
+			new_acrtc->dm_irq_params.crc_window.update_win = true;
+			new_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			crc_rd_wrk->crtc = new_crtc;
+		} else {
+			new_acrtc->dm_irq_params.crc_window.activated = true;
+			new_acrtc->dm_irq_params.crc_window.update_win = true;
+			new_acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+			crc_rd_wrk->crtc = new_crtc;
+		}
+		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+	}
+
+	return 0;
+}
+
+/*
+ * Get crc window update flag
+ */
+static int crc_win_update_get(void *data, u64 *val)
+{
+	*val = 0;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_win_update_fops, crc_win_update_get,
+			 crc_win_update_set, "%llu\n");
+
+void crtc_debugfs_init(struct drm_crtc *crtc)
+{
+	struct dentry *dir = debugfs_lookup("crc", crtc->debugfs_entry);
+
+	if (!dir)
+		return;
+
+	debugfs_create_file_unsafe("crc_win_x_start", 0644, dir, crtc,
+				   &crc_win_x_start_fops);
+	debugfs_create_file_unsafe("crc_win_y_start", 0644, dir, crtc,
+				   &crc_win_y_start_fops);
+	debugfs_create_file_unsafe("crc_win_x_end", 0644, dir, crtc,
+				   &crc_win_x_end_fops);
+	debugfs_create_file_unsafe("crc_win_y_end", 0644, dir, crtc,
+				   &crc_win_y_end_fops);
+	debugfs_create_file_unsafe("crc_win_update", 0644, dir, crtc,
+				   &crc_win_update_fops);
+
+}
+#endif
 /*
  * Writes DTN log state to the user supplied buffer.
  * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
@@ -2450,11 +2858,9 @@ static ssize_t dtn_log_write(
  * As written to display, taking ABM and backlight lut into account.
  * Ranges from 0x0 to 0x10000 (= 100% PWM)
  */
-static int current_backlight_read(struct seq_file *m, void *data)
+static int current_backlight_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
 	struct amdgpu_display_manager *dm = &adev->dm;
 
 	unsigned int backlight = dc_link_get_backlight_level(dm->backlight_link);
@@ -2468,11 +2874,9 @@ static int current_backlight_read(struct seq_file *m, void *data)
  * As written to display, taking ABM and backlight lut into account.
  * Ranges from 0x0 to 0x10000 (= 100% PWM)
  */
-static int target_backlight_read(struct seq_file *m, void *data)
+static int target_backlight_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
 	struct amdgpu_display_manager *dm = &adev->dm;
 
 	unsigned int backlight = dc_link_get_target_backlight_pwm(dm->backlight_link);
@@ -2481,10 +2885,10 @@ static int target_backlight_read(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int mst_topo(struct seq_file *m, void *unused)
+static int mst_topo_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct drm_device *dev = adev_to_drm(adev);
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct amdgpu_dm_connector *aconnector;
@@ -2503,12 +2907,6 @@ static int mst_topo(struct seq_file *m, void *unused)
 
 	return 0;
 }
-
-static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
-	{"amdgpu_current_backlight_pwm", &current_backlight_read},
-	{"amdgpu_target_backlight_pwm", &target_backlight_read},
-	{"amdgpu_mst_topology", &mst_topo},
-};
 
 /*
  * Sets the force_timing_sync debug optino from the given string.
@@ -2568,10 +2966,13 @@ static int visual_confirm_get(void *data, u64 *val)
 	return 0;
 }
 
+DEFINE_SHOW_ATTRIBUTE(current_backlight);
+DEFINE_SHOW_ATTRIBUTE(target_backlight);
+DEFINE_SHOW_ATTRIBUTE(mst_topo);
 DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
 			 visual_confirm_set, "%llu\n");
 
-int dtn_debugfs_init(struct amdgpu_device *adev)
+void dtn_debugfs_init(struct amdgpu_device *adev)
 {
 	static const struct file_operations dtn_log_fops = {
 		.owner = THIS_MODULE,
@@ -2582,13 +2983,13 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
-	int ret;
 
-	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
-				ARRAY_SIZE(amdgpu_dm_debugfs_list));
-	if (ret)
-		return ret;
-
+	debugfs_create_file("amdgpu_current_backlight_pwm", 0444,
+			    root, adev, &current_backlight_fops);
+	debugfs_create_file("amdgpu_target_backlight_pwm", 0444,
+			    root, adev, &target_backlight_fops);
+	debugfs_create_file("amdgpu_mst_topology", 0444, root,
+			    adev, &mst_topo_fops);
 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
 			    &dtn_log_fops);
 
@@ -2604,5 +3005,6 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	debugfs_create_file_unsafe("amdgpu_dm_force_timing_sync", 0644, root,
 				   adev, &force_timing_sync_ops);
 
-	return 0;
+	debugfs_create_file_unsafe("amdgpu_dm_dmcub_trace_event_en", 0644, root,
+				   adev, &dmcub_trace_event_state_fops);
 }

@@ -124,6 +124,16 @@ struct amdgpu_mgpu_info
 	uint32_t			num_gpu;
 	uint32_t			num_dgpu;
 	uint32_t			num_apu;
+
+	/* delayed reset_func for XGMI configuration if necessary */
+	struct delayed_work		delayed_reset_work;
+	bool				pending_reset;
+};
+
+struct amdgpu_watchdog_timer
+{
+	bool timeout_fatal_disable;
+	uint32_t period; /* maxCycles = (1 << period), the number of cycles before a timeout */
 };
 
 #define AMDGPU_MAX_TIMEOUT_PARAM_LENGTH	256
@@ -177,13 +187,17 @@ extern int amdgpu_compute_multipipe;
 extern int amdgpu_gpu_recovery;
 extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
+extern int amdgpu_smu_pptable_id;
 extern uint amdgpu_dc_feature_mask;
+extern uint amdgpu_freesync_vid_mode;
 extern uint amdgpu_dc_debug_mask;
 extern uint amdgpu_dm_abm_level;
+extern int amdgpu_backlight;
 extern struct amdgpu_mgpu_info mgpu_info;
 extern int amdgpu_ras_enable;
 extern uint amdgpu_ras_mask;
 extern int amdgpu_bad_page_threshold;
+extern struct amdgpu_watchdog_timer amdgpu_watchdog_timer;
 extern int amdgpu_async_gfx_ring;
 extern int amdgpu_mcbp;
 extern int amdgpu_discovery;
@@ -583,6 +597,19 @@ enum amd_reset_method {
 	AMD_RESET_METHOD_PCI,
 };
 
+struct amdgpu_video_codec_info {
+	u32 codec_type;
+	u32 max_width;
+	u32 max_height;
+	u32 max_pixels_per_frame;
+	u32 max_level;
+};
+
+struct amdgpu_video_codecs {
+	const u32 codec_count;
+	const struct amdgpu_video_codec_info *codec_array;
+};
+
 /*
  * ASIC specific functions.
  */
@@ -627,6 +654,9 @@ struct amdgpu_asic_funcs {
 	void (*pre_asic_init)(struct amdgpu_device *adev);
 	/* enter/exit umd stable pstate */
 	int (*update_umd_stable_pstate)(struct amdgpu_device *adev, bool enter);
+	/* query video codecs */
+	int (*query_video_codecs)(struct amdgpu_device *adev, bool encode,
+				  const struct amdgpu_video_codecs **codecs);
 };
 
 /*
@@ -791,12 +821,7 @@ struct amdgpu_device {
 	bool				accel_working;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
-	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
-	unsigned			debugfs_count;
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry                   *debugfs_preempt;
-	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
-#endif
+	struct debugfs_blob_wrapper     debugfs_vbios_blob;
 	struct amdgpu_atif		*atif;
 	struct amdgpu_atcs		atcs;
 	struct mutex			srbm_mutex;
@@ -852,8 +877,6 @@ struct amdgpu_device {
 	spinlock_t audio_endpt_idx_lock;
 	amdgpu_block_rreg_t		audio_endpt_rreg;
 	amdgpu_block_wreg_t		audio_endpt_wreg;
-	void __iomem                    *rio_mem;
-	resource_size_t			rio_mem_size;
 	struct amdgpu_doorbell		doorbell;
 
 	/* clock/pll info */
@@ -896,6 +919,7 @@ struct amdgpu_device {
 	struct amdgpu_irq_src		vupdate_irq;
 	struct amdgpu_irq_src		pageflip_irq;
 	struct amdgpu_irq_src		hpd_irq;
+	struct amdgpu_irq_src		dmub_trace_irq;
 
 	/* rings */
 	u64				fence_context;
@@ -1023,6 +1047,7 @@ struct amdgpu_device {
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
+	struct list_head		reset_list;
 
 	long				gfx_timeout;
 	long				sdma_timeout;
@@ -1065,7 +1090,7 @@ static inline struct drm_device *adev_to_drm(struct amdgpu_device *adev)
 	return &adev->ddev;
 }
 
-static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
+static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_device *bdev)
 {
 	return container_of(bdev, struct amdgpu_device, mman.bdev);
 }
@@ -1087,9 +1112,6 @@ void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
 uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
 
-u32 amdgpu_io_rreg(struct amdgpu_device *adev, u32 reg);
-void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
-
 u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
 				u32 pcie_index, u32 pcie_data,
 				u32 reg_addr);
@@ -1105,6 +1127,15 @@ void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
 
 bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
+
+int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
+				  struct amdgpu_job *job,
+				  bool *need_full_reset_arg);
+
+int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
+			  struct list_head *device_list_handle,
+			  bool *need_full_reset_arg,
+			  bool skip_hw_reset);
 
 int emu_soc_asic_init(struct amdgpu_device *adev);
 
@@ -1171,8 +1202,6 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 	} while (0)
 
 #define DREG32_SYS(sqf, adev, reg) seq_printf((sqf), #reg " : 0x%08X\n", amdgpu_device_rreg((adev), (reg), false))
-#define RREG32_IO(reg) amdgpu_io_rreg(adev, (reg))
-#define WREG32_IO(reg, v) amdgpu_io_wreg(adev, (reg), (v))
 
 #define REG_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define REG_FIELD_MASK(reg, field) reg##__##field##_MASK
@@ -1226,6 +1255,7 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define amdgpu_asic_pre_asic_init(adev) (adev)->asic_funcs->pre_asic_init((adev))
 #define amdgpu_asic_update_umd_stable_pstate(adev, enter) \
 	((adev)->asic_funcs->update_umd_stable_pstate ? (adev)->asic_funcs->update_umd_stable_pstate((adev), (enter)) : 0)
+#define amdgpu_asic_query_video_codecs(adev, e, c) (adev)->asic_funcs->query_video_codecs((adev), (e), (c))
 
 #define amdgpu_inc_vram_lost(adev) atomic_inc(&((adev)->vram_lost_counter));
 
@@ -1246,6 +1276,7 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 array_size);
 
 bool amdgpu_device_supports_atpx(struct drm_device *dev);
+int amdgpu_device_mode1_reset(struct amdgpu_device *adev);
 bool amdgpu_device_supports_boco(struct drm_device *dev);
 bool amdgpu_device_supports_baco(struct drm_device *dev);
 bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,

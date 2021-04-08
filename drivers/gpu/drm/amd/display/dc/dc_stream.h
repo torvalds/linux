@@ -130,14 +130,6 @@ union stream_update_flags {
 	uint32_t raw;
 };
 
-struct test_pattern {
-	enum dp_test_pattern type;
-	enum dp_test_pattern_color_space color_space;
-	struct link_training_settings const *p_link_settings;
-	unsigned char const *p_custom_pattern;
-	unsigned int cust_pattern_size;
-};
-
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -235,9 +227,10 @@ struct dc_stream_state {
 
 	uint32_t stream_id;
 	bool is_dsc_enabled;
-
-	struct test_pattern test_pattern;
 	union stream_update_flags update_flags;
+
+	bool has_non_synchronizable_pclk;
+	bool vblank_synchronized;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -271,7 +264,6 @@ struct dc_stream_update {
 	struct dc_dsc_config *dsc_config;
 	struct dc_transfer_func *func_shaper;
 	struct dc_3dlut *lut3d_func;
-	struct test_pattern *pending_test_pattern;
 };
 
 bool dc_is_stream_unchanged(
@@ -460,6 +452,13 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 int num_streams,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+bool dc_stream_forward_dmcu_crc_window(struct dc *dc, struct dc_stream_state *stream,
+			     struct crc_params *crc_window);
+bool dc_stream_stop_dmcu_crc_win_update(struct dc *dc,
+				 struct dc_stream_state *stream);
+#endif
 
 bool dc_stream_configure_crc(struct dc *dc,
 			     struct dc_stream_state *stream,

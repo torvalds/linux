@@ -5951,6 +5951,10 @@ mlxsw_sp_router_fib4_replace(struct mlxsw_sp *mlxsw_sp,
 	if (mlxsw_sp->router->aborted)
 		return 0;
 
+	if (fen_info->fi->nh &&
+	    !mlxsw_sp_nexthop_obj_group_lookup(mlxsw_sp, fen_info->fi->nh->id))
+		return 0;
+
 	fib_node = mlxsw_sp_fib_node_get(mlxsw_sp, fen_info->tb_id,
 					 &fen_info->dst, sizeof(fen_info->dst),
 					 fen_info->dst_len,
@@ -6599,6 +6603,9 @@ static int mlxsw_sp_router_fib6_replace(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 
 	if (mlxsw_sp_fib6_rt_should_ignore(rt))
+		return 0;
+
+	if (rt->nh && !mlxsw_sp_nexthop_obj_group_lookup(mlxsw_sp, rt->nh->id))
 		return 0;
 
 	fib_node = mlxsw_sp_fib_node_get(mlxsw_sp, rt->fib6_table->tb6_id,

@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2019 Intel Corporation
  */
 
@@ -175,7 +174,6 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 
 	/* 3a: Enable RC6 */
 	set(uncore, GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
-
 
 	rc6->ctl_enable =
 		GEN6_RC_CTL_HW_ENABLE |

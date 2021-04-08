@@ -5715,11 +5715,9 @@ static int si_upload_sw_state(struct amdgpu_device *adev,
 	int ret;
 	u32 address = si_pi->state_table_start +
 		offsetof(SISLANDS_SMC_STATETABLE, driverState);
-	u32 state_size = sizeof(SISLANDS_SMC_SWSTATE) +
-		((new_state->performance_level_count - 1) *
-		 sizeof(SISLANDS_SMC_HW_PERFORMANCE_LEVEL));
 	SISLANDS_SMC_SWSTATE *smc_state = &si_pi->smc_statetable.driverState;
-
+	size_t state_size = struct_size(smc_state, levels,
+					new_state->performance_level_count);
 	memset(smc_state, 0, state_size);
 
 	ret = si_convert_power_state_to_smc(adev, amdgpu_new_state, smc_state);
@@ -8016,7 +8014,7 @@ static int si_dpm_read_sensor(void *handle, int idx,
 		*size = 4;
 		return 0;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 

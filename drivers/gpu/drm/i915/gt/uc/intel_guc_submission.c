@@ -206,9 +206,8 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
-		int i;
 
-		priolist_for_each_request_consume(rq, rn, p, i) {
+		priolist_for_each_request_consume(rq, rn, p) {
 			if (last && rq->context != last->context) {
 				if (port == last_port)
 					goto done;
@@ -238,9 +237,10 @@ done:
 	execlists->active = execlists->inflight;
 }
 
-static void guc_submission_tasklet(unsigned long data)
+static void guc_submission_tasklet(struct tasklet_struct *t)
 {
-	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
+	struct intel_engine_cs * const engine =
+		from_tasklet(engine, t, execlists.tasklet);
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request **port, *rq;
 	unsigned long flags;
@@ -361,9 +361,8 @@ static void guc_reset_cancel(struct intel_engine_cs *engine)
 	/* Flush the queued requests to the timeline list (for retiring). */
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
-		int i;
 
-		priolist_for_each_request_consume(rq, rn, p, i) {
+		priolist_for_each_request_consume(rq, rn, p) {
 			list_del_init(&rq->sched.link);
 			__i915_request_submit(rq);
 			dma_fence_set_error(&rq->fence, -EIO);
@@ -610,7 +609,7 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = guc_submit_request;
 	engine->schedule = i915_schedule;
-	engine->execlists.tasklet.func = guc_submission_tasklet;
+	engine->execlists.tasklet.callback = guc_submission_tasklet;
 
 	engine->reset.prepare = guc_reset_prepare;
 	engine->reset.rewind = guc_reset_rewind;
@@ -702,8 +701,7 @@ int intel_guc_submission_setup(struct intel_engine_cs *engine)
 	 */
 	GEM_BUG_ON(INTEL_GEN(i915) < 11);
 
-	tasklet_init(&engine->execlists.tasklet,
-		     guc_submission_tasklet, (unsigned long)engine);
+	tasklet_setup(&engine->execlists.tasklet, guc_submission_tasklet);
 
 	guc_default_vfuncs(engine);
 	guc_default_irqs(engine);

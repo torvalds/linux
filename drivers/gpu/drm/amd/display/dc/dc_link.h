@@ -103,6 +103,10 @@ struct dc_link {
 	bool lttpr_non_transparent_mode;
 	bool is_internal_display;
 
+	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
+	 * DIG encoder. */
+	bool is_dig_mapping_flexible;
+
 	bool edp_sink_present;
 
 	/* caps is the same as reported_link_cap. link_traing use
@@ -183,16 +187,21 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
 	return dc->links[link_index];
 }
 
-static inline struct dc_link *get_edp_link(const struct dc *dc)
+static inline void get_edp_links(const struct dc *dc,
+		struct dc_link **edp_links,
+		int *edp_num)
 {
 	int i;
 
-	// report any eDP links, even unconnected DDI's
+	*edp_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
-		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP)
-			return dc->links[i];
+		// report any eDP links, even unconnected DDI's
+		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP) {
+			edp_links[*edp_num] = dc->links[i];
+			if (++(*edp_num) == MAX_NUM_EDP)
+				return;
+		}
 	}
-	return NULL;
 }
 
 /* Set backlight level of an embedded panel (eDP, LVDS).

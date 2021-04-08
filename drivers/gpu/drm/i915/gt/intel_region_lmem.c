@@ -90,8 +90,6 @@ region_lmem_init(struct intel_memory_region *mem)
 	if (ret)
 		io_mapping_fini(&mem->iomap);
 
-	intel_memory_region_set_name(mem, "local");
-
 	return ret;
 }
 
@@ -102,20 +100,26 @@ static const struct intel_memory_region_ops intel_region_lmem_ops = {
 };
 
 struct intel_memory_region *
-intel_setup_fake_lmem(struct drm_i915_private *i915)
+intel_gt_setup_fake_lmem(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
 	resource_size_t mappable_end;
 	resource_size_t io_start;
 	resource_size_t start;
 
+	if (!HAS_LMEM(i915))
+		return ERR_PTR(-ENODEV);
+
+	if (!i915->params.fake_lmem_start)
+		return ERR_PTR(-ENODEV);
+
 	GEM_BUG_ON(i915_ggtt_has_aperture(&i915->ggtt));
-	GEM_BUG_ON(!i915->params.fake_lmem_start);
 
 	/* Your mappable aperture belongs to me now! */
 	mappable_end = pci_resource_len(pdev, 2);
-	io_start = pci_resource_start(pdev, 2),
+	io_start = pci_resource_start(pdev, 2);
 	start = i915->params.fake_lmem_start;
 
 	mem = intel_memory_region_create(i915,
@@ -135,4 +139,87 @@ intel_setup_fake_lmem(struct drm_i915_private *i915)
 	}
 
 	return mem;
+}
+
+static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
+				     u64 *start, u32 *size)
+{
+	if (!IS_DG1_REVID(uncore->i915, DG1_REVID_A0, DG1_REVID_B0))
+		return false;
+
+	*start = 0;
+	*size = SZ_1M;
+
+	drm_dbg(&uncore->i915->drm, "LMEM: reserved legacy low-memory [0x%llx-0x%llx]\n",
+		*start, *start + *size);
+
+	return true;
+}
+
+static int reserve_lowmem_region(struct intel_uncore *uncore,
+				 struct intel_memory_region *mem)
+{
+	u64 reserve_start;
+	u32 reserve_size;
+	int ret;
+
+	if (!get_legacy_lowmem_region(uncore, &reserve_start, &reserve_size))
+		return 0;
+
+	ret = intel_memory_region_reserve(mem, reserve_start, reserve_size);
+	if (ret)
+		drm_err(&uncore->i915->drm, "LMEM: reserving low memory region failed\n");
+
+	return ret;
+}
+
+static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
+	struct pci_dev *pdev = i915->drm.pdev;
+	struct intel_memory_region *mem;
+	resource_size_t io_start;
+	resource_size_t lmem_size;
+	int err;
+
+	if (!IS_DGFX(i915))
+		return ERR_PTR(-ENODEV);
+
+	/* Stolen starts from GSMBASE on DG1 */
+	lmem_size = intel_uncore_read64(uncore, GEN12_GSMBASE);
+
+	io_start = pci_resource_start(pdev, 2);
+	if (GEM_WARN_ON(lmem_size > pci_resource_len(pdev, 2)))
+		return ERR_PTR(-ENODEV);
+
+	mem = intel_memory_region_create(i915,
+					 0,
+					 lmem_size,
+					 I915_GTT_PAGE_SIZE_4K,
+					 io_start,
+					 &intel_region_lmem_ops);
+	if (IS_ERR(mem))
+		return mem;
+
+	err = reserve_lowmem_region(uncore, mem);
+	if (err)
+		goto err_region_put;
+
+	drm_dbg(&i915->drm, "Local memory: %pR\n", &mem->region);
+	drm_dbg(&i915->drm, "Local memory IO start: %pa\n",
+		&mem->io_start);
+	drm_info(&i915->drm, "Local memory available: %pa\n",
+		 &lmem_size);
+
+	return mem;
+
+err_region_put:
+	intel_memory_region_put(mem);
+	return ERR_PTR(err);
+}
+
+struct intel_memory_region *intel_gt_setup_lmem(struct intel_gt *gt)
+{
+	return setup_lmem(gt);
 }

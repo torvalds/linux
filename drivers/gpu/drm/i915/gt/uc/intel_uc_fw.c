@@ -539,7 +539,7 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 	if (!intel_uc_fw_is_available(uc_fw))
 		return -ENOEXEC;
 
-	err = i915_gem_object_pin_pages(uc_fw->obj);
+	err = i915_gem_object_pin_pages_unlocked(uc_fw->obj);
 	if (err) {
 		DRM_DEBUG_DRIVER("%s fw pin-pages err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);

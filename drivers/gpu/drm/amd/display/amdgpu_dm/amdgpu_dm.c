@@ -34,6 +34,7 @@
 #include "dc/inc/hw/dmcu.h"
 #include "dc/inc/hw/abm.h"
 #include "dc/dc_dmub_srv.h"
+#include "dc/dc_edid_parser.h"
 #include "amdgpu_dm_trace.h"
 
 #include "vid.h"
@@ -75,7 +76,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_audio_component.h>
-#include <drm/drm_hdcp.h>
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
@@ -212,6 +212,9 @@ static bool amdgpu_dm_psr_disable_all(struct amdgpu_display_manager *dm);
 static const struct drm_format_info *
 amd_get_format_info(const struct drm_mode_fb_cmd2 *cmd);
 
+static bool
+is_timing_unchanged_for_freesync(struct drm_crtc_state *old_crtc_state,
+				 struct drm_crtc_state *new_crtc_state);
 /*
  * dm_vblank_get_counter
  *
@@ -333,6 +336,17 @@ static inline bool amdgpu_dm_vrr_active(struct dm_crtc_state *dm_state)
 {
 	return dm_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE ||
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
+}
+
+static inline bool is_dc_timing_adjust_needed(struct dm_crtc_state *old_state,
+					      struct dm_crtc_state *new_state)
+{
+	if (new_state->freesync_config.state ==  VRR_STATE_ACTIVE_FIXED)
+		return true;
+	else if (amdgpu_dm_vrr_active(old_state) != amdgpu_dm_vrr_active(new_state))
+		return true;
+	else
+		return false;
 }
 
 /**
@@ -565,6 +579,31 @@ static void dm_crtc_high_irq(void *interrupt_params)
 
 	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+/**
+ * dm_dcn_vertical_interrupt0_high_irq() - Handles OTG Vertical interrupt0 for
+ * DCN generation ASICs
+ * @interrupt params - interrupt parameters
+ *
+ * Used to set crc window/read out crc value at vertical line 0 position
+ */
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+static void dm_dcn_vertical_interrupt0_high_irq(void *interrupt_params)
+{
+	struct common_irq_params *irq_params = interrupt_params;
+	struct amdgpu_device *adev = irq_params->adev;
+	struct amdgpu_crtc *acrtc;
+
+	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VLINE0);
+
+	if (!acrtc)
+		return;
+
+	amdgpu_dm_crtc_handle_crc_window_irq(&acrtc->base);
+}
+#endif
+#endif
 
 static int dm_set_clockgating_state(void *handle,
 		  enum amd_clockgating_state state)
@@ -951,9 +990,7 @@ static void event_mall_stutter(struct work_struct *work)
 	else
 		dm->active_vblank_irq_count--;
 
-
-	dc_allow_idle_optimizations(
-		dm->dc, dm->active_vblank_irq_count == 0 ? true : false);
+	dc_allow_idle_optimizations(dm->dc, dm->active_vblank_irq_count == 0);
 
 	DRM_DEBUG_DRIVER("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
 
@@ -1060,6 +1097,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.flags.power_down_display_on_boot = true;
 
+	INIT_LIST_HEAD(&adev->dm.da_list);
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
@@ -1139,6 +1177,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}
 #endif
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	adev->dm.crc_rd_wrk = amdgpu_dm_crtc_secure_display_create_work();
+#endif
 	if (amdgpu_dm_initialize_drm_device(adev)) {
 		DRM_ERROR(
 		"amdgpu: failed to initialize sw for display support.\n");
@@ -1182,6 +1223,13 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 	amdgpu_dm_destroy_drm_device(&adev->dm);
 
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	if (adev->dm.crc_rd_wrk) {
+		flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
+		kfree(adev->dm.crc_rd_wrk);
+		adev->dm.crc_rd_wrk = NULL;
+	}
+#endif
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.hdcp_workqueue) {
 		hdcp_destroy(&adev->dev->kobj, adev->dm.hdcp_workqueue);
@@ -1191,6 +1239,15 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 	if (adev->dm.dc)
 		dc_deinit_callbacks(adev->dm.dc);
 #endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (adev->dm.vblank_workqueue) {
+		adev->dm.vblank_workqueue->dm = NULL;
+		kfree(adev->dm.vblank_workqueue);
+		adev->dm.vblank_workqueue = NULL;
+	}
+#endif
+
 	if (adev->dm.dc->ctx->dmub_srv) {
 		dc_dmub_srv_destroy(&adev->dm.dc->ctx->dmub_srv);
 		adev->dm.dc->ctx->dmub_srv = NULL;
@@ -1847,6 +1904,9 @@ static int dm_suspend(void *handle)
 		return ret;
 	}
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+	amdgpu_dm_crtc_secure_display_suspend(adev);
+#endif
 	WARN_ON(adev->dm.cached_state);
 	adev->dm.cached_state = drm_atomic_helper_suspend(adev_to_drm(adev));
 
@@ -2171,6 +2231,10 @@ static int dm_resume(void *handle)
 
 	dm->cached_state = NULL;
 
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+	amdgpu_dm_crtc_secure_display_resume(adev);
+#endif
+
 	amdgpu_dm_irq_resume_late(adev);
 
 	amdgpu_dm_smu_write_watermarks_table(adev);
@@ -2265,6 +2329,11 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	if (caps->ext_caps->bits.oled == 1 ||
 	    caps->ext_caps->bits.sdr_aux_backlight_control == 1 ||
 	    caps->ext_caps->bits.hdr_aux_backlight_control == 1)
+		caps->aux_support = true;
+
+	if (amdgpu_backlight == 0)
+		caps->aux_support = false;
+	else if (amdgpu_backlight == 1)
 		caps->aux_support = true;
 
 	/* From the specification (CTA-861-G), for calculating the maximum
@@ -2902,6 +2971,16 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	struct dc_interrupt_params int_params = {0};
 	int r;
 	int i;
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	static const unsigned int vrtl_int_srcid[] = {
+		DCN_1_0__SRCID__OTG1_VERTICAL_INTERRUPT0_CONTROL,
+		DCN_1_0__SRCID__OTG2_VERTICAL_INTERRUPT0_CONTROL,
+		DCN_1_0__SRCID__OTG3_VERTICAL_INTERRUPT0_CONTROL,
+		DCN_1_0__SRCID__OTG4_VERTICAL_INTERRUPT0_CONTROL,
+		DCN_1_0__SRCID__OTG5_VERTICAL_INTERRUPT0_CONTROL,
+		DCN_1_0__SRCID__OTG6_VERTICAL_INTERRUPT0_CONTROL
+	};
+#endif
 
 	int_params.requested_polarity = INTERRUPT_POLARITY_DEFAULT;
 	int_params.current_polarity = INTERRUPT_POLARITY_DEFAULT;
@@ -2941,6 +3020,37 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 		amdgpu_dm_irq_register_interrupt(
 			adev, &int_params, dm_crtc_high_irq, c_irq_params);
 	}
+
+	/* Use otg vertical line interrupt */
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	for (i = 0; i <= adev->mode_info.num_crtc - 1; i++) {
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE,
+				vrtl_int_srcid[i], &adev->vline0_irq);
+
+		if (r) {
+			DRM_ERROR("Failed to add vline0 irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, vrtl_int_srcid[i], 0);
+
+		if (int_params.irq_source == DC_IRQ_SOURCE_INVALID) {
+			DRM_ERROR("Failed to register vline0 irq %d!\n", vrtl_int_srcid[i]);
+			break;
+		}
+
+		c_irq_params = &adev->dm.vline0_params[int_params.irq_source
+					- DC_IRQ_SOURCE_DC1_VLINE0];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
+		amdgpu_dm_irq_register_interrupt(adev, &int_params,
+				dm_dcn_vertical_interrupt0_high_irq, c_irq_params);
+	}
+#endif
 
 	/* Use VUPDATE_NO_LOCK interrupt on DCN, which seems to correspond to
 	 * the regular VUPDATE interrupt on DCE. We want DC_IRQ_SOURCE_VUPDATEx
@@ -3185,19 +3295,6 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm)
 #endif
 }
 
-static int set_backlight_via_aux(struct dc_link *link, uint32_t brightness)
-{
-	bool rc;
-
-	if (!link)
-		return 1;
-
-	rc = dc_link_set_backlight_level_nits(link, true, brightness,
-					      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
-
-	return rc ? 0 : 1;
-}
-
 static int get_brightness_range(const struct amdgpu_dm_backlight_caps *caps,
 				unsigned *min, unsigned *max)
 {
@@ -3260,9 +3357,10 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 	brightness = convert_brightness_from_user(&caps, bd->props.brightness);
 	// Change brightness based on AUX property
 	if (caps.aux_support)
-		return set_backlight_via_aux(link, brightness);
-
-	rc = dc_link_set_backlight_level(dm->backlight_link, brightness, 0);
+		rc = dc_link_set_backlight_level_nits(link, true, brightness,
+						      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
+	else
+		rc = dc_link_set_backlight_level(dm->backlight_link, brightness, 0);
 
 	return rc ? 0 : 1;
 }
@@ -3270,11 +3368,27 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
-	int ret = dc_link_get_backlight_level(dm->backlight_link);
+	struct amdgpu_dm_backlight_caps caps;
 
-	if (ret == DC_ERROR_UNEXPECTED)
-		return bd->props.brightness;
-	return convert_brightness_to_user(&dm->backlight_caps, ret);
+	amdgpu_dm_update_backlight_caps(dm);
+	caps = dm->backlight_caps;
+
+	if (caps.aux_support) {
+		struct dc_link *link = (struct dc_link *)dm->backlight_link;
+		u32 avg, peak;
+		bool rc;
+
+		rc = dc_link_get_backlight_level_nits(link, &avg, &peak);
+		if (!rc)
+			return bd->props.brightness;
+		return convert_brightness_to_user(&caps, avg);
+	} else {
+		int ret = dc_link_get_backlight_level(dm->backlight_link);
+
+		if (ret == DC_ERROR_UNEXPECTED)
+			return bd->props.brightness;
+		return convert_brightness_to_user(&caps, ret);
+	}
 }
 
 static const struct backlight_ops amdgpu_dm_backlight_ops = {
@@ -4574,7 +4688,6 @@ fill_dc_plane_info_and_addr(struct amdgpu_device *adev,
 	const struct drm_framebuffer *fb = plane_state->fb;
 	const struct amdgpu_framebuffer *afb =
 		to_amdgpu_framebuffer(plane_state->fb);
-	struct drm_format_name_buf format_name;
 	int ret;
 
 	memset(plane_info, 0, sizeof(*plane_info));
@@ -4622,8 +4735,8 @@ fill_dc_plane_info_and_addr(struct amdgpu_device *adev,
 		break;
 	default:
 		DRM_ERROR(
-			"Unsupported screen format %s\n",
-			drm_get_format_name(fb->format->format, &format_name));
+			"Unsupported screen format %p4cc\n",
+			&fb->format->format);
 		return -EINVAL;
 	}
 
@@ -4716,6 +4829,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	dc_plane_state->global_alpha_value = plane_info.global_alpha_value;
 	dc_plane_state->dcc = plane_info.dcc;
 	dc_plane_state->layer_index = plane_info.layer_index; // Always returns 0
+	dc_plane_state->flip_int_enabled = true;
 
 	/*
 	 * Always set input transfer function, since plane state is refreshed
@@ -4992,19 +5106,16 @@ static void fill_stream_properties_from_drm_display_mode(
 		timing_out->hdmi_vic = hv_frame.vic;
 	}
 
-	timing_out->h_addressable = mode_in->crtc_hdisplay;
-	timing_out->h_total = mode_in->crtc_htotal;
-	timing_out->h_sync_width =
-		mode_in->crtc_hsync_end - mode_in->crtc_hsync_start;
-	timing_out->h_front_porch =
-		mode_in->crtc_hsync_start - mode_in->crtc_hdisplay;
-	timing_out->v_total = mode_in->crtc_vtotal;
-	timing_out->v_addressable = mode_in->crtc_vdisplay;
-	timing_out->v_front_porch =
-		mode_in->crtc_vsync_start - mode_in->crtc_vdisplay;
-	timing_out->v_sync_width =
-		mode_in->crtc_vsync_end - mode_in->crtc_vsync_start;
-	timing_out->pix_clk_100hz = mode_in->crtc_clock * 10;
+	timing_out->h_addressable = mode_in->hdisplay;
+	timing_out->h_total = mode_in->htotal;
+	timing_out->h_sync_width = mode_in->hsync_end - mode_in->hsync_start;
+	timing_out->h_front_porch = mode_in->hsync_start - mode_in->hdisplay;
+	timing_out->v_total = mode_in->vtotal;
+	timing_out->v_addressable = mode_in->vdisplay;
+	timing_out->v_front_porch = mode_in->vsync_start - mode_in->vdisplay;
+	timing_out->v_sync_width = mode_in->vsync_end - mode_in->vsync_start;
+	timing_out->pix_clk_100hz = mode_in->clock * 10;
+
 	timing_out->aspect_ratio = get_aspect_ratio(mode_in);
 
 	stream->output_color_space = get_output_color_space(timing_out);
@@ -5171,6 +5282,86 @@ static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 	set_master_stream(context->streams, context->stream_count);
 }
 
+static struct drm_display_mode *
+get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
+			  bool use_probed_modes)
+{
+	struct drm_display_mode *m, *m_pref = NULL;
+	u16 current_refresh, highest_refresh;
+	struct list_head *list_head = use_probed_modes ?
+						    &aconnector->base.probed_modes :
+						    &aconnector->base.modes;
+
+	if (aconnector->freesync_vid_base.clock != 0)
+		return &aconnector->freesync_vid_base;
+
+	/* Find the preferred mode */
+	list_for_each_entry (m, list_head, head) {
+		if (m->type & DRM_MODE_TYPE_PREFERRED) {
+			m_pref = m;
+			break;
+		}
+	}
+
+	if (!m_pref) {
+		/* Probably an EDID with no preferred mode. Fallback to first entry */
+		m_pref = list_first_entry_or_null(
+			&aconnector->base.modes, struct drm_display_mode, head);
+		if (!m_pref) {
+			DRM_DEBUG_DRIVER("No preferred mode found in EDID\n");
+			return NULL;
+		}
+	}
+
+	highest_refresh = drm_mode_vrefresh(m_pref);
+
+	/*
+	 * Find the mode with highest refresh rate with same resolution.
+	 * For some monitors, preferred mode is not the mode with highest
+	 * supported refresh rate.
+	 */
+	list_for_each_entry (m, list_head, head) {
+		current_refresh  = drm_mode_vrefresh(m);
+
+		if (m->hdisplay == m_pref->hdisplay &&
+		    m->vdisplay == m_pref->vdisplay &&
+		    highest_refresh < current_refresh) {
+			highest_refresh = current_refresh;
+			m_pref = m;
+		}
+	}
+
+	aconnector->freesync_vid_base = *m_pref;
+	return m_pref;
+}
+
+static bool is_freesync_video_mode(struct drm_display_mode *mode,
+				   struct amdgpu_dm_connector *aconnector)
+{
+	struct drm_display_mode *high_mode;
+	int timing_diff;
+
+	high_mode = get_highest_refresh_rate_mode(aconnector, false);
+	if (!high_mode || !mode)
+		return false;
+
+	timing_diff = high_mode->vtotal - mode->vtotal;
+
+	if (high_mode->clock == 0 || high_mode->clock != mode->clock ||
+	    high_mode->hdisplay != mode->hdisplay ||
+	    high_mode->vdisplay != mode->vdisplay ||
+	    high_mode->hsync_start != mode->hsync_start ||
+	    high_mode->hsync_end != mode->hsync_end ||
+	    high_mode->htotal != mode->htotal ||
+	    high_mode->hskew != mode->hskew ||
+	    high_mode->vscan != mode->vscan ||
+	    high_mode->vsync_start - mode->vsync_start != timing_diff ||
+	    high_mode->vsync_end - mode->vsync_end != timing_diff)
+		return false;
+	else
+		return true;
+}
+
 static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct drm_display_mode *drm_mode,
@@ -5184,8 +5375,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		dm_state ? &dm_state->base : NULL;
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
+	struct drm_display_mode saved_mode;
+	struct drm_display_mode *freesync_mode = NULL;
 	bool native_mode_found = false;
-	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
+	bool recalculate_timing = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
 	int preferred_refresh = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -5193,6 +5386,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	uint32_t link_bandwidth_kbps;
 #endif
 	struct dc_sink *sink = NULL;
+
+	memset(&saved_mode, 0, sizeof(saved_mode));
+
 	if (aconnector == NULL) {
 		DRM_ERROR("aconnector is NULL!\n");
 		return stream;
@@ -5245,25 +5441,38 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		 */
 		DRM_DEBUG_DRIVER("No preferred mode found\n");
 	} else {
-		decide_crtc_timing_for_drm_display_mode(
+		recalculate_timing |= amdgpu_freesync_vid_mode &&
+				 is_freesync_video_mode(&mode, aconnector);
+		if (recalculate_timing) {
+			freesync_mode = get_highest_refresh_rate_mode(aconnector, false);
+			saved_mode = mode;
+			mode = *freesync_mode;
+		} else {
+			decide_crtc_timing_for_drm_display_mode(
 				&mode, preferred_mode,
 				dm_state ? (dm_state->scaling != RMX_OFF) : false);
+		}
+
 		preferred_refresh = drm_mode_vrefresh(preferred_mode);
 	}
 
-	if (!dm_state)
+	if (recalculate_timing)
+		drm_mode_set_crtcinfo(&saved_mode, 0);
+	else
 		drm_mode_set_crtcinfo(&mode, 0);
 
-	/*
+       /*
 	* If scaling is enabled and refresh rate didn't change
 	* we copy the vic and polarities of the old timings
 	*/
-	if (!scale || mode_refresh != preferred_refresh)
-		fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base, con_state, NULL, requested_bpc);
+	if (!recalculate_timing || mode_refresh != preferred_refresh)
+		fill_stream_properties_from_drm_display_mode(
+			stream, &mode, &aconnector->base, con_state, NULL,
+			requested_bpc);
 	else
-		fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base, con_state, old_stream, requested_bpc);
+		fill_stream_properties_from_drm_display_mode(
+			stream, &mode, &aconnector->base, con_state, old_stream,
+			requested_bpc);
 
 	stream->timing.flags.DSC = 0;
 
@@ -5400,14 +5609,21 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->abm_level = cur->abm_level;
 	state->vrr_supported = cur->vrr_supported;
 	state->freesync_config = cur->freesync_config;
-	state->crc_src = cur->crc_src;
 	state->cm_has_degamma = cur->cm_has_degamma;
 	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
-
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
 	return &state->base;
 }
+
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
+{
+	crtc_debugfs_init(crtc);
+
+	return 0;
+}
+#endif
 
 static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 {
@@ -5494,6 +5710,9 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.enable_vblank = dm_enable_vblank,
 	.disable_vblank = dm_disable_vblank,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	.late_register = amdgpu_dm_crtc_late_register,
+#endif
 };
 
 static enum drm_connector_status
@@ -6479,13 +6698,17 @@ static int dm_plane_helper_check_state(struct drm_plane_state *state,
 			else if (state->crtc_y + state->crtc_h > new_crtc_state->mode.crtc_vdisplay)
 				viewport_height = new_crtc_state->mode.crtc_vdisplay - state->crtc_y;
 
-			/* If completely outside of screen, viewport_width and/or viewport_height will be negative,
-			 * which is still OK to satisfy the condition below, thereby also covering these cases
-			 * (when plane is completely outside of screen).
-			 * x2 for width is because of pipe-split.
-			 */
-			if (viewport_width < MIN_VIEWPORT_SIZE*2 || viewport_height < MIN_VIEWPORT_SIZE)
+			if (viewport_width < 0 || viewport_height < 0) {
+				DRM_DEBUG_ATOMIC("Plane completely outside of screen\n");
 				return -EINVAL;
+			} else if (viewport_width < MIN_VIEWPORT_SIZE*2) { /* x2 for width is because of pipe-split. */
+				DRM_DEBUG_ATOMIC("Viewport width %d smaller than %d\n", viewport_width, MIN_VIEWPORT_SIZE*2);
+				return -EINVAL;
+			} else if (viewport_height < MIN_VIEWPORT_SIZE) {
+				DRM_DEBUG_ATOMIC("Viewport height %d smaller than %d\n", viewport_height, MIN_VIEWPORT_SIZE);
+				return -EINVAL;
+			}
+
 		}
 
 		/* Get min/max allowed scaling factors from plane caps. */
@@ -6505,8 +6728,10 @@ static int dm_plane_helper_check_state(struct drm_plane_state *state,
 }
 
 static int dm_plane_atomic_check(struct drm_plane *plane,
-				 struct drm_plane_state *state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct amdgpu_device *adev = drm_to_adev(plane->dev);
 	struct dc *dc = adev->dm.dc;
 	struct dm_plane_state *dm_plane_state;
@@ -6514,23 +6739,24 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *new_crtc_state;
 	int ret;
 
-	trace_amdgpu_dm_plane_atomic_check(state);
+	trace_amdgpu_dm_plane_atomic_check(new_plane_state);
 
-	dm_plane_state = to_dm_plane_state(state);
+	dm_plane_state = to_dm_plane_state(new_plane_state);
 
 	if (!dm_plane_state->dc_state)
 		return 0;
 
 	new_crtc_state =
-		drm_atomic_get_new_crtc_state(state->state, state->crtc);
+		drm_atomic_get_new_crtc_state(state,
+					      new_plane_state->crtc);
 	if (!new_crtc_state)
 		return -EINVAL;
 
-	ret = dm_plane_helper_check_state(state, new_crtc_state);
+	ret = dm_plane_helper_check_state(new_plane_state, new_crtc_state);
 	if (ret)
 		return ret;
 
-	ret = fill_dc_scaling_info(state, &scaling_info);
+	ret = fill_dc_scaling_info(new_plane_state, &scaling_info);
 	if (ret)
 		return ret;
 
@@ -6541,7 +6767,7 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 }
 
 static int dm_plane_atomic_async_check(struct drm_plane *plane,
-				       struct drm_plane_state *new_plane_state)
+				       struct drm_atomic_state *state)
 {
 	/* Only support async updates on cursor planes. */
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
@@ -6551,10 +6777,12 @@ static int dm_plane_atomic_async_check(struct drm_plane *plane,
 }
 
 static void dm_plane_atomic_async_update(struct drm_plane *plane,
-					 struct drm_plane_state *new_state)
+					 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_plane_state *old_state =
-		drm_atomic_get_old_plane_state(new_state->state, plane);
+		drm_atomic_get_old_plane_state(state, plane);
 
 	trace_amdgpu_dm_atomic_update_cursor(new_state);
 
@@ -6961,9 +7189,116 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 		 */
 		drm_mode_sort(&connector->probed_modes);
 		amdgpu_dm_get_native_mode(connector);
+
+		/* Freesync capabilities are reset by calling
+		 * drm_add_edid_modes() and need to be
+		 * restored here.
+		 */
+		amdgpu_dm_update_freesync_caps(connector, edid);
 	} else {
 		amdgpu_dm_connector->num_modes = 0;
 	}
+}
+
+static bool is_duplicate_mode(struct amdgpu_dm_connector *aconnector,
+			      struct drm_display_mode *mode)
+{
+	struct drm_display_mode *m;
+
+	list_for_each_entry (m, &aconnector->base.probed_modes, head) {
+		if (drm_mode_equal(m, mode))
+			return true;
+	}
+
+	return false;
+}
+
+static uint add_fs_modes(struct amdgpu_dm_connector *aconnector)
+{
+	const struct drm_display_mode *m;
+	struct drm_display_mode *new_mode;
+	uint i;
+	uint32_t new_modes_count = 0;
+
+	/* Standard FPS values
+	 *
+	 * 23.976   - TV/NTSC
+	 * 24 	    - Cinema
+	 * 25 	    - TV/PAL
+	 * 29.97    - TV/NTSC
+	 * 30 	    - TV/NTSC
+	 * 48 	    - Cinema HFR
+	 * 50 	    - TV/PAL
+	 * 60 	    - Commonly used
+	 * 48,72,96 - Multiples of 24
+	 */
+	const uint32_t common_rates[] = { 23976, 24000, 25000, 29970, 30000,
+					 48000, 50000, 60000, 72000, 96000 };
+
+	/*
+	 * Find mode with highest refresh rate with the same resolution
+	 * as the preferred mode. Some monitors report a preferred mode
+	 * with lower resolution than the highest refresh rate supported.
+	 */
+
+	m = get_highest_refresh_rate_mode(aconnector, true);
+	if (!m)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(common_rates); i++) {
+		uint64_t target_vtotal, target_vtotal_diff;
+		uint64_t num, den;
+
+		if (drm_mode_vrefresh(m) * 1000 < common_rates[i])
+			continue;
+
+		if (common_rates[i] < aconnector->min_vfreq * 1000 ||
+		    common_rates[i] > aconnector->max_vfreq * 1000)
+			continue;
+
+		num = (unsigned long long)m->clock * 1000 * 1000;
+		den = common_rates[i] * (unsigned long long)m->htotal;
+		target_vtotal = div_u64(num, den);
+		target_vtotal_diff = target_vtotal - m->vtotal;
+
+		/* Check for illegal modes */
+		if (m->vsync_start + target_vtotal_diff < m->vdisplay ||
+		    m->vsync_end + target_vtotal_diff < m->vsync_start ||
+		    m->vtotal + target_vtotal_diff < m->vsync_end)
+			continue;
+
+		new_mode = drm_mode_duplicate(aconnector->base.dev, m);
+		if (!new_mode)
+			goto out;
+
+		new_mode->vtotal += (u16)target_vtotal_diff;
+		new_mode->vsync_start += (u16)target_vtotal_diff;
+		new_mode->vsync_end += (u16)target_vtotal_diff;
+		new_mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+		new_mode->type |= DRM_MODE_TYPE_DRIVER;
+
+		if (!is_duplicate_mode(aconnector, new_mode)) {
+			drm_mode_probed_add(&aconnector->base, new_mode);
+			new_modes_count += 1;
+		} else
+			drm_mode_destroy(aconnector->base.dev, new_mode);
+	}
+ out:
+	return new_modes_count;
+}
+
+static void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connector,
+						   struct edid *edid)
+{
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+		to_amdgpu_dm_connector(connector);
+
+	if (!(amdgpu_freesync_vid_mode && edid))
+		return;
+	
+	if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
+		amdgpu_dm_connector->num_modes +=
+			add_fs_modes(amdgpu_dm_connector);
 }
 
 static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
@@ -6981,6 +7316,7 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 	} else {
 		amdgpu_dm_connector_ddc_get_modes(connector, edid);
 		amdgpu_dm_connector_add_common_modes(encoder, connector);
+		amdgpu_dm_connector_add_freesync_modes(connector, edid);
 	}
 	amdgpu_dm_fbc_init(connector);
 
@@ -7285,8 +7621,19 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 			adev,
 			&adev->pageflip_irq,
 			irq_type);
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		amdgpu_irq_get(
+			adev,
+			&adev->vline0_irq,
+			irq_type);
+#endif
 	} else {
-
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		amdgpu_irq_put(
+			adev,
+			&adev->vline0_irq,
+			irq_type);
+#endif
 		amdgpu_irq_put(
 			adev,
 			&adev->pageflip_irq,
@@ -7410,10 +7757,6 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 	int x, y;
 	int xorigin = 0, yorigin = 0;
 
-	position->enable = false;
-	position->x = 0;
-	position->y = 0;
-
 	if (!crtc || !plane->state->fb)
 		return 0;
 
@@ -7460,7 +7803,7 @@ static void handle_cursor_update(struct drm_plane *plane,
 	struct dm_crtc_state *crtc_state = crtc ? to_dm_crtc_state(crtc->state) : NULL;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	uint64_t address = afb ? afb->address : 0;
-	struct dc_cursor_position position;
+	struct dc_cursor_position position = {0};
 	struct dc_cursor_attributes attributes;
 	int ret;
 
@@ -7545,6 +7888,7 @@ static void update_freesync_state_on_stream(
 	struct amdgpu_device *adev = dm->adev;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_crtc_state->base.crtc);
 	unsigned long flags;
+	bool pack_sdp_v1_3 = false;
 
 	if (!new_stream)
 		return;
@@ -7586,7 +7930,8 @@ static void update_freesync_state_on_stream(
 		&vrr_params,
 		PACKET_TYPE_VRR,
 		TRANSFER_FUNC_UNKNOWN,
-		&vrr_infopacket);
+		&vrr_infopacket,
+		pack_sdp_v1_3);
 
 	new_crtc_state->freesync_timing_changed |=
 		(memcmp(&acrtc->dm_irq_params.vrr_params.adjust,
@@ -7640,9 +7985,22 @@ static void update_stream_irq_parameters(
 	if (new_crtc_state->vrr_supported &&
 	    config.min_refresh_in_uhz &&
 	    config.max_refresh_in_uhz) {
-		config.state = new_crtc_state->base.vrr_enabled ?
-			VRR_STATE_ACTIVE_VARIABLE :
-			VRR_STATE_INACTIVE;
+		/*
+		 * if freesync compatible mode was set, config.state will be set
+		 * in atomic check
+		 */
+		if (config.state == VRR_STATE_ACTIVE_FIXED && config.fixed_refresh_in_uhz &&
+		    (!drm_atomic_crtc_needs_modeset(&new_crtc_state->base) ||
+		     new_crtc_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED)) {
+			vrr_params.max_refresh_in_uhz = config.max_refresh_in_uhz;
+			vrr_params.min_refresh_in_uhz = config.min_refresh_in_uhz;
+			vrr_params.fixed_refresh_in_uhz = config.fixed_refresh_in_uhz;
+			vrr_params.state = VRR_STATE_ACTIVE_FIXED;
+		} else {
+			config.state = new_crtc_state->base.vrr_enabled ?
+						     VRR_STATE_ACTIVE_VARIABLE :
+						     VRR_STATE_INACTIVE;
+		}
 	} else {
 		config.state = VRR_STATE_UNSUPPORTED;
 	}
@@ -7963,8 +8321,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * re-adjust the min/max bounds now that DC doesn't handle this
 		 * as part of commit.
 		 */
-		if (amdgpu_dm_vrr_active(dm_old_crtc_state) !=
-		    amdgpu_dm_vrr_active(acrtc_state)) {
+		if (is_dc_timing_adjust_needed(dm_old_crtc_state, acrtc_state)) {
 			spin_lock_irqsave(&pcrtc->dev->event_lock, flags);
 			dc_stream_adjust_vmin_vmax(
 				dm->dc, acrtc_state->stream,
@@ -8249,6 +8606,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			/* i.e. reset mode */
 			if (dm_old_crtc_state->stream)
 				remove_stream(adev, acrtc, dm_old_crtc_state->stream);
+
 			mode_set_reset_required = true;
 		}
 	} /* for_each_crtc_in_state() */
@@ -8307,8 +8665,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			hdcp_update_display(
 				adev->dm.hdcp_workqueue, aconnector->dc_link->link_index, aconnector,
 				new_con_state->hdcp_content_type,
-				new_con_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED ? true
-													 : false);
+				new_con_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED);
 	}
 #endif
 
@@ -8418,7 +8775,10 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-
+#ifdef CONFIG_DEBUG_FS
+		bool configure_crc = false;
+		enum amdgpu_dm_pipe_crc_source cur_crc_src;
+#endif
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
 		if (new_crtc_state->active &&
@@ -8434,12 +8794,21 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			 * settings for the stream.
 			 */
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+			spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
+			cur_crc_src = acrtc->dm_irq_params.crc_src;
+			spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 
-			if (amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
-				amdgpu_dm_crtc_configure_crc_source(
-					crtc, dm_new_crtc_state,
-					dm_new_crtc_state->crc_src);
+			if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
+				configure_crc = true;
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+				if (amdgpu_dm_crc_window_is_activated(crtc))
+					configure_crc = false;
+#endif
 			}
+
+			if (configure_crc)
+				amdgpu_dm_crtc_configure_crc_source(
+					crtc, dm_new_crtc_state, cur_crc_src);
 #endif
 		}
 	}
@@ -8648,6 +9017,7 @@ static void get_freesync_config_for_crtc(
 			to_amdgpu_dm_connector(new_con_state->base.connector);
 	struct drm_display_mode *mode = &new_crtc_state->base.mode;
 	int vrefresh = drm_mode_vrefresh(mode);
+	bool fs_vid_mode = false;
 
 	new_crtc_state->vrr_supported = new_con_state->freesync_capable &&
 					vrefresh >= aconnector->min_vfreq &&
@@ -8655,17 +9025,24 @@ static void get_freesync_config_for_crtc(
 
 	if (new_crtc_state->vrr_supported) {
 		new_crtc_state->stream->ignore_msa_timing_param = true;
-		config.state = new_crtc_state->base.vrr_enabled ?
-				VRR_STATE_ACTIVE_VARIABLE :
-				VRR_STATE_INACTIVE;
-		config.min_refresh_in_uhz =
-				aconnector->min_vfreq * 1000000;
-		config.max_refresh_in_uhz =
-				aconnector->max_vfreq * 1000000;
+		fs_vid_mode = new_crtc_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
+
+		config.min_refresh_in_uhz = aconnector->min_vfreq * 1000000;
+		config.max_refresh_in_uhz = aconnector->max_vfreq * 1000000;
 		config.vsif_supported = true;
 		config.btr = true;
-	}
 
+		if (fs_vid_mode) {
+			config.state = VRR_STATE_ACTIVE_FIXED;
+			config.fixed_refresh_in_uhz = new_crtc_state->freesync_config.fixed_refresh_in_uhz;
+			goto out;
+		} else if (new_crtc_state->base.vrr_enabled) {
+			config.state = VRR_STATE_ACTIVE_VARIABLE;
+		} else {
+			config.state = VRR_STATE_INACTIVE;
+		}
+	}
+out:
 	new_crtc_state->freesync_config = config;
 }
 
@@ -8676,6 +9053,50 @@ static void reset_freesync_config_for_crtc(
 
 	memset(&new_crtc_state->vrr_infopacket, 0,
 	       sizeof(new_crtc_state->vrr_infopacket));
+}
+
+static bool
+is_timing_unchanged_for_freesync(struct drm_crtc_state *old_crtc_state,
+				 struct drm_crtc_state *new_crtc_state)
+{
+	struct drm_display_mode old_mode, new_mode;
+
+	if (!old_crtc_state || !new_crtc_state)
+		return false;
+
+	old_mode = old_crtc_state->mode;
+	new_mode = new_crtc_state->mode;
+
+	if (old_mode.clock       == new_mode.clock &&
+	    old_mode.hdisplay    == new_mode.hdisplay &&
+	    old_mode.vdisplay    == new_mode.vdisplay &&
+	    old_mode.htotal      == new_mode.htotal &&
+	    old_mode.vtotal      != new_mode.vtotal &&
+	    old_mode.hsync_start == new_mode.hsync_start &&
+	    old_mode.vsync_start != new_mode.vsync_start &&
+	    old_mode.hsync_end   == new_mode.hsync_end &&
+	    old_mode.vsync_end   != new_mode.vsync_end &&
+	    old_mode.hskew       == new_mode.hskew &&
+	    old_mode.vscan       == new_mode.vscan &&
+	    (old_mode.vsync_end - old_mode.vsync_start) ==
+	    (new_mode.vsync_end - new_mode.vsync_start))
+		return true;
+
+	return false;
+}
+
+static void set_freesync_fixed_config(struct dm_crtc_state *dm_new_crtc_state) {
+	uint64_t num, den, res;
+	struct drm_crtc_state *new_crtc_state = &dm_new_crtc_state->base;
+
+	dm_new_crtc_state->freesync_config.state = VRR_STATE_ACTIVE_FIXED;
+
+	num = (unsigned long long)new_crtc_state->mode.clock * 1000 * 1000000;
+	den = (unsigned long long)new_crtc_state->mode.htotal *
+	      (unsigned long long)new_crtc_state->mode.vtotal;
+
+	res = div_u64(num, den);
+	dm_new_crtc_state->freesync_config.fixed_refresh_in_uhz = res;
 }
 
 static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
@@ -8768,6 +9189,11 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		 * TODO: Refactor this function to allow this check to work
 		 * in all conditions.
 		 */
+		if (amdgpu_freesync_vid_mode &&
+		    dm_new_crtc_state->stream &&
+		    is_timing_unchanged_for_freesync(new_crtc_state, old_crtc_state))
+			goto skip_modeset;
+
 		if (dm_new_crtc_state->stream &&
 		    dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
 		    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
@@ -8798,6 +9224,24 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 
 		if (!dm_old_crtc_state->stream)
 			goto skip_modeset;
+
+		if (amdgpu_freesync_vid_mode && dm_new_crtc_state->stream &&
+		    is_timing_unchanged_for_freesync(new_crtc_state,
+						     old_crtc_state)) {
+			new_crtc_state->mode_changed = false;
+			DRM_DEBUG_DRIVER(
+				"Mode change not required for front porch change, "
+				"setting mode_changed to %d",
+				new_crtc_state->mode_changed);
+
+			set_freesync_fixed_config(dm_new_crtc_state);
+
+			goto skip_modeset;
+		} else if (amdgpu_freesync_vid_mode && aconnector &&
+			   is_freesync_video_mode(&new_crtc_state->mode,
+						  aconnector)) {
+			set_freesync_fixed_config(dm_new_crtc_state);
+		}
 
 		ret = dm_atomic_get_state(state, &dm_state);
 		if (ret)
@@ -9376,7 +9820,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (adev->asic_type >= CHIP_NAVI10) {
+	if (dc_resource_is_dsc_encoding_supported(dc)) {
 		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 				ret = add_affected_mst_dsc_crtcs(state, crtc);
@@ -9682,11 +10126,85 @@ static bool is_dp_capable_without_timing_msa(struct dc *dc,
 
 	return capable;
 }
+
+static bool parse_edid_cea(struct amdgpu_dm_connector *aconnector,
+		uint8_t *edid_ext, int len,
+		struct amdgpu_hdmi_vsdb_info *vsdb_info)
+{
+	int i;
+	struct amdgpu_device *adev = drm_to_adev(aconnector->base.dev);
+	struct dc *dc = adev->dm.dc;
+
+	/* send extension block to DMCU for parsing */
+	for (i = 0; i < len; i += 8) {
+		bool res;
+		int offset;
+
+		/* send 8 bytes a time */
+		if (!dc_edid_parser_send_cea(dc, i, len, &edid_ext[i], 8))
+			return false;
+
+		if (i+8 == len) {
+			/* EDID block sent completed, expect result */
+			int version, min_rate, max_rate;
+
+			res = dc_edid_parser_recv_amd_vsdb(dc, &version, &min_rate, &max_rate);
+			if (res) {
+				/* amd vsdb found */
+				vsdb_info->freesync_supported = 1;
+				vsdb_info->amd_vsdb_version = version;
+				vsdb_info->min_refresh_rate_hz = min_rate;
+				vsdb_info->max_refresh_rate_hz = max_rate;
+				return true;
+			}
+			/* not amd vsdb */
+			return false;
+		}
+
+		/* check for ack*/
+		res = dc_edid_parser_recv_cea_ack(dc, &offset);
+		if (!res)
+			return false;
+	}
+
+	return false;
+}
+
+static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+		struct edid *edid, struct amdgpu_hdmi_vsdb_info *vsdb_info)
+{
+	uint8_t *edid_ext = NULL;
+	int i;
+	bool valid_vsdb_found = false;
+
+	/*----- drm_find_cea_extension() -----*/
+	/* No EDID or EDID extensions */
+	if (edid == NULL || edid->extensions == 0)
+		return -ENODEV;
+
+	/* Find CEA extension */
+	for (i = 0; i < edid->extensions; i++) {
+		edid_ext = (uint8_t *)edid + EDID_LENGTH * (i + 1);
+		if (edid_ext[0] == CEA_EXT)
+			break;
+	}
+
+	if (i == edid->extensions)
+		return -ENODEV;
+
+	/*----- cea_db_offsets() -----*/
+	if (edid_ext[0] != CEA_EXT)
+		return -ENODEV;
+
+	valid_vsdb_found = parse_edid_cea(aconnector, edid_ext, EDID_LENGTH, vsdb_info);
+
+	return valid_vsdb_found ? i : -ENODEV;
+}
+
 void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 					struct edid *edid)
 {
-	int i;
-	bool edid_check_required;
+	int i = 0;
 	struct detailed_timing *timing;
 	struct detailed_non_pixel *data;
 	struct detailed_data_monitor_range *range;
@@ -9697,6 +10215,7 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	bool freesync_capable = false;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
 
 	if (!connector->state) {
 		DRM_ERROR("%s - Connector has no state", __func__);
@@ -9715,60 +10234,75 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 
 	dm_con_state = to_dm_connector_state(connector->state);
 
-	edid_check_required = false;
 	if (!amdgpu_dm_connector->dc_sink) {
 		DRM_ERROR("dc_sink NULL, could not add free_sync module.\n");
 		goto update;
 	}
 	if (!adev->dm.freesync_module)
 		goto update;
-	/*
-	 * if edid non zero restrict freesync only for dp and edp
-	 */
-	if (edid) {
-		if (amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
-			|| amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_EDP) {
+
+
+	if (amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
+		|| amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_EDP) {
+		bool edid_check_required = false;
+
+		if (edid) {
 			edid_check_required = is_dp_capable_without_timing_msa(
 						adev->dm.dc,
 						amdgpu_dm_connector);
 		}
-	}
-	if (edid_check_required == true && (edid->version > 1 ||
-	   (edid->version == 1 && edid->revision > 1))) {
-		for (i = 0; i < 4; i++) {
 
-			timing	= &edid->detailed_timings[i];
-			data	= &timing->data.other_data;
-			range	= &data->data.range;
-			/*
-			 * Check if monitor has continuous frequency mode
-			 */
-			if (data->type != EDID_DETAIL_MONITOR_RANGE)
-				continue;
-			/*
-			 * Check for flag range limits only. If flag == 1 then
-			 * no additional timing information provided.
-			 * Default GTF, GTF Secondary curve and CVT are not
-			 * supported
-			 */
-			if (range->flags != 1)
-				continue;
+		if (edid_check_required == true && (edid->version > 1 ||
+		   (edid->version == 1 && edid->revision > 1))) {
+			for (i = 0; i < 4; i++) {
 
-			amdgpu_dm_connector->min_vfreq = range->min_vfreq;
-			amdgpu_dm_connector->max_vfreq = range->max_vfreq;
-			amdgpu_dm_connector->pixel_clock_mhz =
-				range->pixel_clock_mhz * 10;
+				timing	= &edid->detailed_timings[i];
+				data	= &timing->data.other_data;
+				range	= &data->data.range;
+				/*
+				 * Check if monitor has continuous frequency mode
+				 */
+				if (data->type != EDID_DETAIL_MONITOR_RANGE)
+					continue;
+				/*
+				 * Check for flag range limits only. If flag == 1 then
+				 * no additional timing information provided.
+				 * Default GTF, GTF Secondary curve and CVT are not
+				 * supported
+				 */
+				if (range->flags != 1)
+					continue;
 
-			connector->display_info.monitor_range.min_vfreq = range->min_vfreq;
-			connector->display_info.monitor_range.max_vfreq = range->max_vfreq;
+				amdgpu_dm_connector->min_vfreq = range->min_vfreq;
+				amdgpu_dm_connector->max_vfreq = range->max_vfreq;
+				amdgpu_dm_connector->pixel_clock_mhz =
+					range->pixel_clock_mhz * 10;
 
-			break;
+				connector->display_info.monitor_range.min_vfreq = range->min_vfreq;
+				connector->display_info.monitor_range.max_vfreq = range->max_vfreq;
+
+				break;
+			}
+
+			if (amdgpu_dm_connector->max_vfreq -
+			    amdgpu_dm_connector->min_vfreq > 10) {
+
+				freesync_capable = true;
+			}
 		}
+	} else if (edid && amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+		i = parse_hdmi_amd_vsdb(amdgpu_dm_connector, edid, &vsdb_info);
+		if (i >= 0 && vsdb_info.freesync_supported) {
+			timing  = &edid->detailed_timings[i];
+			data    = &timing->data.other_data;
 
-		if (amdgpu_dm_connector->max_vfreq -
-		    amdgpu_dm_connector->min_vfreq > 10) {
+			amdgpu_dm_connector->min_vfreq = vsdb_info.min_refresh_rate_hz;
+			amdgpu_dm_connector->max_vfreq = vsdb_info.max_refresh_rate_hz;
+			if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
+				freesync_capable = true;
 
-			freesync_capable = true;
+			connector->display_info.monitor_range.min_vfreq = vsdb_info.min_refresh_rate_hz;
+			connector->display_info.monitor_range.max_vfreq = vsdb_info.max_refresh_rate_hz;
 		}
 	}
 

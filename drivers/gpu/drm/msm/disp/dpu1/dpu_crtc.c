@@ -71,7 +71,6 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 {
 	struct dpu_hw_mixer *lm = mixer->hw_lm;
 	uint32_t blend_op;
-	struct drm_format_name_buf format_name;
 
 	/* default to opaque blending */
 	blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
@@ -87,9 +86,8 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 	lm->ops.setup_blend_config(lm, pstate->stage,
 				0xFF, 0, blend_op);
 
-	DPU_DEBUG("format:%s, alpha_en:%u blend_op:0x%x\n",
-		drm_get_format_name(format->base.pixel_format, &format_name),
-		format->alpha_enable, blend_op);
+	DPU_DEBUG("format:%p4cc, alpha_en:%u blend_op:0x%x\n",
+		  &format->base.pixel_format, format->alpha_enable, blend_op);
 }
 
 static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
@@ -576,7 +574,7 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	 * of those planes explicitly here prior to plane flush.
 	 */
 	drm_atomic_crtc_for_each_plane(plane, crtc)
-		dpu_plane_restore(plane);
+		dpu_plane_restore(plane, state);
 
 	/* update performance setting before crtc kickoff */
 	dpu_core_perf_crtc_update(crtc, 1, false);

@@ -20,7 +20,7 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
@@ -1055,25 +1055,27 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
  * in the CRTC's flush.
  */
 static int vc4_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_atomic_state *state)
 {
-	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(new_plane_state);
 	int ret;
 
 	vc4_state->dlist_count = 0;
 
-	if (!plane_enabled(state))
+	if (!plane_enabled(new_plane_state))
 		return 0;
 
-	ret = vc4_plane_mode_set(plane, state);
+	ret = vc4_plane_mode_set(plane, new_plane_state);
 	if (ret)
 		return ret;
 
-	return vc4_plane_allocate_lbm(state);
+	return vc4_plane_allocate_lbm(new_plane_state);
 }
 
 static void vc4_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	/* No contents here.  Since we don't know where in the CRTC's
 	 * dlist we should be stored, our dlist is uploaded to the
@@ -1133,32 +1135,34 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 }
 
 static void vc4_plane_atomic_async_update(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct vc4_plane_state *vc4_state, *new_vc4_state;
 
-	swap(plane->state->fb, state->fb);
-	plane->state->crtc_x = state->crtc_x;
-	plane->state->crtc_y = state->crtc_y;
-	plane->state->crtc_w = state->crtc_w;
-	plane->state->crtc_h = state->crtc_h;
-	plane->state->src_x = state->src_x;
-	plane->state->src_y = state->src_y;
-	plane->state->src_w = state->src_w;
-	plane->state->src_h = state->src_h;
-	plane->state->src_h = state->src_h;
-	plane->state->alpha = state->alpha;
-	plane->state->pixel_blend_mode = state->pixel_blend_mode;
-	plane->state->rotation = state->rotation;
-	plane->state->zpos = state->zpos;
-	plane->state->normalized_zpos = state->normalized_zpos;
-	plane->state->color_encoding = state->color_encoding;
-	plane->state->color_range = state->color_range;
-	plane->state->src = state->src;
-	plane->state->dst = state->dst;
-	plane->state->visible = state->visible;
+	swap(plane->state->fb, new_plane_state->fb);
+	plane->state->crtc_x = new_plane_state->crtc_x;
+	plane->state->crtc_y = new_plane_state->crtc_y;
+	plane->state->crtc_w = new_plane_state->crtc_w;
+	plane->state->crtc_h = new_plane_state->crtc_h;
+	plane->state->src_x = new_plane_state->src_x;
+	plane->state->src_y = new_plane_state->src_y;
+	plane->state->src_w = new_plane_state->src_w;
+	plane->state->src_h = new_plane_state->src_h;
+	plane->state->src_h = new_plane_state->src_h;
+	plane->state->alpha = new_plane_state->alpha;
+	plane->state->pixel_blend_mode = new_plane_state->pixel_blend_mode;
+	plane->state->rotation = new_plane_state->rotation;
+	plane->state->zpos = new_plane_state->zpos;
+	plane->state->normalized_zpos = new_plane_state->normalized_zpos;
+	plane->state->color_encoding = new_plane_state->color_encoding;
+	plane->state->color_range = new_plane_state->color_range;
+	plane->state->src = new_plane_state->src;
+	plane->state->dst = new_plane_state->dst;
+	plane->state->visible = new_plane_state->visible;
 
-	new_vc4_state = to_vc4_plane_state(state);
+	new_vc4_state = to_vc4_plane_state(new_plane_state);
 	vc4_state = to_vc4_plane_state(plane->state);
 
 	vc4_state->crtc_x = new_vc4_state->crtc_x;
@@ -1202,23 +1206,25 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 }
 
 static int vc4_plane_atomic_async_check(struct drm_plane *plane,
-					struct drm_plane_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct vc4_plane_state *old_vc4_state, *new_vc4_state;
 	int ret;
 	u32 i;
 
-	ret = vc4_plane_mode_set(plane, state);
+	ret = vc4_plane_mode_set(plane, new_plane_state);
 	if (ret)
 		return ret;
 
 	old_vc4_state = to_vc4_plane_state(plane->state);
-	new_vc4_state = to_vc4_plane_state(state);
+	new_vc4_state = to_vc4_plane_state(new_plane_state);
 	if (old_vc4_state->dlist_count != new_vc4_state->dlist_count ||
 	    old_vc4_state->pos0_offset != new_vc4_state->pos0_offset ||
 	    old_vc4_state->pos2_offset != new_vc4_state->pos2_offset ||
 	    old_vc4_state->ptr0_offset != new_vc4_state->ptr0_offset ||
-	    vc4_lbm_size(plane->state) != vc4_lbm_size(state))
+	    vc4_lbm_size(plane->state) != vc4_lbm_size(new_plane_state))
 		return -EINVAL;
 
 	/* Only pos0, pos2 and ptr0 DWORDS can be updated in an async update
@@ -1250,7 +1256,7 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 
 	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
 
-	drm_gem_fb_prepare_fb(plane, state);
+	drm_gem_plane_helper_prepare_fb(plane, state);
 
 	if (plane->state->fb == state->fb)
 		return 0;

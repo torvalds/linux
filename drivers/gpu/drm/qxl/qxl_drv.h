@@ -125,7 +125,7 @@ struct qxl_output {
 #define drm_encoder_to_qxl_output(x) container_of(x, struct qxl_output, enc)
 
 struct qxl_mman {
-	struct ttm_bo_device		bdev;
+	struct ttm_device		bdev;
 };
 
 struct qxl_memslot {
@@ -214,6 +214,8 @@ struct qxl_device {
 	spinlock_t	release_lock;
 	struct idr	release_idr;
 	uint32_t	release_seqno;
+	atomic_t	release_count;
+	wait_queue_head_t release_event;
 	spinlock_t release_idr_lock;
 	struct mutex	async_io_mutex;
 	unsigned int last_sent_io_cmd;
@@ -335,7 +337,7 @@ int qxl_mode_dumb_mmap(struct drm_file *filp,
 /* qxl ttm */
 int qxl_ttm_init(struct qxl_device *qdev);
 void qxl_ttm_fini(struct qxl_device *qdev);
-int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
+int qxl_ttm_io_mem_reserve(struct ttm_device *bdev,
 			   struct ttm_resource *mem);
 
 /* qxl image */

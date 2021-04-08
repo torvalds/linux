@@ -92,13 +92,13 @@ struct amdgpu_prt_cb {
 static inline void amdgpu_vm_eviction_lock(struct amdgpu_vm *vm)
 {
 	mutex_lock(&vm->eviction_lock);
-	vm->saved_flags = memalloc_nofs_save();
+	vm->saved_flags = memalloc_noreclaim_save();
 }
 
 static inline int amdgpu_vm_eviction_trylock(struct amdgpu_vm *vm)
 {
 	if (mutex_trylock(&vm->eviction_lock)) {
-		vm->saved_flags = memalloc_nofs_save();
+		vm->saved_flags = memalloc_noreclaim_save();
 		return 1;
 	}
 	return 0;
@@ -106,7 +106,7 @@ static inline int amdgpu_vm_eviction_trylock(struct amdgpu_vm *vm)
 
 static inline void amdgpu_vm_eviction_unlock(struct amdgpu_vm *vm)
 {
-	memalloc_nofs_restore(vm->saved_flags);
+	memalloc_noreclaim_restore(vm->saved_flags);
 	mutex_unlock(&vm->eviction_lock);
 }
 
@@ -638,15 +638,15 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 	struct amdgpu_vm_bo_base *bo_base;
 
 	if (vm->bulk_moveable) {
-		spin_lock(&ttm_bo_glob.lru_lock);
+		spin_lock(&adev->mman.bdev.lru_lock);
 		ttm_bo_bulk_move_lru_tail(&vm->lru_bulk_move);
-		spin_unlock(&ttm_bo_glob.lru_lock);
+		spin_unlock(&adev->mman.bdev.lru_lock);
 		return;
 	}
 
 	memset(&vm->lru_bulk_move, 0, sizeof(vm->lru_bulk_move));
 
-	spin_lock(&ttm_bo_glob.lru_lock);
+	spin_lock(&adev->mman.bdev.lru_lock);
 	list_for_each_entry(bo_base, &vm->idle, vm_status) {
 		struct amdgpu_bo *bo = bo_base->bo;
 
@@ -660,7 +660,7 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 						&bo->shadow->tbo.mem,
 						&vm->lru_bulk_move);
 	}
-	spin_unlock(&ttm_bo_glob.lru_lock);
+	spin_unlock(&adev->mman.bdev.lru_lock);
 
 	vm->bulk_moveable = true;
 }

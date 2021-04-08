@@ -80,8 +80,4 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		const struct tg_color *solid_color,
 		int width, int height, int offset);
 
-void dcn30_set_hubp_blank(const struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		bool blank_enable);
-
 #endif /* __DC_HWSS_DCN30_H__ */
