@@ -8,6 +8,7 @@
 
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/phy/phy-ti.h>
+#include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/gpio.h>
