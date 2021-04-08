@@ -1367,7 +1367,6 @@ mptctl_gettargetinfo (MPT_ADAPTER *ioc, unsigned long arg)
 	int			lun;
 	int			maxWordsLeft;
 	int			numBytes;
-	u8			port;
 	struct scsi_device 	*sdev;
 
 	if (copy_from_user(&karg, uarg, sizeof(struct mpt_ioctl_targetinfo))) {
@@ -1379,13 +1378,8 @@ mptctl_gettargetinfo (MPT_ADAPTER *ioc, unsigned long arg)
 
 	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_gettargetinfo called.\n",
 	    ioc->name));
-	/* Get the port number and set the maximum number of bytes
-	 * in the returned structure.
-	 * Ignore the port setting.
-	 */
 	numBytes = karg.hdr.maxDataSize - sizeof(mpt_ioctl_header);
 	maxWordsLeft = numBytes/sizeof(int);
-	port = karg.hdr.port;
 
 	if (maxWordsLeft <= 0) {
 		printk(MYIOC_s_ERR_FMT "%s@%d::mptctl_gettargetinfo() - no memory available!\n",
