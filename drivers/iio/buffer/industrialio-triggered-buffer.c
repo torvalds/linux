@@ -96,9 +96,9 @@ void iio_triggered_buffer_cleanup(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_triggered_buffer_cleanup);
 
-static void devm_iio_triggered_buffer_clean(struct device *dev, void *res)
+static void devm_iio_triggered_buffer_clean(void *indio_dev)
 {
-	iio_triggered_buffer_cleanup(*(struct iio_dev **)res);
+	iio_triggered_buffer_cleanup(indio_dev);
 }
 
 int devm_iio_triggered_buffer_setup_ext(struct device *dev,
@@ -108,24 +108,15 @@ int devm_iio_triggered_buffer_setup_ext(struct device *dev,
 					const struct iio_buffer_setup_ops *ops,
 					const struct attribute **buffer_attrs)
 {
-	struct iio_dev **ptr;
 	int ret;
-
-	ptr = devres_alloc(devm_iio_triggered_buffer_clean, sizeof(*ptr),
-			   GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	*ptr = indio_dev;
 
 	ret = iio_triggered_buffer_setup_ext(indio_dev, h, thread, ops,
 					     buffer_attrs);
-	if (!ret)
-		devres_add(dev, ptr);
-	else
-		devres_free(ptr);
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action_or_reset(dev, devm_iio_triggered_buffer_clean,
+					indio_dev);
 }
 EXPORT_SYMBOL_GPL(devm_iio_triggered_buffer_setup_ext);
 
