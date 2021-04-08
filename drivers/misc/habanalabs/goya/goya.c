@@ -5178,54 +5178,13 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 }
 
 static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
-				bool is_hard, u32 asid, u64 va, u64 size)
+						bool is_hard, u32 flags,
+						u32 asid, u64 va, u64 size)
 {
-	struct goya_device *goya = hdev->asic_specific;
-	u32 status, timeout_usec, inv_data, pi;
-	int rc;
-
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU) ||
-		hdev->hard_reset_pending)
-		return 0;
-
-	/* no need in L1 only invalidation in Goya */
-	if (!is_hard)
-		return 0;
-
-	if (hdev->pldm)
-		timeout_usec = GOYA_PLDM_MMU_TIMEOUT_USEC;
-	else
-		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
-
-	/*
-	 * TODO: currently invalidate entire L0 & L1 as in regular hard
-	 * invalidation. Need to apply invalidation of specific cache lines with
-	 * mask of ASID & VA & size.
-	 * Note that L1 with be flushed entirely in any case.
+	/* Treat as invalidate all because there is no range invalidation
+	 * in Goya
 	 */
-
-	/* L0 & L1 invalidation */
-	inv_data = RREG32(mmSTLB_CACHE_INV);
-	/* PI is 8 bit */
-	pi = ((inv_data & STLB_CACHE_INV_PRODUCER_INDEX_MASK) + 1) & 0xFF;
-	WREG32(mmSTLB_CACHE_INV,
-			(inv_data & STLB_CACHE_INV_INDEX_MASK_MASK) | pi);
-
-	rc = hl_poll_timeout(
-		hdev,
-		mmSTLB_INV_CONSUMER_INDEX,
-		status,
-		status == pi,
-		1000,
-		timeout_usec);
-
-	if (rc) {
-		dev_err_ratelimited(hdev->dev,
-					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, HL_RESET_HARD);
-	}
-
-	return rc;
+	return hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
 }
 
 int goya_send_heartbeat(struct hl_device *hdev)

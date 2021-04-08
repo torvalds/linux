@@ -1035,7 +1035,7 @@ struct hl_asic_funcs {
 	int (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
 					u32 flags);
 	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
-			u32 asid, u64 va, u64 size);
+				u32 flags, u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*set_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
