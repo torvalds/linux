@@ -205,7 +205,7 @@ enum mhi_db_brst_mode {
  * @num: The number assigned to this channel
  * @num_elements: The number of elements that can be queued to this channel
  * @local_elements: The local ring length of the channel
- * @event_ring: The event rung index that services this channel
+ * @event_ring: The event ring index that services this channel
  * @dir: Direction that data may flow on this channel
  * @type: Channel type
  * @ee_mask: Execution Environment mask for this channel
