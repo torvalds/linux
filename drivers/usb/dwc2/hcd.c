@@ -3353,44 +3353,61 @@ int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
  *
  * @hsotg: Programming view of the DWC_otg controller
  *
+ * Return: non-zero if failed to exit suspend mode for host.
+ *
  * This function is for exiting Host mode suspend.
  * Must NOT be called with interrupt disabled or spinlock held.
  */
-void dwc2_port_resume(struct dwc2_hsotg *hsotg)
+int dwc2_port_resume(struct dwc2_hsotg *hsotg)
 {
 	unsigned long flags;
 	u32 hprt0;
 	u32 pcgctl;
+	int ret = 0;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
-	/*
-	 * If power_down is supported, Phy clock is already resumed
-	 * after registers restore.
-	 */
-	if (!hsotg->params.power_down) {
-		pcgctl = dwc2_readl(hsotg, PCGCTL);
-		pcgctl &= ~PCGCTL_STOPPCLK;
-		dwc2_writel(hsotg, pcgctl, PCGCTL);
+	switch (hsotg->params.power_down) {
+	case DWC2_POWER_DOWN_PARAM_PARTIAL:
+		ret = dwc2_exit_partial_power_down(hsotg, 0, true);
+		if (ret)
+			dev_err(hsotg->dev,
+				"exit partial_power_down failed.\n");
+		break;
+	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+	case DWC2_POWER_DOWN_PARAM_NONE:
+	default:
+		/*
+		 * If power_down is supported, Phy clock is already resumed
+		 * after registers restore.
+		 */
+		if (!hsotg->params.power_down) {
+			pcgctl = dwc2_readl(hsotg, PCGCTL);
+			pcgctl &= ~PCGCTL_STOPPCLK;
+			dwc2_writel(hsotg, pcgctl, PCGCTL);
+			spin_unlock_irqrestore(&hsotg->lock, flags);
+			msleep(20);
+			spin_lock_irqsave(&hsotg->lock, flags);
+		}
+
+		hprt0 = dwc2_read_hprt0(hsotg);
+		hprt0 |= HPRT0_RES;
+		hprt0 &= ~HPRT0_SUSP;
+		dwc2_writel(hsotg, hprt0, HPRT0);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
-		msleep(20);
+
+		msleep(USB_RESUME_TIMEOUT);
+
 		spin_lock_irqsave(&hsotg->lock, flags);
+		hprt0 = dwc2_read_hprt0(hsotg);
+		hprt0 &= ~(HPRT0_RES | HPRT0_SUSP);
+		dwc2_writel(hsotg, hprt0, HPRT0);
+		hsotg->bus_suspended = false;
 	}
 
-	hprt0 = dwc2_read_hprt0(hsotg);
-	hprt0 |= HPRT0_RES;
-	hprt0 &= ~HPRT0_SUSP;
-	dwc2_writel(hsotg, hprt0, HPRT0);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
-	msleep(USB_RESUME_TIMEOUT);
-
-	spin_lock_irqsave(&hsotg->lock, flags);
-	hprt0 = dwc2_read_hprt0(hsotg);
-	hprt0 &= ~(HPRT0_RES | HPRT0_SUSP);
-	dwc2_writel(hsotg, hprt0, HPRT0);
-	hsotg->bus_suspended = false;
-	spin_unlock_irqrestore(&hsotg->lock, flags);
+	return ret;
 }
 
 /* Handles hub class-specific requests */
