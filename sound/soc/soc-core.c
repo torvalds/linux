@@ -31,7 +31,9 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/dmi.h>
+#ifndef __GENKSYMS__
 #include <linux/acpi.h>
+#endif
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
