@@ -315,9 +315,10 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 		hsotg->lx_state);
 
 	if (dwc2_is_device_mode(hsotg)) {
-		if (hsotg->lx_state == DWC2_L2) {
-			ret = dwc2_exit_partial_power_down(hsotg, true);
-			if (ret && (ret != -ENOTSUPP))
+		if (hsotg->lx_state == DWC2_L2 && hsotg->in_ppd) {
+			ret = dwc2_exit_partial_power_down(hsotg, 0,
+							   true);
+			if (ret)
 				dev_err(hsotg->dev,
 					"exit power_down failed\n");
 		}
@@ -406,18 +407,16 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 	if (dwc2_is_device_mode(hsotg)) {
 		dev_dbg(hsotg->dev, "DSTS=0x%0x\n",
 			dwc2_readl(hsotg, DSTS));
-		if (hsotg->lx_state == DWC2_L2) {
+		if (hsotg->lx_state == DWC2_L2 && hsotg->in_ppd) {
 			u32 dctl = dwc2_readl(hsotg, DCTL);
-
 			/* Clear Remote Wakeup Signaling */
 			dctl &= ~DCTL_RMTWKUPSIG;
 			dwc2_writel(hsotg, dctl, DCTL);
-			ret = dwc2_exit_partial_power_down(hsotg, true);
-			if (ret && (ret != -ENOTSUPP))
-				dev_err(hsotg->dev, "exit power_down failed\n");
-
-			/* Change to L0 state */
-			hsotg->lx_state = DWC2_L0;
+			ret = dwc2_exit_partial_power_down(hsotg, 1,
+							   true);
+			if (ret)
+				dev_err(hsotg->dev,
+					"exit partial_power_down failed\n");
 			call_gadget(hsotg, resume);
 		} else {
 			/* Change to L0 state */

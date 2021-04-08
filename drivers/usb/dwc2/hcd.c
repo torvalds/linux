@@ -4418,7 +4418,7 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 
 
 		/* Exit partial_power_down */
-		ret = dwc2_exit_partial_power_down(hsotg, true);
+		ret = dwc2_exit_partial_power_down(hsotg, 0, true);
 		if (ret && (ret != -ENOTSUPP))
 			dev_err(hsotg->dev, "exit partial_power_down failed\n");
 	} else {

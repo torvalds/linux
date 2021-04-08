@@ -131,54 +131,26 @@ int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
  * dwc2_exit_partial_power_down() - Exit controller from Partial Power Down.
  *
  * @hsotg: Programming view of the DWC_otg controller
+ * @rem_wakeup: indicates whether resume is initiated by Reset.
  * @restore: Controller registers need to be restored
  */
-int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
+int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, int rem_wakeup,
+				 bool restore)
 {
-	u32 pcgcctl;
-	int ret = 0;
+	struct dwc2_gregs_backup *gr;
 
-	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_PARTIAL)
-		return -ENOTSUPP;
+	gr = &hsotg->gr_backup;
 
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl &= ~PCGCTL_STOPPCLK;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl &= ~PCGCTL_PWRCLMP;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-	pcgcctl &= ~PCGCTL_RSTPDWNMODULE;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	udelay(100);
-	if (restore) {
-		ret = dwc2_restore_global_registers(hsotg);
-		if (ret) {
-			dev_err(hsotg->dev, "%s: failed to restore registers\n",
-				__func__);
-			return ret;
-		}
-		if (dwc2_is_host_mode(hsotg)) {
-			ret = dwc2_restore_host_registers(hsotg);
-			if (ret) {
-				dev_err(hsotg->dev, "%s: failed to restore host registers\n",
-					__func__);
-				return ret;
-			}
-		} else {
-			ret = dwc2_restore_device_registers(hsotg, 0);
-			if (ret) {
-				dev_err(hsotg->dev, "%s: failed to restore device registers\n",
-					__func__);
-				return ret;
-			}
-		}
-	}
-
-	return ret;
+	/*
+	 * Restore host or device regisers with the same mode core enterted
+	 * to partial power down by checking "GOTGCTL_CURMODE_HOST" backup
+	 * value of the "gotgctl" register.
+	 */
+	if (gr->gotgctl & GOTGCTL_CURMODE_HOST)
+		return dwc2_host_exit_partial_power_down(hsotg, rem_wakeup,
+							 restore);
+	else
+		return dwc2_gadget_exit_partial_power_down(hsotg, restore);
 }
 
 /**
@@ -188,57 +160,10 @@ int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
  */
 int dwc2_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 {
-	u32 pcgcctl;
-	int ret = 0;
-
-	if (!hsotg->params.power_down)
-		return -ENOTSUPP;
-
-	/* Backup all registers */
-	ret = dwc2_backup_global_registers(hsotg);
-	if (ret) {
-		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
-			__func__);
-		return ret;
-	}
-
-	if (dwc2_is_host_mode(hsotg)) {
-		ret = dwc2_backup_host_registers(hsotg);
-		if (ret) {
-			dev_err(hsotg->dev, "%s: failed to backup host registers\n",
-				__func__);
-			return ret;
-		}
-	} else {
-		ret = dwc2_backup_device_registers(hsotg);
-		if (ret) {
-			dev_err(hsotg->dev, "%s: failed to backup device registers\n",
-				__func__);
-			return ret;
-		}
-	}
-
-	/*
-	 * Clear any pending interrupts since dwc2 will not be able to
-	 * clear them after entering partial_power_down.
-	 */
-	dwc2_writel(hsotg, 0xffffffff, GINTSTS);
-
-	/* Put the controller in low power state */
-	pcgcctl = dwc2_readl(hsotg, PCGCTL);
-
-	pcgcctl |= PCGCTL_PWRCLMP;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-	ndelay(20);
-
-	pcgcctl |= PCGCTL_RSTPDWNMODULE;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-	ndelay(20);
-
-	pcgcctl |= PCGCTL_STOPPCLK;
-	dwc2_writel(hsotg, pcgcctl, PCGCTL);
-
-	return ret;
+	if (dwc2_is_host_mode(hsotg))
+		return dwc2_host_enter_partial_power_down(hsotg);
+	else
+		return dwc2_gadget_enter_partial_power_down(hsotg);
 }
 
 /**
