@@ -369,11 +369,6 @@ static int abeoz9_rtc_setup(struct device *dev, struct device_node *node)
 
 static const struct rtc_class_ops rtc_ops = {
 	.read_time = abeoz9_rtc_get_time,
-	.set_time  = abeoz9_rtc_set_time,
-};
-
-static const struct rtc_class_ops rtc_alarm_ops = {
-	.read_time = abeoz9_rtc_get_time,
 	.set_time = abeoz9_rtc_set_time,
 	.read_alarm = abeoz9_rtc_read_alarm,
 	.set_alarm = abeoz9_rtc_set_alarm,
@@ -540,6 +535,7 @@ static int abeoz9_probe(struct i2c_client *client,
 	data->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	data->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	data->rtc->uie_unsupported = 1;
+	clear_bit(RTC_FEATURE_ALARM, data->rtc->features);
 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
@@ -554,7 +550,7 @@ static int abeoz9_probe(struct i2c_client *client,
 
 	if (client->irq > 0 || device_property_read_bool(dev, "wakeup-source")) {
 		ret = device_init_wakeup(dev, true);
-		data->rtc->ops = &rtc_alarm_ops;
+		set_bit(RTC_FEATURE_ALARM, data->rtc->features);
 	}
 
 	ret = devm_rtc_register_device(data->rtc);
