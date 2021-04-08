@@ -53,6 +53,35 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x0>;
 			enable-method = "psci";
+			clocks = <&apcs>;
+			power-domains = <&rpmhpd SDX55_CX>;
+			power-domain-names = "rpmhpd";
+			operating-points-v2 = <&cpu_opp_table>;
+		};
+	};
+
+	cpu_opp_table: cpu-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			required-opps = <&rpmhpd_opp_low_svs>;
+		};
+
+		opp-576000000 {
+			opp-hz = /bits/ 64 <576000000>;
+			required-opps = <&rpmhpd_opp_svs>;
+		};
+
+		opp-1094400000 {
+			opp-hz = /bits/ 64 <1094400000>;
+			required-opps = <&rpmhpd_opp_nom>;
+		};
+
+		opp-1555200000 {
+			opp-hz = /bits/ 64 <1555200000>;
+			required-opps = <&rpmhpd_opp_turbo>;
 		};
 	};
 
