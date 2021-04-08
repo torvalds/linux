@@ -821,6 +821,9 @@ static void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	val = intel_de_read(dev_priv, DC_STATE_EN) & gen9_dc_mask(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm,
@@ -856,6 +859,9 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 {
 	u32 val;
 	u32 mask;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm,
 			     state & ~dev_priv->csr.allowed_dc_mask))
@@ -1180,6 +1186,9 @@ static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 	}
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	dev_priv->display.get_cdclk(dev_priv, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
@@ -4533,6 +4542,9 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return 0;
+
 	if (IS_DG1(dev_priv))
 		max_dc = 3;
 	else if (DISPLAY_VER(dev_priv) >= 12)
@@ -5126,6 +5138,9 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	/* enable PCH reset handshake */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	/* enable PG1 and Misc I/O */
 	mutex_lock(&power_domains->lock);
 
@@ -5149,6 +5164,9 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	gen9_disable_dc_states(dev_priv);
 
@@ -5190,6 +5208,9 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	 */
 	intel_pch_reset_handshake(dev_priv, false);
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	/* Enable PG1 */
 	mutex_lock(&power_domains->lock);
 
@@ -5210,6 +5231,9 @@ static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	gen9_disable_dc_states(dev_priv);
 
@@ -5244,6 +5268,9 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	/* 1. Enable PCH Reset Handshake */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	/* 2-3. */
 	intel_combo_phy_init(dev_priv);
 
@@ -5270,6 +5297,9 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	gen9_disable_dc_states(dev_priv);
 
@@ -5385,6 +5415,9 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	/* 1. Enable PCH reset handshake. */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	/* 2. Initialize all combo phys */
 	intel_combo_phy_init(dev_priv);
 
@@ -5428,6 +5461,9 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	gen9_disable_dc_states(dev_priv);
 

@@ -973,8 +973,12 @@ static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  */
 static void i915_driver_lastclose(struct drm_device *dev)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
+
 	intel_fbdev_restore_mode(dev);
-	vga_switcheroo_process_delayed_switch();
+
+	if (HAS_DISPLAY(i915))
+		vga_switcheroo_process_delayed_switch();
 }
 
 static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
@@ -994,6 +998,9 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	drm_modeset_lock_all(dev);
 	for_each_intel_encoder(dev, encoder)
 		if (encoder->suspend)
@@ -1005,6 +1012,9 @@ static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	drm_modeset_lock_all(dev);
 	for_each_intel_encoder(dev, encoder)
@@ -1021,9 +1031,11 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	i915_gem_suspend(i915);
 
-	drm_kms_helper_poll_disable(&i915->drm);
+	if (HAS_DISPLAY(i915)) {
+		drm_kms_helper_poll_disable(&i915->drm);
 
-	drm_atomic_helper_shutdown(&i915->drm);
+		drm_atomic_helper_shutdown(&i915->drm);
+	}
 
 	intel_dp_mst_suspend(i915);
 
@@ -1087,8 +1099,8 @@ static int i915_drm_suspend(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	intel_power_domains_disable(dev_priv);
-
-	drm_kms_helper_poll_disable(dev);
+	if (HAS_DISPLAY(dev_priv))
+		drm_kms_helper_poll_disable(dev);
 
 	pci_save_state(pdev);
 
@@ -1235,7 +1247,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	 */
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
-	drm_mode_config_reset(dev);
+	if (HAS_DISPLAY(dev_priv))
+		drm_mode_config_reset(dev);
 
 	i915_gem_resume(dev_priv);
 
@@ -1248,7 +1261,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_display_resume(dev);
 
 	intel_hpd_poll_disable(dev_priv);
-	drm_kms_helper_poll_enable(dev);
+	if (HAS_DISPLAY(dev_priv))
+		drm_kms_helper_poll_enable(dev);
 
 	intel_opregion_resume(dev_priv);
 

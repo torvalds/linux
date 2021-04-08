@@ -845,9 +845,6 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 	unsigned int pin;
 	int ret;
 
-	if (!HAS_DISPLAY(dev_priv))
-		return 0;
-
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
 	else if (!HAS_GMCH(dev_priv))

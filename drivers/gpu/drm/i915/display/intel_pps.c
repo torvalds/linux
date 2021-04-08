@@ -316,6 +316,9 @@ void intel_pps_reset_all(struct drm_i915_private *dev_priv)
 	if (drm_WARN_ON(&dev_priv->drm, !IS_LP(dev_priv)))
 		return;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	/*
 	 * We can't grab pps_mutex here due to deadlock with power_domain
 	 * mutex when power_domain functions are called while holding pps_mutex.
@@ -1376,7 +1379,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	int pps_num;
 	int pps_idx;
 
-	if (HAS_DDI(dev_priv))
+	if (!HAS_DISPLAY(dev_priv) || HAS_DDI(dev_priv))
 		return;
 	/*
 	 * This w/a is needed at least on CPT/PPT, but to be sure apply it

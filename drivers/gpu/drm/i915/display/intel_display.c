@@ -1335,6 +1335,9 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 	struct intel_plane *plane;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return 0;
+
 	/*
 	 * We assume the primary plane for pipe A has
 	 * the highest stride limits of them all,
@@ -3837,6 +3840,9 @@ int intel_display_suspend(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state;
 	int ret;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return 0;
 
 	state = drm_atomic_helper_suspend(dev);
 	ret = PTR_ERR_OR_ZERO(state);
@@ -11429,6 +11435,9 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
  */
 void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	intel_init_cdclk_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
 
@@ -11471,8 +11480,12 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 
 void intel_modeset_init_hw(struct drm_i915_private *i915)
 {
-	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->cdclk.obj.state);
+	struct intel_cdclk_state *cdclk_state;
+
+	if (!HAS_DISPLAY(i915))
+		return;
+
+	cdclk_state = to_intel_cdclk_state(i915->cdclk.obj.state);
 
 	intel_update_cdclk(i915);
 	intel_dump_cdclk_config(&i915->cdclk.hw, "Current CDCLK");
@@ -11788,6 +11801,9 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	/* FIXME: completely on the wrong abstraction layer */
 	intel_power_domains_init_hw(i915, false);
 
+	if (!HAS_DISPLAY(i915))
+		return 0;
+
 	intel_csr_ucode_init(i915);
 
 	i915->modeset_wq = alloc_ordered_workqueue("i915_modeset", 0);
@@ -11838,6 +11854,9 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	struct intel_crtc *crtc;
 	int ret;
 
+	if (!HAS_DISPLAY(i915))
+		return 0;
+
 	intel_init_pm(i915);
 
 	intel_panel_sanitize_ssc(i915);
@@ -11850,13 +11869,11 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 		    INTEL_NUM_PIPES(i915),
 		    INTEL_NUM_PIPES(i915) > 1 ? "s" : "");
 
-	if (HAS_DISPLAY(i915)) {
-		for_each_pipe(i915, pipe) {
-			ret = intel_crtc_init(i915, pipe);
-			if (ret) {
-				intel_mode_config_cleanup(i915);
-				return ret;
-			}
+	for_each_pipe(i915, pipe) {
+		ret = intel_crtc_init(i915, pipe);
+		if (ret) {
+			intel_mode_config_cleanup(i915);
+			return ret;
 		}
 	}
 
@@ -12791,6 +12808,9 @@ void intel_display_resume(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	dev_priv->modeset_restore_state = NULL;
 	if (state)
 		state->acquire_ctx = &ctx;
@@ -12840,6 +12860,9 @@ static void intel_hpd_poll_fini(struct drm_i915_private *i915)
 /* part #1: call before irq uninstall */
 void intel_modeset_driver_remove(struct drm_i915_private *i915)
 {
+	if (!HAS_DISPLAY(i915))
+		return;
+
 	flush_workqueue(i915->flip_wq);
 	flush_workqueue(i915->modeset_wq);
 
@@ -12850,6 +12873,9 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 /* part #2: call after irq uninstall */
 void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 {
+	if (!HAS_DISPLAY(i915))
+		return;
+
 	/*
 	 * Due to the hpd irq storm handling the hotplug work can re-arm the
 	 * poll handlers. Hence disable polling after hpd handling is shut down.
