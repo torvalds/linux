@@ -547,7 +547,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *	This is available to the pty code so if the master closes, if the
  *	slave is a redirect it can release the redirect.
  */
-struct file *tty_release_redirect(struct tty_struct *tty)
+static struct file *tty_release_redirect(struct tty_struct *tty)
 {
 	struct file *f = NULL;
 
@@ -560,7 +560,6 @@ struct file *tty_release_redirect(struct tty_struct *tty)
 
 	return f;
 }
-EXPORT_SYMBOL_GPL(tty_release_redirect);
 
 /**
  *	__tty_hangup		-	actual handler for hangup events
