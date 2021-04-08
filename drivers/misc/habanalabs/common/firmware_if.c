@@ -293,6 +293,7 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		u32 cpu_security_boot_status_reg)
 {
 	u32 err_val, security_val;
+	bool err_exists = false;
 
 	/* Some of the firmware status codes are deprecated in newer f/w
 	 * versions. In those versions, the errors are reported
@@ -307,51 +308,102 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
 		return 0;
 
-	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
+	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL) {
 		dev_err(hdev->dev,
 			"Device boot error - DRAM initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
-		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
-	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
-		dev_err(hdev->dev,
-			"Device boot error - Thermal Sensor initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-
-	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
-		if (hdev->bmc_enable)
-			dev_warn(hdev->dev,
-				"Device boot error - Skipped waiting for BMC\n");
-		else
-			err_val &= ~CPU_BOOT_ERR0_BMC_WAIT_SKIPPED;
+		err_exists = true;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
+	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED) {
+		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL) {
+		dev_err(hdev->dev,
+			"Device boot error - Thermal Sensor initialization failed\n");
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Skipped DRAM initialization\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
+		if (hdev->bmc_enable) {
+			dev_err(hdev->dev,
+				"Device boot error - Skipped waiting for BMC\n");
+			err_exists = true;
+		} else {
+			dev_info(hdev->dev,
+				"Device boot message - Skipped waiting for BMC\n");
+			/* This is an info so we don't want it to disable the
+			 * device
+			 */
+			err_val &= ~CPU_BOOT_ERR0_BMC_WAIT_SKIPPED;
+		}
+	}
+
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY) {
 		dev_err(hdev->dev,
 			"Device boot error - Serdes data from BMC not available\n");
-	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL) {
 		dev_err(hdev->dev,
 			"Device boot error - NIC F/W initialization failed\n");
-	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY) {
 		dev_warn(hdev->dev,
 			"Device boot warning - security not ready\n");
-	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_SECURITY_NOT_RDY;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL) {
 		dev_err(hdev->dev, "Device boot error - security failure\n");
-	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL) {
 		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
-	if (err_val & CPU_BOOT_ERR0_PLL_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_PLL_FAIL) {
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
-	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL)
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
 		dev_err(hdev->dev,
-			"Device boot error - device unusable failure\n");
+			"Device boot error - device unusable\n");
+		err_exists = true;
+	}
 
 	security_val = RREG32(cpu_security_boot_status_reg);
 	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device security status %#x\n",
 				security_val);
 
-	if (err_val & ~CPU_BOOT_ERR0_ENABLED)
+	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
+		dev_err(hdev->dev,
+			"Device boot error - unknown error 0x%08x\n",
+			err_val);
+		err_exists = true;
+	}
+
+	if (err_exists)
 		return -EIO;
 
 	return 0;
