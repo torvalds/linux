@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 
 #include "glob.h"
 #include "crypto_ctx.h"

@@ -9,7 +9,6 @@
 #include <linux/uaccess.h>
 #include <linux/backing-dev.h>
 #include <linux/writeback.h>
-#include <linux/version.h>
 #include <linux/xattr.h>
 #include <linux/falloc.h>
 #include <linux/genhd.h>

@@ -6,7 +6,6 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/rwsem.h>
-#include <linux/version.h>
 #include <linux/xarray.h>
 
 #include "ksmbd_ida.h"

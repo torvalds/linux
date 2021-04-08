@@ -8,7 +8,6 @@
 #define __KSMBD_GLOB_H
 
 #include <linux/ctype.h>
-#include <linux/version.h>
 
 #include "unicode.h"
 #include "vfs_cache.h"

@@ -5,7 +5,6 @@
 
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/xarray.h>
 
 #include "../buffer_pool.h"
