@@ -21,6 +21,7 @@
 #include <linux/if_ether.h>
 #include <linux/kmemleak.h>
 #include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 
 #include "osdep_service.h"
@@ -565,13 +566,13 @@ sint r8712_validate_recv_frame(struct _adapter *adapter,
 	pattrib->privacy =  GetPrivacy(ptr);
 	pattrib->order = GetOrder(ptr);
 	switch (type) {
-	case WIFI_MGT_TYPE: /*mgnt*/
+	case IEEE80211_FTYPE_MGMT:
 		retval = validate_recv_mgnt_frame(adapter, precv_frame);
 		break;
-	case WIFI_CTRL_TYPE:/*ctrl*/
+	case IEEE80211_FTYPE_CTL:
 		retval = validate_recv_ctrl_frame(adapter, precv_frame);
 		break;
-	case WIFI_DATA_TYPE: /*data*/
+	case IEEE80211_FTYPE_DATA:
 		pattrib->qos = (subtype & BIT(7)) ? 1 : 0;
 		retval = validate_recv_data_frame(adapter, precv_frame);
 		break;
