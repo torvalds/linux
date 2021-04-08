@@ -415,6 +415,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
+	bool do_kill = test_bit(IO_WQ_BIT_EXIT, &wq->state);
 
 	do {
 		struct io_wq_work *work;
@@ -444,6 +445,9 @@ get_next:
 			unsigned int hash = io_get_work_hash(work);
 
 			next_hashed = wq_next_work(work);
+
+			if (unlikely(do_kill) && (work->flags & IO_WQ_WORK_UNBOUND))
+				work->flags |= IO_WQ_WORK_CANCEL;
 			wq->do_work(work);
 			io_assign_current_work(worker, NULL);
 
