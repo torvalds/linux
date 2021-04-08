@@ -468,8 +468,7 @@ xfs_scrub_metadata(
 			.agno		= NULLAGNUMBER,
 		},
 	};
-	struct xfs_inode		*ip = XFS_I(file_inode(file));
-	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
 	int				error = 0;
 
 	sc.mp = mp;
@@ -477,7 +476,7 @@ xfs_scrub_metadata(
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
 		(sizeof(struct xchk_meta_ops) * XFS_SCRUB_TYPE_NR));
 
-	trace_xchk_start(ip, sm, error);
+	trace_xchk_start(XFS_I(file_inode(file)), sm, error);
 
 	/* Forbidden if we are shut down or mounted norecovery. */
 	error = -ESHUTDOWN;
@@ -507,7 +506,7 @@ retry_op:
 	}
 
 	/* Set up for the operation. */
-	error = sc.ops->setup(&sc, ip);
+	error = sc.ops->setup(&sc);
 	if (error)
 		goto out_teardown;
 
@@ -553,7 +552,7 @@ retry_op:
 		 * If it's broken, userspace wants us to fix it, and we haven't
 		 * already tried to fix it, then attempt a repair.
 		 */
-		error = xrep_attempt(ip, &sc);
+		error = xrep_attempt(&sc);
 		if (error == -EAGAIN) {
 			/*
 			 * Either the repair function succeeded or it couldn't
@@ -574,7 +573,7 @@ out_nofix:
 out_teardown:
 	error = xchk_teardown(&sc, error);
 out:
-	trace_xchk_done(ip, sm, error);
+	trace_xchk_done(XFS_I(file_inode(file)), sm, error);
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC) {
 		sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 		error = 0;

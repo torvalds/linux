@@ -18,8 +18,7 @@ enum xchk_type {
 
 struct xchk_meta_ops {
 	/* Acquire whatever resources are needed for the operation. */
-	int		(*setup)(struct xfs_scrub *,
-				 struct xfs_inode *);
+	int		(*setup)(struct xfs_scrub *sc);
 
 	/* Examine metadata for errors. */
 	int		(*scrub)(struct xfs_scrub *);
