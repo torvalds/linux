@@ -589,7 +589,7 @@ static int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
 
 	elem = cfg80211_find_elem(WLAN_EID_REDUCED_NEIGHBOR_REPORT, ies->data,
 				  ies->len);
-	if (!elem || elem->datalen > IEEE80211_MAX_SSID_LEN)
+	if (!elem)
 		return 0;
 
 	pos = elem->data;
