@@ -316,6 +316,15 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 static int dwc2_driver_remove(struct platform_device *dev)
 {
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
+	int ret = 0;
+
+	/* Exit Partial Power Down when driver is removed. */
+	if (hsotg->in_ppd) {
+		ret = dwc2_exit_partial_power_down(hsotg, 0, true);
+		if (ret)
+			dev_err(hsotg->dev,
+				"exit partial_power_down failed\n");
+	}
 
 	dwc2_debugfs_exit(hsotg);
 	if (hsotg->hcd_enabled)
@@ -334,7 +343,7 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	reset_control_assert(hsotg->reset);
 	reset_control_assert(hsotg->reset_ecc);
 
-	return 0;
+	return ret;
 }
 
 /**
