@@ -436,7 +436,6 @@ static void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
 
 	for (node = 0; node < ICE_MAX_VF_AGG_NODES; node++)
 		pf->vf_agg_node[node].num_vsis = 0;
-
 }
 
 /**
@@ -720,7 +719,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	}
 
 	status = ice_aq_get_phy_caps(vsi->port_info, false,
-				     ICE_AQC_REPORT_SW_CFG, caps, NULL);
+				     ICE_AQC_REPORT_ACTIVE_CFG, caps, NULL);
 	if (status)
 		netdev_info(vsi->netdev, "Get phy capability failed.\n");
 
@@ -873,10 +872,10 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_phy_info *phy_info;
+	enum ice_status status;
 	struct ice_vsi *vsi;
 	u16 old_link_speed;
 	bool old_link;
-	int result;
 
 	phy_info = &pi->phy;
 	phy_info->link_info_old = phy_info->link_info;
@@ -887,10 +886,11 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	/* update the link info structures and re-enable link events,
 	 * don't bail on failure due to other book keeping needed
 	 */
-	result = ice_update_link_info(pi);
-	if (result)
-		dev_dbg(dev, "Failed to update link status and re-enable link events for port %d\n",
-			pi->lport);
+	status = ice_update_link_info(pi);
+	if (status)
+		dev_dbg(dev, "Failed to update link status on port %d, err %s aq_err %s\n",
+			pi->lport, ice_stat_str(status),
+			ice_aq_str(pi->hw->adminq.sq_last_status));
 
 	/* Check if the link state is up after updating link info, and treat
 	 * this event as an UP event since the link is actually UP now.
@@ -906,18 +906,12 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 	if (!test_bit(ICE_FLAG_NO_MEDIA, pf->flags) &&
 	    !(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE)) {
 		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
-
-		result = ice_aq_set_link_restart_an(pi, false, NULL);
-		if (result) {
-			dev_dbg(dev, "Failed to set link down, VSI %d error %d\n",
-				vsi->vsi_num, result);
-			return result;
-		}
+		ice_set_link(vsi, false);
 	}
 
 	/* if the old link up/down and speed is the same as the new */
 	if (link_up == old_link && link_speed == old_link_speed)
-		return result;
+		return 0;
 
 	if (ice_is_dcb_active(pf)) {
 		if (test_bit(ICE_FLAG_DCB_ENA, pf->flags))
@@ -931,7 +925,7 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi, bool link_up,
 
 	ice_vc_notify_link_state(pf);
 
-	return result;
+	return 0;
 }
 
 /**
@@ -1631,7 +1625,7 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 	if (!pcaps)
 		return -ENOMEM;
 
-	retcode = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+	retcode = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG, pcaps,
 				      NULL);
 	if (retcode) {
 		dev_err(dev, "Failed to get phy capabilities, VSI %d error %d\n",
@@ -1691,7 +1685,7 @@ static int ice_init_nvm_phy_type(struct ice_port_info *pi)
 	if (!pcaps)
 		return -ENOMEM;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_NVM_CAP, pcaps,
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA, pcaps,
 				     NULL);
 
 	if (status) {
@@ -1737,7 +1731,7 @@ static void ice_init_link_dflt_override(struct ice_port_info *pi)
  * ice_init_phy_cfg_dflt_override - Initialize PHY cfg default override settings
  * @pi: port info structure
  *
- * If default override is enabled, initialized the user PHY cfg speed and FEC
+ * If default override is enabled, initialize the user PHY cfg speed and FEC
  * settings using the default override mask from the NVM.
  *
  * The PHY should only be configured with the default override settings the
@@ -1746,6 +1740,9 @@ static void ice_init_link_dflt_override(struct ice_port_info *pi)
  * and the PHY has not been configured with the default override settings. The
  * state is set here, and cleared in ice_configure_phy the first time the PHY is
  * configured.
+ *
+ * This function should be called only if the FW doesn't support default
+ * configuration mode, as reported by ice_fw_supports_report_dflt_cfg.
  */
 static void ice_init_phy_cfg_dflt_override(struct ice_port_info *pi)
 {
@@ -1793,22 +1790,21 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 	struct ice_phy_info *phy = &pi->phy;
 	struct ice_pf *pf = pi->hw->back;
 	enum ice_status status;
-	struct ice_vsi *vsi;
 	int err = 0;
 
 	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
 		return -EIO;
 
-	vsi = ice_get_main_vsi(pf);
-	if (!vsi)
-		return -EINVAL;
-
 	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
 		return -ENOMEM;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
-				     NULL);
+	if (ice_fw_supports_report_dflt_cfg(pi->hw))
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
+					     pcaps, NULL);
+	else
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+					     pcaps, NULL);
 	if (status) {
 		dev_err(ice_pf_to_dev(pf), "Get PHY capability failed.\n");
 		err = -EIO;
@@ -1818,22 +1814,24 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 	ice_copy_phy_caps_to_cfg(pi, pcaps, &pi->phy.curr_user_phy_cfg);
 
 	/* check if lenient mode is supported and enabled */
-	if (ice_fw_supports_link_override(&vsi->back->hw) &&
+	if (ice_fw_supports_link_override(pi->hw) &&
 	    !(pcaps->module_compliance_enforcement &
 	      ICE_AQC_MOD_ENFORCE_STRICT_MODE)) {
 		set_bit(ICE_FLAG_LINK_LENIENT_MODE_ENA, pf->flags);
 
-		/* if link default override is enabled, initialize user PHY
-		 * configuration with link default override values
+		/* if the FW supports default PHY configuration mode, then the driver
+		 * does not have to apply link override settings. If not,
+		 * initialize user PHY configuration with link override values
 		 */
-		if (pf->link_dflt_override.options & ICE_LINK_OVERRIDE_EN) {
+		if (!ice_fw_supports_report_dflt_cfg(pi->hw) &&
+		    (pf->link_dflt_override.options & ICE_LINK_OVERRIDE_EN)) {
 			ice_init_phy_cfg_dflt_override(pi);
 			goto out;
 		}
 	}
 
-	/* if link default override is not enabled, initialize PHY using
-	 * topology with media
+	/* if link default override is not enabled, set user flow control and
+	 * FEC settings based on what get_phy_caps returned
 	 */
 	phy->curr_user_fec_req = ice_caps_to_fec_mode(pcaps->caps,
 						      pcaps->link_fec_options);
@@ -1858,27 +1856,24 @@ err_out:
 static int ice_configure_phy(struct ice_vsi *vsi)
 {
 	struct device *dev = ice_pf_to_dev(vsi->back);
+	struct ice_port_info *pi = vsi->port_info;
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_aqc_set_phy_cfg_data *cfg;
-	struct ice_port_info *pi;
+	struct ice_phy_info *phy = &pi->phy;
+	struct ice_pf *pf = vsi->back;
 	enum ice_status status;
 	int err = 0;
 
-	pi = vsi->port_info;
-	if (!pi)
-		return -EINVAL;
-
 	/* Ensure we have media as we cannot configure a medialess port */
-	if (!(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
+	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
 		return -EPERM;
 
 	ice_print_topo_conflict(vsi);
 
-	if (vsi->port_info->phy.link_info.topo_media_conflict ==
-	    ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
+	if (phy->link_info.topo_media_conflict == ICE_AQ_LINK_TOPO_UNSUPP_MEDIA)
 		return -EPERM;
 
-	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags))
+	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags))
 		return ice_force_phys_link_state(vsi, true);
 
 	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
@@ -1886,7 +1881,7 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 		return -ENOMEM;
 
 	/* Get current PHY config */
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG, pcaps,
 				     NULL);
 	if (status) {
 		dev_err(dev, "Failed to get PHY configuration, VSI %d error %s\n",
@@ -1899,15 +1894,19 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	 * there's nothing to do
 	 */
 	if (pcaps->caps & ICE_AQC_PHY_EN_LINK &&
-	    ice_phy_caps_equals_cfg(pcaps, &pi->phy.curr_user_phy_cfg))
+	    ice_phy_caps_equals_cfg(pcaps, &phy->curr_user_phy_cfg))
 		goto done;
 
 	/* Use PHY topology as baseline for configuration */
 	memset(pcaps, 0, sizeof(*pcaps));
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
-				     NULL);
+	if (ice_fw_supports_report_dflt_cfg(pi->hw))
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_DFLT_CFG,
+					     pcaps, NULL);
+	else
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+					     pcaps, NULL);
 	if (status) {
-		dev_err(dev, "Failed to get PHY topology, VSI %d error %s\n",
+		dev_err(dev, "Failed to get PHY caps, VSI %d error %s\n",
 			vsi->vsi_num, ice_stat_str(status));
 		err = -EIO;
 		goto done;
@@ -1926,8 +1925,8 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	 */
 	if (test_and_clear_bit(__ICE_LINK_DEFAULT_OVERRIDE_PENDING,
 			       vsi->back->state)) {
-		cfg->phy_type_low = pi->phy.curr_user_phy_cfg.phy_type_low;
-		cfg->phy_type_high = pi->phy.curr_user_phy_cfg.phy_type_high;
+		cfg->phy_type_low = phy->curr_user_phy_cfg.phy_type_low;
+		cfg->phy_type_high = phy->curr_user_phy_cfg.phy_type_high;
 	} else {
 		u64 phy_low = 0, phy_high = 0;
 
@@ -1945,7 +1944,7 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	}
 
 	/* FEC */
-	ice_cfg_phy_fec(pi, cfg, pi->phy.curr_user_fec_req);
+	ice_cfg_phy_fec(pi, cfg, phy->curr_user_fec_req);
 
 	/* Can't provide what was requested; use PHY capabilities */
 	if (cfg->link_fec_opt !=
@@ -1957,12 +1956,12 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	/* Flow Control - always supported; no need to check against
 	 * capabilities
 	 */
-	ice_cfg_phy_fc(pi, cfg, pi->phy.curr_user_fc_req);
+	ice_cfg_phy_fc(pi, cfg, phy->curr_user_fc_req);
 
 	/* Enable link and link update */
 	cfg->caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
 
-	status = ice_aq_set_phy_cfg(&vsi->back->hw, pi, cfg, NULL);
+	status = ice_aq_set_phy_cfg(&pf->hw, pi, cfg, NULL);
 	if (status) {
 		dev_err(dev, "Failed to set phy config, VSI %d error %s\n",
 			vsi->vsi_num, ice_stat_str(status));
@@ -3078,15 +3077,6 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 	struct ice_vsi *vsi = np->vsi;
 	int ret;
 
-	if (vid >= VLAN_N_VID) {
-		netdev_err(netdev, "VLAN id requested %d is out of range %d\n",
-			   vid, VLAN_N_VID);
-		return -EINVAL;
-	}
-
-	if (vsi->info.pvid)
-		return -EINVAL;
-
 	/* VLAN 0 is added by default during load/reset */
 	if (!vid)
 		return 0;
@@ -3123,9 +3113,6 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	int ret;
-
-	if (vsi->info.pvid)
-		return -EINVAL;
 
 	/* don't allow removal of VLAN 0 */
 	if (!vid)
@@ -5354,7 +5341,6 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 	vsi->tx_linearize = 0;
 	vsi->rx_buf_failed = 0;
 	vsi->rx_page_failed = 0;
-	vsi->rx_gro_dropped = 0;
 
 	rcu_read_lock();
 
@@ -5369,7 +5355,6 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 		vsi_stats->rx_bytes += bytes;
 		vsi->rx_buf_failed += ring->rx_stats.alloc_buf_failed;
 		vsi->rx_page_failed += ring->rx_stats.alloc_page_failed;
-		vsi->rx_gro_dropped += ring->rx_stats.gro_dropped;
 	}
 
 	/* update XDP Tx rings counters */
@@ -5401,7 +5386,7 @@ void ice_update_vsi_stats(struct ice_vsi *vsi)
 	ice_update_eth_stats(vsi);
 
 	cur_ns->tx_errors = cur_es->tx_errors;
-	cur_ns->rx_dropped = cur_es->rx_discards + vsi->rx_gro_dropped;
+	cur_ns->rx_dropped = cur_es->rx_discards;
 	cur_ns->tx_dropped = cur_es->tx_discards;
 	cur_ns->multicast = cur_es->rx_multicast;
 
@@ -6678,6 +6663,7 @@ int ice_open(struct net_device *netdev)
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_port_info *pi;
+	enum ice_status status;
 	int err;
 
 	if (test_bit(__ICE_NEEDS_RESTART, pf->state)) {
@@ -6688,11 +6674,11 @@ int ice_open(struct net_device *netdev)
 	netif_carrier_off(netdev);
 
 	pi = vsi->port_info;
-	err = ice_update_link_info(pi);
-	if (err) {
-		netdev_err(netdev, "Failed to get link info, error %d\n",
-			   err);
-		return err;
+	status = ice_update_link_info(pi);
+	if (status) {
+		netdev_err(netdev, "Failed to get link info, error %s\n",
+			   ice_stat_str(status));
+		return -EIO;
 	}
 
 	/* Set PHY if there is media, otherwise, turn off PHY */
@@ -6715,12 +6701,7 @@ int ice_open(struct net_device *netdev)
 		}
 	} else {
 		set_bit(ICE_FLAG_NO_MEDIA, pf->flags);
-		err = ice_aq_set_link_restart_an(pi, false, NULL);
-		if (err) {
-			netdev_err(netdev, "Failed to set PHY state, VSI %d error %d\n",
-				   vsi->vsi_num, err);
-			return err;
-		}
+		ice_set_link(vsi, false);
 	}
 
 	err = ice_vsi_open(vsi);

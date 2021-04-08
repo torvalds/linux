@@ -892,7 +892,7 @@ static bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  * ice_sq_send_cmd - send command to Control Queue (ATQ)
  * @hw: pointer to the HW struct
  * @cq: pointer to the specific Control queue
- * @desc: prefilled descriptor describing the command (non DMA mem)
+ * @desc: prefilled descriptor describing the command
  * @buf: buffer to use for indirect commands (or NULL for direct commands)
  * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
  * @cd: pointer to command details structure

@@ -3423,3 +3423,40 @@ int ice_clear_dflt_vsi(struct ice_sw *sw)
 
 	return 0;
 }
+
+/**
+ * ice_set_link - turn on/off physical link
+ * @vsi: VSI to modify physical link on
+ * @ena: turn on/off physical link
+ */
+int ice_set_link(struct ice_vsi *vsi, bool ena)
+{
+	struct device *dev = ice_pf_to_dev(vsi->back);
+	struct ice_port_info *pi = vsi->port_info;
+	struct ice_hw *hw = pi->hw;
+	enum ice_status status;
+
+	if (vsi->type != ICE_VSI_PF)
+		return -EINVAL;
+
+	status = ice_aq_set_link_restart_an(pi, ena, NULL);
+
+	/* if link is owned by manageability, FW will return ICE_AQ_RC_EMODE.
+	 * this is not a fatal error, so print a warning message and return
+	 * a success code. Return an error if FW returns an error code other
+	 * than ICE_AQ_RC_EMODE
+	 */
+	if (status == ICE_ERR_AQ_ERROR) {
+		if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
+			dev_warn(dev, "can't set link to %s, err %s aq_err %s. not fatal, continuing\n",
+				 (ena ? "ON" : "OFF"), ice_stat_str(status),
+				 ice_aq_str(hw->adminq.sq_last_status));
+	} else if (status) {
+		dev_err(dev, "can't set link to %s, err %s aq_err %s\n",
+			(ena ? "ON" : "OFF"), ice_stat_str(status),
+			ice_aq_str(hw->adminq.sq_last_status));
+		return -EIO;
+	}
+
+	return 0;
+}

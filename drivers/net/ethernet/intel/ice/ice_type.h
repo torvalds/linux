@@ -941,4 +941,9 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_LLDP_FLTR_MIN	7
 #define ICE_FW_API_LLDP_FLTR_PATCH	1
 
+/* AQ API version for report default configuration */
+#define ICE_FW_API_REPORT_DFLT_CFG_MAJ		1
+#define ICE_FW_API_REPORT_DFLT_CFG_MIN		7
+#define ICE_FW_API_REPORT_DFLT_CFG_PATCH	3
+
 #endif /* _ICE_TYPE_H_ */

@@ -11,6 +11,9 @@
 #include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
 
+#define ICE_SQ_SEND_DELAY_TIME_MS	10
+#define ICE_SQ_SEND_MAX_EXECUTE		3
+
 enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);
 enum ice_status ice_check_reset(struct ice_hw *hw);
@@ -176,4 +179,5 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 bool ice_fw_supports_lldp_fltr_ctrl(struct ice_hw *hw);
 enum ice_status
 ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add);
+bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw);
 #endif /* _ICE_COMMON_H_ */
