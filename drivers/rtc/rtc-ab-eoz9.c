@@ -264,6 +264,7 @@ static const struct rtc_class_ops rtc_ops = {
 static const struct regmap_config abeoz9_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0x3f,
 };
 
 #if IS_REACHABLE(CONFIG_HWMON)
