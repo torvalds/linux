@@ -921,6 +921,10 @@ static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start
 	static int dbg_done;
 
 	if (end - start > test_boost_duration * HZ - HZ / 2) {
+		// Recheck after checking time to avoid false positives.
+		smp_mb(); // Time check before grace-period check.
+		if (cur_ops->poll_gp_state(gp_state))
+			return false; // passed, though perhaps just barely
 		VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
 		n_rcu_torture_boost_failure++;
 		if (!xchg(&dbg_done, 1) && cur_ops->gp_kthread_dbg) {
@@ -929,10 +933,10 @@ static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start
 			cur_ops->gp_kthread_dbg();
 		}
 
-		return true; /* failed */
+		return true; // failed
 	}
 
-	return false; /* passed */
+	return false; // passed
 }
 
 static int rcu_torture_boost(void *arg)
