@@ -6184,10 +6184,8 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 
 	if (wait == WAIT_NONE) {
-		ret = try_lock_extent(io_tree, eb->start,
-				      eb->start + eb->len - 1);
-		if (ret <= 0)
-			return ret;
+		if (!try_lock_extent(io_tree, eb->start, eb->start + eb->len - 1))
+			return -EAGAIN;
 	} else {
 		ret = lock_extent(io_tree, eb->start, eb->start + eb->len - 1);
 		if (ret < 0)
