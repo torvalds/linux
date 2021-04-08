@@ -755,8 +755,6 @@ static int ppc_rtas_tone_volume_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-#define RMO_READ_BUF_MAX 30
-
 /**
  * ppc_rtas_rmo_buf_show() - Describe RTAS-addressable region for user space.
  *
