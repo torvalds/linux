@@ -235,17 +235,16 @@ _next:
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
 					 ("mlme_cmd_hdl(): pcmd_callback = 0x%p, cmdcode = 0x%x\n",
 					  pcmd_callback, pcmd->cmdcode));
-				rtw_free_cmd_obj(pcmd);
 			} else {
 				/* todo: !!! fill rsp_buf to pcmd->rsp if (pcmd->rsp!= NULL) */
-				pcmd_callback(pcmd->padapter, pcmd);/* need consider that free cmd_obj in rtw_cmd_callback */
+				pcmd_callback(pcmd->padapter, pcmd);
 			}
 		} else {
 			RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 				 ("%s: cmdcode = 0x%x callback not defined!\n",
 				  __func__, pcmd->cmdcode));
-			rtw_free_cmd_obj(pcmd);
 		}
+		rtw_free_cmd_obj(pcmd);
 
 		if (signal_pending(current))
 			flush_signals(current);
@@ -1186,9 +1185,6 @@ void rtw_survey_cmd_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\n ********Error: MgntActrtw_set_802_11_bssid_LIST_SCAN Fail ************\n\n."));
 	}
-
-	/*  free cmd */
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
@@ -1202,11 +1198,7 @@ void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\n ***Error: disconnect_cmd_callback Fail ***\n."));
-		return;
 	}
-
-	/*  free cmd */
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_joinbss_cmd_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1224,8 +1216,6 @@ void rtw_joinbss_cmd_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
 	}
-
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
@@ -1292,8 +1282,6 @@ void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 createbss_cmd_fail:
 
 	spin_unlock_bh(&pmlmepriv->lock);
-
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_setstaKey_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1305,10 +1293,7 @@ void rtw_setstaKey_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pc
 	if (!psta) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\nERROR: %s => can't get sta_info\n\n", __func__));
-		goto exit;
 	}
-exit:
-	rtw_free_cmd_obj(pcmd);
 }
 
 void rtw_setassocsta_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *pcmd)
@@ -1322,7 +1307,7 @@ void rtw_setassocsta_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *
 	if (!psta) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 			 ("\nERROR: %s => can't get sta_info\n\n", __func__));
-		goto exit;
+		return;
 	}
 
 	psta->aid = passocsta_rsp->cam_id;
@@ -1332,7 +1317,4 @@ void rtw_setassocsta_cmdrsp_callback(struct adapter *padapter,  struct cmd_obj *
 
 	set_fwstate(pmlmepriv, _FW_LINKED);
 	spin_unlock_bh(&pmlmepriv->lock);
-
-exit:
-	rtw_free_cmd_obj(pcmd);
 }
