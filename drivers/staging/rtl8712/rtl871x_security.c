@@ -30,10 +30,10 @@
 #include <linux/atomic.h>
 #include <linux/crc32poly.h>
 #include <linux/semaphore.h>
+#include <linux/ieee80211.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
-#include "wifi.h"
 #include "osdep_intf.h"
 
 /* =====WEP related===== */
@@ -1045,9 +1045,9 @@ static void aes_cipher(u8 *key, uint hdrlen,
 	else
 		a4_exists = 1;
 
-	if ((frtype == WIFI_DATA_CFACK) ||
-	     (frtype == WIFI_DATA_CFPOLL) ||
-	     (frtype == WIFI_DATA_CFACKPOLL)) {
+	if ((frtype == IEEE80211_STYPE_DATA_CFACK) ||
+	    (frtype == IEEE80211_STYPE_DATA_CFPOLL) ||
+	    (frtype == IEEE80211_STYPE_DATA_CFACKPOLL)) {
 		qc_exists = 1;
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
@@ -1225,9 +1225,9 @@ static void aes_decipher(u8 *key, uint hdrlen,
 		a4_exists = 0;
 	else
 		a4_exists = 1;
-	if ((frtype == WIFI_DATA_CFACK) ||
-	    (frtype == WIFI_DATA_CFPOLL) ||
-	    (frtype == WIFI_DATA_CFACKPOLL)) {
+	if ((frtype == IEEE80211_STYPE_DATA_CFACK) ||
+	    (frtype == IEEE80211_STYPE_DATA_CFPOLL) ||
+	    (frtype == IEEE80211_STYPE_DATA_CFACKPOLL)) {
 		qc_exists = 1;
 		if (hdrlen != WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
