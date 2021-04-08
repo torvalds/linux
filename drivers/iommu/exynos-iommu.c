@@ -407,7 +407,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	struct sysmmu_drvdata *data = dev_id;
 	const struct sysmmu_fault_info *finfo;
 	unsigned int i, n, itype;
-	sysmmu_iova_t fault_addr = -1;
+	sysmmu_iova_t fault_addr;
 	unsigned short reg_status, reg_clear;
 	int ret = -ENOSYS;
 
