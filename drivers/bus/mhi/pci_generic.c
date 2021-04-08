@@ -227,7 +227,7 @@ static struct mhi_event_config modem_qcom_v1_mhi_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(3, 2048, 101)
 };
 
-static struct mhi_controller_config modem_qcom_v1_mhiv_config = {
+static const struct mhi_controller_config modem_qcom_v1_mhiv_config = {
 	.max_channels = 128,
 	.timeout_ms = 8000,
 	.num_channels = ARRAY_SIZE(modem_qcom_v1_mhi_channels),
@@ -287,7 +287,7 @@ static struct mhi_event_config mhi_quectel_em1xx_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(3, 1024, 101)
 };
 
-static struct mhi_controller_config modem_quectel_em1xx_config = {
+static const struct mhi_controller_config modem_quectel_em1xx_config = {
 	.max_channels = 128,
 	.timeout_ms = 20000,
 	.num_channels = ARRAY_SIZE(mhi_quectel_em1xx_channels),
@@ -324,7 +324,7 @@ static struct mhi_event_config mhi_foxconn_sdx55_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(3, 1024, 101)
 };
 
-static struct mhi_controller_config modem_foxconn_sdx55_config = {
+static const struct mhi_controller_config modem_foxconn_sdx55_config = {
 	.max_channels = 128,
 	.timeout_ms = 20000,
 	.num_channels = ARRAY_SIZE(mhi_foxconn_sdx55_channels),
