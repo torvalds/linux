@@ -735,6 +735,7 @@ struct perf_event {
 	int				pending_wakeup;
 	int				pending_kill;
 	int				pending_disable;
+	unsigned long			pending_addr;	/* SIGTRAP */
 	struct irq_work			pending;
 
 	atomic_t			event_limit;
