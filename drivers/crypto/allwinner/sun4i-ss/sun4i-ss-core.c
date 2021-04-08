@@ -454,7 +454,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	 * this info could be useful
 	 */
 
-	err = pm_runtime_get_sync(ss->dev);
+	err = pm_runtime_resume_and_get(ss->dev);
 	if (err < 0)
 		goto error_pm;
 
