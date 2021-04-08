@@ -64,8 +64,8 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 			break;
 		if (state.reliable && !addr) {
 			pr_err("unwind state reliable but addr is 0\n");
-			kfree(bt);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 		sprint_symbol(sym, addr);
 		if (bt_pos < BT_BUF_SIZE) {
