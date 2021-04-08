@@ -1963,6 +1963,17 @@ static int power_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
+	/*
+	 * PMU config registers have fields that are
+	 * reserved and some specific values for bit fields are reserved.
+	 * For ex., MMCRA[61:62] is Randome Sampling Mode (SM)
+	 * and value of 0b11 to this field is reserved.
+	 * Check for invalid values in attr.config.
+	 */
+	if (ppmu->check_attr_config &&
+	    ppmu->check_attr_config(event))
+		return -EINVAL;
+
 	event->hw.config_base = ev;
 	event->hw.idx = 0;
 
