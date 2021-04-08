@@ -1674,6 +1674,27 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+
+/* UA101 and co are supported by another driver */
+{
+	USB_DEVICE(0x0582, 0x0044), /* UA-1000 high speed */
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_NODEV_INTERFACE
+	},
+},
+{
+	USB_DEVICE(0x0582, 0x007d), /* UA-101 high speed */
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_NODEV_INTERFACE
+	},
+},
+{
+	USB_DEVICE(0x0582, 0x008d), /* UA-101 full speed */
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_NODEV_INTERFACE
+	},
+},
+
 /* this catches most recent vendor-specific Roland devices */
 {
 	.match_flags = USB_DEVICE_ID_MATCH_VENDOR |
