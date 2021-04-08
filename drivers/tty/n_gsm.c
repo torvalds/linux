@@ -50,6 +50,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/gsmmux.h>
+#include "tty.h"
 
 static int debug;
 module_param(debug, int, 0600);
