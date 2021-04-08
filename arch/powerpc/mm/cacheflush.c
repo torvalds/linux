@@ -162,14 +162,14 @@ static void __flush_dcache_icache(void *p)
 static void flush_dcache_icache_hugepage(struct page *page)
 {
 	int i;
+	int nr = compound_nr(page);
 	void *start;
 
-	BUG_ON(!PageCompound(page));
-
-	for (i = 0; i < compound_nr(page); i++) {
-		if (!PageHighMem(page)) {
-			__flush_dcache_icache(page_address(page+i));
-		} else {
+	if (!PageHighMem(page)) {
+		for (i = 0; i < nr; i++)
+			__flush_dcache_icache(lowmem_page_address(page + i));
+	} else {
+		for (i = 0; i < nr; i++) {
 			start = kmap_atomic(page+i);
 			__flush_dcache_icache(start);
 			kunmap_atomic(start);
