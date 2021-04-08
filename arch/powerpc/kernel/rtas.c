@@ -987,10 +987,10 @@ static struct rtas_filter rtas_filters[] __ro_after_init = {
 static bool in_rmo_buf(u32 base, u32 end)
 {
 	return base >= rtas_rmo_buf &&
-		base < (rtas_rmo_buf + RTAS_RMOBUF_MAX) &&
+		base < (rtas_rmo_buf + RTAS_USER_REGION_SIZE) &&
 		base <= end &&
 		end >= rtas_rmo_buf &&
-		end < (rtas_rmo_buf + RTAS_RMOBUF_MAX);
+		end < (rtas_rmo_buf + RTAS_USER_REGION_SIZE);
 }
 
 static bool block_rtas_call(int token, int nargs,
@@ -1202,7 +1202,7 @@ void __init rtas_initialize(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		rtas_region = min(ppc64_rma_size, RTAS_INSTANTIATE_MAX);
 #endif
-	rtas_rmo_buf = memblock_phys_alloc_range(RTAS_RMOBUF_MAX, PAGE_SIZE,
+	rtas_rmo_buf = memblock_phys_alloc_range(RTAS_USER_REGION_SIZE, PAGE_SIZE,
 						 0, rtas_region);
 	if (!rtas_rmo_buf)
 		panic("ERROR: RTAS: Failed to allocate %lx bytes below %pa\n",
