@@ -121,21 +121,6 @@ static void flush_dcache_icache_phys(unsigned long physaddr)
 }
 #endif
 
-/*
- * This is called when a page has been modified by the kernel.
- * It just marks the page as not i-cache clean.  We do the i-cache
- * flush later when the page is given to a user process, if necessary.
- */
-void flush_dcache_page(struct page *page)
-{
-	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
-		return;
-	/* avoid an atomic op if possible */
-	if (test_bit(PG_dcache_clean, &page->flags))
-		clear_bit(PG_dcache_clean, &page->flags);
-}
-EXPORT_SYMBOL(flush_dcache_page);
-
 /**
  * __flush_dcache_icache(): Flush a particular page from the data cache to RAM.
  * Note: this is necessary because the instruction cache does *not*
