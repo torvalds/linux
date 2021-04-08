@@ -324,22 +324,14 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	mutex_init(&data->lock);
 
 	data->vdd_center = devm_regulator_get(dev, "center");
-	if (IS_ERR(data->vdd_center)) {
-		if (PTR_ERR(data->vdd_center) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		dev_err(dev, "Cannot get the regulator \"center\"\n");
-		return PTR_ERR(data->vdd_center);
-	}
+	if (IS_ERR(data->vdd_center))
+		return dev_err_probe(dev, PTR_ERR(data->vdd_center),
+				     "Cannot get the regulator \"center\"\n");
 
 	data->dmc_clk = devm_clk_get(dev, "dmc_clk");
-	if (IS_ERR(data->dmc_clk)) {
-		if (PTR_ERR(data->dmc_clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		dev_err(dev, "Cannot get the clk dmc_clk\n");
-		return PTR_ERR(data->dmc_clk);
-	}
+	if (IS_ERR(data->dmc_clk))
+		return dev_err_probe(dev, PTR_ERR(data->dmc_clk),
+				     "Cannot get the clk dmc_clk\n");
 
 	data->edev = devfreq_event_get_edev_by_phandle(dev, "devfreq-events", 0);
 	if (IS_ERR(data->edev))
