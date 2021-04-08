@@ -1016,15 +1016,9 @@ struct i2c_client *i2c_new_dummy_device(struct i2c_adapter *adapter, u16 address
 }
 EXPORT_SYMBOL_GPL(i2c_new_dummy_device);
 
-struct i2c_dummy_devres {
-	struct i2c_client *client;
-};
-
-static void devm_i2c_release_dummy(struct device *dev, void *res)
+static void devm_i2c_release_dummy(void *client)
 {
-	struct i2c_dummy_devres *this = res;
-
-	i2c_unregister_device(this->client);
+	i2c_unregister_device(client);
 }
 
 /**
@@ -1041,20 +1035,16 @@ struct i2c_client *devm_i2c_new_dummy_device(struct device *dev,
 					     struct i2c_adapter *adapter,
 					     u16 address)
 {
-	struct i2c_dummy_devres *dr;
 	struct i2c_client *client;
-
-	dr = devres_alloc(devm_i2c_release_dummy, sizeof(*dr), GFP_KERNEL);
-	if (!dr)
-		return ERR_PTR(-ENOMEM);
+	int ret;
 
 	client = i2c_new_dummy_device(adapter, address);
-	if (IS_ERR(client)) {
-		devres_free(dr);
-	} else {
-		dr->client = client;
-		devres_add(dev, dr);
-	}
+	if (IS_ERR(client))
+		return client;
+
+	ret = devm_add_action_or_reset(dev, devm_i2c_release_dummy, client);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return client;
 }
