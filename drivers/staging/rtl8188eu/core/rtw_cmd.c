@@ -188,10 +188,6 @@ int rtw_cmd_thread(void *context)
 		 ("start r871x %s !!!!\n", __func__));
 
 	while (1) {
-		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
-			break;
-
-_next:
 		if (padapter->bDriverStopped ||
 		    padapter->bSurpriseRemoved) {
 			DBG_88E("%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
@@ -201,8 +197,13 @@ _next:
 		}
 
 		pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue);
-		if (!pcmd)
+		if (!pcmd) {
+			/* The queue is empty. Wait until someone enqueues a command. */
+			if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
+				break;
+
 			continue;
+		}
 
 		if (rtw_cmd_filter(pcmdpriv, pcmd) == _FAIL) {
 			pcmd->res = H2C_DROPPED;
@@ -239,8 +240,6 @@ _next:
 
 		if (signal_pending(current))
 			flush_signals(current);
-
-		goto _next;
 	}
 	pcmdpriv->cmdthd_running = false;
 
