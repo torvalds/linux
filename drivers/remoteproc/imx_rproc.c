@@ -95,6 +95,7 @@ struct imx_rproc {
 	struct mbox_chan		*rx_ch;
 	struct work_struct		rproc_work;
 	struct workqueue_struct		*workqueue;
+	void __iomem			*rsc_table;
 };
 
 static const struct imx_rproc_att imx_rproc_att_imx8mq[] = {
@@ -395,8 +396,26 @@ static void imx_rproc_kick(struct rproc *rproc, int vqid)
 			__func__, vqid, err);
 }
 
+static int imx_rproc_attach(struct rproc *rproc)
+{
+	return 0;
+}
+
+static struct resource_table *imx_rproc_get_loaded_rsc_table(struct rproc *rproc, size_t *table_sz)
+{
+	struct imx_rproc *priv = rproc->priv;
+
+	/* The resource table has already been mapped in imx_rproc_addr_init */
+	if (!priv->rsc_table)
+		return NULL;
+
+	*table_sz = SZ_1K;
+	return (struct resource_table *)priv->rsc_table;
+}
+
 static const struct rproc_ops imx_rproc_ops = {
 	.prepare	= imx_rproc_prepare,
+	.attach		= imx_rproc_attach,
 	.start		= imx_rproc_start,
 	.stop		= imx_rproc_stop,
 	.kick		= imx_rproc_kick,
@@ -404,6 +423,7 @@ static const struct rproc_ops imx_rproc_ops = {
 	.load		= rproc_elf_load_segments,
 	.parse_fw	= imx_rproc_parse_fw,
 	.find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table,
+	.get_loaded_rsc_table = imx_rproc_get_loaded_rsc_table,
 	.sanity_check	= rproc_elf_sanity_check,
 	.get_boot_addr	= rproc_elf_get_boot_addr,
 };
@@ -470,6 +490,8 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 		}
 		priv->mem[b].sys_addr = res.start;
 		priv->mem[b].size = resource_size(&res);
+		if (!strcmp(node->name, "rsc_table"))
+			priv->rsc_table = priv->mem[b].cpu_addr;
 		b++;
 	}
 
@@ -536,6 +558,25 @@ static void imx_rproc_free_mbox(struct rproc *rproc)
 	mbox_free_channel(priv->rx_ch);
 }
 
+static int imx_rproc_detect_mode(struct imx_rproc *priv)
+{
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+	struct device *dev = priv->dev;
+	int ret;
+	u32 val;
+
+	ret = regmap_read(priv->regmap, dcfg->src_reg, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read src\n");
+		return ret;
+	}
+
+	if (!(val & dcfg->src_stop))
+		priv->rproc->state = RPROC_DETACHED;
+
+	return 0;
+}
+
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -589,6 +630,10 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		dev_err(dev, "failed on imx_rproc_addr_init\n");
 		goto err_put_mbox;
 	}
+
+	ret = imx_rproc_detect_mode(priv);
+	if (ret)
+		goto err_put_mbox;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
