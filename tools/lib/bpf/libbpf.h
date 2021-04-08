@@ -480,6 +480,7 @@ LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
 LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
 
 LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
+LIBBPF_API struct bpf_map *bpf_map__inner_map(struct bpf_map *map);
 
 LIBBPF_API long libbpf_get_error(const void *ptr);
 

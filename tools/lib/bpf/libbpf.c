@@ -2194,6 +2194,7 @@ static int parse_btf_map_def(struct bpf_object *obj,
 			map->inner_map = calloc(1, sizeof(*map->inner_map));
 			if (!map->inner_map)
 				return -ENOMEM;
+			map->inner_map->fd = -1;
 			map->inner_map->sec_idx = obj->efile.btf_maps_shndx;
 			map->inner_map->name = malloc(strlen(map->name) +
 						      sizeof(".inner") + 1);
@@ -3843,6 +3844,14 @@ err_free_new_name:
 __u32 bpf_map__max_entries(const struct bpf_map *map)
 {
 	return map->def.max_entries;
+}
+
+struct bpf_map *bpf_map__inner_map(struct bpf_map *map)
+{
+	if (!bpf_map_type__is_map_in_map(map->def.type))
+		return NULL;
+
+	return map->inner_map;
 }
 
 int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries)
@@ -9476,6 +9485,7 @@ int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
 		pr_warn("error: inner_map_fd already specified\n");
 		return -EINVAL;
 	}
+	zfree(&map->inner_map);
 	map->inner_map_fd = fd;
 	return 0;
 }
