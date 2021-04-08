@@ -125,6 +125,18 @@ static const unsigned long *get_bm_events_by_type(struct input_dev *dev,
 	return (type == EV_KEY) ? dev->keybit : dev->swbit;
 }
 
+static void gpio_keys_quiesce_key(void *data)
+{
+	struct gpio_button_data *bdata = data;
+
+	if (!bdata->gpiod)
+		hrtimer_cancel(&bdata->release_timer);
+	if (bdata->debounce_use_hrtimer)
+		hrtimer_cancel(&bdata->debounce_timer);
+	else
+		cancel_delayed_work_sync(&bdata->work);
+}
+
 /**
  * gpio_keys_disable_button() - disables given GPIO button
  * @bdata: button data for button to be disabled
@@ -145,12 +157,7 @@ static void gpio_keys_disable_button(struct gpio_button_data *bdata)
 		 * Disable IRQ and associated timer/work structure.
 		 */
 		disable_irq(bdata->irq);
-
-		if (bdata->debounce_use_hrtimer)
-			hrtimer_cancel(&bdata->release_timer);
-		else
-			cancel_delayed_work_sync(&bdata->work);
-
+		gpio_keys_quiesce_key(bdata);
 		bdata->disabled = true;
 	}
 }
@@ -492,16 +499,6 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void gpio_keys_quiesce_key(void *data)
-{
-	struct gpio_button_data *bdata = data;
-
-	if (bdata->debounce_use_hrtimer)
-		hrtimer_cancel(&bdata->debounce_timer);
-	else
-		cancel_delayed_work_sync(&bdata->work);
-}
-
 static int gpio_keys_setup_key(struct platform_device *pdev,
 				struct input_dev *input,
 				struct gpio_keys_drvdata *ddata,
@@ -635,7 +632,6 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		}
 
 		bdata->release_delay = button->debounce_interval;
-		bdata->debounce_use_hrtimer = true;
 		hrtimer_init(&bdata->release_timer,
 			     CLOCK_REALTIME, HRTIMER_MODE_REL_HARD);
 		bdata->release_timer.function = gpio_keys_irq_timer;
