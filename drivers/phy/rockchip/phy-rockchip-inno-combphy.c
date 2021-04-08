@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
+#include <linux/phy/pcie.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <dt-bindings/phy/phy.h>
@@ -545,7 +546,7 @@ done:
 	return 0;
 }
 
-static int rockchip_combphy_set_mode(struct phy *phy, enum phy_mode mode)
+static int rockchip_combphy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
 	u32 reg;
@@ -555,9 +556,9 @@ static int rockchip_combphy_set_mode(struct phy *phy, enum phy_mode mode)
 
 	reg = readl(priv->mmio + 0x21a8);
 
-	if (PHY_MODE_PCIE_EP == mode)
+	if (PHY_MODE_PCIE_EP == submode)
 		reg |= (0x1 << 2);
-	else if (PHY_MODE_PCIE_RC == mode)
+	else if (PHY_MODE_PCIE_RC == submode)
 		reg &= ~(0x1 << 2);
 	else
 		return -EINVAL;
