@@ -278,7 +278,7 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 	if (!icl_combo_phy_enabled(dev_priv, phy))
 		return false;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_TX_DW8_LN0(phy),
 				     ICL_PORT_TX_DW8_ODCC_CLK_SEL |
 				     ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_MASK,
@@ -401,7 +401,7 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		intel_de_write(dev_priv, ICL_PHY_MISC(phy), val);
 
 skip_phy_misc:
-		if (INTEL_GEN(dev_priv) >= 12) {
+		if (DISPLAY_VER(dev_priv) >= 12) {
 			val = intel_de_read(dev_priv, ICL_PORT_TX_DW8_LN0(phy));
 			val &= ~ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_MASK;
 			val |= ICL_PORT_TX_DW8_ODCC_CLK_SEL;
@@ -473,7 +473,7 @@ skip_phy_misc:
 
 void intel_combo_phy_init(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11)
+	if (DISPLAY_VER(i915) >= 11)
 		icl_combo_phys_init(i915);
 	else if (IS_CANNONLAKE(i915))
 		cnl_combo_phys_init(i915);
@@ -481,7 +481,7 @@ void intel_combo_phy_init(struct drm_i915_private *i915)
 
 void intel_combo_phy_uninit(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11)
+	if (DISPLAY_VER(i915) >= 11)
 		icl_combo_phys_uninit(i915);
 	else if (IS_CANNONLAKE(i915))
 		cnl_combo_phys_uninit(i915);

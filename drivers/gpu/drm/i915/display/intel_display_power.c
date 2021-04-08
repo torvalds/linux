@@ -408,7 +408,7 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 	if (power_well->desc->hsw.has_fuses) {
 		enum skl_power_gate pg;
 
-		pg = INTEL_GEN(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
+		pg = DISPLAY_VER(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
 						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
 		/*
 		 * For PW1 we have to wait both for the PW0/PG0 fuse state
@@ -441,7 +441,7 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 	if (power_well->desc->hsw.has_fuses) {
 		enum skl_power_gate pg;
 
-		pg = INTEL_GEN(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
+		pg = DISPLAY_VER(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
 						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
 		gen9_wait_for_power_well_fuses(dev_priv, pg);
 	}
@@ -484,7 +484,7 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	intel_de_write(dev_priv, regs->driver,
 		       val | HSW_PWR_WELL_CTL_REQ(pw_idx));
 
-	if (INTEL_GEN(dev_priv) < 12) {
+	if (DISPLAY_VER(dev_priv) < 12) {
 		val = intel_de_read(dev_priv, ICL_PORT_CL_DW12(phy));
 		intel_de_write(dev_priv, ICL_PORT_CL_DW12(phy),
 			       val | ICL_LANE_ENABLE_AUX);
@@ -550,7 +550,7 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 	if (drm_WARN_ON(&dev_priv->drm, !dig_port))
 		return;
 
-	if (INTEL_GEN(dev_priv) == 11 && dig_port->tc_legacy_port)
+	if (IS_DISPLAY_VER(dev_priv, 11) && dig_port->tc_legacy_port)
 		return;
 
 	drm_WARN_ON(&dev_priv->drm, !intel_tc_port_ref_held(dig_port));
@@ -619,14 +619,14 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	 * exit sequence.
 	 */
 	timeout_expected = is_tbt;
-	if (INTEL_GEN(dev_priv) == 11 && dig_port->tc_legacy_port) {
+	if (IS_DISPLAY_VER(dev_priv, 11) && dig_port->tc_legacy_port) {
 		icl_tc_cold_exit(dev_priv);
 		timeout_expected = true;
 	}
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well, timeout_expected);
 
-	if (INTEL_GEN(dev_priv) >= 12 && !is_tbt) {
+	if (DISPLAY_VER(dev_priv) >= 12 && !is_tbt) {
 		enum tc_port tc_port;
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(power_well->desc->hsw.idx);
@@ -709,7 +709,7 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 	 * BIOS's own request bits, which are forced-on for these power wells
 	 * when exiting DC5/6.
 	 */
-	if (IS_GEN(dev_priv, 9) && !IS_GEN9_LP(dev_priv) &&
+	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_GEN9_LP(dev_priv) &&
 	    (id == SKL_DISP_PW_1 || id == SKL_DISP_PW_MISC_IO))
 		val |= intel_de_read(dev_priv, regs->bios);
 
@@ -804,10 +804,10 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 
 	mask = DC_STATE_EN_UPTO_DC5;
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6
 					  | DC_STATE_EN_DC9;
-	else if (IS_GEN(dev_priv, 11))
+	else if (IS_DISPLAY_VER(dev_priv, 11))
 		mask |= DC_STATE_EN_UPTO_DC6 | DC_STATE_EN_DC9;
 	else if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
@@ -1035,7 +1035,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	enum i915_power_well_id high_pg;
 
 	/* Power wells at this level and above must be disabled for DC5 entry */
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		high_pg = ICL_DISP_PW_3;
 	else
 		high_pg = SKL_DISP_PW_2;
@@ -1192,7 +1192,7 @@ static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 	if (IS_GEN9_LP(dev_priv))
 		bxt_verify_ddi_phy_power_wells(dev_priv);
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		/*
 		 * DMC retains HW context only for port A, the other combo
 		 * PHY's HW context for port B is lost after DC transitions,
@@ -4535,9 +4535,9 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 
 	if (IS_DG1(dev_priv))
 		max_dc = 3;
-	else if (INTEL_GEN(dev_priv) >= 12)
+	else if (DISPLAY_VER(dev_priv) >= 12)
 		max_dc = 4;
-	else if (INTEL_GEN(dev_priv) >= 10 || IS_GEN9_BC(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv) || IS_GEN9_BC(dev_priv))
 		max_dc = 2;
 	else if (IS_GEN9_LP(dev_priv))
 		max_dc = 1;
@@ -4549,7 +4549,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	 * not depending on the DMC firmware. It's needed by system
 	 * suspend/resume, so allow it unconditionally.
 	 */
-	mask = IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 11 ?
+	mask = IS_GEN9_LP(dev_priv) || DISPLAY_VER(dev_priv) >= 11 ?
 	       DC_STATE_EN_DC9 : 0;
 
 	if (!dev_priv->params.disable_power_well)
@@ -4678,9 +4678,9 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 					   BIT_ULL(TGL_DISP_PW_TC_COLD_OFF));
 	} else if (IS_ROCKETLAKE(dev_priv)) {
 		err = set_power_wells(power_domains, rkl_power_wells);
-	} else if (IS_GEN(dev_priv, 12)) {
+	} else if (IS_DISPLAY_VER(dev_priv, 12)) {
 		err = set_power_wells(power_domains, tgl_power_wells);
-	} else if (IS_GEN(dev_priv, 11)) {
+	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
 		err = set_power_wells(power_domains, icl_power_wells);
 	} else if (IS_CNL_WITH_PORT_F(dev_priv)) {
 		err = set_power_wells(power_domains, cnl_power_wells);
@@ -4837,7 +4837,7 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 	 * expect us to program the abox_ctl0 register as well, even though
 	 * we don't have to program other instance-0 registers like BW_BUDDY.
 	 */
-	if (IS_GEN(dev_priv, 12))
+	if (IS_DISPLAY_VER(dev_priv, 12))
 		abox_regs |= BIT(0);
 
 	for_each_set_bit(i, &abox_regs, sizeof(abox_regs))
@@ -5333,7 +5333,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 
 	if (IS_ALDERLAKE_S(dev_priv) ||
 	    IS_DG1_REVID(dev_priv, DG1_REVID_A0, DG1_REVID_A0) ||
-	    IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_B0))
+	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 		/* Wa_1409767108:tgl,dg1,adl-s */
 		table = wa_1409767108_buddy_page_masks;
 	else
@@ -5396,7 +5396,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	/* 4. Enable CDCLK. */
 	intel_cdclk_init_hw(dev_priv);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		gen12_dbuf_slices_config(dev_priv);
 
 	/* 5. Enable DBUF. */
@@ -5406,14 +5406,14 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	icl_mbus_init(dev_priv);
 
 	/* 7. Program arbiter BW_BUDDY registers */
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_bw_buddy_init(dev_priv);
 
 	if (resume && dev_priv->csr.dmc_payload)
 		intel_csr_load_program(dev_priv);
 
 	/* Wa_14011508470 */
-	if (IS_GEN(dev_priv, 12)) {
+	if (IS_DISPLAY_VER(dev_priv, 12)) {
 		val = DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
 		      DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR;
 		intel_uncore_rmw(&dev_priv->uncore, GEN11_CHICKEN_DCPR_2, 0, val);
@@ -5619,7 +5619,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 
 	power_domains->initializing = true;
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (DISPLAY_VER(i915) >= 11) {
 		icl_display_core_init(i915, resume);
 	} else if (IS_CANNONLAKE(i915)) {
 		cnl_display_core_init(i915, resume);
@@ -5780,7 +5780,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	intel_display_power_flush_work(i915);
 	intel_power_domains_verify_state(i915);
 
-	if (INTEL_GEN(i915) >= 11)
+	if (DISPLAY_VER(i915) >= 11)
 		icl_display_core_uninit(i915);
 	else if (IS_CANNONLAKE(i915))
 		cnl_display_core_uninit(i915);
@@ -5908,7 +5908,7 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 
 void intel_display_power_suspend_late(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11 || IS_GEN9_LP(i915)) {
+	if (DISPLAY_VER(i915) >= 11 || IS_GEN9_LP(i915)) {
 		bxt_enable_dc9(i915);
 		/* Tweaked Wa_14010685332:icp,jsp,mcc */
 		if (INTEL_PCH_TYPE(i915) >= PCH_ICP && INTEL_PCH_TYPE(i915) <= PCH_MCC)
@@ -5921,7 +5921,7 @@ void intel_display_power_suspend_late(struct drm_i915_private *i915)
 
 void intel_display_power_resume_early(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11 || IS_GEN9_LP(i915)) {
+	if (DISPLAY_VER(i915) >= 11 || IS_GEN9_LP(i915)) {
 		gen9_sanitize_dc_state(i915);
 		bxt_disable_dc9(i915);
 		/* Tweaked Wa_14010685332:icp,jsp,mcc */
@@ -5935,7 +5935,7 @@ void intel_display_power_resume_early(struct drm_i915_private *i915)
 
 void intel_display_power_suspend(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11) {
+	if (DISPLAY_VER(i915) >= 11) {
 		icl_display_core_uninit(i915);
 		bxt_enable_dc9(i915);
 	} else if (IS_GEN9_LP(i915)) {
@@ -5948,7 +5948,7 @@ void intel_display_power_suspend(struct drm_i915_private *i915)
 
 void intel_display_power_resume(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11) {
+	if (DISPLAY_VER(i915) >= 11) {
 		bxt_disable_dc9(i915);
 		icl_display_core_init(i915, true);
 		if (i915->csr.dmc_payload) {

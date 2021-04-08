@@ -247,7 +247,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	unsigned int pipe_mask = BIT(crtc->pipe);
 
 	/* PCH only available on ILK+ */
-	if (INTEL_GEN(dev_priv) < 5)
+	if (DISPLAY_VER(dev_priv) < 5)
 		return;
 
 	if (pll == NULL)
@@ -3017,7 +3017,7 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		switch (dev_priv->dpll.ref_clks.nssc) {
 		default:
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
@@ -3112,7 +3112,7 @@ static void icl_calc_dpll_state(struct drm_i915_private *i915,
 			    DPLL_CFGCR1_KDIV(pll_params->kdiv) |
 			    DPLL_CFGCR1_PDIV(pll_params->pdiv);
 
-	if (INTEL_GEN(i915) >= 12)
+	if (DISPLAY_VER(i915) >= 12)
 		pll_state->cfgcr1 |= TGL_DPLL_CFGCR1_CFSELOVRD_NORMAL_XTAL;
 	else
 		pll_state->cfgcr1 |= DPLL_CFGCR1_CENTRAL_FREQ_8400;
@@ -3222,7 +3222,7 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	u64 tmp;
 	bool use_ssc = false;
 	bool is_dp = !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI);
-	bool is_dkl = INTEL_GEN(dev_priv) >= 12;
+	bool is_dkl = DISPLAY_VER(dev_priv) >= 12;
 
 	memset(pll_state, 0, sizeof(*pll_state));
 
@@ -3422,7 +3422,7 @@ static int icl_ddi_mg_pll_get_freq(struct drm_i915_private *dev_priv,
 
 	ref_clock = dev_priv->dpll.ref_clks.nssc;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		m1 = pll_state->mg_pll_div0 & DKL_PLL_DIV0_FBPREDIV_MASK;
 		m1 = m1 >> DKL_PLL_DIV0_FBPREDIV_SHIFT;
 		m2_int = pll_state->mg_pll_div0 & DKL_PLL_DIV0_FBDIV_INT_MASK;
@@ -3884,7 +3884,7 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 						 RKL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = intel_de_read(dev_priv,
 						 RKL_DPLL_CFGCR1(id));
-	} else if (INTEL_GEN(dev_priv) >= 12) {
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		hw_state->cfgcr0 = intel_de_read(dev_priv,
 						 TGL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = intel_de_read(dev_priv,
@@ -3941,7 +3941,7 @@ static void icl_dpll_write(struct drm_i915_private *dev_priv,
 	} else if (IS_ROCKETLAKE(dev_priv)) {
 		cfgcr0_reg = RKL_DPLL_CFGCR0(id);
 		cfgcr1_reg = RKL_DPLL_CFGCR1(id);
-	} else if (INTEL_GEN(dev_priv) >= 12) {
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		cfgcr0_reg = TGL_DPLL_CFGCR0(id);
 		cfgcr1_reg = TGL_DPLL_CFGCR1(id);
 	} else {
@@ -4172,7 +4172,7 @@ static void mg_pll_enable(struct drm_i915_private *dev_priv,
 
 	icl_pll_power_enable(dev_priv, pll, enable_reg);
 
-	if (INTEL_GEN(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		dkl_pll_write(dev_priv, pll);
 	else
 		icl_mg_pll_write(dev_priv, pll);
@@ -4199,7 +4199,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothign here.
+	 * nothing here.
 	 */
 
 	val = intel_de_read(dev_priv, enable_reg);
@@ -4433,11 +4433,11 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		dpll_mgr = &dg1_pll_mgr;
 	else if (IS_ROCKETLAKE(dev_priv))
 		dpll_mgr = &rkl_pll_mgr;
-	else if (INTEL_GEN(dev_priv) >= 12)
+	else if (DISPLAY_VER(dev_priv) >= 12)
 		dpll_mgr = &tgl_pll_mgr;
 	else if (IS_JSL_EHL(dev_priv))
 		dpll_mgr = &ehl_pll_mgr;
-	else if (INTEL_GEN(dev_priv) >= 11)
+	else if (DISPLAY_VER(dev_priv) >= 11)
 		dpll_mgr = &icl_pll_mgr;
 	else if (IS_CANNONLAKE(dev_priv))
 		dpll_mgr = &cnl_pll_mgr;

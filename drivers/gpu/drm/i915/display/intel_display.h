@@ -48,7 +48,6 @@ struct i915_ggtt_view;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
-struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_dp;
 struct intel_encoder;
@@ -515,7 +514,6 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier);
-bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
 enum drm_mode_status
 intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				const struct drm_display_mode *mode,
@@ -627,10 +625,6 @@ bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 				    u64 modifier);
 
-int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
-u32 intel_plane_compute_aligned_offset(int *x, int *y,
-				       const struct intel_plane_state *state,
-				       int color_plane);
 int intel_plane_pin_fb(struct intel_plane_state *plane_state);
 void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
 struct intel_encoder *
@@ -639,15 +633,7 @@ intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 
 unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 				  int color_plane);
-void intel_fb_plane_get_subsampling(int *hsub, int *vsub,
-				    const struct drm_framebuffer *fb,
-				    int color_plane);
-u32 intel_plane_adjust_aligned_offset(int *x, int *y,
-				      const struct intel_plane_state *state,
-				      int color_plane,
-				      u32 old_offset, u32 new_offset);
 unsigned int intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane);
-unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane);
 
 void intel_display_driver_register(struct drm_i915_private *i915);
 void intel_display_driver_unregister(struct drm_i915_private *i915);

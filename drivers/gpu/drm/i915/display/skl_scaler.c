@@ -115,7 +115,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 * Once NV12 is enabled, handle it here while allocating scaler
 	 * for NV12.
 	 */
-	if (INTEL_GEN(dev_priv) >= 9 && crtc_state->hw.enable &&
+	if (DISPLAY_VER(dev_priv) >= 9 && crtc_state->hw.enable &&
 	    need_scaler && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Pipe/Plane scaling not supported with IF-ID mode\n");
@@ -157,10 +157,10 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	/* range checks */
 	if (src_w < SKL_MIN_SRC_W || src_h < SKL_MIN_SRC_H ||
 	    dst_w < SKL_MIN_DST_W || dst_h < SKL_MIN_DST_H ||
-	    (INTEL_GEN(dev_priv) >= 11 &&
+	    (DISPLAY_VER(dev_priv) >= 11 &&
 	     (src_w > ICL_MAX_SRC_W || src_h > ICL_MAX_SRC_H ||
 	      dst_w > ICL_MAX_DST_W || dst_h > ICL_MAX_DST_H)) ||
-	    (INTEL_GEN(dev_priv) < 11 &&
+	    (DISPLAY_VER(dev_priv) < 11 &&
 	     (src_w > SKL_MAX_SRC_W || src_h > SKL_MAX_SRC_H ||
 	      dst_w > SKL_MAX_DST_W || dst_h > SKL_MAX_DST_H)))	{
 		drm_dbg_kms(&dev_priv->drm,
@@ -280,7 +280,7 @@ int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_ABGR16161616F:
 	case DRM_FORMAT_XRGB16161616F:
 	case DRM_FORMAT_ARGB16161616F:
-		if (INTEL_GEN(dev_priv) >= 11)
+		if (DISPLAY_VER(dev_priv) >= 11)
 			break;
 		fallthrough;
 	default:

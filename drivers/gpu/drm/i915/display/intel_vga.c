@@ -16,7 +16,7 @@ static i915_reg_t intel_vga_cntrl_reg(struct drm_i915_private *i915)
 {
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		return VLV_VGACNTRL;
-	else if (INTEL_GEN(i915) >= 5)
+	else if (DISPLAY_VER(i915) >= 5)
 		return CPU_VGACNTRL;
 	else
 		return VGACNTRL;
@@ -96,7 +96,7 @@ void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 static int
 intel_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
 {
-	unsigned int reg = INTEL_GEN(i915) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
+	unsigned int reg = DISPLAY_VER(i915) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
 	u16 gmch_ctrl;
 
 	if (pci_read_config_word(i915->bridge_dev, reg, &gmch_ctrl)) {

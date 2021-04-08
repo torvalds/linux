@@ -52,6 +52,7 @@ i915-y += i915_drv.o \
 	  intel_pm.o \
 	  intel_runtime_pm.o \
 	  intel_sideband.o \
+	  intel_step.o \
 	  intel_uncore.o \
 	  intel_wakeref.o \
 	  vlv_suspend.o
@@ -208,6 +209,7 @@ i915-y += \
 	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
 	display/intel_dsb.o \
+	display/intel_fb.o \
 	display/intel_fbc.o \
 	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
@@ -239,6 +241,8 @@ i915-y += \
 	display/dvo_ns2501.o \
 	display/dvo_sil164.o \
 	display/dvo_tfp410.o \
+	display/g4x_dp.o \
+	display/g4x_hdmi.o \
 	display/icl_dsi.o \
 	display/intel_crt.o \
 	display/intel_ddi.o \

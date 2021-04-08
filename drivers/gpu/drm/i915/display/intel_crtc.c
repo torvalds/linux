@@ -70,9 +70,9 @@ u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state)
 	    (crtc_state->output_types & BIT(INTEL_OUTPUT_TVOUT)))
 		return 0;
 
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		return 0xffffffff; /* full 32 bit counter */
-	else if (INTEL_GEN(dev_priv) >= 3)
+	else if (DISPLAY_VER(dev_priv) >= 3)
 		return 0xffffff; /* only 24 bits of frame count */
 	else
 		return 0; /* Gen2 doesn't have a hardware frame counter */
@@ -265,7 +265,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	crtc->pipe = pipe;
 	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[pipe];
 
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (DISPLAY_VER(dev_priv) >= 9)
 		primary = skl_universal_plane_create(dev_priv, pipe,
 						     PLANE_PRIMARY);
 	else
@@ -279,7 +279,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	for_each_sprite(dev_priv, pipe, sprite) {
 		struct intel_plane *plane;
 
-		if (INTEL_GEN(dev_priv) >= 9)
+		if (DISPLAY_VER(dev_priv) >= 9)
 			plane = skl_universal_plane_create(dev_priv, pipe,
 							   PLANE_SPRITE0 + sprite);
 		else
@@ -302,16 +302,16 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		if (IS_CHERRYVIEW(dev_priv) ||
 		    IS_VALLEYVIEW(dev_priv) || IS_G4X(dev_priv))
 			funcs = &g4x_crtc_funcs;
-		else if (IS_GEN(dev_priv, 4))
+		else if (IS_DISPLAY_VER(dev_priv, 4))
 			funcs = &i965_crtc_funcs;
 		else if (IS_I945GM(dev_priv) || IS_I915GM(dev_priv))
 			funcs = &i915gm_crtc_funcs;
-		else if (IS_GEN(dev_priv, 3))
+		else if (IS_DISPLAY_VER(dev_priv, 3))
 			funcs = &i915_crtc_funcs;
 		else
 			funcs = &i8xx_crtc_funcs;
 	} else {
-		if (INTEL_GEN(dev_priv) >= 8)
+		if (DISPLAY_VER(dev_priv) >= 8)
 			funcs = &bdw_crtc_funcs;
 		else
 			funcs = &ilk_crtc_funcs;
@@ -327,7 +327,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	       dev_priv->pipe_to_crtc_mapping[pipe] != NULL);
 	dev_priv->pipe_to_crtc_mapping[pipe] = crtc;
 
-	if (INTEL_GEN(dev_priv) < 9) {
+	if (DISPLAY_VER(dev_priv) < 9) {
 		enum i9xx_plane_id i9xx_plane = primary->i9xx_plane;
 
 		BUG_ON(i9xx_plane >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
@@ -335,7 +335,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		dev_priv->plane_to_crtc_mapping[i9xx_plane] = crtc;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (DISPLAY_VER(dev_priv) >= 11 || IS_CANNONLAKE(dev_priv))
 		drm_crtc_create_scaling_filter_property(&crtc->base,
 						BIT(DRM_SCALING_FILTER_DEFAULT) |
 						BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
@@ -546,7 +546,7 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * Incase of mipi dsi command mode, we need to set frame update
 	 * request for every commit.
 	 */
-	if (INTEL_GEN(dev_priv) >= 11 &&
+	if (DISPLAY_VER(dev_priv) >= 11 &&
 	    intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI))
 		icl_dsi_frame_update(new_crtc_state);
 

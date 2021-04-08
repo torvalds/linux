@@ -42,7 +42,7 @@ int gen8_emit_flush_rcs(struct i915_request *rq, u32 mode)
 			vf_flush_wa = true;
 
 		/* WaForGAMHang:kbl */
-		if (IS_KBL_GT_REVID(rq->engine->i915, 0, KBL_REVID_B0))
+		if (IS_KBL_GT_STEP(rq->engine->i915, 0, STEP_B0))
 			dc_flush_wa = true;
 	}
 

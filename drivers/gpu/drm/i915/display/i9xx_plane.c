@@ -11,6 +11,7 @@
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_sprite.h"
 #include "i9xx_plane.h"
 
@@ -128,7 +129,7 @@ static bool i9xx_plane_has_fbc(struct drm_i915_private *dev_priv,
 	else if (IS_IVYBRIDGE(dev_priv))
 		return i9xx_plane == PLANE_A || i9xx_plane == PLANE_B ||
 			i9xx_plane == PLANE_C;
-	else if (INTEL_GEN(dev_priv) >= 4)
+	else if (DISPLAY_VER(dev_priv) >= 4)
 		return i9xx_plane == PLANE_A || i9xx_plane == PLANE_B;
 	else
 		return i9xx_plane == PLANE_A;
@@ -141,9 +142,9 @@ static bool i9xx_plane_has_windowing(struct intel_plane *plane)
 
 	if (IS_CHERRYVIEW(dev_priv))
 		return i9xx_plane == PLANE_B;
-	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		return false;
-	else if (IS_GEN(dev_priv, 4))
+	else if (IS_DISPLAY_VER(dev_priv, 4))
 		return i9xx_plane == PLANE_C;
 	else
 		return i9xx_plane == PLANE_B ||
@@ -161,8 +162,8 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	dspcntr = DISPLAY_PLANE_ENABLE;
 
-	if (IS_G4X(dev_priv) || IS_GEN(dev_priv, 5) ||
-	    IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+	if (IS_G4X(dev_priv) || IS_IRONLAKE(dev_priv) ||
+	    IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	switch (fb->format->format) {
@@ -210,7 +211,7 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4 &&
+	if (DISPLAY_VER(dev_priv) >= 4 &&
 	    fb->modifier == I915_FORMAT_MOD_X_TILED)
 		dspcntr |= DISPPLANE_TILED;
 
@@ -249,7 +250,7 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		offset = intel_plane_compute_aligned_offset(&src_x, &src_y,
 							    plane_state, 0);
 	else
@@ -266,11 +267,11 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	 * Linear surfaces seem to work just fine, even on hsw/bdw
 	 * despite them not using the linear offset anymore.
 	 */
-	if (INTEL_GEN(dev_priv) >= 4 && fb->modifier == I915_FORMAT_MOD_X_TILED) {
+	if (DISPLAY_VER(dev_priv) >= 4 && fb->modifier == I915_FORMAT_MOD_X_TILED) {
 		u32 alignment = intel_surf_alignment(fb, 0);
 		int cpp = fb->format->cpp[0];
 
-		while ((src_x + src_w) * cpp > plane_state->color_plane[0].stride) {
+		while ((src_x + src_w) * cpp > plane_state->view.color_plane[0].stride) {
 			if (offset == 0) {
 				drm_dbg_kms(&dev_priv->drm,
 					    "Unable to find suitable display surface offset due to X-tiling\n");
@@ -305,14 +306,14 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		drm_WARN_ON(&dev_priv->drm, src_x > 8191 || src_y > 4095);
-	} else if (INTEL_GEN(dev_priv) >= 4 &&
+	} else if (DISPLAY_VER(dev_priv) >= 4 &&
 		   fb->modifier == I915_FORMAT_MOD_X_TILED) {
 		drm_WARN_ON(&dev_priv->drm, src_x > 4095 || src_y > 4095);
 	}
 
-	plane_state->color_plane[0].offset = offset;
-	plane_state->color_plane[0].x = src_x;
-	plane_state->color_plane[0].y = src_y;
+	plane_state->view.color_plane[0].offset = offset;
+	plane_state->view.color_plane[0].x = src_x;
+	plane_state->view.color_plane[0].y = src_y;
 
 	return 0;
 }
@@ -363,7 +364,7 @@ static u32 i9xx_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->csc_enable)
 		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
-	if (INTEL_GEN(dev_priv) < 5)
+	if (DISPLAY_VER(dev_priv) < 5)
 		dspcntr |= DISPPLANE_SEL_PIPE(crtc->pipe);
 
 	return dspcntr;
@@ -423,8 +424,8 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	u32 linear_offset;
-	int x = plane_state->color_plane[0].x;
-	int y = plane_state->color_plane[0].y;
+	int x = plane_state->view.color_plane[0].x;
+	int y = plane_state->view.color_plane[0].y;
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	int crtc_w = drm_rect_width(&plane_state->uapi.dst);
@@ -437,17 +438,17 @@ static void i9xx_update_plane(struct intel_plane *plane,
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
-	if (INTEL_GEN(dev_priv) >= 4)
-		dspaddr_offset = plane_state->color_plane[0].offset;
+	if (DISPLAY_VER(dev_priv) >= 4)
+		dspaddr_offset = plane_state->view.color_plane[0].offset;
 	else
 		dspaddr_offset = linear_offset;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
-			  plane_state->color_plane[0].stride);
+			  plane_state->view.color_plane[0].stride);
 
-	if (INTEL_GEN(dev_priv) < 4) {
+	if (DISPLAY_VER(dev_priv) < 4) {
 		/*
 		 * PLANE_A doesn't actually have a full window
 		 * generator but let's assume we still need to
@@ -468,7 +469,7 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		intel_de_write_fw(dev_priv, DSPOFFSET(i9xx_plane),
 				  (y << 16) | x);
-	} else if (INTEL_GEN(dev_priv) >= 4) {
+	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		intel_de_write_fw(dev_priv, DSPLINOFF(i9xx_plane),
 				  linear_offset);
 		intel_de_write_fw(dev_priv, DSPTILEOFF(i9xx_plane),
@@ -481,7 +482,7 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	 * the control register just before the surface register.
 	 */
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 	else
@@ -514,7 +515,7 @@ static void i9xx_disable_plane(struct intel_plane *plane,
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane), 0);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane), 0);
@@ -530,7 +531,7 @@ g4x_primary_async_flip(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
-	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	unsigned long irqflags;
 
@@ -551,7 +552,7 @@ vlv_primary_async_flip(struct intel_plane *plane,
 		       bool async_flip)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	u32 dspaddr_offset = plane_state->color_plane[0].offset;
+	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	unsigned long irqflags;
 
@@ -669,7 +670,7 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 
 	ret = val & DISPLAY_PLANE_ENABLE;
 
-	if (INTEL_GEN(dev_priv) >= 5)
+	if (DISPLAY_VER(dev_priv) >= 5)
 		*pipe = plane->pipe;
 	else
 		*pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
@@ -729,7 +730,7 @@ i9xx_plane_max_stride(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	if (INTEL_GEN(dev_priv) >= 3) {
+	if (DISPLAY_VER(dev_priv) >= 3) {
 		if (modifier == I915_FORMAT_MOD_X_TILED)
 			return 8*1024;
 		else
@@ -779,7 +780,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	 * On gen2/3 only plane A can do FBC, but the panel fitter and LVDS
 	 * port is hooked to pipe B. Hence we want plane A feeding pipe B.
 	 */
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) < 4 &&
+	if (HAS_FBC(dev_priv) && DISPLAY_VER(dev_priv) < 4 &&
 	    INTEL_NUM_PIPES(dev_priv) == 2)
 		plane->i9xx_plane = (enum i9xx_plane_id) !pipe;
 	else
@@ -797,7 +798,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		formats = vlv_primary_formats;
 		num_formats = ARRAY_SIZE(vlv_primary_formats);
-	} else if (INTEL_GEN(dev_priv) >= 4) {
+	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		/*
 		 * WaFP16GammaEnabling:ivb
 		 * "Workaround : When using the 64-bit format, the plane
@@ -823,7 +824,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		plane_funcs = &i965_plane_funcs;
 	else
 		plane_funcs = &i8xx_plane_funcs;
@@ -838,7 +839,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->min_cdclk = i9xx_plane_min_cdclk;
 
 	if (HAS_GMCH(dev_priv)) {
-		if (INTEL_GEN(dev_priv) >= 4)
+		if (DISPLAY_VER(dev_priv) >= 4)
 			plane->max_stride = i965_plane_max_stride;
 		else
 			plane->max_stride = i9xx_plane_max_stride;
@@ -863,17 +864,17 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = bdw_primary_enable_flip_done;
 		plane->disable_flip_done = bdw_primary_disable_flip_done;
-	} else if (INTEL_GEN(dev_priv) >= 7) {
+	} else if (DISPLAY_VER(dev_priv) >= 7) {
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = ivb_primary_enable_flip_done;
 		plane->disable_flip_done = ivb_primary_disable_flip_done;
-	} else if (INTEL_GEN(dev_priv) >= 5) {
+	} else if (DISPLAY_VER(dev_priv) >= 5) {
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = ilk_primary_enable_flip_done;
 		plane->disable_flip_done = ilk_primary_disable_flip_done;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 					       0, plane_funcs,
 					       formats, num_formats,
@@ -895,14 +896,14 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		supported_rotations =
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 			DRM_MODE_REFLECT_X;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
+	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		supported_rotations =
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180;
 	} else {
 		supported_rotations = DRM_MODE_ROTATE_0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 4)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		drm_plane_create_rotation_property(&plane->base,
 						   DRM_MODE_ROTATE_0,
 						   supported_rotations);
@@ -985,7 +986,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	val = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
 
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (DISPLAY_VER(dev_priv) >= 4) {
 		if (val & DISPPLANE_TILED) {
 			plane_config->tiling = I915_TILING_X;
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
@@ -1006,7 +1007,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		offset = intel_de_read(dev_priv, DSPOFFSET(i9xx_plane));
 		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & 0xfffff000;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
+	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		if (plane_config->tiling)
 			offset = intel_de_read(dev_priv,
 					       DSPTILEOFF(i9xx_plane));

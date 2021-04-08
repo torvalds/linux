@@ -27,6 +27,8 @@
 
 #include <uapi/drm/i915_drm.h>
 
+#include "intel_step.h"
+
 #include "display/intel_display.h"
 
 #include "gt/intel_engine_types.h"
@@ -187,6 +189,8 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
+		u8 version;
+
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
@@ -225,6 +229,8 @@ struct intel_runtime_info {
 	u8 num_scalers[I915_MAX_PIPES];
 
 	u32 rawclk_freq;
+
+	struct intel_step_info step;
 };
 
 struct intel_driver_caps {

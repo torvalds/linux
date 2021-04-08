@@ -86,9 +86,10 @@
 #include "gt/uc/intel_uc.h"
 
 #include "intel_device_info.h"
+#include "intel_memory_region.h"
 #include "intel_pch.h"
 #include "intel_runtime_pm.h"
-#include "intel_memory_region.h"
+#include "intel_step.h"
 #include "intel_uncore.h"
 #include "intel_wakeref.h"
 #include "intel_wopcm.h"
@@ -583,7 +584,7 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 
 struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
-	const struct child_device_config *child;
+	struct intel_bios_encoder_data *devdata;
 
 	int max_tmds_clock;
 
@@ -591,18 +592,9 @@ struct ddi_vbt_port_info {
 	u8 hdmi_level_shift;
 	u8 hdmi_level_shift_set:1;
 
-	u8 supports_dvi:1;
-	u8 supports_hdmi:1;
-	u8 supports_dp:1;
-	u8 supports_edp:1;
-	u8 supports_typec_usb:1;
-	u8 supports_tbt:1;
-
 	u8 alternate_aux_channel;
 	u8 alternate_ddc_pin;
 
-	u8 dp_boost_level;
-	u8 hdmi_boost_level;
 	int dp_max_link_rate;		/* 0 for not limited by VBT */
 };
 
@@ -614,6 +606,9 @@ enum psr_lines_to_wait {
 };
 
 struct intel_vbt_data {
+	/* bdb version */
+	u16 version;
+
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
@@ -1242,6 +1237,11 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define INTEL_GEN(dev_priv)	(INTEL_INFO(dev_priv)->gen)
 #define INTEL_DEVID(dev_priv)	(RUNTIME_INFO(dev_priv)->device_id)
 
+#define DISPLAY_VER(i915)	(INTEL_INFO(i915)->display.version)
+#define IS_DISPLAY_RANGE(i915, from, until) \
+	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
+#define IS_DISPLAY_VER(i915, v) (DISPLAY_VER(i915) == (v))
+
 #define REVID_FOREVER		0xff
 #define INTEL_REVID(dev_priv)	(to_pci_dev((dev_priv)->drm.dev)->revision)
 
@@ -1267,6 +1267,17 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
  */
 #define IS_REVID(p, since, until) \
 	(INTEL_REVID(p) >= (since) && INTEL_REVID(p) <= (until))
+
+#define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
+#define INTEL_GT_STEP(__i915) (RUNTIME_INFO(__i915)->step.gt_step)
+
+#define IS_DISPLAY_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
+	 INTEL_DISPLAY_STEP(__i915) >= (since) && INTEL_DISPLAY_STEP(__i915) <= (until))
+
+#define IS_GT_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_GT_STEP(__i915) == STEP_NONE), \
+	 INTEL_GT_STEP(__i915) >= (since) && INTEL_GT_STEP(__i915) <= (until))
 
 static __always_inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
@@ -1351,6 +1362,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_IRONLAKE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IRONLAKE)
 #define IS_IRONLAKE_M(dev_priv) \
 	(IS_PLATFORM(dev_priv, INTEL_IRONLAKE) && IS_MOBILE(dev_priv))
+#define IS_SANDYBRIDGE(dev_priv) IS_PLATFORM(dev_priv, INTEL_SANDYBRIDGE)
 #define IS_IVYBRIDGE(dev_priv)	IS_PLATFORM(dev_priv, INTEL_IVYBRIDGE)
 #define IS_IVB_GT1(dev_priv)	(IS_IVYBRIDGE(dev_priv) && \
 				 INTEL_INFO(dev_priv)->gt == 1)
@@ -1454,34 +1466,10 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_BXT_REVID(dev_priv, since, until) \
 	(IS_BROXTON(dev_priv) && IS_REVID(dev_priv, since, until))
 
-enum {
-	KBL_REVID_A0,
-	KBL_REVID_B0,
-	KBL_REVID_B1,
-	KBL_REVID_C0,
-	KBL_REVID_D0,
-	KBL_REVID_D1,
-	KBL_REVID_E0,
-	KBL_REVID_F0,
-	KBL_REVID_G0,
-};
-
-struct i915_rev_steppings {
-	u8 gt_stepping;
-	u8 disp_stepping;
-};
-
-/* Defined in intel_workarounds.c */
-extern const struct i915_rev_steppings kbl_revids[];
-
-#define IS_KBL_GT_REVID(dev_priv, since, until) \
-	(IS_KABYLAKE(dev_priv) && \
-	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping >= since && \
-	 kbl_revids[INTEL_REVID(dev_priv)].gt_stepping <= until)
-#define IS_KBL_DISP_REVID(dev_priv, since, until) \
-	(IS_KABYLAKE(dev_priv) && \
-	 kbl_revids[INTEL_REVID(dev_priv)].disp_stepping >= since && \
-	 kbl_revids[INTEL_REVID(dev_priv)].disp_stepping <= until)
+#define IS_KBL_GT_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_GT_STEP(dev_priv, since, until))
+#define IS_KBL_DISPLAY_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_DISPLAY_STEP(dev_priv, since, until))
 
 #define GLK_REVID_A0		0x0
 #define GLK_REVID_A1		0x1
@@ -1513,61 +1501,17 @@ extern const struct i915_rev_steppings kbl_revids[];
 #define IS_JSL_EHL_REVID(p, since, until) \
 	(IS_JSL_EHL(p) && IS_REVID(p, since, until))
 
-enum {
-	STEP_A0,
-	STEP_A2,
-	STEP_B0,
-	STEP_B1,
-	STEP_C0,
-	STEP_D0,
-};
+#define IS_TGL_DISPLAY_STEP(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define TGL_UY_REVID_STEP_TBL_SIZE	4
-#define TGL_REVID_STEP_TBL_SIZE		2
-#define ADLS_REVID_STEP_TBL_SIZE	13
+#define IS_TGL_UY_GT_STEP(__i915, since, until) \
+	((IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
+	 IS_GT_STEP(__i915, since, until))
 
-extern const struct i915_rev_steppings tgl_uy_revid_step_tbl[TGL_UY_REVID_STEP_TBL_SIZE];
-extern const struct i915_rev_steppings tgl_revid_step_tbl[TGL_REVID_STEP_TBL_SIZE];
-extern const struct i915_rev_steppings adls_revid_step_tbl[ADLS_REVID_STEP_TBL_SIZE];
-
-static inline const struct i915_rev_steppings *
-tgl_stepping_get(struct drm_i915_private *dev_priv)
-{
-	u8 revid = INTEL_REVID(dev_priv);
-	u8 size;
-	const struct i915_rev_steppings *revid_step_tbl;
-
-	if (IS_ALDERLAKE_S(dev_priv)) {
-		revid_step_tbl = adls_revid_step_tbl;
-		size = ARRAY_SIZE(adls_revid_step_tbl);
-	} else if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
-		revid_step_tbl = tgl_uy_revid_step_tbl;
-		size = ARRAY_SIZE(tgl_uy_revid_step_tbl);
-	} else {
-		revid_step_tbl = tgl_revid_step_tbl;
-		size = ARRAY_SIZE(tgl_revid_step_tbl);
-	}
-
-	revid = min_t(u8, revid, size - 1);
-
-	return &revid_step_tbl[revid];
-}
-
-#define IS_TGL_DISP_STEPPING(p, since, until) \
-	(IS_TIGERLAKE(p) && \
-	 tgl_stepping_get(p)->disp_stepping >= (since) && \
-	 tgl_stepping_get(p)->disp_stepping <= (until))
-
-#define IS_TGL_UY_GT_STEPPING(p, since, until) \
-	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_stepping_get(p)->gt_stepping >= (since) && \
-	 tgl_stepping_get(p)->gt_stepping <= (until))
-
-#define IS_TGL_GT_STEPPING(p, since, until) \
-	(IS_TIGERLAKE(p) && \
-	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_stepping_get(p)->gt_stepping >= (since) && \
-	 tgl_stepping_get(p)->gt_stepping <= (until))
+#define IS_TGL_GT_STEP(__i915, since, until) \
+	(IS_TIGERLAKE(__i915) && !(IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
+	 IS_GT_STEP(__i915, since, until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1
@@ -1582,21 +1526,13 @@ tgl_stepping_get(struct drm_i915_private *dev_priv)
 #define IS_DG1_REVID(p, since, until) \
 	(IS_DG1(p) && IS_REVID(p, since, until))
 
-#define ADLS_REVID_A0		0x0
-#define ADLS_REVID_A2		0x1
-#define ADLS_REVID_B0		0x4
-#define ADLS_REVID_G0		0x8
-#define ADLS_REVID_C0		0xC /*Same as H0 ADLS SOC stepping*/
+#define IS_ADLS_DISPLAY_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_ADLS_DISP_STEPPING(p, since, until) \
-	(IS_ALDERLAKE_S(p) && \
-	 tgl_stepping_get(p)->disp_stepping >= (since) && \
-	 tgl_stepping_get(p)->disp_stepping <= (until))
-
-#define IS_ADLS_GT_STEPPING(p, since, until) \
-	(IS_ALDERLAKE_S(p) && \
-	 tgl_stepping_get(p)->gt_stepping >= (since) && \
-	 tgl_stepping_get(p)->gt_stepping <= (until))
+#define IS_ADLS_GT_STEP(__i915, since, until) \
+	(IS_ALDERLAKE_S(__i915) && \
+	 IS_GT_STEP(__i915, since, until))
 
 #define IS_LP(dev_priv)	(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))

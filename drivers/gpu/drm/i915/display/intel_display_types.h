@@ -85,20 +85,50 @@ enum intel_broadcast_rgb {
 	INTEL_BROADCAST_RGB_LIMITED,
 };
 
+struct intel_fb_view {
+	/*
+	 * The remap information used in the remapped and rotated views to
+	 * create the DMA scatter-gather list for each FB color plane. This sg
+	 * list is created along with the view type (gtt.type) specific
+	 * i915_vma object and contains the list of FB object pages (reordered
+	 * in the rotated view) that are visible in the view.
+	 * In the normal view the FB object's backing store sg list is used
+	 * directly and hence the remap information here is not used.
+	 */
+	struct i915_ggtt_view gtt;
+
+	/*
+	 * The GTT view (gtt.type) specific information for each FB color
+	 * plane. In the normal GTT view all formats (up to 4 color planes),
+	 * in the rotated and remapped GTT view all no-CCS formats (up to 2
+	 * color planes) are supported.
+	 *
+	 * TODO: add support for CCS formats in the remapped GTT view.
+	 *
+	 * The view information shared by all FB color planes in the FB,
+	 * like dst x/y and src/dst width, is stored separately in
+	 * intel_plane_state.
+	 */
+	struct i915_color_plane_view {
+		u32 offset;
+		unsigned int x, y;
+		/*
+		 * Plane stride in:
+		 *   bytes for 0/180 degree rotation
+		 *   pixels for 90/270 degree rotation
+		 */
+		unsigned int stride;
+	} color_plane[4];
+};
+
 struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct intel_frontbuffer *frontbuffer;
-	struct intel_rotation_info rot_info;
 
-	/* for each plane in the normal GTT view */
-	struct {
-		unsigned int x, y;
-	} normal[4];
-	/* for each plane in the rotated GTT view for no-CCS formats */
-	struct {
-		unsigned int x, y;
-		unsigned int pitch; /* pixels */
-	} rotated[2];
+	/* Params to remap the FB pages and program the plane registers in each view. */
+	struct intel_fb_view normal_view;
+	struct intel_fb_view rotated_view;
+	struct intel_fb_view remapped_view;
 };
 
 struct intel_fbdev {
@@ -234,6 +264,9 @@ struct intel_encoder {
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
 	const struct drm_connector *audio_connector;
+
+	/* VBT information for this encoder (may be NULL for older platforms) */
+	const struct intel_bios_encoder_data *devdata;
 };
 
 struct intel_panel_bl_funcs {
@@ -383,6 +416,10 @@ struct intel_hdcp_shim {
 	/* Detects whether sink is HDCP2.2 capable */
 	int (*hdcp_2_2_capable)(struct intel_digital_port *dig_port,
 				bool *capable);
+
+	/* Detects whether a HDCP 1.4 sink connected in MST topology */
+	int (*streams_type1_capable)(struct intel_connector *connector,
+				     bool *capable);
 
 	/* Write HDCP2.2 messages */
 	int (*write_2_2_msg)(struct intel_digital_port *dig_port,
@@ -574,21 +611,11 @@ struct intel_plane_state {
 		enum drm_scaling_filter scaling_filter;
 	} hw;
 
-	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
 
-	struct {
-		u32 offset;
-		/*
-		 * Plane stride in:
-		 * bytes for 0/180 degree rotation
-		 * pixels for 90/270 degree rotation
-		 */
-		u32 stride;
-		int x, y;
-	} color_plane[4];
+	struct intel_fb_view view;
 
 	/* plane control register */
 	u32 ctl;
@@ -1767,6 +1794,18 @@ intel_attached_dig_port(struct intel_connector *connector)
 	return enc_to_dig_port(intel_attached_encoder(connector));
 }
 
+static inline struct intel_hdmi *
+enc_to_intel_hdmi(struct intel_encoder *encoder)
+{
+	return &enc_to_dig_port(encoder)->hdmi;
+}
+
+static inline struct intel_hdmi *
+intel_attached_hdmi(struct intel_connector *connector)
+{
+	return enc_to_intel_hdmi(intel_attached_encoder(connector));
+}
+
 static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)
 {
 	return &enc_to_dig_port(encoder)->dp;
@@ -1976,30 +2015,11 @@ static inline bool is_ccs_modifier(u64 modifier)
 	       modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
 }
 
-static inline bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
-{
-	if (!is_ccs_modifier(fb->modifier))
-		return false;
-
-	return plane >= fb->format->num_planes / 2;
-}
-
 static inline bool is_gen12_ccs_modifier(u64 modifier)
 {
 	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
 	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
 	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
-}
-
-static inline bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane)
-{
-	return is_gen12_ccs_modifier(fb->modifier) && is_ccs_plane(fb, plane);
-}
-
-static inline bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane)
-{
-	return fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC &&
-	       plane == 2;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

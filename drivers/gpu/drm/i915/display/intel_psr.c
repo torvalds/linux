@@ -118,7 +118,7 @@ static void psr_irq_control(struct intel_dp *intel_dp)
 	 * using the same bit definition: handle it as TRANSCODER_EDP to force
 	 * 0 shift in bit definition
 	 */
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		trans_shift = 0;
 		imr_reg = TRANS_PSR_IMR(intel_dp->psr.transcoder);
 	} else {
@@ -184,7 +184,7 @@ void intel_psr_irq_handler(struct intel_dp *intel_dp, u32 psr_iir)
 	enum transcoder trans_shift;
 	i915_reg_t imr_reg;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		trans_shift = 0;
 		imr_reg = TRANS_PSR_IMR(intel_dp->psr.transcoder);
 	} else {
@@ -205,7 +205,7 @@ void intel_psr_irq_handler(struct intel_dp *intel_dp, u32 psr_iir)
 			    "[transcoder %s] PSR exit completed\n",
 			    transcoder_name(cpu_transcoder));
 
-		if (INTEL_GEN(dev_priv) >= 9) {
+		if (DISPLAY_VER(dev_priv) >= 9) {
 			u32 val = intel_de_read(dev_priv,
 						PSR_EVENT(cpu_transcoder));
 			bool psr2_enabled = intel_dp->psr.psr2_enabled;
@@ -321,7 +321,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	intel_dp->psr.sink_sync_latency =
 		intel_dp_get_sink_sync_latency(intel_dp);
 
-	if (INTEL_GEN(dev_priv) >= 9 &&
+	if (DISPLAY_VER(dev_priv) >= 9 &&
 	    (intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)) {
 		bool y_req = intel_dp->psr_dpcd[1] &
 			     DP_PSR2_SU_Y_COORDINATE_REQUIRED;
@@ -402,7 +402,7 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 		if (intel_dp->psr.link_standby)
 			dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
 
-		if (INTEL_GEN(dev_priv) >= 8)
+		if (DISPLAY_VER(dev_priv) >= 8)
 			dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	}
 
@@ -416,7 +416,7 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = 0;
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		val |= EDP_PSR_TP4_TIME_0US;
 
 	if (dev_priv->params.psr_safest_params) {
@@ -487,7 +487,7 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 
 	val |= intel_psr1_get_tp_time(intel_dp);
 
-	if (INTEL_GEN(dev_priv) >= 8)
+	if (DISPLAY_VER(dev_priv) >= 8)
 		val |= EDP_PSR_CRC_ENABLE;
 
 	val |= (intel_de_read(dev_priv, EDP_PSR_CTL(intel_dp->psr.transcoder)) &
@@ -524,13 +524,13 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	val = psr_compute_idle_frames(intel_dp) << EDP_PSR2_IDLE_FRAME_SHIFT;
 
 	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 10)
 		val |= EDP_Y_COORDINATE_ENABLE;
 
 	val |= EDP_PSR2_FRAME_BEFORE_SU(intel_dp->psr.sink_sync_latency + 1);
 	val |= intel_psr2_get_tp_time(intel_dp);
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		/*
 		 * TODO: 7 lines of IO_BUFFER_WAKE and FAST_WAKE are default
 		 * values from BSpec. In order to setting an optimal power
@@ -541,14 +541,14 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= TGL_EDP_PSR2_BLOCK_COUNT_NUM_2;
 		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(7);
 		val |= TGL_EDP_PSR2_FAST_WAKE(7);
-	} else if (INTEL_GEN(dev_priv) >= 9) {
+	} else if (DISPLAY_VER(dev_priv) >= 9) {
 		val |= EDP_PSR2_IO_BUFFER_WAKE(7);
 		val |= EDP_PSR2_FAST_WAKE(7);
 	}
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		/* WA 1408330847 */
-		if (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0) ||
+		if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) ||
 		    IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0))
 			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
@@ -574,9 +574,9 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 static bool
 transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
 {
-	if (INTEL_GEN(dev_priv) < 9)
+	if (DISPLAY_VER(dev_priv) < 9)
 		return false;
-	else if (INTEL_GEN(dev_priv) >= 12)
+	else if (DISPLAY_VER(dev_priv) >= 12)
 		return trans == TRANSCODER_A;
 	else
 		return trans == TRANSCODER_EDP;
@@ -761,15 +761,15 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		psr_max_h = 5120;
 		psr_max_v = 3200;
 		max_bpp = 30;
-	} else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	} else if (DISPLAY_VER(dev_priv) >= 10) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
 		max_bpp = 24;
-	} else if (IS_GEN(dev_priv, 9)) {
+	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
 		psr_max_h = 3640;
 		psr_max_v = 2304;
 		max_bpp = 24;
@@ -909,8 +909,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_psr_setup_aux(intel_dp);
 
-	if (intel_dp->psr.psr2_enabled && (IS_GEN(dev_priv, 9) &&
-					   !IS_GEMINILAKE(dev_priv))) {
+	if (intel_dp->psr.psr2_enabled && IS_DISPLAY_VER(dev_priv, 9)) {
 		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
 		u32 chicken = intel_de_read(dev_priv, reg);
 
@@ -930,7 +929,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	       EDP_PSR_DEBUG_MASK_LPSP |
 	       EDP_PSR_DEBUG_MASK_MAX_SLEEP;
 
-	if (INTEL_GEN(dev_priv) < 11)
+	if (DISPLAY_VER(dev_priv) < 11)
 		mask |= EDP_PSR_DEBUG_MASK_DISP_REG_WRITE;
 
 	intel_de_write(dev_priv, EDP_PSR_DEBUG(intel_dp->psr.transcoder),
@@ -987,7 +986,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	 * first time that PSR HW tries to activate so lets keep PSR disabled
 	 * to avoid any rendering problems.
 	 */
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (DISPLAY_VER(dev_priv) >= 12) {
 		val = intel_de_read(dev_priv,
 				    TRANS_PSR_IIR(intel_dp->psr.transcoder));
 		val &= EDP_PSR_ERROR(0);
@@ -1110,7 +1109,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/* WA 1408330847 */
 	if (intel_dp->psr.psr2_sel_fetch_enabled &&
-	    (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0) ||
+	    (IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_A0) ||
 	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
@@ -1169,7 +1168,7 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 		 * and a better fix is found.
 		 */
 		intel_psr_exit(intel_dp);
-	else if (INTEL_GEN(dev_priv) >= 9)
+	else if (DISPLAY_VER(dev_priv) >= 9)
 		/*
 		 * Display WA #0884: skl+
 		 * This documented WA for bxt can be safely applied
@@ -1451,7 +1450,7 @@ void intel_psr_update(struct intel_dp *intel_dp,
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
-		else if (INTEL_GEN(dev_priv) < 9 && psr->enabled) {
+		else if (DISPLAY_VER(dev_priv) < 9 && psr->enabled) {
 			/*
 			 * Activate PSR again after a force exit when enabling
 			 * CRC in older gens
@@ -1855,7 +1854,7 @@ void intel_psr_init(struct intel_dp *intel_dp)
 	 * So lets keep it hardcoded to PORT_A for BDW, GEN9 and GEN11.
 	 * But GEN12 supports a instance of PSR registers per transcoder.
 	 */
-	if (INTEL_GEN(dev_priv) < 12 && dig_port->base.port != PORT_A) {
+	if (DISPLAY_VER(dev_priv) < 12 && dig_port->base.port != PORT_A) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR condition failed: Port not supported\n");
 		return;
@@ -1872,14 +1871,14 @@ void intel_psr_init(struct intel_dp *intel_dp)
 		dev_priv->hsw_psr_mmio_adjust = _SRD_CTL_EDP - _HSW_EDP_PSR_BASE;
 
 	if (dev_priv->params.enable_psr == -1)
-		if (INTEL_GEN(dev_priv) < 9 || !dev_priv->vbt.psr.enable)
+		if (DISPLAY_VER(dev_priv) < 9 || !dev_priv->vbt.psr.enable)
 			dev_priv->params.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		/* HSW and BDW require workarounds that we don't implement. */
 		intel_dp->psr.link_standby = false;
-	else if (INTEL_GEN(dev_priv) < 12)
+	else if (DISPLAY_VER(dev_priv) < 12)
 		/* For new platforms up to TGL let's respect VBT back again */
 		intel_dp->psr.link_standby = dev_priv->vbt.psr.full_link;
 
