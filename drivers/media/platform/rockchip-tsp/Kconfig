@@ -4,7 +4,7 @@ config ROCKCHIP_TSP
 	bool "Support for Rockchip TSP"
 	default n
 
-	---help---
+	help
 	  Say Y here if you want to use the Transport Stream Processing.
 	  This option will add tsp module code.
 

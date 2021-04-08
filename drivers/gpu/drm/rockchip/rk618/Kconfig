@@ -5,5 +5,5 @@ config DRM_ROCKCHIP_RK618
 	depends on DRM_ROCKCHIP
 	depends on MFD_RK618
 	select DRM_PANEL
-	---help---
+	help
 	  Rockchip rk618 display bridge chips driver.

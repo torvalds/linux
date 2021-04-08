@@ -3,14 +3,14 @@ config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
 	default "/vendor/etc/firmware/fw_bcmdhd.bin"
-	---help---
+	help
 	  Path to the firmware file.
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
 	string "NVRAM path"
 	default "/vendor/etc/firmware/nvram.txt"
-	---help---
+	help
 	  Path to the calibration file.
 
 config BCMDHD_WEXT
@@ -27,7 +27,7 @@ config BCMDHD_STATIC_IF
 choice
 	prompt "Enable Chip Interface"
 	depends on BCMDHD
-	---help---
+	help
 		Enable Chip Interface.
 config BCMDHD_SDIO
 		bool "SDIO bus interface support"
@@ -44,16 +44,16 @@ choice
 	depends on BCMDHD && BCMDHD_SDIO
 	prompt "Interrupt type"
 	default BCMDHD_OOB
-	---help---
+	help
 		Interrupt type
 config BCMDHD_OOB
 	depends on BCMDHD && BCMDHD_SDIO
 	bool "Out-of-Band Interrupt"
-	---help---
+	help
 		Interrupt from WL_HOST_WAKE.
 config BCMDHD_SDIO_IRQ
 	depends on BCMDHD && BCMDHD_SDIO
 	bool "In-Band Interrupt"
-	---help---
+	help
 	  Interrupt from SDIO DAT[1]
 endchoice

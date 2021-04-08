@@ -7,7 +7,7 @@ menu "Headset device support"
 
 config RK_HEADSET
 	tristate "Rockchips HeadSet support"
-	---help---
+	help
 		Rockchips HeadSet support:
 		    support hook interrupt mode.
 		    support hook adc mode.

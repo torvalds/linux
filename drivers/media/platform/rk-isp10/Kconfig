@@ -8,6 +8,6 @@ config VIDEO_RK_CIF_ISP10
 	select VIDEOBUF2_VMALLOC
 	default n
 
-	---help---
+	help
 	  Say Y here to enable selecting the
 	  rockchip cif isp10 camera sensors

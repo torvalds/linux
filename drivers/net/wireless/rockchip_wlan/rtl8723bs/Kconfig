@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 config RTL8723BS
 	tristate "Realtek 8723B SDIO or SPI WiFi"
-	---help---
+	help
 	  Help message of RTL8723BS

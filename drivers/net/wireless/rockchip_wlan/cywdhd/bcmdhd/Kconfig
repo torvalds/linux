@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config BCMDHD
 	tristate "Broadcom FullMAC wireless cards support"
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Broadcom FullMAC chipset.
 
@@ -29,14 +29,14 @@ config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
 	default "/system/vendor/firmware/fw_bcmdhd.bin"
-	---help---
+	help
 	  Path to the firmware file.
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
 	string "NVRAM path"
 	default "/system/etc/wifi/bcmdhd.cal"
-	---help---
+	help
 	  Path to the calibration file.
 
 config BCMDHD_WEXT
@@ -51,19 +51,19 @@ config DHD_USE_STATIC_BUF
 	bool "Enable memory preallocation"
 	depends on BCMDHD
 	default n
-	---help---
+	help
 	  Use memory preallocated in platform
 
 config DHD_USE_SCHED_SCAN
 	bool "Use CFG80211 sched scan"
 	depends on BCMDHD && CFG80211
 	default n
-	---help---
+	help
 	  Use CFG80211 sched scan
 
 config DHD_SET_RANDOM_MAC_VAL
 hex "Vendor OUI"
 depends on BCMDHD
 default 0x001A11
- ---help---
+	help
 Set vendor OUI for SoftAP

@@ -2,7 +2,7 @@ config SSV_SDIO_BRIDGE_HW
 	tristate
 	default m
 	depends on MMC
-	---help---
+	help
 	  This option enables the SDIO bus support in ssvcabrio.
 
 	  Say Y, if you have a ssv SDIO device.
@@ -10,7 +10,7 @@ config SSV_SDIO_BRIDGE_HW
 config SSV_SDIO_BRIDGE_DEBUGFS
 	bool "SSV ssvsdiobridge debugging"
 	depends on DEBUG_FS
-	---help---
+	help
 	  Say Y, if you need access to ssvsdiobridge's statistics.
 
 	  Also required for changing debug message flags at run time.

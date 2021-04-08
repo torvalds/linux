@@ -2,7 +2,7 @@ menu "SouthSV 6XXX WLAN support"
 config SSV6051
 	tristate "ssv6XXX Wireless driver"
 	depends on MAC80211 && MMC
-	---help---
+	help
 		Enable SouthSV 6XXX WLAN kernel driver.
 
 endmenu

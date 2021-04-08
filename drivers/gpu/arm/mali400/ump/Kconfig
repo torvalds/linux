@@ -2,7 +2,7 @@
 config UMP
 	tristate "UMP support"
 	depends on ARM
-	---help---
+	help
 	  This enables support for the UMP memory allocation and sharing API.
 
 	  To compile this driver as a module, choose M here: the module will be
@@ -12,6 +12,6 @@ config UMP_DEBUG
 	bool "Enable extra debug in UMP"
 	depends on UMP
 	default y
-	---help---
+	help
 	  This enabled extra debug checks and messages in UMP.
 

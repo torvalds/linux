@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config BCMDHD
 	tristate "Broadcom FullMAC wireless cards support"
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Broadcom FullMAC chipset.
 
@@ -9,14 +9,14 @@ config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
 	default "/system/etc/firmware/fw_bcmdhd.bin"
-	---help---
+	help
 	  Path to the firmware file.
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
 	string "NVRAM path"
 	default "/system/etc/firmware/nvram.txt"
-	---help---
+	help
 	  Path to the calibration file.
 
 config BCMDHD_WEXT
@@ -30,7 +30,7 @@ config BCMDHD_WEXT
 choice
 	prompt "Enable Chip Interface"
 	depends on BCMDHD
-	---help---
+	help
 		Enable Chip Interface.
 config BCMDHD_SDIO
 		bool "SDIO bus interface support"
@@ -46,17 +46,17 @@ endchoice
 choice
 	depends on BCMDHD && BCMDHD_SDIO
 	prompt "Interrupt type"
-	---help---
+	help
 		Interrupt type
 config BCMDHD_OOB
 	depends on BCMDHD && BCMDHD_SDIO
 	bool "Out-of-Band Interrupt"
 	default y
-	---help---
+	help
 		Interrupt from WL_HOST_WAKE.
 config BCMDHD_SDIO_IRQ
 	depends on BCMDHD && BCMDHD_SDIO
 	bool "In-Band Interrupt"
-	---help---
+	help
 	  Interrupt from SDIO DAT[1]
 endchoice

@@ -7,7 +7,7 @@ config AP6XXX
 	#depends on MMC && WLAN_80211
 	select CFG80211
 	select MAC80211
-	---help---
+	help
 	  This module adds support for wireless adapters based on
 	  Broadcom ap6xxx chipset.
 
@@ -21,7 +21,7 @@ config AP6XXX_WIFI6
 	#depends on MMC && WLAN_80211
 	select CFG80211
 	select MAC80211
-	---help---
+	help
 	  This driver supports wifi6 for ap6xxx chipset.
 
 	  This driver uses the kernel's wireless extensions subsystem.
@@ -40,17 +40,17 @@ config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
 	default "/vendor/etc/firmware/fw_bcmdhd.bin"
-	---help---
+	help
 	  Path to the firmware file.
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
 	string "NVRAM path"
 	default "/vendor/etc/firmware/nvram.txt"
-	---help---
+	help
 	  Path to the calibration file.a
 
 config BCMDHD_STATIC_IF
 	bool "Enable wlan1 support"
-	---help---
+	help
 	  default to add wlan1 interface
