@@ -17,7 +17,6 @@
 #include <linux/cpu.h>
 #include <linux/tracehook.h>
 
-#include "../kernel/sched/sched.h"
 #include "io-wq.h"
 
 #define WORKER_IDLE_TIMEOUT	(5 * HZ)
@@ -1064,14 +1063,8 @@ void io_wq_put_and_exit(struct io_wq *wq)
 
 static bool io_wq_worker_affinity(struct io_worker *worker, void *data)
 {
-	struct task_struct *task = worker->task;
-	struct rq_flags rf;
-	struct rq *rq;
+	set_cpus_allowed_ptr(worker->task, cpumask_of_node(worker->wqe->node));
 
-	rq = task_rq_lock(task, &rf);
-	do_set_cpus_allowed(task, cpumask_of_node(worker->wqe->node));
-	task->flags |= PF_NO_SETAFFINITY;
-	task_rq_unlock(rq, task, &rf);
 	return false;
 }
 
