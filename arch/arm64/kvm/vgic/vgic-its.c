@@ -2190,8 +2190,8 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 	return offset;
 }
 
-static int vgic_its_ite_cmp(void *priv, struct list_head *a,
-			    struct list_head *b)
+static int vgic_its_ite_cmp(void *priv, const struct list_head *a,
+			    const struct list_head *b)
 {
 	struct its_ite *itea = container_of(a, struct its_ite, ite_list);
 	struct its_ite *iteb = container_of(b, struct its_ite, ite_list);
@@ -2329,8 +2329,8 @@ static int vgic_its_restore_dte(struct vgic_its *its, u32 id,
 	return offset;
 }
 
-static int vgic_its_device_cmp(void *priv, struct list_head *a,
-			       struct list_head *b)
+static int vgic_its_device_cmp(void *priv, const struct list_head *a,
+			       const struct list_head *b)
 {
 	struct its_device *deva = container_of(a, struct its_device, dev_list);
 	struct its_device *devb = container_of(b, struct its_device, dev_list);
