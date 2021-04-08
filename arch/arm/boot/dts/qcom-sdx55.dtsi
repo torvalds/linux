@@ -294,7 +294,7 @@
 			status = "disabled";
 		};
 
-		qpic_nand: nand@1b30000 {
+		qpic_nand: nand-controller@1b30000 {
 			compatible = "qcom,sdx55-nand";
 			reg = <0x01b30000 0x10000>;
 			#address-cells = <1>;
