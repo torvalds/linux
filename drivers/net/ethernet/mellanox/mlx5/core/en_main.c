@@ -2572,8 +2572,8 @@ int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 
 	/* This function may be called on attach, before priv->rx_res is created. */
 	if (!netif_is_rxfh_configured(priv->netdev) && priv->rx_res)
-		mlx5e_build_default_indir_rqt(priv->rx_res->rss_params.indir.table,
-					      MLX5E_INDIR_RQT_SIZE, count);
+		mlx5e_rss_params_indir_init_uniform(&priv->rx_res->rss_params.indir,
+						    count);
 
 	return 0;
 }
@@ -4459,15 +4459,6 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_get_devlink_port    = mlx5e_get_devlink_port,
 };
 
-void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
-				   int num_channels)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		indirection_rqt[i] = i % num_channels;
-}
-
 static u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
 {
 	int i;
@@ -4488,8 +4479,7 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 	rss_params->hash.hfunc = ETH_RSS_HASH_TOP;
 	netdev_rss_key_fill(rss_params->hash.toeplitz_hash_key,
 			    sizeof(rss_params->hash.toeplitz_hash_key));
-	mlx5e_build_default_indir_rqt(rss_params->indir.table,
-				      MLX5E_INDIR_RQT_SIZE, num_channels);
+	mlx5e_rss_params_indir_init_uniform(&rss_params->indir, num_channels);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
 		rss_params->rx_hash_fields[tt] =
 			mlx5e_rss_get_default_tt_config(tt).rx_hash_fields;

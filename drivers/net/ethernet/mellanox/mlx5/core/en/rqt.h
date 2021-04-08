@@ -14,6 +14,9 @@ struct mlx5e_rss_params_indir {
 	u32 table[MLX5E_INDIR_RQT_SIZE];
 };
 
+void mlx5e_rss_params_indir_init_uniform(struct mlx5e_rss_params_indir *indir,
+					 unsigned int num_channels);
+
 struct mlx5e_rqt {
 	struct mlx5_core_dev *mdev;
 	u32 rqtn;

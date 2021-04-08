@@ -525,9 +525,9 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 	if (!indir)
 		return -ENOMEM;
 
-	mlx5e_build_default_indir_rqt(indir->table, MLX5E_INDIR_RQT_SIZE, hp->num_channels);
+	mlx5e_rss_params_indir_init_uniform(indir, hp->num_channels);
 	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, hp->num_channels,
-				    priv->rx_res->rss_params.hash.hfunc, indir);
+				   priv->rx_res->rss_params.hash.hfunc, indir);
 
 	kvfree(indir);
 	return err;
