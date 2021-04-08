@@ -3206,6 +3206,15 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		if (count > 250)
 			dev_err(hsotg->dev,
 				"Connection id status change timed out\n");
+
+		/*
+		 * Exit Partial Power Down without restoring registers.
+		 * No need to check the return value as registers
+		 * are not being restored.
+		 */
+		if (hsotg->in_ppd && hsotg->lx_state == DWC2_L2)
+			dwc2_exit_partial_power_down(hsotg, 0, false);
+
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
