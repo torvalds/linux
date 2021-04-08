@@ -404,9 +404,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
 		/* umc ce/ue error injection for a bad page is not allowed */
 		if ((data.head.block == AMDGPU_RAS_BLOCK__UMC) &&
 		    amdgpu_ras_check_bad_page(adev, data.inject.address)) {
-			dev_warn(adev->dev, "RAS WARN: 0x%llx has been marked "
-					"as bad before error injection!\n",
-					data.inject.address);
+			dev_warn(adev->dev, "RAS WARN: inject: 0x%llx has "
+				 "already been marked as bad!\n",
+				 data.inject.address);
 			break;
 		}
 
@@ -1301,6 +1301,12 @@ static struct dentry *amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *
 			   &con->bad_page_cnt_threshold);
 	debugfs_create_x32("ras_hw_enabled", 0444, dir, &adev->ras_hw_enabled);
 	debugfs_create_x32("ras_enabled", 0444, dir, &adev->ras_enabled);
+	debugfs_create_file("ras_eeprom_size", S_IRUGO, dir, adev,
+			    &amdgpu_ras_debugfs_eeprom_size_ops);
+	con->de_ras_eeprom_table = debugfs_create_file("ras_eeprom_table",
+						       S_IRUGO, dir, adev,
+						       &amdgpu_ras_debugfs_eeprom_table_ops);
+	amdgpu_ras_debugfs_set_ret_size(&con->eeprom_control);
 
 	/*
 	 * After one uncorrectable error happens, usually GPU recovery will

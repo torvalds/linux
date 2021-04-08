@@ -27,6 +27,8 @@
 #include <linux/bits.h>
 #include "atom.h"
 #include "amdgpu_eeprom.h"
+#include <linux/debugfs.h>
+#include <linux/uaccess.h>
 
 #define EEPROM_I2C_MADDR_VEGA20         0x0
 #define EEPROM_I2C_MADDR_ARCTURUS       0x40000
@@ -70,6 +72,13 @@
 #define RAS_OFFSET_TO_INDEX(_C, _O) (((_O) - \
 				      (_C)->ras_record_offset) / RAS_TABLE_RECORD_SIZE)
 
+/* Given a 0-based relative record index, 0, 1, 2, ..., etc., off
+ * of "fri", return the absolute record index off of the end of
+ * the table header.
+ */
+#define RAS_RI_TO_AI(_C, _I) (((_I) + (_C)->ras_fri) % \
+			      (_C)->ras_max_record_count)
+
 #define RAS_NUM_RECS(_tbl_hdr)  (((_tbl_hdr)->tbl_size - \
 				  RAS_TABLE_HEADER_SIZE) / RAS_TABLE_RECORD_SIZE)
 
@@ -77,13 +86,10 @@
 
 static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 {
-	if ((adev->asic_type == CHIP_VEGA20) ||
-	    (adev->asic_type == CHIP_ARCTURUS) ||
-	    (adev->asic_type == CHIP_SIENNA_CICHLID) ||
-	    (adev->asic_type == CHIP_ALDEBARAN))
-		return true;
-
-	return false;
+	return  adev->asic_type == CHIP_VEGA20 ||
+		adev->asic_type == CHIP_ARCTURUS ||
+		adev->asic_type == CHIP_SIENNA_CICHLID ||
+		adev->asic_type == CHIP_ALDEBARAN;
 }
 
 static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
@@ -257,6 +263,8 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 
 	control->ras_num_recs = 0;
 	control->ras_fri = 0;
+
+	amdgpu_ras_debugfs_set_ret_size(control);
 
 	mutex_unlock(&control->ras_tbl_mutex);
 
@@ -591,6 +599,8 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 	res = amdgpu_ras_eeprom_append_table(control, record, num);
 	if (!res)
 		res = amdgpu_ras_eeprom_update_header(control);
+	if (!res)
+		amdgpu_ras_debugfs_set_ret_size(control);
 
 	mutex_unlock(&control->ras_tbl_mutex);
 	return res;
@@ -733,6 +743,223 @@ inline uint32_t amdgpu_ras_eeprom_max_record_count(void)
 {
 	return RAS_MAX_RECORD_COUNT;
 }
+
+static ssize_t
+amdgpu_ras_debugfs_eeprom_size_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	struct amdgpu_ras_eeprom_control *control = ras ? &ras->eeprom_control : NULL;
+	u8 data[50];
+	int res;
+
+	if (!size)
+		return size;
+
+	if (!ras || !control) {
+		res = snprintf(data, sizeof(data), "Not supported\n");
+	} else {
+		res = snprintf(data, sizeof(data), "%d bytes or %d records\n",
+			       RAS_TBL_SIZE_BYTES, control->ras_max_record_count);
+	}
+
+	if (*pos >= res)
+		return 0;
+
+	res -= *pos;
+	res = min_t(size_t, res, size);
+
+	if (copy_to_user(buf, &data[*pos], res))
+		return -EINVAL;
+
+	*pos += res;
+
+	return res;
+}
+
+const struct file_operations amdgpu_ras_debugfs_eeprom_size_ops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_ras_debugfs_eeprom_size_read,
+	.write = NULL,
+	.llseek = default_llseek,
+};
+
+static const char *tbl_hdr_str = " Signature    Version  FirstOffs       Size   Checksum\n";
+static const char *tbl_hdr_fmt = "0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n";
+#define tbl_hdr_fmt_size (5 * (2+8) + 4 + 1)
+static const char *rec_hdr_str = "Index  Offset ErrType Bank/CU          TimeStamp      Offs/Addr MemChl MCUMCID    RetiredPage\n";
+static const char *rec_hdr_fmt = "%5d 0x%05X %7s    0x%02X 0x%016llX 0x%012llX   0x%02X    0x%02X 0x%012llX\n";
+#define rec_hdr_fmt_size (5 + 1 + 7 + 1 + 7 + 1 + 7 + 1 + 18 + 1 + 14 + 1 + 6 + 1 + 7 + 1 + 14 + 1)
+
+static const char *record_err_type_str[AMDGPU_RAS_EEPROM_ERR_COUNT] = {
+	"ignore",
+	"re",
+	"ue",
+};
+
+static loff_t amdgpu_ras_debugfs_table_size(struct amdgpu_ras_eeprom_control *control)
+{
+	return strlen(tbl_hdr_str) + tbl_hdr_fmt_size +
+		strlen(rec_hdr_str) + rec_hdr_fmt_size * control->ras_num_recs;
+}
+
+void amdgpu_ras_debugfs_set_ret_size(struct amdgpu_ras_eeprom_control *control)
+{
+	struct amdgpu_ras *ras = container_of(control, struct amdgpu_ras,
+					      eeprom_control);
+	struct dentry *de = ras->de_ras_eeprom_table;
+
+	if (de)
+		d_inode(de)->i_size = amdgpu_ras_debugfs_table_size(control);
+}
+
+static ssize_t amdgpu_ras_debugfs_table_read(struct file *f, char __user *buf,
+					     size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	struct amdgpu_ras_eeprom_control *control = &ras->eeprom_control;
+	const size_t orig_size = size;
+	int res = -EINVAL;
+	size_t data_len;
+
+	mutex_lock(&control->ras_tbl_mutex);
+
+	/* We want *pos - data_len > 0, which means there's
+	 * bytes to be printed from data.
+	 */
+	data_len = strlen(tbl_hdr_str);
+	if (*pos < data_len) {
+		data_len -= *pos;
+		data_len = min_t(size_t, data_len, size);
+		if (copy_to_user(buf, &tbl_hdr_str[*pos], data_len))
+			goto Out;
+		buf += data_len;
+		size -= data_len;
+		*pos += data_len;
+	}
+
+	data_len = strlen(tbl_hdr_str) + tbl_hdr_fmt_size;
+	if (*pos < data_len && size > 0) {
+		u8 data[tbl_hdr_fmt_size + 1];
+		loff_t lpos;
+
+		snprintf(data, sizeof(data), tbl_hdr_fmt,
+			 control->tbl_hdr.header,
+			 control->tbl_hdr.version,
+			 control->tbl_hdr.first_rec_offset,
+			 control->tbl_hdr.tbl_size,
+			 control->tbl_hdr.checksum);
+
+		data_len -= *pos;
+		data_len = min_t(size_t, data_len, size);
+		lpos = *pos - strlen(tbl_hdr_str);
+		if (copy_to_user(buf, &data[lpos], data_len))
+			goto Out;
+		buf += data_len;
+		size -= data_len;
+		*pos += data_len;
+	}
+
+	data_len = strlen(tbl_hdr_str) + tbl_hdr_fmt_size + strlen(rec_hdr_str);
+	if (*pos < data_len && size > 0) {
+		loff_t lpos;
+
+		data_len -= *pos;
+		data_len = min_t(size_t, data_len, size);
+		lpos = *pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size;
+		if (copy_to_user(buf, &rec_hdr_str[lpos], data_len))
+			goto Out;
+		buf += data_len;
+		size -= data_len;
+		*pos += data_len;
+	}
+
+	data_len = amdgpu_ras_debugfs_table_size(control);
+	if (*pos < data_len && size > 0) {
+		u8 dare[RAS_TABLE_RECORD_SIZE];
+		u8 data[rec_hdr_fmt_size + 1];
+		/* Find the starting record index
+		 */
+		int s = (*pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size -
+			 strlen(rec_hdr_str)) / rec_hdr_fmt_size;
+		int r = (*pos - strlen(tbl_hdr_str) - tbl_hdr_fmt_size -
+			 strlen(rec_hdr_str)) % rec_hdr_fmt_size;
+		struct eeprom_table_record record;
+
+		for ( ; size > 0 && s < control->ras_num_recs; s++) {
+			u32 ai = RAS_RI_TO_AI(control, s);
+			/* Read a single record
+			 */
+			res = __amdgpu_ras_eeprom_read(control, dare, ai, 1);
+			if (res)
+				goto Out;
+			__decode_table_record_from_buf(control, &record, dare);
+			snprintf(data, sizeof(data), rec_hdr_fmt,
+				 s,
+				 RAS_INDEX_TO_OFFSET(control, ai),
+				 record_err_type_str[record.err_type],
+				 record.bank,
+				 record.ts,
+				 record.offset,
+				 record.mem_channel,
+				 record.mcumc_id,
+				 record.retired_page);
+
+			data_len = min_t(size_t, rec_hdr_fmt_size - r, size);
+			if (copy_to_user(buf, &data[r], data_len))
+				return -EINVAL;
+			buf += data_len;
+			size -= data_len;
+			*pos += data_len;
+			r = 0;
+		}
+	}
+	res = 0;
+Out:
+	mutex_unlock(&control->ras_tbl_mutex);
+	return res < 0 ? res : orig_size - size;
+}
+
+static ssize_t
+amdgpu_ras_debugfs_eeprom_table_read(struct file *f, char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	struct amdgpu_ras_eeprom_control *control = ras ? &ras->eeprom_control : NULL;
+	u8 data[81];
+	int res;
+
+	if (!size)
+		return size;
+
+	if (!ras || !control) {
+		res = snprintf(data, sizeof(data), "Not supported\n");
+		if (*pos >= res)
+			return 0;
+
+		res -= *pos;
+		res = min_t(size_t, res, size);
+
+		if (copy_to_user(buf, &data[*pos], res))
+			return -EINVAL;
+
+		*pos += res;
+
+		return res;
+	} else {
+		return amdgpu_ras_debugfs_table_read(f, buf, size, pos);
+	}
+}
+
+const struct file_operations amdgpu_ras_debugfs_eeprom_table_ops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_ras_debugfs_eeprom_table_read,
+	.write = NULL,
+	.llseek = default_llseek,
+};
 
 /**
  * __verify_ras_table_checksum -- verify the RAS EEPROM table checksum
