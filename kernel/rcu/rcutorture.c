@@ -919,6 +919,7 @@ static void rcu_torture_enable_rt_throttle(void)
 static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start, unsigned long end)
 {
 	static int dbg_done;
+	bool gp_done;
 
 	if (end - start > test_boost_duration * HZ - HZ / 2) {
 		// Recheck after checking time to avoid false positives.
@@ -931,6 +932,11 @@ static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start
 			pr_info("Boost inversion thread ->rt_priority %u gp_state %lu jiffies %lu\n",
 				current->rt_priority, gp_state, end - start);
 			cur_ops->gp_kthread_dbg();
+			// Recheck after print to flag grace period ending during splat.
+			gp_done = cur_ops->poll_gp_state(gp_state);
+			pr_info("Boost inversion: GP %lu %s.\n", gp_state,
+				gp_done ? "ended already" : "still pending");
+
 		}
 
 		return true; // failed
