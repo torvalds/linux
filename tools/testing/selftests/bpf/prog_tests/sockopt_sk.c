@@ -200,6 +200,8 @@ static void run_test(int cgroup_fd)
 	if (!ASSERT_OK_PTR(skel, "skel_load"))
 		goto cleanup;
 
+	skel->bss->page_size = getpagesize();
+
 	skel->links._setsockopt =
 		bpf_program__attach_cgroup(skel->progs._setsockopt, cgroup_fd);
 	if (!ASSERT_OK_PTR(skel->links._setsockopt, "setsockopt_link"))
