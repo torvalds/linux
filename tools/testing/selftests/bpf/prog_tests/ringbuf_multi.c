@@ -41,12 +41,29 @@ static int process_sample(void *ctx, void *data, size_t len)
 void test_ringbuf_multi(void)
 {
 	struct test_ringbuf_multi *skel;
-	struct ring_buffer *ringbuf;
+	struct ring_buffer *ringbuf = NULL;
 	int err;
+	int page_size = getpagesize();
 
-	skel = test_ringbuf_multi__open_and_load();
-	if (CHECK(!skel, "skel_open_load", "skeleton open&load failed\n"))
+	skel = test_ringbuf_multi__open();
+	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
 		return;
+
+	err = bpf_map__set_max_entries(skel->maps.ringbuf1, page_size);
+	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
+		goto cleanup;
+
+	err = bpf_map__set_max_entries(skel->maps.ringbuf2, page_size);
+	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
+		goto cleanup;
+
+	err = bpf_map__set_max_entries(bpf_map__inner_map(skel->maps.ringbuf_arr), page_size);
+	if (CHECK(err != 0, "bpf_map__set_max_entries", "bpf_map__set_max_entries failed\n"))
+		goto cleanup;
+
+	err = test_ringbuf_multi__load(skel);
+	if (CHECK(err != 0, "skel_load", "skeleton load failed\n"))
+		goto cleanup;
 
 	/* only trigger BPF program for current process */
 	skel->bss->pid = getpid();
