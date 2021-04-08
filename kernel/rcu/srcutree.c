@@ -1384,6 +1384,11 @@ void __init srcu_init(void)
 {
 	struct srcu_struct *ssp;
 
+	/*
+	 * Once that is set, call_srcu() can follow the normal path and
+	 * queue delayed work. This must follow RCU workqueues creation
+	 * and timers initialization.
+	 */
 	srcu_init_done = true;
 	while (!list_empty(&srcu_boot_list)) {
 		ssp = list_first_entry(&srcu_boot_list, struct srcu_struct,
