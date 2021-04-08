@@ -639,6 +639,8 @@ static int journal_reclaim_wait_done(struct bch_fs *c)
 	if (ret)
 		return ret;
 
+	journal_reclaim_kick(&c->journal);
+
 	if (mutex_trylock(&c->journal.reclaim_lock)) {
 		ret = bch2_journal_reclaim(&c->journal);
 		mutex_unlock(&c->journal.reclaim_lock);
