@@ -379,6 +379,15 @@ int dm_tm_ref(struct dm_transaction_manager *tm, dm_block_t b,
 	return dm_sm_get_count(tm->sm, b, result);
 }
 
+int dm_tm_block_is_shared(struct dm_transaction_manager *tm, dm_block_t b,
+			  int *result)
+{
+	if (tm->is_clone)
+		return -EWOULDBLOCK;
+
+	return dm_sm_count_is_more_than_one(tm->sm, b, result);
+}
+
 struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm)
 {
 	return tm->bm;
