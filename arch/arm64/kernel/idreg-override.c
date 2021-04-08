@@ -25,6 +25,7 @@ struct ftr_set_desc {
 	struct {
 		char			name[FTR_DESC_FIELD_LEN];
 		u8			shift;
+		bool			(*filter)(u64 val);
 	} 				fields[];
 };
 
@@ -123,6 +124,18 @@ static void __init match_options(const char *cmdline)
 
 			if (find_field(cmdline, regs[i], f, &v))
 				continue;
+
+			/*
+			 * If an override gets filtered out, advertise
+			 * it by setting the value to 0xf, but
+			 * clearing the mask... Yes, this is fragile.
+			 */
+			if (regs[i]->fields[f].filter &&
+			    !regs[i]->fields[f].filter(v)) {
+				regs[i]->override->val  |= mask;
+				regs[i]->override->mask &= ~mask;
+				continue;
+			}
 
 			regs[i]->override->val  &= ~mask;
 			regs[i]->override->val  |= (v << shift) & mask;
