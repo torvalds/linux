@@ -634,9 +634,9 @@ struct iio_trigger *devm_iio_trigger_alloc(struct device *parent, const char *fm
 }
 EXPORT_SYMBOL_GPL(devm_iio_trigger_alloc);
 
-static void devm_iio_trigger_unreg(struct device *dev, void *res)
+static void devm_iio_trigger_unreg(void *trigger_info)
 {
-	iio_trigger_unregister(*(struct iio_trigger **)res);
+	iio_trigger_unregister(trigger_info);
 }
 
 /**
@@ -657,21 +657,13 @@ int __devm_iio_trigger_register(struct device *dev,
 				struct iio_trigger *trig_info,
 				struct module *this_mod)
 {
-	struct iio_trigger **ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_iio_trigger_unreg, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	*ptr = trig_info;
 	ret = __iio_trigger_register(trig_info, this_mod);
-	if (!ret)
-		devres_add(dev, ptr);
-	else
-		devres_free(ptr);
+	if (ret)
+		return ret;
 
-	return ret;
+	return devm_add_action_or_reset(dev, devm_iio_trigger_unreg, trig_info);
 }
 EXPORT_SYMBOL_GPL(__devm_iio_trigger_register);
 
