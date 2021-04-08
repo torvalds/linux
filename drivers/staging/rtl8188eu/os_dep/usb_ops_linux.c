@@ -675,13 +675,9 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, struct xmit_buf 
 			 ("%s(): usb_submit_urb, status =%x\n",
 			  __func__, status));
 
-		switch (status) {
-		case -ENODEV:
+		if (status == -ENODEV)
 			padapter->bDriverStopped = true;
-			break;
-		default:
-			break;
-		}
+
 		goto exit;
 	}
 
