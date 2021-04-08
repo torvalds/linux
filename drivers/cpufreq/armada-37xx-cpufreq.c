@@ -400,7 +400,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	struct armada_37xx_dvfs *dvfs;
 	struct platform_device *pdev;
 	unsigned long freq;
-	unsigned int cur_frequency, base_frequency;
+	unsigned int base_frequency;
 	struct regmap *nb_clk_base, *nb_pm_base, *avs_base;
 	struct device *cpu_dev;
 	int load_lvl, ret;
@@ -457,14 +457,6 @@ static int __init armada37xx_cpufreq_driver_init(void)
 
 	if (!base_frequency) {
 		dev_err(cpu_dev, "Failed to get parent clock rate for CPU\n");
-		clk_put(clk);
-		return -EINVAL;
-	}
-
-	/* Get nominal (current) CPU frequency */
-	cur_frequency = clk_get_rate(clk);
-	if (!cur_frequency) {
-		dev_err(cpu_dev, "Failed to get clock rate for CPU\n");
 		clk_put(clk);
 		return -EINVAL;
 	}
