@@ -480,10 +480,9 @@ void LPS_Leave(struct adapter *padapter)
 void LeaveAllPowerSaveMode(struct adapter *Adapter)
 {
 	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
-	u8 enqueue = 0;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
-		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, enqueue);
+		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, 0);
 }
 
 void rtw_init_pwrctrl_priv(struct adapter *padapter)
