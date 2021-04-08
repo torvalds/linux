@@ -1532,7 +1532,7 @@ static const struct snd_soc_component_driver soc_codec_driver_cx2072x = {
 /*
  * DAI ops
  */
-static struct snd_soc_dai_ops cx2072x_dai_ops = {
+static const struct snd_soc_dai_ops cx2072x_dai_ops = {
 	.set_sysclk = cx2072x_set_dai_sysclk,
 	.set_fmt = cx2072x_set_dai_fmt,
 	.hw_params = cx2072x_hw_params,
