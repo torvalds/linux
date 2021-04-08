@@ -1576,11 +1576,13 @@ R:	Jernej Skrabec <jernej.skrabec@siol.net>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux.git
+L:	linux-sunxi@lists.linux.dev
 F:	arch/arm/mach-sunxi/
 F:	arch/arm64/boot/dts/allwinner/
 F:	drivers/clk/sunxi-ng/
 F:	drivers/pinctrl/sunxi/
 F:	drivers/soc/sunxi/
+N:	allwinner
 N:	sun[x456789]i
 N:	sun50i
 
