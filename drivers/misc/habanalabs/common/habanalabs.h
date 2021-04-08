@@ -819,37 +819,58 @@ enum div_select_defs {
 };
 
 /**
- * struct fw_load_mgr - manager FW loading process
+ * struct static_fw_load_mgr - static FW load manager
  * @preboot_version_max_off: max offset to preboot version
  * @boot_fit_version_max_off: max offset to boot fit version
- * @kmd_msg_to_cpu_reg: register address for KDM->CPU messages
- * @cpu_cmd_status_to_host_reg: register address for CPU command status response
  * @cpu_boot_status_reg: boot status register
  * @cpu_boot_dev_status_reg: boot device status register
  * @boot_err0_reg: boot error register
  * @preboot_version_offset_reg: SRAM offset to preboot version register
  * @boot_fit_version_offset_reg: SRAM offset to boot fit version register
  * @sram_offset_mask: mask for getting offset into the SRAM
- * @cpu_timeout: CPU response timeout in usec
- * @boot_fit_timeout: Boot fit load timeout in usec
- * @skip_bmc: should BMC be skipped
- * @sram_bar_id: SRAM bar ID
  */
-struct fw_load_mgr {
+struct static_fw_load_mgr {
 	u64 preboot_version_max_off;
 	u64 boot_fit_version_max_off;
-	u32 kmd_msg_to_cpu_reg;
-	u32 cpu_cmd_status_to_host_reg;
 	u32 cpu_boot_status_reg;
 	u32 cpu_boot_dev_status_reg;
 	u32 boot_err0_reg;
 	u32 preboot_version_offset_reg;
 	u32 boot_fit_version_offset_reg;
 	u32 sram_offset_mask;
+};
+
+/**
+ * struct dynamic_fw_load_mgr - dynamic FW load manager
+ * TODO: currently empty, will be filled once boot stages implementation will
+ *       progress.
+ */
+struct dynamic_fw_load_mgr {
+};
+
+/**
+ * struct fw_load_mgr - manager FW loading process
+ * @kmd_msg_to_cpu_reg: register address for KDM->CPU messages
+ * @cpu_cmd_status_to_host_reg: register address for CPU command status response
+ * @cpu_timeout: CPU response timeout in usec
+ * @boot_fit_timeout: Boot fit load timeout in usec
+ * @skip_bmc: should BMC be skipped
+ * @sram_bar_id: SRAM bar ID
+ * @static_loader: specific structure for static load
+ * @dynamic_loader: specific structure for dynamic load
+ */
+struct fw_load_mgr {
+	u32 kmd_msg_to_cpu_reg;
+	u32 cpu_cmd_status_to_host_reg;
 	u32 cpu_timeout;
 	u32 boot_fit_timeout;
 	u8 skip_bmc;
 	u8 sram_bar_id;
+
+	union {
+		struct static_fw_load_mgr static_loader;
+		struct dynamic_fw_load_mgr dynamic_loader;
+	};
 };
 
 /**
