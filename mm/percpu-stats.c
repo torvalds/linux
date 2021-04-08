@@ -219,13 +219,15 @@ alloc_buffer:
 		for (slot = 0; slot < pcpu_nr_slots; slot++) {
 			list_for_each_entry(chunk, &pcpu_chunk_list(type)[slot],
 					    list) {
-				if (chunk == pcpu_first_chunk) {
+				if (chunk == pcpu_first_chunk)
 					seq_puts(m, "Chunk: <- First Chunk\n");
-					chunk_map_stats(m, chunk, buffer);
-				} else {
+				else if (slot == pcpu_to_depopulate_slot)
+					seq_puts(m, "Chunk (to_depopulate)\n");
+				else if (slot == pcpu_sidelined_slot)
+					seq_puts(m, "Chunk (sidelined):\n");
+				else
 					seq_puts(m, "Chunk:\n");
-					chunk_map_stats(m, chunk, buffer);
-				}
+				chunk_map_stats(m, chunk, buffer);
 			}
 		}
 	}
