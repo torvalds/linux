@@ -23,7 +23,7 @@ which are described in the following files:
 - Documentation/devicetree/bindings/input/cpcap-pwrbutton.txt
 - Documentation/devicetree/bindings/rtc/cpcap-rtc.txt
 - Documentation/devicetree/bindings/leds/leds-cpcap.txt
-- Documentation/devicetree/bindings/iio/adc/cpcap-adc.txt
+- Documentation/devicetree/bindings/iio/adc/motorola,cpcap-adc.yaml
 
 The only exception is the audio codec. Instead of a compatible value its
 node must be named "audio-codec".
