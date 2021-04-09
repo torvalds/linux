@@ -491,11 +491,11 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		struct amdgpu_vm *vm, bool is_aql,
 		struct kfd_mem_attachment **p_attachment)
 {
-	int ret;
-	struct kfd_mem_attachment *attachment;
-	struct amdgpu_bo *bo = mem->bo;
+	unsigned long bo_size = mem->bo->tbo.base.size;
 	uint64_t va = mem->va;
-	unsigned long bo_size = bo->tbo.base.size;
+	struct kfd_mem_attachment *attachment;
+	struct amdgpu_bo *bo;
+	int ret;
 
 	if (!va) {
 		pr_err("Invalid VA when adding BO to VM\n");
@@ -511,6 +511,14 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 
 	pr_debug("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
 			va + bo_size, vm);
+
+	/* FIXME: For now all attachments use the same BO. This is incorrect
+	 * because one BO can only have one DMA mapping for one GPU. We need
+	 * one BO per GPU, e.g. a DMABuf import with dynamic attachment. This
+	 * will be addressed one BO-type at a time in subsequent patches.
+	 */
+	bo = mem->bo;
+	drm_gem_object_get(&bo->tbo.base);
 
 	/* Add BO to VM internal data structures*/
 	attachment->bo_va = amdgpu_vm_bo_add(adev, vm, bo);
@@ -531,7 +539,7 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 
 	/* Allocate validate page tables if needed */
 	ret = vm_validate_pt_pd_bos(vm);
-	if (ret) {
+	if (unlikely(ret)) {
 		pr_err("validate_pt_pd_bos() failed\n");
 		goto err_alloc_pts;
 	}
@@ -542,15 +550,19 @@ err_alloc_pts:
 	amdgpu_vm_bo_rmv(adev, attachment->bo_va);
 	list_del(&attachment->list);
 err_vmadd:
+	drm_gem_object_put(&bo->tbo.base);
 	kfree(attachment);
 	return ret;
 }
 
 static void kfd_mem_detach(struct kfd_mem_attachment *attachment)
 {
+	struct amdgpu_bo *bo = attachment->bo_va->base.bo;
+
 	pr_debug("\t remove VA 0x%llx in entry %p\n",
 			attachment->va, attachment);
 	amdgpu_vm_bo_rmv(attachment->adev, attachment->bo_va);
+	drm_gem_object_put(&bo->tbo.base);
 	list_del(&attachment->list);
 	kfree(attachment);
 }
