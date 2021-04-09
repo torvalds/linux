@@ -282,8 +282,6 @@ extern void walt_update_group_thresholds(void);
 extern void sched_window_nr_ticks_change(void);
 extern unsigned long sched_user_hint_reset_time;
 extern struct irq_work walt_migration_irq_work;
-extern struct task_group *task_group_topapp;
-extern struct task_group *task_group_foreground;
 
 #define LIB_PATH_LENGTH 512
 extern unsigned int cpuinfo_max_freq_cached;

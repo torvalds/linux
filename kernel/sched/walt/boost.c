@@ -18,9 +18,6 @@
 static enum sched_boost_policy boost_policy_dt = SCHED_BOOST_NONE;
 static DEFINE_MUTEX(boost_mutex);
 
-struct task_group *task_group_topapp;
-struct task_group *task_group_foreground;
-
 void walt_init_tg(struct task_group *tg)
 {
 	struct walt_task_group *wtg;

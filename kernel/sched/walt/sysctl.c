@@ -39,7 +39,6 @@ unsigned int sysctl_sched_wake_up_idle[2];
 unsigned int sysctl_input_boost_ms;
 unsigned int sysctl_input_boost_freq[8];
 unsigned int sysctl_sched_boost_on_input;
-unsigned int sysctl_sched_init_stage;
 
 /* sysctl nodes accesed by other files */
 unsigned int __read_mostly sysctl_sched_coloc_downmigrate_ns;
@@ -60,53 +59,6 @@ unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
-
-static void init_tg_pointers(void)
-{
-	struct cgroup_subsys_state *css = &root_task_group.css;
-	struct cgroup_subsys_state *top_css = css;
-
-	/* ptrs are already initialized */
-	if (task_group_topapp)
-		return;
-
-	css_for_each_child(css, top_css) {
-		if (!strcmp(css->cgroup->kn->name, "top-app")) {
-			task_group_topapp = css_tg(css);
-			walt_init_topapp_tg(task_group_topapp);
-		} else if (!strcmp(css->cgroup->kn->name, "foreground")) {
-			task_group_foreground = css_tg(css);
-			walt_init_foreground_tg(task_group_foreground);
-		} else {
-			walt_init_tg(css_tg(css));
-		}
-	}
-}
-
-static int walt_init_stage_handler(struct ctl_table *table,
-				int write, void __user *buffer, size_t *lenp,
-				loff_t *ppos)
-{
-	int ret;
-	static DEFINE_MUTEX(mutex);
-	int old_value = sysctl_sched_init_stage;
-
-	mutex_lock(&mutex);
-
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-
-	if (ret || !write)
-		goto unlock;
-
-	if (sysctl_sched_init_stage == 1 &&
-			old_value != sysctl_sched_init_stage) {
-		init_tg_pointers();
-	}
-
-unlock:
-	mutex_unlock(&mutex);
-	return ret;
-}
 
 static int walt_proc_group_thresholds_handler(struct ctl_table *table, int write,
 				       void __user *buffer, size_t *lenp,
@@ -493,13 +445,6 @@ struct ctl_table input_boost_sysctls[] = {
 };
 
 struct ctl_table walt_table[] = {
-	{
-		.procname	= "sched_init_stage",
-		.data		= &sysctl_sched_init_stage,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= walt_init_stage_handler,
-	},
 	{
 		.procname	= "sched_user_hint",
 		.data		= &sysctl_sched_user_hint,

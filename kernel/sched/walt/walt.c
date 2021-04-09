@@ -2984,6 +2984,24 @@ static int sync_cgroup_colocation(struct task_struct *p, bool insert)
 	return __sched_set_group_id(p, grp_id);
 }
 
+static void walt_update_tg_pointer(struct cgroup_subsys_state *css)
+{
+	if (!strcmp(css->cgroup->kn->name, "top-app"))
+		walt_init_topapp_tg(css_tg(css));
+	else if (!strcmp(css->cgroup->kn->name, "foreground"))
+		walt_init_foreground_tg(css_tg(css));
+	else
+		walt_init_tg(css_tg(css));
+}
+
+static void android_rvh_cpu_cgroup_online(void *unused, struct cgroup_subsys_state *css)
+{
+	if (unlikely(walt_disabled))
+		return;
+
+	walt_update_tg_pointer(css);
+}
+
 static void android_rvh_cpu_cgroup_attach(void *unused,
 						struct cgroup_taskset *tset)
 {
@@ -2992,6 +3010,9 @@ static void android_rvh_cpu_cgroup_attach(void *unused,
 	bool colocate;
 	struct task_group *tg;
 	struct walt_task_group *wtg;
+
+	if (unlikely(walt_disabled))
+		return;
 
 	cgroup_taskset_first(tset, &css);
 	if (!css)
@@ -3981,6 +4002,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);
 	register_trace_android_rvh_resume_cpus(android_rvh_resume_cpus, NULL);
 	register_trace_android_rvh_cpu_cgroup_attach(android_rvh_cpu_cgroup_attach, NULL);
+	register_trace_android_rvh_cpu_cgroup_online(android_rvh_cpu_cgroup_online, NULL);
 	register_trace_android_rvh_update_cpus_allowed(android_rvh_update_cpus_allowed, NULL);
 	register_trace_android_rvh_sched_fork_init(android_rvh_sched_fork_init, NULL);
 	register_trace_android_rvh_ttwu_cond(android_rvh_ttwu_cond, NULL);
@@ -4039,6 +4061,17 @@ static int walt_init_stop_handler(void *data)
 	return 0;
 }
 
+static void walt_init_tg_pointers(void)
+{
+	struct cgroup_subsys_state *css = &root_task_group.css;
+	struct cgroup_subsys_state *top_css = css;
+
+	rcu_read_lock();
+	css_for_each_child(css, top_css)
+		walt_update_tg_pointer(css);
+	rcu_read_unlock();
+}
+
 static void walt_init(void)
 {
 	struct ctl_table_header *hdr;
@@ -4054,6 +4087,7 @@ static void walt_init(void)
 	BUG_ON(alloc_related_thread_groups());
 	walt_init_cycle_counter();
 	init_clusters();
+	walt_init_tg_pointers();
 
 	register_walt_hooks();
 	walt_fixup_init();
