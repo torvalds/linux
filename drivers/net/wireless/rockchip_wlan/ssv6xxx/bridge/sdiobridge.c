@@ -31,7 +31,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/version.h>
 #include <hwif/sdio/sdio_def.h>
 #include "sdiobridge.h"

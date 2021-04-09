@@ -21,7 +21,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/errno.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -30,7 +30,7 @@
 #include "ssv_cfg.h"
 #include <linux/fs.h>
 #include <asm/segment.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/buffer_head.h>
 #include <linux/ctype.h>
 MODULE_AUTHOR("iComm Semiconductor Co., Ltd");

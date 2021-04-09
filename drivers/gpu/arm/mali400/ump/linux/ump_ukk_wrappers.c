@@ -13,7 +13,7 @@
  * Defines the wrapper functions which turn Linux IOCTL calls into _ukk_ calls
  */
 
-#include <asm/uaccess.h>             /* user space access */
+#include <linux/uaccess.h>           /* user space access */
 
 #include "ump_osk.h"
 #include "ump_uk_types.h"

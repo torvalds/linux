@@ -38,7 +38,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <bcmutils.h>
 #include <bcmendian.h>

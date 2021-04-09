@@ -69,7 +69,7 @@ Change log:
 #endif
 #include        <asm/byteorder.h>
 #include        <asm/irq.h>
-#include        <asm/uaccess.h>
+#include        <linux/uaccess.h>
 #include        <asm/io.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
 #include        <asm/switch_to.h>

@@ -58,7 +58,7 @@
 #include <linux/cpufreq.h>
 #endif /* ENABLE_ADAPTIVE_SCHED */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <epivers.h>

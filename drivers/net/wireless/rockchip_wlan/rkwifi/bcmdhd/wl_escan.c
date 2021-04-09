@@ -2,7 +2,7 @@
 #if defined(WL_ESCAN)
 #include <bcmendian.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <wl_android.h>
 #include <wl_escan.h>
 #include <dhd_config.h>

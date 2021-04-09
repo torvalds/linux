@@ -63,7 +63,7 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/sched/signal.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <epivers.h>

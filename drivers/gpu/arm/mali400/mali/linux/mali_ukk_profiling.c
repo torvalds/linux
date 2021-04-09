@@ -8,7 +8,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <linux/fs.h>       /* file system operations */
-#include <asm/uaccess.h>    /* user space access */
+#include <linux/uaccess.h>  /* user space access */
 #include <linux/slab.h>
 
 #include "mali_ukk.h"

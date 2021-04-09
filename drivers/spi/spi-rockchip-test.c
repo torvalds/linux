@@ -62,7 +62,7 @@
 #include <linux/miscdevice.h>
 #include <linux/hrtimer.h>
 #include <linux/platform_data/spi-rockchip.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/syscalls.h>
 
 #define MAX_SPI_DEV_NUM 8

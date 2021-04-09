@@ -58,7 +58,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <asm/tlbflush.h>
 #include <linux/timer.h>
 #include <linux/capability.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/spinlock.h>
 
 #include <linux/sched/clock.h>

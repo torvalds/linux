@@ -26,7 +26,7 @@
 #include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

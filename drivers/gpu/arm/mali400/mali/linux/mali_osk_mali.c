@@ -16,7 +16,7 @@
 #include "../platform/rk/custom_log.h"
 
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/mali/mali_utgard.h>
 #include <linux/of.h>

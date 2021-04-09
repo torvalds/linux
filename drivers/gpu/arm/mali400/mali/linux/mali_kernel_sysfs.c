@@ -26,7 +26,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/mali/mali_utgard.h>
 #include "mali_kernel_sysfs.h"

@@ -14,7 +14,7 @@
  */
 
 
-#include <asm/uaccess.h>             /* user space access */
+#include <linux/uaccess.h>           /* user space access */
 
 #include "ump_osk.h"
 #include "ump_uk_types.h"

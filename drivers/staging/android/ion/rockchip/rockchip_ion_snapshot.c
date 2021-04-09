@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/debugfs.h>
 
 #define LOG_BUF_LEN	(1 << CONFIG_ION_SNAPSHOT_BUF_SHIFT)

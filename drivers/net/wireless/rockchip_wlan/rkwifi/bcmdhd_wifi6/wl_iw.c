@@ -40,7 +40,7 @@
 #include <ethernet.h>
 
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <wlioctl.h>
 #ifdef WL_NAN
 #include <wlioctl_utils.h>

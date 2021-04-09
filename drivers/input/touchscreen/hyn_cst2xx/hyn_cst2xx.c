@@ -37,7 +37,7 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input/mt.h>
 #include <linux/gpio.h>
 #include <linux/version.h>
@@ -84,7 +84,7 @@
 //#define TPD_PROC_DEBUG
 #ifdef TPD_PROC_DEBUG
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 //static struct proc_dir_entry *hyn_config_proc = NULL;
 #define HYN_CONFIG_PROC_FILE "hyn_config"
 #define CONFIG_LEN 31

@@ -49,7 +49,7 @@
 #include <linux/ethtool.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 #if defined(CONFIG_HAS_WAKELOCK)
 #include <linux/wakelock.h>

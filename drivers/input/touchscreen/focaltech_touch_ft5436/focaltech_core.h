@@ -46,7 +46,7 @@
 #include <linux/vmalloc.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/firmware.h>
 #include <linux/debugfs.h>
 #include <linux/mutex.h>

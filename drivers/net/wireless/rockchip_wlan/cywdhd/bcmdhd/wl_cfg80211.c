@@ -39,7 +39,7 @@
 #include <proto/ethernet.h>
 #include <proto/802.11.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <proto/ethernet.h>
 #include <linux/kernel.h>

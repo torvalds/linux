@@ -13,7 +13,7 @@
  * Implementation of the OS abstraction layer for the kernel device driver
  */
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>

@@ -41,7 +41,7 @@
 #include <ethernet.h>
 #include <802.11.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <ethernet.h>
 #include <linux/kernel.h>

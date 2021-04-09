@@ -12,7 +12,7 @@
 
 #include <wl_android.h>
 #include <linux/if_arp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/wireless.h>
 #if defined(WL_WIRELESS_EXT)
 #include <wl_iw.h>
