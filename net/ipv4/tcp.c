@@ -2888,7 +2888,7 @@ static inline bool tcp_need_reset(int state)
 {
 	return (1 << state) &
 	       (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT | TCPF_FIN_WAIT1 |
-		TCPF_FIN_WAIT2 | TCPF_SYN_RECV | TCPF_SYN_SENT);
+		TCPF_FIN_WAIT2 | TCPF_SYN_RECV);
 }
 
 static void tcp_rtx_queue_purge(struct sock *sk)
@@ -2954,7 +2954,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 		 */
 		tcp_send_active_reset(sk, gfp_any());
 		sk->sk_err = ECONNRESET;
-	}
+	} else if (old_state == TCP_SYN_SENT)
+		sk->sk_err = ECONNRESET;
 
 	tcp_clear_xmit_timers(sk);
 	__skb_queue_purge(&sk->sk_receive_queue);
