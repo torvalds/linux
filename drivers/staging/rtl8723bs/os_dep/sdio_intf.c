@@ -503,7 +503,7 @@ static int rtw_sdio_resume(struct device *dev)
 
 static int __init rtw_drv_entry(void)
 {
-	int ret = 0;
+	int ret;
 
 	DBG_871X_LEVEL(_drv_always_, "module init start\n");
 	dump_drv_version(RTW_DBGDUMP);
