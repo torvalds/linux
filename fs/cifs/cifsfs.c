@@ -656,10 +656,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",multichannel,max_channels=%zu",
 			   tcon->ses->chan_max);
 
-#ifdef CONFIG_CIFS_SWN_UPCALL
 	if (tcon->use_witness)
 		seq_puts(s, ",witness");
-#endif
 
 	return 0;
 }
