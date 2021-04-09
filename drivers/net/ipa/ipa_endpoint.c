@@ -88,6 +88,11 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 	if (ipa_gsi_endpoint_data_empty(data))
 		return true;
 
+	/* IPA v4.5+ uses checksum offload, not yet supported by RMNet */
+	if (ipa->version >= IPA_VERSION_4_5)
+		if (data->endpoint.config.checksum)
+			return false;
+
 	if (!data->toward_ipa) {
 		if (data->endpoint.filter_support) {
 			dev_err(dev, "filtering not supported for "
@@ -230,6 +235,17 @@ static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 				    const struct ipa_gsi_endpoint_data *data)
 {
+	const struct ipa_gsi_endpoint_data *dp = data;
+	enum ipa_endpoint_name name;
+
+	if (ipa->version < IPA_VERSION_4_5)
+		return true;
+
+	/* IPA v4.5+ uses checksum offload, not yet supported by RMNet */
+	for (name = 0; name < count; name++, dp++)
+		if (data->endpoint.config.checksum)
+			return false;
+
 	return true;
 }
 
