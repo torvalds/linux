@@ -1243,7 +1243,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	}
 
 	for (i = 0; i < BTREE_ID_NR; i++)
-		if (btree_node_type_needs_gc(i)) {
+		if ((1 << i) & BTREE_ID_HAS_PTRS) {
 			ret = bch2_gc_btree_gens(c, i);
 			if (ret) {
 				bch_err(c, "error recalculating oldest_gen: %i", ret);

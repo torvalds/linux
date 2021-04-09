@@ -616,6 +616,10 @@ static inline bool btree_iter_is_extents(struct btree_iter *iter)
 	 (1U << BTREE_ID_dirents)|			\
 	 (1U << BTREE_ID_xattrs))
 
+#define BTREE_ID_HAS_PTRS				\
+	((1U << BTREE_ID_extents)|			\
+	 (1U << BTREE_ID_reflink))
+
 static inline bool btree_type_has_snapshots(enum btree_id id)
 {
 	return (1 << id) & BTREE_ID_HAS_SNAPSHOTS;
