@@ -2369,9 +2369,9 @@ static int __maybe_unused hns3_suspend(struct device *dev)
 {
 	struct hnae3_ae_dev *ae_dev = dev_get_drvdata(dev);
 
-	if (hns3_is_phys_func(ae_dev->pdev)) {
+	if (ae_dev && hns3_is_phys_func(ae_dev->pdev)) {
 		dev_info(dev, "Begin to suspend.\n");
-		if (ae_dev && ae_dev->ops && ae_dev->ops->reset_prepare)
+		if (ae_dev->ops && ae_dev->ops->reset_prepare)
 			ae_dev->ops->reset_prepare(ae_dev, HNAE3_FUNC_RESET);
 	}
 
@@ -2382,9 +2382,9 @@ static int __maybe_unused hns3_resume(struct device *dev)
 {
 	struct hnae3_ae_dev *ae_dev = dev_get_drvdata(dev);
 
-	if (hns3_is_phys_func(ae_dev->pdev)) {
+	if (ae_dev && hns3_is_phys_func(ae_dev->pdev)) {
 		dev_info(dev, "Begin to resume.\n");
-		if (ae_dev && ae_dev->ops && ae_dev->ops->reset_done)
+		if (ae_dev->ops && ae_dev->ops->reset_done)
 			ae_dev->ops->reset_done(ae_dev);
 	}
 
