@@ -605,3 +605,13 @@ int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
 
 	return 0;
 }
+
+int mpp_iommu_flush_tlb(struct mpp_iommu_info *info)
+{
+	struct iommu_domain *domain = info->domain;
+
+	if (domain && domain->ops && domain->ops->flush_iotlb_all)
+		domain->ops->flush_iotlb_all(domain);
+
+	return 0;
+}

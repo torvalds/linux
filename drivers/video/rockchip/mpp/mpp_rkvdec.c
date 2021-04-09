@@ -959,6 +959,16 @@ static int rkvdec_3328_run(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int rkvdec_1126_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
+
+	if (task->link_mode == RKVDEC_MODE_ONEFRAME)
+		mpp_iommu_flush_tlb(mpp->iommu_info);
+
+	return rkvdec_run(mpp, mpp_task);
+}
+
 static int rkvdec_irq(struct mpp_dev *mpp)
 {
 	mpp->irq_status = mpp_read(mpp, RKVDEC_REG_INT_EN);
@@ -1739,6 +1749,15 @@ static struct mpp_dev_ops rkvdec_3399_dev_ops = {
 	.free_task = rkvdec_free_task,
 };
 
+static struct mpp_dev_ops rkvdec_1126_dev_ops = {
+	.alloc_task = rkvdec_alloc_task,
+	.run = rkvdec_1126_run,
+	.irq = rkvdec_irq,
+	.isr = rkvdec_isr,
+	.finish = rkvdec_finish,
+	.result = rkvdec_result,
+	.free_task = rkvdec_free_task,
+};
 static const struct mpp_dev_var rk_hevcdec_data = {
 	.device_type = MPP_DEVICE_HEVC_DEC,
 	.hw_info = &rk_hevcdec_hw_info,
@@ -1787,6 +1806,14 @@ static const struct mpp_dev_var rkvdec_3328_data = {
 	.dev_ops = &rkvdec_3328_dev_ops,
 };
 
+static const struct mpp_dev_var rkvdec_1126_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_v1_hw_info,
+	.trans_info = rkvdec_v1_trans,
+	.hw_ops = &rkvdec_v1_hw_ops,
+	.dev_ops = &rkvdec_1126_dev_ops,
+};
+
 static const struct of_device_id mpp_rkvdec_dt_match[] = {
 	{
 		.compatible = "rockchip,hevc-decoder",
@@ -1811,6 +1838,10 @@ static const struct of_device_id mpp_rkvdec_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-rk3328",
 		.data = &rkvdec_3328_data,
+	},
+	{
+		.compatible = "rockchip,rkv-decoder-rv1126",
+		.data = &rkvdec_1126_data,
 	},
 	{},
 };
