@@ -284,7 +284,7 @@ struct tty_operations;
 struct tty_struct {
 	int	magic;
 	struct kref kref;
-	struct device *dev;
+	struct device *dev;	/* class device or NULL (e.g. ptys, serdev) */
 	struct tty_driver *driver;
 	const struct tty_operations *ops;
 	int index;
