@@ -171,7 +171,7 @@ static int sched_ravg_window_handler(struct ctl_table *table,
 {
 	int ret = -EPERM;
 	static DEFINE_MUTEX(mutex);
-	int val = sysctl_sched_ravg_window_nr_ticks;
+	int val;
 
 	struct ctl_table tmp = {
 		.data	= &val,
@@ -184,6 +184,7 @@ static int sched_ravg_window_handler(struct ctl_table *table,
 	if (write && HZ != 250)
 		goto unlock;
 
+	val = sysctl_sched_ravg_window_nr_ticks;
 	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 	if (ret || !write || (val == sysctl_sched_ravg_window_nr_ticks))
 		goto unlock;
