@@ -1342,7 +1342,7 @@ config COMEDI_TESTS_EXAMPLE
 
 config COMEDI_TESTS_NI_ROUTES
 	tristate "NI routing unit-test module"
-	select NI_ROUTING
+	select COMEDI_NI_ROUTING
 	help
 	  Enable support for a unit-test module to test the signal routing
 	  code used by comedi drivers for various National Instruments cards.
