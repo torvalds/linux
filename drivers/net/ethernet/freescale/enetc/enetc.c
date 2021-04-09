@@ -406,6 +406,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 	while (bds_to_clean && tx_frm_cnt < ENETC_DEFAULT_TX_WORK) {
 		struct xdp_frame *xdp_frame = enetc_tx_swbd_get_xdp_frame(tx_swbd);
 		struct sk_buff *skb = enetc_tx_swbd_get_skb(tx_swbd);
+		bool is_eof = tx_swbd->is_eof;
 
 		if (unlikely(tx_swbd->check_wb)) {
 			struct enetc_ndev_priv *priv = netdev_priv(ndev);
@@ -453,7 +454,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 		}
 
 		/* BD iteration loop end */
-		if (tx_swbd->is_eof) {
+		if (is_eof) {
 			tx_frm_cnt++;
 			/* re-arm interrupt source */
 			enetc_wr_reg_hot(tx_ring->idr, BIT(tx_ring->index) |
