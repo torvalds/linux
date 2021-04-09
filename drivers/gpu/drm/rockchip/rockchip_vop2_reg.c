@@ -42,6 +42,27 @@ static const uint32_t formats_win_full_10bit[] = {
 	DRM_FORMAT_NV24,
 };
 
+static const uint32_t formats_win_full_10bit_yuyv[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV24,
+	DRM_FORMAT_NV15,
+	/*
+	 * DRM_FORMAT_NV16_10,
+	 * DRM_FORMAT_NV24_10,
+	 */
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_VYUY,
+};
+
 static const uint32_t formats_win_lite[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
@@ -1063,8 +1084,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	{
 	  .name = "Esmart0-win0",
 	  .phys_id = 2,
-	  .formats = formats_win_full_10bit,
-	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .formats = formats_win_full_10bit_yuyv,
+	  .nformats = ARRAY_SIZE(formats_win_full_10bit_yuyv),
 	  .format_modifiers = format_modifiers,
 	  .base = 0x0,
 	  .layer_sel_id = 2,
@@ -1107,8 +1128,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 	{
 	  .name = "Esmart1-win0",
 	  .phys_id = 3,
-	  .formats = formats_win_full_10bit,
-	  .nformats = ARRAY_SIZE(formats_win_full_10bit),
+	  .formats = formats_win_full_10bit_yuyv,
+	  .nformats = ARRAY_SIZE(formats_win_full_10bit_yuyv),
 	  .format_modifiers = format_modifiers,
 	  .base = 0x200,
 	  .layer_sel_id = 6,

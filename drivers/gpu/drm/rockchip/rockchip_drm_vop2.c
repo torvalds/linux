@@ -939,6 +939,10 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 	case DRM_FORMAT_NV24:
 		return VOP2_FMT_YUV444SP;
 	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+		return VOP2_FMT_VYUY422;
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_UYVY:
 		return VOP2_FMT_YUYV422;
 	default:
 		DRM_ERROR("unsupported format[%08x]\n", format);
@@ -1089,6 +1093,9 @@ static bool is_yuv_support(uint32_t format)
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
 		return true;
 	default:
 		return false;
