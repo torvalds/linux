@@ -400,10 +400,8 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "top-mmc-delay");
 	pdata->top_ioaddr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pdata->top_ioaddr)) {
-		dev_warn(&pdev->dev, "FlashSS Top Dly registers not available");
+	if (IS_ERR(pdata->top_ioaddr))
 		pdata->top_ioaddr = NULL;
-	}
 
 	pltfm_host->clk = clk;
 	pdata->icnclk = icnclk;
