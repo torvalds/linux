@@ -426,6 +426,18 @@ config TOUCHSCREEN_ILI210X
 	  To compile this driver as a module, choose M here: the
 	  module will be called ili210x.
 
+config TOUCHSCREEN_ILITEK
+	tristate "Ilitek I2C 213X/23XX/25XX/Lego Series Touch ICs"
+	depends on I2C
+	help
+	  Say Y here if you have touchscreen with ILITEK touch IC,
+	  it supports 213X/23XX/25XX and other Lego series.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ilitek_ts_i2c.
+
 config TOUCHSCREEN_IPROC
 	tristate "IPROC touch panel driver support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
