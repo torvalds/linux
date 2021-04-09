@@ -433,6 +433,14 @@ Alcune persone aggiungono delle etichette alla fine.  Per ora queste verranno
 ignorate, ma potete farlo per meglio identificare procedure aziendali interne o
 per aggiungere dettagli circa la firma.
 
+In seguito al SoB (Signed-off-by:) dell'autore ve ne sono altri da
+parte di tutte quelle persone che si sono occupate della gestione e
+del trasporto della patch. Queste però non sono state coinvolte nello
+sviluppo, ma la loro sequenza d'apparizione ci racconta il percorso
+**reale** che una patch a intrapreso dallo sviluppatore, fino al
+manutentore, per poi giungere a Linus.
+
+
 Quando utilizzare Acked-by:, Cc:, e Co-developed-by:
 ----------------------------------------------------
 
@@ -574,6 +582,10 @@ kernel stabili al fine di capire quale kernel deve ricevere la correzione.
 Questo è il modo suggerito per indicare che un baco è stato corretto nella
 patch. Per maggiori dettagli leggete :ref:`it_describe_changes`
 
+Da notare che aggiungere un tag "Fixes:" non esime dalle regole
+previste per i kernel stabili, e nemmeno dalla necessità di aggiungere
+in copia conoscenza stable@vger.kernel.org su tutte le patch per
+suddetti kernel.
 
 Il formato canonico delle patch
 -------------------------------
@@ -642,16 +654,20 @@ Le etichette non verranno considerate come parte della frase riassuntiva, ma
 indicano come la patch dovrebbe essere trattata.  Fra le etichette più comuni
 ci sono quelle di versione che vengono usate quando una patch è stata inviata
 più volte (per esempio, "v1, v2, v3"); oppure "RFC" per indicare che si
-attendono dei commenti (*Request For Comments*).  Se ci sono quattro patch
-nella serie, queste dovrebbero essere enumerate così: 1/4, 2/4, 3/4, 4/4.
-Questo assicura che gli sviluppatori capiranno l'ordine in cui le patch
-dovrebbero essere applicate, e per tracciare quelle che hanno revisionate o
-che hanno applicato.
+attendono dei commenti (*Request For Comments*).
+
+Se ci sono quattro patch nella serie, queste dovrebbero essere
+enumerate così: 1/4, 2/4, 3/4, 4/4.  Questo assicura che gli
+sviluppatori capiranno l'ordine in cui le patch dovrebbero essere
+applicate, e per tracciare quelle che hanno revisionate o che hanno
+applicato.
 
 Un paio di esempi di oggetti::
 
     Subject: [PATCH 2/5] ext2: improve scalability of bitmap searching
     Subject: [PATCH v2 01/27] x86: fix eflags tracking
+    Subject: [PATCH v2] sub/sys: Condensed patch summary
+    Subject: [PATCH v2 M/N] sub/sys: Condensed patch summary
 
 La riga ``from`` dev'essere la prima nel corpo del messaggio ed è nel
 formato:
@@ -668,29 +684,75 @@ deve aver senso per un lettore esperto che è ha dimenticato i dettagli della
 discussione che hanno portato alla patch.  L'inclusione di informazioni
 sui problemi oggetto dalla patch (messaggi del kernel, messaggi di oops,
 eccetera) è particolarmente utile per le persone che potrebbero cercare fra
-i messaggi di log per la patch che li tratta.  Se la patch corregge un errore
-di compilazione, non sarà necessario includere proprio _tutto_ quello che
-è uscito dal compilatore; aggiungete solo quello che è necessario per far si
-che la vostra patch venga trovata.  Come nella ``summary phrase``, è importante
-essere sia brevi che descrittivi.
+i messaggi di log per la patch che li tratta. Il testo dovrebbe essere scritto
+con abbastanza dettagli da far capire al lettore **perché** quella
+patch fu creata, e questo a distanza di settimane, mesi, o addirittura
+anni.
+
+Se la patch corregge un errore di compilazione, non sarà necessario
+includere proprio _tutto_ quello che è uscito dal compilatore;
+aggiungete solo quello che è necessario per far si che la vostra patch
+venga trovata.  Come nella ``summary phrase``, è importante essere sia
+brevi che descrittivi.
 
 La linea di demarcazione ``---`` serve essenzialmente a segnare dove finisce
 il messaggio di changelog.
 
 Aggiungere il ``diffstat`` dopo ``---`` è un buon uso di questo spazio, per
 mostrare i file che sono cambiati, e il numero di file aggiunto o rimossi.
-Un ``diffstat`` è particolarmente utile per le patch grandi.  Altri commenti
-che sono importanti solo per i manutentori, quindi inadatti al changelog
-permanente, dovrebbero essere messi qui.  Un buon esempio per questo tipo
-di commenti potrebbe essere quello di descrivere le differenze fra le versioni
+Un ``diffstat`` è particolarmente utile per le patch grandi. Se
+includete un ``diffstat`` dopo ``---``, usate le opzioni ``-p 1 -w70``
+cosicché i nomi dei file elencati non occupino troppo spazio
+(facilmente rientreranno negli 80 caratteri, magari con qualche
+indentazione).  (``git`` genera di base dei diffstat adatti).
+
+I commenti che sono importanti solo per i manutentori, quindi
+inadatti al changelog permanente, dovrebbero essere messi qui.  Un
+buon esempio per questo tipo di commenti potrebbe essere il cosiddetto
+``patch changelogs`` che descrivere le differenze fra le versioni
 della patch.
 
-Se includete un ``diffstat`` dopo ``---``, usate le opzioni ``-p 1 -w70``
-cosicché i nomi dei file elencati non occupino troppo spazio (facilmente
-rientreranno negli 80 caratteri, magari con qualche indentazione).
-(``git`` genera di base dei diffstat adatti).
+Queste informazioni devono andare **dopo** la linea ``---`` che separa
+il *changelog* dal resto della patch. Le informazioni riguardanti la
+versione di una patch non sono parte del *chagelog* che viene incluso
+in git. Queste sono informazioni utili solo ai revisori. Se venissero
+messe sopra la riga, qualcuno dovrà fare del lavoro manuale per
+rimuoverle; cosa che invece viene fatta automaticamente quando vengono
+messe correttamente oltre la riga.::
+
+  <commit message>
+  ...
+  Signed-off-by: Author <author@mail>
+  ---
+  V2 -> V3: Removed redundant helper function
+  V1 -> V2: Cleaned up coding style and addressed review comments
+
+  path/to/file | 5+++--
+  ...
 
 Maggiori dettagli sul formato delle patch nei riferimenti qui di seguito.
+
+Aggiungere i *backtrace* nei messaggi di commit
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I *backtrace* aiutano a documentare la sequenza di chiamate a funzione
+che portano ad un problema. Tuttavia, non tutti i *backtrace* sono
+davvero utili. Per esempio, le sequenze iniziali di avvio sono uniche
+e ovvie. Copiare integralmente l'output di ``dmesg`` aggiunge tante
+informazioni che distraggono dal vero problema (per esempio, i
+marcatori temporali, la lista dei moduli, la lista dei registri, lo
+stato dello stack).
+
+Quindi, per rendere utile un *backtrace* dovreste eliminare le
+informazioni inutili, cosicché ci si possa focalizzare sul
+problema. Ecco un esempio di un *backtrace* essenziale::
+
+  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
+  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
+  Call Trace:
+  mba_wrmsr
+  update_domains
+  rdtgroup_mkdir
 
 .. _it_explicit_in_reply_to:
 

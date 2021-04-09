@@ -28,6 +28,10 @@ sottomissione delle patch, in particolare
 
   c) quando si usa ``O=builddir``
 
+  d) Qualsiasi modifica in Documentation/ deve compilare con successo senza
+     avvisi o errori. Usare ``make htmldocs`` o ``make pdfdocs`` per verificare
+     e correggere i problemi
+
 3) Compilare per diverse architetture di processore usando strumenti per
    la cross-compilazione o altri.
 
@@ -54,8 +58,7 @@ sottomissione delle patch, in particolare
 
 9) Verificare con sparse.
 
-10) Usare ``make checkstack`` e ``make namespacecheck`` e correggere tutti i
-    problemi rilevati.
+10) Usare ``make checkstack`` e correggere tutti i problemi rilevati.
 
     .. note::
 
