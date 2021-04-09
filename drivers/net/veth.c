@@ -57,6 +57,7 @@ struct veth_rq_stats {
 
 struct veth_rq {
 	struct napi_struct	xdp_napi;
+	struct napi_struct __rcu *napi; /* points to xdp_napi when the latter is initialized */
 	struct net_device	*dev;
 	struct bpf_prog __rcu	*xdp_prog;
 	struct xdp_mem_info	xdp_mem;
@@ -299,7 +300,7 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct veth_rq *rq = NULL;
 	struct net_device *rcv;
 	int length = skb->len;
-	bool rcv_xdp = false;
+	bool use_napi = false;
 	int rxq;
 
 	rcu_read_lock();
@@ -313,20 +314,24 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	rxq = skb_get_queue_mapping(skb);
 	if (rxq < rcv->real_num_rx_queues) {
 		rq = &rcv_priv->rq[rxq];
-		rcv_xdp = rcu_access_pointer(rq->xdp_prog);
+
+		/* The napi pointer is available when an XDP program is
+		 * attached or when GRO is enabled
+		 */
+		use_napi = rcu_access_pointer(rq->napi);
 		skb_record_rx_queue(skb, rxq);
 	}
 
 	skb_tx_timestamp(skb);
-	if (likely(veth_forward_skb(rcv, skb, rq, rcv_xdp) == NET_RX_SUCCESS)) {
-		if (!rcv_xdp)
+	if (likely(veth_forward_skb(rcv, skb, rq, use_napi) == NET_RX_SUCCESS)) {
+		if (!use_napi)
 			dev_lstats_add(dev, length);
 	} else {
 drop:
 		atomic64_inc(&priv->dropped);
 	}
 
-	if (rcv_xdp)
+	if (use_napi)
 		__veth_xdp_flush(rq);
 
 	rcu_read_unlock();
@@ -903,7 +908,7 @@ static int veth_poll(struct napi_struct *napi, int budget)
 	return done;
 }
 
-static int veth_napi_add(struct net_device *dev)
+static int __veth_napi_enable(struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int err, i;
@@ -920,6 +925,7 @@ static int veth_napi_add(struct net_device *dev)
 		struct veth_rq *rq = &priv->rq[i];
 
 		napi_enable(&rq->xdp_napi);
+		rcu_assign_pointer(priv->rq[i].napi, &priv->rq[i].xdp_napi);
 	}
 
 	return 0;
@@ -938,6 +944,7 @@ static void veth_napi_del(struct net_device *dev)
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
+		rcu_assign_pointer(priv->rq[i].napi, NULL);
 		napi_disable(&rq->xdp_napi);
 		__netif_napi_del(&rq->xdp_napi);
 	}
@@ -951,8 +958,14 @@ static void veth_napi_del(struct net_device *dev)
 	}
 }
 
+static bool veth_gro_requested(const struct net_device *dev)
+{
+	return !!(dev->wanted_features & NETIF_F_GRO);
+}
+
 static int veth_enable_xdp(struct net_device *dev)
 {
+	bool napi_already_on = veth_gro_requested(dev) && (dev->flags & IFF_UP);
 	struct veth_priv *priv = netdev_priv(dev);
 	int err, i;
 
@@ -960,7 +973,8 @@ static int veth_enable_xdp(struct net_device *dev)
 		for (i = 0; i < dev->real_num_rx_queues; i++) {
 			struct veth_rq *rq = &priv->rq[i];
 
-			netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+			if (!napi_already_on)
+				netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
 			err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i, rq->xdp_napi.napi_id);
 			if (err < 0)
 				goto err_rxq_reg;
@@ -975,13 +989,25 @@ static int veth_enable_xdp(struct net_device *dev)
 			rq->xdp_mem = rq->xdp_rxq.mem;
 		}
 
-		err = veth_napi_add(dev);
-		if (err)
-			goto err_rxq_reg;
+		if (!napi_already_on) {
+			err = __veth_napi_enable(dev);
+			if (err)
+				goto err_rxq_reg;
+
+			if (!veth_gro_requested(dev)) {
+				/* user-space did not require GRO, but adding XDP
+				 * is supposed to get GRO working
+				 */
+				dev->features |= NETIF_F_GRO;
+				netdev_features_change(dev);
+			}
+		}
 	}
 
-	for (i = 0; i < dev->real_num_rx_queues; i++)
+	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		rcu_assign_pointer(priv->rq[i].xdp_prog, priv->_xdp_prog);
+		rcu_assign_pointer(priv->rq[i].napi, &priv->rq[i].xdp_napi);
+	}
 
 	return 0;
 err_reg_mem:
@@ -991,7 +1017,8 @@ err_rxq_reg:
 		struct veth_rq *rq = &priv->rq[i];
 
 		xdp_rxq_info_unreg(&rq->xdp_rxq);
-		netif_napi_del(&rq->xdp_napi);
+		if (!napi_already_on)
+			netif_napi_del(&rq->xdp_napi);
 	}
 
 	return err;
@@ -1004,13 +1031,48 @@ static void veth_disable_xdp(struct net_device *dev)
 
 	for (i = 0; i < dev->real_num_rx_queues; i++)
 		rcu_assign_pointer(priv->rq[i].xdp_prog, NULL);
-	veth_napi_del(dev);
+
+	if (!netif_running(dev) || !veth_gro_requested(dev)) {
+		veth_napi_del(dev);
+
+		/* if user-space did not require GRO, since adding XDP
+		 * enabled it, clear it now
+		 */
+		if (!veth_gro_requested(dev) && netif_running(dev)) {
+			dev->features &= ~NETIF_F_GRO;
+			netdev_features_change(dev);
+		}
+	}
+
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		rq->xdp_rxq.mem = rq->xdp_mem;
 		xdp_rxq_info_unreg(&rq->xdp_rxq);
 	}
+}
+
+static int veth_napi_enable(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	int err, i;
+
+	for (i = 0; i < dev->real_num_rx_queues; i++) {
+		struct veth_rq *rq = &priv->rq[i];
+
+		netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+	}
+
+	err = __veth_napi_enable(dev);
+	if (err) {
+		for (i = 0; i < dev->real_num_rx_queues; i++) {
+			struct veth_rq *rq = &priv->rq[i];
+
+			netif_napi_del(&rq->xdp_napi);
+		}
+		return err;
+	}
+	return err;
 }
 
 static int veth_open(struct net_device *dev)
@@ -1024,6 +1086,10 @@ static int veth_open(struct net_device *dev)
 
 	if (priv->_xdp_prog) {
 		err = veth_enable_xdp(dev);
+		if (err)
+			return err;
+	} else if (veth_gro_requested(dev)) {
+		err = veth_napi_enable(dev);
 		if (err)
 			return err;
 	}
@@ -1047,6 +1113,8 @@ static int veth_close(struct net_device *dev)
 
 	if (priv->_xdp_prog)
 		veth_disable_xdp(dev);
+	else if (veth_gro_requested(dev))
+		veth_napi_del(dev);
 
 	return 0;
 }
@@ -1145,8 +1213,30 @@ static netdev_features_t veth_fix_features(struct net_device *dev,
 		if (peer_priv->_xdp_prog)
 			features &= ~NETIF_F_GSO_SOFTWARE;
 	}
+	if (priv->_xdp_prog)
+		features |= NETIF_F_GRO;
 
 	return features;
+}
+
+static int veth_set_features(struct net_device *dev,
+			     netdev_features_t features)
+{
+	netdev_features_t changed = features ^ dev->features;
+	struct veth_priv *priv = netdev_priv(dev);
+	int err;
+
+	if (!(changed & NETIF_F_GRO) || !(dev->flags & IFF_UP) || priv->_xdp_prog)
+		return 0;
+
+	if (features & NETIF_F_GRO) {
+		err = veth_napi_enable(dev);
+		if (err)
+			return err;
+	} else {
+		veth_napi_del(dev);
+	}
+	return 0;
 }
 
 static void veth_set_rx_headroom(struct net_device *dev, int new_hr)
@@ -1267,6 +1357,7 @@ static const struct net_device_ops veth_netdev_ops = {
 #endif
 	.ndo_get_iflink		= veth_get_iflink,
 	.ndo_fix_features	= veth_fix_features,
+	.ndo_set_features	= veth_set_features,
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= veth_set_rx_headroom,
 	.ndo_bpf		= veth_xdp,
@@ -1328,6 +1419,13 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[],
 }
 
 static struct rtnl_link_ops veth_link_ops;
+
+static void veth_disable_gro(struct net_device *dev)
+{
+	dev->features &= ~NETIF_F_GRO;
+	dev->wanted_features &= ~NETIF_F_GRO;
+	netdev_update_features(dev);
+}
 
 static int veth_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[],
@@ -1401,6 +1499,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (err < 0)
 		goto err_register_peer;
 
+	/* keep GRO disabled by default to be consistent with the established
+	 * veth behavior
+	 */
+	veth_disable_gro(peer);
 	netif_carrier_off(peer);
 
 	err = rtnl_configure_link(peer, ifmp);
@@ -1438,6 +1540,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	priv = netdev_priv(peer);
 	rcu_assign_pointer(priv->peer, dev);
 
+	veth_disable_gro(dev);
 	return 0;
 
 err_register_dev:
