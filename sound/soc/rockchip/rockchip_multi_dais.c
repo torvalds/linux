@@ -163,6 +163,7 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 	for (i = 0; i < mdais->num_dais; i++) {
 		child = mdais->dais[i].dai;
 		if (!child->probed && child->driver->probe) {
+			child->component->card = dai->component->card;
 			ret = child->driver->probe(child);
 			if (ret < 0) {
 				dev_err(child->dev,
