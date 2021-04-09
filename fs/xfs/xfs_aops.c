@@ -42,14 +42,20 @@ static inline bool xfs_ioend_is_append(struct iomap_ioend *ioend)
 /*
  * Update on-disk file size now that data has been written to disk.
  */
-STATIC int
-__xfs_setfilesize(
+int
+xfs_setfilesize(
 	struct xfs_inode	*ip,
-	struct xfs_trans	*tp,
 	xfs_off_t		offset,
 	size_t			size)
 {
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
 	xfs_fsize_t		isize;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
+	if (error)
+		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	isize = xfs_new_eof(ip, offset + size);
@@ -66,23 +72,6 @@ __xfs_setfilesize(
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	return xfs_trans_commit(tp);
-}
-
-int
-xfs_setfilesize(
-	struct xfs_inode	*ip,
-	xfs_off_t		offset,
-	size_t			size)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
-	int			error;
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
-	if (error)
-		return error;
-
-	return __xfs_setfilesize(ip, tp, offset, size);
 }
 
 /*
