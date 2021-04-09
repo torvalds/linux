@@ -1543,10 +1543,16 @@ static int cp210x_gpio_init_valid_mask(struct gpio_chip *gc,
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	struct device *dev = &serial->interface->dev;
 	unsigned long altfunc_mask = priv->gpio_altfunc;
 
 	bitmap_complement(valid_mask, &altfunc_mask, ngpios);
 
+	if (bitmap_empty(valid_mask, ngpios))
+		dev_dbg(dev, "no pin configured for GPIO\n");
+	else
+		dev_dbg(dev, "GPIO.%*pbl configured for GPIO\n", ngpios,
+				valid_mask);
 	return 0;
 }
 
