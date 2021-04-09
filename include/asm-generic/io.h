@@ -995,6 +995,7 @@ static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
 {
 	return NULL;
 }
+#endif
 
 /*
  * ioremap_np needs an explicit architecture implementation, as it
@@ -1011,8 +1012,6 @@ static inline void __iomem *ioremap_np(phys_addr_t offset, size_t size)
 {
 	return NULL;
 }
-#endif
-
 #endif
 
 #ifdef CONFIG_HAS_IOPORT_MAP
