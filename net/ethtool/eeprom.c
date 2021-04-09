@@ -25,6 +25,66 @@ struct eeprom_reply_data {
 #define MODULE_EEPROM_REPDATA(__reply_base) \
 	container_of(__reply_base, struct eeprom_reply_data, base)
 
+static int fallback_set_params(struct eeprom_req_info *request,
+			       struct ethtool_modinfo *modinfo,
+			       struct ethtool_eeprom *eeprom)
+{
+	u32 offset = request->offset;
+	u32 length = request->length;
+
+	if (request->page)
+		offset = request->page * ETH_MODULE_EEPROM_PAGE_LEN + offset;
+
+	if (modinfo->type == ETH_MODULE_SFF_8079 &&
+	    request->i2c_address == 0x51)
+		offset += ETH_MODULE_EEPROM_PAGE_LEN * 2;
+
+	if (offset >= modinfo->eeprom_len)
+		return -EINVAL;
+
+	eeprom->cmd = ETHTOOL_GMODULEEEPROM;
+	eeprom->len = length;
+	eeprom->offset = offset;
+
+	return 0;
+}
+
+static int eeprom_fallback(struct eeprom_req_info *request,
+			   struct eeprom_reply_data *reply,
+			   struct genl_info *info)
+{
+	struct net_device *dev = reply->base.dev;
+	struct ethtool_modinfo modinfo = {0};
+	struct ethtool_eeprom eeprom = {0};
+	u8 *data;
+	int err;
+
+	modinfo.cmd = ETHTOOL_GMODULEINFO;
+	err = ethtool_get_module_info_call(dev, &modinfo);
+	if (err < 0)
+		return err;
+
+	err = fallback_set_params(request, &modinfo, &eeprom);
+	if (err < 0)
+		return err;
+
+	data = kmalloc(eeprom.len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	err = ethtool_get_module_eeprom_call(dev, &eeprom, data);
+	if (err < 0)
+		goto err_out;
+
+	reply->data = data;
+	reply->length = eeprom.len;
+
+	return 0;
+
+err_out:
+	kfree(data);
+	return err;
+}
+
 static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
 			       struct ethnl_reply_data *reply_base,
 			       struct genl_info *info)
@@ -36,7 +96,7 @@ static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
 	int ret;
 
 	if (!dev->ethtool_ops->get_module_eeprom_by_page)
-		return -EOPNOTSUPP;
+		return eeprom_fallback(request, reply, info);
 
 	page_data.offset = request->offset;
 	page_data.length = request->length;
