@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2021 Linaro Ltd.
  */
 #ifndef _IPA_MEM_H_
 #define _IPA_MEM_H_
@@ -88,8 +88,7 @@ struct ipa_mem {
 int ipa_mem_config(struct ipa *ipa);
 void ipa_mem_deconfig(struct ipa *ipa);
 
-int ipa_mem_setup(struct ipa *ipa);
-void ipa_mem_teardown(struct ipa *ipa);
+int ipa_mem_setup(struct ipa *ipa);	/* No ipa_mem_teardown() needed */
 
 int ipa_mem_zero_modem(struct ipa *ipa);
 

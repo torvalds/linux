@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2021 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -53,6 +53,8 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, const struct ipa_mem *mem)
  * The AP informs the modem where its portions of memory are located
  * in a QMI exchange that occurs at modem startup.
  *
+ * There is no need for a matching ipa_mem_teardown() function.
+ *
  * Return:	0 if successful, or a negative error code
  */
 int ipa_mem_setup(struct ipa *ipa)
@@ -95,11 +97,6 @@ int ipa_mem_setup(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET);
 
 	return 0;
-}
-
-void ipa_mem_teardown(struct ipa *ipa)
-{
-	/* Nothing to do */
 }
 
 #ifdef IPA_VALIDATE
