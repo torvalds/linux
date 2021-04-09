@@ -699,7 +699,11 @@ int bch2_write_super(struct bch_fs *c)
 	const char *err;
 	struct bch_devs_mask sb_written;
 	bool wrote, can_mount_without_written, can_mount_with_written;
+	unsigned degraded_flags = BCH_FORCE_IF_DEGRADED;
 	int ret = 0;
+
+	if (c->opts.very_degraded)
+		degraded_flags |= BCH_FORCE_IF_LOST;
 
 	lockdep_assert_held(&c->sb_lock);
 
@@ -769,13 +773,13 @@ int bch2_write_super(struct bch_fs *c)
 	nr_wrote = dev_mask_nr(&sb_written);
 
 	can_mount_with_written =
-		bch2_have_enough_devs(c, sb_written, BCH_FORCE_IF_DEGRADED, false);
+		bch2_have_enough_devs(c, sb_written, degraded_flags, false);
 
 	for (i = 0; i < ARRAY_SIZE(sb_written.d); i++)
 		sb_written.d[i] = ~sb_written.d[i];
 
 	can_mount_without_written =
-		bch2_have_enough_devs(c, sb_written, BCH_FORCE_IF_DEGRADED, false);
+		bch2_have_enough_devs(c, sb_written, degraded_flags, false);
 
 	/*
 	 * If we would be able to mount _without_ the devices we successfully
