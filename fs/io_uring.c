@@ -5059,10 +5059,7 @@ static void io_async_task_func(struct callback_head *cb)
 		return;
 	}
 
-	/* If req is still hashed, it cannot have been canceled. Don't check. */
-	if (hash_hashed(&req->hash_node))
-		hash_del(&req->hash_node);
-
+	hash_del(&req->hash_node);
 	io_poll_remove_double(req);
 	spin_unlock_irq(&ctx->completion_lock);
 
