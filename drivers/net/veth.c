@@ -294,6 +294,25 @@ static int veth_forward_skb(struct net_device *dev, struct sk_buff *skb,
 		netif_rx(skb);
 }
 
+/* return true if the specified skb has chances of GRO aggregation
+ * Don't strive for accuracy, but try to avoid GRO overhead in the most
+ * common scenarios.
+ * When XDP is enabled, all traffic is considered eligible, as the xmit
+ * device has TSO off.
+ * When TSO is enabled on the xmit device, we are likely interested only
+ * in UDP aggregation, explicitly check for that if the skb is suspected
+ * - the sock_wfree destructor is used by UDP, ICMP and XDP sockets -
+ * to belong to locally generated UDP traffic.
+ */
+static bool veth_skb_is_eligible_for_gro(const struct net_device *dev,
+					 const struct net_device *rcv,
+					 const struct sk_buff *skb)
+{
+	return !(dev->features & NETIF_F_ALL_TSO) ||
+		(skb->destructor == sock_wfree &&
+		 rcv->features & (NETIF_F_GRO_FRAGLIST | NETIF_F_GRO_UDP_FWD));
+}
+
 static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
@@ -317,8 +336,10 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* The napi pointer is available when an XDP program is
 		 * attached or when GRO is enabled
+		 * Don't bother with napi/GRO if the skb can't be aggregated
 		 */
-		use_napi = rcu_access_pointer(rq->napi);
+		use_napi = rcu_access_pointer(rq->napi) &&
+			   veth_skb_is_eligible_for_gro(dev, rcv, skb);
 		skb_record_rx_queue(skb, rxq);
 	}
 
