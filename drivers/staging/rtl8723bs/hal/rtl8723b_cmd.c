@@ -529,7 +529,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	struct xmit_priv *pxmitpriv;
 	struct mlme_ext_priv *pmlmeext;
 	struct mlme_ext_info *pmlmeinfo;
-	struct pwrctrl_priv *pwrctl;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u32 BeaconLength = 0, PSPollLength = 0;
 	u32 NullDataLength = 0, QosNullLength = 0, BTQosNullLength = 0;
@@ -544,7 +543,6 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	pxmitpriv = &padapter->xmitpriv;
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
-	pwrctl = adapter_to_pwrctl(padapter);
 
 	RsvdPageNum = BCNQ_PAGE_NUM_8723B + WOWLAN_PAGE_NUM_8723B;
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
