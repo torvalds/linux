@@ -33,7 +33,7 @@
  *		_EX	- 4+ socket server parts
  *
  * The #define line may optionally include a comment including platform or core
- * names. An exception is made for kabylake where steppings seem to have gotten
+ * names. An exception is made for skylake/kabylake where steppings seem to have gotten
  * their own names :-(
  */
 
@@ -74,6 +74,8 @@
 #define INTEL_FAM6_SKYLAKE_L		0x4E	/* Sky Lake             */
 #define INTEL_FAM6_SKYLAKE		0x5E	/* Sky Lake             */
 #define INTEL_FAM6_SKYLAKE_X		0x55	/* Sky Lake             */
+/*                 CASCADELAKE_X	0x55	   Sky Lake -- s: 7     */
+/*                 COOPERLAKE_X		0x55	   Sky Lake -- s: 11    */
 
 #define INTEL_FAM6_KABYLAKE_L		0x8E	/* Sky Lake             */
 /*                 AMBERLAKE_L		0x8E	   Sky Lake -- s: 9     */
