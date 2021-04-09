@@ -433,9 +433,9 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 		if (group == MLX5E_RQ_GROUP_XSK)
-			dst->tir_num = priv->rx_res->channels[ix].xsk_tir.tirn;
+			dst->tir_num = mlx5e_rx_res_get_tirn_xsk(priv->rx_res, ix);
 		else
-			dst->tir_num = priv->rx_res->channels[ix].direct_tir.tirn;
+			dst->tir_num = mlx5e_rx_res_get_tirn_direct(priv->rx_res, ix);
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
@@ -819,6 +819,7 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 {
 	enum mlx5e_traffic_types tt;
 	u8 rx_hash_field = 0;
+	int err;
 
 	tt = flow_type_to_traffic_type(nfc->flow_type);
 	if (tt == MLX5E_NUM_INDIR_TIRS)
@@ -848,16 +849,10 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 		rx_hash_field |= MLX5_HASH_FIELD_SEL_L4_DPORT;
 
 	mutex_lock(&priv->state_lock);
-
-	if (rx_hash_field == priv->rx_res->rss_params.rx_hash_fields[tt])
-		goto out;
-
-	priv->rx_res->rss_params.rx_hash_fields[tt] = rx_hash_field;
-	mlx5e_modify_tirs_hash(priv);
-
-out:
+	err = mlx5e_rx_res_rss_set_hash_fields(priv->rx_res, tt, rx_hash_field);
 	mutex_unlock(&priv->state_lock);
-	return 0;
+
+	return err;
 }
 
 static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
@@ -870,7 +865,7 @@ static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 	if (tt == MLX5E_NUM_INDIR_TIRS)
 		return -EINVAL;
 
-	hash_field = priv->rx_res->rss_params.rx_hash_fields[tt];
+	hash_field = mlx5e_rx_res_rss_get_hash_fields(priv->rx_res, tt);
 	nfc->data = 0;
 
 	if (hash_field & MLX5_HASH_FIELD_SEL_SRC_IP)

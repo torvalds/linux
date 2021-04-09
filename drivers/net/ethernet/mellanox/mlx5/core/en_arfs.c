@@ -208,7 +208,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	/* FIXME: Must use mlx5e_ttc_get_default_dest(),
 	 * but can't since TTC default is not setup yet !
 	 */
-	dest.tir_num = priv->rx_res->rss[tt].indir_tir.tirn;
+	dest.tir_num = mlx5e_rx_res_get_tirn_rss(priv->rx_res, tt);
 	arfs_t->default_rule = mlx5_add_flow_rules(arfs_t->ft.t, NULL,
 						   &flow_act,
 						   &dest, 1);
@@ -552,7 +552,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 		       16);
 	}
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	dest.tir_num = priv->rx_res->channels[arfs_rule->rxq].direct_tir.tirn;
+	dest.tir_num = mlx5e_rx_res_get_tirn_direct(priv->rx_res, arfs_rule->rxq);
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -575,7 +575,7 @@ static void arfs_modify_rule_rq(struct mlx5e_priv *priv,
 	int err = 0;
 
 	dst.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	dst.tir_num = priv->rx_res->channels[rxq].direct_tir.tirn;
+	dst.tir_num = mlx5e_rx_res_get_tirn_direct(priv->rx_res, rxq);
 	err =  mlx5_modify_rule_destination(rule, &dst, NULL);
 	if (err)
 		netdev_warn(priv->netdev,

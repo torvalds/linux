@@ -605,8 +605,8 @@ static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
 
 static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 {
+	u32 tirn = mlx5e_rx_res_get_tirn_ptp(priv->rx_res);
 	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
-	u32 tirn = priv->rx_res->ptp.tir.tirn;
 	struct mlx5_flow_handle *rule;
 	int err;
 

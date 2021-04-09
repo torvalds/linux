@@ -333,7 +333,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 	mlx5e_set_ttc_basic_params(priv, &ttc_params);
 	mlx5e_set_ttc_ft_params(&ttc_params);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = priv->rx_res->rss[tt].indir_tir.tirn;
+		ttc_params.indir_tirn[tt] = mlx5e_rx_res_get_tirn_rss(priv->rx_res, tt);
 
 	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {
@@ -359,13 +359,12 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_lro_param lro_param;
 	int err;
 
-	priv->rx_res = kvzalloc(sizeof(*priv->rx_res), GFP_KERNEL);
+	priv->rx_res = mlx5e_rx_res_alloc();
 	if (!priv->rx_res)
 		return -ENOMEM;
-
-	mlx5e_build_rss_params(&priv->rx_res->rss_params, priv->channels.params.num_channels);
 
 	mlx5e_create_q_counters(priv);
 
@@ -375,41 +374,26 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	err = mlx5e_create_indirect_rqt(priv);
+	lro_param = mlx5e_get_lro_param(&priv->channels.params);
+	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, 0,
+				priv->max_nch, priv->drop_rq.rqn, &lro_param,
+				priv->channels.params.num_channels);
 	if (err)
 		goto err_close_drop_rq;
 
-	err = mlx5e_create_direct_rqts(priv);
-	if (err)
-		goto err_destroy_indirect_rqts;
-
-	err = mlx5e_create_indirect_tirs(priv, false);
-	if (err)
-		goto err_destroy_direct_rqts;
-
-	err = mlx5e_create_direct_tirs(priv);
-	if (err)
-		goto err_destroy_indirect_tirs;
-
 	err = mlx5i_create_flow_steering(priv);
 	if (err)
-		goto err_destroy_direct_tirs;
+		goto err_destroy_rx_res;
 
 	return 0;
 
-err_destroy_direct_tirs:
-	mlx5e_destroy_direct_tirs(priv);
-err_destroy_indirect_tirs:
-	mlx5e_destroy_indirect_tirs(priv);
-err_destroy_direct_rqts:
-	mlx5e_destroy_direct_rqts(priv);
-err_destroy_indirect_rqts:
-	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
+err_destroy_rx_res:
+	mlx5e_rx_res_destroy(priv->rx_res);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
 err_destroy_q_counters:
 	mlx5e_destroy_q_counters(priv);
-	kvfree(priv->rx_res);
+	mlx5e_rx_res_free(priv->rx_res);
 	priv->rx_res = NULL;
 	return err;
 }
@@ -417,13 +401,10 @@ err_destroy_q_counters:
 static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
 	mlx5i_destroy_flow_steering(priv);
-	mlx5e_destroy_direct_tirs(priv);
-	mlx5e_destroy_indirect_tirs(priv);
-	mlx5e_destroy_direct_rqts(priv);
-	mlx5e_rqt_destroy(&priv->rx_res->indir_rqt);
+	mlx5e_rx_res_destroy(priv->rx_res);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);
-	kvfree(priv->rx_res);
+	mlx5e_rx_res_free(priv->rx_res);
 	priv->rx_res = NULL;
 }
 

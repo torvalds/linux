@@ -527,7 +527,8 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 
 	mlx5e_rss_params_indir_init_uniform(indir, hp->num_channels);
 	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, hp->num_channels,
-				   priv->rx_res->rss_params.hash.hfunc, indir);
+				   mlx5e_rx_res_get_current_hash(priv->rx_res).hfunc,
+				   indir);
 
 	kvfree(indir);
 	return err;
@@ -536,7 +537,7 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 {
 	struct mlx5e_priv *priv = hp->func_priv;
-	struct mlx5e_rss_params_hash *rss_hash;
+	struct mlx5e_rss_params_hash rss_hash;
 	enum mlx5e_traffic_types tt, max_tt;
 	struct mlx5e_tir_builder *builder;
 	int err = 0;
@@ -545,7 +546,7 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 	if (!builder)
 		return -ENOMEM;
 
-	rss_hash = &priv->rx_res->rss_params.hash;
+	rss_hash = mlx5e_rx_res_get_current_hash(priv->rx_res);
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
 		struct mlx5e_rss_params_traffic_type rss_tt;
@@ -555,7 +556,7 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 		mlx5e_tir_builder_build_rqt(builder, hp->tdn,
 					    mlx5e_rqt_get_rqtn(&hp->indir_rqt),
 					    false);
-		mlx5e_tir_builder_build_rss(builder, rss_hash, &rss_tt, false);
+		mlx5e_tir_builder_build_rss(builder, &rss_hash, &rss_tt, false);
 
 		err = mlx5e_tir_init(&hp->indir_tir[tt], builder, hp->func_mdev, false);
 		if (err) {

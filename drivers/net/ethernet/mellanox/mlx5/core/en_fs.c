@@ -1320,7 +1320,7 @@ err:
 void mlx5e_set_ttc_basic_params(struct mlx5e_priv *priv,
 				struct ttc_params *ttc_params)
 {
-	ttc_params->any_tt_tirn = priv->rx_res->channels[0].direct_tir.tirn;
+	ttc_params->any_tt_tirn = mlx5e_rx_res_get_tirn_direct(priv->rx_res, 0);
 	ttc_params->inner_ttc = &priv->fs.inner_ttc;
 }
 
@@ -1786,7 +1786,8 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 	if (mlx5e_tunnel_inner_ft_supported(priv->mdev)) {
 		mlx5e_set_inner_ttc_ft_params(&ttc_params);
 		for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-			ttc_params.indir_tirn[tt] = priv->rx_res->rss[tt].inner_indir_tir.tirn;
+			ttc_params.indir_tirn[tt] =
+				mlx5e_rx_res_get_tirn_rss_inner(priv->rx_res, tt);
 
 		err = mlx5e_create_inner_ttc_table(priv, &ttc_params, &priv->fs.inner_ttc);
 		if (err) {
@@ -1798,7 +1799,7 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 
 	mlx5e_set_ttc_ft_params(&ttc_params);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = priv->rx_res->rss[tt].indir_tir.tirn;
+		ttc_params.indir_tirn[tt] = mlx5e_rx_res_get_tirn_rss(priv->rx_res, tt);
 
 	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {

@@ -921,8 +921,6 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_timestamp_init(struct mlx5e_priv *priv);
 
-int mlx5e_modify_tirs_hash(struct mlx5e_priv *priv);
-
 struct mlx5e_xsk_param;
 
 struct mlx5e_rq_param;
@@ -1033,16 +1031,6 @@ void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq);
 int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node);
 void mlx5e_free_di_list(struct mlx5e_rq *rq);
 
-int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
-
-int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc);
-void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv);
-
-int mlx5e_create_direct_rqts(struct mlx5e_priv *priv);
-void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv);
-int mlx5e_create_direct_tirs(struct mlx5e_priv *priv);
-void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv);
-
 int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn);
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);
 
@@ -1130,8 +1118,6 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 void mlx5e_netdev_attach_nic_profile(struct mlx5e_priv *priv);
 void mlx5e_set_netdev_mtu_boundaries(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 mtu);
-void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
-			    u16 num_channels);
 void mlx5e_rx_dim_work(struct work_struct *work);
 void mlx5e_tx_dim_work(struct work_struct *work);
 
