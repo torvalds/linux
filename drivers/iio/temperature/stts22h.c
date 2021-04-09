@@ -325,7 +325,7 @@ static int st_stts22h_write_raw(struct iio_dev *iio_dev,
 
 
 		err = st_stts22h_get_odr_val(data, val, &odr);
-		if (!err < 0)
+		if (err < 0)
 			return err;
 
 		err = iio_device_claim_direct_mode(iio_dev);
