@@ -14,10 +14,10 @@
 
 static LIST_HEAD(ecryptfs_msg_ctx_free_list);
 static LIST_HEAD(ecryptfs_msg_ctx_alloc_list);
-static struct mutex ecryptfs_msg_ctx_lists_mux;
+static DEFINE_MUTEX(ecryptfs_msg_ctx_lists_mux);
 
 static struct hlist_head *ecryptfs_daemon_hash;
-struct mutex ecryptfs_daemon_hash_mux;
+DEFINE_MUTEX(ecryptfs_daemon_hash_mux);
 static int ecryptfs_hash_bits;
 #define ecryptfs_current_euid_hash(uid) \
 	hash_long((unsigned long)from_kuid(&init_user_ns, current_euid()), ecryptfs_hash_bits)
@@ -361,7 +361,6 @@ int __init ecryptfs_init_messaging(void)
 		       "too large, defaulting to [%d] users\n", __func__,
 		       ecryptfs_number_of_users);
 	}
-	mutex_init(&ecryptfs_daemon_hash_mux);
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	ecryptfs_hash_bits = 1;
 	while (ecryptfs_number_of_users >> ecryptfs_hash_bits)
@@ -385,7 +384,6 @@ int __init ecryptfs_init_messaging(void)
 		rc = -ENOMEM;
 		goto out;
 	}
-	mutex_init(&ecryptfs_msg_ctx_lists_mux);
 	mutex_lock(&ecryptfs_msg_ctx_lists_mux);
 	ecryptfs_msg_counter = 0;
 	for (i = 0; i < ecryptfs_message_buf_len; i++) {
