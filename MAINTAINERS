@@ -2631,8 +2631,10 @@ F:	drivers/watchdog/visconti_wdt.c
 N:	visconti
 
 ARM/UNIPHIER ARCHITECTURE
+M:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+M:	Masami Hiramatsu <mhiramat@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Orphan
+S:	Maintained
 F:	Documentation/devicetree/bindings/arm/socionext/uniphier.yaml
 F:	Documentation/devicetree/bindings/gpio/socionext,uniphier-gpio.yaml
 F:	Documentation/devicetree/bindings/pinctrl/socionext,uniphier-pinctrl.yaml
