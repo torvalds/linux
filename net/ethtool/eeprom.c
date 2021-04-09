@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/ethtool.h>
+#include <linux/sfp.h>
 #include "netlink.h"
 #include "common.h"
 
@@ -85,6 +86,21 @@ err_out:
 	return err;
 }
 
+static int get_module_eeprom_by_page(struct net_device *dev,
+				     struct ethtool_module_eeprom *page_data,
+				     struct netlink_ext_ack *extack)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (dev->sfp_bus)
+		return sfp_get_module_eeprom_by_page(dev->sfp_bus, page_data, extack);
+
+	if (ops->get_module_info)
+		return ops->get_module_eeprom_by_page(dev, page_data, extack);
+
+	return -EOPNOTSUPP;
+}
+
 static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
 			       struct ethnl_reply_data *reply_base,
 			       struct genl_info *info)
@@ -94,9 +110,6 @@ static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
 	struct ethtool_module_eeprom page_data = {0};
 	struct net_device *dev = reply_base->dev;
 	int ret;
-
-	if (!dev->ethtool_ops->get_module_eeprom_by_page)
-		return eeprom_fallback(request, reply, info);
 
 	page_data.offset = request->offset;
 	page_data.length = request->length;
@@ -111,8 +124,7 @@ static int eeprom_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret)
 		goto err_free;
 
-	ret = dev->ethtool_ops->get_module_eeprom_by_page(dev, &page_data,
-							  info->extack);
+	ret = get_module_eeprom_by_page(dev, &page_data, info->extack);
 	if (ret < 0)
 		goto err_ops;
 
@@ -126,6 +138,9 @@ err_ops:
 	ethnl_ops_complete(dev);
 err_free:
 	kfree(page_data.data);
+
+	if (ret == -EOPNOTSUPP)
+		return eeprom_fallback(request, reply, info);
 	return ret;
 }
 
