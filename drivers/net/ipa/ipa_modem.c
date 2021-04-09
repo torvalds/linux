@@ -240,7 +240,6 @@ int ipa_modem_stop(struct ipa *ipa)
 {
 	struct net_device *netdev = ipa->modem_netdev;
 	enum ipa_modem_state state;
-	int ret;
 
 	/* Only attempt to stop the modem if it's running */
 	state = atomic_cmpxchg(&ipa->modem_state, IPA_MODEM_STATE_RUNNING,
@@ -257,29 +256,20 @@ int ipa_modem_stop(struct ipa *ipa)
 	/* Prevent the modem from triggering a call to ipa_setup() */
 	ipa_smp2p_disable(ipa);
 
+	/* Stop the queue and disable the endpoints if it's open */
 	if (netdev) {
-		/* Stop the queue and disable the endpoints if it's open */
-		ret = ipa_stop(netdev);
-		if (ret)
-			goto out_set_state;
-
+		(void)ipa_stop(netdev);
 		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
 		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
 		ipa->modem_netdev = NULL;
 		unregister_netdev(netdev);
 		free_netdev(netdev);
-	} else {
-		ret = 0;
 	}
 
-out_set_state:
-	if (ret)
-		atomic_set(&ipa->modem_state, IPA_MODEM_STATE_RUNNING);
-	else
-		atomic_set(&ipa->modem_state, IPA_MODEM_STATE_STOPPED);
+	atomic_set(&ipa->modem_state, IPA_MODEM_STATE_STOPPED);
 	smp_mb__after_atomic();
 
-	return ret;
+	return 0;
 }
 
 /* Treat a "clean" modem stop the same as a crash */
