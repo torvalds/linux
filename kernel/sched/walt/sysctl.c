@@ -47,7 +47,6 @@ unsigned int __read_mostly sysctl_sched_group_downmigrate_pct;
 unsigned int __read_mostly sysctl_sched_group_upmigrate_pct;
 unsigned int __read_mostly sysctl_sched_window_stats_policy;
 unsigned int sysctl_sched_ravg_window_nr_ticks;
-unsigned int sysctl_sched_dynamic_ravg_window_enable;
 unsigned int sysctl_sched_walt_rotate_big_tasks;
 unsigned int sysctl_sched_task_unfilter_period;
 unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
@@ -182,7 +181,7 @@ static int sched_ravg_window_handler(struct ctl_table *table,
 
 	mutex_lock(&mutex);
 
-	if (write && (HZ != 250 || !sysctl_sched_dynamic_ravg_window_enable))
+	if (write && HZ != 250)
 		goto unlock;
 
 	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
@@ -676,15 +675,6 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= sched_ravg_window_handler,
 	},
 	{
-		.procname	= "sched_dynamic_ravg_window_enable",
-		.data		= &sysctl_sched_dynamic_ravg_window_enable,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-	{
 		.procname	= "sched_upmigrate",
 		.data		= &sysctl_sched_capacity_margin_up_pct,
 		.maxlen		= sizeof(unsigned int) * MAX_MARGIN_LEVELS,
@@ -829,8 +819,6 @@ void walt_tunables(void)
 	sysctl_sched_window_stats_policy = WINDOW_STATS_MAX_RECENT_AVG;
 
 	sysctl_sched_ravg_window_nr_ticks = (HZ / NR_WINDOWS_PER_SEC);
-
-	sysctl_sched_dynamic_ravg_window_enable = (HZ == 250);
 
 	sched_load_granule = DEFAULT_SCHED_RAVG_WINDOW / NUM_LOAD_INDICES;
 
