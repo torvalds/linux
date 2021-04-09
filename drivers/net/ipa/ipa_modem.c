@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2020 Linaro Ltd.
+ * Copyright (C) 2018-2021 Linaro Ltd.
  */
 
 #include <linux/errno.h>
@@ -213,18 +213,18 @@ int ipa_modem_start(struct ipa *ipa)
 		goto out_set_state;
 	}
 
-	ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
-	ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
-
 	SET_NETDEV_DEV(netdev, &ipa->pdev->dev);
 	priv = netdev_priv(netdev);
 	priv->ipa = ipa;
 
 	ret = register_netdev(netdev);
-	if (ret)
-		free_netdev(netdev);
-	else
+	if (!ret) {
 		ipa->modem_netdev = netdev;
+		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
+		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
+	} else {
+		free_netdev(netdev);
+	}
 
 out_set_state:
 	if (ret)
@@ -263,6 +263,8 @@ int ipa_modem_stop(struct ipa *ipa)
 		if (ret)
 			goto out_set_state;
 
+		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
+		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
 		ipa->modem_netdev = NULL;
 		unregister_netdev(netdev);
 		free_netdev(netdev);
