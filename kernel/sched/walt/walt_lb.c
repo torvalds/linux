@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2020-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -146,7 +146,12 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	if (!is_min_cluster_cpu(src_cpu))
 		return;
 
-	wc = walt_ktime_get_ns();
+	/*
+	 * Use src_rq->clock directly instead of rq_clock() since
+	 * we do not have the rq lock and
+	 * src_rq->clock was updated in the tick callpath.
+	 */
+	wc = src_rq->clock;
 
 	for_each_possible_cpu(i) {
 		struct rq *rq = cpu_rq(i);
@@ -681,6 +686,7 @@ static bool walt_balance_rt(struct rq *this_rq)
 	struct task_struct *p;
 	struct walt_task_struct *wts;
 	bool pulled = false;
+	u64 wallclock;
 
 	/* can't help if this has a runnable RT */
 	if (sched_rt_runnable(this_rq))
@@ -713,7 +719,16 @@ static bool walt_balance_rt(struct rq *this_rq)
 		goto unlock;
 
 	wts = (struct walt_task_struct *) p->android_vendor_data1;
-	if (walt_ktime_get_ns() - wts->last_wake_ts < WALT_RT_PULL_THRESHOLD_NS)
+
+	/*
+	 * Use rq->clock directly instead of rq_clock() since
+	 * rq->clock was updated recently in the __schedule() -> pick_next_task() callpath.
+	 * Time lost in grabbing rq locks will likely be corrected via max.
+	 */
+	wallclock = max(this_rq->clock, src_rq->clock);
+
+	if (wallclock > wts->last_wake_ts &&
+			wallclock - wts->last_wake_ts < WALT_RT_PULL_THRESHOLD_NS)
 		goto unlock;
 
 	pulled = true;

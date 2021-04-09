@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2016, Intel Corporation
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -413,7 +414,7 @@ static void waltgov_work(struct kthread_work *work)
 	raw_spin_lock_irqsave(&wg_policy->update_lock, flags);
 	freq = wg_policy->next_freq;
 	waltgov_track_cycles(wg_policy, wg_policy->policy->cur,
-			   ktime_get_ns());
+			   walt_sched_clock());
 	raw_spin_unlock_irqrestore(&wg_policy->update_lock, flags);
 
 	mutex_lock(&wg_policy->work_lock);
@@ -972,14 +973,14 @@ static void waltgov_limits(struct cpufreq_policy *policy)
 		mutex_lock(&wg_policy->work_lock);
 		raw_spin_lock_irqsave(&wg_policy->update_lock, flags);
 		waltgov_track_cycles(wg_policy, wg_policy->policy->cur,
-				   ktime_get_ns());
+				   walt_sched_clock());
 		raw_spin_unlock_irqrestore(&wg_policy->update_lock, flags);
 		cpufreq_policy_apply_limits(policy);
 		mutex_unlock(&wg_policy->work_lock);
 	} else {
 		raw_spin_lock_irqsave(&wg_policy->update_lock, flags);
 		freq = policy->cur;
-		now = ktime_get_ns();
+		now = walt_sched_clock();
 
 		/*
 		 * cpufreq_driver_resolve_freq() has a clamp, so we do not need
