@@ -1768,10 +1768,7 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  *
  * This can be used by mac80211 drivers with direct cfg80211 APIs
  * (like the vendor commands) that needs to get the wdev for a vif.
- *
- * Note that this function may return %NULL if the given wdev isn't
- * associated with a vif that the driver knows about (e.g. monitor
- * or AP_VLAN interfaces.)
+ * This can also be useful to get the netdev associated to a vif.
  */
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
 

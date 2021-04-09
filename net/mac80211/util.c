@@ -888,18 +888,10 @@ EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
 
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
 {
-	struct ieee80211_sub_if_data *sdata;
-
 	if (!vif)
 		return NULL;
 
-	sdata = vif_to_sdata(vif);
-
-	if (!ieee80211_sdata_running(sdata) ||
-	    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
-		return NULL;
-
-	return &sdata->wdev;
+	return &vif_to_sdata(vif)->wdev;
 }
 EXPORT_SYMBOL_GPL(ieee80211_vif_to_wdev);
 
