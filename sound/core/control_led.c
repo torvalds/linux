@@ -734,7 +734,7 @@ static int __init snd_ctl_led_init(void)
 		if (device_add(&led->dev)) {
 			put_device(&led->dev);
 			for (; group > 0; group--) {
-				led = &snd_ctl_leds[group];
+				led = &snd_ctl_leds[group - 1];
 				device_del(&led->dev);
 			}
 			device_del(&snd_ctl_led_dev);
