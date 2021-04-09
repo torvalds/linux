@@ -4926,20 +4926,18 @@ static void io_poll_task_func(struct callback_head *cb)
 	if (io_poll_rewait(req, &req->poll)) {
 		spin_unlock_irq(&ctx->completion_lock);
 	} else {
-		bool done, post_ev;
+		bool done;
 
-		post_ev = done = io_poll_complete(req, req->result, 0);
+		done = io_poll_complete(req, req->result, 0);
 		if (done) {
 			hash_del(&req->hash_node);
-		} else if (!(req->poll.events & EPOLLONESHOT)) {
-			post_ev = true;
+		} else {
 			req->result = 0;
 			add_wait_queue(req->poll.head, &req->poll.wait);
 		}
 		spin_unlock_irq(&ctx->completion_lock);
+		io_cqring_ev_posted(ctx);
 
-		if (post_ev)
-			io_cqring_ev_posted(ctx);
 		if (done) {
 			nxt = io_put_req_find_next(req);
 			if (nxt)
