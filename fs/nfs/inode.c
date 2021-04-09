@@ -1754,6 +1754,34 @@ static int nfs_inode_attrs_cmp(const struct nfs_fattr *fattr,
 	return 0;
 }
 
+/**
+ * nfs_inode_finish_partial_attr_update - complete a previous inode update
+ * @fattr: attributes
+ * @inode: pointer to inode
+ *
+ * Returns '1' if the last attribute update left the inode cached
+ * attributes in a partially unrevalidated state, and @fattr
+ * matches the change attribute of that partial update.
+ * Otherwise returns '0'.
+ */
+static int nfs_inode_finish_partial_attr_update(const struct nfs_fattr *fattr,
+						const struct inode *inode)
+{
+	const unsigned long check_valid =
+		NFS_INO_INVALID_ATIME | NFS_INO_INVALID_CTIME |
+		NFS_INO_INVALID_MTIME | NFS_INO_INVALID_SIZE |
+		NFS_INO_INVALID_BLOCKS | NFS_INO_INVALID_OTHER |
+		NFS_INO_INVALID_NLINK;
+	unsigned long cache_validity = NFS_I(inode)->cache_validity;
+
+	if (!(cache_validity & NFS_INO_INVALID_CHANGE) &&
+	    (cache_validity & check_valid) != 0 &&
+	    (fattr->valid & NFS_ATTR_FATTR_CHANGE) != 0 &&
+	    nfs_inode_attrs_cmp_monotonic(fattr, inode) == 0)
+		return 1;
+	return 0;
+}
+
 static int nfs_refresh_inode_locked(struct inode *inode,
 				    struct nfs_fattr *fattr)
 {
@@ -1762,7 +1790,7 @@ static int nfs_refresh_inode_locked(struct inode *inode,
 
 	trace_nfs_refresh_inode_enter(inode);
 
-	if (attr_cmp > 0)
+	if (attr_cmp > 0 || nfs_inode_finish_partial_attr_update(fattr, inode))
 		ret = nfs_update_inode(inode, fattr);
 	else if (attr_cmp == 0)
 		ret = nfs_check_inode_attributes(inode, fattr);
