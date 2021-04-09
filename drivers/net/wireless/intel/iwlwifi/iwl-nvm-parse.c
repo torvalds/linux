@@ -552,7 +552,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 					IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
 					IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2,
 				.mac_cap_info[4] =
-					IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU |
+					IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU |
 					IEEE80211_HE_MAC_CAP4_MULTI_TID_AGG_TX_QOS_B39,
 				.mac_cap_info[5] =
 					IEEE80211_HE_MAC_CAP5_MULTI_TID_AGG_TX_QOS_B40 |
@@ -638,7 +638,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 					IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
 					IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2,
 				.mac_cap_info[4] =
-					IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU,
+					IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU,
 				.mac_cap_info[5] =
 					IEEE80211_HE_MAC_CAP5_UL_2x996_TONE_RU,
 				.phy_cap_info[0] =

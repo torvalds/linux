@@ -478,7 +478,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 			IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
 			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3;
 		he_cap_elem->mac_cap_info[4] =
-			IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU;
+			IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU;
 
 		if (band == NL80211_BAND_2GHZ)
 			he_cap_elem->phy_cap_info[0] =

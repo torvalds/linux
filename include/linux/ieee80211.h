@@ -2021,7 +2021,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 #define IEEE80211_HE_MAC_CAP4_PSR_RESP				0x08
 #define IEEE80211_HE_MAC_CAP4_NDP_FB_REP			0x10
 #define IEEE80211_HE_MAC_CAP4_OPS				0x20
-#define IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU			0x40
+#define IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU			0x40
 /* Multi TID agg TX is split between byte #4 and #5
  * The value is a combination of B39,B40,B41
  */
