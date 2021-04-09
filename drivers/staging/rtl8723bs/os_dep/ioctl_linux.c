@@ -2543,14 +2543,6 @@ static int rtw_dbg_port(struct net_device *dev,
 					break;
 				case 0x05:
 					psta = rtw_get_stainfo(pstapriv, cur_network->network.MacAddress);
-					if (psta) {
-						int i;
-						struct recv_reorder_ctrl *preorder_ctrl;
-
-						for (i = 0; i < 16; i++)
-							preorder_ctrl = &psta->recvreorder_ctrl[i];
-
-					}
 					break;
 				case 0x06:
 					{
