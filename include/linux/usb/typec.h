@@ -18,6 +18,7 @@ struct typec_partner;
 struct typec_cable;
 struct typec_plug;
 struct typec_port;
+struct typec_altmode_ops;
 
 struct fwnode_handle;
 struct device;
@@ -139,6 +140,11 @@ struct typec_altmode
 struct typec_altmode
 *typec_port_register_altmode(struct typec_port *port,
 			     const struct typec_altmode_desc *desc);
+
+void typec_port_register_altmodes(struct typec_port *port,
+	const struct typec_altmode_ops *ops, void *drvdata,
+	struct typec_altmode **altmodes, size_t n);
+
 void typec_unregister_altmode(struct typec_altmode *altmode);
 
 struct typec_port *typec_altmode2port(struct typec_altmode *alt);
