@@ -326,7 +326,7 @@ int ttm_tt_populate(struct ttm_device *bdev,
 	       ttm_dma32_pages_limit) {
 
 		ret = ttm_global_swapout(ctx, GFP_KERNEL);
-		if (ret)
+		if (ret < 0)
 			goto error;
 	}
 
