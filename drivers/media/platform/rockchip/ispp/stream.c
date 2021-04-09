@@ -1118,6 +1118,8 @@ static int config_modules(struct rkispp_device *dev)
 	if (ret < 0)
 		goto free_nr;
 
+	/* config default params */
+	rkispp_params_cfg(&dev->params_vdev, 0);
 	return 0;
 free_nr:
 	nr_free_buf(dev);
