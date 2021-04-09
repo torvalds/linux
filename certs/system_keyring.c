@@ -27,6 +27,7 @@ static struct key *platform_trusted_keys;
 
 extern __initconst const u8 system_certificate_list[];
 extern __initconst const unsigned long system_certificate_list_size;
+extern __initconst const unsigned long module_cert_size;
 
 /**
  * restrict_link_to_builtin_trusted - Restrict keyring addition by built in CA
@@ -132,19 +133,11 @@ static __init int system_trusted_keyring_init(void)
  */
 device_initcall(system_trusted_keyring_init);
 
-/*
- * Load the compiled-in list of X.509 certificates.
- */
-static __init int load_system_certificate_list(void)
+static __init int load_cert(const u8 *p, const u8 *end, struct key *keyring)
 {
 	key_ref_t key;
-	const u8 *p, *end;
 	size_t plen;
 
-	pr_notice("Loading compiled-in X.509 certificates\n");
-
-	p = system_certificate_list;
-	end = p + system_certificate_list_size;
 	while (p < end) {
 		/* Each cert begins with an ASN.1 SEQUENCE tag and must be more
 		 * than 256 bytes in size.
@@ -159,7 +152,7 @@ static __init int load_system_certificate_list(void)
 		if (plen > end - p)
 			goto dodgy_cert;
 
-		key = key_create_or_update(make_key_ref(builtin_trusted_keys, 1),
+		key = key_create_or_update(make_key_ref(keyring, 1),
 					   "asymmetric",
 					   NULL,
 					   p,
@@ -185,6 +178,43 @@ static __init int load_system_certificate_list(void)
 dodgy_cert:
 	pr_err("Problem parsing in-kernel X.509 certificate list\n");
 	return 0;
+}
+
+__init int load_module_cert(struct key *keyring)
+{
+	const u8 *p, *end;
+
+	if (!IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG))
+		return 0;
+
+	pr_notice("Loading compiled-in module X.509 certificates\n");
+
+	p = system_certificate_list;
+	end = p + module_cert_size;
+
+	return load_cert(p, end, keyring);
+}
+
+/*
+ * Load the compiled-in list of X.509 certificates.
+ */
+static __init int load_system_certificate_list(void)
+{
+	const u8 *p, *end;
+	unsigned long size;
+
+	pr_notice("Loading compiled-in X.509 certificates\n");
+
+#ifdef CONFIG_MODULE_SIG
+	p = system_certificate_list;
+	size = system_certificate_list_size;
+#else
+	p = system_certificate_list + module_cert_size;
+	size = system_certificate_list_size - module_cert_size;
+#endif
+
+	end = p + size;
+	return load_cert(p, end, builtin_trusted_keys);
 }
 late_initcall(load_system_certificate_list);
 
