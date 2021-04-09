@@ -2568,9 +2568,8 @@ static int rtw_dbg_port(struct net_device *dev,
 					break;
 				case 0x09:
 					{
-						int i, j;
+						int i;
 						struct list_head	*plist, *phead;
-						struct recv_reorder_ctrl *preorder_ctrl;
 
 						spin_lock_bh(&pstapriv->sta_hash_lock);
 
@@ -2582,10 +2581,6 @@ static int rtw_dbg_port(struct net_device *dev,
 								psta = container_of(plist, struct sta_info, hash_list);
 
 								plist = get_next(plist);
-
-								if (extra_arg == psta->aid)
-									for (j = 0; j < 16; j++)
-										preorder_ctrl = &psta->recvreorder_ctrl[j];
 							}
 						}
 
