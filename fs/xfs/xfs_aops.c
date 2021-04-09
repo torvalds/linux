@@ -206,13 +206,6 @@ xfs_end_io(
 	}
 }
 
-static inline bool xfs_ioend_needs_workqueue(struct iomap_ioend *ioend)
-{
-	return xfs_ioend_is_append(ioend) ||
-		ioend->io_type == IOMAP_UNWRITTEN ||
-		(ioend->io_flags & IOMAP_F_SHARED);
-}
-
 STATIC void
 xfs_end_bio(
 	struct bio		*bio)
@@ -472,7 +465,9 @@ xfs_prepare_ioend(
 
 	memalloc_nofs_restore(nofs_flag);
 
-	if (xfs_ioend_needs_workqueue(ioend))
+	/* send ioends that might require a transaction to the completion wq */
+	if (xfs_ioend_is_append(ioend) || ioend->io_type == IOMAP_UNWRITTEN ||
+	    (ioend->io_flags & IOMAP_F_SHARED))
 		ioend->io_bio->bi_end_io = xfs_end_bio;
 	return status;
 }
