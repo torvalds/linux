@@ -617,10 +617,11 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int queue_trunc = 0;
+	loff_t isize = i_size_read(inode);
 
 	if (ceph_seq_cmp(truncate_seq, ci->i_truncate_seq) > 0 ||
-	    (truncate_seq == ci->i_truncate_seq && size > inode->i_size)) {
-		dout("size %lld -> %llu\n", inode->i_size, size);
+	    (truncate_seq == ci->i_truncate_seq && size > isize)) {
+		dout("size %lld -> %llu\n", isize, size);
 		if (size > 0 && S_ISDIR(inode->i_mode)) {
 			pr_err("fill_file_size non-zero size for directory\n");
 			size = 0;
@@ -1789,7 +1790,7 @@ bool ceph_inode_set_size(struct inode *inode, loff_t size)
 	bool ret;
 
 	spin_lock(&ci->i_ceph_lock);
-	dout("set_size %p %llu -> %llu\n", inode, inode->i_size, size);
+	dout("set_size %p %llu -> %llu\n", inode, i_size_read(inode), size);
 	i_size_write(inode, size);
 	inode->i_blocks = calc_inode_blocks(size);
 
@@ -2096,20 +2097,19 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		}
 	}
 	if (ia_valid & ATTR_SIZE) {
-		dout("setattr %p size %lld -> %lld\n", inode,
-		     inode->i_size, attr->ia_size);
-		if ((issued & CEPH_CAP_FILE_EXCL) &&
-		    attr->ia_size > inode->i_size) {
+		loff_t isize = i_size_read(inode);
+
+		dout("setattr %p size %lld -> %lld\n", inode, isize, attr->ia_size);
+		if ((issued & CEPH_CAP_FILE_EXCL) && attr->ia_size > isize) {
 			i_size_write(inode, attr->ia_size);
 			inode->i_blocks = calc_inode_blocks(attr->ia_size);
 			ci->i_reported_size = attr->ia_size;
 			dirtied |= CEPH_CAP_FILE_EXCL;
 			ia_valid |= ATTR_MTIME;
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
-			   attr->ia_size != inode->i_size) {
+			   attr->ia_size != isize) {
 			req->r_args.setattr.size = cpu_to_le64(attr->ia_size);
-			req->r_args.setattr.old_size =
-				cpu_to_le64(inode->i_size);
+			req->r_args.setattr.old_size = cpu_to_le64(isize);
 			mask |= CEPH_SETATTR_SIZE;
 			release |= CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_EXCL |
 				   CEPH_CAP_FILE_RD | CEPH_CAP_FILE_WR;
@@ -2219,7 +2219,7 @@ int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return err;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size > max(inode->i_size, fsc->max_file_size))
+	    attr->ia_size > max(i_size_read(inode), fsc->max_file_size))
 		return -EFBIG;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
