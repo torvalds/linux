@@ -719,11 +719,13 @@ static inline bool task_fits_capacity(struct task_struct *p,
 					int cpu)
 {
 	unsigned int margin;
+	struct walt_rq *src_wrq = (struct walt_rq *) cpu_rq(task_cpu(p))->android_vendor_data1;
+	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
 
 	/*
 	 * Derive upmigration/downmigrate margin wrt the src/dest CPU.
 	 */
-	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
+	if (src_wrq->cluster->id > dst_wrq->cluster->id)
 		margin = sched_capacity_margin_down[cpu];
 	else
 		margin = sched_capacity_margin_up[task_cpu(p)];

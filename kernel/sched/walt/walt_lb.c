@@ -266,11 +266,13 @@ static inline bool need_active_lb(struct task_struct *p, int dst_cpu,
 				  int src_cpu)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	struct walt_rq *src_wrq = (struct walt_rq *) cpu_rq(src_cpu)->android_vendor_data1;
+	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
 
 	if (cpu_rq(src_cpu)->active_balance)
 		return false;
 
-	if (capacity_orig_of(dst_cpu) <= capacity_orig_of(src_cpu))
+	if (dst_wrq->cluster->id <= src_wrq->cluster->id)
 		return false;
 
 	if (!wts->misfit)
@@ -286,12 +288,13 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	unsigned long flags;
 	struct task_struct *pulled_task = NULL, *p;
 	bool active_balance = false, to_lower;
-	struct walt_rq *wrq = (struct walt_rq *) src_rq->android_vendor_data1;
+	struct walt_rq *src_wrq = (struct walt_rq *) src_rq->android_vendor_data1;
+	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
 	struct walt_task_struct *wts;
 
 	BUG_ON(src_cpu == dst_cpu);
 
-	to_lower = capacity_orig_of(dst_cpu) < capacity_orig_of(src_cpu);
+	to_lower = dst_wrq->cluster->id < src_wrq->cluster->id;
 
 	raw_spin_lock_irqsave(&src_rq->__lock, flags);
 
@@ -339,7 +342,7 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 				src_rq->active_balance = 1;
 				src_rq->push_cpu = dst_cpu;
 				get_task_struct(p);
-				wrq->push_task = p;
+				src_wrq->push_task = p;
 				mark_reserved(dst_cpu);
 
 				/* lock must be dropped before waking the stopper */
@@ -577,13 +580,15 @@ static int walt_lb_find_busiest_cpu(int dst_cpu, const cpumask_t *src_mask, int 
 {
 	int fsrc_cpu = cpumask_first(src_mask);
 	int busiest_cpu;
+	struct walt_rq *fsrc_wrq = (struct walt_rq *) cpu_rq(fsrc_cpu)->android_vendor_data1;
+	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
 
-	if (capacity_orig_of(dst_cpu) == capacity_orig_of(fsrc_cpu))
+	if (dst_wrq->cluster->id == fsrc_wrq->cluster->id)
 		busiest_cpu = walt_lb_find_busiest_similar_cap_cpu(dst_cpu,
 								src_mask, has_misfit);
-	else if (capacity_orig_of(dst_cpu) > capacity_orig_of(fsrc_cpu))
+	else if (dst_wrq->cluster->id > fsrc_wrq->cluster->id)
 		busiest_cpu = walt_lb_find_busiest_from_lower_cap_cpu(dst_cpu,
-								      src_mask, has_misfit);
+								src_mask, has_misfit);
 	else
 		busiest_cpu = walt_lb_find_busiest_from_higher_cap_cpu(dst_cpu,
 								       src_mask, has_misfit);
@@ -597,7 +602,8 @@ void walt_lb_tick(struct rq *rq)
 	int prev_cpu = rq->cpu, new_cpu, ret;
 	struct task_struct *p = rq->curr;
 	unsigned long flags;
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *prev_wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *new_wrq;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	raw_spin_lock(&rq->__lock);
@@ -627,9 +633,11 @@ void walt_lb_tick(struct rq *rq)
 	new_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, 0, 1);
 	rcu_read_unlock();
 
+	new_wrq = (struct walt_rq *) cpu_rq(new_cpu)->android_vendor_data1;
+
 	/* prevent active task migration to busy or same/lower capacity CPU */
 	if (new_cpu < 0 || !available_idle_cpu(new_cpu) ||
-		capacity_orig_of(new_cpu) <= capacity_orig_of(prev_cpu))
+		new_wrq->cluster->id <= prev_wrq->cluster->id)
 		goto out_unlock;
 
 	raw_spin_lock(&rq->__lock);
@@ -640,7 +648,7 @@ void walt_lb_tick(struct rq *rq)
 	rq->active_balance = 1;
 	rq->push_cpu = new_cpu;
 	get_task_struct(p);
-	wrq->push_task = p;
+	prev_wrq->push_task = p;
 	raw_spin_unlock(&rq->__lock);
 
 	mark_reserved(new_cpu);
@@ -1011,10 +1019,12 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 				  int dst_cpu, int *can_migrate)
 {
 	bool to_lower;
+	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
+	struct walt_rq *task_wrq = (struct walt_rq *) cpu_rq(task_cpu(p))->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
 		return;
-	to_lower = capacity_orig_of(dst_cpu) < capacity_orig_of(task_cpu(p));
+	to_lower = dst_wrq->cluster->id < task_wrq->cluster->id;
 
 	if (_walt_can_migrate_task(p, dst_cpu, to_lower, true))
 		return;

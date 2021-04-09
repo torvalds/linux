@@ -64,8 +64,10 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 {
 	bool base_test = cpumask_test_cpu(cpu, &p->cpus_mask) &&
 						cpu_active(cpu);
-	bool start_cap_test = (capacity_orig_of(cpu) >=
-					capacity_orig_of(start_cpu));
+
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *start_wrq = (struct walt_rq *) cpu_rq(start_cpu)->android_vendor_data1;
+	bool start_cap_test = (wrq->cluster->id >= start_wrq->cluster->id);
 
 	return base_test && start_cap_test;
 }
@@ -246,9 +248,12 @@ static void walt_find_best_target(struct sched_domain *sd,
 	bool rtg_high_prio_task = task_rtg_high_prio(p);
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	struct walt_rq *prev_wrq = (struct walt_rq *) cpu_rq(prev_cpu)->android_vendor_data1;
+	struct walt_rq *start_wrq;
 
 	/* Find start CPU based on boost value */
 	start_cpu = fbt_env->start_cpu;
+	start_wrq = (struct walt_rq *) cpu_rq(start_cpu)->android_vendor_data1;
 
 	/*
 	 * For higher capacity worth I/O tasks, stop the search
@@ -265,7 +270,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 	}
 
 	/* fast path for prev_cpu */
-	if (((capacity_orig_of(prev_cpu) == capacity_orig_of(start_cpu)) ||
+	if (((prev_wrq->cluster->id == start_wrq->cluster->id) ||
 				asym_cap_siblings(prev_cpu, start_cpu)) &&
 				cpu_active(prev_cpu) &&
 				available_idle_cpu(prev_cpu) &&
@@ -703,10 +708,12 @@ static inline bool select_cpu_same_energy(int cpu, int best_cpu, int prev_cpu)
 {
 	bool new_cpu_is_idle = available_idle_cpu(cpu);
 	bool best_cpu_is_idle = available_idle_cpu(best_cpu);
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *best_wrq = (struct walt_rq *) cpu_rq(best_cpu)->android_vendor_data1;
 
-	if (capacity_orig_of(best_cpu) < capacity_orig_of(cpu))
+	if (best_wrq->cluster->id < wrq->cluster->id)
 		return false;
-	if (capacity_orig_of(cpu) < capacity_orig_of(best_cpu))
+	if (wrq->cluster->id < best_wrq->cluster->id)
 		return true;
 
 	if (best_cpu_is_idle && walt_get_idle_exit_latency(cpu_rq(best_cpu)) <= 1)
@@ -759,6 +766,8 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	int first_cpu;
 	bool energy_eval_needed = true;
 	struct compute_energy_output output;
+	struct walt_rq *prev_wrq = (struct walt_rq *) cpu_rq(prev_cpu)->android_vendor_data1;
+	struct walt_rq *start_wrq;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, &p->cpus_mask))
@@ -770,6 +779,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost,
 								&energy_eval_needed);
 	start_cpu = cpumask_first(&cpu_array[order_index][0]);
+	start_wrq = (struct walt_rq *) cpu_rq(start_cpu)->android_vendor_data1;
 
 	is_rtg = task_in_related_thread_group(p);
 	curr_is_rtg = task_in_related_thread_group(cpu_rq(cpu)->curr);
@@ -895,7 +905,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	    walt_get_idle_exit_latency(cpu_rq(best_energy_cpu)) <= 1) &&
 	    (prev_energy != ULONG_MAX) && (best_energy_cpu != prev_cpu) &&
 	    ((prev_energy - best_energy) <= prev_energy >> 5) &&
-	    (capacity_orig_of(prev_cpu) <= capacity_orig_of(start_cpu)))
+	    (prev_wrq->cluster->id <= start_wrq->cluster->id))
 		best_energy_cpu = prev_cpu;
 
 unlock:
