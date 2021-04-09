@@ -485,9 +485,6 @@ int blk_rq_append_bio(struct request *rq, struct bio *bio)
 	struct bio_vec bv;
 	unsigned int nr_segs = 0;
 
-	if (WARN_ON_ONCE(rq->q->limits.bounce != BLK_BOUNCE_NONE))
-		return -EINVAL;
-
 	bio_for_each_bvec(bv, bio, iter)
 		nr_segs++;
 
