@@ -1796,9 +1796,8 @@ require use of the stronger protocol */
  *
  *  Semaphores
  *  ----------
- *  sesSem     operations on smb session
- *  tconSem    operations on tree connection
- *  fh_sem      file handle reconnection operations
+ *  cifsInodeInfo->lock_sem protects:
+ *	the list of locks held by the inode
  *
  ****************************************************************************/
 
