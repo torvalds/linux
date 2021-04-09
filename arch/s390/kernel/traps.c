@@ -79,7 +79,7 @@ void do_per_trap(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(do_per_trap);
 
-void default_trap_handler(struct pt_regs *regs)
+static void default_trap_handler(struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
 		report_user_fault(regs, SIGSEGV, 0);
@@ -404,3 +404,12 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	[0x40]		= monitor_event_exception,
 	[0x41 ... 0x7f] = default_trap_handler,
 };
+
+#define COND_TRAP(x) asm(			\
+	".weak " __stringify(x) "\n\t"		\
+	".set  " __stringify(x) ","		\
+	__stringify(default_trap_handler))
+
+COND_TRAP(do_secure_storage_access);
+COND_TRAP(do_non_secure_storage_access);
+COND_TRAP(do_secure_storage_violation);
