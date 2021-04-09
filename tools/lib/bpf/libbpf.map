@@ -359,5 +359,6 @@ LIBBPF_0.4.0 {
 		bpf_linker__finalize;
 		bpf_linker__free;
 		bpf_linker__new;
+		bpf_map__inner_map;
 		bpf_object__set_kversion;
 } LIBBPF_0.3.0;
