@@ -87,8 +87,6 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa);
 
 int ipa_endpoint_skb_tx(struct ipa_endpoint *endpoint, struct sk_buff *skb);
 
-void ipa_endpoint_exit_one(struct ipa_endpoint *endpoint);
-
 int ipa_endpoint_enable_one(struct ipa_endpoint *endpoint);
 void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint);
 
