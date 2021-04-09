@@ -246,6 +246,8 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("halt_poll_success_ns", halt_poll_success_ns),
 	VCPU_STAT("halt_poll_fail_ns", halt_poll_fail_ns),
 	VCPU_STAT("nested_run", nested_run),
+	VCPU_STAT("directed_yield_attempted", directed_yield_attempted),
+	VCPU_STAT("directed_yield_successful", directed_yield_successful),
 	VM_STAT("mmu_shadow_zapped", mmu_shadow_zapped),
 	VM_STAT("mmu_pte_write", mmu_pte_write),
 	VM_STAT("mmu_pde_zapped", mmu_pde_zapped),
@@ -8208,21 +8210,31 @@ void kvm_apicv_init(struct kvm *kvm, bool enable)
 }
 EXPORT_SYMBOL_GPL(kvm_apicv_init);
 
-static void kvm_sched_yield(struct kvm *kvm, unsigned long dest_id)
+static void kvm_sched_yield(struct kvm_vcpu *vcpu, unsigned long dest_id)
 {
 	struct kvm_vcpu *target = NULL;
 	struct kvm_apic_map *map;
 
+	vcpu->stat.directed_yield_attempted++;
+
 	rcu_read_lock();
-	map = rcu_dereference(kvm->arch.apic_map);
+	map = rcu_dereference(vcpu->kvm->arch.apic_map);
 
 	if (likely(map) && dest_id <= map->max_apic_id && map->phys_map[dest_id])
 		target = map->phys_map[dest_id]->vcpu;
 
 	rcu_read_unlock();
 
-	if (target && READ_ONCE(target->ready))
-		kvm_vcpu_yield_to(target);
+	if (!target || !READ_ONCE(target->ready))
+		goto no_yield;
+
+	if (kvm_vcpu_yield_to(target) <= 0)
+		goto no_yield;
+
+	vcpu->stat.directed_yield_successful++;
+
+no_yield:
+	return;
 }
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
@@ -8269,7 +8281,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 			break;
 
 		kvm_pv_kick_cpu_op(vcpu->kvm, a0, a1);
-		kvm_sched_yield(vcpu->kvm, a1);
+		kvm_sched_yield(vcpu, a1);
 		ret = 0;
 		break;
 #ifdef CONFIG_X86_64
@@ -8287,7 +8299,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_SCHED_YIELD))
 			break;
 
-		kvm_sched_yield(vcpu->kvm, a0);
+		kvm_sched_yield(vcpu, a0);
 		ret = 0;
 		break;
 	default:
