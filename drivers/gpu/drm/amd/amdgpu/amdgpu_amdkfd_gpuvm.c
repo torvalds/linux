@@ -488,70 +488,76 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
  * 4a.  Validate new page tables and directories
  */
 static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
-		struct amdgpu_vm *vm, bool is_aql,
-		struct kfd_mem_attachment **p_attachment)
+		struct amdgpu_vm *vm, bool is_aql)
 {
 	unsigned long bo_size = mem->bo->tbo.base.size;
 	uint64_t va = mem->va;
-	struct kfd_mem_attachment *attachment;
-	struct amdgpu_bo *bo;
-	int ret;
+	struct kfd_mem_attachment *attachment[2] = {NULL, NULL};
+	struct amdgpu_bo *bo[2] = {NULL, NULL};
+	int i, ret;
 
 	if (!va) {
 		pr_err("Invalid VA when adding BO to VM\n");
 		return -EINVAL;
 	}
 
-	if (is_aql)
+	for (i = 0; i <= is_aql; i++) {
+		attachment[i] = kzalloc(sizeof(*attachment[i]), GFP_KERNEL);
+		if (unlikely(!attachment[i])) {
+			ret = -ENOMEM;
+			goto unwind;
+		}
+
+		pr_debug("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
+			 va + bo_size, vm);
+
+		/* FIXME: For now all attachments use the same BO. This is
+		 * incorrect because one BO can only have one DMA mapping
+		 * for one GPU. We need one BO per GPU, e.g. a DMABuf
+		 * import with dynamic attachment. This will be addressed
+		 * one BO-type at a time in subsequent patches.
+		 */
+		bo[i] = mem->bo;
+		drm_gem_object_get(&bo[i]->tbo.base);
+
+		/* Add BO to VM internal data structures */
+		attachment[i]->bo_va = amdgpu_vm_bo_add(adev, vm, bo[i]);
+		if (unlikely(!attachment[i]->bo_va)) {
+			ret = -ENOMEM;
+			pr_err("Failed to add BO object to VM. ret == %d\n",
+			       ret);
+			goto unwind;
+		}
+
+		attachment[i]->va = va;
+		attachment[i]->pte_flags = get_pte_flags(adev, mem);
+		attachment[i]->adev = adev;
+		list_add(&attachment[i]->list, &mem->attachments);
+
 		va += bo_size;
-
-	attachment = kzalloc(sizeof(*attachment), GFP_KERNEL);
-	if (!attachment)
-		return -ENOMEM;
-
-	pr_debug("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
-			va + bo_size, vm);
-
-	/* FIXME: For now all attachments use the same BO. This is incorrect
-	 * because one BO can only have one DMA mapping for one GPU. We need
-	 * one BO per GPU, e.g. a DMABuf import with dynamic attachment. This
-	 * will be addressed one BO-type at a time in subsequent patches.
-	 */
-	bo = mem->bo;
-	drm_gem_object_get(&bo->tbo.base);
-
-	/* Add BO to VM internal data structures*/
-	attachment->bo_va = amdgpu_vm_bo_add(adev, vm, bo);
-	if (!attachment->bo_va) {
-		ret = -EINVAL;
-		pr_err("Failed to add BO object to VM. ret == %d\n",
-				ret);
-		goto err_vmadd;
 	}
-
-	attachment->va = va;
-	attachment->pte_flags = get_pte_flags(adev, mem);
-	attachment->adev = adev;
-	list_add(&attachment->list, &mem->attachments);
-
-	if (p_attachment)
-		*p_attachment = attachment;
 
 	/* Allocate validate page tables if needed */
 	ret = vm_validate_pt_pd_bos(vm);
 	if (unlikely(ret)) {
 		pr_err("validate_pt_pd_bos() failed\n");
-		goto err_alloc_pts;
+		goto unwind;
 	}
 
 	return 0;
 
-err_alloc_pts:
-	amdgpu_vm_bo_rmv(adev, attachment->bo_va);
-	list_del(&attachment->list);
-err_vmadd:
-	drm_gem_object_put(&bo->tbo.base);
-	kfree(attachment);
+unwind:
+	for (; i >= 0; i--) {
+		if (!attachment[i])
+			continue;
+		if (attachment[i]->bo_va) {
+			amdgpu_vm_bo_rmv(adev, attachment[i]->bo_va);
+			list_del(&attachment[i]->list);
+		}
+		if (bo[i])
+			drm_gem_object_put(&bo[i]->tbo.base);
+		kfree(attachment[i]);
+	}
 	return ret;
 }
 
@@ -1384,8 +1390,6 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	uint32_t domain;
 	struct kfd_mem_attachment *entry;
 	struct bo_vm_reservation_context ctx;
-	struct kfd_mem_attachment *attachment = NULL;
-	struct kfd_mem_attachment *attachment_aql = NULL;
 	unsigned long bo_size;
 	bool is_invalid_userptr = false;
 
@@ -1435,15 +1439,9 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 		is_invalid_userptr = true;
 
 	if (!kfd_mem_is_attached(avm, mem)) {
-		ret = kfd_mem_attach(adev, mem, avm, false, &attachment);
+		ret = kfd_mem_attach(adev, mem, avm, mem->aql_queue);
 		if (ret)
 			goto attach_failed;
-		if (mem->aql_queue) {
-			ret = kfd_mem_attach(adev, mem, avm, true,
-					     &attachment_aql);
-			if (ret)
-				goto attach_failed_aql;
-		}
 	} else {
 		ret = vm_validate_pt_pd_bos(avm);
 		if (unlikely(ret))
@@ -1498,11 +1496,6 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	goto out;
 
 map_bo_to_gpuvm_failed:
-	if (attachment_aql)
-		kfd_mem_detach(attachment_aql);
-attach_failed_aql:
-	if (attachment)
-		kfd_mem_detach(attachment);
 attach_failed:
 	unreserve_bo_and_vms(&ctx, false, false);
 out:
