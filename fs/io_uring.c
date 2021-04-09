@@ -4894,18 +4894,19 @@ static void io_poll_remove_double(struct io_kiocb *req)
 	}
 }
 
-static bool io_poll_complete(struct io_kiocb *req, __poll_t mask, int error)
+static bool io_poll_complete(struct io_kiocb *req, __poll_t mask)
 	__must_hold(&req->ctx->completion_lock)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned flags = IORING_CQE_F_MORE;
+	int error;
 
-	if (!error && req->poll.canceled) {
+	if (READ_ONCE(req->poll.canceled)) {
 		error = -ECANCELED;
 		req->poll.events |= EPOLLONESHOT;
-	}
-	if (!error)
+	} else {
 		error = mangle_poll(mask);
+	}
 	if (req->poll.events & EPOLLONESHOT)
 		flags = 0;
 	if (!__io_cqring_fill_event(req, error, flags)) {
@@ -4928,7 +4929,7 @@ static void io_poll_task_func(struct callback_head *cb)
 	} else {
 		bool done;
 
-		done = io_poll_complete(req, req->result, 0);
+		done = io_poll_complete(req, req->result);
 		if (done) {
 			hash_del(&req->hash_node);
 		} else {
@@ -5414,7 +5415,7 @@ static int __io_poll_add(struct io_kiocb *req)
 
 	if (mask) { /* no async, we'd stolen it */
 		ipt.error = 0;
-		io_poll_complete(req, mask, 0);
+		io_poll_complete(req, mask);
 	}
 	spin_unlock_irq(&ctx->completion_lock);
 
