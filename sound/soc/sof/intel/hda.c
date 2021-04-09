@@ -1213,12 +1213,12 @@ static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
 #endif
 
 void hda_set_mach_params(const struct snd_soc_acpi_mach *mach,
-			 struct device *dev)
+			 struct snd_sof_dev *sdev)
 {
 	struct snd_soc_acpi_mach_params *mach_params;
 
 	mach_params = (struct snd_soc_acpi_mach_params *)&mach->mach_params;
-	mach_params->platform = dev_name(dev);
+	mach_params->platform = dev_name(sdev->dev);
 }
 
 void hda_machine_select(struct snd_sof_dev *sdev)
