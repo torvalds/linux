@@ -161,7 +161,7 @@ static unsigned char __iomem *gpio_reg;
 static int gpio_irq = 0;
 static int gpio_irq_enabled = -1;
 static volatile int pmu_suspended;
-static spinlock_t pmu_lock;
+static DEFINE_SPINLOCK(pmu_lock);
 static u8 pmu_intr_mask;
 static int pmu_version;
 static int drop_interrupts;
@@ -305,8 +305,6 @@ int __init find_via_pmu(void)
 		goto fail;
 	}
 
-	spin_lock_init(&pmu_lock);
-
 	pmu_has_adb = 1;
 
 	pmu_intr_mask =	PMU_INT_PCEJECT |
@@ -387,8 +385,6 @@ int __init find_via_pmu(void)
 		return 0;
 
 	pmu_kind = PMU_UNKNOWN;
-
-	spin_lock_init(&pmu_lock);
 
 	pmu_has_adb = 1;
 
