@@ -9956,6 +9956,7 @@ static int cpu_cgroup_css_online(struct cgroup_subsys_state *css)
 	mutex_unlock(&uclamp_mutex);
 #endif
 
+	trace_android_rvh_cpu_cgroup_online(css);
 	return 0;
 }
 
