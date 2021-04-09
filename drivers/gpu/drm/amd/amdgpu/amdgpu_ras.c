@@ -99,6 +99,49 @@ static bool amdgpu_ras_get_error_query_ready(struct amdgpu_device *adev)
 	return false;
 }
 
+static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t address)
+{
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+	struct eeprom_table_record err_rec;
+
+	if ((address >= adev->gmc.mc_vram_size) ||
+	    (address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
+		dev_warn(adev->dev,
+		         "RAS WARN: input address 0x%llx is invalid.\n",
+		         address);
+		return -EINVAL;
+	}
+
+	if (amdgpu_ras_check_bad_page(adev, address)) {
+		dev_warn(adev->dev,
+			 "RAS WARN: 0x%llx has been marked as bad page!\n",
+			 address);
+		return 0;
+	}
+
+	memset(&err_rec, 0x0, sizeof(struct eeprom_table_record));
+
+	err_rec.address = address;
+	err_rec.retired_page = address >> AMDGPU_GPU_PAGE_SHIFT;
+	err_rec.ts = (uint64_t)ktime_get_real_seconds();
+	err_rec.err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+
+	err_data.err_addr = &err_rec;
+	err_data.err_addr_cnt = 1;
+
+	if (amdgpu_bad_page_threshold != 0) {
+		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
+					 err_data.err_addr_cnt);
+		amdgpu_ras_save_bad_pages(adev);
+	}
+
+	dev_warn(adev->dev, "WARNING: THIS IS ONLY FOR TEST PURPOSES AND WILL CORRUPT RAS EEPROM\n");
+	dev_warn(adev->dev, "Clear EEPROM:\n");
+	dev_warn(adev->dev, "    echo 1 > /sys/kernel/debug/dri/0/ras/ras_eeprom_reset\n");
+
+	return 0;
+}
+
 static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -178,11 +221,25 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		op = 1;
 	else if (sscanf(str, "inject %32s %8s", block_name, err) == 2)
 		op = 2;
+	else if (sscanf(str, "retire_page") == 0)
+		op = 3;
 	else if (str[0] && str[1] && str[2] && str[3])
 		/* ascii string, but commands are not matched. */
 		return -EINVAL;
 
 	if (op != -1) {
+
+		if (op == 3) {
+			if (sscanf(str, "%*s %llu", &address) != 1)
+				if (sscanf(str, "%*s 0x%llx", &address) != 1)
+					return -EINVAL;
+
+			data->op = op;
+			data->inject.address = address;
+
+			return 0;
+		}
+
 		if (amdgpu_ras_find_block_id_by_name(block_name, &block_id))
 			return -EINVAL;
 
@@ -309,6 +366,16 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
 	if (ret)
 		return -EINVAL;
+
+	if (data.op == 3)
+	{
+		ret = amdgpu_reserve_page_direct(adev, data.inject.address);
+
+		if (ret)
+			return size;
+		else
+			return ret;
+	}
 
 	if (!amdgpu_ras_is_supported(adev, data.head.block))
 		return -EINVAL;
