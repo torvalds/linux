@@ -454,6 +454,8 @@ int mlx5_query_module_eeprom_by_page(struct mlx5_core_dev *dev,
 		if (params->page > 3)
 			return -EINVAL;
 		break;
+	case MLX5_MODULE_ID_DSFP:
+		break;
 	default:
 		mlx5_core_err(dev, "Module ID not recognized: 0x%x\n", module_id);
 		return -EINVAL;
