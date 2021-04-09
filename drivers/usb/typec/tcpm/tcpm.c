@@ -6522,6 +6522,10 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 		goto out_role_sw_put;
 	}
 
+	typec_port_register_altmodes(port->typec_port,
+				     &tcpm_altmode_ops, port,
+				     port->port_altmode, ALTMODE_DISCOVERY_MAX);
+
 	mutex_lock(&port->lock);
 	tcpm_init(port);
 	mutex_unlock(&port->lock);
