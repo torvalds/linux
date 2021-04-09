@@ -342,11 +342,12 @@ int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset)
 		return -EINVAL;
 	}
 
-	kfd = kfd_device_by_id(GET_GPU_ID(event_page_offset));
-	if (!kfd) {
+	pdd = kfd_process_device_data_by_id(p, GET_GPU_ID(event_page_offset));
+	if (!pdd) {
 		pr_err("Getting device by id failed in %s\n", __func__);
 		return -EINVAL;
 	}
+	kfd = pdd->dev;
 
 	pdd = kfd_bind_process_to_device(kfd, p);
 	if (IS_ERR(pdd))
@@ -1094,6 +1095,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
 {
 	struct kfd_hsa_memory_exception_data memory_exception_data;
 	struct vm_area_struct *vma;
+	int user_gpu_id;
 
 	/*
 	 * Because we are called from arbitrary context (workqueue) as opposed
@@ -1115,12 +1117,17 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
 		return; /* Process is exiting */
 	}
 
+	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
+	if (unlikely(user_gpu_id == -EINVAL)) {
+		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		return;
+	}
 	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
 
 	mmap_read_lock(mm);
 	vma = find_vma(mm, address);
 
-	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.gpu_id = user_gpu_id;
 	memory_exception_data.va = address;
 	/* Set failure reason */
 	memory_exception_data.failure.NotPresent = 1;
@@ -1196,11 +1203,19 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 	uint32_t id;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 	struct kfd_hsa_memory_exception_data memory_exception_data;
+	int user_gpu_id;
 
 	if (!p)
 		return; /* Presumably process exited. */
+
+	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
+	if (unlikely(user_gpu_id == -EINVAL)) {
+		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		return;
+	}
+
 	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
-	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.gpu_id = user_gpu_id;
 	memory_exception_data.failure.imprecise = true;
 	/* Set failure reason */
 	if (info) {
@@ -1240,27 +1255,34 @@ void kfd_signal_reset_event(struct kfd_dev *dev)
 
 	/* Whole gpu reset caused by GPU hang and memory is lost */
 	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
-	hw_exception_data.gpu_id = dev->id;
 	hw_exception_data.memory_lost = 1;
 	hw_exception_data.reset_cause = reset_cause;
 
 	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
 	memory_exception_data.ErrorType = KFD_MEM_ERR_SRAM_ECC;
-	memory_exception_data.gpu_id = dev->id;
 	memory_exception_data.failure.imprecise = true;
 
 	idx = srcu_read_lock(&kfd_processes_srcu);
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		int user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
+
+		if (unlikely(user_gpu_id == -EINVAL)) {
+			WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+			continue;
+		}
+
 		mutex_lock(&p->event_mutex);
 		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
 		idr_for_each_entry_continue(&p->event_idr, ev, id) {
 			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
 				ev->hw_exception_data = hw_exception_data;
+				ev->hw_exception_data.gpu_id = user_gpu_id;
 				set_event(ev);
 			}
 			if (ev->type == KFD_EVENT_TYPE_MEMORY &&
 			    reset_cause == KFD_HW_EXCEPTION_ECC) {
 				ev->memory_exception_data = memory_exception_data;
+				ev->memory_exception_data.gpu_id = user_gpu_id;
 				set_event(ev);
 			}
 		}
@@ -1276,18 +1298,25 @@ void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid)
 	struct kfd_hsa_hw_exception_data hw_exception_data;
 	struct kfd_event *ev;
 	uint32_t id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+	int user_gpu_id;
 
 	if (!p)
 		return; /* Presumably process exited. */
 
+	user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
+	if (unlikely(user_gpu_id == -EINVAL)) {
+		WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
+		return;
+	}
+
 	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
-	hw_exception_data.gpu_id = dev->id;
+	hw_exception_data.gpu_id = user_gpu_id;
 	hw_exception_data.memory_lost = 1;
 	hw_exception_data.reset_cause = KFD_HW_EXCEPTION_ECC;
 
 	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
 	memory_exception_data.ErrorType = KFD_MEM_ERR_POISON_CONSUMED;
-	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.gpu_id = user_gpu_id;
 	memory_exception_data.failure.imprecise = true;
 
 	mutex_lock(&p->event_mutex);

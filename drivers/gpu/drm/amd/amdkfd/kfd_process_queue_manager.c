@@ -610,7 +610,7 @@ static int criu_checkpoint_queue(struct kfd_process_device *pdd,
 	mqd = (void *)(q_data + 1);
 	ctl_stack = mqd + q_data->mqd_size;
 
-	q_data->gpu_id = pdd->dev->id;
+	q_data->gpu_id = pdd->user_gpu_id;
 	q_data->type = q->properties.type;
 	q_data->format = q->properties.format;
 	q_data->q_id =  q->properties.queue_id;
@@ -769,7 +769,6 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 	uint64_t q_extra_data_size;
 	struct queue_properties qp;
 	unsigned int queue_id;
-	struct kfd_dev *dev;
 	int ret = 0;
 
 	if (*priv_data_offset + sizeof(*q_data) > max_priv_data_size)
@@ -807,20 +806,11 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	*priv_data_offset += q_extra_data_size;
 
-	dev = kfd_device_by_id(q_data->gpu_id);
-	if (!dev) {
-		pr_err("Could not get kfd_dev from gpu_id = 0x%x\n",
-		q_data->gpu_id);
-
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	pdd = kfd_get_process_device_data(dev, p);
+	pdd = kfd_process_device_data_by_id(p, q_data->gpu_id);
 	if (!pdd) {
 		pr_err("Failed to get pdd\n");
-		ret = -EFAULT;
-		return ret;
+		ret = -EINVAL;
+		goto exit;
 	}
 	/* data stored in this order: mqd, ctl_stack */
 	mqd = q_extra_data;
