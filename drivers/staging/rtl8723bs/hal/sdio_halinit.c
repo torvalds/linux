@@ -1175,7 +1175,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 
 
 	val8 = rtw_read8(padapter, 0x4e);
-	MSG_8192C("%s, 0x4e = 0x%x\n", __func__, val8);
 	val8 |= BIT(6);
 	rtw_write8(padapter, 0x4e, val8);
 
@@ -1191,9 +1190,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 		rtw_write8(padapter, 0x67, 0x00); /*  for BT, Switch Ant control to BT */
 		CardDisableRTL8723BSdio(padapter);/* for the power consumption issue,  wifi ko module is loaded during booting, but wifi GUI is off */
 	}
-
-
-	MSG_8192C("<==== _ReadAdapterInfo8723BS in %d ms\n", jiffies_to_msecs(jiffies - start));
 
 	return _SUCCESS;
 }

@@ -1787,8 +1787,6 @@ static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 	else
 		pHalData->rf_type = RF_1T1R;
 
-	MSG_8192C("RF_Type is %x!!\n", pHalData->rf_type);
-
 	return ChipVersion;
 }
 
@@ -2138,8 +2136,6 @@ u8 GetEEPROMSize8723B(struct adapter *padapter)
 	cr = rtw_read16(padapter, REG_9346CR);
 	/*  6: EEPROM used is 93C46, 4: boot from E-Fuse. */
 	size = (cr & BOOT_FROM_EEPROM) ? 6 : 4;
-
-	MSG_8192C("EEPROM type is %s\n", size == 4 ? "E-FUSE" : "93C46");
 
 	return size;
 }
