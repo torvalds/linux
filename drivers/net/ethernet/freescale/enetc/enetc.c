@@ -2344,11 +2344,7 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 			int idx;
 
 			/* default tx ring mapping policy */
-			if (priv->bdr_int_num == ENETC_MAX_BDR_INT)
-				idx = 2 * j + i; /* 2 CPUs */
-			else
-				idx = j + i * v_tx_rings; /* default */
-
+			idx = priv->bdr_int_num * j + i;
 			__set_bit(idx, &v->tx_rings_map);
 			bdr = &v->tx_ring[j];
 			bdr->index = idx;
