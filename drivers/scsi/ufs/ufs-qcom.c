@@ -1071,13 +1071,8 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		if (res) {
 			host->dev_ref_clk_ctrl_mmio =
 					devm_ioremap_resource(dev, res);
-			if (IS_ERR(host->dev_ref_clk_ctrl_mmio)) {
-				dev_warn(dev,
-					"%s: could not map dev_ref_clk_ctrl_mmio, err %ld\n",
-					__func__,
-					PTR_ERR(host->dev_ref_clk_ctrl_mmio));
+			if (IS_ERR(host->dev_ref_clk_ctrl_mmio))
 				host->dev_ref_clk_ctrl_mmio = NULL;
-			}
 			host->dev_ref_clk_en_mask = BIT(5);
 		}
 	}
