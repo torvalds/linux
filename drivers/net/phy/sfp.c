@@ -2330,6 +2330,30 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 	return 0;
 }
 
+static int sfp_module_eeprom_by_page(struct sfp *sfp,
+				     const struct ethtool_module_eeprom *page,
+				     struct netlink_ext_ack *extack)
+{
+	if (page->bank) {
+		NL_SET_ERR_MSG(extack, "Banks not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (page->page) {
+		NL_SET_ERR_MSG(extack, "Only page 0 supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (page->i2c_address != 0x50 &&
+	    page->i2c_address != 0x51) {
+		NL_SET_ERR_MSG(extack, "Only address 0x50 and 0x51 supported");
+		return -EOPNOTSUPP;
+	}
+
+	return sfp_read(sfp, page->i2c_address == 0x51, page->offset,
+			page->data, page->length);
+};
+
 static const struct sfp_socket_ops sfp_module_ops = {
 	.attach = sfp_attach,
 	.detach = sfp_detach,
@@ -2337,6 +2361,7 @@ static const struct sfp_socket_ops sfp_module_ops = {
 	.stop = sfp_stop,
 	.module_info = sfp_module_info,
 	.module_eeprom = sfp_module_eeprom,
+	.module_eeprom_by_page = sfp_module_eeprom_by_page,
 };
 
 static void sfp_timeout(struct work_struct *work)
