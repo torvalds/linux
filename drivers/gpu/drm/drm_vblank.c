@@ -1478,6 +1478,7 @@ static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	u64 diff_ns;
 	u32 cur_vblank, diff = 1;
 	int count = DRM_TIMESTAMP_MAXRETRIES;
+	u32 max_vblank_count = drm_max_vblank_count(dev, pipe);
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
@@ -1504,7 +1505,7 @@ static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	drm_dbg_vbl(dev,
 		    "missed %d vblanks in %lld ns, frame duration=%d ns, hw_diff=%d\n",
 		    diff, diff_ns, framedur_ns, cur_vblank - vblank->last);
-	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
+	vblank->last = (cur_vblank - diff) & max_vblank_count;
 }
 
 /**

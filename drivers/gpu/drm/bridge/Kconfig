@@ -55,7 +55,7 @@ config DRM_DISPLAY_CONNECTOR
 	depends on OF
 	help
 	  Driver for display connectors with support for DDC and hot-plug
-	  detection. Most display controller handle display connectors
+	  detection. Most display controllers handle display connectors
 	  internally and don't need this driver, but the DRM subsystem is
 	  moving towards separating connector handling from display controllers
 	  on ARM-based platforms. Saying Y here when this driver is not needed
@@ -210,6 +210,7 @@ config DRM_TOSHIBA_TC358762
 	tristate "TC358762 DSI/DPI bridge"
 	depends on OF
 	select DRM_MIPI_DSI
+	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
 	help
 	  Toshiba TC358762 DSI/DPI bridge driver.
