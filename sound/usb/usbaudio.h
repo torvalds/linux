@@ -77,6 +77,7 @@ struct snd_usb_audio {
  */
 
 /* special values for .ifnum */
+#define QUIRK_NODEV_INTERFACE		-3	/* return -ENODEV */
 #define QUIRK_NO_INTERFACE		-2
 #define QUIRK_ANY_INTERFACE		-1
 
