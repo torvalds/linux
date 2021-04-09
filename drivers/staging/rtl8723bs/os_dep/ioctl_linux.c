@@ -2567,26 +2567,6 @@ static int rtw_dbg_port(struct net_device *dev,
 					}
 					break;
 				case 0x09:
-					{
-						int i;
-						struct list_head	*plist, *phead;
-
-						spin_lock_bh(&pstapriv->sta_hash_lock);
-
-						for (i = 0; i < NUM_STA; i++) {
-							phead = &(pstapriv->sta_hash[i]);
-							plist = get_next(phead);
-
-							while (phead != plist) {
-								psta = container_of(plist, struct sta_info, hash_list);
-
-								plist = get_next(plist);
-							}
-						}
-
-						spin_unlock_bh(&pstapriv->sta_hash_lock);
-
-					}
 					break;
 				case 0x0a:
 					{
