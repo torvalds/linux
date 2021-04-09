@@ -2445,8 +2445,6 @@ static int rtw_dbg_port(struct net_device *dev,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_network *cur_network = &(pmlmepriv->cur_network);
-	struct sta_priv *pstapriv = &padapter->stapriv;
-
 
 	pdata = (u32 *)&wrqu->data;
 
