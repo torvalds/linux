@@ -1147,7 +1147,7 @@ static int configure_shm(struct tee_tz *ptee)
 	if (ptee->shm_cached)
 		ptee->shm_vaddr = ioremap_cache(ptee->shm_paddr, shm_size);
 	else
-		ptee->shm_vaddr = ioremap_nocache(ptee->shm_paddr, shm_size);
+		ptee->shm_vaddr = ioremap(ptee->shm_paddr, shm_size);
 
 	if (ptee->shm_vaddr == NULL) {
 		dev_err(DEV, "shm ioremap failed\n");

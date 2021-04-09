@@ -983,7 +983,7 @@ static int adf_pdp_probe_device(struct platform_device *pdev)
 		pci_resource_start(pdata->pdev, DCPDP_REG_PCI_BASENUM)
 		+ DCPDP_PCI_PDP_REG_OFFSET;
 
-	pdp->regs = ioremap_nocache(pdp->regs_start, pdp->regs_size);
+	pdp->regs = ioremap(pdp->regs_start, pdp->regs_size);
 	if (!pdp->regs) {
 		dev_err(&pdev->dev, "Failed to map PDP registers\n");
 		err = -EIO;
@@ -1002,7 +1002,7 @@ static int adf_pdp_probe_device(struct platform_device *pdev)
 		pci_resource_start(pdata->pdev, DCPDP_REG_PCI_BASENUM)
 		+ DCPDP_PCI_PLL_REG_OFFSET;
 
-	pdp->pll_regs = ioremap_nocache(pdp->pll_regs_start,
+	pdp->pll_regs = ioremap(pdp->pll_regs_start,
 		pdp->pll_regs_size);
 	if (!pdp->pll_regs) {
 		dev_err(&pdev->dev, "Failed to map PLL registers\n");

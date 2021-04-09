@@ -683,7 +683,7 @@ void _mali_mem_cow_copy_page(mali_page_node *src_node, mali_page_node *dst_node)
 		/*
 		* use ioremap to map src for BLOCK memory
 		*/
-		src = ioremap_nocache(_mali_page_node_get_dma_addr(src_node), _MALI_OSK_MALI_PAGE_SIZE);
+		src = ioremap(_mali_page_node_get_dma_addr(src_node), _MALI_OSK_MALI_PAGE_SIZE);
 		memcpy(dst, src , _MALI_OSK_MALI_PAGE_SIZE);
 		iounmap(src);
 	}

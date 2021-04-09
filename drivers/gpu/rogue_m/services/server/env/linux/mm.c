@@ -69,13 +69,13 @@ _IORemapWrapper(IMG_CPU_PHYADDR BasePAddr,
 	switch (ui32CPUCacheMode)
 	{
 		case PVRSRV_MEMALLOCFLAG_CPU_UNCACHED:
-				pvIORemapCookie = (void *)ioremap_nocache(BasePAddr.uiAddr, ui32Bytes);
+				pvIORemapCookie = (void *)ioremap(BasePAddr.uiAddr, ui32Bytes);
 				break;
 		case PVRSRV_MEMALLOCFLAG_CPU_WRITE_COMBINE:
 #if defined(CONFIG_X86) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 				pvIORemapCookie = (void *)ioremap_wc(BasePAddr.uiAddr, ui32Bytes);
 #else
-				pvIORemapCookie = (void *)ioremap_nocache(BasePAddr.uiAddr, ui32Bytes);
+				pvIORemapCookie = (void *)ioremap(BasePAddr.uiAddr, ui32Bytes);
 #endif
 				break;
 		case PVRSRV_MEMALLOCFLAG_CPU_CACHED:

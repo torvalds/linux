@@ -1035,7 +1035,7 @@ static struct dvobj_priv	*pci_dvobj_init(struct pci_dev *pdev, const struct pci_
 #endif /* RTK_DMP_PLATFORM */
 
 #ifdef RTK_DMP_PLATFORM
-	dvobj->pci_mem_start = (unsigned long)ioremap_nocache(pmem_start, pmem_len);
+	dvobj->pci_mem_start = (unsigned long)ioremap(pmem_start, pmem_len);
 #elif defined(RTK_129X_PLATFORM)
 	if (pdev->bus->number == 0x00)
 		dvobj->ctrl_start =
@@ -1053,7 +1053,7 @@ static struct dvobj_priv	*pci_dvobj_init(struct pci_dev *pdev, const struct pci_
 	dvobj->tran_addr = dvobj->ctrl_start + PCIE_TRANSLATE_OFFSET;
 
 	dvobj->pci_mem_start =
-		(unsigned long)ioremap_nocache(pmem_start, pmem_len);
+		(unsigned long)ioremap(pmem_start, pmem_len);
 #else
 	/* shared mem start */
 	dvobj->pci_mem_start = (unsigned long)pci_iomap(pdev, i, pmem_len);

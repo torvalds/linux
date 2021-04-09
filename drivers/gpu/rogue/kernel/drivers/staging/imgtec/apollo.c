@@ -173,7 +173,7 @@ static int apollo_set_clocks(struct apollo_device *apollo)
 	pll_clock_resource =
 		pci_resource_start(apollo->pdev, SYS_APOLLO_REG_PCI_BASENUM)
 			+ SYS_APOLLO_REG_PLL_OFFSET;
-	pll_regs = ioremap_nocache(pll_clock_resource, SYS_APOLLO_REG_PLL_SIZE);
+	pll_regs = ioremap(pll_clock_resource, SYS_APOLLO_REG_PLL_SIZE);
 	if (!pll_regs) {
 		dev_err(&apollo->pdev->dev,
 			"Failed to map apollo PLL registers\n");
@@ -661,7 +661,7 @@ static int apollo_rogue_bist(struct apollo_device *apollo)
 			"Failed to request rogue register region\n");
 		goto err_out;
 	}
-	rogue_regs = ioremap_nocache(regs_resource, regs_resource_size);
+	rogue_regs = ioremap(regs_resource, regs_resource_size);
 	if (!rogue_regs) {
 		dev_err(&apollo->pdev->dev,
 			"Failed to map rogue register region\n");
@@ -1207,7 +1207,7 @@ static int apollo_init(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_resource_start(pdev, SYS_APOLLO_REG_PCI_BASENUM)
 		+ SYS_APOLLO_REG_SYS_OFFSET;
 
-	apollo->tcf_registers = ioremap_nocache(apollo->tcf_register_resource,
+	apollo->tcf_registers = ioremap(apollo->tcf_register_resource,
 		SYS_APOLLO_REG_SYS_SIZE);
 	if (!apollo->tcf_registers) {
 		dev_err(&pdev->dev, "Failed to map TCF registers\n");

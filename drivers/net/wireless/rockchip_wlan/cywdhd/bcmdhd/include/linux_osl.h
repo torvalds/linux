@@ -390,7 +390,7 @@ extern int osl_error(int bcmerror);
 
 /* map/unmap physical to virtual I/O */
 #if !defined(CONFIG_MMC_MSM7X00A)
-#define	REG_MAP(pa, size)	ioremap_nocache((unsigned long)(pa), (unsigned long)(size))
+#define	REG_MAP(pa, size)	ioremap((unsigned long)(pa), (unsigned long)(size))
 #else
 #define REG_MAP(pa, size)       (void *)(0)
 #endif /* !defined(CONFIG_MMC_MSM7X00A */
