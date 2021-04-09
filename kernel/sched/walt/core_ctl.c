@@ -1327,13 +1327,13 @@ int core_ctl_init(void)
 	struct walt_sched_cluster *cluster;
 	int ret;
 
-	/* initialize our single kthread */
+	spin_lock_init(&core_ctl_pending_lock);
+
+	/* initialize our single kthread, after spin lock init */
 	core_ctl_thread = kthread_run(try_core_ctl, NULL, "core_ctl");
 
 	if (IS_ERR(core_ctl_thread))
 		return PTR_ERR(core_ctl_thread);
-
-	spin_lock_init(&core_ctl_pending_lock);
 
 	sched_setscheduler_nocheck(core_ctl_thread, SCHED_FIFO, &param);
 
