@@ -43,7 +43,11 @@ description:
 
 properties:
   compatible:
-    const: "qcom,sdm845-ipa"
+    oneOf:
+      - const: "qcom,sc7180-ipa"
+      - const: "qcom,sc7280-ipa"
+      - const: "qcom,sdm845-ipa"
+      - const: "qcom,sdx55-ipa"
 
   reg:
     items:
