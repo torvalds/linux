@@ -1206,14 +1206,25 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	const struct dc *dc = link->dc;
 	bool ret;
+	bool can_apply_seamless_boot = false;
+	int i;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		if (dc->current_state->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
+		}
+	}
 
 	/* get out of low power state */
-	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
+	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
+		clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 
 	ret = dc_link_detect_helper(link, reason);
 
 	/* Go back to power optimized state */
-	clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
+	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
+		clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
 
 	return ret;
 }
