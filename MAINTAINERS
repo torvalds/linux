@@ -9730,6 +9730,11 @@ F:	include/uapi/linux/sunrpc/
 F:	net/sunrpc/
 F:	Documentation/filesystems/nfs/
 
+KERNEL REGRESSIONS
+M:	Thorsten Leemhuis <linux@leemhuis.info>
+L:	regressions@lists.linux.dev
+S:	Supported
+
 KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuah@kernel.org>
 M:	Shuah Khan <skhan@linuxfoundation.org>
