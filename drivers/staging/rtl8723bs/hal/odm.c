@@ -776,9 +776,6 @@ void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm)
 	else
 		pdmpriv->TxPowerTrackControl = false;
 
-
-	/* MSG_8192C("pdmpriv->TxPowerTrackControl = %d\n", pdmpriv->TxPowerTrackControl); */
-
 	/* pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true; */
 	pDM_Odm->RFCalibrateInfo.ThermalValue = pHalData->EEPROMThermalMeter;
 	pDM_Odm->RFCalibrateInfo.ThermalValue_IQK = pHalData->EEPROMThermalMeter;
