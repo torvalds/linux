@@ -68,6 +68,7 @@ static const struct of_device_id hisi_reboot_of_match[] = {
 	{ .compatible = "hisilicon,sysctrl" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, hisi_reboot_of_match);
 
 static struct platform_driver hisi_reboot_driver = {
 	.probe = hisi_reboot_probe,
