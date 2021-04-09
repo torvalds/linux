@@ -113,7 +113,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 				break;
 			zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		}
-		zpci_configure_device(zdev, ccdf->fh);
+		zpci_scan_configured_device(zdev, ccdf->fh);
 		break;
 	case 0x0302: /* Reserved -> Standby */
 		if (!zdev)
