@@ -701,6 +701,7 @@ static int __init mtd_oobtest_init(void)
 			       (long long)addr);
 			errcnt += 1;
 			if (errcnt > 1000) {
+				err = -EINVAL;
 				pr_err("error: too many errors\n");
 				goto out;
 			}
