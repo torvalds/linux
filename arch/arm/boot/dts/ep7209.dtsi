@@ -186,6 +186,7 @@
 
 	keypad: keypad {
 		compatible = "cirrus,ep7209-keypad";
+		interrupt-parent = <&intc>;
 		interrupts = <16>;
 		syscon = <&syscon1>;
 		status = "disabled";
