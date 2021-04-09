@@ -5,7 +5,7 @@ Required properties:
  - compatible: must be "resistive-adc-touch"
 The device must be connected to an ADC device that provides channels for
 position measurement and optional pressure.
-Refer to ../iio/iio-bindings.txt for details
+Refer to Documentation/devicetree/bindings/iio/iio-bindings.txt for details
  - iio-channels: must have at least two channels connected to an ADC device.
 These should correspond to the channels exposed by the ADC device and should
 have the right index as the ADC device registers them. These channels
