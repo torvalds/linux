@@ -229,11 +229,6 @@ enum daq_atrig_low_4020_contents {
 	EXT_START_TRIG_BNC_BIT = 0x2000,
 };
 
-static inline u16 analog_trig_low_threshold_bits(u16 threshold)
-{
-	return threshold & 0xfff;
-}
-
 enum adc_control0_contents {
 	ADC_GATE_SRC_MASK = 0x3,	/* bits that select gate */
 	ADC_SOFT_GATE_BITS = 0x1,	/* software gate */
