@@ -128,22 +128,63 @@ static int remove_dirent(struct btree_trans *trans,
 			       __remove_dirent(trans, dirent));
 }
 
-static int reattach_inode(struct bch_fs *c,
-			  struct bch_inode_unpacked *lostfound_inode,
-			  u64 inum)
+static int __reattach_inode(struct btree_trans *trans,
+			    struct bch_inode_unpacked *lostfound,
+			    u64 inum)
 {
-	struct bch_inode_unpacked dir_u, inode_u;
+	struct bch_hash_info dir_hash =
+		bch2_hash_info_init(trans->c, lostfound);
+	struct btree_iter *dir_iter = NULL, *inode_iter = NULL;
+	struct bch_inode_unpacked inode_u;
 	char name_buf[20];
 	struct qstr name;
+	u64 dir_offset = 0;
 	int ret;
 
 	snprintf(name_buf, sizeof(name_buf), "%llu", inum);
 	name = (struct qstr) QSTR(name_buf);
 
-	ret = bch2_trans_do(c, NULL, NULL,
-			    BTREE_INSERT_LAZY_RW,
-		bch2_link_trans(&trans, lostfound_inode->bi_inum,
-				inum, &dir_u, &inode_u, &name));
+	inode_iter = bch2_inode_peek(trans, &inode_u, inum, 0);
+	ret = PTR_ERR_OR_ZERO(inode_iter);
+	if (ret)
+		goto err;
+
+	if (S_ISDIR(inode_u.bi_mode)) {
+		lostfound->bi_nlink++;
+
+		ret = write_inode(trans, lostfound, U32_MAX);
+		if (ret)
+			goto err;
+	}
+
+	ret = bch2_dirent_create(trans, lostfound->bi_inum, &dir_hash,
+				 mode_to_type(inode_u.bi_mode),
+				 &name, inum, &dir_offset,
+				 BCH_HASH_SET_MUST_CREATE);
+	if (ret)
+		goto err;
+
+	inode_u.bi_dir		= lostfound->bi_inum;
+	inode_u.bi_dir_offset	= dir_offset;
+
+	ret = write_inode(trans, &inode_u, U32_MAX);
+	if (ret)
+		goto err;
+err:
+	bch2_trans_iter_put(trans, dir_iter);
+	bch2_trans_iter_put(trans, inode_iter);
+	return ret;
+}
+
+static int reattach_inode(struct btree_trans *trans,
+			  struct bch_inode_unpacked *lostfound,
+			  u64 inum)
+{
+	struct bch_fs *c = trans->c;
+	int ret;
+
+	ret = __bch2_trans_do(trans, NULL, NULL, BTREE_INSERT_LAZY_RW,
+			      __reattach_inode(trans, lostfound, inum));
 	if (ret)
 		bch_err(c, "error %i reattaching inode %llu", ret, inum);
 
@@ -1105,9 +1146,7 @@ retry:
 		if (fsck_err_on(!inode_bitmap_test(&dirs_done, k.k->p.offset), c,
 				"unreachable directory found (inum %llu)",
 				k.k->p.offset)) {
-			bch2_trans_unlock(&trans);
-
-			ret = reattach_inode(c, lostfound_inode, k.k->p.offset);
+			ret = reattach_inode(&trans, lostfound_inode, k.k->p.offset);
 			if (ret) {
 				goto err;
 			}
@@ -1227,7 +1266,7 @@ static int check_inode_nlink(struct btree_trans *trans,
 	if (fsck_err_on(!nlink, c,
 			"unreachable inode %llu not marked as unlinked (type %u)",
 			u.bi_inum, mode_to_type(u.bi_mode))) {
-		ret = reattach_inode(c, lostfound_inode, u.bi_inum);
+		ret = reattach_inode(trans, lostfound_inode, u.bi_inum);
 		if (ret)
 			return ret;
 
