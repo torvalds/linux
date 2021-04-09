@@ -590,6 +590,18 @@ config TOUCHSCREEN_MELFAS_MIP4
 	  To compile this driver as a module, choose M here:
 	  the module will be called melfas_mip4.
 
+config TOUCHSCREEN_MSG2638
+	tristate "MStar msg2638 touchscreen support"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here if you have an I2C touchscreen using MStar msg2638.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called msg2638.
+
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
 	select SERIO
