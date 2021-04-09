@@ -47,7 +47,9 @@ int z_erofs_load_lz4_config(struct super_block *sb,
 	EROFS_SB(sb)->lz4.max_distance_pages = distance ?
 					DIV_ROUND_UP(distance, PAGE_SIZE) + 1 :
 					LZ4_MAX_DISTANCE_PAGES;
-	return 0;
+
+	/* TODO: use max pclusterblks after bigpcluster is enabled */
+	return erofs_pcpubuf_growsize(1);
 }
 
 static int z_erofs_lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
@@ -114,7 +116,7 @@ static void *generic_copy_inplace_data(struct z_erofs_decompress_req *rq,
 	 * pages should be copied in order to avoid being overlapped.
 	 */
 	struct page **in = rq->in;
-	u8 *const tmp = erofs_get_pcpubuf(0);
+	u8 *const tmp = erofs_get_pcpubuf(1);
 	u8 *tmpp = tmp;
 	unsigned int inlen = rq->inputsize - pageofs_in;
 	unsigned int count = min_t(uint, inlen, PAGE_SIZE - pageofs_in);
@@ -271,7 +273,7 @@ static int z_erofs_decompress_generic(struct z_erofs_decompress_req *rq,
 	 * compressed data is preferred.
 	 */
 	if (rq->outputsize <= PAGE_SIZE * 7 / 8) {
-		dst = erofs_get_pcpubuf(0);
+		dst = erofs_get_pcpubuf(1);
 		if (IS_ERR(dst))
 			return PTR_ERR(dst);
 
