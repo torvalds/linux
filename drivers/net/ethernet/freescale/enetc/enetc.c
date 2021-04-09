@@ -895,7 +895,7 @@ static int enetc_xdp_frame_to_xdp_tx_swbd(struct enetc_bdr *tx_ring,
 		dma = dma_map_single(tx_ring->dev, data, len, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(tx_ring->dev, dma))) {
 			/* Undo the DMA mapping for all fragments */
-			while (n-- >= 0)
+			while (--n >= 0)
 				enetc_unmap_tx_buff(tx_ring, &xdp_tx_arr[n]);
 
 			netdev_err(tx_ring->ndev, "DMA map error\n");
