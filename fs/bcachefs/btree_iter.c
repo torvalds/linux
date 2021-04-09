@@ -1191,7 +1191,11 @@ static __always_inline int btree_iter_down(struct btree_iter *iter,
 	if (iter->flags & BTREE_ITER_PREFETCH)
 		btree_iter_prefetch(iter);
 
+	if (btree_node_read_locked(iter, level + 1))
+		btree_node_unlock(iter, level + 1);
 	iter->level = level;
+
+	bch2_btree_iter_verify_locks(iter);
 err:
 	bch2_bkey_buf_exit(&tmp, c);
 	return ret;
