@@ -17,24 +17,24 @@ information to /var/log/kern.log or dmesg.
 
 Request write TLPs traffic generation - Root Complex to Endpoint direction
 - Command:
-	echo 1 > /sys/class/misc/dw-xdata-pcie/write
+echo 1 > /sys/class/misc/dw-xdata-pcie/write
 
 Get write TLPs traffic link throughput in MB/s
 - Command:
-        cat /sys/class/misc/dw-xdata-pcie/write
+cat /sys/class/misc/dw-xdata-pcie/write
 - Output example:
-	204
+204
 
 Request read TLPs traffic generation - Endpoint to Root Complex direction:
 - Command:
-	echo 1 > /sys/class/misc/dw-xdata-pcie/read
+echo 1 > /sys/class/misc/dw-xdata-pcie/read
 
 Get read TLPs traffic link throughput in MB/s
 - Command:
-        cat /sys/class/misc/dw-xdata-pcie/read
+cat /sys/class/misc/dw-xdata-pcie/read
 - Output example:
-	199
+199
 
 Request to stop any current TLP transfer:
 - Command:
-	echo 1 > /sys/class/misc/dw-xdata-pcie/stop
+echo 1 > /sys/class/misc/dw-xdata-pcie/stop
