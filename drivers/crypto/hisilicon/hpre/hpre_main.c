@@ -384,7 +384,7 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	if (qm->ver == QM_HW_V2) {
 		ret = hpre_cfg_by_dsm(qm);
 		if (ret)
-			dev_err(dev, "acpi_evaluate_dsm err.\n");
+			return ret;
 
 		disable_flr_of_bme(qm);
 	}
