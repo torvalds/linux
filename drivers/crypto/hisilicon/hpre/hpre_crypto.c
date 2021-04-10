@@ -322,7 +322,8 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 				void **kreq)
 {
 	struct hpre_asym_request *req;
-	int err, id, done;
+	unsigned int err, done;
+	int id;
 
 #define HPRE_NO_HW_ERR		0
 #define HPRE_HW_TASK_DONE	3
