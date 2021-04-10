@@ -1083,7 +1083,8 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 #if 1
 
 		while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
-			if (efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest) == false)
+			if (efuse_OneByteRead(padapter, efuse_addr,
+					      &efuse_data, bPseudoTest) == false)
 				/* bank = EFUSE_MAX_BANK; */
 				break;
 
