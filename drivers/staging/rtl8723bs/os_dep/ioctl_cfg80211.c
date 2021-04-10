@@ -2491,7 +2491,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 		plist = get_next(plist);
 
 		if (!memcmp((u8 *)mac, psta->hwaddr, ETH_ALEN)) {
-			if (psta->dot8021xalg != 1 || psta->bpairwise_key_installed == true) {
+			if (psta->dot8021xalg != 1 || psta->bpairwise_key_installed) {
 				list_del_init(&psta->asoc_list);
 				pstapriv->asoc_list_cnt--;
 
