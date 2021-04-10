@@ -2792,8 +2792,6 @@ static void rtl8723b_fill_default_txdesc(
 
 		/*  CCX-TXRPT ack for xmit mgmt frames. */
 		if (pxmitframe->ack_report) {
-			#ifdef DBG_CCX
-			#endif
 			ptxdesc->spe_rpt = 1;
 			ptxdesc->sw_define = (u8)(GET_PRIMARY_ADAPTER(padapter)->xmitpriv.seq_no);
 		}
