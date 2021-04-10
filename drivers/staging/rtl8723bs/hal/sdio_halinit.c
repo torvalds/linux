@@ -735,7 +735,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 	/*  init LLT after tx buffer boundary is defined */
 	ret = rtl8723b_InitLLTTable(padapter);
-	if (_SUCCESS != ret)
+	if (ret != _SUCCESS)
 		return _FAIL;
 
 	/*  */
