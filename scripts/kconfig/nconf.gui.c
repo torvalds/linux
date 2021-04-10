@@ -70,7 +70,7 @@ static void normal_color_theme(void)
 	/* automatically add color... */
 #define mkattr(name, attr) do { \
 attributes[name] = attr | COLOR_PAIR(name); } while (0)
-	mkattr(NORMAL, NORMAL);
+	mkattr(NORMAL, A_NORMAL);
 	mkattr(MAIN_HEADING, A_BOLD | A_UNDERLINE);
 
 	mkattr(MAIN_MENU_FORE, A_REVERSE);
@@ -102,7 +102,7 @@ static void no_colors_theme(void)
 	/* automatically add highlight, no color */
 #define mkattrn(name, attr) { attributes[name] = attr; }
 
-	mkattrn(NORMAL, NORMAL);
+	mkattrn(NORMAL, A_NORMAL);
 	mkattrn(MAIN_HEADING, A_BOLD | A_UNDERLINE);
 
 	mkattrn(MAIN_MENU_FORE, A_STANDOUT);
