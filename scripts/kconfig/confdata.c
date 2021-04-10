@@ -366,7 +366,7 @@ int conf_read_simple(const char *name, int def)
 		in = zconf_fopen(name);
 		if (in)
 			goto load;
-		sym_add_change_count(1);
+		conf_set_changed(true);
 
 		env = getenv("KCONFIG_DEFCONFIG_LIST");
 		if (!env)
@@ -444,7 +444,7 @@ load:
 			if (def == S_DEF_USER) {
 				sym = sym_find(line + 2 + strlen(CONFIG_));
 				if (!sym) {
-					sym_add_change_count(1);
+					conf_set_changed(true);
 					continue;
 				}
 			} else {
@@ -487,7 +487,7 @@ load:
 					 */
 					conf_touch_dep(line + strlen(CONFIG_));
 				else
-					sym_add_change_count(1);
+					conf_set_changed(true);
 				continue;
 			}
 
@@ -535,7 +535,7 @@ int conf_read(const char *name)
 	int conf_unsaved = 0;
 	int i;
 
-	sym_set_change_count(0);
+	conf_set_changed(false);
 
 	if (conf_read_simple(name, S_DEF_USER)) {
 		sym_calc_value(modules_sym);
@@ -593,7 +593,8 @@ int conf_read(const char *name)
 		}
 	}
 
-	sym_add_change_count(conf_warnings || conf_unsaved);
+	if (conf_warnings || conf_unsaved)
+		conf_set_changed(true);
 
 	return 0;
 }
@@ -938,7 +939,7 @@ next:
 		if (is_same(name, tmpname)) {
 			conf_message("No change to %s", name);
 			unlink(tmpname);
-			sym_set_change_count(0);
+			conf_set_changed(false);
 			return 0;
 		}
 
@@ -950,7 +951,7 @@ next:
 
 	conf_message("configuration written to %s", name);
 
-	sym_set_change_count(0);
+	conf_set_changed(false);
 
 	return 0;
 }
@@ -1118,26 +1119,20 @@ int conf_write_autoconf(int overwrite)
 	return 0;
 }
 
-static int sym_change_count;
+static bool conf_changed;
 static void (*conf_changed_callback)(void);
 
-void sym_set_change_count(int count)
+void conf_set_changed(bool val)
 {
-	int _sym_change_count = sym_change_count;
-	sym_change_count = count;
-	if (conf_changed_callback &&
-	    (bool)_sym_change_count != (bool)count)
+	if (conf_changed_callback && conf_changed != val)
 		conf_changed_callback();
-}
 
-void sym_add_change_count(int count)
-{
-	sym_set_change_count(count + sym_change_count);
+	conf_changed = val;
 }
 
 bool conf_get_changed(void)
 {
-	return sym_change_count;
+	return conf_changed;
 }
 
 void conf_set_changed_callback(void (*fn)(void))

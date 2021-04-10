@@ -45,8 +45,6 @@ const char *zconf_curname(void);
 
 /* confdata.c */
 const char *conf_get_configname(void);
-void sym_set_change_count(int count);
-void sym_add_change_count(int count);
 void set_all_choice_values(struct symbol *csym);
 
 /* confdata.c and expr.c */
