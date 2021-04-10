@@ -7,7 +7,6 @@
  *  Chunfeng Yun <chunfeng.yun@mediatek.com>
  */
 
-#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
@@ -220,89 +219,6 @@ static int xhci_mtk_ssusb_config(struct xhci_hcd_mtk *mtk)
 	return xhci_mtk_host_enable(mtk);
 }
 
-static int xhci_mtk_clks_get(struct xhci_hcd_mtk *mtk)
-{
-	struct device *dev = mtk->dev;
-
-	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
-	if (IS_ERR(mtk->sys_clk)) {
-		dev_err(dev, "fail to get sys_ck\n");
-		return PTR_ERR(mtk->sys_clk);
-	}
-
-	mtk->xhci_clk = devm_clk_get_optional(dev, "xhci_ck");
-	if (IS_ERR(mtk->xhci_clk))
-		return PTR_ERR(mtk->xhci_clk);
-
-	mtk->ref_clk = devm_clk_get_optional(dev, "ref_ck");
-	if (IS_ERR(mtk->ref_clk))
-		return PTR_ERR(mtk->ref_clk);
-
-	mtk->mcu_clk = devm_clk_get_optional(dev, "mcu_ck");
-	if (IS_ERR(mtk->mcu_clk))
-		return PTR_ERR(mtk->mcu_clk);
-
-	mtk->dma_clk = devm_clk_get_optional(dev, "dma_ck");
-	return PTR_ERR_OR_ZERO(mtk->dma_clk);
-}
-
-static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
-{
-	int ret;
-
-	ret = clk_prepare_enable(mtk->ref_clk);
-	if (ret) {
-		dev_err(mtk->dev, "failed to enable ref_clk\n");
-		goto ref_clk_err;
-	}
-
-	ret = clk_prepare_enable(mtk->sys_clk);
-	if (ret) {
-		dev_err(mtk->dev, "failed to enable sys_clk\n");
-		goto sys_clk_err;
-	}
-
-	ret = clk_prepare_enable(mtk->xhci_clk);
-	if (ret) {
-		dev_err(mtk->dev, "failed to enable xhci_clk\n");
-		goto xhci_clk_err;
-	}
-
-	ret = clk_prepare_enable(mtk->mcu_clk);
-	if (ret) {
-		dev_err(mtk->dev, "failed to enable mcu_clk\n");
-		goto mcu_clk_err;
-	}
-
-	ret = clk_prepare_enable(mtk->dma_clk);
-	if (ret) {
-		dev_err(mtk->dev, "failed to enable dma_clk\n");
-		goto dma_clk_err;
-	}
-
-	return 0;
-
-dma_clk_err:
-	clk_disable_unprepare(mtk->mcu_clk);
-mcu_clk_err:
-	clk_disable_unprepare(mtk->xhci_clk);
-xhci_clk_err:
-	clk_disable_unprepare(mtk->sys_clk);
-sys_clk_err:
-	clk_disable_unprepare(mtk->ref_clk);
-ref_clk_err:
-	return ret;
-}
-
-static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
-{
-	clk_disable_unprepare(mtk->dma_clk);
-	clk_disable_unprepare(mtk->mcu_clk);
-	clk_disable_unprepare(mtk->xhci_clk);
-	clk_disable_unprepare(mtk->sys_clk);
-	clk_disable_unprepare(mtk->ref_clk);
-}
-
 /* only clocks can be turn off for ip-sleep wakeup mode */
 static void usb_wakeup_ip_sleep_set(struct xhci_hcd_mtk *mtk, bool enable)
 {
@@ -365,6 +281,19 @@ static void usb_wakeup_set(struct xhci_hcd_mtk *mtk, bool enable)
 {
 	if (mtk->uwk_en)
 		usb_wakeup_ip_sleep_set(mtk, enable);
+}
+
+static int xhci_mtk_clks_get(struct xhci_hcd_mtk *mtk)
+{
+	struct clk_bulk_data *clks = mtk->clks;
+
+	clks[0].id = "sys_ck";
+	clks[1].id = "xhci_ck";
+	clks[2].id = "ref_ck";
+	clks[3].id = "mcu_ck";
+	clks[4].id = "dma_ck";
+
+	return devm_clk_bulk_get_optional(mtk->dev, BULK_CLKS_NUM, clks);
 }
 
 static int xhci_mtk_ldos_enable(struct xhci_hcd_mtk *mtk)
@@ -532,7 +461,7 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_pm;
 
-	ret = xhci_mtk_clks_enable(mtk);
+	ret = clk_bulk_prepare_enable(BULK_CLKS_NUM, mtk->clks);
 	if (ret)
 		goto disable_ldos;
 
@@ -636,7 +565,7 @@ put_usb2_hcd:
 	usb_put_hcd(hcd);
 
 disable_clk:
-	xhci_mtk_clks_disable(mtk);
+	clk_bulk_disable_unprepare(BULK_CLKS_NUM, mtk->clks);
 
 disable_ldos:
 	xhci_mtk_ldos_disable(mtk);
@@ -666,7 +595,7 @@ static int xhci_mtk_remove(struct platform_device *pdev)
 	usb_put_hcd(shared_hcd);
 	usb_put_hcd(hcd);
 	xhci_mtk_sch_exit(mtk);
-	xhci_mtk_clks_disable(mtk);
+	clk_bulk_disable_unprepare(BULK_CLKS_NUM, mtk->clks);
 	xhci_mtk_ldos_disable(mtk);
 
 	pm_runtime_disable(dev);
@@ -693,7 +622,7 @@ static int __maybe_unused xhci_mtk_suspend(struct device *dev)
 	if (ret)
 		goto restart_poll_rh;
 
-	xhci_mtk_clks_disable(mtk);
+	clk_bulk_disable_unprepare(BULK_CLKS_NUM, mtk->clks);
 	usb_wakeup_set(mtk, true);
 	return 0;
 
@@ -714,7 +643,7 @@ static int __maybe_unused xhci_mtk_resume(struct device *dev)
 	int ret;
 
 	usb_wakeup_set(mtk, false);
-	ret = xhci_mtk_clks_enable(mtk);
+	ret = clk_bulk_prepare_enable(BULK_CLKS_NUM, mtk->clks);
 	if (ret)
 		goto enable_wakeup;
 
@@ -730,7 +659,7 @@ static int __maybe_unused xhci_mtk_resume(struct device *dev)
 	return 0;
 
 disable_clks:
-	xhci_mtk_clks_disable(mtk);
+	clk_bulk_disable_unprepare(BULK_CLKS_NUM, mtk->clks);
 enable_wakeup:
 	usb_wakeup_set(mtk, true);
 	return ret;

@@ -9,7 +9,11 @@
 #ifndef _XHCI_MTK_H_
 #define _XHCI_MTK_H_
 
+#include <linux/clk.h>
+
 #include "xhci.h"
+
+#define BULK_CLKS_NUM	5
 
 /**
  * To simplify scheduler algorithm, set a upper limit for ESIT,
@@ -140,11 +144,7 @@ struct xhci_hcd_mtk {
 	int u3p_dis_msk;
 	struct regulator *vusb33;
 	struct regulator *vbus;
-	struct clk *sys_clk;	/* sys and mac clock */
-	struct clk *xhci_clk;
-	struct clk *ref_clk;
-	struct clk *mcu_clk;
-	struct clk *dma_clk;
+	struct clk_bulk_data clks[BULK_CLKS_NUM];
 	struct regmap *pericfg;
 	struct phy **phys;
 	int num_phys;
