@@ -596,12 +596,6 @@ s32 sdio_local_write(
 	s32 err;
 	u8 *tmpbuf;
 
-	if (addr & 0x3)
-		{}
-
-	if (cnt  & 0x3)
-		{}
-
 	intfhdl = &adapter->iopriv.intf;
 
 	hal_sdio_get_cmd_addr_8723b(adapter, SDIO_LOCAL_DEVICE_ID, addr, &addr);
@@ -926,11 +920,6 @@ void sd_int_dpc(struct adapter *adapter)
 		}
 	}
 
-	if (hal->sdio_hisr & SDIO_HISR_TXBCNOK)
-		{}
-
-	if (hal->sdio_hisr & SDIO_HISR_TXBCNERR)
-		{}
 	if (hal->sdio_hisr & SDIO_HISR_C2HCMD) {
 		struct c2h_evt_hdr_88xx *c2h_evt;
 
@@ -951,12 +940,6 @@ void sd_int_dpc(struct adapter *adapter)
 			_set_workitem(&adapter->evtpriv.c2h_wk);
 		}
 	}
-
-	if (hal->sdio_hisr & SDIO_HISR_RXFOVW)
-		{}
-
-	if (hal->sdio_hisr & SDIO_HISR_RXERR)
-		{}
 
 	if (hal->sdio_hisr & SDIO_HISR_RX_REQUEST) {
 		struct recv_buf *recvbuf;
