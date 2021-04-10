@@ -181,7 +181,7 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 	struct sdio_data *psdio;
 
 	dvobj = devobj_init();
-	if (dvobj == NULL)
+	if (!dvobj)
 		goto exit;
 
 	sdio_set_drvdata(func, dvobj);
@@ -228,7 +228,7 @@ void rtw_set_hal_ops(struct adapter *padapter)
 
 static void sd_intf_start(struct adapter *padapter)
 {
-	if (padapter == NULL)
+	if (!padapter)
 		return;
 
 	/*  hal dep */
@@ -237,7 +237,7 @@ static void sd_intf_start(struct adapter *padapter)
 
 static void sd_intf_stop(struct adapter *padapter)
 {
-	if (padapter == NULL)
+	if (!padapter)
 		return;
 
 	/*  hal dep */
@@ -253,7 +253,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	struct sdio_data *psdio = &dvobj->intf_data;
 
 	padapter = vzalloc(sizeof(*padapter));
-	if (padapter == NULL)
+	if (!padapter)
 		goto exit;
 
 	padapter->dvobj = dvobj;
