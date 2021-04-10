@@ -130,14 +130,12 @@ static u32 sdio_init(struct dvobj_priv *dvobj)
 	err = sdio_enable_func(func);
 	if (err) {
 		dvobj->drv_dbg.dbg_sdio_init_error_cnt++;
-		DBG_8192C(KERN_CRIT "%s: sdio_enable_func FAIL(%d)!\n", __func__, err);
 		goto release;
 	}
 
 	err = sdio_set_block_size(func, 512);
 	if (err) {
 		dvobj->drv_dbg.dbg_sdio_init_error_cnt++;
-		DBG_8192C(KERN_CRIT "%s: sdio_set_block_size FAIL(%d)!\n", __func__, err);
 		goto release;
 	}
 	psdio_data->block_transfer_len = 512;
@@ -164,14 +162,12 @@ static void sdio_deinit(struct dvobj_priv *dvobj)
 		err = sdio_disable_func(func);
 		if (err) {
 			dvobj->drv_dbg.dbg_sdio_deinit_error_cnt++;
-			DBG_8192C(KERN_ERR "%s: sdio_disable_func(%d)\n", __func__, err);
 		}
 
 		if (dvobj->irq_alloc) {
 			err = sdio_release_irq(func);
 			if (err) {
 				dvobj->drv_dbg.dbg_sdio_free_irq_error_cnt++;
-				DBG_8192C(KERN_ERR "%s: sdio_release_irq(%d)\n", __func__, err);
 			} else
 				dvobj->drv_dbg.dbg_sdio_free_irq_cnt++;
 		}
@@ -235,7 +231,6 @@ void rtw_set_hal_ops(struct adapter *padapter)
 static void sd_intf_start(struct adapter *padapter)
 {
 	if (padapter == NULL) {
-		DBG_8192C(KERN_ERR "%s: padapter is NULL!\n", __func__);
 		return;
 	}
 
@@ -246,7 +241,6 @@ static void sd_intf_start(struct adapter *padapter)
 static void sd_intf_stop(struct adapter *padapter)
 {
 	if (padapter == NULL) {
-		DBG_8192C(KERN_ERR "%s: padapter is NULL!\n", __func__);
 		return;
 	}
 

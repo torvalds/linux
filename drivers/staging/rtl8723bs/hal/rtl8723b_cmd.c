@@ -77,7 +77,6 @@ s32 FillH2CCmd8723B(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmd
 		h2c_box_num = pHalData->LastHMEBoxNum;
 
 		if (!_is_fw_read_cmd_down(padapter, h2c_box_num)) {
-			DBG_8192C(" fw read cmd failed...\n");
 			/* DBG_8192C(" 0x1c0: 0x%8x\n", rtw_read32(padapter, 0x1c0)); */
 			/* DBG_8192C(" 0x1c4: 0x%8x\n", rtw_read32(padapter, 0x1c4)); */
 			goto exit;
@@ -667,9 +666,6 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 	u32 poll = 0;
 	u8 val8;
 
-	DBG_8192C("+" FUNC_ADPT_FMT ": iface_type =%d mstatus(%x)\n",
-		FUNC_ADPT_ARG(padapter), get_iface_type(padapter), mstatus);
-
 	if (mstatus == RT_MEDIA_CONNECT) {
 		bool bRecover = false;
 		u8 v8;
@@ -869,7 +865,6 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 
 	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
 	if (!pcmdframe) {
-		DBG_8192C("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
 
@@ -913,8 +908,6 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 
 	TotalPacketLen = BufIndex + BTQosNullLength;
 	if (TotalPacketLen > MaxRsvdPageBufSize) {
-		DBG_8192C(FUNC_ADPT_FMT ": ERROR: The rsvd page size is not enough!!TotalPacketLen %d, MaxRsvdPageBufSize %d\n",
-			FUNC_ADPT_ARG(padapter), TotalPacketLen, MaxRsvdPageBufSize);
 		goto error;
 	}
 
@@ -947,14 +940,8 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	u32 poll = 0;
 	u8 val8;
 
-
-	DBG_8192C("+" FUNC_ADPT_FMT ": iface_type =%d fw_state = 0x%08X\n",
-		FUNC_ADPT_ARG(padapter), get_iface_type(padapter), get_fwstate(&padapter->mlmepriv));
-
 #ifdef DEBUG
 	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == false) {
-		DBG_8192C(FUNC_ADPT_FMT ": [WARNING] not in AP mode!!\n",
-			FUNC_ADPT_ARG(padapter));
 	}
 #endif /*  DEBUG */
 
@@ -1008,15 +995,7 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	if (bcn_valid) {
 		struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 		pwrctl->fw_psmode_iface_id = padapter->iface_id;
-		DBG_8192C("%s: DL RSVD page success! DLBcnCount:%d, poll:%d\n",
-			ADPT_ARG(padapter), DLBcnCount, poll);
 	} else {
-		DBG_8192C("%s: DL RSVD page fail! DLBcnCount:%d, poll:%d\n",
-			ADPT_ARG(padapter), DLBcnCount, poll);
-		DBG_8192C("%s: DL RSVD page fail! bSurpriseRemoved =%d\n",
-			ADPT_ARG(padapter), padapter->bSurpriseRemoved);
-		DBG_8192C("%s: DL RSVD page fail! bDriverStopped =%d\n",
-			ADPT_ARG(padapter), padapter->bDriverStopped);
 	}
 
 	/*  2010.05.11. Added by tynli. */

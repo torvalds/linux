@@ -183,7 +183,6 @@ static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,
 
 	precvframe = rtw_alloc_recvframe(&precvpriv->free_recv_queue);
 	if (!precvframe) {
-		DBG_8192C("%s: no enough recv frame!\n", __func__);
 		rtw_enqueue_recvbuf_to_head(precvbuf,
 					    &precvpriv->recv_buf_pending_queue);
 
@@ -202,8 +201,6 @@ static inline bool rx_crc_err(struct recv_priv *precvpriv,
 {
 	/*  fix Hardware RX data error, drop whole recv_buffer */
 	if ((!(p_hal_data->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err) {
-		DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n",
-			  __func__, __LINE__);
 		rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 		return true;
 	}
@@ -216,8 +213,6 @@ static inline bool pkt_exceeds_tail(struct recv_priv *precvpriv,
 				    union recv_frame *precvframe)
 {
 	if (end > tail) {
-		DBG_8192C("%s()-%d: : next pkt len(%p,%d) exceed ptail(%p)!\n",
-			  __func__, __LINE__, ptr, pkt_offset, precvbuf->ptail);
 		rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 		return true;
 	}
@@ -276,9 +271,6 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 				break;
 
 			if ((pattrib->crc_err) || (pattrib->icv_err)) {
-				DBG_8192C("%s: crc_err =%d icv_err =%d, skip!\n",
-					  __func__, pattrib->crc_err,
-					  pattrib->icv_err);
 				rtw_free_recvframe(precvframe,
 						   &precvpriv->free_recv_queue);
 			} else {
@@ -307,7 +299,6 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 
 				pkt_copy = rtw_skb_alloc(alloc_sz);
 				if (!pkt_copy) {
-					DBG_8192C("%s: alloc_skb fail, drop frame\n", __func__);
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 					break;
 				}

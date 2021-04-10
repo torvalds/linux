@@ -183,7 +183,6 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 #ifdef SDIO_DEBUG_IO
 		}
 
-		DBG_8192C(KERN_ERR "%s: Mac Power off, Read FAIL(%d)! addr = 0x%x\n", __func__, err, addr);
 		return SDIO_ERR_VAL32;
 #endif
 	}
@@ -197,7 +196,6 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 
 		tmpbuf = rtw_malloc(8);
 		if (!tmpbuf) {
-			DBG_8192C(KERN_ERR "%s: Allocate memory FAIL!(size =8) addr = 0x%x\n", __func__, addr);
 			return SDIO_ERR_VAL32;
 		}
 
@@ -599,10 +597,10 @@ s32 sdio_local_write(
 	u8 *tmpbuf;
 
 	if (addr & 0x3)
-		DBG_8192C("%s, address must be 4 bytes alignment\n", __func__);
+		{}
 
 	if (cnt  & 0x3)
-		DBG_8192C("%s, size must be the multiple of 4\n", __func__);
+		{}
 
 	intfhdl = &adapter->iopriv.intf;
 
@@ -923,22 +921,19 @@ void sd_int_dpc(struct adapter *adapter)
 			hal_sdio_get_cmd_addr_8723b(adapter, WLAN_IOREG_DEVICE_ID, addr, &addr);
 			_sd_read(intfhdl, addr, 4, status);
 			_sd_write(intfhdl, addr, 4, status);
-			DBG_8192C("%s: SDIO_HISR_TXERR (0x%08x)\n", __func__, le32_to_cpu(*(u32 *)status));
 			kfree(status);
 		} else {
-			DBG_8192C("%s: SDIO_HISR_TXERR, but can't allocate memory to read status!\n", __func__);
 		}
 	}
 
 	if (hal->sdio_hisr & SDIO_HISR_TXBCNOK)
-		DBG_8192C("%s: SDIO_HISR_TXBCNOK\n", __func__);
+		{}
 
 	if (hal->sdio_hisr & SDIO_HISR_TXBCNERR)
-		DBG_8192C("%s: SDIO_HISR_TXBCNERR\n", __func__);
+		{}
 	if (hal->sdio_hisr & SDIO_HISR_C2HCMD) {
 		struct c2h_evt_hdr_88xx *c2h_evt;
 
-		DBG_8192C("%s: C2H Command\n", __func__);
 		c2h_evt = rtw_zmalloc(16);
 		if (c2h_evt) {
 			if (c2h_evt_read_88xx(adapter, (u8 *)c2h_evt) == _SUCCESS) {
@@ -958,10 +953,10 @@ void sd_int_dpc(struct adapter *adapter)
 	}
 
 	if (hal->sdio_hisr & SDIO_HISR_RXFOVW)
-		DBG_8192C("%s: Rx Overflow\n", __func__);
+		{}
 
 	if (hal->sdio_hisr & SDIO_HISR_RXERR)
-		DBG_8192C("%s: Rx Error\n", __func__);
+		{}
 
 	if (hal->sdio_hisr & SDIO_HISR_RX_REQUEST) {
 		struct recv_buf *recvbuf;

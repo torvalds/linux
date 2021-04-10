@@ -4248,14 +4248,12 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 
 	sscanf(ptr, "%16s", cmdname);
 	cmdlen = strlen(cmdname);
-	DBG_8192C("%s: cmd =%s\n", __func__, cmdname);
 
 	/*  skip command string */
 	if (cmdlen > 0)
 		cmdlen += 1; /*  skip one space */
 	ptr += cmdlen;
 	len -= cmdlen;
-	DBG_8192C("%s: parameters =%s\n", __func__, ptr);
 
 	priv = rtw_private_handler;
 	priv_args = rtw_private_args;
@@ -4366,15 +4364,12 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 			break;
 
 		default:
-			DBG_8192C("%s: Not yet implemented...\n", __func__);
 			err = -1;
 			goto exit;
 		}
 
 		if ((priv_args[k].set_args & IW_PRIV_SIZE_FIXED) &&
 			(wdata.data.length != (priv_args[k].set_args & IW_PRIV_SIZE_MASK))) {
-			DBG_8192C("%s: The command %s needs exactly %d argument(s)...\n",
-					__func__, cmdname, priv_args[k].set_args & IW_PRIV_SIZE_MASK);
 			err = -EINVAL;
 			goto exit;
 		}
@@ -4492,7 +4487,6 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 			break;
 
 		default:
-			DBG_8192C("%s: Not yet implemented...\n", __func__);
 			err = -1;
 			goto exit;
 		}

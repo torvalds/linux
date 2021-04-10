@@ -1072,9 +1072,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 
 	if (rf_off == pwrpriv->rf_pwrstate) {
 		{
-			DBG_8192C("%s call ips_leave....\n", __func__);
 			if (ips_leave(padapter) == _FAIL) {
-				DBG_8192C("======> ips_leave fail.............\n");
 				ret = _FAIL;
 				goto exit;
 			}
@@ -1083,11 +1081,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 
 	/* TODO: the following checking need to be merged... */
 	if (padapter->bDriverStopped || !padapter->bup || !padapter->hw_init_completed) {
-		DBG_8192C("%s: bDriverStopped =%d, bup =%d, hw_init_completed =%u\n"
-			, caller
-			, padapter->bDriverStopped
-			, padapter->bup
-			, padapter->hw_init_completed);
 		ret = false;
 		goto exit;
 	}

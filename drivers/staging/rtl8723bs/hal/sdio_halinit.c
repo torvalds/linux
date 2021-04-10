@@ -133,7 +133,6 @@ static void _init_available_page_threshold(struct adapter *padapter, u8 numHQ, u
 	rtw_write16(padapter, 0x218, HQ_threshold);
 	rtw_write16(padapter, 0x21A, NQ_threshold);
 	rtw_write16(padapter, 0x21C, LQ_threshold);
-	DBG_8192C("%s(): Enable Tx FIFO Page Threshold H:0x%x, N:0x%x, L:0x%x\n", __func__, HQ_threshold, NQ_threshold, LQ_threshold);
 }
 
 static void _InitQueueReservedPage(struct adapter *padapter)
@@ -579,7 +578,6 @@ static void _InitRFType(struct adapter *padapter)
 	pHalData->rf_chip	= RF_6052;
 
 	pHalData->rf_type = RF_1T1R;
-	DBG_8192C("Set RF Chip ID to RF_6052 and RF type to 1T1R.\n");
 }
 
 static void _RfPowerSave(struct adapter *padapter)
@@ -604,8 +602,6 @@ static bool HalDetectPwrDownMode(struct adapter *Adapter)
 		pHalData->pwrdown = true;
 	else
 		pHalData->pwrdown = false;
-
-	DBG_8192C("HalDetectPwrDownMode(): PDN =%d\n", pHalData->pwrdown);
 
 	return pHalData->pwrdown;
 }	/*  HalDetectPwrDownMode */
@@ -743,7 +739,6 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	/*  init LLT after tx buffer boundary is defined */
 	ret = rtl8723b_InitLLTTable(padapter);
 	if (_SUCCESS != ret) {
-		DBG_8192C("%s: Failed to init LLT Table!\n", __func__);
 		return _FAIL;
 	}
 	/*  */
@@ -891,7 +886,6 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 	/*  Run LPS WL RFOFF flow */
 	ret = HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723B_enter_lps_flow);
 	if (ret == _FAIL) {
-		DBG_8192C(KERN_ERR "%s: run RF OFF flow fail!\n", __func__);
 	}
 
 	/* 	==== Reset digital sequence   ====== */
@@ -924,7 +918,6 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	ret = HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723B_card_disable_flow);
 	if (!ret) {
-		DBG_8192C(KERN_ERR "%s: run CARD DISABLE flow fail!\n", __func__);
 	}
 }
 

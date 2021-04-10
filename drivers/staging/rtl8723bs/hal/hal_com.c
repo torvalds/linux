@@ -19,7 +19,6 @@ u8 rtw_hal_data_init(struct adapter *padapter)
 		padapter->hal_data_sz = sizeof(struct hal_com_data);
 		padapter->HalData = vzalloc(padapter->hal_data_sz);
 		if (!padapter->HalData) {
-			DBG_8192C("cannot alloc memory for HAL DATA\n");
 			return _FAIL;
 		}
 	}
@@ -1129,15 +1128,12 @@ u8 SetHalDefVar(
 
 		if (dm_func == 0) { /* disable all dynamic func */
 			odm->SupportAbility = DYNAMIC_FUNC_DISABLE;
-			DBG_8192C("==> Disable all dynamic function...\n");
 		} else if (dm_func == 1) {/* disable DIG */
 			odm->SupportAbility  &= (~DYNAMIC_BB_DIG);
-			DBG_8192C("==> Disable DIG...\n");
 		} else if (dm_func == 2) {/* disable High power */
 			odm->SupportAbility  &= (~DYNAMIC_BB_DYNAMIC_TXPWR);
 		} else if (dm_func == 3) {/* disable tx power tracking */
 			odm->SupportAbility  &= (~DYNAMIC_RF_CALIBRATION);
-			DBG_8192C("==> Disable tx power tracking...\n");
 		} else if (dm_func == 4) {/* disable BT coexistence */
 			dm->DMFlag &= (~DYNAMIC_FUNC_BT);
 		} else if (dm_func == 5) {/* disable antenna diversity */
@@ -1149,7 +1145,6 @@ u8 SetHalDefVar(
 			}
 			dm->DMFlag |= DYNAMIC_FUNC_BT;
 			odm->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
-			DBG_8192C("==> Turn on all dynamic function...\n");
 		}
 	}
 		break;
@@ -1254,10 +1249,8 @@ void SetHalODMVar(
 		{
 			struct sta_info *psta = pValue1;
 			if (bSet) {
-				DBG_8192C("### Set STA_(%d) info ###\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
 			} else {
-				DBG_8192C("### Clean STA_(%d) info ###\n", psta->mac_id);
 				/* spin_lock_bh(&pHalData->odm_stainfo_lock); */
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, NULL);
 

@@ -4405,7 +4405,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 #ifdef DEBUG_RTL871X
 		i = 0;
 		while ((i < chplan_ap.Len) && (chplan_ap.Channel[i] != 0)) {
-			DBG_8192C("%02d,", chplan_ap.Channel[i]);
 			i++;
 		}
 #endif

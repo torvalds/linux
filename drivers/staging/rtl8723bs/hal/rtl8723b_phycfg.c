@@ -733,8 +733,6 @@ static void phy_SwChnl8723B(struct adapter *padapter)
 	pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff00) | channelToSW);
 	PHY_SetRFReg(padapter, ODM_RF_PATH_A, RF_CHNLBW, 0x3FF, pHalData->RfRegChnlVal[0]);
 	PHY_SetRFReg(padapter, ODM_RF_PATH_B, RF_CHNLBW, 0x3FF, pHalData->RfRegChnlVal[0]);
-
-	DBG_8192C("===>phy_SwChnl8723B: Channel = %d\n", channelToSW);
 }
 
 static void phy_SwChnlAndSetBwMode8723B(struct adapter *Adapter)
