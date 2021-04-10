@@ -12,7 +12,6 @@
 /*
  * Functions Config
  */
-/* define DEBUG_CFG80211 */
 
 #ifndef CONFIG_WIRELESS_EXT
 #error CONFIG_WIRELESS_EXT needs to be enabled for this driver to work
