@@ -757,27 +757,25 @@ static bool acpi_info_matches_ids(struct acpi_device_info *info,
 				  const char * const ids[])
 {
 	struct acpi_pnp_device_id_list *cid_list = NULL;
-	int i;
+	int i, index;
 
 	if (!(info->valid & ACPI_VALID_HID))
 		return false;
 
+	index = match_string(ids, -1, info->hardware_id.string);
+	if (index >= 0)
+		return true;
+
 	if (info->valid & ACPI_VALID_CID)
 		cid_list = &info->compatible_id_list;
 
-	for (i = 0; ids[i]; i++) {
-		int j;
+	if (!cid_list)
+		return false;
 
-		if (!strcmp(info->hardware_id.string, ids[i]))
+	for (i = 0; i < cid_list->count; i++) {
+		index = match_string(ids, -1, cid_list->ids[i].string);
+		if (index >= 0)
 			return true;
-
-		if (!cid_list)
-			continue;
-
-		for (j = 0; j < cid_list->count; j++) {
-			if (!strcmp(cid_list->ids[j].string, ids[i]))
-				return true;
-		}
 	}
 
 	return false;
