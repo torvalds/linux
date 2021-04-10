@@ -408,8 +408,10 @@ static int cyttsp_power_on(struct cyttsp *ts)
 	if (GET_BOOTLOADERMODE(ts->bl_data.bl_status) &&
 	    IS_VALID_APP(ts->bl_data.bl_status)) {
 		error = cyttsp_exit_bl_mode(ts);
-		if (error)
+		if (error) {
+			dev_err(ts->dev, "failed to exit bootloader mode\n");
 			return error;
+		}
 	}
 
 	if (GET_HSTMODE(ts->bl_data.bl_file) != CY_OPERATE_MODE ||
