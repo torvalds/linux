@@ -697,7 +697,7 @@ static ssize_t alarm_store(struct device *dev, struct device_attribute *attr, co
 	return count;
 }
 
-DEVICE_ATTR_RW(alarm);
+static DEVICE_ATTR_RW(alarm);
 
 static struct attribute *spwr_battery_attrs[] = {
 	&dev_attr_alarm.attr,
@@ -802,7 +802,7 @@ static int __maybe_unused surface_battery_resume(struct device *dev)
 {
 	return spwr_battery_recheck_full(dev_get_drvdata(dev));
 }
-SIMPLE_DEV_PM_OPS(surface_battery_pm_ops, NULL, surface_battery_resume);
+static SIMPLE_DEV_PM_OPS(surface_battery_pm_ops, NULL, surface_battery_resume);
 
 static int surface_battery_probe(struct ssam_device *sdev)
 {
