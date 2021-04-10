@@ -1475,7 +1475,7 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	/* Forcing the desc->optattrs *set* and the desc->attrs *set* to be
 	 * disjoined, this allow us to release acquired resources by optional
 	 * attributes and by required attributes independently from each other
-	 * without any interfarence.
+	 * without any interference.
 	 * In other terms, we are sure that we do not release some the acquired
 	 * resources twice.
 	 *
