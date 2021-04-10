@@ -33,7 +33,6 @@
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("A loopback soundcard");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ALSA,Loopback soundcard}}");
 
 #define MAX_PCM_SUBSTREAMS	8
 

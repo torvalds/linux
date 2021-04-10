@@ -21,23 +21,6 @@ MODULE_AUTHOR("Michael Trimarchi <michael@amarulasolutions.com>");
 MODULE_AUTHOR("Antonio Ospite <ao2@amarulasolutions.com>");
 MODULE_DESCRIPTION("M2Tech hiFace USB-SPDIF audio driver");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{M2Tech,Young},"
-			 "{M2Tech,hiFace},"
-			 "{M2Tech,North Star},"
-			 "{M2Tech,W4S Young},"
-			 "{M2Tech,Corrson},"
-			 "{M2Tech,AUDIA},"
-			 "{M2Tech,SL Audio},"
-			 "{M2Tech,Empirical},"
-			 "{M2Tech,Rockna},"
-			 "{M2Tech,Pathos},"
-			 "{M2Tech,Metronome},"
-			 "{M2Tech,CAD},"
-			 "{M2Tech,Audio Esclusive},"
-			 "{M2Tech,Rotel},"
-			 "{M2Tech,Eeaudio},"
-			 "{The Chord Company,CHORD},"
-			 "{AVA Group A/S,Vitus}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for card */

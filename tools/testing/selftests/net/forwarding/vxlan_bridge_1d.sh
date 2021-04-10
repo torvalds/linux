@@ -658,7 +658,7 @@ test_ecn_decap()
 	# In accordance with INET_ECN_decapsulate()
 	__test_ecn_decap 00 00 0x00
 	__test_ecn_decap 01 01 0x01
-	__test_ecn_decap 02 01 0x02
+	__test_ecn_decap 02 01 0x01
 	__test_ecn_decap 01 03 0x03
 	__test_ecn_decap 02 03 0x03
 	test_ecn_decap_error

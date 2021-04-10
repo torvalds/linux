@@ -54,7 +54,6 @@ MODULE_PARM_DESC(sample_rate_min, "Minimal sample rate");
  */
 
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Digigram, Lola}}");
 MODULE_DESCRIPTION("Digigram Lola driver");
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 

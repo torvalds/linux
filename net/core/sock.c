@@ -3440,6 +3440,32 @@ static void tw_prot_cleanup(struct timewait_sock_ops *twsk_prot)
 	twsk_prot->twsk_slab = NULL;
 }
 
+static int tw_prot_init(const struct proto *prot)
+{
+	struct timewait_sock_ops *twsk_prot = prot->twsk_prot;
+
+	if (!twsk_prot)
+		return 0;
+
+	twsk_prot->twsk_slab_name = kasprintf(GFP_KERNEL, "tw_sock_%s",
+					      prot->name);
+	if (!twsk_prot->twsk_slab_name)
+		return -ENOMEM;
+
+	twsk_prot->twsk_slab =
+		kmem_cache_create(twsk_prot->twsk_slab_name,
+				  twsk_prot->twsk_obj_size, 0,
+				  SLAB_ACCOUNT | prot->slab_flags,
+				  NULL);
+	if (!twsk_prot->twsk_slab) {
+		pr_crit("%s: Can't create timewait sock SLAB cache!\n",
+			prot->name);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static void req_prot_cleanup(struct request_sock_ops *rsk_prot)
 {
 	if (!rsk_prot)
@@ -3496,22 +3522,8 @@ int proto_register(struct proto *prot, int alloc_slab)
 		if (req_prot_init(prot))
 			goto out_free_request_sock_slab;
 
-		if (prot->twsk_prot != NULL) {
-			prot->twsk_prot->twsk_slab_name = kasprintf(GFP_KERNEL, "tw_sock_%s", prot->name);
-
-			if (prot->twsk_prot->twsk_slab_name == NULL)
-				goto out_free_request_sock_slab;
-
-			prot->twsk_prot->twsk_slab =
-				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
-						  prot->twsk_prot->twsk_obj_size,
-						  0,
-						  SLAB_ACCOUNT |
-						  prot->slab_flags,
-						  NULL);
-			if (prot->twsk_prot->twsk_slab == NULL)
-				goto out_free_timewait_sock_slab;
-		}
+		if (tw_prot_init(prot))
+			goto out_free_timewait_sock_slab;
 	}
 
 	mutex_lock(&proto_list_mutex);

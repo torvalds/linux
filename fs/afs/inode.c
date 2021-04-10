@@ -27,7 +27,6 @@
 
 static const struct inode_operations afs_symlink_inode_operations = {
 	.get_link	= page_get_link,
-	.listxattr	= afs_listxattr,
 };
 
 static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *parent_vnode)

@@ -226,7 +226,6 @@ static void __del_qgroup_rb(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_qgroup_list *list;
 
-	btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
 	list_del(&qgroup->dirty);
 	while (!list_empty(&qgroup->groups)) {
 		list = list_first_entry(&qgroup->groups,
@@ -243,7 +242,6 @@ static void __del_qgroup_rb(struct btrfs_fs_info *fs_info,
 		list_del(&list->next_member);
 		kfree(list);
 	}
-	kfree(qgroup);
 }
 
 /* must be called with qgroup_lock held */
@@ -569,6 +567,8 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 		qgroup = rb_entry(n, struct btrfs_qgroup, node);
 		rb_erase(n, &fs_info->qgroup_tree);
 		__del_qgroup_rb(fs_info, qgroup);
+		btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
+		kfree(qgroup);
 	}
 	/*
 	 * We call btrfs_free_qgroup_config() when unmounting
@@ -1578,6 +1578,14 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	spin_lock(&fs_info->qgroup_lock);
 	del_qgroup_rb(fs_info, qgroupid);
 	spin_unlock(&fs_info->qgroup_lock);
+
+	/*
+	 * Remove the qgroup from sysfs now without holding the qgroup_lock
+	 * spinlock, since the sysfs_remove_group() function needs to take
+	 * the mutex kernfs_mutex through kernfs_remove_by_name_ns().
+	 */
+	btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
+	kfree(qgroup);
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;

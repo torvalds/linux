@@ -43,7 +43,6 @@ const struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_getattr,
 	.setattr	= afs_setattr,
 	.permission	= afs_permission,
-	.listxattr	= afs_listxattr,
 };
 
 const struct address_space_operations afs_fs_aops = {

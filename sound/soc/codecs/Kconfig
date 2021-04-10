@@ -186,7 +186,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_SI476X
 	imply SND_SOC_SIMPLE_AMPLIFIER
 	imply SND_SOC_SIMPLE_MUX
-	imply SND_SOC_SIRF_AUDIO_CODEC
 	imply SND_SOC_SPDIF
 	imply SND_SOC_SSM2305
 	imply SND_SOC_SSM2518
@@ -1278,10 +1277,6 @@ config SND_SOC_SIMPLE_AMPLIFIER
 config SND_SOC_SIMPLE_MUX
 	tristate "Simple Audio Mux"
 	select GPIOLIB
-
-config SND_SOC_SIRF_AUDIO_CODEC
-	tristate "SiRF SoC internal audio codec"
-	select REGMAP_MMIO
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
