@@ -928,11 +928,6 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	u32 poll = 0;
 	u8 val8;
 
-#ifdef DEBUG
-	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == false) {
-	}
-#endif /*  DEBUG */
-
 	pHalData = GET_HAL_DATA(padapter);
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;

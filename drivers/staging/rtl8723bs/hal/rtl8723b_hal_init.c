@@ -754,21 +754,6 @@ static void hal_ReadEFuse_WiFi(
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_MAX_MAP_LEN);
 
-
-#ifdef DEBUG
-if (0) {
-	for (i = 0; i < 256; i++)
-		efuse_OneByteRead(padapter, i, &efuseTbl[i], false);
-	for (i = 0; i < 256; i++) {
-		if (i % 16 == 0)
-			printk("\n");
-		printk("%02X ", efuseTbl[i]);
-	}
-	printk("\n");
-}
-#endif
-
-
 	/*  switch bank back to bank 0 for later BT and wifi use. */
 	hal_EfuseSwitchToBank(padapter, 0, bPseudoTest);
 
@@ -818,16 +803,6 @@ if (0) {
 	for (i = 0; i < _size_byte; i++)
 		pbuf[i] = efuseTbl[_offset+i];
 
-#ifdef DEBUG
-if (1) {
-	for (i = 0; i < _size_byte; i++) {
-		if (i % 16 == 0)
-			printk("\n");
-		printk("%02X ", pbuf[i]);
-	}
-	printk("\n");
-}
-#endif
 	/*  Calculate Efuse utilization */
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, &total, bPseudoTest);
 	used = eFuse_Addr - 1;

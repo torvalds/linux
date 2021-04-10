@@ -44,13 +44,8 @@
 /*
  * Debug Related Config
  */
-#undef DEBUG
 
-#ifdef DEBUG
-#define DBG	1	/*  for ODM & BTCOEX debug */
-#else /*  !DEBUG */
 #define DBG	0	/*  for ODM & BTCOEX debug */
-#endif /*  !DEBUG */
 
 /* define DBG_XMIT_BUF */
 /* define DBG_XMIT_BUF_EXT */
