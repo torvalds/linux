@@ -1651,7 +1651,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 	 * Add three ACEs for owner, group, everyone getting rid of other ACEs
 	 * as chmod disables ACEs and set the security descriptor. Allocate
 	 * memory for the smb header, set security descriptor request security
-	 * descriptor parameters, and secuirty descriptor itself
+	 * descriptor parameters, and security descriptor itself
 	 */
 	nsecdesclen = max_t(u32, nsecdesclen, DEFAULT_SEC_DESC_LEN);
 	pnntsd = kmalloc(nsecdesclen, GFP_KERNEL);
