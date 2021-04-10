@@ -1310,17 +1310,11 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct adapter *padapter, char *b
 	u8 *wps_ie;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-#ifdef DEBUG_CFG80211
-#endif
-
 	if (len > 0)
 	{
 		wps_ie = rtw_get_wps_ie(buf, len, NULL, &wps_ielen);
 		if (wps_ie)
 		{
-			#ifdef DEBUG_CFG80211
-			#endif
-
 			if (pmlmepriv->wps_probe_req_ie)
 			{
 				pmlmepriv->wps_probe_req_ie_len = 0;
@@ -1435,8 +1429,6 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 
 	/* parsing request ssids, n_ssids */
 	for (i = 0; i < request->n_ssids && i < RTW_SSID_SCAN_AMOUNT; i++) {
-		#ifdef DEBUG_CFG80211
-		#endif
 		memcpy(ssid[i].Ssid, ssids[i].ssid, ssids[i].ssid_len);
 		ssid[i].SsidLength = ssids[i].ssid_len;
 	}
@@ -2681,20 +2673,13 @@ static int _cfg80211_rtw_mgmt_tx(struct adapter *padapter, u8 tx_ch, const u8 *b
 		ack = false;
 		ret = _FAIL;
 
-		#ifdef DEBUG_CFG80211
-		#endif
 	} else {
 		msleep(50);
 
-		#ifdef DEBUG_CFG80211
-		#endif
 		ret = _SUCCESS;
 	}
 
 exit:
-
-	#ifdef DEBUG_CFG80211
-	#endif
 
 	return ret;
 
