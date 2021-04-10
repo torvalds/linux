@@ -48,7 +48,6 @@
 
 #ifdef DEBUG
 #define DBG	1	/*  for ODM & BTCOEX debug */
-/*#define DEBUG_RTL871X */
 #else /*  !DEBUG */
 #define DBG	0	/*  for ODM & BTCOEX debug */
 #endif /*  !DEBUG */
