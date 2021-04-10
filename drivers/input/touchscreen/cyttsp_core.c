@@ -229,10 +229,16 @@ static int cyttsp_set_sysinfo_regs(struct cyttsp *ts)
 static void cyttsp_hard_reset(struct cyttsp *ts)
 {
 	if (ts->reset_gpio) {
+		/*
+		 * According to the CY8CTMA340 datasheet page 21, the external
+		 * reset pulse width should be >= 1 ms. The datasheet does not
+		 * specify how long we have to wait after reset but a vendor
+		 * tree specifies 5 ms here.
+		 */
 		gpiod_set_value_cansleep(ts->reset_gpio, 1);
-		msleep(CY_DELAY_DFLT);
+		usleep_range(1000, 2000);
 		gpiod_set_value_cansleep(ts->reset_gpio, 0);
-		msleep(CY_DELAY_DFLT);
+		usleep_range(5000, 6000);
 	}
 }
 
