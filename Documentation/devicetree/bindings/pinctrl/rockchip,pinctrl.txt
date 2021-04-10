@@ -33,6 +33,7 @@ Required properties for iomux controller:
 		"rockchip,rk3328-pinctrl":  for Rockchip RK3328
 		"rockchip,rk3368-pinctrl":  for Rockchip RK3368
 		"rockchip,rk3399-pinctrl":  for Rockchip RK3399
+		"rockchip,rk3568-pinctrl":  for Rockchip RK3568
 
   - rockchip,grf: phandle referencing a syscon providing the
 	 "general register files"
