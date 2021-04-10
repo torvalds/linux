@@ -14,5 +14,6 @@
 };
 
 &gpmi {
+	fsl,use-minimum-ecc;
 	status = "okay";
 };

@@ -403,7 +403,6 @@ static inline void sk_psock_cork_free(struct sk_psock *psock)
 static inline void sk_psock_restore_proto(struct sock *sk,
 					  struct sk_psock *psock)
 {
-	sk->sk_prot->unhash = psock->saved_unhash;
 	if (psock->psock_update_sk_prot)
 		psock->psock_update_sk_prot(sk, true);
 }

@@ -586,6 +586,7 @@ static int sk_psock_skb_ingress_self(struct sk_psock *psock, struct sk_buff *skb
 	if (unlikely(!msg))
 		return -EAGAIN;
 	sk_msg_init(msg);
+	skb_set_owner_r(skb, sk);
 	return sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
 }
 
@@ -884,7 +885,6 @@ static void sk_psock_tls_verdict_apply(struct sk_buff *skb, struct sock *sk, int
 {
 	switch (verdict) {
 	case __SK_REDIRECT:
-		skb_set_owner_r(skb, sk);
 		sk_psock_skb_redirect(skb);
 		break;
 	case __SK_PASS:
@@ -902,10 +902,6 @@ int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb)
 	rcu_read_lock();
 	prog = READ_ONCE(psock->progs.stream_verdict);
 	if (likely(prog)) {
-		/* We skip full set_owner_r here because if we do a SK_PASS
-		 * or SK_DROP we can skip skb memory accounting and use the
-		 * TLS context.
-		 */
 		skb->sk = psock->sk;
 		skb_dst_drop(skb);
 		skb_bpf_redirect_clear(skb);
@@ -995,13 +991,14 @@ static void sk_psock_strp_read(struct strparser *strp, struct sk_buff *skb)
 		kfree_skb(skb);
 		goto out;
 	}
-	skb_set_owner_r(skb, sk);
 	prog = READ_ONCE(psock->progs.stream_verdict);
 	if (likely(prog)) {
+		skb->sk = sk;
 		skb_dst_drop(skb);
 		skb_bpf_redirect_clear(skb);
 		ret = bpf_prog_run_pin_on_cpu(prog, skb);
 		ret = sk_psock_map_verd(ret, skb_bpf_redirect_fetch(skb));
+		skb->sk = NULL;
 	}
 	sk_psock_verdict_apply(psock, skb, ret);
 out:
@@ -1115,15 +1112,16 @@ static int sk_psock_verdict_recv(read_descriptor_t *desc, struct sk_buff *skb,
 		kfree_skb(skb);
 		goto out;
 	}
-	skb_set_owner_r(skb, sk);
 	prog = READ_ONCE(psock->progs.stream_verdict);
 	if (!prog)
 		prog = READ_ONCE(psock->progs.skb_verdict);
 	if (likely(prog)) {
+		skb->sk = sk;
 		skb_dst_drop(skb);
 		skb_bpf_redirect_clear(skb);
 		ret = bpf_prog_run_pin_on_cpu(prog, skb);
 		ret = sk_psock_map_verd(ret, skb_bpf_redirect_fetch(skb));
+		skb->sk = NULL;
 	}
 	sk_psock_verdict_apply(psock, skb, ret);
 out:

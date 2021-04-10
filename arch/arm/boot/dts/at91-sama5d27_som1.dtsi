@@ -84,8 +84,8 @@
 				pinctrl-0 = <&pinctrl_macb0_default>;
 				phy-mode = "rmii";
 
-				ethernet-phy@0 {
-					reg = <0x0>;
+				ethernet-phy@7 {
+					reg = <0x7>;
 					interrupt-parent = <&pioA>;
 					interrupts = <PIN_PD31 IRQ_TYPE_LEVEL_LOW>;
 					pinctrl-names = "default";

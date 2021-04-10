@@ -517,6 +517,7 @@ struct mlx5e_icosq {
 	struct mlx5_wq_cyc         wq;
 	void __iomem              *uar_map;
 	u32                        sqn;
+	u16                        reserved_room;
 	unsigned long              state;
 
 	/* control path */

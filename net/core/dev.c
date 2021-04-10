@@ -7041,7 +7041,7 @@ static int napi_thread_wait(struct napi_struct *napi)
 
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	while (!kthread_should_stop() && !napi_disable_pending(napi)) {
+	while (!kthread_should_stop()) {
 		/* Testing SCHED_THREADED bit here to make sure the current
 		 * kthread owns this napi and could poll on this napi.
 		 * Testing SCHED bit is not enough because SCHED bit might be
@@ -7059,6 +7059,7 @@ static int napi_thread_wait(struct napi_struct *napi)
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	__set_current_state(TASK_RUNNING);
+
 	return -1;
 }
 
