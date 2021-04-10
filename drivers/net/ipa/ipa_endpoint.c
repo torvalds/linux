@@ -397,7 +397,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	/* We need one command per modem TX endpoint.  We can get an upper
 	 * bound on that by assuming all initialized endpoints are modem->IPA.
 	 * That won't happen, and we could be more precise, but this is fine
-	 * for now.  We need to end the transaction with a "tag process."
+	 * for now.  End the transaction with commands to clear the pipeline.
 	 */
 	count = hweight32(initialized) + ipa_cmd_pipeline_clear_count();
 	trans = ipa_cmd_trans_alloc(ipa, count);
@@ -1755,7 +1755,7 @@ int ipa_endpoint_config(struct ipa *ipa)
 
 		/* Make sure it's pointing in the right direction */
 		endpoint = &ipa->endpoint[endpoint_id];
-		if ((endpoint_id < rx_base) != !!endpoint->toward_ipa) {
+		if ((endpoint_id < rx_base) != endpoint->toward_ipa) {
 			dev_err(dev, "endpoint id %u wrong direction\n",
 				endpoint_id);
 			ret = -EINVAL;
@@ -1791,7 +1791,7 @@ static void ipa_endpoint_init_one(struct ipa *ipa, enum ipa_endpoint_name name,
 	ipa->initialized |= BIT(endpoint->endpoint_id);
 }
 
-void ipa_endpoint_exit_one(struct ipa_endpoint *endpoint)
+static void ipa_endpoint_exit_one(struct ipa_endpoint *endpoint)
 {
 	endpoint->ipa->initialized &= ~BIT(endpoint->endpoint_id);
 

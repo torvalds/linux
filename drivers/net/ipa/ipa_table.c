@@ -497,11 +497,6 @@ int ipa_table_setup(struct ipa *ipa)
 	return 0;
 }
 
-void ipa_table_teardown(struct ipa *ipa)
-{
-	/* Nothing to do */	/* XXX Maybe reset the tables? */
-}
-
 /**
  * ipa_filter_tuple_zero() - Zero an endpoint's hashed filter tuple
  * @endpoint:	Endpoint whose filter hash tuple should be zeroed
@@ -525,6 +520,7 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
+/* Configure a hashed filter table; there is no ipa_filter_deconfig() */
 static void ipa_filter_config(struct ipa *ipa, bool modem)
 {
 	enum gsi_ee_id ee_id = modem ? GSI_EE_MODEM : GSI_EE_AP;
@@ -543,11 +539,6 @@ static void ipa_filter_config(struct ipa *ipa, bool modem)
 		if (endpoint->ee_id == ee_id)
 			ipa_filter_tuple_zero(endpoint);
 	}
-}
-
-static void ipa_filter_deconfig(struct ipa *ipa, bool modem)
-{
-	/* Nothing to do */
 }
 
 static bool ipa_route_id_modem(u32 route_id)
@@ -576,6 +567,7 @@ static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
+/* Configure a hashed route table; there is no ipa_route_deconfig() */
 static void ipa_route_config(struct ipa *ipa, bool modem)
 {
 	u32 route_id;
@@ -588,25 +580,13 @@ static void ipa_route_config(struct ipa *ipa, bool modem)
 			ipa_route_tuple_zero(ipa, route_id);
 }
 
-static void ipa_route_deconfig(struct ipa *ipa, bool modem)
-{
-	/* Nothing to do */
-}
-
+/* Configure a filter and route tables; there is no ipa_table_deconfig() */
 void ipa_table_config(struct ipa *ipa)
 {
 	ipa_filter_config(ipa, false);
 	ipa_filter_config(ipa, true);
 	ipa_route_config(ipa, false);
 	ipa_route_config(ipa, true);
-}
-
-void ipa_table_deconfig(struct ipa *ipa)
-{
-	ipa_route_deconfig(ipa, true);
-	ipa_route_deconfig(ipa, false);
-	ipa_filter_deconfig(ipa, true);
-	ipa_filter_deconfig(ipa, false);
 }
 
 /*

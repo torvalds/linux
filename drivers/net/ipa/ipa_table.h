@@ -74,26 +74,18 @@ int ipa_table_hash_flush(struct ipa *ipa);
 /**
  * ipa_table_setup() - Set up filter and route tables
  * @ipa:	IPA pointer
+ *
+ * There is no need for a matching ipa_table_teardown() function.
  */
 int ipa_table_setup(struct ipa *ipa);
 
 /**
- * ipa_table_teardown() - Inverse of ipa_table_setup()
- * @ipa:	IPA pointer
- */
-void ipa_table_teardown(struct ipa *ipa);
-
-/**
  * ipa_table_config() - Configure filter and route tables
  * @ipa:	IPA pointer
+ *
+ * There is no need for a matching ipa_table_deconfig() function.
  */
 void ipa_table_config(struct ipa *ipa);
-
-/**
- * ipa_table_deconfig() - Inverse of ipa_table_config()
- * @ipa:	IPA pointer
- */
-void ipa_table_deconfig(struct ipa *ipa);
 
 /**
  * ipa_table_init() - Do early initialization of filter and route tables

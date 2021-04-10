@@ -198,7 +198,7 @@ static void gsi_irq_type_disable(struct gsi *gsi, enum gsi_irq_type_id type_id)
 	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap & ~BIT(type_id));
 }
 
-/* Turn off all GSI interrupts initially */
+/* Turn off all GSI interrupts initially; there is no gsi_irq_teardown() */
 static void gsi_irq_setup(struct gsi *gsi)
 {
 	/* Disable all interrupt types */
@@ -215,12 +215,6 @@ static void gsi_irq_setup(struct gsi *gsi)
 	iowrite32(0, gsi->virt_raw + GSI_INTER_EE_SRC_EV_CH_IRQ_OFFSET);
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
-}
-
-/* Turn off all GSI interrupts when we're all done */
-static void gsi_irq_teardown(struct gsi *gsi)
-{
-	/* Nothing to do */
 }
 
 /* Event ring commands are performed one at a time.  Their completion
@@ -786,7 +780,7 @@ static void gsi_channel_trans_quiesce(struct gsi_channel *channel)
 	}
 }
 
-/* Program a channel for use */
+/* Program a channel for use; there is no gsi_channel_deprogram() */
 static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 {
 	size_t size = channel->tre_ring.count * GSI_RING_ELEMENT_SIZE;
@@ -872,11 +866,6 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	iowrite32(val, gsi->virt + GSI_CH_C_SCRATCH_3_OFFSET(channel_id));
 
 	/* All done! */
-}
-
-static void gsi_channel_deprogram(struct gsi_channel *channel)
-{
-	/* Nothing to do */
 }
 
 static int __gsi_channel_start(struct gsi_channel *channel, bool start)
@@ -1623,18 +1612,6 @@ static u32 gsi_event_bitmap_init(u32 evt_ring_max)
 	return event_bitmap;
 }
 
-/* Setup function for event rings */
-static void gsi_evt_ring_setup(struct gsi *gsi)
-{
-	/* Nothing to do */
-}
-
-/* Inverse of gsi_evt_ring_setup() */
-static void gsi_evt_ring_teardown(struct gsi *gsi)
-{
-	/* Nothing to do */
-}
-
 /* Setup function for a single channel */
 static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id)
 {
@@ -1684,7 +1661,6 @@ static void gsi_channel_teardown_one(struct gsi *gsi, u32 channel_id)
 
 	netif_napi_del(&channel->napi);
 
-	gsi_channel_deprogram(channel);
 	gsi_channel_de_alloc_command(gsi, channel_id);
 	gsi_evt_ring_reset_command(gsi, evt_ring_id);
 	gsi_evt_ring_de_alloc_command(gsi, evt_ring_id);
@@ -1759,7 +1735,6 @@ static int gsi_channel_setup(struct gsi *gsi)
 	u32 mask;
 	int ret;
 
-	gsi_evt_ring_setup(gsi);
 	gsi_irq_enable(gsi);
 
 	mutex_lock(&gsi->mutex);
@@ -1819,7 +1794,6 @@ err_unwind:
 	mutex_unlock(&gsi->mutex);
 
 	gsi_irq_disable(gsi);
-	gsi_evt_ring_teardown(gsi);
 
 	return ret;
 }
@@ -1848,7 +1822,6 @@ static void gsi_channel_teardown(struct gsi *gsi)
 	mutex_unlock(&gsi->mutex);
 
 	gsi_irq_disable(gsi);
-	gsi_evt_ring_teardown(gsi);
 }
 
 /* Setup function for GSI.  GSI firmware must be loaded and initialized */
@@ -1856,7 +1829,6 @@ int gsi_setup(struct gsi *gsi)
 {
 	struct device *dev = gsi->dev;
 	u32 val;
-	int ret;
 
 	/* Here is where we first touch the GSI hardware */
 	val = ioread32(gsi->virt + GSI_GSI_STATUS_OFFSET);
@@ -1865,7 +1837,7 @@ int gsi_setup(struct gsi *gsi)
 		return -EIO;
 	}
 
-	gsi_irq_setup(gsi);
+	gsi_irq_setup(gsi);		/* No matching teardown required */
 
 	val = ioread32(gsi->virt + GSI_GSI_HW_PARAM_2_OFFSET);
 
@@ -1899,18 +1871,13 @@ int gsi_setup(struct gsi *gsi)
 	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
 	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
 
-	ret = gsi_channel_setup(gsi);
-	if (ret)
-		gsi_irq_teardown(gsi);
-
-	return ret;
+	return gsi_channel_setup(gsi);
 }
 
 /* Inverse of gsi_setup() */
 void gsi_teardown(struct gsi *gsi)
 {
 	gsi_channel_teardown(gsi);
-	gsi_irq_teardown(gsi);
 }
 
 /* Initialize a channel's event ring */
@@ -1952,7 +1919,7 @@ static void gsi_channel_evt_ring_exit(struct gsi_channel *channel)
 	gsi_evt_ring_id_free(gsi, evt_ring_id);
 }
 
-/* Init function for event rings */
+/* Init function for event rings; there is no gsi_evt_ring_exit() */
 static void gsi_evt_ring_init(struct gsi *gsi)
 {
 	u32 evt_ring_id = 0;
@@ -1962,12 +1929,6 @@ static void gsi_evt_ring_init(struct gsi *gsi)
 	do
 		init_completion(&gsi->evt_ring[evt_ring_id].completion);
 	while (++evt_ring_id < GSI_EVT_RING_COUNT_MAX);
-}
-
-/* Inverse of gsi_evt_ring_init() */
-static void gsi_evt_ring_exit(struct gsi *gsi)
-{
-	/* Nothing to do */
 }
 
 static bool gsi_channel_data_valid(struct gsi *gsi,
@@ -2114,7 +2075,7 @@ static int gsi_channel_init(struct gsi *gsi, u32 count,
 	/* IPA v4.2 requires the AP to allocate channels for the modem */
 	modem_alloc = gsi->version == IPA_VERSION_4_2;
 
-	gsi_evt_ring_init(gsi);
+	gsi_evt_ring_init(gsi);			/* No matching exit required */
 
 	/* The endpoint data array is indexed by endpoint name */
 	for (i = 0; i < count; i++) {
@@ -2148,7 +2109,6 @@ err_unwind:
 		}
 		gsi_channel_exit_one(&gsi->channel[data->channel_id]);
 	}
-	gsi_evt_ring_exit(gsi);
 
 	return ret;
 }
@@ -2162,8 +2122,6 @@ static void gsi_channel_exit(struct gsi *gsi)
 		gsi_channel_exit_one(&gsi->channel[channel_id]);
 	while (channel_id--);
 	gsi->modem_channel_bitmap = 0;
-
-	gsi_evt_ring_exit(gsi);
 }
 
 /* Init function for GSI.  GSI hardware does not need to be "ready" */

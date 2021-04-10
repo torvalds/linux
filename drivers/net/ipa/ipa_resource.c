@@ -158,7 +158,7 @@ static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
 	ipa_resource_config_common(ipa, offset, &resource->limits[6], ylimits);
 }
 
-/* Configure resources */
+/* Configure resources; there is no ipa_resource_deconfig() */
 int ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 {
 	u32 i;
@@ -173,10 +173,4 @@ int ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 		ipa_resource_config_dst(ipa, i, data);
 
 	return 0;
-}
-
-/* Inverse of ipa_resource_config() */
-void ipa_resource_deconfig(struct ipa *ipa)
-{
-	/* Nothing to do */
 }

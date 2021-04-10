@@ -91,7 +91,7 @@ int gsi_trans_pool_init(struct gsi_trans_pool *pool, size_t size, u32 count,
 	void *virt;
 
 #ifdef IPA_VALIDATE
-	if (!size || size % 8)
+	if (!size)
 		return -EINVAL;
 	if (count < max_alloc)
 		return -EINVAL;
@@ -141,7 +141,7 @@ int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 	void *virt;
 
 #ifdef IPA_VALIDATE
-	if (!size || size % 8)
+	if (!size)
 		return -EINVAL;
 	if (count < max_alloc)
 		return -EINVAL;

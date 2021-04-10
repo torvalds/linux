@@ -147,13 +147,13 @@ int ipa_setup(struct ipa *ipa)
 	if (ret)
 		goto err_endpoint_teardown;
 
-	ret = ipa_mem_setup(ipa);
+	ret = ipa_mem_setup(ipa);	/* No matching teardown required */
 	if (ret)
 		goto err_command_disable;
 
-	ret = ipa_table_setup(ipa);
+	ret = ipa_table_setup(ipa);	/* No matching teardown required */
 	if (ret)
-		goto err_mem_teardown;
+		goto err_command_disable;
 
 	/* Enable the exception handling endpoint, and tell the hardware
 	 * to use it by default.
@@ -161,7 +161,7 @@ int ipa_setup(struct ipa *ipa)
 	exception_endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ret = ipa_endpoint_enable_one(exception_endpoint);
 	if (ret)
-		goto err_table_teardown;
+		goto err_command_disable;
 
 	ipa_endpoint_default_route_set(ipa, exception_endpoint->endpoint_id);
 
@@ -179,10 +179,6 @@ int ipa_setup(struct ipa *ipa)
 err_default_route_clear:
 	ipa_endpoint_default_route_clear(ipa);
 	ipa_endpoint_disable_one(exception_endpoint);
-err_table_teardown:
-	ipa_table_teardown(ipa);
-err_mem_teardown:
-	ipa_mem_teardown(ipa);
 err_command_disable:
 	ipa_endpoint_disable_one(command_endpoint);
 err_endpoint_teardown:
@@ -211,8 +207,6 @@ static void ipa_teardown(struct ipa *ipa)
 	ipa_endpoint_default_route_clear(ipa);
 	exception_endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ipa_endpoint_disable_one(exception_endpoint);
-	ipa_table_teardown(ipa);
-	ipa_mem_teardown(ipa);
 	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
@@ -480,23 +474,20 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 	if (ret)
 		goto err_endpoint_deconfig;
 
-	ipa_table_config(ipa);
+	ipa_table_config(ipa);		/* No deconfig required */
 
-	/* Assign resource limitation to each group */
+	/* Assign resource limitation to each group; no deconfig required */
 	ret = ipa_resource_config(ipa, data->resource_data);
 	if (ret)
-		goto err_table_deconfig;
+		goto err_mem_deconfig;
 
 	ret = ipa_modem_config(ipa);
 	if (ret)
-		goto err_resource_deconfig;
+		goto err_mem_deconfig;
 
 	return 0;
 
-err_resource_deconfig:
-	ipa_resource_deconfig(ipa);
-err_table_deconfig:
-	ipa_table_deconfig(ipa);
+err_mem_deconfig:
 	ipa_mem_deconfig(ipa);
 err_endpoint_deconfig:
 	ipa_endpoint_deconfig(ipa);
@@ -514,8 +505,6 @@ err_hardware_deconfig:
 static void ipa_deconfig(struct ipa *ipa)
 {
 	ipa_modem_deconfig(ipa);
-	ipa_resource_deconfig(ipa);
-	ipa_table_deconfig(ipa);
 	ipa_mem_deconfig(ipa);
 	ipa_endpoint_deconfig(ipa);
 	ipa_hardware_deconfig(ipa);
