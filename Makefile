@@ -393,6 +393,11 @@ ifeq ($(ARCH),sh64)
        SRCARCH := sh
 endif
 
+export cross_compiling :=
+ifneq ($(SRCARCH),$(SUBARCH))
+cross_compiling := 1
+endif
+
 KCONFIG_CONFIG	?= .config
 export KCONFIG_CONFIG
 

@@ -18,14 +18,14 @@ silent := -s
 endif
 
 export KCONFIG_DEFCONFIG_LIST :=
-ifneq ($(SRCARCH),um)
+ifndef cross_compiling
 kernel-release := $(shell uname -r)
-KCONFIG_DEFCONFIG_LIST := \
+KCONFIG_DEFCONFIG_LIST += \
 	/lib/modules/$(kernel-release)/.config \
 	/etc/kernel-config \
-	/boot/config-$(kernel-release) \
-	arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)
+	/boot/config-$(kernel-release)
 endif
+KCONFIG_DEFCONFIG_LIST += arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)
 
 # We need this, in case the user has it in its environment
 unexport CONFIG_
