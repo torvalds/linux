@@ -657,7 +657,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	touchscreen_parse_properties(input_dev, true, NULL);
 
-	error = input_mt_init_slots(input_dev, CY_MAX_ID, 0);
+	error = input_mt_init_slots(input_dev, CY_MAX_ID, INPUT_MT_DIRECT);
 	if (error) {
 		dev_err(dev, "Unable to init MT slots.\n");
 		return ERR_PTR(error);
