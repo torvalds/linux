@@ -333,6 +333,31 @@
 			};
 		};
 
+		lpasscc: lpasscc@3000000 {
+			compatible = "qcom,sc7280-lpasscc";
+			reg = <0 0x03000000 0 0x40>,
+			      <0 0x03c04000 0 0x4>,
+			      <0 0x03389000 0 0x24>;
+			reg-names = "qdsp6ss", "top_cc", "cc";
+			clocks = <&gcc GCC_CFG_NOC_LPASS_CLK>;
+			clock-names = "iface";
+			#clock-cells = <1>;
+		};
+
+		gpucc: clock-controller@3d90000 {
+			compatible = "qcom,sc7280-gpucc";
+			reg = <0 0x03d90000 0 0x9000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_GPU_GPLL0_CLK_SRC>,
+				 <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>;
+			clock-names = "bi_tcxo",
+				      "gcc_gpu_gpll0_clk_src",
+				      "gcc_gpu_gpll0_div_clk_src";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
 		stm@6002000 {
 			compatible = "arm,coresight-stm", "arm,primecell";
 			reg = <0 0x06002000 0 0x1000>,
@@ -827,6 +852,35 @@
 			reg = <0 0x09200000 0 0xd0000>, <0 0x09600000 0 0x50000>;
 			reg-names = "llcc_base", "llcc_broadcast_base";
 			interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		videocc: clock-controller@aaf0000 {
+			compatible = "qcom,sc7280-videocc";
+			reg = <0 0xaaf0000 0 0x10000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				<&rpmhcc RPMH_CXO_CLK_A>;
+			clock-names = "bi_tcxo", "bi_tcxo_ao";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
+		dispcc: clock-controller@af00000 {
+			compatible = "qcom,sc7280-dispcc";
+			reg = <0 0xaf00000 0 0x20000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_DISP_GPLL0_CLK_SRC>,
+				 <0>, <0>, <0>, <0>, <0>, <0>;
+			clock-names = "bi_tcxo", "gcc_disp_gpll0_clk",
+				      "dsi0_phy_pll_out_byteclk",
+				      "dsi0_phy_pll_out_dsiclk",
+				      "dp_phy_pll_link_clk",
+				      "dp_phy_pll_vco_div_clk",
+				      "edp_phy_pll_link_clk",
+				      "edp_phy_pll_vco_div_clk";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 		};
 
 		pdc: interrupt-controller@b220000 {
