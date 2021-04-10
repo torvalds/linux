@@ -340,7 +340,7 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 		HREE_SQE_DONE_MASK;
 
 	if (likely(err == HPRE_NO_HW_ERR && done == HPRE_HW_TASK_DONE))
-		return  0;
+		return 0;
 
 	return -EINVAL;
 }

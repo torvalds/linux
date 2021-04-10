@@ -472,7 +472,7 @@ static int hpre_clear_enable_write(struct hpre_debugfs_file *file, u32 val)
 	       ~HPRE_CTRL_CNT_CLR_CE_BIT) | val;
 	writel(tmp, qm->io_base + HPRE_CTRL_CNT_CLR_CE);
 
-	return  0;
+	return 0;
 }
 
 static u32 hpre_cluster_inqry_read(struct hpre_debugfs_file *file)
@@ -494,7 +494,7 @@ static int hpre_cluster_inqry_write(struct hpre_debugfs_file *file, u32 val)
 
 	writel(val, qm->io_base + offset + HPRE_CLUSTER_INQURY);
 
-	return  0;
+	return 0;
 }
 
 static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
