@@ -321,14 +321,16 @@ static void hpre_hw_data_clr_all(struct hpre_ctx *ctx,
 static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 				void **kreq)
 {
+	struct device *dev = HPRE_DEV(ctx);
 	struct hpre_asym_request *req;
-	unsigned int err, done;
+	unsigned int err, done, alg;
 	int id;
 
 #define HPRE_NO_HW_ERR		0
 #define HPRE_HW_TASK_DONE	3
 #define HREE_HW_ERR_MASK	0x7ff
 #define HREE_SQE_DONE_MASK	0x3
+#define HREE_ALG_TYPE_MASK	0x1f
 	id = (int)le16_to_cpu(sqe->tag);
 	req = ctx->req_list[id];
 	hpre_rm_req_from_ctx(req);
@@ -342,6 +344,10 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 
 	if (likely(err == HPRE_NO_HW_ERR && done == HPRE_HW_TASK_DONE))
 		return 0;
+
+	alg = le32_to_cpu(sqe->dw0) & HREE_ALG_TYPE_MASK;
+	dev_err_ratelimited(dev, "alg[0x%x] error: done[0x%x], etype[0x%x]\n",
+		alg, done, err);
 
 	return -EINVAL;
 }
