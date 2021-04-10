@@ -226,7 +226,7 @@ static int __maybe_unused surface_ac_resume(struct device *dev)
 {
 	return spwr_ac_recheck(dev_get_drvdata(dev));
 }
-SIMPLE_DEV_PM_OPS(surface_ac_pm_ops, NULL, surface_ac_resume);
+static SIMPLE_DEV_PM_OPS(surface_ac_pm_ops, NULL, surface_ac_resume);
 
 static int surface_ac_probe(struct ssam_device *sdev)
 {
