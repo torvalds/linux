@@ -788,6 +788,7 @@ static const struct of_device_id gdma_of_match_table[] = {
 	{ .compatible = "ralink,rt3883-gdma", .data = &rt3883_gdma_data },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, gdma_of_match_table);
 
 static int gdma_dma_probe(struct platform_device *pdev)
 {
