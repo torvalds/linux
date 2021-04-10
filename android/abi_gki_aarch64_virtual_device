@@ -1,5 +1,6 @@
 [abi_symbol_list]
 # commonly used symbols
+  alloc_anon_inode
   __alloc_disk_node
   alloc_etherdev_mqs
   __alloc_pages_nodemask
@@ -39,6 +40,7 @@
   __check_object_size
   __class_create
   class_destroy
+  __ClearPageMovable
   clk_disable
   clk_enable
   clk_get_rate
@@ -47,6 +49,7 @@
   complete
   __const_udelay
   consume_skb
+  contig_page_data
   __cpuhp_remove_state
   __cpuhp_setup_state
   __cpuhp_state_add_instance
@@ -128,6 +131,7 @@
   idr_alloc
   idr_destroy
   idr_remove
+  init_pseudo
   __init_rwsem
   __init_swait_queue_head
   init_timer_key
@@ -143,11 +147,15 @@
   input_unregister_device
   __ioremap
   iounmap
+  iput
   jiffies
   jiffies_to_msecs
   kasan_flag_enabled
+  kern_mount
+  kern_unmount
   kfree
   kfree_skb
+  kill_anon_super
   kimage_voffset
   __kmalloc
   kmalloc_caches
@@ -201,6 +209,7 @@
   __mutex_init
   mutex_lock
   mutex_lock_interruptible
+  mutex_trylock
   mutex_unlock
   netdev_err
   netdev_info
@@ -287,6 +296,7 @@
   register_netdev
   register_netdevice
   register_netdevice_notifier
+  register_shrinker
   register_virtio_device
   register_virtio_driver
   regmap_exit
@@ -316,6 +326,7 @@
   __serio_register_port
   serio_unregister_driver
   set_disk_ro
+  __SetPageMovable
   sg_alloc_table
   sg_free_table
   sg_init_one
@@ -392,6 +403,7 @@
   unregister_netdev
   unregister_netdevice_notifier
   unregister_netdevice_queue
+  unregister_shrinker
   unregister_virtio_device
   unregister_virtio_driver
   up_read
@@ -678,7 +690,6 @@
   mempool_init
   mempool_kfree
   mempool_kmalloc
-  mutex_trylock
   part_end_io_acct
   part_start_io_acct
   percpu_ref_exit
@@ -1078,6 +1089,24 @@
 # required by virtio-rng.ko
   wait_for_completion_killable
 
+# required by virtio_balloon.ko
+  adjust_managed_page_count
+  all_vm_events
+  balloon_aops
+  balloon_page_alloc
+  balloon_page_dequeue
+  balloon_page_enqueue
+  init_on_free
+  page_reporting_register
+  page_reporting_unregister
+  register_oom_notifier
+  si_mem_available
+  si_meminfo
+  system_freezable_wq
+  unregister_oom_notifier
+  vm_event_states
+  vm_node_stat
+
 # required by virtio_blk.ko
   blk_execute_rq
   blk_get_request
@@ -1279,22 +1308,11 @@
   vzalloc
 
 # required by zsmalloc.ko
-  alloc_anon_inode
-  __ClearPageMovable
-  contig_page_data
   dec_zone_page_state
   inc_zone_page_state
-  init_pseudo
-  iput
-  kern_mount
-  kern_unmount
-  kill_anon_super
   __lock_page
   page_mapping
   _raw_read_lock
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
-  register_shrinker
-  __SetPageMovable
-  unregister_shrinker
