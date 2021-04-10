@@ -184,9 +184,8 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 		u8 *tmpbuf;
 
 		tmpbuf = rtw_malloc(8);
-		if (!tmpbuf) {
+		if (!tmpbuf)
 			return SDIO_ERR_VAL32;
-		}
 
 		ftaddr &= ~(u16)0x3;
 		sd_read(intfhdl, ftaddr, 8, tmpbuf);

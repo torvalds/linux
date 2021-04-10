@@ -743,14 +743,13 @@ static void hal_ReadEFuse_WiFi(
 	/*  */
 	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
-	if ((_offset+_size_byte) > EFUSE_MAX_MAP_LEN) {
+	if ((_offset+_size_byte) > EFUSE_MAX_MAP_LEN)
 		return;
-	}
 
 	efuseTbl = rtw_malloc(EFUSE_MAX_MAP_LEN);
-	if (!efuseTbl) {
+	if (!efuseTbl)
 		return;
-	}
+
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_MAX_MAP_LEN);
 
@@ -845,23 +844,21 @@ static void hal_ReadEFuse_BT(
 	/*  */
 	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
-	if ((_offset+_size_byte) > EFUSE_BT_MAP_LEN) {
+	if ((_offset+_size_byte) > EFUSE_BT_MAP_LEN)
 		return;
-	}
 
 	efuseTbl = rtw_malloc(EFUSE_BT_MAP_LEN);
-	if (!efuseTbl) {
+	if (!efuseTbl)
 		return;
-	}
+
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_BT_MAP_LEN);
 
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_AVAILABLE_EFUSE_BYTES_BANK, &total, bPseudoTest);
 
 	for (bank = 1; bank < 3; bank++) { /*  8723b Max bake 0~2 */
-		if (hal_EfuseSwitchToBank(padapter, bank, bPseudoTest) == false) {
+		if (hal_EfuseSwitchToBank(padapter, bank, bPseudoTest) == false)
 			goto exit;
-		}
 
 		eFuse_Addr = 0;
 
@@ -906,9 +903,9 @@ static void hal_ReadEFuse_BT(
 			}
 		}
 
-		if ((eFuse_Addr-1) < total) {
+		if ((eFuse_Addr-1) < total)
 			break;
-		}
+
 	}
 
 	/*  switch bank back to bank 0 for later BT and wifi use. */
@@ -985,9 +982,8 @@ static u16 hal_EfuseGetCurrentSize_WiFi(
 
 	count = 0;
 	while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
-		if (efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest) == false) {
+		if (efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest) == false)
 			goto error;
-		}
 
 		if (efuse_data == 0xFF)
 			break;
@@ -1077,10 +1073,9 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_AVAILABLE_EFUSE_BYTES_BANK, &retU2, bPseudoTest);
 
 	for (bank = startBank; bank < 3; bank++) {
-		if (hal_EfuseSwitchToBank(padapter, bank, bPseudoTest) == false) {
+		if (hal_EfuseSwitchToBank(padapter, bank, bPseudoTest) == false)
 			/* bank = EFUSE_MAX_BANK; */
 			break;
-		}
 
 		/*  only when bank is switched we have to reset the efuse_addr. */
 		if (bank != startBank)
@@ -1088,10 +1083,9 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 #if 1
 
 		while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
-			if (efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest) == false) {
+			if (efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest) == false)
 				/* bank = EFUSE_MAX_BANK; */
 				break;
-			}
 
 			if (efuse_data == 0xFF)
 				break;
@@ -1264,9 +1258,8 @@ static s32 Hal_EfusePgPacketRead(
 		return false;
 
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, &max_section, bPseudoTest);
-	if (offset > max_section) {
+	if (offset > max_section)
 		return false;
-	}
 
 	memset(data, 0xFF, PGPKT_DATA_SIZE);
 	ret = true;
@@ -1288,9 +1281,8 @@ static s32 Hal_EfusePgPacketRead(
 		if (EXT_HEADER(efuse_data)) {
 			hoffset = GET_HDR_OFFSET_2_0(efuse_data);
 			efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest);
-			if (ALL_WORDS_DISABLED(efuse_data)) {
+			if (ALL_WORDS_DISABLED(efuse_data))
 				continue;
-			}
 
 			hoffset |= ((efuse_data & 0xF0) >> 1);
 			hworden = efuse_data & 0x0F;
@@ -1520,14 +1512,13 @@ static u8 hal_EfusePgPacketWrite2ByteHeader(
 		efuse_OneByteRead(padapter, efuse_addr, &tmp_header, bPseudoTest);
 		if (tmp_header != 0xFF)
 			break;
-		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
+		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 			return false;
-		}
+
 	} while (1);
 
-	if (tmp_header != pg_header) {
+	if (tmp_header != pg_header)
 		return false;
-	}
 
 	/*  to write ext_header */
 	efuse_addr++;
@@ -1538,14 +1529,13 @@ static u8 hal_EfusePgPacketWrite2ByteHeader(
 		efuse_OneByteRead(padapter, efuse_addr, &tmp_header, bPseudoTest);
 		if (tmp_header != 0xFF)
 			break;
-		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
+		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 			return false;
-		}
+
 	} while (1);
 
-	if (tmp_header != pg_header) { /* offset PG fail */
+	if (tmp_header != pg_header) /* offset PG fail */
 		return false;
-	}
 
 	*pAddr = efuse_addr;
 
@@ -1584,9 +1574,8 @@ static u8 hal_EfusePgPacketWriteData(
 
 	efuse_addr = *pAddr;
 	badworden = Efuse_WordEnableDataWrite(padapter, efuse_addr+1, pTargetPkt->word_en, pTargetPkt->data, bPseudoTest);
-	if (badworden != 0x0F) {
+	if (badworden != 0x0F)
 		return false;
-	}
 
 	return true;
 }
@@ -2070,9 +2059,8 @@ s32 rtl8723b_InitLLTTable(struct adapter *padapter)
 		}
 
 		passing_time = jiffies_to_msecs(jiffies - start);
-		if (passing_time > 1000) {
+		if (passing_time > 1000)
 			break;
-		}
 
 		msleep(1);
 	} while (1);
@@ -3294,9 +3282,8 @@ exit:
 
 static void process_c2h_event(struct adapter *padapter, struct c2h_evt_hdr_t *pC2hEvent, u8 *c2hBuf)
 {
-	if (!c2hBuf) {
+	if (!c2hBuf)
 		return;
-	}
 
 	switch (pC2hEvent->CmdID) {
 	case C2H_AP_RPT_RSP:
@@ -3768,9 +3755,9 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_MACID_WAKEUP:
 		/*  Input is MACID */
 		val32 = *(u32 *)val;
-		if (val32 > 31) {
+		if (val32 > 31)
 			break;
-		}
+
 		val8 = (u8)val32; /*  macid is between 0~31 */
 
 		val32 = rtw_read32(padapter, REG_MACID_SLEEP);

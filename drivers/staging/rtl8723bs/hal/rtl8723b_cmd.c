@@ -74,9 +74,8 @@ s32 FillH2CCmd8723B(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmd
 	do {
 		h2c_box_num = pHalData->LastHMEBoxNum;
 
-		if (!_is_fw_read_cmd_down(padapter, h2c_box_num)) {
+		if (!_is_fw_read_cmd_down(padapter, h2c_box_num))
 			goto exit;
-		}
 
 		if (CmdLen <= 3)
 			memcpy((u8 *)(&h2c_cmd)+1, pCmdBuffer, CmdLen);
@@ -854,9 +853,8 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
 
 	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
-	if (!pcmdframe) {
+	if (!pcmdframe)
 		return;
-	}
 
 	ReservedPagePacket = pcmdframe->buf_addr;
 	memset(&RsvdPageLoc, 0, sizeof(struct rsvdpage_loc));
@@ -897,9 +895,8 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 	TotalPageNum += CurtPktPageNum;
 
 	TotalPacketLen = BufIndex + BTQosNullLength;
-	if (TotalPacketLen > MaxRsvdPageBufSize) {
+	if (TotalPacketLen > MaxRsvdPageBufSize)
 		goto error;
-	}
 
 	/*  update attribute */
 	pattrib = &pcmdframe->attrib;

@@ -18,9 +18,8 @@ u8 rtw_hal_data_init(struct adapter *padapter)
 	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
 		padapter->hal_data_sz = sizeof(struct hal_com_data);
 		padapter->HalData = vzalloc(padapter->hal_data_sz);
-		if (!padapter->HalData) {
+		if (!padapter->HalData)
 			return _FAIL;
-		}
 	}
 	return _SUCCESS;
 }

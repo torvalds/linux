@@ -160,15 +160,14 @@ static void sdio_deinit(struct dvobj_priv *dvobj)
 	if (func) {
 		sdio_claim_host(func);
 		err = sdio_disable_func(func);
-		if (err) {
+		if (err)
 			dvobj->drv_dbg.dbg_sdio_deinit_error_cnt++;
-		}
 
 		if (dvobj->irq_alloc) {
 			err = sdio_release_irq(func);
-			if (err) {
+			if (err)
 				dvobj->drv_dbg.dbg_sdio_free_irq_error_cnt++;
-			} else
+			else
 				dvobj->drv_dbg.dbg_sdio_free_irq_cnt++;
 		}
 
@@ -182,9 +181,8 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 	struct sdio_data *psdio;
 
 	dvobj = devobj_init();
-	if (dvobj == NULL) {
+	if (dvobj == NULL)
 		goto exit;
-	}
 
 	sdio_set_drvdata(func, dvobj);
 
@@ -230,9 +228,8 @@ void rtw_set_hal_ops(struct adapter *padapter)
 
 static void sd_intf_start(struct adapter *padapter)
 {
-	if (padapter == NULL) {
+	if (padapter == NULL)
 		return;
-	}
 
 	/*  hal dep */
 	rtw_hal_enable_interrupt(padapter);
@@ -240,9 +237,8 @@ static void sd_intf_start(struct adapter *padapter)
 
 static void sd_intf_stop(struct adapter *padapter)
 {
-	if (padapter == NULL) {
+	if (padapter == NULL)
 		return;
-	}
 
 	/*  hal dep */
 	rtw_hal_disable_interrupt(padapter);
@@ -257,9 +253,8 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	struct sdio_data *psdio = &dvobj->intf_data;
 
 	padapter = vzalloc(sizeof(*padapter));
-	if (padapter == NULL) {
+	if (padapter == NULL)
 		goto exit;
-	}
 
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
@@ -354,9 +349,8 @@ static void rtw_sdio_if1_deinit(struct adapter *if1)
 
 	rtw_dev_unload(if1);
 
-	if (if1->rtw_wdev) {
+	if (if1->rtw_wdev)
 		rtw_wdev_free(if1->rtw_wdev);
-	}
 
 	rtw_free_drv_sw(if1);
 
@@ -400,9 +394,9 @@ static int rtw_drv_init(
 free_if2:
 	if (status != _SUCCESS && if2) {
 	}
-	if (status != _SUCCESS && if1) {
+	if (status != _SUCCESS && if1)
 		rtw_sdio_if1_deinit(if1);
-	}
+
 free_dvobj:
 	if (status != _SUCCESS)
 		sdio_dvobj_deinit(func);
@@ -426,9 +420,8 @@ static void rtw_dev_remove(struct sdio_func *func)
 		sdio_claim_host(func);
 		sdio_readb(func, 0, &err);
 		sdio_release_host(func);
-		if (err == -ENOMEDIUM) {
+		if (err == -ENOMEDIUM)
 			padapter->bSurpriseRemoved = true;
-		}
 	}
 
 	rtw_ps_deny(padapter, PS_DENY_DRV_REMOVE);

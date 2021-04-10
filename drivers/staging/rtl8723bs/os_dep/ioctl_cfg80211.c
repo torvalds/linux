@@ -332,9 +332,8 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	bss = cfg80211_inform_bss_frame(wiphy, notify_channel, (struct ieee80211_mgmt *)buf,
 		len, notify_signal, GFP_ATOMIC);
 
-	if (unlikely(!bss)) {
+	if (unlikely(!bss))
 		goto exit;
-	}
 
 	cfg80211_put_bss(wiphy, bss);
 	kfree(buf);
@@ -548,18 +547,12 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 	{
 		psta = rtw_get_stainfo(pstapriv, param->sta_addr);
 		if (!psta)
-		{
 			/* ret = -EINVAL; */
 			goto exit;
-		}
 	}
 
 	if (strcmp(param->u.crypt.alg, "none") == 0 && (psta == NULL))
-	{
-
 		goto exit;
-	}
-
 
 	if (strcmp(param->u.crypt.alg, "WEP") == 0 && (psta == NULL))
 	{
@@ -1323,10 +1316,9 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct adapter *padapter, char *b
 			}
 
 			pmlmepriv->wps_probe_req_ie = rtw_malloc(wps_ielen);
-			if (pmlmepriv->wps_probe_req_ie == NULL) {
+			if (pmlmepriv->wps_probe_req_ie == NULL)
 				return -EINVAL;
 
-			}
 			memcpy(pmlmepriv->wps_probe_req_ie, wps_ie, wps_ielen);
 			pmlmepriv->wps_probe_req_ie_len = wps_ielen;
 		}
@@ -1389,9 +1381,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 	if (request->ie && request->ie_len > 0)
-	{
 		rtw_cfg80211_set_probe_req_wpsp2pie(padapter, (u8 *)request->ie, request->ie_len);
-	}
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true) {
 		need_indicate_scan_done = true;
@@ -2164,9 +2154,8 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 	if (unlikely(skb->len < rtap_len))
 		goto fail;
 
-	if (rtap_len != 14) {
+	if (rtap_len != 14)
 		goto fail;
-	}
 
 	/* Skip the ratio tap header */
 	skb_pull(skb, rtap_len);
@@ -2212,9 +2201,8 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 		u32 len = skb->len;
 		u8 category, action;
 
-		if (rtw_action_frame_parse(buf, len, &category, &action) == false) {
+		if (rtw_action_frame_parse(buf, len, &category, &action) == false)
 			goto fail;
-		}
 
 		/* starting alloc mgmt frame to dump it */
 		pmgntframe = alloc_mgtxmitframe(pxmitpriv);
@@ -2494,10 +2482,8 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	const u8 *mac = params->mac;
 
-	if (check_fwstate(pmlmepriv, (_FW_LINKED|WIFI_AP_STATE)) != true) {
+	if (check_fwstate(pmlmepriv, (_FW_LINKED|WIFI_AP_STATE)) != true)
 		return -EINVAL;
-	}
-
 
 	if (!mac) {
 		flush_all_cam_entry(padapter);	/* clear CAM */
@@ -2719,9 +2705,8 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy,
 	/* indicate ack before issue frame to avoid racing with rsp frame */
 	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack, GFP_KERNEL);
 
-	if (rtw_action_frame_parse(buf, len, &category, &action) == false) {
+	if (rtw_action_frame_parse(buf, len, &category, &action) == false)
 		goto exit;
-	}
 
 	rtw_ps_deny(padapter, PS_DENY_MGNT_TX);
 	if (_FAIL == rtw_pwr_wakeup(padapter)) {
@@ -2925,9 +2910,8 @@ int rtw_wdev_alloc(struct adapter *padapter, struct device *dev)
 	rtw_regd_init(wiphy, rtw_reg_notifier);
 
 	ret = wiphy_register(wiphy);
-	if (ret < 0) {
+	if (ret < 0)
 		goto free_wiphy;
-	}
 
 	/*  wdev */
 	wdev = rtw_zmalloc(sizeof(struct wireless_dev));
@@ -3005,9 +2989,8 @@ void rtw_wdev_unregister(struct wireless_dev *wdev)
 
 	rtw_cfg80211_indicate_scan_done(adapter, true);
 
-	if (pwdev_priv->pmon_ndev) {
+	if (pwdev_priv->pmon_ndev)
 		unregister_netdev(pwdev_priv->pmon_ndev);
-	}
 
 	wiphy_unregister(wdev->wiphy);
 }
