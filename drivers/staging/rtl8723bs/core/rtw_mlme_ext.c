@@ -4402,20 +4402,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 		}
 		chplan_ap.Len = i;
 
-#ifdef DEBUG_RTL871X
-		i = 0;
-		while ((i < chplan_ap.Len) && (chplan_ap.Channel[i] != 0)) {
-			i++;
-		}
-#endif
-
 		memcpy(chplan_sta, pmlmeext->channel_set, sizeof(chplan_sta));
-#ifdef DEBUG_RTL871X
-		i = 0;
-		while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-			i++;
-		}
-#endif
 
 		memset(pmlmeext->channel_set, 0, sizeof(pmlmeext->channel_set));
 		chplan_new = pmlmeext->channel_set;
@@ -4543,13 +4530,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 		}
 
 		pmlmeext->update_channel_plan_by_ap_done = 1;
-
-#ifdef DEBUG_RTL871X
-		k = 0;
-		while ((k < MAX_CHANNEL_NUM) && (chplan_new[k].ChannelNum != 0)) {
-			k++;
-		}
-#endif
 	}
 
 	/*  If channel is used by AP, set channel scan type to active */
