@@ -1066,7 +1066,6 @@ static int do_match(int key, struct match_state *state, int *ans)
 static void conf(struct menu *menu)
 {
 	struct menu *submenu = NULL;
-	const char *prompt = menu_get_prompt(menu);
 	struct symbol *sym;
 	int res;
 	int current_index = 0;
@@ -1084,9 +1083,8 @@ static void conf(struct menu *menu)
 		if (!child_count)
 			break;
 
-		show_menu(prompt ? prompt : "Main Menu",
-				menu_instructions,
-				current_index, &last_top_row);
+		show_menu(menu_get_prompt(menu), menu_instructions,
+			  current_index, &last_top_row);
 		keypad((menu_win(curses_menu)), TRUE);
 		while (!global_exit) {
 			if (match_state.in_search) {
