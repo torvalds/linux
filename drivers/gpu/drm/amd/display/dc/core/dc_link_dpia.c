@@ -24,12 +24,121 @@
  *
  */
 
+#include "dc.h"
 #include "dc_link_dpia.h"
 #include "inc/core_status.h"
 #include "dc_link.h"
+#include "dc_link_dp.h"
 
 enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 {
 	/** @todo Read corresponding DPCD region and update link caps. */
 	return DC_OK;
+}
+
+/* Configure link as prescribed in link_setting; set LTTPR mode; and
+ * Initialize link training settings.
+ */
+static enum link_training_result dpia_configure_link(struct dc_link *link,
+		const struct dc_link_settings *link_setting,
+		struct link_training_settings *lt_settings)
+{
+	enum link_training_result result;
+
+	/** @todo Fail until implemented. */
+	result = LINK_TRAINING_ABORT;
+
+	return result;
+}
+
+/* Execute clock recovery phase of link training for specified hop in display
+ * path.
+ */
+static enum link_training_result dpia_training_cr_phase(struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t hop)
+{
+	enum link_training_result result;
+
+	/** @todo Fail until implemented. */
+	result = LINK_TRAINING_ABORT;
+
+	return result;
+}
+
+/* Execute equalization phase of link training for specified hop in display
+ * path.
+ */
+static enum link_training_result dpia_training_eq_phase(struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t hop)
+{
+	enum link_training_result result;
+
+	/** @todo Fail until implemented. */
+	result = LINK_TRAINING_ABORT;
+
+	return result;
+}
+
+/* End training of specified hop in display path. */
+static enum link_training_result dpia_training_end(struct dc_link *link,
+		uint32_t hop)
+{
+	enum link_training_result result;
+
+	/** @todo Fail until implemented. */
+	result = LINK_TRAINING_ABORT;
+
+	return result;
+}
+
+enum link_training_result dc_link_dpia_perform_link_training(struct dc_link *link,
+	const struct dc_link_settings *link_setting,
+	bool skip_video_pattern)
+{
+	enum link_training_result result;
+	struct link_training_settings lt_settings;
+	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
+	uint8_t repeater_id; /* Current hop. */
+
+	/* Configure link as prescribed in link_setting and set LTTPR mode. */
+	result = dpia_configure_link(link, link_setting, &lt_settings);
+	if (result != LINK_TRAINING_SUCCESS)
+		return result;
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+	/* Train each hop in turn starting with the one closest to DPTX.
+	 * In transparent or non-LTTPR mode, train only the final hop (DPRX).
+	 */
+	for (repeater_id = repeater_cnt; repeater_id >= 0; repeater_id--) {
+		/* Clock recovery. */
+		result = dpia_training_cr_phase(link, &lt_settings, repeater_id);
+		if (result != LINK_TRAINING_SUCCESS)
+			break;
+
+		/* Equalization. */
+		result = dpia_training_eq_phase(link, &lt_settings, repeater_id);
+		if (result != LINK_TRAINING_SUCCESS)
+			break;
+
+		/* Stop training hop. */
+		result = dpia_training_end(link, repeater_id);
+		if (result != LINK_TRAINING_SUCCESS)
+			break;
+	}
+
+	/* Double-check link status if training successful; gracefully stop
+	 * training of current hop if training failed for any reason other than
+	 * sink unplug.
+	 */
+	if (result == LINK_TRAINING_SUCCESS) {
+		msleep(5);
+		result = dp_check_link_loss_status(link, &lt_settings);
+	} else if (result != LINK_TRAINING_ABORT) {
+		dpia_training_end(link, repeater_id);
+	}
+	return result;
 }
