@@ -1223,9 +1223,7 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted)
 	if (pwdev_priv->scan_request) {
 		/* avoid WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req); */
 		if (pwdev_priv->scan_request->wiphy == pwdev_priv->rtw_wdev->wiphy)
-		{
 			cfg80211_scan_done(pwdev_priv->scan_request, &info);
-		}
 
 		pwdev_priv->scan_request = NULL;
 	} else {
