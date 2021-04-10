@@ -10,9 +10,6 @@
 #include <rtw_debug.h>
 #include <rtl8723b_hal.h>
 
-/* define SDIO_DEBUG_IO 1 */
-
-
 /*  */
 /*  Description: */
 /*	The following mapping is for SDIO host local register space. */
