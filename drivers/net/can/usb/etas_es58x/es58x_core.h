@@ -18,11 +18,13 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 
+#include "es581_4.h"
+
 /* Driver constants */
 #define ES58X_RX_URBS_MAX 5	/* Empirical value */
 #define ES58X_TX_URBS_MAX 6	/* Empirical value */
 
-#define ES58X_MAX(param) 0
+#define ES58X_MAX(param) (ES581_4_##param)
 #define ES58X_TX_BULK_MAX ES58X_MAX(TX_BULK_MAX)
 #define ES58X_RX_BULK_MAX ES58X_MAX(RX_BULK_MAX)
 #define ES58X_ECHO_BULK_MAX ES58X_MAX(ECHO_BULK_MAX)
@@ -210,6 +212,7 @@ enum es58x_ret_type {
 };
 
 union es58x_urb_cmd {
+	struct es581_4_urb_cmd es581_4_urb_cmd;
 	struct {		/* Common header parts of all variants */
 		__le16 sof;
 		u8 cmd_type;

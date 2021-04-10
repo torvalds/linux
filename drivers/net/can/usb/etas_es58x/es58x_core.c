@@ -27,10 +27,15 @@ MODULE_LICENSE("GPL v2");
 
 #define ES58X_MODULE_NAME "etas_es58x"
 #define ES58X_VENDOR_ID 0x108C
+#define ES581_4_PRODUCT_ID 0x0159
 
 /* Table of devices which work with this driver. */
 static const struct usb_device_id es58x_id_table[] = {
 	{
+		/* ETAS GmbH ES581.4 USB dual-channel CAN Bus Interface module. */
+		USB_DEVICE(ES58X_VENDOR_ID, ES581_4_PRODUCT_ID),
+		.driver_info = ES58X_DUAL_CHANNEL
+	}, {
 		/* Terminating entry */
 	}
 };
@@ -2162,8 +2167,8 @@ static int es58x_init_es58x_dev(struct usb_interface *intf,
 		return -ENODEV;
 		/* Place holder for es58x_fd glue code. */
 	} else {
-		return -ENODEV;
-		/* Place holder for es581_4 glue code. */
+		param = &es581_4_param;
+		ops = &es581_4_ops;
 	}
 
 	es58x_dev = kzalloc(es58x_sizeof_es58x_device(param), GFP_KERNEL);
