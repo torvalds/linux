@@ -641,18 +641,12 @@ static int xhci_mtk_remove(struct platform_device *dev)
 	return 0;
 }
 
-/*
- * if ip sleep fails, and all clocks are disabled, access register will hang
- * AHB bus, so stop polling roothubs to avoid regs access on bus suspend.
- * and no need to check whether ip sleep failed or not; this will cause SPM
- * to wake up system immediately after system suspend complete if ip sleep
- * fails, it is what we wanted.
- */
 static int __maybe_unused xhci_mtk_suspend(struct device *dev)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	int ret;
 
 	xhci_dbg(xhci, "%s: stop port polling\n", __func__);
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
@@ -660,10 +654,21 @@ static int __maybe_unused xhci_mtk_suspend(struct device *dev)
 	clear_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
 	del_timer_sync(&xhci->shared_hcd->rh_timer);
 
-	xhci_mtk_host_disable(mtk);
+	ret = xhci_mtk_host_disable(mtk);
+	if (ret)
+		goto restart_poll_rh;
+
 	xhci_mtk_clks_disable(mtk);
 	usb_wakeup_set(mtk, true);
 	return 0;
+
+restart_poll_rh:
+	xhci_dbg(xhci, "%s: restart port polling\n", __func__);
+	set_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
+	usb_hcd_poll_rh_status(xhci->shared_hcd);
+	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	usb_hcd_poll_rh_status(hcd);
+	return ret;
 }
 
 static int __maybe_unused xhci_mtk_resume(struct device *dev)
@@ -671,10 +676,16 @@ static int __maybe_unused xhci_mtk_resume(struct device *dev)
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	int ret;
 
 	usb_wakeup_set(mtk, false);
-	xhci_mtk_clks_enable(mtk);
-	xhci_mtk_host_enable(mtk);
+	ret = xhci_mtk_clks_enable(mtk);
+	if (ret)
+		goto enable_wakeup;
+
+	ret = xhci_mtk_host_enable(mtk);
+	if (ret)
+		goto disable_clks;
 
 	xhci_dbg(xhci, "%s: restart port polling\n", __func__);
 	set_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
@@ -682,6 +693,12 @@ static int __maybe_unused xhci_mtk_resume(struct device *dev)
 	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	usb_hcd_poll_rh_status(hcd);
 	return 0;
+
+disable_clks:
+	xhci_mtk_clks_disable(mtk);
+enable_wakeup:
+	usb_wakeup_set(mtk, true);
+	return ret;
 }
 
 static const struct dev_pm_ops xhci_mtk_pm_ops = {
