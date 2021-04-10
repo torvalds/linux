@@ -65,22 +65,19 @@ extern const char *aa_file_perm_names[];
 
 struct aa_perms {
 	u32 allow;
-	u32 audit;	/* set only when allow is set */
-
 	u32 deny;	/* explicit deny, or conflict if allow also set */
-	u32 quiet;	/* set only when ~allow | deny */
-	u32 kill;	/* set only when ~allow | deny */
-	u32 stop;	/* set only when ~allow | deny */
 
-	u32 complain;	/* accumulates only used when ~allow & ~deny */
+	u32 subtree;	/* allow perm on full subtree only when allow is set */
 	u32 cond;	/* set only when ~allow and ~deny */
 
-	u32 hide;	/* set only when  ~allow | deny */
+	u32 kill;	/* set only when ~allow | deny */
+	u32 complain;	/* accumulates only used when ~allow & ~deny */
 	u32 prompt;	/* accumulates only used when ~allow & ~deny */
 
-	/* Reserved:
-	 * u32 subtree;	/ * set only when allow is set * /
-	 */
+	u32 audit;	/* set only when allow is set */
+	u32 quiet;	/* set only when ~allow | deny */
+	u32 hide;	/* set only when  ~allow | deny */
+
 	u16 xindex;
 };
 

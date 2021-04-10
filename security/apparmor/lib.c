@@ -327,11 +327,11 @@ void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend)
 	accum->audit |= addend->audit & addend->allow;
 	accum->quiet &= addend->quiet & ~addend->allow;
 	accum->kill |= addend->kill & ~addend->allow;
-	accum->stop |= addend->stop & ~addend->allow;
 	accum->complain |= addend->complain & ~addend->allow & ~addend->deny;
 	accum->cond |= addend->cond & ~addend->allow & ~addend->deny;
 	accum->hide &= addend->hide & ~addend->allow;
 	accum->prompt |= addend->prompt & ~addend->allow & ~addend->deny;
+	accum->subtree |= addend->subtree & ~addend->deny;
 }
 
 /**
@@ -346,11 +346,11 @@ void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend)
 	accum->audit |= addend->audit & accum->allow;
 	accum->quiet &= addend->quiet & ~accum->allow;
 	accum->kill |= addend->kill & ~accum->allow;
-	accum->stop |= addend->stop & ~accum->allow;
 	accum->complain |= addend->complain & ~accum->allow & ~accum->deny;
 	accum->cond |= addend->cond & ~accum->allow & ~accum->deny;
 	accum->hide &= addend->hide & ~accum->allow;
 	accum->prompt |= addend->prompt & ~accum->allow & ~accum->deny;
+	accum->subtree &= addend->subtree & ~accum->deny;
 }
 
 void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
