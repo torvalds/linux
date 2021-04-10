@@ -44,11 +44,17 @@ enum TLB_FLUSH_TYPE {
 
 struct amdgpu_device;
 
+enum kfd_mem_attachment_type {
+	KFD_MEM_ATT_SHARED,	/* Share kgd_mem->bo or another attachment's */
+	KFD_MEM_ATT_USERPTR,	/* SG bo to DMA map pages from a userptr bo */
+};
+
 struct kfd_mem_attachment {
 	struct list_head list;
+	enum kfd_mem_attachment_type type;
+	bool is_mapped;
 	struct amdgpu_bo_va *bo_va;
 	struct amdgpu_device *adev;
-	bool is_mapped;
 	uint64_t va;
 	uint64_t pte_flags;
 };

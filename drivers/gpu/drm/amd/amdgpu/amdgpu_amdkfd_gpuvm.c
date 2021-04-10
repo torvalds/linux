@@ -475,12 +475,120 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 	return pte_flags;
 }
 
+static int
+kfd_mem_dmamap_userptr(struct kgd_mem *mem,
+		       struct kfd_mem_attachment *attachment)
+{
+	enum dma_data_direction direction =
+		mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE ?
+		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
+	struct ttm_operation_ctx ctx = {.interruptible = true};
+	struct amdgpu_bo *bo = attachment->bo_va->base.bo;
+	struct amdgpu_device *adev = attachment->adev;
+	struct ttm_tt *src_ttm = mem->bo->tbo.ttm;
+	struct ttm_tt *ttm = bo->tbo.ttm;
+	int ret;
+
+	ttm->sg = kmalloc(sizeof(*ttm->sg), GFP_KERNEL);
+	if (unlikely(!ttm->sg))
+		return -ENOMEM;
+
+	if (WARN_ON(ttm->num_pages != src_ttm->num_pages))
+		return -EINVAL;
+
+	/* Same sequence as in amdgpu_ttm_tt_pin_userptr */
+	ret = sg_alloc_table_from_pages(ttm->sg, src_ttm->pages,
+					ttm->num_pages, 0,
+					(u64)ttm->num_pages << PAGE_SHIFT,
+					GFP_KERNEL);
+	if (unlikely(ret))
+		goto free_sg;
+
+	ret = dma_map_sgtable(adev->dev, ttm->sg, direction, 0);
+	if (unlikely(ret))
+		goto release_sg;
+
+	drm_prime_sg_to_dma_addr_array(ttm->sg, ttm->dma_address,
+				       ttm->num_pages);
+
+	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
+	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+	if (ret)
+		goto unmap_sg;
+
+	return 0;
+
+unmap_sg:
+	dma_unmap_sgtable(adev->dev, ttm->sg, direction, 0);
+release_sg:
+	pr_err("DMA map userptr failed: %d\n", ret);
+	sg_free_table(ttm->sg);
+free_sg:
+	kfree(ttm->sg);
+	ttm->sg = NULL;
+	return ret;
+}
+
+static int
+kfd_mem_dmamap_attachment(struct kgd_mem *mem,
+			  struct kfd_mem_attachment *attachment)
+{
+	switch (attachment->type) {
+	case KFD_MEM_ATT_SHARED:
+		return 0;
+	case KFD_MEM_ATT_USERPTR:
+		return kfd_mem_dmamap_userptr(mem, attachment);
+	default:
+		WARN_ON_ONCE(1);
+	}
+	return -EINVAL;
+}
+
+static void
+kfd_mem_dmaunmap_userptr(struct kgd_mem *mem,
+			 struct kfd_mem_attachment *attachment)
+{
+	enum dma_data_direction direction =
+		mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE ?
+		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
+	struct ttm_operation_ctx ctx = {.interruptible = false};
+	struct amdgpu_bo *bo = attachment->bo_va->base.bo;
+	struct amdgpu_device *adev = attachment->adev;
+	struct ttm_tt *ttm = bo->tbo.ttm;
+
+	if (unlikely(!ttm->sg))
+		return;
+
+	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
+	ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+
+	dma_unmap_sgtable(adev->dev, ttm->sg, direction, 0);
+	sg_free_table(ttm->sg);
+	ttm->sg = NULL;
+}
+
+static void
+kfd_mem_dmaunmap_attachment(struct kgd_mem *mem,
+			    struct kfd_mem_attachment *attachment)
+{
+	switch (attachment->type) {
+	case KFD_MEM_ATT_SHARED:
+		break;
+	case KFD_MEM_ATT_USERPTR:
+		kfd_mem_dmaunmap_userptr(mem, attachment);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
+}
+
 /* kfd_mem_attach - Add a BO to a VM
  *
  * Everything that needs to bo done only once when a BO is first added
  * to a VM. It can later be mapped and unmapped many times without
  * repeating these steps.
  *
+ * 0. Create BO for DMA mapping, if needed
  * 1. Allocate and initialize BO VA entry data structure
  * 2. Add BO to the VM
  * 3. Determine ASIC-specific PTE flags
@@ -490,10 +598,12 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		struct amdgpu_vm *vm, bool is_aql)
 {
+	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
 	unsigned long bo_size = mem->bo->tbo.base.size;
 	uint64_t va = mem->va;
 	struct kfd_mem_attachment *attachment[2] = {NULL, NULL};
 	struct amdgpu_bo *bo[2] = {NULL, NULL};
+	struct drm_gem_object *gobj;
 	int i, ret;
 
 	if (!va) {
@@ -511,14 +621,37 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		pr_debug("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
 			 va + bo_size, vm);
 
-		/* FIXME: For now all attachments use the same BO. This is
-		 * incorrect because one BO can only have one DMA mapping
-		 * for one GPU. We need one BO per GPU, e.g. a DMABuf
-		 * import with dynamic attachment. This will be addressed
-		 * one BO-type at a time in subsequent patches.
-		 */
-		bo[i] = mem->bo;
-		drm_gem_object_get(&bo[i]->tbo.base);
+		if (adev == bo_adev || (mem->domain == AMDGPU_GEM_DOMAIN_VRAM &&
+					amdgpu_xgmi_same_hive(adev, bo_adev))) {
+			/* Mappings on the local GPU and VRAM mappings in the
+			 * local hive share the original BO
+			 */
+			attachment[i]->type = KFD_MEM_ATT_SHARED;
+			bo[i] = mem->bo;
+			drm_gem_object_get(&bo[i]->tbo.base);
+		} else if (i > 0) {
+			/* Multiple mappings on the same GPU share the BO */
+			attachment[i]->type = KFD_MEM_ATT_SHARED;
+			bo[i] = bo[0];
+			drm_gem_object_get(&bo[i]->tbo.base);
+		} else if (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm)) {
+			/* Create an SG BO to DMA-map userptrs on other GPUs */
+			attachment[i]->type = KFD_MEM_ATT_USERPTR;
+			ret = amdgpu_gem_object_create(adev, bo_size, 1,
+						       AMDGPU_GEM_DOMAIN_CPU,
+						       0, ttm_bo_type_sg,
+						       mem->bo->tbo.base.resv,
+						       &gobj);
+			if (ret)
+				goto unwind;
+			bo[i] = gem_to_amdgpu_bo(gobj);
+			bo[i]->parent = amdgpu_bo_ref(mem->bo);
+		} else {
+			/* FIXME: Need to DMA-map other BO types */
+			attachment[i]->type = KFD_MEM_ATT_SHARED;
+			bo[i] = mem->bo;
+			drm_gem_object_get(&bo[i]->tbo.base);
+		}
 
 		/* Add BO to VM internal data structures */
 		attachment[i]->bo_va = amdgpu_vm_bo_add(adev, vm, bo[i]);
