@@ -438,7 +438,6 @@ struct mlx5_core_health {
 	unsigned long			flags;
 	struct work_struct		fatal_report_work;
 	struct work_struct		report_work;
-	struct delayed_work		recover_work;
 	struct devlink_health_reporter *fw_reporter;
 	struct devlink_health_reporter *fw_fatal_reporter;
 };
@@ -877,6 +876,11 @@ static inline u16 fw_rev_sub(struct mlx5_core_dev *dev)
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;
+}
+
+static inline u32 wq_get_byte_sz(u8 log_sz, u8 log_stride)
+{
+	return ((u32)1 << log_sz) << log_stride;
 }
 
 static inline void mlx5_init_fbc_offset(struct mlx5_buf_list *frags,

@@ -20,7 +20,7 @@ mlx5_ib_set_vport_rep(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	rep->rep_data[REP_IB].priv = ibdev;
 	write_lock(&ibdev->port[vport_index].roce.netdev_lock);
 	ibdev->port[vport_index].roce.netdev =
-		mlx5_ib_get_rep_netdev(dev->priv.eswitch, rep->vport);
+		mlx5_ib_get_rep_netdev(rep->esw, rep->vport);
 	write_unlock(&ibdev->port[vport_index].roce.netdev_lock);
 
 	return 0;
@@ -123,8 +123,7 @@ struct mlx5_flow_handle *create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 
 	rep = dev->port[port - 1].rep;
 
-	return mlx5_eswitch_add_send_to_vport_rule(esw, rep->vport,
-						   sq->base.mqp.qpn);
+	return mlx5_eswitch_add_send_to_vport_rule(esw, rep, sq->base.mqp.qpn);
 }
 
 static int mlx5r_rep_probe(struct auxiliary_device *adev,
