@@ -123,9 +123,9 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 
 	pstapriv = &padapter->stapriv;
 	psta = rtw_get_stainfo(pstapriv, sa);
-	if (psta) {
+	if (psta)
 		pkt_info.station_id = psta->mac_id;
-	}
+
 	pkt_info.data_rate = pattrib->data_rate;
 
 	/* rtl8723b_query_rx_phy_status(precvframe, pphy_status); */

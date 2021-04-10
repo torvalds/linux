@@ -754,9 +754,8 @@ static void hal_ReadEFuse_WiFi(
 
 	while (AVAILABLE_EFUSE_ADDR(eFuse_Addr)) {
 		efuse_OneByteRead(padapter, eFuse_Addr++, &efuseHeader, bPseudoTest);
-		if (efuseHeader == 0xFF) {
+		if (efuseHeader == 0xFF)
 			break;
-		}
 
 		/*  Check PG header for section num. */
 		if (EXT_HEADER(efuseHeader)) { /* extended header */
@@ -1319,9 +1318,9 @@ static u8 hal_EfusePgCheckAvailableAddr(
 	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, &max_available, bPseudoTest);
 
 	current_size = Efuse_GetCurrentSize(padapter, efuseType, bPseudoTest);
-	if (current_size >= max_available) {
+	if (current_size >= max_available)
 		return false;
-	}
+
 	return true;
 }
 
@@ -1469,14 +1468,13 @@ static u8 hal_EfusePgPacketWrite1ByteHeader(
 		efuse_OneByteRead(padapter, efuse_addr, &tmp_header, bPseudoTest);
 		if (tmp_header != 0xFF)
 			break;
-		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
+		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 			return false;
-		}
+
 	} while (1);
 
-	if (tmp_header != pg_header) {
+	if (tmp_header != pg_header)
 		return false;
-	}
 
 	*pAddr = efuse_addr;
 
@@ -1498,9 +1496,8 @@ static u8 hal_EfusePgPacketWrite2ByteHeader(
 	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_BANK, &efuse_max_available_len, bPseudoTest);
 
 	efuse_addr = *pAddr;
-	if (efuse_addr >= efuse_max_available_len) {
+	if (efuse_addr >= efuse_max_available_len)
 		return false;
-	}
 
 	pg_header = ((pTargetPkt->offset & 0x07) << 5) | 0x0F;
 
@@ -3734,9 +3731,9 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_MACID_SLEEP:
 		/*  Input is MACID */
 		val32 = *(u32 *)val;
-		if (val32 > 31) {
+		if (val32 > 31)
 			break;
-		}
+
 		val8 = (u8)val32; /*  macid is between 0~31 */
 
 		val32 = rtw_read32(padapter, REG_MACID_SLEEP);
