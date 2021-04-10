@@ -743,7 +743,7 @@ static void hal_ReadEFuse_WiFi(
 	/*  */
 	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
-	if ((_offset+_size_byte) > EFUSE_MAX_MAP_LEN)
+	if ((_offset + _size_byte) > EFUSE_MAX_MAP_LEN)
 		return;
 
 	efuseTbl = rtw_malloc(EFUSE_MAX_MAP_LEN);
@@ -844,7 +844,7 @@ static void hal_ReadEFuse_BT(
 	/*  */
 	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
-	if ((_offset+_size_byte) > EFUSE_BT_MAP_LEN)
+	if ((_offset + _size_byte) > EFUSE_BT_MAP_LEN)
 		return;
 
 	efuseTbl = rtw_malloc(EFUSE_BT_MAP_LEN);
@@ -903,7 +903,7 @@ static void hal_ReadEFuse_BT(
 			}
 		}
 
-		if ((eFuse_Addr-1) < total)
+		if ((eFuse_Addr - 1) < total)
 			break;
 
 	}
