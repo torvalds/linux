@@ -678,10 +678,6 @@ static void Hal_EfusePowerSwitch(
 
 				mdelay(10);
 			} while (1);
-
-			if (count >= 100) {
-			} else {
-			}
 		}
 
 		rtw_write8(padapter, REG_EFUSE_ACCESS_8723, EFUSE_ACCESS_ON_8723);
@@ -3670,9 +3666,6 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 					if (val32)
 						break;
 				} while (--trycnt);
-
-				if (trycnt == 0) {
-				}
 
 				/*  RQPN Load 0 */
 				rtw_write16(padapter, REG_RQPN_NPQ, 0);

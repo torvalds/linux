@@ -851,10 +851,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_MP_STATE) == true) /* sta mode */
 		{
 			psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-			if (psta == NULL) {
-			}
-			else
-			{
+			if (psta != NULL) {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
 				if (strcmp(param->u.crypt.alg, "none") != 0)
 					psta->ieee8021x_blocked = false;
@@ -1021,9 +1018,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
         {
                 ret =  rtw_cfg80211_set_encryption(ndev, param, param_len);
         }
-	else
-	{
-	}
 
 addkey_end:
 	kfree(param);
@@ -1228,10 +1222,7 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted)
 	spin_lock_bh(&pwdev_priv->scan_req_lock);
 	if (pwdev_priv->scan_request) {
 		/* avoid WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req); */
-		if (pwdev_priv->scan_request->wiphy != pwdev_priv->rtw_wdev->wiphy)
-		{
-		}
-		else
+		if (pwdev_priv->scan_request->wiphy == pwdev_priv->rtw_wdev->wiphy)
 		{
 			cfg80211_scan_done(pwdev_priv->scan_request, &info);
 		}
@@ -1365,10 +1356,6 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	{
 		if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS|_FW_UNDER_SURVEY|_FW_UNDER_LINKING) == true)
 		{
-			if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS))
-			{
-			}
-
 			need_indicate_scan_done = true;
 			goto check_need_indicate_scan_done;
 		}
@@ -1580,9 +1567,6 @@ static int rtw_cfg80211_set_key_mgt(struct security_priv *psecuritypriv, u32 key
 		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_8021X;
 	else if (key_mgt == WLAN_AKM_SUITE_PSK) {
 		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_8021X;
-	}
-	else {
-		/* return -EINVAL; */
 	}
 
 	return 0;
@@ -2232,9 +2216,7 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 
 		dump_mgntframe(padapter, pmgntframe);
 
-	} else {
 	}
-
 
 fail:
 
@@ -2512,8 +2494,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 		plist = get_next(plist);
 
 		if (!memcmp((u8 *)mac, psta->hwaddr, ETH_ALEN)) {
-			if (psta->dot8021xalg == 1 && psta->bpairwise_key_installed == false) {
-			} else {
+			if (psta->dot8021xalg != 1 || psta->bpairwise_key_installed == true) {
 				list_del_init(&psta->asoc_list);
 				pstapriv->asoc_list_cnt--;
 
@@ -2783,9 +2764,7 @@ static void rtw_cfg80211_init_ht_capab(struct ieee80211_sta_ht_cap *ht_cap, enum
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
 		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS15);
-	} else {
 	}
-
 }
 
 void rtw_cfg80211_init_wiphy(struct adapter *padapter)

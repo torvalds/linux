@@ -904,7 +904,6 @@ void sd_int_dpc(struct adapter *adapter)
 			_sd_read(intfhdl, addr, 4, status);
 			_sd_write(intfhdl, addr, 4, status);
 			kfree(status);
-		} else {
 		}
 	}
 
