@@ -145,9 +145,6 @@ struct xhci_hcd_mtk {
 	struct regulator *vusb33;
 	struct regulator *vbus;
 	struct clk_bulk_data clks[BULK_CLKS_NUM];
-	struct regmap *pericfg;
-	struct phy **phys;
-	int num_phys;
 	bool lpm_support;
 	bool u2_lpm_disable;
 	/* usb remote wakeup */
