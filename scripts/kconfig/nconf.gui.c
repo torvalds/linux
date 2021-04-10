@@ -167,7 +167,7 @@ void print_in_middle(WINDOW *win,
 	length = strlen(string);
 	temp = (width - length) / 2;
 	x = startx + (int)temp;
-	(void) wattrset(win, color);
+	wattrset(win, color);
 	mvwprintw(win, y, x, "%s", string);
 	refresh();
 }
@@ -297,11 +297,11 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 	set_menu_fore(menu, attributes[DIALOG_MENU_FORE]);
 	set_menu_back(menu, attributes[DIALOG_MENU_BACK]);
 
-	(void) wattrset(win, attributes[DIALOG_BOX]);
+	wattrset(win, attributes[DIALOG_BOX]);
 	box(win, 0, 0);
 
 	/* print message */
-	(void) wattrset(msg_win, attributes[DIALOG_TEXT]);
+	wattrset(msg_win, attributes[DIALOG_TEXT]);
 	fill_window(msg_win, msg);
 
 	set_menu_win(menu, win);
@@ -405,16 +405,16 @@ int dialog_inputbox(WINDOW *main_window,
 	form_win = derwin(win, 1, prompt_width, prompt_lines+3, 2);
 	keypad(form_win, TRUE);
 
-	(void) wattrset(form_win, attributes[INPUT_FIELD]);
+	wattrset(form_win, attributes[INPUT_FIELD]);
 
-	(void) wattrset(win, attributes[INPUT_BOX]);
+	wattrset(win, attributes[INPUT_BOX]);
 	box(win, 0, 0);
-	(void) wattrset(win, attributes[INPUT_HEADING]);
+	wattrset(win, attributes[INPUT_HEADING]);
 	if (title)
 		mvwprintw(win, 0, 3, "%s", title);
 
 	/* print message */
-	(void) wattrset(prompt_win, attributes[INPUT_TEXT]);
+	wattrset(prompt_win, attributes[INPUT_TEXT]);
 	fill_window(prompt_win, prompt);
 
 	mvwprintw(form_win, 0, 0, "%*s", prompt_width, " ");
@@ -576,7 +576,7 @@ void show_scroll_win(WINDOW *main_window,
 
 	/* create the pad */
 	pad = newpad(total_lines+10, total_cols+10);
-	(void) wattrset(pad, attributes[SCROLLWIN_TEXT]);
+	wattrset(pad, attributes[SCROLLWIN_TEXT]);
 	fill_window(pad, text);
 
 	win_lines = min(total_lines+4, lines-2);
@@ -591,9 +591,9 @@ void show_scroll_win(WINDOW *main_window,
 	win = newwin(win_lines, win_cols, y, x);
 	keypad(win, TRUE);
 	/* show the help in the help window, and show the help panel */
-	(void) wattrset(win, attributes[SCROLLWIN_BOX]);
+	wattrset(win, attributes[SCROLLWIN_BOX]);
 	box(win, 0, 0);
-	(void) wattrset(win, attributes[SCROLLWIN_HEADING]);
+	wattrset(win, attributes[SCROLLWIN_HEADING]);
 	mvwprintw(win, 0, 3, " %s ", title);
 	panel = new_panel(win);
 
