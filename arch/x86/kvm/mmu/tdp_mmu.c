@@ -412,8 +412,9 @@ static inline void tdp_mmu_set_spte_no_dirty_log(struct kvm *kvm,
  * TLB flush before yielding.
  *
  * If this function yields, it will also reset the tdp_iter's walk over the
- * paging structure and the calling function should allow the iterator to
- * continue its traversal from the paging structure root.
+ * paging structure and the calling function should skip to the next
+ * iteration to allow the iterator to continue its traversal from the
+ * paging structure root.
  *
  * Return true if this function yielded and the iterator's traversal was reset.
  * Return false if a yield was not needed.
@@ -421,12 +422,22 @@ static inline void tdp_mmu_set_spte_no_dirty_log(struct kvm *kvm,
 static inline bool tdp_mmu_iter_cond_resched(struct kvm *kvm,
 					     struct tdp_iter *iter, bool flush)
 {
+	/* Ensure forward progress has been made before yielding. */
+	if (iter->next_last_level_gfn == iter->yielded_gfn)
+		return false;
+
 	if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
 		if (flush)
 			kvm_flush_remote_tlbs(kvm);
 
 		cond_resched_lock(&kvm->mmu_lock);
-		tdp_iter_refresh_walk(iter);
+
+		WARN_ON(iter->gfn > iter->next_last_level_gfn);
+
+		tdp_iter_start(iter, iter->pt_path[iter->root_level - 1],
+			       iter->root_level, iter->min_level,
+			       iter->next_last_level_gfn);
+
 		return true;
 	}
 
@@ -466,8 +477,8 @@ static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 
 		tdp_mmu_set_spte(kvm, &iter, 0);
 
-		flush_needed = !can_yield ||
-			       !tdp_mmu_iter_cond_resched(kvm, &iter, true);
+		flush_needed = !(can_yield &&
+				 tdp_mmu_iter_cond_resched(kvm, &iter, true));
 	}
 	return flush_needed;
 }

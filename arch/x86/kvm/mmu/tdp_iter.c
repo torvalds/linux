@@ -31,6 +31,7 @@ void tdp_iter_start(struct tdp_iter *iter, u64 *root_pt, int root_level,
 	WARN_ON(root_level > PT64_ROOT_MAX_LEVEL);
 
 	iter->next_last_level_gfn = next_last_level_gfn;
+	iter->yielded_gfn = iter->next_last_level_gfn;
 	iter->root_level = root_level;
 	iter->min_level = min_level;
 	iter->level = root_level;
@@ -156,23 +157,6 @@ void tdp_iter_next(struct tdp_iter *iter)
 			return;
 	} while (try_step_up(iter));
 	iter->valid = false;
-}
-
-/*
- * Restart the walk over the paging structure from the root, starting from the
- * highest gfn the iterator had previously reached. Assumes that the entire
- * paging structure, except the root page, may have been completely torn down
- * and rebuilt.
- */
-void tdp_iter_refresh_walk(struct tdp_iter *iter)
-{
-	gfn_t next_last_level_gfn = iter->next_last_level_gfn;
-
-	if (iter->gfn > next_last_level_gfn)
-		next_last_level_gfn = iter->gfn;
-
-	tdp_iter_start(iter, iter->pt_path[iter->root_level - 1],
-		       iter->root_level, iter->min_level, next_last_level_gfn);
 }
 
 u64 *tdp_iter_root_pt(struct tdp_iter *iter)
