@@ -125,8 +125,6 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	psta = rtw_get_stainfo(pstapriv, sa);
 	if (psta) {
 		pkt_info.station_id = psta->mac_id;
-		/* DBG_8192C("%s ==> StationID(%d)\n",
-		 * 	  __func__, pkt_info.station_id); */
 	}
 	pkt_info.data_rate = pattrib->data_rate;
 

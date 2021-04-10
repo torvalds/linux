@@ -855,8 +855,6 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 		struct sta_info *psta, *pbcmc_sta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
-		/* DBG_8192C("%s, : dot11AuthAlgrthm == dot11AuthAlgrthm_8021X\n", __func__); */
-
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_MP_STATE) == true) /* sta mode */
 		{
 			psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
@@ -1028,7 +1026,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
         else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true
                 || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)
         {
-                /* DBG_8192C("@@@@@@@@@@ fw_state = 0x%x, iftype =%d\n", pmlmepriv->fw_state, rtw_wdev->iftype); */
                 ret =  rtw_cfg80211_set_encryption(ndev, param, param_len);
         }
 	else
@@ -1784,8 +1781,6 @@ static int cfg80211_rtw_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	memset(&ndis_ssid, 0, sizeof(struct ndis_802_11_ssid));
 	ndis_ssid.SsidLength = params->ssid_len;
 	memcpy(ndis_ssid.Ssid, (u8 *)params->ssid, params->ssid_len);
-
-	/* DBG_8192C("ssid =%s, len =%zu\n", ndis_ssid.Ssid, params->ssid_len); */
 
 	psecuritypriv->ndisencryptstatus = Ndis802_11EncryptionDisabled;
 	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;

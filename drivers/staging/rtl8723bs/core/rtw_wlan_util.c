@@ -504,14 +504,11 @@ void read_cam(struct adapter *padapter, u8 entry, u8 *get_key)
 
 	addr = entry << 3;
 
-	/* DBG_8192C("********* DUMP CAM Entry_#%02d***************\n", entry); */
 	for (j = 0; j < 6; j++) {
 		cmd = _ReadCAM(padapter, addr+j);
-		/* DBG_8192C("offset:0x%02x => 0x%08x\n", addr+j, cmd); */
 		if (j > 1) /* get key from cam */
 			memcpy(get_key+(j-2)*4, &cmd, 4);
 	}
-	/* DBG_8192C("*********************************\n"); */
 }
 
 void _write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)

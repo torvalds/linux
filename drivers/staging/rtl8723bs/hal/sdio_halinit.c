@@ -101,17 +101,14 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 	/*  Switch the control of EESK, EECS to RFC for DPDT or Antenna switch */
 	value16 |= BIT(11); /*  BIT_EEPRPAD_RFE_CTRL_EN */
 	rtw_write16(padapter, REG_PWR_DATA, value16);
-/* 	DBG_8192C("%s: REG_PWR_DATA(0x%x) = 0x%04X\n", __func__, REG_PWR_DATA, rtw_read16(padapter, REG_PWR_DATA)); */
 
 	value32 = rtw_read32(padapter, REG_LEDCFG0);
 	value32 |= BIT(23); /*  DPDT_SEL_EN, 1 for SW control */
 	rtw_write32(padapter, REG_LEDCFG0, value32);
-/* 	DBG_8192C("%s: REG_LEDCFG0(0x%x) = 0x%08X\n", __func__, REG_LEDCFG0, rtw_read32(padapter, REG_LEDCFG0)); */
 
 	value8 = rtw_read8(padapter, REG_PAD_CTRL1_8723B);
 	value8 &= ~BIT(0); /*  BIT_SW_DPDT_SEL_DATA, DPDT_SEL default configuration */
 	rtw_write8(padapter, REG_PAD_CTRL1_8723B, value8);
-/* 	DBG_8192C("%s: REG_PAD_CTRL1(0x%x) = 0x%02X\n", __func__, REG_PAD_CTRL1_8723B, rtw_read8(padapter, REG_PAD_CTRL1_8723B)); */
 
 	return _SUCCESS;
 }
@@ -1263,7 +1260,6 @@ static void SetHwRegWithBuf8723B(struct adapter *padapter, u8 variable, u8 *pbuf
 {
 	switch (variable) {
 	case HW_VAR_C2H_HANDLE:
-		/* DBG_8192C("%s len =%d\n", __func__, len); */
 		C2HPacketHandler_8723B(padapter, pbuf, len);
 		break;
 	default:

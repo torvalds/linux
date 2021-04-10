@@ -777,15 +777,12 @@ if (0) {
 		if (efuseHeader == 0xFF) {
 			break;
 		}
-		/* DBG_8192C("%s: efuse[0x%X]= 0x%02X\n", __func__, eFuse_Addr-1, efuseHeader); */
 
 		/*  Check PG header for section num. */
 		if (EXT_HEADER(efuseHeader)) { /* extended header */
 			offset = GET_HDR_OFFSET_2_0(efuseHeader);
-			/* DBG_8192C("%s: extended header offset = 0x%X\n", __func__, offset); */
 
 			efuse_OneByteRead(padapter, eFuse_Addr++, &efuseExtHdr, bPseudoTest);
-			/* DBG_8192C("%s: efuse[0x%X]= 0x%02X\n", __func__, eFuse_Addr-1, efuseExtHdr); */
 			if (ALL_WORDS_DISABLED(efuseExtHdr))
 				continue;
 
@@ -795,23 +792,19 @@ if (0) {
 			offset = ((efuseHeader >> 4) & 0x0f);
 			wden = (efuseHeader & 0x0f);
 		}
-		/* DBG_8192C("%s: Offset =%d Worden = 0x%X\n", __func__, offset, wden); */
 
 		if (offset < EFUSE_MAX_SECTION_8723B) {
 			u16 addr;
 			/*  Get word enable value from PG header */
-/* 			DBG_8192C("%s: Offset =%d Worden = 0x%X\n", __func__, offset, wden); */
 
 			addr = offset * PGPKT_DATA_SIZE;
 			for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
 				/*  Check word enable condition in the section */
 				if (!(wden & (0x01<<i))) {
 					efuse_OneByteRead(padapter, eFuse_Addr++, &efuseData, bPseudoTest);
-/* 					DBG_8192C("%s: efuse[%#X]= 0x%02X\n", __func__, eFuse_Addr-1, efuseData); */
 					efuseTbl[addr] = efuseData;
 
 					efuse_OneByteRead(padapter, eFuse_Addr++, &efuseData, bPseudoTest);
-/* 					DBG_8192C("%s: efuse[%#X]= 0x%02X\n", __func__, eFuse_Addr-1, efuseData); */
 					efuseTbl[addr+1] = efuseData;
 				}
 				addr += 2;
@@ -1225,8 +1218,6 @@ static u8 Hal_EfuseWordEnableDataWrite(
 	u8 badworden = 0x0F;
 	u8 tmpdata[PGPKT_DATA_SIZE];
 
-
-/* 	DBG_8192C("%s: efuse_addr =%#x word_en =%#x\n", __func__, efuse_addr, word_en); */
 	memset(tmpdata, 0xFF, PGPKT_DATA_SIZE);
 
 	if (!(word_en & BIT(0))) {
@@ -1338,11 +1329,9 @@ static s32 Hal_EfusePgPacketRead(
 				/*  Check word enable condition in the section */
 				if (!(hworden & (0x01<<i))) {
 					efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest);
-/* 					DBG_8192C("%s: efuse[%#X]= 0x%02X\n", __func__, efuse_addr+tmpidx, efuse_data); */
 					data[i*2] = efuse_data;
 
 					efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest);
-/* 					DBG_8192C("%s: efuse[%#X]= 0x%02X\n", __func__, efuse_addr+tmpidx, efuse_data); */
 					data[(i*2)+1] = efuse_data;
 				}
 			}
@@ -1364,7 +1353,6 @@ static u8 hal_EfusePgCheckAvailableAddr(
 
 
 	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, &max_available, bPseudoTest);
-/* 	DBG_8192C("%s: max_available =%d\n", __func__, max_available); */
 
 	current_size = Efuse_GetCurrentSize(padapter, efuseType, bPseudoTest);
 	if (current_size >= max_available) {
@@ -1441,7 +1429,6 @@ static u8 hal_EfusePartialWriteCheck(
 				startAddr++;
 				efuse_OneByteRead(padapter, startAddr, &efuse_data, bPseudoTest);
 				if (ALL_WORDS_DISABLED(efuse_data)) {
-					DBG_8192C("%s: Error condition, all words disabled!", __func__);
 					bRet = false;
 					break;
 				} else {
@@ -1462,7 +1449,6 @@ static u8 hal_EfusePartialWriteCheck(
 				(hal_EfuseCheckIfDatafollowed(padapter, curPkt.word_cnts, startAddr+1, bPseudoTest) == false) &&
 				wordEnMatched(pTargetPkt, &curPkt, &matched_wden) == true
 			) {
-				DBG_8192C("%s: Need to partial write data by the previous wrote header\n", __func__);
 				/*  Here to write partial data */
 				badworden = Efuse_WordEnableDataWrite(padapter, startAddr+1, matched_wden, pTargetPkt->data, bPseudoTest);
 				if (badworden != 0x0F) {
@@ -1492,7 +1478,6 @@ static u8 hal_EfusePartialWriteCheck(
 		} else {
 			/*  not used header, 0xff */
 			*pAddr = startAddr;
-/* 			DBG_8192C("%s: Started from unused header offset =%d\n", __func__, startAddr)); */
 			bRet = true;
 			break;
 		}
@@ -1554,7 +1539,6 @@ static u8 hal_EfusePgPacketWrite2ByteHeader(
 	}
 
 	pg_header = ((pTargetPkt->offset & 0x07) << 5) | 0x0F;
-/* 	DBG_8192C("%s: pg_header = 0x%x\n", __func__, pg_header); */
 
 	do {
 		efuse_OneByteWrite(padapter, efuse_addr, pg_header, bPseudoTest);
@@ -1629,7 +1613,6 @@ static u8 hal_EfusePgPacketWriteData(
 		return false;
 	}
 
-/* 	DBG_8192C("%s: ok\n", __func__); */
 	return true;
 }
 
@@ -2683,8 +2666,6 @@ static u8 fill_txdesc_sectype(struct pkt_attrib *pattrib)
 
 static void fill_txdesc_vcs_8723b(struct adapter *padapter, struct pkt_attrib *pattrib, struct txdesc_8723b *ptxdesc)
 {
-	/* DBG_8192C("cvs_mode =%d\n", pattrib->vcs_mode); */
-
 	if (pattrib->vcs_mode) {
 		switch (pattrib->vcs_mode) {
 		case RTS_CTS:
@@ -2716,8 +2697,6 @@ static void fill_txdesc_vcs_8723b(struct adapter *padapter, struct pkt_attrib *p
 
 static void fill_txdesc_phy_8723b(struct adapter *padapter, struct pkt_attrib *pattrib, struct txdesc_8723b *ptxdesc)
 {
-	/* DBG_8192C("bwmode =%d, ch_off =%d\n", pattrib->bwmode, pattrib->ch_offset); */
-
 	if (pattrib->ht_en) {
 		ptxdesc->data_bw = BWMapping_8723B(padapter, pattrib);
 

@@ -670,7 +670,6 @@ u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
 	eid = ie_ptr[0];
 
 	if ((eid == WLAN_EID_VENDOR_SPECIFIC) && (!memcmp(&ie_ptr[2], wps_oui, 4))) {
-		/* DBG_8192C("==> found WPS_IE.....\n"); */
 		*wps_ielen = ie_ptr[1]+2;
 		match = true;
 	}
