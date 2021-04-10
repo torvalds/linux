@@ -213,7 +213,7 @@ static bool route_set_sources_in_order(const struct ni_device_routes *devroutes)
 
 static void test_ni_assign_device_routes(void)
 {
-	const struct ni_device_routes *devroutes, *olddevroutes;
+	const struct ni_device_routes *devroutes;
 	const u8 *table, *oldtable;
 
 	init_pci_6070e();
@@ -249,7 +249,6 @@ static void test_ni_assign_device_routes(void)
 		 RVI(table, B(NI_AI_ConvertClock), B(NI_PFI(2))) == V(NI_PFI_OUTPUT_AI_CONVERT),
 		 "pci-6070e finds e-series route_values table\n");
 
-	olddevroutes = devroutes;
 	oldtable = table;
 	init_pci_6220();
 	ni_assign_device_routes(ni_mseries, pci_6220, NULL,
