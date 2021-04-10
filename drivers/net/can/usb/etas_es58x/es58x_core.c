@@ -28,6 +28,11 @@ MODULE_LICENSE("GPL v2");
 #define ES58X_MODULE_NAME "etas_es58x"
 #define ES58X_VENDOR_ID 0x108C
 #define ES581_4_PRODUCT_ID 0x0159
+#define ES582_1_PRODUCT_ID 0x0168
+#define ES584_1_PRODUCT_ID 0x0169
+
+/* ES58X FD has some interface protocols unsupported by this driver. */
+#define ES58X_FD_INTERFACE_PROTOCOL 0
 
 /* Table of devices which work with this driver. */
 static const struct usb_device_id es58x_id_table[] = {
@@ -35,6 +40,16 @@ static const struct usb_device_id es58x_id_table[] = {
 		/* ETAS GmbH ES581.4 USB dual-channel CAN Bus Interface module. */
 		USB_DEVICE(ES58X_VENDOR_ID, ES581_4_PRODUCT_ID),
 		.driver_info = ES58X_DUAL_CHANNEL
+	}, {
+		/* ETAS GmbH ES582.1 USB dual-channel CAN FD Bus Interface module. */
+		USB_DEVICE_INTERFACE_PROTOCOL(ES58X_VENDOR_ID, ES582_1_PRODUCT_ID,
+					      ES58X_FD_INTERFACE_PROTOCOL),
+		.driver_info = ES58X_DUAL_CHANNEL | ES58X_FD_FAMILY
+	}, {
+		/* ETAS GmbH ES584.1 USB single-channel CAN FD Bus Interface module. */
+		USB_DEVICE_INTERFACE_PROTOCOL(ES58X_VENDOR_ID, ES584_1_PRODUCT_ID,
+					      ES58X_FD_INTERFACE_PROTOCOL),
+		.driver_info = ES58X_FD_FAMILY
 	}, {
 		/* Terminating entry */
 	}
@@ -2164,8 +2179,8 @@ static int es58x_init_es58x_dev(struct usb_interface *intf,
 		return ret;
 
 	if (driver_info & ES58X_FD_FAMILY) {
-		return -ENODEV;
-		/* Place holder for es58x_fd glue code. */
+		param = &es58x_fd_param;
+		ops = &es58x_fd_ops;
 	} else {
 		param = &es581_4_param;
 		ops = &es581_4_ops;
