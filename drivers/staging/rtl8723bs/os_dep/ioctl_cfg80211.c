@@ -1226,7 +1226,6 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted)
 			cfg80211_scan_done(pwdev_priv->scan_request, &info);
 
 		pwdev_priv->scan_request = NULL;
-	} else {
 	}
 	spin_unlock_bh(&pwdev_priv->scan_req_lock);
 }
