@@ -2435,7 +2435,23 @@ static int goya_load_boot_fit_to_device(struct hl_device *hdev)
 
 static void goya_init_dynamic_firmware_loader(struct hl_device *hdev)
 {
+	struct dynamic_fw_load_mgr *dynamic_loader;
+	struct cpu_dyn_regs *dyn_regs;
 
+	dynamic_loader = &hdev->fw_loader.dynamic_loader;
+
+	/*
+	 * here we update initial values for few specific dynamic regs (as
+	 * before reading the first descriptor from FW those value has to be
+	 * hard-coded) in later stages of the protocol those values will be
+	 * updated automatically by reading the FW descriptor so data there
+	 * will always be up-to-date
+	 */
+	dyn_regs = &dynamic_loader->comm_desc.cpu_dyn_regs;
+	dyn_regs->kmd_msg_to_cpu =
+				cpu_to_le32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU);
+	dyn_regs->cpu_cmd_status_to_host =
+				cpu_to_le32(mmCPU_CMD_STATUS_TO_HOST);
 }
 
 static void goya_init_static_firmware_loader(struct hl_device *hdev)
@@ -2446,6 +2462,8 @@ static void goya_init_static_firmware_loader(struct hl_device *hdev)
 
 	static_loader->preboot_version_max_off = SRAM_SIZE - VERSION_MAX_LEN;
 	static_loader->boot_fit_version_max_off = SRAM_SIZE - VERSION_MAX_LEN;
+	static_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
+	static_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
 	static_loader->cpu_boot_status_reg = mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS;
 	static_loader->cpu_boot_dev_status_reg = mmCPU_BOOT_DEV_STS0;
 	static_loader->boot_err0_reg = mmCPU_BOOT_ERR0;
@@ -2460,12 +2478,13 @@ static void goya_init_firmware_loader(struct hl_device *hdev)
 	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
 
 	/* fill common fields */
-	fw_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
-	fw_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
+	fw_loader->boot_fit_img.image_name = GOYA_BOOT_FIT_FILE;
+	fw_loader->linux_img.image_name = GOYA_LINUX_FW_FILE;
 	fw_loader->cpu_timeout = GOYA_CPU_TIMEOUT_USEC;
 	fw_loader->boot_fit_timeout = GOYA_BOOT_FIT_REQ_TIMEOUT_USEC;
 	fw_loader->skip_bmc = false;
 	fw_loader->sram_bar_id = SRAM_CFG_BAR_ID;
+	fw_loader->dram_bar_id = DDR_BAR_ID;
 
 	if (prop->dynamic_fw_load)
 		goya_init_dynamic_firmware_loader(hdev);

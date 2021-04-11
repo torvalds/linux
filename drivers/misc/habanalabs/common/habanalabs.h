@@ -846,6 +846,8 @@ struct pci_mem_region {
  * struct static_fw_load_mgr - static FW load manager
  * @preboot_version_max_off: max offset to preboot version
  * @boot_fit_version_max_off: max offset to boot fit version
+ * @kmd_msg_to_cpu_reg: register address for KDM->CPU messages
+ * @cpu_cmd_status_to_host_reg: register address for CPU command status response
  * @cpu_boot_status_reg: boot status register
  * @cpu_boot_dev_status_reg: boot device status register
  * @boot_err0_reg: boot error register
@@ -856,6 +858,8 @@ struct pci_mem_region {
 struct static_fw_load_mgr {
 	u64 preboot_version_max_off;
 	u64 boot_fit_version_max_off;
+	u32 kmd_msg_to_cpu_reg;
+	u32 cpu_cmd_status_to_host_reg;
 	u32 cpu_boot_status_reg;
 	u32 cpu_boot_dev_status_reg;
 	u32 boot_err0_reg;
@@ -865,36 +869,67 @@ struct static_fw_load_mgr {
 };
 
 /**
+ * struct fw_response - FW response to LKD command
+ * @ram_offset: descriptor offset into the RAM
+ * @ram_type: RAM type containing the descriptor (SRAM/DRAM)
+ * @status: command status
+ */
+struct fw_response {
+	u32 ram_offset;
+	u8 ram_type;
+	u8 status;
+};
+
+/**
  * struct dynamic_fw_load_mgr - dynamic FW load manager
- * TODO: currently empty, will be filled once boot stages implementation will
- *       progress.
+ * @response: FW to LKD response
+ * @comm_desc: the communication descriptor with FW
+ * @image_region: region to copy the FW image to
+ * @fw_image_size: FW image size
  */
 struct dynamic_fw_load_mgr {
+	struct fw_response response;
+	struct lkd_fw_comms_desc comm_desc;
+	struct pci_mem_region *image_region;
+	size_t fw_image_size;
+};
+
+/**
+ * struct fw_image_props - properties of FW image
+ * @image_name: name of the image
+ * @src_off: offset in src FW to copy from
+ * @copy_size: amount of bytes to copy (0 to copy the whole binary)
+ */
+struct fw_image_props {
+	char *image_name;
+	u32 src_off;
+	u32 copy_size;
 };
 
 /**
  * struct fw_load_mgr - manager FW loading process
- * @kmd_msg_to_cpu_reg: register address for KDM->CPU messages
- * @cpu_cmd_status_to_host_reg: register address for CPU command status response
+ * @dynamic_loader: specific structure for dynamic load
+ * @static_loader: specific structure for static load
+ * @boot_fit_img: boot fit image properties
+ * @linux_img: linux image properties
  * @cpu_timeout: CPU response timeout in usec
  * @boot_fit_timeout: Boot fit load timeout in usec
  * @skip_bmc: should BMC be skipped
  * @sram_bar_id: SRAM bar ID
- * @static_loader: specific structure for static load
- * @dynamic_loader: specific structure for dynamic load
+ * @dram_bar_id: DRAM bar ID
  */
 struct fw_load_mgr {
-	u32 kmd_msg_to_cpu_reg;
-	u32 cpu_cmd_status_to_host_reg;
+	union {
+		struct dynamic_fw_load_mgr dynamic_loader;
+		struct static_fw_load_mgr static_loader;
+	};
+	struct fw_image_props boot_fit_img;
+	struct fw_image_props linux_img;
 	u32 cpu_timeout;
 	u32 boot_fit_timeout;
 	u8 skip_bmc;
 	u8 sram_bar_id;
-
-	union {
-		struct static_fw_load_mgr static_loader;
-		struct dynamic_fw_load_mgr dynamic_loader;
-	};
+	u8 dram_bar_id;
 };
 
 /**
