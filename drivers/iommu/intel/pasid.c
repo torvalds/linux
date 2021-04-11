@@ -551,6 +551,7 @@ static void pasid_flush_caches(struct intel_iommu *iommu,
 
 static inline int pasid_enable_wpe(struct pasid_entry *pte)
 {
+#ifdef CONFIG_X86
 	unsigned long cr0 = read_cr0();
 
 	/* CR0.WP is normally set but just to be sure */
@@ -558,6 +559,7 @@ static inline int pasid_enable_wpe(struct pasid_entry *pte)
 		pr_err_ratelimited("No CPU write protect!\n");
 		return -EINVAL;
 	}
+#endif
 	pasid_set_wpe(pte);
 
 	return 0;
