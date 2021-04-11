@@ -220,8 +220,9 @@ struct io_rsrc_put {
 	};
 };
 
-struct fixed_rsrc_table {
-	struct io_fixed_file *files;
+struct io_file_table {
+	/* two level table */
+	struct io_fixed_file **files;
 };
 
 struct io_rsrc_node {
@@ -236,7 +237,6 @@ struct io_rsrc_node {
 typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
 
 struct io_rsrc_data {
-	struct fixed_rsrc_table		*table;
 	struct io_ring_ctx		*ctx;
 
 	rsrc_put_fn			*do_put;
@@ -398,6 +398,7 @@ struct io_ring_ctx {
 	 * used. Only updated through io_uring_register(2).
 	 */
 	struct io_rsrc_data	*file_data;
+	struct io_file_table	file_table;
 	unsigned		nr_user_files;
 
 	/* if used, fixed mapped user buffers */
@@ -6265,19 +6266,19 @@ static void io_wq_submit_work(struct io_wq_work *work)
 #endif
 #define FFS_MASK		~(FFS_ASYNC_READ|FFS_ASYNC_WRITE|FFS_ISREG)
 
-static inline struct io_fixed_file *io_fixed_file_slot(struct io_rsrc_data *file_data,
+static inline struct io_fixed_file *io_fixed_file_slot(struct io_file_table *table,
 						      unsigned i)
 {
-	struct fixed_rsrc_table *table;
+	struct io_fixed_file *table_l2;
 
-	table = &file_data->table[i >> IORING_FILE_TABLE_SHIFT];
-	return &table->files[i & IORING_FILE_TABLE_MASK];
+	table_l2 = table->files[i >> IORING_FILE_TABLE_SHIFT];
+	return &table_l2[i & IORING_FILE_TABLE_MASK];
 }
 
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 					      int index)
 {
-	struct io_fixed_file *slot = io_fixed_file_slot(ctx->file_data, index);
+	struct io_fixed_file *slot = io_fixed_file_slot(&ctx->file_table, index);
 
 	return (struct file *) (slot->file_ptr & FFS_MASK);
 }
@@ -6307,7 +6308,7 @@ static struct file *io_file_get(struct io_submit_state *state,
 		if (unlikely((unsigned int)fd >= ctx->nr_user_files))
 			return NULL;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
-		file_ptr = io_fixed_file_slot(ctx->file_data, fd)->file_ptr;
+		file_ptr = io_fixed_file_slot(&ctx->file_table, fd)->file_ptr;
 		file = (struct file *) (file_ptr & FFS_MASK);
 		file_ptr &= ~FFS_MASK;
 		/* mask in overlapping REQ_F and FFS bits */
@@ -7044,14 +7045,14 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	return READ_ONCE(rings->cq.head) == READ_ONCE(rings->cq.tail) ? ret : 0;
 }
 
-static void io_free_file_tables(struct io_rsrc_data *data, unsigned nr_files)
+static void io_free_file_tables(struct io_file_table *table, unsigned nr_files)
 {
 	unsigned i, nr_tables = DIV_ROUND_UP(nr_files, IORING_MAX_FILES_TABLE);
 
 	for (i = 0; i < nr_tables; i++)
-		kfree(data->table[i].files);
-	kfree(data->table);
-	data->table = NULL;
+		kfree(table->files[i]);
+	kfree(table->files);
+	table->files = NULL;
 }
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -7191,7 +7192,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 		return ret;
 
 	__io_sqe_files_unregister(ctx);
-	io_free_file_tables(data, ctx->nr_user_files);
+	io_free_file_tables(&ctx->file_table, ctx->nr_user_files);
 	kfree(data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
@@ -7421,23 +7422,20 @@ static int io_sqe_files_scm(struct io_ring_ctx *ctx)
 }
 #endif
 
-static bool io_alloc_file_tables(struct io_rsrc_data *file_data,
-				 unsigned nr_files)
+static bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
 {
 	unsigned i, nr_tables = DIV_ROUND_UP(nr_files, IORING_MAX_FILES_TABLE);
 
-	file_data->table = kcalloc(nr_tables, sizeof(*file_data->table),
-				   GFP_KERNEL);
-	if (!file_data->table)
+	table->files = kcalloc(nr_tables, sizeof(*table->files), GFP_KERNEL);
+	if (!table->files)
 		return false;
 
 	for (i = 0; i < nr_tables; i++) {
-		struct fixed_rsrc_table *table = &file_data->table[i];
 		unsigned int this_files = min(nr_files, IORING_MAX_FILES_TABLE);
 
-		table->files = kcalloc(this_files, sizeof(struct file *),
+		table->files[i] = kcalloc(this_files, sizeof(*table->files[i]),
 					GFP_KERNEL);
-		if (!table->files)
+		if (!table->files[i])
 			break;
 		nr_files -= this_files;
 	}
@@ -7445,7 +7443,7 @@ static bool io_alloc_file_tables(struct io_rsrc_data *file_data,
 	if (i == nr_tables)
 		return true;
 
-	io_free_file_tables(file_data, nr_tables * IORING_MAX_FILES_TABLE);
+	io_free_file_tables(table, nr_tables * IORING_MAX_FILES_TABLE);
 	return false;
 }
 
@@ -7613,9 +7611,8 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	if (!file_data)
 		return -ENOMEM;
 	ctx->file_data = file_data;
-
 	ret = -ENOMEM;
-	if (!io_alloc_file_tables(file_data, nr_args))
+	if (!io_alloc_file_tables(&ctx->file_table, nr_args))
 		goto out_free;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
@@ -7643,7 +7640,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			fput(file);
 			goto out_fput;
 		}
-		io_fixed_file_set(io_fixed_file_slot(file_data, i), file);
+		io_fixed_file_set(io_fixed_file_slot(&ctx->file_table, i), file);
 	}
 
 	ret = io_sqe_files_scm(ctx);
@@ -7660,7 +7657,7 @@ out_fput:
 		if (file)
 			fput(file);
 	}
-	io_free_file_tables(file_data, nr_args);
+	io_free_file_tables(&ctx->file_table, nr_args);
 	ctx->nr_user_files = 0;
 out_free:
 	kfree(ctx->file_data);
@@ -7756,7 +7753,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			continue;
 
 		i = array_index_nospec(up->offset + done, ctx->nr_user_files);
-		file_slot = io_fixed_file_slot(ctx->file_data, i);
+		file_slot = io_fixed_file_slot(&ctx->file_table, i);
 
 		if (file_slot->file_ptr) {
 			file = (struct file *)(file_slot->file_ptr & FFS_MASK);
