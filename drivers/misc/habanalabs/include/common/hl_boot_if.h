@@ -8,7 +8,7 @@
 #ifndef HL_BOOT_IF_H
 #define HL_BOOT_IF_H
 
-#define LKD_HARD_RESET_MAGIC		0xED7BD694
+#define LKD_HARD_RESET_MAGIC		0xED7BD694 /* deprecated - do not use */
 #define HL_POWER9_HOST_MAGIC		0x1DA30009
 
 #define BOOT_FIT_SRAM_OFFSET		0x200000
