@@ -583,7 +583,7 @@ static blk_status_t gdrom_readdisk_dma(struct request *req)
 	read_command->cmd[1] = 0x20;
 	block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
 	block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
-	__raw_writel(page_to_phys(bio_page(req->bio)) + bio_offset(rq->bio),
+	__raw_writel(page_to_phys(bio_page(req->bio)) + bio_offset(req->bio),
 			GDROM_DMA_STARTADDR_REG);
 	__raw_writel(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 	__raw_writel(1, GDROM_DMA_DIRECTION_REG);
