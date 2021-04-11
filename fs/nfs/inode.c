@@ -200,14 +200,11 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 	if (have_delegation) {
 		if (!(flags & NFS_INO_REVAL_FORCED))
 			flags &= ~(NFS_INO_INVALID_MODE |
-				   NFS_INO_INVALID_OTHER);
-		flags &= ~(NFS_INO_INVALID_CHANGE
-				| NFS_INO_INVALID_SIZE
-				| NFS_INO_INVALID_XATTR);
+				   NFS_INO_INVALID_OTHER |
+				   NFS_INO_INVALID_XATTR);
+		flags &= ~(NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE);
 	} else if (flags & NFS_INO_REVAL_PAGECACHE)
 		flags |= NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE;
-
-	flags &= ~NFS_INO_REVAL_PAGECACHE;
 
 	if (!nfs_has_xattr_cache(nfsi))
 		flags &= ~NFS_INO_INVALID_XATTR;
@@ -215,6 +212,7 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 		nfs_fscache_invalidate(inode);
 	if (inode->i_mapping->nrpages == 0)
 		flags &= ~(NFS_INO_INVALID_DATA|NFS_INO_DATA_INVAL_DEFER);
+	flags &= ~(NFS_INO_REVAL_PAGECACHE | NFS_INO_REVAL_FORCED);
 	nfsi->cache_validity |= flags;
 }
 EXPORT_SYMBOL_GPL(nfs_set_cache_invalid);
@@ -559,9 +557,6 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 			inode->i_blocks = nfs_calc_block_size(fattr->du.nfs3.used);
 		} else if (fattr->size != 0)
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_BLOCKS);
-
-		if (nfsi->cache_validity != 0)
-			nfsi->cache_validity |= NFS_INO_REVAL_FORCED;
 
 		nfs_setsecurity(inode, fattr, label);
 
@@ -2032,7 +2027,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			save_cache_validity &
 			(NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_CTIME |
 			 NFS_INO_INVALID_MTIME | NFS_INO_INVALID_SIZE |
-			 NFS_INO_REVAL_FORCED);
+			 NFS_INO_INVALID_BLOCKS);
 		cache_revalidated = false;
 	}
 
@@ -2064,27 +2059,24 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			attr_changed = true;
 		}
 	} else {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_CHANGE
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_CHANGE;
 		cache_revalidated = false;
 	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_MTIME) {
 		inode->i_mtime = fattr->mtime;
 	} else if (server->caps & NFS_CAP_MTIME) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_MTIME
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_MTIME;
 		cache_revalidated = false;
 	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_CTIME) {
 		inode->i_ctime = fattr->ctime;
 	} else if (server->caps & NFS_CAP_CTIME) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_CTIME
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_CTIME;
 		cache_revalidated = false;
 	}
 
@@ -2115,19 +2107,16 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			fattr->valid |= NFS_ATTR_FATTR_SPACE_USED;
 		}
 	} else {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_SIZE
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_SIZE;
 		cache_revalidated = false;
 	}
-
 
 	if (fattr->valid & NFS_ATTR_FATTR_ATIME)
 		inode->i_atime = fattr->atime;
 	else if (server->caps & NFS_CAP_ATIME) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_ATIME
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_ATIME;
 		cache_revalidated = false;
 	}
 
@@ -2141,9 +2130,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			attr_changed = true;
 		}
 	} else if (server->caps & NFS_CAP_MODE) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_MODE
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_MODE;
 		cache_revalidated = false;
 	}
 
@@ -2155,9 +2143,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			attr_changed = true;
 		}
 	} else if (server->caps & NFS_CAP_OWNER) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_OTHER
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_OTHER;
 		cache_revalidated = false;
 	}
 
@@ -2169,9 +2156,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			attr_changed = true;
 		}
 	} else if (server->caps & NFS_CAP_OWNER_GROUP) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_OTHER
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_OTHER;
 		cache_revalidated = false;
 	}
 
@@ -2183,9 +2169,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			attr_changed = true;
 		}
 	} else if (server->caps & NFS_CAP_NLINK) {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_NLINK
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_NLINK;
 		cache_revalidated = false;
 	}
 
@@ -2197,9 +2182,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	} else if (fattr->valid & NFS_ATTR_FATTR_BLOCKS_USED)
 		inode->i_blocks = fattr->du.nfs2.blocks;
 	else {
-		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_BLOCKS
-				| NFS_INO_REVAL_FORCED);
+		nfsi->cache_validity |=
+			save_cache_validity & NFS_INO_INVALID_BLOCKS;
 		cache_revalidated = false;
 	}
 
