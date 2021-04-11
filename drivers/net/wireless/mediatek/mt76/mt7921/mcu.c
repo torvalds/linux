@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include <linux/fs.h>
 #include "mt7921.h"
+#include "mt7921_trace.h"
 #include "mcu.h"
 #include "mac.h"
 
@@ -499,6 +500,20 @@ mt7921_mcu_debug_msg_event(struct mt7921_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7921_mcu_low_power_event(struct mt7921_dev *dev, struct sk_buff *skb)
+{
+	struct mt7921_mcu_lp_event {
+		u8 state;
+		u8 reserved[3];
+	} __packed * event;
+
+	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	event = (struct mt7921_mcu_lp_event *)skb->data;
+
+	trace_lp_event(dev, event->state);
+}
+
+static void
 mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
@@ -521,6 +536,9 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		mt76_connac_mcu_coredump_event(&dev->mt76, skb,
 					       &dev->coredump);
 		return;
+	case MCU_EVENT_LP_INFO:
+		mt7921_mcu_low_power_event(dev, skb);
+		break;
 	default:
 		break;
 	}
@@ -543,6 +561,7 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	    rxd->eid == MCU_EVENT_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_DBG_MSG ||
 	    rxd->eid == MCU_EVENT_COREDUMP ||
+	    rxd->eid == MCU_EVENT_LP_INFO ||
 	    !rxd->seq)
 		mt7921_mcu_rx_unsolicited_event(dev, skb);
 	else
