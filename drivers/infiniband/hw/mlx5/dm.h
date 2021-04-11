@@ -49,5 +49,7 @@ struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 			       struct uverbs_attr_bundle *attrs);
 void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr,
 			    u64 length);
+void mlx5_cmd_dealloc_memic_op(struct mlx5_dm *dm, phys_addr_t addr,
+			       u8 operation);
 
 #endif /* _MLX5_IB_DM_H */

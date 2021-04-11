@@ -111,6 +111,42 @@ void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr,
 	spin_unlock(&dm->lock);
 }
 
+void mlx5_cmd_dealloc_memic_op(struct mlx5_dm *dm, phys_addr_t addr,
+			       u8 operation)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_memic_in)] = {};
+	struct mlx5_core_dev *dev = dm->dev;
+
+	MLX5_SET(modify_memic_in, in, opcode, MLX5_CMD_OP_MODIFY_MEMIC);
+	MLX5_SET(modify_memic_in, in, op_mod, MLX5_MODIFY_MEMIC_OP_MOD_DEALLOC);
+	MLX5_SET(modify_memic_in, in, memic_operation_type, operation);
+	MLX5_SET64(modify_memic_in, in, memic_start_addr, addr - dev->bar_addr);
+
+	mlx5_cmd_exec_in(dev, modify_memic, in);
+}
+
+static int mlx5_cmd_alloc_memic_op(struct mlx5_dm *dm, phys_addr_t addr,
+				   u8 operation, phys_addr_t *op_addr)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_memic_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(modify_memic_in)] = {};
+	struct mlx5_core_dev *dev = dm->dev;
+	int err;
+
+	MLX5_SET(modify_memic_in, in, opcode, MLX5_CMD_OP_MODIFY_MEMIC);
+	MLX5_SET(modify_memic_in, in, op_mod, MLX5_MODIFY_MEMIC_OP_MOD_ALLOC);
+	MLX5_SET(modify_memic_in, in, memic_operation_type, operation);
+	MLX5_SET64(modify_memic_in, in, memic_start_addr, addr - dev->bar_addr);
+
+	err = mlx5_cmd_exec_inout(dev, modify_memic, in, out);
+	if (err)
+		return err;
+
+	*op_addr = dev->bar_addr +
+		   MLX5_GET64(modify_memic_out, out, memic_operation_addr);
+	return 0;
+}
+
 static int add_dm_mmap_entry(struct ib_ucontext *context,
 			     struct mlx5_ib_dm_memic *mdm, u64 address)
 {
