@@ -442,9 +442,6 @@ struct io_ring_ctx {
 		struct hlist_head	*cancel_hash;
 		unsigned		cancel_hash_bits;
 		bool			poll_multi_file;
-
-		spinlock_t		inflight_lock;
-		struct list_head	inflight_list;
 	} ____cacheline_aligned_in_smp;
 
 	struct delayed_work		rsrc_put_work;
@@ -471,6 +468,7 @@ struct io_uring_task {
 	const struct io_ring_ctx *last;
 	struct io_wq		*io_wq;
 	struct percpu_counter	inflight;
+	atomic_t		inflight_tracked;
 	atomic_t		in_idle;
 
 	spinlock_t		task_lock;
@@ -831,10 +829,7 @@ struct io_kiocb {
 	struct io_kiocb			*link;
 	struct percpu_ref		*fixed_rsrc_refs;
 
-	/*
-	 * 1. used with ctx->iopoll_list with reads/writes
-	 * 2. to track reqs with ->files (see io_op_def::file_table)
-	 */
+	/* used with ctx->iopoll_list with reads/writes */
 	struct list_head		inflight_entry;
 	union {
 		struct io_task_work	io_task_work;
@@ -1162,8 +1157,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
-	spin_lock_init(&ctx->inflight_lock);
-	INIT_LIST_HEAD(&ctx->inflight_list);
 	spin_lock_init(&ctx->rsrc_ref_lock);
 	INIT_LIST_HEAD(&ctx->rsrc_ref_list);
 	INIT_DELAYED_WORK(&ctx->rsrc_put_work, io_rsrc_put_work);
@@ -1192,14 +1185,9 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 
 static void io_req_track_inflight(struct io_kiocb *req)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
 	if (!(req->flags & REQ_F_INFLIGHT)) {
 		req->flags |= REQ_F_INFLIGHT;
-
-		spin_lock_irq(&ctx->inflight_lock);
-		list_add(&req->inflight_entry, &ctx->inflight_list);
-		spin_unlock_irq(&ctx->inflight_lock);
+		atomic_inc(&current->io_uring->inflight_tracked);
 	}
 }
 
@@ -1717,12 +1705,9 @@ static void io_dismantle_req(struct io_kiocb *req)
 		io_clean_op(req);
 
 		if (req->flags & REQ_F_INFLIGHT) {
-			struct io_ring_ctx *ctx = req->ctx;
-			unsigned long flags;
+			struct io_uring_task *tctx = req->task->io_uring;
 
-			spin_lock_irqsave(&ctx->inflight_lock, flags);
-			list_del(&req->inflight_entry);
-			spin_unlock_irqrestore(&ctx->inflight_lock, flags);
+			atomic_dec(&tctx->inflight_tracked);
 			req->flags &= ~REQ_F_INFLIGHT;
 		}
 	}
@@ -7914,6 +7899,7 @@ static int io_uring_alloc_task_context(struct task_struct *task,
 	init_waitqueue_head(&tctx->wait);
 	tctx->last = NULL;
 	atomic_set(&tctx->in_idle, 0);
+	atomic_set(&tctx->inflight_tracked, 0);
 	task->io_uring = tctx;
 	spin_lock_init(&tctx->task_lock);
 	INIT_WQ_LIST(&tctx->task_list);
@@ -8849,20 +8835,6 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 	}
 }
 
-static int io_uring_count_inflight(struct io_ring_ctx *ctx,
-				   struct task_struct *task,
-				   struct files_struct *files)
-{
-	struct io_kiocb *req;
-	int cnt = 0;
-
-	spin_lock_irq(&ctx->inflight_lock);
-	list_for_each_entry(req, &ctx->inflight_list, inflight_entry)
-		cnt += io_match_task(req, task, files);
-	spin_unlock_irq(&ctx->inflight_lock);
-	return cnt;
-}
-
 static int __io_uring_add_task_file(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -8948,17 +8920,9 @@ static void io_uring_clean_tctx(struct io_uring_task *tctx)
 	}
 }
 
-static s64 tctx_inflight_tracked(struct task_struct *task,
-				 struct files_struct *files)
+static s64 tctx_inflight_tracked(struct io_uring_task *tctx)
 {
-	struct io_uring_task *tctx = task->io_uring;
-	struct io_tctx_node *node;
-	unsigned long index;
-	s64 cnt = 0;
-
-	xa_for_each(&tctx->xa, index, node)
-		cnt += io_uring_count_inflight(node->ctx, task, files);
-	return cnt;
+	return atomic_read(&tctx->inflight_tracked);
 }
 
 static s64 tctx_inflight(struct io_uring_task *tctx)
@@ -9057,13 +9021,13 @@ void __io_uring_files_cancel(struct files_struct *files)
 	atomic_inc(&tctx->in_idle);
 	do {
 		/* read completions before cancelations */
-		inflight = tctx_inflight_tracked(current, files);
+		inflight = tctx_inflight_tracked(tctx);
 		if (!inflight)
 			break;
 		io_uring_try_cancel(files);
 
 		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
-		if (inflight == tctx_inflight_tracked(current, files))
+		if (inflight == tctx_inflight_tracked(tctx))
 			schedule();
 		finish_wait(&tctx->wait, &wait);
 	} while (1);
