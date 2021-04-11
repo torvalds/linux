@@ -1153,7 +1153,6 @@ static void _InitOtherVariable(struct adapter *Adapter)
 static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 {
 	u8 val8;
-	unsigned long start;
 
 	/*  before access eFuse, make sure card enable has been called */
 	if (!padapter->hw_init_completed)
@@ -1163,9 +1162,6 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	val8 = rtw_read8(padapter, 0x4e);
 	val8 |= BIT(6);
 	rtw_write8(padapter, 0x4e, val8);
-
-
-	start = jiffies;
 
 	_EfuseCellSel(padapter);
 	_ReadRFType(padapter);
