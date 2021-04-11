@@ -768,7 +768,7 @@ static void journal_write_unlocked(struct closure *cl)
 	w->data->csum		= csum_set(w->data);
 
 	for (i = 0; i < KEY_PTRS(k); i++) {
-		ca = PTR_CACHE(c, k, i);
+		ca = c->cache;
 		bio = &ca->journal.bio;
 
 		atomic_long_add(sectors, &ca->meta_sectors_written);
