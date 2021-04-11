@@ -547,7 +547,7 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	} while (atomic_cmpxchg(&service->poll_flags, value,
 		 value | BIT(poll_type)) != value);
 
-	index = service->localport >> 5;
+	index = BITSET_WORD(service->localport);
 	do {
 		value = atomic_read(&state->poll_services[index]);
 	} while (atomic_cmpxchg(&state->poll_services[index],
