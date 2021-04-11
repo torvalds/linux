@@ -537,6 +537,7 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	     int poll_type)
 {
 	u32 value;
+	int index;
 
 	if (!service)
 		goto skip_service;
@@ -546,12 +547,11 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	} while (atomic_cmpxchg(&service->poll_flags, value,
 		 value | BIT(poll_type)) != value);
 
+	index = service->localport >> 5;
 	do {
-		value = atomic_read(&state->poll_services[
-			service->localport>>5]);
-	} while (atomic_cmpxchg(
-		 &state->poll_services[service->localport>>5], value,
-		 value | BIT(service->localport & 0x1f)) != value);
+		value = atomic_read(&state->poll_services[index]);
+	} while (atomic_cmpxchg(&state->poll_services[index],
+		 value, value | BIT(service->localport & 0x1f)) != value);
 
 skip_service:
 	state->poll_needed = 1;
