@@ -4181,11 +4181,9 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 	struct files_struct *files = current->files;
 	struct io_close *close = &req->close;
 	struct fdtable *fdt;
-	struct file *file;
-	int ret;
+	struct file *file = NULL;
+	int ret = -EBADF;
 
-	file = NULL;
-	ret = -EBADF;
 	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
 	if (close->fd >= fdt->max_fds) {
@@ -4193,12 +4191,7 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 		goto err;
 	}
 	file = fdt->fd[close->fd];
-	if (!file) {
-		spin_unlock(&files->file_lock);
-		goto err;
-	}
-
-	if (file->f_op == &io_uring_fops) {
+	if (!file || file->f_op == &io_uring_fops) {
 		spin_unlock(&files->file_lock);
 		file = NULL;
 		goto err;
