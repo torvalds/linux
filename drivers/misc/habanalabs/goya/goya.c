@@ -2445,6 +2445,20 @@ static int goya_read_device_fw_version(struct hl_device *hdev,
 	return 0;
 }
 
+static void goya_init_firmware_loader(struct hl_device *hdev)
+{
+	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
+
+	fw_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
+	fw_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
+	fw_loader->cpu_timeout = GOYA_CPU_TIMEOUT_USEC;
+	fw_loader->boot_fit_timeout = GOYA_BOOT_FIT_REQ_TIMEOUT_USEC;
+	fw_loader->skip_bmc = false;
+	fw_loader->cpu_boot_status_reg = mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS;
+	fw_loader->cpu_boot_dev_status_reg = mmCPU_BOOT_DEV_STS0;
+	fw_loader->boot_err0_reg = mmCPU_BOOT_ERR0;
+}
+
 static int goya_init_cpu(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
@@ -2466,12 +2480,7 @@ static int goya_init_cpu(struct hl_device *hdev)
 		return -EIO;
 	}
 
-	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmPSOC_GLOBAL_CONF_UBOOT_MAGIC,
-			mmCPU_CMD_STATUS_TO_HOST,
-			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
-			false, GOYA_CPU_TIMEOUT_USEC,
-			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
+	rc = hl_fw_init_cpu(hdev);
 
 	if (rc)
 		return rc;
@@ -5584,7 +5593,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_hw_block_id = goya_get_hw_block_id,
 	.hw_block_mmap = goya_block_mmap,
 	.enable_events_from_fw = goya_enable_events_from_fw,
-	.map_pll_idx_to_fw_idx = goya_map_pll_idx_to_fw_idx
+	.map_pll_idx_to_fw_idx = goya_map_pll_idx_to_fw_idx,
+	.init_firmware_loader = goya_init_firmware_loader
 };
 
 /*

@@ -977,17 +977,25 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	return -EINVAL;
 }
 
-int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
-			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
-			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
-			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout)
+int hl_fw_init_cpu(struct hl_device *hdev)
 {
+	u32 cpu_msg_status_reg, cpu_timeout, msg_to_cpu_reg, status;
+	u32 cpu_boot_status_reg, cpu_security_boot_status_reg;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 status;
+	struct fw_load_mgr *fw_loader;
 	int rc;
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU))
 		return 0;
+
+	/* init loader parameters */
+	hdev->asic_funcs->init_firmware_loader(hdev);
+	fw_loader = &hdev->fw_loader;
+	cpu_security_boot_status_reg = fw_loader->cpu_boot_status_reg;
+	cpu_msg_status_reg = fw_loader->cpu_cmd_status_to_host_reg;
+	cpu_boot_status_reg = fw_loader->cpu_boot_status_reg;
+	msg_to_cpu_reg = fw_loader->kmd_msg_to_cpu_reg;
+	cpu_timeout = fw_loader->cpu_timeout;
 
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
 		cpu_timeout / USEC_PER_SEC);
@@ -999,7 +1007,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		status,
 		status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT,
 		10000,
-		boot_fit_timeout);
+		fw_loader->boot_fit_timeout);
 
 	if (rc) {
 		dev_dbg(hdev->dev,
@@ -1022,7 +1030,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			status,
 			status == CPU_MSG_OK,
 			10000,
-			boot_fit_timeout);
+			fw_loader->boot_fit_timeout);
 
 		if (rc) {
 			dev_err(hdev->dev,
@@ -1092,7 +1100,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (rc)
 		goto out;
 
-	if (skip_bmc) {
+	if (fw_loader->skip_bmc) {
 		WREG32(msg_to_cpu_reg, KMD_MSG_SKIP_BMC);
 
 		rc = hl_poll_timeout(
@@ -1139,7 +1147,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
-	rc = fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
+	rc = fw_read_errors(hdev, fw_loader->boot_err0_reg,
+					cpu_security_boot_status_reg);
 	if (rc)
 		return rc;
 
@@ -1168,7 +1177,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	return 0;
 
 out:
-	fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
+	fw_read_errors(hdev, fw_loader->boot_err0_reg,
+					cpu_security_boot_status_reg);
 
 	return rc;
 }

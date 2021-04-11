@@ -3729,6 +3729,20 @@ static int gaudi_read_device_fw_version(struct hl_device *hdev,
 	return 0;
 }
 
+static void gaudi_init_firmware_loader(struct hl_device *hdev)
+{
+	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
+
+	fw_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
+	fw_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
+	fw_loader->cpu_timeout = GAUDI_CPU_TIMEOUT_USEC;
+	fw_loader->boot_fit_timeout = GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC;
+	fw_loader->skip_bmc = !hdev->bmc_enable;
+	fw_loader->cpu_boot_status_reg = mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS;
+	fw_loader->cpu_boot_dev_status_reg = mmCPU_BOOT_DEV_STS0;
+	fw_loader->boot_err0_reg = mmCPU_BOOT_ERR0;
+}
+
 static int gaudi_init_cpu(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -3747,12 +3761,7 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 	if (hdev->asic_prop.fw_security_disabled)
 		WREG32(mmCPU_IF_CPU_MSB_ADDR, hdev->cpu_pci_msb_addr);
 
-	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU,
-			mmCPU_CMD_STATUS_TO_HOST,
-			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
-			!hdev->bmc_enable, GAUDI_CPU_TIMEOUT_USEC,
-			GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
+	rc = hl_fw_init_cpu(hdev);
 
 	if (rc)
 		return rc;
@@ -8850,7 +8859,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.get_hw_block_id = gaudi_get_hw_block_id,
 	.hw_block_mmap = gaudi_block_mmap,
 	.enable_events_from_fw = gaudi_enable_events_from_fw,
-	.map_pll_idx_to_fw_idx = gaudi_map_pll_idx_to_fw_idx
+	.map_pll_idx_to_fw_idx = gaudi_map_pll_idx_to_fw_idx,
+	.init_firmware_loader = gaudi_init_firmware_loader,
 };
 
 /**

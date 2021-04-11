@@ -819,6 +819,28 @@ enum div_select_defs {
 };
 
 /**
+ * struct fw_load_mgr - manager FW loading process
+ * @kmd_msg_to_cpu_reg: register address for KMD->CPU messages
+ * @cpu_cmd_status_to_host_reg: register address for CPU command status response
+ * @cpu_boot_status_reg: boot status register
+ * @cpu_boot_dev_status_reg: boot device status register
+ * @boot_err0_reg: boot error register
+ * @cpu_timeout: CPU response timeout in usec
+ * @boot_fit_timeout: Boot fit load timeout in usec
+ * @skip_bmc: should BMC be skipped
+ */
+struct fw_load_mgr {
+	u32 kmd_msg_to_cpu_reg;
+	u32 cpu_cmd_status_to_host_reg;
+	u32 cpu_boot_status_reg;
+	u32 cpu_boot_dev_status_reg;
+	u32 boot_err0_reg;
+	u32 cpu_timeout;
+	u32 boot_fit_timeout;
+	u8 skip_bmc;
+};
+
+/**
  * struct hl_asic_funcs - ASIC specific functions that are can be called from
  *                        common code.
  * @early_init: sets up early driver state (pre sw_init), doesn't configure H/W.
@@ -939,6 +961,7 @@ enum div_select_defs {
  * @get_msi_info: Retrieve asic-specific MSI ID of the f/w async event
  * @map_pll_idx_to_fw_idx: convert driver specific per asic PLL index to
  *                         generic f/w compatible PLL Indexes
+ *@init_firmware_loader: initialize data for FW loader.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1064,6 +1087,7 @@ struct hl_asic_funcs {
 	void (*enable_events_from_fw)(struct hl_device *hdev);
 	void (*get_msi_info)(u32 *table);
 	int (*map_pll_idx_to_fw_idx)(u32 pll_idx);
+	void (*init_firmware_loader)(struct hl_device *hdev);
 };
 
 
@@ -1960,6 +1984,7 @@ struct hl_mmu_funcs {
  * @aggregated_cs_counters: aggregated cs counters among all contexts
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
+ * @fw_loader: FW loader manager.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2084,6 +2109,8 @@ struct hl_device {
 
 	struct hl_mmu_priv		mmu_priv;
 	struct hl_mmu_funcs		mmu_func[MMU_NUM_PGT_LOCATIONS];
+
+	struct fw_load_mgr		fw_loader;
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2405,10 +2432,7 @@ int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 		u16 *pll_freq_arr);
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
-int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
-			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
-			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
-			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout);
+int hl_fw_init_cpu(struct hl_device *hdev);
 int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		u32 cpu_boot_caps_reg, u32 boot_err0_reg,
 		u32 timeout);
