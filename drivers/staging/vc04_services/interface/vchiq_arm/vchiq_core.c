@@ -3357,6 +3357,7 @@ vchiq_set_service_option(unsigned int handle,
 {
 	struct vchiq_service *service = find_service_by_handle(handle);
 	enum vchiq_status status = VCHIQ_ERROR;
+	struct vchiq_service_quota *quota;
 
 	if (service) {
 		switch (option) {
@@ -3365,9 +3366,8 @@ vchiq_set_service_option(unsigned int handle,
 			status = VCHIQ_SUCCESS;
 			break;
 
-		case VCHIQ_SERVICE_OPTION_SLOT_QUOTA: {
-			struct vchiq_service_quota *quota =
-				&service->state->service_quotas[
+		case VCHIQ_SERVICE_OPTION_SLOT_QUOTA:
+			quota = &service->state->service_quotas[
 					service->localport];
 			if (value == 0)
 				value = service->state->default_slot_quota;
@@ -3385,11 +3385,10 @@ vchiq_set_service_option(unsigned int handle,
 				}
 				status = VCHIQ_SUCCESS;
 			}
-		} break;
+			break;
 
-		case VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA: {
-			struct vchiq_service_quota *quota =
-				&service->state->service_quotas[
+		case VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA:
+			quota = &service->state->service_quotas[
 					service->localport];
 			if (value == 0)
 				value = service->state->default_message_quota;
@@ -3407,7 +3406,7 @@ vchiq_set_service_option(unsigned int handle,
 					complete(&quota->quota_event);
 				status = VCHIQ_SUCCESS;
 			}
-		} break;
+			break;
 
 		case VCHIQ_SERVICE_OPTION_SYNCHRONOUS:
 			if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
