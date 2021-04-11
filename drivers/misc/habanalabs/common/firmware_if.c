@@ -850,8 +850,13 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read preboot version\n");
 		detect_cpu_boot_status(hdev, status);
-		fw_read_errors(hdev, boot_err0_reg,
-				cpu_security_boot_status_reg);
+
+		/* If we read all FF, then something is totally wrong, no point
+		 * of reading specific errors
+		 */
+		if (status != -1)
+			fw_read_errors(hdev, boot_err0_reg,
+					cpu_security_boot_status_reg);
 		return -EIO;
 	}
 
