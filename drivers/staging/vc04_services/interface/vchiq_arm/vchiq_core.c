@@ -3702,24 +3702,22 @@ vchiq_loud_error_footer(void)
 
 enum vchiq_status vchiq_send_remote_use(struct vchiq_state *state)
 {
-	enum vchiq_status status = VCHIQ_RETRY;
+	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED)
+		return VCHIQ_RETRY;
 
-	if (state->conn_state != VCHIQ_CONNSTATE_DISCONNECTED)
-		status = queue_message(state, NULL,
-			VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_USE, 0, 0),
-			NULL, NULL, 0, 0);
-	return status;
+	return queue_message(state, NULL,
+			     VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_USE, 0, 0),
+			     NULL, NULL, 0, 0);
 }
 
 enum vchiq_status vchiq_send_remote_use_active(struct vchiq_state *state)
 {
-	enum vchiq_status status = VCHIQ_RETRY;
+	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED)
+		return VCHIQ_RETRY;
 
-	if (state->conn_state != VCHIQ_CONNSTATE_DISCONNECTED)
-		status = queue_message(state, NULL,
-			VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_USE_ACTIVE, 0, 0),
-			NULL, NULL, 0, 0);
-	return status;
+	return queue_message(state, NULL,
+			     VCHIQ_MAKE_MSG(VCHIQ_MSG_REMOTE_USE_ACTIVE, 0, 0),
+			     NULL, NULL, 0, 0);
 }
 
 void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem,
