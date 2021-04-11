@@ -573,6 +573,14 @@ static const struct of_device_id ipa_match[] = {
 		.compatible	= "qcom,sc7180-ipa",
 		.data		= &ipa_data_v4_2,
 	},
+	{
+		.compatible	= "qcom,sdx55-ipa",
+		.data		= &ipa_data_v4_5,
+	},
+	{
+		.compatible	= "qcom,sc7280-ipa",
+		.data		= &ipa_data_v4_11,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ipa_match);
