@@ -124,6 +124,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dai;
 	struct snd_soc_dai_link_component *cpus = dai_link->cpus;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+	struct snd_soc_dai_link_component *platforms = dai_link->platforms;
 	struct device_node *top = dev->of_node;
 	struct device_node *node = of_get_parent(np);
 	char *prefix = "";
@@ -162,8 +163,8 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		if (ret < 0)
 			goto out_put_node;
 
-		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
-		asoc_simple_canonicalize_platform(dai_link);
+		asoc_simple_canonicalize_cpu(cpus, is_single_links);
+		asoc_simple_canonicalize_platform(platforms, cpus);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -298,8 +299,8 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->ops = &simple_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_canonicalize_cpu(dai_link, single_cpu);
-	asoc_simple_canonicalize_platform(dai_link);
+	asoc_simple_canonicalize_cpu(dai_link->cpus, single_cpu);
+	asoc_simple_canonicalize_platform(dai_link->platforms, dai_link->cpus);
 
 dai_link_of_err:
 	of_node_put(plat);

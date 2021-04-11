@@ -423,15 +423,16 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 
-void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
+void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
+				       struct snd_soc_dai_link_component *cpus)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platforms->of_node)
-		dai_link->platforms->of_node = dai_link->cpus->of_node;
+	if (!platforms->of_node)
+		platforms->of_node = cpus->of_node;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
-void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
+void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links)
 {
 	/*
@@ -444,7 +445,7 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 	 *	fmt_multiple_name()
 	 */
 	if (is_single_links)
-		dai_link->cpus->dai_name = NULL;
+		cpus->dai_name = NULL;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 

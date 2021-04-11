@@ -226,6 +226,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dai;
 	struct snd_soc_dai_link_component *cpus = dai_link->cpus;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+	struct snd_soc_dai_link_component *platforms = dai_link->platforms;
 	int ret;
 
 	port	= of_get_parent(ep);
@@ -276,8 +277,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 			dai_link->no_pcm = 1;
 
 		/* card->num_links includes Codec */
-		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
-		asoc_simple_canonicalize_platform(dai_link);
+		asoc_simple_canonicalize_cpu(cpus, is_single_links);
+		asoc_simple_canonicalize_platform(platforms, cpus);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -405,8 +406,8 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->ops = &graph_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_canonicalize_cpu(dai_link, single_cpu);
-	asoc_simple_canonicalize_platform(dai_link);
+	asoc_simple_canonicalize_cpu(dai_link->cpus, single_cpu);
+	asoc_simple_canonicalize_platform(dai_link->platforms, dai_link->cpus);
 
 	return 0;
 }

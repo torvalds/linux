@@ -151,9 +151,10 @@ int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					&(dai)->slots,		\
 					&(dai)->slot_width);
 
-void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link);
-void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
-				      int is_single_links);
+void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
+				       struct snd_soc_dai_link_component *cpus);
+void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
+				  int is_single_links);
 
 int asoc_simple_clean_reference(struct snd_soc_card *card);
 
