@@ -597,7 +597,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
-	int i, dai_num = 0, dlc_num = 0;
+	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
@@ -613,6 +613,9 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 		dai_num += cc;
 		dlc_num += cc + li->num[i].platforms;
+
+		if (!li->num[i].cpus)
+			cnf_num += li->num[i].codecs;
 	}
 
 	dais = devm_kcalloc(dev, dai_num, sizeof(*dais),      GFP_KERNEL);
@@ -620,11 +623,14 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	if (!dais || !dlcs)
 		return -ENOMEM;
 
-	if (li->conf) {
-		cconf = devm_kcalloc(dev, li->conf, sizeof(*cconf), GFP_KERNEL);
+	if (cnf_num) {
+		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
 			return -ENOMEM;
 	}
+
+	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
+		li->link, dai_num, cnf_num);
 
 	/* dummy CPU/Codec */
 	priv->dummy.of_node	= NULL;
@@ -640,7 +646,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	card->dai_link		= priv->dai_link;
 	card->num_links		= li->link;
 	card->codec_conf	= cconf;
-	card->num_configs	= li->conf;
+	card->num_configs	= cnf_num;
 
 	for (i = 0; i < li->link; i++) {
 		if (li->num[i].cpus) {

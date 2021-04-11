@@ -495,7 +495,6 @@ static int simple_count_noml(struct asoc_simple_priv *priv,
 	li->num[li->link].platforms	= 1;
 
 	li->link += 1;
-	li->dais += 2;
 
 	return 0;
 }
@@ -517,13 +516,10 @@ static int simple_count_dpcm(struct asoc_simple_priv *priv,
 		li->num[li->link].platforms	= 1;
 
 		li->link++; /* CPU-dummy */
-		li->dais++;
 	} else {
 		li->num[li->link].codecs	= 1;
 
 		li->link++; /* dummy-Codec */
-		li->dais++;
-		li->conf++;
 	}
 
 	return 0;
@@ -587,17 +583,12 @@ static void simple_get_dais_count(struct asoc_simple_priv *priv,
 		li->num[0].platforms	= 1;
 
 		li->link = 1;
-		li->dais = 2;
-		li->conf = 0;
 		return;
 	}
 
 	simple_for_each_link(priv, li,
 			     simple_count_noml,
 			     simple_count_dpcm);
-
-	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
-		li->link, li->dais, li->conf);
 }
 
 static int simple_soc_probe(struct snd_soc_card *card)
@@ -637,7 +628,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 
 	memset(&li, 0, sizeof(li));
 	simple_get_dais_count(priv, &li);
-	if (!li.link || !li.dais)
+	if (!li.link)
 		return -EINVAL;
 
 	ret = asoc_simple_init_priv(priv, &li);

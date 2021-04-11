@@ -552,7 +552,7 @@ int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 
 	memset(&li, 0, sizeof(li));
 	graph_get_dais_count(priv, &li);
-	if (!li.link || !li.dais)
+	if (!li.link)
 		return -EINVAL;
 
 	ret = asoc_simple_init_priv(priv, &li);
@@ -622,7 +622,6 @@ static int graph_count_noml(struct asoc_simple_priv *priv,
 	li->num[li->link].platforms	= 1;
 
 	li->link += 1; /* 1xCPU-Codec */
-	li->dais += 2; /* 1xCPU + 1xCodec */
 
 	dev_dbg(dev, "Count As Normal\n");
 
@@ -646,13 +645,10 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 		li->num[li->link].platforms	= 1;
 
 		li->link++; /* 1xCPU-dummy */
-		li->dais++; /* 1xCPU */
 	} else {
 		li->num[li->link].codecs	= 1;
 
 		li->link++; /* 1xdummy-Codec */
-		li->conf++; /* 1xdummy-Codec */
-		li->dais++; /* 1xCodec */
 	}
 
 	dev_dbg(dev, "Count As DPCM\n");
@@ -663,8 +659,6 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 static void graph_get_dais_count(struct asoc_simple_priv *priv,
 				 struct link_info *li)
 {
-	struct device *dev = simple_priv_to_dev(priv);
-
 	/*
 	 * link_num :	number of links.
 	 *		CPU-Codec / CPU-dummy / dummy-Codec
@@ -714,8 +708,6 @@ static void graph_get_dais_count(struct asoc_simple_priv *priv,
 	graph_for_each_link(priv, li,
 			    graph_count_noml,
 			    graph_count_dpcm);
-	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
-		li->link, li->dais, li->conf);
 }
 
 int audio_graph_card_probe(struct snd_soc_card *card)

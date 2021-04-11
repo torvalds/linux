@@ -75,9 +75,7 @@ struct asoc_simple_priv {
 #define simple_priv_to_link(priv, i)	(simple_priv_to_card(priv)->dai_link + (i))
 
 struct link_info {
-	int dais; /* number of dai  */
 	int link; /* number of link */
-	int conf; /* number of codec_conf */
 	int cpu;  /* turn for CPU / Codec */
 	struct prop_nums num[SNDRV_MINOR_DEVICES];
 };
