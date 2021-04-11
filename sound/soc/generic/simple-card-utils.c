@@ -32,8 +32,7 @@ void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
 
-void asoc_simple_parse_convert(struct device *dev,
-			       struct device_node *np,
+void asoc_simple_parse_convert(struct device_node *np,
 			       char *prefix,
 			       struct asoc_simple_data *data)
 {

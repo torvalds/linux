@@ -160,8 +160,7 @@ int asoc_simple_clean_reference(struct snd_soc_card *card);
 
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 				      struct snd_pcm_hw_params *params);
-void asoc_simple_parse_convert(struct device *dev,
-			       struct device_node *np, char *prefix,
+void asoc_simple_parse_convert(struct device_node *np, char *prefix,
 			       struct asoc_simple_data *data);
 
 int asoc_simple_parse_routing(struct snd_soc_card *card,

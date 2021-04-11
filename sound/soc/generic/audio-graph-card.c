@@ -180,11 +180,11 @@ static void graph_parse_convert(struct device *dev,
 	struct device_node *ports = of_get_parent(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 
-	asoc_simple_parse_convert(dev, top,   NULL,   adata);
-	asoc_simple_parse_convert(dev, node,  PREFIX, adata);
-	asoc_simple_parse_convert(dev, ports, NULL,   adata);
-	asoc_simple_parse_convert(dev, port,  NULL,   adata);
-	asoc_simple_parse_convert(dev, ep,    NULL,   adata);
+	asoc_simple_parse_convert(top,   NULL,   adata);
+	asoc_simple_parse_convert(node,  PREFIX, adata);
+	asoc_simple_parse_convert(ports, NULL,   adata);
+	asoc_simple_parse_convert(port,  NULL,   adata);
+	asoc_simple_parse_convert(ep,    NULL,   adata);
 
 	of_node_put(port);
 	of_node_put(ports);

@@ -84,10 +84,10 @@ static void simple_parse_convert(struct device *dev,
 	struct device_node *top = dev->of_node;
 	struct device_node *node = of_get_parent(np);
 
-	asoc_simple_parse_convert(dev, top,  PREFIX, adata);
-	asoc_simple_parse_convert(dev, node, PREFIX, adata);
-	asoc_simple_parse_convert(dev, node, NULL,   adata);
-	asoc_simple_parse_convert(dev, np,   NULL,   adata);
+	asoc_simple_parse_convert(top,  PREFIX, adata);
+	asoc_simple_parse_convert(node, PREFIX, adata);
+	asoc_simple_parse_convert(node, NULL,   adata);
+	asoc_simple_parse_convert(np,   NULL,   adata);
 
 	of_node_put(node);
 }
