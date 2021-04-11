@@ -3069,9 +3069,16 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 	enum vchiq_status status = VCHIQ_ERROR;
 	int payload[2];
 
-	if (!service || service->srvstate != VCHIQ_SRVSTATE_OPEN ||
-	    (!offset && !uoffset) ||
-	    vchiq_check_service(service) != VCHIQ_SUCCESS)
+	if (!service)
+		goto error_exit;
+
+	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
+		goto error_exit;
+
+	if (!offset && !uoffset)
+		goto error_exit;
+
+	if (vchiq_check_service(service) != VCHIQ_SUCCESS)
 		goto error_exit;
 
 	switch (mode) {
@@ -3215,8 +3222,10 @@ vchiq_queue_message(unsigned int handle,
 	struct vchiq_service *service = find_service_by_handle(handle);
 	enum vchiq_status status = VCHIQ_ERROR;
 
-	if (!service ||
-		(vchiq_check_service(service) != VCHIQ_SUCCESS))
+	if (!service)
+		goto error_exit;
+
+	if (vchiq_check_service(service) != VCHIQ_SUCCESS)
 		goto error_exit;
 
 	if (!size) {
@@ -3327,10 +3336,15 @@ vchiq_get_peer_version(unsigned int handle, short *peer_version)
 	enum vchiq_status status = VCHIQ_ERROR;
 	struct vchiq_service *service = find_service_by_handle(handle);
 
-	if (!service ||
-	    (vchiq_check_service(service) != VCHIQ_SUCCESS) ||
-	    !peer_version)
+	if (!service)
 		goto exit;
+
+	if (vchiq_check_service(service) != VCHIQ_SUCCESS)
+		goto exit;
+
+	if (!peer_version)
+		goto exit;
+
 	*peer_version = service->peer_version;
 	status = VCHIQ_SUCCESS;
 
