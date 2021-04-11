@@ -74,32 +74,45 @@ struct asoc_simple_priv {
 #define simple_priv_to_dev(priv)	(simple_priv_to_card(priv)->dev)
 #define simple_priv_to_link(priv, i)	(simple_priv_to_card(priv)->dai_link + (i))
 
+#define simple_props_to_dlc_cpu(props, i)	((props)->cpus + i)
+#define simple_props_to_dlc_codec(props, i)	((props)->codecs + i)
+#define simple_props_to_dlc_platform(props, i)	((props)->platforms + i)
+
+#define simple_props_to_dai_cpu(props, i)	((props)->cpu_dai + i)
+#define simple_props_to_dai_codec(props, i)	((props)->codec_dai + i)
+#define simple_props_to_codec_conf(props, i)	((props)->codec_conf + i)
+
 #define for_each_prop_dlc_cpus(props, i, cpu)				\
 	for ((i) = 0;							\
-	     ((i) < (props)->num.cpus) && ((cpu) = &(props)->cpus[i]);	\
+	     ((i) < (props)->num.cpus) &&				\
+		     ((cpu) = simple_props_to_dlc_cpu(props, i));	\
 	     (i)++)
-#define for_each_prop_dlc_codecs(props, i, codec)				\
+#define for_each_prop_dlc_codecs(props, i, codec)			\
 	for ((i) = 0;							\
-	     ((i) < (props)->num.codecs) && ((codec) = &(props)->codecs[i]); \
+	     ((i) < (props)->num.codecs) &&				\
+		     ((codec) = simple_props_to_dlc_codec(props, i));	\
 	     (i)++)
 #define for_each_prop_dlc_platforms(props, i, platform)			\
 	for ((i) = 0;							\
-	     ((i) < (props)->num.platforms) && ((platform) = &(props)->platforms[i]); \
+	     ((i) < (props)->num.platforms) &&				\
+		     ((platform) = simple_props_to_dlc_platform(props, i)); \
 	     (i)++)
 #define for_each_prop_codec_conf(props, i, conf)			\
 	for ((i) = 0;							\
 	     ((i) < (props)->num.codecs) &&				\
 		     (props)->codec_conf &&				\
-		     ((conf) = &(props)->codec_conf[i]);		\
+		     ((conf) = simple_props_to_codec_conf(props, i));	\
 	     (i)++)
 
 #define for_each_prop_dai_cpu(props, i, cpu)				\
 	for ((i) = 0;							\
-	     ((i) < (props)->num.cpus) && ((cpu) = &(props)->cpu_dai[i]); \
+	     ((i) < (props)->num.cpus) &&				\
+		     ((cpu) = simple_props_to_dai_cpu(props, i));	\
 	     (i)++)
 #define for_each_prop_dai_codec(props, i, codec)			\
 	for ((i) = 0;							\
-	     ((i) < (props)->num.codecs) && ((codec) = &(props)->codec_dai[i]); \
+	     ((i) < (props)->num.codecs) &&				\
+		     ((codec) = simple_props_to_dai_codec(props, i));	\
 	     (i)++)
 
 struct link_info {
