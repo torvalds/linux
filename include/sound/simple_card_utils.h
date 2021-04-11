@@ -241,17 +241,14 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 		if (link->dai_fmt)
 			dev_dbg(dev, "dai format = %04x\n", link->dai_fmt);
 		if (props->adata.convert_rate)
-			dev_dbg(dev, "convert_rate = %d\n",
-				props->adata.convert_rate);
+			dev_dbg(dev, "convert_rate = %d\n", props->adata.convert_rate);
 		if (props->adata.convert_channels)
-			dev_dbg(dev, "convert_channels = %d\n",
-				props->adata.convert_channels);
+			dev_dbg(dev, "convert_channels = %d\n", props->adata.convert_channels);
 		for_each_prop_codec_conf(props, j, cnf)
 			if (cnf->name_prefix)
 				dev_dbg(dev, "name prefix = %s\n", cnf->name_prefix);
 		if (props->mclk_fs)
-			dev_dbg(dev, "mclk-fs = %d\n",
-				props->mclk_fs);
+			dev_dbg(dev, "mclk-fs = %d\n", props->mclk_fs);
 	}
 }
 #else
