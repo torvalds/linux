@@ -222,9 +222,8 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 
 		if (link->name)
 			dev_dbg(dev, "dai name = %s\n", link->name);
-
-		dev_dbg(dev, "dai format = %04x\n", link->dai_fmt);
-
+		if (link->dai_fmt)
+			dev_dbg(dev, "dai format = %04x\n", link->dai_fmt);
 		if (props->adata.convert_rate)
 			dev_dbg(dev, "convert_rate = %d\n",
 				props->adata.convert_rate);
