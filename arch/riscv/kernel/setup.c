@@ -263,8 +263,13 @@ void __init setup_arch(char **cmdline_p)
 
 	sbi_init();
 
-	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
+	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
 		protect_kernel_text_data();
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
+		protect_kernel_linear_mapping_text_rodata();
+#endif
+	}
+
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);
 #endif
