@@ -1336,7 +1336,7 @@ static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
 }
 
-static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
+static inline struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned tail;
@@ -1492,26 +1492,11 @@ static inline void req_ref_get(struct io_kiocb *req)
 	atomic_inc(&req->refs);
 }
 
-static bool io_cqring_fill_event(struct io_kiocb *req, long res,
-				 unsigned int cflags)
+static bool io_cqring_event_overflow(struct io_kiocb *req, long res,
+				     unsigned int cflags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_uring_cqe *cqe;
 
-	trace_io_uring_complete(ctx, req->user_data, res, cflags);
-
-	/*
-	 * If we can't get a cq entry, userspace overflowed the
-	 * submission (by quite a lot). Increment the overflow count in
-	 * the ring.
-	 */
-	cqe = io_get_cqring(ctx);
-	if (likely(cqe)) {
-		WRITE_ONCE(cqe->user_data, req->user_data);
-		WRITE_ONCE(cqe->res, res);
-		WRITE_ONCE(cqe->flags, cflags);
-		return true;
-	}
 	if (!atomic_read(&req->task->io_uring->in_idle)) {
 		struct io_overflow_cqe *ocqe;
 
@@ -1539,6 +1524,36 @@ overflow:
 	return false;
 }
 
+static inline bool __io_cqring_fill_event(struct io_kiocb *req, long res,
+					     unsigned int cflags)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_uring_cqe *cqe;
+
+	trace_io_uring_complete(ctx, req->user_data, res, cflags);
+
+	/*
+	 * If we can't get a cq entry, userspace overflowed the
+	 * submission (by quite a lot). Increment the overflow count in
+	 * the ring.
+	 */
+	cqe = io_get_cqring(ctx);
+	if (likely(cqe)) {
+		WRITE_ONCE(cqe->user_data, req->user_data);
+		WRITE_ONCE(cqe->res, res);
+		WRITE_ONCE(cqe->flags, cflags);
+		return true;
+	}
+	return io_cqring_event_overflow(req, res, cflags);
+}
+
+/* not as hot to bloat with inlining */
+static noinline bool io_cqring_fill_event(struct io_kiocb *req, long res,
+					  unsigned int cflags)
+{
+	return __io_cqring_fill_event(req, res, cflags);
+}
+
 static void io_req_complete_post(struct io_kiocb *req, long res,
 				 unsigned int cflags)
 {
@@ -1546,7 +1561,7 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
-	io_cqring_fill_event(req, res, cflags);
+	__io_cqring_fill_event(req, res, cflags);
 	/*
 	 * If we're the last reference to this request, add to our locked
 	 * free_list cache.
@@ -2101,7 +2116,7 @@ static void io_submit_flush_completions(struct io_comp_state *cs,
 	spin_lock_irq(&ctx->completion_lock);
 	for (i = 0; i < nr; i++) {
 		req = cs->reqs[i];
-		io_cqring_fill_event(req, req->result, req->compl.cflags);
+		__io_cqring_fill_event(req, req->result, req->compl.cflags);
 	}
 	io_commit_cqring(ctx);
 	spin_unlock_irq(&ctx->completion_lock);
@@ -2241,7 +2256,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		if (req->flags & REQ_F_BUFFER_SELECTED)
 			cflags = io_put_rw_kbuf(req);
 
-		io_cqring_fill_event(req, req->result, cflags);
+		__io_cqring_fill_event(req, req->result, cflags);
 		(*nr_events)++;
 
 		if (req_ref_put_and_test(req))
