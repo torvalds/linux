@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -399,7 +399,6 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	while (total_len) {
 		/* this is the data left for this subframe */
 		unsigned int data_left = min_t(unsigned int, mss, total_len);
-		struct sk_buff *csum_skb = NULL;
 		unsigned int tb_len;
 		dma_addr_t tb_phys;
 		u8 *subf_hdrs_start = hdr_page->pos;
@@ -430,10 +429,8 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		tb_len = hdr_page->pos - start_hdr;
 		tb_phys = dma_map_single(trans->dev, start_hdr,
 					 tb_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
-			dev_kfree_skb(csum_skb);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			goto out_err;
-		}
 		/*
 		 * No need for _with_wa, this is from the TSO page and
 		 * we leave some space at the end of it so can't hit
@@ -458,10 +455,8 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 			ret = iwl_txq_gen2_set_tb_with_wa(trans, skb, tfd,
 							  tb_phys, tso.data,
 							  tb_len, NULL);
-			if (ret) {
-				dev_kfree_skb(csum_skb);
+			if (ret)
 				goto out_err;
-			}
 
 			data_left -= tb_len;
 			tso_build_data(skb, &tso, tb_len);

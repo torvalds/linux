@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1350,7 +1350,6 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		/* this is the data left for this subframe */
 		unsigned int data_left =
 			min_t(unsigned int, mss, total_len);
-		struct sk_buff *csum_skb = NULL;
 		unsigned int hdr_tb_len;
 		dma_addr_t hdr_tb_phys;
 		u8 *subf_hdrs_start = hdr_page->pos;
@@ -1381,10 +1380,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		hdr_tb_len = hdr_page->pos - start_hdr;
 		hdr_tb_phys = dma_map_single(trans->dev, start_hdr,
 					     hdr_tb_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys))) {
-			dev_kfree_skb(csum_skb);
+		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys)))
 			return -EINVAL;
-		}
 		iwl_pcie_txq_build_tfd(trans, txq, hdr_tb_phys,
 				       hdr_tb_len, false);
 		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
@@ -1403,10 +1400,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 
 			tb_phys = dma_map_single(trans->dev, tso.data,
 						 size, DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
-				dev_kfree_skb(csum_skb);
+			if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 				return -EINVAL;
-			}
 
 			iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
 					       size, false);
