@@ -28,6 +28,8 @@
 	((unsigned int)(info - state->slot_info))
 #define SLOT_QUEUE_INDEX_FROM_POS(pos) \
 	((int)((unsigned int)(pos) / VCHIQ_SLOT_SIZE))
+#define SLOT_QUEUE_INDEX_FROM_POS_MASKED(pos) \
+	(SLOT_QUEUE_INDEX_FROM_POS(pos) & VCHIQ_SLOT_QUEUE_MASK)
 
 #define BULK_INDEX(x) (x & (VCHIQ_NUM_SERVICE_BULKS - 1))
 
@@ -613,8 +615,7 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 		}
 
 		slot_index = local->slot_queue[
-			SLOT_QUEUE_INDEX_FROM_POS(tx_pos) &
-			VCHIQ_SLOT_QUEUE_MASK];
+			SLOT_QUEUE_INDEX_FROM_POS_MASKED(tx_pos)];
 		state->tx_data =
 			(char *)SLOT_DATA_FROM_INDEX(state, slot_index);
 	}
@@ -1567,8 +1568,7 @@ parse_rx_slots(struct vchiq_state *state)
 
 			WARN_ON(!((state->rx_pos & VCHIQ_SLOT_MASK) == 0));
 			rx_index = remote->slot_queue[
-				SLOT_QUEUE_INDEX_FROM_POS(state->rx_pos) &
-				VCHIQ_SLOT_QUEUE_MASK];
+				SLOT_QUEUE_INDEX_FROM_POS_MASKED(state->rx_pos)];
 			state->rx_data = (char *)SLOT_DATA_FROM_INDEX(state,
 				rx_index);
 			state->rx_info = SLOT_INFO_FROM_INDEX(state, rx_index);
