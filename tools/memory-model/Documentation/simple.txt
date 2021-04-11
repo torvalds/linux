@@ -189,7 +189,6 @@ Additional information may be found in these files:
 
 Documentation/atomic_t.txt
 Documentation/atomic_bitops.txt
-Documentation/core-api/atomic_ops.rst
 Documentation/core-api/refcount-vs-atomic.rst
 
 Reading code using these primitives is often also quite helpful.
