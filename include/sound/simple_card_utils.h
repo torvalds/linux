@@ -215,8 +215,10 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 
 		dev_dbg(dev, "DAI%d\n", i);
 
+		dev_dbg(dev, "cpu num = %d\n", link->num_cpus);
 		for_each_prop_dai_cpu(props, j, dai)
 			asoc_simple_debug_dai(priv, "cpu", dai);
+		dev_dbg(dev, "codec num = %d\n", link->num_codecs);
 		for_each_prop_dai_codec(props, j, dai)
 			asoc_simple_debug_dai(priv, "codec", dai);
 
