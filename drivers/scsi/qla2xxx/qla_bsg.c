@@ -2585,8 +2585,8 @@ qla2x00_get_host_stats(struct bsg_job *bsg_job)
 
 	data = kzalloc(response_len, GFP_KERNEL);
 	if (!data) {
-		kfree(req_data);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto host_stat_out;
 	}
 
 	ret = qla2xxx_get_ini_stats(fc_bsg_to_shost(bsg_job), req_data->stat_type,
