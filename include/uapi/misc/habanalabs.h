@@ -297,6 +297,7 @@ enum hl_device_status {
 #define HL_INFO_SYNC_MANAGER		14
 #define HL_INFO_TOTAL_ENERGY		15
 #define HL_INFO_PLL_FREQUENCY		16
+#define HL_INFO_POWER			17
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -408,6 +409,14 @@ struct hl_info_energy {
 
 struct hl_pll_frequency_info {
 	__u16 output[HL_PLL_NUM_OUTPUTS];
+};
+
+/**
+ * struct hl_power_info - power information
+ * @power: power consumption
+ */
+struct hl_power_info {
+	__u64 power;
 };
 
 /**
@@ -621,6 +630,7 @@ struct hl_cs_chunk {
 #define HL_CS_FLAGS_STAGED_SUBMISSION		0x40
 #define HL_CS_FLAGS_STAGED_SUBMISSION_FIRST	0x80
 #define HL_CS_FLAGS_STAGED_SUBMISSION_LAST	0x100
+#define HL_CS_FLAGS_CUSTOM_TIMEOUT		0x200
 
 #define HL_CS_STATUS_SUCCESS		0
 
@@ -634,17 +644,10 @@ struct hl_cs_in {
 	/* holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
 
-	union {
-		/* this holds address of array of hl_cs_chunk for store phase -
-		 * Currently not in use
-		 */
-		__u64 chunks_store;
-
-		/* Sequence number of a staged submission CS
-		 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set
-		 */
-		__u64 seq;
-	};
+	/* Sequence number of a staged submission CS
+	 * valid only if HL_CS_FLAGS_STAGED_SUBMISSION is set
+	 */
+	__u64 seq;
 
 	/* Number of chunks in restore phase array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
@@ -656,8 +659,10 @@ struct hl_cs_in {
 	 */
 	__u32 num_chunks_execute;
 
-	/* Number of chunks in restore phase array - Currently not in use */
-	__u32 num_chunks_store;
+	/* timeout in seconds - valid only if HL_CS_FLAGS_CUSTOM_TIMEOUT
+	 * is set
+	 */
+	__u32 timeout;
 
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;
@@ -682,14 +687,46 @@ union hl_cs_args {
 	struct hl_cs_out out;
 };
 
+#define HL_WAIT_CS_FLAGS_INTERRUPT	0x2
+#define HL_WAIT_CS_FLAGS_INTERRUPT_MASK 0xFFF00000
+
 struct hl_wait_cs_in {
-	/* Command submission sequence number */
-	__u64 seq;
-	/* Absolute timeout to wait in microseconds */
-	__u64 timeout_us;
+	union {
+		struct {
+			/* Command submission sequence number */
+			__u64 seq;
+			/* Absolute timeout to wait for command submission
+			 * in microseconds
+			 */
+			__u64 timeout_us;
+		};
+
+		struct {
+			/* User address for completion comparison.
+			 * upon interrupt, driver will compare the value pointed
+			 * by this address with the supplied target value.
+			 * in order not to perform any comparison, set address
+			 * to all 1s.
+			 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
+			 */
+			__u64 addr;
+			/* Target value for completion comparison */
+			__u32 target;
+			/* Absolute timeout to wait for interrupt
+			 * in microseconds
+			 */
+			__u32 interrupt_timeout_us;
+		};
+	};
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-	__u32 pad;
+	/* HL_WAIT_CS_FLAGS_*
+	 * If HL_WAIT_CS_FLAGS_INTERRUPT is set, this field should include
+	 * interrupt id according to HL_WAIT_CS_FLAGS_INTERRUPT_MASK, in order
+	 * not to specify an interrupt id ,set mask to all 1s.
+	 */
+	__u32 flags;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
@@ -999,8 +1036,8 @@ struct hl_debug_args {
  * Each JOB will be enqueued on a specific queue, according to the user's input.
  * There can be more then one JOB per queue.
  *
- * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
- * a second set is for "execution" phase and a third set is for "store" phase.
+ * The CS IOCTL will receive two sets of JOBS. One set is for "restore" phase
+ * and a second set is for "execution" phase.
  * The JOBS on the "restore" phase are enqueued only after context-switch
  * (or if its the first CS for this context). The user can also order the
  * driver to run the "restore" phase explicitly
