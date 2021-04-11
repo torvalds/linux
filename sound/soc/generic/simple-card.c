@@ -148,11 +148,11 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		dai = dai_props->cpu_dai;
 
-		ret = asoc_simple_parse_cpu(np, dai_link, &is_single_links);
+		ret = asoc_simple_parse_dai(np, dai_link->cpus, &is_single_links);
 		if (ret)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk_cpu(dev, np, dai_link, dai);
+		ret = asoc_simple_parse_clk(dev, np, dai, dai_link->cpus);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -176,11 +176,11 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai   = dai_props->codec_dai;
 		cconf = dai_props->codec_conf;
 
-		ret = asoc_simple_parse_codec(np, dai_link);
+		ret = asoc_simple_parse_dai(np, dai_link->codecs, NULL);
 		if (ret < 0)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk_codec(dev, np, dai_link, dai);
+		ret = asoc_simple_parse_clk(dev, np, dai, dai_link->codecs);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -260,15 +260,15 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 
 	simple_parse_mclk_fs(top, cpu, codec, dai_props, prefix);
 
-	ret = asoc_simple_parse_cpu(cpu, dai_link, &single_cpu);
+	ret = asoc_simple_parse_dai(cpu, dai_link->cpus, &single_cpu);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = asoc_simple_parse_codec(codec, dai_link);
+	ret = asoc_simple_parse_dai(codec, dai_link->codecs, NULL);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = asoc_simple_parse_platform(plat, dai_link);
+	ret = asoc_simple_parse_dai(plat, dai_link->platforms, NULL);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -280,11 +280,11 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = asoc_simple_parse_clk_cpu(dev, cpu, dai_link, cpu_dai);
+	ret = asoc_simple_parse_clk(dev, cpu, cpu_dai, dai_link->cpus);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = asoc_simple_parse_clk_codec(dev, codec, dai_link, codec_dai);
+	ret = asoc_simple_parse_clk(dev, codec, codec_dai, dai_link->codecs);
 	if (ret < 0)
 		goto dai_link_of_err;
 

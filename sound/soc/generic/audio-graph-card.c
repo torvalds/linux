@@ -247,11 +247,11 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		dai = dai_props->cpu_dai;
 
-		ret = asoc_simple_parse_cpu(ep, dai_link, &is_single_links);
+		ret = asoc_simple_parse_dai(ep, dai_link->cpus, &is_single_links);
 		if (ret)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk_cpu(dev, ep, dai_link, dai);
+		ret = asoc_simple_parse_clk(dev, ep, dai, dai_link->cpus);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -290,11 +290,11 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai =   dai_props->codec_dai;
 		cconf = dai_props->codec_conf;
 
-		ret = asoc_simple_parse_codec(ep, dai_link);
+		ret = asoc_simple_parse_dai(ep, dai_link->codecs, NULL);
 		if (ret < 0)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk_codec(dev, ep, dai_link, dai);
+		ret = asoc_simple_parse_clk(dev, ep, dai, dai_link->codecs);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -371,11 +371,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_cpu(cpu_ep, dai_link, &single_cpu);
+	ret = asoc_simple_parse_dai(cpu_ep, dai_link->cpus, &single_cpu);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_codec(codec_ep, dai_link);
+	ret = asoc_simple_parse_dai(codec_ep, dai_link->codecs, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -387,11 +387,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk_cpu(dev, cpu_ep, dai_link, cpu_dai);
+	ret = asoc_simple_parse_clk(dev, cpu_ep, cpu_dai, dai_link->cpus);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk_codec(dev, codec_ep, dai_link, codec_dai);
+	ret = asoc_simple_parse_clk(dev, codec_ep, codec_dai, dai_link->codecs);
 	if (ret < 0)
 		return ret;
 
