@@ -14,30 +14,6 @@
 #include <linux/dmapool.h>
 
 /*
- * iwl_txq_gen2_tx_stop - Stop all Tx DMA channels
- */
-void iwl_txq_gen2_tx_stop(struct iwl_trans *trans)
-{
-	int txq_id;
-
-	/*
-	 * This function can be called before the op_mode disabled the
-	 * queues. This happens when we have an rfkill interrupt.
-	 * Since we stop Tx altogether - mark the queues as stopped.
-	 */
-	memset(trans->txqs.queue_stopped, 0,
-	       sizeof(trans->txqs.queue_stopped));
-	memset(trans->txqs.queue_used, 0, sizeof(trans->txqs.queue_used));
-
-	/* Unmap DMA from host system and free skb's */
-	for (txq_id = 0; txq_id < ARRAY_SIZE(trans->txqs.txq); txq_id++) {
-		if (!trans->txqs.txq[txq_id])
-			continue;
-		iwl_txq_gen2_unmap(trans, txq_id);
-	}
-}
-
-/*
  * iwl_txq_update_byte_tbl - Set up entry in Tx byte-count array
  */
 static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans *trans,
@@ -1180,6 +1156,12 @@ static int iwl_txq_alloc_response(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	if (test_and_set_bit(qid, trans->txqs.queue_used)) {
 		WARN_ONCE(1, "queue %d already used", qid);
+		ret = -EIO;
+		goto error_free_resp;
+	}
+
+	if (WARN_ONCE(trans->txqs.txq[qid],
+		      "queue %d already allocated\n", qid)) {
 		ret = -EIO;
 		goto error_free_resp;
 	}
