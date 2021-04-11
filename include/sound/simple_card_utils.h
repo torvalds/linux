@@ -74,6 +74,34 @@ struct asoc_simple_priv {
 #define simple_priv_to_dev(priv)	(simple_priv_to_card(priv)->dev)
 #define simple_priv_to_link(priv, i)	(simple_priv_to_card(priv)->dai_link + (i))
 
+#define for_each_prop_dlc_cpus(props, i, cpu)				\
+	for ((i) = 0;							\
+	     ((i) < (props)->num.cpus) && ((cpu) = &(props)->cpus[i]);	\
+	     (i)++)
+#define for_each_prop_dlc_codecs(props, i, codec)				\
+	for ((i) = 0;							\
+	     ((i) < (props)->num.codecs) && ((codec) = &(props)->codecs[i]); \
+	     (i)++)
+#define for_each_prop_dlc_platforms(props, i, platform)			\
+	for ((i) = 0;							\
+	     ((i) < (props)->num.platforms) && ((platform) = &(props)->platforms[i]); \
+	     (i)++)
+#define for_each_prop_codec_conf(props, i, conf)			\
+	for ((i) = 0;							\
+	     ((i) < (props)->num.codecs) &&				\
+		     (props)->codec_conf &&				\
+		     ((conf) = &(props)->codec_conf[i]);		\
+	     (i)++)
+
+#define for_each_prop_dai_cpu(props, i, cpu)				\
+	for ((i) = 0;							\
+	     ((i) < (props)->num.cpus) && ((cpu) = &(props)->cpu_dai[i]); \
+	     (i)++)
+#define for_each_prop_dai_codec(props, i, codec)			\
+	for ((i) = 0;							\
+	     ((i) < (props)->num.codecs) && ((codec) = &(props)->codec_dai[i]); \
+	     (i)++)
+
 struct link_info {
 	int link; /* number of link */
 	int cpu;  /* turn for CPU / Codec */
@@ -192,11 +220,16 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 	for (i = 0; i < card->num_links; i++) {
 		struct simple_dai_props *props = simple_priv_to_props(priv, i);
 		struct snd_soc_dai_link *link = simple_priv_to_link(priv, i);
+		struct asoc_simple_dai *dai;
+		struct snd_soc_codec_conf *cnf;
+		int j;
 
 		dev_dbg(dev, "DAI%d\n", i);
 
-		asoc_simple_debug_dai(priv, "cpu", props->cpu_dai);
-		asoc_simple_debug_dai(priv, "codec", props->codec_dai);
+		for_each_prop_dai_cpu(props, j, dai)
+			asoc_simple_debug_dai(priv, "cpu", dai);
+		for_each_prop_dai_codec(props, j, dai)
+			asoc_simple_debug_dai(priv, "codec", dai);
 
 		if (link->name)
 			dev_dbg(dev, "dai name = %s\n", link->name);
@@ -209,9 +242,9 @@ static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
 		if (props->adata.convert_channels)
 			dev_dbg(dev, "convert_channels = %d\n",
 				props->adata.convert_channels);
-		if (props->codec_conf && props->codec_conf->name_prefix)
-			dev_dbg(dev, "name prefix = %s\n",
-				props->codec_conf->name_prefix);
+		for_each_prop_codec_conf(props, j, cnf)
+			if (cnf->name_prefix)
+				dev_dbg(dev, "name prefix = %s\n", cnf->name_prefix);
 		if (props->mclk_fs)
 			dev_dbg(dev, "mclk-fs = %d\n",
 				props->mclk_fs);
