@@ -649,8 +649,10 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dai_link[i].cpus	= dlcs;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= li->num[i].cpus;
+			dai_props[i].cpu_dai	= dais;
 
 			dlcs += li->num[i].cpus;
+			dais += li->num[i].cpus;
 		} else {
 			/* DPCM Be's CPU = dummy */
 			dai_props[i].cpus	=
@@ -665,8 +667,16 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dai_link[i].codecs	= dlcs;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= li->num[i].codecs;
+			dai_props[i].codec_dai	= dais;
 
 			dlcs += li->num[i].codecs;
+			dais += li->num[i].codecs;
+
+			if (!li->num[i].cpus) {
+				/* DPCM Be's Codec */
+				dai_props[i].codec_conf = cconf;
+				cconf += li->num[i].codecs;
+			}
 		} else {
 			/* DPCM Fe's Codec = dummy */
 			dai_props[i].codecs	=

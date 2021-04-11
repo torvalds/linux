@@ -146,8 +146,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
 
-		dai =
-		dai_props->cpu_dai	= &priv->dais[li->dais++];
+		dai = dai_props->cpu_dai;
 
 		ret = asoc_simple_parse_cpu(np, dai_link, &is_single_links);
 		if (ret)
@@ -174,11 +173,8 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->no_pcm		= 1;
 		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
 
-		dai =
-		dai_props->codec_dai	= &priv->dais[li->dais++];
-
-		cconf =
-		dai_props->codec_conf	= &priv->codec_conf[li->conf++];
+		dai   = dai_props->codec_dai;
+		cconf = dai_props->codec_conf;
 
 		ret = asoc_simple_parse_codec(np, dai_link);
 		if (ret < 0)
@@ -234,8 +230,8 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct asoc_simple_dai *cpu_dai;
-	struct asoc_simple_dai *codec_dai;
+	struct asoc_simple_dai *cpu_dai	= dai_props->cpu_dai;
+	struct asoc_simple_dai *codec_dai = dai_props->codec_dai;
 	struct device_node *top = dev->of_node;
 	struct device_node *cpu = NULL;
 	struct device_node *node = NULL;
@@ -256,11 +252,6 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 
 	snprintf(prop, sizeof(prop), "%splat", prefix);
 	plat = of_get_child_by_name(node, prop);
-
-	cpu_dai			=
-	dai_props->cpu_dai	= &priv->dais[li->dais++];
-	codec_dai		=
-	dai_props->codec_dai	= &priv->dais[li->dais++];
 
 	ret = asoc_simple_parse_daifmt(dev, node, codec,
 				       prefix, &dai_link->dai_fmt);
@@ -670,8 +661,6 @@ static int asoc_simple_probe(struct platform_device *pdev)
 		struct snd_soc_dai_link *dai_link = priv->dai_link;
 		struct simple_dai_props *dai_props = priv->dai_props;
 
-		int dai_idx = 0;
-
 		cinfo = dev->platform_data;
 		if (!cinfo) {
 			dev_err(dev, "no info for asoc-simple-card\n");
@@ -686,9 +675,6 @@ static int asoc_simple_probe(struct platform_device *pdev)
 			dev_err(dev, "insufficient asoc_simple_card_info settings\n");
 			return -EINVAL;
 		}
-
-		dai_props->cpu_dai	= &priv->dais[dai_idx++];
-		dai_props->codec_dai	= &priv->dais[dai_idx++];
 
 		cpus			= dai_link->cpus;
 		cpus->dai_name		= cinfo->cpu_dai.name;
