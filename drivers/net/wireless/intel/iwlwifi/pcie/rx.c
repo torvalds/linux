@@ -1023,6 +1023,9 @@ static int iwl_pcie_napi_poll(struct napi_struct *napi, int budget)
 
 	ret = iwl_pcie_rx_handle(trans, rxq->id, budget);
 
+	IWL_DEBUG_ISR(trans, "[%d] handled %d, budget %d\n",
+		      rxq->id, ret, budget);
+
 	if (ret < budget) {
 		spin_lock(&trans_pcie->irq_lock);
 		if (test_bit(STATUS_INT_ENABLED, &trans->status))
@@ -1636,10 +1639,13 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	if (WARN_ON(entry->entry >= trans->num_rx_queues))
 		return IRQ_NONE;
 
-	if (WARN_ONCE(!rxq, "Got MSI-X interrupt before we have Rx queues"))
+	if (WARN_ONCE(!rxq,
+		      "[%d] Got MSI-X interrupt before we have Rx queues",
+		      entry->entry))
 		return IRQ_NONE;
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+	IWL_DEBUG_ISR(trans, "[%d] Got interrupt\n", entry->entry);
 
 	local_bh_disable();
 	if (napi_schedule_prep(&rxq->napi))
@@ -2203,8 +2209,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 	if (iwl_have_debug_level(IWL_DL_ISR)) {
 		IWL_DEBUG_ISR(trans,
-			      "ISR inta_fh 0x%08x, enabled (sw) 0x%08x (hw) 0x%08x\n",
-			      inta_fh, trans_pcie->fh_mask,
+			      "ISR[%d] inta_fh 0x%08x, enabled (sw) 0x%08x (hw) 0x%08x\n",
+			      entry->entry, inta_fh, trans_pcie->fh_mask,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
 		if (inta_fh & ~trans_pcie->fh_mask)
 			IWL_DEBUG_ISR(trans,
@@ -2259,8 +2265,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	/* After checking FH register check HW register */
 	if (iwl_have_debug_level(IWL_DL_ISR)) {
 		IWL_DEBUG_ISR(trans,
-			      "ISR inta_hw 0x%08x, enabled (sw) 0x%08x (hw) 0x%08x\n",
-			      inta_hw, trans_pcie->hw_mask,
+			      "ISR[%d] inta_hw 0x%08x, enabled (sw) 0x%08x (hw) 0x%08x\n",
+			      entry->entry, inta_hw, trans_pcie->hw_mask,
 			      iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD));
 		if (inta_hw & ~trans_pcie->hw_mask)
 			IWL_DEBUG_ISR(trans,

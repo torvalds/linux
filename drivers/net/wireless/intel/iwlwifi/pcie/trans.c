@@ -1604,6 +1604,11 @@ iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 	} else {
 		trans_pcie->trans->num_rx_queues = num_irqs - 1;
 	}
+
+	IWL_DEBUG_INFO(trans,
+		       "MSI-X enabled with rx queues %d, vec mask 0x%x\n",
+		       trans_pcie->trans->num_rx_queues, trans_pcie->shared_vec_mask);
+
 	WARN_ON(trans_pcie->trans->num_rx_queues > IWL_MAX_RX_HW_QUEUES);
 
 	trans_pcie->alloc_vecs = num_irqs;
