@@ -591,7 +591,6 @@ struct iwl_mvm_tcm {
 		enum iwl_mvm_traffic_load global_load;
 		bool low_latency[NUM_MAC_INDEX_DRIVER];
 		bool change[NUM_MAC_INDEX_DRIVER];
-		bool global_change;
 	} result;
 };
 
