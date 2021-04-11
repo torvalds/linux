@@ -8306,17 +8306,8 @@ done:
 
 static int io_buffers_map_alloc(struct io_ring_ctx *ctx, unsigned int nr_args)
 {
-	if (ctx->user_bufs)
-		return -EBUSY;
-	if (!nr_args || nr_args > UIO_MAXIOV)
-		return -EINVAL;
-
-	ctx->user_bufs = kcalloc(nr_args, sizeof(struct io_mapped_ubuf),
-					GFP_KERNEL);
-	if (!ctx->user_bufs)
-		return -ENOMEM;
-
-	return 0;
+	ctx->user_bufs = kcalloc(nr_args, sizeof(*ctx->user_bufs), GFP_KERNEL);
+	return ctx->user_bufs ? 0 : -ENOMEM;
 }
 
 static int io_buffer_validate(struct iovec *iov)
@@ -8348,26 +8339,26 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	struct iovec iov;
 	struct page *last_hpage = NULL;
 
+	if (ctx->user_bufs)
+		return -EBUSY;
+	if (!nr_args || nr_args > UIO_MAXIOV)
+		return -EINVAL;
 	ret = io_buffers_map_alloc(ctx, nr_args);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nr_args; i++) {
+	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
 		struct io_mapped_ubuf *imu = &ctx->user_bufs[i];
 
 		ret = io_copy_iov(ctx, &iov, arg, i);
 		if (ret)
 			break;
-
 		ret = io_buffer_validate(&iov);
 		if (ret)
 			break;
-
 		ret = io_sqe_buffer_register(ctx, &iov, imu, &last_hpage);
 		if (ret)
 			break;
-
-		ctx->nr_user_bufs++;
 	}
 
 	if (ret)
