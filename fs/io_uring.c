@@ -8920,13 +8920,10 @@ static void io_uring_clean_tctx(struct io_uring_task *tctx)
 	}
 }
 
-static s64 tctx_inflight_tracked(struct io_uring_task *tctx)
+static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 {
-	return atomic_read(&tctx->inflight_tracked);
-}
-
-static s64 tctx_inflight(struct io_uring_task *tctx)
-{
+	if (tracked)
+		return atomic_read(&tctx->inflight_tracked);
 	return percpu_counter_sum(&tctx->inflight);
 }
 
@@ -8993,7 +8990,7 @@ static void io_uring_cancel_sqpoll(struct io_ring_ctx *ctx)
 	atomic_inc(&tctx->in_idle);
 	do {
 		/* read completions before cancelations */
-		inflight = tctx_inflight(tctx);
+		inflight = tctx_inflight(tctx, false);
 		if (!inflight)
 			break;
 		io_uring_try_cancel_requests(ctx, current, NULL);
@@ -9004,43 +9001,18 @@ static void io_uring_cancel_sqpoll(struct io_ring_ctx *ctx)
 		 * avoids a race where a completion comes in before we did
 		 * prepare_to_wait().
 		 */
-		if (inflight == tctx_inflight(tctx))
+		if (inflight == tctx_inflight(tctx, false))
 			schedule();
 		finish_wait(&tctx->wait, &wait);
 	} while (1);
 	atomic_dec(&tctx->in_idle);
-}
-
-void __io_uring_files_cancel(struct files_struct *files)
-{
-	struct io_uring_task *tctx = current->io_uring;
-	DEFINE_WAIT(wait);
-	s64 inflight;
-
-	/* make sure overflow events are dropped */
-	atomic_inc(&tctx->in_idle);
-	do {
-		/* read completions before cancelations */
-		inflight = tctx_inflight_tracked(tctx);
-		if (!inflight)
-			break;
-		io_uring_try_cancel(files);
-
-		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
-		if (inflight == tctx_inflight_tracked(tctx))
-			schedule();
-		finish_wait(&tctx->wait, &wait);
-	} while (1);
-	atomic_dec(&tctx->in_idle);
-
-	io_uring_clean_tctx(tctx);
 }
 
 /*
  * Find any io_uring fd that this task has registered or done IO on, and cancel
  * requests.
  */
-void __io_uring_task_cancel(void)
+void __io_uring_cancel(struct files_struct *files)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	DEFINE_WAIT(wait);
@@ -9048,15 +9020,14 @@ void __io_uring_task_cancel(void)
 
 	/* make sure overflow events are dropped */
 	atomic_inc(&tctx->in_idle);
-	__io_uring_files_cancel(NULL);
+	io_uring_try_cancel(files);
 
 	do {
 		/* read completions before cancelations */
-		inflight = tctx_inflight(tctx);
+		inflight = tctx_inflight(tctx, !!files);
 		if (!inflight)
 			break;
-		io_uring_try_cancel(NULL);
-
+		io_uring_try_cancel(files);
 		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
 
 		/*
@@ -9064,16 +9035,17 @@ void __io_uring_task_cancel(void)
 		 * avoids a race where a completion comes in before we did
 		 * prepare_to_wait().
 		 */
-		if (inflight == tctx_inflight(tctx))
+		if (inflight == tctx_inflight(tctx, !!files))
 			schedule();
 		finish_wait(&tctx->wait, &wait);
 	} while (1);
-
 	atomic_dec(&tctx->in_idle);
 
 	io_uring_clean_tctx(tctx);
-	/* all current's requests should be gone, we can kill tctx */
-	__io_uring_free(current);
+	if (!files) {
+		/* for exec all current's requests should be gone, kill tctx */
+		__io_uring_free(current);
+	}
 }
 
 static void *io_uring_validate_mmap_request(struct file *file,
