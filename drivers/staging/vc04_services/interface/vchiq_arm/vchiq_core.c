@@ -2525,24 +2525,27 @@ vchiq_open_service_internal(struct vchiq_service *service, int client_id)
 			       &payload,
 			       sizeof(payload),
 			       QMFLAGS_IS_BLOCKING);
-	if (status == VCHIQ_SUCCESS) {
-		/* Wait for the ACK/NAK */
-		if (wait_for_completion_interruptible(&service->remove_event)) {
-			status = VCHIQ_RETRY;
-			vchiq_release_service_internal(service);
-		} else if ((service->srvstate != VCHIQ_SRVSTATE_OPEN) &&
-			   (service->srvstate != VCHIQ_SRVSTATE_OPENSYNC)) {
-			if (service->srvstate != VCHIQ_SRVSTATE_CLOSEWAIT)
-				vchiq_log_error(vchiq_core_log_level,
-						"%d: osi - srvstate = %s (ref %u)",
-						service->state->id,
-						srvstate_names[service->srvstate],
-						kref_read(&service->ref_count));
-			status = VCHIQ_ERROR;
-			VCHIQ_SERVICE_STATS_INC(service, error_count);
-			vchiq_release_service_internal(service);
-		}
+
+	if (status != VCHIQ_SUCCESS)
+		return status;
+
+	/* Wait for the ACK/NAK */
+	if (wait_for_completion_interruptible(&service->remove_event)) {
+		status = VCHIQ_RETRY;
+		vchiq_release_service_internal(service);
+	} else if ((service->srvstate != VCHIQ_SRVSTATE_OPEN) &&
+		   (service->srvstate != VCHIQ_SRVSTATE_OPENSYNC)) {
+		if (service->srvstate != VCHIQ_SRVSTATE_CLOSEWAIT)
+			vchiq_log_error(vchiq_core_log_level,
+					"%d: osi - srvstate = %s (ref %u)",
+					service->state->id,
+					srvstate_names[service->srvstate],
+					kref_read(&service->ref_count));
+		status = VCHIQ_ERROR;
+		VCHIQ_SERVICE_STATS_INC(service, error_count);
+		vchiq_release_service_internal(service);
 	}
+
 	return status;
 }
 
@@ -3359,74 +3362,68 @@ vchiq_set_service_option(unsigned int handle,
 	enum vchiq_status status = VCHIQ_ERROR;
 	struct vchiq_service_quota *quota;
 
-	if (service) {
-		switch (option) {
-		case VCHIQ_SERVICE_OPTION_AUTOCLOSE:
-			service->auto_close = value;
-			status = VCHIQ_SUCCESS;
-			break;
+	if (!service)
+		return VCHIQ_ERROR;
 
-		case VCHIQ_SERVICE_OPTION_SLOT_QUOTA:
-			quota = &service->state->service_quotas[
-					service->localport];
-			if (value == 0)
-				value = service->state->default_slot_quota;
+	switch (option) {
+	case VCHIQ_SERVICE_OPTION_AUTOCLOSE:
+		service->auto_close = value;
+		status = VCHIQ_SUCCESS;
+		break;
+
+	case VCHIQ_SERVICE_OPTION_SLOT_QUOTA:
+		quota = &service->state->service_quotas[service->localport];
+		if (value == 0)
+			value = service->state->default_slot_quota;
+		if ((value >= quota->slot_use_count) &&
+		    (value < (unsigned short)~0)) {
+			quota->slot_quota = value;
 			if ((value >= quota->slot_use_count) &&
-				 (value < (unsigned short)~0)) {
-				quota->slot_quota = value;
-				if ((value >= quota->slot_use_count) &&
-					(quota->message_quota >=
-					 quota->message_use_count)) {
-					/*
-					 * Signal the service that it may have
-					 * dropped below its quota
-					 */
-					complete(&quota->quota_event);
-				}
-				status = VCHIQ_SUCCESS;
-			}
-			break;
-
-		case VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA:
-			quota = &service->state->service_quotas[
-					service->localport];
-			if (value == 0)
-				value = service->state->default_message_quota;
-			if ((value >= quota->message_use_count) &&
-				 (value < (unsigned short)~0)) {
-				quota->message_quota = value;
-				if ((value >=
-					quota->message_use_count) &&
-					(quota->slot_quota >=
-					quota->slot_use_count))
-					/*
-					 * Signal the service that it may have
-					 * dropped below its quota
-					 */
-					complete(&quota->quota_event);
-				status = VCHIQ_SUCCESS;
-			}
-			break;
-
-		case VCHIQ_SERVICE_OPTION_SYNCHRONOUS:
-			if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
-				(service->srvstate ==
-				VCHIQ_SRVSTATE_LISTENING)) {
-				service->sync = value;
-				status = VCHIQ_SUCCESS;
-			}
-			break;
-
-		case VCHIQ_SERVICE_OPTION_TRACE:
-			service->trace = value;
+			    (quota->message_quota >= quota->message_use_count))
+				/*
+				 * Signal the service that it may have
+				 * dropped below its quota
+				 */
+				complete(&quota->quota_event);
 			status = VCHIQ_SUCCESS;
-			break;
-
-		default:
-			break;
 		}
-		unlock_service(service);
+		break;
+
+	case VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA:
+		quota = &service->state->service_quotas[service->localport];
+		if (value == 0)
+			value = service->state->default_message_quota;
+		if ((value >= quota->message_use_count) &&
+		    (value < (unsigned short)~0)) {
+			quota->message_quota = value;
+			if ((value >= quota->message_use_count) &&
+			    (quota->slot_quota >= quota->slot_use_count))
+				/*
+				 * Signal the service that it may have
+				 * dropped below its quota
+				 */
+				complete(&quota->quota_event);
+			status = VCHIQ_SUCCESS;
+		}
+		break;
+
+	case VCHIQ_SERVICE_OPTION_SYNCHRONOUS:
+		if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
+		    (service->srvstate == VCHIQ_SRVSTATE_LISTENING)) {
+			service->sync = value;
+			status = VCHIQ_SUCCESS;
+		}
+		break;
+
+	case VCHIQ_SERVICE_OPTION_TRACE:
+		service->trace = value;
+		status = VCHIQ_SUCCESS;
+		break;
+
+	default:
+		break;
 	}
+	unlock_service(service);
 
 	return status;
 }
