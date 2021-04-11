@@ -451,11 +451,15 @@ EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 int asoc_simple_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
-	int i;
+	struct snd_soc_dai_link_component *cpu;
+	struct snd_soc_dai_link_component *codec;
+	int i, j;
 
 	for_each_card_prelinks(card, i, dai_link) {
-		of_node_put(dai_link->cpus->of_node);
-		of_node_put(dai_link->codecs->of_node);
+		for_each_link_cpus(dai_link, j, cpu)
+			of_node_put(cpu->of_node);
+		for_each_link_codecs(dai_link, j, codec)
+			of_node_put(codec->of_node);
 	}
 	return 0;
 }
