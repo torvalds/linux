@@ -57,11 +57,11 @@
 
 /* ifdef UNDER_MPTEST */
 #define	WIFI_MP_STATE							0x00010000
-#define	WIFI_MP_CTX_BACKGROUND				0x00020000	/*  in continous tx background */
-#define	WIFI_MP_CTX_ST						0x00040000	/*  in continous tx with single-tone */
-#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	/*  pending in continous tx background due to out of skb */
-#define	WIFI_MP_CTX_CCK_HW					0x00100000	/*  in continous tx */
-#define	WIFI_MP_CTX_CCK_CS					0x00200000	/*  in continous tx with carrier suppression */
+#define	WIFI_MP_CTX_BACKGROUND				0x00020000	/*  in continuous tx background */
+#define	WIFI_MP_CTX_ST						0x00040000	/*  in continuous tx with single-tone */
+#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	/*  pending in continuous tx background due to out of skb */
+#define	WIFI_MP_CTX_CCK_HW					0x00100000	/*  in continuous tx */
+#define	WIFI_MP_CTX_CCK_CS					0x00200000	/*  in continuous tx with carrier suppression */
 #define   WIFI_MP_LPBK_STATE					0x00400000
 /* endif */
 
@@ -168,7 +168,7 @@ struct tx_provdisc_req_info {
 	u8 			benable;					/* 	This provision discovery request frame is trigger to send or not */
 };
 
-struct rx_provdisc_req_info {	/* When peer device issue prov_disc_req first, we should store the following informations */
+struct rx_provdisc_req_info {	/* When peer device issue prov_disc_req first, we should store the following information */
 	u8			peerDevAddr[ETH_ALEN];		/*	Peer device address */
 	u8 			strconfig_method_desc_of_prov_disc_req[4];	/* 	description for the config method located in the provisioning discovery request frame. */
 																	/* 	The UI must know this information to know which config method the remote p2p device is requiring. */
@@ -177,7 +177,7 @@ struct rx_provdisc_req_info {	/* When peer device issue prov_disc_req first, we 
 struct tx_nego_req_info {
 	u16 				peer_channel_num[2];		/* 	The channel number which the receiver stands. */
 	u8			peerDevAddr[ETH_ALEN];		/*	Peer device address */
-	u8 			benable;					/* 	This negoitation request frame is trigger to send or not */
+	u8 			benable;					/* 	This negotiation request frame is trigger to send or not */
 };
 
 struct group_id_info {
@@ -228,9 +228,9 @@ struct wifidirect_info {
 	u8 				profileindex;	/* 	Used to point to the index of profileinfo array */
 	u8 				peer_operating_ch;
 	u8 				find_phase_state_exchange_cnt;
-	u16 					device_password_id_for_nego;	/* 	The device password ID for group negotation */
+	u16 					device_password_id_for_nego;	/* 	The device password ID for group negotiation */
 	u8 				negotiation_dialog_token;
-	u8				nego_ssid[WLAN_SSID_MAXLEN];	/*	SSID information for group negotitation */
+	u8				nego_ssid[WLAN_SSID_MAXLEN];	/*	SSID information for group negotiation */
 	u8 				nego_ssidlen;
 	u8 				p2p_group_ssid[WLAN_SSID_MAXLEN];
 	u8 				p2p_group_ssid_len;

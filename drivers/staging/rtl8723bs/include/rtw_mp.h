@@ -101,7 +101,7 @@ struct mpt_context {
 	/*  For MP Tx Power index */
 	u8 	TxPwrLevel[2];	/*  rf-A, rf-B */
 	u32 		RegTxPwrLimit;
-	/*  Content of RCR Regsiter for Mass Production Test. */
+	/*  Content of RCR Register for Mass Production Test. */
 	u32 		MptRCR;
 	/*  true if we only receive packets with specific pattern. */
 	bool			bMptFilterPattern;

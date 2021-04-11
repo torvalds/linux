@@ -424,7 +424,7 @@ struct adapter {
 	/* 	The driver will show up the desired channel number when this flag is 1. */
 	u8 bNotifyChannelChange;
 
-	/* pbuddystruct adapter is used only in  two inteface case, (iface_nums =2 in struct dvobj_priv) */
+	/* pbuddystruct adapter is used only in two interface case, (iface_nums =2 in struct dvobj_priv) */
 	/* PRIMARY ADAPTER's buddy is SECONDARY_ADAPTER */
 	/* SECONDARY_ADAPTER's buddy is PRIMARY_ADAPTER */
 	/* for iface_id > SECONDARY_ADAPTER(IFACE_ID1), refer to padapters[iface_id]  in struct dvobj_priv */

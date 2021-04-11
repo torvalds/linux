@@ -678,7 +678,7 @@ struct ADDBA_request {
 
 #define	P2P_PROVISION_TIMEOUT				5000	/* 	5 seconds timeout for sending the provision discovery request */
 #define	P2P_CONCURRENT_PROVISION_TIMEOUT	3000	/* 	3 seconds timeout for sending the provision discovery request under concurrent mode */
-#define	P2P_GO_NEGO_TIMEOUT					5000	/* 	5 seconds timeout for receiving the group negotation response */
+#define	P2P_GO_NEGO_TIMEOUT					5000	/* 	5 seconds timeout for receiving the group negotiation response */
 #define	P2P_CONCURRENT_GO_NEGO_TIMEOUT		3000	/* 	3 seconds timeout for sending the negotiation request under concurrent mode */
 #define	P2P_TX_PRESCAN_TIMEOUT				100		/* 	100ms */
 #define	P2P_INVITE_TIMEOUT					5000	/* 	5 seconds timeout for sending the invitation request */

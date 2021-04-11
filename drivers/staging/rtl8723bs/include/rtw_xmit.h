@@ -142,7 +142,7 @@ struct pkt_attrib {
 	u32 pktlen;		/* the original 802.3 pkt raw_data len (not include ether_hdr data) */
 	u32 last_txcmdsz;
 	u8 nr_frags;
-	u8 encrypt;	/* when 0 indicate no encrypt. when non-zero, indicate the encrypt algorith */
+	u8 encrypt;	/* when 0 indicates no encryption; when non-zero, indicates the encryption algorithm */
 	u8 iv_len;
 	u8 icv_len;
 	u8 iv[18];
