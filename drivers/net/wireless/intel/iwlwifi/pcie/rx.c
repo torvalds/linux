@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1046,33 +1046,19 @@ static int iwl_pcie_napi_poll_msix(struct napi_struct *napi, int budget)
 	trans = trans_pcie->trans;
 
 	ret = iwl_pcie_rx_handle(trans, rxq->id, budget);
+	IWL_DEBUG_ISR(trans, "[%d] handled %d, budget %d\n", rxq->id, ret,
+		      budget);
 
 	if (ret < budget) {
+		int irq_line = rxq->id;
+
+		/* FIRST_RSS is shared with line 0 */
+		if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS &&
+		    rxq->id == 1)
+			irq_line = 0;
+
 		spin_lock(&trans_pcie->irq_lock);
-		iwl_pcie_clear_irq(trans, rxq->id);
-		spin_unlock(&trans_pcie->irq_lock);
-
-		napi_complete_done(&rxq->napi, ret);
-	}
-
-	return ret;
-}
-
-static int iwl_pcie_napi_poll_msix_shared(struct napi_struct *napi, int budget)
-{
-	struct iwl_rxq *rxq = container_of(napi, struct iwl_rxq, napi);
-	struct iwl_trans_pcie *trans_pcie;
-	struct iwl_trans *trans;
-	int ret;
-
-	trans_pcie = container_of(napi->dev, struct iwl_trans_pcie, napi_dev);
-	trans = trans_pcie->trans;
-
-	ret = iwl_pcie_rx_handle(trans, rxq->id, budget);
-
-	if (ret < budget) {
-		spin_lock(&trans_pcie->irq_lock);
-		iwl_pcie_clear_irq(trans, 0);
+		iwl_pcie_clear_irq(trans, irq_line);
 		spin_unlock(&trans_pcie->irq_lock);
 
 		napi_complete_done(&rxq->napi, ret);
@@ -1134,17 +1120,8 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 		if (!rxq->napi.poll) {
 			int (*poll)(struct napi_struct *, int) = iwl_pcie_napi_poll;
 
-			if (trans_pcie->msix_enabled) {
+			if (trans_pcie->msix_enabled)
 				poll = iwl_pcie_napi_poll_msix;
-
-				if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX &&
-				    i == 0)
-					poll = iwl_pcie_napi_poll_msix_shared;
-
-				if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS &&
-				    i == 1)
-					poll = iwl_pcie_napi_poll_msix_shared;
-			}
 
 			netif_napi_add(&trans_pcie->napi_dev, &rxq->napi,
 				       poll, NAPI_POLL_WEIGHT);
