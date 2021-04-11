@@ -240,7 +240,7 @@ struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
 	rsrc_put_fn			*do_put;
-	struct percpu_ref		refs;
+	atomic_t			refs;
 	struct completion		done;
 	bool				quiesce;
 };
@@ -7077,13 +7077,6 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 #endif
 }
 
-static void io_rsrc_data_ref_zero(struct percpu_ref *ref)
-{
-	struct io_rsrc_data *data = container_of(ref, struct io_rsrc_data, refs);
-
-	complete(&data->done);
-}
-
 static inline void io_rsrc_ref_lock(struct io_ring_ctx *ctx)
 {
 	spin_lock_bh(&ctx->rsrc_ref_lock);
@@ -7114,7 +7107,7 @@ static void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 		list_add_tail(&rsrc_node->node, &ctx->rsrc_ref_list);
 		io_rsrc_ref_unlock(ctx);
 
-		percpu_ref_get(&data_to_kill->refs);
+		atomic_inc(&data_to_kill->refs);
 		percpu_ref_kill(&rsrc_node->refs);
 		ctx->rsrc_node = NULL;
 	}
@@ -7148,14 +7141,17 @@ static int io_rsrc_ref_quiesce(struct io_rsrc_data *data, struct io_ring_ctx *ct
 			break;
 		io_rsrc_node_switch(ctx, data);
 
-		percpu_ref_kill(&data->refs);
+		/* kill initial ref, already quiesced if zero */
+		if (atomic_dec_and_test(&data->refs))
+			break;
 		flush_delayed_work(&ctx->rsrc_put_work);
-
 		ret = wait_for_completion_interruptible(&data->done);
 		if (!ret)
 			break;
 
-		percpu_ref_resurrect(&data->refs);
+		atomic_inc(&data->refs);
+		/* wait for all works potentially completing data->done */
+		flush_delayed_work(&ctx->rsrc_put_work);
 		reinit_completion(&data->done);
 
 		mutex_unlock(&ctx->uring_lock);
@@ -7176,21 +7172,11 @@ static struct io_rsrc_data *io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 	if (!data)
 		return NULL;
 
-	if (percpu_ref_init(&data->refs, io_rsrc_data_ref_zero,
-			    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL)) {
-		kfree(data);
-		return NULL;
-	}
+	atomic_set(&data->refs, 1);
 	data->ctx = ctx;
 	data->do_put = do_put;
 	init_completion(&data->done);
 	return data;
-}
-
-static void io_rsrc_data_free(struct io_rsrc_data *data)
-{
-	percpu_ref_exit(&data->refs);
-	kfree(data);
 }
 
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -7206,7 +7192,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 
 	__io_sqe_files_unregister(ctx);
 	io_free_file_tables(data, ctx->nr_user_files);
-	io_rsrc_data_free(data);
+	kfree(data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 	return 0;
@@ -7539,7 +7525,8 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 	}
 
 	io_rsrc_node_destroy(ref_node);
-	percpu_ref_put(&rsrc_data->refs);
+	if (atomic_dec_and_test(&rsrc_data->refs))
+		complete(&rsrc_data->done);
 }
 
 static void io_rsrc_put_work(struct work_struct *work)
@@ -7563,10 +7550,8 @@ static void io_rsrc_put_work(struct work_struct *work)
 static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
 {
 	struct io_rsrc_node *node = container_of(ref, struct io_rsrc_node, refs);
-	struct io_rsrc_data *data = node->rsrc_data;
-	struct io_ring_ctx *ctx = data->ctx;
+	struct io_ring_ctx *ctx = node->rsrc_data->ctx;
 	bool first_add = false;
-	int delay;
 
 	io_rsrc_ref_lock(ctx);
 	node->done = true;
@@ -7582,9 +7567,8 @@ static void io_rsrc_node_ref_zero(struct percpu_ref *ref)
 	}
 	io_rsrc_ref_unlock(ctx);
 
-	delay = percpu_ref_is_dying(&data->refs) ? 0 : HZ;
-	if (first_add || !delay)
-		mod_delayed_work(system_wq, &ctx->rsrc_put_work, delay);
+	if (first_add)
+		mod_delayed_work(system_wq, &ctx->rsrc_put_work, HZ);
 }
 
 static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
@@ -7679,7 +7663,7 @@ out_fput:
 	io_free_file_tables(file_data, nr_args);
 	ctx->nr_user_files = 0;
 out_free:
-	io_rsrc_data_free(ctx->file_data);
+	kfree(ctx->file_data);
 	ctx->file_data = NULL;
 	return ret;
 }
