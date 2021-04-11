@@ -1355,13 +1355,11 @@ static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
 
 static inline bool io_should_trigger_evfd(struct io_ring_ctx *ctx)
 {
-	if (!ctx->cq_ev_fd)
+	if (likely(!ctx->cq_ev_fd))
 		return false;
 	if (READ_ONCE(ctx->rings->cq_flags) & IORING_CQ_EVENTFD_DISABLED)
 		return false;
-	if (!ctx->eventfd_async)
-		return true;
-	return io_wq_current_is_worker();
+	return !ctx->eventfd_async || io_wq_current_is_worker();
 }
 
 static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
