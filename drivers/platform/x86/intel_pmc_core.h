@@ -200,6 +200,11 @@ enum ppfear_regs {
 #define TGL_LPM_STATUS_OFFSET			0x1C3C
 #define TGL_LPM_LIVE_STATUS_OFFSET		0x1C5C
 
+/* Extended Test Mode Register 3 (CNL and later) */
+#define ETR3_OFFSET				0x1048
+#define ETR3_CF9GR				BIT(20)
+#define ETR3_CF9LOCK				BIT(31)
+
 const char *tgl_lpm_modes[] = {
 	"S0i2.0",
 	"S0i2.1",
@@ -263,6 +268,7 @@ struct pmc_reg_map {
 	const u32 lpm_residency_offset;
 	const u32 lpm_status_offset;
 	const u32 lpm_live_status_offset;
+	const u32 etr3_offset;
 };
 
 /**

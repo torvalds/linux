@@ -401,6 +401,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
+	.etr3_offset = ETR3_OFFSET,
 };
 
 static const struct pmc_reg_map icl_reg_map = {
@@ -418,6 +419,7 @@ static const struct pmc_reg_map icl_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
+	.etr3_offset = ETR3_OFFSET,
 };
 
 static const struct pmc_bit_map tgl_clocksource_status_map[] = {
@@ -585,6 +587,7 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.lpm_sts = tgl_lpm_maps,
 	.lpm_status_offset = TGL_LPM_STATUS_OFFSET,
 	.lpm_live_status_offset = TGL_LPM_LIVE_STATUS_OFFSET,
+	.etr3_offset = ETR3_OFFSET,
 };
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
@@ -602,6 +605,115 @@ static inline u64 pmc_core_adjust_slp_s0_step(struct pmc_dev *pmcdev, u32 value)
 {
 	return (u64)value * pmcdev->map->slp_s0_res_counter_step;
 }
+
+static int set_etr3(struct pmc_dev *pmcdev)
+{
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 reg;
+	int err;
+
+	if (!map->etr3_offset)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&pmcdev->lock);
+
+	/* check if CF9 is locked */
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	if (reg & ETR3_CF9LOCK) {
+		err = -EACCES;
+		goto out_unlock;
+	}
+
+	/* write CF9 global reset bit */
+	reg |= ETR3_CF9GR;
+	pmc_core_reg_write(pmcdev, map->etr3_offset, reg);
+
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	if (!(reg & ETR3_CF9GR)) {
+		err = -EIO;
+		goto out_unlock;
+	}
+
+	err = 0;
+
+out_unlock:
+	mutex_unlock(&pmcdev->lock);
+	return err;
+}
+static umode_t etr3_is_visible(struct kobject *kobj,
+				struct attribute *attr,
+				int idx)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 reg;
+
+	mutex_lock(&pmcdev->lock);
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	mutex_unlock(&pmcdev->lock);
+
+	return reg & ETR3_CF9LOCK ? attr->mode & (SYSFS_PREALLOC | 0444) : attr->mode;
+}
+
+static ssize_t etr3_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	const struct pmc_reg_map *map = pmcdev->map;
+	u32 reg;
+
+	if (!map->etr3_offset)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&pmcdev->lock);
+
+	reg = pmc_core_reg_read(pmcdev, map->etr3_offset);
+	reg &= ETR3_CF9GR | ETR3_CF9LOCK;
+
+	mutex_unlock(&pmcdev->lock);
+
+	return sysfs_emit(buf, "0x%08x", reg);
+}
+
+static ssize_t etr3_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t len)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	int err;
+	u32 reg;
+
+	err = kstrtouint(buf, 16, &reg);
+	if (err)
+		return err;
+
+	/* allow only CF9 writes */
+	if (reg != ETR3_CF9GR)
+		return -EINVAL;
+
+	err = set_etr3(pmcdev);
+	if (err)
+		return err;
+
+	return len;
+}
+static DEVICE_ATTR_RW(etr3);
+
+static struct attribute *pmc_attrs[] = {
+	&dev_attr_etr3.attr,
+	NULL
+};
+
+static const struct attribute_group pmc_attr_group = {
+	.attrs = pmc_attrs,
+	.is_visible = etr3_is_visible,
+};
+
+static const struct attribute_group *pmc_dev_groups[] = {
+	&pmc_attr_group,
+	NULL
+};
 
 static int pmc_core_dev_state_get(void *data, u64 *val)
 {
@@ -1384,6 +1496,7 @@ static struct platform_driver pmc_core_driver = {
 		.name = "intel_pmc_core",
 		.acpi_match_table = ACPI_PTR(pmc_core_acpi_ids),
 		.pm = &pmc_core_pm_ops,
+		.dev_groups = pmc_dev_groups,
 	},
 	.probe = pmc_core_probe,
 	.remove = pmc_core_remove,
