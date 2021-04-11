@@ -1101,7 +1101,7 @@ static bool io_match_task(struct io_kiocb *head,
 
 static inline void req_set_fail_links(struct io_kiocb *req)
 {
-	if ((req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) == REQ_F_LINK)
+	if (req->flags & REQ_F_LINK)
 		req->flags |= REQ_F_FAIL_LINK;
 }
 
@@ -1810,7 +1810,8 @@ static bool io_disarm_next(struct io_kiocb *req)
 
 	if (likely(req->flags & REQ_F_LINK_TIMEOUT))
 		posted = io_kill_linked_timeout(req);
-	if (unlikely(req->flags & REQ_F_FAIL_LINK)) {
+	if (unlikely((req->flags & REQ_F_FAIL_LINK) &&
+		     !(req->flags & REQ_F_HARDLINK))) {
 		posted |= (req->link != NULL);
 		io_fail_links(req);
 	}
