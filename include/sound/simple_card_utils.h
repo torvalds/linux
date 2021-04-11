@@ -191,12 +191,6 @@ static inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,
 	if (dai->name)
 		dev_dbg(dev, "%s dai name = %s\n",
 			name, dai->name);
-	if (dai->sysclk)
-		dev_dbg(dev, "%s sysclk = %d\n",
-			name, dai->sysclk);
-
-	dev_dbg(dev, "%s direction = %s\n",
-		name, dai->clk_direction ? "OUT" : "IN");
 
 	if (dai->slots)
 		dev_dbg(dev, "%s slots = %d\n", name, dai->slots);
@@ -208,6 +202,12 @@ static inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,
 		dev_dbg(dev, "%s rx slot mask = %d\n", name, dai->rx_slot_mask);
 	if (dai->clk)
 		dev_dbg(dev, "%s clk %luHz\n", name, clk_get_rate(dai->clk));
+	if (dai->sysclk)
+		dev_dbg(dev, "%s sysclk = %dHz\n",
+			name, dai->sysclk);
+	if (dai->clk || dai->sysclk)
+		dev_dbg(dev, "%s direction = %s\n",
+			name, dai->clk_direction ? "OUT" : "IN");
 }
 
 static inline void asoc_simple_debug_info(struct asoc_simple_priv *priv)
