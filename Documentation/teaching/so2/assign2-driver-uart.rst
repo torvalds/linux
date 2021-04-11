@@ -58,9 +58,9 @@ Implementation Details
    -  to learn how to pass parameters in Linux, see `tldp <https://tldp.org/LDP/lkmpg/2.6/html/x323.html>`__
    -  the default values are `major=42` and `option=OPTION_BOTH`.
 -  the interrupt number associated with COM1 is 4 (`IRQ_COM1`) and the interrupt number associated with COM2 is 3 (`IRQ_COM2`)
--  `the header <elf.cs.pub.ro/so2/res/teme/uart16550.h>`__ with the definitions needed for special operations;
--  a starting point in implementing read / write routines is the `example <elf.cs.pub.ro/so2/res/teme/case.zip>`__ of uppercase / lowercase character device driver; the only difference is that you have to use two buffers, one for read and one for write;
--  you can use `kfifo <elf.cs.pub.ro/so2/res/teme/case.zip>`__ for buffers;
+-  `the header <https://github.com/linux-kernel-labs/linux/blob/master/tools/labs/templates/assignments/2-uart/uart16550.h>`__ with the definitions needed for special operations;
+-  a starting point in implementing read / write routines is the `example <https://ocw.cs.pub.ro/courses/so2/laboratoare/lab04?&#sincronizare_-_cozi_de_asteptare>`__ of uppercase / lowercase character device driver; the only difference is that you have to use two buffers, one for read and one for write;
+-  you can use `kfifo <https://lwn.net/Articles/347619/>`__ for buffers;
 -  you do not have to use deferred functions to read / write data from / to ports (you can do everything from interrupt context);
 -  you will need to synchronize the read / write routines with the interrupt handling routine for the routines to be blocking; it is recommended to use `synchronization with waiting queues <https://ocw.cs.pub.ro/courses/so2/laboratoare/lab04?&#sincronizare_-_cozi_de_asteptare>`__
 -  In order for the assigment to work, the `default serial driver` must be disabled:
