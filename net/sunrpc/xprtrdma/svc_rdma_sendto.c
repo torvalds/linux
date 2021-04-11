@@ -921,6 +921,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
 	__be32 *rdma_argp = rctxt->rc_recv_buf;
 	struct svc_rdma_send_ctxt *sctxt;
+	unsigned int rc_size;
 	__be32 *p;
 	int ret;
 
@@ -933,6 +934,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	if (!sctxt)
 		goto drop_connection;
 
+	ret = -EMSGSIZE;
 	p = xdr_reserve_space(&sctxt->sc_stream,
 			      rpcrdma_fixed_maxsz * sizeof(*p));
 	if (!p)
@@ -941,17 +943,21 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
 	if (ret < 0)
 		goto reply_chunk;
+	rc_size = ret;
 
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
 	*p++ = rdma->sc_fc_credits;
 	*p = pcl_is_empty(&rctxt->rc_reply_pcl) ? rdma_msg : rdma_nomsg;
 
-	if (svc_rdma_encode_read_list(sctxt) < 0)
+	ret = svc_rdma_encode_read_list(sctxt);
+	if (ret < 0)
 		goto put_ctxt;
-	if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
+	ret = svc_rdma_encode_write_list(rctxt, sctxt);
+	if (ret < 0)
 		goto put_ctxt;
-	if (svc_rdma_encode_reply_chunk(rctxt, sctxt, ret) < 0)
+	ret = svc_rdma_encode_reply_chunk(rctxt, sctxt, rc_size);
+	if (ret < 0)
 		goto put_ctxt;
 
 	ret = svc_rdma_send_reply_msg(rdma, sctxt, rctxt, rqstp);
