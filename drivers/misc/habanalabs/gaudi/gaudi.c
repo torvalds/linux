@@ -3691,56 +3691,24 @@ static int gaudi_load_boot_fit_to_device(struct hl_device *hdev)
 	return hl_fw_load_fw_to_device(hdev, GAUDI_BOOT_FIT_FILE, dst, 0, 0);
 }
 
-static int gaudi_read_device_fw_version(struct hl_device *hdev,
-					enum hl_fw_component fwc)
-{
-	const char *name;
-	u32 ver_off;
-	char *dest;
-
-	switch (fwc) {
-	case FW_COMP_UBOOT:
-		ver_off = RREG32(mmUBOOT_VER_OFFSET);
-		dest = hdev->asic_prop.uboot_ver;
-		name = "U-Boot";
-		break;
-	case FW_COMP_PREBOOT:
-		ver_off = RREG32(mmPREBOOT_VER_OFFSET);
-		dest = hdev->asic_prop.preboot_ver;
-		name = "Preboot";
-		break;
-	default:
-		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
-		return -EIO;
-	}
-
-	ver_off &= ~((u32)SRAM_BASE_ADDR);
-
-	if (ver_off < SRAM_SIZE - VERSION_MAX_LEN) {
-		memcpy_fromio(dest, hdev->pcie_bar[SRAM_BAR_ID] + ver_off,
-							VERSION_MAX_LEN);
-	} else {
-		dev_err(hdev->dev, "%s version offset (0x%x) is above SRAM\n",
-								name, ver_off);
-		strcpy(dest, "unavailable");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static void gaudi_init_firmware_loader(struct hl_device *hdev)
 {
 	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
 
+	fw_loader->preboot_version_max_off = SRAM_SIZE - VERSION_MAX_LEN;
+	fw_loader->boot_fit_version_max_off = SRAM_SIZE - VERSION_MAX_LEN;
 	fw_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
 	fw_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
+	fw_loader->preboot_version_offset_reg = mmPREBOOT_VER_OFFSET;
+	fw_loader->boot_fit_version_offset_reg = mmUBOOT_VER_OFFSET;
+	fw_loader->sram_offset_mask = ~((u32)SRAM_BASE_ADDR);
 	fw_loader->cpu_timeout = GAUDI_CPU_TIMEOUT_USEC;
 	fw_loader->boot_fit_timeout = GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC;
 	fw_loader->skip_bmc = !hdev->bmc_enable;
 	fw_loader->cpu_boot_status_reg = mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS;
 	fw_loader->cpu_boot_dev_status_reg = mmCPU_BOOT_DEV_STS0;
 	fw_loader->boot_err0_reg = mmCPU_BOOT_ERR0;
+	fw_loader->sram_bar_id = SRAM_BAR_ID;
 }
 
 static int gaudi_init_cpu(struct hl_device *hdev)
@@ -8801,7 +8769,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.ctx_fini = gaudi_ctx_fini,
 	.get_clk_rate = gaudi_get_clk_rate,
 	.get_queue_id_for_cq = gaudi_get_queue_id_for_cq,
-	.read_device_fw_version = gaudi_read_device_fw_version,
 	.load_firmware_to_device = gaudi_load_firmware_to_device,
 	.load_boot_fit_to_device = gaudi_load_boot_fit_to_device,
 	.get_signal_cb_size = gaudi_get_signal_cb_size,

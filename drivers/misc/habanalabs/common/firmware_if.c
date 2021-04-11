@@ -891,6 +891,49 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 	return 0;
 }
 
+static int hl_read_device_fw_version(struct hl_device *hdev,
+					enum hl_fw_component fwc)
+{
+	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
+	const char *name;
+	u32 ver_off, limit;
+	char *dest;
+
+	switch (fwc) {
+	case FW_COMP_BOOT_FIT:
+		ver_off = RREG32(fw_loader->boot_fit_version_offset_reg);
+		dest = hdev->asic_prop.uboot_ver;
+		name = "Boot-fit";
+		limit = fw_loader->boot_fit_version_max_off;
+		break;
+	case FW_COMP_PREBOOT:
+		ver_off = RREG32(
+			fw_loader->preboot_version_offset_reg);
+		dest = hdev->asic_prop.preboot_ver;
+		name = "Preboot";
+		limit = fw_loader->preboot_version_max_off;
+		break;
+	default:
+		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
+		return -EIO;
+	}
+
+	ver_off &= fw_loader->sram_offset_mask;
+
+	if (ver_off < limit) {
+		memcpy_fromio(dest,
+			hdev->pcie_bar[fw_loader->sram_bar_id] + ver_off,
+			VERSION_MAX_LEN);
+	} else {
+		dev_err(hdev->dev, "%s version offset (0x%x) is above SRAM\n",
+								name, ver_off);
+		strscpy(dest, "unavailable", VERSION_MAX_LEN);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int hl_fw_read_preboot_status_legacy(struct hl_device *hdev,
 		u32 cpu_boot_status_reg, u32 cpu_security_boot_status_reg,
 		u32 boot_err0_reg, u32 timeout)
@@ -899,7 +942,7 @@ static int hl_fw_read_preboot_status_legacy(struct hl_device *hdev,
 	u32 security_status;
 	int rc;
 
-	rc = hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+	rc = hl_read_device_fw_version(hdev, FW_COMP_PREBOOT);
 	if (rc)
 		return rc;
 
@@ -951,6 +994,8 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 {
 	int rc;
 
+	hdev->asic_funcs->init_firmware_loader(hdev);
+
 	/* pldm was added for cases in which we use preboot on pldm and want
 	 * to load boot fit, but we can't wait for preboot because it runs
 	 * very slowly
@@ -989,7 +1034,6 @@ int hl_fw_init_cpu(struct hl_device *hdev)
 		return 0;
 
 	/* init loader parameters */
-	hdev->asic_funcs->init_firmware_loader(hdev);
 	fw_loader = &hdev->fw_loader;
 	cpu_security_boot_status_reg = fw_loader->cpu_boot_status_reg;
 	cpu_msg_status_reg = fw_loader->cpu_cmd_status_to_host_reg;
@@ -1057,7 +1101,7 @@ int hl_fw_init_cpu(struct hl_device *hdev)
 	dev_dbg(hdev->dev, "uboot status = %d\n", status);
 
 	/* Read U-Boot version now in case we will later fail */
-	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
+	hl_read_device_fw_version(hdev, FW_COMP_BOOT_FIT);
 
 	/* Clear reset status since we need to read it again from boot CPU */
 	prop->hard_reset_done_by_fw = false;

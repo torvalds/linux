@@ -178,11 +178,11 @@ enum hl_pci_match_mode {
 
 /**
  * enum hl_fw_component - F/W components to read version through registers.
- * @FW_COMP_UBOOT: u-boot.
+ * @FW_COMP_BOOT_FIT: boot fit.
  * @FW_COMP_PREBOOT: preboot.
  */
 enum hl_fw_component {
-	FW_COMP_UBOOT,
+	FW_COMP_BOOT_FIT,
 	FW_COMP_PREBOOT
 };
 
@@ -820,24 +820,36 @@ enum div_select_defs {
 
 /**
  * struct fw_load_mgr - manager FW loading process
- * @kmd_msg_to_cpu_reg: register address for KMD->CPU messages
+ * @preboot_version_max_off: max offset to preboot version
+ * @boot_fit_version_max_off: max offset to boot fit version
+ * @kmd_msg_to_cpu_reg: register address for KDM->CPU messages
  * @cpu_cmd_status_to_host_reg: register address for CPU command status response
  * @cpu_boot_status_reg: boot status register
  * @cpu_boot_dev_status_reg: boot device status register
  * @boot_err0_reg: boot error register
+ * @preboot_version_offset_reg: SRAM offset to preboot version register
+ * @boot_fit_version_offset_reg: SRAM offset to boot fit version register
+ * @sram_offset_mask: mask for getting offset into the SRAM
  * @cpu_timeout: CPU response timeout in usec
  * @boot_fit_timeout: Boot fit load timeout in usec
  * @skip_bmc: should BMC be skipped
+ * @sram_bar_id: SRAM bar ID
  */
 struct fw_load_mgr {
+	u64 preboot_version_max_off;
+	u64 boot_fit_version_max_off;
 	u32 kmd_msg_to_cpu_reg;
 	u32 cpu_cmd_status_to_host_reg;
 	u32 cpu_boot_status_reg;
 	u32 cpu_boot_dev_status_reg;
 	u32 boot_err0_reg;
+	u32 preboot_version_offset_reg;
+	u32 boot_fit_version_offset_reg;
+	u32 sram_offset_mask;
 	u32 cpu_timeout;
 	u32 boot_fit_timeout;
 	u8 skip_bmc;
+	u8 sram_bar_id;
 };
 
 /**
@@ -929,8 +941,6 @@ struct fw_load_mgr {
  * @ctx_fini: context dependent cleanup.
  * @get_clk_rate: Retrieve the ASIC current and maximum clock rate in MHz
  * @get_queue_id_for_cq: Get the H/W queue id related to the given CQ index.
- * @read_device_fw_version: read the device's firmware versions that are
- *                          contained in registers
  * @load_firmware_to_device: load the firmware to the device's memory
  * @load_boot_fit_to_device: load boot fit to device's memory
  * @get_signal_cb_size: Get signal CB size.
@@ -1059,8 +1069,6 @@ struct hl_asic_funcs {
 	void (*ctx_fini)(struct hl_ctx *ctx);
 	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 	u32 (*get_queue_id_for_cq)(struct hl_device *hdev, u32 cq_idx);
-	int (*read_device_fw_version)(struct hl_device *hdev,
-					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
 	int (*load_boot_fit_to_device)(struct hl_device *hdev);
 	u32 (*get_signal_cb_size)(struct hl_device *hdev);
