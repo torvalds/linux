@@ -73,66 +73,96 @@ struct sch5627_data {
 
 	struct mutex update_lock;
 	unsigned long last_battery;	/* In jiffies */
-	char valid;			/* !=0 if following fields are valid */
-	unsigned long last_updated;	/* In jiffies */
+	char temp_valid;		/* !=0 if following fields are valid */
+	char fan_valid;
+	char in_valid;
+	unsigned long temp_last_updated;	/* In jiffies */
+	unsigned long fan_last_updated;
+	unsigned long in_last_updated;
 	u16 temp[SCH5627_NO_TEMPS];
 	u16 fan[SCH5627_NO_FANS];
 	u16 in[SCH5627_NO_IN];
 };
 
-static struct sch5627_data *sch5627_update_device(struct device *dev)
+static int sch5627_update_temp(struct sch5627_data *data)
 {
-	struct sch5627_data *data = dev_get_drvdata(dev);
-	struct sch5627_data *ret = data;
+	int ret = 0;
+	int i, val;
+
+	mutex_lock(&data->update_lock);
+
+	/* Cache the values for 1 second */
+	if (time_after(jiffies, data->temp_last_updated + HZ) || !data->temp_valid) {
+		for (i = 0; i < SCH5627_NO_TEMPS; i++) {
+			val = sch56xx_read_virtual_reg12(data->addr, SCH5627_REG_TEMP_MSB[i],
+							 SCH5627_REG_TEMP_LSN[i],
+							 SCH5627_REG_TEMP_HIGH_NIBBLE[i]);
+			if (unlikely(val < 0)) {
+				ret = val;
+				goto abort;
+			}
+			data->temp[i] = val;
+		}
+		data->temp_last_updated = jiffies;
+		data->temp_valid = 1;
+	}
+abort:
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+
+static int sch5627_update_fan(struct sch5627_data *data)
+{
+	int ret = 0;
+	int i, val;
+
+	mutex_lock(&data->update_lock);
+
+	/* Cache the values for 1 second */
+	if (time_after(jiffies, data->fan_last_updated + HZ) || !data->fan_valid) {
+		for (i = 0; i < SCH5627_NO_FANS; i++) {
+			val = sch56xx_read_virtual_reg16(data->addr, SCH5627_REG_FAN[i]);
+			if (unlikely(val < 0)) {
+				ret = val;
+				goto abort;
+			}
+			data->fan[i] = val;
+		}
+		data->fan_last_updated = jiffies;
+		data->fan_valid = 1;
+	}
+abort:
+	mutex_unlock(&data->update_lock);
+	return ret;
+}
+
+static int sch5627_update_in(struct sch5627_data *data)
+{
+	int ret = 0;
 	int i, val;
 
 	mutex_lock(&data->update_lock);
 
 	/* Trigger a Vbat voltage measurement every 5 minutes */
 	if (time_after(jiffies, data->last_battery + 300 * HZ)) {
-		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL,
-					  data->control | 0x10);
+		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | 0x10);
 		data->last_battery = jiffies;
 	}
 
 	/* Cache the values for 1 second */
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		for (i = 0; i < SCH5627_NO_TEMPS; i++) {
-			val = sch56xx_read_virtual_reg12(data->addr,
-				SCH5627_REG_TEMP_MSB[i],
-				SCH5627_REG_TEMP_LSN[i],
-				SCH5627_REG_TEMP_HIGH_NIBBLE[i]);
-			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->temp[i] = val;
-		}
-
-		for (i = 0; i < SCH5627_NO_FANS; i++) {
-			val = sch56xx_read_virtual_reg16(data->addr,
-							 SCH5627_REG_FAN[i]);
-			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->fan[i] = val;
-		}
-
+	if (time_after(jiffies, data->in_last_updated + HZ) || !data->in_valid) {
 		for (i = 0; i < SCH5627_NO_IN; i++) {
-			val = sch56xx_read_virtual_reg12(data->addr,
-				SCH5627_REG_IN_MSB[i],
-				SCH5627_REG_IN_LSN[i],
-				SCH5627_REG_IN_HIGH_NIBBLE[i]);
+			val = sch56xx_read_virtual_reg12(data->addr, SCH5627_REG_IN_MSB[i],
+							 SCH5627_REG_IN_LSN[i],
+							 SCH5627_REG_IN_HIGH_NIBBLE[i]);
 			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
+				ret = val;
 				goto abort;
 			}
 			data->in[i] = val;
 		}
-
-		data->last_updated = jiffies;
-		data->valid = 1;
+		data->in_last_updated = jiffies;
+		data->in_valid = 1;
 	}
 abort:
 	mutex_unlock(&data->update_lock);
@@ -200,14 +230,14 @@ static umode_t sch5627_is_visible(const void *drvdata, enum hwmon_sensor_types t
 static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
 			long *val)
 {
-	struct sch5627_data *data = sch5627_update_device(dev);
+	struct sch5627_data *data = dev_get_drvdata(dev);
 	int ret;
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
 
 	switch (type) {
 	case hwmon_temp:
+		ret = sch5627_update_temp(data);
+		if (ret < 0)
+			return ret;
 		switch (attr) {
 		case hwmon_temp_input:
 			*val = reg_to_temp(data->temp[channel]);
@@ -226,6 +256,9 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 		}
 		break;
 	case hwmon_fan:
+		ret = sch5627_update_fan(data);
+		if (ret < 0)
+			return ret;
 		switch (attr) {
 		case hwmon_fan_input:
 			ret = reg_to_rpm(data->fan[channel]);
@@ -247,6 +280,9 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 		}
 		break;
 	case hwmon_in:
+		ret = sch5627_update_in(data);
+		if (ret < 0)
+			return ret;
 		switch (attr) {
 		case hwmon_in_input:
 			*val = DIV_ROUND_CLOSEST(data->in[channel] * SCH5627_REG_IN_FACTOR[channel],
