@@ -43,6 +43,7 @@ enum mlx5_ib_create_flow_action_attrs {
 
 enum mlx5_ib_dm_methods {
 	MLX5_IB_METHOD_DM_MAP_OP_ADDR  = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_METHOD_DM_QUERY,
 };
 
 enum mlx5_ib_dm_map_op_addr_attrs {
@@ -50,6 +51,13 @@ enum mlx5_ib_dm_map_op_addr_attrs {
 	MLX5_IB_ATTR_DM_MAP_OP_ADDR_REQ_OP,
 	MLX5_IB_ATTR_DM_MAP_OP_ADDR_RESP_START_OFFSET,
 	MLX5_IB_ATTR_DM_MAP_OP_ADDR_RESP_PAGE_INDEX,
+};
+
+enum mlx5_ib_query_dm_attrs {
+	MLX5_IB_ATTR_QUERY_DM_REQ_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_QUERY_DM_RESP_START_OFFSET,
+	MLX5_IB_ATTR_QUERY_DM_RESP_PAGE_INDEX,
+	MLX5_IB_ATTR_QUERY_DM_RESP_LENGTH,
 };
 
 enum mlx5_ib_alloc_dm_attrs {

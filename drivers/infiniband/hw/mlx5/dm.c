@@ -293,6 +293,7 @@ static struct ib_dm *handle_alloc_dm_memic(struct ib_ucontext *ctx,
 	kref_init(&dm->ref);
 	xa_init(&dm->ops);
 	mutex_init(&dm->ops_xa_lock);
+	dm->req_length = attr->length;
 
 	err = mlx5_cmd_alloc_memic(dm_db, &dm->base.dev_addr,
 				   dm->base.size, attr->alignment);
@@ -473,6 +474,38 @@ static int mlx5_ib_dealloc_dm(struct ib_dm *ibdm,
 	}
 }
 
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DM_QUERY)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_dm *ibdm =
+		uverbs_attr_get_obj(attrs, MLX5_IB_ATTR_QUERY_DM_REQ_HANDLE);
+	struct mlx5_ib_dm *dm = to_mdm(ibdm);
+	struct mlx5_ib_dm_memic *memic;
+	u64 start_offset;
+	u16 page_idx;
+	int err;
+
+	if (dm->type != MLX5_IB_UAPI_DM_TYPE_MEMIC)
+		return -EOPNOTSUPP;
+
+	memic = to_memic(ibdm);
+	page_idx = memic->mentry.rdma_entry.start_pgoff & 0xFFFF;
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_QUERY_DM_RESP_PAGE_INDEX,
+			     &page_idx, sizeof(page_idx));
+	if (err)
+		return err;
+
+	start_offset = memic->base.dev_addr & ~PAGE_MASK;
+	err =  uverbs_copy_to(attrs, MLX5_IB_ATTR_QUERY_DM_RESP_START_OFFSET,
+			      &start_offset, sizeof(start_offset));
+	if (err)
+		return err;
+
+	return uverbs_copy_to(attrs, MLX5_IB_ATTR_QUERY_DM_RESP_LENGTH,
+			      &memic->req_length,
+			      sizeof(memic->req_length));
+}
+
 void mlx5_ib_dm_mmap_free(struct mlx5_ib_dev *dev,
 			  struct mlx5_user_mmap_entry *mentry)
 {
@@ -497,6 +530,17 @@ void mlx5_ib_dm_mmap_free(struct mlx5_ib_dev *dev,
 		WARN_ON(true);
 	}
 }
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_DM_QUERY,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_QUERY_DM_REQ_HANDLE, UVERBS_OBJECT_DM,
+			UVERBS_ACCESS_READ, UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_QUERY_DM_RESP_START_OFFSET,
+			    UVERBS_ATTR_TYPE(u64), UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_QUERY_DM_RESP_PAGE_INDEX,
+			    UVERBS_ATTR_TYPE(u16), UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_QUERY_DM_RESP_LENGTH,
+			    UVERBS_ATTR_TYPE(u64), UA_MANDATORY));
 
 ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	mlx5_ib_dm, UVERBS_OBJECT_DM, UVERBS_METHOD_DM_ALLOC,
@@ -524,7 +568,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UA_OPTIONAL));
 
 DECLARE_UVERBS_GLOBAL_METHODS(UVERBS_OBJECT_DM,
-			      &UVERBS_METHOD(MLX5_IB_METHOD_DM_MAP_OP_ADDR));
+			      &UVERBS_METHOD(MLX5_IB_METHOD_DM_MAP_OP_ADDR),
+			      &UVERBS_METHOD(MLX5_IB_METHOD_DM_QUERY));
 
 const struct uapi_definition mlx5_ib_dm_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DM, &mlx5_ib_dm),

@@ -31,6 +31,7 @@ struct mlx5_ib_dm_memic {
 	struct xarray               ops;
 	struct mutex                ops_xa_lock;
 	struct kref                 ref;
+	size_t                      req_length;
 };
 
 struct mlx5_ib_dm_icm {
