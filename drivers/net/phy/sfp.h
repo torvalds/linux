@@ -14,6 +14,9 @@ struct sfp_socket_ops {
 	int (*module_info)(struct sfp *sfp, struct ethtool_modinfo *modinfo);
 	int (*module_eeprom)(struct sfp *sfp, struct ethtool_eeprom *ee,
 			     u8 *data);
+	int (*module_eeprom_by_page)(struct sfp *sfp,
+				     const struct ethtool_module_eeprom *page,
+				     struct netlink_ext_ack *extack);
 };
 
 int sfp_add_phy(struct sfp_bus *bus, struct phy_device *phydev);

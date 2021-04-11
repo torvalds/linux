@@ -81,6 +81,7 @@ enum {
 #define ETH_RSS_HASH_NO_CHANGE	0
 
 struct net_device;
+struct netlink_ext_ack;
 
 /* Some generic methods drivers may use in their ethtool_ops */
 u32 ethtool_op_get_link(struct net_device *dev);
@@ -262,6 +263,31 @@ struct ethtool_pause_stats {
 	u64 rx_pause_frames;
 };
 
+#define ETH_MODULE_EEPROM_PAGE_LEN	128
+#define ETH_MODULE_MAX_I2C_ADDRESS	0x7f
+
+/**
+ * struct ethtool_module_eeprom - EEPROM dump from specified page
+ * @offset: Offset within the specified EEPROM page to begin read, in bytes.
+ * @length: Number of bytes to read.
+ * @page: Page number to read from.
+ * @bank: Page bank number to read from, if applicable by EEPROM spec.
+ * @i2c_address: I2C address of a page. Value less than 0x7f expected. Most
+ *	EEPROMs use 0x50 or 0x51.
+ * @data: Pointer to buffer with EEPROM data of @length size.
+ *
+ * This can be used to manage pages during EEPROM dump in ethtool and pass
+ * required information to the driver.
+ */
+struct ethtool_module_eeprom {
+	__u32	offset;
+	__u32	length;
+	__u8	page;
+	__u8	bank;
+	__u8	i2c_address;
+	__u8	*data;
+};
+
 /**
  * struct ethtool_ops - optional netdev operations
  * @cap_link_lanes_supported: indicates if the driver supports lanes
@@ -414,6 +440,9 @@ struct ethtool_pause_stats {
  *	cannot use the standard PHY library helpers.
  * @get_phy_tunable: Read the value of a PHY tunable.
  * @set_phy_tunable: Set the value of a PHY tunable.
+ * @get_module_eeprom_by_page: Get a region of plug-in module EEPROM data from
+ *	specified page. Returns a negative error code or the amount of bytes
+ *	read.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -519,6 +548,9 @@ struct ethtool_ops {
 				   const struct ethtool_tunable *, void *);
 	int	(*set_phy_tunable)(struct net_device *,
 				   const struct ethtool_tunable *, const void *);
+	int	(*get_module_eeprom_by_page)(struct net_device *dev,
+					     const struct ethtool_module_eeprom *page,
+					     struct netlink_ext_ack *extack);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
@@ -542,7 +574,6 @@ int ethtool_virtdev_set_link_ksettings(struct net_device *dev,
 				       const struct ethtool_link_ksettings *cmd,
 				       u32 *dev_speed, u8 *dev_duplex);
 
-struct netlink_ext_ack;
 struct phy_device;
 struct phy_tdr_config;
 
