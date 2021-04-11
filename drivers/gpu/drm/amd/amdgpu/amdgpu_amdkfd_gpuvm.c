@@ -582,6 +582,34 @@ kfd_mem_dmaunmap_attachment(struct kgd_mem *mem,
 	}
 }
 
+static int
+kfd_mem_attach_userptr(struct amdgpu_device *adev, struct kgd_mem *mem,
+		       struct amdgpu_bo **bo)
+{
+	unsigned long bo_size = mem->bo->tbo.base.size;
+	struct drm_gem_object *gobj;
+	int ret;
+
+	ret = amdgpu_bo_reserve(mem->bo, false);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_gem_object_create(adev, bo_size, 1,
+				       AMDGPU_GEM_DOMAIN_CPU,
+				       0, ttm_bo_type_sg,
+				       mem->bo->tbo.base.resv,
+				       &gobj);
+	if (ret)
+		return ret;
+
+	amdgpu_bo_unreserve(mem->bo);
+
+	*bo = gem_to_amdgpu_bo(gobj);
+	(*bo)->parent = amdgpu_bo_ref(mem->bo);
+
+	return 0;
+}
+
 /* kfd_mem_attach - Add a BO to a VM
  *
  * Everything that needs to bo done only once when a BO is first added
@@ -603,7 +631,6 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 	uint64_t va = mem->va;
 	struct kfd_mem_attachment *attachment[2] = {NULL, NULL};
 	struct amdgpu_bo *bo[2] = {NULL, NULL};
-	struct drm_gem_object *gobj;
 	int i, ret;
 
 	if (!va) {
@@ -637,15 +664,9 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		} else if (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm)) {
 			/* Create an SG BO to DMA-map userptrs on other GPUs */
 			attachment[i]->type = KFD_MEM_ATT_USERPTR;
-			ret = amdgpu_gem_object_create(adev, bo_size, 1,
-						       AMDGPU_GEM_DOMAIN_CPU,
-						       0, ttm_bo_type_sg,
-						       mem->bo->tbo.base.resv,
-						       &gobj);
+			ret = kfd_mem_attach_userptr(adev, mem, &bo[i]);
 			if (ret)
 				goto unwind;
-			bo[i] = gem_to_amdgpu_bo(gobj);
-			bo[i]->parent = amdgpu_bo_ref(mem->bo);
 		} else {
 			/* FIXME: Need to DMA-map other BO types */
 			attachment[i]->type = KFD_MEM_ATT_SHARED;
@@ -668,13 +689,6 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		list_add(&attachment[i]->list, &mem->attachments);
 
 		va += bo_size;
-	}
-
-	/* Allocate validate page tables if needed */
-	ret = vm_validate_pt_pd_bos(vm);
-	if (unlikely(ret)) {
-		pr_err("validate_pt_pd_bos() failed\n");
-		goto unwind;
 	}
 
 	return 0;
@@ -1483,11 +1497,11 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	pr_debug("Release VA 0x%llx - 0x%llx\n", mem->va,
 		mem->va + bo_size * (1 + mem->aql_queue));
 
+	ret = unreserve_bo_and_vms(&ctx, false, false);
+
 	/* Remove from VM internal data structures */
 	list_for_each_entry_safe(entry, tmp, &mem->attachments, list)
 		kfd_mem_detach(entry);
-
-	ret = unreserve_bo_and_vms(&ctx, false, false);
 
 	/* Free the sync object */
 	amdgpu_sync_free(&mem->sync);
@@ -1565,6 +1579,12 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 			mem->va + bo_size * (1 + mem->aql_queue),
 			avm, domain_string(domain));
 
+	if (!kfd_mem_is_attached(avm, mem)) {
+		ret = kfd_mem_attach(adev, mem, avm, mem->aql_queue);
+		if (ret)
+			goto out;
+	}
+
 	ret = reserve_bo_and_vm(mem, avm, &ctx);
 	if (unlikely(ret))
 		goto out;
@@ -1578,15 +1598,9 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	    bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
 		is_invalid_userptr = true;
 
-	if (!kfd_mem_is_attached(avm, mem)) {
-		ret = kfd_mem_attach(adev, mem, avm, mem->aql_queue);
-		if (ret)
-			goto attach_failed;
-	} else {
-		ret = vm_validate_pt_pd_bos(avm);
-		if (unlikely(ret))
-			goto attach_failed;
-	}
+	ret = vm_validate_pt_pd_bos(avm);
+	if (unlikely(ret))
+		goto out_unreserve;
 
 	if (mem->mapped_to_gpu_memory == 0 &&
 	    !amdgpu_ttm_tt_get_usermm(bo->tbo.ttm)) {
@@ -1597,7 +1611,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 		ret = amdgpu_amdkfd_bo_validate(bo, domain, true);
 		if (ret) {
 			pr_debug("Validate failed\n");
-			goto map_bo_to_gpuvm_failed;
+			goto out_unreserve;
 		}
 	}
 
@@ -1612,13 +1626,13 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 				      is_invalid_userptr);
 		if (ret) {
 			pr_err("Failed to map bo to gpuvm\n");
-			goto map_bo_to_gpuvm_failed;
+			goto out_unreserve;
 		}
 
 		ret = vm_update_pds(avm, ctx.sync);
 		if (ret) {
 			pr_err("Failed to update page directories\n");
-			goto map_bo_to_gpuvm_failed;
+			goto out_unreserve;
 		}
 
 		entry->is_mapped = true;
@@ -1635,8 +1649,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 
 	goto out;
 
-map_bo_to_gpuvm_failed:
-attach_failed:
+out_unreserve:
 	unreserve_bo_and_vms(&ctx, false, false);
 out:
 	mutex_unlock(&mem->process_info->lock);
