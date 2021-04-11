@@ -8,22 +8,24 @@
 
 #include "mlx5_ib.h"
 
-
 extern const struct ib_device_ops mlx5_ib_dev_dm_ops;
 extern const struct uapi_definition mlx5_ib_dm_defs[];
 
 struct mlx5_ib_dm {
 	struct ib_dm		ibdm;
-	phys_addr_t		dev_addr;
 	u32			type;
+	phys_addr_t		dev_addr;
 	size_t			size;
-	union {
-		struct {
-			u32	obj_id;
-		} icm_dm;
-		/* other dm types specific params should be added here */
-	};
+};
+
+struct mlx5_ib_dm_memic {
+	struct mlx5_ib_dm           base;
 	struct mlx5_user_mmap_entry mentry;
+};
+
+struct mlx5_ib_dm_icm {
+	struct mlx5_ib_dm      base;
+	u32                    obj_id;
 };
 
 static inline struct mlx5_ib_dm *to_mdm(struct ib_dm *ibdm)
@@ -31,11 +33,20 @@ static inline struct mlx5_ib_dm *to_mdm(struct ib_dm *ibdm)
 	return container_of(ibdm, struct mlx5_ib_dm, ibdm);
 }
 
+static inline struct mlx5_ib_dm_memic *to_memic(struct ib_dm *ibdm)
+{
+	return container_of(ibdm, struct mlx5_ib_dm_memic, base.ibdm);
+}
+
+static inline struct mlx5_ib_dm_icm *to_icm(struct ib_dm *ibdm)
+{
+	return container_of(ibdm, struct mlx5_ib_dm_icm, base.ibdm);
+}
+
 struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 			       struct ib_ucontext *context,
 			       struct ib_dm_alloc_attr *attr,
 			       struct uverbs_attr_bundle *attrs);
-int mlx5_ib_dealloc_dm(struct ib_dm *ibdm, struct uverbs_attr_bundle *attrs);
 void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr,
 			    u64 length);
 
