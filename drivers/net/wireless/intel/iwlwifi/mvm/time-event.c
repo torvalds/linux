@@ -734,8 +734,8 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	IWL_DEBUG_TE(mvm, "Removing TE 0x%x\n", le32_to_cpu(time_cmd.id));
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_EVENT_CMD, 0,
 				   sizeof(time_cmd), &time_cmd);
-	if (WARN_ON(ret))
-		return;
+	if (ret)
+		IWL_ERR(mvm, "Couldn't remove the time event\n");
 }
 
 /*
