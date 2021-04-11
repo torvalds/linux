@@ -1681,8 +1681,7 @@ parse_rx_slots(struct vchiq_state *state)
 				"%d: prs OPENACK@%pK,%x (%d->%d) v:%d",
 				state->id, header, size, remoteport, localport,
 				service->peer_version);
-			if (service->srvstate ==
-				VCHIQ_SRVSTATE_OPENING) {
+			if (service->srvstate == VCHIQ_SRVSTATE_OPENING) {
 				service->remoteport = remoteport;
 				vchiq_set_service_state(service,
 					VCHIQ_SRVSTATE_OPEN);
@@ -1716,9 +1715,8 @@ parse_rx_slots(struct vchiq_state *state)
 				"%d: prs DATA@%pK,%x (%d->%d)",
 				state->id, header, size, remoteport, localport);
 
-			if ((service->remoteport == remoteport)
-				&& (service->srvstate ==
-				VCHIQ_SRVSTATE_OPEN)) {
+			if ((service->remoteport == remoteport) &&
+			    (service->srvstate == VCHIQ_SRVSTATE_OPEN)) {
 				header->msgid = msgid | VCHIQ_MSGID_CLAIMED;
 				claim_slot(state->rx_info);
 				DEBUG_TRACE(PARSE_LINE);
@@ -1753,9 +1751,8 @@ parse_rx_slots(struct vchiq_state *state)
 			break;
 		case VCHIQ_MSG_BULK_RX_DONE:
 		case VCHIQ_MSG_BULK_TX_DONE:
-			if ((service->remoteport == remoteport)
-				&& (service->srvstate !=
-				VCHIQ_SRVSTATE_FREE)) {
+			if ((service->remoteport == remoteport) &&
+			    (service->srvstate != VCHIQ_SRVSTATE_FREE)) {
 				struct vchiq_bulk_queue *queue;
 				struct vchiq_bulk *bulk;
 
@@ -2445,10 +2442,9 @@ vchiq_add_service_internal(struct vchiq_state *state,
 			srv = rcu_dereference(state->services[i]);
 			if (!srv)
 				pservice = &state->services[i];
-			else if ((srv->public_fourcc == params->fourcc)
-				&& ((srv->instance != instance) ||
-				(srv->base.callback !=
-				params->callback))) {
+			else if ((srv->public_fourcc == params->fourcc) &&
+				 ((srv->instance != instance) ||
+				  (srv->base.callback != params->callback))) {
 				/*
 				 * There is another server using this
 				 * fourcc which doesn't match.
@@ -2942,8 +2938,8 @@ vchiq_close_service(unsigned int handle)
 		service->state->id, service->localport);
 
 	if ((service->srvstate == VCHIQ_SRVSTATE_FREE) ||
-		(service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
-		(service->srvstate == VCHIQ_SRVSTATE_HIDDEN)) {
+	    (service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
+	    (service->srvstate == VCHIQ_SRVSTATE_HIDDEN)) {
 		unlock_service(service);
 		return VCHIQ_ERROR;
 	}
@@ -2966,8 +2962,8 @@ vchiq_close_service(unsigned int handle)
 		}
 
 		if ((service->srvstate == VCHIQ_SRVSTATE_FREE) ||
-			(service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
-			(service->srvstate == VCHIQ_SRVSTATE_OPEN))
+		    (service->srvstate == VCHIQ_SRVSTATE_LISTENING) ||
+		    (service->srvstate == VCHIQ_SRVSTATE_OPEN))
 			break;
 
 		vchiq_log_warning(vchiq_core_log_level,
@@ -2977,8 +2973,8 @@ vchiq_close_service(unsigned int handle)
 	}
 
 	if ((status == VCHIQ_SUCCESS) &&
-		(service->srvstate != VCHIQ_SRVSTATE_FREE) &&
-		(service->srvstate != VCHIQ_SRVSTATE_LISTENING))
+	    (service->srvstate != VCHIQ_SRVSTATE_FREE) &&
+	    (service->srvstate != VCHIQ_SRVSTATE_LISTENING))
 		status = VCHIQ_ERROR;
 
 	unlock_service(service);
@@ -3009,7 +3005,7 @@ vchiq_remove_service(unsigned int handle)
 	mark_service_closing(service);
 
 	if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
-		(current == service->state->slot_handler_thread)) {
+	    (current == service->state->slot_handler_thread)) {
 		/*
 		 * Make it look like a client, because it must be removed and
 		 * not left in the LISTENING state.
@@ -3030,7 +3026,7 @@ vchiq_remove_service(unsigned int handle)
 		}
 
 		if ((service->srvstate == VCHIQ_SRVSTATE_FREE) ||
-			(service->srvstate == VCHIQ_SRVSTATE_OPEN))
+		    (service->srvstate == VCHIQ_SRVSTATE_OPEN))
 			break;
 
 		vchiq_log_warning(vchiq_core_log_level,
@@ -3040,7 +3036,7 @@ vchiq_remove_service(unsigned int handle)
 	}
 
 	if ((status == VCHIQ_SUCCESS) &&
-		(service->srvstate != VCHIQ_SRVSTATE_FREE))
+	    (service->srvstate != VCHIQ_SRVSTATE_FREE))
 		status = VCHIQ_ERROR;
 
 	unlock_service(service);
@@ -3302,7 +3298,7 @@ vchiq_release_message(unsigned int handle,
 	slot_index = SLOT_INDEX_FROM_DATA(state, (void *)header);
 
 	if ((slot_index >= remote->slot_first) &&
-		(slot_index <= remote->slot_last)) {
+	    (slot_index <= remote->slot_last)) {
 		int msgid = header->msgid;
 
 		if (msgid & VCHIQ_MSGID_CLAIMED) {
