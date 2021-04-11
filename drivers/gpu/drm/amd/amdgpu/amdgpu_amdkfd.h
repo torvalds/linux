@@ -47,6 +47,7 @@ struct amdgpu_device;
 enum kfd_mem_attachment_type {
 	KFD_MEM_ATT_SHARED,	/* Share kgd_mem->bo or another attachment's */
 	KFD_MEM_ATT_USERPTR,	/* SG bo to DMA map pages from a userptr bo */
+	KFD_MEM_ATT_DMABUF,	/* DMAbuf to DMA map TTM BOs */
 };
 
 struct kfd_mem_attachment {
@@ -62,6 +63,7 @@ struct kfd_mem_attachment {
 struct kgd_mem {
 	struct mutex lock;
 	struct amdgpu_bo *bo;
+	struct dma_buf *dmabuf;
 	struct list_head attachments;
 	/* protected by amdkfd_process_info.lock */
 	struct ttm_validate_buffer validate_list;
