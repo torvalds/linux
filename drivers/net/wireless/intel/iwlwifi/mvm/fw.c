@@ -1140,18 +1140,24 @@ static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	int cmd_ret;
-	struct iwl_lari_config_change_cmd_v2 cmd = {};
+	struct iwl_lari_config_change_cmd_v3 cmd = {};
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
 	/* apply more config masks here */
 
 	if (cmd.config_bitmap) {
-		size_t cmd_size = iwl_fw_lookup_cmd_ver(mvm->fw,
-							REGULATORY_AND_NVM_GROUP,
-							LARI_CONFIG_CHANGE, 1) == 2 ?
-			sizeof(struct iwl_lari_config_change_cmd_v2) :
-			sizeof(struct iwl_lari_config_change_cmd_v1);
+		size_t cmd_size;
+		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						   REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE, 1);
+		if (cmd_ver == 3)
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
+		else if (cmd_ver == 2)
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v2);
+		else
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v1);
+
 		IWL_DEBUG_RADIO(mvm,
 				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x\n",
 				le32_to_cpu(cmd.config_bitmap));

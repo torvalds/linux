@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -758,14 +758,6 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	else if (ret == DSM_VALUE_SRD_DISABLE)
 		config_bitmap |=
 			cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
-
-	/*
-	 ** Evaluate func 'DSM_FUNC_11AX_ENABLEMENT'
-	 */
-	ret = iwl_acpi_eval_dsm_func(fwrt->dev, DSM_FUNC_11AX_ENABLEMENT);
-
-	config_bitmap |=
-		cpu_to_le32((ret &= IWL_11AX_UKRAINE_MASK) << IWL_11AX_UKRAINE_SHIFT);
 
 	return config_bitmap;
 }
