@@ -166,6 +166,7 @@ enum mlx5_ib_mmap_type {
 	MLX5_IB_MMAP_TYPE_VAR = 2,
 	MLX5_IB_MMAP_TYPE_UAR_WC = 3,
 	MLX5_IB_MMAP_TYPE_UAR_NC = 4,
+	MLX5_IB_MMAP_TYPE_MEMIC_OP = 5,
 };
 
 struct mlx5_bfreg_info {

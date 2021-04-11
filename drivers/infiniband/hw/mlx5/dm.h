@@ -18,9 +18,19 @@ struct mlx5_ib_dm {
 	size_t			size;
 };
 
+struct mlx5_ib_dm_op_entry {
+	struct mlx5_user_mmap_entry	mentry;
+	phys_addr_t			op_addr;
+	struct mlx5_ib_dm_memic		*dm;
+	u8				op;
+};
+
 struct mlx5_ib_dm_memic {
 	struct mlx5_ib_dm           base;
 	struct mlx5_user_mmap_entry mentry;
+	struct xarray               ops;
+	struct mutex                ops_xa_lock;
+	struct kref                 ref;
 };
 
 struct mlx5_ib_dm_icm {
@@ -47,6 +57,8 @@ struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 			       struct ib_ucontext *context,
 			       struct ib_dm_alloc_attr *attr,
 			       struct uverbs_attr_bundle *attrs);
+void mlx5_ib_dm_mmap_free(struct mlx5_ib_dev *dev,
+			  struct mlx5_user_mmap_entry *mentry);
 void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr,
 			    u64 length);
 void mlx5_cmd_dealloc_memic_op(struct mlx5_dm *dm, phys_addr_t addr,
