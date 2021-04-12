@@ -176,7 +176,7 @@ static void intel_wait_ddi_buf_active(struct drm_i915_private *dev_priv,
 				      enum port port)
 {
 	/* Wait > 518 usecs for DDI_BUF_CTL to be non idle */
-	if (DISPLAY_VER(dev_priv) < 10 && !IS_GEMINILAKE(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) < 10) {
 		usleep_range(518, 1000);
 		return;
 	}
