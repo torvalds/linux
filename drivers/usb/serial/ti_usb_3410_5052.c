@@ -184,7 +184,7 @@ struct ti_uart_config {
 	char	cXon;
 	char	cXoff;
 	u8	bUartMode;
-} __packed;
+};
 
 /* Get port status */
 struct ti_port_status {
@@ -193,7 +193,7 @@ struct ti_port_status {
 	u8 bErrorCode;
 	u8 bMSR;
 	u8 bLSR;
-} __packed;
+};
 
 /* Purge modes */
 #define TI_PURGE_OUTPUT			0x00
@@ -236,13 +236,13 @@ struct ti_read_data_bytes {
 	__u8	bModuleId;
 	__u8	bErrorCode;
 	__u8	bData[];
-} __packed;
+};
 
 /* Interrupt struct */
 struct ti_interrupt {
 	__u8	bICode;
 	__u8	bIInfo;
-} __packed;
+};
 
 /* Interrupt codes */
 #define TI_CODE_HARDWARE_ERROR		0xFF
