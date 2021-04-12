@@ -2504,7 +2504,16 @@ static void new_to_req(struct v4l2_ctrl_ref *ref)
 	if (!ref)
 		return;
 	ptr_to_ptr(ref->ctrl, ref->ctrl->p_new, ref->p_req);
-	ref->req = ref;
+	ref->valid_p_req = true;
+}
+
+/* Copy the current value to the request value */
+static void cur_to_req(struct v4l2_ctrl_ref *ref)
+{
+	if (!ref)
+		return;
+	ptr_to_ptr(ref->ctrl, ref->ctrl->p_cur, ref->p_req);
+	ref->valid_p_req = true;
 }
 
 /* Copy the request value to the new value */
@@ -2512,8 +2521,8 @@ static void req_to_new(struct v4l2_ctrl_ref *ref)
 {
 	if (!ref)
 		return;
-	if (ref->req)
-		ptr_to_ptr(ref->ctrl, ref->req->p_req, ref->ctrl->p_new);
+	if (ref->valid_p_req)
+		ptr_to_ptr(ref->ctrl, ref->p_req, ref->ctrl->p_new);
 	else
 		ptr_to_ptr(ref->ctrl, ref->ctrl->p_cur, ref->ctrl->p_new);
 }
@@ -3694,39 +3703,8 @@ static void v4l2_ctrl_request_queue(struct media_request_object *obj)
 	struct v4l2_ctrl_handler *hdl =
 		container_of(obj, struct v4l2_ctrl_handler, req_obj);
 	struct v4l2_ctrl_handler *main_hdl = obj->priv;
-	struct v4l2_ctrl_handler *prev_hdl = NULL;
-	struct v4l2_ctrl_ref *ref_ctrl, *ref_ctrl_prev = NULL;
 
 	mutex_lock(main_hdl->lock);
-	if (list_empty(&main_hdl->requests_queued))
-		goto queue;
-
-	prev_hdl = list_last_entry(&main_hdl->requests_queued,
-				   struct v4l2_ctrl_handler, requests_queued);
-	/*
-	 * Note: prev_hdl and hdl must contain the same list of control
-	 * references, so if any differences are detected then that is a
-	 * driver bug and the WARN_ON is triggered.
-	 */
-	mutex_lock(prev_hdl->lock);
-	ref_ctrl_prev = list_first_entry(&prev_hdl->ctrl_refs,
-					 struct v4l2_ctrl_ref, node);
-	list_for_each_entry(ref_ctrl, &hdl->ctrl_refs, node) {
-		if (ref_ctrl->req)
-			continue;
-		while (ref_ctrl_prev->ctrl->id < ref_ctrl->ctrl->id) {
-			/* Should never happen, but just in case... */
-			if (list_is_last(&ref_ctrl_prev->node,
-					 &prev_hdl->ctrl_refs))
-				break;
-			ref_ctrl_prev = list_next_entry(ref_ctrl_prev, node);
-		}
-		if (WARN_ON(ref_ctrl_prev->ctrl->id != ref_ctrl->ctrl->id))
-			break;
-		ref_ctrl->req = ref_ctrl_prev->req;
-	}
-	mutex_unlock(prev_hdl->lock);
-queue:
 	list_add_tail(&hdl->requests_queued, &main_hdl->requests_queued);
 	hdl->request_is_queued = true;
 	mutex_unlock(main_hdl->lock);
@@ -3783,7 +3761,7 @@ v4l2_ctrl_request_hdl_ctrl_find(struct v4l2_ctrl_handler *hdl, u32 id)
 {
 	struct v4l2_ctrl_ref *ref = find_ref_lock(hdl, id);
 
-	return (ref && ref->req == ref) ? ref->ctrl : NULL;
+	return (ref && ref->valid_p_req) ? ref->ctrl : NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_ctrl_request_hdl_ctrl_find);
 
@@ -3972,7 +3950,13 @@ static int class_check(struct v4l2_ctrl_handler *hdl, u32 which)
 	return find_ref_lock(hdl, which | 1) ? 0 : -EINVAL;
 }
 
-/* Get extended controls. Allocates the helpers array if needed. */
+/*
+ * Get extended controls. Allocates the helpers array if needed.
+ *
+ * Note that v4l2_g_ext_ctrls_common() with 'which' set to
+ * V4L2_CTRL_WHICH_REQUEST_VAL is only called if the request was
+ * completed, and in that case valid_p_req is true for all controls.
+ */
 static int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 				   struct v4l2_ext_controls *cs,
 				   struct video_device *vdev)
@@ -3981,9 +3965,10 @@ static int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 	struct v4l2_ctrl_helper *helpers = helper;
 	int ret;
 	int i, j;
-	bool def_value;
+	bool is_default, is_request;
 
-	def_value = (cs->which == V4L2_CTRL_WHICH_DEF_VAL);
+	is_default = (cs->which == V4L2_CTRL_WHICH_DEF_VAL);
+	is_request = (cs->which == V4L2_CTRL_WHICH_REQUEST_VAL);
 
 	cs->error_idx = cs->count;
 	cs->which = V4L2_CTRL_ID2WHICH(cs->which);
@@ -4009,11 +3994,9 @@ static int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 			ret = -EACCES;
 
 	for (i = 0; !ret && i < cs->count; i++) {
-		int (*ctrl_to_user)(struct v4l2_ext_control *c,
-				    struct v4l2_ctrl *ctrl);
 		struct v4l2_ctrl *master;
-
-		ctrl_to_user = def_value ? def_to_user : cur_to_user;
+		bool is_volatile = false;
+		u32 idx = i;
 
 		if (helpers[i].mref == NULL)
 			continue;
@@ -4023,31 +4006,48 @@ static int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 
 		v4l2_ctrl_lock(master);
 
-		/* g_volatile_ctrl will update the new control values */
-		if (!def_value &&
+		/*
+		 * g_volatile_ctrl will update the new control values.
+		 * This makes no sense for V4L2_CTRL_WHICH_DEF_VAL and
+		 * V4L2_CTRL_WHICH_REQUEST_VAL. In the case of requests
+		 * it is v4l2_ctrl_request_complete() that copies the
+		 * volatile controls at the time of request completion
+		 * to the request, so you don't want to do that again.
+		 */
+		if (!is_default && !is_request &&
 		    ((master->flags & V4L2_CTRL_FLAG_VOLATILE) ||
 		    (master->has_volatiles && !is_cur_manual(master)))) {
 			for (j = 0; j < master->ncontrols; j++)
 				cur_to_new(master->cluster[j]);
 			ret = call_op(master, g_volatile_ctrl);
-			ctrl_to_user = new_to_user;
+			is_volatile = true;
 		}
-		/* If OK, then copy the current (for non-volatile controls)
-		   or the new (for volatile controls) control values to the
-		   caller */
-		if (!ret) {
-			u32 idx = i;
 
-			do {
-				if (helpers[idx].ref->req)
-					ret = req_to_user(cs->controls + idx,
-						helpers[idx].ref->req);
-				else
-					ret = ctrl_to_user(cs->controls + idx,
-						helpers[idx].ref->ctrl);
-				idx = helpers[idx].next;
-			} while (!ret && idx);
+		if (ret) {
+			v4l2_ctrl_unlock(master);
+			break;
 		}
+
+		/*
+		 * Copy the default value (if is_default is true), the
+		 * request value (if is_request is true and p_req is valid),
+		 * the new volatile value (if is_volatile is true) or the
+		 * current value.
+		 */
+		do {
+			struct v4l2_ctrl_ref *ref = helpers[idx].ref;
+
+			if (is_default)
+				ret = def_to_user(cs->controls + idx, ref->ctrl);
+			else if (is_request && ref->valid_p_req)
+				ret = req_to_user(cs->controls + idx, ref);
+			else if (is_volatile)
+				ret = new_to_user(cs->controls + idx, ref->ctrl);
+			else
+				ret = cur_to_user(cs->controls + idx, ref->ctrl);
+			idx = helpers[idx].next;
+		} while (!ret && idx);
+
 		v4l2_ctrl_unlock(master);
 	}
 
@@ -4690,8 +4690,6 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 		unsigned int i;
 
 		if (ctrl->flags & V4L2_CTRL_FLAG_VOLATILE) {
-			ref->req = ref;
-
 			v4l2_ctrl_lock(master);
 			/* g_volatile_ctrl will update the current control values */
 			for (i = 0; i < master->ncontrols; i++)
@@ -4701,21 +4699,12 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 			v4l2_ctrl_unlock(master);
 			continue;
 		}
-		if (ref->req == ref)
+		if (ref->valid_p_req)
 			continue;
 
+		/* Copy the current control value into the request */
 		v4l2_ctrl_lock(ctrl);
-		if (ref->req) {
-			ptr_to_ptr(ctrl, ref->req->p_req, ref->p_req);
-		} else {
-			ptr_to_ptr(ctrl, ctrl->p_cur, ref->p_req);
-			/*
-			 * Set ref->req to ensure that when userspace wants to
-			 * obtain the controls of this request it will take
-			 * this value and not the current value of the control.
-			 */
-			ref->req = ref;
-		}
+		cur_to_req(ref);
 		v4l2_ctrl_unlock(ctrl);
 	}
 
@@ -4779,7 +4768,7 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 				struct v4l2_ctrl_ref *r =
 					find_ref(hdl, master->cluster[i]->id);
 
-				if (r->req && r == r->req) {
+				if (r->valid_p_req) {
 					have_new_data = true;
 					break;
 				}
