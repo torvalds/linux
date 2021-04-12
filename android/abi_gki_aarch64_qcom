@@ -2181,6 +2181,7 @@
   sock_queue_rcv_skb
   sock_register
   sock_release
+  sock_setsockopt
   sock_unregister
   softnet_data
   sort
