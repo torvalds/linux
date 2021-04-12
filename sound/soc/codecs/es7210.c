@@ -903,7 +903,7 @@ static int es7210_probe(struct snd_soc_component *component)
         //ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);//8,8
 #else
         component->control_data = devm_regmap_init_i2c(es7210->i2c_client, &es7210_regmap_config);
-        ret = PTR_RET(component->control_data);
+        ret = PTR_ERR_OR_ZERO(component->control_data);
 #endif
 
         if (ret < 0) {

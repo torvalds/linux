@@ -1948,7 +1948,7 @@ static int es7243e_probe(struct snd_soc_component *component)
 #else
 	component->control_data = devm_regmap_init_i2c(es7243e->i2c,
 						   &es7243e_regmap_config);
-	ret = PTR_RET(component->control_data);
+	ret = PTR_ERR_OR_ZERO(component->control_data);
 #endif
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to set cache I/O: %d\n", ret);
