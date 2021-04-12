@@ -532,7 +532,6 @@ static void xr_set_termios(struct tty_struct *tty,
 
 static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	u8 gpio_dir;
 	int ret;
 
 	ret = xr_uart_enable(port);
@@ -540,13 +539,6 @@ static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev, "Failed to enable UART\n");
 		return ret;
 	}
-
-	/*
-	 * Configure DTR and RTS as outputs and RI, CD, DSR and CTS as
-	 * inputs.
-	 */
-	gpio_dir = XR21V141X_GPIO_DTR | XR21V141X_GPIO_RTS;
-	xr_set_reg_uart(port, XR21V141X_REG_GPIO_DIR, gpio_dir);
 
 	/* Setup termios */
 	if (tty)
@@ -596,10 +588,38 @@ static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 	return 0;
 }
 
+static int xr_gpio_init(struct usb_serial_port *port)
+{
+	u8 mask, mode;
+	int ret;
+
+	/* Configure all pins as GPIO. */
+	mode = 0;
+	ret = xr_set_reg_uart(port, XR21V141X_REG_GPIO_MODE, mode);
+	if (ret)
+		return ret;
+
+	/*
+	 * Configure DTR and RTS as outputs and make sure they are deasserted
+	 * (active low), and configure RI, CD, DSR and CTS as inputs.
+	 */
+	mask = XR21V141X_GPIO_DTR | XR21V141X_GPIO_RTS;
+	ret = xr_set_reg_uart(port, XR21V141X_REG_GPIO_DIR, mask);
+	if (ret)
+		return ret;
+
+	ret = xr_set_reg_uart(port, XR21V141X_REG_GPIO_SET, mask);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int xr_port_probe(struct usb_serial_port *port)
 {
 	struct usb_interface_descriptor *desc;
 	struct xr_data *data;
+	int ret;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -610,7 +630,16 @@ static int xr_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, data);
 
+	ret = xr_gpio_init(port);
+	if (ret)
+		goto err_free;
+
 	return 0;
+
+err_free:
+	kfree(data);
+
+	return ret;
 }
 
 static void xr_port_remove(struct usb_serial_port *port)
