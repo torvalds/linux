@@ -88,11 +88,11 @@ struct xr_txrx_clk_mask {
 #define XR21V141X_UART_FLOW_MODE_HW	0x1
 #define XR21V141X_UART_FLOW_MODE_SW	0x2
 
-#define XR21V141X_UART_MODE_GPIO_MASK	GENMASK(2, 0)
-#define XR21V141X_UART_MODE_RTS_CTS	0x1
-#define XR21V141X_UART_MODE_DTR_DSR	0x2
-#define XR21V141X_UART_MODE_RS485	0x3
-#define XR21V141X_UART_MODE_RS485_ADDR	0x4
+#define XR21V141X_GPIO_MODE_MASK	GENMASK(2, 0)
+#define XR21V141X_GPIO_MODE_RTS_CTS	0x1
+#define XR21V141X_GPIO_MODE_DTR_DSR	0x2
+#define XR21V141X_GPIO_MODE_RS485	0x3
+#define XR21V141X_GPIO_MODE_RS485_ADDR	0x4
 
 #define XR21V141X_REG_ENABLE		0x03
 #define XR21V141X_REG_FORMAT		0x0b
@@ -433,11 +433,11 @@ static void xr_set_flow_mode(struct tty_struct *tty,
 		return;
 
 	/* Set GPIO mode for controlling the pins manually by default. */
-	gpio_mode &= ~XR21V141X_UART_MODE_GPIO_MASK;
+	gpio_mode &= ~XR21V141X_GPIO_MODE_MASK;
 
 	if (C_CRTSCTS(tty) && C_BAUD(tty) != B0) {
 		dev_dbg(&port->dev, "Enabling hardware flow ctrl\n");
-		gpio_mode |= XR21V141X_UART_MODE_RTS_CTS;
+		gpio_mode |= XR21V141X_GPIO_MODE_RTS_CTS;
 		flow = XR21V141X_UART_FLOW_MODE_HW;
 	} else if (I_IXON(tty)) {
 		u8 start_char = START_CHAR(tty);
