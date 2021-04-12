@@ -268,7 +268,6 @@ struct cam_entry_cache {
 struct dvobj_priv {
 	/*-------- below is common data --------*/
 	struct adapter *if1; /* PRIMARY_ADAPTER */
-	struct adapter *if2; /* SECONDARY_ADAPTER */
 
 	s32	processing_dev_remove;
 

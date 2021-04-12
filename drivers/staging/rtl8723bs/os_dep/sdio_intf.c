@@ -369,7 +369,7 @@ static int rtw_drv_init(
 	const struct sdio_device_id *id)
 {
 	int status = _FAIL;
-	struct adapter *if1 = NULL, *if2 = NULL;
+	struct adapter *if1 = NULL;
 	struct dvobj_priv *dvobj;
 
 	dvobj = sdio_dvobj_init(func);
@@ -383,17 +383,15 @@ static int rtw_drv_init(
 	/* dev_alloc_name && register_netdev */
 	status = rtw_drv_register_netdev(if1);
 	if (status != _SUCCESS)
-		goto free_if2;
+		goto free_if1;
 
 	if (sdio_alloc_irq(dvobj) != _SUCCESS)
-		goto free_if2;
+		goto free_if1;
 
 	rtw_ndev_notifier_register();
 	status = _SUCCESS;
 
-free_if2:
-	if (status != _SUCCESS && if2) {
-	}
+free_if1:
 	if (status != _SUCCESS && if1)
 		rtw_sdio_if1_deinit(if1);
 
