@@ -50,7 +50,16 @@ properties:
   interrupt-names: true
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: AVB functional clock
+      - description: Optional TXC reference clock
+
+  clock-names:
+    items:
+      - const: fck
+      - const: refclk
 
   iommus:
     maxItems: 1
