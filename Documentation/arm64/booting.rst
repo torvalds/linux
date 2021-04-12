@@ -279,7 +279,10 @@ Before jumping into the kernel, the following conditions must be met:
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
-enter the kernel in the same exception level.
+enter the kernel in the same exception level.  Where the values documented
+disable traps it is permissible for these traps to be enabled so long as
+those traps are handled transparently by higher exception levels as though
+the values documented were set.
 
 The boot loader is expected to enter the kernel on each CPU in the
 following manner:
