@@ -274,7 +274,7 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	INIT_LIST_HEAD(&prange->deferred_list);
 	INIT_LIST_HEAD(&prange->child_list);
 	atomic_set(&prange->invalid, 0);
-	prange->validate_timestamp = ktime_to_us(ktime_get());
+	prange->validate_timestamp = 0;
 	mutex_init(&prange->migrate_mutex);
 	mutex_init(&prange->lock);
 	svm_range_set_default_attributes(&prange->preferred_loc,
@@ -2151,6 +2151,86 @@ svm_range_best_restore_location(struct svm_range *prange,
 
 	return -1;
 }
+static int
+svm_range_get_range_boundaries(struct kfd_process *p, int64_t addr,
+				unsigned long *start, unsigned long *last)
+{
+	struct vm_area_struct *vma;
+	struct interval_tree_node *node;
+	unsigned long start_limit, end_limit;
+
+	vma = find_vma(p->mm, addr << PAGE_SHIFT);
+	if (!vma || (addr << PAGE_SHIFT) < vma->vm_start) {
+		pr_debug("VMA does not exist in address [0x%llx]\n", addr);
+		return -EFAULT;
+	}
+	start_limit = max(vma->vm_start >> PAGE_SHIFT,
+		      (unsigned long)ALIGN_DOWN(addr, 2UL << 8));
+	end_limit = min(vma->vm_end >> PAGE_SHIFT,
+		    (unsigned long)ALIGN(addr + 1, 2UL << 8));
+	/* First range that starts after the fault address */
+	node = interval_tree_iter_first(&p->svms.objects, addr + 1, ULONG_MAX);
+	if (node) {
+		end_limit = min(end_limit, node->start);
+		/* Last range that ends before the fault address */
+		node = container_of(rb_prev(&node->rb),
+				    struct interval_tree_node, rb);
+	} else {
+		/* Last range must end before addr because
+		 * there was no range after addr
+		 */
+		node = container_of(rb_last(&p->svms.objects.rb_root),
+				    struct interval_tree_node, rb);
+	}
+	if (node) {
+		if (node->last >= addr) {
+			WARN(1, "Overlap with prev node and page fault addr\n");
+			return -EFAULT;
+		}
+		start_limit = max(start_limit, node->last + 1);
+	}
+
+	*start = start_limit;
+	*last = end_limit - 1;
+
+	pr_debug("vma start: 0x%lx start: 0x%lx vma end: 0x%lx last: 0x%lx\n",
+		  vma->vm_start >> PAGE_SHIFT, *start,
+		  vma->vm_end >> PAGE_SHIFT, *last);
+
+	return 0;
+
+}
+static struct
+svm_range *svm_range_create_unregistered_range(struct amdgpu_device *adev,
+						struct kfd_process *p,
+						struct mm_struct *mm,
+						int64_t addr)
+{
+	struct svm_range *prange = NULL;
+	unsigned long start, last;
+	uint32_t gpuid, gpuidx;
+
+	if (svm_range_get_range_boundaries(p, addr, &start, &last))
+		return NULL;
+
+	prange = svm_range_new(&p->svms, start, last);
+	if (!prange) {
+		pr_debug("Failed to create prange in address [0x%llx]\\n", addr);
+		return NULL;
+	}
+	if (kfd_process_gpuid_from_kgd(p, adev, &gpuid, &gpuidx)) {
+		pr_debug("failed to get gpuid from kgd\n");
+		svm_range_free(prange);
+		return NULL;
+	}
+	prange->preferred_loc = gpuid;
+	prange->actual_loc = 0;
+	/* Gurantee prange is migrate it */
+	svm_range_add_to_svms(prange);
+	svm_range_add_notifier_locked(mm, prange);
+
+	return prange;
+}
 
 int
 svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
@@ -2162,6 +2242,7 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	struct kfd_process *p;
 	uint64_t timestamp;
 	int32_t best_loc, gpuidx;
+	bool write_locked = false;
 	int r = 0;
 
 	p = kfd_lookup_process_by_pasid(pasid);
@@ -2185,15 +2266,35 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	}
 
 	mmap_read_lock(mm);
+retry_write_locked:
 	mutex_lock(&svms->lock);
 	prange = svm_range_from_addr(svms, addr, NULL);
 
 	if (!prange) {
 		pr_debug("failed to find prange svms 0x%p address [0x%llx]\n",
 			 svms, addr);
-		r = -EFAULT;
-		goto out_unlock_svms;
+		if (!write_locked) {
+			/* Need the write lock to create new range with MMU notifier.
+			 * Also flush pending deferred work to make sure the interval
+			 * tree is up to date before we add a new range
+			 */
+			mutex_unlock(&svms->lock);
+			mmap_read_unlock(mm);
+			mmap_write_lock(mm);
+			write_locked = true;
+			goto retry_write_locked;
+		}
+		prange = svm_range_create_unregistered_range(adev, p, mm, addr);
+		if (!prange) {
+			pr_debug("failed to create unregisterd range svms 0x%p address [0x%llx]\n",
+				 svms, addr);
+			mmap_write_downgrade(mm);
+			r = -EFAULT;
+			goto out_unlock_svms;
+		}
 	}
+	if (write_locked)
+		mmap_write_downgrade(mm);
 
 	mutex_lock(&prange->migrate_mutex);
 	timestamp = ktime_to_us(ktime_get()) - prange->validate_timestamp;
