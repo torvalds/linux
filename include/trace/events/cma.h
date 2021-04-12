@@ -63,21 +63,24 @@ TRACE_EVENT(cma_release,
 
 TRACE_EVENT(cma_alloc_start,
 
-	TP_PROTO(unsigned int count, unsigned int align),
+	TP_PROTO(const char *name, unsigned int count, unsigned int align),
 
-	TP_ARGS(count, align),
+	TP_ARGS(name, count, align),
 
 	TP_STRUCT__entry(
+		__string(name, name)
 		__field(unsigned int, count)
 		__field(unsigned int, align)
 	),
 
 	TP_fast_assign(
+		__assign_str(name, name);
 		__entry->count = count;
 		__entry->align = align;
 	),
 
-	TP_printk("count=%u align=%u",
+	TP_printk("name=%s count=%u align=%u",
+		  __get_str(name),
 		  __entry->count,
 		  __entry->align)
 );
