@@ -30,7 +30,7 @@ struct enetc_tx_swbd {
 	enum dma_data_direction dir;
 	u8 is_dma_page:1;
 	u8 check_wb:1;
-	u8 do_tstamp:1;
+	u8 do_twostep_tstamp:1;
 	u8 is_eof:1;
 	u8 is_xdp_tx:1;
 	u8 is_xdp_redirect:1;
@@ -275,11 +275,16 @@ struct psfp_cap {
 /* TODO: more hardware offloads */
 enum enetc_active_offloads {
 	/* 8 bits reserved for TX timestamp types (hwtstamp_tx_types) */
-	ENETC_F_TX_TSTAMP	= BIT(0),
+	ENETC_F_TX_TSTAMP		= BIT(0),
+	ENETC_F_TX_ONESTEP_SYNC_TSTAMP	= BIT(1),
 
-	ENETC_F_RX_TSTAMP	= BIT(8),
-	ENETC_F_QBV		= BIT(9),
-	ENETC_F_QCI		= BIT(10),
+	ENETC_F_RX_TSTAMP		= BIT(8),
+	ENETC_F_QBV			= BIT(9),
+	ENETC_F_QCI			= BIT(10),
+};
+
+enum enetc_flags_bit {
+	ENETC_TX_ONESTEP_TSTAMP_IN_PROGRESS = 0,
 };
 
 /* interrupt coalescing modes */
@@ -324,6 +329,11 @@ struct enetc_ndev_priv {
 	u32 tx_ictt;
 
 	struct bpf_prog *xdp_prog;
+
+	unsigned long flags;
+
+	struct work_struct	tx_onestep_tstamp;
+	struct sk_buff_head	tx_skbs;
 };
 
 /* Messaging */
