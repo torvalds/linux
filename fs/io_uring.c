@@ -2464,6 +2464,10 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 	return true;
 }
 #else
+static bool io_resubmit_prep(struct io_kiocb *req)
+{
+	return false;
+}
 static bool io_rw_should_reissue(struct io_kiocb *req)
 {
 	return false;
@@ -2504,14 +2508,8 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 	if (kiocb->ki_flags & IOCB_WRITE)
 		kiocb_end_write(req);
 	if (unlikely(res != req->result)) {
-		bool fail = true;
-
-#ifdef CONFIG_BLOCK
-		if (res == -EAGAIN && io_rw_should_reissue(req) &&
-		    io_resubmit_prep(req))
-			fail = false;
-#endif
-		if (fail) {
+		if (!(res == -EAGAIN && io_rw_should_reissue(req) &&
+		    io_resubmit_prep(req))) {
 			req_set_fail_links(req);
 			req->flags |= REQ_F_DONT_REISSUE;
 		}
