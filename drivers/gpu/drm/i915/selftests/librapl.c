@@ -5,7 +5,17 @@
 
 #include <asm/msr.h>
 
+#include "i915_drv.h"
 #include "librapl.h"
+
+bool librapl_supported(const struct drm_i915_private *i915)
+{
+	/* Discrete cards require hwmon integration */
+	if (IS_DGFX(i915))
+		return false;
+
+	return librapl_energy_uJ();
+}
 
 u64 librapl_energy_uJ(void)
 {

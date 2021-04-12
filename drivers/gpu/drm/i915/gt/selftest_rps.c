@@ -1139,7 +1139,7 @@ int live_rps_power(void *arg)
 	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
 		return 0;
 
-	if (!librapl_energy_uJ())
+	if (!librapl_supported(gt->i915))
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
