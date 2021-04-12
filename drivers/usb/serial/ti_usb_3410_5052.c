@@ -121,6 +121,7 @@
 #define TI_LSR_ERROR			0x0F
 #define TI_LSR_RX_FULL			0x10
 #define TI_LSR_TX_EMPTY			0x20
+#define TI_LSR_TX_EMPTY_BOTH		0x40
 
 /* Line control */
 #define TI_LCR_BREAK			0x40
@@ -614,7 +615,8 @@ static int ti_port_probe(struct usb_serial_port *port)
 	 * The TUSB5052 LSR does not tell when the transmitter shift register
 	 * has emptied so add a one-character drain delay.
 	 */
-	port->port.drain_delay = 1;
+	if (!tport->tp_tdev->td_is_3410)
+		port->port.drain_delay = 1;
 
 	return 0;
 }
@@ -851,11 +853,20 @@ static int ti_chars_in_buffer(struct tty_struct *tty)
 static bool ti_tx_empty(struct usb_serial_port *port)
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
+	u8 lsr, mask;
 	int ret;
-	u8 lsr;
+
+	/*
+	 * TUSB5052 does not have the TEMT bit to tell if the shift register
+	 * is empty.
+	 */
+	if (tport->tp_tdev->td_is_3410)
+		mask = TI_LSR_TX_EMPTY_BOTH;
+	else
+		mask = TI_LSR_TX_EMPTY;
 
 	ret = ti_get_lsr(tport, &lsr);
-	if (!ret && !(lsr & TI_LSR_TX_EMPTY))
+	if (!ret && !(lsr & mask))
 		return false;
 
 	return true;
