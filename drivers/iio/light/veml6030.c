@@ -128,7 +128,7 @@ static ssize_t in_illuminance_period_available_show(struct device *dev,
 		return -EINVAL;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", period_values[x]);
+	return sysfs_emit(buf, "%s\n", period_values[x]);
 }
 
 static IIO_DEVICE_ATTR_RO(in_illuminance_period_available, 0);
