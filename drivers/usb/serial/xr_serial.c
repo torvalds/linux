@@ -57,12 +57,12 @@ struct xr_txrx_clk_mask {
 #define XR21V141X_UART_ENABLE_TX	0x1
 #define XR21V141X_UART_ENABLE_RX	0x2
 
-#define XR21V141X_UART_MODE_RI		BIT(0)
-#define XR21V141X_UART_MODE_CD		BIT(1)
-#define XR21V141X_UART_MODE_DSR		BIT(2)
-#define XR21V141X_UART_MODE_DTR		BIT(3)
-#define XR21V141X_UART_MODE_CTS		BIT(4)
-#define XR21V141X_UART_MODE_RTS		BIT(5)
+#define XR21V141X_GPIO_RI		BIT(0)
+#define XR21V141X_GPIO_CD		BIT(1)
+#define XR21V141X_GPIO_DSR		BIT(2)
+#define XR21V141X_GPIO_DTR		BIT(3)
+#define XR21V141X_GPIO_CTS		BIT(4)
+#define XR21V141X_GPIO_RTS		BIT(5)
 
 #define XR21V141X_UART_BREAK_ON		0xff
 #define XR21V141X_UART_BREAK_OFF	0
@@ -250,12 +250,12 @@ static int xr_tiocmget(struct tty_struct *tty)
 	 * Modem control pins are active low, so reading '0' means it is active
 	 * and '1' means not active.
 	 */
-	ret = ((status & XR21V141X_UART_MODE_DTR) ? 0 : TIOCM_DTR) |
-	      ((status & XR21V141X_UART_MODE_RTS) ? 0 : TIOCM_RTS) |
-	      ((status & XR21V141X_UART_MODE_CTS) ? 0 : TIOCM_CTS) |
-	      ((status & XR21V141X_UART_MODE_DSR) ? 0 : TIOCM_DSR) |
-	      ((status & XR21V141X_UART_MODE_RI) ? 0 : TIOCM_RI) |
-	      ((status & XR21V141X_UART_MODE_CD) ? 0 : TIOCM_CD);
+	ret = ((status & XR21V141X_GPIO_DTR) ? 0 : TIOCM_DTR) |
+	      ((status & XR21V141X_GPIO_RTS) ? 0 : TIOCM_RTS) |
+	      ((status & XR21V141X_GPIO_CTS) ? 0 : TIOCM_CTS) |
+	      ((status & XR21V141X_GPIO_DSR) ? 0 : TIOCM_DSR) |
+	      ((status & XR21V141X_GPIO_RI) ? 0 : TIOCM_RI) |
+	      ((status & XR21V141X_GPIO_CD) ? 0 : TIOCM_CD);
 
 	return ret;
 }
@@ -269,13 +269,13 @@ static int xr_tiocmset_port(struct usb_serial_port *port,
 
 	/* Modem control pins are active low, so set & clr are swapped */
 	if (set & TIOCM_RTS)
-		gpio_clr |= XR21V141X_UART_MODE_RTS;
+		gpio_clr |= XR21V141X_GPIO_RTS;
 	if (set & TIOCM_DTR)
-		gpio_clr |= XR21V141X_UART_MODE_DTR;
+		gpio_clr |= XR21V141X_GPIO_DTR;
 	if (clear & TIOCM_RTS)
-		gpio_set |= XR21V141X_UART_MODE_RTS;
+		gpio_set |= XR21V141X_GPIO_RTS;
 	if (clear & TIOCM_DTR)
-		gpio_set |= XR21V141X_UART_MODE_DTR;
+		gpio_set |= XR21V141X_GPIO_DTR;
 
 	/* Writing '0' to gpio_{set/clr} bits has no effect, so no need to do */
 	if (gpio_clr)
@@ -545,7 +545,7 @@ static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * Configure DTR and RTS as outputs and RI, CD, DSR and CTS as
 	 * inputs.
 	 */
-	gpio_dir = XR21V141X_UART_MODE_DTR | XR21V141X_UART_MODE_RTS;
+	gpio_dir = XR21V141X_GPIO_DTR | XR21V141X_GPIO_RTS;
 	xr_set_reg_uart(port, XR21V141X_REG_GPIO_DIR, gpio_dir);
 
 	/* Setup termios */
