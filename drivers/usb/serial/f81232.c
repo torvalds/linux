@@ -948,7 +948,6 @@ static int f81232_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, priv);
 
-	port->port.drain_delay = 256;
 	priv->port = port;
 
 	return 0;
