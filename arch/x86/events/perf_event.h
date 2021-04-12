@@ -638,6 +638,7 @@ struct x86_hybrid_pmu {
 	int				max_pebs_events;
 	int				num_counters;
 	int				num_counters_fixed;
+	struct event_constraint		unconstrained;
 };
 
 static __always_inline struct x86_hybrid_pmu *hybrid_pmu(struct pmu *pmu)
@@ -654,6 +655,16 @@ extern struct static_key_false perf_is_hybrid;
 							\
 	if (is_hybrid() && (_pmu))			\
 		__Fp = &hybrid_pmu(_pmu)->_field;	\
+							\
+	__Fp;						\
+}))
+
+#define hybrid_var(_pmu, _var)				\
+(*({							\
+	typeof(&_var) __Fp = &_var;			\
+							\
+	if (is_hybrid() && (_pmu))			\
+		__Fp = &hybrid_pmu(_pmu)->_var;		\
 							\
 	__Fp;						\
 }))
