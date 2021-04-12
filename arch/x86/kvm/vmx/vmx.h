@@ -325,6 +325,9 @@ struct vcpu_vmx {
 	 */
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
+	/* SGX Launch Control public key hash */
+	u64 msr_ia32_sgxlepubkeyhash[4];
+
 #if IS_ENABLED(CONFIG_HYPERV)
 	u64 hv_root_ept;
 #endif
