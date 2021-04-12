@@ -123,6 +123,17 @@ config XIAOMI_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called xiaomi-wmi.
 
+config GIGABYTE_WMI
+	tristate "Gigabyte WMI temperature driver"
+	depends on ACPI_WMI
+	depends on HWMON
+	help
+	  Say Y here if you want to support WMI-based temperature reporting on
+	  Gigabyte mainboards.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gigabyte-wmi.
+
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
