@@ -782,26 +782,24 @@ static struct mddev *mddev_find(dev_t unit)
 	return mddev;
 }
 
-static struct mddev *mddev_find_or_alloc(dev_t unit)
+static struct mddev *mddev_alloc(dev_t unit)
 {
-	struct mddev *mddev = NULL, *new;
+	struct mddev *new;
+	int error;
 
 	if (unit && MAJOR(unit) != MD_MAJOR)
 		unit &= ~((1 << MdpMinorShift) - 1);
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	mddev_init(new);
 
 	spin_lock(&all_mddevs_lock);
 	if (unit) {
-		mddev = mddev_find_locked(unit);
-		if (mddev) {
-			mddev_get(mddev);
+		error = -EEXIST;
+		if (mddev_find_locked(unit))
 			goto out_free_new;
-		}
-
 		new->unit = unit;
 		if (MAJOR(unit) == MD_MAJOR)
 			new->md_minor = MINOR(unit);
@@ -809,6 +807,7 @@ static struct mddev *mddev_find_or_alloc(dev_t unit)
 			new->md_minor = MINOR(unit) >> MdpMinorShift;
 		new->hold_active = UNTIL_IOCTL;
 	} else {
+		error = -ENODEV;
 		new->unit = mddev_alloc_unit();
 		if (!new->unit)
 			goto out_free_new;
@@ -822,7 +821,7 @@ static struct mddev *mddev_find_or_alloc(dev_t unit)
 out_free_new:
 	spin_unlock(&all_mddevs_lock);
 	kfree(new);
-	return mddev;
+	return ERR_PTR(error);
 }
 
 static struct attribute_group md_redundancy_group;
@@ -5661,29 +5660,29 @@ static int md_alloc(dev_t dev, char *name)
 	 * writing to /sys/module/md_mod/parameters/new_array.
 	 */
 	static DEFINE_MUTEX(disks_mutex);
-	struct mddev *mddev = mddev_find_or_alloc(dev);
+	struct mddev *mddev;
 	struct gendisk *disk;
 	int partitioned;
 	int shift;
 	int unit;
-	int error;
+	int error ;
 
-	if (!mddev)
-		return -ENODEV;
-
-	partitioned = (MAJOR(mddev->unit) != MD_MAJOR);
-	shift = partitioned ? MdpMinorShift : 0;
-	unit = MINOR(mddev->unit) >> shift;
-
-	/* wait for any previous instance of this device to be
-	 * completely removed (mddev_delayed_delete).
+	/*
+	 * Wait for any previous instance of this device to be completely
+	 * removed (mddev_delayed_delete).
 	 */
 	flush_workqueue(md_misc_wq);
 
 	mutex_lock(&disks_mutex);
-	error = -EEXIST;
-	if (mddev->gendisk)
-		goto abort;
+	mddev = mddev_alloc(dev);
+	if (IS_ERR(mddev)) {
+		mutex_unlock(&disks_mutex);
+		return PTR_ERR(mddev);
+	}
+
+	partitioned = (MAJOR(mddev->unit) != MD_MAJOR);
+	shift = partitioned ? MdpMinorShift : 0;
+	unit = MINOR(mddev->unit) >> shift;
 
 	if (name && !dev) {
 		/* Need to ensure that 'name' is not a duplicate.
@@ -5695,6 +5694,7 @@ static int md_alloc(dev_t dev, char *name)
 			if (mddev2->gendisk &&
 			    strcmp(mddev2->gendisk->disk_name, name) == 0) {
 				spin_unlock(&all_mddevs_lock);
+				error = -EEXIST;
 				goto abort;
 			}
 		spin_unlock(&all_mddevs_lock);
