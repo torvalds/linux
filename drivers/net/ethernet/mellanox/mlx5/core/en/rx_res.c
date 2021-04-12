@@ -91,7 +91,7 @@ struct mlx5e_rx_res {
 		struct mlx5e_tir direct_tir;
 		struct mlx5e_rqt xsk_rqt;
 		struct mlx5e_tir xsk_tir;
-	} channels[MLX5E_MAX_NUM_CHANNELS];
+	} *channels;
 
 	struct {
 		struct mlx5e_rqt rqt;
@@ -210,6 +210,12 @@ static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res,
 	if (!builder)
 		return -ENOMEM;
 
+	res->channels = kvcalloc(res->max_nch, sizeof(*res->channels), GFP_KERNEL);
+	if (!res->channels) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	for (ix = 0; ix < res->max_nch; ix++) {
 		err = mlx5e_rqt_init_direct(&res->channels[ix].direct_rqt,
 					    res->mdev, false, res->drop_rqn);
@@ -288,6 +294,8 @@ err_destroy_direct_rqts:
 	while (--ix >= 0)
 		mlx5e_rqt_destroy(&res->channels[ix].direct_rqt);
 
+	kvfree(res->channels);
+
 out:
 	mlx5e_tir_builder_free(builder);
 
@@ -355,6 +363,8 @@ static void mlx5e_rx_res_channels_destroy(struct mlx5e_rx_res *res)
 		mlx5e_tir_destroy(&res->channels[ix].xsk_tir);
 		mlx5e_rqt_destroy(&res->channels[ix].xsk_rqt);
 	}
+
+	kvfree(res->channels);
 }
 
 static void mlx5e_rx_res_ptp_destroy(struct mlx5e_rx_res *res)

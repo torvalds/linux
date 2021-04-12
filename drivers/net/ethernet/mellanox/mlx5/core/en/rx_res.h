@@ -9,8 +9,6 @@
 #include "tir.h"
 #include "fs.h"
 
-#define MLX5E_MAX_NUM_CHANNELS (MLX5E_INDIR_RQT_SIZE / 2)
-
 struct mlx5e_rx_res;
 
 struct mlx5e_channels;
