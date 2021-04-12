@@ -342,6 +342,7 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 			ret = 0;
 
 		hisi_sfc_v3xx_disable_int(host);
+		synchronize_irq(host->irq);
 		host->completion = NULL;
 	} else {
 		ret = hisi_sfc_v3xx_wait_cmd_idle(host);
