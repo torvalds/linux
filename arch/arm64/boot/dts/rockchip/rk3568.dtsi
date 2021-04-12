@@ -726,11 +726,13 @@
 					lvds_in_vp1: endpoint@1 {
 						reg = <1>;
 						remote-endpoint = <&vp1_out_lvds>;
+						status = "disabled";
 					};
 
 					lvds_in_vp2: endpoint@2 {
 						reg = <2>;
 						remote-endpoint = <&vp2_out_lvds>;
+						status = "disabled";
 					};
 				};
 			};
@@ -754,6 +756,7 @@
 					rgb_in_vp2: endpoint@2 {
 						reg = <2>;
 						remote-endpoint = <&vp2_out_rgb>;
+						status = "disabled";
 					};
 				};
 			};
@@ -1825,11 +1828,13 @@
 				dsi0_in_vp0: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vp0_out_dsi0>;
+					status = "disabled";
 				};
 
 				dsi0_in_vp1: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vp1_out_dsi0>;
+					status = "disabled";
 				};
 			};
 		};
@@ -1863,11 +1868,13 @@
 				dsi1_in_vp0: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vp0_out_dsi1>;
+					status = "disabled";
 				};
 
 				dsi1_in_vp1: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vp1_out_dsi1>;
+					status = "disabled";
 				};
 			};
 		};
@@ -1903,10 +1910,12 @@
 				hdmi_in_vp0: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vp0_out_hdmi>;
+					status = "disabled";
 				};
 				hdmi_in_vp1: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vp1_out_hdmi>;
+					status = "disabled";
 				};
 			};
 		};
@@ -1938,11 +1947,13 @@
 				edp_in_vp0: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vp0_out_edp>;
+					status = "disabled";
 				};
 
 				edp_in_vp1: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vp1_out_edp>;
+					status = "disabled";
 				};
 			};
 		};
