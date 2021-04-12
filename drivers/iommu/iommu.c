@@ -2395,7 +2395,7 @@ static int __iommu_map_pages(struct iommu_domain *domain, unsigned long iova,
 
 	pgsize = iommu_pgsize(domain, iova, paddr, size, &count);
 
-	pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx count %ld\n",
+	pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx count %zu\n",
 			 iova, &paddr, pgsize, count);
 
 	if (ops->map_pages) {
