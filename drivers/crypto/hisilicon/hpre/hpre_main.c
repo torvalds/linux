@@ -807,6 +807,20 @@ static void hpre_open_axi_master_ooo(struct hisi_qm *qm)
 	       HPRE_ADDR(qm, HPRE_AM_OOO_SHUTDOWN_ENB));
 }
 
+static void hpre_err_info_init(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_info *err_info = &qm->err_info;
+
+	err_info->ce = QM_BASE_CE;
+	err_info->fe = 0;
+	err_info->ecc_2bits_mask = HPRE_CORE_ECC_2BIT_ERR |
+				   HPRE_OOO_ECC_2BIT_ERR;
+	err_info->dev_ce_mask = HPRE_HAC_RAS_CE_ENABLE;
+	err_info->msi_wr_port = HPRE_WR_MSI_PORT;
+	err_info->acpi_rst = "HRST";
+	err_info->nfe = QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT;
+}
+
 static const struct hisi_qm_err_ini hpre_err_ini = {
 	.hw_init		= hpre_set_user_domain_and_cache,
 	.hw_err_enable		= hpre_hw_error_enable,
@@ -815,16 +829,7 @@ static const struct hisi_qm_err_ini hpre_err_ini = {
 	.clear_dev_hw_err_status = hpre_clear_hw_err_status,
 	.log_dev_hw_err		= hpre_log_hw_error,
 	.open_axi_master_ooo	= hpre_open_axi_master_ooo,
-	.err_info		= {
-		.ce			= QM_BASE_CE,
-		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT,
-		.fe			= 0,
-		.ecc_2bits_mask		= HPRE_CORE_ECC_2BIT_ERR |
-					  HPRE_OOO_ECC_2BIT_ERR,
-		.dev_ce_mask		= HPRE_HAC_RAS_CE_ENABLE,
-		.msi_wr_port		= HPRE_WR_MSI_PORT,
-		.acpi_rst		= "HRST",
-	}
+	.err_info_init		= hpre_err_info_init,
 };
 
 static int hpre_pf_probe_init(struct hpre *hpre)
@@ -837,6 +842,7 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 		return ret;
 
 	qm->err_ini = &hpre_err_ini;
+	qm->err_ini->err_info_init(qm);
 	hisi_qm_dev_err_init(qm);
 
 	return 0;

@@ -186,7 +186,7 @@ struct hisi_qm_err_ini {
 	void (*open_axi_master_ooo)(struct hisi_qm *qm);
 	void (*close_axi_master_ooo)(struct hisi_qm *qm);
 	void (*log_dev_hw_err)(struct hisi_qm *qm, u32 err_sts);
-	struct hisi_qm_err_info err_info;
+	void (*err_info_init)(struct hisi_qm *qm);
 };
 
 struct hisi_qm_list {
@@ -226,6 +226,7 @@ struct hisi_qm {
 
 	struct hisi_qm_status status;
 	const struct hisi_qm_err_ini *err_ini;
+	struct hisi_qm_err_info err_info;
 	struct hisi_qm_err_status err_status;
 	unsigned long misc_ctl; /* driver removing and reset sched */
 

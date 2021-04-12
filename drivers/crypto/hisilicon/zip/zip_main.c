@@ -657,6 +657,19 @@ static void hisi_zip_close_axi_master_ooo(struct hisi_qm *qm)
 	       qm->io_base + HZIP_CORE_INT_SET);
 }
 
+static void hisi_zip_err_info_init(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_info *err_info = &qm->err_info;
+
+	err_info->ce = QM_BASE_CE;
+	err_info->fe = 0;
+	err_info->ecc_2bits_mask = HZIP_CORE_INT_STATUS_M_ECC;
+	err_info->dev_ce_mask = HZIP_CORE_INT_RAS_CE_ENABLE;
+	err_info->msi_wr_port = HZIP_WR_PORT;
+	err_info->acpi_rst = "ZRST";
+	err_info->nfe = QM_BASE_NFE | QM_ACC_WB_NOT_READY_TIMEOUT;
+}
+
 static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.hw_init		= hisi_zip_set_user_domain_and_cache,
 	.hw_err_enable		= hisi_zip_hw_error_enable,
@@ -666,16 +679,7 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.log_dev_hw_err		= hisi_zip_log_hw_error,
 	.open_axi_master_ooo	= hisi_zip_open_axi_master_ooo,
 	.close_axi_master_ooo	= hisi_zip_close_axi_master_ooo,
-	.err_info		= {
-		.ce			= QM_BASE_CE,
-		.nfe			= QM_BASE_NFE |
-					  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe			= 0,
-		.ecc_2bits_mask		= HZIP_CORE_INT_STATUS_M_ECC,
-		.dev_ce_mask		= HZIP_CORE_INT_RAS_CE_ENABLE,
-		.msi_wr_port		= HZIP_WR_PORT,
-		.acpi_rst		= "ZRST",
-	}
+	.err_info_init		= hisi_zip_err_info_init,
 };
 
 static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
@@ -690,6 +694,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	hisi_zip->ctrl = ctrl;
 	ctrl->hisi_zip = hisi_zip;
 	qm->err_ini = &hisi_zip_err_ini;
+	qm->err_ini->err_info_init(qm);
 
 	hisi_zip_set_user_domain_and_cache(qm);
 	hisi_qm_dev_err_init(qm);

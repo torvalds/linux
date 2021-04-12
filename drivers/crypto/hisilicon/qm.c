@@ -1702,7 +1702,7 @@ static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 		if (val == (QM_DB_RANDOM_INVALID | QM_BASE_CE)) {
 			writel(error_status, qm->io_base +
 			       QM_ABNORMAL_INT_SOURCE);
-			writel(qm->err_ini->err_info.nfe,
+			writel(qm->err_info.nfe,
 			       qm->io_base + QM_RAS_NFE_ENABLE);
 			return ACC_ERR_RECOVERED;
 		}
@@ -3107,7 +3107,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
 
 static void qm_hw_error_init(struct hisi_qm *qm)
 {
-	const struct hisi_qm_err_info *err_info = &qm->err_ini->err_info;
+	struct hisi_qm_err_info *err_info = &qm->err_info;
 
 	if (!qm->ops->hw_error_init) {
 		dev_err(&qm->pdev->dev, "QM doesn't support hw error handling!\n");
@@ -3459,15 +3459,15 @@ static enum acc_err_result qm_dev_err_handle(struct hisi_qm *qm)
 	/* get device hardware error status */
 	err_sts = qm->err_ini->get_dev_hw_err_status(qm);
 	if (err_sts) {
-		if (err_sts & qm->err_ini->err_info.ecc_2bits_mask)
+		if (err_sts & qm->err_info.ecc_2bits_mask)
 			qm->err_status.is_dev_ecc_mbit = true;
 
 		if (qm->err_ini->log_dev_hw_err)
 			qm->err_ini->log_dev_hw_err(qm, err_sts);
 
 		/* ce error does not need to be reset */
-		if ((err_sts | qm->err_ini->err_info.dev_ce_mask) ==
-		     qm->err_ini->err_info.dev_ce_mask) {
+		if ((err_sts | qm->err_info.dev_ce_mask) ==
+		     qm->err_info.dev_ce_mask) {
 			if (qm->err_ini->clear_dev_hw_err_status)
 				qm->err_ini->clear_dev_hw_err_status(qm,
 								err_sts);
@@ -3780,7 +3780,7 @@ static int qm_soft_reset(struct hisi_qm *qm)
 		acpi_status s;
 
 		s = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
-					  qm->err_ini->err_info.acpi_rst,
+					  qm->err_info.acpi_rst,
 					  NULL, &value);
 		if (ACPI_FAILURE(s)) {
 			pci_err(pdev, "NO controller reset method!\n");
@@ -3848,12 +3848,11 @@ static void qm_restart_prepare(struct hisi_qm *qm)
 
 	/* temporarily close the OOO port used for PEH to write out MSI */
 	value = readl(qm->io_base + ACC_AM_CFG_PORT_WR_EN);
-	writel(value & ~qm->err_ini->err_info.msi_wr_port,
+	writel(value & ~qm->err_info.msi_wr_port,
 	       qm->io_base + ACC_AM_CFG_PORT_WR_EN);
 
 	/* clear dev ecc 2bit error source if having */
-	value = qm_get_dev_err_status(qm) &
-		qm->err_ini->err_info.ecc_2bits_mask;
+	value = qm_get_dev_err_status(qm) & qm->err_info.ecc_2bits_mask;
 	if (value && qm->err_ini->clear_dev_hw_err_status)
 		qm->err_ini->clear_dev_hw_err_status(qm, value);
 
@@ -3877,7 +3876,7 @@ static void qm_restart_done(struct hisi_qm *qm)
 
 	/* open the OOO port for PEH to write out MSI */
 	value = readl(qm->io_base + ACC_AM_CFG_PORT_WR_EN);
-	value |= qm->err_ini->err_info.msi_wr_port;
+	value |= qm->err_info.msi_wr_port;
 	writel(value, qm->io_base + ACC_AM_CFG_PORT_WR_EN);
 
 	qm->err_status.is_qm_ecc_mbit = false;
@@ -4016,8 +4015,7 @@ static int qm_check_dev_error(struct hisi_qm *qm)
 	if (ret)
 		return ret;
 
-	return (qm_get_dev_err_status(qm) &
-		qm->err_ini->err_info.ecc_2bits_mask);
+	return (qm_get_dev_err_status(qm) & qm->err_info.ecc_2bits_mask);
 }
 
 void hisi_qm_reset_prepare(struct pci_dev *pdev)

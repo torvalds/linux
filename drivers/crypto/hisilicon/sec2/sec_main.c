@@ -701,6 +701,20 @@ static void sec_open_axi_master_ooo(struct hisi_qm *qm)
 	writel(val | SEC_AXI_SHUTDOWN_ENABLE, qm->io_base + SEC_CONTROL_REG);
 }
 
+static void sec_err_info_init(struct hisi_qm *qm)
+{
+	struct hisi_qm_err_info *err_info = &qm->err_info;
+
+	err_info->ce = QM_BASE_CE;
+	err_info->fe = 0;
+	err_info->ecc_2bits_mask = SEC_CORE_INT_STATUS_M_ECC;
+	err_info->dev_ce_mask = SEC_RAS_CE_ENB_MSK;
+	err_info->msi_wr_port = BIT(0);
+	err_info->acpi_rst = "SRST";
+	err_info->nfe = QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
+			QM_ACC_WB_NOT_READY_TIMEOUT;
+}
+
 static const struct hisi_qm_err_ini sec_err_ini = {
 	.hw_init		= sec_set_user_domain_and_cache,
 	.hw_err_enable		= sec_hw_error_enable,
@@ -709,16 +723,7 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.clear_dev_hw_err_status = sec_clear_hw_err_status,
 	.log_dev_hw_err		= sec_log_hw_error,
 	.open_axi_master_ooo	= sec_open_axi_master_ooo,
-	.err_info		= {
-		.ce		= QM_BASE_CE,
-		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
-				  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe		= 0,
-		.ecc_2bits_mask	= SEC_CORE_INT_STATUS_M_ECC,
-		.dev_ce_mask	= SEC_RAS_CE_ENB_MSK,
-		.msi_wr_port	= BIT(0),
-		.acpi_rst	= "SRST",
-	}
+	.err_info_init		= sec_err_info_init,
 };
 
 static int sec_pf_probe_init(struct sec_dev *sec)
@@ -727,6 +732,7 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 	int ret;
 
 	qm->err_ini = &sec_err_ini;
+	qm->err_ini->err_info_init(qm);
 
 	ret = sec_set_user_domain_and_cache(qm);
 	if (ret)
