@@ -257,7 +257,6 @@ int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 		return ret;
 	if (f->type != V4L2_BUF_TYPE_VBI_CAPTURE && vb2_is_busy(&dev->vb_vbi_cap_q))
 		return -EBUSY;
-	dev->vbi_cap_dev.queue->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	return 0;
 }
 
@@ -324,7 +323,6 @@ int vidioc_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_format 
 	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE && vb2_is_busy(&dev->vb_vbi_cap_q))
 		return -EBUSY;
 	dev->service_set_cap = vbi->service_set;
-	dev->vbi_cap_dev.queue->type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 	return 0;
 }
 
