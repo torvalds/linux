@@ -134,6 +134,7 @@ enum xr_type_id {
 	XR21V141X,
 	XR21B142X,
 	XR21B1411,
+	XR2280X,
 	XR_TYPE_COUNT,
 };
 
@@ -197,6 +198,24 @@ static const struct xr_type xr_types[] = {
 		.gpio_clear	= 0xc0f,
 		.gpio_status	= 0xc10,
 		.custom_driver	= 0x20d,
+	},
+	[XR2280X] = {
+		.reg_width	= 16,
+		.reg_recipient	= USB_RECIP_DEVICE,
+		.set_reg	= 0x05,
+		.get_reg	= 0x05,
+
+		.uart_enable	= 0x40,
+		.flow_control	= 0x46,
+		.xon_char	= 0x47,
+		.xoff_char	= 0x48,
+		.tx_break	= 0x4a,
+		.gpio_mode	= 0x4c,
+		.gpio_direction	= 0x4d,
+		.gpio_set	= 0x4e,
+		.gpio_clear	= 0x4f,
+		.gpio_status	= 0x50,
+		.custom_driver	= 0x81,
 	},
 };
 
@@ -906,6 +925,10 @@ static void xr_port_remove(struct usb_serial_port *port)
 	.driver_info = (type)
 
 static const struct usb_device_id id_table[] = {
+	{ XR_DEVICE(0x04e2, 0x1400, XR2280X) },
+	{ XR_DEVICE(0x04e2, 0x1401, XR2280X) },
+	{ XR_DEVICE(0x04e2, 0x1402, XR2280X) },
+	{ XR_DEVICE(0x04e2, 0x1403, XR2280X) },
 	{ XR_DEVICE(0x04e2, 0x1410, XR21V141X) },
 	{ XR_DEVICE(0x04e2, 0x1411, XR21B1411) },
 	{ XR_DEVICE(0x04e2, 0x1412, XR21V141X) },
