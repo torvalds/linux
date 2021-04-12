@@ -574,6 +574,36 @@ void idxd_device_drain_pasid(struct idxd_device *idxd, int pasid)
 }
 
 /* Device configuration bits */
+void idxd_msix_perm_setup(struct idxd_device *idxd)
+{
+	union msix_perm mperm;
+	int i, msixcnt;
+
+	msixcnt = pci_msix_vec_count(idxd->pdev);
+	if (msixcnt < 0)
+		return;
+
+	mperm.bits = 0;
+	mperm.pasid = idxd->pasid;
+	mperm.pasid_en = device_pasid_enabled(idxd);
+	for (i = 1; i < msixcnt; i++)
+		iowrite32(mperm.bits, idxd->reg_base + idxd->msix_perm_offset + i * 8);
+}
+
+void idxd_msix_perm_clear(struct idxd_device *idxd)
+{
+	union msix_perm mperm;
+	int i, msixcnt;
+
+	msixcnt = pci_msix_vec_count(idxd->pdev);
+	if (msixcnt < 0)
+		return;
+
+	mperm.bits = 0;
+	for (i = 1; i < msixcnt; i++)
+		iowrite32(mperm.bits, idxd->reg_base + idxd->msix_perm_offset + i * 8);
+}
+
 static void idxd_group_config_write(struct idxd_group *group)
 {
 	struct idxd_device *idxd = group->idxd;
