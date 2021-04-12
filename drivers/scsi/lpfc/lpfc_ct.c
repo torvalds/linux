@@ -777,7 +777,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0239 Skip x%06x NameServer Rsp "
-					 "Data: x%x x%x %p\n",
+					 "Data: x%x x%x x%px\n",
 					 Did, vport->fc_flag,
 					 vport->fc_rscn_id_cnt, ndlp);
 		}

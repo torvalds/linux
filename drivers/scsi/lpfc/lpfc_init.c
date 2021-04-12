@@ -3552,7 +3552,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 					lpfc_printf_vlog(vports[i], KERN_INFO,
 						 LOG_NODE | LOG_DISCOVERY,
 						 "0011 Free RPI x%x on "
-						 "ndlp: %p did x%x\n",
+						 "ndlp: x%px did x%x\n",
 						 ndlp->nlp_rpi, ndlp,
 						 ndlp->nlp_DID);
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
