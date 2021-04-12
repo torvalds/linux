@@ -413,9 +413,12 @@ mt7921_mcu_tx_rate_report(struct mt7921_dev *dev, struct sk_buff *skb,
 
 	if (wlan_idx >= MT76_N_WCIDS)
 		return;
+
+	rcu_read_lock();
+
 	wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
 	if (!wcid)
-		return;
+		goto out;
 
 	msta = container_of(wcid, struct mt7921_sta, wcid);
 	stats = &msta->stats;
@@ -423,6 +426,8 @@ mt7921_mcu_tx_rate_report(struct mt7921_dev *dev, struct sk_buff *skb,
 	/* current rate */
 	mt7921_mcu_tx_rate_parse(mphy, &peer, &rate, curr);
 	stats->tx_rate = rate;
+out:
+	rcu_read_unlock();
 }
 
 static void
