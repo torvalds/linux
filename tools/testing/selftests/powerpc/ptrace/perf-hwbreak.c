@@ -38,28 +38,46 @@
 
 #define DAWR_LENGTH_MAX ((0x3f + 1) * 8)
 
-static inline int sys_perf_event_open(struct perf_event_attr *attr, pid_t pid,
-				      int cpu, int group_fd,
-				      unsigned long flags)
+static void perf_event_attr_set(struct perf_event_attr *attr,
+				__u32 type, __u64 addr, __u64 len,
+				bool exclude_user)
 {
-	attr->size = sizeof(*attr);
-	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
+	memset(attr, 0, sizeof(struct perf_event_attr));
+	attr->type           = PERF_TYPE_BREAKPOINT;
+	attr->size           = sizeof(struct perf_event_attr);
+	attr->bp_type        = type;
+	attr->bp_addr        = addr;
+	attr->bp_len         = len;
+	attr->exclude_kernel = 1;
+	attr->exclude_hv     = 1;
+	attr->exclude_guest  = 1;
+	attr->exclude_user   = exclude_user;
+	attr->disabled       = 1;
+}
+
+static int
+perf_process_event_open_exclude_user(__u32 type, __u64 addr, __u64 len, bool exclude_user)
+{
+	struct perf_event_attr attr;
+
+	perf_event_attr_set(&attr, type, addr, len, exclude_user);
+	return syscall(__NR_perf_event_open, &attr, getpid(), -1, -1, 0);
+}
+
+static int perf_process_event_open(__u32 type, __u64 addr, __u64 len)
+{
+	struct perf_event_attr attr;
+
+	perf_event_attr_set(&attr, type, addr, len, 0);
+	return syscall(__NR_perf_event_open, &attr, getpid(), -1, -1, 0);
 }
 
 static inline bool breakpoint_test(int len)
 {
-	struct perf_event_attr attr;
 	int fd;
 
-	/* setup counters */
-	memset(&attr, 0, sizeof(attr));
-	attr.disabled = 1;
-	attr.type = PERF_TYPE_BREAKPOINT;
-	attr.bp_type = HW_BREAKPOINT_R;
 	/* bp_addr can point anywhere but needs to be aligned */
-	attr.bp_addr = (__u64)(&attr) & 0xfffffffffffff800;
-	attr.bp_len = len;
-	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	fd = perf_process_event_open(HW_BREAKPOINT_R, (__u64)(&fd) & 0xfffffffffffff800, len);
 	if (fd < 0)
 		return false;
 	close(fd);
@@ -79,7 +97,6 @@ static inline bool dawr_supported(void)
 static int runtestsingle(int readwriteflag, int exclude_user, int arraytest)
 {
 	int i,j;
-	struct perf_event_attr attr;
 	size_t res;
 	unsigned long long breaks, needed;
 	int readint;
@@ -89,6 +106,7 @@ static int runtestsingle(int readwriteflag, int exclude_user, int arraytest)
 	int break_fd;
 	int loop_num = MAX_LOOPS - (rand() % 100); /* provide some variability */
 	volatile int *k;
+	__u64 len;
 
 	/* align to 0x400 boundary as required by DAWR */
 	readintalign = (int *)(((unsigned long)readintarraybig + 0x7ff) &
@@ -98,19 +116,11 @@ static int runtestsingle(int readwriteflag, int exclude_user, int arraytest)
 	if (arraytest)
 		ptr = &readintalign[0];
 
-	/* setup counters */
-	memset(&attr, 0, sizeof(attr));
-	attr.disabled = 1;
-	attr.type = PERF_TYPE_BREAKPOINT;
-	attr.bp_type = readwriteflag;
-	attr.bp_addr = (__u64)ptr;
-	attr.bp_len = sizeof(int);
-	if (arraytest)
-		attr.bp_len = DAWR_LENGTH_MAX;
-	attr.exclude_user = exclude_user;
-	break_fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	len = arraytest ? DAWR_LENGTH_MAX : sizeof(int);
+	break_fd = perf_process_event_open_exclude_user(readwriteflag, (__u64)ptr,
+							len, exclude_user);
 	if (break_fd < 0) {
-		perror("sys_perf_event_open");
+		perror("perf_process_event_open_exclude_user");
 		exit(1);
 	}
 
@@ -157,7 +167,6 @@ static int runtest_dar_outside(void)
 	void *target;
 	volatile __u16 temp16;
 	volatile __u64 temp64;
-	struct perf_event_attr attr;
 	int break_fd;
 	unsigned long long breaks;
 	int fail = 0;
@@ -169,21 +178,11 @@ static int runtest_dar_outside(void)
 		exit(EXIT_FAILURE);
 	}
 
-	/* setup counters */
-	memset(&attr, 0, sizeof(attr));
-	attr.disabled = 1;
-	attr.type = PERF_TYPE_BREAKPOINT;
-	attr.exclude_kernel = 1;
-	attr.exclude_hv = 1;
-	attr.exclude_guest = 1;
-	attr.bp_type = HW_BREAKPOINT_RW;
 	/* watch middle half of target array */
-	attr.bp_addr = (__u64)(target + 2);
-	attr.bp_len = 4;
-	break_fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	break_fd = perf_process_event_open(HW_BREAKPOINT_RW, (__u64)(target + 2), 4);
 	if (break_fd < 0) {
 		free(target);
-		perror("sys_perf_event_open");
+		perror("perf_process_event_open");
 		exit(EXIT_FAILURE);
 	}
 
