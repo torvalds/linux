@@ -2689,7 +2689,7 @@ static int ov8865_enum_frame_interval(struct v4l2_subdev *subdev,
 		}
 	}
 
-	if (mode_index == ARRAY_SIZE(ov8865_modes) || !mode)
+	if (mode_index == ARRAY_SIZE(ov8865_modes))
 		return -EINVAL;
 
 	interval_enum->interval = mode->frame_interval;
