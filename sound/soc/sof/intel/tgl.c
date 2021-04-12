@@ -125,7 +125,7 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 EXPORT_SYMBOL_NS(sof_tgl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc tgl_chip_info = {
-	/* Tigerlake */
+	/* Tigerlake , Alderlake */
 	.cores_num = 4,
 	.init_core_mask = 1,
 	.host_managed_cores_mask = BIT(0),
