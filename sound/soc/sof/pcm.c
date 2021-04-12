@@ -775,6 +775,7 @@ int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_pa
 
 	return 0;
 }
+EXPORT_SYMBOL(sof_pcm_dai_link_fixup);
 
 static int sof_pcm_probe(struct snd_soc_component *component)
 {

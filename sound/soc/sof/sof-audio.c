@@ -468,24 +468,24 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = sof_pdata->desc;
 	struct snd_soc_acpi_mach *mach;
-	int ret;
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
+	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)) {
 
-	/* find machine */
-	snd_sof_machine_select(sdev);
-	if (sof_pdata->machine) {
-		snd_sof_set_mach_params(sof_pdata->machine, sdev->dev);
-		return 0;
+		/* find machine */
+		snd_sof_machine_select(sdev);
+		if (sof_pdata->machine) {
+			snd_sof_set_mach_params(sof_pdata->machine, sdev);
+			return 0;
+		}
+
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
+			dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+			return -ENODEV;
+		}
+	} else {
+		dev_warn(sdev->dev, "Force to use nocodec mode\n");
 	}
 
-#if !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
-	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
-	return -ENODEV;
-#endif
-#else
-	dev_warn(sdev->dev, "Force to use nocodec mode\n");
-#endif
 	/* select nocodec mode */
 	dev_warn(sdev->dev, "Using nocodec machine driver\n");
 	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
@@ -495,12 +495,8 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	mach->drv_name = "sof-nocodec";
 	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
-	ret = sof_nocodec_setup(sdev->dev, desc->ops, sof_pcm_dai_link_fixup);
-	if (ret < 0)
-		return ret;
-
 	sof_pdata->machine = mach;
-	snd_sof_set_mach_params(sof_pdata->machine, sdev->dev);
+	snd_sof_set_mach_params(sof_pdata->machine, sdev);
 
 	return 0;
 }

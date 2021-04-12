@@ -259,7 +259,7 @@ struct snd_sof_dsp_ops {
 				   void *pdata); /* optional */
 	void (*machine_select)(struct snd_sof_dev *sdev); /* optional */
 	void (*set_mach_params)(const struct snd_soc_acpi_mach *mach,
-				struct device *dev); /* optional */
+				struct snd_sof_dev *sdev); /* optional */
 
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
