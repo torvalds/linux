@@ -288,6 +288,21 @@ void bnxt_vf_reps_open(struct bnxt *bp)
 		bnxt_vf_rep_open(bp->vf_reps[i]->dev);
 }
 
+static void __bnxt_free_one_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep)
+{
+	if (!vf_rep)
+		return;
+
+	if (vf_rep->dst) {
+		dst_release((struct dst_entry *)vf_rep->dst);
+		vf_rep->dst = NULL;
+	}
+	if (vf_rep->tx_cfa_action != CFA_HANDLE_INVALID) {
+		hwrm_cfa_vfr_free(bp, vf_rep->vf_idx);
+		vf_rep->tx_cfa_action = CFA_HANDLE_INVALID;
+	}
+}
+
 static void __bnxt_vf_reps_destroy(struct bnxt *bp)
 {
 	u16 num_vfs = pci_num_vf(bp->pdev);
@@ -297,11 +312,7 @@ static void __bnxt_vf_reps_destroy(struct bnxt *bp)
 	for (i = 0; i < num_vfs; i++) {
 		vf_rep = bp->vf_reps[i];
 		if (vf_rep) {
-			dst_release((struct dst_entry *)vf_rep->dst);
-
-			if (vf_rep->tx_cfa_action != CFA_HANDLE_INVALID)
-				hwrm_cfa_vfr_free(bp, vf_rep->vf_idx);
-
+			__bnxt_free_one_vf_rep(bp, vf_rep);
 			if (vf_rep->dev) {
 				/* if register_netdev failed, then netdev_ops
 				 * would have been set to NULL
