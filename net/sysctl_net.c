@@ -115,9 +115,57 @@ out1:
 	goto out;
 }
 
+/* Verify that sysctls for non-init netns are safe by either:
+ * 1) being read-only, or
+ * 2) having a data pointer which points outside of the global kernel/module
+ *    data segment, and rather into the heap where a per-net object was
+ *    allocated.
+ */
+static void ensure_safe_net_sysctl(struct net *net, const char *path,
+				   struct ctl_table *table)
+{
+	struct ctl_table *ent;
+
+	pr_debug("Registering net sysctl (net %p): %s\n", net, path);
+	for (ent = table; ent->procname; ent++) {
+		unsigned long addr;
+		const char *where;
+
+		pr_debug("  procname=%s mode=%o proc_handler=%ps data=%p\n",
+			 ent->procname, ent->mode, ent->proc_handler, ent->data);
+
+		/* If it's not writable inside the netns, then it can't hurt. */
+		if ((ent->mode & 0222) == 0) {
+			pr_debug("    Not writable by anyone\n");
+			continue;
+		}
+
+		/* Where does data point? */
+		addr = (unsigned long)ent->data;
+		if (is_module_address(addr))
+			where = "module";
+		else if (core_kernel_data(addr))
+			where = "kernel";
+		else
+			continue;
+
+		/* If it is writable and points to kernel/module global
+		 * data, then it's probably a netns leak.
+		 */
+		WARN(1, "sysctl %s/%s: data points to %s global data: %ps\n",
+		     path, ent->procname, where, ent->data);
+
+		/* Make it "safe" by dropping writable perms */
+		ent->mode &= ~0222;
+	}
+}
+
 struct ctl_table_header *register_net_sysctl(struct net *net,
 	const char *path, struct ctl_table *table)
 {
+	if (!net_eq(net, &init_net))
+		ensure_safe_net_sysctl(net, path, table);
+
 	return __register_sysctl_table(&net->sysctls, path, table);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl);
