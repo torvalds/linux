@@ -312,6 +312,27 @@ union bpf_iter_link_info {
  *		*ctx_out*, *data_out* (for example, packet data), result of the
  *		execution *retval*, and *duration* of the test run.
  *
+ *		The sizes of the buffers provided as input and output
+ *		parameters *ctx_in*, *ctx_out*, *data_in*, and *data_out* must
+ *		be provided in the corresponding variables *ctx_size_in*,
+ *		*ctx_size_out*, *data_size_in*, and/or *data_size_out*. If any
+ *		of these parameters are not provided (ie set to NULL), the
+ *		corresponding size field must be zero.
+ *
+ *		Some program types have particular requirements:
+ *
+ *		**BPF_PROG_TYPE_SK_LOOKUP**
+ *			*data_in* and *data_out* must be NULL.
+ *
+ *		**BPF_PROG_TYPE_XDP**
+ *			*ctx_in* and *ctx_out* must be NULL.
+ *
+ *		**BPF_PROG_TYPE_RAW_TRACEPOINT**,
+ *		**BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE**
+ *
+ *			*ctx_out*, *data_in* and *data_out* must be NULL.
+ *			*repeat* must be zero.
+ *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
  *		is set appropriately.
@@ -4578,7 +4599,7 @@ union bpf_attr {
  *
  * long bpf_check_mtu(void *ctx, u32 ifindex, u32 *mtu_len, s32 len_diff, u64 flags)
  *	Description
- *		Check ctx packet size against exceeding MTU of net device (based
+ *		Check packet size against exceeding MTU of net device (based
  *		on *ifindex*).  This helper will likely be used in combination
  *		with helpers that adjust/change the packet size.
  *
@@ -4594,6 +4615,14 @@ union bpf_attr {
  *		Specifying *ifindex* zero means the MTU check is performed
  *		against the current net device.  This is practical if this isn't
  *		used prior to redirect.
+ *
+ *		On input *mtu_len* must be a valid pointer, else verifier will
+ *		reject BPF program.  If the value *mtu_len* is initialized to
+ *		zero then the ctx packet size is use.  When value *mtu_len* is
+ *		provided as input this specify the L3 length that the MTU check
+ *		is done against. Remember XDP and TC length operate at L2, but
+ *		this value is L3 as this correlate to MTU and IP-header tot_len
+ *		values which are L3 (similar behavior as bpf_fib_lookup).
  *
  *		The Linux kernel route table can configure MTUs on a more
  *		specific per route level, which is not provided by this helper.
@@ -4619,11 +4648,9 @@ union bpf_attr {
  *
  *		On return *mtu_len* pointer contains the MTU value of the net
  *		device.  Remember the net device configured MTU is the L3 size,
- *		which is returned here and XDP and TX length operate at L2.
+ *		which is returned here and XDP and TC length operate at L2.
  *		Helper take this into account for you, but remember when using
- *		MTU value in your BPF-code.  On input *mtu_len* must be a valid
- *		pointer and be initialized (to zero), else verifier will reject
- *		BPF program.
+ *		MTU value in your BPF-code.
  *
  *	Return
  *		* 0 on success, and populate MTU value in *mtu_len* pointer.
