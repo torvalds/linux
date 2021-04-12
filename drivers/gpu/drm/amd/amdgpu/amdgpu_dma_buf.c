@@ -291,8 +291,8 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 		break;
 
 	case TTM_PL_VRAM:
-		r = amdgpu_vram_mgr_alloc_sgt(adev, &bo->tbo.mem, attach->dev,
-					      dir, &sgt);
+		r = amdgpu_vram_mgr_alloc_sgt(adev, &bo->tbo.mem, 0,
+				bo->tbo.base.size, attach->dev, dir, &sgt);
 		if (r)
 			return ERR_PTR(r);
 		break;

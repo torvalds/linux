@@ -25,6 +25,7 @@
 #include <linux/dma-mapping.h>
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
+#include "amdgpu_res_cursor.h"
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
 
@@ -565,6 +566,8 @@ static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
  *
  * @adev: amdgpu device pointer
  * @mem: TTM memory object
+ * @offset: byte offset from the base of VRAM BO
+ * @length: number of bytes to export in sg_table
  * @dev: the other device
  * @dir: dma direction
  * @sgt: resulting sg table
@@ -573,39 +576,47 @@ static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
  */
 int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 			      struct ttm_resource *mem,
+			      u64 offset, u64 length,
 			      struct device *dev,
 			      enum dma_data_direction dir,
 			      struct sg_table **sgt)
 {
-	struct drm_mm_node *node;
+	struct amdgpu_res_cursor cursor;
 	struct scatterlist *sg;
 	int num_entries = 0;
-	unsigned int pages;
 	int i, r;
 
 	*sgt = kmalloc(sizeof(**sgt), GFP_KERNEL);
 	if (!*sgt)
 		return -ENOMEM;
 
-	for (pages = mem->num_pages, node = mem->mm_node;
-	     pages; pages -= node->size, ++node)
-		++num_entries;
+	/* Determine the number of DRM_MM nodes to export */
+	amdgpu_res_first(mem, offset, length, &cursor);
+	while (cursor.remaining) {
+		num_entries++;
+		amdgpu_res_next(&cursor, cursor.size);
+	}
 
 	r = sg_alloc_table(*sgt, num_entries, GFP_KERNEL);
 	if (r)
 		goto error_free;
 
+	/* Initialize scatterlist nodes of sg_table */
 	for_each_sgtable_sg((*sgt), sg, i)
 		sg->length = 0;
 
-	node = mem->mm_node;
+	/*
+	 * Walk down DRM_MM nodes to populate scatterlist nodes
+	 * @note: Use iterator api to get first the DRM_MM node
+	 * and the number of bytes from it. Access the following
+	 * DRM_MM node(s) if more buffer needs to exported
+	 */
+	amdgpu_res_first(mem, offset, length, &cursor);
 	for_each_sgtable_sg((*sgt), sg, i) {
-		phys_addr_t phys = (node->start << PAGE_SHIFT) +
-			adev->gmc.aper_base;
-		size_t size = node->size << PAGE_SHIFT;
+		phys_addr_t phys = cursor.start + adev->gmc.aper_base;
+		size_t size = cursor.size;
 		dma_addr_t addr;
 
-		++node;
 		addr = dma_map_resource(dev, phys, size, dir,
 					DMA_ATTR_SKIP_CPU_SYNC);
 		r = dma_mapping_error(dev, addr);
@@ -615,7 +626,10 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 		sg_set_page(sg, NULL, size, 0);
 		sg_dma_address(sg) = addr;
 		sg_dma_len(sg) = size;
+
+		amdgpu_res_next(&cursor, cursor.size);
 	}
+
 	return 0;
 
 error_unmap:
