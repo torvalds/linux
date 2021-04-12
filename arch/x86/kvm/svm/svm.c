@@ -56,9 +56,6 @@ static const struct x86_cpu_id svm_cpu_id[] = {
 MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #endif
 
-#define IOPM_ALLOC_ORDER 2
-#define MSRPM_ALLOC_ORDER 1
-
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
 
@@ -683,14 +680,15 @@ void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
 
 u32 *svm_vcpu_alloc_msrpm(void)
 {
-	struct page *pages = alloc_pages(GFP_KERNEL_ACCOUNT, MSRPM_ALLOC_ORDER);
+	unsigned int order = get_order(MSRPM_SIZE);
+	struct page *pages = alloc_pages(GFP_KERNEL_ACCOUNT, order);
 	u32 *msrpm;
 
 	if (!pages)
 		return NULL;
 
 	msrpm = page_address(pages);
-	memset(msrpm, 0xff, PAGE_SIZE * (1 << MSRPM_ALLOC_ORDER));
+	memset(msrpm, 0xff, PAGE_SIZE * (1 << order));
 
 	return msrpm;
 }
@@ -709,7 +707,7 @@ void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
 
 void svm_vcpu_free_msrpm(u32 *msrpm)
 {
-	__free_pages(virt_to_page(msrpm), MSRPM_ALLOC_ORDER);
+	__free_pages(virt_to_page(msrpm), get_order(MSRPM_SIZE));
 }
 
 static void svm_msr_filter_changed(struct kvm_vcpu *vcpu)
@@ -896,7 +894,8 @@ static void svm_hardware_teardown(void)
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
 
-	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT), IOPM_ALLOC_ORDER);
+	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT),
+	get_order(IOPM_SIZE));
 	iopm_base = 0;
 }
 
@@ -932,14 +931,15 @@ static __init int svm_hardware_setup(void)
 	struct page *iopm_pages;
 	void *iopm_va;
 	int r;
+	unsigned int order = get_order(IOPM_SIZE);
 
-	iopm_pages = alloc_pages(GFP_KERNEL, IOPM_ALLOC_ORDER);
+	iopm_pages = alloc_pages(GFP_KERNEL, order);
 
 	if (!iopm_pages)
 		return -ENOMEM;
 
 	iopm_va = page_address(iopm_pages);
-	memset(iopm_va, 0xff, PAGE_SIZE * (1 << IOPM_ALLOC_ORDER));
+	memset(iopm_va, 0xff, PAGE_SIZE * (1 << order));
 	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
 
 	init_msrpm_offsets();
@@ -1416,7 +1416,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	sev_free_vcpu(vcpu);
 
 	__free_page(pfn_to_page(__sme_clr(svm->vmcb01.pa) >> PAGE_SHIFT));
-	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
+	__free_pages(virt_to_page(svm->msrpm), get_order(MSRPM_SIZE));
 }
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)

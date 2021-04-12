@@ -28,6 +28,9 @@ static const u32 host_save_user_msrs[] = {
 };
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
 
+#define	IOPM_SIZE PAGE_SIZE * 3
+#define	MSRPM_SIZE PAGE_SIZE * 2
+
 #define MAX_DIRECT_ACCESS_MSRS	20
 #define MSRPM_OFFSETS	16
 extern u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
