@@ -774,11 +774,11 @@ static int ov2722_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on == 0)
 		return power_down(sd);
-	else {
-		ret = power_up(sd);
-		if (!ret)
-			return ov2722_init(sd);
-	}
+
+	ret = power_up(sd);
+	if (!ret)
+		return ov2722_init(sd);
+
 	return ret;
 }
 
