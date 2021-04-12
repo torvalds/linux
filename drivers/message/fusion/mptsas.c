@@ -780,13 +780,11 @@ static void
 mptsas_add_device_component_starget(MPT_ADAPTER *ioc,
 	struct scsi_target *starget)
 {
-	VirtTarget	*vtarget;
 	struct sas_rphy	*rphy;
 	struct mptsas_phyinfo	*phy_info = NULL;
 	struct mptsas_enclosure	enclosure_info;
 
 	rphy = dev_to_rphy(starget->dev.parent);
-	vtarget = starget->hostdata;
 	phy_info = mptsas_find_phyinfo_by_sas_address(ioc,
 			rphy->identify.sas_address);
 	if (!phy_info)
