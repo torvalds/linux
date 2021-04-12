@@ -405,6 +405,9 @@ static int aldebaran_setup_pptable(struct smu_context *smu)
 {
 	int ret = 0;
 
+	/* VBIOS pptable is the first choice */
+	smu->smu_table.boot_values.pp_table_id = 0;
+
 	ret = smu_v13_0_setup_pptable(smu);
 	if (ret)
 		return ret;
