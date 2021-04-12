@@ -3,6 +3,7 @@
  * MaxLinear/Exar USB to Serial driver
  *
  * Copyright (c) 2020 Manivannan Sadhasivam <mani@kernel.org>
+ * Copyright (c) 2021 Johan Hovold <johan@kernel.org>
  *
  * Based on the initial driver written by Patong Yang:
  *
