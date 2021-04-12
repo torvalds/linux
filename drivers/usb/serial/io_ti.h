@@ -141,7 +141,7 @@ struct out_endpoint_desc_block {
 	u8 YBufAddr;
 	u8 YByteCount;
 	u8 BufferSize;
-} __attribute__((packed));
+};
 
 
 /*
@@ -159,7 +159,7 @@ struct ump_uart_config {
 	char cXoff;		/* XOFF character                   */
 	u8 bUartMode;		/* Will be updated when a user      */
 				/* interface is defined             */
-} __attribute__((packed));
+};
 
 
 /*
@@ -170,7 +170,7 @@ struct ump_uart_config {
 struct ump_interrupt {
 	u8 bICode;			/* Interrupt code (interrupt num)   */
 	u8 bIInfo;			/* Interrupt information            */
-}  __attribute__((packed));
+};
 
 
 #define TIUMP_GET_PORT_FROM_CODE(c)	(((c) >> 6) & 0x01)

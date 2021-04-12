@@ -65,7 +65,7 @@
 struct product_info {
 	int	TiMode;			/* Current TI Mode  */
 	u8	hardware_type;		/* Type of hardware */
-} __attribute__((packed));
+} __packed;
 
 /*
  * Edgeport firmware header
