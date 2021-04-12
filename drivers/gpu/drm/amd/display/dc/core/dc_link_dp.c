@@ -206,11 +206,12 @@ static enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *li
 	return DP_TRAINING_PATTERN_SEQUENCE_2;
 }
 
-static void dpcd_set_link_settings(
+enum dc_status dpcd_set_link_settings(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings)
 {
 	uint8_t rate;
+	enum dc_status status;
 
 	union down_spread_ctrl downspread = { {0} };
 	union lane_count_set lane_count_set = { {0} };
@@ -225,15 +226,16 @@ static void dpcd_set_link_settings(
 	lane_count_set.bits.POST_LT_ADJ_REQ_GRANTED = 0;
 
 
-	if (lt_settings->pattern_for_eq < DP_TRAINING_PATTERN_SEQUENCE_4) {
+	if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+			lt_settings->pattern_for_eq < DP_TRAINING_PATTERN_SEQUENCE_4) {
 		lane_count_set.bits.POST_LT_ADJ_REQ_GRANTED =
 				link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED;
 	}
 
-	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
+	status = core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 		&downspread.raw, sizeof(downspread));
 
-	core_link_write_dpcd(link, DP_LANE_COUNT_SET,
+	status = core_link_write_dpcd(link, DP_LANE_COUNT_SET,
 		&lane_count_set.raw, 1);
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
@@ -249,12 +251,12 @@ static void dpcd_set_link_settings(
 			core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 					supported_link_rates, sizeof(supported_link_rates));
 		}
-		core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
-		core_link_write_dpcd(link, DP_LINK_RATE_SET,
+		status = core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
+		status = core_link_write_dpcd(link, DP_LINK_RATE_SET,
 				&lt_settings->link_settings.link_rate_set, 1);
 	} else {
 		rate = (uint8_t) (lt_settings->link_settings.link_rate);
-		core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
+		status = core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 	}
 
 	if (rate) {
@@ -278,6 +280,8 @@ static void dpcd_set_link_settings(
 			DP_DOWNSPREAD_CTRL,
 			lt_settings->link_settings.link_spread);
 	}
+
+	return status;
 }
 
 static uint8_t dc_dp_initialize_scrambling_data_symbols(
@@ -1329,7 +1333,7 @@ static inline void decide_8b_10b_training_settings(
 		lt_settings->enhanced_framing = 1;
 }
 
-static void decide_training_settings(
+void dp_decide_training_settings(
 		struct dc_link *link,
 		const struct dc_link_settings *link_settings,
 		const struct dc_link_training_overrides *overrides,
@@ -1365,18 +1369,18 @@ uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count)
 	return 0; // invalid value
 }
 
-static void configure_lttpr_mode_transparent(struct dc_link *link)
+enum dc_status configure_lttpr_mode_transparent(struct dc_link *link)
 {
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
-	core_link_write_dpcd(link,
+	return core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
 			sizeof(repeater_mode));
 }
 
-static void configure_lttpr_mode_non_transparent(
+enum dc_status configure_lttpr_mode_non_transparent(
 		struct dc_link *link,
 		const struct link_training_settings *lt_settings)
 {
@@ -1431,6 +1435,8 @@ static void configure_lttpr_mode_non_transparent(
 			}
 		}
 	}
+
+	return result;
 }
 
 static void repeater_training_done(struct dc_link *link, uint32_t offset)
@@ -1564,7 +1570,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 {
 	struct link_training_settings lt_settings;
 
-	decide_training_settings(
+	dp_decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1602,6 +1608,19 @@ bool dc_link_dp_perform_link_training_skip_aux(
 	return true;
 }
 
+enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_training_settings *lt_settings)
+{
+	enum dc_status status = DC_OK;
+
+	if (lt_settings->lttpr_mode == LTTPR_MODE_TRANSPARENT)
+		status = configure_lttpr_mode_transparent(link);
+
+	else if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		status = configure_lttpr_mode_non_transparent(link, lt_settings);
+
+	return status;
+}
+
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
@@ -1614,7 +1633,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	uint8_t repeater_cnt;
 	uint8_t repeater_id;
 
-	decide_training_settings(
+	dp_decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1899,7 +1918,7 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	bool fec_enable = false;
 
-	decide_training_settings(
+	dp_decide_training_settings(
 		link,
 		link_settings,
 		lt_overrides,
@@ -4606,50 +4625,74 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 	return DP_PANEL_MODE_DEFAULT;
 }
 
-void dp_set_fec_ready(struct dc_link *link, bool ready)
+enum dc_status dp_set_fec_ready(struct dc_link *link, bool ready)
 {
 	/* FEC has to be "set ready" before the link training.
 	 * The policy is to always train with FEC
 	 * if the sink supports it and leave it enabled on link.
 	 * If FEC is not supported, disable it.
 	 */
-	struct link_encoder *link_enc = link->link_enc;
+	struct link_encoder *link_enc = NULL;
+	enum dc_status status = DC_OK;
 	uint8_t fec_config = 0;
 
+	/* Access link encoder based on whether it is statically
+	 * or dynamically assigned to a link.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+	else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
+
 	if (!dc_link_should_enable_fec(link))
-		return;
+		return status;
 
 	if (link_enc->funcs->fec_set_ready &&
 			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
 		if (ready) {
 			fec_config = 1;
-			if (core_link_write_dpcd(link,
+			status = core_link_write_dpcd(link,
 					DP_FEC_CONFIGURATION,
 					&fec_config,
-					sizeof(fec_config)) == DC_OK) {
+					sizeof(fec_config));
+			if (status == DC_OK) {
 				link_enc->funcs->fec_set_ready(link_enc, true);
 				link->fec_state = dc_link_fec_ready;
 			} else {
-				link->link_enc->funcs->fec_set_ready(link->link_enc, false);
+				link_enc->funcs->fec_set_ready(link->link_enc, false);
 				link->fec_state = dc_link_fec_not_ready;
 				dm_error("dpcd write failed to set fec_ready");
 			}
 		} else if (link->fec_state == dc_link_fec_ready) {
 			fec_config = 0;
-			core_link_write_dpcd(link,
+			status = core_link_write_dpcd(link,
 					DP_FEC_CONFIGURATION,
 					&fec_config,
 					sizeof(fec_config));
-			link->link_enc->funcs->fec_set_ready(
-					link->link_enc, false);
+			link_enc->funcs->fec_set_ready(link_enc, false);
 			link->fec_state = dc_link_fec_not_ready;
 		}
 	}
+
+	return status;
 }
 
 void dp_set_fec_enable(struct dc_link *link, bool enable)
 {
-	struct link_encoder *link_enc = link->link_enc;
+	struct link_encoder *link_enc = NULL;
+
+	/* Access link encoder based on whether it is statically
+	 * or dynamically assigned to a link.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(
+				link->dc->current_state, link);
+	else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
 
 	if (!dc_link_should_enable_fec(link))
 		return;

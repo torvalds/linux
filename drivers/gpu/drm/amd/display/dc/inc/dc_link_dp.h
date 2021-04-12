@@ -92,14 +92,25 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
 
 void dpcd_set_source_specific_data(struct dc_link *link);
+/* Write DPCD link configuration data. */
+enum dc_status dpcd_set_link_settings(
+	struct dc_link *link,
+	const struct link_training_settings *lt_settings);
 
-void dp_set_fec_ready(struct dc_link *link, bool ready);
+enum dc_status dp_set_fec_ready(struct dc_link *link, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable);
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
 bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
+
+/* Initialize output parameter lt_settings. */
+void dp_decide_training_settings(
+	struct dc_link *link,
+	const struct dc_link_settings *link_setting,
+	const struct dc_link_training_overrides *overrides,
+	struct link_training_settings *lt_settings);
 
 /* Convert PHY repeater count read from DPCD uint8_t. */
 uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count);
@@ -108,6 +119,10 @@ uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count);
 enum link_training_result dp_check_link_loss_status(
 		struct dc_link *link,
 		const struct link_training_settings *link_training_setting);
+
+enum dc_status dpcd_configure_lttpr_mode(
+		struct dc_link *link,
+		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
 #endif /* __DC_LINK_DP_H__ */
