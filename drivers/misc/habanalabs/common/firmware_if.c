@@ -362,12 +362,9 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 	}
 
 	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY) {
-		dev_warn(hdev->dev,
+		dev_err(hdev->dev,
 			"Device boot warning - security not ready\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_SECURITY_NOT_RDY;
+		err_exists = true;
 	}
 
 	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL) {
