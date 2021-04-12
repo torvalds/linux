@@ -2570,6 +2570,17 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 			mcr |= PMCR_RX_FC_EN;
 	}
 
+	if (mode == MLO_AN_PHY && phydev && phy_init_eee(phydev, 0) >= 0) {
+		switch (speed) {
+		case SPEED_1000:
+			mcr |= PMCR_FORCE_EEE1G;
+			break;
+		case SPEED_100:
+			mcr |= PMCR_FORCE_EEE100;
+			break;
+		}
+	}
+
 	mt7530_set(priv, MT7530_PMCR_P(port), mcr);
 }
 
@@ -2800,6 +2811,36 @@ mt753x_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 	return priv->info->phy_write(ds, port, regnum, val);
 }
 
+static int mt753x_get_mac_eee(struct dsa_switch *ds, int port,
+			      struct ethtool_eee *e)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 eeecr = mt7530_read(priv, MT7530_PMEEECR_P(port));
+
+	e->tx_lpi_enabled = !(eeecr & LPI_MODE_EN);
+	e->tx_lpi_timer = GET_LPI_THRESH(eeecr);
+
+	return 0;
+}
+
+static int mt753x_set_mac_eee(struct dsa_switch *ds, int port,
+			      struct ethtool_eee *e)
+{
+	struct mt7530_priv *priv = ds->priv;
+	u32 set, mask = LPI_THRESH_MASK | LPI_MODE_EN;
+
+	if (e->tx_lpi_timer > 0xFFF)
+		return -EINVAL;
+
+	set = SET_LPI_THRESH(e->tx_lpi_timer);
+	if (!e->tx_lpi_enabled)
+		/* Force LPI Mode without a delay */
+		set |= LPI_MODE_EN;
+	mt7530_rmw(priv, MT7530_PMEEECR_P(port), mask, set);
+
+	return 0;
+}
+
 static const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_tag_protocol	= mtk_get_tag_protocol,
 	.setup			= mt753x_setup,
@@ -2835,6 +2876,8 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.phylink_mac_an_restart	= mt753x_phylink_mac_an_restart,
 	.phylink_mac_link_down	= mt753x_phylink_mac_link_down,
 	.phylink_mac_link_up	= mt753x_phylink_mac_link_up,
+	.get_mac_eee		= mt753x_get_mac_eee,
+	.set_mac_eee		= mt753x_set_mac_eee,
 };
 
 static const struct mt753x_info mt753x_table[] = {
