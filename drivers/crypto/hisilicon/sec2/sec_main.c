@@ -42,8 +42,8 @@
 #define SEC_ECC_NUM			16
 #define SEC_ECC_MASH			0xFF
 #define SEC_CORE_INT_DISABLE		0x0
-#define SEC_CORE_INT_ENABLE		0x1ff
-#define SEC_CORE_INT_CLEAR		0x1ff
+#define SEC_CORE_INT_ENABLE		0x7c1ff
+#define SEC_CORE_INT_CLEAR		0x7c1ff
 #define SEC_SAA_ENABLE			0x17f
 
 #define SEC_RAS_CE_REG			0x301050
@@ -51,7 +51,7 @@
 #define SEC_RAS_NFE_REG			0x301058
 #define SEC_RAS_CE_ENB_MSK		0x88
 #define SEC_RAS_FE_ENB_MSK		0x0
-#define SEC_RAS_NFE_ENB_MSK		0x177
+#define SEC_RAS_NFE_ENB_MSK		0x7c177
 #define SEC_RAS_DISABLE		0x0
 #define SEC_MEM_START_INIT_REG	0x301100
 #define SEC_MEM_INIT_DONE_REG		0x301104
@@ -146,6 +146,26 @@ static const struct sec_hw_error sec_hw_errors[] = {
 	{
 		.int_msk = BIT(8),
 		.msg = "sec_chain_buff_err_rint"
+	},
+	{
+		.int_msk = BIT(14),
+		.msg = "sec_no_secure_access"
+	},
+	{
+		.int_msk = BIT(15),
+		.msg = "sec_wrapping_key_auth_err"
+	},
+	{
+		.int_msk = BIT(16),
+		.msg = "sec_km_key_crc_fail"
+	},
+	{
+		.int_msk = BIT(17),
+		.msg = "sec_axi_poison_err"
+	},
+	{
+		.int_msk = BIT(18),
+		.msg = "sec_sva_err"
 	},
 	{}
 };
