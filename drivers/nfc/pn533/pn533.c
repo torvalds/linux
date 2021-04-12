@@ -489,12 +489,8 @@ static int pn533_send_data_async(struct pn533 *dev, u8 cmd_code,
 				 pn533_send_async_complete_t complete_cb,
 				 void *complete_cb_context)
 {
-	int rc;
-
-	rc = __pn533_send_async(dev, cmd_code, req, complete_cb,
+	return __pn533_send_async(dev, cmd_code, req, complete_cb,
 				complete_cb_context);
-
-	return rc;
 }
 
 static int pn533_send_cmd_async(struct pn533 *dev, u8 cmd_code,
@@ -502,12 +498,8 @@ static int pn533_send_cmd_async(struct pn533 *dev, u8 cmd_code,
 				pn533_send_async_complete_t complete_cb,
 				void *complete_cb_context)
 {
-	int rc;
-
-	rc = __pn533_send_async(dev, cmd_code, req, complete_cb,
+	return __pn533_send_async(dev, cmd_code, req, complete_cb,
 				complete_cb_context);
-
-	return rc;
 }
 
 /*
@@ -2620,7 +2612,7 @@ static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
 		return rc;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int pn532_sam_configuration(struct nfc_dev *nfc_dev)
@@ -2794,7 +2786,6 @@ struct pn533 *pn53x_common_init(u32 device_type,
 				struct device *dev)
 {
 	struct pn533 *priv;
-	int rc = -ENOMEM;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -2836,7 +2827,7 @@ struct pn533 *pn53x_common_init(u32 device_type,
 
 error:
 	kfree(priv);
-	return ERR_PTR(rc);
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(pn53x_common_init);
 
