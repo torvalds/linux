@@ -692,6 +692,11 @@ enum hybrid_pmu_type {
 	hybrid_big_small	= hybrid_big | hybrid_small,
 };
 
+#define X86_HYBRID_PMU_ATOM_IDX		0
+#define X86_HYBRID_PMU_CORE_IDX		1
+
+#define X86_HYBRID_NUM_PMUS		2
+
 /*
  * struct x86_pmu - generic x86 pmu
  */
@@ -1257,6 +1262,8 @@ extern struct event_constraint intel_slm_pebs_event_constraints[];
 extern struct event_constraint intel_glm_pebs_event_constraints[];
 
 extern struct event_constraint intel_glp_pebs_event_constraints[];
+
+extern struct event_constraint intel_grt_pebs_event_constraints[];
 
 extern struct event_constraint intel_nehalem_pebs_event_constraints[];
 
