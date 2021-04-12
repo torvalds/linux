@@ -1403,7 +1403,8 @@ intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 		 * require the entire fb to accommodate that to avoid
 		 * potential runtime errors at plane configuration time.
 		 */
-		if (IS_DISPLAY_VER(dev_priv, 9) && color_plane == 0 && fb->width > 3840)
+		if ((IS_DISPLAY_VER(dev_priv, 9) || IS_GEMINILAKE(dev_priv)) &&
+		    color_plane == 0 && fb->width > 3840)
 			tile_width *= 4;
 		/*
 		 * The main surface pitch must be padded to a multiple of four
