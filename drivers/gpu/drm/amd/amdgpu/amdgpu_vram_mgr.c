@@ -217,7 +217,7 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
 u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	struct ttm_resource *mem = &bo->tbo.mem;
+	struct ttm_resource *mem = bo->tbo.resource;
 	struct drm_mm_node *nodes = mem->mm_node;
 	unsigned pages = mem->num_pages;
 	u64 usage;

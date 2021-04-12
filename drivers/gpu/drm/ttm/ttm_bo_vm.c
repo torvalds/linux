@@ -102,7 +102,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
 	if (bdev->funcs->io_mem_pfn)
 		return bdev->funcs->io_mem_pfn(bo, page_offset);
 
-	return (bo->mem.bus.offset >> PAGE_SHIFT) + page_offset;
+	return (bo->resource->bus.offset >> PAGE_SHIFT) + page_offset;
 }
 
 /**
@@ -200,10 +200,10 @@ static vm_fault_t ttm_bo_vm_insert_huge(struct vm_fault *vmf,
 
 	/* Fault should not cross bo boundary. */
 	page_offset &= ~(fault_page_size - 1);
-	if (page_offset + fault_page_size > bo->mem.num_pages)
+	if (page_offset + fault_page_size > bo->resource->num_pages)
 		goto out_fallback;
 
-	if (bo->mem.bus.is_iomem)
+	if (bo->resource->bus.is_iomem)
 		pfn = ttm_bo_io_mem_pfn(bo, page_offset);
 	else
 		pfn = page_to_pfn(ttm->pages[page_offset]);
@@ -213,7 +213,7 @@ static vm_fault_t ttm_bo_vm_insert_huge(struct vm_fault *vmf,
 		goto out_fallback;
 
 	/* Check that memory is contiguous. */
-	if (!bo->mem.bus.is_iomem) {
+	if (!bo->resource->bus.is_iomem) {
 		for (i = 1; i < fault_page_size; ++i) {
 			if (page_to_pfn(ttm->pages[page_offset + i]) != pfn + i)
 				goto out_fallback;
@@ -299,7 +299,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	if (unlikely(ret != 0))
 		return ret;
 
-	err = ttm_mem_io_reserve(bdev, &bo->mem);
+	err = ttm_mem_io_reserve(bdev, bo->resource);
 	if (unlikely(err != 0))
 		return VM_FAULT_SIGBUS;
 
@@ -308,11 +308,11 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	page_last = vma_pages(vma) + vma->vm_pgoff -
 		drm_vma_node_start(&bo->base.vma_node);
 
-	if (unlikely(page_offset >= bo->mem.num_pages))
+	if (unlikely(page_offset >= bo->resource->num_pages))
 		return VM_FAULT_SIGBUS;
 
-	prot = ttm_io_prot(bo, &bo->mem, prot);
-	if (!bo->mem.bus.is_iomem) {
+	prot = ttm_io_prot(bo, bo->resource, prot);
+	if (!bo->resource->bus.is_iomem) {
 		struct ttm_operation_ctx ctx = {
 			.interruptible = false,
 			.no_wait_gpu = false,
@@ -337,7 +337,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	 * first page.
 	 */
 	for (i = 0; i < num_prefault; ++i) {
-		if (bo->mem.bus.is_iomem) {
+		if (bo->resource->bus.is_iomem) {
 			pfn = ttm_bo_io_mem_pfn(bo, page_offset);
 		} else {
 			page = ttm->pages[page_offset];
@@ -521,14 +521,14 @@ int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 		 << PAGE_SHIFT);
 	int ret;
 
-	if (len < 1 || (offset + len) >> PAGE_SHIFT > bo->mem.num_pages)
+	if (len < 1 || (offset + len) >> PAGE_SHIFT > bo->resource->num_pages)
 		return -EIO;
 
 	ret = ttm_bo_reserve(bo, true, false, NULL);
 	if (ret)
 		return ret;
 
-	switch (bo->mem.mem_type) {
+	switch (bo->resource->mem_type) {
 	case TTM_PL_SYSTEM:
 		if (unlikely(bo->ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
 			ret = ttm_tt_swapin(bo->ttm);

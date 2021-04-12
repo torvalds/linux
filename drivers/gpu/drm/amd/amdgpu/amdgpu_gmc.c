@@ -101,7 +101,7 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 
-	switch (bo->tbo.mem.mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_TT:
 		*addr = bo->tbo.ttm->dma_address[0];
 		break;
@@ -112,7 +112,7 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 		*addr = 0;
 		break;
 	}
-	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, &bo->tbo.mem);
+	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, bo->tbo.resource);
 	amdgpu_gmc_get_vm_pde(adev, level, addr, flags);
 }
 

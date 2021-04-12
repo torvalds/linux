@@ -1666,7 +1666,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	 * the next restore worker
 	 */
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) &&
-	    bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+	    bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
 		is_invalid_userptr = true;
 
 	ret = vm_validate_pt_pd_bos(avm);

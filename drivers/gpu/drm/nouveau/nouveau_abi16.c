@@ -312,7 +312,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
 					NOUVEAU_GEM_DOMAIN_GART;
 	else
-	if (chan->chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM)
+	if (chan->chan->push.buffer->bo.resource->mem_type == TTM_PL_VRAM)
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM;
 	else
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;

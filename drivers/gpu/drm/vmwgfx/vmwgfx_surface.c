@@ -1212,7 +1212,7 @@ static int vmw_gb_surface_bind(struct vmw_resource *res,
 	uint32_t submit_size;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	submit_size = sizeof(*cmd1) + (res->backup_dirty ? sizeof(*cmd2) : 0);
 
@@ -1223,7 +1223,7 @@ static int vmw_gb_surface_bind(struct vmw_resource *res,
 	cmd1->header.id = SVGA_3D_CMD_BIND_GB_SURFACE;
 	cmd1->header.size = sizeof(cmd1->body);
 	cmd1->body.sid = res->id;
-	cmd1->body.mobid = bo->mem.start;
+	cmd1->body.mobid = bo->resource->start;
 	if (res->backup_dirty) {
 		cmd2 = (void *) &cmd1[1];
 		cmd2->header.id = SVGA_3D_CMD_UPDATE_GB_SURFACE;
@@ -1266,7 +1266,7 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 	uint8_t *cmd;
 
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	BUG_ON(bo->resource->mem_type != VMW_PL_MOB);
 
 	submit_size = sizeof(*cmd3) + (readback ? sizeof(*cmd1) : sizeof(*cmd2));
 	cmd = VMW_CMD_RESERVE(dev_priv, submit_size);

@@ -122,7 +122,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 	int r;
 
 	spin_lock(&mgr->lock);
-	if ((&tbo->mem == mem || tbo->mem.mem_type != TTM_PL_TT) &&
+	if ((tbo->resource == mem || tbo->resource->mem_type != TTM_PL_TT) &&
 	    atomic64_read(&mgr->available) < mem->num_pages) {
 		spin_unlock(&mgr->lock);
 		return -ENOSPC;

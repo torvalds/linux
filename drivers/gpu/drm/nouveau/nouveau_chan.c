@@ -212,7 +212,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		args.start = 0;
 		args.limit = chan->vmm->vmm.limit - 1;
 	} else
-	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
+	if (chan->push.buffer->bo.resource->mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
 			/* nv04 vram pushbuf hack, retarget to its location in
 			 * the framebuffer bar rather than direct vram access..

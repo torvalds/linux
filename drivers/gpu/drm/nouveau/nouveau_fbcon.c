@@ -378,7 +378,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 			      FBINFO_HWACCEL_FILLRECT |
 			      FBINFO_HWACCEL_IMAGEBLIT;
 	info->fbops = &nouveau_fbcon_sw_ops;
-	info->fix.smem_start = nvbo->bo.mem.bus.offset;
+	info->fix.smem_start = nvbo->bo.resource->bus.offset;
 	info->fix.smem_len = nvbo->bo.base.size;
 
 	info->screen_base = nvbo_kmap_obj_iovirtual(nvbo);

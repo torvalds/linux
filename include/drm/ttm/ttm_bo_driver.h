@@ -181,14 +181,14 @@ static inline void
 ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
 {
 	spin_lock(&bo->bdev->lru_lock);
-	ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
+	ttm_bo_move_to_lru_tail(bo, bo->resource, NULL);
 	spin_unlock(&bo->bdev->lru_lock);
 }
 
 static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
 				     struct ttm_resource *new_mem)
 {
-	bo->mem = *new_mem;
+	bo->_mem = *new_mem;
 	new_mem->mm_node = NULL;
 }
 
@@ -202,7 +202,7 @@ static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
 static inline void ttm_bo_move_null(struct ttm_buffer_object *bo,
 				    struct ttm_resource *new_mem)
 {
-	struct ttm_resource *old_mem = &bo->mem;
+	struct ttm_resource *old_mem = bo->resource;
 
 	WARN_ON(old_mem->mm_node != NULL);
 	ttm_bo_assign_mem(bo, new_mem);

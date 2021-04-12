@@ -248,10 +248,10 @@ EXPORT_SYMBOL(drm_gem_vram_put);
 static u64 drm_gem_vram_pg_offset(struct drm_gem_vram_object *gbo)
 {
 	/* Keep TTM behavior for now, remove when drivers are audited */
-	if (WARN_ON_ONCE(!gbo->bo.mem.mm_node))
+	if (WARN_ON_ONCE(!gbo->bo.resource->mm_node))
 		return 0;
 
-	return gbo->bo.mem.start;
+	return gbo->bo.resource->start;
 }
 
 /**
