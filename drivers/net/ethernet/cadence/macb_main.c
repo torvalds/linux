@@ -4649,7 +4649,6 @@ static int macb_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct resource *regs;
 	void __iomem *mem;
-	const char *mac;
 	struct macb *bp;
 	int err, val;
 
@@ -4764,15 +4763,11 @@ static int macb_probe(struct platform_device *pdev)
 	if (bp->caps & MACB_CAPS_NEEDS_RSTONUBR)
 		bp->rx_intr_mask |= MACB_BIT(RXUBR);
 
-	mac = of_get_mac_address(np);
-	if (PTR_ERR(mac) == -EPROBE_DEFER) {
-		err = -EPROBE_DEFER;
+	err = of_get_mac_address(np, bp->dev->dev_addr);
+	if (err == -EPROBE_DEFER)
 		goto err_out_free_netdev;
-	} else if (!IS_ERR_OR_NULL(mac)) {
-		ether_addr_copy(bp->dev->dev_addr, mac);
-	} else {
+	else if (err)
 		macb_get_hwaddr(bp);
-	}
 
 	err = of_get_phy_mode(np, &interface);
 	if (err)

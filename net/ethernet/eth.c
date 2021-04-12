@@ -511,13 +511,14 @@ unsigned char * __weak arch_get_platform_mac_address(void)
 
 int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 {
-	const unsigned char *addr = NULL;
+	unsigned char *addr;
+	int ret;
 
-	if (dev->of_node)
-		addr = of_get_mac_address(dev->of_node);
-	if (IS_ERR_OR_NULL(addr))
-		addr = arch_get_platform_mac_address();
+	ret = of_get_mac_address(dev->of_node, mac_addr);
+	if (!ret)
+		return 0;
 
+	addr = arch_get_platform_mac_address();
 	if (!addr)
 		return -ENODEV;
 

@@ -640,7 +640,6 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
 static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 {
 	const char *model;
-	const void *mac_addr;
 	int err = 0, i;
 	phy_interface_t interface;
 	struct net_device *dev = NULL;
@@ -782,11 +781,8 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	if (stash_len || stash_idx)
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_BUF_STASHING;
 
-	mac_addr = of_get_mac_address(np);
-
-	if (!IS_ERR(mac_addr)) {
-		ether_addr_copy(dev->dev_addr, mac_addr);
-	} else {
+	err = of_get_mac_address(np, dev->dev_addr);
+	if (err) {
 		eth_hw_addr_random(dev);
 		dev_info(&ofdev->dev, "Using random MAC address: %pM\n", dev->dev_addr);
 	}

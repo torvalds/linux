@@ -392,7 +392,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 		break;
 	case DSA_PORT_TYPE_USER:
-		dp->mac = of_get_mac_address(dp->dn);
+		of_get_mac_address(dp->dn, dp->mac);
 		err = dsa_slave_create(dp);
 		if (err)
 			break;
