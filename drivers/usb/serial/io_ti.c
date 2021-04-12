@@ -252,8 +252,8 @@ static int edge_remove_sysfs_attrs(struct usb_serial_port *port);
 #define TI_VSEND_TIMEOUT_DEFAULT 1000
 #define TI_VSEND_TIMEOUT_FW_DOWNLOAD 10000
 
-static int ti_vread_sync(struct usb_device *dev, __u8 request,
-				__u16 value, __u16 index, u8 *data, int size)
+static int ti_vread_sync(struct usb_device *dev, u8 request, u16 value,
+		u16 index, void *data, int size)
 {
 	int status;
 
@@ -271,7 +271,7 @@ static int ti_vread_sync(struct usb_device *dev, __u8 request,
 }
 
 static int ti_vsend_sync(struct usb_device *dev, u8 request, u16 value,
-		u16 index, u8 *data, int size, int timeout)
+		u16 index, void *data, int size, int timeout)
 {
 	int status;
 
@@ -284,9 +284,8 @@ static int ti_vsend_sync(struct usb_device *dev, u8 request, u16 value,
 	return 0;
 }
 
-static int send_cmd(struct usb_device *dev, __u8 command,
-				__u8 moduleid, __u16 value, u8 *data,
-				int size)
+static int send_cmd(struct usb_device *dev, u8 command, u8 moduleid,
+		u16 value, void *data, int size)
 {
 	return ti_vsend_sync(dev, command, value, moduleid, data, size,
 			TI_VSEND_TIMEOUT_DEFAULT);
@@ -2354,7 +2353,7 @@ static void change_port_settings(struct tty_struct *tty,
 
 	status = send_cmd(edge_port->port->serial->dev, UMPC_SET_CONFIG,
 				(__u8)(UMPM_UART1_PORT + port_number),
-				0, (__u8 *)config, sizeof(*config));
+				0, config, sizeof(*config));
 	if (status)
 		dev_dbg(dev, "%s - error %d when trying to write config to device\n",
 			__func__, status);
