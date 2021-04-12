@@ -271,12 +271,15 @@ struct psfp_cap {
 	u32 max_psfp_meter;
 };
 
+#define ENETC_F_TX_TSTAMP_MASK	0xff
 /* TODO: more hardware offloads */
 enum enetc_active_offloads {
-	ENETC_F_RX_TSTAMP	= BIT(0),
-	ENETC_F_TX_TSTAMP	= BIT(1),
-	ENETC_F_QBV             = BIT(2),
-	ENETC_F_QCI		= BIT(3),
+	/* 8 bits reserved for TX timestamp types (hwtstamp_tx_types) */
+	ENETC_F_TX_TSTAMP	= BIT(0),
+
+	ENETC_F_RX_TSTAMP	= BIT(8),
+	ENETC_F_QBV		= BIT(9),
+	ENETC_F_QCI		= BIT(10),
 };
 
 /* interrupt coalescing modes */

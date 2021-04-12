@@ -67,8 +67,7 @@ static void enetc_update_tx_ring_tail(struct enetc_bdr *tx_ring)
 	enetc_wr_reg_hot(tx_ring->tpir, tx_ring->next_to_use);
 }
 
-static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
-			      int active_offloads)
+static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb)
 {
 	struct enetc_tx_swbd *tx_swbd;
 	skb_frag_t *frag;
@@ -101,7 +100,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	count++;
 
 	do_vlan = skb_vlan_tag_present(skb);
-	do_tstamp = (active_offloads & ENETC_F_TX_TSTAMP) &&
+	do_tstamp = (skb->cb[0] & ENETC_F_TX_TSTAMP) &&
 		    (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP);
 	tx_swbd->do_tstamp = do_tstamp;
 	tx_swbd->check_wb = tx_swbd->do_tstamp;
@@ -221,6 +220,9 @@ netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct enetc_bdr *tx_ring;
 	int count;
 
+	/* cb[0] used for TX timestamp type */
+	skb->cb[0] = priv->active_offloads & ENETC_F_TX_TSTAMP_MASK;
+
 	tx_ring = priv->tx_ring[skb->queue_mapping];
 
 	if (unlikely(skb_shinfo(skb)->nr_frags > ENETC_MAX_SKB_FRAGS))
@@ -234,7 +236,7 @@ netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	enetc_lock_mdio();
-	count = enetc_map_tx_buffs(tx_ring, skb, priv->active_offloads);
+	count = enetc_map_tx_buffs(tx_ring, skb);
 	enetc_unlock_mdio();
 
 	if (unlikely(!count))
