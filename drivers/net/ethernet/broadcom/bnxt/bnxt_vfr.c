@@ -350,6 +350,26 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 	__bnxt_vf_reps_destroy(bp);
 }
 
+static int bnxt_alloc_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
+			     u16 *cfa_code_map)
+{
+	/* get cfa handles from FW */
+	if (hwrm_cfa_vfr_alloc(bp, vf_rep->vf_idx, &vf_rep->tx_cfa_action,
+			       &vf_rep->rx_cfa_code))
+		return -ENOLINK;
+
+	cfa_code_map[vf_rep->rx_cfa_code] = vf_rep->vf_idx;
+	vf_rep->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX, GFP_KERNEL);
+	if (!vf_rep->dst)
+		return -ENOMEM;
+
+	/* only cfa_action is needed to mux a packet while TXing */
+	vf_rep->dst->u.port_info.port_id = vf_rep->tx_cfa_action;
+	vf_rep->dst->u.port_info.lower_dev = bp->dev;
+
+	return 0;
+}
+
 /* Use the OUI of the PF's perm addr and report the same mac addr
  * for the same VF-rep each time
  */
@@ -428,25 +448,9 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		vf_rep->vf_idx = i;
 		vf_rep->tx_cfa_action = CFA_HANDLE_INVALID;
 
-		/* get cfa handles from FW */
-		rc = hwrm_cfa_vfr_alloc(bp, vf_rep->vf_idx,
-					&vf_rep->tx_cfa_action,
-					&vf_rep->rx_cfa_code);
-		if (rc) {
-			rc = -ENOLINK;
+		rc = bnxt_alloc_vf_rep(bp, vf_rep, cfa_code_map);
+		if (rc)
 			goto err;
-		}
-		cfa_code_map[vf_rep->rx_cfa_code] = vf_rep->vf_idx;
-
-		vf_rep->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX,
-						 GFP_KERNEL);
-		if (!vf_rep->dst) {
-			rc = -ENOMEM;
-			goto err;
-		}
-		/* only cfa_action is needed to mux a packet while TXing */
-		vf_rep->dst->u.port_info.port_id = vf_rep->tx_cfa_action;
-		vf_rep->dst->u.port_info.lower_dev = bp->dev;
 
 		bnxt_vf_rep_netdev_init(bp, vf_rep, dev);
 		rc = register_netdev(dev);
