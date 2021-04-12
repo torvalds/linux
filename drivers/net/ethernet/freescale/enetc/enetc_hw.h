@@ -239,6 +239,12 @@ enum enetc_bdr_type {TX, RX};
 
 #define ENETC_PM_IMDIO_BASE	0x8030
 
+#define ENETC_PM0_SINGLE_STEP		0x80c0
+#define ENETC_PM1_SINGLE_STEP		0x90c0
+#define ENETC_PM0_SINGLE_STEP_CH	BIT(7)
+#define ENETC_PM0_SINGLE_STEP_EN	BIT(31)
+#define ENETC_SET_SINGLE_STEP_OFFSET(v)	(((v) & 0xff) << 8)
+
 #define ENETC_PM0_IF_MODE	0x8300
 #define ENETC_PM0_IFM_RG	BIT(2)
 #define ENETC_PM0_IFM_RLP	(BIT(5) | BIT(11))
@@ -548,6 +554,7 @@ static inline void enetc_clear_tx_bd(union enetc_tx_bd *txbd)
 
 /* Extension flags */
 #define ENETC_TXBD_E_FLAGS_VLAN_INS	BIT(0)
+#define ENETC_TXBD_E_FLAGS_ONE_STEP_PTP	BIT(1)
 #define ENETC_TXBD_E_FLAGS_TWO_STEP_PTP	BIT(2)
 
 union enetc_rx_bd {
