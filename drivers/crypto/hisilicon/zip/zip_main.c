@@ -68,10 +68,10 @@
 #define HZIP_CORE_INT_RAS_CE_ENABLE	0x1
 #define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
 #define HZIP_CORE_INT_RAS_FE_ENB        0x301168
-#define HZIP_CORE_INT_RAS_NFE_ENABLE	0x7FE
+#define HZIP_CORE_INT_RAS_NFE_ENABLE	0x1FFE
 #define HZIP_SRAM_ECC_ERR_NUM_SHIFT	16
 #define HZIP_SRAM_ECC_ERR_ADDR_SHIFT	24
-#define HZIP_CORE_INT_MASK_ALL		GENMASK(10, 0)
+#define HZIP_CORE_INT_MASK_ALL		GENMASK(12, 0)
 #define HZIP_COMP_CORE_NUM		2
 #define HZIP_DECOMP_CORE_NUM		6
 #define HZIP_CORE_NUM			(HZIP_COMP_CORE_NUM + \
@@ -133,6 +133,8 @@ static const struct hisi_zip_hw_error zip_hw_error[] = {
 	{ .int_msk = BIT(8), .msg = "zip_com_inf_err" },
 	{ .int_msk = BIT(9), .msg = "zip_enc_inf_err" },
 	{ .int_msk = BIT(10), .msg = "zip_pre_out_err" },
+	{ .int_msk = BIT(11), .msg = "zip_axi_poison_err" },
+	{ .int_msk = BIT(12), .msg = "zip_sva_err" },
 	{ /* sentinel */ }
 };
 
@@ -668,6 +670,9 @@ static void hisi_zip_err_info_init(struct hisi_qm *qm)
 	err_info->msi_wr_port = HZIP_WR_PORT;
 	err_info->acpi_rst = "ZRST";
 	err_info->nfe = QM_BASE_NFE | QM_ACC_WB_NOT_READY_TIMEOUT;
+
+	if (qm->ver >= QM_HW_V3)
+		err_info->nfe |= QM_ACC_DO_TASK_TIMEOUT;
 }
 
 static const struct hisi_qm_err_ini hisi_zip_err_ini = {
