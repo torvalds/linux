@@ -109,6 +109,10 @@ struct xr_txrx_clk_mask {
 #define XR21V141X_REG_GPIO_CLR		0x1e
 #define XR21V141X_REG_GPIO_STATUS	0x1f
 
+struct xr_data {
+	u8 channel;		/* zero-based index */
+};
+
 static int xr_set_reg(struct usb_serial_port *port, u8 block, u8 reg, u8 val)
 {
 	struct usb_serial *serial = port->serial;
@@ -160,16 +164,31 @@ static int xr_get_reg(struct usb_serial_port *port, u8 block, u8 reg, u8 *val)
 
 static int xr_set_reg_uart(struct usb_serial_port *port, u8 reg, u8 val)
 {
-	return xr_set_reg(port, XR21V141X_UART_REG_BLOCK, reg, val);
+	struct xr_data *data = usb_get_serial_port_data(port);
+	u8 block;
+
+	block = XR21V141X_UART_REG_BLOCK + data->channel;
+
+	return xr_set_reg(port, block, reg, val);
 }
 
 static int xr_get_reg_uart(struct usb_serial_port *port, u8 reg, u8 *val)
 {
-	return xr_get_reg(port, XR21V141X_UART_REG_BLOCK, reg, val);
+	struct xr_data *data = usb_get_serial_port_data(port);
+	u8 block;
+
+	block = XR21V141X_UART_REG_BLOCK + data->channel;
+
+	return xr_get_reg(port, block, reg, val);
 }
 
-static int xr_set_reg_um(struct usb_serial_port *port, u8 reg, u8 val)
+static int xr_set_reg_um(struct usb_serial_port *port, u8 reg_base, u8 val)
 {
+	struct xr_data *data = usb_get_serial_port_data(port);
+	u8 reg;
+
+	reg = reg_base + data->channel;
+
 	return xr_set_reg(port, XR21V141X_UM_REG_BLOCK, reg, val);
 }
 
@@ -577,8 +596,34 @@ static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 	return 0;
 }
 
+static int xr_port_probe(struct usb_serial_port *port)
+{
+	struct usb_interface_descriptor *desc;
+	struct xr_data *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	desc = &port->serial->interface->cur_altsetting->desc;
+	data->channel = desc->bInterfaceNumber / 2;
+
+	usb_set_serial_port_data(port, data);
+
+	return 0;
+}
+
+static void xr_port_remove(struct usb_serial_port *port)
+{
+	struct xr_data *data = usb_get_serial_port_data(port);
+
+	kfree(data);
+}
+
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE_INTERFACE_CLASS(0x04e2, 0x1410, USB_CLASS_COMM) }, /* XR21V141X */
+	{ USB_DEVICE_INTERFACE_CLASS(0x04e2, 0x1410, USB_CLASS_COMM) }, /* XR21V1410 */
+	{ USB_DEVICE_INTERFACE_CLASS(0x04e2, 0x1412, USB_CLASS_COMM) }, /* XR21V1412 */
+	{ USB_DEVICE_INTERFACE_CLASS(0x04e2, 0x1414, USB_CLASS_COMM) }, /* XR21V1414 */
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -591,6 +636,8 @@ static struct usb_serial_driver xr_device = {
 	.id_table		= id_table,
 	.num_ports		= 1,
 	.probe			= xr_probe,
+	.port_probe		= xr_port_probe,
+	.port_remove		= xr_port_remove,
 	.open			= xr_open,
 	.close			= xr_close,
 	.break_ctl		= xr_break_ctl,
