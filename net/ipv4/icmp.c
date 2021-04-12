@@ -1196,6 +1196,11 @@ int icmp_rcv(struct sk_buff *skb)
 		goto success_check;
 	}
 
+	if (icmph->type == ICMP_EXT_ECHOREPLY) {
+		success = ping_rcv(skb);
+		goto success_check;
+	}
+
 	/*
 	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
 	 *

@@ -916,6 +916,10 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		success = ping_rcv(skb);
 		break;
 
+	case ICMPV6_EXT_ECHO_REPLY:
+		success = ping_rcv(skb);
+		break;
+
 	case ICMPV6_PKT_TOOBIG:
 		/* BUGGG_FUTURE: if packet contains rthdr, we cannot update
 		   standard destination cache. Seems, only "advanced"
