@@ -400,7 +400,8 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		err_exists = true;
 	}
 
-	if (err_exists)
+	if (err_exists && ((err_val & ~CPU_BOOT_ERR0_ENABLED) &
+				lower_32_bits(hdev->boot_error_status_mask)))
 		return -EIO;
 
 	return 0;

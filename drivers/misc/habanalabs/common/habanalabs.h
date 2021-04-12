@@ -1962,6 +1962,12 @@ struct hl_mmu_funcs {
  * @clock_gating_mask: is clock gating enabled. bitmask that represents the
  *                     different engines. See debugfs-driver-habanalabs for
  *                     details.
+ * @boot_error_status_mask: contains a mask of the device boot error status.
+ *                          Each bit represents a different error, according to
+ *                          the defines in hl_boot_if.h. If the bit is cleared,
+ *                          the error will be ignored by the driver during
+ *                          device initialization. Mainly used to debug and
+ *                          workaround firmware bugs
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @card_type: Various ASICs have several card types. This indicates the card
@@ -2077,6 +2083,7 @@ struct hl_device {
 	u64				timeout_jiffies;
 	u64				max_power;
 	u64				clock_gating_mask;
+	u64				boot_error_status_mask;
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;
