@@ -30,6 +30,10 @@
 #include <linux/hw_breakpoint.h>
 #include "utils.h"
 
+#ifndef PPC_DEBUG_FEATURE_DATA_BP_ARCH_31
+#define PPC_DEBUG_FEATURE_DATA_BP_ARCH_31	0x20
+#endif
+
 #define MAX_LOOPS 10000
 
 #define DAWR_LENGTH_MAX ((0x3f + 1) * 8)
