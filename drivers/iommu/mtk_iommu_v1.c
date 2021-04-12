@@ -424,23 +424,21 @@ static struct iommu_device *mtk_iommu_probe_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct of_phandle_args iommu_spec;
-	struct of_phandle_iterator it;
 	struct mtk_iommu_data *data;
-	int err;
+	int err, idx = 0;
 
-	of_for_each_phandle(&it, err, dev->of_node, "iommus",
-			"#iommu-cells", -1) {
-		int count = of_phandle_iterator_args(&it, iommu_spec.args,
-					MAX_PHANDLE_ARGS);
-		iommu_spec.np = of_node_get(it.node);
-		iommu_spec.args_count = count;
+	while (!of_parse_phandle_with_args(dev->of_node, "iommus",
+					   "#iommu-cells",
+					   idx, &iommu_spec)) {
 
-		mtk_iommu_create_mapping(dev, &iommu_spec);
+		err = mtk_iommu_create_mapping(dev, &iommu_spec);
+		of_node_put(iommu_spec.np);
+		if (err)
+			return ERR_PTR(err);
 
 		/* dev->iommu_fwspec might have changed */
 		fwspec = dev_iommu_fwspec_get(dev);
-
-		of_node_put(iommu_spec.np);
+		idx++;
 	}
 
 	if (!fwspec || fwspec->ops != &mtk_iommu_ops)
@@ -549,10 +547,8 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	struct device			*dev = &pdev->dev;
 	struct resource			*res;
 	struct component_match		*match = NULL;
-	struct of_phandle_args		larb_spec;
-	struct of_phandle_iterator	it;
 	void				*protect;
-	int				larb_nr, ret, err;
+	int				larb_nr, ret, i;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -580,35 +576,33 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	if (IS_ERR(data->bclk))
 		return PTR_ERR(data->bclk);
 
-	larb_nr = 0;
-	of_for_each_phandle(&it, err, dev->of_node,
-			"mediatek,larbs", NULL, 0) {
+	larb_nr = of_count_phandle_with_args(dev->of_node,
+					     "mediatek,larbs", NULL);
+	if (larb_nr < 0)
+		return larb_nr;
+
+	for (i = 0; i < larb_nr; i++) {
+		struct device_node *larbnode;
 		struct platform_device *plarbdev;
-		int count = of_phandle_iterator_args(&it, larb_spec.args,
-					MAX_PHANDLE_ARGS);
 
-		if (count)
+		larbnode = of_parse_phandle(dev->of_node, "mediatek,larbs", i);
+		if (!larbnode)
+			return -EINVAL;
+
+		if (!of_device_is_available(larbnode)) {
+			of_node_put(larbnode);
 			continue;
-
-		larb_spec.np = of_node_get(it.node);
-		if (!of_device_is_available(larb_spec.np))
-			continue;
-
-		plarbdev = of_find_device_by_node(larb_spec.np);
-		if (!plarbdev) {
-			plarbdev = of_platform_device_create(
-						larb_spec.np, NULL,
-						platform_bus_type.dev_root);
-			if (!plarbdev) {
-				of_node_put(larb_spec.np);
-				return -EPROBE_DEFER;
-			}
 		}
 
-		data->larb_imu[larb_nr].dev = &plarbdev->dev;
+		plarbdev = of_find_device_by_node(larbnode);
+		if (!plarbdev) {
+			of_node_put(larbnode);
+			return -EPROBE_DEFER;
+		}
+		data->larb_imu[i].dev = &plarbdev->dev;
+
 		component_match_add_release(dev, &match, release_of,
-					    compare_of, larb_spec.np);
-		larb_nr++;
+					    compare_of, larbnode);
 	}
 
 	platform_set_drvdata(pdev, data);
