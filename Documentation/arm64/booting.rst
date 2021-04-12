@@ -287,6 +287,24 @@ Before jumping into the kernel, the following conditions must be met:
 
     - CPTR_EL2.TFP (bit 10) must be initialised to 0b0.
 
+  For CPUs with the Scalable Vector Extension (FEAT_SVE) present:
+
+  - if EL3 is present:
+
+    - CPTR_EL3.EZ (bit 8) must be initialised to 0b1.
+
+    - ZCR_EL3.LEN must be initialised to the same value for all CPUs the
+      kernel is executed on.
+
+  - If the kernel is entered at EL1 and EL2 is present:
+
+    - CPTR_EL2.TZ (bit 8) must be initialised to 0b0.
+
+    - CPTR_EL2.ZEN (bits 17:16) must be initialised to 0b11.
+
+    - ZCR_EL2.LEN must be initialised to the same value for all CPUs the
+      kernel will execute on.
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
 enter the kernel in the same exception level.  Where the values documented
