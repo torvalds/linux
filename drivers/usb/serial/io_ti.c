@@ -284,6 +284,14 @@ static int ti_vsend_sync(struct usb_device *dev, u8 request, u16 value,
 	return 0;
 }
 
+static int read_port_cmd(struct usb_serial_port *port, u8 command, u16 value,
+		void *data, int size)
+{
+	return ti_vread_sync(port->serial->dev, command, value,
+			UMPM_UART1_PORT + port->port_number,
+			data, size);
+}
+
 static int send_port_cmd(struct usb_serial_port *port, u8 command, u16 value,
 		void *data, int size)
 {
@@ -1826,15 +1834,12 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct edgeport_serial *edge_serial;
 	struct usb_device *dev;
 	struct urb *urb;
-	int port_number;
 	int status;
 	u16 open_settings;
 	u8 transaction_timeout;
 
 	if (edge_port == NULL)
 		return -ENODEV;
-
-	port_number = port->port_number;
 
 	dev = port->serial->dev;
 
@@ -1892,9 +1897,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	/* Read Initial MSR */
-	status = ti_vread_sync(dev, UMPC_READ_MSR, 0,
-				(__u16)(UMPM_UART1_PORT + port_number),
-				&edge_port->shadow_msr, 1);
+	status = read_port_cmd(port, UMPC_READ_MSR, 0, &edge_port->shadow_msr, 1);
 	if (status) {
 		dev_err(&port->dev, "%s - cannot send read MSR command, %d\n",
 							__func__, status);
