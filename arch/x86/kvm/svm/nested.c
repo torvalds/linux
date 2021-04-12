@@ -215,7 +215,19 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 	return true;
 }
 
-static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
+/*
+ * Bits 11:0 of bitmap address are ignored by hardware
+ */
+static bool nested_svm_check_bitmap_pa(struct kvm_vcpu *vcpu, u64 pa, u32 size)
+{
+	u64 addr = PAGE_ALIGN(pa);
+
+	return kvm_vcpu_is_legal_gpa(vcpu, addr) &&
+	    kvm_vcpu_is_legal_gpa(vcpu, addr + size - 1);
+}
+
+static bool nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
+				       struct vmcb_control_area *control)
 {
 	if (CC(!vmcb_is_intercept(control, INTERCEPT_VMRUN)))
 		return false;
@@ -224,6 +236,13 @@ static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
 		return false;
 
 	if (CC((control->nested_ctl & SVM_NESTED_CTL_NP_ENABLE) && !npt_enabled))
+		return false;
+
+	if (CC(!nested_svm_check_bitmap_pa(vcpu, control->msrpm_base_pa,
+					   MSRPM_SIZE)))
+		return false;
+	if (CC(!nested_svm_check_bitmap_pa(vcpu, control->iopm_base_pa,
+					   IOPM_SIZE)))
 		return false;
 
 	return true;
@@ -604,7 +623,7 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 	nested_load_control_from_vmcb12(svm, &vmcb12->control);
 
 	if (!nested_vmcb_valid_sregs(vcpu, &vmcb12->save) ||
-	    !nested_vmcb_check_controls(&svm->nested.ctl)) {
+	    !nested_vmcb_check_controls(vcpu, &svm->nested.ctl)) {
 		vmcb12->control.exit_code    = SVM_EXIT_ERR;
 		vmcb12->control.exit_code_hi = 0;
 		vmcb12->control.exit_info_1  = 0;
@@ -1252,7 +1271,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 		goto out_free;
 
 	ret = -EINVAL;
-	if (!nested_vmcb_check_controls(ctl))
+	if (!nested_vmcb_check_controls(vcpu, ctl))
 		goto out_free;
 
 	/*
