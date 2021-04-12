@@ -631,13 +631,12 @@ static int item_is_tag(char tag)
 
 static char filename[PATH_MAX+1];
 static char menu_backtitle[PATH_MAX+128];
-static const char *set_config_filename(const char *config_filename)
+static void set_config_filename(const char *config_filename)
 {
 	snprintf(menu_backtitle, sizeof(menu_backtitle), "%s - %s",
 		 config_filename, rootmenu.prompt->text);
 
 	snprintf(filename, sizeof(filename), "%s", config_filename);
-	return menu_backtitle;
 }
 
 /* return = 0 means we are successful.
