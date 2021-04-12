@@ -610,7 +610,11 @@ static int ti_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, tport);
 
-	port->port.drain_delay = 3;
+	/*
+	 * The TUSB5052 LSR does not tell when the transmitter shift register
+	 * has emptied so add a one-character drain delay.
+	 */
+	port->port.drain_delay = 1;
 
 	return 0;
 }
