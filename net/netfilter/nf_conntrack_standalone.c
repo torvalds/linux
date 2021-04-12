@@ -424,13 +424,15 @@ static void ct_cpu_seq_stop(struct seq_file *seq, void *v)
 static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_net(seq);
-	unsigned int nr_conntracks = atomic_read(&net->ct.count);
 	const struct ip_conntrack_stat *st = v;
+	unsigned int nr_conntracks;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq, "entries  clashres found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
 		return 0;
 	}
+
+	nr_conntracks = nf_conntrack_count(net);
 
 	seq_printf(seq, "%08x  %08x %08x %08x %08x %08x %08x %08x "
 			"%08x %08x %08x %08x %08x  %08x %08x %08x %08x\n",
@@ -506,6 +508,16 @@ static void nf_conntrack_standalone_fini_proc(struct net *net)
 {
 }
 #endif /* CONFIG_NF_CONNTRACK_PROCFS */
+
+u32 nf_conntrack_count(const struct net *net)
+{
+	const struct nf_conntrack_net *cnet;
+
+	cnet = net_generic(net, nf_conntrack_net_id);
+
+	return atomic_read(&cnet->count);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_count);
 
 /* Sysctl support */
 
@@ -614,7 +626,6 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 	},
 	[NF_SYSCTL_CT_COUNT] = {
 		.procname	= "nf_conntrack_count",
-		.data		= &init_net.ct.count,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
@@ -1037,7 +1048,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	if (!table)
 		return -ENOMEM;
 
-	table[NF_SYSCTL_CT_COUNT].data = &net->ct.count;
+	table[NF_SYSCTL_CT_COUNT].data = &cnet->count;
 	table[NF_SYSCTL_CT_CHECKSUM].data = &net->ct.sysctl_checksum;
 	table[NF_SYSCTL_CT_LOG_INVALID].data = &net->ct.sysctl_log_invalid;
 	table[NF_SYSCTL_CT_ACCT].data = &net->ct.sysctl_acct;
