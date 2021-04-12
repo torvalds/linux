@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -313,8 +314,7 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev,
-								"hibmcdrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "hibmcdrmfb");
 	if (ret)
 		return ret;
 

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_debugfs.h>
@@ -1198,8 +1199,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	drm_mode_config_reset(drm);
 
-	err = drm_fb_helper_remove_conflicting_framebuffers(NULL, "tegradrmfb",
-							    false);
+	err = drm_aperture_remove_framebuffers(false, "tegradrmfb");
 	if (err < 0)
 		goto hub;
 
