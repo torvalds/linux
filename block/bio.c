@@ -493,20 +493,20 @@ struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned short nr_iovecs)
 }
 EXPORT_SYMBOL(bio_kmalloc);
 
-void zero_fill_bio_iter(struct bio *bio, struct bvec_iter start)
+void zero_fill_bio(struct bio *bio)
 {
 	unsigned long flags;
 	struct bio_vec bv;
 	struct bvec_iter iter;
 
-	__bio_for_each_segment(bv, bio, iter, start) {
+	bio_for_each_segment(bv, bio, iter) {
 		char *data = bvec_kmap_irq(&bv, &flags);
 		memset(data, 0, bv.bv_len);
 		flush_dcache_page(bv.bv_page);
 		bvec_kunmap_irq(data, &flags);
 	}
 }
-EXPORT_SYMBOL(zero_fill_bio_iter);
+EXPORT_SYMBOL(zero_fill_bio);
 
 /**
  * bio_truncate - truncate the bio to small size of @new_size
