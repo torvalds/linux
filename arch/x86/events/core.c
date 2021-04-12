@@ -478,7 +478,7 @@ int x86_setup_perfctr(struct perf_event *event)
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
-	if (attr->type == PERF_TYPE_RAW)
+	if (attr->type == event->pmu->type)
 		return x86_pmu_extra_regs(event->attr.config, event);
 
 	if (attr->type == PERF_TYPE_HW_CACHE)
@@ -613,7 +613,7 @@ int x86_pmu_hw_config(struct perf_event *event)
 	if (!event->attr.exclude_kernel)
 		event->hw.config |= ARCH_PERFMON_EVENTSEL_OS;
 
-	if (event->attr.type == PERF_TYPE_RAW)
+	if (event->attr.type == event->pmu->type)
 		event->hw.config |= event->attr.config & X86_RAW_EVENT_MASK;
 
 	if (event->attr.sample_period && x86_pmu.limit_period) {
@@ -742,7 +742,17 @@ void x86_pmu_enable_all(int added)
 
 static inline int is_x86_event(struct perf_event *event)
 {
-	return event->pmu == &pmu;
+	int i;
+
+	if (!is_hybrid())
+		return event->pmu == &pmu;
+
+	for (i = 0; i < x86_pmu.num_hybrid_pmus; i++) {
+		if (event->pmu == &x86_pmu.hybrid_pmu[i].pmu)
+			return true;
+	}
+
+	return false;
 }
 
 struct pmu *x86_get_pmu(unsigned int cpu)
@@ -1990,6 +2000,23 @@ void x86_pmu_show_pmu_cap(int num_counters, int num_counters_fixed,
 	pr_info("... event mask:             %016Lx\n", intel_ctrl);
 }
 
+/*
+ * The generic code is not hybrid friendly. The hybrid_pmu->pmu
+ * of the first registered PMU is unconditionally assigned to
+ * each possible cpuctx->ctx.pmu.
+ * Update the correct hybrid PMU to the cpuctx->ctx.pmu.
+ */
+void x86_pmu_update_cpu_context(struct pmu *pmu, int cpu)
+{
+	struct perf_cpu_context *cpuctx;
+
+	if (!pmu->pmu_cpu_context)
+		return;
+
+	cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
+	cpuctx->ctx.pmu = pmu;
+}
+
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
@@ -2050,8 +2077,11 @@ static int __init init_hw_perf_events(void)
 
 	pmu.attr_update = x86_pmu.attr_update;
 
-	x86_pmu_show_pmu_cap(x86_pmu.num_counters, x86_pmu.num_counters_fixed,
-			     x86_pmu.intel_ctrl);
+	if (!is_hybrid()) {
+		x86_pmu_show_pmu_cap(x86_pmu.num_counters,
+				     x86_pmu.num_counters_fixed,
+				     x86_pmu.intel_ctrl);
+	}
 
 	if (!x86_pmu.read)
 		x86_pmu.read = _x86_pmu_read;
@@ -2081,9 +2111,45 @@ static int __init init_hw_perf_events(void)
 	if (err)
 		goto out1;
 
-	err = perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
-	if (err)
-		goto out2;
+	if (!is_hybrid()) {
+		err = perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
+		if (err)
+			goto out2;
+	} else {
+		u8 cpu_type = get_this_hybrid_cpu_type();
+		struct x86_hybrid_pmu *hybrid_pmu;
+		int i, j;
+
+		if (!cpu_type && x86_pmu.get_hybrid_cpu_type)
+			cpu_type = x86_pmu.get_hybrid_cpu_type();
+
+		for (i = 0; i < x86_pmu.num_hybrid_pmus; i++) {
+			hybrid_pmu = &x86_pmu.hybrid_pmu[i];
+
+			hybrid_pmu->pmu = pmu;
+			hybrid_pmu->pmu.type = -1;
+			hybrid_pmu->pmu.attr_update = x86_pmu.attr_update;
+			hybrid_pmu->pmu.capabilities |= PERF_PMU_CAP_HETEROGENEOUS_CPUS;
+
+			err = perf_pmu_register(&hybrid_pmu->pmu, hybrid_pmu->name,
+						(hybrid_pmu->cpu_type == hybrid_big) ? PERF_TYPE_RAW : -1);
+			if (err)
+				break;
+
+			if (cpu_type == hybrid_pmu->cpu_type)
+				x86_pmu_update_cpu_context(&hybrid_pmu->pmu, raw_smp_processor_id());
+		}
+
+		if (i < x86_pmu.num_hybrid_pmus) {
+			for (j = 0; j < i; j++)
+				perf_pmu_unregister(&x86_pmu.hybrid_pmu[j].pmu);
+			pr_warn("Failed to register hybrid PMUs\n");
+			kfree(x86_pmu.hybrid_pmu);
+			x86_pmu.hybrid_pmu = NULL;
+			x86_pmu.num_hybrid_pmus = 0;
+			goto out2;
+		}
+	}
 
 	return 0;
 
@@ -2208,15 +2274,26 @@ static void free_fake_cpuc(struct cpu_hw_events *cpuc)
 	kfree(cpuc);
 }
 
-static struct cpu_hw_events *allocate_fake_cpuc(void)
+static struct cpu_hw_events *allocate_fake_cpuc(struct pmu *event_pmu)
 {
 	struct cpu_hw_events *cpuc;
-	int cpu = raw_smp_processor_id();
+	int cpu;
 
 	cpuc = kzalloc(sizeof(*cpuc), GFP_KERNEL);
 	if (!cpuc)
 		return ERR_PTR(-ENOMEM);
 	cpuc->is_fake = 1;
+
+	if (is_hybrid()) {
+		struct x86_hybrid_pmu *h_pmu;
+
+		h_pmu = hybrid_pmu(event_pmu);
+		if (cpumask_empty(&h_pmu->supported_cpus))
+			goto error;
+		cpu = cpumask_first(&h_pmu->supported_cpus);
+	} else
+		cpu = raw_smp_processor_id();
+	cpuc->pmu = event_pmu;
 
 	if (intel_cpuc_prepare(cpuc, cpu))
 		goto error;
@@ -2236,7 +2313,7 @@ static int validate_event(struct perf_event *event)
 	struct event_constraint *c;
 	int ret = 0;
 
-	fake_cpuc = allocate_fake_cpuc();
+	fake_cpuc = allocate_fake_cpuc(event->pmu);
 	if (IS_ERR(fake_cpuc))
 		return PTR_ERR(fake_cpuc);
 
@@ -2270,7 +2347,27 @@ static int validate_group(struct perf_event *event)
 	struct cpu_hw_events *fake_cpuc;
 	int ret = -EINVAL, n;
 
-	fake_cpuc = allocate_fake_cpuc();
+	/*
+	 * Reject events from different hybrid PMUs.
+	 */
+	if (is_hybrid()) {
+		struct perf_event *sibling;
+		struct pmu *pmu = NULL;
+
+		if (is_x86_event(leader))
+			pmu = leader->pmu;
+
+		for_each_sibling_event(sibling, leader) {
+			if (!is_x86_event(sibling))
+				continue;
+			if (!pmu)
+				pmu = sibling->pmu;
+			else if (pmu != sibling->pmu)
+				return ret;
+		}
+	}
+
+	fake_cpuc = allocate_fake_cpuc(event->pmu);
 	if (IS_ERR(fake_cpuc))
 		return PTR_ERR(fake_cpuc);
 	/*
@@ -2298,16 +2395,18 @@ out:
 
 static int x86_pmu_event_init(struct perf_event *event)
 {
+	struct x86_hybrid_pmu *pmu = NULL;
 	int err;
 
-	switch (event->attr.type) {
-	case PERF_TYPE_RAW:
-	case PERF_TYPE_HARDWARE:
-	case PERF_TYPE_HW_CACHE:
-		break;
-
-	default:
+	if ((event->attr.type != event->pmu->type) &&
+	    (event->attr.type != PERF_TYPE_HARDWARE) &&
+	    (event->attr.type != PERF_TYPE_HW_CACHE))
 		return -ENOENT;
+
+	if (is_hybrid() && (event->cpu != -1)) {
+		pmu = hybrid_pmu(event->pmu);
+		if (!cpumask_test_cpu(event->cpu, &pmu->supported_cpus))
+			return -ENOENT;
 	}
 
 	err = __x86_pmu_event_init(event);
