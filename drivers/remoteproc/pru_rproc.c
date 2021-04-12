@@ -450,6 +450,24 @@ static void *pru_i_da_to_va(struct pru_rproc *pru, u32 da, size_t len)
 	if (len == 0)
 		return NULL;
 
+	/*
+	 * GNU binutils do not support multiple address spaces. The GNU
+	 * linker's default linker script places IRAM at an arbitrary high
+	 * offset, in order to differentiate it from DRAM. Hence we need to
+	 * strip the artificial offset in the IRAM addresses coming from the
+	 * ELF file.
+	 *
+	 * The TI proprietary linker would never set those higher IRAM address
+	 * bits anyway. PRU architecture limits the program counter to 16-bit
+	 * word-address range. This in turn corresponds to 18-bit IRAM
+	 * byte-address range for ELF.
+	 *
+	 * Two more bits are added just in case to make the final 20-bit mask.
+	 * Idea is to have a safeguard in case TI decides to add banking
+	 * in future SoCs.
+	 */
+	da &= 0xfffff;
+
 	if (da >= PRU_IRAM_DA &&
 	    da + len <= PRU_IRAM_DA + pru->mem_regions[PRU_IOMEM_IRAM].size) {
 		offset = da - PRU_IRAM_DA;
@@ -585,7 +603,7 @@ pru_rproc_load_elf_segments(struct rproc *rproc, const struct firmware *fw)
 			break;
 		}
 
-		if (pru->data->is_k3 && is_iram) {
+		if (pru->data->is_k3) {
 			ret = pru_rproc_memcpy(ptr, elf_data + phdr->p_offset,
 					       filesz);
 			if (ret) {

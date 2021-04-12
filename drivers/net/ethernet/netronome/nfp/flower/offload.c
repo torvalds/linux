@@ -1009,6 +1009,8 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	struct netlink_ext_ack *extack = NULL;
 	struct nfp_fl_payload *merge_flow;
 	struct nfp_fl_key_ls merge_key_ls;
+	struct nfp_merge_info *merge_info;
+	u64 parent_ctx = 0;
 	int err;
 
 	ASSERT_RTNL();
@@ -1018,6 +1020,15 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	    nfp_flower_is_merge_flow(sub_flow1) ||
 	    nfp_flower_is_merge_flow(sub_flow2))
 		return -EINVAL;
+
+	/* check if the two flows are already merged */
+	parent_ctx = (u64)(be32_to_cpu(sub_flow1->meta.host_ctx_id)) << 32;
+	parent_ctx |= (u64)(be32_to_cpu(sub_flow2->meta.host_ctx_id));
+	if (rhashtable_lookup_fast(&priv->merge_table,
+				   &parent_ctx, merge_table_params)) {
+		nfp_flower_cmsg_warn(app, "The two flows are already merged.\n");
+		return 0;
+	}
 
 	err = nfp_flower_can_merge(sub_flow1, sub_flow2);
 	if (err)
@@ -1060,16 +1071,33 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	if (err)
 		goto err_release_metadata;
 
+	merge_info = kmalloc(sizeof(*merge_info), GFP_KERNEL);
+	if (!merge_info) {
+		err = -ENOMEM;
+		goto err_remove_rhash;
+	}
+	merge_info->parent_ctx = parent_ctx;
+	err = rhashtable_insert_fast(&priv->merge_table, &merge_info->ht_node,
+				     merge_table_params);
+	if (err)
+		goto err_destroy_merge_info;
+
 	err = nfp_flower_xmit_flow(app, merge_flow,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_MOD);
 	if (err)
-		goto err_remove_rhash;
+		goto err_remove_merge_info;
 
 	merge_flow->in_hw = true;
 	sub_flow1->in_hw = false;
 
 	return 0;
 
+err_remove_merge_info:
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->merge_table,
+					    &merge_info->ht_node,
+					    merge_table_params));
+err_destroy_merge_info:
+	kfree(merge_info);
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
 					    &merge_flow->fl_node,
@@ -1359,7 +1387,9 @@ nfp_flower_remove_merge_flow(struct nfp_app *app,
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload_link *link, *temp;
+	struct nfp_merge_info *merge_info;
 	struct nfp_fl_payload *origin;
+	u64 parent_ctx = 0;
 	bool mod = false;
 	int err;
 
@@ -1396,8 +1426,22 @@ nfp_flower_remove_merge_flow(struct nfp_app *app,
 err_free_links:
 	/* Clean any links connected with the merged flow. */
 	list_for_each_entry_safe(link, temp, &merge_flow->linked_flows,
-				 merge_flow.list)
+				 merge_flow.list) {
+		u32 ctx_id = be32_to_cpu(link->sub_flow.flow->meta.host_ctx_id);
+
+		parent_ctx = (parent_ctx << 32) | (u64)(ctx_id);
 		nfp_flower_unlink_flow(link);
+	}
+
+	merge_info = rhashtable_lookup_fast(&priv->merge_table,
+					    &parent_ctx,
+					    merge_table_params);
+	if (merge_info) {
+		WARN_ON_ONCE(rhashtable_remove_fast(&priv->merge_table,
+						    &merge_info->ht_node,
+						    merge_table_params));
+		kfree(merge_info);
+	}
 
 	kfree(merge_flow->action_data);
 	kfree(merge_flow->mask_data);

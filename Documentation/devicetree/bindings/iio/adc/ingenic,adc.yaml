@@ -14,8 +14,9 @@ description: >
   Industrial I/O subsystem bindings for ADC controller found in
   Ingenic JZ47xx SoCs.
 
-  ADC clients must use the format described in iio-bindings.txt, giving
-  a phandle and IIO specifier pair ("io-channels") to the ADC controller.
+  ADC clients must use the format described in
+  https://github.com/devicetree-org/dt-schema/blob/master/schemas/iio/iio-consumer.yaml,
+  giving a phandle and IIO specifier pair ("io-channels") to the ADC controller.
 
 properties:
   compatible:

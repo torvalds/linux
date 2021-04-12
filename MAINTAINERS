@@ -1790,19 +1790,26 @@ F:	drivers/net/ethernet/cortina/
 F:	drivers/pinctrl/pinctrl-gemini.c
 F:	drivers/rtc/rtc-ftrtc010.c
 
-ARM/CZ.NIC TURRIS MOX SUPPORT
-M:	Marek Behun <marek.behun@nic.cz>
+ARM/CZ.NIC TURRIS SUPPORT
+M:	Marek Behun <kabel@kernel.org>
 S:	Maintained
-W:	http://mox.turris.cz
+W:	https://www.turris.cz/
 F:	Documentation/ABI/testing/debugfs-moxtet
 F:	Documentation/ABI/testing/sysfs-bus-moxtet-devices
 F:	Documentation/ABI/testing/sysfs-firmware-turris-mox-rwtm
 F:	Documentation/devicetree/bindings/bus/moxtet.txt
 F:	Documentation/devicetree/bindings/firmware/cznic,turris-mox-rwtm.txt
 F:	Documentation/devicetree/bindings/gpio/gpio-moxtet.txt
+F:	Documentation/devicetree/bindings/leds/cznic,turris-omnia-leds.yaml
+F:	Documentation/devicetree/bindings/watchdog/armada-37xx-wdt.txt
 F:	drivers/bus/moxtet.c
 F:	drivers/firmware/turris-mox-rwtm.c
+F:	drivers/leds/leds-turris-omnia.c
+F:	drivers/mailbox/armada-37xx-rwtm-mailbox.c
 F:	drivers/gpio/gpio-moxtet.c
+F:	drivers/watchdog/armada_37xx_wdt.c
+F:	include/dt-bindings/bus/moxtet.h
+F:	include/linux/armada-37xx-rwtm-mailbox.h
 F:	include/linux/moxtet.h
 
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
@@ -14850,6 +14857,14 @@ L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	drivers/iommu/arm/arm-smmu/qcom_iommu.c
 
+QUALCOMM IPC ROUTER (QRTR) DRIVER
+M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	include/trace/events/qrtr.h
+F:	include/uapi/linux/qrtr.h
+F:	net/qrtr/
+
 QUALCOMM IPCC MAILBOX DRIVER
 M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 L:	linux-arm-msm@vger.kernel.org
@@ -15199,6 +15214,7 @@ F:	fs/reiserfs/
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Mathieu Poirier <mathieu.poirier@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andersson/remoteproc.git rproc-next
@@ -15212,6 +15228,7 @@ F:	include/linux/remoteproc/
 REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Mathieu Poirier <mathieu.poirier@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andersson/remoteproc.git rpmsg-next

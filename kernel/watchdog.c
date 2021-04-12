@@ -278,9 +278,10 @@ void touch_all_softlockup_watchdogs(void)
 	 * update as well, the only side effect might be a cycle delay for
 	 * the softlockup check.
 	 */
-	for_each_cpu(cpu, &watchdog_allowed_mask)
+	for_each_cpu(cpu, &watchdog_allowed_mask) {
 		per_cpu(watchdog_touch_ts, cpu) = SOFTLOCKUP_RESET;
-	wq_watchdog_touch(-1);
+		wq_watchdog_touch(cpu);
+	}
 }
 
 void touch_softlockup_watchdog_sync(void)
