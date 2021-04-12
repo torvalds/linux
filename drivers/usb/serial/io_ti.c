@@ -2590,6 +2590,10 @@ static int edge_port_probe(struct usb_serial_port *port)
 	if (ret)
 		goto err;
 
+	/*
+	 * The LSR does not tell when the transmitter shift register has
+	 * emptied so add a one-character drain delay.
+	 */
 	port->port.drain_delay = 1;
 
 	return 0;
