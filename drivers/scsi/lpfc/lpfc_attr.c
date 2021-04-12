@@ -5813,7 +5813,9 @@ lpfc_irq_chann_init(struct lpfc_hba *phba, uint32_t val)
 	}
 
 	/* Check if default setting was passed */
-	if (val == LPFC_IRQ_CHANN_DEF)
+	if (val == LPFC_IRQ_CHANN_DEF &&
+	    phba->cfg_hdw_queue == LPFC_HBA_HDWQ_DEF &&
+	    phba->sli_rev == LPFC_SLI_REV4)
 		lpfc_assign_default_irq_chann(phba);
 
 	if (phba->irq_chann_mode != NORMAL_MODE) {
@@ -5852,7 +5854,12 @@ lpfc_irq_chann_init(struct lpfc_hba *phba, uint32_t val)
 			phba->cfg_irq_chann = LPFC_IRQ_CHANN_DEF;
 			return -EINVAL;
 		}
-		phba->cfg_irq_chann = val;
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			phba->cfg_irq_chann = val;
+		} else {
+			phba->cfg_irq_chann = 2;
+			phba->cfg_hdw_queue = 1;
+		}
 	}
 
 	return 0;
@@ -7409,7 +7416,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
 	if (phba->cfg_irq_chann == 0)
 		phba->cfg_irq_chann = phba->sli4_hba.num_present_cpu;
-	if (phba->cfg_irq_chann > phba->cfg_hdw_queue)
+	if (phba->cfg_irq_chann > phba->cfg_hdw_queue &&
+	    phba->sli_rev == LPFC_SLI_REV4)
 		phba->cfg_irq_chann = phba->cfg_hdw_queue;
 
 	phba->cfg_soft_wwnn = 0L;
