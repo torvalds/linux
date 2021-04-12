@@ -45,7 +45,7 @@ static int walt_lb_active_migration(void *data)
 	raw_spin_lock_irq(&busiest_rq->lock);
 
 	/* sanity checks before initiating the pull */
-	if (!cpu_active(busiest_cpu) || !cpu_active(target_cpu))
+	if (!cpu_active(busiest_cpu) || !cpu_active(target_cpu) || !push_task)
 		goto out_unlock;
 
 	if (unlikely(busiest_cpu != raw_smp_processor_id() ||
@@ -73,15 +73,16 @@ out_unlock: /* called with busiest_rq lock */
 	raw_spin_unlock(&busiest_rq->lock);
 
 	if (push_task_detached) {
-		if (push_task_detached) {
-			raw_spin_lock(&target_rq->lock);
-			walt_attach_task(push_task, target_rq);
-			raw_spin_unlock(&target_rq->lock);
-		}
+		raw_spin_lock(&target_rq->lock);
+		walt_attach_task(push_task, target_rq);
+		raw_spin_unlock(&target_rq->lock);
 	}
-	put_task_struct(push_task);
+
+	if (push_task)
+		put_task_struct(push_task);
 
 	local_irq_enable();
+
 	return 0;
 }
 
