@@ -1691,6 +1691,15 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	else
 		new_ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
 
+	/*
+	 * Retain the DROPPED flag. This will take care of the init
+	 * refcount when affecting the state change
+	 */
+	if (keep_new_nlp_flag & NLP_DROPPED)
+		new_ndlp->nlp_flag |= NLP_DROPPED;
+	else
+		new_ndlp->nlp_flag &= ~NLP_DROPPED;
+
 	ndlp->nlp_flag = keep_new_nlp_flag;
 
 	/* if ndlp had NLP_UNREG_INP set, keep it */
@@ -1704,6 +1713,15 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	else
 		ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
+
+	/*
+	 * Retain the DROPPED flag. This will take care of the init
+	 * refcount when affecting the state change
+	 */
+	if (keep_nlp_flag & NLP_DROPPED)
+		ndlp->nlp_flag |= NLP_DROPPED;
+	else
+		ndlp->nlp_flag &= ~NLP_DROPPED;
 
 	spin_unlock_irq(&new_ndlp->lock);
 	spin_unlock_irq(&ndlp->lock);
