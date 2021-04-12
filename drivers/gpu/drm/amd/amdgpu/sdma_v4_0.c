@@ -1109,6 +1109,8 @@ static void sdma_v4_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 		if (adev->asic_type == CHIP_ARCTURUS &&
 		    adev->sdma.instance[i].fw_version >= 14)
 			WREG32_SDMA(i, mmSDMA0_PUB_DUMMY_REG2, enable);
+		/* Extend page fault timeout to avoid interrupt storm */
+		WREG32_SDMA(i, mmSDMA0_UTCL1_TIMEOUT, 0x00800080);
 	}
 
 }
