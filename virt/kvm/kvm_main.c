@@ -4620,21 +4620,23 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	return 0;
 }
 
-/* Caller must hold slots_lock. */
 int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 			      struct kvm_io_device *dev)
 {
 	int i, j;
 	struct kvm_io_bus *new_bus, *bus;
 
+	lockdep_assert_held(&kvm->slots_lock);
+
 	bus = kvm_get_bus(kvm, bus_idx);
 	if (!bus)
 		return 0;
 
-	for (i = 0; i < bus->dev_count; i++)
+	for (i = 0; i < bus->dev_count; i++) {
 		if (bus->range[i].dev == dev) {
 			break;
 		}
+	}
 
 	if (i == bus->dev_count)
 		return 0;
