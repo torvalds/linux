@@ -103,6 +103,7 @@ static int tb_retimer_nvm_validate_and_write(struct tb_retimer *rt)
 	unsigned int image_size, hdr_size;
 	const u8 *buf = rt->nvm->buf;
 	u16 ds_size, device;
+	int ret;
 
 	image_size = rt->nvm->buf_data_size;
 	if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE)
@@ -140,8 +141,25 @@ static int tb_retimer_nvm_validate_and_write(struct tb_retimer *rt)
 	buf += hdr_size;
 	image_size -= hdr_size;
 
-	return usb4_port_retimer_nvm_write(rt->port, rt->index, 0, buf,
-					   image_size);
+	ret = usb4_port_retimer_nvm_write(rt->port, rt->index, 0, buf,
+					 image_size);
+	if (!ret)
+		rt->nvm->flushed = true;
+
+	return ret;
+}
+
+static int tb_retimer_nvm_authenticate(struct tb_retimer *rt, bool auth_only)
+{
+	int ret;
+
+	if (auth_only) {
+		ret = usb4_port_retimer_nvm_set_offset(rt->port, rt->index, 0);
+		if (ret)
+			return ret;
+	}
+
+	return usb4_port_retimer_nvm_authenticate(rt->port, rt->index);
 }
 
 static ssize_t device_show(struct device *dev, struct device_attribute *attr,
@@ -176,8 +194,7 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct tb_retimer *rt = tb_to_retimer(dev);
-	bool val;
-	int ret;
+	int val, ret;
 
 	pm_runtime_get_sync(&rt->dev);
 
@@ -191,7 +208,7 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 		goto exit_unlock;
 	}
 
-	ret = kstrtobool(buf, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		goto exit_unlock;
 
@@ -199,16 +216,22 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	rt->auth_status = 0;
 
 	if (val) {
-		if (!rt->nvm->buf) {
-			ret = -EINVAL;
-			goto exit_unlock;
+		if (val == AUTHENTICATE_ONLY) {
+			ret = tb_retimer_nvm_authenticate(rt, true);
+		} else {
+			if (!rt->nvm->flushed) {
+				if (!rt->nvm->buf) {
+					ret = -EINVAL;
+					goto exit_unlock;
+				}
+
+				ret = tb_retimer_nvm_validate_and_write(rt);
+				if (ret || val == WRITE_ONLY)
+					goto exit_unlock;
+			}
+			if (val == WRITE_AND_AUTHENTICATE)
+				ret = tb_retimer_nvm_authenticate(rt, false);
 		}
-
-		ret = tb_retimer_nvm_validate_and_write(rt);
-		if (ret)
-			goto exit_unlock;
-
-		ret = usb4_port_retimer_nvm_authenticate(rt->port, rt->index);
 	}
 
 exit_unlock:

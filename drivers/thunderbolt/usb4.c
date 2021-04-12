@@ -1513,8 +1513,19 @@ int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index)
 	return ret ? ret : metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
 
-static int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
-					    unsigned int address)
+/**
+ * usb4_port_retimer_nvm_set_offset() - Set NVM write offset
+ * @port: USB4 port
+ * @index: Retimer index
+ * @address: Start offset
+ *
+ * Exlicitly sets NVM write offset. Normally when writing to NVM this is
+ * done automatically by usb4_port_retimer_nvm_write().
+ *
+ * Returns %0 in success and negative errno if there was a failure.
+ */
+int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
+				     unsigned int address)
 {
 	u32 metadata, dwaddress;
 	int ret;

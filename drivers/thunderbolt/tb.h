@@ -1082,6 +1082,8 @@ int usb4_port_retimer_write(struct tb_port *port, u8 index, u8 reg,
 			    const void *buf, u8 size);
 int usb4_port_retimer_is_last(struct tb_port *port, u8 index);
 int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index);
+int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
+				     unsigned int address);
 int usb4_port_retimer_nvm_write(struct tb_port *port, u8 index,
 				unsigned int address, const void *buf,
 				size_t size);
