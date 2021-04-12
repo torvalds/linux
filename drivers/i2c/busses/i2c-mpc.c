@@ -759,12 +759,6 @@ static int fsl_i2c_remove(struct platform_device *op)
 	if (i2c->clk_per)
 		clk_disable_unprepare(i2c->clk_per);
 
-	if (i2c->irq)
-		free_irq(i2c->irq, i2c);
-
-	irq_dispose_mapping(i2c->irq);
-	iounmap(i2c->base);
-	kfree(i2c);
 	return 0;
 };
 
