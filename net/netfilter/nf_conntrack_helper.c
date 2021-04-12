@@ -216,7 +216,7 @@ nf_ct_lookup_helper(struct nf_conn *ct, struct net *net)
 {
 	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
 
-	if (!net->ct.sysctl_auto_assign_helper) {
+	if (!cnet->sysctl_auto_assign_helper) {
 		if (cnet->auto_assign_helper_warned)
 			return NULL;
 		if (!__nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple))
@@ -560,7 +560,9 @@ static const struct nf_ct_ext_type helper_extend = {
 
 void nf_conntrack_helper_pernet_init(struct net *net)
 {
-	net->ct.sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
+	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
+
+	cnet->sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
 }
 
 int nf_conntrack_helper_init(void)
