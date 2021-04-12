@@ -19,6 +19,7 @@
 
 #include "core.h"
 #include "gadget-export.h"
+#include "drd.h"
 
 static int set_phy_power_on(struct cdns *cdns)
 {
@@ -236,6 +237,18 @@ static int cdns3_controller_resume(struct device *dev, pm_message_t msg)
 	if (!cdns->in_lpm)
 		return 0;
 
+	if (cdns_power_is_lost(cdns)) {
+		phy_exit(cdns->usb2_phy);
+		ret = phy_init(cdns->usb2_phy);
+		if (ret)
+			return ret;
+
+		phy_exit(cdns->usb3_phy);
+		ret = phy_init(cdns->usb3_phy);
+		if (ret)
+			return ret;
+	}
+
 	ret = set_phy_power_on(cdns);
 	if (ret)
 		return ret;
@@ -270,10 +283,18 @@ static int cdns3_plat_runtime_resume(struct device *dev)
 static int cdns3_plat_suspend(struct device *dev)
 {
 	struct cdns *cdns = dev_get_drvdata(dev);
+	int ret;
 
 	cdns_suspend(cdns);
 
-	return cdns3_controller_suspend(dev, PMSG_SUSPEND);
+	ret = cdns3_controller_suspend(dev, PMSG_SUSPEND);
+	if (ret)
+		return ret;
+
+	if (device_may_wakeup(dev) && cdns->wakeup_irq)
+		enable_irq_wake(cdns->wakeup_irq);
+
+	return ret;
 }
 
 static int cdns3_plat_resume(struct device *dev)
