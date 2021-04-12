@@ -95,10 +95,13 @@ struct xr_txrx_clk_mask {
 #define XR_GPIO_MODE_TX_TOGGLE		0x100
 #define XR_GPIO_MODE_RX_TOGGLE		0x200
 
+#define XR_FIFO_RESET			0x1
+
 #define XR_CUSTOM_DRIVER_ACTIVE		0x1
 
 static int xr21v141x_uart_enable(struct usb_serial_port *port);
 static int xr21v141x_uart_disable(struct usb_serial_port *port);
+static int xr21v141x_fifo_reset(struct usb_serial_port *port);
 static void xr21v141x_set_line_settings(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 
@@ -118,6 +121,8 @@ struct xr_type {
 	u16 gpio_set;
 	u16 gpio_clear;
 	u16 gpio_status;
+	u16 tx_fifo_reset;
+	u16 rx_fifo_reset;
 	u16 custom_driver;
 
 	bool have_5_6_bit_mode;
@@ -125,6 +130,7 @@ struct xr_type {
 
 	int (*enable)(struct usb_serial_port *port);
 	int (*disable)(struct usb_serial_port *port);
+	int (*fifo_reset)(struct usb_serial_port *port);
 	void (*set_line_settings)(struct tty_struct *tty,
 			struct usb_serial_port *port,
 			struct ktermios *old_termios);
@@ -158,6 +164,7 @@ static const struct xr_type xr_types[] = {
 
 		.enable			= xr21v141x_uart_enable,
 		.disable		= xr21v141x_uart_disable,
+		.fifo_reset		= xr21v141x_fifo_reset,
 		.set_line_settings	= xr21v141x_set_line_settings,
 	},
 	[XR21B142X] = {
@@ -176,6 +183,8 @@ static const struct xr_type xr_types[] = {
 		.gpio_set	= 0x0e,
 		.gpio_clear	= 0x0f,
 		.gpio_status	= 0x10,
+		.tx_fifo_reset	= 0x40,
+		.rx_fifo_reset	= 0x43,
 		.custom_driver	= 0x60,
 
 		.have_5_6_bit_mode	= true,
@@ -197,6 +206,8 @@ static const struct xr_type xr_types[] = {
 		.gpio_set	= 0xc0e,
 		.gpio_clear	= 0xc0f,
 		.gpio_status	= 0xc10,
+		.tx_fifo_reset	= 0xc80,
+		.rx_fifo_reset	= 0xcc0,
 		.custom_driver	= 0x20d,
 	},
 	[XR2280X] = {
@@ -215,6 +226,8 @@ static const struct xr_type xr_types[] = {
 		.gpio_set	= 0x4e,
 		.gpio_clear	= 0x4f,
 		.gpio_status	= 0x50,
+		.tx_fifo_reset	= 0x60,
+		.rx_fifo_reset	= 0x63,
 		.custom_driver	= 0x81,
 	},
 };
@@ -382,6 +395,40 @@ static int xr_uart_disable(struct usb_serial_port *port)
 		return data->type->disable(port);
 
 	return __xr_uart_disable(port);
+}
+
+static int xr21v141x_fifo_reset(struct usb_serial_port *port)
+{
+	int ret;
+
+	ret = xr_set_reg_um(port, XR21V141X_UM_TX_FIFO_RESET, XR_FIFO_RESET);
+	if (ret)
+		return ret;
+
+	ret = xr_set_reg_um(port, XR21V141X_UM_RX_FIFO_RESET, XR_FIFO_RESET);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int xr_fifo_reset(struct usb_serial_port *port)
+{
+	struct xr_data *data = usb_get_serial_port_data(port);
+	int ret;
+
+	if (data->type->fifo_reset)
+		return data->type->fifo_reset(port);
+
+	ret = xr_set_reg_uart(port, data->type->tx_fifo_reset, XR_FIFO_RESET);
+	if (ret)
+		return ret;
+
+	ret = xr_set_reg_uart(port, data->type->rx_fifo_reset, XR_FIFO_RESET);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int xr_tiocmget(struct tty_struct *tty)
@@ -780,6 +827,10 @@ static void xr_set_termios(struct tty_struct *tty,
 static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int ret;
+
+	ret = xr_fifo_reset(port);
+	if (ret)
+		return ret;
 
 	ret = xr_uart_enable(port);
 	if (ret) {
