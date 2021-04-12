@@ -154,9 +154,10 @@ static struct clk_div_table div_ddrphy_t[] = {
 #define IFLAGS ROCKCHIP_INVERTER_HIWORD_MASK
 
 static const struct rockchip_cpuclk_reg_data rk3368_cpuclkb_data = {
-	.core_reg = RK3368_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0x1f,
+	.core_reg[0] = RK3368_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0x1f,
+	.num_cores = 1,
 	.mux_core_alt = 1,
 	.mux_core_main = 0,
 	.mux_core_shift = 7,
@@ -164,11 +165,12 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkb_data = {
 };
 
 static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
-	.core_reg = RK3368_CLKSEL_CON(2),
-	.div_core_shift = 0,
+	.core_reg[0] = RK3368_CLKSEL_CON(2),
+	.div_core_shift[0] = 0,
 	.mux_core_alt = 1,
+	.num_cores = 1,
 	.mux_core_main = 0,
-	.div_core_mask = 0x1f,
+	.div_core_mask[0] = 0x1f,
 	.mux_core_shift = 7,
 	.mux_core_mask = 0x1,
 };

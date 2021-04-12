@@ -124,9 +124,10 @@ static struct rockchip_cpuclk_rate_table px30_cpuclk_rates[] __initdata = {
 };
 
 static const struct rockchip_cpuclk_reg_data px30_cpuclk_data = {
-	.core_reg = PX30_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0xf,
+	.core_reg[0] = PX30_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0xf,
+	.num_cores = 1,
 	.mux_core_alt = 1,
 	.mux_core_main = 0,
 	.mux_core_shift = 7,
