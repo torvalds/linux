@@ -45,6 +45,7 @@ union nf_conntrack_expect_proto {
 
 struct nf_conntrack_net {
 	/* only used when new connection is allocated: */
+	unsigned int expect_count;
 	u8 sysctl_auto_assign_helper;
 	bool auto_assign_helper_warned;
 
