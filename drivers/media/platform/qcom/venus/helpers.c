@@ -1627,6 +1627,8 @@ int venus_helper_session_init(struct venus_inst *inst)
 								  session_type);
 	inst->clk_data.vsp_freq = hfi_platform_get_codec_vsp_freq(version, codec,
 								  session_type);
+	inst->clk_data.low_power_freq = hfi_platform_get_codec_lp_freq(version, codec,
+								       session_type);
 
 	return 0;
 }
