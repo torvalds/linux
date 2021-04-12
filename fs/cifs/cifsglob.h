@@ -1824,13 +1824,6 @@ GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
  */
 GLOBAL_EXTERN spinlock_t		cifs_tcp_ses_lock;
 
-#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
-/* Outstanding dir notify requests */
-GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
-/* DirNotify response queue */
-GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;
-#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
-
 /*
  * Global transaction id (XID) information
  */
@@ -1874,19 +1867,9 @@ extern unsigned int cifs_min_small;  /* min size of small buf pool */
 extern unsigned int cifs_max_pending; /* MAX requests at once to server*/
 extern bool disable_legacy_dialects;  /* forbid vers=1.0 and vers=2.0 mounts */
 
-GLOBAL_EXTERN struct rb_root uidtree;
-GLOBAL_EXTERN struct rb_root gidtree;
-GLOBAL_EXTERN spinlock_t siduidlock;
-GLOBAL_EXTERN spinlock_t sidgidlock;
-GLOBAL_EXTERN struct rb_root siduidtree;
-GLOBAL_EXTERN struct rb_root sidgidtree;
-GLOBAL_EXTERN spinlock_t uidsidlock;
-GLOBAL_EXTERN spinlock_t gidsidlock;
-
 void cifs_oplock_break(struct work_struct *work);
 void cifs_queue_oplock_break(struct cifsFileInfo *cfile);
 
-extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
 extern struct workqueue_struct *decrypt_wq;
 extern struct workqueue_struct *fileinfo_put_wq;

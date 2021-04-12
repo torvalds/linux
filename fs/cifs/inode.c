@@ -2961,12 +2961,3 @@ cifs_setattr(struct user_namespace *mnt_userns, struct dentry *direntry,
 	/* BB: add cifs_setattr_legacy for really old servers */
 	return rc;
 }
-
-#if 0
-void cifs_delete_inode(struct inode *inode)
-{
-	cifs_dbg(FYI, "In cifs_delete_inode, inode = 0x%p\n", inode);
-	/* may have to add back in if and when safe distributed caching of
-	   directories added e.g. via FindNotify */
-}
-#endif

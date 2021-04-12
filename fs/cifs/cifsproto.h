@@ -358,11 +358,6 @@ extern int CIFSSMBSetFileDisposition(const unsigned int xid,
 				     struct cifs_tcon *tcon,
 				     bool delete_file, __u16 fid,
 				     __u32 pid_of_opener);
-#if 0
-extern int CIFSSMBSetAttrLegacy(unsigned int xid, struct cifs_tcon *tcon,
-			char *fileName, __u16 dos_attributes,
-			const struct nls_table *nls_codepage);
-#endif /* possibly unneeded function */
 extern int CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
 			 const char *file_name, __u64 size,
 			 struct cifs_sb_info *cifs_sb, bool set_allocation);
@@ -504,12 +499,6 @@ extern int generate_smb311signingkey(struct cifs_ses *);
 extern int calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
-#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
-extern int CIFSSMBNotify(const unsigned int xid, struct cifs_tcon *tcon,
-			const int notify_subdirs, const __u16 netfid,
-			__u32 filter, struct file *file, int multishot,
-			const struct nls_table *nls_codepage);
-#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
 extern int CIFSSMBCopy(unsigned int xid,
 			struct cifs_tcon *source_tcon,
 			const char *fromName,
