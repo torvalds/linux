@@ -284,11 +284,12 @@ static int ti_vsend_sync(struct usb_device *dev, u8 request, u16 value,
 	return 0;
 }
 
-static int send_cmd(struct usb_device *dev, u8 command, u8 moduleid,
-		u16 value, void *data, int size)
+static int send_port_cmd(struct usb_serial_port *port, u8 command, u16 value,
+		void *data, int size)
 {
-	return ti_vsend_sync(dev, command, value, moduleid, data, size,
-			TI_VSEND_TIMEOUT_DEFAULT);
+	return ti_vsend_sync(port->serial->dev, command, value,
+			UMPM_UART1_PORT + port->port_number,
+			data, size, TI_VSEND_TIMEOUT_DEFAULT);
 }
 
 /* clear tx/rx buffers and fifo in TI UMP */
@@ -298,12 +299,7 @@ static int purge_port(struct usb_serial_port *port, __u16 mask)
 
 	dev_dbg(&port->dev, "%s - port %d, mask %x\n", __func__, port_number, mask);
 
-	return send_cmd(port->serial->dev,
-					UMPC_PURGE_PORT,
-					(__u8)(UMPM_UART1_PORT + port_number),
-					mask,
-					NULL,
-					0);
+	return send_port_cmd(port, UMPC_PURGE_PORT, mask, NULL, 0);
 }
 
 /**
@@ -1500,12 +1496,9 @@ stayinbootmode:
 
 static int ti_do_config(struct edgeport_port *port, int feature, int on)
 {
-	int port_number = port->port->port_number;
-
 	on = !!on;	/* 1 or 0 not bitmask */
-	return send_cmd(port->port->serial->dev,
-			feature, (__u8)(UMPM_UART1_PORT + port_number),
-			on, NULL, 0);
+
+	return send_port_cmd(port->port, feature, on, NULL, 0);
 }
 
 static int restore_mcr(struct edgeport_port *port, __u8 mcr)
@@ -1874,8 +1867,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	dev_dbg(&port->dev, "%s - Sending UMPC_OPEN_PORT\n", __func__);
 
 	/* Tell TI to open and start the port */
-	status = send_cmd(dev, UMPC_OPEN_PORT,
-		(u8)(UMPM_UART1_PORT + port_number), open_settings, NULL, 0);
+	status = send_port_cmd(port, UMPC_OPEN_PORT, open_settings, NULL, 0);
 	if (status) {
 		dev_err(&port->dev, "%s - cannot send open command, %d\n",
 							__func__, status);
@@ -1883,8 +1875,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	/* Start the DMA? */
-	status = send_cmd(dev, UMPC_START_PORT,
-		(u8)(UMPM_UART1_PORT + port_number), 0, NULL, 0);
+	status = send_port_cmd(port, UMPC_START_PORT, 0, NULL, 0);
 	if (status) {
 		dev_err(&port->dev, "%s - cannot send start DMA command, %d\n",
 							__func__, status);
@@ -1967,9 +1958,7 @@ static void edge_close(struct usb_serial_port *port)
 {
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;
-	struct usb_serial *serial = port->serial;
 	unsigned long flags;
-	int port_number;
 
 	edge_serial = usb_get_serial_data(port->serial);
 	edge_port = usb_get_serial_port_data(port);
@@ -1990,9 +1979,7 @@ static void edge_close(struct usb_serial_port *port)
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - send umpc_close_port\n", __func__);
-	port_number = port->port_number;
-	send_cmd(serial->dev, UMPC_CLOSE_PORT,
-		     (__u8)(UMPM_UART1_PORT + port_number), 0, NULL, 0);
+	send_port_cmd(port, UMPC_CLOSE_PORT, 0, NULL, 0);
 
 	mutex_lock(&edge_serial->es_lock);
 	--edge_port->edge_serial->num_ports_open;
@@ -2225,7 +2212,6 @@ static void change_port_settings(struct tty_struct *tty,
 	int baud;
 	unsigned cflag;
 	int status;
-	int port_number = edge_port->port->port_number;
 
 	config = kmalloc (sizeof (*config), GFP_KERNEL);
 	if (!config) {
@@ -2351,9 +2337,8 @@ static void change_port_settings(struct tty_struct *tty,
 	cpu_to_be16s(&config->wFlags);
 	cpu_to_be16s(&config->wBaudRate);
 
-	status = send_cmd(edge_port->port->serial->dev, UMPC_SET_CONFIG,
-				(__u8)(UMPM_UART1_PORT + port_number),
-				0, config, sizeof(*config));
+	status = send_port_cmd(edge_port->port, UMPC_SET_CONFIG, 0, config,
+			sizeof(*config));
 	if (status)
 		dev_dbg(dev, "%s - error %d when trying to write config to device\n",
 			__func__, status);
