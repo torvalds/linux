@@ -213,7 +213,7 @@ void mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *sk
 		if (phy->test.tx_queued == phy->test.tx_done)
 			wake_up(&dev->tx_wait);
 
-		ieee80211_free_txskb(hw, skb);
+		dev_kfree_skb_any(skb);
 		return;
 	}
 #endif
