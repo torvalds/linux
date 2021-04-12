@@ -910,18 +910,18 @@ static void ti_set_termios(struct tty_struct *tty,
 
 	switch (C_CSIZE(tty)) {
 	case CS5:
-		    config->bDataBits = TI_UART_5_DATA_BITS;
-		    break;
+		config->bDataBits = TI_UART_5_DATA_BITS;
+		break;
 	case CS6:
-		    config->bDataBits = TI_UART_6_DATA_BITS;
-		    break;
+		config->bDataBits = TI_UART_6_DATA_BITS;
+		break;
 	case CS7:
-		    config->bDataBits = TI_UART_7_DATA_BITS;
-		    break;
+		config->bDataBits = TI_UART_7_DATA_BITS;
+		break;
 	default:
 	case CS8:
-		    config->bDataBits = TI_UART_8_DATA_BITS;
-		    break;
+		config->bDataBits = TI_UART_8_DATA_BITS;
+		break;
 	}
 
 	/* CMSPAR isn't supported by this driver */
