@@ -1443,7 +1443,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 			     (dev->hdr.op_mode == HDR_RDBK_FRAME2 && end_tx2 && end_tx0))) {
 				end_tx0 = false;
 				end_tx2 = false;
-				rkisp_trigger_read_back(&dev->csi_dev, false, false);
+				rkisp_trigger_read_back(&dev->csi_dev, false, false, false);
 			}
 		}
 	}
@@ -1476,11 +1476,17 @@ void rkisp_mipi_v21_isr(unsigned int phy, unsigned int packet,
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "csi state:0x%x\n", state);
-	if (phy && (dev->isp_inp & INP_CSI))
+	dev->csi_dev.irq_cnt++;
+	if (phy && (dev->isp_inp & INP_CSI) &&
+	    dev->csi_dev.err_cnt++ < RKISP_CONTI_ERR_MAX)
 		v4l2_warn(v4l2_dev, "MIPI error: phy: 0x%08x\n", phy);
-	if (packet && (dev->isp_inp & INP_CSI))
+	if (packet && (dev->isp_inp & INP_CSI) &&
+	    dev->csi_dev.err_cnt < RKISP_CONTI_ERR_MAX) {
+		if (packet & 0xfff)
+			dev->csi_dev.err_cnt++;
 		v4l2_warn(v4l2_dev, "MIPI error: packet: 0x%08x\n", packet);
-	if (overflow)
+	}
+	if (overflow && dev->csi_dev.err_cnt++ < RKISP_CONTI_ERR_MAX)
 		v4l2_warn(v4l2_dev, "MIPI error: overflow: 0x%08x\n", overflow);
 	if (state & 0xeff00)
 		v4l2_warn(v4l2_dev, "MIPI error: size: 0x%08x\n", state);
@@ -1501,6 +1507,7 @@ void rkisp_mipi_v21_isr(unsigned int phy, unsigned int packet,
 		}
 	}
 	if (state & (RAW0_WR_FRAME | RAW1_WR_FRAME)) {
+		dev->csi_dev.err_cnt = 0;
 		for (i = 0; i < HDR_DMA_MAX - 1; i++) {
 			if (!((RAW0_WR_FRAME << i) & state))
 				continue;
@@ -1513,7 +1520,22 @@ void rkisp_mipi_v21_isr(unsigned int phy, unsigned int packet,
 		}
 	}
 	if (state & ISP21_RAW3_WR_FRAME) {
+		dev->csi_dev.err_cnt = 0;
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX3];
 		atomic_inc(&stream->sequence);
+	}
+
+	if (dev->csi_dev.err_cnt > RKISP_CONTI_ERR_MAX) {
+		if (!(dev->isp_state & ISP_MIPI_ERROR)) {
+			dev->isp_state |= ISP_MIPI_ERROR;
+			rkisp_write(dev, CSI2RX_MASK_PHY, 0, true);
+			rkisp_write(dev, CSI2RX_MASK_PACKET, 0, true);
+			rkisp_write(dev, CSI2RX_MASK_OVERFLOW, 0, true);
+			if (dev->hw_dev->monitor.is_en) {
+				if (!completion_done(&dev->hw_dev->monitor.cmpl))
+					complete(&dev->hw_dev->monitor.cmpl);
+				dev->hw_dev->monitor.state |= ISP_MIPI_ERROR;
+			}
+		}
 	}
 }

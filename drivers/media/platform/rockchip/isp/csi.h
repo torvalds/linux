@@ -86,6 +86,8 @@ struct rkisp_csi_device {
 	int frame_cnt_x1;
 	int frame_cnt_x2;
 	int frame_cnt_x3;
+	u32 err_cnt;
+	u32 irq_cnt;
 	u32 rd_mode;
 	u8 mipi_di[CSI_PAD_MAX - 1];
 	u8 filt_state[CSI_F_MAX];
@@ -98,7 +100,7 @@ int rkisp_register_csi_subdev(struct rkisp_device *dev,
 void rkisp_unregister_csi_subdev(struct rkisp_device *dev);
 
 int rkisp_csi_config_patch(struct rkisp_device *dev);
-void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode);
+void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode, bool is_try);
 int rkisp_csi_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg);
 void rkisp_csi_sof(struct rkisp_device *dev, u8 id);
 #endif

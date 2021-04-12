@@ -303,6 +303,10 @@ static int isp_show(struct seq_file *p, void *v)
 		break;
 	}
 
+	seq_printf(p, "%-10s %s Cnt:%d\n",
+		   "Monitor",
+		   dev->hw_dev->monitor.is_en ? "ON" : "OFF",
+		   dev->hw_dev->monitor.retry);
 	return 0;
 }
 

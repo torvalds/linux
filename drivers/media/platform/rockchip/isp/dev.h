@@ -88,6 +88,7 @@ enum rkisp_isp_state {
 	ISP_STOP = BIT(8),
 	ISP_START = BIT(9),
 	ISP_ERROR = BIT(10),
+	ISP_MIPI_ERROR = BIT(11),
 };
 
 enum rkisp_isp_inp {
@@ -202,7 +203,7 @@ struct rkisp_device {
 	int vs_irq;
 	struct gpio_desc *vs_irq_gpio;
 	struct rkisp_hdr hdr;
-	enum rkisp_isp_state isp_state;
+	unsigned int isp_state;
 	unsigned int isp_err_cnt;
 	unsigned int isp_isr_cnt;
 	unsigned int isp_inp;

@@ -520,10 +520,21 @@ static inline bool is_iommu_enable(struct device *dev)
 	return true;
 }
 
-void rkisp_soft_reset(struct rkisp_hw_dev *dev)
+void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure)
 {
 	void __iomem *base = dev->base_addr;
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev->dev);
+
+	if (domain)
+		iommu_detach_device(domain, dev->dev);
+
+	if (is_secure) {
+		/* if isp working, cru reset isn't secure.
+		 * isp soft reset first to protect isp reset.
+		 */
+		writel(0xffff, base + CIF_IRCL);
+		udelay(10);
+	}
 
 	if (dev->reset) {
 		reset_control_assert(dev->reset);
@@ -531,17 +542,16 @@ void rkisp_soft_reset(struct rkisp_hw_dev *dev)
 		reset_control_deassert(dev->reset);
 		udelay(10);
 	}
-	/* reset for Dehaze */
-	writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
-	writel(0xffff, base + CIF_IRCL);
-	udelay(10);
 
-	if (domain) {
-#ifdef CONFIG_IOMMU_API
-		domain->ops->detach_dev(domain, dev->dev);
-		domain->ops->attach_dev(domain, dev->dev);
-#endif
+	if (dev->isp_ver == ISP_V20) {
+		/* reset for Dehaze */
+		writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
+		writel(0xffff, base + CIF_IRCL);
+		udelay(10);
 	}
+
+	if (domain)
+		iommu_attach_device(domain, dev->dev);
 }
 
 static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
@@ -609,7 +619,7 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 
 	rkisp_set_clk_rate(dev->clks[0],
 			   dev->clk_rate_tbl[0].clk_rate * 1000000UL);
-	rkisp_soft_reset(dev);
+	rkisp_soft_reset(dev, false);
 	isp_config_clk(dev, true);
 
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
@@ -678,6 +688,8 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 		ret = PTR_ERR(hw_dev->base_addr);
 		goto err;
 	}
+
+	rkisp_monitor = device_property_read_bool(dev, "rockchip,restart-monitor-en");
 
 	match_data = match->data;
 	hw_dev->mipi_irq = -1;
@@ -795,6 +807,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 		memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
 		default_sw_reg_flag(hw_dev->isp[i]);
 	}
+	hw_dev->monitor.is_en = rkisp_monitor;
 	return 0;
 }
 

@@ -59,6 +59,10 @@ int rkisp_debug;
 module_param_named(debug, rkisp_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+bool rkisp_monitor;
+module_param_named(monitor, rkisp_monitor, bool, 0644);
+MODULE_PARM_DESC(monitor, "rkisp abnormal restart monitor");
+
 static bool rkisp_clk_dbg;
 module_param_named(clk_dbg, rkisp_clk_dbg, bool, 0644);
 MODULE_PARM_DESC(clk_dbg, "rkisp clk set by user");

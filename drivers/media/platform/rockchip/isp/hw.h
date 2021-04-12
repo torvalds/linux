@@ -7,6 +7,7 @@
 #include "bridge.h"
 
 #define RKISP_MAX_BUS_CLK 8
+#define RKISP_MAX_RETRY_CNT 5
 
 struct isp_clk_info {
 	u32 clk_rate;
@@ -21,6 +22,16 @@ struct isp_match_data {
 	int num_clk_rate_tbl;
 	struct isp_irqs_data *irqs;
 	int num_irqs;
+};
+
+struct rkisp_monitor {
+	struct rkisp_hw_dev *dev;
+	struct work_struct work;
+	struct completion cmpl;
+	int (*reset_handle)(struct rkisp_device *dev);
+	u32 state;
+	u8 retry;
+	bool is_en;
 };
 
 struct rkisp_hw_dev {
@@ -55,6 +66,7 @@ struct rkisp_hw_dev {
 	struct list_head rpt_list;
 	struct rkisp_dummy_buffer dummy_buf;
 	const struct vb2_mem_ops *mem_ops;
+	struct rkisp_monitor monitor;
 	u64 iq_feature;
 	int buf_init_cnt;
 	bool is_feature_on;
@@ -69,5 +81,5 @@ struct rkisp_hw_dev {
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);
-void rkisp_soft_reset(struct rkisp_hw_dev *dev);
+void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure);
 #endif
