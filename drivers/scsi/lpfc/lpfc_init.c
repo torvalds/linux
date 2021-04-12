@@ -1043,12 +1043,11 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	 * driver is unloading or reposted if the driver is restarting
 	 * the port.
 	 */
-	spin_lock_irq(&phba->hbalock);  /* required for lpfc_els_sgl_list and */
-					/* scsl_buf_list */
+
 	/* sgl_list_lock required because worker thread uses this
 	 * list.
 	 */
-	spin_lock(&phba->sli4_hba.sgl_list_lock);
+	spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
 	list_for_each_entry(sglq_entry,
 		&phba->sli4_hba.lpfc_abts_els_sgl_list, list)
 		sglq_entry->state = SGL_FREED;
@@ -1057,11 +1056,12 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 			&phba->sli4_hba.lpfc_els_sgl_list);
 
 
-	spin_unlock(&phba->sli4_hba.sgl_list_lock);
+	spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
 
 	/* abts_xxxx_buf_list_lock required because worker thread uses this
 	 * list.
 	 */
+	spin_lock_irq(&phba->hbalock);
 	cnt = 0;
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
@@ -3804,12 +3804,10 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 			sglq_entry->state = SGL_FREED;
 			list_add_tail(&sglq_entry->list, &els_sgl_list);
 		}
-		spin_lock_irq(&phba->hbalock);
-		spin_lock(&phba->sli4_hba.sgl_list_lock);
+		spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
 		list_splice_init(&els_sgl_list,
 				 &phba->sli4_hba.lpfc_els_sgl_list);
-		spin_unlock(&phba->sli4_hba.sgl_list_lock);
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
 	} else if (els_xri_cnt < phba->sli4_hba.els_xri_cnt) {
 		/* els xri-sgl shrinked */
 		xri_cnt = phba->sli4_hba.els_xri_cnt - els_xri_cnt;
@@ -3817,8 +3815,7 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 				"3158 ELS xri-sgl count decreased from "
 				"%d to %d\n", phba->sli4_hba.els_xri_cnt,
 				els_xri_cnt);
-		spin_lock_irq(&phba->hbalock);
-		spin_lock(&phba->sli4_hba.sgl_list_lock);
+		spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
 		list_splice_init(&phba->sli4_hba.lpfc_els_sgl_list,
 				 &els_sgl_list);
 		/* release extra els sgls from list */
@@ -3833,8 +3830,7 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 		}
 		list_splice_init(&els_sgl_list,
 				 &phba->sli4_hba.lpfc_els_sgl_list);
-		spin_unlock(&phba->sli4_hba.sgl_list_lock);
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
 	} else
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"3163 ELS xri-sgl count unchanged: %d\n",
@@ -7388,11 +7384,9 @@ lpfc_free_els_sgl_list(struct lpfc_hba *phba)
 	LIST_HEAD(sglq_list);
 
 	/* Retrieve all els sgls from driver list */
-	spin_lock_irq(&phba->hbalock);
-	spin_lock(&phba->sli4_hba.sgl_list_lock);
+	spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
 	list_splice_init(&phba->sli4_hba.lpfc_els_sgl_list, &sglq_list);
-	spin_unlock(&phba->sli4_hba.sgl_list_lock);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
 
 	/* Now free the sgl list */
 	lpfc_free_sgl_list(phba, &sglq_list);
