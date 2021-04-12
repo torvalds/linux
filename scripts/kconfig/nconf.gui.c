@@ -117,32 +117,10 @@ void set_colors(void)
 }
 
 /* this changes the windows attributes !!! */
-void print_in_middle(WINDOW *win,
-		int starty,
-		int startx,
-		int width,
-		const char *string,
-		chtype color)
-{      int length, x, y;
-	float temp;
-
-
-	if (win == NULL)
-		win = stdscr;
-	getyx(win, y, x);
-	if (startx != 0)
-		x = startx;
-	if (starty != 0)
-		y = starty;
-	if (width == 0)
-		width = 80;
-
-	length = strlen(string);
-	temp = (width - length) / 2;
-	x = startx + (int)temp;
-	wattrset(win, color);
-	mvwprintw(win, y, x, "%s", string);
-	refresh();
+void print_in_middle(WINDOW *win, int y, int width, const char *str, int attrs)
+{
+	wattrset(win, attrs);
+	mvwprintw(win, y, (width - strlen(str)) / 2, "%s", str);
 }
 
 int get_line_no(const char *text)
@@ -577,7 +555,6 @@ void show_scroll_win(WINDOW *main_window,
 				text_cols, 0);
 		print_in_middle(win,
 				text_lines+2,
-				0,
 				text_cols,
 				"<OK>",
 				attr_dialog_menu_fore);

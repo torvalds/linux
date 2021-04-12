@@ -953,7 +953,7 @@ static void show_menu(const char *prompt, const char *instructions,
 	current_instructions = instructions;
 
 	clear();
-	print_in_middle(stdscr, 1, 0, getmaxx(stdscr),
+	print_in_middle(stdscr, 1, getmaxx(stdscr),
 			menu_backtitle,
 			attr_main_heading);
 

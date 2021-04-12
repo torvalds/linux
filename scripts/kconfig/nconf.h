@@ -68,12 +68,7 @@ typedef enum {
 void set_colors(void);
 
 /* this changes the windows attributes !!! */
-void print_in_middle(WINDOW *win,
-		int starty,
-		int startx,
-		int width,
-		const char *string,
-		chtype color);
+void print_in_middle(WINDOW *win, int y, int width, const char *str, int attrs);
 int get_line_length(const char *line);
 int get_line_no(const char *text);
 const char *get_line(const char *text, int line_no);
