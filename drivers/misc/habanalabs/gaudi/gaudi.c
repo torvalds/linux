@@ -6252,7 +6252,7 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 	dma_addr_t dma_addr;
 	void *kernel_addr;
 	bool is_eng_idle;
-	int rc, dma_id;
+	int rc = 0, dma_id;
 
 	kernel_addr = hdev->asic_funcs->asic_dma_alloc_coherent(
 						hdev, SZ_2M,
