@@ -334,9 +334,9 @@ static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
 static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty);
 
 static int ti_command_out_sync(struct ti_device *tdev, __u8 command,
-	__u16 moduleid, __u16 value, __u8 *data, int size);
+		__u16 moduleid, __u16 value, void *data, int size);
 static int ti_command_in_sync(struct ti_device *tdev, __u8 command,
-	__u16 moduleid, __u16 value, __u8 *data, int size);
+		__u16 moduleid, __u16 value, void *data, int size);
 
 static int ti_write_byte(struct usb_serial_port *port, struct ti_device *tdev,
 			 unsigned long addr, u8 mask, u8 byte);
@@ -999,7 +999,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	config->wFlags = cpu_to_be16(wflags);
 
 	status = ti_command_out_sync(tport->tp_tdev, TI_SET_CONFIG,
-		(__u8)(TI_UART1_PORT + port_number), 0, (__u8 *)config,
+		(__u8)(TI_UART1_PORT + port_number), 0, config,
 		sizeof(*config));
 	if (status)
 		dev_err(&port->dev, "%s - cannot set config on port %d, %d\n",
@@ -1376,7 +1376,7 @@ static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 		return -ENOMEM;
 
 	status = ti_command_in_sync(tdev, TI_GET_PORT_STATUS,
-		(__u8)(TI_UART1_PORT+port_number), 0, (__u8 *)data, size);
+		(__u8)(TI_UART1_PORT+port_number), 0, data, size);
 	if (status) {
 		dev_err(&port->dev,
 			"%s - get port status command failed, %d\n",
@@ -1475,7 +1475,7 @@ static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty)
 
 
 static int ti_command_out_sync(struct ti_device *tdev, __u8 command,
-	__u16 moduleid, __u16 value, __u8 *data, int size)
+	__u16 moduleid, __u16 value, void *data, int size)
 {
 	int status;
 
@@ -1492,7 +1492,7 @@ static int ti_command_out_sync(struct ti_device *tdev, __u8 command,
 
 
 static int ti_command_in_sync(struct ti_device *tdev, __u8 command,
-	__u16 moduleid, __u16 value, __u8 *data, int size)
+	__u16 moduleid, __u16 value, void *data, int size)
 {
 	int status;
 
@@ -1535,8 +1535,7 @@ static int ti_write_byte(struct usb_serial_port *port,
 	data->bData[1] = byte;
 
 	status = ti_command_out_sync(tdev, TI_WRITE_DATA, TI_RAM_PORT, 0,
-		(__u8 *)data, size);
-
+			data, size);
 	if (status < 0)
 		dev_err(&port->dev, "%s - failed, %d\n", __func__, status);
 
