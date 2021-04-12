@@ -24,7 +24,7 @@ static const struct file_operations ptdump_fops = {
 	.release	= single_release,
 };
 
-void ptdump_debugfs_register(struct ptdump_info *info, const char *name)
+void __init ptdump_debugfs_register(struct ptdump_info *info, const char *name)
 {
 	debugfs_create_file(name, 0400, NULL, info, &ptdump_fops);
 }
