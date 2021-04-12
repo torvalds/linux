@@ -116,11 +116,13 @@ static struct trusted_key_payload *trusted_payload_alloc(struct key *key)
 
 	ret = key_payload_reserve(key, sizeof(*p));
 	if (ret < 0)
-		return p;
+		goto err;
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		goto err;
 
 	p->migratable = migratable;
-
+err:
 	return p;
 }
 
