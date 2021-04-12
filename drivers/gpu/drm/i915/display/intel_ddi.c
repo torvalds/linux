@@ -4612,9 +4612,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		encoder->hpd_pin = ehl_hpd_pin(dev_priv, port);
 	else if (IS_DISPLAY_VER(dev_priv, 11))
 		encoder->hpd_pin = icl_hpd_pin(dev_priv, port);
-	else if (IS_DISPLAY_VER(dev_priv, 10))
+	else if (IS_CANNONLAKE(dev_priv))
 		encoder->hpd_pin = cnl_hpd_pin(dev_priv, port);
-	else if (IS_DISPLAY_VER(dev_priv, 9))
+	else if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv))
 		encoder->hpd_pin = skl_hpd_pin(dev_priv, port);
 	else
 		encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
