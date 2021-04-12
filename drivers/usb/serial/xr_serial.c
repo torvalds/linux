@@ -108,18 +108,19 @@ struct xr_type {
 	u8 set_reg;
 	u8 get_reg;
 
-	u8 uart_enable;
-	u8 flow_control;
-	u8 xon_char;
-	u8 xoff_char;
-	u8 tx_break;
-	u8 gpio_mode;
-	u8 gpio_direction;
-	u8 gpio_set;
-	u8 gpio_clear;
-	u8 gpio_status;
-	u8 custom_driver;
+	u16 uart_enable;
+	u16 flow_control;
+	u16 xon_char;
+	u16 xoff_char;
+	u16 tx_break;
+	u16 gpio_mode;
+	u16 gpio_direction;
+	u16 gpio_set;
+	u16 gpio_clear;
+	u16 gpio_status;
+	u16 custom_driver;
 
+	bool have_5_6_bit_mode;
 	bool have_xmit_toggle;
 
 	int (*enable)(struct usb_serial_port *port);
@@ -132,6 +133,7 @@ struct xr_type {
 enum xr_type_id {
 	XR21V141X,
 	XR21B142X,
+	XR21B1411,
 	XR_TYPE_COUNT,
 };
 
@@ -175,7 +177,26 @@ static const struct xr_type xr_types[] = {
 		.gpio_status	= 0x10,
 		.custom_driver	= 0x60,
 
+		.have_5_6_bit_mode	= true,
 		.have_xmit_toggle	= true,
+	},
+	[XR21B1411] = {
+		.reg_width	= 12,
+		.reg_recipient	= USB_RECIP_DEVICE,
+		.set_reg	= 0x00,
+		.get_reg	= 0x01,
+
+		.uart_enable	= 0xc00,
+		.flow_control	= 0xc06,
+		.xon_char	= 0xc07,
+		.xoff_char	= 0xc08,
+		.tx_break	= 0xc0a,
+		.gpio_mode	= 0xc0c,
+		.gpio_direction	= 0xc0d,
+		.gpio_set	= 0xc0e,
+		.gpio_clear	= 0xc0f,
+		.gpio_status	= 0xc10,
+		.custom_driver	= 0x20d,
 	},
 };
 
@@ -184,7 +205,7 @@ struct xr_data {
 	u8 channel;			/* zero-based index or interface number */
 };
 
-static int xr_set_reg(struct usb_serial_port *port, u8 channel, u8 reg, u16 val)
+static int xr_set_reg(struct usb_serial_port *port, u8 channel, u16 reg, u16 val)
 {
 	struct xr_data *data = usb_get_serial_port_data(port);
 	const struct xr_type *type = data->type;
@@ -204,7 +225,7 @@ static int xr_set_reg(struct usb_serial_port *port, u8 channel, u8 reg, u16 val)
 	return 0;
 }
 
-static int xr_get_reg(struct usb_serial_port *port, u8 channel, u8 reg, u16 *val)
+static int xr_get_reg(struct usb_serial_port *port, u8 channel, u16 reg, u16 *val)
 {
 	struct xr_data *data = usb_get_serial_port_data(port);
 	const struct xr_type *type = data->type;
@@ -243,14 +264,14 @@ static int xr_get_reg(struct usb_serial_port *port, u8 channel, u8 reg, u16 *val
 	return ret;
 }
 
-static int xr_set_reg_uart(struct usb_serial_port *port, u8 reg, u16 val)
+static int xr_set_reg_uart(struct usb_serial_port *port, u16 reg, u16 val)
 {
 	struct xr_data *data = usb_get_serial_port_data(port);
 
 	return xr_set_reg(port, data->channel, reg, val);
 }
 
-static int xr_get_reg_uart(struct usb_serial_port *port, u8 reg, u16 *val)
+static int xr_get_reg_uart(struct usb_serial_port *port, u16 reg, u16 *val)
 {
 	struct xr_data *data = usb_get_serial_port_data(port);
 
@@ -646,6 +667,7 @@ static void xr21v141x_set_line_settings(struct tty_struct *tty,
 static void xr_cdc_set_line_coding(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
+	struct xr_data *data = usb_get_serial_port_data(port);
 	struct usb_host_interface *alt = port->serial->interface->cur_altsetting;
 	struct usb_device *udev = port->serial->dev;
 	struct usb_cdc_line_coding *lc;
@@ -681,6 +703,15 @@ static void xr_cdc_set_line_coding(struct tty_struct *tty,
 		}
 	} else {
 		lc->bParityType = USB_CDC_NO_PARITY;
+	}
+
+	if (!data->type->have_5_6_bit_mode &&
+			(C_CSIZE(tty) == CS5 || C_CSIZE(tty) == CS6)) {
+		tty->termios.c_cflag &= ~CSIZE;
+		if (old_termios)
+			tty->termios.c_cflag |= old_termios->c_cflag & CSIZE;
+		else
+			tty->termios.c_cflag |= CS8;
 	}
 
 	switch (C_CSIZE(tty)) {
@@ -876,6 +907,7 @@ static void xr_port_remove(struct usb_serial_port *port)
 
 static const struct usb_device_id id_table[] = {
 	{ XR_DEVICE(0x04e2, 0x1410, XR21V141X) },
+	{ XR_DEVICE(0x04e2, 0x1411, XR21B1411) },
 	{ XR_DEVICE(0x04e2, 0x1412, XR21V141X) },
 	{ XR_DEVICE(0x04e2, 0x1414, XR21V141X) },
 	{ XR_DEVICE(0x04e2, 0x1420, XR21B142X) },
