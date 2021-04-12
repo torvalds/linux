@@ -997,8 +997,9 @@ static int gfx_v9_4_2_query_utc_edc_count(struct amdgpu_device *adev,
 			       blk->clear);
 
 			/* print the edc count */
-			gfx_v9_4_2_log_utc_edc_count(adev, blk, j, sec_cnt,
-						     ded_cnt);
+			if (sec_cnt || ded_count)
+				gfx_v9_4_2_log_utc_edc_count(adev, blk, j, sec_cnt,
+							     ded_cnt);
 		}
 	}
 
@@ -1095,7 +1096,7 @@ static void gfx_v9_4_2_query_ea_err_status(struct amdgpu_device *adev)
 			gfx_v9_4_2_select_se_sh(adev, i, 0, j);
 			reg_value = RREG32(SOC15_REG_ENTRY_OFFSET(
 				gfx_v9_4_2_rdrsp_status_regs));
-			if (reg_value)
+			if ((reg_value & 0xFFF) != GCEA_ERR_STATUS__SDP_RDRSP_DATASTATUS_MASK)
 				dev_warn(adev->dev, "GCEA err detected at instance: %d, status: 0x%x!\n",
 						j, reg_value);
 			/* clear after read */
@@ -1112,19 +1113,19 @@ static void gfx_v9_4_2_query_utc_err_status(struct amdgpu_device *adev)
 	uint32_t data;
 
 	data = RREG32_SOC15(GC, 0, regUTCL2_MEM_ECC_STATUS);
-	if (!data) {
+	if (data) {
 		dev_warn(adev->dev, "GFX UTCL2 Mem Ecc Status: 0x%x!\n", data);
 		WREG32_SOC15(GC, 0, regUTCL2_MEM_ECC_STATUS, 0x3);
 	}
 
 	data = RREG32_SOC15(GC, 0, regVML2_MEM_ECC_STATUS);
-	if (!data) {
+	if (data) {
 		dev_warn(adev->dev, "GFX VML2 Mem Ecc Status: 0x%x!\n", data);
 		WREG32_SOC15(GC, 0, regVML2_MEM_ECC_STATUS, 0x3);
 	}
 
 	data = RREG32_SOC15(GC, 0, regVML2_WALKER_MEM_ECC_STATUS);
-	if (!data) {
+	if (data) {
 		dev_warn(adev->dev, "GFX VML2 Walker Mem Ecc Status: 0x%x!\n", data);
 		WREG32_SOC15(GC, 0, regVML2_WALKER_MEM_ECC_STATUS, 0x3);
 	}
