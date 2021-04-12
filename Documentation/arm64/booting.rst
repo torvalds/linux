@@ -277,6 +277,16 @@ Before jumping into the kernel, the following conditions must be met:
 
     - SCR_EL3.FGTEn (bit 27) must be initialised to 0b1.
 
+  For CPUs with Advanced SIMD and floating point support:
+
+  - If EL3 is present:
+
+    - CPTR_EL3.TFP (bit 10) must be initialised to 0b0.
+
+  - If EL2 is present and the kernel is entered at EL1:
+
+    - CPTR_EL2.TFP (bit 10) must be initialised to 0b0.
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
 enter the kernel in the same exception level.  Where the values documented
