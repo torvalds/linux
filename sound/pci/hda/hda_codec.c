@@ -1938,6 +1938,7 @@ static int add_follower(struct hda_codec *codec,
  * @followers: follower control names (optional)
  * @suffix: suffix string to each follower name (optional)
  * @init_follower_vol: initialize followers to unmute/0dB
+ * @access: kcontrol access rights
  * @ctl_ret: store the vmaster kcontrol in return
  *
  * Create a virtual master control with the given name.  The TLV data
