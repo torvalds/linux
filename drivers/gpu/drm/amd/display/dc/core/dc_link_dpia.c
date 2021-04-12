@@ -30,6 +30,9 @@
 #include "dc_link.h"
 #include "dc_link_dp.h"
 
+#define DC_LOGGER \
+	link->ctx->logger
+
 enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 {
 	/** @todo Read corresponding DPCD region and update link caps. */
@@ -38,17 +41,51 @@ enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 
 /* Configure link as prescribed in link_setting; set LTTPR mode; and
  * Initialize link training settings.
+ * Abort link training if sink unplug detected.
+ *
+ * @param link DPIA link being trained.
+ * @param[in] link_setting Lane count, link rate and downspread control.
+ * @param[out] lt_settings Link settings and drive settings (voltage swing and pre-emphasis).
  */
 static enum link_training_result dpia_configure_link(struct dc_link *link,
 		const struct dc_link_settings *link_setting,
 		struct link_training_settings *lt_settings)
 {
-	enum link_training_result result;
+	enum dc_status status;
+	bool fec_enable;
 
-	/** @todo Fail until implemented. */
-	result = LINK_TRAINING_ABORT;
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) configuring\n - LTTPR mode(%d)\n",
+				__func__,
+				link->link_id.enum_id - ENUM_ID_1,
+				link->lttpr_mode);
 
-	return result;
+	dp_decide_training_settings(link,
+		link_setting,
+		lt_settings);
+
+	status = dpcd_configure_channel_coding(link, lt_settings);
+	if (status != DC_OK && !link->hpd_status)
+		return LINK_TRAINING_ABORT;
+
+	/* Configure lttpr mode */
+	status = dpcd_configure_lttpr_mode(link, lt_settings);
+	if (status != DC_OK && !link->hpd_status)
+		return LINK_TRAINING_ABORT;
+
+	/* Set link rate, lane count and spread. */
+	status = dpcd_set_link_settings(link, lt_settings);
+	if (status != DC_OK && !link->hpd_status)
+		return LINK_TRAINING_ABORT;
+
+	if (link->preferred_training_settings.fec_enable)
+		fec_enable = *link->preferred_training_settings.fec_enable;
+	else
+		fec_enable = true;
+	status = dp_set_fec_ready(link, fec_enable);
+	if (status != DC_OK && !link->hpd_status)
+		return LINK_TRAINING_ABORT;
+
+	return LINK_TRAINING_SUCCESS;
 }
 
 /* Execute clock recovery phase of link training for specified hop in display
