@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+#include <linux/fb.h>
+#include <linux/vgaarb.h>
+
 #include <drm/drm_aperture.h>
-#include <drm/drm_fb_helper.h>
 
 /**
  * DOC: overview
@@ -78,6 +80,7 @@
 int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_size_t size,
 						 bool primary, const char *name)
 {
+#if IS_REACHABLE(CONFIG_FB)
 	struct apertures_struct *a;
 	int ret;
 
@@ -88,10 +91,13 @@ int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_
 	a->ranges[0].base = base;
 	a->ranges[0].size = size;
 
-	ret = drm_fb_helper_remove_conflicting_framebuffers(a, name, primary);
+	ret = remove_conflicting_framebuffers(a, name, primary);
 	kfree(a);
 
 	return ret;
+#else
+	return 0;
+#endif
 }
 EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
 
@@ -109,6 +115,17 @@ EXPORT_SYMBOL(drm_aperture_remove_conflicting_framebuffers);
  */
 int drm_aperture_remove_conflicting_pci_framebuffers(struct pci_dev *pdev, const char *name)
 {
-	return drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, name);
+	int ret = 0;
+
+	/*
+	 * WARNING: Apparently we must kick fbdev drivers before vgacon,
+	 * otherwise the vga fbdev driver falls over.
+	 */
+#if IS_REACHABLE(CONFIG_FB)
+	ret = remove_conflicting_pci_framebuffers(pdev, name);
+#endif
+	if (ret == 0)
+		ret = vga_remove_vgacon(pdev);
+	return ret;
 }
 EXPORT_SYMBOL(drm_aperture_remove_conflicting_pci_framebuffers);
