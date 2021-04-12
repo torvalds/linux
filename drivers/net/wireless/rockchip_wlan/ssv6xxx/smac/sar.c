@@ -214,7 +214,7 @@ int get_flash_info(struct ssv_softc *sc)
     }
 
     fs = get_fs();
-    set_fs(get_ds());
+    set_fs(KERNEL_DS);
     fp->f_op->read(fp, (char *)pflash_cfg, sizeof(flash_cfg), &fp->f_pos);
     set_fs(fs);
     

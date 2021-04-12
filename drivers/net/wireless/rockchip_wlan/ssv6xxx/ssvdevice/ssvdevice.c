@@ -178,7 +178,7 @@ void sta_cfg_set(char *stacfgpath)
   memset(cfg_cmd, '\0', sizeof(cfg_cmd));
   memset(cfg_value, '\0', sizeof(cfg_value));
   fs = get_fs();
-  set_fs(get_ds());
+  set_fs(KERNEL_DS);
   read_len = read_line(fp, buf, MAX_CHARS_PER_LINE);
   set_fs(fs);
   sscanf(buf, "%s = %s", cfg_cmd, cfg_value);
