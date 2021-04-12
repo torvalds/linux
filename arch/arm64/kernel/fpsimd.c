@@ -285,7 +285,7 @@ static void task_fpsimd_load(void)
 	WARN_ON(!system_supports_fpsimd());
 	WARN_ON(!have_cpu_fpsimd_context());
 
-	if (system_supports_sve() && test_thread_flag(TIF_SVE))
+	if (test_thread_flag(TIF_SVE))
 		sve_load_state(sve_pffr(&current->thread),
 			       &current->thread.uw.fpsimd_state.fpsr,
 			       sve_vq_from_vl(current->thread.sve_vl) - 1);
@@ -307,7 +307,7 @@ static void fpsimd_save(void)
 	WARN_ON(!have_cpu_fpsimd_context());
 
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
-		if (system_supports_sve() && test_thread_flag(TIF_SVE)) {
+		if (test_thread_flag(TIF_SVE)) {
 			if (WARN_ON(sve_get_vl() != last->sve_vl)) {
 				/*
 				 * Can't save the user regs, so current would
@@ -1100,7 +1100,7 @@ void fpsimd_preserve_current_state(void)
 void fpsimd_signal_preserve_current_state(void)
 {
 	fpsimd_preserve_current_state();
-	if (system_supports_sve() && test_thread_flag(TIF_SVE))
+	if (test_thread_flag(TIF_SVE))
 		sve_to_fpsimd(current);
 }
 
@@ -1189,7 +1189,7 @@ void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 	get_cpu_fpsimd_context();
 
 	current->thread.uw.fpsimd_state = *state;
-	if (system_supports_sve() && test_thread_flag(TIF_SVE))
+	if (test_thread_flag(TIF_SVE))
 		fpsimd_to_sve(current);
 
 	task_fpsimd_load();
