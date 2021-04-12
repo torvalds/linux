@@ -92,7 +92,7 @@ static vm_fault_t sgx_vepc_fault(struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-const struct vm_operations_struct sgx_vepc_vm_ops = {
+static const struct vm_operations_struct sgx_vepc_vm_ops = {
 	.fault = sgx_vepc_fault,
 };
 
