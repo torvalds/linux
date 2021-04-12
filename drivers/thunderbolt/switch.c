@@ -303,13 +303,23 @@ static inline int nvm_read(struct tb_switch *sw, unsigned int address,
 	return dma_port_flash_read(sw->dma_port, address, buf, size);
 }
 
-static int nvm_authenticate(struct tb_switch *sw)
+static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 {
 	int ret;
 
-	if (tb_switch_is_usb4(sw))
+	if (tb_switch_is_usb4(sw)) {
+		if (auth_only) {
+			ret = usb4_switch_nvm_set_offset(sw, 0);
+			if (ret)
+				return ret;
+		}
+		sw->nvm->authenticating = true;
 		return usb4_switch_nvm_authenticate(sw);
+	} else if (auth_only) {
+		return -EOPNOTSUPP;
+	}
 
+	sw->nvm->authenticating = true;
 	if (!tb_route(sw)) {
 		nvm_authenticate_start_dma_port(sw);
 		ret = nvm_authenticate_host_dma_port(sw);
@@ -1713,8 +1723,7 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 				      bool disconnect)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
-	int val;
-	int ret;
+	int val, ret;
 
 	pm_runtime_get_sync(&sw->dev);
 
@@ -1737,22 +1746,27 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 	nvm_clear_auth_status(sw);
 
 	if (val > 0) {
-		if (!sw->nvm->flushed) {
-			if (!sw->nvm->buf) {
+		if (val == AUTHENTICATE_ONLY) {
+			if (disconnect)
 				ret = -EINVAL;
-				goto exit_unlock;
-			}
+			else
+				ret = nvm_authenticate(sw, true);
+		} else {
+			if (!sw->nvm->flushed) {
+				if (!sw->nvm->buf) {
+					ret = -EINVAL;
+					goto exit_unlock;
+				}
 
-			ret = nvm_validate_and_write(sw);
-			if (ret || val == WRITE_ONLY)
-				goto exit_unlock;
-		}
-		if (val == WRITE_AND_AUTHENTICATE) {
-			if (disconnect) {
-				ret = tb_lc_force_power(sw);
-			} else {
-				sw->nvm->authenticating = true;
-				ret = nvm_authenticate(sw);
+				ret = nvm_validate_and_write(sw);
+				if (ret || val == WRITE_ONLY)
+					goto exit_unlock;
+			}
+			if (val == WRITE_AND_AUTHENTICATE) {
+				if (disconnect)
+					ret = tb_lc_force_power(sw);
+				else
+					ret = nvm_authenticate(sw, false);
 			}
 		}
 	}

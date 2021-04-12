@@ -547,8 +547,17 @@ int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 				usb4_switch_nvm_read_block, sw);
 }
 
-static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
-				      unsigned int address)
+/**
+ * usb4_switch_nvm_set_offset() - Set NVM write offset
+ * @sw: USB4 router
+ * @address: Start offset
+ *
+ * Explicitly sets NVM write offset. Normally when writing to NVM this
+ * is done automatically by usb4_switch_nvm_write().
+ *
+ * Returns %0 in success and negative errno if there was a failure.
+ */
+int usb4_switch_nvm_set_offset(struct tb_switch *sw, unsigned int address)
 {
 	u32 metadata, dwaddress;
 	u8 status = 0;

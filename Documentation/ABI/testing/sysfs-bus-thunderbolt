@@ -213,12 +213,15 @@ Description:	When new NVM image is written to the non-active NVM
 		restarted with the new NVM firmware. If the image
 		verification fails an error code is returned instead.
 
-		This file will accept writing values "1" or "2"
+		This file will accept writing values "1", "2" or "3".
 
 		- Writing "1" will flush the image to the storage
 		  area and authenticate the image in one action.
 		- Writing "2" will run some basic validation on the image
 		  and flush it to the storage area.
+		- Writing "3" will authenticate the image that is
+		  currently written in the storage area. This is only
+		  supported with USB4 devices.
 
 		When read holds status of the last authentication
 		operation if an error occurred during the process. This
