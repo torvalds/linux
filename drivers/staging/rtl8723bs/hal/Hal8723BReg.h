@@ -19,8 +19,6 @@
 #ifndef __INC_HAL8723BREG_H
 #define __INC_HAL8723BREG_H
 
-
-
 /*  */
 /*  */
 /*  */
@@ -142,7 +140,6 @@
 #define REG_RQPN_NPQ_8723B			0x0214
 #define REG_DWBCN1_CTRL_8723B			0x0228
 
-
 /*  */
 /*  */
 /*	0x0280h ~ 0x02FFh	RXDMA Configuration */
@@ -157,7 +154,6 @@
 #define REG_EARLY_MODE_CONTROL_8723B	0x02BC
 #define REG_RSVD5_8723B					0x02F0
 #define REG_RSVD6_8723B					0x02F4
-
 
 /*  */
 /*  */
@@ -354,7 +350,6 @@
 #define REG_BSSID1_8723B		0x0708
 #define REG_BFMEE_SEL_8723B		0x0714
 #define REG_SND_PTCL_CTRL_8723B		0x0718
-
 
 /*	Redifine 8192C register definition for compatibility */
 
