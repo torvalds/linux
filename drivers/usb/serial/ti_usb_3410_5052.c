@@ -224,24 +224,24 @@ struct ti_write_data_bytes {
 } __packed;
 
 struct ti_read_data_request {
-	__u8	bAddrType;
-	__u8	bDataType;
-	__u8	bDataCounter;
+	u8	bAddrType;
+	u8	bDataType;
+	u8	bDataCounter;
 	__be16	wBaseAddrHi;
 	__be16	wBaseAddrLo;
 } __packed;
 
 struct ti_read_data_bytes {
-	__u8	bCmdCode;
-	__u8	bModuleId;
-	__u8	bErrorCode;
-	__u8	bData[];
+	u8	bCmdCode;
+	u8	bModuleId;
+	u8	bErrorCode;
+	u8	bData[];
 };
 
 /* Interrupt struct */
 struct ti_interrupt {
-	__u8	bICode;
-	__u8	bIInfo;
+	u8	bICode;
+	u8	bIInfo;
 };
 
 /* Interrupt codes */
@@ -333,10 +333,10 @@ static void ti_handle_new_msr(struct ti_port *tport, u8 msr);
 static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
 static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty);
 
-static int ti_command_out_sync(struct usb_device *udev, __u8 command,
-		__u16 moduleid, __u16 value, void *data, int size);
-static int ti_command_in_sync(struct usb_device *udev, __u8 command,
-		__u16 moduleid, __u16 value, void *data, int size);
+static int ti_command_out_sync(struct usb_device *udev, u8 command,
+		u16 moduleid, u16 value, void *data, int size);
+static int ti_command_in_sync(struct usb_device *udev, u8 command,
+		u16 moduleid, u16 value, void *data, int size);
 static int ti_port_cmd_out(struct usb_serial_port *port, u8 command,
 		u16 value, void *data, int size);
 static int ti_port_cmd_in(struct usb_serial_port *port, u8 command,
@@ -1458,8 +1458,8 @@ static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty)
 	return status;
 }
 
-static int ti_command_out_sync(struct usb_device *udev, __u8 command,
-	__u16 moduleid, __u16 value, void *data, int size)
+static int ti_command_out_sync(struct usb_device *udev, u8 command,
+		u16 moduleid, u16 value, void *data, int size)
 {
 	int status;
 
@@ -1472,8 +1472,8 @@ static int ti_command_out_sync(struct usb_device *udev, __u8 command,
 	return 0;
 }
 
-static int ti_command_in_sync(struct usb_device *udev, __u8 command,
-	__u16 moduleid, __u16 value, void *data, int size)
+static int ti_command_in_sync(struct usb_device *udev, u8 command,
+		u16 moduleid, u16 value, void *data, int size)
 {
 	int status;
 
