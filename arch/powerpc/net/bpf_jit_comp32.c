@@ -559,12 +559,12 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 			EMIT(PPC_RAW_SLW(dst_reg, dst_reg, src_reg));
 			EMIT(PPC_RAW_OR(dst_reg_h, dst_reg_h, __REG_R0));
 			break;
-		case BPF_ALU | BPF_LSH | BPF_K: /* (u32) dst <<== (u32) imm */
+		case BPF_ALU | BPF_LSH | BPF_K: /* (u32) dst <<= (u32) imm */
 			if (!imm)
 				break;
 			EMIT(PPC_RAW_SLWI(dst_reg, dst_reg, imm));
 			break;
-		case BPF_ALU64 | BPF_LSH | BPF_K: /* dst <<== imm */
+		case BPF_ALU64 | BPF_LSH | BPF_K: /* dst <<= imm */
 			if (imm < 0)
 				return -EINVAL;
 			if (!imm)
