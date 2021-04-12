@@ -411,9 +411,9 @@ static ssize_t cleaning_period_available_show(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "[%d %d %d]\n",
-			SPS30_AUTO_CLEANING_PERIOD_MIN, 1,
-			SPS30_AUTO_CLEANING_PERIOD_MAX);
+	return sysfs_emit(buf, "[%d %d %d]\n",
+			  SPS30_AUTO_CLEANING_PERIOD_MIN, 1,
+			  SPS30_AUTO_CLEANING_PERIOD_MAX);
 }
 
 static IIO_DEVICE_ATTR_WO(start_cleaning, 0);
