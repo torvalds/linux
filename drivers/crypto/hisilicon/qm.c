@@ -136,9 +136,9 @@
 #define QM_DFX_CNT_CLR_CE		0x100118
 
 #define QM_ABNORMAL_INT_SOURCE		0x100000
-#define QM_ABNORMAL_INT_SOURCE_CLR	GENMASK(12, 0)
+#define QM_ABNORMAL_INT_SOURCE_CLR	GENMASK(14, 0)
 #define QM_ABNORMAL_INT_MASK		0x100004
-#define QM_ABNORMAL_INT_MASK_VALUE	0x1fff
+#define QM_ABNORMAL_INT_MASK_VALUE	0x7fff
 #define QM_ABNORMAL_INT_STATUS		0x100008
 #define QM_ABNORMAL_INT_SET		0x10000c
 #define QM_ABNORMAL_INF00		0x100010
@@ -391,6 +391,8 @@ static const struct hisi_qm_hw_error qm_hw_error[] = {
 	{ .int_msk = BIT(10), .msg = "qm_db_timeout" },
 	{ .int_msk = BIT(11), .msg = "qm_of_fifo_of" },
 	{ .int_msk = BIT(12), .msg = "qm_db_random_invalid" },
+	{ .int_msk = BIT(13), .msg = "qm_mailbox_timeout" },
+	{ .int_msk = BIT(14), .msg = "qm_flr_timeout" },
 	{ /* sentinel */ }
 };
 
