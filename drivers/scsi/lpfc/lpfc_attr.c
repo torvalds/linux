@@ -2272,14 +2272,14 @@ lpfc_enable_bbcr_set(struct lpfc_hba *phba, uint val)
 {
 	if (lpfc_rangecheck(val, 0, 1) && phba->sli_rev == LPFC_SLI_REV4) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3068 %s_enable_bbcr changed from %d to %d\n",
-				LPFC_DRIVER_NAME, phba->cfg_enable_bbcr, val);
+				"3068 lpfc_enable_bbcr changed from %d to "
+				"%d\n", phba->cfg_enable_bbcr, val);
 		phba->cfg_enable_bbcr = val;
 		return 0;
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0451 %s_enable_bbcr cannot set to %d, range is 0, 1\n",
-			LPFC_DRIVER_NAME, val);
+			"0451 lpfc_enable_bbcr cannot set to %d, range is 0, "
+			"1\n", val);
 	return -EINVAL;
 }
 
@@ -2722,8 +2722,8 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 	 */
 	if (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				 "0051 "LPFC_DRIVER_NAME" soft wwpn can not"
-				 " be enabled: fawwpn is enabled\n");
+				"0051 lpfc soft wwpn can not be enabled: "
+				"fawwpn is enabled\n");
 		return -EINVAL;
 	}
 
@@ -5208,8 +5208,8 @@ lpfc_cq_max_proc_limit_init(struct lpfc_hba *phba, int val)
 	}
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0371 "LPFC_DRIVER_NAME"_cq_max_proc_limit: "
-			"%d out of range, using default\n",
+			"0371 lpfc_cq_max_proc_limit: %d out of range, using "
+			"default\n",
 			phba->cfg_cq_max_proc_limit);
 
 	return 0;
@@ -6043,8 +6043,8 @@ lpfc_sg_seg_cnt_init(struct lpfc_hba *phba, int val)
 		return 0;
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0409 "LPFC_DRIVER_NAME"_sg_seg_cnt attribute cannot "
-			"be set to %d, allowed range is [%d, %d]\n",
+			"0409 lpfc_sg_seg_cnt attribute cannot be set to %d, "
+			"allowed range is [%d, %d]\n",
 			val, LPFC_MIN_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT);
 	phba->cfg_sg_seg_cnt = LPFC_DEFAULT_SG_SEG_CNT;
 	return -EINVAL;
