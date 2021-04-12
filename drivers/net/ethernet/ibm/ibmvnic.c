@@ -827,6 +827,30 @@ static void release_napi(struct ibmvnic_adapter *adapter)
 	adapter->napi_enabled = false;
 }
 
+static const char *adapter_state_to_string(enum vnic_state state)
+{
+	switch (state) {
+	case VNIC_PROBING:
+		return "PROBING";
+	case VNIC_PROBED:
+		return "PROBED";
+	case VNIC_OPENING:
+		return "OPENING";
+	case VNIC_OPEN:
+		return "OPEN";
+	case VNIC_CLOSING:
+		return "CLOSING";
+	case VNIC_CLOSED:
+		return "CLOSED";
+	case VNIC_REMOVING:
+		return "REMOVING";
+	case VNIC_REMOVED:
+		return "REMOVED";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -905,7 +929,7 @@ static int ibmvnic_login(struct net_device *netdev)
 
 	__ibmvnic_set_mac(netdev, adapter->mac_addr);
 
-	netdev_dbg(netdev, "[S:%d] Login succeeded\n", adapter->state);
+	netdev_dbg(netdev, "[S:%s] Login succeeded\n", adapter_state_to_string(adapter->state));
 	return 0;
 }
 
@@ -1185,8 +1209,9 @@ static int ibmvnic_open(struct net_device *netdev)
 	 * honor our setting below.
 	 */
 	if (adapter->failover_pending || (test_bit(0, &adapter->resetting))) {
-		netdev_dbg(netdev, "[S:%d FOP:%d] Resetting, deferring open\n",
-			   adapter->state, adapter->failover_pending);
+		netdev_dbg(netdev, "[S:%s FOP:%d] Resetting, deferring open\n",
+			   adapter_state_to_string(adapter->state),
+			   adapter->failover_pending);
 		adapter->state = VNIC_OPEN;
 		rc = 0;
 		goto out;
@@ -1350,8 +1375,9 @@ static int ibmvnic_close(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int rc;
 
-	netdev_dbg(netdev, "[S:%d FOP:%d FRR:%d] Closing\n",
-		   adapter->state, adapter->failover_pending,
+	netdev_dbg(netdev, "[S:%s FOP:%d FRR:%d] Closing\n",
+		   adapter_state_to_string(adapter->state),
+		   adapter->failover_pending,
 		   adapter->force_reset_recovery);
 
 	/* If device failover is pending, just set device state and return.
@@ -1944,9 +1970,11 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	int i, rc;
 
 	netdev_dbg(adapter->netdev,
-		   "[S:%d FOP:%d] Reset reason: %s, reset_state %d\n",
-		   adapter->state, adapter->failover_pending,
-		   reset_reason_to_string(rwi->reset_reason), reset_state);
+		   "[S:%s FOP:%d] Reset reason: %s, reset_state: %s\n",
+		   adapter_state_to_string(adapter->state),
+		   adapter->failover_pending,
+		   reset_reason_to_string(rwi->reset_reason),
+		   adapter_state_to_string(reset_state));
 
 	adapter->reset_reason = rwi->reset_reason;
 	/* requestor of VNIC_RESET_CHANGE_PARAM already has the rtnl lock */
@@ -2006,8 +2034,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 				 * from VNIC_CLOSING state.
 				 */
 				netdev_dbg(netdev,
-					   "Open changed state from %d, updating.\n",
-					   reset_state);
+					   "Open changed state from %s, updating.\n",
+					   adapter_state_to_string(reset_state));
 				reset_state = VNIC_OPEN;
 				adapter->state = VNIC_CLOSING;
 			}
@@ -2148,8 +2176,9 @@ out:
 	if (!(adapter->reset_reason == VNIC_RESET_CHANGE_PARAM))
 		rtnl_unlock();
 
-	netdev_dbg(adapter->netdev, "[S:%d FOP:%d] Reset done, rc %d\n",
-		   adapter->state, adapter->failover_pending, rc);
+	netdev_dbg(adapter->netdev, "[S:%s FOP:%d] Reset done, rc %d\n",
+		   adapter_state_to_string(adapter->state),
+		   adapter->failover_pending, rc);
 	return rc;
 }
 
@@ -2226,8 +2255,9 @@ out:
 	/* restore adapter state if reset failed */
 	if (rc)
 		adapter->state = reset_state;
-	netdev_dbg(adapter->netdev, "[S:%d FOP:%d] Hard reset done, rc %d\n",
-		   adapter->state, adapter->failover_pending, rc);
+	netdev_dbg(adapter->netdev, "[S:%s FOP:%d] Hard reset done, rc %d\n",
+		   adapter_state_to_string(adapter->state),
+		   adapter->failover_pending, rc);
 	return rc;
 }
 
@@ -2306,8 +2336,8 @@ static void __ibmvnic_reset(struct work_struct *work)
 			if (rc) {
 				/* give backing device time to settle down */
 				netdev_dbg(adapter->netdev,
-					   "[S:%d] Hard reset failed, waiting 60 secs\n",
-					   adapter->state);
+					   "[S:%s] Hard reset failed, waiting 60 secs\n",
+					   adapter_state_to_string(adapter->state));
 				set_current_state(TASK_UNINTERRUPTIBLE);
 				schedule_timeout(60 * HZ);
 			}
@@ -2335,8 +2365,9 @@ static void __ibmvnic_reset(struct work_struct *work)
 	clear_bit_unlock(0, &adapter->resetting);
 
 	netdev_dbg(adapter->netdev,
-		   "[S:%d FRR:%d WFR:%d] Done processing resets\n",
-		   adapter->state, adapter->force_reset_recovery,
+		   "[S:%s FRR:%d WFR:%d] Done processing resets\n",
+		   adapter_state_to_string(adapter->state),
+		   adapter->force_reset_recovery,
 		   adapter->wait_for_reset);
 }
 
