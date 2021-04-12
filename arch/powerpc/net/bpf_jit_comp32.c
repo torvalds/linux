@@ -187,11 +187,17 @@ void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 
 void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func)
 {
-	/* Load function address into r0 */
-	EMIT(PPC_RAW_LIS(__REG_R0, IMM_H(func)));
-	EMIT(PPC_RAW_ORI(__REG_R0, __REG_R0, IMM_L(func)));
-	EMIT(PPC_RAW_MTLR(__REG_R0));
-	EMIT(PPC_RAW_BLRL());
+	s32 rel = (s32)func - (s32)(image + ctx->idx);
+
+	if (image && rel < 0x2000000 && rel >= -0x2000000) {
+		PPC_BL_ABS(func);
+	} else {
+		/* Load function address into r0 */
+		EMIT(PPC_RAW_LIS(__REG_R0, IMM_H(func)));
+		EMIT(PPC_RAW_ORI(__REG_R0, __REG_R0, IMM_L(func)));
+		EMIT(PPC_RAW_MTLR(__REG_R0));
+		EMIT(PPC_RAW_BLRL());
+	}
 }
 
 static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
