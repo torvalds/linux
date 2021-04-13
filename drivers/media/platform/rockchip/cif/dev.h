@@ -514,7 +514,6 @@ struct rkcif_device {
 	struct rkcif_work_struct	reset_work;
 	bool				reset_work_cancel;
 	struct rkcif_timer		reset_watchdog_timer;
-	struct work_struct		async_register_work;
 	unsigned int			buf_wake_up_cnt;
 
 	bool				iommu_en;

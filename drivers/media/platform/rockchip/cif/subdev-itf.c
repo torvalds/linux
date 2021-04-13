@@ -206,7 +206,8 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 		return ret;
 
 	strncpy(priv->sd.name, dev_name(cif_dev->dev), sizeof(priv->sd.name));
-	return v4l2_async_register_subdev(&priv->sd);
+
+	return 0;
 }
 
 static int rkcif_subdev_probe(struct platform_device *pdev)

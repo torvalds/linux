@@ -587,14 +587,15 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 	return 0;
 }
 
-static void subdev_itf_register_work(struct work_struct *work)
+static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
-	struct rkcif_device *dev = container_of(work,
-						struct rkcif_device,
-						async_register_work);
+	struct sditf_priv *sditf = dev->sditf;
+	int ret = 0;
 
-	if (dev->chip_id >= CHIP_RK1808_CIF)
-		platform_driver_register(&rkcif_subdev_driver);
+	if (sditf)
+		ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+
+	return ret;
 }
 
 static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
@@ -680,14 +681,6 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	ret = _set_pipeline_default_fmt(dev);
 	if (ret < 0)
 		goto unregister_lvds;
-
-	INIT_WORK(&dev->async_register_work, subdev_itf_register_work);
-	if (schedule_work(&dev->async_register_work))
-		v4l2_info(&dev->v4l2_dev,
-			 "async register subdev itf successfully\n");
-	else
-		v4l2_info(&dev->v4l2_dev,
-			 "async register subdev itf failed\n");
 
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
@@ -1243,8 +1236,12 @@ static int __maybe_unused __rkcif_clr_unready_dev(void)
 	struct rkcif_device *cif_dev;
 
 	mutex_lock(&rkcif_dev_mutex);
-	list_for_each_entry(cif_dev, &rkcif_device_list, list)
+
+	list_for_each_entry(cif_dev, &rkcif_device_list, list) {
+		subdev_asyn_register_itf(cif_dev);
 		v4l2_async_notifier_clr_unready_dev(&cif_dev->notifier);
+	}
+
 	mutex_unlock(&rkcif_dev_mutex);
 
 	return 0;
