@@ -2779,11 +2779,6 @@ int smb2_open(struct ksmbd_work *work)
 		goto err_out;
 	}
 
-	if (server_conf.flags & KSMBD_GLOBAL_FLAG_DURABLE_HANDLE &&
-	    file_present)
-		file_present = ksmbd_close_inode_fds(work,
-						     d_inode(path.dentry));
-
 	daccess = smb_map_generic_desired_access(req->DesiredAccess);
 
 	if (file_present && !(req->CreateOptions & FILE_DELETE_ON_CLOSE_LE)) {

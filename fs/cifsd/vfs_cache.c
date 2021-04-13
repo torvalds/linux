@@ -328,25 +328,13 @@ static struct ksmbd_file *ksmbd_fp_get(struct ksmbd_file *fp)
 static struct ksmbd_file *__ksmbd_lookup_fd(struct ksmbd_file_table *ft,
 		unsigned int id)
 {
-	bool unclaimed = true;
 	struct ksmbd_file *fp;
 
 	read_lock(&ft->lock);
 	fp = idr_find(ft->idr, id);
 	if (fp)
 		fp = ksmbd_fp_get(fp);
-
-	if (fp && fp->f_ci) {
-		read_lock(&fp->f_ci->m_lock);
-		unclaimed = list_empty(&fp->node);
-		read_unlock(&fp->f_ci->m_lock);
-	}
 	read_unlock(&ft->lock);
-
-	if (fp && unclaimed) {
-		atomic_dec(&fp->refcount);
-		return NULL;
-	}
 	return fp;
 }
 
@@ -752,47 +740,6 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 		return -EBADF;
 	}
 	return 0;
-}
-
-static void close_fd_list(struct ksmbd_work *work, struct list_head *head)
-{
-	while (!list_empty(head)) {
-		struct ksmbd_file *fp;
-
-		fp = list_first_entry(head, struct ksmbd_file, node);
-		list_del_init(&fp->node);
-
-		__ksmbd_close_fd(&work->sess->file_table, fp);
-	}
-}
-
-int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode)
-{
-	struct ksmbd_inode *ci;
-	bool unlinked = true;
-	struct ksmbd_file *fp, *fptmp;
-	LIST_HEAD(dispose);
-
-	ci = ksmbd_inode_lookup_by_vfsinode(inode);
-	if (!ci)
-		return true;
-
-	if (ci->m_flags & (S_DEL_ON_CLS | S_DEL_PENDING))
-		unlinked = false;
-
-	write_lock(&ci->m_lock);
-	list_for_each_entry_safe(fp, fptmp, &ci->m_fp_list, node) {
-		if (fp->conn)
-			continue;
-
-		list_del(&fp->node);
-		list_add(&fp->node, &dispose);
-	}
-	atomic_dec(&ci->m_count);
-	write_unlock(&ci->m_lock);
-
-	close_fd_list(work, &dispose);
-	return unlinked;
 }
 
 int ksmbd_file_table_flush(struct ksmbd_work *work)
