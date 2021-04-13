@@ -441,14 +441,9 @@ static int simple_for_each_link(struct asoc_simple_priv *priv,
 
 static int simple_parse_of(struct asoc_simple_priv *priv)
 {
-	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct link_info li;
 	int ret;
-
-	if (!top)
-		return -EINVAL;
 
 	ret = asoc_simple_parse_widgets(card, PREFIX);
 	if (ret < 0)
