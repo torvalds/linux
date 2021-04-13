@@ -492,17 +492,6 @@ static inline long in_from_reg(u16 reg, u8 src)
 	return reg * scale;
 }
 
-static inline u16 in_to_reg(u32 val, u8 src)
-{
-	int scale = 16;
-
-	if (src == MON_SRC_VCC || src == MON_SRC_VSB || src == MON_SRC_AVSB ||
-	    src == MON_SRC_VBAT)
-		scale <<= 1;
-
-	return clamp_val(DIV_ROUND_CLOSEST(val, scale), 0, 127);
-}
-
 static u16 nct6683_read(struct nct6683_data *data, u16 reg)
 {
 	int res;
