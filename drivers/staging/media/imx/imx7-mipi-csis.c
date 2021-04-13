@@ -859,8 +859,9 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *mipi_sd,
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	struct v4l2_mbus_framefmt *fmt;
 
-	mutex_lock(&state->lock);
 	fmt = mipi_csis_get_format(state, cfg, sdformat->which, sdformat->pad);
+
+	mutex_lock(&state->lock);
 	sdformat->format = *fmt;
 	mutex_unlock(&state->lock);
 
@@ -918,24 +919,17 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 	if (sdformat->pad != CSIS_PAD_SINK)
 		return -EINVAL;
 
-	fmt = mipi_csis_get_format(state, cfg, sdformat->which, sdformat->pad);
-
-	mutex_lock(&state->lock);
-
-	/* Validate the media bus code and clamp the size. */
-	csis_fmt = find_csis_format(sdformat->format.code);
-	if (!csis_fmt)
-		csis_fmt = &mipi_csis_formats[0];
-
-	fmt->code = csis_fmt->code;
-	fmt->width = sdformat->format.width;
-	fmt->height = sdformat->format.height;
-
 	/*
+	 * Validate the media bus code and clamp and align the size.
+	 *
 	 * The total number of bits per line must be a multiple of 8. We thus
 	 * need to align the width for formats that are not multiples of 8
 	 * bits.
 	 */
+	csis_fmt = find_csis_format(sdformat->format.code);
+	if (!csis_fmt)
+		csis_fmt = &mipi_csis_formats[0];
+
 	switch (csis_fmt->width % 8) {
 	case 0:
 		align = 0;
@@ -955,8 +949,18 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 		break;
 	}
 
-	v4l_bound_align_image(&fmt->width, 1, CSIS_MAX_PIX_WIDTH, align,
-			      &fmt->height, 1, CSIS_MAX_PIX_HEIGHT, 0, 0);
+	v4l_bound_align_image(&sdformat->format.width, 1,
+			      CSIS_MAX_PIX_WIDTH, align,
+			      &sdformat->format.height, 1,
+			      CSIS_MAX_PIX_HEIGHT, 0, 0);
+
+	fmt = mipi_csis_get_format(state, cfg, sdformat->which, sdformat->pad);
+
+	mutex_lock(&state->lock);
+
+	fmt->code = csis_fmt->code;
+	fmt->width = sdformat->format.width;
+	fmt->height = sdformat->format.height;
 
 	sdformat->format = *fmt;
 
