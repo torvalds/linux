@@ -303,11 +303,11 @@ void mt7615_mac_reset_work(struct work_struct *work)
 
 	mt7615_hif_int_event_trigger(dev, MT_MCU_INT_EVENT_PDMA_STOPPED);
 
-	mt7615_tx_token_put(dev);
-	idr_init(&dev->token);
-
 	if (mt7615_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
 		mt7615_dma_reset(dev);
+
+		mt7615_tx_token_put(dev);
+		idr_init(&dev->token);
 
 		mt76_wr(dev, MT_WPDMA_MEM_RNG_ERR, 0);
 
