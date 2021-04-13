@@ -1575,60 +1575,70 @@ err_reinit_rx_buffers:
 }
 
 /**
- * init_dma_rx_desc_rings - init the RX descriptor rings
- * @dev: net device structure
+ * __init_dma_rx_desc_rings - init the RX descriptor ring (per queue)
+ * @priv: driver private structure
+ * @queue: RX queue index
  * @flags: gfp flag.
  * Description: this function initializes the DMA RX descriptors
  * and allocates the socket buffers. It supports the chained and ring
  * modes.
  */
+static int __init_dma_rx_desc_rings(struct stmmac_priv *priv, u32 queue, gfp_t flags)
+{
+	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	int ret;
+
+	netif_dbg(priv, probe, priv->dev,
+		  "(%s) dma_rx_phy=0x%08x\n", __func__,
+		  (u32)rx_q->dma_rx_phy);
+
+	stmmac_clear_rx_descriptors(priv, queue);
+
+	WARN_ON(xdp_rxq_info_reg_mem_model(&rx_q->xdp_rxq,
+					   MEM_TYPE_PAGE_POOL,
+					   rx_q->page_pool));
+
+	netdev_info(priv->dev,
+		    "Register MEM_TYPE_PAGE_POOL RxQ-%d\n",
+		    rx_q->queue_index);
+
+	ret = stmmac_alloc_rx_buffers(priv, queue, flags);
+	if (ret < 0)
+		return -ENOMEM;
+
+	rx_q->cur_rx = 0;
+	rx_q->dirty_rx = 0;
+
+	/* Setup the chained descriptor addresses */
+	if (priv->mode == STMMAC_CHAIN_MODE) {
+		if (priv->extend_desc)
+			stmmac_mode_init(priv, rx_q->dma_erx,
+					 rx_q->dma_rx_phy,
+					 priv->dma_rx_size, 1);
+		else
+			stmmac_mode_init(priv, rx_q->dma_rx,
+					 rx_q->dma_rx_phy,
+					 priv->dma_rx_size, 0);
+	}
+
+	return 0;
+}
+
 static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_count = priv->plat->rx_queues_to_use;
-	int ret = -ENOMEM;
-	int queue;
+	u32 queue;
+	int ret;
 
 	/* RX INITIALIZATION */
 	netif_dbg(priv, probe, priv->dev,
 		  "SKB addresses:\nskb\t\tskb data\tdma data\n");
 
 	for (queue = 0; queue < rx_count; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-
-
-		netif_dbg(priv, probe, priv->dev,
-			  "(%s) dma_rx_phy=0x%08x\n", __func__,
-			  (u32)rx_q->dma_rx_phy);
-
-		stmmac_clear_rx_descriptors(priv, queue);
-
-		WARN_ON(xdp_rxq_info_reg_mem_model(&rx_q->xdp_rxq,
-						   MEM_TYPE_PAGE_POOL,
-						   rx_q->page_pool));
-
-		netdev_info(priv->dev,
-			    "Register MEM_TYPE_PAGE_POOL RxQ-%d\n",
-			    rx_q->queue_index);
-
-		ret = stmmac_alloc_rx_buffers(priv, queue, flags);
-		if (ret < 0)
+		ret = __init_dma_rx_desc_rings(priv, queue, flags);
+		if (ret)
 			goto err_init_rx_buffers;
-
-		rx_q->cur_rx = 0;
-		rx_q->dirty_rx = 0;
-
-		/* Setup the chained descriptor addresses */
-		if (priv->mode == STMMAC_CHAIN_MODE) {
-			if (priv->extend_desc)
-				stmmac_mode_init(priv, rx_q->dma_erx,
-						 rx_q->dma_rx_phy,
-						 priv->dma_rx_size, 1);
-			else
-				stmmac_mode_init(priv, rx_q->dma_rx,
-						 rx_q->dma_rx_phy,
-						 priv->dma_rx_size, 0);
-		}
 	}
 
 	return 0;
@@ -1647,62 +1657,72 @@ err_init_rx_buffers:
 }
 
 /**
- * init_dma_tx_desc_rings - init the TX descriptor rings
- * @dev: net device structure.
+ * __init_dma_tx_desc_rings - init the TX descriptor ring (per queue)
+ * @priv: driver private structure
+ * @queue : TX queue index
  * Description: this function initializes the DMA TX descriptors
  * and allocates the socket buffers. It supports the chained and ring
  * modes.
  */
+static int __init_dma_tx_desc_rings(struct stmmac_priv *priv, u32 queue)
+{
+	struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
+	int i;
+
+	netif_dbg(priv, probe, priv->dev,
+		  "(%s) dma_tx_phy=0x%08x\n", __func__,
+		  (u32)tx_q->dma_tx_phy);
+
+	/* Setup the chained descriptor addresses */
+	if (priv->mode == STMMAC_CHAIN_MODE) {
+		if (priv->extend_desc)
+			stmmac_mode_init(priv, tx_q->dma_etx,
+					 tx_q->dma_tx_phy,
+					 priv->dma_tx_size, 1);
+		else if (!(tx_q->tbs & STMMAC_TBS_AVAIL))
+			stmmac_mode_init(priv, tx_q->dma_tx,
+					 tx_q->dma_tx_phy,
+					 priv->dma_tx_size, 0);
+	}
+
+	for (i = 0; i < priv->dma_tx_size; i++) {
+		struct dma_desc *p;
+
+		if (priv->extend_desc)
+			p = &((tx_q->dma_etx + i)->basic);
+		else if (tx_q->tbs & STMMAC_TBS_AVAIL)
+			p = &((tx_q->dma_entx + i)->basic);
+		else
+			p = tx_q->dma_tx + i;
+
+		stmmac_clear_desc(priv, p);
+
+		tx_q->tx_skbuff_dma[i].buf = 0;
+		tx_q->tx_skbuff_dma[i].map_as_page = false;
+		tx_q->tx_skbuff_dma[i].len = 0;
+		tx_q->tx_skbuff_dma[i].last_segment = false;
+		tx_q->tx_skbuff[i] = NULL;
+	}
+
+	tx_q->dirty_tx = 0;
+	tx_q->cur_tx = 0;
+	tx_q->mss = 0;
+
+	netdev_tx_reset_queue(netdev_get_tx_queue(priv->dev, queue));
+
+	return 0;
+}
+
 static int init_dma_tx_desc_rings(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	u32 tx_queue_cnt = priv->plat->tx_queues_to_use;
+	u32 tx_queue_cnt;
 	u32 queue;
-	int i;
 
-	for (queue = 0; queue < tx_queue_cnt; queue++) {
-		struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
+	tx_queue_cnt = priv->plat->tx_queues_to_use;
 
-		netif_dbg(priv, probe, priv->dev,
-			  "(%s) dma_tx_phy=0x%08x\n", __func__,
-			 (u32)tx_q->dma_tx_phy);
-
-		/* Setup the chained descriptor addresses */
-		if (priv->mode == STMMAC_CHAIN_MODE) {
-			if (priv->extend_desc)
-				stmmac_mode_init(priv, tx_q->dma_etx,
-						 tx_q->dma_tx_phy,
-						 priv->dma_tx_size, 1);
-			else if (!(tx_q->tbs & STMMAC_TBS_AVAIL))
-				stmmac_mode_init(priv, tx_q->dma_tx,
-						 tx_q->dma_tx_phy,
-						 priv->dma_tx_size, 0);
-		}
-
-		for (i = 0; i < priv->dma_tx_size; i++) {
-			struct dma_desc *p;
-			if (priv->extend_desc)
-				p = &((tx_q->dma_etx + i)->basic);
-			else if (tx_q->tbs & STMMAC_TBS_AVAIL)
-				p = &((tx_q->dma_entx + i)->basic);
-			else
-				p = tx_q->dma_tx + i;
-
-			stmmac_clear_desc(priv, p);
-
-			tx_q->tx_skbuff_dma[i].buf = 0;
-			tx_q->tx_skbuff_dma[i].map_as_page = false;
-			tx_q->tx_skbuff_dma[i].len = 0;
-			tx_q->tx_skbuff_dma[i].last_segment = false;
-			tx_q->tx_skbuff[i] = NULL;
-		}
-
-		tx_q->dirty_tx = 0;
-		tx_q->cur_tx = 0;
-		tx_q->mss = 0;
-
-		netdev_tx_reset_queue(netdev_get_tx_queue(priv->dev, queue));
-	}
+	for (queue = 0; queue < tx_queue_cnt; queue++)
+		__init_dma_tx_desc_rings(priv, queue);
 
 	return 0;
 }
