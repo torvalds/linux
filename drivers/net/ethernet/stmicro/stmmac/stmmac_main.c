@@ -4408,20 +4408,13 @@ static int stmmac_xdp_xmit_back(struct stmmac_priv *priv,
 	return res;
 }
 
-static struct sk_buff *stmmac_xdp_run_prog(struct stmmac_priv *priv,
-					   struct xdp_buff *xdp)
+/* This function assumes rcu_read_lock() is held by the caller. */
+static int __stmmac_xdp_run_prog(struct stmmac_priv *priv,
+				 struct bpf_prog *prog,
+				 struct xdp_buff *xdp)
 {
-	struct bpf_prog *prog;
-	int res;
 	u32 act;
-
-	rcu_read_lock();
-
-	prog = READ_ONCE(priv->xdp_prog);
-	if (!prog) {
-		res = STMMAC_XDP_PASS;
-		goto unlock;
-	}
+	int res;
 
 	act = bpf_prog_run_xdp(prog, xdp);
 	switch (act) {
@@ -4448,6 +4441,24 @@ static struct sk_buff *stmmac_xdp_run_prog(struct stmmac_priv *priv,
 		break;
 	}
 
+	return res;
+}
+
+static struct sk_buff *stmmac_xdp_run_prog(struct stmmac_priv *priv,
+					   struct xdp_buff *xdp)
+{
+	struct bpf_prog *prog;
+	int res;
+
+	rcu_read_lock();
+
+	prog = READ_ONCE(priv->xdp_prog);
+	if (!prog) {
+		res = STMMAC_XDP_PASS;
+		goto unlock;
+	}
+
+	res = __stmmac_xdp_run_prog(priv, prog, xdp);
 unlock:
 	rcu_read_unlock();
 	return ERR_PTR(-res);
