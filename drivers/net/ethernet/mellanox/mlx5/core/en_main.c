@@ -1091,6 +1091,7 @@ static int mlx5e_alloc_icosq(struct mlx5e_channel *c,
 
 	sq->channel   = c;
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
+	sq->reserved_room = param->stop_room;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -2350,6 +2351,24 @@ void mlx5e_build_icosq_param(struct mlx5e_priv *priv,
 	mlx5e_build_ico_cq_param(priv, log_wq_size, &param->cqp);
 }
 
+static void mlx5e_build_async_icosq_param(struct mlx5e_priv *priv,
+					  struct mlx5e_params *params,
+					  u8 log_wq_size,
+					  struct mlx5e_sq_param *param)
+{
+	void *sqc = param->sqc;
+	void *wq = MLX5_ADDR_OF(sqc, sqc, wq);
+
+	mlx5e_build_sq_param_common(priv, param);
+
+	/* async_icosq is used by XSK only if xdp_prog is active */
+	if (params->xdp_prog)
+		param->stop_room = mlx5e_stop_room_for_wqe(1); /* for XSK NOP */
+	MLX5_SET(sqc, sqc, reg_umr, MLX5_CAP_ETH(priv->mdev, reg_umr_sq));
+	MLX5_SET(wq, wq, log_wq_sz, log_wq_size);
+	mlx5e_build_ico_cq_param(priv, log_wq_size, &param->cqp);
+}
+
 void mlx5e_build_xdpsq_param(struct mlx5e_priv *priv,
 			     struct mlx5e_params *params,
 			     struct mlx5e_sq_param *param)
@@ -2398,7 +2417,7 @@ static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
 	mlx5e_build_sq_param(priv, params, &cparam->txq_sq);
 	mlx5e_build_xdpsq_param(priv, params, &cparam->xdp_sq);
 	mlx5e_build_icosq_param(priv, icosq_log_wq_sz, &cparam->icosq);
-	mlx5e_build_icosq_param(priv, async_icosq_log_wq_sz, &cparam->async_icosq);
+	mlx5e_build_async_icosq_param(priv, params, async_icosq_log_wq_sz, &cparam->async_icosq);
 }
 
 int mlx5e_open_channels(struct mlx5e_priv *priv,
