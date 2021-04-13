@@ -866,6 +866,7 @@ struct dwc2_hregs_backup {
  * @ll_hw_enabled:	Status of low-level hardware resources.
  * @hibernated:		True if core is hibernated
  * @in_ppd:		True if core is partial power down mode.
+ * @bus_suspended:	True if bus is suspended
  * @reset_phy_on_wake:	Quirk saying that we should assert PHY reset on a
  *			remote wakeup.
  * @phy_off_for_suspend: Status of whether we turned the PHY off at suspend.
@@ -1023,7 +1024,6 @@ struct dwc2_hregs_backup {
  *			a pointer to an array of register definitions, the
  *			array size and the base address where the register bank
  *			is to be found.
- * @bus_suspended:	True if bus is suspended
  * @last_frame_num:	Number of last frame. Range from 0 to  32768
  * @frame_num_array:    Used only  if CONFIG_USB_DWC2_TRACK_MISSED_SOFS is
  *			defined, for missed SOFs tracking. Array holds that
@@ -1062,6 +1062,7 @@ struct dwc2_hsotg {
 	unsigned int ll_hw_enabled:1;
 	unsigned int hibernated:1;
 	unsigned int in_ppd:1;
+	bool bus_suspended;
 	unsigned int reset_phy_on_wake:1;
 	unsigned int need_phy_for_wake:1;
 	unsigned int phy_off_for_suspend:1;
@@ -1145,7 +1146,6 @@ struct dwc2_hsotg {
 	unsigned long hs_periodic_bitmap[
 		DIV_ROUND_UP(DWC2_HS_SCHEDULE_US, BITS_PER_LONG)];
 	u16 periodic_qh_count;
-	bool bus_suspended;
 	bool new_connection;
 
 	u16 last_frame_num;
@@ -1415,6 +1415,9 @@ int dwc2_gadget_exit_hibernation(struct dwc2_hsotg *hsotg,
 int dwc2_gadget_enter_partial_power_down(struct dwc2_hsotg *hsotg);
 int dwc2_gadget_exit_partial_power_down(struct dwc2_hsotg *hsotg,
 					bool restore);
+void dwc2_gadget_enter_clock_gating(struct dwc2_hsotg *hsotg);
+void dwc2_gadget_exit_clock_gating(struct dwc2_hsotg *hsotg,
+				   int rem_wakeup);
 int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg);
 int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg);
 int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg);
@@ -1453,6 +1456,9 @@ static inline int dwc2_gadget_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 static inline int dwc2_gadget_exit_partial_power_down(struct dwc2_hsotg *hsotg,
 						      bool restore)
 { return 0; }
+static inline void dwc2_gadget_enter_clock_gating(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_gadget_exit_clock_gating(struct dwc2_hsotg *hsotg,
+						 int rem_wakeup) {}
 static inline int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
