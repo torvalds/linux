@@ -2330,27 +2330,6 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 }
 
 /*
- * Poll for a minimum of 'min' events. Note that if min == 0 we consider that a
- * non-spinning poll check - we'll still enter the driver poll loop, but only
- * as a non-spinning completion check.
- */
-static int io_iopoll_getevents(struct io_ring_ctx *ctx, unsigned int *nr_events,
-				long min)
-{
-	while (!list_empty(&ctx->iopoll_list) && !need_resched()) {
-		int ret;
-
-		ret = io_do_iopoll(ctx, nr_events, min);
-		if (ret < 0)
-			return ret;
-		if (*nr_events >= min)
-			return 0;
-	}
-
-	return 1;
-}
-
-/*
  * We can't just wait for polled events to come to us, we have to actively
  * find and complete them.
  */
@@ -2393,17 +2372,16 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 	 * that got punted to a workqueue.
 	 */
 	mutex_lock(&ctx->uring_lock);
+	/*
+	 * Don't enter poll loop if we already have events pending.
+	 * If we do, we can potentially be spinning for commands that
+	 * already triggered a CQE (eg in error).
+	 */
+	if (test_bit(0, &ctx->cq_check_overflow))
+		__io_cqring_overflow_flush(ctx, false);
+	if (io_cqring_events(ctx))
+		goto out;
 	do {
-		/*
-		 * Don't enter poll loop if we already have events pending.
-		 * If we do, we can potentially be spinning for commands that
-		 * already triggered a CQE (eg in error).
-		 */
-		if (test_bit(0, &ctx->cq_check_overflow))
-			__io_cqring_overflow_flush(ctx, false);
-		if (io_cqring_events(ctx))
-			break;
-
 		/*
 		 * If a submit got punted to a workqueue, we can have the
 		 * application entering polling for a command before it gets
@@ -2422,13 +2400,9 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 			if (list_empty(&ctx->iopoll_list))
 				break;
 		}
-
-		ret = io_iopoll_getevents(ctx, &nr_events, min);
-		if (ret <= 0)
-			break;
-		ret = 0;
-	} while (min && !nr_events && !need_resched());
-
+		ret = io_do_iopoll(ctx, &nr_events, min);
+	} while (!ret && nr_events < min && !need_resched());
+out:
 	mutex_unlock(&ctx->uring_lock);
 	return ret;
 }
@@ -2539,7 +2513,7 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
 /*
  * After the iocb has been issued, it's safe to be found on the poll list.
  * Adding the kiocb to the list AFTER submission ensures that we don't
- * find it from a io_iopoll_getevents() thread before the issuer is done
+ * find it from a io_do_iopoll() thread before the issuer is done
  * accessing the kiocb cookie.
  */
 static void io_iopoll_req_issued(struct io_kiocb *req, bool in_async)
