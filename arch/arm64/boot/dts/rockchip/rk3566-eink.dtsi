@@ -51,7 +51,6 @@
 		SYS_STATUS_NORMAL       528000
 		SYS_STATUS_REBOOT       528000
 		SYS_STATUS_SUSPEND      324000
-		SYS_STATUS_LOW_POWER	324000
 	>;
 	center-supply = <&vdd_logic>;
 	auto-freq-en = <0>;
@@ -60,10 +59,10 @@
 
 &dmc_opp_table {
 	opp-324000000 {
-		opp-microvolt = <825000>;
+		opp-microvolt = <875000>;
 	};
 	opp-528000000 {
-		opp-microvolt = <825000>;
+		opp-microvolt = <875000>;
 	};
 	/delete-node/ opp-780000000;
 	/delete-node/ opp-1056000000;
