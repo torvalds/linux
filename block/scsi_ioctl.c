@@ -353,10 +353,6 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	start_time = jiffies;
 
-	/* ignore return value. All information is passed back to caller
-	 * (if he doesn't check that is his problem).
-	 * N.B. a non-zero SCSI status is _not_ necessarily an error.
-	 */
 	blk_execute_rq(bd_disk, rq, at_head);
 
 	hdr->duration = jiffies_to_msecs(jiffies - start_time);
