@@ -760,6 +760,25 @@ static const struct mtk_pin_field_calc mt8195_pin_drv_range[] = {
 	PIN_FIELD_BASE(143, 143, 1, 0x020, 0x10, 24, 3),
 };
 
+static const struct mtk_pin_field_calc mt8195_pin_drv_adv_range[] = {
+	PIN_FIELD_BASE(8, 8, 4, 0x020, 0x10, 15, 3),
+	PIN_FIELD_BASE(9, 9, 4, 0x020, 0x10, 0, 3),
+	PIN_FIELD_BASE(10, 10, 4, 0x020, 0x10, 18, 3),
+	PIN_FIELD_BASE(11, 11, 4, 0x020, 0x10, 3, 3),
+	PIN_FIELD_BASE(12, 12, 4, 0x020, 0x10, 21, 3),
+	PIN_FIELD_BASE(13, 13, 4, 0x020, 0x10, 6, 3),
+	PIN_FIELD_BASE(14, 14, 4, 0x020, 0x10, 24, 3),
+	PIN_FIELD_BASE(15, 15, 4, 0x020, 0x10, 9, 3),
+	PIN_FIELD_BASE(16, 16, 4, 0x020, 0x10, 27, 3),
+	PIN_FIELD_BASE(17, 17, 4, 0x020, 0x10, 12, 3),
+	PIN_FIELD_BASE(29, 29, 2, 0x020, 0x10, 0, 3),
+	PIN_FIELD_BASE(30, 30, 2, 0x020, 0x10, 3, 3),
+	PIN_FIELD_BASE(34, 34, 1, 0x040, 0x10, 0, 3),
+	PIN_FIELD_BASE(35, 35, 1, 0x040, 0x10, 3, 3),
+	PIN_FIELD_BASE(44, 44, 1, 0x040, 0x10, 6, 3),
+	PIN_FIELD_BASE(45, 45, 1, 0x040, 0x10, 9, 3),
+};
+
 static const struct mtk_pin_reg_calc mt8195_reg_cals[PINCTRL_PIN_REG_MAX] = {
 	[PINCTRL_PIN_REG_MODE] = MTK_RANGE(mt8195_pin_mode_range),
 	[PINCTRL_PIN_REG_DIR] = MTK_RANGE(mt8195_pin_dir_range),
@@ -773,6 +792,7 @@ static const struct mtk_pin_reg_calc mt8195_reg_cals[PINCTRL_PIN_REG_MAX] = {
 	[PINCTRL_PIN_REG_PUPD] = MTK_RANGE(mt8195_pin_pupd_range),
 	[PINCTRL_PIN_REG_R0] = MTK_RANGE(mt8195_pin_r0_range),
 	[PINCTRL_PIN_REG_R1] = MTK_RANGE(mt8195_pin_r1_range),
+	[PINCTRL_PIN_REG_DRV_ADV] = MTK_RANGE(mt8195_pin_drv_adv_range),
 };
 
 static const char * const mt8195_pinctrl_register_base_names[] = {
@@ -801,6 +821,8 @@ static const struct mtk_pin_soc mt8195_data = {
 	.bias_get_combo = mtk_pinconf_bias_get_combo,
 	.drive_set = mtk_pinconf_drive_set_rev1,
 	.drive_get = mtk_pinconf_drive_get_rev1,
+	.adv_drive_get = mtk_pinconf_adv_drive_get_raw,
+	.adv_drive_set = mtk_pinconf_adv_drive_set_raw,
 };
 
 static const struct of_device_id mt8195_pinctrl_of_match[] = {
