@@ -1267,6 +1267,7 @@ static void io_queue_async_work(struct io_kiocb *req)
 }
 
 static void io_kill_timeout(struct io_kiocb *req, int status)
+	__must_hold(&req->ctx->completion_lock)
 {
 	struct io_timeout_data *io = req->async_data;
 	int ret;
