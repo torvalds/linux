@@ -201,7 +201,7 @@ struct ft260_i2c_write_request_report {
 	u8 address;		/* 7-bit I2C address */
 	u8 flag;		/* I2C transaction condition */
 	u8 length;		/* data payload length */
-	u8 data[60];		/* data payload */
+	u8 data[FT260_WR_DATA_MAX]; /* data payload */
 } __packed;
 
 struct ft260_i2c_read_request_report {
@@ -428,6 +428,9 @@ static int ft260_smbus_write(struct ft260_device *dev, u8 addr, u8 cmd,
 
 	struct ft260_i2c_write_request_report *rep =
 		(struct ft260_i2c_write_request_report *)dev->write_buf;
+
+	if (data_len >= sizeof(rep->data))
+		return -EINVAL;
 
 	rep->address = addr;
 	rep->data[0] = cmd;
