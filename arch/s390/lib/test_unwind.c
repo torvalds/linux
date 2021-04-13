@@ -311,6 +311,7 @@ do {									\
 	}								\
 } while (0)
 
+	pr_info("running stack unwinder tests");
 	TEST(UWM_DEFAULT);
 	TEST(UWM_SP);
 	TEST(UWM_REGS);
@@ -337,8 +338,13 @@ do {									\
 	TEST(UWM_PGM | UWM_SP | UWM_REGS);
 #endif
 #undef TEST
+	if (failed) {
+		pr_err("%d of %d stack unwinder tests failed", failed, total);
+		WARN(1, "%d of %d stack unwinder tests failed", failed, total);
+	} else {
+		pr_info("all %d stack unwinder tests passed", total);
+	}
 
-	WARN(failed, "%d of %d unwinder tests failed", failed, total);
 	return failed ? -EINVAL : 0;
 }
 
