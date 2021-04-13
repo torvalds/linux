@@ -601,16 +601,20 @@ static void isc_start_dma(struct isc_device *isc)
 			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN);
 
 	addr0 = vb2_dma_contig_plane_dma_addr(&isc->cur_frm->vb.vb2_buf, 0);
-	regmap_write(regmap, ISC_DAD0, addr0);
+	regmap_write(regmap, ISC_DAD0 + isc->offsets.dma, addr0);
 
 	switch (isc->config.fourcc) {
 	case V4L2_PIX_FMT_YUV420:
-		regmap_write(regmap, ISC_DAD1, addr0 + (sizeimage * 2) / 3);
-		regmap_write(regmap, ISC_DAD2, addr0 + (sizeimage * 5) / 6);
+		regmap_write(regmap, ISC_DAD1 + isc->offsets.dma,
+			     addr0 + (sizeimage * 2) / 3);
+		regmap_write(regmap, ISC_DAD2 + isc->offsets.dma,
+			     addr0 + (sizeimage * 5) / 6);
 		break;
 	case V4L2_PIX_FMT_YUV422P:
-		regmap_write(regmap, ISC_DAD1, addr0 + sizeimage / 2);
-		regmap_write(regmap, ISC_DAD2, addr0 + (sizeimage * 3) / 4);
+		regmap_write(regmap, ISC_DAD1 + isc->offsets.dma,
+			     addr0 + sizeimage / 2);
+		regmap_write(regmap, ISC_DAD2 + isc->offsets.dma,
+			     addr0 + (sizeimage * 3) / 4);
 		break;
 	default:
 		break;
@@ -618,7 +622,8 @@ static void isc_start_dma(struct isc_device *isc)
 
 	dctrl_dview = isc->config.dctrl_dview;
 
-	regmap_write(regmap, ISC_DCTRL, dctrl_dview | ISC_DCTRL_IE_IS);
+	regmap_write(regmap, ISC_DCTRL + isc->offsets.dma,
+		     dctrl_dview | ISC_DCTRL_IE_IS);
 	spin_lock(&isc->awb_lock);
 	regmap_write(regmap, ISC_CTRLEN, ISC_CTRL_CAPTURE);
 	spin_unlock(&isc->awb_lock);
@@ -731,7 +736,7 @@ static int isc_configure(struct isc_device *isc)
 	regmap_update_bits(regmap, ISC_RLP_CFG + isc->offsets.rlp,
 			   ISC_RLP_CFG_MODE_MASK, rlp_mode);
 
-	regmap_write(regmap, ISC_DCFG, dcfg);
+	regmap_write(regmap, ISC_DCFG + isc->offsets.dma, dcfg);
 
 	/* Set the pipeline */
 	isc_set_pipeline(isc, pipeline);

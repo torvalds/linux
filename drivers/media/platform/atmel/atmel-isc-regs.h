@@ -247,6 +247,9 @@
 
 #define ISC_HIS_CFG_RAR			BIT(8)
 
+/* Offset for DMA register specific to sama5d2 product */
+#define ISC_SAMA5D2_DMA_OFFSET	0
+
 /* DMA Configuration Register */
 #define ISC_DCFG        0x000003e0
 #define ISC_DCFG_IMODE_PACKED8          0x0
