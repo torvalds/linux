@@ -1,0 +1,25 @@
+[abi_symbol_list]
+
+# needed by fips140.ko but not identified by the tooling
+# TODO(b/189327973): [GKI: ABI] Build of fips140.ko module fails to identify some symbols
+  __crypto_memneq
+  __crypto_xor
+  aes_decrypt
+  aes_encrypt
+  aes_expandkey
+  ce_aes_expandkey
+  crypto_aes_inv_sbox
+  crypto_aes_sbox
+  crypto_aes_set_key
+  crypto_ft_tab
+  crypto_inc
+  crypto_it_tab
+  crypto_sha1_finup
+  crypto_sha1_update
+  gf128mul_lle
+  sha1_transform
+  sha224_final
+  sha256
+  sha256_block_data_order
+  sha256_final
+  sha256_update
