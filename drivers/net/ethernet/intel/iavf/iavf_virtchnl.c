@@ -142,6 +142,7 @@ int iavf_send_vf_config_msg(struct iavf_adapter *adapter)
 	       VIRTCHNL_VF_OFFLOAD_ADQ |
 	       VIRTCHNL_VF_OFFLOAD_USO |
 	       VIRTCHNL_VF_OFFLOAD_FDIR_PF |
+	       VIRTCHNL_VF_OFFLOAD_ADV_RSS_PF |
 	       VIRTCHNL_VF_CAP_ADV_LINK_SPEED;
 
 	adapter->current_op = VIRTCHNL_OP_GET_VF_RESOURCES;
@@ -1295,6 +1296,102 @@ void iavf_del_fdir_filter(struct iavf_adapter *adapter)
 }
 
 /**
+ * iavf_add_adv_rss_cfg
+ * @adapter: the VF adapter structure
+ *
+ * Request that the PF add RSS configuration as specified
+ * by the user via ethtool.
+ **/
+void iavf_add_adv_rss_cfg(struct iavf_adapter *adapter)
+{
+	struct virtchnl_rss_cfg *rss_cfg;
+	struct iavf_adv_rss *rss;
+	bool process_rss = false;
+	int len;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot add RSS configuration, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	len = sizeof(struct virtchnl_rss_cfg);
+	rss_cfg = kzalloc(len, GFP_KERNEL);
+	if (!rss_cfg)
+		return;
+
+	spin_lock_bh(&adapter->adv_rss_lock);
+	list_for_each_entry(rss, &adapter->adv_rss_list_head, list) {
+		if (rss->state == IAVF_ADV_RSS_ADD_REQUEST) {
+			process_rss = true;
+			rss->state = IAVF_ADV_RSS_ADD_PENDING;
+			memcpy(rss_cfg, &rss->cfg_msg, len);
+			break;
+		}
+	}
+	spin_unlock_bh(&adapter->adv_rss_lock);
+
+	if (process_rss) {
+		adapter->current_op = VIRTCHNL_OP_ADD_RSS_CFG;
+		iavf_send_pf_msg(adapter, VIRTCHNL_OP_ADD_RSS_CFG,
+				 (u8 *)rss_cfg, len);
+	} else {
+		adapter->aq_required &= ~IAVF_FLAG_AQ_ADD_ADV_RSS_CFG;
+	}
+
+	kfree(rss_cfg);
+}
+
+/**
+ * iavf_del_adv_rss_cfg
+ * @adapter: the VF adapter structure
+ *
+ * Request that the PF delete RSS configuration as specified
+ * by the user via ethtool.
+ **/
+void iavf_del_adv_rss_cfg(struct iavf_adapter *adapter)
+{
+	struct virtchnl_rss_cfg *rss_cfg;
+	struct iavf_adv_rss *rss;
+	bool process_rss = false;
+	int len;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot remove RSS configuration, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	len = sizeof(struct virtchnl_rss_cfg);
+	rss_cfg = kzalloc(len, GFP_KERNEL);
+	if (!rss_cfg)
+		return;
+
+	spin_lock_bh(&adapter->adv_rss_lock);
+	list_for_each_entry(rss, &adapter->adv_rss_list_head, list) {
+		if (rss->state == IAVF_ADV_RSS_DEL_REQUEST) {
+			process_rss = true;
+			rss->state = IAVF_ADV_RSS_DEL_PENDING;
+			memcpy(rss_cfg, &rss->cfg_msg, len);
+			break;
+		}
+	}
+	spin_unlock_bh(&adapter->adv_rss_lock);
+
+	if (process_rss) {
+		adapter->current_op = VIRTCHNL_OP_DEL_RSS_CFG;
+		iavf_send_pf_msg(adapter, VIRTCHNL_OP_DEL_RSS_CFG,
+				 (u8 *)rss_cfg, len);
+	} else {
+		adapter->aq_required &= ~IAVF_FLAG_AQ_DEL_ADV_RSS_CFG;
+	}
+
+	kfree(rss_cfg);
+}
+
+/**
  * iavf_request_reset
  * @adapter: adapter structure
  *
@@ -1494,6 +1591,37 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			spin_unlock_bh(&adapter->fdir_fltr_lock);
 			}
 			break;
+		case VIRTCHNL_OP_ADD_RSS_CFG: {
+			struct iavf_adv_rss *rss, *rss_tmp;
+
+			spin_lock_bh(&adapter->adv_rss_lock);
+			list_for_each_entry_safe(rss, rss_tmp,
+						 &adapter->adv_rss_list_head,
+						 list) {
+				if (rss->state == IAVF_ADV_RSS_ADD_PENDING) {
+					list_del(&rss->list);
+					kfree(rss);
+				}
+			}
+			spin_unlock_bh(&adapter->adv_rss_lock);
+			}
+			break;
+		case VIRTCHNL_OP_DEL_RSS_CFG: {
+			struct iavf_adv_rss *rss;
+
+			spin_lock_bh(&adapter->adv_rss_lock);
+			list_for_each_entry(rss, &adapter->adv_rss_list_head,
+					    list) {
+				if (rss->state == IAVF_ADV_RSS_DEL_PENDING) {
+					rss->state = IAVF_ADV_RSS_ACTIVE;
+					dev_err(&adapter->pdev->dev, "Failed to delete RSS configuration, error %s\n",
+						iavf_stat_str(&adapter->hw,
+							      v_retval));
+				}
+			}
+			spin_unlock_bh(&adapter->adv_rss_lock);
+			}
+			break;
 		case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
 		case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
 			dev_warn(&adapter->pdev->dev, "Changing VLAN Stripping is not allowed when Port VLAN is configured\n");
@@ -1681,6 +1809,30 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			}
 		}
 		spin_unlock_bh(&adapter->fdir_fltr_lock);
+		}
+		break;
+	case VIRTCHNL_OP_ADD_RSS_CFG: {
+		struct iavf_adv_rss *rss;
+
+		spin_lock_bh(&adapter->adv_rss_lock);
+		list_for_each_entry(rss, &adapter->adv_rss_list_head, list)
+			if (rss->state == IAVF_ADV_RSS_ADD_PENDING)
+				rss->state = IAVF_ADV_RSS_ACTIVE;
+		spin_unlock_bh(&adapter->adv_rss_lock);
+		}
+		break;
+	case VIRTCHNL_OP_DEL_RSS_CFG: {
+		struct iavf_adv_rss *rss, *rss_tmp;
+
+		spin_lock_bh(&adapter->adv_rss_lock);
+		list_for_each_entry_safe(rss, rss_tmp,
+					 &adapter->adv_rss_list_head, list) {
+			if (rss->state == IAVF_ADV_RSS_DEL_PENDING) {
+				list_del(&rss->list);
+				kfree(rss);
+			}
+		}
+		spin_unlock_bh(&adapter->adv_rss_lock);
 		}
 		break;
 	default:
