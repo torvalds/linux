@@ -429,9 +429,6 @@ static inline u32 mipi_csis_read(struct csi_state *state, u32 reg)
 
 static int mipi_csis_dump_regs(struct csi_state *state)
 {
-	struct device *dev = &state->pdev->dev;
-	unsigned int i;
-	u32 cfg;
 	static const struct {
 		u32 offset;
 		const char * const name;
@@ -449,6 +446,10 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 		{ MIPI_CSIS_SDW_RESOL_CH(0), "SDW_RESOL_CH0" },
 		{ MIPI_CSIS_DBG_CTRL, "DBG_CTRL" },
 	};
+
+	struct device *dev = &state->pdev->dev;
+	unsigned int i;
+	u32 cfg;
 
 	dev_info(dev, "--- REGISTERS ---\n");
 
