@@ -237,6 +237,12 @@ struct isc_reg_offsets {
  *			specific v4l2 controls.
  *
  * @offsets:		struct holding the product specific register offsets
+ * @controller_formats:	pointer to the array of possible formats that the
+ *			controller can output
+ * @formats_list:	pointer to the array of possible formats that can
+ *			be used as an input to the controller
+ * @controller_formats_size:	size of controller_formats array
+ * @formats_list_size:	size of formats_list array
  */
 struct isc_device {
 	struct regmap		*regmap;
@@ -318,10 +324,12 @@ struct isc_device {
 	};
 
 	struct isc_reg_offsets		offsets;
+	const struct isc_format		*controller_formats;
+	struct isc_format		*formats_list;
+	u32				controller_formats_size;
+	u32				formats_list_size;
 };
 
-extern struct isc_format formats_list[];
-extern const struct isc_format controller_formats[];
 extern const struct regmap_config isc_regmap_config;
 extern const struct v4l2_async_notifier_operations isc_async_ops;
 

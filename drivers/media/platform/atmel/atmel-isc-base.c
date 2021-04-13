@@ -45,137 +45,6 @@ module_param(sensor_preferred, uint, 0644);
 MODULE_PARM_DESC(sensor_preferred,
 		 "Sensor is preferred to output the specified format (1-on 0-off), default 1");
 
-/* This is a list of the formats that the ISC can *output* */
-const struct isc_format controller_formats[] = {
-	{
-		.fourcc		= V4L2_PIX_FMT_ARGB444,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_ARGB555,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_RGB565,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_ABGR32,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_XBGR32,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUV420,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUYV,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUV422P,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_GREY,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_Y10,
-	},
-};
-
-/* This is a list of formats that the ISC can receive as *input* */
-struct isc_format formats_list[] = {
-	{
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_BGBG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGBRG8,
-		.mbus_code	= MEDIA_BUS_FMT_SGBRG8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_GBGB,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGRBG8,
-		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_GRGR,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SRGGB8,
-		.mbus_code	= MEDIA_BUS_FMT_SRGGB8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SBGGR10,
-		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGBRG10,
-		.mbus_code	= MEDIA_BUS_FMT_SGBRG10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_GBGB,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGRBG10,
-		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_GRGR,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SRGGB10,
-		.mbus_code	= MEDIA_BUS_FMT_SRGGB10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SBGGR12,
-		.mbus_code	= MEDIA_BUS_FMT_SBGGR12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_BGBG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGBRG12,
-		.mbus_code	= MEDIA_BUS_FMT_SGBRG12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_GBGB,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SGRBG12,
-		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_GRGR,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_SRGGB12,
-		.mbus_code	= MEDIA_BUS_FMT_SRGGB12_1X12,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TWELVE,
-		.cfa_baycfg	= ISC_BAY_CFG_RGRG,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_GREY,
-		.mbus_code	= MEDIA_BUS_FMT_Y8_1X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_YUYV,
-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_RGB565,
-		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
-		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
-	},
-	{
-		.fourcc		= V4L2_PIX_FMT_Y10,
-		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
-		.pfe_cfg0_bps	= ISC_PFG_CFG0_BPS_TEN,
-	},
-
-};
-
 #define ISC_IS_FORMAT_RAW(mbus_code) \
 	(((mbus_code) & 0xf000) == 0x3000)
 
@@ -919,24 +788,25 @@ static int isc_querycap(struct file *file, void *priv,
 static int isc_enum_fmt_vid_cap(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
+	struct isc_device *isc = video_drvdata(file);
 	u32 index = f->index;
 	u32 i, supported_index;
 
-	if (index < ARRAY_SIZE(controller_formats)) {
-		f->pixelformat = controller_formats[index].fourcc;
+	if (index < isc->controller_formats_size) {
+		f->pixelformat = isc->controller_formats[index].fourcc;
 		return 0;
 	}
 
-	index -= ARRAY_SIZE(controller_formats);
+	index -= isc->controller_formats_size;
 
 	supported_index = 0;
 
-	for (i = 0; i < ARRAY_SIZE(formats_list); i++) {
-		if (!ISC_IS_FORMAT_RAW(formats_list[i].mbus_code) ||
-		    !formats_list[i].sd_support)
+	for (i = 0; i < isc->formats_list_size; i++) {
+		if (!ISC_IS_FORMAT_RAW(isc->formats_list[i].mbus_code) ||
+		    !isc->formats_list[i].sd_support)
 			continue;
 		if (supported_index == index) {
-			f->pixelformat = formats_list[i].fourcc;
+			f->pixelformat = isc->formats_list[i].fourcc;
 			return 0;
 		}
 		supported_index++;
@@ -1477,8 +1347,8 @@ static int isc_enum_framesizes(struct file *file, void *fh,
 		if (isc->user_formats[i]->fourcc == fsize->pixel_format)
 			ret = 0;
 
-	for (i = 0; i < ARRAY_SIZE(controller_formats); i++)
-		if (controller_formats[i].fourcc == fsize->pixel_format)
+	for (i = 0; i < isc->controller_formats_size; i++)
+		if (isc->controller_formats[i].fourcc == fsize->pixel_format)
 			ret = 0;
 
 	if (ret)
@@ -1514,8 +1384,8 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 		if (isc->user_formats[i]->fourcc == fival->pixel_format)
 			ret = 0;
 
-	for (i = 0; i < ARRAY_SIZE(controller_formats); i++)
-		if (controller_formats[i].fourcc == fival->pixel_format)
+	for (i = 0; i < isc->controller_formats_size; i++)
+		if (isc->controller_formats[i].fourcc == fival->pixel_format)
 			ret = 0;
 
 	if (ret)
@@ -2126,12 +1996,13 @@ static void isc_async_unbind(struct v4l2_async_notifier *notifier,
 	v4l2_ctrl_handler_free(&isc->ctrls.handler);
 }
 
-static struct isc_format *find_format_by_code(unsigned int code, int *index)
+static struct isc_format *find_format_by_code(struct isc_device *isc,
+					      unsigned int code, int *index)
 {
-	struct isc_format *fmt = &formats_list[0];
+	struct isc_format *fmt = &isc->formats_list[0];
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(formats_list); i++) {
+	for (i = 0; i < isc->formats_list_size; i++) {
 		if (fmt->mbus_code == code) {
 			*index = i;
 			return fmt;
@@ -2148,7 +2019,7 @@ static int isc_formats_init(struct isc_device *isc)
 	struct isc_format *fmt;
 	struct v4l2_subdev *subdev = isc->current_subdev->sd;
 	unsigned int num_fmts, i, j;
-	u32 list_size = ARRAY_SIZE(formats_list);
+	u32 list_size = isc->formats_list_size;
 	struct v4l2_subdev_mbus_code_enum mbus_code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
@@ -2158,7 +2029,7 @@ static int isc_formats_init(struct isc_device *isc)
 	       NULL, &mbus_code)) {
 		mbus_code.index++;
 
-		fmt = find_format_by_code(mbus_code.code, &i);
+		fmt = find_format_by_code(isc, mbus_code.code, &i);
 		if (!fmt) {
 			v4l2_warn(&isc->v4l2_dev, "Mbus code %x not supported\n",
 				  mbus_code.code);
@@ -2179,7 +2050,7 @@ static int isc_formats_init(struct isc_device *isc)
 	if (!isc->user_formats)
 		return -ENOMEM;
 
-	fmt = &formats_list[0];
+	fmt = &isc->formats_list[0];
 	for (i = 0, j = 0; i < list_size; i++) {
 		if (fmt->sd_support)
 			isc->user_formats[j++] = fmt;
