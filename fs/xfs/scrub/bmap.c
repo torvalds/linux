@@ -448,11 +448,10 @@ xchk_bmap_btree(
 
 	/* Load the incore bmap cache if it's not loaded. */
 	info->was_loaded = ifp->if_flags & XFS_IFEXTENTS;
-	if (!info->was_loaded) {
-		error = xfs_iread_extents(sc->tp, ip, whichfork);
-		if (!xchk_fblock_process_error(sc, whichfork, 0, &error))
-			goto out;
-	}
+
+	error = xfs_iread_extents(sc->tp, ip, whichfork);
+	if (!xchk_fblock_process_error(sc, whichfork, 0, &error))
+		goto out;
 
 	/* Check the btree structure. */
 	cur = xfs_bmbt_init_cursor(mp, sc->tp, ip, whichfork);

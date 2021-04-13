@@ -258,11 +258,9 @@ xfs_dir2_leaf_readbuf(
 	int			ra_want;
 	int			error = 0;
 
-	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-		error = xfs_iread_extents(args->trans, dp, XFS_DATA_FORK);
-		if (error)
-			goto out;
-	}
+	error = xfs_iread_extents(args->trans, dp, XFS_DATA_FORK);
+	if (error)
+		goto out;
 
 	/*
 	 * Look for mapped directory blocks at or above the current offset.
