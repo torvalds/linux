@@ -185,7 +185,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(dev, irq, isc_interrupt, 0,
-			       ATMEL_ISC_NAME, isc);
+			       "atmel-sama5d2-isc", isc);
 	if (ret < 0) {
 		dev_err(dev, "can't register ISR for IRQ %u (ret=%i)\n",
 			irq, ret);
@@ -364,7 +364,7 @@ static struct platform_driver atmel_isc_driver = {
 	.probe	= atmel_isc_probe,
 	.remove	= atmel_isc_remove,
 	.driver	= {
-		.name		= ATMEL_ISC_NAME,
+		.name		= "atmel-sama5d2-isc",
 		.pm		= &atmel_isc_dev_pm_ops,
 		.of_match_table = of_match_ptr(atmel_isc_of_match),
 	},

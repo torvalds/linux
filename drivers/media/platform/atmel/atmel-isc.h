@@ -256,8 +256,6 @@ struct isc_device {
 	u32		gamma_max;
 };
 
-#define ATMEL_ISC_NAME "atmel-isc"
-
 extern struct isc_format formats_list[];
 extern const struct isc_format controller_formats[];
 extern const struct regmap_config isc_regmap_config;

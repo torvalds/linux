@@ -909,7 +909,7 @@ static int isc_querycap(struct file *file, void *priv,
 {
 	struct isc_device *isc = video_drvdata(file);
 
-	strscpy(cap->driver, ATMEL_ISC_NAME, sizeof(cap->driver));
+	strscpy(cap->driver, "microchip-isc", sizeof(cap->driver));
 	strscpy(cap->card, "Atmel Image Sensor Controller", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", isc->v4l2_dev.name);
@@ -2261,7 +2261,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* Register video device */
-	strscpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, "microchip-isc", sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &isc_fops;
 	vdev->ioctl_ops		= &isc_ioctl_ops;
