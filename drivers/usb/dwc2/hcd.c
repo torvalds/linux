@@ -4445,6 +4445,28 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
 	case DWC2_POWER_DOWN_PARAM_NONE:
+		/*
+		 * If not hibernation nor partial power down are supported,
+		 * port resume is done using the clock gating programming flow.
+		 */
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		dwc2_host_exit_clock_gating(hsotg, 0);
+
+		/*
+		 * Initialize the Core for Host mode, as after system resume
+		 * the global interrupts are disabled.
+		 */
+		dwc2_core_init(hsotg, false);
+		dwc2_enable_global_interrupts(hsotg);
+		dwc2_hcd_reinit(hsotg);
+		spin_lock_irqsave(&hsotg->lock, flags);
+
+		/*
+		 * Set HW accessible bit before powering on the controller
+		 * since an interrupt may rise.
+		 */
+		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+		break;
 	default:
 		hsotg->lx_state = DWC2_L0;
 		goto unlock;
