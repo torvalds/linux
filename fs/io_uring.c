@@ -6754,6 +6754,9 @@ static int io_sq_thread(void *data)
 	current->flags |= PF_NO_SETAFFINITY;
 
 	mutex_lock(&sqd->lock);
+	/* a user may had exited before the thread started */
+	io_run_task_work_head(&sqd->park_task_work);
+
 	while (!test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state)) {
 		int ret;
 		bool cap_entries, sqt_spin, needs_sched;
@@ -6770,10 +6773,10 @@ static int io_sq_thread(void *data)
 			}
 			cond_resched();
 			mutex_lock(&sqd->lock);
-			if (did_sig)
-				break;
 			io_run_task_work();
 			io_run_task_work_head(&sqd->park_task_work);
+			if (did_sig)
+				break;
 			timeout = jiffies + sqd->sq_thread_idle;
 			continue;
 		}
