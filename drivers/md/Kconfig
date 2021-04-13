@@ -579,17 +579,6 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING
 
 	  If unsure, say N.
 
-config DM_VERITY_AVB
-	tristate "Support AVB specific verity error behavior"
-	depends on DM_VERITY
-	help
-	  Enables Android Verified Boot platform-specific error
-	  behavior. In particular, it will modify the vbmeta partition
-	  specified on the kernel command-line when non-transient error
-	  occurs (followed by a panic).
-
-	  If unsure, say N.
-
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY
