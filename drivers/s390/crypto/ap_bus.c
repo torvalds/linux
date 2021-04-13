@@ -587,22 +587,47 @@ static int ap_bus_match(struct device *dev, struct device_driver *drv)
  */
 static int ap_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	int rc;
+	int rc = 0;
 	struct ap_device *ap_dev = to_ap_dev(dev);
 
 	/* Uevents from ap bus core don't need extensions to the env */
 	if (dev == ap_root_device)
 		return 0;
 
-	/* Set up DEV_TYPE environment variable. */
-	rc = add_uevent_var(env, "DEV_TYPE=%04X", ap_dev->device_type);
-	if (rc)
-		return rc;
+	if (is_card_dev(dev)) {
+		struct ap_card *ac = to_ap_card(&ap_dev->device);
 
-	/* Add MODALIAS= */
-	rc = add_uevent_var(env, "MODALIAS=ap:t%02X", ap_dev->device_type);
-	if (rc)
-		return rc;
+		/* Set up DEV_TYPE environment variable. */
+		rc = add_uevent_var(env, "DEV_TYPE=%04X", ap_dev->device_type);
+		if (rc)
+			return rc;
+		/* Add MODALIAS= */
+		rc = add_uevent_var(env, "MODALIAS=ap:t%02X", ap_dev->device_type);
+		if (rc)
+			return rc;
+
+		/* Add MODE=<accel|cca|ep11> */
+		if (ap_test_bit(&ac->functions, AP_FUNC_ACCEL))
+			rc = add_uevent_var(env, "MODE=accel");
+		else if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
+			rc = add_uevent_var(env, "MODE=cca");
+		else if (ap_test_bit(&ac->functions, AP_FUNC_EP11))
+			rc = add_uevent_var(env, "MODE=ep11");
+		if (rc)
+			return rc;
+	} else {
+		struct ap_queue *aq = to_ap_queue(&ap_dev->device);
+
+		/* Add MODE=<accel|cca|ep11> */
+		if (ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL))
+			rc = add_uevent_var(env, "MODE=accel");
+		else if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
+			rc = add_uevent_var(env, "MODE=cca");
+		else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11))
+			rc = add_uevent_var(env, "MODE=ep11");
+		if (rc)
+			return rc;
+	}
 
 	return 0;
 }
@@ -623,6 +648,28 @@ static void ap_send_bindings_complete_uevent(void)
 		 atomic64_inc_return(&ap_bindings_complete_count));
 	kobject_uevent_env(&ap_root_device->kobj, KOBJ_CHANGE, envp);
 }
+
+void ap_send_config_uevent(struct ap_device *ap_dev, bool cfg)
+{
+	char buf[16];
+	char *envp[] = { buf, NULL };
+
+	snprintf(buf, sizeof(buf), "CONFIG=%d", cfg ? 1 : 0);
+
+	kobject_uevent_env(&ap_dev->device.kobj, KOBJ_CHANGE, envp);
+}
+EXPORT_SYMBOL(ap_send_config_uevent);
+
+void ap_send_online_uevent(struct ap_device *ap_dev, int online)
+{
+	char buf[16];
+	char *envp[] = { buf, NULL };
+
+	snprintf(buf, sizeof(buf), "ONLINE=%d", online ? 1 : 0);
+
+	kobject_uevent_env(&ap_dev->device.kobj, KOBJ_CHANGE, envp);
+}
+EXPORT_SYMBOL(ap_send_online_uevent);
 
 /*
  * calc # of bound APQNs
@@ -1546,6 +1593,7 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_INFO("%s(%d,%d) queue device config off\n",
 				    __func__, ac->id, dom);
+			ap_send_config_uevent(&aq->ap_dev, aq->config);
 			/* 'receive' pending messages with -EAGAIN */
 			ap_flush_queue(aq);
 			goto put_dev_and_continue;
@@ -1560,6 +1608,7 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_INFO("%s(%d,%d) queue device config on\n",
 				    __func__, ac->id, dom);
+			ap_send_config_uevent(&aq->ap_dev, aq->config);
 			goto put_dev_and_continue;
 		}
 		/* handle other error states */
@@ -1669,12 +1718,13 @@ static inline void ap_scan_adapter(int ap)
 				ac->config = false;
 				AP_DBF_INFO("%s(%d) card device config off\n",
 					    __func__, ap);
-
+				ap_send_config_uevent(&ac->ap_dev, ac->config);
 			}
 			if (!decfg && !ac->config) {
 				ac->config = true;
 				AP_DBF_INFO("%s(%d) card device config on\n",
 					    __func__, ap);
+				ap_send_config_uevent(&ac->ap_dev, ac->config);
 			}
 		}
 	}

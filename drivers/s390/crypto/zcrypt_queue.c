@@ -70,6 +70,8 @@ static ssize_t online_store(struct device *dev,
 		   AP_QID_QUEUE(zq->queue->qid),
 		   online);
 
+	ap_send_online_uevent(&aq->ap_dev, online);
+
 	if (!online)
 		ap_flush_queue(zq->queue);
 	return count;
@@ -98,11 +100,15 @@ static const struct attribute_group zcrypt_queue_attr_group = {
 	.attrs = zcrypt_queue_attrs,
 };
 
-void zcrypt_queue_force_online(struct zcrypt_queue *zq, int online)
+bool zcrypt_queue_force_online(struct zcrypt_queue *zq, int online)
 {
-	zq->online = online;
-	if (!online)
-		ap_flush_queue(zq->queue);
+	if (!!zq->online != !!online) {
+		zq->online = online;
+		if (!online)
+			ap_flush_queue(zq->queue);
+		return true;
+	}
+	return false;
 }
 
 struct zcrypt_queue *zcrypt_queue_alloc(size_t max_response_size)
