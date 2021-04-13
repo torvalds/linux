@@ -292,40 +292,33 @@ static const char * const mipi_csis_clk_id[] = {
 };
 
 struct csi_state {
-	/* lock elements below */
-	struct mutex lock;
-	/* lock for event handler */
-	spinlock_t slock;
 	struct device *dev;
-	struct media_pad pads[CSIS_PADS_NUM];
+	void __iomem *regs;
+	unsigned int num_clks;
+	struct clk_bulk_data *clks;
+	struct reset_control *mrst;
+	struct regulator *mipi_phy_regulator;
+	u8 index;
+
 	struct v4l2_subdev sd;
+	struct media_pad pads[CSIS_PADS_NUM];
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *src_sd;
 
-	u8 index;
-	void __iomem *regs;
-	u32 state;
-
-	struct dentry *debugfs_root;
-	bool debug;
-
-	unsigned int num_clks;
-	struct clk_bulk_data *clks;
-
+	struct v4l2_fwnode_bus_mipi_csi2 bus;
 	u32 clk_frequency;
 	u32 hs_settle;
 	u32 clk_settle;
 
-	struct reset_control *mrst;
-
+	struct mutex lock;	/* Protect csis_fmt, format_mbus and state */
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format_mbus;
+	u32 state;
 
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
-
+	spinlock_t slock;	/* Protect events */
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
-
-	struct regulator *mipi_phy_regulator;
+	struct dentry *debugfs_root;
+	bool debug;
 };
 
 /* -----------------------------------------------------------------------------
