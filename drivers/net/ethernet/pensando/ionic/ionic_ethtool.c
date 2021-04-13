@@ -888,55 +888,55 @@ static int ionic_get_ts_info(struct net_device *netdev,
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_NTP_ALL);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_NTP_ALL;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_NTP_ALL);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP1_SYNC);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V1_L4_SYNC;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP1_DREQ);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP1_ALL);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V1_L4_EVENT);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_L4_SYNC);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_L4_SYNC;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L4_SYNC);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_L4_DREQ);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_L4_ALL);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_L2_SYNC);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_L2_SYNC;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_L2_DREQ);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_L2_ALL);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_SYNC);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_SYNC;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_SYNC);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_DREQ);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_DELAY_REQ;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_DELAY_REQ);
 
 	mask = cpu_to_le64(IONIC_PKT_CLS_PTP2_ALL);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) == mask)
-		info->rx_filters |= HWTSTAMP_FILTER_PTP_V2_EVENT;
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 	return 0;
 }
