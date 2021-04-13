@@ -5219,21 +5219,16 @@ static bool io_poll_remove_waitqs(struct io_kiocb *req)
 	bool do_complete;
 
 	io_poll_remove_double(req);
+	do_complete = __io_poll_remove_one(req, io_poll_get_single(req), true);
 
-	if (req->opcode == IORING_OP_POLL_ADD) {
-		do_complete = __io_poll_remove_one(req, &req->poll, true);
-	} else {
+	if (req->opcode != IORING_OP_POLL_ADD && do_complete) {
 		struct async_poll *apoll = req->apoll;
 
 		/* non-poll requests have submit ref still */
-		do_complete = __io_poll_remove_one(req, &apoll->poll, true);
-		if (do_complete) {
-			req_ref_put(req);
-			kfree(apoll->double_poll);
-			kfree(apoll);
-		}
+		req_ref_put(req);
+		kfree(apoll->double_poll);
+		kfree(apoll);
 	}
-
 	return do_complete;
 }
 
