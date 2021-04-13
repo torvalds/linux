@@ -188,6 +188,7 @@ rw_attribute(cache_replacement_policy);
 rw_attribute(label);
 
 rw_attribute(copy_gc_enabled);
+read_attribute(copy_gc_wait);
 sysfs_pd_controller_attribute(copy_gc);
 
 rw_attribute(rebalance_enabled);
@@ -336,6 +337,9 @@ SHOW(bch2_fs)
 	sysfs_printf(rebalance_enabled,		"%i", c->rebalance.enabled);
 	sysfs_pd_controller_show(rebalance,	&c->rebalance.pd); /* XXX */
 	sysfs_pd_controller_show(copy_gc,	&c->copygc_pd);
+	sysfs_hprint(copy_gc_wait,
+		     max(0LL, c->copygc_wait -
+			 atomic64_read(&c->io_clock[WRITE].now)) << 9);
 
 	if (attr == &sysfs_rebalance_work) {
 		bch2_rebalance_work_to_text(&out, c);
@@ -563,6 +567,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_prune_cache,
 
 	&sysfs_copy_gc_enabled,
+	&sysfs_copy_gc_wait,
 
 	&sysfs_rebalance_enabled,
 	&sysfs_rebalance_work,

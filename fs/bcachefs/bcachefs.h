@@ -773,6 +773,7 @@ mempool_t		bio_bounce_pages;
 	copygc_heap		copygc_heap;
 	struct bch_pd_controller copygc_pd;
 	struct write_point	copygc_write_point;
+	s64			copygc_wait;
 
 	/* STRIPES: */
 	GENRADIX(struct stripe) stripes[2];

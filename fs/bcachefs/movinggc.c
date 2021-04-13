@@ -311,10 +311,13 @@ static int bch2_copygc_thread(void *arg)
 		wait = bch2_copygc_wait_amount(c);
 
 		if (wait > clock->max_slop) {
+			c->copygc_wait = last + wait;
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
 			continue;
 		}
+
+		c->copygc_wait = 0;
 
 		if (bch2_copygc(c))
 			break;
