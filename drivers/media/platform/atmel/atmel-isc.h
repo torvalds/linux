@@ -192,6 +192,9 @@ struct isc_ctrls {
  *
  * @max_width:		maximum frame width, dependent on the internal RAM
  * @max_height:		maximum frame height, dependent on the internal RAM
+ *
+ * @config_csc:		pointer to a function that initializes product
+ *			specific CSC module
  */
 struct isc_device {
 	struct regmap		*regmap;
@@ -259,6 +262,10 @@ struct isc_device {
 
 	u32		max_width;
 	u32		max_height;
+
+	struct {
+		void (*config_csc)(struct isc_device *isc);
+	};
 };
 
 extern struct isc_format formats_list[];
