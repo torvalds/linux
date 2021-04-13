@@ -189,7 +189,7 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
-		u8 version;
+		u8 ver;
 
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);

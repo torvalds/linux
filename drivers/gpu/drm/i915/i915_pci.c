@@ -36,7 +36,7 @@
 #include "i915_selftest.h"
 
 #define PLATFORM(x) .platform = (x)
-#define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1), .display.version = (x)
+#define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1), .display.ver = (x)
 
 #define I845_PIPE_OFFSETS \
 	.pipe_offsets = { \
@@ -723,7 +723,7 @@ static const struct intel_device_info bxt_info = {
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
-	.display.version = 10,
+	.display.ver = 10,
 	.ddb_size = 1024,
 	GLK_COLORS,
 };
