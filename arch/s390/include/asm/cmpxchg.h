@@ -14,16 +14,15 @@
 
 void __xchg_called_with_bad_pointer(void);
 
-static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
+static inline unsigned long __xchg(unsigned long x, unsigned long address, int size)
 {
-	unsigned long addr, old;
+	unsigned long old;
 	int shift;
 
 	switch (size) {
 	case 1:
-		addr = (unsigned long) ptr;
-		shift = (3 ^ (addr & 3)) << 3;
-		addr ^= addr & 3;
+		shift = (3 ^ (address & 3)) << 3;
+		address ^= address & 3;
 		asm volatile(
 			"       l       %0,%1\n"
 			"0:     lr      0,%0\n"
@@ -31,14 +30,13 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"       or      0,%2\n"
 			"       cs      %0,0,%1\n"
 			"       jl      0b\n"
-			: "=&d" (old), "+Q" (*(int *) addr)
+			: "=&d" (old), "+Q" (*(int *) address)
 			: "d" ((x & 0xff) << shift), "d" (~(0xff << shift))
 			: "memory", "cc", "0");
 		return old >> shift;
 	case 2:
-		addr = (unsigned long) ptr;
-		shift = (2 ^ (addr & 2)) << 3;
-		addr ^= addr & 2;
+		shift = (2 ^ (address & 2)) << 3;
+		address ^= address & 2;
 		asm volatile(
 			"       l       %0,%1\n"
 			"0:     lr      0,%0\n"
@@ -46,7 +44,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"       or      0,%2\n"
 			"       cs      %0,0,%1\n"
 			"       jl      0b\n"
-			: "=&d" (old), "+Q" (*(int *) addr)
+			: "=&d" (old), "+Q" (*(int *) address)
 			: "d" ((x & 0xffff) << shift), "d" (~(0xffff << shift))
 			: "memory", "cc", "0");
 		return old >> shift;
@@ -55,7 +53,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"       l       %0,%1\n"
 			"0:     cs      %0,%2,%1\n"
 			"       jl      0b\n"
-			: "=&d" (old), "+Q" (*(int *) ptr)
+			: "=&d" (old), "+Q" (*(int *) address)
 			: "d" (x)
 			: "memory", "cc");
 		return old;
@@ -64,7 +62,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"       lg      %0,%1\n"
 			"0:     csg     %0,%2,%1\n"
 			"       jl      0b\n"
-			: "=&d" (old), "+S" (*(long *) ptr)
+			: "=&d" (old), "+S" (*(long *) address)
 			: "d" (x)
 			: "memory", "cc");
 		return old;
@@ -78,23 +76,23 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 	__typeof__(*(ptr)) __ret;					\
 									\
 	__ret = (__typeof__(*(ptr)))					\
-		__xchg((unsigned long)(x), (void *)(ptr), sizeof(*(ptr))); \
+		__xchg((unsigned long)(x), (unsigned long)(ptr),	\
+		       sizeof(*(ptr)));					\
 	__ret;								\
 })
 
 void __cmpxchg_called_with_bad_pointer(void);
 
-static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
+static inline unsigned long __cmpxchg(unsigned long address, unsigned long old,
 				      unsigned long new, int size)
 {
-	unsigned long addr, prev, tmp;
+	unsigned long prev, tmp;
 	int shift;
 
 	switch (size) {
 	case 1:
-		addr = (unsigned long) ptr;
-		shift = (3 ^ (addr & 3)) << 3;
-		addr ^= addr & 3;
+		shift = (3 ^ (address & 3)) << 3;
+		address ^= address & 3;
 		asm volatile(
 			"       l       %0,%2\n"
 			"0:     nr      %0,%5\n"
@@ -107,16 +105,15 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"       nr      %1,%5\n"
 			"       jnz     0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) address)
 			: "d" ((old & 0xff) << shift),
 			  "d" ((new & 0xff) << shift),
 			  "d" (~(0xff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 2:
-		addr = (unsigned long) ptr;
-		shift = (2 ^ (addr & 2)) << 3;
-		addr ^= addr & 2;
+		shift = (2 ^ (address & 2)) << 3;
+		address ^= address & 2;
 		asm volatile(
 			"       l       %0,%2\n"
 			"0:     nr      %0,%5\n"
@@ -129,7 +126,7 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"       nr      %1,%5\n"
 			"       jnz     0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) address)
 			: "d" ((old & 0xffff) << shift),
 			  "d" ((new & 0xffff) << shift),
 			  "d" (~(0xffff << shift))
@@ -138,14 +135,14 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	case 4:
 		asm volatile(
 			"       cs      %0,%3,%1\n"
-			: "=&d" (prev), "+Q" (*(int *) ptr)
+			: "=&d" (prev), "+Q" (*(int *) address)
 			: "0" (old), "d" (new)
 			: "memory", "cc");
 		return prev;
 	case 8:
 		asm volatile(
 			"       csg     %0,%3,%1\n"
-			: "=&d" (prev), "+S" (*(long *) ptr)
+			: "=&d" (prev), "+S" (*(long *) address)
 			: "0" (old), "d" (new)
 			: "memory", "cc");
 		return prev;
@@ -159,7 +156,7 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	__typeof__(*(ptr)) __ret;					\
 									\
 	__ret = (__typeof__(*(ptr)))					\
-		__cmpxchg((ptr), (unsigned long)(o),			\
+		__cmpxchg((unsigned long)(ptr), (unsigned long)(o),	\
 			  (unsigned long)(n), sizeof(*(ptr)));		\
 	__ret;								\
 })
