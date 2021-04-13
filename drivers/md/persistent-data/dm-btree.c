@@ -71,15 +71,13 @@ static int upper_bound(struct btree_node *n, uint64_t key)
 void inc_children(struct dm_transaction_manager *tm, struct btree_node *n,
 		  struct dm_btree_value_type *vt)
 {
-	unsigned i;
 	uint32_t nr_entries = le32_to_cpu(n->header.nr_entries);
 
 	if (le32_to_cpu(n->header.flags) & INTERNAL_NODE)
-		for (i = 0; i < nr_entries; i++)
-			dm_tm_inc(tm, value64(n, i));
+		dm_tm_with_runs(tm, value_ptr(n, 0), nr_entries, dm_tm_inc_range);
+
 	else if (vt->inc)
-		for (i = 0; i < nr_entries; i++)
-			vt->inc(vt->context, value_ptr(n, i));
+		vt->inc(vt->context, value_ptr(n, 0), nr_entries);
 }
 
 static int insert_at(size_t value_size, struct btree_node *node, unsigned index,
@@ -318,13 +316,9 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 				goto out;
 
 		} else {
-			if (info->value_type.dec) {
-				unsigned i;
-
-				for (i = 0; i < f->nr_children; i++)
-					info->value_type.dec(info->value_type.context,
-							     value_ptr(f->n, i));
-			}
+			if (info->value_type.dec)
+				info->value_type.dec(info->value_type.context,
+						     value_ptr(f->n, 0), f->nr_children);
 			pop_frame(s);
 		}
 	}
@@ -1146,6 +1140,77 @@ static int btree_insert_raw(struct shadow_spine *s, dm_block_t root,
 	return 0;
 }
 
+static int __btree_get_overwrite_leaf(struct shadow_spine *s, dm_block_t root,
+				      uint64_t key, int *index)
+{
+	int r, i = -1;
+	struct btree_node *node;
+
+	*index = 0;
+	for (;;) {
+		r = shadow_step(s, root, &s->info->value_type);
+		if (r < 0)
+			return r;
+
+		node = dm_block_data(shadow_current(s));
+
+		/*
+		 * We have to patch up the parent node, ugly, but I don't
+		 * see a way to do this automatically as part of the spine
+		 * op.
+		 */
+		if (shadow_has_parent(s) && i >= 0) {
+			__le64 location = cpu_to_le64(dm_block_location(shadow_current(s)));
+
+			__dm_bless_for_disk(&location);
+			memcpy_disk(value_ptr(dm_block_data(shadow_parent(s)), i),
+				    &location, sizeof(__le64));
+		}
+
+		node = dm_block_data(shadow_current(s));
+		i = lower_bound(node, key);
+
+		BUG_ON(i < 0);
+		BUG_ON(i >= le32_to_cpu(node->header.nr_entries));
+
+		if (le32_to_cpu(node->header.flags) & LEAF_NODE) {
+			if (key != le64_to_cpu(node->keys[i]))
+				return -EINVAL;
+			break;
+		}
+
+		root = value64(node, i);
+	}
+
+	*index = i;
+	return 0;
+}
+
+int btree_get_overwrite_leaf(struct dm_btree_info *info, dm_block_t root,
+			     uint64_t key, int *index,
+			     dm_block_t *new_root, struct dm_block **leaf)
+{
+	int r;
+	struct shadow_spine spine;
+
+	BUG_ON(info->levels > 1);
+	init_shadow_spine(&spine, info);
+	r = __btree_get_overwrite_leaf(&spine, root, key, index);
+	if (!r) {
+		*new_root = shadow_root(&spine);
+		*leaf = shadow_current(&spine);
+
+		/*
+		 * Decrement the count so exit_shadow_spine() doesn't
+		 * unlock the leaf.
+		 */
+		spine.count--;
+	}
+	exit_shadow_spine(&spine);
+
+	return r;
+}
+
 static bool need_insert(struct btree_node *node, uint64_t *keys,
 			unsigned level, unsigned index)
 {
@@ -1222,7 +1287,7 @@ static int insert(struct dm_btree_info *info, dm_block_t root,
 			     value_ptr(n, index),
 			     value))) {
 			info->value_type.dec(info->value_type.context,
-					     value_ptr(n, index));
+					     value_ptr(n, index), 1);
 		}
 		memcpy_disk(value_ptr(n, index),
 			    value, info->value_type.size);

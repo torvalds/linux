@@ -100,8 +100,18 @@ void dm_tm_unlock(struct dm_transaction_manager *tm, struct dm_block *b);
  * Functions for altering the reference count of a block directly.
  */
 void dm_tm_inc(struct dm_transaction_manager *tm, dm_block_t b);
-
+void dm_tm_inc_range(struct dm_transaction_manager *tm, dm_block_t b, dm_block_t e);
 void dm_tm_dec(struct dm_transaction_manager *tm, dm_block_t b);
+void dm_tm_dec_range(struct dm_transaction_manager *tm, dm_block_t b, dm_block_t e);
+
+/*
+ * Builds up runs of adjacent blocks, and then calls the given fn
+ * (typically dm_tm_inc/dec).  Very useful when you have to perform
+ * the same tm operation on all values in a btree leaf.
+ */
+typedef void (*dm_tm_run_fn)(struct dm_transaction_manager *, dm_block_t, dm_block_t);
+void dm_tm_with_runs(struct dm_transaction_manager *tm,
+		     const __le64 *value_le, unsigned count, dm_tm_run_fn fn);
 
 int dm_tm_ref(struct dm_transaction_manager *tm, dm_block_t b, uint32_t *result);
 
