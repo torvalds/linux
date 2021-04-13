@@ -224,7 +224,7 @@ u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
 struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *c)
 {
 	struct bch_fs_usage_online *ret;
-	unsigned seq, i, v, u64s = fs_usage_u64s(c);
+	unsigned seq, i, v, u64s = fs_usage_u64s(c) + 1;
 retry:
 	ret = kmalloc(u64s * sizeof(u64), GFP_NOFS);
 	if (unlikely(!ret))
@@ -232,7 +232,7 @@ retry:
 
 	percpu_down_read(&c->mark_lock);
 
-	v = fs_usage_u64s(c);
+	v = fs_usage_u64s(c) + 1;
 	if (unlikely(u64s != v)) {
 		u64s = v;
 		percpu_up_read(&c->mark_lock);
