@@ -309,7 +309,7 @@ _GLOBAL(enter_rtas)
 	 */
 	lbz	r0,PACAIRQSOFTMASK(r13)
 1:	tdeqi	r0,IRQS_ENABLED
-	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
+	EMIT_WARN_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
 
 	/* Hard-disable interrupts */
