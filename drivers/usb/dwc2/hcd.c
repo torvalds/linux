@@ -3298,7 +3298,6 @@ static int dwc2_host_is_b_hnp_enabled(struct dwc2_hsotg *hsotg)
 int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 {
 	unsigned long flags;
-	u32 hprt0;
 	u32 pcgctl;
 	u32 gotgctl;
 	int ret = 0;
@@ -3323,22 +3322,12 @@ int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
 	case DWC2_POWER_DOWN_PARAM_NONE:
-	default:
-		hprt0 = dwc2_read_hprt0(hsotg);
-		hprt0 |= HPRT0_SUSP;
-		dwc2_writel(hsotg, hprt0, HPRT0);
-		hsotg->bus_suspended = true;
 		/*
-		 * If power_down is supported, Phy clock will be suspended
-		 * after registers are backuped.
+		 * If not hibernation nor partial power down are supported,
+		 * clock gating is used to save power.
 		 */
-		if (!hsotg->params.power_down) {
-			/* Suspend the Phy Clock */
-			pcgctl = dwc2_readl(hsotg, PCGCTL);
-			pcgctl |= PCGCTL_STOPPCLK;
-			dwc2_writel(hsotg, pcgctl, PCGCTL);
-			udelay(10);
-		}
+		dwc2_host_enter_clock_gating(hsotg);
+		break;
 	}
 
 	/* For HNP the bus must be suspended for at least 200ms */
