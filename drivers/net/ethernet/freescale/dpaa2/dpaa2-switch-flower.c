@@ -111,8 +111,8 @@ static int dpaa2_switch_flower_parse_key(struct flow_cls_offload *cls,
 	return 0;
 }
 
-static int dpaa2_switch_acl_entry_add(struct dpaa2_switch_acl_tbl *acl_tbl,
-				      struct dpaa2_switch_acl_entry *entry)
+int dpaa2_switch_acl_entry_add(struct dpaa2_switch_acl_tbl *acl_tbl,
+			       struct dpaa2_switch_acl_entry *entry)
 {
 	struct dpsw_acl_entry_cfg *acl_entry_cfg = &entry->cfg;
 	struct ethsw_core *ethsw = acl_tbl->ethsw;
