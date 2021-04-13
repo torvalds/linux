@@ -27,12 +27,12 @@ SYM_CODE_START(__hyp_stub_vectors)
 	ventry	el2_fiq_invalid			// FIQ EL2t
 	ventry	el2_error_invalid		// Error EL2t
 
-	ventry	el2_sync_invalid		// Synchronous EL2h
+	ventry	elx_sync			// Synchronous EL2h
 	ventry	el2_irq_invalid			// IRQ EL2h
 	ventry	el2_fiq_invalid			// FIQ EL2h
 	ventry	el2_error_invalid		// Error EL2h
 
-	ventry	el1_sync			// Synchronous 64-bit EL1
+	ventry	elx_sync			// Synchronous 64-bit EL1
 	ventry	el1_irq_invalid			// IRQ 64-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 64-bit EL1
 	ventry	el1_error_invalid		// Error 64-bit EL1
@@ -45,7 +45,7 @@ SYM_CODE_END(__hyp_stub_vectors)
 
 	.align 11
 
-SYM_CODE_START_LOCAL(el1_sync)
+SYM_CODE_START_LOCAL(elx_sync)
 	cmp	x0, #HVC_SET_VECTORS
 	b.ne	1f
 	msr	vbar_el2, x1
@@ -71,7 +71,7 @@ SYM_CODE_START_LOCAL(el1_sync)
 
 9:	mov	x0, xzr
 	eret
-SYM_CODE_END(el1_sync)
+SYM_CODE_END(elx_sync)
 
 // nVHE? No way! Give me the real thing!
 SYM_CODE_START_LOCAL(mutate_to_vhe)
@@ -225,7 +225,6 @@ SYM_FUNC_END(__hyp_reset_vectors)
  * Entry point to switch to VHE if deemed capable
  */
 SYM_FUNC_START(switch_to_vhe)
-#ifdef CONFIG_ARM64_VHE
 	// Need to have booted at EL2
 	adr_l	x1, __boot_cpu_mode
 	ldr	w0, [x1]
@@ -241,6 +240,5 @@ SYM_FUNC_START(switch_to_vhe)
 	mov	x0, #HVC_VHE_RESTART
 	hvc	#0
 1:
-#endif
 	ret
 SYM_FUNC_END(switch_to_vhe)

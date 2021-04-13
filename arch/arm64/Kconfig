@@ -1416,19 +1416,6 @@ config ARM64_USE_LSE_ATOMICS
 	  built with binutils >= 2.25 in order for the new instructions
 	  to be used.
 
-config ARM64_VHE
-	bool "Enable support for Virtualization Host Extensions (VHE)"
-	default y
-	help
-	  Virtualization Host Extensions (VHE) allow the kernel to run
-	  directly at EL2 (instead of EL1) on processors that support
-	  it. This leads to better performance for KVM, as they reduce
-	  the cost of the world switch.
-
-	  Selecting this option allows the VHE feature to be detected
-	  at runtime, and does not affect processors that do not
-	  implement this feature.
-
 endmenu
 
 menu "ARMv8.2 architectural features"
