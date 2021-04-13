@@ -1104,8 +1104,6 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	state->csis_fmt = &mipi_csis_formats[0];
 	mipi_csis_init_cfg(mipi_sd, NULL);
 
-	v4l2_set_subdevdata(mipi_sd, &pdev->dev);
-
 	state->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK
 					 | MEDIA_PAD_FL_MUST_CONNECT;
 	state->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE
