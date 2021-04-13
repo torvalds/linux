@@ -40,6 +40,17 @@ static struct dpaa2_switch_fdb *dpaa2_switch_fdb_get_unused(struct ethsw_core *e
 	return NULL;
 }
 
+static struct dpaa2_switch_acl_tbl *
+dpaa2_switch_acl_tbl_get_unused(struct ethsw_core *ethsw)
+{
+	int i;
+
+	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
+		if (!ethsw->acls[i].in_use)
+			return &ethsw->acls[i];
+	return NULL;
+}
+
 static u16 dpaa2_switch_port_set_fdb(struct ethsw_port_priv *port_priv,
 				     struct net_device *bridge_dev)
 {
@@ -2689,7 +2700,7 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 	acl_h = &acl_key.match;
 	acl_m = &acl_key.mask;
 
-	if (port_priv->acl_num_rules >= DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES) {
+	if (port_priv->acl_tbl->num_rules >= DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES) {
 		netdev_err(netdev, "ACL full\n");
 		return -ENOMEM;
 	}
@@ -2707,7 +2718,7 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 	dpsw_acl_prepare_entry_cfg(&acl_key, cmd_buff);
 
 	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
-	acl_entry_cfg.precedence = port_priv->acl_num_rules;
+	acl_entry_cfg.precedence = port_priv->acl_tbl->num_rules;
 	acl_entry_cfg.result.action = DPSW_ACL_ACTION_REDIRECT_TO_CTRL_IF;
 	acl_entry_cfg.key_iova = dma_map_single(dev, cmd_buff,
 						DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE,
@@ -2719,7 +2730,7 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 
 	err = dpsw_acl_add_entry(port_priv->ethsw_data->mc_io, 0,
 				 port_priv->ethsw_data->dpsw_handle,
-				 port_priv->acl_tbl, &acl_entry_cfg);
+				 port_priv->acl_tbl->id, &acl_entry_cfg);
 
 	dma_unmap_single(dev, acl_entry_cfg.key_iova, sizeof(cmd_buff),
 			 DMA_TO_DEVICE);
@@ -2728,7 +2739,7 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 		return err;
 	}
 
-	port_priv->acl_num_rules++;
+	port_priv->acl_tbl->num_rules++;
 
 	return 0;
 }
@@ -2743,12 +2754,13 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	};
 	struct net_device *netdev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpaa2_switch_acl_tbl *acl_tbl;
 	struct dpsw_fdb_cfg fdb_cfg = {0};
 	struct dpsw_acl_if_cfg acl_if_cfg;
 	struct dpsw_if_attr dpsw_if_attr;
 	struct dpaa2_switch_fdb *fdb;
 	struct dpsw_acl_cfg acl_cfg;
-	u16 fdb_id;
+	u16 fdb_id, acl_tbl_id;
 	int err;
 
 	/* Get the Tx queue for this specific port */
@@ -2792,7 +2804,7 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	/* Create an ACL table to be used by this switch port */
 	acl_cfg.max_entries = DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES;
 	err = dpsw_acl_add(ethsw->mc_io, 0, ethsw->dpsw_handle,
-			   &port_priv->acl_tbl, &acl_cfg);
+			   &acl_tbl_id, &acl_cfg);
 	if (err) {
 		netdev_err(netdev, "dpsw_acl_add err %d\n", err);
 		return err;
@@ -2801,12 +2813,18 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	acl_if_cfg.if_id[0] = port_priv->idx;
 	acl_if_cfg.num_ifs = 1;
 	err = dpsw_acl_add_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
-			      port_priv->acl_tbl, &acl_if_cfg);
+			      acl_tbl_id, &acl_if_cfg);
 	if (err) {
 		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
 		dpsw_acl_remove(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				port_priv->acl_tbl);
+				acl_tbl_id);
 	}
+
+	acl_tbl = dpaa2_switch_acl_tbl_get_unused(ethsw);
+	acl_tbl->id = acl_tbl_id;
+	acl_tbl->in_use = true;
+	acl_tbl->num_rules = 0;
+	port_priv->acl_tbl = acl_tbl;
 
 	err = dpaa2_switch_port_trap_mac_addr(port_priv, stpa);
 	if (err)
@@ -2858,6 +2876,7 @@ static int dpaa2_switch_remove(struct fsl_mc_device *sw_dev)
 	}
 
 	kfree(ethsw->fdbs);
+	kfree(ethsw->acls);
 	kfree(ethsw->ports);
 
 	dpaa2_switch_takedown(sw_dev);
@@ -2983,6 +3002,13 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 		goto err_free_ports;
 	}
 
+	ethsw->acls = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->acls),
+			      GFP_KERNEL);
+	if (!ethsw->acls) {
+		err = -ENOMEM;
+		goto err_free_fdbs;
+	}
+
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		err = dpaa2_switch_probe_port(ethsw, i);
 		if (err)
@@ -3031,6 +3057,8 @@ err_stop:
 err_free_netdev:
 	for (i--; i >= 0; i--)
 		free_netdev(ethsw->ports[i]->netdev);
+	kfree(ethsw->acls);
+err_free_fdbs:
 	kfree(ethsw->fdbs);
 err_free_ports:
 	kfree(ethsw->ports);

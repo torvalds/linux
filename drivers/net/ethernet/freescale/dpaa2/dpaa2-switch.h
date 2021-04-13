@@ -101,6 +101,12 @@ struct dpaa2_switch_fdb {
 	bool			in_use;
 };
 
+struct dpaa2_switch_acl_tbl {
+	u16			id;
+	u8			num_rules;
+	bool			in_use;
+};
+
 /* Per port private data */
 struct ethsw_port_priv {
 	struct net_device	*netdev;
@@ -118,8 +124,7 @@ struct ethsw_port_priv {
 	bool			ucast_flood;
 	bool			learn_ena;
 
-	u16			acl_tbl;
-	u8			acl_num_rules;
+	struct dpaa2_switch_acl_tbl *acl_tbl;
 };
 
 /* Switch data */
@@ -145,6 +150,7 @@ struct ethsw_core {
 	int				napi_users;
 
 	struct dpaa2_switch_fdb		*fdbs;
+	struct dpaa2_switch_acl_tbl	*acls;
 };
 
 static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
