@@ -398,6 +398,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		if (ret)
 			goto err_free_msi;
 	}
+	dw_pcie_iatu_detect(pci);
 
 	dw_pcie_setup_rc(pp);
 
