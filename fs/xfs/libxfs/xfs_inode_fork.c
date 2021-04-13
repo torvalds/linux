@@ -61,7 +61,6 @@ xfs_init_local_fork(
 
 	ifp->if_bytes = size;
 	ifp->if_flags &= ~XFS_IFEXTENTS;
-	ifp->if_flags |= XFS_IFINLINE;
 }
 
 /*

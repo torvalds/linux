@@ -362,10 +362,8 @@ xfs_has_attr(
 	if (!xfs_inode_hasattr(dp))
 		return -ENOATTR;
 
-	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL) {
-		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
+	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_sf_findname(args, NULL, NULL);
-	}
 
 	if (xfs_attr_is_leaf(dp)) {
 		error = xfs_attr_leaf_hasname(args, &bp);
@@ -389,10 +387,8 @@ xfs_attr_remove_args(
 	if (!xfs_inode_hasattr(args->dp))
 		return -ENOATTR;
 
-	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL) {
-		ASSERT(args->dp->i_afp->if_flags & XFS_IFINLINE);
+	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_remove(args);
-	}
 	if (xfs_attr_is_leaf(args->dp))
 		return xfs_attr_leaf_removename(args);
 	return xfs_attr_node_removename(args);

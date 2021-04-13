@@ -519,7 +519,7 @@ xfs_vn_get_link_inline(
 	struct xfs_inode	*ip = XFS_I(inode);
 	char			*link;
 
-	ASSERT(ip->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(ip->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 
 	/*
 	 * The VFS crashes on a NULL pointer, so return -EFSCORRUPTED if
@@ -1401,7 +1401,7 @@ xfs_setup_iops(
 		inode->i_fop = &xfs_dir_file_operations;
 		break;
 	case S_IFLNK:
-		if (ip->i_df.if_flags & XFS_IFINLINE)
+		if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL)
 			inode->i_op = &xfs_inline_symlink_inode_operations;
 		else
 			inode->i_op = &xfs_symlink_inode_operations;

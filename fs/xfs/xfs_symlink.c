@@ -104,7 +104,7 @@ xfs_readlink(
 
 	trace_xfs_readlink(ip);
 
-	ASSERT(!(ip->i_df.if_flags & XFS_IFINLINE));
+	ASSERT(ip->i_df.if_format != XFS_DINODE_FMT_LOCAL);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
@@ -492,7 +492,7 @@ xfs_inactive_symlink(
 	 * Inline fork state gets removed by xfs_difree() so we have nothing to
 	 * do here in that case.
 	 */
-	if (ip->i_df.if_flags & XFS_IFINLINE) {
+	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		return 0;
 	}

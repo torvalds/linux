@@ -30,7 +30,6 @@ struct xfs_ifork {
 /*
  * Per-fork incore inode flags.
  */
-#define	XFS_IFINLINE	0x01	/* Inline data is read in */
 #define	XFS_IFEXTENTS	0x02	/* All extent pointers are read in */
 
 /*

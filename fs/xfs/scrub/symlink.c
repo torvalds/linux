@@ -51,7 +51,7 @@ xchk_symlink(
 	}
 
 	/* Inline symlink? */
-	if (ifp->if_flags & XFS_IFINLINE) {
+	if (ifp->if_format == XFS_DINODE_FMT_LOCAL) {
 		if (len > XFS_IFORK_DSIZE(ip) ||
 		    len > strnlen(ifp->if_u1.if_data, XFS_IFORK_DSIZE(ip)))
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);

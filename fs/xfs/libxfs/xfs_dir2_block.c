@@ -1096,7 +1096,7 @@ xfs_dir2_sf_to_block(
 
 	trace_xfs_dir2_sf_to_block(args);
 
-	ASSERT(ifp->if_flags & XFS_IFINLINE);
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 
 	oldsfp = (xfs_dir2_sf_hdr_t *)ifp->if_u1.if_data;

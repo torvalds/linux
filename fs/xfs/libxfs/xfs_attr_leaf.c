@@ -654,9 +654,6 @@ xfs_attr_shortform_create(
 	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS) {
 		ifp->if_flags &= ~XFS_IFEXTENTS;	/* just in case */
 		ifp->if_format = XFS_DINODE_FMT_LOCAL;
-		ifp->if_flags |= XFS_IFINLINE;
-	} else {
-		ASSERT(ifp->if_flags & XFS_IFINLINE);
 	}
 	xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
 	hdr = (struct xfs_attr_sf_hdr *)ifp->if_u1.if_data;
@@ -733,7 +730,7 @@ xfs_attr_shortform_add(
 	dp->i_forkoff = forkoff;
 
 	ifp = dp->i_afp;
-	ASSERT(ifp->if_flags & XFS_IFINLINE);
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	if (xfs_attr_sf_findname(args, &sfe, NULL) == -EEXIST)
 		ASSERT(0);
@@ -851,7 +848,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 	trace_xfs_attr_sf_lookup(args);
 
 	ifp = args->dp->i_afp;
-	ASSERT(ifp->if_flags & XFS_IFINLINE);
+	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;
@@ -878,7 +875,7 @@ xfs_attr_shortform_getvalue(
 	struct xfs_attr_sf_entry *sfe;
 	int			i;
 
-	ASSERT(args->dp->i_afp->if_flags == XFS_IFINLINE);
+	ASSERT(args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL);
 	sf = (struct xfs_attr_shortform *)args->dp->i_afp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;

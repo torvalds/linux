@@ -378,7 +378,7 @@ xfs_dir2_sf_addname(
 
 	ASSERT(xfs_dir2_sf_lookup(args) == -ENOENT);
 	dp = args->dp;
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
@@ -830,9 +830,8 @@ xfs_dir2_sf_create(
 		dp->i_df.if_flags &= ~XFS_IFEXTENTS;	/* just in case */
 		dp->i_df.if_format = XFS_DINODE_FMT_LOCAL;
 		xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
-		dp->i_df.if_flags |= XFS_IFINLINE;
 	}
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_df.if_bytes == 0);
 	i8count = pino > XFS_DIR2_MAX_SHORT_INUM;
 	size = xfs_dir2_sf_hdr_size(i8count);
@@ -877,7 +876,7 @@ xfs_dir2_sf_lookup(
 
 	xfs_dir2_sf_check(args);
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
@@ -954,7 +953,7 @@ xfs_dir2_sf_removename(
 
 	trace_xfs_dir2_sf_removename(args);
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	oldsize = (int)dp->i_disk_size;
 	ASSERT(oldsize >= offsetof(struct xfs_dir2_sf_hdr, parent));
 	ASSERT(dp->i_df.if_bytes == oldsize);
@@ -1053,7 +1052,7 @@ xfs_dir2_sf_replace(
 
 	trace_xfs_dir2_sf_replace(args);
 
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ASSERT(dp->i_df.if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
