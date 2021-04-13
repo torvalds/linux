@@ -655,7 +655,7 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V8_7_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V8_7_PER_CHANNEL_OFFSET_SIENNA;
 		adev->umc.channel_idx_tbl = &umc_v8_7_channel_idx_tbl[0][0];
-		adev->umc.funcs = &umc_v8_7_funcs;
+		adev->umc.ras_funcs = &umc_v8_7_ras_funcs;
 		break;
 	default:
 		break;

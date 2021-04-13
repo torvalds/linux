@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xc29b1734b
+#define DMUB_FW_VERSION_GIT_HASH 0x7f2db1846
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 56
+#define DMUB_FW_VERSION_REVISION 59
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -202,12 +202,7 @@ struct dmub_feature_caps {
 	 * Max PSR version supported by FW.
 	 */
 	uint8_t psr;
-#ifndef TRIM_FAMS
-	uint8_t fw_assisted_mclk_switch;
-	uint8_t reserved[6];
-#else
 	uint8_t reserved[7];
-#endif
 };
 
 #if defined(__cplusplus)
@@ -532,10 +527,6 @@ enum dmub_cmd_type {
 	 * Command type used for OUTBOX1 notification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
-#ifndef TRIM_FAMS
-	DMUB_CMD__FW_ASSISTED_MCLK_SWITCH = 76,
-#endif
-
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
@@ -1115,13 +1106,6 @@ enum dmub_cmd_psr_type {
 	DMUB_CMD__PSR_FORCE_STATIC		= 5,
 };
 
-#ifndef TRIM_FAMS
-enum dmub_cmd_fams_type {
-	DMUB_CMD__FAMS_SETUP_FW_CTRL	= 0,
-	DMUB_CMD__FAMS_DRR_UPDATE		= 1,
-};
-#endif
-
 /**
  * PSR versions.
  */
@@ -1245,6 +1229,19 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * Length of each horizontal line in us.
 	 */
 	uint32_t line_time_in_us;
+	/**
+	 * FEC enable status in driver
+	 */
+	uint8_t fec_enable_status;
+	/**
+	 * FEC re-enable delay when PSR exit.
+	 * unit is 100us, range form 0~255(0xFF).
+	 */
+	uint8_t fec_enable_delay_in100us;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad3[2];
 };
 
 /**
@@ -1791,24 +1788,6 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_optc_state dmub_optc_state_req;
 };
 
-#ifndef TRIM_FAMS
-struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
-	uint32_t pix_clk_100hz;
-	uint32_t min_refresh_in_uhz;
-	uint32_t max_ramp_step;
-};
-
-struct dmub_cmd_fw_assisted_mclk_switch_config {
-	uint32_t fams_enabled;
-	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_STREAMS];
-};
-
-struct dmub_rb_cmd_fw_assisted_mclk_switch {
-	struct dmub_cmd_header header;
-	struct dmub_cmd_fw_assisted_mclk_switch_config config_data;
-};
-#endif
-
 /**
  * Data passed from driver to FW in a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
  */
@@ -1951,9 +1930,6 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_query_feature_caps query_feature_caps;
 	struct dmub_rb_cmd_drr_update drr_update;
-#ifndef TRIM_FAMS
-	struct dmub_rb_cmd_fw_assisted_mclk_switch fw_assisted_mclk_switch;
-#endif
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */

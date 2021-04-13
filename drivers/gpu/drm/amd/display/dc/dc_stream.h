@@ -130,12 +130,24 @@ union stream_update_flags {
 	uint32_t raw;
 };
 
+struct test_pattern {
+	enum dp_test_pattern type;
+	enum dp_test_pattern_color_space color_space;
+	struct link_training_settings const *p_link_settings;
+	unsigned char const *p_custom_pattern;
+	unsigned int cust_pattern_size;
+};
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
 	struct dc_sink *sink;
 
 	struct dc_link *link;
+	/* For dynamic link encoder assignment, update the link encoder assigned to
+	 * a stream via the volatile dc_state rather than the static dc_link.
+	 */
+	struct link_encoder *link_enc;
 	struct dc_panel_patch sink_patches;
 	union display_content_support content_support;
 	struct dc_crtc_timing timing;
@@ -227,6 +239,8 @@ struct dc_stream_state {
 
 	uint32_t stream_id;
 	bool is_dsc_enabled;
+
+	struct test_pattern test_pattern;
 	union stream_update_flags update_flags;
 
 	bool has_non_synchronizable_pclk;
@@ -264,6 +278,8 @@ struct dc_stream_update {
 	struct dc_dsc_config *dsc_config;
 	struct dc_transfer_func *func_shaper;
 	struct dc_3dlut *lut3d_func;
+
+	struct test_pattern *pending_test_pattern;
 };
 
 bool dc_is_stream_unchanged(

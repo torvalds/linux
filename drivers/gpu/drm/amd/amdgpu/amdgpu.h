@@ -107,7 +107,6 @@
 #include "amdgpu_gfxhub.h"
 #include "amdgpu_df.h"
 #include "amdgpu_smuio.h"
-#include "amdgpu_hdp.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -271,6 +270,8 @@ struct amdgpu_bo_va_mapping;
 struct amdgpu_atif;
 struct kfd_vm_fault_info;
 struct amdgpu_hive_info;
+struct amdgpu_reset_context;
+struct amdgpu_reset_control;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP = 0,
@@ -589,6 +590,7 @@ struct amdgpu_allowed_register_entry {
 };
 
 enum amd_reset_method {
+	AMD_RESET_METHOD_NONE = -1,
 	AMD_RESET_METHOD_LEGACY = 0,
 	AMD_RESET_METHOD_MODE0,
 	AMD_RESET_METHOD_MODE1,
@@ -920,6 +922,7 @@ struct amdgpu_device {
 	struct amdgpu_irq_src		pageflip_irq;
 	struct amdgpu_irq_src		hpd_irq;
 	struct amdgpu_irq_src		dmub_trace_irq;
+	struct amdgpu_irq_src		dmub_outbox_irq;
 
 	/* rings */
 	u64				fence_context;
@@ -1030,13 +1033,9 @@ struct amdgpu_device {
 
 	/* s3/s4 mask */
 	bool                            in_suspend;
-	bool				in_hibernate;
-
-	/*
-	 * The combination flag in_poweroff_reboot_com used to identify the poweroff
-	 * and reboot opt in the s0i3 system-wide suspend.
-	 */
-	bool 				in_poweroff_reboot_com;
+	bool				in_s3;
+	bool				in_s4;
+	bool				in_s0ix;
 
 	atomic_t 			in_gpu_reset;
 	enum pp_mp1_state               mp1_state;
@@ -1078,6 +1077,8 @@ struct amdgpu_device {
 
 	bool                            in_pci_err_recovery;
 	struct pci_saved_state          *pci_state;
+
+	struct amdgpu_reset_control     *reset_cntl;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
@@ -1129,13 +1130,10 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
 
 int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
-				  struct amdgpu_job *job,
-				  bool *need_full_reset_arg);
+				 struct amdgpu_reset_context *reset_context);
 
-int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
-			  struct list_head *device_list_handle,
-			  bool *need_full_reset_arg,
-			  bool skip_hw_reset);
+int amdgpu_do_asic_reset(struct list_head *device_list_handle,
+			 struct amdgpu_reset_context *reset_context);
 
 int emu_soc_asic_init(struct amdgpu_device *adev);
 
@@ -1275,8 +1273,9 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 *registers,
 					     const u32 array_size);
 
-bool amdgpu_device_supports_atpx(struct drm_device *dev);
 int amdgpu_device_mode1_reset(struct amdgpu_device *adev);
+bool amdgpu_device_supports_atpx(struct drm_device *dev);
+bool amdgpu_device_supports_px(struct drm_device *dev);
 bool amdgpu_device_supports_boco(struct drm_device *dev);
 bool amdgpu_device_supports_baco(struct drm_device *dev);
 bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
@@ -1389,6 +1388,13 @@ void amdgpu_pci_resume(struct pci_dev *pdev);
 
 bool amdgpu_device_cache_pci_state(struct pci_dev *pdev);
 bool amdgpu_device_load_pci_state(struct pci_dev *pdev);
+
+bool amdgpu_device_skip_hw_access(struct amdgpu_device *adev);
+
+int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
+			       enum amd_clockgating_state state);
+int amdgpu_device_set_pg_state(struct amdgpu_device *adev,
+			       enum amd_powergating_state state);
 
 #include "amdgpu_object.h"
 

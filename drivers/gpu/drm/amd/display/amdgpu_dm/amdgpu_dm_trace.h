@@ -597,6 +597,46 @@ TRACE_EVENT(amdgpu_dm_dce_clocks_state,
 	    )
 );
 
+TRACE_EVENT(amdgpu_dmub_trace_high_irq,
+	TP_PROTO(uint32_t trace_code, uint32_t tick_count, uint32_t param0,
+		 uint32_t param1),
+	TP_ARGS(trace_code, tick_count, param0, param1),
+	TP_STRUCT__entry(
+		__field(uint32_t, trace_code)
+		__field(uint32_t, tick_count)
+		__field(uint32_t, param0)
+		__field(uint32_t, param1)
+		),
+	TP_fast_assign(
+		__entry->trace_code = trace_code;
+		__entry->tick_count = tick_count;
+		__entry->param0 = param0;
+		__entry->param1 = param1;
+	),
+	TP_printk("trace_code=%u tick_count=%u param0=%u param1=%u",
+		  __entry->trace_code, __entry->tick_count,
+		  __entry->param0, __entry->param1)
+);
+
+TRACE_EVENT(amdgpu_refresh_rate_track,
+	TP_PROTO(int crtc_index, ktime_t refresh_rate_ns, uint32_t refresh_rate_hz),
+	TP_ARGS(crtc_index, refresh_rate_ns, refresh_rate_hz),
+	TP_STRUCT__entry(
+		__field(int, crtc_index)
+		__field(ktime_t, refresh_rate_ns)
+		__field(uint32_t, refresh_rate_hz)
+		),
+	TP_fast_assign(
+		__entry->crtc_index = crtc_index;
+		__entry->refresh_rate_ns = refresh_rate_ns;
+		__entry->refresh_rate_hz = refresh_rate_hz;
+	),
+	TP_printk("crtc_index=%d refresh_rate=%dHz (%lld)",
+		  __entry->crtc_index,
+		  __entry->refresh_rate_hz,
+		  __entry->refresh_rate_ns)
+);
+
 #endif /* _AMDGPU_DM_TRACE_H_ */
 
 #undef TRACE_INCLUDE_PATH

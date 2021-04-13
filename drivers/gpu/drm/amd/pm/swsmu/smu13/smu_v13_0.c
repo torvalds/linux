@@ -72,8 +72,8 @@ MODULE_FIRMWARE("amdgpu/aldebaran_smc.bin");
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK 0xC000
 #define PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT 0xE
 
-static int link_width[] = {0, 1, 2, 4, 8, 12, 16};
-static int link_speed[] = {25, 50, 80, 160};
+static const int link_width[] = {0, 1, 2, 4, 8, 12, 16};
+static const int link_speed[] = {25, 50, 80, 160};
 
 int smu_v13_0_init_microcode(struct smu_context *smu)
 {
@@ -1374,19 +1374,43 @@ int smu_v13_0_mode1_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v13_0_wait_for_reset_complete(struct smu_context *smu,
+					     uint64_t event_arg)
+{
+	int ret = 0;
+
+	dev_dbg(smu->adev->dev, "waiting for smu reset complete\n");
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GfxDriverResetRecovery, NULL);
+
+	return ret;
+}
+
+int smu_v13_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
+			     uint64_t event_arg)
+{
+	int ret = -EINVAL;
+
+	switch (event) {
+	case SMU_EVENT_RESET_COMPLETE:
+		ret = smu_v13_0_wait_for_reset_complete(smu, event_arg);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 int smu_v13_0_mode2_reset(struct smu_context *smu)
 {
-	u32 smu_version;
-	int ret = 0;
-	struct amdgpu_device *adev = smu->adev;
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (smu_version >= 0x00440700)
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2, NULL);
-	else
-		dev_err(adev->dev, "smu fw 0x%x does not support MSG_GfxDeviceDriverReset MSG\n", smu_version);
-	/*TODO: mode2 reset wait time should be shorter, will modify it later*/
+	int ret;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset,
+			SMU_RESET_MODE_2, NULL);
+	/*TODO: mode2 reset wait time should be shorter, add ASIC specific func if required */
 	if (!ret)
 		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
+
 	return ret;
 }
 
@@ -1686,10 +1710,14 @@ int smu_v13_0_get_dpm_level_count(struct smu_context *smu,
 				  enum smu_clk_type clk_type,
 				  uint32_t *value)
 {
-	return smu_v13_0_get_dpm_freq_by_index(smu,
-					       clk_type,
-					       0xff,
-					       value);
+	int ret;
+
+	ret = smu_v13_0_get_dpm_freq_by_index(smu, clk_type, 0xff, value);
+	/* FW returns 0 based max level, increment by one */
+	if (!ret && value)
+		++(*value);
+
+	return ret;
 }
 
 int smu_v13_0_set_single_dpm_table(struct smu_context *smu,

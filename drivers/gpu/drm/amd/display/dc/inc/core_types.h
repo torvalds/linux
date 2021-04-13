@@ -118,6 +118,27 @@ struct resource_funcs {
 		display_e2e_pipe_params_st *pipes,
 		bool fast_validate);
 
+	/*
+	 * Algorithm for assigning available link encoders to links.
+	 *
+	 * Update link_enc_assignments table and link_enc_avail list accordingly in
+	 * struct resource_context.
+	 */
+	void (*link_encs_assign)(
+			struct dc *dc,
+			struct dc_state *state,
+			struct dc_stream_state *streams[],
+			uint8_t stream_count);
+	/*
+	 * Unassign a link encoder from a stream.
+	 *
+	 * Update link_enc_assignments table and link_enc_avail list accordingly in
+	 * struct resource_context.
+	 */
+	void (*link_enc_unassign)(
+			struct dc_state *state,
+			struct dc_stream_state *stream);
+
 	enum dc_status (*validate_global)(
 		struct dc *dc,
 		struct dc_state *context);
@@ -358,6 +379,12 @@ struct resource_context {
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
 	uint8_t dp_clock_source_ref_count;
 	bool is_dsc_acquired[MAX_PIPES];
+	/* A table/array of encoder-to-link assignments. One entry per stream.
+	 * Indexed by stream index in dc_state.
+	 */
+	struct link_enc_assignment link_enc_assignments[MAX_PIPES];
+	/* List of available link encoders. Uses engine ID as encoder identifier. */
+	enum engine_id link_enc_avail[MAX_DIG_LINK_ENCODERS];
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
 #endif

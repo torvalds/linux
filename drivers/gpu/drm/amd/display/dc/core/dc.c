@@ -49,9 +49,11 @@
 #include "timing_generator.h"
 #include "abm.h"
 #include "virtual/virtual_link_encoder.h"
+#include "hubp.h"
 
 #include "link_hwss.h"
 #include "link_encoder.h"
+#include "link_enc_cfg.h"
 
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
@@ -304,7 +306,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	int i = 0;
 	bool ret = false;
 
-	stream->adjust = *adjust;
+	stream->adjust.v_total_max = adjust->v_total_max;
+	stream->adjust.v_total_mid = adjust->v_total_mid;
+	stream->adjust.v_total_mid_frame_num = adjust->v_total_mid_frame_num;
+	stream->adjust.v_total_min = adjust->v_total_min;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -312,10 +317,7 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		if (pipe->stream == stream && pipe->stream_res.tg) {
 			dc->hwss.set_drr(&pipe,
 					1,
-					adjust->v_total_min,
-					adjust->v_total_max,
-					adjust->v_total_mid,
-					adjust->v_total_mid_frame_num);
+					*adjust);
 
 			ret = true;
 		}
@@ -869,6 +871,9 @@ static bool dc_construct(struct dc *dc,
 
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
+
+	/* Initialise DIG link encoder resource tracking variables. */
+	link_enc_cfg_init(dc, dc->current_state);
 
 	return true;
 
@@ -2091,6 +2096,10 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	if (stream_status == NULL || stream_status->plane_count != surface_count)
 		overall_type = UPDATE_TYPE_FULL;
 
+	if (stream_update && stream_update->pending_test_pattern) {
+		overall_type = UPDATE_TYPE_FULL;
+	}
+
 	/* some stream updates require passive update */
 	if (stream_update) {
 		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
@@ -2390,6 +2399,8 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
 
+	if (update->pending_test_pattern)
+		stream->test_pattern = *update->pending_test_pattern;
 	/* update current stream with writeback info */
 	if (update->wb_update) {
 		int i;
@@ -2485,12 +2496,22 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				}
 			}
 
+
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
 			if (stream_update->dsc_config)
 				dp_update_dsc_config(pipe_ctx);
+
+			if (stream_update->pending_test_pattern) {
+				dc_link_dp_set_test_pattern(stream->link,
+					stream->test_pattern.type,
+					stream->test_pattern.color_space,
+					stream->test_pattern.p_link_settings,
+					stream->test_pattern.p_custom_pattern,
+					stream->test_pattern.cust_pattern_size);
+			}
 
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
@@ -2577,6 +2598,17 @@ static void commit_planes_for_stream(struct dc *dc,
 			top_pipe_to_program = pipe_ctx;
 		}
 	}
+
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	if (stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE) {
+		struct pipe_ctx *mpcc_pipe;
+		struct pipe_ctx *odm_pipe;
+
+		for (mpcc_pipe = top_pipe_to_program; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+			for (odm_pipe = mpcc_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				odm_pipe->ttu_regs.min_ttu_vblank = MAX_TTU;
+	}
+#endif
 
 	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
@@ -2783,6 +2815,9 @@ static void commit_planes_for_stream(struct dc *dc,
 	// Fire manual trigger only when bottom plane is flipped
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+		if (!pipe_ctx->plane_state)
+			continue;
 
 		if (pipe_ctx->bottom_pipe || pipe_ctx->next_odm_pipe ||
 				!pipe_ctx->stream || pipe_ctx->stream != stream ||
@@ -3224,6 +3259,10 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 {
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
+
+	if (dc->clk_mgr->funcs->is_smu_present)
+		if (!dc->clk_mgr->funcs->is_smu_present(dc->clk_mgr))
+			return;
 
 	if (allow == dc->idle_optimizations_allowed)
 		return;

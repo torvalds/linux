@@ -135,6 +135,14 @@ struct amdgpu_gmc_funcs {
 	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
 };
 
+struct amdgpu_xgmi_ras_funcs {
+	int (*ras_late_init)(struct amdgpu_device *adev);
+	void (*ras_fini)(struct amdgpu_device *adev);
+	int (*query_ras_error_count)(struct amdgpu_device *adev,
+				     void *ras_error_status);
+	void (*reset_ras_error_count)(struct amdgpu_device *adev);
+};
+
 struct amdgpu_xgmi {
 	/* from psp */
 	u64 node_id;
@@ -151,6 +159,7 @@ struct amdgpu_xgmi {
 	struct ras_common_if *ras_if;
 	bool connected_to_cpu;
 	bool pending_reset;
+	const struct amdgpu_xgmi_ras_funcs *ras_funcs;
 };
 
 struct amdgpu_gmc {

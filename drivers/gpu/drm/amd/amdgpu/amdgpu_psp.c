@@ -556,6 +556,24 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	return ret;
 }
 
+static int psp_boot_config_set(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+
+	if (adev->asic_type != CHIP_SIENNA_CICHLID)
+		return 0;
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	cmd->cmd_id = GFX_CMD_ID_BOOT_CFG;
+	cmd->cmd.boot_cfg.sub_cmd = BOOTCFG_CMD_SET;
+	cmd->cmd.boot_cfg.boot_config = BOOT_CONFIG_GECC;
+	cmd->cmd.boot_cfg.boot_config_valid = BOOT_CONFIG_GECC;
+
+	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+}
+
 static int psp_rl_load(struct amdgpu_device *adev)
 {
 	struct psp_context *psp = &adev->psp;
@@ -1912,6 +1930,11 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
+	ret = psp_boot_config_set(adev);
+	if (ret) {
+		DRM_WARN("PSP set boot config@\n");
+	}
+
 	ret = psp_tmr_init(psp);
 	if (ret) {
 		DRM_ERROR("PSP tmr init failed!\n");
@@ -2146,9 +2169,13 @@ static int psp_load_smu_fw(struct psp_context *psp)
 	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-
-	if (amdgpu_in_reset(adev) && ras && ras->supported &&
-		adev->asic_type == CHIP_ARCTURUS) {
+	if ((amdgpu_in_reset(adev) &&
+	     ras && ras->supported &&
+	     (adev->asic_type == CHIP_ARCTURUS ||
+	      adev->asic_type == CHIP_VEGA20)) ||
+	     (adev->in_runpm &&
+	      adev->asic_type >= CHIP_NAVI10 &&
+	      adev->asic_type <= CHIP_NAVI12)) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -2199,6 +2226,22 @@ static bool fw_load_skip_check(struct psp_context *psp,
 		return true;
 
 	return false;
+}
+
+int psp_load_fw_list(struct psp_context *psp,
+		     struct amdgpu_firmware_info **ucode_list, int ucode_count)
+{
+	int ret = 0, i;
+	struct amdgpu_firmware_info *ucode;
+
+	for (i = 0; i < ucode_count; ++i) {
+		ucode = ucode_list[i];
+		psp_print_fw_hdr(psp, ucode);
+		ret = psp_execute_np_fw_load(psp, ucode);
+		if (ret)
+			return ret;
+	}
+	return ret;
 }
 
 static int psp_np_fw_load(struct psp_context *psp)
@@ -2967,7 +3010,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
 		return ret;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%x\n", fw_ver);
+	return sysfs_emit(buf, "%x\n", fw_ver);
 }
 
 static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,

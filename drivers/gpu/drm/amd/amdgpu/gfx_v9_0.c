@@ -734,7 +734,7 @@ static const u32 GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[] =
 	mmRLC_SRM_INDEX_CNTL_DATA_7 - mmRLC_SRM_INDEX_CNTL_DATA_0,
 };
 
-static void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
+static void gfx_v9_0_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag)
 {
 	static void *scratch_reg0;
 	static void *scratch_reg1;
@@ -785,6 +785,20 @@ static void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v)
 			pr_err("timeout: rlcg program reg:0x%05x failed !\n", offset);
 	}
 
+}
+
+static void gfx_v9_0_rlcg_wreg(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag)
+{
+	if (amdgpu_sriov_fullaccess(adev)) {
+		gfx_v9_0_rlcg_rw(adev, offset, v, flag);
+
+		return;
+	}
+
+	if (flag & AMDGPU_REGS_NO_KIQ)
+		WREG32_NO_KIQ(offset, v);
+	else
+		WREG32(offset, v);
 }
 
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
@@ -2089,43 +2103,20 @@ static void gfx_v9_0_select_me_pipe_q(struct amdgpu_device *adev,
 }
 
 static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
-	.get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
-	.select_se_sh = &gfx_v9_0_select_se_sh,
-	.read_wave_data = &gfx_v9_0_read_wave_data,
-	.read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
-	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
-	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
+        .get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
+        .select_se_sh = &gfx_v9_0_select_se_sh,
+        .read_wave_data = &gfx_v9_0_read_wave_data,
+        .read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
+        .read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
+        .select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
+};
+
+static const struct amdgpu_gfx_ras_funcs gfx_v9_0_ras_funcs = {
+	.ras_late_init = amdgpu_gfx_ras_late_init,
+	.ras_fini = amdgpu_gfx_ras_fini,
 	.ras_error_inject = &gfx_v9_0_ras_error_inject,
 	.query_ras_error_count = &gfx_v9_0_query_ras_error_count,
 	.reset_ras_error_count = &gfx_v9_0_reset_ras_error_count,
-};
-
-static const struct amdgpu_gfx_funcs gfx_v9_4_gfx_funcs = {
-	.get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
-	.select_se_sh = &gfx_v9_0_select_se_sh,
-	.read_wave_data = &gfx_v9_0_read_wave_data,
-	.read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
-	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
-	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
-	.ras_error_inject = &gfx_v9_4_ras_error_inject,
-	.query_ras_error_count = &gfx_v9_4_query_ras_error_count,
-	.reset_ras_error_count = &gfx_v9_4_reset_ras_error_count,
-	.query_ras_error_status = &gfx_v9_4_query_ras_error_status,
-};
-
-static const struct amdgpu_gfx_funcs gfx_v9_4_2_gfx_funcs = {
-	.get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
-	.select_se_sh = &gfx_v9_0_select_se_sh,
-	.read_wave_data = &gfx_v9_0_read_wave_data,
-	.read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
-	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
-	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q,
-	.ras_error_inject = &gfx_v9_4_2_ras_error_inject,
-	.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
-	.reset_ras_error_count = &gfx_v9_4_2_reset_ras_error_count,
-	.query_ras_error_status = &gfx_v9_4_2_query_ras_error_status,
-	.reset_ras_error_status = &gfx_v9_4_2_reset_ras_error_status,
-	.enable_watchdog_timer = &gfx_v9_4_2_enable_watchdog_timer,
 };
 
 static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
@@ -2154,6 +2145,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		DRM_INFO("fix gfx.config for vega12\n");
 		break;
 	case CHIP_VEGA20:
+		adev->gfx.ras_funcs = &gfx_v9_0_ras_funcs;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2179,7 +2171,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 			gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_ARCTURUS:
-		adev->gfx.funcs = &gfx_v9_4_gfx_funcs;
+		adev->gfx.ras_funcs = &gfx_v9_4_ras_funcs;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2200,7 +2192,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		gb_addr_config |= 0x22010042;
 		break;
 	case CHIP_ALDEBARAN:
-		adev->gfx.funcs = &gfx_v9_4_2_gfx_funcs;
+		adev->gfx.ras_funcs = &gfx_v9_4_2_ras_funcs;
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2286,8 +2278,8 @@ static int gfx_v9_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	hw_prio = amdgpu_gfx_is_high_priority_compute_queue(adev, ring) ?
 			AMDGPU_GFX_PIPE_PRIO_HIGH : AMDGPU_GFX_PIPE_PRIO_NORMAL;
 	/* type-2 packets are deprecated on MEC, use type-3 instead */
-	return amdgpu_ring_init(adev, ring, 1024,
-				&adev->gfx.eop_irq, irq_type, hw_prio);
+	return amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq, irq_type,
+				hw_prio, NULL);
 }
 
 static int gfx_v9_0_sw_init(void *handle)
@@ -2376,10 +2368,9 @@ static int gfx_v9_0_sw_init(void *handle)
 			sprintf(ring->name, "gfx_%d", i);
 		ring->use_doorbell = true;
 		ring->doorbell_index = adev->doorbell_index.gfx_ring0 << 1;
-		r = amdgpu_ring_init(adev, ring, 1024,
-				     &adev->gfx.eop_irq,
+		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 				     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP,
-				     AMDGPU_RING_PRIO_DEFAULT);
+				     AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
 	}
@@ -2434,7 +2425,9 @@ static int gfx_v9_0_sw_fini(void *handle)
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_gfx_ras_fini(adev);
+	if (adev->gfx.ras_funcs &&
+	    adev->gfx.ras_funcs->ras_fini)
+		adev->gfx.ras_funcs->ras_fini(adev);
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
@@ -4025,8 +4018,14 @@ static int gfx_v9_0_hw_fini(void *handle)
 	}
 
 	gfx_v9_0_cp_enable(adev, false);
-	adev->gfx.rlc.funcs->stop(adev);
 
+	/* Skip suspend with A+A reset */
+	if (adev->gmc.xgmi.connected_to_cpu && amdgpu_in_reset(adev)) {
+		dev_dbg(adev->dev, "Device in reset. Skipping RLC halt\n");
+		return 0;
+	}
+
+	adev->gfx.rlc.funcs->stop(adev);
 	return 0;
 }
 
@@ -4747,12 +4746,16 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_gfx_ras_late_init(adev);
-	if (r)
-		return r;
+	if (adev->gfx.ras_funcs &&
+	    adev->gfx.ras_funcs->ras_late_init) {
+		r = adev->gfx.ras_funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
 
-	if (adev->gfx.funcs->enable_watchdog_timer)
-		adev->gfx.funcs->enable_watchdog_timer(adev);
+	if (adev->gfx.ras_funcs &&
+	    adev->gfx.ras_funcs->enable_watchdog_timer)
+		adev->gfx.ras_funcs->enable_watchdog_timer(adev);
 
 	return 0;
 }

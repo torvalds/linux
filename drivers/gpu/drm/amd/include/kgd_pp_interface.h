@@ -242,6 +242,9 @@ struct pp_display_clock_request;
 struct pp_clock_levels_with_voltage;
 struct pp_clock_levels_with_latency;
 struct amd_pp_clocks;
+struct pp_smu_wm_range_sets;
+struct pp_smu_nv_clock_table;
+struct dpm_clocks;
 
 struct amd_pm_funcs {
 /* export for dpm on ci and si */
@@ -336,6 +339,17 @@ struct amd_pm_funcs {
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);
+	int (*set_watermarks_for_clock_ranges)(void *handle,
+					       struct pp_smu_wm_range_sets *ranges);
+	int (*display_disable_memory_clock_switch)(void *handle,
+						   bool disable_memory_clock_switch);
+	int (*get_max_sustainable_clocks_by_dc)(void *handle,
+						struct pp_smu_nv_clock_table *max_clocks);
+	int (*get_uclk_dpm_states)(void *handle,
+				   unsigned int *clock_values_in_khz,
+				   unsigned int *num_states);
+	int (*get_dpm_clock_table)(void *handle,
+				   struct dpm_clocks *clock_table);
 };
 
 struct metrics_table_header {

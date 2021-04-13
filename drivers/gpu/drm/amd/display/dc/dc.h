@@ -45,7 +45,7 @@
 /* forward declaration */
 struct aux_payload;
 
-#define DC_VER "3.2.127"
+#define DC_VER "3.2.130"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -460,6 +460,7 @@ struct dc_debug_options {
 	enum pipe_split_policy pipe_split_policy;
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
+	bool disable_min_fclk;
 
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;

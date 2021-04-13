@@ -1893,7 +1893,7 @@ uint64_t reduceSizeAndFraction(
 	num = *numerator;
 	denom = *denominator;
 	for (i = 0; i < count; i++) {
-		uint32_t num_reminder, denom_reminder;
+		uint32_t num_remainder, denom_remainder;
 		uint64_t num_result, denom_result;
 		if (checkUint32Bounary &&
 			num <= max_int32 && denom <= max_int32) {
@@ -1901,13 +1901,13 @@ uint64_t reduceSizeAndFraction(
 			break;
 		}
 		do {
-			num_result = div_u64_rem(num, prime_numbers[i], &num_reminder);
-			denom_result = div_u64_rem(denom, prime_numbers[i], &denom_reminder);
-			if (num_reminder == 0 && denom_reminder == 0) {
+			num_result = div_u64_rem(num, prime_numbers[i], &num_remainder);
+			denom_result = div_u64_rem(denom, prime_numbers[i], &denom_remainder);
+			if (num_remainder == 0 && denom_remainder == 0) {
 				num = num_result;
 				denom = denom_result;
 			}
-		} while (num_reminder == 0 && denom_reminder == 0);
+		} while (num_remainder == 0 && denom_remainder == 0);
 	}
 	*numerator = num;
 	*denominator = denom;
@@ -3271,8 +3271,7 @@ void dcn10_optimize_bandwidth(
 }
 
 void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number)
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -3281,11 +3280,10 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	// Note DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
-	params.vertical_total_max = vmax;
-	params.vertical_total_min = vmin;
-	params.vertical_total_mid = vmid;
-	params.vertical_total_mid_frame_num = vmid_frame_number;
-
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
+	params.vertical_total_mid = adjust.v_total_mid;
+	params.vertical_total_mid_frame_num = adjust.v_total_mid_frame_num;
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently
 	 * as well.
@@ -3293,7 +3291,7 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	for (i = 0; i < num_pipes; i++) {
 		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
 			pipe_ctx[i]->stream_res.tg, &params);
-		if (vmax != 0 && vmin != 0)
+		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
 					event_triggers, num_frames);
@@ -3980,4 +3978,20 @@ void dcn10_get_clock(struct dc *dc,
 	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
 				dc->clk_mgr->funcs->get_clock(dc->clk_mgr, context, clock_type, clock_cfg);
 
+}
+
+void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits)
+{
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct hubp *hubp = pool->hubps[i];
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(hubp)->state);
+
+		hubp->funcs->hubp_read_state(hubp);
+
+		if (!s->blank_en)
+			dcc_en_bits[i] = s->dcc_en ? 1 : 0;
+	}
 }

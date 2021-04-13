@@ -34,7 +34,6 @@
 #include "amdgpu_vce.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_psp.h"
-#include "amdgpu_smu.h"
 #include "atom.h"
 #include "amd_pcie.h"
 
@@ -516,21 +515,9 @@ static int nv_asic_mode2_reset(struct amdgpu_device *adev)
 	return ret;
 }
 
-static bool nv_asic_supports_baco(struct amdgpu_device *adev)
-{
-	struct smu_context *smu = &adev->smu;
-
-	if (smu_baco_is_support(smu))
-		return true;
-	else
-		return false;
-}
-
 static enum amd_reset_method
 nv_asic_reset_method(struct amdgpu_device *adev)
 {
-	struct smu_context *smu = &adev->smu;
-
 	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_BACO ||
@@ -549,7 +536,7 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 	case CHIP_DIMGREY_CAVEFISH:
 		return AMD_RESET_METHOD_MODE1;
 	default:
-		if (smu_baco_is_support(smu))
+		if (amdgpu_dpm_is_baco_supported(adev))
 			return AMD_RESET_METHOD_BACO;
 		else
 			return AMD_RESET_METHOD_MODE1;
@@ -559,11 +546,6 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 static int nv_asic_reset(struct amdgpu_device *adev)
 {
 	int ret = 0;
-	struct smu_context *smu = &adev->smu;
-
-	/* skip reset on vangogh for now */
-	if (adev->asic_type == CHIP_VANGOGH)
-		return 0;
 
 	switch (nv_asic_reset_method(adev)) {
 	case AMD_RESET_METHOD_PCI:
@@ -572,13 +554,7 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 		break;
 	case AMD_RESET_METHOD_BACO:
 		dev_info(adev->dev, "BACO reset\n");
-
-		ret = smu_baco_enter(smu);
-		if (ret)
-			return ret;
-		ret = smu_baco_exit(smu);
-		if (ret)
-			return ret;
+		ret = amdgpu_dpm_baco_reset(adev);
 		break;
 	case AMD_RESET_METHOD_MODE2:
 		dev_info(adev->dev, "MODE2 reset\n");
@@ -986,7 +962,7 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.need_full_reset = &nv_need_full_reset,
 	.need_reset_on_init = &nv_need_reset_on_init,
 	.get_pcie_replay_count = &nv_get_pcie_replay_count,
-	.supports_baco = &nv_asic_supports_baco,
+	.supports_baco = &amdgpu_dpm_is_baco_supported,
 	.pre_asic_init = &nv_pre_asic_init,
 	.update_umd_stable_pstate = &nv_update_umd_stable_pstate,
 	.query_video_codecs = &nv_query_video_codecs,

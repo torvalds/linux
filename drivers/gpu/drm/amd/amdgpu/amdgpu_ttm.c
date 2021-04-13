@@ -823,15 +823,14 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_device *bdev,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	int r;
-
 	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
 	enum dma_data_direction direction = write ?
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
+	int r;
 
 	/* Allocate an SG array and squash pages into it */
 	r = sg_alloc_table_from_pages(ttm->sg, ttm->pages, ttm->num_pages, 0,
-				      ttm->num_pages << PAGE_SHIFT,
+				      (u64)ttm->num_pages << PAGE_SHIFT,
 				      GFP_KERNEL);
 	if (r)
 		goto release_sg;
@@ -861,13 +860,12 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_device *bdev,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-
 	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
 	enum dma_data_direction direction = write ?
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
 	/* double check that we don't free the table twice */
-	if (!ttm->sg->sgl)
+	if (!ttm->sg || !ttm->sg->sgl)
 		return;
 
 	/* unmap the pages mapped to the device */
@@ -1087,12 +1085,12 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	int r;
 
-	if (!gtt->bound)
-		return;
-
 	/* if the pages have userptr pinning then clear that first */
 	if (gtt->userptr)
 		amdgpu_ttm_tt_unpin_userptr(bdev, ttm);
+
+	if (!gtt->bound)
+		return;
 
 	if (gtt->offset == AMDGPU_BO_INVALID_OFFSET)
 		return;
@@ -1503,7 +1501,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 				memcpy(buf, &value, bytes);
 			}
 		} else {
-			bytes = cursor.size & 0x3ull;
+			bytes = cursor.size & ~0x3ULL;
 			amdgpu_device_vram_access(adev, cursor.start,
 						  (uint32_t *)buf, bytes,
 						  write);

@@ -38,7 +38,7 @@ extern void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, 
 
 
 struct r600_cs_track {
-	/* configuration we miror so that we use same code btw kms/ums */
+	/* configuration we mirror so that we use same code btw kms/ums */
 	u32			group_size;
 	u32			nbanks;
 	u32			npipes;
@@ -963,7 +963,7 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
  *
  * This function will test against r600_reg_safe_bm and return 0
  * if register is safe. If register is not flag as safe this function
- * will test it against a list of register needind special handling.
+ * will test it against a list of register needing special handling.
  */
 static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
@@ -2336,7 +2336,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 /**
  * r600_dma_cs_next_reloc() - parse next reloc
  * @p:		parser structure holding parsing context.
- * @cs_reloc:		reloc informations
+ * @cs_reloc:		reloc information
  *
  * Return the next reloc, do bo validation and compute
  * GPU offset using the provided start.
