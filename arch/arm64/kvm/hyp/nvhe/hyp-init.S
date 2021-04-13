@@ -122,13 +122,7 @@ alternative_else_nop_endif
 	tlbi	vmalls12e1
 	dsb	sy
 
-	/*
-	 * Preserve all the RES1 bits while setting the default flags,
-	 * as well as the EE bit on BE. Drop the A flag since the compiler
-	 * is allowed to generate unaligned accesses.
-	 */
-	mov_q	x0, (SCTLR_EL2_RES1 | (SCTLR_ELx_FLAGS & ~SCTLR_ELx_A))
-CPU_BE(	orr	x0, x0, #SCTLR_ELx_EE)
+	mov_q	x0, INIT_SCTLR_EL2_MMU_ON
 alternative_if ARM64_HAS_ADDRESS_AUTH
 	mov_q	x1, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
 		     SCTLR_ELx_ENDA | SCTLR_ELx_ENDB)
@@ -226,9 +220,7 @@ SYM_CODE_START(__kvm_handle_stub_hvc)
 	mov	x0, xzr
 reset:
 	/* Reset kvm back to the hyp stub. */
-	mrs	x5, sctlr_el2
-	mov_q	x6, SCTLR_ELx_FLAGS
-	bic	x5, x5, x6		// Clear SCTL_M and etc
+	mov_q	x5, INIT_SCTLR_EL2_MMU_OFF
 	pre_disable_mmu_workaround
 	msr	sctlr_el2, x5
 	isb
