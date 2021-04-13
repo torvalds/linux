@@ -794,7 +794,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(i915);
 
 	/* Disable nuclear pageflip by default on pre-ILK */
-	if (!i915->params.nuclear_pageflip && match_info->gen < 5)
+	if (!i915->params.nuclear_pageflip && match_info->graphics_ver < 5)
 		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	/*
