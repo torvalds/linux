@@ -386,21 +386,16 @@ int
 xfs_attr_remove_args(
 	struct xfs_da_args      *args)
 {
-	struct xfs_inode	*dp = args->dp;
-	int			error;
+	if (!xfs_inode_hasattr(args->dp))
+		return -ENOATTR;
 
-	if (!xfs_inode_hasattr(dp)) {
-		error = -ENOATTR;
-	} else if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL) {
-		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
-		error = xfs_attr_shortform_remove(args);
-	} else if (xfs_attr_is_leaf(dp)) {
-		error = xfs_attr_leaf_removename(args);
-	} else {
-		error = xfs_attr_node_removename(args);
+	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL) {
+		ASSERT(args->dp->i_afp->if_flags & XFS_IFINLINE);
+		return xfs_attr_shortform_remove(args);
 	}
-
-	return error;
+	if (xfs_attr_is_leaf(args->dp))
+		return xfs_attr_leaf_removename(args);
+	return xfs_attr_node_removename(args);
 }
 
 /*
