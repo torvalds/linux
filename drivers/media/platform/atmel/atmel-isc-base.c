@@ -600,7 +600,7 @@ static int isc_configure(struct isc_device *isc)
 	mask = ISC_PFE_CFG0_BPS_MASK | ISC_PFE_CFG0_HPOL_LOW |
 	       ISC_PFE_CFG0_VPOL_LOW | ISC_PFE_CFG0_PPOL_LOW |
 	       ISC_PFE_CFG0_MODE_MASK | ISC_PFE_CFG0_CCIR_CRC |
-		   ISC_PFE_CFG0_CCIR656;
+	       ISC_PFE_CFG0_CCIR656 | ISC_PFE_CFG0_MIPI;
 
 	regmap_update_bits(regmap, ISC_PFE_CFG0, mask, pfe_cfg0);
 

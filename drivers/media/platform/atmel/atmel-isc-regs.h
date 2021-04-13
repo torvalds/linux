@@ -26,6 +26,7 @@
 #define ISC_PFE_CFG0_PPOL_LOW   BIT(2)
 #define ISC_PFE_CFG0_CCIR656    BIT(9)
 #define ISC_PFE_CFG0_CCIR_CRC   BIT(10)
+#define ISC_PFE_CFG0_MIPI	BIT(14)
 
 #define ISC_PFE_CFG0_MODE_PROGRESSIVE   (0x0 << 4)
 #define ISC_PFE_CFG0_MODE_MASK          GENMASK(6, 4)
@@ -184,6 +185,8 @@
 /* ISC Gamma Correction Control Register */
 #define ISC_GAM_CTRL    0x00000094
 
+#define ISC_GAM_CTRL_BIPART	BIT(4)
+
 /* ISC_Gamma Correction Blue Entry Register */
 #define ISC_GAM_BENTRY	0x00000098
 
@@ -222,6 +225,8 @@
 
 /* Offset for CSC register specific to sama5d2 product */
 #define ISC_SAMA5D2_CSC_OFFSET	0
+/* Offset for CSC register specific to sama7g5 product */
+#define ISC_SAMA7G5_CSC_OFFSET	0x11c
 
 /* Color Space Conversion Control Register */
 #define ISC_CSC_CTRL    0x00000398
@@ -246,6 +251,8 @@
 
 /* Offset for CBC register specific to sama5d2 product */
 #define ISC_SAMA5D2_CBC_OFFSET	0
+/* Offset for CBC register specific to sama7g5 product */
+#define ISC_SAMA7G5_CBC_OFFSET	0x11c
 
 /* Contrast And Brightness Control Register */
 #define ISC_CBC_CTRL    0x000003b4
@@ -261,18 +268,30 @@
 #define ISC_CBC_CONTRAST	0x000003c0
 #define ISC_CBC_CONTRAST_MASK	GENMASK(11, 0)
 
+/* Hue Register */
+#define ISC_CBCHS_HUE	0x4e0
+/* Saturation Register */
+#define ISC_CBCHS_SAT	0x4e4
+
 /* Offset for SUB422 register specific to sama5d2 product */
 #define ISC_SAMA5D2_SUB422_OFFSET	0
+/* Offset for SUB422 register specific to sama7g5 product */
+#define ISC_SAMA7G5_SUB422_OFFSET	0x124
+
 /* Subsampling 4:4:4 to 4:2:2 Control Register */
 #define ISC_SUB422_CTRL 0x000003c4
 
 /* Offset for SUB420 register specific to sama5d2 product */
 #define ISC_SAMA5D2_SUB420_OFFSET	0
+/* Offset for SUB420 register specific to sama7g5 product */
+#define ISC_SAMA7G5_SUB420_OFFSET	0x124
 /* Subsampling 4:2:2 to 4:2:0 Control Register */
 #define ISC_SUB420_CTRL 0x000003cc
 
 /* Offset for RLP register specific to sama5d2 product */
 #define ISC_SAMA5D2_RLP_OFFSET	0
+/* Offset for RLP register specific to sama7g5 product */
+#define ISC_SAMA7G5_RLP_OFFSET	0x124
 /* Rounding, Limiting and Packing Configuration Register */
 #define ISC_RLP_CFG     0x000003d0
 
@@ -303,6 +322,8 @@
 
 /* Offset for HIS register specific to sama5d2 product */
 #define ISC_SAMA5D2_HIS_OFFSET	0
+/* Offset for HIS register specific to sama7g5 product */
+#define ISC_SAMA7G5_HIS_OFFSET	0x124
 /* Histogram Control Register */
 #define ISC_HIS_CTRL	0x000003d4
 
@@ -326,6 +347,8 @@
 
 /* Offset for DMA register specific to sama5d2 product */
 #define ISC_SAMA5D2_DMA_OFFSET	0
+/* Offset for DMA register specific to sama7g5 product */
+#define ISC_SAMA7G5_DMA_OFFSET	0x13c
 
 /* DMA Configuration Register */
 #define ISC_DCFG        0x000003e0
@@ -376,11 +399,14 @@
 
 /* Offset for version register specific to sama5d2 product */
 #define ISC_SAMA5D2_VERSION_OFFSET	0
+#define ISC_SAMA7G5_VERSION_OFFSET	0x13c
 /* Version Register */
 #define ISC_VERSION	0x0000040c
 
 /* Offset for version register specific to sama5d2 product */
 #define ISC_SAMA5D2_HIS_ENTRY_OFFSET	0
+/* Offset for version register specific to sama7g5 product */
+#define ISC_SAMA7G5_HIS_ENTRY_OFFSET	0x14c
 /* Histogram Entry */
 #define ISC_HIS_ENTRY	0x00000410
 
