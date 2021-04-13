@@ -1059,6 +1059,10 @@ static int isc_try_configure_pipeline(struct isc_device *isc)
 	default:
 		isc->try_config.bits_pipeline = 0x0;
 	}
+
+	/* Tune the pipeline to product specific */
+	isc->adapt_pipeline(isc);
+
 	return 0;
 }
 

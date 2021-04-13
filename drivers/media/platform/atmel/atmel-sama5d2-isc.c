@@ -54,6 +54,10 @@
 
 #define ISC_CLK_MAX_DIV		255
 
+#define ISC_SAMA5D2_PIPELINE \
+	(WB_ENABLE | CFA_ENABLE | CC_ENABLE | GAM_ENABLES | CSC_ENABLE | \
+	CBC_ENABLE | SUB422_ENABLE | SUB420_ENABLE)
+
 /* This is a list of the formats that the ISC can *output* */
 static const struct isc_format sama5d2_controller_formats[] = {
 	{
@@ -257,6 +261,11 @@ static void isc_sama5d2_config_rlp(struct isc_device *isc)
 			   ISC_RLP_CFG_MODE_MASK, rlp_mode);
 }
 
+static void isc_sama5d2_adapt_pipeline(struct isc_device *isc)
+{
+	isc->try_config.bits_pipeline &= ISC_SAMA5D2_PIPELINE;
+}
+
 /* Gamma table with gamma 1/2.2 */
 static const u32 isc_sama5d2_gamma_table[][GAMMA_ENTRIES] = {
 	/* 0 --> gamma 1/1.8 */
@@ -409,6 +418,8 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	isc->config_gam = isc_sama5d2_config_gam;
 	isc->config_rlp = isc_sama5d2_config_rlp;
 	isc->config_ctrls = isc_sama5d2_config_ctrls;
+
+	isc->adapt_pipeline = isc_sama5d2_adapt_pipeline;
 
 	isc->offsets.csc = ISC_SAMA5D2_CSC_OFFSET;
 	isc->offsets.cbc = ISC_SAMA5D2_CBC_OFFSET;

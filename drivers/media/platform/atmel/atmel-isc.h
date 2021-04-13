@@ -236,6 +236,9 @@ struct isc_reg_offsets {
  * @config_ctrls:	pointer to a functoin that initializes product
  *			specific v4l2 controls.
  *
+ * @adapt_pipeline:	pointer to a function that adapts the pipeline bits
+ *			to the product specific pipeline
+ *
  * @offsets:		struct holding the product specific register offsets
  * @controller_formats:	pointer to the array of possible formats that the
  *			controller can output
@@ -321,6 +324,8 @@ struct isc_device {
 
 		void (*config_ctrls)(struct isc_device *isc,
 				     const struct v4l2_ctrl_ops *ops);
+
+		void (*adapt_pipeline)(struct isc_device *isc);
 	};
 
 	struct isc_reg_offsets		offsets;
