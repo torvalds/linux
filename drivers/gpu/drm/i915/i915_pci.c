@@ -36,7 +36,12 @@
 #include "i915_selftest.h"
 
 #define PLATFORM(x) .platform = (x)
-#define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1), .display.ver = (x)
+#define GEN(x) \
+	.gen_mask = BIT((x) - 1), \
+	.gen = (x), \
+	.graphics_ver = (x), \
+	.media_ver = (x), \
+	.display.ver = (x)
 
 #define I845_PIPE_OFFSETS \
 	.pipe_offsets = { \
