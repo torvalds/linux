@@ -235,6 +235,7 @@ struct battery_chg_dev {
 	bool				wls_fw_update_reqd;
 	u32				wls_fw_version;
 	u16				wls_fw_crc;
+	u32				wls_fw_update_time_ms;
 	struct notifier_block		reboot_notifier;
 	u32				thermal_fcc_ua;
 	u32				restrict_fcc_ua;
@@ -1335,13 +1336,16 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 		goto release_fw;
 	}
 
+	pr_debug("Waiting for fw_update_ack\n");
 	rc = wait_for_completion_timeout(&bcdev->fw_update_ack,
-				msecs_to_jiffies(WLS_FW_UPDATE_TIME_MS));
+				msecs_to_jiffies(bcdev->wls_fw_update_time_ms));
 	if (!rc) {
 		pr_err("Error, timed out updating firmware\n");
 		rc = -ETIMEDOUT;
 		goto release_fw;
 	} else {
+		pr_debug("Waited for %d ms\n",
+			bcdev->wls_fw_update_time_ms - jiffies_to_msecs(rc));
 		rc = 0;
 	}
 
@@ -1355,6 +1359,29 @@ out:
 
 	return rc;
 }
+
+static ssize_t wireless_fw_update_time_ms_store(struct class *c,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	if (kstrtou32(buf, 0, &bcdev->wls_fw_update_time_ms))
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t wireless_fw_update_time_ms_show(struct class *c,
+				struct class_attribute *attr, char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", bcdev->wls_fw_update_time_ms);
+}
+static CLASS_ATTR_RW(wireless_fw_update_time_ms);
 
 static ssize_t wireless_fw_crc_store(struct class *c,
 					struct class_attribute *attr,
@@ -1719,6 +1746,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_force_update.attr,
 	&class_attr_wireless_fw_version.attr,
 	&class_attr_wireless_fw_crc.attr,
+	&class_attr_wireless_fw_update_time_ms.attr,
 	&class_attr_ship_mode_en.attr,
 	&class_attr_restrict_chg.attr,
 	&class_attr_restrict_cur.attr,
@@ -1948,6 +1976,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	bcdev->wls_fw_update_time_ms = WLS_FW_UPDATE_TIME_MS;
 	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
 	device_init_wakeup(bcdev->dev, true);
