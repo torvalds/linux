@@ -3345,7 +3345,7 @@ static int btusb_mtk_hci_wmt_sync(struct hci_dev *hdev,
 	/* Submit control IN URB on demand to process the WMT event */
 	err = btusb_mtk_submit_wmt_recv_urb(hdev);
 	if (err < 0)
-		return err;
+		goto err_free_wc;
 
 	/* The vendor specific WMT commands are all answered by a vendor
 	 * specific event and will have the Command Status or Command
