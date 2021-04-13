@@ -2505,7 +2505,7 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 	struct extent_changeset *data_reserved = NULL;
 	u64 alloc_hint = 0;
 	int dcs = BTRFS_DC_ERROR;
-	u64 num_pages = 0;
+	u64 cache_size = 0;
 	int retries = 0;
 	int ret = 0;
 
@@ -2617,20 +2617,20 @@ again:
 	 * taking up quite a bit since it's not folded into the other space
 	 * cache.
 	 */
-	num_pages = div_u64(block_group->length, SZ_256M);
-	if (!num_pages)
-		num_pages = 1;
+	cache_size = div_u64(block_group->length, SZ_256M);
+	if (!cache_size)
+		cache_size = 1;
 
-	num_pages *= 16;
-	num_pages *= PAGE_SIZE;
+	cache_size *= 16;
+	cache_size *= fs_info->sectorsize;
 
 	ret = btrfs_check_data_free_space(BTRFS_I(inode), &data_reserved, 0,
-					  num_pages);
+					  cache_size);
 	if (ret)
 		goto out_put;
 
-	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
-					      num_pages, num_pages,
+	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, cache_size,
+					      cache_size, cache_size,
 					      &alloc_hint);
 	/*
 	 * Our cache requires contiguous chunks so that we don't modify a bunch
