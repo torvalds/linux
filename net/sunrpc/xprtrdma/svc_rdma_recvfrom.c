@@ -266,46 +266,33 @@ void svc_rdma_release_rqst(struct svc_rqst *rqstp)
 		svc_rdma_recv_ctxt_put(rdma, ctxt);
 }
 
-static bool svc_rdma_refresh_recvs(struct svcxprt_rdma *rdma,
-				   unsigned int wanted, bool temp)
+static int __svc_rdma_post_recv(struct svcxprt_rdma *rdma,
+				struct svc_rdma_recv_ctxt *ctxt)
 {
-	const struct ib_recv_wr *bad_wr = NULL;
-	struct svc_rdma_recv_ctxt *ctxt;
-	struct ib_recv_wr *recv_chain;
 	int ret;
 
-	recv_chain = NULL;
-	while (wanted--) {
-		ctxt = svc_rdma_recv_ctxt_get(rdma);
-		if (!ctxt)
-			break;
-
-		trace_svcrdma_post_recv(ctxt);
-		ctxt->rc_temp = temp;
-		ctxt->rc_recv_wr.next = recv_chain;
-		recv_chain = &ctxt->rc_recv_wr;
-		rdma->sc_pending_recvs++;
-	}
-	if (!recv_chain)
-		return false;
-
-	ret = ib_post_recv(rdma->sc_qp, recv_chain, &bad_wr);
+	trace_svcrdma_post_recv(ctxt);
+	ret = ib_post_recv(rdma->sc_qp, &ctxt->rc_recv_wr, NULL);
 	if (ret)
 		goto err_post;
-	return true;
+	return 0;
 
 err_post:
-	while (bad_wr) {
-		ctxt = container_of(bad_wr, struct svc_rdma_recv_ctxt,
-				    rc_recv_wr);
-		bad_wr = bad_wr->next;
-		svc_rdma_recv_ctxt_put(rdma, ctxt);
-	}
-
 	trace_svcrdma_rq_post_err(rdma, ret);
-	/* Since we're destroying the xprt, no need to reset
-	 * sc_pending_recvs. */
-	return false;
+	svc_rdma_recv_ctxt_put(rdma, ctxt);
+	return ret;
+}
+
+static int svc_rdma_post_recv(struct svcxprt_rdma *rdma)
+{
+	struct svc_rdma_recv_ctxt *ctxt;
+
+	if (test_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags))
+		return 0;
+	ctxt = svc_rdma_recv_ctxt_get(rdma);
+	if (!ctxt)
+		return -ENOMEM;
+	return __svc_rdma_post_recv(rdma, ctxt);
 }
 
 /**
@@ -316,7 +303,20 @@ err_post:
  */
 bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma)
 {
-	return svc_rdma_refresh_recvs(rdma, rdma->sc_max_requests, true);
+	struct svc_rdma_recv_ctxt *ctxt;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < rdma->sc_max_requests; i++) {
+		ctxt = svc_rdma_recv_ctxt_get(rdma);
+		if (!ctxt)
+			return false;
+		ctxt->rc_temp = true;
+		ret = __svc_rdma_post_recv(rdma, ctxt);
+		if (ret)
+			return false;
+	}
+	return true;
 }
 
 /**
@@ -324,6 +324,8 @@ bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma)
  * @cq: Completion Queue context
  * @wc: Work Completion object
  *
+ * NB: The svc_xprt/svcxprt_rdma is pinned whenever it's possible that
+ * the Receive completion handler could be running.
  */
 static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -331,14 +333,15 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_recv_ctxt *ctxt;
 
-	rdma->sc_pending_recvs--;
-
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_recv_ctxt, rc_cqe);
 
 	trace_svcrdma_wc_receive(wc, &ctxt->rc_cid);
 	if (wc->status != IB_WC_SUCCESS)
 		goto flushed;
+
+	if (svc_rdma_post_recv(rdma))
+		goto post_err;
 
 	/* All wc fields are now known to be valid */
 	ctxt->rc_byte_len = wc->byte_len;
@@ -350,18 +353,11 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	spin_unlock(&rdma->sc_rq_dto_lock);
 	if (!test_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags))
 		svc_xprt_enqueue(&rdma->sc_xprt);
-
-	if (!test_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags) &&
-	    rdma->sc_pending_recvs < rdma->sc_max_requests)
-		if (!svc_rdma_refresh_recvs(rdma, RPCRDMA_MAX_RECV_BATCH,
-					    false))
-			goto post_err;
-
 	return;
 
 flushed:
-	svc_rdma_recv_ctxt_put(rdma, ctxt);
 post_err:
+	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
 	svc_xprt_enqueue(&rdma->sc_xprt);
 }

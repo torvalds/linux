@@ -309,7 +309,7 @@ have_carrier:
  */
 static void __init ic_close_devs(void)
 {
-	struct net_device *selected_dev = ic_dev->dev;
+	struct net_device *selected_dev = ic_dev ? ic_dev->dev : NULL;
 	struct ic_device *d, *next;
 	struct net_device *dev;
 
@@ -317,16 +317,18 @@ static void __init ic_close_devs(void)
 	next = ic_first_dev;
 	while ((d = next)) {
 		bool bring_down = (d != ic_dev);
-		struct net_device *lower_dev;
+		struct net_device *lower;
 		struct list_head *iter;
 
 		next = d->next;
 		dev = d->dev;
 
-		netdev_for_each_lower_dev(selected_dev, lower_dev, iter) {
-			if (dev == lower_dev) {
-				bring_down = false;
-				break;
+		if (selected_dev) {
+			netdev_for_each_lower_dev(selected_dev, lower, iter) {
+				if (dev == lower) {
+					bring_down = false;
+					break;
+				}
 			}
 		}
 		if (bring_down) {

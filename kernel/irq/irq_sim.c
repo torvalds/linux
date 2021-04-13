@@ -159,7 +159,7 @@ static const struct irq_domain_ops irq_sim_domain_ops = {
  * irq_domain_create_sim - Create a new interrupt simulator irq_domain and
  *                         allocate a range of dummy interrupts.
  *
- * @fnode:      struct fwnode_handle to be associated with this domain.
+ * @fwnode:     struct fwnode_handle to be associated with this domain.
  * @num_irqs:   Number of interrupts to allocate.
  *
  * On success: return a new irq_domain object.
@@ -228,7 +228,7 @@ static void devm_irq_domain_release_sim(struct device *dev, void *res)
  *                              a managed device.
  *
  * @dev:        Device to initialize the simulator object for.
- * @fnode:      struct fwnode_handle to be associated with this domain.
+ * @fwnode:     struct fwnode_handle to be associated with this domain.
  * @num_irqs:   Number of interrupts to allocate
  *
  * On success: return a new irq_domain object.
