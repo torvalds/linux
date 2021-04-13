@@ -281,8 +281,8 @@ static int isc_clk_enable(struct clk_hw *hw)
 	unsigned long flags;
 	unsigned int status;
 
-	dev_dbg(isc_clk->dev, "ISC CLK: %s, div = %d, parent id = %d\n",
-		__func__, isc_clk->div, isc_clk->parent_id);
+	dev_dbg(isc_clk->dev, "ISC CLK: %s, id = %d, div = %d, parent id = %d\n",
+		__func__, id, isc_clk->div, isc_clk->parent_id);
 
 	spin_lock_irqsave(&isc_clk->lock, flags);
 	regmap_update_bits(regmap, ISC_CLKCFG,
