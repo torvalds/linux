@@ -10,4 +10,5 @@ ipa-y			:=	ipa_main.o ipa_clock.o ipa_reg.o ipa_mem.o \
 				ipa_resource.o ipa_qmi.o ipa_qmi_msg.o
 
 ipa-y			+=	ipa_data-v3.5.1.o ipa_data-v4.2.o \
-				ipa_data-v4.5.o ipa_data-v4.11.o
+				ipa_data-v4.5.o ipa_data-v4.9.o \
+				ipa_data-v4.11.o
