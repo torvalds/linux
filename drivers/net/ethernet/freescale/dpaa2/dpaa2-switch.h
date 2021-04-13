@@ -18,6 +18,7 @@
 #include <net/switchdev.h>
 #include <linux/if_bridge.h>
 #include <linux/fsl/mc.h>
+#include <net/pkt_cls.h>
 #include <soc/fsl/dpaa2-io.h>
 
 #include "dpsw.h"
@@ -233,4 +234,10 @@ int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
 
 int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
 				    struct flow_cls_offload *cls);
+
+int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
+				      struct tc_cls_matchall_offload *cls);
+
+int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
+				      struct tc_cls_matchall_offload *cls);
 #endif	/* __ETHSW_H */

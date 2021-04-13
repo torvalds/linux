@@ -1140,6 +1140,20 @@ dpaa2_switch_setup_tc_cls_flower(struct dpaa2_switch_acl_tbl *acl_tbl,
 	}
 }
 
+static int
+dpaa2_switch_setup_tc_cls_matchall(struct dpaa2_switch_acl_tbl *acl_tbl,
+				   struct tc_cls_matchall_offload *f)
+{
+	switch (f->command) {
+	case TC_CLSMATCHALL_REPLACE:
+		return dpaa2_switch_cls_matchall_replace(acl_tbl, f);
+	case TC_CLSMATCHALL_DESTROY:
+		return dpaa2_switch_cls_matchall_destroy(acl_tbl, f);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int dpaa2_switch_port_setup_tc_block_cb_ig(enum tc_setup_type type,
 						  void *type_data,
 						  void *cb_priv)
@@ -1147,6 +1161,8 @@ static int dpaa2_switch_port_setup_tc_block_cb_ig(enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return dpaa2_switch_setup_tc_cls_flower(cb_priv, type_data);
+	case TC_SETUP_CLSMATCHALL:
+		return dpaa2_switch_setup_tc_cls_matchall(cb_priv, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

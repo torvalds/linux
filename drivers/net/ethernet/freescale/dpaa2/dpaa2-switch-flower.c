@@ -434,3 +434,59 @@ int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
 
 	return dpaa2_switch_acl_tbl_remove_entry(acl_tbl, entry);
 }
+
+int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
+				      struct tc_cls_matchall_offload *cls)
+{
+	struct netlink_ext_ack *extack = cls->common.extack;
+	struct ethsw_core *ethsw = acl_tbl->ethsw;
+	struct dpaa2_switch_acl_entry *acl_entry;
+	struct flow_action_entry *act;
+	int err;
+
+	if (!flow_offload_has_one_action(&cls->rule->action)) {
+		NL_SET_ERR_MSG(extack, "Only singular actions are supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (dpaa2_switch_acl_tbl_is_full(acl_tbl)) {
+		NL_SET_ERR_MSG(extack, "Maximum filter capacity reached");
+		return -ENOMEM;
+	}
+
+	acl_entry = kzalloc(sizeof(*acl_entry), GFP_KERNEL);
+	if (!acl_entry)
+		return -ENOMEM;
+
+	act = &cls->rule->action.entries[0];
+	err = dpaa2_switch_tc_parse_action(ethsw, act,
+					   &acl_entry->cfg.result, extack);
+	if (err)
+		goto free_acl_entry;
+
+	acl_entry->prio = cls->common.prio;
+	acl_entry->cookie = cls->cookie;
+
+	err = dpaa2_switch_acl_tbl_add_entry(acl_tbl, acl_entry);
+	if (err)
+		goto free_acl_entry;
+
+	return 0;
+
+free_acl_entry:
+	kfree(acl_entry);
+
+	return err;
+}
+
+int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
+				      struct tc_cls_matchall_offload *cls)
+{
+	struct dpaa2_switch_acl_entry *entry;
+
+	entry = dpaa2_switch_acl_tbl_find_entry_by_cookie(acl_tbl, cls->cookie);
+	if (!entry)
+		return 0;
+
+	return  dpaa2_switch_acl_tbl_remove_entry(acl_tbl, entry);
+}
