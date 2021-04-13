@@ -310,6 +310,7 @@ struct csi_state {
 
 	u32 clk_frequency;
 	u32 hs_settle;
+	u32 clk_settle;
 
 	struct reset_control *mrst;
 
@@ -540,11 +541,15 @@ static int mipi_csis_calculate_params(struct csi_state *state)
 
 	/*
 	 * The HSSETTLE counter value is document in a table, but can also
-	 * easily be calculated.
+	 * easily be calculated. Hardcode the CLKSETTLE value to 0 for now
+	 * (which is documented as corresponding to CSI-2 v0.87 to v1.00) until
+	 * we figure out how to compute it correctly.
 	 */
 	state->hs_settle = (lane_rate - 5000000) / 45000000;
-	dev_dbg(state->dev, "lane rate %u, Ths_settle %u\n",
-		lane_rate, state->hs_settle);
+	state->clk_settle = 0;
+
+	dev_dbg(state->dev, "lane rate %u, Tclk_settle %u, Ths_settle %u\n",
+		lane_rate, state->clk_settle, state->hs_settle);
 
 	return 0;
 }
@@ -563,7 +568,8 @@ static void mipi_csis_set_params(struct csi_state *state)
 	__mipi_csis_set_format(state);
 
 	mipi_csis_write(state, MIPI_CSIS_DPHY_CMN_CTRL,
-			MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE(state->hs_settle));
+			MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE(state->hs_settle) |
+			MIPI_CSIS_DPHY_CMN_CTRL_CLKSETTLE(state->clk_settle));
 
 	val = (0 << MIPI_CSIS_ISP_SYNC_HSYNC_LINTV_OFFSET)
 	    | (0 << MIPI_CSIS_ISP_SYNC_VSYNC_SINTV_OFFSET)
