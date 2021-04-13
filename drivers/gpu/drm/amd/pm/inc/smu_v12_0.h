@@ -60,5 +60,7 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 
 int smu_v12_0_set_driver_table_location(struct smu_context *smu);
 
+int smu_v12_0_get_vbios_bootup_values(struct smu_context *smu);
+
 #endif
 #endif
