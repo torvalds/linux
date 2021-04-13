@@ -1382,7 +1382,6 @@ static int hns_roce_free_mr_init(struct hns_roce_dev *hr_dev)
 	ret = hns_roce_v1_rsv_lp_qp(hr_dev);
 	if (ret) {
 		dev_err(dev, "Reserved loop qp failed(%d)!\n", ret);
-		flush_workqueue(free_mr->free_mr_wq);
 		destroy_workqueue(free_mr->free_mr_wq);
 	}
 
@@ -1394,7 +1393,6 @@ static void hns_roce_free_mr_free(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v1_priv *priv = hr_dev->priv;
 	struct hns_roce_free_mr *free_mr = &priv->free_mr;
 
-	flush_workqueue(free_mr->free_mr_wq);
 	destroy_workqueue(free_mr->free_mr_wq);
 
 	hns_roce_v1_release_lp_qp(hr_dev);
