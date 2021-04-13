@@ -805,7 +805,9 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	       "free[RESERVE_MOVINGGC]\t%zu/%zu\n"
 	       "free[RESERVE_NONE]\t%zu/%zu\n"
 	       "freelist_wait\t\t%s\n"
-	       "open buckets\t\t%u/%u (reserved %u)\n"
+	       "open buckets allocated\t%u\n"
+	       "open buckets this dev\t%u\n"
+	       "open buckets total\t%u\n"
 	       "open_buckets_wait\t%s\n"
 	       "open_buckets_btree\t%u\n"
 	       "open_buckets_user\t%u\n"
@@ -816,8 +818,9 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	       fifo_used(&ca->free[RESERVE_MOVINGGC]),	ca->free[RESERVE_MOVINGGC].size,
 	       fifo_used(&ca->free[RESERVE_NONE]),	ca->free[RESERVE_NONE].size,
 	       c->freelist_wait.list.first		? "waiting" : "empty",
-	       c->open_buckets_nr_free, OPEN_BUCKETS_COUNT,
-	       BTREE_NODE_OPEN_BUCKET_RESERVE,
+	       OPEN_BUCKETS_COUNT - c->open_buckets_nr_free,
+	       ca->nr_open_buckets,
+	       OPEN_BUCKETS_COUNT,
 	       c->open_buckets_wait.list.first		? "waiting" : "empty",
 	       nr[BCH_DATA_btree],
 	       nr[BCH_DATA_user],

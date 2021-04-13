@@ -282,13 +282,12 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned dev_idx;
-	u64 fragmented_allowed = c->copygc_threshold;
-	u64 fragmented = 0;
+	u64 fragmented_allowed = 0, fragmented = 0;
 
 	for_each_rw_member(ca, c, dev_idx) {
 		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
 
-		fragmented_allowed += ((__dev_buckets_available(ca, usage) *
+		fragmented_allowed += ((__dev_buckets_reclaimable(ca, usage) *
 					ca->mi.bucket_size) >> 1);
 		fragmented += usage.d[BCH_DATA_user].fragmented;
 	}

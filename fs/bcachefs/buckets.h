@@ -175,25 +175,31 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 	return total - stats.buckets_unavailable;
 }
 
-/*
- * Number of reclaimable buckets - only for use by the allocator thread:
- */
 static inline u64 dev_buckets_available(struct bch_dev *ca)
 {
 	return __dev_buckets_available(ca, bch2_dev_usage_read(ca));
 }
 
-static inline u64 __dev_buckets_free(struct bch_dev *ca,
-				     struct bch_dev_usage stats)
+static inline u64 __dev_buckets_reclaimable(struct bch_dev *ca,
+					    struct bch_dev_usage stats)
 {
-	return __dev_buckets_available(ca, stats) +
-		fifo_used(&ca->free[RESERVE_NONE]) +
-		fifo_used(&ca->free_inc);
+	struct bch_fs *c = ca->fs;
+	s64 available = __dev_buckets_available(ca, stats);
+	unsigned i;
+
+	spin_lock(&c->freelist_lock);
+	for (i = 0; i < RESERVE_NR; i++)
+		available -= fifo_used(&ca->free[i]);
+	available -= fifo_used(&ca->free_inc);
+	available -= ca->nr_open_buckets;
+	spin_unlock(&c->freelist_lock);
+
+	return max(available, 0LL);
 }
 
-static inline u64 dev_buckets_free(struct bch_dev *ca)
+static inline u64 dev_buckets_reclaimable(struct bch_dev *ca)
 {
-	return __dev_buckets_free(ca, bch2_dev_usage_read(ca));
+	return __dev_buckets_reclaimable(ca, bch2_dev_usage_read(ca));
 }
 
 /* Filesystem usage: */
