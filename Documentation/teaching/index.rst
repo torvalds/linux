@@ -53,6 +53,7 @@ tools/labs/docs/Dockerfile for dependencies):
    lectures/interrupts.rst
    lectures/smp.rst
    lectures/address-space.rst
+   lectures/memory-management.rst
    lectures/debugging.rst
 
 .. toctree::
