@@ -604,7 +604,6 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 						? pci_dio_insn_bits_di_w
 						: pci_dio_insn_bits_di_b;
 			s->private	= (void *)d->addr;
-
 		}
 	}
 
