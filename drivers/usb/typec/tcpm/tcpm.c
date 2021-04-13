@@ -5948,13 +5948,14 @@ static int tcpm_copy_pdos(u32 *dest_pdo, const u32 *src_pdo, unsigned int nr_pdo
 int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo, unsigned int nr_pdo,
 				  unsigned int operating_snk_mw)
 {
+	int ret = 0;
+
 	if (tcpm_validate_caps(port, pdo, nr_pdo))
 		return -EINVAL;
 
 	mutex_lock(&port->lock);
 	port->nr_snk_pdo = tcpm_copy_pdos(port->snk_pdo, pdo, nr_pdo);
 	port->operating_snk_mw = operating_snk_mw;
-	port->update_sink_caps = true;
 
 	switch (port->state) {
 	case SNK_NEGOTIATE_CAPABILITIES:
@@ -5963,15 +5964,25 @@ int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo, unsign
 	case SNK_TRANSITION_SINK:
 	case SNK_TRANSITION_SINK_VBUS:
 		if (port->pps_data.active)
-			tcpm_set_state(port, SNK_NEGOTIATE_PPS_CAPABILITIES, 0);
+			port->upcoming_state = SNK_NEGOTIATE_PPS_CAPABILITIES;
+		else if (port->pd_capable)
+			port->upcoming_state = SNK_NEGOTIATE_CAPABILITIES;
 		else
-			tcpm_set_state(port, SNK_NEGOTIATE_CAPABILITIES, 0);
+			break;
+
+		port->update_sink_caps = true;
+
+		ret = tcpm_ams_start(port, POWER_NEGOTIATION);
+		if (ret == -EAGAIN) {
+			port->upcoming_state = INVALID_STATE;
+			break;
+		}
 		break;
 	default:
 		break;
 	}
 	mutex_unlock(&port->lock);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(tcpm_update_sink_capabilities);
 
