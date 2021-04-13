@@ -72,6 +72,12 @@ enum link_training_result {
 	LINK_TRAINING_ABORT,
 };
 
+enum lttpr_mode {
+	LTTPR_MODE_NON_LTTPR,
+	LTTPR_MODE_TRANSPARENT,
+	LTTPR_MODE_NON_TRANSPARENT,
+};
+
 struct link_training_settings {
 	struct dc_link_settings link_settings;
 	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];

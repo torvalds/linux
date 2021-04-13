@@ -36,12 +36,6 @@ enum dc_link_fec_state {
 	dc_link_fec_enabled
 };
 
-enum lttpr_mode {
-	LTTPR_MODE_NON_LTTPR,
-	LTTPR_MODE_TRANSPARENT,
-	LTTPR_MODE_NON_TRANSPARENT,
-};
-
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
