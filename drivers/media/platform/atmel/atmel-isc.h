@@ -187,6 +187,10 @@ struct isc_ctrls {
  *
  * @current_subdev:	current subdevice: the sensor
  * @subdev_entities:	list of subdevice entitites
+ *
+ * @gamma_table:	pointer to the table with gamma values, has
+ *			gamma_max sets of GAMMA_ENTRIES entries each
+ * @gamma_max:		maximum number of sets of inside the gamma_table
  */
 struct isc_device {
 	struct regmap		*regmap;
@@ -245,16 +249,17 @@ struct isc_device {
 		struct v4l2_ctrl	*gr_off_ctrl;
 		struct v4l2_ctrl	*gb_off_ctrl;
 	};
-};
 
-#define GAMMA_MAX	2
 #define GAMMA_ENTRIES	64
+	/* pointer to the defined gamma table */
+	const u32	(*gamma_table)[GAMMA_ENTRIES];
+	u32		gamma_max;
+};
 
 #define ATMEL_ISC_NAME "atmel-isc"
 
 extern struct isc_format formats_list[];
 extern const struct isc_format controller_formats[];
-extern const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES];
 extern const struct regmap_config isc_regmap_config;
 extern const struct v4l2_async_notifier_operations isc_async_ops;
 
