@@ -194,6 +194,13 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 		h = clamp_t(u32, src_h,
 			    CIF_ISP_INPUT_H_MIN,
 			    CIF_ISP_INPUT_H_MAX_V13);
+	} else if (dev->isp_ver == ISP_V21) {
+		w = clamp_t(u32, src_w,
+			    CIF_ISP_INPUT_W_MIN,
+			    CIF_ISP_INPUT_W_MAX_V21);
+		h = clamp_t(u32, src_h,
+			    CIF_ISP_INPUT_H_MIN,
+			    CIF_ISP_INPUT_H_MAX_V21);
 	} else {
 		w  = clamp_t(u32, src_w,
 			     CIF_ISP_INPUT_W_MIN,
@@ -1512,6 +1519,9 @@ static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
 			} else if (dev->isp_ver == ISP_V13) {
 				max_w = CIF_ISP_INPUT_W_MAX_V13;
 				max_h = CIF_ISP_INPUT_H_MAX_V13;
+			} else if (dev->isp_ver == ISP_V21) {
+				max_w = CIF_ISP_INPUT_W_MAX_V21;
+				max_h = CIF_ISP_INPUT_H_MAX_V21;
 			} else {
 				max_w = CIF_ISP_INPUT_W_MAX;
 				max_h = CIF_ISP_INPUT_H_MAX;
