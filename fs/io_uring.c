@@ -488,15 +488,16 @@ struct io_poll_iocb {
 	__poll_t			events;
 	bool				done;
 	bool				canceled;
+	struct wait_queue_entry		wait;
+};
+
+struct io_poll_update {
+	struct file			*file;
+	u64				old_user_data;
+	u64				new_user_data;
+	__poll_t			events;
 	bool				update_events;
 	bool				update_user_data;
-	union {
-		struct wait_queue_entry	wait;
-		struct {
-			u64		old_user_data;
-			u64		new_user_data;
-		};
-	};
 };
 
 struct io_poll_remove {
@@ -713,6 +714,7 @@ enum {
 	REQ_F_COMPLETE_INLINE_BIT,
 	REQ_F_REISSUE_BIT,
 	REQ_F_DONT_REISSUE_BIT,
+	REQ_F_POLL_UPDATE_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_ASYNC_READ_BIT,
 	REQ_F_ASYNC_WRITE_BIT,
@@ -760,6 +762,8 @@ enum {
 	REQ_F_REISSUE		= BIT(REQ_F_REISSUE_BIT),
 	/* don't attempt request reissue, see io_rw_reissue() */
 	REQ_F_DONT_REISSUE	= BIT(REQ_F_DONT_REISSUE_BIT),
+	/* switches between poll and poll update */
+	REQ_F_POLL_UPDATE	= BIT(REQ_F_POLL_UPDATE_BIT),
 	/* supports async reads */
 	REQ_F_ASYNC_READ	= BIT(REQ_F_ASYNC_READ_BIT),
 	/* supports async writes */
@@ -789,6 +793,7 @@ struct io_kiocb {
 		struct file		*file;
 		struct io_rw		rw;
 		struct io_poll_iocb	poll;
+		struct io_poll_update	poll_update;
 		struct io_poll_remove	poll_remove;
 		struct io_accept	accept;
 		struct io_sync		sync;
@@ -4984,7 +4989,6 @@ static void io_init_poll_iocb(struct io_poll_iocb *poll, __poll_t events,
 	poll->head = NULL;
 	poll->done = false;
 	poll->canceled = false;
-	poll->update_events = poll->update_user_data = false;
 #define IO_POLL_UNMASK	(EPOLLERR|EPOLLHUP|EPOLLNVAL|EPOLLRDHUP)
 	/* mask in events that we always want/need */
 	poll->events = events | IO_POLL_UNMASK;
@@ -5361,7 +5365,6 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 
 static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_poll_iocb *poll = &req->poll;
 	u32 events, flags;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
@@ -5378,20 +5381,26 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 #endif
 	if (!(flags & IORING_POLL_ADD_MULTI))
 		events |= EPOLLONESHOT;
-	poll->update_events = poll->update_user_data = false;
+	events = demangle_poll(events) |
+				(events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
 
 	if (flags & (IORING_POLL_UPDATE_EVENTS|IORING_POLL_UPDATE_USER_DATA)) {
-		poll->old_user_data = READ_ONCE(sqe->addr);
-		poll->update_events = flags & IORING_POLL_UPDATE_EVENTS;
-		poll->update_user_data = flags & IORING_POLL_UPDATE_USER_DATA;
-		if (poll->update_user_data)
-			poll->new_user_data = READ_ONCE(sqe->off);
+		struct io_poll_update *poll_upd = &req->poll_update;
+
+		req->flags |= REQ_F_POLL_UPDATE;
+		poll_upd->events = events;
+		poll_upd->old_user_data = READ_ONCE(sqe->addr);
+		poll_upd->update_events = flags & IORING_POLL_UPDATE_EVENTS;
+		poll_upd->update_user_data = flags & IORING_POLL_UPDATE_USER_DATA;
+		if (poll_upd->update_user_data)
+			poll_upd->new_user_data = READ_ONCE(sqe->off);
 	} else {
+		struct io_poll_iocb *poll = &req->poll;
+
+		poll->events = events;
 		if (sqe->off || sqe->addr)
 			return -EINVAL;
 	}
-	poll->events = demangle_poll(events) |
-				(events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
 	return 0;
 }
 
@@ -5429,7 +5438,7 @@ static int io_poll_update(struct io_kiocb *req)
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	preq = io_poll_find(ctx, req->poll.old_user_data);
+	preq = io_poll_find(ctx, req->poll_update.old_user_data);
 	if (!preq) {
 		ret = -ENOENT;
 		goto err;
@@ -5459,13 +5468,13 @@ err:
 		return 0;
 	}
 	/* only mask one event flags, keep behavior flags */
-	if (req->poll.update_events) {
+	if (req->poll_update.update_events) {
 		preq->poll.events &= ~0xffff;
-		preq->poll.events |= req->poll.events & 0xffff;
+		preq->poll.events |= req->poll_update.events & 0xffff;
 		preq->poll.events |= IO_POLL_UNMASK;
 	}
-	if (req->poll.update_user_data)
-		preq->user_data = req->poll.new_user_data;
+	if (req->poll_update.update_user_data)
+		preq->user_data = req->poll_update.new_user_data;
 
 	spin_unlock_irq(&ctx->completion_lock);
 
@@ -5484,7 +5493,7 @@ err:
 
 static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 {
-	if (!req->poll.update_events && !req->poll.update_user_data)
+	if (!(req->flags & REQ_F_POLL_UPDATE))
 		return __io_poll_add(req);
 	return io_poll_update(req);
 }
