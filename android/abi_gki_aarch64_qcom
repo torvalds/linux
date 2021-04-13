@@ -2307,7 +2307,9 @@
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
   thermal_pressure
+  thermal_zone_device_enable
   thermal_zone_device_register
+  thermal_zone_device_unregister
   thermal_zone_device_update
   thermal_zone_get_slope
   thermal_zone_get_temp
