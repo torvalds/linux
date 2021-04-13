@@ -107,6 +107,11 @@ static void isc_sama5d2_config_ctrls(struct isc_device *isc,
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_CONTRAST, -2048, 2047, 1, 256);
 }
 
+static void isc_sama5d2_config_dpc(struct isc_device *isc)
+{
+	/* This module is not present on sama5d2 pipeline */
+}
+
 /* Gamma table with gamma 1/2.2 */
 static const u32 isc_sama5d2_gamma_table[][GAMMA_ENTRIES] = {
 	/* 0 --> gamma 1/1.8 */
@@ -252,6 +257,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	isc->max_width = ISC_SAMA5D2_MAX_SUPPORT_WIDTH;
 	isc->max_height = ISC_SAMA5D2_MAX_SUPPORT_HEIGHT;
 
+	isc->config_dpc = isc_sama5d2_config_dpc;
 	isc->config_csc = isc_sama5d2_config_csc;
 	isc->config_cbc = isc_sama5d2_config_cbc;
 	isc->config_cc = isc_sama5d2_config_cc;

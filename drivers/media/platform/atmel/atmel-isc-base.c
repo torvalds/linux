@@ -659,6 +659,7 @@ static void isc_set_pipeline(struct isc_device *isc, u32 pipeline)
 	regmap_bulk_write(regmap, ISC_GAM_GENTRY, gamma, GAMMA_ENTRIES);
 	regmap_bulk_write(regmap, ISC_GAM_RENTRY, gamma, GAMMA_ENTRIES);
 
+	isc->config_dpc(isc);
 	isc->config_csc(isc);
 	isc->config_cbc(isc);
 	isc->config_cc(isc);
