@@ -2700,11 +2700,6 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 	acl_h = &acl_key.match;
 	acl_m = &acl_key.mask;
 
-	if (port_priv->acl_tbl->num_rules >= DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES) {
-		netdev_err(netdev, "ACL full\n");
-		return -ENOMEM;
-	}
-
 	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
 	memset(&acl_key, 0, sizeof(acl_key));
 
@@ -2718,7 +2713,7 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 	dpsw_acl_prepare_entry_cfg(&acl_key, cmd_buff);
 
 	memset(&acl_entry_cfg, 0, sizeof(acl_entry_cfg));
-	acl_entry_cfg.precedence = port_priv->acl_tbl->num_rules;
+	acl_entry_cfg.precedence = 0;
 	acl_entry_cfg.result.action = DPSW_ACL_ACTION_REDIRECT_TO_CTRL_IF;
 	acl_entry_cfg.key_iova = dma_map_single(dev, cmd_buff,
 						DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE,
@@ -2738,8 +2733,6 @@ static int dpaa2_switch_port_trap_mac_addr(struct ethsw_port_priv *port_priv,
 		netdev_err(netdev, "dpsw_acl_add_entry() failed %d\n", err);
 		return err;
 	}
-
-	port_priv->acl_tbl->num_rules++;
 
 	return 0;
 }
