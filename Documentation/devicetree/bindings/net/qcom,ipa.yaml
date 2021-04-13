@@ -43,11 +43,12 @@ description:
 
 properties:
   compatible:
-    oneOf:
-      - const: "qcom,sc7180-ipa"
-      - const: "qcom,sc7280-ipa"
-      - const: "qcom,sdm845-ipa"
-      - const: "qcom,sdx55-ipa"
+    enum:
+      - qcom,sc7180-ipa
+      - qcom,sc7280-ipa
+      - qcom,sdm845-ipa
+      - qcom,sdx55-ipa
+      - qcom,sm8350-ipa
 
   reg:
     items:
