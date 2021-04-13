@@ -278,12 +278,6 @@ static const char * const mipi_csis_clk_id[] = {
 	"phy",
 };
 
-struct csis_hw_reset {
-	struct regmap *src;
-	u8 req_src;
-	u8 rst_bit;
-};
-
 struct csi_state {
 	/* lock elements below */
 	struct mutex lock;
@@ -321,7 +315,6 @@ struct csi_state {
 
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
 
-	struct csis_hw_reset hw_reset;
 	struct regulator *mipi_phy_regulator;
 };
 
