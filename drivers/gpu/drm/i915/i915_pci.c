@@ -37,7 +37,6 @@
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
-	.gen = (x), \
 	.graphics_ver = (x), \
 	.media_ver = (x), \
 	.display.ver = (x)
