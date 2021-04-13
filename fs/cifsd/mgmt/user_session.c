@@ -17,7 +17,7 @@
 #include "../buffer_pool.h"
 #include "../vfs_cache.h"
 
-static struct ksmbd_ida *session_ida;
+static DEFINE_IDA(session_ida);
 
 #define SESSION_HASH_BITS		3
 static DEFINE_HASHTABLE(sessions_table, SESSION_HASH_BITS);
@@ -172,9 +172,7 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	ksmbd_session_rpc_clear_list(sess);
 	free_channel_list(sess);
 	kfree(sess->Preauth_HashValue);
-	ksmbd_release_id(session_ida, sess->id);
-
-	ksmbd_ida_free(sess->tree_conn_ida);
+	ksmbd_release_id(&session_ida, sess->id);
 	kfree(sess);
 }
 
@@ -254,7 +252,7 @@ struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id)
 
 static int __init_smb2_session(struct ksmbd_session *sess)
 {
-	int id = ksmbd_acquire_smb2_uid(session_ida);
+	int id = ksmbd_acquire_smb2_uid(&session_ida);
 
 	if (id < 0)
 		return -EINVAL;
@@ -294,9 +292,7 @@ static struct ksmbd_session *__session_create(int protocol)
 	if (ret)
 		goto error;
 
-	sess->tree_conn_ida = ksmbd_ida_alloc();
-	if (!sess->tree_conn_ida)
-		goto error;
+	ida_init(&sess->tree_conn_ida);
 
 	if (protocol == CIFDS_SESSION_FLAG_SMB2) {
 		down_write(&sessions_table_lock);
@@ -320,7 +316,7 @@ int ksmbd_acquire_tree_conn_id(struct ksmbd_session *sess)
 	int id = -EINVAL;
 
 	if (test_session_flag(sess, CIFDS_SESSION_FLAG_SMB2))
-		id = ksmbd_acquire_smb2_tid(sess->tree_conn_ida);
+		id = ksmbd_acquire_smb2_tid(&sess->tree_conn_ida);
 
 	return id;
 }
@@ -328,18 +324,5 @@ int ksmbd_acquire_tree_conn_id(struct ksmbd_session *sess)
 void ksmbd_release_tree_conn_id(struct ksmbd_session *sess, int id)
 {
 	if (id >= 0)
-		ksmbd_release_id(sess->tree_conn_ida, id);
-}
-
-int ksmbd_init_session_table(void)
-{
-	session_ida = ksmbd_ida_alloc();
-	if (!session_ida)
-		return -ENOMEM;
-	return 0;
-}
-
-void ksmbd_free_session_table(void)
-{
-	ksmbd_ida_free(session_ida);
+		ksmbd_release_id(&sess->tree_conn_ida, id);
 }

@@ -16,7 +16,6 @@
 
 #define PREAUTH_HASHVALUE_SIZE		64
 
-struct ksmbd_ida;
 struct ksmbd_file_table;
 
 struct channel {
@@ -52,7 +51,7 @@ struct ksmbd_session {
 	struct hlist_node		hlist;
 	struct list_head		ksmbd_chann_list;
 	struct xarray			tree_conns;
-	struct ksmbd_ida		*tree_conn_ida;
+	struct ida			tree_conn_ida;
 	struct list_head		rpc_handle_list;
 
 
@@ -101,8 +100,4 @@ void ksmbd_session_rpc_close(struct ksmbd_session *sess, int id);
 int ksmbd_session_rpc_method(struct ksmbd_session *sess, int id);
 int get_session(struct ksmbd_session *sess);
 void put_session(struct ksmbd_session *sess);
-
-int ksmbd_init_session_table(void);
-void ksmbd_free_session_table(void);
-
 #endif /* __USER_SESSION_MANAGEMENT_H__ */

@@ -5,65 +5,44 @@
 
 #include "ksmbd_ida.h"
 
-struct ksmbd_ida *ksmbd_ida_alloc(void)
+static inline int __acquire_id(struct ida *ida, int from, int to)
 {
-	struct ksmbd_ida *ida;
-
-	ida = kmalloc(sizeof(struct ksmbd_ida), GFP_KERNEL);
-	if (!ida)
-		return NULL;
-
-	ida_init(&ida->map);
-	return ida;
+	return ida_simple_get(ida, from, to, GFP_KERNEL);
 }
 
-void ksmbd_ida_free(struct ksmbd_ida *ida)
-{
-	if (!ida)
-		return;
-
-	ida_destroy(&ida->map);
-	kfree(ida);
-}
-
-static inline int __acquire_id(struct ksmbd_ida *ida, int from, int to)
-{
-	return ida_simple_get(&ida->map, from, to, GFP_KERNEL);
-}
-
-int ksmbd_acquire_smb2_tid(struct ksmbd_ida *ida)
+int ksmbd_acquire_smb2_tid(struct ida *ida)
 {
 	int id;
 
-	do {
+	id = __acquire_id(ida, 0, 0);
+	if (id == 0xFFFF)
 		id = __acquire_id(ida, 0, 0);
-	} while (id == 0xFFFF);
 
 	return id;
 }
 
-int ksmbd_acquire_smb2_uid(struct ksmbd_ida *ida)
+int ksmbd_acquire_smb2_uid(struct ida *ida)
 {
 	int id;
 
-	do {
+	id = __acquire_id(ida, 1, 0);
+	if (id == 0xFFFE)
 		id = __acquire_id(ida, 1, 0);
-	} while (id == 0xFFFE);
 
 	return id;
 }
 
-int ksmbd_acquire_async_msg_id(struct ksmbd_ida *ida)
+int ksmbd_acquire_async_msg_id(struct ida *ida)
 {
 	return __acquire_id(ida, 1, 0);
 }
 
-int ksmbd_acquire_id(struct ksmbd_ida *ida)
+int ksmbd_acquire_id(struct ida *ida)
 {
 	return __acquire_id(ida, 0, 0);
 }
 
-void ksmbd_release_id(struct ksmbd_ida *ida, int id)
+void ksmbd_release_id(struct ida *ida, int id)
 {
-	ida_simple_remove(&ida->map, id);
+	ida_simple_remove(ida, id);
 }

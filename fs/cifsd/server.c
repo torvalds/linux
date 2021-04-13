@@ -537,7 +537,6 @@ static int ksmbd_server_shutdown(void)
 	ksmbd_workqueue_destroy();
 	ksmbd_ipc_release();
 	ksmbd_conn_transport_destroy();
-	ksmbd_free_session_table();
 	ksmbd_crypto_destroy();
 	ksmbd_free_global_file_table();
 	destroy_lease_table(NULL);
@@ -565,10 +564,6 @@ static int __init ksmbd_server_init(void)
 	ret = ksmbd_init_buffer_pools();
 	if (ret)
 		goto err_unregister;
-
-	ret = ksmbd_init_session_table();
-	if (ret)
-		goto err_destroy_pools;
 
 	ret = ksmbd_ipc_init();
 	if (ret)
@@ -600,8 +595,6 @@ err_destroy_file_table:
 err_ipc_release:
 	ksmbd_ipc_release();
 err_free_session_table:
-	ksmbd_free_session_table();
-err_destroy_pools:
 	ksmbd_destroy_buffer_pools();
 err_unregister:
 	class_unregister(&ksmbd_control_class);

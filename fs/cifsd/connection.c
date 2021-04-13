@@ -38,7 +38,6 @@ void ksmbd_conn_free(struct ksmbd_conn *conn)
 	write_unlock(&conn_list_lock);
 
 	kvfree(conn->request_buf);
-	ksmbd_ida_free(conn->async_ida);
 	kfree(conn->preauth_info);
 	kfree(conn);
 }
@@ -70,7 +69,7 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	INIT_LIST_HEAD(&conn->async_requests);
 	spin_lock_init(&conn->request_lock);
 	spin_lock_init(&conn->credits_lock);
-	conn->async_ida = ksmbd_ida_alloc();
+	ida_init(&conn->async_ida);
 
 	write_lock(&conn_list_lock);
 	list_add(&conn->conns_list, &conn_list);

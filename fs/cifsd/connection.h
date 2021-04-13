@@ -101,7 +101,7 @@ struct ksmbd_conn {
 	struct sockaddr_storage		peer_addr;
 
 	/* Identifier for async message */
-	struct ksmbd_ida		*async_ida;
+	struct ida			async_ida;
 
 	__le16				cipher_type;
 	__le16				compress_algorithm;

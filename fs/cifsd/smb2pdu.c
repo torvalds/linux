@@ -517,7 +517,7 @@ int init_smb2_rsp_hdr(struct ksmbd_work *work)
 
 	work->syncronous = true;
 	if (work->async_id) {
-		ksmbd_release_id(conn->async_ida, work->async_id);
+		ksmbd_release_id(&conn->async_ida, work->async_id);
 		work->async_id = 0;
 	}
 
@@ -685,7 +685,7 @@ int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 	rsp_hdr = work->response_buf;
 	rsp_hdr->Flags |= SMB2_FLAGS_ASYNC_COMMAND;
 
-	id = ksmbd_acquire_async_msg_id(conn->async_ida);
+	id = ksmbd_acquire_async_msg_id(&conn->async_ida);
 	if (id < 0) {
 		ksmbd_err("Failed to alloc async message id\n");
 		return id;
