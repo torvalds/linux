@@ -1216,8 +1216,8 @@ static void isc_try_fse(struct isc_device *isc,
 	 * just use the maximum ISC can receive.
 	 */
 	if (ret) {
-		pad_cfg->try_crop.width = ISC_MAX_SUPPORT_WIDTH;
-		pad_cfg->try_crop.height = ISC_MAX_SUPPORT_HEIGHT;
+		pad_cfg->try_crop.width = isc->max_width;
+		pad_cfg->try_crop.height = isc->max_height;
 	} else {
 		pad_cfg->try_crop.width = fse.max_width;
 		pad_cfg->try_crop.height = fse.max_height;
@@ -1294,10 +1294,10 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	isc->try_config.sd_format = sd_fmt;
 
 	/* Limit to Atmel ISC hardware capabilities */
-	if (pixfmt->width > ISC_MAX_SUPPORT_WIDTH)
-		pixfmt->width = ISC_MAX_SUPPORT_WIDTH;
-	if (pixfmt->height > ISC_MAX_SUPPORT_HEIGHT)
-		pixfmt->height = ISC_MAX_SUPPORT_HEIGHT;
+	if (pixfmt->width > isc->max_width)
+		pixfmt->width = isc->max_width;
+	if (pixfmt->height > isc->max_height)
+		pixfmt->height = isc->max_height;
 
 	/*
 	 * The mbus format is the one the subdev outputs.
@@ -1339,10 +1339,10 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	v4l2_fill_pix_format(pixfmt, &format.format);
 
 	/* Limit to Atmel ISC hardware capabilities */
-	if (pixfmt->width > ISC_MAX_SUPPORT_WIDTH)
-		pixfmt->width = ISC_MAX_SUPPORT_WIDTH;
-	if (pixfmt->height > ISC_MAX_SUPPORT_HEIGHT)
-		pixfmt->height = ISC_MAX_SUPPORT_HEIGHT;
+	if (pixfmt->width > isc->max_width)
+		pixfmt->width = isc->max_width;
+	if (pixfmt->height > isc->max_height)
+		pixfmt->height = isc->max_height;
 
 	pixfmt->field = V4L2_FIELD_NONE;
 	pixfmt->bytesperline = (pixfmt->width * isc->try_config.bpp) >> 3;
@@ -1380,10 +1380,10 @@ static int isc_set_fmt(struct isc_device *isc, struct v4l2_format *f)
 		return ret;
 
 	/* Limit to Atmel ISC hardware capabilities */
-	if (pixfmt->width > ISC_MAX_SUPPORT_WIDTH)
-		pixfmt->width = ISC_MAX_SUPPORT_WIDTH;
-	if (pixfmt->height > ISC_MAX_SUPPORT_HEIGHT)
-		pixfmt->height = ISC_MAX_SUPPORT_HEIGHT;
+	if (f->fmt.pix.width > isc->max_width)
+		f->fmt.pix.width = isc->max_width;
+	if (f->fmt.pix.height > isc->max_height)
+		f->fmt.pix.height = isc->max_height;
 
 	isc->fmt = *f;
 

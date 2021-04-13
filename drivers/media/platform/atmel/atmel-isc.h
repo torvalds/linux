@@ -10,9 +10,6 @@
  */
 #ifndef _ATMEL_ISC_H_
 
-#define ISC_MAX_SUPPORT_WIDTH   2592
-#define ISC_MAX_SUPPORT_HEIGHT  1944
-
 #define ISC_CLK_MAX_DIV		255
 
 enum isc_clk_id {
@@ -191,6 +188,9 @@ struct isc_ctrls {
  * @gamma_table:	pointer to the table with gamma values, has
  *			gamma_max sets of GAMMA_ENTRIES entries each
  * @gamma_max:		maximum number of sets of inside the gamma_table
+ *
+ * @max_width:		maximum frame width, dependent on the internal RAM
+ * @max_height:		maximum frame height, dependent on the internal RAM
  */
 struct isc_device {
 	struct regmap		*regmap;
@@ -254,6 +254,9 @@ struct isc_device {
 	/* pointer to the defined gamma table */
 	const u32	(*gamma_table)[GAMMA_ENTRIES];
 	u32		gamma_max;
+
+	u32		max_width;
+	u32		max_height;
 };
 
 extern struct isc_format formats_list[];

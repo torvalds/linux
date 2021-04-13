@@ -49,8 +49,8 @@
 #include "atmel-isc-regs.h"
 #include "atmel-isc.h"
 
-#define ISC_MAX_SUPPORT_WIDTH   2592
-#define ISC_MAX_SUPPORT_HEIGHT  1944
+#define ISC_SAMA5D2_MAX_SUPPORT_WIDTH   2592
+#define ISC_SAMA5D2_MAX_SUPPORT_HEIGHT  1944
 
 #define ISC_CLK_MAX_DIV		255
 
@@ -194,6 +194,9 @@ static int atmel_isc_probe(struct platform_device *pdev)
 
 	isc->gamma_table = isc_sama5d2_gamma_table;
 	isc->gamma_max = 2;
+
+	isc->max_width = ISC_SAMA5D2_MAX_SUPPORT_WIDTH;
+	isc->max_height = ISC_SAMA5D2_MAX_SUPPORT_HEIGHT;
 
 	ret = isc_pipeline_init(isc);
 	if (ret)
