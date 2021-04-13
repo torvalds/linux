@@ -2051,11 +2051,12 @@ static int isc_ctrl_init(struct isc_device *isc)
 	if (ret < 0)
 		return ret;
 
+	/* Initialize product specific controls. For example, contrast */
+	isc->config_ctrls(isc, ops);
+
 	ctrls->brightness = 0;
-	ctrls->contrast = 256;
 
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_BRIGHTNESS, -1024, 1023, 1, 0);
-	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_CONTRAST, -2048, 2047, 1, 256);
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAMMA, 0, isc->gamma_max, 1,
 			  isc->gamma_max);
 	isc->awb_ctrl = v4l2_ctrl_new_std(hdl, &isc_awb_ops,
