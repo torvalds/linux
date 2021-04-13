@@ -45,9 +45,9 @@ struct engine_info {
 	unsigned int hw_id;
 	u8 class;
 	u8 instance;
-	/* mmio bases table *must* be sorted in reverse gen order */
+	/* mmio bases table *must* be sorted in reverse graphics_ver order */
 	struct engine_mmio_base {
-		u32 gen : 8;
+		u32 graphics_ver : 8;
 		u32 base : 24;
 	} mmio_bases[MAX_MMIO_BASES];
 };
@@ -58,7 +58,7 @@ static const struct engine_info intel_engines[] = {
 		.class = RENDER_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 1, .base = RENDER_RING_BASE }
+			{ .graphics_ver = 1, .base = RENDER_RING_BASE }
 		},
 	},
 	[BCS0] = {
@@ -66,7 +66,7 @@ static const struct engine_info intel_engines[] = {
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 6, .base = BLT_RING_BASE }
+			{ .graphics_ver = 6, .base = BLT_RING_BASE }
 		},
 	},
 	[VCS0] = {
@@ -74,9 +74,9 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD_RING_BASE },
-			{ .gen = 6, .base = GEN6_BSD_RING_BASE },
-			{ .gen = 4, .base = BSD_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD_RING_BASE },
+			{ .graphics_ver = 6, .base = GEN6_BSD_RING_BASE },
+			{ .graphics_ver = 4, .base = BSD_RING_BASE }
 		},
 	},
 	[VCS1] = {
@@ -84,8 +84,8 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD2_RING_BASE },
-			{ .gen = 8, .base = GEN8_BSD2_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD2_RING_BASE },
+			{ .graphics_ver = 8, .base = GEN8_BSD2_RING_BASE }
 		},
 	},
 	[VCS2] = {
@@ -93,7 +93,7 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 2,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD3_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD3_RING_BASE }
 		},
 	},
 	[VCS3] = {
@@ -101,7 +101,7 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 3,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_BSD4_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_BSD4_RING_BASE }
 		},
 	},
 	[VECS0] = {
@@ -109,8 +109,8 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_VEBOX_RING_BASE },
-			{ .gen = 7, .base = VEBOX_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_VEBOX_RING_BASE },
+			{ .graphics_ver = 7, .base = VEBOX_RING_BASE }
 		},
 	},
 	[VECS1] = {
@@ -118,7 +118,7 @@ static const struct engine_info intel_engines[] = {
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 1,
 		.mmio_bases = {
-			{ .gen = 11, .base = GEN11_VEBOX2_RING_BASE }
+			{ .graphics_ver = 11, .base = GEN11_VEBOX2_RING_BASE }
 		},
 	},
 };
@@ -146,9 +146,9 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 
 	switch (class) {
 	case RENDER_CLASS:
-		switch (INTEL_GEN(gt->i915)) {
+		switch (GRAPHICS_VER(gt->i915)) {
 		default:
-			MISSING_CASE(INTEL_GEN(gt->i915));
+			MISSING_CASE(GRAPHICS_VER(gt->i915));
 			return DEFAULT_LR_CONTEXT_RENDER_SIZE;
 		case 12:
 		case 11:
@@ -184,8 +184,8 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 			 */
 			cxt_size = intel_uncore_read(uncore, CXT_SIZE) + 1;
 			drm_dbg(&gt->i915->drm,
-				"gen%d CXT_SIZE = %d bytes [0x%08x]\n",
-				INTEL_GEN(gt->i915), cxt_size * 64,
+				"graphics_ver = %d CXT_SIZE = %d bytes [0x%08x]\n",
+				GRAPHICS_VER(gt->i915), cxt_size * 64,
 				cxt_size - 1);
 			return round_up(cxt_size * 64, PAGE_SIZE);
 		case 3:
@@ -201,7 +201,7 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 	case VIDEO_DECODE_CLASS:
 	case VIDEO_ENHANCEMENT_CLASS:
 	case COPY_ENGINE_CLASS:
-		if (INTEL_GEN(gt->i915) < 8)
+		if (GRAPHICS_VER(gt->i915) < 8)
 			return 0;
 		return GEN8_LR_CONTEXT_OTHER_SIZE;
 	}
@@ -213,7 +213,7 @@ static u32 __engine_mmio_base(struct drm_i915_private *i915,
 	int i;
 
 	for (i = 0; i < MAX_MMIO_BASES; i++)
-		if (INTEL_GEN(i915) >= bases[i].gen)
+		if (GRAPHICS_VER(i915) >= bases[i].graphics_ver)
 			break;
 
 	GEM_BUG_ON(i == MAX_MMIO_BASES);
