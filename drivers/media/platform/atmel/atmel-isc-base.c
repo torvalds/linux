@@ -2324,8 +2324,14 @@ int isc_pipeline_init(struct isc_device *isc)
 	struct regmap_field *regs;
 	unsigned int i;
 
-	/* WB-->CFA-->CC-->GAM-->CSC-->CBC-->SUB422-->SUB420 */
+	/*
+	 * DPCEN-->GDCEN-->BLCEN-->WB-->CFA-->CC-->
+	 * GAM-->VHXS-->CSC-->CBC-->SUB422-->SUB420
+	 */
 	const struct reg_field regfields[ISC_PIPE_LINE_NODE_NUM] = {
+		REG_FIELD(ISC_DPC_CTRL, 0, 0),
+		REG_FIELD(ISC_DPC_CTRL, 1, 1),
+		REG_FIELD(ISC_DPC_CTRL, 2, 2),
 		REG_FIELD(ISC_WB_CTRL, 0, 0),
 		REG_FIELD(ISC_CFA_CTRL, 0, 0),
 		REG_FIELD(ISC_CC_CTRL, 0, 0),
@@ -2333,6 +2339,7 @@ int isc_pipeline_init(struct isc_device *isc)
 		REG_FIELD(ISC_GAM_CTRL, 1, 1),
 		REG_FIELD(ISC_GAM_CTRL, 2, 2),
 		REG_FIELD(ISC_GAM_CTRL, 3, 3),
+		REG_FIELD(ISC_VHXS_CTRL, 0, 0),
 		REG_FIELD(ISC_CSC_CTRL + isc->offsets.csc, 0, 0),
 		REG_FIELD(ISC_CBC_CTRL + isc->offsets.cbc, 0, 0),
 		REG_FIELD(ISC_SUB422_CTRL + isc->offsets.sub422, 0, 0),
@@ -2351,7 +2358,7 @@ int isc_pipeline_init(struct isc_device *isc)
 }
 
 /* regmap configuration */
-#define ATMEL_ISC_REG_MAX    0xbfc
+#define ATMEL_ISC_REG_MAX    0xd5c
 const struct regmap_config isc_regmap_config = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
