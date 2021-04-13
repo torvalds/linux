@@ -303,7 +303,6 @@ struct csi_state {
 	struct v4l2_subdev *src_sd;
 
 	u8 index;
-	struct platform_device *pdev;
 	void __iomem *regs;
 	u32 state;
 
@@ -615,13 +614,12 @@ static void mipi_csis_clk_disable(struct csi_state *state)
 
 static int mipi_csis_clk_get(struct csi_state *state)
 {
-	struct device *dev = &state->pdev->dev;
 	unsigned int i;
 	int ret;
 
 	state->num_clks = ARRAY_SIZE(mipi_csis_clk_id);
-	state->clks = devm_kcalloc(dev, state->num_clks, sizeof(*state->clks),
-				   GFP_KERNEL);
+	state->clks = devm_kcalloc(state->dev, state->num_clks,
+				   sizeof(*state->clks), GFP_KERNEL);
 
 	if (!state->clks)
 		return -ENOMEM;
@@ -629,7 +627,7 @@ static int mipi_csis_clk_get(struct csi_state *state)
 	for (i = 0; i < state->num_clks; i++)
 		state->clks[i].id = mipi_csis_clk_id[i];
 
-	ret = devm_clk_bulk_get(dev, state->num_clks, state->clks);
+	ret = devm_clk_bulk_get(state->dev, state->num_clks, state->clks);
 	if (ret < 0)
 		return ret;
 
@@ -637,8 +635,8 @@ static int mipi_csis_clk_get(struct csi_state *state)
 	ret = clk_set_rate(state->clks[MIPI_CSIS_CLK_WRAP].clk,
 			   state->clk_frequency);
 	if (ret < 0)
-		dev_err(dev, "set rate=%d failed: %d\n", state->clk_frequency,
-			ret);
+		dev_err(state->dev, "set rate=%d failed: %d\n",
+			state->clk_frequency, ret);
 
 	return ret;
 }
@@ -707,7 +705,6 @@ static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
 {
 	unsigned int num_events = non_errors ? MIPI_CSIS_NUM_EVENTS
 				: MIPI_CSIS_NUM_EVENTS - 8;
-	struct device *dev = &state->pdev->dev;
 	unsigned long flags;
 	unsigned int i;
 
@@ -715,7 +712,8 @@ static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
 
 	for (i = 0; i < num_events; ++i) {
 		if (state->events[i].counter > 0 || state->debug)
-			dev_info(dev, "%s events: %d\n", state->events[i].name,
+			dev_info(state->dev, "%s events: %d\n",
+				 state->events[i].name,
 				 state->events[i].counter);
 	}
 	spin_unlock_irqrestore(&state->slock, flags);
@@ -741,15 +739,14 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 		{ MIPI_CSIS_DBG_CTRL, "DBG_CTRL" },
 	};
 
-	struct device *dev = &state->pdev->dev;
 	unsigned int i;
 	u32 cfg;
 
-	dev_info(dev, "--- REGISTERS ---\n");
+	dev_info(state->dev, "--- REGISTERS ---\n");
 
 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
 		cfg = mipi_csis_read(state, registers[i].offset);
-		dev_info(dev, "%14s: 0x%08x\n", registers[i].name, cfg);
+		dev_info(state->dev, "%14s: 0x%08x\n", registers[i].name, cfg);
 	}
 
 	return 0;
@@ -799,7 +796,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 
 		mipi_csis_clear_counters(state);
 
-		ret = pm_runtime_resume_and_get(&state->pdev->dev);
+		ret = pm_runtime_resume_and_get(state->dev);
 		if (ret < 0)
 			return ret;
 
@@ -840,7 +837,7 @@ unlock:
 
 done:
 	if (!enable || ret < 0)
-		pm_runtime_put(&state->pdev->dev);
+		pm_runtime_put(state->dev);
 
 	return ret;
 }
@@ -1309,7 +1306,6 @@ static int mipi_csis_probe(struct platform_device *pdev)
 
 	spin_lock_init(&state->slock);
 
-	state->pdev = pdev;
 	state->dev = dev;
 
 	ret = mipi_csis_parse_dt(state);
@@ -1358,7 +1354,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 
 	ret = mipi_csis_async_register(state);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "async register failed: %d\n", ret);
+		dev_err(dev, "async register failed: %d\n", ret);
 		goto cleanup;
 	}
 
@@ -1372,7 +1368,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 			goto unregister_all;
 	}
 
-	dev_info(&pdev->dev, "lanes: %d, freq: %u\n",
+	dev_info(dev, "lanes: %d, freq: %u\n",
 		 state->bus.num_data_lanes, state->clk_frequency);
 
 	return 0;
