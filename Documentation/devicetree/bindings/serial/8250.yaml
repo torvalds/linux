@@ -171,7 +171,6 @@ properties:
       property.
 
   tx-threshold:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Specify the TX FIFO low water indication for parts with programmable
       TX FIFO thresholds.
