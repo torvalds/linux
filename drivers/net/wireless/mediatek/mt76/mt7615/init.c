@@ -252,6 +252,7 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 	int delta_idx, delta = mt76_tx_power_nss_delta(n_chains);
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 	enum nl80211_band band = sband->band;
+	struct mt76_power_limits limits;
 	u8 rate_val;
 
 	delta_idx = mt7615_eeprom_get_power_delta_index(dev, band);
@@ -280,7 +281,11 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 			target_power = max(target_power, eep[index]);
 		}
 
-		target_power = DIV_ROUND_UP(target_power + delta, 2);
+		target_power = mt76_get_rate_power_limits(&dev->mphy, chan,
+							  &limits,
+							  target_power);
+		target_power += delta;
+		target_power = DIV_ROUND_UP(target_power, 2);
 		chan->max_power = min_t(int, chan->max_reg_power,
 					target_power);
 		chan->orig_mpwr = target_power;
@@ -310,6 +315,9 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 
 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
+
+	mt7615_init_txpower(dev, &mphy->sband_2g.sband);
+	mt7615_init_txpower(dev, &mphy->sband_5g.sband);
 
 	mt7615_mutex_acquire(dev);
 
