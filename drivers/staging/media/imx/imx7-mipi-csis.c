@@ -306,7 +306,7 @@ struct csi_state {
 	struct platform_device *pdev;
 	void __iomem *regs;
 	int irq;
-	u32 flags;
+	u32 state;
 
 	struct dentry *debugfs_root;
 	bool debug;
@@ -812,7 +812,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&state->lock);
 
 	if (enable) {
-		if (state->flags & ST_SUSPENDED) {
+		if (state->state & ST_SUSPENDED) {
 			ret = -EBUSY;
 			goto unlock;
 		}
@@ -824,14 +824,14 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 
 		mipi_csis_log_counters(state, true);
 
-		state->flags |= ST_STREAMING;
+		state->state |= ST_STREAMING;
 	} else {
 		v4l2_subdev_call(state->src_sd, video, s_stream, 0);
 		ret = v4l2_subdev_call(state->src_sd, core, s_power, 0);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;
 		mipi_csis_stop_stream(state);
-		state->flags &= ~ST_STREAMING;
+		state->state &= ~ST_STREAMING;
 		if (state->debug)
 			mipi_csis_log_counters(state, true);
 	}
@@ -1027,7 +1027,7 @@ static int mipi_csis_log_status(struct v4l2_subdev *sd)
 
 	mutex_lock(&state->lock);
 	mipi_csis_log_counters(state, true);
-	if (state->debug && (state->flags & ST_POWERED))
+	if (state->debug && (state->state & ST_POWERED))
 		mipi_csis_dump_regs(state);
 	mutex_unlock(&state->lock);
 
@@ -1177,15 +1177,15 @@ static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
 	int ret = 0;
 
 	mutex_lock(&state->lock);
-	if (state->flags & ST_POWERED) {
+	if (state->state & ST_POWERED) {
 		mipi_csis_stop_stream(state);
 		ret = regulator_disable(state->mipi_phy_regulator);
 		if (ret)
 			goto unlock;
 		mipi_csis_clk_disable(state);
-		state->flags &= ~ST_POWERED;
+		state->state &= ~ST_POWERED;
 		if (!runtime)
-			state->flags |= ST_SUSPENDED;
+			state->state |= ST_SUSPENDED;
 	}
 
 unlock:
@@ -1201,21 +1201,21 @@ static int mipi_csis_pm_resume(struct device *dev, bool runtime)
 	int ret = 0;
 
 	mutex_lock(&state->lock);
-	if (!runtime && !(state->flags & ST_SUSPENDED))
+	if (!runtime && !(state->state & ST_SUSPENDED))
 		goto unlock;
 
-	if (!(state->flags & ST_POWERED)) {
+	if (!(state->state & ST_POWERED)) {
 		ret = regulator_enable(state->mipi_phy_regulator);
 		if (ret)
 			goto unlock;
 
-		state->flags |= ST_POWERED;
+		state->state |= ST_POWERED;
 		mipi_csis_clk_enable(state);
 	}
-	if (state->flags & ST_STREAMING)
+	if (state->state & ST_STREAMING)
 		mipi_csis_start_stream(state);
 
-	state->flags &= ~ST_SUSPENDED;
+	state->state &= ~ST_SUSPENDED;
 
 unlock:
 	mutex_unlock(&state->lock);
