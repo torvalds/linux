@@ -119,20 +119,17 @@
 #define SDAM_END_INDEX_OFFSET			0x3
 #define SDAM_START_INDEX_OFFSET			0x4
 #define SDAM_PBS_SCRATCH_LUT_COUNTER_OFFSET	0x6
+#define SDAM_PAUSE_START_MULTIPLIER_OFFSET		0x8
+#define SDAM_PAUSE_END_MULTIPLIER_OFFSET		0x9
 
 /* SDAM_REG_LUT_EN */
 #define SDAM_LUT_EN_BIT				BIT(0)
 
 /* SDAM_REG_PATTERN_CONFIG */
 #define SDAM_PATTERN_LOOP_ENABLE		BIT(3)
-#define SDAM_PATTERN_RAMP_TOGGLE		BIT(2)
-#define SDAM_PATTERN_EN_PAUSE_END		BIT(1)
-#define SDAM_PATTERN_EN_PAUSE_START		BIT(0)
-
-/* SDAM_REG_PAUSE_MULTIPLIER */
-#define SDAM_PAUSE_START_SHIFT			4
-#define SDAM_PAUSE_START_MASK			GENMASK(7, 4)
-#define SDAM_PAUSE_END_MASK			GENMASK(3, 0)
+#define SDAM_PATTERN_EN_PAUSE_START		BIT(1)
+#define SDAM_PATTERN_EN_PAUSE_END		BIT(0)
+#define SDAM_PAUSE_COUNT_MAX			(U8_MAX - 1)
 
 #define SDAM_LUT_COUNT_MAX			64
 
@@ -651,11 +648,36 @@ static int qpnp_lpg_set_sdam_ramp_config(struct qpnp_lpg_channel *lpg)
 	val = 0;
 	if (ramp->pattern_repeat)
 		val |= SDAM_PATTERN_LOOP_ENABLE;
+	if (ramp->pause_hi_count) {
+		val |= SDAM_PATTERN_EN_PAUSE_START;
+		mask |= SDAM_PATTERN_EN_PAUSE_START;
+	}
+	if (ramp->pause_lo_count) {
+		val |= SDAM_PATTERN_EN_PAUSE_END;
+		mask |= SDAM_PATTERN_EN_PAUSE_END;
+	}
 
 	rc = qpnp_lpg_sdam_masked_write(lpg, addr, mask, val);
 	if (rc < 0) {
 		dev_err(lpg->chip->dev, "Write SDAM_REG_PATTERN_CONFIG failed, rc=%d\n",
 					rc);
+		return rc;
+	}
+
+	/* Set PAUSE HI and LO */
+	rc = qpnp_lpg_sdam_write(lpg, SDAM_PAUSE_START_MULTIPLIER_OFFSET,
+				 ramp->pause_hi_count);
+	if (rc < 0) {
+		dev_err(lpg->chip->dev, "Write SDAM_REG_PAUSE_START_MULTIPLIER failed, rc=%d\n",
+			rc);
+		return rc;
+	}
+
+	rc = qpnp_lpg_sdam_write(lpg, SDAM_PAUSE_END_MULTIPLIER_OFFSET,
+				 ramp->pause_lo_count);
+	if (rc < 0) {
+		dev_err(lpg->chip->dev, "Write SDAM_REG_PAUSE_END_MULTIPLIER failed, rc=%d\n",
+			rc);
 		return rc;
 	}
 
@@ -1459,6 +1481,92 @@ static int qpnp_get_lpg_channels(struct qpnp_lpg_chip *chip, u32 *base)
 	return 0;
 }
 
+static int qpnp_lpg_parse_ramp_props_dt(struct device_node *node,
+					struct qpnp_lpg_chip *chip,
+					u32 lpg_chan_id, u32 max_count)
+{
+	int rc;
+	u32 tmp;
+	struct qpnp_lpg_channel *lpg;
+	struct lpg_ramp_config *ramp;
+
+	/* lpg channel id is indexed from 1 in hardware */
+	lpg = &chip->lpgs[lpg_chan_id - 1];
+	ramp = &lpg->ramp_config;
+
+	rc = of_property_read_u32(node, "qcom,ramp-step-ms", &tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "get qcom,ramp-step-ms failed for lpg%d, rc=%d\n",
+				lpg_chan_id, rc);
+		return rc;
+	}
+	ramp->step_ms = (u16)tmp;
+
+	rc = of_property_read_u32(node, "qcom,ramp-low-index", &tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "get qcom,ramp-low-index failed for lpg%d, rc=%d\n",
+				lpg_chan_id, rc);
+		return rc;
+	}
+	ramp->lo_idx = (u8)tmp;
+	if (ramp->lo_idx >= max_count) {
+		dev_err(chip->dev, "qcom,ramp-low-index should less than max %d\n",
+				max_count);
+		return -EINVAL;
+	}
+
+	rc = of_property_read_u32(node, "qcom,ramp-high-index", &tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "get qcom,ramp-high-index failed for lpg%d, rc=%d\n",
+				lpg_chan_id, rc);
+		return rc;
+	}
+	ramp->hi_idx = (u8)tmp;
+
+	if (ramp->hi_idx > max_count) {
+		dev_err(chip->dev, "qcom,ramp-high-index shouldn't exceed max %d\n",
+				max_count);
+		return -EINVAL;
+	}
+
+	if (chip->use_sdam && ramp->hi_idx <= ramp->lo_idx) {
+		dev_err(chip->dev, "high-index(%d) should be larger than low-index(%d) when SDAM used\n",
+				ramp->hi_idx, ramp->lo_idx);
+		return -EINVAL;
+	}
+
+	ramp->pattern_length = ramp->hi_idx - ramp->lo_idx + 1;
+	ramp->pattern = &chip->lut->pattern[ramp->lo_idx];
+	lpg->max_pattern_length = ramp->pattern_length;
+
+	ramp->pattern_repeat = of_property_read_bool(node,
+			"qcom,ramp-pattern-repeat");
+
+	rc = of_property_read_u32(node, "qcom,ramp-pause-hi-count", &tmp);
+	if (rc < 0)
+		ramp->pause_hi_count = 0;
+	else if (chip->use_sdam && tmp > SDAM_PAUSE_COUNT_MAX)
+		return -EINVAL;
+	ramp->pause_hi_count = (u8)tmp;
+
+	rc = of_property_read_u32(node, "qcom,ramp-pause-lo-count", &tmp);
+	if (rc < 0)
+		ramp->pause_lo_count = 0;
+	else if (chip->use_sdam && tmp > SDAM_PAUSE_COUNT_MAX)
+		return -EINVAL;
+	ramp->pause_lo_count = (u8)tmp;
+
+	if (chip->use_sdam)
+		return 0;
+
+	ramp->ramp_dir_low_to_hi = of_property_read_bool(node,
+			"qcom,ramp-from-low-to-high");
+
+	ramp->toggle =  of_property_read_bool(node, "qcom,ramp-toggle");
+
+	return rc;
+}
+
 static int qpnp_lpg_parse_pattern_dt(struct qpnp_lpg_chip *chip,
 					u32 max_count)
 {
@@ -1536,80 +1644,13 @@ static int qpnp_lpg_parse_pattern_dt(struct qpnp_lpg_chip *chip,
 			chip->lpgs[lpg_chan_id - 1].lpg_sdam_base = tmp;
 		}
 
-		/* lpg channel id is indexed from 1 in hardware */
-		lpg = &chip->lpgs[lpg_chan_id - 1];
-		ramp = &lpg->ramp_config;
-
-		rc = of_property_read_u32(child, "qcom,ramp-step-ms", &tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "get qcom,ramp-step-ms failed for lpg%d, rc=%d\n",
-					lpg_chan_id, rc);
+		rc = qpnp_lpg_parse_ramp_props_dt(child, chip, lpg_chan_id,
+						  max_count);
+		if (rc) {
+			dev_err(chip->dev, "Parsing ramp props failed for lpg%d, rc=%d\n",
+				lpg_chan_id, rc);
 			return rc;
 		}
-		ramp->step_ms = (u16)tmp;
-
-		rc = of_property_read_u32(child, "qcom,ramp-low-index", &tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "get qcom,ramp-low-index failed for lpg%d, rc=%d\n",
-						lpg_chan_id, rc);
-			return rc;
-		}
-		ramp->lo_idx = (u8)tmp;
-		if (ramp->lo_idx >= max_count) {
-			dev_err(chip->dev, "qcom,ramp-low-index should less than max %d\n",
-						max_count);
-			return -EINVAL;
-		}
-
-		rc = of_property_read_u32(child, "qcom,ramp-high-index", &tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "get qcom,ramp-high-index failed for lpg%d, rc=%d\n",
-						lpg_chan_id, rc);
-			return rc;
-		}
-		ramp->hi_idx = (u8)tmp;
-
-		if (ramp->hi_idx > max_count) {
-			dev_err(chip->dev, "qcom,ramp-high-index shouldn't exceed max %d\n",
-						max_count);
-			return -EINVAL;
-		}
-
-		if (chip->use_sdam && ramp->hi_idx <= ramp->lo_idx) {
-			dev_err(chip->dev, "high-index(%d) should be larger than low-index(%d) when SDAM used\n",
-						ramp->hi_idx, ramp->lo_idx);
-			return -EINVAL;
-		}
-
-		ramp->pattern_length = ramp->hi_idx - ramp->lo_idx + 1;
-		ramp->pattern = &chip->lut->pattern[ramp->lo_idx];
-		lpg->max_pattern_length = ramp->pattern_length;
-
-		ramp->pattern_repeat = of_property_read_bool(child,
-				"qcom,ramp-pattern-repeat");
-
-		if (chip->use_sdam)
-			continue;
-
-		rc = of_property_read_u32(child,
-				"qcom,ramp-pause-hi-count", &tmp);
-		if (rc < 0)
-			ramp->pause_hi_count = 0;
-		else
-			ramp->pause_hi_count = (u8)tmp;
-
-		rc = of_property_read_u32(child,
-				"qcom,ramp-pause-lo-count", &tmp);
-		if (rc < 0)
-			ramp->pause_lo_count = 0;
-		else
-			ramp->pause_lo_count = (u8)tmp;
-
-		ramp->ramp_dir_low_to_hi = of_property_read_bool(child,
-				"qcom,ramp-from-low-to-high");
-
-		ramp->toggle =  of_property_read_bool(child,
-				"qcom,ramp-toggle");
 	}
 
 	rc = of_property_count_elems_of_size(chip->dev->of_node,
