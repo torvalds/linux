@@ -529,14 +529,18 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 				/* Ask phy to be suspended */
 				if (!IS_ERR_OR_NULL(hsotg->uphy))
 					usb_phy_set_suspend(hsotg->uphy, true);
-			}
-
-			if (hsotg->hw_params.hibernation) {
+			} else if (hsotg->hw_params.hibernation) {
 				ret = dwc2_enter_hibernation(hsotg, 0);
 				if (ret && ret != -ENOTSUPP)
 					dev_err(hsotg->dev,
 						"%s: enter hibernation failed\n",
 						__func__);
+			} else {
+				/*
+				 * If not hibernation nor partial power down are supported,
+				 * clock gating is used to save power.
+				 */
+				dwc2_gadget_enter_clock_gating(hsotg);
 			}
 skip_power_saving:
 			/*
