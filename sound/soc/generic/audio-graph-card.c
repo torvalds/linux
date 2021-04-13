@@ -224,9 +224,9 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct device_node *ports;
 	struct device_node *node;
 	struct asoc_simple_dai *dai;
-	struct snd_soc_dai_link_component *cpus = dai_link->cpus;
-	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
-	struct snd_soc_dai_link_component *platforms = dai_link->platforms;
+	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
+	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
+	struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
 	int ret;
 
 	port	= of_get_parent(ep);
@@ -248,11 +248,11 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		dai = dai_props->cpu_dai;
 
-		ret = asoc_simple_parse_dai(ep, dai_link->cpus, &is_single_links);
+		ret = asoc_simple_parse_dai(ep, cpus, &is_single_links);
 		if (ret)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk(dev, ep, dai, dai_link->cpus);
+		ret = asoc_simple_parse_clk(dev, ep, dai, cpus);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -291,11 +291,11 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai =   dai_props->codec_dai;
 		cconf = dai_props->codec_conf;
 
-		ret = asoc_simple_parse_dai(ep, dai_link->codecs, NULL);
+		ret = asoc_simple_parse_dai(ep, codecs, NULL);
 		if (ret < 0)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk(dev, ep, dai, dai_link->codecs);
+		ret = asoc_simple_parse_clk(dev, ep, dai, codecs);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -357,6 +357,9 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	struct device_node *top = dev->of_node;
 	struct asoc_simple_dai *cpu_dai = dai_props->cpu_dai;
 	struct asoc_simple_dai *codec_dai = dai_props->codec_dai;
+	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
+	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
+	struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
 	int ret, single_cpu = 0;
 
 	dev_dbg(dev, "link_of (%pOF)\n", cpu_ep);
@@ -372,11 +375,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_dai(cpu_ep, dai_link->cpus, &single_cpu);
+	ret = asoc_simple_parse_dai(cpu_ep, cpus, &single_cpu);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_dai(codec_ep, dai_link->codecs, NULL);
+	ret = asoc_simple_parse_dai(codec_ep, codecs, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -388,26 +391,26 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk(dev, cpu_ep, cpu_dai, dai_link->cpus);
+	ret = asoc_simple_parse_clk(dev, cpu_ep, cpu_dai, cpus);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk(dev, codec_ep, codec_dai, dai_link->codecs);
+	ret = asoc_simple_parse_clk(dev, codec_ep, codec_dai, codecs);
 	if (ret < 0)
 		return ret;
 
 	ret = asoc_simple_set_dailink_name(dev, dai_link,
 					   "%s-%s",
-					   dai_link->cpus->dai_name,
-					   dai_link->codecs->dai_name);
+					   cpus->dai_name,
+					   codecs->dai_name);
 	if (ret < 0)
 		return ret;
 
 	dai_link->ops = &graph_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_canonicalize_cpu(dai_link->cpus, single_cpu);
-	asoc_simple_canonicalize_platform(dai_link->platforms, dai_link->cpus);
+	asoc_simple_canonicalize_cpu(cpus, single_cpu);
+	asoc_simple_canonicalize_platform(platforms, cpus);
 
 	return 0;
 }
