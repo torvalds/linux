@@ -399,7 +399,7 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	}
 
 	*real_clk = fsl_get_sys_freq() / prescaler / div->divider;
-	return div ? (int)div->fdr : -EINVAL;
+	return (int)div->fdr;
 }
 
 static void mpc_i2c_setup_8xxx(struct device_node *node,
