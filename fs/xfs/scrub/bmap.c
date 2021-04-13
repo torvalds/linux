@@ -447,7 +447,7 @@ xchk_bmap_btree(
 	int			error;
 
 	/* Load the incore bmap cache if it's not loaded. */
-	info->was_loaded = ifp->if_flags & XFS_IFEXTENTS;
+	info->was_loaded = !xfs_need_iread_extents(ifp);
 
 	error = xfs_iread_extents(sc->tp, ip, whichfork);
 	if (!xchk_fblock_process_error(sc, whichfork, 0, &error))
@@ -673,10 +673,6 @@ xchk_bmap(
 		/* No mappings to check. */
 		goto out;
 	case XFS_DINODE_FMT_EXTENTS:
-		if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-			xchk_fblock_set_corrupt(sc, whichfork, 0);
-			goto out;
-		}
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		if (whichfork == XFS_COW_FORK) {

@@ -111,8 +111,7 @@ xfs_ilock_data_map_shared(
 {
 	uint			lock_mode = XFS_ILOCK_SHARED;
 
-	if (ip->i_df.if_format == XFS_DINODE_FMT_BTREE &&
-	    (ip->i_df.if_flags & XFS_IFEXTENTS) == 0)
+	if (xfs_need_iread_extents(&ip->i_df))
 		lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(ip, lock_mode);
 	return lock_mode;
@@ -124,9 +123,7 @@ xfs_ilock_attr_map_shared(
 {
 	uint			lock_mode = XFS_ILOCK_SHARED;
 
-	if (ip->i_afp &&
-	    ip->i_afp->if_format == XFS_DINODE_FMT_BTREE &&
-	    (ip->i_afp->if_flags & XFS_IFEXTENTS) == 0)
+	if (ip->i_afp && xfs_need_iread_extents(ip->i_afp))
 		lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(ip, lock_mode);
 	return lock_mode;
@@ -843,7 +840,6 @@ xfs_init_new_inode(
 	case S_IFBLK:
 	case S_IFSOCK:
 		ip->i_df.if_format = XFS_DINODE_FMT_DEV;
-		ip->i_df.if_flags = 0;
 		flags |= XFS_ILOG_DEV;
 		break;
 	case S_IFREG:
@@ -855,7 +851,6 @@ xfs_init_new_inode(
 		/* FALLTHROUGH */
 	case S_IFLNK:
 		ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
-		ip->i_df.if_flags = XFS_IFEXTENTS;
 		ip->i_df.if_bytes = 0;
 		ip->i_df.if_u1.if_root = NULL;
 		break;
@@ -875,7 +870,6 @@ xfs_init_new_inode(
 	if (init_xattrs && xfs_sb_version_hasattr(&mp->m_sb)) {
 		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
 		ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
-		ip->i_afp->if_flags = XFS_IFEXTENTS;
 	}
 
 	/*

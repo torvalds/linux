@@ -291,8 +291,7 @@ retry:
 	cow_fsb = NULLFILEOFF;
 	whichfork = XFS_DATA_FORK;
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	ASSERT(ip->i_df.if_format != XFS_DINODE_FMT_BTREE ||
-	       (ip->i_df.if_flags & XFS_IFEXTENTS));
+	ASSERT(!xfs_need_iread_extents(&ip->i_df));
 
 	/*
 	 * Check if this is offset is covered by a COW extents, and if yes use

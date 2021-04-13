@@ -1126,7 +1126,7 @@ xfs_fill_fsxattr(
 	if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
 		fa->fsx_cowextsize = XFS_FSB_TO_B(mp, ip->i_cowextsize);
 	fa->fsx_projid = ip->i_projid;
-	if (ifp && (ifp->if_flags & XFS_IFEXTENTS))
+	if (ifp && !xfs_need_iread_extents(ifp))
 		fa->fsx_nextents = xfs_iext_count(ifp);
 	else
 		fa->fsx_nextents = xfs_ifork_nextents(ifp);

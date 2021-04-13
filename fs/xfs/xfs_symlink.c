@@ -377,7 +377,7 @@ xfs_inactive_symlink_rmt(
 	xfs_trans_t	*tp;
 
 	mp = ip->i_mount;
-	ASSERT(ip->i_df.if_flags & XFS_IFEXTENTS);
+	ASSERT(!xfs_need_iread_extents(&ip->i_df));
 	/*
 	 * We're freeing a symlink that has some
 	 * blocks allocated to it.  Free the

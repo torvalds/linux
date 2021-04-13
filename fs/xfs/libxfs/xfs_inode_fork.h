@@ -22,15 +22,9 @@ struct xfs_ifork {
 		char		*if_data;	/* inline file data */
 	} if_u1;
 	short			if_broot_bytes;	/* bytes allocated for root */
-	unsigned char		if_flags;	/* per-fork flags */
 	int8_t			if_format;	/* format of this fork */
 	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 };
-
-/*
- * Per-fork incore inode flags.
- */
-#define	XFS_IFEXTENTS	0x02	/* All extent pointers are read in */
 
 /*
  * Worst-case increase in the fork extent count when we're adding a single
@@ -235,5 +229,11 @@ int xfs_ifork_verify_local_data(struct xfs_inode *ip);
 int xfs_ifork_verify_local_attr(struct xfs_inode *ip);
 int xfs_iext_count_may_overflow(struct xfs_inode *ip, int whichfork,
 		int nr_to_add);
+
+/* returns true if the fork has extents but they are not read in yet. */
+static inline bool xfs_need_iread_extents(struct xfs_ifork *ifp)
+{
+	return ifp->if_format == XFS_DINODE_FMT_BTREE && ifp->if_height == 0;
+}
 
 #endif	/* __XFS_INODE_FORK_H__ */

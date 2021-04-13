@@ -651,10 +651,8 @@ xfs_attr_shortform_create(
 	trace_xfs_attr_sf_create(args);
 
 	ASSERT(ifp->if_bytes == 0);
-	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS) {
-		ifp->if_flags &= ~XFS_IFEXTENTS;	/* just in case */
+	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS)
 		ifp->if_format = XFS_DINODE_FMT_LOCAL;
-	}
 	xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
 	hdr = (struct xfs_attr_sf_hdr *)ifp->if_u1.if_data;
 	memset(hdr, 0, sizeof(*hdr));

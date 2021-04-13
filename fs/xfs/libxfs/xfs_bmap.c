@@ -605,7 +605,7 @@ xfs_bmap_btree_to_extents(
 
 	ASSERT(cur);
 	ASSERT(whichfork != XFS_COW_FORK);
-	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
+	ASSERT(!xfs_need_iread_extents(ifp));
 	ASSERT(ifp->if_format == XFS_DINODE_FMT_BTREE);
 	ASSERT(be16_to_cpu(rblock->bb_level) == 1);
 	ASSERT(be16_to_cpu(rblock->bb_numrecs) == 1);
@@ -805,7 +805,6 @@ xfs_bmap_local_to_extents_empty(
 	ASSERT(ifp->if_nextents == 0);
 
 	xfs_bmap_forkoff_reset(ip, whichfork);
-	ifp->if_flags |= XFS_IFEXTENTS;
 	ifp->if_u1.if_root = NULL;
 	ifp->if_height = 0;
 	ifp->if_format = XFS_DINODE_FMT_EXTENTS;
@@ -849,7 +848,6 @@ xfs_bmap_local_to_extents(
 
 	flags = 0;
 	error = 0;
-	ASSERT(!(ifp->if_flags & XFS_IFEXTENTS));
 	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = ip->i_mount;
@@ -1098,7 +1096,6 @@ xfs_bmap_add_attrfork(
 	ASSERT(ip->i_afp == NULL);
 
 	ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
-	ip->i_afp->if_flags = XFS_IFEXTENTS;
 	logflags = 0;
 	switch (ip->i_df.if_format) {
 	case XFS_DINODE_FMT_LOCAL:
@@ -1224,15 +1221,10 @@ xfs_iread_extents(
 	struct xfs_btree_cur	*cur;
 	int			error;
 
-	if (ifp->if_flags & XFS_IFEXTENTS)
+	if (!xfs_need_iread_extents(ifp))
 		return 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	if (XFS_IS_CORRUPT(mp, ifp->if_format != XFS_DINODE_FMT_BTREE)) {
-		error = -EFSCORRUPTED;
-		goto out;
-	}
 
 	ir.loaded = 0;
 	xfs_iext_first(ifp, &ir.icur);
@@ -1248,8 +1240,6 @@ xfs_iread_extents(
 		goto out;
 	}
 	ASSERT(ir.loaded == xfs_iext_count(ifp));
-
-	ifp->if_flags |= XFS_IFEXTENTS;
 	return 0;
 out:
 	xfs_iext_destroy(ifp);

@@ -827,7 +827,6 @@ xfs_dir2_sf_create(
 	 * convert it to local format.
 	 */
 	if (dp->i_df.if_format == XFS_DINODE_FMT_EXTENTS) {
-		dp->i_df.if_flags &= ~XFS_IFEXTENTS;	/* just in case */
 		dp->i_df.if_format = XFS_DINODE_FMT_LOCAL;
 		xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
 	}
