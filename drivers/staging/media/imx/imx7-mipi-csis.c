@@ -1252,13 +1252,11 @@ static const struct dev_pm_ops mipi_csis_pm_ops = {
  * Probe/remove & platform driver
  */
 
-static int mipi_csis_subdev_init(struct v4l2_subdev *sd,
-				 struct platform_device *pdev,
-				 const struct v4l2_subdev_ops *ops)
+static int mipi_csis_subdev_init(struct csi_state *state)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct v4l2_subdev *sd = &state->sd;
 
-	v4l2_subdev_init(sd, ops);
+	v4l2_subdev_init(sd, &mipi_csis_subdev_ops);
 	sd->owner = THIS_MODULE;
 	snprintf(sd->name, sizeof(sd->name), "%s.%d",
 		 CSIS_SUBDEV_NAME, state->index);
@@ -1269,7 +1267,7 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *sd,
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &mipi_csis_entity_ops;
 
-	sd->dev = &pdev->dev;
+	sd->dev = state->dev;
 
 	state->csis_fmt = &mipi_csis_formats[0];
 	mipi_csis_init_cfg(sd, NULL);
@@ -1354,8 +1352,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &state->sd);
 
 	mutex_init(&state->lock);
-	ret = mipi_csis_subdev_init(&state->sd, pdev,
-				    &mipi_csis_subdev_ops);
+	ret = mipi_csis_subdev_init(state);
 	if (ret < 0)
 		goto disable_clock;
 
