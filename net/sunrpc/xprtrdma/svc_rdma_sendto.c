@@ -926,21 +926,21 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 
 	ret = -ENOTCONN;
 	if (svc_xprt_is_dead(xprt))
-		goto err0;
+		goto drop_connection;
 
 	ret = -ENOMEM;
 	sctxt = svc_rdma_send_ctxt_get(rdma);
 	if (!sctxt)
-		goto err0;
+		goto drop_connection;
 
 	p = xdr_reserve_space(&sctxt->sc_stream,
 			      rpcrdma_fixed_maxsz * sizeof(*p));
 	if (!p)
-		goto err1;
+		goto put_ctxt;
 
 	ret = svc_rdma_send_reply_chunk(rdma, rctxt, &rqstp->rq_res);
 	if (ret < 0)
-		goto err2;
+		goto reply_chunk;
 
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
@@ -948,15 +948,15 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	*p = pcl_is_empty(&rctxt->rc_reply_pcl) ? rdma_msg : rdma_nomsg;
 
 	if (svc_rdma_encode_read_list(sctxt) < 0)
-		goto err1;
+		goto put_ctxt;
 	if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
-		goto err1;
+		goto put_ctxt;
 	if (svc_rdma_encode_reply_chunk(rctxt, sctxt, ret) < 0)
-		goto err1;
+		goto put_ctxt;
 
 	ret = svc_rdma_send_reply_msg(rdma, sctxt, rctxt, rqstp);
 	if (ret < 0)
-		goto err1;
+		goto put_ctxt;
 
 	/* Prevent svc_xprt_release() from releasing the page backing
 	 * rq_res.head[0].iov_base. It's no longer being accessed by
@@ -964,16 +964,16 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	rqstp->rq_respages++;
 	return 0;
 
- err2:
+reply_chunk:
 	if (ret != -E2BIG && ret != -EINVAL)
-		goto err1;
+		goto put_ctxt;
 
 	svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
 	return 0;
 
- err1:
+put_ctxt:
 	svc_rdma_send_ctxt_put(rdma, sctxt);
- err0:
+drop_connection:
 	trace_svcrdma_send_err(rqstp, ret);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 	return -ENOTCONN;
