@@ -5379,17 +5379,17 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	if (!(flags & IORING_POLL_ADD_MULTI))
 		events |= EPOLLONESHOT;
 	poll->update_events = poll->update_user_data = false;
-	if (flags & IORING_POLL_UPDATE_EVENTS) {
-		poll->update_events = true;
+
+	if (flags & (IORING_POLL_UPDATE_EVENTS|IORING_POLL_UPDATE_USER_DATA)) {
 		poll->old_user_data = READ_ONCE(sqe->addr);
+		poll->update_events = flags & IORING_POLL_UPDATE_EVENTS;
+		poll->update_user_data = flags & IORING_POLL_UPDATE_USER_DATA;
+		if (poll->update_user_data)
+			poll->new_user_data = READ_ONCE(sqe->off);
+	} else {
+		if (sqe->off || sqe->addr)
+			return -EINVAL;
 	}
-	if (flags & IORING_POLL_UPDATE_USER_DATA) {
-		poll->update_user_data = true;
-		poll->new_user_data = READ_ONCE(sqe->off);
-	}
-	if (!(poll->update_events || poll->update_user_data) &&
-	     (sqe->off || sqe->addr))
-		return -EINVAL;
 	poll->events = demangle_poll(events) |
 				(events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
 	return 0;
