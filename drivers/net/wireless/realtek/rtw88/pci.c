@@ -671,6 +671,8 @@ static u8 ac_to_hwq[] = {
 	[IEEE80211_AC_BK] = RTW_TX_QUEUE_BK,
 };
 
+static_assert(ARRAY_SIZE(ac_to_hwq) == IEEE80211_NUM_ACS);
+
 static u8 rtw_hw_queue_mapping(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -725,6 +727,72 @@ static void rtw_pci_dma_check(struct rtw_dev *rtwdev,
 		rtw_warn(rtwdev, "pci bus timeout, check dma status\n");
 
 	rtwpci->rx_tag = (rtwpci->rx_tag + 1) % RX_TAG_MAX;
+}
+
+static u32 __pci_get_hw_tx_ring_rp(struct rtw_dev *rtwdev, u8 pci_q)
+{
+	u32 bd_idx_addr = rtw_pci_tx_queue_idx_addr[pci_q];
+	u32 bd_idx = rtw_read16(rtwdev, bd_idx_addr + 2);
+
+	return FIELD_GET(TRX_BD_IDX_MASK, bd_idx);
+}
+
+static void __pci_flush_queue(struct rtw_dev *rtwdev, u8 pci_q, bool drop)
+{
+	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	struct rtw_pci_tx_ring *ring = &rtwpci->tx_rings[pci_q];
+	u32 cur_rp;
+	u8 i;
+
+	/* Because the time taked by the I/O in __pci_get_hw_tx_ring_rp is a
+	 * bit dynamic, it's hard to define a reasonable fixed total timeout to
+	 * use read_poll_timeout* helper. Instead, we can ensure a reasonable
+	 * polling times, so we just use for loop with udelay here.
+	 */
+	for (i = 0; i < 30; i++) {
+		cur_rp = __pci_get_hw_tx_ring_rp(rtwdev, pci_q);
+		if (cur_rp == ring->r.wp)
+			return;
+
+		udelay(1);
+	}
+
+	if (!drop)
+		rtw_warn(rtwdev, "timed out to flush pci tx ring[%d]\n", pci_q);
+}
+
+static void __rtw_pci_flush_queues(struct rtw_dev *rtwdev, u32 pci_queues,
+				   bool drop)
+{
+	u8 q;
+
+	for (q = 0; q < RTK_MAX_TX_QUEUE_NUM; q++) {
+		/* It may be not necessary to flush BCN and H2C tx queues. */
+		if (q == RTW_TX_QUEUE_BCN || q == RTW_TX_QUEUE_H2C)
+			continue;
+
+		if (pci_queues & BIT(q))
+			__pci_flush_queue(rtwdev, q, drop);
+	}
+}
+
+static void rtw_pci_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop)
+{
+	u32 pci_queues = 0;
+	u8 i;
+
+	/* If all of the hardware queues are requested to flush,
+	 * flush all of the pci queues.
+	 */
+	if (queues == BIT(rtwdev->hw->queues) - 1) {
+		pci_queues = BIT(RTK_MAX_TX_QUEUE_NUM) - 1;
+	} else {
+		for (i = 0; i < rtwdev->hw->queues; i++)
+			if (queues & BIT(i))
+				pci_queues |= BIT(ac_to_hwq[i]);
+	}
+
+	__rtw_pci_flush_queues(rtwdev, pci_queues, drop);
 }
 
 static void rtw_pci_tx_kick_off_queue(struct rtw_dev *rtwdev, u8 queue)
@@ -1490,6 +1558,7 @@ static void rtw_pci_destroy(struct rtw_dev *rtwdev, struct pci_dev *pdev)
 static struct rtw_hci_ops rtw_pci_ops = {
 	.tx_write = rtw_pci_tx_write,
 	.tx_kick_off = rtw_pci_tx_kick_off,
+	.flush_queues = rtw_pci_flush_queues,
 	.setup = rtw_pci_setup,
 	.start = rtw_pci_start,
 	.stop = rtw_pci_stop,
