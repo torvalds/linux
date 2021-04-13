@@ -305,7 +305,6 @@ struct csi_state {
 	u8 index;
 	struct platform_device *pdev;
 	void __iomem *regs;
-	int irq;
 	u32 state;
 
 	struct dentry *debugfs_root;
@@ -1304,6 +1303,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct csi_state *state;
+	int irq;
 	int ret;
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
@@ -1331,9 +1331,9 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	if (IS_ERR(state->regs))
 		return PTR_ERR(state->regs);
 
-	state->irq = platform_get_irq(pdev, 0);
-	if (state->irq < 0)
-		return state->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	ret = mipi_csis_clk_get(state);
 	if (ret < 0)
@@ -1345,8 +1345,8 @@ static int mipi_csis_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_irq(dev, state->irq, mipi_csis_irq_handler,
-			       0, dev_name(dev), state);
+	ret = devm_request_irq(dev, irq, mipi_csis_irq_handler, 0,
+			       dev_name(dev), state);
 	if (ret) {
 		dev_err(dev, "Interrupt request failed\n");
 		goto disable_clock;
