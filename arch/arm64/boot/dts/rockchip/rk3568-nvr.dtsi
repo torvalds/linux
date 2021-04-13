@@ -373,7 +373,8 @@
 
 &sdhci {
 	bus-width = <8>;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	non-removable;
 	status = "okay";
 };

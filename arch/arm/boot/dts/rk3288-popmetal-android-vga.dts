@@ -237,7 +237,8 @@
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
-	supports-sd;
+	no-sdio;
+	no-mmc;
 };
 
 &gmac {

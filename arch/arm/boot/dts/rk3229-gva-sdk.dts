@@ -193,7 +193,8 @@
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	non-removable;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 

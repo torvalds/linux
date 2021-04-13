@@ -196,7 +196,8 @@
 &sdmmc {
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <100000 100000000>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -213,7 +214,8 @@
 &sdio0 {
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <200000 100000000>;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;
@@ -235,7 +237,8 @@
 &sdhci {
 	bus-width = <8>;
 	mmc-hs400-1_8v;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	non-removable;
 	mmc-hs400-enhanced-strobe;
 	status = "okay";

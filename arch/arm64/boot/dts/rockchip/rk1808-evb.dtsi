@@ -229,7 +229,8 @@
 	cap-mmc-highspeed;
 	max-frequency = <200000000>;
 	mmc-hs200-1_8v;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	non-removable;
 	num-slots = <1>;
 	status = "okay";
@@ -605,7 +606,8 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 	keep-power-in-suspend;
 	non-removable;
 	mmc-pwrseq = <&sdio_pwrseq>;
@@ -617,7 +619,8 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	card-detect-delay = <300>;
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;

@@ -486,7 +486,8 @@
 };
 
 &sdmmc {
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	sd-uhs-sdr12;
@@ -501,7 +502,8 @@
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 };
 

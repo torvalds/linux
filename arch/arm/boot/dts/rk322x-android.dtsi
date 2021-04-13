@@ -115,7 +115,8 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
@@ -141,7 +142,8 @@
 	disable-wp;
 	max-frequency = <50000000>;
 	num-slots = <1>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 };
 
 &sdio {
@@ -153,7 +155,8 @@
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	max-frequency = <150000000>;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 };
 
 &tsadc {

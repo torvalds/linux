@@ -171,7 +171,8 @@
 	disable-wp;
 	max-frequency = <50000000>;
 	num-slots = <1>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	status = "disabled";
 };
 

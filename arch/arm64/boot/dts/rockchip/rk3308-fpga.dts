@@ -43,7 +43,8 @@
 &emmc {
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	non-removable;
 	num-slots = <1>;
 	status = "okay";

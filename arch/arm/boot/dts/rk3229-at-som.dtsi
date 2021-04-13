@@ -230,7 +230,8 @@
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	max-frequency = <150000000>;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 };
 
 &spi0 {

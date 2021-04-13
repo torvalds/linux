@@ -522,7 +522,8 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
@@ -1267,7 +1268,8 @@
 &sdmmc {
 	clock-frequency = <37500000>;
 	clock-freq-min-max = <400000 37500000>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
@@ -1281,7 +1283,8 @@
 
 &sdio0 {
 	max-frequency = <50000000>;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;

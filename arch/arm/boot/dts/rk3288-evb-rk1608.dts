@@ -740,11 +740,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk &sdio0_int>;
 	sd-uhs-sdr104;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 };
 
 &sdmmc {
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	sd-uhs-sdr12;
@@ -760,7 +762,8 @@
 	status = "okay";
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 };
 
 &tsadc {

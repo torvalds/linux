@@ -1658,7 +1658,8 @@
 
 &sdhci {
 	bus-width = <8>;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	non-removable;
 	rockchip,txclk-tapnum = <0x8>;
 	max-frequency = <200000000>;
@@ -1667,7 +1668,8 @@
 
 &sdmmc0 {
 	max-frequency = <150000000>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;

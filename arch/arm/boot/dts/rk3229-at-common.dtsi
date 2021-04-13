@@ -94,7 +94,8 @@
 	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	disable-wp;
 	non-removable;
 	num-slots = <1>;

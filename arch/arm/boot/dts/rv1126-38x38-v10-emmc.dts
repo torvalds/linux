@@ -194,7 +194,8 @@
 	non-removable;
 	mmc-hs200-1_8v;
 	rockchip,default-sample-phase = <90>;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
 	status = "okay";
@@ -483,7 +484,8 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	rockchip,default-sample-phase = <90>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 	vmmc-supply = <&vcc_sd>;
 };

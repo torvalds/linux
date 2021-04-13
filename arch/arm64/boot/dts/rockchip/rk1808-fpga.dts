@@ -33,7 +33,8 @@
 	clocks = <&xin24m>, <&xin24m>, <&xin24m>, <&xin24m>;
 	clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 	mmc-hs200-1_8v;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	num-slots = <1>;
 	status = "okay";
 };
@@ -46,7 +47,8 @@
 	max-frequency = <400000>;
 	clocks = <&xin24m>, <&xin24m>, <&xin24m>, <&xin24m>;
 	clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	status = "okay";
 };
 

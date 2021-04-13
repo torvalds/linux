@@ -250,7 +250,8 @@
 
 &sdio0 {
 	max-frequency = <100000000>;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;

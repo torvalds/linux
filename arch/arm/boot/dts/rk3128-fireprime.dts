@@ -125,7 +125,8 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
@@ -388,7 +389,8 @@
 
 &sdmmc {
 	cap-mmc-highspeed;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	broken-cd;
 	card-detect-delay = <800>;
 	ignore-pm-notify;
@@ -399,7 +401,8 @@
 
 &sdio {
 	cap-mmc-highspeed;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	non-removable;

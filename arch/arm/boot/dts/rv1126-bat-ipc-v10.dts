@@ -191,7 +191,8 @@
 	non-removable;
 	mmc-hs200-1_8v;
 	rockchip,default-sample-phase = <90>;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
 	status = "okay";
@@ -424,7 +425,8 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	rockchip,default-sample-phase = <90>;
-	supports-sdio;
+	no-sd;
+	no-mmc;
 	supports-chip-alive;
 	logic-remove-card;
 	status = "okay";
@@ -436,7 +438,8 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	rockchip,default-sample-phase = <90>;
-	supports-sd;
+	no-sdio;
+	no-mmc;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr104;

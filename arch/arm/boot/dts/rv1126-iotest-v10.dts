@@ -44,7 +44,8 @@
 	non-removable;
 	mmc-hs200-1_8v;
 	rockchip,default-sample-phase = <90>;
-	supports-emmc;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
