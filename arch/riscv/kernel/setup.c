@@ -24,6 +24,7 @@
 
 #include <asm/cpu_ops.h>
 #include <asm/early_ioremap.h>
+#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/set_memory.h>
 #include <asm/sections.h>
@@ -51,7 +52,11 @@ struct screen_info screen_info __section(".data") = {
  * This is used before the kernel initializes the BSS so it can't be in the
  * BSS.
  */
-atomic_t hart_lottery __section(".sdata");
+atomic_t hart_lottery __section(".sdata")
+#ifdef CONFIG_XIP_KERNEL
+= ATOMIC_INIT(0xC001BEEF)
+#endif
+;
 unsigned long boot_cpu_hartid;
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
@@ -276,7 +281,7 @@ void __init setup_arch(char **cmdline_p)
 #if IS_ENABLED(CONFIG_BUILTIN_DTB)
 	unflatten_and_copy_device_tree();
 #else
-	if (early_init_dt_verify(__va(dtb_early_pa)))
+	if (early_init_dt_verify(__va(XIP_FIXUP(dtb_early_pa))))
 		unflatten_device_tree();
 	else
 		pr_err("No DTB found in kernel mappings\n");
@@ -288,7 +293,7 @@ void __init setup_arch(char **cmdline_p)
 
 	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
 		protect_kernel_text_data();
-#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU) && !defined(CONFIG_XIP_KERNEL)
 		protect_kernel_linear_mapping_text_rodata();
 #endif
 	}
