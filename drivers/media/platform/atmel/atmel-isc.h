@@ -231,6 +231,8 @@ struct isc_reg_offsets {
  *			specific CC module
  * @config_gam:		pointer to a function that initializes product
  *			specific GAMMA module
+ * @config_rlp:		pointer to a function that initializes product
+ *			specific RLP module
  * @config_ctrls:	pointer to a functoin that initializes product
  *			specific v4l2 controls.
  *
@@ -309,6 +311,7 @@ struct isc_device {
 		void (*config_cbc)(struct isc_device *isc);
 		void (*config_cc)(struct isc_device *isc);
 		void (*config_gam)(struct isc_device *isc);
+		void (*config_rlp)(struct isc_device *isc);
 
 		void (*config_ctrls)(struct isc_device *isc,
 				     const struct v4l2_ctrl_ops *ops);

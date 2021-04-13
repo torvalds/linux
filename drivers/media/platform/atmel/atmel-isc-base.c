@@ -719,11 +719,10 @@ static void isc_set_histogram(struct isc_device *isc, bool enable)
 static int isc_configure(struct isc_device *isc)
 {
 	struct regmap *regmap = isc->regmap;
-	u32 pfe_cfg0, rlp_mode, dcfg, mask, pipeline;
+	u32 pfe_cfg0, dcfg, mask, pipeline;
 	struct isc_subdev_entity *subdev = isc->current_subdev;
 
 	pfe_cfg0 = isc->config.sd_format->pfe_cfg0_bps;
-	rlp_mode = isc->config.rlp_cfg_mode;
 	pipeline = isc->config.bits_pipeline;
 
 	dcfg = isc->config.dcfg_imode | isc->dcfg;
@@ -736,8 +735,7 @@ static int isc_configure(struct isc_device *isc)
 
 	regmap_update_bits(regmap, ISC_PFE_CFG0, mask, pfe_cfg0);
 
-	regmap_update_bits(regmap, ISC_RLP_CFG + isc->offsets.rlp,
-			   ISC_RLP_CFG_MODE_MASK, rlp_mode);
+	isc->config_rlp(isc);
 
 	regmap_write(regmap, ISC_DCFG + isc->offsets.dma, dcfg);
 
