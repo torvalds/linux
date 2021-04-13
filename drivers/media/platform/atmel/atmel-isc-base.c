@@ -1684,7 +1684,8 @@ static void isc_hist_count(struct isc_device *isc, u32 *min, u32 *max)
 	*min = 0;
 	*max = HIST_ENTRIES;
 
-	regmap_bulk_read(regmap, ISC_HIS_ENTRY, hist_entry, HIST_ENTRIES);
+	regmap_bulk_read(regmap, ISC_HIS_ENTRY + isc->offsets.his_entry,
+			 hist_entry, HIST_ENTRIES);
 
 	*hist_count = 0;
 	/*

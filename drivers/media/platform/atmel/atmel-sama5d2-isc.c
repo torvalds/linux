@@ -239,6 +239,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	isc->offsets.his = ISC_SAMA5D2_HIS_OFFSET;
 	isc->offsets.dma = ISC_SAMA5D2_DMA_OFFSET;
 	isc->offsets.version = ISC_SAMA5D2_VERSION_OFFSET;
+	isc->offsets.his_entry = ISC_SAMA5D2_HIS_ENTRY_OFFSET;
 
 	/* sama5d2-isc - 8 bits per beat */
 	isc->dcfg = ISC_DCFG_YMBSIZE_BEATS8 | ISC_DCFG_CMBSIZE_BEATS8;

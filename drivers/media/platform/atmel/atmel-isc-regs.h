@@ -300,6 +300,8 @@
 /* Version Register */
 #define ISC_VERSION	0x0000040c
 
+/* Offset for version register specific to sama5d2 product */
+#define ISC_SAMA5D2_HIS_ENTRY_OFFSET	0
 /* Histogram Entry */
 #define ISC_HIS_ENTRY	0x00000410
 
