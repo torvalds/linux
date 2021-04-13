@@ -194,9 +194,13 @@
 #define ISC_CBC_CONTRAST	0x000003c0
 #define ISC_CBC_CONTRAST_MASK	GENMASK(11, 0)
 
+/* Offset for SUB422 register specific to sama5d2 product */
+#define ISC_SAMA5D2_SUB422_OFFSET	0
 /* Subsampling 4:4:4 to 4:2:2 Control Register */
 #define ISC_SUB422_CTRL 0x000003c4
 
+/* Offset for SUB420 register specific to sama5d2 product */
+#define ISC_SAMA5D2_SUB420_OFFSET	0
 /* Subsampling 4:2:2 to 4:2:0 Control Register */
 #define ISC_SUB420_CTRL 0x000003cc
 

@@ -148,10 +148,14 @@ struct isc_ctrls {
  * struct isc_reg_offsets - ISC device register offsets
  * @csc:		Offset for the CSC register
  * @cbc:		Offset for the CBC register
+ * @sub422:		Offset for the SUB422 register
+ * @sub420:		Offset for the SUB420 register
  */
 struct isc_reg_offsets {
 	u32 csc;
 	u32 cbc;
+	u32 sub422;
+	u32 sub420;
 };
 
 /*

@@ -2326,8 +2326,8 @@ int isc_pipeline_init(struct isc_device *isc)
 		REG_FIELD(ISC_GAM_CTRL, 3, 3),
 		REG_FIELD(ISC_CSC_CTRL + isc->offsets.csc, 0, 0),
 		REG_FIELD(ISC_CBC_CTRL + isc->offsets.cbc, 0, 0),
-		REG_FIELD(ISC_SUB422_CTRL, 0, 0),
-		REG_FIELD(ISC_SUB420_CTRL, 0, 0),
+		REG_FIELD(ISC_SUB422_CTRL + isc->offsets.sub422, 0, 0),
+		REG_FIELD(ISC_SUB420_CTRL + isc->offsets.sub420, 0, 0),
 	};
 
 	for (i = 0; i < ISC_PIPE_LINE_NODE_NUM; i++) {
