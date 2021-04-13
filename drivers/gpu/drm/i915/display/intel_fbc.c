@@ -67,7 +67,7 @@ static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
 	int lines;
 
 	intel_fbc_get_plane_source_size(cache, NULL, &lines);
-	if (IS_DISPLAY_VER(dev_priv, 7))
+	if (DISPLAY_VER(dev_priv) == 7)
 		lines = min(lines, 2048);
 	else if (DISPLAY_VER(dev_priv) >= 8)
 		lines = min(lines, 2560);
@@ -109,7 +109,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 		cfb_pitch = params->fb.stride;
 
 	/* FBC_CTL wants 32B or 64B units */
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		cfb_pitch = (cfb_pitch / 32) - 1;
 	else
 		cfb_pitch = (cfb_pitch / 64) - 1;
@@ -118,7 +118,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
 		intel_de_write(dev_priv, FBC_TAG(i), 0);
 
-	if (IS_DISPLAY_VER(dev_priv, 4)) {
+	if (DISPLAY_VER(dev_priv) == 4) {
 		u32 fbc_ctl2;
 
 		/* Set it up... */
@@ -302,7 +302,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	int threshold = dev_priv->fbc.threshold;
 
 	/* Display WA #0529: skl, kbl, bxt. */
-	if (IS_DISPLAY_VER(dev_priv, 9)) {
+	if (DISPLAY_VER(dev_priv) == 9) {
 		u32 val = intel_de_read(dev_priv, CHICKEN_MISC_4);
 
 		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
@@ -445,7 +445,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 * reserved range size, so it always assumes the maximum (8mb) is used.
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
 	 * underruns, even if that range is not reserved by the BIOS. */
-	if (IS_BROADWELL(dev_priv) || (IS_DISPLAY_VER(dev_priv, 9) &&
+	if (IS_BROADWELL(dev_priv) || (DISPLAY_VER(dev_priv) == 9 &&
 				       !IS_BROXTON(dev_priv)))
 		end = resource_size(&dev_priv->dsm) - 8 * 1024 * 1024;
 	else
@@ -591,14 +591,14 @@ static bool stride_is_valid(struct drm_i915_private *dev_priv,
 	if (stride < 512)
 		return false;
 
-	if (IS_DISPLAY_VER(dev_priv, 2) || IS_DISPLAY_VER(dev_priv, 3))
+	if (DISPLAY_VER(dev_priv) == 2 || DISPLAY_VER(dev_priv) == 3)
 		return stride == 4096 || stride == 8192;
 
-	if (IS_DISPLAY_VER(dev_priv, 4) && !IS_G4X(dev_priv) && stride < 2048)
+	if (DISPLAY_VER(dev_priv) == 4 && !IS_G4X(dev_priv) && stride < 2048)
 		return false;
 
 	/* Display WA #1105: skl,bxt,kbl,cfl,glk */
-	if ((IS_DISPLAY_VER(dev_priv, 9) || IS_GEMINILAKE(dev_priv)) &&
+	if ((DISPLAY_VER(dev_priv) == 9 || IS_GEMINILAKE(dev_priv)) &&
 	    modifier == DRM_FORMAT_MOD_LINEAR && stride & 511)
 		return false;
 
@@ -618,7 +618,7 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_RGB565:
 		/* 16bpp not supported on gen2 */
-		if (IS_DISPLAY_VER(dev_priv, 2))
+		if (DISPLAY_VER(dev_priv) == 2)
 			return false;
 		/* WaFbcOnly1to1Ratio:ctg */
 		if (IS_G4X(dev_priv))
@@ -760,7 +760,7 @@ static u16 intel_fbc_gen9_wa_cfb_stride(struct drm_i915_private *dev_priv)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
-	if ((IS_DISPLAY_VER(dev_priv, 9)) &&
+	if ((DISPLAY_VER(dev_priv) == 9) &&
 	    cache->fb.modifier != I915_FORMAT_MOD_X_TILED)
 		return DIV_ROUND_UP(cache->plane.src_w, 32 * fbc->threshold) * 8;
 	else

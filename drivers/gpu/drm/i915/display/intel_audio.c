@@ -591,7 +591,7 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 
 	val = intel_de_read(i915, AUD_CONFIG_BE);
 
-	if (IS_DISPLAY_VER(i915, 11))
+	if (DISPLAY_VER(i915) == 11)
 		val |= HBLANK_EARLY_ENABLE_ICL(pipe);
 	else if (DISPLAY_VER(i915) >= 12)
 		val |= HBLANK_EARLY_ENABLE_TGL(pipe);

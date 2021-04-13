@@ -550,7 +550,7 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 	if (drm_WARN_ON(&dev_priv->drm, !dig_port))
 		return;
 
-	if (IS_DISPLAY_VER(dev_priv, 11) && dig_port->tc_legacy_port)
+	if (DISPLAY_VER(dev_priv) == 11 && dig_port->tc_legacy_port)
 		return;
 
 	drm_WARN_ON(&dev_priv->drm, !intel_tc_port_ref_held(dig_port));
@@ -619,7 +619,7 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	 * exit sequence.
 	 */
 	timeout_expected = is_tbt;
-	if (IS_DISPLAY_VER(dev_priv, 11) && dig_port->tc_legacy_port) {
+	if (DISPLAY_VER(dev_priv) == 11 && dig_port->tc_legacy_port) {
 		icl_tc_cold_exit(dev_priv);
 		timeout_expected = true;
 	}
@@ -709,7 +709,7 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 	 * BIOS's own request bits, which are forced-on for these power wells
 	 * when exiting DC5/6.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv) &&
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv) &&
 	    (id == SKL_DISP_PW_1 || id == SKL_DISP_PW_MISC_IO))
 		val |= intel_de_read(dev_priv, regs->bios);
 
@@ -807,7 +807,7 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	if (DISPLAY_VER(dev_priv) >= 12)
 		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6
 					  | DC_STATE_EN_DC9;
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		mask |= DC_STATE_EN_UPTO_DC6 | DC_STATE_EN_DC9;
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		mask |= DC_STATE_EN_DC9;
@@ -1060,7 +1060,7 @@ static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 	drm_dbg_kms(&dev_priv->drm, "Enabling DC5\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		intel_de_write(dev_priv, GEN8_CHICKEN_DCPR_1,
 			       intel_de_read(dev_priv, GEN8_CHICKEN_DCPR_1) | SKL_SELECT_ALTERNATE_DC_EXIT);
 
@@ -1087,7 +1087,7 @@ static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 	drm_dbg_kms(&dev_priv->drm, "Enabling DC6\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		intel_de_write(dev_priv, GEN8_CHICKEN_DCPR_1,
 			       intel_de_read(dev_priv, GEN8_CHICKEN_DCPR_1) | SKL_SELECT_ALTERNATE_DC_EXIT);
 
@@ -4679,9 +4679,9 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 					   BIT_ULL(TGL_DISP_PW_TC_COLD_OFF));
 	} else if (IS_ROCKETLAKE(dev_priv)) {
 		err = set_power_wells(power_domains, rkl_power_wells);
-	} else if (IS_DISPLAY_VER(dev_priv, 12)) {
+	} else if (DISPLAY_VER(dev_priv) == 12) {
 		err = set_power_wells(power_domains, tgl_power_wells);
-	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		err = set_power_wells(power_domains, icl_power_wells);
 	} else if (IS_CNL_WITH_PORT_F(dev_priv)) {
 		err = set_power_wells(power_domains, cnl_power_wells);
@@ -4693,7 +4693,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		err = set_power_wells(power_domains, glk_power_wells);
 	} else if (IS_BROXTON(dev_priv)) {
 		err = set_power_wells(power_domains, bxt_power_wells);
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		err = set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		err = set_power_wells(power_domains, chv_power_wells);
@@ -4838,7 +4838,7 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 	 * expect us to program the abox_ctl0 register as well, even though
 	 * we don't have to program other instance-0 registers like BW_BUDDY.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 12))
+	if (DISPLAY_VER(dev_priv) == 12)
 		abox_regs |= BIT(0);
 
 	for_each_set_bit(i, &abox_regs, sizeof(abox_regs))
@@ -5414,7 +5414,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_csr_load_program(dev_priv);
 
 	/* Wa_14011508470 */
-	if (IS_DISPLAY_VER(dev_priv, 12)) {
+	if (DISPLAY_VER(dev_priv) == 12) {
 		val = DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
 		      DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR;
 		intel_uncore_rmw(&dev_priv->uncore, GEN11_CHICKEN_DCPR_2, 0, val);
@@ -5626,7 +5626,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 		cnl_display_core_init(i915, resume);
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
 		bxt_display_core_init(i915, resume);
-	} else if (IS_DISPLAY_VER(i915, 9)) {
+	} else if (DISPLAY_VER(i915) == 9) {
 		skl_display_core_init(i915, resume);
 	} else if (IS_CHERRYVIEW(i915)) {
 		mutex_lock(&power_domains->lock);
@@ -5787,7 +5787,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 		cnl_display_core_uninit(i915);
 	else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
 		bxt_display_core_uninit(i915);
-	else if (IS_DISPLAY_VER(i915, 9))
+	else if (DISPLAY_VER(i915) == 9)
 		skl_display_core_uninit(i915);
 
 	power_domains->display_core_suspended = true;

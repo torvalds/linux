@@ -1801,7 +1801,7 @@ void intel_cdclk_init_hw(struct drm_i915_private *i915)
 {
 	if (DISPLAY_VER(i915) >= 10 || IS_BROXTON(i915))
 		bxt_cdclk_init_hw(i915);
-	else if (IS_DISPLAY_VER(i915, 9))
+	else if (DISPLAY_VER(i915) == 9)
 		skl_cdclk_init_hw(i915);
 }
 
@@ -1816,7 +1816,7 @@ void intel_cdclk_uninit_hw(struct drm_i915_private *i915)
 {
 	if (DISPLAY_VER(i915) >= 10 || IS_BROXTON(i915))
 		bxt_cdclk_uninit_hw(i915);
-	else if (IS_DISPLAY_VER(i915, 9))
+	else if (DISPLAY_VER(i915) == 9)
 		skl_cdclk_uninit_hw(i915);
 }
 
@@ -2004,7 +2004,7 @@ static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 
 	if (DISPLAY_VER(dev_priv) >= 10)
 		return DIV_ROUND_UP(pixel_rate, 2);
-	else if (IS_DISPLAY_VER(dev_priv, 9) ||
+	else if (DISPLAY_VER(dev_priv) == 9 ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return pixel_rate;
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -2052,10 +2052,10 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	    crtc_state->has_audio &&
 	    crtc_state->port_clock >= 540000 &&
 	    crtc_state->lane_count == 4) {
-		if (IS_DISPLAY_VER(dev_priv, 10)) {
+		if (DISPLAY_VER(dev_priv) == 10) {
 			/* Display WA #1145: glk,cnl */
 			min_cdclk = max(316800, min_cdclk);
-		} else if (IS_DISPLAY_VER(dev_priv, 9) || IS_BROADWELL(dev_priv)) {
+		} else if (DISPLAY_VER(dev_priv) == 9 || IS_BROADWELL(dev_priv)) {
 			/* Display WA #1144: skl,bxt */
 			min_cdclk = max(432000, min_cdclk);
 		}
@@ -2594,7 +2594,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 
 	if (DISPLAY_VER(dev_priv) >= 10)
 		return 2 * max_cdclk_freq;
-	else if (IS_DISPLAY_VER(dev_priv, 9) ||
+	else if (DISPLAY_VER(dev_priv) == 9 ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return max_cdclk_freq;
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -2631,7 +2631,7 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 		dev_priv->max_cdclk_freq = 316800;
 	} else if (IS_BROXTON(dev_priv)) {
 		dev_priv->max_cdclk_freq = 624000;
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		u32 limit = intel_de_read(dev_priv, SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
 		int max_cdclk, vco;
 
@@ -2889,7 +2889,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 			dev_priv->cdclk.table = glk_cdclk_table;
 		else
 			dev_priv->cdclk.table = bxt_cdclk_table;
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		dev_priv->display.bw_calc_min_cdclk = skl_bw_calc_min_cdclk;
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = skl_modeset_calc_cdclk;
@@ -2912,7 +2912,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 
 	if (DISPLAY_VER(dev_priv) >= 10 || IS_BROXTON(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;
-	else if (IS_DISPLAY_VER(dev_priv, 9))
+	else if (DISPLAY_VER(dev_priv) == 9)
 		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.get_cdclk = bdw_get_cdclk;

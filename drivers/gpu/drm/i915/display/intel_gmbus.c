@@ -109,7 +109,7 @@ static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 		return &gmbus_pins_cnp[pin];
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return &gmbus_pins_bxt[pin];
-	else if (IS_DISPLAY_VER(dev_priv, 9))
+	else if (DISPLAY_VER(dev_priv) == 9)
 		return &gmbus_pins_skl[pin];
 	else if (IS_BROADWELL(dev_priv))
 		return &gmbus_pins_bdw[pin];
@@ -130,7 +130,7 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 		size = ARRAY_SIZE(gmbus_pins_cnp);
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
-	else if (IS_DISPLAY_VER(dev_priv, 9))
+	else if (DISPLAY_VER(dev_priv) == 9)
 		size = ARRAY_SIZE(gmbus_pins_skl);
 	else if (IS_BROADWELL(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bdw);

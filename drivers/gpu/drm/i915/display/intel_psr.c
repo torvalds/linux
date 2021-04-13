@@ -769,7 +769,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		psr_max_h = 4096;
 		psr_max_v = 2304;
 		max_bpp = 24;
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		psr_max_h = 3640;
 		psr_max_v = 2304;
 		max_bpp = 24;
@@ -909,7 +909,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_psr_setup_aux(intel_dp);
 
-	if (intel_dp->psr.psr2_enabled && IS_DISPLAY_VER(dev_priv, 9)) {
+	if (intel_dp->psr.psr2_enabled && DISPLAY_VER(dev_priv) == 9) {
 		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
 		u32 chicken = intel_de_read(dev_priv, reg);
 

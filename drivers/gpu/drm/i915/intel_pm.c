@@ -2339,7 +2339,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 
 	if (IS_I945GM(dev_priv))
 		wm_info = &i945_wm_info;
-	else if (!IS_DISPLAY_VER(dev_priv, 2))
+	else if (DISPLAY_VER(dev_priv) != 2)
 		wm_info = &i915_wm_info;
 	else
 		wm_info = &i830_a_wm_info;
@@ -2353,7 +2353,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			crtc->base.primary->state->fb;
 		int cpp;
 
-		if (IS_DISPLAY_VER(dev_priv, 2))
+		if (DISPLAY_VER(dev_priv) == 2)
 			cpp = 4;
 		else
 			cpp = fb->format->cpp[0];
@@ -2368,7 +2368,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			planea_wm = wm_info->max_wm;
 	}
 
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		wm_info = &i830_bc_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_B);
@@ -2380,7 +2380,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			crtc->base.primary->state->fb;
 		int cpp;
 
-		if (IS_DISPLAY_VER(dev_priv, 2))
+		if (DISPLAY_VER(dev_priv) == 2)
 			cpp = 4;
 		else
 			cpp = fb->format->cpp[0];
@@ -2967,7 +2967,7 @@ static void intel_fixup_spr_wm_latency(struct drm_i915_private *dev_priv,
 				       u16 wm[5])
 {
 	/* ILK sprite LP0 latency is 1300 ns */
-	if (IS_DISPLAY_VER(dev_priv, 5))
+	if (DISPLAY_VER(dev_priv) == 5)
 		wm[0] = 13;
 }
 
@@ -2975,7 +2975,7 @@ static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
 				       u16 wm[5])
 {
 	/* ILK cursor LP0 latency is 1300 ns */
-	if (IS_DISPLAY_VER(dev_priv, 5))
+	if (DISPLAY_VER(dev_priv) == 5)
 		wm[0] = 13;
 }
 
@@ -3105,7 +3105,7 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 
-	if (IS_DISPLAY_VER(dev_priv, 6)) {
+	if (DISPLAY_VER(dev_priv) == 6) {
 		snb_wm_latency_quirk(dev_priv);
 		snb_wm_lp3_irq_quirk(dev_priv);
 	}
@@ -3354,7 +3354,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	 * What we should check here is whether FBC can be
 	 * enabled sometime later.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 5) && !merged->fbc_wm_enabled &&
+	if (DISPLAY_VER(dev_priv) == 5 && !merged->fbc_wm_enabled &&
 	    intel_fbc_is_active(dev_priv)) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
@@ -3654,7 +3654,7 @@ u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
  */
 static bool skl_needs_memory_bw_wa(struct drm_i915_private *dev_priv)
 {
-	return IS_DISPLAY_VER(dev_priv, 9);
+	return DISPLAY_VER(dev_priv) == 9;
 }
 
 static bool
@@ -3680,13 +3680,13 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 		}
 
 		drm_dbg(&dev_priv->drm, "Couldn't read SAGV block time!\n");
-	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		dev_priv->sagv_block_time_us = 10;
 		return;
-	} else if (IS_DISPLAY_VER(dev_priv, 10)) {
+	} else if (DISPLAY_VER(dev_priv) == 10) {
 		dev_priv->sagv_block_time_us = 20;
 		return;
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		dev_priv->sagv_block_time_us = 30;
 		return;
 	} else {
@@ -4613,9 +4613,9 @@ static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc, u8 active_pipes)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	if (IS_DISPLAY_VER(dev_priv, 12))
+	if (DISPLAY_VER(dev_priv) == 12)
 		return tgl_compute_dbuf_slices(pipe, active_pipes);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		return icl_compute_dbuf_slices(pipe, active_pipes);
 	/*
 	 * For anything else just return one slice yet.
@@ -4986,7 +4986,7 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 			 * Wa_1408961008:icl, ehl
 			 * Underruns with WM1+ disabled
 			 */
-			if (IS_DISPLAY_VER(dev_priv, 11) &&
+			if (DISPLAY_VER(dev_priv) == 11 &&
 			    level == 1 && wm->wm[0].enable) {
 				wm->wm[level].blocks = wm->wm[0].blocks;
 				wm->wm[level].lines = wm->wm[0].lines;
@@ -5245,7 +5245,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1)) {
 			selected_result = method2;
 		} else if (latency >= wp->linetime_us) {
-			if (IS_DISPLAY_VER(dev_priv, 9))
+			if (DISPLAY_VER(dev_priv) == 9)
 				selected_result = min_fixed16(method1, method2);
 			else
 				selected_result = method2;
@@ -5258,7 +5258,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	lines = div_round_up_fixed16(selected_result,
 				     wp->plane_blocks_per_line);
 
-	if (IS_DISPLAY_VER(dev_priv, 9)) {
+	if (DISPLAY_VER(dev_priv) == 9) {
 		/* Display WA #1125: skl,bxt,kbl */
 		if (level == 0 && wp->rc_surface)
 			blocks += fixed16_to_u32_round_up(wp->y_tile_minimum);
@@ -5375,7 +5375,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
 	 * WaDisableTWM:skl,kbl,cfl,bxt
 	 * Transition WM are not recommended by HW team for GEN9
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 9))
+	if (DISPLAY_VER(dev_priv) == 9)
 		return;
 
 	if (DISPLAY_VER(dev_priv) >= 11)
@@ -5384,7 +5384,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *dev_priv,
 		trans_min = 14;
 
 	/* Display WA #1140: glk,cnl */
-	if (IS_DISPLAY_VER(dev_priv, 10))
+	if (DISPLAY_VER(dev_priv) == 10)
 		trans_amount = 0;
 	else
 		trans_amount = 10; /* This is configurable amount */
@@ -7689,9 +7689,9 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
 
-		if ((IS_DISPLAY_VER(dev_priv, 5) && dev_priv->wm.pri_latency[1] &&
+		if ((DISPLAY_VER(dev_priv) == 5 && dev_priv->wm.pri_latency[1] &&
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
-		    (!IS_DISPLAY_VER(dev_priv, 5) && dev_priv->wm.pri_latency[0] &&
+		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
 			dev_priv->display.compute_intermediate_wm =
@@ -7734,12 +7734,12 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pnv_update_wm;
-	} else if (IS_DISPLAY_VER(dev_priv, 4)) {
+	} else if (DISPLAY_VER(dev_priv) == 4) {
 		dev_priv->display.update_wm = i965_update_wm;
-	} else if (IS_DISPLAY_VER(dev_priv, 3)) {
+	} else if (DISPLAY_VER(dev_priv) == 3) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
-	} else if (IS_DISPLAY_VER(dev_priv, 2)) {
+	} else if (DISPLAY_VER(dev_priv) == 2) {
 		if (INTEL_NUM_PIPES(dev_priv) == 1) {
 			dev_priv->display.update_wm = i845_update_wm;
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;

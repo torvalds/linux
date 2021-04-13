@@ -113,7 +113,7 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 							      &n_entries);
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv) &&
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv) &&
 	    intel_bios_encoder_dp_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
@@ -147,7 +147,7 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 		level = n_entries - 1;
 
 	/* If we're boosting the current, set bit 31 of trans1 */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv) &&
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv) &&
 	    intel_bios_encoder_hdmi_boost_level(encoder->devdata))
 		iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
@@ -473,7 +473,7 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
 	}
 
-	if (IS_DISPLAY_RANGE(dev_priv, 8, 10) &&
+	if (IS_DISPLAY_VER(dev_priv, 8, 10) &&
 	    crtc_state->master_transcoder != INVALID_TRANSCODER) {
 		u8 master_select =
 			bdw_trans_port_sync_master_select(crtc_state->master_transcoder);
@@ -548,7 +548,7 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 
 	ctl &= ~TRANS_DDI_FUNC_ENABLE;
 
-	if (IS_DISPLAY_RANGE(dev_priv, 8, 10))
+	if (IS_DISPLAY_VER(dev_priv, 8, 10))
 		ctl &= ~(TRANS_DDI_PORT_SYNC_ENABLE |
 			 TRANS_DDI_PORT_SYNC_MASTER_SELECT_MASK);
 
@@ -978,7 +978,7 @@ static u8 intel_ddi_dp_voltage_max(struct intel_dp *intel_dp,
 			tgl_get_combo_buf_trans(encoder, crtc_state, &n_entries);
 		else
 			tgl_get_dkl_buf_trans(encoder, crtc_state, &n_entries);
-	} else if (IS_DISPLAY_VER(dev_priv, 11)) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		if (IS_PLATFORM(dev_priv, INTEL_JASPERLAKE))
 			jsl_get_combo_buf_trans(encoder, crtc_state, &n_entries);
 		else if (IS_PLATFORM(dev_priv, INTEL_ELKHARTLAKE))
@@ -1557,7 +1557,7 @@ hsw_set_signal_levels(struct intel_dp *intel_dp,
 	intel_dp->DP &= ~DDI_BUF_EMP_MASK;
 	intel_dp->DP |= signal_levels;
 
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		skl_ddi_set_iboost(encoder, crtc_state, level);
 
 	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
@@ -3094,7 +3094,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 
 	if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_ddi_vswing_sequence(encoder, crtc_state, level);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		icl_ddi_vswing_sequence(encoder, crtc_state, level);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, crtc_state, level);
@@ -3103,11 +3103,11 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	else
 		intel_prepare_hdmi_ddi_buffers(encoder, level);
 
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		skl_ddi_set_iboost(encoder, crtc_state, level);
 
 	/* Display WA #1143: skl,kbl,cfl */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
 		/*
 		 * For some reason these chicken bits have been
 		 * stuffed into a transcoder register, event though
@@ -4590,7 +4590,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		/* BXT/GLK have fixed PLL->port mapping */
 		encoder->get_config = bxt_ddi_get_config;
-	} else if (IS_DISPLAY_VER(dev_priv, 9)) {
+	} else if (DISPLAY_VER(dev_priv) == 9) {
 		encoder->enable_clock = skl_ddi_enable_clock;
 		encoder->disable_clock = skl_ddi_disable_clock;
 		encoder->is_clock_enabled = skl_ddi_is_clock_enabled;
@@ -4610,11 +4610,11 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		encoder->hpd_pin = tgl_hpd_pin(dev_priv, port);
 	else if (IS_JSL_EHL(dev_priv))
 		encoder->hpd_pin = ehl_hpd_pin(dev_priv, port);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		encoder->hpd_pin = icl_hpd_pin(dev_priv, port);
 	else if (IS_CANNONLAKE(dev_priv))
 		encoder->hpd_pin = cnl_hpd_pin(dev_priv, port);
-	else if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv))
+	else if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		encoder->hpd_pin = skl_hpd_pin(dev_priv, port);
 	else
 		encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);

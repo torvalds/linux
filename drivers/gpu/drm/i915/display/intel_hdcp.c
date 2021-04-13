@@ -291,7 +291,7 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	 * process from other platforms. These platforms use the GT Driver
 	 * Mailbox interface.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 9) && !IS_BROXTON(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv)) {
 		ret = sandybridge_pcode_write(dev_priv,
 					      SKL_PCODE_LOAD_HDCP_KEYS, 1);
 		if (ret) {
