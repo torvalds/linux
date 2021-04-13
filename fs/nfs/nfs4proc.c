@@ -302,9 +302,10 @@ static void nfs4_bitmap_copy_adjust(__u32 *dst, const __u32 *src,
 	if (!(cache_validity & NFS_INO_INVALID_CHANGE))
 		dst[0] &= ~FATTR4_WORD0_CHANGE;
 
+	if (!(cache_validity & NFS_INO_INVALID_MODE))
+		dst[1] &= ~FATTR4_WORD1_MODE;
 	if (!(cache_validity & NFS_INO_INVALID_OTHER))
-		dst[1] &= ~(FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER |
-			    FATTR4_WORD1_OWNER_GROUP);
+		dst[1] &= ~(FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP);
 }
 
 static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dentry,
@@ -3344,7 +3345,9 @@ static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
 	unsigned long adjust_flags = NFS_INO_INVALID_CHANGE;
 	int err;
 
-	if (sattr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID))
+	if (sattr->ia_valid & (ATTR_MODE | ATTR_KILL_SUID | ATTR_KILL_SGID))
+		adjust_flags |= NFS_INO_INVALID_MODE;
+	if (sattr->ia_valid & (ATTR_UID | ATTR_GID))
 		adjust_flags |= NFS_INO_INVALID_OTHER;
 
 	do {
@@ -5431,9 +5434,10 @@ static void nfs4_bitmask_set(__u32 bitmask[NFS4_BITMASK_SZ], const __u32 *src,
 		bitmask[0] |= FATTR4_WORD0_CHANGE;
 	if (cache_validity & NFS_INO_INVALID_ATIME)
 		bitmask[1] |= FATTR4_WORD1_TIME_ACCESS;
+	if (cache_validity & NFS_INO_INVALID_MODE)
+		bitmask[1] |= FATTR4_WORD1_MODE;
 	if (cache_validity & NFS_INO_INVALID_OTHER)
-		bitmask[1] |= FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER |
-				FATTR4_WORD1_OWNER_GROUP;
+		bitmask[1] |= FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP;
 	if (cache_validity & NFS_INO_INVALID_NLINK)
 		bitmask[1] |= FATTR4_WORD1_NUMLINKS;
 	if (label && label->len && cache_validity & NFS_INO_INVALID_LABEL)

@@ -247,12 +247,14 @@ struct nfs4_copy_state {
 #define NFS_INO_INVALID_BLOCKS	BIT(14)         /* cached blocks are invalid */
 #define NFS_INO_INVALID_XATTR	BIT(15)		/* xattrs are invalid */
 #define NFS_INO_INVALID_NLINK	BIT(16)		/* cached nlinks is invalid */
+#define NFS_INO_INVALID_MODE	BIT(17)		/* cached mode is invalid */
 
 #define NFS_INO_INVALID_ATTR	(NFS_INO_INVALID_CHANGE \
 		| NFS_INO_INVALID_CTIME \
 		| NFS_INO_INVALID_MTIME \
 		| NFS_INO_INVALID_SIZE \
 		| NFS_INO_INVALID_NLINK \
+		| NFS_INO_INVALID_MODE \
 		| NFS_INO_INVALID_OTHER)	/* inode metadata is invalid */
 
 /*

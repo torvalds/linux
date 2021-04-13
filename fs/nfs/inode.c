@@ -199,7 +199,8 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 
 	if (have_delegation) {
 		if (!(flags & NFS_INO_REVAL_FORCED))
-			flags &= ~NFS_INO_INVALID_OTHER;
+			flags &= ~(NFS_INO_INVALID_MODE |
+				   NFS_INO_INVALID_OTHER);
 		flags &= ~(NFS_INO_INVALID_CHANGE
 				| NFS_INO_INVALID_SIZE
 				| NFS_INO_INVALID_XATTR);
@@ -472,7 +473,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		nfsi->cache_validity = 0;
 		if ((fattr->valid & NFS_ATTR_FATTR_MODE) == 0
 				&& nfs_server_capable(inode, NFS_CAP_MODE))
-			nfs_set_cache_invalid(inode, NFS_INO_INVALID_OTHER);
+			nfs_set_cache_invalid(inode, NFS_INO_INVALID_MODE);
 		/* Why so? Because we want revalidate for devices/FIFOs, and
 		 * that's precisely what we have in nfs_file_inode_operations.
 		 */
@@ -803,8 +804,10 @@ static u32 nfs_get_valid_attrmask(struct inode *inode)
 		reply_mask |= STATX_SIZE;
 	if (!(cache_validity & NFS_INO_INVALID_NLINK))
 		reply_mask |= STATX_NLINK;
+	if (!(cache_validity & NFS_INO_INVALID_MODE))
+		reply_mask |= STATX_MODE;
 	if (!(cache_validity & NFS_INO_INVALID_OTHER))
-		reply_mask |= STATX_UID | STATX_GID | STATX_MODE;
+		reply_mask |= STATX_UID | STATX_GID;
 	if (!(cache_validity & NFS_INO_INVALID_BLOCKS))
 		reply_mask |= STATX_BLOCKS;
 	return reply_mask;
@@ -872,7 +875,9 @@ int nfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		do_update |= cache_validity & NFS_INO_INVALID_SIZE;
 	if (request_mask & STATX_NLINK)
 		do_update |= cache_validity & NFS_INO_INVALID_NLINK;
-	if (request_mask & (STATX_UID | STATX_GID | STATX_MODE))
+	if (request_mask & STATX_MODE)
+		do_update |= cache_validity & NFS_INO_INVALID_MODE;
+	if (request_mask & (STATX_UID | STATX_GID))
 		do_update |= cache_validity & NFS_INO_INVALID_OTHER;
 	if (request_mask & STATX_BLOCKS)
 		do_update |= cache_validity & NFS_INO_INVALID_BLOCKS;
@@ -1510,7 +1515,7 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	if ((fattr->valid & NFS_ATTR_FATTR_MODE) && (inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO))
 		invalid |= NFS_INO_INVALID_ACCESS
 			| NFS_INO_INVALID_ACL
-			| NFS_INO_INVALID_OTHER;
+			| NFS_INO_INVALID_MODE;
 	if ((fattr->valid & NFS_ATTR_FATTR_OWNER) && !uid_eq(inode->i_uid, fattr->uid))
 		invalid |= NFS_INO_INVALID_ACCESS
 			| NFS_INO_INVALID_ACL
@@ -1947,6 +1952,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 					| NFS_INO_INVALID_SIZE
 					| NFS_INO_INVALID_BLOCKS
 					| NFS_INO_INVALID_NLINK
+					| NFS_INO_INVALID_MODE
 					| NFS_INO_INVALID_OTHER;
 				if (S_ISDIR(inode->i_mode))
 					nfs_force_lookup_revalidate(inode);
@@ -2037,7 +2043,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		}
 	} else if (server->caps & NFS_CAP_MODE) {
 		nfsi->cache_validity |= save_cache_validity &
-				(NFS_INO_INVALID_OTHER
+				(NFS_INO_INVALID_MODE
 				| NFS_INO_REVAL_FORCED);
 		cache_revalidated = false;
 	}
