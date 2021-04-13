@@ -290,7 +290,7 @@ static int pcan_usb_pro_wait_rsp(struct peak_usb_device *dev,
 					   pr->data_type);
 
 			/* check if channel in response corresponds too */
-			else if ((req_channel != 0xff) && \
+			else if ((req_channel != 0xff) &&
 				(pr->bus_act.channel != req_channel))
 				netdev_err(dev->netdev,
 					"got rsp %xh but on chan%u: ignored\n",
@@ -439,8 +439,7 @@ static int pcan_usb_pro_get_device_id(struct peak_usb_device *dev,
 		return err;
 
 	pdn = (struct pcan_usb_pro_devid *)pc;
-	if (device_id)
-		*device_id = le32_to_cpu(pdn->serial_num);
+	*device_id = le32_to_cpu(pdn->serial_num);
 
 	return err;
 }
@@ -1058,7 +1057,6 @@ const struct peak_usb_adapter pcan_usb_pro = {
 
 	/* timestamps usage */
 	.ts_used_bits = 32,
-	.ts_period = 1000000, /* calibration period in ts. */
 	.us_per_ts_scale = 1, /* us = (ts * scale) >> shift */
 	.us_per_ts_shift = 0,
 

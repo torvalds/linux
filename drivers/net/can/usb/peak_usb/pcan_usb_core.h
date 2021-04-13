@@ -31,7 +31,7 @@
 /* usb adapters maximum channels per usb interface */
 #define PCAN_USB_MAX_CHANNEL		2
 
-/* maximum length of the usb commands sent to/received from  the devices */
+/* maximum length of the usb commands sent to/received from the devices */
 #define PCAN_USB_MAX_CMD_LEN		32
 
 struct peak_usb_device;
@@ -73,7 +73,6 @@ struct peak_usb_adapter {
 	u8 ep_msg_in;
 	u8 ep_msg_out[PCAN_USB_MAX_CHANNEL];
 	u8 ts_used_bits;
-	u32 ts_period;
 	u8 us_per_ts_shift;
 	u32 us_per_ts_scale;
 
@@ -114,8 +113,6 @@ struct peak_usb_device {
 	unsigned int ctrl_idx;
 	u32 state;
 
-	struct sk_buff *echo_skb[PCAN_USB_MAX_TX_URBS];
-
 	struct usb_device *udev;
 	struct net_device *netdev;
 
@@ -131,8 +128,6 @@ struct peak_usb_device {
 
 	u8 ep_msg_in;
 	u8 ep_msg_out;
-
-	u16 bus_load;
 
 	struct peak_usb_device *prev_siblings;
 	struct peak_usb_device *next_siblings;
