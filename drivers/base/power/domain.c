@@ -1763,24 +1763,6 @@ int dev_pm_genpd_remove_notifier(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_genpd_remove_notifier);
 
-/**
- * genpd_enable_next_wakeup - Enable genpd gov to use next_wakeup
- *
- * @genpd: The genpd to be updated
- * @enable: Enable/disable genpd gov to use next wakeup
- */
-void genpd_enable_next_wakeup(struct generic_pm_domain *genpd, bool enable)
-{
-	genpd_lock(genpd);
-	if (enable)
-		genpd->flags |= GENPD_FLAG_GOV_NEXT_WAKEUP;
-	else
-		genpd->flags &= ~GENPD_FLAG_GOV_NEXT_WAKEUP;
-	genpd->next_wakeup = KTIME_MAX;
-	genpd_unlock(genpd);
-}
-EXPORT_SYMBOL_GPL(genpd_enable_next_wakeup);
-
 static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 			       struct generic_pm_domain *subdomain)
 {
