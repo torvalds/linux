@@ -4795,6 +4795,9 @@ static vm_fault_t ___handle_speculative_fault(struct mm_struct *mm,
 		.vma = vma,
 		.gfp_mask = __get_fault_gfp_mask(vma),
 	};
+#ifdef CONFIG_NUMA
+	struct mempolicy *pol;
+#endif
 	pgd_t *pgd, pgdval;
 	p4d_t *p4d, p4dval;
 	pud_t pudval;
@@ -4870,8 +4873,6 @@ static vm_fault_t ___handle_speculative_fault(struct mm_struct *mm,
 		goto out_segv;
 
 #ifdef CONFIG_NUMA
-	struct mempolicy *pol;
-
 	/*
 	 * MPOL_INTERLEAVE implies additional checks in
 	 * mpol_misplaced() which are not compatible with the
