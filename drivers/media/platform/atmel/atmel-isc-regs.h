@@ -153,6 +153,9 @@
 /* ISC_Gamma Correction Green Entry Register */
 #define ISC_GAM_RENTRY	0x00000298
 
+/* Offset for CSC register specific to sama5d2 product */
+#define ISC_SAMA5D2_CSC_OFFSET	0
+
 /* Color Space Conversion Control Register */
 #define ISC_CSC_CTRL    0x00000398
 
