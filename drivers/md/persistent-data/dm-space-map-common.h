@@ -54,6 +54,20 @@ typedef int (*open_index_fn)(struct ll_disk *ll);
 typedef dm_block_t (*max_index_entries_fn)(struct ll_disk *ll);
 typedef int (*commit_fn)(struct ll_disk *ll);
 
+/*
+ * A lot of time can be wasted reading and writing the same
+ * index entry.  So we cache a few entries.
+ */
+#define IE_CACHE_SIZE 64
+#define IE_CACHE_MASK (IE_CACHE_SIZE - 1)
+
+struct ie_cache {
+	bool valid;
+	bool dirty;
+	dm_block_t index;
+	struct disk_index_entry ie;
+};
+
 struct ll_disk {
 	struct dm_transaction_manager *tm;
 	struct dm_btree_info bitmap_info;
@@ -79,6 +93,8 @@ struct ll_disk {
 	max_index_entries_fn max_entries;
 	commit_fn commit;
 	bool bitmap_index_changed:1;
+
+	struct ie_cache ie_cache[IE_CACHE_SIZE];
 };
 
 struct disk_sm_root {
