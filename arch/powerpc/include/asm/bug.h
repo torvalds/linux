@@ -68,7 +68,11 @@
 	BUG_ENTRY("twi 31, 0, 0", 0);				\
 	unreachable();						\
 } while (0)
+#define HAVE_ARCH_BUG
 
+#define __WARN_FLAGS(flags) BUG_ENTRY("twi 31, 0, 0", BUGFLAG_WARNING | (flags))
+
+#ifdef CONFIG_PPC64
 #define BUG_ON(x) do {						\
 	if (__builtin_constant_p(x)) {				\
 		if (x)						\
@@ -77,8 +81,6 @@
 		BUG_ENTRY(PPC_TLNEI " %4, 0", 0, "r" ((__force long)(x)));	\
 	}							\
 } while (0)
-
-#define __WARN_FLAGS(flags) BUG_ENTRY("twi 31, 0, 0", BUGFLAG_WARNING | (flags))
 
 #define WARN_ON(x) ({						\
 	int __ret_warn_on = !!(x);				\
@@ -93,9 +95,10 @@
 	unlikely(__ret_warn_on);				\
 })
 
-#define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_ON
 #define HAVE_ARCH_WARN_ON
+#endif
+
 #endif /* __ASSEMBLY __ */
 #else
 #ifdef __ASSEMBLY__
