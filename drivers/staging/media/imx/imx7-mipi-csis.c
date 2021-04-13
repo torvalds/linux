@@ -1114,6 +1114,7 @@ static int mipi_csis_async_register(struct csi_state *state)
 	};
 	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *ep;
+	unsigned int i;
 	int ret;
 
 	v4l2_async_notifier_init(&state->notifier);
@@ -1126,6 +1127,14 @@ static int mipi_csis_async_register(struct csi_state *state)
 	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
 	if (ret)
 		goto err_parse;
+
+	for (i = 0; i < vep.bus.mipi_csi2.num_data_lanes; ++i) {
+		if (vep.bus.mipi_csi2.data_lanes[i] != i + 1) {
+			dev_err(state->dev,
+				"data lanes reordering is not supported");
+			goto err_parse;
+		}
+	}
 
 	state->bus = vep.bus.mipi_csi2;
 
