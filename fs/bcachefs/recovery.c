@@ -1005,13 +1005,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	}
 
-	if (!c->sb.clean &&
-	    !(c->sb.features & (1 << BCH_FEATURE_atomic_nlink))) {
-		bch_info(c, "BCH_FEATURE_atomic_nlink not set and filesystem dirty, fsck required");
-		c->opts.fsck = true;
-		c->opts.fix_errors = FSCK_OPT_YES;
-	}
-
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))) {
 		bch_info(c, "alloc_v2 feature bit not set, fsck required");
 		c->opts.fsck = true;
@@ -1247,8 +1240,8 @@ use_clean:
 	}
 
 	if (c->opts.fsck &&
-	    !test_bit(BCH_FS_ERROR, &c->flags)) {
-		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
+	    !test_bit(BCH_FS_ERROR, &c->flags) &&
+	    BCH_SB_HAS_ERRORS(c->disk_sb.sb)) {
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
 		write_sb = true;
 	}
