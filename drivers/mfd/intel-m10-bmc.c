@@ -15,6 +15,11 @@
 
 enum m10bmc_type {
 	M10_N3000,
+	M10_D5005
+};
+
+static struct mfd_cell m10bmc_d5005_subdevs[] = {
+	{ .name = "d5005bmc-hwmon" },
 };
 
 static struct mfd_cell m10bmc_pacn3000_subdevs[] = {
@@ -173,6 +178,10 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 		cells = m10bmc_pacn3000_subdevs;
 		n_cell = ARRAY_SIZE(m10bmc_pacn3000_subdevs);
 		break;
+	case M10_D5005:
+		cells = m10bmc_d5005_subdevs;
+		n_cell = ARRAY_SIZE(m10bmc_d5005_subdevs);
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -187,6 +196,7 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id m10bmc_spi_id[] = {
 	{ "m10-n3000", M10_N3000 },
+	{ "m10-d5005", M10_D5005 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, m10bmc_spi_id);
