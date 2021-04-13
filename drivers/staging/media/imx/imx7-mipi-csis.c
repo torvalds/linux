@@ -309,7 +309,7 @@ struct csi_state {
 	struct dentry *debugfs_root;
 	bool debug;
 
-	int num_clks;
+	unsigned int num_clks;
 	struct clk_bulk_data *clks;
 
 	u32 clk_frequency;
