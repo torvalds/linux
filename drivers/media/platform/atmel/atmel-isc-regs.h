@@ -295,6 +295,11 @@
 /* DMA Address 2 Register */
 #define ISC_DAD2        0x000003fc
 
+/* Offset for version register specific to sama5d2 product */
+#define ISC_SAMA5D2_VERSION_OFFSET	0
+/* Version Register */
+#define ISC_VERSION	0x0000040c
+
 /* Histogram Entry */
 #define ISC_HIS_ENTRY	0x00000410
 
