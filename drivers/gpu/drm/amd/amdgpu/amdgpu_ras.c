@@ -114,7 +114,7 @@ static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t addre
 
 	if (amdgpu_ras_check_bad_page(adev, address)) {
 		dev_warn(adev->dev,
-			 "RAS WARN: 0x%llx has been marked as bad page!\n",
+			 "RAS WARN: 0x%llx has already been marked as bad page!\n",
 			 address);
 		return 0;
 	}
@@ -228,7 +228,6 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		return -EINVAL;
 
 	if (op != -1) {
-
 		if (op == 3) {
 			if (sscanf(str, "%*s %llx", &address) != 1)
 				return -EINVAL;
@@ -364,11 +363,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	if (ret)
 		return -EINVAL;
 
-	if (data.op == 3)
-	{
+	if (data.op == 3) {
 		ret = amdgpu_reserve_page_direct(adev, data.inject.address);
-
-		if (ret)
+		if (!ret)
 			return size;
 		else
 			return ret;
