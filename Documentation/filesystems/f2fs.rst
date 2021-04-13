@@ -819,6 +819,14 @@ Compression implementation
   * chattr +c file
   * chattr +c dir; touch dir/file
   * mount w/ -o compress_extension=ext; touch file.ext
+  * mount w/ -o compress_extension=*; touch any_file
+
+- At this point, compression feature doesn't expose compressed space to user
+  directly in order to guarantee potential data updates later to the space.
+  Instead, the main goal is to reduce data writes to flash disk as much as
+  possible, resulting in extending disk life time as well as relaxing IO
+  congestion. Alternatively, we've added ioctl interface to reclaim compressed
+  space and show it to user after putting the immutable bit.
 
 Compress metadata layout::
 
