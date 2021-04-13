@@ -62,7 +62,7 @@ static inline unsigned long __xchg(unsigned long x, unsigned long address, int s
 			"       lg      %0,%1\n"
 			"0:     csg     %0,%2,%1\n"
 			"       jl      0b\n"
-			: "=&d" (old), "+S" (*(long *) address)
+			: "=&d" (old), "+QS" (*(long *) address)
 			: "d" (x)
 			: "memory", "cc");
 		return old;
@@ -142,7 +142,7 @@ static inline unsigned long __cmpxchg(unsigned long address, unsigned long old,
 	case 8:
 		asm volatile(
 			"       csg     %0,%3,%1\n"
-			: "=&d" (prev), "+S" (*(long *) address)
+			: "=&d" (prev), "+QS" (*(long *) address)
 			: "0" (old), "d" (new)
 			: "memory", "cc");
 		return prev;
