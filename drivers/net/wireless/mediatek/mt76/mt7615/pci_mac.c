@@ -201,6 +201,8 @@ void mt7615_dma_reset(struct mt7615_dev *dev)
 	mt76_for_each_q_rx(&dev->mt76, i)
 		mt76_queue_rx_reset(dev, i);
 
+	mt76_tx_status_check(&dev->mt76, NULL, true);
+
 	mt7615_dma_start(dev);
 }
 EXPORT_SYMBOL_GPL(mt7615_dma_reset);

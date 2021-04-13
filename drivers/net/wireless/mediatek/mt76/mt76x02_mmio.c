@@ -472,6 +472,8 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 		mt76_queue_rx_reset(dev, i);
 	}
 
+	mt76_tx_status_check(&dev->mt76, NULL, true);
+
 	mt76x02_mac_start(dev);
 
 	if (dev->ed_monitor)
