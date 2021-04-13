@@ -1544,3 +1544,38 @@ int dpsw_acl_add_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 
 	return mc_send_command(mc_io, &cmd);
 }
+
+/**
+ * dpsw_acl_remove_entry() - Removes an entry from ACL.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @acl_id:	ACL ID
+ * @cfg:	Entry configuration
+ *
+ * warning: This function has to be called after dpsw_acl_set_entry_cfg()
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_acl_remove_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  u16 acl_id, const struct dpsw_acl_entry_cfg *cfg)
+{
+	struct dpsw_cmd_acl_entry *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_ACL_REMOVE_ENTRY,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_acl_entry *)cmd.params;
+	cmd_params->acl_id = cpu_to_le16(acl_id);
+	cmd_params->result_if_id = cpu_to_le16(cfg->result.if_id);
+	cmd_params->precedence = cpu_to_le32(cfg->precedence);
+	cmd_params->key_iova = cpu_to_le64(cfg->key_iova);
+	dpsw_set_field(cmd_params->result_action,
+		       RESULT_ACTION,
+		       cfg->result.action);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}

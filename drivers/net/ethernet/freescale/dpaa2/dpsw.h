@@ -749,4 +749,7 @@ void dpsw_acl_prepare_entry_cfg(const struct dpsw_acl_key *key,
 
 int dpsw_acl_add_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 		       u16 acl_id, const struct dpsw_acl_entry_cfg *cfg);
+
+int dpsw_acl_remove_entry(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
+			  u16 acl_id, const struct dpsw_acl_entry_cfg *cfg);
 #endif /* __FSL_DPSW_H */

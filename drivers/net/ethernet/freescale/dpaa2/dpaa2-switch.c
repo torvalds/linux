@@ -14,6 +14,7 @@
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/iommu.h>
+#include <net/pkt_cls.h>
 
 #include <linux/fsl/mc.h>
 
@@ -1125,6 +1126,243 @@ err_exit:
 	return NETDEV_TX_OK;
 }
 
+static int
+dpaa2_switch_setup_tc_cls_flower(struct dpaa2_switch_acl_tbl *acl_tbl,
+				 struct flow_cls_offload *f)
+{
+	switch (f->command) {
+	case FLOW_CLS_REPLACE:
+		return dpaa2_switch_cls_flower_replace(acl_tbl, f);
+	case FLOW_CLS_DESTROY:
+		return dpaa2_switch_cls_flower_destroy(acl_tbl, f);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dpaa2_switch_port_setup_tc_block_cb_ig(enum tc_setup_type type,
+						  void *type_data,
+						  void *cb_priv)
+{
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return dpaa2_switch_setup_tc_cls_flower(cb_priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(dpaa2_switch_block_cb_list);
+
+static int dpaa2_switch_port_acl_tbl_bind(struct ethsw_port_priv *port_priv,
+					  struct dpaa2_switch_acl_tbl *acl_tbl)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct net_device *netdev = port_priv->netdev;
+	struct dpsw_acl_if_cfg acl_if_cfg;
+	int err;
+
+	if (port_priv->acl_tbl)
+		return -EINVAL;
+
+	acl_if_cfg.if_id[0] = port_priv->idx;
+	acl_if_cfg.num_ifs = 1;
+	err = dpsw_acl_add_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
+			      acl_tbl->id, &acl_if_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
+		return err;
+	}
+
+	acl_tbl->ports |= BIT(port_priv->idx);
+	port_priv->acl_tbl = acl_tbl;
+
+	return 0;
+}
+
+static int
+dpaa2_switch_port_acl_tbl_unbind(struct ethsw_port_priv *port_priv,
+				 struct dpaa2_switch_acl_tbl *acl_tbl)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct net_device *netdev = port_priv->netdev;
+	struct dpsw_acl_if_cfg acl_if_cfg;
+	int err;
+
+	if (port_priv->acl_tbl != acl_tbl)
+		return -EINVAL;
+
+	acl_if_cfg.if_id[0] = port_priv->idx;
+	acl_if_cfg.num_ifs = 1;
+	err = dpsw_acl_remove_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
+				 acl_tbl->id, &acl_if_cfg);
+	if (err) {
+		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
+		return err;
+	}
+
+	acl_tbl->ports &= ~BIT(port_priv->idx);
+	port_priv->acl_tbl = NULL;
+	return 0;
+}
+
+static int dpaa2_switch_port_block_bind(struct ethsw_port_priv *port_priv,
+					struct dpaa2_switch_acl_tbl *acl_tbl)
+{
+	struct dpaa2_switch_acl_tbl *old_acl_tbl = port_priv->acl_tbl;
+	int err;
+
+	/* If the port is already bound to this ACL table then do nothing. This
+	 * can happen when this port is the first one to join a tc block
+	 */
+	if (port_priv->acl_tbl == acl_tbl)
+		return 0;
+
+	err = dpaa2_switch_port_acl_tbl_unbind(port_priv, old_acl_tbl);
+	if (err)
+		return err;
+
+	/* Mark the previous ACL table as being unused if this was the last
+	 * port that was using it.
+	 */
+	if (old_acl_tbl->ports == 0)
+		old_acl_tbl->in_use = false;
+
+	return dpaa2_switch_port_acl_tbl_bind(port_priv, acl_tbl);
+}
+
+static int dpaa2_switch_port_block_unbind(struct ethsw_port_priv *port_priv,
+					  struct dpaa2_switch_acl_tbl *acl_tbl)
+{
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpaa2_switch_acl_tbl *new_acl_tbl;
+	int err;
+
+	/* We are the last port that leaves a block (an ACL table).
+	 * We'll continue to use this table.
+	 */
+	if (acl_tbl->ports == BIT(port_priv->idx))
+		return 0;
+
+	err = dpaa2_switch_port_acl_tbl_unbind(port_priv, acl_tbl);
+	if (err)
+		return err;
+
+	if (acl_tbl->ports == 0)
+		acl_tbl->in_use = false;
+
+	new_acl_tbl = dpaa2_switch_acl_tbl_get_unused(ethsw);
+	new_acl_tbl->in_use = true;
+	return dpaa2_switch_port_acl_tbl_bind(port_priv, new_acl_tbl);
+}
+
+static int dpaa2_switch_setup_tc_block_bind(struct net_device *netdev,
+					    struct flow_block_offload *f)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpaa2_switch_acl_tbl *acl_tbl;
+	struct flow_block_cb *block_cb;
+	bool register_block = false;
+	int err;
+
+	block_cb = flow_block_cb_lookup(f->block,
+					dpaa2_switch_port_setup_tc_block_cb_ig,
+					ethsw);
+
+	if (!block_cb) {
+		/* If the ACL table is not already known, then this port must
+		 * be the first to join it. In this case, we can just continue
+		 * to use our private table
+		 */
+		acl_tbl = port_priv->acl_tbl;
+
+		block_cb = flow_block_cb_alloc(dpaa2_switch_port_setup_tc_block_cb_ig,
+					       ethsw, acl_tbl, NULL);
+		if (IS_ERR(block_cb))
+			return PTR_ERR(block_cb);
+
+		register_block = true;
+	} else {
+		acl_tbl = flow_block_cb_priv(block_cb);
+	}
+
+	flow_block_cb_incref(block_cb);
+	err = dpaa2_switch_port_block_bind(port_priv, acl_tbl);
+	if (err)
+		goto err_block_bind;
+
+	if (register_block) {
+		flow_block_cb_add(block_cb, f);
+		list_add_tail(&block_cb->driver_list,
+			      &dpaa2_switch_block_cb_list);
+	}
+
+	return 0;
+
+err_block_bind:
+	if (!flow_block_cb_decref(block_cb))
+		flow_block_cb_free(block_cb);
+	return err;
+}
+
+static void dpaa2_switch_setup_tc_block_unbind(struct net_device *netdev,
+					       struct flow_block_offload *f)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct dpaa2_switch_acl_tbl *acl_tbl;
+	struct flow_block_cb *block_cb;
+	int err;
+
+	block_cb = flow_block_cb_lookup(f->block,
+					dpaa2_switch_port_setup_tc_block_cb_ig,
+					ethsw);
+	if (!block_cb)
+		return;
+
+	acl_tbl = flow_block_cb_priv(block_cb);
+	err = dpaa2_switch_port_block_unbind(port_priv, acl_tbl);
+	if (!err && !flow_block_cb_decref(block_cb)) {
+		flow_block_cb_remove(block_cb, f);
+		list_del(&block_cb->driver_list);
+	}
+}
+
+static int dpaa2_switch_setup_tc_block(struct net_device *netdev,
+				       struct flow_block_offload *f)
+{
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	f->driver_block_list = &dpaa2_switch_block_cb_list;
+
+	switch (f->command) {
+	case FLOW_BLOCK_BIND:
+		return dpaa2_switch_setup_tc_block_bind(netdev, f);
+	case FLOW_BLOCK_UNBIND:
+		dpaa2_switch_setup_tc_block_unbind(netdev, f);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dpaa2_switch_port_setup_tc(struct net_device *netdev,
+				      enum tc_setup_type type,
+				      void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_BLOCK: {
+		return dpaa2_switch_setup_tc_block(netdev, type_data);
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_open		= dpaa2_switch_port_open,
 	.ndo_stop		= dpaa2_switch_port_stop,
@@ -1141,6 +1379,7 @@ static const struct net_device_ops dpaa2_switch_port_ops = {
 	.ndo_start_xmit		= dpaa2_switch_port_tx,
 	.ndo_get_port_parent_id	= dpaa2_switch_port_parent_id,
 	.ndo_get_phys_port_name = dpaa2_switch_port_get_phys_name,
+	.ndo_setup_tc		= dpaa2_switch_port_setup_tc,
 };
 
 bool dpaa2_switch_port_dev_check(const struct net_device *netdev)
@@ -2749,7 +2988,6 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpaa2_switch_acl_tbl *acl_tbl;
 	struct dpsw_fdb_cfg fdb_cfg = {0};
-	struct dpsw_acl_if_cfg acl_if_cfg;
 	struct dpsw_if_attr dpsw_if_attr;
 	struct dpaa2_switch_fdb *fdb;
 	struct dpsw_acl_cfg acl_cfg;
@@ -2803,21 +3041,16 @@ static int dpaa2_switch_port_init(struct ethsw_port_priv *port_priv, u16 port)
 		return err;
 	}
 
-	acl_if_cfg.if_id[0] = port_priv->idx;
-	acl_if_cfg.num_ifs = 1;
-	err = dpsw_acl_add_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
-			      acl_tbl_id, &acl_if_cfg);
-	if (err) {
-		netdev_err(netdev, "dpsw_acl_add_if err %d\n", err);
-		dpsw_acl_remove(ethsw->mc_io, 0, ethsw->dpsw_handle,
-				acl_tbl_id);
-	}
-
 	acl_tbl = dpaa2_switch_acl_tbl_get_unused(ethsw);
+	acl_tbl->ethsw = ethsw;
 	acl_tbl->id = acl_tbl_id;
 	acl_tbl->in_use = true;
 	acl_tbl->num_rules = 0;
-	port_priv->acl_tbl = acl_tbl;
+	INIT_LIST_HEAD(&acl_tbl->entries);
+
+	err = dpaa2_switch_port_acl_tbl_bind(port_priv, acl_tbl);
+	if (err)
+		return err;
 
 	err = dpaa2_switch_port_trap_mac_addr(port_priv, stpa);
 	if (err)
@@ -2927,7 +3160,9 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	/* The DPAA2 switch's ingress path depends on the VLAN table,
 	 * thus we are not able to disable VLAN filtering.
 	 */
-	port_netdev->features = NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER;
+	port_netdev->features = NETIF_F_HW_VLAN_CTAG_FILTER |
+				NETIF_F_HW_VLAN_STAG_FILTER |
+				NETIF_F_HW_TC;
 
 	err = dpaa2_switch_port_init(port_priv, port_idx);
 	if (err)
