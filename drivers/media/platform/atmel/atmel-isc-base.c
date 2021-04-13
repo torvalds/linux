@@ -655,9 +655,7 @@ static void isc_set_pipeline(struct isc_device *isc, u32 pipeline)
 	regmap_bulk_write(regmap, ISC_GAM_RENTRY, gamma, GAMMA_ENTRIES);
 
 	isc->config_csc(isc);
-
-	regmap_write(regmap, ISC_CBC_BRIGHT, ctrls->brightness);
-	regmap_write(regmap, ISC_CBC_CONTRAST, ctrls->contrast);
+	isc->config_cbc(isc);
 }
 
 static int isc_update_profile(struct isc_device *isc)

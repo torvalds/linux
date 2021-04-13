@@ -73,6 +73,14 @@ static void isc_sama5d2_config_csc(struct isc_device *isc)
 		     0xFEE | (0x80 << 16));
 }
 
+static void isc_sama5d2_config_cbc(struct isc_device *isc)
+{
+	struct regmap *regmap = isc->regmap;
+
+	regmap_write(regmap, ISC_CBC_BRIGHT, isc->ctrls.brightness);
+	regmap_write(regmap, ISC_CBC_CONTRAST, isc->ctrls.contrast);
+}
+
 /* Gamma table with gamma 1/2.2 */
 static const u32 isc_sama5d2_gamma_table[][GAMMA_ENTRIES] = {
 	/* 0 --> gamma 1/1.8 */
@@ -218,6 +226,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	isc->max_height = ISC_SAMA5D2_MAX_SUPPORT_HEIGHT;
 
 	isc->config_csc = isc_sama5d2_config_csc;
+	isc->config_cbc = isc_sama5d2_config_cbc;
 
 	isc->offsets.csc = ISC_SAMA5D2_CSC_OFFSET;
 
