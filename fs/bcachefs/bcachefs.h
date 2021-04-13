@@ -719,6 +719,9 @@ struct bch_fs {
 	atomic_t		kick_gc;
 	unsigned long		gc_count;
 
+	enum btree_id		gc_gens_btree;
+	struct bpos		gc_gens_pos;
+
 	/*
 	 * Tracks GC's progress - everything in the range [ZERO_KEY..gc_cur_pos]
 	 * has been marked by GC.

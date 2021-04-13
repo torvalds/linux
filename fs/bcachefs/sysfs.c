@@ -136,6 +136,7 @@ write_attribute(trigger_btree_coalesce);
 write_attribute(trigger_gc);
 write_attribute(prune_cache);
 rw_attribute(btree_gc_periodic);
+rw_attribute(gc_gens_pos);
 
 read_attribute(uuid);
 read_attribute(minor);
@@ -312,6 +313,13 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	return 0;
 }
 
+void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	pr_buf(out, "%s: ", bch2_btree_ids[c->gc_gens_btree]);
+	bch2_bpos_to_text(out, c->gc_gens_pos);
+	pr_buf(out, "\n");
+}
+
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
@@ -336,6 +344,11 @@ SHOW(bch2_fs)
 		    atomic_long_read(&c->extent_migrate_raced));
 
 	sysfs_printf(btree_gc_periodic, "%u",	(int) c->btree_gc_periodic);
+
+	if (attr == &sysfs_gc_gens_pos) {
+		bch2_gc_gens_pos_to_text(&out, c);
+		return out.pos - buf;
+	}
 
 	sysfs_printf(copy_gc_enabled, "%i", c->copy_gc_enabled);
 
@@ -566,6 +579,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_journal_flush,
 	&sysfs_trigger_btree_coalesce,
 	&sysfs_trigger_gc,
+	&sysfs_gc_gens_pos,
 	&sysfs_prune_cache,
 
 	&sysfs_copy_gc_enabled,

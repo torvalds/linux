@@ -1193,6 +1193,8 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
+		c->gc_gens_pos = iter->pos;
+
 		if (gc_btree_gens_key(c, k)) {
 			bch2_bkey_buf_reassemble(&sk, c, k);
 			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
@@ -1244,6 +1246,8 @@ int bch2_gc_gens(struct bch_fs *c)
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		if ((1 << i) & BTREE_ID_HAS_PTRS) {
+			c->gc_gens_btree = i;
+			c->gc_gens_pos = POS_MIN;
 			ret = bch2_gc_btree_gens(c, i);
 			if (ret) {
 				bch_err(c, "error recalculating oldest_gen: %i", ret);
@@ -1259,6 +1263,9 @@ int bch2_gc_gens(struct bch_fs *c)
 			g->oldest_gen = g->gc_gen;
 		up_read(&ca->bucket_lock);
 	}
+
+	c->gc_gens_btree	= 0;
+	c->gc_gens_pos		= POS_MIN;
 
 	c->gc_count++;
 err:
