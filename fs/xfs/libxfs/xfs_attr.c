@@ -70,6 +70,26 @@ xfs_inode_hasattr(
 	return 1;
 }
 
+/*
+ * Returns true if the there is exactly only block in the attr fork, in which
+ * case the attribute fork consists of a single leaf block entry.
+ */
+bool
+xfs_attr_is_leaf(
+	struct xfs_inode	*ip)
+{
+	struct xfs_ifork	*ifp = ip->i_afp;
+	struct xfs_iext_cursor	icur;
+	struct xfs_bmbt_irec	imap;
+
+	if (ifp->if_nextents != 1 || ifp->if_format != XFS_DINODE_FMT_EXTENTS)
+		return false;
+
+	xfs_iext_first(ifp, &icur);
+	xfs_iext_get_extent(ifp, &icur, &imap);
+	return imap.br_startoff == 0 && imap.br_blockcount == 1;
+}
+
 /*========================================================================
  * Overall external interface routines.
  *========================================================================*/
@@ -89,7 +109,7 @@ xfs_attr_get_ilocked(
 
 	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_getvalue(args);
-	if (xfs_bmap_one_block(args->dp, XFS_ATTR_FORK))
+	if (xfs_attr_is_leaf(args->dp))
 		return xfs_attr_leaf_get(args);
 	return xfs_attr_node_get(args);
 }
@@ -293,7 +313,7 @@ xfs_attr_set_args(
 			return error;
 	}
 
-	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
+	if (xfs_attr_is_leaf(dp)) {
 		error = xfs_attr_leaf_addname(args);
 		if (error != -ENOSPC)
 			return error;
@@ -347,7 +367,7 @@ xfs_has_attr(
 		return xfs_attr_sf_findname(args, NULL, NULL);
 	}
 
-	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
+	if (xfs_attr_is_leaf(dp)) {
 		error = xfs_attr_leaf_hasname(args, &bp);
 
 		if (bp)
@@ -374,7 +394,7 @@ xfs_attr_remove_args(
 	} else if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL) {
 		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
 		error = xfs_attr_shortform_remove(args);
-	} else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
+	} else if (xfs_attr_is_leaf(dp)) {
 		error = xfs_attr_leaf_removename(args);
 	} else {
 		error = xfs_attr_node_removename(args);
@@ -1283,7 +1303,7 @@ xfs_attr_node_removename(
 	/*
 	 * If the result is small enough, push it all into the inode.
 	 */
-	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
+	if (xfs_attr_is_leaf(dp))
 		error = xfs_attr_node_shrink(args, state);
 
 out:

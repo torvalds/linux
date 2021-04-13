@@ -1442,38 +1442,6 @@ xfs_bmap_last_offset(
 }
 
 /*
- * Returns whether the selected fork of the inode has exactly one
- * block or not.  For the data fork we check this matches i_disk_size,
- * implying the file's range is 0..bsize-1.
- */
-int					/* 1=>1 block, 0=>otherwise */
-xfs_bmap_one_block(
-	struct xfs_inode	*ip,		/* incore inode */
-	int			whichfork)	/* data or attr fork */
-{
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
-	int			rval;		/* return value */
-	struct xfs_bmbt_irec	s;		/* internal version of extent */
-	struct xfs_iext_cursor icur;
-
-#ifndef DEBUG
-	if (whichfork == XFS_DATA_FORK)
-		return XFS_ISIZE(ip) == ip->i_mount->m_sb.sb_blocksize;
-#endif	/* !DEBUG */
-	if (ifp->if_nextents != 1)
-		return 0;
-	if (ifp->if_format != XFS_DINODE_FMT_EXTENTS)
-		return 0;
-	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
-	xfs_iext_first(ifp, &icur);
-	xfs_iext_get_extent(ifp, &icur, &s);
-	rval = s.br_startoff == 0 && s.br_blockcount == 1;
-	if (rval && whichfork == XFS_DATA_FORK)
-		ASSERT(XFS_ISIZE(ip) == ip->i_mount->m_sb.sb_blocksize);
-	return rval;
-}
-
-/*
  * Extent tree manipulation functions used during allocation.
  */
 
