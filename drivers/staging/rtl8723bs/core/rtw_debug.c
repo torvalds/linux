@@ -14,16 +14,6 @@ u32 GlobalDebugLevel = _drv_err_;
 
 #include <rtw_version.h>
 
-void dump_drv_version(void *sel)
-{
-	DBG_871X_SEL_NL(sel, "%s %s\n", "rtl8723bs", DRIVERVERSION);
-}
-
-void dump_log_level(void *sel)
-{
-	DBG_871X_SEL_NL(sel, "log_level:%d\n", GlobalDebugLevel);
-}
-
 void sd_f0_reg_dump(void *sel, struct adapter *adapter)
 {
 	int i;

@@ -192,9 +192,6 @@
 
 #endif /* defined(_dbgdump) */
 
-void dump_drv_version(void *sel);
-void dump_log_level(void *sel);
-
 void sd_f0_reg_dump(void *sel, struct adapter *adapter);
 
 void mac_reg_dump(void *sel, struct adapter *adapter);
