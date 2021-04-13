@@ -428,6 +428,7 @@ struct io_ring_ctx {
 		unsigned		cq_mask;
 		atomic_t		cq_timeouts;
 		unsigned		cq_last_tm_flush;
+		unsigned		cq_extra;
 		unsigned long		cq_check_overflow;
 		struct wait_queue_head	cq_wait;
 		struct fasync_struct	*cq_fasync;
@@ -1193,7 +1194,7 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
 		struct io_ring_ctx *ctx = req->ctx;
 
-		return seq != ctx->cached_cq_tail
+		return seq + ctx->cq_extra != ctx->cached_cq_tail
 				+ READ_ONCE(ctx->cached_cq_overflow);
 	}
 
@@ -4901,6 +4902,9 @@ static bool io_poll_complete(struct io_kiocb *req, __poll_t mask)
 		req->poll.done = true;
 		flags = 0;
 	}
+	if (flags & IORING_CQE_F_MORE)
+		ctx->cq_extra++;
+
 	io_commit_cqring(ctx);
 	return !(flags & IORING_CQE_F_MORE);
 }
