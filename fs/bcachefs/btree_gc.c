@@ -1181,7 +1181,7 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_buf sk;
-	int ret = 0;
+	int ret = 0, commit_err = 0;
 
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
@@ -1195,18 +1195,18 @@ static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 	       !(ret = bkey_err(k))) {
 		c->gc_gens_pos = iter->pos;
 
-		if (gc_btree_gens_key(c, k)) {
+		if (gc_btree_gens_key(c, k) && !commit_err) {
 			bch2_bkey_buf_reassemble(&sk, c, k);
 			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
 			bch2_trans_update(&trans, iter, sk.k, 0);
 
-			ret = bch2_trans_commit(&trans, NULL, NULL,
-						BTREE_INSERT_NOFAIL);
-			if (ret == -EINTR)
+			commit_err = bch2_trans_commit(&trans, NULL, NULL,
+						       BTREE_INSERT_NOWAIT|
+						       BTREE_INSERT_NOFAIL);
+			if (commit_err == -EINTR) {
+				commit_err = 0;
 				continue;
-			if (ret) {
-				break;
 			}
 		}
 
