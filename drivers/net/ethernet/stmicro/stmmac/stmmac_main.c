@@ -1476,6 +1476,43 @@ static void stmmac_free_tx_buffer(struct stmmac_priv *priv, u32 queue, int i)
 }
 
 /**
+ * dma_free_rx_skbufs - free RX dma buffers
+ * @priv: private structure
+ * @queue: RX queue index
+ */
+static void dma_free_rx_skbufs(struct stmmac_priv *priv, u32 queue)
+{
+	int i;
+
+	for (i = 0; i < priv->dma_rx_size; i++)
+		stmmac_free_rx_buffer(priv, queue, i);
+}
+
+static int stmmac_alloc_rx_buffers(struct stmmac_priv *priv, u32 queue,
+				   gfp_t flags)
+{
+	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	int i;
+
+	for (i = 0; i < priv->dma_rx_size; i++) {
+		struct dma_desc *p;
+		int ret;
+
+		if (priv->extend_desc)
+			p = &((rx_q->dma_erx + i)->basic);
+		else
+			p = rx_q->dma_rx + i;
+
+		ret = stmmac_init_rx_buffers(priv, p, i, flags,
+					     queue);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
  * stmmac_reinit_rx_buffers - reinit the RX descriptor buffer.
  * @priv: driver private structure
  * Description: this function is called to re-allocate a receive buffer, perform
@@ -1547,15 +1584,14 @@ static void stmmac_reinit_rx_buffers(struct stmmac_priv *priv)
 	return;
 
 err_reinit_rx_buffers:
-	do {
-		while (--i >= 0)
-			stmmac_free_rx_buffer(priv, queue, i);
+	while (queue >= 0) {
+		dma_free_rx_skbufs(priv, queue);
 
 		if (queue == 0)
 			break;
 
-		i = priv->dma_rx_size;
-	} while (queue-- > 0);
+		queue--;
+	}
 }
 
 /**
@@ -1572,7 +1608,6 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 	u32 rx_count = priv->plat->rx_queues_to_use;
 	int ret = -ENOMEM;
 	int queue;
-	int i;
 
 	/* RX INITIALIZATION */
 	netif_dbg(priv, probe, priv->dev,
@@ -1580,7 +1615,7 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 
 	for (queue = 0; queue < rx_count; queue++) {
 		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-		int ret;
+
 
 		netif_dbg(priv, probe, priv->dev,
 			  "(%s) dma_rx_phy=0x%08x\n", __func__,
@@ -1596,22 +1631,12 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 			    "Register MEM_TYPE_PAGE_POOL RxQ-%d\n",
 			    rx_q->queue_index);
 
-		for (i = 0; i < priv->dma_rx_size; i++) {
-			struct dma_desc *p;
-
-			if (priv->extend_desc)
-				p = &((rx_q->dma_erx + i)->basic);
-			else
-				p = rx_q->dma_rx + i;
-
-			ret = stmmac_init_rx_buffers(priv, p, i, flags,
-						     queue);
-			if (ret)
-				goto err_init_rx_buffers;
-		}
+		ret = stmmac_alloc_rx_buffers(priv, queue, flags);
+		if (ret < 0)
+			goto err_init_rx_buffers;
 
 		rx_q->cur_rx = 0;
-		rx_q->dirty_rx = (unsigned int)(i - priv->dma_rx_size);
+		rx_q->dirty_rx = 0;
 
 		/* Setup the chained descriptor addresses */
 		if (priv->mode == STMMAC_CHAIN_MODE) {
@@ -1630,13 +1655,11 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 
 err_init_rx_buffers:
 	while (queue >= 0) {
-		while (--i >= 0)
-			stmmac_free_rx_buffer(priv, queue, i);
+		dma_free_rx_skbufs(priv, queue);
 
 		if (queue == 0)
 			break;
 
-		i = priv->dma_rx_size;
 		queue--;
 	}
 
@@ -1729,19 +1752,6 @@ static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
 		stmmac_display_rings(priv);
 
 	return ret;
-}
-
-/**
- * dma_free_rx_skbufs - free RX dma buffers
- * @priv: private structure
- * @queue: RX queue index
- */
-static void dma_free_rx_skbufs(struct stmmac_priv *priv, u32 queue)
-{
-	int i;
-
-	for (i = 0; i < priv->dma_rx_size; i++)
-		stmmac_free_rx_buffer(priv, queue, i);
 }
 
 /**
