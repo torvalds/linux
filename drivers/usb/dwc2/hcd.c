@@ -3359,8 +3359,6 @@ int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 int dwc2_port_resume(struct dwc2_hsotg *hsotg)
 {
 	unsigned long flags;
-	u32 hprt0;
-	u32 pcgctl;
 	int ret = 0;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
@@ -3374,33 +3372,14 @@ int dwc2_port_resume(struct dwc2_hsotg *hsotg)
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
 	case DWC2_POWER_DOWN_PARAM_NONE:
-	default:
 		/*
-		 * If power_down is supported, Phy clock is already resumed
-		 * after registers restore.
+		 * If not hibernation nor partial power down are supported,
+		 * port resume is done using the clock gating programming flow.
 		 */
-		if (!hsotg->params.power_down) {
-			pcgctl = dwc2_readl(hsotg, PCGCTL);
-			pcgctl &= ~PCGCTL_STOPPCLK;
-			dwc2_writel(hsotg, pcgctl, PCGCTL);
-			spin_unlock_irqrestore(&hsotg->lock, flags);
-			msleep(20);
-			spin_lock_irqsave(&hsotg->lock, flags);
-		}
-
-		hprt0 = dwc2_read_hprt0(hsotg);
-		hprt0 |= HPRT0_RES;
-		hprt0 &= ~HPRT0_SUSP;
-		dwc2_writel(hsotg, hprt0, HPRT0);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
-
-		msleep(USB_RESUME_TIMEOUT);
-
+		dwc2_host_exit_clock_gating(hsotg, 0);
 		spin_lock_irqsave(&hsotg->lock, flags);
-		hprt0 = dwc2_read_hprt0(hsotg);
-		hprt0 &= ~(HPRT0_RES | HPRT0_SUSP);
-		dwc2_writel(hsotg, hprt0, HPRT0);
-		hsotg->bus_suspended = false;
+		break;
 	}
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
