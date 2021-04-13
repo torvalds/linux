@@ -1241,6 +1241,11 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
  * GRAPHICS_VER(), MEDIA_VER() and DISPLAY_VER()
  */
 #define INTEL_GEN(dev_priv)		(INTEL_INFO(dev_priv)->gen)
+/*
+ * Deprecated: use IS_GRAPHICS_VER(), IS_MEDIA_VER() and IS_DISPLAY_VER() as
+ * appropriate.
+ */
+#define IS_GEN_RANGE(dev_priv, s, e)	IS_GRAPHICS_VER(dev_priv, (s), (e))
 
 #define GRAPHICS_VER(i915)		(INTEL_INFO(i915)->graphics_ver)
 #define IS_GRAPHICS_VER(i915, from, until) \
@@ -1256,15 +1261,6 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 
 #define REVID_FOREVER		0xff
 #define INTEL_REVID(dev_priv)	(to_pci_dev((dev_priv)->drm.dev)->revision)
-
-#define INTEL_GEN_MASK(s, e) ( \
-	BUILD_BUG_ON_ZERO(!__builtin_constant_p(s)) + \
-	BUILD_BUG_ON_ZERO(!__builtin_constant_p(e)) + \
-	GENMASK((e) - 1, (s) - 1))
-
-/* Returns true if Gen is in inclusive range [Start, End] */
-#define IS_GEN_RANGE(dev_priv, s, e) \
-	(!!(INTEL_INFO(dev_priv)->gen_mask & INTEL_GEN_MASK((s), (e))))
 
 #define IS_GEN(dev_priv, n) \
 	(BUILD_BUG_ON_ZERO(!__builtin_constant_p(n)) + \

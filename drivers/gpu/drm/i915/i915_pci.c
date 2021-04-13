@@ -37,7 +37,6 @@
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
-	.gen_mask = BIT((x) - 1), \
 	.gen = (x), \
 	.graphics_ver = (x), \
 	.media_ver = (x), \

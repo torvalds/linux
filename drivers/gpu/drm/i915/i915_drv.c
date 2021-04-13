@@ -768,8 +768,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(device_info, match_info, sizeof(*device_info));
 	RUNTIME_INFO(i915)->device_id = pdev->device;
 
-	BUG_ON(device_info->gen > BITS_PER_TYPE(device_info->gen_mask));
-
 	return i915;
 }
 

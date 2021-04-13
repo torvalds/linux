@@ -160,8 +160,6 @@ enum intel_ppgtt_type {
 	func(supports_tv);
 
 struct intel_device_info {
-	u16 gen_mask;
-
 	u8 graphics_ver;
 	u8 media_ver;
 
