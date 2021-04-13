@@ -86,104 +86,6 @@ static int mv2222_soft_reset(struct phy_device *phydev)
 					 5000, 1000000, true);
 }
 
-/* Returns negative on error, 0 if link is down, 1 if link is up */
-static int mv2222_read_status_10g(struct phy_device *phydev)
-{
-	int val, link = 0;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_STAT1);
-	if (val < 0)
-		return val;
-
-	if (val & MDIO_STAT1_LSTATUS) {
-		link = 1;
-
-		/* 10GBASE-R do not support auto-negotiation */
-		phydev->autoneg = AUTONEG_DISABLE;
-		phydev->speed = SPEED_10000;
-		phydev->duplex = DUPLEX_FULL;
-	}
-
-	return link;
-}
-
-/* Returns negative on error, 0 if link is down, 1 if link is up */
-static int mv2222_read_status_1g(struct phy_device *phydev)
-{
-	int val, link = 0;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_1GBX_STAT);
-	if (val < 0)
-		return val;
-
-	if (!(val & BMSR_LSTATUS) ||
-	    (phydev->autoneg == AUTONEG_ENABLE &&
-	     !(val & BMSR_ANEGCOMPLETE)))
-		return 0;
-
-	link = 1;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_1GBX_PHY_STAT);
-	if (val < 0)
-		return val;
-
-	if (val & MV_1GBX_PHY_STAT_AN_RESOLVED) {
-		if (val & MV_1GBX_PHY_STAT_DUPLEX)
-			phydev->duplex = DUPLEX_FULL;
-		else
-			phydev->duplex = DUPLEX_HALF;
-
-		if (val & MV_1GBX_PHY_STAT_SPEED1000)
-			phydev->speed = SPEED_1000;
-		else if (val & MV_1GBX_PHY_STAT_SPEED100)
-			phydev->speed = SPEED_100;
-		else
-			phydev->speed = SPEED_10;
-	}
-
-	return link;
-}
-
-static bool mv2222_link_is_operational(struct phy_device *phydev)
-{
-	struct mv2222_data *priv = phydev->priv;
-	int val;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MV_RX_SIGNAL_DETECT);
-	if (val < 0 || !(val & MV_RX_SIGNAL_DETECT_GLOBAL))
-		return false;
-
-	if (phydev->sfp_bus && !priv->sfp_link)
-		return false;
-
-	return true;
-}
-
-static int mv2222_read_status(struct phy_device *phydev)
-{
-	struct mv2222_data *priv = phydev->priv;
-	int link;
-
-	phydev->link = 0;
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
-
-	if (!mv2222_link_is_operational(phydev))
-		return 0;
-
-	if (priv->line_interface == PHY_INTERFACE_MODE_10GBASER)
-		link = mv2222_read_status_10g(phydev);
-	else
-		link = mv2222_read_status_1g(phydev);
-
-	if (link < 0)
-		return link;
-
-	phydev->link = link;
-
-	return 0;
-}
-
 static int mv2222_disable_aneg(struct phy_device *phydev)
 {
 	int ret = phy_clear_bits_mmd(phydev, MDIO_MMD_PCS, MV_1GBX_CTRL,
@@ -384,6 +286,104 @@ static int mv2222_aneg_done(struct phy_device *phydev)
 		return ret;
 
 	return (ret & BMSR_ANEGCOMPLETE);
+}
+
+/* Returns negative on error, 0 if link is down, 1 if link is up */
+static int mv2222_read_status_10g(struct phy_device *phydev)
+{
+	int val, link = 0;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_STAT1);
+	if (val < 0)
+		return val;
+
+	if (val & MDIO_STAT1_LSTATUS) {
+		link = 1;
+
+		/* 10GBASE-R do not support auto-negotiation */
+		phydev->autoneg = AUTONEG_DISABLE;
+		phydev->speed = SPEED_10000;
+		phydev->duplex = DUPLEX_FULL;
+	}
+
+	return link;
+}
+
+/* Returns negative on error, 0 if link is down, 1 if link is up */
+static int mv2222_read_status_1g(struct phy_device *phydev)
+{
+	int val, link = 0;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_1GBX_STAT);
+	if (val < 0)
+		return val;
+
+	if (!(val & BMSR_LSTATUS) ||
+	    (phydev->autoneg == AUTONEG_ENABLE &&
+	     !(val & BMSR_ANEGCOMPLETE)))
+		return 0;
+
+	link = 1;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_1GBX_PHY_STAT);
+	if (val < 0)
+		return val;
+
+	if (val & MV_1GBX_PHY_STAT_AN_RESOLVED) {
+		if (val & MV_1GBX_PHY_STAT_DUPLEX)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			phydev->duplex = DUPLEX_HALF;
+
+		if (val & MV_1GBX_PHY_STAT_SPEED1000)
+			phydev->speed = SPEED_1000;
+		else if (val & MV_1GBX_PHY_STAT_SPEED100)
+			phydev->speed = SPEED_100;
+		else
+			phydev->speed = SPEED_10;
+	}
+
+	return link;
+}
+
+static bool mv2222_link_is_operational(struct phy_device *phydev)
+{
+	struct mv2222_data *priv = phydev->priv;
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MV_RX_SIGNAL_DETECT);
+	if (val < 0 || !(val & MV_RX_SIGNAL_DETECT_GLOBAL))
+		return false;
+
+	if (phydev->sfp_bus && !priv->sfp_link)
+		return false;
+
+	return true;
+}
+
+static int mv2222_read_status(struct phy_device *phydev)
+{
+	struct mv2222_data *priv = phydev->priv;
+	int link;
+
+	phydev->link = 0;
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+
+	if (!mv2222_link_is_operational(phydev))
+		return 0;
+
+	if (priv->line_interface == PHY_INTERFACE_MODE_10GBASER)
+		link = mv2222_read_status_10g(phydev);
+	else
+		link = mv2222_read_status_1g(phydev);
+
+	if (link < 0)
+		return link;
+
+	phydev->link = link;
+
+	return 0;
 }
 
 static int mv2222_resume(struct phy_device *phydev)
