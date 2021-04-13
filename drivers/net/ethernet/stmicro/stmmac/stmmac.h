@@ -40,6 +40,7 @@ enum stmmac_txbuf_type {
 	STMMAC_TXBUF_T_SKB,
 	STMMAC_TXBUF_T_XDP_TX,
 	STMMAC_TXBUF_T_XDP_NDO,
+	STMMAC_TXBUF_T_XSK_TX,
 };
 
 struct stmmac_tx_info {
@@ -69,6 +70,8 @@ struct stmmac_tx_queue {
 		struct xdp_frame **xdpf;
 	};
 	struct stmmac_tx_info *tx_skbuff_dma;
+	struct xsk_buff_pool *xsk_pool;
+	u32 xsk_frames_done;
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
 	dma_addr_t dma_tx_phy;
@@ -116,6 +119,7 @@ struct stmmac_rx_queue {
 struct stmmac_channel {
 	struct napi_struct rx_napi ____cacheline_aligned_in_smp;
 	struct napi_struct tx_napi ____cacheline_aligned_in_smp;
+	struct napi_struct rxtx_napi ____cacheline_aligned_in_smp;
 	struct stmmac_priv *priv_data;
 	spinlock_t lock;
 	u32 index;
@@ -338,6 +342,8 @@ static inline unsigned int stmmac_rx_offset(struct stmmac_priv *priv)
 
 void stmmac_disable_rx_queue(struct stmmac_priv *priv, u32 queue);
 void stmmac_enable_rx_queue(struct stmmac_priv *priv, u32 queue);
+void stmmac_disable_tx_queue(struct stmmac_priv *priv, u32 queue);
+void stmmac_enable_tx_queue(struct stmmac_priv *priv, u32 queue);
 int stmmac_xsk_wakeup(struct net_device *dev, u32 queue, u32 flags);
 
 #if IS_ENABLED(CONFIG_STMMAC_SELFTESTS)
