@@ -180,11 +180,11 @@ static void graph_parse_convert(struct device *dev,
 	struct device_node *ports = of_get_parent(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 
-	asoc_simple_parse_convert(dev, top,   NULL,   adata);
-	asoc_simple_parse_convert(dev, node,  PREFIX, adata);
-	asoc_simple_parse_convert(dev, ports, NULL,   adata);
-	asoc_simple_parse_convert(dev, port,  NULL,   adata);
-	asoc_simple_parse_convert(dev, ep,    NULL,   adata);
+	asoc_simple_parse_convert(top,   NULL,   adata);
+	asoc_simple_parse_convert(node,  PREFIX, adata);
+	asoc_simple_parse_convert(ports, NULL,   adata);
+	asoc_simple_parse_convert(port,  NULL,   adata);
+	asoc_simple_parse_convert(ep,    NULL,   adata);
 
 	of_node_put(port);
 	of_node_put(ports);
@@ -226,6 +226,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dai;
 	struct snd_soc_dai_link_component *cpus = dai_link->cpus;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+	struct snd_soc_dai_link_component *platforms = dai_link->platforms;
 	int ret;
 
 	port	= of_get_parent(ep);
@@ -245,14 +246,13 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
 
-		dai =
-		dai_props->cpu_dai	= &priv->dais[li->dais++];
+		dai = dai_props->cpu_dai;
 
-		ret = asoc_simple_parse_cpu(ep, dai_link, &is_single_links);
+		ret = asoc_simple_parse_dai(ep, dai_link->cpus, &is_single_links);
 		if (ret)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk_cpu(dev, ep, dai_link, dai);
+		ret = asoc_simple_parse_clk(dev, ep, dai, dai_link->cpus);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -277,8 +277,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 			dai_link->no_pcm = 1;
 
 		/* card->num_links includes Codec */
-		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
-		asoc_simple_canonicalize_platform(dai_link);
+		asoc_simple_canonicalize_cpu(cpus, is_single_links);
+		asoc_simple_canonicalize_platform(platforms, cpus);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -288,17 +288,14 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->no_pcm		= 1;
 		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
 
-		dai =
-		dai_props->codec_dai	= &priv->dais[li->dais++];
+		dai =   dai_props->codec_dai;
+		cconf = dai_props->codec_conf;
 
-		cconf =
-		dai_props->codec_conf	= &priv->codec_conf[li->conf++];
-
-		ret = asoc_simple_parse_codec(ep, dai_link);
+		ret = asoc_simple_parse_dai(ep, dai_link->codecs, NULL);
 		if (ret < 0)
 			goto out_put_node;
 
-		ret = asoc_simple_parse_clk_codec(dev, ep, dai_link, dai);
+		ret = asoc_simple_parse_clk(dev, ep, dai, dai_link->codecs);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -358,18 +355,13 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct device_node *top = dev->of_node;
-	struct asoc_simple_dai *cpu_dai;
-	struct asoc_simple_dai *codec_dai;
+	struct asoc_simple_dai *cpu_dai = dai_props->cpu_dai;
+	struct asoc_simple_dai *codec_dai = dai_props->codec_dai;
 	int ret, single_cpu = 0;
 
 	dev_dbg(dev, "link_of (%pOF)\n", cpu_ep);
 
 	li->link++;
-
-	cpu_dai			=
-	dai_props->cpu_dai	= &priv->dais[li->dais++];
-	codec_dai		=
-	dai_props->codec_dai	= &priv->dais[li->dais++];
 
 	/* Factor to mclk, used in hw_params() */
 	graph_parse_mclk_fs(top, cpu_ep,   dai_props);
@@ -380,11 +372,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_cpu(cpu_ep, dai_link, &single_cpu);
+	ret = asoc_simple_parse_dai(cpu_ep, dai_link->cpus, &single_cpu);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_codec(codec_ep, dai_link);
+	ret = asoc_simple_parse_dai(codec_ep, dai_link->codecs, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -396,11 +388,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk_cpu(dev, cpu_ep, dai_link, cpu_dai);
+	ret = asoc_simple_parse_clk(dev, cpu_ep, cpu_dai, dai_link->cpus);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk_codec(dev, codec_ep, dai_link, codec_dai);
+	ret = asoc_simple_parse_clk(dev, codec_ep, codec_dai, dai_link->codecs);
 	if (ret < 0)
 		return ret;
 
@@ -414,8 +406,8 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->ops = &graph_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_canonicalize_cpu(dai_link, single_cpu);
-	asoc_simple_canonicalize_platform(dai_link);
+	asoc_simple_canonicalize_cpu(dai_link->cpus, single_cpu);
+	asoc_simple_canonicalize_platform(dai_link->platforms, dai_link->cpus);
 
 	return 0;
 }
@@ -561,7 +553,7 @@ int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 
 	memset(&li, 0, sizeof(li));
 	graph_get_dais_count(priv, &li);
-	if (!li.link || !li.dais)
+	if (!li.link)
 		return -EINVAL;
 
 	ret = asoc_simple_init_priv(priv, &li);
@@ -631,7 +623,6 @@ static int graph_count_noml(struct asoc_simple_priv *priv,
 	li->num[li->link].platforms	= 1;
 
 	li->link += 1; /* 1xCPU-Codec */
-	li->dais += 2; /* 1xCPU + 1xCodec */
 
 	dev_dbg(dev, "Count As Normal\n");
 
@@ -655,13 +646,10 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 		li->num[li->link].platforms	= 1;
 
 		li->link++; /* 1xCPU-dummy */
-		li->dais++; /* 1xCPU */
 	} else {
 		li->num[li->link].codecs	= 1;
 
 		li->link++; /* 1xdummy-Codec */
-		li->conf++; /* 1xdummy-Codec */
-		li->dais++; /* 1xCodec */
 	}
 
 	dev_dbg(dev, "Count As DPCM\n");
@@ -672,8 +660,6 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 static void graph_get_dais_count(struct asoc_simple_priv *priv,
 				 struct link_info *li)
 {
-	struct device *dev = simple_priv_to_dev(priv);
-
 	/*
 	 * link_num :	number of links.
 	 *		CPU-Codec / CPU-dummy / dummy-Codec
@@ -723,8 +709,6 @@ static void graph_get_dais_count(struct asoc_simple_priv *priv,
 	graph_for_each_link(priv, li,
 			    graph_count_noml,
 			    graph_count_dpcm);
-	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
-		li->link, li->dais, li->conf);
 }
 
 int audio_graph_card_probe(struct snd_soc_card *card)
