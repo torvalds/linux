@@ -487,6 +487,15 @@ static inline u64 bpf_trampoline_compute_key(const struct bpf_prog *tgt_prog,
 		return ((u64)btf_obj_id(btf) << 32) | 0x80000000 | btf_id;
 }
 
+/* unpack the IDs from the key as constructed above */
+static inline void bpf_trampoline_unpack_key(u64 key, u32 *obj_id, u32 *btf_id)
+{
+	if (obj_id)
+		*obj_id = key >> 32;
+	if (btf_id)
+		*btf_id = key & 0x7FFFFFFF;
+}
+
 int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    const struct bpf_prog *prog,
 			    const struct bpf_prog *tgt_prog,

@@ -5416,6 +5416,8 @@ struct bpf_link_info {
 		} raw_tracepoint;
 		struct {
 			__u32 attach_type;
+			__u32 target_obj_id; /* prog_id for PROG_EXT, otherwise btf object id */
+			__u32 target_btf_id; /* BTF type id inside the object */
 		} tracing;
 		struct {
 			__u64 cgroup_id;
