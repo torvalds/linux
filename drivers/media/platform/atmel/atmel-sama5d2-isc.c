@@ -77,8 +77,10 @@ static void isc_sama5d2_config_cbc(struct isc_device *isc)
 {
 	struct regmap *regmap = isc->regmap;
 
-	regmap_write(regmap, ISC_CBC_BRIGHT, isc->ctrls.brightness);
-	regmap_write(regmap, ISC_CBC_CONTRAST, isc->ctrls.contrast);
+	regmap_write(regmap, ISC_CBC_BRIGHT + isc->offsets.cbc,
+		     isc->ctrls.brightness);
+	regmap_write(regmap, ISC_CBC_CONTRAST + isc->offsets.cbc,
+		     isc->ctrls.contrast);
 }
 
 /* Gamma table with gamma 1/2.2 */
@@ -229,6 +231,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	isc->config_cbc = isc_sama5d2_config_cbc;
 
 	isc->offsets.csc = ISC_SAMA5D2_CSC_OFFSET;
+	isc->offsets.cbc = ISC_SAMA5D2_CBC_OFFSET;
 
 	/* sama5d2-isc - 8 bits per beat */
 	isc->dcfg = ISC_DCFG_YMBSIZE_BEATS8 | ISC_DCFG_CMBSIZE_BEATS8;

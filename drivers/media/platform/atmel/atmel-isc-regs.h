@@ -177,6 +177,9 @@
 /* Color Space Conversion CRB OCR Register */
 #define ISC_CSC_CRB_OCR	0x000003b0
 
+/* Offset for CBC register specific to sama5d2 product */
+#define ISC_SAMA5D2_CBC_OFFSET	0
+
 /* Contrast And Brightness Control Register */
 #define ISC_CBC_CTRL    0x000003b4
 

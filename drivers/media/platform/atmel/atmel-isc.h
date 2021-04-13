@@ -147,9 +147,11 @@ struct isc_ctrls {
 /*
  * struct isc_reg_offsets - ISC device register offsets
  * @csc:		Offset for the CSC register
+ * @cbc:		Offset for the CBC register
  */
 struct isc_reg_offsets {
 	u32 csc;
+	u32 cbc;
 };
 
 /*
