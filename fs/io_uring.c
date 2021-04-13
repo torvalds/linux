@@ -1270,10 +1270,8 @@ static void io_kill_timeout(struct io_kiocb *req, int status)
 	__must_hold(&req->ctx->completion_lock)
 {
 	struct io_timeout_data *io = req->async_data;
-	int ret;
 
-	ret = hrtimer_try_to_cancel(&io->timer);
-	if (ret != -1) {
+	if (hrtimer_try_to_cancel(&io->timer) != -1) {
 		atomic_set(&req->ctx->cq_timeouts,
 			atomic_read(&req->ctx->cq_timeouts) + 1);
 		list_del_init(&req->timeout.list);
@@ -1790,12 +1788,10 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 	 */
 	if (link && (link->flags & REQ_F_LTIMEOUT_ACTIVE)) {
 		struct io_timeout_data *io = link->async_data;
-		int ret;
 
 		io_remove_next_linked(req);
 		link->timeout.head = NULL;
-		ret = hrtimer_try_to_cancel(&io->timer);
-		if (ret != -1) {
+		if (hrtimer_try_to_cancel(&io->timer) != -1) {
 			io_cqring_fill_event(link, -ECANCELED, 0);
 			io_put_req_deferred(link, 1);
 			return true;
@@ -5528,21 +5524,18 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 {
 	struct io_timeout_data *io;
 	struct io_kiocb *req;
-	int ret = -ENOENT;
+	bool found = false;
 
 	list_for_each_entry(req, &ctx->timeout_list, timeout.list) {
-		if (user_data == req->user_data) {
-			ret = 0;
+		found = user_data == req->user_data;
+		if (found)
 			break;
-		}
 	}
-
-	if (ret == -ENOENT)
-		return ERR_PTR(ret);
+	if (!found)
+		return ERR_PTR(-ENOENT);
 
 	io = req->async_data;
-	ret = hrtimer_try_to_cancel(&io->timer);
-	if (ret == -1)
+	if (hrtimer_try_to_cancel(&io->timer) == -1)
 		return ERR_PTR(-EALREADY);
 	list_del_init(&req->timeout.list);
 	return req;
