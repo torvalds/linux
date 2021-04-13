@@ -578,31 +578,28 @@ int ksmbd_vfs_fsync(struct ksmbd_work *work, u64 fid, u64 p_id)
  */
 int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 {
-	struct path parent;
-	struct dentry *dentry;
-	char *last;
+	struct path path;
+	struct dentry *dentry, *parent;
 	int err;
-
-	last = extract_last_component(name);
-	if (!last)
-		return -EINVAL;
 
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
 
-	err = kern_path(name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &parent);
+	err = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (err) {
 		ksmbd_debug(VFS, "can't get %s, err %d\n", name, err);
 		ksmbd_revert_fsids(work);
-		rollback_path_modification(last);
 		return err;
 	}
 
-	inode_lock_nested(d_inode(parent.dentry), I_MUTEX_PARENT);
-	dentry = lookup_one_len(last, parent.dentry, strlen(last));
+	parent = dget_parent(path.dentry);
+	inode_lock_nested(d_inode(parent), I_MUTEX_PARENT);
+	dentry = lookup_one_len(path.dentry->d_name.name, parent,
+			strlen(path.dentry->d_name.name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
-		ksmbd_debug(VFS, "%s: lookup failed, err %d\n", last, err);
+		ksmbd_debug(VFS, "%s: lookup failed, err %d\n",
+				path.dentry->d_name.name, err);
 		goto out_err;
 	}
 
@@ -613,12 +610,12 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 	}
 
 	if (S_ISDIR(d_inode(dentry)->i_mode)) {
-		err = vfs_rmdir(&init_user_ns, d_inode(parent.dentry), dentry);
+		err = vfs_rmdir(&init_user_ns, d_inode(parent), dentry);
 		if (err && err != -ENOTEMPTY)
 			ksmbd_debug(VFS, "%s: rmdir failed, err %d\n", name,
 				err);
 	} else {
-		err = vfs_unlink(&init_user_ns, d_inode(parent.dentry), dentry, NULL);
+		err = vfs_unlink(&init_user_ns, d_inode(parent), dentry, NULL);
 		if (err)
 			ksmbd_debug(VFS, "%s: unlink failed, err %d\n", name,
 				err);
@@ -626,9 +623,9 @@ int ksmbd_vfs_remove_file(struct ksmbd_work *work, char *name)
 
 	dput(dentry);
 out_err:
-	inode_unlock(d_inode(parent.dentry));
-	rollback_path_modification(last);
-	path_put(&parent);
+	inode_unlock(d_inode(parent));
+	dput(parent);
+	path_put(&path);
 	ksmbd_revert_fsids(work);
 	return err;
 }
