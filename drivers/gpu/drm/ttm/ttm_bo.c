@@ -1166,14 +1166,16 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	if (bo->mem.mem_type != TTM_PL_SYSTEM) {
 		struct ttm_operation_ctx ctx = { false, false };
 		struct ttm_resource evict_mem;
-		struct ttm_place hop;
+		struct ttm_place place, hop;
 
+		memset(&place, 0, sizeof(place));
 		memset(&hop, 0, sizeof(hop));
 
-		evict_mem = bo->mem;
-		evict_mem.mm_node = NULL;
-		evict_mem.placement = 0;
-		evict_mem.mem_type = TTM_PL_SYSTEM;
+		place.mem_type = TTM_PL_SYSTEM;
+
+		ret = ttm_resource_alloc(bo, &place, &evict_mem);
+		if (unlikely(ret))
+			goto out;
 
 		ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, &ctx, &hop);
 		if (unlikely(ret != 0)) {
