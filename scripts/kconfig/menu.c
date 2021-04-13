@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "lkc.h"
+#include "internal.h"
 
 static const char nohelp_text[] = "There is no help available for this option.";
 

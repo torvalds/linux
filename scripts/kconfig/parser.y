@@ -12,6 +12,7 @@
 #include <stdbool.h>
 
 #include "lkc.h"
+#include "internal.h"
 
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)
 
@@ -28,7 +29,7 @@ static bool zconf_endtoken(const char *tokenname,
 
 struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 
-static struct menu *current_menu, *current_entry;
+struct menu *current_menu, *current_entry;
 
 %}
 
@@ -713,5 +714,3 @@ void zconfdump(FILE *out)
 		}
 	}
 }
-
-#include "menu.c"
