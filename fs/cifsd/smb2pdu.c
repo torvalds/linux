@@ -666,16 +666,6 @@ smb2_get_name(struct ksmbd_share_config *share, const char *src,
 	return unixname;
 }
 
-/**
- * smb2_put_name() - free memory allocated for filename
- * @name:	filename pointer to be freed
- */
-static void smb2_put_name(void *name)
-{
-	if (!IS_ERR(name))
-		kfree(name);
-}
-
 int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 {
 	struct smb2_hdr *rsp_hdr;
@@ -5418,7 +5408,7 @@ static int smb2_rename(struct ksmbd_work *work, struct ksmbd_file *fp,
 out:
 	kfree(pathname);
 	if (!IS_ERR(new_name))
-		smb2_put_name(new_name);
+		kfree(new_name);
 	return rc;
 }
 
@@ -5483,7 +5473,7 @@ static int smb2_create_link(struct ksmbd_work *work,
 		rc = -EINVAL;
 out:
 	if (!IS_ERR(link_name))
-		smb2_put_name(link_name);
+		kfree(link_name);
 	kfree(pathname);
 	return rc;
 }
