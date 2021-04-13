@@ -1282,17 +1282,16 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *sd,
 				      state->pads);
 }
 
-static int mipi_csis_parse_dt(struct platform_device *pdev,
-			      struct csi_state *state)
+static int mipi_csis_parse_dt(struct csi_state *state)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_node *node = state->dev->of_node;
 
 	if (of_property_read_u32(node, "clock-frequency",
 				 &state->clk_frequency))
 		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
 
 	/* Get MIPI PHY resets */
-	state->mrst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	state->mrst = devm_reset_control_get_exclusive(state->dev, NULL);
 	if (IS_ERR(state->mrst))
 		return PTR_ERR(state->mrst);
 
@@ -1315,7 +1314,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	state->pdev = pdev;
 	state->dev = dev;
 
-	ret = mipi_csis_parse_dt(pdev, state);
+	ret = mipi_csis_parse_dt(state);
 	if (ret < 0) {
 		dev_err(dev, "Failed to parse device tree: %d\n", ret);
 		return ret;
