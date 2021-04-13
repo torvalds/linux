@@ -341,6 +341,7 @@
 		solomon,height = <64>;
 		solomon,width = <128>;
 		solomon,page-offset = <0>;
+		solomon,col-offset = <4>;
 		solomon,prechargep2 = <15>;
 		reset-gpios = <&gpio_oled 1 GPIO_ACTIVE_LOW>;
 		vbat-supply = <&sw2_reg>;
