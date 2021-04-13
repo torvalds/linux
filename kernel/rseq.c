@@ -84,13 +84,20 @@
 static int rseq_update_cpu_id(struct task_struct *t)
 {
 	u32 cpu_id = raw_smp_processor_id();
+	struct rseq __user *rseq = t->rseq;
 
-	if (put_user(cpu_id, &t->rseq->cpu_id_start))
-		return -EFAULT;
-	if (put_user(cpu_id, &t->rseq->cpu_id))
-		return -EFAULT;
+	if (!user_write_access_begin(rseq, sizeof(*rseq)))
+		goto efault;
+	unsafe_put_user(cpu_id, &rseq->cpu_id_start, efault_end);
+	unsafe_put_user(cpu_id, &rseq->cpu_id, efault_end);
+	user_write_access_end();
 	trace_rseq_update(t);
 	return 0;
+
+efault_end:
+	user_write_access_end();
+efault:
+	return -EFAULT;
 }
 
 static int rseq_reset_rseq_cpu_id(struct task_struct *t)
