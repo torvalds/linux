@@ -304,7 +304,6 @@ struct csi_state {
 
 	u8 index;
 	struct platform_device *pdev;
-	struct phy *phy;
 	void __iomem *regs;
 	int irq;
 	u32 flags;
