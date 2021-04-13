@@ -724,8 +724,7 @@ static int isc_configure(struct isc_device *isc)
 	rlp_mode = isc->config.rlp_cfg_mode;
 	pipeline = isc->config.bits_pipeline;
 
-	dcfg = isc->config.dcfg_imode |
-		       ISC_DCFG_YMBSIZE_BEATS8 | ISC_DCFG_CMBSIZE_BEATS8;
+	dcfg = isc->config.dcfg_imode | isc->dcfg;
 
 	pfe_cfg0  |= subdev->pfe_cfg0 | ISC_PFE_CFG0_MODE_PROGRESSIVE;
 	mask = ISC_PFE_CFG0_BPS_MASK | ISC_PFE_CFG0_HPOL_LOW |

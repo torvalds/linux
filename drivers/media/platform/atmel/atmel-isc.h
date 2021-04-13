@@ -150,6 +150,7 @@ struct isc_ctrls {
  * @hclock:		Hclock clock input (refer datasheet)
  * @ispck:		iscpck clock (refer datasheet)
  * @isc_clks:		ISC clocks
+ * @dcfg:		DMA master configuration, architecture dependent
  *
  * @dev:		Registered device driver
  * @v4l2_dev:		v4l2 registered device
@@ -197,6 +198,7 @@ struct isc_device {
 	struct clk		*hclock;
 	struct clk		*ispck;
 	struct isc_clk		isc_clks[2];
+	u32			dcfg;
 
 	struct device		*dev;
 	struct v4l2_device	v4l2_dev;
