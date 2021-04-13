@@ -346,6 +346,16 @@ that you have sent your patches to the right place.  Wait for a minimum of
 one week before resubmitting or pinging reviewers - possibly longer during
 busy times like merge windows.
 
+It's also ok to resend the patch or the patch series after a couple of
+weeks with the word "RESEND" added to the subject line::
+
+   [PATCH Vx RESEND] sub/sys: Condensed patch summary
+
+Don't add "RESEND" when you are submitting a modified version of your
+patch or patch series - "RESEND" only applies to resubmission of a
+patch or patch series which have not been modified in any way from the
+previous submission.
+
 
 Include PATCH in the subject
 -----------------------------
