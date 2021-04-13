@@ -1297,22 +1297,21 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	if (!state)
 		return -ENOMEM;
 
+	mutex_init(&state->lock);
 	spin_lock_init(&state->slock);
 
 	state->dev = dev;
 
+	memcpy(state->events, mipi_csis_events, sizeof(state->events));
+
+	/* Parse DT properties. */
 	ret = mipi_csis_parse_dt(state);
 	if (ret < 0) {
 		dev_err(dev, "Failed to parse device tree: %d\n", ret);
 		return ret;
 	}
 
-	ret = mipi_csis_phy_init(state);
-	if (ret < 0)
-		return ret;
-
-	mipi_csis_phy_reset(state);
-
+	/* Acquire resources. */
 	state->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(state->regs))
 		return PTR_ERR(state->regs);
@@ -1321,9 +1320,16 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	ret = mipi_csis_phy_init(state);
+	if (ret < 0)
+		return ret;
+
 	ret = mipi_csis_clk_get(state);
 	if (ret < 0)
 		return ret;
+
+	/* Reset PHY and enable the clocks. */
+	mipi_csis_phy_reset(state);
 
 	ret = mipi_csis_clk_enable(state);
 	if (ret < 0) {
@@ -1331,6 +1337,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Now that the hardware is initialized, request the interrupt. */
 	ret = devm_request_irq(dev, irq, mipi_csis_irq_handler, 0,
 			       dev_name(dev), state);
 	if (ret) {
@@ -1338,12 +1345,12 @@ static int mipi_csis_probe(struct platform_device *pdev)
 		goto disable_clock;
 	}
 
-	platform_set_drvdata(pdev, &state->sd);
-
-	mutex_init(&state->lock);
+	/* Initialize and register the subdev. */
 	ret = mipi_csis_subdev_init(state);
 	if (ret < 0)
 		goto disable_clock;
+
+	platform_set_drvdata(pdev, &state->sd);
 
 	ret = mipi_csis_async_register(state);
 	if (ret < 0) {
@@ -1351,9 +1358,10 @@ static int mipi_csis_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	memcpy(state->events, mipi_csis_events, sizeof(state->events));
-
+	/* Initialize debugfs. */
 	mipi_csis_debugfs_init(state);
+
+	/* Enable runtime PM. */
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
 		ret = mipi_csis_pm_resume(dev, true);
