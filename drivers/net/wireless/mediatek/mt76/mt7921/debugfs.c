@@ -146,6 +146,83 @@ mt7921_queues_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+static void
+mt7921_seq_puts_array(struct seq_file *file, const char *str,
+		      s8 *val, int len)
+{
+	int i;
+
+	seq_printf(file, "%-16s:", str);
+	for (i = 0; i < len; i++)
+		if (val[i] == 127)
+			seq_printf(file, " %6s", "N.A");
+		else
+			seq_printf(file, " %6d", val[i]);
+	seq_puts(file, "\n");
+}
+
+#define mt7921_print_txpwr_entry(prefix, rate)				\
+({									\
+	mt7921_seq_puts_array(s, #prefix " (user)",			\
+			      txpwr.data[TXPWR_USER].rate,		\
+			      ARRAY_SIZE(txpwr.data[TXPWR_USER].rate)); \
+	mt7921_seq_puts_array(s, #prefix " (eeprom)",			\
+			      txpwr.data[TXPWR_EEPROM].rate,		\
+			      ARRAY_SIZE(txpwr.data[TXPWR_EEPROM].rate)); \
+	mt7921_seq_puts_array(s, #prefix " (tmac)",			\
+			      txpwr.data[TXPWR_MAC].rate,		\
+			      ARRAY_SIZE(txpwr.data[TXPWR_MAC].rate));	\
+})
+
+static int
+mt7921_txpwr(struct seq_file *s, void *data)
+{
+	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt7921_txpwr txpwr;
+	int ret;
+
+	ret = mt7921_get_txpwr_info(dev, &txpwr);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "Tx power table (channel %d)\n", txpwr.ch);
+	seq_printf(s, "%-16s  %6s %6s %6s %6s\n",
+		   " ", "1m", "2m", "5m", "11m");
+	mt7921_print_txpwr_entry(CCK, cck);
+
+	seq_printf(s, "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s\n",
+		   " ", "6m", "9m", "12m", "18m", "24m", "36m",
+		   "48m", "54m");
+	mt7921_print_txpwr_entry(OFDM, ofdm);
+
+	seq_printf(s, "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s\n",
+		   " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
+		   "mcs6", "mcs7");
+	mt7921_print_txpwr_entry(HT20, ht20);
+
+	seq_printf(s, "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s %6s\n",
+		   " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
+		   "mcs6", "mcs7", "mcs32");
+	mt7921_print_txpwr_entry(HT40, ht40);
+
+	seq_printf(s, "%-16s  %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s\n",
+		   " ", "mcs0", "mcs1", "mcs2", "mcs3", "mcs4", "mcs5",
+		   "mcs6", "mcs7", "mcs8", "mcs9", "mcs10", "mcs11");
+	mt7921_print_txpwr_entry(VHT20, vht20);
+	mt7921_print_txpwr_entry(VHT40, vht40);
+	mt7921_print_txpwr_entry(VHT80, vht80);
+	mt7921_print_txpwr_entry(VHT160, vht160);
+	mt7921_print_txpwr_entry(HE26, he26);
+	mt7921_print_txpwr_entry(HE52, he52);
+	mt7921_print_txpwr_entry(HE106, he106);
+	mt7921_print_txpwr_entry(HE242, he242);
+	mt7921_print_txpwr_entry(HE484, he484);
+	mt7921_print_txpwr_entry(HE996, he996);
+	mt7921_print_txpwr_entry(HE996x2, he996x2);
+
+	return 0;
+}
+
 static int
 mt7921_pm_set(void *data, u64 val)
 {
@@ -225,6 +302,8 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 				    mt7921_queues_read);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7921_queues_acq);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower_sku", dir,
+				    mt7921_txpwr);
 	debugfs_create_file("tx_stats", 0400, dir, dev, &mt7921_tx_stats_fops);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
 	debugfs_create_file("runtime-pm", 0600, dir, dev, &fops_pm);

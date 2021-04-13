@@ -173,6 +173,36 @@ struct mt7921_dev {
 };
 
 enum {
+	TXPWR_USER,
+	TXPWR_EEPROM,
+	TXPWR_MAC,
+	TXPWR_MAX_NUM,
+};
+
+struct mt7921_txpwr {
+	u8 ch;
+	u8 rsv[3];
+	struct {
+		u8 ch;
+		u8 cck[4];
+		u8 ofdm[8];
+		u8 ht20[8];
+		u8 ht40[9];
+		u8 vht20[12];
+		u8 vht40[12];
+		u8 vht80[12];
+		u8 vht160[12];
+		u8 he26[12];
+		u8 he52[12];
+		u8 he106[12];
+		u8 he242[12];
+		u8 he484[12];
+		u8 he996[12];
+		u8 he996x2[12];
+	} data[TXPWR_MAX_NUM];
+};
+
+enum {
 	MT_LMAC_AC00,
 	MT_LMAC_AC01,
 	MT_LMAC_AC02,
@@ -352,4 +382,5 @@ int mt7921_mcu_update_arp_filter(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info);
 int mt7921_wfsys_reset(struct mt7921_dev *dev);
+int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr);
 #endif
