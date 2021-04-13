@@ -225,7 +225,9 @@ int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
 	memcpy(&config, &lif->phc->ts_config, sizeof(config));
 	mutex_unlock(&lif->phc->config_lock);
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config));
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+	return 0;
 }
 
 static u64 ionic_hwstamp_read(struct ionic *ionic,
