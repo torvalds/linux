@@ -6296,6 +6296,8 @@ struct ibm_thermal_sensors_struct {
 };
 
 static enum thermal_access_mode thermal_read_mode;
+static const struct attribute_group *thermal_attr_group;
+static bool thermal_use_labels;
 
 /* idx is zero-based */
 static int thermal_get_sensor(int idx, s32 *value)
@@ -6478,6 +6480,28 @@ static const struct attribute_group thermal_temp_input8_group = {
 #undef THERMAL_SENSOR_ATTR_TEMP
 #undef THERMAL_ATTRS
 
+static ssize_t temp1_label_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "CPU\n");
+}
+static DEVICE_ATTR_RO(temp1_label);
+
+static ssize_t temp2_label_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "GPU\n");
+}
+static DEVICE_ATTR_RO(temp2_label);
+
+static struct attribute *temp_label_attributes[] = {
+	&dev_attr_temp1_label.attr,
+	&dev_attr_temp2_label.attr,
+	NULL
+};
+
+static const struct attribute_group temp_label_attr_group = {
+	.attrs = temp_label_attributes,
+};
+
 /* --------------------------------------------------------------------- */
 
 static int __init thermal_init(struct ibm_init_struct *iibm)
@@ -6533,12 +6557,14 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 				thermal_read_mode = TPACPI_THERMAL_NONE;
 			}
 		} else {
-			if (ver >= 3)
+			if (ver >= 3) {
 				thermal_read_mode = TPACPI_THERMAL_TPEC_8;
-			else
+				thermal_use_labels = true;
+			} else {
 				thermal_read_mode =
 					(ta2 != 0) ?
 					TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
+			}
 		}
 	} else if (acpi_tmp7) {
 		if (tpacpi_is_ibm() &&
@@ -6560,22 +6586,28 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 	switch (thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		res = sysfs_create_group(&tpacpi_hwmon->kobj,
-				&thermal_temp_input16_group);
-		if (res)
-			return res;
+		thermal_attr_group = &thermal_temp_input16_group;
 		break;
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		res = sysfs_create_group(&tpacpi_hwmon->kobj,
-				&thermal_temp_input8_group);
-		if (res)
-			return res;
+		thermal_attr_group = &thermal_temp_input8_group;
 		break;
 	case TPACPI_THERMAL_NONE:
 	default:
 		return 1;
+	}
+
+	res = sysfs_create_group(&tpacpi_hwmon->kobj, thermal_attr_group);
+	if (res)
+		return res;
+
+	if (thermal_use_labels) {
+		res = sysfs_create_group(&tpacpi_hwmon->kobj, &temp_label_attr_group);
+		if (res) {
+			sysfs_remove_group(&tpacpi_hwmon->kobj, thermal_attr_group);
+			return res;
+		}
 	}
 
 	return 0;
@@ -6583,21 +6615,11 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 static void thermal_exit(void)
 {
-	switch (thermal_read_mode) {
-	case TPACPI_THERMAL_TPEC_16:
-		sysfs_remove_group(&tpacpi_hwmon->kobj,
-				   &thermal_temp_input16_group);
-		break;
-	case TPACPI_THERMAL_TPEC_8:
-	case TPACPI_THERMAL_ACPI_TMP07:
-	case TPACPI_THERMAL_ACPI_UPDT:
-		sysfs_remove_group(&tpacpi_hwmon->kobj,
-				   &thermal_temp_input8_group);
-		break;
-	case TPACPI_THERMAL_NONE:
-	default:
-		break;
-	}
+	if (thermal_attr_group)
+		sysfs_remove_group(&tpacpi_hwmon->kobj, thermal_attr_group);
+
+	if (thermal_use_labels)
+		sysfs_remove_group(&tpacpi_hwmon->kobj, &temp_label_attr_group);
 }
 
 static int thermal_read(struct seq_file *m)
