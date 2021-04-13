@@ -147,7 +147,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
 
-		dai = dai_props->cpu_dai;
+		dai = simple_props_to_dai_cpu(dai_props, 0);
 
 		ret = asoc_simple_parse_dai(np, cpus, &is_single_links);
 		if (ret)
@@ -174,8 +174,8 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->no_pcm		= 1;
 		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
 
-		dai   = dai_props->codec_dai;
-		cconf = dai_props->codec_conf;
+		dai	= simple_props_to_dai_codec(dai_props, 0);
+		cconf	= simple_props_to_codec_conf(dai_props, 0);
 
 		ret = asoc_simple_parse_dai(np, codecs, NULL);
 		if (ret < 0)
@@ -231,8 +231,8 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct asoc_simple_dai *cpu_dai	= dai_props->cpu_dai;
-	struct asoc_simple_dai *codec_dai = dai_props->codec_dai;
+	struct asoc_simple_dai *cpu_dai	= simple_props_to_dai_cpu(dai_props, 0);
+	struct asoc_simple_dai *codec_dai = simple_props_to_dai_codec(dai_props, 0);
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
 	struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
