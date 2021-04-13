@@ -1486,6 +1486,8 @@ int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg,
 int dwc2_host_enter_partial_power_down(struct dwc2_hsotg *hsotg);
 int dwc2_host_exit_partial_power_down(struct dwc2_hsotg *hsotg,
 				      int rem_wakeup, bool restore);
+void dwc2_host_enter_clock_gating(struct dwc2_hsotg *hsotg);
+void dwc2_host_exit_clock_gating(struct dwc2_hsotg *hsotg, int rem_wakeup);
 bool dwc2_host_can_poweroff_phy(struct dwc2_hsotg *dwc2);
 static inline void dwc2_host_schedule_phy_reset(struct dwc2_hsotg *hsotg)
 { schedule_work(&hsotg->phy_reset_work); }
@@ -1521,6 +1523,9 @@ static inline int dwc2_host_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 static inline int dwc2_host_exit_partial_power_down(struct dwc2_hsotg *hsotg,
 						    int rem_wakeup, bool restore)
 { return 0; }
+static inline void dwc2_host_enter_clock_gating(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_host_exit_clock_gating(struct dwc2_hsotg *hsotg,
+					       int rem_wakeup) {}
 static inline bool dwc2_host_can_poweroff_phy(struct dwc2_hsotg *dwc2)
 { return false; }
 static inline void dwc2_host_schedule_phy_reset(struct dwc2_hsotg *hsotg) {}
