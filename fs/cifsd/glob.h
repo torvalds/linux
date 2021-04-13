@@ -11,7 +11,6 @@
 
 #include "unicode.h"
 #include "vfs_cache.h"
-#include "smberr.h"
 
 #define KSMBD_VERSION	"3.1.9"
 

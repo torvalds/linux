@@ -8,7 +8,6 @@
  */
 
 #include "glob.h"
-#include "smberr.h"
 #include "nterr.h"
 #include "smb_common.h"
 
