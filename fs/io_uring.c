@@ -2385,7 +2385,7 @@ static void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 {
 	unsigned int nr_events = 0;
-	int iters = 0, ret = 0;
+	int ret = 0;
 
 	/*
 	 * We disallow the app entering submit/complete with polling, but we
@@ -2414,10 +2414,13 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 		 * forever, while the workqueue is stuck trying to acquire the
 		 * very same mutex.
 		 */
-		if (!(++iters & 7)) {
+		if (list_empty(&ctx->iopoll_list)) {
 			mutex_unlock(&ctx->uring_lock);
 			io_run_task_work();
 			mutex_lock(&ctx->uring_lock);
+
+			if (list_empty(&ctx->iopoll_list))
+				break;
 		}
 
 		ret = io_iopoll_getevents(ctx, &nr_events, min);
