@@ -1296,7 +1296,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 
 	for_each_available_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
-		const void *mac_addr = NULL;
 		int lenp;
 		const __be32 *parp;
 
@@ -1368,10 +1367,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		}
 
 no_phy_slave:
-		mac_addr = of_get_mac_address(slave_node);
-		if (!IS_ERR(mac_addr)) {
-			ether_addr_copy(slave_data->mac_addr, mac_addr);
-		} else {
+		ret = of_get_mac_address(slave_node, slave_data->mac_addr);
+		if (ret) {
 			ret = ti_cm_get_macid(&pdev->dev, i,
 					      slave_data->mac_addr);
 			if (ret)

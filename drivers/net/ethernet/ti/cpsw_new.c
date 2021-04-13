@@ -1257,7 +1257,6 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 
 	for_each_child_of_node(tmp_node, port_np) {
 		struct cpsw_slave_data *slave_data;
-		const void *mac_addr;
 		u32 port_id;
 
 		ret = of_property_read_u32(port_np, "reg", &port_id);
@@ -1316,10 +1315,8 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 			goto err_node_put;
 		}
 
-		mac_addr = of_get_mac_address(port_np);
-		if (!IS_ERR(mac_addr)) {
-			ether_addr_copy(slave_data->mac_addr, mac_addr);
-		} else {
+		ret = of_get_mac_address(port_np, slave_data->mac_addr);
+		if (ret) {
 			ret = ti_cm_get_macid(dev, port_id - 1,
 					      slave_data->mac_addr);
 			if (ret)

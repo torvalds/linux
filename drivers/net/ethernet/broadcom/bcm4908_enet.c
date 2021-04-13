@@ -686,7 +686,6 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	struct bcm4908_enet *enet;
-	const u8 *mac;
 	int err;
 
 	netdev = devm_alloc_etherdev(dev, sizeof(*enet));
@@ -716,10 +715,8 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 		return err;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	mac = of_get_mac_address(dev->of_node);
-	if (!IS_ERR(mac))
-		ether_addr_copy(netdev->dev_addr, mac);
-	else
+	err = of_get_mac_address(dev->of_node, netdev->dev_addr);
+	if (err)
 		eth_hw_addr_random(netdev);
 	netdev->netdev_ops = &bcm4908_enet_netdev_ops;
 	netdev->min_mtu = ETH_ZLEN;

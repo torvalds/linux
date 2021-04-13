@@ -11,6 +11,7 @@
 #include <linux/phy.h>
 #include <linux/export.h>
 #include <linux/device.h>
+#include <linux/nvmem-consumer.h>
 
 /**
  * of_get_phy_mode - Get phy mode for given device_node
@@ -45,42 +46,59 @@ int of_get_phy_mode(struct device_node *np, phy_interface_t *interface)
 }
 EXPORT_SYMBOL_GPL(of_get_phy_mode);
 
-static const void *of_get_mac_addr(struct device_node *np, const char *name)
+static int of_get_mac_addr(struct device_node *np, const char *name, u8 *addr)
 {
 	struct property *pp = of_find_property(np, name, NULL);
 
-	if (pp && pp->length == ETH_ALEN && is_valid_ether_addr(pp->value))
-		return pp->value;
-	return NULL;
+	if (pp && pp->length == ETH_ALEN && is_valid_ether_addr(pp->value)) {
+		memcpy(addr, pp->value, ETH_ALEN);
+		return 0;
+	}
+	return -ENODEV;
 }
 
-static const void *of_get_mac_addr_nvmem(struct device_node *np)
+static int of_get_mac_addr_nvmem(struct device_node *np, u8 *addr)
 {
-	int ret;
-	const void *mac;
-	u8 nvmem_mac[ETH_ALEN];
 	struct platform_device *pdev = of_find_device_by_node(np);
+	struct nvmem_cell *cell;
+	const void *mac;
+	size_t len;
+	int ret;
 
-	if (!pdev)
-		return ERR_PTR(-ENODEV);
-
-	ret = nvmem_get_mac_address(&pdev->dev, &nvmem_mac);
-	if (ret) {
+	/* Try lookup by device first, there might be a nvmem_cell_lookup
+	 * associated with a given device.
+	 */
+	if (pdev) {
+		ret = nvmem_get_mac_address(&pdev->dev, addr);
 		put_device(&pdev->dev);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
-	mac = devm_kmemdup(&pdev->dev, nvmem_mac, ETH_ALEN, GFP_KERNEL);
-	put_device(&pdev->dev);
-	if (!mac)
-		return ERR_PTR(-ENOMEM);
+	cell = of_nvmem_cell_get(np, "mac-address");
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
 
-	return mac;
+	mac = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(mac))
+		return PTR_ERR(mac);
+
+	if (len != ETH_ALEN || !is_valid_ether_addr(mac)) {
+		kfree(mac);
+		return -EINVAL;
+	}
+
+	memcpy(addr, mac, ETH_ALEN);
+	kfree(mac);
+
+	return 0;
 }
 
 /**
  * of_get_mac_address()
  * @np:		Caller's Device Node
+ * @addr:	Pointer to a six-byte array for the result
  *
  * Search the device tree for the best MAC address to use.  'mac-address' is
  * checked first, because that is supposed to contain to "most recent" MAC
@@ -101,24 +119,27 @@ static const void *of_get_mac_addr_nvmem(struct device_node *np)
  * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
  * but is all zeros.
  *
- * Return: Will be a valid pointer on success and ERR_PTR in case of error.
+ * Return: 0 on success and errno in case of error.
 */
-const void *of_get_mac_address(struct device_node *np)
+int of_get_mac_address(struct device_node *np, u8 *addr)
 {
-	const void *addr;
+	int ret;
 
-	addr = of_get_mac_addr(np, "mac-address");
-	if (addr)
-		return addr;
+	if (!np)
+		return -ENODEV;
 
-	addr = of_get_mac_addr(np, "local-mac-address");
-	if (addr)
-		return addr;
+	ret = of_get_mac_addr(np, "mac-address", addr);
+	if (!ret)
+		return 0;
 
-	addr = of_get_mac_addr(np, "address");
-	if (addr)
-		return addr;
+	ret = of_get_mac_addr(np, "local-mac-address", addr);
+	if (!ret)
+		return 0;
 
-	return of_get_mac_addr_nvmem(np);
+	ret = of_get_mac_addr(np, "address", addr);
+	if (!ret)
+		return 0;
+
+	return of_get_mac_addr_nvmem(np, addr);
 }
 EXPORT_SYMBOL(of_get_mac_address);
