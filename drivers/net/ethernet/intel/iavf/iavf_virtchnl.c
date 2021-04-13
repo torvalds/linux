@@ -1327,6 +1327,9 @@ void iavf_add_adv_rss_cfg(struct iavf_adapter *adapter)
 			process_rss = true;
 			rss->state = IAVF_ADV_RSS_ADD_PENDING;
 			memcpy(rss_cfg, &rss->cfg_msg, len);
+			iavf_print_adv_rss_cfg(adapter, rss,
+					       "Input set change for",
+					       "is pending");
 			break;
 		}
 	}
@@ -1599,6 +1602,9 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 						 &adapter->adv_rss_list_head,
 						 list) {
 				if (rss->state == IAVF_ADV_RSS_ADD_PENDING) {
+					iavf_print_adv_rss_cfg(adapter, rss,
+							       "Failed to change the input set for",
+							       NULL);
 					list_del(&rss->list);
 					kfree(rss);
 				}
@@ -1815,9 +1821,14 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		struct iavf_adv_rss *rss;
 
 		spin_lock_bh(&adapter->adv_rss_lock);
-		list_for_each_entry(rss, &adapter->adv_rss_list_head, list)
-			if (rss->state == IAVF_ADV_RSS_ADD_PENDING)
+		list_for_each_entry(rss, &adapter->adv_rss_list_head, list) {
+			if (rss->state == IAVF_ADV_RSS_ADD_PENDING) {
+				iavf_print_adv_rss_cfg(adapter, rss,
+						       "Input set change for",
+						       "successful");
 				rss->state = IAVF_ADV_RSS_ACTIVE;
+			}
+		}
 		spin_unlock_bh(&adapter->adv_rss_lock);
 		}
 		break;

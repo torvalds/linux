@@ -1419,6 +1419,214 @@ static int iavf_del_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
 }
 
 /**
+ * iavf_adv_rss_parse_hdrs - parses headers from RSS hash input
+ * @cmd: ethtool rxnfc command
+ *
+ * This function parses the rxnfc command and returns intended
+ * header types for RSS configuration
+ */
+static u32 iavf_adv_rss_parse_hdrs(struct ethtool_rxnfc *cmd)
+{
+	u32 hdrs = IAVF_ADV_RSS_FLOW_SEG_HDR_NONE;
+
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_TCP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV4;
+		break;
+	case TCP_V6_FLOW:
+		hdrs |= IAVF_ADV_RSS_FLOW_SEG_HDR_TCP |
+			IAVF_ADV_RSS_FLOW_SEG_HDR_IPV6;
+		break;
+	default:
+		break;
+	}
+
+	return hdrs;
+}
+
+/**
+ * iavf_adv_rss_parse_hash_flds - parses hash fields from RSS hash input
+ * @cmd: ethtool rxnfc command
+ *
+ * This function parses the rxnfc command and returns intended hash fields for
+ * RSS configuration
+ */
+static u64 iavf_adv_rss_parse_hash_flds(struct ethtool_rxnfc *cmd)
+{
+	u64 hfld = IAVF_ADV_RSS_HASH_INVALID;
+
+	if (cmd->data & RXH_IP_SRC || cmd->data & RXH_IP_DST) {
+		switch (cmd->flow_type) {
+		case TCP_V4_FLOW:
+			if (cmd->data & RXH_IP_SRC)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV4_SA;
+			if (cmd->data & RXH_IP_DST)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV4_DA;
+			break;
+		case TCP_V6_FLOW:
+			if (cmd->data & RXH_IP_SRC)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV6_SA;
+			if (cmd->data & RXH_IP_DST)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_IPV6_DA;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (cmd->data & RXH_L4_B_0_1 || cmd->data & RXH_L4_B_2_3) {
+		switch (cmd->flow_type) {
+		case TCP_V4_FLOW:
+		case TCP_V6_FLOW:
+			if (cmd->data & RXH_L4_B_0_1)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_TCP_SRC_PORT;
+			if (cmd->data & RXH_L4_B_2_3)
+				hfld |= IAVF_ADV_RSS_HASH_FLD_TCP_DST_PORT;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return hfld;
+}
+
+/**
+ * iavf_set_adv_rss_hash_opt - Enable/Disable flow types for RSS hash
+ * @adapter: pointer to the VF adapter structure
+ * @cmd: ethtool rxnfc command
+ *
+ * Returns Success if the flow input set is supported.
+ */
+static int
+iavf_set_adv_rss_hash_opt(struct iavf_adapter *adapter,
+			  struct ethtool_rxnfc *cmd)
+{
+	struct iavf_adv_rss *rss_old, *rss_new;
+	bool rss_new_add = false;
+	int count = 50, err = 0;
+	u64 hash_flds;
+	u32 hdrs;
+
+	if (!ADV_RSS_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	hdrs = iavf_adv_rss_parse_hdrs(cmd);
+	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_NONE)
+		return -EINVAL;
+
+	hash_flds = iavf_adv_rss_parse_hash_flds(cmd);
+	if (hash_flds == IAVF_ADV_RSS_HASH_INVALID)
+		return -EINVAL;
+
+	rss_new = kzalloc(sizeof(*rss_new), GFP_KERNEL);
+	if (!rss_new)
+		return -ENOMEM;
+
+	if (iavf_fill_adv_rss_cfg_msg(&rss_new->cfg_msg, hdrs, hash_flds)) {
+		kfree(rss_new);
+		return -EINVAL;
+	}
+
+	while (test_and_set_bit(__IAVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		if (--count == 0) {
+			kfree(rss_new);
+			return -EINVAL;
+		}
+
+		udelay(1);
+	}
+
+	spin_lock_bh(&adapter->adv_rss_lock);
+	rss_old = iavf_find_adv_rss_cfg_by_hdrs(adapter, hdrs);
+	if (rss_old) {
+		if (rss_old->state != IAVF_ADV_RSS_ACTIVE) {
+			err = -EBUSY;
+		} else if (rss_old->hash_flds != hash_flds) {
+			rss_old->state = IAVF_ADV_RSS_ADD_REQUEST;
+			rss_old->hash_flds = hash_flds;
+			memcpy(&rss_old->cfg_msg, &rss_new->cfg_msg,
+			       sizeof(rss_new->cfg_msg));
+			adapter->aq_required |= IAVF_FLAG_AQ_ADD_ADV_RSS_CFG;
+		} else {
+			err = -EEXIST;
+		}
+	} else {
+		rss_new_add = true;
+		rss_new->state = IAVF_ADV_RSS_ADD_REQUEST;
+		rss_new->packet_hdrs = hdrs;
+		rss_new->hash_flds = hash_flds;
+		list_add_tail(&rss_new->list, &adapter->adv_rss_list_head);
+		adapter->aq_required |= IAVF_FLAG_AQ_ADD_ADV_RSS_CFG;
+	}
+	spin_unlock_bh(&adapter->adv_rss_lock);
+
+	if (!err)
+		mod_delayed_work(iavf_wq, &adapter->watchdog_task, 0);
+
+	clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
+
+	if (!rss_new_add)
+		kfree(rss_new);
+
+	return err;
+}
+
+/**
+ * iavf_get_adv_rss_hash_opt - Retrieve hash fields for a given flow-type
+ * @adapter: pointer to the VF adapter structure
+ * @cmd: ethtool rxnfc command
+ *
+ * Returns Success if the flow input set is supported.
+ */
+static int
+iavf_get_adv_rss_hash_opt(struct iavf_adapter *adapter,
+			  struct ethtool_rxnfc *cmd)
+{
+	struct iavf_adv_rss *rss;
+	u64 hash_flds;
+	u32 hdrs;
+
+	if (!ADV_RSS_SUPPORT(adapter))
+		return -EOPNOTSUPP;
+
+	cmd->data = 0;
+
+	hdrs = iavf_adv_rss_parse_hdrs(cmd);
+	if (hdrs == IAVF_ADV_RSS_FLOW_SEG_HDR_NONE)
+		return -EINVAL;
+
+	spin_lock_bh(&adapter->adv_rss_lock);
+	rss = iavf_find_adv_rss_cfg_by_hdrs(adapter, hdrs);
+	if (rss)
+		hash_flds = rss->hash_flds;
+	else
+		hash_flds = IAVF_ADV_RSS_HASH_INVALID;
+	spin_unlock_bh(&adapter->adv_rss_lock);
+
+	if (hash_flds == IAVF_ADV_RSS_HASH_INVALID)
+		return -EINVAL;
+
+	if (hash_flds & (IAVF_ADV_RSS_HASH_FLD_IPV4_SA |
+			 IAVF_ADV_RSS_HASH_FLD_IPV6_SA))
+		cmd->data |= (u64)RXH_IP_SRC;
+
+	if (hash_flds & (IAVF_ADV_RSS_HASH_FLD_IPV4_DA |
+			 IAVF_ADV_RSS_HASH_FLD_IPV6_DA))
+		cmd->data |= (u64)RXH_IP_DST;
+
+	if (hash_flds & IAVF_ADV_RSS_HASH_FLD_TCP_SRC_PORT)
+		cmd->data |= (u64)RXH_L4_B_0_1;
+
+	if (hash_flds & IAVF_ADV_RSS_HASH_FLD_TCP_DST_PORT)
+		cmd->data |= (u64)RXH_L4_B_2_3;
+
+	return 0;
+}
+
+/**
  * iavf_set_rxnfc - command to set Rx flow rules.
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
@@ -1436,6 +1644,9 @@ static int iavf_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
 		ret = iavf_del_fdir_ethtool(adapter, cmd);
+		break;
+	case ETHTOOL_SRXFH:
+		ret = iavf_set_adv_rss_hash_opt(adapter, cmd);
 		break;
 	default:
 		break;
@@ -1477,8 +1688,7 @@ static int iavf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		ret = iavf_get_fdir_fltr_ids(adapter, cmd, (u32 *)rule_locs);
 		break;
 	case ETHTOOL_GRXFH:
-		netdev_info(netdev,
-			    "RSS hash info is not available to vf, use pf.\n");
+		ret = iavf_get_adv_rss_hash_opt(adapter, cmd);
 		break;
 	default:
 		break;
