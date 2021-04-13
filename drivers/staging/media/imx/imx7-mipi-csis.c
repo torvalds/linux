@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -283,21 +284,33 @@ enum mipi_csis_clk {
 	MIPI_CSIS_CLK_PCLK,
 	MIPI_CSIS_CLK_WRAP,
 	MIPI_CSIS_CLK_PHY,
+	MIPI_CSIS_CLK_AXI,
 };
 
 static const char * const mipi_csis_clk_id[] = {
 	"pclk",
 	"wrap",
 	"phy",
+	"axi",
+};
+
+enum mipi_csis_version {
+	MIPI_CSIS_V3_3,
+	MIPI_CSIS_V3_6_3,
+};
+
+struct mipi_csis_info {
+	enum mipi_csis_version version;
+	unsigned int num_clocks;
 };
 
 struct csi_state {
 	struct device *dev;
 	void __iomem *regs;
-	unsigned int num_clks;
 	struct clk_bulk_data *clks;
 	struct reset_control *mrst;
 	struct regulator *mipi_phy_regulator;
+	const struct mipi_csis_info *info;
 	u8 index;
 
 	struct v4l2_subdev sd;
@@ -539,7 +552,8 @@ static void mipi_csis_set_params(struct csi_state *state)
 	val = mipi_csis_read(state, MIPI_CSIS_CMN_CTRL);
 	val &= ~MIPI_CSIS_CMN_CTRL_LANE_NR_MASK;
 	val |= (lanes - 1) << MIPI_CSIS_CMN_CTRL_LANE_NR_OFFSET;
-	val |= MIPI_CSIS_CMN_CTRL_INTER_MODE;
+	if (state->info->version == MIPI_CSIS_V3_3)
+		val |= MIPI_CSIS_CMN_CTRL_INTER_MODE;
 	mipi_csis_write(state, MIPI_CSIS_CMN_CTRL, val);
 
 	__mipi_csis_set_format(state);
@@ -578,12 +592,12 @@ static void mipi_csis_set_params(struct csi_state *state)
 
 static int mipi_csis_clk_enable(struct csi_state *state)
 {
-	return clk_bulk_prepare_enable(state->num_clks, state->clks);
+	return clk_bulk_prepare_enable(state->info->num_clocks, state->clks);
 }
 
 static void mipi_csis_clk_disable(struct csi_state *state)
 {
-	clk_bulk_disable_unprepare(state->num_clks, state->clks);
+	clk_bulk_disable_unprepare(state->info->num_clocks, state->clks);
 }
 
 static int mipi_csis_clk_get(struct csi_state *state)
@@ -591,17 +605,17 @@ static int mipi_csis_clk_get(struct csi_state *state)
 	unsigned int i;
 	int ret;
 
-	state->num_clks = ARRAY_SIZE(mipi_csis_clk_id);
-	state->clks = devm_kcalloc(state->dev, state->num_clks,
+	state->clks = devm_kcalloc(state->dev, state->info->num_clocks,
 				   sizeof(*state->clks), GFP_KERNEL);
 
 	if (!state->clks)
 		return -ENOMEM;
 
-	for (i = 0; i < state->num_clks; i++)
+	for (i = 0; i < state->info->num_clocks; i++)
 		state->clks[i].id = mipi_csis_clk_id[i];
 
-	ret = devm_clk_bulk_get(state->dev, state->num_clks, state->clks);
+	ret = devm_clk_bulk_get(state->dev, state->info->num_clocks,
+				state->clks);
 	if (ret < 0)
 		return ret;
 
@@ -666,16 +680,25 @@ static irqreturn_t mipi_csis_irq_handler(int irq, void *dev_id)
 
 static int mipi_csis_phy_enable(struct csi_state *state)
 {
+	if (state->info->version != MIPI_CSIS_V3_3)
+		return 0;
+
 	return regulator_enable(state->mipi_phy_regulator);
 }
 
 static int mipi_csis_phy_disable(struct csi_state *state)
 {
+	if (state->info->version != MIPI_CSIS_V3_3)
+		return 0;
+
 	return regulator_disable(state->mipi_phy_regulator);
 }
 
 static void mipi_csis_phy_reset(struct csi_state *state)
 {
+	if (state->info->version != MIPI_CSIS_V3_3)
+		return;
+
 	reset_control_assert(state->mrst);
 	msleep(20);
 	reset_control_deassert(state->mrst);
@@ -683,6 +706,9 @@ static void mipi_csis_phy_reset(struct csi_state *state)
 
 static int mipi_csis_phy_init(struct csi_state *state)
 {
+	if (state->info->version != MIPI_CSIS_V3_3)
+		return 0;
+
 	/* Get MIPI PHY reset and regulator. */
 	state->mrst = devm_reset_control_get_exclusive(state->dev, NULL);
 	if (IS_ERR(state->mrst))
@@ -1322,6 +1348,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 
 	state->dev = dev;
+	state->info = of_device_get_match_data(dev);
 
 	memcpy(state->events, mipi_csis_events, sizeof(state->events));
 
@@ -1430,7 +1457,19 @@ static int mipi_csis_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mipi_csis_of_match[] = {
-	{ .compatible = "fsl,imx7-mipi-csi2", },
+	{
+		.compatible = "fsl,imx7-mipi-csi2",
+		.data = &(const struct mipi_csis_info){
+			.version = MIPI_CSIS_V3_3,
+			.num_clocks = 3,
+		},
+	}, {
+		.compatible = "fsl,imx8mm-mipi-csi2",
+		.data = &(const struct mipi_csis_info){
+			.version = MIPI_CSIS_V3_6_3,
+			.num_clocks = 4,
+		},
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, mipi_csis_of_match);
@@ -1447,6 +1486,6 @@ static struct platform_driver mipi_csis_driver = {
 
 module_platform_driver(mipi_csis_driver);
 
-MODULE_DESCRIPTION("i.MX7 MIPI CSI-2 Receiver driver");
+MODULE_DESCRIPTION("i.MX7 & i.MX8 MIPI CSI-2 receiver driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:imx7-mipi-csi2");
