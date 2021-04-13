@@ -2844,12 +2844,10 @@ int smb2_open(struct ksmbd_work *work)
 		 * is already granted.
 		 */
 		if (daccess & ~(FILE_READ_ATTRIBUTES_LE | FILE_READ_CONTROL_LE)) {
-			if (ksmbd_vfs_inode_permission(path.dentry,
-						       open_flags & O_ACCMODE,
-						       may_delete)) {
-				rc = -EACCES;
+			rc = ksmbd_vfs_inode_permission(path.dentry,
+					open_flags & O_ACCMODE, may_delete);
+			if (rc)
 				goto err_out;
-			}
 		}
 	}
 
@@ -3260,7 +3258,7 @@ err_out1:
 			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
 		else if (rc == -EOPNOTSUPP)
 			rsp->hdr.Status = STATUS_NOT_SUPPORTED;
-		else if (rc == -EACCES)
+		else if (rc == -EACCES || rc == -ESTALE)
 			rsp->hdr.Status = STATUS_ACCESS_DENIED;
 		else if (rc == -ENOENT)
 			rsp->hdr.Status = STATUS_OBJECT_NAME_INVALID;
@@ -5938,7 +5936,7 @@ err_out:
 		rsp->hdr.Status = STATUS_DIRECTORY_NOT_EMPTY;
 	else if (rc == -EAGAIN)
 		rsp->hdr.Status = STATUS_FILE_LOCK_CONFLICT;
-	else if (rc == -EBADF)
+	else if (rc == -EBADF || rc == -ESTALE)
 		rsp->hdr.Status = STATUS_INVALID_HANDLE;
 	else if (rc == -EEXIST)
 		rsp->hdr.Status = STATUS_OBJECT_NAME_COLLISION;
