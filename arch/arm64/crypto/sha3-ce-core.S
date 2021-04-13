@@ -184,11 +184,11 @@ SYM_FUNC_START(sha3_ce_transform)
 	eor	 v0.16b,  v0.16b, v31.16b
 
 	cbnz	w8, 3b
-	cond_yield 3f, x8
+	cond_yield 4f, x8, x9
 	cbnz	w2, 0b
 
 	/* save state */
-3:	st1	{ v0.1d- v3.1d}, [x0], #32
+4:	st1	{ v0.1d- v3.1d}, [x0], #32
 	st1	{ v4.1d- v7.1d}, [x0], #32
 	st1	{ v8.1d-v11.1d}, [x0], #32
 	st1	{v12.1d-v15.1d}, [x0], #32
