@@ -557,7 +557,9 @@ static int icm_fr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 	return 0;
 }
 
-static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					int transmit_path, int transmit_ring,
+					int receive_path, int receive_ring)
 {
 	struct icm_fr_pkg_approve_xdomain_response reply;
 	struct icm_fr_pkg_approve_xdomain request;
@@ -568,10 +570,10 @@ static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	request.link_info = xd->depth << ICM_LINK_INFO_DEPTH_SHIFT | xd->link;
 	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
 
-	request.transmit_path = xd->transmit_path;
-	request.transmit_ring = xd->transmit_ring;
-	request.receive_path = xd->receive_path;
-	request.receive_ring = xd->receive_ring;
+	request.transmit_path = transmit_path;
+	request.transmit_ring = transmit_ring;
+	request.receive_path = receive_path;
+	request.receive_ring = receive_ring;
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
@@ -585,7 +587,9 @@ static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	return 0;
 }
 
-static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					   int transmit_path, int transmit_ring,
+					   int receive_path, int receive_ring)
 {
 	u8 phy_port;
 	u8 cmd;
@@ -1122,7 +1126,9 @@ static int icm_tr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 	return 0;
 }
 
-static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					int transmit_path, int transmit_ring,
+					int receive_path, int receive_ring)
 {
 	struct icm_tr_pkg_approve_xdomain_response reply;
 	struct icm_tr_pkg_approve_xdomain request;
@@ -1132,10 +1138,10 @@ static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 	request.hdr.code = ICM_APPROVE_XDOMAIN;
 	request.route_hi = upper_32_bits(xd->route);
 	request.route_lo = lower_32_bits(xd->route);
-	request.transmit_path = xd->transmit_path;
-	request.transmit_ring = xd->transmit_ring;
-	request.receive_path = xd->receive_path;
-	request.receive_ring = xd->receive_ring;
+	request.transmit_path = transmit_path;
+	request.transmit_ring = transmit_ring;
+	request.receive_path = receive_path;
+	request.receive_ring = receive_ring;
 	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
 
 	memset(&reply, 0, sizeof(reply));
@@ -1176,7 +1182,9 @@ static int icm_tr_xdomain_tear_down(struct tb *tb, struct tb_xdomain *xd,
 	return 0;
 }
 
-static int icm_tr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+static int icm_tr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
+					   int transmit_path, int transmit_ring,
+					   int receive_path, int receive_ring)
 {
 	int ret;
 
@@ -2416,7 +2424,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	struct icm *icm;
 	struct tb *tb;
 
-	tb = tb_domain_alloc(nhi, sizeof(struct icm));
+	tb = tb_domain_alloc(nhi, ICM_TIMEOUT, sizeof(struct icm));
 	if (!tb)
 		return NULL;
 
