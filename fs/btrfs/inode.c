@@ -2207,8 +2207,7 @@ int btrfs_bio_fits_in_stripe(struct page *page, size_t size, struct bio *bio,
 	em = btrfs_get_chunk_map(fs_info, logical, map_length);
 	if (IS_ERR(em))
 		return PTR_ERR(em);
-	ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(bio), logical,
-				    map_length, &geom);
+	ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(bio), logical, &geom);
 	if (ret < 0)
 		goto out;
 
@@ -8197,7 +8196,7 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 			goto out_err_em;
 		}
 		ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(dio_bio),
-					    logical, submit_len, &geom);
+					    logical, &geom);
 		if (ret) {
 			status = errno_to_blk_status(ret);
 			goto out_err_em;
