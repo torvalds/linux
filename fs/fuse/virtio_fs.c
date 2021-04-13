@@ -133,11 +133,6 @@ static inline struct virtio_fs_vq *vq_to_fsvq(struct virtqueue *vq)
 	return &fs->vqs[vq->index];
 }
 
-static inline struct fuse_pqueue *vq_to_fpq(struct virtqueue *vq)
-{
-	return &vq_to_fsvq(vq)->fud->pq;
-}
-
 /* Should be called with fsvq->lock held. */
 static inline void inc_in_flight_req(struct virtio_fs_vq *fsvq)
 {
