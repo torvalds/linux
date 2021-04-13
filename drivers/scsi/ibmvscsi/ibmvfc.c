@@ -532,8 +532,17 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 		if (vhost->action == IBMVFC_HOST_ACTION_ALLOC_TGTS)
 			vhost->action = action;
 		break;
+	case IBMVFC_HOST_ACTION_REENABLE:
+	case IBMVFC_HOST_ACTION_RESET:
+		vhost->action = action;
+		break;
 	case IBMVFC_HOST_ACTION_INIT:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
+	case IBMVFC_HOST_ACTION_LOGO:
+	case IBMVFC_HOST_ACTION_QUERY_TGTS:
+	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
+	case IBMVFC_HOST_ACTION_NONE:
+	default:
 		switch (vhost->action) {
 		case IBMVFC_HOST_ACTION_RESET:
 		case IBMVFC_HOST_ACTION_REENABLE:
@@ -542,15 +551,6 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 			vhost->action = action;
 			break;
 		}
-		break;
-	case IBMVFC_HOST_ACTION_LOGO:
-	case IBMVFC_HOST_ACTION_QUERY_TGTS:
-	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
-	case IBMVFC_HOST_ACTION_NONE:
-	case IBMVFC_HOST_ACTION_RESET:
-	case IBMVFC_HOST_ACTION_REENABLE:
-	default:
-		vhost->action = action;
 		break;
 	}
 }
@@ -4658,26 +4658,45 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_INIT_WAIT:
 		break;
 	case IBMVFC_HOST_ACTION_RESET:
-		vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		rc = ibmvfc_reset_crq(vhost);
+
 		spin_lock_irqsave(vhost->host->host_lock, flags);
-		if (rc == H_CLOSED)
+		if (!rc || rc == H_CLOSED)
 			vio_enable_interrupts(to_vio_dev(vhost->dev));
-		if (rc || (rc = ibmvfc_send_crq_init(vhost)) ||
-		    (rc = vio_enable_interrupts(to_vio_dev(vhost->dev)))) {
-			ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
-			dev_err(vhost->dev, "Error after reset (rc=%d)\n", rc);
+		if (vhost->action == IBMVFC_HOST_ACTION_RESET) {
+			/*
+			 * The only action we could have changed to would have
+			 * been reenable, in which case, we skip the rest of
+			 * this path and wait until we've done the re-enable
+			 * before sending the crq init.
+			 */
+			vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
+
+			if (rc || (rc = ibmvfc_send_crq_init(vhost)) ||
+			    (rc = vio_enable_interrupts(to_vio_dev(vhost->dev)))) {
+				ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+				dev_err(vhost->dev, "Error after reset (rc=%d)\n", rc);
+			}
 		}
 		break;
 	case IBMVFC_HOST_ACTION_REENABLE:
-		vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		rc = ibmvfc_reenable_crq_queue(vhost);
+
 		spin_lock_irqsave(vhost->host->host_lock, flags);
-		if (rc || (rc = ibmvfc_send_crq_init(vhost))) {
-			ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
-			dev_err(vhost->dev, "Error after enable (rc=%d)\n", rc);
+		if (vhost->action == IBMVFC_HOST_ACTION_REENABLE) {
+			/*
+			 * The only action we could have changed to would have
+			 * been reset, in which case, we skip the rest of this
+			 * path and wait until we've done the reset before
+			 * sending the crq init.
+			 */
+			vhost->action = IBMVFC_HOST_ACTION_TGT_DEL;
+			if (rc || (rc = ibmvfc_send_crq_init(vhost))) {
+				ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+				dev_err(vhost->dev, "Error after enable (rc=%d)\n", rc);
+			}
 		}
 		break;
 	case IBMVFC_HOST_ACTION_LOGO:
