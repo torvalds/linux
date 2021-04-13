@@ -2590,7 +2590,7 @@ static int rtw_dbg_port(struct net_device *dev,
 					break;
 
 				case 0x10:/*  driver version display */
-					dump_drv_version(RTW_DBGDUMP);
+					netdev_dbg(dev, "%s %s\n", "rtl8723bs", DRIVERVERSION);
 					break;
 				case 0x11:/* dump linked status */
 					{
