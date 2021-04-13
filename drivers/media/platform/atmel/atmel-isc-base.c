@@ -686,12 +686,13 @@ static void isc_set_histogram(struct isc_device *isc, bool enable)
 	struct isc_ctrls *ctrls = &isc->ctrls;
 
 	if (enable) {
-		regmap_write(regmap, ISC_HIS_CFG,
+		regmap_write(regmap, ISC_HIS_CFG + isc->offsets.his,
 			     ISC_HIS_CFG_MODE_GR |
 			     (isc->config.sd_format->cfa_baycfg
 					<< ISC_HIS_CFG_BAYSEL_SHIFT) |
 					ISC_HIS_CFG_RAR);
-		regmap_write(regmap, ISC_HIS_CTRL, ISC_HIS_CTRL_EN);
+		regmap_write(regmap, ISC_HIS_CTRL + isc->offsets.his,
+			     ISC_HIS_CTRL_EN);
 		regmap_write(regmap, ISC_INTEN, ISC_INT_HISDONE);
 		ctrls->hist_id = ISC_HIS_CFG_MODE_GR;
 		isc_update_profile(isc);
@@ -700,7 +701,8 @@ static void isc_set_histogram(struct isc_device *isc, bool enable)
 		ctrls->hist_stat = HIST_ENABLED;
 	} else {
 		regmap_write(regmap, ISC_INTDIS, ISC_INT_HISDONE);
-		regmap_write(regmap, ISC_HIS_CTRL, ISC_HIS_CTRL_DIS);
+		regmap_write(regmap, ISC_HIS_CTRL + isc->offsets.his,
+			     ISC_HIS_CTRL_DIS);
 
 		ctrls->hist_stat = HIST_DISABLED;
 	}
@@ -1836,7 +1838,8 @@ static void isc_awb_work(struct work_struct *w)
 			ctrls->awb = ISC_WB_NONE;
 		}
 	}
-	regmap_write(regmap, ISC_HIS_CFG, hist_id | baysel | ISC_HIS_CFG_RAR);
+	regmap_write(regmap, ISC_HIS_CFG + isc->offsets.his,
+		     hist_id | baysel | ISC_HIS_CFG_RAR);
 	isc_update_profile(isc);
 	/* if awb has been disabled, we don't need to start another histogram */
 	if (ctrls->awb)

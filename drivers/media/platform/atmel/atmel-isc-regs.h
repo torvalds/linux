@@ -224,6 +224,8 @@
 #define ISC_RLP_CFG_MODE_YYCC_LIMITED   0xc
 #define ISC_RLP_CFG_MODE_MASK           GENMASK(3, 0)
 
+/* Offset for HIS register specific to sama5d2 product */
+#define ISC_SAMA5D2_HIS_OFFSET	0
 /* Histogram Control Register */
 #define ISC_HIS_CTRL	0x000003d4
 
