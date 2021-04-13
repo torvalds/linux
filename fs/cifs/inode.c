@@ -1645,6 +1645,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 		goto unlink_out;
 	}
 
+	cifs_close_deferred_file(CIFS_I(inode));
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = CIFSPOSIXDelFile(xid, tcon, full_path,

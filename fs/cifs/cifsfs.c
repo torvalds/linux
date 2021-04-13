@@ -133,6 +133,7 @@ struct workqueue_struct	*cifsiod_wq;
 struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*fileinfo_put_wq;
 struct workqueue_struct	*cifsoplockd_wq;
+struct workqueue_struct *deferredclose_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -390,6 +391,8 @@ cifs_alloc_inode(struct super_block *sb)
 	/* cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME; */
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	INIT_LIST_HEAD(&cifs_inode->llist);
+	INIT_LIST_HEAD(&cifs_inode->deferred_closes);
+	spin_lock_init(&cifs_inode->deferred_lock);
 	return &cifs_inode->vfs_inode;
 }
 
@@ -1637,9 +1640,16 @@ init_cifs(void)
 		goto out_destroy_fileinfo_put_wq;
 	}
 
+	deferredclose_wq = alloc_workqueue("deferredclose",
+					   WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!deferredclose_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cifsoplockd_wq;
+	}
+
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out_destroy_cifsoplockd_wq;
+		goto out_destroy_deferredclose_wq;
 
 	rc = cifs_init_inodecache();
 	if (rc)
@@ -1707,6 +1717,8 @@ out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_unreg_fscache:
 	cifs_fscache_unregister();
+out_destroy_deferredclose_wq:
+	destroy_workqueue(deferredclose_wq);
 out_destroy_cifsoplockd_wq:
 	destroy_workqueue(cifsoplockd_wq);
 out_destroy_fileinfo_put_wq:
@@ -1741,6 +1753,7 @@ exit_cifs(void)
 	cifs_destroy_mids();
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
+	destroy_workqueue(deferredclose_wq);
 	destroy_workqueue(cifsoplockd_wq);
 	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(fileinfo_put_wq);
