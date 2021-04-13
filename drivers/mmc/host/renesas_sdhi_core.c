@@ -588,8 +588,6 @@ static void renesas_sdhi_reset(struct tmio_mmc_host *host)
 		renesas_sdhi_scc_reset(host, priv);
 	}
 
-	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, TMIO_MASK_ALL_RCAR2);
-
 	if (sd_ctrl_read16(host, CTL_VERSION) >= SDHI_VER_GEN3_SD) {
 		val = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT);
 		val |= CARD_OPT_EXTOP;
