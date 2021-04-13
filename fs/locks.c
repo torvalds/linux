@@ -2372,7 +2372,6 @@ int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock *flock)
 		if (flock->l_pid != 0)
 			goto out;
 
-		cmd = F_GETLK;
 		fl->fl_flags |= FL_OFDLCK;
 		fl->fl_owner = filp;
 	}
