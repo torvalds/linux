@@ -633,11 +633,16 @@ static void __init trim_snb_memory(void)
 	printk(KERN_DEBUG "reserving inaccessible SNB gfx pages\n");
 
 	/*
-	 * Reserve all memory below the 1 MB mark that has not
-	 * already been reserved.
+	 * SandyBridge integrated graphics devices have a bug that prevents
+	 * them from accessing certain memory ranges, namely anything below
+	 * 1M and in the pages listed in bad_pages[] above.
+	 *
+	 * To avoid these pages being ever accessed by SNB gfx devices
+	 * reserve all memory below the 1 MB mark and bad_pages that have
+	 * not already been reserved at boot time.
 	 */
 	memblock_reserve(0, 1<<20);
-	
+
 	for (i = 0; i < ARRAY_SIZE(bad_pages); i++) {
 		if (memblock_reserve(bad_pages[i], PAGE_SIZE))
 			printk(KERN_WARNING "failed to reserve 0x%08lx\n",
@@ -746,8 +751,6 @@ static void __init early_reserve_memory(void)
 
 	reserve_ibft_region();
 	reserve_bios_regions();
-
-	trim_snb_memory();
 }
 
 /*
@@ -1080,6 +1083,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	reserve_real_mode();
+
+	/*
+	 * Reserving memory causing GPU hangs on Sandy Bridge integrated
+	 * graphics devices should be done after we allocated memory under
+	 * 1M for the real mode trampoline.
+	 */
+	trim_snb_memory();
 
 	init_mem_mapping();
 
