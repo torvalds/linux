@@ -323,8 +323,11 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 
 	if (chandef->chan->flags & IEEE80211_CHAN_RADAR)
 		mt7615_dfs_init_radar_detector(phy);
-	if (mt7615_firmware_offload(phy->dev))
+
+	if (mt7615_firmware_offload(phy->dev)) {
 		mt76_connac_mcu_set_channel_domain(mphy);
+		mt76_connac_mcu_set_rate_txpower(mphy);
+	}
 
 	mt7615_mutex_release(dev);
 }

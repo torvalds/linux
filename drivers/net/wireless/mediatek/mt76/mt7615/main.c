@@ -66,6 +66,10 @@ static int mt7615_start(struct ieee80211_hw *hw)
 		ret = mt76_connac_mcu_set_channel_domain(phy->mt76);
 		if (ret)
 			goto out;
+
+		ret = mt76_connac_mcu_set_rate_txpower(phy->mt76);
+		if (ret)
+			goto out;
 	}
 
 	ret = mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
