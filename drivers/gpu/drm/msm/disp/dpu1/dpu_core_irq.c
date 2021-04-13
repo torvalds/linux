@@ -58,8 +58,8 @@ int dpu_core_irq_idx_lookup(struct dpu_kms *dpu_kms,
 	if (!dpu_kms->hw_intr || !dpu_kms->hw_intr->ops.irq_idx_lookup)
 		return -EINVAL;
 
-	return dpu_kms->hw_intr->ops.irq_idx_lookup(intr_type,
-			instance_idx);
+	return dpu_kms->hw_intr->ops.irq_idx_lookup(dpu_kms->hw_intr,
+			intr_type, instance_idx);
 }
 
 /**
