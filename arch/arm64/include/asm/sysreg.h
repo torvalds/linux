@@ -283,6 +283,8 @@
 #define SYS_PMSIRR_EL1_INTERVAL_MASK	0xffffffUL
 
 /* Filtering controls */
+#define SYS_PMSNEVFR_EL1		sys_reg(3, 0, 9, 9, 1)
+
 #define SYS_PMSFCR_EL1			sys_reg(3, 0, 9, 9, 4)
 #define SYS_PMSFCR_EL1_FE_SHIFT		0
 #define SYS_PMSFCR_EL1_FT_SHIFT		1
