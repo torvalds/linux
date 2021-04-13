@@ -661,6 +661,7 @@ static void isc_set_pipeline(struct isc_device *isc, u32 pipeline)
 
 	isc->config_csc(isc);
 	isc->config_cbc(isc);
+	isc->config_cc(isc);
 }
 
 static int isc_update_profile(struct isc_device *isc)
