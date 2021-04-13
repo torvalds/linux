@@ -35,6 +35,7 @@
 #include <asm/fixmap.h>
 #include <asm/kasan.h>
 #include <asm/kernel-pgtable.h>
+#include <asm/kvm_host.h>
 #include <asm/memory.h>
 #include <asm/numa.h>
 #include <asm/sections.h>
@@ -451,6 +452,8 @@ void __init bootmem_init(void)
 #endif
 
 	dma_pernuma_cma_reserve();
+
+	kvm_hyp_reserve();
 
 	/*
 	 * sparse_init() tries to allocate memory from memblock, so must be
