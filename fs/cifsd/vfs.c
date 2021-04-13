@@ -50,14 +50,6 @@ static char *extract_last_component(char *path)
 	return p;
 }
 
-static void rollback_path_modification(char *filename)
-{
-	if (filename) {
-		filename--;
-		*filename = '/';
-	}
-}
-
 static void ksmbd_vfs_inherit_owner(struct ksmbd_work *work,
 		struct inode *parent_inode, struct inode *inode)
 {
@@ -1231,44 +1223,32 @@ static int __caseless_lookup(struct dir_context *ctx, const char *name,
 
 /**
  * ksmbd_vfs_lookup_in_dir() - lookup a file in a directory
- * @dirname:	directory name
- * @filename:	filename to lookup
+ * @dir:	path info
+ * @name:	filename to lookup
+ * @namelen:	filename length
  *
  * Return:	0 on success, otherwise error
  */
-static int ksmbd_vfs_lookup_in_dir(char *dirname, char *filename)
+static int ksmbd_vfs_lookup_in_dir(struct path *dir, char *name, size_t namelen)
 {
-	struct path dir_path;
 	int ret;
 	struct file *dfilp;
 	int flags = O_RDONLY | O_LARGEFILE;
-	int dirnamelen = strlen(dirname);
 	struct ksmbd_readdir_data readdir_data = {
 		.ctx.actor	= __caseless_lookup,
-		.private	= filename,
-		.used		= strlen(filename),
+		.private	= name,
+		.used		= namelen,
+		.dirent_count	= 0,
 	};
 
-	ret = ksmbd_vfs_kern_path(dirname, 0, &dir_path, true);
-	if (ret)
-		goto error;
-
-	dfilp = dentry_open(&dir_path, flags, current_cred());
-	if (IS_ERR(dfilp)) {
-		path_put(&dir_path);
-		ksmbd_err("cannot open directory %s\n", dirname);
-		ret = -EINVAL;
-		goto error;
-	}
+	dfilp = dentry_open(dir, flags, current_cred());
+	if (IS_ERR(dfilp))
+		return PTR_ERR(dfilp);
 
 	ret = ksmbd_vfs_readdir(dfilp, &readdir_data);
 	if (readdir_data.dirent_count > 0)
 		ret = 0;
-
 	fput(dfilp);
-	path_put(&dir_path);
-error:
-	dirname[dirnamelen] = '/';
 	return ret;
 }
 
@@ -1284,30 +1264,69 @@ error:
 int ksmbd_vfs_kern_path(char *name, unsigned int flags, struct path *path,
 		bool caseless)
 {
-	char *filename = NULL;
 	int err;
+
+	if (name[0] != '/')
+		return -EINVAL;
 
 	err = kern_path(name, flags, path);
 	if (!err)
-		return err;
+		return 0;
 
 	if (caseless) {
-		filename = extract_last_component(name);
-		if (!filename)
-			goto out;
+		char *filepath;
+		struct path parent;
+		size_t path_len, remain_len;
 
-		/* root reached */
-		if (strlen(name) == 0)
-			goto out;
+		filepath = kstrdup(name, GFP_KERNEL);
+		if (!filepath)
+			return -ENOMEM;
 
-		err = ksmbd_vfs_lookup_in_dir(name, filename);
+		path_len = strlen(filepath);
+		remain_len = path_len - 1;
+
+		err = kern_path("/", flags, &parent);
 		if (err)
 			goto out;
-		err = kern_path(name, flags, path);
-	}
 
+		while (d_can_lookup(parent.dentry)) {
+			char *filename = filepath + path_len - remain_len;
+			char *next = strchrnul(filename, '/');
+			size_t filename_len = next - filename;
+			bool is_last = !next[0];
+
+			if (filename_len == 0)
+				break;
+
+			err = ksmbd_vfs_lookup_in_dir(&parent, filename,
+						      filename_len);
+			if (err) {
+				path_put(&parent);
+				goto out;
+			}
+
+			path_put(&parent);
+			next[0] = '\0';
+
+			err = kern_path(filepath, flags, &parent);
+			if (err)
+				goto out;
+
+			if (is_last) {
+				path->mnt = parent.mnt;
+				path->dentry = parent.dentry;
+				goto out;
+			}
+
+			next[0] = '/';
+			remain_len -= filename_len + 1;
+		}
+
+		path_put(&parent);
+		err = -EINVAL;
 out:
-	rollback_path_modification(filename);
+		kfree(filepath);
+	}
 	return err;
 }
 
