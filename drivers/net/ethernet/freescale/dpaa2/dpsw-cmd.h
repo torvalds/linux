@@ -77,6 +77,7 @@
 #define DPSW_CMDID_ACL_ADD                  DPSW_CMD_ID(0x090)
 #define DPSW_CMDID_ACL_REMOVE               DPSW_CMD_ID(0x091)
 #define DPSW_CMDID_ACL_ADD_ENTRY            DPSW_CMD_ID(0x092)
+#define DPSW_CMDID_ACL_REMOVE_ENTRY         DPSW_CMD_ID(0x093)
 #define DPSW_CMDID_ACL_ADD_IF               DPSW_CMD_ID(0x094)
 #define DPSW_CMDID_ACL_REMOVE_IF            DPSW_CMD_ID(0x095)
 

@@ -18,6 +18,7 @@
 #include <net/switchdev.h>
 #include <linux/if_bridge.h>
 #include <linux/fsl/mc.h>
+#include <net/pkt_cls.h>
 #include <soc/fsl/dpaa2-io.h>
 
 #include "dpsw.h"
@@ -80,6 +81,8 @@
 	(DPAA2_SWITCH_TX_DATA_OFFSET + DPAA2_SWITCH_TX_BUF_ALIGN)
 
 #define DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES	16
+#define DPAA2_ETHSW_PORT_DEFAULT_TRAPS		1
+
 #define DPAA2_ETHSW_PORT_ACL_CMD_BUF_SIZE	256
 
 extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
@@ -101,6 +104,34 @@ struct dpaa2_switch_fdb {
 	bool			in_use;
 };
 
+struct dpaa2_switch_acl_entry {
+	struct list_head	list;
+	u16			prio;
+	unsigned long		cookie;
+
+	struct dpsw_acl_entry_cfg cfg;
+	struct dpsw_acl_key	key;
+};
+
+struct dpaa2_switch_acl_tbl {
+	struct list_head	entries;
+	struct ethsw_core	*ethsw;
+	u64			ports;
+
+	u16			id;
+	u8			num_rules;
+	bool			in_use;
+};
+
+static inline bool
+dpaa2_switch_acl_tbl_is_full(struct dpaa2_switch_acl_tbl *acl_tbl)
+{
+	if ((acl_tbl->num_rules + DPAA2_ETHSW_PORT_DEFAULT_TRAPS) >=
+	    DPAA2_ETHSW_PORT_MAX_ACL_ENTRIES)
+		return true;
+	return false;
+}
+
 /* Per port private data */
 struct ethsw_port_priv {
 	struct net_device	*netdev;
@@ -118,8 +149,7 @@ struct ethsw_port_priv {
 	bool			ucast_flood;
 	bool			learn_ena;
 
-	u16			acl_tbl;
-	u8			acl_num_rules;
+	struct dpaa2_switch_acl_tbl *acl_tbl;
 };
 
 /* Switch data */
@@ -145,7 +175,20 @@ struct ethsw_core {
 	int				napi_users;
 
 	struct dpaa2_switch_fdb		*fdbs;
+	struct dpaa2_switch_acl_tbl	*acls;
 };
+
+static inline int dpaa2_switch_get_index(struct ethsw_core *ethsw,
+					 struct net_device *netdev)
+{
+	int i;
+
+	for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
+		if (ethsw->ports[i]->netdev == netdev)
+			return ethsw->ports[i]->idx;
+
+	return -EINVAL;
+}
 
 static inline bool dpaa2_switch_supports_cpu_traffic(struct ethsw_core *ethsw)
 {
@@ -183,4 +226,21 @@ int dpaa2_switch_port_vlans_del(struct net_device *netdev,
 typedef int dpaa2_switch_fdb_cb_t(struct ethsw_port_priv *port_priv,
 				  struct fdb_dump_entry *fdb_entry,
 				  void *data);
+
+/* TC offload */
+
+int dpaa2_switch_cls_flower_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
+				    struct flow_cls_offload *cls);
+
+int dpaa2_switch_cls_flower_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
+				    struct flow_cls_offload *cls);
+
+int dpaa2_switch_cls_matchall_replace(struct dpaa2_switch_acl_tbl *acl_tbl,
+				      struct tc_cls_matchall_offload *cls);
+
+int dpaa2_switch_cls_matchall_destroy(struct dpaa2_switch_acl_tbl *acl_tbl,
+				      struct tc_cls_matchall_offload *cls);
+
+int dpaa2_switch_acl_entry_add(struct dpaa2_switch_acl_tbl *acl_tbl,
+			       struct dpaa2_switch_acl_entry *entry);
 #endif	/* __ETHSW_H */
