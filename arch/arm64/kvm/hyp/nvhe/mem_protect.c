@@ -271,11 +271,9 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 	int ret = 0;
 
 	esr = read_sysreg_el2(SYS_ESR);
-	if (!__get_fault_info(esr, &fault))
-		hyp_panic();
+	BUG_ON(!__get_fault_info(esr, &fault));
 
 	addr = (fault.hpfar_el2 & HPFAR_MASK) << 8;
 	ret = host_stage2_idmap(addr);
-	if (ret && ret != -EAGAIN)
-		hyp_panic();
+	BUG_ON(ret && ret != -EAGAIN);
 }

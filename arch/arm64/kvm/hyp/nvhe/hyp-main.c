@@ -251,6 +251,6 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		handle_host_mem_abort(host_ctxt);
 		break;
 	default:
-		hyp_panic();
+		BUG();
 	}
 }

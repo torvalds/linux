@@ -51,7 +51,7 @@ static inline void hyp_set_page_refcounted(struct hyp_page *p)
 	hyp_spin_lock(&pool->lock);
 	if (p->refcount) {
 		hyp_spin_unlock(&pool->lock);
-		hyp_panic();
+		BUG();
 	}
 	p->refcount = 1;
 	hyp_spin_unlock(&pool->lock);

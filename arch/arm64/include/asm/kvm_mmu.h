@@ -121,6 +121,8 @@ void kvm_update_va_mask(struct alt_instr *alt,
 void kvm_compute_layout(void);
 void kvm_apply_hyp_relocations(void);
 
+#define __hyp_pa(x) (((phys_addr_t)(x)) + hyp_physvirt_offset)
+
 static __always_inline unsigned long __kern_hyp_va(unsigned long v)
 {
 	asm volatile(ALTERNATIVE_CB("and %0, %0, #1\n"
