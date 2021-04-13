@@ -1309,7 +1309,7 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		aud_freq_init = intel_de_read(dev_priv, AUD_FREQ_CNTRL);
 
-		if (INTEL_GEN(dev_priv) >= 12)
+		if (DISPLAY_VER(dev_priv) >= 12)
 			aud_freq = AUD_FREQ_GEN12;
 		else
 			aud_freq = aud_freq_init;
