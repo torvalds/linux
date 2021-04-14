@@ -224,12 +224,20 @@ static char *translate_scan(struct adapter *padapter,
 	/* parsing WPA/WPA2 IE */
 	{
 		u8 *buf;
-		u8 wpa_ie[255], rsn_ie[255];
+		u8 *wpa_ie, *rsn_ie;
 		u16 wpa_len = 0, rsn_len = 0;
 		u8 *p;
 
 		buf = kzalloc(MAX_WPA_IE_LEN, GFP_ATOMIC);
 		if (!buf)
+			return start;
+
+		wpa_ie = kzalloc(255, GFP_ATOMIC);
+		if (!wpa_ie)
+			return start;
+
+		rsn_ie = kzalloc(255, GFP_ATOMIC);
+		if (!rsn_ie)
 			return start;
 
 		rtw_get_sec_ie(pnetwork->network.ies, pnetwork->network.ie_length, rsn_ie, &rsn_len, wpa_ie, &wpa_len);
@@ -268,6 +276,8 @@ static char *translate_scan(struct adapter *padapter,
 			start = iwe_stream_add_point(info, start, stop, &iwe, rsn_ie);
 		}
 		kfree(buf);
+		kfree(wpa_ie);
+		kfree(rsn_ie);
 	}
 
 	{/* parsing WPS IE */
