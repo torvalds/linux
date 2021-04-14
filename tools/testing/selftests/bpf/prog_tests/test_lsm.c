@@ -18,8 +18,6 @@ char *CMD_ARGS[] = {"true", NULL};
 #define GET_PAGE_ADDR(ADDR, PAGE_SIZE)					\
 	(char *)(((unsigned long) (ADDR + PAGE_SIZE)) & ~(PAGE_SIZE-1))
 
-static int duration = 0;
-
 int stack_mprotect(void)
 {
 	void *buf;
@@ -60,38 +58,33 @@ static int test_lsm(struct lsm *skel)
 	int err;
 
 	err = lsm__attach(skel);
-	if (CHECK(err, "attach", "lsm attach failed: %d\n", err))
+	if (!ASSERT_OK(err, "attach"))
 		return err;
 
 	/* Check that already linked program can't be attached again. */
 	link = bpf_program__attach(skel->progs.test_int_hook);
-	if (CHECK(!IS_ERR(link), "attach_link",
-		  "re-attach without detach should not succeed"))
+	if (!ASSERT_ERR_PTR(link, "attach_link"))
 		return -1;
 
 	err = exec_cmd(&skel->bss->monitored_pid);
-	if (CHECK(err < 0, "exec_cmd", "err %d errno %d\n", err, errno))
+	if (!ASSERT_OK(err, "exec_cmd"))
 		return err;
 
-	CHECK(skel->bss->bprm_count != 1, "bprm_count", "bprm_count = %d\n",
-	      skel->bss->bprm_count);
+	ASSERT_EQ(skel->bss->bprm_count, 1, "bprm_count");
 
 	skel->bss->monitored_pid = getpid();
 
 	err = stack_mprotect();
-	if (CHECK(errno != EPERM, "stack_mprotect", "want err=EPERM, got %d\n",
-		  errno))
+	if (!ASSERT_EQ(errno, EPERM, "stack_mprotect"))
 		return err;
 
-	CHECK(skel->bss->mprotect_count != 1, "mprotect_count",
-	      "mprotect_count = %d\n", skel->bss->mprotect_count);
+	ASSERT_EQ(skel->bss->mprotect_count, 1, "mprotect_count");
 
 	syscall(__NR_setdomainname, &buf, -2L);
 	syscall(__NR_setdomainname, 0, -3L);
 	syscall(__NR_setdomainname, ~0L, -4L);
 
-	CHECK(skel->bss->copy_test != 3, "copy_test",
-	      "copy_test = %d\n", skel->bss->copy_test);
+	ASSERT_EQ(skel->bss->copy_test, 3, "copy_test");
 
 	lsm__detach(skel);
 
@@ -107,15 +100,15 @@ void test_test_lsm(void)
 	int err;
 
 	skel = lsm__open_and_load();
-	if (CHECK(!skel, "lsm_skel_load", "lsm skeleton failed\n"))
+	if (!ASSERT_OK_PTR(skel, "lsm_skel_load"))
 		goto close_prog;
 
 	err = test_lsm(skel);
-	if (CHECK(err, "test_lsm", "first attach failed\n"))
+	if (!ASSERT_OK(err, "test_lsm_first_attach"))
 		goto close_prog;
 
 	err = test_lsm(skel);
-	CHECK(err, "test_lsm", "second attach failed\n");
+	ASSERT_OK(err, "test_lsm_second_attach");
 
 close_prog:
 	lsm__destroy(skel);
