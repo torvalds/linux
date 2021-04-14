@@ -431,8 +431,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	if (!rpc->intc_of_node) {
 		dev_err(dev, "%pOF has no %s child node",
-			rpc->intc_of_node,
-			"interrupt controller");
+			np, "interrupt controller");
 		return -EINVAL;
 	}
 
@@ -446,8 +445,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	if (!rpc->pci_controller.of_node) {
 		dev_err(dev, "%pOF has no %s child node",
-			rpc->intc_of_node,
-			"PCI host bridge");
+			np, "PCI host bridge");
 		err = -EINVAL;
 		goto err_put_intc_node;
 	}
