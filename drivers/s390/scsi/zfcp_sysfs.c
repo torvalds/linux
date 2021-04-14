@@ -435,7 +435,7 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	NULL
 };
 
-struct attribute_group zfcp_sysfs_adapter_attrs = {
+static const struct attribute_group zfcp_sysfs_adapter_attr_group = {
 	.attrs = zfcp_adapter_attrs,
 };
 
@@ -906,7 +906,13 @@ static struct attribute *zfcp_sysfs_diag_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group zfcp_sysfs_diag_attr_group = {
+static const struct attribute_group zfcp_sysfs_diag_attr_group = {
 	.name = "diagnostics",
 	.attrs = zfcp_sysfs_diag_attrs,
+};
+
+const struct attribute_group *zfcp_sysfs_adapter_attr_groups[] = {
+	&zfcp_sysfs_adapter_attr_group,
+	&zfcp_sysfs_diag_attr_group,
+	NULL,
 };
