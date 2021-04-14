@@ -71,7 +71,7 @@ static void intel_th_pci_deactivate(struct intel_th *th)
 static int intel_th_pci_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
-	struct intel_th_drvdata *drvdata = (void *)id->driver_data;
+	const struct intel_th_drvdata *drvdata = (void *)id->driver_data;
 	struct resource resource[TH_MMIO_END + TH_NVEC_MAX] = {
 		[TH_MMIO_CONFIG]	= pdev->resource[TH_PCI_CONFIG_BAR],
 		[TH_MMIO_SW]		= pdev->resource[TH_PCI_STH_SW_BAR],
