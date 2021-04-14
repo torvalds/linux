@@ -14,13 +14,6 @@
 #ifndef _NTERR_H
 #define _NTERR_H
 
-struct nt_err_code_struct {
-	char *nt_errstr;
-	__u32 nt_errcode;
-};
-
-extern const struct nt_err_code_struct nt_errs[];
-
 /* Win32 Status codes. */
 #define NT_STATUS_MORE_ENTRIES         0x0105
 #define NT_ERROR_INVALID_PARAMETER     0x0057
