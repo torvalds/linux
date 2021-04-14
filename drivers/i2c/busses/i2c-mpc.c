@@ -737,16 +737,17 @@ static int fsl_i2c_probe(struct platform_device *op)
 	 * enable clock for the I2C peripheral (non fatal),
 	 * keep a reference upon successful allocation
 	 */
-	clk = devm_clk_get(&op->dev, NULL);
-	if (!IS_ERR(clk)) {
-		err = clk_prepare_enable(clk);
-		if (err) {
-			dev_err(&op->dev, "failed to enable clock\n");
-			return err;
-		} else {
-			i2c->clk_per = clk;
-		}
+	clk = devm_clk_get_optional(&op->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	err = clk_prepare_enable(clk);
+	if (err) {
+		dev_err(&op->dev, "failed to enable clock\n");
+		return err;
 	}
+
+	i2c->clk_per = clk;
 
 	if (of_property_read_bool(op->dev.of_node, "fsl,preserve-clocking")) {
 		clock = MPC_I2C_CLOCK_PRESERVE;
@@ -791,8 +792,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 	return 0;
 
  fail_add:
-	if (i2c->clk_per)
-		clk_disable_unprepare(i2c->clk_per);
+	clk_disable_unprepare(i2c->clk_per);
 
 	return result;
 };
@@ -803,8 +803,7 @@ static int fsl_i2c_remove(struct platform_device *op)
 
 	i2c_del_adapter(&i2c->adap);
 
-	if (i2c->clk_per)
-		clk_disable_unprepare(i2c->clk_per);
+	clk_disable_unprepare(i2c->clk_per);
 
 	return 0;
 };
