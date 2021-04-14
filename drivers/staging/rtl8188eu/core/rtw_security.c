@@ -465,8 +465,9 @@ static const unsigned short Sbox1[2][256] = {  /* Sbox for hash (can be in ROM) 
 
 /**
  * phase1() - generate P1K, given TA, TK, IV32
- * @tk[]: temporal key [128 bits]
- * @ta[]: transmitter's MAC address [ 48 bits]
+ * @p1k: placeholder for the returned phase 1 key
+ * @tk: temporal key [128 bits]
+ * @ta: transmitter's MAC address [ 48 bits]
  * @iv32: upper 32 bits of IV [ 32 bits]
  *
  * This function only needs to be called every 2**16 packets,
@@ -498,8 +499,9 @@ static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 
 /**
  * phase2() - generate RC4KEY, given TK, P1K, IV16
- * @tk[]: Temporal key [128 bits]
- * @p1k[]: Phase 1 output key [ 80 bits]
+ * @rc4key: Placeholder for the returned key
+ * @tk: Temporal key [128 bits]
+ * @p1k: Phase 1 output key [ 80 bits]
  * @iv16: low 16 bits of IV counter [ 16 bits]
  *
  * The value {TA, IV32, IV16} for Phase1/Phase2 must be unique
