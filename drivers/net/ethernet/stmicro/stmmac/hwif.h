@@ -504,6 +504,8 @@ struct stmmac_ops {
 #define stmmac_fpe_irq_status(__priv, __args...) \
 	stmmac_do_callback(__priv, mac, fpe_irq_status, __args)
 
+struct stmmac_priv;
+
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
 	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
@@ -515,6 +517,7 @@ struct stmmac_hwtimestamp {
 			       int add_sub, int gmac4);
 	void (*get_systime) (void __iomem *ioaddr, u64 *systime);
 	void (*get_ptptime)(void __iomem *ioaddr, u64 *ptp_time);
+	void (*timestamp_interrupt)(struct stmmac_priv *priv);
 };
 
 #define stmmac_config_hw_tstamping(__priv, __args...) \
@@ -531,6 +534,8 @@ struct stmmac_hwtimestamp {
 	stmmac_do_void_callback(__priv, ptp, get_systime, __args)
 #define stmmac_get_ptptime(__priv, __args...) \
 	stmmac_do_void_callback(__priv, ptp, get_ptptime, __args)
+#define stmmac_timestamp_interrupt(__priv, __args...) \
+	stmmac_do_void_callback(__priv, ptp, timestamp_interrupt, __args)
 
 /* Helpers to manage the descriptors for chain and ring modes */
 struct stmmac_mode_ops {
