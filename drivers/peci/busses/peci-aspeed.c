@@ -219,7 +219,7 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 
 	for (i = 0; i < msg->tx_len; i += 4) {
 		if (priv->xfer_mode)
-			reg = ASPEED_PECI_64B_W_DATA0 + i % 16;
+			reg = ASPEED_PECI_64B_W_DATA0 + i;
 		else
 			reg = i < 16 ? ASPEED_PECI_W_DATA0 + i % 16 :
 				       ASPEED_PECI_W_DATA4 + i % 16;
@@ -282,7 +282,7 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 
 		if (byte_offset == 0) {
 			if (priv->xfer_mode)
-				reg = ASPEED_PECI_64B_R_DATA0 + i % 16;
+				reg = ASPEED_PECI_64B_R_DATA0 + i;
 			else
 				reg = i < 16 ? ASPEED_PECI_R_DATA0 + i % 16 :
 					ASPEED_PECI_R_DATA4 + i % 16;
