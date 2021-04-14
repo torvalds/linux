@@ -997,17 +997,18 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 	struct scatterlist *sg_start;
 	struct iscsi_conn *conn = csk->conn;
 	struct iscsi_cmd *cmd = NULL;
+	struct cxgbit_cmd *ccmd;
+	struct cxgbi_task_tag_info *ttinfo;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 	struct iscsi_data *hdr = (struct iscsi_data *)pdu_cb->hdr;
 	u32 data_offset = be32_to_cpu(hdr->offset);
-	u32 data_len = pdu_cb->dlen;
+	u32 data_len = ntoh24(hdr->dlength);
 	int rc, sg_nents, sg_off;
 	bool dcrc_err = false;
 
 	if (pdu_cb->flags & PDUCBF_RX_DDP_CMP) {
 		u32 offset = be32_to_cpu(hdr->offset);
 		u32 ddp_data_len;
-		u32 payload_length = ntoh24(hdr->dlength);
 		bool success = false;
 
 		cmd = iscsit_find_cmd_from_itt_or_dump(conn, hdr->itt, 0);
@@ -1022,7 +1023,7 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 		cmd->data_sn = be32_to_cpu(hdr->datasn);
 
 		rc = __iscsit_check_dataout_hdr(conn, (unsigned char *)hdr,
-						cmd, payload_length, &success);
+						cmd, data_len, &success);
 		if (rc < 0)
 			return rc;
 		else if (!success)
@@ -1058,6 +1059,20 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 		sg_nents = max(1UL, DIV_ROUND_UP(skip + data_len, PAGE_SIZE));
 
 		cxgbit_skb_copy_to_sg(csk->skb, sg_start, sg_nents, skip);
+	}
+
+	ccmd = iscsit_priv_cmd(cmd);
+	ttinfo = &ccmd->ttinfo;
+
+	if (ccmd->release && ttinfo->sgl &&
+	    (cmd->se_cmd.data_length ==	(cmd->write_data_done + data_len))) {
+		struct cxgbit_device *cdev = csk->com.cdev;
+		struct cxgbi_ppm *ppm = cdev2ppm(cdev);
+
+		dma_unmap_sg(&ppm->pdev->dev, ttinfo->sgl, ttinfo->nents,
+			     DMA_FROM_DEVICE);
+		ttinfo->nents = 0;
+		ttinfo->sgl = NULL;
 	}
 
 check_payload:
