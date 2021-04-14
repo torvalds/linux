@@ -337,7 +337,7 @@ static void reset_ip_core(struct axis_fifo *fifo)
 }
 
 /**
- * axis_fifo_write() - Read a packet from AXIS-FIFO character device.
+ * axis_fifo_read() - Read a packet from AXIS-FIFO character device.
  * @f: Open file.
  * @buf: User space buffer to read to.
  * @len: User space buffer length.
