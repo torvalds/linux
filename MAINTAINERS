@@ -4419,6 +4419,12 @@ S:	Supported
 F:	Documentation/process/code-of-conduct-interpretation.rst
 F:	Documentation/process/code-of-conduct.rst
 
+COMEDI DRIVERS
+M:	Ian Abbott <abbotti@mev.co.uk>
+M:	H Hartley Sweeten <hsweeten@visionengravers.com>
+S:	Odd Fixes
+F:	drivers/comedi/
+
 COMMON CLK FRAMEWORK
 M:	Michael Turquette <mturquette@baylibre.com>
 M:	Stephen Boyd <sboyd@kernel.org>
@@ -16968,12 +16974,6 @@ R:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/media/atomisp/
-
-STAGING - COMEDI
-M:	Ian Abbott <abbotti@mev.co.uk>
-M:	H Hartley Sweeten <hsweeten@visionengravers.com>
-S:	Odd Fixes
-F:	drivers/staging/comedi/
 
 STAGING - FIELDBUS SUBSYSTEM
 M:	Sven Van Asbroeck <TheSven73@gmail.com>
