@@ -964,7 +964,6 @@ static int yellow_carp_set_soft_freq_limited_range(struct smu_context *smu,
 		msg_set_max = SMU_MSG_SetSoftMaxGfxClk;
 		break;
 	case SMU_FCLK:
-	case SMU_MCLK:
 		msg_set_min = SMU_MSG_SetHardMinFclkByFreq;
 		msg_set_max = SMU_MSG_SetSoftMaxFclkByFreq;
 		break;
@@ -1054,7 +1053,6 @@ static int yellow_carp_force_clk_levels(struct smu_context *smu,
 
 	switch (clk_type) {
 	case SMU_SOCCLK:
-	case SMU_MCLK:
 	case SMU_FCLK:
 	case SMU_VCLK:
 	case SMU_DCLK:
@@ -1084,30 +1082,30 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t sclk_min = 0, sclk_max = 0;
-	uint32_t mclk_min = 0, mclk_max = 0;
+	uint32_t fclk_min = 0, fclk_max = 0;
 	uint32_t socclk_min = 0, socclk_max = 0;
 	int ret = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &sclk_max);
-		yellow_carp_get_dpm_ultimate_freq(smu, SMU_MCLK, NULL, &mclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &fclk_max);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &socclk_max);
 		sclk_min = sclk_max;
-		mclk_min = mclk_max;
+		fclk_min = fclk_max;
 		socclk_min = socclk_max;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, NULL);
-		yellow_carp_get_dpm_ultimate_freq(smu, SMU_MCLK, &mclk_min, NULL);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, &fclk_min, NULL);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, NULL);
 		sclk_max = sclk_min;
-		mclk_max = mclk_min;
+		fclk_max = fclk_min;
 		socclk_max = socclk_min;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, &sclk_max);
-		yellow_carp_get_dpm_ultimate_freq(smu, SMU_MCLK, &mclk_min, &mclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, &fclk_min, &fclk_max);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, &socclk_max);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
@@ -1136,11 +1134,11 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 		smu->gfx_actual_soft_max_freq = sclk_max;
 	}
 
-	if (mclk_min && mclk_max) {
+	if (fclk_min && fclk_max) {
 		ret = yellow_carp_set_soft_freq_limited_range(smu,
-							    SMU_MCLK,
-							    mclk_min,
-							    mclk_max);
+							    SMU_FCLK,
+							    fclk_min,
+							    fclk_max);
 		if (ret)
 			return ret;
 	}
