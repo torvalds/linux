@@ -46,6 +46,7 @@
 
 #define AMDGPU_DM_MAX_CRTC 6
 
+#define AMDGPU_DM_MAX_NUM_EDP 2
 /*
 #include "include/amdgpu_dal_power_if.h"
 #include "amdgpu_dm_irq.h"
@@ -354,7 +355,10 @@ struct amdgpu_display_manager {
 
 	struct backlight_device *backlight_dev;
 
-	const struct dc_link *backlight_link;
+	const struct dc_link *backlight_link[AMDGPU_DM_MAX_NUM_EDP];
+
+	uint8_t num_of_edps;
+
 	struct amdgpu_dm_backlight_caps backlight_caps;
 
 	struct mod_freesync *freesync_module;

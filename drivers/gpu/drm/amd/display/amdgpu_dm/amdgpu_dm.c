@@ -3415,22 +3415,37 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
 	struct amdgpu_dm_backlight_caps caps;
-	struct dc_link *link = NULL;
+	struct dc_link *link[AMDGPU_DM_MAX_NUM_EDP];
 	u32 brightness;
 	bool rc;
+	int i;
 
 	amdgpu_dm_update_backlight_caps(dm);
 	caps = dm->backlight_caps;
 
-	link = (struct dc_link *)dm->backlight_link;
+	for (i = 0; i < dm->num_of_edps; i++)
+		link[i] = (struct dc_link *)dm->backlight_link[i];
 
 	brightness = convert_brightness_from_user(&caps, bd->props.brightness);
 	// Change brightness based on AUX property
-	if (caps.aux_support)
-		rc = dc_link_set_backlight_level_nits(link, true, brightness,
-						      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
-	else
-		rc = dc_link_set_backlight_level(dm->backlight_link, brightness, 0);
+	if (caps.aux_support) {
+		for (i = 0; i < dm->num_of_edps; i++) {
+			rc = dc_link_set_backlight_level_nits(link[i], true, brightness,
+				AUX_BL_DEFAULT_TRANSITION_TIME_MS);
+			if (!rc) {
+				DRM_ERROR("DM: Failed to update backlight via AUX on eDP[%d]\n", i);
+				break;
+			}
+		}
+	} else {
+		for (i = 0; i < dm->num_of_edps; i++) {
+			rc = dc_link_set_backlight_level(dm->backlight_link[i], brightness, 0);
+			if (!rc) {
+				DRM_ERROR("DM: Failed to update backlight on eDP[%d]\n", i);
+				break;
+			}
+		}
+	}
 
 	return rc ? 0 : 1;
 }
@@ -3444,7 +3459,7 @@ static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 	caps = dm->backlight_caps;
 
 	if (caps.aux_support) {
-		struct dc_link *link = (struct dc_link *)dm->backlight_link;
+		struct dc_link *link = (struct dc_link *)dm->backlight_link[0];
 		u32 avg, peak;
 		bool rc;
 
@@ -3453,7 +3468,7 @@ static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 			return bd->props.brightness;
 		return convert_brightness_to_user(&caps, avg);
 	} else {
-		int ret = dc_link_get_backlight_level(dm->backlight_link);
+		int ret = dc_link_get_backlight_level(dm->backlight_link[0]);
 
 		if (ret == DC_ERROR_UNEXPECTED)
 			return bd->props.brightness;
@@ -3550,10 +3565,13 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 		 * DM initialization because not having a backlight control
 		 * is better then a black screen.
 		 */
-		amdgpu_dm_register_backlight_device(dm);
+		if (!dm->backlight_dev)
+			amdgpu_dm_register_backlight_device(dm);
 
-		if (dm->backlight_dev)
-			dm->backlight_link = link;
+		if (dm->backlight_dev) {
+			dm->backlight_link[dm->num_of_edps] = link;
+			dm->num_of_edps++;
+		}
 	}
 #endif
 }
