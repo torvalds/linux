@@ -1028,8 +1028,8 @@ int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms)
 
 	mmc_retune_hold(host);
 
-	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START,
-			 1, timeout_ms);
+	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START,
+			   1, timeout_ms, 0, true, false, 0);
 	if (err)
 		pr_err("%s: Sanitize failed err=%d\n", mmc_hostname(host), err);
 
