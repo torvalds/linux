@@ -229,7 +229,8 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 
 	if (op != -1) {
 		if (op == 3) {
-			if (sscanf(str, "%*s %llx", &address) != 1)
+			if (sscanf(str, "%*s 0x%llx", &address) != 1 &&
+			    sscanf(str, "%*s %llu", &address) != 1)
 				return -EINVAL;
 
 			data->op = op;
@@ -253,7 +254,9 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		data->op = op;
 
 		if (op == 2) {
-			if (sscanf(str, "%*s %*s %*s %x %llx %llx",
+			if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
+				   &sub_block, &address, &value) != 3 &&
+			    sscanf(str, "%*s %*s %*s %u %llu %llu",
 				   &sub_block, &address, &value) != 3)
 				return -EINVAL;
 			data->head.sub_block_index = sub_block;
