@@ -1153,8 +1153,7 @@ int __bch2_btree_insert(struct btree_trans *trans,
 	iter = bch2_trans_get_iter(trans, id, bkey_start_pos(&k->k),
 				   BTREE_ITER_INTENT);
 
-	ret   = bch2_btree_iter_traverse(iter) ?:
-		bch2_trans_update(trans, iter, k, 0);
+	ret = bch2_trans_update(trans, iter, k, 0);
 	bch2_trans_iter_put(trans, iter);
 	return ret;
 }
