@@ -353,28 +353,6 @@ DEFINE_EVENT(btree_node, btree_set_root,
 
 /* Garbage collection */
 
-DEFINE_EVENT(btree_node, btree_gc_coalesce,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
-);
-
-TRACE_EVENT(btree_gc_coalesce_fail,
-	TP_PROTO(struct bch_fs *c, int reason),
-	TP_ARGS(c, reason),
-
-	TP_STRUCT__entry(
-		__field(u8,		reason			)
-		__array(char,		uuid,	16		)
-	),
-
-	TP_fast_assign(
-		__entry->reason		= reason;
-		memcpy(__entry->uuid, c->disk_sb.sb->user_uuid.b, 16);
-	),
-
-	TP_printk("%pU: %u", __entry->uuid, __entry->reason)
-);
-
 DEFINE_EVENT(btree_node, btree_gc_rewrite_node,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b)
@@ -391,16 +369,6 @@ DEFINE_EVENT(bch_fs, gc_start,
 );
 
 DEFINE_EVENT(bch_fs, gc_end,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
-);
-
-DEFINE_EVENT(bch_fs, gc_coalesce_start,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
-);
-
-DEFINE_EVENT(bch_fs, gc_coalesce_end,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );
@@ -451,11 +419,6 @@ TRACE_EVENT(invalidate,
 	TP_printk("invalidated %u sectors at %d,%d sector=%llu",
 		  __entry->sectors, MAJOR(__entry->dev),
 		  MINOR(__entry->dev), __entry->offset)
-);
-
-DEFINE_EVENT(bch_fs, rescale_prios,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
 );
 
 DECLARE_EVENT_CLASS(bucket_alloc,

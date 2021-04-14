@@ -132,7 +132,6 @@ do {									\
 } while (0)
 
 write_attribute(trigger_journal_flush);
-write_attribute(trigger_btree_coalesce);
 write_attribute(trigger_gc);
 write_attribute(prune_cache);
 rw_attribute(btree_gc_periodic);
@@ -478,9 +477,6 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_journal_flush)
 		bch2_journal_meta(&c->journal);
 
-	if (attr == &sysfs_trigger_btree_coalesce)
-		bch2_coalesce(c);
-
 	if (attr == &sysfs_trigger_gc) {
 		/*
 		 * Full gc is currently incompatible with btree key cache:
@@ -577,7 +573,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_extent_migrate_raced,
 
 	&sysfs_trigger_journal_flush,
-	&sysfs_trigger_btree_coalesce,
 	&sysfs_trigger_gc,
 	&sysfs_gc_gens_pos,
 	&sysfs_prune_cache,
