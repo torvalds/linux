@@ -360,12 +360,11 @@ static void r592_write_fifo_pio(struct r592_device *dev,
 static void r592_flush_fifo_write(struct r592_device *dev)
 {
 	u8 buffer[4] = { 0 };
-	int len;
 
 	if (kfifo_is_empty(&dev->pio_fifo))
 		return;
 
-	len = kfifo_out(&dev->pio_fifo, buffer, 4);
+	kfifo_out(&dev->pio_fifo, buffer, 4);
 	r592_write_reg_raw_be(dev, R592_FIFO_PIO, *(u32 *)buffer);
 }
 
