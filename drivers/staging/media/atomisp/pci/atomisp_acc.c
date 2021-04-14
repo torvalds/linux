@@ -77,8 +77,8 @@ acc_get_fw(struct atomisp_sub_device *asd, unsigned int handle)
 	struct atomisp_acc_fw *acc_fw;
 
 	list_for_each_entry(acc_fw, &asd->acc.fw, list)
-	if (acc_fw->handle == handle)
-		return acc_fw;
+		if (acc_fw->handle == handle)
+			return acc_fw;
 
 	return NULL;
 }
