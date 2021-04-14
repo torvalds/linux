@@ -21,6 +21,7 @@ enum {
 	IMPLICIT_FB_NONE,
 	IMPLICIT_FB_GENERIC,
 	IMPLICIT_FB_FIXED,
+	IMPLICIT_FB_BOTH,	/* generic playback + capture (for BOSS) */
 };
 
 struct snd_usb_implicit_fb_match {
@@ -35,6 +36,9 @@ struct snd_usb_implicit_fb_match {
 	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_GENERIC }
 #define IMPLICIT_FB_FIXED_DEV(vend, prod, ep, ifnum) \
 	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_FIXED, .ep_num = (ep),\
+	    .iface = (ifnum) }
+#define IMPLICIT_FB_BOTH_DEV(vend, prod, ep, ifnum) \
+	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_BOTH, .ep_num = (ep),\
 	    .iface = (ifnum) }
 #define IMPLICIT_FB_SKIP_DEV(vend, prod) \
 	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_NONE }
@@ -75,14 +79,14 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 
 /* Implicit feedback quirk table for capture: only FIXED type */
 static const struct snd_usb_implicit_fb_match capture_implicit_fb_quirks[] = {
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0130, 0x0d, 0x01), /* BOSS BR-80 */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0171, 0x0d, 0x01), /* BOSS RC-505 */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0185, 0x0d, 0x01), /* BOSS GP-10 */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0189, 0x0d, 0x01), /* BOSS GT-100v2 */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x01d6, 0x0d, 0x01), /* BOSS GT-1 */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x01d8, 0x0d, 0x01), /* BOSS Katana */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x01e5, 0x0d, 0x01), /* BOSS GT-001 */
-	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0203, 0x0d, 0x01), /* BOSS AD-10 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x0130, 0x0d, 0x01), /* BOSS BR-80 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x0171, 0x0d, 0x01), /* BOSS RC-505 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x0185, 0x0d, 0x01), /* BOSS GP-10 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x0189, 0x0d, 0x01), /* BOSS GT-100v2 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x01d6, 0x0d, 0x01), /* BOSS GT-1 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x01d8, 0x0d, 0x01), /* BOSS Katana */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x01e5, 0x0d, 0x01), /* BOSS GT-001 */
+	IMPLICIT_FB_BOTH_DEV(0x0582, 0x0203, 0x0d, 0x01), /* BOSS AD-10 */
 
 	{} /* terminator */
 };
@@ -268,10 +272,17 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 		}
 	}
 
-	/* Don't apply playback quirks for the devices with capture quirk */
+	/* Special handling for devices with capture quirks */
 	p = find_implicit_fb_entry(chip, capture_implicit_fb_quirks, alts);
-	if (p && p->type == IMPLICIT_FB_FIXED)
-		return 0; /* no quirk */
+	if (p) {
+		switch (p->type) {
+		case IMPLICIT_FB_FIXED:
+			return 0; /* no quirk */
+		case IMPLICIT_FB_BOTH:
+			chip->playback_first = 1;
+			return add_generic_implicit_fb(chip, fmt, alts);
+		}
+	}
 
 	/* Generic UAC2 implicit feedback */
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
@@ -321,7 +332,7 @@ static int audioformat_capture_quirk(struct snd_usb_audio *chip,
 	const struct snd_usb_implicit_fb_match *p;
 
 	p = find_implicit_fb_entry(chip, capture_implicit_fb_quirks, alts);
-	if (p && p->type == IMPLICIT_FB_FIXED)
+	if (p && (p->type == IMPLICIT_FB_FIXED || p->type == IMPLICIT_FB_BOTH))
 		return add_implicit_fb_sync_ep(chip, fmt, p->ep_num, 0,
 					       p->iface, NULL);
 	return 0;
