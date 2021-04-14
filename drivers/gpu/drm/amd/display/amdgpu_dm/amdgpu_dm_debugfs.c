@@ -3012,7 +3012,7 @@ static int trigger_hpd_mst_set(void *data, u64 val)
 			if (!aconnector->dc_link)
 				continue;
 
-			if (!(aconnector->port && &aconnector->mst_port->mst_mgr))
+			if (!aconnector->mst_port)
 				continue;
 
 			link = aconnector->dc_link;
