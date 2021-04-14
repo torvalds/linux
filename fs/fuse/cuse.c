@@ -511,20 +511,18 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	fuse_conn_init(&cc->fc, &cc->fm, file->f_cred->user_ns,
 		       &fuse_dev_fiq_ops, NULL);
 
+	cc->fc.release = cuse_fc_release;
 	fud = fuse_dev_alloc_install(&cc->fc);
-	if (!fud) {
-		kfree(cc);
+	fuse_conn_put(&cc->fc);
+	if (!fud)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&cc->list);
-	cc->fc.release = cuse_fc_release;
 
 	cc->fc.initialized = 1;
 	rc = cuse_send_init(cc);
 	if (rc) {
 		fuse_dev_free(fud);
-		fuse_conn_put(&cc->fc);
 		return rc;
 	}
 	file->private_data = fud;
@@ -561,8 +559,6 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 		unregister_chrdev_region(cc->cdev->dev, 1);
 		cdev_del(cc->cdev);
 	}
-	/* Base reference is now owned by "fud" */
-	fuse_conn_put(&cc->fc);
 
 	rc = fuse_dev_release(inode, file);	/* puts the base reference */
 
