@@ -85,9 +85,7 @@ struct mpc_i2c {
 	struct i2c_adapter adap;
 	int irq;
 	u32 real_clk;
-#ifdef CONFIG_PM_SLEEP
 	u8 fdr, dfsrr;
-#endif
 	struct clk *clk_per;
 	u32 cntl_bits;
 	enum mpc_i2c_action action;
@@ -808,8 +806,7 @@ static int fsl_i2c_remove(struct platform_device *op)
 	return 0;
 };
 
-#ifdef CONFIG_PM_SLEEP
-static int mpc_i2c_suspend(struct device *dev)
+static int __maybe_unused mpc_i2c_suspend(struct device *dev)
 {
 	struct mpc_i2c *i2c = dev_get_drvdata(dev);
 
@@ -819,7 +816,7 @@ static int mpc_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int mpc_i2c_resume(struct device *dev)
+static int __maybe_unused mpc_i2c_resume(struct device *dev)
 {
 	struct mpc_i2c *i2c = dev_get_drvdata(dev);
 
@@ -828,12 +825,7 @@ static int mpc_i2c_resume(struct device *dev)
 
 	return 0;
 }
-
 static SIMPLE_DEV_PM_OPS(mpc_i2c_pm_ops, mpc_i2c_suspend, mpc_i2c_resume);
-#define MPC_I2C_PM_OPS	(&mpc_i2c_pm_ops)
-#else
-#define MPC_I2C_PM_OPS	NULL
-#endif
 
 static const struct mpc_i2c_data mpc_i2c_data_512x = {
 	.setup = mpc_i2c_setup_512x,
@@ -876,7 +868,7 @@ static struct platform_driver mpc_i2c_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mpc_i2c_of_match,
-		.pm = MPC_I2C_PM_OPS,
+		.pm = &mpc_i2c_pm_ops,
 	},
 };
 
