@@ -2110,15 +2110,26 @@ sub process_name($$) {
     } elsif (/$doc_decl/o) {
 	$identifier = $1;
 	my $is_kernel_comment = 0;
-	if (/^\s*\*\s*([\w\s]+?)(\(\))?\s*([-:].*)?$/) {
+	my $decl_start = qr{\s*\*};
+	# test for pointer declaration type, foo * bar() - desc
+	my $fn_type = qr{\w+\s*\*\s*}; 
+	my $parenthesis = qr{\(\w*\)};
+	my $decl_end = qr{[-:].*};
+	if (/^$decl_start\s*([\w\s]+?)$parenthesis?\s*$decl_end?$/) {
 	    $identifier = $1;
-	    $decl_type = 'function';
-	    $identifier =~ s/^define\s+//;
-	    $is_kernel_comment = 1;
 	}
 	if ($identifier =~ m/^(struct|union|enum|typedef)\b\s*(\S*)/) {
 	    $decl_type = $1;
 	    $identifier = $2;
+	    $is_kernel_comment = 1;
+	}
+	# Look for foo() or static void foo() - description; or misspelt
+	# identifier
+	elsif (/^$decl_start\s*$fn_type?(\w+)\s*$parenthesis?\s*$decl_end?$/ ||
+	    /^$decl_start\s*$fn_type?(\w+.*)$parenthesis?\s*$decl_end$/) {
+	    $identifier = $1;
+	    $decl_type = 'function';
+	    $identifier =~ s/^define\s+//;
 	    $is_kernel_comment = 1;
 	}
 	$identifier =~ s/\s+$//;
