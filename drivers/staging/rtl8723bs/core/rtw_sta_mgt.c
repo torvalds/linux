@@ -119,7 +119,6 @@ void kfree_all_stainfo(struct sta_priv *pstapriv);
 void kfree_all_stainfo(struct sta_priv *pstapriv)
 {
 	struct list_head	*plist, *phead;
-	struct sta_info *psta = NULL;
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
 
@@ -127,7 +126,6 @@ void kfree_all_stainfo(struct sta_priv *pstapriv)
 	plist = get_next(phead);
 
 	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, list);
 		plist = get_next(plist);
 	}
 
