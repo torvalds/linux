@@ -4134,9 +4134,6 @@ void __init xfrm_init(void)
 #ifdef CONFIG_XFRM_ESPINTCP
 	espintcp_init();
 #endif
-
-	RCU_INIT_POINTER(xfrm_if_cb, NULL);
-	synchronize_rcu();
 }
 
 #ifdef CONFIG_AUDITSYSCALL
