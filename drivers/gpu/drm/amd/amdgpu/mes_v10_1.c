@@ -33,11 +33,15 @@
 
 #define mmCP_MES_IC_OP_CNTL_Sienna_Cichlid               0x2820
 #define mmCP_MES_IC_OP_CNTL_Sienna_Cichlid_BASE_IDX      1
+#define mmRLC_CP_SCHEDULERS_Sienna_Cichlid		0x4ca1
+#define mmRLC_CP_SCHEDULERS_Sienna_Cichlid_BASE_IDX	1
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_mes.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_mes1.bin");
 
 static int mes_v10_1_hw_fini(void *handle);
+static int mes_v10_1_kiq_hw_init(struct amdgpu_device *adev);
 
 #define MES_EOP_SIZE   2048
 
@@ -278,11 +282,11 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev,
 	const struct mes_firmware_header_v1_0 *mes_hdr;
 	struct amdgpu_firmware_info *info;
 
-	switch (adev->asic_type) {
-	case CHIP_NAVI10:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 1, 10):
 		chip_name = "navi10";
 		break;
-	case CHIP_SIENNA_CICHLID:
+	case IP_VERSION(10, 3, 0):
 		chip_name = "sienna_cichlid";
 		break;
 	default:
@@ -293,7 +297,8 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev,
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mes.bin",
 			 chip_name);
 	else
-		BUG();
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mes1.bin",
+			 chip_name);
 
 	err = request_firmware(&adev->mes.fw[pipe], fw_name, adev->dev);
 	if (err)
@@ -326,7 +331,8 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev,
 			ucode = AMDGPU_UCODE_ID_CP_MES;
 			ucode_data = AMDGPU_UCODE_ID_CP_MES_DATA;
 		} else {
-			BUG();
+			ucode = AMDGPU_UCODE_ID_CP_MES1;
+			ucode_data = AMDGPU_UCODE_ID_CP_MES1_DATA;
 		}
 
 		info = &adev->firmware.ucode[ucode];
@@ -439,6 +445,8 @@ static void mes_v10_1_enable(struct amdgpu_device *adev, bool enable)
 	if (enable) {
 		data = RREG32_SOC15(GC, 0, mmCP_MES_CNTL);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
+		data = REG_SET_FIELD(data, CP_MES_CNTL,
+			     MES_PIPE1_RESET, adev->enable_mes_kiq ? 1 : 0);
 		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
 
 		mutex_lock(&adev->srbm_mutex);
@@ -462,13 +470,18 @@ static void mes_v10_1_enable(struct amdgpu_device *adev, bool enable)
 
 		/* unhalt MES and activate pipe0 */
 		data = REG_SET_FIELD(0, CP_MES_CNTL, MES_PIPE0_ACTIVE, 1);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_ACTIVE,
+				     adev->enable_mes_kiq ? 1 : 0);
 		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
 	} else {
 		data = RREG32_SOC15(GC, 0, mmCP_MES_CNTL);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_ACTIVE, 0);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_ACTIVE, 0);
 		data = REG_SET_FIELD(data, CP_MES_CNTL,
 				     MES_INVALIDATE_ICACHE, 1);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET,
+				     adev->enable_mes_kiq ? 1 : 0);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_HALT, 1);
 		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
 	}
@@ -525,8 +538,8 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmCP_MES_MDBOUND_LO, 0x3FFFF);
 
 	/* invalidate ICACHE */
-	switch (adev->asic_type) {
-	case CHIP_SIENNA_CICHLID:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 3, 0):
 		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid);
 		break;
 	default:
@@ -535,8 +548,8 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 	}
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
-	switch (adev->asic_type) {
-	case CHIP_SIENNA_CICHLID:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 3, 0):
 		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid, data);
 		break;
 	default:
@@ -545,8 +558,8 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 	}
 
 	/* prime the ICACHE. */
-	switch (adev->asic_type) {
-	case CHIP_SIENNA_CICHLID:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 3, 0):
 		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid);
 		break;
 	default:
@@ -554,8 +567,8 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 		break;
 	}
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
-	switch (adev->asic_type) {
-	case CHIP_SIENNA_CICHLID:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 3, 0):
 		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid, data);
 		break;
 	default:
@@ -883,13 +896,40 @@ static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 				AMDGPU_RING_PRIO_DEFAULT, NULL);
 }
 
+static int mes_v10_1_kiq_ring_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+
+	spin_lock_init(&adev->gfx.kiq.ring_lock);
+
+	ring = &adev->gfx.kiq.ring;
+
+	ring->me = 3;
+	ring->pipe = 1;
+	ring->queue = 0;
+
+	ring->adev = NULL;
+	ring->ring_obj = NULL;
+	ring->use_doorbell = true;
+	ring->doorbell_index = adev->doorbell_index.mes_ring1 << 1;
+	ring->eop_gpu_addr = adev->mes.eop_gpu_addr[AMDGPU_MES_KIQ_PIPE];
+	ring->no_scheduler = true;
+	sprintf(ring->name, "mes_kiq_%d.%d.%d",
+		ring->me, ring->pipe, ring->queue);
+
+	return amdgpu_ring_init(adev, ring, 1024, NULL, 0,
+				AMDGPU_RING_PRIO_DEFAULT, NULL);
+}
+
 static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev,
 				 enum admgpu_mes_pipe pipe)
 {
 	int r, mqd_size = sizeof(struct v10_compute_mqd);
 	struct amdgpu_ring *ring;
 
-	if (pipe == AMDGPU_MES_SCHED_PIPE)
+	if (pipe == AMDGPU_MES_KIQ_PIPE)
+		ring = &adev->gfx.kiq.ring;
+	else if (pipe == AMDGPU_MES_SCHED_PIPE)
 		ring = &adev->mes.ring;
 	else
 		BUG();
@@ -918,22 +958,34 @@ static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev,
 static int mes_v10_1_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r, pipe = AMDGPU_MES_SCHED_PIPE;
+	int pipe, r;
 
 	adev->mes.adev = adev;
 	adev->mes.funcs = &mes_v10_1_funcs;
+	adev->mes.kiq_hw_init = &mes_v10_1_kiq_hw_init;
 
-	r = mes_v10_1_init_microcode(adev, pipe);
-	if (r)
-		return r;
+	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
+		if (!adev->enable_mes_kiq && pipe == AMDGPU_MES_KIQ_PIPE)
+			continue;
 
-	r = mes_v10_1_allocate_eop_buf(adev, pipe);
-	if (r)
-		return r;
+		r = mes_v10_1_init_microcode(adev, pipe);
+		if (r)
+			return r;
 
-	r = mes_v10_1_mqd_sw_init(adev, pipe);
-	if (r)
-		return r;
+		r = mes_v10_1_allocate_eop_buf(adev, pipe);
+		if (r)
+			return r;
+
+		r = mes_v10_1_mqd_sw_init(adev, pipe);
+		if (r)
+			return r;
+	}
+
+	if (adev->enable_mes_kiq) {
+		r = mes_v10_1_kiq_ring_init(adev);
+		if (r)
+			return r;
+	}
 
 	r = mes_v10_1_ring_init(adev);
 	if (r)
@@ -949,25 +1001,95 @@ static int mes_v10_1_sw_init(void *handle)
 static int mes_v10_1_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int pipe = AMDGPU_MES_SCHED_PIPE;
+	int pipe;
 
 	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
 	amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
 
-	kfree(adev->mes.mqd_backup[pipe]);
+	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
+		kfree(adev->mes.mqd_backup[pipe]);
+
+		amdgpu_bo_free_kernel(&adev->mes.eop_gpu_obj[pipe],
+				      &adev->mes.eop_gpu_addr[pipe],
+				      NULL);
+
+		mes_v10_1_free_microcode(adev, pipe);
+	}
+
+	amdgpu_bo_free_kernel(&adev->gfx.kiq.ring.mqd_obj,
+			      &adev->gfx.kiq.ring.mqd_gpu_addr,
+			      &adev->gfx.kiq.ring.mqd_ptr);
 
 	amdgpu_bo_free_kernel(&adev->mes.ring.mqd_obj,
 			      &adev->mes.ring.mqd_gpu_addr,
 			      &adev->mes.ring.mqd_ptr);
 
-	amdgpu_bo_free_kernel(&adev->mes.eop_gpu_obj[pipe],
-			      &adev->mes.eop_gpu_addr[pipe],
-			      NULL);
-
-	mes_v10_1_free_microcode(adev, pipe);
+	amdgpu_ring_fini(&adev->gfx.kiq.ring);
 	amdgpu_ring_fini(&adev->mes.ring);
 
 	return 0;
+}
+
+static void mes_v10_1_kiq_setting(struct amdgpu_ring *ring)
+{
+	uint32_t tmp;
+	struct amdgpu_device *adev = ring->adev;
+
+	/* tell RLC which is KIQ queue */
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(10, 3, 0):
+	case IP_VERSION(10, 3, 2):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 4):
+		tmp = RREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid);
+		tmp &= 0xffffff00;
+		tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid, tmp);
+		tmp |= 0x80;
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid, tmp);
+		break;
+	default:
+		tmp = RREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS);
+		tmp &= 0xffffff00;
+		tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS, tmp);
+		tmp |= 0x80;
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS, tmp);
+		break;
+	}
+}
+
+static int mes_v10_1_kiq_hw_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		r = mes_v10_1_load_microcode(adev, AMDGPU_MES_KIQ_PIPE);
+		if (r) {
+			DRM_ERROR("failed to load MES kiq fw, r=%d\n", r);
+			return r;
+		}
+
+		r = mes_v10_1_load_microcode(adev, AMDGPU_MES_SCHED_PIPE);
+		if (r) {
+			DRM_ERROR("failed to load MES fw, r=%d\n", r);
+			return r;
+		}
+	}
+
+	mes_v10_1_enable(adev, true);
+
+	mes_v10_1_kiq_setting(&adev->gfx.kiq.ring);
+
+	r = mes_v10_1_queue_init(adev);
+	if (r)
+		goto failure;
+
+	return r;
+
+failure:
+	mes_v10_1_hw_fini(adev);
+	return r;
 }
 
 static int mes_v10_1_hw_init(void *handle)
@@ -975,16 +1097,18 @@ static int mes_v10_1_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		r = mes_v10_1_load_microcode(adev,
+	if (!adev->enable_mes_kiq) {
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+			r = mes_v10_1_load_microcode(adev,
 					     AMDGPU_MES_SCHED_PIPE);
-		if (r) {
-			DRM_ERROR("failed to MES fw, r=%d\n", r);
-			return r;
+			if (r) {
+				DRM_ERROR("failed to MES fw, r=%d\n", r);
+				return r;
+			}
 		}
-	}
 
-	mes_v10_1_enable(adev, true);
+		mes_v10_1_enable(adev, true);
+	}
 
 	r = mes_v10_1_queue_init(adev);
 	if (r)
@@ -1013,8 +1137,10 @@ static int mes_v10_1_hw_fini(void *handle)
 
 	mes_v10_1_enable(adev, false);
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		mes_v10_1_free_ucode_buffers(adev, AMDGPU_MES_KIQ_PIPE);
 		mes_v10_1_free_ucode_buffers(adev, AMDGPU_MES_SCHED_PIPE);
+	}
 
 	return 0;
 }
