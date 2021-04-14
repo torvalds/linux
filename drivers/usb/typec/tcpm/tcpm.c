@@ -463,6 +463,12 @@ struct tcpm_port {
 	/* Auto vbus discharge status */
 	bool auto_vbus_discharge_enabled;
 
+	/*
+	 * When set, port requests PD_P_SNK_STDBY_MW upon entering SNK_DISCOVERY and
+	 * the actual currrent limit after RX of PD_CTRL_PSRDY for PD link,
+	 * SNK_READY for non-pd link.
+	 */
+	bool slow_charger_loop;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
 	struct mutex logbuffer_lock;	/* log buffer access lock */
@@ -4129,6 +4135,8 @@ static void run_state_machine(struct tcpm_port *port)
 								      port->supply_voltage,
 								      port->pd_capable,
 								      &current_limit, &adjust);
+			if (port->slow_charger_loop || (current_limit > PD_P_SNK_STDBY_MW / 5))
+				current_limit = PD_P_SNK_STDBY_MW / 5;
 			tcpm_set_current_limit(port, current_limit, 5000);
 			tcpm_set_charge(port, true);
 			tcpm_set_state(port, SNK_WAIT_CAPABILITIES, 0);
@@ -4257,6 +4265,8 @@ static void run_state_machine(struct tcpm_port *port)
 		if (adjust)
 			tcpm_set_current_limit(port, current_limit, 5000);
 
+		if (!port->pd_capable && port->slow_charger_loop)
+			tcpm_set_current_limit(port, tcpm_get_current_limit(port), 5000);
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
 		mod_enable_frs_delayed_work(port, 0);
@@ -5879,6 +5889,7 @@ static int tcpm_fw_get_caps(struct tcpm_port *port,
 	port->typec_caps.type = ret;
 	port->port_type = port->typec_caps.type;
 
+	port->slow_charger_loop = fwnode_property_read_bool(fwnode, "slow-charger-loop");
 	if (port->port_type == TYPEC_PORT_SNK)
 		goto sink;
 
