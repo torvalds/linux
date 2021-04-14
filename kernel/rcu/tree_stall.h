@@ -723,6 +723,10 @@ static void check_cpu_stall(struct rcu_data *rdp)
  * count this as an RCU priority boosting failure.  A return of true says
  * RCU priority boosting is to blame, and false says otherwise.  If false
  * is returned, the first of the CPUs to blame is stored through cpup.
+ *
+ * If cpup is NULL, then a lockless quick check is carried out, suitable
+ * for high-rate usage.  On the other hand, if cpup is non-NULL, each
+ * rcu_node structure's ->lock is acquired, ruling out high-rate usage.
  */
 bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
 {
@@ -731,6 +735,12 @@ bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
 	struct rcu_node *rnp;
 
 	rcu_for_each_leaf_node(rnp) {
+		if (!cpup) {
+			if (READ_ONCE(rnp->qsmask))
+				return false;
+			else
+				continue;
+		}
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (!rnp->qsmask) {
 			// No CPUs without quiescent states for this rnp.

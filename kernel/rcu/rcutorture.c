@@ -918,17 +918,18 @@ static void rcu_torture_enable_rt_throttle(void)
 	old_rt_runtime = -1;
 }
 
-static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start, unsigned long end)
+static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long *start)
 {
 	int cpu;
 	static int dbg_done;
+	unsigned long end = jiffies;
 	bool gp_done;
 	unsigned long j;
 	static unsigned long last_persist;
 	unsigned long lp;
 	unsigned long mininterval = test_boost_duration * HZ - HZ / 2;
 
-	if (end - start > mininterval) {
+	if (end - *start > mininterval) {
 		// Recheck after checking time to avoid false positives.
 		smp_mb(); // Time check before grace-period check.
 		if (cur_ops->poll_gp_state(gp_state))
@@ -945,7 +946,7 @@ static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start
 		n_rcu_torture_boost_failure++;
 		if (!xchg(&dbg_done, 1) && cur_ops->gp_kthread_dbg) {
 			pr_info("Boost inversion thread ->rt_priority %u gp_state %lu jiffies %lu\n",
-				current->rt_priority, gp_state, end - start);
+				current->rt_priority, gp_state, end - *start);
 			cur_ops->gp_kthread_dbg();
 			// Recheck after print to flag grace period ending during splat.
 			gp_done = cur_ops->poll_gp_state(gp_state);
@@ -955,6 +956,8 @@ static bool rcu_torture_boost_failed(unsigned long gp_state, unsigned long start
 		}
 
 		return true; // failed
+	} else if (cur_ops->check_boost_failed && !cur_ops->check_boost_failed(gp_state, NULL)) {
+		*start = jiffies;
 	}
 
 	return false; // passed
@@ -995,7 +998,7 @@ static int rcu_torture_boost(void *arg)
 		while (time_before(jiffies, endtime)) {
 			// Has current GP gone too long?
 			if (gp_initiated && !failed && !cur_ops->poll_gp_state(gp_state))
-				failed = rcu_torture_boost_failed(gp_state, gp_state_time, jiffies);
+				failed = rcu_torture_boost_failed(gp_state, &gp_state_time);
 			// If we don't have a grace period in flight, start one.
 			if (!gp_initiated || cur_ops->poll_gp_state(gp_state)) {
 				gp_state = cur_ops->start_gp_poll();
@@ -1016,7 +1019,7 @@ static int rcu_torture_boost(void *arg)
 
 		// In case the grace period extended beyond the end of the loop.
 		if (gp_initiated && !failed && !cur_ops->poll_gp_state(gp_state))
-			rcu_torture_boost_failed(gp_state, gp_state_time, jiffies);
+			rcu_torture_boost_failed(gp_state, &gp_state_time);
 
 		/*
 		 * Set the start time of the next test interval.
