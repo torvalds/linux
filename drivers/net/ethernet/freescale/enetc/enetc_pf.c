@@ -390,23 +390,54 @@ static int enetc_pf_set_vf_spoofchk(struct net_device *ndev, int vf, bool en)
 	return 0;
 }
 
-static void enetc_port_setup_primary_mac_address(struct enetc_si *si)
+static int enetc_setup_mac_address(struct device_node *np, struct enetc_pf *pf,
+				   int si)
 {
-	unsigned char mac_addr[MAX_ADDR_LEN];
-	struct enetc_pf *pf = enetc_si_priv(si);
-	struct enetc_hw *hw = &si->hw;
-	int i;
+	struct device *dev = &pf->si->pdev->dev;
+	struct enetc_hw *hw = &pf->si->hw;
+	u8 mac_addr[ETH_ALEN] = { 0 };
+	int err;
 
-	/* check MAC addresses for PF and all VFs, if any is 0 set it ro rand */
-	for (i = 0; i < pf->total_vfs + 1; i++) {
-		enetc_pf_get_primary_mac_addr(hw, i, mac_addr);
-		if (!is_zero_ether_addr(mac_addr))
-			continue;
-		eth_random_addr(mac_addr);
-		dev_info(&si->pdev->dev, "no MAC address specified for SI%d, using %pM\n",
-			 i, mac_addr);
-		enetc_pf_set_primary_mac_addr(hw, i, mac_addr);
+	/* (1) try to get the MAC address from the device tree */
+	if (np) {
+		err = of_get_mac_address(np, mac_addr);
+		if (err == -EPROBE_DEFER)
+			return err;
 	}
+
+	/* (2) bootloader supplied MAC address */
+	if (is_zero_ether_addr(mac_addr))
+		enetc_pf_get_primary_mac_addr(hw, si, mac_addr);
+
+	/* (3) choose a random one */
+	if (is_zero_ether_addr(mac_addr)) {
+		eth_random_addr(mac_addr);
+		dev_info(dev, "no MAC address specified for SI%d, using %pM\n",
+			 si, mac_addr);
+	}
+
+	enetc_pf_set_primary_mac_addr(hw, si, mac_addr);
+
+	return 0;
+}
+
+static int enetc_setup_mac_addresses(struct device_node *np,
+				     struct enetc_pf *pf)
+{
+	int err, i;
+
+	/* The PF might take its MAC from the device tree */
+	err = enetc_setup_mac_address(np, pf, 0);
+	if (err)
+		return err;
+
+	for (i = 0; i < pf->total_vfs; i++) {
+		err = enetc_setup_mac_address(NULL, pf, i + 1);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static void enetc_port_assign_rfs_entries(struct enetc_si *si)
@@ -561,9 +592,6 @@ static void enetc_configure_port(struct enetc_pf *pf)
 
 	/* split up RFS entries */
 	enetc_port_assign_rfs_entries(pf->si);
-
-	/* fix-up primary MAC addresses, if not set already */
-	enetc_port_setup_primary_mac_address(pf->si);
 
 	/* enforce VLAN promisc mode for all SIs */
 	pf->vlan_promisc_simap = ENETC_VLAN_PROMISC_MAP_ALL;
@@ -1137,6 +1165,10 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	pf->si = si;
 	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
 
+	err = enetc_setup_mac_addresses(node, pf);
+	if (err)
+		goto err_setup_mac_addresses;
+
 	enetc_configure_port(pf);
 
 	enetc_get_si_caps(si);
@@ -1204,6 +1236,7 @@ err_alloc_netdev:
 err_init_port_rss:
 err_init_port_rfs:
 err_device_disabled:
+err_setup_mac_addresses:
 	enetc_teardown_cbdr(&si->cbd_ring);
 err_setup_cbdr:
 err_map_pf_space:
