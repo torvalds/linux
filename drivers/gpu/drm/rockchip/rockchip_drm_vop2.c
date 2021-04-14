@@ -683,6 +683,16 @@ static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
 		writel(v, vop2->regs + offset);
 }
 
+static inline u32 vop2_line_to_time(struct drm_display_mode *mode, int line)
+{
+	u64 val = 1000000000ULL * mode->crtc_htotal * line;
+
+	do_div(val, mode->crtc_clock);
+	do_div(val, 1000000);
+
+	return val; /* us */
+}
+
 static bool vop2_soc_is_rk3566(void)
 {
 	return soc_is_rk3566();
@@ -890,7 +900,7 @@ static void vop2_wait_for_fs_by_raw_status(struct vop2_video_port *vp)
 	 * has take effect.
 	 */
 	ret = readx_poll_timeout_atomic(vop2_fs_raw_status_pending, vp, pending,
-					pending, 0, 10 * 1000);
+					pending, 0, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait vp%d raw fs statu timeout\n", vp->id);
 
@@ -911,7 +921,7 @@ static void vop2_wait_for_port_mux_done(struct vop2 *vop2)
 	 * is done.
 	 */
 	ret = readx_poll_timeout_atomic(vop2_read_port_mux, vop2, port_mux_cfg,
-					port_mux_cfg == vop2->port_mux_cfg, 0, 20 * 1000);
+					port_mux_cfg == vop2->port_mux_cfg, 0, 50 * 1000);
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
 			      port_mux_cfg, vop2->port_mux_cfg);
@@ -922,29 +932,92 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_display_mode *adjusted_mode;
 	struct vop2_video_port *done_vp;
-	uint32_t done_bits;
+	uint32_t done_bits, done_bits_bak;
 	uint32_t vp_id;
 	uint32_t vcnt;
 
 	done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
-	/* we have some vp wait for config done take effect */
-	if (done_bits) {
-		vp_id = ffs(done_bits) - 1;
-		/* no need to wait for same vp */
-		if (vp_id != vp->id) {
-			done_vp = &vop2->vps[vp_id];
-			adjusted_mode = &done_vp->crtc.state->adjusted_mode;
-			vcnt = vop2_read_vcnt(done_vp);
-			if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-				vcnt >>= 1;
-			/* if close to the last 1/8 frame, wait to next frame */
-			if (vcnt > (adjusted_mode->crtc_vtotal * 7 >> 3)) {
-				vop2_wait_for_fs_by_raw_status(done_vp);
-				done_bits = 0;
-			}
-		}
-	}
+	done_bits_bak = done_bits;
 
+	/* no done bit, so no need to wait config done take effect */
+	if (done_bits == 0)
+		return 0;
+
+	vp_id = ffs(done_bits) - 1;
+	/* done bit is same with current vp config done, so no need to wait */
+	if (hweight32(done_bits) == 1 && vp_id == vp->id)
+		return 0;
+
+	/* have the other one different vp, wait for config done take effect */
+	if (hweight32(done_bits) == 1 ||
+	    (hweight32(done_bits) == 2 && (done_bits & BIT(vp->id)))) {
+		/* two done bit, clear current vp done bit and find the other done bit vp */
+		if (done_bits & BIT(vp->id))
+			done_bits &= ~BIT(vp->id);
+		vp_id = ffs(done_bits) - 1;
+		done_vp = &vop2->vps[vp_id];
+		adjusted_mode = &done_vp->crtc.state->adjusted_mode;
+		vcnt = vop2_read_vcnt(done_vp);
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			vcnt >>= 1;
+		/* if close to the last 1/8 frame, wait to next frame */
+		if (vcnt > (adjusted_mode->crtc_vtotal * 7 >> 3)) {
+			vop2_wait_for_fs_by_raw_status(done_vp);
+			done_bits = 0;
+		}
+	} else { /* exist the other two vp done bit */
+		struct drm_display_mode *first_mode, *second_mode;
+		struct vop2_video_port *first_done_vp, *second_done_vp, *wait_vp;
+		uint32_t first_vp_id, second_vp_id;
+		uint32_t first_vp_vcnt, second_vp_vcnt;
+		uint32_t first_vp_left_vcnt, second_vp_left_vcnt;
+		uint32_t first_vp_left_time, second_vp_left_time;
+		uint32_t first_vp_safe_time, second_vp_safe_time;
+
+		first_vp_id = ffs(done_bits) - 1;
+		first_done_vp = &vop2->vps[first_vp_id];
+		first_mode = &first_done_vp->crtc.state->adjusted_mode;
+		/* set last 1/8 frame time as safe section */
+		first_vp_safe_time = 1000000 / drm_mode_vrefresh(first_mode) >> 3;
+
+		done_bits &= ~BIT(first_vp_id);
+		second_vp_id = ffs(done_bits) - 1;
+		second_done_vp = &vop2->vps[second_vp_id];
+		second_mode = &second_done_vp->crtc.state->adjusted_mode;
+		/* set last 1/8 frame time as safe section */
+		second_vp_safe_time = 1000000 / drm_mode_vrefresh(second_mode) >> 3;
+
+		first_vp_vcnt = vop2_read_vcnt(first_done_vp);
+		if (first_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			first_vp_vcnt >>= 1;
+		second_vp_vcnt = vop2_read_vcnt(second_done_vp);
+		if (second_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			second_vp_vcnt >>= 1;
+
+		first_vp_left_vcnt = first_mode->crtc_vtotal - first_vp_vcnt;
+		second_vp_left_vcnt = second_mode->crtc_vtotal - second_vp_vcnt;
+		first_vp_left_time = vop2_line_to_time(first_mode, first_vp_left_vcnt);
+		second_vp_left_time = vop2_line_to_time(second_mode, second_vp_left_vcnt);
+
+		/* if the two vp both at safe section, no need to wait */
+		if (first_vp_left_time > first_vp_safe_time &&
+		    second_vp_left_time > second_vp_safe_time)
+			return done_bits_bak;
+		if (first_vp_left_time > second_vp_left_time)
+			wait_vp = first_done_vp;
+		else
+			wait_vp = second_done_vp;
+
+		vop2_wait_for_fs_by_raw_status(wait_vp);
+
+		done_bits = vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
+		if (done_bits) {
+			vp_id = ffs(done_bits) - 1;
+			done_vp = &vop2->vps[vp_id];
+			vop2_wait_for_fs_by_raw_status(done_vp);
+		}
+		done_bits = 0;
+	}
 	return done_bits;
 }
 
