@@ -2457,8 +2457,12 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 			u8 *ssid_ie;
 			signed int ssid_ielen;
 			signed int ssid_ielen_diff;
-			u8 buf[MAX_IE_SZ];
+			u8 *buf;
 			u8 *ies = pmgntframe->buf_addr+TXDESC_OFFSET+sizeof(struct ieee80211_hdr_3addr);
+
+			buf = rtw_zmalloc(MAX_IE_SZ);
+			if (!buf)
+				return;
 
 			ssid_ie = rtw_get_ie(ies+_FIXED_IE_LENGTH_, WLAN_EID_SSID, &ssid_ielen,
 				(pframe-ies)-_FIXED_IE_LENGTH_);
@@ -2487,6 +2491,7 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 				pframe += ssid_ielen_diff;
 				pattrib->pktlen += ssid_ielen_diff;
 			}
+			kfree (buf);
 		}
 	} else {
 		/* timestamp will be inserted by hardware */
