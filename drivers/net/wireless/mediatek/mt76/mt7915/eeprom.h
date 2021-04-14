@@ -17,13 +17,22 @@ enum mt7915_eeprom_field {
 	MT_EE_MAC_ADDR =	0x004,
 	MT_EE_MAC_ADDR2 =	0x00a,
 	MT_EE_DDIE_FT_VERSION =	0x050,
+	MT_EE_DO_PRE_CAL =	0x062,
 	MT_EE_WIFI_CONF =	0x190,
 	MT_EE_TX0_POWER_2G =	0x2fc,
 	MT_EE_TX0_POWER_5G =	0x34b,
 	MT_EE_ADIE_FT_VERSION =	0x9a0,
 
-	__MT_EE_MAX =		0xe00
+	__MT_EE_MAX =		0xe00,
+	/* 0xe10 ~ 0x5780 used to save group cal data */
+	MT_EE_PRECAL =		0xe10
 };
+
+#define MT_EE_WIFI_CAL_GROUP			BIT(0)
+#define MT_EE_WIFI_CAL_DPD			GENMASK(2, 1)
+#define MT_EE_CAL_UNIT				1024
+#define MT_EE_CAL_GROUP_SIZE			(44 * MT_EE_CAL_UNIT)
+#define MT_EE_CAL_DPD_SIZE			(54 * MT_EE_CAL_UNIT)
 
 #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
 #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)

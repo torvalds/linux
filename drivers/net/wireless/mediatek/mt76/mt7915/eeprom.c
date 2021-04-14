@@ -14,6 +14,23 @@ static u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
 	return data[offset];
 }
 
+static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	u32 val;
+
+	val = mt7915_eeprom_read(dev, MT_EE_DO_PRE_CAL);
+	if (val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP))
+		return 0;
+
+	val = MT_EE_CAL_GROUP_SIZE + MT_EE_CAL_DPD_SIZE;
+	dev->cal = devm_kzalloc(mdev->dev, val, GFP_KERNEL);
+	if (!dev->cal)
+		return -ENOMEM;
+
+	return mt76_get_of_eeprom(mdev, dev->cal, MT_EE_PRECAL, val);
+}
+
 static int mt7915_eeprom_load(struct mt7915_dev *dev)
 {
 	int ret;
@@ -22,12 +39,14 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	if (ret)
+	if (ret) {
 		dev->flash_mode = true;
-	else
+		ret = mt7915_eeprom_load_precal(dev);
+	} else {
 		memset(dev->mt76.eeprom.data, -1, MT7915_EEPROM_SIZE);
+	}
 
-	return 0;
+	return ret;
 }
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)

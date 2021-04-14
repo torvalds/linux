@@ -9,8 +9,7 @@
 #include <linux/etherdevice.h>
 #include "mt76.h"
 
-static int
-mt76_get_of_eeprom(struct mt76_dev *dev, int len)
+int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
 {
 #if defined(CONFIG_OF) && defined(CONFIG_MTD)
 	struct device_node *np = dev->dev->of_node;
@@ -18,7 +17,6 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	const __be32 *list;
 	const char *part;
 	phandle phandle;
-	int offset = 0;
 	int size;
 	size_t retlen;
 	int ret;
@@ -54,7 +52,7 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	}
 
 	offset = be32_to_cpup(list);
-	ret = mtd_read(mtd, offset, len, &retlen, dev->eeprom.data);
+	ret = mtd_read(mtd, offset, len, &retlen, eep);
 	put_mtd_device(mtd);
 	if (ret)
 		goto out_put_node;
@@ -65,7 +63,7 @@ mt76_get_of_eeprom(struct mt76_dev *dev, int len)
 	}
 
 	if (of_property_read_bool(dev->dev->of_node, "big-endian")) {
-		u8 *data = (u8 *)dev->eeprom.data;
+		u8 *data = (u8 *)eep;
 		int i;
 
 		/* convert eeprom data in Little Endian */
@@ -86,6 +84,7 @@ out_put_node:
 	return -ENOENT;
 #endif
 }
+EXPORT_SYMBOL_GPL(mt76_get_of_eeprom);
 
 void
 mt76_eeprom_override(struct mt76_phy *phy)
@@ -332,6 +331,6 @@ mt76_eeprom_init(struct mt76_dev *dev, int len)
 	if (!dev->eeprom.data)
 		return -ENOMEM;
 
-	return !mt76_get_of_eeprom(dev, len);
+	return !mt76_get_of_eeprom(dev, dev->eeprom.data, 0, len);
 }
 EXPORT_SYMBOL_GPL(mt76_eeprom_init);

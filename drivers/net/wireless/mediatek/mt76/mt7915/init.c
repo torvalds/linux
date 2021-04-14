@@ -381,6 +381,13 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 	if (ret < 0)
 		return ret;
 
+
+	if (dev->flash_mode) {
+		ret = mt7915_mcu_apply_group_cal(dev);
+		if (ret)
+			return ret;
+	}
+
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA - 1);
 	if (idx)
