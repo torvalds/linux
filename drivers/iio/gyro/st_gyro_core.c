@@ -357,6 +357,11 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 	},
 };
 
+/* DRDY on gyros is available only on INT2 pin */
+static const struct st_sensors_platform_data gyro_pdata = {
+	.drdy_int_pin = 2,
+};
+
 static int st_gyro_read_raw(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *ch, int *val,
 							int *val2, long mask)
