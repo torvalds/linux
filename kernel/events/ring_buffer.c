@@ -674,21 +674,26 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 	if (!has_aux(event))
 		return -EOPNOTSUPP;
 
-	/*
-	 * We need to start with the max_order that fits in nr_pages,
-	 * not the other way around, hence ilog2() and not get_order.
-	 */
-	max_order = ilog2(nr_pages);
-
-	/*
-	 * PMU requests more than one contiguous chunks of memory
-	 * for SW double buffering
-	 */
 	if (!overwrite) {
-		if (!max_order)
-			return -EINVAL;
+		/*
+		 * Watermark defaults to half the buffer, and so does the
+		 * max_order, to aid PMU drivers in double buffering.
+		 */
+		if (!watermark)
+			watermark = nr_pages << (PAGE_SHIFT - 1);
 
-		max_order--;
+		/*
+		 * Use aux_watermark as the basis for chunking to
+		 * help PMU drivers honor the watermark.
+		 */
+		max_order = get_order(watermark);
+	} else {
+		/*
+		 * We need to start with the max_order that fits in nr_pages,
+		 * not the other way around, hence ilog2() and not get_order.
+		 */
+		max_order = ilog2(nr_pages);
+		watermark = 0;
 	}
 
 	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
@@ -742,9 +747,6 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 
 	rb->aux_overwrite = overwrite;
 	rb->aux_watermark = watermark;
-
-	if (!rb->aux_watermark && !rb->aux_overwrite)
-		rb->aux_watermark = nr_pages << (PAGE_SHIFT - 1);
 
 out:
 	if (!ret)
