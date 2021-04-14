@@ -992,7 +992,6 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
 	int count = ARRAY_SIZE(hl_debugfs_list);
 	struct hl_debugfs_entry *entry;
-	struct dentry *ent;
 	int i;
 
 	dev_entry->hdev = hdev;
@@ -1105,13 +1104,11 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				&hl_security_violations_fops);
 
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
-
-		ent = debugfs_create_file(hl_debugfs_list[i].name,
+		debugfs_create_file(hl_debugfs_list[i].name,
 					0444,
 					dev_entry->root,
 					entry,
 					&hl_debugfs_fops);
-		entry->dent = ent;
 		entry->info_ent = &hl_debugfs_list[i];
 		entry->dev_entry = dev_entry;
 	}

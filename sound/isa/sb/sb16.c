@@ -31,16 +31,8 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
 #ifndef SNDRV_SBAWE
 MODULE_DESCRIPTION("Sound Blaster 16");
-MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB 16},"
-		"{Creative Labs,SB Vibra16S},"
-		"{Creative Labs,SB Vibra16C},"
-		"{Creative Labs,SB Vibra16CL},"
-		"{Creative Labs,SB Vibra16X}}");
 #else
 MODULE_DESCRIPTION("Sound Blaster AWE");
-MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB AWE 32},"
-		"{Creative Labs,SB AWE 64},"
-		"{Creative Labs,SB AWE 64 Gold}}");
 #endif
 
 #if 0

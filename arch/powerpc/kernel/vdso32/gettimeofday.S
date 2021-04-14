@@ -65,3 +65,14 @@ V_FUNCTION_END(__kernel_clock_getres)
 V_FUNCTION_BEGIN(__kernel_time)
 	cvdso_call_time __c_kernel_time
 V_FUNCTION_END(__kernel_time)
+
+/* Routines for restoring integer registers, called by the compiler.  */
+/* Called with r11 pointing to the stack header word of the caller of the */
+/* function, just beyond the end of the integer restore area.  */
+_GLOBAL(_restgpr_31_x)
+_GLOBAL(_rest32gpr_31_x)
+	lwz	r0,4(r11)
+	lwz	r31,-4(r11)
+	mtlr	r0
+	mr	r1,r11
+	blr

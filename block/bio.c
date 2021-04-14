@@ -33,7 +33,7 @@ static struct biovec_slab {
 	{ .nr_vecs = 16, .name = "biovec-16" },
 	{ .nr_vecs = 64, .name = "biovec-64" },
 	{ .nr_vecs = 128, .name = "biovec-128" },
-	{ .nr_vecs = BIO_MAX_PAGES, .name = "biovec-max" },
+	{ .nr_vecs = BIO_MAX_VECS, .name = "biovec-max" },
 };
 
 static struct biovec_slab *biovec_slab(unsigned short nr_vecs)
@@ -46,7 +46,7 @@ static struct biovec_slab *biovec_slab(unsigned short nr_vecs)
 		return &bvec_slabs[1];
 	case 65 ... 128:
 		return &bvec_slabs[2];
-	case 129 ... BIO_MAX_PAGES:
+	case 129 ... BIO_MAX_VECS:
 		return &bvec_slabs[3];
 	default:
 		BUG();
@@ -151,9 +151,9 @@ out:
 
 void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs)
 {
-	BIO_BUG_ON(nr_vecs > BIO_MAX_PAGES);
+	BIO_BUG_ON(nr_vecs > BIO_MAX_VECS);
 
-	if (nr_vecs == BIO_MAX_PAGES)
+	if (nr_vecs == BIO_MAX_VECS)
 		mempool_free(bv, pool);
 	else if (nr_vecs > BIO_INLINE_VECS)
 		kmem_cache_free(biovec_slab(nr_vecs)->slab, bv);
@@ -186,15 +186,15 @@ struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
 	/*
 	 * Try a slab allocation first for all smaller allocations.  If that
 	 * fails and __GFP_DIRECT_RECLAIM is set retry with the mempool.
-	 * The mempool is sized to handle up to BIO_MAX_PAGES entries.
+	 * The mempool is sized to handle up to BIO_MAX_VECS entries.
 	 */
-	if (*nr_vecs < BIO_MAX_PAGES) {
+	if (*nr_vecs < BIO_MAX_VECS) {
 		struct bio_vec *bvl;
 
 		bvl = kmem_cache_alloc(bvs->slab, bvec_alloc_gfp(gfp_mask));
 		if (likely(bvl) || !(gfp_mask & __GFP_DIRECT_RECLAIM))
 			return bvl;
-		*nr_vecs = BIO_MAX_PAGES;
+		*nr_vecs = BIO_MAX_VECS;
 	}
 
 	return mempool_alloc(pool, gfp_mask);

@@ -904,7 +904,7 @@ static nokprobe_inline int do_vsx_load(struct instruction_op *op,
 	if (!address_ok(regs, ea, size) || copy_mem_in(mem, ea, size, regs))
 		return -EFAULT;
 
-	nr_vsx_regs = size / sizeof(__vector128);
+	nr_vsx_regs = max(1ul, size / sizeof(__vector128));
 	emulate_vsx_load(op, buf, mem, cross_endian);
 	preempt_disable();
 	if (reg < 32) {
@@ -951,7 +951,7 @@ static nokprobe_inline int do_vsx_store(struct instruction_op *op,
 	if (!address_ok(regs, ea, size))
 		return -EFAULT;
 
-	nr_vsx_regs = size / sizeof(__vector128);
+	nr_vsx_regs = max(1ul, size / sizeof(__vector128));
 	preempt_disable();
 	if (reg < 32) {
 		/* FP regs + extensions */

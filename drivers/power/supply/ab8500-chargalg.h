@@ -4,8 +4,8 @@
  * Author: Johan Gardsmark <johan.gardsmark@stericsson.com> for ST-Ericsson.
  */
 
-#ifndef _UX500_CHARGALG_H
-#define _UX500_CHARGALG_H
+#ifndef _AB8500_CHARGALG_H_
+#define _AB8500_CHARGALG_H_
 
 #include <linux/power_supply.h>
 
@@ -48,4 +48,4 @@ struct ux500_charger {
 
 extern struct blocking_notifier_head charger_notifier_list;
 
-#endif
+#endif /* _AB8500_CHARGALG_H_ */

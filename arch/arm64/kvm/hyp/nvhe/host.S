@@ -71,7 +71,8 @@ SYM_FUNC_START(__host_enter)
 SYM_FUNC_END(__host_enter)
 
 /*
- * void __noreturn __hyp_do_panic(bool restore_host, u64 spsr, u64 elr, u64 par);
+ * void __noreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,
+ * 				  u64 elr, u64 par);
  */
 SYM_FUNC_START(__hyp_do_panic)
 	/* Prepare and exit to the host's panic funciton. */
@@ -82,9 +83,11 @@ SYM_FUNC_START(__hyp_do_panic)
 	hyp_kimg_va lr, x6
 	msr	elr_el2, lr
 
-	/* Set the panic format string. Use the, now free, LR as scratch. */
-	ldr	lr, =__hyp_panic_string
-	hyp_kimg_va lr, x6
+	mov	x29, x0
+
+	/* Load the format string into x0 and arguments into x1-7 */
+	ldr	x0, =__hyp_panic_string
+	hyp_kimg_va x0, x6
 
 	/* Load the format arguments into x1-7. */
 	mov	x6, x3
@@ -94,9 +97,7 @@ SYM_FUNC_START(__hyp_do_panic)
 	mrs	x5, hpfar_el2
 
 	/* Enter the host, conditionally restoring the host context. */
-	cmp	x0, xzr
-	mov	x0, lr
-	b.eq	__host_enter_without_restoring
+	cbz	x29, __host_enter_without_restoring
 	b	__host_enter_for_panic
 SYM_FUNC_END(__hyp_do_panic)
 

@@ -333,7 +333,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 		acrn_ioreq_request_clear(vm);
 		break;
 	case ACRN_IOCTL_PM_GET_CPU_STATE:
-		if (copy_from_user(&cstate_cmd, (void *)ioctl_param,
+		if (copy_from_user(&cstate_cmd, (void __user *)ioctl_param,
 				   sizeof(cstate_cmd)))
 			return -EFAULT;
 
@@ -404,6 +404,14 @@ fail_remove:
 }
 static DEVICE_ATTR_WO(remove_cpu);
 
+static umode_t acrn_attr_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+       if (a == &dev_attr_remove_cpu.attr)
+               return IS_ENABLED(CONFIG_HOTPLUG_CPU) ? a->mode : 0;
+
+       return a->mode;
+}
+
 static struct attribute *acrn_attrs[] = {
 	&dev_attr_remove_cpu.attr,
 	NULL
@@ -411,6 +419,7 @@ static struct attribute *acrn_attrs[] = {
 
 static struct attribute_group acrn_attr_group = {
 	.attrs = acrn_attrs,
+	.is_visible = acrn_attr_visible,
 };
 
 static const struct attribute_group *acrn_attr_groups[] = {

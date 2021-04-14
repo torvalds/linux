@@ -528,7 +528,10 @@ static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
 		return -EOPNOTSUPP;
 
 	dsa_hsr_foreach_port(dp, ds, hsr) {
-		partner = dp;
+		if (dp->index != port) {
+			partner = dp;
+			break;
+		}
 	}
 
 	/* We can't enable redundancy on the switch until both
@@ -582,7 +585,10 @@ static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
 	unsigned int val;
 
 	dsa_hsr_foreach_port(dp, ds, hsr) {
-		partner = dp;
+		if (dp->index != port) {
+			partner = dp;
+			break;
+		}
 	}
 
 	if (!partner)

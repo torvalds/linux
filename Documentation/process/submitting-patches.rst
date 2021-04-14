@@ -250,11 +250,6 @@ should also read
 :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
 in addition to this file.
 
-Note, however, that some subsystem maintainers want to come to their own
-conclusions on which patches should go to the stable trees.  The networking
-maintainer, in particular, would rather not see individual developers
-adding lines like the above to their patches.
-
 If changes affect userland-kernel interfaces, please send the MAN-PAGES
 maintainer (as listed in the MAINTAINERS file) a man-pages patch, or at
 least a notification of the change, so that some information makes its way

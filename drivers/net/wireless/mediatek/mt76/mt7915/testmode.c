@@ -543,7 +543,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
 		tx_cont->bw = CMD_CBW_20MHZ;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	if (!en) {
@@ -591,7 +591,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
 		mode = MT_PHY_TYPE_HE_MU;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	rateval =  mode << 6 | rate_idx;
