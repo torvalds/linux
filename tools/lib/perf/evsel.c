@@ -267,6 +267,10 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
+	if (MMAP(evsel, cpu, thread) &&
+	    !perf_mmap__read_self(MMAP(evsel, cpu, thread), count))
+		return 0;
+
 	if (readn(FD(evsel, cpu, thread), count->values, size) <= 0)
 		return -errno;
 
