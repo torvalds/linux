@@ -20,6 +20,8 @@
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
+#define LSM9DS0_IMU_DEV_NAME		"lsm9ds0"
+
 /*
  * Buffer size max case: 2bytes per channel, 3 channels in total +
  *			 8bytes timestamp channel (s64)

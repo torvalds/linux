@@ -33,6 +33,7 @@
 /* FULLSCALE */
 #define ST_MAGN_FS_AVL_1300MG			1300
 #define ST_MAGN_FS_AVL_1900MG			1900
+#define ST_MAGN_FS_AVL_2000MG			2000
 #define ST_MAGN_FS_AVL_2500MG			2500
 #define ST_MAGN_FS_AVL_4000MG			4000
 #define ST_MAGN_FS_AVL_4700MG			4700
@@ -52,6 +53,11 @@
 #define ST_MAGN_3_OUT_X_L_ADDR			0x68
 #define ST_MAGN_3_OUT_Y_L_ADDR			0x6a
 #define ST_MAGN_3_OUT_Z_L_ADDR			0x6c
+
+/* Special L addresses for sensor 4 */
+#define ST_MAGN_4_OUT_X_L_ADDR			0x08
+#define ST_MAGN_4_OUT_Y_L_ADDR			0x0a
+#define ST_MAGN_4_OUT_Z_L_ADDR			0x0c
 
 static const struct iio_chan_spec st_magn_16bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
@@ -98,6 +104,22 @@ static const struct iio_chan_spec st_magn_3_16bit_channels[] = {
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
 			ST_MAGN_3_OUT_Z_L_ADDR),
+	IIO_CHAN_SOFT_TIMESTAMP(3)
+};
+
+static const struct iio_chan_spec st_magn_4_16bit_channels[] = {
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
+			ST_MAGN_4_OUT_X_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
+			ST_MAGN_4_OUT_Y_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
+			ST_MAGN_4_OUT_Z_L_ADDR),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -379,6 +401,82 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 			},
 		},
 		.multi_read_bit = false,
+		.bootime = 2,
+	},
+	{
+		.wai = 0x49,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LSM9DS0_IMU_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_magn_4_16bit_channels,
+		.odr = {
+			.addr = 0x24,
+			.mask = GENMASK(4, 2),
+			.odr_avl = {
+				{ 3, 0x00, },
+				{ 6, 0x01, },
+				{ 12, 0x02, },
+				{ 25, 0x03, },
+				{ 50, 0x04, },
+				{ 100, 0x05, },
+			},
+		},
+		.pw = {
+			.addr = 0x26,
+			.mask = GENMASK(1, 0),
+			.value_on = 0x00,
+			.value_off = 0x03,
+		},
+		.fs = {
+			.addr = 0x25,
+			.mask = GENMASK(6, 5),
+			.fs_avl = {
+				[0] = {
+					.num = ST_MAGN_FS_AVL_2000MG,
+					.value = 0x00,
+					.gain = 73,
+				},
+				[1] = {
+					.num = ST_MAGN_FS_AVL_4000MG,
+					.value = 0x01,
+					.gain = 146,
+				},
+				[2] = {
+					.num = ST_MAGN_FS_AVL_8000MG,
+					.value = 0x02,
+					.gain = 292,
+				},
+				[3] = {
+					.num = ST_MAGN_FS_AVL_12000MG,
+					.value = 0x03,
+					.gain = 438,
+				},
+			},
+		},
+		.bdu = {
+			.addr = 0x20,
+			.mask = BIT(3),
+		},
+		.drdy_irq = {
+			.int1 = {
+				.addr = 0x22,
+				.mask = BIT(1),
+			},
+			.int2 = {
+				.addr = 0x23,
+				.mask = BIT(2),
+			},
+			.stat_drdy = {
+				.addr = 0x07,
+				.mask = GENMASK(2, 0),
+			},
+		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(0),
+		},
+		.multi_read_bit = true,
 		.bootime = 2,
 	},
 };
