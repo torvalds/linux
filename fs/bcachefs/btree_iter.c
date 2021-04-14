@@ -2017,10 +2017,14 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 		if (iter->btree_id != btree_id)
 			continue;
 
-		if (best &&
-		    bkey_cmp(bpos_diff(best->real_pos, pos),
-			     bpos_diff(iter->real_pos, pos)) < 0)
-			continue;
+		if (best) {
+			int cmp = bkey_cmp(bpos_diff(best->real_pos, pos),
+					   bpos_diff(iter->real_pos, pos));
+
+			if (cmp < 0 ||
+			    ((cmp == 0 && btree_iter_keep(trans, iter))))
+				continue;
+		}
 
 		best = iter;
 	}
