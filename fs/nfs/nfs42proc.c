@@ -390,12 +390,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	}
 
 	nfs42_copy_dest_done(dst_inode, pos_dst, res->write_res.count);
-
-	spin_lock(&src_inode->i_lock);
-	nfs_set_cache_invalid(src_inode, NFS_INO_REVAL_PAGECACHE |
-						 NFS_INO_REVAL_FORCED |
-						 NFS_INO_INVALID_ATIME);
-	spin_unlock(&src_inode->i_lock);
+	nfs_invalidate_atime(src_inode);
 	status = res->write_res.count;
 out:
 	if (args->sync)
