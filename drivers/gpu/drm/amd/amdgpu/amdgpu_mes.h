@@ -47,6 +47,12 @@ enum amdgpu_mes_priority_level {
 
 struct amdgpu_mes_funcs;
 
+enum admgpu_mes_pipe {
+	AMDGPU_MES_SCHED_PIPE = 0,
+	AMDGPU_MES_KIQ_PIPE,
+	AMDGPU_MAX_MES_PIPES = 2,
+};
+
 struct amdgpu_mes {
 	struct amdgpu_device            *adev;
 
@@ -68,27 +74,28 @@ struct amdgpu_mes {
 
 	struct amdgpu_ring              ring;
 
-	const struct firmware           *fw;
+	const struct firmware           *fw[AMDGPU_MAX_MES_PIPES];
 
 	/* mes ucode */
-	struct amdgpu_bo		*ucode_fw_obj;
-	uint64_t			ucode_fw_gpu_addr;
-	uint32_t			*ucode_fw_ptr;
-	uint32_t                        ucode_fw_version;
-	uint64_t                        uc_start_addr;
+	struct amdgpu_bo		*ucode_fw_obj[AMDGPU_MAX_MES_PIPES];
+	uint64_t			ucode_fw_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	uint32_t			*ucode_fw_ptr[AMDGPU_MAX_MES_PIPES];
+	uint32_t                        ucode_fw_version[AMDGPU_MAX_MES_PIPES];
+	uint64_t                        uc_start_addr[AMDGPU_MAX_MES_PIPES];
 
 	/* mes ucode data */
-	struct amdgpu_bo		*data_fw_obj;
-	uint64_t			data_fw_gpu_addr;
-	uint32_t			*data_fw_ptr;
-	uint32_t                        data_fw_version;
-	uint64_t                        data_start_addr;
+	struct amdgpu_bo		*data_fw_obj[AMDGPU_MAX_MES_PIPES];
+	uint64_t			data_fw_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	uint32_t			*data_fw_ptr[AMDGPU_MAX_MES_PIPES];
+	uint32_t                        data_fw_version[AMDGPU_MAX_MES_PIPES];
+	uint64_t                        data_start_addr[AMDGPU_MAX_MES_PIPES];
 
 	/* eop gpu obj */
-	struct amdgpu_bo		*eop_gpu_obj;
-	uint64_t                        eop_gpu_addr;
+	struct amdgpu_bo		*eop_gpu_obj[AMDGPU_MAX_MES_PIPES];
+	uint64_t                        eop_gpu_addr[AMDGPU_MAX_MES_PIPES];
 
-	void                            *mqd_backup;
+	void                            *mqd_backup[AMDGPU_MAX_MES_PIPES];
+	struct amdgpu_irq_src	        irq[AMDGPU_MAX_MES_PIPES];
 
 	uint32_t                        vmid_mask_gfxhub;
 	uint32_t                        vmid_mask_mmhub;
