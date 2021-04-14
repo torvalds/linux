@@ -1128,6 +1128,10 @@ static int cdnsp_gadget_ep_dequeue(struct usb_ep *ep,
 		return -ESHUTDOWN;
 	}
 
+	/* Requests has been dequeued during disabling endpoint. */
+	if (!(pep->ep_state & EP_ENABLED))
+		return 0;
+
 	spin_lock_irqsave(&pdev->lock, flags);
 	ret = cdnsp_ep_dequeue(pep, to_cdnsp_request(request));
 	spin_unlock_irqrestore(&pdev->lock, flags);

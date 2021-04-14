@@ -174,7 +174,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 
 	memcpy(&regs->int_code, &S390_lowcore.ext_cpu_addr, 4);
 	regs->int_parm = S390_lowcore.ext_params;
-	regs->int_parm_long = *(unsigned long *)S390_lowcore.ext_params2;
+	regs->int_parm_long = S390_lowcore.ext_params2;
 
 	from_idle = !user_mode(regs) && regs->psw.addr == (unsigned long)psw_idle_exit;
 	if (from_idle)

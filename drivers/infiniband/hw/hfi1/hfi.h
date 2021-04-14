@@ -1409,6 +1409,7 @@ struct hfi1_devdata {
 	spinlock_t irq_src_lock;
 	int vnic_num_vports;
 	struct net_device *dummy_netdev;
+	struct hfi1_affinity_node *affinity_entry;
 
 	/* Keeps track of IPoIB RSM rule users */
 	atomic_t ipoib_rsm_usr_num;
