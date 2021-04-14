@@ -500,11 +500,6 @@ struct io_poll_update {
 	bool				update_user_data;
 };
 
-struct io_poll_remove {
-	struct file			*file;
-	u64				addr;
-};
-
 struct io_close {
 	struct file			*file;
 	int				fd;
@@ -714,7 +709,6 @@ enum {
 	REQ_F_COMPLETE_INLINE_BIT,
 	REQ_F_REISSUE_BIT,
 	REQ_F_DONT_REISSUE_BIT,
-	REQ_F_POLL_UPDATE_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_ASYNC_READ_BIT,
 	REQ_F_ASYNC_WRITE_BIT,
@@ -762,8 +756,6 @@ enum {
 	REQ_F_REISSUE		= BIT(REQ_F_REISSUE_BIT),
 	/* don't attempt request reissue, see io_rw_reissue() */
 	REQ_F_DONT_REISSUE	= BIT(REQ_F_DONT_REISSUE_BIT),
-	/* switches between poll and poll update */
-	REQ_F_POLL_UPDATE	= BIT(REQ_F_POLL_UPDATE_BIT),
 	/* supports async reads */
 	REQ_F_ASYNC_READ	= BIT(REQ_F_ASYNC_READ_BIT),
 	/* supports async writes */
@@ -794,7 +786,6 @@ struct io_kiocb {
 		struct io_rw		rw;
 		struct io_poll_iocb	poll;
 		struct io_poll_update	poll_update;
-		struct io_poll_remove	poll_remove;
 		struct io_accept	accept;
 		struct io_sync		sync;
 		struct io_cancel	cancel;
@@ -5296,35 +5287,36 @@ static __poll_t io_poll_parse_events(const struct io_uring_sqe *sqe,
 	return demangle_poll(events) | (events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
 }
 
-static int io_poll_remove_prep(struct io_kiocb *req,
+static int io_poll_update_prep(struct io_kiocb *req,
 			       const struct io_uring_sqe *sqe)
 {
+	struct io_poll_update *upd = &req->poll_update;
+	u32 flags;
+
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
-	if (sqe->ioprio || sqe->off || sqe->len || sqe->buf_index ||
-	    sqe->poll_events)
+	if (sqe->ioprio || sqe->buf_index)
+		return -EINVAL;
+	flags = READ_ONCE(sqe->len);
+	if (flags & ~(IORING_POLL_UPDATE_EVENTS | IORING_POLL_UPDATE_USER_DATA |
+		      IORING_POLL_ADD_MULTI))
+		return -EINVAL;
+	/* meaningless without update */
+	if (flags == IORING_POLL_ADD_MULTI)
 		return -EINVAL;
 
-	req->poll_remove.addr = READ_ONCE(sqe->addr);
-	return 0;
-}
+	upd->old_user_data = READ_ONCE(sqe->addr);
+	upd->update_events = flags & IORING_POLL_UPDATE_EVENTS;
+	upd->update_user_data = flags & IORING_POLL_UPDATE_USER_DATA;
 
-/*
- * Find a running poll command that matches one specified in sqe->addr,
- * and remove it if found.
- */
-static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	int ret;
+	upd->new_user_data = READ_ONCE(sqe->off);
+	if (!upd->update_user_data && upd->new_user_data)
+		return -EINVAL;
+	if (upd->update_events)
+		upd->events = io_poll_parse_events(sqe, flags);
+	else if (sqe->poll32_events)
+		return -EINVAL;
 
-	spin_lock_irq(&ctx->completion_lock);
-	ret = io_poll_cancel(ctx, req->poll_remove.addr, true);
-	spin_unlock_irq(&ctx->completion_lock);
-
-	if (ret < 0)
-		req_set_fail_links(req);
-	__io_req_complete(req, issue_flags, ret, 0);
 	return 0;
 }
 
@@ -5347,40 +5339,22 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 
 static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	u32 events, flags;
+	struct io_poll_iocb *poll = &req->poll;
+	u32 flags;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
-	if (sqe->ioprio || sqe->buf_index)
+	if (sqe->ioprio || sqe->buf_index || sqe->off || sqe->addr)
 		return -EINVAL;
 	flags = READ_ONCE(sqe->len);
-	if (flags & ~(IORING_POLL_ADD_MULTI | IORING_POLL_UPDATE_EVENTS |
-			IORING_POLL_UPDATE_USER_DATA))
+	if (flags & ~IORING_POLL_ADD_MULTI)
 		return -EINVAL;
 
-	events = io_poll_parse_events(sqe, flags);
-
-	if (flags & (IORING_POLL_UPDATE_EVENTS|IORING_POLL_UPDATE_USER_DATA)) {
-		struct io_poll_update *poll_upd = &req->poll_update;
-
-		req->flags |= REQ_F_POLL_UPDATE;
-		poll_upd->events = events;
-		poll_upd->old_user_data = READ_ONCE(sqe->addr);
-		poll_upd->update_events = flags & IORING_POLL_UPDATE_EVENTS;
-		poll_upd->update_user_data = flags & IORING_POLL_UPDATE_USER_DATA;
-		if (poll_upd->update_user_data)
-			poll_upd->new_user_data = READ_ONCE(sqe->off);
-	} else {
-		struct io_poll_iocb *poll = &req->poll;
-
-		poll->events = events;
-		if (sqe->off || sqe->addr)
-			return -EINVAL;
-	}
+	poll->events = io_poll_parse_events(sqe, flags);
 	return 0;
 }
 
-static int __io_poll_add(struct io_kiocb *req)
+static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_poll_iocb *poll = &req->poll;
 	struct io_ring_ctx *ctx = req->ctx;
@@ -5406,7 +5380,7 @@ static int __io_poll_add(struct io_kiocb *req)
 	return ipt.error;
 }
 
-static int io_poll_update(struct io_kiocb *req)
+static int io_poll_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *preq;
@@ -5417,6 +5391,12 @@ static int io_poll_update(struct io_kiocb *req)
 	preq = io_poll_find(ctx, req->poll_update.old_user_data, true);
 	if (!preq) {
 		ret = -ENOENT;
+		goto err;
+	}
+
+	if (!req->poll_update.update_events && !req->poll_update.update_user_data) {
+		completing = true;
+		ret = io_poll_remove_one(preq) ? 0 : -EALREADY;
 		goto err;
 	}
 
@@ -5447,27 +5427,19 @@ err:
 	}
 	if (req->poll_update.update_user_data)
 		preq->user_data = req->poll_update.new_user_data;
-
 	spin_unlock_irq(&ctx->completion_lock);
 
 	/* complete update request, we're done with it */
 	io_req_complete(req, ret);
 
 	if (!completing) {
-		ret = __io_poll_add(preq);
+		ret = io_poll_add(preq, issue_flags);
 		if (ret < 0) {
 			req_set_fail_links(preq);
 			io_req_complete(preq, ret);
 		}
 	}
 	return 0;
-}
-
-static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
-{
-	if (!(req->flags & REQ_F_POLL_UPDATE))
-		return __io_poll_add(req);
-	return io_poll_update(req);
 }
 
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
@@ -5874,7 +5846,7 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	case IORING_OP_POLL_ADD:
 		return io_poll_add_prep(req, sqe);
 	case IORING_OP_POLL_REMOVE:
-		return io_poll_remove_prep(req, sqe);
+		return io_poll_update_prep(req, sqe);
 	case IORING_OP_FSYNC:
 		return io_fsync_prep(req, sqe);
 	case IORING_OP_SYNC_FILE_RANGE:
@@ -6105,7 +6077,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_poll_add(req, issue_flags);
 		break;
 	case IORING_OP_POLL_REMOVE:
-		ret = io_poll_remove(req, issue_flags);
+		ret = io_poll_update(req, issue_flags);
 		break;
 	case IORING_OP_SYNC_FILE_RANGE:
 		ret = io_sync_file_range(req, issue_flags);
