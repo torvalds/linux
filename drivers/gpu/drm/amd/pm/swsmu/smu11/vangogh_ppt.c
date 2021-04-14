@@ -270,7 +270,7 @@ static int vangogh_get_legacy_smu_metrics_data(struct smu_context *smu,
 	}
 
 	switch (member) {
-	case METRICS_AVERAGE_GFXCLK:
+	case METRICS_CURR_GFXCLK:
 		*value = metrics->GfxclkFrequency;
 		break;
 	case METRICS_AVERAGE_SOCCLK:
@@ -282,7 +282,7 @@ static int vangogh_get_legacy_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_DCLK:
 		*value = metrics->DclkFrequency;
 		break;
-	case METRICS_AVERAGE_UCLK:
+	case METRICS_CURR_UCLK:
 		*value = metrics->MemclkFrequency;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
@@ -345,7 +345,7 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 	}
 
 	switch (member) {
-	case METRICS_AVERAGE_GFXCLK:
+	case METRICS_CURR_GFXCLK:
 		*value = metrics->Current.GfxclkFrequency;
 		break;
 	case METRICS_AVERAGE_SOCCLK:
@@ -357,7 +357,7 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_DCLK:
 		*value = metrics->Current.DclkFrequency;
 		break;
-	case METRICS_AVERAGE_UCLK:
+	case METRICS_CURR_UCLK:
 		*value = metrics->Current.MemclkFrequency;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
@@ -1529,14 +1529,14 @@ static int vangogh_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		ret = vangogh_common_get_smu_metrics_data(smu,
-						   METRICS_AVERAGE_UCLK,
+						   METRICS_CURR_UCLK,
 						   (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		ret = vangogh_common_get_smu_metrics_data(smu,
-						   METRICS_AVERAGE_GFXCLK,
+						   METRICS_CURR_GFXCLK,
 						   (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
