@@ -292,3 +292,49 @@ char *ksmbd_convert_dir_info_name(struct ksmbd_dir_info *d_info,
 	conv[*conv_len + 1] = 0x00;
 	return conv;
 }
+
+/*
+ * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
+ * into Unix UTC (based 1970-01-01, in seconds).
+ */
+struct timespec64 ksmbd_NTtimeToUnix(__le64 ntutc)
+{
+	struct timespec64 ts;
+
+	/* Subtract the NTFS time offset, then convert to 1s intervals. */
+	s64 t = le64_to_cpu(ntutc) - NTFS_TIME_OFFSET;
+	u64 abs_t;
+
+	/*
+	 * Unfortunately can not use normal 64 bit division on 32 bit arch, but
+	 * the alternative, do_div, does not work with negative numbers so have
+	 * to special case them
+	 */
+	if (t < 0) {
+		abs_t = -t;
+		ts.tv_nsec = do_div(abs_t, 10000000) * 100;
+		ts.tv_nsec = -ts.tv_nsec;
+		ts.tv_sec = -abs_t;
+	} else {
+		abs_t = t;
+		ts.tv_nsec = do_div(abs_t, 10000000) * 100;
+		ts.tv_sec = abs_t;
+	}
+
+	return ts;
+}
+
+/* Convert the Unix UTC into NT UTC. */
+inline u64 ksmbd_UnixTimeToNT(struct timespec64 t)
+{
+	/* Convert to 100ns intervals and then add the NTFS time offset. */
+	return (u64)t.tv_sec * 10000000 + t.tv_nsec / 100 + NTFS_TIME_OFFSET;
+}
+
+inline long long ksmbd_systime(void)
+{
+	struct timespec64	ts;
+
+	ktime_get_real_ts64(&ts);
+	return ksmbd_UnixTimeToNT(ts);
+}

@@ -35,4 +35,10 @@ struct ksmbd_dir_info;
 char *ksmbd_convert_dir_info_name(struct ksmbd_dir_info *d_info,
 				  const struct nls_table *local_nls,
 				  int *conv_len);
+
+#define NTFS_TIME_OFFSET	((u64)(369 * 365 + 89) * 24 * 3600 * 10000000)
+
+struct timespec64 ksmbd_NTtimeToUnix(__le64 ntutc);
+u64 ksmbd_UnixTimeToNT(struct timespec64 t);
+long long ksmbd_systime(void);
 #endif /* __KSMBD_MISC_H__ */
