@@ -418,7 +418,7 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto failed;
 
 	if (zfcp_diag_sysfs_setup(adapter))
-		goto failed;
+		goto err_diag_sysfs;
 
 	/* report size limit per scatter-gather segment */
 	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
@@ -427,8 +427,24 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	return adapter;
 
+err_diag_sysfs:
+	sysfs_remove_group(&ccw_device->dev.kobj, &zfcp_sysfs_adapter_attrs);
 failed:
-	zfcp_adapter_unregister(adapter);
+	/* TODO: make this more fine-granular */
+	cancel_delayed_work_sync(&adapter->scan_work);
+	cancel_work_sync(&adapter->stat_work);
+	cancel_work_sync(&adapter->ns_up_work);
+	cancel_work_sync(&adapter->version_change_lost_work);
+	zfcp_destroy_adapter_work_queue(adapter);
+
+	zfcp_fc_wka_ports_force_offline(adapter->gs);
+	zfcp_scsi_adapter_unregister(adapter);
+
+	zfcp_erp_thread_kill(adapter);
+	zfcp_dbf_adapter_unregister(adapter);
+	zfcp_qdio_destroy(adapter->qdio);
+
+	zfcp_ccw_adapter_put(adapter); /* final put to release */
 	return ERR_PTR(-ENOMEM);
 }
 
