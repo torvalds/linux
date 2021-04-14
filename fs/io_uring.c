@@ -5249,7 +5249,8 @@ static bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 	return posted != 0;
 }
 
-static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, __u64 sqe_addr)
+static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, __u64 sqe_addr,
+				     bool poll_only)
 	__must_hold(&ctx->completion_lock)
 {
 	struct hlist_head *list;
@@ -5259,18 +5260,20 @@ static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, __u64 sqe_addr)
 	hlist_for_each_entry(req, list, hash_node) {
 		if (sqe_addr != req->user_data)
 			continue;
+		if (poll_only && req->opcode != IORING_OP_POLL_ADD)
+			continue;
 		return req;
 	}
-
 	return NULL;
 }
 
-static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
+static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr,
+			  bool poll_only)
 	__must_hold(&ctx->completion_lock)
 {
 	struct io_kiocb *req;
 
-	req = io_poll_find(ctx, sqe_addr);
+	req = io_poll_find(ctx, sqe_addr, poll_only);
 	if (!req)
 		return -ENOENT;
 	if (io_poll_remove_one(req))
@@ -5302,7 +5305,7 @@ static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	ret = io_poll_cancel(ctx, req->poll_remove.addr);
+	ret = io_poll_cancel(ctx, req->poll_remove.addr, true);
 	spin_unlock_irq(&ctx->completion_lock);
 
 	if (ret < 0)
@@ -5403,13 +5406,9 @@ static int io_poll_update(struct io_kiocb *req)
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	preq = io_poll_find(ctx, req->poll_update.old_user_data);
+	preq = io_poll_find(ctx, req->poll_update.old_user_data, true);
 	if (!preq) {
 		ret = -ENOENT;
-		goto err;
-	} else if (preq->opcode != IORING_OP_POLL_ADD) {
-		/* don't allow internal poll updates */
-		ret = -EACCES;
 		goto err;
 	}
 
@@ -5739,7 +5738,7 @@ static void io_async_find_and_cancel(struct io_ring_ctx *ctx,
 	ret = io_timeout_cancel(ctx, sqe_addr);
 	if (ret != -ENOENT)
 		goto done;
-	ret = io_poll_cancel(ctx, sqe_addr);
+	ret = io_poll_cancel(ctx, sqe_addr, false);
 done:
 	if (!ret)
 		ret = success_ret;
@@ -5781,7 +5780,7 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 	ret = io_timeout_cancel(ctx, sqe_addr);
 	if (ret != -ENOENT)
 		goto done;
-	ret = io_poll_cancel(ctx, sqe_addr);
+	ret = io_poll_cancel(ctx, sqe_addr, false);
 	if (ret != -ENOENT)
 		goto done;
 	spin_unlock_irq(&ctx->completion_lock);
