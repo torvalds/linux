@@ -728,7 +728,7 @@ void crash_fadump(struct pt_regs *regs, const char *str)
 	 * If we came in via system reset, wait a while for the secondary
 	 * CPUs to enter.
 	 */
-	if (TRAP(&(fdh->regs)) == 0x100) {
+	if (TRAP(&(fdh->regs)) == INTERRUPT_SYSTEM_RESET) {
 		msecs = CRASH_TIMEOUT;
 		while ((atomic_read(&cpus_in_fadump) < ncpus) && (--msecs > 0))
 			mdelay(1);

@@ -9,6 +9,50 @@
 #include <asm/kprobes.h>
 #include <asm/runlatch.h>
 
+/* BookE/4xx */
+#define INTERRUPT_CRITICAL_INPUT  0x100
+
+/* BookE */
+#define INTERRUPT_DEBUG           0xd00
+#ifdef CONFIG_BOOKE
+#define INTERRUPT_PERFMON         0x260
+#define INTERRUPT_DOORBELL        0x280
+#endif
+
+/* BookS/4xx/8xx */
+#define INTERRUPT_MACHINE_CHECK   0x200
+
+/* BookS/8xx */
+#define INTERRUPT_SYSTEM_RESET    0x100
+
+/* BookS */
+#define INTERRUPT_DATA_SEGMENT    0x380
+#define INTERRUPT_INST_SEGMENT    0x480
+#define INTERRUPT_TRACE           0xd00
+#define INTERRUPT_H_DATA_STORAGE  0xe00
+#define INTERRUPT_H_FAC_UNAVAIL   0xf80
+#ifdef CONFIG_PPC_BOOK3S
+#define INTERRUPT_DOORBELL        0xa00
+#define INTERRUPT_PERFMON         0xf00
+#endif
+
+/* BookE/BookS/4xx/8xx */
+#define INTERRUPT_DATA_STORAGE    0x300
+#define INTERRUPT_INST_STORAGE    0x400
+#define INTERRUPT_ALIGNMENT       0x600
+#define INTERRUPT_PROGRAM         0x700
+#define INTERRUPT_SYSCALL         0xc00
+
+/* BookE/BookS/44x */
+#define INTERRUPT_FP_UNAVAIL      0x800
+
+/* BookE/BookS/44x/8xx */
+#define INTERRUPT_DECREMENTER     0x900
+
+#ifndef INTERRUPT_PERFMON
+#define INTERRUPT_PERFMON         0x0
+#endif
+
 static inline void nap_adjust_return(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_970_NAP
@@ -65,7 +109,7 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
 		 * CT_WARN_ON comes here via program_check_exception,
 		 * so avoid recursion.
 		 */
-		if (TRAP(regs) != 0x700)
+		if (TRAP(regs) != INTERRUPT_PROGRAM)
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 	}
 #endif
@@ -131,13 +175,13 @@ static inline bool nmi_disables_ftrace(struct pt_regs *regs)
 {
 	/* Allow DEC and PMI to be traced when they are soft-NMI */
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64)) {
-		if (TRAP(regs) == 0x900)
+		if (TRAP(regs) == INTERRUPT_DECREMENTER)
 		       return false;
-		if (TRAP(regs) == 0xf00)
+		if (TRAP(regs) == INTERRUPT_PERFMON)
 		       return false;
 	}
 	if (IS_ENABLED(CONFIG_PPC_BOOK3E)) {
-		if (TRAP(regs) == 0x260)
+		if (TRAP(regs) == INTERRUPT_PERFMON)
 			return false;
 	}
 
