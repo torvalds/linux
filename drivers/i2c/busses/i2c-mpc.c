@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * (C) Copyright 2003-2004
- * Humboldt Solutions Ltd, adrian@humboldt.co.uk.
-
  * This is a combined i2c adapter and algorithm driver for the
  * MPC107/Tsi107 PowerPC northbridge and processors that include
  * the same I2C unit (8240, 8245, 85xx).
  *
- * Release 0.8
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
+ * Copyright (C) 2003-2004 Humboldt Solutions Ltd, adrian@humboldt.co.uk
+ * Copyright (C) 2021 Allied Telesis Labs
  */
 
 #include <linux/kernel.h>
