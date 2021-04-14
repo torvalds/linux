@@ -2229,33 +2229,6 @@ static blk_status_t btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
 	return btrfs_csum_one_bio(BTRFS_I(inode), bio, 0, 0);
 }
 
-bool btrfs_bio_fits_in_ordered_extent(struct page *page, struct bio *bio,
-				      unsigned int size)
-{
-	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_ordered_extent *ordered;
-	u64 len = bio->bi_iter.bi_size + size;
-	bool ret = true;
-
-	ASSERT(btrfs_is_zoned(fs_info));
-	ASSERT(fs_info->max_zone_append_size > 0);
-	ASSERT(bio_op(bio) == REQ_OP_ZONE_APPEND);
-
-	/* Ordered extent not yet created, so we're good */
-	ordered = btrfs_lookup_ordered_extent(inode, page_offset(page));
-	if (!ordered)
-		return ret;
-
-	if ((bio->bi_iter.bi_sector << SECTOR_SHIFT) + len >
-	    ordered->disk_bytenr + ordered->disk_num_bytes)
-		ret = false;
-
-	btrfs_put_ordered_extent(ordered);
-
-	return ret;
-}
-
 static blk_status_t extract_ordered_extent(struct btrfs_inode *inode,
 					   struct bio *bio, loff_t file_offset)
 {
@@ -8297,15 +8270,14 @@ int btrfs_readpage(struct file *file, struct page *page)
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	u64 start = page_offset(page);
 	u64 end = start + PAGE_SIZE - 1;
-	unsigned long bio_flags = 0;
-	struct bio *bio = NULL;
+	struct btrfs_bio_ctrl bio_ctrl = { 0 };
 	int ret;
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = btrfs_do_readpage(page, NULL, &bio, &bio_flags, 0, NULL);
-	if (bio)
-		ret = submit_one_bio(bio, 0, bio_flags);
+	ret = btrfs_do_readpage(page, NULL, &bio_ctrl, 0, NULL);
+	if (bio_ctrl.bio)
+		ret = submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
 	return ret;
 }
 
