@@ -11253,7 +11253,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		fb->obj[i] = &obj->base;
 	}
 
-	ret = intel_fill_fb_info(dev_priv, fb);
+	ret = intel_fill_fb_info(dev_priv, intel_fb);
 	if (ret)
 		goto err;
 
