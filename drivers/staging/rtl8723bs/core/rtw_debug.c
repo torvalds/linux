@@ -20,7 +20,7 @@ void sd_f0_reg_dump(void *sel, struct adapter *adapter)
 
 	for (i = 0x0; i <= 0xff; i++) {
 		if (i%16 == 0)
-			DBG_871X_SEL_NL(sel, "0x%02x ", i);
+			netdev_dbg(adapter->pnetdev, "0x%02x ", i);
 
 		DBG_871X_SEL(sel, "%02x ", rtw_sd_f0_read8(adapter, i));
 
@@ -35,11 +35,11 @@ void mac_reg_dump(void *sel, struct adapter *adapter)
 {
 	int i, j = 1;
 
-	DBG_871X_SEL_NL(sel, "======= MAC REG =======\n");
+	netdev_dbg(adapter->pnetdev, "======= MAC REG =======\n");
 
 	for (i = 0x0; i < 0x800; i += 4) {
 		if (j%4 == 1)
-			DBG_871X_SEL_NL(sel, "0x%03x", i);
+			netdev_dbg(adapter->pnetdev, "0x%03x", i);
 		DBG_871X_SEL(sel, " 0x%08x ", rtw_read32(adapter, i));
 		if ((j++)%4 == 0)
 			DBG_871X_SEL(sel, "\n");
@@ -50,10 +50,10 @@ void bb_reg_dump(void *sel, struct adapter *adapter)
 {
 	int i, j = 1;
 
-	DBG_871X_SEL_NL(sel, "======= BB REG =======\n");
+	netdev_dbg(adapter->pnetdev, "======= BB REG =======\n");
 	for (i = 0x800; i < 0x1000 ; i += 4) {
 		if (j%4 == 1)
-			DBG_871X_SEL_NL(sel, "0x%03x", i);
+			netdev_dbg(adapter->pnetdev, "0x%03x", i);
 		DBG_871X_SEL(sel, " 0x%08x ", rtw_read32(adapter, i));
 		if ((j++)%4 == 0)
 			DBG_871X_SEL(sel, "\n");
@@ -73,14 +73,14 @@ void rf_reg_dump(void *sel, struct adapter *adapter)
 	else
 		path_nums = 2;
 
-	DBG_871X_SEL_NL(sel, "======= RF REG =======\n");
+	netdev_dbg(adapter->pnetdev, "======= RF REG =======\n");
 
 	for (path = 0; path < path_nums; path++) {
-		DBG_871X_SEL_NL(sel, "RF_Path(%x)\n", path);
+		netdev_dbg(adapter->pnetdev, "RF_Path(%x)\n", path);
 		for (i = 0; i < 0x100; i++) {
 			value = rtw_hal_read_rfreg(adapter, path, i, 0xffffffff);
 			if (j%4 == 1)
-				DBG_871X_SEL_NL(sel, "0x%02x ", i);
+				netdev_dbg(adapter->pnetdev, "0x%02x ", i);
 			DBG_871X_SEL(sel, " 0x%08x ", value);
 			if ((j++)%4 == 0)
 				DBG_871X_SEL(sel, "\n");

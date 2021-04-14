@@ -1522,12 +1522,10 @@ void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
 
-	DBG_871X_SEL_NL(
-		sel,
-		"RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
-		HDATA_RATE(psample_pkt_rssi->data_rate),
-		psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all
-	);
+	netdev_dbg(padapter->pnetdev,
+		   "RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
+		   HDATA_RATE(psample_pkt_rssi->data_rate),
+		   psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all);
 
 	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
 
@@ -1535,20 +1533,17 @@ void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
 		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
 
 	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		DBG_871X_SEL_NL(
-			sel,
-			"RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
-			rf_path, psample_pkt_rssi->mimo_signal_strength[rf_path],
-			psample_pkt_rssi->mimo_signal_quality[rf_path]
-		);
+		netdev_dbg(padapter->pnetdev,
+			   "RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
+			   rf_path,
+			   psample_pkt_rssi->mimo_signal_strength[rf_path],
+			   psample_pkt_rssi->mimo_signal_quality[rf_path]);
 
 		if (!isCCKrate) {
-			DBG_871X_SEL_NL(
-				sel,
-				"\trx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
-				psample_pkt_rssi->ofdm_pwr[rf_path],
-				psample_pkt_rssi->ofdm_snr[rf_path]
-			);
+			netdev_dbg(padapter->pnetdev,
+				   "\trx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
+				   psample_pkt_rssi->ofdm_pwr[rf_path],
+				   psample_pkt_rssi->ofdm_snr[rf_path]);
 		}
 	}
 }
