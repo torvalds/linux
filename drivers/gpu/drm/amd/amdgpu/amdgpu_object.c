@@ -52,34 +52,10 @@
  *
  */
 
-/**
- * amdgpu_bo_subtract_pin_size - Remove BO from pin_size accounting
- *
- * @bo: &amdgpu_bo buffer object
- *
- * This function is called when a BO stops being pinned, and updates the
- * &amdgpu_device pin_size values accordingly.
- */
-static void amdgpu_bo_subtract_pin_size(struct amdgpu_bo *bo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-
-	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
-		atomic64_sub(amdgpu_bo_size(bo), &adev->vram_pin_size);
-		atomic64_sub(amdgpu_vram_mgr_bo_visible_size(bo),
-			     &adev->visible_pin_size);
-	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
-		atomic64_sub(amdgpu_bo_size(bo), &adev->gart_pin_size);
-	}
-}
-
 static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
 	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
-
-	if (bo->tbo.pin_count > 0)
-		amdgpu_bo_subtract_pin_size(bo);
 
 	amdgpu_bo_kunmap(bo);
 
@@ -1000,14 +976,22 @@ int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain)
  */
 void amdgpu_bo_unpin(struct amdgpu_bo *bo)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+
 	ttm_bo_unpin(&bo->tbo);
 	if (bo->tbo.pin_count)
 		return;
 
-	amdgpu_bo_subtract_pin_size(bo);
-
 	if (bo->tbo.base.import_attach)
 		dma_buf_unpin(bo->tbo.base.import_attach);
+
+	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
+		atomic64_sub(amdgpu_bo_size(bo), &adev->vram_pin_size);
+		atomic64_sub(amdgpu_vram_mgr_bo_visible_size(bo),
+			     &adev->visible_pin_size);
+	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
+		atomic64_sub(amdgpu_bo_size(bo), &adev->gart_pin_size);
+	}
 }
 
 /**
