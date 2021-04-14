@@ -171,6 +171,7 @@ int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp;
 int amdgpu_discovery = -1;
 int amdgpu_mes;
+int amdgpu_mes_kiq;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
 int amdgpu_tmz = -1; /* auto */
@@ -635,6 +636,15 @@ module_param_named(discovery, amdgpu_discovery, int, 0444);
 MODULE_PARM_DESC(mes,
 	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
 module_param_named(mes, amdgpu_mes, int, 0444);
+
+/**
+ * DOC: mes_kiq (int)
+ * Enable Micro Engine Scheduler KIQ. This is a new engine pipe for kiq.
+ * (0 = disabled (default), 1 = enabled)
+ */
+MODULE_PARM_DESC(mes_kiq,
+	"Enable Micro Engine Scheduler KIQ (0 = disabled (default), 1 = enabled)");
+module_param_named(mes_kiq, amdgpu_mes_kiq, int, 0444);
 
 /**
  * DOC: noretry (int)
