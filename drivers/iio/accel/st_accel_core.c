@@ -983,6 +983,11 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 
 };
 
+/* Default accel DRDY is available on INT1 pin */
+static const struct st_sensors_platform_data default_accel_pdata = {
+	.drdy_int_pin = 1,
+};
+
 static int st_accel_read_raw(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *ch, int *val,
 							int *val2, long mask)
