@@ -36,17 +36,12 @@ static const struct dev_pm_ops rtw_sdio_pm_ops = {
 	.resume	= rtw_sdio_resume,
 };
 
-struct sdio_drv_priv {
-	struct sdio_driver r871xs_drv;
-	int drv_registered;
-};
-
-static struct sdio_drv_priv sdio_drvpriv = {
-	.r871xs_drv.probe = rtw_drv_init,
-	.r871xs_drv.remove = rtw_dev_remove,
-	.r871xs_drv.name = "rtl8723bs",
-	.r871xs_drv.id_table = sdio_ids,
-	.r871xs_drv.drv = {
+static struct sdio_driver rtl8723bs_sdio_driver = {
+	.probe = rtw_drv_init,
+	.remove = rtw_dev_remove,
+	.name = "rtl8723bs",
+	.id_table = sdio_ids,
+	.drv = {
 		.pm = &rtw_sdio_pm_ops,
 	}
 };
@@ -495,13 +490,10 @@ static int __init rtw_drv_entry(void)
 	DBG_871X_LEVEL(_drv_always_, "rtl8723bs BT-Coex version = %s\n", BTCOEXVERSION);
 #endif /*  BTCOEXVERSION */
 
-	sdio_drvpriv.drv_registered = true;
 
-	ret = sdio_register_driver(&sdio_drvpriv.r871xs_drv);
-	if (ret != 0) {
-		sdio_drvpriv.drv_registered = false;
+	ret = sdio_register_driver(&rtl8723bs_sdio_driver);
+	if (ret != 0)
 		rtw_ndev_notifier_unregister();
-	}
 
 	DBG_871X_LEVEL(_drv_always_, "module init ret =%d\n", ret);
 	return ret;
@@ -511,9 +503,7 @@ static void __exit rtw_drv_halt(void)
 {
 	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 
-	sdio_drvpriv.drv_registered = false;
-
-	sdio_unregister_driver(&sdio_drvpriv.r871xs_drv);
+	sdio_unregister_driver(&rtl8723bs_sdio_driver);
 
 	rtw_ndev_notifier_unregister();
 
