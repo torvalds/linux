@@ -616,7 +616,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->dev = stream->ispdev->hw_dev->dev;
 	q->allow_cache_hints = 1;
 	q->bidirectional = 1;
-
+	q->gfp_flags = GFP_DMA32;
 	return vb2_queue_init(q);
 }
 

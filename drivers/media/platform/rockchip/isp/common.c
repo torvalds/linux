@@ -87,7 +87,7 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 		attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
 	buf->size = PAGE_ALIGN(buf->size);
 	mem_priv = g_ops->alloc(dev->hw_dev->dev, attrs, buf->size,
-				DMA_BIDIRECTIONAL, GFP_KERNEL);
+				DMA_BIDIRECTIONAL, GFP_KERNEL | GFP_DMA32);
 	if (IS_ERR_OR_NULL(mem_priv)) {
 		ret = -ENOMEM;
 		goto err;
@@ -209,7 +209,7 @@ static int rkisp_alloc_page_dummy_buf(struct rkisp_device *dev, u32 size)
 	struct sg_table *sg = NULL;
 	int ret = -ENOMEM;
 
-	page = alloc_pages(GFP_KERNEL, 0);
+	page = alloc_pages(GFP_KERNEL | GFP_DMA32, 0);
 	if (!page)
 		goto err;
 
