@@ -176,9 +176,6 @@ static inline char *__ppc_inst_as_str(char str[PPC_INST_STR_LEN], struct ppc_ins
 	__str;				\
 })
 
-int probe_user_read_inst(struct ppc_inst *inst,
-			 struct ppc_inst __user *nip);
-
 int probe_kernel_read_inst(struct ppc_inst *inst,
 			   struct ppc_inst *src);
 
