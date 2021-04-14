@@ -384,31 +384,6 @@ static void kvm_disable_steal_time(void)
 	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
 }
 
-static void kvm_pv_guest_cpu_reboot(void *unused)
-{
-	/*
-	 * We disable PV EOI before we load a new kernel by kexec,
-	 * since MSR_KVM_PV_EOI_EN stores a pointer into old kernel's memory.
-	 * New kernel can re-enable when it boots.
-	 */
-	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
-		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
-	kvm_pv_disable_apf();
-	kvm_disable_steal_time();
-}
-
-static int kvm_pv_reboot_notify(struct notifier_block *nb,
-				unsigned long code, void *unused)
-{
-	if (code == SYS_RESTART)
-		on_each_cpu(kvm_pv_guest_cpu_reboot, NULL, 1);
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block kvm_pv_reboot_nb = {
-	.notifier_call = kvm_pv_reboot_notify,
-};
-
 static u64 kvm_steal_clock(int cpu)
 {
 	u64 steal;
@@ -685,6 +660,23 @@ static void kvm_resume(void)
 static struct syscore_ops kvm_syscore_ops = {
 	.suspend	= kvm_suspend,
 	.resume		= kvm_resume,
+};
+
+static void kvm_pv_guest_cpu_reboot(void *unused)
+{
+	kvm_guest_cpu_offline(true);
+}
+
+static int kvm_pv_reboot_notify(struct notifier_block *nb,
+				unsigned long code, void *unused)
+{
+	if (code == SYS_RESTART)
+		on_each_cpu(kvm_pv_guest_cpu_reboot, NULL, 1);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block kvm_pv_reboot_nb = {
+	.notifier_call = kvm_pv_reboot_notify,
 };
 
 /*
