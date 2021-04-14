@@ -8575,6 +8575,9 @@ static void io_ring_exit_work(struct work_struct *work)
 		WARN_ON_ONCE(time_after(jiffies, timeout));
 	} while (!wait_for_completion_timeout(&ctx->ref_comp, HZ/20));
 
+	init_completion(&exit.completion);
+	init_task_work(&exit.task_work, io_tctx_exit_cb);
+	exit.ctx = ctx;
 	/*
 	 * Some may use context even when all refs and requests have been put,
 	 * and they are free to do so while still holding uring_lock or
@@ -8587,9 +8590,8 @@ static void io_ring_exit_work(struct work_struct *work)
 
 		node = list_first_entry(&ctx->tctx_list, struct io_tctx_node,
 					ctx_node);
-		exit.ctx = ctx;
-		init_completion(&exit.completion);
-		init_task_work(&exit.task_work, io_tctx_exit_cb);
+		/* don't spin on a single task if cancellation failed */
+		list_rotate_left(&ctx->tctx_list);
 		ret = task_work_add(node->task, &exit.task_work, TWA_SIGNAL);
 		if (WARN_ON_ONCE(ret))
 			continue;
@@ -8597,7 +8599,6 @@ static void io_ring_exit_work(struct work_struct *work)
 
 		mutex_unlock(&ctx->uring_lock);
 		wait_for_completion(&exit.completion);
-		cond_resched();
 		mutex_lock(&ctx->uring_lock);
 	}
 	mutex_unlock(&ctx->uring_lock);
