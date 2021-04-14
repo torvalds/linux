@@ -1141,7 +1141,7 @@ int add_memory_subsection(int nid, u64 start, u64 size)
 
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
 	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
-		pr_err("%s: start 0x%lx size 0x%lx not aligned to subsection size\n",
+		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
 			   __func__, start, size);
 		return -EINVAL;
 	}
@@ -1161,7 +1161,7 @@ int add_memory_subsection(int nid, u64 start, u64 size)
 	if (ret) {
 		if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
 			memblock_remove(start, size);
-		pr_err("%s failed to add subsection start 0x%lx size 0x%lx\n",
+		pr_err("%s failed to add subsection start 0x%llx size 0x%llx\n",
 			   __func__, start, size);
 	}
 	mem_hotplug_done();
@@ -1851,7 +1851,7 @@ int remove_memory_subsection(int nid, u64 start, u64 size)
 
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
 	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
-		pr_err("%s: start 0x%lx size 0x%lx not aligned to subsection size\n",
+		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
 			   __func__, start, size);
 		return -EINVAL;
 	}
@@ -1860,7 +1860,7 @@ int remove_memory_subsection(int nid, u64 start, u64 size)
 
 	/* we cannot remove subsections that are invalid or online */
 	if(!__check_sections_offline(PHYS_PFN(start), size >> PAGE_SHIFT)) {
-		pr_err("%s: [%lx, %lx) sections are not offlined\n",
+		pr_err("%s: [%llx, %llx) sections are not offlined\n",
 			   __func__, start, start + size);
 		mem_hotplug_done();
 		return -EBUSY;
