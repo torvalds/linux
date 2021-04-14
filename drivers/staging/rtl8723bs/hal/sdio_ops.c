@@ -160,7 +160,7 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 	u32 ftaddr;
 	u8 shift;
 	u32 val;
-	s32 err;
+	s32 __maybe_unused err;
 	__le32 le_tmp;
 
 	adapter = intfhdl->padapter;
@@ -360,10 +360,7 @@ static void sdio_read_mem(
 	u8 *rmem
 )
 {
-	s32 err;
-
-	err = sdio_readN(intfhdl, addr, cnt, rmem);
-	/* TODO: Report error is err not zero */
+	sdio_readN(intfhdl, addr, cnt, rmem);
 }
 
 static void sdio_write_mem(
