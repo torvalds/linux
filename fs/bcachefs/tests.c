@@ -497,6 +497,42 @@ static int rand_insert(struct bch_fs *c, u64 nr)
 	return ret;
 }
 
+static int rand_insert_multi(struct bch_fs *c, u64 nr)
+{
+	struct btree_trans trans;
+	struct bkey_i_cookie k[8];
+	int ret = 0;
+	unsigned j;
+	u64 i;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for (i = 0; i < nr; i += ARRAY_SIZE(k)) {
+		for (j = 0; j < ARRAY_SIZE(k); j++) {
+			bkey_cookie_init(&k[j].k_i);
+			k[j].k.p.offset = test_rand();
+			k[j].k.p.snapshot = U32_MAX;
+		}
+
+		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[0].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[1].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[2].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[3].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[4].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[5].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[6].k_i) ?:
+			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[7].k_i));
+		if (ret) {
+			bch_err(c, "error in rand_insert_multi: %i", ret);
+			break;
+		}
+	}
+
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
 static int rand_lookup(struct bch_fs *c, u64 nr)
 {
 	struct btree_trans trans;
@@ -765,6 +801,7 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	if (!strcmp(testname, #_test)) j.fn = _test
 
 	perf_test(rand_insert);
+	perf_test(rand_insert_multi);
 	perf_test(rand_lookup);
 	perf_test(rand_mixed);
 	perf_test(rand_delete);
