@@ -5282,6 +5282,20 @@ static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr,
 	return -EALREADY;
 }
 
+static __poll_t io_poll_parse_events(const struct io_uring_sqe *sqe,
+				     unsigned int flags)
+{
+	u32 events;
+
+	events = READ_ONCE(sqe->poll32_events);
+#ifdef __BIG_ENDIAN
+	events = swahw32(events);
+#endif
+	if (!(flags & IORING_POLL_ADD_MULTI))
+		events |= EPOLLONESHOT;
+	return demangle_poll(events) | (events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
+}
+
 static int io_poll_remove_prep(struct io_kiocb *req,
 			       const struct io_uring_sqe *sqe)
 {
@@ -5343,14 +5357,8 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	if (flags & ~(IORING_POLL_ADD_MULTI | IORING_POLL_UPDATE_EVENTS |
 			IORING_POLL_UPDATE_USER_DATA))
 		return -EINVAL;
-	events = READ_ONCE(sqe->poll32_events);
-#ifdef __BIG_ENDIAN
-	events = swahw32(events);
-#endif
-	if (!(flags & IORING_POLL_ADD_MULTI))
-		events |= EPOLLONESHOT;
-	events = demangle_poll(events) |
-				(events & (EPOLLEXCLUSIVE|EPOLLONESHOT));
+
+	events = io_poll_parse_events(sqe, flags);
 
 	if (flags & (IORING_POLL_UPDATE_EVENTS|IORING_POLL_UPDATE_USER_DATA)) {
 		struct io_poll_update *poll_upd = &req->poll_update;
