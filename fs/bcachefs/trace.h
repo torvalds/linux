@@ -561,43 +561,70 @@ DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_reused,
 TRACE_EVENT(trans_restart_would_deadlock,
 	TP_PROTO(unsigned long	trans_ip,
 		 unsigned long	caller_ip,
+		 bool		in_traverse_all,
 		 unsigned	reason,
 		 enum btree_id	have_btree_id,
 		 unsigned	have_iter_type,
+		 struct bpos	*have_pos,
 		 enum btree_id	want_btree_id,
-		 unsigned	want_iter_type),
-	TP_ARGS(trans_ip, caller_ip, reason,
-		have_btree_id, have_iter_type,
-		want_btree_id, want_iter_type),
+		 unsigned	want_iter_type,
+		 struct bpos	*want_pos),
+	TP_ARGS(trans_ip, caller_ip, in_traverse_all, reason,
+		have_btree_id, have_iter_type, have_pos,
+		want_btree_id, want_iter_type, want_pos),
 
 	TP_STRUCT__entry(
 		__field(unsigned long,		trans_ip	)
 		__field(unsigned long,		caller_ip	)
+		__field(u8,			in_traverse_all	)
 		__field(u8,			reason		)
 		__field(u8,			have_btree_id	)
 		__field(u8,			have_iter_type	)
 		__field(u8,			want_btree_id	)
 		__field(u8,			want_iter_type	)
+
+		__field(u64,			have_pos_inode	)
+		__field(u64,			have_pos_offset	)
+		__field(u32,			have_pos_snapshot)
+		__field(u32,			want_pos_snapshot)
+		__field(u64,			want_pos_inode	)
+		__field(u64,			want_pos_offset	)
 	),
 
 	TP_fast_assign(
 		__entry->trans_ip		= trans_ip;
 		__entry->caller_ip		= caller_ip;
+		__entry->in_traverse_all	= in_traverse_all;
 		__entry->reason			= reason;
 		__entry->have_btree_id		= have_btree_id;
 		__entry->have_iter_type		= have_iter_type;
 		__entry->want_btree_id		= want_btree_id;
 		__entry->want_iter_type		= want_iter_type;
+
+		__entry->have_pos_inode		= have_pos->inode;
+		__entry->have_pos_offset	= have_pos->offset;
+		__entry->have_pos_snapshot	= have_pos->snapshot;
+
+		__entry->want_pos_inode		= want_pos->inode;
+		__entry->want_pos_offset	= want_pos->offset;
+		__entry->want_pos_snapshot	= want_pos->snapshot;
 	),
 
-	TP_printk("%pS %pS because %u have %u:%u want %u:%u",
+	TP_printk("%pS %pS traverse_all %u because %u have %u:%u %llu:%llu:%u want %u:%u %llu:%llu:%u",
 		  (void *) __entry->trans_ip,
 		  (void *) __entry->caller_ip,
+		  __entry->in_traverse_all,
 		  __entry->reason,
 		  __entry->have_btree_id,
 		  __entry->have_iter_type,
+		  __entry->have_pos_inode,
+		  __entry->have_pos_offset,
+		  __entry->have_pos_snapshot,
 		  __entry->want_btree_id,
-		  __entry->want_iter_type)
+		  __entry->want_iter_type,
+		  __entry->want_pos_inode,
+		  __entry->want_pos_offset,
+		  __entry->want_pos_snapshot)
 );
 
 TRACE_EVENT(trans_restart_iters_realloced,
@@ -685,6 +712,11 @@ DEFINE_EVENT(transaction_restart,	trans_restart_relock,
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
+);
+
+DEFINE_EVENT(transaction_restart,	trans_traverse_all,
 	TP_PROTO(unsigned long ip),
 	TP_ARGS(ip)
 );

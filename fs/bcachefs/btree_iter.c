@@ -268,13 +268,8 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 */
 		if (type == SIX_LOCK_intent &&
 		    linked->nodes_locked != linked->nodes_intent_locked) {
-			linked->locks_want = max_t(unsigned,
-					linked->locks_want,
-					__fls(linked->nodes_locked) + 1);
-			if (!btree_iter_get_locks(linked, true, false)) {
-				deadlock_iter = linked;
-				reason = 1;
-			}
+			deadlock_iter = linked;
+			reason = 1;
 		}
 
 		if (linked->btree_id != iter->btree_id) {
@@ -303,14 +298,8 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 * we're about to lock, it must have the ancestors locked too:
 		 */
 		if (level > __fls(linked->nodes_locked)) {
-			linked->locks_want =
-				max(level + 1, max_t(unsigned,
-				    linked->locks_want,
-				    iter->locks_want));
-			if (!btree_iter_get_locks(linked, true, false)) {
-				deadlock_iter = linked;
-				reason = 5;
-			}
+			deadlock_iter = linked;
+			reason = 5;
 		}
 
 		/* Must lock btree nodes in key order: */
@@ -320,26 +309,17 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 			deadlock_iter = linked;
 			reason = 7;
 		}
-
-		/*
-		 * Recheck if this is a node we already have locked - since one
-		 * of the get_locks() calls might've successfully
-		 * upgraded/relocked it:
-		 */
-		if (linked->l[level].b == b &&
-		    btree_node_locked_type(linked, level) >= type) {
-			six_lock_increment(&b->c.lock, type);
-			return true;
-		}
 	}
 
 	if (unlikely(deadlock_iter)) {
 		trace_trans_restart_would_deadlock(iter->trans->ip, ip,
-				reason,
+				trans->in_traverse_all, reason,
 				deadlock_iter->btree_id,
 				btree_iter_type(deadlock_iter),
+				&deadlock_iter->real_pos,
 				iter->btree_id,
-				btree_iter_type(iter));
+				btree_iter_type(iter),
+				&pos);
 		return false;
 	}
 
@@ -407,29 +387,11 @@ bool bch2_btree_iter_relock(struct btree_iter *iter, bool trace)
 bool __bch2_btree_iter_upgrade(struct btree_iter *iter,
 			       unsigned new_locks_want)
 {
-	struct btree_iter *linked;
-
 	EBUG_ON(iter->locks_want >= new_locks_want);
 
 	iter->locks_want = new_locks_want;
 
-	if (btree_iter_get_locks(iter, true, true))
-		return true;
-
-	/*
-	 * Ancestor nodes must be locked before child nodes, so set locks_want
-	 * on iterators that might lock ancestors before us to avoid getting
-	 * -EINTR later:
-	 */
-	trans_for_each_iter(iter->trans, linked)
-		if (linked != iter &&
-		    linked->btree_id == iter->btree_id &&
-		    linked->locks_want < new_locks_want) {
-			linked->locks_want = new_locks_want;
-			btree_iter_get_locks(linked, true, false);
-		}
-
-	return false;
+	return btree_iter_get_locks(iter, true, true);
 }
 
 void __bch2_btree_iter_downgrade(struct btree_iter *iter,
@@ -1192,7 +1154,8 @@ static int __btree_iter_traverse_all(struct btree_trans *trans, int ret)
 	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
 	u8 sorted[BTREE_ITER_MAX];
-	unsigned i, nr_sorted = 0;
+	int i, nr_sorted = 0;
+	bool relock_fail;
 
 	if (trans->in_traverse_all)
 		return -EINTR;
@@ -1200,15 +1163,36 @@ static int __btree_iter_traverse_all(struct btree_trans *trans, int ret)
 	trans->in_traverse_all = true;
 retry_all:
 	nr_sorted = 0;
+	relock_fail = false;
 
-	trans_for_each_iter(trans, iter)
+	trans_for_each_iter(trans, iter) {
+		if (!bch2_btree_iter_relock(iter, true))
+			relock_fail = true;
 		sorted[nr_sorted++] = iter->idx;
+	}
+
+	if (!relock_fail) {
+		trans->in_traverse_all = false;
+		return 0;
+	}
 
 #define btree_iter_cmp_by_idx(_l, _r)				\
 		btree_iter_lock_cmp(&trans->iters[_l], &trans->iters[_r])
 
 	bubble_sort(sorted, nr_sorted, btree_iter_cmp_by_idx);
 #undef btree_iter_cmp_by_idx
+
+	for (i = nr_sorted - 2; i >= 0; --i) {
+		struct btree_iter *iter1 = trans->iters + sorted[i];
+		struct btree_iter *iter2 = trans->iters + sorted[i + 1];
+
+		if (iter1->btree_id == iter2->btree_id &&
+		    iter1->locks_want < iter2->locks_want)
+			__bch2_btree_iter_upgrade(iter1, iter2->locks_want);
+		else if (!iter1->locks_want && iter2->locks_want)
+			__bch2_btree_iter_upgrade(iter1, 1);
+	}
+
 	bch2_trans_unlock(trans);
 	cond_resched();
 
@@ -1258,6 +1242,8 @@ out:
 	bch2_btree_cache_cannibalize_unlock(c);
 
 	trans->in_traverse_all = false;
+
+	trace_trans_traverse_all(trans->ip);
 	return ret;
 }
 
@@ -2210,7 +2196,8 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 	if (!(flags & TRANS_RESET_NOUNLOCK))
 		bch2_trans_cond_resched(trans);
 
-	if (!(flags & TRANS_RESET_NOTRAVERSE))
+	if (!(flags & TRANS_RESET_NOTRAVERSE) &&
+	    trans->iters_linked)
 		bch2_btree_iter_traverse_all(trans);
 }
 
