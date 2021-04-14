@@ -1389,7 +1389,7 @@ static void qlge_categorize_rx_err(struct qlge_adapter *qdev, u8 rx_err,
 	}
 }
 
-/**
+/*
  * qlge_update_mac_hdr_len - helper routine to update the mac header length
  * based on vlan tags if present
  */
@@ -2235,7 +2235,7 @@ static void qlge_vlan_mode(struct net_device *ndev, netdev_features_t features)
 	}
 }
 
-/**
+/*
  * qlge_update_hw_vlan_features - helper routine to reinitialize the adapter
  * based on the features to enable/disable hardware vlan accel
  */

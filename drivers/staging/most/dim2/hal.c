@@ -96,9 +96,9 @@ static int dbr_get_mask_size(u16 size)
 }
 
 /**
- * Allocates DBR memory.
+ * alloc_dbr() - Allocates DBR memory.
  * @size: Allocating memory size.
- * @return Offset in DBR memory by success or DBR_SIZE if out of memory.
+ * Returns: Offset in DBR memory by success or DBR_SIZE if out of memory.
  */
 static int alloc_dbr(u16 size)
 {
