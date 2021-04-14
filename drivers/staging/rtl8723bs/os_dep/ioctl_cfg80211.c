@@ -2595,7 +2595,7 @@ static int _cfg80211_rtw_mgmt_tx(struct adapter *padapter, u8 tx_ch, const u8 *b
 	struct pkt_attrib	*pattrib;
 	unsigned char *pframe;
 	int ret = _FAIL;
-	bool ack = true;
+	bool __maybe_unused ack = true;
 	struct ieee80211_hdr *pwlanhdr;
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
