@@ -803,8 +803,10 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
 	vma = intel_overlay_pin_fb(new_bo);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto out_pin_section;
+	}
 
 	i915_gem_object_flush_frontbuffer(new_bo, ORIGIN_DIRTYFB);
 
