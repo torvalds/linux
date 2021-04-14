@@ -38,7 +38,6 @@ struct pci_controller {
 	struct resource *io_resource;
 	unsigned long io_offset;
 	unsigned long io_map_base;
-	struct resource *busn_resource;
 
 #ifndef CONFIG_PCI_DOMAINS_GENERIC
 	unsigned int index;
