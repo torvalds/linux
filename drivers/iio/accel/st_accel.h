@@ -62,10 +62,6 @@ enum st_accel_type {
 #define LIS2DE12_ACCEL_DEV_NAME		"lis2de12"
 #define LIS2HH12_ACCEL_DEV_NAME		"lis2hh12"
 
-const struct st_sensor_settings *st_accel_get_settings(const char *name);
-int st_accel_common_probe(struct iio_dev *indio_dev);
-void st_accel_common_remove(struct iio_dev *indio_dev);
-
 #ifdef CONFIG_IIO_BUFFER
 int st_accel_allocate_ring(struct iio_dev *indio_dev);
 void st_accel_deallocate_ring(struct iio_dev *indio_dev);
