@@ -1658,6 +1658,11 @@ static int dwc3_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void dwc3_shutdown(struct platform_device *pdev)
+{
+	dwc3_remove(pdev);
+}
+
 #ifdef CONFIG_PM
 static int dwc3_core_init_for_resume(struct dwc3 *dwc)
 {
@@ -1975,6 +1980,7 @@ MODULE_DEVICE_TABLE(acpi, dwc3_acpi_match);
 static struct platform_driver dwc3_driver = {
 	.probe		= dwc3_probe,
 	.remove		= dwc3_remove,
+	.shutdown   = dwc3_shutdown,
 	.driver		= {
 		.name	= "dwc3",
 		.of_match_table	= of_match_ptr(of_dwc3_match),
