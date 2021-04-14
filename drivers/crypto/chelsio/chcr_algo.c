@@ -126,11 +126,6 @@ static inline struct uld_ctx *ULD_CTX(struct chcr_context *ctx)
 	return container_of(ctx->dev, struct uld_ctx, dev);
 }
 
-static inline int is_ofld_imm(const struct sk_buff *skb)
-{
-	return (skb->len <= SGE_MAX_WR_LEN);
-}
-
 static inline void chcr_init_hctx_per_wr(struct chcr_ahash_req_ctx *reqctx)
 {
 	memset(&reqctx->hctx_wr, 0, sizeof(struct chcr_hctx_per_wr));
