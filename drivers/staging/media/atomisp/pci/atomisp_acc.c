@@ -464,9 +464,11 @@ int atomisp_acc_load_extensions(struct atomisp_sub_device *asd)
 			continue;
 
 		for (i = 0; i < ARRAY_SIZE(acc_flag_to_pipe); i++) {
-			/* QoS (ACC pipe) acceleration stages are currently
-			 * allowed only in continuous mode. Skip them for
-			 * all other modes. */
+			/*
+			 * QoS (ACC pipe) acceleration stages are
+			 * currently allowed only in continuous mode.
+			 * Skip them for all other modes.
+			 */
 			if (!continuous &&
 			    acc_flag_to_pipe[i].flag ==
 			    ATOMISP_ACC_FW_LOAD_FL_ACC)
