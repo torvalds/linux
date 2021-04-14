@@ -621,7 +621,7 @@ unsigned int OnProbeReq(struct adapter *padapter, union recv_frame *precv_frame)
 _issue_probersp:
 		if ((check_fwstate(pmlmepriv, _FW_LINKED) &&
 		     pmlmepriv->cur_network.join_res) ||
-		     check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
+		    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
 			issue_probersp(padapter, get_sa(pframe), is_valid_p2p_probereq);
 	}
 
