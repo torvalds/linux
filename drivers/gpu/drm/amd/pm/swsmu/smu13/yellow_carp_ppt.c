@@ -272,6 +272,31 @@ static int yellow_carp_post_smu_init(struct smu_context *smu)
 	return ret;
 }
 
+static int yellow_carp_mode_reset(struct smu_context *smu, int type)
+{
+	int ret = 0, index = 0;
+
+	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
+				SMU_MSG_GfxDeviceDriverReset);
+	if (index < 0)
+		return index == -EACCES ? 0 : index;
+
+	mutex_lock(&smu->message_lock);
+
+	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, type);
+
+	mutex_unlock(&smu->message_lock);
+
+	mdelay(10);
+
+	return ret;
+}
+
+static int yellow_carp_mode2_reset(struct smu_context *smu)
+{
+	return yellow_carp_mode_reset(smu, SMU_RESET_MODE_2);
+}
+
 static int yellow_carp_get_smu_metrics_data(struct smu_context *smu,
 							MetricsMember_t member,
 							uint32_t *value)
@@ -1167,6 +1192,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.set_driver_table_location = smu_v13_0_1_set_driver_table_location,
 	.gfx_off_control = smu_v13_0_1_gfx_off_control,
 	.post_init = yellow_carp_post_smu_init,
+	.mode2_reset = yellow_carp_mode2_reset,
 	.get_dpm_ultimate_freq = yellow_carp_get_dpm_ultimate_freq,
 	.od_edit_dpm_table = yellow_carp_od_edit_dpm_table,
 	.print_clk_levels = yellow_carp_print_clk_levels,
