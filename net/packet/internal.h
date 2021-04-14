@@ -94,7 +94,7 @@ struct packet_fanout {
 	spinlock_t		lock;
 	refcount_t		sk_ref;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
-	struct sock		*arr[];
+	struct sock	__rcu	*arr[];
 };
 
 struct packet_rollover {
