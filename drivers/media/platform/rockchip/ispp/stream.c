@@ -1843,6 +1843,7 @@ static int rkispp_init_vb2_queue(struct vb2_queue *q,
 	q->allow_cache_hints = 1;
 	if (stream->isppdev->hw_dev->is_dma_contig)
 		q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
+	q->gfp_flags = GFP_DMA32;
 	return vb2_queue_init(q);
 }
 

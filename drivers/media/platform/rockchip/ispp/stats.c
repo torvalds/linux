@@ -308,7 +308,7 @@ static int rkispp_stats_init_vb2_queue(struct vb2_queue *q,
 	q->dev = stats_vdev->dev->hw_dev->dev;
 	if (stats_vdev->dev->hw_dev->is_dma_contig)
 		q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
-
+	q->gfp_flags = GFP_DMA32;
 	return vb2_queue_init(q);
 }
 
