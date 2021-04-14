@@ -401,6 +401,8 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_device *bdev = bo->bdev;
 	int ret;
 
+	WARN_ON_ONCE(bo->pin_count);
+
 	if (!bo->deleted) {
 		ret = ttm_bo_individualize_resv(bo);
 		if (ret) {
@@ -434,7 +436,7 @@ static void ttm_bo_release(struct kref *kref)
 		 * FIXME: QXL is triggering this. Can be removed when the
 		 * driver is fixed.
 		 */
-		if (WARN_ON_ONCE(bo->pin_count)) {
+		if (bo->pin_count) {
 			bo->pin_count = 0;
 			ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		}
