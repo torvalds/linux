@@ -1977,9 +1977,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		record__auxtrace_snapshot_exit(rec);
 
 	if (forks && workload_exec_errno) {
-		char msg[STRERR_BUFSIZE];
+		char msg[STRERR_BUFSIZE], strevsels[2048];
 		const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
-		pr_err("Workload failed: %s\n", emsg);
+
+		evlist__scnprintf_evsels(rec->evlist, sizeof(strevsels), strevsels);
+
+		pr_err("Failed to collect '%s' for the '%s' workload: %s\n",
+			strevsels, argv[0], emsg);
 		err = -1;
 		goto out_child;
 	}
