@@ -84,11 +84,9 @@ static void xbc_show_list(void)
 	char key[XBC_KEYLEN_MAX];
 	struct xbc_node *leaf;
 	const char *val;
-	int ret = 0;
 
 	xbc_for_each_key_value(leaf, val) {
-		ret = xbc_node_compose_key(leaf, key, XBC_KEYLEN_MAX);
-		if (ret < 0)
+		if (xbc_node_compose_key(leaf, key, XBC_KEYLEN_MAX) < 0)
 			break;
 		printf("%s = ", key);
 		if (!val || val[0] == '\0') {
