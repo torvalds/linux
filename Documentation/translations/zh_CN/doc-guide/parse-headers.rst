@@ -184,4 +184,4 @@ enum foo { BAR1, BAR2, PRIVATE };
 许可证 GPLv2：GNU GPL version 2 <https://gnu.org/licenses/gpl.html>
 
 这是自由软件：你可以自由地修改和重新发布它。
-在法律允许的范围内，**没有任何保证**。
+在法律允许的范围内，**不提供任何保证**。
