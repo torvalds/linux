@@ -164,7 +164,7 @@ static void snor_deinit(void)
 
 static int snor_resume(void __iomem *reg_addr)
 {
-	return spi_nor_init(&sfnor_dev);
+	return spi_nor_init(reg_addr);
 }
 
 const struct flash_boot_ops sfc_nor_ops = {
