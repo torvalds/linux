@@ -1933,7 +1933,7 @@ const u8 rcons[] = {
 	/* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
 
-/**
+/*
  * Expand the cipher key into the encryption key schedule.
  *
  * @return	the number of rounds for the given cipher key size.
