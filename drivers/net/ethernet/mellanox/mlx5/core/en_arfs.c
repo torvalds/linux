@@ -392,11 +392,11 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 {
 	struct arfs_rule *arfs_rule;
 	struct hlist_node *htmp;
+	HLIST_HEAD(del_list);
 	int quota = 0;
 	int i;
 	int j;
 
-	HLIST_HEAD(del_list);
 	spin_lock_bh(&priv->fs.arfs->arfs_lock);
 	mlx5e_for_each_arfs_rule(arfs_rule, htmp, priv->fs.arfs->arfs_tables, i, j) {
 		if (!work_pending(&arfs_rule->arfs_work) &&
@@ -422,10 +422,10 @@ static void arfs_del_rules(struct mlx5e_priv *priv)
 {
 	struct hlist_node *htmp;
 	struct arfs_rule *rule;
+	HLIST_HEAD(del_list);
 	int i;
 	int j;
 
-	HLIST_HEAD(del_list);
 	spin_lock_bh(&priv->fs.arfs->arfs_lock);
 	mlx5e_for_each_arfs_rule(rule, htmp, priv->fs.arfs->arfs_tables, i, j) {
 		hlist_del_init(&rule->hlist);

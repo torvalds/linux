@@ -510,8 +510,9 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 			rq->page_pool = NULL;
 			goto err_free_by_rq_type;
 		}
-		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
-						 MEM_TYPE_PAGE_POOL, rq->page_pool);
+		if (xdp_rxq_info_is_reg(&rq->xdp_rxq))
+			err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
+							 MEM_TYPE_PAGE_POOL, rq->page_pool);
 	}
 	if (err)
 		goto err_free_by_rq_type;

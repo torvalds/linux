@@ -806,53 +806,71 @@ struct mlx5dr_ste_action_modify_field {
 	u8 l4_type;
 };
 
+struct mlx5dr_action_rewrite {
+	struct mlx5dr_domain *dmn;
+	struct mlx5dr_icm_chunk *chunk;
+	u8 *data;
+	u16 num_of_actions;
+	u32 index;
+	u8 allow_rx:1;
+	u8 allow_tx:1;
+	u8 modify_ttl:1;
+};
+
+struct mlx5dr_action_reformat {
+	struct mlx5dr_domain *dmn;
+	u32 reformat_id;
+	u32 reformat_size;
+};
+
+struct mlx5dr_action_dest_tbl {
+	u8 is_fw_tbl:1;
+	union {
+		struct mlx5dr_table *tbl;
+		struct {
+			struct mlx5dr_domain *dmn;
+			u32 id;
+			u32 group_id;
+			enum fs_flow_table_type type;
+			u64 rx_icm_addr;
+			u64 tx_icm_addr;
+			struct mlx5dr_action **ref_actions;
+			u32 num_of_ref_actions;
+		} fw_tbl;
+	};
+};
+
+struct mlx5dr_action_ctr {
+	u32 ctr_id;
+	u32 offeset;
+};
+
+struct mlx5dr_action_vport {
+	struct mlx5dr_domain *dmn;
+	struct mlx5dr_cmd_vport_cap *caps;
+};
+
+struct mlx5dr_action_push_vlan {
+	u32 vlan_hdr; /* tpid_pcp_dei_vid */
+};
+
+struct mlx5dr_action_flow_tag {
+	u32 flow_tag;
+};
+
 struct mlx5dr_action {
 	enum mlx5dr_action_type action_type;
 	refcount_t refcount;
+
 	union {
-		struct {
-			struct mlx5dr_domain *dmn;
-			struct mlx5dr_icm_chunk *chunk;
-			u8 *data;
-			u16 num_of_actions;
-			u32 index;
-			u8 allow_rx:1;
-			u8 allow_tx:1;
-			u8 modify_ttl:1;
-		} rewrite;
-		struct {
-			struct mlx5dr_domain *dmn;
-			u32 reformat_id;
-			u32 reformat_size;
-		} reformat;
-		struct {
-			u8 is_fw_tbl:1;
-			union {
-				struct mlx5dr_table *tbl;
-				struct {
-					struct mlx5dr_domain *dmn;
-					u32 id;
-					u32 group_id;
-					enum fs_flow_table_type type;
-					u64 rx_icm_addr;
-					u64 tx_icm_addr;
-					struct mlx5dr_action **ref_actions;
-					u32 num_of_ref_actions;
-				} fw_tbl;
-			};
-		} dest_tbl;
-		struct {
-			u32 ctr_id;
-			u32 offeset;
-		} ctr;
-		struct {
-			struct mlx5dr_domain *dmn;
-			struct mlx5dr_cmd_vport_cap *caps;
-		} vport;
-		struct {
-			u32 vlan_hdr; /* tpid_pcp_dei_vid */
-		} push_vlan;
-		u32 flow_tag;
+		void *data;
+		struct mlx5dr_action_rewrite *rewrite;
+		struct mlx5dr_action_reformat *reformat;
+		struct mlx5dr_action_dest_tbl *dest_tbl;
+		struct mlx5dr_action_ctr *ctr;
+		struct mlx5dr_action_vport *vport;
+		struct mlx5dr_action_push_vlan *push_vlan;
+		struct mlx5dr_action_flow_tag *flow_tag;
 	};
 };
 

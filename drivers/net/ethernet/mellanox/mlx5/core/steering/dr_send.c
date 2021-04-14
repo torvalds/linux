@@ -406,7 +406,7 @@ static int dr_get_tbl_copy_details(struct mlx5dr_domain *dmn,
 		alloc_size = *num_stes * DR_STE_SIZE;
 	}
 
-	*data = kzalloc(alloc_size, GFP_KERNEL);
+	*data = kvzalloc(alloc_size, GFP_KERNEL);
 	if (!*data)
 		return -ENOMEM;
 
@@ -505,7 +505,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 	}
 
 out_free:
-	kfree(data);
+	kvfree(data);
 	return ret;
 }
 
@@ -562,7 +562,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 	}
 
 out_free:
-	kfree(data);
+	kvfree(data);
 	return ret;
 }
 
@@ -572,12 +572,12 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 	struct postsend_info send_info = {};
 	int ret;
 
-	send_info.write.addr = (uintptr_t)action->rewrite.data;
-	send_info.write.length = action->rewrite.num_of_actions *
+	send_info.write.addr = (uintptr_t)action->rewrite->data;
+	send_info.write.length = action->rewrite->num_of_actions *
 				 DR_MODIFY_ACTION_SIZE;
 	send_info.write.lkey = 0;
-	send_info.remote_addr = action->rewrite.chunk->mr_addr;
-	send_info.rkey = action->rewrite.chunk->rkey;
+	send_info.remote_addr = action->rewrite->chunk->mr_addr;
+	send_info.rkey = action->rewrite->chunk->rkey;
 
 	ret = dr_postsend_icm_data(dmn, &send_info);
 

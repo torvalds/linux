@@ -270,15 +270,14 @@ static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 {
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5_sf *sf;
-	u16 hw_fn_id;
 	int err;
 
 	sf = mlx5_sf_alloc(table, new_attr->sfnum, extack);
 	if (IS_ERR(sf))
 		return PTR_ERR(sf);
 
-	hw_fn_id = mlx5_sf_sw_to_hw_id(dev, sf->id);
-	err = mlx5_esw_offloads_sf_vport_enable(esw, &sf->dl_port, hw_fn_id, new_attr->sfnum);
+	err = mlx5_esw_offloads_sf_vport_enable(esw, &sf->dl_port, sf->hw_fn_id,
+						new_attr->sfnum);
 	if (err)
 		goto esw_err;
 	*new_port_index = sf->port_index;

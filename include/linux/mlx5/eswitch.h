@@ -152,8 +152,7 @@ mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw)
 };
 
 static inline u32
-mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
-					  int vport_num)
+mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	return 0;
 };
