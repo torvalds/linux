@@ -947,7 +947,7 @@ static void p4_pmu_enable_pebs(u64 config)
 	(void)wrmsrl_safe(MSR_P4_PEBS_MATRIX_VERT,	(u64)bind->metric_vert);
 }
 
-static void p4_pmu_enable_event(struct perf_event *event)
+static void __p4_pmu_enable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int thread = p4_ht_config_thread(hwc->config);
@@ -983,6 +983,16 @@ static void p4_pmu_enable_event(struct perf_event *event)
 				(cccr & ~P4_CCCR_RESERVED) | P4_CCCR_ENABLE);
 }
 
+static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(X86_PMC_IDX_MAX)], p4_running);
+
+static void p4_pmu_enable_event(struct perf_event *event)
+{
+	int idx = event->hw.idx;
+
+	__set_bit(idx, per_cpu(p4_running, smp_processor_id()));
+	__p4_pmu_enable_event(event);
+}
+
 static void p4_pmu_enable_all(int added)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -992,7 +1002,7 @@ static void p4_pmu_enable_all(int added)
 		struct perf_event *event = cpuc->events[idx];
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		p4_pmu_enable_event(event);
+		__p4_pmu_enable_event(event);
 	}
 }
 
@@ -1012,7 +1022,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 
 		if (!test_bit(idx, cpuc->active_mask)) {
 			/* catch in-flight IRQs */
-			if (__test_and_clear_bit(idx, cpuc->running))
+			if (__test_and_clear_bit(idx, per_cpu(p4_running, smp_processor_id())))
 				handled++;
 			continue;
 		}
