@@ -3694,7 +3694,7 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 	return ret_rate;
 }
 
-/**
+/*
  * Function:     UpdateRxPktTimeStamp
  * Overview:     Record the TSF time stamp when receiving a packet
  *
@@ -4294,7 +4294,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	rtl8192_record_rxdesc_forlateruse(pstats, &previous_stats);
 }
 
-/**
+/*
  * Function:	UpdateReceivedRateHistogramStatistics
  * Overview:	Record the received data rate
  *
