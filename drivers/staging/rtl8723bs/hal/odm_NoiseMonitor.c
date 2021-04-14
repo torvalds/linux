@@ -29,7 +29,7 @@ static s16 odm_InbandNoise_Monitor_NSeries(
 	u8 max_rf_path = 0, rf_path;
 	u8 reg_c50, reg_c58, valid_done = 0;
 	struct noise_level noise_data;
-	u32 start  = 0, func_start = 0, func_end = 0;
+	u32 start  = 0, func_start = 0;
 
 	func_start = jiffies;
 	pDM_Odm->noise_level.noise_all = 0;
@@ -149,12 +149,6 @@ static s16 odm_InbandNoise_Monitor_NSeries(
 	/*  */
 	if (bPauseDIG)
 		odm_PauseDIG(pDM_Odm, ODM_RESUME_DIG, IGIValue);
-
-	func_end = jiffies_to_msecs(jiffies - func_start);
-	/* printk("%s noise_a = %d, noise_b = %d noise_all:%d (%d ms)\n", __func__, */
-	/* pDM_Odm->noise_level.noise[ODM_RF_PATH_A], */
-	/* pDM_Odm->noise_level.noise[ODM_RF_PATH_B], */
-	/* pDM_Odm->noise_level.noise_all, func_end); */
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_DebugControlInbandNoise_Nseries() <==\n"));
 	return pDM_Odm->noise_level.noise_all;
