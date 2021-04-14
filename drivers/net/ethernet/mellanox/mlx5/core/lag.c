@@ -258,6 +258,10 @@ static void mlx5_lag_add_devices(struct mlx5_lag *ldev)
 		if (!ldev->pf[i].dev)
 			continue;
 
+		if (ldev->pf[i].dev->priv.flags &
+		    MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)
+			continue;
+
 		ldev->pf[i].dev->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
 		mlx5_rescan_drivers_locked(ldev->pf[i].dev);
 	}
@@ -286,8 +290,10 @@ static void mlx5_disable_lag(struct mlx5_lag *ldev)
 	roce_lag = __mlx5_lag_is_roce(ldev);
 
 	if (roce_lag) {
-		dev0->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
-		mlx5_rescan_drivers_locked(dev0);
+		if (!(dev0->priv.flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV)) {
+			dev0->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
+			mlx5_rescan_drivers_locked(dev0);
+		}
 		mlx5_nic_vport_disable_roce(dev1);
 	}
 
