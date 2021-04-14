@@ -178,7 +178,7 @@ struct intel_th_driver {
 	/* file_operations for those who want a device node */
 	const struct file_operations *fops;
 	/* optional attributes */
-	struct attribute_group	*attr_group;
+	const struct attribute_group *attr_group;
 
 	/* source ops */
 	int			(*set_output)(struct intel_th_device *thdev,
