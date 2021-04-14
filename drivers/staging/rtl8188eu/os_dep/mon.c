@@ -14,7 +14,7 @@
 #include <rtw_xmit.h>
 #include <mon.h>
 
-/**
+/*
  * unprotect_frame() - unset Protected flag and strip off IV and ICV/MIC
  */
 static void unprotect_frame(struct sk_buff *skb, int iv_len, int icv_len)
@@ -65,7 +65,7 @@ static void mon_recv_encrypted(struct net_device *dev, const u8 *data,
 		netdev_info(dev, "Encrypted packets are not supported");
 }
 
-/**
+/*
  * rtl88eu_mon_recv_hook() - forward received frame to the monitor interface
  *
  * Assumes that the frame contains an IV and an ICV/MIC, and that
@@ -96,7 +96,7 @@ void rtl88eu_mon_recv_hook(struct net_device *dev, struct recv_frame *frame)
 		mon_recv_encrypted(dev, data, data_len);
 }
 
-/**
+/*
  * rtl88eu_mon_xmit_hook() - forward trasmitted frame to the monitor interface
  *
  * Assumes that:
