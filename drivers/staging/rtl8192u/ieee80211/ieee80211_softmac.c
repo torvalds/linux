@@ -1911,8 +1911,11 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 		    ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATED &&
 		    ieee->iw_mode == IW_MODE_INFRA) {
-			struct ieee80211_network network_resp;
-			struct ieee80211_network *network = &network_resp;
+			struct ieee80211_network *network;
+
+			network = kzalloc(sizeof(*network), GFP_KERNEL);
+			if (!network)
+				return -ENOMEM;
 
 			errcode = assoc_parse(ieee, skb, &aid);
 			if (!errcode) {
@@ -1923,7 +1926,6 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				/* Let the register setting defaultly with Legacy station */
 				if (ieee->qos_support) {
 					assoc_resp = (struct ieee80211_assoc_response_frame *)skb->data;
-					memset(network, 0, sizeof(*network));
 					if (ieee80211_parse_info_param(ieee, assoc_resp->info_element,\
 								       rx_stats->len - sizeof(*assoc_resp), \
 								       network, rx_stats)) {
@@ -1949,6 +1951,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				else
 					ieee80211_associate_abort(ieee);
 			}
+			kfree(network);
 		}
 		break;
 
