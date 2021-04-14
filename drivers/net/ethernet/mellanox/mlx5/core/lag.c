@@ -276,6 +276,29 @@ static void mlx5_lag_remove_devices(struct mlx5_lag *ldev)
 	}
 }
 
+static void mlx5_disable_lag(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
+	bool roce_lag;
+	int err;
+
+	roce_lag = __mlx5_lag_is_roce(ldev);
+
+	if (roce_lag) {
+		dev0->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
+		mlx5_rescan_drivers_locked(dev0);
+		mlx5_nic_vport_disable_roce(dev1);
+	}
+
+	err = mlx5_deactivate_lag(ldev);
+	if (err)
+		return;
+
+	if (roce_lag)
+		mlx5_lag_add_devices(ldev);
+}
+
 static void mlx5_do_bond(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
@@ -322,20 +345,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	} else if (do_bond && __mlx5_lag_is_active(ldev)) {
 		mlx5_modify_lag(ldev, &tracker);
 	} else if (!do_bond && __mlx5_lag_is_active(ldev)) {
-		roce_lag = __mlx5_lag_is_roce(ldev);
-
-		if (roce_lag) {
-			dev0->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
-			mlx5_rescan_drivers_locked(dev0);
-			mlx5_nic_vport_disable_roce(dev1);
-		}
-
-		err = mlx5_deactivate_lag(ldev);
-		if (err)
-			return;
-
-		if (roce_lag)
-			mlx5_lag_add_devices(ldev);
+		mlx5_disable_lag(ldev);
 	}
 }
 
@@ -620,7 +630,7 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev)
 		return;
 
 	if (__mlx5_lag_is_active(ldev))
-		mlx5_deactivate_lag(ldev);
+		mlx5_disable_lag(ldev);
 
 	mlx5_lag_dev_remove_pf(ldev, dev);
 
