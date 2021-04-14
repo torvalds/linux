@@ -53,7 +53,8 @@ struct amdgpu_doorbell_index {
 	uint32_t gfx_ring0;
 	uint32_t gfx_ring1;
 	uint32_t sdma_engine[8];
-	uint32_t mes_ring;
+	uint32_t mes_ring0;
+	uint32_t mes_ring1;
 	uint32_t ih;
 	union {
 		struct {
@@ -178,7 +179,8 @@ typedef enum _AMDGPU_NAVI10_DOORBELL_ASSIGNMENT
 	AMDGPU_NAVI10_DOORBELL_USERQUEUE_END		= 0x08A,
 	AMDGPU_NAVI10_DOORBELL_GFX_RING0		= 0x08B,
 	AMDGPU_NAVI10_DOORBELL_GFX_RING1		= 0x08C,
-	AMDGPU_NAVI10_DOORBELL_MES_RING		        = 0x090,
+	AMDGPU_NAVI10_DOORBELL_MES_RING0	        = 0x090,
+	AMDGPU_NAVI10_DOORBELL_MES_RING1		= 0x091,
 	/* SDMA:256~335*/
 	AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0		= 0x100,
 	AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE1		= 0x10A,
