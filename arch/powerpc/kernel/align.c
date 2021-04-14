@@ -305,7 +305,7 @@ int fix_alignment(struct pt_regs *regs)
 	int r, type;
 
 	if (is_kernel_addr(regs->nip))
-		r = probe_kernel_read_inst(&instr, (void *)regs->nip);
+		r = copy_inst_from_kernel_nofault(&instr, (void *)regs->nip);
 	else
 		r = __get_user_instr(instr, (void __user *)regs->nip);
 

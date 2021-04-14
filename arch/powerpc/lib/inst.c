@@ -8,8 +8,7 @@
 #include <asm/inst.h>
 #include <asm/ppc-opcode.h>
 
-int probe_kernel_read_inst(struct ppc_inst *inst,
-			   struct ppc_inst *src)
+int copy_inst_from_kernel_nofault(struct ppc_inst *inst, struct ppc_inst *src)
 {
 	unsigned int val, suffix;
 	int err;
