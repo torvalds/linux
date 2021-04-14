@@ -18,6 +18,8 @@ char *CMD_ARGS[] = {"true", NULL};
 #define GET_PAGE_ADDR(ADDR, PAGE_SIZE)					\
 	(char *)(((unsigned long) (ADDR + PAGE_SIZE)) & ~(PAGE_SIZE-1))
 
+static int duration = 0;
+
 int stack_mprotect(void)
 {
 	void *buf;
@@ -51,23 +53,25 @@ int exec_cmd(int *monitored_pid)
 	return -EINVAL;
 }
 
-void test_test_lsm(void)
+static int test_lsm(struct lsm *skel)
 {
-	struct lsm *skel = NULL;
-	int err, duration = 0;
+	struct bpf_link *link;
 	int buf = 1234;
-
-	skel = lsm__open_and_load();
-	if (CHECK(!skel, "skel_load", "lsm skeleton failed\n"))
-		goto close_prog;
+	int err;
 
 	err = lsm__attach(skel);
 	if (CHECK(err, "attach", "lsm attach failed: %d\n", err))
-		goto close_prog;
+		return err;
+
+	/* Check that already linked program can't be attached again. */
+	link = bpf_program__attach(skel->progs.test_int_hook);
+	if (CHECK(!IS_ERR(link), "attach_link",
+		  "re-attach without detach should not succeed"))
+		return -1;
 
 	err = exec_cmd(&skel->bss->monitored_pid);
 	if (CHECK(err < 0, "exec_cmd", "err %d errno %d\n", err, errno))
-		goto close_prog;
+		return err;
 
 	CHECK(skel->bss->bprm_count != 1, "bprm_count", "bprm_count = %d\n",
 	      skel->bss->bprm_count);
@@ -77,7 +81,7 @@ void test_test_lsm(void)
 	err = stack_mprotect();
 	if (CHECK(errno != EPERM, "stack_mprotect", "want err=EPERM, got %d\n",
 		  errno))
-		goto close_prog;
+		return err;
 
 	CHECK(skel->bss->mprotect_count != 1, "mprotect_count",
 	      "mprotect_count = %d\n", skel->bss->mprotect_count);
@@ -88,6 +92,30 @@ void test_test_lsm(void)
 
 	CHECK(skel->bss->copy_test != 3, "copy_test",
 	      "copy_test = %d\n", skel->bss->copy_test);
+
+	lsm__detach(skel);
+
+	skel->bss->copy_test = 0;
+	skel->bss->bprm_count = 0;
+	skel->bss->mprotect_count = 0;
+	return 0;
+}
+
+void test_test_lsm(void)
+{
+	struct lsm *skel = NULL;
+	int err;
+
+	skel = lsm__open_and_load();
+	if (CHECK(!skel, "lsm_skel_load", "lsm skeleton failed\n"))
+		goto close_prog;
+
+	err = test_lsm(skel);
+	if (CHECK(err, "test_lsm", "first attach failed\n"))
+		goto close_prog;
+
+	err = test_lsm(skel);
+	CHECK(err, "test_lsm", "second attach failed\n");
 
 close_prog:
 	lsm__destroy(skel);
