@@ -3480,18 +3480,22 @@ static int __net_init xfrm_user_net_init(struct net *net)
 	return 0;
 }
 
+static void __net_exit xfrm_user_net_pre_exit(struct net *net)
+{
+	RCU_INIT_POINTER(net->xfrm.nlsk, NULL);
+}
+
 static void __net_exit xfrm_user_net_exit(struct list_head *net_exit_list)
 {
 	struct net *net;
-	list_for_each_entry(net, net_exit_list, exit_list)
-		RCU_INIT_POINTER(net->xfrm.nlsk, NULL);
-	synchronize_net();
+
 	list_for_each_entry(net, net_exit_list, exit_list)
 		netlink_kernel_release(net->xfrm.nlsk_stash);
 }
 
 static struct pernet_operations xfrm_user_net_ops = {
 	.init	    = xfrm_user_net_init,
+	.pre_exit   = xfrm_user_net_pre_exit,
 	.exit_batch = xfrm_user_net_exit,
 };
 
