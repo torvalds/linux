@@ -157,15 +157,17 @@ int typec_link_port(struct device *port)
 {
 	struct device *connector;
 	struct port_node *node;
-	int ret = 0;
+	int ret;
 
 	node = create_port_node(port);
 	if (IS_ERR(node))
 		return PTR_ERR(node);
 
 	connector = find_connector(node);
-	if (!connector)
+	if (!connector) {
+		ret = 0;
 		goto remove_node;
+	}
 
 	ret = link_port(to_typec_port(connector), node);
 	if (ret)
