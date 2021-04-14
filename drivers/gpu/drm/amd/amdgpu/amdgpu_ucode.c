@@ -711,6 +711,16 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(mes_hdr->mes_ucode_data_offset_bytes);
 			break;
+		case AMDGPU_UCODE_ID_CP_MES1:
+			ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(mes_hdr->mes_ucode_offset_bytes);
+			break;
+		case AMDGPU_UCODE_ID_CP_MES1_DATA:
+			ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_data_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(mes_hdr->mes_ucode_data_offset_bytes);
+			break;
 		case AMDGPU_UCODE_ID_DMCU_ERAM:
 			ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes) -
 				le32_to_cpu(dmcu_hdr->intv_size_bytes);
