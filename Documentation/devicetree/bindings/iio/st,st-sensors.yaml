@@ -75,6 +75,9 @@ properties:
           - st,lps331ap-press
           - st,lps33hw
           - st,lps35hw
+      - description: IMUs
+        enum:
+          - st,lsm9ds0-imu
       - description: Deprecated bindings
         enum:
           - st,lis302dl-spi
