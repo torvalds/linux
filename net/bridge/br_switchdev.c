@@ -114,12 +114,11 @@ br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 		.addr = fdb->key.addr.addr,
 		.vid = fdb->key.vlan_id,
 		.added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags),
+		.is_local = test_bit(BR_FDB_LOCAL, &fdb->flags),
 		.offloaded = test_bit(BR_FDB_OFFLOADED, &fdb->flags),
 	};
 
 	if (!fdb->dst)
-		return;
-	if (test_bit(BR_FDB_LOCAL, &fdb->flags))
 		return;
 
 	switch (type) {
