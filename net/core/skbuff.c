@@ -3773,13 +3773,13 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 	unsigned int tnl_hlen = skb_tnl_header_len(skb);
 	unsigned int delta_truesize = 0;
 	unsigned int delta_len = 0;
+	struct sk_buff *tail = NULL;
 	struct sk_buff *nskb, *tmp;
 	int err;
 
 	skb_push(skb, -skb_network_offset(skb) + offset);
 
 	skb_shinfo(skb)->frag_list = NULL;
-	skb->next = list_skb;
 
 	do {
 		nskb = list_skb;
@@ -3797,8 +3797,17 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 			}
 		}
 
-		if (unlikely(err))
+		if (!tail)
+			skb->next = nskb;
+		else
+			tail->next = nskb;
+
+		if (unlikely(err)) {
+			nskb->next = list_skb;
 			goto err_linearize;
+		}
+
+		tail = nskb;
 
 		delta_len += nskb->len;
 		delta_truesize += nskb->truesize;
@@ -3825,7 +3834,7 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 
 	skb_gso_reset(skb);
 
-	skb->prev = nskb;
+	skb->prev = tail;
 
 	if (skb_needs_linearize(skb, features) &&
 	    __skb_linearize(skb))
