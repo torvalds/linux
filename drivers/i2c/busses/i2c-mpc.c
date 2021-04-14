@@ -58,11 +58,35 @@
 #define CSR_MIF  0x02
 #define CSR_RXAK 0x01
 
+enum mpc_i2c_action {
+	MPC_I2C_ACTION_START = 1,
+	MPC_I2C_ACTION_RESTART,
+	MPC_I2C_ACTION_READ_BEGIN,
+	MPC_I2C_ACTION_READ_BYTE,
+	MPC_I2C_ACTION_WRITE,
+	MPC_I2C_ACTION_STOP,
+
+	__MPC_I2C_ACTION_CNT
+};
+
+static const char * const action_str[] = {
+	"invalid",
+	"start",
+	"restart",
+	"read begin",
+	"read",
+	"write",
+	"stop",
+};
+
+static_assert(ARRAY_SIZE(action_str) == __MPC_I2C_ACTION_CNT);
+
 struct mpc_i2c {
 	struct device *dev;
 	void __iomem *base;
 	u32 interrupt;
-	wait_queue_head_t queue;
+	wait_queue_head_t waitq;
+	spinlock_t lock;
 	struct i2c_adapter adap;
 	int irq;
 	u32 real_clk;
@@ -70,6 +94,16 @@ struct mpc_i2c {
 	u8 fdr, dfsrr;
 #endif
 	struct clk *clk_per;
+	u32 cntl_bits;
+	enum mpc_i2c_action action;
+	struct i2c_msg *msgs;
+	int num_msgs;
+	int curr_msg;
+	u32 byte_posn;
+	u32 block;
+	int rc;
+	int expect_rxack;
+
 };
 
 struct mpc_i2c_divider {
@@ -84,19 +118,6 @@ struct mpc_i2c_data {
 static inline void writeccr(struct mpc_i2c *i2c, u32 x)
 {
 	writeb(x, i2c->base + MPC_I2C_CR);
-}
-
-static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
-{
-	struct mpc_i2c *i2c = dev_id;
-	if (readb(i2c->base + MPC_I2C_SR) & CSR_MIF) {
-		/* Read again to allow register to stabilise */
-		i2c->interrupt = readb(i2c->base + MPC_I2C_SR);
-		writeb(0, i2c->base + MPC_I2C_SR);
-		wake_up(&i2c->queue);
-		return IRQ_HANDLED;
-	}
-	return IRQ_NONE;
 }
 
 /* Sometimes 9th clock pulse isn't generated, and slave doesn't release
@@ -119,45 +140,6 @@ static void mpc_i2c_fixup(struct mpc_i2c *i2c)
 		writeccr(i2c, CCR_MEN);
 		udelay(delay_val << 1);
 	}
-}
-
-static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
-{
-	u32 cmd_err;
-	int result;
-
-	result = wait_event_timeout(i2c->queue,
-			(i2c->interrupt & CSR_MIF), timeout);
-
-	if (unlikely(!(i2c->interrupt & CSR_MIF))) {
-		dev_dbg(i2c->dev, "wait timeout\n");
-		writeccr(i2c, 0);
-		result = -ETIMEDOUT;
-	}
-
-	cmd_err = i2c->interrupt;
-	i2c->interrupt = 0;
-
-	if (result < 0)
-		return result;
-
-	if (!(cmd_err & CSR_MCF)) {
-		dev_dbg(i2c->dev, "unfinished\n");
-		return -EIO;
-	}
-
-	if (cmd_err & CSR_MAL) {
-		dev_dbg(i2c->dev, "MAL\n");
-		return -EAGAIN;
-	}
-
-	if (writing && (cmd_err & CSR_RXAK)) {
-		dev_dbg(i2c->dev, "No RXAK\n");
-		/* generate stop */
-		writeccr(i2c, CCR_MEN);
-		return -ENXIO;
-	}
-	return 0;
 }
 
 #if defined(CONFIG_PPC_MPC52xx) || defined(CONFIG_PPC_MPC512x)
@@ -434,168 +416,209 @@ static void mpc_i2c_setup_8xxx(struct device_node *node,
 }
 #endif /* CONFIG_FSL_SOC */
 
-static void mpc_i2c_start(struct mpc_i2c *i2c)
+static void mpc_i2c_finish(struct mpc_i2c *i2c, int rc)
 {
-	/* Clear arbitration */
-	writeb(0, i2c->base + MPC_I2C_SR);
-	/* Start with MEN */
-	writeccr(i2c, CCR_MEN);
+	i2c->rc = rc;
+	i2c->block = 0;
+	i2c->cntl_bits = CCR_MEN;
+	writeccr(i2c, i2c->cntl_bits);
+	wake_up(&i2c->waitq);
 }
 
-static void mpc_i2c_stop(struct mpc_i2c *i2c)
+static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 {
-	writeccr(i2c, CCR_MEN);
-}
+	struct i2c_msg *msg = &i2c->msgs[i2c->curr_msg];
+	int dir = 0;
+	int recv_len = 0;
+	u8 byte;
 
-static int mpc_write(struct mpc_i2c *i2c, int target,
-		     const u8 *data, int length, int restart)
-{
-	int i, result;
-	unsigned timeout = i2c->adap.timeout;
-	u32 flags = restart ? CCR_RSTA : 0;
+	dev_dbg(i2c->dev, "action = %s\n", action_str[i2c->action]);
 
-	/* Start as master */
-	writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA | CCR_MTX | flags);
-	/* Write target byte */
-	writeb((target << 1), i2c->base + MPC_I2C_DR);
+	i2c->cntl_bits &= ~(CCR_RSTA | CCR_MTX | CCR_TXAK);
 
-	result = i2c_wait(i2c, timeout, 1);
-	if (result < 0)
-		return result;
+	if (msg->flags & I2C_M_RD)
+		dir = 1;
+	if (msg->flags & I2C_M_RECV_LEN)
+		recv_len = 1;
 
-	for (i = 0; i < length; i++) {
-		/* Write data byte */
-		writeb(data[i], i2c->base + MPC_I2C_DR);
+	switch (i2c->action) {
+	case MPC_I2C_ACTION_RESTART:
+		i2c->cntl_bits |= CCR_RSTA;
+		fallthrough;
 
-		result = i2c_wait(i2c, timeout, 1);
-		if (result < 0)
-			return result;
-	}
+	case MPC_I2C_ACTION_START:
+		i2c->cntl_bits |= CCR_MSTA | CCR_MTX;
+		writeccr(i2c, i2c->cntl_bits);
+		writeb((msg->addr << 1) | dir, i2c->base + MPC_I2C_DR);
+		i2c->expect_rxack = 1;
+		i2c->action = dir ? MPC_I2C_ACTION_READ_BEGIN : MPC_I2C_ACTION_WRITE;
+		break;
 
-	return 0;
-}
+	case MPC_I2C_ACTION_READ_BEGIN:
+		if (msg->len) {
+			if (msg->len == 1 && !(msg->flags & I2C_M_RECV_LEN))
+				i2c->cntl_bits |= CCR_TXAK;
 
-static int mpc_read(struct mpc_i2c *i2c, int target,
-		    u8 *data, int length, int restart, bool recv_len)
-{
-	unsigned timeout = i2c->adap.timeout;
-	int i, result;
-	u32 flags = restart ? CCR_RSTA : 0;
+			writeccr(i2c, i2c->cntl_bits);
+			/* Dummy read */
+			readb(i2c->base + MPC_I2C_DR);
+		}
+		i2c->action = MPC_I2C_ACTION_READ_BYTE;
+		break;
 
-	/* Switch to read - restart */
-	writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA | CCR_MTX | flags);
-	/* Write target address byte - this time with the read flag set */
-	writeb((target << 1) | 1, i2c->base + MPC_I2C_DR);
-
-	result = i2c_wait(i2c, timeout, 1);
-	if (result < 0)
-		return result;
-
-	if (length) {
-		if (length == 1 && !recv_len)
-			writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA | CCR_TXAK);
-		else
-			writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA);
-		/* Dummy read */
-		readb(i2c->base + MPC_I2C_DR);
-	}
-
-	for (i = 0; i < length; i++) {
-		u8 byte;
-
-		result = i2c_wait(i2c, timeout, 0);
-		if (result < 0)
-			return result;
-
-		/*
-		 * For block reads, we have to know the total length (1st byte)
-		 * before we can determine if we are done.
-		 */
-		if (i || !recv_len) {
-			/* Generate txack on next to last byte */
-			if (i == length - 2)
-				writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA
-					 | CCR_TXAK);
+	case MPC_I2C_ACTION_READ_BYTE:
+		if (i2c->byte_posn || !recv_len) {
+			/* Generate Tx ACK on next to last byte */
+			if (i2c->byte_posn == msg->len - 2)
+				i2c->cntl_bits |= CCR_TXAK;
 			/* Do not generate stop on last byte */
-			if (i == length - 1)
-				writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA
-					 | CCR_MTX);
+			if (i2c->byte_posn == msg->len - 1)
+				i2c->cntl_bits |= CCR_MTX;
+
+			writeccr(i2c, i2c->cntl_bits);
 		}
 
 		byte = readb(i2c->base + MPC_I2C_DR);
 
-		/*
-		 * Adjust length if first received byte is length.
-		 * The length is 1 length byte plus actually data length
-		 */
-		if (i == 0 && recv_len) {
-			if (byte == 0 || byte > I2C_SMBUS_BLOCK_MAX)
-				return -EPROTO;
-			length += byte;
+		if (i2c->byte_posn == 0 && recv_len) {
+			if (byte == 0 || byte > I2C_SMBUS_BLOCK_MAX) {
+				mpc_i2c_finish(i2c, -EPROTO);
+				return;
+			}
+			msg->len += byte;
 			/*
-			 * For block reads, generate txack here if data length
+			 * For block reads, generate Tx ACK here if data length
 			 * is 1 byte (total length is 2 bytes).
 			 */
-			if (length == 2)
-				writeccr(i2c, CCR_MIEN | CCR_MEN | CCR_MSTA
-					 | CCR_TXAK);
+			if (msg->len == 2) {
+				i2c->cntl_bits |= CCR_TXAK;
+				writeccr(i2c, i2c->cntl_bits);
+			}
 		}
-		data[i] = byte;
+
+		dev_dbg(i2c->dev, "%s %02x\n", action_str[i2c->action], byte);
+		msg->buf[i2c->byte_posn++] = byte;
+		break;
+
+	case MPC_I2C_ACTION_WRITE:
+		dev_dbg(i2c->dev, "%s %02x\n", action_str[i2c->action],
+			msg->buf[i2c->byte_posn]);
+		writeb(msg->buf[i2c->byte_posn++], i2c->base + MPC_I2C_DR);
+		i2c->expect_rxack = 1;
+		break;
+
+	case MPC_I2C_ACTION_STOP:
+		mpc_i2c_finish(i2c, 0);
+		break;
+
+	default:
+		WARN(1, "Unexpected action %d\n", i2c->action);
+		break;
 	}
 
-	return length;
+	if (msg->len == i2c->byte_posn) {
+		i2c->curr_msg++;
+		i2c->byte_posn = 0;
+
+		if (i2c->curr_msg == i2c->num_msgs) {
+			i2c->action = MPC_I2C_ACTION_STOP;
+			/*
+			 * We don't get another interrupt on read so
+			 * finish the transfer now
+			 */
+			if (dir)
+				mpc_i2c_finish(i2c, 0);
+		} else {
+			i2c->action = MPC_I2C_ACTION_RESTART;
+		}
+	}
 }
 
-static int mpc_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+static void mpc_i2c_do_intr(struct mpc_i2c *i2c, u8 status)
 {
-	struct i2c_msg *pmsg;
-	int i;
-	int ret = 0;
-	unsigned long orig_jiffies = jiffies;
-	struct mpc_i2c *i2c = i2c_get_adapdata(adap);
+	spin_lock(&i2c->lock);
 
-	mpc_i2c_start(i2c);
-
-	/* Allow bus up to 1s to become not busy */
-	while (readb(i2c->base + MPC_I2C_SR) & CSR_MBB) {
-		if (signal_pending(current)) {
-			dev_dbg(i2c->dev, "Interrupted\n");
-			writeccr(i2c, 0);
-			return -EINTR;
-		}
-		if (time_after(jiffies, orig_jiffies + HZ)) {
-			u8 status = readb(i2c->base + MPC_I2C_SR);
-
-			dev_dbg(i2c->dev, "timeout\n");
-			if ((status & (CSR_MCF | CSR_MBB | CSR_RXAK)) != 0) {
-				writeb(status & ~CSR_MAL,
-				       i2c->base + MPC_I2C_SR);
-				i2c_recover_bus(&i2c->adap);
-			}
-			return -EIO;
-		}
-		schedule();
+	if (!(status & CSR_MCF)) {
+		dev_dbg(i2c->dev, "unfinished\n");
+		mpc_i2c_finish(i2c, -EIO);
+		goto out;
 	}
 
-	for (i = 0; ret >= 0 && i < num; i++) {
-		pmsg = &msgs[i];
-		dev_dbg(i2c->dev,
-			"Doing %s %d bytes to 0x%02x - %d of %d messages\n",
-			pmsg->flags & I2C_M_RD ? "read" : "write",
-			pmsg->len, pmsg->addr, i + 1, num);
-		if (pmsg->flags & I2C_M_RD) {
-			bool recv_len = pmsg->flags & I2C_M_RECV_LEN;
-
-			ret = mpc_read(i2c, pmsg->addr, pmsg->buf, pmsg->len, i,
-				       recv_len);
-			if (recv_len && ret > 0)
-				pmsg->len = ret;
-		} else {
-			ret =
-			    mpc_write(i2c, pmsg->addr, pmsg->buf, pmsg->len, i);
-		}
+	if (status & CSR_MAL) {
+		dev_dbg(i2c->dev, "arbitration lost\n");
+		mpc_i2c_finish(i2c, -EAGAIN);
+		goto out;
 	}
-	mpc_i2c_stop(i2c); /* Initiate STOP */
+
+	if (i2c->expect_rxack && (status & CSR_RXAK)) {
+		dev_dbg(i2c->dev, "no Rx ACK\n");
+		mpc_i2c_finish(i2c, -ENXIO);
+		goto out;
+	}
+	i2c->expect_rxack = 0;
+
+	mpc_i2c_do_action(i2c);
+
+out:
+	spin_unlock(&i2c->lock);
+}
+
+static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
+{
+	struct mpc_i2c *i2c = dev_id;
+	u8 status;
+
+	status = readb(i2c->base + MPC_I2C_SR);
+	if (status & CSR_MIF) {
+		writeb(0, i2c->base + MPC_I2C_SR);
+		mpc_i2c_do_intr(i2c, status);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
+}
+
+static int mpc_i2c_wait_for_completion(struct mpc_i2c *i2c)
+{
+	long time_left;
+
+	time_left = wait_event_timeout(i2c->waitq, !i2c->block, i2c->adap.timeout);
+	if (!time_left)
+		return -ETIMEDOUT;
+	if (time_left < 0)
+		return time_left;
+
+	return 0;
+}
+
+static int mpc_i2c_execute_msg(struct mpc_i2c *i2c)
+{
+	unsigned long orig_jiffies;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&i2c->lock, flags);
+
+	i2c->curr_msg = 0;
+	i2c->rc = 0;
+	i2c->byte_posn = 0;
+	i2c->block = 1;
+	i2c->action = MPC_I2C_ACTION_START;
+
+	i2c->cntl_bits = CCR_MEN | CCR_MIEN;
+	writeb(0, i2c->base + MPC_I2C_SR);
+	writeccr(i2c, i2c->cntl_bits);
+
+	mpc_i2c_do_action(i2c);
+
+	spin_unlock_irqrestore(&i2c->lock, flags);
+
+	ret = mpc_i2c_wait_for_completion(i2c);
+	if (ret)
+		i2c->rc = ret;
+
+	if (i2c->rc == -EIO || i2c->rc == -EAGAIN || i2c->rc == -ETIMEDOUT)
+		i2c_recover_bus(&i2c->adap);
+
 	orig_jiffies = jiffies;
 	/* Wait until STOP is seen, allow up to 1 s */
 	while (readb(i2c->base + MPC_I2C_SR) & CSR_MBB) {
@@ -612,7 +635,35 @@ static int mpc_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		}
 		cond_resched();
 	}
-	return (ret < 0) ? ret : num;
+
+	return i2c->rc;
+}
+
+static int mpc_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+{
+	int rc, ret = num;
+	struct mpc_i2c *i2c = i2c_get_adapdata(adap);
+	int i;
+
+	dev_dbg(i2c->dev, "num = %d\n", num);
+	for (i = 0; i < num; i++)
+		dev_dbg(i2c->dev, "  addr = %02x, flags = %02x, len = %d, %*ph\n",
+			msgs[i].addr, msgs[i].flags, msgs[i].len,
+			msgs[i].flags & I2C_M_RD ? 0 : msgs[i].len,
+			msgs[i].buf);
+
+	WARN_ON(i2c->msgs != NULL);
+	i2c->msgs = msgs;
+	i2c->num_msgs = num;
+
+	rc = mpc_i2c_execute_msg(i2c);
+	if (rc < 0)
+		ret = rc;
+
+	i2c->num_msgs = 0;
+	i2c->msgs = NULL;
+
+	return ret;
 }
 
 static u32 mpc_functionality(struct i2c_adapter *adap)
@@ -667,7 +718,8 @@ static int fsl_i2c_probe(struct platform_device *op)
 
 	i2c->dev = &op->dev; /* for debug and error output */
 
-	init_waitqueue_head(&i2c->queue);
+	init_waitqueue_head(&i2c->waitq);
+	spin_lock_init(&i2c->lock);
 
 	i2c->base = devm_platform_ioremap_resource(op, 0);
 	if (IS_ERR(i2c->base)) {
