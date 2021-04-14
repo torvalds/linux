@@ -711,10 +711,8 @@ static int fsl_i2c_probe(struct platform_device *op)
 	spin_lock_init(&i2c->lock);
 
 	i2c->base = devm_platform_ioremap_resource(op, 0);
-	if (IS_ERR(i2c->base)) {
-		dev_err(i2c->dev, "failed to map controller\n");
+	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
-	}
 
 	i2c->irq = platform_get_irq(op, 0);
 	if (i2c->irq < 0)
