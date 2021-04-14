@@ -63,6 +63,7 @@ Hardware Monitoring Kernel Drivers
    f71805f
    f71882fg
    fam15h_power
+   fsp-3y
    ftsteutates
    g760a
    g762
