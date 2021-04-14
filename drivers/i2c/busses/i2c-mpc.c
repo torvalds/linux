@@ -14,6 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 #include <linux/clk.h>
@@ -689,10 +690,9 @@ static struct i2c_bus_recovery_info fsl_i2c_recovery_info = {
 	.recover_bus = fsl_i2c_bus_recovery,
 };
 
-static const struct of_device_id mpc_i2c_of_match[];
 static int fsl_i2c_probe(struct platform_device *op)
 {
-	const struct of_device_id *match;
+	const struct mpc_i2c_data *data;
 	struct mpc_i2c *i2c;
 	const u32 *prop;
 	u32 clock = MPC_I2C_CLOCK_LEGACY;
@@ -700,10 +700,6 @@ static int fsl_i2c_probe(struct platform_device *op)
 	int plen;
 	struct clk *clk;
 	int err;
-
-	match = of_match_device(mpc_i2c_of_match, &op->dev);
-	if (!match)
-		return -EINVAL;
 
 	i2c = devm_kzalloc(&op->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -756,8 +752,8 @@ static int fsl_i2c_probe(struct platform_device *op)
 			clock = *prop;
 	}
 
-	if (match->data) {
-		const struct mpc_i2c_data *data = match->data;
+	data = device_get_match_data(&op->dev);
+	if (data) {
 		data->setup(op->dev.of_node, i2c, clock);
 	} else {
 		/* Backwards compatibility */
