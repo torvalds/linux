@@ -31,6 +31,7 @@ properties:
               - mediatek,mt7623-nor
               - mediatek,mt7629-nor
               - mediatek,mt8192-nor
+              - mediatek,mt8195-nor
           - enum:
               - mediatek,mt8173-nor
       - items:
