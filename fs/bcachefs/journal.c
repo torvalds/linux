@@ -864,7 +864,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 
 		if (c && !new_fs)
 			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
-				bch2_trans_mark_metadata_bucket(&trans, NULL, ca,
+				bch2_trans_mark_metadata_bucket(&trans, ca,
 						bucket, BCH_DATA_journal,
 						ca->mi.bucket_size));
 

@@ -59,6 +59,11 @@ struct bch_dev_usage {
 	struct {
 		u64		buckets;
 		u64		sectors; /* _compressed_ sectors: */
+		/*
+		 * XXX
+		 * Why do we have this? Isn't it just buckets * bucket_size -
+		 * sectors?
+		 */
 		u64		fragmented;
 	}			d[BCH_DATA_NR];
 };

@@ -254,9 +254,9 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_alloc_unpacked u = bch2_alloc_unpack(k);
 
-	pr_buf(out, "gen %u oldest_gen %u data_type %u",
-	       u.gen, u.oldest_gen, u.data_type);
-#define x(_name, ...)	pr_buf(out, #_name " %llu ", (u64) u._name);
+	pr_buf(out, "gen %u oldest_gen %u data_type %s",
+	       u.gen, u.oldest_gen, bch2_data_types[u.data_type]);
+#define x(_name, ...)	pr_buf(out, " " #_name " %llu", (u64) u._name);
 	BCH_ALLOC_FIELDS_V2()
 #undef  x
 }

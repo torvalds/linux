@@ -1333,10 +1333,12 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * Write out the superblock and journal buckets, now that we can do
 	 * btree updates
 	 */
-	err = "error writing alloc info";
-	ret = bch2_alloc_write(c, 0);
-	if (ret)
-		goto err;
+	err = "error marking superblock and journal";
+	for_each_member_device(ca, c, i) {
+		ret = bch2_trans_mark_dev_sb(c, ca);
+		if (ret)
+			goto err;
+	}
 
 	bch2_inode_init(c, &root_inode, 0, 0,
 			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);

@@ -1670,7 +1670,7 @@ have_slot:
 	bch2_dev_usage_journal_reserve(c);
 
 	err = "error marking superblock";
-	ret = bch2_trans_mark_dev_sb(c, NULL, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca);
 	if (ret)
 		goto err_late;
 
@@ -1730,7 +1730,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	ca = bch_dev_locked(c, dev_idx);
 
-	if (bch2_trans_mark_dev_sb(c, NULL, ca)) {
+	if (bch2_trans_mark_dev_sb(c, ca)) {
 		err = "bch2_trans_mark_dev_sb() error";
 		goto err;
 	}
