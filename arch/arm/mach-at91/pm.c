@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/parser.h>
 #include <linux/suspend.h>
@@ -27,18 +28,23 @@
 #include "generic.h"
 #include "pm.h"
 
+#define BACKUP_DDR_PHY_CALIBRATION	(9)
+
 /**
  * struct at91_pm_bu - AT91 power management backup unit data structure
  * @suspended: true if suspended to backup mode
  * @reserved: reserved
  * @canary: canary data for memory checking after exit from backup mode
  * @resume: resume API
+ * @ddr_phy_calibration: DDR PHY calibration data: ZQ0CR0, first 8 words
+ * of the memory
  */
 struct at91_pm_bu {
 	int suspended;
 	unsigned long reserved;
 	phys_addr_t canary;
 	phys_addr_t resume;
+	unsigned long ddr_phy_calibration[BACKUP_DDR_PHY_CALIBRATION];
 };
 
 /**
@@ -48,6 +54,7 @@ struct at91_pm_bu {
  * @ws_ids: wakup sources of_device_id array
  * @data: PM data to be used on last phase of suspend
  * @bu: backup unit mapped data (for backup mode)
+ * @memcs: memory chip select
  */
 struct at91_soc_pm {
 	int (*config_shdwc_ws)(void __iomem *shdwc, u32 *mode, u32 *polarity);
@@ -55,6 +62,7 @@ struct at91_soc_pm {
 	const struct of_device_id *ws_ids;
 	struct at91_pm_bu *bu;
 	struct at91_pm_data data;
+	void *memcs;
 };
 
 /**
@@ -316,6 +324,19 @@ extern u32 at91_pm_suspend_in_sram_sz;
 
 static int at91_suspend_finish(unsigned long val)
 {
+	int i;
+
+	if (soc_pm.data.mode == AT91_PM_BACKUP && soc_pm.data.ramc_phy) {
+		/*
+		 * The 1st 8 words of memory might get corrupted in the process
+		 * of DDR PHY recalibration; it is saved here in securam and it
+		 * will be restored later, after recalibration, by bootloader
+		 */
+		for (i = 1; i < BACKUP_DDR_PHY_CALIBRATION; i++)
+			soc_pm.bu->ddr_phy_calibration[i] =
+				*((unsigned int *)soc_pm.memcs + (i - 1));
+	}
+
 	flush_cache_all();
 	outer_disable();
 
@@ -673,12 +694,40 @@ static bool __init at91_is_pm_mode_active(int pm_mode)
 		soc_pm.data.suspend_mode == pm_mode);
 }
 
+static int __init at91_pm_backup_scan_memcs(unsigned long node,
+					    const char *uname, int depth,
+					    void *data)
+{
+	const char *type;
+	const __be32 *reg;
+	int *located = data;
+	int size;
+
+	/* Memory node already located. */
+	if (*located)
+		return 0;
+
+	type = of_get_flat_dt_prop(node, "device_type", NULL);
+
+	/* We are scanning "memory" nodes only. */
+	if (!type || strcmp(type, "memory"))
+		return 0;
+
+	reg = of_get_flat_dt_prop(node, "reg", &size);
+	if (reg) {
+		soc_pm.memcs = __va((phys_addr_t)be32_to_cpu(*reg));
+		*located = 1;
+	}
+
+	return 0;
+}
+
 static int __init at91_pm_backup_init(void)
 {
 	struct gen_pool *sram_pool;
 	struct device_node *np;
 	struct platform_device *pdev;
-	int ret = -ENODEV;
+	int ret = -ENODEV, located = 0;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
 		return -EPERM;
@@ -713,6 +762,15 @@ static int __init at91_pm_backup_init(void)
 	soc_pm.bu->suspended = 0;
 	soc_pm.bu->canary = __pa_symbol(&canary);
 	soc_pm.bu->resume = __pa_symbol(cpu_resume);
+	if (soc_pm.data.ramc_phy) {
+		of_scan_flat_dt(at91_pm_backup_scan_memcs, &located);
+		if (!located)
+			goto securam_fail;
+
+		/* DDR3PHY_ZQ0SR0 */
+		soc_pm.bu->ddr_phy_calibration[0] = readl(soc_pm.data.ramc_phy +
+							  0x188);
+	}
 
 	return 0;
 
