@@ -316,11 +316,6 @@ static inline u32 dsi_read(struct dw_mipi_dsi_rockchip *dsi, u32 reg)
 	return readl(dsi->base + reg);
 }
 
-static inline void dsi_set(struct dw_mipi_dsi_rockchip *dsi, u32 reg, u32 mask)
-{
-	dsi_write(dsi, reg, dsi_read(dsi, reg) | mask);
-}
-
 static inline void dsi_update_bits(struct dw_mipi_dsi_rockchip *dsi, u32 reg,
 				   u32 mask, u32 val)
 {
