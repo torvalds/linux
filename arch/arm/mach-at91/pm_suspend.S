@@ -31,30 +31,36 @@ tmp3	.req	r6
 
 /*
  * Wait until master oscillator has stabilized.
+ *
+ * Side effects: overwrites r7
  */
 	.macro wait_moscrdy
-1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
-	tst	tmp1, #AT91_PMC_MOSCS
+1:	ldr	r7, [pmc, #AT91_PMC_SR]
+	tst	r7, #AT91_PMC_MOSCS
 	beq	1b
 	.endm
 
 /*
  * Wait for main oscillator selection is done
+ *
+ * Side effects: overwrites r7
  */
 	.macro wait_moscsels
-1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
-	tst	tmp1, #AT91_PMC_MOSCSELS
+1:	ldr	r7, [pmc, #AT91_PMC_SR]
+	tst	r7, #AT91_PMC_MOSCSELS
 	beq	1b
 	.endm
 
 /*
  * Put the processor to enter the idle state
+ *
+ * Side effects: overwrites r7
  */
 	.macro at91_cpu_idle
 
 #if defined(CONFIG_CPU_V7)
-	mov	tmp1, #AT91_PMC_PCK
-	str	tmp1, [pmc, #AT91_PMC_SCDR]
+	mov	r7, #AT91_PMC_PCK
+	str	r7, [pmc, #AT91_PMC_SCDR]
 
 	dsb
 
