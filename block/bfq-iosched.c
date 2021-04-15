@@ -5957,8 +5957,7 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	     bfqd->in_service_queue != NULL &&
 	     bfq_tot_busy_queues(bfqd) == 1 + bfq_bfqq_busy(bfqq) &&
 	     (bfqq->waker_bfqq == bfqd->in_service_queue ||
-	      bfqd->in_service_queue->waker_bfqq == bfqq)) ||
-	    at_head || blk_rq_is_passthrough(rq)) {
+	      bfqd->in_service_queue->waker_bfqq == bfqq)) || at_head) {
 		if (at_head)
 			list_add(&rq->queuelist, &bfqd->dispatch);
 		else
