@@ -659,7 +659,7 @@ static int __init at91_pm_backup_init(void)
 {
 	struct gen_pool *sram_pool;
 	struct device_node *np;
-	struct platform_device *pdev = NULL;
+	struct platform_device *pdev;
 	int ret = -ENODEV;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
