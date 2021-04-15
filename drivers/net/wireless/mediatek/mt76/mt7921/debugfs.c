@@ -9,9 +9,12 @@ mt7921_fw_debug_set(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
 
-	dev->fw_debug = (u8)val;
+	mt7921_mutex_acquire(dev);
 
+	dev->fw_debug = (u8)val;
 	mt7921_mcu_fw_log_2_host(dev, dev->fw_debug);
+
+	mt7921_mutex_release(dev);
 
 	return 0;
 }
