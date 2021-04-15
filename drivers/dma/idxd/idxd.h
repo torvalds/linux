@@ -178,9 +178,17 @@ struct idxd_dma_dev {
 	struct dma_device dma;
 };
 
-struct idxd_device {
+struct idxd_driver_data {
+	const char *name_prefix;
 	enum idxd_type type;
+	struct device_type *dev_type;
+	int compl_size;
+	int align;
+};
+
+struct idxd_device {
 	struct device conf_dev;
+	struct idxd_driver_data *data;
 	struct list_head list;
 	struct idxd_hw hw;
 	enum idxd_device_state state;
@@ -218,7 +226,6 @@ struct idxd_device {
 	int token_limit;
 	int nr_tokens;		/* non-reserved tokens */
 	unsigned int wqcfg_size;
-	int compl_size;
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;
@@ -347,14 +354,12 @@ static inline int idxd_wq_refcount(struct idxd_wq *wq)
 	return wq->client_count;
 };
 
-const char *idxd_get_dev_name(struct idxd_device *idxd);
 int idxd_register_bus_type(void);
 void idxd_unregister_bus_type(void);
 int idxd_register_devices(struct idxd_device *idxd);
 void idxd_unregister_devices(struct idxd_device *idxd);
 int idxd_register_driver(void);
 void idxd_unregister_driver(void);
-struct device_type *idxd_get_device_type(struct idxd_device *idxd);
 
 /* device interrupt control */
 void idxd_msix_perm_setup(struct idxd_device *idxd);

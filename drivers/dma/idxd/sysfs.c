@@ -310,16 +310,6 @@ static struct idxd_device_driver dsa_drv = {
 	},
 };
 
-struct device_type *idxd_get_device_type(struct idxd_device *idxd)
-{
-	if (idxd->type == IDXD_TYPE_DSA)
-		return &dsa_device_type;
-	else if (idxd->type == IDXD_TYPE_IAX)
-		return &iax_device_type;
-	else
-		return NULL;
-}
-
 /* IDXD generic driver setup */
 int idxd_register_driver(void)
 {
@@ -453,7 +443,7 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (rc < 0)
 		return -EINVAL;
 
-	if (idxd->type == IDXD_TYPE_IAX)
+	if (idxd->data->type == IDXD_TYPE_IAX)
 		return -EOPNOTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
@@ -501,7 +491,7 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 	if (rc < 0)
 		return -EINVAL;
 
-	if (idxd->type == IDXD_TYPE_IAX)
+	if (idxd->data->type == IDXD_TYPE_IAX)
 		return -EOPNOTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
@@ -546,7 +536,7 @@ static ssize_t group_use_token_limit_store(struct device *dev,
 	if (rc < 0)
 		return -EINVAL;
 
-	if (idxd->type == IDXD_TYPE_IAX)
+	if (idxd->data->type == IDXD_TYPE_IAX)
 		return -EOPNOTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))

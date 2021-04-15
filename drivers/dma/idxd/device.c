@@ -144,14 +144,8 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (rc < 0)
 		return rc;
 
-	if (idxd->type == IDXD_TYPE_DSA)
-		align = 32;
-	else if (idxd->type == IDXD_TYPE_IAX)
-		align = 64;
-	else
-		return -ENODEV;
-
-	wq->compls_size = num_descs * idxd->compl_size + align;
+	align = idxd->data->align;
+	wq->compls_size = num_descs * idxd->data->compl_size + align;
 	wq->compls_raw = dma_alloc_coherent(dev, wq->compls_size,
 					    &wq->compls_addr_raw, GFP_KERNEL);
 	if (!wq->compls_raw) {
@@ -178,11 +172,11 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 		struct idxd_desc *desc = wq->descs[i];
 
 		desc->hw = wq->hw_descs[i];
-		if (idxd->type == IDXD_TYPE_DSA)
+		if (idxd->data->type == IDXD_TYPE_DSA)
 			desc->completion = &wq->compls[i];
-		else if (idxd->type == IDXD_TYPE_IAX)
+		else if (idxd->data->type == IDXD_TYPE_IAX)
 			desc->iax_completion = &wq->iax_compls[i];
-		desc->compl_dma = wq->compls_addr + idxd->compl_size * i;
+		desc->compl_dma = wq->compls_addr + idxd->data->compl_size * i;
 		desc->id = i;
 		desc->wq = wq;
 		desc->cpu = -1;

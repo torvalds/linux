@@ -35,25 +35,32 @@ MODULE_PARM_DESC(sva, "Toggle SVA support on/off");
 bool support_enqcmd;
 DEFINE_IDA(idxd_ida);
 
+static struct idxd_driver_data idxd_driver_data[] = {
+	[IDXD_TYPE_DSA] = {
+		.name_prefix = "dsa",
+		.type = IDXD_TYPE_DSA,
+		.compl_size = sizeof(struct dsa_completion_record),
+		.align = 32,
+		.dev_type = &dsa_device_type,
+	},
+	[IDXD_TYPE_IAX] = {
+		.name_prefix = "iax",
+		.type = IDXD_TYPE_IAX,
+		.compl_size = sizeof(struct iax_completion_record),
+		.align = 64,
+		.dev_type = &iax_device_type,
+	},
+};
+
 static struct pci_device_id idxd_pci_tbl[] = {
 	/* DSA ver 1.0 platforms */
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_DSA_SPR0) },
+	{ PCI_DEVICE_DATA(INTEL, DSA_SPR0, &idxd_driver_data[IDXD_TYPE_DSA]) },
 
 	/* IAX ver 1.0 platforms */
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IAX_SPR0) },
+	{ PCI_DEVICE_DATA(INTEL, IAX_SPR0, &idxd_driver_data[IDXD_TYPE_IAX]) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, idxd_pci_tbl);
-
-static char *idxd_name[] = {
-	"dsa",
-	"iax"
-};
-
-const char *idxd_get_dev_name(struct idxd_device *idxd)
-{
-	return idxd_name[idxd->type];
-}
 
 static int idxd_setup_interrupts(struct idxd_device *idxd)
 {
@@ -379,19 +386,7 @@ static void idxd_read_caps(struct idxd_device *idxd)
 	}
 }
 
-static inline void idxd_set_type(struct idxd_device *idxd)
-{
-	struct pci_dev *pdev = idxd->pdev;
-
-	if (pdev->device == PCI_DEVICE_ID_INTEL_DSA_SPR0)
-		idxd->type = IDXD_TYPE_DSA;
-	else if (pdev->device == PCI_DEVICE_ID_INTEL_IAX_SPR0)
-		idxd->type = IDXD_TYPE_IAX;
-	else
-		idxd->type = IDXD_TYPE_UNKNOWN;
-}
-
-static struct idxd_device *idxd_alloc(struct pci_dev *pdev)
+static struct idxd_device *idxd_alloc(struct pci_dev *pdev, struct idxd_driver_data *data)
 {
 	struct device *dev = &pdev->dev;
 	struct idxd_device *idxd;
@@ -402,7 +397,7 @@ static struct idxd_device *idxd_alloc(struct pci_dev *pdev)
 		return NULL;
 
 	idxd->pdev = pdev;
-	idxd_set_type(idxd);
+	idxd->data = data;
 	idxd->id = ida_alloc(&idxd_ida, GFP_KERNEL);
 	if (idxd->id < 0)
 		return NULL;
@@ -410,8 +405,8 @@ static struct idxd_device *idxd_alloc(struct pci_dev *pdev)
 	device_initialize(&idxd->conf_dev);
 	idxd->conf_dev.parent = dev;
 	idxd->conf_dev.bus = &dsa_bus_type;
-	idxd->conf_dev.type = idxd_get_device_type(idxd);
-	rc = dev_set_name(&idxd->conf_dev, "%s%d", idxd_get_dev_name(idxd), idxd->id);
+	idxd->conf_dev.type = idxd->data->dev_type;
+	rc = dev_set_name(&idxd->conf_dev, "%s%d", idxd->data->name_prefix, idxd->id);
 	if (rc < 0) {
 		put_device(&idxd->conf_dev);
 		return NULL;
@@ -503,18 +498,11 @@ static int idxd_probe(struct idxd_device *idxd)
 	return rc;
 }
 
-static void idxd_type_init(struct idxd_device *idxd)
-{
-	if (idxd->type == IDXD_TYPE_DSA)
-		idxd->compl_size = sizeof(struct dsa_completion_record);
-	else if (idxd->type == IDXD_TYPE_IAX)
-		idxd->compl_size = sizeof(struct iax_completion_record);
-}
-
 static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
 	struct idxd_device *idxd;
+	struct idxd_driver_data *data = (struct idxd_driver_data *)id->driver_data;
 	int rc;
 
 	rc = pci_enable_device(pdev);
@@ -522,7 +510,7 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 
 	dev_dbg(dev, "Alloc IDXD context\n");
-	idxd = idxd_alloc(pdev);
+	idxd = idxd_alloc(pdev, data);
 	if (!idxd) {
 		rc = -ENOMEM;
 		goto err_idxd_alloc;
@@ -547,9 +535,6 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc)
 		goto err;
-
-
-	idxd_type_init(idxd);
 
 	dev_dbg(dev, "Set PCI master\n");
 	pci_set_master(pdev);
