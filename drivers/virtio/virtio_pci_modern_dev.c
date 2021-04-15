@@ -16,11 +16,10 @@
  *
  * Returns the io address of for the part of the capability
  */
-void __iomem *vp_modern_map_capability(struct virtio_pci_modern_device *mdev, int off,
-				       size_t minlen,
-				       u32 align,
-				       u32 start, u32 size,
-				       size_t *len)
+static void __iomem *
+vp_modern_map_capability(struct virtio_pci_modern_device *mdev, int off,
+			 size_t minlen, u32 align, u32 start, u32 size,
+			 size_t *len)
 {
 	struct pci_dev *dev = mdev->pci_dev;
 	u8 bar;
@@ -90,7 +89,6 @@ void __iomem *vp_modern_map_capability(struct virtio_pci_modern_device *mdev, in
 			length, offset, bar);
 	return p;
 }
-EXPORT_SYMBOL_GPL(vp_modern_map_capability);
 
 /**
  * virtio_pci_find_capability - walk capabilities to find device info.
