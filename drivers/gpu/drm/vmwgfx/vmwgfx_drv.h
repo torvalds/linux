@@ -1116,10 +1116,29 @@ extern void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
  * Kernel framebuffer - vmwgfx_fb.c
  */
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 int vmw_fb_init(struct vmw_private *vmw_priv);
 int vmw_fb_close(struct vmw_private *dev_priv);
 int vmw_fb_off(struct vmw_private *vmw_priv);
 int vmw_fb_on(struct vmw_private *vmw_priv);
+#else
+static inline int vmw_fb_init(struct vmw_private *vmw_priv)
+{
+	return 0;
+}
+static inline int vmw_fb_close(struct vmw_private *dev_priv)
+{
+	return 0;
+}
+static inline int vmw_fb_off(struct vmw_private *vmw_priv)
+{
+	return 0;
+}
+static inline int vmw_fb_on(struct vmw_private *vmw_priv)
+{
+	return 0;
+}
+#endif
 
 /**
  * Kernel modesetting - vmwgfx_kms.c
