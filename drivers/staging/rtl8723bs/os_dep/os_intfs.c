@@ -1142,8 +1142,8 @@ static void rtw_suspend_normal(struct adapter *padapter)
 
 	if ((rtw_hal_check_ips_status(padapter)) || (adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off))
 		netdev_dbg(padapter->pnetdev,
-		           "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n",
-		           __func__);
+			   "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n",
+			   __func__);
 
 	rtw_dev_unload(padapter);
 
