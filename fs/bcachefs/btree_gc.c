@@ -828,7 +828,7 @@ static int bch2_gc_done(struct bch_fs *c,
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
 		if (verify)						\
 			fsck_err(c, "bucket %u:%zu gen %u data type %s has wrong " #_f	\
-				": got %u, should be %u", i, b,		\
+				": got %u, should be %u", dev, b,	\
 				dst->b[b].mark.gen,			\
 				bch2_data_types[dst->b[b].mark.data_type],\
 				dst->b[b].mark._f, src->b[b].mark._f);	\
@@ -836,7 +836,7 @@ static int bch2_gc_done(struct bch_fs *c,
 		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_dev_field(_f, _msg, ...)					\
-	copy_field(_f, "dev %u has wrong " _msg, i, ##__VA_ARGS__)
+	copy_field(_f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
 #define copy_fs_field(_f, _msg, ...)					\
 	copy_field(_f, "fs has wrong " _msg, ##__VA_ARGS__)
 
