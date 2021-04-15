@@ -653,7 +653,7 @@ static long ioctl_create_file(struct file *file,
 	/* Initializing a newly created file. */
 	error = init_new_file(mi, index_file_dentry, &args.file_id, args.size,
 			      range(attr_value, args.file_attr_len),
-			      (u8 __user *)args.signature_info,
+			      u64_to_user_ptr(args.signature_info),
 			      args.signature_size);
 	if (error)
 		goto out;
