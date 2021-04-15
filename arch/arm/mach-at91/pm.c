@@ -152,6 +152,17 @@ static const struct of_device_id sam9x60_ws_ids[] = {
 	{ /* sentinel */ }
 };
 
+static const struct of_device_id sama7g5_ws_ids[] = {
+	{ .compatible = "atmel,at91sam9x5-rtc",		.data = &ws_info[1] },
+	{ .compatible = "microchip,sama7g5-ohci",	.data = &ws_info[2] },
+	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
+	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
+	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
+	{ .compatible = "microchip,sama7g5-sdhci",	.data = &ws_info[3] },
+	{ .compatible = "atmel,at91sam9260-rtt",	.data = &ws_info[4] },
+	{ /* sentinel */ }
+};
+
 static int at91_pm_config_ws(unsigned int pm_mode, bool set)
 {
 	const struct wakeup_source_info *wsi;
@@ -1101,6 +1112,32 @@ void __init sama5d2_pm_init(void)
 	soc_pm.ws_ids = sama5d2_ws_ids;
 	soc_pm.config_shdwc_ws = at91_sama5d2_config_shdwc_ws;
 	soc_pm.config_pmc_ws = at91_sama5d2_config_pmc_ws;
+}
+
+void __init sama7_pm_init(void)
+{
+	static const int modes[] __initconst = {
+		AT91_PM_STANDBY, AT91_PM_ULP0, AT91_PM_ULP1, AT91_PM_BACKUP,
+	};
+	static const u32 iomaps[] __initconst = {
+		[AT91_PM_ULP0]		= AT91_PM_IOMAP(SFRBU),
+		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SFRBU) |
+					  AT91_PM_IOMAP(SHDWC),
+		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SFRBU) |
+					  AT91_PM_IOMAP(SHDWC),
+	};
+
+	if (!IS_ENABLED(CONFIG_SOC_SAMA7))
+		return;
+
+	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
+
+	at91_dt_ramc(true);
+	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
+	at91_pm_init(NULL);
+
+	soc_pm.ws_ids = sama7g5_ws_ids;
+	soc_pm.config_pmc_ws = at91_sam9x60_config_pmc_ws;
 }
 
 static int __init at91_pm_modes_select(char *str)
