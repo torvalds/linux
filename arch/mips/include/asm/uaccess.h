@@ -614,8 +614,8 @@ static inline long strnlen_user(const char __user *s, long n)
 {
 	long res;
 
-	if (!access_ok(s, n))
-		return -0;
+	if (!access_ok(s, 1))
+		return 0;
 
 	might_fault();
 	__asm__ __volatile__(
