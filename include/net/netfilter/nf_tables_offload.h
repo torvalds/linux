@@ -74,6 +74,7 @@ void nft_flow_rule_set_addr_type(struct nft_flow_rule *flow,
 
 struct nft_rule;
 struct nft_flow_rule *nft_flow_rule_create(struct net *net, const struct nft_rule *rule);
+int nft_flow_rule_stats(const struct nft_chain *chain, const struct nft_rule *rule);
 void nft_flow_rule_destroy(struct nft_flow_rule *flow);
 int nft_flow_rule_offload_commit(struct net *net);
 
