@@ -2880,6 +2880,28 @@ static int hclge_get_mac_phy_link(struct hclge_dev *hdev, int *link_status)
 	return hclge_get_mac_link_status(hdev, link_status);
 }
 
+static void hclge_push_link_status(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport;
+	int ret;
+	u16 i;
+
+	for (i = 0; i < pci_num_vf(hdev->pdev); i++) {
+		vport = &hdev->vport[i + HCLGE_VF_VPORT_START_NUM];
+
+		if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state) ||
+		    vport->vf_info.link_state != IFLA_VF_LINK_STATE_AUTO)
+			continue;
+
+		ret = hclge_push_vf_link_status(vport);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"failed to push link status to vf%u, ret = %d\n",
+				i, ret);
+		}
+	}
+}
+
 static void hclge_update_link_status(struct hclge_dev *hdev)
 {
 	struct hnae3_handle *rhandle = &hdev->vport[0].roce;
@@ -2908,6 +2930,7 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 			rclient->ops->link_status_change(rhandle, state);
 
 		hdev->hw.mac.link = state;
+		hclge_push_link_status(hdev);
 	}
 
 	clear_bit(HCLGE_STATE_LINK_UPDATING, &hdev->state);
@@ -3246,14 +3269,24 @@ static int hclge_set_vf_link_state(struct hnae3_handle *handle, int vf,
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	int link_state_old;
+	int ret;
 
 	vport = hclge_get_vf_vport(hdev, vf);
 	if (!vport)
 		return -EINVAL;
 
+	link_state_old = vport->vf_info.link_state;
 	vport->vf_info.link_state = link_state;
 
-	return 0;
+	ret = hclge_push_vf_link_status(vport);
+	if (ret) {
+		vport->vf_info.link_state = link_state_old;
+		dev_err(&hdev->pdev->dev,
+			"failed to push vf%d link status, ret = %d\n", vf, ret);
+	}
+
+	return ret;
 }
 
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)

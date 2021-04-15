@@ -490,16 +490,14 @@ static void hclge_get_vf_media_type(struct hclge_vport *vport,
 	resp_msg->len = HCLGE_VF_MEDIA_TYPE_LENGTH;
 }
 
-static int hclge_get_link_info(struct hclge_vport *vport,
-			       struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+int hclge_push_vf_link_status(struct hclge_vport *vport)
 {
 #define HCLGE_VF_LINK_STATE_UP		1U
 #define HCLGE_VF_LINK_STATE_DOWN	0U
 
 	struct hclge_dev *hdev = vport->back;
 	u16 link_status;
-	u8 msg_data[8];
-	u8 dest_vfid;
+	u8 msg_data[9];
 	u16 duplex;
 
 	/* mac.link can only be 0 or 1 */
@@ -520,11 +518,11 @@ static int hclge_get_link_info(struct hclge_vport *vport,
 	memcpy(&msg_data[0], &link_status, sizeof(u16));
 	memcpy(&msg_data[2], &hdev->hw.mac.speed, sizeof(u32));
 	memcpy(&msg_data[6], &duplex, sizeof(u16));
-	dest_vfid = mbx_req->mbx_src_vfid;
+	msg_data[8] = HCLGE_MBX_PUSH_LINK_STATUS_EN;
 
 	/* send this requested info to VF */
 	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
-				  HCLGE_MBX_LINK_STAT_CHANGE, dest_vfid);
+				  HCLGE_MBX_LINK_STAT_CHANGE, vport->vport_id);
 }
 
 static void hclge_get_link_mode(struct hclge_vport *vport,
@@ -794,7 +792,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			hclge_get_vf_tcinfo(vport, &resp_msg);
 			break;
 		case HCLGE_MBX_GET_LINK_STATUS:
-			ret = hclge_get_link_info(vport, req);
+			ret = hclge_push_vf_link_status(vport);
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"failed to inform link stat to VF, ret = %d\n",
