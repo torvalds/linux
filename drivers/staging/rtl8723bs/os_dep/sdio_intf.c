@@ -487,10 +487,6 @@ static int __init rtw_drv_entry(void)
 {
 	int ret;
 
-#ifdef BTCOEXVERSION
-#endif /*  BTCOEXVERSION */
-
-
 	ret = sdio_register_driver(&rtl8723bs_sdio_driver);
 	if (ret != 0)
 		rtw_ndev_notifier_unregister();
