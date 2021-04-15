@@ -2957,6 +2957,22 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 		break;
 	}
 
+	switch (dpcd_test_params.bits.CLR_FORMAT) {
+	case 0:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
+		break;
+	case 1:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_YCBCR422;
+		break;
+	case 2:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_YCBCR444;
+		break;
+	default:
+		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
+		break;
+	}
+
+
 	if (requestColorDepth != COLOR_DEPTH_UNDEFINED
 			&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth) {
 		DC_LOG_DEBUG("%s: original bpc %d, changing to %d\n",
@@ -2964,8 +2980,9 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 				pipe_ctx->stream->timing.display_color_depth,
 				requestColorDepth);
 		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
-		dp_update_dsc_config(pipe_ctx);
 	}
+
+	dp_update_dsc_config(pipe_ctx);
 
 	dc_link_dp_set_test_pattern(
 			link,
