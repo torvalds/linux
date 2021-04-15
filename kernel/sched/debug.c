@@ -275,7 +275,7 @@ static const struct file_operations sched_dynamic_fops = {
 
 #endif /* CONFIG_PREEMPT_DYNAMIC */
 
-__read_mostly bool sched_debug_enabled;
+__read_mostly bool sched_debug_verbose;
 
 static const struct seq_operations sched_debug_sops;
 
@@ -300,7 +300,7 @@ static __init int sched_init_debug(void)
 	debugfs_sched = debugfs_create_dir("sched", NULL);
 
 	debugfs_create_file("features", 0644, debugfs_sched, NULL, &sched_feat_fops);
-	debugfs_create_bool("debug_enabled", 0644, debugfs_sched, &sched_debug_enabled);
+	debugfs_create_bool("verbose", 0644, debugfs_sched, &sched_debug_verbose);
 #ifdef CONFIG_PREEMPT_DYNAMIC
 	debugfs_create_file("preempt", 0644, debugfs_sched, NULL, &sched_dynamic_fops);
 #endif

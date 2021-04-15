@@ -74,8 +74,8 @@ for a given topology level by creating a sched_domain_topology_level array and
 calling set_sched_topology() with this array as the parameter.
 
 The sched-domains debugging infrastructure can be enabled by enabling
-CONFIG_SCHED_DEBUG and adding 'sched_debug' to your cmdline. If you forgot to
-tweak your cmdline, you can also flip the /sys/kernel/debug/sched_debug
-knob. This enables an error checking parse of the sched domains which should
-catch most possible errors (described above). It also prints out the domain
-structure in a visual format.
+CONFIG_SCHED_DEBUG and adding 'sched_debug_verbose' to your cmdline. If you
+forgot to tweak your cmdline, you can also flip the
+/sys/kernel/debug/sched/verbose knob. This enables an error checking parse of
+the sched domains which should catch most possible errors (described above). It
+also prints out the domain structure in a visual format.
