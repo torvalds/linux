@@ -2010,12 +2010,11 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * we will send the complete record again.
 	 */
 
+	spin_lock_irqsave(&tx_ctx->base.lock, flags);
+
 	do {
-		int i;
 
 		cxgb4_reclaim_completed_tx(adap, &q->q, true);
-		/* lock taken */
-		spin_lock_irqsave(&tx_ctx->base.lock, flags);
 		/* fetch the tls record */
 		record = tls_get_record(&tx_ctx->base, tcp_seq,
 					&tx_info->record_no);
@@ -2074,11 +2073,11 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 						    tls_end_offset, skb_offset,
 						    0);
 
-			spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
 			if (ret) {
 				/* free the refcount taken earlier */
 				if (tls_end_offset < data_len)
 					dev_kfree_skb_any(skb);
+				spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
 				goto out;
 			}
 
@@ -2087,16 +2086,6 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_offset += tls_end_offset;
 			continue;
 		}
-
-		/* increase page reference count of the record, so that there
-		 * won't be any chance of page free in middle if in case stack
-		 * receives ACK and try to delete the record.
-		 */
-		for (i = 0; i < record->num_frags; i++)
-			__skb_frag_ref(&record->frags[i]);
-		/* lock cleared */
-		spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
-
 
 		/* if a tls record is finishing in this SKB */
 		if (tls_end_offset <= data_len) {
@@ -2122,13 +2111,9 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 			data_len = 0;
 		}
 
-		/* clear the frag ref count which increased locally before */
-		for (i = 0; i < record->num_frags; i++) {
-			/* clear the frag ref count */
-			__skb_frag_unref(&record->frags[i]);
-		}
 		/* if any failure, come out from the loop. */
 		if (ret) {
+			spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
 			if (th->fin)
 				dev_kfree_skb_any(skb);
 
@@ -2143,6 +2128,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	} while (data_len > 0);
 
+	spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
 	atomic64_inc(&port_stats->ktls_tx_encrypted_packets);
 	atomic64_add(skb_data_len, &port_stats->ktls_tx_encrypted_bytes);
 
