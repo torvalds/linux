@@ -14,6 +14,9 @@
 
 extern struct kmem_cache *idxd_desc_pool;
 
+struct idxd_device;
+struct idxd_wq;
+
 #define IDXD_REG_TIMEOUT	50
 #define IDXD_DRAIN_TIMEOUT	5000
 
@@ -88,6 +91,11 @@ enum idxd_complete_type {
 	IDXD_COMPLETE_ABORT,
 };
 
+struct idxd_dma_chan {
+	struct dma_chan chan;
+	struct idxd_wq *wq;
+};
+
 struct idxd_wq {
 	void __iomem *dportal;
 	struct device conf_dev;
@@ -112,7 +120,7 @@ struct idxd_wq {
 	int compls_size;
 	struct idxd_desc **descs;
 	struct sbitmap_queue sbq;
-	struct dma_chan dma_chan;
+	struct idxd_dma_chan *idxd_chan;
 	char name[WQ_NAME_SIZE + 1];
 	u64 max_xfer_bytes;
 	u32 max_batch_size;
@@ -145,6 +153,11 @@ enum idxd_device_state {
 enum idxd_device_flag {
 	IDXD_FLAG_CONFIGURABLE = 0,
 	IDXD_FLAG_CMD_RUNNING,
+};
+
+struct idxd_dma_dev {
+	struct idxd_device *idxd;
+	struct dma_device dma;
 };
 
 struct idxd_device {
@@ -191,7 +204,7 @@ struct idxd_device {
 	int num_wq_irqs;
 	struct idxd_irq_entry *irq_entries;
 
-	struct dma_device dma_dev;
+	struct idxd_dma_dev *idxd_dma;
 	struct workqueue_struct *wq;
 	struct work_struct work;
 };
@@ -313,7 +326,6 @@ void idxd_unregister_dma_channel(struct idxd_wq *wq);
 void idxd_parse_completion_status(u8 status, enum dmaengine_tx_result *res);
 void idxd_dma_complete_txd(struct idxd_desc *desc,
 			   enum idxd_complete_type comp_type);
-dma_cookie_t idxd_dma_tx_submit(struct dma_async_tx_descriptor *tx);
 
 /* cdev */
 int idxd_cdev_register(void);
