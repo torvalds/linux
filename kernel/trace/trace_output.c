@@ -587,13 +587,26 @@ lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 	return !trace_seq_has_overflowed(s);
 }
 
+static void trace_print_time(struct trace_seq *s, struct trace_iterator *iter,
+			     unsigned long long ts)
+{
+	unsigned long secs, usec_rem;
+	unsigned long long t;
+
+	if (iter->iter_flags & TRACE_FILE_TIME_IN_NS) {
+		t = ns2usecs(ts);
+		usec_rem = do_div(t, USEC_PER_SEC);
+		secs = (unsigned long)t;
+		trace_seq_printf(s, " %5lu.%06lu", secs, usec_rem);
+	} else
+		trace_seq_printf(s, " %12llu", ts);
+}
+
 int trace_print_context(struct trace_iterator *iter)
 {
 	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent;
-	unsigned long long t;
-	unsigned long secs, usec_rem;
 	char comm[TASK_COMM_LEN];
 
 	trace_find_cmdline(entry->pid, comm);
@@ -614,13 +627,8 @@ int trace_print_context(struct trace_iterator *iter)
 	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
 		trace_print_lat_fmt(s, entry);
 
-	if (iter->iter_flags & TRACE_FILE_TIME_IN_NS) {
-		t = ns2usecs(iter->ts);
-		usec_rem = do_div(t, USEC_PER_SEC);
-		secs = (unsigned long)t;
-		trace_seq_printf(s, " %5lu.%06lu: ", secs, usec_rem);
-	} else
-		trace_seq_printf(s, " %12llu: ", iter->ts);
+	trace_print_time(s, iter, iter->ts);
+	trace_seq_puts(s, ": ");
 
 	return !trace_seq_has_overflowed(s);
 }
