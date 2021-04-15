@@ -4976,6 +4976,12 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 			pt->error = -EINVAL;
 			return;
 		}
+		/*
+		 * Can't handle multishot for double wait for now, turn it
+		 * into one-shot mode.
+		 */
+		if (!(req->poll.events & EPOLLONESHOT))
+			req->poll.events |= EPOLLONESHOT;
 		/* double add on the same waitqueue head, ignore */
 		if (poll->head == head)
 			return;
