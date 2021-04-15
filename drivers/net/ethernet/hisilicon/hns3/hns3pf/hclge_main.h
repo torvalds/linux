@@ -1089,4 +1089,5 @@ void hclge_report_hw_error(struct hclge_dev *hdev,
 			   enum hnae3_hw_error_type type);
 void hclge_inform_vf_promisc_info(struct hclge_vport *vport);
 void hclge_dbg_dump_rst_info(struct hclge_dev *hdev);
+int hclge_push_vf_link_status(struct hclge_vport *vport);
 #endif
