@@ -107,12 +107,6 @@ static void pwm_mediatek_clk_disable(struct pwm_chip *chip,
 	clk_disable_unprepare(pc->clk_top);
 }
 
-static inline u32 pwm_mediatek_readl(struct pwm_mediatek_chip *chip,
-				     unsigned int num, unsigned int offset)
-{
-	return readl(chip->regs + pwm_mediatek_reg_offset[num] + offset);
-}
-
 static inline void pwm_mediatek_writel(struct pwm_mediatek_chip *chip,
 				       unsigned int num, unsigned int offset,
 				       u32 value)
