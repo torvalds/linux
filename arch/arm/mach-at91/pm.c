@@ -41,6 +41,14 @@ struct at91_pm_bu {
 	phys_addr_t resume;
 };
 
+/**
+ * struct at91_soc_pm - AT91 SoC power management data structure
+ * @config_shdwc_ws: wakeup sources configuration function for SHDWC
+ * @config_pmc_ws: wakeup srouces configuration function for PMC
+ * @ws_ids: wakup sources of_device_id array
+ * @data: PM data to be used on last phase of suspend
+ * @bu: backup unit mapped data (for backup mode)
+ */
 struct at91_soc_pm {
 	int (*config_shdwc_ws)(void __iomem *shdwc, u32 *mode, u32 *polarity);
 	int (*config_pmc_ws)(void __iomem *pmc, u32 mode, u32 polarity);
