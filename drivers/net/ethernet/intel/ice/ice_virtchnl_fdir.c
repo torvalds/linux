@@ -1548,7 +1548,7 @@ static void ice_vf_fdir_timer(struct timer_list *t)
 	ctx_done->v_opcode = ctx_irq->v_opcode;
 	spin_unlock_irqrestore(&fdir->ctx_lock, flags);
 
-	set_bit(__ICE_FD_VF_FLUSH_CTX, pf->state);
+	set_bit(ICE_FD_VF_FLUSH_CTX, pf->state);
 	ice_service_task_schedule(pf);
 }
 
@@ -1596,7 +1596,7 @@ ice_vc_fdir_irq_handler(struct ice_vsi *ctrl_vsi,
 	if (!ret)
 		dev_err(dev, "VF %d: Unexpected inactive timer!\n", vf->vf_id);
 
-	set_bit(__ICE_FD_VF_FLUSH_CTX, pf->state);
+	set_bit(ICE_FD_VF_FLUSH_CTX, pf->state);
 	ice_service_task_schedule(pf);
 }
 
@@ -1847,7 +1847,7 @@ void ice_flush_fdir_ctx(struct ice_pf *pf)
 {
 	int i;
 
-	if (!test_and_clear_bit(__ICE_FD_VF_FLUSH_CTX, pf->state))
+	if (!test_and_clear_bit(ICE_FD_VF_FLUSH_CTX, pf->state))
 		return;
 
 	ice_for_each_vf(pf, i) {

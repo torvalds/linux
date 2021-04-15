@@ -371,7 +371,7 @@ void ice_free_vfs(struct ice_pf *pf)
 	if (!pf->vf)
 		return;
 
-	while (test_and_set_bit(__ICE_VF_DIS, pf->state))
+	while (test_and_set_bit(ICE_VF_DIS, pf->state))
 		usleep_range(1000, 2000);
 
 	/* Disable IOV before freeing resources. This lets any VF drivers
@@ -424,7 +424,7 @@ void ice_free_vfs(struct ice_pf *pf)
 			wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 		}
 	}
-	clear_bit(__ICE_VF_DIS, pf->state);
+	clear_bit(ICE_VF_DIS, pf->state);
 	clear_bit(ICE_FLAG_SRIOV_ENA, pf->flags);
 }
 
@@ -1258,7 +1258,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 		return false;
 
 	/* If VFs have been disabled, there is no need to reset */
-	if (test_and_set_bit(__ICE_VF_DIS, pf->state))
+	if (test_and_set_bit(ICE_VF_DIS, pf->state))
 		return false;
 
 	/* Begin reset on all VFs at once */
@@ -1314,7 +1314,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	}
 
 	ice_flush(hw);
-	clear_bit(__ICE_VF_DIS, pf->state);
+	clear_bit(ICE_VF_DIS, pf->state);
 
 	return true;
 }
@@ -1334,7 +1334,7 @@ static bool ice_is_vf_disabled(struct ice_vf *vf)
 	 * means something else is resetting the VF, so we shouldn't continue.
 	 * Otherwise, set disable VF state bit for actual reset, and continue.
 	 */
-	return (test_bit(__ICE_VF_DIS, pf->state) ||
+	return (test_bit(ICE_VF_DIS, pf->state) ||
 		test_bit(ICE_VF_STATE_DIS, vf->vf_states));
 }
 
@@ -1359,7 +1359,7 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 
 	dev = ice_pf_to_dev(pf);
 
-	if (test_bit(__ICE_VF_RESETS_DISABLED, pf->state)) {
+	if (test_bit(ICE_VF_RESETS_DISABLED, pf->state)) {
 		dev_dbg(dev, "Trying to reset VF %d, but all VF resets are disabled\n",
 			vf->vf_id);
 		return true;
@@ -1651,7 +1651,7 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 	/* Disable global interrupt 0 so we don't try to handle the VFLR. */
 	wr32(hw, GLINT_DYN_CTL(pf->oicr_idx),
 	     ICE_ITR_NONE << GLINT_DYN_CTL_ITR_INDX_S);
-	set_bit(__ICE_OICR_INTR_DIS, pf->state);
+	set_bit(ICE_OICR_INTR_DIS, pf->state);
 	ice_flush(hw);
 
 	ret = pci_enable_sriov(pf->pdev, num_vfs);
@@ -1679,7 +1679,7 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 		goto err_unroll_sriov;
 	}
 
-	clear_bit(__ICE_VF_DIS, pf->state);
+	clear_bit(ICE_VF_DIS, pf->state);
 	return 0;
 
 err_unroll_sriov:
@@ -1691,7 +1691,7 @@ err_pci_disable_sriov:
 err_unroll_intr:
 	/* rearm interrupts here */
 	ice_irq_dynamic_ena(hw, NULL, NULL);
-	clear_bit(__ICE_OICR_INTR_DIS, pf->state);
+	clear_bit(ICE_OICR_INTR_DIS, pf->state);
 	return ret;
 }
 
@@ -1809,7 +1809,7 @@ void ice_process_vflr_event(struct ice_pf *pf)
 	unsigned int vf_id;
 	u32 reg;
 
-	if (!test_and_clear_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
+	if (!test_and_clear_bit(ICE_VFLR_EVENT_PENDING, pf->state) ||
 	    !pf->num_alloc_vfs)
 		return;
 
@@ -4194,7 +4194,7 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
 	int i;
 
 	/* check that there are pending MDD events to print */
-	if (!test_and_clear_bit(__ICE_MDD_VF_PRINT_PENDING, pf->state))
+	if (!test_and_clear_bit(ICE_MDD_VF_PRINT_PENDING, pf->state))
 		return;
 
 	/* VF MDD event logs are rate limited to one second intervals */
@@ -4234,7 +4234,6 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
  */
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev)
 {
-	struct pci_dev *vfdev;
 	u16 vf_id;
 	int pos;
 
@@ -4243,6 +4242,8 @@ void ice_restore_all_vfs_msi_state(struct pci_dev *pdev)
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (pos) {
+		struct pci_dev *vfdev;
+
 		pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID,
 				     &vf_id);
 		vfdev = pci_get_device(pdev->vendor, vf_id, NULL);

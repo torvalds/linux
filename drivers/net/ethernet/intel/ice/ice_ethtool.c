@@ -806,7 +806,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		netdev_info(netdev, "offline testing starting\n");
 
-		set_bit(__ICE_TESTING, pf->state);
+		set_bit(ICE_TESTING, pf->state);
 
 		if (ice_active_vfs(pf)) {
 			dev_warn(dev, "Please take active VFs and Netqueues offline and restart the adapter before running NIC diagnostics\n");
@@ -816,7 +816,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 			data[ICE_ETH_TEST_LOOP] = 1;
 			data[ICE_ETH_TEST_LINK] = 1;
 			eth_test->flags |= ETH_TEST_FL_FAILED;
-			clear_bit(__ICE_TESTING, pf->state);
+			clear_bit(ICE_TESTING, pf->state);
 			goto skip_ol_tests;
 		}
 		/* If the device is online then take it offline */
@@ -837,7 +837,7 @@ ice_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
 		    data[ICE_ETH_TEST_REG])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		clear_bit(__ICE_TESTING, pf->state);
+		clear_bit(ICE_TESTING, pf->state);
 
 		if (if_running) {
 			int status = ice_open(netdev);
@@ -1097,7 +1097,7 @@ static int ice_nway_reset(struct net_device *netdev)
 	int err;
 
 	/* If VSI state is up, then restart autoneg with link up */
-	if (!test_bit(__ICE_DOWN, vsi->back->state))
+	if (!test_bit(ICE_DOWN, vsi->back->state))
 		err = ice_set_link(vsi, true);
 	else
 		err = ice_set_link(vsi, false);
@@ -2282,7 +2282,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 		goto done;
 	}
 
-	while (test_and_set_bit(__ICE_CFG_BUSY, pf->state)) {
+	while (test_and_set_bit(ICE_CFG_BUSY, pf->state)) {
 		timeout--;
 		if (!timeout) {
 			err = -EBUSY;
@@ -2392,7 +2392,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	pi->phy.curr_user_speed_req = adv_link_speed;
 done:
 	kfree(phy_caps);
-	clear_bit(__ICE_CFG_BUSY, pf->state);
+	clear_bit(ICE_CFG_BUSY, pf->state);
 
 	return err;
 }
@@ -2748,7 +2748,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 	if (ice_xsk_any_rx_ring_ena(vsi))
 		return -EBUSY;
 
-	while (test_and_set_bit(__ICE_CFG_BUSY, pf->state)) {
+	while (test_and_set_bit(ICE_CFG_BUSY, pf->state)) {
 		timeout--;
 		if (!timeout)
 			return -EBUSY;
@@ -2927,7 +2927,7 @@ free_tx:
 	}
 
 done:
-	clear_bit(__ICE_CFG_BUSY, pf->state);
+	clear_bit(ICE_CFG_BUSY, pf->state);
 	return err;
 }
 
@@ -3046,7 +3046,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	}
 
 	/* If we have link and don't have autoneg */
-	if (!test_bit(__ICE_DOWN, pf->state) &&
+	if (!test_bit(ICE_DOWN, pf->state) &&
 	    !(hw_link_info->an_info & ICE_AQ_AN_COMPLETED)) {
 		/* Send message that it might not necessarily work*/
 		netdev_info(netdev, "Autoneg did not complete so changing settings may not result in an actual change.\n");
@@ -3510,13 +3510,13 @@ ice_get_rc_coalesce(struct ethtool_coalesce *ec, enum ice_container_type c_type,
 
 	switch (c_type) {
 	case ICE_RX_CONTAINER:
-		ec->use_adaptive_rx_coalesce = ITR_IS_DYNAMIC(rc->itr_setting);
-		ec->rx_coalesce_usecs = rc->itr_setting & ~ICE_ITR_DYNAMIC;
+		ec->use_adaptive_rx_coalesce = ITR_IS_DYNAMIC(rc);
+		ec->rx_coalesce_usecs = rc->itr_setting;
 		ec->rx_coalesce_usecs_high = rc->ring->q_vector->intrl;
 		break;
 	case ICE_TX_CONTAINER:
-		ec->use_adaptive_tx_coalesce = ITR_IS_DYNAMIC(rc->itr_setting);
-		ec->tx_coalesce_usecs = rc->itr_setting & ~ICE_ITR_DYNAMIC;
+		ec->use_adaptive_tx_coalesce = ITR_IS_DYNAMIC(rc);
+		ec->tx_coalesce_usecs = rc->itr_setting;
 		break;
 	default:
 		dev_dbg(ice_pf_to_dev(pf), "Invalid c_type %d\n", c_type);
@@ -3634,11 +3634,16 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 				    ICE_MAX_INTRL);
 			return -EINVAL;
 		}
+		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl &&
+		    (ec->use_adaptive_rx_coalesce || ec->use_adaptive_tx_coalesce)) {
+			netdev_info(vsi->netdev, "Invalid value, %s-usecs-high cannot be changed if adaptive-tx or adaptive-rx is enabled\n",
+				    c_type_str);
+			return -EINVAL;
+		}
 		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl) {
 			rc->ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
-			wr32(&pf->hw, GLINT_RATE(rc->ring->q_vector->reg_idx),
-			     ice_intrl_usec_to_reg(ec->rx_coalesce_usecs_high,
-						   pf->hw.intrl_gran));
+			ice_write_intrl(rc->ring->q_vector,
+					ec->rx_coalesce_usecs_high);
 		}
 
 		use_adaptive_coalesce = ec->use_adaptive_rx_coalesce;
@@ -3656,7 +3661,7 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		return -EINVAL;
 	}
 
-	itr_setting = rc->itr_setting & ~ICE_ITR_DYNAMIC;
+	itr_setting = rc->itr_setting;
 	if (coalesce_usecs != itr_setting && use_adaptive_coalesce) {
 		netdev_info(vsi->netdev, "%s interrupt throttling cannot be changed if adaptive-%s is enabled\n",
 			    c_type_str, c_type_str);
@@ -3670,12 +3675,18 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 	}
 
 	if (use_adaptive_coalesce) {
-		rc->itr_setting |= ICE_ITR_DYNAMIC;
+		rc->itr_mode = ITR_DYNAMIC;
 	} else {
-		/* save the user set usecs */
+		rc->itr_mode = ITR_STATIC;
+		/* store user facing value how it was set */
 		rc->itr_setting = coalesce_usecs;
-		/* device ITR granularity is in 2 usec increments */
-		rc->target_itr = ITR_REG_ALIGN(rc->itr_setting);
+		/* write the change to the register */
+		ice_write_itr(rc, coalesce_usecs);
+		/* force writes to take effect immediately, the flush shouldn't
+		 * be done in the functions above because the intent is for
+		 * them to do lazy writes.
+		 */
+		ice_flush(&pf->hw);
 	}
 
 	return 0;
@@ -3737,8 +3748,6 @@ ice_print_if_odd_usecs(struct net_device *netdev, u16 itr_setting,
 	if (use_adaptive_coalesce)
 		return;
 
-	itr_setting = ITR_TO_REG(itr_setting);
-
 	if (itr_setting != coalesce_usecs && (coalesce_usecs % 2))
 		netdev_info(netdev, "User set %s-usecs to %d, device only supports even values. Rounding down and attempting to set %s-usecs to %d\n",
 			    c_type_str, coalesce_usecs, c_type_str,
@@ -3793,7 +3802,6 @@ __ice_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ec,
 		return -EINVAL;
 
 set_complete:
-
 	return 0;
 }
 
@@ -3906,30 +3914,33 @@ ice_get_module_eeprom(struct net_device *netdev,
 		      struct ethtool_eeprom *ee, u8 *data)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+#define SFF_READ_BLOCK_SIZE 8
+	u8 value[SFF_READ_BLOCK_SIZE] = { 0 };
 	u8 addr = ICE_I2C_EEPROM_DEV_ADDR;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 	bool is_sfp = false;
-	unsigned int i;
+	unsigned int i, j;
 	u16 offset = 0;
-	u8 value = 0;
 	u8 page = 0;
 
 	if (!ee || !ee->len || !data)
 		return -EINVAL;
 
-	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0, &value, 1, 0,
+	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0, value, 1, 0,
 				   NULL);
 	if (status)
 		return -EIO;
 
-	if (value == ICE_MODULE_TYPE_SFP)
+	if (value[0] == ICE_MODULE_TYPE_SFP)
 		is_sfp = true;
 
-	for (i = 0; i < ee->len; i++) {
+	memset(data, 0, ee->len);
+	for (i = 0; i < ee->len; i += SFF_READ_BLOCK_SIZE) {
 		offset = i + ee->offset;
+		page = 0;
 
 		/* Check if we need to access the other memory page */
 		if (is_sfp) {
@@ -3945,11 +3956,37 @@ ice_get_module_eeprom(struct net_device *netdev,
 			}
 		}
 
-		status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, !is_sfp,
-					   &value, 1, 0, NULL);
-		if (status)
-			value = 0;
-		data[i] = value;
+		/* Bit 2 of EEPROM address 0x02 declares upper
+		 * pages are disabled on QSFP modules.
+		 * SFP modules only ever use page 0.
+		 */
+		if (page == 0 || !(data[0x2] & 0x4)) {
+			/* If i2c bus is busy due to slow page change or
+			 * link management access, call can fail. This is normal.
+			 * So we retry this a few times.
+			 */
+			for (j = 0; j < 4; j++) {
+				status = ice_aq_sff_eeprom(hw, 0, addr, offset, page,
+							   !is_sfp, value,
+							   SFF_READ_BLOCK_SIZE,
+							   0, NULL);
+				netdev_dbg(netdev, "SFF %02X %02X %02X %X = %02X%02X%02X%02X.%02X%02X%02X%02X (%X)\n",
+					   addr, offset, page, is_sfp,
+					   value[0], value[1], value[2], value[3],
+					   value[4], value[5], value[6], value[7],
+					   status);
+				if (status) {
+					usleep_range(1500, 2500);
+					memset(value, 0, SFF_READ_BLOCK_SIZE);
+					continue;
+				}
+				break;
+			}
+
+			/* Make sure we have enough room for the new block */
+			if ((i + SFF_READ_BLOCK_SIZE) < ee->len)
+				memcpy(data + i, value, SFF_READ_BLOCK_SIZE);
+		}
 	}
 	return 0;
 }

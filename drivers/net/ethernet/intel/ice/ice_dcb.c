@@ -804,7 +804,7 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 			ice_aqc_cee_app_mask = ICE_AQC_CEE_APP_FCOE_M;
 			ice_aqc_cee_app_shift = ICE_AQC_CEE_APP_FCOE_S;
 			ice_app_sel_type = ICE_APP_SEL_ETHTYPE;
-			ice_app_prot_id_type = ICE_APP_PROT_ID_FCOE;
+			ice_app_prot_id_type = ETH_P_FCOE;
 		} else if (i == 1) {
 			/* iSCSI APP */
 			ice_aqc_cee_status_mask = ICE_AQC_CEE_ISCSI_STATUS_M;
@@ -812,14 +812,14 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 			ice_aqc_cee_app_mask = ICE_AQC_CEE_APP_ISCSI_M;
 			ice_aqc_cee_app_shift = ICE_AQC_CEE_APP_ISCSI_S;
 			ice_app_sel_type = ICE_APP_SEL_TCPIP;
-			ice_app_prot_id_type = ICE_APP_PROT_ID_ISCSI;
+			ice_app_prot_id_type = ISCSI_LISTEN_PORT;
 
 			for (j = 0; j < cmp_dcbcfg->numapps; j++) {
 				u16 prot_id = cmp_dcbcfg->app[j].prot_id;
 				u8 sel = cmp_dcbcfg->app[j].selector;
 
 				if  (sel == ICE_APP_SEL_TCPIP &&
-				     (prot_id == ICE_APP_PROT_ID_ISCSI ||
+				     (prot_id == ISCSI_LISTEN_PORT ||
 				      prot_id == ICE_APP_PROT_ID_ISCSI_860)) {
 					ice_app_prot_id_type = prot_id;
 					break;
@@ -832,7 +832,7 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 			ice_aqc_cee_app_mask = ICE_AQC_CEE_APP_FIP_M;
 			ice_aqc_cee_app_shift = ICE_AQC_CEE_APP_FIP_S;
 			ice_app_sel_type = ICE_APP_SEL_ETHTYPE;
-			ice_app_prot_id_type = ICE_APP_PROT_ID_FIP;
+			ice_app_prot_id_type = ETH_P_FIP;
 		}
 
 		status = (tlv_status & ice_aqc_cee_status_mask) >>

@@ -158,6 +158,8 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 
 	if (vsi->type == ICE_VSI_VF)
 		vsi->vf_id = vf_id;
+	else
+		vsi->vf_id = ICE_INVAL_VFID;
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
@@ -384,6 +386,8 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 
 	if (!q_vector->tx.ring && !q_vector->rx.ring)
 		return IRQ_HANDLED;
+
+	q_vector->total_events++;
 
 	napi_schedule(&q_vector->napi);
 
@@ -1309,14 +1313,13 @@ err_out:
  * LUT, while in the event of enable request for RSS, it will reconfigure RSS
  * LUT.
  */
-int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
+void ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
 {
-	int err = 0;
 	u8 *lut;
 
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
-		return -ENOMEM;
+		return;
 
 	if (ena) {
 		if (vsi->rss_lut_user)
@@ -1326,9 +1329,8 @@ int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
 					 vsi->rss_size);
 	}
 
-	err = ice_set_rss_lut(vsi, lut, vsi->rss_table_size);
+	ice_set_rss_lut(vsi, lut, vsi->rss_table_size);
 	kfree(lut);
-	return err;
 }
 
 /**
@@ -1502,13 +1504,13 @@ static void ice_vsi_set_rss_flow_fld(struct ice_vsi *vsi)
  */
 bool ice_pf_state_is_nominal(struct ice_pf *pf)
 {
-	DECLARE_BITMAP(check_bits, __ICE_STATE_NBITS) = { 0 };
+	DECLARE_BITMAP(check_bits, ICE_STATE_NBITS) = { 0 };
 
 	if (!pf)
 		return false;
 
-	bitmap_set(check_bits, 0, __ICE_STATE_NOMINAL_CHECK_BITS);
-	if (bitmap_intersects(pf->state, check_bits, __ICE_STATE_NBITS))
+	bitmap_set(check_bits, 0, ICE_STATE_NOMINAL_CHECK_BITS);
+	if (bitmap_intersects(pf->state, check_bits, ICE_STATE_NBITS))
 		return false;
 
 	return true;
@@ -1773,13 +1775,58 @@ int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi)
  * This function converts a decimal interrupt rate limit in usecs to the format
  * expected by firmware.
  */
-u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
+static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 {
 	u32 val = intrl / gran;
 
 	if (val)
 		return val | GLINT_RATE_INTRL_ENA_M;
 	return 0;
+}
+
+/**
+ * ice_write_intrl - write throttle rate limit to interrupt specific register
+ * @q_vector: pointer to interrupt specific structure
+ * @intrl: throttle rate limit in microseconds to write
+ */
+void ice_write_intrl(struct ice_q_vector *q_vector, u8 intrl)
+{
+	struct ice_hw *hw = &q_vector->vsi->back->hw;
+
+	wr32(hw, GLINT_RATE(q_vector->reg_idx),
+	     ice_intrl_usec_to_reg(intrl, ICE_INTRL_GRAN_ABOVE_25));
+}
+
+/**
+ * __ice_write_itr - write throttle rate to register
+ * @q_vector: pointer to interrupt data structure
+ * @rc: pointer to ring container
+ * @itr: throttle rate in microseconds to write
+ */
+static void __ice_write_itr(struct ice_q_vector *q_vector,
+			    struct ice_ring_container *rc, u16 itr)
+{
+	struct ice_hw *hw = &q_vector->vsi->back->hw;
+
+	wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
+	     ITR_REG_ALIGN(itr) >> ICE_ITR_GRAN_S);
+}
+
+/**
+ * ice_write_itr - write throttle rate to queue specific register
+ * @rc: pointer to ring container
+ * @itr: throttle rate in microseconds to write
+ */
+void ice_write_itr(struct ice_ring_container *rc, u16 itr)
+{
+	struct ice_q_vector *q_vector;
+
+	if (!rc->ring)
+		return;
+
+	q_vector = rc->ring->q_vector;
+
+	__ice_write_itr(q_vector, rc, itr);
 }
 
 /**
@@ -1801,9 +1848,6 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		u16 reg_idx = q_vector->reg_idx;
 
 		ice_cfg_itr(hw, q_vector);
-
-		wr32(hw, GLINT_RATE(reg_idx),
-		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
 
 		/* Both Transmit Queue Interrupt Cause Control register
 		 * and Receive Queue Interrupt Cause control register
@@ -2492,11 +2536,10 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 
 	for (i = 0; i < vsi->num_q_vectors; i++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
-		u16 reg_idx = q_vector->reg_idx;
 
-		wr32(hw, GLINT_ITR(ICE_IDX_ITR0, reg_idx), 0);
-		wr32(hw, GLINT_ITR(ICE_IDX_ITR1, reg_idx), 0);
+		ice_write_intrl(q_vector, 0);
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
+			ice_write_itr(&q_vector->tx, 0);
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), 0);
 			if (ice_is_xdp_ena_vsi(vsi)) {
 				u32 xdp_txq = txq + vsi->num_xdp_txq;
@@ -2507,6 +2550,7 @@ static void ice_vsi_release_msix(struct ice_vsi *vsi)
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
+			ice_write_itr(&q_vector->rx, 0);
 			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), 0);
 			rxq++;
 		}
@@ -2752,10 +2796,13 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	 * PF that is running the work queue items currently. This is done to
 	 * avoid check_flush_dependency() warning on this wq
 	 */
-	if (vsi->netdev && !ice_is_reset_in_progress(pf->state)) {
+	if (vsi->netdev && !ice_is_reset_in_progress(pf->state) &&
+	    (test_bit(ICE_VSI_NETDEV_REGISTERED, vsi->state))) {
 		unregister_netdev(vsi->netdev);
-		ice_devlink_destroy_port(vsi);
+		clear_bit(ICE_VSI_NETDEV_REGISTERED, vsi->state);
 	}
+
+	ice_devlink_destroy_port(vsi);
 
 	if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
 		ice_rss_clean(vsi);
@@ -2811,10 +2858,16 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	ice_vsi_delete(vsi);
 	ice_vsi_free_q_vectors(vsi);
 
-	/* make sure unregister_netdev() was called by checking __ICE_DOWN */
-	if (vsi->netdev && test_bit(ICE_VSI_DOWN, vsi->state)) {
-		free_netdev(vsi->netdev);
-		vsi->netdev = NULL;
+	if (vsi->netdev) {
+		if (test_bit(ICE_VSI_NETDEV_REGISTERED, vsi->state)) {
+			unregister_netdev(vsi->netdev);
+			clear_bit(ICE_VSI_NETDEV_REGISTERED, vsi->state);
+		}
+		if (test_bit(ICE_VSI_NETDEV_ALLOCD, vsi->state)) {
+			free_netdev(vsi->netdev);
+			vsi->netdev = NULL;
+			clear_bit(ICE_VSI_NETDEV_ALLOCD, vsi->state);
+		}
 	}
 
 	if (vsi->type == ICE_VSI_VF &&
@@ -2832,47 +2885,6 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		ice_vsi_clear(vsi);
 
 	return 0;
-}
-
-/**
- * ice_vsi_rebuild_update_coalesce_intrl - set interrupt rate limit for a q_vector
- * @q_vector: pointer to q_vector which is being updated
- * @stored_intrl_setting: original INTRL setting
- *
- * Set coalesce param in q_vector and update these parameters in HW.
- */
-static void
-ice_vsi_rebuild_update_coalesce_intrl(struct ice_q_vector *q_vector,
-				      u16 stored_intrl_setting)
-{
-	struct ice_hw *hw = &q_vector->vsi->back->hw;
-
-	q_vector->intrl = stored_intrl_setting;
-	wr32(hw, GLINT_RATE(q_vector->reg_idx),
-	     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
-}
-
-/**
- * ice_vsi_rebuild_update_coalesce_itr - set coalesce for a q_vector
- * @q_vector: pointer to q_vector which is being updated
- * @rc: pointer to ring container
- * @stored_itr_setting: original ITR setting
- *
- * Set coalesce param in q_vector and update these parameters in HW.
- */
-static void
-ice_vsi_rebuild_update_coalesce_itr(struct ice_q_vector *q_vector,
-				    struct ice_ring_container *rc,
-				    u16 stored_itr_setting)
-{
-	struct ice_hw *hw = &q_vector->vsi->back->hw;
-
-	rc->itr_setting = stored_itr_setting;
-
-	/* dynamic ITR values will be updated during Tx/Rx */
-	if (!ITR_IS_DYNAMIC(rc->itr_setting))
-		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
-		     ITR_REG_ALIGN(rc->itr_setting) >> ICE_ITR_GRAN_S);
 }
 
 /**
@@ -2918,6 +2930,7 @@ static void
 ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
 			     struct ice_coalesce_stored *coalesce, int size)
 {
+	struct ice_ring_container *rc;
 	int i;
 
 	if ((size && !coalesce) || !vsi)
@@ -2940,41 +2953,51 @@ ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
 		 *   rings is less than are allocated (this means the number of
 		 *   rings increased from previously), then write out the
 		 *   values in the first element
+		 *
+		 *   Also, always write the ITR, even if in ITR_IS_DYNAMIC
+		 *   as there is no harm because the dynamic algorithm
+		 *   will just overwrite.
 		 */
-		if (i < vsi->alloc_rxq && coalesce[i].rx_valid)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->rx,
-							    coalesce[i].itr_rx);
-		else if (i < vsi->alloc_rxq)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->rx,
-							    coalesce[0].itr_rx);
+		if (i < vsi->alloc_rxq && coalesce[i].rx_valid) {
+			rc = &vsi->q_vectors[i]->rx;
+			rc->itr_setting = coalesce[i].itr_rx;
+			ice_write_itr(rc, rc->itr_setting);
+		} else if (i < vsi->alloc_rxq) {
+			rc = &vsi->q_vectors[i]->rx;
+			rc->itr_setting = coalesce[0].itr_rx;
+			ice_write_itr(rc, rc->itr_setting);
+		}
 
-		if (i < vsi->alloc_txq && coalesce[i].tx_valid)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->tx,
-							    coalesce[i].itr_tx);
-		else if (i < vsi->alloc_txq)
-			ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-							    &vsi->q_vectors[i]->tx,
-							    coalesce[0].itr_tx);
+		if (i < vsi->alloc_txq && coalesce[i].tx_valid) {
+			rc = &vsi->q_vectors[i]->tx;
+			rc->itr_setting = coalesce[i].itr_tx;
+			ice_write_itr(rc, rc->itr_setting);
+		} else if (i < vsi->alloc_txq) {
+			rc = &vsi->q_vectors[i]->tx;
+			rc->itr_setting = coalesce[0].itr_tx;
+			ice_write_itr(rc, rc->itr_setting);
+		}
 
-		ice_vsi_rebuild_update_coalesce_intrl(vsi->q_vectors[i],
-						      coalesce[i].intrl);
+		vsi->q_vectors[i]->intrl = coalesce[i].intrl;
+		ice_write_intrl(vsi->q_vectors[i], coalesce[i].intrl);
 	}
 
 	/* the number of queue vectors increased so write whatever is in
 	 * the first element
 	 */
 	for (; i < vsi->num_q_vectors; i++) {
-		ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-						    &vsi->q_vectors[i]->tx,
-						    coalesce[0].itr_tx);
-		ice_vsi_rebuild_update_coalesce_itr(vsi->q_vectors[i],
-						    &vsi->q_vectors[i]->rx,
-						    coalesce[0].itr_rx);
-		ice_vsi_rebuild_update_coalesce_intrl(vsi->q_vectors[i],
-						      coalesce[0].intrl);
+		/* transmit */
+		rc = &vsi->q_vectors[i]->tx;
+		rc->itr_setting = coalesce[0].itr_tx;
+		ice_write_itr(rc, rc->itr_setting);
+
+		/* receive */
+		rc = &vsi->q_vectors[i]->rx;
+		rc->itr_setting = coalesce[0].itr_rx;
+		ice_write_itr(rc, rc->itr_setting);
+
+		vsi->q_vectors[i]->intrl = coalesce[0].intrl;
+		ice_write_intrl(vsi->q_vectors[i], coalesce[0].intrl);
 	}
 }
 
@@ -2991,6 +3014,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	struct ice_coalesce_stored *coalesce;
 	int prev_num_q_vectors = 0;
 	struct ice_vf *vf = NULL;
+	enum ice_vsi_type vtype;
 	enum ice_status status;
 	struct ice_pf *pf;
 	int ret, i;
@@ -2999,7 +3023,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 		return -EINVAL;
 
 	pf = vsi->back;
-	if (vsi->type == ICE_VSI_VF)
+	vtype = vsi->type;
+	if (vtype == ICE_VSI_VF)
 		vf = &pf->vf[vsi->vf_id];
 
 	coalesce = kcalloc(vsi->num_q_vectors,
@@ -3017,7 +3042,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	 * many interrupts each VF needs. SR-IOV MSIX resources are also
 	 * cleared in the same manner.
 	 */
-	if (vsi->type != ICE_VSI_VF) {
+	if (vtype != ICE_VSI_VF) {
 		/* reclaim SW interrupts back to the common pool */
 		ice_free_res(pf->irq_tracker, vsi->base_vector, vsi->idx);
 		pf->num_avail_sw_msix += vsi->num_q_vectors;
@@ -3032,7 +3057,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	ice_vsi_put_qs(vsi);
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi);
-	if (vsi->type == ICE_VSI_VF)
+	if (vtype == ICE_VSI_VF)
 		ice_vsi_set_num_qs(vsi, vf->vf_id);
 	else
 		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
@@ -3051,7 +3076,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	if (ret < 0)
 		goto err_vsi;
 
-	switch (vsi->type) {
+	switch (vtype) {
 	case ICE_VSI_CTRL:
 	case ICE_VSI_PF:
 		ret = ice_vsi_alloc_q_vectors(vsi);
@@ -3078,7 +3103,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 				goto err_vectors;
 		}
 		/* ICE_VSI_CTRL does not need RSS so skip RSS processing */
-		if (vsi->type != ICE_VSI_CTRL)
+		if (vtype != ICE_VSI_CTRL)
 			/* Do not exit if configuring RSS had an issue, at
 			 * least receive traffic on first queue. Hence no
 			 * need to capture return value
@@ -3140,7 +3165,7 @@ err_rings:
 	}
 err_vsi:
 	ice_vsi_clear(vsi);
-	set_bit(__ICE_RESET_FAILED, pf->state);
+	set_bit(ICE_RESET_FAILED, pf->state);
 	kfree(coalesce);
 	return ret;
 }
@@ -3151,10 +3176,10 @@ err_vsi:
  */
 bool ice_is_reset_in_progress(unsigned long *state)
 {
-	return test_bit(__ICE_RESET_OICR_RECV, state) ||
-	       test_bit(__ICE_PFR_REQ, state) ||
-	       test_bit(__ICE_CORER_REQ, state) ||
-	       test_bit(__ICE_GLOBR_REQ, state);
+	return test_bit(ICE_RESET_OICR_RECV, state) ||
+	       test_bit(ICE_PFR_REQ, state) ||
+	       test_bit(ICE_CORER_REQ, state) ||
+	       test_bit(ICE_GLOBR_REQ, state);
 }
 
 #ifdef CONFIG_DCB
@@ -3242,20 +3267,15 @@ out:
 /**
  * ice_update_ring_stats - Update ring statistics
  * @ring: ring to update
- * @cont: used to increment per-vector counters
  * @pkts: number of processed packets
  * @bytes: number of processed bytes
  *
  * This function assumes that caller has acquired a u64_stats_sync lock.
  */
-static void
-ice_update_ring_stats(struct ice_ring *ring, struct ice_ring_container *cont,
-		      u64 pkts, u64 bytes)
+static void ice_update_ring_stats(struct ice_ring *ring, u64 pkts, u64 bytes)
 {
 	ring->stats.bytes += bytes;
 	ring->stats.pkts += pkts;
-	cont->total_bytes += bytes;
-	cont->total_pkts += pkts;
 }
 
 /**
@@ -3267,7 +3287,7 @@ ice_update_ring_stats(struct ice_ring *ring, struct ice_ring_container *cont,
 void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
 {
 	u64_stats_update_begin(&tx_ring->syncp);
-	ice_update_ring_stats(tx_ring, &tx_ring->q_vector->tx, pkts, bytes);
+	ice_update_ring_stats(tx_ring, pkts, bytes);
 	u64_stats_update_end(&tx_ring->syncp);
 }
 
@@ -3280,7 +3300,7 @@ void ice_update_tx_ring_stats(struct ice_ring *tx_ring, u64 pkts, u64 bytes)
 void ice_update_rx_ring_stats(struct ice_ring *rx_ring, u64 pkts, u64 bytes)
 {
 	u64_stats_update_begin(&rx_ring->syncp);
-	ice_update_ring_stats(rx_ring, &rx_ring->q_vector->rx, pkts, bytes);
+	ice_update_ring_stats(rx_ring, pkts, bytes);
 	u64_stats_update_end(&rx_ring->syncp);
 }
 
