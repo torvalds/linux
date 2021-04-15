@@ -80,9 +80,8 @@ static int fec_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 	ret = dev->ethtool_ops->get_fecparam(dev, &fec);
-	ethnl_ops_complete(dev);
 	if (ret)
-		return ret;
+		goto out_complete;
 
 	WARN_ON_ONCE(fec.reserved);
 
@@ -98,7 +97,9 @@ static int fec_prepare_data(const struct ethnl_req_info *req_base,
 	if (data->active_fec == __ETHTOOL_LINK_MODE_MASK_NBITS)
 		data->active_fec = 0;
 
-	return 0;
+out_complete:
+	ethnl_ops_complete(dev);
+	return ret;
 }
 
 static int fec_reply_size(const struct ethnl_req_info *req_base,
