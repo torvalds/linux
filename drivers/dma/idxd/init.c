@@ -51,6 +51,11 @@ static char *idxd_name[] = {
 	"iax"
 };
 
+struct ida *idxd_ida(struct idxd_device *idxd)
+{
+	return &idxd_idas[idxd->type];
+}
+
 const char *idxd_get_dev_name(struct idxd_device *idxd)
 {
 	return idxd_name[idxd->type];
@@ -81,9 +86,8 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	 * We implement 1 completion list per MSI-X entry except for
 	 * entry 0, which is for errors and others.
 	 */
-	idxd->irq_entries = devm_kcalloc(dev, msixcnt,
-					 sizeof(struct idxd_irq_entry),
-					 GFP_KERNEL);
+	idxd->irq_entries = kcalloc_node(msixcnt, sizeof(struct idxd_irq_entry),
+					 GFP_KERNEL, dev_to_node(dev));
 	if (!idxd->irq_entries) {
 		rc = -ENOMEM;
 		goto err_irq_entries;
@@ -262,16 +266,44 @@ static void idxd_read_caps(struct idxd_device *idxd)
 	}
 }
 
+static inline void idxd_set_type(struct idxd_device *idxd)
+{
+	struct pci_dev *pdev = idxd->pdev;
+
+	if (pdev->device == PCI_DEVICE_ID_INTEL_DSA_SPR0)
+		idxd->type = IDXD_TYPE_DSA;
+	else if (pdev->device == PCI_DEVICE_ID_INTEL_IAX_SPR0)
+		idxd->type = IDXD_TYPE_IAX;
+	else
+		idxd->type = IDXD_TYPE_UNKNOWN;
+}
+
 static struct idxd_device *idxd_alloc(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct idxd_device *idxd;
+	int rc;
 
-	idxd = devm_kzalloc(dev, sizeof(struct idxd_device), GFP_KERNEL);
+	idxd = kzalloc_node(sizeof(*idxd), GFP_KERNEL, dev_to_node(dev));
 	if (!idxd)
 		return NULL;
 
 	idxd->pdev = pdev;
+	idxd_set_type(idxd);
+	idxd->id = ida_alloc(idxd_ida(idxd), GFP_KERNEL);
+	if (idxd->id < 0)
+		return NULL;
+
+	device_initialize(&idxd->conf_dev);
+	idxd->conf_dev.parent = dev;
+	idxd->conf_dev.bus = idxd_get_bus_type(idxd);
+	idxd->conf_dev.type = idxd_get_device_type(idxd);
+	rc = dev_set_name(&idxd->conf_dev, "%s%d", idxd_get_dev_name(idxd), idxd->id);
+	if (rc < 0) {
+		put_device(&idxd->conf_dev);
+		return NULL;
+	}
+
 	spin_lock_init(&idxd->dev_lock);
 
 	return idxd;
@@ -347,20 +379,11 @@ static int idxd_probe(struct idxd_device *idxd)
 
 	dev_dbg(dev, "IDXD interrupt setup complete.\n");
 
-	idxd->id = ida_alloc(&idxd_idas[idxd->type], GFP_KERNEL);
-	if (idxd->id < 0) {
-		rc = -ENOMEM;
-		goto err_ida_fail;
-	}
-
 	idxd->major = idxd_cdev_get_major(idxd);
 
 	dev_dbg(dev, "IDXD device %d probed successfully\n", idxd->id);
 	return 0;
 
- err_ida_fail:
-	idxd_mask_error_interrupts(idxd);
-	idxd_mask_msix_vectors(idxd);
  err_setup:
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
@@ -412,7 +435,6 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		goto err;
 
-	idxd_set_type(idxd);
 
 	idxd_type_init(idxd);
 
@@ -427,7 +449,7 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err;
 	}
 
-	rc = idxd_setup_sysfs(idxd);
+	rc = idxd_register_devices(idxd);
 	if (rc) {
 		dev_err(dev, "IDXD sysfs setup failed\n");
 		goto err;
@@ -443,6 +465,7 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  err:
 	pci_iounmap(pdev, idxd->reg_base);
  err_iomap:
+	put_device(&idxd->conf_dev);
  err_idxd_alloc:
 	pci_disable_device(pdev);
 	return rc;
@@ -511,11 +534,10 @@ static void idxd_remove(struct pci_dev *pdev)
 	struct idxd_device *idxd = pci_get_drvdata(pdev);
 
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
-	idxd_cleanup_sysfs(idxd);
 	idxd_shutdown(pdev);
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
-	ida_free(&idxd_idas[idxd->type], idxd->id);
+	idxd_unregister_devices(idxd);
 }
 
 static struct pci_driver idxd_pci_driver = {
