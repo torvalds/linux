@@ -196,6 +196,46 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 	return rc;
 }
 
+static int idxd_setup_engines(struct idxd_device *idxd)
+{
+	struct idxd_engine *engine;
+	struct device *dev = &idxd->pdev->dev;
+	int i, rc;
+
+	idxd->engines = kcalloc_node(idxd->max_engines, sizeof(struct idxd_engine *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!idxd->engines)
+		return -ENOMEM;
+
+	for (i = 0; i < idxd->max_engines; i++) {
+		engine = kzalloc_node(sizeof(*engine), GFP_KERNEL, dev_to_node(dev));
+		if (!engine) {
+			rc = -ENOMEM;
+			goto err;
+		}
+
+		engine->id = i;
+		engine->idxd = idxd;
+		device_initialize(&engine->conf_dev);
+		engine->conf_dev.parent = &idxd->conf_dev;
+		engine->conf_dev.type = &idxd_engine_device_type;
+		rc = dev_set_name(&engine->conf_dev, "engine%d.%d", idxd->id, engine->id);
+		if (rc < 0) {
+			put_device(&engine->conf_dev);
+			goto err;
+		}
+
+		idxd->engines[i] = engine;
+	}
+
+	return 0;
+
+ err:
+	while (--i >= 0)
+		put_device(&idxd->engines[i]->conf_dev);
+	return rc;
+}
+
 static int idxd_setup_internals(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
@@ -206,6 +246,10 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 	rc = idxd_setup_wqs(idxd);
 	if (rc < 0)
 		return rc;
+
+	rc = idxd_setup_engines(idxd);
+	if (rc < 0)
+		goto err_engine;
 
 	idxd->groups = devm_kcalloc(dev, idxd->max_groups,
 				    sizeof(struct idxd_group), GFP_KERNEL);
@@ -221,19 +265,6 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 		idxd->groups[i].tc_b = -1;
 	}
 
-	idxd->engines = devm_kcalloc(dev, idxd->max_engines,
-				     sizeof(struct idxd_engine), GFP_KERNEL);
-	if (!idxd->engines) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-
-	for (i = 0; i < idxd->max_engines; i++) {
-		idxd->engines[i].idxd = idxd;
-		idxd->engines[i].id = i;
-	}
-
 	idxd->wq = create_workqueue(dev_name(dev));
 	if (!idxd->wq) {
 		rc = -ENOMEM;
@@ -243,6 +274,9 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 	return 0;
 
  err:
+	for (i = 0; i < idxd->max_engines; i++)
+		put_device(&idxd->engines[i]->conf_dev);
+ err_engine:
 	for (i = 0; i < idxd->max_wqs; i++)
 		put_device(&idxd->wqs[i]->conf_dev);
 	return rc;
