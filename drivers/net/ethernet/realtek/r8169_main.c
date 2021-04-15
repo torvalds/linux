@@ -2388,11 +2388,13 @@ static void rtl_jumbo_config(struct rtl8169_private *tp)
 		pcie_set_readrq(tp->pci_dev, readrq);
 
 	/* Chip doesn't support pause in jumbo mode */
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-			 tp->phydev->advertising, !jumbo);
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-			 tp->phydev->advertising, !jumbo);
-	phy_start_aneg(tp->phydev);
+	if (jumbo) {
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				   tp->phydev->advertising);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				   tp->phydev->advertising);
+		phy_start_aneg(tp->phydev);
+	}
 }
 
 DECLARE_RTL_COND(rtl_chipcmd_cond)
@@ -5120,6 +5122,8 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	}
 
 	tp->phydev->mac_managed_pm = 1;
+
+	phy_support_asym_pause(tp->phydev);
 
 	/* PHY will be woken up in rtl_open() */
 	phy_suspend(tp->phydev);
