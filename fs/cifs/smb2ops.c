@@ -848,11 +848,9 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		};
 
 		/*
-		 * caller expects this func to set pfid to a valid
-		 * cached root, so we copy the existing one and get a
-		 * reference.
+		 * caller expects this func to set the fid in crfid to valid
+		 * cached root, so increment the refcount.
 		 */
-		memcpy(pfid, tcon->crfid.fid, sizeof(*pfid));
 		kref_get(&tcon->crfid.refcount);
 
 		mutex_unlock(&tcon->crfid.fid_mutex);
@@ -885,7 +883,6 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid->mid = le64_to_cpu(o_rsp->sync_hdr.MessageId);
 #endif /* CIFS_DEBUG2 */
 
-	memcpy(tcon->crfid.fid, pfid, sizeof(struct cifs_fid));
 	tcon->crfid.tcon = tcon;
 	tcon->crfid.is_valid = true;
 	tcon->crfid.dentry = dentry;
@@ -894,6 +891,10 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	/* BB TBD check to see if oplock level check can be removed below */
 	if (o_rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE) {
+		/*
+		 * See commit 2f94a3125b87. Increment the refcount when we
+		 * get a lease for root, release it if lease break occurs
+		 */
 		kref_get(&tcon->crfid.refcount);
 		tcon->crfid.has_lease = true;
 		smb2_parse_contexts(server, o_rsp,
