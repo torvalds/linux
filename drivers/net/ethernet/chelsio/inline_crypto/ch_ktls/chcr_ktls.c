@@ -355,18 +355,6 @@ static int chcr_set_tcb_field(struct chcr_ktls_info *tx_info, u16 word,
 }
 
 /*
- * chcr_ktls_mark_tcb_close: mark tcb state to CLOSE
- * @tx_info - driver specific tls info.
- * return: NET_TX_OK/NET_XMIT_DROP.
- */
-static int chcr_ktls_mark_tcb_close(struct chcr_ktls_info *tx_info)
-{
-	return chcr_set_tcb_field(tx_info, TCB_T_STATE_W,
-				  TCB_T_STATE_V(TCB_T_STATE_M),
-				  CHCR_TCB_STATE_CLOSED, 1);
-}
-
-/*
  * chcr_ktls_dev_del:  call back for tls_dev_del.
  * Remove the tid and l2t entry and close the connection.
  * it per connection basis.
@@ -400,8 +388,6 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
 
 	/* clear tid */
 	if (tx_info->tid != -1) {
-		/* clear tcb state and then release tid */
-		chcr_ktls_mark_tcb_close(tx_info);
 		cxgb4_remove_tid(&tx_info->adap->tids, tx_info->tx_chan,
 				 tx_info->tid, tx_info->ip_family);
 	}
@@ -579,7 +565,6 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	return 0;
 
 free_tid:
-	chcr_ktls_mark_tcb_close(tx_info);
 #if IS_ENABLED(CONFIG_IPV6)
 	/* clear clip entry */
 	if (tx_info->ip_family == AF_INET6)
@@ -677,10 +662,6 @@ static int chcr_ktls_cpl_act_open_rpl(struct adapter *adap,
 	if (tx_info->pending_close) {
 		spin_unlock(&tx_info->lock);
 		if (!status) {
-			/* it's a late success, tcb status is establised,
-			 * mark it close.
-			 */
-			chcr_ktls_mark_tcb_close(tx_info);
 			cxgb4_remove_tid(&tx_info->adap->tids, tx_info->tx_chan,
 					 tid, tx_info->ip_family);
 		}
