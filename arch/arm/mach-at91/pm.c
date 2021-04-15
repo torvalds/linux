@@ -552,7 +552,12 @@ static const struct of_device_id ramc_ids[] __initconst = {
 	{ /*sentinel*/ }
 };
 
-static __init void at91_dt_ramc(void)
+static const struct of_device_id ramc_phy_ids[] __initconst = {
+	{ .compatible = "microchip,sama7g5-ddr3phy", },
+	{ /* Sentinel. */ },
+};
+
+static __init void at91_dt_ramc(bool phy_mandatory)
 {
 	struct device_node *np;
 	const struct of_device_id *of_id;
@@ -577,6 +582,16 @@ static __init void at91_dt_ramc(void)
 
 	if (!idx)
 		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
+
+	/* Lookup for DDR PHY node, if any. */
+	for_each_matching_node_and_match(np, ramc_phy_ids, &of_id) {
+		soc_pm.data.ramc_phy = of_iomap(np, 0);
+		if (!soc_pm.data.ramc_phy)
+			panic(pr_fmt("unable to map ramc phy cpu registers\n"));
+	}
+
+	if (phy_mandatory && !soc_pm.data.ramc_phy)
+		panic(pr_fmt("DDR PHY is mandatory!\n"));
 
 	if (!standby) {
 		pr_warn("ramc no standby function available\n");
@@ -936,7 +951,7 @@ void __init at91rm9200_pm_init(void)
 	soc_pm.data.standby_mode = AT91_PM_STANDBY;
 	soc_pm.data.suspend_mode = AT91_PM_ULP0;
 
-	at91_dt_ramc();
+	at91_dt_ramc(false);
 
 	/*
 	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
@@ -960,7 +975,7 @@ void __init sam9x60_pm_init(void)
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
-	at91_dt_ramc();
+	at91_dt_ramc(false);
 	at91_pm_init(NULL);
 
 	soc_pm.ws_ids = sam9x60_ws_ids;
@@ -980,7 +995,7 @@ void __init at91sam9_pm_init(void)
 	soc_pm.data.standby_mode = AT91_PM_STANDBY;
 	soc_pm.data.suspend_mode = AT91_PM_ULP0;
 
-	at91_dt_ramc();
+	at91_dt_ramc(false);
 	at91_pm_init(at91sam9_idle);
 }
 
@@ -994,7 +1009,7 @@ void __init sama5_pm_init(void)
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
-	at91_dt_ramc();
+	at91_dt_ramc(false);
 	at91_pm_init(NULL);
 }
 
@@ -1015,7 +1030,7 @@ void __init sama5d2_pm_init(void)
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
-	at91_dt_ramc();
+	at91_dt_ramc(false);
 	at91_pm_init(NULL);
 
 	soc_pm.ws_ids = sama5d2_ws_ids;
