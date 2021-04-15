@@ -217,7 +217,7 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	int ret = 0;
 
 	if (!skb) {
-		dev_err(mdev->dev, "Message %d (seq %d) timeout\n",
+		dev_err(mdev->dev, "Message %08x (seq %d) timeout\n",
 			cmd, seq);
 		return -ETIMEDOUT;
 	}
