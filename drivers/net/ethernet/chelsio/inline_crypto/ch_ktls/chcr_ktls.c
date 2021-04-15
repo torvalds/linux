@@ -1650,54 +1650,6 @@ static void chcr_ktls_copy_record_in_skb(struct sk_buff *nskb,
 }
 
 /*
- * chcr_ktls_update_snd_una:  Reset the SEND_UNA. It will be done to avoid
- * sending the same segment again. It will discard the segment which is before
- * the current tx max.
- * @tx_info - driver specific tls info.
- * @q - TX queue.
- * return: NET_TX_OK/NET_XMIT_DROP.
- */
-static int chcr_ktls_update_snd_una(struct chcr_ktls_info *tx_info,
-				    struct sge_eth_txq *q)
-{
-	struct fw_ulptx_wr *wr;
-	unsigned int ndesc;
-	int credits;
-	void *pos;
-	u32 len;
-
-	len = sizeof(*wr) + roundup(CHCR_SET_TCB_FIELD_LEN, 16);
-	ndesc = DIV_ROUND_UP(len, 64);
-
-	credits = chcr_txq_avail(&q->q) - ndesc;
-	if (unlikely(credits < 0)) {
-		chcr_eth_txq_stop(q);
-		return NETDEV_TX_BUSY;
-	}
-
-	pos = &q->q.desc[q->q.pidx];
-
-	wr = pos;
-	/* ULPTX wr */
-	wr->op_to_compl = htonl(FW_WR_OP_V(FW_ULPTX_WR));
-	wr->cookie = 0;
-	/* fill len in wr field */
-	wr->flowid_len16 = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(len, 16)));
-
-	pos += sizeof(*wr);
-
-	pos = chcr_write_cpl_set_tcb_ulp(tx_info, q, tx_info->tid, pos,
-					 TCB_SND_UNA_RAW_W,
-					 TCB_SND_UNA_RAW_V(TCB_SND_UNA_RAW_M),
-					 TCB_SND_UNA_RAW_V(0), 0);
-
-	chcr_txq_advance(&q->q, ndesc);
-	cxgb4_ring_tx_db(tx_info->adap, &q->q, ndesc);
-
-	return 0;
-}
-
-/*
  * chcr_end_part_handler: This handler will handle the record which
  * is complete or if record's end part is received. T6 adapter has a issue that
  * it can't send out TAG with partial record so if its an end part then we have
@@ -1897,11 +1849,6 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 			/* reset tcp_seq as per the prior_data_required len */
 			tcp_seq -= prior_data_len;
 		}
-		/* reset snd una, so the middle record won't send the already
-		 * sent part.
-		 */
-		if (chcr_ktls_update_snd_una(tx_info, q))
-			goto out;
 		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_middle_pkts);
 	} else {
 		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_start_pkts);
