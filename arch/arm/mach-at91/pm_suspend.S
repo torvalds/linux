@@ -980,6 +980,11 @@ ulp_exit:
 	mov	tmp1, #0x1
 	str	tmp1, [r0, #0x10]
 
+	/* Wait for it. */
+1:	ldr	tmp1, [r0, #0x10]
+	tst	tmp1, #0x1
+	beq	1b
+
 	/* Shutdown */
 	ldr	r0, .shdwc
 	mov	tmp1, #0xA5000000
