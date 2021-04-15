@@ -22,11 +22,23 @@ tmp3	.req	r6
 
 /*
  * Wait until master clock is ready (after switching master clock source)
+ *
+ * @r_mckid:	register holding master clock identifier
+ *
+ * Side effects: overwrites r7, r8
  */
-	.macro wait_mckrdy
-1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
-	tst	tmp1, #AT91_PMC_MCKRDY
-	beq	1b
+	.macro wait_mckrdy r_mckid
+#ifdef CONFIG_SOC_SAMA7
+	cmp	\r_mckid, #0
+	beq	1f
+	mov	r7, #AT91_PMC_MCKXRDY
+	b	2f
+#endif
+1:	mov	r7, #AT91_PMC_MCKRDY
+2:	ldr	r8, [pmc, #AT91_PMC_SR]
+	and	r8, r7
+	cmp	r8, r7
+	bne	2b
 	.endm
 
 /*
@@ -231,7 +243,9 @@ sr_dis_exit:
 	bic	tmp1, tmp1, #AT91_PMC_PRES
 	orr	tmp1, tmp1, #AT91_PMC_PRES_64
 	str	tmp1, [pmc, tmp3]
-	wait_mckrdy
+
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 	b	1f
 
 0:
@@ -267,10 +281,13 @@ sr_dis_exit:
 	bne	5f
 
 	/* Set lowest prescaler for fast resume. */
+	ldr	tmp3, .mckr_offset
 	ldr	tmp1, [pmc, tmp3]
 	bic	tmp1, tmp1, #AT91_PMC_PRES
 	str	tmp1, [pmc, tmp3]
-	wait_mckrdy
+
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 	b	6f
 
 5:	/* Restore RC oscillator state */
@@ -307,6 +324,7 @@ sr_dis_exit:
 .macro at91_pm_ulp1_mode
 	ldr	pmc, .pmc_base
 	ldr	tmp2, .mckr_offset
+	mov	tmp3, #0
 
 	/* Save RC oscillator state and check if it is enabled. */
 	ldr	tmp1, [pmc, #AT91_PMC_SR]
@@ -348,7 +366,7 @@ sr_dis_exit:
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
 	str	tmp1, [pmc, tmp2]
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Enter the ULP1 mode by set WAITMODE bit in CKGR_MOR */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -361,7 +379,7 @@ sr_dis_exit:
 	nop
 	nop
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Enable the crystal oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -377,7 +395,7 @@ sr_dis_exit:
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	str	tmp1, [pmc, tmp2]
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Switch main clock source to crystal oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -394,7 +412,7 @@ sr_dis_exit:
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
 	str	tmp1, [pmc, tmp2]
 
-	wait_mckrdy
+	wait_mckrdy tmp3
 
 	/* Restore RC oscillator state */
 	ldr	tmp1, .saved_osc_status
@@ -573,10 +591,12 @@ sr_dis_exit:
 save_mck:
 	str	tmp1, [pmc, tmp2]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 	at91_plla_disable
 
+	ldr	tmp3, .pm_mode
 	cmp	tmp3, #AT91_PM_ULP1
 	beq	ulp1_mode
 
@@ -599,7 +619,8 @@ ulp_exit:
 	ldr	tmp2, .saved_mckr
 	str	tmp2, [pmc, tmp1]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 .endm
 
@@ -611,7 +632,8 @@ ulp_exit:
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	str	tmp1, [pmc, tmp2]
 
-	wait_mckrdy
+	mov	tmp3, #0
+	wait_mckrdy tmp3
 
 	/*BUMEN*/
 	ldr	r0, .sfrbu
