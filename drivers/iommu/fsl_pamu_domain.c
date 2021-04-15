@@ -57,14 +57,13 @@ static int __init iommu_init_mempool(void)
 static int update_liodn_stash(int liodn, struct fsl_dma_domain *dma_domain,
 			      u32 val)
 {
-	int ret = 0, i;
+	int ret = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&iommu_lock, flags);
 	ret = pamu_update_paace_stash(liodn, val);
 	if (ret) {
-		pr_debug("Failed to update SPAACE %d field for liodn %d\n ",
-			 i, liodn);
+		pr_debug("Failed to update SPAACE for liodn %d\n ", liodn);
 		spin_unlock_irqrestore(&iommu_lock, flags);
 		return ret;
 	}
