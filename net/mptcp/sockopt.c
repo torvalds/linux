@@ -350,3 +350,22 @@ int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	return -EOPNOTSUPP;
 }
 
+void mptcp_sockopt_sync(struct mptcp_sock *msk, struct sock *ssk)
+{
+	msk_owned_by_me(msk);
+}
+
+void mptcp_sockopt_sync_all(struct mptcp_sock *msk)
+{
+	struct mptcp_subflow_context *subflow;
+
+	msk_owned_by_me(msk);
+
+	mptcp_for_each_subflow(msk, subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+
+		mptcp_sockopt_sync(msk, ssk);
+
+		cond_resched();
+	}
+}
