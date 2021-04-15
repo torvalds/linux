@@ -422,7 +422,7 @@ sr_dis_exit:
 	cmp	tmp1, #AT91_PMC_V1
 	beq	1f
 
-#ifdef CONFIG_SOC_SAM9X60
+#ifdef CONFIG_HAVE_AT91_SAM9X60_PLL
 	/* Save PLLA settings. */
 	ldr	tmp2, [pmc, #AT91_PMC_PLL_UPDT]
 	bic	tmp2, tmp2, #AT91_PMC_PLL_UPDT_ID
@@ -489,7 +489,7 @@ sr_dis_exit:
 	cmp	tmp3, #AT91_PMC_V1
 	beq	4f
 
-#ifdef CONFIG_SOC_SAM9X60
+#ifdef CONFIG_HAVE_AT91_SAM9X60_PLL
 	/* step 1. */
 	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
 	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
