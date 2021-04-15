@@ -1598,10 +1598,15 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 	}
 }
 
+static inline bool io_req_needs_clean(struct io_kiocb *req)
+{
+	return req->flags & (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP);
+}
+
 static void io_req_complete_state(struct io_kiocb *req, long res,
 				  unsigned int cflags)
 {
-	if (req->flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED))
+	if (io_req_needs_clean(req))
 		io_clean_op(req);
 	req->result = res;
 	req->compl.cflags = cflags;
@@ -1713,10 +1718,8 @@ static void io_dismantle_req(struct io_kiocb *req)
 
 	if (!(flags & REQ_F_FIXED_FILE))
 		io_put_file(req->file);
-	if (flags & (REQ_F_NEED_CLEANUP | REQ_F_BUFFER_SELECTED |
-		     REQ_F_INFLIGHT)) {
+	if (io_req_needs_clean(req) || (req->flags & REQ_F_INFLIGHT)) {
 		io_clean_op(req);
-
 		if (req->flags & REQ_F_INFLIGHT) {
 			struct io_uring_task *tctx = req->task->io_uring;
 
