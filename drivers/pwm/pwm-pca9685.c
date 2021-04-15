@@ -461,13 +461,19 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* The chip comes out of power-up in the active state */
-	pm_runtime_set_active(&client->dev);
-	/*
-	 * Enable will put the chip into suspend, which is what we
-	 * want as all outputs are disabled at this point
-	 */
 	pm_runtime_enable(&client->dev);
+
+	if (pm_runtime_enabled(&client->dev)) {
+		/*
+		 * Although the chip comes out of power-up in the sleep state,
+		 * we force it to sleep in case it was woken up before
+		 */
+		pca9685_set_sleep_mode(pca, true);
+		pm_runtime_set_suspended(&client->dev);
+	} else {
+		/* Wake the chip up if runtime PM is disabled */
+		pca9685_set_sleep_mode(pca, false);
+	}
 
 	return 0;
 }
@@ -480,7 +486,14 @@ static int pca9685_pwm_remove(struct i2c_client *client)
 	ret = pwmchip_remove(&pca->chip);
 	if (ret)
 		return ret;
+
+	if (!pm_runtime_enabled(&client->dev)) {
+		/* Put chip in sleep state if runtime PM is disabled */
+		pca9685_set_sleep_mode(pca, true);
+	}
+
 	pm_runtime_disable(&client->dev);
+
 	return 0;
 }
 
