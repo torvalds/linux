@@ -133,7 +133,8 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
 	pxmitpriv = &padapter->xmitpriv;
 
 	if (wait_for_completion_interruptible(&pxmitpriv->xmit_comp)) {
-		DBG_871X_LEVEL(_drv_emerg_, "%s: down SdioXmitBufSema fail!\n", __func__);
+		netdev_emerg(padapter->pnetdev,
+			     "%s: down SdioXmitBufSema fail!\n", __func__);
 		return _FAIL;
 	}
 
@@ -264,7 +265,9 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 					pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
 					if (!pxmitbuf) {
 #ifdef DBG_XMIT_BUF
-						DBG_871X_LEVEL(_drv_err_, "%s: xmit_buf is not enough!\n", __func__);
+						netdev_err(padapter->pnetdev,
+							   "%s: xmit_buf is not enough!\n",
+							   __func__);
 #endif
 						err = -2;
 						complete(&(pxmitpriv->xmit_comp));
@@ -296,7 +299,9 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 
 				ret = rtw_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe);
 				if (ret == _FAIL) {
-					DBG_871X_LEVEL(_drv_err_, "%s: coalesce FAIL!", __func__);
+					netdev_err(padapter->pnetdev,
+						   "%s: coalesce FAIL!",
+						   __func__);
 					/*  Todo: error handler */
 				} else {
 					k++;
@@ -367,7 +372,8 @@ static s32 rtl8723bs_xmit_handler(struct adapter *padapter)
 	pxmitpriv = &padapter->xmitpriv;
 
 	if (wait_for_completion_interruptible(&pxmitpriv->SdioXmitStart)) {
-		DBG_871X_LEVEL(_drv_emerg_, "%s: SdioXmitStart fail!\n", __func__);
+		netdev_emerg(padapter->pnetdev, "%s: SdioXmitStart fail!\n",
+			     __func__);
 		return _FAIL;
 	}
 

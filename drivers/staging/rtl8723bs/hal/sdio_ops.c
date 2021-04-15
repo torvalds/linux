@@ -812,7 +812,8 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 	recv_priv = &adapter->recvpriv;
 	recvbuf = rtw_dequeue_recvbuf(&recv_priv->free_recv_buf_queue);
 	if (!recvbuf) {
-		DBG_871X_LEVEL(_drv_err_, "%s: alloc recvbuf FAIL!\n", __func__);
+		netdev_err(adapter->pnetdev, "%s: alloc recvbuf FAIL!\n",
+			   __func__);
 		return NULL;
 	}
 

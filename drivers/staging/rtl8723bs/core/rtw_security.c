@@ -684,8 +684,11 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 
 					if (jiffies_to_msecs(jiffies - start) > 1000) {
 						if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-								FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+							netdev_dbg(padapter->pnetdev,
+								   FUNC_ADPT_FMT " no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
+								   FUNC_ADPT_ARG(padapter),
+								   no_gkey_bc_cnt,
+								   no_gkey_mc_cnt);
 						}
 						start = jiffies;
 						no_gkey_bc_cnt = 0;
@@ -695,8 +698,11 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 				}
 
 				if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-						FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+					netdev_dbg(padapter->pnetdev,
+						   FUNC_ADPT_FMT " gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
+						   FUNC_ADPT_ARG(padapter),
+						   no_gkey_bc_cnt,
+						   no_gkey_mc_cnt);
 				}
 				start = 0;
 				no_gkey_bc_cnt = 0;
@@ -1631,8 +1637,11 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 
 					if (jiffies_to_msecs(jiffies - start) > 1000) {
 						if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-								FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+							netdev_dbg(padapter->pnetdev,
+								   FUNC_ADPT_FMT " no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
+								   FUNC_ADPT_ARG(padapter),
+								   no_gkey_bc_cnt,
+								   no_gkey_mc_cnt);
 						}
 						start = jiffies;
 						no_gkey_bc_cnt = 0;
@@ -1643,8 +1652,11 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 				}
 
 				if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-						FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+					netdev_dbg(padapter->pnetdev,
+						   FUNC_ADPT_FMT " gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
+						   FUNC_ADPT_ARG(padapter),
+						   no_gkey_bc_cnt,
+						   no_gkey_mc_cnt);
 				}
 				start = 0;
 				no_gkey_bc_cnt = 0;
@@ -2149,13 +2161,17 @@ u8 rtw_handle_tkip_countermeasure(struct adapter *adapter, const char *caller)
 		unsigned long passing_ms = jiffies_to_msecs(jiffies - securitypriv->btkip_countermeasure_time);
 
 		if (passing_ms > 60*1000) {
-			DBG_871X_LEVEL(_drv_always_, "%s(%s) countermeasure time:%lus > 60s\n",
-				caller, ADPT_ARG(adapter), passing_ms/1000);
+			netdev_dbg(adapter->pnetdev,
+				   "%s(%s) countermeasure time:%lus > 60s\n",
+				   caller, ADPT_ARG(adapter),
+				   passing_ms / 1000);
 			securitypriv->btkip_countermeasure = false;
 			securitypriv->btkip_countermeasure_time = 0;
 		} else {
-			DBG_871X_LEVEL(_drv_always_, "%s(%s) countermeasure time:%lus < 60s\n",
-				caller, ADPT_ARG(adapter), passing_ms/1000);
+			netdev_dbg(adapter->pnetdev,
+				   "%s(%s) countermeasure time:%lus < 60s\n",
+				   caller, ADPT_ARG(adapter),
+				   passing_ms / 1000);
 			status = _FAIL;
 		}
 	}

@@ -1051,12 +1051,9 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		/* TODO - Is something needed here? */
 		break;
 	default:
-		DBG_871X_LEVEL(
-			_drv_always_,
-			FUNC_ADPT_FMT" variable(%d) not defined!\n",
-			FUNC_ADPT_ARG(adapter),
-			variable
-		);
+		netdev_dbg(adapter->pnetdev,
+			   FUNC_ADPT_FMT " variable(%d) not defined!\n",
+			   FUNC_ADPT_ARG(adapter), variable);
 		break;
 	}
 }
@@ -1077,12 +1074,9 @@ void GetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		*((u8 *)val) = hal_data->rf_type;
 		break;
 	default:
-		DBG_871X_LEVEL(
-			_drv_always_,
-			FUNC_ADPT_FMT" variable(%d) not defined!\n",
-			FUNC_ADPT_ARG(adapter),
-			variable
-		);
+		netdev_dbg(adapter->pnetdev,
+			   FUNC_ADPT_FMT " variable(%d) not defined!\n",
+			   FUNC_ADPT_ARG(adapter), variable);
 		break;
 	}
 }
@@ -1157,7 +1151,9 @@ u8 SetHalDefVar(
 		hal_data->AntDetection = *((u8 *)value);
 		break;
 	default:
-		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __func__, variable);
+		netdev_dbg(adapter->pnetdev,
+			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n",
+			   __func__, variable);
 		bResult = _FAIL;
 		break;
 	}
@@ -1212,7 +1208,9 @@ u8 GetHalDefVar(
 		*((u32 *)value) = PAGE_SIZE_128;
 		break;
 	default:
-		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __func__, variable);
+		netdev_dbg(adapter->pnetdev,
+			   "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n",
+			   __func__, variable);
 		bResult = _FAIL;
 		break;
 	}

@@ -360,7 +360,9 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	release_firmware(fw);
 	if (pFirmware->fw_length > FW_8723B_SIZE) {
 		rtStatus = _FAIL;
-		DBG_871X_LEVEL(_drv_emerg_, "Firmware size:%u exceed %u\n", pFirmware->fw_length, FW_8723B_SIZE);
+		netdev_emerg(padapter->pnetdev,
+			     "Firmware size:%u exceed %u\n",
+			     pFirmware->fw_length, FW_8723B_SIZE);
 		goto release_fw1;
 	}
 

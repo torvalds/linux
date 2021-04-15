@@ -401,18 +401,25 @@ int rtw_cmd_thread(void *context)
 
 	while (1) {
 		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp)) {
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp) return != 0, break\n", FUNC_ADPT_ARG(padapter));
+			netdev_dbg(padapter->pnetdev,
+				   FUNC_ADPT_FMT " wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp) return != 0, break\n",
+				   FUNC_ADPT_ARG(padapter));
 			break;
 		}
 
 		if ((padapter->bDriverStopped == true) || (padapter->bSurpriseRemoved == true)) {
-			DBG_871X_LEVEL(_drv_always_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
-				__func__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
+			netdev_dbg(padapter->pnetdev,
+				   "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
+				   __func__, padapter->bDriverStopped,
+				   padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}
 
 		if (pcmdpriv->stop_req) {
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" stop_req:%u, break\n", FUNC_ADPT_ARG(padapter), pcmdpriv->stop_req);
+			netdev_dbg(padapter->pnetdev,
+				   FUNC_ADPT_FMT " stop_req:%u, break\n",
+				   FUNC_ADPT_ARG(padapter),
+				   pcmdpriv->stop_req);
 			break;
 		}
 
@@ -424,8 +431,10 @@ int rtw_cmd_thread(void *context)
 
 _next:
 		if ((padapter->bDriverStopped == true) || (padapter->bSurpriseRemoved == true)) {
-			DBG_871X_LEVEL(_drv_always_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
-				__func__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
+			netdev_dbg(padapter->pnetdev,
+				   "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
+				   __func__, padapter->bDriverStopped,
+				   padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}
 
@@ -465,8 +474,9 @@ post_process:
 
 		if (mutex_lock_interruptible(&(pcmd->padapter->cmdpriv.sctx_mutex)) == 0) {
 			if (pcmd->sctx) {
-				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pcmd->sctx\n",
-					       FUNC_ADPT_ARG(pcmd->padapter));
+				netdev_dbg(padapter->pnetdev,
+					   FUNC_ADPT_FMT " pcmd->sctx\n",
+					   FUNC_ADPT_ARG(pcmd->padapter));
 
 				if (pcmd->res == H2C_SUCCESS)
 					rtw_sctx_done(&pcmd->sctx);
@@ -961,7 +971,9 @@ u8 rtw_clearstakey_cmd(struct adapter *padapter, struct sta_info *sta, u8 enqueu
 
 	if (!enqueue) {
 		while ((cam_id = rtw_camid_search(padapter, sta->hwaddr, -1)) >= 0) {
-			DBG_871X_LEVEL(_drv_always_, "clear key for addr:%pM, camid:%d\n", MAC_ARG(sta->hwaddr), cam_id);
+			netdev_dbg(padapter->pnetdev,
+				   "clear key for addr:%pM, camid:%d\n",
+				   MAC_ARG(sta->hwaddr), cam_id);
 			clear_cam_entry(padapter, cam_id);
 			rtw_camid_free(padapter, cam_id);
 		}

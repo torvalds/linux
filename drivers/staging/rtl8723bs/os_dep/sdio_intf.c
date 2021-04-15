@@ -101,7 +101,9 @@ static void sdio_free_irq(struct dvobj_priv *dvobj)
 			err = sdio_release_irq(func);
 			if (err) {
 				dvobj->drv_dbg.dbg_sdio_free_irq_error_cnt++;
-				DBG_871X_LEVEL(_drv_err_, "%s: sdio_release_irq FAIL(%d)!\n", __func__, err);
+				netdev_err(dvobj->if1->pnetdev,
+					   "%s: sdio_release_irq FAIL(%d)!\n",
+					   __func__, err);
 			} else
 				dvobj->drv_dbg.dbg_sdio_free_irq_cnt++;
 			sdio_release_host(func);
@@ -485,9 +487,7 @@ static int __init rtw_drv_entry(void)
 {
 	int ret;
 
-	DBG_871X_LEVEL(_drv_always_, "module init start\n");
 #ifdef BTCOEXVERSION
-	DBG_871X_LEVEL(_drv_always_, "rtl8723bs BT-Coex version = %s\n", BTCOEXVERSION);
 #endif /*  BTCOEXVERSION */
 
 
@@ -495,19 +495,14 @@ static int __init rtw_drv_entry(void)
 	if (ret != 0)
 		rtw_ndev_notifier_unregister();
 
-	DBG_871X_LEVEL(_drv_always_, "module init ret =%d\n", ret);
 	return ret;
 }
 
 static void __exit rtw_drv_halt(void)
 {
-	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
-
 	sdio_unregister_driver(&rtl8723bs_sdio_driver);
 
 	rtw_ndev_notifier_unregister();
-
-	DBG_871X_LEVEL(_drv_always_, "module exit success\n");
 }
 
 

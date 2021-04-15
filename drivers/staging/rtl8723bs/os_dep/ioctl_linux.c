@@ -58,7 +58,7 @@ void rtw_indicate_wx_assoc_event(struct adapter *padapter)
 	else
 		memcpy(wrqu.ap_addr.sa_data, pmlmepriv->cur_network.network.MacAddress, ETH_ALEN);
 
-	DBG_871X_LEVEL(_drv_always_, "assoc success\n");
+	netdev_dbg(padapter->pnetdev, "assoc success\n");
 }
 
 void rtw_indicate_wx_disassoc_event(struct adapter *padapter)

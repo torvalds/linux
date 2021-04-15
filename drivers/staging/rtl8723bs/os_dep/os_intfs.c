@@ -412,7 +412,8 @@ static int rtw_ndev_notifier_call(struct notifier_block *nb, unsigned long state
 	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
 		return NOTIFY_DONE;
 
-	DBG_871X_LEVEL(_drv_info_, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev), state);
+	netdev_info(dev, FUNC_NDEV_FMT " state:%lu\n", FUNC_NDEV_ARG(dev),
+		    state);
 
 	return NOTIFY_DONE;
 }
@@ -436,7 +437,7 @@ static int rtw_ndev_init(struct net_device *dev)
 {
 	struct adapter *adapter = rtw_netdev_priv(dev);
 
-	DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
+	netdev_dbg(dev, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
 	strncpy(adapter->old_ifname, dev->name, IFNAMSIZ);
 
 	return 0;
@@ -446,7 +447,7 @@ static void rtw_ndev_uninit(struct net_device *dev)
 {
 	struct adapter *adapter = rtw_netdev_priv(dev);
 
-	DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
+	netdev_dbg(dev, FUNC_ADPT_FMT "\n", FUNC_ADPT_ARG(adapter));
 }
 
 static const struct net_device_ops rtw_netdev_ops = {
@@ -1068,11 +1069,13 @@ void rtw_dev_unload(struct adapter *padapter)
 		/* check the status of IPS */
 		if (rtw_hal_check_ips_status(padapter) || pwrctl->rf_pwrstate == rf_off) {
 			/* check HW status and SW state */
-			DBG_871X_LEVEL(_drv_always_, "%s: driver in IPS-FWLPS\n", __func__);
+			netdev_dbg(padapter->pnetdev,
+				   "%s: driver in IPS-FWLPS\n", __func__);
 			pdbgpriv->dbg_dev_unload_inIPS_cnt++;
 			LeaveAllPowerSaveMode(padapter);
 		} else {
-			DBG_871X_LEVEL(_drv_always_, "%s: driver not in IPS\n", __func__);
+			netdev_dbg(padapter->pnetdev,
+				   "%s: driver not in IPS\n", __func__);
 		}
 
 		if (!padapter->bSurpriseRemoved) {
@@ -1118,7 +1121,8 @@ static int rtw_suspend_free_assoc_resource(struct adapter *padapter)
 		rtw_indicate_scan_done(padapter, 1);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
-		DBG_871X_LEVEL(_drv_always_, "%s: fw_under_linking\n", __func__);
+		netdev_dbg(padapter->pnetdev, "%s: fw_under_linking\n",
+			   __func__);
 		rtw_indicate_disconnect(padapter);
 	}
 
@@ -1137,7 +1141,9 @@ static void rtw_suspend_normal(struct adapter *padapter)
 	rtw_suspend_free_assoc_resource(padapter);
 
 	if ((rtw_hal_check_ips_status(padapter)) || (adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off))
-		DBG_871X_LEVEL(_drv_always_, "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n", __func__);
+		netdev_dbg(padapter->pnetdev,
+		           "%s: ### ERROR #### driver in IPS ####ERROR###!!!\n",
+		           __func__);
 
 	rtw_dev_unload(padapter);
 
@@ -1156,7 +1162,7 @@ int rtw_suspend_common(struct adapter *padapter)
 	int ret = 0;
 	unsigned long start_time = jiffies;
 
-	DBG_871X_LEVEL(_drv_always_, " suspend start\n");
+	netdev_dbg(padapter->pnetdev, " suspend start\n");
 	pdbgpriv->dbg_suspend_cnt++;
 
 	pwrpriv->bInSuspend = true;
@@ -1191,8 +1197,8 @@ int rtw_suspend_common(struct adapter *padapter)
 	else
 		rtw_suspend_normal(padapter);
 
-	DBG_871X_LEVEL(_drv_always_, "rtw suspend success in %d ms\n",
-		jiffies_to_msecs(jiffies - start_time));
+	netdev_dbg(padapter->pnetdev, "rtw suspend success in %d ms\n",
+		   jiffies_to_msecs(jiffies - start_time));
 
 exit:
 
@@ -1265,7 +1271,7 @@ int rtw_resume_common(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	DBG_871X_LEVEL(_drv_always_, "resume start\n");
+	netdev_dbg(padapter->pnetdev, "resume start\n");
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		rtw_resume_process_normal(padapter);
@@ -1280,8 +1286,8 @@ int rtw_resume_common(struct adapter *padapter)
 	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;
 	}
-	DBG_871X_LEVEL(_drv_always_, "%s:%d in %d ms\n", __func__, ret,
-		jiffies_to_msecs(jiffies - start_time));
+	netdev_dbg(padapter->pnetdev, "%s:%d in %d ms\n", __func__, ret,
+		   jiffies_to_msecs(jiffies - start_time));
 
 	return ret;
 }

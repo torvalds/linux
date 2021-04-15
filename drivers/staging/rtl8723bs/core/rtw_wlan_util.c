@@ -651,8 +651,9 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 		&& !sta) {
 		/* AP/Ad-hoc mode group key: static alloction to default key by key ID */
 		if (kid > 3) {
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key with invalid key id:%u\n"
-				, FUNC_ADPT_ARG(adapter), kid);
+			netdev_dbg(adapter->pnetdev,
+				   FUNC_ADPT_FMT " group key with invalid key id:%u\n",
+				   FUNC_ADPT_ARG(adapter), kid);
 			rtw_warn_on(1);
 			goto bitmap_handle;
 		}
@@ -677,8 +678,9 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 			if (sta || _rtw_camid_is_gk(adapter, i))
 				cam_id = i;
 			else
-				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u the same key id as pairwise key\n"
-					, FUNC_ADPT_ARG(adapter), kid);
+				netdev_dbg(adapter->pnetdev,
+					   FUNC_ADPT_FMT " group key id:%u the same key id as pairwise key\n",
+					   FUNC_ADPT_ARG(adapter), kid);
 			goto bitmap_handle;
 		}
 
@@ -688,11 +690,14 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 
 		if (i == TOTAL_CAM_ENTRY) {
 			if (sta)
-				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pairwise key with %pM id:%u no room\n"
-				, FUNC_ADPT_ARG(adapter), MAC_ARG(sta->hwaddr), kid);
+				netdev_dbg(adapter->pnetdev,
+					   FUNC_ADPT_FMT " pairwise key with %pM id:%u no room\n",
+					   FUNC_ADPT_ARG(adapter),
+					   MAC_ARG(sta->hwaddr), kid);
 			else
-				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u no room\n"
-				, FUNC_ADPT_ARG(adapter), kid);
+				netdev_dbg(adapter->pnetdev,
+					   FUNC_ADPT_FMT " group key id:%u no room\n",
+					   FUNC_ADPT_ARG(adapter), kid);
 			rtw_warn_on(1);
 			goto bitmap_handle;
 		}

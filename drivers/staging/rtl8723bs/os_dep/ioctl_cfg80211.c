@@ -411,7 +411,9 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 		}
 
 		if (!rtw_cfg80211_check_bss(padapter))
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" BSS not found !!\n", FUNC_ADPT_ARG(padapter));
+			netdev_dbg(padapter->pnetdev,
+				   FUNC_ADPT_FMT " BSS not found !!\n",
+				   FUNC_ADPT_ARG(padapter));
 	}
 	/* notify cfg80211 that device joined an IBSS */
 	chan = ieee80211_get_channel(wiphy, freq);
@@ -452,7 +454,9 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 
 check_bss:
 	if (!rtw_cfg80211_check_bss(padapter))
-		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" BSS not found !!\n", FUNC_ADPT_ARG(padapter));
+		netdev_dbg(padapter->pnetdev,
+			   FUNC_ADPT_FMT " BSS not found !!\n",
+			   FUNC_ADPT_ARG(padapter));
 
 	if (rtw_to_roam(padapter) > 0) {
 		struct wiphy *wiphy = pwdev->wiphy;

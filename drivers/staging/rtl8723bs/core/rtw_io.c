@@ -130,7 +130,9 @@ u8 _rtw_sd_f0_read8(struct adapter *adapter, u32 addr)
 	if (_sd_f0_read8)
 		r_val = _sd_f0_read8(pintfhdl, addr);
 	else
-		DBG_871X_LEVEL(_drv_warning_, FUNC_ADPT_FMT" _sd_f0_read8 callback is NULL\n", FUNC_ADPT_ARG(adapter));
+		netdev_warn(adapter->pnetdev,
+			    FUNC_ADPT_FMT " _sd_f0_read8 callback is NULL\n",
+			    FUNC_ADPT_ARG(adapter));
 
 	return r_val;
 }
