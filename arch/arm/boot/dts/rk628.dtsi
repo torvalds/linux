@@ -5,20 +5,20 @@
 #include <dt-bindings/clock/rk628-cgu.h>
 
 / {
-	xin_osc0_func: xin-osc0-func {
+	rk628_xin_osc0_func: rk628-xin-osc0-func {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
-		clock-output-names = "xin_osc0_func";
+		clock-output-names = "rk628_xin_osc0_func";
 	};
 
-	xin_osc0_half: xin-osc0-half {
+	rk628_xin_osc0_half: rk628-xin-osc0-half {
 		compatible = "fixed-factor-clock";
 		#clock-cells = <0>;
-		clocks = <&xin_osc0_func>;
+		clocks = <&rk628_xin_osc0_func>;
 		clock-mult = <1>;
 		clock-div = <2>;
-		clock-output-names = "xin_osc0_half";
+		clock-output-names = "rk628_xin_osc0_half";
 	};
 };
 
