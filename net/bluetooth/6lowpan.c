@@ -103,34 +103,6 @@ static inline bool peer_del(struct lowpan_btle_dev *dev,
 	return false;
 }
 
-static inline struct lowpan_peer *peer_lookup_ba(struct lowpan_btle_dev *dev,
-						 bdaddr_t *ba, __u8 type)
-{
-	struct lowpan_peer *peer;
-
-	BT_DBG("peers %d addr %pMR type %d", atomic_read(&dev->peer_count),
-	       ba, type);
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(peer, &dev->peers, list) {
-		BT_DBG("dst addr %pMR dst type %d",
-		       &peer->chan->dst, peer->chan->dst_type);
-
-		if (bacmp(&peer->chan->dst, ba))
-			continue;
-
-		if (type == peer->chan->dst_type) {
-			rcu_read_unlock();
-			return peer;
-		}
-	}
-
-	rcu_read_unlock();
-
-	return NULL;
-}
-
 static inline struct lowpan_peer *
 __peer_lookup_chan(struct lowpan_btle_dev *dev, struct l2cap_chan *chan)
 {
@@ -906,14 +878,6 @@ static const struct l2cap_ops bt_6lowpan_chan_ops = {
 	.defer			= l2cap_chan_no_defer,
 	.set_shutdown		= l2cap_chan_no_set_shutdown,
 };
-
-static inline __u8 bdaddr_type(__u8 type)
-{
-	if (type == ADDR_LE_DEV_PUBLIC)
-		return BDADDR_LE_PUBLIC;
-	else
-		return BDADDR_LE_RANDOM;
-}
 
 static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 {
