@@ -34,8 +34,7 @@ MODULE_PARM_DESC(sva, "Toggle SVA support on/off");
 
 bool support_enqcmd;
 
-static struct idr idxd_idrs[IDXD_TYPE_MAX];
-static DEFINE_MUTEX(idxd_idr_lock);
+static struct ida idxd_idas[IDXD_TYPE_MAX];
 
 static struct pci_device_id idxd_pci_tbl[] = {
 	/* DSA ver 1.0 platforms */
@@ -348,12 +347,10 @@ static int idxd_probe(struct idxd_device *idxd)
 
 	dev_dbg(dev, "IDXD interrupt setup complete.\n");
 
-	mutex_lock(&idxd_idr_lock);
-	idxd->id = idr_alloc(&idxd_idrs[idxd->type], idxd, 0, 0, GFP_KERNEL);
-	mutex_unlock(&idxd_idr_lock);
+	idxd->id = ida_alloc(&idxd_idas[idxd->type], GFP_KERNEL);
 	if (idxd->id < 0) {
 		rc = -ENOMEM;
-		goto err_idr_fail;
+		goto err_ida_fail;
 	}
 
 	idxd->major = idxd_cdev_get_major(idxd);
@@ -361,7 +358,7 @@ static int idxd_probe(struct idxd_device *idxd)
 	dev_dbg(dev, "IDXD device %d probed successfully\n", idxd->id);
 	return 0;
 
- err_idr_fail:
+ err_ida_fail:
 	idxd_mask_error_interrupts(idxd);
 	idxd_mask_msix_vectors(idxd);
  err_setup:
@@ -518,9 +515,7 @@ static void idxd_remove(struct pci_dev *pdev)
 	idxd_shutdown(pdev);
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
-	mutex_lock(&idxd_idr_lock);
-	idr_remove(&idxd_idrs[idxd->type], idxd->id);
-	mutex_unlock(&idxd_idr_lock);
+	ida_free(&idxd_idas[idxd->type], idxd->id);
 }
 
 static struct pci_driver idxd_pci_driver = {
@@ -550,7 +545,7 @@ static int __init idxd_init_module(void)
 		support_enqcmd = true;
 
 	for (i = 0; i < IDXD_TYPE_MAX; i++)
-		idr_init(&idxd_idrs[i]);
+		ida_init(&idxd_idas[i]);
 
 	err = idxd_register_bus_type();
 	if (err < 0)
