@@ -6664,12 +6664,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 {
 	int submitted = 0;
 
-	/* if we have a backlog and couldn't flush it all, return BUSY */
-	if (test_bit(0, &ctx->sq_check_overflow)) {
-		if (!__io_cqring_overflow_flush(ctx, false))
-			return -EBUSY;
-	}
-
 	/* make sure SQ entry isn't read before tail */
 	nr = min3(nr, ctx->sq_entries, io_sqring_entries(ctx));
 
