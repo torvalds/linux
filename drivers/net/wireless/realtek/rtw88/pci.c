@@ -950,10 +950,12 @@ static int rtw_pci_tx_write(struct rtw_dev *rtwdev,
 		return ret;
 
 	ring = &rtwpci->tx_rings[queue];
+	spin_lock_bh(&rtwpci->irq_lock);
 	if (avail_desc(ring->r.wp, ring->r.rp, ring->r.len) < 2) {
 		ieee80211_stop_queue(rtwdev->hw, skb_get_queue_mapping(skb));
 		ring->queue_stopped = true;
 	}
+	spin_unlock_bh(&rtwpci->irq_lock);
 
 	return 0;
 }
@@ -968,7 +970,7 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 	struct sk_buff *skb;
 	u32 count;
 	u32 bd_idx_addr;
-	u32 bd_idx, cur_rp;
+	u32 bd_idx, cur_rp, rp_idx;
 	u16 q_map;
 
 	ring = &rtwpci->tx_rings[hw_queue];
@@ -977,6 +979,7 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 	bd_idx = rtw_read32(rtwdev, bd_idx_addr);
 	cur_rp = bd_idx >> 16;
 	cur_rp &= TRX_BD_IDX_MASK;
+	rp_idx = ring->r.rp;
 	if (cur_rp >= ring->r.rp)
 		count = cur_rp - ring->r.rp;
 	else
@@ -1000,11 +1003,14 @@ static void rtw_pci_tx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		}
 
 		if (ring->queue_stopped &&
-		    avail_desc(ring->r.wp, ring->r.rp, ring->r.len) > 4) {
+		    avail_desc(ring->r.wp, rp_idx, ring->r.len) > 4) {
 			q_map = skb_get_queue_mapping(skb);
 			ieee80211_wake_queue(hw, q_map);
 			ring->queue_stopped = false;
 		}
+
+		if (++rp_idx >= ring->r.len)
+			rp_idx = 0;
 
 		skb_pull(skb, rtwdev->chip->tx_pkt_desc_sz);
 
