@@ -1740,7 +1740,9 @@ static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 				 struct sge_eth_txq *q, u32 skb_offset,
 				 u32 tls_end_offset, bool last_wr)
 {
+	bool free_skb_if_tx_fails = false;
 	struct sk_buff *nskb = NULL;
+
 	/* check if it is a complete record */
 	if (tls_end_offset == record->len) {
 		nskb = skb;
@@ -1763,6 +1765,8 @@ static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 
 		if (last_wr)
 			dev_kfree_skb_any(skb);
+		else
+			free_skb_if_tx_fails = true;
 
 		last_wr = true;
 
@@ -1774,6 +1778,8 @@ static int chcr_end_part_handler(struct chcr_ktls_info *tx_info,
 				       record->num_frags,
 				       (last_wr && tcp_push_no_fin),
 				       mss)) {
+		if (free_skb_if_tx_fails)
+			dev_kfree_skb_any(skb);
 		goto out;
 	}
 	tx_info->prev_seq = record->end_seq;
