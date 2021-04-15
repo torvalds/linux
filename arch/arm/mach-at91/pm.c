@@ -729,7 +729,8 @@ static int __init at91_pm_backup_init(void)
 	struct platform_device *pdev;
 	int ret = -ENODEV, located = 0;
 
-	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
+	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2) &&
+	    !IS_ENABLED(CONFIG_SOC_SAMA7G5))
 		return -EPERM;
 
 	if (!at91_is_pm_mode_active(AT91_PM_BACKUP))

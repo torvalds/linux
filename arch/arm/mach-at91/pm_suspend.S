@@ -106,6 +106,12 @@ lp_done_\ena:
 #endif
 	.endm
 
+	.macro at91_backup_set_lpm reg
+#ifdef CONFIG_SOC_SAMA7
+	orr	\reg, \reg, #0x200000
+#endif
+	.endm
+
 	.text
 
 	.arm
@@ -989,6 +995,7 @@ ulp_exit:
 	ldr	r0, .shdwc
 	mov	tmp1, #0xA5000000
 	add	tmp1, tmp1, #0x1
+	at91_backup_set_lpm tmp1
 	str	tmp1, [r0, #0]
 .endm
 
