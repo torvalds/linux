@@ -2738,7 +2738,7 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 
 	if (check_reissue && req->flags & REQ_F_REISSUE) {
 		req->flags &= ~REQ_F_REISSUE;
-		if (!io_resubmit_prep(req)) {
+		if (io_resubmit_prep(req)) {
 			req_ref_get(req);
 			io_queue_async_work(req);
 		} else {
