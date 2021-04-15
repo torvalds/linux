@@ -677,8 +677,6 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc);
 void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc);
 #else
 
-struct ipoib_cm_tx;
-
 #define ipoib_max_conn_qp 0
 
 static inline int ipoib_cm_admin_enabled(struct net_device *dev)
