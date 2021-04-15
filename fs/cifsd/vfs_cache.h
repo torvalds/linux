@@ -26,8 +26,8 @@
 #define SMB2_NO_FID		(0xFFFFFFFFFFFFFFFFULL)
 
 #define FP_FILENAME(fp)		fp->filp->f_path.dentry->d_name.name
-#define FP_INODE(fp)		fp->filp->f_path.dentry->d_inode
-#define PARENT_INODE(fp)	fp->filp->f_path.dentry->d_parent->d_inode
+#define FP_INODE(fp)		d_inode(fp->filp->f_path.dentry)
+#define PARENT_INODE(fp)	d_inode(fp->filp->f_path.dentry->d_parent)
 
 #define ATTR_FP(fp) (fp->attrib_only && \
 		(fp->cdoption != FILE_OVERWRITE_IF_LE && \

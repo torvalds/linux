@@ -2890,9 +2890,9 @@ int smb2_open(struct ksmbd_work *work)
 	/* Set default windows and posix acls if creating new file */
 	if (created) {
 		int posix_acl_rc;
-		struct inode *inode = path.dentry->d_inode;
+		struct inode *inode = d_inode(path.dentry);
 
-		posix_acl_rc = ksmbd_vfs_inherit_posix_acl(inode, path.dentry->d_parent->d_inode);
+		posix_acl_rc = ksmbd_vfs_inherit_posix_acl(inode, d_inode(path.dentry->d_parent));
 		if (posix_acl_rc)
 			ksmbd_debug(SMB, "inherit posix acl failed : %d\n", posix_acl_rc);
 

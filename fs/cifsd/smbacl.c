@@ -950,7 +950,7 @@ int smb_inherit_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 	int inherited_flags = 0, flags = 0, i, ace_cnt = 0, nt_size = 0;
 	int rc = -ENOENT, num_aces, dacloffset, pntsd_type, acl_len;
 	char *aces_base;
-	bool is_dir = S_ISDIR(dentry->d_inode->i_mode);
+	bool is_dir = S_ISDIR(d_inode(dentry)->i_mode);
 
 	acl_len = ksmbd_vfs_get_sd_xattr(conn, parent, &parent_pntsd);
 	if (acl_len <= 0)
@@ -1198,7 +1198,7 @@ int smb_check_perm_dacl(struct ksmbd_conn *conn, struct dentry *dentry,
 			granted = GENERIC_ALL_FLAGS;
 	}
 
-	posix_acls = ksmbd_vfs_get_acl(dentry->d_inode, ACL_TYPE_ACCESS);
+	posix_acls = ksmbd_vfs_get_acl(d_inode(dentry), ACL_TYPE_ACCESS);
 	if (posix_acls && !found) {
 		unsigned int id = -1;
 
@@ -1263,7 +1263,7 @@ int set_info_sec(struct ksmbd_conn *conn, struct ksmbd_tree_connect *tcon,
 {
 	int rc;
 	struct smb_fattr fattr = {{0}};
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	fattr.cf_uid = INVALID_UID;
 	fattr.cf_gid = INVALID_GID;

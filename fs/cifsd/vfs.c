@@ -1461,11 +1461,11 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn, struct dentry *dentry,
 	struct ndr sd_ndr = {0}, acl_ndr = {0};
 	struct xattr_ntacl acl = {0};
 	struct xattr_smb_acl *smb_acl, *def_smb_acl = NULL;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	acl.version = 4;
 	acl.hash_type = XATTR_SD_HASH_TYPE_SHA256;
-	acl.current_time = ksmbd_UnixTimeToNT(current_time(dentry->d_inode));
+	acl.current_time = ksmbd_UnixTimeToNT(current_time(inode));
 
 	memcpy(acl.desc, "posix_acl", 9);
 	acl.desc_len = 10;
@@ -1486,9 +1486,9 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn, struct dentry *dentry,
 		return rc;
 	}
 
-	smb_acl = ksmbd_vfs_make_xattr_posix_acl(dentry->d_inode, ACL_TYPE_ACCESS);
+	smb_acl = ksmbd_vfs_make_xattr_posix_acl(inode, ACL_TYPE_ACCESS);
 	if (S_ISDIR(inode->i_mode))
-		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(dentry->d_inode,
+		def_smb_acl = ksmbd_vfs_make_xattr_posix_acl(inode,
 				ACL_TYPE_DEFAULT);
 
 	rc = ndr_encode_posix_acl(&acl_ndr, inode, smb_acl, def_smb_acl);
@@ -1531,7 +1531,7 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn, struct dentry *dentry,
 
 	rc = ksmbd_vfs_getxattr(dentry, XATTR_NAME_SD, &n.data);
 	if (rc > 0) {
-		struct inode *inode = dentry->d_inode;
+		struct inode *inode = d_inode(dentry);
 		struct ndr acl_ndr = {0};
 		struct xattr_ntacl acl;
 		struct xattr_smb_acl *smb_acl = NULL, *def_smb_acl = NULL;
