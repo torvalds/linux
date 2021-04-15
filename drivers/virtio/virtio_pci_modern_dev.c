@@ -584,14 +584,13 @@ EXPORT_SYMBOL_GPL(vp_modern_get_num_queues);
  *
  * Returns the notification offset for a virtqueue
  */
-u16 vp_modern_get_queue_notify_off(struct virtio_pci_modern_device *mdev,
-				   u16 index)
+static u16 vp_modern_get_queue_notify_off(struct virtio_pci_modern_device *mdev,
+					  u16 index)
 {
 	vp_iowrite16(index, &mdev->common->queue_select);
 
 	return vp_ioread16(&mdev->common->queue_notify_off);
 }
-EXPORT_SYMBOL_GPL(vp_modern_get_queue_notify_off);
 
 /*
  * vp_modern_map_vq_notify - map notification area for a
