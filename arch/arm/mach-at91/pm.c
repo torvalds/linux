@@ -548,6 +548,7 @@ static const struct of_device_id ramc_ids[] __initconst = {
 	{ .compatible = "atmel,at91sam9260-sdramc", .data = &ramc_infos[1] },
 	{ .compatible = "atmel,at91sam9g45-ddramc", .data = &ramc_infos[2] },
 	{ .compatible = "atmel,sama5d3-ddramc", .data = &ramc_infos[3] },
+	{ .compatible = "microchip,sama7g5-uddrc", },
 	{ /*sentinel*/ }
 };
 
@@ -565,9 +566,11 @@ static __init void at91_dt_ramc(void)
 			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
 
 		ramc = of_id->data;
-		if (!standby)
-			standby = ramc->idle;
-		soc_pm.data.memctrl = ramc->memctrl;
+		if (ramc) {
+			if (!standby)
+				standby = ramc->idle;
+			soc_pm.data.memctrl = ramc->memctrl;
+		}
 
 		idx++;
 	}
