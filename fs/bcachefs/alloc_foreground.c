@@ -683,11 +683,14 @@ static struct write_point *__writepoint_find(struct hlist_head *head,
 {
 	struct write_point *wp;
 
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(wp, head, node)
 		if (wp->write_point == write_point)
-			return wp;
-
-	return NULL;
+			goto out;
+	wp = NULL;
+out:
+	rcu_read_unlock();
+	return wp;
 }
 
 static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
