@@ -643,7 +643,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	 * returned. This needs to be done only on NICs that have
 	 * apmg_wake_up_wa set (see above.)
 	 */
-	if (!iwl_trans_grab_nic_access(trans))
+	if (!_iwl_trans_pcie_grab_nic_access(trans))
 		return -EIO;
 
 	/*
@@ -652,7 +652,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	 * already true, so it's OK to unconditionally set it to true.
 	 */
 	trans_pcie->cmd_hold_nic_awake = true;
-	spin_unlock_bh(&trans_pcie->reg_lock);
+	spin_unlock(&trans_pcie->reg_lock);
 
 	return 0;
 }
