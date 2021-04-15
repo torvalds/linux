@@ -6288,15 +6288,6 @@ out:
 	return status;
 }
 
-static inline u64
-end_offset(u64 start, u64 len)
-{
-	u64 end;
-
-	end = start + len;
-	return end >= start ? end: NFS4_MAX_UINT64;
-}
-
 /* last octet in a range */
 static inline u64
 last_byte_offset(u64 start, u64 len)
