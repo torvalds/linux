@@ -2510,6 +2510,8 @@ static int pci_get_aio_common_raid_map_values(struct pqi_ctrl_info *ctrl_info,
 
 	/* Calculate stripe information for the request. */
 	rmd->blocks_per_row = rmd->data_disks_per_row * rmd->strip_size;
+	if (rmd->blocks_per_row == 0) /* Used as a divisor in many calculations */
+		return PQI_RAID_BYPASS_INELIGIBLE;
 #if BITS_PER_LONG == 32
 	tmpdiv = rmd->first_block;
 	do_div(tmpdiv, rmd->blocks_per_row);
@@ -2559,6 +2561,10 @@ static int pqi_calc_aio_r5_or_r6(struct pqi_scsi_dev_raid_map_data *rmd,
 #if BITS_PER_LONG == 32
 	u64 tmpdiv;
 #endif
+
+	if (rmd->blocks_per_row == 0) /* Used as a divisor in many calculations */
+		return PQI_RAID_BYPASS_INELIGIBLE;
+
 	/* RAID 50/60 */
 	/* Verify first and last block are in same RAID group. */
 	rmd->stripesize = rmd->blocks_per_row * rmd->layout_map_count;
@@ -2662,8 +2668,6 @@ static int pqi_calc_aio_r5_or_r6(struct pqi_scsi_dev_raid_map_data *rmd,
 			rmd->q_parity_it_nexus = raid_map->disk_data[index + 1].aio_handle;
 			rmd->xor_mult = raid_map->disk_data[rmd->map_index].xor_mult[1];
 		}
-		if (rmd->blocks_per_row == 0)
-			return PQI_RAID_BYPASS_INELIGIBLE;
 #if BITS_PER_LONG == 32
 		tmpdiv = rmd->first_block;
 		do_div(tmpdiv, rmd->blocks_per_row);
