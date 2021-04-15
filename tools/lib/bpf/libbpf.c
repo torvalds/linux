@@ -195,7 +195,6 @@ struct reloc_desc {
 	int insn_idx;
 	int map_idx;
 	int sym_off;
-	bool processed;
 };
 
 struct bpf_sec_def;
@@ -3499,8 +3498,6 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	const char *sym_sec_name;
 	struct bpf_map *map;
 
-	reloc_desc->processed = false;
-
 	if (!is_call_insn(insn) && !is_ldimm64_insn(insn)) {
 		pr_warn("prog '%s': invalid relo against '%s' for insns[%d].code 0x%x\n",
 			prog->name, sym_name, insn_idx, insn->code);
@@ -6314,13 +6311,11 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 		case RELO_LD64:
 			insn[0].src_reg = BPF_PSEUDO_MAP_FD;
 			insn[0].imm = obj->maps[relo->map_idx].fd;
-			relo->processed = true;
 			break;
 		case RELO_DATA:
 			insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
 			insn[1].imm = insn[0].imm + relo->sym_off;
 			insn[0].imm = obj->maps[relo->map_idx].fd;
-			relo->processed = true;
 			break;
 		case RELO_EXTERN_VAR:
 			ext = &obj->externs[relo->sym_off];
@@ -6338,13 +6333,11 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 					insn[1].imm = ext->ksym.addr >> 32;
 				}
 			}
-			relo->processed = true;
 			break;
 		case RELO_EXTERN_FUNC:
 			ext = &obj->externs[relo->sym_off];
 			insn[0].src_reg = BPF_PSEUDO_KFUNC_CALL;
 			insn[0].imm = ext->ksym.kernel_btf_id;
-			relo->processed = true;
 			break;
 		case RELO_SUBPROG_ADDR:
 			insn[0].src_reg = BPF_PSEUDO_FUNC;
@@ -6630,9 +6623,6 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 		 * different main programs */
 		insn->imm = subprog->sub_insn_off - (prog->sub_insn_off + insn_idx) - 1;
 
-		if (relo)
-			relo->processed = true;
-
 		pr_debug("prog '%s': insn #%zu relocated, imm %d points to subprog '%s' (now at %zu offset)\n",
 			 prog->name, insn_idx, insn->imm, subprog->name, subprog->sub_insn_off);
 	}
@@ -6725,7 +6715,7 @@ static int
 bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 {
 	struct bpf_program *subprog;
-	int i, j, err;
+	int i, err;
 
 	/* mark all subprogs as not relocated (yet) within the context of
 	 * current main program
@@ -6736,9 +6726,6 @@ bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 			continue;
 
 		subprog->sub_insn_off = 0;
-		for (j = 0; j < subprog->nr_reloc; j++)
-			if (subprog->reloc_desc[j].type == RELO_CALL)
-				subprog->reloc_desc[j].processed = false;
 	}
 
 	err = bpf_object__reloc_code(obj, prog, prog);
