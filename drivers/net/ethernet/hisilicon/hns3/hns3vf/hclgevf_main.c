@@ -2340,10 +2340,11 @@ static void hclgevf_periodic_service_task(struct hclgevf_dev *hdev)
 	if (!(hdev->serv_processed_cnt % HCLGEVF_STATS_TIMER_INTERVAL))
 		hclgevf_tqps_update_stats(handle);
 
-	/* request the link status from the PF. PF would be able to tell VF
-	 * about such updates in future so we might remove this later
+	/* VF does not need to request link status when this bit is set, because
+	 * PF will push its link status to VFs when link status changed.
 	 */
-	hclgevf_request_link_info(hdev);
+	if (!test_bit(HCLGEVF_STATE_PF_PUSH_LINK_STATUS, &hdev->state))
+		hclgevf_request_link_info(hdev);
 
 	hclgevf_update_link_mode(hdev);
 
@@ -2657,6 +2658,7 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
 	clear_bit(HCLGEVF_STATE_DOWN, &hdev->state);
+	clear_bit(HCLGEVF_STATE_PF_PUSH_LINK_STATUS, &hdev->state);
 
 	hclgevf_reset_tqp_stats(handle);
 
