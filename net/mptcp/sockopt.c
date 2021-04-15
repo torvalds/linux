@@ -95,6 +95,12 @@ static void mptcp_sol_socket_sync_intval(struct mptcp_sock *msk, int optname, in
 			ssk->sk_userlocks |= SOCK_RCVBUF_LOCK;
 			WRITE_ONCE(ssk->sk_rcvbuf, sk->sk_rcvbuf);
 			break;
+		case SO_MARK:
+			if (READ_ONCE(ssk->sk_mark) != sk->sk_mark) {
+				ssk->sk_mark = sk->sk_mark;
+				sk_dst_reset(ssk);
+			}
+			break;
 		}
 
 		subflow->setsockopt_seq = msk->setsockopt_seq;
@@ -132,6 +138,7 @@ static int mptcp_setsockopt_sol_socket_int(struct mptcp_sock *msk, int optname,
 	case SO_KEEPALIVE:
 		mptcp_sol_socket_sync_intval(msk, optname, val);
 		return 0;
+	case SO_MARK:
 	case SO_PRIORITY:
 	case SO_SNDBUF:
 	case SO_SNDBUFFORCE:
@@ -222,6 +229,7 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	case SO_SNDBUFFORCE:
 	case SO_RCVBUF:
 	case SO_RCVBUFFORCE:
+	case SO_MARK:
 		return mptcp_setsockopt_sol_socket_int(msk, optname, optval, optlen);
 	case SO_LINGER:
 		return mptcp_setsockopt_sol_socket_linger(msk, optval, optlen);
