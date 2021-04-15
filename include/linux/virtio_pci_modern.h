@@ -106,6 +106,8 @@ void __iomem *vp_modern_map_capability(struct virtio_pci_modern_device *mdev, in
 				       u32 align,
 				       u32 start, u32 size,
 				       size_t *len);
+void *vp_modern_map_vq_notify(struct virtio_pci_modern_device *mdev,
+                              u16 index);
 int vp_modern_probe(struct virtio_pci_modern_device *mdev);
 void vp_modern_remove(struct virtio_pci_modern_device *mdev);
 #endif

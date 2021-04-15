@@ -593,6 +593,41 @@ u16 vp_modern_get_queue_notify_off(struct virtio_pci_modern_device *mdev,
 }
 EXPORT_SYMBOL_GPL(vp_modern_get_queue_notify_off);
 
+/*
+ * vp_modern_map_vq_notify - map notification area for a
+ * specific virtqueue
+ * @mdev: the modern virtio-pci device
+ * @index: the queue index
+ *
+ * Returns the address of the notification area
+ */
+void *vp_modern_map_vq_notify(struct virtio_pci_modern_device *mdev,
+			      u16 index)
+{
+	u16 off = vp_modern_get_queue_notify_off(mdev, index);
+
+	if (mdev->notify_base) {
+		/* offset should not wrap */
+		if ((u64)off * mdev->notify_offset_multiplier + 2
+			> mdev->notify_len) {
+			dev_warn(&mdev->pci_dev->dev,
+				 "bad notification offset %u (x %u) "
+				 "for queue %u > %zd",
+				 off, mdev->notify_offset_multiplier,
+				 index, mdev->notify_len);
+			return NULL;
+		}
+		return (void __force *)mdev->notify_base +
+			off * mdev->notify_offset_multiplier;
+	} else {
+		return (void __force *)vp_modern_map_capability(mdev,
+				       mdev->notify_map_cap, 2, 2,
+				       off * mdev->notify_offset_multiplier, 2,
+				       NULL);
+	}
+}
+EXPORT_SYMBOL_GPL(vp_modern_map_vq_notify);
+
 MODULE_VERSION("0.1");
 MODULE_DESCRIPTION("Modern Virtio PCI Device");
 MODULE_AUTHOR("Jason Wang <jasowang@redhat.com>");
