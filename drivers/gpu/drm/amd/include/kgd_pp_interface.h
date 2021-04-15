@@ -350,6 +350,7 @@ struct amd_pm_funcs {
 				   unsigned int *num_states);
 	int (*get_dpm_clock_table)(void *handle,
 				   struct dpm_clocks *clock_table);
+	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
 };
 
 struct metrics_table_header {
