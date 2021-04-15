@@ -765,7 +765,122 @@ sr_dis_exit:
 2:
 .endm
 
+/**
+ * at91_mckx_ps_enable:	save MCK1..4 settings and switch it to main clock
+ *
+ * Side effects: overwrites tmp1, tmp2
+ */
+.macro at91_mckx_ps_enable
+#ifdef CONFIG_SOC_SAMA7
+	ldr	pmc, .pmc_base
+
+	/* There are 4 MCKs we need to handle: MCK1..4 */
+	mov	tmp1, #1
+e_loop:	cmp	tmp1, #5
+	beq	e_done
+
+	/* Write MCK ID to retrieve the settings. */
+	str	tmp1, [pmc, #AT91_PMC_MCR_V2]
+	ldr	tmp2, [pmc, #AT91_PMC_MCR_V2]
+
+e_save_mck1:
+	cmp	tmp1, #1
+	bne	e_save_mck2
+	str	tmp2, .saved_mck1
+	b	e_ps
+
+e_save_mck2:
+	cmp	tmp1, #2
+	bne	e_save_mck3
+	str	tmp2, .saved_mck2
+	b	e_ps
+
+e_save_mck3:
+	cmp	tmp1, #3
+	bne	e_save_mck4
+	str	tmp2, .saved_mck3
+	b	e_ps
+
+e_save_mck4:
+	str	tmp2, .saved_mck4
+
+e_ps:
+	/* Use CSS=MAINCK and DIV=1. */
+	bic	tmp2, tmp2, #AT91_PMC_MCR_V2_CSS
+	bic	tmp2, tmp2, #AT91_PMC_MCR_V2_DIV
+	orr	tmp2, tmp2, #AT91_PMC_MCR_V2_CSS_MAINCK
+	orr	tmp2, tmp2, #AT91_PMC_MCR_V2_DIV1
+	str	tmp2, [pmc, #AT91_PMC_MCR_V2]
+
+	wait_mckrdy tmp1
+
+	add	tmp1, tmp1, #1
+	b	e_loop
+
+e_done:
+#endif
+.endm
+
+/**
+ * at91_mckx_ps_restore: restore MCK1..4 settings
+ *
+ * Side effects: overwrites tmp1, tmp2
+ */
+.macro at91_mckx_ps_restore
+#ifdef CONFIG_SOC_SAMA7
+	ldr	pmc, .pmc_base
+
+	/* There are 4 MCKs we need to handle: MCK1..4 */
+	mov	tmp1, #1
+r_loop:	cmp	tmp1, #5
+	beq	r_done
+
+r_save_mck1:
+	cmp	tmp1, #1
+	bne	r_save_mck2
+	ldr	tmp2, .saved_mck1
+	b	r_ps
+
+r_save_mck2:
+	cmp	tmp1, #2
+	bne	r_save_mck3
+	ldr	tmp2, .saved_mck2
+	b	r_ps
+
+r_save_mck3:
+	cmp	tmp1, #3
+	bne	r_save_mck4
+	ldr	tmp2, .saved_mck3
+	b	r_ps
+
+r_save_mck4:
+	ldr	tmp2, .saved_mck4
+
+r_ps:
+	/* Write MCK ID to retrieve the settings. */
+	str	tmp1, [pmc, #AT91_PMC_MCR_V2]
+	ldr	tmp3, [pmc, #AT91_PMC_MCR_V2]
+
+	/* We need to restore CSS and DIV. */
+	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_CSS
+	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_DIV
+	orr	tmp3, tmp3, tmp2
+	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_ID_MSK
+	orr	tmp3, tmp3, tmp1
+	orr	tmp3, tmp3, #AT91_PMC_MCR_V2_CMD
+	str	tmp2, [pmc, #AT91_PMC_MCR_V2]
+
+	wait_mckrdy tmp1
+
+	add	tmp1, tmp1, #1
+	b	r_loop
+r_done:
+#endif
+.endm
+
 .macro at91_ulp_mode
+	at91_mckx_ps_enable
+
 	ldr	pmc, .pmc_base
 	ldr	tmp2, .mckr_offset
 	ldr	tmp3, .pm_mode
@@ -817,6 +932,7 @@ ulp_exit:
 	mov	tmp3, #0
 	wait_mckrdy tmp3
 
+	at91_mckx_ps_restore
 .endm
 
 .macro at91_backup_mode
@@ -946,6 +1062,16 @@ ENDPROC(at91_pm_suspend_in_sram)
 	.word 0
 .saved_osc_status:
 	.word 0
+#ifdef CONFIG_SOC_SAMA7
+.saved_mck1:
+	.word 0
+.saved_mck2:
+	.word 0
+.saved_mck3:
+	.word 0
+.saved_mck4:
+	.word 0
+#endif
 
 ENTRY(at91_pm_suspend_in_sram_sz)
 	.word .-at91_pm_suspend_in_sram
