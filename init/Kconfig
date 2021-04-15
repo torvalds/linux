@@ -21,7 +21,7 @@ config CC_VERSION_TEXT
 
 	  - Ensure full rebuild when the compiler is updated
 	    include/linux/compiler-version.h contains this option in the comment
-	    line so fixdep adds include/config/cc/version/text.h into the
+	    line so fixdep adds include/config/CC_VERSION_TEXT into the
 	    auto-generated dependency. When the compiler is updated, syncconfig
 	    will touch it and then every file will be rebuilt.
 

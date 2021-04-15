@@ -239,8 +239,8 @@ endif # CONFIG_STACK_VALIDATION
 
 # Rebuild all objects when objtool changes, or is enabled/disabled.
 objtool_dep = $(objtool_obj)					\
-	      $(wildcard include/config/orc/unwinder.h		\
-			 include/config/stack/validation.h)
+	      $(wildcard include/config/ORC_UNWINDER		\
+			 include/config/STACK_VALIDATION)
 
 ifdef CONFIG_TRIM_UNUSED_KSYMS
 cmd_gen_ksymdeps = \

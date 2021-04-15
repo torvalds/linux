@@ -130,19 +130,14 @@ static size_t depfile_prefix_len;
 static int conf_touch_dep(const char *name)
 {
 	int fd, ret;
-	const char *s;
-	char *d, c;
+	char *d;
 
-	/* check overflow: prefix + name + ".h" + '\0' must fit in buffer. */
-	if (depfile_prefix_len + strlen(name) + 3 > sizeof(depfile_path))
+	/* check overflow: prefix + name + '\0' must fit in buffer. */
+	if (depfile_prefix_len + strlen(name) + 1 > sizeof(depfile_path))
 		return -1;
 
 	d = depfile_path + depfile_prefix_len;
-	s = name;
-
-	while ((c = *s++))
-		*d++ = (c == '_') ? '/' : tolower(c);
-	strcpy(d, ".h");
+	strcpy(d, name);
 
 	/* Assume directory path already exists. */
 	fd = open(depfile_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -465,7 +460,7 @@ load:
 					 * Reading from include/config/auto.conf
 					 * If CONFIG_FOO previously existed in
 					 * auto.conf but it is missing now,
-					 * include/config/foo.h must be touched.
+					 * include/config/FOO must be touched.
 					 */
 					conf_touch_dep(line + strlen(CONFIG_));
 				else
