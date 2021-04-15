@@ -1602,6 +1602,14 @@ static int mlx5e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	return mlx5_set_port_wol(mdev, mlx5_wol_mode);
 }
 
+static void mlx5e_get_fec_stats(struct net_device *netdev,
+				struct ethtool_fec_stats *fec_stats)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	mlx5e_stats_fec_get(priv, fec_stats);
+}
+
 static int mlx5e_get_fecparam(struct net_device *netdev,
 			      struct ethtool_fecparam *fecparam)
 {
@@ -2209,6 +2217,7 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.self_test         = mlx5e_self_test,
 	.get_msglevel      = mlx5e_get_msglevel,
 	.set_msglevel      = mlx5e_set_msglevel,
+	.get_fec_stats     = mlx5e_get_fec_stats,
 	.get_fecparam      = mlx5e_get_fecparam,
 	.set_fecparam      = mlx5e_set_fecparam,
 };

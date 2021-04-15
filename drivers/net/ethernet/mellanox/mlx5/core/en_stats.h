@@ -114,6 +114,8 @@ void mlx5e_stats_update_ndo_stats(struct mlx5e_priv *priv);
 
 void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
 			   struct ethtool_pause_stats *pause_stats);
+void mlx5e_stats_fec_get(struct mlx5e_priv *priv,
+			 struct ethtool_fec_stats *fec_stats);
 
 /* Concrete NIC Stats */
 
