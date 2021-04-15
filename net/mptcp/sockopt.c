@@ -24,6 +24,27 @@ static struct sock *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 	return msk->first;
 }
 
+static u32 sockopt_seq_reset(const struct sock *sk)
+{
+	sock_owned_by_me(sk);
+
+	/* Highbits contain state.  Allows to distinguish sockopt_seq
+	 * of listener and established:
+	 * s0 = new_listener()
+	 * sockopt(s0) - seq is 1
+	 * s1 = accept(s0) - s1 inherits seq 1 if listener sk (s0)
+	 * sockopt(s0) - seq increments to 2 on s0
+	 * sockopt(s1) // seq increments to 2 on s1 (different option)
+	 * new ssk completes join, inherits options from s0 // seq 2
+	 * Needs sync from mptcp join logic, but ssk->seq == msk->seq
+	 *
+	 * Set High order bits to sk_state so ssk->seq == msk->seq test
+	 * will fail.
+	 */
+
+	return (u32)sk->sk_state << 24u;
+}
+
 static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 				       sockptr_t optval, unsigned int optlen)
 {
@@ -350,22 +371,44 @@ int mptcp_getsockopt(struct sock *sk, int level, int optname,
 	return -EOPNOTSUPP;
 }
 
+static void __mptcp_sockopt_sync(struct mptcp_sock *msk, struct sock *ssk)
+{
+}
+
 void mptcp_sockopt_sync(struct mptcp_sock *msk, struct sock *ssk)
 {
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+
 	msk_owned_by_me(msk);
+
+	if (READ_ONCE(subflow->setsockopt_seq) != msk->setsockopt_seq) {
+		__mptcp_sockopt_sync(msk, ssk);
+
+		subflow->setsockopt_seq = msk->setsockopt_seq;
+	}
 }
 
 void mptcp_sockopt_sync_all(struct mptcp_sock *msk)
 {
 	struct mptcp_subflow_context *subflow;
+	struct sock *sk = (struct sock *)msk;
+	u32 seq;
 
-	msk_owned_by_me(msk);
+	seq = sockopt_seq_reset(sk);
 
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+		u32 sseq = READ_ONCE(subflow->setsockopt_seq);
 
-		mptcp_sockopt_sync(msk, ssk);
+		if (sseq != msk->setsockopt_seq) {
+			__mptcp_sockopt_sync(msk, ssk);
+			WRITE_ONCE(subflow->setsockopt_seq, seq);
+		} else if (sseq != seq) {
+			WRITE_ONCE(subflow->setsockopt_seq, seq);
+		}
 
 		cond_resched();
 	}
+
+	msk->setsockopt_seq = seq;
 }
