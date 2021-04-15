@@ -47,6 +47,12 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	if (ret < 0)
 		return ret;
 
+	if (is_mt7663(&dev->mt76)) {
+		/* Reset RGU */
+		mt76_clear(dev, MT_MCU_CIRQ_IRQ_SEL(4), BIT(1));
+		mt76_set(dev, MT_MCU_CIRQ_IRQ_SEL(4), BIT(1));
+	}
+
 	ret = mt7615_dma_init(dev);
 	if (ret)
 		return ret;
