@@ -274,6 +274,12 @@ static inline bool bio_is_passthrough(struct bio *bio)
 	return blk_op_is_scsi(op) || blk_op_is_private(op);
 }
 
+static inline bool blk_op_is_passthrough(unsigned int op)
+{
+	return (blk_op_is_scsi(op & REQ_OP_MASK) ||
+			blk_op_is_private(op & REQ_OP_MASK));
+}
+
 static inline unsigned short req_get_ioprio(struct request *req)
 {
 	return req->ioprio;
