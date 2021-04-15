@@ -85,7 +85,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		i2sm0_pins: i2sm0 {
+		rk628_i2sm0_pins: i2sm0 {
 			pins = "gpio0a2", /* i2sm0_sck */
 			       "gpio0a3", /* i2sm0_lr */
 			       "gpio0a4", /* i2sm0_d0 */
@@ -95,28 +95,28 @@
 			function = "i2sm0";
 		};
 
-		hpd_in_pins: hpd-in {
+		rk628_hpd_in_pins: hpd-in {
 			pins = "gpio0b0";
 			function = "hpd_in";
 		};
 
-		ddc_tx_pins: ddc-tx {
+		rk628_ddc_tx_pins: ddc-tx {
 			pins = "gpio0b1", /* ddc_tx_sda */
 			       "gpio0b2"; /* ddc_tx_scl */
 			function = "ddc_tx";
 		};
 
-		cec_tx_pins: cec-tx {
+		rk628_cec_tx_pins: cec-tx {
 			pins = "gpio0b3";
 			function = "cec_tx";
 		};
 
-		test_clkout_pins: test-clkout {
+		rk628_test_clkout_pins: test-clkout {
 			pins = "gpio1a0";
 			function = "test_clkout";
 		};
 
-		i2sm1_pins: i2sm1 {
+		rk628_i2sm1_pins: i2sm1 {
 			pins = "gpio1a2", /* i2sm1_sck */
 			       "gpio1a3", /* i2sm1_lr */
 			       "gpio1a4", /* i2sm1_d0 */
@@ -126,23 +126,23 @@
 			function = "i2sm1";
 		};
 
-		hpdm0_out_pins: hpdm0-out {
+		rk628_hpdm0_out_pins: hpdm0-out {
 			pins = "gpio1b0";
 			function = "hpdm0_out";
 		};
 
-		ddcm0_rx_pins: ddcm0-rx {
+		rk628_ddcm0_rx_pins: ddcm0-rx {
 			pins = "gpio1b1", /* ddcm0_rx_sda */
 			       "gpio1b2"; /* ddcm0_rx_scl */
 			function = "ddcm0_rx";
 		};
 
-		cecm0_rx_pins: cecm0_rx {
+		rk628_cecm0_rx_pins: cecm0_rx {
 			pins = "gpio1b3";
 			function = "cecm0_rx";
 		};
 
-		vop_pins: vop {
+		rk628_vop_pins: vop {
 			pins = "gpio2a0", /* vop_d0 */
 			       "gpio2a1", /* vop_d1 */
 			       "gpio2a2", /* vop_d2 */
@@ -175,62 +175,62 @@
 			drive-strength = <1>;
 		};
 
-		hpdm1_out: hpdm1-out {
+		rk628_hpdm1_out: hpdm1-out {
 			pins = "gpio3a4";
 			function = "hpdm1_out";
 		};
 
-		ddcm1_rx_pins: ddcm1-rx {
+		rk628_ddcm1_rx_pins: ddcm1-rx {
 			pins = "gpio3a5", /* ddcm1_rx_sda */
 			       "gpio3a6"; /* ddcm1_rx_scl */
 			function = "ddcm1_rx";
 		};
 
-		cecm1_rx_pins: cecm1-rx {
+		rk628_cecm1_rx_pins: cecm1-rx {
 			pins = "gpio3a7";
 			function = "cecm1_rx";
 		};
 
-		gvi_hpd_pins: gvi-hpd {
+		rk628_gvi_hpd_pins: gvi-hpd {
 			pins = "gpio3b1";
 			function = "gvi_hpd";
 		};
 
-		gvi_lock_pins: gvi-lock {
+		rk628_gvi_lock_pins: gvi-lock {
 			pins = "gpio3b2";
 			function = "gvi_lock";
 		};
 
-		hdmirx_cec0: hdmirx-cec0 {
+		rk628_hdmirx_cec0: hdmirx-cec0 {
 			pins = "hdmirx_cec";
 			function = "hdmirx_cec0";
 		};
 
-		hdmirx_cec1: hdmirx-cec1 {
+		rk628_hdmirx_cec1: hdmirx-cec1 {
 			pins = "hdmirx_cec";
 			function = "hdmirx_cec1";
 		};
 
-		rxddc_input0: rxddc-input0 {
+		rk628_rxddc_input0: rxddc-input0 {
 			pins = "rxddc_scl",
 			       "rxddc_sda";
 			function = "rxddc_input0";
 		};
 
-		rxddc_input1: rxddc-input1 {
+		rk628_rxddc_input1: rxddc-input1 {
 			pins = "rxddc_scl",
 			       "rxddc_sda";
 			function = "rxddc_input1";
 		};
 
-		i2sm0_input: i2sm0-input {
+		rk628_i2sm0_input: i2sm0-input {
 			pins = "i2sm_sck",
 			       "i2sm_d",
 			       "i2sm_lr";
 			function = "i2sm0_input";
 		};
 
-		i2sm1_input: i2sm1-input {
+		rk628_i2sm1_input: i2sm1-input {
 			pins = "i2sm_sck",
 			       "i2sm_d",
 			       "i2sm_lr";
@@ -341,7 +341,7 @@
 			 <&rk628_cru CGU_SCLK_VOP>;
 		clock-names = "pclk", "dclk";
 		pinctrl-names = "default";
-		pinctrl-0 = <&hpd_in_pins &ddc_tx_pins &i2sm0_pins>;
+		pinctrl-0 = <&rk628_hpd_in_pins &rk628_ddc_tx_pins &rk628_i2sm0_pins>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -382,7 +382,7 @@
 		phys = <&rk628_combrxphy>, <&rk628_combtxphy>;
 		phy-names = "combrxphy", "combtxphy";
 		pinctrl-names = "default";
-		pinctrl-0 = <&hpdm0_out_pins &ddcm0_rx_pins>;
+		pinctrl-0 = <&rk628_hpdm0_out_pins &rk628_ddcm0_rx_pins>;
 		status = "disabled";
 	};
 };

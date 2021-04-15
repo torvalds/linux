@@ -266,7 +266,7 @@
 
 &rk628_post_process {
 	pinctrl-names = "default";
-	pinctrl-0 = <&vop_pins>;
+	pinctrl-0 = <&rk628_vop_pins>;
 	status = "okay";
 
 	ports {
