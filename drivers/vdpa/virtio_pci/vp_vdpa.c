@@ -369,7 +369,6 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct virtio_pci_modern_device *mdev;
 	struct device *dev = &pdev->dev;
 	struct vp_vdpa *vp_vdpa;
-	u16 notify_off;
 	int ret, i;
 
 	ret = pcim_enable_device(pdev);
@@ -415,10 +414,12 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	for (i = 0; i < vp_vdpa->queues; i++) {
-		notify_off = vp_modern_get_queue_notify_off(mdev, i);
 		vp_vdpa->vring[i].irq = VIRTIO_MSI_NO_VECTOR;
-		vp_vdpa->vring[i].notify = mdev->notify_base +
-			notify_off * mdev->notify_offset_multiplier;
+		vp_vdpa->vring[i].notify = vp_modern_map_vq_notify(mdev, i);
+		if (!vp_vdpa->vring[i].notify) {
+			dev_warn(&pdev->dev, "Fail to map vq notify %d\n", i);
+			goto err;
+		}
 	}
 	vp_vdpa->config_irq = VIRTIO_MSI_NO_VECTOR;
 
