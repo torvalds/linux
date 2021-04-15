@@ -53,9 +53,6 @@ struct clk_pll_data {
 #define RK618_PLL(_id, _name, _parent_name, _reg, _flags) \
 	PLL(_id, _name, _parent_name, _reg, 10, 9, 15, _flags)
 
-#define RK628_PLL(_id, _name, _parent_name, _reg, _flags) \
-	PLL(_id, _name, _parent_name, _reg, 13, 12, 10, _flags)
-
 struct clk_mux_data {
 	unsigned int id;
 	const char *name;
