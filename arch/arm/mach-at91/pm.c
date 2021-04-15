@@ -27,10 +27,25 @@
 #include "generic.h"
 #include "pm.h"
 
+/**
+ * struct at91_pm_bu - AT91 power management backup unit data structure
+ * @suspended: true if suspended to backup mode
+ * @reserved: reserved
+ * @canary: canary data for memory checking after exit from backup mode
+ * @resume: resume API
+ */
+struct at91_pm_bu {
+	int suspended;
+	unsigned long reserved;
+	phys_addr_t canary;
+	phys_addr_t resume;
+};
+
 struct at91_soc_pm {
 	int (*config_shdwc_ws)(void __iomem *shdwc, u32 *mode, u32 *polarity);
 	int (*config_pmc_ws)(void __iomem *pmc, u32 mode, u32 polarity);
 	const struct of_device_id *ws_ids;
+	struct at91_pm_bu *bu;
 	struct at91_pm_data data;
 };
 
@@ -70,13 +85,6 @@ static int at91_pm_valid_state(suspend_state_t state)
 }
 
 static int canary = 0xA5A5A5A5;
-
-static struct at91_pm_bu {
-	int suspended;
-	unsigned long reserved;
-	phys_addr_t canary;
-	phys_addr_t resume;
-} *pm_bu;
 
 struct wakeup_source_info {
 	unsigned int pmc_fsmr_bit;
@@ -288,7 +296,7 @@ static int at91_suspend_finish(unsigned long val)
 static void at91_pm_suspend(suspend_state_t state)
 {
 	if (soc_pm.data.mode == AT91_PM_BACKUP) {
-		pm_bu->suspended = 1;
+		soc_pm.bu->suspended = 1;
 
 		cpu_suspend(0, at91_suspend_finish);
 
@@ -657,16 +665,16 @@ static int __init at91_pm_backup_init(void)
 		goto securam_fail;
 	}
 
-	pm_bu = (void *)gen_pool_alloc(sram_pool, sizeof(struct at91_pm_bu));
-	if (!pm_bu) {
+	soc_pm.bu = (void *)gen_pool_alloc(sram_pool, sizeof(struct at91_pm_bu));
+	if (!soc_pm.bu) {
 		pr_warn("%s: unable to alloc securam!\n", __func__);
 		ret = -ENOMEM;
 		goto securam_fail;
 	}
 
-	pm_bu->suspended = 0;
-	pm_bu->canary = __pa_symbol(&canary);
-	pm_bu->resume = __pa_symbol(cpu_resume);
+	soc_pm.bu->suspended = 0;
+	soc_pm.bu->canary = __pa_symbol(&canary);
+	soc_pm.bu->resume = __pa_symbol(cpu_resume);
 
 	return 0;
 
