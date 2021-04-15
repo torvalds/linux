@@ -786,7 +786,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	 * We may be called from the device add path, before the new device has
 	 * actually been added to the running filesystem:
 	 */
-	if (c)
+	if (!new_fs)
 		spin_lock(&c->journal.lock);
 
 	memcpy(new_buckets,	ja->buckets,	ja->nr * sizeof(u64));
@@ -794,17 +794,17 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	swap(new_buckets,	ja->buckets);
 	swap(new_bucket_seq,	ja->bucket_seq);
 
-	if (c)
+	if (!new_fs)
 		spin_unlock(&c->journal.lock);
 
 	while (ja->nr < nr) {
 		struct open_bucket *ob = NULL;
 		unsigned pos;
-		long bucket;
+		long b;
 
 		if (new_fs) {
-			bucket = bch2_bucket_alloc_new_fs(ca);
-			if (bucket < 0) {
+			b = bch2_bucket_alloc_new_fs(ca);
+			if (b < 0) {
 				ret = -ENOSPC;
 				goto err;
 			}
@@ -818,10 +818,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				goto err;
 			}
 
-			bucket = sector_to_bucket(ca, ob->ptr.offset);
-		}
+			b = sector_to_bucket(ca, ob->ptr.offset);
 
-		if (c) {
 			percpu_down_read(&c->mark_lock);
 			spin_lock(&c->journal.lock);
 		}
@@ -838,9 +836,9 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		__array_insert_item(journal_buckets->buckets,	ja->nr, pos);
 		ja->nr++;
 
-		ja->buckets[pos] = bucket;
+		ja->buckets[pos] = b;
 		ja->bucket_seq[pos] = 0;
-		journal_buckets->buckets[pos] = cpu_to_le64(bucket);
+		journal_buckets->buckets[pos] = cpu_to_le64(b);
 
 		if (pos <= ja->discard_idx)
 			ja->discard_idx = (ja->discard_idx + 1) % ja->nr;
@@ -851,28 +849,25 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (pos <= ja->cur_idx)
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
-		if (!c || new_fs)
-			bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_journal,
+		if (new_fs) {
+			bch2_mark_metadata_bucket(c, ca, b, BCH_DATA_journal,
 						  ca->mi.bucket_size,
 						  gc_phase(GC_PHASE_SB),
 						  0);
-
-		if (c) {
+		} else {
 			spin_unlock(&c->journal.lock);
 			percpu_up_read(&c->mark_lock);
-		}
 
-		if (c && !new_fs)
 			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
 				bch2_trans_mark_metadata_bucket(&trans, ca,
-						bucket, BCH_DATA_journal,
+						b, BCH_DATA_journal,
 						ca->mi.bucket_size));
 
-		if (!new_fs)
 			bch2_open_bucket_put(c, ob);
 
-		if (ret)
-			goto err;
+			if (ret)
+				goto err;
+		}
 	}
 err:
 	bch2_sb_resize_journal(&ca->disk_sb,
