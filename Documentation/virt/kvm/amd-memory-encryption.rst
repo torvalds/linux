@@ -320,6 +320,34 @@ Returns: 0 on success, -negative on error
                 __u32 session_len;
         };
 
+12. KVM_SEV_SEND_UPDATE_DATA
+----------------------------
+
+The KVM_SEV_SEND_UPDATE_DATA command can be used by the hypervisor to encrypt the
+outgoing guest memory region with the encryption context creating using
+KVM_SEV_SEND_START.
+
+If hdr_len or trans_len are zero on entry, the length of the packet header and
+transport region are written to hdr_len and trans_len respectively, and all
+other fields are not used.
+
+Parameters (in): struct kvm_sev_send_update_data
+
+Returns: 0 on success, -negative on error
+
+::
+
+        struct kvm_sev_launch_send_update_data {
+                __u64 hdr_uaddr;        /* userspace address containing the packet header */
+                __u32 hdr_len;
+
+                __u64 guest_uaddr;      /* the source memory region to be encrypted */
+                __u32 guest_len;
+
+                __u64 trans_uaddr;      /* the destination memory region  */
+                __u32 trans_len;
+        };
+
 References
 ==========
 
