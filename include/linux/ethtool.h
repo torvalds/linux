@@ -244,6 +244,12 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 
 #define ETHTOOL_STAT_NOT_SET	(~0ULL)
 
+static inline void ethtool_stats_init(u64 *stats, unsigned int n)
+{
+	while (n--)
+		stats[n] = ETHTOOL_STAT_NOT_SET;
+}
+
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
