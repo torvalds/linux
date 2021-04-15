@@ -456,6 +456,7 @@ struct outbound_queue_table {
 	u32			dinterrup_to_pci_offset;
 	__le32			producer_index;
 	u32			consumer_idx;
+	spinlock_t		oq_lock;
 };
 struct pm8001_hba_memspace {
 	void __iomem  		*memvirtaddr;
