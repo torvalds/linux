@@ -1499,12 +1499,14 @@ void pm8001_work_fn(struct work_struct *work)
 	 * was cancelled. This nullification happens when the device
 	 * goes away.
 	 */
-	pm8001_dev = pw->data; /* Most stash device structure */
-	if ((pm8001_dev == NULL)
-	 || ((pw->handler != IO_XFER_ERROR_BREAK)
-	  && (pm8001_dev->dev_type == SAS_PHY_UNUSED))) {
-		kfree(pw);
-		return;
+	if (pw->handler != IO_FATAL_ERROR) {
+		pm8001_dev = pw->data; /* Most stash device structure */
+		if ((pm8001_dev == NULL)
+		 || ((pw->handler != IO_XFER_ERROR_BREAK)
+			 && (pm8001_dev->dev_type == SAS_PHY_UNUSED))) {
+			kfree(pw);
+			return;
+		}
 	}
 
 	switch (pw->handler) {
@@ -1668,6 +1670,58 @@ void pm8001_work_fn(struct work_struct *work)
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
+	case IO_FATAL_ERROR:
+	{
+		struct pm8001_hba_info *pm8001_ha = pw->pm8001_ha;
+		struct pm8001_ccb_info *ccb;
+		struct task_status_struct *ts;
+		struct sas_task *task;
+		int i;
+		u32 tag, device_id;
+
+		for (i = 0; ccb = NULL, i < PM8001_MAX_CCB; i++) {
+			ccb = &pm8001_ha->ccb_info[i];
+			task = ccb->task;
+			ts = &task->task_status;
+			tag = ccb->ccb_tag;
+			/* check if tag is NULL */
+			if (!tag) {
+				pm8001_dbg(pm8001_ha, FAIL,
+					"tag Null\n");
+				continue;
+			}
+			if (task != NULL) {
+				dev = task->dev;
+				if (!dev) {
+					pm8001_dbg(pm8001_ha, FAIL,
+						"dev is NULL\n");
+					continue;
+				}
+				/*complete sas task and update to top layer */
+				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
+				ts->resp = SAS_TASK_COMPLETE;
+				task->task_done(task);
+			} else if (tag != 0xFFFFFFFF) {
+				/* complete the internal commands/non-sas task */
+				pm8001_dev = ccb->device;
+				if (pm8001_dev->dcompletion) {
+					complete(pm8001_dev->dcompletion);
+					pm8001_dev->dcompletion = NULL;
+				}
+				complete(pm8001_ha->nvmd_completion);
+				pm8001_tag_free(pm8001_ha, tag);
+			}
+		}
+		/* Deregister all the device ids  */
+		for (i = 0; i < PM8001_MAX_DEVICES; i++) {
+			pm8001_dev = &pm8001_ha->devices[i];
+			device_id = pm8001_dev->device_id;
+			if (device_id) {
+				PM8001_CHIP_DISP->dereg_dev_req(pm8001_ha, device_id);
+				pm8001_free_dev(pm8001_dev);
+			}
+		}
+	}	break;
 	}
 	kfree(pw);
 }

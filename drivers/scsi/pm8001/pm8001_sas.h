@@ -726,6 +726,7 @@ ssize_t pm80xx_get_non_fatal_dump(struct device *cdev,
 		struct device_attribute *attr, char *buf);
 ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 int pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha);
+void pm8001_free_dev(struct pm8001_device *pm8001_dev);
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];
 
