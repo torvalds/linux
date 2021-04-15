@@ -1337,6 +1337,7 @@ static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+/* called in controls_rwsem write lock */
 static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 			    unsigned int size)
 {
@@ -1414,6 +1415,7 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kctl, int op_flag,
 		return read_user_tlv(kctl, buf, size);
 }
 
+/* called in controls_rwsem write lock */
 static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 {
 	char *names, *p;
@@ -1529,8 +1531,11 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	private_size = value_sizes[info->type] * info->count;
 	alloc_size = compute_user_elem_size(private_size, count);
 
-	if (check_user_elem_overflow(card, alloc_size))
-		return -ENOMEM;
+	down_write(&card->controls_rwsem);
+	if (check_user_elem_overflow(card, alloc_size)) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	/*
 	 * Keep memory object for this userspace control. After passing this
@@ -1540,12 +1545,13 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	 */
 	err = snd_ctl_new(&kctl, count, access, file);
 	if (err < 0)
-		return err;
+		goto unlock;
 	memcpy(&kctl->id, &info->id, sizeof(kctl->id));
 	ue = kzalloc(alloc_size, GFP_KERNEL);
 	if (!ue) {
 		kfree(kctl);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto unlock;
 	}
 	kctl->private_data = ue;
 	kctl->private_free = snd_ctl_elem_user_free;
@@ -1563,7 +1569,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		err = snd_ctl_elem_init_enum_names(ue);
 		if (err < 0) {
 			snd_ctl_free_one(kctl);
-			return err;
+			goto unlock;
 		}
 	}
 
@@ -1580,7 +1586,6 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		kctl->tlv.c = snd_ctl_elem_user_tlv;
 
 	/* This function manage to free the instance on failure. */
-	down_write(&card->controls_rwsem);
 	err = __snd_ctl_add_replace(card, kctl, CTL_ADD_EXCLUSIVE);
 	if (err < 0) {
 		snd_ctl_free_one(kctl);
