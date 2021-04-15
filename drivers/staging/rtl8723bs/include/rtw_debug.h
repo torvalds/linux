@@ -131,8 +131,6 @@
 	#define	_MODULE_DEFINE_	_module_efuse_
 #endif
 
-#define DBG_871X_LEVEL(x, ...) do {} while (0)
-
 #undef _dbgdump
 
 #ifndef _RTL871X_DEBUG_C_
@@ -145,18 +143,6 @@
 #define DRIVER_PREFIX "RTL8723BS: "
 
 #if defined(_dbgdump)
-
-/* with driver-defined prefix */
-#undef DBG_871X_LEVEL
-#define DBG_871X_LEVEL(level, fmt, arg...)     \
-	do {\
-		if (level <= GlobalDebugLevel) {\
-			if (level <= _drv_err_ && level > _drv_always_) \
-				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
-			else \
-				_dbgdump(DRIVER_PREFIX fmt, ##arg);\
-		} \
-	} while (0)
 
 /* without driver-defined prefix */
 #undef _DBG_871X_LEVEL
