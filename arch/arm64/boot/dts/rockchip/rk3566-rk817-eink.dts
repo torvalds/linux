@@ -548,7 +548,7 @@
 
 &i2c2 {
 	status = "okay";
-	wacom: wacom@09 {
+	wacom: wacom@9 {
 		compatible = "wacom,w9013";
 		reg = <0x09>;
 		pinctrl-names = "default";
@@ -675,7 +675,7 @@
 &i2c5 {
 	status = "disabled";
 
-	kxtj: kxtj3@0e {
+	kxtj: kxtj3@e {
 		status = "disabled";
 		compatible = "gs_kxtj9";
 		pinctrl-names = "default";

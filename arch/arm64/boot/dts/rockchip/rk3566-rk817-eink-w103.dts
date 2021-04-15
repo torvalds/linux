@@ -695,7 +695,7 @@
 &i2c1 {
 	status = "okay";
 
-	wacom: wacom@09 {
+	wacom: wacom@9 {
 		compatible = "wacom,w9013";
 		reg = <0x09>;
 		pwr-supply = <&vcc_tp>;
