@@ -2918,13 +2918,16 @@ int smb2_open(struct ksmbd_work *work)
 					fattr.cf_gid = inode->i_gid;
 					fattr.cf_mode = inode->i_mode;
 					fattr.cf_dacls = NULL;
+					ace_num = 0;
 
 					fattr.cf_acls = ksmbd_vfs_get_acl(inode, ACL_TYPE_ACCESS);
-					ace_num = fattr.cf_acls->a_count;
+					if (fattr.cf_acls)
+						ace_num = fattr.cf_acls->a_count;
 					if (S_ISDIR(inode->i_mode)) {
 						fattr.cf_dacls =
 							ksmbd_vfs_get_acl(inode, ACL_TYPE_DEFAULT);
-						ace_num += fattr.cf_dacls->a_count;
+						if (fattr.cf_dacls)
+							ace_num += fattr.cf_dacls->a_count;
 					}
 
 					pntsd = kmalloc(sizeof(struct smb_ntsd) +
