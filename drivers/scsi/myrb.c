@@ -2552,11 +2552,6 @@ static inline void DAC960_LA_ack_hw_mbox_status(void __iomem *base)
 	writeb(DAC960_LA_IDB_HWMBOX_ACK_STS, base + DAC960_LA_IDB_OFFSET);
 }
 
-static inline void DAC960_LA_gen_intr(void __iomem *base)
-{
-	writeb(DAC960_LA_IDB_GEN_IRQ, base + DAC960_LA_IDB_OFFSET);
-}
-
 static inline void DAC960_LA_reset_ctrl(void __iomem *base)
 {
 	writeb(DAC960_LA_IDB_CTRL_RESET, base + DAC960_LA_IDB_OFFSET);
@@ -2586,11 +2581,6 @@ static inline void DAC960_LA_ack_hw_mbox_intr(void __iomem *base)
 	writeb(DAC960_LA_ODB_HWMBOX_ACK_IRQ, base + DAC960_LA_ODB_OFFSET);
 }
 
-static inline void DAC960_LA_ack_mem_mbox_intr(void __iomem *base)
-{
-	writeb(DAC960_LA_ODB_MMBOX_ACK_IRQ, base + DAC960_LA_ODB_OFFSET);
-}
-
 static inline void DAC960_LA_ack_intr(void __iomem *base)
 {
 	writeb(DAC960_LA_ODB_HWMBOX_ACK_IRQ | DAC960_LA_ODB_MMBOX_ACK_IRQ,
@@ -2602,13 +2592,6 @@ static inline bool DAC960_LA_hw_mbox_status_available(void __iomem *base)
 	unsigned char odb = readb(base + DAC960_LA_ODB_OFFSET);
 
 	return odb & DAC960_LA_ODB_HWMBOX_STS_AVAIL;
-}
-
-static inline bool DAC960_LA_mem_mbox_status_available(void __iomem *base)
-{
-	unsigned char odb = readb(base + DAC960_LA_ODB_OFFSET);
-
-	return odb & DAC960_LA_ODB_MMBOX_STS_AVAIL;
 }
 
 static inline void DAC960_LA_enable_intr(void __iomem *base)
@@ -2625,13 +2608,6 @@ static inline void DAC960_LA_disable_intr(void __iomem *base)
 
 	odb |= DAC960_LA_IRQMASK_DISABLE_IRQ;
 	writeb(odb, base + DAC960_LA_IRQMASK_OFFSET);
-}
-
-static inline bool DAC960_LA_intr_enabled(void __iomem *base)
-{
-	unsigned char imask = readb(base + DAC960_LA_IRQMASK_OFFSET);
-
-	return !(imask & DAC960_LA_IRQMASK_DISABLE_IRQ);
 }
 
 static inline void DAC960_LA_write_cmd_mbox(union myrb_cmd_mbox *mem_mbox,
@@ -2654,11 +2630,6 @@ static inline void DAC960_LA_write_hw_mbox(void __iomem *base,
 	writel(mbox->words[1], base + DAC960_LA_MBOX4_OFFSET);
 	writel(mbox->words[2], base + DAC960_LA_MBOX8_OFFSET);
 	writeb(mbox->bytes[12], base + DAC960_LA_MBOX12_OFFSET);
-}
-
-static inline unsigned char DAC960_LA_read_status_cmd_ident(void __iomem *base)
-{
-	return readb(base + DAC960_LA_STSID_OFFSET);
 }
 
 static inline unsigned short DAC960_LA_read_status(void __iomem *base)
@@ -2828,11 +2799,6 @@ static inline void DAC960_PG_ack_hw_mbox_status(void __iomem *base)
 	writel(DAC960_PG_IDB_HWMBOX_ACK_STS, base + DAC960_PG_IDB_OFFSET);
 }
 
-static inline void DAC960_PG_gen_intr(void __iomem *base)
-{
-	writel(DAC960_PG_IDB_GEN_IRQ, base + DAC960_PG_IDB_OFFSET);
-}
-
 static inline void DAC960_PG_reset_ctrl(void __iomem *base)
 {
 	writel(DAC960_PG_IDB_CTRL_RESET, base + DAC960_PG_IDB_OFFSET);
@@ -2862,11 +2828,6 @@ static inline void DAC960_PG_ack_hw_mbox_intr(void __iomem *base)
 	writel(DAC960_PG_ODB_HWMBOX_ACK_IRQ, base + DAC960_PG_ODB_OFFSET);
 }
 
-static inline void DAC960_PG_ack_mem_mbox_intr(void __iomem *base)
-{
-	writel(DAC960_PG_ODB_MMBOX_ACK_IRQ, base + DAC960_PG_ODB_OFFSET);
-}
-
 static inline void DAC960_PG_ack_intr(void __iomem *base)
 {
 	writel(DAC960_PG_ODB_HWMBOX_ACK_IRQ | DAC960_PG_ODB_MMBOX_ACK_IRQ,
@@ -2878,13 +2839,6 @@ static inline bool DAC960_PG_hw_mbox_status_available(void __iomem *base)
 	unsigned char odb = readl(base + DAC960_PG_ODB_OFFSET);
 
 	return odb & DAC960_PG_ODB_HWMBOX_STS_AVAIL;
-}
-
-static inline bool DAC960_PG_mem_mbox_status_available(void __iomem *base)
-{
-	unsigned char odb = readl(base + DAC960_PG_ODB_OFFSET);
-
-	return odb & DAC960_PG_ODB_MMBOX_STS_AVAIL;
 }
 
 static inline void DAC960_PG_enable_intr(void __iomem *base)
@@ -2900,13 +2854,6 @@ static inline void DAC960_PG_disable_intr(void __iomem *base)
 	unsigned int imask = (unsigned int)-1;
 
 	writel(imask, base + DAC960_PG_IRQMASK_OFFSET);
-}
-
-static inline bool DAC960_PG_intr_enabled(void __iomem *base)
-{
-	unsigned int imask = readl(base + DAC960_PG_IRQMASK_OFFSET);
-
-	return !(imask & DAC960_PG_IRQMASK_DISABLE_IRQ);
 }
 
 static inline void DAC960_PG_write_cmd_mbox(union myrb_cmd_mbox *mem_mbox,
@@ -2929,12 +2876,6 @@ static inline void DAC960_PG_write_hw_mbox(void __iomem *base,
 	writel(mbox->words[1], base + DAC960_PG_MBOX4_OFFSET);
 	writel(mbox->words[2], base + DAC960_PG_MBOX8_OFFSET);
 	writeb(mbox->bytes[12], base + DAC960_PG_MBOX12_OFFSET);
-}
-
-static inline unsigned char
-DAC960_PG_read_status_cmd_ident(void __iomem *base)
-{
-	return readb(base + DAC960_PG_STSID_OFFSET);
 }
 
 static inline unsigned short
@@ -3106,11 +3047,6 @@ static inline void DAC960_PD_ack_hw_mbox_status(void __iomem *base)
 	writeb(DAC960_PD_IDB_HWMBOX_ACK_STS, base + DAC960_PD_IDB_OFFSET);
 }
 
-static inline void DAC960_PD_gen_intr(void __iomem *base)
-{
-	writeb(DAC960_PD_IDB_GEN_IRQ, base + DAC960_PD_IDB_OFFSET);
-}
-
 static inline void DAC960_PD_reset_ctrl(void __iomem *base)
 {
 	writeb(DAC960_PD_IDB_CTRL_RESET, base + DAC960_PD_IDB_OFFSET);
@@ -3150,13 +3086,6 @@ static inline void DAC960_PD_enable_intr(void __iomem *base)
 static inline void DAC960_PD_disable_intr(void __iomem *base)
 {
 	writeb(0, base + DAC960_PD_IRQEN_OFFSET);
-}
-
-static inline bool DAC960_PD_intr_enabled(void __iomem *base)
-{
-	unsigned char imask = readb(base + DAC960_PD_IRQEN_OFFSET);
-
-	return imask & DAC960_PD_IRQMASK_ENABLE_IRQ;
 }
 
 static inline void DAC960_PD_write_cmd_mbox(void __iomem *base,
