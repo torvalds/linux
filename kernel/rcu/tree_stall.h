@@ -723,6 +723,10 @@ static void check_cpu_stall(struct rcu_data *rdp)
  * count this as an RCU priority boosting failure.  A return of true says
  * RCU priority boosting is to blame, and false says otherwise.  If false
  * is returned, the first of the CPUs to blame is stored through cpup.
+ * If there was no CPU blocking the current grace period, but also nothing
+ * in need of being boosted, *cpup is set to -1.  This can happen in case
+ * of vCPU preemption while the last CPU is reporting its quiscent state,
+ * for example.
  *
  * If cpup is NULL, then a lockless quick check is carried out, suitable
  * for high-rate usage.  On the other hand, if cpup is non-NULL, each
@@ -730,18 +734,25 @@ static void check_cpu_stall(struct rcu_data *rdp)
  */
 bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
 {
+	bool atb = false;
 	int cpu;
 	unsigned long flags;
 	struct rcu_node *rnp;
 
 	rcu_for_each_leaf_node(rnp) {
 		if (!cpup) {
-			if (READ_ONCE(rnp->qsmask))
+			if (READ_ONCE(rnp->qsmask)) {
 				return false;
-			else
+			} else {
+				if (READ_ONCE(rnp->gp_tasks))
+					atb = true;
 				continue;
+			}
 		}
+		*cpup = -1;
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		if (rnp->gp_tasks)
+			atb = true;
 		if (!rnp->qsmask) {
 			// No CPUs without quiescent states for this rnp.
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -758,7 +769,7 @@ bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 	// Can't blame CPUs, so must blame RCU priority boosting.
-	return true;
+	return atb;
 }
 EXPORT_SYMBOL_GPL(rcu_check_boost_fail);
 
