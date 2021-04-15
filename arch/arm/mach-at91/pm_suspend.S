@@ -83,6 +83,29 @@ tmp3	.req	r6
 
 	.endm
 
+/**
+ * Set state for 2.5V low power regulator
+ * @ena: 0 - disable regulator
+ *	 1 - enable regulator
+ *
+ * Side effects: overwrites r7, r8, r9, r10
+ */
+	.macro at91_2_5V_reg_set_low_power ena
+#ifdef CONFIG_SOC_SAMA7
+	ldr	r7, .sfrbu
+	mov	r8, #\ena
+	ldr	r9, [r7, #AT91_SFRBU_25LDOCR]
+	orr	r9, r9, #AT91_SFRBU_25LDOCR_LP
+	cmp	r8, #1
+	beq	lp_done_\ena
+	bic	r9, r9, #AT91_SFRBU_25LDOCR_LP
+lp_done_\ena:
+	ldr	r10, =AT91_SFRBU_25LDOCR_LDOANAKEY
+	orr	r9, r9, r10
+	str	r9, [r7, #AT91_SFRBU_25LDOCR]
+#endif
+	.endm
+
 	.text
 
 	.arm
@@ -906,6 +929,9 @@ save_mck:
 
 	at91_plla_disable
 
+	/* Enable low power mode for 2.5V regulator. */
+	at91_2_5V_reg_set_low_power 1
+
 	ldr	tmp3, .pm_mode
 	cmp	tmp3, #AT91_PM_ULP1
 	beq	ulp1_mode
@@ -918,6 +944,9 @@ ulp1_mode:
 	b	ulp_exit
 
 ulp_exit:
+	/* Disable low power mode for 2.5V regulator. */
+	at91_2_5V_reg_set_low_power 0
+
 	ldr	pmc, .pmc_base
 
 	at91_plla_enable

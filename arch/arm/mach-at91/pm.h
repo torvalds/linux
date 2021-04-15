@@ -13,6 +13,7 @@
 #include <soc/at91/at91sam9_ddrsdr.h>
 #include <soc/at91/at91sam9_sdramc.h>
 #include <soc/at91/sama7-ddr.h>
+#include <soc/at91/sama7-sfrbu.h>
 
 #define AT91_MEMCTRL_MC		0
 #define AT91_MEMCTRL_SDRAMC	1
