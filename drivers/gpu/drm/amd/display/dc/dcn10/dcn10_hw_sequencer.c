@@ -72,6 +72,9 @@
 
 #define GAMMA_HW_POINTS_NUM 256
 
+#define PGFSM_POWER_ON 0
+#define PGFSM_POWER_OFF 2
+
 void print_microsec(struct dc_context *dc_ctx,
 	struct dc_log_buffer_ctx *log_ctx,
 	uint32_t ref_cycle)
@@ -536,13 +539,22 @@ void dcn10_disable_vga(
 	REG_UPDATE(VGA_TEST_CONTROL, VGA_TEST_RENDER_START, 1);
 }
 
+/**
+ * dcn10_dpp_pg_control - DPP power gate control.
+ *
+ * @hws: dce_hwseq reference.
+ * @dpp_inst: DPP instance reference.
+ * @power_on: true if we want to enable power gate, false otherwise.
+ *
+ * Enable or disable power gate in the specific DPP instance.
+ */
 void dcn10_dpp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dpp_inst,
 		bool power_on)
 {
 	uint32_t power_gate = power_on ? 0 : 1;
-	uint32_t pwr_status = power_on ? 0 : 2;
+	uint32_t pwr_status = power_on ? PGFSM_POWER_ON : PGFSM_POWER_OFF;
 
 	if (hws->ctx->dc->debug.disable_dpp_power_gate)
 		return;
@@ -588,13 +600,22 @@ void dcn10_dpp_pg_control(
 	}
 }
 
+/**
+ * dcn10_hubp_pg_control - HUBP power gate control.
+ *
+ * @hws: dce_hwseq reference.
+ * @hubp_inst: DPP instance reference.
+ * @power_on: true if we want to enable power gate, false otherwise.
+ *
+ * Enable or disable power gate in the specific HUBP instance.
+ */
 void dcn10_hubp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int hubp_inst,
 		bool power_on)
 {
 	uint32_t power_gate = power_on ? 0 : 1;
-	uint32_t pwr_status = power_on ? 0 : 2;
+	uint32_t pwr_status = power_on ? PGFSM_POWER_ON : PGFSM_POWER_OFF;
 
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
 		return;
@@ -1078,6 +1099,19 @@ void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		hws->funcs.verify_allow_pstate_change_high(dc);
 }
 
+/**
+ * dcn10_plane_atomic_power_down - Power down plane components.
+ *
+ * @dc: dc struct reference. used for grab hwseq.
+ * @dpp: dpp struct reference.
+ * @hubp: hubp struct reference.
+ *
+ * Keep in mind that this operation requires a power gate configuration;
+ * however, requests for switch power gate are precisely controlled to avoid
+ * problems. For this reason, power gate request is usually disabled. This
+ * function first needs to enable the power gate request before disabling DPP
+ * and HUBP. Finally, it disables the power gate request again.
+ */
 void dcn10_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp)
