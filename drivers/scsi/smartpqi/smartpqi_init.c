@@ -443,11 +443,6 @@ static inline void pqi_cancel_rescan_worker(struct pqi_ctrl_info *ctrl_info)
 	cancel_delayed_work_sync(&ctrl_info->rescan_work);
 }
 
-static inline void pqi_cancel_event_worker(struct pqi_ctrl_info *ctrl_info)
-{
-	cancel_work_sync(&ctrl_info->event_work);
-}
-
 static inline u32 pqi_read_heartbeat_counter(struct pqi_ctrl_info *ctrl_info)
 {
 	if (!ctrl_info->heartbeat_counter)
@@ -4830,11 +4825,6 @@ out:
 static inline int pqi_enable_events(struct pqi_ctrl_info *ctrl_info)
 {
 	return pqi_configure_events(ctrl_info, true);
-}
-
-static inline int pqi_disable_events(struct pqi_ctrl_info *ctrl_info)
-{
-	return pqi_configure_events(ctrl_info, false);
 }
 
 static void pqi_free_all_io_requests(struct pqi_ctrl_info *ctrl_info)
