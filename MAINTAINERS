@@ -9297,6 +9297,7 @@ INTERCONNECT API
 M:	Georgi Djakov <djakov@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/djakov/icc.git
 F:	Documentation/devicetree/bindings/interconnect/
 F:	Documentation/driver-api/interconnect.rst
 F:	drivers/interconnect/
