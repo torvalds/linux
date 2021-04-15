@@ -1009,7 +1009,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (old_reg->mem_type == TTM_PL_TT &&
 	    new_reg->mem_type == TTM_PL_SYSTEM) {
 		nouveau_ttm_tt_unbind(bo->bdev, bo->ttm);
-		ttm_resource_free(bo, bo->resource);
+		ttm_resource_free(bo, &bo->resource);
 		ttm_bo_assign_mem(bo, new_reg);
 		goto out;
 	}

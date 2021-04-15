@@ -225,8 +225,8 @@ ttm_resource_manager_cleanup(struct ttm_resource_manager *man)
 
 int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
-		       struct ttm_resource *res);
-void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource *res);
+		       struct ttm_resource **res);
+void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res);
 
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       unsigned long p_size);

@@ -741,7 +741,7 @@ static int vmw_move(struct ttm_buffer_object *bo,
 			goto fail;
 
 		vmw_ttm_unbind(bo->bdev, bo->ttm);
-		ttm_resource_free(bo, bo->resource);
+		ttm_resource_free(bo, &bo->resource);
 		ttm_bo_assign_mem(bo, new_mem);
 		return 0;
 	} else {

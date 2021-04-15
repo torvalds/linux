@@ -491,7 +491,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 			return r;
 
 		amdgpu_ttm_backend_unbind(bo->bdev, bo->ttm);
-		ttm_resource_free(bo, bo->resource);
+		ttm_resource_free(bo, &bo->resource);
 		ttm_bo_assign_mem(bo, new_mem);
 		goto out;
 	}
@@ -950,9 +950,9 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_ttm_tt *gtt = (void *)bo->ttm;
-	struct ttm_resource tmp;
 	struct ttm_placement placement;
 	struct ttm_place placements;
+	struct ttm_resource *tmp;
 	uint64_t addr, flags;
 	int r;
 
@@ -962,36 +962,36 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	addr = amdgpu_gmc_agp_addr(bo);
 	if (addr != AMDGPU_BO_INVALID_OFFSET) {
 		bo->resource->start = addr >> PAGE_SHIFT;
-	} else {
-
-		/* allocate GART space */
-		placement.num_placement = 1;
-		placement.placement = &placements;
-		placement.num_busy_placement = 1;
-		placement.busy_placement = &placements;
-		placements.fpfn = 0;
-		placements.lpfn = adev->gmc.gart_size >> PAGE_SHIFT;
-		placements.mem_type = TTM_PL_TT;
-		placements.flags = bo->resource->placement;
-
-		r = ttm_bo_mem_space(bo, &placement, &tmp, &ctx);
-		if (unlikely(r))
-			return r;
-
-		/* compute PTE flags for this buffer object */
-		flags = amdgpu_ttm_tt_pte_flags(adev, bo->ttm, &tmp);
-
-		/* Bind pages */
-		gtt->offset = (u64)tmp.start << PAGE_SHIFT;
-		r = amdgpu_ttm_gart_bind(adev, bo, flags);
-		if (unlikely(r)) {
-			ttm_resource_free(bo, &tmp);
-			return r;
-		}
-
-		ttm_resource_free(bo, bo->resource);
-		ttm_bo_assign_mem(bo, &tmp);
+		return 0;
 	}
+
+	/* allocate GART space */
+	placement.num_placement = 1;
+	placement.placement = &placements;
+	placement.num_busy_placement = 1;
+	placement.busy_placement = &placements;
+	placements.fpfn = 0;
+	placements.lpfn = adev->gmc.gart_size >> PAGE_SHIFT;
+	placements.mem_type = TTM_PL_TT;
+	placements.flags = bo->resource->placement;
+
+	r = ttm_bo_mem_space(bo, &placement, &tmp, &ctx);
+	if (unlikely(r))
+		return r;
+
+	/* compute PTE flags for this buffer object */
+	flags = amdgpu_ttm_tt_pte_flags(adev, bo->ttm, tmp);
+
+	/* Bind pages */
+	gtt->offset = (u64)tmp->start << PAGE_SHIFT;
+	r = amdgpu_ttm_gart_bind(adev, bo, flags);
+	if (unlikely(r)) {
+		ttm_resource_free(bo, &tmp);
+		return r;
+	}
+
+	ttm_resource_free(bo, &bo->resource);
+	ttm_bo_assign_mem(bo, tmp);
 
 	return 0;
 }

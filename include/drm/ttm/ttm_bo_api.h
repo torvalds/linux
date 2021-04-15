@@ -137,7 +137,6 @@ struct ttm_buffer_object {
 	 */
 
 	struct ttm_resource *resource;
-	struct ttm_resource _mem;
 	struct ttm_tt *ttm;
 	bool deleted;
 

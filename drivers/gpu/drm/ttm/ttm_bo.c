@@ -223,7 +223,7 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 		bo->bdev->funcs->delete_mem_notify(bo);
 
 	ttm_bo_tt_destroy(bo);
-	ttm_resource_free(bo, bo->resource);
+	ttm_resource_free(bo, &bo->resource);
 }
 
 static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
@@ -489,7 +489,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 			struct ttm_operation_ctx *ctx)
 {
 	struct ttm_device *bdev = bo->bdev;
-	struct ttm_resource evict_mem;
+	struct ttm_resource *evict_mem;
 	struct ttm_placement placement;
 	struct ttm_place hop;
 	int ret = 0;
@@ -519,7 +519,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 		goto out;
 	}
 
-	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, ctx, &hop);
+	ret = ttm_bo_handle_move_mem(bo, evict_mem, true, ctx, &hop);
 	if (unlikely(ret)) {
 		WARN(ret == -EMULTIHOP, "Unexpected multihop in eviction - likely driver bug\n");
 		if (ret != -ERESTARTSYS)
@@ -728,14 +728,15 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
  */
 static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
-				  struct ttm_resource *mem,
+				  struct ttm_resource **mem,
 				  struct ttm_operation_ctx *ctx)
 {
 	struct ttm_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man = ttm_manager_type(bdev, mem->mem_type);
+	struct ttm_resource_manager *man;
 	struct ww_acquire_ctx *ticket;
 	int ret;
 
+	man = ttm_manager_type(bdev, (*mem)->mem_type);
 	ticket = dma_resv_locking_ctx(bo->base.resv);
 	do {
 		ret = ttm_resource_alloc(bo, place, mem);
@@ -749,37 +750,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			return ret;
 	} while (1);
 
-	return ttm_bo_add_move_fence(bo, man, mem, ctx->no_wait_gpu);
-}
-
-/**
- * ttm_bo_mem_placement - check if placement is compatible
- * @bo: BO to find memory for
- * @place: where to search
- * @mem: the memory object to fill in
- *
- * Check if placement is compatible and fill in mem structure.
- * Returns -EBUSY if placement won't work or negative error code.
- * 0 when placement can be used.
- */
-static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
-				const struct ttm_place *place,
-				struct ttm_resource *mem)
-{
-	struct ttm_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man;
-
-	man = ttm_manager_type(bdev, place->mem_type);
-	if (!man || !ttm_resource_manager_used(man))
-		return -EBUSY;
-
-	mem->mem_type = place->mem_type;
-	mem->placement = place->flags;
-
-	spin_lock(&bo->bdev->lru_lock);
-	ttm_bo_move_to_lru_tail(bo, mem, NULL);
-	spin_unlock(&bo->bdev->lru_lock);
-	return 0;
+	return ttm_bo_add_move_fence(bo, man, *mem, ctx->no_wait_gpu);
 }
 
 /*
@@ -792,7 +763,7 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
  */
 int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			struct ttm_placement *placement,
-			struct ttm_resource *mem,
+			struct ttm_resource **mem,
 			struct ttm_operation_ctx *ctx)
 {
 	struct ttm_device *bdev = bo->bdev;
@@ -807,8 +778,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		const struct ttm_place *place = &placement->placement[i];
 		struct ttm_resource_manager *man;
 
-		ret = ttm_bo_mem_placement(bo, place, mem);
-		if (ret)
+		man = ttm_manager_type(bdev, place->mem_type);
+		if (!man || !ttm_resource_manager_used(man))
 			continue;
 
 		type_found = true;
@@ -818,8 +789,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (unlikely(ret))
 			goto error;
 
-		man = ttm_manager_type(bdev, mem->mem_type);
-		ret = ttm_bo_add_move_fence(bo, man, mem, ctx->no_wait_gpu);
+		ret = ttm_bo_add_move_fence(bo, man, *mem, ctx->no_wait_gpu);
 		if (unlikely(ret)) {
 			ttm_resource_free(bo, mem);
 			if (ret == -EBUSY)
@@ -832,9 +802,10 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 	for (i = 0; i < placement->num_busy_placement; ++i) {
 		const struct ttm_place *place = &placement->busy_placement[i];
+		struct ttm_resource_manager *man;
 
-		ret = ttm_bo_mem_placement(bo, place, mem);
-		if (ret)
+		man = ttm_manager_type(bdev, place->mem_type);
+		if (!man || !ttm_resource_manager_used(man))
 			continue;
 
 		type_found = true;
@@ -861,12 +832,12 @@ error:
 EXPORT_SYMBOL(ttm_bo_mem_space);
 
 static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
-				     struct ttm_resource *mem,
+				     struct ttm_resource **mem,
 				     struct ttm_operation_ctx *ctx,
 				     struct ttm_place *hop)
 {
 	struct ttm_placement hop_placement;
-	struct ttm_resource hop_mem;
+	struct ttm_resource *hop_mem;
 	int ret;
 
 	hop_placement.num_placement = hop_placement.num_busy_placement = 1;
@@ -877,7 +848,7 @@ static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 	/* move to the bounce domain */
-	ret = ttm_bo_handle_move_mem(bo, &hop_mem, false, ctx, NULL);
+	ret = ttm_bo_handle_move_mem(bo, hop_mem, false, ctx, NULL);
 	if (ret) {
 		ttm_resource_free(bo, &hop_mem);
 		return ret;
@@ -889,13 +860,11 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 			      struct ttm_placement *placement,
 			      struct ttm_operation_ctx *ctx)
 {
+	struct ttm_resource *mem;
 	struct ttm_place hop;
-	struct ttm_resource mem;
 	int ret;
 
 	dma_resv_assert_held(bo->base.resv);
-
-	memset(&hop, 0, sizeof(hop));
 
 	/*
 	 * Determine where to move the buffer.
@@ -910,7 +879,7 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 bounce:
-	ret = ttm_bo_handle_move_mem(bo, &mem, false, ctx, &hop);
+	ret = ttm_bo_handle_move_mem(bo, mem, false, ctx, &hop);
 	if (ret == -EMULTIHOP) {
 		ret = ttm_bo_bounce_temp_buffer(bo, &mem, ctx, &hop);
 		if (ret)
@@ -1019,7 +988,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 {
 	static const struct ttm_place sys_mem = { .mem_type = TTM_PL_SYSTEM };
 	bool locked;
-	int ret = 0;
+	int ret;
 
 	bo->destroy = destroy ? destroy : ttm_bo_default_destroy;
 
@@ -1029,8 +998,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->page_alignment = page_alignment;
-	bo->resource = &bo->_mem;
-	ttm_resource_alloc(bo, &sys_mem, bo->resource);
 	bo->moving = NULL;
 	bo->pin_count = 0;
 	bo->sg = sg;
@@ -1041,6 +1008,12 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 		bo->base.resv = &bo->base._resv;
 	}
 	atomic_inc(&ttm_glob.bo_count);
+
+	ret = ttm_resource_alloc(bo, &sys_mem, &bo->resource);
+	if (unlikely(ret)) {
+		ttm_bo_put(bo);
+		return ret;
+	}
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate
@@ -1170,7 +1143,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	 */
 	if (bo->resource->mem_type != TTM_PL_SYSTEM) {
 		struct ttm_operation_ctx ctx = { false, false };
-		struct ttm_resource evict_mem;
+		struct ttm_resource *evict_mem;
 		struct ttm_place place, hop;
 
 		memset(&place, 0, sizeof(place));
@@ -1182,7 +1155,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		if (unlikely(ret))
 			goto out;
 
-		ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, &ctx, &hop);
+		ret = ttm_bo_handle_move_mem(bo, evict_mem, true, &ctx, &hop);
 		if (unlikely(ret != 0)) {
 			WARN(ret == -EMULTIHOP, "Unexpected multihop in swaput - likely driver bug.\n");
 			goto out;

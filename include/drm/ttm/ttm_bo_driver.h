@@ -96,7 +96,7 @@ struct ttm_lru_bulk_move {
  */
 int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_placement *placement,
-		     struct ttm_resource *mem,
+		     struct ttm_resource **mem,
 		     struct ttm_operation_ctx *ctx);
 
 /**
@@ -188,8 +188,8 @@ ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
 static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
 				     struct ttm_resource *new_mem)
 {
-	bo->_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	WARN_ON(bo->resource);
+	bo->resource = new_mem;
 }
 
 /**
@@ -202,9 +202,7 @@ static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
 static inline void ttm_bo_move_null(struct ttm_buffer_object *bo,
 				    struct ttm_resource *new_mem)
 {
-	struct ttm_resource *old_mem = bo->resource;
-
-	WARN_ON(old_mem->mm_node != NULL);
+	ttm_resource_free(bo, &bo->resource);
 	ttm_bo_assign_mem(bo, new_mem);
 }
 

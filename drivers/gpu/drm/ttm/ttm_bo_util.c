@@ -176,15 +176,16 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_operation_ctx *ctx,
 		       struct ttm_resource *new_mem)
 {
-	struct ttm_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
-	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_resource *old_mem = bo->resource;
-	struct ttm_resource old_copy = *old_mem;
+	struct ttm_device *bdev = bo->bdev;
+	struct ttm_resource_manager *man;
+	struct ttm_tt *ttm = bo->ttm;
 	void *old_iomap;
 	void *new_iomap;
 	int ret;
 	unsigned long i;
+
+	man = ttm_manager_type(bdev, new_mem->mem_type);
 
 	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
@@ -201,7 +202,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	 * Single TTM move. NOP.
 	 */
 	if (old_iomap == NULL && new_iomap == NULL)
-		goto out2;
+		goto out1;
 
 	/*
 	 * Don't move nonexistent data. Clear destination instead.
@@ -210,7 +211,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	    (ttm == NULL || (!ttm_tt_is_populated(ttm) &&
 			     !(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)))) {
 		memset_io(new_iomap, 0, new_mem->num_pages*PAGE_SIZE);
-		goto out2;
+		goto out1;
 	}
 
 	/*
@@ -235,27 +236,25 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 			ret = ttm_copy_io_page(new_iomap, old_iomap, i);
 		}
 		if (ret)
-			goto out1;
+			break;
 	}
 	mb();
-out2:
-	old_copy = *old_mem;
+out1:
+	ttm_resource_iounmap(bdev, new_mem, new_iomap);
+out:
+	ttm_resource_iounmap(bdev, old_mem, old_iomap);
 
+	if (ret) {
+		ttm_resource_free(bo, &new_mem);
+		return ret;
+	}
+
+	ttm_resource_free(bo, &bo->resource);
 	ttm_bo_assign_mem(bo, new_mem);
 
 	if (!man->use_tt)
 		ttm_bo_tt_destroy(bo);
 
-out1:
-	ttm_resource_iounmap(bdev, old_mem, new_iomap);
-out:
-	ttm_resource_iounmap(bdev, &old_copy, old_iomap);
-
-	/*
-	 * On error, keep the mm node!
-	 */
-	if (!ret)
-		ttm_resource_free(bo, &old_copy);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_move_memcpy);
@@ -566,7 +565,7 @@ static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
 
 	if (!dst_use_tt)
 		ttm_bo_tt_destroy(bo);
-	ttm_resource_free(bo, bo->resource);
+	ttm_resource_free(bo, &bo->resource);
 	return 0;
 }
 
@@ -629,7 +628,7 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 	}
 	spin_unlock(&from->move_lock);
 
-	ttm_resource_free(bo, bo->resource);
+	ttm_resource_free(bo, &bo->resource);
 
 	dma_fence_put(bo->moving);
 	bo->moving = dma_fence_get(fence);
@@ -678,11 +677,11 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	if (ret)
 		ttm_bo_wait(bo, false, false);
 
-	ttm_resource_alloc(bo, &sys_mem, bo->resource);
+	ret = ttm_resource_alloc(bo, &sys_mem, &bo->resource);
 	bo->ttm = NULL;
 
 	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);
 
-	return 0;
+	return ret;
 }
