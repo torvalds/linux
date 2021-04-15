@@ -2038,13 +2038,18 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 
 	iter->snapshot = pos.snapshot;
 
-	locks_want = min(locks_want, BTREE_MAX_DEPTH);
+	/*
+	 * If the iterator has locks_want greater than requested, we explicitly
+	 * do not downgrade it here - on transaction restart because btree node
+	 * split needs to upgrade locks, we might be putting/getting the
+	 * iterator again. Downgrading iterators only happens via an explicit
+	 * bch2_trans_downgrade().
+	 */
 
+	locks_want = min(locks_want, BTREE_MAX_DEPTH);
 	if (locks_want > iter->locks_want) {
 		iter->locks_want = locks_want;
 		btree_iter_get_locks(iter, true, false);
-	} else if (locks_want < iter->locks_want) {
-		__bch2_btree_iter_downgrade(iter, locks_want);
 	}
 
 	while (iter->level < depth) {
