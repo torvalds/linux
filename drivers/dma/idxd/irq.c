@@ -75,7 +75,7 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 			struct idxd_wq *wq = &idxd->wqs[id];
 
 			if (wq->type == IDXD_WQT_USER)
-				wake_up_interruptible(&wq->idxd_cdev.err_queue);
+				wake_up_interruptible(&wq->err_queue);
 		} else {
 			int i;
 
@@ -83,7 +83,7 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 				struct idxd_wq *wq = &idxd->wqs[i];
 
 				if (wq->type == IDXD_WQT_USER)
-					wake_up_interruptible(&wq->idxd_cdev.err_queue);
+					wake_up_interruptible(&wq->err_queue);
 			}
 		}
 
