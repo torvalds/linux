@@ -68,6 +68,13 @@ properties:
     description: A GPIO line connected to the WL_RST line, if present
       this shall be flagged as active low.
 
+  brcm,ccode-map:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description: Multiple strings for translating ISO3166 country code to
+      brcmfmac firmware country code and revision.
+    items:
+      pattern: '^[A-Z][A-Z]-[A-Z][0-9A-Z]-[0-9]+$'
+
 required:
   - compatible
   - reg
@@ -97,5 +104,6 @@ examples:
         interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
         interrupt-names = "host-wake";
         reset-gpios = <&gpio 23 GPIO_ACTIVE_LOW>;
+        brcm,ccode-map = "JP-JP-78", "US-Q2-86";
       };
     };
