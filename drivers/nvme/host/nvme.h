@@ -413,8 +413,8 @@ struct nvme_ns_head {
 	bool			shared;
 	int			instance;
 	struct nvme_effects_log *effects;
-#ifdef CONFIG_NVME_MULTIPATH
 	struct gendisk		*disk;
+#ifdef CONFIG_NVME_MULTIPATH
 	struct bio_list		requeue_list;
 	spinlock_t		requeue_lock;
 	struct work_struct	requeue_work;
@@ -424,6 +424,11 @@ struct nvme_ns_head {
 	struct nvme_ns __rcu	*current_path[];
 #endif
 };
+
+static inline bool nvme_ns_head_multipath(struct nvme_ns_head *head)
+{
+	return IS_ENABLED(CONFIG_NVME_MULTIPATH) && head->disk;
+}
 
 enum nvme_ns_features {
 	NVME_NS_EXT_LBAS = 1 << 0, /* support extended LBA format */
@@ -642,16 +647,28 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned int fid,
 int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
+int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl);
 int nvme_try_sched_reset(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
-
+void nvme_queue_scan(struct nvme_ctrl *ctrl);
 int nvme_get_log(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page, u8 lsp, u8 csi,
 		void *log, size_t size, u64 offset);
 struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
 		struct nvme_ns_head **head, int *srcu_idx);
 void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx);
+bool nvme_tryget_ns_head(struct nvme_ns_head *head);
+void nvme_put_ns_head(struct nvme_ns_head *head);
+struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys);
+int nvme_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg);
+int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg);
+long nvme_dev_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg);
+int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 extern const struct attribute_group *nvme_ns_id_attr_groups[];
+extern const struct pr_ops nvme_pr_ops;
 extern const struct block_device_operations nvme_ns_head_ops;
 
 #ifdef CONFIG_NVME_MULTIPATH
@@ -663,8 +680,7 @@ static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
 void nvme_mpath_unfreeze(struct nvme_subsystem *subsys);
 void nvme_mpath_wait_freeze(struct nvme_subsystem *subsys);
 void nvme_mpath_start_freeze(struct nvme_subsystem *subsys);
-void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
-			struct nvme_ctrl *ctrl, int *flags);
+bool nvme_mpath_set_disk_name(struct nvme_ns *ns, char *disk_name, int *flags);
 void nvme_failover_req(struct request *req);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
@@ -676,7 +692,6 @@ void nvme_mpath_stop(struct nvme_ctrl *ctrl);
 bool nvme_mpath_clear_current_path(struct nvme_ns *ns);
 void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl);
 struct nvme_ns *nvme_find_path(struct nvme_ns_head *head);
-blk_qc_t nvme_ns_head_submit_bio(struct bio *bio);
 
 static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 {
@@ -703,16 +718,11 @@ static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
 {
 	return false;
 }
-/*
- * Without the multipath code enabled, multiple controller per subsystems are
- * visible as devices and thus we cannot use the subsystem instance.
- */
-static inline void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
-				      struct nvme_ctrl *ctrl, int *flags)
+static inline bool nvme_mpath_set_disk_name(struct nvme_ns *ns, char *disk_name,
+		int *flags)
 {
-	sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->head->instance);
+	return false;
 }
-
 static inline void nvme_failover_req(struct request *req)
 {
 }
@@ -800,7 +810,7 @@ static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 extern const struct attribute_group nvme_nvm_attr_group;
-int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg);
+int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, void __user *argp);
 #else
 static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 				    int node)
@@ -810,7 +820,7 @@ static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 
 static inline void nvme_nvm_unregister(struct nvme_ns *ns) {};
 static inline int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd,
-							unsigned long arg)
+		void __user *argp)
 {
 	return -ENOTTY;
 }
