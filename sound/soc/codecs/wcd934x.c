@@ -5040,7 +5040,7 @@ static int wcd934x_codec_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, irq, NULL,
 					wcd934x_slim_irq_handler,
-					IRQF_TRIGGER_RISING,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"slim", wcd);
 	if (ret) {
 		dev_err(dev, "Failed to request slimbus irq\n");
