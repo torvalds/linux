@@ -18,6 +18,7 @@
 
    admin-guide/index
    process/index
+   dev-tools/index
    doc-guide/index
    kernel-hacking/index
    filesystems/index
