@@ -145,16 +145,74 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	return rc;
 }
 
+static int idxd_setup_wqs(struct idxd_device *idxd)
+{
+	struct device *dev = &idxd->pdev->dev;
+	struct idxd_wq *wq;
+	int i, rc;
+
+	idxd->wqs = kcalloc_node(idxd->max_wqs, sizeof(struct idxd_wq *),
+				 GFP_KERNEL, dev_to_node(dev));
+	if (!idxd->wqs)
+		return -ENOMEM;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		wq = kzalloc_node(sizeof(*wq), GFP_KERNEL, dev_to_node(dev));
+		if (!wq) {
+			rc = -ENOMEM;
+			goto err;
+		}
+
+		wq->id = i;
+		wq->idxd = idxd;
+		device_initialize(&wq->conf_dev);
+		wq->conf_dev.parent = &idxd->conf_dev;
+		wq->conf_dev.bus = idxd_get_bus_type(idxd);
+		wq->conf_dev.type = &idxd_wq_device_type;
+		rc = dev_set_name(&wq->conf_dev, "wq%d.%d", idxd->id, wq->id);
+		if (rc < 0) {
+			put_device(&wq->conf_dev);
+			goto err;
+		}
+
+		mutex_init(&wq->wq_lock);
+		wq->idxd_cdev.minor = -1;
+		wq->max_xfer_bytes = idxd->max_xfer_bytes;
+		wq->max_batch_size = idxd->max_batch_size;
+		wq->wqcfg = kzalloc_node(idxd->wqcfg_size, GFP_KERNEL, dev_to_node(dev));
+		if (!wq->wqcfg) {
+			put_device(&wq->conf_dev);
+			rc = -ENOMEM;
+			goto err;
+		}
+		idxd->wqs[i] = wq;
+	}
+
+	return 0;
+
+ err:
+	while (--i >= 0)
+		put_device(&idxd->wqs[i]->conf_dev);
+	return rc;
+}
+
 static int idxd_setup_internals(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
-	int i;
+	int i, rc;
 
 	init_waitqueue_head(&idxd->cmd_waitq);
+
+	rc = idxd_setup_wqs(idxd);
+	if (rc < 0)
+		return rc;
+
 	idxd->groups = devm_kcalloc(dev, idxd->max_groups,
 				    sizeof(struct idxd_group), GFP_KERNEL);
-	if (!idxd->groups)
-		return -ENOMEM;
+	if (!idxd->groups) {
+		rc = -ENOMEM;
+		goto err;
+	}
 
 	for (i = 0; i < idxd->max_groups; i++) {
 		idxd->groups[i].idxd = idxd;
@@ -163,29 +221,13 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 		idxd->groups[i].tc_b = -1;
 	}
 
-	idxd->wqs = devm_kcalloc(dev, idxd->max_wqs, sizeof(struct idxd_wq),
-				 GFP_KERNEL);
-	if (!idxd->wqs)
-		return -ENOMEM;
-
 	idxd->engines = devm_kcalloc(dev, idxd->max_engines,
 				     sizeof(struct idxd_engine), GFP_KERNEL);
-	if (!idxd->engines)
-		return -ENOMEM;
-
-	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
-
-		wq->id = i;
-		wq->idxd = idxd;
-		mutex_init(&wq->wq_lock);
-		wq->idxd_cdev.minor = -1;
-		wq->max_xfer_bytes = idxd->max_xfer_bytes;
-		wq->max_batch_size = idxd->max_batch_size;
-		wq->wqcfg = devm_kzalloc(dev, idxd->wqcfg_size, GFP_KERNEL);
-		if (!wq->wqcfg)
-			return -ENOMEM;
+	if (!idxd->engines) {
+		rc = -ENOMEM;
+		goto err;
 	}
+
 
 	for (i = 0; i < idxd->max_engines; i++) {
 		idxd->engines[i].idxd = idxd;
@@ -193,10 +235,17 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 	}
 
 	idxd->wq = create_workqueue(dev_name(dev));
-	if (!idxd->wq)
-		return -ENOMEM;
+	if (!idxd->wq) {
+		rc = -ENOMEM;
+		goto err;
+	}
 
 	return 0;
+
+ err:
+	for (i = 0; i < idxd->max_wqs; i++)
+		put_device(&idxd->wqs[i]->conf_dev);
+	return rc;
 }
 
 static void idxd_read_table_offsets(struct idxd_device *idxd)
@@ -371,11 +420,11 @@ static int idxd_probe(struct idxd_device *idxd)
 
 	rc = idxd_setup_internals(idxd);
 	if (rc)
-		goto err_setup;
+		goto err;
 
 	rc = idxd_setup_interrupts(idxd);
 	if (rc)
-		goto err_setup;
+		goto err;
 
 	dev_dbg(dev, "IDXD interrupt setup complete.\n");
 
@@ -384,7 +433,7 @@ static int idxd_probe(struct idxd_device *idxd)
 	dev_dbg(dev, "IDXD device %d probed successfully\n", idxd->id);
 	return 0;
 
- err_setup:
+ err:
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
 	return rc;
