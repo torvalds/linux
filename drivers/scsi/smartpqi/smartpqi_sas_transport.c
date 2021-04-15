@@ -92,12 +92,12 @@ static int pqi_sas_port_add_rphy(struct pqi_sas_port *pqi_sas_port,
 
 	identify = &rphy->identify;
 	identify->sas_address = pqi_sas_port->sas_address;
-	identify->phy_identifier = pqi_sas_port->device->phy_id;
 
 	identify->initiator_port_protocols = SAS_PROTOCOL_ALL;
 	identify->target_port_protocols = SAS_PROTOCOL_STP;
 
 	if (pqi_sas_port->device) {
+		identify->phy_identifier = pqi_sas_port->device->phy_id;
 		switch (pqi_sas_port->device->device_type) {
 		case SA_DEVICE_TYPE_SAS:
 		case SA_DEVICE_TYPE_SES:
