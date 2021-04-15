@@ -22,6 +22,10 @@
 #define   GLI_9750_WT_EN_ON	    0x1
 #define   GLI_9750_WT_EN_OFF	    0x0
 
+#define SDHCI_GLI_9750_CFG2          0x848
+#define   SDHCI_GLI_9750_CFG2_L1DLY    GENMASK(28, 24)
+#define   GLI_9750_CFG2_L1DLY_VALUE    0x1F
+
 #define SDHCI_GLI_9750_DRIVING      0x860
 #define   SDHCI_GLI_9750_DRIVING_1    GENMASK(11, 0)
 #define   SDHCI_GLI_9750_DRIVING_2    GENMASK(27, 26)
@@ -112,6 +116,10 @@
 #define PCI_GLI_9755_PECONF   0x44
 #define   PCI_GLI_9755_LFCLK    GENMASK(14, 12)
 #define   PCI_GLI_9755_DMACLK   BIT(29)
+
+#define PCI_GLI_9755_CFG2          0x48
+#define   PCI_GLI_9755_CFG2_L1DLY    GENMASK(28, 24)
+#define   GLI_9755_CFG2_L1DLY_VALUE  0x1F
 
 #define PCI_GLI_9755_PLL            0x64
 #define   PCI_GLI_9755_PLL_LDIV       GENMASK(9, 0)
@@ -408,6 +416,22 @@ static void sdhci_gl9750_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_enable_clk(host, clk);
 }
 
+static void gl9750_hw_setting(struct sdhci_host *host)
+{
+	u32 value;
+
+	gl9750_wt_on(host);
+
+	value = sdhci_readl(host, SDHCI_GLI_9750_CFG2);
+	value &= ~SDHCI_GLI_9750_CFG2_L1DLY;
+	/* set ASPM L1 entry delay to 7.9us */
+	value |= FIELD_PREP(SDHCI_GLI_9750_CFG2_L1DLY,
+			    GLI_9750_CFG2_L1DLY_VALUE);
+	sdhci_writel(host, value, SDHCI_GLI_9750_CFG2);
+
+	gl9750_wt_off(host);
+}
+
 static void gli_pcie_enable_msi(struct sdhci_pci_slot *slot)
 {
 	int ret;
@@ -555,6 +579,13 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 	value &= ~PCI_GLI_9755_SCP_DIS;
 	pci_write_config_dword(pdev, PCI_GLI_9755_SerDes, value);
 
+	pci_read_config_dword(pdev, PCI_GLI_9755_CFG2, &value);
+	value &= ~PCI_GLI_9755_CFG2_L1DLY;
+	/* set ASPM L1 entry delay to 7.9us */
+	value |= FIELD_PREP(PCI_GLI_9755_CFG2_L1DLY,
+			    GLI_9755_CFG2_L1DLY_VALUE);
+	pci_write_config_dword(pdev, PCI_GLI_9755_CFG2, value);
+
 	gl9755_wt_off(pdev);
 }
 
@@ -562,6 +593,7 @@ static int gli_probe_slot_gl9750(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
 
+	gl9750_hw_setting(host);
 	gli_pcie_enable_msi(slot);
 	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
 	sdhci_enable_v4_mode(host);
