@@ -80,10 +80,10 @@ enum idxd_wq_type {
 };
 
 struct idxd_cdev {
+	struct idxd_wq *wq;
 	struct cdev cdev;
-	struct device *dev;
+	struct device dev;
 	int minor;
-	struct wait_queue_head err_queue;
 };
 
 #define IDXD_ALLOCATED_BATCH_SIZE	128U
@@ -109,7 +109,8 @@ struct idxd_dma_chan {
 struct idxd_wq {
 	void __iomem *portal;
 	struct device conf_dev;
-	struct idxd_cdev idxd_cdev;
+	struct idxd_cdev *idxd_cdev;
+	struct wait_queue_head err_queue;
 	struct idxd_device *idxd;
 	int id;
 	enum idxd_wq_type type;
