@@ -121,14 +121,14 @@ int otx2_cpt_send_mbox_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
 
 int otx2_cpt_send_af_reg_requests(struct otx2_mbox *mbox,
 				  struct pci_dev *pdev);
-int otx2_cpt_add_read_af_reg(struct otx2_mbox *mbox,
-			     struct pci_dev *pdev, u64 reg, u64 *val);
+int otx2_cpt_add_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
+			     u64 reg, u64 *val, int blkaddr);
 int otx2_cpt_add_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			      u64 reg, u64 val);
+			      u64 reg, u64 val, int blkaddr);
 int otx2_cpt_read_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			 u64 reg, u64 *val);
+			 u64 reg, u64 *val, int blkaddr);
 int otx2_cpt_write_af_reg(struct otx2_mbox *mbox, struct pci_dev *pdev,
-			  u64 reg, u64 val);
+			  u64 reg, u64 val, int blkaddr);
 struct otx2_cptlfs_info;
 int otx2_cpt_attach_rscrs_msg(struct otx2_cptlfs_info *lfs);
 int otx2_cpt_detach_rsrcs_msg(struct otx2_cptlfs_info *lfs);

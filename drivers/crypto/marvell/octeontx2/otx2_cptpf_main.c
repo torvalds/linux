@@ -451,19 +451,19 @@ static int cpt_is_pf_usable(struct otx2_cptpf_dev *cptpf)
 	return 0;
 }
 
-static int cptpf_device_reset(struct otx2_cptpf_dev *cptpf)
+static int cptx_device_reset(struct otx2_cptpf_dev *cptpf, int blkaddr)
 {
 	int timeout = 10, ret;
 	u64 reg = 0;
 
 	ret = otx2_cpt_write_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
-				    CPT_AF_BLK_RST, 0x1);
+				    CPT_AF_BLK_RST, 0x1, blkaddr);
 	if (ret)
 		return ret;
 
 	do {
 		ret = otx2_cpt_read_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
-					   CPT_AF_BLK_RST, &reg);
+					   CPT_AF_BLK_RST, &reg, blkaddr);
 		if (ret)
 			return ret;
 
@@ -478,11 +478,35 @@ static int cptpf_device_reset(struct otx2_cptpf_dev *cptpf)
 	return ret;
 }
 
+static int cptpf_device_reset(struct otx2_cptpf_dev *cptpf)
+{
+	int ret = 0;
+
+	if (cptpf->has_cpt1) {
+		ret = cptx_device_reset(cptpf, BLKADDR_CPT1);
+		if (ret)
+			return ret;
+	}
+	return cptx_device_reset(cptpf, BLKADDR_CPT0);
+}
+
+static void cptpf_check_block_implemented(struct otx2_cptpf_dev *cptpf)
+{
+	u64 cfg;
+
+	cfg = otx2_cpt_read64(cptpf->reg_base, BLKADDR_RVUM, 0,
+			      RVU_PF_BLOCK_ADDRX_DISC(BLKADDR_CPT1));
+	if (cfg & BIT_ULL(11))
+		cptpf->has_cpt1 = true;
+}
+
 static int cptpf_device_init(struct otx2_cptpf_dev *cptpf)
 {
 	union otx2_cptx_af_constants1 af_cnsts1 = {0};
 	int ret = 0;
 
+	/* check if 'implemented' bit is set for block BLKADDR_CPT1 */
+	cptpf_check_block_implemented(cptpf);
 	/* Reset the CPT PF device */
 	ret = cptpf_device_reset(cptpf);
 	if (ret)
@@ -490,7 +514,8 @@ static int cptpf_device_init(struct otx2_cptpf_dev *cptpf)
 
 	/* Get number of SE, IE and AE engines */
 	ret = otx2_cpt_read_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
-				   CPT_AF_CONSTANTS1, &af_cnsts1.u);
+				   CPT_AF_CONSTANTS1, &af_cnsts1.u,
+				   BLKADDR_CPT0);
 	if (ret)
 		return ret;
 
