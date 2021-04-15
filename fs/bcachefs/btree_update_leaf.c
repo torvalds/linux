@@ -629,25 +629,11 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 static int journal_reclaim_wait_done(struct bch_fs *c)
 {
-	int ret;
-
-	ret = bch2_journal_error(&c->journal);
-	if (ret)
-		return ret;
-
-	ret = !bch2_btree_key_cache_must_wait(c);
-	if (ret)
-		return ret;
-
-	journal_reclaim_kick(&c->journal);
-
-	if (mutex_trylock(&c->journal.reclaim_lock)) {
-		ret = bch2_journal_reclaim(&c->journal);
-		mutex_unlock(&c->journal.reclaim_lock);
-	}
+	int ret = bch2_journal_error(&c->journal) ?:
+		!bch2_btree_key_cache_must_wait(c);
 
 	if (!ret)
-		ret = !bch2_btree_key_cache_must_wait(c);
+		journal_reclaim_kick(&c->journal);
 	return ret;
 }
 
@@ -735,8 +721,8 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
 		bch2_trans_unlock(trans);
 
-		wait_event(c->journal.reclaim_wait,
-			   (ret = journal_reclaim_wait_done(c)));
+		wait_event_freezable(c->journal.reclaim_wait,
+				     (ret = journal_reclaim_wait_done(c)));
 		if (ret < 0)
 			return ret;
 
