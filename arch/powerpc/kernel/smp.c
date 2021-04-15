@@ -975,17 +975,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 				local_memory_node(numa_cpu_lookup_table[cpu]));
 		}
 #endif
-		/*
-		 * cpu_core_map is now more updated and exists only since
-		 * its been exported for long. It only will have a snapshot
-		 * of cpu_cpu_mask.
-		 */
-		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
 	}
 
 	/* Init the cpumasks so the boot CPU is related to itself */
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
 	cpumask_set_cpu(boot_cpuid, cpu_l2_cache_mask(boot_cpuid));
+	cpumask_set_cpu(boot_cpuid, cpu_core_mask(boot_cpuid));
 
 	if (has_coregroup_support())
 		cpumask_set_cpu(boot_cpuid, cpu_coregroup_mask(boot_cpuid));
@@ -1304,6 +1299,9 @@ static void remove_cpu_from_masks(int cpu)
 			set_cpus_unrelated(cpu, i, cpu_smallcore_mask);
 	}
 
+	for_each_cpu(i, cpu_core_mask(cpu))
+		set_cpus_unrelated(cpu, i, cpu_core_mask);
+
 	if (has_coregroup_support()) {
 		for_each_cpu(i, cpu_coregroup_mask(cpu))
 			set_cpus_unrelated(cpu, i, cpu_coregroup_mask);
@@ -1364,8 +1362,11 @@ static void update_coregroup_mask(int cpu, cpumask_var_t *mask)
 
 static void add_cpu_to_masks(int cpu)
 {
+	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
 	int first_thread = cpu_first_thread_sibling(cpu);
+	int chip_id = cpu_to_chip_id(cpu);
 	cpumask_var_t mask;
+	bool ret;
 	int i;
 
 	/*
@@ -1381,12 +1382,36 @@ static void add_cpu_to_masks(int cpu)
 	add_cpu_to_smallcore_masks(cpu);
 
 	/* In CPU-hotplug path, hence use GFP_ATOMIC */
-	alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
+	ret = alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
 	update_mask_by_l2(cpu, &mask);
 
 	if (has_coregroup_support())
 		update_coregroup_mask(cpu, &mask);
 
+	if (chip_id == -1 || !ret) {
+		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
+		goto out;
+	}
+
+	if (shared_caches)
+		submask_fn = cpu_l2_cache_mask;
+
+	/* Update core_mask with all the CPUs that are part of submask */
+	or_cpumasks_related(cpu, cpu, submask_fn, cpu_core_mask);
+
+	/* Skip all CPUs already part of current CPU core mask */
+	cpumask_andnot(mask, cpu_online_mask, cpu_core_mask(cpu));
+
+	for_each_cpu(i, mask) {
+		if (chip_id == cpu_to_chip_id(i)) {
+			or_cpumasks_related(cpu, i, submask_fn, cpu_core_mask);
+			cpumask_andnot(mask, mask, submask_fn(i));
+		} else {
+			cpumask_andnot(mask, mask, cpu_core_mask(i));
+		}
+	}
+
+out:
 	free_cpumask_var(mask);
 }
 
