@@ -236,10 +236,53 @@ static int idxd_setup_engines(struct idxd_device *idxd)
 	return rc;
 }
 
+static int idxd_setup_groups(struct idxd_device *idxd)
+{
+	struct device *dev = &idxd->pdev->dev;
+	struct idxd_group *group;
+	int i, rc;
+
+	idxd->groups = kcalloc_node(idxd->max_groups, sizeof(struct idxd_group *),
+				    GFP_KERNEL, dev_to_node(dev));
+	if (!idxd->groups)
+		return -ENOMEM;
+
+	for (i = 0; i < idxd->max_groups; i++) {
+		group = kzalloc_node(sizeof(*group), GFP_KERNEL, dev_to_node(dev));
+		if (!group) {
+			rc = -ENOMEM;
+			goto err;
+		}
+
+		group->id = i;
+		group->idxd = idxd;
+		device_initialize(&group->conf_dev);
+		group->conf_dev.parent = &idxd->conf_dev;
+		group->conf_dev.bus = idxd_get_bus_type(idxd);
+		group->conf_dev.type = &idxd_group_device_type;
+		rc = dev_set_name(&group->conf_dev, "group%d.%d", idxd->id, group->id);
+		if (rc < 0) {
+			put_device(&group->conf_dev);
+			goto err;
+		}
+
+		idxd->groups[i] = group;
+		group->tc_a = -1;
+		group->tc_b = -1;
+	}
+
+	return 0;
+
+ err:
+	while (--i >= 0)
+		put_device(&idxd->groups[i]->conf_dev);
+	return rc;
+}
+
 static int idxd_setup_internals(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
-	int i, rc;
+	int rc, i;
 
 	init_waitqueue_head(&idxd->cmd_waitq);
 
@@ -251,29 +294,22 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 	if (rc < 0)
 		goto err_engine;
 
-	idxd->groups = devm_kcalloc(dev, idxd->max_groups,
-				    sizeof(struct idxd_group), GFP_KERNEL);
-	if (!idxd->groups) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	for (i = 0; i < idxd->max_groups; i++) {
-		idxd->groups[i].idxd = idxd;
-		idxd->groups[i].id = i;
-		idxd->groups[i].tc_a = -1;
-		idxd->groups[i].tc_b = -1;
-	}
+	rc = idxd_setup_groups(idxd);
+	if (rc < 0)
+		goto err_group;
 
 	idxd->wq = create_workqueue(dev_name(dev));
 	if (!idxd->wq) {
 		rc = -ENOMEM;
-		goto err;
+		goto err_wkq_create;
 	}
 
 	return 0;
 
- err:
+ err_wkq_create:
+	for (i = 0; i < idxd->max_groups; i++)
+		put_device(&idxd->groups[i]->conf_dev);
+ err_group:
 	for (i = 0; i < idxd->max_engines; i++)
 		put_device(&idxd->engines[i]->conf_dev);
  err_engine:
