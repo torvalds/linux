@@ -33,8 +33,7 @@ MODULE_PARM_DESC(sva, "Toggle SVA support on/off");
 #define DRV_NAME "idxd"
 
 bool support_enqcmd;
-
-static struct ida idxd_idas[IDXD_TYPE_MAX];
+DEFINE_IDA(idxd_ida);
 
 static struct pci_device_id idxd_pci_tbl[] = {
 	/* DSA ver 1.0 platforms */
@@ -50,11 +49,6 @@ static char *idxd_name[] = {
 	"dsa",
 	"iax"
 };
-
-struct ida *idxd_ida(struct idxd_device *idxd)
-{
-	return &idxd_idas[idxd->type];
-}
 
 const char *idxd_get_dev_name(struct idxd_device *idxd)
 {
@@ -167,7 +161,7 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 		wq->idxd = idxd;
 		device_initialize(&wq->conf_dev);
 		wq->conf_dev.parent = &idxd->conf_dev;
-		wq->conf_dev.bus = idxd_get_bus_type(idxd);
+		wq->conf_dev.bus = &dsa_bus_type;
 		wq->conf_dev.type = &idxd_wq_device_type;
 		rc = dev_set_name(&wq->conf_dev, "wq%d.%d", idxd->id, wq->id);
 		if (rc < 0) {
@@ -258,7 +252,7 @@ static int idxd_setup_groups(struct idxd_device *idxd)
 		group->idxd = idxd;
 		device_initialize(&group->conf_dev);
 		group->conf_dev.parent = &idxd->conf_dev;
-		group->conf_dev.bus = idxd_get_bus_type(idxd);
+		group->conf_dev.bus = &dsa_bus_type;
 		group->conf_dev.type = &idxd_group_device_type;
 		rc = dev_set_name(&group->conf_dev, "group%d.%d", idxd->id, group->id);
 		if (rc < 0) {
@@ -409,13 +403,13 @@ static struct idxd_device *idxd_alloc(struct pci_dev *pdev)
 
 	idxd->pdev = pdev;
 	idxd_set_type(idxd);
-	idxd->id = ida_alloc(idxd_ida(idxd), GFP_KERNEL);
+	idxd->id = ida_alloc(&idxd_ida, GFP_KERNEL);
 	if (idxd->id < 0)
 		return NULL;
 
 	device_initialize(&idxd->conf_dev);
 	idxd->conf_dev.parent = dev;
-	idxd->conf_dev.bus = idxd_get_bus_type(idxd);
+	idxd->conf_dev.bus = &dsa_bus_type;
 	idxd->conf_dev.type = idxd_get_device_type(idxd);
 	rc = dev_set_name(&idxd->conf_dev, "%s%d", idxd_get_dev_name(idxd), idxd->id);
 	if (rc < 0) {
@@ -669,7 +663,7 @@ static struct pci_driver idxd_pci_driver = {
 
 static int __init idxd_init_module(void)
 {
-	int err, i;
+	int err;
 
 	/*
 	 * If the CPU does not support MOVDIR64B or ENQCMDS, there's no point in
@@ -684,9 +678,6 @@ static int __init idxd_init_module(void)
 		pr_warn("Platform does not have ENQCMD(S) support.\n");
 	else
 		support_enqcmd = true;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++)
-		ida_init(&idxd_idas[i]);
 
 	err = idxd_register_bus_type();
 	if (err < 0)

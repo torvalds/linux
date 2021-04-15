@@ -301,19 +301,6 @@ struct bus_type dsa_bus_type = {
 	.shutdown = idxd_config_bus_shutdown,
 };
 
-struct bus_type iax_bus_type = {
-	.name = "iax",
-	.match = idxd_config_bus_match,
-	.probe = idxd_config_bus_probe,
-	.remove = idxd_config_bus_remove,
-	.shutdown = idxd_config_bus_shutdown,
-};
-
-static struct bus_type *idxd_bus_types[] = {
-	&dsa_bus_type,
-	&iax_bus_type
-};
-
 static struct idxd_device_driver dsa_drv = {
 	.drv = {
 		.name = "dsa",
@@ -322,25 +309,6 @@ static struct idxd_device_driver dsa_drv = {
 		.mod_name = KBUILD_MODNAME,
 	},
 };
-
-static struct idxd_device_driver iax_drv = {
-	.drv = {
-		.name = "iax",
-		.bus = &iax_bus_type,
-		.owner = THIS_MODULE,
-		.mod_name = KBUILD_MODNAME,
-	},
-};
-
-static struct idxd_device_driver *idxd_drvs[] = {
-	&dsa_drv,
-	&iax_drv
-};
-
-struct bus_type *idxd_get_bus_type(struct idxd_device *idxd)
-{
-	return idxd_bus_types[idxd->type];
-}
 
 struct device_type *idxd_get_device_type(struct idxd_device *idxd)
 {
@@ -355,28 +323,12 @@ struct device_type *idxd_get_device_type(struct idxd_device *idxd)
 /* IDXD generic driver setup */
 int idxd_register_driver(void)
 {
-	int i, rc;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++) {
-		rc = driver_register(&idxd_drvs[i]->drv);
-		if (rc < 0)
-			goto drv_fail;
-	}
-
-	return 0;
-
-drv_fail:
-	while (--i >= 0)
-		driver_unregister(&idxd_drvs[i]->drv);
-	return rc;
+	return driver_register(&dsa_drv.drv);
 }
 
 void idxd_unregister_driver(void)
 {
-	int i;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++)
-		driver_unregister(&idxd_drvs[i]->drv);
+	driver_unregister(&dsa_drv.drv);
 }
 
 /* IDXD engine attributes */
@@ -1637,7 +1589,7 @@ static void idxd_conf_device_release(struct device *dev)
 	kfree(idxd->wqs);
 	kfree(idxd->engines);
 	kfree(idxd->irq_entries);
-	ida_free(idxd_ida(idxd), idxd->id);
+	ida_free(&idxd_ida, idxd->id);
 	kfree(idxd);
 }
 
@@ -1792,26 +1744,10 @@ void idxd_unregister_devices(struct idxd_device *idxd)
 
 int idxd_register_bus_type(void)
 {
-	int i, rc;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++) {
-		rc = bus_register(idxd_bus_types[i]);
-		if (rc < 0)
-			goto bus_err;
-	}
-
-	return 0;
-
-bus_err:
-	while (--i >= 0)
-		bus_unregister(idxd_bus_types[i]);
-	return rc;
+	return bus_register(&dsa_bus_type);
 }
 
 void idxd_unregister_bus_type(void)
 {
-	int i;
-
-	for (i = 0; i < IDXD_TYPE_MAX; i++)
-		bus_unregister(idxd_bus_types[i]);
+	bus_unregister(&dsa_bus_type);
 }

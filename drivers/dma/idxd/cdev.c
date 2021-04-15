@@ -268,7 +268,7 @@ int idxd_wq_add_cdev(struct idxd_wq *wq)
 
 	device_initialize(dev);
 	dev->parent = &wq->conf_dev;
-	dev->bus = idxd_get_bus_type(idxd);
+	dev->bus = &dsa_bus_type;
 	dev->type = &idxd_cdev_device_type;
 	dev->devt = MKDEV(MAJOR(cdev_ctx->devt), minor);
 

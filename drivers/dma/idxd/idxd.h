@@ -257,6 +257,7 @@ extern struct bus_type dsa_bus_type;
 extern struct bus_type iax_bus_type;
 
 extern bool support_enqcmd;
+extern struct ida idxd_ida;
 extern struct device_type dsa_device_type;
 extern struct device_type iax_device_type;
 extern struct device_type idxd_wq_device_type;
@@ -346,7 +347,6 @@ static inline int idxd_wq_refcount(struct idxd_wq *wq)
 	return wq->client_count;
 };
 
-struct ida *idxd_ida(struct idxd_device *idxd);
 const char *idxd_get_dev_name(struct idxd_device *idxd);
 int idxd_register_bus_type(void);
 void idxd_unregister_bus_type(void);
@@ -354,7 +354,6 @@ int idxd_register_devices(struct idxd_device *idxd);
 void idxd_unregister_devices(struct idxd_device *idxd);
 int idxd_register_driver(void);
 void idxd_unregister_driver(void);
-struct bus_type *idxd_get_bus_type(struct idxd_device *idxd);
 struct device_type *idxd_get_device_type(struct idxd_device *idxd);
 
 /* device interrupt control */
