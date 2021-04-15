@@ -911,6 +911,27 @@ static ssize_t ctl_mpi_state_show(struct device *cdev,
 }
 static DEVICE_ATTR_RO(ctl_mpi_state);
 
+/**
+ * ctl_hmi_error_show - controller MPI initialization fails
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+
+static ssize_t ctl_hmi_error_show(struct device *cdev,
+		struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	unsigned int mpidw0;
+
+	mpidw0 = pm8001_mr32(pm8001_ha->general_stat_tbl_addr, 0);
+	return sysfs_emit(buf, "0x%08x\n", (mpidw0 >> 16));
+}
+static DEVICE_ATTR_RO(ctl_hmi_error);
+
 struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_interface_rev,
 	&dev_attr_controller_fatal_error,
@@ -935,6 +956,7 @@ struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_ila_version,
 	&dev_attr_inc_fw_ver,
 	&dev_attr_ctl_mpi_state,
+	&dev_attr_ctl_hmi_error,
 	NULL,
 };
 
