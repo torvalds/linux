@@ -552,7 +552,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 				 * timestamping packet. And send one skb in
 				 * tx_skbs queue if has.
 				 */
-				queue_work(system_wq, &priv->tx_onestep_tstamp);
+				schedule_work(&priv->tx_onestep_tstamp);
 			} else if (unlikely(do_twostep_tstamp)) {
 				enetc_tstamp_tx(skb, tstamp);
 				do_twostep_tstamp = false;
