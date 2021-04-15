@@ -525,6 +525,7 @@ static int search_bbt(struct nand_chip *this, uint8_t *buf,
 {
 	u64 targetsize = nanddev_target_size(&this->base);
 	struct mtd_info *mtd = nand_to_mtd(this);
+	struct nand_bbt_descr *bd = this->badblock_pattern;
 	int i, chips;
 	int startblock, block, dir;
 	int scanlen = mtd->writesize + mtd->oobsize;
@@ -559,6 +560,10 @@ static int search_bbt(struct nand_chip *this, uint8_t *buf,
 
 			int actblock = startblock + dir * block;
 			loff_t offs = (loff_t)actblock << this->bbt_erase_shift;
+
+			/* Check if block is marked bad */
+			if (scan_block_fast(this, bd, offs, buf))
+				continue;
 
 			/* Read first page */
 			scan_read(this, buf, offs, mtd->writesize, td);
