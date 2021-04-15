@@ -72,11 +72,11 @@ struct es2_cport_in {
 };
 
 /**
- * es2_ap_dev - ES2 USB Bridge to AP structure
+ * struct es2_ap_dev - ES2 USB Bridge to AP structure
  * @usb_dev: pointer to the USB device we are.
  * @usb_intf: pointer to the USB interface we are bound to.
  * @hd: pointer to our gb_host_device structure
-
+ *
  * @cport_in: endpoint, urbs and buffer for cport in messages
  * @cport_out_endpoint: endpoint for for cport out messages
  * @cport_out_urb: array of urbs for the CPort out messages
@@ -85,7 +85,7 @@ struct es2_cport_in {
  * @cport_out_urb_cancelled: array of flags indicating whether the
  *			corresponding @cport_out_urb is being cancelled
  * @cport_out_urb_lock: locks the @cport_out_urb_busy "list"
- *
+ * @cdsi1_in_use: true if cport CDSI1 is in use
  * @apb_log_task: task pointer for logging thread
  * @apb_log_dentry: file system entry for the log file interface
  * @apb_log_enable_dentry: file system entry for enabling logging
