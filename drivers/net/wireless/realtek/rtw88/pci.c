@@ -581,11 +581,12 @@ static int rtw_pci_start(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 
+	rtw_pci_napi_start(rtwdev);
+
 	spin_lock_bh(&rtwpci->irq_lock);
+	rtwpci->running = true;
 	rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
 	spin_unlock_bh(&rtwpci->irq_lock);
-
-	rtw_pci_napi_start(rtwdev);
 
 	return 0;
 }
@@ -593,11 +594,17 @@ static int rtw_pci_start(struct rtw_dev *rtwdev)
 static void rtw_pci_stop(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
 
+	spin_lock_bh(&rtwpci->irq_lock);
+	rtwpci->running = false;
+	rtw_pci_disable_interrupt(rtwdev, rtwpci);
+	spin_unlock_bh(&rtwpci->irq_lock);
+
+	synchronize_irq(pdev->irq);
 	rtw_pci_napi_stop(rtwdev);
 
 	spin_lock_bh(&rtwpci->irq_lock);
-	rtw_pci_disable_interrupt(rtwdev, rtwpci);
 	rtw_pci_dma_release(rtwdev, rtwpci);
 	spin_unlock_bh(&rtwpci->irq_lock);
 }
@@ -1212,7 +1219,8 @@ static irqreturn_t rtw_pci_interrupt_threadfn(int irq, void *dev)
 		rtw_fw_c2h_cmd_isr(rtwdev);
 
 	/* all of the jobs for this interrupt have been done */
-	rtw_pci_enable_interrupt(rtwdev, rtwpci, rx);
+	if (rtwpci->running)
+		rtw_pci_enable_interrupt(rtwdev, rtwpci, rx);
 	spin_unlock_bh(&rtwpci->irq_lock);
 
 	return IRQ_HANDLED;
@@ -1633,7 +1641,8 @@ static int rtw_pci_napi_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		spin_lock_bh(&rtwpci->irq_lock);
-		rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
+		if (rtwpci->running)
+			rtw_pci_enable_interrupt(rtwdev, rtwpci, false);
 		spin_unlock_bh(&rtwpci->irq_lock);
 		/* When ISR happens during polling and before napi_complete
 		 * while no further data is received. Data on the dma_ring will
