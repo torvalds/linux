@@ -128,10 +128,9 @@ static struct dentry *ufs_fh_to_parent(struct super_block *sb, struct fid *fid,
 
 static struct dentry *ufs_get_parent(struct dentry *child)
 {
-	struct qstr dot_dot = QSTR_INIT("..", 2);
 	ino_t ino;
 
-	ino = ufs_inode_by_name(d_inode(child), &dot_dot);
+	ino = ufs_inode_by_name(d_inode(child), &dotdot_name);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
 	return d_obtain_alias(ufs_iget(child->d_sb, ino));

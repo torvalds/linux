@@ -59,6 +59,7 @@ struct qstr {
 
 extern const struct qstr empty_name;
 extern const struct qstr slash_name;
+extern const struct qstr dotdot_name;
 
 struct dentry_stat_t {
 	long nr_dentry;

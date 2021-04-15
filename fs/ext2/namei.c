@@ -81,11 +81,10 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, uns
 
 struct dentry *ext2_get_parent(struct dentry *child)
 {
-	struct qstr dotdot = QSTR_INIT("..", 2);
 	ino_t ino;
 	int res;
 
-	res = ext2_inode_by_name(d_inode(child), &dotdot, &ino);
+	res = ext2_inode_by_name(d_inode(child), &dotdot_name, &ino);
 	if (res)
 		return ERR_PTR(res);
 
