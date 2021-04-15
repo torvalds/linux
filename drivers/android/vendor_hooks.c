@@ -51,6 +51,7 @@
 #include <trace/hooks/gpiolib.h>
 #include <trace/hooks/signal.h>
 #include <trace/hooks/logbuf.h>
+#include <trace/hooks/vmscan.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -240,3 +241,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_post_init_entity_util_avg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_typec_tcpm_get_timer);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_typec_tcpm_adj_current_limit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_logbuf);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_tune_scan_type);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_tune_swappiness);
