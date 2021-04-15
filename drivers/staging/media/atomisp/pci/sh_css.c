@@ -413,7 +413,6 @@ aspect_ratio_crop(struct ia_css_pipe *curr_pipe,
 static void
 sh_css_pipe_free_shading_table(struct ia_css_pipe *pipe)
 {
-	assert(pipe);
 	if (!pipe) {
 		IA_CSS_ERROR("NULL input parameter");
 		return;
@@ -1080,7 +1079,6 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 		}
 	}
 
-	assert(pipe);
 	if (!pipe)
 		return -EINVAL;
 
@@ -1382,8 +1380,6 @@ start_copy_on_sp(struct ia_css_pipe *pipe,
 		 struct ia_css_frame *out_frame)
 {
 	(void)out_frame;
-	assert(pipe);
-	assert(pipe->stream);
 
 	if ((!pipe) || (!pipe->stream))
 		return -EINVAL;
@@ -1837,7 +1833,6 @@ map_sp_threads(struct ia_css_stream *stream, bool map)
 	int err = 0;
 	enum ia_css_pipe_id pipe_id;
 
-	assert(stream);
 	IA_CSS_ENTER_PRIVATE("stream = %p, map = %s",
 			     stream, map ? "true" : "false");
 
@@ -1904,7 +1899,6 @@ create_host_pipeline_structure(struct ia_css_stream *stream)
 	unsigned int copy_pipe_delay = 0,
 	capture_pipe_delay = 0;
 
-	assert(stream);
 	IA_CSS_ENTER_PRIVATE("stream = %p", stream);
 
 	if (!stream) {
@@ -1913,7 +1907,6 @@ create_host_pipeline_structure(struct ia_css_stream *stream)
 	}
 
 	main_pipe	= stream->last_pipe;
-	assert(main_pipe);
 	if (!main_pipe) {
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
@@ -2317,7 +2310,6 @@ static void sh_css_pipe_free_acc_binaries(
 	struct ia_css_pipeline *pipeline;
 	struct ia_css_pipeline_stage *stage;
 
-	assert(pipe);
 	if (!pipe) {
 		IA_CSS_ERROR("NULL input pointer");
 		return;
