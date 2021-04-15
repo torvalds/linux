@@ -1637,8 +1637,7 @@ core_scsi3_decode_spec_i_port(
 			}
 
 			dest_tpg = tmp_tpg;
-			pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node:"
-				" %s Port RTPI: %hu\n",
+			pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node: %s Port RTPI: %u\n",
 				dest_tpg->se_tpg_tfo->fabric_name,
 				dest_node_acl->initiatorname, dest_rtpi);
 
@@ -1675,8 +1674,7 @@ core_scsi3_decode_spec_i_port(
 		dest_se_deve = core_get_se_deve_from_rtpi(dest_node_acl,
 					dest_rtpi);
 		if (!dest_se_deve) {
-			pr_err("Unable to locate %s dest_se_deve"
-				" from destination RTPI: %hu\n",
+			pr_err("Unable to locate %s dest_se_deve from destination RTPI: %u\n",
 				dest_tpg->se_tpg_tfo->fabric_name,
 				dest_rtpi);
 
