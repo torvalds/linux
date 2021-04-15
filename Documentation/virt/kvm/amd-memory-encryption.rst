@@ -348,6 +348,14 @@ Returns: 0 on success, -negative on error
                 __u32 trans_len;
         };
 
+13. KVM_SEV_SEND_FINISH
+------------------------
+
+After completion of the migration flow, the KVM_SEV_SEND_FINISH command can be
+issued by the hypervisor to delete the encryption context.
+
+Returns: 0 on success, -negative on error
+
 References
 ==========
 
