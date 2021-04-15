@@ -1881,11 +1881,6 @@ static inline u32 aac_get_safw_phys_nexus(struct aac_dev *dev, int lun)
 	return *((u32 *)&dev->safw_phys_luns->lun[lun].node_ident[12]);
 }
 
-static inline u32 aac_get_safw_phys_device_type(struct aac_dev *dev, int lun)
-{
-	return dev->safw_phys_luns->lun[lun].node_ident[8];
-}
-
 static inline void aac_free_safw_identify_resp(struct aac_dev *dev,
 						int bus, int target)
 {
