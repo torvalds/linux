@@ -627,38 +627,27 @@ TRACE_EVENT(trans_restart_would_deadlock,
 		  __entry->want_pos_snapshot)
 );
 
-TRACE_EVENT(trans_restart_iters_realloced,
-	TP_PROTO(unsigned long ip, unsigned nr),
-	TP_ARGS(ip, nr),
-
-	TP_STRUCT__entry(
-		__field(unsigned long,		ip	)
-		__field(unsigned,		nr	)
-	),
-
-	TP_fast_assign(
-		__entry->ip	= ip;
-		__entry->nr	= nr;
-	),
-
-	TP_printk("%pS nr %u", (void *) __entry->ip, __entry->nr)
-);
-
 TRACE_EVENT(trans_restart_mem_realloced,
-	TP_PROTO(unsigned long ip, unsigned long bytes),
-	TP_ARGS(ip, bytes),
+	TP_PROTO(unsigned long trans_ip, unsigned long caller_ip,
+		 unsigned long bytes),
+	TP_ARGS(trans_ip, caller_ip, bytes),
 
 	TP_STRUCT__entry(
-		__field(unsigned long,		ip	)
-		__field(unsigned long,		bytes	)
+		__field(unsigned long,		trans_ip	)
+		__field(unsigned long,		caller_ip	)
+		__field(unsigned long,		bytes		)
 	),
 
 	TP_fast_assign(
-		__entry->ip	= ip;
-		__entry->bytes	= bytes;
+		__entry->trans_ip	= trans_ip;
+		__entry->caller_ip	= caller_ip;
+		__entry->bytes		= bytes;
 	),
 
-	TP_printk("%pS bytes %lu", (void *) __entry->ip, __entry->bytes)
+	TP_printk("%pS %pS bytes %lu",
+		  (void *) __entry->trans_ip,
+		  (void *) __entry->caller_ip,
+		  __entry->bytes)
 );
 
 DEFINE_EVENT(transaction_restart,	trans_restart_journal_res_get,

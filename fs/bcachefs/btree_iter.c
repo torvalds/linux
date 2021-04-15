@@ -2111,11 +2111,14 @@ struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *trans,
 	return iter;
 }
 
-static int bch2_trans_preload_mem(struct btree_trans *trans, size_t size)
+void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
-	if (size > trans->mem_bytes) {
+	size_t new_top = trans->mem_top + size;
+	void *p;
+
+	if (new_top > trans->mem_bytes) {
 		size_t old_bytes = trans->mem_bytes;
-		size_t new_bytes = roundup_pow_of_two(size);
+		size_t new_bytes = roundup_pow_of_two(new_top);
 		void *new_mem;
 
 		WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX);
@@ -2128,28 +2131,16 @@ static int bch2_trans_preload_mem(struct btree_trans *trans, size_t size)
 		}
 
 		if (!new_mem)
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 
 		trans->mem = new_mem;
 		trans->mem_bytes = new_bytes;
 
 		if (old_bytes) {
-			trace_trans_restart_mem_realloced(trans->ip, new_bytes);
-			return -EINTR;
+			trace_trans_restart_mem_realloced(trans->ip, _RET_IP_, new_bytes);
+			return ERR_PTR(-EINTR);
 		}
 	}
-
-	return 0;
-}
-
-void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
-{
-	void *p;
-	int ret;
-
-	ret = bch2_trans_preload_mem(trans, trans->mem_top + size);
-	if (ret)
-		return ERR_PTR(ret);
 
 	p = trans->mem + trans->mem_top;
 	trans->mem_top += size;
