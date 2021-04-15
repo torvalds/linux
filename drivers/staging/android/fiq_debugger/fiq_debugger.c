@@ -599,7 +599,7 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 	unsigned long va_start;
 
 #ifdef CONFIG_ARM64
-	va_start = VA_START;
+	va_start = PAGE_END;
 #else
 	va_start = PAGE_OFFSET;
 #endif

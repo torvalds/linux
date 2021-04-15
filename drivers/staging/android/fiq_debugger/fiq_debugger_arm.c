@@ -212,7 +212,7 @@ static struct frame_tail *user_backtrace(struct fiq_debugger_output *output,
 	struct frame_tail buftail[2];
 
 	/* Also check accessibility of one struct frame_tail beyond */
-	if (!access_ok(VERIFY_READ, tail, sizeof(buftail))) {
+	if (!access_ok(tail, sizeof(buftail))) {
 		output->printf(output, "  invalid frame pointer %px\n",
 				tail);
 		return NULL;
