@@ -108,6 +108,11 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 		(kfd_mem_limit.max_ttm_mem_limit >> 20));
 }
 
+void amdgpu_amdkfd_reserve_system_mem(uint64_t size)
+{
+	kfd_mem_limit.system_mem_used += size;
+}
+
 /* Estimate page table size needed to represent a given memory size
  *
  * With 4KB pages, we need one 8 byte PTE for each 4KB of memory

@@ -57,6 +57,9 @@ static const struct dev_pagemap_ops svm_migrate_pgmap_ops = {
 	.migrate_to_ram		= svm_migrate_to_ram,
 };
 
+/* Each VRAM page uses sizeof(struct page) on system memory */
+#define SVM_HMM_PAGE_STRUCT_SIZE(size) ((size)/PAGE_SIZE * sizeof(struct page))
+
 int svm_migrate_init(struct amdgpu_device *adev)
 {
 	struct kfd_dev *kfddev = adev->kfd.dev;
@@ -92,6 +95,11 @@ int svm_migrate_init(struct amdgpu_device *adev)
 		pr_err("failed to register HMM device memory\n");
 		return PTR_ERR(r);
 	}
+
+	pr_debug("reserve %ldMB system memory for VRAM pages struct\n",
+		 SVM_HMM_PAGE_STRUCT_SIZE(size) >> 20);
+
+	amdgpu_amdkfd_reserve_system_mem(SVM_HMM_PAGE_STRUCT_SIZE(size));
 
 	pr_info("HMM registered %ldMB device memory\n", size >> 20);
 
