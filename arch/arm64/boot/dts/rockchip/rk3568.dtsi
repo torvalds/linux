@@ -273,6 +273,8 @@
 			scmi_clk: protocol@14 {
 				reg = <0x14>;
 				#clock-cells = <1>;
+
+				rockchip,clk-init = <1416000000>;
 			};
 		};
 
