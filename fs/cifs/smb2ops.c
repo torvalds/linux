@@ -2264,7 +2264,7 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 		goto notify_exit;
 	}
 
-	utf16_path = cifs_convert_path_to_utf16(path + 1, cifs_sb);
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (utf16_path == NULL) {
 		rc = -ENOMEM;
 		goto notify_exit;
