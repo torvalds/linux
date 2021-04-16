@@ -249,6 +249,9 @@
 
 /* PLA_TCR1 */
 #define VERSION_MASK		0x7cf0
+#define IFG_MASK		(BIT(3) | BIT(9) | BIT(8))
+#define IFG_144NS		BIT(9)
+#define IFG_96NS		(BIT(9) | BIT(8))
 
 /* PLA_MTPS */
 #define MTPS_JUMBO		(12 * 1024 / 64)
@@ -2747,6 +2750,29 @@ static int rtl_stop_rx(struct r8152 *tp)
 	return 0;
 }
 
+static void rtl_set_ifg(struct r8152 *tp, u16 speed)
+{
+	u32 ocp_data;
+
+	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TCR1);
+	ocp_data &= ~IFG_MASK;
+	if ((speed & (_10bps | _100bps)) && !(speed & FULL_DUP)) {
+		ocp_data |= IFG_144NS;
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_TCR1, ocp_data);
+
+		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4);
+		ocp_data &= ~TX10MIDLE_EN;
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4, ocp_data);
+	} else {
+		ocp_data |= IFG_96NS;
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_TCR1, ocp_data);
+
+		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4);
+		ocp_data |= TX10MIDLE_EN;
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_MAC_PWR_CTRL4, ocp_data);
+	}
+}
+
 static inline void r8153b_rx_agg_chg_indicate(struct r8152 *tp)
 {
 	ocp_write_byte(tp, MCU_TYPE_USB, USB_UPT_RXDMA_OWN,
@@ -2849,6 +2875,8 @@ static int rtl8153_enable(struct r8152 *tp)
 	rtl_set_eee_plus(tp);
 	r8153_set_rx_early_timeout(tp);
 	r8153_set_rx_early_size(tp);
+
+	rtl_set_ifg(tp, rtl8152_get_speed(tp));
 
 	if (tp->version == RTL_VER_09) {
 		u32 ocp_data;
