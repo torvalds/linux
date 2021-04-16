@@ -464,6 +464,19 @@ static int lg_g15_get_initial_led_brightness(struct lg_g15_data *g15)
 /******** Input functions ********/
 
 /* On the G15 Mark I Logitech has been quite creative with which bit is what */
+static void lg_g15_handle_lcd_menu_keys(struct lg_g15_data *g15, u8 *data)
+{
+	int i, val;
+
+	/* Most left (round/display) button below the LCD */
+	input_report_key(g15->input, KEY_KBD_LCD_MENU1, data[8] & 0x80);
+	/* 4 other buttons below the LCD */
+	for (i = 0; i < 4; i++) {
+		val = data[i + 2] & 0x80;
+		input_report_key(g15->input, KEY_KBD_LCD_MENU2 + i, val);
+	}
+}
+
 static int lg_g15_event(struct lg_g15_data *g15, u8 *data)
 {
 	int i, val;
@@ -494,13 +507,7 @@ static int lg_g15_event(struct lg_g15_data *g15, u8 *data)
 	/* MR */
 	input_report_key(g15->input, KEY_MACRO_RECORD_START, data[7] & 0x40);
 
-	/* Most left (round) button below the LCD */
-	input_report_key(g15->input, KEY_KBD_LCD_MENU1, data[8] & 0x80);
-	/* 4 other buttons below the LCD */
-	for (i = 0; i < 4; i++) {
-		val = data[i + 2] & 0x80;
-		input_report_key(g15->input, KEY_KBD_LCD_MENU2 + i, val);
-	}
+	lg_g15_handle_lcd_menu_keys(g15, data);
 
 	/* Backlight cycle button pressed? */
 	if (data[1] & 0x80)
