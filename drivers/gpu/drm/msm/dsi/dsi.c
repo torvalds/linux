@@ -266,4 +266,8 @@ fail:
 	return ret;
 }
 
+void msm_dsi_snapshot(struct msm_dsi *msm_dsi)
+{
+	msm_dsi_host_snapshot(msm_dsi->host);
+}
 
