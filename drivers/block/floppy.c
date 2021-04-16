@@ -3090,7 +3090,6 @@ static int raw_cmd_copyin(int cmd, void __user *param,
 {
 	struct floppy_raw_cmd *ptr;
 	int ret;
-	int i;
 
 	*rcmd = NULL;
 
@@ -3109,8 +3108,7 @@ loop:
 	if (ptr->cmd_count > FD_RAW_CMD_FULLSIZE)
 		return -EINVAL;
 
-	for (i = 0; i < FD_RAW_REPLY_SIZE; i++)
-		ptr->reply[i] = 0;
+	memset(ptr->reply, 0, FD_RAW_REPLY_SIZE);
 	ptr->resultcode = 0;
 
 	if (ptr->flags & (FD_RAW_READ | FD_RAW_WRITE)) {
