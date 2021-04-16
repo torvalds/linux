@@ -354,6 +354,124 @@ static const struct nfsd4_callback_ops nfsd4_cb_notify_lock_ops = {
 	.release	= nfsd4_cb_notify_lock_release,
 };
 
+/*
+ * We store the NONE, READ, WRITE, and BOTH bits separately in the
+ * st_{access,deny}_bmap field of the stateid, in order to track not
+ * only what share bits are currently in force, but also what
+ * combinations of share bits previous opens have used.  This allows us
+ * to enforce the recommendation of rfc 3530 14.2.19 that the server
+ * return an error if the client attempt to downgrade to a combination
+ * of share bits not explicable by closing some of its previous opens.
+ *
+ * XXX: This enforcement is actually incomplete, since we don't keep
+ * track of access/deny bit combinations; so, e.g., we allow:
+ *
+ *	OPEN allow read, deny write
+ *	OPEN allow both, deny none
+ *	DOWNGRADE allow read, deny none
+ *
+ * which we should reject.
+ */
+static unsigned int
+bmap_to_share_mode(unsigned long bmap)
+{
+	int i;
+	unsigned int access = 0;
+
+	for (i = 1; i < 4; i++) {
+		if (test_bit(i, &bmap))
+			access |= i;
+	}
+	return access;
+}
+
+/* set share access for a given stateid */
+static inline void
+set_access(u32 access, struct nfs4_ol_stateid *stp)
+{
+	unsigned char mask = 1 << access;
+
+	WARN_ON_ONCE(access > NFS4_SHARE_ACCESS_BOTH);
+	stp->st_access_bmap |= mask;
+}
+
+/* clear share access for a given stateid */
+static inline void
+clear_access(u32 access, struct nfs4_ol_stateid *stp)
+{
+	unsigned char mask = 1 << access;
+
+	WARN_ON_ONCE(access > NFS4_SHARE_ACCESS_BOTH);
+	stp->st_access_bmap &= ~mask;
+}
+
+/* test whether a given stateid has access */
+static inline bool
+test_access(u32 access, struct nfs4_ol_stateid *stp)
+{
+	unsigned char mask = 1 << access;
+
+	return (bool)(stp->st_access_bmap & mask);
+}
+
+/* set share deny for a given stateid */
+static inline void
+set_deny(u32 deny, struct nfs4_ol_stateid *stp)
+{
+	unsigned char mask = 1 << deny;
+
+	WARN_ON_ONCE(deny > NFS4_SHARE_DENY_BOTH);
+	stp->st_deny_bmap |= mask;
+}
+
+/* clear share deny for a given stateid */
+static inline void
+clear_deny(u32 deny, struct nfs4_ol_stateid *stp)
+{
+	unsigned char mask = 1 << deny;
+
+	WARN_ON_ONCE(deny > NFS4_SHARE_DENY_BOTH);
+	stp->st_deny_bmap &= ~mask;
+}
+
+/* test whether a given stateid is denying specific access */
+static inline bool
+test_deny(u32 deny, struct nfs4_ol_stateid *stp)
+{
+	unsigned char mask = 1 << deny;
+
+	return (bool)(stp->st_deny_bmap & mask);
+}
+
+static int nfs4_access_to_omode(u32 access)
+{
+	switch (access & NFS4_SHARE_ACCESS_BOTH) {
+	case NFS4_SHARE_ACCESS_READ:
+		return O_RDONLY;
+	case NFS4_SHARE_ACCESS_WRITE:
+		return O_WRONLY;
+	case NFS4_SHARE_ACCESS_BOTH:
+		return O_RDWR;
+	}
+	WARN_ON_ONCE(1);
+	return O_RDONLY;
+}
+
+static inline int
+access_permit_read(struct nfs4_ol_stateid *stp)
+{
+	return test_access(NFS4_SHARE_ACCESS_READ, stp) ||
+		test_access(NFS4_SHARE_ACCESS_BOTH, stp) ||
+		test_access(NFS4_SHARE_ACCESS_WRITE, stp);
+}
+
+static inline int
+access_permit_write(struct nfs4_ol_stateid *stp)
+{
+	return test_access(NFS4_SHARE_ACCESS_WRITE, stp) ||
+		test_access(NFS4_SHARE_ACCESS_BOTH, stp);
+}
+
 static inline struct nfs4_stateowner *
 nfs4_get_stateowner(struct nfs4_stateowner *sop)
 {
@@ -1148,108 +1266,6 @@ static unsigned int clientid_hashval(u32 id)
 static unsigned int clientstr_hashval(struct xdr_netobj name)
 {
 	return opaque_hashval(name.data, 8) & CLIENT_HASH_MASK;
-}
-
-/*
- * We store the NONE, READ, WRITE, and BOTH bits separately in the
- * st_{access,deny}_bmap field of the stateid, in order to track not
- * only what share bits are currently in force, but also what
- * combinations of share bits previous opens have used.  This allows us
- * to enforce the recommendation of rfc 3530 14.2.19 that the server
- * return an error if the client attempt to downgrade to a combination
- * of share bits not explicable by closing some of its previous opens.
- *
- * XXX: This enforcement is actually incomplete, since we don't keep
- * track of access/deny bit combinations; so, e.g., we allow:
- *
- *	OPEN allow read, deny write
- *	OPEN allow both, deny none
- *	DOWNGRADE allow read, deny none
- *
- * which we should reject.
- */
-static unsigned int
-bmap_to_share_mode(unsigned long bmap) {
-	int i;
-	unsigned int access = 0;
-
-	for (i = 1; i < 4; i++) {
-		if (test_bit(i, &bmap))
-			access |= i;
-	}
-	return access;
-}
-
-/* set share access for a given stateid */
-static inline void
-set_access(u32 access, struct nfs4_ol_stateid *stp)
-{
-	unsigned char mask = 1 << access;
-
-	WARN_ON_ONCE(access > NFS4_SHARE_ACCESS_BOTH);
-	stp->st_access_bmap |= mask;
-}
-
-/* clear share access for a given stateid */
-static inline void
-clear_access(u32 access, struct nfs4_ol_stateid *stp)
-{
-	unsigned char mask = 1 << access;
-
-	WARN_ON_ONCE(access > NFS4_SHARE_ACCESS_BOTH);
-	stp->st_access_bmap &= ~mask;
-}
-
-/* test whether a given stateid has access */
-static inline bool
-test_access(u32 access, struct nfs4_ol_stateid *stp)
-{
-	unsigned char mask = 1 << access;
-
-	return (bool)(stp->st_access_bmap & mask);
-}
-
-/* set share deny for a given stateid */
-static inline void
-set_deny(u32 deny, struct nfs4_ol_stateid *stp)
-{
-	unsigned char mask = 1 << deny;
-
-	WARN_ON_ONCE(deny > NFS4_SHARE_DENY_BOTH);
-	stp->st_deny_bmap |= mask;
-}
-
-/* clear share deny for a given stateid */
-static inline void
-clear_deny(u32 deny, struct nfs4_ol_stateid *stp)
-{
-	unsigned char mask = 1 << deny;
-
-	WARN_ON_ONCE(deny > NFS4_SHARE_DENY_BOTH);
-	stp->st_deny_bmap &= ~mask;
-}
-
-/* test whether a given stateid is denying specific access */
-static inline bool
-test_deny(u32 deny, struct nfs4_ol_stateid *stp)
-{
-	unsigned char mask = 1 << deny;
-
-	return (bool)(stp->st_deny_bmap & mask);
-}
-
-static int nfs4_access_to_omode(u32 access)
-{
-	switch (access & NFS4_SHARE_ACCESS_BOTH) {
-	case NFS4_SHARE_ACCESS_READ:
-		return O_RDONLY;
-	case NFS4_SHARE_ACCESS_WRITE:
-		return O_WRONLY;
-	case NFS4_SHARE_ACCESS_BOTH:
-		return O_RDWR;
-	}
-	WARN_ON_ONCE(1);
-	return O_RDONLY;
 }
 
 /*
@@ -5521,21 +5537,6 @@ static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_stid *stp)
 	if (!fh_match(&fhp->fh_handle, &stp->sc_file->fi_fhandle))
 		return nfserr_bad_stateid;
 	return nfs_ok;
-}
-
-static inline int
-access_permit_read(struct nfs4_ol_stateid *stp)
-{
-	return test_access(NFS4_SHARE_ACCESS_READ, stp) ||
-		test_access(NFS4_SHARE_ACCESS_BOTH, stp) ||
-		test_access(NFS4_SHARE_ACCESS_WRITE, stp);
-}
-
-static inline int
-access_permit_write(struct nfs4_ol_stateid *stp)
-{
-	return test_access(NFS4_SHARE_ACCESS_WRITE, stp) ||
-		test_access(NFS4_SHARE_ACCESS_BOTH, stp);
 }
 
 static
