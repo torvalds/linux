@@ -699,6 +699,7 @@ enum {
 enum {
 	ETHTOOL_STATS_ETH_PHY,
 	ETHTOOL_STATS_ETH_MAC,
+	ETHTOOL_STATS_ETH_CTRL,
 
 	/* add new constants above here */
 	__ETHTOOL_STATS_CNT
@@ -777,6 +778,19 @@ enum {
 	/* add new constants above here */
 	__ETHTOOL_A_STATS_ETH_MAC_CNT,
 	ETHTOOL_A_STATS_ETH_MAC_MAX = (__ETHTOOL_A_STATS_ETH_MAC_CNT - 1)
+};
+
+enum {
+	/* 30.3.3.3 aMACControlFramesTransmitted */
+	ETHTOOL_A_STATS_ETH_CTRL_3_TX,
+	/* 30.3.3.4 aMACControlFramesReceived */
+	ETHTOOL_A_STATS_ETH_CTRL_4_RX,
+	/* 30.3.3.5 aUnsupportedOpcodesReceived */
+	ETHTOOL_A_STATS_ETH_CTRL_5_RX_UNSUP,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_ETH_CTRL_CNT,
+	ETHTOOL_A_STATS_ETH_CTRL_MAX = (__ETHTOOL_A_STATS_ETH_CTRL_CNT - 1)
 };
 
 /* generic netlink info */

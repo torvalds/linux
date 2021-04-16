@@ -95,6 +95,11 @@ static const struct strset_info info_template[] = {
 		.count		= __ETHTOOL_A_STATS_ETH_MAC_CNT,
 		.strings	= stats_eth_mac_names,
 	},
+	[ETH_SS_STATS_ETH_CTRL] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_ETH_CTRL_CNT,
+		.strings	= stats_eth_ctrl_names,
+	},
 };
 
 struct strset_req_info {

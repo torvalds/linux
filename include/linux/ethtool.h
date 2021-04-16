@@ -285,6 +285,15 @@ struct ethtool_eth_phy_stats {
 	u64 SymbolErrorDuringCarrier;
 };
 
+/* Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*), not otherwise exposed
+ * via a more targeted API.
+ */
+struct ethtool_eth_ctrl_stats {
+	u64 MACControlFramesTransmitted;
+	u64 MACControlFramesReceived;
+	u64 UnsupportedOpcodesReceived;
+};
+
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
@@ -524,6 +533,7 @@ struct ethtool_module_eeprom {
  *	read.
  * @get_eth_phy_stats: Query some of the IEEE 802.3 PHY statistics.
  * @get_eth_mac_stats: Query some of the IEEE 802.3 MAC statistics.
+ * @get_eth_ctrl_stats: Query some of the IEEE 802.3 MAC Ctrl statistics.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -638,6 +648,8 @@ struct ethtool_ops {
 				     struct ethtool_eth_phy_stats *phy_stats);
 	void	(*get_eth_mac_stats)(struct net_device *dev,
 				     struct ethtool_eth_mac_stats *mac_stats);
+	void	(*get_eth_ctrl_stats)(struct net_device *dev,
+				      struct ethtool_eth_ctrl_stats *ctrl_stats);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);

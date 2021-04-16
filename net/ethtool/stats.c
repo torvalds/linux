@@ -16,6 +16,7 @@ struct stats_reply_data {
 	struct ethnl_reply_data		base;
 	struct ethtool_eth_phy_stats	phy_stats;
 	struct ethtool_eth_mac_stats	mac_stats;
+	struct ethtool_eth_ctrl_stats	ctrl_stats;
 };
 
 #define STATS_REPDATA(__reply_base) \
@@ -24,6 +25,7 @@ struct stats_reply_data {
 const char stats_std_names[__ETHTOOL_STATS_CNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_STATS_ETH_PHY]			= "eth-phy",
 	[ETHTOOL_STATS_ETH_MAC]			= "eth-mac",
+	[ETHTOOL_STATS_ETH_CTRL]		= "eth-ctrl",
 };
 
 const char stats_eth_phy_names[__ETHTOOL_A_STATS_ETH_PHY_CNT][ETH_GSTRING_LEN] = {
@@ -53,6 +55,12 @@ const char stats_eth_mac_names[__ETHTOOL_A_STATS_ETH_MAC_CNT][ETH_GSTRING_LEN] =
 	[ETHTOOL_A_STATS_ETH_MAC_23_IR_LEN_ERR]	= "InRangeLengthErrors",
 	[ETHTOOL_A_STATS_ETH_MAC_24_OOR_LEN]	= "OutOfRangeLengthField",
 	[ETHTOOL_A_STATS_ETH_MAC_25_TOO_LONG_ERR]	= "FrameTooLongErrors",
+};
+
+const char stats_eth_ctrl_names[__ETHTOOL_A_STATS_ETH_CTRL_CNT][ETH_GSTRING_LEN] = {
+	[ETHTOOL_A_STATS_ETH_CTRL_3_TX]		= "MACControlFramesTransmitted",
+	[ETHTOOL_A_STATS_ETH_CTRL_4_RX]		= "MACControlFramesReceived",
+	[ETHTOOL_A_STATS_ETH_CTRL_5_RX_UNSUP]	= "UnsupportedOpcodesReceived",
 };
 
 const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_GROUPS + 1] = {
@@ -98,6 +106,7 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 
 	memset(&data->phy_stats, 0xff, sizeof(data->phy_stats));
 	memset(&data->mac_stats, 0xff, sizeof(data->mac_stats));
+	memset(&data->ctrl_stats, 0xff, sizeof(data->mac_stats));
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask) &&
 	    dev->ethtool_ops->get_eth_phy_stats)
@@ -105,6 +114,9 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 	if (test_bit(ETHTOOL_STATS_ETH_MAC, req_info->stat_mask) &&
 	    dev->ethtool_ops->get_eth_mac_stats)
 		dev->ethtool_ops->get_eth_mac_stats(dev, &data->mac_stats);
+	if (test_bit(ETHTOOL_STATS_ETH_CTRL, req_info->stat_mask) &&
+	    dev->ethtool_ops->get_eth_ctrl_stats)
+		dev->ethtool_ops->get_eth_ctrl_stats(dev, &data->ctrl_stats);
 
 	ethnl_ops_complete(dev);
 	return 0;
@@ -123,6 +135,10 @@ static int stats_reply_size(const struct ethnl_req_info *req_base,
 	}
 	if (test_bit(ETHTOOL_STATS_ETH_MAC, req_info->stat_mask)) {
 		n_stats += sizeof(struct ethtool_eth_mac_stats) / sizeof(u64);
+		n_grps++;
+	}
+	if (test_bit(ETHTOOL_STATS_ETH_CTRL, req_info->stat_mask)) {
+		n_stats += sizeof(struct ethtool_eth_ctrl_stats) / sizeof(u64);
 		n_grps++;
 	}
 
@@ -229,6 +245,19 @@ static int stats_put_mac_stats(struct sk_buff *skb,
 	return 0;
 }
 
+static int stats_put_ctrl_stats(struct sk_buff *skb,
+				const struct stats_reply_data *data)
+{
+	if (stat_put(skb, ETHTOOL_A_STATS_ETH_CTRL_3_TX,
+		     data->ctrl_stats.MACControlFramesTransmitted) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_CTRL_4_RX,
+		     data->ctrl_stats.MACControlFramesReceived) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_CTRL_5_RX_UNSUP,
+		     data->ctrl_stats.UnsupportedOpcodesReceived))
+		return -EMSGSIZE;
+	return 0;
+}
+
 static int stats_put_stats(struct sk_buff *skb,
 			   const struct stats_reply_data *data,
 			   u32 id, u32 ss_id,
@@ -272,6 +301,10 @@ static int stats_fill_reply(struct sk_buff *skb,
 		ret = stats_put_stats(skb, data, ETHTOOL_STATS_ETH_MAC,
 				      ETH_SS_STATS_ETH_MAC,
 				      stats_put_mac_stats);
+	if (!ret && test_bit(ETHTOOL_STATS_ETH_CTRL, req_info->stat_mask))
+		ret = stats_put_stats(skb, data, ETHTOOL_STATS_ETH_CTRL,
+				      ETH_SS_STATS_ETH_CTRL,
+				      stats_put_ctrl_stats);
 
 	return ret;
 }
