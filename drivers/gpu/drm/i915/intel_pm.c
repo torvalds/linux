@@ -4030,14 +4030,7 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 
 static int intel_dbuf_size(struct drm_i915_private *dev_priv)
 {
-	int ddb_size = INTEL_INFO(dev_priv)->dbuf.size;
-
-	drm_WARN_ON(&dev_priv->drm, ddb_size == 0);
-
-	if (DISPLAY_VER(dev_priv) < 11)
-		return ddb_size - 4; /* 4 blocks for bypass path allocation */
-
-	return ddb_size;
+	return INTEL_INFO(dev_priv)->dbuf.size;
 }
 
 static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)

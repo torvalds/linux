@@ -647,7 +647,7 @@ static const struct intel_device_info chv_info = {
 	.has_gt_uc = 1, \
 	.display.has_hdcp = 1, \
 	.display.has_ipc = 1, \
-	.dbuf.size = 896, \
+	.dbuf.size = 896 - 4, /* 4 blocks for bypass path allocation */ \
 	.dbuf.num_slices = 1
 
 #define SKL_PLATFORM \
@@ -720,14 +720,14 @@ static const struct intel_device_info skl_gt4_info = {
 static const struct intel_device_info bxt_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_BROXTON),
-	.dbuf.size = 512,
+	.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
 };
 
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
 	.display.ver = 10,
-	.dbuf.size = 1024,
+	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
 	GLK_COLORS,
 };
 
@@ -790,7 +790,7 @@ static const struct intel_device_info cml_gt2_info = {
 #define GEN10_FEATURES \
 	GEN9_FEATURES, \
 	GEN(10), \
-	.dbuf.size = 1024, \
+	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */ \
 	.display.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	GLK_COLORS
