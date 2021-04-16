@@ -1620,8 +1620,6 @@ static int rx_macro_set_interpolator_rate(struct snd_soc_dai *dai,
 		return ret;
 
 	ret = rx_macro_set_mix_interpolator_rate(dai, rate_val, sample_rate);
-	if (ret)
-		return ret;
 
 	return ret;
 }
