@@ -1933,6 +1933,21 @@ basic()
 	log_test $? 2 "Nexthop group and blackhole"
 
 	$IP nexthop flush >/dev/null 2>&1
+
+	# Test to ensure that flushing with a multi-part nexthop dump works as
+	# expected.
+	local batch_file=$(mktemp)
+
+	for i in $(seq 1 $((64 * 1024))); do
+		echo "nexthop add id $i blackhole" >> $batch_file
+	done
+
+	$IP -b $batch_file
+	$IP nexthop flush >/dev/null 2>&1
+	[[ $($IP nexthop | wc -l) -eq 0 ]]
+	log_test $? 0 "Large scale nexthop flushing"
+
+	rm $batch_file
 }
 
 check_nexthop_buckets_balance()
