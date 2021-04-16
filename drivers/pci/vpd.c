@@ -29,6 +29,11 @@ struct pci_vpd {
 	unsigned int	valid:1;
 };
 
+static struct pci_dev *pci_get_func0_dev(struct pci_dev *dev)
+{
+	return pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+}
+
 /**
  * pci_read_vpd - Read one entry from Vital Product Data
  * @dev:	pci device struct
@@ -295,8 +300,7 @@ static const struct pci_vpd_ops pci_vpd_ops = {
 static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
 			       void *arg)
 {
-	struct pci_dev *tdev = pci_get_slot(dev->bus,
-					    PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	struct pci_dev *tdev = pci_get_func0_dev(dev);
 	ssize_t ret;
 
 	if (!tdev)
@@ -310,8 +314,7 @@ static ssize_t pci_vpd_f0_read(struct pci_dev *dev, loff_t pos, size_t count,
 static ssize_t pci_vpd_f0_write(struct pci_dev *dev, loff_t pos, size_t count,
 				const void *arg)
 {
-	struct pci_dev *tdev = pci_get_slot(dev->bus,
-					    PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	struct pci_dev *tdev = pci_get_func0_dev(dev);
 	ssize_t ret;
 
 	if (!tdev)
@@ -457,7 +460,7 @@ static void quirk_f0_vpd_link(struct pci_dev *dev)
 	if (!PCI_FUNC(dev->devfn))
 		return;
 
-	f0 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	f0 = pci_get_func0_dev(dev);
 	if (!f0)
 		return;
 
