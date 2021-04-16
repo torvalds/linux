@@ -387,11 +387,44 @@ bool bch2_btree_iter_relock(struct btree_iter *iter, bool trace)
 bool __bch2_btree_iter_upgrade(struct btree_iter *iter,
 			       unsigned new_locks_want)
 {
+	struct btree_iter *linked;
+
 	EBUG_ON(iter->locks_want >= new_locks_want);
 
 	iter->locks_want = new_locks_want;
 
-	return btree_iter_get_locks(iter, true, true);
+	if (btree_iter_get_locks(iter, true, true))
+		return true;
+
+	/*
+	 * XXX: this is ugly - we'd prefer to not be mucking with other
+	 * iterators in the btree_trans here.
+	 *
+	 * On failure to upgrade the iterator, setting iter->locks_want and
+	 * calling get_locks() is sufficient to make bch2_btree_iter_traverse()
+	 * get the locks we want on transaction restart.
+	 *
+	 * But if this iterator was a clone, on transaction restart what we did
+	 * to this iterator isn't going to be preserved.
+	 *
+	 * Possibly we could add an iterator field for the parent iterator when
+	 * an iterator is a copy - for now, we'll just upgrade any other
+	 * iterators with the same btree id.
+	 *
+	 * The code below used to be needed to ensure ancestor nodes get locked
+	 * before interior nodes - now that's handled by
+	 * bch2_btree_iter_traverse_all().
+	 */
+	trans_for_each_iter(iter->trans, linked)
+		if (linked != iter &&
+		    btree_iter_type(linked) == btree_iter_type(iter) &&
+		    linked->btree_id == iter->btree_id &&
+		    linked->locks_want < new_locks_want) {
+			linked->locks_want = new_locks_want;
+			btree_iter_get_locks(linked, true, false);
+		}
+
+	return false;
 }
 
 void __bch2_btree_iter_downgrade(struct btree_iter *iter,
