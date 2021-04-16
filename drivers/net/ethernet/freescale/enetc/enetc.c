@@ -1275,8 +1275,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 					      &i, &cleaned_cnt,
 					      ENETC_RXB_DMA_SIZE_XDP);
 			if (unlikely(!skb))
-				/* Exit the switch/case, not the loop */
-				break;
+				goto out;
 
 			napi_gro_receive(napi, skb);
 			break;
@@ -1338,6 +1337,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 		rx_frm_cnt++;
 	}
 
+out:
 	rx_ring->next_to_clean = i;
 
 	rx_ring->stats.packets += rx_frm_cnt;
