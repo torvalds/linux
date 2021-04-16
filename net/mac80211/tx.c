@@ -1394,11 +1394,14 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 	 * want to simplify the driver API by having them on the
 	 * txqi.
 	 */
-	if (unlikely(txqi->txq.tid == IEEE80211_NUM_TIDS))
+	if (unlikely(txqi->txq.tid == IEEE80211_NUM_TIDS)) {
+		IEEE80211_SKB_CB(skb)->control.flags |=
+			IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
 		__skb_queue_tail(&txqi->frags, skb);
-	else
+	} else {
 		fq_tin_enqueue(fq, tin, flow_idx, skb,
 			       fq_skb_free_func);
+	}
 	spin_unlock_bh(&fq->lock);
 }
 
@@ -3587,10 +3590,16 @@ begin:
 
 	/* Make sure fragments stay together. */
 	skb = __skb_dequeue(&txqi->frags);
-	if (skb)
-		goto out;
+	if (unlikely(skb)) {
+		if (!(IEEE80211_SKB_CB(skb)->control.flags &
+				IEEE80211_TX_INTCFL_NEED_TXPROCESSING))
+			goto out;
+		IEEE80211_SKB_CB(skb)->control.flags &=
+			~IEEE80211_TX_INTCFL_NEED_TXPROCESSING;
+	} else {
+		skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
+	}
 
-	skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
 	if (!skb)
 		goto out;
 
