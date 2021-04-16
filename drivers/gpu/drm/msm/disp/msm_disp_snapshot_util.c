@@ -130,9 +130,25 @@ void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state)
 {
 	struct msm_drm_private *priv;
 	struct drm_device *drm_dev;
+	struct msm_kms *kms;
+	int i;
 
 	drm_dev = disp_state->drm_dev;
 	priv = drm_dev->dev_private;
+	kms = priv->kms;
+
+	if (priv->dp)
+		msm_dp_snapshot(priv->dp);
+
+	for (i = 0; i < ARRAY_SIZE(priv->dsi); i++) {
+		if (!priv->dsi[i])
+			continue;
+
+		msm_dsi_snapshot(priv->dsi[i]);
+	}
+
+	if (kms->funcs->snapshot)
+		kms->funcs->snapshot(kms);
 
 	msm_disp_capture_atomic_state(disp_state);
 }
