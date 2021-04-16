@@ -497,11 +497,6 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 			if (strcmp(prev_fp->stream.name, curr_fp->stream.name))
 				continue;
 
-		if (prev_fp->is_durable) {
-			prev_fp->is_durable = 0;
-			continue;
-		}
-
 		if (prev_fp->attrib_only != curr_fp->attrib_only)
 			continue;
 

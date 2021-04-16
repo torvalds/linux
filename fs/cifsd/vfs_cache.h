@@ -90,9 +90,6 @@ struct ksmbd_file {
 	__u64				create_time;
 	__u64				itime;
 
-	bool				is_durable;
-	bool				is_resilient;
-	bool				is_persistent;
 	bool				is_nt_open;
 	bool				attrib_only;
 
@@ -154,17 +151,14 @@ struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work, unsigned int
 struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, unsigned int id,
 		unsigned int pid);
 void ksmbd_fd_put(struct ksmbd_work *work, struct ksmbd_file *fp);
-int ksmbd_close_fd_app_id(struct ksmbd_work *work, char *app_id);
 struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id);
 struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid);
-struct ksmbd_file *ksmbd_lookup_fd_filename(struct ksmbd_work *work, char *filename);
 struct ksmbd_file *ksmbd_lookup_fd_inode(struct inode *inode);
 unsigned int ksmbd_open_durable_fd(struct ksmbd_file *fp);
 struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp);
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work);
 void ksmbd_close_session_fds(struct ksmbd_work *work);
 int ksmbd_close_inode_fds(struct ksmbd_work *work, struct inode *inode);
-int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp);
 int ksmbd_init_global_file_table(void);
 void ksmbd_free_global_file_table(void);
 int ksmbd_file_table_flush(struct ksmbd_work *work);

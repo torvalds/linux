@@ -1946,173 +1946,6 @@ out:
 	return err;
 }
 
-#define DURABLE_RECONN_V2	1
-#define DURABLE_RECONN		2
-#define DURABLE_REQ_V2		3
-#define DURABLE_REQ		4
-#define APP_INSTANCE_ID		5
-
-struct durable_info {
-	struct ksmbd_file *fp;
-	int type;
-	int reconnected;
-	int persistent;
-	int timeout;
-	char *CreateGuid;
-	char *app_id;
-};
-
-static int parse_durable_handle_context(struct ksmbd_work *work,
-		struct smb2_create_req *req, struct lease_ctx_info *lc,
-		struct durable_info *d_info)
-{
-	struct ksmbd_conn *conn = work->conn;
-	struct create_context *context;
-	int i, err = 0;
-	u64 persistent_id = 0;
-	int req_op_level;
-	static const char * const durable_arr[] = {"DH2C", "DHnC", "DH2Q",
-		"DHnQ", SMB2_CREATE_APP_INSTANCE_ID};
-
-	req_op_level = req->RequestedOplockLevel;
-	for (i = 1; i <= 5; i++) {
-		context = smb2_find_context_vals(req, durable_arr[i - 1]);
-		if (IS_ERR(context)) {
-			err = PTR_ERR(context);
-			if (err == -EINVAL) {
-				ksmbd_err("bad name length\n");
-				goto out;
-			}
-			err = 0;
-			continue;
-		}
-
-		switch (i) {
-		case DURABLE_RECONN_V2:
-		{
-			struct create_durable_reconn_v2_req *recon_v2;
-
-			recon_v2 =
-				(struct create_durable_reconn_v2_req *)context;
-			persistent_id = le64_to_cpu(recon_v2->Fid.PersistentFileId);
-			d_info->fp = ksmbd_lookup_durable_fd(persistent_id);
-			if (!d_info->fp) {
-				ksmbd_err("Failed to get Durable handle state\n");
-				err = -EBADF;
-				goto out;
-			}
-
-			if (memcmp(d_info->fp->create_guid, recon_v2->CreateGuid,
-				   SMB2_CREATE_GUID_SIZE)) {
-				err = -EBADF;
-				goto out;
-			}
-			d_info->type = i;
-			d_info->reconnected = 1;
-			ksmbd_debug(SMB,
-				"reconnect v2 Persistent-id from reconnect = %llu\n",
-					persistent_id);
-			break;
-		}
-		case DURABLE_RECONN:
-		{
-			struct create_durable_reconn_req *recon;
-
-			if (d_info->type == DURABLE_RECONN_V2 ||
-			    d_info->type == DURABLE_REQ_V2) {
-				err = -EINVAL;
-				goto out;
-			}
-
-			recon =
-				(struct create_durable_reconn_req *)context;
-			persistent_id = le64_to_cpu(recon->Data.Fid.PersistentFileId);
-			d_info->fp = ksmbd_lookup_durable_fd(persistent_id);
-			if (!d_info->fp) {
-				ksmbd_err("Failed to get Durable handle state\n");
-				err = -EBADF;
-				goto out;
-			}
-			d_info->type = i;
-			d_info->reconnected = 1;
-			ksmbd_debug(SMB,
-				"reconnect Persistent-id from reconnect = %llu\n",
-					persistent_id);
-			break;
-		}
-		case DURABLE_REQ_V2:
-		{
-			struct create_durable_req_v2 *durable_v2_blob;
-
-			if (d_info->type == DURABLE_RECONN ||
-			    d_info->type == DURABLE_RECONN_V2) {
-				err = -EINVAL;
-				goto out;
-			}
-
-			durable_v2_blob =
-				(struct create_durable_req_v2 *)context;
-			ksmbd_debug(SMB, "Request for durable v2 open\n");
-			d_info->fp = ksmbd_lookup_fd_cguid(durable_v2_blob->CreateGuid);
-			if (d_info->fp) {
-				if (!memcmp(conn->ClientGUID, d_info->fp->client_guid,
-					    SMB2_CLIENT_GUID_SIZE)) {
-					if (!(req->hdr.Flags & SMB2_FLAGS_REPLAY_OPERATIONS)) {
-						err = -ENOEXEC;
-						goto out;
-					}
-
-					d_info->fp->conn = conn;
-					d_info->reconnected = 1;
-					goto out;
-				}
-			}
-			if (((lc && (lc->req_state & SMB2_LEASE_HANDLE_CACHING_LE)) ||
-			     req_op_level == SMB2_OPLOCK_LEVEL_BATCH)) {
-				d_info->CreateGuid =
-					durable_v2_blob->CreateGuid;
-				d_info->persistent =
-					le32_to_cpu(durable_v2_blob->Flags);
-				d_info->timeout =
-					le32_to_cpu(durable_v2_blob->Timeout);
-				d_info->type = i;
-			}
-			break;
-		}
-		case DURABLE_REQ:
-			if (d_info->type == DURABLE_RECONN)
-				goto out;
-			if (d_info->type == DURABLE_RECONN_V2 ||
-			    d_info->type == DURABLE_REQ_V2) {
-				err = -EINVAL;
-				goto out;
-			}
-
-			if (((lc && (lc->req_state & SMB2_LEASE_HANDLE_CACHING_LE)) ||
-			     req_op_level == SMB2_OPLOCK_LEVEL_BATCH)) {
-				ksmbd_debug(SMB, "Request for durable open\n");
-				d_info->type = i;
-			}
-			break;
-		case APP_INSTANCE_ID:
-		{
-			struct create_app_inst_id *inst_id;
-
-			inst_id = (struct create_app_inst_id *)context;
-			ksmbd_close_fd_app_id(work, inst_id->AppInstanceId);
-			d_info->app_id = inst_id->AppInstanceId;
-			break;
-		}
-		default:
-			break;
-		}
-	}
-
-out:
-
-	return err;
-}
-
 /**
  * smb2_set_ea() - handler for setting extended attributes using set
  *		info command
@@ -2431,7 +2264,6 @@ int smb2_open(struct ksmbd_work *work)
 	char *name = NULL;
 	char *stream_name = NULL;
 	bool file_present = false, created = false, already_permitted = false;
-	struct durable_info d_info;
 	int share_ret, need_truncate = 0;
 	u64 time;
 	umode_t posix_mode = 0;
@@ -2509,36 +2341,8 @@ int smb2_open(struct ksmbd_work *work)
 	}
 
 	req_op_level = req->RequestedOplockLevel;
-	memset(&d_info, 0, sizeof(struct durable_info));
-	if (server_conf.flags & KSMBD_GLOBAL_FLAG_DURABLE_HANDLE &&
-	    req->CreateContextsOffset) {
+	if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE)
 		lc = parse_lease_state(req);
-		rc = parse_durable_handle_context(work, req, lc, &d_info);
-		if (rc) {
-			ksmbd_err("error parsing durable handle context\n");
-			goto err_out1;
-		}
-
-		if (d_info.reconnected) {
-			fp = d_info.fp;
-			rc = smb2_check_durable_oplock(d_info.fp, lc, name);
-			if (rc)
-				goto err_out1;
-			rc = ksmbd_reopen_durable_fd(work, d_info.fp);
-			if (rc)
-				goto err_out1;
-			if (ksmbd_override_fsids(work)) {
-				rc = -ENOMEM;
-				goto err_out1;
-			}
-			file_info = FILE_OPENED;
-			fp = d_info.fp;
-			goto reconnected;
-		}
-	} else {
-		if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE)
-			lc = parse_lease_state(req);
-	}
 
 	if (le32_to_cpu(req->ImpersonationLevel) > le32_to_cpu(IL_DELEGATE_LE)) {
 		ksmbd_err("Invalid impersonationlevel : 0x%x\n",
@@ -3083,25 +2887,6 @@ int smb2_open(struct ksmbd_work *work)
 
 	memcpy(fp->client_guid, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE);
 
-	if (d_info.type) {
-		if (d_info.type == DURABLE_REQ_V2 && d_info.persistent)
-			fp->is_persistent = 1;
-		else
-			fp->is_durable = 1;
-
-		if (d_info.type == DURABLE_REQ_V2) {
-			memcpy(fp->create_guid, d_info.CreateGuid,
-				SMB2_CREATE_GUID_SIZE);
-			if (d_info.timeout)
-				fp->durable_timeout = d_info.timeout;
-			else
-				fp->durable_timeout = 1600;
-			if (d_info.app_id)
-				memcpy(fp->app_instance_id, d_info.app_id, 16);
-		}
-	}
-
-reconnected:
 	generic_fillattr(&init_user_ns, FP_INODE(fp), &stat);
 
 	rsp->StructureSize = cpu_to_le16(89);
@@ -3148,35 +2933,6 @@ reconnected:
 		inc_rfc1001_len(rsp_org, conn->vals->create_lease_size);
 		next_ptr = &lease_ccontext->Next;
 		next_off = conn->vals->create_lease_size;
-	}
-
-	if (d_info.type == DURABLE_REQ || d_info.type == DURABLE_REQ_V2) {
-		struct create_context *durable_ccontext;
-
-		durable_ccontext = (struct create_context *)(rsp->Buffer +
-				le32_to_cpu(rsp->CreateContextsLength));
-		contxt_cnt++;
-		if (d_info.type == DURABLE_REQ) {
-			create_durable_rsp_buf(rsp->Buffer +
-				le32_to_cpu(rsp->CreateContextsLength));
-			le32_add_cpu(&rsp->CreateContextsLength,
-				     conn->vals->create_durable_size);
-			inc_rfc1001_len(rsp_org,
-				conn->vals->create_durable_size);
-		} else {
-			create_durable_v2_rsp_buf(rsp->Buffer +
-					le32_to_cpu(rsp->CreateContextsLength),
-					fp);
-			le32_add_cpu(&rsp->CreateContextsLength,
-				     conn->vals->create_durable_v2_size);
-			inc_rfc1001_len(rsp_org,
-				conn->vals->create_durable_v2_size);
-		}
-
-		if (next_ptr)
-			*next_ptr = cpu_to_le32(next_off);
-		next_ptr = &durable_ccontext->Next;
-		next_off = conn->vals->create_durable_size;
 	}
 
 	if (maximal_access_ctxt) {

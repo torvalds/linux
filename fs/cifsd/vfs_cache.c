@@ -449,30 +449,6 @@ struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id)
 	return __ksmbd_lookup_fd(&global_ft, id);
 }
 
-int ksmbd_close_fd_app_id(struct ksmbd_work *work, char *app_id)
-{
-	struct ksmbd_file	*fp = NULL;
-	unsigned int		id;
-
-	read_lock(&global_ft.lock);
-	idr_for_each_entry(global_ft.idr, fp, id) {
-		if (!memcmp(fp->app_instance_id,
-			    app_id,
-			    SMB2_CREATE_GUID_SIZE)) {
-			if (!atomic_dec_and_test(&fp->refcount))
-				fp = NULL;
-			break;
-		}
-	}
-	read_unlock(&global_ft.lock);
-
-	if (!fp)
-		return -EINVAL;
-
-	__put_fd_final(work, fp);
-	return 0;
-}
-
 struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid)
 {
 	struct ksmbd_file	*fp = NULL;
@@ -488,23 +464,6 @@ struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid)
 		}
 	}
 	read_unlock(&global_ft.lock);
-
-	return fp;
-}
-
-struct ksmbd_file *ksmbd_lookup_fd_filename(struct ksmbd_work *work, char *filename)
-{
-	struct ksmbd_file	*fp = NULL;
-	unsigned int		id;
-
-	read_lock(&work->sess->file_table.lock);
-	idr_for_each_entry(work->sess->file_table.idr, fp, id) {
-		if (!strcmp(fp->filename, filename)) {
-			fp = ksmbd_fp_get(fp);
-			break;
-		}
-	}
-	read_unlock(&work->sess->file_table.lock);
 
 	return fp;
 }
@@ -617,32 +576,6 @@ struct ksmbd_file *ksmbd_open_fd(struct ksmbd_work *work, struct file *filp)
 	return fp;
 }
 
-static inline bool is_reconnectable(struct ksmbd_file *fp)
-{
-	struct oplock_info *opinfo = opinfo_get(fp);
-	bool reconn = false;
-
-	if (!opinfo)
-		return false;
-
-	if (opinfo->op_state != OPLOCK_STATE_NONE) {
-		opinfo_put(opinfo);
-		return false;
-	}
-
-	if (fp->is_resilient || fp->is_persistent)
-		reconn = true;
-	else if (fp->is_durable && opinfo->is_lease &&
-		 opinfo->o_lease->state & SMB2_LEASE_HANDLE_CACHING_LE)
-		reconn = true;
-
-	else if (fp->is_durable && opinfo->level == SMB2_OPLOCK_LEVEL_BATCH)
-		reconn = true;
-
-	opinfo_put(opinfo);
-	return reconn;
-}
-
 static int
 __close_file_table_ids(struct ksmbd_file_table *ft, struct ksmbd_tree_connect *tcon,
 		bool (*skip)(struct ksmbd_tree_connect *tcon, struct ksmbd_file *fp))
@@ -672,13 +605,7 @@ static bool tree_conn_fd_check(struct ksmbd_tree_connect *tcon, struct ksmbd_fil
 
 static bool session_fd_check(struct ksmbd_tree_connect *tcon, struct ksmbd_file *fp)
 {
-	if (!is_reconnectable(fp))
-		return false;
-
-	fp->conn = NULL;
-	fp->tcon = NULL;
-	fp->volatile_id = KSMBD_NO_FID;
-	return true;
+	return false;
 }
 
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work)
@@ -715,31 +642,6 @@ void ksmbd_free_global_file_table(void)
 	}
 
 	ksmbd_destroy_file_table(&global_ft);
-}
-
-int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
-{
-	if (!fp->is_durable || fp->conn || fp->tcon) {
-		ksmbd_err("Invalid durable fd [%p:%p]\n",
-				fp->conn, fp->tcon);
-		return -EBADF;
-	}
-
-	if (HAS_FILE_ID(fp->volatile_id)) {
-		ksmbd_err("Still in use durable fd: %u\n", fp->volatile_id);
-		return -EBADF;
-	}
-
-	fp->conn = work->sess->conn;
-	fp->tcon = work->tcon;
-
-	__open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
-	if (!HAS_FILE_ID(fp->volatile_id)) {
-		fp->conn = NULL;
-		fp->tcon = NULL;
-		return -EBADF;
-	}
-	return 0;
 }
 
 int ksmbd_file_table_flush(struct ksmbd_work *work)
