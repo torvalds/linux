@@ -370,7 +370,7 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		/* short preamble */
 		if ((mi->supported[group] & BIT(idx + 4)) &&
 		    (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
-				idx += 4;
+			idx += 4;
 		goto out;
 	}
 
