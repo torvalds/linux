@@ -874,6 +874,14 @@ struct fw_header {
 	struct fw_block blocks[];
 } __packed;
 
+enum rtl8152_fw_flags {
+	FW_FLAGS_USB = 0,
+	FW_FLAGS_PLA,
+	FW_FLAGS_START,
+	FW_FLAGS_STOP,
+	FW_FLAGS_NC,
+};
+
 /**
  * struct fw_mac - a firmware block used by RTL_FW_PLA and RTL_FW_USB.
  *	The layout of the firmware block is:
@@ -3800,10 +3808,7 @@ static long rtl8152_check_firmware(struct r8152 *tp, struct rtl_fw *rtl_fw)
 {
 	const struct firmware *fw = rtl_fw->fw;
 	struct fw_header *fw_hdr = (struct fw_header *)fw->data;
-	struct fw_mac *pla = NULL, *usb = NULL;
-	struct fw_phy_patch_key *start = NULL;
-	struct fw_phy_nc *phy_nc = NULL;
-	struct fw_block *stop = NULL;
+	unsigned long fw_flags = 0;
 	long ret = -EFAULT;
 	int i;
 
@@ -3832,50 +3837,52 @@ static long rtl8152_check_firmware(struct r8152 *tp, struct rtl_fw *rtl_fw)
 				goto fail;
 			goto fw_end;
 		case RTL_FW_PLA:
-			if (pla) {
+			if (test_bit(FW_FLAGS_PLA, &fw_flags)) {
 				dev_err(&tp->intf->dev,
 					"multiple PLA firmware encountered");
 				goto fail;
 			}
 
-			pla = (struct fw_mac *)block;
-			if (!rtl8152_is_fw_mac_ok(tp, pla)) {
+			if (!rtl8152_is_fw_mac_ok(tp, (struct fw_mac *)block)) {
 				dev_err(&tp->intf->dev,
 					"check PLA firmware failed\n");
 				goto fail;
 			}
+			__set_bit(FW_FLAGS_PLA, &fw_flags);
 			break;
 		case RTL_FW_USB:
-			if (usb) {
+			if (test_bit(FW_FLAGS_USB, &fw_flags)) {
 				dev_err(&tp->intf->dev,
 					"multiple USB firmware encountered");
 				goto fail;
 			}
 
-			usb = (struct fw_mac *)block;
-			if (!rtl8152_is_fw_mac_ok(tp, usb)) {
+			if (!rtl8152_is_fw_mac_ok(tp, (struct fw_mac *)block)) {
 				dev_err(&tp->intf->dev,
 					"check USB firmware failed\n");
 				goto fail;
 			}
+			__set_bit(FW_FLAGS_USB, &fw_flags);
 			break;
 		case RTL_FW_PHY_START:
-			if (start || phy_nc || stop) {
+			if (test_bit(FW_FLAGS_START, &fw_flags) ||
+			    test_bit(FW_FLAGS_NC, &fw_flags) ||
+			    test_bit(FW_FLAGS_STOP, &fw_flags)) {
 				dev_err(&tp->intf->dev,
 					"check PHY_START fail\n");
 				goto fail;
 			}
 
-			if (__le32_to_cpu(block->length) != sizeof(*start)) {
+			if (__le32_to_cpu(block->length) != sizeof(struct fw_phy_patch_key)) {
 				dev_err(&tp->intf->dev,
 					"Invalid length for PHY_START\n");
 				goto fail;
 			}
-
-			start = (struct fw_phy_patch_key *)block;
+			__set_bit(FW_FLAGS_START, &fw_flags);
 			break;
 		case RTL_FW_PHY_STOP:
-			if (stop || !start) {
+			if (test_bit(FW_FLAGS_STOP, &fw_flags) ||
+			    !test_bit(FW_FLAGS_START, &fw_flags)) {
 				dev_err(&tp->intf->dev,
 					"Check PHY_STOP fail\n");
 				goto fail;
@@ -3886,28 +3893,28 @@ static long rtl8152_check_firmware(struct r8152 *tp, struct rtl_fw *rtl_fw)
 					"Invalid length for PHY_STOP\n");
 				goto fail;
 			}
-
-			stop = block;
+			__set_bit(FW_FLAGS_STOP, &fw_flags);
 			break;
 		case RTL_FW_PHY_NC:
-			if (!start || stop) {
+			if (!test_bit(FW_FLAGS_START, &fw_flags) ||
+			    test_bit(FW_FLAGS_STOP, &fw_flags)) {
 				dev_err(&tp->intf->dev,
 					"check PHY_NC fail\n");
 				goto fail;
 			}
 
-			if (phy_nc) {
+			if (test_bit(FW_FLAGS_NC, &fw_flags)) {
 				dev_err(&tp->intf->dev,
 					"multiple PHY NC encountered\n");
 				goto fail;
 			}
 
-			phy_nc = (struct fw_phy_nc *)block;
-			if (!rtl8152_is_fw_phy_nc_ok(tp, phy_nc)) {
+			if (!rtl8152_is_fw_phy_nc_ok(tp, (struct fw_phy_nc *)block)) {
 				dev_err(&tp->intf->dev,
 					"check PHY NC firmware failed\n");
 				goto fail;
 			}
+			__set_bit(FW_FLAGS_NC, &fw_flags);
 
 			break;
 		default:
@@ -3921,7 +3928,7 @@ static long rtl8152_check_firmware(struct r8152 *tp, struct rtl_fw *rtl_fw)
 	}
 
 fw_end:
-	if ((phy_nc || start) && !stop) {
+	if (test_bit(FW_FLAGS_START, &fw_flags) && !test_bit(FW_FLAGS_STOP, &fw_flags)) {
 		dev_err(&tp->intf->dev, "without PHY_STOP\n");
 		goto fail;
 	}
