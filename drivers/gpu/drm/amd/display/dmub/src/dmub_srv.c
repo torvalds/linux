@@ -514,6 +514,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	outbox0_rb_params.capacity = tracebuff_fb->size - dmub_align(TRACE_BUFFER_ENTRY_OFFSET, 64);
 	dmub_rb_init(&dmub->outbox0_rb, &outbox0_rb_params);
 
+	/* Report to DMUB what features are supported by current driver */
+	if (dmub->hw_funcs.enable_dmub_boot_options)
+		dmub->hw_funcs.enable_dmub_boot_options(dmub, params);
+
 	if (dmub->hw_funcs.reset_release)
 		dmub->hw_funcs.reset_release(dmub);
 
