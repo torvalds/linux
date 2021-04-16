@@ -384,18 +384,20 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai;
 	unsigned int symmetry, i;
 
+	d.name = __func__;
 	soc_pcm_set_dai_params(&d, params);
 
-#define __soc_pcm_params_symmetry(name)					\
-	symmetry = rtd->dai_link->symmetric_##name;			\
+#define __soc_pcm_params_symmetry(xxx)					\
+	symmetry = rtd->dai_link->symmetric_##xxx;			\
 	for_each_rtd_dais(rtd, i, dai)					\
-		symmetry |= dai->driver->symmetric_##name;		\
+		symmetry |= dai->driver->symmetric_##xxx;		\
 									\
 	if (symmetry)							\
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
-			if (cpu_dai->name && cpu_dai->name != d.name) {	\
-				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %d - %d\n", \
-					#name, cpu_dai->name, d.name);	\
+			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
+			    cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
+				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %s:%d - %s:%d\n", \
+					#xxx, cpu_dai->name, cpu_dai->xxx, d.name, d.xxx); \
 				return -EINVAL;				\
 			}
 

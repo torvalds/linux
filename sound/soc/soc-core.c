@@ -1169,7 +1169,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 	int probed = 0;
 	int ret;
 
-	if (!strcmp(component->name, "snd-soc-dummy"))
+	if (snd_soc_component_is_dummy(component))
 		return 0;
 
 	if (component->card) {

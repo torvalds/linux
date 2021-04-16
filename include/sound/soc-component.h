@@ -338,6 +338,7 @@ static inline int snd_soc_component_cache_sync(
 void snd_soc_component_set_aux(struct snd_soc_component *component,
 			       struct snd_soc_aux_dev *aux);
 int snd_soc_component_init(struct snd_soc_component *component);
+int snd_soc_component_is_dummy(struct snd_soc_component *component);
 
 /* component IO */
 unsigned int snd_soc_component_read(struct snd_soc_component *component,
