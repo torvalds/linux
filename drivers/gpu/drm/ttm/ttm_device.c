@@ -36,7 +36,7 @@
 
 #include "ttm_module.h"
 
-/**
+/*
  * ttm_global_mutex - protecting the global state
  */
 static DEFINE_MUTEX(ttm_global_mutex);
@@ -104,7 +104,7 @@ out:
 	return ret;
 }
 
-/**
+/*
  * A buffer object shrink method that tries to swap out the first
  * buffer object on the global::swap_lru list.
  */
