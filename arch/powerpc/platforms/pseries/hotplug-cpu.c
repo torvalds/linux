@@ -816,8 +816,16 @@ int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 	case PSERIES_HP_ELOG_ACTION_REMOVE:
 		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT)
 			rc = dlpar_cpu_remove_by_count(count);
-		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
+		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX) {
 			rc = dlpar_cpu_remove_by_index(drc_index);
+			/*
+			 * Setting the isolation state of an UNISOLATED/CONFIGURED
+			 * device to UNISOLATE is a no-op, but the hypervisor can
+			 * use it as a hint that the CPU removal failed.
+			 */
+			if (rc)
+				dlpar_unisolate_drc(drc_index);
+		}
 		else
 			rc = -EINVAL;
 		break;
