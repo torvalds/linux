@@ -159,13 +159,10 @@ static int reattach_inode(struct btree_trans *trans,
 			  struct bch_inode_unpacked *lostfound,
 			  u64 inum)
 {
-	struct bch_fs *c = trans->c;
-	int ret;
-
-	ret = __bch2_trans_do(trans, NULL, NULL, BTREE_INSERT_LAZY_RW,
+	int ret = __bch2_trans_do(trans, NULL, NULL, BTREE_INSERT_LAZY_RW,
 			      __reattach_inode(trans, lostfound, inum));
 	if (ret)
-		bch_err(c, "error %i reattaching inode %llu", ret, inum);
+		bch_err(trans->c, "error %i reattaching inode %llu", ret, inum);
 
 	return ret;
 }
