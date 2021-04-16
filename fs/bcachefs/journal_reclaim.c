@@ -599,7 +599,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	u64 seq_to_flush;
-	size_t min_nr, nr_flushed;
+	size_t min_nr, min_key_cache, nr_flushed;
 	unsigned flags;
 	int ret = 0;
 
@@ -649,9 +649,10 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 				atomic_long_read(&c->btree_key_cache.nr_dirty),
 				atomic_long_read(&c->btree_key_cache.nr_keys));
 
+		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), 128UL);
+
 		nr_flushed = journal_flush_pins(j, seq_to_flush,
-					min_nr,
-					min(bch2_nr_btree_keys_need_flush(c), 128UL));
+						min_nr, min_key_cache);
 
 		if (direct)
 			j->nr_direct_reclaim += nr_flushed;
@@ -661,7 +662,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 
 		if (nr_flushed)
 			wake_up(&j->reclaim_wait);
-	} while (min_nr && nr_flushed && !direct);
+	} while ((min_nr || min_key_cache) && !direct);
 
 	memalloc_noreclaim_restore(flags);
 
