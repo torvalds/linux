@@ -919,15 +919,21 @@ void nvmet_execute_async_event(struct nvmet_req *req)
 void nvmet_execute_keep_alive(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	u16 status = 0;
 
 	if (!nvmet_check_transfer_len(req, 0))
 		return;
 
+	if (!ctrl->kato) {
+		status = NVME_SC_KA_TIMEOUT_INVALID;
+		goto out;
+	}
+
 	pr_debug("ctrl %d update keep-alive timer for %d secs\n",
 		ctrl->cntlid, ctrl->kato);
-
 	mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
-	nvmet_req_complete(req, 0);
+out:
+	nvmet_req_complete(req, status);
 }
 
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
