@@ -464,7 +464,7 @@ static int lg_g15_get_initial_led_brightness(struct lg_g15_data *g15)
 /******** Input functions ********/
 
 /* On the G15 Mark I Logitech has been quite creative with which bit is what */
-static int lg_g15_event(struct lg_g15_data *g15, u8 *data, int size)
+static int lg_g15_event(struct lg_g15_data *g15, u8 *data)
 {
 	int i, val;
 
@@ -510,7 +510,7 @@ static int lg_g15_event(struct lg_g15_data *g15, u8 *data, int size)
 	return 0;
 }
 
-static int lg_g15_v2_event(struct lg_g15_data *g15, u8 *data, int size)
+static int lg_g15_v2_event(struct lg_g15_data *g15, u8 *data)
 {
 	int i, val;
 
@@ -542,7 +542,7 @@ static int lg_g15_v2_event(struct lg_g15_data *g15, u8 *data, int size)
 	return 0;
 }
 
-static int lg_g510_event(struct lg_g15_data *g15, u8 *data, int size)
+static int lg_g510_event(struct lg_g15_data *g15, u8 *data)
 {
 	bool game_mode_enabled;
 	int i, val;
@@ -586,7 +586,7 @@ static int lg_g510_event(struct lg_g15_data *g15, u8 *data, int size)
 	return 0;
 }
 
-static int lg_g510_leds_event(struct lg_g15_data *g15, u8 *data, int size)
+static int lg_g510_leds_event(struct lg_g15_data *g15, u8 *data)
 {
 	bool backlight_disabled;
 
@@ -613,18 +613,18 @@ static int lg_g15_raw_event(struct hid_device *hdev, struct hid_report *report,
 	switch (g15->model) {
 	case LG_G15:
 		if (data[0] == 0x02 && size == 9)
-			return lg_g15_event(g15, data, size);
+			return lg_g15_event(g15, data);
 		break;
 	case LG_G15_V2:
 		if (data[0] == 0x02 && size == 5)
-			return lg_g15_v2_event(g15, data, size);
+			return lg_g15_v2_event(g15, data);
 		break;
 	case LG_G510:
 	case LG_G510_USB_AUDIO:
 		if (data[0] == 0x03 && size == 5)
-			return lg_g510_event(g15, data, size);
+			return lg_g510_event(g15, data);
 		if (data[0] == 0x04 && size == 2)
-			return lg_g510_leds_event(g15, data, size);
+			return lg_g510_leds_event(g15, data);
 		break;
 	}
 
