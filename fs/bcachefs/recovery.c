@@ -1117,9 +1117,11 @@ use_clean:
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)) ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_alloc_metadata)) ||
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
+		bool metadata_only = c->opts.norecovery;
+
 		bch_info(c, "starting mark and sweep");
 		err = "error in mark and sweep";
-		ret = bch2_gc(c, true);
+		ret = bch2_gc(c, true, metadata_only);
 		if (ret)
 			goto err;
 		bch_verbose(c, "mark and sweep done");

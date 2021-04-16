@@ -6,7 +6,7 @@
 
 void bch2_coalesce(struct bch_fs *);
 
-int bch2_gc(struct bch_fs *, bool);
+int bch2_gc(struct bch_fs *, bool, bool);
 int bch2_gc_gens(struct bch_fs *);
 void bch2_gc_thread_stop(struct bch_fs *);
 int bch2_gc_thread_start(struct bch_fs *);
