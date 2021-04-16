@@ -1134,8 +1134,6 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);
 	if (MLX5_IPSEC_DEV(c->priv->mdev))
 		set_bit(MLX5E_SQ_STATE_IPSEC, &sq->state);
-	if (mlx5_accel_is_tls_device(c->priv->mdev))
-		set_bit(MLX5E_SQ_STATE_TLS, &sq->state);
 	if (param->is_mpw)
 		set_bit(MLX5E_SQ_STATE_MPWQE, &sq->state);
 	sq->stop_room = param->stop_room;
@@ -1411,8 +1409,17 @@ int mlx5e_open_icosq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	if (err)
 		goto err_free_icosq;
 
+	if (param->is_tls) {
+		sq->ktls_resync = mlx5e_ktls_rx_resync_create_resp_list();
+		if (IS_ERR(sq->ktls_resync)) {
+			err = PTR_ERR(sq->ktls_resync);
+			goto err_destroy_icosq;
+		}
+	}
 	return 0;
 
+err_destroy_icosq:
+	mlx5e_destroy_sq(c->mdev, sq->sqn);
 err_free_icosq:
 	mlx5e_free_icosq(sq);
 
@@ -1434,6 +1441,8 @@ void mlx5e_close_icosq(struct mlx5e_icosq *sq)
 {
 	struct mlx5e_channel *c = sq->channel;
 
+	if (sq->ktls_resync)
+		mlx5e_ktls_rx_resync_destroy_resp_list(sq->ktls_resync);
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
 	mlx5e_free_icosq_descs(sq);
 	mlx5e_free_icosq(sq);
@@ -2835,6 +2844,29 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 	mlx5e_deactivate_channels(&priv->channels);
 }
 
+static int mlx5e_switch_priv_params(struct mlx5e_priv *priv,
+				    struct mlx5e_params *new_params,
+				    mlx5e_fp_preactivate preactivate,
+				    void *context)
+{
+	struct mlx5e_params old_params;
+
+	old_params = priv->channels.params;
+	priv->channels.params = *new_params;
+
+	if (preactivate) {
+		int err;
+
+		err = preactivate(priv, context);
+		if (err) {
+			priv->channels.params = old_params;
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 				      struct mlx5e_channels *new_chs,
 				      mlx5e_fp_preactivate preactivate,
@@ -2877,35 +2909,32 @@ out:
 	return err;
 }
 
-int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
-			       struct mlx5e_channels *new_chs,
-			       mlx5e_fp_preactivate preactivate,
-			       void *context)
+int mlx5e_safe_switch_params(struct mlx5e_priv *priv,
+			     struct mlx5e_params *params,
+			     mlx5e_fp_preactivate preactivate,
+			     void *context, bool reset)
 {
+	struct mlx5e_channels new_chs = {};
 	int err;
 
-	err = mlx5e_open_channels(priv, new_chs);
+	reset &= test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (!reset)
+		return mlx5e_switch_priv_params(priv, params, preactivate, context);
+
+	new_chs.params = *params;
+	err = mlx5e_open_channels(priv, &new_chs);
 	if (err)
 		return err;
-
-	err = mlx5e_switch_priv_channels(priv, new_chs, preactivate, context);
+	err = mlx5e_switch_priv_channels(priv, &new_chs, preactivate, context);
 	if (err)
-		goto err_close;
-
-	return 0;
-
-err_close:
-	mlx5e_close_channels(new_chs);
+		mlx5e_close_channels(&new_chs);
 
 	return err;
 }
 
 int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
 {
-	struct mlx5e_channels new_channels = {};
-
-	new_channels.params = priv->channels.params;
-	return mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
+	return mlx5e_safe_switch_params(priv, &priv->channels.params, NULL, NULL, true);
 }
 
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
@@ -3362,7 +3391,7 @@ static int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd)
 static int mlx5e_setup_tc_mqprio(struct mlx5e_priv *priv,
 				 struct tc_mqprio_qopt *mqprio)
 {
-	struct mlx5e_channels new_channels = {};
+	struct mlx5e_params new_params;
 	u8 tc = mqprio->num_tc;
 	int err = 0;
 
@@ -3381,23 +3410,11 @@ static int mlx5e_setup_tc_mqprio(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	new_channels.params = priv->channels.params;
-	new_channels.params.num_tc = tc ? tc : 1;
+	new_params = priv->channels.params;
+	new_params.num_tc = tc ? tc : 1;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		struct mlx5e_params old_params;
-
-		old_params = priv->channels.params;
-		priv->channels.params = new_channels.params;
-		err = mlx5e_num_channels_changed(priv);
-		if (err)
-			priv->channels.params = old_params;
-
-		goto out;
-	}
-
-	err = mlx5e_safe_switch_channels(priv, &new_channels,
-					 mlx5e_num_channels_changed_ctx, NULL);
+	err = mlx5e_safe_switch_params(priv, &new_params,
+				       mlx5e_num_channels_changed_ctx, NULL, true);
 
 out:
 	priv->max_opened_tc = max_t(u8, priv->max_opened_tc,
@@ -3622,10 +3639,10 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_channels new_channels = {};
 	struct mlx5e_params *cur_params;
+	struct mlx5e_params new_params;
+	bool reset = true;
 	int err = 0;
-	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
@@ -3643,30 +3660,17 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 		goto out;
 	}
 
-	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	new_params = *cur_params;
+	new_params.lro_en = enable;
 
-	new_channels.params = *cur_params;
-	new_channels.params.lro_en = enable;
-
-	if (cur_params->rq_wq_type != MLX5_WQ_TYPE_CYCLIC) {
+	if (cur_params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 		if (mlx5e_rx_mpwqe_is_linear_skb(mdev, cur_params, NULL) ==
-		    mlx5e_rx_mpwqe_is_linear_skb(mdev, &new_channels.params, NULL))
+		    mlx5e_rx_mpwqe_is_linear_skb(mdev, &new_params, NULL))
 			reset = false;
 	}
 
-	if (!reset) {
-		struct mlx5e_params old_params;
-
-		old_params = *cur_params;
-		*cur_params = new_channels.params;
-		err = mlx5e_modify_tirs_lro(priv);
-		if (err)
-			*cur_params = old_params;
-		goto out;
-	}
-
-	err = mlx5e_safe_switch_channels(priv, &new_channels,
-					 mlx5e_modify_tirs_lro_ctx, NULL);
+	err = mlx5e_safe_switch_params(priv, &new_params,
+				       mlx5e_modify_tirs_lro_ctx, NULL, reset);
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
@@ -3895,26 +3899,23 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		     mlx5e_fp_preactivate preactivate)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_channels new_channels = {};
+	struct mlx5e_params new_params;
 	struct mlx5e_params *params;
+	bool reset = true;
 	int err = 0;
-	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
 	params = &priv->channels.params;
 
-	reset = !params->lro_en;
-	reset = reset && test_bit(MLX5E_STATE_OPENED, &priv->state);
-
-	new_channels.params = *params;
-	new_channels.params.sw_mtu = new_mtu;
-	err = mlx5e_validate_params(priv->mdev, &new_channels.params);
+	new_params = *params;
+	new_params.sw_mtu = new_mtu;
+	err = mlx5e_validate_params(priv->mdev, &new_params);
 	if (err)
 		goto out;
 
 	if (params->xdp_prog &&
-	    !mlx5e_rx_is_linear_skb(&new_channels.params, NULL)) {
+	    !mlx5e_rx_is_linear_skb(&new_params, NULL)) {
 		netdev_err(netdev, "MTU(%d) > %d is not allowed while XDP enabled\n",
 			   new_mtu, mlx5e_xdp_max_mtu(params, NULL));
 		err = -EINVAL;
@@ -3923,47 +3924,34 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 
 	if (priv->xsk.refcnt &&
 	    !mlx5e_xsk_validate_mtu(netdev, &priv->channels,
-				    &new_channels.params, priv->mdev)) {
+				    &new_params, priv->mdev)) {
 		err = -EINVAL;
 		goto out;
 	}
 
+	if (params->lro_en)
+		reset = false;
+
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
-		bool is_linear = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev,
-							      &new_channels.params,
-							      NULL);
+		bool is_linear_old = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev, params, NULL);
+		bool is_linear_new = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev,
+								  &new_params, NULL);
 		u8 ppw_old = mlx5e_mpwqe_log_pkts_per_wqe(params, NULL);
-		u8 ppw_new = mlx5e_mpwqe_log_pkts_per_wqe(&new_channels.params, NULL);
+		u8 ppw_new = mlx5e_mpwqe_log_pkts_per_wqe(&new_params, NULL);
 
-		/* If XSK is active, XSK RQs are linear. */
-		is_linear |= priv->xsk.refcnt;
-
-		/* Always reset in linear mode - hw_mtu is used in data path. */
-		reset = reset && (is_linear || (ppw_old != ppw_new));
+		/* Always reset in linear mode - hw_mtu is used in data path.
+		 * Check that the mode was non-linear and didn't change.
+		 * If XSK is active, XSK RQs are linear.
+		 */
+		if (!is_linear_old && !is_linear_new && !priv->xsk.refcnt &&
+		    ppw_old == ppw_new)
+			reset = false;
 	}
 
-	if (!reset) {
-		unsigned int old_mtu = params->sw_mtu;
-
-		params->sw_mtu = new_mtu;
-		if (preactivate) {
-			err = preactivate(priv, NULL);
-			if (err) {
-				params->sw_mtu = old_mtu;
-				goto out;
-			}
-		}
-		netdev->mtu = params->sw_mtu;
-		goto out;
-	}
-
-	err = mlx5e_safe_switch_channels(priv, &new_channels, preactivate, NULL);
-	if (err)
-		goto out;
-
-	netdev->mtu = new_channels.params.sw_mtu;
+	err = mlx5e_safe_switch_params(priv, &new_params, preactivate, NULL, reset);
 
 out:
+	netdev->mtu = params->sw_mtu;
 	mutex_unlock(&priv->state_lock);
 	return err;
 }
@@ -3982,7 +3970,7 @@ int mlx5e_ptp_rx_manage_fs_ctx(struct mlx5e_priv *priv, void *ctx)
 
 int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 {
-	struct mlx5e_channels new_channels = {};
+	struct mlx5e_params new_params;
 	struct hwtstamp_config config;
 	bool rx_cqe_compress_def;
 	int err;
@@ -4004,13 +3992,13 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	}
 
 	mutex_lock(&priv->state_lock);
-	new_channels.params = priv->channels.params;
+	new_params = priv->channels.params;
 	rx_cqe_compress_def = priv->channels.params.rx_cqe_compress_def;
 
 	/* RX HW timestamp */
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		new_channels.params.ptp_rx = false;
+		new_params.ptp_rx = false;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
@@ -4027,7 +4015,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		new_channels.params.ptp_rx = rx_cqe_compress_def;
+		new_params.ptp_rx = rx_cqe_compress_def;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -4035,15 +4023,11 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	if (new_channels.params.ptp_rx == priv->channels.params.ptp_rx)
+	if (new_params.ptp_rx == priv->channels.params.ptp_rx)
 		goto out;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		goto out;
-	}
-	err = mlx5e_safe_switch_channels(priv, &new_channels, mlx5e_ptp_rx_manage_fs_ctx,
-					 &new_channels.params.ptp_rx);
+	err = mlx5e_safe_switch_params(priv, &new_params, mlx5e_ptp_rx_manage_fs_ctx,
+				       &new_params.ptp_rx, true);
 	if (err) {
 		mutex_unlock(&priv->state_lock);
 		return err;
@@ -4361,7 +4345,7 @@ static void mlx5e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 {
 	struct net_device *netdev = priv->netdev;
-	struct mlx5e_channels new_channels = {};
+	struct mlx5e_params new_params;
 
 	if (priv->channels.params.lro_en) {
 		netdev_warn(netdev, "can't set XDP while LRO is on, disable LRO first\n");
@@ -4374,16 +4358,16 @@ static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 		return -EINVAL;
 	}
 
-	new_channels.params = priv->channels.params;
-	new_channels.params.xdp_prog = prog;
+	new_params = priv->channels.params;
+	new_params.xdp_prog = prog;
 
 	/* No XSK params: AF_XDP can't be enabled yet at the point of setting
 	 * the XDP program.
 	 */
-	if (!mlx5e_rx_is_linear_skb(&new_channels.params, NULL)) {
+	if (!mlx5e_rx_is_linear_skb(&new_params, NULL)) {
 		netdev_warn(netdev, "XDP is not allowed with MTU(%d) > %d\n",
-			    new_channels.params.sw_mtu,
-			    mlx5e_xdp_max_mtu(&new_channels.params, NULL));
+			    new_params.sw_mtu,
+			    mlx5e_xdp_max_mtu(&new_params, NULL));
 		return -EINVAL;
 	}
 
@@ -4403,9 +4387,10 @@ static void mlx5e_rq_replace_xdp_prog(struct mlx5e_rq *rq, struct bpf_prog *prog
 static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_params new_params;
 	struct bpf_prog *old_prog;
-	bool reset, was_opened;
 	int err = 0;
+	bool reset;
 	int i;
 
 	mutex_lock(&priv->state_lock);
@@ -4416,46 +4401,29 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 			goto unlock;
 	}
 
-	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	/* no need for full reset when exchanging programs */
 	reset = (!priv->channels.params.xdp_prog || !prog);
 
-	if (was_opened && !reset)
-		/* num_channels is invariant here, so we can take the
-		 * batched reference right upfront.
-		 */
-		bpf_prog_add(prog, priv->channels.num);
+	new_params = priv->channels.params;
+	new_params.xdp_prog = prog;
+	if (reset)
+		mlx5e_set_rq_type(priv->mdev, &new_params);
+	old_prog = priv->channels.params.xdp_prog;
 
-	if (was_opened && reset) {
-		struct mlx5e_channels new_channels = {};
-
-		new_channels.params = priv->channels.params;
-		new_channels.params.xdp_prog = prog;
-		mlx5e_set_rq_type(priv->mdev, &new_channels.params);
-		old_prog = priv->channels.params.xdp_prog;
-
-		err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
-		if (err)
-			goto unlock;
-	} else {
-		/* exchange programs, extra prog reference we got from caller
-		 * as long as we don't fail from this point onwards.
-		 */
-		old_prog = xchg(&priv->channels.params.xdp_prog, prog);
-	}
+	err = mlx5e_safe_switch_params(priv, &new_params, NULL, NULL, reset);
+	if (err)
+		goto unlock;
 
 	if (old_prog)
 		bpf_prog_put(old_prog);
 
-	if (!was_opened && reset) /* change RQ type according to priv->xdp_prog */
-		mlx5e_set_rq_type(priv->mdev, &priv->channels.params);
-
-	if (!was_opened || reset)
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state) || reset)
 		goto unlock;
 
 	/* exchanging programs w/o reset, we update ref counts on behalf
 	 * of the channels RQs here.
 	 */
+	bpf_prog_add(prog, priv->channels.num);
 	for (i = 0; i < priv->channels.num; i++) {
 		struct mlx5e_channel *c = priv->channels.c[i];
 

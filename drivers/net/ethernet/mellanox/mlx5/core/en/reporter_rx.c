@@ -323,10 +323,12 @@ static int mlx5e_rx_reporter_diagnose_generic_rq(struct mlx5e_rq *rq,
 	struct mlx5e_priv *priv = rq->priv;
 	struct mlx5e_params *params;
 	u32 rq_stride, rq_sz;
+	bool real_time;
 	int err;
 
 	params = &priv->channels.params;
 	rq_sz = mlx5e_rqwq_get_size(rq);
+	real_time =  mlx5_is_real_time_rq(priv->mdev);
 	rq_stride = BIT(mlx5e_mpwqe_get_log_stride_size(priv->mdev, params, NULL));
 
 	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RQ");
@@ -342,6 +344,10 @@ static int mlx5e_rx_reporter_diagnose_generic_rq(struct mlx5e_rq *rq,
 		return err;
 
 	err = devlink_fmsg_u32_pair_put(fmsg, "size", rq_sz);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_string_pair_put(fmsg, "ts_format", real_time ? "RT" : "FRC");
 	if (err)
 		return err;
 

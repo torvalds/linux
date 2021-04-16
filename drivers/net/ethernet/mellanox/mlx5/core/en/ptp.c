@@ -792,6 +792,9 @@ int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set)
 	if (!priv->profile->rx_ptp_support)
 		return 0;
 
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
 	if (set) {
 		if (!c || !test_bit(MLX5E_PTP_STATE_RX, c->state)) {
 			netdev_WARN_ONCE(priv->netdev, "Don't try to add PTP RX-FS rules");

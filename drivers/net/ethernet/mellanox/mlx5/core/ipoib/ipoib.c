@@ -481,28 +481,19 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
-	struct mlx5e_channels new_channels = {};
-	struct mlx5e_params *params;
+	struct mlx5e_params new_params;
 	int err = 0;
 
 	mutex_lock(&priv->state_lock);
 
-	params = &priv->channels.params;
+	new_params = priv->channels.params;
+	new_params.sw_mtu = new_mtu;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		params->sw_mtu = new_mtu;
-		netdev->mtu = params->sw_mtu;
-		goto out;
-	}
-
-	new_channels.params = *params;
-	new_channels.params.sw_mtu = new_mtu;
-
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
+	err = mlx5e_safe_switch_params(priv, &new_params, NULL, NULL, true);
 	if (err)
 		goto out;
 
-	netdev->mtu = new_channels.params.sw_mtu;
+	netdev->mtu = new_params.sw_mtu;
 
 out:
 	mutex_unlock(&priv->state_lock);

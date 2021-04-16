@@ -621,6 +621,9 @@ static void mlx5e_build_async_icosq_param(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_sq_param_common(mdev, param);
 	param->stop_room = mlx5e_stop_room_for_wqe(1); /* for XSK NOP */
+	param->is_tls = mlx5_accel_is_ktls_rx(mdev);
+	if (param->is_tls)
+		param->stop_room += mlx5e_stop_room_for_wqe(1); /* for TLS RX resync NOP */
 	MLX5_SET(sqc, sqc, reg_umr, MLX5_CAP_ETH(mdev, reg_umr_sq));
 	MLX5_SET(wq, wq, log_wq_sz, log_wq_size);
 	mlx5e_build_ico_cq_param(mdev, log_wq_size, &param->cqp);

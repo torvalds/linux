@@ -30,6 +30,7 @@ struct mlx5e_sq_param {
 	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
 	struct mlx5_wq_param       wq;
 	bool                       is_mpw;
+	bool                       is_tls;
 	u16                        stop_room;
 };
 

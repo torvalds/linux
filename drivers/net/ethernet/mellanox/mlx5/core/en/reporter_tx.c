@@ -257,12 +257,14 @@ mlx5e_tx_reporter_diagnose_generic_txqsq(struct devlink_fmsg *fmsg,
 					 struct mlx5e_txqsq *txqsq)
 {
 	u32 sq_stride, sq_sz;
+	bool real_time;
 	int err;
 
 	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "SQ");
 	if (err)
 		return err;
 
+	real_time =  mlx5_is_real_time_sq(txqsq->mdev);
 	sq_sz = mlx5_wq_cyc_get_size(&txqsq->wq);
 	sq_stride = MLX5_SEND_WQE_BB;
 
@@ -271,6 +273,10 @@ mlx5e_tx_reporter_diagnose_generic_txqsq(struct devlink_fmsg *fmsg,
 		return err;
 
 	err = devlink_fmsg_u32_pair_put(fmsg, "size", sq_sz);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_string_pair_put(fmsg, "ts_format", real_time ? "RT" : "FRC");
 	if (err)
 		return err;
 
