@@ -60,7 +60,7 @@
  */
 
 /**
- * amdgpu_dummy_page_init - init dummy page used by the driver
+ * amdgpu_gart_dummy_page_init - init dummy page used by the driver
  *
  * @adev: amdgpu_device pointer
  *
@@ -86,7 +86,7 @@ static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_dummy_page_fini - free dummy page used by the driver
+ * amdgpu_gart_dummy_page_fini - free dummy page used by the driver
  *
  * @adev: amdgpu_device pointer
  *
