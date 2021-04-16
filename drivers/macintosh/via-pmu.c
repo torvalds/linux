@@ -187,7 +187,6 @@ static int query_batt_timer = BATTERY_POLLING_COUNT;
 static struct adb_request batt_req;
 static struct proc_dir_entry *proc_pmu_batt[PMU_MAX_BATTERIES];
 
-static int __fake_sleep;
 int asleep;
 
 #ifdef CONFIG_ADB
@@ -1833,6 +1832,7 @@ pmu_present(void)
  */
  
 static u32 save_via[8];
+static int __fake_sleep;
 
 static void
 save_via_state(void)
