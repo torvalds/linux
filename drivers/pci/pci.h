@@ -143,8 +143,7 @@ static inline bool pcie_downstream_port(const struct pci_dev *dev)
 
 int pci_vpd_init(struct pci_dev *dev);
 void pci_vpd_release(struct pci_dev *dev);
-void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev);
-void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev);
+extern const struct attribute_group pci_dev_vpd_attr_group;
 
 /* PCI Virtual Channel */
 int pci_save_vc_state(struct pci_dev *dev);

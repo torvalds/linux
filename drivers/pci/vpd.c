@@ -21,7 +21,6 @@ struct pci_vpd_ops {
 
 struct pci_vpd {
 	const struct pci_vpd_ops *ops;
-	struct bin_attribute *attr;	/* Descriptor for sysfs VPD entry */
 	struct mutex	lock;
 	unsigned int	len;
 	u16		flag;
@@ -428,41 +427,28 @@ static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
 
 	return pci_write_vpd(dev, off, count, buf);
 }
+static BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
 
-void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev)
+static struct bin_attribute *vpd_attrs[] = {
+	&bin_attr_vpd,
+	NULL,
+};
+
+static umode_t vpd_attr_is_visible(struct kobject *kobj,
+				   struct bin_attribute *a, int n)
 {
-	int retval;
-	struct bin_attribute *attr;
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
-	if (!dev->vpd)
-		return;
+	if (!pdev->vpd)
+		return 0;
 
-	attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-	if (!attr)
-		return;
-
-	sysfs_bin_attr_init(attr);
-	attr->size = 0;
-	attr->attr.name = "vpd";
-	attr->attr.mode = S_IRUSR | S_IWUSR;
-	attr->read = vpd_read;
-	attr->write = vpd_write;
-	retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
-	if (retval) {
-		kfree(attr);
-		return;
-	}
-
-	dev->vpd->attr = attr;
+	return a->attr.mode;
 }
 
-void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev)
-{
-	if (dev->vpd && dev->vpd->attr) {
-		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
-		kfree(dev->vpd->attr);
-	}
-}
+const struct attribute_group pci_dev_vpd_attr_group = {
+	.bin_attrs = vpd_attrs,
+	.is_bin_visible = vpd_attr_is_visible,
+};
 
 int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt)
 {
