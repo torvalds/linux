@@ -15,6 +15,7 @@
 #include <linux/page-flags-layout.h>
 #include <linux/workqueue.h>
 #include <linux/seqlock.h>
+#include <linux/android_kabi.h>
 
 #include <asm/mmu.h>
 
@@ -23,6 +24,7 @@
 #endif
 #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
 
+#define INIT_PASID	0
 
 struct address_space;
 struct mem_cgroup;
@@ -383,6 +385,11 @@ struct vm_area_struct {
 	seqcount_t vm_sequence;
 	atomic_t vm_ref_count;		/* see vma_get(), vma_put() */
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 } __randomize_layout;
 
 struct core_thread {

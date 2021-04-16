@@ -596,8 +596,7 @@ void generic_online_page(struct page *page, unsigned int order)
 	 * so we should map it first. This is better than introducing a special
 	 * case in page freeing fast path.
 	 */
-	if (debug_pagealloc_enabled_static())
-		kernel_map_pages(page, 1 << order, 1);
+	debug_pagealloc_map_pages(page, 1 << order);
 	__free_pages_core(page, order);
 	totalram_pages_add(1UL << order);
 #ifdef CONFIG_HIGHMEM
@@ -1142,7 +1141,7 @@ int add_memory_subsection(int nid, u64 start, u64 size)
 
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
 	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
-		pr_err("%s: start 0x%lx size 0x%lx not aligned to subsection size\n",
+		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
 			   __func__, start, size);
 		return -EINVAL;
 	}
@@ -1162,7 +1161,7 @@ int add_memory_subsection(int nid, u64 start, u64 size)
 	if (ret) {
 		if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
 			memblock_remove(start, size);
-		pr_err("%s failed to add subsection start 0x%lx size 0x%lx\n",
+		pr_err("%s failed to add subsection start 0x%llx size 0x%llx\n",
 			   __func__, start, size);
 	}
 	mem_hotplug_done();
@@ -1504,7 +1503,6 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 			 !IS_ALIGNED(start_pfn | nr_pages, PAGES_PER_SECTION)))
 		return -EINVAL;
 
-	lru_cache_disable();
 	mem_hotplug_begin();
 
 	/*
@@ -1533,6 +1531,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 	}
 	node = zone_to_nid(zone);
 
+	lru_cache_disable();
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn,
 				       MIGRATE_MOVABLE,
@@ -1620,6 +1619,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 	zone->nr_isolate_pageblock -= nr_pages / pageblock_nr_pages;
 	spin_unlock_irqrestore(&zone->lock, flags);
 
+	lru_cache_enable();
 	/* removal success */
 	adjust_managed_page_count(pfn_to_page(start_pfn), -nr_pages);
 	zone->present_pages -= nr_pages;
@@ -1647,8 +1647,6 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 	memory_notify(MEM_OFFLINE, &arg);
 	remove_pfn_range_from_zone(zone, start_pfn, nr_pages);
 	mem_hotplug_done();
-	lru_cache_enable();
-
 	return 0;
 
 failed_removal_isolated:
@@ -1661,7 +1659,6 @@ failed_removal:
 		 reason);
 	/* pushback to free area */
 	mem_hotplug_done();
-	lru_cache_enable();
 	return ret;
 }
 
@@ -1854,7 +1851,7 @@ int remove_memory_subsection(int nid, u64 start, u64 size)
 
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
 	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
-		pr_err("%s: start 0x%lx size 0x%lx not aligned to subsection size\n",
+		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
 			   __func__, start, size);
 		return -EINVAL;
 	}
@@ -1863,7 +1860,7 @@ int remove_memory_subsection(int nid, u64 start, u64 size)
 
 	/* we cannot remove subsections that are invalid or online */
 	if(!__check_sections_offline(PHYS_PFN(start), size >> PAGE_SHIFT)) {
-		pr_err("%s: [%lx, %lx) sections are not offlined\n",
+		pr_err("%s: [%llx, %llx) sections are not offlined\n",
 			   __func__, start, start + size);
 		mem_hotplug_done();
 		return -EBUSY;

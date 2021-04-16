@@ -727,7 +727,7 @@ static int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input)
 		kvfree(tx_info);
 		return 0;
 	}
-	tx_info->open_state = false;
+	tx_info->open_state = CH_KTLS_OPEN_SUCCESS;
 	spin_unlock(&tx_info->lock);
 
 	complete(&tx_info->completion);

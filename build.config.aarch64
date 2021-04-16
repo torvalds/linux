@@ -13,4 +13,7 @@ FILES="
 arch/arm64/boot/Image
 vmlinux
 System.map
+vmlinux.symvers
+modules.builtin
+modules.builtin.modinfo
 "

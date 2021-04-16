@@ -827,7 +827,7 @@ static void __init mm_init(void)
 	 * bigger than MAX_ORDER unless SPARSEMEM.
 	 */
 	page_ext_init_flatmem();
-	init_debug_pagealloc();
+	init_mem_debugging_and_hardening();
 	kfence_alloc_pool();
 	report_meminit();
 	stack_depot_init();

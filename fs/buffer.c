@@ -48,7 +48,6 @@
 #include <linux/sched/mm.h>
 #include <trace/events/block.h>
 #include <linux/fscrypt.h>
-#include <linux/xarray.h>
 
 #include "internal.h"
 
@@ -1266,8 +1265,9 @@ static void bh_lru_install(struct buffer_head *bh)
 
 	check_irqs_on();
 	/*
-	 * buffer_head in bh_lru could increase refcount of the page
-	 * until it will be invalidated. It causes page migraion failure.
+	 * the refcount of buffer_head in bh_lru prevents dropping the
+	 * attached page(i.e., try_to_free_buffers) so it could cause
+	 * failing page migration.
 	 * Skip putting upcoming bh into bh_lru until migration is done.
 	 */
 	if (lru_cache_disabled())
@@ -1413,20 +1413,25 @@ __bread_gfp(struct block_device *bdev, sector_t block,
 }
 EXPORT_SYMBOL(__bread_gfp);
 
-/*
- * invalidate_bh_lrus() is called rarely - but not only at unmount.
- * This doesn't race because it runs in each cpu either in irq
- * or with preempt disabled.
- */
-void invalidate_bh_lru(void *arg)
+static void __invalidate_bh_lrus(struct bh_lru *b)
 {
-	struct bh_lru *b = &get_cpu_var(bh_lrus);
 	int i;
 
 	for (i = 0; i < BH_LRU_SIZE; i++) {
 		brelse(b->bhs[i]);
 		b->bhs[i] = NULL;
 	}
+}
+/*
+ * invalidate_bh_lrus() is called rarely - but not only at unmount.
+ * This doesn't race because it runs in each cpu either in irq
+ * or with preempt disabled.
+ */
+static void invalidate_bh_lru(void *arg)
+{
+	struct bh_lru *b = &get_cpu_var(bh_lrus);
+
+	__invalidate_bh_lrus(b);
 	put_cpu_var(bh_lrus);
 }
 
@@ -1443,53 +1448,20 @@ bool has_bh_in_lru(int cpu, void *dummy)
 	return false;
 }
 
-static void __evict_bhs_lru(void *arg)
-{
-	struct bh_lru *b = &get_cpu_var(bh_lrus);
-	struct xarray *busy_bhs = arg;
-	struct buffer_head *bh;
-	unsigned long i, xarray_index;
-
-	xa_for_each(busy_bhs, xarray_index, bh) {
-		for (i = 0; i < BH_LRU_SIZE; i++) {
-			if (b->bhs[i] == bh) {
-				brelse(b->bhs[i]);
-				b->bhs[i] = NULL;
-				break;
-			}
-		}
-	}
-
-	put_cpu_var(bh_lrus);
-}
-
-static bool page_has_bhs_in_lru(int cpu, void *arg)
-{
-	struct bh_lru *b = per_cpu_ptr(&bh_lrus, cpu);
-	struct xarray *busy_bhs = arg;
-	struct buffer_head *bh;
-	unsigned long i, xarray_index;
-
-	xa_for_each(busy_bhs, xarray_index, bh) {
-		for (i = 0; i < BH_LRU_SIZE; i++) {
-			if (b->bhs[i] == bh)
-				return true;
-		}
-	}
-
-	return false;
-
-}
 void invalidate_bh_lrus(void)
 {
 	on_each_cpu_cond(has_bh_in_lru, invalidate_bh_lru, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(invalidate_bh_lrus);
 
-static void evict_bh_lrus(struct xarray *busy_bhs)
+void invalidate_bh_lrus_cpu(int cpu)
 {
-	on_each_cpu_cond(page_has_bhs_in_lru, __evict_bhs_lru,
-			 busy_bhs, 1);
+	struct bh_lru *b;
+
+	bh_lru_lock();
+	b = per_cpu_ptr(&bh_lrus, cpu);
+	__invalidate_bh_lrus(b);
+	bh_lru_unlock();
 }
 
 void set_bh_page(struct buffer_head *bh,
@@ -3252,38 +3224,14 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 {
 	struct buffer_head *head = page_buffers(page);
 	struct buffer_head *bh;
-	struct xarray busy_bhs;
-	int bh_count = 0;
-	int xa_ret, ret = 0;
-
-	xa_init(&busy_bhs);
 
 	bh = head;
 	do {
-		if (buffer_busy(bh)) {
-			xa_ret = xa_err(xa_store(&busy_bhs, bh_count++,
-						 bh, GFP_ATOMIC));
-			if (xa_ret)
-				goto out;
-		}
+		if (buffer_busy(bh))
+			goto failed;
 		bh = bh->b_this_page;
 	} while (bh != head);
 
-	if (bh_count) {
-		/*
-		 * Check if the busy failure was due to an outstanding
-		 * LRU reference
-		 */
-		evict_bh_lrus(&busy_bhs);
-		do {
-			if (buffer_busy(bh))
-				goto out;
-
-			bh = bh->b_this_page;
-		} while (bh != head);
-	}
-
-	ret = 1;
 	do {
 		struct buffer_head *next = bh->b_this_page;
 
@@ -3293,10 +3241,9 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 	} while (bh != head);
 	*buffers_to_free = head;
 	detach_page_private(page);
-out:
-	xa_destroy(&busy_bhs);
-
-	return ret;
+	return 1;
+failed:
+	return 0;
 }
 
 int try_to_free_buffers(struct page *page)

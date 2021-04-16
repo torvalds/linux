@@ -1948,6 +1948,9 @@ struct xhci_driver_overrides {
 			     struct usb_host_endpoint *ep);
 	int (*check_bandwidth)(struct usb_hcd *, struct usb_device *);
 	void (*reset_bandwidth)(struct usb_hcd *, struct usb_device *);
+	int (*address_device)(struct usb_hcd *hcd, struct usb_device *udev);
+	int (*bus_suspend)(struct usb_hcd *hcd);
+	int (*bus_resume)(struct usb_hcd *hcd);
 };
 
 #define	XHCI_CFC_DELAY		10
@@ -2104,6 +2107,7 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		       struct usb_host_endpoint *ep);
 int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id);
 int xhci_ext_cap_init(struct xhci_hcd *xhci);
 
@@ -2222,6 +2226,8 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
  * @alloc_transfer_ring: called when remote transfer ring allocation is required
  * @free_transfer_ring: called to free vendor specific transfer ring
  * @sync_dev_ctx: called when synchronization for device context is required
+ * @alloc_container_ctx: called when allocating vendor specific container context
+ * @free_container_ctx: called to free vendor specific container context
  */
 struct xhci_vendor_ops {
 	int (*vendor_init)(struct xhci_hcd *xhci);
@@ -2237,17 +2243,24 @@ struct xhci_vendor_ops {
 
 	struct xhci_ring *(*alloc_transfer_ring)(struct xhci_hcd *xhci,
 			u32 endpoint_type, enum xhci_ring_type ring_type,
-			gfp_t mem_flags);
+			unsigned int max_packet, gfp_t mem_flags);
 	void (*free_transfer_ring)(struct xhci_hcd *xhci,
 			struct xhci_virt_device *virt_dev, unsigned int ep_index);
 	int (*sync_dev_ctx)(struct xhci_hcd *xhci, unsigned int slot_id);
 	bool (*usb_offload_skip_urb)(struct xhci_hcd *xhci, struct urb *urb);
+	void (*alloc_container_ctx)(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx,
+				    int type, gfp_t flags);
+	void (*free_container_ctx)(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
 };
 
 struct xhci_vendor_ops *xhci_vendor_get_ops(struct xhci_hcd *xhci);
 
 int xhci_vendor_sync_dev_ctx(struct xhci_hcd *xhci, unsigned int slot_id);
 bool xhci_vendor_usb_offload_skip_urb(struct xhci_hcd *xhci, struct urb *urb);
+void xhci_vendor_free_transfer_ring(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev, unsigned int ep_index);
+bool xhci_vendor_is_usb_offload_enabled(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev, unsigned int ep_index);
 
 /*
  * TODO: As per spec Isochronous IDT transmissions are supported. We bypass

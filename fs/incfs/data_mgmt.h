@@ -27,37 +27,54 @@
 enum LOG_RECORD_TYPE {
 	FULL,
 	SAME_FILE,
+	SAME_FILE_CLOSE_BLOCK,
+	SAME_FILE_CLOSE_BLOCK_SHORT,
 	SAME_FILE_NEXT_BLOCK,
 	SAME_FILE_NEXT_BLOCK_SHORT,
 };
 
 struct full_record {
-	enum LOG_RECORD_TYPE type : 2; /* FULL */
-	u32 block_index : 30;
+	enum LOG_RECORD_TYPE type : 3; /* FULL */
+	u32 block_index : 29;
 	incfs_uuid_t file_id;
 	u64 absolute_ts_us;
 	uid_t uid;
-} __packed; /* 28 bytes */
+} __packed; /* 32 bytes */
 
-struct same_file_record {
-	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
-	u32 block_index : 30;
-	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
-} __packed; /* 8 bytes */
+struct same_file {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE */
+	u32 block_index : 29;
+	uid_t uid;
+	u16 relative_ts_us; /* max 2^16 us ~= 64 ms */
+} __packed; /* 10 bytes */
 
-struct same_file_next_block {
-	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
-	u32 relative_ts_us : 30; /* max 2^30 us ~= 15 min (17:50) */
+struct same_file_close_block {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_CLOSE_BLOCK */
+	u16 relative_ts_us : 13; /* max 2^13 us ~= 8 ms */
+	s16 block_index_delta;
 } __packed; /* 4 bytes */
 
-struct same_file_next_block_short {
-	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK_SHORT */
-	u16 relative_ts_us : 14; /* max 2^14 us ~= 16 ms */
+struct same_file_close_block_short {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_CLOSE_BLOCK_SHORT */
+	u8 relative_ts_tens_us : 5; /* max 2^5*10 us ~= 320 us */
+	s8 block_index_delta;
 } __packed; /* 2 bytes */
+
+struct same_file_next_block {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_NEXT_BLOCK */
+	u16 relative_ts_us : 13; /* max 2^13 us ~= 8 ms */
+} __packed; /* 2 bytes */
+
+struct same_file_next_block_short {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_NEXT_BLOCK_SHORT */
+	u8 relative_ts_tens_us : 5; /* max 2^5*10 us ~= 320 us */
+} __packed; /* 1 byte */
 
 union log_record {
 	struct full_record full_record;
-	struct same_file_record same_file_record;
+	struct same_file same_file;
+	struct same_file_close_block same_file_close_block;
+	struct same_file_close_block_short same_file_close_block_short;
 	struct same_file_next_block same_file_next_block;
 	struct same_file_next_block_short same_file_next_block_short;
 };

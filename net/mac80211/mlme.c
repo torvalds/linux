@@ -4660,7 +4660,10 @@ static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 		timeout = sta->rx_stats.last_rx;
 	timeout += IEEE80211_CONNECTION_IDLE_TIME;
 
-	if (time_is_before_jiffies(timeout)) {
+	/* If timeout is after now, then update timer to fire at
+	 * the later date, but do not actually probe at this time.
+	 */
+	if (time_is_after_jiffies(timeout)) {
 		mod_timer(&ifmgd->conn_mon_timer, round_jiffies_up(timeout));
 		return;
 	}
@@ -5023,7 +5026,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		he_oper_ie = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_OPERATION,
 						  ies->data, ies->len);
 		if (he_oper_ie &&
-		    he_oper_ie[1] == ieee80211_he_oper_size(&he_oper_ie[3]))
+		    he_oper_ie[1] >= ieee80211_he_oper_size(&he_oper_ie[3]))
 			he_oper = (void *)(he_oper_ie + 3);
 		else
 			he_oper = NULL;

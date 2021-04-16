@@ -1127,7 +1127,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	int err = 0;
 	nodemask_t tmp;
 
-	lru_add_drain_all();
+	lru_cache_disable();
 
 	mmap_read_lock(mm);
 
@@ -1211,6 +1211,8 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 			break;
 	}
 	mmap_read_unlock(mm);
+
+	lru_cache_enable();
 	if (err < 0)
 		return err;
 	return busy;

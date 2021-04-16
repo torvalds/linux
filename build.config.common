@@ -1,10 +1,10 @@
 BRANCH=android12-5.10
-KMI_GENERATION=0
+KMI_GENERATION=1
 
 LLVM=1
 DEPMOD=depmod
 DTC=dtc
-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r412851/bin
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r416183/bin
 BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
 
 EXTRA_CMDS=''

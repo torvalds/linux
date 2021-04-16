@@ -341,7 +341,6 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 		}
 
 		if (ep_type == ISOC_IN_EP || ep_type == ISOC_OUT_EP) {
-			u32 remainder;
 
 			if (sch_ep->esit == 1)
 				sch_ep->pkts = esit_pkts;
@@ -357,14 +356,12 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 			sch_ep->repeat = !!(sch_ep->num_budget_microframes > 1);
 			sch_ep->bw_cost_per_microframe = maxpkt * sch_ep->pkts;
 
-			remainder = sch_ep->bw_cost_per_microframe;
-			remainder *= sch_ep->num_budget_microframes;
-			remainder -= (maxpkt * esit_pkts);
 			for (i = 0; i < sch_ep->num_budget_microframes - 1; i++)
 				bwb_table[i] = sch_ep->bw_cost_per_microframe;
 
 			/* last one <= bw_cost_per_microframe */
-			bwb_table[i] = remainder;
+			bwb_table[i] = maxpkt * esit_pkts
+				       - i * sch_ep->bw_cost_per_microframe;
 		}
 	} else if (is_fs_or_ls(sch_ep->speed)) {
 		sch_ep->pkts = 1; /* at most one packet for each microframe */
@@ -875,6 +872,8 @@ int xhci_mtk_drop_ep(struct usb_hcd *hcd, struct usb_device *udev,
 	if (ret)
 		return ret;
 
-	drop_ep_quirk(hcd, udev, ep);
+	if (ep->hcpriv)
+		drop_ep_quirk(hcd, udev, ep);
+
 	return 0;
 }

@@ -45,7 +45,7 @@ config IDLE_INJECT
 	  on a per CPU basis.
 
 config DTPM
-	bool "Power capping for Dynamic Thermal Power Management"
+	bool "Power capping for Dynamic Thermal Power Management (EXPERIMENTAL)"
 	help
 	  This enables support for the power capping for the dynamic
 	  thermal power management userspace engine.

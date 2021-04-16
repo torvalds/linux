@@ -207,6 +207,9 @@ int dtpm_release_zone(struct powercap_zone *pcz)
 	if (dtpm->ops)
 		dtpm->ops->release(dtpm);
 
+	if (root == dtpm)
+		root = NULL;
+
 	kfree(dtpm);
 
 	return 0;

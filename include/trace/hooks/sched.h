@@ -204,6 +204,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_can_attach,
 	TP_PROTO(struct cgroup_taskset *tset, int *retval),
 	TP_ARGS(tset, retval), 1);
 
+struct cgroup_subsys_state;
+DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_online,
+	TP_PROTO(struct cgroup_subsys_state *css),
+	TP_ARGS(css), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_fork_init,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p), 1);
@@ -247,8 +252,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_pick_next_entity,
 	TP_ARGS(cfs_rq, curr, se), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup,
-	TP_PROTO(struct rq *rq, struct task_struct *p, bool *preempt),
-	TP_ARGS(rq, p, preempt), 1);
+	TP_PROTO(struct rq *rq, struct task_struct *p, bool *preempt, bool *nopreempt),
+	TP_ARGS(rq, p, preempt, nopreempt), 1);
 
 DECLARE_HOOK(android_vh_do_wake_up_sync,
 	TP_PROTO(struct wait_queue_head *wq_head, int *done),
@@ -282,6 +287,13 @@ DECLARE_RESTRICTED_HOOK(android_rvh_util_est_update,
 	TP_PROTO(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep, int *ret),
 	TP_ARGS(cfs_rq, p, task_sleep, ret), 1);
 
+DECLARE_HOOK(android_vh_account_task_time,
+	TP_PROTO(struct task_struct *p, struct rq *rq, int user_tick),
+	TP_ARGS(p, rq, user_tick));
+
+DECLARE_RESTRICTED_HOOK(android_rvh_post_init_entity_util_avg,
+	TP_PROTO(struct sched_entity *se),
+	TP_ARGS(se), 1);
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */

@@ -1,5 +1,6 @@
 [abi_symbol_list]
 # commonly used symbols
+  alloc_anon_inode
   __alloc_disk_node
   alloc_etherdev_mqs
   __alloc_pages_nodemask
@@ -39,6 +40,7 @@
   __check_object_size
   __class_create
   class_destroy
+  __ClearPageMovable
   clk_disable
   clk_enable
   clk_get_rate
@@ -116,7 +118,6 @@
   free_netdev
   __free_pages
   free_pages
-  freezing_slow_path
   fs_bio_set
   get_device
   __get_free_pages
@@ -130,6 +131,7 @@
   idr_alloc
   idr_destroy
   idr_remove
+  init_pseudo
   __init_rwsem
   __init_swait_queue_head
   init_timer_key
@@ -145,11 +147,15 @@
   input_unregister_device
   __ioremap
   iounmap
+  iput
   jiffies
   jiffies_to_msecs
   kasan_flag_enabled
+  kern_mount
+  kern_unmount
   kfree
   kfree_skb
+  kill_anon_super
   kimage_voffset
   __kmalloc
   kmalloc_caches
@@ -170,7 +176,6 @@
   kstrtoint
   kstrtouint
   kstrtoull
-  kthread_create_on_node
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_raw_ts64
@@ -204,6 +209,7 @@
   __mutex_init
   mutex_lock
   mutex_lock_interruptible
+  mutex_trylock
   mutex_unlock
   netdev_err
   netdev_info
@@ -286,7 +292,6 @@
   __rcu_read_lock
   __rcu_read_unlock
   refcount_warn_saturate
-  __refrigerator
   register_blkdev
   register_netdev
   register_netdevice
@@ -321,6 +326,7 @@
   __serio_register_port
   serio_unregister_driver
   set_disk_ro
+  __SetPageMovable
   sg_alloc_table
   sg_free_table
   sg_init_one
@@ -378,7 +384,6 @@
   __sysfs_match_string
   sysfs_remove_group
   sysfs_remove_link
-  system_freezing_cnt
   system_wq
   trace_event_buffer_commit
   trace_event_buffer_reserve
@@ -398,6 +403,7 @@
   unregister_netdev
   unregister_netdevice_notifier
   unregister_netdevice_queue
+  unregister_shrinker
   unregister_virtio_device
   unregister_virtio_driver
   up_read
@@ -429,7 +435,6 @@
   vring_transport_features
   wait_for_completion
   __wake_up
-  wake_up_process
   __warn_printk
 
 # required by ambakmi.ko
@@ -481,9 +486,6 @@
   devm_of_clk_add_hw_provider
   of_clk_hw_simple_get
   of_property_read_string
-
-# required by deferred-free-helper.ko
-  sched_set_normal
 
 # required by dummy-cpufreq.ko
   cpufreq_generic_attr
@@ -675,6 +677,7 @@
   kobject_del
   kobject_get
   kstrtoll
+  kthread_create_on_node
   kthread_parkme
   kthread_should_park
   kthread_should_stop
@@ -687,7 +690,6 @@
   mempool_init
   mempool_kfree
   mempool_kmalloc
-  mutex_trylock
   part_end_io_acct
   part_start_io_acct
   percpu_ref_exit
@@ -710,6 +712,7 @@
   unregister_reboot_notifier
   unregister_sysctl_table
   vfs_fsync
+  wake_up_process
 
 # required by nd_virtio.ko
   bio_chain
@@ -731,9 +734,6 @@
   netdev_lower_state_changed
   netdev_pick_tx
   pci_bus_type
-
-# required by page_pool.ko
-  mod_node_page_state
 
 # required by psmouse.ko
   bus_register_notifier
@@ -876,6 +876,11 @@
   snd_pcm_hw_constraint_msbits
 
 # required by system_heap.ko
+  deferred_free
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_heap_add
   dma_heap_get_dev
   dma_heap_get_name
@@ -1084,6 +1089,24 @@
 # required by virtio-rng.ko
   wait_for_completion_killable
 
+# required by virtio_balloon.ko
+  adjust_managed_page_count
+  all_vm_events
+  balloon_aops
+  balloon_page_alloc
+  balloon_page_dequeue
+  balloon_page_enqueue
+  init_on_free
+  page_reporting_register
+  page_reporting_unregister
+  register_oom_notifier
+  si_mem_available
+  si_meminfo
+  system_freezable_wq
+  unregister_oom_notifier
+  vm_event_states
+  vm_node_stat
+
 # required by virtio_blk.ko
   blk_execute_rq
   blk_get_request
@@ -1116,6 +1139,7 @@
   cdev_del
   device_destroy
   fasync_helper
+  freezing_slow_path
   hvc_alloc
   hvc_instantiate
   hvc_kick
@@ -1125,10 +1149,12 @@
   kill_fasync
   pipe_lock
   pipe_unlock
+  __refrigerator
   __register_chrdev
   single_open
   single_release
   __splice_from_pipe
+  system_freezing_cnt
   __unregister_chrdev
 
 # required by virtio_mmio.ko
@@ -1282,20 +1308,11 @@
   vzalloc
 
 # required by zsmalloc.ko
-  alloc_anon_inode
-  __ClearPageMovable
   dec_zone_page_state
   inc_zone_page_state
-  init_pseudo
-  iput
-  kern_mount
-  kern_unmount
-  kill_anon_super
   __lock_page
   page_mapping
   _raw_read_lock
   _raw_read_unlock
   _raw_write_lock
   _raw_write_unlock
-  __SetPageMovable
-  unregister_shrinker

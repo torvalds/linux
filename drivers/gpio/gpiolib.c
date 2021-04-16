@@ -30,6 +30,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/gpiolib.h>
 
 /* Implementation infrastructure for GPIO interfaces.
  *
@@ -366,22 +368,18 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
  *
  * Looks for device property "gpio-line-names" and if it exists assigns
  * GPIO line names for the chip. The memory allocated for the assigned
- * names belong to the underlying software node and should not be released
+ * names belong to the underlying firmware node and should not be released
  * by the caller.
  */
 static int devprop_gpiochip_set_names(struct gpio_chip *chip)
 {
 	struct gpio_device *gdev = chip->gpiodev;
-	struct device *dev = chip->parent;
+	struct fwnode_handle *fwnode = dev_fwnode(&gdev->dev);
 	const char **names;
 	int ret, i;
 	int count;
 
-	/* GPIO chip may not have a parent device whose properties we inspect. */
-	if (!dev)
-		return 0;
-
-	count = device_property_string_array_count(dev, "gpio-line-names");
+	count = fwnode_property_string_array_count(fwnode, "gpio-line-names");
 	if (count < 0)
 		return 0;
 
@@ -395,7 +393,7 @@ static int devprop_gpiochip_set_names(struct gpio_chip *chip)
 	if (!names)
 		return -ENOMEM;
 
-	ret = device_property_read_string_array(dev, "gpio-line-names",
+	ret = fwnode_property_read_string_array(fwnode, "gpio-line-names",
 						names, count);
 	if (ret < 0) {
 		dev_warn(&gdev->dev, "failed to read GPIO line names\n");
@@ -580,6 +578,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	unsigned	i;
 	int		base = gc->base;
 	struct gpio_device *gdev;
+	bool		block_gpio_read = false;
 
 	/*
 	 * First: allocate and populate the internal stat container, and
@@ -711,15 +710,18 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_remove_of_chip;
 
-	for (i = 0; i < gc->ngpio; i++) {
-		struct gpio_desc *desc = &gdev->descs[i];
+	trace_android_vh_gpio_block_read(gdev, &block_gpio_read);
+	if (!block_gpio_read) {
+		for (i = 0; i < gc->ngpio; i++) {
+			struct gpio_desc *desc = &gdev->descs[i];
 
-		if (gc->get_direction && gpiochip_line_is_valid(gc, i)) {
-			assign_bit(FLAG_IS_OUT,
-				   &desc->flags, !gc->get_direction(gc, i));
-		} else {
-			assign_bit(FLAG_IS_OUT,
-				   &desc->flags, !gc->direction_input);
+			if (gc->get_direction && gpiochip_line_is_valid(gc, i)) {
+				assign_bit(FLAG_IS_OUT,
+					   &desc->flags, !gc->get_direction(gc, i));
+			} else {
+				assign_bit(FLAG_IS_OUT,
+					   &desc->flags, !gc->direction_input);
+			}
 		}
 	}
 

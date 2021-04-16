@@ -1008,23 +1008,25 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 	nsim_dev->fw_update_status = true;
 	nsim_dev->fw_update_overwrite_mask = 0;
 
-	nsim_dev->fib_data = nsim_fib_create(devlink, extack);
-	if (IS_ERR(nsim_dev->fib_data))
-		return PTR_ERR(nsim_dev->fib_data);
-
 	nsim_devlink_param_load_driverinit_values(devlink);
 
 	err = nsim_dev_dummy_region_init(nsim_dev, devlink);
 	if (err)
-		goto err_fib_destroy;
+		return err;
 
 	err = nsim_dev_traps_init(devlink);
 	if (err)
 		goto err_dummy_region_exit;
 
+	nsim_dev->fib_data = nsim_fib_create(devlink, extack);
+	if (IS_ERR(nsim_dev->fib_data)) {
+		err = PTR_ERR(nsim_dev->fib_data);
+		goto err_traps_exit;
+	}
+
 	err = nsim_dev_health_init(nsim_dev, devlink);
 	if (err)
-		goto err_traps_exit;
+		goto err_fib_destroy;
 
 	err = nsim_dev_port_add_all(nsim_dev, nsim_bus_dev->port_count);
 	if (err)
@@ -1039,12 +1041,12 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 
 err_health_exit:
 	nsim_dev_health_exit(nsim_dev);
+err_fib_destroy:
+	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 err_traps_exit:
 	nsim_dev_traps_exit(devlink);
 err_dummy_region_exit:
 	nsim_dev_dummy_region_exit(nsim_dev);
-err_fib_destroy:
-	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 	return err;
 }
 
@@ -1076,15 +1078,9 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 	if (err)
 		goto err_devlink_free;
 
-	nsim_dev->fib_data = nsim_fib_create(devlink, NULL);
-	if (IS_ERR(nsim_dev->fib_data)) {
-		err = PTR_ERR(nsim_dev->fib_data);
-		goto err_resources_unregister;
-	}
-
 	err = devlink_register(devlink, &nsim_bus_dev->dev);
 	if (err)
-		goto err_fib_destroy;
+		goto err_resources_unregister;
 
 	err = devlink_params_register(devlink, nsim_devlink_params,
 				      ARRAY_SIZE(nsim_devlink_params));
@@ -1104,9 +1100,15 @@ int nsim_dev_probe(struct nsim_bus_dev *nsim_bus_dev)
 	if (err)
 		goto err_traps_exit;
 
+	nsim_dev->fib_data = nsim_fib_create(devlink, NULL);
+	if (IS_ERR(nsim_dev->fib_data)) {
+		err = PTR_ERR(nsim_dev->fib_data);
+		goto err_debugfs_exit;
+	}
+
 	err = nsim_dev_health_init(nsim_dev, devlink);
 	if (err)
-		goto err_debugfs_exit;
+		goto err_fib_destroy;
 
 	err = nsim_bpf_dev_init(nsim_dev);
 	if (err)
@@ -1124,6 +1126,8 @@ err_bpf_dev_exit:
 	nsim_bpf_dev_exit(nsim_dev);
 err_health_exit:
 	nsim_dev_health_exit(nsim_dev);
+err_fib_destroy:
+	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 err_debugfs_exit:
 	nsim_dev_debugfs_exit(nsim_dev);
 err_traps_exit:
@@ -1135,8 +1139,6 @@ err_params_unregister:
 				  ARRAY_SIZE(nsim_devlink_params));
 err_dl_unregister:
 	devlink_unregister(devlink);
-err_fib_destroy:
-	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 err_resources_unregister:
 	devlink_resources_unregister(devlink, NULL);
 err_devlink_free:
@@ -1153,10 +1155,10 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 	debugfs_remove(nsim_dev->take_snapshot);
 	nsim_dev_port_del_all(nsim_dev);
 	nsim_dev_health_exit(nsim_dev);
+	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 	nsim_dev_traps_exit(devlink);
 	nsim_dev_dummy_region_exit(nsim_dev);
 	mutex_destroy(&nsim_dev->port_list_lock);
-	nsim_fib_destroy(devlink, nsim_dev->fib_data);
 }
 
 void nsim_dev_remove(struct nsim_bus_dev *nsim_bus_dev)

@@ -5,7 +5,6 @@
  */
 
 #include <linux/kvm_host.h>
-#include <asm/kvm_cpufeature.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
@@ -19,11 +18,19 @@
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
 
+#define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_NOFWB | KVM_PGTABLE_S2_IDMAP)
+
 extern unsigned long hyp_nr_cpus;
 struct host_kvm host_kvm;
 
 struct hyp_pool host_s2_mem;
 struct hyp_pool host_s2_dev;
+
+/*
+ * Copies of the host's CPU features registers holding sanitized values.
+ */
+u64 id_aa64mmfr0_el1_sys_val;
+u64 id_aa64mmfr1_el1_sys_val;
 
 static const u8 pkvm_hyp_id = 1;
 
@@ -70,16 +77,13 @@ static int prepare_s2_pools(void *mem_pgt_pool, void *dev_pgt_pool)
 static void prepare_host_vtcr(void)
 {
 	u32 parange, phys_shift;
-	u64 mmfr0, mmfr1;
-
-	mmfr0 = arm64_ftr_reg_id_aa64mmfr0_el1.sys_val;
-	mmfr1 = arm64_ftr_reg_id_aa64mmfr1_el1.sys_val;
 
 	/* The host stage 2 is id-mapped, so use parange for T0SZ */
-	parange = kvm_get_parange(mmfr0);
+	parange = kvm_get_parange(id_aa64mmfr0_el1_sys_val);
 	phys_shift = id_aa64mmfr0_parange_to_phys_shift(parange);
 
-	host_kvm.arch.vtcr = kvm_get_vtcr(mmfr0, mmfr1, phys_shift);
+	host_kvm.arch.vtcr = kvm_get_vtcr(id_aa64mmfr0_el1_sys_val,
+					  id_aa64mmfr1_el1_sys_val, phys_shift);
 }
 
 int kvm_host_prepare_stage2(void *mem_pgt_pool, void *dev_pgt_pool)
@@ -95,7 +99,7 @@ int kvm_host_prepare_stage2(void *mem_pgt_pool, void *dev_pgt_pool)
 		return ret;
 
 	ret = kvm_pgtable_stage2_init_flags(&host_kvm.pgt, &host_kvm.arch,
-					    &host_kvm.mm_ops, KVM_PGTABLE_S2_NOFWB);
+					    &host_kvm.mm_ops, KVM_HOST_S2_FLAGS);
 	if (ret)
 		return ret;
 

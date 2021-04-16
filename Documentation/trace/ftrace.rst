@@ -76,6 +76,9 @@ it::
   All files located in the tracefs file system will be located in that
   debugfs file system directory as well.
 
+  In order to not automount tracefs in the debugfs filesystem, enable the
+  defconfig option CONFIG_TRACEFS_DISABLE_AUTOMOUNT.
+
 .. attention::
 
   Any selected ftrace option will also create the tracefs file system.

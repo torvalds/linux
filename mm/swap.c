@@ -666,7 +666,7 @@ void lru_add_drain_cpu(int cpu)
 		pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
 
 	activate_page_drain(cpu);
-	invalidate_bh_lru(NULL);
+	invalidate_bh_lrus_cpu(cpu);
 }
 
 /**
@@ -773,7 +773,7 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
  * Calling this function with cpu hotplug locks held can actually lead
  * to obscure indirect dependencies via WQ context.
  */
-static void __lru_add_drain_all(bool force_all_cpus)
+inline void __lru_add_drain_all(bool force_all_cpus)
 {
 	/*
 	 * lru_drain_gen - Global pages generation number
@@ -880,17 +880,7 @@ void lru_add_drain_all(void)
 }
 #endif /* CONFIG_SMP */
 
-static atomic_t lru_disable_count = ATOMIC_INIT(0);
-
-bool lru_cache_disabled(void)
-{
-	return atomic_read(&lru_disable_count);
-}
-
-void lru_cache_enable(void)
-{
-	atomic_dec(&lru_disable_count);
-}
+atomic_t lru_disable_count = ATOMIC_INIT(0);
 
 /*
  * lru_cache_disable() needs to be called before we start compiling

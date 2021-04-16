@@ -472,7 +472,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 		err = pl->mac_ops->mac_finish(pl->config, pl->cur_link_an_mode,
 					      state->interface);
 		if (err < 0)
-			phylink_err(pl, "mac_prepare failed: %pe\n",
+			phylink_err(pl, "mac_finish failed: %pe\n",
 				    ERR_PTR(err));
 	}
 }

@@ -89,3 +89,8 @@ if arg_contain -print-file-name=plugin "$@"; then
 	echo $plugin_dir
 	exit 0
 fi
+
+# inverted return value
+if arg_contain -D__SIZEOF_INT128__=0 "$@"; then
+	exit 1
+fi

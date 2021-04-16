@@ -2,6 +2,8 @@
 /*
  * Copyright 2018 Google LLC
  */
+#define _GNU_SOURCE
+
 #include <alloca.h>
 #include <dirent.h>
 #include <errno.h>
@@ -18,6 +20,7 @@
 #include <zstd.h>
 
 #include <sys/inotify.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -25,6 +28,7 @@
 #include <sys/xattr.h>
 
 #include <linux/random.h>
+#include <linux/stat.h>
 #include <linux/unistd.h>
 
 #include <openssl/pem.h>
@@ -3804,10 +3808,16 @@ static int enable_verity(const char *mount_dir, struct test_file *file,
 		.digest_size = 32
 	};
 	uint64_t flags;
+	struct statx statxbuf = {};
 
 	memcpy(fsverity_signed_digest.magic, "FSVerity", 8);
 
 	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TESTEQUAL(syscall(__NR_statx, AT_FDCWD, filename, 0, STATX_ALL,
+			  &statxbuf), 0);
+	TESTEQUAL(statxbuf.stx_attributes_mask & STATX_ATTR_VERITY,
+		  STATX_ATTR_VERITY);
+	TESTEQUAL(statxbuf.stx_attributes & STATX_ATTR_VERITY, 0);
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 	TESTEQUAL(ioctl(fd, FS_IOC_GETFLAGS, &flags), 0);
 	TESTEQUAL(flags & FS_VERITY_FL, 0);
@@ -3863,10 +3873,15 @@ static int validate_verity(const char *mount_dir, struct test_file *file)
 	int fd = -1;
 	uint64_t flags;
 	struct fsverity_digest *digest;
+	struct statx statxbuf = {};
 
 	TEST(digest = malloc(sizeof(struct fsverity_digest) +
 			     INCFS_MAX_HASH_SIZE), digest != NULL);
 	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TESTEQUAL(syscall(__NR_statx, AT_FDCWD, filename, 0, STATX_ALL,
+			  &statxbuf), 0);
+	TESTEQUAL(statxbuf.stx_attributes & STATX_ATTR_VERITY,
+		  STATX_ATTR_VERITY);
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 	TESTEQUAL(ioctl(fd, FS_IOC_GETFLAGS, &flags), 0);
 	TESTEQUAL(flags & FS_VERITY_FL, FS_VERITY_FL);
@@ -4045,6 +4060,104 @@ out:
 	return result;
 }
 
+static int mmap_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	/*
+	 * File is big enough to have a two layer tree with two hashes in the
+	 * higher level, so we can corrupt the second one
+	 */
+	int shas_per_block = INCFS_DATA_FILE_BLOCK_SIZE / SHA256_DIGEST_SIZE;
+	struct test_file file = {
+		  .name = "file",
+		  .size = INCFS_DATA_FILE_BLOCK_SIZE * shas_per_block * 2,
+	};
+	char *filename = NULL;
+	int fd = -1;
+	char *addr = (void *)-1;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+
+	TESTEQUAL(build_mtree(&file), 0);
+	file.mtree[1].data[INCFS_DATA_FILE_BLOCK_SIZE] ^= 0xff;
+	TESTEQUAL(crypto_emit_file(cmd_fd, NULL, file.name, &file.id,
+			       file.size, file.root_hash,
+			       file.sig.add_data), 0);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(load_hash_tree(mount_dir, &file), 0);
+	TEST(filename = concat_file_name(mount_dir, file.name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TEST(addr = mmap(NULL, file.size, PROT_READ, MAP_PRIVATE, fd, 0),
+	     addr != (void *) -1);
+	TESTEQUAL(mlock(addr, INCFS_DATA_FILE_BLOCK_SIZE), 0);
+	TESTEQUAL(munlock(addr, INCFS_DATA_FILE_BLOCK_SIZE), 0);
+	TESTEQUAL(mlock(addr + shas_per_block * INCFS_DATA_FILE_BLOCK_SIZE,
+			INCFS_DATA_FILE_BLOCK_SIZE), -1);
+	TESTEQUAL(mlock(addr + (shas_per_block - 1) *
+			       INCFS_DATA_FILE_BLOCK_SIZE,
+			INCFS_DATA_FILE_BLOCK_SIZE), 0);
+	TESTEQUAL(munlock(addr + (shas_per_block - 1) *
+				 INCFS_DATA_FILE_BLOCK_SIZE,
+			  INCFS_DATA_FILE_BLOCK_SIZE), 0);
+	TESTEQUAL(mlock(addr + (shas_per_block - 1) *
+			       INCFS_DATA_FILE_BLOCK_SIZE,
+			INCFS_DATA_FILE_BLOCK_SIZE * 2), -1);
+	TESTEQUAL(munmap(addr, file.size), 0);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	free(filename);
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+static int truncate_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	struct test_file file = {
+		  .name = "file",
+		  .size = INCFS_DATA_FILE_BLOCK_SIZE,
+	};
+	char *backing_file = NULL;
+	int fd = -1;
+	struct stat st;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TESTEQUAL(emit_file(cmd_fd, NULL, file.name, &file.id, file.size, NULL),
+		  0);
+	TEST(backing_file = concat_file_name(backing_dir, file.name),
+	     backing_file);
+	TEST(fd = open(backing_file, O_RDWR | O_CLOEXEC), fd != -1);
+	TESTEQUAL(stat(backing_file, &st), 0);
+	TESTCOND(st.st_blocks < 128);
+	TESTEQUAL(fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, 1 << 24), 0);
+	TESTEQUAL(stat(backing_file, &st), 0);
+	TESTCOND(st.st_blocks > 32768);
+	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
+	TESTEQUAL(stat(backing_file, &st), 0);
+	TESTCOND(st.st_blocks < 128);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	free(backing_file);
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -4161,6 +4274,8 @@ int main(int argc, char *argv[])
 		MAKE_TEST(inotify_test),
 		MAKE_TEST(verity_test),
 		MAKE_TEST(enable_verity_test),
+		MAKE_TEST(mmap_test),
+		MAKE_TEST(truncate_test),
 	};
 #undef MAKE_TEST
 
