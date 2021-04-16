@@ -709,6 +709,28 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i)
 	return devm_led_classdev_register(&g15->hdev->dev, &g15->leds[i].cdev);
 }
 
+/* Common input device init code shared between keyboards and Z-10 speaker handling */
+static void lg_g15_init_input_dev(struct hid_device *hdev, struct input_dev *input,
+				  const char *name)
+{
+	int i;
+
+	input->name = name;
+	input->phys = hdev->phys;
+	input->uniq = hdev->uniq;
+	input->id.bustype = hdev->bus;
+	input->id.vendor  = hdev->vendor;
+	input->id.product = hdev->product;
+	input->id.version = hdev->version;
+	input->dev.parent = &hdev->dev;
+	input->open = lg_g15_input_open;
+	input->close = lg_g15_input_close;
+
+	/* Keys below the LCD, intended for controlling a menu on the LCD */
+	for (i = 0; i < 5; i++)
+		input_set_capability(input, EV_KEY, KEY_KBD_LCD_MENU1 + i);
+}
+
 static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	u8 gkeys_settings_output_report = 0;
@@ -751,6 +773,8 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	g15->hdev = hdev;
 	g15->model = id->driver_data;
+	g15->input = input;
+	input_set_drvdata(input, hdev);
 	hid_set_drvdata(hdev, (void *)g15);
 
 	switch (g15->model) {
@@ -822,16 +846,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto error_hw_stop;
 
 	/* Setup and register input device */
-	input->name = "Logitech Gaming Keyboard Gaming Keys";
-	input->phys = hdev->phys;
-	input->uniq = hdev->uniq;
-	input->id.bustype = hdev->bus;
-	input->id.vendor  = hdev->vendor;
-	input->id.product = hdev->product;
-	input->id.version = hdev->version;
-	input->dev.parent = &hdev->dev;
-	input->open = lg_g15_input_open;
-	input->close = lg_g15_input_close;
+	lg_g15_init_input_dev(hdev, input, "Logitech Gaming Keyboard Gaming Keys");
 
 	/* G-keys */
 	for (i = 0; i < gkeys; i++)
@@ -841,10 +856,6 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	for (i = 0; i < 3; i++)
 		input_set_capability(input, EV_KEY, KEY_MACRO_PRESET1 + i);
 	input_set_capability(input, EV_KEY, KEY_MACRO_RECORD_START);
-
-	/* Keys below the LCD, intended for controlling a menu on the LCD */
-	for (i = 0; i < 5; i++)
-		input_set_capability(input, EV_KEY, KEY_KBD_LCD_MENU1 + i);
 
 	/*
 	 * On the G510 only report headphone and mic mute keys when *not* using
@@ -856,9 +867,6 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		/* Userspace expects F20 for micmute */
 		input_set_capability(input, EV_KEY, KEY_F20);
 	}
-
-	g15->input = input;
-	input_set_drvdata(input, hdev);
 
 	ret = input_register_device(input);
 	if (ret)
