@@ -279,19 +279,28 @@ mt7921_pm_idle_timeout_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_pm_idle_timeout, mt7921_pm_idle_timeout_get,
 			 mt7921_pm_idle_timeout_set, "%lld\n");
 
-static int mt7921_config(void *data, u64 val)
+static int mt7921_chip_reset(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
-	int ret;
+	int ret = 0;
 
-	mt7921_mutex_acquire(dev);
-	ret = mt76_connac_mcu_chip_config(&dev->mt76);
-	mt7921_mutex_release(dev);
+	switch (val) {
+	case 1:
+		/* Reset wifisys directly. */
+		mt7921_reset(&dev->mt76);
+		break;
+	default:
+		/* Collect the core dump before reset wifisys. */
+		mt7921_mutex_acquire(dev);
+		ret = mt76_connac_mcu_chip_config(&dev->mt76);
+		mt7921_mutex_release(dev);
+		break;
+	}
 
 	return ret;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_config, NULL, mt7921_config, "%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_reset, NULL, mt7921_chip_reset, "%lld\n");
 
 int mt7921_init_debugfs(struct mt7921_dev *dev)
 {
@@ -312,7 +321,7 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 	debugfs_create_file("runtime-pm", 0600, dir, dev, &fops_pm);
 	debugfs_create_file("idle-timeout", 0600, dir, dev,
 			    &fops_pm_idle_timeout);
-	debugfs_create_file("chip_config", 0600, dir, dev, &fops_config);
+	debugfs_create_file("chip_reset", 0600, dir, dev, &fops_reset);
 
 	return 0;
 }
