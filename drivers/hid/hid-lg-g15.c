@@ -652,19 +652,10 @@ static void lg_g15_input_close(struct input_dev *dev)
 	hid_hw_close(hdev);
 }
 
-static int lg_g15_register_led(struct lg_g15_data *g15, int i)
+static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 {
-	static const char * const led_names[] = {
-		"g15::kbd_backlight",
-		"g15::lcd_backlight",
-		"g15::macro_preset1",
-		"g15::macro_preset2",
-		"g15::macro_preset3",
-		"g15::macro_record",
-	};
-
 	g15->leds[i].led = i;
-	g15->leds[i].cdev.name = led_names[i];
+	g15->leds[i].cdev.name = name;
 
 	switch (g15->model) {
 	case LG_G15:
@@ -733,6 +724,14 @@ static void lg_g15_init_input_dev(struct hid_device *hdev, struct input_dev *inp
 
 static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
+	static const char * const led_names[] = {
+		"g15::kbd_backlight",
+		"g15::lcd_backlight",
+		"g15::macro_preset1",
+		"g15::macro_preset2",
+		"g15::macro_preset3",
+		"g15::macro_record",
+	};
 	u8 gkeys_settings_output_report = 0;
 	u8 gkeys_settings_feature_report = 0;
 	struct hid_report_enum *rep_enum;
@@ -874,7 +873,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/* Register LED devices */
 	for (i = 0; i < LG_G15_LED_MAX; i++) {
-		ret = lg_g15_register_led(g15, i);
+		ret = lg_g15_register_led(g15, i, led_names[i]);
 		if (ret)
 			goto error_hw_stop;
 	}
