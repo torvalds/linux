@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Wireless WAN device configuration
+#
+
+menuconfig WWAN
+	bool "Wireless WAN"
+	help
+	  This section contains Wireless WAN configuration for WWAN framework
+	  and drivers.
+
+if WWAN
+
+config WWAN_CORE
+	tristate "WWAN Driver Core"
+	help
+	  Say Y here if you want to use the WWAN driver core. This driver
+	  provides a common framework for WWAN drivers.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wwan.
+
+endif # WWAN
