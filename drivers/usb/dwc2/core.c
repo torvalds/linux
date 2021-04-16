@@ -299,6 +299,12 @@ void dwc2_hib_restore_common(struct dwc2_hsotg *hsotg, int rem_wakeup,
 			__func__);
 	} else {
 		dev_dbg(hsotg->dev, "restore done  generated here\n");
+
+		/*
+		 * To avoid restore done interrupt storm after restore is
+		 * generated clear GINTSTS_RESTOREDONE bit.
+		 */
+		dwc2_writel(hsotg, GINTSTS_RESTOREDONE, GINTSTS);
 	}
 }
 
