@@ -299,7 +299,7 @@ mt7915_queues_read(struct seq_file *s, void *data)
 }
 
 static void
-mt7915_puts_rate_txpower(struct seq_file *s, s8 txpower_cur, int band)
+mt7915_puts_rate_txpower(struct seq_file *s, struct mt7915_phy *phy)
 {
 	static const char * const sku_group_name[] = {
 		"CCK", "OFDM", "HT20", "HT40",
@@ -307,18 +307,54 @@ mt7915_puts_rate_txpower(struct seq_file *s, s8 txpower_cur, int band)
 		"RU26", "RU52", "RU106", "RU242/SU20",
 		"RU484/SU40", "RU996/SU80", "RU2x996/SU160"
 	};
-	s8 txpower[161];
+	struct mt7915_dev *dev = dev_get_drvdata(s->private);
+	bool ext_phy = phy != &dev->phy;
+	u32 reg_base;
 	int i, idx = 0;
 
-	for (i = 0; i < ARRAY_SIZE(txpower); i++)
-		txpower[i] = DIV_ROUND_UP(txpower_cur, 2);
+	if (!phy)
+		return;
+
+	reg_base = MT_TMAC_FP0R0(ext_phy);
+	seq_printf(s, "\nBand %d\n", ext_phy);
 
 	for (i = 0; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
-		u8 len = mt7915_sku_group_len[i];
+		u8 cnt, mcs_num = mt7915_sku_group_len[i];
+		s8 txpower[12];
+		int j;
 
-		mt76_seq_puts_array(s, sku_group_name[i],
-				    txpower + idx, len);
-		idx += len;
+		if (i == SKU_HT_BW20 || i == SKU_HT_BW40) {
+			mcs_num = 8;
+		} else if (i >= SKU_VHT_BW20 && i <= SKU_VHT_BW160) {
+			mcs_num = 10;
+		} else if (i == SKU_HE_RU26) {
+			reg_base = MT_TMAC_FP0R18(ext_phy);
+			idx = 0;
+		}
+
+		for (j = 0, cnt = 0; j < DIV_ROUND_UP(mcs_num, 4); j++) {
+			u32 val;
+
+			if (i == SKU_VHT_BW160 && idx == 60) {
+				reg_base = MT_TMAC_FP0R15(ext_phy);
+				idx = 0;
+			}
+
+			val = mt76_rr(dev, reg_base + (idx / 4) * 4);
+
+			if (idx && idx % 4)
+				val >>= (idx % 4) * 8;
+
+			while (val > 0 && cnt < mcs_num) {
+				s8 pwr = FIELD_GET(MT_TMAC_FP_MASK, val);
+
+				txpower[cnt++] = pwr;
+				val >>= 8;
+				idx++;
+			}
+		}
+
+		mt76_seq_puts_array(s, sku_group_name[i], txpower, mcs_num);
 	}
 }
 
@@ -326,21 +362,9 @@ static int
 mt7915_read_rate_txpower(struct seq_file *s, void *data)
 {
 	struct mt7915_dev *dev = dev_get_drvdata(s->private);
-	struct mt76_phy *mphy = &dev->mphy;
-	enum nl80211_band band = mphy->chandef.chan->band;
-	s8 txpower = mphy->txpower_cur;
 
-	seq_puts(s, "Band 0:\n");
-	mt7915_puts_rate_txpower(s, txpower, band);
-
-	if (dev->mt76.phy2) {
-		mphy = dev->mt76.phy2;
-		band = mphy->chandef.chan->band;
-		txpower = mphy->txpower_cur;
-
-		seq_puts(s, "Band 1:\n");
-		mt7915_puts_rate_txpower(s, txpower, band);
-	}
+	mt7915_puts_rate_txpower(s, &dev->phy);
+	mt7915_puts_rate_txpower(s, mt7915_ext_phy(dev));
 
 	return 0;
 }
