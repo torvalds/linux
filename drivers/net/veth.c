@@ -486,11 +486,10 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 
 	rcv_priv = netdev_priv(rcv);
 	rq = &rcv_priv->rq[veth_select_rxq(rcv)];
-	/* Non-NULL xdp_prog ensures that xdp_ring is initialized on receive
-	 * side. This means an XDP program is loaded on the peer and the peer
-	 * device is up.
+	/* The napi pointer is set if NAPI is enabled, which ensures that
+	 * xdp_ring is initialized on receive side and the peer device is up.
 	 */
-	if (!rcu_access_pointer(rq->xdp_prog))
+	if (!rcu_access_pointer(rq->napi))
 		goto out;
 
 	max_len = rcv->mtu + rcv->hard_header_len + VLAN_HLEN;
