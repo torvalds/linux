@@ -234,6 +234,7 @@ static inline u32 hv_get_avail_to_write_percent(
  * 5 . 0  (Newer Windows 10)
  * 5 . 1  (Windows 10 RS4)
  * 5 . 2  (Windows Server 2019, RS5)
+ * 5 . 3  (Windows Server 2022)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
@@ -245,6 +246,7 @@ static inline u32 hv_get_avail_to_write_percent(
 #define VERSION_WIN10_V5 ((5 << 16) | (0))
 #define VERSION_WIN10_V5_1 ((5 << 16) | (1))
 #define VERSION_WIN10_V5_2 ((5 << 16) | (2))
+#define VERSION_WIN10_V5_3 ((5 << 16) | (3))
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
