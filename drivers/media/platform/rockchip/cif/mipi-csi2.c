@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
@@ -100,28 +101,29 @@ struct csi2_err_stats {
 };
 
 struct csi2_dev {
-	struct device          *dev;
-	struct v4l2_subdev      sd;
-	struct media_pad       pad[CSI2_NUM_PADS];
-	struct clk             *pix_clk; /* what is this? */
-	struct clk             *srst_clk;
-	void __iomem           *base;
+	struct device		*dev;
+	struct v4l2_subdev	sd;
+	struct media_pad	pad[CSI2_NUM_PADS];
+	struct clk_bulk_data	*clks_bulk;
+	int			clks_num;
+	struct reset_control	*rsts_bulk;
+
+	void __iomem		*base;
 	struct v4l2_async_notifier	notifier;
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_fwnode_bus_mipi_csi2	bus;
 
 	/* lock to protect all members below */
 	struct mutex lock;
 
-	struct v4l2_mbus_framefmt format_mbus;
-	struct v4l2_rect crop;
-
-	int                     stream_count;
-	struct v4l2_subdev      *src_sd;
-	bool                    sink_linked[CSI2_NUM_SRC_PADS];
+	struct v4l2_mbus_framefmt	format_mbus;
+	struct v4l2_rect	crop;
+	int			stream_count;
+	struct v4l2_subdev	*src_sd;
+	bool			sink_linked[CSI2_NUM_SRC_PADS];
 	struct csi2_sensor	sensors[MAX_CSI2_SENSORS];
 	const struct csi2_match_data	*match_data;
-	int num_sensors;
-	atomic_t frm_sync_seq;
+	int			num_sensors;
+	atomic_t		frm_sync_seq;
 	struct csi2_err_stats err_list[RK_CSI2_ERR_MAX];
 };
 
@@ -241,6 +243,31 @@ static void csi2_update_sensor_info(struct csi2_dev *csi2)
 
 }
 
+static void csi2_hw_do_reset(struct csi2_dev *csi2)
+{
+	reset_control_assert(csi2->rsts_bulk);
+
+	udelay(5);
+
+	reset_control_deassert(csi2->rsts_bulk);
+}
+
+static int csi2_enable_clks(struct csi2_dev *csi2)
+{
+	int ret = 0;
+
+	ret = clk_bulk_prepare_enable(csi2->clks_num, csi2->clks_bulk);
+	if (ret)
+		dev_err(csi2->dev, "failed to enable clks\n");
+
+	return ret;
+}
+
+static void csi2_disable_clks(struct csi2_dev *csi2)
+{
+	clk_bulk_disable_unprepare(csi2->clks_num,  csi2->clks_bulk);
+}
+
 static void csi2_disable(struct csi2_dev *csi2)
 {
 	void __iomem *base = csi2->base;
@@ -283,16 +310,11 @@ static int csi2_start(struct csi2_dev *csi2)
 
 	atomic_set(&csi2->frm_sync_seq, 0);
 
-	ret = clk_prepare_enable(csi2->pix_clk);
-	if (ret)
+	csi2_hw_do_reset(csi2);
+	ret = csi2_enable_clks(csi2);
+	if (ret) {
+		v4l2_err(&csi2->sd, "%s: enable clks failed\n", __func__);
 		return ret;
-
-	if (!IS_ERR(csi2->srst_clk)) {
-		ret = clk_prepare_enable(csi2->srst_clk);
-		if (ret) {
-			clk_disable_unprepare(csi2->pix_clk);
-			return ret;
-		}
 	}
 
 	csi2_update_sensor_info(csi2);
@@ -317,8 +339,8 @@ static int csi2_start(struct csi2_dev *csi2)
 
 err_assert_reset:
 	csi2_disable(csi2);
-	clk_disable_unprepare(csi2->pix_clk);
-	clk_disable_unprepare(csi2->srst_clk);
+	csi2_disable_clks(csi2);
+
 	return ret;
 }
 
@@ -328,8 +350,7 @@ static void csi2_stop(struct csi2_dev *csi2)
 	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
 
 	csi2_disable(csi2);
-	clk_disable_unprepare(csi2->pix_clk);
-	clk_disable_unprepare(csi2->srst_clk);
+	csi2_disable_clks(csi2);
 }
 
 /*
@@ -850,17 +871,17 @@ static int csi2_notifier(struct csi2_dev *csi2)
 
 static const struct csi2_match_data rk1808_csi2_match_data = {
 	.chip_id = CHIP_RK1808_CSI2,
-	.num_pads = CSI2_NUM_PADS
+	.num_pads = CSI2_NUM_PADS,
 };
 
 static const struct csi2_match_data rk3288_csi2_match_data = {
 	.chip_id = CHIP_RK3288_CSI2,
-	.num_pads = CSI2_NUM_PADS_SINGLE_LINK
+	.num_pads = CSI2_NUM_PADS_SINGLE_LINK,
 };
 
 static const struct csi2_match_data rv1126_csi2_match_data = {
 	.chip_id = CHIP_RV1126_CSI2,
-	.num_pads = CSI2_NUM_PADS
+	.num_pads = CSI2_NUM_PADS,
 };
 
 static const struct csi2_match_data rk3568_csi2_match_data = {
@@ -892,6 +913,7 @@ MODULE_DEVICE_TABLE(of, csi2_dt_ids);
 static int csi2_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
+	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct csi2_dev *csi2 = NULL;
 	struct resource *res;
@@ -920,19 +942,16 @@ static int csi2_probe(struct platform_device *pdev)
 	if (ret < 0)
 		v4l2_err(&csi2->sd, "failed to copy name\n");
 	platform_set_drvdata(pdev, &csi2->sd);
-	/* csi2->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE; */
-	/* csi2->sd.grp_id = IMX_MEDIA_GRP_ID_CSI2; */
 
-	csi2->pix_clk = devm_clk_get(&pdev->dev, "pclk_csi2host");
-	if (IS_ERR(csi2->pix_clk)) {
-		v4l2_err(&csi2->sd, "failed to get pixel clock\n");
-		ret = PTR_ERR(csi2->pix_clk);
-		return ret;
-	}
+	csi2->clks_num = devm_clk_bulk_get_all(dev, &csi2->clks_bulk);
+	if (csi2->clks_num < 0)
+		dev_err(dev, "failed to get csi2 clks\n");
 
-	csi2->srst_clk = devm_clk_get(&pdev->dev, "srst_csihost_p");
-	if (IS_ERR(csi2->srst_clk)) {
-		v4l2_warn(&csi2->sd, "failed to get rst clock, maybe useless\n");
+	csi2->rsts_bulk = devm_reset_control_array_get_optional_exclusive(dev);
+	if (IS_ERR(csi2->rsts_bulk)) {
+		if (PTR_ERR(csi2->rsts_bulk) != -EPROBE_DEFER)
+			dev_err(dev, "failed to get csi2 reset\n");
+		return PTR_ERR(csi2->rsts_bulk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -985,8 +1004,12 @@ static int csi2_probe(struct platform_device *pdev)
 	ret = csi2_notifier(csi2);
 	if (ret)
 		goto rmmutex;
-	v4l2_info(&csi2->sd, "probe success, v4l2_dev:%s!\n", csi2->sd.v4l2_dev->name);
+
+	csi2_hw_do_reset(csi2);
+
 	g_csi2_dev = csi2;
+
+	v4l2_info(&csi2->sd, "probe success, v4l2_dev:%s!\n", csi2->sd.v4l2_dev->name);
 
 	return 0;
 

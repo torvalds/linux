@@ -62,6 +62,7 @@
  *2. add dynamic cropping function
  *3. optimize dts config of cif's pipeline
  *4. register cif itf dev when clear unready subdev
+ *5. mipi csi host add cru rst
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION
