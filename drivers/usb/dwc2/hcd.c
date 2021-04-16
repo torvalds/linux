@@ -4470,6 +4470,16 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+		ret = dwc2_exit_hibernation(hsotg, 0, 0, 1);
+		if (ret)
+			dev_err(hsotg->dev, "exit hibernation failed.\n");
+
+		/*
+		 * Set HW accessible bit before powering on the controller
+		 * since an interrupt may rise.
+		 */
+		set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+		break;
 	case DWC2_POWER_DOWN_PARAM_NONE:
 		/*
 		 * If not hibernation nor partial power down are supported,
