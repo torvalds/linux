@@ -1848,13 +1848,15 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	if (target_cpu == origin_cpu)
 		goto cpu_store_unlock;
 
-	if (vmbus_send_modifychannel(channel->offermsg.child_relid,
+	if (vmbus_send_modifychannel(channel,
 				     hv_cpu_number_to_vp_number(target_cpu))) {
 		ret = -EIO;
 		goto cpu_store_unlock;
 	}
 
 	/*
+	 * For version before VERSION_WIN10_V5_3, the following warning holds:
+	 *
 	 * Warning.  At this point, there is *no* guarantee that the host will
 	 * have successfully processed the vmbus_send_modifychannel() request.
 	 * See the header comment of vmbus_send_modifychannel() for more info.
