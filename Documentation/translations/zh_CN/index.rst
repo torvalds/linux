@@ -29,6 +29,7 @@
    iio/index
    riscv/index
    core-api/index
+   openrisc/index
 
 目录和表格
 ----------
