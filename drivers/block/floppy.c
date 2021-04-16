@@ -4232,7 +4232,7 @@ static char __init get_fdc_version(int fdc)
 	r = result(fdc);
 	if (r <= 0x00)
 		return FDC_NONE;	/* No FDC present ??? */
-	if ((r == 1) && (reply_buffer[0] == 0x80)) {
+	if ((r == 1) && (reply_buffer[ST0] == 0x80)) {
 		pr_info("FDC %d is an 8272A\n", fdc);
 		return FDC_8272A;	/* 8272a/765 don't know DUMPREGS */
 	}
@@ -4257,12 +4257,12 @@ static char __init get_fdc_version(int fdc)
 
 	output_byte(fdc, FD_UNLOCK);
 	r = result(fdc);
-	if ((r == 1) && (reply_buffer[0] == 0x80)) {
+	if ((r == 1) && (reply_buffer[ST0] == 0x80)) {
 		pr_info("FDC %d is a pre-1991 82077\n", fdc);
 		return FDC_82077_ORIG;	/* Pre-1991 82077, doesn't know
 					 * LOCK/UNLOCK */
 	}
-	if ((r != 1) || (reply_buffer[0] != 0x00)) {
+	if ((r != 1) || (reply_buffer[ST0] != 0x00)) {
 		pr_info("FDC %d init: UNLOCK: unexpected return of %d bytes.\n",
 			fdc, r);
 		return FDC_UNKNOWN;
@@ -4274,11 +4274,11 @@ static char __init get_fdc_version(int fdc)
 			fdc, r);
 		return FDC_UNKNOWN;
 	}
-	if (reply_buffer[0] == 0x80) {
+	if (reply_buffer[ST0] == 0x80) {
 		pr_info("FDC %d is a post-1991 82077\n", fdc);
 		return FDC_82077;	/* Revised 82077AA passes all the tests */
 	}
-	switch (reply_buffer[0] >> 5) {
+	switch (reply_buffer[ST0] >> 5) {
 	case 0x0:
 		/* Either a 82078-1 or a 82078SL running at 5Volt */
 		pr_info("FDC %d is an 82078.\n", fdc);
@@ -4294,7 +4294,7 @@ static char __init get_fdc_version(int fdc)
 		return FDC_87306;
 	default:
 		pr_info("FDC %d init: 82078 variant with unknown PARTID=%d.\n",
-			fdc, reply_buffer[0] >> 5);
+			fdc, reply_buffer[ST0] >> 5);
 		return FDC_82078_UNKN;
 	}
 }				/* get_fdc_version */
