@@ -320,8 +320,8 @@ static int replicas_table_update(struct bch_fs *c,
 out:
 	free_percpu(new_gc);
 	kfree(new_scratch);
-	free_percpu(new_usage[1]);
-	free_percpu(new_usage[0]);
+	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
+		free_percpu(new_usage[i]);
 	kfree(new_base);
 	return ret;
 err:

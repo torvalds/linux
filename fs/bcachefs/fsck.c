@@ -1124,6 +1124,8 @@ static int check_directory_structure(struct bch_fs *c,
 
 	BUG_ON(ret == -EINTR);
 
+	kfree(path.entries);
+
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
