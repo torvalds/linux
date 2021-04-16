@@ -3636,16 +3636,16 @@ bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
 
 u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
 {
-	int i;
-	int num_slices = intel_dbuf_num_slices(dev_priv);
-	u8 enabled_slices_mask = 0;
+	u8 enabled_slices = 0;
+	enum dbuf_slice slice;
 
-	for (i = 0; i < num_slices; i++) {
-		if (intel_uncore_read(&dev_priv->uncore, DBUF_CTL_S(i)) & DBUF_POWER_STATE)
-			enabled_slices_mask |= BIT(i);
+	for_each_dbuf_slice(dev_priv, slice) {
+		if (intel_uncore_read(&dev_priv->uncore,
+				      DBUF_CTL_S(slice)) & DBUF_POWER_STATE)
+			enabled_slices |= BIT(slice);
 	}
 
-	return enabled_slices_mask;
+	return enabled_slices;
 }
 
 /*
@@ -4028,20 +4028,10 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int intel_dbuf_size(struct drm_i915_private *dev_priv)
-{
-	return INTEL_INFO(dev_priv)->dbuf.size;
-}
-
-int intel_dbuf_num_slices(struct drm_i915_private *dev_priv)
-{
-	return hweight8(INTEL_INFO(dev_priv)->dbuf.slice_mask);
-}
-
 static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)
 {
-	return intel_dbuf_size(dev_priv) /
-		intel_dbuf_num_slices(dev_priv);
+	return INTEL_INFO(dev_priv)->dbuf.size /
+		hweight8(INTEL_INFO(dev_priv)->dbuf.slice_mask);
 }
 
 static void
@@ -4060,7 +4050,7 @@ skl_ddb_entry_for_slices(struct drm_i915_private *dev_priv, u8 slice_mask,
 	ddb->end = fls(slice_mask) * slice_size;
 
 	WARN_ON(ddb->start >= ddb->end);
-	WARN_ON(ddb->end > intel_dbuf_size(dev_priv));
+	WARN_ON(ddb->end > INTEL_INFO(dev_priv)->dbuf.size);
 }
 
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
@@ -5820,10 +5810,10 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "Enabled dbuf slices 0x%x -> 0x%x (out of %d dbuf slices)\n",
+			    "Enabled dbuf slices 0x%x -> 0x%x (total dbuf slices 0x%x)\n",
 			    old_dbuf_state->enabled_slices,
 			    new_dbuf_state->enabled_slices,
-			    intel_dbuf_num_slices(dev_priv));
+			    INTEL_INFO(dev_priv)->dbuf.slice_mask);
 	}
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {

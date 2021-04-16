@@ -4772,13 +4772,13 @@ static void gen9_dbuf_slice_set(struct drm_i915_private *dev_priv,
 void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			     u8 req_slices)
 {
-	int num_slices = intel_dbuf_num_slices(dev_priv);
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	u8 slice_mask = INTEL_INFO(dev_priv)->dbuf.slice_mask;
 	enum dbuf_slice slice;
 
-	drm_WARN(&dev_priv->drm, req_slices & ~(BIT(num_slices) - 1),
-		 "Invalid set of dbuf slices (0x%x) requested (num dbuf slices %d)\n",
-		 req_slices, num_slices);
+	drm_WARN(&dev_priv->drm, req_slices & ~slice_mask,
+		 "Invalid set of dbuf slices (0x%x) requested (total dbuf slices 0x%x)\n",
+		 req_slices, slice_mask);
 
 	drm_dbg_kms(&dev_priv->drm, "Updating dbuf slices to 0x%x\n",
 		    req_slices);
@@ -4792,7 +4792,7 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	 */
 	mutex_lock(&power_domains->lock);
 
-	for (slice = DBUF_S1; slice < num_slices; slice++)
+	for_each_dbuf_slice(dev_priv, slice)
 		gen9_dbuf_slice_set(dev_priv, slice, req_slices & BIT(slice));
 
 	dev_priv->dbuf.enabled_slices = req_slices;
@@ -4820,10 +4820,9 @@ static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 
 static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
 {
-	int num_slices = intel_dbuf_num_slices(dev_priv);
 	enum dbuf_slice slice;
 
-	for (slice = DBUF_S1; slice < (DBUF_S1 + num_slices); slice++)
+	for_each_dbuf_slice(dev_priv, slice)
 		intel_de_rmw(dev_priv, DBUF_CTL_S(slice),
 			     DBUF_TRACKER_STATE_SERVICE_MASK,
 			     DBUF_TRACKER_STATE_SERVICE(8));
