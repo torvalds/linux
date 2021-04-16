@@ -4631,10 +4631,24 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	struct dwc2_qh *qh;
 	bool qh_allocated = false;
 	struct dwc2_qtd *qtd;
+	struct dwc2_gregs_backup *gr;
+
+	gr = &hsotg->gr_backup;
 
 	if (dbg_urb(urb)) {
 		dev_vdbg(hsotg->dev, "DWC OTG HCD URB Enqueue\n");
 		dwc2_dump_urb_info(hcd, urb, "urb_enqueue");
+	}
+
+	if (hsotg->hibernated) {
+		if (gr->gotgctl & GOTGCTL_CURMODE_HOST)
+			retval = dwc2_exit_hibernation(hsotg, 0, 0, 1);
+		else
+			retval = dwc2_exit_hibernation(hsotg, 0, 0, 0);
+
+		if (retval)
+			dev_err(hsotg->dev,
+				"exit hibernation failed.\n");
 	}
 
 	if (hsotg->in_ppd) {
