@@ -808,6 +808,29 @@ static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
+static BIN_ATTR(config, 0644, pci_read_config, pci_write_config, 0);
+
+static struct bin_attribute *pci_dev_config_attrs[] = {
+	&bin_attr_config,
+	NULL,
+};
+
+static umode_t pci_dev_config_attr_is_visible(struct kobject *kobj,
+					      struct bin_attribute *a, int n)
+{
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
+
+	a->size = PCI_CFG_SPACE_SIZE;
+	if (pdev->cfg_size > PCI_CFG_SPACE_SIZE)
+		a->size = PCI_CFG_SPACE_EXP_SIZE;
+
+	return a->attr.mode;
+}
+
+static const struct attribute_group pci_dev_config_attr_group = {
+	.bin_attrs = pci_dev_config_attrs,
+	.is_bin_visible = pci_dev_config_attr_is_visible,
+};
 
 #ifdef HAVE_PCI_LEGACY
 /**
@@ -1284,26 +1307,6 @@ static ssize_t pci_read_rom(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static const struct bin_attribute pci_config_attr = {
-	.attr =	{
-		.name = "config",
-		.mode = 0644,
-	},
-	.size = PCI_CFG_SPACE_SIZE,
-	.read = pci_read_config,
-	.write = pci_write_config,
-};
-
-static const struct bin_attribute pcie_config_attr = {
-	.attr =	{
-		.name = "config",
-		.mode = 0644,
-	},
-	.size = PCI_CFG_SPACE_EXP_SIZE,
-	.read = pci_read_config,
-	.write = pci_write_config,
-};
-
 static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -1355,16 +1358,9 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	if (!sysfs_initialized)
 		return -EACCES;
 
-	if (pdev->cfg_size > PCI_CFG_SPACE_SIZE)
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pcie_config_attr);
-	else
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pci_config_attr);
-	if (retval)
-		goto err;
-
 	retval = pci_create_resource_files(pdev);
 	if (retval)
-		goto err_config_file;
+		goto err;
 
 	/* If the device has a ROM, try to expose it in sysfs. */
 	rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
@@ -1405,11 +1401,6 @@ err_rom_file:
 	}
 err_resource_files:
 	pci_remove_resource_files(pdev);
-err_config_file:
-	if (pdev->cfg_size > PCI_CFG_SPACE_SIZE)
-		sysfs_remove_bin_file(&pdev->dev.kobj, &pcie_config_attr);
-	else
-		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 err:
 	return retval;
 }
@@ -1435,12 +1426,6 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 		return;
 
 	pci_remove_capabilities_sysfs(pdev);
-
-	if (pdev->cfg_size > PCI_CFG_SPACE_SIZE)
-		sysfs_remove_bin_file(&pdev->dev.kobj, &pcie_config_attr);
-	else
-		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
-
 	pci_remove_resource_files(pdev);
 
 	if (pdev->rom_attr) {
@@ -1540,6 +1525,7 @@ static const struct attribute_group pci_dev_group = {
 
 const struct attribute_group *pci_dev_groups[] = {
 	&pci_dev_group,
+	&pci_dev_config_attr_group,
 	NULL,
 };
 
