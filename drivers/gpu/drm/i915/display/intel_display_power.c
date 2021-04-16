@@ -4777,7 +4777,7 @@ static void gen9_dbuf_slice_set(struct drm_i915_private *dev_priv,
 void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			     u8 req_slices)
 {
-	int num_slices = INTEL_INFO(dev_priv)->dbuf.num_slices;
+	int num_slices = intel_dbuf_num_slices(dev_priv);
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	enum dbuf_slice slice;
 
@@ -4825,7 +4825,7 @@ static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 
 static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
 {
-	int num_slices = INTEL_INFO(dev_priv)->dbuf.num_slices;
+	int num_slices = intel_dbuf_num_slices(dev_priv);
 	enum dbuf_slice slice;
 
 	for (slice = DBUF_S1; slice < (DBUF_S1 + num_slices); slice++)

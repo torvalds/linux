@@ -3637,7 +3637,7 @@ bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
 u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *dev_priv)
 {
 	int i;
-	int num_slices = INTEL_INFO(dev_priv)->dbuf.num_slices;
+	int num_slices = intel_dbuf_num_slices(dev_priv);
 	u8 enabled_slices_mask = 0;
 
 	for (i = 0; i < num_slices; i++) {
@@ -4033,10 +4033,15 @@ static int intel_dbuf_size(struct drm_i915_private *dev_priv)
 	return INTEL_INFO(dev_priv)->dbuf.size;
 }
 
+int intel_dbuf_num_slices(struct drm_i915_private *dev_priv)
+{
+	return hweight8(INTEL_INFO(dev_priv)->dbuf.slice_mask);
+}
+
 static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)
 {
 	return intel_dbuf_size(dev_priv) /
-		INTEL_INFO(dev_priv)->dbuf.num_slices;
+		intel_dbuf_num_slices(dev_priv);
 }
 
 static void
@@ -4063,7 +4068,7 @@ u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 {
 	u32 slice_mask = 0;
 	u16 ddb_size = intel_dbuf_size(dev_priv);
-	int num_slices = INTEL_INFO(dev_priv)->dbuf.num_slices;
+	int num_slices = intel_dbuf_num_slices(dev_priv);
 	u16 slice_size = ddb_size / num_slices;
 	u16 start_slice;
 	u16 end_slice;
@@ -5821,7 +5826,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			    "Enabled dbuf slices 0x%x -> 0x%x (out of %d dbuf slices)\n",
 			    old_dbuf_state->enabled_slices,
 			    new_dbuf_state->enabled_slices,
-			    INTEL_INFO(dev_priv)->dbuf.num_slices);
+			    intel_dbuf_num_slices(dev_priv));
 	}
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {

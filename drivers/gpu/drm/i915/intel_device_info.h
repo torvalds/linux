@@ -198,7 +198,7 @@ struct intel_device_info {
 
 	struct {
 		u16 size; /* in blocks */
-		u8 num_slices;
+		u8 slice_mask;
 	} dbuf;
 
 	/* Register offsets for the various display pipes and transcoders */
