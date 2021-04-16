@@ -299,8 +299,7 @@ mt7915_queues_read(struct seq_file *s, void *data)
 }
 
 static void
-mt7915_puts_rate_txpower(struct seq_file *s, s8 *delta,
-			 s8 txpower_cur, int band)
+mt7915_puts_rate_txpower(struct seq_file *s, s8 txpower_cur, int band)
 {
 	static const char * const sku_group_name[] = {
 		"CCK", "OFDM", "HT20", "HT40",
@@ -308,24 +307,18 @@ mt7915_puts_rate_txpower(struct seq_file *s, s8 *delta,
 		"RU26", "RU52", "RU106", "RU242/SU20",
 		"RU484/SU40", "RU996/SU80", "RU2x996/SU160"
 	};
-	s8 txpower[MT7915_SKU_RATE_NUM];
+	s8 txpower[161];
 	int i, idx = 0;
 
-	for (i = 0; i < MT7915_SKU_RATE_NUM; i++)
-		txpower[i] = DIV_ROUND_UP(txpower_cur + delta[i], 2);
+	for (i = 0; i < ARRAY_SIZE(txpower); i++)
+		txpower[i] = DIV_ROUND_UP(txpower_cur, 2);
 
-	for (i = 0; i < MAX_SKU_RATE_GROUP_NUM; i++) {
-		const struct sku_group *sku = &mt7915_sku_groups[i];
-		u32 offset = sku->offset[band];
-
-		if (!offset) {
-			idx += sku->len;
-			continue;
-		}
+	for (i = 0; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
+		u8 len = mt7915_sku_group_len[i];
 
 		mt76_seq_puts_array(s, sku_group_name[i],
-				    txpower + idx, sku->len);
-		idx += sku->len;
+				    txpower + idx, len);
+		idx += len;
 	}
 }
 
@@ -335,21 +328,18 @@ mt7915_read_rate_txpower(struct seq_file *s, void *data)
 	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 	struct mt76_phy *mphy = &dev->mphy;
 	enum nl80211_band band = mphy->chandef.chan->band;
-	s8 *delta = dev->rate_power[band];
-	s8 txpower_base = mphy->txpower_cur - delta[MT7915_SKU_MAX_DELTA_IDX];
+	s8 txpower = mphy->txpower_cur;
 
 	seq_puts(s, "Band 0:\n");
-	mt7915_puts_rate_txpower(s, delta, txpower_base, band);
+	mt7915_puts_rate_txpower(s, txpower, band);
 
 	if (dev->mt76.phy2) {
 		mphy = dev->mt76.phy2;
 		band = mphy->chandef.chan->band;
-		delta = dev->rate_power[band];
-		txpower_base = mphy->txpower_cur -
-			       delta[MT7915_SKU_MAX_DELTA_IDX];
+		txpower = mphy->txpower_cur;
 
 		seq_puts(s, "Band 1:\n");
-		mt7915_puts_rate_txpower(s, delta, txpower_base, band);
+		mt7915_puts_rate_txpower(s, txpower, band);
 	}
 
 	return 0;

@@ -3503,8 +3503,9 @@ int mt7915_mcu_get_tx_rate(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx)
 				 sizeof(req), false);
 }
 
-int mt7915_mcu_set_sku(struct mt7915_phy *phy)
+int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
 {
+#define MT7915_SKU_RATE_NUM		161
 	struct mt7915_dev *dev = phy->dev;
 	struct mt76_phy *mphy = phy->mt76;
 	struct ieee80211_hw *hw = mphy->hw;
@@ -3518,11 +3519,10 @@ int mt7915_mcu_set_sku(struct mt7915_phy *phy)
 		.dbdc_idx = phy != &dev->phy,
 	};
 	struct mt76_power_limits limits_array;
-	s8 *delta, *la = (s8 *)&limits_array;
+	s8 *la = (s8 *)&limits_array;
 	int i, idx, n_chains = hweight8(mphy->antenna_mask);
 	int tx_power;
 
-	delta = dev->rate_power[mphy->chandef.chan->band];
 	tx_power = hw->conf.power_level * 2 -
 		   mt76_tx_power_nss_delta(n_chains);
 
@@ -3530,10 +3530,8 @@ int mt7915_mcu_set_sku(struct mt7915_phy *phy)
 					      &limits_array, tx_power);
 	mphy->txpower_cur = tx_power;
 
-	for (i = 0, idx = 0; i < MAX_SKU_RATE_GROUP_NUM; i++) {
-		const struct sku_group *sku = &mt7915_sku_groups[i];
-		u32 offset = sku->offset[mphy->chandef.chan->band];
-		u8 mcs_num = sku->len;
+	for (i = 0, idx = 0; i < ARRAY_SIZE(mt7915_sku_group_len); i++) {
+		u8 mcs_num, len = mt7915_sku_group_len[i];
 		int j;
 
 		if (i >= SKU_HT_BW20 && i <= SKU_VHT_BW160) {
@@ -3541,22 +3539,15 @@ int mt7915_mcu_set_sku(struct mt7915_phy *phy)
 
 			if (i == SKU_HT_BW20 || i == SKU_VHT_BW20)
 				la = (s8 *)&limits_array + 12;
+		} else {
+			mcs_num = len;
 		}
 
-		if (!offset) {
-			idx += sku->len;
-			la += mcs_num;
-			continue;
-		}
+		for (j = 0; j < min_t(u8, mcs_num, len); j++)
+			req.val[idx + j] = la[j];
 
-		for (j = 0; j < min_t(u8, mcs_num, sku->len); j++) {
-			s8 rate_power;
-
-			rate_power = hw->conf.power_level * 2 + delta[idx + j];
-			req.val[idx + j] = min_t(s8, la[j], rate_power);
-		}
 		la += mcs_num;
-		idx += sku->len;
+		idx += len;
 	}
 
 	return mt76_mcu_send_msg(&dev->mt76,
