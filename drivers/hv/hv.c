@@ -15,6 +15,7 @@
 #include <linux/hyperv.h>
 #include <linux/random.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <clocksource/hyperv_timer.h>
 #include <asm/mshyperv.h>
@@ -292,11 +293,49 @@ void hv_synic_disable_regs(unsigned int cpu)
 		disable_percpu_irq(vmbus_irq);
 }
 
+#define HV_MAX_TRIES 3
+/*
+ * Scan the event flags page of 'this' CPU looking for any bit that is set.  If we find one
+ * bit set, then wait for a few milliseconds.  Repeat these steps for a maximum of 3 times.
+ * Return 'true', if there is still any set bit after this operation; 'false', otherwise.
+ *
+ * If a bit is set, that means there is a pending channel interrupt.  The expectation is
+ * that the normal interrupt handling mechanism will find and process the channel interrupt
+ * "very soon", and in the process clear the bit.
+ */
+static bool hv_synic_event_pending(void)
+{
+	struct hv_per_cpu_context *hv_cpu = this_cpu_ptr(hv_context.cpu_context);
+	union hv_synic_event_flags *event =
+		(union hv_synic_event_flags *)hv_cpu->synic_event_page + VMBUS_MESSAGE_SINT;
+	unsigned long *recv_int_page = event->flags; /* assumes VMBus version >= VERSION_WIN8 */
+	bool pending;
+	u32 relid;
+	int tries = 0;
+
+retry:
+	pending = false;
+	for_each_set_bit(relid, recv_int_page, HV_EVENT_FLAGS_COUNT) {
+		/* Special case - VMBus channel protocol messages */
+		if (relid == 0)
+			continue;
+		pending = true;
+		break;
+	}
+	if (pending && tries++ < HV_MAX_TRIES) {
+		usleep_range(10000, 20000);
+		goto retry;
+	}
+	return pending;
+}
 
 int hv_synic_cleanup(unsigned int cpu)
 {
 	struct vmbus_channel *channel, *sc;
 	bool channel_found = false;
+
+	if (vmbus_connection.conn_state != CONNECTED)
+		goto always_cleanup;
 
 	/*
 	 * Hyper-V does not provide a way to change the connect CPU once
@@ -305,8 +344,7 @@ int hv_synic_cleanup(unsigned int cpu)
 	 * path where the vmbus is already disconnected, the CPU must be
 	 * allowed to shut down.
 	 */
-	if (cpu == VMBUS_CONNECT_CPU &&
-	    vmbus_connection.conn_state == CONNECTED)
+	if (cpu == VMBUS_CONNECT_CPU)
 		return -EBUSY;
 
 	/*
@@ -333,9 +371,21 @@ int hv_synic_cleanup(unsigned int cpu)
 	}
 	mutex_unlock(&vmbus_connection.channel_mutex);
 
-	if (channel_found && vmbus_connection.conn_state == CONNECTED)
+	if (channel_found)
 		return -EBUSY;
 
+	/*
+	 * channel_found == false means that any channels that were previously
+	 * assigned to the CPU have been reassigned elsewhere with a call of
+	 * vmbus_send_modifychannel().  Scan the event flags page looking for
+	 * bits that are set and waiting with a timeout for vmbus_chan_sched()
+	 * to process such bits.  If bits are still set after this operation
+	 * and VMBus is connected, fail the CPU offlining operation.
+	 */
+	if (vmbus_proto_version >= VERSION_WIN10_V4_1 && hv_synic_event_pending())
+		return -EBUSY;
+
+always_cleanup:
 	hv_stimer_legacy_cleanup(cpu);
 
 	hv_synic_disable_regs(cpu);
