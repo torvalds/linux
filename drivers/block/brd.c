@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/backing-dev.h>
+#include <linux/debugfs.h>
 
 #include <linux/uaccess.h>
 
@@ -48,6 +49,7 @@ struct brd_device {
 	 */
 	spinlock_t		brd_lock;
 	struct radix_tree_root	brd_pages;
+	u64			brd_nr_pages;
 };
 
 /*
@@ -116,6 +118,8 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 		page = radix_tree_lookup(&brd->brd_pages, idx);
 		BUG_ON(!page);
 		BUG_ON(page->index != idx);
+	} else {
+		brd->brd_nr_pages++;
 	}
 	spin_unlock(&brd->brd_lock);
 
@@ -365,11 +369,13 @@ __setup("ramdisk_size=", ramdisk_size);
  */
 static LIST_HEAD(brd_devices);
 static DEFINE_MUTEX(brd_devices_mutex);
+static struct dentry *brd_debugfs_dir;
 
 static struct brd_device *brd_alloc(int i)
 {
 	struct brd_device *brd;
 	struct gendisk *disk;
+	char buf[DISK_NAME_LEN];
 
 	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd)
@@ -381,6 +387,11 @@ static struct brd_device *brd_alloc(int i)
 	brd->brd_queue = blk_alloc_queue(NUMA_NO_NODE);
 	if (!brd->brd_queue)
 		goto out_free_dev;
+
+	snprintf(buf, DISK_NAME_LEN, "ram%d", i);
+	if (!IS_ERR_OR_NULL(brd_debugfs_dir))
+		debugfs_create_u64(buf, 0444, brd_debugfs_dir,
+				&brd->brd_nr_pages);
 
 	/* This is so fdisk will align partitions on 4k, because of
 	 * direct_access API needing 4k alignment, returning a PFN
@@ -397,7 +408,7 @@ static struct brd_device *brd_alloc(int i)
 	disk->fops		= &brd_fops;
 	disk->private_data	= brd;
 	disk->flags		= GENHD_FL_EXT_DEVT;
-	sprintf(disk->disk_name, "ram%d", i);
+	strlcpy(disk->disk_name, buf, DISK_NAME_LEN);
 	set_capacity(disk, rd_size * 2);
 
 	/* Tell the block layer that this is not a rotational device */
@@ -495,6 +506,8 @@ static int __init brd_init(void)
 
 	brd_check_and_reset_par();
 
+	brd_debugfs_dir = debugfs_create_dir("ramdisk_pages", NULL);
+
 	mutex_lock(&brd_devices_mutex);
 	for (i = 0; i < rd_nr; i++) {
 		brd = brd_alloc(i);
@@ -519,6 +532,8 @@ static int __init brd_init(void)
 	return 0;
 
 out_free:
+	debugfs_remove_recursive(brd_debugfs_dir);
+
 	list_for_each_entry_safe(brd, next, &brd_devices, brd_list) {
 		list_del(&brd->brd_list);
 		brd_free(brd);
@@ -533,6 +548,8 @@ out_free:
 static void __exit brd_exit(void)
 {
 	struct brd_device *brd, *next;
+
+	debugfs_remove_recursive(brd_debugfs_dir);
 
 	list_for_each_entry_safe(brd, next, &brd_devices, brd_list)
 		brd_del_one(brd);
