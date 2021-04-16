@@ -1282,6 +1282,9 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 		xdp_act = bpf_prog_run_xdp(prog, &xdp_buff);
 
 		switch (xdp_act) {
+		default:
+			bpf_warn_invalid_xdp_action(xdp_act);
+			fallthrough;
 		case XDP_ABORTED:
 			trace_xdp_exception(rx_ring->ndev, prog, xdp_act);
 			fallthrough;
@@ -1346,10 +1349,6 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				xdp_redirect_frm_cnt++;
 				rx_ring->stats.xdp_redirect++;
 			}
-
-			break;
-		default:
-			bpf_warn_invalid_xdp_action(xdp_act);
 		}
 
 		rx_frm_cnt++;
