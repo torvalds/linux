@@ -122,6 +122,10 @@ struct msm_kms_funcs {
 				 bool cmd_mode);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
+
+	/* snapshot: */
+	void (*snapshot)(struct msm_kms *kms);
+
 #ifdef CONFIG_DEBUG_FS
 	/* debugfs: */
 	int (*debugfs_init)(struct msm_kms *kms, struct drm_minor *minor);

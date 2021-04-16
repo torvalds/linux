@@ -19,6 +19,7 @@
 #include "msm_drv.h"
 #include "msm_mmu.h"
 #include "msm_gem.h"
+#include "disp/msm_disp_snapshot.h"
 
 #include "dpu_kms.h"
 #include "dpu_core_irq.h"
@@ -798,6 +799,54 @@ static void dpu_irq_uninstall(struct msm_kms *kms)
 	dpu_core_irq_uninstall(dpu_kms);
 }
 
+static void dpu_kms_mdp_snapshot(struct msm_kms *kms)
+{
+	int i;
+	struct dpu_kms *dpu_kms;
+	struct dpu_mdss_cfg *cat;
+	struct dpu_hw_mdp *top;
+	struct msm_disp_state *disp_state;
+
+	disp_state = kms->disp_state;
+
+	dpu_kms = to_dpu_kms(kms);
+
+	cat = dpu_kms->catalog;
+	top = dpu_kms->hw_mdp;
+
+	pm_runtime_get_sync(&dpu_kms->pdev->dev);
+
+	/* dump CTL sub-blocks HW regs info */
+	for (i = 0; i < cat->ctl_count; i++)
+		msm_disp_snapshot_add_block(disp_state, cat->ctl[i].len,
+				dpu_kms->mmio + cat->ctl[i].base, "ctl_%d", i);
+
+	/* dump DSPP sub-blocks HW regs info */
+	for (i = 0; i < cat->dspp_count; i++)
+		msm_disp_snapshot_add_block(disp_state, cat->dspp[i].len,
+				dpu_kms->mmio + cat->dspp[i].base, "dspp_%d", i);
+
+	/* dump INTF sub-blocks HW regs info */
+	for (i = 0; i < cat->intf_count; i++)
+		msm_disp_snapshot_add_block(disp_state, cat->intf[i].len,
+				dpu_kms->mmio + cat->intf[i].base, "intf_%d", i);
+
+	/* dump PP sub-blocks HW regs info */
+	for (i = 0; i < cat->pingpong_count; i++)
+		msm_disp_snapshot_add_block(disp_state, cat->pingpong[i].len,
+				dpu_kms->mmio + cat->pingpong[i].base, "pingpong_%d", i);
+
+	/* dump SSPP sub-blocks HW regs info */
+	for (i = 0; i < cat->sspp_count; i++)
+		msm_disp_snapshot_add_block(disp_state, cat->sspp[i].len,
+				dpu_kms->mmio + cat->sspp[i].base, "sspp_%d", i);
+
+	msm_disp_snapshot_add_block(disp_state, top->hw.length,
+			dpu_kms->mmio + top->hw.blk_off, "top");
+
+	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+}
+
 static const struct msm_kms_funcs kms_funcs = {
 	.hw_init         = dpu_kms_hw_init,
 	.irq_preinstall  = dpu_irq_preinstall,
@@ -818,6 +867,7 @@ static const struct msm_kms_funcs kms_funcs = {
 	.round_pixclk    = dpu_kms_round_pixclk,
 	.destroy         = dpu_kms_destroy,
 	.set_encoder_mode = _dpu_kms_set_encoder_mode,
+	.snapshot        = dpu_kms_mdp_snapshot,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init    = dpu_kms_debugfs_init,
 #endif
