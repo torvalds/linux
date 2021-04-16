@@ -251,7 +251,8 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 void cgroup_attach_lock(bool lock_threadgroup);
 void cgroup_attach_unlock(bool lock_threadgroup);
 struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup,
-					     bool *locked)
+					     bool *locked,
+					     struct cgroup *dst_cgrp);
 	__acquires(&cgroup_threadgroup_rwsem);
 void cgroup_procs_write_finish(struct task_struct *task, bool locked)
 	__releases(&cgroup_threadgroup_rwsem);
