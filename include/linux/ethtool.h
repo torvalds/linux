@@ -250,6 +250,13 @@ static inline void ethtool_stats_init(u64 *stats, unsigned int n)
 		stats[n] = ETHTOOL_STAT_NOT_SET;
 }
 
+/* Basic IEEE 802.3 PHY statistics (30.3.2.1.*), not otherwise exposed
+ * via a more targeted API.
+ */
+struct ethtool_eth_phy_stats {
+	u64 SymbolErrorDuringCarrier;
+};
+
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
@@ -487,6 +494,7 @@ struct ethtool_module_eeprom {
  * @get_module_eeprom_by_page: Get a region of plug-in module EEPROM data from
  *	specified page. Returns a negative error code or the amount of bytes
  *	read.
+ * @get_eth_phy_stats: Query some of the IEEE 802.3 PHY statistics.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -597,6 +605,8 @@ struct ethtool_ops {
 	int	(*get_module_eeprom_by_page)(struct net_device *dev,
 					     const struct ethtool_module_eeprom *page,
 					     struct netlink_ext_ack *extack);
+	void	(*get_eth_phy_stats)(struct net_device *dev,
+				     struct ethtool_eth_phy_stats *phy_stats);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
