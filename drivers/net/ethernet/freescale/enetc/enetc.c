@@ -1324,11 +1324,6 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				rx_ring->stats.xdp_redirect++;
 			}
 
-			if (unlikely(xdp_redirect_frm_cnt > ENETC_DEFAULT_TX_WORK)) {
-				xdp_do_flush_map();
-				xdp_redirect_frm_cnt = 0;
-			}
-
 			break;
 		default:
 			bpf_warn_invalid_xdp_action(xdp_act);
