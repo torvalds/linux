@@ -3140,26 +3140,24 @@ static int rtm_dump_walk_nexthops(struct sk_buff *skb,
 				  void *data)
 {
 	struct rb_node *node;
-	int idx = 0, s_idx;
+	int s_idx;
 	int err;
 
 	s_idx = ctx->idx;
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		struct nexthop *nh;
 
-		if (idx < s_idx)
-			goto cont;
-
 		nh = rb_entry(node, struct nexthop, rb_node);
-		ctx->idx = idx;
+		if (nh->id < s_idx)
+			continue;
+
+		ctx->idx = nh->id;
 		err = nh_cb(skb, cb, nh, data);
 		if (err)
 			return err;
-cont:
-		idx++;
 	}
 
-	ctx->idx = idx;
+	ctx->idx++;
 	return 0;
 }
 
