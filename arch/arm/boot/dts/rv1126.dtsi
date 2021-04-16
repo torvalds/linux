@@ -1867,8 +1867,10 @@
 		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSIHOST>, <&cru SRST_CSIHOST_P>;
-		clock-names = "pclk_csi2host", "srst_csihost_p";
+		clocks = <&cru PCLK_CSIHOST>;
+		clock-names = "pclk_csi2host";
+		resets = <&cru SRST_CSIHOST_P>;
+		reset-names = "srst_csihost_p";
 		power-domains = <&power RV1126_PD_VI>;
 		status = "disabled";
 	};
