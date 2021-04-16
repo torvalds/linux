@@ -698,6 +698,7 @@ enum {
 
 enum {
 	ETHTOOL_STATS_ETH_PHY,
+	ETHTOOL_STATS_ETH_MAC,
 
 	/* add new constants above here */
 	__ETHTOOL_STATS_CNT
@@ -724,6 +725,58 @@ enum {
 	/* add new constants above here */
 	__ETHTOOL_A_STATS_ETH_PHY_CNT,
 	ETHTOOL_A_STATS_ETH_PHY_MAX = (__ETHTOOL_A_STATS_ETH_PHY_CNT - 1)
+};
+
+enum {
+	/* 30.3.1.1.2 aFramesTransmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_2_TX_PKT,
+	/* 30.3.1.1.3 aSingleCollisionFrames */
+	ETHTOOL_A_STATS_ETH_MAC_3_SINGLE_COL,
+	/* 30.3.1.1.4 aMultipleCollisionFrames */
+	ETHTOOL_A_STATS_ETH_MAC_4_MULTI_COL,
+	/* 30.3.1.1.5 aFramesReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_5_RX_PKT,
+	/* 30.3.1.1.6 aFrameCheckSequenceErrors */
+	ETHTOOL_A_STATS_ETH_MAC_6_FCS_ERR,
+	/* 30.3.1.1.7 aAlignmentErrors */
+	ETHTOOL_A_STATS_ETH_MAC_7_ALIGN_ERR,
+	/* 30.3.1.1.8 aOctetsTransmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_8_TX_BYTES,
+	/* 30.3.1.1.9 aFramesWithDeferredXmissions */
+	ETHTOOL_A_STATS_ETH_MAC_9_TX_DEFER,
+	/* 30.3.1.1.10 aLateCollisions */
+	ETHTOOL_A_STATS_ETH_MAC_10_LATE_COL,
+	/* 30.3.1.1.11 aFramesAbortedDueToXSColls */
+	ETHTOOL_A_STATS_ETH_MAC_11_XS_COL,
+	/* 30.3.1.1.12 aFramesLostDueToIntMACXmitError */
+	ETHTOOL_A_STATS_ETH_MAC_12_TX_INT_ERR,
+	/* 30.3.1.1.13 aCarrierSenseErrors */
+	ETHTOOL_A_STATS_ETH_MAC_13_CS_ERR,
+	/* 30.3.1.1.14 aOctetsReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_14_RX_BYTES,
+	/* 30.3.1.1.15 aFramesLostDueToIntMACRcvError */
+	ETHTOOL_A_STATS_ETH_MAC_15_RX_INT_ERR,
+
+	/* 30.3.1.1.18 aMulticastFramesXmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_18_TX_MCAST,
+	/* 30.3.1.1.19 aBroadcastFramesXmittedOK */
+	ETHTOOL_A_STATS_ETH_MAC_19_TX_BCAST,
+	/* 30.3.1.1.20 aFramesWithExcessiveDeferral */
+	ETHTOOL_A_STATS_ETH_MAC_20_XS_DEFER,
+	/* 30.3.1.1.21 aMulticastFramesReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_21_RX_MCAST,
+	/* 30.3.1.1.22 aBroadcastFramesReceivedOK */
+	ETHTOOL_A_STATS_ETH_MAC_22_RX_BCAST,
+	/* 30.3.1.1.23 aInRangeLengthErrors */
+	ETHTOOL_A_STATS_ETH_MAC_23_IR_LEN_ERR,
+	/* 30.3.1.1.24 aOutOfRangeLengthField */
+	ETHTOOL_A_STATS_ETH_MAC_24_OOR_LEN,
+	/* 30.3.1.1.25 aFrameTooLongErrors */
+	ETHTOOL_A_STATS_ETH_MAC_25_TOO_LONG_ERR,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_ETH_MAC_CNT,
+	ETHTOOL_A_STATS_ETH_MAC_MAX = (__ETHTOOL_A_STATS_ETH_MAC_CNT - 1)
 };
 
 /* generic netlink info */

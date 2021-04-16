@@ -90,6 +90,11 @@ static const struct strset_info info_template[] = {
 		.count		= __ETHTOOL_A_STATS_ETH_PHY_CNT,
 		.strings	= stats_eth_phy_names,
 	},
+	[ETH_SS_STATS_ETH_MAC] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_ETH_MAC_CNT,
+		.strings	= stats_eth_mac_names,
+	},
 };
 
 struct strset_req_info {

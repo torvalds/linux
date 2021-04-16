@@ -15,6 +15,7 @@ struct stats_req_info {
 struct stats_reply_data {
 	struct ethnl_reply_data		base;
 	struct ethtool_eth_phy_stats	phy_stats;
+	struct ethtool_eth_mac_stats	mac_stats;
 };
 
 #define STATS_REPDATA(__reply_base) \
@@ -22,10 +23,36 @@ struct stats_reply_data {
 
 const char stats_std_names[__ETHTOOL_STATS_CNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_STATS_ETH_PHY]			= "eth-phy",
+	[ETHTOOL_STATS_ETH_MAC]			= "eth-mac",
 };
 
 const char stats_eth_phy_names[__ETHTOOL_A_STATS_ETH_PHY_CNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_A_STATS_ETH_PHY_5_SYM_ERR]	= "SymbolErrorDuringCarrier",
+};
+
+const char stats_eth_mac_names[__ETHTOOL_A_STATS_ETH_MAC_CNT][ETH_GSTRING_LEN] = {
+	[ETHTOOL_A_STATS_ETH_MAC_2_TX_PKT]	= "FramesTransmittedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_3_SINGLE_COL]	= "SingleCollisionFrames",
+	[ETHTOOL_A_STATS_ETH_MAC_4_MULTI_COL]	= "MultipleCollisionFrames",
+	[ETHTOOL_A_STATS_ETH_MAC_5_RX_PKT]	= "FramesReceivedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_6_FCS_ERR]	= "FrameCheckSequenceErrors",
+	[ETHTOOL_A_STATS_ETH_MAC_7_ALIGN_ERR]	= "AlignmentErrors",
+	[ETHTOOL_A_STATS_ETH_MAC_8_TX_BYTES]	= "OctetsTransmittedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_9_TX_DEFER]	= "FramesWithDeferredXmissions",
+	[ETHTOOL_A_STATS_ETH_MAC_10_LATE_COL]	= "LateCollisions",
+	[ETHTOOL_A_STATS_ETH_MAC_11_XS_COL]	= "FramesAbortedDueToXSColls",
+	[ETHTOOL_A_STATS_ETH_MAC_12_TX_INT_ERR]	= "FramesLostDueToIntMACXmitError",
+	[ETHTOOL_A_STATS_ETH_MAC_13_CS_ERR]	= "CarrierSenseErrors",
+	[ETHTOOL_A_STATS_ETH_MAC_14_RX_BYTES]	= "OctetsReceivedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_15_RX_INT_ERR]	= "FramesLostDueToIntMACRcvError",
+	[ETHTOOL_A_STATS_ETH_MAC_18_TX_MCAST]	= "MulticastFramesXmittedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_19_TX_BCAST]	= "BroadcastFramesXmittedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_20_XS_DEFER]	= "FramesWithExcessiveDeferral",
+	[ETHTOOL_A_STATS_ETH_MAC_21_RX_MCAST]	= "MulticastFramesReceivedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_22_RX_BCAST]	= "BroadcastFramesReceivedOK",
+	[ETHTOOL_A_STATS_ETH_MAC_23_IR_LEN_ERR]	= "InRangeLengthErrors",
+	[ETHTOOL_A_STATS_ETH_MAC_24_OOR_LEN]	= "OutOfRangeLengthField",
+	[ETHTOOL_A_STATS_ETH_MAC_25_TOO_LONG_ERR]	= "FrameTooLongErrors",
 };
 
 const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_GROUPS + 1] = {
@@ -70,10 +97,14 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 		return ret;
 
 	memset(&data->phy_stats, 0xff, sizeof(data->phy_stats));
+	memset(&data->mac_stats, 0xff, sizeof(data->mac_stats));
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask) &&
 	    dev->ethtool_ops->get_eth_phy_stats)
 		dev->ethtool_ops->get_eth_phy_stats(dev, &data->phy_stats);
+	if (test_bit(ETHTOOL_STATS_ETH_MAC, req_info->stat_mask) &&
+	    dev->ethtool_ops->get_eth_mac_stats)
+		dev->ethtool_ops->get_eth_mac_stats(dev, &data->mac_stats);
 
 	ethnl_ops_complete(dev);
 	return 0;
@@ -88,6 +119,10 @@ static int stats_reply_size(const struct ethnl_req_info *req_base,
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask)) {
 		n_stats += sizeof(struct ethtool_eth_phy_stats) / sizeof(u64);
+		n_grps++;
+	}
+	if (test_bit(ETHTOOL_STATS_ETH_MAC, req_info->stat_mask)) {
+		n_stats += sizeof(struct ethtool_eth_mac_stats) / sizeof(u64);
 		n_grps++;
 	}
 
@@ -143,6 +178,57 @@ static int stats_put_phy_stats(struct sk_buff *skb,
 	return 0;
 }
 
+static int stats_put_mac_stats(struct sk_buff *skb,
+			       const struct stats_reply_data *data)
+{
+	if (stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_2_TX_PKT,
+		     data->mac_stats.FramesTransmittedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_3_SINGLE_COL,
+		     data->mac_stats.SingleCollisionFrames) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_4_MULTI_COL,
+		     data->mac_stats.MultipleCollisionFrames) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_5_RX_PKT,
+		     data->mac_stats.FramesReceivedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_6_FCS_ERR,
+		     data->mac_stats.FrameCheckSequenceErrors) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_7_ALIGN_ERR,
+		     data->mac_stats.AlignmentErrors) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_8_TX_BYTES,
+		     data->mac_stats.OctetsTransmittedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_9_TX_DEFER,
+		     data->mac_stats.FramesWithDeferredXmissions) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_10_LATE_COL,
+		     data->mac_stats.LateCollisions) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_11_XS_COL,
+		     data->mac_stats.FramesAbortedDueToXSColls) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_12_TX_INT_ERR,
+		     data->mac_stats.FramesLostDueToIntMACXmitError) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_13_CS_ERR,
+		     data->mac_stats.CarrierSenseErrors) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_14_RX_BYTES,
+		     data->mac_stats.OctetsReceivedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_15_RX_INT_ERR,
+		     data->mac_stats.FramesLostDueToIntMACRcvError) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_18_TX_MCAST,
+		     data->mac_stats.MulticastFramesXmittedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_19_TX_BCAST,
+		     data->mac_stats.BroadcastFramesXmittedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_20_XS_DEFER,
+		     data->mac_stats.FramesWithExcessiveDeferral) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_21_RX_MCAST,
+		     data->mac_stats.MulticastFramesReceivedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_22_RX_BCAST,
+		     data->mac_stats.BroadcastFramesReceivedOK) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_23_IR_LEN_ERR,
+		     data->mac_stats.InRangeLengthErrors) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_24_OOR_LEN,
+		     data->mac_stats.OutOfRangeLengthField) ||
+	    stat_put(skb, ETHTOOL_A_STATS_ETH_MAC_25_TOO_LONG_ERR,
+		     data->mac_stats.FrameTooLongErrors))
+		return -EMSGSIZE;
+	return 0;
+}
+
 static int stats_put_stats(struct sk_buff *skb,
 			   const struct stats_reply_data *data,
 			   u32 id, u32 ss_id,
@@ -182,6 +268,10 @@ static int stats_fill_reply(struct sk_buff *skb,
 		ret = stats_put_stats(skb, data, ETHTOOL_STATS_ETH_PHY,
 				      ETH_SS_STATS_ETH_PHY,
 				      stats_put_phy_stats);
+	if (!ret && test_bit(ETHTOOL_STATS_ETH_MAC, req_info->stat_mask))
+		ret = stats_put_stats(skb, data, ETHTOOL_STATS_ETH_MAC,
+				      ETH_SS_STATS_ETH_MAC,
+				      stats_put_mac_stats);
 
 	return ret;
 }

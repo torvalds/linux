@@ -250,6 +250,34 @@ static inline void ethtool_stats_init(u64 *stats, unsigned int n)
 		stats[n] = ETHTOOL_STAT_NOT_SET;
 }
 
+/* Basic IEEE 802.3 MAC statistics (30.3.1.1.*), not otherwise exposed
+ * via a more targeted API.
+ */
+struct ethtool_eth_mac_stats {
+	u64 FramesTransmittedOK;
+	u64 SingleCollisionFrames;
+	u64 MultipleCollisionFrames;
+	u64 FramesReceivedOK;
+	u64 FrameCheckSequenceErrors;
+	u64 AlignmentErrors;
+	u64 OctetsTransmittedOK;
+	u64 FramesWithDeferredXmissions;
+	u64 LateCollisions;
+	u64 FramesAbortedDueToXSColls;
+	u64 FramesLostDueToIntMACXmitError;
+	u64 CarrierSenseErrors;
+	u64 OctetsReceivedOK;
+	u64 FramesLostDueToIntMACRcvError;
+	u64 MulticastFramesXmittedOK;
+	u64 BroadcastFramesXmittedOK;
+	u64 FramesWithExcessiveDeferral;
+	u64 MulticastFramesReceivedOK;
+	u64 BroadcastFramesReceivedOK;
+	u64 InRangeLengthErrors;
+	u64 OutOfRangeLengthField;
+	u64 FrameTooLongErrors;
+};
+
 /* Basic IEEE 802.3 PHY statistics (30.3.2.1.*), not otherwise exposed
  * via a more targeted API.
  */
@@ -495,6 +523,7 @@ struct ethtool_module_eeprom {
  *	specified page. Returns a negative error code or the amount of bytes
  *	read.
  * @get_eth_phy_stats: Query some of the IEEE 802.3 PHY statistics.
+ * @get_eth_mac_stats: Query some of the IEEE 802.3 MAC statistics.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -607,6 +636,8 @@ struct ethtool_ops {
 					     struct netlink_ext_ack *extack);
 	void	(*get_eth_phy_stats)(struct net_device *dev,
 				     struct ethtool_eth_phy_stats *phy_stats);
+	void	(*get_eth_mac_stats)(struct net_device *dev,
+				     struct ethtool_eth_mac_stats *mac_stats);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
