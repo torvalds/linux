@@ -210,6 +210,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_TUNNEL_INFO_GET``       get tunnel offload info
   ``ETHTOOL_MSG_FEC_GET``               get FEC settings
   ``ETHTOOL_MSG_FEC_SET``               set FEC settings
+  ``ETHTOOL_MSG_STATS_GET``             get standard statistics
   ===================================== ================================
 
 Kernel to userspace:
@@ -246,6 +247,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY`` tunnel offload info
   ``ETHTOOL_MSG_FEC_GET_REPLY``         FEC settings
   ``ETHTOOL_MSG_FEC_NTF``               FEC settings
+  ``ETHTOOL_MSG_STATS_GET_REPLY``       standard statistics
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -1390,6 +1392,86 @@ Kernel response contents:
 
 ``ETHTOOL_A_MODULE_EEPROM_DATA`` has an attribute length equal to the amount of
 bytes driver actually read.
+
+STATS_GET
+=========
+
+Get standard statistics for the interface. Note that this is not
+a re-implementation of ``ETHTOOL_GSTATS`` which exposed driver-defined
+stats.
+
+Request contents:
+
+  =======================================  ======  ==========================
+  ``ETHTOOL_A_STATS_HEADER``               nested  request header
+  ``ETHTOOL_A_STATS_GROUPS``               bitset  requested groups of stats
+  =======================================  ======  ==========================
+
+Kernel response contents:
+
+ +-----------------------------------+--------+--------------------------------+
+ | ``ETHTOOL_A_STATS_HEADER``        | nested | reply header                   |
+ +-----------------------------------+--------+--------------------------------+
+ | ``ETHTOOL_A_STATS_GRP``           | nested | one or more group of stats     |
+ +-+---------------------------------+--------+--------------------------------+
+ | | ``ETHTOOL_A_STATS_GRP_ID``      | u32    | group ID - ``ETHTOOL_STATS_*`` |
+ +-+---------------------------------+--------+--------------------------------+
+ | | ``ETHTOOL_A_STATS_GRP_SS_ID``   | u32    | string set ID for names        |
+ +-+---------------------------------+--------+--------------------------------+
+ | | ``ETHTOOL_A_STATS_GRP_STAT``    | nested | nest containing a statistic    |
+ +-+---------------------------------+--------+--------------------------------+
+ | | ``ETHTOOL_A_STATS_GRP_HIST_RX`` | nested | histogram statistic (Rx)       |
+ +-+---------------------------------+--------+--------------------------------+
+ | | ``ETHTOOL_A_STATS_GRP_HIST_TX`` | nested | histogram statistic (Tx)       |
+ +-+---------------------------------+--------+--------------------------------+
+
+Users specify which groups of statistics they are requesting via
+the ``ETHTOOL_A_STATS_GROUPS`` bitset. Currently defined values are:
+
+ ====================== ======== ===============================================
+ ETHTOOL_STATS_ETH_MAC  eth-mac  Basic IEEE 802.3 MAC statistics (30.3.1.1.*)
+ ETHTOOL_STATS_ETH_PHY  eth-phy  Basic IEEE 802.3 PHY statistics (30.3.2.1.*)
+ ETHTOOL_STATS_ETH_CTRL eth-ctrl Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*)
+ ETHTOOL_STATS_RMON     rmon     RMON (RFC 2819) statistics
+ ====================== ======== ===============================================
+
+Each group should have a corresponding ``ETHTOOL_A_STATS_GRP`` in the reply.
+``ETHTOOL_A_STATS_GRP_ID`` identifies which group's statistics nest contains.
+``ETHTOOL_A_STATS_GRP_SS_ID`` identifies the string set ID for the names of
+the statistics in the group, if available.
+
+Statistics are added to the ``ETHTOOL_A_STATS_GRP`` nest under
+``ETHTOOL_A_STATS_GRP_STAT``. ``ETHTOOL_A_STATS_GRP_STAT`` should contain
+single 8 byte (u64) attribute inside - the type of that attribute is
+the statistic ID and the value is the value of the statistic.
+Each group has its own interpretation of statistic IDs.
+Attribute IDs correspond to strings from the string set identified
+by ``ETHTOOL_A_STATS_GRP_SS_ID``. Complex statistics (such as RMON histogram
+entries) are also listed inside ``ETHTOOL_A_STATS_GRP`` and do not have
+a string defined in the string set.
+
+RMON "histogram" counters count number of packets within given size range.
+Because RFC does not specify the ranges beyond the standard 1518 MTU devices
+differ in definition of buckets. For this reason the definition of packet ranges
+is left to each driver.
+
+``ETHTOOL_A_STATS_GRP_HIST_RX`` and ``ETHTOOL_A_STATS_GRP_HIST_TX`` nests
+contain the following attributes:
+
+ ================================= ====== ===================================
+ ETHTOOL_A_STATS_RMON_HIST_BKT_LOW u32    low bound of the packet size bucket
+ ETHTOOL_A_STATS_RMON_HIST_BKT_HI  u32    high bound of the bucket
+ ETHTOOL_A_STATS_RMON_HIST_VAL     u64    packet counter
+ ================================= ====== ===================================
+
+Low and high bounds are inclusive, for example:
+
+ ============================= ==== ====
+ RFC statistic                 low  high
+ ============================= ==== ====
+ etherStatsPkts64Octets          0    64
+ etherStatsPkts512to1023Octets 512  1023
+ ============================= ==== ====
 
 Request translation
 ===================
