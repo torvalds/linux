@@ -28,6 +28,7 @@
    mips/index
    iio/index
    riscv/index
+   core-api/index
 
 目录和表格
 ----------
