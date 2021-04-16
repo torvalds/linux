@@ -657,15 +657,13 @@ enum rtl_register_content {
 
 #define INTR_LINK		0x0004
 
-#define RTL8153_MAX_PACKET	9216 /* 9K */
-#define RTL8153_MAX_MTU		(RTL8153_MAX_PACKET - VLAN_ETH_HLEN - \
-				 ETH_FCS_LEN)
 #define RTL8152_RMS		(VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 #define RTL8153_RMS		RTL8153_MAX_PACKET
 #define RTL8152_TX_TIMEOUT	(5 * HZ)
 #define RTL8152_NAPI_WEIGHT	64
-#define rx_reserved_size(x)	((x) + VLAN_ETH_HLEN + ETH_FCS_LEN + \
-				 sizeof(struct rx_desc) + RX_ALIGN)
+#define mtu_to_size(m)		((m) + VLAN_ETH_HLEN + ETH_FCS_LEN)
+#define size_to_mtu(s)		((s) - VLAN_ETH_HLEN - ETH_FCS_LEN)
+#define rx_reserved_size(x)	(mtu_to_size(x) + sizeof(struct rx_desc) + RX_ALIGN)
 
 /* rtl8152 flags */
 enum rtl8152_flags {
@@ -795,6 +793,7 @@ struct r8152 {
 		bool (*in_nway)(struct r8152 *tp);
 		void (*hw_phy_cfg)(struct r8152 *tp);
 		void (*autosuspend_en)(struct r8152 *tp, bool enable);
+		void (*change_mtu)(struct r8152 *tp);
 	} rtl_ops;
 
 	struct ups_info {
@@ -1021,8 +1020,7 @@ enum tx_csum_stat {
 static const int multicast_filter_limit = 32;
 static unsigned int agg_buf_sz = 16384;
 
-#define RTL_LIMITED_TSO_SIZE	(agg_buf_sz - sizeof(struct tx_desc) - \
-				 VLAN_ETH_HLEN - ETH_FCS_LEN)
+#define RTL_LIMITED_TSO_SIZE	(size_to_mtu(agg_buf_sz) - sizeof(struct tx_desc))
 
 static
 int get_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
@@ -2632,10 +2630,7 @@ static void rtl8152_nic_reset(struct r8152 *tp)
 
 static void set_tx_qlen(struct r8152 *tp)
 {
-	struct net_device *netdev = tp->netdev;
-
-	tp->tx_qlen = agg_buf_sz / (netdev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN +
-				    sizeof(struct tx_desc));
+	tp->tx_qlen = agg_buf_sz / (mtu_to_size(tp->netdev->mtu) + sizeof(struct tx_desc));
 }
 
 static inline u8 rtl8152_get_speed(struct r8152 *tp)
@@ -4724,6 +4719,12 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 	set_bit(PHY_RESET, &tp->flags);
 }
 
+static void rtl8153_change_mtu(struct r8152 *tp)
+{
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, mtu_to_size(tp->netdev->mtu));
+	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_MTPS, MTPS_JUMBO);
+}
+
 static void r8153_first_init(struct r8152 *tp)
 {
 	u32 ocp_data;
@@ -4756,9 +4757,7 @@ static void r8153_first_init(struct r8152 *tp)
 
 	rtl_rx_vlan_en(tp, tp->netdev->features & NETIF_F_HW_VLAN_CTAG_RX);
 
-	ocp_data = tp->netdev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, ocp_data);
-	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_MTPS, MTPS_JUMBO);
+	rtl8153_change_mtu(tp);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TCR0);
 	ocp_data |= TCR0_AUTO_FIFO;
@@ -4793,8 +4792,7 @@ static void r8153_enter_oob(struct r8152 *tp)
 
 	wait_oob_link_list_ready(tp);
 
-	ocp_data = tp->netdev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, ocp_data);
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, mtu_to_size(tp->netdev->mtu));
 
 	switch (tp->version) {
 	case RTL_VER_03:
@@ -6494,12 +6492,21 @@ static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 
 	if (netif_running(dev)) {
-		u32 rms = new_mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+		if (tp->rtl_ops.change_mtu)
+			tp->rtl_ops.change_mtu(tp);
 
-		ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, rms);
-
-		if (netif_carrier_ok(dev))
-			r8153_set_rx_early_size(tp);
+		if (netif_carrier_ok(dev)) {
+			netif_stop_queue(dev);
+			napi_disable(&tp->napi);
+			tasklet_disable(&tp->tx_tl);
+			tp->rtl_ops.disable(tp);
+			tp->rtl_ops.enable(tp);
+			rtl_start_rx(tp);
+			tasklet_enable(&tp->tx_tl);
+			napi_enable(&tp->napi);
+			rtl8152_set_rx_mode(dev);
+			netif_wake_queue(dev);
+		}
 	}
 
 	mutex_unlock(&tp->control);
@@ -6588,6 +6595,7 @@ static int rtl_ops_init(struct r8152 *tp)
 		ops->in_nway		= rtl8153_in_nway;
 		ops->hw_phy_cfg		= r8153_hw_phy_cfg;
 		ops->autosuspend_en	= rtl8153_runtime_enable;
+		ops->change_mtu		= rtl8153_change_mtu;
 		if (tp->udev->speed < USB_SPEED_SUPER)
 			tp->rx_buf_sz	= 16 * 1024;
 		else
@@ -6609,6 +6617,7 @@ static int rtl_ops_init(struct r8152 *tp)
 		ops->in_nway		= rtl8153_in_nway;
 		ops->hw_phy_cfg		= r8153b_hw_phy_cfg;
 		ops->autosuspend_en	= rtl8153b_runtime_enable;
+		ops->change_mtu		= rtl8153_change_mtu;
 		tp->rx_buf_sz		= 32 * 1024;
 		tp->eee_en		= true;
 		tp->eee_adv		= MDIO_EEE_1000T | MDIO_EEE_100TX;
@@ -6829,7 +6838,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 		netdev->max_mtu = ETH_DATA_LEN;
 		break;
 	default:
-		netdev->max_mtu = RTL8153_MAX_MTU;
+		netdev->max_mtu = size_to_mtu(9 * 1024);
 		break;
 	}
 
