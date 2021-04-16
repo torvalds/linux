@@ -190,4 +190,5 @@ enum dc_status dpcd_configure_lttpr_mode(
 		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
+bool dp_retrieve_lttpr_cap(struct dc_link *link);
 #endif /* __DC_LINK_DP_H__ */

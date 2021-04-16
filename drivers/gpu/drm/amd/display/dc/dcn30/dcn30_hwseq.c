@@ -48,6 +48,7 @@
 #include "dc_dmub_srv.h"
 #include "link_hwss.h"
 #include "dpcd_defs.h"
+#include "inc/dc_link_dp.h"
 
 
 
@@ -529,6 +530,8 @@ void dcn30_init_hw(struct dc *dc)
 		for (i = 0; i < dc->link_count; i++) {
 			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
 				continue;
+			/* DP 2.0 states that LTTPR regs must be read first */
+			dp_retrieve_lttpr_cap(dc->links[i]);
 
 			/* if any of the displays are lit up turn them off */
 			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
