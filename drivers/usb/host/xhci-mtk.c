@@ -665,42 +665,6 @@ enable_wakeup:
 	return ret;
 }
 
-static int check_rhub_status(struct xhci_hcd *xhci, struct xhci_hub *rhub)
-{
-	u32 suspended_ports;
-	u32 status;
-	int num_ports;
-	int i;
-
-	num_ports = rhub->num_ports;
-	suspended_ports = rhub->bus_state.suspended_ports;
-	for (i = 0; i < num_ports; i++) {
-		if (!(suspended_ports & BIT(i))) {
-			status = readl(rhub->ports[i]->addr);
-			if (status & PORT_CONNECT)
-				return -EBUSY;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * check the bus whether it could suspend or not
- * the bus will suspend if the downstream ports are already suspended,
- * or no devices connected.
- */
-static int check_bus_status(struct xhci_hcd *xhci)
-{
-	int ret;
-
-	ret = check_rhub_status(xhci, &xhci->usb3_rhub);
-	if (ret)
-		return ret;
-
-	return check_rhub_status(xhci, &xhci->usb2_rhub);
-}
-
 static int __maybe_unused xhci_mtk_runtime_suspend(struct device *dev)
 {
 	struct xhci_hcd_mtk  *mtk = dev_get_drvdata(dev);
@@ -710,11 +674,8 @@ static int __maybe_unused xhci_mtk_runtime_suspend(struct device *dev)
 	if (xhci->xhc_state)
 		return -ESHUTDOWN;
 
-	if (device_may_wakeup(dev)) {
-		ret = check_bus_status(xhci);
-		if (!ret)
-			ret = xhci_mtk_suspend(dev);
-	}
+	if (device_may_wakeup(dev))
+		ret = xhci_mtk_suspend(dev);
 
 	/* -EBUSY: let PM automatically reschedule another autosuspend */
 	return ret ? -EBUSY : 0;
