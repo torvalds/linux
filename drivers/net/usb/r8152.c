@@ -29,7 +29,7 @@
 #include <linux/usb/r8152.h>
 
 /* Information for net-next */
-#define NETNEXT_VERSION		"11"
+#define NETNEXT_VERSION		"12"
 
 /* Information for net */
 #define NET_VERSION		"11"
@@ -8107,6 +8107,39 @@ static void r8156b_init(struct r8152 *tp)
 	tp->coalesce = 15000;	/* 15 us */
 }
 
+static bool rtl_vendor_mode(struct usb_interface *intf)
+{
+	struct usb_host_interface *alt = intf->cur_altsetting;
+	struct usb_device *udev;
+	struct usb_host_config *c;
+	int i, num_configs;
+
+	if (alt->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC)
+		return true;
+
+	/* The vendor mode is not always config #1, so to find it out. */
+	udev = interface_to_usbdev(intf);
+	c = udev->config;
+	num_configs = udev->descriptor.bNumConfigurations;
+	for (i = 0; i < num_configs; (i++, c++)) {
+		struct usb_interface_descriptor	*desc = NULL;
+
+		if (c->desc.bNumInterfaces > 0)
+			desc = &c->intf_cache[0]->altsetting->desc;
+		else
+			continue;
+
+		if (desc->bInterfaceClass == USB_CLASS_VENDOR_SPEC) {
+			usb_driver_set_configuration(udev, c->desc.bConfigurationValue);
+			break;
+		}
+	}
+
+	WARN_ON_ONCE(i == num_configs);
+
+	return false;
+}
+
 static int rtl8152_pre_reset(struct usb_interface *intf)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
@@ -9345,10 +9378,8 @@ static int rtl8152_probe(struct usb_interface *intf,
 	if (version == RTL_VER_UNKNOWN)
 		return -ENODEV;
 
-	if (udev->actconfig->desc.bConfigurationValue != 1) {
-		usb_driver_set_configuration(udev, 1);
+	if (!rtl_vendor_mode(intf))
 		return -ENODEV;
-	}
 
 	if (intf->cur_altsetting->desc.bNumEndpoints < 3)
 		return -ENODEV;
