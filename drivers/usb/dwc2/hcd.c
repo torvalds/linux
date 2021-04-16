@@ -3321,6 +3321,18 @@ int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 				"enter partial_power_down failed.\n");
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+		/*
+		 * Perform spin unlock and lock because in
+		 * "dwc2_host_enter_hibernation()" function there is a spinlock
+		 * logic which prevents servicing of any IRQ during entering
+		 * hibernation.
+		 */
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		ret = dwc2_enter_hibernation(hsotg, 1);
+		if (ret)
+			dev_err(hsotg->dev, "enter hibernation failed.\n");
+		spin_lock_irqsave(&hsotg->lock, flags);
+		break;
 	case DWC2_POWER_DOWN_PARAM_NONE:
 		/*
 		 * If not hibernation nor partial power down are supported,
@@ -3650,10 +3662,8 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 				"SetPortFeature - USB_PORT_FEAT_SUSPEND\n");
 			if (windex != hsotg->otg_port)
 				goto error;
-			if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_HIBERNATION)
-				dwc2_enter_hibernation(hsotg, 1);
-			else
-				dwc2_port_suspend(hsotg, windex);
+			if (!hsotg->bus_suspended)
+				retval = dwc2_port_suspend(hsotg, windex);
 			break;
 
 		case USB_PORT_FEAT_POWER:
