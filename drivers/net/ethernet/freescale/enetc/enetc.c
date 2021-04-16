@@ -1081,6 +1081,8 @@ int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 	int xdp_tx_bd_cnt, i, k;
 	int xdp_tx_frm_cnt = 0;
 
+	enetc_lock_mdio();
+
 	tx_ring = priv->xdp_tx_ring[smp_processor_id()];
 
 	prefetchw(ENETC_TXBD(*tx_ring, tx_ring->next_to_use));
@@ -1108,6 +1110,8 @@ int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 		enetc_update_tx_ring_tail(tx_ring);
 
 	tx_ring->stats.xdp_tx += xdp_tx_frm_cnt;
+
+	enetc_unlock_mdio();
 
 	return xdp_tx_frm_cnt;
 }
