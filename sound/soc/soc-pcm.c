@@ -386,16 +386,16 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 
 	soc_pcm_set_dai_params(&d, params);
 
-#define __soc_pcm_params_symmetry(name)					\
-	symmetry = rtd->dai_link->symmetric_##name;			\
+#define __soc_pcm_params_symmetry(xxx)					\
+	symmetry = rtd->dai_link->symmetric_##xxx;			\
 	for_each_rtd_dais(rtd, i, dai)					\
-		symmetry |= dai->driver->symmetric_##name;		\
+		symmetry |= dai->driver->symmetric_##xxx;		\
 									\
 	if (symmetry)							\
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
-			if (cpu_dai->name && cpu_dai->name != d.name) {	\
+			if (cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
 				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %d - %d\n", \
-					#name, cpu_dai->name, d.name);	\
+					#xxx, cpu_dai->xxx, d.xxx);	\
 				return -EINVAL;				\
 			}
 
