@@ -1355,25 +1355,33 @@ static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_WO(reset);
 
-static DEVICE_ATTR(reset, 0200, NULL, reset_store);
+static struct attribute *pci_dev_reset_attrs[] = {
+	&dev_attr_reset.attr,
+	NULL,
+};
 
-static int pci_create_capabilities_sysfs(struct pci_dev *dev)
+static umode_t pci_dev_reset_attr_is_visible(struct kobject *kobj,
+					     struct attribute *a, int n)
 {
-	int retval;
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
+	if (!pdev->reset_fn)
+		return 0;
+
+	return a->mode;
+}
+
+static const struct attribute_group pci_dev_reset_attr_group = {
+	.attrs = pci_dev_reset_attrs,
+	.is_visible = pci_dev_reset_attr_is_visible,
+};
+
+
+static void pci_create_capabilities_sysfs(struct pci_dev *dev)
+{
 	pcie_vpd_create_sysfs_dev_files(dev);
-
-	if (dev->reset_fn) {
-		retval = device_create_file(&dev->dev, &dev_attr_reset);
-		if (retval)
-			goto error;
-	}
-	return 0;
-
-error:
-	pcie_vpd_remove_sysfs_dev_files(dev);
-	return retval;
 }
 
 int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
@@ -1385,30 +1393,18 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 
 	retval = pci_create_resource_files(pdev);
 	if (retval)
-		goto err;
+		return retval;
 
 	/* add sysfs entries for various capabilities */
-	retval = pci_create_capabilities_sysfs(pdev);
-	if (retval)
-		goto err_resource_files;
-
+	pci_create_capabilities_sysfs(pdev);
 	pci_create_firmware_label_files(pdev);
 
 	return 0;
-
-err_resource_files:
-	pci_remove_resource_files(pdev);
-err:
-	return retval;
 }
 
 static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
 {
 	pcie_vpd_remove_sysfs_dev_files(dev);
-	if (dev->reset_fn) {
-		device_remove_file(&dev->dev, &dev_attr_reset);
-		dev->reset_fn = 0;
-	}
 }
 
 /**
@@ -1517,6 +1513,7 @@ const struct attribute_group *pci_dev_groups[] = {
 	&pci_dev_group,
 	&pci_dev_config_attr_group,
 	&pci_dev_rom_attr_group,
+	&pci_dev_reset_attr_group,
 	NULL,
 };
 
