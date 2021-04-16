@@ -100,6 +100,11 @@ static const struct strset_info info_template[] = {
 		.count		= __ETHTOOL_A_STATS_ETH_CTRL_CNT,
 		.strings	= stats_eth_ctrl_names,
 	},
+	[ETH_SS_STATS_RMON] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_RMON_CNT,
+		.strings	= stats_rmon_names,
+	},
 };
 
 struct strset_req_info {

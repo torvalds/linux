@@ -673,6 +673,7 @@ enum ethtool_link_ext_substate_cable_issue {
  * @ETH_SS_STATS_ETH_PHY: names of IEEE 802.3 PHY statistics
  * @ETH_SS_STATS_ETH_MAC: names of IEEE 802.3 MAC statistics
  * @ETH_SS_STATS_ETH_CTRL: names of IEEE 802.3 MAC Control statistics
+ * @ETH_SS_STATS_RMON: names of RMON statistics
  *
  * @ETH_SS_COUNT: number of defined string sets
  */
@@ -697,6 +698,7 @@ enum ethtool_stringset {
 	ETH_SS_STATS_ETH_PHY,
 	ETH_SS_STATS_ETH_MAC,
 	ETH_SS_STATS_ETH_CTRL,
+	ETH_SS_STATS_RMON,
 
 	/* add new constants above here */
 	ETH_SS_COUNT

@@ -700,6 +700,7 @@ enum {
 	ETHTOOL_STATS_ETH_PHY,
 	ETHTOOL_STATS_ETH_MAC,
 	ETHTOOL_STATS_ETH_CTRL,
+	ETHTOOL_STATS_RMON,
 
 	/* add new constants above here */
 	__ETHTOOL_STATS_CNT
@@ -713,6 +714,13 @@ enum {
 	ETHTOOL_A_STATS_GRP_SS_ID,		/* u32 */
 
 	ETHTOOL_A_STATS_GRP_STAT,		/* nest */
+
+	ETHTOOL_A_STATS_GRP_HIST_RX,		/* nest */
+	ETHTOOL_A_STATS_GRP_HIST_TX,		/* nest */
+
+	ETHTOOL_A_STATS_GRP_HIST_BKT_LOW,	/* u32 */
+	ETHTOOL_A_STATS_GRP_HIST_BKT_HI,	/* u32 */
+	ETHTOOL_A_STATS_GRP_HIST_VAL,		/* u64 */
 
 	/* add new constants above here */
 	__ETHTOOL_A_STATS_GRP_CNT,
@@ -791,6 +799,21 @@ enum {
 	/* add new constants above here */
 	__ETHTOOL_A_STATS_ETH_CTRL_CNT,
 	ETHTOOL_A_STATS_ETH_CTRL_MAX = (__ETHTOOL_A_STATS_ETH_CTRL_CNT - 1)
+};
+
+enum {
+	/* etherStatsUndersizePkts */
+	ETHTOOL_A_STATS_RMON_UNDERSIZE,
+	/* etherStatsOversizePkts */
+	ETHTOOL_A_STATS_RMON_OVERSIZE,
+	/* etherStatsFragments */
+	ETHTOOL_A_STATS_RMON_FRAG,
+	/* etherStatsJabbers */
+	ETHTOOL_A_STATS_RMON_JABBER,
+
+	/* add new constants above here */
+	__ETHTOOL_A_STATS_RMON_CNT,
+	ETHTOOL_A_STATS_RMON_MAX = (__ETHTOOL_A_STATS_RMON_CNT - 1)
 };
 
 /* generic netlink info */
