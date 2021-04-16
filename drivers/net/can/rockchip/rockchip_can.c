@@ -24,6 +24,7 @@
 #define RESET_MODE		0
 #define WORK_MODE		BIT(0)
 #define SELF_TEST_EN		BIT(2)
+#define MODE_AUTO_RETX		BIT(10)
 
 #define CAN_CMD			0x04
 #define TX_REQ			BIT(0)
@@ -62,14 +63,14 @@
 #define CAN_LOSTARB_CODE	0x28
 
 #define CAN_ERR_CODE		0x2c
-#define ERR_TYPE_MASK		GENMASK(17, 15)
-#define ERR_TYPE_SHIFT		15
+#define ERR_TYPE_MASK		GENMASK(24, 22)
+#define ERR_TYPE_SHIFT		22
 #define BIT_ERR			0
 #define STUFF_ERR		1
 #define FORM_ERR		2
 #define ACK_ERR			3
 #define CRC_ERR			4
-#define ERR_DIR_RX		BIT(14)
+#define ERR_DIR_RX		BIT(21)
 #define ERR_LOC_MASK		GENMASK(13, 0)
 
 #define CAN_RX_ERR_CNT		0x34
@@ -150,7 +151,7 @@ static int set_normal_mode(struct net_device *ndev)
 	u32 val;
 
 	val = readl(rcan->base + CAN_MODE);
-	val |= WORK_MODE;
+	val |= WORK_MODE | MODE_AUTO_RETX;
 	writel(val, rcan->base + CAN_MODE);
 
 	return 0;
@@ -361,6 +362,14 @@ static void rockchip_can_rx(struct net_device *ndev)
 		   data1, data2);
 }
 
+static void rockchip_can_clean_rx_info(struct rockchip_can *rcan)
+{
+	readl(rcan->base + CAN_RX_FRM_INFO);
+	readl(rcan->base + CAN_RX_ID);
+	readl(rcan->base + CAN_RX_DATA1);
+	readl(rcan->base + CAN_RX_DATA2);
+}
+
 static int rockchip_can_err(struct net_device *ndev, u8 isr)
 {
 	struct rockchip_can *rcan = netdev_priv(ndev);
@@ -375,8 +384,8 @@ static int rockchip_can_err(struct net_device *ndev, u8 isr)
 
 	skb = alloc_can_err_skb(ndev, &cf);
 
-	rxerr = readl(rcan->base + CAN_TX_ERR_CNT);
-	txerr = readl(rcan->base + CAN_RX_ERR_CNT);
+	rxerr = readl(rcan->base + CAN_RX_ERR_CNT);
+	txerr = readl(rcan->base + CAN_TX_ERR_CNT);
 	sta_reg = readl(rcan->base + CAN_STATE);
 
 	if (skb) {
@@ -512,12 +521,13 @@ static irqreturn_t rockchip_can_interrupt(int irq, void *dev_id)
 		rockchip_can_rx(ndev);
 
 	if (isr & err_int) {
-		/* error interrupt */
+		rockchip_can_clean_rx_info(rcan);
 		if (rockchip_can_err(ndev, isr))
 			netdev_err(ndev, "can't allocate buffer - clearing pending interrupts\n");
 	}
 
 	writel(isr, rcan->base + CAN_INT);
+	rockchip_can_clean_rx_info(rcan);
 	netdev_dbg(ndev, "isr: 0x%x\n", isr);
 	return	IRQ_HANDLED;
 }
