@@ -75,9 +75,6 @@ static void igmp6_leave_group(struct ifmcaddr6 *ma);
 static void mld_mca_work(struct work_struct *work);
 
 static void mld_ifc_event(struct inet6_dev *idev);
-static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *pmc);
-static void mld_del_delrec(struct inet6_dev *idev, struct ifmcaddr6 *pmc);
-static void mld_clear_delrec(struct inet6_dev *idev);
 static bool mld_in_v1_mode(const struct inet6_dev *idev);
 static int sf_setstate(struct ifmcaddr6 *pmc);
 static void sf_markstate(struct ifmcaddr6 *pmc);
