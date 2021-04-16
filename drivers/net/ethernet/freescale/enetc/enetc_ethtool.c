@@ -708,6 +708,22 @@ static int enetc_set_wol(struct net_device *dev,
 	return ret;
 }
 
+static void enetc_get_pauseparam(struct net_device *dev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	phylink_ethtool_get_pauseparam(priv->phylink, pause);
+}
+
+static int enetc_set_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *pause)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	return phylink_ethtool_set_pauseparam(priv->phylink, pause);
+}
+
 static int enetc_get_link_ksettings(struct net_device *dev,
 				    struct ethtool_link_ksettings *cmd)
 {
@@ -754,6 +770,8 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_ts_info = enetc_get_ts_info,
 	.get_wol = enetc_get_wol,
 	.set_wol = enetc_set_wol,
+	.get_pauseparam = enetc_get_pauseparam,
+	.set_pauseparam = enetc_set_pauseparam,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {

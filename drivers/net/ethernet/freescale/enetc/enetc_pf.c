@@ -1014,7 +1014,12 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 				 int duplex, bool tx_pause, bool rx_pause)
 {
 	struct enetc_pf *pf = phylink_to_enetc_pf(config);
+	u32 pause_off_thresh = 0, pause_on_thresh = 0;
+	u32 init_quanta = 0, refresh_quanta = 0;
+	struct enetc_hw *hw = &pf->si->hw;
 	struct enetc_ndev_priv *priv;
+	u32 rbmr, cmd_cfg;
+	int idx;
 
 	priv = netdev_priv(pf->si->ndev);
 	if (priv->active_offloads & ENETC_F_QBV)
@@ -1022,9 +1027,60 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 
 	if (!phylink_autoneg_inband(mode) &&
 	    phy_interface_mode_is_rgmii(interface))
-		enetc_force_rgmii_mac(&pf->si->hw, speed, duplex);
+		enetc_force_rgmii_mac(hw, speed, duplex);
 
-	enetc_mac_enable(&pf->si->hw, true);
+	/* Flow control */
+	for (idx = 0; idx < priv->num_rx_rings; idx++) {
+		rbmr = enetc_rxbdr_rd(hw, idx, ENETC_RBMR);
+
+		if (tx_pause)
+			rbmr |= ENETC_RBMR_CM;
+		else
+			rbmr &= ~ENETC_RBMR_CM;
+
+		enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
+	}
+
+	if (tx_pause) {
+		/* When the port first enters congestion, send a PAUSE request
+		 * with the maximum number of quanta. When the port exits
+		 * congestion, it will automatically send a PAUSE frame with
+		 * zero quanta.
+		 */
+		init_quanta = 0xffff;
+
+		/* Also, set up the refresh timer to send follow-up PAUSE
+		 * frames at half the quanta value, in case the congestion
+		 * condition persists.
+		 */
+		refresh_quanta = 0xffff / 2;
+
+		/* Start emitting PAUSE frames when 3 large frames (or more
+		 * smaller frames) have accumulated in the FIFO waiting to be
+		 * DMAed to the RX ring.
+		 */
+		pause_on_thresh = 3 * ENETC_MAC_MAXFRM_SIZE;
+		pause_off_thresh = 1 * ENETC_MAC_MAXFRM_SIZE;
+	}
+
+	enetc_port_wr(hw, ENETC_PM0_PAUSE_QUANTA, init_quanta);
+	enetc_port_wr(hw, ENETC_PM1_PAUSE_QUANTA, init_quanta);
+	enetc_port_wr(hw, ENETC_PM0_PAUSE_THRESH, refresh_quanta);
+	enetc_port_wr(hw, ENETC_PM1_PAUSE_THRESH, refresh_quanta);
+	enetc_port_wr(hw, ENETC_PPAUONTR, pause_on_thresh);
+	enetc_port_wr(hw, ENETC_PPAUOFFTR, pause_off_thresh);
+
+	cmd_cfg = enetc_port_rd(hw, ENETC_PM0_CMD_CFG);
+
+	if (rx_pause)
+		cmd_cfg &= ~ENETC_PM0_PAUSE_IGN;
+	else
+		cmd_cfg |= ENETC_PM0_PAUSE_IGN;
+
+	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, cmd_cfg);
+	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, cmd_cfg);
+
+	enetc_mac_enable(hw, true);
 }
 
 static void enetc_pl_mac_link_down(struct phylink_config *config,
