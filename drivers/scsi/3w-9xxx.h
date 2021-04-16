@@ -50,7 +50,7 @@
 /* AEN string type */
 typedef struct TAG_twa_message_type {
 	unsigned int   code;
-	char*	       text;
+	char           *text;
 } twa_message_type;
 
 /* AEN strings */
