@@ -543,14 +543,12 @@ static unsigned int ownerstr_hashval(struct xdr_netobj *ownername)
 #define FILE_HASH_BITS                   8
 #define FILE_HASH_SIZE                  (1 << FILE_HASH_BITS)
 
-static unsigned int nfsd_fh_hashval(struct knfsd_fh *fh)
+static unsigned int file_hashval(struct svc_fh *fh)
 {
-	return jhash2(fh->fh_base.fh_pad, XDR_QUADLEN(fh->fh_size), 0);
-}
+	struct inode *inode = d_inode(fh->fh_dentry);
 
-static unsigned int file_hashval(struct knfsd_fh *fh)
-{
-	return nfsd_fh_hashval(fh) & (FILE_HASH_SIZE - 1);
+	/* XXX: why not (here & in file cache) use inode? */
+	return (unsigned int)hash_long(inode->i_ino, FILE_HASH_BITS);
 }
 
 static struct hlist_head file_hashtbl[FILE_HASH_SIZE];
@@ -4072,7 +4070,7 @@ static struct nfs4_file *nfsd4_alloc_file(void)
 }
 
 /* OPEN Share state helper functions */
-static void nfsd4_init_file(struct knfsd_fh *fh, unsigned int hashval,
+static void nfsd4_init_file(struct svc_fh *fh, unsigned int hashval,
 				struct nfs4_file *fp)
 {
 	lockdep_assert_held(&state_lock);
@@ -4082,7 +4080,7 @@ static void nfsd4_init_file(struct knfsd_fh *fh, unsigned int hashval,
 	INIT_LIST_HEAD(&fp->fi_stateids);
 	INIT_LIST_HEAD(&fp->fi_delegations);
 	INIT_LIST_HEAD(&fp->fi_clnt_odstate);
-	fh_copy_shallow(&fp->fi_fhandle, fh);
+	fh_copy_shallow(&fp->fi_fhandle, &fh->fh_handle);
 	fp->fi_deleg_file = NULL;
 	fp->fi_had_conflict = false;
 	fp->fi_share_deny = 0;
@@ -4426,13 +4424,13 @@ move_to_close_lru(struct nfs4_ol_stateid *s, struct net *net)
 
 /* search file_hashtbl[] for file */
 static struct nfs4_file *
-find_file_locked(struct knfsd_fh *fh, unsigned int hashval)
+find_file_locked(struct svc_fh *fh, unsigned int hashval)
 {
 	struct nfs4_file *fp;
 
 	hlist_for_each_entry_rcu(fp, &file_hashtbl[hashval], fi_hash,
 				lockdep_is_held(&state_lock)) {
-		if (fh_match(&fp->fi_fhandle, fh)) {
+		if (fh_match(&fp->fi_fhandle, &fh->fh_handle)) {
 			if (refcount_inc_not_zero(&fp->fi_ref))
 				return fp;
 		}
@@ -4440,8 +4438,7 @@ find_file_locked(struct knfsd_fh *fh, unsigned int hashval)
 	return NULL;
 }
 
-struct nfs4_file *
-find_file(struct knfsd_fh *fh)
+static struct nfs4_file * find_file(struct svc_fh *fh)
 {
 	struct nfs4_file *fp;
 	unsigned int hashval = file_hashval(fh);
@@ -4453,7 +4450,7 @@ find_file(struct knfsd_fh *fh)
 }
 
 static struct nfs4_file *
-find_or_add_file(struct nfs4_file *new, struct knfsd_fh *fh)
+find_or_add_file(struct nfs4_file *new, struct svc_fh *fh)
 {
 	struct nfs4_file *fp;
 	unsigned int hashval = file_hashval(fh);
@@ -4485,7 +4482,7 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	struct nfs4_file *fp;
 	__be32 ret = nfs_ok;
 
-	fp = find_file(&current_fh->fh_handle);
+	fp = find_file(current_fh);
 	if (!fp)
 		return ret;
 	/* Check for conflicting share reservations */
@@ -5166,7 +5163,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	 * and check for delegations in the process of being recalled.
 	 * If not found, create the nfs4_file struct
 	 */
-	fp = find_or_add_file(open->op_file, &current_fh->fh_handle);
+	fp = find_or_add_file(open->op_file, current_fh);
 	if (fp != open->op_file) {
 		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
