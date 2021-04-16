@@ -1994,6 +1994,10 @@
   schedule_timeout
   schedule_timeout_interruptible
   schedule_timeout_uninterruptible
+  scmi_driver_register
+  scmi_driver_unregister
+  scmi_protocol_register
+  scmi_protocol_unregister
   scnprintf
   scsi_autopm_get_device
   scsi_autopm_put_device
