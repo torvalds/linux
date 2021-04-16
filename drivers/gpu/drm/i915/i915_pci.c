@@ -647,8 +647,8 @@ static const struct intel_device_info chv_info = {
 	.has_gt_uc = 1, \
 	.display.has_hdcp = 1, \
 	.display.has_ipc = 1, \
-	.ddb_size = 896, \
-	.num_supported_dbuf_slices = 1
+	.dbuf.size = 896, \
+	.dbuf.num_slices = 1
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
@@ -683,7 +683,7 @@ static const struct intel_device_info skl_gt4_info = {
 #define GEN9_LP_FEATURES \
 	GEN(9), \
 	.is_lp = 1, \
-	.num_supported_dbuf_slices = 1, \
+	.dbuf.num_slices = 1, \
 	.display.has_hotplug = 1, \
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
@@ -720,14 +720,14 @@ static const struct intel_device_info skl_gt4_info = {
 static const struct intel_device_info bxt_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_BROXTON),
-	.ddb_size = 512,
+	.dbuf.size = 512,
 };
 
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
 	.display.ver = 10,
-	.ddb_size = 1024,
+	.dbuf.size = 1024,
 	GLK_COLORS,
 };
 
@@ -790,7 +790,7 @@ static const struct intel_device_info cml_gt2_info = {
 #define GEN10_FEATURES \
 	GEN9_FEATURES, \
 	GEN(10), \
-	.ddb_size = 1024, \
+	.dbuf.size = 1024, \
 	.display.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	GLK_COLORS
@@ -830,8 +830,8 @@ static const struct intel_device_info cnl_info = {
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
 	}, \
 	GEN(11), \
-	.ddb_size = 2048, \
-	.num_supported_dbuf_slices = 2, \
+	.dbuf.size = 2048, \
+	.dbuf.num_slices = 2, \
 	.has_logical_ring_elsq = 1, \
 	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
 
