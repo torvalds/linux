@@ -9,6 +9,26 @@
 #include <linux/ptp_classify.h>
 #include <net/pkt_sched.h>
 
+static int enetc_num_stack_tx_queues(struct enetc_ndev_priv *priv)
+{
+	int num_tx_rings = priv->num_tx_rings;
+	int i;
+
+	for (i = 0; i < priv->num_rx_rings; i++)
+		if (priv->rx_ring[i]->xdp.prog)
+			return num_tx_rings - num_possible_cpus();
+
+	return num_tx_rings;
+}
+
+static struct enetc_bdr *enetc_rx_ring_from_xdp_tx_ring(struct enetc_ndev_priv *priv,
+							struct enetc_bdr *tx_ring)
+{
+	int index = &priv->tx_ring[tx_ring->index] - priv->xdp_tx_ring;
+
+	return priv->rx_ring[index];
+}
+
 static struct sk_buff *enetc_tx_swbd_get_skb(struct enetc_tx_swbd *tx_swbd)
 {
 	if (tx_swbd->is_xdp_tx || tx_swbd->is_xdp_redirect)
@@ -468,7 +488,6 @@ static void enetc_recycle_xdp_tx_buff(struct enetc_bdr *tx_ring,
 				      struct enetc_tx_swbd *tx_swbd)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(tx_ring->ndev);
-	struct enetc_bdr *rx_ring = priv->rx_ring[tx_ring->index];
 	struct enetc_rx_swbd rx_swbd = {
 		.dma = tx_swbd->dma,
 		.page = tx_swbd->page,
@@ -476,6 +495,9 @@ static void enetc_recycle_xdp_tx_buff(struct enetc_bdr *tx_ring,
 		.dir = tx_swbd->dir,
 		.len = tx_swbd->len,
 	};
+	struct enetc_bdr *rx_ring;
+
+	rx_ring = enetc_rx_ring_from_xdp_tx_ring(priv, tx_ring);
 
 	if (likely(enetc_swbd_unused(rx_ring))) {
 		enetc_reuse_page(rx_ring, &rx_swbd);
@@ -1059,7 +1081,7 @@ int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 	int xdp_tx_bd_cnt, i, k;
 	int xdp_tx_frm_cnt = 0;
 
-	tx_ring = priv->tx_ring[smp_processor_id()];
+	tx_ring = priv->xdp_tx_ring[smp_processor_id()];
 
 	prefetchw(ENETC_TXBD(*tx_ring, tx_ring->next_to_use));
 
@@ -1221,8 +1243,8 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 	int xdp_tx_bd_cnt, xdp_tx_frm_cnt = 0, xdp_redirect_frm_cnt = 0;
 	struct enetc_tx_swbd xdp_tx_arr[ENETC_MAX_SKB_FRAGS] = {0};
 	struct enetc_ndev_priv *priv = netdev_priv(rx_ring->ndev);
-	struct enetc_bdr *tx_ring = priv->tx_ring[rx_ring->index];
 	int rx_frm_cnt = 0, rx_byte_cnt = 0;
+	struct enetc_bdr *tx_ring;
 	int cleaned_cnt, i;
 	u32 xdp_act;
 
@@ -1280,6 +1302,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 			napi_gro_receive(napi, skb);
 			break;
 		case XDP_TX:
+			tx_ring = priv->xdp_tx_ring[rx_ring->index];
 			xdp_tx_bd_cnt = enetc_rx_swbd_to_xdp_tx_swbd(xdp_tx_arr,
 								     rx_ring,
 								     orig_i, i);
@@ -2022,6 +2045,7 @@ void enetc_start(struct net_device *ndev)
 int enetc_open(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int num_stack_tx_queues;
 	int err;
 
 	err = enetc_setup_irqs(priv);
@@ -2040,7 +2064,9 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		goto err_alloc_rx;
 
-	err = netif_set_real_num_tx_queues(ndev, priv->num_tx_rings);
+	num_stack_tx_queues = enetc_num_stack_tx_queues(priv);
+
+	err = netif_set_real_num_tx_queues(ndev, num_stack_tx_queues);
 	if (err)
 		goto err_set_queues;
 
@@ -2113,15 +2139,17 @@ static int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct tc_mqprio_qopt *mqprio = type_data;
 	struct enetc_bdr *tx_ring;
+	int num_stack_tx_queues;
 	u8 num_tc;
 	int i;
 
+	num_stack_tx_queues = enetc_num_stack_tx_queues(priv);
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_tc = mqprio->num_tc;
 
 	if (!num_tc) {
 		netdev_reset_tc(ndev);
-		netif_set_real_num_tx_queues(ndev, priv->num_tx_rings);
+		netif_set_real_num_tx_queues(ndev, num_stack_tx_queues);
 
 		/* Reset all ring priorities to 0 */
 		for (i = 0; i < priv->num_tx_rings; i++) {
@@ -2133,7 +2161,7 @@ static int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 	}
 
 	/* Check if we have enough BD rings available to accommodate all TCs */
-	if (num_tc > priv->num_tx_rings) {
+	if (num_tc > num_stack_tx_queues) {
 		netdev_err(ndev, "Max %d traffic classes supported\n",
 			   priv->num_tx_rings);
 		return -EINVAL;
@@ -2421,8 +2449,9 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 {
 	struct pci_dev *pdev = priv->si->pdev;
-	int v_tx_rings;
+	int first_xdp_tx_ring;
 	int i, n, err, nvec;
+	int v_tx_rings;
 
 	nvec = ENETC_BDR_INT_BASE_IDX + priv->bdr_int_num;
 	/* allocate MSIX for both messaging and Rx/Tx interrupts */
@@ -2496,6 +2525,9 @@ int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 			priv->tx_ring[idx] = bdr;
 		}
 	}
+
+	first_xdp_tx_ring = priv->num_tx_rings - num_possible_cpus();
+	priv->xdp_tx_ring = &priv->tx_ring[first_xdp_tx_ring];
 
 	return 0;
 

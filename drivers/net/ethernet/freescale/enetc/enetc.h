@@ -317,6 +317,7 @@ struct enetc_ndev_priv {
 
 	u32 speed; /* store speed for compare update pspeed */
 
+	struct enetc_bdr **xdp_tx_ring;
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
 
