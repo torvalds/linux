@@ -1175,9 +1175,7 @@ static void enetc_build_xdp_buff(struct enetc_bdr *rx_ring, u32 bd_status,
 }
 
 /* Convert RX buffer descriptors to TX buffer descriptors. These will be
- * recycled back into the RX ring in enetc_clean_tx_ring. We need to scrub the
- * RX software BDs because the ownership of the buffer no longer belongs to the
- * RX ring, so enetc_refill_rx_ring may not reuse rx_swbd->page.
+ * recycled back into the RX ring in enetc_clean_tx_ring.
  */
 static int enetc_rx_swbd_to_xdp_tx_swbd(struct enetc_tx_swbd *xdp_tx_arr,
 					struct enetc_bdr *rx_ring,
@@ -1199,7 +1197,6 @@ static int enetc_rx_swbd_to_xdp_tx_swbd(struct enetc_tx_swbd *xdp_tx_arr,
 		tx_swbd->is_dma_page = true;
 		tx_swbd->is_xdp_tx = true;
 		tx_swbd->is_eof = false;
-		memset(rx_swbd, 0, sizeof(*rx_swbd));
 	}
 
 	/* We rely on caller providing an rx_ring_last > rx_ring_first */
@@ -1317,6 +1314,17 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 				tx_ring->stats.xdp_tx += xdp_tx_bd_cnt;
 				rx_ring->xdp.xdp_tx_in_flight += xdp_tx_bd_cnt;
 				xdp_tx_frm_cnt++;
+				/* The XDP_TX enqueue was successful, so we
+				 * need to scrub the RX software BDs because
+				 * the ownership of the buffers no longer
+				 * belongs to the RX ring, and we must prevent
+				 * enetc_refill_rx_ring() from reusing
+				 * rx_swbd->page.
+				 */
+				while (orig_i != i) {
+					rx_ring->rx_swbd[orig_i].page = NULL;
+					enetc_bdr_idx_inc(rx_ring, &orig_i);
+				}
 			}
 			break;
 		case XDP_REDIRECT:
