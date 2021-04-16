@@ -124,7 +124,6 @@ struct zcrypt_queue {
 extern atomic_t zcrypt_rescan_req;
 
 extern spinlock_t zcrypt_list_lock;
-extern int zcrypt_device_count;
 extern struct list_head zcrypt_card_list;
 
 #define for_each_zcrypt_card(_zc) \

@@ -173,7 +173,6 @@ int zcrypt_queue_register(struct zcrypt_queue *zq)
 		   AP_QID_CARD(zq->queue->qid), AP_QID_QUEUE(zq->queue->qid));
 
 	list_add_tail(&zq->list, &zc->zqueues);
-	zcrypt_device_count++;
 	spin_unlock(&zcrypt_list_lock);
 
 	rc = sysfs_create_group(&zq->queue->ap_dev.device.kobj,
@@ -216,7 +215,6 @@ void zcrypt_queue_unregister(struct zcrypt_queue *zq)
 	zc = zq->zcard;
 	spin_lock(&zcrypt_list_lock);
 	list_del_init(&zq->list);
-	zcrypt_device_count--;
 	spin_unlock(&zcrypt_list_lock);
 	if (zq->ops->rng)
 		zcrypt_rng_device_remove();
