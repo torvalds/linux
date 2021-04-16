@@ -2329,7 +2329,7 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 		fdb_info = ptr;
 
 		if (dsa_slave_dev_check(dev)) {
-			if (!fdb_info->added_by_user)
+			if (!fdb_info->added_by_user || fdb_info->is_local)
 				return NOTIFY_OK;
 
 			dp = dsa_slave_to_port(dev);

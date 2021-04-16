@@ -2916,7 +2916,8 @@ mlxsw_sp_switchdev_bridge_nve_fdb_event(struct mlxsw_sp_switchdev_event_work *
 		return;
 
 	if (switchdev_work->event == SWITCHDEV_FDB_ADD_TO_DEVICE &&
-	    !switchdev_work->fdb_info.added_by_user)
+	    (!switchdev_work->fdb_info.added_by_user ||
+	     switchdev_work->fdb_info.is_local))
 		return;
 
 	if (!netif_running(dev))
@@ -2971,7 +2972,7 @@ static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
-		if (!fdb_info->added_by_user)
+		if (!fdb_info->added_by_user || fdb_info->is_local)
 			break;
 		err = mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, true);
 		if (err)

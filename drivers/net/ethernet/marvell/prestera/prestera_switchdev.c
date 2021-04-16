@@ -798,7 +798,7 @@ static void prestera_fdb_event_work(struct work_struct *work)
 	switch (swdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fdb_info = &swdev_work->fdb_info;
-		if (!fdb_info->added_by_user)
+		if (!fdb_info->added_by_user || fdb_info->is_local)
 			break;
 
 		err = prestera_port_fdb_set(port, fdb_info, true);
