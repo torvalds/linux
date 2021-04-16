@@ -281,10 +281,10 @@ fsck_err:
 
 static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 			    unsigned level, bool is_root,
-			    struct bkey_s_c k,
+			    struct bkey_s_c *k,
 			    u8 *max_stale, bool initial)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	struct bkey_ptrs_c ptrs;
 	const struct bch_extent_ptr *ptr;
 	unsigned flags =
 		BTREE_TRIGGER_GC|
@@ -293,28 +293,29 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 
 	if (initial) {
 		BUG_ON(bch2_journal_seq_verify &&
-		       k.k->version.lo > journal_cur_seq(&c->journal));
+		       k->k->version.lo > journal_cur_seq(&c->journal));
 
-		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
+		if (fsck_err_on(k->k->version.lo > atomic64_read(&c->key_version), c,
 				"key version number higher than recorded: %llu > %llu",
-				k.k->version.lo,
+				k->k->version.lo,
 				atomic64_read(&c->key_version)))
-			atomic64_set(&c->key_version, k.k->version.lo);
+			atomic64_set(&c->key_version, k->k->version.lo);
 
 		if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-		    fsck_err_on(!bch2_bkey_replicas_marked(c, k), c,
+		    fsck_err_on(!bch2_bkey_replicas_marked(c, *k), c,
 				"superblock not marked as containing replicas (type %u)",
-				k.k->type)) {
-			ret = bch2_mark_bkey_replicas(c, k);
+				k->k->type)) {
+			ret = bch2_mark_bkey_replicas(c, *k);
 			if (ret) {
 				bch_err(c, "error marking bkey replicas: %i", ret);
 				goto err;
 			}
 		}
 
-		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, &k);
+		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, k);
 	}
 
+	ptrs = bch2_bkey_ptrs_c(*k);
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 		struct bucket *g = PTR_BUCKET(ca, ptr, true);
@@ -325,7 +326,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 		*max_stale = max(*max_stale, ptr_stale(ca, ptr));
 	}
 
-	bch2_mark_key(c, k, 0, k.k->size, NULL, 0, flags);
+	bch2_mark_key(c, *k, 0, k->k->size, NULL, 0, flags);
 fsck_err:
 err:
 	if (ret)
@@ -356,7 +357,7 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 		bch2_bkey_debugcheck(c, b, k);
 
 		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, false,
-				       k, max_stale, initial);
+				       &k, max_stale, initial);
 		if (ret)
 			break;
 
@@ -426,10 +427,12 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 	mutex_lock(&c->btree_root_lock);
 	b = c->btree_roots[btree_id].b;
-	if (!btree_node_fake(b))
+	if (!btree_node_fake(b)) {
+		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
+
 		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, true,
-				       bkey_i_to_s_c(&b->key),
-				       &max_stale, initial);
+				       &k, &max_stale, initial);
+	}
 	gc_pos_set(c, gc_pos_btree_root(b->c.btree_id));
 	mutex_unlock(&c->btree_root_lock);
 
@@ -457,7 +460,7 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 		BUG_ON(bkey_cmp(k.k->p, b->data->max_key) > 0);
 
 		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, false,
-				       k, &max_stale, true);
+				       &k, &max_stale, true);
 		if (ret) {
 			bch_err(c, "%s: error %i from bch2_gc_mark_key", __func__, ret);
 			break;
@@ -561,10 +564,12 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 	if (b->c.level >= target_depth)
 		ret = bch2_gc_btree_init_recurse(c, b, target_depth);
 
-	if (!ret)
+	if (!ret) {
+		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
+
 		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, true,
-				       bkey_i_to_s_c(&b->key),
-				       &max_stale, true);
+				       &k, &max_stale, true);
+	}
 fsck_err:
 	six_unlock_read(&b->c.lock);
 
