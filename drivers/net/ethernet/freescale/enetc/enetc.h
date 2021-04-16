@@ -79,7 +79,7 @@ struct enetc_xdp_data {
 };
 
 #define ENETC_RX_RING_DEFAULT_SIZE	2048
-#define ENETC_TX_RING_DEFAULT_SIZE	256
+#define ENETC_TX_RING_DEFAULT_SIZE	2048
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
 struct enetc_bdr {
