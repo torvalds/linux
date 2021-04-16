@@ -1306,6 +1306,33 @@ static ssize_t pci_read_rom(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
+static BIN_ATTR(rom, 0600, pci_read_rom, pci_write_rom, 0);
+
+static struct bin_attribute *pci_dev_rom_attrs[] = {
+	&bin_attr_rom,
+	NULL,
+};
+
+static umode_t pci_dev_rom_attr_is_visible(struct kobject *kobj,
+					   struct bin_attribute *a, int n)
+{
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
+	size_t rom_size;
+
+	/* If the device has a ROM, try to expose it in sysfs. */
+	rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+	if (!rom_size)
+		return 0;
+
+	a->size = rom_size;
+
+	return a->attr.mode;
+}
+
+static const struct attribute_group pci_dev_rom_attr_group = {
+	.bin_attrs = pci_dev_rom_attrs,
+	.is_bin_visible = pci_dev_rom_attr_is_visible,
+};
 
 static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
@@ -1352,8 +1379,6 @@ error:
 int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 {
 	int retval;
-	int rom_size;
-	struct bin_attribute *attr;
 
 	if (!sysfs_initialized)
 		return -EACCES;
@@ -1362,43 +1387,15 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	if (retval)
 		goto err;
 
-	/* If the device has a ROM, try to expose it in sysfs. */
-	rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-	if (rom_size) {
-		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-		if (!attr) {
-			retval = -ENOMEM;
-			goto err_resource_files;
-		}
-		sysfs_bin_attr_init(attr);
-		attr->size = rom_size;
-		attr->attr.name = "rom";
-		attr->attr.mode = 0600;
-		attr->read = pci_read_rom;
-		attr->write = pci_write_rom;
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
-		if (retval) {
-			kfree(attr);
-			goto err_resource_files;
-		}
-		pdev->rom_attr = attr;
-	}
-
 	/* add sysfs entries for various capabilities */
 	retval = pci_create_capabilities_sysfs(pdev);
 	if (retval)
-		goto err_rom_file;
+		goto err_resource_files;
 
 	pci_create_firmware_label_files(pdev);
 
 	return 0;
 
-err_rom_file:
-	if (pdev->rom_attr) {
-		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
-		kfree(pdev->rom_attr);
-		pdev->rom_attr = NULL;
-	}
 err_resource_files:
 	pci_remove_resource_files(pdev);
 err:
@@ -1427,13 +1424,6 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 	pci_remove_capabilities_sysfs(pdev);
 	pci_remove_resource_files(pdev);
-
-	if (pdev->rom_attr) {
-		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
-		kfree(pdev->rom_attr);
-		pdev->rom_attr = NULL;
-	}
-
 	pci_remove_firmware_label_files(pdev);
 }
 
@@ -1526,6 +1516,7 @@ static const struct attribute_group pci_dev_group = {
 const struct attribute_group *pci_dev_groups[] = {
 	&pci_dev_group,
 	&pci_dev_config_attr_group,
+	&pci_dev_rom_attr_group,
 	NULL,
 };
 
