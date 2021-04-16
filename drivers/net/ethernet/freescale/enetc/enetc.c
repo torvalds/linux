@@ -544,7 +544,6 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 
 		if (xdp_frame) {
 			xdp_return_frame(xdp_frame);
-			tx_swbd->xdp_frame = NULL;
 		} else if (skb) {
 			if (unlikely(tx_swbd->skb->cb[0] &
 				     ENETC_F_TX_ONESTEP_SYNC_TSTAMP)) {
@@ -558,7 +557,6 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 				do_twostep_tstamp = false;
 			}
 			napi_consume_skb(skb, napi_budget);
-			tx_swbd->skb = NULL;
 		}
 
 		tx_byte_cnt += tx_swbd->len;
