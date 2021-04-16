@@ -2219,7 +2219,7 @@ static char *fmt_single_name(struct device *dev, int *id)
 {
 	const char *devname = dev_name(dev);
 	char *found, *name;
-	int id1, id2;
+	unsigned int id1, id2;
 
 	if (devname == NULL)
 		return NULL;
