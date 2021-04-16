@@ -4,9 +4,9 @@
 #ifndef REMOTE_UNWIND_LIBUNWIND
 #include <libunwind.h>
 #include "perf_regs.h"
-#include "../../util/unwind.h"
+#include "../../../util/unwind.h"
 #endif
-#include "../../util/debug.h"
+#include "../../../util/debug.h"
 
 int LIBUNWIND__ARCH_REG_ID(int regnum)
 {

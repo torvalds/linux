@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <memory.h>
-#include "../../util/evsel.h"
-#include "../../util/kvm-stat.h"
+#include "../../../util/evsel.h"
+#include "../../../util/kvm-stat.h"
 #include "arm64_exception_types.h"
 #include "debug.h"
 

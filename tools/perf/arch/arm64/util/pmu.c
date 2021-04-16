@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include "../../util/cpumap.h"
-#include "../../util/pmu.h"
+#include "../../../util/cpumap.h"
+#include "../../../util/pmu.h"
 
 struct pmu_events_map *pmu_events_map__find(void)
 {
