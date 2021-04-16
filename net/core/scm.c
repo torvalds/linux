@@ -232,7 +232,7 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 		if (!user_write_access_begin(cm, cmlen))
 			goto efault;
 
-		unsafe_put_user(len, &cm->cmsg_len, efault_end);
+		unsafe_put_user(cmlen, &cm->cmsg_len, efault_end);
 		unsafe_put_user(level, &cm->cmsg_level, efault_end);
 		unsafe_put_user(type, &cm->cmsg_type, efault_end);
 		unsafe_copy_to_user(CMSG_USER_DATA(cm), data,
