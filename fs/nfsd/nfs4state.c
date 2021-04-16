@@ -4086,6 +4086,8 @@ static void nfsd4_init_file(struct svc_fh *fh, unsigned int hashval,
 	fp->fi_share_deny = 0;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
+	fp->fi_aliased = false;
+	fp->fi_inode = d_inode(fh->fh_dentry);
 #ifdef CONFIG_NFSD_PNFS
 	INIT_LIST_HEAD(&fp->fi_lo_states);
 	atomic_set(&fp->fi_lo_recalls, 0);
@@ -4438,6 +4440,31 @@ find_file_locked(struct svc_fh *fh, unsigned int hashval)
 	return NULL;
 }
 
+static struct nfs4_file *insert_file(struct nfs4_file *new, struct svc_fh *fh,
+				     unsigned int hashval)
+{
+	struct nfs4_file *fp;
+	struct nfs4_file *ret = NULL;
+	bool alias_found = false;
+
+	spin_lock(&state_lock);
+	hlist_for_each_entry_rcu(fp, &file_hashtbl[hashval], fi_hash,
+				 lockdep_is_held(&state_lock)) {
+		if (fh_match(&fp->fi_fhandle, &fh->fh_handle)) {
+			if (refcount_inc_not_zero(&fp->fi_ref))
+				ret = fp;
+		} else if (d_inode(fh->fh_dentry) == fp->fi_inode)
+			fp->fi_aliased = alias_found = true;
+	}
+	if (likely(ret == NULL)) {
+		nfsd4_init_file(fh, hashval, new);
+		new->fi_aliased = alias_found;
+		ret = new;
+	}
+	spin_unlock(&state_lock);
+	return ret;
+}
+
 static struct nfs4_file * find_file(struct svc_fh *fh)
 {
 	struct nfs4_file *fp;
@@ -4461,15 +4488,7 @@ find_or_add_file(struct nfs4_file *new, struct svc_fh *fh)
 	if (fp)
 		return fp;
 
-	spin_lock(&state_lock);
-	fp = find_file_locked(fh, hashval);
-	if (likely(fp == NULL)) {
-		nfsd4_init_file(fh, hashval, new);
-		fp = new;
-	}
-	spin_unlock(&state_lock);
-
-	return fp;
+	return insert_file(new, fh, hashval);
 }
 
 /*

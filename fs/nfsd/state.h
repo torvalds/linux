@@ -516,6 +516,8 @@ struct nfs4_clnt_odstate {
  */
 struct nfs4_file {
 	refcount_t		fi_ref;
+	struct inode *		fi_inode;
+	bool			fi_aliased;
 	spinlock_t		fi_lock;
 	struct hlist_node       fi_hash;	/* hash on fi_fhandle */
 	struct list_head        fi_stateids;
