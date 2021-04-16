@@ -524,8 +524,8 @@ static int simple_count_dpcm(struct asoc_simple_priv *priv,
 	return 0;
 }
 
-static void simple_get_dais_count(struct asoc_simple_priv *priv,
-				  struct link_info *li)
+static int simple_get_dais_count(struct asoc_simple_priv *priv,
+				 struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
@@ -582,12 +582,12 @@ static void simple_get_dais_count(struct asoc_simple_priv *priv,
 		li->num[0].platforms	= 1;
 
 		li->link = 1;
-		return;
+		return 0;
 	}
 
-	simple_for_each_link(priv, li,
-			     simple_count_noml,
-			     simple_count_dpcm);
+	return simple_for_each_link(priv, li,
+				    simple_count_noml,
+				    simple_count_dpcm);
 }
 
 static int simple_soc_probe(struct snd_soc_card *card)
@@ -626,7 +626,10 @@ static int asoc_simple_probe(struct platform_device *pdev)
 	card->probe		= simple_soc_probe;
 
 	memset(&li, 0, sizeof(li));
-	simple_get_dais_count(priv, &li);
+	ret = simple_get_dais_count(priv, &li);
+	if (ret < 0)
+		return ret;
+
 	if (!li.link)
 		return -EINVAL;
 
