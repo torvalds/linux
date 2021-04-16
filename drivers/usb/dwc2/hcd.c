@@ -3383,6 +3383,11 @@ int dwc2_port_resume(struct dwc2_hsotg *hsotg)
 				"exit partial_power_down failed.\n");
 		break;
 	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+		/* Exit host hibernation. */
+		ret = dwc2_exit_hibernation(hsotg, 0, 0, 1);
+		if (ret)
+			dev_err(hsotg->dev, "exit hibernation failed.\n");
+		break;
 	case DWC2_POWER_DOWN_PARAM_NONE:
 		/*
 		 * If not hibernation nor partial power down are supported,
@@ -3446,12 +3451,8 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			dev_dbg(hsotg->dev,
 				"ClearPortFeature USB_PORT_FEAT_SUSPEND\n");
 
-			if (hsotg->bus_suspended) {
-				if (hsotg->hibernated)
-					dwc2_exit_hibernation(hsotg, 0, 0, 1);
-				else
-					dwc2_port_resume(hsotg);
-			}
+			if (hsotg->bus_suspended)
+				retval = dwc2_port_resume(hsotg);
 			break;
 
 		case USB_PORT_FEAT_POWER:
