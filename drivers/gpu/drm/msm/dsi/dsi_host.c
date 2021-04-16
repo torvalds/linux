@@ -2487,3 +2487,4 @@ struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host)
 
 	return of_drm_find_bridge(msm_host->device_node);
 }
+

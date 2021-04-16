@@ -152,6 +152,9 @@ struct msm_kms {
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	struct msm_gem_address_space *aspace;
 
+	/* handle to disp snapshot state */
+	struct msm_disp_state *disp_state;
+
 	/*
 	 * For async commit, where ->flush_commit() and later happens
 	 * from the crtc's pending_timer close to end of the frame:

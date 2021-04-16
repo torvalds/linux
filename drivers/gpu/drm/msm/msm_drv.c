@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -19,6 +19,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_vblank.h>
 
+#include "disp/msm_disp_snapshot.h"
 #include "msm_drv.h"
 #include "msm_debugfs.h"
 #include "msm_fence.h"
@@ -167,6 +168,24 @@ void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name,
 	return _msm_ioremap(pdev, name, dbgname, true);
 }
 
+unsigned long msm_iomap_size(struct platform_device *pdev, const char *name)
+{
+	struct resource *res;
+
+	if (name)
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	else
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	if (!res) {
+		dev_dbg(&pdev->dev, "failed to get memory resource: %s\n",
+				name);
+		return 0;
+	}
+
+	return resource_size(res);
+}
+
 void msm_writel(u32 data, void __iomem *addr)
 {
 	if (reglog)
@@ -277,6 +296,8 @@ static int msm_drm_uninit(struct device *dev)
 	if (fbdev && priv->fbdev)
 		msm_fbdev_free(ddev);
 #endif
+
+	msm_disp_snapshot_destroy(ddev);
 
 	drm_mode_config_cleanup(ddev);
 
@@ -549,6 +570,10 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto err_msm_uninit;
+
+	ret = msm_disp_snapshot_init(ddev);
+	if (ret)
+		DRM_DEV_ERROR(dev, "msm_disp_snapshot_init failed ret = %d\n", ret);
 
 	drm_mode_config_reset(ddev);
 
