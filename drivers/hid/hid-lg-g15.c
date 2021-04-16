@@ -28,6 +28,7 @@ enum lg_g15_model {
 	LG_G15_V2,
 	LG_G510,
 	LG_G510_USB_AUDIO,
+	LG_Z10,
 };
 
 enum lg_g15_led_type {
@@ -457,6 +458,13 @@ static int lg_g15_get_initial_led_brightness(struct lg_g15_data *g15)
 			return ret;
 
 		return lg_g510_update_mkey_led_brightness(g15);
+	case LG_Z10:
+		/*
+		 * Getting the LCD backlight brightness is not supported.
+		 * Reading Feature(2) fails with -EPIPE and this crashes
+		 * the LCD and touch keys part of the speakers.
+		 */
+		return 0;
 	}
 	return -EINVAL; /* Never reached */
 }
@@ -626,6 +634,12 @@ static int lg_g15_raw_event(struct hid_device *hdev, struct hid_report *report,
 		if (data[0] == 0x02 && size == 5)
 			return lg_g15_v2_event(g15, data);
 		break;
+	case LG_Z10:
+		if (data[0] == 0x02 && size == 9) {
+			lg_g15_handle_lcd_menu_keys(g15, data);
+			input_sync(g15->input);
+		}
+		break;
 	case LG_G510:
 	case LG_G510_USB_AUDIO:
 		if (data[0] == 0x03 && size == 5)
@@ -660,8 +674,10 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 	switch (g15->model) {
 	case LG_G15:
 	case LG_G15_V2:
-		g15->leds[i].cdev.brightness_set_blocking = lg_g15_led_set;
 		g15->leds[i].cdev.brightness_get = lg_g15_led_get;
+		fallthrough;
+	case LG_Z10:
+		g15->leds[i].cdev.brightness_set_blocking = lg_g15_led_set;
 		if (i < LG_G15_BRIGHTNESS_MAX) {
 			g15->leds[i].cdev.flags = LED_BRIGHT_HW_CHANGED;
 			g15->leds[i].cdev.max_brightness = 2;
@@ -802,6 +818,9 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		gkeys_settings_feature_report = 0x01;
 		gkeys = 18;
 		break;
+	case LG_Z10:
+		connect_mask = HID_CONNECT_HIDRAW;
+		break;
 	}
 
 	ret = hid_hw_start(hdev, connect_mask);
@@ -843,6 +862,19 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = lg_g15_get_initial_led_brightness(g15);
 	if (ret)
 		goto error_hw_stop;
+
+	if (g15->model == LG_Z10) {
+		lg_g15_init_input_dev(hdev, g15->input, "Logitech Z-10 LCD Menu Keys");
+		ret = input_register_device(g15->input);
+		if (ret)
+			goto error_hw_stop;
+
+		ret = lg_g15_register_led(g15, 1, "z-10::lcd_backlight");
+		if (ret)
+			goto error_hw_stop;
+
+		return 0; /* All done */
+	}
 
 	/* Setup and register input device */
 	lg_g15_init_input_dev(hdev, input, "Logitech Gaming Keyboard Gaming Keys");
@@ -904,6 +936,10 @@ static const struct hid_device_id lg_g15_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_G510_USB_AUDIO),
 		.driver_data = LG_G510_USB_AUDIO },
+	/* Z-10 speakers */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+			 USB_DEVICE_ID_LOGITECH_Z_10_SPK),
+		.driver_data = LG_Z10 },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, lg_g15_devices);
