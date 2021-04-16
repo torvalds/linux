@@ -470,6 +470,22 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 		dwc2_writel(hsotg, greset, GRSTCTL);
 	}
 
+	/*
+	 * Switching from device mode to host mode by disconnecting
+	 * device cable core enters and exits form hibernation.
+	 * However, the fifo map remains not cleared. It results
+	 * to a WARNING (WARNING: CPU: 5 PID: 0 at drivers/usb/dwc2/
+	 * gadget.c:307 dwc2_hsotg_init_fifo+0x12/0x152 [dwc2])
+	 * if in host mode we disconnect the micro a to b host
+	 * cable. Because core reset occurs.
+	 * To avoid the WARNING, fifo_map should be cleared
+	 * in dwc2_core_reset() function by taking into account configs.
+	 * fifo_map must be cleared only if driver is configured in
+	 * "CONFIG_USB_DWC2_PERIPHERAL" or "CONFIG_USB_DWC2_DUAL_ROLE"
+	 * mode.
+	 */
+	dwc2_clear_fifo_map(hsotg);
+
 	/* Wait for AHB master IDLE state */
 	if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL, GRSTCTL_AHBIDLE, 10000)) {
 		dev_warn(hsotg->dev, "%s: HANG! AHB Idle timeout GRSTCTL GRSTCTL_AHBIDLE\n",
