@@ -130,6 +130,7 @@ the `ETHTOOL_FLAG_STATS` flag in `ETHTOOL_A_HEADER_FLAGS`. Currently
 statistics are supported in the following commands:
 
   - `ETHTOOL_MSG_PAUSE_GET`
+  - `ETHTOOL_MSG_FEC_GET`
 
 debugfs
 -------
@@ -176,3 +177,4 @@ translated to netlink attributes when dumped. Drivers must not overwrite
 the statistics they don't report with 0.
 
 - ethtool_pause_stats()
+- ethtool_fec_stats()

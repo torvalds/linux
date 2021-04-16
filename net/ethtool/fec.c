@@ -13,6 +13,10 @@ struct fec_reply_data {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(fec_link_modes);
 	u32 active_fec;
 	u8 fec_auto;
+	struct fec_stat_grp {
+		u64 stats[1 + ETHTOOL_MAX_LANES];
+		u8 cnt;
+	} corr, uncorr, corr_bits;
 };
 
 #define FEC_REPDATA(__reply_base) \
@@ -21,7 +25,7 @@ struct fec_reply_data {
 #define ETHTOOL_FEC_MASK	((ETHTOOL_FEC_LLRS << 1) - 1)
 
 const struct nla_policy ethnl_fec_get_policy[ETHTOOL_A_FEC_HEADER + 1] = {
-	[ETHTOOL_A_FEC_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_FEC_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy_stats),
 };
 
 static void
@@ -64,6 +68,28 @@ ethtool_link_modes_to_fecparam(struct ethtool_fecparam *fec,
 	return 0;
 }
 
+static void
+fec_stats_recalc(struct fec_stat_grp *grp, struct ethtool_fec_stat *stats)
+{
+	int i;
+
+	if (stats->lanes[0] == ETHTOOL_STAT_NOT_SET) {
+		grp->stats[0] = stats->total;
+		grp->cnt = stats->total != ETHTOOL_STAT_NOT_SET;
+		return;
+	}
+
+	grp->cnt = 1;
+	grp->stats[0] = 0;
+	for (i = 0; i < ETHTOOL_MAX_LANES; i++) {
+		if (stats->lanes[i] == ETHTOOL_STAT_NOT_SET)
+			break;
+
+		grp->stats[0] += stats->lanes[i];
+		grp->stats[grp->cnt++] = stats->lanes[i];
+	}
+}
+
 static int fec_prepare_data(const struct ethnl_req_info *req_base,
 			    struct ethnl_reply_data *reply_base,
 			    struct genl_info *info)
@@ -80,9 +106,19 @@ static int fec_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 	ret = dev->ethtool_ops->get_fecparam(dev, &fec);
-	ethnl_ops_complete(dev);
 	if (ret)
-		return ret;
+		goto out_complete;
+	if (req_base->flags & ETHTOOL_FLAG_STATS &&
+	    dev->ethtool_ops->get_fec_stats) {
+		struct ethtool_fec_stats stats;
+
+		ethtool_stats_init((u64 *)&stats, sizeof(stats) / 8);
+		dev->ethtool_ops->get_fec_stats(dev, &stats);
+
+		fec_stats_recalc(&data->corr, &stats.corrected_blocks);
+		fec_stats_recalc(&data->uncorr, &stats.uncorrectable_blocks);
+		fec_stats_recalc(&data->corr_bits, &stats.corrected_bits);
+	}
 
 	WARN_ON_ONCE(fec.reserved);
 
@@ -98,7 +134,9 @@ static int fec_prepare_data(const struct ethnl_req_info *req_base,
 	if (data->active_fec == __ETHTOOL_LINK_MODE_MASK_NBITS)
 		data->active_fec = 0;
 
-	return 0;
+out_complete:
+	ethnl_ops_complete(dev);
+	return ret;
 }
 
 static int fec_reply_size(const struct ethnl_req_info *req_base,
@@ -119,7 +157,38 @@ static int fec_reply_size(const struct ethnl_req_info *req_base,
 	len += nla_total_size(sizeof(u8)) +	/* _FEC_AUTO */
 	       nla_total_size(sizeof(u32));	/* _FEC_ACTIVE */
 
+	if (req_base->flags & ETHTOOL_FLAG_STATS)
+		len += 3 * nla_total_size_64bit(sizeof(u64) *
+						(1 + ETHTOOL_MAX_LANES));
+
 	return len;
+}
+
+static int fec_put_stats(struct sk_buff *skb, const struct fec_reply_data *data)
+{
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, ETHTOOL_A_FEC_STATS);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_64bit(skb, ETHTOOL_A_FEC_STAT_CORRECTED,
+			  sizeof(u64) * data->corr.cnt,
+			  data->corr.stats, ETHTOOL_A_FEC_STAT_PAD) ||
+	    nla_put_64bit(skb, ETHTOOL_A_FEC_STAT_UNCORR,
+			  sizeof(u64) * data->uncorr.cnt,
+			  data->uncorr.stats, ETHTOOL_A_FEC_STAT_PAD) ||
+	    nla_put_64bit(skb, ETHTOOL_A_FEC_STAT_CORR_BITS,
+			  sizeof(u64) * data->corr_bits.cnt,
+			  data->corr_bits.stats, ETHTOOL_A_FEC_STAT_PAD))
+		goto err_cancel;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+err_cancel:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
 }
 
 static int fec_fill_reply(struct sk_buff *skb,
@@ -140,6 +209,9 @@ static int fec_fill_reply(struct sk_buff *skb,
 	if (nla_put_u8(skb, ETHTOOL_A_FEC_AUTO, data->fec_auto) ||
 	    (data->active_fec &&
 	     nla_put_u32(skb, ETHTOOL_A_FEC_ACTIVE, data->active_fec)))
+		return -EMSGSIZE;
+
+	if (req_base->flags & ETHTOOL_FLAG_STATS && fec_put_stats(skb, data))
 		return -EMSGSIZE;
 
 	return 0;

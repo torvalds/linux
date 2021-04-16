@@ -244,6 +244,12 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 
 #define ETHTOOL_STAT_NOT_SET	(~0ULL)
 
+static inline void ethtool_stats_init(u64 *stats, unsigned int n)
+{
+	while (n--)
+		stats[n] = ETHTOOL_STAT_NOT_SET;
+}
+
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
@@ -261,6 +267,39 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 struct ethtool_pause_stats {
 	u64 tx_pause_frames;
 	u64 rx_pause_frames;
+};
+
+#define ETHTOOL_MAX_LANES	8
+
+/**
+ * struct ethtool_fec_stats - statistics for IEEE 802.3 FEC
+ * @corrected_blocks: number of received blocks corrected by FEC
+ *	Reported to user space as %ETHTOOL_A_FEC_STAT_CORRECTED.
+ *
+ *	Equivalent to `30.5.1.1.17 aFECCorrectedBlocks` from the standard.
+ *
+ * @uncorrectable_blocks: number of received blocks FEC was not able to correct
+ *	Reported to user space as %ETHTOOL_A_FEC_STAT_UNCORR.
+ *
+ *	Equivalent to `30.5.1.1.18 aFECUncorrectableBlocks` from the standard.
+ *
+ * @corrected_bits: number of bits corrected by FEC
+ *	Similar to @corrected_blocks but counts individual bit changes,
+ *	not entire FEC data blocks. This is a non-standard statistic.
+ *	Reported to user space as %ETHTOOL_A_FEC_STAT_CORR_BITS.
+ *
+ * @lane: per-lane/PCS-instance counts as defined by the standard
+ * @total: error counts for the entire port, for drivers incapable of reporting
+ *	per-lane stats
+ *
+ * Drivers should fill in either only total or per-lane statistics, core
+ * will take care of adding lane values up to produce the total.
+ */
+struct ethtool_fec_stats {
+	struct ethtool_fec_stat {
+		u64 total;
+		u64 lanes[ETHTOOL_MAX_LANES];
+	} corrected_blocks, uncorrectable_blocks, corrected_bits;
 };
 
 #define ETH_MODULE_EEPROM_PAGE_LEN	128
@@ -433,6 +472,11 @@ struct ethtool_module_eeprom {
  *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
  *	any change to them will be overwritten by kernel. Returns a negative
  *	error code or zero.
+ * @get_fec_stats: Report FEC statistics.
+ *	Core will sum up per-lane stats to get the total.
+ *	Drivers must not zero statistics which they don't report. The stats
+ *	structure is initialized to ETHTOOL_STAT_NOT_SET indicating driver does
+ *	not report statistics.
  * @get_fecparam: Get the network device Forward Error Correction parameters.
  * @set_fecparam: Set the network device Forward Error Correction parameters.
  * @get_ethtool_phy_stats: Return extended statistics about the PHY device.
@@ -538,6 +582,8 @@ struct ethtool_ops {
 				      struct ethtool_link_ksettings *);
 	int	(*set_link_ksettings)(struct net_device *,
 				      const struct ethtool_link_ksettings *);
+	void	(*get_fec_stats)(struct net_device *dev,
+				 struct ethtool_fec_stats *fec_stats);
 	int	(*get_fecparam)(struct net_device *,
 				      struct ethtool_fecparam *);
 	int	(*set_fecparam)(struct net_device *,

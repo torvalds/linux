@@ -1302,6 +1302,7 @@ Kernel response contents:
   ``ETHTOOL_A_FEC_MODES``                bitset  configured modes
   ``ETHTOOL_A_FEC_AUTO``                 bool    FEC mode auto selection
   ``ETHTOOL_A_FEC_ACTIVE``               u32     index of active FEC mode
+  ``ETHTOOL_A_FEC_STATS``                nested  FEC statistics
   =====================================  ======  ==========================
 
 ``ETHTOOL_A_FEC_ACTIVE`` is the bit index of the FEC link mode currently
@@ -1314,6 +1315,26 @@ select the FEC mode automatically based on the parameters of the SFP module.
 This is equivalent to the ``ETHTOOL_FEC_AUTO`` bit of the ioctl interface.
 ``ETHTOOL_A_FEC_MODES`` carry the current FEC configuration using link mode
 bits (rather than old ``ETHTOOL_FEC_*`` bits).
+
+``ETHTOOL_A_FEC_STATS`` are reported if ``ETHTOOL_FLAG_STATS`` was set in
+``ETHTOOL_A_HEADER_FLAGS``.
+Each attribute carries an array of 64bit statistics. First entry in the array
+contains the total number of events on the port, while the following entries
+are counters corresponding to lanes/PCS instances. The number of entries in
+the array will be:
+
++--------------+---------------------------------------------+
+| `0`          | device does not support FEC statistics      |
++--------------+---------------------------------------------+
+| `1`          | device does not support per-lane break down |
++--------------+---------------------------------------------+
+| `1 + #lanes` | device has full support for FEC stats       |
++--------------+---------------------------------------------+
+
+Drivers fill in the statistics in the following structure:
+
+.. kernel-doc:: include/linux/ethtool.h
+    :identifiers: ethtool_fec_stats
 
 FEC_SET
 =======
