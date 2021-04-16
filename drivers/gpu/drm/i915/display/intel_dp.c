@@ -1861,7 +1861,7 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 	if (ret < 0)
 		drm_dbg_kms(&i915->drm,
 			    "Failed to %s sink decompression state\n",
-			    enable ? "enable" : "disable");
+			    enabledisable(enable));
 }
 
 static void

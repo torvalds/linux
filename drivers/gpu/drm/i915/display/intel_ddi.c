@@ -2334,8 +2334,8 @@ static void intel_dp_sink_set_msa_timing_par_ignore_state(struct intel_dp *intel
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_DOWNSPREAD_CTRL,
 			       enable ? DP_MSA_TIMING_PAR_IGNORE_EN : 0) <= 0)
 		drm_dbg_kms(&i915->drm,
-			    "Failed to set MSA_TIMING_PAR_IGNORE %s in the sink\n",
-			    enable ? "enable" : "disable");
+			    "Failed to %s MSA_TIMING_PAR_IGNORE in the sink\n",
+			    enabledisable(enable));
 }
 
 static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,

@@ -4766,7 +4766,7 @@ static void gen9_dbuf_slice_set(struct drm_i915_private *dev_priv,
 	state = intel_de_read(dev_priv, reg) & DBUF_POWER_STATE;
 	drm_WARN(&dev_priv->drm, enable != state,
 		 "DBuf slice %d power %s timeout!\n",
-		 slice, enable ? "enable" : "disable");
+		 slice, enabledisable(enable));
 }
 
 void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
