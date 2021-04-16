@@ -1286,7 +1286,7 @@ static void mmhub_v1_7_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-static const struct soc15_reg_entry mmhub_v1_7_err_status_regs[] = {
+static const struct soc15_reg_entry mmhub_v1_7_ea_err_status_regs[] = {
 	{ SOC15_REG_ENTRY(MMHUB, 0, regMMEA0_ERR_STATUS), 0, 0, 0 },
 	{ SOC15_REG_ENTRY(MMHUB, 0, regMMEA1_ERR_STATUS), 0, 0, 0 },
 	{ SOC15_REG_ENTRY(MMHUB, 0, regMMEA2_ERR_STATUS), 0, 0, 0 },
@@ -1303,12 +1303,15 @@ static void mmhub_v1_7_query_ras_error_status(struct amdgpu_device *adev)
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB))
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(mmhub_v1_7_err_status_regs); i++) {
+	for (i = 0; i < ARRAY_SIZE(mmhub_v1_7_ea_err_status_regs); i++) {
 		reg_value =
-			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v1_7_err_status_regs[i]));
-		if ((reg_value & 0xFFF) != MMEA0_ERR_STATUS__SDP_RDRSP_DATASTATUS_MASK)
+			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v1_7_ea_err_status_regs[i]));
+		if (REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_RDRSP_STATUS) ||
+		    REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_WRRSP_STATUS) ||
+		    REG_GET_FIELD(reg_value, MMEA0_ERR_STATUS, SDP_RDRSP_DATAPARITY_ERROR)) {
 			dev_warn(adev->dev, "MMHUB EA err detected at instance: %d, status: 0x%x!\n",
 					i, reg_value);
+		}
 	}
 }
 
