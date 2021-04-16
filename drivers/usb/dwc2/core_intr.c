@@ -535,13 +535,10 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 			switch (hsotg->params.power_down) {
 			case DWC2_POWER_DOWN_PARAM_PARTIAL:
 				ret = dwc2_enter_partial_power_down(hsotg);
-				if (ret) {
-					if (ret != -ENOTSUPP)
-						dev_err(hsotg->dev,
-							"%s: enter partial_power_down failed\n",
-							__func__);
-					goto skip_power_saving;
-				}
+				if (ret)
+					dev_err(hsotg->dev,
+						"enter partial_power_down failed\n");
+
 				udelay(100);
 
 				/* Ask phy to be suspended */
@@ -550,10 +547,9 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 				break;
 			case DWC2_POWER_DOWN_PARAM_HIBERNATION:
 				ret = dwc2_enter_hibernation(hsotg, 0);
-				if (ret && ret != -ENOTSUPP)
+				if (ret)
 					dev_err(hsotg->dev,
-						"%s: enter hibernation failed\n",
-						__func__);
+						"enter hibernation failed\n");
 				break;
 			case DWC2_POWER_DOWN_PARAM_NONE:
 				/*
@@ -562,7 +558,7 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 				 */
 				dwc2_gadget_enter_clock_gating(hsotg);
 			}
-skip_power_saving:
+
 			/*
 			 * Change to L2 (suspend) state before releasing
 			 * spinlock

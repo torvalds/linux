@@ -391,9 +391,6 @@ static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
  */
 int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg, int is_host)
 {
-	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_HIBERNATION)
-		return -ENOTSUPP;
-
 	if (is_host)
 		return dwc2_host_enter_hibernation(hsotg);
 	else
