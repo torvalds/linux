@@ -818,7 +818,6 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 	u32 s_irq_status;
 	u32 geni_status;
 	struct uart_port *uport = dev;
-	unsigned long flags;
 	bool drop_rx = false;
 	struct tty_port *tport = &uport->state->port;
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
@@ -826,7 +825,8 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 	if (uport->suspended)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&uport->lock, flags);
+	spin_lock(&uport->lock);
+
 	m_irq_status = readl(uport->membase + SE_GENI_M_IRQ_STATUS);
 	s_irq_status = readl(uport->membase + SE_GENI_S_IRQ_STATUS);
 	geni_status = readl(uport->membase + SE_GENI_STATUS);
@@ -861,7 +861,7 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 		qcom_geni_serial_handle_rx(uport, drop_rx);
 
 out_unlock:
-	uart_unlock_and_check_sysrq(uport, flags);
+	uart_unlock_and_check_sysrq(uport);
 
 	return IRQ_HANDLED;
 }
