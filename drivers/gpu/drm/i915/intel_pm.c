@@ -4066,12 +4066,9 @@ skl_ddb_entry_for_slices(struct drm_i915_private *dev_priv, u8 slice_mask,
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 			    const struct skl_ddb_entry *entry)
 {
-	u32 slice_mask = 0;
-	u16 ddb_size = intel_dbuf_size(dev_priv);
-	int num_slices = intel_dbuf_num_slices(dev_priv);
-	u16 slice_size = ddb_size / num_slices;
-	u16 start_slice;
-	u16 end_slice;
+	int slice_size = intel_dbuf_slice_size(dev_priv);
+	enum dbuf_slice start_slice, end_slice;
+	u8 slice_mask = 0;
 
 	if (!skl_ddb_entry_size(entry))
 		return 0;
