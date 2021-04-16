@@ -394,7 +394,8 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 									\
 	if (symmetry)							\
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
-			if (cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
+			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
+			    cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
 				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %s:%d - %s:%d\n", \
 					#xxx, cpu_dai->name, cpu_dai->xxx, d.name, d.xxx); \
 				return -EINVAL;				\
