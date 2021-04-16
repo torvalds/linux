@@ -131,6 +131,12 @@ int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
 	return 0;
 }
 
+int snd_soc_component_is_dummy(struct snd_soc_component *component)
+{
+	return ((component->driver == &dummy_platform) ||
+		(component->driver == &dummy_codec));
+}
+
 static int snd_soc_dummy_probe(struct platform_device *pdev)
 {
 	int ret;
