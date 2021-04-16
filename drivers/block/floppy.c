@@ -145,8 +145,6 @@
  * Better audit of register_blkdev.
  */
 
-#undef  FLOPPY_SILENT_DCL_CLEAR
-
 #define REALLY_SLOW_IO
 
 #define DEBUGT 2
