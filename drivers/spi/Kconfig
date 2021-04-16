@@ -58,10 +58,17 @@ config SPI_MEM
 comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
-	tristate "Altera SPI Controller"
+	tristate "Altera SPI Controller platform driver"
+	select SPI_ALTERA_CORE
 	select REGMAP_MMIO
 	help
 	  This is the driver for the Altera SPI Controller.
+
+config SPI_ALTERA_CORE
+	tristate "Altera SPI Controller core code"
+	select REGMAP
+	help
+	  "The core code for the Altera SPI Controller"
 
 config SPI_AR934X
 	tristate "Qualcomm Atheros AR934X/QCA95XX SPI controller driver"
