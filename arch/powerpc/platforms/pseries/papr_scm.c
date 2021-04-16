@@ -141,7 +141,7 @@ static int papr_scm_pmem_flush(struct nd_region *nd_region,
 	} while (rc == H_BUSY);
 
 	if (rc) {
-		dev_err(&p->pdev->dev, "flush error: %lld", rc);
+		dev_err(&p->pdev->dev, "flush error: %ld", rc);
 		rc = -EIO;
 	} else {
 		dev_dbg(&p->pdev->dev, "flush drc 0x%x complete", p->drc_index);
