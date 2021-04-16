@@ -267,8 +267,8 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 				PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
 		drm_dbg_kms(&i915->drm,
-			    "Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
-			    dig_port->tc_port_name, enableddisabled(enable));
+			    "Port %s: PHY in TCCOLD, can't %s safe-mode\n",
+			    dig_port->tc_port_name, enabledisable(enable));
 
 		return false;
 	}
