@@ -130,6 +130,9 @@ skip_context_tracking:
 	 */
 	andi t0, s1, SR_PIE
 	beqz t0, 1f
+	/* kprobes, entered via ebreak, must have interrupts disabled. */
+	li t0, EXC_BREAKPOINT
+	beq s4, t0, 1f
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call trace_hardirqs_on
 #endif
