@@ -2,9 +2,8 @@
 /* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
 
 #include <linux/kernel.h>
-#include <linux/jiffies.h>
-#include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include "mtk_ppe.h"
@@ -44,18 +43,17 @@ static u32 ppe_clear(struct mtk_ppe *ppe, u32 reg, u32 val)
 
 static int mtk_ppe_wait_busy(struct mtk_ppe *ppe)
 {
-	unsigned long timeout = jiffies + HZ;
+	int ret;
+	u32 val;
 
-	while (time_is_before_jiffies(timeout)) {
-		if (!(ppe_r32(ppe, MTK_PPE_GLO_CFG) & MTK_PPE_GLO_CFG_BUSY))
-			return 0;
+	ret = readl_poll_timeout(ppe->base + MTK_PPE_GLO_CFG, val,
+				 !(val & MTK_PPE_GLO_CFG_BUSY),
+				 20, MTK_PPE_WAIT_TIMEOUT_US);
 
-		usleep_range(10, 20);
-	}
+	if (ret)
+		dev_err(ppe->dev, "PPE table busy");
 
-	dev_err(ppe->dev, "PPE table busy");
-
-	return -ETIMEDOUT;
+	return ret;
 }
 
 static void mtk_ppe_cache_clear(struct mtk_ppe *ppe)
