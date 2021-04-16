@@ -751,27 +751,35 @@ static struct enetc_rx_swbd *enetc_get_rx_buff(struct enetc_bdr *rx_ring,
 	return rx_swbd;
 }
 
+/* Reuse the current page without performing half-page buffer flipping */
 static void enetc_put_rx_buff(struct enetc_bdr *rx_ring,
 			      struct enetc_rx_swbd *rx_swbd)
 {
-	if (likely(enetc_page_reusable(rx_swbd->page))) {
-		size_t buffer_size = ENETC_RXB_TRUESIZE - rx_ring->buffer_offset;
+	size_t buffer_size = ENETC_RXB_TRUESIZE - rx_ring->buffer_offset;
 
+	enetc_reuse_page(rx_ring, rx_swbd);
+
+	dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
+					 rx_swbd->page_offset,
+					 buffer_size, rx_swbd->dir);
+
+	rx_swbd->page = NULL;
+}
+
+/* Reuse the current page by performing half-page buffer flipping */
+static void enetc_flip_rx_buff(struct enetc_bdr *rx_ring,
+			       struct enetc_rx_swbd *rx_swbd)
+{
+	if (likely(enetc_page_reusable(rx_swbd->page))) {
 		rx_swbd->page_offset ^= ENETC_RXB_TRUESIZE;
 		page_ref_inc(rx_swbd->page);
 
-		enetc_reuse_page(rx_ring, rx_swbd);
-
-		/* sync for use by the device */
-		dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
-						 rx_swbd->page_offset,
-						 buffer_size, rx_swbd->dir);
+		enetc_put_rx_buff(rx_ring, rx_swbd);
 	} else {
 		dma_unmap_page(rx_ring->dev, rx_swbd->dma, PAGE_SIZE,
 			       rx_swbd->dir);
+		rx_swbd->page = NULL;
 	}
-
-	rx_swbd->page = NULL;
 }
 
 static struct sk_buff *enetc_map_rx_buff_to_skb(struct enetc_bdr *rx_ring,
@@ -791,7 +799,7 @@ static struct sk_buff *enetc_map_rx_buff_to_skb(struct enetc_bdr *rx_ring,
 	skb_reserve(skb, rx_ring->buffer_offset);
 	__skb_put(skb, size);
 
-	enetc_put_rx_buff(rx_ring, rx_swbd);
+	enetc_flip_rx_buff(rx_ring, rx_swbd);
 
 	return skb;
 }
@@ -804,7 +812,7 @@ static void enetc_add_rx_buff_to_skb(struct enetc_bdr *rx_ring, int i,
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_swbd->page,
 			rx_swbd->page_offset, size, ENETC_RXB_TRUESIZE);
 
-	enetc_put_rx_buff(rx_ring, rx_swbd);
+	enetc_flip_rx_buff(rx_ring, rx_swbd);
 }
 
 static bool enetc_check_bd_errors_and_consume(struct enetc_bdr *rx_ring,
@@ -1142,20 +1150,6 @@ static void enetc_build_xdp_buff(struct enetc_bdr *rx_ring, u32 bd_status,
 	}
 }
 
-/* Reuse the current page without performing half-page buffer flipping */
-static void enetc_put_xdp_buff(struct enetc_bdr *rx_ring,
-			       struct enetc_rx_swbd *rx_swbd)
-{
-	enetc_reuse_page(rx_ring, rx_swbd);
-
-	dma_sync_single_range_for_device(rx_ring->dev, rx_swbd->dma,
-					 rx_swbd->page_offset,
-					 ENETC_RXB_DMA_SIZE_XDP,
-					 rx_swbd->dir);
-
-	rx_swbd->page = NULL;
-}
-
 /* Convert RX buffer descriptors to TX buffer descriptors. These will be
  * recycled back into the RX ring in enetc_clean_tx_ring. We need to scrub the
  * RX software BDs because the ownership of the buffer no longer belongs to the
@@ -1194,8 +1188,8 @@ static void enetc_xdp_drop(struct enetc_bdr *rx_ring, int rx_ring_first,
 			   int rx_ring_last)
 {
 	while (rx_ring_first != rx_ring_last) {
-		enetc_put_xdp_buff(rx_ring,
-				   &rx_ring->rx_swbd[rx_ring_first]);
+		enetc_put_rx_buff(rx_ring,
+				  &rx_ring->rx_swbd[rx_ring_first]);
 		enetc_bdr_idx_inc(rx_ring, &rx_ring_first);
 	}
 	rx_ring->stats.xdp_drops++;
@@ -1316,8 +1310,8 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 			tmp_orig_i = orig_i;
 
 			while (orig_i != i) {
-				enetc_put_rx_buff(rx_ring,
-						  &rx_ring->rx_swbd[orig_i]);
+				enetc_flip_rx_buff(rx_ring,
+						   &rx_ring->rx_swbd[orig_i]);
 				enetc_bdr_idx_inc(rx_ring, &orig_i);
 			}
 
