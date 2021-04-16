@@ -81,51 +81,37 @@ static int write_inode(struct btree_trans *trans,
 	return ret;
 }
 
-static int __remove_dirent(struct btree_trans *trans,
-			   struct bkey_s_c_dirent dirent)
+static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 {
 	struct bch_fs *c = trans->c;
-	struct qstr name;
+	struct btree_iter *iter;
 	struct bch_inode_unpacked dir_inode;
 	struct bch_hash_info dir_hash_info;
-	u64 dir_inum = dirent.k->p.inode;
 	int ret;
-	char *buf;
 
-	name.len = bch2_dirent_name_bytes(dirent);
-	buf = bch2_trans_kmalloc(trans, name.len + 1);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
-
-	memcpy(buf, dirent.v->d_name, name.len);
-	buf[name.len] = '\0';
-	name.name = buf;
-
-	ret = lookup_inode(trans, dir_inum, &dir_inode, NULL);
-	if (ret && ret != -EINTR)
-		bch_err(c, "remove_dirent: err %i looking up directory inode", ret);
+	ret = lookup_inode(trans, pos.inode, &dir_inode, NULL);
 	if (ret)
 		return ret;
 
 	dir_hash_info = bch2_hash_info_init(c, &dir_inode);
 
-	ret = bch2_hash_delete(trans, bch2_dirent_hash_desc,
-			       &dir_hash_info, dir_inum, &name);
-	if (ret && ret != -EINTR)
-		bch_err(c, "remove_dirent: err %i deleting dirent", ret);
-	if (ret)
-		return ret;
+	iter = bch2_trans_get_iter(trans, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
 
-	return 0;
+	ret = bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
+				  &dir_hash_info, iter);
+	bch2_trans_iter_put(trans, iter);
+	return ret;
 }
 
-static int remove_dirent(struct btree_trans *trans,
-			 struct bkey_s_c_dirent dirent)
+static int remove_dirent(struct btree_trans *trans, struct bpos pos)
 {
-	return __bch2_trans_do(trans, NULL, NULL,
-			       BTREE_INSERT_NOFAIL|
-			       BTREE_INSERT_LAZY_RW,
-			       __remove_dirent(trans, dirent));
+	int ret = __bch2_trans_do(trans, NULL, NULL,
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_LAZY_RW,
+				  __remove_dirent(trans, pos));
+	if (ret)
+		bch_err(trans->c, "remove_dirent: err %i deleting dirent", ret);
+	return ret;
 }
 
 static int __reattach_inode(struct btree_trans *trans,
@@ -202,7 +188,7 @@ static int remove_backpointer(struct btree_trans *trans,
 		goto out;
 	}
 
-	ret = remove_dirent(trans, bkey_s_c_to_dirent(k));
+	ret = remove_dirent(trans, k.k->p);
 out:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
@@ -752,7 +738,7 @@ retry:
 				"dirent points to missing inode:\n%s",
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
 						       k), buf))) {
-			ret = remove_dirent(&trans, d);
+			ret = remove_dirent(&trans, d.k->p);
 			if (ret)
 				goto err;
 			goto next;
@@ -783,7 +769,7 @@ retry:
 					backpointer_exists, c,
 					"directory %llu with multiple links",
 					target.bi_inum)) {
-				ret = remove_dirent(&trans, d);
+				ret = remove_dirent(&trans, d.k->p);
 				if (ret)
 					goto err;
 				continue;
