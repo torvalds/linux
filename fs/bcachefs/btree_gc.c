@@ -244,25 +244,40 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 
 		bkey_reassemble(new, *k);
 
-		bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, ({
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-			struct bucket *g = PTR_BUCKET(ca, ptr, true);
+		if (level) {
+			/*
+			 * We don't want to drop btree node pointers - if the
+			 * btree node isn't there anymore, the read path will
+			 * sort it out:
+			 */
+			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+			bkey_for_each_ptr(ptrs, ptr) {
+				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+				struct bucket *g = PTR_BUCKET(ca, ptr, true);
 
-			(ptr->cached &&
-			 (!g->gen_valid || gen_cmp(ptr->gen, g->mark.gen) > 0)) ||
-			(!ptr->cached &&
-			 gen_cmp(ptr->gen, g->mark.gen) < 0);
-		}));
+				ptr->gen = g->mark.gen;
+			}
+		} else {
+			bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, ({
+				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+				struct bucket *g = PTR_BUCKET(ca, ptr, true);
+
+				(ptr->cached &&
+				 (!g->gen_valid || gen_cmp(ptr->gen, g->mark.gen) > 0)) ||
+				(!ptr->cached &&
+				 gen_cmp(ptr->gen, g->mark.gen) < 0);
+			}));
 again:
-		ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
-		bkey_extent_entry_for_each(ptrs, entry) {
-			if (extent_entry_type(entry) == BCH_EXTENT_ENTRY_stripe_ptr) {
-				struct stripe *m = genradix_ptr(&c->stripes[true],
-								entry->stripe_ptr.idx);
+			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+			bkey_extent_entry_for_each(ptrs, entry) {
+				if (extent_entry_type(entry) == BCH_EXTENT_ENTRY_stripe_ptr) {
+					struct stripe *m = genradix_ptr(&c->stripes[true],
+									entry->stripe_ptr.idx);
 
-				if (!m || !m->alive) {
-					bch2_bkey_extent_entry_drop(new, entry);
-					goto again;
+					if (!m || !m->alive) {
+						bch2_bkey_extent_entry_drop(new, entry);
+						goto again;
+					}
 				}
 			}
 		}

@@ -1206,14 +1206,17 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 	struct btree_read_bio *rb;
 	struct bch_dev *ca;
 	struct bio *bio;
+	char buf[200];
 	int ret;
 
+	btree_pos_to_text(&PBUF(buf), c, b);
 	trace_btree_read(c, b);
 
 	ret = bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key),
 					 NULL, &pick);
 	if (bch2_fs_fatal_err_on(ret <= 0, c,
-			"btree node read error: no device to read from")) {
+			"btree node read error: no device to read from\n"
+			" at %s", buf)) {
 		set_btree_node_read_error(b);
 		return;
 	}
