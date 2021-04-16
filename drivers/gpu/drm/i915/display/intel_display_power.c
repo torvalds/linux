@@ -4757,14 +4757,9 @@ static void gen9_dbuf_slice_set(struct drm_i915_private *dev_priv,
 {
 	i915_reg_t reg = DBUF_CTL_S(slice);
 	bool state;
-	u32 val;
 
-	val = intel_de_read(dev_priv, reg);
-	if (enable)
-		val |= DBUF_POWER_REQUEST;
-	else
-		val &= ~DBUF_POWER_REQUEST;
-	intel_de_write(dev_priv, reg, val);
+	intel_de_rmw(dev_priv, reg, DBUF_POWER_REQUEST,
+		     enable ? DBUF_POWER_REQUEST : 0);
 	intel_de_posting_read(dev_priv, reg);
 	udelay(10);
 
