@@ -19,6 +19,7 @@
 #include <trace/hooks/sched.h>
 #include <trace/hooks/cpufreq.h>
 #include <trace/events/power.h>
+#include <trace/hooks/cgroup.h>
 #include "walt.h"
 #include "trace.h"
 
@@ -5271,6 +5272,34 @@ void walt_get_cpus_in_state1(struct cpumask *cpus)
 }
 EXPORT_SYMBOL_GPL(walt_get_cpus_in_state1);
 
+static void walt_cgroup_force_kthread_migration(void *unused, struct task_struct *tsk,
+					       struct cgroup *dst_cgrp,
+					       bool *force_migration)
+{
+	/* no depenency on walt_disabled flag here */
+
+	/*
+	 * RT kthreads may be born in a cgroup with no rt_runtime allocated.
+	 * Just say no.
+	 */
+#ifdef CONFIG_RT_GROUP_SCHED
+	if (tsk->no_cgroup_migration && (dst_cgrp->root->subsys_mask & (1U << cpu_cgrp_id)))
+		return;
+#endif
+
+	/*
+	 * kthreads may acquire PF_NO_SETAFFINITY during initialization.
+	 * If userland migrates such a kthread to a non-root cgroup, it can
+	 * become trapped in a cpuset. Just say no.
+	 */
+#ifdef CONFIG_CPUSETS
+	if ((tsk->no_cgroup_migration || (tsk->flags & PF_NO_SETAFFINITY)) &&
+			(dst_cgrp->root->subsys_mask & (1U << cpuset_cgrp_id)))
+		return;
+#endif
+	*force_migration = true;
+}
+
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
@@ -5297,6 +5326,8 @@ static void register_walt_hooks(void)
 	register_trace_cpu_frequency_limits(walt_cpu_frequency_limits, NULL);
 	register_trace_android_rvh_do_sched_yield(walt_do_sched_yield, NULL);
 	register_trace_android_rvh_update_thermal_stats(android_rvh_update_thermal_stats, NULL);
+	register_trace_android_rvh_cgroup_force_kthread_migration(
+					walt_cgroup_force_kthread_migration, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;
