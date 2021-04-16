@@ -1000,6 +1000,9 @@ EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
  * synchronize_srcu(), srcu_read_lock(), and srcu_read_unlock() are
  * passed the same srcu_struct structure.
  *
+ * Implementation of these memory-ordering guarantees is similar to
+ * that of synchronize_rcu().
+ *
  * If SRCU is likely idle, expedite the first request.  This semantic
  * was provided by Classic SRCU, and is relied upon by its users, so TREE
  * SRCU must also provide it.  Note that detecting idleness is heuristic
