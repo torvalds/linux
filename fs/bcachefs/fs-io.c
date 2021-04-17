@@ -2633,54 +2633,21 @@ err:
 	return ret;
 }
 
-static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
-			    loff_t offset, loff_t len)
+static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
+			     u64 start_sector, u64 end_sector)
 {
-	struct address_space *mapping = inode->v.i_mapping;
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct btree_trans trans;
 	struct btree_iter *iter;
-	struct bpos end_pos;
-	loff_t end		= offset + len;
-	loff_t block_start	= round_down(offset,	block_bytes(c));
-	loff_t block_end	= round_up(end,		block_bytes(c));
-	unsigned sectors;
+	struct bpos end_pos = POS(inode->v.i_ino, end_sector);
 	unsigned replicas = io_opts(c, &inode->ei_inode).data_replicas;
-	int ret;
+	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	inode_lock(&inode->v);
-	inode_dio_wait(&inode->v);
-	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
-
-	if (!(mode & FALLOC_FL_KEEP_SIZE) && end > inode->v.i_size) {
-		ret = inode_newsize_ok(&inode->v, end);
-		if (ret)
-			goto err;
-	}
-
-	if (mode & FALLOC_FL_ZERO_RANGE) {
-		ret = __bch2_truncate_page(inode,
-					   offset >> PAGE_SHIFT,
-					   offset, end);
-
-		if (!ret &&
-		    offset >> PAGE_SHIFT != end >> PAGE_SHIFT)
-			ret = __bch2_truncate_page(inode,
-						   end >> PAGE_SHIFT,
-						   offset, end);
-
-		if (unlikely(ret))
-			goto err;
-
-		truncate_pagecache_range(&inode->v, offset, end - 1);
-	}
-
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
-			POS(inode->v.i_ino, block_start >> 9),
+			POS(inode->v.i_ino, start_sector),
 			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	end_pos = POS(inode->v.i_ino, block_end >> 9);
 
 	while (!ret && bkey_cmp(iter->pos, end_pos) < 0) {
 		s64 i_sectors_delta = 0;
@@ -2688,6 +2655,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		struct quota_res quota_res = { 0 };
 		struct bkey_i_reservation reservation;
 		struct bkey_s_c k;
+		unsigned sectors;
 
 		bch2_trans_begin(&trans);
 
@@ -2748,7 +2716,48 @@ bkey_err:
 			ret = 0;
 	}
 	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_exit(&trans);
+	return ret;
+}
 
+static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
+			    loff_t offset, loff_t len)
+{
+	struct address_space *mapping = inode->v.i_mapping;
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	loff_t end		= offset + len;
+	loff_t block_start	= round_down(offset,	block_bytes(c));
+	loff_t block_end	= round_up(end,		block_bytes(c));
+	int ret;
+
+	inode_lock(&inode->v);
+	inode_dio_wait(&inode->v);
+	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && end > inode->v.i_size) {
+		ret = inode_newsize_ok(&inode->v, end);
+		if (ret)
+			goto err;
+	}
+
+	if (mode & FALLOC_FL_ZERO_RANGE) {
+		ret = __bch2_truncate_page(inode,
+					   offset >> PAGE_SHIFT,
+					   offset, end);
+
+		if (!ret &&
+		    offset >> PAGE_SHIFT != end >> PAGE_SHIFT)
+			ret = __bch2_truncate_page(inode,
+						   end >> PAGE_SHIFT,
+						   offset, end);
+
+		if (unlikely(ret))
+			goto err;
+
+		truncate_pagecache_range(&inode->v, offset, end - 1);
+	}
+
+	ret = __bchfs_fallocate(inode, mode, block_start >> 9, block_end >> 9);
 	if (ret)
 		goto err;
 
@@ -2762,28 +2771,13 @@ bkey_err:
 	if (end >= inode->v.i_size &&
 	    (!(mode & FALLOC_FL_KEEP_SIZE) ||
 	     (mode & FALLOC_FL_ZERO_RANGE))) {
-		struct btree_iter *inode_iter;
-		struct bch_inode_unpacked inode_u;
-
-		do {
-			bch2_trans_begin(&trans);
-			inode_iter = bch2_inode_peek(&trans, &inode_u,
-						     inode->v.i_ino, 0);
-			ret = PTR_ERR_OR_ZERO(inode_iter);
-		} while (ret == -EINTR);
-
-		bch2_trans_iter_put(&trans, inode_iter);
-		bch2_trans_unlock(&trans);
-
-		if (ret)
-			goto err;
 
 		/*
 		 * Sync existing appends before extending i_size,
 		 * as in bch2_extend():
 		 */
 		ret = filemap_write_and_wait_range(mapping,
-					inode_u.bi_size, S64_MAX);
+					inode->ei_inode.bi_size, S64_MAX);
 		if (ret)
 			goto err;
 
@@ -2797,7 +2791,6 @@ bkey_err:
 		mutex_unlock(&inode->ei_update_lock);
 	}
 err:
-	bch2_trans_exit(&trans);
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
 	return ret;
