@@ -231,6 +231,7 @@ struct mtk_i2c {
 	struct i2c_adapter adap;	/* i2c host adapter */
 	struct device *dev;
 	struct completion msg_complete;
+	struct i2c_timings timing_info;
 
 	/* set in i2c probe */
 	void __iomem *base;		/* i2c base addr */
@@ -607,7 +608,8 @@ static int mtk_i2c_check_ac_timing(struct mtk_i2c *i2c,
 	else
 		clk_ns = sample_ns / 2;
 
-	su_sta_cnt = DIV_ROUND_UP(spec->min_su_sta_ns, clk_ns);
+	su_sta_cnt = DIV_ROUND_UP(spec->min_su_sta_ns +
+				  i2c->timing_info.scl_int_delay_ns, clk_ns);
 	if (su_sta_cnt > max_sta_cnt)
 		return -1;
 
@@ -1175,6 +1177,8 @@ static int mtk_i2c_parse_dt(struct device_node *np, struct mtk_i2c *i2c)
 	i2c->have_pmic = of_property_read_bool(np, "mediatek,have-pmic");
 	i2c->use_push_pull =
 		of_property_read_bool(np, "mediatek,use-push-pull");
+
+	i2c_parse_fw_timings(i2c->dev, &i2c->timing_info, true);
 
 	return 0;
 }
