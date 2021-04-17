@@ -304,30 +304,4 @@ int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem);
  */
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo);
 
-/**
- * ttm_range_man_init
- *
- * @bdev: ttm device
- * @type: memory manager type
- * @use_tt: if the memory manager uses tt
- * @p_size: size of area to be managed in pages.
- *
- * Initialise a generic range manager for the selected memory type.
- * The range manager is installed for this device in the type slot.
- */
-int ttm_range_man_init(struct ttm_device *bdev,
-		       unsigned type, bool use_tt,
-		       unsigned long p_size);
-
-/**
- * ttm_range_man_fini
- *
- * @bdev: ttm device
- * @type: memory manager type
- *
- * Remove the generic range manager from a slot and tear it down.
- */
-int ttm_range_man_fini(struct ttm_device *bdev,
-		       unsigned type);
-
 #endif

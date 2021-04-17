@@ -26,6 +26,8 @@
 #include <linux/limits.h>
 #include <linux/swiotlb.h>
 
+#include <drm/ttm/ttm_range_manager.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"

@@ -223,6 +223,9 @@ ttm_resource_manager_cleanup(struct ttm_resource_manager *man)
 	man->move = NULL;
 }
 
+void ttm_resource_init(struct ttm_buffer_object *bo,
+                       const struct ttm_place *place,
+                       struct ttm_resource *res);
 int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
 		       struct ttm_resource **res);

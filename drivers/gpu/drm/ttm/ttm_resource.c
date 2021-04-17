@@ -25,6 +25,22 @@
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
+void ttm_resource_init(struct ttm_buffer_object *bo,
+                       const struct ttm_place *place,
+                       struct ttm_resource *res)
+{
+	res->mm_node = NULL;
+	res->start = 0;
+	res->num_pages = PFN_UP(bo->base.size);
+	res->mem_type = place->mem_type;
+	res->placement = place->flags;
+	res->bus.addr = NULL;
+	res->bus.offset = 0;
+	res->bus.is_iomem = false;
+	res->bus.caching = ttm_cached;
+}
+EXPORT_SYMBOL(ttm_resource_init);
+
 int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
 		       struct ttm_resource **res_ptr)
@@ -38,15 +54,7 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 	if (!res)
 		return -ENOMEM;
 
-	res->mm_node = NULL;
-	res->start = 0;
-	res->num_pages = PFN_UP(bo->base.size);
-	res->mem_type = place->mem_type;
-	res->placement = place->flags;
-	res->bus.addr = NULL;
-	res->bus.offset = 0;
-	res->bus.is_iomem = false;
-	res->bus.caching = ttm_cached;
+	ttm_resource_init(bo, place, res);
 	r = man->func->alloc(man, bo, place, res);
 	if (r) {
 		kfree(res);
