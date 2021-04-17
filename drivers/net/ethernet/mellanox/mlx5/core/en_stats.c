@@ -775,21 +775,29 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(802_3)
 		MLX5_BYTE_OFF(ppcnt_reg,		\
 			      counter_set.set.c##_high)))
 
+static int mlx5e_stats_get_ieee(struct mlx5_core_dev *mdev,
+				u32 *ppcnt_ieee_802_3)
+{
+	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return -EOPNOTSUPP;
+
+	MLX5_SET(ppcnt_reg, in, local_port, 1);
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
+	return mlx5_core_access_reg(mdev, in, sz, ppcnt_ieee_802_3,
+				    sz, MLX5_REG_PPCNT, 0, 0);
+}
+
 void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
 			   struct ethtool_pause_stats *pause_stats)
 {
 	u32 ppcnt_ieee_802_3[MLX5_ST_SZ_DW(ppcnt_reg)];
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {};
-	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 
-	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+	if (mlx5e_stats_get_ieee(mdev, ppcnt_ieee_802_3))
 		return;
-
-	MLX5_SET(ppcnt_reg, in, local_port, 1);
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, ppcnt_ieee_802_3,
-			     sz, MLX5_REG_PPCNT, 0, 0);
 
 	pause_stats->tx_pause_frames =
 		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
@@ -799,6 +807,73 @@ void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
 		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
 				      eth_802_3_cntrs_grp_data_layout,
 				      a_pause_mac_ctrl_frames_received);
+}
+
+void mlx5e_stats_eth_phy_get(struct mlx5e_priv *priv,
+			     struct ethtool_eth_phy_stats *phy_stats)
+{
+	u32 ppcnt_ieee_802_3[MLX5_ST_SZ_DW(ppcnt_reg)];
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (mlx5e_stats_get_ieee(mdev, ppcnt_ieee_802_3))
+		return;
+
+	phy_stats->SymbolErrorDuringCarrier =
+		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
+				      eth_802_3_cntrs_grp_data_layout,
+				      a_symbol_error_during_carrier);
+}
+
+void mlx5e_stats_eth_mac_get(struct mlx5e_priv *priv,
+			     struct ethtool_eth_mac_stats *mac_stats)
+{
+	u32 ppcnt_ieee_802_3[MLX5_ST_SZ_DW(ppcnt_reg)];
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (mlx5e_stats_get_ieee(mdev, ppcnt_ieee_802_3))
+		return;
+
+#define RD(name)							\
+	MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,				\
+			      eth_802_3_cntrs_grp_data_layout,		\
+			      name)
+
+	mac_stats->FramesTransmittedOK	= RD(a_frames_transmitted_ok);
+	mac_stats->FramesReceivedOK	= RD(a_frames_received_ok);
+	mac_stats->FrameCheckSequenceErrors = RD(a_frame_check_sequence_errors);
+	mac_stats->OctetsTransmittedOK	= RD(a_octets_transmitted_ok);
+	mac_stats->OctetsReceivedOK	= RD(a_octets_received_ok);
+	mac_stats->MulticastFramesXmittedOK = RD(a_multicast_frames_xmitted_ok);
+	mac_stats->BroadcastFramesXmittedOK = RD(a_broadcast_frames_xmitted_ok);
+	mac_stats->MulticastFramesReceivedOK = RD(a_multicast_frames_received_ok);
+	mac_stats->BroadcastFramesReceivedOK = RD(a_broadcast_frames_received_ok);
+	mac_stats->InRangeLengthErrors	= RD(a_in_range_length_errors);
+	mac_stats->OutOfRangeLengthField = RD(a_out_of_range_length_field);
+	mac_stats->FrameTooLongErrors	= RD(a_frame_too_long_errors);
+#undef RD
+}
+
+void mlx5e_stats_eth_ctrl_get(struct mlx5e_priv *priv,
+			      struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	u32 ppcnt_ieee_802_3[MLX5_ST_SZ_DW(ppcnt_reg)];
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (mlx5e_stats_get_ieee(mdev, ppcnt_ieee_802_3))
+		return;
+
+	ctrl_stats->MACControlFramesTransmitted =
+		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
+				      eth_802_3_cntrs_grp_data_layout,
+				      a_mac_control_frames_transmitted);
+	ctrl_stats->MACControlFramesReceived =
+		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
+				      eth_802_3_cntrs_grp_data_layout,
+				      a_mac_control_frames_received);
+	ctrl_stats->UnsupportedOpcodesReceived =
+		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
+				      eth_802_3_cntrs_grp_data_layout,
+				      a_unsupported_opcodes_received);
 }
 
 #define PPORT_2863_OFF(c) \
@@ -910,6 +985,59 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(2819)
 	out = pstats->RFC_2819_counters;
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+}
+
+static const struct ethtool_rmon_hist_range mlx5e_rmon_ranges[] = {
+	{    0,    64 },
+	{   65,   127 },
+	{  128,   255 },
+	{  256,   511 },
+	{  512,  1023 },
+	{ 1024,  1518 },
+	{ 1519,  2047 },
+	{ 2048,  4095 },
+	{ 4096,  8191 },
+	{ 8192, 10239 },
+	{}
+};
+
+void mlx5e_stats_rmon_get(struct mlx5e_priv *priv,
+			  struct ethtool_rmon_stats *rmon,
+			  const struct ethtool_rmon_hist_range **ranges)
+{
+	u32 ppcnt_RFC_2819_counters[MLX5_ST_SZ_DW(ppcnt_reg)];
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
+	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+
+	MLX5_SET(ppcnt_reg, in, local_port, 1);
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
+	if (mlx5_core_access_reg(mdev, in, sz, ppcnt_RFC_2819_counters,
+				 sz, MLX5_REG_PPCNT, 0, 0))
+		return;
+
+#define RD(name)						\
+	MLX5E_READ_CTR64_BE_F(ppcnt_RFC_2819_counters,		\
+			      eth_2819_cntrs_grp_data_layout,	\
+			      name)
+
+	rmon->undersize_pkts	= RD(ether_stats_undersize_pkts);
+	rmon->fragments		= RD(ether_stats_fragments);
+	rmon->jabbers		= RD(ether_stats_jabbers);
+
+	rmon->hist[0]		= RD(ether_stats_pkts64octets);
+	rmon->hist[1]		= RD(ether_stats_pkts65to127octets);
+	rmon->hist[2]		= RD(ether_stats_pkts128to255octets);
+	rmon->hist[3]		= RD(ether_stats_pkts256to511octets);
+	rmon->hist[4]		= RD(ether_stats_pkts512to1023octets);
+	rmon->hist[5]		= RD(ether_stats_pkts1024to1518octets);
+	rmon->hist[6]		= RD(ether_stats_pkts1519to2047octets);
+	rmon->hist[7]		= RD(ether_stats_pkts2048to4095octets);
+	rmon->hist[8]		= RD(ether_stats_pkts4096to8191octets);
+	rmon->hist[9]		= RD(ether_stats_pkts8192to10239octets);
+#undef RD
+
+	*ranges = mlx5e_rmon_ranges;
 }
 
 #define PPORT_PHY_STATISTICAL_OFF(c) \

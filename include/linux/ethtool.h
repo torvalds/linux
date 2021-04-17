@@ -250,6 +250,50 @@ static inline void ethtool_stats_init(u64 *stats, unsigned int n)
 		stats[n] = ETHTOOL_STAT_NOT_SET;
 }
 
+/* Basic IEEE 802.3 MAC statistics (30.3.1.1.*), not otherwise exposed
+ * via a more targeted API.
+ */
+struct ethtool_eth_mac_stats {
+	u64 FramesTransmittedOK;
+	u64 SingleCollisionFrames;
+	u64 MultipleCollisionFrames;
+	u64 FramesReceivedOK;
+	u64 FrameCheckSequenceErrors;
+	u64 AlignmentErrors;
+	u64 OctetsTransmittedOK;
+	u64 FramesWithDeferredXmissions;
+	u64 LateCollisions;
+	u64 FramesAbortedDueToXSColls;
+	u64 FramesLostDueToIntMACXmitError;
+	u64 CarrierSenseErrors;
+	u64 OctetsReceivedOK;
+	u64 FramesLostDueToIntMACRcvError;
+	u64 MulticastFramesXmittedOK;
+	u64 BroadcastFramesXmittedOK;
+	u64 FramesWithExcessiveDeferral;
+	u64 MulticastFramesReceivedOK;
+	u64 BroadcastFramesReceivedOK;
+	u64 InRangeLengthErrors;
+	u64 OutOfRangeLengthField;
+	u64 FrameTooLongErrors;
+};
+
+/* Basic IEEE 802.3 PHY statistics (30.3.2.1.*), not otherwise exposed
+ * via a more targeted API.
+ */
+struct ethtool_eth_phy_stats {
+	u64 SymbolErrorDuringCarrier;
+};
+
+/* Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*), not otherwise exposed
+ * via a more targeted API.
+ */
+struct ethtool_eth_ctrl_stats {
+	u64 MACControlFramesTransmitted;
+	u64 MACControlFramesReceived;
+	u64 UnsupportedOpcodesReceived;
+};
+
 /**
  * struct ethtool_pause_stats - statistics for IEEE 802.3x pause frames
  * @tx_pause_frames: transmitted pause frame count. Reported to user space
@@ -300,6 +344,44 @@ struct ethtool_fec_stats {
 		u64 total;
 		u64 lanes[ETHTOOL_MAX_LANES];
 	} corrected_blocks, uncorrectable_blocks, corrected_bits;
+};
+
+/**
+ * struct ethtool_rmon_hist_range - byte range for histogram statistics
+ * @low: low bound of the bucket (inclusive)
+ * @high: high bound of the bucket (inclusive)
+ */
+struct ethtool_rmon_hist_range {
+	u16 low;
+	u16 high;
+};
+
+#define ETHTOOL_RMON_HIST_MAX	10
+
+/**
+ * struct ethtool_rmon_stats - selected RMON (RFC 2819) statistics
+ * @undersize_pkts: Equivalent to `etherStatsUndersizePkts` from the RFC.
+ * @oversize_pkts: Equivalent to `etherStatsOversizePkts` from the RFC.
+ * @fragments: Equivalent to `etherStatsFragments` from the RFC.
+ * @jabbers: Equivalent to `etherStatsJabbers` from the RFC.
+ * @hist: Packet counter for packet length buckets (e.g.
+ *	`etherStatsPkts128to255Octets` from the RFC).
+ * @hist_tx: Tx counters in similar form to @hist, not defined in the RFC.
+ *
+ * Selection of RMON (RFC 2819) statistics which are not exposed via different
+ * APIs, primarily the packet-length-based counters.
+ * Unfortunately different designs choose different buckets beyond
+ * the 1024B mark (jumbo frame teritory), so the definition of the bucket
+ * ranges is left to the driver.
+ */
+struct ethtool_rmon_stats {
+	u64 undersize_pkts;
+	u64 oversize_pkts;
+	u64 fragments;
+	u64 jabbers;
+
+	u64 hist[ETHTOOL_RMON_HIST_MAX];
+	u64 hist_tx[ETHTOOL_RMON_HIST_MAX];
 };
 
 #define ETH_MODULE_EEPROM_PAGE_LEN	128
@@ -487,6 +569,11 @@ struct ethtool_module_eeprom {
  * @get_module_eeprom_by_page: Get a region of plug-in module EEPROM data from
  *	specified page. Returns a negative error code or the amount of bytes
  *	read.
+ * @get_eth_phy_stats: Query some of the IEEE 802.3 PHY statistics.
+ * @get_eth_mac_stats: Query some of the IEEE 802.3 MAC statistics.
+ * @get_eth_ctrl_stats: Query some of the IEEE 802.3 MAC Ctrl statistics.
+ * @get_rmon_stats: Query some of the RMON (RFC 2819) statistics.
+ *	Set %ranges to a pointer to zero-terminated array of byte ranges.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -597,6 +684,15 @@ struct ethtool_ops {
 	int	(*get_module_eeprom_by_page)(struct net_device *dev,
 					     const struct ethtool_module_eeprom *page,
 					     struct netlink_ext_ack *extack);
+	void	(*get_eth_phy_stats)(struct net_device *dev,
+				     struct ethtool_eth_phy_stats *phy_stats);
+	void	(*get_eth_mac_stats)(struct net_device *dev,
+				     struct ethtool_eth_mac_stats *mac_stats);
+	void	(*get_eth_ctrl_stats)(struct net_device *dev,
+				      struct ethtool_eth_ctrl_stats *ctrl_stats);
+	void	(*get_rmon_stats)(struct net_device *dev,
+				  struct ethtool_rmon_stats *rmon_stats,
+				  const struct ethtool_rmon_hist_range **ranges);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
