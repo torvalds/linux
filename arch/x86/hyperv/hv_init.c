@@ -347,7 +347,7 @@ static void __init hv_get_partition_id(void)
 	local_irq_save(flags);
 	output_page = *this_cpu_ptr(hyperv_pcpu_output_arg);
 	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, output_page);
-	if ((status & HV_HYPERCALL_RESULT_MASK) != HV_STATUS_SUCCESS) {
+	if (!hv_result_success(status)) {
 		/* No point in proceeding if this failed */
 		pr_err("Failed to get partition ID: %lld\n", status);
 		BUG();

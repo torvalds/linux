@@ -105,7 +105,7 @@ int hv_post_message(union hv_connection_id connection_id,
 	 */
 	put_cpu_ptr(hv_cpu);
 
-	return status & 0xFFFF;
+	return hv_result(status);
 }
 
 int hv_synic_alloc(void)

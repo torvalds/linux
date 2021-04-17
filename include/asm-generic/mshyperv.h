@@ -41,6 +41,24 @@ extern struct ms_hyperv_info ms_hyperv;
 extern u64 hv_do_hypercall(u64 control, void *inputaddr, void *outputaddr);
 extern u64 hv_do_fast_hypercall8(u16 control, u64 input8);
 
+/* Helper functions that provide a consistent pattern for checking Hyper-V hypercall status. */
+static inline int hv_result(u64 status)
+{
+	return status & HV_HYPERCALL_RESULT_MASK;
+}
+
+static inline bool hv_result_success(u64 status)
+{
+	return hv_result(status) == HV_STATUS_SUCCESS;
+}
+
+static inline unsigned int hv_repcomp(u64 status)
+{
+	/* Bits [43:32] of status have 'Reps completed' data. */
+	return (status & HV_HYPERCALL_REP_COMP_MASK) >>
+			 HV_HYPERCALL_REP_COMP_OFFSET;
+}
+
 /*
  * Rep hypercalls. Callers of this functions are supposed to ensure that
  * rep_count and varhead_size comply with Hyper-V hypercall definition.
@@ -57,12 +75,10 @@ static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
 
 	do {
 		status = hv_do_hypercall(control, input, output);
-		if ((status & HV_HYPERCALL_RESULT_MASK) != HV_STATUS_SUCCESS)
+		if (!hv_result_success(status))
 			return status;
 
-		/* Bits 32-43 of status have 'Reps completed' data. */
-		rep_comp = (status & HV_HYPERCALL_REP_COMP_MASK) >>
-			HV_HYPERCALL_REP_COMP_OFFSET;
+		rep_comp = hv_repcomp(status);
 
 		control &= ~HV_HYPERCALL_REP_START_MASK;
 		control |= (u64)rep_comp << HV_HYPERCALL_REP_START_OFFSET;
@@ -86,7 +102,6 @@ static inline  __u64 generate_guest_id(__u64 d_info1, __u64 kernel_version,
 
 	return guest_id;
 }
-
 
 /* Free the message slot and signal end-of-message if required */
 static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
