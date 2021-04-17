@@ -1241,6 +1241,86 @@ static int pmc_core_substate_l_sts_regs_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_l_sts_regs);
 
+static void pmc_core_substate_req_header_show(struct seq_file *s)
+{
+	struct pmc_dev *pmcdev = s->private;
+	int i, mode;
+
+	seq_printf(s, "%30s |", "Element");
+	pmc_for_each_mode(i, mode, pmcdev)
+		seq_printf(s, " %9s |", pmc_lpm_modes[mode]);
+
+	seq_printf(s, " %9s |\n", "Status");
+}
+
+static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map **maps = pmcdev->map->lpm_sts;
+	const struct pmc_bit_map *map;
+	const int num_maps = pmcdev->map->lpm_num_maps;
+	u32 sts_offset = pmcdev->map->lpm_status_offset;
+	u32 *lpm_req_regs = pmcdev->lpm_req_regs;
+	int mp;
+
+	/* Display the header */
+	pmc_core_substate_req_header_show(s);
+
+	/* Loop over maps */
+	for (mp = 0; mp < num_maps; mp++) {
+		u32 req_mask = 0;
+		u32 lpm_status;
+		int mode, idx, i, len = 32;
+
+		/*
+		 * Capture the requirements and create a mask so that we only
+		 * show an element if it's required for at least one of the
+		 * enabled low power modes
+		 */
+		pmc_for_each_mode(idx, mode, pmcdev)
+			req_mask |= lpm_req_regs[mp + (mode * num_maps)];
+
+		/* Get the last latched status for this map */
+		lpm_status = pmc_core_reg_read(pmcdev, sts_offset + (mp * 4));
+
+		/*  Loop over elements in this map */
+		map = maps[mp];
+		for (i = 0; map[i].name && i < len; i++) {
+			u32 bit_mask = map[i].bit_mask;
+
+			if (!(bit_mask & req_mask))
+				/*
+				 * Not required for any enabled states
+				 * so don't display
+				 */
+				continue;
+
+			/* Display the element name in the first column */
+			seq_printf(s, "%30s |", map[i].name);
+
+			/* Loop over the enabled states and display if required */
+			pmc_for_each_mode(idx, mode, pmcdev) {
+				if (lpm_req_regs[mp + (mode * num_maps)] & bit_mask)
+					seq_printf(s, " %9s |",
+						   "Required");
+				else
+					seq_printf(s, " %9s |", " ");
+			}
+
+			/* In Status column, show the last captured state of this agent */
+			if (lpm_status & bit_mask)
+				seq_printf(s, " %9s |", "Yes");
+			else
+				seq_printf(s, " %9s |", " ");
+
+			seq_puts(s, "\n");
+		}
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_req_regs);
+
 static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
@@ -1359,6 +1439,12 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_file("substate_live_status_registers", 0444,
 				    pmcdev->dbgfs_dir, pmcdev,
 				    &pmc_core_substate_l_sts_regs_fops);
+	}
+
+	if (pmcdev->lpm_req_regs) {
+		debugfs_create_file("substate_requirements", 0444,
+				    pmcdev->dbgfs_dir, pmcdev,
+				    &pmc_core_substate_req_regs_fops);
 	}
 }
 
