@@ -294,6 +294,7 @@ struct pmc_reg_map {
  * @s0ix_counter:	S0ix residency (step adjusted)
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
+ * @lpm_req_regs:	List of substate requirements
  *
  * pmc_dev contains info about power management controller device.
  */
@@ -310,6 +311,7 @@ struct pmc_dev {
 	u64 s0ix_counter;
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
+	u32 *lpm_req_regs;
 };
 
 #define pmc_for_each_mode(i, mode, pmcdev)		\
