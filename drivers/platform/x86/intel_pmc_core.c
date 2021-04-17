@@ -579,8 +579,9 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
-	.lpm_modes = tgl_lpm_modes,
+	.lpm_num_maps = TGL_LPM_NUM_MAPS,
 	.lpm_en_offset = TGL_LPM_EN_OFFSET,
+	.lpm_priority_offset = TGL_LPM_PRI_OFFSET,
 	.lpm_residency_offset = TGL_LPM_RESIDENCY_OFFSET,
 	.lpm_sts = tgl_lpm_maps,
 	.lpm_status_offset = TGL_LPM_STATUS_OFFSET,
@@ -1140,18 +1141,14 @@ DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	const char **lpm_modes = pmcdev->map->lpm_modes;
 	u32 offset = pmcdev->map->lpm_residency_offset;
-	u32 lpm_en;
-	int index;
+	int i, mode;
 
-	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
-	seq_printf(s, "status substate residency\n");
-	for (index = 0; lpm_modes[index]; index++) {
-		seq_printf(s, "%7s %7s %-15u\n",
-			   BIT(index) & lpm_en ? "Enabled" : " ",
-			   lpm_modes[index], pmc_core_reg_read(pmcdev, offset));
-		offset += 4;
+	seq_printf(s, "%-10s %-15s\n", "Substate", "Residency");
+
+	pmc_for_each_mode(i, mode, pmcdev) {
+		seq_printf(s, "%-10s %-15u\n", pmc_lpm_modes[mode],
+			   pmc_core_reg_read(pmcdev, offset + (4 * mode)));
 	}
 
 	return 0;
@@ -1202,6 +1199,45 @@ static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
+
+static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
+{
+	u8 lpm_priority[LPM_MAX_NUM_MODES];
+	u32 lpm_en;
+	int mode, i, p;
+
+	/* Use LPM Maps to indicate support for substates */
+	if (!pmcdev->map->lpm_num_maps)
+		return;
+
+	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
+	pmcdev->num_lpm_modes = hweight32(lpm_en);
+
+	/* Each byte contains information for 2 modes (7:4 and 3:0) */
+	for (mode = 0; mode < LPM_MAX_NUM_MODES; mode += 2) {
+		u8 priority = pmc_core_reg_read_byte(pmcdev,
+				pmcdev->map->lpm_priority_offset + (mode / 2));
+		int pri0 = GENMASK(3, 0) & priority;
+		int pri1 = (GENMASK(7, 4) & priority) >> 4;
+
+		lpm_priority[pri0] = mode;
+		lpm_priority[pri1] = mode + 1;
+	}
+
+	/*
+	 * Loop though all modes from lowest to highest priority,
+	 * and capture all enabled modes in order
+	 */
+	i = 0;
+	for (p = LPM_MAX_NUM_MODES - 1; p >= 0; p--) {
+		int mode = lpm_priority[p];
+
+		if (!(BIT(mode) & lpm_en))
+			continue;
+
+		pmcdev->lpm_en_modes[i++] = mode;
+	}
+}
 
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
@@ -1379,6 +1415,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 
 	mutex_init(&pmcdev->lock);
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
+	pmc_core_get_low_power_modes(pmcdev);
 	pmc_core_do_dmi_quirks(pmcdev);
 
 	/*
