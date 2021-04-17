@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x23db9b126
+#define DMUB_FW_VERSION_GIT_HASH 0x41548deb6
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 62
+#define DMUB_FW_VERSION_REVISION 63
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -116,6 +116,8 @@
 
 /* Maximum number of planes on any ASIC. */
 #define DMUB_MAX_PLANES 6
+
+#define DMUB_MAX_SUBVP_STREAMS 2
 
 /* Trace buffer offset for entry */
 #define TRACE_BUFFER_ENTRY_OFFSET  16
@@ -328,7 +330,8 @@ union dmub_fw_boot_options {
 		uint32_t skip_phy_access : 1; /**< 1 if PHY access should be skipped */
 		uint32_t disable_clk_gate: 1; /**< 1 if clock gating should be disabled */
 		uint32_t skip_phy_init_panel_sequence: 1; /**< 1 to skip panel init seq */
-		uint32_t reserved : 26; /**< reserved */
+		uint32_t reserved_unreleased: 1; /**< reserved for an unreleased feature */
+		uint32_t reserved : 25; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
