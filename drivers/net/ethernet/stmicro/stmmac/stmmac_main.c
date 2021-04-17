@@ -1558,31 +1558,6 @@ static int stmmac_alloc_rx_buffers(struct stmmac_priv *priv, u32 queue,
 }
 
 /**
- * dma_recycle_rx_skbufs - recycle RX dma buffers
- * @priv: private structure
- * @queue: RX queue index
- */
-static void dma_recycle_rx_skbufs(struct stmmac_priv *priv, u32 queue)
-{
-	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-	int i;
-
-	for (i = 0; i < priv->dma_rx_size; i++) {
-		struct stmmac_rx_buffer *buf = &rx_q->buf_pool[i];
-
-		if (buf->page) {
-			page_pool_recycle_direct(rx_q->page_pool, buf->page);
-			buf->page = NULL;
-		}
-
-		if (priv->sph && buf->sec_page) {
-			page_pool_recycle_direct(rx_q->page_pool, buf->sec_page);
-			buf->sec_page = NULL;
-		}
-	}
-}
-
-/**
  * dma_free_rx_xskbufs - free RX dma buffers from XSK pool
  * @priv: private structure
  * @queue: RX queue index
@@ -1630,57 +1605,6 @@ static int stmmac_alloc_rx_buffers_zc(struct stmmac_priv *priv, u32 queue)
 	}
 
 	return 0;
-}
-
-/**
- * stmmac_reinit_rx_buffers - reinit the RX descriptor buffer.
- * @priv: driver private structure
- * Description: this function is called to re-allocate a receive buffer, perform
- * the DMA mapping and init the descriptor.
- */
-static void stmmac_reinit_rx_buffers(struct stmmac_priv *priv)
-{
-	u32 rx_count = priv->plat->rx_queues_to_use;
-	u32 queue;
-
-	for (queue = 0; queue < rx_count; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-
-		if (rx_q->xsk_pool)
-			dma_free_rx_xskbufs(priv, queue);
-		else
-			dma_recycle_rx_skbufs(priv, queue);
-
-		rx_q->buf_alloc_num = 0;
-	}
-
-	for (queue = 0; queue < rx_count; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-		int ret;
-
-		if (rx_q->xsk_pool) {
-			/* RX XDP ZC buffer pool may not be populated, e.g.
-			 * xdpsock TX-only.
-			 */
-			stmmac_alloc_rx_buffers_zc(priv, queue);
-		} else {
-			ret = stmmac_alloc_rx_buffers(priv, queue, GFP_KERNEL);
-			if (ret < 0)
-				goto err_reinit_rx_buffers;
-		}
-	}
-
-	return;
-
-err_reinit_rx_buffers:
-	while (queue >= 0) {
-		dma_free_rx_skbufs(priv, queue);
-
-		if (queue == 0)
-			break;
-
-		queue--;
-	}
 }
 
 static struct xsk_buff_pool *stmmac_get_xsk_pool(struct stmmac_priv *priv, u32 queue)
@@ -7324,7 +7248,7 @@ int stmmac_resume(struct device *dev)
 	mutex_lock(&priv->lock);
 
 	stmmac_reset_queues_param(priv);
-	stmmac_reinit_rx_buffers(priv);
+
 	stmmac_free_tx_skbufs(priv);
 	stmmac_clear_descriptors(priv);
 
