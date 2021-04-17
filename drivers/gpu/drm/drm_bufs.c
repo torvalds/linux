@@ -79,7 +79,7 @@ static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 				return entry;
 			break;
 		default: /* Make gcc happy */
-			;
+			break;
 		}
 		if (entry->map->offset == map->offset)
 			return entry;
