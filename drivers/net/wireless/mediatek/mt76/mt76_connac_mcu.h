@@ -1010,6 +1010,9 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 int mt76_connac_mcu_sched_scan_enable(struct mt76_phy *phy,
 				      struct ieee80211_vif *vif,
 				      bool enable);
+int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
+				      struct mt76_vif *vif,
+				      struct ieee80211_bss_conf *info);
 int mt76_connac_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct cfg80211_gtk_rekey_data *key);

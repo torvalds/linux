@@ -578,8 +578,13 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_PS)
 		mt76_connac_mcu_set_vif_ps(&dev->mt76, vif);
 
-	if (changed & BSS_CHANGED_ARP_FILTER)
-		mt7615_mcu_update_arp_filter(hw, vif, info);
+	if ((changed & BSS_CHANGED_ARP_FILTER) &&
+	    mt7615_firmware_offload(dev)) {
+		struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+
+		mt76_connac_mcu_update_arp_filter(&dev->mt76, &mvif->mt76,
+						  info);
+	}
 
 	if (changed & BSS_CHANGED_ASSOC)
 		mt7615_mac_set_beacon_filter(phy, vif, info->assoc);

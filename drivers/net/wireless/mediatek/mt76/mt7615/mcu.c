@@ -2704,53 +2704,6 @@ int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 				 sizeof(req), false);
 }
 
-int mt7615_mcu_update_arp_filter(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_bss_conf *info)
-{
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct mt7615_dev *dev = mt7615_hw_dev(hw);
-	struct sk_buff *skb;
-	int i, len = min_t(int, info->arp_addr_cnt,
-			   IEEE80211_BSS_ARP_ADDR_LIST_LEN);
-	struct {
-		struct {
-			u8 bss_idx;
-			u8 pad[3];
-		} __packed hdr;
-		struct mt76_connac_arpns_tlv arp;
-	} req_hdr = {
-		.hdr = {
-			.bss_idx = mvif->mt76.idx,
-		},
-		.arp = {
-			.tag = cpu_to_le16(UNI_OFFLOAD_OFFLOAD_ARP),
-			.len = cpu_to_le16(sizeof(struct mt76_connac_arpns_tlv)),
-			.ips_num = len,
-			.mode = 2,  /* update */
-			.option = 1,
-		},
-	};
-
-	if (!mt7615_firmware_offload(dev))
-		return 0;
-
-	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
-				 sizeof(req_hdr) + len * sizeof(__be32));
-	if (!skb)
-		return -ENOMEM;
-
-	skb_put_data(skb, &req_hdr, sizeof(req_hdr));
-	for (i = 0; i < len; i++) {
-		u8 *addr = (u8 *)skb_put(skb, sizeof(__be32));
-
-		memcpy(addr, &info->arp_addr_list[i], sizeof(__be32));
-	}
-
-	return mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_UNI_CMD_OFFLOAD,
-				     true);
-}
-
 int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)
 {

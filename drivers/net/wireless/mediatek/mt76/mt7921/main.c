@@ -626,8 +626,12 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC)
 		mt7921_bss_bcnft_apply(dev, vif, info->assoc);
 
-	if (changed & BSS_CHANGED_ARP_FILTER)
-		mt7921_mcu_update_arp_filter(hw, vif, info);
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+
+		mt76_connac_mcu_update_arp_filter(&dev->mt76, &mvif->mt76,
+						  info);
+	}
 
 	mt7921_mutex_release(dev);
 }
