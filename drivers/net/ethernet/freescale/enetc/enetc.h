@@ -79,7 +79,7 @@ struct enetc_xdp_data {
 };
 
 #define ENETC_RX_RING_DEFAULT_SIZE	2048
-#define ENETC_TX_RING_DEFAULT_SIZE	256
+#define ENETC_TX_RING_DEFAULT_SIZE	2048
 #define ENETC_DEFAULT_TX_WORK		(ENETC_TX_RING_DEFAULT_SIZE / 2)
 
 struct enetc_bdr {
@@ -317,6 +317,7 @@ struct enetc_ndev_priv {
 
 	u32 speed; /* store speed for compare update pspeed */
 
+	struct enetc_bdr **xdp_tx_ring;
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
 
