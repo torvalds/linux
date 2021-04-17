@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -176,6 +176,8 @@ iwl_op_mode_hw_rf_kill(struct iwl_op_mode *op_mode, bool state)
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
 					struct sk_buff *skb)
 {
+	if (WARN_ON_ONCE(!op_mode))
+		return;
 	op_mode->ops->free_skb(op_mode, skb);
 }
 

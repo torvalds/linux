@@ -490,6 +490,15 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->bss_conf.assoc &&
 	    !memcmp(peer->addr, vif->bss_conf.bssid, ETH_ALEN)) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		struct ieee80211_sta *sta;
+
+		rcu_read_lock();
+
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
+		if (sta->mfp)
+			FTM_PUT_FLAG(PMF);
+
+		rcu_read_unlock();
 
 		target->sta_id = mvmvif->ap_sta_id;
 	} else {
@@ -684,6 +693,19 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 }
 
+static int
+iwl_mvm_ftm_put_target_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			  struct cfg80211_pmsr_request_peer *peer,
+			  struct iwl_tof_range_req_ap_entry_v7 *target)
+{
+	int err = iwl_mvm_ftm_put_target(mvm, vif, peer, (void *)target);
+	if (err)
+		return err;
+
+	iwl_mvm_ftm_set_secured_ranging(mvm, vif, target);
+	return err;
+}
+
 static int iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,
 				 struct cfg80211_pmsr_request *req)
@@ -704,11 +726,67 @@ static int iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
 		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
 		struct iwl_tof_range_req_ap_entry_v7 *target = &cmd.ap[i];
 
-		err = iwl_mvm_ftm_put_target(mvm, vif, peer, (void *)target);
+		err = iwl_mvm_ftm_put_target_v7(mvm, vif, peer, target);
+		if (err)
+			return err;
+	}
+
+	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
+}
+
+static void
+iwl_mvm_ftm_set_ndp_params(struct iwl_mvm *mvm,
+			   struct iwl_tof_range_req_ap_entry_v8 *target)
+{
+	/* Only 2 STS are supported on Tx */
+	u32 i2r_max_sts = IWL_MVM_FTM_I2R_MAX_STS > 1 ? 1 :
+		IWL_MVM_FTM_I2R_MAX_STS;
+
+	target->r2i_ndp_params = IWL_MVM_FTM_R2I_MAX_REP |
+		(IWL_MVM_FTM_R2I_MAX_STS << IWL_LOCATION_MAX_STS_POS);
+	target->i2r_ndp_params = IWL_MVM_FTM_I2R_MAX_REP |
+		(i2r_max_sts << IWL_LOCATION_MAX_STS_POS);
+	target->r2i_max_total_ltf = IWL_MVM_FTM_R2I_MAX_TOTAL_LTF;
+	target->i2r_max_total_ltf = IWL_MVM_FTM_I2R_MAX_TOTAL_LTF;
+}
+
+static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct cfg80211_pmsr_request *req)
+{
+	struct iwl_tof_range_req_cmd_v12 cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.dataflags[0] = IWL_HCMD_DFL_DUP,
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+	u8 i;
+	int err;
+
+	iwl_mvm_ftm_cmd_common(mvm, vif, (void *)&cmd, req);
+
+	for (i = 0; i < cmd.num_of_ap; i++) {
+		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
+		struct iwl_tof_range_req_ap_entry_v8 *target = &cmd.ap[i];
+		u32 flags;
+
+		err = iwl_mvm_ftm_put_target_v7(mvm, vif, peer, (void *)target);
 		if (err)
 			return err;
 
-		iwl_mvm_ftm_set_secured_ranging(mvm, vif, target);
+		iwl_mvm_ftm_set_ndp_params(mvm, target);
+
+		/*
+		 * If secure LTF is turned off, replace the flag with PMF only
+		 */
+		flags = le32_to_cpu(target->initiator_ap_flags);
+		if ((flags & IWL_INITIATOR_AP_FLAGS_SECURED) &&
+		    !IWL_MVM_FTM_INITIATOR_SECURE_LTF) {
+			flags &= ~IWL_INITIATOR_AP_FLAGS_SECURED;
+			flags |= IWL_INITIATOR_AP_FLAGS_PMF;
+			target->initiator_ap_flags = cpu_to_le32(flags);
+		}
 	}
 
 	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
@@ -732,6 +810,9 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
+		case 12:
+			err = iwl_mvm_ftm_start_v12(mvm, vif, req);
+			break;
 		case 11:
 			err = iwl_mvm_ftm_start_v11(mvm, vif, req);
 			break;

@@ -168,7 +168,7 @@ const char iwl9462_160_name[] = "Intel(R) Wireless-AC 9462 160MHz";
 const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
 
 const char iwl9260_killer_1550_name[] =
-	"Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW)";
+	"Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz";
 const char iwl9560_killer_1550i_name[] =
 	"Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)";
 const char iwl9560_killer_1550s_name[] =
