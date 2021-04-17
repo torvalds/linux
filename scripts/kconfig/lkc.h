@@ -20,10 +20,6 @@ extern "C" {
 
 #define SRCTREE "srctree"
 
-#ifndef PACKAGE
-#define PACKAGE "linux"
-#endif
-
 #ifndef CONFIG_
 #define CONFIG_ "CONFIG_"
 #endif
