@@ -189,6 +189,7 @@ enum ppfear_regs {
 
 #define LPM_MAX_NUM_MODES			8
 #define GET_X2_COUNTER(v)			((v) >> 1)
+#define LPM_STS_LATCH_MODE			BIT(31)
 
 #define TGL_NUM_IP_IGN_ALLOWED			22
 #define TGL_PMC_SLP_S0_RES_COUNTER_STEP		0x7A
@@ -197,6 +198,7 @@ enum ppfear_regs {
 /*
  * Tigerlake Power Management Controller register offsets
  */
+#define TGL_LPM_STS_LATCH_EN_OFFSET		0x1C34
 #define TGL_LPM_EN_OFFSET			0x1C78
 #define TGL_LPM_RESIDENCY_OFFSET		0x1C80
 
@@ -210,6 +212,9 @@ enum ppfear_regs {
 #define ETR3_OFFSET				0x1048
 #define ETR3_CF9GR				BIT(20)
 #define ETR3_CF9LOCK				BIT(31)
+
+/* Extended Test Mode Register LPM bits (TGL and later */
+#define ETR3_CLEAR_LPM_EVENTS			BIT(28)
 
 const char *pmc_lpm_modes[] = {
 	"S0i2.0",
@@ -271,6 +276,7 @@ struct pmc_reg_map {
 	/* Low Power Mode registers */
 	const int lpm_num_maps;
 	const int lpm_res_counter_step_x2;
+	const u32 lpm_sts_latch_en_offset;
 	const u32 lpm_en_offset;
 	const u32 lpm_priority_offset;
 	const u32 lpm_residency_offset;
@@ -318,5 +324,19 @@ struct pmc_dev {
 	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\
 	     i < pmcdev->num_lpm_modes;			\
 	     i++, mode = pmcdev->lpm_en_modes[i])
+
+#define DEFINE_PMC_CORE_ATTR_WRITE(__name)				\
+static int __name ## _open(struct inode *inode, struct file *file)	\
+{									\
+	return single_open(file, __name ## _show, inode->i_private);	\
+}									\
+									\
+static const struct file_operations __name ## _fops = {			\
+	.owner		= THIS_MODULE,					\
+	.open		= __name ## _open,				\
+	.read		= seq_read,					\
+	.write		= __name ## _write,				\
+	.release	= single_release,				\
+}
 
 #endif /* PMC_CORE_H */
