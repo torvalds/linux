@@ -383,72 +383,58 @@ static int sch5627_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_HWMON_ID);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	if (val != SCH5627_HWMON_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "hwmon",
 		       val, SCH5627_HWMON_ID);
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_COMPANY_ID);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	if (val != SCH5627_COMPANY_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "company",
 		       val, SCH5627_COMPANY_ID);
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_PRIMARY_ID);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	if (val != SCH5627_PRIMARY_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "primary",
 		       val, SCH5627_PRIMARY_ID);
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	build_code = sch56xx_read_virtual_reg(data->addr,
 					      SCH5627_REG_BUILD_CODE);
-	if (build_code < 0) {
-		err = build_code;
-		goto error;
-	}
+	if (build_code < 0)
+		return build_code;
 
 	build_id = sch56xx_read_virtual_reg16(data->addr,
 					      SCH5627_REG_BUILD_ID);
-	if (build_id < 0) {
-		err = build_id;
-		goto error;
-	}
+	if (build_id < 0)
+		return build_id;
 
 	hwmon_rev = sch56xx_read_virtual_reg(data->addr,
 					     SCH5627_REG_HWMON_REV);
-	if (hwmon_rev < 0) {
-		err = hwmon_rev;
-		goto error;
-	}
+	if (hwmon_rev < 0)
+		return hwmon_rev;
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_CTRL);
-	if (val < 0) {
-		err = val;
-		goto error;
-	}
+	if (val < 0)
+		return val;
+
 	data->control = val;
 	if (!(data->control & 0x01)) {
 		pr_err("hardware monitoring not enabled\n");
-		err = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 	/* Trigger a Vbat voltage measurement, so that we get a valid reading
 	   the first time we read Vbat */
@@ -462,7 +448,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	 */
 	err = sch5627_read_limits(data);
 	if (err)
-		goto error;
+		return err;
 
 	pr_info("found %s chip at %#hx\n", DEVNAME, data->addr);
 	pr_info("firmware build: code 0x%02X, id 0x%04X, hwmon: rev 0x%02X\n",
@@ -470,10 +456,8 @@ static int sch5627_probe(struct platform_device *pdev)
 
 	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, DEVNAME, data,
 							 &sch5627_chip_info, NULL);
-	if (IS_ERR(hwmon_dev)) {
-		err = PTR_ERR(hwmon_dev);
-		goto error;
-	}
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
 
 	/* Note failing to register the watchdog is not a fatal error */
 	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
@@ -481,10 +465,6 @@ static int sch5627_probe(struct platform_device *pdev)
 			&data->update_lock, 1);
 
 	return 0;
-
-error:
-	sch5627_remove(pdev);
-	return err;
 }
 
 static struct platform_driver sch5627_driver = {
