@@ -209,7 +209,7 @@ void bch2_alloc_pack(struct bch_fs *c,
 	bch2_alloc_pack_v2(dst, src);
 }
 
-static unsigned bch_alloc_val_u64s(const struct bch_alloc *a)
+static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
 {
 	unsigned i, bytes = offsetof(struct bch_alloc, data);
 
@@ -229,7 +229,7 @@ const char *bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k)
 		return "invalid device";
 
 	/* allow for unknown fields */
-	if (bkey_val_u64s(a.k) < bch_alloc_val_u64s(a.v))
+	if (bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v))
 		return "incorrect value size";
 
 	return NULL;
@@ -293,11 +293,8 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
 	int ret;
 
-	down_read(&c->gc_lock);
 	ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_alloc,
 					  NULL, bch2_alloc_read_fn);
-	up_read(&c->gc_lock);
-
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;
@@ -475,10 +472,8 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 		if (available)
 			break;
 
-		up_read(&c->gc_lock);
 		schedule();
 		try_to_freeze();
-		down_read(&c->gc_lock);
 	}
 
 	__set_current_state(TASK_RUNNING);
@@ -914,7 +909,6 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 	       !fifo_full(&ca->free_inc) &&
 	       ca->alloc_heap.used)
 		ret = bch2_invalidate_one_bucket2(&trans, ca, iter, &journal_seq,
-				BTREE_INSERT_GC_LOCK_HELD|
 				(!fifo_empty(&ca->free_inc)
 				 ? BTREE_INSERT_NOWAIT : 0));
 
@@ -1055,18 +1049,12 @@ static int bch2_allocator_thread(void *arg)
 		if (ret)
 			goto stop;
 
-		down_read(&c->gc_lock);
-
 		ret = bch2_invalidate_buckets(c, ca);
-		if (ret) {
-			up_read(&c->gc_lock);
+		if (ret)
 			goto stop;
-		}
 
-		if (!fifo_empty(&ca->free_inc)) {
-			up_read(&c->gc_lock);
+		if (!fifo_empty(&ca->free_inc))
 			continue;
-		}
 
 		pr_debug("free_inc now empty");
 
@@ -1104,13 +1092,9 @@ static int bch2_allocator_thread(void *arg)
 			 * available so we don't spin:
 			 */
 			ret = wait_buckets_available(c, ca);
-			if (ret) {
-				up_read(&c->gc_lock);
+			if (ret)
 				goto stop;
-			}
 		}
-
-		up_read(&c->gc_lock);
 
 		pr_debug("%zu buckets to invalidate", nr);
 
