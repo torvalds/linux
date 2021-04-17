@@ -92,6 +92,10 @@ static int g_submit_queues = 1;
 module_param_named(submit_queues, g_submit_queues, int, 0444);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
+static int g_poll_queues = 1;
+module_param_named(poll_queues, g_poll_queues, int, 0444);
+MODULE_PARM_DESC(poll_queues, "Number of IOPOLL submission queues");
+
 static int g_home_node = NUMA_NO_NODE;
 module_param_named(home_node, g_home_node, int, 0444);
 MODULE_PARM_DESC(home_node, "Home node for the device");
@@ -347,6 +351,7 @@ static int nullb_apply_submit_queues(struct nullb_device *dev,
 NULLB_DEVICE_ATTR(size, ulong, NULL);
 NULLB_DEVICE_ATTR(completion_nsec, ulong, NULL);
 NULLB_DEVICE_ATTR(submit_queues, uint, nullb_apply_submit_queues);
+NULLB_DEVICE_ATTR(poll_queues, uint, nullb_apply_submit_queues);
 NULLB_DEVICE_ATTR(home_node, uint, NULL);
 NULLB_DEVICE_ATTR(queue_mode, uint, NULL);
 NULLB_DEVICE_ATTR(blocksize, uint, NULL);
@@ -466,6 +471,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_size,
 	&nullb_device_attr_completion_nsec,
 	&nullb_device_attr_submit_queues,
+	&nullb_device_attr_poll_queues,
 	&nullb_device_attr_home_node,
 	&nullb_device_attr_queue_mode,
 	&nullb_device_attr_blocksize,
@@ -593,6 +599,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->size = g_gb * 1024;
 	dev->completion_nsec = g_completion_nsec;
 	dev->submit_queues = g_submit_queues;
+	dev->poll_queues = g_poll_queues;
 	dev->home_node = g_home_node;
 	dev->queue_mode = g_queue_mode;
 	dev->blocksize = g_bs;
@@ -1454,11 +1461,79 @@ static bool should_requeue_request(struct request *rq)
 	return false;
 }
 
+static int null_map_queues(struct blk_mq_tag_set *set)
+{
+	struct nullb *nullb = set->driver_data;
+	int i, qoff;
+
+	for (i = 0, qoff = 0; i < set->nr_maps; i++) {
+		struct blk_mq_queue_map *map = &set->map[i];
+
+		switch (i) {
+		case HCTX_TYPE_DEFAULT:
+			if (nullb)
+				map->nr_queues = nullb->dev->submit_queues;
+			else
+				map->nr_queues = g_submit_queues;
+			break;
+		case HCTX_TYPE_READ:
+			map->nr_queues = 0;
+			continue;
+		case HCTX_TYPE_POLL:
+			if (nullb)
+				map->nr_queues = nullb->dev->poll_queues;
+			else
+				map->nr_queues = g_poll_queues;
+			break;
+		}
+		map->queue_offset = qoff;
+		qoff += map->nr_queues;
+		blk_mq_map_queues(map);
+	}
+
+	return 0;
+}
+
+static int null_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
+{
+	struct nullb_queue *nq = hctx->driver_data;
+	LIST_HEAD(list);
+	int nr = 0;
+
+	spin_lock(&nq->poll_lock);
+	list_splice_init(&nq->poll_list, &list);
+	spin_unlock(&nq->poll_lock);
+
+	while (!list_empty(&list)) {
+		struct nullb_cmd *cmd;
+		struct request *req;
+
+		req = list_first_entry(&list, struct request, queuelist);
+		list_del_init(&req->queuelist);
+		cmd = blk_mq_rq_to_pdu(req);
+		cmd->error = null_process_cmd(cmd, req_op(req), blk_rq_pos(req),
+						blk_rq_sectors(req));
+		end_cmd(cmd);
+		nr++;
+	}
+
+	return nr;
+}
+
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
 	pr_info("rq %p timed out\n", rq);
+
+	if (hctx->type == HCTX_TYPE_POLL) {
+		struct nullb_queue *nq = hctx->driver_data;
+
+		spin_lock(&nq->poll_lock);
+		list_del_init(&rq->queuelist);
+		spin_unlock(&nq->poll_lock);
+	}
 
 	/*
 	 * If the device is marked as blocking (i.e. memory backed or zoned
@@ -1480,10 +1555,11 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nullb_queue *nq = hctx->driver_data;
 	sector_t nr_sectors = blk_rq_sectors(bd->rq);
 	sector_t sector = blk_rq_pos(bd->rq);
+	const bool is_poll = hctx->type == HCTX_TYPE_POLL;
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
-	if (nq->dev->irqmode == NULL_IRQ_TIMER) {
+	if (!is_poll && nq->dev->irqmode == NULL_IRQ_TIMER) {
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
 	}
@@ -1506,6 +1582,13 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			blk_mq_requeue_request(bd->rq, true);
 			return BLK_STS_OK;
 		}
+	}
+
+	if (is_poll) {
+		spin_lock(&nq->poll_lock);
+		list_add_tail(&bd->rq->queuelist, &nq->poll_list);
+		spin_unlock(&nq->poll_lock);
+		return BLK_STS_OK;
 	}
 	if (cmd->fake_timeout)
 		return BLK_STS_OK;
@@ -1542,6 +1625,8 @@ static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
 	init_waitqueue_head(&nq->wait);
 	nq->queue_depth = nullb->queue_depth;
 	nq->dev = nullb->dev;
+	INIT_LIST_HEAD(&nq->poll_list);
+	spin_lock_init(&nq->poll_lock);
 }
 
 static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
@@ -1567,6 +1652,8 @@ static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
+	.poll		= null_poll,
+	.map_queues	= null_map_queues,
 	.init_hctx	= null_init_hctx,
 	.exit_hctx	= null_exit_hctx,
 };
@@ -1663,13 +1750,17 @@ static int setup_commands(struct nullb_queue *nq)
 
 static int setup_queues(struct nullb *nullb)
 {
-	nullb->queues = kcalloc(nr_cpu_ids, sizeof(struct nullb_queue),
+	int nqueues = nr_cpu_ids;
+
+	if (g_poll_queues)
+		nqueues += g_poll_queues;
+
+	nullb->queues = kcalloc(nqueues, sizeof(struct nullb_queue),
 				GFP_KERNEL);
 	if (!nullb->queues)
 		return -ENOMEM;
 
 	nullb->queue_depth = nullb->dev->hw_queue_depth;
-
 	return 0;
 }
 
@@ -1721,9 +1812,14 @@ static int null_gendisk_register(struct nullb *nullb)
 
 static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 {
+	int poll_queues;
+
 	set->ops = &null_mq_ops;
 	set->nr_hw_queues = nullb ? nullb->dev->submit_queues :
 						g_submit_queues;
+	poll_queues = nullb ? nullb->dev->poll_queues : g_poll_queues;
+	if (poll_queues)
+		set->nr_hw_queues += poll_queues;
 	set->queue_depth = nullb ? nullb->dev->hw_queue_depth :
 						g_hw_queue_depth;
 	set->numa_node = nullb ? nullb->dev->home_node : g_home_node;
@@ -1733,7 +1829,11 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 		set->flags |= BLK_MQ_F_NO_SCHED;
 	if (g_shared_tag_bitmap)
 		set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
-	set->driver_data = NULL;
+	set->driver_data = nullb;
+	if (g_poll_queues)
+		set->nr_maps = 3;
+	else
+		set->nr_maps = 1;
 
 	if ((nullb && nullb->dev->blocking) || g_blocking)
 		set->flags |= BLK_MQ_F_BLOCKING;
