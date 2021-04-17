@@ -43,7 +43,7 @@ struct mtk_flow_entry {
 
 static const struct rhashtable_params mtk_flow_ht_params = {
 	.head_offset = offsetof(struct mtk_flow_entry, node),
-	.head_offset = offsetof(struct mtk_flow_entry, cookie),
+	.key_offset = offsetof(struct mtk_flow_entry, cookie),
 	.key_len = sizeof(unsigned long),
 	.automatic_shrinking = true,
 };
