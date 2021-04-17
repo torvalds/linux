@@ -126,6 +126,7 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	int ret;
 
 	mt7615_init_device(dev);
+	INIT_WORK(&dev->reset_work, mt7615_mac_reset_work);
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {

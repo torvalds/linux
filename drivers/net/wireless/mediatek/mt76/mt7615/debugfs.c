@@ -517,18 +517,23 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 			    &fops_pm_idle_timeout);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7615_radio_read);
-	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
-	/* test pattern knobs */
-	debugfs_create_u8("pattern_len", 0600, dir,
-			  &dev->radar_pattern.n_pulses);
-	debugfs_create_u32("pulse_period", 0600, dir,
-			   &dev->radar_pattern.period);
-	debugfs_create_u16("pulse_width", 0600, dir,
-			   &dev->radar_pattern.width);
-	debugfs_create_u16("pulse_power", 0600, dir,
-			   &dev->radar_pattern.power);
-	debugfs_create_file("radar_trigger", 0200, dir, dev,
-			    &fops_radar_pattern);
+
+	if (is_mt7615(&dev->mt76)) {
+		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
+				   &dev->hw_pattern);
+		/* test pattern knobs */
+		debugfs_create_u8("pattern_len", 0600, dir,
+				  &dev->radar_pattern.n_pulses);
+		debugfs_create_u32("pulse_period", 0600, dir,
+				   &dev->radar_pattern.period);
+		debugfs_create_u16("pulse_width", 0600, dir,
+				   &dev->radar_pattern.width);
+		debugfs_create_u16("pulse_power", 0600, dir,
+				   &dev->radar_pattern.power);
+		debugfs_create_file("radar_trigger", 0200, dir, dev,
+				    &fops_radar_pattern);
+	}
+
 	debugfs_create_file("reset_test", 0200, dir, dev,
 			    &fops_reset_test);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "temperature", dir,

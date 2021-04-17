@@ -76,9 +76,9 @@ mt76_rx_aggr_check_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames)
 
 		nframes--;
 		status = (struct mt76_rx_status *)skb->cb;
-		if (!time_after(jiffies,
-				status->reorder_time +
-				mt76_aggr_tid_to_timeo(tid->num)))
+		if (!time_after32(jiffies,
+				  status->reorder_time +
+				  mt76_aggr_tid_to_timeo(tid->num)))
 			continue;
 
 		mt76_rx_aggr_release_frames(tid, frames, status->seqno);
@@ -122,6 +122,7 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 	struct ieee80211_bar *bar = mt76_skb_get_hdr(skb);
 	struct mt76_wcid *wcid = status->wcid;
 	struct mt76_rx_tid *tid;
+	u8 tidno = status->qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
 	u16 seqno;
 
 	if (!ieee80211_is_ctl(bar->frame_control))
@@ -130,9 +131,9 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 	if (!ieee80211_is_back_req(bar->frame_control))
 		return;
 
-	status->tid = le16_to_cpu(bar->control) >> 12;
+	status->qos_ctl = tidno = le16_to_cpu(bar->control) >> 12;
 	seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
-	tid = rcu_dereference(wcid->aggr[status->tid]);
+	tid = rcu_dereference(wcid->aggr[tidno]);
 	if (!tid)
 		return;
 
@@ -147,12 +148,12 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
 	struct mt76_wcid *wcid = status->wcid;
 	struct ieee80211_sta *sta;
 	struct mt76_rx_tid *tid;
 	bool sn_less;
 	u16 seqno, head, size, idx;
+	u8 tidno = status->qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
 	u8 ackp;
 
 	__skb_queue_tail(frames, skb);
@@ -161,18 +162,18 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	if (!sta)
 		return;
 
-	if (!status->aggr) {
+	if (!status->aggr && !(status->flag & RX_FLAG_8023)) {
 		mt76_rx_aggr_check_ctl(skb, frames);
 		return;
 	}
 
 	/* not part of a BA session */
-	ackp = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_ACK_POLICY_MASK;
+	ackp = status->qos_ctl & IEEE80211_QOS_CTL_ACK_POLICY_MASK;
 	if (ackp != IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK &&
 	    ackp != IEEE80211_QOS_CTL_ACK_POLICY_NORMAL)
 		return;
 
-	tid = rcu_dereference(wcid->aggr[status->tid]);
+	tid = rcu_dereference(wcid->aggr[tidno]);
 	if (!tid)
 		return;
 
