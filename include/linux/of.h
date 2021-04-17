@@ -1192,7 +1192,7 @@ static inline int of_property_count_strings(const struct device_node *np,
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  * @index:	index of the string in the list of strings
- * @out_string:	pointer to null terminated return string, modified only if
+ * @output:	pointer to null terminated return string, modified only if
  *		return value is 0.
  *
  * Search for a property in a device tree node and retrieve a null
@@ -1473,7 +1473,7 @@ static inline bool of_device_is_system_power_controller(const struct device_node
 	return of_property_read_bool(np, "system-power-controller");
 }
 
-/**
+/*
  * Overlay support
  */
 
