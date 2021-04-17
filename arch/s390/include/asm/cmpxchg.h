@@ -14,7 +14,8 @@
 
 void __xchg_called_with_bad_pointer(void);
 
-static inline unsigned long __xchg(unsigned long x, unsigned long address, int size)
+static __always_inline unsigned long __xchg(unsigned long x,
+					    unsigned long address, int size)
 {
 	unsigned long old;
 	int shift;
@@ -83,8 +84,9 @@ static inline unsigned long __xchg(unsigned long x, unsigned long address, int s
 
 void __cmpxchg_called_with_bad_pointer(void);
 
-static inline unsigned long __cmpxchg(unsigned long address, unsigned long old,
-				      unsigned long new, int size)
+static __always_inline unsigned long __cmpxchg(unsigned long address,
+					       unsigned long old,
+					       unsigned long new, int size)
 {
 	unsigned long prev, tmp;
 	int shift;
