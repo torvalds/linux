@@ -4,6 +4,7 @@
 #include <linux/security.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
+#include <linux/sizes.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
@@ -1419,6 +1420,7 @@ out:
  */
 static int cxl_mem_identify(struct cxl_mem *cxlm)
 {
+	/* See CXL 2.0 Table 175 Identify Memory Device Output Payload */
 	struct cxl_mbox_identify {
 		char fw_revision[0x10];
 		__le64 total_capacity;
@@ -1447,10 +1449,11 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 	 * For now, only the capacity is exported in sysfs
 	 */
 	cxlm->ram_range.start = 0;
-	cxlm->ram_range.end = le64_to_cpu(id.volatile_capacity) - 1;
+	cxlm->ram_range.end = le64_to_cpu(id.volatile_capacity) * SZ_256M - 1;
 
 	cxlm->pmem_range.start = 0;
-	cxlm->pmem_range.end = le64_to_cpu(id.persistent_capacity) - 1;
+	cxlm->pmem_range.end =
+		le64_to_cpu(id.persistent_capacity) * SZ_256M - 1;
 
 	memcpy(cxlm->firmware_version, id.fw_revision, sizeof(id.fw_revision));
 
