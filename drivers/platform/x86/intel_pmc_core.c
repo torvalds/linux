@@ -580,6 +580,7 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = TGL_NUM_IP_IGN_ALLOWED,
 	.lpm_num_maps = TGL_LPM_NUM_MAPS,
+	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
 	.lpm_en_offset = TGL_LPM_EN_OFFSET,
 	.lpm_priority_offset = TGL_LPM_PRI_OFFSET,
 	.lpm_residency_offset = TGL_LPM_RESIDENCY_OFFSET,
@@ -1138,17 +1139,26 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 
+static inline u64 adjust_lpm_residency(struct pmc_dev *pmcdev, u32 offset,
+				       const int lpm_adj_x2)
+{
+	u64 lpm_res = pmc_core_reg_read(pmcdev, offset);
+
+	return GET_X2_COUNTER((u64)lpm_adj_x2 * lpm_res);
+}
+
 static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
+	const int lpm_adj_x2 = pmcdev->map->lpm_res_counter_step_x2;
 	u32 offset = pmcdev->map->lpm_residency_offset;
 	int i, mode;
 
 	seq_printf(s, "%-10s %-15s\n", "Substate", "Residency");
 
 	pmc_for_each_mode(i, mode, pmcdev) {
-		seq_printf(s, "%-10s %-15u\n", pmc_lpm_modes[mode],
-			   pmc_core_reg_read(pmcdev, offset + (4 * mode)));
+		seq_printf(s, "%-10s %-15llu\n", pmc_lpm_modes[mode],
+			   adjust_lpm_residency(pmcdev, offset + (4 * mode), lpm_adj_x2));
 	}
 
 	return 0;
