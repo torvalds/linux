@@ -98,8 +98,7 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 	percpu_down_read(&c->mark_lock);
 	spin_lock(&ob->lock);
 
-	bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr),
-			       false, gc_pos_alloc(c, ob), 0);
+	bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr), false);
 	ob->valid = false;
 	ob->type = 0;
 

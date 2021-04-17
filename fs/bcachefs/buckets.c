@@ -3,64 +3,6 @@
  * Code for manipulating bucket marks for garbage collection.
  *
  * Copyright 2014 Datera, Inc.
- *
- * Bucket states:
- * - free bucket: mark == 0
- *   The bucket contains no data and will not be read
- *
- * - allocator bucket: owned_by_allocator == 1
- *   The bucket is on a free list, or it is an open bucket
- *
- * - cached bucket: owned_by_allocator == 0 &&
- *                  dirty_sectors == 0 &&
- *                  cached_sectors > 0
- *   The bucket contains data but may be safely discarded as there are
- *   enough replicas of the data on other cache devices, or it has been
- *   written back to the backing device
- *
- * - dirty bucket: owned_by_allocator == 0 &&
- *                 dirty_sectors > 0
- *   The bucket contains data that we must not discard (either only copy,
- *   or one of the 'main copies' for data requiring multiple replicas)
- *
- * - metadata bucket: owned_by_allocator == 0 && is_metadata == 1
- *   This is a btree node, journal or gen/prio bucket
- *
- * Lifecycle:
- *
- * bucket invalidated => bucket on freelist => open bucket =>
- *     [dirty bucket =>] cached bucket => bucket invalidated => ...
- *
- * Note that cache promotion can skip the dirty bucket step, as data
- * is copied from a deeper tier to a shallower tier, onto a cached
- * bucket.
- * Note also that a cached bucket can spontaneously become dirty --
- * see below.
- *
- * Only a traversal of the key space can determine whether a bucket is
- * truly dirty or cached.
- *
- * Transitions:
- *
- * - free => allocator: bucket was invalidated
- * - cached => allocator: bucket was invalidated
- *
- * - allocator => dirty: open bucket was filled up
- * - allocator => cached: open bucket was filled up
- * - allocator => metadata: metadata was allocated
- *
- * - dirty => cached: dirty sectors were copied to a deeper tier
- * - dirty => free: dirty sectors were overwritten or moved (copy gc)
- * - cached => free: cached sectors were overwritten
- *
- * - metadata => free: metadata was freed
- *
- * Oddities:
- * - cached => dirty: a device was removed so formerly replicated data
- *                    is no longer sufficiently replicated
- * - free => cached: cannot happen
- * - free => dirty: cannot happen
- * - free => metadata: cannot happen
  */
 
 #include "bcachefs.h"
@@ -558,33 +500,17 @@ static inline void update_cached_sectors_list(struct btree_trans *trans,
 	ret;								\
 })
 
-static int __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
-				    size_t b, bool owned_by_allocator,
-				    bool gc)
+void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
+			    size_t b, bool owned_by_allocator)
 {
-	struct bucket *g = __bucket(ca, b, gc);
+	struct bucket *g = bucket(ca, b);
 	struct bucket_mark old, new;
 
 	old = bucket_cmpxchg(g, new, ({
 		new.owned_by_allocator	= owned_by_allocator;
 	}));
 
-	BUG_ON(!gc &&
-	       !owned_by_allocator && !old.owned_by_allocator);
-
-	return 0;
-}
-
-void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
-			    size_t b, bool owned_by_allocator,
-			    struct gc_pos pos, unsigned flags)
-{
-	preempt_disable();
-
-	do_mark_fn(__bch2_mark_alloc_bucket, c, pos, flags,
-		   ca, b, owned_by_allocator);
-
-	preempt_enable();
+	BUG_ON(owned_by_allocator == old.owned_by_allocator);
 }
 
 static int bch2_mark_alloc(struct bch_fs *c,

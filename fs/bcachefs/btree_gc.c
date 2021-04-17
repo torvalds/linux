@@ -730,52 +730,6 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 }
 #endif
 
-static void bch2_mark_allocator_buckets(struct bch_fs *c)
-{
-	struct bch_dev *ca;
-	struct open_bucket *ob;
-	size_t i, j, iter;
-	unsigned ci;
-
-	percpu_down_read(&c->mark_lock);
-
-	spin_lock(&c->freelist_lock);
-	gc_pos_set(c, gc_pos_alloc(c, NULL));
-
-	for_each_member_device(ca, c, ci) {
-		fifo_for_each_entry(i, &ca->free_inc, iter)
-			bch2_mark_alloc_bucket(c, ca, i, true,
-					       gc_pos_alloc(c, NULL),
-					       BTREE_TRIGGER_GC);
-
-
-
-		for (j = 0; j < RESERVE_NR; j++)
-			fifo_for_each_entry(i, &ca->free[j], iter)
-				bch2_mark_alloc_bucket(c, ca, i, true,
-						       gc_pos_alloc(c, NULL),
-						       BTREE_TRIGGER_GC);
-	}
-
-	spin_unlock(&c->freelist_lock);
-
-	for (ob = c->open_buckets;
-	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
-	     ob++) {
-		spin_lock(&ob->lock);
-		if (ob->valid) {
-			gc_pos_set(c, gc_pos_alloc(c, ob));
-			ca = bch_dev_bkey_exists(c, ob->ptr.dev);
-			bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr), true,
-					       gc_pos_alloc(c, ob),
-					       BTREE_TRIGGER_GC);
-		}
-		spin_unlock(&ob->lock);
-	}
-
-	percpu_up_read(&c->mark_lock);
-}
-
 static void bch2_gc_free(struct bch_fs *c)
 {
 	struct bch_dev *ca;
@@ -880,7 +834,6 @@ static int bch2_gc_done(struct bch_fs *c,
 		for (b = 0; b < src->nbuckets; b++) {
 			copy_bucket_field(gen);
 			copy_bucket_field(data_type);
-			copy_bucket_field(owned_by_allocator);
 			copy_bucket_field(stripe);
 			copy_bucket_field(dirty_sectors);
 			copy_bucket_field(cached_sectors);
@@ -1020,10 +973,8 @@ static int bch2_gc_start(struct bch_fs *c,
 
 			if (metadata_only &&
 			    (s->mark.data_type == BCH_DATA_user ||
-			     s->mark.data_type == BCH_DATA_cached)) {
+			     s->mark.data_type == BCH_DATA_cached))
 				d->_mark = s->mark;
-				d->_mark.owned_by_allocator = 0;
-			}
 		}
 	};
 
@@ -1079,8 +1030,6 @@ again:
 #if 0
 	bch2_mark_pending_btree_node_frees(c);
 #endif
-	bch2_mark_allocator_buckets(c);
-
 	c->gc_count++;
 
 	if (test_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags) ||

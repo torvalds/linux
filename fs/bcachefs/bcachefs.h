@@ -379,7 +379,6 @@ enum gc_phase {
 	GC_PHASE_BTREE_reflink,
 
 	GC_PHASE_PENDING_DELETE,
-	GC_PHASE_ALLOC,
 };
 
 struct gc_pos {

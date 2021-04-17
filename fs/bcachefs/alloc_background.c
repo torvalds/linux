@@ -783,7 +783,7 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 
 	BUG_ON(m.dirty_sectors);
 
-	bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
+	bch2_mark_alloc_bucket(c, ca, b, true);
 
 	spin_lock(&c->freelist_lock);
 	verify_not_on_freelist(c, ca, b);
@@ -880,8 +880,7 @@ out:
 		percpu_down_read(&c->mark_lock);
 		spin_lock(&c->freelist_lock);
 
-		bch2_mark_alloc_bucket(c, ca, b, false,
-				       gc_pos_alloc(c, NULL), 0);
+		bch2_mark_alloc_bucket(c, ca, b, false);
 
 		BUG_ON(!fifo_pop_back(&ca->free_inc, b2));
 		BUG_ON(b != b2);
