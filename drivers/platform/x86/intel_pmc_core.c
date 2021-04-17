@@ -31,8 +31,6 @@
 
 #include "intel_pmc_core.h"
 
-static struct pmc_dev pmc;
-
 /* PKGC MSRs are common across Intel Core SoCs */
 static const struct pmc_bit_map msr_map[] = {
 	{"Package C2",                  MSR_PKG_C2_RESIDENCY},
@@ -729,9 +727,8 @@ static int pmc_core_dev_state_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(pmc_core_dev_state, pmc_core_dev_state_get, NULL, "%llu\n");
 
-static int pmc_core_check_read_lock_bit(void)
+static int pmc_core_check_read_lock_bit(struct pmc_dev *pmcdev)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, pmcdev->map->pm_cfg_offset);
@@ -856,28 +853,26 @@ static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ppfear);
 
 /* This function should return link status, 0 means ready */
-static int pmc_core_mtpmc_link_status(void)
+static int pmc_core_mtpmc_link_status(struct pmc_dev *pmcdev)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, SPT_PMC_PM_STS_OFFSET);
 	return value & BIT(SPT_PMC_MSG_FULL_STS_BIT);
 }
 
-static int pmc_core_send_msg(u32 *addr_xram)
+static int pmc_core_send_msg(struct pmc_dev *pmcdev, u32 *addr_xram)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	u32 dest;
 	int timeout;
 
 	for (timeout = NUM_RETRIES; timeout > 0; timeout--) {
-		if (pmc_core_mtpmc_link_status() == 0)
+		if (pmc_core_mtpmc_link_status(pmcdev) == 0)
 			break;
 		msleep(5);
 	}
 
-	if (timeout <= 0 && pmc_core_mtpmc_link_status())
+	if (timeout <= 0 && pmc_core_mtpmc_link_status(pmcdev))
 		return -EBUSY;
 
 	dest = (*addr_xram & MTPMC_MASK) | (1U << 1);
@@ -903,7 +898,7 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 
 	mutex_lock(&pmcdev->lock);
 
-	if (pmc_core_send_msg(&mphy_core_reg_low) != 0) {
+	if (pmc_core_send_msg(pmcdev, &mphy_core_reg_low) != 0) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -911,7 +906,7 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 	msleep(10);
 	val_low = pmc_core_reg_read(pmcdev, SPT_PMC_MFPMC_OFFSET);
 
-	if (pmc_core_send_msg(&mphy_core_reg_high) != 0) {
+	if (pmc_core_send_msg(pmcdev, &mphy_core_reg_high) != 0) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -954,7 +949,7 @@ static int pmc_core_pll_show(struct seq_file *s, void *unused)
 	mphy_common_reg  = (SPT_PMC_MPHY_COM_STS_0 << 16);
 	mutex_lock(&pmcdev->lock);
 
-	if (pmc_core_send_msg(&mphy_common_reg) != 0) {
+	if (pmc_core_send_msg(pmcdev, &mphy_common_reg) != 0) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
@@ -975,9 +970,8 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-static int pmc_core_send_ltr_ignore(u32 value)
+static int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value)
 {
-	struct pmc_dev *pmcdev = &pmc;
 	const struct pmc_reg_map *map = pmcdev->map;
 	u32 reg;
 	int err = 0;
@@ -1003,6 +997,8 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 					 const char __user *userbuf,
 					 size_t count, loff_t *ppos)
 {
+	struct seq_file *s = file->private_data;
+	struct pmc_dev *pmcdev = s->private;
 	u32 buf_size, value;
 	int err;
 
@@ -1012,7 +1008,7 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 	if (err)
 		return err;
 
-	err = pmc_core_send_ltr_ignore(value);
+	err = pmc_core_send_ltr_ignore(pmcdev, value);
 
 	return err == 0 ? count : err;
 }
@@ -1340,12 +1336,18 @@ static void pmc_core_do_dmi_quirks(struct pmc_dev *pmcdev)
 static int pmc_core_probe(struct platform_device *pdev)
 {
 	static bool device_initialized;
-	struct pmc_dev *pmcdev = &pmc;
+	struct pmc_dev *pmcdev;
 	const struct x86_cpu_id *cpu_id;
 	u64 slp_s0_addr;
 
 	if (device_initialized)
 		return -ENODEV;
+
+	pmcdev = devm_kzalloc(&pdev->dev, sizeof(*pmcdev), GFP_KERNEL);
+	if (!pmcdev)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, pmcdev);
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
 	if (!cpu_id)
@@ -1376,8 +1378,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&pmcdev->lock);
-	platform_set_drvdata(pdev, pmcdev);
-	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
+	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
 	pmc_core_do_dmi_quirks(pmcdev);
 
 	/*
@@ -1386,7 +1387,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	 */
 	if (pmcdev->map == &tgl_reg_map) {
 		dev_dbg(&pdev->dev, "ignoring GBE LTR\n");
-		pmc_core_send_ltr_ignore(3);
+		pmc_core_send_ltr_ignore(pmcdev, 3);
 	}
 
 	pmc_core_dbgfs_register(pmcdev);
