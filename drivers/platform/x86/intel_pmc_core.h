@@ -191,8 +191,10 @@ enum ppfear_regs {
 #define GET_X2_COUNTER(v)			((v) >> 1)
 #define LPM_STS_LATCH_MODE			BIT(31)
 
-#define TGL_NUM_IP_IGN_ALLOWED			22
 #define TGL_PMC_SLP_S0_RES_COUNTER_STEP		0x7A
+#define TGL_PMC_LTR_THC0			0x1C04
+#define TGL_PMC_LTR_THC1			0x1C08
+#define TGL_NUM_IP_IGN_ALLOWED			23
 #define TGL_PMC_LPM_RES_COUNTER_STEP_X2		61	/* 30.5us * 2 */
 
 /*

@@ -383,6 +383,8 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	 * a list of core SoCs using this.
 	 */
 	{"WIGIG",		ICL_PMC_LTR_WIGIG},
+	{"THC0",                TGL_PMC_LTR_THC0},
+	{"THC1",                TGL_PMC_LTR_THC1},
 	/* Below two cannot be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
