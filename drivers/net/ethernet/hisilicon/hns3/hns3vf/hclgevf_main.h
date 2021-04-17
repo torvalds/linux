@@ -177,9 +177,9 @@ struct hclgevf_hw {
 
 /* TQP stats */
 struct hlcgevf_tqp_stats {
-	/* query_tqp_tx_queue_statistics ,opcode id:  0x0B03 */
+	/* query_tqp_tx_queue_statistics, opcode id: 0x0B03 */
 	u64 rcb_tx_ring_pktnum_rcd; /* 32bit */
-	/* query_tqp_rx_queue_statistics ,opcode id:  0x0B13 */
+	/* query_tqp_rx_queue_statistics, opcode id: 0x0B13 */
 	u64 rcb_rx_ring_pktnum_rcd; /* 32bit */
 };
 
