@@ -64,7 +64,6 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 
 struct sch5627_data {
 	unsigned short addr;
-	struct device *hwmon_dev;
 	struct sch56xx_watchdog_data *watchdog;
 	u8 control;
 	u8 temp_max[SCH5627_NO_TEMPS];
@@ -365,15 +364,13 @@ static int sch5627_remove(struct platform_device *pdev)
 	if (data->watchdog)
 		sch56xx_watchdog_unregister(data->watchdog);
 
-	if (data->hwmon_dev)
-		hwmon_device_unregister(data->hwmon_dev);
-
 	return 0;
 }
 
 static int sch5627_probe(struct platform_device *pdev)
 {
 	struct sch5627_data *data;
+	struct device *hwmon_dev;
 	int err, build_code, build_id, hwmon_rev, val;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5627_data),
@@ -471,12 +468,10 @@ static int sch5627_probe(struct platform_device *pdev)
 	pr_info("firmware build: code 0x%02X, id 0x%04X, hwmon: rev 0x%02X\n",
 		build_code, build_id, hwmon_rev);
 
-	data->hwmon_dev = hwmon_device_register_with_info(&pdev->dev, DEVNAME, data,
-							  &sch5627_chip_info,
-							  NULL);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		data->hwmon_dev = NULL;
+	hwmon_dev = devm_hwmon_device_register_with_info(&pdev->dev, DEVNAME, data,
+							 &sch5627_chip_info, NULL);
+	if (IS_ERR(hwmon_dev)) {
+		err = PTR_ERR(hwmon_dev);
 		goto error;
 	}
 
