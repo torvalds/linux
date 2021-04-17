@@ -3,10 +3,6 @@
  * Copyright (C) 2002-2003 Romain Lievin <roms@tilp.info>
  */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 #include <stdlib.h>
 #include "lkc.h"
 #include "images.h"
@@ -1451,9 +1447,6 @@ int main(int ac, char *av[])
 	gtk_set_locale();
 	gtk_init(&ac, &av);
 	glade_init();
-
-	//add_pixmap_directory (PACKAGE_DATA_DIR "/" PACKAGE "/pixmaps");
-	//add_pixmap_directory (PACKAGE_SOURCE_DIR "/pixmaps");
 
 	/* Determine GUI path */
 	env = getenv(SRCTREE);
