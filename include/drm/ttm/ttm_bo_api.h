@@ -563,25 +563,6 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		   gfp_t gfp_flags);
 
 /**
- * ttm_bo_uses_embedded_gem_object - check if the given bo uses the
- * embedded drm_gem_object.
- *
- * Most ttm drivers are using gem too, so the embedded
- * ttm_buffer_object.base will be initialized by the driver (before
- * calling ttm_bo_init).  It is also possible to use ttm without gem
- * though (vmwgfx does that).
- *
- * This helper will figure whenever a given ttm bo is a gem object too
- * or not.
- *
- * @bo: The bo to check.
- */
-static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
-{
-	return bo->base.dev != NULL;
-}
-
-/**
  * ttm_bo_pin - Pin the buffer object.
  * @bo: The buffer object to pin
  *

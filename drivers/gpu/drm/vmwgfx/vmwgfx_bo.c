@@ -460,6 +460,7 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
 	WARN_ON(vmw_bo->dirty);
 	WARN_ON(!RB_EMPTY_ROOT(&vmw_bo->res_tree));
 	vmw_bo_unmap(vmw_bo);
+	dma_resv_fini(&bo->base._resv);
 	kfree(vmw_bo);
 }
 
@@ -511,6 +512,11 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
 	if (unlikely(ret))
 		goto error_free;
+
+
+	bo->base.size = size;
+	dma_resv_init(&bo->base._resv);
+	drm_vma_node_reset(&bo->base.vma_node);
 
 	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, size,
 				   ttm_bo_type_device, placement, 0,
@@ -569,6 +575,10 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
 	if (unlikely(ret))
 		return ret;
+
+	vmw_bo->base.base.size = size;
+	dma_resv_init(&vmw_bo->base.base._resv);
+	drm_vma_node_reset(&vmw_bo->base.base.vma_node);
 
 	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, size,
 				   ttm_bo_type_device, placement,

@@ -460,8 +460,6 @@ static void ttm_bo_release(struct kref *kref)
 
 	atomic_dec(&ttm_glob.bo_count);
 	dma_fence_put(bo->moving);
-	if (!ttm_bo_uses_embedded_gem_object(bo))
-		dma_resv_fini(&bo->base._resv);
 	bo->destroy(bo);
 }
 
@@ -1055,15 +1053,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 		dma_resv_assert_held(bo->base.resv);
 	} else {
 		bo->base.resv = &bo->base._resv;
-	}
-	if (!ttm_bo_uses_embedded_gem_object(bo)) {
-		/*
-		 * bo.base is not initialized, so we have to setup the
-		 * struct elements we want use regardless.
-		 */
-		bo->base.size = size;
-		dma_resv_init(&bo->base._resv);
-		drm_vma_node_reset(&bo->base.vma_node);
 	}
 	atomic_inc(&ttm_glob.bo_count);
 
