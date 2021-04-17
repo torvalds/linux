@@ -801,6 +801,7 @@
 					 <&qos_vio2_rga_r>,
 					 <&qos_vio2_rga_w>,
 					 <&qos_vio1_isp_r>;
+				#power-domain-cells = <0>;
 			};
 
 			/*
@@ -814,6 +815,7 @@
 					 <&cru SCLK_HEVC_CORE>;
 				pm_qos = <&qos_hevc_r>,
 					 <&qos_hevc_w>;
+				#power-domain-cells = <0>;
 			};
 
 			/*
@@ -826,6 +828,7 @@
 				clocks = <&cru ACLK_VCODEC>,
 					 <&cru HCLK_VCODEC>;
 				pm_qos = <&qos_video>;
+				#power-domain-cells = <0>;
 			};
 
 			/*
@@ -837,6 +840,7 @@
 				clocks = <&cru ACLK_GPU>;
 				pm_qos = <&qos_gpu_r>,
 					 <&qos_gpu_w>;
+				#power-domain-cells = <0>;
 			};
 		};
 
