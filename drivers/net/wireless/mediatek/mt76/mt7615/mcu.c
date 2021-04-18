@@ -345,7 +345,6 @@ static int mt7615_mcu_lp_drv_pmctrl(struct mt7615_dev *dev)
 	clear_bit(MT76_STATE_PM, &mphy->state);
 
 out:
-	dev->pm.last_activity = jiffies;
 	mutex_unlock(&dev->pm.mutex);
 
 	return err;

@@ -13,6 +13,7 @@ int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 	if (!mt76_is_mmio(dev))
 		return 0;
 
+	cancel_delayed_work_sync(&pm->ps_work);
 	if (!test_bit(MT76_STATE_PM, &phy->state))
 		return 0;
 
