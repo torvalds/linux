@@ -1931,6 +1931,10 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 						pm.ps_work.work);
 
 	delta = dev->pm.idle_timeout;
+	if (test_bit(MT76_HW_SCANNING, &dev->mphy.state) ||
+	    test_bit(MT76_HW_SCHED_SCANNING, &dev->mphy.state))
+		goto out;
+
 	if (time_is_after_jiffies(dev->pm.last_activity + delta)) {
 		delta = dev->pm.last_activity + delta - jiffies;
 		goto out;
