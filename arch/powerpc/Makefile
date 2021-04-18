@@ -438,12 +438,15 @@ endif
 endif
 
 ifdef CONFIG_SMP
+ifdef CONFIG_PPC32
 prepare: task_cpu_prepare
 
 PHONY += task_cpu_prepare
 task_cpu_prepare: prepare0
 	$(eval KBUILD_CFLAGS += -D_TASK_CPU=$(shell awk '{if ($$2 == "TASK_CPU") print $$3;}' include/generated/asm-offsets.h))
-endif
+
+endif # CONFIG_PPC32
+endif # CONFIG_SMP
 
 PHONY += checkbin
 # Check toolchain versions:
