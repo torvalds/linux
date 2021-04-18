@@ -169,8 +169,6 @@ enum ds_type {
 
 struct ds1307 {
 	enum ds_type		type;
-	unsigned long		flags;
-#define HAS_NVRAM	0		/* bit 0 == sysfs file active */
 	struct device		*dev;
 	struct regmap		*regmap;
 	const char		*name;
