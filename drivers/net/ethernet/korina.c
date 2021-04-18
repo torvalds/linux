@@ -57,14 +57,13 @@
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/pgtable.h>
+#include <linux/clk.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bitops.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
-#include <asm/mach-rc32434/rb.h>
-#include <asm/mach-rc32434/rc32434.h>
 #include <asm/mach-rc32434/eth.h>
 #include <asm/mach-rc32434/dma_v.h>
 
@@ -146,9 +145,8 @@ struct korina_private {
 	struct work_struct restart_task;
 	struct net_device *dev;
 	struct device *dmadev;
+	int mii_clock_freq;
 };
-
-extern unsigned int idt_cpu_freq;
 
 static dma_addr_t korina_tx_dma(struct korina_private *lp, int idx)
 {
@@ -899,8 +897,8 @@ static int korina_init(struct net_device *dev)
 
 	/* Management Clock Prescaler Divisor
 	 * Clock independent setting */
-	writel(((idt_cpu_freq) / MII_CLOCK + 1) & ~1,
-			&lp->eth_regs->ethmcp);
+	writel(((lp->mii_clock_freq) / MII_CLOCK + 1) & ~1,
+	       &lp->eth_regs->ethmcp);
 	writel(0, &lp->eth_regs->miimcfg);
 
 	/* don't transmit until fifo contains 48b */
@@ -1060,6 +1058,7 @@ static int korina_probe(struct platform_device *pdev)
 	u8 *mac_addr = dev_get_platdata(&pdev->dev);
 	struct korina_private *lp;
 	struct net_device *dev;
+	struct clk *clk;
 	void __iomem *p;
 	int rc;
 
@@ -1074,6 +1073,16 @@ static int korina_probe(struct platform_device *pdev)
 		ether_addr_copy(dev->dev_addr, mac_addr);
 	else if (of_get_mac_address(pdev->dev.of_node, dev->dev_addr) < 0)
 		eth_hw_addr_random(dev);
+
+	clk = devm_clk_get_optional(&pdev->dev, "mdioclk");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+	if (clk) {
+		clk_prepare_enable(clk);
+		lp->mii_clock_freq = clk_get_rate(clk);
+	} else {
+		lp->mii_clock_freq = 200000000; /* max possible input clk */
+	}
 
 	lp->rx_irq = platform_get_irq_byname(pdev, "rx");
 	lp->tx_irq = platform_get_irq_byname(pdev, "tx");
