@@ -448,23 +448,10 @@ static int si2168_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, dev->firmware_name, &client->dev);
 	if (ret) {
-		/* fallback mechanism to handle old name for Si2168 B40 fw */
-		if (dev->chip_id == SI2168_CHIP_ID_B40) {
-			dev->firmware_name = SI2168_B40_FIRMWARE_FALLBACK;
-			ret = request_firmware(&fw, dev->firmware_name,
-					       &client->dev);
-		}
-
-		if (ret == 0) {
-			dev_notice(&client->dev,
-					"please install firmware file '%s'\n",
-					SI2168_B40_FIRMWARE);
-		} else {
-			dev_err(&client->dev,
-					"firmware file '%s' not found\n",
-					dev->firmware_name);
-			goto err_release_firmware;
-		}
+		dev_err(&client->dev,
+			"firmware file '%s' not found\n",
+			dev->firmware_name);
+		goto err_release_firmware;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
