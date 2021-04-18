@@ -725,23 +725,18 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 }
 
-static void
-mt7921_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+void mt7921_tx_worker(struct mt76_worker *w)
 {
-	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
-	struct mt76_phy *mphy = phy->mt76;
+	struct mt7921_dev *dev = container_of(w, struct mt7921_dev,
+					      mt76.tx_worker);
 
-	if (!test_bit(MT76_STATE_RUNNING, &mphy->state))
-		return;
-
-	if (test_bit(MT76_STATE_PM, &mphy->state)) {
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		queue_work(dev->mt76.wq, &dev->pm.wake_work);
 		return;
 	}
 
-	dev->pm.last_activity = jiffies;
-	mt76_worker_schedule(&dev->mt76.tx_worker);
+	mt76_txq_schedule_all(&dev->mphy);
+	mt76_connac_pm_unref(&dev->pm);
 }
 
 static void mt7921_tx(struct ieee80211_hw *hw,
@@ -769,9 +764,9 @@ static void mt7921_tx(struct ieee80211_hw *hw,
 		wcid = &mvif->sta.wcid;
 	}
 
-	if (!test_bit(MT76_STATE_PM, &mphy->state)) {
-		dev->pm.last_activity = jiffies;
+	if (mt76_connac_pm_ref(mphy, &dev->pm)) {
 		mt76_tx(mphy, control->sta, wcid, skb);
+		mt76_connac_pm_unref(&dev->pm);
 		return;
 	}
 
@@ -1200,7 +1195,7 @@ const struct ieee80211_ops mt7921_ops = {
 	.set_key = mt7921_set_key,
 	.ampdu_action = mt7921_ampdu_action,
 	.set_rts_threshold = mt7921_set_rts_threshold,
-	.wake_tx_queue = mt7921_wake_tx_queue,
+	.wake_tx_queue = mt76_wake_tx_queue,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.get_txpower = mt76_get_txpower,
 	.get_stats = mt7921_get_stats,

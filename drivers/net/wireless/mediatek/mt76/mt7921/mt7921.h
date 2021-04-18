@@ -336,6 +336,8 @@ int mt7921_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info);
+
+void mt7921_tx_worker(struct mt76_worker *w);
 void mt7921_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 int mt7921_init_tx_queues(struct mt7921_phy *phy, int idx, int n_desc);
 void mt7921_tx_token_put(struct mt7921_dev *dev);
