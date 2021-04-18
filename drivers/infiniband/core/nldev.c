@@ -92,7 +92,9 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_RES_CQE]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_CQN]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_CQ_ENTRY]		= { .type = NLA_NESTED },
+	[RDMA_NLDEV_ATTR_RES_CTX]		= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_RES_CTXN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CTX_ENTRY]		= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_RES_DST_ADDR]		= {
 			.len = sizeof(struct __kernel_sockaddr_storage) },
 	[RDMA_NLDEV_ATTR_RES_IOVA]		= { .type = NLA_U64 },
@@ -703,6 +705,20 @@ static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 err:	return -EMSGSIZE;
 }
 
+static int fill_res_ctx_entry(struct sk_buff *msg, bool has_cap_net_admin,
+			      struct rdma_restrack_entry *res, uint32_t port)
+{
+	struct ib_ucontext *ctx = container_of(res, struct ib_ucontext, res);
+
+	if (rdma_is_kernel_res(res))
+		return 0;
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CTXN, ctx->res.id))
+		return -EMSGSIZE;
+
+	return fill_res_name_pid(msg, res);
+}
+
 static int fill_stat_counter_mode(struct sk_buff *msg,
 				  struct rdma_counter *counter)
 {
@@ -1236,6 +1252,12 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.entry = RDMA_NLDEV_ATTR_STAT_COUNTER_ENTRY,
 		.id = RDMA_NLDEV_ATTR_STAT_COUNTER_ID,
 	},
+	[RDMA_RESTRACK_CTX] = {
+		.nldev_attr = RDMA_NLDEV_ATTR_RES_CTX,
+		.flags = NLDEV_PER_DEV,
+		.entry = RDMA_NLDEV_ATTR_RES_CTX_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_CTXN,
+	},
 };
 
 static int res_get_common_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -1476,6 +1498,7 @@ RES_GET_FUNCS(pd, RDMA_RESTRACK_PD);
 RES_GET_FUNCS(mr, RDMA_RESTRACK_MR);
 RES_GET_FUNCS(mr_raw, RDMA_RESTRACK_MR);
 RES_GET_FUNCS(counter, RDMA_RESTRACK_COUNTER);
+RES_GET_FUNCS(ctx, RDMA_RESTRACK_CTX);
 
 static LIST_HEAD(link_ops);
 static DECLARE_RWSEM(link_ops_rwsem);
@@ -2138,6 +2161,10 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_RES_PD_GET] = {
 		.doit = nldev_res_get_pd_doit,
 		.dump = nldev_res_get_pd_dumpit,
+	},
+	[RDMA_NLDEV_CMD_RES_CTX_GET] = {
+		.doit = nldev_res_get_ctx_doit,
+		.dump = nldev_res_get_ctx_dumpit,
 	},
 	[RDMA_NLDEV_CMD_SYS_GET] = {
 		.doit = nldev_sys_get_doit,
