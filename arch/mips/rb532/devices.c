@@ -105,6 +105,9 @@ static struct platform_device korina_dev0 = {
 	.name = "korina",
 	.resource = korina_dev0_res,
 	.num_resources = ARRAY_SIZE(korina_dev0_res),
+	.dev = {
+		.platform_data = &korina_dev0_data.mac,
+	}
 };
 
 static struct resource cf_slot0_res[] = {
@@ -298,8 +301,6 @@ static int __init plat_setup_devices(void)
 
 	/* set the uart clock to the current cpu frequency */
 	rb532_uart_res[0].uartclk = idt_cpu_freq;
-
-	dev_set_drvdata(&korina_dev0.dev, &korina_dev0_data);
 
 	gpiod_add_lookup_table(&cf_slot0_gpio_table);
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));

@@ -1055,7 +1055,7 @@ static const struct net_device_ops korina_netdev_ops = {
 
 static int korina_probe(struct platform_device *pdev)
 {
-	struct korina_device *bif = platform_get_drvdata(pdev);
+	u8 *mac_addr = dev_get_platdata(&pdev->dev);
 	struct korina_private *lp;
 	struct net_device *dev;
 	void __iomem *p;
@@ -1068,8 +1068,7 @@ static int korina_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
 
-	bif->dev = dev;
-	memcpy(dev->dev_addr, bif->mac, ETH_ALEN);
+	memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	lp->rx_irq = platform_get_irq_byname(pdev, "korina_rx");
 	lp->tx_irq = platform_get_irq_byname(pdev, "korina_tx");
@@ -1123,6 +1122,8 @@ static int korina_probe(struct platform_device *pdev)
 	lp->mii_if.phy_id_mask = 0x1f;
 	lp->mii_if.reg_num_mask = 0x1f;
 
+	platform_set_drvdata(pdev, dev);
+
 	rc = register_netdev(dev);
 	if (rc < 0) {
 		printk(KERN_ERR DRV_NAME
@@ -1140,9 +1141,9 @@ static int korina_probe(struct platform_device *pdev)
 
 static int korina_remove(struct platform_device *pdev)
 {
-	struct korina_device *bif = platform_get_drvdata(pdev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 
-	unregister_netdev(bif->dev);
+	unregister_netdev(dev);
 
 	return 0;
 }
