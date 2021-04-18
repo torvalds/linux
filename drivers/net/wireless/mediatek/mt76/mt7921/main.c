@@ -395,8 +395,7 @@ out:
 	clear_bit(MT76_RESET, &phy->mt76->state);
 	mt7921_mutex_release(dev);
 
-	mt76_txq_schedule_all(phy->mt76);
-
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mt76->mac_work,
 				     MT7921_WATCHDOG_TIME);
 

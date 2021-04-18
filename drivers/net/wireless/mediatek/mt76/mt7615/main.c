@@ -351,8 +351,7 @@ out:
 
 	mt7615_mutex_release(dev);
 
-	mt76_txq_schedule_all(phy->mt76);
-
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 	if (!mt76_testmode_enabled(phy->mt76))
 		ieee80211_queue_delayed_work(phy->mt76->hw,
 					     &phy->mt76->mac_work,
