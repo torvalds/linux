@@ -58,37 +58,27 @@ EXPORT_SYMBOL(get_latch_u5);
 
 static struct resource korina_dev0_res[] = {
 	{
-		.name = "korina_regs",
+		.name = "emac",
 		.start = ETH0_BASE_ADDR,
 		.end = ETH0_BASE_ADDR + sizeof(struct eth_regs),
 		.flags = IORESOURCE_MEM,
 	 }, {
-		.name = "korina_rx",
+		.name = "rx",
 		.start = ETH0_DMA_RX_IRQ,
 		.end = ETH0_DMA_RX_IRQ,
 		.flags = IORESOURCE_IRQ
 	}, {
-		.name = "korina_tx",
+		.name = "tx",
 		.start = ETH0_DMA_TX_IRQ,
 		.end = ETH0_DMA_TX_IRQ,
 		.flags = IORESOURCE_IRQ
 	}, {
-		.name = "korina_ovr",
-		.start = ETH0_RX_OVR_IRQ,
-		.end = ETH0_RX_OVR_IRQ,
-		.flags = IORESOURCE_IRQ
-	}, {
-		.name = "korina_und",
-		.start = ETH0_TX_UND_IRQ,
-		.end = ETH0_TX_UND_IRQ,
-		.flags = IORESOURCE_IRQ
-	}, {
-		.name = "korina_dma_rx",
+		.name = "dma_rx",
 		.start = ETH0_RX_DMA_ADDR,
 		.end = ETH0_RX_DMA_ADDR + DMA_CHAN_OFFSET - 1,
 		.flags = IORESOURCE_MEM,
 	 }, {
-		.name = "korina_dma_tx",
+		.name = "dma_tx",
 		.start = ETH0_TX_DMA_ADDR,
 		.end = ETH0_TX_DMA_ADDR + DMA_CHAN_OFFSET - 1,
 		.flags = IORESOURCE_MEM,
