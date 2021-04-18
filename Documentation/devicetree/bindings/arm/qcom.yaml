@@ -31,6 +31,7 @@ description: |
         ipq6018
         ipq8074
         mdm9615
+        msm8226
         msm8916
         msm8974
         msm8992
@@ -113,6 +114,11 @@ properties:
               - qcom,apq8084-mtp
               - qcom,apq8084-sbc
           - const: qcom,apq8084
+
+      - items:
+          - enum:
+              - samsung,s3ve3g
+          - const: qcom,msm8226
 
       - items:
           - enum:
