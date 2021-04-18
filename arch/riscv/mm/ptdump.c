@@ -76,8 +76,8 @@ enum address_markers_idx {
 	PAGE_OFFSET_NR,
 #ifdef CONFIG_64BIT
 	MODULES_MAPPING_NR,
-#endif
 	KERNEL_MAPPING_NR,
+#endif
 	END_OF_SPACE_NR
 };
 
@@ -99,8 +99,8 @@ static struct addr_marker address_markers[] = {
 	{0, "Linear mapping"},
 #ifdef CONFIG_64BIT
 	{0, "Modules mapping"},
-#endif
 	{0, "Kernel mapping (kernel, BPF)"},
+#endif
 	{-1, NULL},
 };
 
@@ -379,8 +379,8 @@ static int __init ptdump_init(void)
 	address_markers[PAGE_OFFSET_NR].start_address = PAGE_OFFSET;
 #ifdef CONFIG_64BIT
 	address_markers[MODULES_MAPPING_NR].start_address = MODULES_VADDR;
-#endif
 	address_markers[KERNEL_MAPPING_NR].start_address = kernel_virt_addr;
+#endif
 
 	kernel_ptd_info.base_addr = KERN_VIRT_START;
 
