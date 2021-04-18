@@ -1044,8 +1044,13 @@ static gchar **fill_row(struct menu *menu)
 		g_free(row[i]);
 	bzero(row, sizeof(row));
 
+	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+
 	row[COL_OPTION] =
-	    g_strdup_printf("%s %s", menu_get_prompt(menu),
+	    g_strdup_printf("%s %s %s %s",
+			    ptype == P_COMMENT ? "***" : "",
+			    menu_get_prompt(menu),
+			    ptype == P_COMMENT ? "***" : "",
 			    sym && !sym_has_value(sym) ? "(NEW)" : "");
 
 	if (opt_mode == OPT_ALL && !menu_is_visible(menu))
@@ -1056,7 +1061,6 @@ static gchar **fill_row(struct menu *menu)
 	else
 		row[COL_COLOR] = g_strdup("Black");
 
-	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
 	switch (ptype) {
 	case P_MENU:
 		row[COL_PIXBUF] = (gchar *) xpm_menu;
