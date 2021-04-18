@@ -2814,7 +2814,6 @@ void intel_dp_set_infoframes(struct intel_encoder *encoder,
 			     const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	i915_reg_t reg = HSW_TVIDEO_DIP_CTL(crtc_state->cpu_transcoder);
 	u32 dip_enable = VIDEO_DIP_ENABLE_AVI_HSW | VIDEO_DIP_ENABLE_GCP_HSW |
 			 VIDEO_DIP_ENABLE_VS_HSW | VIDEO_DIP_ENABLE_GMP_HSW |
@@ -2823,7 +2822,7 @@ void intel_dp_set_infoframes(struct intel_encoder *encoder,
 
 	/* TODO: Add DSC case (DIP_ENABLE_PPS) */
 	/* When PSR is enabled, this routine doesn't disable VSC DIP */
-	if (intel_psr_enabled(intel_dp))
+	if (crtc_state->has_psr)
 		val &= ~dip_enable;
 	else
 		val &= ~(dip_enable | VIDEO_DIP_ENABLE_VSC_HSW);
@@ -2838,7 +2837,7 @@ void intel_dp_set_infoframes(struct intel_encoder *encoder,
 	intel_de_posting_read(dev_priv, reg);
 
 	/* When PSR is enabled, VSC SDP is handled by PSR routine */
-	if (!intel_psr_enabled(intel_dp))
+	if (!crtc_state->has_psr)
 		intel_write_dp_sdp(encoder, crtc_state, DP_SDP_VSC);
 
 	intel_write_dp_sdp(encoder, crtc_state, HDMI_PACKET_TYPE_GAMUT_METADATA);
@@ -2965,14 +2964,13 @@ static void intel_read_dp_vsc_sdp(struct intel_encoder *encoder,
 				  struct drm_dp_vsc_sdp *vsc)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	unsigned int type = DP_SDP_VSC;
 	struct dp_sdp sdp = {};
 	int ret;
 
 	/* When PSR is enabled, VSC SDP is handled by PSR routine */
-	if (intel_psr_enabled(intel_dp))
+	if (crtc_state->has_psr)
 		return;
 
 	if ((crtc_state->infoframes.enable &
