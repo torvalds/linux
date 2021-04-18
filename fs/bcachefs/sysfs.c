@@ -805,7 +805,8 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	       "open_buckets_wait\t%s\n"
 	       "open_buckets_btree\t%u\n"
 	       "open_buckets_user\t%u\n"
-	       "btree reserve cache\t%u\n",
+	       "btree reserve cache\t%u\n"
+	       "thread state:\t\t%s\n",
 	       stats.buckets_ec,
 	       __dev_buckets_available(ca, stats),
 	       fifo_used(&ca->free_inc),		ca->free_inc.size,
@@ -818,7 +819,8 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	       c->open_buckets_wait.list.first		? "waiting" : "empty",
 	       nr[BCH_DATA_btree],
 	       nr[BCH_DATA_user],
-	       c->btree_reserve_cache_nr);
+	       c->btree_reserve_cache_nr,
+	       bch2_allocator_states[ca->allocator_state]);
 }
 
 static const char * const bch2_rw[] = {

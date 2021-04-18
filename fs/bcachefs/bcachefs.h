@@ -457,16 +457,7 @@ struct bch_dev {
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 
-	/*
-	 * XXX: this should be an enum for allocator state, so as to include
-	 * error state
-	 */
-	enum {
-		ALLOCATOR_STOPPED,
-		ALLOCATOR_RUNNING,
-		ALLOCATOR_BLOCKED,
-		ALLOCATOR_BLOCKED_FULL,
-	}			allocator_state;
+	enum allocator_states	allocator_state;
 
 	alloc_heap		alloc_heap;
 

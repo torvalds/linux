@@ -10,6 +10,18 @@
 
 struct ec_bucket_buf;
 
+#define ALLOC_THREAD_STATES()		\
+	x(stopped)			\
+	x(running)			\
+	x(blocked)			\
+	x(blocked_full)
+
+enum allocator_states {
+#define x(n)	ALLOCATOR_##n,
+	ALLOC_THREAD_STATES()
+#undef x
+};
+
 enum alloc_reserve {
 	RESERVE_BTREE_MOVINGGC	= -2,
 	RESERVE_BTREE		= -1,

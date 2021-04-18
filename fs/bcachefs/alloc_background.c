@@ -25,6 +25,13 @@
 #include <linux/sched/task.h>
 #include <linux/sort.h>
 
+const char * const bch2_allocator_states[] = {
+#define x(n)	#n,
+	ALLOC_THREAD_STATES()
+#undef x
+	NULL
+};
+
 static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
 #define x(name, bits) [BCH_ALLOC_FIELD_V1_##name] = bits / 8,
 	BCH_ALLOC_FIELDS_V1()
@@ -469,7 +476,7 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 	s64 available;
 	int ret = 0;
 
-	ca->allocator_state = ALLOCATOR_BLOCKED;
+	ca->allocator_state = ALLOCATOR_blocked;
 	closure_wake_up(&c->freelist_wait);
 
 	while (1) {
@@ -497,7 +504,7 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 	}
 
 	__set_current_state(TASK_RUNNING);
-	ca->allocator_state = ALLOCATOR_RUNNING;
+	ca->allocator_state = ALLOCATOR_running;
 	closure_wake_up(&c->freelist_wait);
 
 	return ret;
@@ -978,15 +985,15 @@ static int push_invalidated_bucket(struct bch_fs *c, struct bch_dev *ca, size_t 
 				fifo_pop(&ca->free_inc, bucket);
 
 				closure_wake_up(&c->freelist_wait);
-				ca->allocator_state = ALLOCATOR_RUNNING;
+				ca->allocator_state = ALLOCATOR_running;
 
 				spin_unlock(&c->freelist_lock);
 				goto out;
 			}
 		}
 
-		if (ca->allocator_state != ALLOCATOR_BLOCKED_FULL) {
-			ca->allocator_state = ALLOCATOR_BLOCKED_FULL;
+		if (ca->allocator_state != ALLOCATOR_blocked_full) {
+			ca->allocator_state = ALLOCATOR_blocked_full;
 			closure_wake_up(&c->freelist_wait);
 		}
 
@@ -1053,12 +1060,12 @@ static int bch2_allocator_thread(void *arg)
 
 	while (1) {
 		if (!allocator_thread_running(ca)) {
-			ca->allocator_state = ALLOCATOR_STOPPED;
+			ca->allocator_state = ALLOCATOR_stopped;
 			if (kthread_wait_freezable(allocator_thread_running(ca)))
 				break;
 		}
 
-		ca->allocator_state = ALLOCATOR_RUNNING;
+		ca->allocator_state = ALLOCATOR_running;
 
 		cond_resched();
 		if (kthread_should_stop())
@@ -1139,7 +1146,7 @@ static int bch2_allocator_thread(void *arg)
 
 stop:
 	pr_debug("alloc thread stopping (ret %i)", ret);
-	ca->allocator_state = ALLOCATOR_STOPPED;
+	ca->allocator_state = ALLOCATOR_stopped;
 	closure_wake_up(&c->freelist_wait);
 	return 0;
 }
@@ -1319,7 +1326,7 @@ void bch2_dev_allocator_quiesce(struct bch_fs *c, struct bch_dev *ca)
 {
 	if (ca->alloc_thread)
 		closure_wait_event(&c->freelist_wait,
-				   ca->allocator_state != ALLOCATOR_RUNNING);
+				   ca->allocator_state != ALLOCATOR_running);
 }
 
 /* stop allocator thread: */
