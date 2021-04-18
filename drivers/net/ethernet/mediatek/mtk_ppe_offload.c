@@ -232,6 +232,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 			data.vlan.proto = act->vlan.proto;
 			data.vlan.num++;
 			break;
+		case FLOW_ACTION_VLAN_POP:
+			break;
 		case FLOW_ACTION_PPPOE_PUSH:
 			if (data.pppoe.num == 1)
 				return -EOPNOTSUPP;
