@@ -264,7 +264,7 @@ err_out:
  * Query the Dimm performance stats from PHYP and copy them (if returned) to
  * provided struct papr_scm_perf_stats instance 'stats' that can hold atleast
  * (num_stats + header) bytes.
- * - If buff_stats == NULL the return value is the size in byes of the buffer
+ * - If buff_stats == NULL the return value is the size in bytes of the buffer
  * needed to hold all supported performance-statistics.
  * - If buff_stats != NULL and num_stats == 0 then we copy all known
  * performance-statistics to 'buff_stat' and expect to be large enough to
