@@ -2935,7 +2935,9 @@ int dvb_frontend_suspend(struct dvb_frontend *fe)
 	else if (fe->ops.tuner_ops.sleep)
 		ret = fe->ops.tuner_ops.sleep(fe);
 
-	if (fe->ops.sleep)
+	if (fe->ops.suspend)
+		ret = fe->ops.suspend(fe);
+	else if (fe->ops.sleep)
 		ret = fe->ops.sleep(fe);
 
 	return ret;
@@ -2951,7 +2953,9 @@ int dvb_frontend_resume(struct dvb_frontend *fe)
 		fe->id);
 
 	fe->exit = DVB_FE_DEVICE_RESUME;
-	if (fe->ops.init)
+	if (fe->ops.resume)
+		ret = fe->ops.resume(fe);
+	else if (fe->ops.init)
 		ret = fe->ops.init(fe);
 
 	if (fe->ops.tuner_ops.resume)
