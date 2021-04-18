@@ -331,12 +331,20 @@ err_copy:
 	return ERR_PTR(err);
 }
 
+static enum mlx5_sw_icm_type get_icm_type(int uapi_type)
+{
+	return uapi_type == MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM ?
+		       MLX5_SW_ICM_TYPE_STEERING :
+		       MLX5_SW_ICM_TYPE_HEADER_MODIFY;
+}
+
 static struct ib_dm *handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 					    struct ib_dm_alloc_attr *attr,
 					    struct uverbs_attr_bundle *attrs,
 					    int type)
 {
 	struct mlx5_core_dev *dev = to_mdev(ctx->device)->mdev;
+	enum mlx5_sw_icm_type icm_type = get_icm_type(type);
 	struct mlx5_ib_dm_icm *dm;
 	u64 act_size;
 	int err;
@@ -368,7 +376,7 @@ static struct ib_dm *handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 	act_size = roundup_pow_of_two(act_size);
 
 	dm->base.size = act_size;
-	err = mlx5_dm_sw_icm_alloc(dev, type, act_size, attr->alignment,
+	err = mlx5_dm_sw_icm_alloc(dev, icm_type, act_size, attr->alignment,
 				   to_mucontext(ctx)->devx_uid,
 				   &dm->base.dev_addr, &dm->obj_id);
 	if (err)
@@ -377,7 +385,7 @@ static struct ib_dm *handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_ALLOC_DM_RESP_START_OFFSET,
 			     &dm->base.dev_addr, sizeof(dm->base.dev_addr));
 	if (err) {
-		mlx5_dm_sw_icm_dealloc(dev, type, dm->base.size,
+		mlx5_dm_sw_icm_dealloc(dev, icm_type, dm->base.size,
 				       to_mucontext(ctx)->devx_uid,
 				       dm->base.dev_addr, dm->obj_id);
 		goto free;
@@ -409,11 +417,9 @@ struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 	case MLX5_IB_UAPI_DM_TYPE_MEMIC:
 		return handle_alloc_dm_memic(context, attr, attrs);
 	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
-		return handle_alloc_dm_sw_icm(context, attr, attrs,
-					     MLX5_SW_ICM_TYPE_STEERING);
+		return handle_alloc_dm_sw_icm(context, attr, attrs, type);
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
-		return handle_alloc_dm_sw_icm(context, attr, attrs,
-					      MLX5_SW_ICM_TYPE_HEADER_MODIFY);
+		return handle_alloc_dm_sw_icm(context, attr, attrs, type);
 	default:
 		return ERR_PTR(-EOPNOTSUPP);
 	}
@@ -441,10 +447,7 @@ static void mlx5_dm_memic_dealloc(struct mlx5_ib_dm_memic *dm)
 static int mlx5_dm_icm_dealloc(struct mlx5_ib_ucontext *ctx,
 			       struct mlx5_ib_dm_icm *dm)
 {
-	enum mlx5_sw_icm_type type =
-		dm->base.type == MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM ?
-			MLX5_SW_ICM_TYPE_STEERING :
-			MLX5_SW_ICM_TYPE_HEADER_MODIFY;
+	enum mlx5_sw_icm_type type = get_icm_type(dm->base.type);
 	struct mlx5_core_dev *dev = to_mdev(dm->base.ibdm.device)->mdev;
 	int err;
 
