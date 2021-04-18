@@ -61,6 +61,18 @@ static void mt7921_irq_tasklet(unsigned long data)
 	if (intr & MT_INT_TX_DONE_MCU)
 		mask |= MT_INT_TX_DONE_MCU;
 
+	if (intr & MT_INT_MCU_CMD) {
+		u32 intr_sw;
+
+		intr_sw = mt76_rr(dev, MT_MCU_CMD);
+		/* ack MCU2HOST_SW_INT_STA */
+		mt76_wr(dev, MT_MCU_CMD, intr_sw);
+		if (intr_sw & MT_MCU_CMD_WAKE_RX_PCIE) {
+			mask |= MT_INT_RX_DONE_DATA;
+			intr |= MT_INT_RX_DONE_DATA;
+		}
+	}
+
 	mt76_set_irq_mask(&dev->mt76, MT_WFDMA0_HOST_INT_ENA, mask, 0);
 
 	if (intr & MT_INT_TX_DONE_ALL)
@@ -253,6 +265,7 @@ static int mt7921_pci_resume(struct pci_dev *pdev)
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 	mt7921_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
 			  MT_INT_MCU_CMD);
+	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
 	/* put dma enabled */
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,

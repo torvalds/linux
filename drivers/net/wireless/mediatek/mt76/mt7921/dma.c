@@ -351,6 +351,7 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	/* enable interrupts for TX/RX rings */
 	mt7921_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
 			  MT_INT_MCU_CMD);
+	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
 	return 0;
 }

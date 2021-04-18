@@ -1276,6 +1276,7 @@ mt7921_dma_reset(struct mt7921_dev *dev)
 	mt7921_irq_enable(dev,
 			  MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
 			  MT_INT_MCU_CMD);
+	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 }
 
 void mt7921_tx_token_put(struct mt7921_dev *dev)
