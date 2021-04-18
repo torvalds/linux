@@ -189,7 +189,6 @@ rw_attribute(label);
 
 rw_attribute(copy_gc_enabled);
 read_attribute(copy_gc_wait);
-sysfs_pd_controller_attribute(copy_gc);
 
 rw_attribute(rebalance_enabled);
 sysfs_pd_controller_attribute(rebalance);
@@ -197,8 +196,6 @@ read_attribute(rebalance_work);
 rw_attribute(promote_whole_extents);
 
 read_attribute(new_stripes);
-
-rw_attribute(pd_controllers_update_seconds);
 
 read_attribute(io_timers_read);
 read_attribute(io_timers_write);
@@ -331,12 +328,8 @@ SHOW(bch2_fs)
 
 	sysfs_printf(copy_gc_enabled, "%i", c->copy_gc_enabled);
 
-	sysfs_print(pd_controllers_update_seconds,
-		    c->pd_controllers_update_seconds);
-
 	sysfs_printf(rebalance_enabled,		"%i", c->rebalance.enabled);
 	sysfs_pd_controller_show(rebalance,	&c->rebalance.pd); /* XXX */
-	sysfs_pd_controller_show(copy_gc,	&c->copygc_pd);
 	sysfs_hprint(copy_gc_wait,
 		     max(0LL, c->copygc_wait -
 			 atomic64_read(&c->io_clock[WRITE].now)) << 9);
@@ -447,10 +440,7 @@ STORE(bch2_fs)
 		return ret;
 	}
 
-	sysfs_strtoul(pd_controllers_update_seconds,
-		      c->pd_controllers_update_seconds);
 	sysfs_pd_controller_store(rebalance,	&c->rebalance.pd);
-	sysfs_pd_controller_store(copy_gc,	&c->copygc_pd);
 
 	sysfs_strtoul(promote_whole_extents,	c->promote_whole_extents);
 
@@ -572,7 +562,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_rebalance_enabled,
 	&sysfs_rebalance_work,
 	sysfs_pd_controller_files(rebalance),
-	sysfs_pd_controller_files(copy_gc),
 
 	&sysfs_new_stripes,
 

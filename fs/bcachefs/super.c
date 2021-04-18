@@ -293,7 +293,6 @@ void bch2_fs_read_only(struct bch_fs *c)
 	percpu_ref_kill(&c->writes);
 
 	cancel_work_sync(&c->ec_stripe_delete_work);
-	cancel_delayed_work(&c->pd_controllers_update);
 
 	/*
 	 * If we're not doing an emergency shutdown, we want to wait on
@@ -377,8 +376,6 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 		bch_err(c, "error starting rebalance thread");
 		return ret;
 	}
-
-	schedule_delayed_work(&c->pd_controllers_update, 5 * HZ);
 
 	schedule_work(&c->ec_stripe_delete_work);
 
@@ -571,7 +568,6 @@ void __bch2_fs_stop(struct bch_fs *c)
 		cancel_work_sync(&ca->io_error_work);
 
 	cancel_work_sync(&c->btree_write_error_work);
-	cancel_delayed_work_sync(&c->pd_controllers_update);
 	cancel_work_sync(&c->read_only_work);
 }
 

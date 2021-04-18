@@ -664,9 +664,6 @@ struct bch_fs {
 	struct workqueue_struct	*copygc_wq;
 
 	/* ALLOCATION */
-	struct delayed_work	pd_controllers_update;
-	unsigned		pd_controllers_update_seconds;
-
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
 
 	u64			capacity; /* sectors */
@@ -771,7 +768,6 @@ mempool_t		bio_bounce_pages;
 	/* COPYGC */
 	struct task_struct	*copygc_thread;
 	copygc_heap		copygc_heap;
-	struct bch_pd_controller copygc_pd;
 	struct write_point	copygc_write_point;
 	s64			copygc_wait;
 

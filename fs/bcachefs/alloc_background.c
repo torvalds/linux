@@ -31,38 +31,6 @@ static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
 #undef x
 };
 
-/* Ratelimiting/PD controllers */
-
-static void pd_controllers_update(struct work_struct *work)
-{
-	struct bch_fs *c = container_of(to_delayed_work(work),
-					   struct bch_fs,
-					   pd_controllers_update);
-	struct bch_dev *ca;
-	s64 free = 0, fragmented = 0;
-	unsigned i;
-
-	for_each_member_device(ca, c, i) {
-		struct bch_dev_usage stats = bch2_dev_usage_read(ca);
-
-		free += bucket_to_sector(ca,
-				__dev_buckets_available(ca, stats)) << 9;
-		/*
-		 * Bytes of internal fragmentation, which can be
-		 * reclaimed by copy GC
-		 */
-		fragmented += max_t(s64, 0, (bucket_to_sector(ca,
-					stats.d[BCH_DATA_user].buckets +
-					stats.d[BCH_DATA_cached].buckets) -
-				  (stats.d[BCH_DATA_user].sectors +
-				   stats.d[BCH_DATA_cached].sectors)) << 9);
-	}
-
-	bch2_pd_controller_update(&c->copygc_pd, free, fragmented, -1);
-	schedule_delayed_work(&c->pd_controllers_update,
-			      c->pd_controllers_update_seconds * HZ);
-}
-
 /* Persistent alloc info: */
 
 static inline u64 alloc_field_v1_get(const struct bch_alloc *a,
@@ -1405,7 +1373,4 @@ int bch2_dev_allocator_start(struct bch_dev *ca)
 void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->freelist_lock);
-
-	c->pd_controllers_update_seconds = 5;
-	INIT_DELAYED_WORK(&c->pd_controllers_update, pd_controllers_update);
 }
