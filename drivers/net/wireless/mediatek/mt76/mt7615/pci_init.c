@@ -82,7 +82,7 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 	mt76 = container_of(led_cdev, struct mt76_dev, led_cdev);
 	dev = container_of(mt76, struct mt7615_dev, mt76);
 
-	if (test_bit(MT76_STATE_PM, &mt76->phy.state))
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm))
 		return;
 
 	val = FIELD_PREP(MT_LED_STATUS_DURATION, 0xffff) |
@@ -100,6 +100,8 @@ mt7615_led_set_config(struct led_classdev *led_cdev,
 		val |= MT_LED_CTRL_POLARITY(mt76->led_pin);
 	addr = mt7615_reg_map(dev, MT_LED_CTRL);
 	mt76_wr(dev, addr, val);
+
+	mt76_connac_pm_unref(&dev->pm);
 }
 
 static int
