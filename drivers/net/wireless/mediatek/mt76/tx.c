@@ -422,8 +422,7 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
 		return idx;
 
 	do {
-		if (test_bit(MT76_STATE_PM, &phy->state) ||
-		    test_bit(MT76_RESET, &phy->state))
+		if (test_bit(MT76_RESET, &phy->state))
 			return -EBUSY;
 
 		if (stop || mt76_txq_stopped(q))
@@ -463,8 +462,7 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 	while (1) {
 		int n_frames = 0;
 
-		if (test_bit(MT76_STATE_PM, &phy->state) ||
-		    test_bit(MT76_RESET, &phy->state))
+		if (test_bit(MT76_RESET, &phy->state))
 			return -EBUSY;
 
 		if (dev->queue_ops->tx_cleanup &&
