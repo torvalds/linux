@@ -323,9 +323,11 @@ static int mt7615_mcu_drv_pmctrl(struct mt7615_dev *dev)
 static int mt7615_mcu_lp_drv_pmctrl(struct mt7615_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	int i;
+	int i, err = 0;
 
-	if (!test_and_clear_bit(MT76_STATE_PM, &mphy->state))
+	mutex_lock(&dev->pm.mutex);
+
+	if (!test_bit(MT76_STATE_PM, &mphy->state))
 		goto out;
 
 	for (i = 0; i < MT7615_DRV_OWN_RETRY_COUNT; i++) {
@@ -337,14 +339,16 @@ static int mt7615_mcu_lp_drv_pmctrl(struct mt7615_dev *dev)
 
 	if (i == MT7615_DRV_OWN_RETRY_COUNT) {
 		dev_err(dev->mt76.dev, "driver own failed\n");
-		set_bit(MT76_STATE_PM, &mphy->state);
-		return -EIO;
+		err = -EIO;
+		goto out;
 	}
+	clear_bit(MT76_STATE_PM, &mphy->state);
 
 out:
 	dev->pm.last_activity = jiffies;
+	mutex_unlock(&dev->pm.mutex);
 
-	return 0;
+	return err;
 }
 
 static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
@@ -353,8 +357,10 @@ static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
 	int err = 0;
 	u32 addr;
 
+	mutex_lock(&dev->pm.mutex);
+
 	if (test_and_set_bit(MT76_STATE_PM, &mphy->state))
-		return 0;
+		goto out;
 
 	mt7622_trigger_hif_int(dev, true);
 
@@ -370,6 +376,8 @@ static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
 	}
 
 	mt7622_trigger_hif_int(dev, false);
+out:
+	mutex_unlock(&dev->pm.mutex);
 
 	return err;
 }
