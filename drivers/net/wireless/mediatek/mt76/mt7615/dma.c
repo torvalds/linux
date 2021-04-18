@@ -261,7 +261,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 
 	mt76_wr(dev, MT_DELAY_INT_CFG, 0);
 
-	ret = mt76_init_queues(dev);
+	ret = mt76_init_queues(dev, mt76_dma_rx_poll);
 	if (ret < 0)
 		return ret;
 
