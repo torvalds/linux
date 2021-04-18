@@ -53,8 +53,7 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	}
 }
 
-static void
-mt7921_tx_cleanup(struct mt7921_dev *dev)
+void mt7921_tx_cleanup(struct mt7921_dev *dev)
 {
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WA], false);
@@ -66,12 +65,36 @@ static int mt7921_poll_tx(struct napi_struct *napi, int budget)
 
 	dev = container_of(napi, struct mt7921_dev, mt76.tx_napi);
 
-	mt7921_tx_cleanup(dev);
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
+		napi_complete(napi);
+		queue_work(dev->mt76.wq, &dev->pm.wake_work);
+		return 0;
+	}
 
-	if (napi_complete_done(napi, 0))
+	mt7921_tx_cleanup(dev);
+	if (napi_complete(napi))
 		mt7921_irq_enable(dev, MT_INT_TX_DONE_ALL);
+	mt76_connac_pm_unref(&dev->pm);
 
 	return 0;
+}
+
+static int mt7921_poll_rx(struct napi_struct *napi, int budget)
+{
+	struct mt7921_dev *dev;
+	int done;
+
+	dev = container_of(napi->dev, struct mt7921_dev, mt76.napi_dev);
+
+	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
+		napi_complete(napi);
+		queue_work(dev->mt76.wq, &dev->pm.wake_work);
+		return 0;
+	}
+	done = mt76_dma_rx_poll(napi, budget);
+	mt76_connac_pm_unref(&dev->pm);
+
+	return done;
 }
 
 void mt7921_dma_prefetch(struct mt7921_dev *dev)
@@ -295,7 +318,7 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt76_init_queues(dev, mt76_dma_rx_poll);
+	ret = mt76_init_queues(dev, mt7921_poll_rx);
 	if (ret < 0)
 		return ret;
 
