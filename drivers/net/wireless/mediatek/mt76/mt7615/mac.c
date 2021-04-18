@@ -1919,7 +1919,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 	}
 
 	ieee80211_wake_queues(mphy->hw);
-	complete_all(&dev->pm.wake_cmpl);
+	wake_up(&dev->pm.wait);
 }
 
 void mt7615_pm_power_save_work(struct work_struct *work)

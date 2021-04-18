@@ -53,7 +53,7 @@ struct mt76_connac_pm {
 	} tx_q[IEEE80211_NUM_ACS];
 
 	struct work_struct wake_work;
-	struct completion wake_cmpl;
+	wait_queue_head_t wait;
 
 	struct {
 		spinlock_t lock;

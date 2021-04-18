@@ -17,10 +17,10 @@ int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 	if (!test_bit(MT76_STATE_PM, &phy->state))
 		return 0;
 
-	if (queue_work(dev->wq, &pm->wake_work))
-		reinit_completion(&pm->wake_cmpl);
-
-	if (!wait_for_completion_timeout(&pm->wake_cmpl, 3 * HZ)) {
+	queue_work(dev->wq, &pm->wake_work);
+	if (!wait_event_timeout(pm->wait,
+				!test_bit(MT76_STATE_PM, &phy->state),
+				3 * HZ)) {
 		ieee80211_wake_queues(phy->hw);
 		return -ETIMEDOUT;
 	}

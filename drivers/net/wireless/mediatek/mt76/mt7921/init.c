@@ -225,7 +225,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	INIT_WORK(&dev->pm.wake_work, mt7921_pm_wake_work);
 	spin_lock_init(&dev->pm.wake.lock);
 	mutex_init(&dev->pm.mutex);
-	init_completion(&dev->pm.wake_cmpl);
+	init_waitqueue_head(&dev->pm.wait);
 	spin_lock_init(&dev->pm.txq_lock);
 	set_bit(MT76_STATE_PM, &dev->mphy.state);
 	INIT_LIST_HEAD(&dev->phy.stats_list);
