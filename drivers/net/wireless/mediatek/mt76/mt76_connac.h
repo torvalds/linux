@@ -54,6 +54,11 @@ struct mt76_connac_pm {
 
 	struct work_struct wake_work;
 	struct completion wake_cmpl;
+
+	struct {
+		spinlock_t lock;
+		u32 count;
+	} wake;
 	struct mutex mutex;
 
 	struct delayed_work ps_work;
@@ -84,6 +89,32 @@ void mt76_connac_power_save_sched(struct mt76_phy *phy,
 				  struct mt76_connac_pm *pm);
 void mt76_connac_free_pending_tx_skbs(struct mt76_connac_pm *pm,
 				      struct mt76_wcid *wcid);
+
+static inline bool
+mt76_connac_pm_ref(struct mt76_phy *phy, struct mt76_connac_pm *pm)
+{
+	bool ret = false;
+
+	spin_lock_bh(&pm->wake.lock);
+	if (test_bit(MT76_STATE_PM, &phy->state))
+		goto out;
+
+	pm->wake.count++;
+	ret = true;
+out:
+	spin_unlock_bh(&pm->wake.lock);
+
+	return ret;
+}
+
+static inline void
+mt76_connac_pm_unref(struct mt76_connac_pm *pm)
+{
+	spin_lock_bh(&pm->wake.lock);
+	pm->wake.count--;
+	pm->last_activity = jiffies;
+	spin_unlock_bh(&pm->wake.lock);
+}
 
 static inline void
 mt76_connac_mutex_acquire(struct mt76_dev *dev, struct mt76_connac_pm *pm)
