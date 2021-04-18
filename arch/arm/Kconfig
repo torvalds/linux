@@ -1293,9 +1293,15 @@ config KASAN_SHADOW_OFFSET
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
-	range 2 32
+	range 2 16 if DEBUG_KMAP_LOCAL
+	range 2 32 if !DEBUG_KMAP_LOCAL
 	depends on SMP
 	default "4"
+	help
+	  The maximum number of CPUs that the kernel can support.
+	  Up to 32 CPUs can be supported, or up to 16 if kmap_local()
+	  debugging is enabled, which uses half of the per-CPU fixmap
+	  slots as guard regions.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
