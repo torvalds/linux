@@ -358,7 +358,7 @@ static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
 
 	mutex_lock(&dev->pm.mutex);
 
-	if (test_and_set_bit(MT76_STATE_PM, &mphy->state))
+	if (mt76_connac_skip_fw_pmctrl(mphy, &dev->pm))
 		goto out;
 
 	mt7622_trigger_hif_int(dev, true);

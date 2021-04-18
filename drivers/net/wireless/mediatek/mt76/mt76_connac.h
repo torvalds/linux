@@ -116,6 +116,18 @@ mt76_connac_pm_unref(struct mt76_connac_pm *pm)
 	spin_unlock_bh(&pm->wake.lock);
 }
 
+static inline bool
+mt76_connac_skip_fw_pmctrl(struct mt76_phy *phy, struct mt76_connac_pm *pm)
+{
+	bool ret;
+
+	spin_lock_bh(&pm->wake.lock);
+	ret = pm->wake.count || test_and_set_bit(MT76_STATE_PM, &phy->state);
+	spin_unlock_bh(&pm->wake.lock);
+
+	return ret;
+}
+
 static inline void
 mt76_connac_mutex_acquire(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	__acquires(&dev->mutex)

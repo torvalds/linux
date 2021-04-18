@@ -1304,7 +1304,7 @@ int mt7921_mcu_fw_pmctrl(struct mt7921_dev *dev)
 
 	mutex_lock(&dev->pm.mutex);
 
-	if (test_and_set_bit(MT76_STATE_PM, &mphy->state))
+	if (mt76_connac_skip_fw_pmctrl(mphy, &dev->pm))
 		goto out;
 
 	for (i = 0; i < MT7921_DRV_OWN_RETRY_COUNT; i++) {
