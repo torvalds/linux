@@ -293,8 +293,10 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
 	int ret;
 
+	down_read(&c->gc_lock);
 	ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_alloc,
 					  NULL, bch2_alloc_read_fn);
+	up_read(&c->gc_lock);
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;

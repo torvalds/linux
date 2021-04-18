@@ -1836,10 +1836,11 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 		return 0;
 
 	if (!btree_node_type_is_extents(iter->btree_id)) {
-		/* iterators should be uptodate, shouldn't get errors here: */
 		if (btree_iter_type(iter) != BTREE_ITER_CACHED) {
 			old = bch2_btree_iter_peek_slot(iter);
-			BUG_ON(bkey_err(old));
+			ret = bkey_err(old);
+			if (ret)
+				return ret;
 		} else {
 			struct bkey_cached *ck = (void *) iter->l[0].b;
 
