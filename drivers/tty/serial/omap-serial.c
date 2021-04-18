@@ -159,6 +159,8 @@ struct uart_omap_port {
 	u32			calc_latency;
 	struct work_struct	qos_work;
 	bool			is_suspending;
+
+	unsigned int		rs485_tx_filter_count;
 };
 
 #define to_uart_omap_port(p) ((container_of((p), struct uart_omap_port, port)))
@@ -329,19 +331,6 @@ static void serial_omap_stop_tx(struct uart_port *port)
 		serial_out(up, UART_IER, up->ier);
 	}
 
-	if ((port->rs485.flags & SER_RS485_ENABLED) &&
-	    !(port->rs485.flags & SER_RS485_RX_DURING_TX)) {
-		/*
-		 * Empty the RX FIFO, we are not interested in anything
-		 * received during the half-duplex transmission.
-		 */
-		serial_out(up, UART_FCR, up->fcr | UART_FCR_CLEAR_RCVR);
-		/* Re-enable RX interrupts */
-		up->ier |= UART_IER_RLSI | UART_IER_RDI;
-		up->port.read_status_mask |= UART_LSR_DR;
-		serial_out(up, UART_IER, up->ier);
-	}
-
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 }
@@ -367,6 +356,10 @@ static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 		serial_out(up, UART_TX, up->port.x_char);
 		up->port.icount.tx++;
 		up->port.x_char = 0;
+		if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
+		    !(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
+			up->rs485_tx_filter_count++;
+
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
@@ -378,6 +371,10 @@ static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		up->port.icount.tx++;
+		if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
+		    !(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
+			up->rs485_tx_filter_count++;
+
 		if (uart_circ_empty(xmit))
 			break;
 	} while (--count > 0);
@@ -421,7 +418,7 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 	if ((port->rs485.flags & SER_RS485_ENABLED) &&
 	    !(port->rs485.flags & SER_RS485_RX_DURING_TX))
-		serial_omap_stop_rx(port);
+		up->rs485_tx_filter_count = 0;
 
 	serial_omap_enable_ier_thri(up);
 	pm_runtime_mark_last_busy(up->dev);
@@ -492,8 +489,13 @@ static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 	 * Read one data character out to avoid stalling the receiver according
 	 * to the table 23-246 of the omap4 TRM.
 	 */
-	if (likely(lsr & UART_LSR_DR))
+	if (likely(lsr & UART_LSR_DR)) {
 		serial_in(up, UART_RX);
+		if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
+		    !(up->port.rs485.flags & SER_RS485_RX_DURING_TX) &&
+		    up->rs485_tx_filter_count)
+			up->rs485_tx_filter_count--;
+	}
 
 	up->port.icount.rx++;
 	flag = TTY_NORMAL;
@@ -544,6 +546,13 @@ static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 		return;
 
 	ch = serial_in(up, UART_RX);
+	if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
+	    !(up->port.rs485.flags & SER_RS485_RX_DURING_TX) &&
+	    up->rs485_tx_filter_count) {
+		up->rs485_tx_filter_count--;
+		return;
+	}
+
 	flag = TTY_NORMAL;
 	up->port.icount.rx++;
 
