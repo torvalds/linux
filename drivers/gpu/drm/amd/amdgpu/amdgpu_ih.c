@@ -175,7 +175,9 @@ static bool amdgpu_ih_has_checkpoint_processed(struct amdgpu_device *adev,
 		cur_rptr += ih->ptr_mask + 1;
 	*prev_rptr = cur_rptr;
 
-	return cur_rptr >= checkpoint_wptr;
+	/* check ring is empty to workaround missing wptr overflow flag */
+	return cur_rptr >= checkpoint_wptr ||
+	       (cur_rptr & ih->ptr_mask) == amdgpu_ih_get_wptr(adev, ih);
 }
 
 /**
