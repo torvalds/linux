@@ -406,6 +406,8 @@ static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
 			     unsigned long arg)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	unsigned int flags = 0;
+	u8 value;
 	int ret;
 
 	switch (cmd) {
@@ -414,9 +416,16 @@ static int pcf8523_rtc_ioctl(struct device *dev, unsigned int cmd,
 		if (ret < 0)
 			return ret;
 		if (ret)
-			ret = RTC_VL_BACKUP_LOW;
+			flags |= RTC_VL_BACKUP_LOW;
 
-		return put_user(ret, (unsigned int __user *)arg);
+		ret = pcf8523_read(client, REG_SECONDS, &value);
+		if (ret < 0)
+			return ret;
+
+		if (value & REG_SECONDS_OS)
+			flags |= RTC_VL_DATA_INVALID;
+
+		return put_user(flags, (unsigned int __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;
