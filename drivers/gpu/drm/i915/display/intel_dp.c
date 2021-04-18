@@ -2818,23 +2818,18 @@ void intel_dp_set_infoframes(struct intel_encoder *encoder,
 	u32 dip_enable = VIDEO_DIP_ENABLE_AVI_HSW | VIDEO_DIP_ENABLE_GCP_HSW |
 			 VIDEO_DIP_ENABLE_VS_HSW | VIDEO_DIP_ENABLE_GMP_HSW |
 			 VIDEO_DIP_ENABLE_SPD_HSW | VIDEO_DIP_ENABLE_DRM_GLK;
-	u32 val = intel_de_read(dev_priv, reg);
+	u32 val = intel_de_read(dev_priv, reg) & ~dip_enable;
 
 	/* TODO: Add DSC case (DIP_ENABLE_PPS) */
 	/* When PSR is enabled, this routine doesn't disable VSC DIP */
-	if (crtc_state->has_psr)
-		val &= ~dip_enable;
-	else
-		val &= ~(dip_enable | VIDEO_DIP_ENABLE_VSC_HSW);
-
-	if (!enable) {
-		intel_de_write(dev_priv, reg, val);
-		intel_de_posting_read(dev_priv, reg);
-		return;
-	}
+	if (!crtc_state->has_psr)
+		val &= ~VIDEO_DIP_ENABLE_VSC_HSW;
 
 	intel_de_write(dev_priv, reg, val);
 	intel_de_posting_read(dev_priv, reg);
+
+	if (!enable)
+		return;
 
 	/* When PSR is enabled, VSC SDP is handled by PSR routine */
 	if (!crtc_state->has_psr)
