@@ -555,15 +555,15 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u32 port_num,
 			 unsigned int index, const union ib_gid *gid,
 			 const struct ib_gid_attr *attr)
 {
-	enum ib_gid_type gid_type = IB_GID_TYPE_ROCE;
+	enum ib_gid_type gid_type;
 	u16 vlan_id = 0xffff;
 	u8 roce_version = 0;
 	u8 roce_l3_type = 0;
 	u8 mac[ETH_ALEN];
 	int ret;
 
+	gid_type = attr->gid_type;
 	if (gid) {
-		gid_type = attr->gid_type;
 		ret = rdma_read_gid_l2_fields(attr, &vlan_id, &mac[0]);
 		if (ret)
 			return ret;
@@ -575,7 +575,7 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u32 port_num,
 		break;
 	case IB_GID_TYPE_ROCE_UDP_ENCAP:
 		roce_version = MLX5_ROCE_VERSION_2;
-		if (ipv6_addr_v4mapped((void *)gid))
+		if (gid && ipv6_addr_v4mapped((void *)gid))
 			roce_l3_type = MLX5_ROCE_L3_TYPE_IPV4;
 		else
 			roce_l3_type = MLX5_ROCE_L3_TYPE_IPV6;
@@ -602,7 +602,7 @@ static int mlx5_ib_del_gid(const struct ib_gid_attr *attr,
 			   __always_unused void **context)
 {
 	return set_roce_addr(to_mdev(attr->device), attr->port_num,
-			     attr->index, NULL, NULL);
+			     attr->index, NULL, attr);
 }
 
 __be16 mlx5_get_roce_udp_sport_min(const struct mlx5_ib_dev *dev,
