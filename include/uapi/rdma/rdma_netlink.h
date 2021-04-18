@@ -544,6 +544,8 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_SRQ_ENTRY,		/* nested table */
 	RDMA_NLDEV_ATTR_RES_SRQN,		/* u32 */
 
+	RDMA_NLDEV_ATTR_MIN_RANGE,		/* u32 */
+	RDMA_NLDEV_ATTR_MAX_RANGE,		/* u32 */
 	/*
 	 * Always the end
 	 */

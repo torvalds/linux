@@ -135,6 +135,8 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_RES_SRQ]		= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_RES_SRQN]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_SRQ_ENTRY]		= { .type = NLA_NESTED },
+	[RDMA_NLDEV_ATTR_MIN_RANGE]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_MAX_RANGE]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_SM_LID]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_SUBNET_PREFIX]		= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK]	= { .type = NLA_U32 },
@@ -723,6 +725,92 @@ static int fill_res_ctx_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	return fill_res_name_pid(msg, res);
 }
 
+static int fill_res_range_qp_entry(struct sk_buff *msg, uint32_t min_range,
+				   uint32_t max_range)
+{
+	struct nlattr *entry_attr;
+
+	if (!min_range)
+		return 0;
+
+	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_QP_ENTRY);
+	if (!entry_attr)
+		return -EMSGSIZE;
+
+	if (min_range == max_range) {
+		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LQPN, min_range))
+			goto err;
+	} else {
+		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_MIN_RANGE, min_range))
+			goto err;
+		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_MAX_RANGE, max_range))
+			goto err;
+	}
+	nla_nest_end(msg, entry_attr);
+	return 0;
+
+err:
+	nla_nest_cancel(msg, entry_attr);
+	return -EMSGSIZE;
+}
+
+static int fill_res_srq_qps(struct sk_buff *msg, struct ib_srq *srq)
+{
+	uint32_t min_range = 0, prev = 0;
+	struct rdma_restrack_entry *res;
+	struct rdma_restrack_root *rt;
+	struct nlattr *table_attr;
+	struct ib_qp *qp = NULL;
+	unsigned long id = 0;
+
+	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_QP);
+	if (!table_attr)
+		return -EMSGSIZE;
+
+	rt = &srq->device->res[RDMA_RESTRACK_QP];
+	xa_lock(&rt->xa);
+	xa_for_each(&rt->xa, id, res) {
+		if (!rdma_restrack_get(res))
+			continue;
+
+		qp = container_of(res, struct ib_qp, res);
+		if (!qp->srq || (qp->srq->res.id != srq->res.id)) {
+			rdma_restrack_put(res);
+			continue;
+		}
+
+		if (qp->qp_num < prev)
+			/* qp_num should be ascending */
+			goto err_loop;
+
+		if (min_range == 0) {
+			min_range = qp->qp_num;
+		} else if (qp->qp_num > (prev + 1)) {
+			if (fill_res_range_qp_entry(msg, min_range, prev))
+				goto err_loop;
+
+			min_range = qp->qp_num;
+		}
+		prev = qp->qp_num;
+		rdma_restrack_put(res);
+	}
+
+	xa_unlock(&rt->xa);
+
+	if (fill_res_range_qp_entry(msg, min_range, prev))
+		goto err;
+
+	nla_nest_end(msg, table_attr);
+	return 0;
+
+err_loop:
+	rdma_restrack_put(res);
+	xa_unlock(&rt->xa);
+err:
+	nla_nest_cancel(msg, table_attr);
+	return -EMSGSIZE;
+}
+
 static int fill_res_srq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			      struct rdma_restrack_entry *res, uint32_t port)
 {
@@ -742,6 +830,9 @@ static int fill_res_srq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 				srq->ext.cq->res.id))
 			goto err;
 	}
+
+	if (fill_res_srq_qps(msg, srq))
+		goto err;
 
 	return fill_res_name_pid(msg, res);
 
