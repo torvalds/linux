@@ -901,6 +901,51 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	crtc_state->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
 }
 
+void intel_psr_get_config(struct intel_encoder *encoder,
+			  struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct intel_dp *intel_dp;
+	u32 val;
+
+	if (!dig_port)
+		return;
+
+	intel_dp = &dig_port->dp;
+	if (!CAN_PSR(intel_dp))
+		return;
+
+	mutex_lock(&intel_dp->psr.lock);
+	if (!intel_dp->psr.enabled)
+		goto unlock;
+
+	/*
+	 * Not possible to read EDP_PSR/PSR2_CTL registers as it is
+	 * enabled/disabled because of frontbuffer tracking and others.
+	 */
+	pipe_config->has_psr = true;
+	pipe_config->has_psr2 = intel_dp->psr.psr2_enabled;
+	pipe_config->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
+
+	if (!intel_dp->psr.psr2_enabled)
+		goto unlock;
+
+	if (HAS_PSR2_SEL_FETCH(dev_priv)) {
+		val = intel_de_read(dev_priv, PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder));
+		if (val & PSR2_MAN_TRK_CTL_ENABLE)
+			pipe_config->enable_psr2_sel_fetch = true;
+	}
+
+	if (DISPLAY_VER(dev_priv) >= 12) {
+		val = intel_de_read(dev_priv, EXITLINE(intel_dp->psr.transcoder));
+		val &= EXITLINE_MASK;
+		pipe_config->dc3co_exitline = val;
+	}
+unlock:
+	mutex_unlock(&intel_dp->psr.lock);
+}
+
 static void intel_psr_activate(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
