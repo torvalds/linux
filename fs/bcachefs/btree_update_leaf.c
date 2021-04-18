@@ -222,18 +222,6 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 static inline void btree_insert_entry_checks(struct btree_trans *trans,
 					     struct btree_insert_entry *i)
 {
-	struct bch_fs *c = trans->c;
-
-	if (bch2_debug_check_bkeys) {
-		const char *invalid = bch2_bkey_invalid(c,
-				bkey_i_to_s_c(i->k), i->bkey_type);
-		if (invalid) {
-			char buf[200];
-
-			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
-			panic("invalid bkey %s on insert: %s\n", buf, invalid);
-		}
-	}
 	BUG_ON(!i->is_extent && bpos_cmp(i->k->k.p, i->iter->real_pos));
 	BUG_ON(i->level		!= i->iter->level);
 	BUG_ON(i->btree_id	!= i->iter->btree_id);
@@ -592,9 +580,18 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
-		trans_for_each_update2(trans, i)
-			btree_insert_entry_checks(trans, i);
+	trans_for_each_update2(trans, i) {
+		const char *invalid = bch2_bkey_invalid(c,
+				bkey_i_to_s_c(i->k), i->bkey_type);
+		if (invalid) {
+			char buf[200];
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
+			bch_err(c, "invalid bkey %s on insert: %s\n", buf, invalid);
+			bch2_fatal_error(c);
+		}
+		btree_insert_entry_checks(trans, i);
+	}
 	bch2_btree_trans_verify_locks(trans);
 
 	trans_for_each_update2(trans, i)
