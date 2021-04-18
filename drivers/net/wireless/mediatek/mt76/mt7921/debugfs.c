@@ -230,11 +230,19 @@ static int
 mt7921_pm_set(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
+	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_phy *mphy = dev->phy.mt76;
+
+	if (val == pm->enable)
+		return 0;
 
 	mt7921_mutex_acquire(dev);
 
-	dev->pm.enable = val;
+	if (!pm->enable) {
+		pm->stats.last_wake_event = jiffies;
+		pm->stats.last_doze_event = jiffies;
+	}
+	pm->enable = val;
 
 	ieee80211_iterate_active_interfaces(mphy->hw,
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
@@ -255,6 +263,26 @@ mt7921_pm_get(void *data, u64 *val)
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_pm, mt7921_pm_get, mt7921_pm_set, "%lld\n");
+
+static int
+mt7921_pm_stats(struct seq_file *s, void *data)
+{
+	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt76_connac_pm *pm = &dev->pm;
+	unsigned long awake_time = pm->stats.awake_time;
+	unsigned long doze_time = pm->stats.doze_time;
+
+	if (!test_bit(MT76_STATE_PM, &dev->mphy.state))
+		awake_time += jiffies - pm->stats.last_wake_event;
+	else
+		doze_time += jiffies - pm->stats.last_doze_event;
+
+	seq_printf(s, "awake time: %14u\ndoze time: %15u\n",
+		   jiffies_to_msecs(awake_time),
+		   jiffies_to_msecs(doze_time));
+
+	return 0;
+}
 
 static int
 mt7921_pm_idle_timeout_set(void *data, u64 val)
@@ -322,6 +350,8 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 	debugfs_create_file("idle-timeout", 0600, dir, dev,
 			    &fops_pm_idle_timeout);
 	debugfs_create_file("chip_reset", 0600, dir, dev, &fops_reset);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "runtime_pm_stats", dir,
+				    mt7921_pm_stats);
 
 	return 0;
 }
