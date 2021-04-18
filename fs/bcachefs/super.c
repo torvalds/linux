@@ -908,9 +908,16 @@ int bch2_fs_start(struct bch_fs *c)
 	/*
 	 * Allocator threads don't start filling copygc reserve until after we
 	 * set BCH_FS_STARTED - wake them now:
+	 *
+	 * XXX ugly hack:
+	 * Need to set ca->allocator_state here instead of relying on the
+	 * allocator threads to do it to avoid racing with the copygc threads
+	 * checking it and thinking they have no alloc reserve:
 	 */
-	for_each_online_member(ca, c, i)
+	for_each_online_member(ca, c, i) {
+		ca->allocator_state = ALLOCATOR_running;
 		bch2_wake_allocator(ca);
+	}
 
 	if (c->opts.read_only || c->opts.nochanges) {
 		bch2_fs_read_only(c);
