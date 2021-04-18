@@ -1043,13 +1043,7 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		napi_consume_skb(skb, 1);
 	}
 
-	if (test_bit(MT76_STATE_PM, &dev->phy.mt76->state))
-		return;
-
 	mt7921_mac_sta_poll(dev);
-
-	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
-
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
