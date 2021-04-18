@@ -712,6 +712,15 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	dev_priv->last_read_seqno = (uint32_t) -100;
 	dev_priv->drm.dev_private = dev_priv;
 
+	mutex_init(&dev_priv->cmdbuf_mutex);
+	mutex_init(&dev_priv->binding_mutex);
+	ttm_lock_init(&dev_priv->reservation_sem);
+	spin_lock_init(&dev_priv->resource_lock);
+	spin_lock_init(&dev_priv->hw_lock);
+	spin_lock_init(&dev_priv->waiter_lock);
+	spin_lock_init(&dev_priv->cap_lock);
+	spin_lock_init(&dev_priv->cursor_lock);
+
 	ret = vmw_setup_pci_resources(dev_priv, pci_id);
 	if (ret)
 		return ret;
@@ -719,16 +728,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	if (ret)
 		goto out_no_pci_or_version;
 
-	mutex_init(&dev_priv->cmdbuf_mutex);
-	mutex_init(&dev_priv->release_mutex);
-	mutex_init(&dev_priv->binding_mutex);
-	mutex_init(&dev_priv->global_kms_state_mutex);
-	ttm_lock_init(&dev_priv->reservation_sem);
-	spin_lock_init(&dev_priv->resource_lock);
-	spin_lock_init(&dev_priv->hw_lock);
-	spin_lock_init(&dev_priv->waiter_lock);
-	spin_lock_init(&dev_priv->cap_lock);
-	spin_lock_init(&dev_priv->cursor_lock);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
 		idr_init(&dev_priv->res_idr[i]);
