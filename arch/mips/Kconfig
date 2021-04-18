@@ -996,7 +996,6 @@ config CAVIUM_OCTEON_SOC
 	select HAVE_PLAT_FW_INIT_CMDLINE
 	select HAVE_PLAT_MEMCPY
 	select ZONE_DMA32
-	select HOLES_IN_ZONE
 	select GPIOLIB
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
@@ -1231,9 +1230,6 @@ config HAVE_PLAT_MEMCPY
 	bool
 
 config ISA_DMA_API
-	bool
-
-config HOLES_IN_ZONE
 	bool
 
 config SYS_SUPPORTS_RELOCATABLE
