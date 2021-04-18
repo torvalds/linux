@@ -532,6 +532,11 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 			       hsw_dip_data_reg(dev_priv, cpu_transcoder, type, i >> 2),
 			       0);
 
+	/* Wa_14013475917 */
+	if (DISPLAY_VER(dev_priv) == 13 && crtc_state->has_psr &&
+	    type == DP_SDP_VSC)
+		return;
+
 	val |= hsw_infoframe_enable(type);
 	intel_de_write(dev_priv, ctl_reg, val);
 	intel_de_posting_read(dev_priv, ctl_reg);
