@@ -1039,8 +1039,12 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 	}
 	atomic_inc(&pd->usecnt);
 
+	rdma_restrack_new(&srq->res, RDMA_RESTRACK_SRQ);
+	rdma_restrack_parent_name(&srq->res, &pd->res);
+
 	ret = pd->device->ops.create_srq(srq, srq_init_attr, udata);
 	if (ret) {
+		rdma_restrack_put(&srq->res);
 		atomic_dec(&srq->pd->usecnt);
 		if (srq->srq_type == IB_SRQT_XRC)
 			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
@@ -1049,6 +1053,8 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 		kfree(srq);
 		return ERR_PTR(ret);
 	}
+
+	rdma_restrack_add(&srq->res);
 
 	return srq;
 }
@@ -1088,6 +1094,7 @@ int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 		atomic_dec(&srq->ext.xrc.xrcd->usecnt);
 	if (ib_srq_has_cq(srq->srq_type))
 		atomic_dec(&srq->ext.cq->usecnt);
+	rdma_restrack_del(&srq->res);
 	kfree(srq);
 
 	return ret;
