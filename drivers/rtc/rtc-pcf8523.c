@@ -9,8 +9,6 @@
 #include <linux/rtc.h>
 #include <linux/of.h>
 
-#define DRIVER_NAME "rtc-pcf8523"
-
 #define REG_CONTROL1 0x00
 #define REG_CONTROL1_CAP_SEL BIT(7)
 #define REG_CONTROL1_STOP    BIT(5)
@@ -373,7 +371,7 @@ MODULE_DEVICE_TABLE(of, pcf8523_of_match);
 
 static struct i2c_driver pcf8523_driver = {
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "rtc-pcf8523",
 		.of_match_table = of_match_ptr(pcf8523_of_match),
 	},
 	.probe = pcf8523_probe,
