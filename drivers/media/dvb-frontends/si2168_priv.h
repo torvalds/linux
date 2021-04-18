@@ -36,6 +36,7 @@ struct si2168_dev {
 	u8 ts_mode;
 	unsigned int active:1;
 	unsigned int warm:1;
+	unsigned int initialized:1;
 	unsigned int ts_clock_inv:1;
 	unsigned int ts_clock_gapped:1;
 	unsigned int spectral_inversion:1;
