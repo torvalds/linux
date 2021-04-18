@@ -380,24 +380,27 @@ DEFINE_EVENT(bch_fs, gc_cannot_inc_gens,
 
 /* Allocator */
 
-TRACE_EVENT(alloc_batch,
-	TP_PROTO(struct bch_dev *ca, size_t free, size_t total),
-	TP_ARGS(ca, free, total),
+TRACE_EVENT(alloc_scan,
+	TP_PROTO(struct bch_dev *ca, u64 found, u64 inc_gen, u64 inc_gen_skipped),
+	TP_ARGS(ca, found, inc_gen, inc_gen_skipped),
 
 	TP_STRUCT__entry(
-		__array(char,		uuid,	16	)
-		__field(size_t,		free		)
-		__field(size_t,		total		)
+		__field(dev_t,		dev		)
+		__field(u64,		found		)
+		__field(u64,		inc_gen		)
+		__field(u64,		inc_gen_skipped	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, ca->uuid.b, 16);
-		__entry->free = free;
-		__entry->total = total;
+		__entry->dev		= ca->disk_sb.bdev->bd_dev;
+		__entry->found		= found;
+		__entry->inc_gen	= inc_gen;
+		__entry->inc_gen_skipped = inc_gen_skipped;
 	),
 
-	TP_printk("%pU free %zu total %zu",
-		__entry->uuid, __entry->free, __entry->total)
+	TP_printk("%d,%d found %llu inc_gen %llu inc_gen_skipped %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->found, __entry->inc_gen, __entry->inc_gen_skipped)
 );
 
 TRACE_EVENT(invalidate,
@@ -417,8 +420,10 @@ TRACE_EVENT(invalidate,
 	),
 
 	TP_printk("invalidated %u sectors at %d,%d sector=%llu",
-		  __entry->sectors, MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->offset)
+		  __entry->sectors,
+		  MAJOR(__entry->dev),
+		  MINOR(__entry->dev),
+		  __entry->offset)
 );
 
 DECLARE_EVENT_CLASS(bucket_alloc,
@@ -426,16 +431,18 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 	TP_ARGS(ca, reserve),
 
 	TP_STRUCT__entry(
-		__array(char,			uuid,	16)
-		__field(enum alloc_reserve,	reserve	  )
+		__field(dev_t,			dev	)
+		__field(enum alloc_reserve,	reserve	)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->uuid, ca->uuid.b, 16);
-		__entry->reserve = reserve;
+		__entry->dev		= ca->disk_sb.bdev->bd_dev;
+		__entry->reserve	= reserve;
 	),
 
-	TP_printk("%pU reserve %d", __entry->uuid, __entry->reserve)
+	TP_printk("%d,%d reserve %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->reserve)
 );
 
 DEFINE_EVENT(bucket_alloc, bucket_alloc,
