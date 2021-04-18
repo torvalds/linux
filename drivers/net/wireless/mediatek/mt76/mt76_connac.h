@@ -54,6 +54,7 @@ struct mt76_connac_pm {
 
 	struct work_struct wake_work;
 	struct completion wake_cmpl;
+	struct mutex mutex;
 
 	struct delayed_work ps_work;
 	unsigned long last_activity;
