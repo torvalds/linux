@@ -86,11 +86,19 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	/* SB_NOATIME means filesystem supplies dummy atime value */
 	if (inode->i_sb->s_flags & SB_NOATIME)
 		stat->result_mask &= ~STATX_ATIME;
+
+	/*
+	 * Note: If you add another clause to set an attribute flag, please
+	 * update attributes_mask below.
+	 */
 	if (IS_AUTOMOUNT(inode))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
 	if (IS_DAX(inode))
 		stat->attributes |= STATX_ATTR_DAX;
+
+	stat->attributes_mask |= (STATX_ATTR_AUTOMOUNT |
+				  STATX_ATTR_DAX);
 
 	mnt_userns = mnt_user_ns(path->mnt);
 	if (inode->i_op->getattr)
