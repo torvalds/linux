@@ -887,6 +887,14 @@ void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 	btree_update_drop_new_node(c, b);
 
 	btree_update_will_delete_key(as, &b->key);
+
+	/*
+	 * XXX: Waiting on io with btree node locks held, we don't want to be
+	 * doing this. We can't have btree writes happening after the space has
+	 * been freed, but we really only need to block before
+	 * btree_update_nodes_written_trans() happens.
+	 */
+	btree_node_wait_on_io(b);
 }
 
 void bch2_btree_update_done(struct btree_update *as)
