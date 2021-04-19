@@ -307,8 +307,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 }
 
 static inline void do_btree_insert_one(struct btree_trans *trans,
-				       struct btree_iter *iter,
-				       struct bkey_i *insert)
+				       struct btree_insert_entry *i)
 {
 	struct bch_fs *c = trans->c;
 	struct journal *j = &c->journal;
@@ -317,20 +316,22 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 	EBUG_ON(trans->journal_res.ref !=
 		!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY));
 
-	insert->k.needs_whiteout = false;
+	i->k->k.needs_whiteout = false;
 
-	did_work = (btree_iter_type(iter) != BTREE_ITER_CACHED)
-		? btree_insert_key_leaf(trans, iter, insert)
-		: bch2_btree_insert_key_cached(trans, iter, insert);
+	did_work = (btree_iter_type(i->iter) != BTREE_ITER_CACHED)
+		? btree_insert_key_leaf(trans, i->iter, i->k)
+		: bch2_btree_insert_key_cached(trans, i->iter, i->k);
 	if (!did_work)
 		return;
 
 	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
 		bch2_journal_add_keys(j, &trans->journal_res,
-				      iter->btree_id, insert);
+				      i->btree_id,
+				      i->level,
+				      i->k);
 
 		bch2_journal_set_has_inode(j, &trans->journal_res,
-					   insert->k.p.inode);
+					   i->k->k.p.inode);
 
 		if (trans->journal_seq)
 			*trans->journal_seq = trans->journal_res.seq;
@@ -468,7 +469,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 		bch2_trans_mark_gc(trans);
 
 	trans_for_each_update2(trans, i)
-		do_btree_insert_one(trans, i->iter, i->k);
+		do_btree_insert_one(trans, i);
 err:
 	if (marking) {
 		percpu_up_read(&c->mark_lock);

@@ -241,10 +241,11 @@ static inline void bch2_journal_add_entry(struct journal *j, struct journal_res 
 }
 
 static inline void bch2_journal_add_keys(struct journal *j, struct journal_res *res,
-					enum btree_id id, const struct bkey_i *k)
+					enum btree_id id, unsigned level,
+					const struct bkey_i *k)
 {
 	bch2_journal_add_entry(j, res, BCH_JSET_ENTRY_btree_keys,
-			       id, 0, k, k->k.u64s);
+			       id, level, k, k->k.u64s);
 }
 
 static inline bool journal_entry_empty(struct jset *j)
