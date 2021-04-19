@@ -23,11 +23,16 @@
 
 #define KEXEC_ARCH KEXEC_ARCH_RISCV
 
+extern void riscv_crash_save_regs(struct pt_regs *newregs);
+
 static inline void
 crash_setup_regs(struct pt_regs *newregs,
 		 struct pt_regs *oldregs)
 {
-	/* Dummy implementation for now */
+	if (oldregs)
+		memcpy(newregs, oldregs, sizeof(struct pt_regs));
+	else
+		riscv_crash_save_regs(newregs);
 }
 
 
@@ -40,10 +45,12 @@ struct kimage_arch {
 const extern unsigned char riscv_kexec_relocate[];
 const extern unsigned int riscv_kexec_relocate_size;
 
-typedef void (*riscv_kexec_do_relocate)(unsigned long first_ind_entry,
-					unsigned long jump_addr,
-					unsigned long fdt_addr,
-					unsigned long hartid,
-					unsigned long va_pa_off);
+typedef void (*riscv_kexec_method)(unsigned long first_ind_entry,
+				   unsigned long jump_addr,
+				   unsigned long fdt_addr,
+				   unsigned long hartid,
+				   unsigned long va_pa_off);
+
+extern riscv_kexec_method riscv_kexec_norelocate;
 
 #endif

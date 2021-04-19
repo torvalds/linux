@@ -151,7 +151,73 @@ SYM_CODE_START(riscv_kexec_relocate)
 SYM_CODE_END(riscv_kexec_relocate)
 riscv_kexec_relocate_end:
 
-	.section ".rodata"
+
+/* Used for jumping to crashkernel */
+.section ".text"
+SYM_CODE_START(riscv_kexec_norelocate)
+	/*
+	 * s0: (const) Phys address to jump to
+	 * s1: (const) Phys address of the FDT image
+	 * s2: (const) The hartid of the current hart
+	 * s3: (const) va_pa_offset, used when switching MMU off
+	 */
+	mv	s0, a1
+	mv	s1, a2
+	mv	s2, a3
+	mv	s3, a4
+
+	/* Disable / cleanup interrupts */
+	csrw	CSR_SIE, zero
+	csrw	CSR_SIP, zero
+
+	/* Switch to physical addressing */
+	la	s4, 1f
+	sub	s4, s4, s3
+	csrw	CSR_STVEC, s4
+	csrw	CSR_SATP, zero
+
+.align 2
+1:
+	/* Pass the arguments to the next kernel  / Cleanup*/
+	mv	a0, s2
+	mv	a1, s1
+	mv	a2, s0
+
+	/* Cleanup */
+	mv	a3, zero
+	mv	a4, zero
+	mv	a5, zero
+	mv	a6, zero
+	mv	a7, zero
+
+	mv	s0, zero
+	mv	s1, zero
+	mv	s2, zero
+	mv	s3, zero
+	mv	s4, zero
+	mv	s5, zero
+	mv	s6, zero
+	mv	s7, zero
+	mv	s8, zero
+	mv	s9, zero
+	mv	s10, zero
+	mv	s11, zero
+
+	mv	t0, zero
+	mv	t1, zero
+	mv	t2, zero
+	mv	t3, zero
+	mv	t4, zero
+	mv	t5, zero
+	mv	t6, zero
+	csrw	CSR_SEPC, zero
+	csrw	CSR_SCAUSE, zero
+	csrw	CSR_SSCRATCH, zero
+
+	jalr	zero, a2, 0
+SYM_CODE_END(riscv_kexec_norelocate)
+
+.section ".rodata"
 SYM_DATA(riscv_kexec_relocate_size,
 	.long riscv_kexec_relocate_end - riscv_kexec_relocate)
 

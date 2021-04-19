@@ -59,11 +59,6 @@ machine_kexec_prepare(struct kimage *image)
 
 	kexec_image_info(image);
 
-	if (image->type == KEXEC_TYPE_CRASH) {
-		pr_warn("Loading a crash kernel is unsupported for now.\n");
-		return -EINVAL;
-	}
-
 	/* Find the Flattened Device Tree and save its physical address */
 	for (i = 0; i < image->nr_segments; i++) {
 		if (image->segment[i].memsz <= sizeof(fdt))
@@ -85,17 +80,21 @@ machine_kexec_prepare(struct kimage *image)
 	}
 
 	/* Copy the assembler code for relocation to the control page */
-	control_code_buffer = page_address(image->control_code_page);
-	control_code_buffer_sz = page_size(image->control_code_page);
-	if (unlikely(riscv_kexec_relocate_size > control_code_buffer_sz)) {
-		pr_err("Relocation code doesn't fit within a control page\n");
-		return -EINVAL;
-	}
-	memcpy(control_code_buffer, riscv_kexec_relocate,
-		riscv_kexec_relocate_size);
+	if (image->type != KEXEC_TYPE_CRASH) {
+		control_code_buffer = page_address(image->control_code_page);
+		control_code_buffer_sz = page_size(image->control_code_page);
 
-	/* Mark the control page executable */
-	set_memory_x((unsigned long) control_code_buffer, 1);
+		if (unlikely(riscv_kexec_relocate_size > control_code_buffer_sz)) {
+			pr_err("Relocation code doesn't fit within a control page\n");
+			return -EINVAL;
+		}
+
+		memcpy(control_code_buffer, riscv_kexec_relocate,
+			riscv_kexec_relocate_size);
+
+		/* Mark the control page executable */
+		set_memory_x((unsigned long) control_code_buffer, 1);
+	}
 
 	return 0;
 }
@@ -147,6 +146,9 @@ void machine_shutdown(void)
 void
 machine_crash_shutdown(struct pt_regs *regs)
 {
+	crash_save_cpu(regs, smp_processor_id());
+	machine_shutdown();
+	pr_info("Starting crashdump kernel...\n");
 }
 
 /**
@@ -169,7 +171,12 @@ machine_kexec(struct kimage *image)
 	unsigned long this_hart_id = raw_smp_processor_id();
 	unsigned long fdt_addr = internal->fdt_addr;
 	void *control_code_buffer = page_address(image->control_code_page);
-	riscv_kexec_do_relocate do_relocate = control_code_buffer;
+	riscv_kexec_method kexec_method = NULL;
+
+	if (image->type != KEXEC_TYPE_CRASH)
+		kexec_method = control_code_buffer;
+	else
+		kexec_method = (riscv_kexec_method) &riscv_kexec_norelocate;
 
 	pr_notice("Will call new kernel at %08lx from hart id %lx\n",
 		  jump_addr, this_hart_id);
@@ -180,7 +187,7 @@ machine_kexec(struct kimage *image)
 
 	/* Jump to the relocation code */
 	pr_notice("Bye...\n");
-	do_relocate(first_ind_entry, jump_addr, fdt_addr,
-		    this_hart_id, va_pa_offset);
+	kexec_method(first_ind_entry, jump_addr, fdt_addr,
+		     this_hart_id, va_pa_offset);
 	unreachable();
 }
