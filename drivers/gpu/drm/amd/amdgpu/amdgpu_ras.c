@@ -658,11 +658,7 @@ static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		con->features |= BIT(head->block);
 	} else {
 		if (obj && amdgpu_ras_is_feature_enabled(adev, head)) {
-			/* skip clean gfx ras context feature for VEGA20 Gaming.
-			 * will clean later
-			 */
-			if (!(!adev->ras_features && con->features & BIT(AMDGPU_RAS_BLOCK__GFX)))
-				con->features &= ~BIT(head->block);
+			con->features &= ~BIT(head->block);
 			put_obj(obj);
 		}
 	}
@@ -770,6 +766,10 @@ int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
 				con->features |= BIT(head->block);
 
 			ret = amdgpu_ras_feature_enable(adev, head, 0);
+
+			/* clean gfx block ras features flag */
+			if (adev->ras_features && head->block == AMDGPU_RAS_BLOCK__GFX)
+				con->features &= ~BIT(head->block);
 		}
 	} else
 		ret = amdgpu_ras_feature_enable(adev, head, enable);
