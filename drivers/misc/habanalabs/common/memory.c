@@ -14,6 +14,9 @@
 
 #define HL_MMU_DEBUG	0
 
+/* use small pages for supporting non-pow2 (32M/40M/48M) DRAM phys page sizes */
+#define DRAM_POOL_PAGE_SIZE SZ_8M
+
 /*
  * The va ranges in context object contain a list with the available chunks of
  * device virtual memory.
@@ -38,15 +41,14 @@
  */
 
 /*
- * alloc_device_memory - allocate device memory
- *
- * @ctx                 : current context
- * @args                : host parameters containing the requested size
- * @ret_handle          : result handle
+ * alloc_device_memory() - allocate device memory.
+ * @ctx: pointer to the context structure.
+ * @args: host parameters containing the requested size.
+ * @ret_handle: result handle.
  *
  * This function does the following:
- * - Allocate the requested size rounded up to 'dram_page_size' pages
- * - Return unique handle
+ * - Allocate the requested size rounded up to 'dram_page_size' pages.
+ * - Return unique handle for later map/unmap/free.
  */
 static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 				u32 *ret_handle)
@@ -55,15 +57,14 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	u64 paddr = 0, total_size, num_pgs, i;
-	u32 num_curr_pgs, page_size, page_shift;
+	u32 num_curr_pgs, page_size;
 	int handle, rc;
 	bool contiguous;
 
 	num_curr_pgs = 0;
 	page_size = hdev->asic_prop.dram_page_size;
-	page_shift = __ffs(page_size);
-	num_pgs = (args->alloc.mem_size + (page_size - 1)) >> page_shift;
-	total_size = num_pgs << page_shift;
+	num_pgs = DIV_ROUND_UP_ULL(args->alloc.mem_size, page_size);
+	total_size = num_pgs * page_size;
 
 	if (!total_size) {
 		dev_err(hdev->dev, "Cannot allocate 0 bytes\n");
@@ -182,17 +183,17 @@ pages_pack_err:
 	return rc;
 }
 
-/*
- * dma_map_host_va - DMA mapping of the given host virtual address.
- * @hdev: habanalabs device structure
- * @addr: the host virtual address of the memory area
- * @size: the size of the memory area
- * @p_userptr: pointer to result userptr structure
+/**
+ * dma_map_host_va() - DMA mapping of the given host virtual address.
+ * @hdev: habanalabs device structure.
+ * @addr: the host virtual address of the memory area.
+ * @size: the size of the memory area.
+ * @p_userptr: pointer to result userptr structure.
  *
  * This function does the following:
- * - Allocate userptr structure
- * - Pin the given host memory using the userptr structure
- * - Perform DMA mapping to have the DMA addresses of the pages
+ * - Allocate userptr structure.
+ * - Pin the given host memory using the userptr structure.
+ * - Perform DMA mapping to have the DMA addresses of the pages.
  */
 static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
 				struct hl_userptr **p_userptr)
@@ -236,14 +237,14 @@ userptr_err:
 	return rc;
 }
 
-/*
- * dma_unmap_host_va - DMA unmapping of the given host virtual address.
- * @hdev: habanalabs device structure
- * @userptr: userptr to free
+/**
+ * dma_unmap_host_va() - DMA unmapping of the given host virtual address.
+ * @hdev: habanalabs device structure.
+ * @userptr: userptr to free.
  *
  * This function does the following:
- * - Unpins the physical pages
- * - Frees the userptr structure
+ * - Unpins the physical pages.
+ * - Frees the userptr structure.
  */
 static void dma_unmap_host_va(struct hl_device *hdev,
 				struct hl_userptr *userptr)
@@ -252,14 +253,13 @@ static void dma_unmap_host_va(struct hl_device *hdev,
 	kfree(userptr);
 }
 
-/*
- * dram_pg_pool_do_release - free DRAM pages pool
- *
- * @ref                 : pointer to reference object
+/**
+ * dram_pg_pool_do_release() - free DRAM pages pool
+ * @ref: pointer to reference object.
  *
  * This function does the following:
- * - Frees the idr structure of physical pages handles
- * - Frees the generic pool of DRAM physical pages
+ * - Frees the idr structure of physical pages handles.
+ * - Frees the generic pool of DRAM physical pages.
  */
 static void dram_pg_pool_do_release(struct kref *ref)
 {
@@ -274,15 +274,15 @@ static void dram_pg_pool_do_release(struct kref *ref)
 	gen_pool_destroy(vm->dram_pg_pool);
 }
 
-/*
- * free_phys_pg_pack - free physical page pack
- * @hdev: habanalabs device structure
- * @phys_pg_pack: physical page pack to free
+/**
+ * free_phys_pg_pack() - free physical page pack.
+ * @hdev: habanalabs device structure.
+ * @phys_pg_pack: physical page pack to free.
  *
  * This function does the following:
  * - For DRAM memory only, iterate over the pack and free each physical block
- *   structure by returning it to the general pool
- * - Free the hl_vm_phys_pg_pack structure
+ *   structure by returning it to the general pool.
+ * - Free the hl_vm_phys_pg_pack structure.
  */
 static void free_phys_pg_pack(struct hl_device *hdev,
 				struct hl_vm_phys_pg_pack *phys_pg_pack)
@@ -313,20 +313,20 @@ static void free_phys_pg_pack(struct hl_device *hdev,
 	kfree(phys_pg_pack);
 }
 
-/*
- * free_device_memory - free device memory
- *
- * @ctx                  : current context
- * @handle              : handle of the memory chunk to free
+/**
+ * free_device_memory() - free device memory.
+ * @ctx: pointer to the context structure.
+ * @args: host parameters containing the requested size.
  *
  * This function does the following:
- * - Free the device memory related to the given handle
+ * - Free the device memory related to the given handle.
  */
-static int free_device_memory(struct hl_ctx *ctx, u32 handle)
+static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
+	u32 handle = args->free.handle;
 
 	spin_lock(&vm->idr_lock);
 	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
@@ -361,16 +361,15 @@ static int free_device_memory(struct hl_ctx *ctx, u32 handle)
 	return 0;
 }
 
-/*
- * clear_va_list_locked - free virtual addresses list
- *
- * @hdev                : habanalabs device structure
- * @va_list             : list of virtual addresses to free
+/**
+ * clear_va_list_locked() - free virtual addresses list.
+ * @hdev: habanalabs device structure.
+ * @va_list: list of virtual addresses to free.
  *
  * This function does the following:
- * - Iterate over the list and free each virtual addresses block
+ * - Iterate over the list and free each virtual addresses block.
  *
- * This function should be called only when va_list lock is taken
+ * This function should be called only when va_list lock is taken.
  */
 static void clear_va_list_locked(struct hl_device *hdev,
 		struct list_head *va_list)
@@ -383,16 +382,15 @@ static void clear_va_list_locked(struct hl_device *hdev,
 	}
 }
 
-/*
- * print_va_list_locked    - print virtual addresses list
- *
- * @hdev                : habanalabs device structure
- * @va_list             : list of virtual addresses to print
+/**
+ * print_va_list_locked() - print virtual addresses list.
+ * @hdev: habanalabs device structure.
+ * @va_list: list of virtual addresses to print.
  *
  * This function does the following:
- * - Iterate over the list and print each virtual addresses block
+ * - Iterate over the list and print each virtual addresses block.
  *
- * This function should be called only when va_list lock is taken
+ * This function should be called only when va_list lock is taken.
  */
 static void print_va_list_locked(struct hl_device *hdev,
 		struct list_head *va_list)
@@ -409,18 +407,17 @@ static void print_va_list_locked(struct hl_device *hdev,
 #endif
 }
 
-/*
- * merge_va_blocks_locked - merge a virtual block if possible
- *
- * @hdev                : pointer to the habanalabs device structure
- * @va_list             : pointer to the virtual addresses block list
- * @va_block            : virtual block to merge with adjacent blocks
+/**
+ * merge_va_blocks_locked() - merge a virtual block if possible.
+ * @hdev: pointer to the habanalabs device structure.
+ * @va_list: pointer to the virtual addresses block list.
+ * @va_block: virtual block to merge with adjacent blocks.
  *
  * This function does the following:
  * - Merge the given blocks with the adjacent blocks if their virtual ranges
- *   create a contiguous virtual range
+ *   create a contiguous virtual range.
  *
- * This Function should be called only when va_list lock is taken
+ * This Function should be called only when va_list lock is taken.
  */
 static void merge_va_blocks_locked(struct hl_device *hdev,
 		struct list_head *va_list, struct hl_vm_va_block *va_block)
@@ -445,19 +442,18 @@ static void merge_va_blocks_locked(struct hl_device *hdev,
 	}
 }
 
-/*
- * add_va_block_locked - add a virtual block to the virtual addresses list
- *
- * @hdev                : pointer to the habanalabs device structure
- * @va_list             : pointer to the virtual addresses block list
- * @start               : start virtual address
- * @end                 : end virtual address
+/**
+ * add_va_block_locked() - add a virtual block to the virtual addresses list.
+ * @hdev: pointer to the habanalabs device structure.
+ * @va_list: pointer to the virtual addresses block list.
+ * @start: start virtual address.
+ * @end: end virtual address.
  *
  * This function does the following:
- * - Add the given block to the virtual blocks list and merge with other
- * blocks if a contiguous virtual block can be created
+ * - Add the given block to the virtual blocks list and merge with other blocks
+ *   if a contiguous virtual block can be created.
  *
- * This Function should be called only when va_list lock is taken
+ * This Function should be called only when va_list lock is taken.
  */
 static int add_va_block_locked(struct hl_device *hdev,
 		struct list_head *va_list, u64 start, u64 end)
@@ -501,16 +497,15 @@ static int add_va_block_locked(struct hl_device *hdev,
 	return 0;
 }
 
-/*
- * add_va_block - wrapper for add_va_block_locked
- *
- * @hdev                : pointer to the habanalabs device structure
- * @va_list             : pointer to the virtual addresses block list
- * @start               : start virtual address
- * @end                 : end virtual address
+/**
+ * add_va_block() - wrapper for add_va_block_locked.
+ * @hdev: pointer to the habanalabs device structure.
+ * @va_list: pointer to the virtual addresses block list.
+ * @start: start virtual address.
+ * @end: end virtual address.
  *
  * This function does the following:
- * - Takes the list lock and calls add_va_block_locked
+ * - Takes the list lock and calls add_va_block_locked.
  */
 static inline int add_va_block(struct hl_device *hdev,
 		struct hl_va_range *va_range, u64 start, u64 end)
@@ -524,8 +519,9 @@ static inline int add_va_block(struct hl_device *hdev,
 	return rc;
 }
 
-/*
+/**
  * get_va_block() - get a virtual block for the given size and alignment.
+ *
  * @hdev: pointer to the habanalabs device structure.
  * @va_range: pointer to the virtual addresses range.
  * @size: requested block size.
@@ -534,33 +530,51 @@ static inline int add_va_block(struct hl_device *hdev,
  *
  * This function does the following:
  * - Iterate on the virtual block list to find a suitable virtual block for the
- *   given size and alignment.
+ *   given size, hint address and alignment.
  * - Reserve the requested block and update the list.
  * - Return the start address of the virtual block.
  */
-static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
-			u64 size, u64 hint_addr, u32 va_block_align)
+static u64 get_va_block(struct hl_device *hdev,
+				struct hl_va_range *va_range,
+				u64 size, u64 hint_addr, u32 va_block_align)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
-	u64 valid_start, valid_size, prev_start, prev_end, align_mask,
-		res_valid_start = 0, res_valid_size = 0;
+	u64 tmp_hint_addr, valid_start, valid_size, prev_start, prev_end,
+		align_mask, reserved_valid_start = 0, reserved_valid_size = 0;
 	bool add_prev = false;
+	bool is_align_pow_2  = is_power_of_2(va_range->page_size);
 
-	align_mask = ~((u64)va_block_align - 1);
+	if (is_align_pow_2)
+		align_mask = ~((u64)va_block_align - 1);
+	else
+		/*
+		 * with non-power-of-2 range we work only with page granularity
+		 * and the start address is page aligned,
+		 * so no need for alignment checking.
+		 */
+		size = DIV_ROUND_UP_ULL(size, va_range->page_size) *
+							va_range->page_size;
 
-	/* check if hint_addr is aligned */
-	if (hint_addr & (va_block_align - 1))
+	tmp_hint_addr = hint_addr;
+
+	/* Check if we need to ignore hint address */
+	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
+			(!is_align_pow_2 &&
+				do_div(tmp_hint_addr, va_range->page_size))) {
+		dev_info(hdev->dev, "Hint address 0x%llx will be ignored\n",
+					hint_addr);
 		hint_addr = 0;
+	}
 
 	mutex_lock(&va_range->lock);
 
 	print_va_list_locked(hdev, &va_range->list);
 
 	list_for_each_entry(va_block, &va_range->list, node) {
-		/* calc the first possible aligned addr */
+		/* Calc the first possible aligned addr */
 		valid_start = va_block->start;
 
-		if (valid_start & (va_block_align - 1)) {
+		if (is_align_pow_2 && (valid_start & (va_block_align - 1))) {
 			valid_start &= align_mask;
 			valid_start += va_block_align;
 			if (valid_start > va_block->end)
@@ -568,35 +582,41 @@ static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
 		}
 
 		valid_size = va_block->end - valid_start;
+		if (valid_size < size)
+			continue;
 
-		if (valid_size >= size &&
-			(!new_va_block || valid_size < res_valid_size)) {
+		/* Pick the minimal length block which has the required size */
+		if (!new_va_block || (valid_size < reserved_valid_size)) {
 			new_va_block = va_block;
-			res_valid_start = valid_start;
-			res_valid_size = valid_size;
+			reserved_valid_start = valid_start;
+			reserved_valid_size = valid_size;
 		}
 
 		if (hint_addr && hint_addr >= valid_start &&
-				((hint_addr + size) <= va_block->end)) {
+					(hint_addr + size) <= va_block->end) {
 			new_va_block = va_block;
-			res_valid_start = hint_addr;
-			res_valid_size = valid_size;
+			reserved_valid_start = hint_addr;
+			reserved_valid_size = valid_size;
 			break;
 		}
 	}
 
 	if (!new_va_block) {
 		dev_err(hdev->dev, "no available va block for size %llu\n",
-				size);
+								size);
 		goto out;
 	}
 
-	if (res_valid_start > new_va_block->start) {
+	/*
+	 * Check if there is some leftover range due to reserving the new
+	 * va block, then return it to the main virtual addresses list.
+	 */
+	if (reserved_valid_start > new_va_block->start) {
 		prev_start = new_va_block->start;
-		prev_end = res_valid_start - 1;
+		prev_end = reserved_valid_start - 1;
 
-		new_va_block->start = res_valid_start;
-		new_va_block->size = res_valid_size;
+		new_va_block->start = reserved_valid_start;
+		new_va_block->size = reserved_valid_size;
 
 		add_prev = true;
 	}
@@ -617,7 +637,7 @@ static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
 out:
 	mutex_unlock(&va_range->lock);
 
-	return res_valid_start;
+	return reserved_valid_start;
 }
 
 /*
@@ -644,9 +664,9 @@ u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 
 /**
  * hl_get_va_range_type() - get va_range type for the given address and size.
- * @address: The start address of the area we want to validate.
- * @size: The size in bytes of the area we want to validate.
- * @type: returned va_range type
+ * @address: the start address of the area we want to validate.
+ * @size: the size in bytes of the area we want to validate.
+ * @type: returned va_range type.
  *
  * Return: true if the area is inside a valid range, false otherwise.
  */
@@ -667,16 +687,15 @@ static int hl_get_va_range_type(struct hl_ctx *ctx, u64 address, u64 size,
 	return -EINVAL;
 }
 
-/*
- * hl_unreserve_va_block - wrapper for add_va_block for unreserving a va block
- *
+/**
+ * hl_unreserve_va_block() - wrapper for add_va_block to unreserve a va block.
  * @hdev: pointer to the habanalabs device structure
- * @ctx: current context
- * @start: start virtual address
- * @end: end virtual address
+ * @ctx: pointer to the context structure.
+ * @start: start virtual address.
+ * @end: end virtual address.
  *
  * This function does the following:
- * - Takes the list lock and calls add_va_block_locked
+ * - Takes the list lock and calls add_va_block_locked.
  */
 int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 		u64 start_addr, u64 size)
@@ -701,11 +720,10 @@ int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 	return rc;
 }
 
-/*
- * get_sg_info - get number of pages and the DMA address from SG list
- *
- * @sg                 : the SG list
- * @dma_addr           : pointer to DMA address to return
+/**
+ * get_sg_info() - get number of pages and the DMA address from SG list.
+ * @sg: the SG list.
+ * @dma_addr: pointer to DMA address to return.
  *
  * Calculate the number of consecutive pages described by the SG list. Take the
  * offset of the address in the first page, add to it the length and round it up
@@ -719,17 +737,17 @@ static u32 get_sg_info(struct scatterlist *sg, dma_addr_t *dma_addr)
 			(PAGE_SIZE - 1)) >> PAGE_SHIFT;
 }
 
-/*
- * init_phys_pg_pack_from_userptr - initialize physical page pack from host
- *                                  memory
- * @ctx: current context
- * @userptr: userptr to initialize from
- * @pphys_pg_pack: result pointer
+/**
+ * init_phys_pg_pack_from_userptr() - initialize physical page pack from host
+ *                                    memory
+ * @ctx: pointer to the context structure.
+ * @userptr: userptr to initialize from.
+ * @pphys_pg_pack: result pointer.
  *
  * This function does the following:
- * - Pin the physical pages related to the given virtual block
+ * - Pin the physical pages related to the given virtual block.
  * - Create a physical page pack from the physical pages related to the given
- *   virtual block
+ *   virtual block.
  */
 static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 				struct hl_userptr *userptr,
@@ -821,16 +839,16 @@ page_pack_arr_mem_err:
 	return rc;
 }
 
-/*
- * map_phys_pg_pack - maps the physical page pack.
- * @ctx: current context
- * @vaddr: start address of the virtual area to map from
- * @phys_pg_pack: the pack of physical pages to map to
+/**
+ * map_phys_pg_pack() - maps the physical page pack..
+ * @ctx: pointer to the context structure.
+ * @vaddr: start address of the virtual area to map from.
+ * @phys_pg_pack: the pack of physical pages to map to.
  *
  * This function does the following:
- * - Maps each chunk of virtual memory to matching physical chunk
- * - Stores number of successful mappings in the given argument
- * - Returns 0 on success, error code otherwise
+ * - Maps each chunk of virtual memory to matching physical chunk.
+ * - Stores number of successful mappings in the given argument.
+ * - Returns 0 on success, error code otherwise.
  */
 static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 				struct hl_vm_phys_pg_pack *phys_pg_pack)
@@ -875,11 +893,11 @@ err:
 	return rc;
 }
 
-/*
- * unmap_phys_pg_pack - unmaps the physical page pack
- * @ctx: current context
- * @vaddr: start address of the virtual area to unmap
- * @phys_pg_pack: the pack of physical pages to unmap
+/**
+ * unmap_phys_pg_pack() - unmaps the physical page pack.
+ * @ctx: pointer to the context structure.
+ * @vaddr: start address of the virtual area to unmap.
+ * @phys_pg_pack: the pack of physical pages to unmap.
  */
 static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 				struct hl_vm_phys_pg_pack *phys_pg_pack)
@@ -913,7 +931,7 @@ static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 }
 
 static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
-				u64 *paddr)
+					u64 *paddr)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm *vm = &hdev->vm;
@@ -936,19 +954,18 @@ static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
 	return 0;
 }
 
-/*
- * map_device_va - map the given memory
- *
- * @ctx	         : current context
- * @args         : host parameters with handle/host virtual address
- * @device_addr	 : pointer to result device virtual address
+/**
+ * map_device_va() - map the given memory.
+ * @ctx: pointer to the context structure.
+ * @args: host parameters with handle/host virtual address.
+ * @device_addr: pointer to result device virtual address.
  *
  * This function does the following:
  * - If given a physical device memory handle, map to a device virtual block
- *   and return the start address of this block
+ *   and return the start address of this block.
  * - If given a host virtual address and size, find the related physical pages,
  *   map a device virtual block to this pages and return the start address of
- *   this block
+ *   this block.
  */
 static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		u64 *device_addr)
@@ -1034,7 +1051,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 		hint_addr = args->map_device.hint_addr;
 
-		/* DRAM VA alignment is the same as the DRAM page size */
+		/* DRAM VA alignment is the same as the MMU page size */
 		va_range = ctx->va_range[HL_VA_RANGE_TYPE_DRAM];
 		va_block_align = hdev->asic_prop.dmmu.page_size;
 	}
@@ -1125,24 +1142,26 @@ init_page_pack_err:
 	return rc;
 }
 
-/*
- * unmap_device_va      - unmap the given device virtual address
- *
- * @ctx                 : current context
- * @vaddr               : device virtual address to unmap
- * @ctx_free            : true if in context free flow, false otherwise.
+/**
+ * unmap_device_va() - unmap the given device virtual address.
+ * @ctx: pointer to the context structure.
+ * @args: host parameters with device virtual address to unmap.
+ * @ctx_free: true if in context free flow, false otherwise.
  *
  * This function does the following:
- * - Unmap the physical pages related to the given virtual address
- * - return the device virtual block to the virtual block list
+ * - unmap the physical pages related to the given virtual address.
+ * - return the device virtual block to the virtual block list.
  */
-static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
+static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
+				bool ctx_free)
 {
 	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	struct hl_vm_hash_node *hnode = NULL;
 	struct hl_userptr *userptr = NULL;
 	struct hl_va_range *va_range;
+	u64 vaddr = args->unmap.device_virt_addr;
 	enum vm_type_t *vm_type;
 	bool is_userptr;
 	int rc = 0;
@@ -1201,7 +1220,13 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 		goto mapping_cnt_err;
 	}
 
-	vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
+	if (!is_userptr && !is_power_of_2(phys_pg_pack->page_size))
+		vaddr = prop->dram_base_address +
+			DIV_ROUND_DOWN_ULL(vaddr - prop->dram_base_address,
+						phys_pg_pack->page_size) *
+							phys_pg_pack->page_size;
+	else
+		vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
 
 	mutex_lock(&ctx->mmu_lock);
 
@@ -1264,12 +1289,90 @@ vm_type_err:
 	return rc;
 }
 
+static int map_block(struct hl_device *hdev, u64 address, u64 *handle,
+			u32 *size)
+{
+	u32 block_id = 0;
+	int rc;
+
+	rc = hdev->asic_funcs->get_hw_block_id(hdev, address, size, &block_id);
+
+	*handle = block_id | HL_MMAP_TYPE_BLOCK;
+	*handle <<= PAGE_SHIFT;
+
+	return rc;
+}
+
+static void hw_block_vm_close(struct vm_area_struct *vma)
+{
+	struct hl_ctx *ctx = (struct hl_ctx *) vma->vm_private_data;
+
+	hl_ctx_put(ctx);
+	vma->vm_private_data = NULL;
+}
+
+static const struct vm_operations_struct hw_block_vm_ops = {
+	.close = hw_block_vm_close
+};
+
+/**
+ * hl_hw_block_mmap() - mmap a hw block to user.
+ * @hpriv: pointer to the private data of the fd
+ * @vma: pointer to vm_area_struct of the process
+ *
+ * Driver increments context reference for every HW block mapped in order
+ * to prevent user from closing FD without unmapping first
+ */
+int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 block_id, block_size;
+	int rc;
+
+	/* We use the page offset to hold the block id and thus we need to clear
+	 * it before doing the mmap itself
+	 */
+	block_id = vma->vm_pgoff;
+	vma->vm_pgoff = 0;
+
+	/* Driver only allows mapping of a complete HW block */
+	block_size = vma->vm_end - vma->vm_start;
+
+#ifdef _HAS_TYPE_ARG_IN_ACCESS_OK
+	if (!access_ok(VERIFY_WRITE,
+		(void __user *) (uintptr_t) vma->vm_start, block_size)) {
+#else
+	if (!access_ok((void __user *) (uintptr_t) vma->vm_start, block_size)) {
+#endif
+		dev_err(hdev->dev,
+			"user pointer is invalid - 0x%lx\n",
+			vma->vm_start);
+
+		return -EINVAL;
+	}
+
+	vma->vm_ops = &hw_block_vm_ops;
+	vma->vm_private_data = hpriv->ctx;
+
+	hl_ctx_get(hdev, hpriv->ctx);
+
+	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
+	if (rc) {
+		hl_ctx_put(hpriv->ctx);
+		return rc;
+	}
+
+	vma->vm_pgoff = block_id;
+
+	return 0;
+}
+
 static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
-	u64 device_addr = 0;
-	u32 handle = 0;
+	u64 block_handle, device_addr = 0;
+	u32 handle = 0, block_size;
 	int rc;
 
 	switch (args->in.op) {
@@ -1292,7 +1395,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 		break;
 
 	case HL_MEM_OP_FREE:
-		rc = free_device_memory(ctx, args->in.free.handle);
+		rc = free_device_memory(ctx, &args->in);
 		break;
 
 	case HL_MEM_OP_MAP:
@@ -1301,7 +1404,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 			rc = 0;
 		} else {
 			rc = get_paddr_from_handle(ctx, &args->in,
-					&device_addr);
+							&device_addr);
 		}
 
 		memset(args, 0, sizeof(*args));
@@ -1310,6 +1413,13 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 
 	case HL_MEM_OP_UNMAP:
 		rc = 0;
+		break;
+
+	case HL_MEM_OP_MAP_BLOCK:
+		rc = map_block(hdev, args->in.map_block.block_addr,
+				&block_handle, &block_size);
+		args->out.block_handle = block_handle;
+		args->out.block_size = block_size;
 		break;
 
 	default:
@@ -1328,8 +1438,8 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_mem_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
-	u64 device_addr = 0;
-	u32 handle = 0;
+	u64 block_handle, device_addr = 0;
+	u32 handle = 0, block_size;
 	int rc;
 
 	if (!hl_device_operational(hdev, &status)) {
@@ -1400,7 +1510,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 			goto out;
 		}
 
-		rc = free_device_memory(ctx, args->in.free.handle);
+		rc = free_device_memory(ctx, &args->in);
 		break;
 
 	case HL_MEM_OP_MAP:
@@ -1411,8 +1521,14 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	case HL_MEM_OP_UNMAP:
-		rc = unmap_device_va(ctx, args->in.unmap.device_virt_addr,
-					false);
+		rc = unmap_device_va(ctx, &args->in, false);
+		break;
+
+	case HL_MEM_OP_MAP_BLOCK:
+		rc = map_block(hdev, args->in.map_block.block_addr,
+				&block_handle, &block_size);
+		args->out.block_handle = block_handle;
+		args->out.block_size = block_size;
 		break;
 
 	default:
@@ -1436,58 +1552,53 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 		return -EFAULT;
 	}
 
-	userptr->vec = frame_vector_create(npages);
-	if (!userptr->vec) {
-		dev_err(hdev->dev, "Failed to create frame vector\n");
+	userptr->pages = kvmalloc_array(npages, sizeof(*userptr->pages),
+					GFP_KERNEL);
+	if (!userptr->pages)
 		return -ENOMEM;
-	}
 
-	rc = get_vaddr_frames(start, npages, FOLL_FORCE | FOLL_WRITE,
-				userptr->vec);
+	rc = pin_user_pages_fast(start, npages,
+				 FOLL_FORCE | FOLL_WRITE | FOLL_LONGTERM,
+				 userptr->pages);
 
 	if (rc != npages) {
 		dev_err(hdev->dev,
 			"Failed to map host memory, user ptr probably wrong\n");
 		if (rc < 0)
-			goto destroy_framevec;
+			goto destroy_pages;
+		npages = rc;
 		rc = -EFAULT;
-		goto put_framevec;
+		goto put_pages;
 	}
-
-	if (frame_vector_to_pages(userptr->vec) < 0) {
-		dev_err(hdev->dev,
-			"Failed to translate frame vector to pages\n");
-		rc = -EFAULT;
-		goto put_framevec;
-	}
+	userptr->npages = npages;
 
 	rc = sg_alloc_table_from_pages(userptr->sgt,
-					frame_vector_pages(userptr->vec),
-					npages, offset, size, GFP_ATOMIC);
+				       userptr->pages,
+				       npages, offset, size, GFP_ATOMIC);
 	if (rc < 0) {
 		dev_err(hdev->dev, "failed to create SG table from pages\n");
-		goto put_framevec;
+		goto put_pages;
 	}
 
 	return 0;
 
-put_framevec:
-	put_vaddr_frames(userptr->vec);
-destroy_framevec:
-	frame_vector_destroy(userptr->vec);
+put_pages:
+	unpin_user_pages(userptr->pages, npages);
+destroy_pages:
+	kvfree(userptr->pages);
 	return rc;
 }
 
-/*
- * hl_pin_host_memory - pins a chunk of host memory.
- * @hdev: pointer to the habanalabs device structure
- * @addr: the host virtual address of the memory area
- * @size: the size of the memory area
- * @userptr: pointer to hl_userptr structure
+/**
+ * hl_pin_host_memory() - pins a chunk of host memory.
+ * @hdev: pointer to the habanalabs device structure.
+ * @addr: the host virtual address of the memory area.
+ * @size: the size of the memory area.
+ * @userptr: pointer to hl_userptr structure.
  *
  * This function does the following:
- * - Pins the physical pages
- * - Create an SG list from those pages
+ * - Pins the physical pages.
+ * - Create an SG list from those pages.
  */
 int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 					struct hl_userptr *userptr)
@@ -1560,8 +1671,6 @@ free_sgt:
  */
 void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 {
-	struct page **pages;
-
 	hl_debugfs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
@@ -1569,15 +1678,8 @@ void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 							userptr->sgt->nents,
 							userptr->dir);
 
-	pages = frame_vector_pages(userptr->vec);
-	if (!IS_ERR(pages)) {
-		int i;
-
-		for (i = 0; i < frame_vector_count(userptr->vec); i++)
-			set_page_dirty_lock(pages[i]);
-	}
-	put_vaddr_frames(userptr->vec);
-	frame_vector_destroy(userptr->vec);
+	unpin_user_pages_dirty_lock(userptr->pages, userptr->npages, true);
+	kvfree(userptr->pages);
 
 	list_del(&userptr->job_node);
 
@@ -1585,11 +1687,10 @@ void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 	kfree(userptr->sgt);
 }
 
-/*
- * hl_userptr_delete_list - clear userptr list
- *
- * @hdev                : pointer to the habanalabs device structure
- * @userptr_list        : pointer to the list to clear
+/**
+ * hl_userptr_delete_list() - clear userptr list.
+ * @hdev: pointer to the habanalabs device structure.
+ * @userptr_list: pointer to the list to clear.
  *
  * This function does the following:
  * - Iterates over the list and unpins the host memory and frees the userptr
@@ -1608,12 +1709,11 @@ void hl_userptr_delete_list(struct hl_device *hdev,
 	INIT_LIST_HEAD(userptr_list);
 }
 
-/*
- * hl_userptr_is_pinned - returns whether the given userptr is pinned
- *
- * @hdev                : pointer to the habanalabs device structure
- * @userptr_list        : pointer to the list to clear
- * @userptr             : pointer to userptr to check
+/**
+ * hl_userptr_is_pinned() - returns whether the given userptr is pinned.
+ * @hdev: pointer to the habanalabs device structure.
+ * @userptr_list: pointer to the list to clear.
+ * @userptr: pointer to userptr to check.
  *
  * This function does the following:
  * - Iterates over the list and checks if the given userptr is in it, means is
@@ -1631,12 +1731,12 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
 	return false;
 }
 
-/*
- * va_range_init - initialize virtual addresses range
- * @hdev: pointer to the habanalabs device structure
- * @va_range: pointer to the range to initialize
- * @start: range start address
- * @end: range end address
+/**
+ * va_range_init() - initialize virtual addresses range.
+ * @hdev: pointer to the habanalabs device structure.
+ * @va_range: pointer to the range to initialize.
+ * @start: range start address.
+ * @end: range end address.
  *
  * This function does the following:
  * - Initializes the virtual addresses list of the given range with the given
@@ -1649,15 +1749,21 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 
 	INIT_LIST_HEAD(&va_range->list);
 
-	/* PAGE_SIZE alignment */
+	/*
+	 * PAGE_SIZE alignment
+	 * it is the callers responsibility to align the addresses if the
+	 * page size is not a power of 2
+	 */
 
-	if (start & (PAGE_SIZE - 1)) {
-		start &= PAGE_MASK;
-		start += PAGE_SIZE;
+	if (is_power_of_2(page_size)) {
+		if (start & (PAGE_SIZE - 1)) {
+			start &= PAGE_MASK;
+			start += PAGE_SIZE;
+		}
+
+		if (end & (PAGE_SIZE - 1))
+			end &= PAGE_MASK;
 	}
-
-	if (end & (PAGE_SIZE - 1))
-		end &= PAGE_MASK;
 
 	if (start >= end) {
 		dev_err(hdev->dev, "too small vm range for va list\n");
@@ -1678,13 +1784,13 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 	return 0;
 }
 
-/*
- * va_range_fini() - clear a virtual addresses range
- * @hdev: pointer to the habanalabs structure
- * va_range: pointer to virtual addresses range
+/**
+ * va_range_fini() - clear a virtual addresses range.
+ * @hdev: pointer to the habanalabs structure.
+ * va_range: pointer to virtual addresses rang.e
  *
  * This function does the following:
- * - Frees the virtual addresses block list and its lock
+ * - Frees the virtual addresses block list and its lock.
  */
 static void va_range_fini(struct hl_device *hdev, struct hl_va_range *va_range)
 {
@@ -1696,22 +1802,22 @@ static void va_range_fini(struct hl_device *hdev, struct hl_va_range *va_range)
 	kfree(va_range);
 }
 
-/*
- * vm_ctx_init_with_ranges() - initialize virtual memory for context
- * @ctx: pointer to the habanalabs context structure
+/**
+ * vm_ctx_init_with_ranges() - initialize virtual memory for context.
+ * @ctx: pointer to the habanalabs context structure.
  * @host_range_start: host virtual addresses range start.
  * @host_range_end: host virtual addresses range end.
  * @host_huge_range_start: host virtual addresses range start for memory
- *                          allocated with huge pages.
+ *                         allocated with huge pages.
  * @host_huge_range_end: host virtual addresses range end for memory allocated
  *                        with huge pages.
  * @dram_range_start: dram virtual addresses range start.
  * @dram_range_end: dram virtual addresses range end.
  *
  * This function initializes the following:
- * - MMU for context
- * - Virtual address to area descriptor hashtable
- * - Virtual block list of available virtual memory
+ * - MMU for context.
+ * - Virtual address to area descriptor hashtable.
+ * - Virtual block list of available virtual memory.
  */
 static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 					u64 host_range_start,
@@ -1832,7 +1938,8 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 
 	dram_range_start = prop->dmmu.start_addr;
 	dram_range_end = prop->dmmu.end_addr;
-	dram_page_size = prop->dmmu.page_size;
+	dram_page_size = prop->dram_page_size ?
+				prop->dram_page_size : prop->dmmu.page_size;
 	host_range_start = prop->pmmu.start_addr;
 	host_range_end = prop->pmmu.end_addr;
 	host_page_size = prop->pmmu.page_size;
@@ -1846,15 +1953,14 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 			dram_range_start, dram_range_end, dram_page_size);
 }
 
-/*
- * hl_vm_ctx_fini       - virtual memory teardown of context
- *
- * @ctx                 : pointer to the habanalabs context structure
+/**
+ * hl_vm_ctx_fini() - virtual memory teardown of context.
+ * @ctx: pointer to the habanalabs context structure.
  *
  * This function perform teardown the following:
- * - Virtual block list of available virtual memory
- * - Virtual address to area descriptor hashtable
- * - MMU for context
+ * - Virtual block list of available virtual memory.
+ * - Virtual address to area descriptor hashtable.
+ * - MMU for context.
  *
  * In addition this function does the following:
  * - Unmaps the existing hashtable nodes if the hashtable is not empty. The
@@ -1873,9 +1979,10 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	struct hl_vm_phys_pg_pack *phys_pg_list;
 	struct hl_vm_hash_node *hnode;
 	struct hlist_node *tmp_node;
+	struct hl_mem_in args;
 	int i;
 
-	if (!ctx->hdev->mmu_enable)
+	if (!hdev->mmu_enable)
 		return;
 
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
@@ -1892,12 +1999,17 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 		dev_dbg(hdev->dev,
 			"hl_mem_hash_node of vaddr 0x%llx of asid %d is still alive\n",
 			hnode->vaddr, ctx->asid);
-		unmap_device_va(ctx, hnode->vaddr, true);
+		args.unmap.device_virt_addr = hnode->vaddr;
+		unmap_device_va(ctx, &args, true);
 	}
+
+	mutex_lock(&ctx->mmu_lock);
 
 	/* invalidate the cache once after the unmapping loop */
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_PHYS_PACK);
+
+	mutex_unlock(&ctx->mmu_lock);
 
 	spin_lock(&vm->idr_lock);
 	idr_for_each_entry(&vm->phys_pg_pack_handles, phys_pg_list, i)
@@ -1925,19 +2037,19 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	 * because the user notifies us on allocations. If the user is no more,
 	 * all DRAM is available
 	 */
-	if (!ctx->hdev->asic_prop.dram_supports_virtual_memory)
-		atomic64_set(&ctx->hdev->dram_used_mem, 0);
+	if (ctx->asid != HL_KERNEL_ASID_ID &&
+			!hdev->asic_prop.dram_supports_virtual_memory)
+		atomic64_set(&hdev->dram_used_mem, 0);
 }
 
-/*
- * hl_vm_init           - initialize virtual memory module
- *
- * @hdev                : pointer to the habanalabs device structure
+/**
+ * hl_vm_init() - initialize virtual memory module.
+ * @hdev: pointer to the habanalabs device structure.
  *
  * This function initializes the following:
- * - MMU module
- * - DRAM physical pages pool of 2MB
- * - Idr for device memory allocation handles
+ * - MMU module.
+ * - DRAM physical pages pool of 2MB.
+ * - Idr for device memory allocation handles.
  */
 int hl_vm_init(struct hl_device *hdev)
 {
@@ -1945,7 +2057,13 @@ int hl_vm_init(struct hl_device *hdev)
 	struct hl_vm *vm = &hdev->vm;
 	int rc;
 
-	vm->dram_pg_pool = gen_pool_create(__ffs(prop->dram_page_size), -1);
+	if (is_power_of_2(prop->dram_page_size))
+		vm->dram_pg_pool =
+			gen_pool_create(__ffs(prop->dram_page_size), -1);
+	else
+		vm->dram_pg_pool =
+			gen_pool_create(__ffs(DRAM_POOL_PAGE_SIZE), -1);
+
 	if (!vm->dram_pg_pool) {
 		dev_err(hdev->dev, "Failed to create dram page pool\n");
 		return -ENOMEM;
@@ -1978,15 +2096,14 @@ pool_add_err:
 	return rc;
 }
 
-/*
- * hl_vm_fini           - virtual memory module teardown
- *
- * @hdev                : pointer to the habanalabs device structure
+/**
+ * hl_vm_fini() - virtual memory module teardown.
+ * @hdev: pointer to the habanalabs device structure.
  *
  * This function perform teardown to the following:
- * - Idr for device memory allocation handles
- * - DRAM physical pages pool of 2MB
- * - MMU module
+ * - Idr for device memory allocation handles.
+ * - DRAM physical pages pool of 2MB.
+ * - MMU module.
  */
 void hl_vm_fini(struct hl_device *hdev)
 {

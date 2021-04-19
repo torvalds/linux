@@ -306,7 +306,7 @@ static int brcmstb_waketmr_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(brcmstb_waketmr_pm_ops,
 			 brcmstb_waketmr_suspend, brcmstb_waketmr_resume);
 
-static const struct of_device_id brcmstb_waketmr_of_match[] = {
+static const __maybe_unused struct of_device_id brcmstb_waketmr_of_match[] = {
 	{ .compatible = "brcm,brcmstb-waketimer" },
 	{ /* sentinel */ },
 };

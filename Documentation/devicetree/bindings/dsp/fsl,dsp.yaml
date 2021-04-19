@@ -21,7 +21,7 @@ properties:
       - fsl,imx8mp-dsp
 
   reg:
-    description: Should contain register location and length
+    maxItems: 1
 
   clocks:
     items:

@@ -56,7 +56,7 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 		resp_pf_to_vf->msg.resp_status = resp;
 	} else {
 		dev_warn(&hdev->pdev->dev,
-			 "failed to send response to VF, response status %d is out-of-bound\n",
+			 "failed to send response to VF, response status %u is out-of-bound\n",
 			 resp);
 		resp_pf_to_vf->msg.resp_status = EIO;
 	}
@@ -158,21 +158,31 @@ static int hclge_get_ring_chain_from_mbx(
 			struct hclge_vport *vport)
 {
 	struct hnae3_ring_chain_node *cur_chain, *new_chain;
+	struct hclge_dev *hdev = vport->back;
 	int ring_num;
-	int i = 0;
+	int i;
 
 	ring_num = req->msg.ring_num;
 
 	if (ring_num > HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM)
 		return -ENOMEM;
 
+	for (i = 0; i < ring_num; i++) {
+		if (req->msg.param[i].tqp_index >= vport->nic.kinfo.rss_size) {
+			dev_err(&hdev->pdev->dev, "tqp index(%u) is out of range(0-%u)\n",
+				req->msg.param[i].tqp_index,
+				vport->nic.kinfo.rss_size - 1);
+			return -EINVAL;
+		}
+	}
+
 	hnae3_set_bit(ring_chain->flag, HNAE3_RING_TYPE_B,
-		      req->msg.param[i].ring_type);
+		      req->msg.param[0].ring_type);
 	ring_chain->tqp_index =
 		hclge_get_queue_id(vport->nic.kinfo.tqp
-				   [req->msg.param[i].tqp_index]);
+				   [req->msg.param[0].tqp_index]);
 	hnae3_set_field(ring_chain->int_gl_idx, HNAE3_RING_GL_IDX_M,
-			HNAE3_RING_GL_IDX_S, req->msg.param[i].int_gl_index);
+			HNAE3_RING_GL_IDX_S, req->msg.param[0].int_gl_index);
 
 	cur_chain = ring_chain;
 
@@ -596,6 +606,17 @@ static void hclge_get_rss_key(struct hclge_vport *vport,
 	u8 index;
 
 	index = mbx_req->msg.data[0];
+
+	/* Check the query index of rss_hash_key from VF, make sure no
+	 * more than the size of rss_hash_key.
+	 */
+	if (((index + 1) * HCLGE_RSS_MBX_RESP_LEN) >
+	      sizeof(vport[0].rss_hash_key)) {
+		dev_warn(&hdev->pdev->dev,
+			 "failed to get the rss hash key, the index(%u) invalid !\n",
+			 index);
+		return;
+	}
 
 	memcpy(resp_msg->data,
 	       &hdev->vport[0].rss_hash_key[index * HCLGE_RSS_MBX_RESP_LEN],

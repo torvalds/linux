@@ -35,16 +35,16 @@
 
 static void __init reset_tod_clock(void)
 {
-	u64 time;
+	union tod_clock clk;
 
-	if (store_tod_clock(&time) == 0)
+	if (store_tod_clock_ext_cc(&clk) == 0)
 		return;
 	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
+	if (set_tod_clock(TOD_UNIX_EPOCH) || store_tod_clock_ext_cc(&clk))
 		disabled_wait();
 
-	memset(tod_clock_base, 0, 16);
-	*(__u64 *) &tod_clock_base[1] = TOD_UNIX_EPOCH;
+	memset(&tod_clock_base, 0, sizeof(tod_clock_base));
+	tod_clock_base.tod = TOD_UNIX_EPOCH;
 	S390_lowcore.last_update_clock = TOD_UNIX_EPOCH;
 }
 
@@ -230,7 +230,7 @@ static __init void detect_machine_facilities(void)
 	}
 	if (test_facility(133))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_GS;
-	if (test_facility(139) && (tod_clock_base[1] & 0x80)) {
+	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
 		/* Enabled signed clock comparator comparisons */
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SCC;
 		clock_comparator_max = -1ULL >> 1;

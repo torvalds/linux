@@ -1,14 +1,10 @@
 [
     {
-        "PublicDescription": "Mispredicted or not predicted branch speculatively executed. This event counts any predictable branch instruction which is mispredicted either due to dynamic misprediction or because the MMU is off and the branches are statically predicted not taken.",
-        "EventCode": "0x10",
-        "EventName": "BR_MIS_PRED",
-        "BriefDescription": "Mispredicted or not predicted branch speculatively executed."
+        "PublicDescription": "This event counts any predictable branch instruction which is mispredicted either due to dynamic misprediction or because the MMU is off and the branches are statically predicted not taken",
+        "ArchStdEvent": "BR_MIS_PRED",
     },
     {
-        "PublicDescription": "Predictable branch speculatively executed. This event counts all predictable branches.",
-        "EventCode": "0x12",
-        "EventName": "BR_PRED",
-        "BriefDescription": "Predictable branch speculatively executed."
+        "PublicDescription": "This event counts all predictable branches.",
+        "ArchStdEvent": "BR_PRED",
     }
 ]

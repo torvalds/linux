@@ -366,14 +366,12 @@ static int ssu100_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int ssu100_port_remove(struct usb_serial_port *port)
+static void ssu100_port_remove(struct usb_serial_port *port)
 {
 	struct ssu100_port_private *priv;
 
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
-
-	return 0;
 }
 
 static int ssu100_tiocmget(struct tty_struct *tty)

@@ -25,19 +25,32 @@ properties:
       - qcom,msm8998-qmp-pcie-phy
       - qcom,msm8998-qmp-ufs-phy
       - qcom,msm8998-qmp-usb3-phy
+      - qcom,sc8180x-qmp-ufs-phy
+      - qcom,sc8180x-qmp-usb3-phy
       - qcom,sdm845-qhp-pcie-phy
       - qcom,sdm845-qmp-pcie-phy
       - qcom,sdm845-qmp-ufs-phy
       - qcom,sdm845-qmp-usb3-uni-phy
       - qcom,sm8150-qmp-ufs-phy
+      - qcom,sm8150-qmp-usb3-phy
+      - qcom,sm8150-qmp-usb3-uni-phy
       - qcom,sm8250-qmp-ufs-phy
       - qcom,sm8250-qmp-gen3x1-pcie-phy
       - qcom,sm8250-qmp-gen3x2-pcie-phy
       - qcom,sm8250-qmp-modem-pcie-phy
+      - qcom,sm8250-qmp-usb3-phy
+      - qcom,sm8250-qmp-usb3-uni-phy
+      - qcom,sm8350-qmp-ufs-phy
+      - qcom,sm8350-qmp-usb3-phy
+      - qcom,sm8350-qmp-usb3-uni-phy
+      - qcom,sdx55-qmp-usb3-uni-phy
 
   reg:
+    minItems: 1
+    maxItems: 2
     items:
       - description: Address and length of PHY's common serdes block.
+      - description: Address and length of PHY's DP_COM control block.
 
   "#clock-cells":
     enum: [ 1, 2 ]
@@ -123,6 +136,32 @@ allOf:
             - const: cfg_ahb
             - const: ref
             - const: com_aux
+        resets:
+          items:
+            - description: reset of phy block.
+            - description: phy common block reset.
+        reset-names:
+          items:
+            - const: phy
+            - const: common
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdx55-qmp-usb3-uni-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Phy aux clock.
+            - description: Phy config clock.
+            - description: 19.2 MHz ref clk.
+        clock-names:
+          items:
+            - const: aux
+            - const: cfg_ahb
+            - const: ref
         resets:
           items:
             - description: reset of phy block.
@@ -285,6 +324,64 @@ allOf:
         reset-names:
           items:
             - const: phy
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8150-qmp-usb3-phy
+              - qcom,sm8150-qmp-usb3-uni-phy
+              - qcom,sm8250-qmp-usb3-uni-phy
+              - qcom,sm8350-qmp-usb3-uni-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Phy aux clock.
+            - description: 19.2 MHz ref clk source.
+            - description: 19.2 MHz ref clk.
+            - description: Phy common block aux clock.
+        clock-names:
+          items:
+            - const: aux
+            - const: ref_clk_src
+            - const: ref
+            - const: com_aux
+        resets:
+          items:
+            - description: reset of phy block.
+            - description: phy common block reset.
+        reset-names:
+          items:
+            - const: phy
+            - const: common
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8250-qmp-usb3-phy
+              - qcom,sm8350-qmp-usb3-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Phy aux clock.
+            - description: 19.2 MHz ref clk.
+            - description: Phy common block aux clock.
+        clock-names:
+          items:
+            - const: aux
+            - const: ref_clk_src
+            - const: com_aux
+        resets:
+          items:
+            - description: reset of phy block.
+            - description: phy common block reset.
+        reset-names:
+          items:
+            - const: phy
+            - const: common
 
 examples:
   - |

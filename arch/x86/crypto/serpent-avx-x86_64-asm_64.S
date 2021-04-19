@@ -18,10 +18,6 @@
 .align 16
 .Lbswap128_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-.section	.rodata.cst16.xts_gf128mul_and_shl1_mask, "aM", @progbits, 16
-.align 16
-.Lxts_gf128mul_and_shl1_mask:
-	.byte 0x87, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
 
 .text
 
@@ -715,67 +711,3 @@ SYM_FUNC_START(serpent_cbc_dec_8way_avx)
 	FRAME_END
 	ret;
 SYM_FUNC_END(serpent_cbc_dec_8way_avx)
-
-SYM_FUNC_START(serpent_ctr_8way_avx)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (little endian, 128bit)
-	 */
-	FRAME_BEGIN
-
-	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
-		      RD2, RK0, RK1, RK2);
-
-	call __serpent_enc_blk8_avx;
-
-	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_ctr_8way_avx)
-
-SYM_FUNC_START(serpent_xts_enc_8way_avx)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
-	load_xts_8way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2,
-		      RK0, RK1, RK2, .Lxts_gf128mul_and_shl1_mask);
-
-	call __serpent_enc_blk8_avx;
-
-	/* dst <= regs xor IVs(in dst) */
-	store_xts_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_xts_enc_8way_avx)
-
-SYM_FUNC_START(serpent_xts_dec_8way_avx)
-	/* input:
-	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: iv (t ⊕ αⁿ ∈ GF(2¹²⁸))
-	 */
-	FRAME_BEGIN
-
-	/* regs <= src, dst <= IVs, regs <= regs xor IVs */
-	load_xts_8way(%rcx, %rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2,
-		      RK0, RK1, RK2, .Lxts_gf128mul_and_shl1_mask);
-
-	call __serpent_dec_blk8_avx;
-
-	/* dst <= regs xor IVs(in dst) */
-	store_xts_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
-
-	FRAME_END
-	ret;
-SYM_FUNC_END(serpent_xts_dec_8way_avx)

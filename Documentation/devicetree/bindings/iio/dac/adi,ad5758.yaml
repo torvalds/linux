@@ -46,31 +46,42 @@ properties:
       two properties must be present:
 
   adi,range-microvolt:
-    $ref: /schemas/types.yaml#/definitions/int32-array
     description: |
       Voltage output range specified as <minimum, maximum>
-    enum:
-      - [[0, 5000000]]
-      - [[0, 10000000]]
-      - [[-5000000, 5000000]]
-      - [[-10000000, 10000000]]
+    oneOf:
+      - items:
+          - const: 0
+          - enum: [5000000, 10000000]
+      - items:
+          - const: -5000000
+          - const: 5000000
+      - items:
+          - const: -10000000
+          - const: 10000000
 
   adi,range-microamp:
-    $ref: /schemas/types.yaml#/definitions/int32-array
     description: |
       Current output range specified as <minimum, maximum>
-    enum:
-      - [[0, 20000]]
-      - [[0, 24000]]
-      - [[4, 24000]]
-      - [[-20000, 20000]]
-      - [[-24000, 24000]]
-      - [[-1000, 22000]]
+    oneOf:
+      - items:
+          - const: 0
+          - enum: [20000, 24000]
+      - items:
+          - const: 4
+          - const: 24000
+      - items:
+          - const: -20000
+          - const: 20000
+      - items:
+          - const: -24000
+          - const: 24000
+      - items:
+          - const: -1000
+          - const: 22000
 
   reset-gpios: true
 
   adi,dc-dc-ilim-microamp:
-    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [150000, 200000, 250000, 300000, 350000, 400000]
     description: |
       The dc-to-dc converter current limit.

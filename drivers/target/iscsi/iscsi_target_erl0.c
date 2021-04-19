@@ -765,7 +765,7 @@ void iscsit_handle_time2retain_timeout(struct timer_list *t)
 
 	iscsit_fill_cxn_timeout_err_stats(sess);
 	spin_unlock_bh(&se_tpg->session_lock);
-	iscsit_close_session(sess);
+	iscsit_close_session(sess, false);
 }
 
 void iscsit_start_time2retain_handler(struct iscsi_session *sess)

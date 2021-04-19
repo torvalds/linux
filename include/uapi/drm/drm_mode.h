@@ -414,15 +414,12 @@ enum drm_mode_subconnector {
  *
  * If the @count_modes field is set to zero, the kernel will perform a forced
  * probe on the connector to refresh the connector status, modes and EDID.
- * A forced-probe can be slow and the ioctl will block. A force-probe can cause
- * flickering and temporary freezes, so it should not be performed
- * automatically.
+ * A forced-probe can be slow, might cause flickering and the ioctl will block.
  *
- * User-space shouldn't need to force-probe connectors in general: the kernel
- * will automatically take care of probing connectors that don't support
- * hot-plug detection when appropriate. However, user-space may force-probe
- * connectors on user request (e.g. clicking a "Scan connectors" button, or
- * opening a UI to manage screens).
+ * User-space needs to force-probe connectors to ensure their metadata is
+ * up-to-date at startup and after receiving a hot-plug event. User-space
+ * may perform a forced-probe when the user explicitly requests it. User-space
+ * shouldn't perform a forced-probe in other situations.
  */
 struct drm_mode_get_connector {
 	/** @encoders_ptr: Pointer to ``__u32`` array of object IDs. */

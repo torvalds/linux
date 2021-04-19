@@ -4,6 +4,8 @@
 
 #include <linux/netdevice.h>
 
+#include "unimac.h"
+
 #define BGMAC_DEV_CTL				0x000
 #define  BGMAC_DC_TSM				0x00000002
 #define  BGMAC_DC_CFCO				0x00000004
@@ -169,47 +171,7 @@
 #define BGMAC_RX_NONPAUSE_PKTS			0x420
 #define BGMAC_RX_SACHANGES			0x424
 #define BGMAC_RX_UNI_PKTS			0x428
-#define BGMAC_UNIMAC_VERSION			0x800
-#define BGMAC_HDBKP_CTL				0x804
-#define BGMAC_CMDCFG				0x808		/* Configuration */
-#define  BGMAC_CMDCFG_TE			0x00000001	/* Set to activate TX */
-#define  BGMAC_CMDCFG_RE			0x00000002	/* Set to activate RX */
-#define  BGMAC_CMDCFG_ES_MASK			0x0000000c	/* Ethernet speed see gmac_speed */
-#define   BGMAC_CMDCFG_ES_10			0x00000000
-#define   BGMAC_CMDCFG_ES_100			0x00000004
-#define   BGMAC_CMDCFG_ES_1000			0x00000008
-#define   BGMAC_CMDCFG_ES_2500			0x0000000C
-#define  BGMAC_CMDCFG_PROM			0x00000010	/* Set to activate promiscuous mode */
-#define  BGMAC_CMDCFG_PAD_EN			0x00000020
-#define  BGMAC_CMDCFG_CF			0x00000040
-#define  BGMAC_CMDCFG_PF			0x00000080
-#define  BGMAC_CMDCFG_RPI			0x00000100	/* Unset to enable 802.3x tx flow control */
-#define  BGMAC_CMDCFG_TAI			0x00000200
-#define  BGMAC_CMDCFG_HD			0x00000400	/* Set if in half duplex mode */
-#define  BGMAC_CMDCFG_HD_SHIFT			10
-#define  BGMAC_CMDCFG_SR_REV0			0x00000800	/* Set to reset mode, for core rev 0-3 */
-#define  BGMAC_CMDCFG_SR_REV4			0x00002000	/* Set to reset mode, for core rev >= 4 */
-#define  BGMAC_CMDCFG_ML			0x00008000	/* Set to activate mac loopback mode */
-#define  BGMAC_CMDCFG_AE			0x00400000
-#define  BGMAC_CMDCFG_CFE			0x00800000
-#define  BGMAC_CMDCFG_NLC			0x01000000
-#define  BGMAC_CMDCFG_RL			0x02000000
-#define  BGMAC_CMDCFG_RED			0x04000000
-#define  BGMAC_CMDCFG_PE			0x08000000
-#define  BGMAC_CMDCFG_TPI			0x10000000
-#define  BGMAC_CMDCFG_AT			0x20000000
-#define BGMAC_MACADDR_HIGH			0x80c		/* High 4 octets of own mac address */
-#define BGMAC_MACADDR_LOW			0x810		/* Low 2 octets of own mac address */
-#define BGMAC_RXMAX_LENGTH			0x814		/* Max receive frame length with vlan tag */
-#define BGMAC_PAUSEQUANTA			0x818
-#define BGMAC_MAC_MODE				0x844
-#define BGMAC_OUTERTAG				0x848
-#define BGMAC_INNERTAG				0x84c
-#define BGMAC_TXIPG				0x85c
-#define BGMAC_PAUSE_CTL				0xb30
-#define BGMAC_TX_FLUSH				0xb34
-#define BGMAC_RX_STATUS				0xb38
-#define BGMAC_TX_STATUS				0xb3c
+#define BGMAC_UNIMAC				0x800
 
 /* BCMA GMAC core specific IO Control (BCMA_IOCTL) flags */
 #define BGMAC_BCMA_IOCTL_SW_CLKEN		0x00000004	/* PHY Clock Enable */
@@ -556,6 +518,16 @@ static inline void bgmac_write(struct bgmac *bgmac, u16 offset, u32 value)
 	bgmac->write(bgmac, offset, value);
 }
 
+static inline u32 bgmac_umac_read(struct bgmac *bgmac, u16 offset)
+{
+	return bgmac_read(bgmac, BGMAC_UNIMAC + offset);
+}
+
+static inline void bgmac_umac_write(struct bgmac *bgmac, u16 offset, u32 value)
+{
+	bgmac_write(bgmac, BGMAC_UNIMAC + offset, value);
+}
+
 static inline u32 bgmac_idm_read(struct bgmac *bgmac, u16 offset)
 {
 	return bgmac->idm_read(bgmac, offset);
@@ -607,6 +579,11 @@ static inline void bgmac_mask(struct bgmac *bgmac, u16 offset, u32 mask)
 static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
+}
+
+static inline void bgmac_umac_maskset(struct bgmac *bgmac, u16 offset, u32 mask, u32 set)
+{
+	bgmac_maskset(bgmac, BGMAC_UNIMAC + offset, mask, set);
 }
 
 static inline int bgmac_phy_connect(struct bgmac *bgmac)

@@ -146,7 +146,6 @@ struct ucc_fast_info {
 	resource_size_t regs;
 	int irq;
 	u32 uccm_mask;
-	int bd_mem_part;
 	int brkpt_support;
 	int grant_support;
 	int tsa;

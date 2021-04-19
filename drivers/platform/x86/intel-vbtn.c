@@ -44,21 +44,31 @@ static const struct key_entry intel_vbtn_keymap[] = {
 	{ KE_IGNORE, 0xC7, { KEY_VOLUMEDOWN } },	/* volume-down key release */
 	{ KE_KEY,    0xC8, { KEY_ROTATE_LOCK_TOGGLE } },	/* rotate-lock key press */
 	{ KE_KEY,    0xC9, { KEY_ROTATE_LOCK_TOGGLE } },	/* rotate-lock key release */
+	{ KE_END }
 };
 
 static const struct key_entry intel_vbtn_switchmap[] = {
-	{ KE_SW,     0xCA, { .sw = { SW_DOCK, 1 } } },		/* Docked */
-	{ KE_SW,     0xCB, { .sw = { SW_DOCK, 0 } } },		/* Undocked */
+	/*
+	 * SW_DOCK should only be reported for docking stations, but DSDTs using the
+	 * intel-vbtn code, always seem to use this for 2-in-1s / convertibles and set
+	 * SW_DOCK=1 when in laptop-mode (in tandem with setting SW_TABLET_MODE=0).
+	 * This causes userspace to think the laptop is docked to a port-replicator
+	 * and to disable suspend-on-lid-close, which is undesirable.
+	 * Map the dock events to KEY_IGNORE to avoid this broken SW_DOCK reporting.
+	 */
+	{ KE_IGNORE, 0xCA, { .sw = { SW_DOCK, 1 } } },		/* Docked */
+	{ KE_IGNORE, 0xCB, { .sw = { SW_DOCK, 0 } } },		/* Undocked */
 	{ KE_SW,     0xCC, { .sw = { SW_TABLET_MODE, 1 } } },	/* Tablet */
 	{ KE_SW,     0xCD, { .sw = { SW_TABLET_MODE, 0 } } },	/* Laptop */
+	{ KE_END }
 };
 
 #define KEYMAP_LEN \
 	(ARRAY_SIZE(intel_vbtn_keymap) + ARRAY_SIZE(intel_vbtn_switchmap) + 1)
 
 struct intel_vbtn_priv {
-	struct key_entry keymap[KEYMAP_LEN];
-	struct input_dev *input_dev;
+	struct input_dev *buttons_dev;
+	struct input_dev *switches_dev;
 	bool has_buttons;
 	bool has_switches;
 	bool wakeup_mode;
@@ -77,48 +87,62 @@ static void detect_tablet_mode(struct platform_device *device)
 		return;
 
 	m = !(vgbs & VGBS_TABLET_MODE_FLAGS);
-	input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
+	input_report_switch(priv->switches_dev, SW_TABLET_MODE, m);
 	m = (vgbs & VGBS_DOCK_MODE_FLAG) ? 1 : 0;
-	input_report_switch(priv->input_dev, SW_DOCK, m);
+	input_report_switch(priv->switches_dev, SW_DOCK, m);
 }
 
+/*
+ * Note this unconditionally creates the 2 input_dev-s and sets up
+ * the sparse-keymaps. Only the registration is conditional on
+ * have_buttons / have_switches. This is done so that the notify
+ * handler can always call sparse_keymap_entry_from_scancode()
+ * on the input_dev-s do determine the event type.
+ */
 static int intel_vbtn_input_setup(struct platform_device *device)
 {
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
-	int ret, keymap_len = 0;
+	int ret;
 
-	if (priv->has_buttons) {
-		memcpy(&priv->keymap[keymap_len], intel_vbtn_keymap,
-		       ARRAY_SIZE(intel_vbtn_keymap) *
-		       sizeof(struct key_entry));
-		keymap_len += ARRAY_SIZE(intel_vbtn_keymap);
-	}
-
-	if (priv->has_switches) {
-		memcpy(&priv->keymap[keymap_len], intel_vbtn_switchmap,
-		       ARRAY_SIZE(intel_vbtn_switchmap) *
-		       sizeof(struct key_entry));
-		keymap_len += ARRAY_SIZE(intel_vbtn_switchmap);
-	}
-
-	priv->keymap[keymap_len].type = KE_END;
-
-	priv->input_dev = devm_input_allocate_device(&device->dev);
-	if (!priv->input_dev)
+	priv->buttons_dev = devm_input_allocate_device(&device->dev);
+	if (!priv->buttons_dev)
 		return -ENOMEM;
 
-	ret = sparse_keymap_setup(priv->input_dev, priv->keymap, NULL);
+	ret = sparse_keymap_setup(priv->buttons_dev, intel_vbtn_keymap, NULL);
 	if (ret)
 		return ret;
 
-	priv->input_dev->dev.parent = &device->dev;
-	priv->input_dev->name = "Intel Virtual Button driver";
-	priv->input_dev->id.bustype = BUS_HOST;
+	priv->buttons_dev->dev.parent = &device->dev;
+	priv->buttons_dev->name = "Intel Virtual Buttons";
+	priv->buttons_dev->id.bustype = BUS_HOST;
 
-	if (priv->has_switches)
+	if (priv->has_buttons) {
+		ret = input_register_device(priv->buttons_dev);
+		if (ret)
+			return ret;
+	}
+
+	priv->switches_dev = devm_input_allocate_device(&device->dev);
+	if (!priv->switches_dev)
+		return -ENOMEM;
+
+	ret = sparse_keymap_setup(priv->switches_dev, intel_vbtn_switchmap, NULL);
+	if (ret)
+		return ret;
+
+	priv->switches_dev->dev.parent = &device->dev;
+	priv->switches_dev->name = "Intel Virtual Switches";
+	priv->switches_dev->id.bustype = BUS_HOST;
+
+	if (priv->has_switches) {
 		detect_tablet_mode(device);
 
-	return input_register_device(priv->input_dev);
+		ret = input_register_device(priv->switches_dev);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void notify_handler(acpi_handle handle, u32 event, void *context)
@@ -127,48 +151,50 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned int val = !(event & 1); /* Even=press, Odd=release */
 	const struct key_entry *ke, *ke_rel;
+	struct input_dev *input_dev;
 	bool autorelease;
+	int ret;
 
-	if (priv->wakeup_mode) {
-		ke = sparse_keymap_entry_from_scancode(priv->input_dev, event);
-		if (ke) {
-			pm_wakeup_hard_event(&device->dev);
-
-			/*
-			 * Switch events like tablet mode will wake the device
-			 * and report the new switch position to the input
-			 * subsystem.
-			 */
-			if (ke->type == KE_SW)
-				sparse_keymap_report_event(priv->input_dev,
-							   event,
-							   val,
-							   0);
+	if ((ke = sparse_keymap_entry_from_scancode(priv->buttons_dev, event))) {
+		if (!priv->has_buttons) {
+			dev_warn(&device->dev, "Warning: received a button event on a device without buttons, please report this.\n");
 			return;
 		}
-		goto out_unknown;
+		input_dev = priv->buttons_dev;
+	} else if ((ke = sparse_keymap_entry_from_scancode(priv->switches_dev, event))) {
+		if (!priv->has_switches) {
+			dev_info(&device->dev, "Registering Intel Virtual Switches input-dev after receiving a switch event\n");
+			ret = input_register_device(priv->switches_dev);
+			if (ret)
+				return;
+
+			priv->has_switches = true;
+		}
+		input_dev = priv->switches_dev;
+	} else {
+		dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
+		return;
+	}
+
+	if (priv->wakeup_mode) {
+		pm_wakeup_hard_event(&device->dev);
+
+		/*
+		 * Skip reporting an evdev event for button wake events,
+		 * mirroring how the drivers/acpi/button.c code skips this too.
+		 */
+		if (ke->type == KE_KEY)
+			return;
 	}
 
 	/*
 	 * Even press events are autorelease if there is no corresponding odd
 	 * release event, or if the odd event is KE_IGNORE.
 	 */
-	ke_rel = sparse_keymap_entry_from_scancode(priv->input_dev, event | 1);
+	ke_rel = sparse_keymap_entry_from_scancode(input_dev, event | 1);
 	autorelease = val && (!ke_rel || ke_rel->type == KE_IGNORE);
 
-	if (sparse_keymap_report_event(priv->input_dev, event, val, autorelease))
-		return;
-
-out_unknown:
-	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
-}
-
-static bool intel_vbtn_has_buttons(acpi_handle handle)
-{
-	acpi_status status;
-
-	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
-	return ACPI_SUCCESS(status);
+	sparse_keymap_report_event(input_dev, event, val, autorelease);
 }
 
 /*
@@ -245,7 +271,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	acpi_status status;
 	int err;
 
-	has_buttons = intel_vbtn_has_buttons(handle);
+	has_buttons = acpi_has_method(handle, "VBDL");
 	has_switches = intel_vbtn_has_switches(handle);
 
 	if (!has_buttons && !has_switches) {
@@ -273,6 +299,12 @@ static int intel_vbtn_probe(struct platform_device *device)
 					     device);
 	if (ACPI_FAILURE(status))
 		return -EBUSY;
+
+	if (has_buttons) {
+		status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
+		if (ACPI_FAILURE(status))
+			dev_err(&device->dev, "Error VBDL failed with ACPI status %d\n", status);
+	}
 
 	device_init_wakeup(&device->dev, true);
 	/*

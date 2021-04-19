@@ -218,7 +218,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 
 	/* UNC and paths */
 	/* XXX: Use ses->server->hostname? */
-	sprintf(unc, unc_fmt, ses->serverName);
+	sprintf(unc, unc_fmt, ses->ip_addr);
 	ctx.UNC = unc;
 	ctx.prepath = "";
 
@@ -230,6 +230,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	ctx.noautotune = ses->server->noautotune;
 	ctx.sockopt_tcp_nodelay = ses->server->tcp_nodelay;
 	ctx.echo_interval = ses->server->echo_interval / HZ;
+	ctx.max_credits = ses->server->max_credits;
 
 	/*
 	 * This will be used for encoding/decoding user/domain/pw

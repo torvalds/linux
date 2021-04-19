@@ -24,7 +24,7 @@
 #define CLEAR_SYNTH 0x18
 
 static int softsynth_probe(struct spk_synth *synth);
-static void softsynth_release(void);
+static void softsynth_release(struct spk_synth *synth);
 static int softsynth_is_alive(struct spk_synth *synth);
 static unsigned char get_index(struct spk_synth *synth);
 
@@ -402,7 +402,7 @@ static int softsynth_probe(struct spk_synth *synth)
 	return 0;
 }
 
-static void softsynth_release(void)
+static void softsynth_release(struct spk_synth *synth)
 {
 	misc_deregister(&synth_device);
 	misc_deregister(&synthu_device);

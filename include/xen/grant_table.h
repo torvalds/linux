@@ -50,6 +50,13 @@
 #include <linux/page-flags.h>
 #include <linux/kernel.h>
 
+/*
+ * Technically there's no reliably invalid grant reference or grant handle,
+ * so pick the value that is the most unlikely one to be observed valid.
+ */
+#define INVALID_GRANT_REF          ((grant_ref_t)-1)
+#define INVALID_GRANT_HANDLE       ((grant_handle_t)-1)
+
 #define GNTTAB_RESERVED_XENSTORE 1
 
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
@@ -157,6 +164,7 @@ gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
 	map->flags = flags;
 	map->ref = ref;
 	map->dom = domid;
+	map->status = 1; /* arbitrary positive value */
 }
 
 static inline void

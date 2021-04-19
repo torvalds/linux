@@ -50,5 +50,12 @@ bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_state,
 				    const struct drm_connector_state *conn_state);
 bool intel_hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state, int bpc,
 				    bool has_hdmi_sink, bool ycbcr420_output);
+int intel_hdmi_dsc_get_bpp(int src_fractional_bpp, int slice_width,
+			   int num_slices, int output_format, bool hdmi_all_bpp,
+			   int hdmi_max_chunk_bytes);
+int intel_hdmi_dsc_get_num_slices(const struct intel_crtc_state *crtc_state,
+				  int src_max_slices, int src_max_slice_width,
+				  int hdmi_max_slices, int hdmi_throughput);
+int intel_hdmi_dsc_get_slice_height(int vactive);
 
 #endif /* __INTEL_HDMI_H__ */

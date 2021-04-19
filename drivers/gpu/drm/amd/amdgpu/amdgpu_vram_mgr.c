@@ -473,6 +473,9 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	for (i = 0; pages_left >= pages_per_node; ++i) {
 		unsigned long pages = rounddown_pow_of_two(pages_left);
 
+		/* Limit maximum size to 2GB due to SG table limitations */
+		pages = min(pages, (2UL << (30 - PAGE_SHIFT)));
+
 		r = drm_mm_insert_node_in_range(mm, &nodes[i], pages,
 						pages_per_node, 0,
 						place->fpfn, lpfn,

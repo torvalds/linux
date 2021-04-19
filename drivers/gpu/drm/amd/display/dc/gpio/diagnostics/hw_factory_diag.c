@@ -28,6 +28,7 @@
  */
 
 #include "dm_services.h"
+#include "hw_factory_diag.h"
 #include "include/gpio_types.h"
 #include "../hw_factory.h"
 

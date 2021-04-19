@@ -106,7 +106,7 @@ enum mod_hdcp_status mod_hdcp_add_display_to_topology(struct mod_hdcp *hdcp,
 	dtm_cmd->dtm_in_message.topology_update_v2.dig_be = link->dig_be;
 	dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
 	if (is_dp_hdcp(hdcp))
-		dtm_cmd->dtm_in_message.topology_update_v2.is_assr = link->dp.assr_supported;
+		dtm_cmd->dtm_in_message.topology_update_v2.is_assr = link->dp.assr_enabled;
 
 	dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
 	dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =
@@ -548,6 +548,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
 			   TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
 			hdcp->connection.is_hdcp2_revoked = 1;
 			status = MOD_HDCP_STATUS_HDCP2_AKE_CERT_REVOKED;
+		}  else {
+			status = MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
 		}
 	}
 	mutex_unlock(&psp->hdcp_context.mutex);

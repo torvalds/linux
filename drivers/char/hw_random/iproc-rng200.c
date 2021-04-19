@@ -28,7 +28,6 @@
 #define RNG_CTRL_OFFSET					0x00
 #define RNG_CTRL_RNG_RBGEN_MASK				0x00001FFF
 #define RNG_CTRL_RNG_RBGEN_ENABLE			0x00000001
-#define RNG_CTRL_RNG_RBGEN_DISABLE			0x00000000
 
 #define RNG_SOFT_RESET_OFFSET				0x04
 #define RNG_SOFT_RESET					0x00000001
@@ -54,15 +53,24 @@ struct iproc_rng200_dev {
 
 #define to_rng_priv(rng)	container_of(rng, struct iproc_rng200_dev, rng)
 
+static void iproc_rng200_enable_set(void __iomem *rng_base, bool enable)
+{
+	u32 val;
+
+	val = ioread32(rng_base + RNG_CTRL_OFFSET);
+	val &= ~RNG_CTRL_RNG_RBGEN_MASK;
+
+	if (enable)
+		val |= RNG_CTRL_RNG_RBGEN_ENABLE;
+
+	iowrite32(val, rng_base + RNG_CTRL_OFFSET);
+}
+
 static void iproc_rng200_restart(void __iomem *rng_base)
 {
 	uint32_t val;
 
-	/* Disable RBG */
-	val = ioread32(rng_base + RNG_CTRL_OFFSET);
-	val &= ~RNG_CTRL_RNG_RBGEN_MASK;
-	val |= RNG_CTRL_RNG_RBGEN_DISABLE;
-	iowrite32(val, rng_base + RNG_CTRL_OFFSET);
+	iproc_rng200_enable_set(rng_base, false);
 
 	/* Clear all interrupt status */
 	iowrite32(0xFFFFFFFFUL, rng_base + RNG_INT_STATUS_OFFSET);
@@ -84,11 +92,7 @@ static void iproc_rng200_restart(void __iomem *rng_base)
 	val &= ~RBG_SOFT_RESET;
 	iowrite32(val, rng_base + RBG_SOFT_RESET_OFFSET);
 
-	/* Enable RBG */
-	val = ioread32(rng_base + RNG_CTRL_OFFSET);
-	val &= ~RNG_CTRL_RNG_RBGEN_MASK;
-	val |= RNG_CTRL_RNG_RBGEN_ENABLE;
-	iowrite32(val, rng_base + RNG_CTRL_OFFSET);
+	iproc_rng200_enable_set(rng_base, true);
 }
 
 static int iproc_rng200_read(struct hwrng *rng, void *buf, size_t max,
@@ -155,13 +159,8 @@ static int iproc_rng200_read(struct hwrng *rng, void *buf, size_t max,
 static int iproc_rng200_init(struct hwrng *rng)
 {
 	struct iproc_rng200_dev *priv = to_rng_priv(rng);
-	uint32_t val;
 
-	/* Setup RNG. */
-	val = ioread32(priv->base + RNG_CTRL_OFFSET);
-	val &= ~RNG_CTRL_RNG_RBGEN_MASK;
-	val |= RNG_CTRL_RNG_RBGEN_ENABLE;
-	iowrite32(val, priv->base + RNG_CTRL_OFFSET);
+	iproc_rng200_enable_set(priv->base, true);
 
 	return 0;
 }
@@ -169,13 +168,8 @@ static int iproc_rng200_init(struct hwrng *rng)
 static void iproc_rng200_cleanup(struct hwrng *rng)
 {
 	struct iproc_rng200_dev *priv = to_rng_priv(rng);
-	uint32_t val;
 
-	/* Disable RNG hardware */
-	val = ioread32(priv->base + RNG_CTRL_OFFSET);
-	val &= ~RNG_CTRL_RNG_RBGEN_MASK;
-	val |= RNG_CTRL_RNG_RBGEN_DISABLE;
-	iowrite32(val, priv->base + RNG_CTRL_OFFSET);
+	iproc_rng200_enable_set(priv->base, false);
 }
 
 static int iproc_rng200_probe(struct platform_device *pdev)

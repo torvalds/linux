@@ -35,6 +35,15 @@ struct nvkm_fifo_chan_object {
 	int hash;
 };
 
+static struct nvkm_fifo_engn *
+nvkm_fifo_chan_engn(struct nvkm_fifo_chan *chan, struct nvkm_engine *engine)
+{
+	int engi = chan->fifo->func->engine_id(chan->fifo, engine);
+	if (engi >= 0)
+		return &chan->engn[engi];
+	return NULL;
+}
+
 static int
 nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
 {
@@ -42,8 +51,8 @@ nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
 		container_of(base, typeof(*object), oproxy);
 	struct nvkm_engine *engine  = object->oproxy.object->engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
-	const char *name = nvkm_subdev_name[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
+	const char *name = engine->subdev.name;
 	int ret = 0;
 
 	if (--engn->usecount)
@@ -75,8 +84,8 @@ nvkm_fifo_chan_child_init(struct nvkm_oproxy *base)
 		container_of(base, typeof(*object), oproxy);
 	struct nvkm_engine *engine  = object->oproxy.object->engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
-	const char *name = nvkm_subdev_name[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
+	const char *name = engine->subdev.name;
 	int ret;
 
 	if (engn->usecount++)
@@ -108,7 +117,7 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 		container_of(base, typeof(*object), oproxy);
 	struct nvkm_engine *engine  = object->oproxy.base.engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 
 	if (chan->func->object_dtor)
 		chan->func->object_dtor(chan, object->hash);
@@ -118,7 +127,7 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 			chan->func->engine_dtor(chan, engine);
 		nvkm_object_del(&engn->object);
 		if (chan->vmm)
-			atomic_dec(&chan->vmm->engref[engine->subdev.index]);
+			atomic_dec(&chan->vmm->engref[engine->subdev.type]);
 	}
 }
 
@@ -135,7 +144,7 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 {
 	struct nvkm_engine *engine = oclass->engine;
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(oclass->parent);
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 	struct nvkm_fifo_chan_object *object;
 	int ret = 0;
 
@@ -152,7 +161,7 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 		};
 
 		if (chan->vmm)
-			atomic_inc(&chan->vmm->engref[engine->subdev.index]);
+			atomic_inc(&chan->vmm->engref[engine->subdev.type]);
 
 		if (engine->func->fifo.cclass) {
 			ret = engine->func->fifo.cclass(chan, &cclass,
@@ -203,13 +212,12 @@ nvkm_fifo_chan_child_get(struct nvkm_object *object, int index,
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
 	struct nvkm_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_engine *engine;
-	u64 mask = chan->engines;
-	int ret, i, c;
+	u32 engm = chan->engm;
+	int engi, ret, c;
 
-	for (; c = 0, i = __ffs64(mask), mask; mask &= ~(1ULL << i)) {
-		if (!(engine = nvkm_device_engine(device, i)))
+	for (; c = 0, engi = __ffs(engm), engm; engm &= ~(1ULL << engi)) {
+		if (!(engine = fifo->func->id_engine(fifo, engi)))
 			continue;
 		oclass->engine = engine;
 		oclass->base.oclass = 0;
@@ -352,7 +360,7 @@ nvkm_fifo_chan_func = {
 int
 nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 		    struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
-		    u64 hvmm, u64 push, u64 engines, int bar, u32 base,
+		    u64 hvmm, u64 push, u32 engm, int bar, u32 base,
 		    u32 user, const struct nvkm_oclass *oclass,
 		    struct nvkm_fifo_chan *chan)
 {
@@ -365,7 +373,7 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->func = func;
 	chan->fifo = fifo;
-	chan->engines = engines;
+	chan->engm = engm;
 	INIT_LIST_HEAD(&chan->head);
 
 	/* instance memory */

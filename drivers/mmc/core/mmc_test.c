@@ -624,7 +624,7 @@ static unsigned int mmc_test_capacity(struct mmc_card *card)
  * Fill the first couple of sectors of the card with known data
  * so that bad reads/writes can be detected
  */
-static int __mmc_test_prepare(struct mmc_test_card *test, int write)
+static int __mmc_test_prepare(struct mmc_test_card *test, int write, int val)
 {
 	int ret, i;
 
@@ -633,7 +633,7 @@ static int __mmc_test_prepare(struct mmc_test_card *test, int write)
 		return ret;
 
 	if (write)
-		memset(test->buffer, 0xDF, 512);
+		memset(test->buffer, val, 512);
 	else {
 		for (i = 0; i < 512; i++)
 			test->buffer[i] = i;
@@ -650,31 +650,17 @@ static int __mmc_test_prepare(struct mmc_test_card *test, int write)
 
 static int mmc_test_prepare_write(struct mmc_test_card *test)
 {
-	return __mmc_test_prepare(test, 1);
+	return __mmc_test_prepare(test, 1, 0xDF);
 }
 
 static int mmc_test_prepare_read(struct mmc_test_card *test)
 {
-	return __mmc_test_prepare(test, 0);
+	return __mmc_test_prepare(test, 0, 0);
 }
 
 static int mmc_test_cleanup(struct mmc_test_card *test)
 {
-	int ret, i;
-
-	ret = mmc_test_set_blksize(test, 512);
-	if (ret)
-		return ret;
-
-	memset(test->buffer, 0, 512);
-
-	for (i = 0; i < BUFFER_SIZE / 512; i++) {
-		ret = mmc_test_buffer_transfer(test, test->buffer, i, 512, 1);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return __mmc_test_prepare(test, 1, 0);
 }
 
 /*******************************************************************/
@@ -2124,7 +2110,7 @@ static int mmc_test_rw_multiple(struct mmc_test_card *test,
 	if (mmc_can_erase(test->card) &&
 	    tdata->prepare & MMC_TEST_PREP_ERASE) {
 		ret = mmc_erase(test->card, dev_addr,
-				size / 512, MMC_SECURE_ERASE_ARG);
+				size / 512, test->card->erase_arg);
 		if (ret)
 			ret = mmc_erase(test->card, dev_addr,
 					size / 512, MMC_ERASE_ARG);
@@ -3267,17 +3253,12 @@ static void mmc_test_remove(struct mmc_card *card)
 	mmc_test_free_dbgfs_file(card);
 }
 
-static void mmc_test_shutdown(struct mmc_card *card)
-{
-}
-
 static struct mmc_driver mmc_driver = {
 	.drv		= {
 		.name	= "mmc_test",
 	},
 	.probe		= mmc_test_probe,
 	.remove		= mmc_test_remove,
-	.shutdown	= mmc_test_shutdown,
 };
 
 static int __init mmc_test_init(void)

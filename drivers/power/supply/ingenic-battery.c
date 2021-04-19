@@ -52,7 +52,7 @@ static int ingenic_battery_get_property(struct power_supply *psy,
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 /* Set the most appropriate IIO channel voltage reference scale

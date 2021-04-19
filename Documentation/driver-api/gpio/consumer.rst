@@ -361,12 +361,13 @@ corresponding chip driver. In that case a significantly improved performance
 can be expected. If simultaneous access is not possible the GPIOs will be
 accessed sequentially.
 
-The functions take three arguments:
+The functions take four arguments:
+
 	* array_size	- the number of array elements
 	* desc_array	- an array of GPIO descriptors
 	* array_info	- optional information obtained from gpiod_get_array()
 	* value_bitmap	- a bitmap to store the GPIOs' values (get) or
-			  a bitmap of values to assign to the GPIOs (set)
+          a bitmap of values to assign to the GPIOs (set)
 
 The descriptor array can be obtained using the gpiod_get_array() function
 or one of its variants. If the group of descriptors returned by that function

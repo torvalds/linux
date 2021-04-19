@@ -11,7 +11,7 @@
 struct stub_data {
 	unsigned long offset;
 	int fd;
-	long err;
+	long parent_err, child_err;
 };
 
 #endif

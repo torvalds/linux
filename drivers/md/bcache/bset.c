@@ -712,8 +712,10 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 	for (j = inorder_next(0, t->size);
 	     j;
 	     j = inorder_next(j, t->size)) {
-		while (bkey_to_cacheline(t, k) < cacheline)
-			prev = k, k = bkey_next(k);
+		while (bkey_to_cacheline(t, k) < cacheline) {
+			prev = k;
+			k = bkey_next(k);
+		}
 
 		t->prev[j] = bkey_u64s(prev);
 		t->tree[j].m = bkey_to_cacheline_offset(t, cacheline++, k);
@@ -901,8 +903,10 @@ unsigned int bch_btree_insert_key(struct btree_keys *b, struct bkey *k,
 	status = BTREE_INSERT_STATUS_INSERT;
 
 	while (m != bset_bkey_last(i) &&
-	       bkey_cmp(k, b->ops->is_extents ? &START_KEY(m) : m) > 0)
-		prev = m, m = bkey_next(m);
+	       bkey_cmp(k, b->ops->is_extents ? &START_KEY(m) : m) > 0) {
+		prev = m;
+		m = bkey_next(m);
+	}
 
 	/* prev is in the tree, if we merge we're done */
 	status = BTREE_INSERT_STATUS_BACK_MERGE;

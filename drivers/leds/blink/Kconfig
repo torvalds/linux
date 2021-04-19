@@ -1,0 +1,20 @@
+menuconfig LEDS_BLINK
+	bool "LED Blink support"
+	depends on LEDS_CLASS
+	help
+	  This option enables blink support for the leds class.
+	  If unsure, say Y.
+
+if LEDS_BLINK
+
+config LEDS_BLINK_LGM
+	tristate "LED support for Intel LGM SoC series"
+	depends on LEDS_CLASS
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Parallel to serial conversion, which is also called SSO controller,
+	  can drive external shift register for LED outputs.
+	  This enables LED support for Serial Shift Output controller(SSO).
+
+endif # LEDS_BLINK

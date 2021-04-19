@@ -91,7 +91,6 @@
 	.set	pop
 	.endm
 
-.section .text.cps-vec
 .balign 0x1000
 
 LEAF(mips_cps_core_entry)

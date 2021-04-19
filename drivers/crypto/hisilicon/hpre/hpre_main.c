@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/topology.h>
+#include <linux/uacce.h>
 #include "hpre.h"
 
 #define HPRE_QUEUE_NUM_V2		1024
@@ -29,13 +30,14 @@
 #define HPRE_BD_ARUSR_CFG		0x301030
 #define HPRE_BD_AWUSR_CFG		0x301034
 #define HPRE_TYPES_ENB			0x301038
+#define HPRE_RSA_ENB			BIT(0)
+#define HPRE_ECC_ENB			BIT(1)
 #define HPRE_DATA_RUSER_CFG		0x30103c
 #define HPRE_DATA_WUSER_CFG		0x301040
 #define HPRE_INT_MASK			0x301400
 #define HPRE_INT_STATUS			0x301800
 #define HPRE_CORE_INT_ENABLE		0
 #define HPRE_CORE_INT_DISABLE		0x003fffff
-#define HPRE_RAS_ECC_1BIT_TH		0x30140c
 #define HPRE_RDCHN_INI_ST		0x301a00
 #define HPRE_CLSTR_BASE			0x302000
 #define HPRE_CORE_EN_OFFSET		0x04
@@ -45,7 +47,7 @@
 #define HPRE_CORE_IS_SCHD_OFFSET	0x90
 
 #define HPRE_RAS_CE_ENB			0x301410
-#define HPRE_HAC_RAS_CE_ENABLE		0x1
+#define HPRE_HAC_RAS_CE_ENABLE		(BIT(0) | BIT(22) | BIT(23))
 #define HPRE_RAS_NFE_ENB		0x301414
 #define HPRE_HAC_RAS_NFE_ENABLE		0x3ffffe
 #define HPRE_RAS_FE_ENB			0x301418
@@ -73,7 +75,8 @@
 #define HPRE_QM_AXI_CFG_MASK		0xffff
 #define HPRE_QM_VFG_AX_MASK		0xff
 #define HPRE_BD_USR_MASK		0x3
-#define HPRE_CLUSTER_CORE_MASK		0xf
+#define HPRE_CLUSTER_CORE_MASK_V2	0xf
+#define HPRE_CLUSTER_CORE_MASK_V3	0xff
 
 #define HPRE_AM_OOO_SHUTDOWN_ENB	0x301044
 #define HPRE_AM_OOO_SHUTDOWN_ENABLE	BIT(0)
@@ -86,6 +89,11 @@
 #define HPRE_QM_PM_FLR			BIT(11)
 #define HPRE_QM_SRIOV_FLR		BIT(12)
 
+#define HPRE_CLUSTERS_NUM(qm)		\
+	(((qm)->ver >= QM_HW_V3) ? HPRE_CLUSTERS_NUM_V3 : HPRE_CLUSTERS_NUM_V2)
+#define HPRE_CLUSTER_CORE_MASK(qm)	\
+	(((qm)->ver >= QM_HW_V3) ? HPRE_CLUSTER_CORE_MASK_V3 :\
+		HPRE_CLUSTER_CORE_MASK_V2)
 #define HPRE_VIA_MSI_DSM		1
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
@@ -129,7 +137,11 @@ static const struct hpre_hw_error hpre_hw_errors[] = {
 	{ .int_msk = BIT(9), .msg = "cluster4_shb_timeout_int_set" },
 	{ .int_msk = GENMASK(15, 10), .msg = "ooo_rdrsp_err_int_set" },
 	{ .int_msk = GENMASK(21, 16), .msg = "ooo_wrrsp_err_int_set" },
-	{ /* sentinel */ }
+	{ .int_msk = BIT(22), .msg = "pt_rng_timeout_int_set"},
+	{ .int_msk = BIT(23), .msg = "sva_fsm_timeout_int_set"},
+	{
+		/* sentinel */
+	}
 };
 
 static const u64 hpre_cluster_offsets[] = {
@@ -178,6 +190,19 @@ static const char *hpre_dfx_files[HPRE_DFX_FILE_NUM] = {
 	"invalid_req_cnt"
 };
 
+static const struct kernel_param_ops hpre_uacce_mode_ops = {
+	.set = uacce_mode_set,
+	.get = param_get_int,
+};
+
+/*
+ * uacce_mode = 0 means hpre only register to crypto,
+ * uacce_mode = 1 means hpre both register to crypto and uacce.
+ */
+static u32 uacce_mode = UACCE_MODE_NOUACCE;
+module_param_cb(uacce_mode, &hpre_uacce_mode_ops, &uacce_mode, 0444);
+MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
+
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
 	return q_num_set(val, kp, HPRE_PCI_DEVICE_ID);
@@ -214,6 +239,30 @@ struct hisi_qp *hpre_create_qp(void)
 	return NULL;
 }
 
+static void hpre_pasid_enable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl_relaxed(qm->io_base + HPRE_DATA_RUSER_CFG);
+	val |= BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_RUSER_CFG);
+	val = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
+	val |= BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_WUSER_CFG);
+}
+
+static void hpre_pasid_disable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	val = readl_relaxed(qm->io_base +  HPRE_DATA_RUSER_CFG);
+	val &= ~BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_RUSER_CFG);
+	val = readl_relaxed(qm->io_base + HPRE_DATA_WUSER_CFG);
+	val &= ~BIT(HPRE_PASID_EN_BIT);
+	writel_relaxed(val, qm->io_base + HPRE_DATA_WUSER_CFG);
+}
+
 static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -238,8 +287,40 @@ static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 	return 0;
 }
 
+static int hpre_set_cluster(struct hisi_qm *qm)
+{
+	u32 cluster_core_mask = HPRE_CLUSTER_CORE_MASK(qm);
+	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
+	struct device *dev = &qm->pdev->dev;
+	unsigned long offset;
+	u32 val = 0;
+	int ret, i;
+
+	for (i = 0; i < clusters_num; i++) {
+		offset = i * HPRE_CLSTR_ADDR_INTRVL;
+
+		/* clusters initiating */
+		writel(cluster_core_mask,
+		       HPRE_ADDR(qm, offset + HPRE_CORE_ENB));
+		writel(0x1, HPRE_ADDR(qm, offset + HPRE_CORE_INI_CFG));
+		ret = readl_relaxed_poll_timeout(HPRE_ADDR(qm, offset +
+					HPRE_CORE_INI_STATUS), val,
+					((val & cluster_core_mask) ==
+					cluster_core_mask),
+					HPRE_REG_RD_INTVRL_US,
+					HPRE_REG_RD_TMOUT_US);
+		if (ret) {
+			dev_err(dev,
+				"cluster %d int st status timeout!\n", i);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
 /*
- * For Hi1620, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
+ * For Kunpeng 920, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
  * Or it may stay in D3 state when we bind and unbind hpre quickly,
  * as it does FLR triggered by hardware.
  */
@@ -257,9 +338,8 @@ static void disable_flr_of_bme(struct hisi_qm *qm)
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
-	unsigned long offset;
-	int ret, i;
 	u32 val;
+	int ret;
 
 	writel(HPRE_QM_USR_CFG_MASK, HPRE_ADDR(qm, QM_ARUSER_M_CFG_ENABLE));
 	writel(HPRE_QM_USR_CFG_MASK, HPRE_ADDR(qm, QM_AWUSER_M_CFG_ENABLE));
@@ -270,11 +350,15 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	val |= BIT(HPRE_TIMEOUT_ABNML_BIT);
 	writel_relaxed(val, HPRE_ADDR(qm, HPRE_QM_ABNML_INT_MASK));
 
-	writel(0x1, HPRE_ADDR(qm, HPRE_TYPES_ENB));
+	if (qm->ver >= QM_HW_V3)
+		writel(HPRE_RSA_ENB | HPRE_ECC_ENB,
+			HPRE_ADDR(qm, HPRE_TYPES_ENB));
+	else
+		writel(HPRE_RSA_ENB, HPRE_ADDR(qm, HPRE_TYPES_ENB));
+
 	writel(HPRE_QM_VFG_AX_MASK, HPRE_ADDR(qm, HPRE_VFG_AXCACHE));
 	writel(0x0, HPRE_ADDR(qm, HPRE_BD_ENDIAN));
 	writel(0x0, HPRE_ADDR(qm, HPRE_INT_MASK));
-	writel(0x0, HPRE_ADDR(qm, HPRE_RAS_ECC_1BIT_TH));
 	writel(0x0, HPRE_ADDR(qm, HPRE_POISON_BYPASS));
 	writel(0x0, HPRE_ADDR(qm, HPRE_COMM_CNT_CLR_CE));
 	writel(0x0, HPRE_ADDR(qm, HPRE_ECC_BYPASS));
@@ -291,37 +375,29 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 		return -ETIMEDOUT;
 	}
 
-	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
-		offset = i * HPRE_CLSTR_ADDR_INTRVL;
-
-		/* clusters initiating */
-		writel(HPRE_CLUSTER_CORE_MASK,
-		       HPRE_ADDR(qm, offset + HPRE_CORE_ENB));
-		writel(0x1, HPRE_ADDR(qm, offset + HPRE_CORE_INI_CFG));
-		ret = readl_relaxed_poll_timeout(HPRE_ADDR(qm, offset +
-					HPRE_CORE_INI_STATUS), val,
-					((val & HPRE_CLUSTER_CORE_MASK) ==
-					HPRE_CLUSTER_CORE_MASK),
-					HPRE_REG_RD_INTVRL_US,
-					HPRE_REG_RD_TMOUT_US);
-		if (ret) {
-			dev_err(dev,
-				"cluster %d int st status timeout!\n", i);
-			return -ETIMEDOUT;
-		}
-	}
-
-	ret = hpre_cfg_by_dsm(qm);
+	ret = hpre_set_cluster(qm);
 	if (ret)
-		dev_err(dev, "acpi_evaluate_dsm err.\n");
+		return -ETIMEDOUT;
 
-	disable_flr_of_bme(qm);
+	/* This setting is only needed by Kunpeng 920. */
+	if (qm->ver == QM_HW_V2) {
+		ret = hpre_cfg_by_dsm(qm);
+		if (ret)
+			dev_err(dev, "acpi_evaluate_dsm err.\n");
+
+		disable_flr_of_bme(qm);
+
+		/* Enable data buffer pasid */
+		if (qm->use_sva)
+			hpre_pasid_enable(qm);
+	}
 
 	return ret;
 }
 
 static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 {
+	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
 	unsigned long offset;
 	int i;
 
@@ -330,7 +406,7 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
 
 	/* clear clusterX/cluster_ctrl */
-	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
+	for (i = 0; i < clusters_num; i++) {
 		offset = HPRE_CLSTR_BASE + i * HPRE_CLSTR_ADDR_INTRVL;
 		writel(0x0, qm->io_base + offset + HPRE_CLUSTER_INQURY);
 	}
@@ -629,13 +705,14 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 
 static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 {
+	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
 	struct device *dev = &qm->pdev->dev;
 	char buf[HPRE_DBGFS_VAL_MAX_LEN];
 	struct debugfs_regset32 *regset;
 	struct dentry *tmp_d;
 	int i, ret;
 
-	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
+	for (i = 0; i < clusters_num; i++) {
 		ret = snprintf(buf, HPRE_DBGFS_VAL_MAX_LEN, "cluster%d", i);
 		if (ret < 0)
 			return -EINVAL;
@@ -734,6 +811,11 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
+	if (pdev->revision >= QM_HW_V3)
+		qm->algs = "rsa\ndh\necdh\nx25519\nx448\necdsa\nsm2\n";
+	else
+		qm->algs = "rsa\ndh\n";
+	qm->mode = uacce_mode;
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	qm->sqe_size = HPRE_SQE_SIZE;
@@ -799,6 +881,7 @@ static const struct hisi_qm_err_ini hpre_err_ini = {
 		.fe			= 0,
 		.ecc_2bits_mask		= HPRE_CORE_ECC_2BIT_ERR |
 					  HPRE_OOO_ECC_2BIT_ERR,
+		.dev_ce_mask		= HPRE_HAC_RAS_CE_ENABLE,
 		.msi_wr_port		= HPRE_WR_MSI_PORT,
 		.acpi_rst		= "HRST",
 	}
@@ -872,6 +955,14 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_with_qm_start;
 	}
 
+	if (qm->uacce) {
+		ret = uacce_register(qm->uacce);
+		if (ret) {
+			pci_err(pdev, "failed to register uacce (%d)!\n", ret);
+			goto err_with_alg_register;
+		}
+	}
+
 	if (qm->fun_type == QM_HW_PF && vfs_num) {
 		ret = hisi_qm_sriov_enable(pdev, vfs_num);
 		if (ret < 0)
@@ -904,20 +995,24 @@ static void hpre_remove(struct pci_dev *pdev)
 	hisi_qm_wait_task_finish(qm, &hpre_devices);
 	hisi_qm_alg_unregister(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num) {
-		ret = hisi_qm_sriov_disable(pdev, qm->is_frozen);
+		ret = hisi_qm_sriov_disable(pdev, true);
 		if (ret) {
 			pci_err(pdev, "Disable SRIOV fail!\n");
 			return;
 		}
 	}
-	if (qm->fun_type == QM_HW_PF) {
-		hpre_cnt_regs_clear(qm);
-		qm->debug.curr_qm_qp_num = 0;
-	}
 
 	hpre_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
-	hisi_qm_dev_err_uninit(qm);
+
+	if (qm->fun_type == QM_HW_PF) {
+		if (qm->use_sva && qm->ver == QM_HW_V2)
+			hpre_pasid_disable(qm);
+		hpre_cnt_regs_clear(qm);
+		qm->debug.curr_qm_qp_num = 0;
+		hisi_qm_dev_err_uninit(qm);
+	}
+
 	hisi_qm_uninit(qm);
 }
 

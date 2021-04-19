@@ -217,3 +217,73 @@ For example::
 	 NPA_AF_ERR:
 	        NPA Error Interrupt Reg : 4096
 	        AQ Doorbell Error
+
+
+NIX Reporters
+-------------
+The NIX reporters are responsible for reporting and recovering the following group of errors:
+
+1. GENERAL events
+
+   - Receive mirror/multicast packet drop due to insufficient buffer.
+   - SMQ Flush operation.
+
+2. ERROR events
+
+   - Memory Fault due to WQE read/write from multicast/mirror buffer.
+   - Receive multicast/mirror replication list error.
+   - Receive packet on an unmapped PF.
+   - Fault due to NIX_AQ_INST_S read or NIX_AQ_RES_S write.
+   - AQ Doorbell Error.
+
+3. RAS events
+
+   - RAS Error Reporting for NIX Receive Multicast/Mirror Entry Structure.
+   - RAS Error Reporting for WQE/Packet Data read from Multicast/Mirror Buffer..
+   - RAS Error Reporting for NIX_AQ_INST_S/NIX_AQ_RES_S.
+
+4. RVU events
+
+   - Error due to unmapped slot.
+
+Sample Output::
+
+	~# ./devlink health
+	pci/0002:01:00.0:
+	  reporter hw_npa_intr
+	    state healthy error 0 recover 0 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_npa_gen
+	    state healthy error 0 recover 0 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_npa_err
+	    state healthy error 0 recover 0 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_npa_ras
+	    state healthy error 0 recover 0 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_nix_intr
+	    state healthy error 1121 recover 1121 last_dump_date 2021-01-19 last_dump_time 05:42:26 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_nix_gen
+	    state healthy error 949 recover 949 last_dump_date 2021-01-19 last_dump_time 05:42:43 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_nix_err
+	    state healthy error 1147 recover 1147 last_dump_date 2021-01-19 last_dump_time 05:42:59 grace_period 0 auto_recover true auto_dump true
+	  reporter hw_nix_ras
+	    state healthy error 409 recover 409 last_dump_date 2021-01-19 last_dump_time 05:43:16 grace_period 0 auto_recover true auto_dump true
+
+Each reporter dumps the
+
+ - Error Type
+ - Error Register value
+ - Reason in words
+
+For example::
+
+	~# devlink health dump show pci/0002:01:00.0 reporter hw_nix_intr
+	 NIX_AF_RVU:
+	        NIX RVU Interrupt Reg : 1
+	        Unmap Slot Error
+	~# devlink health dump show pci/0002:01:00.0 reporter hw_nix_gen
+	 NIX_AF_GENERAL:
+	        NIX General Interrupt Reg : 1
+	        Rx multicast pkt drop
+	~# devlink health dump show pci/0002:01:00.0 reporter hw_nix_err
+	 NIX_AF_ERR:
+	        NIX Error Interrupt Reg : 64
+	        Rx on unmapped PF_FUNC

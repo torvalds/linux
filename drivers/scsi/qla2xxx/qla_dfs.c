@@ -286,6 +286,10 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 		core_qla_snd_status, qla_core_ret_sta_ctio, core_qla_free_cmd,
 		num_q_full_sent, num_alloc_iocb_failed, num_term_xchg_sent;
 	u16 i;
+	fc_port_t *fcport = NULL;
+
+	if (qla2x00_chip_is_down(vha))
+		return 0;
 
 	qla_core_sbt_cmd = qpair->tgt_counters.qla_core_sbt_cmd;
 	core_qla_que_buf = qpair->tgt_counters.core_qla_que_buf;
@@ -349,6 +353,30 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 		vha->qla_stats.qla_dif_stats.dif_ref_tag_err);
 	seq_printf(s, "DIF App tag err = %d\n",
 		vha->qla_stats.qla_dif_stats.dif_app_tag_err);
+
+	seq_puts(s, "\n");
+	seq_puts(s, "Initiator Error Counters\n");
+	seq_printf(s, "HW Error Count =		%14lld\n",
+		   vha->hw_err_cnt);
+	seq_printf(s, "Link Down Count =	%14lld\n",
+		   vha->short_link_down_cnt);
+	seq_printf(s, "Interface Err Count =	%14lld\n",
+		   vha->interface_err_cnt);
+	seq_printf(s, "Cmd Timeout Count =	%14lld\n",
+		   vha->cmd_timeout_cnt);
+	seq_printf(s, "Reset Count =		%14lld\n",
+		   vha->reset_cmd_err_cnt);
+	seq_puts(s, "\n");
+
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
+		if (!fcport->rport)
+			continue;
+
+		seq_printf(s, "Target Num = %7d Link Down Count = %14lld\n",
+			   fcport->rport->number, fcport->tgt_short_link_down_cnt);
+	}
+	seq_puts(s, "\n");
+
 	return 0;
 }
 

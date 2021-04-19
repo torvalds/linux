@@ -286,11 +286,11 @@ nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
 
 	bl_size = bw * bh * (1 << tile_mode) * gob_size;
 
-	DRM_DEBUG_KMS("offset=%u stride=%u h=%u tile_mode=0x%02x bw=%u bh=%u gob_size=%u bl_size=%llu size=%lu\n",
+	DRM_DEBUG_KMS("offset=%u stride=%u h=%u tile_mode=0x%02x bw=%u bh=%u gob_size=%u bl_size=%llu size=%zu\n",
 		      offset, stride, h, tile_mode, bw, bh, gob_size, bl_size,
-		      nvbo->bo.mem.size);
+		      nvbo->bo.base.size);
 
-	if (bl_size + offset > nvbo->bo.mem.size)
+	if (bl_size + offset > nvbo->bo.base.size)
 		return -ERANGE;
 
 	return 0;
@@ -363,7 +363,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 		} else {
 			uint32_t size = mode_cmd->pitches[i] * height;
 
-			if (size + mode_cmd->offsets[i] > nvbo->bo.mem.size)
+			if (size + mode_cmd->offsets[i] > nvbo->bo.base.size)
 				return -ERANGE;
 		}
 	}

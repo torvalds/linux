@@ -9,10 +9,7 @@ C SB+fencembonceonces
  * suffice, but not much else.)
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x, int *y)
 {

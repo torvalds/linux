@@ -70,8 +70,8 @@ void gma_power_init(struct drm_device *dev)
  */
 void gma_power_uninit(struct drm_device *dev)
 {
-	pm_runtime_disable(&dev->pdev->dev);
-	pm_runtime_set_suspended(&dev->pdev->dev);
+	pm_runtime_disable(dev->dev);
+	pm_runtime_set_suspended(dev->dev);
 }
 
 /**
@@ -93,6 +93,7 @@ static void gma_suspend_display(struct drm_device *dev)
 
 /**
  *	gma_resume_display	-	resume display side logic
+ *	@pdev: PCI device
  *
  *	Resume the display hardware restoring state and enabling
  *	as necessary.
@@ -146,7 +147,7 @@ static void gma_suspend_pci(struct pci_dev *pdev)
 
 /**
  *	gma_resume_pci		-	resume helper
- *	@dev: our PCI device
+ *	@pdev: our PCI device
  *
  *	Perform the resume processing on our PCI device state - rewrite
  *	register state and re-enable the PCI device
@@ -178,8 +179,7 @@ static bool gma_resume_pci(struct pci_dev *pdev)
 
 /**
  *	gma_power_suspend		-	bus callback for suspend
- *	@pdev: our PCI device
- *	@state: suspend type
+ *	@_dev: our device
  *
  *	Called back by the PCI layer during a suspend of the system. We
  *	perform the necessary shut down steps and save enough state that
@@ -208,7 +208,7 @@ int gma_power_suspend(struct device *_dev)
 
 /**
  *	gma_power_resume		-	resume power
- *	@pdev: PCI device
+ *	@_dev: our device
  *
  *	Resume the PCI side of the graphics and then the displays
  */
@@ -249,6 +249,7 @@ bool gma_power_is_on(struct drm_device *dev)
 bool gma_power_begin(struct drm_device *dev, bool force_on)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 	unsigned long flags;
 
@@ -256,7 +257,7 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 	/* Power already on ? */
 	if (dev_priv->display_power) {
 		dev_priv->display_count++;
-		pm_runtime_get(&dev->pdev->dev);
+		pm_runtime_get(dev->dev);
 		spin_unlock_irqrestore(&power_ctrl_lock, flags);
 		return true;
 	}
@@ -264,11 +265,11 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 		goto out_false;
 
 	/* Ok power up needed */
-	ret = gma_resume_pci(dev->pdev);
+	ret = gma_resume_pci(pdev);
 	if (ret == 0) {
 		psb_irq_preinstall(dev);
 		psb_irq_postinstall(dev);
-		pm_runtime_get(&dev->pdev->dev);
+		pm_runtime_get(dev->dev);
 		dev_priv->display_count++;
 		spin_unlock_irqrestore(&power_ctrl_lock, flags);
 		return true;
@@ -293,7 +294,7 @@ void gma_power_end(struct drm_device *dev)
 	dev_priv->display_count--;
 	WARN_ON(dev_priv->display_count < 0);
 	spin_unlock_irqrestore(&power_ctrl_lock, flags);
-	pm_runtime_put(&dev->pdev->dev);
+	pm_runtime_put(dev->dev);
 }
 
 int psb_runtime_suspend(struct device *dev)

@@ -63,12 +63,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led-0 {
 			label = "cubieboard4:green:usr";
 			gpios = <&pio 7 17 GPIO_ACTIVE_HIGH>; /* PH17 */
 		};
 
-		red {
+		led-1 {
 			label = "cubieboard4:red:usr";
 			gpios = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
 		};

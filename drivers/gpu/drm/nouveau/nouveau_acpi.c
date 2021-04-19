@@ -377,7 +377,7 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 		return NULL;
 	}
 
-	handle = ACPI_HANDLE(&dev->pdev->dev);
+	handle = ACPI_HANDLE(dev->dev);
 	if (!handle)
 		return NULL;
 

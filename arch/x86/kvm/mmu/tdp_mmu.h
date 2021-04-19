@@ -5,14 +5,32 @@
 
 #include <linux/kvm_host.h>
 
-void kvm_mmu_init_tdp_mmu(struct kvm *kvm);
-void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
-
-bool is_tdp_mmu_root(struct kvm *kvm, hpa_t root);
 hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu);
 void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root);
 
-bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start, gfn_t end);
+bool __kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start, gfn_t end,
+				 bool can_yield);
+static inline bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start,
+					     gfn_t end)
+{
+	return __kvm_tdp_mmu_zap_gfn_range(kvm, start, end, true);
+}
+static inline bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	gfn_t end = sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level);
+
+	/*
+	 * Don't allow yielding, as the caller may have a flush pending.  Note,
+	 * if mmu_lock is held for write, zapping will never yield in this case,
+	 * but explicitly disallow it for safety.  The TDP MMU does not yield
+	 * until it has made forward progress (steps sideways), and when zapping
+	 * a single shadow page that it's guaranteed to see (thus the mmu_lock
+	 * requirement), its "step sideways" will always step beyond the bounds
+	 * of the shadow page's gfn range and stop iterating before yielding.
+	 */
+	lockdep_assert_held_write(&kvm->mmu_lock);
+	return __kvm_tdp_mmu_zap_gfn_range(kvm, sp->gfn, end, false);
+}
 void kvm_tdp_mmu_zap_all(struct kvm *kvm);
 
 int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
@@ -37,14 +55,41 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 				       struct kvm_memory_slot *slot,
 				       gfn_t gfn, unsigned long mask,
 				       bool wrprot);
-bool kvm_tdp_mmu_slot_set_dirty(struct kvm *kvm, struct kvm_memory_slot *slot);
 void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
-				       const struct kvm_memory_slot *slot);
+				       struct kvm_memory_slot *slot);
 
 bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
 				   struct kvm_memory_slot *slot, gfn_t gfn);
 
 int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 			 int *root_level);
+
+#ifdef CONFIG_X86_64
+void kvm_mmu_init_tdp_mmu(struct kvm *kvm);
+void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
+static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return kvm->arch.tdp_mmu_enabled; }
+static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return sp->tdp_mmu_page; }
+#else
+static inline void kvm_mmu_init_tdp_mmu(struct kvm *kvm) {}
+static inline void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm) {}
+static inline bool is_tdp_mmu_enabled(struct kvm *kvm) { return false; }
+static inline bool is_tdp_mmu_page(struct kvm_mmu_page *sp) { return false; }
+#endif
+
+static inline bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
+{
+	struct kvm_mmu_page *sp;
+
+	if (!is_tdp_mmu_enabled(kvm))
+		return false;
+	if (WARN_ON(!VALID_PAGE(hpa)))
+		return false;
+
+	sp = to_shadow_page(hpa);
+	if (WARN_ON(!sp))
+		return false;
+
+	return is_tdp_mmu_page(sp) && sp->root_count;
+}
 
 #endif /* __KVM_X86_MMU_TDP_MMU_H */

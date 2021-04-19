@@ -70,6 +70,7 @@ properties:
     description: Enables bypass mode at boot time
 
   interrupts:
+    maxItems: 1
     description: |
       Indicates that the device state has changed.
 

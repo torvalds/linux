@@ -507,6 +507,3 @@ config PANEL
 	depends on PARPORT
 	select AUXDISPLAY
 	select PARPORT_PANEL
-
-config CHARLCD
-	tristate "Character LCD core support" if COMPILE_TEST

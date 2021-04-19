@@ -13,7 +13,7 @@ from typing import List, Set
 CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_(\w+) is not set$'
 CONFIG_PATTERN = r'^CONFIG_(\w+)=(\S+|".*")$'
 
-KconfigEntryBase = collections.namedtuple('KconfigEntry', ['name', 'value'])
+KconfigEntryBase = collections.namedtuple('KconfigEntryBase', ['name', 'value'])
 
 class KconfigEntry(KconfigEntryBase):
 
@@ -41,15 +41,14 @@ class Kconfig(object):
 		self._entries.append(entry)
 
 	def is_subset_of(self, other: 'Kconfig') -> bool:
+		other_dict = {e.name: e.value for e in other.entries()}
 		for a in self.entries():
-			found = False
-			for b in other.entries():
-				if a.name != b.name:
+			b = other_dict.get(a.name)
+			if b is None:
+				if a.value == 'n':
 					continue
-				if a.value != b.value:
-					return False
-				found = True
-			if a.value != 'n' and found == False:
+				return False
+			elif a.value != b:
 				return False
 		return True
 

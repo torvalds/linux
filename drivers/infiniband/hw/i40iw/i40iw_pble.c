@@ -54,6 +54,7 @@ static void i40iw_free_vmalloc_mem(struct i40iw_hw *hw, struct i40iw_chunk *chun
 
 /**
  * i40iw_destroy_pble_pool - destroy pool during module unload
+ * @dev: i40iw_sc_dev struct
  * @pble_rsrc:	pble resources
  */
 void i40iw_destroy_pble_pool(struct i40iw_sc_dev *dev, struct i40iw_hmc_pble_rsrc *pble_rsrc)
@@ -112,8 +113,8 @@ enum i40iw_status_code i40iw_hmc_init_pble(struct i40iw_sc_dev *dev,
 
 /**
  * get_sd_pd_idx -  Returns sd index, pd index and rel_pd_idx from fpm address
- * @ pble_rsrc:	structure containing fpm address
- * @ idx: where to return indexes
+ * @pble_rsrc:	structure containing fpm address
+ * @idx: where to return indexes
  */
 static inline void get_sd_pd_idx(struct i40iw_hmc_pble_rsrc *pble_rsrc,
 				 struct sd_pd_idx *idx)

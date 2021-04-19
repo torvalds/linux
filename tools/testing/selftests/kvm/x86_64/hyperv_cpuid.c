@@ -125,30 +125,6 @@ void test_hv_cpuid_e2big(struct kvm_vm *vm, bool system)
 		    " it should have: %d %d", system ? "KVM" : "vCPU", ret, errno);
 }
 
-
-struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(struct kvm_vm *vm, bool system)
-{
-	int nent = 20; /* should be enough */
-	static struct kvm_cpuid2 *cpuid;
-
-	cpuid = malloc(sizeof(*cpuid) + nent * sizeof(struct kvm_cpuid_entry2));
-
-	if (!cpuid) {
-		perror("malloc");
-		abort();
-	}
-
-	cpuid->nent = nent;
-
-	if (!system)
-		vcpu_ioctl(vm, VCPU_ID, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
-	else
-		kvm_ioctl(vm, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
-
-	return cpuid;
-}
-
-
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
@@ -167,7 +143,7 @@ int main(int argc, char *argv[])
 	/* Test vCPU ioctl version */
 	test_hv_cpuid_e2big(vm, false);
 
-	hv_cpuid_entries = kvm_get_supported_hv_cpuid(vm, false);
+	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, VCPU_ID);
 	test_hv_cpuid(hv_cpuid_entries, false);
 	free(hv_cpuid_entries);
 
@@ -177,7 +153,7 @@ int main(int argc, char *argv[])
 		goto do_sys;
 	}
 	vcpu_enable_evmcs(vm, VCPU_ID);
-	hv_cpuid_entries = kvm_get_supported_hv_cpuid(vm, false);
+	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, VCPU_ID);
 	test_hv_cpuid(hv_cpuid_entries, true);
 	free(hv_cpuid_entries);
 
@@ -190,9 +166,8 @@ do_sys:
 
 	test_hv_cpuid_e2big(vm, true);
 
-	hv_cpuid_entries = kvm_get_supported_hv_cpuid(vm, true);
+	hv_cpuid_entries = kvm_get_supported_hv_cpuid();
 	test_hv_cpuid(hv_cpuid_entries, nested_vmx_supported());
-	free(hv_cpuid_entries);
 
 out:
 	kvm_vm_free(vm);

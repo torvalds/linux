@@ -27,7 +27,7 @@
 		bootargs = "console=ttyS0,115200n8";
 	};
 
-       cpus {
+	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 

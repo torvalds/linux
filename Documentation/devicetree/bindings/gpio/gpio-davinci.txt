@@ -7,6 +7,7 @@ Required Properties:
 			"ti,k2g-gpio", "ti,keystone-gpio": for 66AK2G
 			"ti,am654-gpio", "ti,keystone-gpio": for TI K3 AM654
 			"ti,j721e-gpio", "ti,keystone-gpio": for J721E SoCs
+			"ti,am64-gpio", "ti,keystone-gpio": for AM64 SoCs
 
 - reg: Physical base address of the controller and the size of memory mapped
        registers.

@@ -368,7 +368,6 @@ struct ab8500 {
 	int it_latchhier_num;
 };
 
-struct ab8500_regulator_platform_data;
 struct ab8500_codec_platform_data;
 struct ab8500_sysctrl_platform_data;
 
@@ -376,11 +375,9 @@ struct ab8500_sysctrl_platform_data;
  * struct ab8500_platform_data - AB8500 platform data
  * @irq_base: start of AB8500 IRQs, AB8500_NR_IRQS will be used
  * @init: board-specific initialization after detection of ab8500
- * @regulator: machine-specific constraints for regulators
  */
 struct ab8500_platform_data {
 	void (*init) (struct ab8500 *);
-	struct ab8500_regulator_platform_data *regulator;
 	struct ab8500_codec_platform_data *codec;
 	struct ab8500_sysctrl_platform_data *sysctrl;
 };

@@ -40,7 +40,7 @@ struct batch_vals {
 	u32 size;
 };
 
-static inline int num_primitives(const struct batch_vals *bv)
+static int num_primitives(const struct batch_vals *bv)
 {
 	/*
 	 * We need to saturate the GPU with work in order to dispatch
@@ -240,7 +240,7 @@ gen7_emit_state_base_address(struct batch_chunk *batch,
 	/* general */
 	*cs++ = batch_addr(batch) | BASE_ADDRESS_MODIFY;
 	/* surface */
-	*cs++ = batch_addr(batch) | surface_state_base | BASE_ADDRESS_MODIFY;
+	*cs++ = (batch_addr(batch) + surface_state_base) | BASE_ADDRESS_MODIFY;
 	/* dynamic */
 	*cs++ = batch_addr(batch) | BASE_ADDRESS_MODIFY;
 	/* indirect */
@@ -353,17 +353,19 @@ static void gen7_emit_pipeline_flush(struct batch_chunk *batch)
 
 static void gen7_emit_pipeline_invalidate(struct batch_chunk *batch)
 {
-	u32 *cs = batch_alloc_items(batch, 0, 8);
+	u32 *cs = batch_alloc_items(batch, 0, 10);
 
 	/* ivb: Stall before STATE_CACHE_INVALIDATE */
-	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = GFX_OP_PIPE_CONTROL(5);
 	*cs++ = PIPE_CONTROL_STALL_AT_SCOREBOARD |
 		PIPE_CONTROL_CS_STALL;
 	*cs++ = 0;
 	*cs++ = 0;
+	*cs++ = 0;
 
-	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = GFX_OP_PIPE_CONTROL(5);
 	*cs++ = PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+	*cs++ = 0;
 	*cs++ = 0;
 	*cs++ = 0;
 
@@ -390,6 +392,18 @@ static void emit_batch(struct i915_vma * const vma,
 						     &cb_kernel_ivb,
 						     desc_count);
 
+	/* Reset inherited context registers */
+	gen7_emit_pipeline_flush(&cmds);
+	gen7_emit_pipeline_invalidate(&cmds);
+	batch_add(&cmds, MI_LOAD_REGISTER_IMM(2));
+	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_0_GEN7));
+	batch_add(&cmds, 0xffff0000);
+	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_1));
+	batch_add(&cmds, 0xffff0000 | PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+	gen7_emit_pipeline_invalidate(&cmds);
+	gen7_emit_pipeline_flush(&cmds);
+
+	/* Switch to the media pipeline and our base address */
 	gen7_emit_pipeline_invalidate(&cmds);
 	batch_add(&cmds, PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
 	batch_add(&cmds, MI_NOOP);
@@ -399,9 +413,11 @@ static void emit_batch(struct i915_vma * const vma,
 	gen7_emit_state_base_address(&cmds, descriptors);
 	gen7_emit_pipeline_invalidate(&cmds);
 
+	/* Set the clear-residual kernel state */
 	gen7_emit_vfe_state(&cmds, bv, urb_size - 1, 0, 0);
 	gen7_emit_interface_descriptor_load(&cmds, descriptors, desc_count);
 
+	/* Execute the kernel on all HW threads */
 	for (i = 0; i < num_primitives(bv); i++)
 		gen7_emit_media_object(&cmds, i);
 

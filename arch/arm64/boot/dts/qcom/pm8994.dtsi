@@ -6,7 +6,7 @@
 
 / {
 	thermal-zones {
-		pm8994 {
+		pm8994-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -43,7 +43,7 @@
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		pon@800 {
+		pm8994_pon: pon@800 {
 			compatible = "qcom,pm8916-pon";
 
 			reg = <0x800>;

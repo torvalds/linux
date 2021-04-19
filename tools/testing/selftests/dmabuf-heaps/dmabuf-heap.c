@@ -130,16 +130,13 @@ static int dmabuf_heap_alloc(int fd, size_t len, unsigned int flags,
 					 dmabuf_fd);
 }
 
-static void dmabuf_sync(int fd, int start_stop)
+static int dmabuf_sync(int fd, int start_stop)
 {
 	struct dma_buf_sync sync = {
 		.flags = start_stop | DMA_BUF_SYNC_RW,
 	};
-	int ret;
 
-	ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
-	if (ret)
-		printf("sync failed %d\n", errno);
+	return ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
 }
 
 #define ONE_MEG (1024 * 1024)
@@ -151,16 +148,14 @@ static int test_alloc_and_import(char *heap_name)
 	void *p = NULL;
 	int ret;
 
-	printf("Testing heap: %s\n", heap_name);
-
 	heap_fd = dmabuf_heap_open(heap_name);
 	if (heap_fd < 0)
 		return -1;
 
-	printf("Allocating 1 MEG\n");
+	printf("  Testing allocation and importing:  ");
 	ret = dmabuf_heap_alloc(heap_fd, ONE_MEG, 0, &dmabuf_fd);
 	if (ret) {
-		printf("Allocation Failed!\n");
+		printf("FAIL (Allocation Failed!)\n");
 		ret = -1;
 		goto out;
 	}
@@ -172,11 +167,10 @@ static int test_alloc_and_import(char *heap_name)
 		 dmabuf_fd,
 		 0);
 	if (p == MAP_FAILED) {
-		printf("mmap() failed: %m\n");
+		printf("FAIL (mmap() failed)\n");
 		ret = -1;
 		goto out;
 	}
-	printf("mmap passed\n");
 
 	dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_START);
 	memset(p, 1, ONE_MEG / 2);
@@ -186,25 +180,31 @@ static int test_alloc_and_import(char *heap_name)
 	importer_fd = open_vgem();
 	if (importer_fd < 0) {
 		ret = importer_fd;
-		printf("Failed to open vgem\n");
-		goto out;
+		printf("(Could not open vgem - skipping):  ");
+	} else {
+		ret = import_vgem_fd(importer_fd, dmabuf_fd, &handle);
+		if (ret < 0) {
+			printf("FAIL (Failed to import buffer)\n");
+			goto out;
+		}
 	}
 
-	ret = import_vgem_fd(importer_fd, dmabuf_fd, &handle);
+	ret = dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_START);
 	if (ret < 0) {
-		printf("Failed to import buffer\n");
+		printf("FAIL (DMA_BUF_SYNC_START failed!)\n");
 		goto out;
 	}
-	printf("import passed\n");
 
-	dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_START);
 	memset(p, 0xff, ONE_MEG);
-	dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_END);
-	printf("syncs passed\n");
+	ret = dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_END);
+	if (ret < 0) {
+		printf("FAIL (DMA_BUF_SYNC_END failed!)\n");
+		goto out;
+	}
 
 	close_handle(importer_fd, handle);
 	ret = 0;
-
+	printf(" OK\n");
 out:
 	if (p)
 		munmap(p, ONE_MEG);
@@ -215,6 +215,84 @@ out:
 	if (heap_fd >= 0)
 		close(heap_fd);
 
+	return ret;
+}
+
+static int test_alloc_zeroed(char *heap_name, size_t size)
+{
+	int heap_fd = -1, dmabuf_fd[32];
+	int i, j, ret;
+	void *p = NULL;
+	char *c;
+
+	printf("  Testing alloced %ldk buffers are zeroed:  ", size / 1024);
+	heap_fd = dmabuf_heap_open(heap_name);
+	if (heap_fd < 0)
+		return -1;
+
+	/* Allocate and fill a bunch of buffers */
+	for (i = 0; i < 32; i++) {
+		ret = dmabuf_heap_alloc(heap_fd, size, 0, &dmabuf_fd[i]);
+		if (ret < 0) {
+			printf("FAIL (Allocation (%i) failed)\n", i);
+			goto out;
+		}
+		/* mmap and fill with simple pattern */
+		p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, dmabuf_fd[i], 0);
+		if (p == MAP_FAILED) {
+			printf("FAIL (mmap() failed!)\n");
+			ret = -1;
+			goto out;
+		}
+		dmabuf_sync(dmabuf_fd[i], DMA_BUF_SYNC_START);
+		memset(p, 0xff, size);
+		dmabuf_sync(dmabuf_fd[i], DMA_BUF_SYNC_END);
+		munmap(p, size);
+	}
+	/* close them all */
+	for (i = 0; i < 32; i++)
+		close(dmabuf_fd[i]);
+
+	/* Allocate and validate all buffers are zeroed */
+	for (i = 0; i < 32; i++) {
+		ret = dmabuf_heap_alloc(heap_fd, size, 0, &dmabuf_fd[i]);
+		if (ret < 0) {
+			printf("FAIL (Allocation (%i) failed)\n", i);
+			goto out;
+		}
+
+		/* mmap and validate everything is zero */
+		p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, dmabuf_fd[i], 0);
+		if (p == MAP_FAILED) {
+			printf("FAIL (mmap() failed!)\n");
+			ret = -1;
+			goto out;
+		}
+		dmabuf_sync(dmabuf_fd[i], DMA_BUF_SYNC_START);
+		c = (char *)p;
+		for (j = 0; j < size; j++) {
+			if (c[j] != 0) {
+				printf("FAIL (Allocated buffer not zeroed @ %i)\n", j);
+				break;
+			}
+		}
+		dmabuf_sync(dmabuf_fd[i], DMA_BUF_SYNC_END);
+		munmap(p, size);
+	}
+	/* close them all */
+	for (i = 0; i < 32; i++)
+		close(dmabuf_fd[i]);
+
+	close(heap_fd);
+	printf("OK\n");
+	return 0;
+
+out:
+	while (i > 0) {
+		close(dmabuf_fd[i]);
+		i--;
+	}
+	close(heap_fd);
 	return ret;
 }
 
@@ -292,23 +370,24 @@ static int test_alloc_compat(char *heap_name)
 	if (heap_fd < 0)
 		return -1;
 
-	printf("Testing (theoretical)older alloc compat\n");
+	printf("  Testing (theoretical)older alloc compat:  ");
 	ret = dmabuf_heap_alloc_older(heap_fd, ONE_MEG, 0, &dmabuf_fd);
 	if (ret) {
-		printf("Older compat allocation failed!\n");
+		printf("FAIL (Older compat allocation failed!)\n");
 		ret = -1;
 		goto out;
 	}
 	close(dmabuf_fd);
+	printf("OK\n");
 
-	printf("Testing (theoretical)newer alloc compat\n");
+	printf("  Testing (theoretical)newer alloc compat:  ");
 	ret = dmabuf_heap_alloc_newer(heap_fd, ONE_MEG, 0, &dmabuf_fd);
 	if (ret) {
-		printf("Newer compat allocation failed!\n");
+		printf("FAIL (Newer compat allocation failed!)\n");
 		ret = -1;
 		goto out;
 	}
-	printf("Ioctl compatibility tests passed\n");
+	printf("OK\n");
 out:
 	if (dmabuf_fd >= 0)
 		close(dmabuf_fd);
@@ -327,17 +406,17 @@ static int test_alloc_errors(char *heap_name)
 	if (heap_fd < 0)
 		return -1;
 
-	printf("Testing expected error cases\n");
+	printf("  Testing expected error cases:  ");
 	ret = dmabuf_heap_alloc(0, ONE_MEG, 0x111111, &dmabuf_fd);
 	if (!ret) {
-		printf("Did not see expected error (invalid fd)!\n");
+		printf("FAIL (Did not see expected error (invalid fd)!)\n");
 		ret = -1;
 		goto out;
 	}
 
 	ret = dmabuf_heap_alloc(heap_fd, ONE_MEG, 0x111111, &dmabuf_fd);
 	if (!ret) {
-		printf("Did not see expected error (invalid heap flags)!\n");
+		printf("FAIL (Did not see expected error (invalid heap flags)!)\n");
 		ret = -1;
 		goto out;
 	}
@@ -345,12 +424,12 @@ static int test_alloc_errors(char *heap_name)
 	ret = dmabuf_heap_alloc_fdflags(heap_fd, ONE_MEG,
 					~(O_RDWR | O_CLOEXEC), 0, &dmabuf_fd);
 	if (!ret) {
-		printf("Did not see expected error (invalid fd flags)!\n");
+		printf("FAIL (Did not see expected error (invalid fd flags)!)\n");
 		ret = -1;
 		goto out;
 	}
 
-	printf("Expected error checking passed\n");
+	printf("OK\n");
 	ret = 0;
 out:
 	if (dmabuf_fd >= 0)
@@ -379,7 +458,17 @@ int main(void)
 		if (!strncmp(dir->d_name, "..", 3))
 			continue;
 
+		printf("Testing heap: %s\n", dir->d_name);
+		printf("=======================================\n");
 		ret = test_alloc_and_import(dir->d_name);
+		if (ret)
+			break;
+
+		ret = test_alloc_zeroed(dir->d_name, 4 * 1024);
+		if (ret)
+			break;
+
+		ret = test_alloc_zeroed(dir->d_name, ONE_MEG);
 		if (ret)
 			break;
 

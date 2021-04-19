@@ -38,3 +38,34 @@ config CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS
 	  Provides OCS version of cts(cbc(aes)) and cts(cbc(sm4)).
 
 	  Intel does not recommend use of CTS mode with AES/SM4.
+
+config CRYPTO_DEV_KEEMBAY_OCS_HCU
+	tristate "Support for Intel Keem Bay OCS HCU HW acceleration"
+	select CRYPTO_HASH
+	select CRYPTO_ENGINE
+	depends on HAS_IOMEM
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	depends on OF || COMPILE_TEST
+	help
+	  Support for Intel Keem Bay Offload and Crypto Subsystem (OCS) Hash
+	  Control Unit (HCU) hardware acceleration for use with Crypto API.
+
+	  Provides OCS HCU hardware acceleration of sha256, sha384, sha512, and
+	  sm3, as well as the HMAC variant of these algorithms.
+
+	  Say Y or M if you're building for the Intel Keem Bay SoC. If compiled
+	  as a module, the module will be called keembay-ocs-hcu.
+
+	  If unsure, say N.
+
+config CRYPTO_DEV_KEEMBAY_OCS_HCU_HMAC_SHA224
+	bool "Enable sha224 and hmac(sha224) support in Intel Keem Bay OCS HCU"
+	depends on CRYPTO_DEV_KEEMBAY_OCS_HCU
+	help
+	  Enables support for sha224 and hmac(sha224) algorithms in the Intel
+	  Keem Bay OCS HCU driver. Intel recommends not to use these
+	  algorithms.
+
+	  Provides OCS HCU hardware acceleration of sha224 and hmac(224).
+
+	  If unsure, say N.

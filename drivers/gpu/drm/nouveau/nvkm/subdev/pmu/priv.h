@@ -62,8 +62,8 @@ int gf100_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm200_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm20b_pmu_load(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 
-int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *,
-		  int index, struct nvkm_pmu *);
-int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *,
-		  int index, struct nvkm_pmu **);
+int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_pmu *);
+int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_pmu **);
 #endif

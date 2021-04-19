@@ -27,7 +27,7 @@ static const struct nvkm_mc_map
 gt215_mc_reset[] = {
 	{ 0x04008000, NVKM_ENGINE_MSVLD },
 	{ 0x01020000, NVKM_ENGINE_MSPDEC },
-	{ 0x00802000, NVKM_ENGINE_CE0 },
+	{ 0x00802000, NVKM_ENGINE_CE, 0 },
 	{ 0x00400002, NVKM_ENGINE_MSPPP },
 	{ 0x00201000, NVKM_ENGINE_GR },
 	{ 0x00000100, NVKM_ENGINE_FIFO },
@@ -37,7 +37,7 @@ gt215_mc_reset[] = {
 static const struct nvkm_mc_map
 gt215_mc_intr[] = {
 	{ 0x04000000, NVKM_ENGINE_DISP },
-	{ 0x00400000, NVKM_ENGINE_CE0 },
+	{ 0x00400000, NVKM_ENGINE_CE, 0 },
 	{ 0x00020000, NVKM_ENGINE_MSPDEC },
 	{ 0x00008000, NVKM_ENGINE_MSVLD },
 	{ 0x00001000, NVKM_ENGINE_GR },
@@ -71,7 +71,7 @@ gt215_mc = {
 };
 
 int
-gt215_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+gt215_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
-	return nvkm_mc_new_(&gt215_mc, device, index, pmc);
+	return nvkm_mc_new_(&gt215_mc, device, type, inst, pmc);
 }

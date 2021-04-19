@@ -117,7 +117,19 @@ static int vic_boot(struct vic *vic)
 		if (spec->num_ids > 0) {
 			value = spec->ids[0] & 0xffff;
 
+			/*
+			 * STREAMID0 is used for input/output buffers.
+			 * Initialize it to SID_VIC in case context isolation
+			 * is not enabled, and SID_VIC is used for both firmware
+			 * and data buffers.
+			 *
+			 * If context isolation is enabled, it will be
+			 * overridden by the SETSTREAMID opcode as part of
+			 * each job.
+			 */
 			vic_writel(vic, value, VIC_THI_STREAMID0);
+
+			/* STREAMID1 is used for firmware loading. */
 			vic_writel(vic, value, VIC_THI_STREAMID1);
 		}
 	}
@@ -135,16 +147,21 @@ static int vic_boot(struct vic *vic)
 
 	hdr = vic->falcon.firmware.virt;
 	fce_bin_data_offset = *(u32 *)(hdr + VIC_UCODE_FCE_DATA_OFFSET);
-	hdr = vic->falcon.firmware.virt +
-		*(u32 *)(hdr + VIC_UCODE_FCE_HEADER_OFFSET);
-	fce_ucode_size = *(u32 *)(hdr + FCE_UCODE_SIZE_OFFSET);
 
 	falcon_execute_method(&vic->falcon, VIC_SET_APPLICATION_ID, 1);
-	falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_SIZE,
-			      fce_ucode_size);
-	falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_OFFSET,
-			      (vic->falcon.firmware.iova + fce_bin_data_offset)
-				>> 8);
+
+	/* Old VIC firmware needs kernel help with setting up FCE microcode. */
+	if (fce_bin_data_offset != 0x0 && fce_bin_data_offset != 0xa5a5a5a5) {
+		hdr = vic->falcon.firmware.virt +
+			*(u32 *)(hdr + VIC_UCODE_FCE_HEADER_OFFSET);
+		fce_ucode_size = *(u32 *)(hdr + FCE_UCODE_SIZE_OFFSET);
+
+		falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_SIZE,
+				      fce_ucode_size);
+		falcon_execute_method(
+			&vic->falcon, VIC_SET_FCE_UCODE_OFFSET,
+			(vic->falcon.firmware.iova + fce_bin_data_offset) >> 8);
+	}
 
 	err = falcon_wait_idle(&vic->falcon);
 	if (err < 0) {
@@ -314,7 +331,7 @@ static int vic_open_channel(struct tegra_drm_client *client,
 	struct vic *vic = to_vic(client);
 	int err;
 
-	err = pm_runtime_get_sync(vic->dev);
+	err = pm_runtime_resume_and_get(vic->dev);
 	if (err < 0)
 		return err;
 

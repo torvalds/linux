@@ -785,7 +785,7 @@ try_new:
 		d_printf(3, dev, "pld 0x%08x (type 0x%1x len 0x%04zx\n",
 			 le32_to_cpu(tx_msg->pld[num_pls].val),
 			 pl_type, buf_len);
-		tx_msg->num_pls = le16_to_cpu(num_pls+1);
+		tx_msg->num_pls = cpu_to_le16(num_pls + 1);
 		tx_msg->size += padded_len;
 		d_printf(2, dev, "TX: appended %zu b (up to %u b) pl #%u\n",
 			padded_len, tx_msg->size, num_pls+1);
@@ -893,10 +893,10 @@ skip:
 		 current->pid, (void *) tx_msg - i2400m->tx_buf,
 		 (size_t) tx_msg->offset, (size_t) tx_msg->size,
 		 (size_t) tx_msg_moved->size);
-	tx_msg_moved->barker = le32_to_cpu(I2400M_H2D_PREVIEW_BARKER);
-	tx_msg_moved->sequence = le32_to_cpu(i2400m->tx_sequence++);
+	tx_msg_moved->barker = cpu_to_le32(I2400M_H2D_PREVIEW_BARKER);
+	tx_msg_moved->sequence = cpu_to_le32(i2400m->tx_sequence++);
 
-	pls = le32_to_cpu(tx_msg_moved->num_pls);
+	pls = le16_to_cpu(tx_msg_moved->num_pls);
 	i2400m->tx_pl_num += pls;		/* Update stats */
 	if (pls > i2400m->tx_pl_max)
 		i2400m->tx_pl_max = pls;

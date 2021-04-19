@@ -49,7 +49,7 @@ properties:
     description:
       Reference to an nvmem node for the MAC address
 
-  nvmem-cells-names:
+  nvmem-cell-names:
     const: mac-address
 
   phy-connection-type:
@@ -89,6 +89,7 @@ properties:
       - trgmii
       - 1000base-x
       - 2500base-x
+      - 5gbase-r
       - rxaui
       - xaui
 
@@ -122,7 +123,6 @@ properties:
       such as flow control thresholds.
 
   rx-internal-delay-ps:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       RGMII Receive Clock Delay defined in pico seconds.
       This is used for controllers that have configurable RX internal delays.
@@ -140,7 +140,6 @@ properties:
       is used for components that can have configurable fifo sizes.
 
   tx-internal-delay-ps:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       RGMII Transmit Clock Delay defined in pico seconds.
       This is used for controllers that have configurable TX internal delays.
@@ -206,6 +205,11 @@ properties:
               description:
                 Indicates that full-duplex is used. When absent, half
                 duplex is assumed.
+
+            pause:
+              $ref: /schemas/types.yaml#definitions/flag
+              description:
+                Indicates that pause should be enabled.
 
             asym-pause:
               $ref: /schemas/types.yaml#/definitions/flag

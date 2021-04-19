@@ -513,7 +513,7 @@ static int pn533_send_cmd_async(struct pn533 *dev, u8 cmd_code,
 /*
  * pn533_send_cmd_direct_async
  *
- * The function sends a piority cmd directly to the chip omitting the cmd
+ * The function sends a priority cmd directly to the chip omitting the cmd
  * queue. It's intended to be used by chaining mechanism of received responses
  * where the host has to request every single chunk of data before scheduling
  * next cmd from the queue.
@@ -615,7 +615,7 @@ static int pn533_send_sync_complete(struct pn533 *dev, void *_arg,
  *     as it's been already freed at the beginning of RX path by
  *     async_complete_cb.
  *
- *  3. valid pointer in case of succesfult RX path
+ *  3. valid pointer in case of successful RX path
  *
  *  A caller has to check a return value with IS_ERR macro. If the test pass,
  *  the returned pointer is valid.

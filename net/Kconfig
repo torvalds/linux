@@ -256,9 +256,13 @@ config RFS_ACCEL
 	select CPU_RMAP
 	default y
 
+config SOCK_RX_QUEUE_MAPPING
+	bool
+
 config XPS
 	bool
 	depends on SMP
+	select SOCK_RX_QUEUE_MAPPING
 	default y
 
 config HWBM

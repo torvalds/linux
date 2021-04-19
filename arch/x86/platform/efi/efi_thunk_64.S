@@ -33,7 +33,7 @@ SYM_CODE_START(__efi64_thunk)
 	 * Switch to 1:1 mapped 32-bit stack pointer.
 	 */
 	movq	%rsp, %rax
-	movq	efi_scratch(%rip), %rsp
+	movq	efi_mixed_mode_stack_pa(%rip), %rsp
 	push	%rax
 
 	/*
@@ -70,3 +70,7 @@ SYM_CODE_START(__efi64_thunk)
 	pushl	%ebp
 	lret
 SYM_CODE_END(__efi64_thunk)
+
+	.bss
+	.balign 8
+SYM_DATA(efi_mixed_mode_stack_pa, .quad 0)

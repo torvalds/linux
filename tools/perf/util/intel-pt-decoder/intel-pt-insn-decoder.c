@@ -43,6 +43,17 @@ static void intel_pt_insn_decoder(struct insn *insn,
 	switch (insn->opcode.bytes[0]) {
 	case 0xf:
 		switch (insn->opcode.bytes[1]) {
+		case 0x01:
+			switch (insn->modrm.bytes[0]) {
+			case 0xc2: /* vmlaunch */
+			case 0xc3: /* vmresume */
+				op = INTEL_PT_OP_VMENTRY;
+				branch = INTEL_PT_BR_INDIRECT;
+				break;
+			default:
+				break;
+			}
+			break;
 		case 0x05: /* syscall */
 		case 0x34: /* sysenter */
 			op = INTEL_PT_OP_SYSCALL;
@@ -213,6 +224,7 @@ const char *branch_name[] = {
 	[INTEL_PT_OP_INT]	= "Int",
 	[INTEL_PT_OP_SYSCALL]	= "Syscall",
 	[INTEL_PT_OP_SYSRET]	= "Sysret",
+	[INTEL_PT_OP_VMENTRY]	= "VMentry",
 };
 
 const char *intel_pt_insn_name(enum intel_pt_insn_op op)
@@ -267,6 +279,9 @@ int intel_pt_insn_type(enum intel_pt_insn_op op)
 	case INTEL_PT_OP_SYSRET:
 		return PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN |
 		       PERF_IP_FLAG_SYSCALLRET;
+	case INTEL_PT_OP_VMENTRY:
+		return PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL |
+		       PERF_IP_FLAG_VMENTRY;
 	default:
 		return 0;
 	}

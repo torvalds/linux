@@ -513,7 +513,7 @@ static struct snd_soc_dai_driver ml26124_dai = {
 		.rates = ML26124_RATES,
 		.formats = ML26124_FORMATS,},
 	.ops = &ml26124_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int ml26124_probe(struct snd_soc_component *component)

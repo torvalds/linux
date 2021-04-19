@@ -111,8 +111,8 @@ of the following host1x client modules:
 
 	  endpoint (required node)
 	  Required properties:
-	  - data-lanes: an array of data lane from 1 to 4. Valid array
-	    lengths are 1/2/4.
+	  - data-lanes: an array of data lane from 1 to 8. Valid array
+	    lengths are 1/2/4/8.
 	  - remote-endpoint: phandle to sensor 'endpoint' node.
 
         port@1 (required node)

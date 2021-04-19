@@ -49,6 +49,7 @@ Contents:
    stmicro/stmmac
    ti/cpsw
    ti/cpsw_switchdev
+   ti/am65_nuss_cpsw_switchdev
    ti/tlan
    toshiba/spider_net
 

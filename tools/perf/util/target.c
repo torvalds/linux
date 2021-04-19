@@ -56,6 +56,34 @@ enum target_errno target__validate(struct target *target)
 			ret = TARGET_ERRNO__UID_OVERRIDE_SYSTEM;
 	}
 
+	/* BPF and CPU are mutually exclusive */
+	if (target->bpf_str && target->cpu_list) {
+		target->cpu_list = NULL;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__BPF_OVERRIDE_CPU;
+	}
+
+	/* BPF and PID/TID are mutually exclusive */
+	if (target->bpf_str && target->tid) {
+		target->tid = NULL;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__BPF_OVERRIDE_PID;
+	}
+
+	/* BPF and UID are mutually exclusive */
+	if (target->bpf_str && target->uid_str) {
+		target->uid_str = NULL;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__BPF_OVERRIDE_UID;
+	}
+
+	/* BPF and THREADS are mutually exclusive */
+	if (target->bpf_str && target->per_thread) {
+		target->per_thread = false;
+		if (ret == TARGET_ERRNO__SUCCESS)
+			ret = TARGET_ERRNO__BPF_OVERRIDE_THREAD;
+	}
+
 	/* THREAD and SYSTEM/CPU are mutually exclusive */
 	if (target->per_thread && (target->system_wide || target->cpu_list)) {
 		target->per_thread = false;
@@ -109,6 +137,10 @@ static const char *target__error_str[] = {
 	"PID/TID switch overriding SYSTEM",
 	"UID switch overriding SYSTEM",
 	"SYSTEM/CPU switch overriding PER-THREAD",
+	"BPF switch overriding CPU",
+	"BPF switch overriding PID/TID",
+	"BPF switch overriding UID",
+	"BPF switch overriding THREAD",
 	"Invalid User: %s",
 	"Problems obtaining information for user %s",
 };
@@ -134,7 +166,7 @@ int target__strerror(struct target *target, int errnum,
 
 	switch (errnum) {
 	case TARGET_ERRNO__PID_OVERRIDE_CPU ...
-	     TARGET_ERRNO__SYSTEM_OVERRIDE_THREAD:
+	     TARGET_ERRNO__BPF_OVERRIDE_THREAD:
 		snprintf(buf, buflen, "%s", msg);
 		break;
 

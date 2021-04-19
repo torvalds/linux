@@ -27,6 +27,7 @@ select:
       items:
         - enum:
             - sifive,fu540-c000-ccache
+            - sifive,fu740-c000-ccache
 
   required:
     - compatible
@@ -34,7 +35,9 @@ select:
 properties:
   compatible:
     items:
-      - const: sifive,fu540-c000-ccache
+      - enum:
+          - sifive,fu540-c000-ccache
+          - sifive,fu740-c000-ccache
       - const: cache
 
   cache-block-size:
@@ -52,10 +55,13 @@ properties:
   cache-unified: true
 
   interrupts:
-    description: |
-      Must contain entries for DirError, DataError and DataFail signals.
     minItems: 3
-    maxItems: 3
+    maxItems: 4
+    items:
+      - description: DirError interrupt
+      - description: DataError interrupt
+      - description: DataFail interrupt
+      - description: DirFail interrupt
 
   reg:
     maxItems: 1
@@ -63,9 +69,30 @@ properties:
   next-level-cache: true
 
   memory-region:
+    maxItems: 1
     description: |
       The reference to the reserved-memory for the L2 Loosely Integrated Memory region.
       The reserved memory node should be defined as per the bindings in reserved-memory.txt.
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: sifive,fu540-c000-ccache
+
+then:
+  properties:
+    interrupts:
+      description: |
+        Must contain entries for DirError, DataError and DataFail signals.
+      maxItems: 3
+
+else:
+  properties:
+    interrupts:
+      description: |
+        Must contain entries for DirError, DataError, DataFail, DirFail signals.
+      minItems: 4
 
 additionalProperties: false
 

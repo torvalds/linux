@@ -432,9 +432,8 @@ int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 			    PAGE_SIZE - (buf_offset % PAGE_SIZE));
 		bytes = min(bytes, bytes_left);
 
-		kaddr = kmap_atomic(dest_page);
-		memcpy(kaddr + pg_offset, workspace->buf + buf_offset, bytes);
-		kunmap_atomic(kaddr);
+		memcpy_to_page(dest_page, pg_offset,
+			       workspace->buf + buf_offset, bytes);
 
 		pg_offset += bytes;
 		bytes_left -= bytes;

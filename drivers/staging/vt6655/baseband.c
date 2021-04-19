@@ -1683,7 +1683,7 @@ static unsigned char byVT3253B0_AGC[CB_VT3253B0_AGC][2] = {
 	{0xF0, 0x00},
 };
 
-static const unsigned short awcFrameTime[MAX_RATE] = {
+static const unsigned short awc_frame_time[MAX_RATE] = {
 		10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216
 };
 
@@ -1716,7 +1716,7 @@ unsigned int bb_get_frame_time(unsigned char by_preamble_type,
 	if (rate_idx > RATE_54M)
 		return 0;
 
-	rate = (unsigned int)awcFrameTime[rate_idx];
+	rate = (unsigned int)awc_frame_time[rate_idx];
 
 	if (rate_idx <= 3) {		    /* CCK mode */
 		if (by_preamble_type == 1) /* Short */

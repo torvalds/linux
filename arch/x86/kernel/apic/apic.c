@@ -41,6 +41,7 @@
 #include <asm/perf_event.h>
 #include <asm/x86_init.h>
 #include <linux/atomic.h>
+#include <asm/barrier.h>
 #include <asm/mpspec.h>
 #include <asm/i8259.h>
 #include <asm/proto.h>
@@ -476,6 +477,9 @@ static int lapic_next_deadline(unsigned long delta,
 			       struct clock_event_device *evt)
 {
 	u64 tsc;
+
+	/* This MSR is special and need a special fence: */
+	weak_wrmsr_fence();
 
 	tsc = rdtsc();
 	wrmsrl(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
@@ -1743,6 +1747,7 @@ void apic_ap_setup(void)
 
 #ifdef CONFIG_X86_X2APIC
 int x2apic_mode;
+EXPORT_SYMBOL_GPL(x2apic_mode);
 
 enum {
 	X2APIC_OFF,
@@ -2133,18 +2138,11 @@ void __init register_lapic_address(unsigned long address)
  * Local APIC interrupts
  */
 
-/**
- * spurious_interrupt - Catch all for interrupts raised on unused vectors
- * @regs:	Pointer to pt_regs on stack
- * @vector:	The vector number
- *
- * This is invoked from ASM entry code to catch all interrupts which
- * trigger on an entry which is routed to the common_spurious idtentry
- * point.
- *
- * Also called from sysvec_spurious_apic_interrupt().
+/*
+ * Common handling code for spurious_interrupt and spurious_vector entry
+ * points below. No point in allowing the compiler to inline it twice.
  */
-DEFINE_IDTENTRY_IRQ(spurious_interrupt)
+static noinline void handle_spurious_interrupt(u8 vector)
 {
 	u32 v;
 
@@ -2179,9 +2177,23 @@ out:
 	trace_spurious_apic_exit(vector);
 }
 
+/**
+ * spurious_interrupt - Catch all for interrupts raised on unused vectors
+ * @regs:	Pointer to pt_regs on stack
+ * @vector:	The vector number
+ *
+ * This is invoked from ASM entry code to catch all interrupts which
+ * trigger on an entry which is routed to the common_spurious idtentry
+ * point.
+ */
+DEFINE_IDTENTRY_IRQ(spurious_interrupt)
+{
+	handle_spurious_interrupt(vector);
+}
+
 DEFINE_IDTENTRY_SYSVEC(sysvec_spurious_apic_interrupt)
 {
-	__spurious_interrupt(regs, SPURIOUS_APIC_VECTOR);
+	handle_spurious_interrupt(SPURIOUS_APIC_VECTOR);
 }
 
 /*
@@ -2329,6 +2341,11 @@ static int nr_logical_cpuids = 1;
 static int cpuid_to_apicid[] = {
 	[0 ... NR_CPUS - 1] = -1,
 };
+
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return phys_id == cpuid_to_apicid[cpu];
+}
 
 #ifdef CONFIG_SMP
 /**

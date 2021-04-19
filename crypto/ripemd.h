@@ -6,17 +6,8 @@
 #ifndef _CRYPTO_RMD_H
 #define _CRYPTO_RMD_H
 
-#define RMD128_DIGEST_SIZE      16
-#define RMD128_BLOCK_SIZE       64
-
 #define RMD160_DIGEST_SIZE      20
 #define RMD160_BLOCK_SIZE       64
-
-#define RMD256_DIGEST_SIZE      32
-#define RMD256_BLOCK_SIZE       64
-
-#define RMD320_DIGEST_SIZE      40
-#define RMD320_BLOCK_SIZE       64
 
 /* initial values  */
 #define RMD_H0  0x67452301UL
@@ -24,11 +15,6 @@
 #define RMD_H2  0x98badcfeUL
 #define RMD_H3  0x10325476UL
 #define RMD_H4  0xc3d2e1f0UL
-#define RMD_H5  0x76543210UL
-#define RMD_H6  0xfedcba98UL
-#define RMD_H7  0x89abcdefUL
-#define RMD_H8  0x01234567UL
-#define RMD_H9  0x3c2d1e0fUL
 
 /* constants */
 #define RMD_K1  0x00000000UL

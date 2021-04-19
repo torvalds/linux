@@ -134,7 +134,7 @@ gpio21: gpio@21 {
 	#interrupt-cells = <0x2>;
 	microchip,irq-mirror;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2cgpio0irq &gpio21pullups>;
+	pinctrl-0 = <&i2cgpio0irq>, <&gpio21pullups>;
 
 	gpio21pullups: pinmux {
 		pins =	"gpio0", "gpio1", "gpio2", "gpio3",

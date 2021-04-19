@@ -1273,7 +1273,6 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 				(ss->flags & ASYNC_FLAGS));
 		port->close_delay = ss->close_delay * HZ / 100;
 		port->closing_wait = ss->closing_wait * HZ / 100;
-		port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
 				(ss->baud_base != info->baud_base ||
 				ss->custom_divisor !=

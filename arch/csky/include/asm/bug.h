@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_BUG_H
 #define __ASM_CSKY_BUG_H
@@ -21,6 +20,8 @@ do {					\
 struct pt_regs;
 
 void die(struct pt_regs *regs, const char *str);
+void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr);
+
 void show_regs(struct pt_regs *regs);
 void show_code(struct pt_regs *regs);
 

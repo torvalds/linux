@@ -119,7 +119,6 @@ struct pnv_phb {
 	int			flags;
 	void __iomem		*regs;
 	u64			regs_phys;
-	int			initialized;
 	spinlock_t		lock;
 
 #ifdef CONFIG_DEBUG_FS

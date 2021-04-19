@@ -119,8 +119,8 @@ static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
 	 * As a PIR value could also be '0', add an offset of '100'
 	 * to every PIR to avoid misinterpretations in GDB.
 	 */
-	prstatus->pr_pid  = cpu_to_be32(100 + pir);
-	prstatus->pr_ppid = cpu_to_be32(1);
+	prstatus->common.pr_pid  = cpu_to_be32(100 + pir);
+	prstatus->common.pr_ppid = cpu_to_be32(1);
 
 	/*
 	 * Indicate SIGUSR1 for crash initiated from kernel.
@@ -130,7 +130,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus, int pir,
 		short sig;
 
 		sig = kernel_initiated ? SIGUSR1 : SIGTERM;
-		prstatus->pr_cursig = cpu_to_be16(sig);
+		prstatus->common.pr_cursig = cpu_to_be16(sig);
 	}
 }
 

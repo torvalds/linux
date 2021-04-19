@@ -219,6 +219,14 @@ config DWMAC_INTEL_PLAT
 	  This selects the Intel platform specific glue layer support for
 	  the stmmac device driver. This driver is used for the Intel Keem Bay
 	  SoC.
+
+config DWMAC_VISCONTI
+	tristate "Toshiba Visconti DWMAC support"
+	default ARCH_VISCONTI
+	depends on OF && COMMON_CLK && (ARCH_VISCONTI || COMPILE_TEST)
+	help
+	  Support for ethernet controller on Visconti SoCs.
+
 endif
 
 config DWMAC_INTEL

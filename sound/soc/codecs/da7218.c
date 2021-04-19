@@ -2194,9 +2194,9 @@ static struct snd_soc_dai_driver da7218_dai = {
 		.formats = DA7218_FORMATS,
 	},
 	.ops = &da7218_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	.symmetric_channels = 1,
-	.symmetric_samplebits = 1,
+	.symmetric_sample_bits = 1,
 };
 
 
@@ -2278,14 +2278,12 @@ static irqreturn_t da7218_irq_thread(int irq, void *data)
  * DT
  */
 
-#ifdef CONFIG_OF
 static const struct of_device_id da7218_of_match[] = {
 	{ .compatible = "dlg,da7217", .data = (void *) DA7217_DEV_ID },
 	{ .compatible = "dlg,da7218", .data = (void *) DA7218_DEV_ID },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da7218_of_match);
-#endif
 
 static inline int da7218_of_get_id(struct device *dev)
 {
@@ -3311,7 +3309,7 @@ MODULE_DEVICE_TABLE(i2c, da7218_i2c_id);
 static struct i2c_driver da7218_i2c_driver = {
 	.driver = {
 		.name = "da7218",
-		.of_match_table = of_match_ptr(da7218_of_match),
+		.of_match_table = da7218_of_match,
 	},
 	.probe		= da7218_i2c_probe,
 	.id_table	= da7218_i2c_id,

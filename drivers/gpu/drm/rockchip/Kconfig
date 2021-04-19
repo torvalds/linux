@@ -49,7 +49,7 @@ config ROCKCHIP_DW_MIPI_DSI
 	select GENERIC_PHY_MIPI_DPHY
 	help
 	  This selects support for Rockchip SoC specific extensions
-	  for the Synopsys DesignWare HDMI driver. If you want to
+	  for the Synopsys DesignWare dsi driver. If you want to
 	  enable MIPI DSI on RK3288 or RK3399 based SoC, you should
 	  select this option.
 

@@ -33,4 +33,5 @@
 
 #define NR_IRQS			64
 
+#include <asm-generic/irq.h>
 #endif

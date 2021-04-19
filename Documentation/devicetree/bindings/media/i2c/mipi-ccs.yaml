@@ -71,19 +71,18 @@ properties:
     enum: [ 0, 180 ]
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
     properties:
       endpoint:
-        type: object
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
         properties:
-          link-frequencies:
-            $ref: /schemas/types.yaml#/definitions/uint64-array
-            description: List of allowed data link frequencies.
-          data-lanes:
-            minItems: 1
-            maxItems: 8
+          link-frequencies: true
+          data-lanes: true
           bus-type:
-            description: The type of the data bus.
             oneOf:
               - const: 1 # CSI-2 C-PHY
               - const: 3 # CCP2

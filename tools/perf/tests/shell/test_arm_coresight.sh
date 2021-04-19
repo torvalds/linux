@@ -11,6 +11,7 @@
 
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 file=$(mktemp /tmp/temporary_file.XXXXX)
+glb_err=0
 
 skip_if_no_cs_etm_event() {
 	perf list | grep -q 'cs_etm//' && return 0
@@ -33,7 +34,7 @@ record_touch_file() {
 	echo "Recording trace (only user mode) with path: CPU$2 => $1"
 	rm -f $file
 	perf record -o ${perfdata} -e cs_etm/@$1/u --per-thread \
-		-- taskset -c $2 touch $file
+		-- taskset -c $2 touch $file > /dev/null 2>&1
 }
 
 perf_script_branch_samples() {
@@ -43,8 +44,8 @@ perf_script_branch_samples() {
 	#   touch  6512          1         branches:u:      ffffb220824c strcmp+0xc (/lib/aarch64-linux-gnu/ld-2.27.so)
 	#   touch  6512          1         branches:u:      ffffb22082e0 strcmp+0xa0 (/lib/aarch64-linux-gnu/ld-2.27.so)
 	#   touch  6512          1         branches:u:      ffffb2208320 strcmp+0xe0 (/lib/aarch64-linux-gnu/ld-2.27.so)
-	perf script -F,-time -i ${perfdata} | \
-		egrep " +$1 +[0-9]+ .* +branches:(.*:)? +"
+	perf script -F,-time -i ${perfdata} 2>&1 | \
+		egrep " +$1 +[0-9]+ .* +branches:(.*:)? +" > /dev/null 2>&1
 }
 
 perf_report_branch_samples() {
@@ -54,8 +55,8 @@ perf_report_branch_samples() {
 	#   73.04%    73.04%  touch    libc-2.27.so      [.] _dl_addr
 	#    7.71%     7.71%  touch    libc-2.27.so      [.] getenv
 	#    2.59%     2.59%  touch    ld-2.27.so        [.] strcmp
-	perf report --stdio -i ${perfdata} | \
-		egrep " +[0-9]+\.[0-9]+% +[0-9]+\.[0-9]+% +$1 "
+	perf report --stdio -i ${perfdata} 2>&1 | \
+		egrep " +[0-9]+\.[0-9]+% +[0-9]+\.[0-9]+% +$1 " > /dev/null 2>&1
 }
 
 perf_report_instruction_samples() {
@@ -65,8 +66,17 @@ perf_report_instruction_samples() {
 	#   68.12%  touch    libc-2.27.so   [.] _dl_addr
 	#    5.80%  touch    libc-2.27.so   [.] getenv
 	#    4.35%  touch    ld-2.27.so     [.] _dl_fixup
-	perf report --itrace=i1000i --stdio -i ${perfdata} | \
-		egrep " +[0-9]+\.[0-9]+% +$1"
+	perf report --itrace=i1000i --stdio -i ${perfdata} 2>&1 | \
+		egrep " +[0-9]+\.[0-9]+% +$1" > /dev/null 2>&1
+}
+
+arm_cs_report() {
+	if [ $2 != 0 ]; then
+		echo "$1: FAIL"
+		glb_err=$2
+	else
+		echo "$1: PASS"
+	fi
 }
 
 is_device_sink() {
@@ -113,9 +123,7 @@ arm_cs_iterate_devices() {
 			perf_report_instruction_samples touch
 
 			err=$?
-
-			# Exit when find failure
-			[ $err != 0 ] && exit $err
+			arm_cs_report "CoreSight path testing (CPU$2 -> $device_name)" $err
 		fi
 
 		arm_cs_iterate_devices $dev $2
@@ -129,9 +137,6 @@ arm_cs_etm_traverse_path_test() {
 		# Find the ETM device belonging to which CPU
 		cpu=`cat $dev/cpu`
 
-		echo $dev
-		echo $cpu
-
 		# Use depth-first search (DFS) to iterate outputs
 		arm_cs_iterate_devices $dev $cpu
 	done
@@ -139,22 +144,20 @@ arm_cs_etm_traverse_path_test() {
 
 arm_cs_etm_system_wide_test() {
 	echo "Recording trace with system wide mode"
-	perf record -o ${perfdata} -e cs_etm// -a -- ls
+	perf record -o ${perfdata} -e cs_etm// -a -- ls > /dev/null 2>&1
 
 	perf_script_branch_samples perf &&
 	perf_report_branch_samples perf &&
 	perf_report_instruction_samples perf
 
 	err=$?
-
-	# Exit when find failure
-	[ $err != 0 ] && exit $err
+	arm_cs_report "CoreSight system wide testing" $err
 }
 
 arm_cs_etm_snapshot_test() {
 	echo "Recording trace with snapshot mode"
 	perf record -o ${perfdata} -e cs_etm// -S \
-		-- dd if=/dev/zero of=/dev/null &
+		-- dd if=/dev/zero of=/dev/null > /dev/null 2>&1 &
 	PERFPID=$!
 
 	# Wait for perf program
@@ -172,12 +175,10 @@ arm_cs_etm_snapshot_test() {
 	perf_report_instruction_samples dd
 
 	err=$?
-
-	# Exit when find failure
-	[ $err != 0 ] && exit $err
+	arm_cs_report "CoreSight snapshot testing" $err
 }
 
 arm_cs_etm_traverse_path_test
 arm_cs_etm_system_wide_test
 arm_cs_etm_snapshot_test
-exit 0
+exit $glb_err

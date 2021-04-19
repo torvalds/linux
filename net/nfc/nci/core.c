@@ -579,10 +579,10 @@ static int nci_close_device(struct nci_dev *ndev)
 
 	clear_bit(NCI_INIT, &ndev->flags);
 
-	del_timer_sync(&ndev->cmd_timer);
-
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
+
+	del_timer_sync(&ndev->cmd_timer);
 
 	/* Clear flags */
 	ndev->flags = 0;

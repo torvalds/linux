@@ -52,11 +52,10 @@ gf100_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 static u32
 gf100_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_SW    : return 0;
 	case NVKM_ENGINE_GR    : return 0x0210;
-	case NVKM_ENGINE_CE0   : return 0x0230;
-	case NVKM_ENGINE_CE1   : return 0x0240;
+	case NVKM_ENGINE_CE    : return 0x0230 + (engine->subdev.inst * 0x10);
 	case NVKM_ENGINE_MSPDEC: return 0x0250;
 	case NVKM_ENGINE_MSPPP : return 0x0260;
 	case NVKM_ENGINE_MSVLD : return 0x0270;
@@ -64,6 +63,15 @@ gf100_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 		WARN_ON(1);
 		return 0;
 	}
+}
+
+static struct gf100_fifo_engn *
+gf100_fifo_gpfifo_engine(struct gf100_fifo_chan *chan, struct nvkm_engine *engine)
+{
+	int engi = chan->base.fifo->func->engine_id(chan->base.fifo, engine);
+	if (engi >= 0)
+		return &chan->engn[engi];
+	return NULL;
 }
 
 static int
@@ -77,7 +85,7 @@ gf100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 	struct nvkm_gpuobj *inst = chan->base.inst;
 	int ret = 0;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&chan->fifo->base.mutex);
 	nvkm_wr32(device, 0x002634, chan->base.chid);
 	if (nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x002634) == chan->base.chid)
@@ -87,7 +95,7 @@ gf100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 			   chan->base.chid, chan->base.object.client->name);
 		ret = -ETIMEDOUT;
 	}
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&chan->fifo->base.mutex);
 
 	if (ret && suspend)
 		return ret;
@@ -108,13 +116,13 @@ gf100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 {
 	const u32 offset = gf100_fifo_gpfifo_engine_addr(engine);
 	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
+	struct gf100_fifo_engn *engn = gf100_fifo_gpfifo_engine(chan, engine);
 	struct nvkm_gpuobj *inst = chan->base.inst;
 
 	if (offset) {
-		u64 addr = chan->engn[engine->subdev.index].vma->addr;
 		nvkm_kmap(inst);
-		nvkm_wo32(inst, offset + 0x00, lower_32_bits(addr) | 4);
-		nvkm_wo32(inst, offset + 0x04, upper_32_bits(addr));
+		nvkm_wo32(inst, offset + 0x00, lower_32_bits(engn->vma->addr) | 4);
+		nvkm_wo32(inst, offset + 0x04, upper_32_bits(engn->vma->addr));
 		nvkm_done(inst);
 	}
 
@@ -126,8 +134,9 @@ gf100_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
 	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	nvkm_vmm_put(chan->base.vmm, &chan->engn[engine->subdev.index].vma);
-	nvkm_gpuobj_del(&chan->engn[engine->subdev.index].inst);
+	struct gf100_fifo_engn *engn = gf100_fifo_gpfifo_engine(chan, engine);
+	nvkm_vmm_put(chan->base.vmm, &engn->vma);
+	nvkm_gpuobj_del(&engn->inst);
 }
 
 static int
@@ -136,23 +145,21 @@ gf100_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 			      struct nvkm_object *object)
 {
 	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	int engn = engine->subdev.index;
+	struct gf100_fifo_engn *engn = gf100_fifo_gpfifo_engine(chan, engine);
 	int ret;
 
 	if (!gf100_fifo_gpfifo_engine_addr(engine))
 		return 0;
 
-	ret = nvkm_object_bind(object, NULL, 0, &chan->engn[engn].inst);
+	ret = nvkm_object_bind(object, NULL, 0, &engn->inst);
 	if (ret)
 		return ret;
 
-	ret = nvkm_vmm_get(chan->base.vmm, 12, chan->engn[engn].inst->size,
-			   &chan->engn[engn].vma);
+	ret = nvkm_vmm_get(chan->base.vmm, 12, engn->inst->size, &engn->vma);
 	if (ret)
 		return ret;
 
-	return nvkm_memory_map(chan->engn[engn].inst, 0, chan->base.vmm,
-			       chan->engn[engn].vma, NULL, 0);
+	return nvkm_memory_map(engn->inst, 0, chan->base.vmm, engn->vma, NULL, 0);
 }
 
 static void
@@ -243,13 +250,13 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&gf100_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, args->v0.vmm, 0,
-				  (1ULL << NVKM_ENGINE_CE0) |
-				  (1ULL << NVKM_ENGINE_CE1) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_MSPDEC) |
-				  (1ULL << NVKM_ENGINE_MSPPP) |
-				  (1ULL << NVKM_ENGINE_MSVLD) |
-				  (1ULL << NVKM_ENGINE_SW),
+				  BIT(GF100_FIFO_ENGN_GR) |
+				  BIT(GF100_FIFO_ENGN_MSPDEC) |
+				  BIT(GF100_FIFO_ENGN_MSPPP) |
+				  BIT(GF100_FIFO_ENGN_MSVLD) |
+				  BIT(GF100_FIFO_ENGN_CE0) |
+				  BIT(GF100_FIFO_ENGN_CE1) |
+				  BIT(GF100_FIFO_ENGN_SW),
 				  1, fifo->user.bar->addr, 0x1000,
 				  oclass, &chan->base);
 	if (ret)

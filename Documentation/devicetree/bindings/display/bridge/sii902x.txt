@@ -40,7 +40,7 @@ Optional properties:
 	documents on how to describe the way the sii902x device is
 	connected to the rest of the audio system:
 	Documentation/devicetree/bindings/sound/simple-card.yaml
-	Documentation/devicetree/bindings/sound/audio-graph-card.txt
+	Documentation/devicetree/bindings/sound/audio-graph-card.yaml
 	Note: In case of the audio-graph-card binding the used port
 	index should be 3.
 

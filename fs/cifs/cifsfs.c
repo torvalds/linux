@@ -290,7 +290,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		rc = server->ops->queryfs(xid, tcon, cifs_sb, buf);
 
 	free_xid(xid);
-	return 0;
+	return rc;
 }
 
 static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
@@ -305,7 +305,8 @@ static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
 	return -EOPNOTSUPP;
 }
 
-static int cifs_permission(struct inode *inode, int mask)
+static int cifs_permission(struct user_namespace *mnt_userns,
+			   struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
 
@@ -320,7 +321,7 @@ static int cifs_permission(struct inode *inode, int mask)
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
-		return generic_permission(inode, mask);
+		return generic_permission(&init_user_ns, inode, mask);
 }
 
 static struct kmem_cache *cifs_inode_cachep;
@@ -469,13 +470,14 @@ cifs_show_cache_flavor(struct seq_file *s, struct cifs_sb_info *cifs_sb)
 static int cifs_show_devname(struct seq_file *m, struct dentry *root)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(root->d_sb);
-	char *devname = kstrdup(cifs_sb->ctx->UNC, GFP_KERNEL);
+	char *devname = kstrdup(cifs_sb->ctx->source, GFP_KERNEL);
 
 	if (devname == NULL)
 		seq_puts(m, "none");
 	else {
 		convert_delimiter(devname, '/');
-		seq_puts(m, devname);
+		/* escape all spaces in share names */
+		seq_escape(m, devname, " \t");
 		kfree(devname);
 	}
 	return 0;
@@ -637,8 +639,18 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
 	if (tcon->handle_timeout)
 		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
-	/* convert actimeo and display it in seconds */
-	seq_printf(s, ",actimeo=%lu", cifs_sb->ctx->actimeo / HZ);
+
+	/*
+	 * Display file and directory attribute timeout in seconds.
+	 * If file and directory attribute timeout the same then actimeo
+	 * was likely specified on mount
+	 */
+	if (cifs_sb->ctx->acdirmax == cifs_sb->ctx->acregmax)
+		seq_printf(s, ",actimeo=%lu", cifs_sb->ctx->acregmax / HZ);
+	else {
+		seq_printf(s, ",acdirmax=%lu", cifs_sb->ctx->acdirmax / HZ);
+		seq_printf(s, ",acregmax=%lu", cifs_sb->ctx->acregmax / HZ);
+	}
 
 	if (tcon->ses->chan_max > 1)
 		seq_printf(s, ",multichannel,max_channels=%zu",
@@ -822,7 +834,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	rc = cifs_setup_volume_info(cifs_sb->ctx);
+	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, old_ctx->UNC);
 	if (rc) {
 		root = ERR_PTR(rc);
 		goto out;
@@ -1525,6 +1537,7 @@ init_cifs(void)
  */
 	atomic_set(&sesInfoAllocCount, 0);
 	atomic_set(&tconInfoAllocCount, 0);
+	atomic_set(&tcpSesNextId, 0);
 	atomic_set(&tcpSesAllocCount, 0);
 	atomic_set(&tcpSesReconnectCount, 0);
 	atomic_set(&tconInfoReconnectCount, 0);

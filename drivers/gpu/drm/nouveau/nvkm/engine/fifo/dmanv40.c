@@ -35,7 +35,7 @@
 static bool
 nv40_fifo_dma_engine(struct nvkm_engine *engine, u32 *reg, u32 *ctx)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW:
 		return false;
@@ -53,6 +53,15 @@ nv40_fifo_dma_engine(struct nvkm_engine *engine, u32 *reg, u32 *ctx)
 		WARN_ON(1);
 		return false;
 	}
+}
+
+static struct nvkm_gpuobj **
+nv40_fifo_dma_engn(struct nv04_fifo_chan *chan, struct nvkm_engine *engine)
+{
+	int engi = chan->base.fifo->func->engine_id(chan->base.fifo, engine);
+	if (engi >= 0)
+		return &chan->engn[engi];
+	return NULL;
 }
 
 static int
@@ -99,7 +108,7 @@ nv40_fifo_dma_engine_init(struct nvkm_fifo_chan *base,
 
 	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
 		return 0;
-	inst = chan->engn[engine->subdev.index]->addr >> 4;
+	inst = (*nv40_fifo_dma_engn(chan, engine))->addr >> 4;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000000);
@@ -121,7 +130,7 @@ nv40_fifo_dma_engine_dtor(struct nvkm_fifo_chan *base,
 			  struct nvkm_engine *engine)
 {
 	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	nvkm_gpuobj_del(&chan->engn[engine->subdev.index]);
+	nvkm_gpuobj_del(nv40_fifo_dma_engn(chan, engine));
 }
 
 static int
@@ -130,13 +139,12 @@ nv40_fifo_dma_engine_ctor(struct nvkm_fifo_chan *base,
 			  struct nvkm_object *object)
 {
 	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	const int engn = engine->subdev.index;
 	u32 reg, ctx;
 
 	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
 		return 0;
 
-	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
+	return nvkm_object_bind(object, NULL, 0, nv40_fifo_dma_engn(chan, engine));
 }
 
 static int
@@ -149,7 +157,7 @@ nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle  = object->handle;
 	int hash;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context |= 0x00000000; break;
 	case NVKM_ENGINE_GR    : context |= 0x00100000; break;
@@ -159,10 +167,10 @@ nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 		return -EINVAL;
 	}
 
-	mutex_lock(&chan->fifo->base.engine.subdev.mutex);
+	mutex_lock(&chan->fifo->base.mutex);
 	hash = nvkm_ramht_insert(imem->ramht, object, chan->base.chid, 4,
 				 handle, context);
-	mutex_unlock(&chan->fifo->base.engine.subdev.mutex);
+	mutex_unlock(&chan->fifo->base.mutex);
 	return hash;
 }
 
@@ -209,10 +217,10 @@ nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&nv40_fifo_dma_func, &fifo->base,
 				  0x1000, 0x1000, false, 0, args->v0.pushbuf,
-				  (1ULL << NVKM_ENGINE_DMAOBJ) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_MPEG) |
-				  (1ULL << NVKM_ENGINE_SW),
+				  BIT(NV04_FIFO_ENGN_SW) |
+				  BIT(NV04_FIFO_ENGN_GR) |
+				  BIT(NV04_FIFO_ENGN_MPEG) |
+				  BIT(NV04_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x1000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

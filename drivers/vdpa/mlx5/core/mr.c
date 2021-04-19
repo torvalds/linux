@@ -25,17 +25,6 @@ static int get_octo_len(u64 len, int page_shift)
 	return (npages + 1) / 2;
 }
 
-static void fill_sg(struct mlx5_vdpa_direct_mr *mr, void *in)
-{
-	struct scatterlist *sg;
-	__be64 *pas;
-	int i;
-
-	pas = MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
-	for_each_sg(mr->sg_head.sgl, sg, mr->nsg, i)
-		(*pas) = cpu_to_be64(sg_dma_address(sg));
-}
-
 static void mlx5_set_access_mode(void *mkc, int mode)
 {
 	MLX5_SET(mkc, mkc, access_mode_1_0, mode & 0x3);
@@ -45,10 +34,18 @@ static void mlx5_set_access_mode(void *mkc, int mode)
 static void populate_mtts(struct mlx5_vdpa_direct_mr *mr, __be64 *mtt)
 {
 	struct scatterlist *sg;
+	int nsg = mr->nsg;
+	u64 dma_addr;
+	u64 dma_len;
+	int j = 0;
 	int i;
 
-	for_each_sg(mr->sg_head.sgl, sg, mr->nsg, i)
-		mtt[i] = cpu_to_be64(sg_dma_address(sg));
+	for_each_sg(mr->sg_head.sgl, sg, mr->nent, i) {
+		for (dma_addr = sg_dma_address(sg), dma_len = sg_dma_len(sg);
+		     nsg && dma_len;
+		     nsg--, dma_addr += BIT(mr->log_size), dma_len -= BIT(mr->log_size))
+			mtt[j++] = cpu_to_be64(dma_addr);
+	}
 }
 
 static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
@@ -64,7 +61,6 @@ static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct
 		return -ENOMEM;
 
 	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
-	fill_sg(mr, in);
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	MLX5_SET(mkc, mkc, lw, !!(mr->perm & VHOST_MAP_WO));
 	MLX5_SET(mkc, mkc, lr, !!(mr->perm & VHOST_MAP_RO));
@@ -223,6 +219,11 @@ static void destroy_indirect_key(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_m
 	mlx5_vdpa_destroy_mkey(mvdev, &mkey->mkey);
 }
 
+static struct device *get_dma_device(struct mlx5_vdpa_dev *mvdev)
+{
+	return &mvdev->mdev->pdev->dev;
+}
+
 static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr,
 			 struct vhost_iotlb *iotlb)
 {
@@ -238,7 +239,7 @@ static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr
 	u64 pa;
 	u64 paend;
 	struct scatterlist *sg;
-	struct device *dma = mvdev->mdev->device;
+	struct device *dma = get_dma_device(mvdev);
 
 	for (map = vhost_iotlb_itree_first(iotlb, mr->start, mr->end - 1);
 	     map; map = vhost_iotlb_itree_next(map, start, mr->end - 1)) {
@@ -276,8 +277,8 @@ static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr
 done:
 	mr->log_size = log_entity_size;
 	mr->nsg = nsg;
-	err = dma_map_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
-	if (!err)
+	mr->nent = dma_map_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
+	if (!mr->nent)
 		goto err_map;
 
 	err = create_direct_mr(mvdev, mr);
@@ -295,7 +296,7 @@ err_map:
 
 static void unmap_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
 {
-	struct device *dma = mvdev->mdev->device;
+	struct device *dma = get_dma_device(mvdev);
 
 	destroy_direct_mr(mvdev, mr);
 	dma_unmap_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);

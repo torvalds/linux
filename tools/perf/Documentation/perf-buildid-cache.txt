@@ -74,6 +74,12 @@ OPTIONS
 	used when creating a uprobe for a process that resides in a
 	different mount namespace from the perf(1) utility.
 
+--debuginfod=URLs::
+	Specify debuginfod URL to be used when retrieving perf.data binaries,
+	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
+
+	  buildid-cache.debuginfod=http://192.168.122.174:8002
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-buildid-list[1]

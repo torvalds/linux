@@ -37,11 +37,12 @@ struct cache_dfs_tgt {
 struct cache_entry {
 	struct hlist_node hlist;
 	const char *path;
-	int ttl;
-	int srvtype;
-	int flags;
+	int hdr_flags; /* RESP_GET_DFS_REFERRAL.ReferralHeaderFlags */
+	int ttl; /* DFS_REREFERRAL_V3.TimeToLive */
+	int srvtype; /* DFS_REREFERRAL_V3.ServerType */
+	int ref_flags; /* DFS_REREFERRAL_V3.ReferralEntryFlags */
 	struct timespec64 etime;
-	int path_consumed;
+	int path_consumed; /* RESP_GET_DFS_REFERRAL.PathConsumed */
 	int numtgts;
 	struct list_head tlist;
 	struct cache_dfs_tgt *tgthint;
@@ -166,14 +167,11 @@ static int dfscache_proc_show(struct seq_file *m, void *v)
 				continue;
 
 			seq_printf(m,
-				   "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,"
-				   "interlink=%s,path_consumed=%d,expired=%s\n",
-				   ce->path,
-				   ce->srvtype == DFS_TYPE_ROOT ? "root" : "link",
-				   ce->ttl, ce->etime.tv_nsec,
-				   IS_INTERLINK_SET(ce->flags) ? "yes" : "no",
-				   ce->path_consumed,
-				   cache_entry_expired(ce) ? "yes" : "no");
+				   "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,hdr_flags=0x%x,ref_flags=0x%x,interlink=%s,path_consumed=%d,expired=%s\n",
+				   ce->path, ce->srvtype == DFS_TYPE_ROOT ? "root" : "link",
+				   ce->ttl, ce->etime.tv_nsec, ce->ref_flags, ce->hdr_flags,
+				   IS_INTERLINK_SET(ce->hdr_flags) ? "yes" : "no",
+				   ce->path_consumed, cache_entry_expired(ce) ? "yes" : "no");
 
 			list_for_each_entry(t, &ce->tlist, list) {
 				seq_printf(m, "  %s%s\n",
@@ -236,11 +234,12 @@ static inline void dump_tgts(const struct cache_entry *ce)
 
 static inline void dump_ce(const struct cache_entry *ce)
 {
-	cifs_dbg(FYI, "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,interlink=%s,path_consumed=%d,expired=%s\n",
+	cifs_dbg(FYI, "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,hdr_flags=0x%x,ref_flags=0x%x,interlink=%s,path_consumed=%d,expired=%s\n",
 		 ce->path,
 		 ce->srvtype == DFS_TYPE_ROOT ? "root" : "link", ce->ttl,
 		 ce->etime.tv_nsec,
-		 IS_INTERLINK_SET(ce->flags) ? "yes" : "no",
+		 ce->hdr_flags, ce->ref_flags,
+		 IS_INTERLINK_SET(ce->hdr_flags) ? "yes" : "no",
 		 ce->path_consumed,
 		 cache_entry_expired(ce) ? "yes" : "no");
 	dump_tgts(ce);
@@ -381,7 +380,8 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 	ce->ttl = refs[0].ttl;
 	ce->etime = get_expire_time(ce->ttl);
 	ce->srvtype = refs[0].server_type;
-	ce->flags = refs[0].ref_flag;
+	ce->hdr_flags = refs[0].flags;
+	ce->ref_flags = refs[0].ref_flag;
 	ce->path_consumed = refs[0].path_consumed;
 
 	for (i = 0; i < numrefs; i++) {
@@ -799,7 +799,8 @@ static int setup_referral(const char *path, struct cache_entry *ce,
 	ref->path_consumed = ce->path_consumed;
 	ref->ttl = ce->ttl;
 	ref->server_type = ce->srvtype;
-	ref->ref_flag = ce->flags;
+	ref->ref_flag = ce->ref_flags;
+	ref->flags = ce->hdr_flags;
 
 	return 0;
 
@@ -1417,7 +1418,7 @@ static struct cifs_ses *find_root_ses(struct vol_info *vi,
 	int rc;
 	struct cache_entry *ce;
 	struct dfs_info3_param ref = {0};
-	char *mdata = NULL;
+	char *mdata = NULL, *devname = NULL;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct smb3_fs_context ctx = {NULL};
@@ -1444,7 +1445,8 @@ static struct cifs_ses *find_root_ses(struct vol_info *vi,
 
 	up_read(&htable_rw_lock);
 
-	mdata = cifs_compose_mount_options(vi->mntdata, rpath, &ref);
+	mdata = cifs_compose_mount_options(vi->mntdata, rpath, &ref,
+					   &devname);
 	free_dfs_info_param(&ref);
 
 	if (IS_ERR(mdata)) {
@@ -1453,7 +1455,7 @@ static struct cifs_ses *find_root_ses(struct vol_info *vi,
 		goto out;
 	}
 
-	rc = cifs_setup_volume_info(&ctx);
+	rc = cifs_setup_volume_info(&ctx, NULL, devname);
 
 	if (rc) {
 		ses = ERR_PTR(rc);
@@ -1472,6 +1474,7 @@ out:
 	smb3_cleanup_fs_context_contents(&ctx);
 	kfree(mdata);
 	kfree(rpath);
+	kfree(devname);
 
 	return ses;
 }

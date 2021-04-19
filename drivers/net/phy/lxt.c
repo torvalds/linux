@@ -292,6 +292,7 @@ static int lxt973_probe(struct phy_device *phydev)
 		phy_write(phydev, MII_BMCR, val);
 		/* Remember that the port is in fiber mode. */
 		phydev->priv = lxt973_probe;
+		phydev->port = PORT_FIBRE;
 	} else {
 		phydev->priv = NULL;
 	}

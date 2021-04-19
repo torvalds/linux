@@ -139,7 +139,6 @@ config PM_SLEEP_SMP_NONZERO_CPU
 config PM_AUTOSLEEP
 	bool "Opportunistic sleep"
 	depends on PM_SLEEP
-	default n
 	help
 	Allow the kernel to trigger a system transition into a global sleep
 	state automatically whenever there are no active wakeup sources.
@@ -147,7 +146,6 @@ config PM_AUTOSLEEP
 config PM_WAKELOCKS
 	bool "User space wakeup sources interface"
 	depends on PM_SLEEP
-	default n
 	help
 	Allow user space to create, activate and deactivate wakeup source
 	objects with the help of a sysfs-based interface.
@@ -293,7 +291,6 @@ config PM_GENERIC_DOMAINS
 config WQ_POWER_EFFICIENT_DEFAULT
 	bool "Enable workqueue power-efficient mode by default"
 	depends on PM
-	default n
 	help
 	  Per-cpu workqueues are generally preferred because they show
 	  better performance thanks to cache locality; unfortunately,
@@ -322,15 +319,14 @@ config CPU_PM
 	bool
 
 config ENERGY_MODEL
-	bool "Energy Model for CPUs"
+	bool "Energy Model for devices with DVFS (CPUs, GPUs, etc)"
 	depends on SMP
 	depends on CPU_FREQ
-	default n
 	help
 	  Several subsystems (thermal and/or the task scheduler for example)
-	  can leverage information about the energy consumed by CPUs to make
-	  smarter decisions. This config option enables the framework from
-	  which subsystems can access the energy models.
+	  can leverage information about the energy consumed by devices to
+	  make smarter decisions. This config option enables the framework
+	  from which subsystems can access the energy models.
 
 	  The exact usage of the energy model is subsystem-dependent.
 

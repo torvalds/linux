@@ -18,7 +18,7 @@
 #include <asm/virt.h>
 
 	.text
-	.pushsection	.hyp.idmap.text, "ax"
+	.pushsection	.idmap.text, "ax"
 
 	.align	11
 
@@ -47,6 +47,8 @@ __invalid:
 	b	.
 
 	/*
+	 * Only uses x0..x3 so as to not clobber callee-saved SMCCC registers.
+	 *
 	 * x0: SMCCC function ID
 	 * x1: struct kvm_nvhe_init_params PA
 	 */
@@ -55,24 +57,17 @@ __do_hyp_init:
 	cmp	x0, #HVC_STUB_HCALL_NR
 	b.lo	__kvm_handle_stub_hvc
 
-	// We only actively check bits [24:31], and everything
-	// else has to be zero, which we check at build time.
-#if (KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) & 0xFFFFFFFF00FFFFFF)
-#error Unexpected __KVM_HOST_SMCCC_FUNC___kvm_hyp_init value
-#endif
+	mov	x3, #KVM_HOST_SMCCC_FUNC(__kvm_hyp_init)
+	cmp	x0, x3
+	b.eq	1f
 
-	ror	x0, x0, #24
-	eor	x0, x0, #((KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) >> 24) & 0xF)
-	ror	x0, x0, #4
-	eor	x0, x0, #((KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) >> 28) & 0xF)
-	cbz	x0, 1f
 	mov	x0, #SMCCC_RET_NOT_SUPPORTED
 	eret
 
 1:	mov	x0, x1
-	mov	x4, lr
-	bl	___kvm_hyp_init
-	mov	lr, x4
+	mov	x3, lr
+	bl	___kvm_hyp_init			// Clobbers x0..x2
+	mov	lr, x3
 
 	/* Hello, World! */
 	mov	x0, #SMCCC_RET_SUCCESS
@@ -82,8 +77,8 @@ SYM_CODE_END(__kvm_hyp_init)
 /*
  * Initialize the hypervisor in EL2.
  *
- * Only uses x0..x3 so as to not clobber callee-saved SMCCC registers
- * and leave x4 for the caller.
+ * Only uses x0..x2 so as to not clobber callee-saved SMCCC registers
+ * and leave x3 for the caller.
  *
  * x0: struct kvm_nvhe_init_params PA
  */
@@ -112,9 +107,9 @@ alternative_else_nop_endif
 	/*
 	 * Set the PS bits in TCR_EL2.
 	 */
-	ldr	x1, [x0, #NVHE_INIT_TCR_EL2]
-	tcr_compute_pa_size x1, #TCR_EL2_PS_SHIFT, x2, x3
-	msr	tcr_el2, x1
+	ldr	x0, [x0, #NVHE_INIT_TCR_EL2]
+	tcr_compute_pa_size x0, #TCR_EL2_PS_SHIFT, x1, x2
+	msr	tcr_el2, x0
 
 	isb
 
@@ -139,7 +134,6 @@ alternative_else_nop_endif
 
 	/* Set the host vector */
 	ldr	x0, =__kvm_hyp_host_vector
-	kimg_hyp_va x0, x1
 	msr	vbar_el2, x0
 
 	ret
@@ -189,16 +183,15 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 2:	msr	SPsel, #1			// We want to use SP_EL{1,2}
 
 	/* Initialize EL2 CPU state to sane values. */
-	init_el2_state nvhe			// Clobbers x0..x2
+	init_el2_state				// Clobbers x0..x2
 
 	/* Enable MMU, set vectors and stack. */
 	mov	x0, x28
-	bl	___kvm_hyp_init			// Clobbers x0..x3
+	bl	___kvm_hyp_init			// Clobbers x0..x2
 
 	/* Leave idmap. */
 	mov	x0, x29
 	ldr	x1, =kvm_host_psci_cpu_entry
-	kimg_hyp_va x1, x2
 	br	x1
 SYM_CODE_END(__kvm_hyp_init_cpu)
 

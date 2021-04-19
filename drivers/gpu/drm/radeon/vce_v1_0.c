@@ -169,7 +169,6 @@ int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data)
 		chip_id = 0x01000015;
 		break;
 	case CHIP_PITCAIRN:
-	case CHIP_OLAND:
 		chip_id = 0x01000016;
 		break;
 	case CHIP_ARUBA:

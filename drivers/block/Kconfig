@@ -66,6 +66,12 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
+config N64CART
+	bool "N64 cart support"
+	depends on MACH_NINTENDO64
+	help
+	  Support for the N64 cart.
+
 config CDROM
 	tristate
 	select BLK_SCSI_REQUEST
@@ -266,16 +272,6 @@ config BLK_DEV_NBD
 	  module will be called nbd.
 
 	  If unsure, say N.
-
-config BLK_DEV_SKD
-	tristate "STEC S1120 Block Driver"
-	depends on PCI
-	depends on 64BIT
-	help
-	Saying Y or M here will enable support for the
-	STEC, Inc. S1120 PCIe SSD.
-
-	Use device /dev/skd$N amd /dev/skd$Np$M.
 
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"

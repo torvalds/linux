@@ -12,7 +12,12 @@
 enum iwl_location_subcmd_ids {
 	/**
 	 * @TOF_RANGE_REQ_CMD: TOF ranging request,
-	 *	uses &struct iwl_tof_range_req_cmd
+	 *	uses one of &struct iwl_tof_range_req_cmd_v5,
+	 *	&struct iwl_tof_range_req_cmd_v7,
+	 *	&struct iwl_tof_range_req_cmd_v8,
+	 *	&struct iwl_tof_range_req_cmd_v9,
+	 *	&struct iwl_tof_range_req_cmd_v11,
+	 *	&struct iwl_tof_range_req_cmd_v7
 	 */
 	TOF_RANGE_REQ_CMD = 0x0,
 	/**

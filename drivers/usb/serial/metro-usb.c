@@ -256,14 +256,12 @@ static int metrousb_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int metrousb_port_remove(struct usb_serial_port *port)
+static void metrousb_port_remove(struct usb_serial_port *port)
 {
 	struct metrousb_private *metro_priv;
 
 	metro_priv = usb_get_serial_port_data(port);
 	kfree(metro_priv);
-
-	return 0;
 }
 
 static void metrousb_throttle(struct tty_struct *tty)

@@ -93,7 +93,7 @@ struct intel_rps {
 	} power;
 
 	atomic_t num_waiters;
-	atomic_t boosts;
+	unsigned int boosts;
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei ei;

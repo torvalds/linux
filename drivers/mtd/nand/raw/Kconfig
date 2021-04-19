@@ -102,13 +102,6 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
-config MTD_NAND_TANGO
-	tristate "Tango NAND controller"
-	depends on ARCH_TANGO || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Enables the NAND Flash controller on Tango chips.
-
 config MTD_NAND_SHARPSL
 	tristate "Sharp SL Series (C7xx + others) NAND controller"
 	depends on ARCH_PXA || COMPILE_TEST
@@ -331,8 +324,7 @@ source "drivers/mtd/nand/raw/ingenic/Kconfig"
 config MTD_NAND_FSMC
 	tristate "ST Micros FSMC NAND controller"
 	depends on OF && HAS_IOMEM
-	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || MACH_U300 || \
-		   COMPILE_TEST
+	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || COMPILE_TEST
 	help
 	  Enables support for NAND Flash chips on the ST Microelectronics
 	  Flexible Static Memory Controller (FSMC)

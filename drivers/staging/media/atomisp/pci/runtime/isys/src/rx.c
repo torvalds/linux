@@ -368,6 +368,7 @@ static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
 		break;
 	case IA_CSS_CSI2_COMPRESSION_TYPE_2:
 		predictor = MIPI_PREDICTOR_TYPE2 - 1;
+		break;
 	default:
 		break;
 	}

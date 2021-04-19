@@ -25,7 +25,7 @@ static int request_sync(struct i915_request *rq)
 	/* Opencode i915_request_add() so we can keep the timeline locked. */
 	__i915_request_commit(rq);
 	rq->sched.attr.priority = I915_PRIORITY_BARRIER;
-	__i915_request_queue(rq, NULL);
+	__i915_request_queue_bh(rq);
 
 	timeout = i915_request_wait(rq, 0, HZ / 10);
 	if (timeout < 0)

@@ -565,6 +565,9 @@ int rds_rdma_extra_size(struct rds_rdma_args *args,
 	if (args->nr_local == 0)
 		return -EINVAL;
 
+	if (args->nr_local > UIO_MAXIOV)
+		return -EMSGSIZE;
+
 	iov->iov = kcalloc(args->nr_local,
 			   sizeof(struct rds_iovec),
 			   GFP_KERNEL);

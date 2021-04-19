@@ -254,17 +254,6 @@ config MENZ069_WATCHDOG
 	  This driver can also be built as a module. If so the module
 	  will be called menz069_wdt.
 
-config TANGOX_WATCHDOG
-	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
-	select WATCHDOG_CORE
-	depends on ARCH_TANGO || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Support for the watchdog in Sigma Designs SMP86xx (tango3)
-	  and SMP87xx (tango4) family chips.
-
-	  This driver can be built as a module. The module name is tangox_wdt.
-
 config WDAT_WDT
 	tristate "ACPI Watchdog Action Table (WDAT)"
 	depends on ACPI
@@ -630,17 +619,6 @@ config SUNXI_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called sunxi_wdt.
 
-config COH901327_WATCHDOG
-	bool "ST-Ericsson COH 901 327 watchdog"
-	depends on ARCH_U300 || (ARM && COMMON_CLK && COMPILE_TEST)
-	default y if MACH_U300
-	select WATCHDOG_CORE
-	help
-	  Say Y here to include Watchdog timer support for the
-	  watchdog embedded into the ST-Ericsson U300 series platforms.
-	  This watchdog is used to reset the system and thus cannot be
-	  compiled as a module.
-
 config NPCM7XX_WATCHDOG
 	tristate "Nuvoton NPCM750 watchdog"
 	depends on ARCH_NPCM || COMPILE_TEST
@@ -788,16 +766,6 @@ config MOXART_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called moxart_wdt.
 
-config SIRFSOC_WATCHDOG
-	tristate "SiRFSOC watchdog"
-	depends on HAS_IOMEM
-	depends on ARCH_SIRF || COMPILE_TEST
-	select WATCHDOG_CORE
-	default y
-	help
-	  Support for CSR SiRFprimaII and SiRFatlasVI watchdog. When
-	  the watchdog triggers the system will be reset.
-
 config ST_LPC_WATCHDOG
 	tristate "STMicroelectronics LPC Watchdog"
 	depends on ARCH_STI || COMPILE_TEST
@@ -900,16 +868,6 @@ config LPC18XX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called lpc18xx_wdt.
 
-config ATLAS7_WATCHDOG
-	tristate "CSRatlas7 watchdog"
-	depends on ARCH_ATLAS7 || COMPILE_TEST
-	help
-	  Say Y here to include Watchdog timer support for the watchdog
-	  existing on the CSRatlas7 series platforms.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called atlas7_wdt.
-
 config RENESAS_WDT
 	tristate "Renesas WDT Watchdog"
 	depends on ARCH_RENESAS || COMPILE_TEST
@@ -938,16 +896,6 @@ config ASPEED_WATCHDOG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aspeed_wdt.
-
-config ZX2967_WATCHDOG
-	tristate "ZTE zx2967 SoCs watchdog support"
-	depends on ARCH_ZX
-	select WATCHDOG_CORE
-	help
-	  Say Y here to include support for the watchdog timer
-	  in ZTE zx2967 SoCs.
-	  To compile this driver as a module, choose M here: the
-	  module will be called zx2967_wdt.
 
 config STM32_WATCHDOG
 	tristate "STM32 Independent WatchDoG (IWDG) support"
@@ -1218,15 +1166,6 @@ config IE6XX_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ie6xx_wdt.
-
-config INTEL_SCU_WATCHDOG
-	bool "Intel SCU Watchdog for Mobile Platforms"
-	depends on X86_INTEL_MID
-	help
-	  Hardware driver for the watchdog time built into the Intel SCU
-	  for Intel Mobile Platforms.
-
-	  To compile this driver as a module, choose M here.
 
 config INTEL_MID_WATCHDOG
 	tristate "Intel MID Watchdog Timer"
@@ -2154,5 +2093,18 @@ config USBPCWATCHDOG
 	  module will be called pcwd_usb.
 
 	  Most people will say N.
+
+config KEEMBAY_WATCHDOG
+	tristate "Intel Keem Bay SoC non-secure watchdog"
+	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
+	select WATCHDOG_CORE
+	help
+	 This option enable support for an In-secure watchdog timer driver for
+	 Intel Keem Bay SoC. This WDT has a 32 bit timer and decrements in every
+	 count unit. An interrupt will be triggered, when the count crosses
+	 the thershold configured in the register.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called keembay_wdt.
 
 endif # WATCHDOG

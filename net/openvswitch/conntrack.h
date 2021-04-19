@@ -25,7 +25,8 @@ int ovs_ct_execute(struct net *, struct sk_buff *, struct sw_flow_key *,
 		   const struct ovs_conntrack_info *);
 int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key);
 
-void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key);
+void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key,
+		     bool post_ct);
 int ovs_ct_put_key(const struct sw_flow_key *swkey,
 		   const struct sw_flow_key *output, struct sk_buff *skb);
 void ovs_ct_free_action(const struct nlattr *a);
@@ -74,7 +75,8 @@ static inline int ovs_ct_clear(struct sk_buff *skb,
 }
 
 static inline void ovs_ct_fill_key(const struct sk_buff *skb,
-				   struct sw_flow_key *key)
+				   struct sw_flow_key *key,
+				   bool post_ct)
 {
 	key->ct_state = 0;
 	key->ct_zone = 0;

@@ -462,14 +462,6 @@ struct ecc_settings {
 	} flags;
 };
 
-#ifdef CONFIG_EDAC_DEBUG
-extern const struct attribute_group amd64_edac_dbg_group;
-#endif
-
-#ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
-extern const struct attribute_group amd64_edac_inj_group;
-#endif
-
 /*
  * Each of the PCI Device IDs types have their own set of hardware accessor
  * functions and per device encoding/decoding logic.
@@ -500,9 +492,6 @@ int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 
 #define amd64_write_pci_cfg(pdev, offset, val)	\
 	__amd64_write_pci_cfg_dword(pdev, offset, val, __func__)
-
-int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
-			     u64 *hole_offset, u64 *hole_size);
 
 #define to_mci(k) container_of(k, struct mem_ctl_info, dev)
 

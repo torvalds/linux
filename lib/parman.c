@@ -85,7 +85,6 @@ static int parman_shrink(struct parman *parman)
 }
 
 static bool parman_prio_used(struct parman_prio *prio)
-
 {
 	return !list_empty(&prio->item_list);
 }

@@ -63,7 +63,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led {
 			label = "q5:green:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;  /* PH20 */
 		};

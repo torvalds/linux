@@ -210,7 +210,7 @@ static const struct snd_soc_dai_ops au1xi2s_dai_ops = {
 };
 
 static struct snd_soc_dai_driver au1xi2s_dai_driver = {
-	.symmetric_rates	= 1,
+	.symmetric_rate		= 1,
 	.playback = {
 		.rates		= AU1XI2SC_RATES,
 		.formats	= AU1XI2SC_FMTS,

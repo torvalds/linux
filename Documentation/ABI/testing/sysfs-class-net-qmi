@@ -48,3 +48,13 @@ Description:
 
 		Write a number ranging from 1 to 254 to delete a previously
 		created qmap mux based network device.
+
+What:		/sys/class/net/<qmimux iface>/qmap/mux_id
+Date:		January 2021
+KernelVersion:	5.12
+Contact:	Daniele Palmas <dnlplm@gmail.com>
+Description:
+		Unsigned integer
+
+		Indicates the mux id associated to the qmimux network interface
+		during its creation.

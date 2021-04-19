@@ -36,7 +36,7 @@ nv1a_fb = {
 };
 
 int
-nv1a_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+nv1a_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return nvkm_fb_new_(&nv1a_fb, device, index, pfb);
+	return nvkm_fb_new_(&nv1a_fb, device, type, inst, pfb);
 }

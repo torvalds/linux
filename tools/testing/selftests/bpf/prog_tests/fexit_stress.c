@@ -2,8 +2,8 @@
 /* Copyright (c) 2019 Facebook */
 #include <test_progs.h>
 
-/* x86-64 fits 55 JITed and 43 interpreted progs into half page */
-#define CNT 40
+/* that's kernel internal BPF_MAX_TRAMP_PROGS define */
+#define CNT 38
 
 void test_fexit_stress(void)
 {

@@ -41,8 +41,7 @@ properties:
     description: Sensor digital IO 1.2 V supply.
 
   port:
-    type: object
-    description: Output video port. See ../video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/properties/port
 
 required:
   - compatible

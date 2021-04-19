@@ -97,10 +97,9 @@ out:	snd_card_free(card);
 	return error;
 }
 
-static int snd_adlib_remove(struct device *dev, unsigned int n)
+static void snd_adlib_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	return 0;
 }
 
 static struct isa_driver snd_adlib_driver = {

@@ -41,9 +41,9 @@ properties:
     maxItems: 1
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description: |
-      Output video port. See ../video-interfaces.txt.
+      Output video port.
 
 required:
   - compatible

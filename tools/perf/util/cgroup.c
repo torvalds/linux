@@ -161,7 +161,7 @@ void evlist__set_default_cgroup(struct evlist *evlist, struct cgroup *cgroup)
 
 /* helper function for ftw() in match_cgroups and list_cgroups */
 static int add_cgroup_name(const char *fpath, const struct stat *sb __maybe_unused,
-			   int typeflag)
+			   int typeflag, struct FTW *ftwbuf __maybe_unused)
 {
 	struct cgroup_name *cn;
 
@@ -209,12 +209,12 @@ static int list_cgroups(const char *str)
 			if (!s)
 				return -1;
 			/* pretend if it's added by ftw() */
-			ret = add_cgroup_name(s, NULL, FTW_D);
+			ret = add_cgroup_name(s, NULL, FTW_D, NULL);
 			free(s);
 			if (ret)
 				return -1;
 		} else {
-			if (add_cgroup_name("", NULL, FTW_D) < 0)
+			if (add_cgroup_name("", NULL, FTW_D, NULL) < 0)
 				return -1;
 		}
 
@@ -247,7 +247,7 @@ static int match_cgroups(const char *str)
 	prefix_len = strlen(mnt);
 
 	/* collect all cgroups in the cgroup_list */
-	if (ftw(mnt, add_cgroup_name, 20) < 0)
+	if (nftw(mnt, add_cgroup_name, 20, 0) < 0)
 		return -1;
 
 	for (;;) {

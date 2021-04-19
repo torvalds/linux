@@ -182,8 +182,9 @@ API presented to device drivers
 
 A :c:type:``struct blk_keyslot_manager`` should be set up by device drivers in
 the ``request_queue`` of the device. The device driver needs to call
-``blk_ksm_init`` on the ``blk_keyslot_manager``, which specifying the number of
-keyslots supported by the hardware.
+``blk_ksm_init`` (or its resource-managed variant ``devm_blk_ksm_init``) on the
+``blk_keyslot_manager``, while specifying the number of keyslots supported by
+the hardware.
 
 The device driver also needs to tell the KSM how to actually manipulate the
 IE hardware in the device to do things like programming the crypto key into
@@ -202,10 +203,9 @@ needs each and every of its keyslots to be reprogrammed with the key it
 "should have" at the point in time when the function is called. This is useful
 e.g. if a device loses all its keys on runtime power down/up.
 
-``blk_ksm_destroy`` should be called to free up all resources used by a keyslot
-manager upon ``blk_ksm_init``, once the ``blk_keyslot_manager`` is no longer
-needed.
-
+If the driver used ``blk_ksm_init`` instead of ``devm_blk_ksm_init``, then
+``blk_ksm_destroy`` should be called to free up all resources used by a
+``blk_keyslot_manager`` once it is no longer needed.
 
 Layered Devices
 ===============

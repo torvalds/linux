@@ -53,7 +53,7 @@ properties:
     description: extcon specifier for the Power Delivery
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description: A port node pointing to DPI host port node
 
 required:

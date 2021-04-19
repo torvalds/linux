@@ -196,6 +196,17 @@ static const struct stratix10_pll_clock agilex_pll_clks[] = {
 	  0, 0x9c},
 };
 
+static const struct n5x_perip_c_clock n5x_main_perip_c_clks[] = {
+	{ AGILEX_MAIN_PLL_C0_CLK, "main_pll_c0", "main_pll", NULL, 1, 0, 0x54, 0},
+	{ AGILEX_MAIN_PLL_C1_CLK, "main_pll_c1", "main_pll", NULL, 1, 0, 0x54, 8},
+	{ AGILEX_MAIN_PLL_C2_CLK, "main_pll_c2", "main_pll", NULL, 1, 0, 0x54, 16},
+	{ AGILEX_MAIN_PLL_C3_CLK, "main_pll_c3", "main_pll", NULL, 1, 0, 0x54, 24},
+	{ AGILEX_PERIPH_PLL_C0_CLK, "peri_pll_c0", "periph_pll", NULL, 1, 0, 0xA8, 0},
+	{ AGILEX_PERIPH_PLL_C1_CLK, "peri_pll_c1", "periph_pll", NULL, 1, 0, 0xA8, 8},
+	{ AGILEX_PERIPH_PLL_C2_CLK, "peri_pll_c2", "periph_pll", NULL, 1, 0, 0xA8, 16},
+	{ AGILEX_PERIPH_PLL_C3_CLK, "peri_pll_c3", "periph_pll", NULL, 1, 0, 0xA8, 24},
+};
+
 static const struct stratix10_perip_c_clock agilex_main_perip_c_clks[] = {
 	{ AGILEX_MAIN_PLL_C0_CLK, "main_pll_c0", "main_pll", NULL, 1, 0, 0x58},
 	{ AGILEX_MAIN_PLL_C1_CLK, "main_pll_c1", "main_pll", NULL, 1, 0, 0x5C},
@@ -289,6 +300,25 @@ static const struct stratix10_gate_clock agilex_gate_clks[] = {
 	  10, 0, 0, 0, 0, 0, 4},
 };
 
+static int n5x_clk_register_c_perip(const struct n5x_perip_c_clock *clks,
+				       int nums, struct stratix10_clock_data *data)
+{
+	struct clk *clk;
+	void __iomem *base = data->base;
+	int i;
+
+	for (i = 0; i < nums; i++) {
+		clk = n5x_register_periph(&clks[i], base);
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to register clock %s\n",
+			       __func__, clks[i].name);
+			continue;
+		}
+		data->clk_data.clks[clks[i].id] = clk;
+	}
+	return 0;
+}
+
 static int agilex_clk_register_c_perip(const struct stratix10_perip_c_clock *clks,
 				       int nums, struct stratix10_clock_data *data)
 {
@@ -367,6 +397,26 @@ static int agilex_clk_register_pll(const struct stratix10_pll_clock *clks,
 	return 0;
 }
 
+static int n5x_clk_register_pll(const struct stratix10_pll_clock *clks,
+				 int nums, struct stratix10_clock_data *data)
+{
+	struct clk *clk;
+	void __iomem *base = data->base;
+	int i;
+
+	for (i = 0; i < nums; i++) {
+		clk = n5x_register_pll(&clks[i], base);
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to register clock %s\n",
+			       __func__, clks[i].name);
+			continue;
+		}
+		data->clk_data.clks[clks[i].id] = clk;
+	}
+
+	return 0;
+}
+
 static struct stratix10_clock_data *__socfpga_agilex_clk_init(struct platform_device *pdev,
 						    int nr_clks)
 {
@@ -401,7 +451,7 @@ static struct stratix10_clock_data *__socfpga_agilex_clk_init(struct platform_de
 	return clk_data;
 }
 
-static int agilex_clkmgr_probe(struct platform_device *pdev)
+static int agilex_clkmgr_init(struct platform_device *pdev)
 {
 	struct stratix10_clock_data *clk_data;
 
@@ -423,9 +473,43 @@ static int agilex_clkmgr_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int n5x_clkmgr_init(struct platform_device *pdev)
+{
+	struct stratix10_clock_data *clk_data;
+
+	clk_data = __socfpga_agilex_clk_init(pdev, AGILEX_NUM_CLKS);
+	if (IS_ERR(clk_data))
+		return PTR_ERR(clk_data);
+
+	n5x_clk_register_pll(agilex_pll_clks, ARRAY_SIZE(agilex_pll_clks), clk_data);
+
+	n5x_clk_register_c_perip(n5x_main_perip_c_clks,
+				 ARRAY_SIZE(n5x_main_perip_c_clks), clk_data);
+
+	agilex_clk_register_cnt_perip(agilex_main_perip_cnt_clks,
+				   ARRAY_SIZE(agilex_main_perip_cnt_clks),
+				   clk_data);
+
+	agilex_clk_register_gate(agilex_gate_clks, ARRAY_SIZE(agilex_gate_clks),
+			      clk_data);
+	return 0;
+}
+
+static int agilex_clkmgr_probe(struct platform_device *pdev)
+{
+	int (*probe_func)(struct platform_device *init_func);
+
+	probe_func = of_device_get_match_data(&pdev->dev);
+	if (!probe_func)
+		return -ENODEV;
+	return	probe_func(pdev);
+}
+
 static const struct of_device_id agilex_clkmgr_match_table[] = {
 	{ .compatible = "intel,agilex-clkmgr",
-	  .data = agilex_clkmgr_probe },
+	  .data = agilex_clkmgr_init },
+	{ .compatible = "intel,easic-n5x-clkmgr",
+	  .data = n5x_clkmgr_init },
 	{ }
 };
 

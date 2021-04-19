@@ -66,21 +66,18 @@ properties:
     default: 400000
 
   i2c-sda-hold-time-ns:
-    maxItems: 1
     description: |
       The property should contain the SDA hold time in nanoseconds. This option
       is only supported in hardware blocks version 1.11a or newer or on
       Microsemi SoCs.
 
   i2c-scl-falling-time-ns:
-    maxItems: 1
     description: |
       The property should contain the SCL falling time in nanoseconds.
       This value is used to compute the tLOW period.
     default: 300
 
   i2c-sda-falling-time-ns:
-    maxItems: 1
     description: |
       The property should contain the SDA falling time in nanoseconds.
       This value is used to compute the tHIGH period.

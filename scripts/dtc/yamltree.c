@@ -29,11 +29,11 @@ char *yaml_error_name[] = {
 		    (emitter)->problem, __func__, __LINE__);		\
 })
 
-static void yaml_propval_int(yaml_emitter_t *emitter, struct marker *markers, char *data, int len, int width)
+static void yaml_propval_int(yaml_emitter_t *emitter, struct marker *markers, char *data, unsigned int len, int width)
 {
 	yaml_event_t event;
 	void *tag;
-	int off, start_offset = markers->offset;
+	unsigned int off, start_offset = markers->offset;
 
 	switch(width) {
 		case 1: tag = "!u8"; break;
@@ -112,7 +112,7 @@ static void yaml_propval_string(yaml_emitter_t *emitter, char *str, int len)
 static void yaml_propval(yaml_emitter_t *emitter, struct property *prop)
 {
 	yaml_event_t event;
-	int len = prop->val.len;
+	unsigned int len = prop->val.len;
 	struct marker *m = prop->val.markers;
 
 	/* Emit the property name */

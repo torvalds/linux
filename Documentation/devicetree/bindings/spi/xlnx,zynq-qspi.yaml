@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/xlnx,zynq-qspi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx Zynq QSPI controller
+
+description:
+  The Xilinx Zynq QSPI controller is used to access multi-bit serial flash
+  memory devices.
+
+allOf:
+  - $ref: "spi-controller.yaml#"
+
+maintainers:
+  - Michal Simek <michal.simek@xilinx.com>
+
+# Everything else is described in the common file
+properties:
+  compatible:
+    const: xlnx,zynq-qspi-1.0
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: reference clock
+      - description: peripheral clock
+
+  clock-names:
+    items:
+      - const: ref_clk
+      - const: pclk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi@e000d000 {
+        compatible = "xlnx,zynq-qspi-1.0";
+        reg = <0xe000d000 0x1000>;
+        interrupt-parent = <&intc>;
+        interrupts = <0 19 4>;
+        clock-names = "ref_clk", "pclk";
+        clocks = <&clkc 10>, <&clkc 43>;
+        num-cs = <1>;
+    };

@@ -20,6 +20,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
 
   port:
+    $ref: /schemas/graph.yaml#/properties/port
     description: Connection to controller providing VGA signals
 
 required:

@@ -70,6 +70,7 @@ static const struct spi_device_id inv_mpu_id[] = {
 	{"mpu6000", INV_MPU6000},
 	{"mpu6500", INV_MPU6500},
 	{"mpu6515", INV_MPU6515},
+	{"mpu6880", INV_MPU6880},
 	{"mpu9250", INV_MPU9250},
 	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
@@ -95,6 +96,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,mpu6515",
 		.data = (void *)INV_MPU6515
+	},
+	{
+		.compatible = "invensense,mpu6880",
+		.data = (void *)INV_MPU6880
 	},
 	{
 		.compatible = "invensense,mpu9250",

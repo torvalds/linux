@@ -31,7 +31,7 @@
 static int
 nv50_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : return -1;
 	case NVKM_ENGINE_GR    : return 0x0000;
@@ -40,6 +40,15 @@ nv50_fifo_chan_engine_addr(struct nvkm_engine *engine)
 		WARN_ON(1);
 		return -1;
 	}
+}
+
+struct nvkm_gpuobj **
+nv50_fifo_chan_engine(struct nv50_fifo_chan *chan, struct nvkm_engine *engine)
+{
+	int engi = chan->base.fifo->func->engine_id(chan->base.fifo, engine);
+	if (engi >= 0)
+		return &chan->engn[engi];
+	return NULL;
 }
 
 static int
@@ -103,7 +112,7 @@ nv50_fifo_chan_engine_init(struct nvkm_fifo_chan *base,
 			   struct nvkm_engine *engine)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nvkm_gpuobj *engn = chan->engn[engine->subdev.index];
+	struct nvkm_gpuobj *engn = *nv50_fifo_chan_engine(chan, engine);
 	u64 limit, start;
 	int offset;
 
@@ -130,7 +139,7 @@ nv50_fifo_chan_engine_dtor(struct nvkm_fifo_chan *base,
 			   struct nvkm_engine *engine)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	nvkm_gpuobj_del(&chan->engn[engine->subdev.index]);
+	nvkm_gpuobj_del(nv50_fifo_chan_engine(chan, engine));
 }
 
 static int
@@ -139,12 +148,11 @@ nv50_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
 			   struct nvkm_object *object)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	int engn = engine->subdev.index;
 
 	if (nv50_fifo_chan_engine_addr(engine) < 0)
 		return 0;
 
-	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
+	return nvkm_object_bind(object, NULL, 0, nv50_fifo_chan_engine(chan, engine));
 }
 
 void
@@ -162,7 +170,7 @@ nv50_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle = object->handle;
 	u32 context;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context = 0x00000000; break;
 	case NVKM_ENGINE_GR    : context = 0x00100000; break;
@@ -240,10 +248,10 @@ nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 
 	ret = nvkm_fifo_chan_ctor(&nv50_fifo_chan_func, &fifo->base,
 				  0x10000, 0x1000, false, vmm, push,
-				  (1ULL << NVKM_ENGINE_DMAOBJ) |
-				  (1ULL << NVKM_ENGINE_SW) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_MPEG),
+				  BIT(NV50_FIFO_ENGN_SW) |
+				  BIT(NV50_FIFO_ENGN_GR) |
+				  BIT(NV50_FIFO_ENGN_MPEG) |
+				  BIT(NV50_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

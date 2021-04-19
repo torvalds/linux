@@ -26,6 +26,8 @@
 #ifndef __DAL_HW_FACTORY_DIAG_FPGA_H__
 #define __DAL_HW_FACTORY_DIAG_FPGA_H__
 
+struct hw_factory;
+
 /* Initialize HW factory function pointers and pin info */
 void dal_hw_factory_diag_fpga_init(struct hw_factory *factory);
 

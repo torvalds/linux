@@ -49,18 +49,6 @@ config WMI_BMOF
 	  To compile this driver as a module, choose M here: the module will
 	  be called wmi-bmof.
 
-config ALIENWARE_WMI
-	tristate "Alienware Special feature control"
-	depends on ACPI
-	depends on LEDS_CLASS
-	depends on NEW_LEDS
-	depends on ACPI_WMI
-	help
-	 This is a driver for controlling Alienware BIOS driven
-	 features.  It exposes an interface for controlling the AlienFX
-	 zones on Alienware machines that don't contain a dedicated AlienFX
-	 USB MCU such as the X51 and X51-R2.
-
 config HUAWEI_WMI
 	tristate "Huawei WMI laptop extras driver"
 	depends on ACPI_BATTERY
@@ -327,169 +315,7 @@ config EEEPC_WMI
 	  If you have an ACPI-WMI compatible Eee PC laptop (>= 1000), say Y or M
 	  here.
 
-config DCDBAS
-	tristate "Dell Systems Management Base Driver"
-	depends on X86
-	help
-	  The Dell Systems Management Base Driver provides a sysfs interface
-	  for systems management software to perform System Management
-	  Interrupts (SMIs) and Host Control Actions (system power cycle or
-	  power off after OS shutdown) on certain Dell systems.
-
-	  See <file:Documentation/driver-api/dcdbas.rst> for more details on the driver
-	  and the Dell systems on which Dell systems management software makes
-	  use of this driver.
-
-	  Say Y or M here to enable the driver for use by Dell systems
-	  management software such as Dell OpenManage.
-
-#
-# The DELL_SMBIOS driver depends on ACPI_WMI and/or DCDBAS if those
-# backends are selected. The "depends" line prevents a configuration
-# where DELL_SMBIOS=y while either of those dependencies =m.
-#
-config DELL_SMBIOS
-	tristate "Dell SMBIOS driver"
-	depends on DCDBAS || DCDBAS=n
-	depends on ACPI_WMI || ACPI_WMI=n
-	help
-	This provides support for the Dell SMBIOS calling interface.
-	If you have a Dell computer you should enable this option.
-
-	Be sure to select at least one backend for it to work properly.
-
-config DELL_SMBIOS_WMI
-	bool "Dell SMBIOS driver WMI backend"
-	default y
-	depends on ACPI_WMI
-	select DELL_WMI_DESCRIPTOR
-	depends on DELL_SMBIOS
-	help
-	This provides an implementation for the Dell SMBIOS calling interface
-	communicated over ACPI-WMI.
-
-	If you have a Dell computer from >2007 you should say Y here.
-	If you aren't sure and this module doesn't work for your computer
-	it just won't load.
-
-config DELL_SMBIOS_SMM
-	bool "Dell SMBIOS driver SMM backend"
-	default y
-	depends on DCDBAS
-	depends on DELL_SMBIOS
-	help
-	This provides an implementation for the Dell SMBIOS calling interface
-	communicated over SMI/SMM.
-
-	If you have a Dell computer from <=2017 you should say Y here.
-	If you aren't sure and this module doesn't work for your computer
-	it just won't load.
-
-config DELL_LAPTOP
-	tristate "Dell Laptop Extras"
-	depends on DMI
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on ACPI_VIDEO || ACPI_VIDEO = n
-	depends on RFKILL || RFKILL = n
-	depends on SERIO_I8042
-	depends on DELL_SMBIOS
-	select POWER_SUPPLY
-	select LEDS_CLASS
-	select NEW_LEDS
-	select LEDS_TRIGGERS
-	select LEDS_TRIGGER_AUDIO
-	help
-	This driver adds support for rfkill and backlight control to Dell
-	laptops (except for some models covered by the Compal driver).
-
-config DELL_RBTN
-	tristate "Dell Airplane Mode Switch driver"
-	depends on ACPI
-	depends on INPUT
-	depends on RFKILL
-	help
-	  Say Y here if you want to support Dell Airplane Mode Switch ACPI
-	  device on Dell laptops. Sometimes it has names: DELLABCE or DELRBTN.
-	  This driver register rfkill device or input hotkey device depending
-	  on hardware type (hw switch slider or keyboard toggle button). For
-	  rfkill devices it receive HW switch events and set correct hard
-	  rfkill state.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called dell-rbtn.
-
-config DELL_RBU
-	tristate "BIOS update support for DELL systems via sysfs"
-	depends on X86
-	select FW_LOADER
-	select FW_LOADER_USER_HELPER
-	help
-	 Say m if you want to have the option of updating the BIOS for your
-	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
-	 supporting application to communicate with the BIOS regarding the new
-	 image for the image update to take effect.
-	 See <file:Documentation/admin-guide/dell_rbu.rst> for more details on the driver.
-
-config DELL_SMO8800
-	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
-	depends on ACPI
-	help
-	  Say Y here if you want to support SMO88XX freefall devices
-	  on Dell Latitude laptops.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called dell-smo8800.
-
-config DELL_WMI
-	tristate "Dell WMI notifications"
-	depends on ACPI_WMI
-	depends on DMI
-	depends on INPUT
-	depends on ACPI_VIDEO || ACPI_VIDEO = n
-	depends on DELL_SMBIOS
-	select DELL_WMI_DESCRIPTOR
-	select INPUT_SPARSEKMAP
-	help
-	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called dell-wmi.
-
-config DELL_WMI_SYSMAN
-	tristate "Dell WMI-based Systems management driver"
-	depends on ACPI_WMI
-	depends on DMI
-	select NLS
-	help
-	  This driver allows changing BIOS settings on many Dell machines from
-	  2018 and newer without the use of any additional software.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called dell-wmi-sysman.
-
-config DELL_WMI_DESCRIPTOR
-	tristate
-	depends on ACPI_WMI
-
-config DELL_WMI_AIO
-	tristate "WMI Hotkeys for Dell All-In-One series"
-	depends on ACPI_WMI
-	depends on INPUT
-	select INPUT_SPARSEKMAP
-	help
-	  Say Y here if you want to support WMI-based hotkeys on Dell
-	  All-In-One machines.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called dell-wmi-aio.
-
-config DELL_WMI_LED
-	tristate "External LED on Dell Business Netbooks"
-	depends on LEDS_CLASS
-	depends on ACPI_WMI
-	help
-	  This adds support for the Latitude 2100 and similar
-	  notebooks that have an external LED.
+source "drivers/platform/x86/dell/Kconfig"
 
 config AMILO_RFKILL
 	tristate "Fujitsu-Siemens Amilo rfkill support"
@@ -624,7 +450,10 @@ config IDEAPAD_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on ACPI_WMI || ACPI_WMI = n
+	select ACPI_PLATFORM_PROFILE
 	select INPUT_SPARSEKMAP
+	select NEW_LEDS
+	select LEDS_CLASS
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
@@ -655,6 +484,7 @@ config THINKPAD_ACPI
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on BACKLIGHT_CLASS_DEVICE
+	select ACPI_PLATFORM_PROFILE
 	select HWMON
 	select NVRAM
 	select NEW_LEDS
@@ -1327,21 +1157,6 @@ config INTEL_CHTDC_TI_PWRBTN
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
 
-config INTEL_MFLD_THERMAL
-       tristate "Thermal driver for Intel Medfield platform"
-       depends on MFD_INTEL_MSIC && THERMAL
-       help
-         Say Y here to enable thermal driver support for the  Intel Medfield
-         platform.
-
-config INTEL_MID_POWER_BUTTON
-	tristate "power button driver for Intel MID platforms"
-	depends on INTEL_SCU && INPUT
-	help
-	  This driver handles the power button on the Intel MID platforms.
-
-	  If unsure, say N.
-
 config INTEL_MRFLD_PWRBTN
 	tristate "Intel Merrifield Basin Cove power button driver"
 	depends on INTEL_SOC_PMIC_MRFLD
@@ -1358,18 +1173,23 @@ config INTEL_PMC_CORE
 	depends on PCI
 	help
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
-	  to Power Management Controller registers via a PCI interface. This
+	  to Power Management Controller registers via various interfaces. This
 	  driver can utilize debugging capabilities and supported features as
-	  exposed by the Power Management Controller.
+	  exposed by the Power Management Controller. It also may perform some
+	  tasks in the PMC in order to enable transition into the SLPS0 state.
+	  It should be selected on all Intel platforms supported by the driver.
 
 	  Supported features:
 		- SLP_S0_RESIDENCY counter
 		- PCH IP Power Gating status
-		- LTR Ignore
+		- LTR Ignore / LTR Show
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
+		- SLPS0 Debug registers (Cannonlake/Icelake PCH)
+		- Low Power Mode registers (Tigerlake and beyond)
+		- PMC quirks as needed to enable SLPS0/S0ix
 
 config INTEL_PMT_CLASS
-	tristate "Intel Platform Monitoring Technology (PMT) Class driver"
+	tristate
 	help
 	  The Intel Platform Monitoring Technology (PMT) class driver provides
 	  the basic sysfs interface and file hierarchy uses by PMT devices.
@@ -1382,6 +1202,7 @@ config INTEL_PMT_CLASS
 
 config INTEL_PMT_TELEMETRY
 	tristate "Intel Platform Monitoring Technology (PMT) Telemetry driver"
+	depends on MFD_INTEL_PMT
 	select INTEL_PMT_CLASS
 	help
 	  The Intel Platform Monitory Technology (PMT) Telemetry driver provides
@@ -1393,6 +1214,7 @@ config INTEL_PMT_TELEMETRY
 
 config INTEL_PMT_CRASHLOG
 	tristate "Intel Platform Monitoring Technology (PMT) Crashlog driver"
+	depends on MFD_INTEL_PMT
 	select INTEL_PMT_CLASS
 	help
 	  The Intel Platform Monitoring Technology (PMT) crashlog driver provides
@@ -1438,6 +1260,14 @@ config INTEL_SCU_PLATFORM
 	  This driver is used to bridge the communications between kernel
 	  and SCU (sometimes called PMC as well). The driver currently
 	  supports Intel Elkhart Lake and compatible platforms.
+
+config INTEL_SCU_WDT
+	bool
+	default INTEL_SCU_PCI
+	depends on INTEL_MID_WATCHDOG
+	help
+	  This is a specific platform code to instantiate watchdog device
+	  on ACPI-based Intel MID platforms.
 
 config INTEL_SCU_IPC_UTIL
 	tristate "Intel SCU IPC utility driver"

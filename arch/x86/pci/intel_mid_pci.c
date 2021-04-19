@@ -28,10 +28,12 @@
 #include <linux/io.h>
 #include <linux/smp.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/segment.h>
 #include <asm/pci_x86.h>
 #include <asm/hw_irq.h>
 #include <asm/io_apic.h>
+#include <asm/intel-family.h>
 #include <asm/intel-mid.h>
 #include <asm/acpi.h>
 
@@ -140,6 +142,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
  * type1_access_ok - check whether to use type 1
  * @bus: bus number
  * @devfn: device & function in question
+ * @reg: configuration register offset
  *
  * If the bus is on a Lincroft chip and it exists, or is not on a Lincroft at
  * all, the we can go ahead with any reads & writes.  If it's on a Lincroft,
@@ -212,10 +215,17 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 			       where, size, value);
 }
 
+static const struct x86_cpu_id intel_mid_cpu_ids[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_MID, NULL),
+	{}
+};
+
 static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
+	const struct x86_cpu_id *id;
 	struct irq_alloc_info info;
 	bool polarity_low;
+	u16 model = 0;
 	int ret;
 	u8 gsi;
 
@@ -228,8 +238,12 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		return ret;
 	}
 
-	switch (intel_mid_identify_cpu()) {
-	case INTEL_MID_CPU_CHIP_TANGIER:
+	id = x86_match_cpu(intel_mid_cpu_ids);
+	if (id)
+		model = id->model;
+
+	switch (model) {
+	case INTEL_FAM6_ATOM_SILVERMONT_MID:
 		polarity_low = false;
 
 		/* Special treatment for IRQ0 */

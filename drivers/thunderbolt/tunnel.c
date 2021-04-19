@@ -830,7 +830,7 @@ static void tb_dma_init_path(struct tb_path *path, unsigned int isb,
  * @transmit_path: HopID used for transmitting packets
  * @receive_ring: NHI ring number used to receive packets from the
  *		  other domain. Set to %0 if RX path is not needed.
- * @reveive_path: HopID used for receiving packets
+ * @receive_path: HopID used for receiving packets
  *
  * Return: Returns a tb_tunnel on success or NULL on failure.
  */
@@ -932,12 +932,14 @@ static int tb_usb3_activate(struct tb_tunnel *tunnel, bool activate)
 static int tb_usb3_consumed_bandwidth(struct tb_tunnel *tunnel,
 		int *consumed_up, int *consumed_down)
 {
+	int pcie_enabled = tb_acpi_may_tunnel_pcie();
+
 	/*
-	 * PCIe tunneling affects the USB3 bandwidth so take that it
-	 * into account here.
+	 * PCIe tunneling, if enabled, affects the USB3 bandwidth so
+	 * take that it into account here.
 	 */
-	*consumed_up = tunnel->allocated_up * (3 + 1) / 3;
-	*consumed_down = tunnel->allocated_down * (3 + 1) / 3;
+	*consumed_up = tunnel->allocated_up * (3 + pcie_enabled) / 3;
+	*consumed_down = tunnel->allocated_down * (3 + pcie_enabled) / 3;
 	return 0;
 }
 

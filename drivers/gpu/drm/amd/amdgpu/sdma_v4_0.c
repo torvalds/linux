@@ -46,7 +46,6 @@
 #include "sdma6/sdma6_4_2_2_sh_mask.h"
 #include "sdma7/sdma7_4_2_2_offset.h"
 #include "sdma7/sdma7_4_2_2_sh_mask.h"
-#include "hdp/hdp_4_0_offset.h"
 #include "sdma0/sdma0_4_1_default.h"
 
 #include "soc15_common.h"

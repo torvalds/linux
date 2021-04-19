@@ -8,6 +8,7 @@ struct nvkm_enum {
 	const char *name;
 	const void *data;
 	u32 data2;
+	int inst;
 };
 
 const struct nvkm_enum *nvkm_enum_find(const struct nvkm_enum *, u32 value);

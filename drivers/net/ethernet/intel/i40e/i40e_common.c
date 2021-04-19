@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2021 Intel Corporation. */
 
 #include "i40e.h"
 #include "i40e_type.h"
@@ -3662,6 +3662,46 @@ i40e_status i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 }
 
 /**
+ * i40e_aq_set_lldp_mib - Set the LLDP MIB
+ * @hw: pointer to the hw struct
+ * @mib_type: Local, Remote or both Local and Remote MIBs
+ * @buff: pointer to a user supplied buffer to store the MIB block
+ * @buff_size: size of the buffer (in bytes)
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Set the LLDP MIB.
+ **/
+enum i40e_status_code
+i40e_aq_set_lldp_mib(struct i40e_hw *hw,
+		     u8 mib_type, void *buff, u16 buff_size,
+		     struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aqc_lldp_set_local_mib *cmd;
+	enum i40e_status_code status;
+	struct i40e_aq_desc desc;
+
+	cmd = (struct i40e_aqc_lldp_set_local_mib *)&desc.params.raw;
+	if (buff_size == 0 || !buff)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_lldp_set_local_mib);
+	/* Indirect Command */
+	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
+	if (buff_size > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+	desc.datalen = cpu_to_le16(buff_size);
+
+	cmd->type = mib_type;
+	cmd->length = cpu_to_le16(buff_size);
+	cmd->address_high = cpu_to_le32(upper_32_bits((uintptr_t)buff));
+	cmd->address_low = cpu_to_le32(lower_32_bits((uintptr_t)buff));
+
+	status = i40e_asq_send_command(hw, &desc, buff, buff_size, cmd_details);
+	return status;
+}
+
+/**
  * i40e_aq_cfg_lldp_mib_change_event
  * @hw: pointer to the hw struct
  * @enable_update: Enable or Disable event posting
@@ -4475,6 +4515,29 @@ static i40e_status i40e_aq_alternate_read(struct i40e_hw *hw,
 		if (reg_val1)
 			*reg_val1 = le32_to_cpu(cmd_resp->data1);
 	}
+
+	return status;
+}
+
+/**
+ * i40e_aq_suspend_port_tx
+ * @hw: pointer to the hardware structure
+ * @seid: port seid
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Suspend port's Tx traffic
+ **/
+i40e_status i40e_aq_suspend_port_tx(struct i40e_hw *hw, u16 seid,
+				    struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aqc_tx_sched_ind *cmd;
+	struct i40e_aq_desc desc;
+	i40e_status status;
+
+	cmd = (struct i40e_aqc_tx_sched_ind *)&desc.params.raw;
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_suspend_port_tx);
+	cmd->vsi_seid = cpu_to_le16(seid);
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
 }

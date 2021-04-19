@@ -473,10 +473,10 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		drm->gem.vram_available -= bo->mem.size;
+		drm->gem.vram_available -= bo->base.size;
 		break;
 	case TTM_PL_TT:
-		drm->gem.gart_available -= bo->mem.size;
+		drm->gem.gart_available -= bo->base.size;
 		break;
 	default:
 		break;
@@ -504,10 +504,10 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	if (!nvbo->bo.pin_count) {
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
-			drm->gem.vram_available += bo->mem.size;
+			drm->gem.vram_available += bo->base.size;
 			break;
 		case TTM_PL_TT:
-			drm->gem.gart_available += bo->mem.size;
+			drm->gem.gart_available += bo->base.size;
 			break;
 		default:
 			break;
@@ -547,19 +547,35 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_tt *ttm_dma = (struct ttm_tt *)nvbo->bo.ttm;
-	int i;
+	int i, j;
 
 	if (!ttm_dma)
 		return;
+	if (!ttm_dma->pages) {
+		NV_DEBUG(drm, "ttm_dma 0x%p: pages NULL\n", ttm_dma);
+		return;
+	}
 
 	/* Don't waste time looping if the object is coherent */
 	if (nvbo->force_coherent)
 		return;
 
-	for (i = 0; i < ttm_dma->num_pages; i++)
+	i = 0;
+	while (i < ttm_dma->num_pages) {
+		struct page *p = ttm_dma->pages[i];
+		size_t num_pages = 1;
+
+		for (j = i + 1; j < ttm_dma->num_pages; ++j) {
+			if (++p != ttm_dma->pages[j])
+				break;
+
+			++num_pages;
+		}
 		dma_sync_single_for_device(drm->dev->dev,
 					   ttm_dma->dma_address[i],
-					   PAGE_SIZE, DMA_TO_DEVICE);
+					   num_pages * PAGE_SIZE, DMA_TO_DEVICE);
+		i += num_pages;
+	}
 }
 
 void
@@ -567,18 +583,35 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_tt *ttm_dma = (struct ttm_tt *)nvbo->bo.ttm;
-	int i;
+	int i, j;
 
 	if (!ttm_dma)
 		return;
+	if (!ttm_dma->pages) {
+		NV_DEBUG(drm, "ttm_dma 0x%p: pages NULL\n", ttm_dma);
+		return;
+	}
 
 	/* Don't waste time looping if the object is coherent */
 	if (nvbo->force_coherent)
 		return;
 
-	for (i = 0; i < ttm_dma->num_pages; i++)
+	i = 0;
+	while (i < ttm_dma->num_pages) {
+		struct page *p = ttm_dma->pages[i];
+		size_t num_pages = 1;
+
+		for (j = i + 1; j < ttm_dma->num_pages; ++j) {
+			if (++p != ttm_dma->pages[j])
+				break;
+
+			++num_pages;
+		}
+
 		dma_sync_single_for_cpu(drm->dev->dev, ttm_dma->dma_address[i],
-					PAGE_SIZE, DMA_FROM_DEVICE);
+					num_pages * PAGE_SIZE, DMA_FROM_DEVICE);
+		i += num_pages;
+	}
 }
 
 void nouveau_bo_add_io_reserve_lru(struct ttm_buffer_object *bo)
@@ -774,7 +807,10 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
 			return ret;
 	}
 
-	mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
+	if (drm_drv_uses_atomic_modeset(drm->dev))
+		mutex_lock(&cli->mutex);
+	else
+		mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
 	ret = nouveau_fence_sync(nouveau_bo(bo), chan, true, ctx->interruptible);
 	if (ret == 0) {
 		ret = drm->ttm.move(chan, bo, &bo->mem, new_reg);
@@ -910,7 +946,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_resource *new_reg,
 		return 0;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
-		*new_tile = nv10_bo_set_tiling(dev, offset, new_reg->size,
+		*new_tile = nv10_bo_set_tiling(dev, offset, bo->base.size,
 					       nvbo->mode, nvbo->zeta);
 	}
 
@@ -1232,9 +1268,8 @@ nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 		return 0;
 
 	if (slave && ttm->sg) {
-		/* make userspace faulting work */
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 ttm_dma->dma_address, ttm->num_pages);
+		drm_prime_sg_to_dma_addr_array(ttm->sg, ttm_dma->dma_address,
+					       ttm->num_pages);
 		return 0;
 	}
 

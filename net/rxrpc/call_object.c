@@ -548,8 +548,6 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 		rxrpc_disconnect_call(call);
 	if (call->security)
 		call->security->free_call_crypto(call);
-
-	rxrpc_cleanup_ring(call);
 	_leave("");
 }
 

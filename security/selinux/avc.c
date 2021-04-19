@@ -118,11 +118,11 @@ void avc_set_cache_threshold(struct selinux_avc *avc,
 	avc->avc_cache_threshold = cache_threshold;
 }
 
-static struct avc_callback_node *avc_callbacks;
-static struct kmem_cache *avc_node_cachep;
-static struct kmem_cache *avc_xperms_data_cachep;
-static struct kmem_cache *avc_xperms_decision_cachep;
-static struct kmem_cache *avc_xperms_cachep;
+static struct avc_callback_node *avc_callbacks __ro_after_init;
+static struct kmem_cache *avc_node_cachep __ro_after_init;
+static struct kmem_cache *avc_xperms_data_cachep __ro_after_init;
+static struct kmem_cache *avc_xperms_decision_cachep __ro_after_init;
+static struct kmem_cache *avc_xperms_cachep __ro_after_init;
 
 static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
 {

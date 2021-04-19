@@ -22,7 +22,7 @@ static inline int set_memory_ro(unsigned long addr, int numpages) { return 0; }
 static inline int set_memory_rw(unsigned long addr, int numpages) { return 0; }
 static inline int set_memory_x(unsigned long addr, int numpages) { return 0; }
 static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
-static inline void protect_kernel_text_data(void) {};
+static inline void protect_kernel_text_data(void) {}
 static inline int set_memory_rw_nx(unsigned long addr, int numpages) { return 0; }
 #endif
 
@@ -32,14 +32,14 @@ bool kernel_page_present(struct page *page);
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_ARCH_HAS_STRICT_KERNEL_RWX
+#ifdef CONFIG_STRICT_KERNEL_RWX
 #ifdef CONFIG_64BIT
 #define SECTION_ALIGN (1 << 21)
 #else
 #define SECTION_ALIGN (1 << 22)
 #endif
-#else /* !CONFIG_ARCH_HAS_STRICT_KERNEL_RWX */
+#else /* !CONFIG_STRICT_KERNEL_RWX */
 #define SECTION_ALIGN L1_CACHE_BYTES
-#endif /* CONFIG_ARCH_HAS_STRICT_KERNEL_RWX */
+#endif /* CONFIG_STRICT_KERNEL_RWX */
 
 #endif /* _ASM_RISCV_SET_MEMORY_H */

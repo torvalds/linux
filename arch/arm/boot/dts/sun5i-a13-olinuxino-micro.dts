@@ -64,7 +64,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_olinuxinom>;
 
-		power {
+		led {
 			label = "a13-olinuxino-micro:green:power";
 			gpios = <&pio 6 9 GPIO_ACTIVE_HIGH>;
 			default-state = "on";

@@ -296,6 +296,9 @@ static inline void btrfs_backref_free_node(struct btrfs_backref_cache *cache,
 					   struct btrfs_backref_node *node)
 {
 	if (node) {
+		ASSERT(list_empty(&node->list));
+		ASSERT(list_empty(&node->lower));
+		ASSERT(node->eb == NULL);
 		cache->nr_nodes--;
 		btrfs_put_root(node->root);
 		kfree(node);
@@ -340,11 +343,11 @@ static inline void btrfs_backref_drop_node_buffer(
 static inline void btrfs_backref_drop_node(struct btrfs_backref_cache *tree,
 					   struct btrfs_backref_node *node)
 {
-	BUG_ON(!list_empty(&node->upper));
+	ASSERT(list_empty(&node->upper));
 
 	btrfs_backref_drop_node_buffer(node);
-	list_del(&node->list);
-	list_del(&node->lower);
+	list_del_init(&node->list);
+	list_del_init(&node->lower);
 	if (!RB_EMPTY_NODE(&node->rb_node))
 		rb_erase(&node->rb_node, &tree->rb_root);
 	btrfs_backref_free_node(tree, node);

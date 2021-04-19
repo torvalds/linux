@@ -18,3 +18,9 @@ config SCSI_HISI_SAS_PCI
 	depends on ACPI
 	help
 		This driver supports HiSilicon's SAS HBA based on PCI device
+
+config SCSI_HISI_SAS_DEBUGFS_DEFAULT_ENABLE
+	bool "HiSilicon SAS debugging default enable"
+	depends on SCSI_HISI_SAS
+	help
+		Set Y to default enable DEBUGFS for SCSI_HISI_SAS

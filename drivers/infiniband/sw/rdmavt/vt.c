@@ -294,7 +294,7 @@ static int rvt_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 
 /**
  * rvt_dealloc_ucontext - Free a user context
- * @context - Free this
+ * @context: Unused
  */
 static void rvt_dealloc_ucontext(struct ib_ucontext *context)
 {

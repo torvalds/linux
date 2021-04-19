@@ -212,7 +212,6 @@ properties:
       Triplet of delays. The 1st cell is reset pre-delay in micro
       seconds. The 2nd cell is reset pulse in micro seconds. The 3rd
       cell is reset post-delay in micro seconds.
-    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 3
     maxItems: 3
 

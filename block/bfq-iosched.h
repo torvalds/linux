@@ -291,6 +291,11 @@ struct bfq_queue {
 	/* associated @bfq_ttime struct */
 	struct bfq_ttime ttime;
 
+	/* when bfqq started to do I/O within the last observation window */
+	u64 io_start_time;
+	/* how long bfqq has remained empty during the last observ. window */
+	u64 tot_idle_time;
+
 	/* bit vector: a 1 for each seeky requests in history */
 	u32 seek_history;
 
@@ -371,6 +376,11 @@ struct bfq_queue {
 	 * bfq_select_queue().
 	 */
 	struct bfq_queue *waker_bfqq;
+	/* pointer to the curr. tentative waker queue, see bfq_check_waker() */
+	struct bfq_queue *tentative_waker_bfqq;
+	/* number of times the same tentative waker has been detected */
+	unsigned int num_waker_detections;
+
 	/* node for woken_list, see below */
 	struct hlist_node woken_list_node;
 	/*
@@ -407,6 +417,9 @@ struct bfq_io_cq {
 	 */
 	bool saved_IO_bound;
 
+	u64 saved_io_start_time;
+	u64 saved_tot_idle_time;
+
 	/*
 	 * Same purpose as the previous fields for the value of the
 	 * field keeping the queue's belonging to a large burst
@@ -432,9 +445,15 @@ struct bfq_io_cq {
 	 */
 	unsigned long saved_wr_coeff;
 	unsigned long saved_last_wr_start_finish;
+	unsigned long saved_service_from_wr;
 	unsigned long saved_wr_start_at_switch_to_srt;
 	unsigned int saved_wr_cur_max_time;
 	struct bfq_ttime saved_ttime;
+
+	/* Save also injection state */
+	u64 saved_last_serv_time_ns;
+	unsigned int saved_inject_limit;
+	unsigned long saved_decrease_time_jif;
 };
 
 /**
@@ -642,14 +661,6 @@ struct bfq_data {
 	unsigned int bfq_timeout;
 
 	/*
-	 * Number of consecutive requests that must be issued within
-	 * the idle time slice to set again idling to a queue which
-	 * was marked as non-I/O-bound (see the definition of the
-	 * IO_bound flag for further details).
-	 */
-	unsigned int bfq_requests_within_timer;
-
-	/*
 	 * Force device idling whenever needed to provide accurate
 	 * service guarantees, without caring about throughput
 	 * issues. CAVEAT: this may even increase latencies, in case
@@ -770,7 +781,6 @@ enum bfqq_state_flags {
 				 */
 	BFQQF_coop,		/* bfqq is shared */
 	BFQQF_split_coop,	/* shared bfqq will be split */
-	BFQQF_has_waker		/* bfqq has a waker queue */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -790,7 +800,6 @@ BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(softrt_update);
-BFQ_BFQQ_FNS(has_waker);
 #undef BFQ_BFQQ_FNS
 
 /* Expiration reasons. */

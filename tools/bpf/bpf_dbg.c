@@ -890,7 +890,7 @@ static int bpf_run_stepping(struct sock_filter *f, uint16_t bpf_len,
 	bool stop = false;
 	int i = 1;
 
-	while (bpf_curr.Rs == false && stop == false) {
+	while (!bpf_curr.Rs && !stop) {
 		bpf_safe_regs();
 
 		if (i++ == next)

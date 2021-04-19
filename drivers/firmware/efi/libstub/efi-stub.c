@@ -96,6 +96,18 @@ static void install_memreserve_table(void)
 		efi_err("Failed to install memreserve config table!\n");
 }
 
+static u32 get_supported_rt_services(void)
+{
+	const efi_rt_properties_table_t *rt_prop_table;
+	u32 supported = EFI_RT_SUPPORTED_ALL;
+
+	rt_prop_table = get_efi_config_table(EFI_RT_PROPERTIES_TABLE_GUID);
+	if (rt_prop_table)
+		supported &= rt_prop_table->runtime_services_supported;
+
+	return supported;
+}
+
 /*
  * EFI entry point for the arm/arm64 EFI stubs.  This is the entrypoint
  * that is described in the PE/COFF header.  Most of the code is the same
@@ -249,6 +261,10 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	flat_va_mapping = prop_tbl &&
 			  (prop_tbl->memory_protection_attribute &
 			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
+
+	/* force efi_novamap if SetVirtualAddressMap() is unsupported */
+	efi_novamap |= !(get_supported_rt_services() &
+			 EFI_RT_SUPPORTED_SET_VIRTUAL_ADDRESS_MAP);
 
 	/* hibernation expects the runtime regions to stay in the same place */
 	if (!IS_ENABLED(CONFIG_HIBERNATION) && !efi_nokaslr && !flat_va_mapping) {

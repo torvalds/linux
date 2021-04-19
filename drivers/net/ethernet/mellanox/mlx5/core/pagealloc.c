@@ -76,7 +76,7 @@ enum {
 
 static u32 get_function(u16 func_id, bool ec_function)
 {
-	return func_id & (ec_function << 16);
+	return (u32)func_id | (ec_function << 16);
 }
 
 static struct rb_root *page_root_per_function(struct mlx5_core_dev *dev, u32 function)

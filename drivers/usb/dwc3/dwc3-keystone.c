@@ -99,13 +99,8 @@ static int kdwc3_probe(struct platform_device *pdev)
 
 	/* PSC dependency on AM65 needs SERDES0 to be powered before USB0 */
 	kdwc->usb3_phy = devm_phy_optional_get(dev, "usb3-phy");
-	if (IS_ERR(kdwc->usb3_phy)) {
-		error = PTR_ERR(kdwc->usb3_phy);
-		if (error != -EPROBE_DEFER)
-			dev_err(dev, "couldn't get usb3 phy: %d\n", error);
-
-		return error;
-	}
+	if (IS_ERR(kdwc->usb3_phy))
+		return dev_err_probe(dev, PTR_ERR(kdwc->usb3_phy), "couldn't get usb3 phy\n");
 
 	phy_pm_runtime_get_sync(kdwc->usb3_phy);
 

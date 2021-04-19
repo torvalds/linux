@@ -41,7 +41,7 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 	packet_log("SPU Message header %p len: %u\n", buf, buf_len);
 
 	/* ========== Decode MH ========== */
-	packet_log("  MH 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+	packet_log("  MH 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 	if (spuh->mh.flags & MH_SCTX_PRES)
 		packet_log("    SCTX  present\n");
 	if (spuh->mh.flags & MH_BDESC_PRES)
@@ -273,22 +273,21 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 	/* ========== Decode BDESC ========== */
 	if (spuh->mh.flags & MH_BDESC_PRES) {
-#ifdef DEBUG
 		struct BDESC_HEADER *bdesc = (struct BDESC_HEADER *)ptr;
-#endif
-		packet_log("  BDESC[0] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+
+		packet_log("  BDESC[0] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    OffsetMAC:%u LengthMAC:%u\n",
 			   be16_to_cpu(bdesc->offset_mac),
 			   be16_to_cpu(bdesc->length_mac));
 		ptr += sizeof(u32);
 
-		packet_log("  BDESC[1] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+		packet_log("  BDESC[1] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    OffsetCrypto:%u LengthCrypto:%u\n",
 			   be16_to_cpu(bdesc->offset_crypto),
 			   be16_to_cpu(bdesc->length_crypto));
 		ptr += sizeof(u32);
 
-		packet_log("  BDESC[2] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+		packet_log("  BDESC[2] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    OffsetICV:%u OffsetIV:%u\n",
 			   be16_to_cpu(bdesc->offset_icv),
 			   be16_to_cpu(bdesc->offset_iv));
@@ -297,10 +296,9 @@ void spum_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 
 	/* ========== Decode BD ========== */
 	if (spuh->mh.flags & MH_BD_PRES) {
-#ifdef DEBUG
 		struct BD_HEADER *bd = (struct BD_HEADER *)ptr;
-#endif
-		packet_log("  BD[0] 0x%08x\n", be32_to_cpu(*((u32 *)ptr)));
+
+		packet_log("  BD[0] 0x%08x\n", be32_to_cpup((__be32 *)ptr));
 		packet_log("    Size:%ubytes PrevLength:%u\n",
 			   be16_to_cpu(bd->size), be16_to_cpu(bd->prev_length));
 		ptr += 4;
@@ -1056,9 +1054,9 @@ void spum_request_pad(u8 *pad_start,
 
 			/* add the size at the end as required per alg */
 			if (auth_alg == HASH_ALG_MD5)
-				*(u64 *)ptr = cpu_to_le64((u64)total_sent * 8);
+				*(__le64 *)ptr = cpu_to_le64(total_sent * 8ull);
 			else		/* SHA1, SHA2-224, SHA2-256 */
-				*(u64 *)ptr = cpu_to_be64((u64)total_sent * 8);
+				*(__be64 *)ptr = cpu_to_be64(total_sent * 8ull);
 			ptr += sizeof(u64);
 		}
 	}

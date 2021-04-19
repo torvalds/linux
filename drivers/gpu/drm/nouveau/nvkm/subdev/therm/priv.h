@@ -30,10 +30,10 @@
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/perf.h>
 
-int nvkm_therm_new_(const struct nvkm_therm_func *, struct nvkm_device *,
-		    int index, struct nvkm_therm **);
-void nvkm_therm_ctor(struct nvkm_therm *therm, struct nvkm_device *device,
-		     int index, const struct nvkm_therm_func *func);
+int nvkm_therm_new_(const struct nvkm_therm_func *, struct nvkm_device *, enum nvkm_subdev_type,
+		    int, struct nvkm_therm **);
+void nvkm_therm_ctor(struct nvkm_therm *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		     const struct nvkm_therm_func *);
 
 struct nvkm_fan {
 	struct nvkm_therm *parent;

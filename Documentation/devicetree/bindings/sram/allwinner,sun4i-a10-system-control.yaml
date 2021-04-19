@@ -49,6 +49,7 @@ properties:
       - items:
           - const: allwinner,suniv-f1c100s-system-control
           - const: allwinner,sun4i-a10-system-control
+      - const: allwinner,sun50i-h616-system-control
 
   reg:
     maxItems: 1

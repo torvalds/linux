@@ -39,7 +39,7 @@ properties:
     maxItems: 1
 
   phys:
-    description: PHY specifier for the OTG PHY
+    maxItems: 1
 
   phy-names:
     const: usb

@@ -102,9 +102,9 @@ int npc_mcam_verify_channel(struct rvu *rvu, u16 pcifunc, u8 intf, u16 channel)
 			return -EINVAL;
 	} else {
 		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
-		base = NIX_CHAN_CGX_LMAC_CHX(cgx_id, lmac_id, 0x0);
+		base = rvu_nix_chan_cgx(rvu, cgx_id, lmac_id, 0x0);
 		/* CGX mapped functions has maximum of 16 channels */
-		end = NIX_CHAN_CGX_LMAC_CHX(cgx_id, lmac_id, 0xF);
+		end = rvu_nix_chan_cgx(rvu, cgx_id, lmac_id, 0xF);
 	}
 
 	if (channel < base || channel > end)
@@ -2490,10 +2490,10 @@ int rvu_mbox_handler_npc_mcam_free_counter(struct rvu *rvu,
 		index = find_next_bit(mcam->bmap, mcam->bmap_entries, entry);
 		if (index >= mcam->bmap_entries)
 			break;
+		entry = index + 1;
 		if (mcam->entry2cntr_map[index] != req->cntr)
 			continue;
 
-		entry = index + 1;
 		npc_unmap_mcam_entry_and_cntr(rvu, mcam, blkaddr,
 					      index, req->cntr);
 	}

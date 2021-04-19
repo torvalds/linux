@@ -26,16 +26,17 @@ static void tegra_uart_handle_break(struct uart_port *p)
 {
 	unsigned int status, tmout = 10000;
 
-	do {
+	while (1) {
 		status = p->serial_in(p, UART_LSR);
-		if (status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS))
-			status = p->serial_in(p, UART_RX);
-		else
+		if (!(status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS)))
 			break;
+
+		p->serial_in(p, UART_RX);
+
 		if (--tmout == 0)
 			break;
 		udelay(1);
-	} while (1);
+	}
 }
 
 static int tegra_uart_probe(struct platform_device *pdev)

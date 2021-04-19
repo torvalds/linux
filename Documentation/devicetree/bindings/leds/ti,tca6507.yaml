@@ -69,6 +69,7 @@ patternProperties:
 if:
   patternProperties:
     "^gpio@[0-6]$":
+      type: object
       properties:
         compatible:
           contains:

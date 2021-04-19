@@ -659,15 +659,6 @@ config MFD_INTEL_LPSS_PCI
 	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
 	  PCH) in PCI mode.
 
-config MFD_INTEL_MSIC
-	bool "Intel MSIC"
-	depends on INTEL_SCU
-	select MFD_CORE
-	help
-	  Select this option to enable access to Intel MSIC (Avatele
-	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
-	  devices used in Intel Medfield platforms.
-
 config MFD_INTEL_PMC_BXT
 	tristate "Intel PMC Driver for Broxton"
 	depends on X86
@@ -2085,6 +2076,17 @@ config MFD_KHADAS_MCU
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_ACER_A500_EC
+	tristate "Support for Acer Iconia Tab A500 Embedded Controller"
+	depends on I2C
+	depends on (ARCH_TEGRA_2x_SOC && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	help
+	  Support for Embedded Controller found on Acer Iconia Tab A500.
+	  The controller itself is ENE KB930, it is running firmware
+	  customized for the specific needs of the Acer A500 hardware.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
@@ -2129,7 +2131,7 @@ config RAVE_SP_CORE
 	  device found on several devices in RAVE line of hardware.
 
 config SGI_MFD_IOC3
-	tristate "SGI IOC3 core driver"
+	bool "SGI IOC3 core driver"
 	depends on PCI && MIPS && 64BIT
 	select MFD_CORE
 	help

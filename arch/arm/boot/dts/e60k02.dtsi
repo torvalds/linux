@@ -278,6 +278,12 @@
 };
 
 &uart1 {
+	/* J4, through-hole */
+	status = "okay";
+};
+
+&uart4 {
+	/* TP198, next to J4, SMD pads */
 	status = "okay";
 };
 

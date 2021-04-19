@@ -23,6 +23,7 @@
 #include <linux/sys_soc.h>
 
 #include "renesas-cpg-mssr.h"
+#include "rcar-cpg-lib.h"
 #include "rcar-gen3-cpg.h"
 
 #define CPG_PLL0CR		0x00d8
@@ -30,52 +31,6 @@
 #define CPG_PLL4CR		0x01f4
 
 #define CPG_RCKCR_CKSEL	BIT(15)	/* RCLK Clock Source Select */
-
-static spinlock_t cpg_lock;
-
-static void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set)
-{
-	unsigned long flags;
-	u32 val;
-
-	spin_lock_irqsave(&cpg_lock, flags);
-	val = readl(reg);
-	val &= ~clear;
-	val |= set;
-	writel(val, reg);
-	spin_unlock_irqrestore(&cpg_lock, flags);
-};
-
-struct cpg_simple_notifier {
-	struct notifier_block nb;
-	void __iomem *reg;
-	u32 saved;
-};
-
-static int cpg_simple_notifier_call(struct notifier_block *nb,
-				    unsigned long action, void *data)
-{
-	struct cpg_simple_notifier *csn =
-		container_of(nb, struct cpg_simple_notifier, nb);
-
-	switch (action) {
-	case PM_EVENT_SUSPEND:
-		csn->saved = readl(csn->reg);
-		return NOTIFY_OK;
-
-	case PM_EVENT_RESUME:
-		writel(csn->saved, csn->reg);
-		return NOTIFY_OK;
-	}
-	return NOTIFY_DONE;
-}
-
-static void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
-					 struct cpg_simple_notifier *csn)
-{
-	csn->nb.notifier_call = cpg_simple_notifier_call;
-	raw_notifier_chain_register(notifiers, &csn->nb);
-}
 
 /*
  * Z Clock & Z2 Clock
@@ -215,217 +170,6 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	return clk;
 }
 
-/*
- * SDn Clock
- */
-#define CPG_SD_STP_HCK		BIT(9)
-#define CPG_SD_STP_CK		BIT(8)
-
-#define CPG_SD_STP_MASK		(CPG_SD_STP_HCK | CPG_SD_STP_CK)
-#define CPG_SD_FC_MASK		(0x7 << 2 | 0x3 << 0)
-
-#define CPG_SD_DIV_TABLE_DATA(stp_hck, sd_srcfc, sd_fc, sd_div) \
-{ \
-	.val = ((stp_hck) ? CPG_SD_STP_HCK : 0) | \
-	       ((sd_srcfc) << 2) | \
-	       ((sd_fc) << 0), \
-	.div = (sd_div), \
-}
-
-struct sd_div_table {
-	u32 val;
-	unsigned int div;
-};
-
-struct sd_clock {
-	struct clk_hw hw;
-	const struct sd_div_table *div_table;
-	struct cpg_simple_notifier csn;
-	unsigned int div_num;
-	unsigned int cur_div_idx;
-};
-
-/* SDn divider
- *           sd_srcfc   sd_fc   div
- * stp_hck   (div)      (div)     = sd_srcfc x sd_fc
- *---------------------------------------------------------
- *  0         0 (1)      1 (4)      4 : SDR104 / HS200 / HS400 (8 TAP)
- *  0         1 (2)      1 (4)      8 : SDR50
- *  1         2 (4)      1 (4)     16 : HS / SDR25
- *  1         3 (8)      1 (4)     32 : NS / SDR12
- *  1         4 (16)     1 (4)     64
- *  0         0 (1)      0 (2)      2
- *  0         1 (2)      0 (2)      4 : SDR104 / HS200 / HS400 (4 TAP)
- *  1         2 (4)      0 (2)      8
- *  1         3 (8)      0 (2)     16
- *  1         4 (16)     0 (2)     32
- *
- *  NOTE: There is a quirk option to ignore the first row of the dividers
- *  table when searching for suitable settings. This is because HS400 on
- *  early ES versions of H3 and M3-W requires a specific setting to work.
- */
-static const struct sd_div_table cpg_sd_div_table[] = {
-/*	CPG_SD_DIV_TABLE_DATA(stp_hck,  sd_srcfc,   sd_fc,  sd_div) */
-	CPG_SD_DIV_TABLE_DATA(0,        0,          1,        4),
-	CPG_SD_DIV_TABLE_DATA(0,        1,          1,        8),
-	CPG_SD_DIV_TABLE_DATA(1,        2,          1,       16),
-	CPG_SD_DIV_TABLE_DATA(1,        3,          1,       32),
-	CPG_SD_DIV_TABLE_DATA(1,        4,          1,       64),
-	CPG_SD_DIV_TABLE_DATA(0,        0,          0,        2),
-	CPG_SD_DIV_TABLE_DATA(0,        1,          0,        4),
-	CPG_SD_DIV_TABLE_DATA(1,        2,          0,        8),
-	CPG_SD_DIV_TABLE_DATA(1,        3,          0,       16),
-	CPG_SD_DIV_TABLE_DATA(1,        4,          0,       32),
-};
-
-#define to_sd_clock(_hw) container_of(_hw, struct sd_clock, hw)
-
-static int cpg_sd_clock_enable(struct clk_hw *hw)
-{
-	struct sd_clock *clock = to_sd_clock(hw);
-
-	cpg_reg_modify(clock->csn.reg, CPG_SD_STP_MASK,
-		       clock->div_table[clock->cur_div_idx].val &
-		       CPG_SD_STP_MASK);
-
-	return 0;
-}
-
-static void cpg_sd_clock_disable(struct clk_hw *hw)
-{
-	struct sd_clock *clock = to_sd_clock(hw);
-
-	cpg_reg_modify(clock->csn.reg, 0, CPG_SD_STP_MASK);
-}
-
-static int cpg_sd_clock_is_enabled(struct clk_hw *hw)
-{
-	struct sd_clock *clock = to_sd_clock(hw);
-
-	return !(readl(clock->csn.reg) & CPG_SD_STP_MASK);
-}
-
-static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
-						unsigned long parent_rate)
-{
-	struct sd_clock *clock = to_sd_clock(hw);
-
-	return DIV_ROUND_CLOSEST(parent_rate,
-				 clock->div_table[clock->cur_div_idx].div);
-}
-
-static int cpg_sd_clock_determine_rate(struct clk_hw *hw,
-				       struct clk_rate_request *req)
-{
-	unsigned long best_rate = ULONG_MAX, diff_min = ULONG_MAX;
-	struct sd_clock *clock = to_sd_clock(hw);
-	unsigned long calc_rate, diff;
-	unsigned int i;
-
-	for (i = 0; i < clock->div_num; i++) {
-		calc_rate = DIV_ROUND_CLOSEST(req->best_parent_rate,
-					      clock->div_table[i].div);
-		if (calc_rate < req->min_rate || calc_rate > req->max_rate)
-			continue;
-
-		diff = calc_rate > req->rate ? calc_rate - req->rate
-					     : req->rate - calc_rate;
-		if (diff < diff_min) {
-			best_rate = calc_rate;
-			diff_min = diff;
-		}
-	}
-
-	if (best_rate == ULONG_MAX)
-		return -EINVAL;
-
-	req->rate = best_rate;
-	return 0;
-}
-
-static int cpg_sd_clock_set_rate(struct clk_hw *hw, unsigned long rate,
-				 unsigned long parent_rate)
-{
-	struct sd_clock *clock = to_sd_clock(hw);
-	unsigned int i;
-
-	for (i = 0; i < clock->div_num; i++)
-		if (rate == DIV_ROUND_CLOSEST(parent_rate,
-					      clock->div_table[i].div))
-			break;
-
-	if (i >= clock->div_num)
-		return -EINVAL;
-
-	clock->cur_div_idx = i;
-
-	cpg_reg_modify(clock->csn.reg, CPG_SD_STP_MASK | CPG_SD_FC_MASK,
-		       clock->div_table[i].val &
-		       (CPG_SD_STP_MASK | CPG_SD_FC_MASK));
-
-	return 0;
-}
-
-static const struct clk_ops cpg_sd_clock_ops = {
-	.enable = cpg_sd_clock_enable,
-	.disable = cpg_sd_clock_disable,
-	.is_enabled = cpg_sd_clock_is_enabled,
-	.recalc_rate = cpg_sd_clock_recalc_rate,
-	.determine_rate = cpg_sd_clock_determine_rate,
-	.set_rate = cpg_sd_clock_set_rate,
-};
-
-static u32 cpg_quirks __initdata;
-
-#define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
-#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
-#define SD_SKIP_FIRST	BIT(2)		/* Skip first clock in SD table */
-
-static struct clk * __init cpg_sd_clk_register(const char *name,
-	void __iomem *base, unsigned int offset, const char *parent_name,
-	struct raw_notifier_head *notifiers)
-{
-	struct clk_init_data init;
-	struct sd_clock *clock;
-	struct clk *clk;
-	u32 val;
-
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
-	if (!clock)
-		return ERR_PTR(-ENOMEM);
-
-	init.name = name;
-	init.ops = &cpg_sd_clock_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = &parent_name;
-	init.num_parents = 1;
-
-	clock->csn.reg = base + offset;
-	clock->hw.init = &init;
-	clock->div_table = cpg_sd_div_table;
-	clock->div_num = ARRAY_SIZE(cpg_sd_div_table);
-
-	if (cpg_quirks & SD_SKIP_FIRST) {
-		clock->div_table++;
-		clock->div_num--;
-	}
-
-	val = readl(clock->csn.reg) & ~CPG_SD_FC_MASK;
-	val |= CPG_SD_STP_MASK | (clock->div_table[0].val & CPG_SD_FC_MASK);
-	writel(val, clock->csn.reg);
-
-	clk = clk_register(NULL, &clock->hw);
-	if (IS_ERR(clk))
-		goto free_clock;
-
-	cpg_simple_notifier_register(notifiers, &clock->csn);
-	return clk;
-
-free_clock:
-	kfree(clock);
-	return clk;
-}
-
 struct rpc_clock {
 	struct clk_divider div;
 	struct clk_gate gate;
@@ -518,6 +262,12 @@ static struct clk * __init cpg_rpcd2_clk_register(const char *name,
 static const struct rcar_gen3_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
+static u32 cpg_quirks __initdata;
+
+#define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
+#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
+#define SD_SKIP_FIRST	BIT(2)		/* Skip first clock in SD table */
+
 
 static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 	{
@@ -613,7 +363,8 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_SD:
 		return cpg_sd_clk_register(core->name, base, core->offset,
-					   __clk_get_name(parent), notifiers);
+					   __clk_get_name(parent), notifiers,
+					   cpg_quirks & SD_SKIP_FIRST);
 
 	case CLK_TYPE_GEN3_R:
 		if (cpg_quirks & RCKCR_CKSEL) {

@@ -77,6 +77,10 @@
 
 #define EXFAT_FILE_NAME_LEN		15
 
+#define EXFAT_MIN_SECT_SIZE_BITS		9
+#define EXFAT_MAX_SECT_SIZE_BITS		12
+#define EXFAT_MAX_SECT_PER_CLUS_BITS(x)		(25 - (x)->sect_size_bits)
+
 /* EXFAT: Main and Backup Boot Sector (512 bytes) */
 struct boot_sector {
 	__u8	jmp_boot[BOOTSEC_JUMP_BOOT_LEN];

@@ -338,7 +338,7 @@ int __init arch_early_irq_init(void)
 	return 0;
 }
 
-static int __init async_stack_realloc(void)
+static int __init stack_realloc(void)
 {
 	unsigned long old, new;
 
@@ -346,11 +346,18 @@ static int __init async_stack_realloc(void)
 	new = stack_alloc();
 	if (!new)
 		panic("Couldn't allocate async stack");
-	S390_lowcore.async_stack = new + STACK_INIT_OFFSET;
+	WRITE_ONCE(S390_lowcore.async_stack, new + STACK_INIT_OFFSET);
 	free_pages(old, THREAD_SIZE_ORDER);
+
+	old = S390_lowcore.mcck_stack - STACK_INIT_OFFSET;
+	new = stack_alloc();
+	if (!new)
+		panic("Couldn't allocate machine check stack");
+	WRITE_ONCE(S390_lowcore.mcck_stack, new + STACK_INIT_OFFSET);
+	memblock_free_late(old, THREAD_SIZE);
 	return 0;
 }
-early_initcall(async_stack_realloc);
+early_initcall(stack_realloc);
 
 void __init arch_call_rest_init(void)
 {
@@ -372,6 +379,7 @@ void __init arch_call_rest_init(void)
 static void __init setup_lowcore_dat_off(void)
 {
 	unsigned long int_psw_mask = PSW_KERNEL_BITS;
+	unsigned long mcck_stack;
 	struct lowcore *lc;
 
 	if (IS_ENABLED(CONFIG_KASAN))
@@ -411,8 +419,7 @@ static void __init setup_lowcore_dat_off(void)
 	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
 	       sizeof(lc->alt_stfle_fac_list));
 	nmi_alloc_boot_cpu(lc);
-	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
-	lc->async_enter_timer = S390_lowcore.async_enter_timer;
+	lc->sys_enter_timer = S390_lowcore.sys_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
 	lc->user_timer = S390_lowcore.user_timer;
 	lc->system_timer = S390_lowcore.system_timer;
@@ -439,6 +446,12 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1UL;
+
+	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	if (!mcck_stack)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, THREAD_SIZE, THREAD_SIZE);
+	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
 
 	/* Setup absolute zero lowcore */
 	mem_assign_absolute(S390_lowcore.restart_stack, lc->restart_stack);

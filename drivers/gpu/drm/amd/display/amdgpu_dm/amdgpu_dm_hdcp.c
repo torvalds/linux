@@ -376,7 +376,7 @@ static void event_cpirq(struct work_struct *work)
 }
 
 
-void hdcp_destroy(struct hdcp_workqueue *hdcp_work)
+void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *hdcp_work)
 {
 	int i = 0;
 
@@ -385,6 +385,7 @@ void hdcp_destroy(struct hdcp_workqueue *hdcp_work)
 		cancel_delayed_work_sync(&hdcp_work[i].watchdog_timer_dwork);
 	}
 
+	sysfs_remove_bin_file(kobj, &hdcp_work[0].attr);
 	kfree(hdcp_work->srm);
 	kfree(hdcp_work->srm_temp);
 	kfree(hdcp_work);
@@ -449,11 +450,12 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 		link->mode = mod_hdcp_signal_type_to_operation_mode(aconnector->dc_sink->sink_signal);
 
 	display->controller = CONTROLLER_ID_D0 + config->otg_inst;
-	display->dig_fe = config->stream_enc_inst;
-	link->dig_be = config->link_enc_inst;
+	display->dig_fe = config->dig_fe;
+	link->dig_be = config->dig_be;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
-	link->dp.mst_supported = config->mst_supported;
+	link->dp.assr_enabled = config->assr_enabled;
+	link->dp.mst_enabled = config->mst_enabled;
 	display->adjust.disable = 1;
 	link->adjust.auth_delay = 3;
 	link->adjust.hdcp1.disable = 0;

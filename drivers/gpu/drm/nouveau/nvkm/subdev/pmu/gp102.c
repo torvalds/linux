@@ -51,7 +51,8 @@ gp102_pmu_fwif[] = {
 };
 
 int
-gp102_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gp102_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(gp102_pmu_fwif, device, index, ppmu);
+	return nvkm_pmu_new_(gp102_pmu_fwif, device, type, inst, ppmu);
 }

@@ -1,7 +1,0 @@
-ST-Ericsson COH 901 571/3 GPIO controller
-
-Required properties:
-- compatible: Compatible property value should be "stericsson,gpio-coh901"
-- reg: Physical base address of the controller and length of memory mapped
-  region.
-- interrupts: the 0...n interrupts assigned to the different GPIO ports/banks.

@@ -91,7 +91,7 @@ struct radio_isa_driver {
 
 int radio_isa_match(struct device *pdev, unsigned int dev);
 int radio_isa_probe(struct device *pdev, unsigned int dev);
-int radio_isa_remove(struct device *pdev, unsigned int dev);
+void radio_isa_remove(struct device *pdev, unsigned int dev);
 #ifdef CONFIG_PNP
 int radio_isa_pnp_probe(struct pnp_dev *dev,
 			const struct pnp_device_id *dev_id);

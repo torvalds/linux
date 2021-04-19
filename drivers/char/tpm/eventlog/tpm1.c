@@ -210,6 +210,7 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}

@@ -21,6 +21,8 @@
  * RPMPD_X is X encoded as a little-endian, lower-case, ASCII string */
 #define RPMPD_SMPA 0x61706d73
 #define RPMPD_LDOA 0x616f646c
+#define RPMPD_SMPB 0x62706d73
+#define RPMPD_LDOB 0x626f646c
 #define RPMPD_RWCX 0x78637772
 #define RPMPD_RWMX 0x786d7772
 #define RPMPD_RWLC 0x636c7772
@@ -184,6 +186,31 @@ static const struct rpmpd_desc msm8976_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO_HIGH,
 };
 
+/* msm8994 RPM Power domains */
+DEFINE_RPMPD_PAIR(msm8994, vddcx, vddcx_ao, SMPA, CORNER, 1);
+DEFINE_RPMPD_PAIR(msm8994, vddmx, vddmx_ao, SMPA, CORNER, 2);
+/* Attention! *Some* 8994 boards with pm8004 may use SMPC here! */
+DEFINE_RPMPD_CORNER(msm8994, vddgfx, SMPB, 2);
+
+DEFINE_RPMPD_VFC(msm8994, vddcx_vfc, SMPA, 1);
+DEFINE_RPMPD_VFC(msm8994, vddgfx_vfc, SMPB, 2);
+
+static struct rpmpd *msm8994_rpmpds[] = {
+	[MSM8994_VDDCX] =	&msm8994_vddcx,
+	[MSM8994_VDDCX_AO] =	&msm8994_vddcx_ao,
+	[MSM8994_VDDCX_VFC] =	&msm8994_vddcx_vfc,
+	[MSM8994_VDDMX] =	&msm8994_vddmx,
+	[MSM8994_VDDMX_AO] =	&msm8994_vddmx_ao,
+	[MSM8994_VDDGFX] =	&msm8994_vddgfx,
+	[MSM8994_VDDGFX_VFC] =	&msm8994_vddgfx_vfc,
+};
+
+static const struct rpmpd_desc msm8994_desc = {
+	.rpmpds = msm8994_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8994_rpmpds),
+	.max_state = MAX_CORNER_RPMPD_STATE,
+};
+
 /* msm8996 RPM Power domains */
 DEFINE_RPMPD_PAIR(msm8996, vddcx, vddcx_ao, SMPA, CORNER, 1);
 DEFINE_RPMPD_PAIR(msm8996, vddmx, vddmx_ao, SMPA, CORNER, 2);
@@ -302,6 +329,7 @@ static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
 	{ .compatible = "qcom,msm8939-rpmpd", .data = &msm8939_desc },
 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
+	{ .compatible = "qcom,msm8994-rpmpd", .data = &msm8994_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
 	{ .compatible = "qcom,qcs404-rpmpd", .data = &qcs404_desc },

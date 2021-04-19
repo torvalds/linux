@@ -132,6 +132,7 @@ properties:
           - enum:
               - friendlyarm,nanopc-t4
               - friendlyarm,nanopi-m4
+              - friendlyarm,nanopi-m4b
               - friendlyarm,nanopi-neo4
           - const: rockchip,rk3399
 
@@ -466,6 +467,11 @@ properties:
               - radxa,rockpi4c
           - const: radxa,rockpi4
           - const: rockchip,rk3399
+
+      - description: Radxa ROCK Pi E
+        items:
+          - const: radxa,rockpi-e
+          - const: rockchip,rk3328
 
       - description: Radxa ROCK Pi N8
         items:

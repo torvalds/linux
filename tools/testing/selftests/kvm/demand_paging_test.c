@@ -64,7 +64,7 @@ static void *vcpu_worker(void *data)
 			    exit_reason_str(run->exit_reason));
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_id,
 		       ts_diff.tv_sec, ts_diff.tv_nsec);
 
@@ -95,7 +95,7 @@ static int handle_uffd_page_request(int uffd, uint64_t addr)
 		return r;
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 
 	PER_PAGE_DEBUG("UFFDIO_COPY %d \t%ld ns\n", tid,
 		       timespec_to_ns(ts_diff));
@@ -190,7 +190,7 @@ static void *uffd_handler_thread_fn(void *arg)
 		pages++;
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 	PER_VCPU_DEBUG("userfaulted %ld pages over %ld.%.9lds. (%f/sec)\n",
 		       pages, ts_diff.tv_sec, ts_diff.tv_nsec,
 		       pages / ((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
@@ -250,6 +250,7 @@ static int setup_demand_paging(struct kvm_vm *vm,
 struct test_params {
 	bool use_uffd;
 	useconds_t uffd_delay;
+	bool partition_vcpu_memory_access;
 };
 
 static void run_test(enum vm_guest_mode mode, void *arg)
@@ -265,7 +266,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	int vcpu_id;
 	int r;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size);
+	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
+				 VM_MEM_SRC_ANONYMOUS);
 
 	perf_test_args.wr_fract = 1;
 
@@ -277,7 +279,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
 
-	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size);
+	perf_test_setup_vcpus(vm, nr_vcpus, guest_percpu_mem_size,
+			      p->partition_vcpu_memory_access);
 
 	if (p->use_uffd) {
 		uffd_handler_threads =
@@ -293,10 +296,19 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 			vm_paddr_t vcpu_gpa;
 			void *vcpu_hva;
+			uint64_t vcpu_mem_size;
 
-			vcpu_gpa = guest_test_phys_mem + (vcpu_id * guest_percpu_mem_size);
+
+			if (p->partition_vcpu_memory_access) {
+				vcpu_gpa = guest_test_phys_mem +
+					   (vcpu_id * guest_percpu_mem_size);
+				vcpu_mem_size = guest_percpu_mem_size;
+			} else {
+				vcpu_gpa = guest_test_phys_mem;
+				vcpu_mem_size = guest_percpu_mem_size * nr_vcpus;
+			}
 			PER_VCPU_DEBUG("Added VCPU %d with test mem gpa [%lx, %lx)\n",
-				       vcpu_id, vcpu_gpa, vcpu_gpa + guest_percpu_mem_size);
+				       vcpu_id, vcpu_gpa, vcpu_gpa + vcpu_mem_size);
 
 			/* Cache the HVA pointer of the region */
 			vcpu_hva = addr_gpa2hva(vm, vcpu_gpa);
@@ -313,7 +325,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 						&uffd_handler_threads[vcpu_id],
 						pipefds[vcpu_id * 2],
 						p->uffd_delay, &uffd_args[vcpu_id],
-						vcpu_hva, guest_percpu_mem_size);
+						vcpu_hva, vcpu_mem_size);
 			if (r < 0)
 				exit(-r);
 		}
@@ -339,7 +351,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		PER_VCPU_DEBUG("Joined thread for vCPU %d\n", vcpu_id);
 	}
 
-	ts_diff = timespec_diff_now(start);
+	ts_diff = timespec_elapsed(start);
 
 	pr_info("All vCPU threads joined\n");
 
@@ -376,7 +388,7 @@ static void help(char *name)
 {
 	puts("");
 	printf("usage: %s [-h] [-m mode] [-u] [-d uffd_delay_usec]\n"
-	       "          [-b memory] [-v vcpus]\n", name);
+	       "          [-b memory] [-v vcpus] [-o]\n", name);
 	guest_modes_help();
 	printf(" -u: use User Fault FD to handle vCPU page\n"
 	       "     faults.\n");
@@ -387,6 +399,8 @@ static void help(char *name)
 	       "     demand paged by each vCPU. e.g. 10M or 3G.\n"
 	       "     Default: 1G\n");
 	printf(" -v: specify the number of vCPUs to run.\n");
+	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
+	       "     them into a separate region of memory for each vCPU.\n");
 	puts("");
 	exit(0);
 }
@@ -394,12 +408,14 @@ static void help(char *name)
 int main(int argc, char *argv[])
 {
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
-	struct test_params p = {};
+	struct test_params p = {
+		.partition_vcpu_memory_access = true,
+	};
 	int opt;
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hm:ud:b:v:")) != -1) {
+	while ((opt = getopt(argc, argv, "hm:ud:b:v:o")) != -1) {
 		switch (opt) {
 		case 'm':
 			guest_modes_cmdline(optarg);
@@ -418,6 +434,9 @@ int main(int argc, char *argv[])
 			nr_vcpus = atoi(optarg);
 			TEST_ASSERT(nr_vcpus > 0 && nr_vcpus <= max_vcpus,
 				    "Invalid number of vcpus, must be between 1 and %d", max_vcpus);
+			break;
+		case 'o':
+			p.partition_vcpu_memory_access = false;
 			break;
 		case 'h':
 		default:

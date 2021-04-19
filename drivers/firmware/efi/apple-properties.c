@@ -3,8 +3,9 @@
  * apple-properties.c - EFI device properties on Macs
  * Copyright (C) 2016 Lukas Wunner <lukas@wunner.de>
  *
- * Note, all properties are considered as u8 arrays.
- * To get a value of any of them the caller must use device_property_read_u8_array().
+ * Properties are stored either as:
+ * u8 arrays which can be retrieved with device_property_read_u8_array() or
+ * booleans which can be queried with device_property_present().
  */
 
 #define pr_fmt(fmt) "apple-properties: " fmt
@@ -88,8 +89,12 @@ static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
 
 		entry_data = ptr + key_len + sizeof(val_len);
 		entry_len = val_len - sizeof(val_len);
-		entry[i] = PROPERTY_ENTRY_U8_ARRAY_LEN(key, entry_data,
-						       entry_len);
+		if (entry_len)
+			entry[i] = PROPERTY_ENTRY_U8_ARRAY_LEN(key, entry_data,
+							       entry_len);
+		else
+			entry[i] = PROPERTY_ENTRY_BOOL(key);
+
 		if (dump_properties) {
 			dev_info(dev, "property: %s\n", key);
 			print_hex_dump(KERN_INFO, pr_fmt(), DUMP_PREFIX_OFFSET,

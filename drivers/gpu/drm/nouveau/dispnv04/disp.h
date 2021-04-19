@@ -130,7 +130,7 @@ static inline bool
 nv_two_heads(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	const int impl = dev->pdev->device & 0x0ff0;
+	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
@@ -142,14 +142,14 @@ nv_two_heads(struct drm_device *dev)
 static inline bool
 nv_gf4_disp_arch(struct drm_device *dev)
 {
-	return nv_two_heads(dev) && (dev->pdev->device & 0x0ff0) != 0x0110;
+	return nv_two_heads(dev) && (to_pci_dev(dev->dev)->device & 0x0ff0) != 0x0110;
 }
 
 static inline bool
 nv_two_reg_pll(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	const int impl = dev->pdev->device & 0x0ff0;
+	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
 	if (impl == 0x0310 || impl == 0x0340 || drm->client.device.info.family >= NV_DEVICE_INFO_V0_CURIE)
 		return true;
@@ -160,9 +160,11 @@ static inline bool
 nv_match_device(struct drm_device *dev, unsigned device,
 		unsigned sub_vendor, unsigned sub_device)
 {
-	return dev->pdev->device == device &&
-		dev->pdev->subsystem_vendor == sub_vendor &&
-		dev->pdev->subsystem_device == sub_device;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	return pdev->device == device &&
+		pdev->subsystem_vendor == sub_vendor &&
+		pdev->subsystem_device == sub_device;
 }
 
 #include <subdev/bios/init.h>

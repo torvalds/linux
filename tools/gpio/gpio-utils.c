@@ -32,74 +32,6 @@
  * following api will request gpio lines, do the operation and then
  * release these lines.
  */
-/**
- * gpiotools_request_linehandle() - request gpio lines in a gpiochip
- * @device_name:	The name of gpiochip without prefix "/dev/",
- *			such as "gpiochip0"
- * @lines:		An array desired lines, specified by offset
- *			index for the associated GPIO device.
- * @num_lines:		The number of lines to request.
- * @flag:		The new flag for requsted gpio. Reference
- *			"linux/gpio.h" for the meaning of flag.
- * @data:		Default value will be set to gpio when flag is
- *			GPIOHANDLE_REQUEST_OUTPUT.
- * @consumer_label:	The name of consumer, such as "sysfs",
- *			"powerkey". This is useful for other users to
- *			know who is using.
- *
- * Request gpio lines through the ioctl provided by chardev. User
- * could call gpiotools_set_values() and gpiotools_get_values() to
- * read and write respectively through the returned fd. Call
- * gpiotools_release_linehandle() to release these lines after that.
- *
- * Return:		On success return the fd;
- *			On failure return the errno.
- */
-int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
-				 unsigned int num_lines, unsigned int flag,
-				 struct gpiohandle_data *data,
-				 const char *consumer_label)
-{
-	struct gpiohandle_request req;
-	char *chrdev_name;
-	int fd;
-	int i;
-	int ret;
-
-	ret = asprintf(&chrdev_name, "/dev/%s", device_name);
-	if (ret < 0)
-		return -ENOMEM;
-
-	fd = open(chrdev_name, 0);
-	if (fd == -1) {
-		ret = -errno;
-		fprintf(stderr, "Failed to open %s, %s\n",
-			chrdev_name, strerror(errno));
-		goto exit_free_name;
-	}
-
-	for (i = 0; i < num_lines; i++)
-		req.lineoffsets[i] = lines[i];
-
-	req.flags = flag;
-	strcpy(req.consumer_label, consumer_label);
-	req.lines = num_lines;
-	if (flag & GPIOHANDLE_REQUEST_OUTPUT)
-		memcpy(req.default_values, data, sizeof(req.default_values));
-
-	ret = ioctl(fd, GPIO_GET_LINEHANDLE_IOCTL, &req);
-	if (ret == -1) {
-		ret = -errno;
-		fprintf(stderr, "Failed to issue %s (%d), %s\n",
-			"GPIO_GET_LINEHANDLE_IOCTL", ret, strerror(errno));
-	}
-
-	if (close(fd) == -1)
-		perror("Failed to close GPIO character device file");
-exit_free_name:
-	free(chrdev_name);
-	return ret < 0 ? ret : req.fd;
-}
 
 /**
  * gpiotools_request_line() - request gpio lines in a gpiochip
@@ -210,27 +142,6 @@ int gpiotools_get_values(const int fd, struct gpio_v2_line_values *values)
 		fprintf(stderr, "Failed to issue %s (%d), %s\n",
 			"GPIOHANDLE_GET_LINE_VALUES_IOCTL", ret,
 			strerror(errno));
-	}
-
-	return ret;
-}
-
-/**
- * gpiotools_release_linehandle(): Release the line(s) of gpiochip
- * @fd:			The fd returned by
- *			gpiotools_request_linehandle().
- *
- * Return:		On success return 0;
- *			On failure return the errno.
- */
-int gpiotools_release_linehandle(const int fd)
-{
-	int ret;
-
-	ret = close(fd);
-	if (ret == -1) {
-		perror("Failed to close GPIO LINEHANDLE device file");
-		ret = -errno;
 	}
 
 	return ret;

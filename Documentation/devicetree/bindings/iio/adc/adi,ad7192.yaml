@@ -80,7 +80,7 @@ properties:
     type: boolean
 
   bipolar:
-    description: see Documentation/devicetree/bindings/iio/adc/adc.txt
+    description: see Documentation/devicetree/bindings/iio/adc/adc.yaml
     type: boolean
 
 required:

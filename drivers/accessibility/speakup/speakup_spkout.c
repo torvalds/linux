@@ -117,8 +117,8 @@ static struct spk_synth synth_spkout = {
 
 static void synth_flush(struct spk_synth *synth)
 {
-	synth->io_ops->flush_buffer();
-	synth->io_ops->send_xchar(SYNTH_CLEAR);
+	synth->io_ops->flush_buffer(synth);
+	synth->io_ops->send_xchar(synth, SYNTH_CLEAR);
 }
 
 module_param_named(ser, synth_spkout.ser, int, 0444);

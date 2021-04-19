@@ -63,6 +63,20 @@
 
 };
 
+&cpu_alert0 {
+	temperature = <65000>;
+};
+
+&cpu_thermal {
+	sustainable-power = <1550>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu_alert1>;
+		};
+	};
+};
+
 &pcie0 {
 	ep-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_HIGH>;
 };
@@ -123,45 +137,6 @@
 &spi4 {
 	/* On High speed expansion (HS-SPI1) */
 	status = "okay";
-};
-
-&thermal_zones {
-	cpu_thermal: cpu {
-		polling-delay-passive = <100>;
-		polling-delay = <1000>;
-		thermal-sensors = <&tsadc 0>;
-		sustainable-power = <1550>;
-
-		trips {
-			cpu_alert0: cpu_alert0 {
-				    temperature = <65000>;
-				    hysteresis = <2000>;
-				    type = "passive";
-			};
-
-			cpu_alert1: cpu_alert1 {
-				    temperature = <75000>;
-				    hysteresis = <2000>;
-				    type = "passive";
-			};
-
-			cpu_crit: cpu_crit {
-				  temperature = <95000>;
-				  hysteresis = <2000>;
-				  type = "critical";
-			};
-		};
-
-		cooling-maps {
-			     map0 {
-
-			     trip = <&cpu_alert1>;
-			     cooling-device =
-					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-					<&cpu_b1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-			};
-		};
-	};
 };
 
 &usbdrd_dwc3_0 {
