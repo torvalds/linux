@@ -762,19 +762,20 @@ static bool detect_dp(struct dc_link *link,
 		}
 
 		if (link->type != dc_connection_mst_branch &&
-		    is_dp_active_dongle(link)) {
-			/* DP active dongles */
-			link->type = dc_connection_active_dongle;
+		    is_dp_branch_device(link)) {
+			/* DP SST branch */
+			link->type = dc_connection_sst_branch;
 			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
 				/*
-				 * active dongle unplug processing for short irq
+				 * SST branch unplug processing for short irq
 				 */
 				link_disconnect_sink(link);
 				return true;
 			}
 
-			if (link->dpcd_caps.dongle_type !=
-			    DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+			if (is_dp_active_dongle(link) &&
+				(link->dpcd_caps.dongle_type !=
+					DISPLAY_DONGLE_DP_HDMI_CONVERTER))
 				*converter_disable_audio = true;
 		}
 	} else {
@@ -974,8 +975,8 @@ static bool dc_link_detect_helper(struct dc_link *link,
 					   sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
-			/* Active dongle downstream unplug*/
-			if (link->type == dc_connection_active_dongle &&
+			/* Active SST downstream branch device unplug*/
+			if (link->type == dc_connection_sst_branch &&
 			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
 				if (prev_sink)
 					/* Downstream unplug */

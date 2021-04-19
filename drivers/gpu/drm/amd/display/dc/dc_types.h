@@ -404,7 +404,7 @@ enum dc_connection_type {
 	dc_connection_none,
 	dc_connection_single,
 	dc_connection_mst_branch,
-	dc_connection_active_dongle
+	dc_connection_sst_branch
 };
 
 struct dc_csc_adjustments {

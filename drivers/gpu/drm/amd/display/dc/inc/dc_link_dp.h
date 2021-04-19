@@ -75,6 +75,8 @@ void detect_edp_sink_caps(struct dc_link *link);
 
 bool is_dp_active_dongle(const struct dc_link *link);
 
+bool is_dp_branch_device(const struct dc_link *link);
+
 bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timing *crtc_timing);
 
 void dp_enable_mst_on_sink(struct dc_link *link, bool enable);

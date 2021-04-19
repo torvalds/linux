@@ -2593,13 +2593,11 @@ static bool allow_hpd_rx_irq(const struct dc_link *link)
 	/*
 	 * Don't handle RX IRQ unless one of following is met:
 	 * 1) The link is established (cur_link_settings != unknown)
-	 * 2) We kicked off MST detection
-	 * 3) We know we're dealing with an active dongle
+	 * 2) We know we're dealing with a branch device, SST or MST
 	 */
 
 	if ((link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
-		(link->type == dc_connection_mst_branch) ||
-		is_dp_active_dongle(link))
+		is_dp_branch_device(link))
 		return true;
 
 	return false;
@@ -3164,7 +3162,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 			*out_link_loss = true;
 	}
 
-	if (link->type == dc_connection_active_dongle &&
+	if (link->type == dc_connection_sst_branch &&
 		hpd_irq_dpcd_data.bytes.sink_cnt.bits.SINK_COUNT
 			!= link->dpcd_sink_count)
 		status = true;
@@ -3214,6 +3212,12 @@ bool is_mst_supported(struct dc_link *link)
 }
 
 bool is_dp_active_dongle(const struct dc_link *link)
+{
+	return (link->dpcd_caps.dongle_type >= DISPLAY_DONGLE_DP_VGA_CONVERTER) &&
+				(link->dpcd_caps.dongle_type <= DISPLAY_DONGLE_DP_HDMI_CONVERTER);
+}
+
+bool is_dp_branch_device(const struct dc_link *link)
 {
 	return link->dpcd_caps.is_branch_dev;
 }
