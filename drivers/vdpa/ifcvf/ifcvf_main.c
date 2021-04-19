@@ -168,10 +168,23 @@ static struct ifcvf_hw *vdpa_to_vf(struct vdpa_device *vdpa_dev)
 
 static u64 ifcvf_vdpa_get_features(struct vdpa_device *vdpa_dev)
 {
+	struct ifcvf_adapter *adapter = vdpa_to_adapter(vdpa_dev);
 	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	struct pci_dev *pdev = adapter->pdev;
+
 	u64 features;
 
-	features = ifcvf_get_features(vf) & IFCVF_SUPPORTED_FEATURES;
+	switch (vf->dev_type) {
+	case VIRTIO_ID_NET:
+		features = ifcvf_get_features(vf) & IFCVF_NET_SUPPORTED_FEATURES;
+		break;
+	case VIRTIO_ID_BLOCK:
+		features = ifcvf_get_features(vf);
+		break;
+	default:
+		features = 0;
+		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", vf->dev_type);
+	}
 
 	return features;
 }
@@ -514,6 +527,10 @@ static struct pci_device_id ifcvf_pci_ids[] = {
 			 C5000X_PL_DEVICE_ID,
 			 C5000X_PL_SUBSYS_VENDOR_ID,
 			 C5000X_PL_SUBSYS_DEVICE_ID) },
+	{ PCI_DEVICE_SUB(C5000X_PL_BLK_VENDOR_ID,
+			 C5000X_PL_BLK_DEVICE_ID,
+			 C5000X_PL_BLK_SUBSYS_VENDOR_ID,
+			 C5000X_PL_BLK_SUBSYS_DEVICE_ID) },
 
 	{ 0 },
 };
