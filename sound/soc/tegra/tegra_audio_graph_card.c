@@ -244,7 +244,7 @@ static struct platform_driver tegra_audio_graph_card = {
 		.of_match_table = graph_of_tegra_match,
 	},
 	.probe = tegra_audio_graph_probe,
-	.remove = audio_graph_remove,
+	.remove = asoc_simple_remove,
 };
 module_platform_driver(tegra_audio_graph_card);
 

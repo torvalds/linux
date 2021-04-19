@@ -743,14 +743,6 @@ static int graph_probe(struct platform_device *pdev)
 	return audio_graph_parse_of(priv, dev);
 }
 
-int audio_graph_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	return asoc_simple_clean_reference(card);
-}
-EXPORT_SYMBOL_GPL(audio_graph_remove);
-
 static const struct of_device_id graph_of_match[] = {
 	{ .compatible = "audio-graph-card", },
 	{ .compatible = "audio-graph-scu-card",
@@ -766,7 +758,7 @@ static struct platform_driver graph_card = {
 		.of_match_table = graph_of_match,
 	},
 	.probe = graph_probe,
-	.remove = audio_graph_remove,
+	.remove = asoc_simple_remove,
 };
 module_platform_driver(graph_card);
 

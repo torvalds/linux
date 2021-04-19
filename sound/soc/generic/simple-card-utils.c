@@ -740,6 +740,14 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_init_priv);
 
+int asoc_simple_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	return asoc_simple_clean_reference(card);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_remove);
+
 int asoc_graph_card_probe(struct snd_soc_card *card)
 {
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
