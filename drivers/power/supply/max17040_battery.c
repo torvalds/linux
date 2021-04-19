@@ -268,11 +268,10 @@ static int max17040_get_of_data(struct max17040_chip *chip)
 	rcomp_len = device_property_count_u8(dev, "maxim,rcomp");
 	chip->rcomp = MAX17040_RCOMP_DEFAULT;
 	if (rcomp_len == data->rcomp_bytes) {
-		device_property_read_u8_array(dev, "maxim,rcomp",
-					      rcomp, rcomp_len);
-		chip->rcomp = rcomp_len == 2 ?
-			rcomp[0] << 8 | rcomp[1] :
-			rcomp[0] << 8;
+		if (!device_property_read_u8_array(dev, "maxim,rcomp",
+						   rcomp, rcomp_len))
+			chip->rcomp = rcomp_len == 2 ? rcomp[0] << 8 | rcomp[1] :
+				      rcomp[0] << 8;
 	} else if (rcomp_len > 0) {
 		dev_err(dev, "maxim,rcomp has incorrect length\n");
 		return -EINVAL;
