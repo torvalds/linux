@@ -11,61 +11,15 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/oid_registry.h>
 
 #include "glob.h"
 
 #include "asn1.h"
 #include "connection.h"
 #include "auth.h"
-
-/*****************************************************************************
- *
- * Basic ASN.1 decoding routines (gxsnmp author Dirk Wisse)
- *
- *****************************************************************************/
-
-/* Class */
-#define ASN1_UNI	0	/* Universal */
-#define ASN1_APL	1	/* Application */
-#define ASN1_CTX	2	/* Context */
-#define ASN1_PRV	3	/* Private */
-
-/* Tag */
-#define ASN1_EOC	0	/* End Of Contents or N/A */
-#define ASN1_BOL	1	/* Boolean */
-#define ASN1_INT	2	/* Integer */
-#define ASN1_BTS	3	/* Bit String */
-#define ASN1_OTS	4	/* Octet String */
-#define ASN1_NUL	5	/* Null */
-#define ASN1_OJI	6	/* Object Identifier  */
-#define ASN1_OJD	7	/* Object Description */
-#define ASN1_EXT	8	/* External */
-#define ASN1_ENUM	10	/* Enumerated */
-#define ASN1_SEQ	16	/* Sequence */
-#define ASN1_SET	17	/* Set */
-#define ASN1_NUMSTR	18	/* Numerical String */
-#define ASN1_PRNSTR	19	/* Printable String */
-#define ASN1_TEXSTR	20	/* Teletext String */
-#define ASN1_VIDSTR	21	/* Video String */
-#define ASN1_IA5STR	22	/* IA5 String */
-#define ASN1_UNITIM	23	/* Universal Time */
-#define ASN1_GENTIM	24	/* General Time */
-#define ASN1_GRASTR	25	/* Graphical String */
-#define ASN1_VISSTR	26	/* Visible String */
-#define ASN1_GENSTR	27	/* General String */
-
-/* Primitive / Constructed methods*/
-#define ASN1_PRI	0	/* Primitive */
-#define ASN1_CON	1	/* Constructed */
-
-/*
- * Error codes.
- */
-#define ASN1_ERR_NOERROR		0
-#define ASN1_ERR_DEC_EMPTY		2
-#define ASN1_ERR_DEC_EOC_MISMATCH	3
-#define ASN1_ERR_DEC_LENGTH_MISMATCH	4
-#define ASN1_ERR_DEC_BADVALUE		5
+#include "spnego_negtokeninit.asn1.h"
+#include "spnego_negtokentarg.asn1.h"
 
 #define SPNEGO_OID_LEN 7
 #define NTLMSSP_OID_LEN  10
@@ -81,212 +35,49 @@ static unsigned long MSKRB5_OID[7] = { 1, 2, 840, 48018, 1, 2, 2 };
 static char NTLMSSP_OID_STR[NTLMSSP_OID_LEN] = { 0x2b, 0x06, 0x01, 0x04, 0x01,
 	0x82, 0x37, 0x02, 0x02, 0x0a };
 
-/*
- * ASN.1 context.
- */
-struct asn1_ctx {
-	int error;		/* Error condition */
-	unsigned char *pointer;	/* Octet just to be decoded */
-	unsigned char *begin;	/* First octet */
-	unsigned char *end;	/* Octet after last octet */
-};
-
-/*
- * Octet string (not null terminated)
- */
-struct asn1_octstr {
-	unsigned char *data;
-	unsigned int len;
-};
-
-static void
-asn1_open(struct asn1_ctx *ctx, unsigned char *buf, unsigned int len)
+static bool
+asn1_subid_decode(const unsigned char **begin, const unsigned char *end,
+		unsigned long *subid)
 {
-	ctx->begin = buf;
-	ctx->end = buf + len;
-	ctx->pointer = buf;
-	ctx->error = ASN1_ERR_NOERROR;
-}
-
-static unsigned char
-asn1_octet_decode(struct asn1_ctx *ctx, unsigned char *ch)
-{
-	if (ctx->pointer >= ctx->end) {
-		ctx->error = ASN1_ERR_DEC_EMPTY;
-		return 0;
-	}
-	*ch = *(ctx->pointer)++;
-	return 1;
-}
-
-static unsigned char
-asn1_tag_decode(struct asn1_ctx *ctx, unsigned int *tag)
-{
-	unsigned char ch;
-
-	*tag = 0;
-
-	do {
-		if (!asn1_octet_decode(ctx, &ch))
-			return 0;
-		*tag <<= 7;
-		*tag |= ch & 0x7F;
-	} while ((ch & 0x80) == 0x80);
-	return 1;
-}
-
-static unsigned char
-asn1_id_decode(struct asn1_ctx *ctx,
-	       unsigned int *cls, unsigned int *con, unsigned int *tag)
-{
-	unsigned char ch;
-
-	if (!asn1_octet_decode(ctx, &ch))
-		return 0;
-
-	*cls = (ch & 0xC0) >> 6;
-	*con = (ch & 0x20) >> 5;
-	*tag = (ch & 0x1F);
-
-	if (*tag == 0x1F) {
-		if (!asn1_tag_decode(ctx, tag))
-			return 0;
-	}
-	return 1;
-}
-
-static unsigned char
-asn1_length_decode(struct asn1_ctx *ctx, unsigned int *def, unsigned int *len)
-{
-	unsigned char ch, cnt;
-
-	if (!asn1_octet_decode(ctx, &ch))
-		return 0;
-
-	if (ch == 0x80)
-		*def = 0;
-	else {
-		*def = 1;
-
-		if (ch < 0x80)
-			*len = ch;
-		else {
-			cnt = (unsigned char) (ch & 0x7F);
-			*len = 0;
-
-			while (cnt > 0) {
-				if (!asn1_octet_decode(ctx, &ch))
-					return 0;
-				*len <<= 8;
-				*len |= ch;
-				cnt--;
-			}
-		}
-	}
-
-	/* don't trust len bigger than ctx buffer */
-	if (*len > ctx->end - ctx->pointer)
-		return 0;
-
-	return 1;
-}
-
-static unsigned char
-asn1_header_decode(struct asn1_ctx *ctx,
-		   unsigned char **eoc,
-		   unsigned int *cls, unsigned int *con, unsigned int *tag)
-{
-	unsigned int def = 0;
-	unsigned int len = 0;
-
-	if (!asn1_id_decode(ctx, cls, con, tag))
-		return 0;
-
-	if (!asn1_length_decode(ctx, &def, &len))
-		return 0;
-
-	/* primitive shall be definite, indefinite shall be constructed */
-	if (*con == ASN1_PRI && !def)
-		return 0;
-
-	if (def)
-		*eoc = ctx->pointer + len;
-	else
-		*eoc = NULL;
-	return 1;
-}
-
-static unsigned char
-asn1_eoc_decode(struct asn1_ctx *ctx, unsigned char *eoc)
-{
-	unsigned char ch;
-
-	if (!eoc) {
-		if (!asn1_octet_decode(ctx, &ch))
-			return 0;
-
-		if (ch != 0x00) {
-			ctx->error = ASN1_ERR_DEC_EOC_MISMATCH;
-			return 0;
-		}
-
-		if (!asn1_octet_decode(ctx, &ch))
-			return 0;
-
-		if (ch != 0x00) {
-			ctx->error = ASN1_ERR_DEC_EOC_MISMATCH;
-			return 0;
-		}
-	} else {
-		if (ctx->pointer != eoc) {
-			ctx->error = ASN1_ERR_DEC_LENGTH_MISMATCH;
-			return 0;
-		}
-	}
-	return 1;
-}
-
-static unsigned char
-asn1_subid_decode(struct asn1_ctx *ctx, unsigned long *subid)
-{
+	const unsigned char *ptr = *begin;
 	unsigned char ch;
 
 	*subid = 0;
 
 	do {
-		if (!asn1_octet_decode(ctx, &ch))
-			return 0;
+		if (ptr >= end)
+			return false;
 
+		ch = *ptr++;
 		*subid <<= 7;
 		*subid |= ch & 0x7F;
 	} while ((ch & 0x80) == 0x80);
-	return 1;
+
+	*begin = ptr;
+	return true;
 }
 
-static int
-asn1_oid_decode(struct asn1_ctx *ctx,
-		unsigned char *eoc, unsigned long **oid, unsigned int *len)
+static bool asn1_oid_decode(const unsigned char *value, size_t vlen,
+		unsigned long **oid, size_t *oidlen)
 {
-	unsigned long subid;
-	unsigned int size;
+	const unsigned char *iptr = value, *end = value + vlen;
 	unsigned long *optr;
+	unsigned long subid;
 
-	size = eoc - ctx->pointer + 1;
+	vlen += 1;
+	if (vlen < 2 || vlen > UINT_MAX/sizeof(unsigned long))
+		return false;
 
-	/* first subid actually encodes first two subids */
-	if (size < 2 || size > UINT_MAX/sizeof(unsigned long))
-		return 0;
-
-	*oid = kmalloc(size * sizeof(unsigned long), GFP_KERNEL);
+	*oid = kmalloc(vlen * sizeof(unsigned long), GFP_KERNEL);
 	if (!*oid)
-		return 0;
+		return false;
 
 	optr = *oid;
 
-	if (!asn1_subid_decode(ctx, &subid)) {
+	if (!asn1_subid_decode(&iptr, end, &subid)) {
 		kfree(*oid);
 		*oid = NULL;
-		return 0;
+		return false;
 	}
 
 	if (subid < 40) {
@@ -300,285 +91,55 @@ asn1_oid_decode(struct asn1_ctx *ctx,
 		optr[1] = subid - 80;
 	}
 
-	*len = 2;
+	*oidlen = 2;
 	optr += 2;
 
-	while (ctx->pointer < eoc) {
-		if (++(*len) > size) {
-			ctx->error = ASN1_ERR_DEC_BADVALUE;
+	while (iptr < end) {
+		if (++(*oidlen) > vlen) {
 			kfree(*oid);
 			*oid = NULL;
-			return 0;
+			return false;
 		}
 
-		if (!asn1_subid_decode(ctx, optr++)) {
+		if (!asn1_subid_decode(&iptr, end, optr++)) {
 			kfree(*oid);
 			*oid = NULL;
-			return 0;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
-static int
-compare_oid(unsigned long *oid1, unsigned int oid1len,
-	    unsigned long *oid2, unsigned int oid2len)
+static bool
+oid_eq(unsigned long *oid1, unsigned int oid1len,
+		unsigned long *oid2, unsigned int oid2len)
 {
 	unsigned int i;
 
 	if (oid1len != oid2len)
-		return 0;
+		return false;
 
 	for (i = 0; i < oid1len; i++) {
 		if (oid1[i] != oid2[i])
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
-
-/* BB check for endian conversion issues here */
 
 int
 ksmbd_decode_negTokenInit(unsigned char *security_blob, int length,
-		    struct ksmbd_conn *conn)
+		struct ksmbd_conn *conn)
 {
-	struct asn1_ctx ctx;
-	unsigned char *end;
-	unsigned char *sequence_end;
-	unsigned long *oid = NULL;
-	unsigned int cls, con, tag, oidlen, rc, mechTokenlen;
-	unsigned int mech_type;
-
-	ksmbd_debug(AUTH, "Received SecBlob: length %d\n", length);
-
-	asn1_open(&ctx, security_blob, length);
-
-	/* GSSAPI header */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit header\n");
-		return 0;
-	} else if ((cls != ASN1_APL) || (con != ASN1_CON)
-		   || (tag != ASN1_EOC)) {
-		ksmbd_debug(AUTH, "cls = %d con = %d tag = %d\n", cls, con,
-			tag);
-		return 0;
-	}
-
-	/* Check for SPNEGO OID -- remember to free obj->oid */
-	rc = asn1_header_decode(&ctx, &end, &cls, &con, &tag);
-	if (rc) {
-		if ((tag == ASN1_OJI) && (con == ASN1_PRI) &&
-		    (cls == ASN1_UNI)) {
-			rc = asn1_oid_decode(&ctx, end, &oid, &oidlen);
-			if (rc) {
-				rc = compare_oid(oid, oidlen, SPNEGO_OID,
-						 SPNEGO_OID_LEN);
-				kfree(oid);
-			}
-		} else
-			rc = 0;
-	}
-
-	/* SPNEGO OID not present or garbled -- bail out */
-	if (!rc) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit header\n");
-		return 0;
-	}
-
-	/* SPNEGO */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
-		   || (tag != ASN1_EOC)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 0\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* negTokenInit */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_UNI) || (con != ASN1_CON)
-		   || (tag != ASN1_SEQ)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 1\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* sequence */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding 2nd part of negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
-		   || (tag != ASN1_EOC)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 0\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* sequence of */
-	if (asn1_header_decode
-	    (&ctx, &sequence_end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding 2nd part of negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_UNI) || (con != ASN1_CON)
-		   || (tag != ASN1_SEQ)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 1\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* list of security mechanisms */
-	while (!asn1_eoc_decode(&ctx, sequence_end)) {
-		rc = asn1_header_decode(&ctx, &end, &cls, &con, &tag);
-		if (!rc) {
-			ksmbd_debug(AUTH,
-				"Error decoding negTokenInit hdr exit2\n");
-			return 0;
-		}
-		if ((tag == ASN1_OJI) && (con == ASN1_PRI)) {
-			if (asn1_oid_decode(&ctx, end, &oid, &oidlen)) {
-				if (compare_oid(oid, oidlen, MSKRB5_OID,
-						MSKRB5_OID_LEN))
-					mech_type = KSMBD_AUTH_MSKRB5;
-				else if (compare_oid(oid, oidlen, KRB5U2U_OID,
-						     KRB5U2U_OID_LEN))
-					mech_type = KSMBD_AUTH_KRB5U2U;
-				else if (compare_oid(oid, oidlen, KRB5_OID,
-						     KRB5_OID_LEN))
-					mech_type = KSMBD_AUTH_KRB5;
-				else if (compare_oid(oid, oidlen, NTLMSSP_OID,
-						     NTLMSSP_OID_LEN))
-					mech_type = KSMBD_AUTH_NTLMSSP;
-				else {
-					kfree(oid);
-					continue;
-				}
-
-				conn->auth_mechs |= mech_type;
-				if (conn->preferred_auth_mech == 0)
-					conn->preferred_auth_mech = mech_type;
-				kfree(oid);
-			}
-		} else {
-			ksmbd_debug(AUTH,
-				"Should be an oid what is going on?\n");
-		}
-	}
-
-	/* sequence */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding 2nd part of negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
-		   || (tag != ASN1_INT)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 0\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* sequence of */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding 2nd part of negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_UNI) || (con != ASN1_PRI)
-		   || (tag != ASN1_OTS)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 0\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	mechTokenlen = ctx.end - ctx.pointer;
-	conn->mechToken = kmalloc(mechTokenlen + 1, GFP_KERNEL);
-	if (!conn->mechToken) {
-		ksmbd_err("memory allocation error\n");
-		return 0;
-	}
-
-	memcpy(conn->mechToken, ctx.pointer, mechTokenlen);
-	conn->mechToken[mechTokenlen] = '\0';
-
-	return 1;
+	return asn1_ber_decoder(&spnego_negtokeninit_decoder, conn,
+				security_blob, length);
 }
 
 int
 ksmbd_decode_negTokenTarg(unsigned char *security_blob, int length,
-		    struct ksmbd_conn *conn)
+		struct ksmbd_conn *conn)
 {
-	struct asn1_ctx ctx;
-	unsigned char *end;
-	unsigned int cls, con, tag, mechTokenlen;
-
-	ksmbd_debug(AUTH, "Received Auth SecBlob: length %d\n", length);
-
-	asn1_open(&ctx, security_blob, length);
-
-	/* GSSAPI header */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit header\n");
-		return 0;
-	} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
-		   || (tag != ASN1_BOL)) {
-		ksmbd_debug(AUTH, "cls = %d con = %d tag = %d\n", cls, con,
-			tag);
-		return 0;
-	}
-
-	/* SPNEGO */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_UNI) || (con != ASN1_CON)
-		   || (tag != ASN1_SEQ)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 0\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* negTokenTarg */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_CTX) || (con != ASN1_CON)
-		   || (tag != ASN1_INT)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 1\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	/* negTokenTarg */
-	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
-		ksmbd_debug(AUTH, "Error decoding negTokenInit\n");
-		return 0;
-	} else if ((cls != ASN1_UNI) || (con != ASN1_PRI)
-		   || (tag != ASN1_OTS)) {
-		ksmbd_debug(AUTH,
-			"cls = %d con = %d tag = %d end = %p (%d) exit 1\n",
-			cls, con, tag, end, *end);
-		return 0;
-	}
-
-	mechTokenlen = ctx.end - ctx.pointer;
-	conn->mechToken = kmalloc(mechTokenlen + 1, GFP_KERNEL);
-	if (!conn->mechToken) {
-		ksmbd_err("memory allocation error\n");
-		return 0;
-	}
-
-	memcpy(conn->mechToken, ctx.pointer, mechTokenlen);
-	conn->mechToken[mechTokenlen] = '\0';
-
-	return 1;
+	return asn1_ber_decoder(&spnego_negtokentarg_decoder, conn,
+				security_blob, length);
 }
 
 static int compute_asn_hdr_len_bytes(int len)
@@ -698,5 +259,94 @@ int build_spnego_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 
 	*pbuffer = buf;
 	*buflen = total_len;
+	return 0;
+}
+
+int gssapi_this_mech(void *context, size_t hdrlen,
+		unsigned char tag, const void *value, size_t vlen)
+{
+	unsigned long *oid;
+	size_t oidlen;
+	int err = 0;
+
+	if (!asn1_oid_decode(value, vlen, &oid, &oidlen)) {
+		err = -EBADMSG;
+		goto out;
+	}
+
+	if (!oid_eq(oid, oidlen, SPNEGO_OID, SPNEGO_OID_LEN))
+		err = -EBADMSG;
+	kfree(oid);
+out:
+	if (err) {
+		char buf[50];
+
+		sprint_oid(value, vlen, buf, sizeof(buf));
+		ksmbd_debug(AUTH, "Unexpected OID: %s\n", buf);
+	}
+	return err;
+}
+
+int neg_token_init_mech_type(void *context, size_t hdrlen,
+		unsigned char tag, const void *value, size_t vlen)
+{
+	struct ksmbd_conn *conn = context;
+	unsigned long *oid;
+	size_t oidlen;
+	int mech_type;
+
+	if (!asn1_oid_decode(value, vlen, &oid, &oidlen)) {
+		char buf[50];
+
+		sprint_oid(value, vlen, buf, sizeof(buf));
+		ksmbd_debug(AUTH, "Unexpected OID: %s\n", buf);
+		return -EBADMSG;
+	}
+
+	if (oid_eq(oid, oidlen, NTLMSSP_OID, NTLMSSP_OID_LEN))
+		mech_type = KSMBD_AUTH_NTLMSSP;
+	else if (oid_eq(oid, oidlen, MSKRB5_OID, MSKRB5_OID_LEN))
+		mech_type = KSMBD_AUTH_MSKRB5;
+	else if (oid_eq(oid, oidlen, KRB5_OID, KRB5_OID_LEN))
+		mech_type = KSMBD_AUTH_KRB5;
+	else if (oid_eq(oid, oidlen, KRB5U2U_OID, KRB5U2U_OID_LEN))
+		mech_type = KSMBD_AUTH_KRB5U2U;
+	else
+		goto out;
+
+	conn->auth_mechs |= mech_type;
+	if (conn->preferred_auth_mech == 0)
+		conn->preferred_auth_mech = mech_type;
+
+out:
+	kfree(oid);
+	return 0;
+}
+
+int neg_token_init_mech_token(void *context, size_t hdrlen,
+		unsigned char tag, const void *value, size_t vlen)
+{
+	struct ksmbd_conn *conn = context;
+
+	conn->mechToken = kmalloc(vlen + 1, GFP_KERNEL);
+	if (!conn->mechToken)
+		return -ENOMEM;
+
+	memcpy(conn->mechToken, value, vlen);
+	conn->mechToken[vlen] = '\0';
+	return 0;
+}
+
+int neg_token_targ_resp_token(void *context, size_t hdrlen,
+		unsigned char tag, const void *value, size_t vlen)
+{
+	struct ksmbd_conn *conn = context;
+
+	conn->mechToken = kmalloc(vlen + 1, GFP_KERNEL);
+	if (!conn->mechToken)
+		return -ENOMEM;
+
+	memcpy(conn->mechToken, value, vlen);
+	conn->mechToken[vlen] = '\0';
 	return 0;
 }

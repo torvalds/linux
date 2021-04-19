@@ -1194,8 +1194,8 @@ static int decode_negotiation_token(struct ksmbd_work *work,
 	req = work->request_buf;
 	sz = le16_to_cpu(req->SecurityBufferLength);
 
-	if (!ksmbd_decode_negTokenInit((char *)negblob, sz, conn)) {
-		if (!ksmbd_decode_negTokenTarg((char *)negblob, sz, conn)) {
+	if (ksmbd_decode_negTokenInit((char *)negblob, sz, conn)) {
+		if (ksmbd_decode_negTokenTarg((char *)negblob, sz, conn)) {
 			conn->auth_mechs |= KSMBD_AUTH_NTLMSSP;
 			conn->preferred_auth_mech = KSMBD_AUTH_NTLMSSP;
 			conn->use_spnego = false;
