@@ -1,0 +1,104 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+.. include:: <isonum.txt>
+
+===============================
+Bus lock detection and handling
+===============================
+
+:Copyright: |copy| 2021 Intel Corporation
+:Authors: - Fenghua Yu <fenghua.yu@intel.com>
+          - Tony Luck <tony.luck@intel.com>
+
+Problem
+=======
+
+A split lock is any atomic operation whose operand crosses two cache lines.
+Since the operand spans two cache lines and the operation must be atomic,
+the system locks the bus while the CPU accesses the two cache lines.
+
+A bus lock is acquired through either split locked access to writeback (WB)
+memory or any locked access to non-WB memory. This is typically thousands of
+cycles slower than an atomic operation within a cache line. It also disrupts
+performance on other cores and brings the whole system to its knees.
+
+Detection
+=========
+
+Intel processors may support either or both of the following hardware
+mechanisms to detect split locks and bus locks.
+
+#AC exception for split lock detection
+--------------------------------------
+
+Beginning with the Tremont Atom CPU split lock operations may raise an
+Alignment Check (#AC) exception when a split lock operation is attemped.
+
+#DB exception for bus lock detection
+------------------------------------
+
+Some CPUs have the ability to notify the kernel by an #DB trap after a user
+instruction acquires a bus lock and is executed. This allows the kernel to
+terminate the application or to enforce throttling.
+
+Software handling
+=================
+
+The kernel #AC and #DB handlers handle bus lock based on the kernel
+parameter "split_lock_detect". Here is a summary of different options:
+
++------------------+----------------------------+-----------------------+
+|split_lock_detect=|#AC for split lock		|#DB for bus lock	|
++------------------+----------------------------+-----------------------+
+|off	  	   |Do nothing			|Do nothing		|
++------------------+----------------------------+-----------------------+
+|warn		   |Kernel OOPs			|Warn once per task and |
+|(default)	   |Warn once per task and	|and continues to run.  |
+|		   |disable future checking	|			|
+|		   |When both features are	|			|
+|		   |supported, warn in #AC	|			|
++------------------+----------------------------+-----------------------+
+|fatal		   |Kernel OOPs			|Send SIGBUS to user.	|
+|		   |Send SIGBUS to user		|			|
+|		   |When both features are	|			|
+|		   |supported, fatal in #AC	|			|
++------------------+----------------------------+-----------------------+
+
+Usages
+======
+
+Detecting and handling bus lock may find usages in various areas:
+
+It is critical for real time system designers who build consolidated real
+time systems. These systems run hard real time code on some cores and run
+"untrusted" user processes on other cores. The hard real time cannot afford
+to have any bus lock from the untrusted processes to hurt real time
+performance. To date the designers have been unable to deploy these
+solutions as they have no way to prevent the "untrusted" user code from
+generating split lock and bus lock to block the hard real time code to
+access memory during bus locking.
+
+It's also useful for general computing to prevent guests or user
+applications from slowing down the overall system by executing instructions
+with bus lock.
+
+
+Guidance
+========
+off
+---
+
+Disable checking for split lock and bus lock. This option can be useful if
+there are legacy applications that trigger these events at a low rate so
+that mitigation is not needed.
+
+warn
+----
+
+A warning is emitted when a bus lock is detected which allows to identify
+the offending application. This is the default behavior.
+
+fatal
+-----
+
+In this case, the bus lock is not tolerated and the process is killed.
