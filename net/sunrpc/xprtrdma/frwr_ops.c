@@ -366,9 +366,7 @@ out_mapmr_err:
 static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
-	struct rpcrdma_frwr *frwr =
-		container_of(cqe, struct rpcrdma_frwr, fr_cqe);
-	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
+	struct rpcrdma_mr *mr = container_of(cqe, struct rpcrdma_mr, mr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_fastreg(wc, &mr->mr_cid);
@@ -405,9 +403,9 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		trace_xprtrdma_mr_fastreg(mr);
 		frwr = &mr->frwr;
 
-		frwr->fr_cqe.done = frwr_wc_fastreg;
+		mr->mr_cqe.done = frwr_wc_fastreg;
 		frwr->fr_regwr.wr.next = post_wr;
-		frwr->fr_regwr.wr.wr_cqe = &frwr->fr_cqe;
+		frwr->fr_regwr.wr.wr_cqe = &mr->mr_cqe;
 		frwr->fr_regwr.wr.num_sge = 0;
 		frwr->fr_regwr.wr.opcode = IB_WR_REG_MR;
 		frwr->fr_regwr.wr.send_flags = 0;
@@ -463,9 +461,7 @@ static void frwr_mr_done(struct ib_wc *wc, struct rpcrdma_mr *mr)
 static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
-	struct rpcrdma_frwr *frwr =
-		container_of(cqe, struct rpcrdma_frwr, fr_cqe);
-	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
+	struct rpcrdma_mr *mr = container_of(cqe, struct rpcrdma_mr, mr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li(wc, &mr->mr_cid);
@@ -484,9 +480,8 @@ static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
-	struct rpcrdma_frwr *frwr =
-		container_of(cqe, struct rpcrdma_frwr, fr_cqe);
-	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
+	struct rpcrdma_mr *mr = container_of(cqe, struct rpcrdma_mr, mr_cqe);
+	struct rpcrdma_frwr *frwr = &mr->frwr;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li_wake(wc, &mr->mr_cid);
@@ -529,15 +524,16 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		r_xprt->rx_stats.local_inv_needed++;
 
 		frwr = &mr->frwr;
-		frwr->fr_cqe.done = frwr_wc_localinv;
 		last = &frwr->fr_invwr;
 		last->next = NULL;
-		last->wr_cqe = &frwr->fr_cqe;
+		last->wr_cqe = &mr->mr_cqe;
 		last->sg_list = NULL;
 		last->num_sge = 0;
 		last->opcode = IB_WR_LOCAL_INV;
 		last->send_flags = IB_SEND_SIGNALED;
 		last->ex.invalidate_rkey = mr->mr_handle;
+
+		last->wr_cqe->done = frwr_wc_localinv;
 
 		*prev = last;
 		prev = &last->next;
@@ -547,7 +543,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * last WR in the chain completes, all WRs in the chain
 	 * are complete.
 	 */
-	frwr->fr_cqe.done = frwr_wc_localinv_wake;
+	last->wr_cqe->done = frwr_wc_localinv_wake;
 	reinit_completion(&frwr->fr_linv_done);
 
 	/* Transport disconnect drains the receive CQ before it
@@ -579,9 +575,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
-	struct rpcrdma_frwr *frwr =
-		container_of(cqe, struct rpcrdma_frwr, fr_cqe);
-	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
+	struct rpcrdma_mr *mr = container_of(cqe, struct rpcrdma_mr, mr_cqe);
 	struct rpcrdma_rep *rep;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
@@ -630,15 +624,16 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		r_xprt->rx_stats.local_inv_needed++;
 
 		frwr = &mr->frwr;
-		frwr->fr_cqe.done = frwr_wc_localinv;
 		last = &frwr->fr_invwr;
 		last->next = NULL;
-		last->wr_cqe = &frwr->fr_cqe;
+		last->wr_cqe = &mr->mr_cqe;
 		last->sg_list = NULL;
 		last->num_sge = 0;
 		last->opcode = IB_WR_LOCAL_INV;
 		last->send_flags = IB_SEND_SIGNALED;
 		last->ex.invalidate_rkey = mr->mr_handle;
+
+		last->wr_cqe->done = frwr_wc_localinv;
 
 		*prev = last;
 		prev = &last->next;
@@ -649,7 +644,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * are complete. The last completion will wake up the
 	 * RPC waiter.
 	 */
-	frwr->fr_cqe.done = frwr_wc_localinv_done;
+	last->wr_cqe->done = frwr_wc_localinv_done;
 
 	/* Transport disconnect drains the receive CQ before it
 	 * replaces the QP. The RPC reply handler won't call us
