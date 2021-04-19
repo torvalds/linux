@@ -5247,11 +5247,9 @@ ia_css_pipe_check_format(struct ia_css_pipe *pipe,
 		IA_CSS_ERROR("Requested format is not supported by binary");
 		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 		return -EINVAL;
-	} else
-	{
-		IA_CSS_LEAVE_ERR_PRIVATE(0);
-		return 0;
 	}
+	IA_CSS_LEAVE_ERR_PRIVATE(0);
+	return 0;
 }
 
 static int load_video_binaries(struct ia_css_pipe *pipe)
