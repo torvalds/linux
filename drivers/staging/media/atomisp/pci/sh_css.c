@@ -4119,9 +4119,6 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 	/* TODO: change next to correct pool for optimization */
 	ia_css_rmgr_acq_vbuf(hmm_buffer_pool, &h_vbuf);
 
-	assert(h_vbuf);
-	assert(h_vbuf->vptr != 0x0);
-
 	if ((!h_vbuf) || (h_vbuf->vptr == 0x0)) {
 		IA_CSS_LEAVE_ERR(-EINVAL);
 		return -EINVAL;
@@ -4921,7 +4918,6 @@ sh_css_pipes_stop(struct ia_css_stream *stream)
 	enum ia_css_pipe_id main_pipe_id;
 	int i;
 
-	assert(stream);
 	if (!stream) {
 		IA_CSS_LOG("stream does NOT exist!");
 		err = -EINVAL;
@@ -4929,7 +4925,6 @@ sh_css_pipes_stop(struct ia_css_stream *stream)
 	}
 
 	main_pipe = stream->last_pipe;
-	assert(main_pipe);
 	if (!main_pipe) {
 		IA_CSS_LOG("main_pipe does NOT exist!");
 		err = -EINVAL;
@@ -4987,7 +4982,6 @@ sh_css_pipes_stop(struct ia_css_stream *stream)
 			copy_pipe = main_pipe->pipe_settings.video.copy_pipe;
 
 		/* return the error code if "Copy Pipe" does NOT exist */
-		assert(copy_pipe);
 		if (!copy_pipe) {
 			IA_CSS_LOG("Copy Pipe does NOT exist!");
 			err = -EINVAL;
@@ -5022,7 +5016,6 @@ sh_css_pipes_have_stopped(struct ia_css_stream *stream)
 
 	int i;
 
-	assert(stream);
 	if (!stream) {
 		IA_CSS_LOG("stream does NOT exist!");
 		rval = false;
@@ -5030,7 +5023,6 @@ sh_css_pipes_have_stopped(struct ia_css_stream *stream)
 	}
 
 	main_pipe = stream->last_pipe;
-	assert(main_pipe);
 
 	if (!main_pipe) {
 		IA_CSS_LOG("main_pipe does NOT exist!");
@@ -5071,7 +5063,6 @@ sh_css_pipes_have_stopped(struct ia_css_stream *stream)
 			copy_pipe = main_pipe->pipe_settings.video.copy_pipe;
 
 		/* return if "Copy Pipe" does NOT exist */
-		assert(copy_pipe);
 		if (!copy_pipe) {
 			IA_CSS_LOG("Copy Pipe does NOT exist!");
 
@@ -8783,8 +8774,6 @@ ia_css_pipe_get_info(const struct ia_css_pipe *pipe,
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_pipe_get_info()\n");
-
-	assert(pipe_info);
 	if (!pipe_info) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "ia_css_pipe_get_info: pipe_info cannot be NULL\n");
@@ -8923,7 +8912,6 @@ ia_css_acc_stream_create(struct ia_css_stream *stream)
 	int i;
 	int err = 0;
 
-	assert(stream);
 	IA_CSS_ENTER_PRIVATE("stream = %p", stream);
 
 	if (!stream) {
@@ -8934,7 +8922,6 @@ ia_css_acc_stream_create(struct ia_css_stream *stream)
 	for (i = 0;  i < stream->num_pipes; i++) {
 		struct ia_css_pipe *pipe = stream->pipes[i];
 
-		assert(pipe);
 		if (!pipe) {
 			IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
 			return -EINVAL;
