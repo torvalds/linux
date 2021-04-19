@@ -576,10 +576,14 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 	rep = mr->mr_req->rl_reply;
 	smp_rmb();
 
-	frwr_mr_done(wc, mr);
+	if (wc->status != IB_WC_SUCCESS) {
+		if (rep)
+			rpcrdma_unpin_rqst(rep);
+		rpcrdma_flush_disconnect(cq->cq_context, wc);
+		return;
+	}
+	frwr_mr_put(mr);
 	rpcrdma_complete_rqst(rep);
-
-	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
 
 /**
@@ -645,8 +649,9 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	trace_xprtrdma_post_linv_err(req, rc);
 
 	/* The final LOCAL_INV WR in the chain is supposed to
-	 * do the wake. If it was never posted, the wake will
-	 * not happen, so wake here in that case.
+	 * do the wake. If it was never posted, the wake does
+	 * not happen. Unpin the rqst in preparation for its
+	 * retransmission.
 	 */
-	rpcrdma_complete_rqst(req->rl_reply);
+	rpcrdma_unpin_rqst(req->rl_reply);
 }
