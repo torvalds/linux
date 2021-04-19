@@ -445,6 +445,8 @@ Exercises
 .. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: filesystems
 
+..
+  _[SURVEY-LABEL]
 
 myfs
 ----
