@@ -84,6 +84,7 @@ struct ifcvf_hw {
 	u32 notify_off_multiplier;
 	u64 req_features;
 	u64 hw_features;
+	u32 dev_type;
 	struct virtio_pci_common_cfg __iomem *common_cfg;
 	void __iomem *net_cfg;
 	struct vring_info vring[IFCVF_MAX_QUEUE_PAIRS * 2];
