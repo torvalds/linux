@@ -134,6 +134,13 @@
 #define INCFS_IOC_SET_READ_TIMEOUTS \
 	_IOW(INCFS_IOCTL_BASE_CODE, 38, struct incfs_set_read_timeouts_args)
 
+/*
+ * Get last read error
+ * May only be called on .pending_reads file
+ */
+#define INCFS_IOC_GET_LAST_READ_ERROR \
+	_IOW(INCFS_IOCTL_BASE_CODE, 39, struct incfs_get_last_read_error_args)
+
 /* ===== sysfs feature flags ===== */
 /*
  * Each flag is represented by a file in /sys/fs/incremental-fs/features
@@ -556,5 +563,24 @@ struct incfs_set_read_timeouts_args {
 	__u32 timeouts_array_size;
 };
 
+/*
+ * Get last read error struct
+ * Arguments for INCFS_IOC_GET_LAST_READ_ERROR
+ */
+struct incfs_get_last_read_error_args {
+	/* File id of last file that had a read error */
+	incfs_uuid_t	file_id_out;
+
+	/* Time of last read error, in us, from CLOCK_MONOTONIC */
+	__u64	time_us_out;
+
+	/* Index of page that was being read at last read error */
+	__u32	page_out;
+
+	/* errno of last read error */
+	__u32	errno_out;
+
+	__u64	reserved;
+};
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */
