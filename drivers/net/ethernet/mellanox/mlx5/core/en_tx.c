@@ -32,7 +32,6 @@
 
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
-#include <linux/ptp_classify.h>
 #include <net/geneve.h>
 #include <net/dsfield.h>
 #include "en.h"
@@ -66,24 +65,6 @@ static inline int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb
 	return priv->dcbx_dp.dscp2prio[dscp_cp];
 }
 #endif
-
-static bool mlx5e_use_ptpsq(struct sk_buff *skb)
-{
-	struct flow_keys fk;
-
-	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return false;
-
-	if (fk.basic.n_proto == htons(ETH_P_1588))
-		return true;
-
-	if (fk.basic.n_proto != htons(ETH_P_IP) &&
-	    fk.basic.n_proto != htons(ETH_P_IPV6))
-		return false;
-
-	return (fk.basic.ip_proto == IPPROTO_UDP &&
-		fk.ports.dst == htons(PTP_EV_PORT));
-}
 
 static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb)
 {
@@ -145,9 +126,9 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		}
 
 		ptp_channel = READ_ONCE(priv->channels.ptp);
-		if (unlikely(ptp_channel) &&
-		    test_bit(MLX5E_PTP_STATE_TX, ptp_channel->state) &&
-		    mlx5e_use_ptpsq(skb))
+		if (unlikely(ptp_channel &&
+			     test_bit(MLX5E_PTP_STATE_TX, ptp_channel->state) &&
+			     mlx5e_use_ptpsq(skb)))
 			return mlx5e_select_ptpsq(dev, skb);
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
