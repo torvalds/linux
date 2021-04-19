@@ -150,6 +150,11 @@ struct mlx5_ct_entry {
 	unsigned long flags;
 };
 
+static void
+mlx5_tc_ct_entry_destroy_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
+				 struct mlx5_flow_attr *attr,
+				 struct mlx5e_mod_hdr_handle *mh);
+
 static const struct rhashtable_params cts_ht_params = {
 	.head_offset = offsetof(struct mlx5_ct_entry, node),
 	.key_offset = offsetof(struct mlx5_ct_entry, cookie),
@@ -458,8 +463,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 	ct_dbg("Deleting ct entry rule in zone %d", entry->tuple.zone);
 
 	mlx5_tc_rule_delete(netdev_priv(ct_priv->netdev), zone_rule->rule, attr);
-	mlx5e_mod_hdr_detach(ct_priv->dev,
-			     ct_priv->mod_hdr_tbl, zone_rule->mh);
+	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, zone_rule->attr, zone_rule->mh);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 	kfree(attr);
 }
@@ -686,15 +690,27 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	if (err)
 		goto err_mapping;
 
-	*mh = mlx5e_mod_hdr_attach(ct_priv->dev,
-				   ct_priv->mod_hdr_tbl,
-				   ct_priv->ns_type,
-				   &mod_acts);
-	if (IS_ERR(*mh)) {
-		err = PTR_ERR(*mh);
-		goto err_mapping;
+	if (nat) {
+		attr->modify_hdr = mlx5_modify_header_alloc(ct_priv->dev, ct_priv->ns_type,
+							    mod_acts.num_actions,
+							    mod_acts.actions);
+		if (IS_ERR(attr->modify_hdr)) {
+			err = PTR_ERR(attr->modify_hdr);
+			goto err_mapping;
+		}
+
+		*mh = NULL;
+	} else {
+		*mh = mlx5e_mod_hdr_attach(ct_priv->dev,
+					   ct_priv->mod_hdr_tbl,
+					   ct_priv->ns_type,
+					   &mod_acts);
+		if (IS_ERR(*mh)) {
+			err = PTR_ERR(*mh);
+			goto err_mapping;
+		}
+		attr->modify_hdr = mlx5e_mod_hdr_get(*mh);
 	}
-	attr->modify_hdr = mlx5e_mod_hdr_get(*mh);
 
 	dealloc_mod_hdr_actions(&mod_acts);
 	return 0;
@@ -703,6 +719,17 @@ err_mapping:
 	dealloc_mod_hdr_actions(&mod_acts);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 	return err;
+}
+
+static void
+mlx5_tc_ct_entry_destroy_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
+				 struct mlx5_flow_attr *attr,
+				 struct mlx5e_mod_hdr_handle *mh)
+{
+	if (mh)
+		mlx5e_mod_hdr_detach(ct_priv->dev, ct_priv->mod_hdr_tbl, mh);
+	else
+		mlx5_modify_header_dealloc(ct_priv->dev, attr->modify_hdr);
 }
 
 static int
@@ -767,8 +794,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	return 0;
 
 err_rule:
-	mlx5e_mod_hdr_detach(ct_priv->dev,
-			     ct_priv->mod_hdr_tbl, zone_rule->mh);
+	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, zone_rule->attr, zone_rule->mh);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 err_mod_hdr:
 	kfree(attr);
