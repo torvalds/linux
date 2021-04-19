@@ -4020,6 +4020,12 @@ static void bnxt_get_eth_mac_stats(struct net_device *dev,
 		BNXT_GET_RX_PORT_STATS64(rx, rx_good_frames);
 	mac_stats->FramesTransmittedOK =
 		BNXT_GET_TX_PORT_STATS64(tx, tx_good_frames);
+	mac_stats->FrameCheckSequenceErrors =
+		BNXT_GET_RX_PORT_STATS64(rx, rx_fcs_err_frames);
+	mac_stats->AlignmentErrors =
+		BNXT_GET_RX_PORT_STATS64(rx, rx_align_err_frames);
+	mac_stats->OutOfRangeLengthField =
+		BNXT_GET_RX_PORT_STATS64(rx, rx_oor_len_frames);
 }
 
 static void bnxt_get_eth_ctrl_stats(struct net_device *dev,
