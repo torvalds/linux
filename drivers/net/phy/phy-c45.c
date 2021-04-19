@@ -9,6 +9,49 @@
 #include <linux/phy.h>
 
 /**
+ * genphy_c45_pma_can_sleep - checks if the PMA have sleep support
+ * @phydev: target phy_device struct
+ */
+static bool genphy_c45_pma_can_sleep(struct phy_device *phydev)
+{
+	int stat1;
+
+	stat1 = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_STAT1);
+	if (stat1 < 0)
+		return false;
+
+	return !!(stat1 & MDIO_STAT1_LPOWERABLE);
+}
+
+/**
+ * genphy_c45_pma_resume - wakes up the PMA module
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_resume(struct phy_device *phydev)
+{
+	if (!genphy_c45_pma_can_sleep(phydev))
+		return -EOPNOTSUPP;
+
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				  MDIO_CTRL1_LPOWER);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_resume);
+
+/**
+ * genphy_c45_pma_suspend - suspends the PMA module
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_suspend(struct phy_device *phydev)
+{
+	if (!genphy_c45_pma_can_sleep(phydev))
+		return -EOPNOTSUPP;
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				MDIO_CTRL1_LPOWER);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_suspend);
+
+/**
  * genphy_c45_pma_setup_forced - configures a forced speed
  * @phydev: target phy_device struct
  */
