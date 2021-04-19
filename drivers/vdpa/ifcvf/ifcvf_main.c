@@ -356,7 +356,24 @@ static u32 ifcvf_vdpa_get_vq_align(struct vdpa_device *vdpa_dev)
 
 static size_t ifcvf_vdpa_get_config_size(struct vdpa_device *vdpa_dev)
 {
-	return sizeof(struct virtio_net_config);
+	struct ifcvf_adapter *adapter = vdpa_to_adapter(vdpa_dev);
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+	struct pci_dev *pdev = adapter->pdev;
+	size_t size;
+
+	switch (vf->dev_type) {
+	case VIRTIO_ID_NET:
+		size = sizeof(struct virtio_net_config);
+		break;
+	case VIRTIO_ID_BLOCK:
+		size = sizeof(struct virtio_blk_config);
+		break;
+	default:
+		size = 0;
+		IFCVF_ERR(pdev, "VIRTIO ID %u not supported\n", vf->dev_type);
+	}
+
+	return size;
 }
 
 static void ifcvf_vdpa_get_config(struct vdpa_device *vdpa_dev,
