@@ -269,6 +269,7 @@ mt7921_pm_stats(struct seq_file *s, void *data)
 {
 	struct mt7921_dev *dev = dev_get_drvdata(s->private);
 	struct mt76_connac_pm *pm = &dev->pm;
+
 	unsigned long awake_time = pm->stats.awake_time;
 	unsigned long doze_time = pm->stats.doze_time;
 
@@ -280,6 +281,8 @@ mt7921_pm_stats(struct seq_file *s, void *data)
 	seq_printf(s, "awake time: %14u\ndoze time: %15u\n",
 		   jiffies_to_msecs(awake_time),
 		   jiffies_to_msecs(doze_time));
+
+	seq_printf(s, "low power wakes: %9d\n", pm->stats.lp_wake);
 
 	return 0;
 }
