@@ -960,6 +960,11 @@ struct btrfs_fs_info {
 	struct work_struct async_data_reclaim_work;
 	struct work_struct preempt_reclaim_work;
 
+	/* Reclaim partially filled block groups in the background */
+	struct work_struct reclaim_bgs_work;
+	struct list_head reclaim_bgs;
+	int bg_reclaim_threshold;
+
 	spinlock_t unused_bgs_lock;
 	struct list_head unused_bgs;
 	struct mutex unused_bg_unpin_mutex;
