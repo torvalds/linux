@@ -478,17 +478,260 @@ static enum link_training_result dpia_training_cr_phase(struct dc_link *link,
 	return result;
 }
 
+/* Return status read interval during equalization phase. */
+static uint32_t dpia_get_eq_aux_rd_interval(const struct dc_link *link,
+		const struct link_training_settings *lt_settings,
+		uint32_t hop)
+{
+	uint32_t wait_time_microsec;
+
+	if (hop == DPRX)
+		wait_time_microsec = lt_settings->eq_pattern_time;
+	else
+		wait_time_microsec =
+				dp_translate_training_aux_read_interval(
+					link->dpcd_caps.lttpr_caps.aux_rd_interval[hop - 1]);
+
+	return wait_time_microsec;
+}
+
+/* Execute equalization phase of link training for specified hop in display
+ * path in non-transparent mode:
+ * - driver issues both DPCD and SET_CONFIG transactions.
+ * - TPSx is transmitted for any hops downstream of DPOA.
+ * - Drive (VS/PE) only transmitted for the hop immediately downstream of DPOA.
+ * - EQ for the first hop (DPTX-to-DPIA) is assumed to be successful.
+ * - DPRX EQ only reported successful when both DPRX and DPIA requirements
+ * (clk sync packets sent) fulfilled.
+ *
+ * @param link DPIA link being trained.
+ * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
+ * @param hop The Hop in display path. DPRX = 0.
+ */
+static enum link_training_result dpia_training_eq_non_transparent(struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t hop)
+{
+	enum link_training_result result = LINK_TRAINING_EQ_FAIL_EQ;
+	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
+	uint32_t retries_eq = 0;
+	enum dc_status status;
+	enum dc_dp_training_pattern tr_pattern;
+	uint32_t wait_time_microsec;
+	struct link_training_settings req_settings;
+	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
+	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+	uint8_t set_cfg_data;
+	enum dpia_set_config_ts ts;
+
+	/* Training pattern is TPS4 for repeater;
+	 * TPS2/3/4 for DPRX depending on what it supports.
+	 */
+	if (hop == DPRX)
+		tr_pattern = lt_settings->pattern_for_eq;
+	else
+		tr_pattern = DP_TRAINING_PATTERN_SEQUENCE_4;
+
+	repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+	for (retries_eq = 0; retries_eq < LINK_TRAINING_MAX_RETRY_COUNT; retries_eq++) {
+		/* DPTX-to-DPIA equalization always successful. */
+		if (hop == repeater_cnt) {
+			result = LINK_TRAINING_SUCCESS;
+			break;
+		}
+
+		/* Instruct DPOA to transmit TPSn then update DPCD. */
+		if (retries_eq == 0) {
+			ts = convert_trng_ptn_to_trng_stg(tr_pattern);
+			status = core_link_send_set_config(link,
+					DPIA_SET_CFG_SET_TRAINING,
+					ts);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+			status = dpcd_set_lt_pattern(link, tr_pattern, hop);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+		}
+
+		/* Update DPOA drive settings then DPCD. DPOA only adjusts
+		 * drive settings for hop immediately downstream.
+		 */
+		if (hop == repeater_cnt - 1) {
+			set_cfg_data = dpia_build_set_config_data(DPIA_SET_CFG_SET_VSPE,
+								  link,
+								  lt_settings);
+			status = core_link_send_set_config(link,
+							   DPIA_SET_CFG_SET_VSPE,
+							   set_cfg_data);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+		}
+		status = dpcd_set_lane_settings(link, lt_settings, hop);
+		if (status != DC_OK) {
+			result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		/* Extend wait time on second equalisation attempt on final hop to
+		 * ensure clock sync packets have been sent.
+		 */
+		if (hop == DPRX && retries_eq == 1)
+			wait_time_microsec = max(wait_time_microsec, (uint32_t)DPIA_CLK_SYNC_DELAY);
+		else
+			wait_time_microsec = dpia_get_eq_aux_rd_interval(link, lt_settings, hop);
+
+		dp_wait_for_training_aux_rd_interval(link, wait_time_microsec);
+
+		/* Read status and adjustment requests from DPCD. */
+		status = dp_get_lane_status_and_drive_settings(link,
+				lt_settings,
+				dpcd_lane_status,
+				&dpcd_lane_status_updated,
+				&req_settings,
+				hop);
+		if (status != DC_OK) {
+			result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		/* CR can still fail during EQ phase. Fail training if CR fails. */
+		if (!dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			result = LINK_TRAINING_EQ_FAIL_CR;
+			break;
+		}
+
+		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
+		    dp_is_symbol_locked(link->cur_link_settings.lane_count, dpcd_lane_status) &&
+		    dp_is_interlane_aligned(dpcd_lane_status_updated)) {
+			result =  LINK_TRAINING_SUCCESS;
+			break;
+		}
+
+		/* Update VS/PE. */
+		dp_update_drive_settings(lt_settings, req_settings);
+	}
+
+	/* Abort link training if equalization failed due to HPD unplug. */
+	if (!link->hpd_status)
+		result = LINK_TRAINING_ABORT;
+
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) equalization\n"
+		" - hop(%d)\n - result(%d)\n - retries(%d)\n",
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		hop,
+		result,
+		retries_eq);
+
+	return result;
+}
+
+/* Execute equalization phase of link training for specified hop in display
+ * path in transparent LTTPR mode:
+ * - driver only issues DPCD transactions leaves USB4 tunneling (SET_CONFIG) messages to DPIA.
+ * - driver writes TPSx to DPCD to notify DPIA that is in equalization phase.
+ * - equalization (EQ) for link is handled by DPOA, which reports result to DPIA on completion.
+ * - DPIA communicates result to driver by updating EQ status when driver reads DPCD.
+ *
+ * @param link DPIA link being trained.
+ * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
+ * @param hop The Hop in display path. DPRX = 0.
+ */
+static enum link_training_result dpia_training_eq_transparent(struct dc_link *link,
+		struct link_training_settings *lt_settings)
+{
+	enum link_training_result result = LINK_TRAINING_EQ_FAIL_EQ;
+	uint32_t retries_eq = 0;
+	enum dc_status status;
+	enum dc_dp_training_pattern tr_pattern = lt_settings->pattern_for_eq;
+	uint32_t wait_time_microsec;
+	struct link_training_settings req_settings;
+	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
+	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+
+	wait_time_microsec = dpia_get_eq_aux_rd_interval(link, lt_settings, DPRX);
+
+	for (retries_eq = 0; retries_eq < LINK_TRAINING_MAX_RETRY_COUNT; retries_eq++) {
+		if (retries_eq == 0) {
+			status = dpcd_set_lt_pattern(link, tr_pattern, DPRX);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+		}
+
+		dp_wait_for_training_aux_rd_interval(link, wait_time_microsec);
+
+		/* Read status and adjustment requests from DPCD. */
+		status = dp_get_lane_status_and_drive_settings(link,
+				lt_settings,
+				dpcd_lane_status,
+				&dpcd_lane_status_updated,
+				&req_settings,
+				DPRX);
+		if (status != DC_OK) {
+			result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		/* CR can still fail during EQ phase. Fail training if CR fails. */
+		if (!dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			result = LINK_TRAINING_EQ_FAIL_CR;
+			break;
+		}
+
+		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
+		    dp_is_symbol_locked(link->cur_link_settings.lane_count, dpcd_lane_status) &&
+		    dp_is_interlane_aligned(dpcd_lane_status_updated)) {
+			result =  LINK_TRAINING_SUCCESS;
+			break;
+		}
+
+		/* Update VS/PE. */
+		dp_update_drive_settings(lt_settings, req_settings);
+	}
+
+	/* Abort link training if equalization failed due to HPD unplug. */
+	if (!link->hpd_status)
+		result = LINK_TRAINING_ABORT;
+
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) equalization\n"
+		" - hop(%d)\n - result(%d)\n - retries(%d)\n",
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		DPRX,
+		result,
+		retries_eq);
+
+	return result;
+}
+
 /* Execute equalization phase of link training for specified hop in display
  * path.
+ *
+ * @param link DPIA link being trained.
+ * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
+ * @param hop The Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_eq_phase(struct dc_link *link,
 		struct link_training_settings *lt_settings,
 		uint32_t hop)
 {
-	enum link_training_result result;
+	enum link_training_result result = LINK_TRAINING_EQ_FAIL_EQ;
 
-	/** @todo Fail until implemented. */
-	result = LINK_TRAINING_ABORT;
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		result = dpia_training_eq_non_transparent(link, lt_settings, hop);
+	else
+		result = dpia_training_eq_transparent(link, lt_settings);
 
 	return result;
 }
