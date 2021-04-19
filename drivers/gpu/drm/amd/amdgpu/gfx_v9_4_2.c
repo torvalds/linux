@@ -997,7 +997,7 @@ static int gfx_v9_4_2_query_utc_edc_count(struct amdgpu_device *adev,
 			       blk->clear);
 
 			/* print the edc count */
-			if (sec_cnt || ded_count)
+			if (sec_cnt || ded_cnt)
 				gfx_v9_4_2_log_utc_edc_count(adev, blk, j, sec_cnt,
 							     ded_cnt);
 		}
