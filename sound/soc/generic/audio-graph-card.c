@@ -195,7 +195,6 @@ static void graph_parse_mclk_fs(struct device_node *top,
 {
 	struct device_node *port	= of_get_parent(ep);
 	struct device_node *ports	= of_get_parent(port);
-	struct device_node *node	= of_graph_get_port_parent(ep);
 
 	of_property_read_u32(top,	"mclk-fs", &props->mclk_fs);
 	if (of_node_name_eq(ports, "ports"))
@@ -205,7 +204,6 @@ static void graph_parse_mclk_fs(struct device_node *top,
 
 	of_node_put(port);
 	of_node_put(ports);
-	of_node_put(node);
 }
 
 static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
