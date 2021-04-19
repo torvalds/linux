@@ -63,6 +63,11 @@ parameter "split_lock_detect". Here is a summary of different options:
 |		   |When both features are	|			|
 |		   |supported, fatal in #AC	|			|
 +------------------+----------------------------+-----------------------+
+|ratelimit:N	   |Do nothing			|Limit bus lock rate to	|
+|(0 < N <= 1000)   |				|N bus locks per second	|
+|		   |				|system wide and warn on|
+|		   |				|bus locks.		|
++------------------+----------------------------+-----------------------+
 
 Usages
 ======
@@ -102,3 +107,20 @@ fatal
 -----
 
 In this case, the bus lock is not tolerated and the process is killed.
+
+ratelimit
+---------
+
+A system wide bus lock rate limit N is specified where 0 < N <= 1000. This
+allows a bus lock rate up to N bus locks per second. When the bus lock rate
+is exceeded then any task which is caught via the buslock #DB exception is
+throttled by enforced sleeps until the rate goes under the limit again.
+
+This is an effective mitigation in cases where a minimal impact can be
+tolerated, but an eventual Denial of Service attack has to be prevented. It
+allows to identify the offending processes and analyze whether they are
+malicious or just badly written.
+
+Selecting a rate limit of 1000 allows the bus to be locked for up to about
+seven million cycles each second (assuming 7000 cycles for each bus
+lock). On a 2 GHz processor that would be about 0.35% system slowdown.
