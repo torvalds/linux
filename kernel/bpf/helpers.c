@@ -669,6 +669,262 @@ const struct bpf_func_proto bpf_this_cpu_ptr_proto = {
 	.arg1_type	= ARG_PTR_TO_PERCPU_BTF_ID,
 };
 
+static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
+		size_t bufsz)
+{
+	void __user *user_ptr = (__force void __user *)unsafe_ptr;
+
+	buf[0] = 0;
+
+	switch (fmt_ptype) {
+	case 's':
+#ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+		if ((unsigned long)unsafe_ptr < TASK_SIZE)
+			return strncpy_from_user_nofault(buf, user_ptr, bufsz);
+		fallthrough;
+#endif
+	case 'k':
+		return strncpy_from_kernel_nofault(buf, unsafe_ptr, bufsz);
+	case 'u':
+		return strncpy_from_user_nofault(buf, user_ptr, bufsz);
+	}
+
+	return -EINVAL;
+}
+
+/* Per-cpu temp buffers which can be used by printf-like helpers for %s or %p
+ */
+#define MAX_PRINTF_BUF_LEN	512
+
+struct bpf_printf_buf {
+	char tmp_buf[MAX_PRINTF_BUF_LEN];
+};
+static DEFINE_PER_CPU(struct bpf_printf_buf, bpf_printf_buf);
+static DEFINE_PER_CPU(int, bpf_printf_buf_used);
+
+static int try_get_fmt_tmp_buf(char **tmp_buf)
+{
+	struct bpf_printf_buf *bufs;
+	int used;
+
+	if (*tmp_buf)
+		return 0;
+
+	preempt_disable();
+	used = this_cpu_inc_return(bpf_printf_buf_used);
+	if (WARN_ON_ONCE(used > 1)) {
+		this_cpu_dec(bpf_printf_buf_used);
+		preempt_enable();
+		return -EBUSY;
+	}
+	bufs = this_cpu_ptr(&bpf_printf_buf);
+	*tmp_buf = bufs->tmp_buf;
+
+	return 0;
+}
+
+void bpf_printf_cleanup(void)
+{
+	if (this_cpu_read(bpf_printf_buf_used)) {
+		this_cpu_dec(bpf_printf_buf_used);
+		preempt_enable();
+	}
+}
+
+/*
+ * bpf_parse_fmt_str - Generic pass on format strings for printf-like helpers
+ *
+ * Returns a negative value if fmt is an invalid format string or 0 otherwise.
+ *
+ * This can be used in two ways:
+ * - Format string verification only: when final_args and mod are NULL
+ * - Arguments preparation: in addition to the above verification, it writes in
+ *   final_args a copy of raw_args where pointers from BPF have been sanitized
+ *   into pointers safe to use by snprintf. This also writes in the mod array
+ *   the size requirement of each argument, usable by BPF_CAST_FMT_ARG for ex.
+ *
+ * In argument preparation mode, if 0 is returned, safe temporary buffers are
+ * allocated and bpf_printf_cleanup should be called to free them after use.
+ */
+int bpf_printf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
+			u64 *final_args, enum bpf_printf_mod_type *mod,
+			u32 num_args)
+{
+	char *unsafe_ptr = NULL, *tmp_buf = NULL, *fmt_end;
+	size_t tmp_buf_len = MAX_PRINTF_BUF_LEN;
+	int err, i, num_spec = 0, copy_size;
+	enum bpf_printf_mod_type cur_mod;
+	u64 cur_arg;
+	char fmt_ptype;
+
+	if (!!final_args != !!mod)
+		return -EINVAL;
+
+	fmt_end = strnchr(fmt, fmt_size, 0);
+	if (!fmt_end)
+		return -EINVAL;
+	fmt_size = fmt_end - fmt;
+
+	for (i = 0; i < fmt_size; i++) {
+		if ((!isprint(fmt[i]) && !isspace(fmt[i])) || !isascii(fmt[i])) {
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		if (fmt[i] != '%')
+			continue;
+
+		if (fmt[i + 1] == '%') {
+			i++;
+			continue;
+		}
+
+		if (num_spec >= num_args) {
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		/* The string is zero-terminated so if fmt[i] != 0, we can
+		 * always access fmt[i + 1], in the worst case it will be a 0
+		 */
+		i++;
+
+		/* skip optional "[0 +-][num]" width formatting field */
+		while (fmt[i] == '0' || fmt[i] == '+'  || fmt[i] == '-' ||
+		       fmt[i] == ' ')
+			i++;
+		if (fmt[i] >= '1' && fmt[i] <= '9') {
+			i++;
+			while (fmt[i] >= '0' && fmt[i] <= '9')
+				i++;
+		}
+
+		if (fmt[i] == 'p') {
+			cur_mod = BPF_PRINTF_LONG;
+
+			if ((fmt[i + 1] == 'k' || fmt[i + 1] == 'u') &&
+			    fmt[i + 2] == 's') {
+				fmt_ptype = fmt[i + 1];
+				i += 2;
+				goto fmt_str;
+			}
+
+			if (fmt[i + 1] == 0 || isspace(fmt[i + 1]) ||
+			    ispunct(fmt[i + 1]) || fmt[i + 1] == 'K' ||
+			    fmt[i + 1] == 'x' || fmt[i + 1] == 'B' ||
+			    fmt[i + 1] == 's' || fmt[i + 1] == 'S') {
+				/* just kernel pointers */
+				if (final_args)
+					cur_arg = raw_args[num_spec];
+				goto fmt_next;
+			}
+
+			/* only support "%pI4", "%pi4", "%pI6" and "%pi6". */
+			if ((fmt[i + 1] != 'i' && fmt[i + 1] != 'I') ||
+			    (fmt[i + 2] != '4' && fmt[i + 2] != '6')) {
+				err = -EINVAL;
+				goto cleanup;
+			}
+
+			i += 2;
+			if (!final_args)
+				goto fmt_next;
+
+			if (try_get_fmt_tmp_buf(&tmp_buf)) {
+				err = -EBUSY;
+				goto out;
+			}
+
+			copy_size = (fmt[i + 2] == '4') ? 4 : 16;
+			if (tmp_buf_len < copy_size) {
+				err = -ENOSPC;
+				goto cleanup;
+			}
+
+			unsafe_ptr = (char *)(long)raw_args[num_spec];
+			err = copy_from_kernel_nofault(tmp_buf, unsafe_ptr,
+						       copy_size);
+			if (err < 0)
+				memset(tmp_buf, 0, copy_size);
+			cur_arg = (u64)(long)tmp_buf;
+			tmp_buf += copy_size;
+			tmp_buf_len -= copy_size;
+
+			goto fmt_next;
+		} else if (fmt[i] == 's') {
+			cur_mod = BPF_PRINTF_LONG;
+			fmt_ptype = fmt[i];
+fmt_str:
+			if (fmt[i + 1] != 0 &&
+			    !isspace(fmt[i + 1]) &&
+			    !ispunct(fmt[i + 1])) {
+				err = -EINVAL;
+				goto cleanup;
+			}
+
+			if (!final_args)
+				goto fmt_next;
+
+			if (try_get_fmt_tmp_buf(&tmp_buf)) {
+				err = -EBUSY;
+				goto out;
+			}
+
+			if (!tmp_buf_len) {
+				err = -ENOSPC;
+				goto cleanup;
+			}
+
+			unsafe_ptr = (char *)(long)raw_args[num_spec];
+			err = bpf_trace_copy_string(tmp_buf, unsafe_ptr,
+						    fmt_ptype, tmp_buf_len);
+			if (err < 0) {
+				tmp_buf[0] = '\0';
+				err = 1;
+			}
+
+			cur_arg = (u64)(long)tmp_buf;
+			tmp_buf += err;
+			tmp_buf_len -= err;
+
+			goto fmt_next;
+		}
+
+		cur_mod = BPF_PRINTF_INT;
+
+		if (fmt[i] == 'l') {
+			cur_mod = BPF_PRINTF_LONG;
+			i++;
+		}
+		if (fmt[i] == 'l') {
+			cur_mod = BPF_PRINTF_LONG_LONG;
+			i++;
+		}
+
+		if (fmt[i] != 'i' && fmt[i] != 'd' && fmt[i] != 'u' &&
+		    fmt[i] != 'x' && fmt[i] != 'X') {
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		if (final_args)
+			cur_arg = raw_args[num_spec];
+fmt_next:
+		if (final_args) {
+			mod[num_spec] = cur_mod;
+			final_args[num_spec] = cur_arg;
+		}
+		num_spec++;
+	}
+
+	err = 0;
+cleanup:
+	if (err)
+		bpf_printf_cleanup();
+out:
+	return err;
+}
+
 const struct bpf_func_proto bpf_get_current_task_proto __weak;
 const struct bpf_func_proto bpf_probe_read_user_proto __weak;
 const struct bpf_func_proto bpf_probe_read_user_str_proto __weak;
