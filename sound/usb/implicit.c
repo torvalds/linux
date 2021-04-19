@@ -230,18 +230,27 @@ static int add_roland_implicit_fb(struct snd_usb_audio *chip,
 				       ifnum, alts);
 }
 
-/* Playback and capture EPs on Pioneer devices share the same iface/altset,
- * but they don't seem working with the implicit fb mode well, hence we
- * just return as if the sync were already set up.
+/* Playback and capture EPs on Pioneer devices share the same iface/altset
+ * for the implicit feedback operation
  */
-static int skip_pioneer_sync_ep(struct snd_usb_audio *chip,
-				struct audioformat *fmt,
-				struct usb_host_interface *alts)
+static bool is_pioneer_implicit_fb(struct snd_usb_audio *chip,
+				   struct usb_host_interface *alts)
+
 {
 	struct usb_endpoint_descriptor *epd;
 
+	if (USB_ID_VENDOR(chip->usb_id) != 0x2b73 &&
+	    USB_ID_VENDOR(chip->usb_id) != 0x08e4)
+		return false;
+	if (alts->desc.bInterfaceClass != USB_CLASS_VENDOR_SPEC)
+		return false;
 	if (alts->desc.bNumEndpoints != 2)
-		return 0;
+		return false;
+
+	epd = get_endpoint(alts, 0);
+	if (!usb_endpoint_is_isoc_out(epd) ||
+	    (epd->bmAttributes & USB_ENDPOINT_SYNCTYPE) != USB_ENDPOINT_SYNC_ASYNC)
+		return false;
 
 	epd = get_endpoint(alts, 1);
 	if (!usb_endpoint_is_isoc_in(epd) ||
@@ -250,8 +259,9 @@ static int skip_pioneer_sync_ep(struct snd_usb_audio *chip,
 	     USB_ENDPOINT_USAGE_DATA &&
 	     (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
 	     USB_ENDPOINT_USAGE_IMPLICIT_FB))
-		return 0;
-	return 1; /* don't handle with the implicit fb, just skip sync EP */
+		return false;
+
+	return true;
 }
 
 static int __add_generic_implicit_fb(struct snd_usb_audio *chip,
@@ -367,12 +377,12 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	}
 
 	/* Pioneer devices with vendor spec class */
-	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
-	    alts->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
-	    (USB_ID_VENDOR(chip->usb_id) == 0x2b73 || /* Pioneer */
-	     USB_ID_VENDOR(chip->usb_id) == 0x08e4    /* Pioneer */)) {
-		if (skip_pioneer_sync_ep(chip, fmt, alts))
-			return 1;
+	if (is_pioneer_implicit_fb(chip, alts)) {
+		chip->playback_first = 1;
+		return add_implicit_fb_sync_ep(chip, fmt,
+					       get_endpoint(alts, 1)->bEndpointAddress,
+					       1, alts->desc.bInterfaceNumber,
+					       alts);
 	}
 
 	/* Try the generic implicit fb if available */
@@ -394,6 +404,8 @@ static int audioformat_capture_quirk(struct snd_usb_audio *chip,
 	if (p && (p->type == IMPLICIT_FB_FIXED || p->type == IMPLICIT_FB_BOTH))
 		return add_implicit_fb_sync_ep(chip, fmt, p->ep_num, 0,
 					       p->iface, NULL);
+	if (is_pioneer_implicit_fb(chip, alts))
+		return 1; /* skip the quirk, also don't handle generic sync EP */
 	return 0;
 }
 
