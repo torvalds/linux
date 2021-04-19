@@ -9,7 +9,7 @@
 #include <linux/types.h>
 
 /*
- * This file defines the OP-TEE message protocol used to communicate
+ * This file defines the OP-TEE message protocol (ABI) used to communicate
  * with an instance of OP-TEE running in secure world.
  *
  * This file is divided into two sections.
@@ -144,9 +144,10 @@ struct optee_msg_param_value {
  * @tmem:	parameter by temporary memory reference
  * @rmem:	parameter by registered memory reference
  * @value:	parameter by opaque value
+ * @octets:	parameter by octet string
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
- * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
+ * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value or octets,
  * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
  * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates @rmem,
  * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
@@ -157,6 +158,7 @@ struct optee_msg_param {
 		struct optee_msg_param_tmem tmem;
 		struct optee_msg_param_rmem rmem;
 		struct optee_msg_param_value value;
+		u8 octets[24];
 	} u;
 };
 
