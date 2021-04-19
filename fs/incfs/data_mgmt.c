@@ -73,6 +73,7 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	spin_lock_init(&mi->mi_per_uid_read_timeouts_lock);
 	mutex_init(&mi->mi_zstd_workspace_mutex);
 	INIT_DELAYED_WORK(&mi->mi_zstd_cleanup_work, zstd_free_workspace);
+	mutex_init(&mi->mi_le_mutex);
 
 	node = incfs_add_sysfs_node(options->sysfs_name);
 	if (IS_ERR(node)) {
@@ -1246,6 +1247,27 @@ out:
 	return 0;
 }
 
+static int incfs_update_sysfs_error(struct file *file, int index, int result,
+				struct mount_info *mi, struct data_file *df)
+{
+	int error;
+
+	if (result >= 0)
+		return 0;
+
+	error = mutex_lock_interruptible(&mi->mi_le_mutex);
+	if (error)
+		return error;
+
+	mi->mi_le_file_id = df->df_id;
+	mi->mi_le_time_us = ktime_to_us(ktime_get());
+	mi->mi_le_page = index;
+	mi->mi_le_errno = result;
+	mutex_unlock(&mi->mi_le_mutex);
+
+	return 0;
+}
+
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 			int index, struct mem_range tmp,
 			struct incfs_read_data_file_timeouts *timeouts)
@@ -1317,6 +1339,8 @@ out:
 			mi->mi_sysfs_node->isn_reads_failed_hash_verification++;
 		else if (result < 0)
 			mi->mi_sysfs_node->isn_reads_failed_other++;
+
+		incfs_update_sysfs_error(f, index, result, mi, df);
 	}
 
 	return result;

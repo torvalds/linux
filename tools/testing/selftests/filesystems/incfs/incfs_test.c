@@ -4378,6 +4378,24 @@ out:
 	return result;
 }
 
+static int ioctl_test_last_error(int cmd_fd, const incfs_uuid_t *file_id,
+				 int page, int error)
+{
+	int result = TEST_FAILURE;
+	struct incfs_get_last_read_error_args glre;
+
+	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_LAST_READ_ERROR, &glre), 0);
+	if (file_id)
+		TESTEQUAL(memcmp(&glre.file_id_out, file_id, sizeof(*file_id)),
+			  0);
+
+	TESTEQUAL(glre.page_out, page);
+	TESTEQUAL(glre.errno_out, error);
+	result = TEST_SUCCESS;
+out:
+	return result;
+}
+
 static int sysfs_test(const char *mount_dir)
 {
 	int result = TEST_FAILURE;
@@ -4417,8 +4435,10 @@ static int sysfs_test(const char *mount_dir)
 		  0);
 	TEST(filename = concat_file_name(mount_dir, file.name), filename);
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl_test_last_error(cmd_fd, NULL, 0, 0), 0);
 	TESTEQUAL(sysfs_test_value("reads_failed_timed_out", 0), 0);
 	TEST(read(fd, NULL, 1), -1);
+	TESTEQUAL(ioctl_test_last_error(cmd_fd, &file.id, 0, -ETIME), 0);
 	TESTEQUAL(sysfs_test_value("reads_failed_timed_out", 2), 0);
 
 	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
