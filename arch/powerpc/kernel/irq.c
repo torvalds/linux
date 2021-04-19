@@ -142,7 +142,7 @@ again:
 	 */
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && (local_paca->irq_happened & PACA_IRQ_HMI)) {
 		local_paca->irq_happened &= ~PACA_IRQ_HMI;
-		regs.trap = 0xe60;
+		regs.trap = INTERRUPT_HMI;
 		handle_hmi_exception(&regs);
 		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
 			hard_irq_disable();
@@ -150,7 +150,7 @@ again:
 
 	if (local_paca->irq_happened & PACA_IRQ_DEC) {
 		local_paca->irq_happened &= ~PACA_IRQ_DEC;
-		regs.trap = 0x900;
+		regs.trap = INTERRUPT_DECREMENTER;
 		timer_interrupt(&regs);
 		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
 			hard_irq_disable();
@@ -158,7 +158,7 @@ again:
 
 	if (local_paca->irq_happened & PACA_IRQ_EE) {
 		local_paca->irq_happened &= ~PACA_IRQ_EE;
-		regs.trap = 0x500;
+		regs.trap = INTERRUPT_EXTERNAL;
 		do_IRQ(&regs);
 		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
 			hard_irq_disable();
@@ -166,10 +166,7 @@ again:
 
 	if (IS_ENABLED(CONFIG_PPC_DOORBELL) && (local_paca->irq_happened & PACA_IRQ_DBELL)) {
 		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		if (IS_ENABLED(CONFIG_PPC_BOOK3E))
-			regs.trap = 0x280;
-		else
-			regs.trap = 0xa00;
+		regs.trap = INTERRUPT_DOORBELL;
 		doorbell_exception(&regs);
 		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
 			hard_irq_disable();
@@ -178,7 +175,7 @@ again:
 	/* Book3E does not support soft-masking PMI interrupts */
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && (local_paca->irq_happened & PACA_IRQ_PMI)) {
 		local_paca->irq_happened &= ~PACA_IRQ_PMI;
-		regs.trap = 0xf00;
+		regs.trap = INTERRUPT_PERFMON;
 		performance_monitor_exception(&regs);
 		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
 			hard_irq_disable();
