@@ -7035,6 +7035,7 @@ error_mdio_register:
 error_hw_init:
 	destroy_workqueue(priv->wq);
 	stmmac_bus_clks_config(priv, false);
+	bitmap_free(priv->af_xdp_zc_qps);
 
 	return ret;
 }
@@ -7077,6 +7078,7 @@ int stmmac_dvr_remove(struct device *dev)
 		stmmac_mdio_unregister(ndev);
 	destroy_workqueue(priv->wq);
 	mutex_destroy(&priv->lock);
+	bitmap_free(priv->af_xdp_zc_qps);
 
 	return 0;
 }
