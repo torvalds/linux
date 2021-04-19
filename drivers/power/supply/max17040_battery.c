@@ -486,8 +486,7 @@ static int max17040_probe(struct i2c_client *client,
 		ret = max17040_get_of_data(chip);
 		if (ret)
 			return ret;
-		chip_id = (enum chip_id) (uintptr_t)
-			of_device_get_match_data(&client->dev);
+		chip_id = (uintptr_t)of_device_get_match_data(&client->dev);
 	}
 	chip->data = max17040_family[chip_id];
 
