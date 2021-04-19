@@ -1010,7 +1010,9 @@ TRACE_EVENT(xprtrdma_frwr_maperr,
 	)
 );
 
+DEFINE_MR_EVENT(fastreg);
 DEFINE_MR_EVENT(localinv);
+DEFINE_MR_EVENT(reminv);
 DEFINE_MR_EVENT(map);
 
 DEFINE_ANON_MR_EVENT(unmap);
