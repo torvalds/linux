@@ -57,15 +57,16 @@ static u32 mtk_r32(struct mtk_pinctrl *pctl, u8 i, u32 reg)
 void mtk_rmw(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 mask, u32 set)
 {
 	u32 val;
+	unsigned long flags;
 
-	mutex_lock(&pctl->lock);
+	spin_lock_irqsave(&pctl->lock, flags);
 
 	val = mtk_r32(pctl, i, reg);
 	val &= ~mask;
 	val |= set;
 	mtk_w32(pctl, i, reg, val);
 
-	mutex_unlock(&pctl->lock);
+	spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
 static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
