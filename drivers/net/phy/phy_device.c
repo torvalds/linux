@@ -1777,6 +1777,9 @@ int phy_loopback(struct phy_device *phydev, bool enable)
 	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
 
+	if (!phydrv)
+		return -ENODEV;
+
 	mutex_lock(&phydev->lock);
 
 	if (enable && phydev->loopback_enabled) {
@@ -1789,10 +1792,10 @@ int phy_loopback(struct phy_device *phydev, bool enable)
 		goto out;
 	}
 
-	if (phydev->drv && phydrv->set_loopback)
+	if (phydrv->set_loopback)
 		ret = phydrv->set_loopback(phydev, enable);
 	else
-		ret = -EOPNOTSUPP;
+		ret = genphy_loopback(phydev, enable);
 
 	if (ret)
 		goto out;
