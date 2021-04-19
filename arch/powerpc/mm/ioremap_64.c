@@ -38,7 +38,7 @@ void __iomem *__ioremap_caller(phys_addr_t addr, unsigned long size,
 		return NULL;
 
 	ret = (void __iomem *)ioremap_bot + offset;
-	ioremap_bot += size;
+	ioremap_bot += size + PAGE_SIZE;
 
 	return ret;
 }
