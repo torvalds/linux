@@ -869,6 +869,9 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 	while (dev_rp != local_rp) {
 		enum mhi_pkt_type type = MHI_TRE_GET_EV_TYPE(local_rp);
 
+		dev_dbg(dev, "Processing Event:0x%llx 0x%08x 0x%08x\n",
+			local_rp->ptr, local_rp->dword[0], local_rp->dword[1]);
+
 		switch (type) {
 		case MHI_PKT_TYPE_BW_REQ_EVENT:
 		{
@@ -1013,6 +1016,7 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 	struct mhi_ring *ev_ring = &mhi_event->ring;
 	struct mhi_event_ctxt *er_ctxt =
 		&mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	int count = 0;
 	u32 chan;
 	struct mhi_chan *mhi_chan;
@@ -1032,6 +1036,9 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 
 	while (dev_rp != local_rp && event_quota > 0) {
 		enum mhi_pkt_type type = MHI_TRE_GET_EV_TYPE(local_rp);
+
+		dev_dbg(dev, "Processing Event:0x%llx 0x%08x 0x%08x\n",
+			local_rp->ptr, local_rp->dword[0], local_rp->dword[1]);
 
 		chan = MHI_TRE_GET_EV_CHID(local_rp);
 
