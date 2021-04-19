@@ -333,7 +333,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	key = (u8)(ibmr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(ibmr, ++key);
 
-	reg_wr = &mr->frwr.fr_regwr;
+	reg_wr = &mr->mr_regwr;
 	reg_wr->mr = ibmr;
 	reg_wr->key = ibmr->rkey;
 	reg_wr->access = writing ?
@@ -398,19 +398,15 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	num_wrs = 1;
 	post_wr = send_wr;
 	list_for_each_entry(mr, &req->rl_registered, mr_list) {
-		struct rpcrdma_frwr *frwr;
-
 		trace_xprtrdma_mr_fastreg(mr);
-		frwr = &mr->frwr;
 
 		mr->mr_cqe.done = frwr_wc_fastreg;
-		frwr->fr_regwr.wr.next = post_wr;
-		frwr->fr_regwr.wr.wr_cqe = &mr->mr_cqe;
-		frwr->fr_regwr.wr.num_sge = 0;
-		frwr->fr_regwr.wr.opcode = IB_WR_REG_MR;
-		frwr->fr_regwr.wr.send_flags = 0;
-
-		post_wr = &frwr->fr_regwr.wr;
+		mr->mr_regwr.wr.next = post_wr;
+		mr->mr_regwr.wr.wr_cqe = &mr->mr_cqe;
+		mr->mr_regwr.wr.num_sge = 0;
+		mr->mr_regwr.wr.opcode = IB_WR_REG_MR;
+		mr->mr_regwr.wr.send_flags = 0;
+		post_wr = &mr->mr_regwr.wr;
 		++num_wrs;
 	}
 
@@ -506,7 +502,6 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	struct ib_send_wr *first, **prev, *last;
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	const struct ib_send_wr *bad_wr;
-	struct rpcrdma_frwr *frwr;
 	struct rpcrdma_mr *mr;
 	int rc;
 
@@ -515,15 +510,13 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * Chain the LOCAL_INV Work Requests and post them with
 	 * a single ib_post_send() call.
 	 */
-	frwr = NULL;
 	prev = &first;
 	while ((mr = rpcrdma_mr_pop(&req->rl_registered))) {
 
 		trace_xprtrdma_mr_localinv(mr);
 		r_xprt->rx_stats.local_inv_needed++;
 
-		frwr = &mr->frwr;
-		last = &frwr->fr_invwr;
+		last = &mr->mr_invwr;
 		last->next = NULL;
 		last->wr_cqe = &mr->mr_cqe;
 		last->sg_list = NULL;
@@ -608,22 +601,19 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *first, *last, **prev;
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
-	struct rpcrdma_frwr *frwr;
 	struct rpcrdma_mr *mr;
 	int rc;
 
 	/* Chain the LOCAL_INV Work Requests and post them with
 	 * a single ib_post_send() call.
 	 */
-	frwr = NULL;
 	prev = &first;
 	while ((mr = rpcrdma_mr_pop(&req->rl_registered))) {
 
 		trace_xprtrdma_mr_localinv(mr);
 		r_xprt->rx_stats.local_inv_needed++;
 
-		frwr = &mr->frwr;
-		last = &frwr->fr_invwr;
+		last = &mr->mr_invwr;
 		last->next = NULL;
 		last->wr_cqe = &mr->mr_cqe;
 		last->sg_list = NULL;
