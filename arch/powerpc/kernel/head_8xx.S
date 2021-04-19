@@ -29,6 +29,7 @@
 #include <asm/ptrace.h>
 #include <asm/export.h>
 #include <asm/code-patching-asm.h>
+#include <asm/interrupt.h>
 
 /*
  * Value for the bits that have fixed value in RPN entries.
@@ -118,49 +119,49 @@ instruction_counter:
 #endif
 
 /* System reset */
-	EXCEPTION(0x100, Reset, system_reset_exception)
+	EXCEPTION(INTERRUPT_SYSTEM_RESET, Reset, system_reset_exception)
 
 /* Machine check */
-	START_EXCEPTION(0x200, MachineCheck)
-	EXCEPTION_PROLOG 0x200 MachineCheck handle_dar_dsisr=1
+	START_EXCEPTION(INTERRUPT_MACHINE_CHECK, MachineCheck)
+	EXCEPTION_PROLOG INTERRUPT_MACHINE_CHECK MachineCheck handle_dar_dsisr=1
 	prepare_transfer_to_handler
 	bl	machine_check_exception
 	b	interrupt_return
 
 /* External interrupt */
-	EXCEPTION(0x500, HardwareInterrupt, do_IRQ)
+	EXCEPTION(INTERRUPT_EXTERNAL, HardwareInterrupt, do_IRQ)
 
 /* Alignment exception */
-	START_EXCEPTION(0x600, Alignment)
-	EXCEPTION_PROLOG 0x600 Alignment handle_dar_dsisr=1
+	START_EXCEPTION(INTERRUPT_ALIGNMENT, Alignment)
+	EXCEPTION_PROLOG INTERRUPT_ALIGNMENT Alignment handle_dar_dsisr=1
 	prepare_transfer_to_handler
 	bl	alignment_exception
 	REST_NVGPRS(r1)
 	b	interrupt_return
 
 /* Program check exception */
-	START_EXCEPTION(0x700, ProgramCheck)
-	EXCEPTION_PROLOG 0x700 ProgramCheck
+	START_EXCEPTION(INTERRUPT_PROGRAM, ProgramCheck)
+	EXCEPTION_PROLOG INTERRUPT_PROGRAM ProgramCheck
 	prepare_transfer_to_handler
 	bl	program_check_exception
 	REST_NVGPRS(r1)
 	b	interrupt_return
 
 /* Decrementer */
-	EXCEPTION(0x900, Decrementer, timer_interrupt)
+	EXCEPTION(INTERRUPT_DECREMENTER, Decrementer, timer_interrupt)
 
 /* System call */
-	START_EXCEPTION(0xc00, SystemCall)
-	SYSCALL_ENTRY	0xc00
+	START_EXCEPTION(INTERRUPT_SYSCALL, SystemCall)
+	SYSCALL_ENTRY	INTERRUPT_SYSCALL
 
 /* Single step - not used on 601 */
-	EXCEPTION(0xd00, SingleStep, single_step_exception)
+	EXCEPTION(INTERRUPT_TRACE, SingleStep, single_step_exception)
 
 /* On the MPC8xx, this is a software emulation interrupt.  It occurs
  * for all unimplemented and illegal instructions.
  */
-	START_EXCEPTION(0x1000, SoftEmu)
-	EXCEPTION_PROLOG 0x1000 SoftEmu
+	START_EXCEPTION(INTERRUPT_SOFT_EMU_8xx, SoftEmu)
+	EXCEPTION_PROLOG INTERRUPT_SOFT_EMU_8xx SoftEmu
 	prepare_transfer_to_handler
 	bl	emulation_assist_interrupt
 	REST_NVGPRS(r1)
@@ -187,7 +188,7 @@ instruction_counter:
 #define INVALIDATE_ADJACENT_PAGES_CPU15(addr, tmp)
 #endif
 
-	START_EXCEPTION(0x1100, InstructionTLBMiss)
+	START_EXCEPTION(INTERRUPT_INST_TLB_MISS_8xx, InstructionTLBMiss)
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 
@@ -243,7 +244,7 @@ instruction_counter:
 	rfi
 #endif
 
-	START_EXCEPTION(0x1200, DataStoreTLBMiss)
+	START_EXCEPTION(INTERRUPT_DATA_TLB_MISS_8xx, DataStoreTLBMiss)
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 	mfcr	r11
@@ -306,9 +307,9 @@ instruction_counter:
  * to many reasons, such as executing guarded memory or illegal instruction
  * addresses.  There is nothing to do but handle a big time error fault.
  */
-	START_EXCEPTION(0x1300, InstructionTLBError)
+	START_EXCEPTION(INTERRUPT_INST_TLB_ERROR_8xx, InstructionTLBError)
 	/* 0x400 is InstructionAccess exception, needed by bad_page_fault() */
-	EXCEPTION_PROLOG 0x400 InstructionTLBError
+	EXCEPTION_PROLOG INTERRUPT_INST_STORAGE InstructionTLBError
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	andis.	r10,r9,SRR1_ISI_NOPT@h
 	beq+	.Litlbie
@@ -324,7 +325,7 @@ instruction_counter:
  * many reasons, including a dirty update to a pte.  We bail out to
  * a higher level function that can handle it.
  */
-	START_EXCEPTION(0x1400, DataTLBError)
+	START_EXCEPTION(INTERRUPT_DATA_TLB_ERROR_8xx, DataTLBError)
 	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	mfspr	r11, SPRN_DAR
 	cmpwi	cr1, r11, RPN_PATTERN
@@ -332,7 +333,7 @@ instruction_counter:
 DARFixed:/* Return from dcbx instruction bug workaround */
 	EXCEPTION_PROLOG_1
 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
-	EXCEPTION_PROLOG_2 0x300 DataTLBError handle_dar_dsisr=1
+	EXCEPTION_PROLOG_2 INTERRUPT_DATA_STORAGE DataTLBError handle_dar_dsisr=1
 	lwz	r4, _DAR(r11)
 	lwz	r5, _DSISR(r11)
 	andis.	r10,r5,DSISR_NOHPTE@h
@@ -351,7 +352,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
  * support of breakpoints and such.  Someday I will get around to
  * using them.
  */
-	START_EXCEPTION(0x1c00, DataBreakpoint)
+	START_EXCEPTION(INTERRUPT_DATA_BREAKPOINT_8xx, DataBreakpoint)
 	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	mfspr	r11, SPRN_SRR0
 	cmplwi	cr1, r11, (.Ldtlbie - PAGE_OFFSET)@l
@@ -364,7 +365,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	rfi
 
 1:	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2 0x1c00 DataBreakpoint handle_dar_dsisr=1
+	EXCEPTION_PROLOG_2 INTERRUPT_DATA_BREAKPOINT_8xx DataBreakpoint handle_dar_dsisr=1
 	mfspr	r4,SPRN_BAR
 	stw	r4,_DAR(r11)
 	prepare_transfer_to_handler
@@ -373,7 +374,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	b	interrupt_return
 
 #ifdef CONFIG_PERF_EVENTS
-	START_EXCEPTION(0x1d00, InstructionBreakpoint)
+	START_EXCEPTION(INTERRUPT_INST_BREAKPOINT_8xx, InstructionBreakpoint)
 	mtspr	SPRN_SPRG_SCRATCH0, r10
 	lwz	r10, (instruction_counter - PAGE_OFFSET)@l(0)
 	addi	r10, r10, -1
@@ -384,7 +385,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	rfi
 #else
-	EXCEPTION(0x1d00, Trap_1d, unknown_exception)
+	EXCEPTION(INTERRUPT_INST_BREAKPOINT_8xx, Trap_1d, unknown_exception)
 #endif
 	EXCEPTION(0x1e00, Trap_1e, unknown_exception)
 	EXCEPTION(0x1f00, Trap_1f, unknown_exception)
