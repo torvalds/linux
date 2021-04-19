@@ -480,7 +480,7 @@
 			status = "disabled";
 		};
 
-		nand: qpic-nand@79b0000 {
+		nand: nand-controller@79b0000 {
 			compatible = "qcom,ipq4019-nand";
 			reg = <0x79b0000 0x1000>;
 			#address-cells = <1>;

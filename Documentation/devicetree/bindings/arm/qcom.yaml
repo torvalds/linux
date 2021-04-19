@@ -188,6 +188,8 @@ properties:
       - items:
           - enum:
               - qcom,sdx55-mtp
+              - qcom,sdx55-telit-fn980-tlb
+              - qcom,sdx55-t55
           - const: qcom,sdx55
 
       - items:
