@@ -334,7 +334,9 @@ void rnbd_srv_sess_dev_force_close(struct rnbd_srv_sess_dev *sess_dev)
 	struct rnbd_srv_session	*sess = sess_dev->sess;
 
 	sess_dev->keep_id = true;
-	mutex_lock(&sess->lock);
+	/* It is already started to close by client's close message. */
+	if (!mutex_trylock(&sess->lock))
+		return;
 	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
 	mutex_unlock(&sess->lock);
 }
