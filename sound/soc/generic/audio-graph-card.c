@@ -721,23 +721,6 @@ static int graph_get_dais_count(struct asoc_simple_priv *priv,
 				   graph_count_dpcm);
 }
 
-int audio_graph_card_probe(struct snd_soc_card *card)
-{
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
-	int ret;
-
-	ret = asoc_simple_init_hp(card, &priv->hp_jack, NULL);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_init_mic(card, &priv->mic_jack, NULL);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(audio_graph_card_probe);
-
 static int graph_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
@@ -752,7 +735,7 @@ static int graph_probe(struct platform_device *pdev)
 	card = simple_priv_to_card(priv);
 	card->dapm_widgets	= graph_dapm_widgets;
 	card->num_dapm_widgets	= ARRAY_SIZE(graph_dapm_widgets);
-	card->probe		= audio_graph_card_probe;
+	card->probe		= asoc_graph_card_probe;
 
 	if (of_device_get_match_data(dev))
 		priv->dpcm_selectable = 1;

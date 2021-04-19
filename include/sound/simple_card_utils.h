@@ -178,6 +178,9 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			       struct link_info *li);
 
+int asoc_graph_card_probe(struct snd_soc_card *card);
+
+
 #ifdef DEBUG
 static inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,
 					 char *name,
