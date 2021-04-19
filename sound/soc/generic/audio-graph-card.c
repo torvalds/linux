@@ -182,7 +182,8 @@ static void graph_parse_convert(struct device *dev,
 
 	asoc_simple_parse_convert(top,   NULL,   adata);
 	asoc_simple_parse_convert(node,  PREFIX, adata);
-	asoc_simple_parse_convert(ports, NULL,   adata);
+	if (of_node_name_eq(ports, "ports"))
+		asoc_simple_parse_convert(ports, NULL, adata);
 	asoc_simple_parse_convert(port,  NULL,   adata);
 	asoc_simple_parse_convert(ep,    NULL,   adata);
 
@@ -200,7 +201,8 @@ static void graph_parse_mclk_fs(struct device_node *top,
 	struct device_node *node	= of_graph_get_port_parent(ep);
 
 	of_property_read_u32(top,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(ports,	"mclk-fs", &props->mclk_fs);
+	if (of_node_name_eq(ports, "ports"))
+		of_property_read_u32(ports, "mclk-fs", &props->mclk_fs);
 	of_property_read_u32(port,	"mclk-fs", &props->mclk_fs);
 	of_property_read_u32(ep,	"mclk-fs", &props->mclk_fs);
 
@@ -311,8 +313,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 					      "prefix");
 		snd_soc_of_parse_node_prefix(node, cconf, codecs->of_node,
 					     PREFIX "prefix");
-		snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node,
-					     "prefix");
+		if (of_node_name_eq(ports, "ports"))
+			snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node, "prefix");
 		snd_soc_of_parse_node_prefix(port, cconf, codecs->of_node,
 					     "prefix");
 	}
