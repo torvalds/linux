@@ -47,6 +47,48 @@ void nft_flow_rule_set_addr_type(struct nft_flow_rule *flow,
 		offsetof(struct nft_flow_key, control);
 }
 
+struct nft_offload_ethertype {
+	__be16 value;
+	__be16 mask;
+};
+
+static void nft_flow_rule_transfer_vlan(struct nft_offload_ctx *ctx,
+					struct nft_flow_rule *flow)
+{
+	struct nft_flow_match *match = &flow->match;
+	struct nft_offload_ethertype ethertype;
+
+	if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL) &&
+	    match->key.basic.n_proto != htons(ETH_P_8021Q) &&
+	    match->key.basic.n_proto != htons(ETH_P_8021AD))
+		return;
+
+	ethertype.value = match->key.basic.n_proto;
+	ethertype.mask = match->mask.basic.n_proto;
+
+	if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_VLAN) &&
+	    (match->key.vlan.vlan_tpid == htons(ETH_P_8021Q) ||
+	     match->key.vlan.vlan_tpid == htons(ETH_P_8021AD))) {
+		match->key.basic.n_proto = match->key.cvlan.vlan_tpid;
+		match->mask.basic.n_proto = match->mask.cvlan.vlan_tpid;
+		match->key.cvlan.vlan_tpid = match->key.vlan.vlan_tpid;
+		match->mask.cvlan.vlan_tpid = match->mask.vlan.vlan_tpid;
+		match->key.vlan.vlan_tpid = ethertype.value;
+		match->mask.vlan.vlan_tpid = ethertype.mask;
+		match->dissector.offset[FLOW_DISSECTOR_KEY_CVLAN] =
+			offsetof(struct nft_flow_key, cvlan);
+		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
+	} else {
+		match->key.basic.n_proto = match->key.vlan.vlan_tpid;
+		match->mask.basic.n_proto = match->mask.vlan.vlan_tpid;
+		match->key.vlan.vlan_tpid = ethertype.value;
+		match->mask.vlan.vlan_tpid = ethertype.mask;
+		match->dissector.offset[FLOW_DISSECTOR_KEY_VLAN] =
+			offsetof(struct nft_flow_key, vlan);
+		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_VLAN);
+	}
+}
+
 struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 					   const struct nft_rule *rule)
 {
@@ -91,6 +133,8 @@ struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 
 		expr = nft_expr_next(expr);
 	}
+	nft_flow_rule_transfer_vlan(ctx, flow);
+
 	flow->proto = ctx->dep.l3num;
 	kfree(ctx);
 
@@ -199,24 +243,54 @@ static void nft_flow_cls_offload_setup(struct flow_cls_offload *cls_flow,
 		cls_flow->rule = flow->rule;
 }
 
-static int nft_flow_offload_rule(struct nft_chain *chain,
-				 struct nft_rule *rule,
-				 struct nft_flow_rule *flow,
-				 enum flow_cls_command command)
+static int nft_flow_offload_cmd(const struct nft_chain *chain,
+				const struct nft_rule *rule,
+				struct nft_flow_rule *flow,
+				enum flow_cls_command command,
+				struct flow_cls_offload *cls_flow)
 {
 	struct netlink_ext_ack extack = {};
-	struct flow_cls_offload cls_flow;
 	struct nft_base_chain *basechain;
 
 	if (!nft_is_base_chain(chain))
 		return -EOPNOTSUPP;
 
 	basechain = nft_base_chain(chain);
-	nft_flow_cls_offload_setup(&cls_flow, basechain, rule, flow, &extack,
+	nft_flow_cls_offload_setup(cls_flow, basechain, rule, flow, &extack,
 				   command);
 
-	return nft_setup_cb_call(TC_SETUP_CLSFLOWER, &cls_flow,
+	return nft_setup_cb_call(TC_SETUP_CLSFLOWER, cls_flow,
 				 &basechain->flow_block.cb_list);
+}
+
+static int nft_flow_offload_rule(const struct nft_chain *chain,
+				 struct nft_rule *rule,
+				 struct nft_flow_rule *flow,
+				 enum flow_cls_command command)
+{
+	struct flow_cls_offload cls_flow;
+
+	return nft_flow_offload_cmd(chain, rule, flow, command, &cls_flow);
+}
+
+int nft_flow_rule_stats(const struct nft_chain *chain,
+			const struct nft_rule *rule)
+{
+	struct flow_cls_offload cls_flow = {};
+	struct nft_expr *expr, *next;
+	int err;
+
+	err = nft_flow_offload_cmd(chain, rule, NULL, FLOW_CLS_STATS,
+				   &cls_flow);
+	if (err < 0)
+		return err;
+
+	nft_rule_for_each_expr(expr, next, rule) {
+		if (expr->ops->offload_stats)
+			expr->ops->offload_stats(expr, &cls_flow.stats);
+	}
+
+	return 0;
 }
 
 static int nft_flow_offload_bind(struct flow_block_offload *bo,

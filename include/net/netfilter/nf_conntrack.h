@@ -44,6 +44,13 @@ union nf_conntrack_expect_proto {
 };
 
 struct nf_conntrack_net {
+	/* only used when new connection is allocated: */
+	atomic_t count;
+	unsigned int expect_count;
+	u8 sysctl_auto_assign_helper;
+	bool auto_assign_helper_warned;
+
+	/* only used from work queues, configuration plane, and so on: */
 	unsigned int users4;
 	unsigned int users6;
 	unsigned int users_bridge;
@@ -331,6 +338,7 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 void nf_ct_tmpl_free(struct nf_conn *tmpl);
 
 u32 nf_ct_get_id(const struct nf_conn *ct);
+u32 nf_conntrack_count(const struct net *net);
 
 static inline void
 nf_ct_set(struct sk_buff *skb, struct nf_conn *ct, enum ip_conntrack_info info)

@@ -2878,6 +2878,9 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
 			goto nla_put_failure;
 	}
 
+	if (chain->flags & NFT_CHAIN_HW_OFFLOAD)
+		nft_flow_rule_stats(chain, rule);
+
 	list = nla_nest_start_noflag(skb, NFTA_RULE_EXPRESSIONS);
 	if (list == NULL)
 		goto nla_put_failure;
