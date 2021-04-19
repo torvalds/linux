@@ -435,7 +435,7 @@ bool dp_is_cr_done(enum dc_lane_count ln_count,
 	return true;
 }
 
-static bool is_ch_eq_done(enum dc_lane_count ln_count,
+bool dp_is_ch_eq_done(enum dc_lane_count ln_count,
 		union lane_status *dpcd_lane_status)
 {
 	bool done = true;
@@ -446,7 +446,7 @@ static bool is_ch_eq_done(enum dc_lane_count ln_count,
 	return done;
 }
 
-static bool is_symbol_locked(enum dc_lane_count ln_count,
+bool dp_is_symbol_locked(enum dc_lane_count ln_count,
 		union lane_status *dpcd_lane_status)
 {
 	bool locked = true;
@@ -457,7 +457,7 @@ static bool is_symbol_locked(enum dc_lane_count ln_count,
 	return locked;
 }
 
-static inline bool is_interlane_aligned(union lane_align_status_updated align_status)
+bool dp_is_interlane_aligned(union lane_align_status_updated align_status)
 {
 	return align_status.bits.INTERLANE_ALIGN_DONE == 1;
 }
@@ -865,9 +865,9 @@ static bool perform_post_lt_adj_req_sequence(
 			if (!dp_is_cr_done(lane_count, dpcd_lane_status))
 				return false;
 
-			if (!is_ch_eq_done(lane_count, dpcd_lane_status) ||
-					!is_symbol_locked(lane_count, dpcd_lane_status) ||
-					!is_interlane_aligned(dpcd_lane_status_updated))
+			if (!dp_is_ch_eq_done(lane_count, dpcd_lane_status) ||
+					!dp_is_symbol_locked(lane_count, dpcd_lane_status) ||
+					!dp_is_interlane_aligned(dpcd_lane_status_updated))
 				return false;
 
 			for (lane = 0; lane < (uint32_t)(lane_count); lane++) {
@@ -913,7 +913,7 @@ static bool perform_post_lt_adj_req_sequence(
 }
 
 /* Only used for channel equalization */
-static uint32_t translate_training_aux_read_interval(uint32_t dpcd_aux_read_interval)
+uint32_t dp_translate_training_aux_read_interval(uint32_t dpcd_aux_read_interval)
 {
 	unsigned int aux_rd_interval_us = 400;
 
@@ -998,7 +998,7 @@ static enum link_training_result perform_channel_equalization_sequence(
 
 		if (is_repeater(link, offset))
 			wait_time_microsec =
-					translate_training_aux_read_interval(
+					dp_translate_training_aux_read_interval(
 						link->dpcd_caps.lttpr_caps.aux_rd_interval[offset - 1]);
 
 		dp_wait_for_training_aux_rd_interval(
@@ -1021,9 +1021,9 @@ static enum link_training_result perform_channel_equalization_sequence(
 			return LINK_TRAINING_EQ_FAIL_CR;
 
 		/* 6. check CHEQ done*/
-		if (is_ch_eq_done(lane_count, dpcd_lane_status) &&
-				is_symbol_locked(lane_count, dpcd_lane_status) &&
-				is_interlane_aligned(dpcd_lane_status_updated))
+		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
+				dp_is_symbol_locked(lane_count, dpcd_lane_status) &&
+				dp_is_interlane_aligned(dpcd_lane_status_updated))
 			return LINK_TRAINING_SUCCESS;
 
 		/* 7. update VS/PE/PC2 in lt_settings*/
