@@ -3566,7 +3566,8 @@
 			reg = <0 0x62f00000 0 0x29000>;
 			reg-names = "lpass-lpaif";
 
-			iommus = <&apps_smmu 0x1020 0>;
+			iommus = <&apps_smmu 0x1020 0>,
+				<&apps_smmu 0x1021 0>;
 
 			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
 
