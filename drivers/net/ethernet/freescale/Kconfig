@@ -26,6 +26,7 @@ config FEC
 		   ARCH_MXC || SOC_IMX28 || COMPILE_TEST)
 	default ARCH_MXC || SOC_IMX28 if ARM
 	select CRC32
+	select NET_SELFTESTS
 	select PHYLIB
 	imply PTP_1588_CLOCK
 	help
