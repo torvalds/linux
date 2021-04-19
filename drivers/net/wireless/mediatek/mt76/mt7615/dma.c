@@ -176,6 +176,21 @@ static void mt7663_dma_sched_init(struct mt7615_dev *dev)
 	mt76_wr(dev, MT_DMA_SHDL(MT_DMASHDL_SCHED_SET1), 0xedcba987);
 }
 
+void mt7615_dma_start(struct mt7615_dev *dev)
+{
+	/* start dma engine */
+	mt76_set(dev, MT_WPDMA_GLO_CFG,
+		 MT_WPDMA_GLO_CFG_TX_DMA_EN |
+		 MT_WPDMA_GLO_CFG_RX_DMA_EN |
+		 MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
+
+	if (is_mt7622(&dev->mt76))
+		mt7622_dma_sched_init(dev);
+
+	if (is_mt7663(&dev->mt76))
+		mt7663_dma_sched_init(dev);
+}
+
 int mt7615_dma_init(struct mt7615_dev *dev)
 {
 	int rx_ring_size = MT7615_RX_RING_SIZE;
@@ -245,7 +260,7 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.napi_dev, &dev->mt76.tx_napi,
+	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt7615_poll_tx, NAPI_POLL_WEIGHT);
 	napi_enable(&dev->mt76.tx_napi);
 
@@ -253,20 +268,11 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 		  MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
 		  MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 1000);
 
-	/* start dma engine */
-	mt76_set(dev, MT_WPDMA_GLO_CFG,
-		 MT_WPDMA_GLO_CFG_TX_DMA_EN |
-		 MT_WPDMA_GLO_CFG_RX_DMA_EN);
-
 	/* enable interrupts for TX/RX rings */
 	mt7615_irq_enable(dev, MT_INT_RX_DONE_ALL | mt7615_tx_mcu_int_mask(dev) |
 			       MT_INT_MCU_CMD);
 
-	if (is_mt7622(&dev->mt76))
-		mt7622_dma_sched_init(dev);
-
-	if (is_mt7663(&dev->mt76))
-		mt7663_dma_sched_init(dev);
+	mt7615_dma_start(dev);
 
 	return 0;
 }

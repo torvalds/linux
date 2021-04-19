@@ -780,36 +780,6 @@ struct iwl_rxq_sync_notification {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * enum iwl_mvm_rxq_notif_type - Internal message identifier
- *
- * @IWL_MVM_RXQ_EMPTY: empty sync notification
- * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
- * @IWL_MVM_RXQ_NSSN_SYNC: notify all the RSS queues with the new NSSN
- */
-enum iwl_mvm_rxq_notif_type {
-	IWL_MVM_RXQ_EMPTY,
-	IWL_MVM_RXQ_NOTIF_DEL_BA,
-	IWL_MVM_RXQ_NSSN_SYNC,
-};
-
-/**
- * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
- * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
- * FW is agnostic to the payload, so there are no endianity requirements.
- *
- * @type: value from &iwl_mvm_rxq_notif_type
- * @sync: ctrl path is waiting for all notifications to be received
- * @cookie: internal cookie to identify old notifications
- * @data: payload
- */
-struct iwl_mvm_internal_rxq_notif {
-	u16 type;
-	u16 sync;
-	u32 cookie;
-	u8 data[];
-} __packed;
-
-/**
  * enum iwl_mvm_pm_event - type of station PM event
  * @IWL_MVM_PM_EVENT_AWAKE: station woke up
  * @IWL_MVM_PM_EVENT_ASLEEP: station went to sleep

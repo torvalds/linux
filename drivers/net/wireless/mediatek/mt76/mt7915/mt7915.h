@@ -108,11 +108,11 @@ struct mt7915_vif {
 };
 
 struct mib_stats {
-	u16 ack_fail_cnt;
-	u16 fcs_err_cnt;
-	u16 rts_cnt;
-	u16 rts_retries_cnt;
-	u16 ba_miss_cnt;
+	u32 ack_fail_cnt;
+	u32 fcs_err_cnt;
+	u32 rts_cnt;
+	u32 rts_retries_cnt;
+	u32 ba_miss_cnt;
 };
 
 struct mt7915_hif {
@@ -142,7 +142,7 @@ struct mt7915_phy {
 	u8 rdd_state;
 	int dfs_state;
 
-	__le32 rx_ampdu_ts;
+	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
 
 	struct mib_stats mib;
@@ -394,80 +394,6 @@ static inline void mt7915_irq_disable(struct mt7915_dev *dev, u32 mask)
 		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
-static inline u32
-mt7915_reg_map_l1(struct mt7915_dev *dev, u32 addr)
-{
-	u32 offset = FIELD_GET(MT_HIF_REMAP_L1_OFFSET, addr);
-	u32 base = FIELD_GET(MT_HIF_REMAP_L1_BASE, addr);
-
-	mt76_rmw_field(dev, MT_HIF_REMAP_L1, MT_HIF_REMAP_L1_MASK, base);
-	/* use read to push write */
-	mt76_rr(dev, MT_HIF_REMAP_L1);
-
-	return MT_HIF_REMAP_BASE_L1 + offset;
-}
-
-static inline u32
-mt7915_l1_rr(struct mt7915_dev *dev, u32 addr)
-{
-	return mt76_rr(dev, mt7915_reg_map_l1(dev, addr));
-}
-
-static inline void
-mt7915_l1_wr(struct mt7915_dev *dev, u32 addr, u32 val)
-{
-	mt76_wr(dev, mt7915_reg_map_l1(dev, addr), val);
-}
-
-static inline u32
-mt7915_l1_rmw(struct mt7915_dev *dev, u32 addr, u32 mask, u32 val)
-{
-	val |= mt7915_l1_rr(dev, addr) & ~mask;
-	mt7915_l1_wr(dev, addr, val);
-
-	return val;
-}
-
-#define mt7915_l1_set(dev, addr, val)	mt7915_l1_rmw(dev, addr, 0, val)
-#define mt7915_l1_clear(dev, addr, val)	mt7915_l1_rmw(dev, addr, val, 0)
-
-static inline u32
-mt7915_reg_map_l2(struct mt7915_dev *dev, u32 addr)
-{
-	u32 offset = FIELD_GET(MT_HIF_REMAP_L2_OFFSET, addr);
-	u32 base = FIELD_GET(MT_HIF_REMAP_L2_BASE, addr);
-
-	mt76_rmw_field(dev, MT_HIF_REMAP_L2, MT_HIF_REMAP_L2_MASK, base);
-	/* use read to push write */
-	mt76_rr(dev, MT_HIF_REMAP_L2);
-
-	return MT_HIF_REMAP_BASE_L2 + offset;
-}
-
-static inline u32
-mt7915_l2_rr(struct mt7915_dev *dev, u32 addr)
-{
-	return mt76_rr(dev, mt7915_reg_map_l2(dev, addr));
-}
-
-static inline void
-mt7915_l2_wr(struct mt7915_dev *dev, u32 addr, u32 val)
-{
-	mt76_wr(dev, mt7915_reg_map_l2(dev, addr), val);
-}
-
-static inline u32
-mt7915_l2_rmw(struct mt7915_dev *dev, u32 addr, u32 mask, u32 val)
-{
-	val |= mt7915_l2_rr(dev, addr) & ~mask;
-	mt7915_l2_wr(dev, addr, val);
-
-	return val;
-}
-
-#define mt7915_l2_set(dev, addr, val)	mt7915_l2_rmw(dev, addr, 0, val)
-#define mt7915_l2_clear(dev, addr, val)	mt7915_l2_rmw(dev, addr, val, 0)
-
 bool mt7915_mac_wtbl_update(struct mt7915_dev *dev, int idx, u32 mask);
 void mt7915_mac_reset_counters(struct mt7915_phy *phy);
 void mt7915_mac_cca_stats_reset(struct mt7915_phy *phy);
@@ -486,6 +412,7 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 void mt7915_mac_work(struct work_struct *work);
 void mt7915_mac_reset_work(struct work_struct *work);
 void mt7915_mac_sta_rc_work(struct work_struct *work);
+int mt7915_mmio_init(struct mt76_dev *mdev, void __iomem *mem_base, int irq);
 int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,

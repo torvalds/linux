@@ -165,6 +165,11 @@ const struct rtw_table name ## _tbl = {			\
 #define REG_ANAPARLDO_POW_MAC	0x0029
 #define BIT_LDOE25_PON		BIT(0)
 
+#define XCAP_MASK		GENMASK(6, 0)
+#define CFO_TRK_ENABLE_TH	20
+#define CFO_TRK_STOP_TH		10
+#define CFO_TRK_ADJ_TH		10
+
 #define REG_TXDFIR0	0x808
 #define REG_DFIRBW	0x810
 #define REG_ANTMAP0	0x820

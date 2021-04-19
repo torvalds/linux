@@ -201,7 +201,7 @@ static void mt7915_pci_init_hif2(struct mt7915_dev *dev)
 	}
 
 	/* master switch of PCIe tnterrupt enable */
-	mt7915_l1_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
+	mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
 }
 
 static int mt7915_pci_hif2_probe(struct pci_dev *pdev)
@@ -274,15 +274,12 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto error;
 
-	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
-	mdev->rev = (mt7915_l1_rr(dev, MT_HW_CHIPID) << 16) |
-		    (mt7915_l1_rr(dev, MT_HW_REV) & 0xff);
-	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
-
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+	ret = mt7915_mmio_init(mdev, pcim_iomap_table(pdev)[0], pdev->irq);
+	if (ret)
+		goto error;
 
 	/* master switch of PCIe tnterrupt enable */
-	mt7915_l1_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
 	ret = devm_request_irq(mdev->dev, pdev->irq, mt7915_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);

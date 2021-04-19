@@ -119,6 +119,14 @@ static void rtw_phy_cck_pd_init(struct rtw_dev *rtwdev)
 	dm_info->cck_fa_avg = CCK_FA_AVG_RESET;
 }
 
+static void rtw_phy_cfo_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->cfo_init)
+		chip->ops->cfo_init(rtwdev);
+}
+
 void rtw_phy_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -140,6 +148,7 @@ void rtw_phy_init(struct rtw_dev *rtwdev)
 	rtw_phy_cck_pd_init(rtwdev);
 
 	dm_info->iqk.done = false;
+	rtw_phy_cfo_init(rtwdev);
 }
 EXPORT_SYMBOL(rtw_phy_init);
 
@@ -528,6 +537,62 @@ static void rtw_phy_dpk_track(struct rtw_dev *rtwdev)
 		chip->ops->dpk_track(rtwdev);
 }
 
+struct rtw_rx_addr_match_data {
+	struct rtw_dev *rtwdev;
+	struct ieee80211_hdr *hdr;
+	struct rtw_rx_pkt_stat *pkt_stat;
+	u8 *bssid;
+};
+
+static void rtw_phy_parsing_cfo_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	struct rtw_rx_addr_match_data *iter_data = data;
+	struct rtw_dev *rtwdev = iter_data->rtwdev;
+	struct rtw_rx_pkt_stat *pkt_stat = iter_data->pkt_stat;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+	u8 *bssid = iter_data->bssid;
+	u8 i;
+
+	if (!ether_addr_equal(vif->bss_conf.bssid, bssid))
+		return;
+
+	for (i = 0; i < rtwdev->hal.rf_path_num; i++) {
+		cfo->cfo_tail[i] += pkt_stat->cfo_tail[i];
+		cfo->cfo_cnt[i]++;
+	}
+
+	cfo->packet_count++;
+}
+
+void rtw_phy_parsing_cfo(struct rtw_dev *rtwdev,
+			 struct rtw_rx_pkt_stat *pkt_stat)
+{
+	struct ieee80211_hdr *hdr = pkt_stat->hdr;
+	struct rtw_rx_addr_match_data data = {};
+
+	if (pkt_stat->crc_err || pkt_stat->icv_err || !pkt_stat->phy_status ||
+	    ieee80211_is_ctl(hdr->frame_control))
+		return;
+
+	data.rtwdev = rtwdev;
+	data.hdr = hdr;
+	data.pkt_stat = pkt_stat;
+	data.bssid = get_hdr_bssid(hdr);
+
+	rtw_iterate_vifs_atomic(rtwdev, rtw_phy_parsing_cfo_iter, &data);
+}
+EXPORT_SYMBOL(rtw_phy_parsing_cfo);
+
+static void rtw_phy_cfo_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->cfo_track)
+		chip->ops->cfo_track(rtwdev);
+}
+
 #define CCK_PD_FA_LV1_MIN	1000
 #define CCK_PD_FA_LV0_MAX	500
 
@@ -618,6 +683,7 @@ static void rtw_phy_pwr_track(struct rtw_dev *rtwdev)
 
 static void rtw_phy_ra_track(struct rtw_dev *rtwdev)
 {
+	rtw_fw_update_wl_phy_info(rtwdev);
 	rtw_phy_ra_info_update(rtwdev);
 	rtw_phy_rrsr_update(rtwdev);
 }
@@ -629,6 +695,7 @@ void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev)
 	rtw_phy_dig(rtwdev);
 	rtw_phy_cck_pd(rtwdev);
 	rtw_phy_ra_track(rtwdev);
+	rtw_phy_cfo_track(rtwdev);
 	rtw_phy_dpk_track(rtwdev);
 	rtw_phy_pwr_track(rtwdev);
 }
@@ -1585,7 +1652,7 @@ void rtw_phy_load_tables(struct rtw_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw_phy_load_tables);
 
-static u8 rtw_get_channel_group(u8 channel)
+static u8 rtw_get_channel_group(u8 channel, u8 rate)
 {
 	switch (channel) {
 	default:
@@ -1629,6 +1696,7 @@ static u8 rtw_get_channel_group(u8 channel)
 	case 106:
 		return 4;
 	case 14:
+		return rate <= DESC_RATE11M ? 5 : 4;
 	case 108:
 	case 110:
 	case 112:
@@ -1880,7 +1948,7 @@ void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
 	s8 *remnant = &pwr_param->pwr_remnant;
 
 	pwr_idx = &rtwdev->efuse.txpwr_idx_table[path];
-	group = rtw_get_channel_group(ch);
+	group = rtw_get_channel_group(ch, rate);
 
 	/* base power index for 2.4G/5G */
 	if (IS_CH_2G_BAND(ch)) {

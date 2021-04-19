@@ -210,7 +210,7 @@ struct wtbl_hdr_trans {
 	__le16 len;
 	u8 to_ds;
 	u8 from_ds;
-	u8 disable_rx_trans;
+	u8 no_rx_trans;
 	u8 rsv;
 } __packed;
 
@@ -304,9 +304,6 @@ struct wtbl_raw {
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
-#define MT76_CONNAC_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
-					 sizeof(struct wtbl_ba))
-
 enum {
 	STA_REC_BASIC,
 	STA_REC_RA,
@@ -364,6 +361,9 @@ enum {
 #define NETWORK_P2P			BIT(17)
 #define NETWORK_IBSS			BIT(18)
 #define NETWORK_WDS			BIT(21)
+
+#define SCAN_FUNC_RANDOM_MAC		BIT(0)
+#define SCAN_FUNC_SPLIT_SCAN		BIT(5)
 
 #define CONNECTION_INFRA_STA		(STA_TYPE_STA | NETWORK_INFRA)
 #define CONNECTION_INFRA_AP		(STA_TYPE_AP | NETWORK_INFRA)
@@ -759,11 +759,19 @@ struct mt76_connac_sched_scan_req {
 	u8 channel_type;
 	u8 channels_num;
 	u8 intervals_num;
-	u8 scan_func; /* BIT(0) eable random mac address */
+	u8 scan_func; /* MT7663: BIT(0) eable random mac address */
 	struct mt76_connac_mcu_scan_channel channels[64];
 	__le16 intervals[MT76_CONNAC_MAX_SCHED_SCAN_INTERVAL];
-	u8 random_mac[ETH_ALEN]; /* valid when BIT(0) in scan_func is set */
-	u8 pad2[58];
+	union {
+		struct {
+			u8 random_mac[ETH_ALEN];
+			u8 pad2[58];
+		} mt7663;
+		struct {
+			u8 bss_idx;
+			u8 pad2[63];
+		} mt7921;
+	};
 } __packed;
 
 struct mt76_connac_sched_scan_done {
@@ -876,6 +884,17 @@ struct mt76_connac_suspend_tlv {
 	u8 pad[5];
 } __packed;
 
+struct mt76_sta_cmd_info {
+	struct ieee80211_sta *sta;
+	struct mt76_wcid *wcid;
+
+	struct ieee80211_vif *vif;
+
+	bool enable;
+	int cmd;
+	u8 rcpi;
+};
+
 #define to_wcid_lo(id)		FIELD_GET(GENMASK(7, 0), (u16)id)
 #define to_wcid_hi(id)		FIELD_GET(GENMASK(9, 8), (u16)id)
 
@@ -917,9 +936,13 @@ void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta, void *sta_wtbl,
 				      void *wtbl_tlv);
+void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
+					struct mt76_wcid *wcid,
+					void *sta_wtbl, void *wtbl_tlv);
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,
-			     struct ieee80211_vif *vif);
+			     struct ieee80211_vif *vif,
+			     u8 rcpi);
 void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				 struct ieee80211_sta *sta, void *sta_wtbl,
 				 void *wtbl_tlv);
@@ -942,10 +965,7 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 				struct mt76_wcid *wcid,
 				bool enable);
 int mt76_connac_mcu_add_sta_cmd(struct mt76_phy *phy,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				struct mt76_wcid *wcid,
-				bool enable, int cmd);
+				struct mt76_sta_cmd_info *info);
 void mt76_connac_mcu_beacon_loss_iter(void *priv, u8 *mac,
 				      struct ieee80211_vif *vif);
 int mt76_connac_mcu_set_rts_thresh(struct mt76_dev *dev, u32 val, u8 band);

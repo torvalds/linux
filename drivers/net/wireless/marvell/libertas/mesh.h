@@ -60,13 +60,13 @@ void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 
 #else
 
-#define lbs_init_mesh(priv)
-#define lbs_deinit_mesh(priv)
-#define lbs_start_mesh(priv)
-#define lbs_add_mesh(priv)
-#define lbs_remove_mesh(priv)
+#define lbs_init_mesh(priv)	do { } while (0)
+#define lbs_deinit_mesh(priv)	do { } while (0)
+#define lbs_start_mesh(priv)	do { } while (0)
+#define lbs_add_mesh(priv)	do { } while (0)
+#define lbs_remove_mesh(priv)	do { } while (0)
 #define lbs_mesh_set_dev(priv, dev, rxpd) (dev)
-#define lbs_mesh_set_txpd(priv, dev, txpd)
+#define lbs_mesh_set_txpd(priv, dev, txpd) do { } while (0)
 #define lbs_mesh_set_channel(priv, channel) (0)
 #define lbs_mesh_activated(priv) (false)
 

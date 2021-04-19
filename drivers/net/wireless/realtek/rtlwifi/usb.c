@@ -1070,7 +1070,6 @@ int rtl_usb_probe(struct usb_interface *intf,
 	err = ieee80211_register_hw(hw);
 	if (err) {
 		pr_err("Can't register mac80211 hw.\n");
-		err = -ENODEV;
 		goto error_out;
 	}
 	rtlpriv->mac80211.mac80211_registered = 1;

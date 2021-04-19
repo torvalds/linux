@@ -43,6 +43,9 @@
 /* adaptive dwell number of APs override for social channels */
 #define IWL_SCAN_ADWELL_N_APS_SOCIAL_CHS 2
 
+/* minimal number of 2GHz and 5GHz channels in the regular scan request */
+#define IWL_MVM_6GHZ_PASSIVE_SCAN_MIN_CHANS 4
+
 struct iwl_mvm_scan_timing_params {
 	u32 suspend_time;
 	u32 max_out_time;
@@ -94,6 +97,7 @@ struct iwl_mvm_scan_params {
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
 	u32 n_6ghz_params;
 	bool scan_6ghz;
+	bool enable_6ghz_passive;
 };
 
 static inline void *iwl_mvm_get_scan_req_umac_data(struct iwl_mvm *mvm)
@@ -1873,6 +1877,98 @@ static u8 iwl_mvm_scan_umac_chan_flags_v2(struct iwl_mvm *mvm,
 	return flags;
 }
 
+static void iwl_mvm_scan_6ghz_passive_scan(struct iwl_mvm *mvm,
+					   struct iwl_mvm_scan_params *params,
+					   struct ieee80211_vif *vif)
+{
+	struct ieee80211_supported_band *sband =
+		&mvm->nvm_data->bands[NL80211_BAND_6GHZ];
+	u32 n_disabled, i;
+
+	params->enable_6ghz_passive = false;
+
+	if (params->scan_6ghz)
+		return;
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN)) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: Not supported by FW\n");
+		return;
+	}
+
+	/* 6GHz passive scan allowed only on station interface  */
+	if (vif->type != NL80211_IFTYPE_STATION) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: not station interface\n");
+		return;
+	}
+
+	/*
+	 * 6GHz passive scan is allowed while associated in a defined time
+	 * interval following HW reset or resume flow
+	 */
+	if (vif->bss_conf.assoc &&
+	    (time_before(mvm->last_reset_or_resume_time_jiffies +
+			 (IWL_MVM_6GHZ_PASSIVE_SCAN_ASSOC_TIMEOUT * HZ),
+			 jiffies))) {
+		IWL_DEBUG_SCAN(mvm, "6GHz passive scan: associated\n");
+		return;
+	}
+
+	/* No need for 6GHz passive scan if not enough time elapsed */
+	if (time_after(mvm->last_6ghz_passive_scan_jiffies +
+		       (IWL_MVM_6GHZ_PASSIVE_SCAN_TIMEOUT * HZ), jiffies)) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: timeout did not expire\n");
+		return;
+	}
+
+	/* not enough channels in the regular scan request */
+	if (params->n_channels < IWL_MVM_6GHZ_PASSIVE_SCAN_MIN_CHANS) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: not enough channels\n");
+		return;
+	}
+
+	for (i = 0; i < params->n_ssids; i++) {
+		if (!params->ssids[i].ssid_len)
+			break;
+	}
+
+	/* not a wildcard scan, so cannot enable passive 6GHz scan */
+	if (i == params->n_ssids) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: no wildcard SSID\n");
+		return;
+	}
+
+	if (!sband || !sband->n_channels) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: no 6GHz channels\n");
+		return;
+	}
+
+	for (i = 0, n_disabled = 0; i < sband->n_channels; i++) {
+		if (sband->channels[i].flags & (IEEE80211_CHAN_DISABLED))
+			n_disabled++;
+	}
+
+	/*
+	 * Not all the 6GHz channels are disabled, so no need for 6GHz passive
+	 * scan
+	 */
+	if (n_disabled != sband->n_channels) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz passive scan: 6GHz channels enabled\n");
+		return;
+	}
+
+	/* all conditions to enable 6ghz passive scan are satisfied */
+	IWL_DEBUG_SCAN(mvm, "6GHz passive scan: can be enabled\n");
+	params->enable_6ghz_passive = true;
+}
+
 static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 				      struct iwl_mvm_scan_params *params,
 				      struct ieee80211_vif *vif,
@@ -1910,6 +2006,9 @@ static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 	if ((type == IWL_MVM_SCAN_SCHED || type == IWL_MVM_SCAN_NETDETECT) &&
 	    params->flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_TRIGGER_UHB_SCAN;
+
+	if (params->enable_6ghz_passive)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_6GHZ_PASSIVE_SCAN;
 
 	return flags;
 }
@@ -2183,6 +2282,30 @@ iwl_mvm_scan_umac_fill_ch_p_v6(struct iwl_mvm *mvm,
 					  params->n_channels,
 					  channel_cfg_flags,
 					  vif->type);
+
+	if (params->enable_6ghz_passive) {
+		struct ieee80211_supported_band *sband =
+			&mvm->nvm_data->bands[NL80211_BAND_6GHZ];
+		u32 i;
+
+		for (i = 0; i < sband->n_channels; i++) {
+			struct ieee80211_channel *channel =
+				&sband->channels[i];
+
+			struct iwl_scan_channel_cfg_umac *cfg =
+				&cp->channel_config[cp->count];
+
+			if (!cfg80211_channel_is_psc(channel))
+				continue;
+
+			cfg->flags = 0;
+			cfg->v2.channel_num = channel->hw_value;
+			cfg->v2.band = PHY_BAND_6;
+			cfg->v2.iter_count = 1;
+			cfg->v2.iter_interval = 0;
+			cp->count++;
+		}
+	}
 }
 
 static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -2500,6 +2623,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
+	iwl_mvm_scan_6ghz_passive_scan(mvm, &params, vif);
+
 	uid = iwl_mvm_build_scan_cmd(mvm, vif, &hcmd, &params,
 				     IWL_MVM_SCAN_REGULAR);
 
@@ -2523,6 +2648,9 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
 	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
 	mvm->scan_vif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (params.enable_6ghz_passive)
+		mvm->last_6ghz_passive_scan_jiffies = jiffies;
 
 	schedule_delayed_work(&mvm->scan_timeout_dwork,
 			      msecs_to_jiffies(SCAN_TIMEOUT));

@@ -394,7 +394,7 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	if (unlikely(!sta))
 		goto out_rcu;
 
-	tid = get_tid_h(hdr);
+	tid = ieee80211_get_tid(hdr);
 
 	sta_info = (void *) sta->drv_priv;
 	tid_info = rcu_dereference(sta_info->agg[tid]);
