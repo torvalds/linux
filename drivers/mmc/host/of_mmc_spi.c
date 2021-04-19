@@ -54,6 +54,7 @@ static void of_mmc_spi_exit(struct device *dev, void *mmc)
 
 struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 {
+	struct mmc_host *mmc = dev_get_drvdata(&spi->dev);
 	struct device *dev = &spi->dev;
 	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms;
@@ -65,7 +66,7 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	if (!oms)
 		return NULL;
 
-	if (mmc_of_parse_voltage(np, &oms->pdata.ocr_mask) <= 0)
+	if (mmc_of_parse_voltage(mmc, &oms->pdata.ocr_mask) <= 0)
 		goto err_ocr;
 
 	oms->detect_irq = irq_of_parse_and_map(np, 0);
