@@ -429,6 +429,10 @@ config GRO_CELLS
 config SOCK_VALIDATE_XMIT
 	bool
 
+config NET_SELFTESTS
+	def_tristate PHYLIB
+	depends on PHYLIB
+
 config NET_SOCK_MSG
 	bool
 	default n
