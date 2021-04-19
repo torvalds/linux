@@ -232,7 +232,6 @@ struct rpcrdma_sendctx {
 struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
-	struct rpc_rdma_cid		fr_cid;
 	struct completion		fr_linv_done;
 	union {
 		struct ib_reg_wr	fr_regwr;
@@ -254,6 +253,7 @@ struct rpcrdma_mr {
 	u32			mr_length;
 	u64			mr_offset;
 	struct list_head	mr_all;
+	struct rpc_rdma_cid	mr_cid;
 };
 
 /*
