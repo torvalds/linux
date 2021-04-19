@@ -390,11 +390,13 @@ static void frwr_cid_init(struct rpcrdma_ep *ep,
  */
 int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
+	struct ib_send_wr *post_wr, *send_wr = &req->rl_wr;
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
-	struct ib_send_wr *post_wr;
 	struct rpcrdma_mr *mr;
+	unsigned int num_wrs;
 
-	post_wr = &req->rl_wr;
+	num_wrs = 1;
+	post_wr = send_wr;
 	list_for_each_entry(mr, &req->rl_registered, mr_list) {
 		struct rpcrdma_frwr *frwr;
 
@@ -409,8 +411,19 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		frwr->fr_regwr.wr.send_flags = 0;
 
 		post_wr = &frwr->fr_regwr.wr;
+		++num_wrs;
 	}
 
+	if ((kref_read(&req->rl_kref) > 1) || num_wrs > ep->re_send_count) {
+		send_wr->send_flags |= IB_SEND_SIGNALED;
+		ep->re_send_count = min_t(unsigned int, ep->re_send_batch,
+					  num_wrs - ep->re_send_count);
+	} else {
+		send_wr->send_flags &= ~IB_SEND_SIGNALED;
+		ep->re_send_count -= num_wrs;
+	}
+
+	trace_xprtrdma_post_send(req);
 	return ib_post_send(ep->re_id->qp, post_wr, NULL);
 }
 
