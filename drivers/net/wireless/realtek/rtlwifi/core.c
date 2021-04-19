@@ -1018,6 +1018,25 @@ static void send_beacon_frame(struct ieee80211_hw *hw,
 	}
 }
 
+void rtl_update_beacon_work_callback(struct work_struct *work)
+{
+	struct rtl_works *rtlworks =
+	    container_of(work, struct rtl_works, update_beacon_work);
+	struct ieee80211_hw *hw = rtlworks->hw;
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_vif *vif = rtlpriv->mac80211.vif;
+
+	if (!vif) {
+		WARN_ONCE(true, "no vif to update beacon\n");
+		return;
+	}
+
+	mutex_lock(&rtlpriv->locks.conf_mutex);
+	send_beacon_frame(hw, vif);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
+}
+EXPORT_SYMBOL_GPL(rtl_update_beacon_work_callback);
+
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss_conf,
@@ -1747,6 +1766,18 @@ static void rtl_op_flush(struct ieee80211_hw *hw,
 		rtlpriv->intf_ops->flush(hw, queues, drop);
 }
 
+static int rtl_op_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+			  bool set)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192CU)
+		schedule_work(&rtlpriv->works.update_beacon_work);
+
+	return 0;
+}
+
 /*	Description:
  *		This routine deals with the Power Configuration CMD
  *		 parsing for RTL8723/RTL8188E Series IC.
@@ -1903,6 +1934,7 @@ const struct ieee80211_ops rtl_ops = {
 	.sta_add = rtl_op_sta_add,
 	.sta_remove = rtl_op_sta_remove,
 	.flush = rtl_op_flush,
+	.set_tim = rtl_op_set_tim,
 };
 EXPORT_SYMBOL_GPL(rtl_ops);
 

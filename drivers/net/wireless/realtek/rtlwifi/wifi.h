@@ -2486,6 +2486,7 @@ struct rtl_works {
 
 	struct work_struct lps_change_work;
 	struct work_struct fill_h2c_cmd;
+	struct work_struct update_beacon_work;
 };
 
 struct rtl_debug {
