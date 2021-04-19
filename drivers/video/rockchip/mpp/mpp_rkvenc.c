@@ -746,7 +746,7 @@ static int rkvenc_dump_session(struct mpp_session *session, struct seq_file *seq
 	}
 	seq_puts(seq, "\n");
 	/* item data*/
-	seq_printf(seq, "|%p|", session);
+	seq_printf(seq, "|%8p|", session);
 	seq_printf(seq, "%8s|", mpp_device_name[session->device_type]);
 	for (i = ENC_INFO_BASE; i < ENC_INFO_BUTT; i++) {
 		u32 flag = priv->codec_info[i].flag;
