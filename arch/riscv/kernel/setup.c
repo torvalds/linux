@@ -66,6 +66,9 @@ static struct resource code_res = { .name = "Kernel code", };
 static struct resource data_res = { .name = "Kernel data", };
 static struct resource rodata_res = { .name = "Kernel rodata", };
 static struct resource bss_res = { .name = "Kernel bss", };
+#ifdef CONFIG_CRASH_DUMP
+static struct resource elfcorehdr_res = { .name = "ELF Core hdr", };
+#endif
 
 static int __init add_resource(struct resource *parent,
 				struct resource *res)
@@ -166,6 +169,15 @@ static void __init init_resources(void)
 		ret = add_resource(&iomem_resource, &crashk_res);
 		if (ret < 0)
 			goto error;
+	}
+#endif
+
+#ifdef CONFIG_CRASH_DUMP
+	if (elfcorehdr_size > 0) {
+		elfcorehdr_res.start = elfcorehdr_addr;
+		elfcorehdr_res.end = elfcorehdr_addr + elfcorehdr_size - 1;
+		elfcorehdr_res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+		add_resource(&iomem_resource, &elfcorehdr_res);
 	}
 #endif
 
