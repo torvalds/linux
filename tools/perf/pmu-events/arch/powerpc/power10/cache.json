@@ -1,0 +1,47 @@
+[
+  {
+    "EventCode": "1003C",
+    "EventName": "PM_EXEC_STALL_DMISS_L2L3",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from either the local L2 or local L3."
+  },
+  {
+    "EventCode": "34056",
+    "EventName": "PM_EXEC_STALL_LOAD_FINISH",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was finishing a load after its data was reloaded from a data source beyond the local L1; cycles in which the LSU was processing an L1-hit; cycles in which the NTF instruction merged with another load in the LMQ."
+  },
+  {
+    "EventCode": "3006C",
+    "EventName": "PM_RUN_CYC_SMT2_MODE",
+    "BriefDescription": "Cycles when this thread's run latch is set and the core is in SMT2 mode."
+  },
+  {
+    "EventCode": "300F4",
+    "EventName": "PM_RUN_INST_CMPL_CONC",
+    "BriefDescription": "PowerPC instructions completed by this thread when all threads in the core had the run-latch set."
+  },
+  {
+    "EventCode": "4C016",
+    "EventName": "PM_EXEC_STALL_DMISS_L2L3_CONFLICT",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from the local L2 or local L3, with a dispatch conflict."
+  },
+  {
+    "EventCode": "4D014",
+    "EventName": "PM_EXEC_STALL_LOAD",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a load instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "4D016",
+    "EventName": "PM_EXEC_STALL_PTESYNC",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a PTESYNC instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "401EA",
+    "EventName": "PM_THRESH_EXC_128",
+    "BriefDescription": "Threshold counter exceeded a value of 128."
+  },
+  {
+    "EventCode": "400F6",
+    "EventName": "PM_BR_MPRED_CMPL",
+    "BriefDescription": "A mispredicted branch completed. Includes direction and target."
+  }
+]
