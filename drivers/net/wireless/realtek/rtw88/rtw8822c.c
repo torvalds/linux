@@ -1095,13 +1095,13 @@ static void rtw8822c_pa_bias(struct rtw_dev *rtwdev)
 		if (pg_pa_bias == EFUSE_READ_FAIL)
 			return;
 		pg_pa_bias = FIELD_GET(PPG_PABIAS_MASK, pg_pa_bias);
-		rtw_write_rf(rtwdev, path, 0x60, RF_PABIAS_2G_MASK, pg_pa_bias);
+		rtw_write_rf(rtwdev, path, RF_PA, RF_PABIAS_2G_MASK, pg_pa_bias);
 	}
 	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
 		rtw_read8_physical_efuse(rtwdev, rf_efuse_5g[path],
 					 &pg_pa_bias);
 		pg_pa_bias = FIELD_GET(PPG_PABIAS_MASK, pg_pa_bias);
-		rtw_write_rf(rtwdev, path, 0x60, RF_PABIAS_5G_MASK, pg_pa_bias);
+		rtw_write_rf(rtwdev, path, RF_PA, RF_PABIAS_5G_MASK, pg_pa_bias);
 	}
 }
 
@@ -2546,9 +2546,9 @@ static void rtw8822c_dpk_pre_setting(struct rtw_dev *rtwdev)
 		rtw_write_rf(rtwdev, path, RF_RXAGC_OFFSET, RFREG_MASK, 0x0);
 		rtw_write32(rtwdev, REG_NCTL0, 0x8 | (path << 1));
 		if (rtwdev->dm_info.dpk_info.dpk_band == RTW_BAND_2G)
-			rtw_write32(rtwdev, REG_DPD_LUT3, 0x1f100000);
+			rtw_write32(rtwdev, REG_DPD_CTL1_S1, 0x1f100000);
 		else
-			rtw_write32(rtwdev, REG_DPD_LUT3, 0x1f0d0000);
+			rtw_write32(rtwdev, REG_DPD_CTL1_S1, 0x1f0d0000);
 		rtw_write32_mask(rtwdev, REG_DPD_LUT0, BIT_GLOSS_DB, 0x4);
 		rtw_write32_mask(rtwdev, REG_IQK_CTL1, BIT_TX_CFIR, 0x3);
 	}
@@ -2566,11 +2566,11 @@ static u32 rtw8822c_dpk_rf_setting(struct rtw_dev *rtwdev, u8 path)
 
 	rtw_write_rf(rtwdev, path, RF_DEBUG, BIT_DE_TX_GAIN, 0x1);
 	rtw_write_rf(rtwdev, path, RF_DEBUG, BIT_DE_PWR_TRIM, 0x1);
-	rtw_write_rf(rtwdev, path, RF_TX_GAIN_OFFSET, BIT_TX_OFFSET_VAL, 0x0);
+	rtw_write_rf(rtwdev, path, RF_TX_GAIN_OFFSET, BIT_BB_GAIN, 0x0);
 	rtw_write_rf(rtwdev, path, RF_TX_GAIN, RFREG_MASK, ori_txbb);
 
 	if (rtwdev->dm_info.dpk_info.dpk_band == RTW_BAND_2G) {
-		rtw_write_rf(rtwdev, path, RF_TX_GAIN_OFFSET, BIT_LB_ATT, 0x1);
+		rtw_write_rf(rtwdev, path, RF_TX_GAIN_OFFSET, BIT_RF_GAIN, 0x1);
 		rtw_write_rf(rtwdev, path, RF_RXG_GAIN, BIT_RXG_GAIN, 0x0);
 	} else {
 		rtw_write_rf(rtwdev, path, RF_TXA_LB_SW, BIT_TXA_LB_ATT, 0x0);
@@ -3317,9 +3317,9 @@ static void rtw8822c_dpk_reload_data(struct rtw_dev *rtwdev)
 		rtw_write32_mask(rtwdev, REG_NCTL0, BIT_SUBPAGE,
 				 0x8 | (path << 1));
 		if (dpk_info->dpk_band == RTW_BAND_2G)
-			rtw_write32(rtwdev, REG_DPD_LUT3, 0x1f100000);
+			rtw_write32(rtwdev, REG_DPD_CTL1_S1, 0x1f100000);
 		else
-			rtw_write32(rtwdev, REG_DPD_LUT3, 0x1f0d0000);
+			rtw_write32(rtwdev, REG_DPD_CTL1_S1, 0x1f0d0000);
 
 		rtw_write8(rtwdev, REG_DPD_AGC, dpk_info->dpk_txagc[path]);
 
