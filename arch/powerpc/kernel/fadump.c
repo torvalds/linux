@@ -31,6 +31,7 @@
 #include <asm/fadump.h>
 #include <asm/fadump-internal.h>
 #include <asm/setup.h>
+#include <asm/interrupt.h>
 
 /*
  * The CPU who acquired the lock to trigger the fadump crash should
