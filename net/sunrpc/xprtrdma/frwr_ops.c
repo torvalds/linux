@@ -592,14 +592,16 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_frwr *frwr =
 		container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
-	struct rpcrdma_rep *rep = mr->mr_req->rl_reply;
+	struct rpcrdma_rep *rep;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li_done(wc, &frwr->fr_cid);
-	frwr_mr_done(wc, mr);
 
-	/* Ensure @rep is generated before frwr_mr_done */
+	/* Ensure that @rep is generated before the MR is released */
+	rep = mr->mr_req->rl_reply;
 	smp_rmb();
+
+	frwr_mr_done(wc, mr);
 	rpcrdma_complete_rqst(rep);
 
 	rpcrdma_flush_disconnect(cq->cq_context, wc);
