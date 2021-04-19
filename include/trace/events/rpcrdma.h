@@ -1014,7 +1014,6 @@ DEFINE_MR_EVENT(localinv);
 DEFINE_MR_EVENT(map);
 
 DEFINE_ANON_MR_EVENT(unmap);
-DEFINE_ANON_MR_EVENT(recycle);
 
 TRACE_EVENT(xprtrdma_dma_maperr,
 	TP_PROTO(

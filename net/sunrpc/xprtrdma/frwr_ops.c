@@ -49,22 +49,6 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-/**
- * frwr_mr_release - Destroy one MR
- * @mr: MR allocated by frwr_mr_init
- *
- */
-void frwr_mr_release(struct rpcrdma_mr *mr)
-{
-	int rc;
-
-	rc = ib_dereg_mr(mr->frwr.fr_mr);
-	if (rc)
-		trace_xprtrdma_frwr_dereg(mr, rc);
-	kfree(mr->mr_sg);
-	kfree(mr);
-}
-
 static void frwr_mr_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 {
 	if (mr->mr_device) {
@@ -75,20 +59,22 @@ static void frwr_mr_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	}
 }
 
-static void frwr_mr_recycle(struct rpcrdma_mr *mr)
+/**
+ * frwr_mr_release - Destroy one MR
+ * @mr: MR allocated by frwr_mr_init
+ *
+ */
+void frwr_mr_release(struct rpcrdma_mr *mr)
 {
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
+	int rc;
 
-	trace_xprtrdma_mr_recycle(mr);
+	frwr_mr_unmap(mr->mr_xprt, mr);
 
-	frwr_mr_unmap(r_xprt, mr);
-
-	spin_lock(&r_xprt->rx_buf.rb_lock);
-	list_del(&mr->mr_all);
-	r_xprt->rx_stats.mrs_recycled++;
-	spin_unlock(&r_xprt->rx_buf.rb_lock);
-
-	frwr_mr_release(mr);
+	rc = ib_dereg_mr(mr->frwr.fr_mr);
+	if (rc)
+		trace_xprtrdma_frwr_dereg(mr, rc);
+	kfree(mr->mr_sg);
+	kfree(mr);
 }
 
 static void frwr_mr_put(struct rpcrdma_mr *mr)
@@ -365,6 +351,7 @@ out_mapmr_err:
  * @cq: completion queue
  * @wc: WCE for a completed FastReg WR
  *
+ * Each flushed MR gets destroyed after the QP has drained.
  */
 static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -374,7 +361,6 @@ static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_fastreg(wc, &frwr->fr_cid);
-	/* The MR will get recycled when the associated req is retransmitted */
 
 	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
@@ -448,9 +434,7 @@ void frwr_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 
 static void frwr_mr_done(struct ib_wc *wc, struct rpcrdma_mr *mr)
 {
-	if (wc->status != IB_WC_SUCCESS)
-		frwr_mr_recycle(mr);
-	else
+	if (likely(wc->status == IB_WC_SUCCESS))
 		frwr_mr_put(mr);
 }
 
@@ -567,17 +551,8 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	if (!rc)
 		return;
 
-	/* Recycle MRs in the LOCAL_INV chain that did not get posted.
-	 */
+	/* On error, the MRs get destroyed once the QP has drained. */
 	trace_xprtrdma_post_linv_err(req, rc);
-	while (bad_wr) {
-		frwr = container_of(bad_wr, struct rpcrdma_frwr,
-				    fr_invwr);
-		mr = container_of(frwr, struct rpcrdma_mr, frwr);
-		bad_wr = bad_wr->next;
-
-		frwr_mr_recycle(mr);
-	}
 }
 
 /**
@@ -621,7 +596,6 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *first, *last, **prev;
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
-	const struct ib_send_wr *bad_wr;
 	struct rpcrdma_frwr *frwr;
 	struct rpcrdma_mr *mr;
 	int rc;
@@ -663,21 +637,12 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * replaces the QP. The RPC reply handler won't call us
 	 * unless re_id->qp is a valid pointer.
 	 */
-	bad_wr = NULL;
-	rc = ib_post_send(ep->re_id->qp, first, &bad_wr);
+	rc = ib_post_send(ep->re_id->qp, first, NULL);
 	if (!rc)
 		return;
 
-	/* Recycle MRs in the LOCAL_INV chain that did not get posted.
-	 */
+	/* On error, the MRs get destroyed once the QP has drained. */
 	trace_xprtrdma_post_linv_err(req, rc);
-	while (bad_wr) {
-		frwr = container_of(bad_wr, struct rpcrdma_frwr, fr_invwr);
-		mr = container_of(frwr, struct rpcrdma_mr, frwr);
-		bad_wr = bad_wr->next;
-
-		frwr_mr_recycle(mr);
-	}
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
