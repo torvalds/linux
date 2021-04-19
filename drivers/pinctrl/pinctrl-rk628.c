@@ -71,15 +71,7 @@
 #define GPIO_INTMASK		0x34
 #define GPIO_PORTS_EOI		0x4c
 
-/* easy to map ioctrl reg, 0-159 used by rockchips pinctrl. */
-#define PINBASE 384
 #define BANK_OFFSET 32
-#define GPIO0_PINBASE PINBASE
-#define GPIO1_PINBASE (PINBASE + BANK_OFFSET)
-#define GPIO2_PINBASE (PINBASE + 2 * BANK_OFFSET)
-#define GPIO3_PINBASE (PINBASE + 3 * BANK_OFFSET)
-/*for logic input select inside the chip*/
-#define LOGIC_PINBASE (PINBASE + 4 * BANK_OFFSET)
 
 #define IRQ_CHIP(fname)						\
 	[IRQCHIP_##fname] = {					\
@@ -109,7 +101,6 @@ struct rk628_pin_bank {
 	char *name;
 	u32 reg_base;
 	u32 nr_pins;
-	u32 pin_base;
 	struct device_node *of_node;
 	struct pinctrl_gpio_range grange;
 	struct gpio_chip gpio_chip;
@@ -143,15 +134,15 @@ struct rk628_pctrl_info {
 };
 
 enum rk628_pinmux_option {
-	RK628_PINMUX_FUNC0,
-	RK628_PINMUX_FUNC1,
+	PINMUX_FUNC0,
+	PINMUX_FUNC1,
 };
 
-#define RK628_PINCTRL_GROUP(a, b, c, d) { .name = a, .pins = b, .npins = c, .iomux_base = d}
-#define RK628_PINCTRL_BANK(a, b, c, d) { .name = a, .reg_base = b, .nr_pins = c, .pin_base = d}
+#define PINCTRL_GROUP(a, b, c, d) { .name = a, .pins = b, .npins = c, .iomux_base = d}
+#define PINCTRL_BANK(a, b, c) { .name = a, .reg_base = b, .nr_pins = c}
 
 enum rk628_functions {
-	RK628_MUX_GPIO,
+	MUX_GPIO,
 };
 
 static const char *gpio_groups[] = {
@@ -177,240 +168,240 @@ static struct rk628_pin_function rk628_functions[] = {
 };
 
 enum {
-	RK628_GPIO_HIGH_Z,
-	RK628_GPIO_PULL_UP,
-	RK628_GPIO_PULL_DOWN,
+	GPIO_HIGH_Z,
+	GPIO_PULL_UP,
+	GPIO_PULL_DOWN,
 };
 
 enum {
-	RK628_GPIO0_A0 = GPIO0_PINBASE,
-	RK628_GPIO0_A1,
-	RK628_GPIO0_A2,
-	RK628_GPIO0_A3,
-	RK628_GPIO0_A4,
-	RK628_GPIO0_A5,
-	RK628_GPIO0_A6,
-	RK628_GPIO0_A7,
-	RK628_GPIO0_B0,
-	RK628_GPIO0_B1,
-	RK628_GPIO0_B2,
-	RK628_GPIO0_B3,
-	RK628_GPIO1_A0 = GPIO1_PINBASE,
-	RK628_GPIO1_A1,
-	RK628_GPIO1_A2,
-	RK628_GPIO1_A3,
-	RK628_GPIO1_A4,
-	RK628_GPIO1_A5,
-	RK628_GPIO1_A6,
-	RK628_GPIO1_A7,
-	RK628_GPIO1_B0,
-	RK628_GPIO1_B1,
-	RK628_GPIO1_B2,
-	RK628_GPIO1_B3,
-	RK628_GPIO1_B4,
-	RK628_GPIO1_B5,
-	RK628_GPIO2_A0 = GPIO2_PINBASE,
-	RK628_GPIO2_A1,
-	RK628_GPIO2_A2,
-	RK628_GPIO2_A3,
-	RK628_GPIO2_A4,
-	RK628_GPIO2_A5,
-	RK628_GPIO2_A6,
-	RK628_GPIO2_A7,
-	RK628_GPIO2_B0,
-	RK628_GPIO2_B1,
-	RK628_GPIO2_B2,
-	RK628_GPIO2_B3,
-	RK628_GPIO2_B4,
-	RK628_GPIO2_B5,
-	RK628_GPIO2_B6,
-	RK628_GPIO2_B7,
-	RK628_GPIO2_C0,
-	RK628_GPIO2_C1,
-	RK628_GPIO2_C2,
-	RK628_GPIO2_C3,
-	RK628_GPIO2_C4,
-	RK628_GPIO2_C5,
-	RK628_GPIO2_C6,
-	RK628_GPIO2_C7,
-	RK628_GPIO3_A0 = GPIO3_PINBASE,
-	RK628_GPIO3_A1,
-	RK628_GPIO3_A2,
-	RK628_GPIO3_A3,
-	RK628_GPIO3_A4,
-	RK628_GPIO3_A5,
-	RK628_GPIO3_A6,
-	RK628_GPIO3_A7,
-	RK628_GPIO3_B0,
-	RK628_GPIO3_B1,
-	RK628_GPIO3_B2,
-	RK628_GPIO3_B3,
-	RK628_GPIO3_B4,
-	RK628_I2SM_SCK = (LOGIC_PINBASE + 2),
-	RK628_I2SM_D,
-	RK628_I2SM_LR,
-	RK628_RXDDC_SCL,
-	RK628_RXDDC_SDA,
-	RK628_HDMIRX_CE,
+	GPIO0_A0 = BANK_OFFSET * 0,
+	GPIO0_A1,
+	GPIO0_A2,
+	GPIO0_A3,
+	GPIO0_A4,
+	GPIO0_A5,
+	GPIO0_A6,
+	GPIO0_A7,
+	GPIO0_B0,
+	GPIO0_B1,
+	GPIO0_B2,
+	GPIO0_B3,
+	GPIO1_A0 = BANK_OFFSET * 1,
+	GPIO1_A1,
+	GPIO1_A2,
+	GPIO1_A3,
+	GPIO1_A4,
+	GPIO1_A5,
+	GPIO1_A6,
+	GPIO1_A7,
+	GPIO1_B0,
+	GPIO1_B1,
+	GPIO1_B2,
+	GPIO1_B3,
+	GPIO1_B4,
+	GPIO1_B5,
+	GPIO2_A0 = BANK_OFFSET * 2,
+	GPIO2_A1,
+	GPIO2_A2,
+	GPIO2_A3,
+	GPIO2_A4,
+	GPIO2_A5,
+	GPIO2_A6,
+	GPIO2_A7,
+	GPIO2_B0,
+	GPIO2_B1,
+	GPIO2_B2,
+	GPIO2_B3,
+	GPIO2_B4,
+	GPIO2_B5,
+	GPIO2_B6,
+	GPIO2_B7,
+	GPIO2_C0,
+	GPIO2_C1,
+	GPIO2_C2,
+	GPIO2_C3,
+	GPIO2_C4,
+	GPIO2_C5,
+	GPIO2_C6,
+	GPIO2_C7,
+	GPIO3_A0 = BANK_OFFSET * 3,
+	GPIO3_A1,
+	GPIO3_A2,
+	GPIO3_A3,
+	GPIO3_A4,
+	GPIO3_A5,
+	GPIO3_A6,
+	GPIO3_A7,
+	GPIO3_B0,
+	GPIO3_B1,
+	GPIO3_B2,
+	GPIO3_B3,
+	GPIO3_B4,
+	I2SM_SCK = BANK_OFFSET * 4 + 2,
+	I2SM_D,
+	I2SM_LR,
+	RXDDC_SCL,
+	RXDDC_SDA,
+	HDMIRX_CE,
 };
 
 static struct pinctrl_pin_desc rk628_pins_desc[] = {
-	PINCTRL_PIN(RK628_GPIO0_A0, "gpio0a0"),
-	PINCTRL_PIN(RK628_GPIO0_A1, "gpio0a1"),
-	PINCTRL_PIN(RK628_GPIO0_A2, "gpio0a2"),
-	PINCTRL_PIN(RK628_GPIO0_A3, "gpio0a3"),
-	PINCTRL_PIN(RK628_GPIO0_A4, "gpio0a4"),
-	PINCTRL_PIN(RK628_GPIO0_A5, "gpio0a5"),
-	PINCTRL_PIN(RK628_GPIO0_A6, "gpio0a6"),
-	PINCTRL_PIN(RK628_GPIO0_A7, "gpio0a7"),
-	PINCTRL_PIN(RK628_GPIO0_B0, "gpio0b0"),
-	PINCTRL_PIN(RK628_GPIO0_B1, "gpio0b1"),
-	PINCTRL_PIN(RK628_GPIO0_B2, "gpio0b2"),
-	PINCTRL_PIN(RK628_GPIO0_B3, "gpio0b3"),
+	PINCTRL_PIN(GPIO0_A0, "gpio0a0"),
+	PINCTRL_PIN(GPIO0_A1, "gpio0a1"),
+	PINCTRL_PIN(GPIO0_A2, "gpio0a2"),
+	PINCTRL_PIN(GPIO0_A3, "gpio0a3"),
+	PINCTRL_PIN(GPIO0_A4, "gpio0a4"),
+	PINCTRL_PIN(GPIO0_A5, "gpio0a5"),
+	PINCTRL_PIN(GPIO0_A6, "gpio0a6"),
+	PINCTRL_PIN(GPIO0_A7, "gpio0a7"),
+	PINCTRL_PIN(GPIO0_B0, "gpio0b0"),
+	PINCTRL_PIN(GPIO0_B1, "gpio0b1"),
+	PINCTRL_PIN(GPIO0_B2, "gpio0b2"),
+	PINCTRL_PIN(GPIO0_B3, "gpio0b3"),
 
-	PINCTRL_PIN(RK628_GPIO1_A0, "gpio1a0"),
-	PINCTRL_PIN(RK628_GPIO1_A1, "gpio1a1"),
-	PINCTRL_PIN(RK628_GPIO1_A2, "gpio1a2"),
-	PINCTRL_PIN(RK628_GPIO1_A3, "gpio1a3"),
-	PINCTRL_PIN(RK628_GPIO1_A4, "gpio1a4"),
-	PINCTRL_PIN(RK628_GPIO1_A5, "gpio1a5"),
-	PINCTRL_PIN(RK628_GPIO1_A6, "gpio1a6"),
-	PINCTRL_PIN(RK628_GPIO1_A7, "gpio1a7"),
-	PINCTRL_PIN(RK628_GPIO1_B0, "gpio1b0"),
-	PINCTRL_PIN(RK628_GPIO1_B1, "gpio1b1"),
-	PINCTRL_PIN(RK628_GPIO1_B2, "gpio1b2"),
-	PINCTRL_PIN(RK628_GPIO1_B3, "gpio1b3"),
-	PINCTRL_PIN(RK628_GPIO1_B4, "gpio1b4"),
-	PINCTRL_PIN(RK628_GPIO1_B5, "gpio1b5"),
+	PINCTRL_PIN(GPIO1_A0, "gpio1a0"),
+	PINCTRL_PIN(GPIO1_A1, "gpio1a1"),
+	PINCTRL_PIN(GPIO1_A2, "gpio1a2"),
+	PINCTRL_PIN(GPIO1_A3, "gpio1a3"),
+	PINCTRL_PIN(GPIO1_A4, "gpio1a4"),
+	PINCTRL_PIN(GPIO1_A5, "gpio1a5"),
+	PINCTRL_PIN(GPIO1_A6, "gpio1a6"),
+	PINCTRL_PIN(GPIO1_A7, "gpio1a7"),
+	PINCTRL_PIN(GPIO1_B0, "gpio1b0"),
+	PINCTRL_PIN(GPIO1_B1, "gpio1b1"),
+	PINCTRL_PIN(GPIO1_B2, "gpio1b2"),
+	PINCTRL_PIN(GPIO1_B3, "gpio1b3"),
+	PINCTRL_PIN(GPIO1_B4, "gpio1b4"),
+	PINCTRL_PIN(GPIO1_B5, "gpio1b5"),
 
-	PINCTRL_PIN(RK628_GPIO2_A0, "gpio2a0"),
-	PINCTRL_PIN(RK628_GPIO2_A1, "gpio2a1"),
-	PINCTRL_PIN(RK628_GPIO2_A2, "gpio2a2"),
-	PINCTRL_PIN(RK628_GPIO2_A3, "gpio2a3"),
-	PINCTRL_PIN(RK628_GPIO2_A4, "gpio2a4"),
-	PINCTRL_PIN(RK628_GPIO2_A5, "gpio2a5"),
-	PINCTRL_PIN(RK628_GPIO2_A6, "gpio2a6"),
-	PINCTRL_PIN(RK628_GPIO2_A7, "gpio2a7"),
-	PINCTRL_PIN(RK628_GPIO2_B0, "gpio2b0"),
-	PINCTRL_PIN(RK628_GPIO2_B1, "gpio2b1"),
-	PINCTRL_PIN(RK628_GPIO2_B2, "gpio2b2"),
-	PINCTRL_PIN(RK628_GPIO2_B3, "gpio2b3"),
-	PINCTRL_PIN(RK628_GPIO2_B4, "gpio2b4"),
-	PINCTRL_PIN(RK628_GPIO2_B5, "gpio2b5"),
-	PINCTRL_PIN(RK628_GPIO2_B6, "gpio2b6"),
-	PINCTRL_PIN(RK628_GPIO2_B7, "gpio2b7"),
-	PINCTRL_PIN(RK628_GPIO2_C0, "gpio2c0"),
-	PINCTRL_PIN(RK628_GPIO2_C1, "gpio2c1"),
-	PINCTRL_PIN(RK628_GPIO2_C2, "gpio2c2"),
-	PINCTRL_PIN(RK628_GPIO2_C3, "gpio2c3"),
-	PINCTRL_PIN(RK628_GPIO2_C4, "gpio2c4"),
-	PINCTRL_PIN(RK628_GPIO2_C5, "gpio2c5"),
-	PINCTRL_PIN(RK628_GPIO2_C6, "gpio2c6"),
-	PINCTRL_PIN(RK628_GPIO2_C7, "gpio2c7"),
+	PINCTRL_PIN(GPIO2_A0, "gpio2a0"),
+	PINCTRL_PIN(GPIO2_A1, "gpio2a1"),
+	PINCTRL_PIN(GPIO2_A2, "gpio2a2"),
+	PINCTRL_PIN(GPIO2_A3, "gpio2a3"),
+	PINCTRL_PIN(GPIO2_A4, "gpio2a4"),
+	PINCTRL_PIN(GPIO2_A5, "gpio2a5"),
+	PINCTRL_PIN(GPIO2_A6, "gpio2a6"),
+	PINCTRL_PIN(GPIO2_A7, "gpio2a7"),
+	PINCTRL_PIN(GPIO2_B0, "gpio2b0"),
+	PINCTRL_PIN(GPIO2_B1, "gpio2b1"),
+	PINCTRL_PIN(GPIO2_B2, "gpio2b2"),
+	PINCTRL_PIN(GPIO2_B3, "gpio2b3"),
+	PINCTRL_PIN(GPIO2_B4, "gpio2b4"),
+	PINCTRL_PIN(GPIO2_B5, "gpio2b5"),
+	PINCTRL_PIN(GPIO2_B6, "gpio2b6"),
+	PINCTRL_PIN(GPIO2_B7, "gpio2b7"),
+	PINCTRL_PIN(GPIO2_C0, "gpio2c0"),
+	PINCTRL_PIN(GPIO2_C1, "gpio2c1"),
+	PINCTRL_PIN(GPIO2_C2, "gpio2c2"),
+	PINCTRL_PIN(GPIO2_C3, "gpio2c3"),
+	PINCTRL_PIN(GPIO2_C4, "gpio2c4"),
+	PINCTRL_PIN(GPIO2_C5, "gpio2c5"),
+	PINCTRL_PIN(GPIO2_C6, "gpio2c6"),
+	PINCTRL_PIN(GPIO2_C7, "gpio2c7"),
 
-	PINCTRL_PIN(RK628_GPIO3_A0, "gpio3a0"),
-	PINCTRL_PIN(RK628_GPIO3_A1, "gpio3a1"),
-	PINCTRL_PIN(RK628_GPIO3_A2, "gpio3a2"),
-	PINCTRL_PIN(RK628_GPIO3_A3, "gpio3a3"),
-	PINCTRL_PIN(RK628_GPIO3_A4, "gpio3a4"),
-	PINCTRL_PIN(RK628_GPIO3_A5, "gpio3a5"),
-	PINCTRL_PIN(RK628_GPIO3_A6, "gpio3a6"),
-	PINCTRL_PIN(RK628_GPIO3_A7, "gpio3a7"),
-	PINCTRL_PIN(RK628_GPIO3_B0, "gpio3b0"),
-	PINCTRL_PIN(RK628_GPIO3_B1, "gpio3b1"),
-	PINCTRL_PIN(RK628_GPIO3_B2, "gpio3b2"),
-	PINCTRL_PIN(RK628_GPIO3_B3, "gpio3b3"),
-	PINCTRL_PIN(RK628_GPIO3_B4, "gpio3b4"),
+	PINCTRL_PIN(GPIO3_A0, "gpio3a0"),
+	PINCTRL_PIN(GPIO3_A1, "gpio3a1"),
+	PINCTRL_PIN(GPIO3_A2, "gpio3a2"),
+	PINCTRL_PIN(GPIO3_A3, "gpio3a3"),
+	PINCTRL_PIN(GPIO3_A4, "gpio3a4"),
+	PINCTRL_PIN(GPIO3_A5, "gpio3a5"),
+	PINCTRL_PIN(GPIO3_A6, "gpio3a6"),
+	PINCTRL_PIN(GPIO3_A7, "gpio3a7"),
+	PINCTRL_PIN(GPIO3_B0, "gpio3b0"),
+	PINCTRL_PIN(GPIO3_B1, "gpio3b1"),
+	PINCTRL_PIN(GPIO3_B2, "gpio3b2"),
+	PINCTRL_PIN(GPIO3_B3, "gpio3b3"),
+	PINCTRL_PIN(GPIO3_B4, "gpio3b4"),
 
-	PINCTRL_PIN(RK628_I2SM_SCK, "i2sm_sck"),
-	PINCTRL_PIN(RK628_I2SM_D, "i2sm_d"),
-	PINCTRL_PIN(RK628_I2SM_LR, "i2sm_lr"),
-	PINCTRL_PIN(RK628_RXDDC_SCL, "rxddc_scl"),
-	PINCTRL_PIN(RK628_RXDDC_SDA, "rxddc_sda"),
-	PINCTRL_PIN(RK628_HDMIRX_CE, "hdmirx_cec"),
+	PINCTRL_PIN(I2SM_SCK, "i2sm_sck"),
+	PINCTRL_PIN(I2SM_D, "i2sm_d"),
+	PINCTRL_PIN(I2SM_LR, "i2sm_lr"),
+	PINCTRL_PIN(RXDDC_SCL, "rxddc_scl"),
+	PINCTRL_PIN(RXDDC_SDA, "rxddc_sda"),
+	PINCTRL_PIN(HDMIRX_CE, "hdmirx_cec"),
 };
 
 static const struct rk628_pin_group rk628_pin_groups[] = {
-	RK628_PINCTRL_GROUP("gpio0a0", { RK628_GPIO0_A0 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a1", { RK628_GPIO0_A1 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a2", { RK628_GPIO0_A2 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a3", { RK628_GPIO0_A3 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a4", { RK628_GPIO0_A4 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a5", { RK628_GPIO0_A5 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a6", { RK628_GPIO0_A6 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0a7", { RK628_GPIO0_A7 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0b0", { RK628_GPIO0_B0 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0b1", { RK628_GPIO0_B1 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0b2", { RK628_GPIO0_B2 }, 1, GRF_GPIO0AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio0b3", { RK628_GPIO0_B3 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a0", { GPIO0_A0 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a1", { GPIO0_A1 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a2", { GPIO0_A2 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a3", { GPIO0_A3 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a4", { GPIO0_A4 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a5", { GPIO0_A5 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a6", { GPIO0_A6 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0a7", { GPIO0_A7 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0b0", { GPIO0_B0 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0b1", { GPIO0_B1 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0b2", { GPIO0_B2 }, 1, GRF_GPIO0AB_SEL_CON),
+	PINCTRL_GROUP("gpio0b3", { GPIO0_B3 }, 1, GRF_GPIO0AB_SEL_CON),
 
-	RK628_PINCTRL_GROUP("gpio1a0", { RK628_GPIO1_A0 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a1", { RK628_GPIO1_A1 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a2", { RK628_GPIO1_A2 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a3", { RK628_GPIO1_A3 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a4", { RK628_GPIO1_A4 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a5", { RK628_GPIO1_A5 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a6", { RK628_GPIO1_A6 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1a7", { RK628_GPIO1_A7 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1b0", { RK628_GPIO1_B0 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1b1", { RK628_GPIO1_B1 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1b2", { RK628_GPIO1_B2 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1b3", { RK628_GPIO1_B3 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1b4", { RK628_GPIO1_B4 }, 1, GRF_GPIO1AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio1b5", { RK628_GPIO1_B5 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a0", { GPIO1_A0 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a1", { GPIO1_A1 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a2", { GPIO1_A2 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a3", { GPIO1_A3 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a4", { GPIO1_A4 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a5", { GPIO1_A5 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a6", { GPIO1_A6 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1a7", { GPIO1_A7 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1b0", { GPIO1_B0 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1b1", { GPIO1_B1 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1b2", { GPIO1_B2 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1b3", { GPIO1_B3 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1b4", { GPIO1_B4 }, 1, GRF_GPIO1AB_SEL_CON),
+	PINCTRL_GROUP("gpio1b5", { GPIO1_B5 }, 1, GRF_GPIO1AB_SEL_CON),
 
-	RK628_PINCTRL_GROUP("gpio2a0", { RK628_GPIO2_A0 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a1", { RK628_GPIO2_A1 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a2", { RK628_GPIO2_A2 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a3", { RK628_GPIO2_A3 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a4", { RK628_GPIO2_A4 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a5", { RK628_GPIO2_A5 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a6", { RK628_GPIO2_A6 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2a7", { RK628_GPIO2_A7 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b0", { RK628_GPIO2_B0 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b1", { RK628_GPIO2_B1 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b2", { RK628_GPIO2_B2 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b3", { RK628_GPIO2_B3 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b4", { RK628_GPIO2_B4 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b5", { RK628_GPIO2_B5 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b6", { RK628_GPIO2_B6 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2b7", { RK628_GPIO2_B7 }, 1, GRF_GPIO2AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c0", { RK628_GPIO2_C0 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c1", { RK628_GPIO2_C1 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c2", { RK628_GPIO2_C2 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c3", { RK628_GPIO2_C3 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c4", { RK628_GPIO2_C4 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c5", { RK628_GPIO2_C5 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c6", { RK628_GPIO2_C6 }, 1, GRF_GPIO2C_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio2c7", { RK628_GPIO2_C7 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2a0", { GPIO2_A0 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a1", { GPIO2_A1 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a2", { GPIO2_A2 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a3", { GPIO2_A3 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a4", { GPIO2_A4 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a5", { GPIO2_A5 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a6", { GPIO2_A6 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2a7", { GPIO2_A7 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b0", { GPIO2_B0 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b1", { GPIO2_B1 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b2", { GPIO2_B2 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b3", { GPIO2_B3 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b4", { GPIO2_B4 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b5", { GPIO2_B5 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b6", { GPIO2_B6 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2b7", { GPIO2_B7 }, 1, GRF_GPIO2AB_SEL_CON),
+	PINCTRL_GROUP("gpio2c0", { GPIO2_C0 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c1", { GPIO2_C1 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c2", { GPIO2_C2 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c3", { GPIO2_C3 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c4", { GPIO2_C4 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c5", { GPIO2_C5 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c6", { GPIO2_C6 }, 1, GRF_GPIO2C_SEL_CON),
+	PINCTRL_GROUP("gpio2c7", { GPIO2_C7 }, 1, GRF_GPIO2C_SEL_CON),
 
-	RK628_PINCTRL_GROUP("gpio3a0", { RK628_GPIO3_A0 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a1", { RK628_GPIO3_A1 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a2", { RK628_GPIO3_A2 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a3", { RK628_GPIO3_A3 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a4", { RK628_GPIO3_A4 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a5", { RK628_GPIO3_A5 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a6", { RK628_GPIO3_A6 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3a7", { RK628_GPIO3_A7 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3b0", { RK628_GPIO3_B0 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3b1", { RK628_GPIO3_B1 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3b2", { RK628_GPIO3_B2 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3b3", { RK628_GPIO3_B3 }, 1, GRF_GPIO3AB_SEL_CON),
-	RK628_PINCTRL_GROUP("gpio3b4", { RK628_GPIO3_B4 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a0", { GPIO3_A0 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a1", { GPIO3_A1 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a2", { GPIO3_A2 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a3", { GPIO3_A3 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a4", { GPIO3_A4 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a5", { GPIO3_A5 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a6", { GPIO3_A6 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3a7", { GPIO3_A7 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3b0", { GPIO3_B0 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3b1", { GPIO3_B1 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3b2", { GPIO3_B2 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3b3", { GPIO3_B3 }, 1, GRF_GPIO3AB_SEL_CON),
+	PINCTRL_GROUP("gpio3b4", { GPIO3_B4 }, 1, GRF_GPIO3AB_SEL_CON),
 
-	RK628_PINCTRL_GROUP("i2sm_sck", { RK628_I2SM_SCK }, 1, GRF_SYSTEM_CON3),
-	RK628_PINCTRL_GROUP("i2sm_d", { RK628_I2SM_D }, 1, GRF_SYSTEM_CON3),
-	RK628_PINCTRL_GROUP("i2sm_lr", { RK628_I2SM_LR }, 1, GRF_SYSTEM_CON3),
-	RK628_PINCTRL_GROUP("rxddc_scl", { RK628_RXDDC_SCL }, 1, GRF_SYSTEM_CON3),
-	RK628_PINCTRL_GROUP("rxddc_sda", { RK628_RXDDC_SDA }, 1, GRF_SYSTEM_CON3),
-	RK628_PINCTRL_GROUP("hdmirx_cec", { RK628_HDMIRX_CE }, 1, GRF_SYSTEM_CON3),
+	PINCTRL_GROUP("i2sm_sck", { I2SM_SCK }, 1, GRF_SYSTEM_CON3),
+	PINCTRL_GROUP("i2sm_d", { I2SM_D }, 1, GRF_SYSTEM_CON3),
+	PINCTRL_GROUP("i2sm_lr", { I2SM_LR }, 1, GRF_SYSTEM_CON3),
+	PINCTRL_GROUP("rxddc_scl", { RXDDC_SCL }, 1, GRF_SYSTEM_CON3),
+	PINCTRL_GROUP("rxddc_sda", { RXDDC_SDA }, 1, GRF_SYSTEM_CON3),
+	PINCTRL_GROUP("hdmirx_cec", { HDMIRX_CE }, 1, GRF_SYSTEM_CON3),
 };
 
 static struct rk628_pin_bank rk628_pin_banks[] = {
-	RK628_PINCTRL_BANK("rk628-gpio0", GPIO0_BASE, 12, GPIO0_PINBASE),
-	RK628_PINCTRL_BANK("rk628-gpio1", GPIO1_BASE, 14, GPIO1_PINBASE),
-	RK628_PINCTRL_BANK("rk628-gpio2", GPIO2_BASE, 24, GPIO2_PINBASE),
-	RK628_PINCTRL_BANK("rk628-gpio3", GPIO3_BASE, 13, GPIO3_PINBASE),
+	PINCTRL_BANK("rk628-gpio0", GPIO0_BASE, 12),
+	PINCTRL_BANK("rk628-gpio1", GPIO1_BASE, 14),
+	PINCTRL_BANK("rk628-gpio2", GPIO2_BASE, 24),
+	PINCTRL_BANK("rk628-gpio3", GPIO3_BASE, 13),
 };
 
 /* generic gpio chip */
@@ -687,7 +678,7 @@ static int rk628_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 
 	chip = range->gc;
 	bank = gpiochip_get_data(chip);
-	pin_offset = offset - bank->pin_base;
+	pin_offset = offset - range->pin_base;
 
 	if (pin_offset / 16) {
 		dir_reg = bank->reg_base + GPIO_SWPORT_DDR_H;
@@ -739,54 +730,27 @@ static int rk628_pinconf_get(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct rk628_pin_bank *rk628_pin_to_bank(struct rk628_pctrl_info *pci, int pin, int *index)
-{
-	int banks[] = { GPIO0_PINBASE,
-			GPIO1_PINBASE,
-			GPIO2_PINBASE,
-			GPIO3_PINBASE };
-	int i;
-
-	struct rk628_pin_bank *bank;
-
-	for (i = 3; i >= 0; i--) {
-		if (pin >= banks[i]) {
-			bank = pci->pin_banks + i;
-			break;
-		}
-	}
-
-	if (i < 0) {
-		dev_err(pci->dev, "pin%u is invalid pin number!\n", pin);
-		return NULL;
-	}
-
-	if (index)
-		*index = i;
-
-	return bank;
-}
-
 static int rk628_set_slew_rate(struct rk628_pctrl_info *pci, int pin, int speed)
 {
-	int gpio = pin - PINBASE;
+	int gpio = pin;
+
 	/* gpio0b_sl(0-3) gpio1b_sl(0-3 -5) gpio3a_sl(4-7)*/
 	char valid_gpio[] = {
-		GPIO0_PINBASE - PINBASE + 8,
-		GPIO0_PINBASE - PINBASE + 9,
-		GPIO0_PINBASE - PINBASE + 10,
-		GPIO0_PINBASE - PINBASE + 11,
-		GPIO1_PINBASE - PINBASE + 8,
-		GPIO1_PINBASE - PINBASE + 9,
-		GPIO1_PINBASE - PINBASE + 10,
-		GPIO1_PINBASE - PINBASE + 11,
-		GPIO1_PINBASE - PINBASE + 12,
-		GPIO1_PINBASE - PINBASE + 13,
+		8,
+		9,
+		10,
+		11,
+		32 + 8,
+		32 + 9,
+		32 + 10,
+		32 + 11,
+		32 + 12,
+		32 + 13,
 		-1, -1,
-		GPIO3_PINBASE - PINBASE + 4,
-		GPIO3_PINBASE - PINBASE + 5,
-		GPIO3_PINBASE - PINBASE + 6,
-		GPIO3_PINBASE - PINBASE + 7
+		96 + 4,
+		96 + 5,
+		96 + 6,
+		96 + 7
 	};
 
 
@@ -826,22 +790,15 @@ static int rk628_calc_pull_reg_and_value(struct rk628_pctrl_info *pci,
 					 int *reg,
 					 int *val)
 {
+	struct pinctrl_gpio_range *range = pinctrl_find_gpio_range_from_pin(pci->pctl, pin);
 	int gpio2_regs[] = { GRF_GPIO2A_P_CON, GRF_GPIO2B_P_CON, GRF_GPIO2C_P_CON };
 	int gpio3_regs[] = { GRF_GPIO3A_P_CON, GRF_GPIO3B_P_CON };
 	int valid_pinnum[] = { 8, 8, 24, 13 };
-	int offset, i;
-	struct rk628_pin_bank *bank;
+	int offset = pin - range->pin_base;
 
-	bank = rk628_pin_to_bank(pci, pin, &i);
-	if (!bank) {
-		dev_err(pci->dev, "pin%u is invalid\n", pin);
-		return -EINVAL;
-	}
-	offset = pin - bank->pin_base;
-
-	switch (bank->pin_base) {
-	case GPIO0_PINBASE:
-		if (pull == RK628_GPIO_PULL_UP) {
+	switch (range->id) {
+	case 0:
+		if (pull == GPIO_PULL_UP) {
 			dev_err(pci->dev, "pin%u don't support pull up!\n",
 				pin);
 			return -EINVAL;
@@ -853,7 +810,7 @@ static int rk628_calc_pull_reg_and_value(struct rk628_pctrl_info *pci,
 			return -EINVAL;
 		}
 
-		if (offset < valid_pinnum[i]) {
+		if (offset < valid_pinnum[range->id]) {
 			*val = 0x3 << (2 * offset + 16) | pull << (2 * offset);
 			*reg = GRF_GPIO0A_P_CON;
 			dev_dbg(pci->dev, "pin%u reg=0x%8x val=0x%8x\n",
@@ -861,8 +818,8 @@ static int rk628_calc_pull_reg_and_value(struct rk628_pctrl_info *pci,
 			return 0;
 		}
 		break;
-	case GPIO1_PINBASE:
-		if (pull == RK628_GPIO_PULL_UP) {
+	case 1:
+		if (pull == GPIO_PULL_UP) {
 			dev_err(pci->dev, "pin%u don't support pull up!\n",
 				pin);
 			return -EINVAL;
@@ -874,7 +831,7 @@ static int rk628_calc_pull_reg_and_value(struct rk628_pctrl_info *pci,
 			return -EINVAL;
 		}
 
-		if (offset < valid_pinnum[i]) {
+		if (offset < valid_pinnum[range->id]) {
 			*val = 0x3 << (2 * offset + 16) | pull << (2 * offset);
 			*reg = GRF_GPIO1A_P_CON;
 			dev_dbg(pci->dev, "pin%u reg=0x%8x val=0x%8x\n",
@@ -882,13 +839,13 @@ static int rk628_calc_pull_reg_and_value(struct rk628_pctrl_info *pci,
 			return 0;
 		}
 		break;
-	case GPIO2_PINBASE:
-		if (pull == RK628_GPIO_PULL_UP)
-			pull = RK628_GPIO_PULL_DOWN;
-		else if (pull == RK628_GPIO_PULL_DOWN)
-			pull = RK628_GPIO_PULL_UP;
+	case 2:
+		if (pull == GPIO_PULL_UP)
+			pull = GPIO_PULL_DOWN;
+		else if (pull == GPIO_PULL_DOWN)
+			pull = GPIO_PULL_UP;
 
-		if (offset < valid_pinnum[i]) {
+		if (offset < valid_pinnum[range->id]) {
 			*reg = gpio2_regs[offset / 8];
 			offset = offset % 8;
 			*val = 0x3 << (2 * offset + 16) | pull << (2 * offset);
@@ -897,25 +854,25 @@ static int rk628_calc_pull_reg_and_value(struct rk628_pctrl_info *pci,
 			return 0;
 		}
 		break;
-	case GPIO3_PINBASE:
-		if (pull == RK628_GPIO_PULL_UP && (offset == 2 || offset == 11 || offset == 12)) {
+	case 3:
+		if (pull == GPIO_PULL_UP && (offset == 2 || offset == 11 || offset == 12)) {
 			dev_err(pci->dev, "pin%u don't support pull up!\n",
 				pin);
 			return -EINVAL;
-		} else if (pull == RK628_GPIO_PULL_DOWN && (offset == 9 || offset == 10)) {
+		} else if (pull == GPIO_PULL_DOWN && (offset == 9 || offset == 10)) {
 			dev_err(pci->dev, "pin%u don't support pull down!\n",
 				pin);
 			return -EINVAL;
 		}
 
 		if (offset == 0 || offset == 1 || offset == 3 || offset == 8) {
-			if (pull == RK628_GPIO_PULL_UP)
-				pull = RK628_GPIO_PULL_DOWN;
-			else if (pull == RK628_GPIO_PULL_DOWN)
-				pull = RK628_GPIO_PULL_UP;
+			if (pull == GPIO_PULL_UP)
+				pull = GPIO_PULL_DOWN;
+			else if (pull == GPIO_PULL_DOWN)
+				pull = GPIO_PULL_UP;
 		}
 
-		if ((offset > 7 && offset < valid_pinnum[i]) || offset < 4) {
+		if ((offset > 7 && offset < valid_pinnum[range->id]) || offset < 4) {
 			*reg = gpio3_regs[offset / 8];
 			offset = offset % 8;
 			*val = 0x3 << (2 * offset + 16) | pull << (2 * offset);
@@ -937,6 +894,7 @@ static int rk628_calc_strength_reg_and_value(struct rk628_pctrl_info *pci,
 					 int *reg,
 					 int *val)
 {
+	struct pinctrl_gpio_range *range = pinctrl_find_gpio_range_from_pin(pci->pctl, pin);
 	int valid_pinnum[] = { 8, 8, 24, 9 };
 	int gpio_regs[][6] = {
 		{	GRF_GPIO0B_D_CON
@@ -953,36 +911,28 @@ static int rk628_calc_strength_reg_and_value(struct rk628_pctrl_info *pci,
 			GRF_GPIO3B_D_CON
 		}
 	};
-	int offset, i;
-	struct rk628_pin_bank *bank;
+	int offset = pin - range->pin_base;
 
-	bank = rk628_pin_to_bank(pci, pin, &i);
-	if (!bank) {
-		dev_err(pci->dev, "pin%u is invalid\n", pin);
-		return -EINVAL;
-	}
-	offset = pin - bank->pin_base;
-
-	switch (bank->pin_base) {
-	case GPIO0_PINBASE:
-	case GPIO1_PINBASE:
-		if (offset < valid_pinnum[i]) {
+	switch (range->id) {
+	case 0:
+	case 1:
+		if (offset < valid_pinnum[range->id]) {
 			dev_err(pci->dev, "pin%u don't support driver strength settings!\n",
 				pin);
 			return -EINVAL;
 		}
 
-		offset -= valid_pinnum[i];
+		offset -= valid_pinnum[range->id];
 
 		*val = 0x3 << (2 * offset + 16) | strength << (2 * offset);
-		*reg = gpio_regs[i][0];
+		*reg = gpio_regs[range->id][0];
 		dev_dbg(pci->dev, "pin%u reg=0x%8x val=0x%8x\n",
 				pin, *reg, *val);
 		return 0;
-	case GPIO2_PINBASE:
-	case GPIO3_PINBASE:
-		if (offset < valid_pinnum[i]) {
-			*reg = gpio_regs[i][offset / 4];
+	case 2:
+	case 3:
+		if (offset < valid_pinnum[range->id]) {
+			*reg = gpio_regs[range->id][offset / 4];
 			offset = offset % 4;
 			*val = 0x7 << (4 * offset + 16) | strength << (4 * offset);
 			dev_dbg(pci->dev, "pin%u reg=0x%8x val=0x%8x\n",
@@ -1003,25 +953,18 @@ static int rk628_calc_schmitt_reg_and_value(struct rk628_pctrl_info *pci,
 					 int *reg,
 					 int *val)
 {
+	struct pinctrl_gpio_range *range = pinctrl_find_gpio_range_from_pin(pci->pctl, pin);
 	int gpio2_regs[] = {GRF_GPIO2A_SMT, GRF_GPIO2B_SMT, GRF_GPIO2C_SMT};
 	int gpio3_reg = GRF_GPIO3AB_SMT;
 	int valid_pinnum[] = { 0, 0, 24, 9 };
-	int offset, i;
-	struct rk628_pin_bank *bank;
+	int offset = pin - range->pin_base;
 
-	bank = rk628_pin_to_bank(pci, pin, &i);
-	if (!bank) {
-		dev_err(pci->dev, "pin%u is invalid\n", pin);
-		return -EINVAL;
-	}
-	offset = pin - bank->pin_base;
-
-	switch (bank->pin_base) {
-	case GPIO0_PINBASE:
-	case GPIO1_PINBASE:
+	switch (range->id) {
+	case 0:
+	case 1:
 		break;
-	case GPIO2_PINBASE:
-		if (offset < valid_pinnum[i]) {
+	case 2:
+		if (offset < valid_pinnum[range->id]) {
 			*reg = gpio2_regs[offset / 8];
 			offset = offset % 8;
 			*val = BIT(offset + 16) | enable << (offset);
@@ -1030,7 +973,7 @@ static int rk628_calc_schmitt_reg_and_value(struct rk628_pctrl_info *pci,
 			return 0;
 		}
 		break;
-	case GPIO3_PINBASE:
+	case 3:
 		if (offset == 0 || offset == 1 || offset == 3 || offset == 8) {
 			*reg = gpio3_reg;
 			*val = BIT(offset + 16) | enable << (offset);
@@ -1123,17 +1066,17 @@ static int rk628_pinconf_set(struct pinctrl_dev *pctldev,
 			rk628_set_drive_perpin(pci, pin, arg);
 			break;
 		case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
-			rk628_set_pull(pci, pin, RK628_GPIO_HIGH_Z);
+			rk628_set_pull(pci, pin, GPIO_HIGH_Z);
 			break;
 		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
 			dev_err(pci->dev,
 				"PIN_CONFIG_BIAS_PULL_PIN_DEFAULT not supported\n");
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			rk628_set_pull(pci, pin, RK628_GPIO_PULL_UP);
+			rk628_set_pull(pci, pin, GPIO_PULL_UP);
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			rk628_set_pull(pci, pin, RK628_GPIO_PULL_DOWN);
+			rk628_set_pull(pci, pin, GPIO_PULL_DOWN);
 			break;
 		case PIN_CONFIG_SLEW_RATE:
 			rk628_set_slew_rate(pci, pin, arg);
@@ -1143,19 +1086,14 @@ static int rk628_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_OUTPUT:
 		{
-			struct rk628_pin_bank *bank;
+			struct pinctrl_gpio_range *range = pinctrl_find_gpio_range_from_pin(pci->pctl, pin);
 
-			bank = rk628_pin_to_bank(pci, pin, NULL);
-			if (!bank) {
-				dev_err(pci->dev, "pin%u is invalid\n", pin);
-				return -EINVAL;
-			}
-			rk628_gpio_direction_output(&bank->gpio_chip, pin - bank->pin_base, arg);
+			rk628_gpio_direction_output(range->gc, pin - range->pin_base, arg);
 			break;
 		}
 		default:
-			dev_err(pci->dev, "Properties not supported\n");
-			return 0;
+			dev_err(pci->dev, "Properties not supported param=%d\n", param);
+			break;
 		}
 	}
 
@@ -1191,11 +1129,11 @@ static int rk628_pinctrl_create_function(struct device *dev,
 	if (of_property_read_string(func_np, "function", &func->name))
 		return -1;
 
-	func->mux_option = RK628_PINMUX_FUNC1;
+	func->mux_option = PINMUX_FUNC1;
 	/* for signals input select */
 	for (i = 0; i < 6; i++) {
 		if (!strcmp(func_sel[i], func->name))
-			func->mux_option = RK628_PINMUX_FUNC0;
+			func->mux_option = PINMUX_FUNC0;
 	}
 
 	dev_dbg(dev, "%s func->name=%s\n", __func__, func->name);
@@ -1251,11 +1189,8 @@ static int rk628_pinctrl_parse_gpiobank(struct device *dev,
 			bank->clk = devm_get_clk_from_child(dev,
 							    bank->of_node,
 							    "pclk");
-			if (IS_ERR(bank->clk)) {
-				dev_err(dev, "bank->clk get error %ld\n",
-					PTR_ERR(bank->clk));
+			if (IS_ERR(bank->clk))
 				return PTR_ERR(bank->clk);
-			}
 			clk_prepare(bank->clk);
 			break;
 		}
@@ -1331,8 +1266,8 @@ rk628_pinctrl_create_functions(struct device *dev,
 	}
 
 	/* init gpio func */
-	*(func) = rk628_functions[RK628_MUX_GPIO];
-	func->mux_option = RK628_PINMUX_FUNC0;
+	*(func) = rk628_functions[MUX_GPIO];
+	func->mux_option = PINMUX_FUNC0;
 
 	dev_dbg(dev, "count %d is for %s function\n", func_cnt, func->name);
 	++func;
@@ -1377,7 +1312,7 @@ static const struct regmap_access_table rk628_pinctrl_readable_table = {
 };
 
 static const struct regmap_config rk628_pinctrl_regmap_config = {
-	.name = "rk628-pinctrl",
+	.name = "pinctrl",
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -1648,31 +1583,25 @@ static int rk628_gpiolib_register(struct platform_device *pdev,
 {
 	struct rk628_pin_bank *bank = pci->pin_banks;
 	struct gpio_chip *gc;
-	int ret, i;
+	int ret = 0, i;
 
 	for (i = 0; i < pci->nr_banks; ++i, ++bank) {
 		bank->gpio_chip = rk628_gpiolib_chip;
 		bank->pci = pci;
 		gc = &bank->gpio_chip;
-		gc->base = bank->pin_base;
+		gc->base = -1;
 		gc->ngpio = bank->nr_pins;
 		gc->parent = &pdev->dev;
 		gc->of_node = bank->of_node;
 		gc->label = bank->name;
 
-		ret = gpiochip_add_data(gc, bank);
+		ret = devm_gpiochip_add_data(&pdev->dev, gc, bank);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"failed to register gpio_chip %s, error code: %d\n",
 				gc->label, ret);
-			goto fail;
 		}
 	}
-	return 0;
-
-fail:
-	for (--i, --bank; i >= 0; --i, --bank)
-		gpiochip_remove(&bank->gpio_chip);
 
 	return ret;
 }
@@ -1733,7 +1662,7 @@ static int rk628_pinctrl_probe(struct platform_device *pdev)
 		pin_bank = &pci->pin_banks[bank];
 		pin_bank->grange.name = pin_bank->name;
 		pin_bank->grange.id = bank;
-		pin_bank->grange.pin_base = pin_bank->pin_base;
+		pin_bank->grange.pin_base = BANK_OFFSET * bank;
 		pin_bank->grange.base = pin_bank->gpio_chip.base;
 		pin_bank->grange.npins = pin_bank->gpio_chip.ngpio;
 		pin_bank->grange.gc = &pin_bank->gpio_chip;
