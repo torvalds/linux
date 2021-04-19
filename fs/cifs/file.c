@@ -878,6 +878,10 @@ void smb2_deferred_work_close(struct work_struct *work)
 			struct cifsFileInfo, deferred.work);
 
 	spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+	if (!cfile->deferred_scheduled) {
+		spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+		return;
+	}
 	cifs_del_deferred_close(cfile);
 	cfile->deferred_scheduled = false;
 	spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
@@ -1987,8 +1991,10 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 
 	if (total_written > 0) {
 		spin_lock(&d_inode(dentry)->i_lock);
-		if (*offset > d_inode(dentry)->i_size)
+		if (*offset > d_inode(dentry)->i_size) {
 			i_size_write(d_inode(dentry), *offset);
+			d_inode(dentry)->i_blocks = (512 - 1 + *offset) >> 9;
+		}
 		spin_unlock(&d_inode(dentry)->i_lock);
 	}
 	mark_inode_dirty_sync(d_inode(dentry));
@@ -2647,8 +2653,10 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 
 	if (rc > 0) {
 		spin_lock(&inode->i_lock);
-		if (pos > inode->i_size)
+		if (pos > inode->i_size) {
 			i_size_write(inode, pos);
+			inode->i_blocks = (512 - 1 + pos) >> 9;
+		}
 		spin_unlock(&inode->i_lock);
 	}
 
@@ -4864,7 +4872,6 @@ oplock_break_ack:
 							     cinode);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	}
-	_cifsFileInfo_put(cfile, false /* do not wait for ourself */, false);
 	/*
 	 * When oplock break is received and there are no active
 	 * file handles but cached, then set the flag oplock_break_received.
@@ -4872,11 +4879,12 @@ oplock_break_ack:
 	 */
 	spin_lock(&CIFS_I(inode)->deferred_lock);
 	is_deferred = cifs_is_deferred_close(cfile, &dclose);
-	if (is_deferred) {
+	if (is_deferred && cfile->deferred_scheduled) {
 		cfile->oplock_break_received = true;
 		mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
 	}
 	spin_unlock(&CIFS_I(inode)->deferred_lock);
+	_cifsFileInfo_put(cfile, false /* do not wait for ourself */, false);
 	cifs_done_oplock_break(cinode);
 }
 

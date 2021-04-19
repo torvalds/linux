@@ -278,6 +278,8 @@ extern void cifs_del_deferred_close(struct cifsFileInfo *cfile);
 
 extern void cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode);
 
+extern void cifs_close_all_deferred_files(struct cifs_tcon *cifs_tcon);
+
 extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb3_fs_context *ctx);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
