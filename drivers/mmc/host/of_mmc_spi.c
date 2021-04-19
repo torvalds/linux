@@ -51,10 +51,9 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 {
 	struct mmc_host *mmc = dev_get_drvdata(&spi->dev);
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms;
 
-	if (dev->platform_data || !np)
+	if (dev->platform_data || !dev_fwnode(dev))
 		return dev->platform_data;
 
 	oms = kzalloc(sizeof(*oms), GFP_KERNEL);
@@ -83,10 +82,9 @@ EXPORT_SYMBOL(mmc_spi_get_pdata);
 void mmc_spi_put_pdata(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
 
-	if (!dev->platform_data || !np)
+	if (!dev->platform_data || !dev_fwnode(dev))
 		return;
 
 	kfree(oms);
