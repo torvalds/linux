@@ -350,6 +350,18 @@ void rtw_fw_do_iqk(struct rtw_dev *rtwdev, struct rtw_iqk_para *para)
 }
 EXPORT_SYMBOL(rtw_fw_do_iqk);
 
+void rtw_fw_inform_rfk_status(struct rtw_dev *rtwdev, bool start)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_WIFI_CALIBRATION);
+
+	RFK_SET_INFORM_START(h2c_pkt, start);
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+EXPORT_SYMBOL(rtw_fw_inform_rfk_status);
+
 void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};

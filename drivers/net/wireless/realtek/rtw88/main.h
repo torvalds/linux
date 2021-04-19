@@ -1502,6 +1502,27 @@ struct rtw_iqk_info {
 	} result;
 };
 
+enum rtw_rf_band {
+	RF_BAND_2G_CCK,
+	RF_BAND_2G_OFDM,
+	RF_BAND_5G_L,
+	RF_BAND_5G_M,
+	RF_BAND_5G_H,
+	RF_BAND_MAX
+};
+
+#define RF_GAIN_NUM 11
+#define RF_HW_OFFSET_NUM 10
+
+struct rtw_gapk_info {
+	u32 rf3f_bp[RF_BAND_MAX][RF_GAIN_NUM][RTW_RF_PATH_MAX];
+	bool txgapk_bp_done;
+	s8 offset[RF_GAIN_NUM][RTW_RF_PATH_MAX];
+	s8 fianl_offset[RF_GAIN_NUM][RTW_RF_PATH_MAX];
+	u8 read_txgain;
+	u8 channel;
+};
+
 struct rtw_cfo_track {
 	bool is_adjust;
 	u8 crystal_cap;
@@ -1583,6 +1604,8 @@ struct rtw_dm_info {
 	struct ewma_snr ewma_snr[RTW_SNR_NUM];
 
 	struct rtw_iqk_info iqk;
+	struct rtw_gapk_info gapk;
+	bool is_bt_iqk_timeout;
 };
 
 struct rtw_efuse {
