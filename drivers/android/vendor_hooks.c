@@ -62,6 +62,7 @@
 #include <trace/hooks/typec.h>
 #include <trace/hooks/user.h>
 #include <trace/hooks/signal.h>
+#include <trace/hooks/psi.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -238,3 +239,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_reply);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_trans);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mmap_region);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_try_to_unmap_one);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_psi_event);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_psi_group);
