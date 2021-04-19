@@ -114,6 +114,9 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 
+	/* Mark all stats as unset (see ETHTOOL_STAT_NOT_SET) to prevent them
+	 * from being reported to user space in case driver did not set them.
+	 */
 	memset(&data->phy_stats, 0xff, sizeof(data->phy_stats));
 	memset(&data->mac_stats, 0xff, sizeof(data->mac_stats));
 	memset(&data->ctrl_stats, 0xff, sizeof(data->mac_stats));
