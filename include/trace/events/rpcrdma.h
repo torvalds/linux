@@ -379,7 +379,7 @@ DECLARE_EVENT_CLASS(xprtrdma_mr_class,
 
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
-		__entry->mr_id  = mr->frwr.fr_mr->res.id;
+		__entry->mr_id  = mr->mr_ibmr->res.id;
 		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
 		__entry->length = mr->mr_length;
@@ -420,7 +420,7 @@ DECLARE_EVENT_CLASS(xprtrdma_anonymous_mr_class,
 	),
 
 	TP_fast_assign(
-		__entry->mr_id  = mr->frwr.fr_mr->res.id;
+		__entry->mr_id  = mr->mr_ibmr->res.id;
 		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
 		__entry->length = mr->mr_length;
@@ -903,7 +903,7 @@ TRACE_EVENT(xprtrdma_frwr_alloc,
 	),
 
 	TP_fast_assign(
-		__entry->mr_id = mr->frwr.fr_mr->res.id;
+		__entry->mr_id = mr->mr_ibmr->res.id;
 		__entry->rc = rc;
 	),
 
@@ -931,7 +931,7 @@ TRACE_EVENT(xprtrdma_frwr_dereg,
 	),
 
 	TP_fast_assign(
-		__entry->mr_id  = mr->frwr.fr_mr->res.id;
+		__entry->mr_id  = mr->mr_ibmr->res.id;
 		__entry->nents  = mr->mr_nents;
 		__entry->handle = mr->mr_handle;
 		__entry->length = mr->mr_length;
@@ -964,7 +964,7 @@ TRACE_EVENT(xprtrdma_frwr_sgerr,
 	),
 
 	TP_fast_assign(
-		__entry->mr_id = mr->frwr.fr_mr->res.id;
+		__entry->mr_id = mr->mr_ibmr->res.id;
 		__entry->addr = mr->mr_sg->dma_address;
 		__entry->dir = mr->mr_dir;
 		__entry->nents = sg_nents;
@@ -994,7 +994,7 @@ TRACE_EVENT(xprtrdma_frwr_maperr,
 	),
 
 	TP_fast_assign(
-		__entry->mr_id = mr->frwr.fr_mr->res.id;
+		__entry->mr_id = mr->mr_ibmr->res.id;
 		__entry->addr = mr->mr_sg->dma_address;
 		__entry->dir = mr->mr_dir;
 		__entry->num_mapped = num_mapped;

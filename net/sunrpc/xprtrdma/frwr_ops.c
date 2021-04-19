@@ -55,7 +55,7 @@ static void frwr_cid_init(struct rpcrdma_ep *ep,
 	struct rpc_rdma_cid *cid = &mr->mr_cid;
 
 	cid->ci_queue_id = ep->re_attr.send_cq->res.id;
-	cid->ci_completion_id = mr->frwr.fr_mr->res.id;
+	cid->ci_completion_id = mr->mr_ibmr->res.id;
 }
 
 static void frwr_mr_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
@@ -79,7 +79,7 @@ void frwr_mr_release(struct rpcrdma_mr *mr)
 
 	frwr_mr_unmap(mr->mr_xprt, mr);
 
-	rc = ib_dereg_mr(mr->frwr.fr_mr);
+	rc = ib_dereg_mr(mr->mr_ibmr);
 	if (rc)
 		trace_xprtrdma_frwr_dereg(mr, rc);
 	kfree(mr->mr_sg);
@@ -139,7 +139,7 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 		goto out_list_err;
 
 	mr->mr_xprt = r_xprt;
-	mr->frwr.fr_mr = frmr;
+	mr->mr_ibmr = frmr;
 	mr->mr_device = NULL;
 	INIT_LIST_HEAD(&mr->mr_list);
 	init_completion(&mr->mr_linv_done);
@@ -323,7 +323,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 		goto out_dmamap_err;
 	mr->mr_device = ep->re_id->device;
 
-	ibmr = mr->frwr.fr_mr;
+	ibmr = mr->mr_ibmr;
 	n = ib_map_mr_sg(ibmr, mr->mr_sg, dma_nents, NULL, PAGE_SIZE);
 	if (n != dma_nents)
 		goto out_mapmr_err;
