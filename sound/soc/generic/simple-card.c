@@ -442,10 +442,9 @@ static int simple_for_each_link(struct asoc_simple_priv *priv,
 	return ret;
 }
 
-static int simple_parse_of(struct asoc_simple_priv *priv)
+static int simple_parse_of(struct asoc_simple_priv *priv, struct link_info *li)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
-	struct link_info li;
 	int ret;
 
 	ret = asoc_simple_parse_widgets(card, PREFIX);
@@ -461,8 +460,8 @@ static int simple_parse_of(struct asoc_simple_priv *priv)
 		return ret;
 
 	/* Single/Muti DAI link(s) & New style of DT node */
-	memset(&li, 0, sizeof(li));
-	ret = simple_for_each_link(priv, &li,
+	memset(li, 0, sizeof(*li));
+	ret = simple_for_each_link(priv, li,
 				   simple_dai_link_of,
 				   simple_dai_link_of_dpcm);
 	if (ret < 0)
@@ -612,7 +611,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct snd_soc_card *card;
-	struct link_info li;
+	struct link_info *li;
 	int ret;
 
 	/* Allocate the private data and the DAI link array */
@@ -625,21 +624,24 @@ static int asoc_simple_probe(struct platform_device *pdev)
 	card->dev		= dev;
 	card->probe		= simple_soc_probe;
 
-	memset(&li, 0, sizeof(li));
-	ret = simple_get_dais_count(priv, &li);
+	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
+	if (!li)
+		return -ENOMEM;
+
+	ret = simple_get_dais_count(priv, li);
 	if (ret < 0)
 		return ret;
 
-	if (!li.link)
+	if (!li->link)
 		return -EINVAL;
 
-	ret = asoc_simple_init_priv(priv, &li);
+	ret = asoc_simple_init_priv(priv, li);
 	if (ret < 0)
 		return ret;
 
 	if (np && of_device_is_available(np)) {
 
-		ret = simple_parse_of(priv);
+		ret = simple_parse_of(priv, li);
 		if (ret < 0) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "parse error %d\n", ret);
@@ -698,6 +700,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
+	devm_kfree(dev, li);
 	return 0;
 err:
 	asoc_simple_clean_reference(card);

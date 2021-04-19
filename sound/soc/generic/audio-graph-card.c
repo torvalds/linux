@@ -548,21 +548,24 @@ static int graph_get_dais_count(struct asoc_simple_priv *priv,
 int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
-	struct link_info li;
+	struct link_info *li;
 	int ret;
+
+	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
+	if (!li)
+		return -ENOMEM;
 
 	card->owner = THIS_MODULE;
 	card->dev = dev;
 
-	memset(&li, 0, sizeof(li));
-	ret = graph_get_dais_count(priv, &li);
+	ret = graph_get_dais_count(priv, li);
 	if (ret < 0)
 		return ret;
 
-	if (!li.link)
+	if (!li->link)
 		return -EINVAL;
 
-	ret = asoc_simple_init_priv(priv, &li);
+	ret = asoc_simple_init_priv(priv, li);
 	if (ret < 0)
 		return ret;
 
@@ -581,8 +584,8 @@ int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	memset(&li, 0, sizeof(li));
-	ret = graph_for_each_link(priv, &li,
+	memset(li, 0, sizeof(*li));
+	ret = graph_for_each_link(priv, li,
 				  graph_dai_link_of,
 				  graph_dai_link_of_dpcm);
 	if (ret < 0)
@@ -600,6 +603,7 @@ int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 	if (ret < 0)
 		goto err;
 
+	devm_kfree(dev, li);
 	return 0;
 
 err:
