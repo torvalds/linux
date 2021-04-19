@@ -124,6 +124,7 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_POP_VLAN,
 	DR_ACTION_TYP_PUSH_VLAN,
 	DR_ACTION_TYP_INSERT_HDR,
+	DR_ACTION_TYP_SAMPLER,
 	DR_ACTION_TYP_MAX,
 };
 
@@ -919,6 +920,13 @@ struct mlx5dr_action_reformat {
 	u8 param_1;
 };
 
+struct mlx5dr_action_sampler {
+	struct mlx5dr_domain *dmn;
+	u64 rx_icm_addr;
+	u64 tx_icm_addr;
+	u32 sampler_id;
+};
+
 struct mlx5dr_action_dest_tbl {
 	u8 is_fw_tbl:1;
 	union {
@@ -962,6 +970,7 @@ struct mlx5dr_action {
 		void *data;
 		struct mlx5dr_action_rewrite *rewrite;
 		struct mlx5dr_action_reformat *reformat;
+		struct mlx5dr_action_sampler *sampler;
 		struct mlx5dr_action_dest_tbl *dest_tbl;
 		struct mlx5dr_action_ctr *ctr;
 		struct mlx5dr_action_vport *vport;
@@ -1116,6 +1125,10 @@ int mlx5dr_cmd_query_gvmi(struct mlx5_core_dev *mdev,
 			  bool other_vport, u16 vport_number, u16 *gvmi);
 int mlx5dr_cmd_query_esw_caps(struct mlx5_core_dev *mdev,
 			      struct mlx5dr_esw_caps *caps);
+int mlx5dr_cmd_query_flow_sampler(struct mlx5_core_dev *dev,
+				  u32 sampler_id,
+				  u64 *rx_icm_addr,
+				  u64 *tx_icm_addr);
 int mlx5dr_cmd_sync_steering(struct mlx5_core_dev *mdev);
 int mlx5dr_cmd_set_fte_modify_and_vport(struct mlx5_core_dev *mdev,
 					u32 table_type,
@@ -1303,6 +1316,7 @@ struct mlx5dr_cmd_flow_destination_hw_info {
 		u32 ft_num;
 		u32 ft_id;
 		u32 counter_id;
+		u32 sampler_id;
 		struct {
 			u16 num;
 			u16 vhca_id;
