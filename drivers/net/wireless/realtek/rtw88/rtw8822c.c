@@ -1665,14 +1665,16 @@ static void rtw8822c_txgapk_write_tx_gain(struct rtw_dev *rtwdev)
 			}
 
 			v = txgapk->rf3f_bp[band][i][path];
-			if (_rtw8822c_txgapk_gain_valid(rtwdev, v))
+			if (_rtw8822c_txgapk_gain_valid(rtwdev, v)) {
 				rtw_dbg(rtwdev, RTW_DBG_RFK,
 					"[TXGAPK] tx_gain=0x%03X >= 0xCEX\n",
 					txgapk->rf3f_bp[band][i][path]);
-			else
+			} else {
+				txgapk->rf3f_fs[path][i] = offset_tmp[i];
 				rtw_dbg(rtwdev, RTW_DBG_RFK,
 					"[TXGAPK] offset %d %d\n",
 					offset_tmp[i], i);
+			}
 		}
 
 		rtw_write_rf(rtwdev, path, RF_LUTWE2, RFREG_MASK, 0x10000);
@@ -1703,6 +1705,9 @@ static void rtw8822c_txgapk_save_all_tx_gain_table(struct rtw_dev *rtwdev)
 	static const u8 cck[RF_BAND_MAX] = {0x1, 0x0, 0x0, 0x0, 0x0};
 	u8 path, band, gain, rf0_idx;
 	u32 rf18, v;
+
+	if (rtwdev->dm_info.dm_flags & BIT(RTW_DM_CAP_TXGAPK))
+		return;
 
 	rtw_dbg(rtwdev, RTW_DBG_RFK, "[TXGAPK] ======>%s\n", __func__);
 
@@ -1794,6 +1799,12 @@ static void rtw8822c_txgapk(struct rtw_dev *rtwdev)
 
 static void rtw8822c_do_gapk(struct rtw_dev *rtwdev)
 {
+	struct rtw_dm_info *dm = &rtwdev->dm_info;
+
+	if (dm->dm_flags & BIT(RTW_DM_CAP_TXGAPK)) {
+		rtw_dbg(rtwdev, RTW_DBG_RFK, "[TXGAPK] feature disable!!!\n");
+		return;
+	}
 	rtw8822c_rfk_handshake(rtwdev, true);
 	rtw8822c_txgapk(rtwdev);
 	rtw8822c_rfk_handshake(rtwdev, false);
