@@ -22,8 +22,6 @@
 
 #define DPCM_SELECTABLE 1
 
-#define PREFIX	"audio-graph-card,"
-
 static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol,
 			      int event)
@@ -181,7 +179,6 @@ static void graph_parse_convert(struct device *dev,
 	struct device_node *node = of_graph_get_port_parent(ep);
 
 	asoc_simple_parse_convert(top,   NULL,   adata);
-	asoc_simple_parse_convert(node,  PREFIX, adata);
 	if (of_node_name_eq(ports, "ports"))
 		asoc_simple_parse_convert(ports, NULL, adata);
 	asoc_simple_parse_convert(port,  NULL,   adata);
@@ -311,8 +308,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		/* check "prefix" from top node */
 		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
 					      "prefix");
-		snd_soc_of_parse_node_prefix(node, cconf, codecs->of_node,
-					     PREFIX "prefix");
 		if (of_node_name_eq(ports, "ports"))
 			snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node, "prefix");
 		snd_soc_of_parse_node_prefix(port, cconf, codecs->of_node,
