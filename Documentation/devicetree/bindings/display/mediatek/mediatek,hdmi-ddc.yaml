@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - mediatek,mt7623-hdmi-ddc
+      - mediatek,mt8167-hdmi-ddc
       - mediatek,mt8173-hdmi-ddc
 
   reg:

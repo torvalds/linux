@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - mediatek,mt7623-cec
+      - mediatek,mt8167-cec
       - mediatek,mt8173-cec
 
   reg:
