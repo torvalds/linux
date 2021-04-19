@@ -2401,7 +2401,7 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 			(pll_code.n_code << RT5682_PLL_N_SFT) | pll_code.k_code);
 		snd_soc_component_write(component, RT5682_PLL_CTRL_2,
 			((pll_code.m_bp ? 0 : pll_code.m_code) << RT5682_PLL_M_SFT) |
-			(pll_code.m_bp << RT5682_PLL_M_BP_SFT | RT5682_PLL_RST));
+			((pll_code.m_bp << RT5682_PLL_M_BP_SFT) | RT5682_PLL_RST));
 	}
 
 	rt5682->pll_in[pll_id] = freq_in;
