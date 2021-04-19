@@ -67,7 +67,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 	bch2_bkey_buf_init(&_insert);
 	bch2_bkey_buf_realloc(&_insert, c, U8_MAX);
 
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
 
 	iter = bch2_trans_get_iter(&trans, m->btree_id,
 				   bkey_start_pos(&bch2_keylist_front(keys)->k),
