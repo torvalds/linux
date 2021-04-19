@@ -176,6 +176,15 @@ config SENSORS_LTC3815
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc3815.
 
+config SENSORS_MAX15301
+	tristate "Maxim MAX15301"
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX15301, as well as for Flex BMR461.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max15301.
+
 config SENSORS_MAX16064
 	tristate "Maxim MAX16064"
 	help
