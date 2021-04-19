@@ -1356,7 +1356,7 @@ intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_compute_clock = g4x_crtc_compute_clock;
 	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.crtc_compute_clock = pnv_crtc_compute_clock;
-	else if (!IS_DISPLAY_VER(dev_priv, 2))
+	else if (DISPLAY_VER(dev_priv) != 2)
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 	else
 		dev_priv->display.crtc_compute_clock = i8xx_crtc_compute_clock;

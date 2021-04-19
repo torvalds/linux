@@ -4443,7 +4443,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		dpll_mgr = &cnl_pll_mgr;
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		dpll_mgr = &bxt_pll_mgr;
-	else if (IS_DISPLAY_VER(dev_priv, 9))
+	else if (DISPLAY_VER(dev_priv) == 9)
 		dpll_mgr = &skl_pll_mgr;
 	else if (HAS_DDI(dev_priv))
 		dpll_mgr = &hsw_pll_mgr;

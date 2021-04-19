@@ -356,7 +356,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		 * DAC limit supposedly 355 MHz.
 		 */
 		max_clock = 270000;
-	else if (IS_DISPLAY_RANGE(dev_priv, 3, 4))
+	else if (IS_DISPLAY_VER(dev_priv, 3, 4))
 		max_clock = 400000;
 	else
 		max_clock = 350000;
@@ -711,7 +711,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	/* Set the border color to purple. */
 	intel_uncore_write(uncore, bclrpat_reg, 0x500050);
 
-	if (!IS_DISPLAY_VER(dev_priv, 2)) {
+	if (DISPLAY_VER(dev_priv) != 2) {
 		u32 pipeconf = intel_uncore_read(uncore, pipeconf_reg);
 		intel_uncore_write(uncore,
 				   pipeconf_reg,
@@ -1047,7 +1047,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	else
 		crt->base.pipe_mask = ~0;
 
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		connector->interlace_allowed = 0;
 	else
 		connector->interlace_allowed = 1;

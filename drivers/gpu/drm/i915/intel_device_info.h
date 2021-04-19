@@ -160,9 +160,9 @@ enum intel_ppgtt_type {
 	func(supports_tv);
 
 struct intel_device_info {
-	u16 gen_mask;
+	u8 graphics_ver;
+	u8 media_ver;
 
-	u8 gen;
 	u8 gt; /* GT number, 0 if undefined */
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
@@ -189,7 +189,7 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
-		u8 version;
+		u8 ver;
 
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
