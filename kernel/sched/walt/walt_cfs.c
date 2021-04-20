@@ -264,13 +264,6 @@ static void walt_find_best_target(struct sched_domain *sd,
 				continue;
 
 			/*
-			 * Pre-compute the maximum possible capacity we expect
-			 * to have available on this CPU once the task is
-			 * enqueued here.
-			 */
-			spare_cap = capacity_orig - new_util;
-
-			/*
 			 * Find an optimal backup IDLE CPU for non latency
 			 * sensitive tasks.
 			 *
@@ -312,6 +305,13 @@ static void walt_find_best_target(struct sched_domain *sd,
 				best_idle_cpu = i;
 				continue;
 			}
+
+			/*
+			 * Compute the maximum possible capacity we expect
+			 * to have available on this CPU once the task is
+			 * enqueued here.
+			 */
+			spare_cap = capacity_orig - new_util;
 
 			/*
 			 * Try to spread the rtg high prio tasks so that they
