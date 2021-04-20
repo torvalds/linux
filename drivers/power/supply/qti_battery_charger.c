@@ -570,7 +570,8 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 		break;
 	case BC_SET_NOTIFY_REQ:
 	case BC_SHUTDOWN_NOTIFY:
-		/* Always ACK response for notify request */
+	case BC_SHIP_MODE_REQ_SET:
+		/* Always ACK response for notify or ship_mode request */
 		ack_set = true;
 		break;
 	case BC_WLS_FW_CHECK_UPDATE:
