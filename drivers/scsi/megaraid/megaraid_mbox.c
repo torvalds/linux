@@ -3240,8 +3240,6 @@ megaraid_mbox_fire_sync_cmd(adapter_t *adapter)
 	int i;
 	uint32_t dword;
 
-	mbox = (mbox_t *)raw_mbox;
-
 	memset((caddr_t)raw_mbox, 0, sizeof(mbox_t));
 
 	raw_mbox[0] = 0xFF;
