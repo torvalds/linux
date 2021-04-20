@@ -129,12 +129,27 @@ spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
-				      unsigned char *buf)
+/*
+ * Generate NAA IEEE Registered Extended designator
+ */
+void spc_gen_naa_6h_vendor_specific(struct se_device *dev,
+				    unsigned char *buf)
 {
 	unsigned char *p = &dev->t10_wwn.unit_serial[0];
-	int cnt;
+	int cnt, off = 0;
 	bool next = true;
+
+	/*
+	 * Start NAA IEEE Registered Extended Identifier/Designator
+	 */
+	buf[off++] = 0x6 << 4;
+
+	/*
+	 * Use OpenFabrics IEEE Company ID: 00 14 05
+	 */
+	buf[off++] = 0x01;
+	buf[off++] = 0x40;
+	buf[off] = (0x5 << 4);
 
 	/*
 	 * Generate up to 36 bits of VENDOR SPECIFIC IDENTIFIER starting on
@@ -144,7 +159,7 @@ void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
 	 * NUMBER set via vpd_unit_serial in target_core_configfs.c to ensure
 	 * per device uniqeness.
 	 */
-	for (cnt = 0; *p && cnt < 13; p++) {
+	for (cnt = off + 13; *p && off < cnt; p++) {
 		int val = hex_to_bin(*p);
 
 		if (val < 0)
@@ -152,10 +167,10 @@ void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
 
 		if (next) {
 			next = false;
-			buf[cnt++] |= val;
+			buf[off++] |= val;
 		} else {
 			next = true;
-			buf[cnt] = val << 4;
+			buf[off] = val << 4;
 		}
 	}
 }
@@ -203,24 +218,8 @@ spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	/* Identifier/Designator length */
 	buf[off++] = 0x10;
 
-	/*
-	 * Start NAA IEEE Registered Extended Identifier/Designator
-	 */
-	buf[off++] = (0x6 << 4);
-
-	/*
-	 * Use OpenFabrics IEEE Company ID: 00 14 05
-	 */
-	buf[off++] = 0x01;
-	buf[off++] = 0x40;
-	buf[off] = (0x5 << 4);
-
-	/*
-	 * Return ConfigFS Unit Serial Number information for
-	 * VENDOR_SPECIFIC_IDENTIFIER and
-	 * VENDOR_SPECIFIC_IDENTIFIER_EXTENTION
-	 */
-	spc_parse_naa_6h_vendor_specific(dev, &buf[off]);
+	/* NAA IEEE Registered Extended designator */
+	spc_gen_naa_6h_vendor_specific(dev, &buf[off]);
 
 	len = 20;
 	off = (len + 4);
