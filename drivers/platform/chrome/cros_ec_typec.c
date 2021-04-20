@@ -58,6 +58,7 @@ struct cros_typec_port {
 	/* Variables keeping track of switch state. */
 	struct typec_mux_state state;
 	uint8_t mux_flags;
+	uint8_t role;
 
 	/* Port alt modes. */
 	struct typec_altmode p_altmode[CROS_EC_ALTMODE_MAX];
@@ -995,10 +996,12 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	}
 
 	/* No change needs to be made, let's exit early. */
-	if (typec->ports[port_num]->mux_flags == mux_resp.flags)
+	if (typec->ports[port_num]->mux_flags == mux_resp.flags &&
+	    typec->ports[port_num]->role == resp.role)
 		return 0;
 
 	typec->ports[port_num]->mux_flags = mux_resp.flags;
+	typec->ports[port_num]->role = resp.role;
 	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags, &resp);
 	if (ret)
 		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
