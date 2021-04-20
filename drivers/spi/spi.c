@@ -2551,13 +2551,14 @@ static int spi_get_gpio_descs(struct spi_controller *ctlr)
 	unsigned int num_cs_gpios = 0;
 
 	nb = gpiod_count(dev, "cs");
-	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
-
-	/* No GPIOs at all is fine, else return the error */
-	if (nb == 0 || nb == -ENOENT)
-		return 0;
-	else if (nb < 0)
+	if (nb < 0) {
+		/* No GPIOs at all is fine, else return the error */
+		if (nb == -ENOENT)
+			return 0;
 		return nb;
+	}
+
+	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
 
 	cs = devm_kcalloc(dev, ctlr->num_chipselect, sizeof(*cs),
 			  GFP_KERNEL);
