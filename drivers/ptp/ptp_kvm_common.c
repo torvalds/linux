@@ -138,7 +138,8 @@ static int __init ptp_kvm_init(void)
 
 	ret = kvm_arch_ptp_init();
 	if (ret) {
-		pr_err("fail to initialize ptp_kvm");
+		if (ret != -EOPNOTSUPP)
+			pr_err("fail to initialize ptp_kvm");
 		return ret;
 	}
 

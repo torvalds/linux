@@ -7,11 +7,11 @@ PTP_KVM is used for high precision time sync between host and guests.
 It relies on transferring the wall clock and counter value from the
 host to the guest using a KVM-specific hypercall.
 
-* ARM_SMCCC_HYP_KVM_PTP_FUNC_ID: 0x86000001
+* ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID: 0x86000001
 
 This hypercall uses the SMC32/HVC32 calling convention:
 
-ARM_SMCCC_HYP_KVM_PTP_FUNC_ID
+ARM_SMCCC_VENDOR_HYP_KVM_PTP_FUNC_ID
     ==============    ========    =====================================
     Function ID:      (uint32)    0x86000001
     Arguments:        (uint32)    KVM_PTP_VIRT_COUNTER(0)
