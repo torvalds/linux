@@ -2,7 +2,7 @@
 config FSL_ENETC
 	tristate "ENETC PF driver"
 	depends on PCI && PCI_MSI
-	depends on FSL_ENETC_IERB || FSL_ENETC_IERB=n
+	select FSL_ENETC_IERB
 	select FSL_ENETC_MDIO
 	select PHYLINK
 	select PCS_LYNX
