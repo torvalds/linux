@@ -39,6 +39,71 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum)
 	return ret ?: sectors;
 }
 
+static int __snapshot_lookup_subvol(struct btree_trans *trans, u32 snapshot,
+				    u32 *subvol)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_snapshots,
+			     POS(0, snapshot), 0);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (k.k->type != KEY_TYPE_snapshot) {
+		bch_err(trans->c, "snapshot %u not fonud", snapshot);
+		ret = -ENOENT;
+		goto err;
+	}
+
+	*subvol = le32_to_cpu(bkey_s_c_to_snapshot(k).v->subvol);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+
+}
+
+static int snapshot_lookup_subvol(struct btree_trans *trans, u32 snapshot,
+				  u32 *subvol)
+{
+	return lockrestart_do(trans, __snapshot_lookup_subvol(trans, snapshot, subvol));
+}
+
+static int __subvol_lookup_root(struct btree_trans *trans, u32 subvol,
+				u64 *inum)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolumes,
+			     POS(0, subvol), 0);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (k.k->type != KEY_TYPE_subvolume) {
+		bch_err(trans->c, "subvolume %u not fonud", subvol);
+		ret = -ENOENT;
+		goto err;
+	}
+
+	*inum = le64_to_cpu(bkey_s_c_to_subvolume(k).v->inode);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+
+}
+
+static int subvol_lookup_root(struct btree_trans *trans, u32 subvol, u64 *inum)
+{
+	return lockrestart_do(trans, __subvol_lookup_root(trans, subvol, inum));
+}
+
 static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 			  struct bch_inode_unpacked *inode,
 			  u32 *snapshot)
@@ -136,6 +201,7 @@ static int remove_dirent(struct btree_trans *trans, struct bpos pos)
 
 /* Get lost+found, create if it doesn't exist: */
 static int lookup_lostfound(struct btree_trans *trans,
+			    u32 subvol,
 			    struct bch_inode_unpacked *lostfound)
 {
 	struct bch_fs *c = trans->c;
@@ -146,12 +212,14 @@ static int lookup_lostfound(struct btree_trans *trans,
 	u32 snapshot;
 	int ret;
 
-	ret = lookup_inode(trans, BCACHEFS_ROOT_INO, &root, &snapshot);
+	ret = subvol_lookup_root(trans, subvol, &inum);
+
+	ret = lookup_inode(trans, inum, &root, &snapshot);
 	if (ret && ret != -ENOENT)
 		return ret;
 
 	root_hash_info = bch2_hash_info_init(c, &root);
-	inum = bch2_dirent_lookup(c, BCACHEFS_ROOT_INO, &root_hash_info,
+	inum = bch2_dirent_lookup(c, root.bi_inum, &root_hash_info,
 				  &lostfound_str);
 	if (!inum) {
 		bch_notice(c, "creating lost+found");
@@ -188,16 +256,22 @@ create_lostfound:
 }
 
 static int reattach_inode(struct btree_trans *trans,
-			  struct bch_inode_unpacked *inode)
+			  struct bch_inode_unpacked *inode,
+			  u32 snapshot)
 {
 	struct bch_hash_info dir_hash;
 	struct bch_inode_unpacked lostfound;
 	char name_buf[20];
 	struct qstr name;
 	u64 dir_offset = 0;
+	u32 subvol;
 	int ret;
 
-	ret = lookup_lostfound(trans, &lostfound);
+	ret = snapshot_lookup_subvol(trans, snapshot, &subvol);
+	if (ret)
+		return ret;
+
+	ret = lookup_lostfound(trans, subvol, &lostfound);
 	if (ret)
 		return ret;
 
@@ -1063,10 +1137,10 @@ static int path_down(struct pathbuf *p, u64 inum)
 
 static int check_path(struct btree_trans *trans,
 		      struct pathbuf *p,
-		      struct bch_inode_unpacked *inode)
+		      struct bch_inode_unpacked *inode,
+		      u32 snapshot)
 {
 	struct bch_fs *c = trans->c;
-	u32 snapshot;
 	size_t i;
 	int ret = 0;
 
@@ -1085,7 +1159,7 @@ static int check_path(struct btree_trans *trans,
 				     inode->bi_nlink,
 				     inode->bi_dir,
 				     inode->bi_dir_offset))
-				ret = reattach_inode(trans, inode);
+				ret = reattach_inode(trans, inode, snapshot);
 			break;
 		}
 		ret = 0;
@@ -1108,13 +1182,13 @@ static int check_path(struct btree_trans *trans,
 				return 0;
 
 			ret = lockrestart_do(trans,
-					 remove_backpointer(trans, inode));
+					remove_backpointer(trans, inode));
 			if (ret) {
 				bch_err(c, "error removing dirent: %i", ret);
 				break;
 			}
 
-			ret = reattach_inode(trans, inode);
+			ret = reattach_inode(trans, inode, snapshot);
 			break;
 		}
 
@@ -1160,7 +1234,7 @@ static int check_directory_structure(struct bch_fs *c)
 			break;
 		}
 
-		ret = check_path(&trans, &path, &u);
+		ret = check_path(&trans, &path, &u, iter.pos.snapshot);
 		if (ret)
 			break;
 	}
