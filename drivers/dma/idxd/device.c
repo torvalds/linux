@@ -47,6 +47,7 @@ void idxd_unmask_error_interrupts(struct idxd_device *idxd)
 
 	genctrl.bits = ioread32(idxd->reg_base + IDXD_GENCTRL_OFFSET);
 	genctrl.softerr_int_en = 1;
+	genctrl.halt_int_en = 1;
 	iowrite32(genctrl.bits, idxd->reg_base + IDXD_GENCTRL_OFFSET);
 }
 
@@ -56,6 +57,7 @@ void idxd_mask_error_interrupts(struct idxd_device *idxd)
 
 	genctrl.bits = ioread32(idxd->reg_base + IDXD_GENCTRL_OFFSET);
 	genctrl.softerr_int_en = 0;
+	genctrl.halt_int_en = 0;
 	iowrite32(genctrl.bits, idxd->reg_base + IDXD_GENCTRL_OFFSET);
 }
 
@@ -312,6 +314,19 @@ void idxd_wq_unmap_portal(struct idxd_wq *wq)
 	struct device *dev = &wq->idxd->pdev->dev;
 
 	devm_iounmap(dev, wq->portal);
+	wq->portal = NULL;
+}
+
+void idxd_wqs_unmap_portal(struct idxd_device *idxd)
+{
+	int i;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *wq = idxd->wqs[i];
+
+		if (wq->portal)
+			idxd_wq_unmap_portal(wq);
+	}
 }
 
 int idxd_wq_set_pasid(struct idxd_wq *wq, int pasid)

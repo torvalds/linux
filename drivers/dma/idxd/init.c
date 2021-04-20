@@ -647,6 +647,18 @@ static void idxd_flush_work_list(struct idxd_irq_entry *ie)
 	}
 }
 
+void idxd_wqs_quiesce(struct idxd_device *idxd)
+{
+	struct idxd_wq *wq;
+	int i;
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		wq = idxd->wqs[i];
+		if (wq->state == IDXD_WQ_ENABLED && wq->type == IDXD_WQT_KERNEL)
+			idxd_wq_quiesce(wq);
+	}
+}
+
 static void idxd_release_int_handles(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;

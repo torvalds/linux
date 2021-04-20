@@ -120,7 +120,8 @@ union gencfg_reg {
 union genctrl_reg {
 	struct {
 		u32 softerr_int_en:1;
-		u32 rsvd:31;
+		u32 halt_int_en:1;
+		u32 rsvd:30;
 	};
 	u32 bits;
 } __packed;

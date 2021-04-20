@@ -371,6 +371,7 @@ int idxd_register_devices(struct idxd_device *idxd);
 void idxd_unregister_devices(struct idxd_device *idxd);
 int idxd_register_driver(void);
 void idxd_unregister_driver(void);
+void idxd_wqs_quiesce(struct idxd_device *idxd);
 
 /* device interrupt control */
 void idxd_msix_perm_setup(struct idxd_device *idxd);
@@ -400,6 +401,7 @@ int idxd_device_release_int_handle(struct idxd_device *idxd, int handle,
 				   enum idxd_interrupt_type irq_type);
 
 /* work queue control */
+void idxd_wqs_unmap_portal(struct idxd_device *idxd);
 int idxd_wq_alloc_resources(struct idxd_wq *wq);
 void idxd_wq_free_resources(struct idxd_wq *wq);
 int idxd_wq_enable(struct idxd_wq *wq);
