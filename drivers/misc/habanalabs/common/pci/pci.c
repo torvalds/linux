@@ -430,6 +430,10 @@ int hl_pci_init(struct hl_device *hdev)
 		goto unmap_pci_bars;
 	}
 
+	/* Driver must sleep in order for FW to finish the iATU configuration */
+	if (hdev->asic_prop.iatu_done_by_fw)
+		usleep_range(2000, 3000);
+
 	return 0;
 
 unmap_pci_bars:
