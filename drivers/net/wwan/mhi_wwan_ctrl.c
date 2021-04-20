@@ -7,9 +7,11 @@
 #include <linux/wwan.h>
 
 /* MHI wwan flags */
-#define MHI_WWAN_DL_CAP		BIT(0)
-#define MHI_WWAN_UL_CAP		BIT(1)
-#define MHI_WWAN_RX_REFILL	BIT(2)
+enum mhi_wwan_flags {
+	MHI_WWAN_DL_CAP,
+	MHI_WWAN_UL_CAP,
+	MHI_WWAN_RX_REFILL,
+};
 
 #define MHI_WWAN_MAX_MTU	0x8000
 

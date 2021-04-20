@@ -26,7 +26,7 @@ static int wwan_major;
 #define to_wwan_port(d) container_of(d, struct wwan_port, dev)
 
 /* WWAN port flags */
-#define WWAN_PORT_TX_OFF	BIT(0)
+#define WWAN_PORT_TX_OFF	0
 
 /**
  * struct wwan_device - The structure that defines a WWAN device
