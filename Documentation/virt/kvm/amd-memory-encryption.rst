@@ -148,6 +148,9 @@ measurement. Since the guest owner knows the initial contents of the guest at
 boot, the measurement can be verified by comparing it to what the guest owner
 expects.
 
+If len is zero on entry, the measurement blob length is written to len and
+uaddr is unused.
+
 Parameters (in): struct  kvm_sev_launch_measure
 
 Returns: 0 on success, -negative on error
@@ -270,6 +273,9 @@ The KVM_SEV_GET_ATTESTATION_REPORT command can be used by the hypervisor to quer
 report containing the SHA-256 digest of the guest memory and VMSA passed through the KVM_SEV_LAUNCH
 commands and signed with the PEK. The digest returned by the command should match the digest
 used by the guest owner with the KVM_SEV_LAUNCH_MEASURE.
+
+If len is zero on entry, the measurement blob length is written to len and
+uaddr is unused.
 
 Parameters (in): struct kvm_sev_attestation
 
