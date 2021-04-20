@@ -96,7 +96,8 @@ static struct snd_soc_dai_driver rt1015p_dai_driver = {
 	.name = "HiFi",
 	.playback = {
 		.stream_name	= "HiFi Playback",
-		.formats	= SNDRV_PCM_FMTBIT_S24,
+		.formats	= SNDRV_PCM_FMTBIT_S24 |
+					SNDRV_PCM_FMTBIT_S32,
 		.rates		= SNDRV_PCM_RATE_48000,
 		.channels_min	= 1,
 		.channels_max	= 2,
