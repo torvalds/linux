@@ -86,6 +86,7 @@ xchk_superblock(
 	case -ENOSYS:
 	case -EFBIG:
 		error = -EFSCORRUPTED;
+		fallthrough;
 	default:
 		break;
 	}
