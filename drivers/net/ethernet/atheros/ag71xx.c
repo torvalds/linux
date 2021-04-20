@@ -37,6 +37,7 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <net/selftests.h>
 
 /* For our NAPI weight bigger does *NOT* mean better - it means more
  * D-cache misses and lots more wasted cycles than we'll ever
@@ -497,12 +498,17 @@ static int ag71xx_ethtool_set_pauseparam(struct net_device *ndev,
 static void ag71xx_ethtool_get_strings(struct net_device *netdev, u32 sset,
 				       u8 *data)
 {
-	if (sset == ETH_SS_STATS) {
-		int i;
+	int i;
 
+	switch (sset) {
+	case ETH_SS_STATS:
 		for (i = 0; i < ARRAY_SIZE(ag71xx_statistics); i++)
 			memcpy(data + i * ETH_GSTRING_LEN,
 			       ag71xx_statistics[i].name, ETH_GSTRING_LEN);
+		break;
+	case ETH_SS_TEST:
+		net_selftest_get_strings(data);
+		break;
 	}
 }
 
@@ -519,9 +525,14 @@ static void ag71xx_ethtool_get_stats(struct net_device *ndev,
 
 static int ag71xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
 {
-	if (sset == ETH_SS_STATS)
+	switch (sset) {
+	case ETH_SS_STATS:
 		return ARRAY_SIZE(ag71xx_statistics);
-	return -EOPNOTSUPP;
+	case ETH_SS_TEST:
+		return net_selftest_get_count();
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static const struct ethtool_ops ag71xx_ethtool_ops = {
@@ -536,6 +547,7 @@ static const struct ethtool_ops ag71xx_ethtool_ops = {
 	.get_strings			= ag71xx_ethtool_get_strings,
 	.get_ethtool_stats		= ag71xx_ethtool_get_stats,
 	.get_sset_count			= ag71xx_ethtool_get_sset_count,
+	.self_test			= net_selftest,
 };
 
 static int ag71xx_mdio_wait_busy(struct ag71xx *ag)
