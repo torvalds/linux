@@ -1601,7 +1601,7 @@ static void io_req_complete_post(struct io_kiocb *req, long res,
 static inline bool io_req_needs_clean(struct io_kiocb *req)
 {
 	return req->flags & (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP |
-				REQ_F_POLLED);
+				REQ_F_POLLED | REQ_F_INFLIGHT);
 }
 
 static void io_req_complete_state(struct io_kiocb *req, long res,
@@ -1717,17 +1717,10 @@ static void io_dismantle_req(struct io_kiocb *req)
 {
 	unsigned int flags = req->flags;
 
+	if (io_req_needs_clean(req))
+		io_clean_op(req);
 	if (!(flags & REQ_F_FIXED_FILE))
 		io_put_file(req->file);
-	if (io_req_needs_clean(req) || (req->flags & REQ_F_INFLIGHT)) {
-		io_clean_op(req);
-		if (req->flags & REQ_F_INFLIGHT) {
-			struct io_uring_task *tctx = req->task->io_uring;
-
-			atomic_dec(&tctx->inflight_tracked);
-			req->flags &= ~REQ_F_INFLIGHT;
-		}
-	}
 	if (req->fixed_rsrc_refs)
 		percpu_ref_put(req->fixed_rsrc_refs);
 	if (req->async_data)
@@ -6056,6 +6049,12 @@ static void io_clean_op(struct io_kiocb *req)
 		kfree(req->apoll->double_poll);
 		kfree(req->apoll);
 		req->apoll = NULL;
+	}
+	if (req->flags & REQ_F_INFLIGHT) {
+		struct io_uring_task *tctx = req->task->io_uring;
+
+		atomic_dec(&tctx->inflight_tracked);
+		req->flags &= ~REQ_F_INFLIGHT;
 	}
 }
 
