@@ -4520,3 +4520,12 @@ if (defined($opt{"LOG_FILE"})) {
 }
 
 exit 0;
+
+##
+# The following are here to standardize tabs/spaces/etc across the most likely editors
+###
+
+# Local Variables:
+# mode: perl
+# End:
+# vim: softtabstop=4
