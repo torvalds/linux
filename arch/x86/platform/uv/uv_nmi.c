@@ -92,6 +92,8 @@ static atomic_t uv_nmi_cpus_in_nmi = ATOMIC_INIT(-1);
 static atomic_t uv_nmi_slave_continue;
 static cpumask_var_t uv_nmi_cpu_mask;
 
+static atomic_t uv_nmi_kexec_failed;
+
 /* Values for uv_nmi_slave_continue */
 #define SLAVE_CLEAR	0
 #define SLAVE_CONTINUE	1
@@ -835,8 +837,6 @@ static void uv_nmi_touch_watchdogs(void)
 	touch_nmi_watchdog();
 }
 
-#if defined(CONFIG_KEXEC_CORE)
-static atomic_t uv_nmi_kexec_failed;
 static void uv_nmi_kdump(int cpu, int main, struct pt_regs *regs)
 {
 	/* Check if kdump kernel loaded for both main and secondary CPUs */
@@ -866,15 +866,6 @@ static void uv_nmi_kdump(int cpu, int main, struct pt_regs *regs)
 		}
 	}
 }
-
-#else /* !CONFIG_KEXEC_CORE */
-static inline void uv_nmi_kdump(int cpu, int main, struct pt_regs *regs)
-{
-	if (main)
-		pr_err("UV: NMI kdump: KEXEC not supported in this kernel\n");
-	atomic_set(&uv_nmi_kexec_failed, 1);
-}
-#endif /* !CONFIG_KEXEC_CORE */
 
 #ifdef CONFIG_KGDB
 #ifdef CONFIG_KGDB_KDB
