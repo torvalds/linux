@@ -386,12 +386,18 @@ retry:
 		goto evict;
 	}
 
+	/*
+	 * Since journal reclaim depends on us making progress here, and the
+	 * allocator/copygc depend on journal reclaim making progress, we need
+	 * to be using alloc reserves:
+	 * */
 	ret   = bch2_btree_iter_traverse(b_iter) ?:
 		bch2_trans_update(trans, b_iter, ck->k, BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BTREE_INSERT_NOUNLOCK|
 				  BTREE_INSERT_NOCHECK_RW|
 				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_USE_RESERVE|
 				  (ck->journal.seq == journal_last_seq(j)
 				   ? BTREE_INSERT_JOURNAL_RESERVED
 				   : 0)|

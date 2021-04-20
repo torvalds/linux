@@ -87,9 +87,20 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 		if (i >= 0 &&
 		    p.ptr.offset < h->data[i].offset + ca->mi.bucket_size &&
 		    p.ptr.gen == h->data[i].gen) {
+			/*
+			 * We need to use the journal reserve here, because
+			 *  - journal reclaim depends on btree key cache
+			 *    flushing to make forward progress,
+			 *  - which has to make forward progress when the
+			 *    journal is pre-reservation full,
+			 *  - and depends on allocation - meaning allocator and
+			 *    copygc
+			 */
+
 			data_opts->target		= io_opts->background_target;
 			data_opts->nr_replicas		= 1;
-			data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE;
+			data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE|
+				BTREE_INSERT_JOURNAL_RESERVED;
 			data_opts->rewrite_dev		= p.ptr.dev;
 
 			if (p.has_ec)

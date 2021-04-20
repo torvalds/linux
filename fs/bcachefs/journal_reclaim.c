@@ -634,7 +634,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct)
 			       msecs_to_jiffies(j->reclaim_delay_ms)))
 			min_nr = 1;
 
-		if (j->prereserved.reserved * 2 > j->prereserved.remaining)
+		if (j->prereserved.reserved * 4 > j->prereserved.remaining)
 			min_nr = 1;
 
 		if (fifo_free(&j->pin) <= 32)
