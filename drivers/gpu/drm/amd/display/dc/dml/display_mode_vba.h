@@ -233,7 +233,7 @@ struct vba_vars_st {
 	// IP Parameters
 	//
 	unsigned int ROBBufferSizeInKByte;
-	double DETBufferSizeInKByte;
+	unsigned int DETBufferSizeInKByte[DC__NUM_DPP__MAX];
 	double DETBufferSizeInTime;
 	unsigned int DPPOutputBufferPixels;
 	unsigned int OPPOutputBufferLines;
@@ -351,8 +351,8 @@ struct vba_vars_st {
 
 	// Intermediates/Informational
 	bool ImmediateFlipSupport;
-	double DETBufferSizeY[DC__NUM_DPP__MAX];
-	double DETBufferSizeC[DC__NUM_DPP__MAX];
+	unsigned int DETBufferSizeY[DC__NUM_DPP__MAX];
+	unsigned int DETBufferSizeC[DC__NUM_DPP__MAX];
 	unsigned int SwathHeightY[DC__NUM_DPP__MAX];
 	unsigned int SwathHeightC[DC__NUM_DPP__MAX];
 	unsigned int LBBitPerPixel[DC__NUM_DPP__MAX];
@@ -631,8 +631,8 @@ struct vba_vars_st {
 	enum odm_combine_mode odm_combine_dummy[DC__NUM_DPP__MAX];
 	double         dummy1[DC__NUM_DPP__MAX];
 	double         dummy2[DC__NUM_DPP__MAX];
-	double         dummy3[DC__NUM_DPP__MAX];
-	double         dummy4[DC__NUM_DPP__MAX];
+	unsigned int   dummy3[DC__NUM_DPP__MAX];
+	unsigned int   dummy4[DC__NUM_DPP__MAX];
 	double         dummy5;
 	double         dummy6;
 	double         dummy7[DC__NUM_DPP__MAX];
@@ -872,8 +872,8 @@ struct vba_vars_st {
 	int PercentMarginOverMinimumRequiredDCFCLK;
 	bool DynamicMetadataSupported[DC__VOLTAGE_STATES][2];
 	enum immediate_flip_requirement ImmediateFlipRequirement;
-	double DETBufferSizeYThisState[DC__NUM_DPP__MAX];
-	double DETBufferSizeCThisState[DC__NUM_DPP__MAX];
+	unsigned int DETBufferSizeYThisState[DC__NUM_DPP__MAX];
+	unsigned int DETBufferSizeCThisState[DC__NUM_DPP__MAX];
 	bool NoUrgentLatencyHiding[DC__NUM_DPP__MAX];
 	bool NoUrgentLatencyHidingPre[DC__NUM_DPP__MAX];
 	int swath_width_luma_ub_this_state[DC__NUM_DPP__MAX];
