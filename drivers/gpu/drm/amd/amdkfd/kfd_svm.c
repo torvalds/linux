@@ -2363,8 +2363,10 @@ retry_write_locked:
 
 	mutex_lock(&prange->migrate_mutex);
 
-	if (svm_range_skip_recover(prange))
+	if (svm_range_skip_recover(prange)) {
+		amdgpu_gmc_filter_faults_remove(adev, addr, pasid);
 		goto out_unlock_range;
+	}
 
 	timestamp = ktime_to_us(ktime_get()) - prange->validate_timestamp;
 	/* skip duplicate vm fault on different pages of same range */
@@ -2426,6 +2428,7 @@ out:
 
 	if (r == -EAGAIN) {
 		pr_debug("recover vm fault later\n");
+		amdgpu_gmc_filter_faults_remove(adev, addr, pasid);
 		r = 0;
 	}
 	return r;
