@@ -511,3 +511,4 @@ module_i2c_driver(lm25066_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LM25066 and compatible chips");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

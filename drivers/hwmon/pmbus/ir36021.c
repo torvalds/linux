@@ -77,3 +77,4 @@ module_i2c_driver(ir36021_driver);
 MODULE_AUTHOR("Chris Packham <chris.packham@alliedtelesis.co.nz>");
 MODULE_DESCRIPTION("PMBus driver for Infineon IR36021");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

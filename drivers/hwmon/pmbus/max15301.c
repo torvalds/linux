@@ -187,3 +187,4 @@ module_i2c_driver(max15301_driver);
 MODULE_AUTHOR("Erik Rosen <erik.rosen@metormote.com>");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX15301");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

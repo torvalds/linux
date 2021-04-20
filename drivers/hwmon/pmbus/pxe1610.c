@@ -148,3 +148,4 @@ module_i2c_driver(pxe1610_driver);
 MODULE_AUTHOR("Vijay Khemka <vijaykhemka@fb.com>");
 MODULE_DESCRIPTION("PMBus driver for Infineon PXE1610, PXE1110 and PXM1310");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);
