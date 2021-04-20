@@ -9,6 +9,6 @@
 };
 
 &max {
-	/delete-node/ fan4;
+	/delete-node/ fan3;
 	/delete-node/ fan5;
 };
