@@ -55,6 +55,8 @@
 #include "irq_types.h"
 #include "signal_types.h"
 #include "amdgpu_dm_crc.h"
+struct aux_payload;
+enum aux_return_code_type;
 
 /* Forward declarations */
 struct amdgpu_device;
@@ -63,6 +65,7 @@ struct dc;
 struct amdgpu_bo;
 struct dmub_srv;
 struct dc_plane_state;
+struct dmub_notification;
 
 struct common_irq_params {
 	struct amdgpu_device *adev;
@@ -179,6 +182,8 @@ struct amdgpu_display_manager {
 	 * NULL on hardware that does not support it.
 	 */
 	struct dmub_srv *dmub_srv;
+
+	struct dmub_notification *dmub_notify;
 
 	/**
 	 * @dmub_fb_info:
@@ -351,6 +356,9 @@ struct amdgpu_display_manager {
 	struct common_irq_params
 	dmub_trace_params[1];
 
+	struct common_irq_params
+	dmub_outbox_params[1];
+
 	spinlock_t irq_handler_list_table_lock;
 
 	struct backlight_device *backlight_dev;
@@ -423,6 +431,7 @@ struct amdgpu_display_manager {
 	 * DAL fb memory allocation list, for communication with SMU.
 	 */
 	struct list_head da_list;
+	struct completion dmub_aux_transfer_done;
 };
 
 enum dsc_clock_force_state {
@@ -605,4 +614,6 @@ void amdgpu_dm_update_connector_after_detect(
 
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 
+int amdgpu_dm_process_dmub_aux_transfer_sync(struct dc_context *ctx, unsigned int linkIndex,
+					struct aux_payload *payload, enum aux_return_code_type *operation_result);
 #endif /* __AMDGPU_DM_H__ */

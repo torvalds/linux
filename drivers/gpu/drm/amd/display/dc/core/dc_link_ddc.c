@@ -658,7 +658,10 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result)
 {
-	return dce_aux_transfer_raw(ddc, payload, operation_result);
+	if (dc_enable_dmub_notifications(ddc->ctx->dc))
+		return dce_aux_transfer_dmub_raw(ddc, payload, operation_result);
+	else
+		return dce_aux_transfer_raw(ddc, payload, operation_result);
 }
 
 /* dc_link_aux_transfer_with_retries() - Attempt to submit an

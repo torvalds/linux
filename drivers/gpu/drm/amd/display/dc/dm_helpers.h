@@ -34,6 +34,8 @@
 #include "dc.h"
 
 struct dp_mst_stream_allocation_table;
+struct aux_payload;
+enum aux_return_code_type;
 
 /*
  * Allocate memory accessible by the GPU
@@ -158,6 +160,11 @@ void dm_set_dcn_clocks(
 		struct dc_context *ctx,
 		struct dc_clocks *clks);
 
-bool dm_helpers_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable);
+bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable);
 
+int dm_helper_dmub_aux_transfer_sync(
+		struct dc_context *ctx,
+		const struct dc_link *link,
+		struct aux_payload *payload,
+		enum aux_return_code_type *operation_result);
 #endif /* __DM_HELPERS__ */
