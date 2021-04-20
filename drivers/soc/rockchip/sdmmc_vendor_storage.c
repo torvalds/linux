@@ -23,6 +23,7 @@
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include "../../mmc/host/rk_sdmmc_ops.h"
 
 #define EMMC_IDB_PART_OFFSET		64
 #define EMMC_SYS_PART_OFFSET		8064
@@ -75,8 +76,6 @@ struct vendor_info {
 static u8 *g_idb_buffer;
 static struct vendor_info *g_vendor;
 static DEFINE_MUTEX(vendor_ops_mutex);
-extern int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz,
-			    int write);
 
 static int emmc_vendor_ops(u8 *buffer, u32 addr, u32 n_sec, int write)
 {
