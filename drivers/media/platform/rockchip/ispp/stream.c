@@ -937,7 +937,8 @@ static int config_nr_shp(struct rkispp_device *dev)
 			rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
 			rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
 			rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
-			rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
+			if (dev->inp == INP_ISP)
+				rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
 		}
 	}
 
@@ -1274,7 +1275,8 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 		val = dev->hw_dev->dummy_buf.dma_addr;
 		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
 		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
-		rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
+		if (dev->inp == INP_ISP)
+			rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
 	}
 
 	/* for wait last frame */
