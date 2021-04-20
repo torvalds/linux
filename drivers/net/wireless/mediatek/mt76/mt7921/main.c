@@ -65,9 +65,9 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 			IEEE80211_HE_MAC_CAP0_HTC_HE;
 		he_cap_elem->mac_cap_info[3] =
 			IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
-			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_RESERVED;
+			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3;
 		he_cap_elem->mac_cap_info[4] =
-			IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU;
+			IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU;
 
 		if (band == NL80211_BAND_2GHZ)
 			he_cap_elem->phy_cap_info[0] =
@@ -108,7 +108,7 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 				IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE |
 				IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT;
 			he_cap_elem->phy_cap_info[7] |=
-				IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR |
+				IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP |
 				IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI;
 			he_cap_elem->phy_cap_info[8] |=
 				IEEE80211_HE_PHY_CAP8_20MHZ_IN_40MHZ_HE_PPDU_IN_2G |

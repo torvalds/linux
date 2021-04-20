@@ -511,7 +511,7 @@ mt76_connac_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 	if (elem->mac_cap_info[3] & IEEE80211_HE_MAC_CAP3_OMI_CONTROL)
 		cap |= STA_REC_HE_CAP_OM;
 
-	if (elem->mac_cap_info[4] & IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU)
+	if (elem->mac_cap_info[4] & IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU)
 		cap |= STA_REC_HE_CAP_AMSDU_IN_AMPDU;
 
 	if (elem->mac_cap_info[4] & IEEE80211_HE_MAC_CAP4_BQR)

@@ -1334,9 +1334,8 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	 * request, then use MAX_AMPDU_LEN_FACTOR as 16 to calculate max_ampdu
 	 * length.
 	 */
-	ampdu_factor = (he_cap->he_cap_elem.mac_cap_info[3] &
-			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK) >>
-			IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_SHIFT;
+	ampdu_factor = u8_get_bits(he_cap->he_cap_elem.mac_cap_info[3],
+				   IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK);
 
 	if (ampdu_factor) {
 		if (sta->vht_cap.vht_supported)
@@ -3876,7 +3875,7 @@ ath11k_mac_filter_he_cap_mesh(struct ieee80211_he_cap_elem *he_cap_elem)
 	    IEEE80211_HE_MAC_CAP4_BQR;
 	he_cap_elem->mac_cap_info[4] &= ~m;
 
-	m = IEEE80211_HE_MAC_CAP5_SUBCHAN_SELECVITE_TRANSMISSION |
+	m = IEEE80211_HE_MAC_CAP5_SUBCHAN_SELECTIVE_TRANSMISSION |
 	    IEEE80211_HE_MAC_CAP5_UL_2x996_TONE_RU |
 	    IEEE80211_HE_MAC_CAP5_PUNCTURED_SOUNDING |
 	    IEEE80211_HE_MAC_CAP5_HT_VHT_TRIG_FRAME_RX;
@@ -3886,7 +3885,7 @@ ath11k_mac_filter_he_cap_mesh(struct ieee80211_he_cap_elem *he_cap_elem)
 	    IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
 	he_cap_elem->phy_cap_info[2] &= ~m;
 
-	m = IEEE80211_HE_PHY_CAP3_RX_HE_MU_PPDU_FROM_NON_AP_STA |
+	m = IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU |
 	    IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK |
 	    IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK;
 	he_cap_elem->phy_cap_info[3] &= ~m;
@@ -3898,13 +3897,13 @@ ath11k_mac_filter_he_cap_mesh(struct ieee80211_he_cap_elem *he_cap_elem)
 	he_cap_elem->phy_cap_info[5] &= ~m;
 
 	m = IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU |
-	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB |
+	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMING_PARTIAL_BW_FB |
 	    IEEE80211_HE_PHY_CAP6_TRIG_CQI_FB |
 	    IEEE80211_HE_PHY_CAP6_PARTIAL_BANDWIDTH_DL_MUMIMO;
 	he_cap_elem->phy_cap_info[6] &= ~m;
 
-	m = IEEE80211_HE_PHY_CAP7_SRP_BASED_SR |
-	    IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR |
+	m = IEEE80211_HE_PHY_CAP7_PSR_BASED_SR |
+	    IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP |
 	    IEEE80211_HE_PHY_CAP7_STBC_TX_ABOVE_80MHZ |
 	    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ;
 	he_cap_elem->phy_cap_info[7] &= ~m;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  */
 #ifndef __PMSR_H
 #define __PMSR_H
@@ -155,6 +155,16 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_PREAMBLE],
 				    "FTM: non EDCA based ranging must use HE preamble");
+		return -EINVAL;
+	}
+
+	out->ftm.lmr_feedback =
+		!!tb[NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK];
+	if (!out->ftm.trigger_based && !out->ftm.non_trigger_based &&
+	    out->ftm.lmr_feedback) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK],
+				    "FTM: LMR feedback set for EDCA based ranging");
 		return -EINVAL;
 	}
 
