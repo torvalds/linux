@@ -566,8 +566,10 @@ static int fsi_spi_probe(struct device *dev)
 			continue;
 
 		ctlr = spi_alloc_master(dev, sizeof(*ctx));
-		if (!ctlr)
+		if (!ctlr) {
+			of_node_put(np);
 			break;
+		}
 
 		ctlr->dev.of_node = np;
 		ctlr->num_chipselect = of_get_available_child_count(np) ?: 1;
