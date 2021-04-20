@@ -4003,6 +4003,27 @@ static void android_rvh_update_cpus_allowed(void *unused, struct task_struct *p,
 		*ret = set_cpus_allowed_ptr(p, &wts->cpus_requested);
 }
 
+static void android_rvh_sched_setaffinity(void *unused, struct task_struct *p,
+					  const struct cpumask *in_mask,
+					  int *retval)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	/* nothing to do if the affinity call failed */
+	if (*retval)
+		return;
+
+	/*
+	 * cache the affinity for user space tasks so that they
+	 * can be restored during cpuset cgroup change.
+	 */
+	if (!(p->flags & PF_KTHREAD))
+		cpumask_and(&wts->cpus_requested, in_mask, cpu_possible_mask);
+}
+
 static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -4061,6 +4082,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_cpu_cgroup_attach(android_rvh_cpu_cgroup_attach, NULL);
 	register_trace_android_rvh_cpu_cgroup_online(android_rvh_cpu_cgroup_online, NULL);
 	register_trace_android_rvh_update_cpus_allowed(android_rvh_update_cpus_allowed, NULL);
+	register_trace_android_rvh_sched_setaffinity(android_rvh_sched_setaffinity, NULL);
 	register_trace_android_rvh_sched_fork_init(android_rvh_sched_fork_init, NULL);
 	register_trace_android_rvh_ttwu_cond(android_rvh_ttwu_cond, NULL);
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
