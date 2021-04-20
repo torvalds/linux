@@ -1204,13 +1204,14 @@ int bch2_btree_delete_at(struct btree_trans *trans,
 
 int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 				  struct bpos start, struct bpos end,
+				  unsigned iter_flags,
 				  u64 *journal_seq)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
-	bch2_trans_iter_init(trans, &iter, id, start, BTREE_ITER_INTENT);
+	bch2_trans_iter_init(trans, &iter, id, start, BTREE_ITER_INTENT|iter_flags);
 retry:
 	while ((bch2_trans_begin(trans),
 	       (k = bch2_btree_iter_peek(&iter)).k) &&
@@ -1277,5 +1278,5 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    u64 *journal_seq)
 {
 	return bch2_trans_do(c, NULL, journal_seq, 0,
-			     bch2_btree_delete_range_trans(&trans, id, start, end, journal_seq));
+			     bch2_btree_delete_range_trans(&trans, id, start, end, 0, journal_seq));
 }
