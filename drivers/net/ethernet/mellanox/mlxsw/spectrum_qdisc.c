@@ -962,7 +962,7 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc_state *qdisc_state = mlxsw_sp_port->qdisc;
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
-	int tclass, child_index;
+	unsigned int band;
 	u32 parent_handle;
 
 	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, false);
@@ -977,13 +977,12 @@ static int __mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 			qdisc_state->future_handle = parent_handle;
 		}
 
-		child_index = TC_H_MIN(p->parent);
-		tclass = MLXSW_SP_PRIO_CHILD_TO_TCLASS(child_index);
-		if (tclass < IEEE_8021QAZ_MAX_TCS) {
+		band = TC_H_MIN(p->parent) - 1;
+		if (band < IEEE_8021QAZ_MAX_TCS) {
 			if (p->command == TC_FIFO_REPLACE)
-				qdisc_state->future_fifos[tclass] = true;
+				qdisc_state->future_fifos[band] = true;
 			else if (p->command == TC_FIFO_DESTROY)
-				qdisc_state->future_fifos[tclass] = false;
+				qdisc_state->future_fifos[band] = false;
 		}
 	}
 	if (!mlxsw_sp_qdisc)
@@ -1117,7 +1116,7 @@ __mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 		}
 
 		if (handle == qdisc_state->future_handle &&
-		    qdisc_state->future_fifos[tclass]) {
+		    qdisc_state->future_fifos[band]) {
 			err = mlxsw_sp_qdisc_replace(mlxsw_sp_port, TC_H_UNSPEC,
 						     child_qdisc,
 						     &mlxsw_sp_qdisc_ops_fifo,
