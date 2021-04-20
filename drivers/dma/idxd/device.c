@@ -384,6 +384,32 @@ void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	memset(wq->name, 0, WQ_NAME_SIZE);
 }
 
+static void idxd_wq_ref_release(struct percpu_ref *ref)
+{
+	struct idxd_wq *wq = container_of(ref, struct idxd_wq, wq_active);
+
+	complete(&wq->wq_dead);
+}
+
+int idxd_wq_init_percpu_ref(struct idxd_wq *wq)
+{
+	int rc;
+
+	memset(&wq->wq_active, 0, sizeof(wq->wq_active));
+	rc = percpu_ref_init(&wq->wq_active, idxd_wq_ref_release, 0, GFP_KERNEL);
+	if (rc < 0)
+		return rc;
+	reinit_completion(&wq->wq_dead);
+	return 0;
+}
+
+void idxd_wq_quiesce(struct idxd_wq *wq)
+{
+	percpu_ref_kill(&wq->wq_active);
+	wait_for_completion(&wq->wq_dead);
+	percpu_ref_exit(&wq->wq_active);
+}
+
 /* Device control bits */
 static inline bool idxd_is_enabled(struct idxd_device *idxd)
 {

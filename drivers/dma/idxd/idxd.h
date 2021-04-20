@@ -108,6 +108,8 @@ struct idxd_dma_chan {
 
 struct idxd_wq {
 	void __iomem *portal;
+	struct percpu_ref wq_active;
+	struct completion wq_dead;
 	struct device conf_dev;
 	struct idxd_cdev *idxd_cdev;
 	struct wait_queue_head err_queue;
@@ -395,6 +397,8 @@ void idxd_wq_unmap_portal(struct idxd_wq *wq);
 void idxd_wq_disable_cleanup(struct idxd_wq *wq);
 int idxd_wq_set_pasid(struct idxd_wq *wq, int pasid);
 int idxd_wq_disable_pasid(struct idxd_wq *wq);
+void idxd_wq_quiesce(struct idxd_wq *wq);
+int idxd_wq_init_percpu_ref(struct idxd_wq *wq);
 
 /* submission */
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc);

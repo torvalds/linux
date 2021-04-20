@@ -86,6 +86,9 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -EIO;
 
+	if (!percpu_ref_tryget_live(&wq->wq_active))
+		return -ENXIO;
+
 	portal = wq->portal;
 
 	/*
@@ -107,6 +110,8 @@ int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc)
 		if (rc < 0)
 			return rc;
 	}
+
+	percpu_ref_put(&wq->wq_active);
 
 	/*
 	 * Pending the descriptor to the lockless list for the irq_entry
