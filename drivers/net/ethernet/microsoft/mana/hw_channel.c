@@ -55,7 +55,7 @@ static void mana_hwc_handle_resp(struct hw_channel_context *hwc, u32 resp_len,
 				 const struct gdma_resp_hdr *resp_msg)
 {
 	struct hwc_caller_ctx *ctx;
-	int err = -EPROTO;
+	int err;
 
 	if (!test_bit(resp_msg->response.hwc_msg_id,
 		      hwc->inflight_msg_res.map)) {
