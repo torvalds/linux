@@ -2377,6 +2377,7 @@
   __tracepoint_android_rvh_sched_fork_init
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
+  __tracepoint_android_rvh_sched_setaffinity
   __tracepoint_android_rvh_schedule
   __tracepoint_android_rvh_schedule_bug
   __tracepoint_android_rvh_select_task_rq_fair
