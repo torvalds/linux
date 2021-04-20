@@ -501,7 +501,7 @@ static DEFINE_PER_CPU(cpumask_t, energy_cpus);
 int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 				     int sync, int sibling_count_hint)
 {
-	unsigned long prev_delta = ULONG_MAX, best_delta = ULONG_MAX;
+	unsigned long prev_energy = ULONG_MAX, best_energy = ULONG_MAX;
 	struct root_domain *rd = cpu_rq(cpumask_first(cpu_active_mask))->rd;
 	int weight, cpu = smp_processor_id(), best_energy_cpu = prev_cpu;
 	struct perf_domain *pd;
@@ -589,10 +589,10 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	}
 
 	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask))
-		prev_delta = best_delta =
+		prev_energy = best_energy =
 			walt_compute_energy(p, prev_cpu, pd);
 	else
-		prev_delta = best_delta = ULONG_MAX;
+		prev_energy = best_energy = ULONG_MAX;
 
 	/* Select the best candidate energy-wise. */
 	for_each_cpu(cpu, candidates) {
@@ -601,15 +601,15 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 
 		cur_energy = walt_compute_energy(p, cpu, pd);
 		trace_sched_compute_energy(p, cpu, cur_energy,
-			prev_delta, best_delta, best_energy_cpu);
+			prev_energy, best_energy, best_energy_cpu);
 
-		if (cur_energy < best_delta) {
-			best_delta = cur_energy;
+		if (cur_energy < best_energy) {
+			best_energy = cur_energy;
 			best_energy_cpu = cpu;
-		} else if (cur_energy == best_delta) {
+		} else if (cur_energy == best_energy) {
 			if (select_cpu_same_energy(cpu, best_energy_cpu,
 							prev_cpu)) {
-				best_delta = cur_energy;
+				best_energy = cur_energy;
 				best_energy_cpu = cpu;
 			}
 		}
@@ -624,8 +624,8 @@ unlock:
 	 */
 	if (!(available_idle_cpu(best_energy_cpu) &&
 	    walt_get_idle_exit_latency(cpu_rq(best_energy_cpu)) <= 1) &&
-	    (prev_delta != ULONG_MAX) && (best_energy_cpu != prev_cpu) &&
-	    ((prev_delta - best_delta) <= prev_delta >> 4) &&
+	    (prev_energy != ULONG_MAX) && (best_energy_cpu != prev_cpu) &&
+	    ((prev_energy - best_energy) <= prev_energy >> 4) &&
 	    (capacity_orig_of(prev_cpu) <= capacity_orig_of(start_cpu)))
 		best_energy_cpu = prev_cpu;
 
