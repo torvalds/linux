@@ -870,13 +870,6 @@ S:	Supported
 T:	git git://people.freedesktop.org/~agd5f/linux
 F:	drivers/gpu/drm/amd/display/
 
-AMD ENERGY DRIVER
-M:	Naveen Krishna Chatradhi <nchatrad@amd.com>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/amd_energy.rst
-F:	drivers/hwmon/amd_energy.c
-
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
 M:	Huang Rui <ray.huang@amd.com>
 L:	linux-hwmon@vger.kernel.org
