@@ -554,10 +554,6 @@ static int at803x_parse_dt(struct phy_device *phydev)
 			phydev_err(phydev, "failed to get VDDIO regulator\n");
 			return PTR_ERR(priv->vddio);
 		}
-
-		ret = regulator_enable(priv->vddio);
-		if (ret < 0)
-			return ret;
 	}
 
 	return 0;
@@ -579,14 +575,29 @@ static int at803x_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	if (priv->vddio) {
+		ret = regulator_enable(priv->vddio);
+		if (ret < 0)
+			return ret;
+	}
+
 	/* Some bootloaders leave the fiber page selected.
 	 * Switch to the copper page, as otherwise we read
 	 * the PHY capabilities from the fiber side.
 	 */
 	if (at803x_match_phy_id(phydev, ATH8031_PHY_ID)) {
-		ret = phy_select_page(phydev, AT803X_PAGE_COPPER);
-		ret = phy_restore_page(phydev, AT803X_PAGE_COPPER, ret);
+		phy_lock_mdio_bus(phydev);
+		ret = at803x_write_page(phydev, AT803X_PAGE_COPPER);
+		phy_unlock_mdio_bus(phydev);
+		if (ret)
+			goto err;
 	}
+
+	return 0;
+
+err:
+	if (priv->vddio)
+		regulator_disable(priv->vddio);
 
 	return ret;
 }
