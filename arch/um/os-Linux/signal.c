@@ -143,7 +143,7 @@ void set_sigstack(void *sig_stack, int size)
 	stack_t stack = {
 		.ss_flags = 0,
 		.ss_sp = sig_stack,
-		.ss_size = size - sizeof(void *)
+		.ss_size = size
 	};
 
 	if (sigaltstack(&stack, NULL) != 0)
