@@ -1393,11 +1393,6 @@ int kmb_dsi_mode_set(struct kmb_dsi *kmb_dsi, struct drm_display_mode *mode,
 		mipi_tx_init_cfg.lane_rate_mbps = data_rate;
 	}
 
-	kmb_write_mipi(kmb_dsi, DPHY_ENABLE, 0);
-	kmb_write_mipi(kmb_dsi, DPHY_INIT_CTRL0, 0);
-	kmb_write_mipi(kmb_dsi, DPHY_INIT_CTRL1, 0);
-	kmb_write_mipi(kmb_dsi, DPHY_INIT_CTRL2, 0);
-
 	/* Initialize mipi controller */
 	mipi_tx_init_cntrl(kmb_dsi, &mipi_tx_init_cfg);
 
