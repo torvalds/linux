@@ -161,10 +161,6 @@ struct mt7921_dev {
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
 
-	spinlock_t token_lock;
-	int token_count;
-	struct idr token;
-
 	u8 fw_debug;
 
 	struct mt76_connac_pm pm;

@@ -40,8 +40,8 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->mcu_work, mt7615_pci_init_work);
-	spin_lock_init(&dev->token_lock);
-	idr_init(&dev->token);
+	spin_lock_init(&dev->mt76.token_lock);
+	idr_init(&dev->mt76.token);
 
 	ret = mt7615_eeprom_init(dev, addr);
 	if (ret < 0)

@@ -824,14 +824,14 @@ int mt7921_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
 	t->skb = tx_info->skb;
 
-	spin_lock_bh(&dev->token_lock);
-	id = idr_alloc(&dev->token, t, 0, MT7921_TOKEN_SIZE, GFP_ATOMIC);
+	spin_lock_bh(&mdev->token_lock);
+	id = idr_alloc(&mdev->token, t, 0, MT7921_TOKEN_SIZE, GFP_ATOMIC);
 	if (id >= 0)
-		dev->token_count++;
+		mdev->token_count++;
 
-	if (dev->token_count >= MT7921_TOKEN_SIZE - MT7921_TOKEN_FREE_THR)
+	if (mdev->token_count >= MT7921_TOKEN_SIZE - MT7921_TOKEN_FREE_THR)
 		mt7921_set_tx_blocked(dev, true);
-	spin_unlock_bh(&dev->token_lock);
+	spin_unlock_bh(&mdev->token_lock);
 
 	if (id < 0)
 		return id;
@@ -994,14 +994,14 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		msdu = FIELD_GET(MT_TX_FREE_MSDU_ID, info);
 		stat = FIELD_GET(MT_TX_FREE_STATUS, info);
 
-		spin_lock_bh(&dev->token_lock);
-		txwi = idr_remove(&dev->token, msdu);
+		spin_lock_bh(&mdev->token_lock);
+		txwi = idr_remove(&mdev->token, msdu);
 		if (txwi)
-			dev->token_count--;
-		if (dev->token_count < MT7921_TOKEN_SIZE - MT7921_TOKEN_FREE_THR &&
+			mdev->token_count--;
+		if (mdev->token_count < MT7921_TOKEN_SIZE - MT7921_TOKEN_FREE_THR &&
 		    dev->mphy.q_tx[0]->blocked)
 			wake = true;
-		spin_unlock_bh(&dev->token_lock);
+		spin_unlock_bh(&mdev->token_lock);
 
 		if (!txwi)
 			continue;
@@ -1031,9 +1031,9 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 	}
 
 	if (wake) {
-		spin_lock_bh(&dev->token_lock);
+		spin_lock_bh(&mdev->token_lock);
 		mt7921_set_tx_blocked(dev, false);
-		spin_unlock_bh(&dev->token_lock);
+		spin_unlock_bh(&mdev->token_lock);
 	}
 
 	napi_consume_skb(skb, 1);
@@ -1067,9 +1067,9 @@ void mt7921_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 		txp = mt7921_txwi_to_txp(mdev, e->txwi);
 
 		token = le16_to_cpu(txp->hw.msdu_id[0]) & ~MT_MSDU_ID_VALID;
-		spin_lock_bh(&dev->token_lock);
-		t = idr_remove(&dev->token, token);
-		spin_unlock_bh(&dev->token_lock);
+		spin_lock_bh(&mdev->token_lock);
+		t = idr_remove(&mdev->token, token);
+		spin_unlock_bh(&mdev->token_lock);
 		e->skb = t ? t->skb : NULL;
 	}
 
@@ -1209,8 +1209,8 @@ void mt7921_tx_token_put(struct mt7921_dev *dev)
 	struct mt76_txwi_cache *txwi;
 	int id;
 
-	spin_lock_bh(&dev->token_lock);
-	idr_for_each_entry(&dev->token, txwi, id) {
+	spin_lock_bh(&dev->mt76.token_lock);
+	idr_for_each_entry(&dev->mt76.token, txwi, id) {
 		mt7921_txp_skb_unmap(&dev->mt76, txwi);
 		if (txwi->skb) {
 			struct ieee80211_hw *hw;
@@ -1219,10 +1219,10 @@ void mt7921_tx_token_put(struct mt7921_dev *dev)
 			ieee80211_free_txskb(hw, txwi->skb);
 		}
 		mt76_put_txwi(&dev->mt76, txwi);
-		dev->token_count--;
+		dev->mt76.token_count--;
 	}
-	spin_unlock_bh(&dev->token_lock);
-	idr_destroy(&dev->token);
+	spin_unlock_bh(&dev->mt76.token_lock);
+	idr_destroy(&dev->mt76.token);
 }
 
 static void
@@ -1261,7 +1261,7 @@ mt7921_mac_reset(struct mt7921_dev *dev)
 	napi_disable(&dev->mt76.tx_napi);
 
 	mt7921_tx_token_put(dev);
-	idr_init(&dev->token);
+	idr_init(&dev->mt76.token);
 
 	err = mt7921_wpdma_reset(dev, true);
 	if (err)

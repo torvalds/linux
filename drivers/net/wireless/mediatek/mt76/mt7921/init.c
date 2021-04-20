@@ -170,8 +170,8 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 {
 	int ret, idx;
 
-	spin_lock_init(&dev->token_lock);
-	idr_init(&dev->token);
+	spin_lock_init(&dev->mt76.token_lock);
+	idr_init(&dev->mt76.token);
 
 	ret = mt7921_dma_init(dev);
 	if (ret)

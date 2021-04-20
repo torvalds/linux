@@ -187,10 +187,6 @@ struct mt7915_dev {
 
 	u32 hw_pattern;
 
-	spinlock_t token_lock;
-	int token_count;
-	struct idr token;
-
 	bool dbdc_support;
 	bool flash_mode;
 	bool fw_debug;

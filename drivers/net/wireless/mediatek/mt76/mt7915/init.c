@@ -351,8 +351,8 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
-	spin_lock_init(&dev->token_lock);
-	idr_init(&dev->token);
+	spin_lock_init(&dev->mt76.token_lock);
+	idr_init(&dev->mt76.token);
 
 	dev->dbdc_support = !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5));
 

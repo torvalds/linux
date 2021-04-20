@@ -659,6 +659,10 @@ struct mt76_dev {
 	struct mt76_worker tx_worker;
 	struct napi_struct tx_napi;
 
+	spinlock_t token_lock;
+	struct idr token;
+	int token_count;
+
 	wait_queue_head_t tx_wait;
 	struct sk_buff_head status_list;
 
