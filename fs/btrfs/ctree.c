@@ -1367,10 +1367,30 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 				   "failed to read tree block %llu from get_old_root",
 				   logical);
 		} else {
+			struct tree_mod_elem *tm2;
+
 			btrfs_tree_read_lock(old);
 			eb = btrfs_clone_extent_buffer(old);
+			/*
+			 * After the lookup for the most recent tree mod operation
+			 * above and before we locked and cloned the extent buffer
+			 * 'old', a new tree mod log operation may have been added.
+			 * So lookup for a more recent one to make sure the number
+			 * of mod log operations we replay is consistent with the
+			 * number of items we have in the cloned extent buffer,
+			 * otherwise we can hit a BUG_ON when rewinding the extent
+			 * buffer.
+			 */
+			tm2 = tree_mod_log_search(fs_info, logical, time_seq);
 			btrfs_tree_read_unlock(old);
 			free_extent_buffer(old);
+			ASSERT(tm2);
+			ASSERT(tm2 == tm || tm2->seq > tm->seq);
+			if (!tm2 || tm2->seq < tm->seq) {
+				free_extent_buffer(eb);
+				return NULL;
+			}
+			tm = tm2;
 		}
 	} else if (old_root) {
 		eb_root_owner = btrfs_header_owner(eb_root);
