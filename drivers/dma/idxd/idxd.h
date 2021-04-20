@@ -377,7 +377,6 @@ void idxd_wqs_quiesce(struct idxd_device *idxd);
 /* device interrupt control */
 void idxd_msix_perm_setup(struct idxd_device *idxd);
 void idxd_msix_perm_clear(struct idxd_device *idxd);
-irqreturn_t idxd_irq_handler(int vec, void *data);
 irqreturn_t idxd_misc_thread(int vec, void *data);
 irqreturn_t idxd_wq_thread(int irq, void *data);
 void idxd_mask_error_interrupts(struct idxd_device *idxd);

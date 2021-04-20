@@ -102,7 +102,7 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	}
 
 	irq_entry = &idxd->irq_entries[0];
-	rc = request_threaded_irq(irq_entry->vector, idxd_irq_handler, idxd_misc_thread,
+	rc = request_threaded_irq(irq_entry->vector, NULL, idxd_misc_thread,
 				  0, "idxd-misc", irq_entry);
 	if (rc < 0) {
 		dev_err(dev, "Failed to allocate misc interrupt.\n");
@@ -119,7 +119,7 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 
 		init_llist_head(&idxd->irq_entries[i].pending_llist);
 		INIT_LIST_HEAD(&idxd->irq_entries[i].work_list);
-		rc = request_threaded_irq(irq_entry->vector, idxd_irq_handler,
+		rc = request_threaded_irq(irq_entry->vector, NULL,
 					  idxd_wq_thread, 0, "idxd-portal", irq_entry);
 		if (rc < 0) {
 			dev_err(dev, "Failed to allocate irq %d.\n", irq_entry->vector);

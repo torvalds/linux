@@ -102,15 +102,6 @@ static int idxd_device_schedule_fault_process(struct idxd_device *idxd,
 	return 0;
 }
 
-irqreturn_t idxd_irq_handler(int vec, void *data)
-{
-	struct idxd_irq_entry *irq_entry = data;
-	struct idxd_device *idxd = irq_entry->idxd;
-
-	idxd_mask_msix_vector(idxd, irq_entry->id);
-	return IRQ_WAKE_THREAD;
-}
-
 static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 {
 	struct device *dev = &idxd->pdev->dev;
@@ -237,7 +228,6 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 			iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 	}
 
-	idxd_unmask_msix_vector(idxd, irq_entry->id);
 	return IRQ_HANDLED;
 }
 
@@ -394,8 +384,6 @@ irqreturn_t idxd_wq_thread(int irq, void *data)
 	int processed;
 
 	processed = idxd_desc_process(irq_entry);
-	idxd_unmask_msix_vector(irq_entry->idxd, irq_entry->id);
-
 	if (processed == 0)
 		return IRQ_NONE;
 
