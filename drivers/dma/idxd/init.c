@@ -501,11 +501,18 @@ static int idxd_probe(struct idxd_device *idxd)
 	dev_dbg(dev, "IDXD reset complete\n");
 
 	if (IS_ENABLED(CONFIG_INTEL_IDXD_SVM) && sva) {
-		rc = idxd_enable_system_pasid(idxd);
-		if (rc < 0)
-			dev_warn(dev, "Failed to enable PASID. No SVA support: %d\n", rc);
-		else
-			set_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
+		rc = iommu_dev_enable_feature(dev, IOMMU_DEV_FEAT_SVA);
+		if (rc == 0) {
+			rc = idxd_enable_system_pasid(idxd);
+			if (rc < 0) {
+				iommu_dev_disable_feature(dev, IOMMU_DEV_FEAT_SVA);
+				dev_warn(dev, "Failed to enable PASID. No SVA support: %d\n", rc);
+			} else {
+				set_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
+			}
+		} else {
+			dev_warn(dev, "Unable to turn on SVA feature.\n");
+		}
 	} else if (!sva) {
 		dev_warn(dev, "User forced SVA off via module param.\n");
 	}
@@ -539,6 +546,7 @@ static int idxd_probe(struct idxd_device *idxd)
  err:
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
+	iommu_dev_disable_feature(dev, IOMMU_DEV_FEAT_SVA);
 	return rc;
 }
 
@@ -699,6 +707,7 @@ static void idxd_remove(struct pci_dev *pdev)
 	if (device_pasid_enabled(idxd))
 		idxd_disable_system_pasid(idxd);
 	idxd_unregister_devices(idxd);
+	iommu_dev_disable_feature(&pdev->dev, IOMMU_DEV_FEAT_SVA);
 }
 
 static struct pci_driver idxd_pci_driver = {
