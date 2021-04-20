@@ -826,6 +826,11 @@ static void vmbus_unload_response(struct vmbus_channel_message_header *hdr)
 	/*
 	 * This is a global event; just wakeup the waiting thread.
 	 * Once we successfully unload, we can cleanup the monitor state.
+	 *
+	 * NB.  A malicious or compromised Hyper-V could send a spurious
+	 * message of type CHANNELMSG_UNLOAD_RESPONSE, and trigger a call
+	 * of the complete() below.  Make sure that unload_event has been
+	 * initialized by the time this complete() is executed.
 	 */
 	complete(&vmbus_connection.unload_event);
 }
@@ -841,7 +846,7 @@ void vmbus_initiate_unload(bool crash)
 	if (vmbus_proto_version < VERSION_WIN8_1)
 		return;
 
-	init_completion(&vmbus_connection.unload_event);
+	reinit_completion(&vmbus_connection.unload_event);
 	memset(&hdr, 0, sizeof(struct vmbus_channel_message_header));
 	hdr.msgtype = CHANNELMSG_UNLOAD;
 	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header),
