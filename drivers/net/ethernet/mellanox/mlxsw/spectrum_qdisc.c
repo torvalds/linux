@@ -51,7 +51,7 @@ struct mlxsw_sp_qdisc_ops {
 
 struct mlxsw_sp_qdisc {
 	u32 handle;
-	u8 tclass_num;
+	int tclass_num;
 	u8 prio_bitmap;
 	union {
 		struct red_stats red;
@@ -291,7 +291,7 @@ mlxsw_sp_qdisc_collect_tc_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 				u64 *p_tx_bytes, u64 *p_tx_packets,
 				u64 *p_drops, u64 *p_backlog)
 {
-	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
+	int tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_port_xstats *xstats;
 	u64 tx_bytes, tx_packets;
 
@@ -391,7 +391,7 @@ static void
 mlxsw_sp_setup_tc_qdisc_red_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 					struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
 {
-	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
+	int tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
 	struct red_stats *red_base;
@@ -462,7 +462,7 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct tc_red_qopt_offload_params *p = params;
-	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
+	int tclass_num = mlxsw_sp_qdisc->tclass_num;
 	u32 min, max;
 	u64 prob;
 
@@ -507,7 +507,7 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 			      void *xstats_ptr)
 {
 	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base.red;
-	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
+	int tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_port_xstats *xstats;
 	struct red_stats *res = xstats_ptr;
 	int early_drops, pdrops;
@@ -531,7 +531,7 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     struct tc_qopt_offload_stats *stats_ptr)
 {
-	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
+	int tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
 	u64 overlimits;
