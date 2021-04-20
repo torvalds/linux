@@ -1567,7 +1567,10 @@ SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
 			NULL, 0 /* no input */, CIFSMaxBufSize,
 			(char **)&res_key, &ret_data_len);
 
-	if (rc) {
+	if (rc == -EOPNOTSUPP) {
+		pr_warn_once("Server share %s does not support copy range\n", tcon->treeName);
+		goto req_res_key_exit;
+	} else if (rc) {
 		cifs_tcon_dbg(VFS, "refcpy ioctl error %d getting resume key\n", rc);
 		goto req_res_key_exit;
 	}
