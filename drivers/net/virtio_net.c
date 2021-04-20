@@ -415,7 +415,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 
 	shinfo_size = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	if (len > GOOD_COPY_LEN && tailroom >= shinfo_size) {
+	if (!NET_IP_ALIGN && len > GOOD_COPY_LEN && tailroom >= shinfo_size) {
 		skb = build_skb(p, truesize);
 		if (unlikely(!skb))
 			return NULL;
