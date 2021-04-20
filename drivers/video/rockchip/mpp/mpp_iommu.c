@@ -38,7 +38,7 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 
 	mutex_lock(&dma->list_mutex);
 	list_for_each_entry_safe(buffer, n,
-				 &dma->buffer_list, link) {
+				 &dma->used_list, link) {
 		/*
 		 * fd may dup several and point the same dambuf.
 		 * thus, here should be distinguish with the dmabuf.
@@ -61,12 +61,11 @@ static void mpp_dma_release_buffer(struct kref *ref)
 		container_of(ref, struct mpp_dma_buffer, ref);
 
 	buffer->dma->buffer_count--;
-	list_del_init(&buffer->link);
+	list_move_tail(&buffer->link, &buffer->dma->unused_list);
 
 	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
 	dma_buf_put(buffer->dmabuf);
-	kfree(buffer);
 }
 
 /* Remove the oldest buffer when count more than the setting */
@@ -80,7 +79,7 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 	if (dma->buffer_count > dma->max_buffers) {
 		mutex_lock(&dma->list_mutex);
 		list_for_each_entry_safe(buffer, n,
-					 &dma->buffer_list,
+					 &dma->used_list,
 					 link) {
 			if (ktime_to_ns(oldest_time) == 0 ||
 			    ktime_after(oldest_time, buffer->last_used)) {
@@ -198,11 +197,17 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 		return NULL;
 	}
 	/* A new DMA buffer */
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	mutex_lock(&dma->list_mutex);
+	buffer = list_first_entry_or_null(&dma->unused_list,
+					   struct mpp_dma_buffer,
+					   link);
 	if (!buffer) {
 		ret = -ENOMEM;
+		mutex_unlock(&dma->list_mutex);
 		goto fail;
 	}
+	list_del_init(&buffer->link);
+	mutex_unlock(&dma->list_mutex);
 
 	buffer->dmabuf = dmabuf;
 	buffer->dir = DMA_BIDIRECTIONAL;
@@ -230,11 +235,10 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	kref_init(&buffer->ref);
 	/* Increase the reference for used outside the buffer pool */
 	kref_get(&buffer->ref);
-	INIT_LIST_HEAD(&buffer->link);
 
 	mutex_lock(&dma->list_mutex);
 	dma->buffer_count++;
-	list_add_tail(&buffer->link, &dma->buffer_list);
+	list_add_tail(&buffer->link, &dma->used_list);
 	mutex_unlock(&dma->list_mutex);
 
 	return buffer;
@@ -242,7 +246,9 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 fail_map:
 	dma_buf_detach(buffer->dmabuf, attach);
 fail_attach:
-	kfree(buffer);
+	mutex_lock(&dma->list_mutex);
+	list_add_tail(&buffer->link, &dma->unused_list);
+	mutex_unlock(&dma->list_mutex);
 fail:
 	dma_buf_put(dmabuf);
 	return ERR_PTR(ret);
@@ -309,7 +315,7 @@ int mpp_dma_session_destroy(struct mpp_dma_session *dma)
 
 	mutex_lock(&dma->list_mutex);
 	list_for_each_entry_safe(buffer, n,
-				 &dma->buffer_list,
+				 &dma->used_list,
 				 link) {
 		kref_put(&buffer->ref, mpp_dma_release_buffer);
 	}
@@ -321,17 +327,34 @@ int mpp_dma_session_destroy(struct mpp_dma_session *dma)
 }
 
 struct mpp_dma_session *
-mpp_dma_session_create(struct device *dev)
+mpp_dma_session_create(struct device *dev, u32 max_buffers)
 {
+	int i;
 	struct mpp_dma_session *dma = NULL;
+	struct mpp_dma_buffer *buffer = NULL;
 
 	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return dma;
+		return NULL;
 
-	INIT_LIST_HEAD(&dma->buffer_list);
 	mutex_init(&dma->list_mutex);
+	INIT_LIST_HEAD(&dma->unused_list);
+	INIT_LIST_HEAD(&dma->used_list);
 
+	if (max_buffers > MPP_SESSION_MAX_BUFFERS) {
+		mpp_debug(DEBUG_IOCTL, "session_max_buffer %d must less than %d\n",
+			  max_buffers, MPP_SESSION_MAX_BUFFERS);
+		dma->max_buffers = MPP_SESSION_MAX_BUFFERS;
+	} else {
+		dma->max_buffers = max_buffers;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(dma->dma_bufs); i++) {
+		buffer = &dma->dma_bufs[i];
+		buffer->dma = dma;
+		INIT_LIST_HEAD(&buffer->link);
+		list_add_tail(&buffer->link, &dma->unused_list);
+	}
 	dma->dev = dev;
 
 	return dma;

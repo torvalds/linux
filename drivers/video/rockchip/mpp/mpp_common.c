@@ -964,8 +964,7 @@ static int mpp_process_request(struct mpp_session *session,
 		if (!mpp)
 			return -EINVAL;
 		session->device_type = (enum MPP_DEVICE_TYPE)client_type;
-		session->dma = mpp_dma_session_create(mpp->dev);
-		session->dma->max_buffers = mpp->session_max_buffers;
+		session->dma = mpp_dma_session_create(mpp->dev, mpp->session_max_buffers);
 		session->mpp = mpp;
 		session->index = atomic_fetch_inc(&mpp->session_index);
 		if (mpp->dev_ops->init_session) {
