@@ -7879,11 +7879,9 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		f = fdget(p->wq_fd);
 		if (!f.file)
 			return -ENXIO;
-		if (f.file->f_op != &io_uring_fops) {
-			fdput(f);
-			return -EINVAL;
-		}
 		fdput(f);
+		if (f.file->f_op != &io_uring_fops)
+			return -EINVAL;
 	}
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		struct task_struct *tsk;
@@ -7902,13 +7900,11 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		if (!ctx->sq_thread_idle)
 			ctx->sq_thread_idle = HZ;
 
-		ret = 0;
 		io_sq_thread_park(sqd);
 		list_add(&ctx->sqd_list, &sqd->ctx_list);
 		io_sqd_update_thread_idle(sqd);
 		/* don't attach to a dying SQPOLL thread, would be racy */
-		if (attached && !sqd->thread)
-			ret = -ENXIO;
+		ret = (attached && !sqd->thread) ? -ENXIO : 0;
 		io_sq_thread_unpark(sqd);
 
 		if (ret < 0)
@@ -7920,11 +7916,8 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 			int cpu = p->sq_thread_cpu;
 
 			ret = -EINVAL;
-			if (cpu >= nr_cpu_ids)
+			if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 				goto err_sqpoll;
-			if (!cpu_online(cpu))
-				goto err_sqpoll;
-
 			sqd->sq_cpu = cpu;
 		} else {
 			sqd->sq_cpu = -1;
@@ -7950,12 +7943,11 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 	}
 
 	return 0;
+err_sqpoll:
+	complete(&ctx->sq_data->exited);
 err:
 	io_sq_thread_finish(ctx);
 	return ret;
-err_sqpoll:
-	complete(&ctx->sq_data->exited);
-	goto err;
 }
 
 static inline void __io_unaccount_mem(struct user_struct *user,
