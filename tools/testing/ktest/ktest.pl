@@ -24,7 +24,7 @@ my %evals;
 
 #default opts
 my %default = (
-    "MAILER"			=> "sendmail",  # default mailer
+    "MAILER"			=> "sendmail",	# default mailer
     "EMAIL_ON_ERROR"		=> 1,
     "EMAIL_WHEN_FINISHED"	=> 1,
     "EMAIL_WHEN_CANCELED"	=> 0,
@@ -36,15 +36,15 @@ my %default = (
     "CLOSE_CONSOLE_SIGNAL"	=> "INT",
     "TIMEOUT"			=> 120,
     "TMP_DIR"			=> "/tmp/ktest/\${MACHINE}",
-    "SLEEP_TIME"		=> 60,	# sleep time between tests
+    "SLEEP_TIME"		=> 60,		# sleep time between tests
     "BUILD_NOCLEAN"		=> 0,
     "REBOOT_ON_ERROR"		=> 0,
     "POWEROFF_ON_ERROR"		=> 0,
     "REBOOT_ON_SUCCESS"		=> 1,
     "POWEROFF_ON_SUCCESS"	=> 0,
     "BUILD_OPTIONS"		=> "",
-    "BISECT_SLEEP_TIME"		=> 60,   # sleep time between bisects
-    "PATCHCHECK_SLEEP_TIME"	=> 60, # sleep time between patch checks
+    "BISECT_SLEEP_TIME"		=> 60,		# sleep time between bisects
+    "PATCHCHECK_SLEEP_TIME"	=> 60, 		# sleep time between patch checks
     "CLEAR_LOG"			=> 0,
     "BISECT_MANUAL"		=> 0,
     "BISECT_SKIP"		=> 1,
@@ -537,7 +537,7 @@ sub read_prompt {
     my $ans;
 
     for (;;) {
-	if ($cancel) {
+        if ($cancel) {
 	    print "$prompt [y/n/C] ";
 	} else {
 	    print "$prompt [Y/n] ";
@@ -863,7 +863,6 @@ sub value_defined {
 	defined($opt{$2});
 }
 
-my $d = 0;
 sub process_expression {
     my ($name, $val) = @_;
 
@@ -978,7 +977,6 @@ sub __read_config {
 	    $override = 0;
 
 	    if ($type eq "TEST_START") {
-
 		if ($num_tests_set) {
 		    die "$name: $.: Can not specify both NUM_TESTS and TEST_START\n";
 		}
@@ -1048,7 +1046,6 @@ sub __read_config {
 		$test_num = $old_test_num;
 		$repeat = $old_repeat;
 	    }
-
 	} elsif (/^\s*ELSE\b(.*)$/) {
 	    if (!$if) {
 		die "$name: $.: ELSE found with out matching IF section\n$_";
@@ -1471,7 +1468,6 @@ sub get_test_name() {
 }
 
 sub dodie {
-
     # avoid recursion
     return if ($in_die);
     $in_die = 1;
@@ -1481,10 +1477,8 @@ sub dodie {
     doprint "CRITICAL FAILURE... [TEST $i] ", @_, "\n";
 
     if ($reboot_on_error && !do_not_reboot) {
-
 	doprint "REBOOTING\n";
 	reboot_to_good;
-
     } elsif ($poweroff_on_error && defined($power_off)) {
 	doprint "POWERING OFF\n";
 	`$power_off`;
@@ -1519,8 +1513,9 @@ sub dodie {
 	    close O;
 	    close L;
 	}
+
 	send_email("KTEST: critical failure for test $i [$name]",
-	        "Your test started at $script_start_time has failed with:\n@_\n", $log_file);
+		"Your test started at $script_start_time has failed with:\n@_\n", $log_file);
     }
 
     if ($monitor_cnt) {
@@ -1915,8 +1910,8 @@ sub _get_grub_index {
     my ($command, $target, $skip) = @_;
 
     return if (defined($grub_number) && defined($last_grub_menu) &&
-	       $last_grub_menu eq $grub_menu && defined($last_machine) &&
-	       $last_machine eq $machine);
+	$last_grub_menu eq $grub_menu && defined($last_machine) &&
+	$last_machine eq $machine);
 
     doprint "Find $reboot_type menu ... ";
     $grub_number = -1;
@@ -1924,8 +1919,8 @@ sub _get_grub_index {
     my $ssh_grub = $ssh_exec;
     $ssh_grub =~ s,\$SSH_COMMAND,$command,g;
 
-    open(IN, "$ssh_grub |")
-	or dodie "unable to execute $command";
+    open(IN, "$ssh_grub |") or
+	dodie "unable to execute $command";
 
     my $found = 0;
 
@@ -1979,8 +1974,7 @@ sub get_grub_index {
     _get_grub_index($command, $target, $skip);
 }
 
-sub wait_for_input
-{
+sub wait_for_input {
     my ($fp, $time) = @_;
     my $start_time;
     my $rin;
@@ -2096,7 +2090,6 @@ sub monitor {
     my $version_found = 0;
 
     while (!$done) {
-
 	if ($bug && defined($stop_after_failure) &&
 	    $stop_after_failure >= 0) {
 	    my $time = $stop_after_failure - (time - $failure_start);
@@ -2571,7 +2564,6 @@ sub build {
 	    run_command "mv $outputdir/config_temp $output_config" or
 		dodie "moving config_temp";
 	}
-
     } elsif (!$noclean) {
 	unlink "$output_config";
 	run_command "$make mrproper" or
@@ -2652,11 +2644,12 @@ sub success {
 
     print_times;
 
-    doprint "\n\n*******************************************\n";
-    doprint     "*******************************************\n";
-    doprint     "KTEST RESULT: TEST $i$name SUCCESS!!!!         **\n";
-    doprint     "*******************************************\n";
-    doprint     "*******************************************\n";
+    doprint "\n\n";
+    doprint "*******************************************\n";
+    doprint "*******************************************\n";
+    doprint "KTEST RESULT: TEST $i$name SUCCESS!!!!   **\n";
+    doprint "*******************************************\n";
+    doprint "*******************************************\n";
 
     if (defined($store_successes)) {
 	save_logs "success", $store_successes;
@@ -3034,7 +3027,6 @@ sub bisect {
     }
 
     if ($do_check) {
-
 	# get current HEAD
 	my $head = get_sha1("HEAD");
 
@@ -3074,13 +3066,11 @@ sub bisect {
 	run_command "git bisect replay $replay" or
 	    dodie "failed to run replay";
     } else {
-
 	run_command "git bisect good $good" or
 	    dodie "could not set bisect good to $good";
 
 	run_git_bisect "git bisect bad $bad" or
 	    dodie "could not set bisect bad to $bad";
-
     }
 
     if (defined($start)) {
@@ -3133,8 +3123,8 @@ sub assign_configs {
 
     doprint "Reading configs from $config\n";
 
-    open (IN, $config)
-	or dodie "Failed to read $config";
+    open (IN, $config) or
+	dodie "Failed to read $config";
 
     while (<IN>) {
 	chomp;
@@ -3287,10 +3277,11 @@ sub config_bisect {
 
     if (!defined($config_bisect_exec)) {
 	# First check the location that ktest.pl ran
-	my @locations = ( "$pwd/config-bisect.pl",
-			  "$dirname/config-bisect.pl",
-			  "$builddir/tools/testing/ktest/config-bisect.pl",
-			  undef );
+	my @locations = (
+		"$pwd/config-bisect.pl",
+		"$dirname/config-bisect.pl",
+		"$builddir/tools/testing/ktest/config-bisect.pl",
+		undef );
 	foreach my $loc (@locations) {
 	    doprint "loc = $loc\n";
 	    $config_bisect_exec = $loc;
@@ -3632,8 +3623,8 @@ sub read_kconfig {
 
 sub read_depends {
     # find out which arch this is by the kconfig file
-    open (IN, $output_config)
-	or dodie "Failed to read $output_config";
+    open (IN, $output_config) or
+	dodie "Failed to read $output_config";
     my $arch;
     while (<IN>) {
 	if (m,Linux/(\S+)\s+\S+\s+Kernel Configuration,) {
@@ -3708,7 +3699,6 @@ sub get_depends {
     my @configs;
 
     while ($dep =~ /[$valid]/) {
-
 	if ($dep =~ /^[^$valid]*([$valid]+)/) {
 	    my $conf = "CONFIG_" . $1;
 
@@ -3889,7 +3879,6 @@ sub make_min_config {
     my $take_two = 0;
 
     while (!$done) {
-
 	my $config;
 	my $found;
 
@@ -3900,7 +3889,7 @@ sub make_min_config {
 
 	# Sort keys by who is most dependent on
 	@test_configs = sort  { $depcount{chomp_config($b)} <=> $depcount{chomp_config($a)} }
-			  @test_configs ;
+	    @test_configs ;
 
 	# Put configs that did not modify the config at the end.
 	my $reset = 1;
@@ -3976,8 +3965,8 @@ sub make_min_config {
 
 	    # update new ignore configs
 	    if (defined($ignore_config)) {
-		open (OUT, ">$temp_config")
-		    or dodie "Can't write to $temp_config";
+		open (OUT, ">$temp_config") or
+		    dodie "Can't write to $temp_config";
 		foreach my $config (keys %save_configs) {
 		    print OUT "$save_configs{$config}\n";
 		}
@@ -4004,8 +3993,8 @@ sub make_min_config {
 	    }
 
 	    # Save off all the current mandatory configs
-	    open (OUT, ">$temp_config")
-		or dodie "Can't write to $temp_config";
+	    open (OUT, ">$temp_config") or
+		dodie "Can't write to $temp_config";
 	    foreach my $config (keys %keep_configs) {
 		print OUT "$keep_configs{$config}\n";
 	    }
@@ -4043,7 +4032,6 @@ sub make_warnings_file {
 
     open(IN, $buildlog) or dodie "Can't open $buildlog";
     while (<IN>) {
-
 	# Some compilers use UTF-8 extended for quotes
 	# for distcc heterogeneous systems, this causes issues
 	s/$utf8_quote/'/g;
@@ -4263,7 +4251,6 @@ sub do_send_mail {
 }
 
 sub send_email {
-
     if (defined($mailto)) {
 	if (!defined($mailer)) {
 	    doprint "No email sent: email or mailer not specified in config.\n";
@@ -4277,7 +4264,7 @@ sub cancel_test {
     if ($email_when_canceled) {
 	my $name = get_test_name;
 	send_email("KTEST: Your [$name] test was cancelled",
-	        "Your test started at $script_start_time was cancelled: sig int");
+	    "Your test started at $script_start_time was cancelled: sig int");
     }
     die "\nCaught Sig Int, test interrupted: $!\n"
 }
@@ -4332,7 +4319,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	if ($email_when_started) {
 	    my $name = get_test_name;
 	    send_email("KTEST: Your [$name] test was started",
-	        "Your test was started on $script_start_time");
+		"Your test was started on $script_start_time");
 	}
     }
 
@@ -4411,7 +4398,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	my $ret = run_command $pre_test;
 	if (!$ret && defined($pre_test_die) &&
 	    $pre_test_die) {
-	    dodie "failed to pre_test\n";
+		dodie "failed to pre_test\n";
 	}
     }
 
@@ -4509,7 +4496,7 @@ doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
 if ($email_when_finished) {
     send_email("KTEST: Your test has finished!",
-	    "$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
+	"$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
 }
 
 if (defined($opt{"LOG_FILE"})) {
