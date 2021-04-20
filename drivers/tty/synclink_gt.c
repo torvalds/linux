@@ -4958,7 +4958,7 @@ static int loopback_test(struct slgt_info *info)
 #define TESTFRAMESIZE 20
 
 	unsigned long timeout;
-	u16 count = TESTFRAMESIZE;
+	u16 count;
 	unsigned char buf[TESTFRAMESIZE];
 	int rc = -ENODEV;
 	unsigned long flags;
