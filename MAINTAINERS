@@ -1790,19 +1790,26 @@ F:	drivers/net/ethernet/cortina/
 F:	drivers/pinctrl/pinctrl-gemini.c
 F:	drivers/rtc/rtc-ftrtc010.c
 
-ARM/CZ.NIC TURRIS MOX SUPPORT
-M:	Marek Behun <marek.behun@nic.cz>
+ARM/CZ.NIC TURRIS SUPPORT
+M:	Marek Behun <kabel@kernel.org>
 S:	Maintained
-W:	http://mox.turris.cz
+W:	https://www.turris.cz/
 F:	Documentation/ABI/testing/debugfs-moxtet
 F:	Documentation/ABI/testing/sysfs-bus-moxtet-devices
 F:	Documentation/ABI/testing/sysfs-firmware-turris-mox-rwtm
 F:	Documentation/devicetree/bindings/bus/moxtet.txt
 F:	Documentation/devicetree/bindings/firmware/cznic,turris-mox-rwtm.txt
 F:	Documentation/devicetree/bindings/gpio/gpio-moxtet.txt
+F:	Documentation/devicetree/bindings/leds/cznic,turris-omnia-leds.yaml
+F:	Documentation/devicetree/bindings/watchdog/armada-37xx-wdt.txt
 F:	drivers/bus/moxtet.c
 F:	drivers/firmware/turris-mox-rwtm.c
+F:	drivers/leds/leds-turris-omnia.c
+F:	drivers/mailbox/armada-37xx-rwtm-mailbox.c
 F:	drivers/gpio/gpio-moxtet.c
+F:	drivers/watchdog/armada_37xx_wdt.c
+F:	include/dt-bindings/bus/moxtet.h
+F:	include/linux/armada-37xx-rwtm-mailbox.h
 F:	include/linux/moxtet.h
 
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
