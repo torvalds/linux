@@ -1402,11 +1402,13 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	svm_range_lock(prange);
 	if (!prange->actual_loc) {
 		if (amdgpu_hmm_range_get_pages_done(hmm_range)) {
+			pr_debug("hmm update the range, need validate again\n");
 			r = -EAGAIN;
 			goto unlock_out;
 		}
 	}
 	if (!list_empty(&prange->child_list)) {
+		pr_debug("range split by unmap in parallel, validate again\n");
 		r = -EAGAIN;
 		goto unlock_out;
 	}
@@ -2355,6 +2357,10 @@ out_unlock_svms:
 out:
 	kfd_unref_process(p);
 
+	if (r == -EAGAIN) {
+		pr_debug("recover vm fault later\n");
+		r = 0;
+	}
 	return r;
 }
 
