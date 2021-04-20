@@ -266,6 +266,7 @@ struct mpp_mem_region {
 	unsigned long len;
 	u32 reg_idx;
 	void *hdl;
+	int fd;
 };
 
 struct mpp_dma_session;
@@ -322,8 +323,6 @@ struct mpp_session {
 	struct mpp_dev *mpp;
 	struct mpp_dma_session *dma;
 
-	/* lock for session task register list */
-	struct mutex reg_lock;
 	/* lock for session task pending list */
 	struct mutex pending_lock;
 	/* task pending list in session */
@@ -373,6 +372,8 @@ struct mpp_task {
 	struct list_head queue_link;
 	/* The DMA buffer used in this task */
 	struct list_head mem_region_list;
+	u32 mem_count;
+	struct mpp_mem_region mem_regions[MPP_MAX_REG_TRANS_NUM];
 
 	/* state in the taskqueue */
 	unsigned long state;

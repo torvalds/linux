@@ -1214,7 +1214,6 @@ static int mpp_dev_open(struct inode *inode, struct file *filp)
 	session->srv = srv;
 	session->pid = current->pid;
 
-	mutex_init(&session->reg_lock);
 	mutex_init(&session->pending_lock);
 	mutex_init(&session->done_lock);
 	INIT_LIST_HEAD(&session->pending_list);
@@ -1310,39 +1309,53 @@ const struct file_operations rockchip_mpp_fops = {
 struct mpp_mem_region *
 mpp_task_attach_fd(struct mpp_task *task, int fd)
 {
-	struct mpp_mem_region *mem_region = NULL;
+	struct mpp_mem_region *mem_region = NULL, *loop = NULL, *n;
 	struct mpp_dma_buffer *buffer = NULL;
 	struct mpp_dev *mpp = task->session->mpp;
 	struct mpp_dma_session *dma = task->session->dma;
+	u32 mem_num = ARRAY_SIZE(task->mem_regions);
+	bool found = false;
 
 	if (fd <= 0 || !dma || !mpp)
 		return ERR_PTR(-EINVAL);
 
-	mem_region = kzalloc(sizeof(*mem_region), GFP_KERNEL);
-	if (!mem_region)
+	if (task->mem_count > mem_num) {
+		mpp_err("mem_count %d must less than %d\n", task->mem_count, mem_num);
 		return ERR_PTR(-ENOMEM);
-
-	mpp_iommu_down_read(mpp->iommu_info);
-	buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
-	mpp_iommu_up_read(mpp->iommu_info);
-	if (IS_ERR_OR_NULL(buffer)) {
-		mpp_err("can't import dma-buf %d\n", fd);
-		goto fail;
 	}
 
-	mem_region->hdl = buffer;
-	mem_region->iova = buffer->iova;
-	mem_region->len = buffer->size;
+	/* find fd whether had import */
+	list_for_each_entry_safe_reverse(loop, n, &task->mem_region_list, reg_link) {
+		if (loop->fd == fd) {
+			found = true;
+			break;
+		}
+	}
 
-	INIT_LIST_HEAD(&mem_region->reg_link);
-	mutex_lock(&task->session->reg_lock);
+	mem_region = &task->mem_regions[task->mem_count];
+	if (found) {
+		memcpy(mem_region, loop, sizeof(*loop));
+		buffer = mem_region->hdl;
+		kref_get(&buffer->ref);
+		buffer->last_used = ktime_get();
+	} else {
+		down_read(&mpp->iommu_info->rw_sem);
+		buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
+		up_read(&mpp->iommu_info->rw_sem);
+		if (IS_ERR_OR_NULL(buffer)) {
+			mpp_err("can't import dma-buf %d\n", fd);
+			return ERR_PTR(-ENOMEM);
+		}
+
+		mem_region->hdl = buffer;
+		mem_region->iova = buffer->iova;
+		mem_region->len = buffer->size;
+		mem_region->fd = fd;
+	}
+	task->mem_count++;
 	list_add_tail(&mem_region->reg_link, &task->mem_region_list);
-	mutex_unlock(&task->session->reg_lock);
 
 	return mem_region;
-fail:
-	kfree(mem_region);
-	return ERR_PTR(-ENOMEM);
 }
 
 int mpp_translate_reg_address(struct mpp_session *session,
@@ -1501,7 +1514,7 @@ int mpp_task_init(struct mpp_session *session,
 	INIT_LIST_HEAD(&task->pending_link);
 	INIT_LIST_HEAD(&task->queue_link);
 	INIT_LIST_HEAD(&task->mem_region_list);
-
+	task->mem_count = 0;
 	task->session = session;
 
 	return 0;
@@ -1538,7 +1551,6 @@ int mpp_task_finalize(struct mpp_session *session,
 	struct mpp_mem_region *mem_region = NULL, *n;
 
 	mpp = session->mpp;
-	mutex_lock(&session->reg_lock);
 	/* release memory region attach to this registers table. */
 	list_for_each_entry_safe(mem_region, n,
 				 &task->mem_region_list,
@@ -1547,9 +1559,8 @@ int mpp_task_finalize(struct mpp_session *session,
 		mpp_dma_release(session->dma, mem_region->hdl);
 		mpp_iommu_up_read(mpp->iommu_info);
 		list_del_init(&mem_region->reg_link);
-		kfree(mem_region);
 	}
-	mutex_unlock(&session->reg_lock);
+
 	return 0;
 }
 
