@@ -2352,7 +2352,7 @@ static int m88e6390_get_temp(struct phy_device *phydev, long *temp)
 	if (ret < 0)
 		goto error;
 
-	ret = ret & ~MII_88E6390_MISC_TEST_TEMP_SENSOR_MASK;
+	ret &= ~MII_88E6390_MISC_TEST_TEMP_SENSOR_MASK;
 	ret |= MII_88E6390_MISC_TEST_TEMP_SENSOR_ENABLE_SAMPLE_1S;
 
 	ret = __phy_write(phydev, MII_88E6390_MISC_TEST, ret);
