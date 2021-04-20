@@ -1,4 +1,4 @@
->/*
+/*
  *  Driver for the IDT RC32434 (Korina) on-chip ethernet controller.
  *
  *  Copyright 2004 IDT Inc. (rischelp@idt.com)
