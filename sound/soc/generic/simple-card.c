@@ -708,13 +708,6 @@ err:
 	return ret;
 }
 
-static int asoc_simple_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	return asoc_simple_clean_reference(card);
-}
-
 static const struct of_device_id simple_of_match[] = {
 	{ .compatible = "simple-audio-card", },
 	{ .compatible = "simple-scu-audio-card",

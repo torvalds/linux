@@ -22,8 +22,6 @@
 
 #define DPCM_SELECTABLE 1
 
-#define PREFIX	"audio-graph-card,"
-
 static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol,
 			      int event)
@@ -181,8 +179,8 @@ static void graph_parse_convert(struct device *dev,
 	struct device_node *node = of_graph_get_port_parent(ep);
 
 	asoc_simple_parse_convert(top,   NULL,   adata);
-	asoc_simple_parse_convert(node,  PREFIX, adata);
-	asoc_simple_parse_convert(ports, NULL,   adata);
+	if (of_node_name_eq(ports, "ports"))
+		asoc_simple_parse_convert(ports, NULL, adata);
 	asoc_simple_parse_convert(port,  NULL,   adata);
 	asoc_simple_parse_convert(ep,    NULL,   adata);
 
@@ -197,16 +195,15 @@ static void graph_parse_mclk_fs(struct device_node *top,
 {
 	struct device_node *port	= of_get_parent(ep);
 	struct device_node *ports	= of_get_parent(port);
-	struct device_node *node	= of_graph_get_port_parent(ep);
 
 	of_property_read_u32(top,	"mclk-fs", &props->mclk_fs);
-	of_property_read_u32(ports,	"mclk-fs", &props->mclk_fs);
+	if (of_node_name_eq(ports, "ports"))
+		of_property_read_u32(ports, "mclk-fs", &props->mclk_fs);
 	of_property_read_u32(port,	"mclk-fs", &props->mclk_fs);
 	of_property_read_u32(ep,	"mclk-fs", &props->mclk_fs);
 
 	of_node_put(port);
 	of_node_put(ports);
-	of_node_put(node);
 }
 
 static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
@@ -226,7 +223,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dai;
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
-	struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
 	int ret;
 
 	port	= of_get_parent(ep);
@@ -278,7 +274,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		/* card->num_links includes Codec */
 		asoc_simple_canonicalize_cpu(cpus, is_single_links);
-		asoc_simple_canonicalize_platform(platforms, cpus);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -309,10 +304,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		/* check "prefix" from top node */
 		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
 					      "prefix");
-		snd_soc_of_parse_node_prefix(node, cconf, codecs->of_node,
-					     PREFIX "prefix");
-		snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node,
-					     "prefix");
+		if (of_node_name_eq(ports, "ports"))
+			snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node, "prefix");
 		snd_soc_of_parse_node_prefix(port, cconf, codecs->of_node,
 					     "prefix");
 	}
@@ -359,7 +352,6 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *codec_dai = simple_props_to_dai_codec(dai_props, 0);
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
-	struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
 	int ret, single_cpu = 0;
 
 	dev_dbg(dev, "link_of (%pOF)\n", cpu_ep);
@@ -410,7 +402,6 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->init = asoc_simple_dai_init;
 
 	asoc_simple_canonicalize_cpu(cpus, single_cpu);
-	asoc_simple_canonicalize_platform(platforms, cpus);
 
 	return 0;
 }
@@ -630,7 +621,6 @@ static int graph_count_noml(struct asoc_simple_priv *priv,
 
 	li->num[li->link].cpus		= 1;
 	li->num[li->link].codecs	= 1;
-	li->num[li->link].platforms	= 1;
 
 	li->link += 1; /* 1xCPU-Codec */
 
@@ -653,7 +643,6 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 
 	if (li->cpu) {
 		li->num[li->link].cpus		= 1;
-		li->num[li->link].platforms	= 1;
 
 		li->link++; /* 1xCPU-dummy */
 	} else {
@@ -721,23 +710,6 @@ static int graph_get_dais_count(struct asoc_simple_priv *priv,
 				   graph_count_dpcm);
 }
 
-int audio_graph_card_probe(struct snd_soc_card *card)
-{
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
-	int ret;
-
-	ret = asoc_simple_init_hp(card, &priv->hp_jack, NULL);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_init_mic(card, &priv->mic_jack, NULL);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(audio_graph_card_probe);
-
 static int graph_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
@@ -752,21 +724,13 @@ static int graph_probe(struct platform_device *pdev)
 	card = simple_priv_to_card(priv);
 	card->dapm_widgets	= graph_dapm_widgets;
 	card->num_dapm_widgets	= ARRAY_SIZE(graph_dapm_widgets);
-	card->probe		= audio_graph_card_probe;
+	card->probe		= asoc_graph_card_probe;
 
 	if (of_device_get_match_data(dev))
 		priv->dpcm_selectable = 1;
 
 	return audio_graph_parse_of(priv, dev);
 }
-
-int audio_graph_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	return asoc_simple_clean_reference(card);
-}
-EXPORT_SYMBOL_GPL(audio_graph_remove);
 
 static const struct of_device_id graph_of_match[] = {
 	{ .compatible = "audio-graph-card", },
@@ -783,7 +747,7 @@ static struct platform_driver graph_card = {
 		.of_match_table = graph_of_match,
 	},
 	.probe = graph_probe,
-	.remove = audio_graph_remove,
+	.remove = asoc_simple_remove,
 };
 module_platform_driver(graph_card);
 
