@@ -3310,6 +3310,20 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	return 0;
 }
 
+static void vop2_dump_connector_on_crtc(struct drm_crtc *crtc, struct seq_file *s)
+{
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
+
+	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (crtc->state->connector_mask & drm_connector_mask(connector))
+			DEBUG_PRINT("    Connector: %s\n", connector->name);
+
+	}
+	drm_connector_list_iter_end(&conn_iter);
+}
+
 static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -3324,8 +3338,7 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	if (!crtc_state->active)
 		return 0;
 
-	DEBUG_PRINT("    Connector: %s\n",
-		    drm_get_connector_name(state->output_type));
+	vop2_dump_connector_on_crtc(crtc, s);
 	DEBUG_PRINT("\tbus_format[%x]: %s\n", state->bus_format,
 		    drm_get_bus_format_name(state->bus_format));
 	DEBUG_PRINT("\toverlay_mode[%d] output_mode[%x]",
