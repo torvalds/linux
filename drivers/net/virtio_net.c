@@ -385,6 +385,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	struct sk_buff *skb;
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
 	unsigned int copy, hdr_len, hdr_padded_len;
+	struct page *page_to_free = NULL;
 	int tailroom, shinfo_size;
 	char *p, *hdr_p;
 
@@ -445,7 +446,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 		if (len)
 			skb_add_rx_frag(skb, 0, page, offset, len, truesize);
 		else
-			put_page(page);
+			page_to_free = page;
 		goto ok;
 	}
 
@@ -479,6 +480,8 @@ ok:
 		hdr = skb_vnet_hdr(skb);
 		memcpy(hdr, hdr_p, hdr_len);
 	}
+	if (page_to_free)
+		put_page(page_to_free);
 
 	if (metasize) {
 		__skb_pull(skb, metasize);
