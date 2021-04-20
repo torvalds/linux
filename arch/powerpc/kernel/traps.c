@@ -2170,7 +2170,7 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointRoundException)
  * in the MSR is 0.  This indicates that SRR0/1 are live, and that
  * we therefore lost state by taking this exception.
  */
-DEFINE_INTERRUPT_HANDLER(unrecoverable_exception)
+void unrecoverable_exception(struct pt_regs *regs)
 {
 	pr_emerg("Unrecoverable exception %lx at %lx (msr=%lx)\n",
 		 regs->trap, regs->nip, regs->msr);

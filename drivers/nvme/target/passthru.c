@@ -50,9 +50,9 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 
 	/*
 	 * nvmet_passthru_map_sg is limitted to using a single bio so limit
-	 * the mdts based on BIO_MAX_PAGES as well
+	 * the mdts based on BIO_MAX_VECS as well
 	 */
-	max_hw_sectors = min_not_zero(BIO_MAX_PAGES << (PAGE_SHIFT - 9),
+	max_hw_sectors = min_not_zero(BIO_MAX_VECS << (PAGE_SHIFT - 9),
 				      max_hw_sectors);
 
 	page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
@@ -191,7 +191,7 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 	struct bio *bio;
 	int i;
 
-	if (req->sg_cnt > BIO_MAX_PAGES)
+	if (req->sg_cnt > BIO_MAX_VECS)
 		return -EINVAL;
 
 	if (req->transfer_len <= NVMET_MAX_INLINE_DATA_LEN) {

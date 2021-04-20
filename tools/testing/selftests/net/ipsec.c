@@ -1785,7 +1785,7 @@ static void grand_child_serv(unsigned int nr, int cmd_fd, void *buf,
 		break;
 	default:
 		printk("got unknown msg type %d", msg->type);
-	};
+	}
 }
 
 static int grand_child_f(unsigned int nr, int cmd_fd, void *buf)

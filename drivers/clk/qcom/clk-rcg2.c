@@ -730,7 +730,8 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 	struct clk_rate_request parent_req = { };
 	struct clk_rcg2_gfx3d *cgfx = to_clk_rcg2_gfx3d(hw);
 	struct clk_hw *xo, *p0, *p1, *p2;
-	unsigned long request, p0_rate;
+	unsigned long p0_rate;
+	u8 mux_div = cgfx->div;
 	int ret;
 
 	p0 = cgfx->hws[0];
@@ -750,14 +751,15 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 		return 0;
 	}
 
-	request = req->rate;
-	if (cgfx->div > 1)
-		parent_req.rate = request = request * cgfx->div;
+	if (mux_div == 0)
+		mux_div = 1;
+
+	parent_req.rate = req->rate * mux_div;
 
 	/* This has to be a fixed rate PLL */
 	p0_rate = clk_hw_get_rate(p0);
 
-	if (request == p0_rate) {
+	if (parent_req.rate == p0_rate) {
 		req->rate = req->best_parent_rate = p0_rate;
 		req->best_parent_hw = p0;
 		return 0;
@@ -765,7 +767,7 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 
 	if (req->best_parent_hw == p0) {
 		/* Are we going back to a previously used rate? */
-		if (clk_hw_get_rate(p2) == request)
+		if (clk_hw_get_rate(p2) == parent_req.rate)
 			req->best_parent_hw = p2;
 		else
 			req->best_parent_hw = p1;
@@ -780,8 +782,7 @@ static int clk_gfx3d_determine_rate(struct clk_hw *hw,
 		return ret;
 
 	req->rate = req->best_parent_rate = parent_req.rate;
-	if (cgfx->div > 1)
-		req->rate /= cgfx->div;
+	req->rate /= mux_div;
 
 	return 0;
 }

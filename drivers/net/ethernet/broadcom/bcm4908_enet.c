@@ -172,6 +172,7 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 
 err_free_buf_descs:
 	dma_free_coherent(dev, size, ring->cpu_addr, ring->dma_addr);
+	ring->cpu_addr = NULL;
 	return -ENOMEM;
 }
 
@@ -591,6 +592,9 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 		napi_complete_done(napi, handled);
 		bcm4908_enet_intrs_on(enet);
 	}
+
+	/* Hardware could disable ring if it run out of descriptors */
+	bcm4908_enet_dma_rx_ring_enable(enet, &enet->rx_ring);
 
 	return handled;
 }

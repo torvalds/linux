@@ -364,7 +364,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_bo_device *bdev, struct ttm_tt *
 	if (gtt->userflags & RADEON_GEM_USERPTR_ANONONLY) {
 		/* check that we only pin down anonymous memory
 		   to prevent problems with writeback */
-		unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
+		unsigned long end = gtt->userptr + (u64)ttm->num_pages * PAGE_SIZE;
 		struct vm_area_struct *vma;
 		vma = find_vma(gtt->usermm, gtt->userptr);
 		if (!vma || vma->vm_file || vma->vm_end < end)
@@ -386,7 +386,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_bo_device *bdev, struct ttm_tt *
 	} while (pinned < ttm->num_pages);
 
 	r = sg_alloc_table_from_pages(ttm->sg, ttm->pages, ttm->num_pages, 0,
-				      ttm->num_pages << PAGE_SHIFT,
+				      (u64)ttm->num_pages << PAGE_SHIFT,
 				      GFP_KERNEL);
 	if (r)
 		goto release_sg;

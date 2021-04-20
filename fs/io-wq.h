@@ -2,7 +2,6 @@
 #define INTERNAL_IO_WQ_H
 
 #include <linux/refcount.h>
-#include <linux/io_uring.h>
 
 struct io_wq;
 
@@ -19,6 +18,15 @@ enum io_wq_cancel {
 	IO_WQ_CANCEL_OK,	/* cancelled before started */
 	IO_WQ_CANCEL_RUNNING,	/* found, running, and attempted cancelled */
 	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
+};
+
+struct io_wq_work_node {
+	struct io_wq_work_node *next;
+};
+
+struct io_wq_work_list {
+	struct io_wq_work_node *first;
+	struct io_wq_work_node *last;
 };
 
 static inline void wq_list_add_after(struct io_wq_work_node *node,
@@ -79,8 +87,8 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
+	const struct cred *creds;
 	unsigned flags;
-	unsigned short personality;
 };
 
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)

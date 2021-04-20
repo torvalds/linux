@@ -10,8 +10,6 @@
 
 #include "sparsebit.h"
 
-#define KVM_DEV_PATH		"/dev/kvm"
-
 struct userspace_mem_region {
 	struct kvm_userspace_memory_region region;
 	struct sparsebit *unused_phy_pages;

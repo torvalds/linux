@@ -885,8 +885,8 @@ static int lan743x_mac_set_mtu(struct lan743x_adapter *adapter, int new_mtu)
 	}
 
 	mac_rx &= ~(MAC_RX_MAX_SIZE_MASK_);
-	mac_rx |= (((new_mtu + ETH_HLEN + 4) << MAC_RX_MAX_SIZE_SHIFT_) &
-		  MAC_RX_MAX_SIZE_MASK_);
+	mac_rx |= (((new_mtu + ETH_HLEN + ETH_FCS_LEN)
+		  << MAC_RX_MAX_SIZE_SHIFT_) & MAC_RX_MAX_SIZE_MASK_);
 	lan743x_csr_write(adapter, MAC_RX, mac_rx);
 
 	if (enabled) {
@@ -1944,7 +1944,7 @@ static int lan743x_rx_init_ring_element(struct lan743x_rx *rx, int index)
 	struct sk_buff *skb;
 	dma_addr_t dma_ptr;
 
-	buffer_length = netdev->mtu + ETH_HLEN + 4 + RX_HEAD_PADDING;
+	buffer_length = netdev->mtu + ETH_HLEN + ETH_FCS_LEN + RX_HEAD_PADDING;
 
 	descriptor = &rx->ring_cpu_ptr[index];
 	buffer_info = &rx->buffer_info[index];
@@ -2040,7 +2040,7 @@ lan743x_rx_trim_skb(struct sk_buff *skb, int frame_length)
 		dev_kfree_skb_irq(skb);
 		return NULL;
 	}
-	frame_length = max_t(int, 0, frame_length - RX_HEAD_PADDING - 2);
+	frame_length = max_t(int, 0, frame_length - ETH_FCS_LEN);
 	if (skb->len > frame_length) {
 		skb->tail -= skb->len - frame_length;
 		skb->len = frame_length;

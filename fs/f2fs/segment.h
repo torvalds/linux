@@ -851,7 +851,7 @@ static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 	else if (type == NODE)
 		return 8 * sbi->blocks_per_seg;
 	else if (type == META)
-		return 8 * BIO_MAX_PAGES;
+		return 8 * BIO_MAX_VECS;
 	else
 		return 0;
 }
@@ -868,7 +868,7 @@ static inline long nr_pages_to_write(struct f2fs_sb_info *sbi, int type,
 		return 0;
 
 	nr_to_write = wbc->nr_to_write;
-	desired = BIO_MAX_PAGES;
+	desired = BIO_MAX_VECS;
 	if (type == NODE)
 		desired <<= 1;
 

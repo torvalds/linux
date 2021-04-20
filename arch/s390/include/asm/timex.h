@@ -98,10 +98,10 @@ extern unsigned char ptff_function_mask[16];
 
 /* Query TOD offset result */
 struct ptff_qto {
-	unsigned long long physical_clock;
-	unsigned long long tod_offset;
-	unsigned long long logical_tod_offset;
-	unsigned long long tod_epoch_difference;
+	unsigned long physical_clock;
+	unsigned long tod_offset;
+	unsigned long logical_tod_offset;
+	unsigned long tod_epoch_difference;
 } __packed;
 
 static inline int ptff_query(unsigned int nr)
@@ -151,9 +151,9 @@ struct ptff_qui {
 	rc;								\
 })
 
-static inline unsigned long long local_tick_disable(void)
+static inline unsigned long local_tick_disable(void)
 {
-	unsigned long long old;
+	unsigned long old;
 
 	old = S390_lowcore.clock_comparator;
 	S390_lowcore.clock_comparator = clock_comparator_max;
@@ -161,7 +161,7 @@ static inline unsigned long long local_tick_disable(void)
 	return old;
 }
 
-static inline void local_tick_enable(unsigned long long comp)
+static inline void local_tick_enable(unsigned long comp)
 {
 	S390_lowcore.clock_comparator = comp;
 	set_clock_comparator(S390_lowcore.clock_comparator);
@@ -169,9 +169,9 @@ static inline void local_tick_enable(unsigned long long comp)
 
 #define CLOCK_TICK_RATE		1193180 /* Underlying HZ */
 
-typedef unsigned long long cycles_t;
+typedef unsigned long cycles_t;
 
-static inline unsigned long long get_tod_clock(void)
+static inline unsigned long get_tod_clock(void)
 {
 	union tod_clock clk;
 
@@ -179,10 +179,10 @@ static inline unsigned long long get_tod_clock(void)
 	return clk.tod;
 }
 
-static inline unsigned long long get_tod_clock_fast(void)
+static inline unsigned long get_tod_clock_fast(void)
 {
 #ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
-	unsigned long long clk;
+	unsigned long clk;
 
 	asm volatile("stckf %0" : "=Q" (clk) : : "cc");
 	return clk;
@@ -208,9 +208,9 @@ extern union tod_clock tod_clock_base;
  * Therefore preemption must be disabled, otherwise the returned
  * value is not guaranteed to be monotonic.
  */
-static inline unsigned long long get_tod_clock_monotonic(void)
+static inline unsigned long get_tod_clock_monotonic(void)
 {
-	unsigned long long tod;
+	unsigned long tod;
 
 	preempt_disable_notrace();
 	tod = get_tod_clock() - tod_clock_base.tod;
@@ -237,7 +237,7 @@ static inline unsigned long long get_tod_clock_monotonic(void)
  * -> ns = (th * 125) + ((tl * 125) >> 9);
  *
  */
-static inline unsigned long long tod_to_ns(unsigned long long todval)
+static inline unsigned long tod_to_ns(unsigned long todval)
 {
 	return ((todval >> 9) * 125) + (((todval & 0x1ff) * 125) >> 9);
 }
@@ -249,10 +249,10 @@ static inline unsigned long long tod_to_ns(unsigned long long todval)
  *
  * Returns: true if a is later than b
  */
-static inline int tod_after(unsigned long long a, unsigned long long b)
+static inline int tod_after(unsigned long a, unsigned long b)
 {
 	if (MACHINE_HAS_SCC)
-		return (long long) a > (long long) b;
+		return (long) a > (long) b;
 	return a > b;
 }
 
@@ -263,10 +263,10 @@ static inline int tod_after(unsigned long long a, unsigned long long b)
  *
  * Returns: true if a is later than b
  */
-static inline int tod_after_eq(unsigned long long a, unsigned long long b)
+static inline int tod_after_eq(unsigned long a, unsigned long b)
 {
 	if (MACHINE_HAS_SCC)
-		return (long long) a >= (long long) b;
+		return (long) a >= (long) b;
 	return a >= b;
 }
 

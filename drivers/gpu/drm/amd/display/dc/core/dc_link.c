@@ -2602,7 +2602,6 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			if (pipe_ctx->plane_state == NULL)
 				frame_ramp = 0;
 		} else {
-			ASSERT(false);
 			return false;
 		}
 

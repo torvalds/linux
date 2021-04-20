@@ -1332,8 +1332,8 @@ ipxip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev,
 
 				tel = (void *)&skb_network_header(skb)[offset];
 				if (tel->encap_limit == 0) {
-					icmpv6_send(skb, ICMPV6_PARAMPROB,
-						ICMPV6_HDR_FIELD, offset + 2);
+					icmpv6_ndo_send(skb, ICMPV6_PARAMPROB,
+							ICMPV6_HDR_FIELD, offset + 2);
 					return -1;
 				}
 				encap_limit = tel->encap_limit - 1;
@@ -1385,11 +1385,11 @@ ipxip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev,
 		if (err == -EMSGSIZE)
 			switch (protocol) {
 			case IPPROTO_IPIP:
-				icmp_send(skb, ICMP_DEST_UNREACH,
-					  ICMP_FRAG_NEEDED, htonl(mtu));
+				icmp_ndo_send(skb, ICMP_DEST_UNREACH,
+					      ICMP_FRAG_NEEDED, htonl(mtu));
 				break;
 			case IPPROTO_IPV6:
-				icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+				icmpv6_ndo_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 				break;
 			default:
 				break;
@@ -2243,6 +2243,16 @@ static void __net_exit ip6_tnl_destroy_tunnels(struct net *net, struct list_head
 				unregister_netdevice_queue(t->dev, list);
 			t = rtnl_dereference(t->next);
 		}
+	}
+
+	t = rtnl_dereference(ip6n->tnls_wc[0]);
+	while (t) {
+		/* If dev is in the same netns, it has already
+		 * been added to the list by the previous loop.
+		 */
+		if (!net_eq(dev_net(t->dev), net))
+			unregister_netdevice_queue(t->dev, list);
+		t = rtnl_dereference(t->next);
 	}
 }
 

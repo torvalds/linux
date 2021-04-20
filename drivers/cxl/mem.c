@@ -4,6 +4,7 @@
 #include <linux/security.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
+#include <linux/sizes.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
@@ -96,21 +97,18 @@ struct mbox_cmd {
  * @dev: driver core device object
  * @cdev: char dev core object for ioctl operations
  * @cxlm: pointer to the parent device driver data
- * @ops_active: active user of @cxlm in ops handlers
- * @ops_dead: completion when all @cxlm ops users have exited
  * @id: id number of this memdev instance.
  */
 struct cxl_memdev {
 	struct device dev;
 	struct cdev cdev;
 	struct cxl_mem *cxlm;
-	struct percpu_ref ops_active;
-	struct completion ops_dead;
 	int id;
 };
 
 static int cxl_mem_major;
 static DEFINE_IDA(cxl_memdev_ida);
+static DECLARE_RWSEM(cxl_memdev_rwsem);
 static struct dentry *cxl_debugfs;
 static bool cxl_raw_allow_all;
 
@@ -169,7 +167,7 @@ struct cxl_mem_command {
  * table will be validated against the user's input. For example, if size_in is
  * 0, and the user passed in 1, it is an error.
  */
-static struct cxl_mem_command mem_commands[] = {
+static struct cxl_mem_command mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(IDENTIFY, 0, 0x43, CXL_CMD_FLAG_FORCE_ENABLE),
 #ifdef CONFIG_CXL_MEM_RAW_COMMANDS
 	CXL_CMD(RAW, ~0, ~0, 0),
@@ -776,26 +774,43 @@ static long __cxl_memdev_ioctl(struct cxl_memdev *cxlmd, unsigned int cmd,
 static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	struct cxl_memdev *cxlmd;
-	struct inode *inode;
-	int rc = -ENOTTY;
+	struct cxl_memdev *cxlmd = file->private_data;
+	int rc = -ENXIO;
 
-	inode = file_inode(file);
-	cxlmd = container_of(inode->i_cdev, typeof(*cxlmd), cdev);
-
-	if (!percpu_ref_tryget_live(&cxlmd->ops_active))
-		return -ENXIO;
-
-	rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
-
-	percpu_ref_put(&cxlmd->ops_active);
+	down_read(&cxl_memdev_rwsem);
+	if (cxlmd->cxlm)
+		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
+	up_read(&cxl_memdev_rwsem);
 
 	return rc;
+}
+
+static int cxl_memdev_open(struct inode *inode, struct file *file)
+{
+	struct cxl_memdev *cxlmd =
+		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+
+	get_device(&cxlmd->dev);
+	file->private_data = cxlmd;
+
+	return 0;
+}
+
+static int cxl_memdev_release_file(struct inode *inode, struct file *file)
+{
+	struct cxl_memdev *cxlmd =
+		container_of(inode->i_cdev, typeof(*cxlmd), cdev);
+
+	put_device(&cxlmd->dev);
+
+	return 0;
 }
 
 static const struct file_operations cxl_memdev_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = cxl_memdev_ioctl,
+	.open = cxl_memdev_open,
+	.release = cxl_memdev_release_file,
 	.compat_ioctl = compat_ptr_ioctl,
 	.llseek = noop_llseek,
 };
@@ -984,7 +999,7 @@ static struct cxl_mem *cxl_mem_create(struct pci_dev *pdev, u32 reg_lo,
 		return NULL;
 	}
 
-	offset = ((u64)reg_hi << 32) | FIELD_GET(CXL_REGLOC_ADDR_MASK, reg_lo);
+	offset = ((u64)reg_hi << 32) | (reg_lo & CXL_REGLOC_ADDR_MASK);
 	bar = FIELD_GET(CXL_REGLOC_BIR_MASK, reg_lo);
 
 	/* Basic sanity check that BAR is big enough */
@@ -1049,7 +1064,6 @@ static void cxl_memdev_release(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
-	percpu_ref_exit(&cxlmd->ops_active);
 	ida_free(&cxl_memdev_ida, cxlmd->id);
 	kfree(cxlmd);
 }
@@ -1066,7 +1080,7 @@ static ssize_t firmware_version_show(struct device *dev,
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_mem *cxlm = cxlmd->cxlm;
 
-	return sprintf(buf, "%.16s\n", cxlm->firmware_version);
+	return sysfs_emit(buf, "%.16s\n", cxlm->firmware_version);
 }
 static DEVICE_ATTR_RO(firmware_version);
 
@@ -1076,7 +1090,7 @@ static ssize_t payload_max_show(struct device *dev,
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_mem *cxlm = cxlmd->cxlm;
 
-	return sprintf(buf, "%zu\n", cxlm->payload_size);
+	return sysfs_emit(buf, "%zu\n", cxlm->payload_size);
 }
 static DEVICE_ATTR_RO(payload_max);
 
@@ -1087,7 +1101,7 @@ static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 	struct cxl_mem *cxlm = cxlmd->cxlm;
 	unsigned long long len = range_len(&cxlm->ram_range);
 
-	return sprintf(buf, "%#llx\n", len);
+	return sysfs_emit(buf, "%#llx\n", len);
 }
 
 static struct device_attribute dev_attr_ram_size =
@@ -1100,7 +1114,7 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 	struct cxl_mem *cxlm = cxlmd->cxlm;
 	unsigned long long len = range_len(&cxlm->pmem_range);
 
-	return sprintf(buf, "%#llx\n", len);
+	return sysfs_emit(buf, "%#llx\n", len);
 }
 
 static struct device_attribute dev_attr_pmem_size =
@@ -1150,27 +1164,24 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
-static void cxlmdev_unregister(void *_cxlmd)
+static void cxl_memdev_shutdown(struct cxl_memdev *cxlmd)
+{
+	down_write(&cxl_memdev_rwsem);
+	cxlmd->cxlm = NULL;
+	up_write(&cxl_memdev_rwsem);
+}
+
+static void cxl_memdev_unregister(void *_cxlmd)
 {
 	struct cxl_memdev *cxlmd = _cxlmd;
 	struct device *dev = &cxlmd->dev;
 
-	percpu_ref_kill(&cxlmd->ops_active);
 	cdev_device_del(&cxlmd->cdev, dev);
-	wait_for_completion(&cxlmd->ops_dead);
-	cxlmd->cxlm = NULL;
+	cxl_memdev_shutdown(cxlmd);
 	put_device(dev);
 }
 
-static void cxlmdev_ops_active_release(struct percpu_ref *ref)
-{
-	struct cxl_memdev *cxlmd =
-		container_of(ref, typeof(*cxlmd), ops_active);
-
-	complete(&cxlmd->ops_dead);
-}
-
-static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
+static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm)
 {
 	struct pci_dev *pdev = cxlm->pdev;
 	struct cxl_memdev *cxlmd;
@@ -1180,22 +1191,11 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 
 	cxlmd = kzalloc(sizeof(*cxlmd), GFP_KERNEL);
 	if (!cxlmd)
-		return -ENOMEM;
-	init_completion(&cxlmd->ops_dead);
-
-	/*
-	 * @cxlm is deallocated when the driver unbinds so operations
-	 * that are using it need to hold a live reference.
-	 */
-	cxlmd->cxlm = cxlm;
-	rc = percpu_ref_init(&cxlmd->ops_active, cxlmdev_ops_active_release, 0,
-			     GFP_KERNEL);
-	if (rc)
-		goto err_ref;
+		return ERR_PTR(-ENOMEM);
 
 	rc = ida_alloc_range(&cxl_memdev_ida, 0, CXL_MEM_MAX_DEVS, GFP_KERNEL);
 	if (rc < 0)
-		goto err_id;
+		goto err;
 	cxlmd->id = rc;
 
 	dev = &cxlmd->dev;
@@ -1204,30 +1204,54 @@ static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
-	dev_set_name(dev, "mem%d", cxlmd->id);
+	device_set_pm_not_required(dev);
 
 	cdev = &cxlmd->cdev;
 	cdev_init(cdev, &cxl_memdev_fops);
+	return cxlmd;
 
+err:
+	kfree(cxlmd);
+	return ERR_PTR(rc);
+}
+
+static int cxl_mem_add_memdev(struct cxl_mem *cxlm)
+{
+	struct cxl_memdev *cxlmd;
+	struct device *dev;
+	struct cdev *cdev;
+	int rc;
+
+	cxlmd = cxl_memdev_alloc(cxlm);
+	if (IS_ERR(cxlmd))
+		return PTR_ERR(cxlmd);
+
+	dev = &cxlmd->dev;
+	rc = dev_set_name(dev, "mem%d", cxlmd->id);
+	if (rc)
+		goto err;
+
+	/*
+	 * Activate ioctl operations, no cxl_memdev_rwsem manipulation
+	 * needed as this is ordered with cdev_add() publishing the device.
+	 */
+	cxlmd->cxlm = cxlm;
+
+	cdev = &cxlmd->cdev;
 	rc = cdev_device_add(cdev, dev);
 	if (rc)
-		goto err_add;
+		goto err;
 
-	return devm_add_action_or_reset(dev->parent, cxlmdev_unregister, cxlmd);
+	return devm_add_action_or_reset(dev->parent, cxl_memdev_unregister,
+					cxlmd);
 
-err_add:
-	ida_free(&cxl_memdev_ida, cxlmd->id);
-err_id:
+err:
 	/*
-	 * Theoretically userspace could have already entered the fops,
-	 * so flush ops_active.
+	 * The cdev was briefly live, shutdown any ioctl operations that
+	 * saw that state.
 	 */
-	percpu_ref_kill(&cxlmd->ops_active);
-	wait_for_completion(&cxlmd->ops_dead);
-	percpu_ref_exit(&cxlmd->ops_active);
-err_ref:
-	kfree(cxlmd);
-
+	cxl_memdev_shutdown(cxlmd);
+	put_device(dev);
 	return rc;
 }
 
@@ -1396,6 +1420,7 @@ out:
  */
 static int cxl_mem_identify(struct cxl_mem *cxlm)
 {
+	/* See CXL 2.0 Table 175 Identify Memory Device Output Payload */
 	struct cxl_mbox_identify {
 		char fw_revision[0x10];
 		__le64 total_capacity;
@@ -1424,10 +1449,11 @@ static int cxl_mem_identify(struct cxl_mem *cxlm)
 	 * For now, only the capacity is exported in sysfs
 	 */
 	cxlm->ram_range.start = 0;
-	cxlm->ram_range.end = le64_to_cpu(id.volatile_capacity) - 1;
+	cxlm->ram_range.end = le64_to_cpu(id.volatile_capacity) * SZ_256M - 1;
 
 	cxlm->pmem_range.start = 0;
-	cxlm->pmem_range.end = le64_to_cpu(id.persistent_capacity) - 1;
+	cxlm->pmem_range.end =
+		le64_to_cpu(id.persistent_capacity) * SZ_256M - 1;
 
 	memcpy(cxlm->firmware_version, id.fw_revision, sizeof(id.fw_revision));
 

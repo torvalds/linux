@@ -207,7 +207,7 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 						from_kuid(&init_user_ns, cfile->uid),
 						cfile->dentry);
 #ifdef CONFIG_CIFS_DEBUG2
-					seq_printf(m, " 0x%llx\n", cfile->fid.mid);
+					seq_printf(m, " %llu\n", cfile->fid.mid);
 #else
 					seq_printf(m, "\n");
 #endif /* CIFS_DEBUG2 */

@@ -16,7 +16,6 @@
 #include <linux/rculist_nulls.h>
 #include <linux/cpu.h>
 #include <linux/tracehook.h>
-#include <linux/freezer.h>
 
 #include "../kernel/sched/sched.h"
 #include "io-wq.h"
@@ -110,7 +109,6 @@ struct io_wq {
 	io_wq_work_fn *do_work;
 
 	struct task_struct *manager;
-	struct user_struct *user;
 
 	struct io_wq_hash *hash;
 
@@ -387,13 +385,14 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 	return NULL;
 }
 
-static void io_flush_signals(void)
+static bool io_flush_signals(void)
 {
-	if (unlikely(test_tsk_thread_flag(current, TIF_NOTIFY_SIGNAL))) {
-		if (current->task_works)
-			task_work_run();
-		clear_tsk_thread_flag(current, TIF_NOTIFY_SIGNAL);
+	if (unlikely(test_thread_flag(TIF_NOTIFY_SIGNAL))) {
+		__set_current_state(TASK_RUNNING);
+		tracehook_notify_signal();
+		return true;
 	}
+	return false;
 }
 
 static void io_assign_current_work(struct io_worker *worker,
@@ -416,6 +415,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
+	bool do_kill = test_bit(IO_WQ_BIT_EXIT, &wq->state);
 
 	do {
 		struct io_wq_work *work;
@@ -445,6 +445,9 @@ get_next:
 			unsigned int hash = io_get_work_hash(work);
 
 			next_hashed = wq_next_work(work);
+
+			if (unlikely(do_kill) && (work->flags & IO_WQ_WORK_UNBOUND))
+				work->flags |= IO_WQ_WORK_CANCEL;
 			wq->do_work(work);
 			io_assign_current_work(worker, NULL);
 
@@ -485,10 +488,12 @@ static int io_wqe_worker(void *data)
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
 	io_wqe_inc_running(worker);
 
-	sprintf(buf, "iou-wrk-%d", wq->task_pid);
+	snprintf(buf, sizeof(buf), "iou-wrk-%d", wq->task_pid);
 	set_task_comm(current, buf);
 
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
+		long ret;
+
 		set_current_state(TASK_INTERRUPTIBLE);
 loop:
 		raw_spin_lock_irq(&wqe->lock);
@@ -498,11 +503,18 @@ loop:
 		}
 		__io_worker_idle(wqe, worker);
 		raw_spin_unlock_irq(&wqe->lock);
-		io_flush_signals();
-		if (schedule_timeout(WORKER_IDLE_TIMEOUT))
+		if (io_flush_signals())
 			continue;
-		if (fatal_signal_pending(current))
+		ret = schedule_timeout(WORKER_IDLE_TIMEOUT);
+		if (signal_pending(current)) {
+			struct ksignal ksig;
+
+			if (!get_signal(&ksig))
+				continue;
 			break;
+		}
+		if (ret)
+			continue;
 		/* timed out, exit unless we're the fixed worker */
 		if (test_bit(IO_WQ_BIT_EXIT, &wq->state) ||
 		    !(worker->flags & IO_WORKER_F_FIXED))
@@ -592,7 +604,7 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	tsk->pf_io_worker = worker;
 	worker->task = tsk;
 	set_cpus_allowed_ptr(tsk, cpumask_of_node(wqe->node));
-	tsk->flags |= PF_NOFREEZE | PF_NO_SETAFFINITY;
+	tsk->flags |= PF_NO_SETAFFINITY;
 
 	raw_spin_lock_irq(&wqe->lock);
 	hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
@@ -703,16 +715,20 @@ static int io_wq_manager(void *data)
 	char buf[TASK_COMM_LEN];
 	int node;
 
-	sprintf(buf, "iou-mgr-%d", wq->task_pid);
+	snprintf(buf, sizeof(buf), "iou-mgr-%d", wq->task_pid);
 	set_task_comm(current, buf);
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
 		io_wq_check_workers(wq);
 		schedule_timeout(HZ);
-		try_to_freeze();
-		if (fatal_signal_pending(current))
+		if (signal_pending(current)) {
+			struct ksignal ksig;
+
+			if (!get_signal(&ksig))
+				continue;
 			set_bit(IO_WQ_BIT_EXIT, &wq->state);
+		}
 	} while (!test_bit(IO_WQ_BIT_EXIT, &wq->state));
 
 	io_wq_check_workers(wq);
@@ -722,9 +738,9 @@ static int io_wq_manager(void *data)
 		io_wq_for_each_worker(wq->wqes[node], io_wq_worker_wake, NULL);
 	rcu_read_unlock();
 
-	/* we might not ever have created any workers */
-	if (atomic_read(&wq->worker_refs))
-		wait_for_completion(&wq->worker_done);
+	if (atomic_dec_and_test(&wq->worker_refs))
+		complete(&wq->worker_done);
+	wait_for_completion(&wq->worker_done);
 
 	spin_lock_irq(&wq->hash->wait.lock);
 	for_each_node(node)
@@ -774,13 +790,19 @@ static int io_wq_fork_manager(struct io_wq *wq)
 	if (wq->manager)
 		return 0;
 
-	reinit_completion(&wq->worker_done);
+	WARN_ON_ONCE(test_bit(IO_WQ_BIT_EXIT, &wq->state));
+
+	init_completion(&wq->worker_done);
+	atomic_set(&wq->worker_refs, 1);
 	tsk = create_io_thread(io_wq_manager, wq, NUMA_NO_NODE);
 	if (!IS_ERR(tsk)) {
 		wq->manager = get_task_struct(tsk);
 		wake_up_new_task(tsk);
 		return 0;
 	}
+
+	if (atomic_dec_and_test(&wq->worker_refs))
+		complete(&wq->worker_done);
 
 	return PTR_ERR(tsk);
 }
@@ -794,8 +816,7 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	/* Can only happen if manager creation fails after exec */
 	if (io_wq_fork_manager(wqe->wq) ||
 	    test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state)) {
-		work->flags |= IO_WQ_WORK_CANCEL;
-		wqe->wq->do_work(work);
+		io_run_cancel(work, wqe);
 		return;
 	}
 
@@ -1018,13 +1039,9 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	init_completion(&wq->exited);
 	refcount_set(&wq->refs, 1);
 
-	init_completion(&wq->worker_done);
-	atomic_set(&wq->worker_refs, 0);
-
 	ret = io_wq_fork_manager(wq);
 	if (!ret)
 		return wq;
-
 err:
 	io_wq_put_hash(data->hash);
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
@@ -1058,7 +1075,11 @@ static void io_wq_destroy(struct io_wq *wq)
 
 	for_each_node(node) {
 		struct io_wqe *wqe = wq->wqes[node];
-		WARN_ON_ONCE(!wq_list_empty(&wqe->work_list));
+		struct io_cb_cancel_data match = {
+			.fn		= io_wq_work_match_all,
+			.cancel_all	= true,
+		};
+		io_wqe_cancel_pending_work(wqe, &match);
 		kfree(wqe);
 	}
 	io_wq_put_hash(wq->hash);

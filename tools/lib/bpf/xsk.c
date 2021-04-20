@@ -59,6 +59,8 @@ struct xsk_umem {
 	int fd;
 	int refcount;
 	struct list_head ctx_list;
+	bool rx_ring_setup_done;
+	bool tx_ring_setup_done;
 };
 
 struct xsk_ctx {
@@ -610,15 +612,16 @@ static int xsk_lookup_bpf_maps(struct xsk_socket *xsk)
 		if (fd < 0)
 			continue;
 
+		memset(&map_info, 0, map_len);
 		err = bpf_obj_get_info_by_fd(fd, &map_info, &map_len);
 		if (err) {
 			close(fd);
 			continue;
 		}
 
-		if (!strcmp(map_info.name, "xsks_map")) {
+		if (!strncmp(map_info.name, "xsks_map", sizeof(map_info.name))) {
 			ctx->xsks_map_fd = fd;
-			continue;
+			break;
 		}
 
 		close(fd);
@@ -742,26 +745,30 @@ static struct xsk_ctx *xsk_get_ctx(struct xsk_umem *umem, int ifindex,
 	return NULL;
 }
 
-static void xsk_put_ctx(struct xsk_ctx *ctx)
+static void xsk_put_ctx(struct xsk_ctx *ctx, bool unmap)
 {
 	struct xsk_umem *umem = ctx->umem;
 	struct xdp_mmap_offsets off;
 	int err;
 
-	if (--ctx->refcount == 0) {
-		err = xsk_get_mmap_offsets(umem->fd, &off);
-		if (!err) {
-			munmap(ctx->fill->ring - off.fr.desc,
-			       off.fr.desc + umem->config.fill_size *
-			       sizeof(__u64));
-			munmap(ctx->comp->ring - off.cr.desc,
-			       off.cr.desc + umem->config.comp_size *
-			       sizeof(__u64));
-		}
+	if (--ctx->refcount)
+		return;
 
-		list_del(&ctx->list);
-		free(ctx);
-	}
+	if (!unmap)
+		goto out_free;
+
+	err = xsk_get_mmap_offsets(umem->fd, &off);
+	if (err)
+		goto out_free;
+
+	munmap(ctx->fill->ring - off.fr.desc, off.fr.desc + umem->config.fill_size *
+	       sizeof(__u64));
+	munmap(ctx->comp->ring - off.cr.desc, off.cr.desc + umem->config.comp_size *
+	       sizeof(__u64));
+
+out_free:
+	list_del(&ctx->list);
+	free(ctx);
 }
 
 static struct xsk_ctx *xsk_create_ctx(struct xsk_socket *xsk,
@@ -796,8 +803,6 @@ static struct xsk_ctx *xsk_create_ctx(struct xsk_socket *xsk,
 	memcpy(ctx->ifname, ifname, IFNAMSIZ - 1);
 	ctx->ifname[IFNAMSIZ - 1] = '\0';
 
-	umem->fill_save = NULL;
-	umem->comp_save = NULL;
 	ctx->fill = fill;
 	ctx->comp = comp;
 	list_add(&ctx->list, &umem->ctx_list);
@@ -847,6 +852,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 			      struct xsk_ring_cons *comp,
 			      const struct xsk_socket_config *usr_config)
 {
+	bool unmap, rx_setup_done = false, tx_setup_done = false;
 	void *rx_map = NULL, *tx_map = NULL;
 	struct sockaddr_xdp sxdp = {};
 	struct xdp_mmap_offsets off;
@@ -856,6 +862,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 
 	if (!umem || !xsk_ptr || !(rx || tx))
 		return -EFAULT;
+
+	unmap = umem->fill_save != fill;
 
 	xsk = calloc(1, sizeof(*xsk));
 	if (!xsk)
@@ -880,6 +888,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 		}
 	} else {
 		xsk->fd = umem->fd;
+		rx_setup_done = umem->rx_ring_setup_done;
+		tx_setup_done = umem->tx_ring_setup_done;
 	}
 
 	ctx = xsk_get_ctx(umem, ifindex, queue_id);
@@ -898,7 +908,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	}
 	xsk->ctx = ctx;
 
-	if (rx) {
+	if (rx && !rx_setup_done) {
 		err = setsockopt(xsk->fd, SOL_XDP, XDP_RX_RING,
 				 &xsk->config.rx_size,
 				 sizeof(xsk->config.rx_size));
@@ -906,8 +916,10 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 			err = -errno;
 			goto out_put_ctx;
 		}
+		if (xsk->fd == umem->fd)
+			umem->rx_ring_setup_done = true;
 	}
-	if (tx) {
+	if (tx && !tx_setup_done) {
 		err = setsockopt(xsk->fd, SOL_XDP, XDP_TX_RING,
 				 &xsk->config.tx_size,
 				 sizeof(xsk->config.tx_size));
@@ -915,6 +927,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 			err = -errno;
 			goto out_put_ctx;
 		}
+		if (xsk->fd == umem->fd)
+			umem->rx_ring_setup_done = true;
 	}
 
 	err = xsk_get_mmap_offsets(xsk->fd, &off);
@@ -993,6 +1007,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	}
 
 	*xsk_ptr = xsk;
+	umem->fill_save = NULL;
+	umem->comp_save = NULL;
 	return 0;
 
 out_mmap_tx:
@@ -1004,7 +1020,7 @@ out_mmap_rx:
 		munmap(rx_map, off.rx.desc +
 		       xsk->config.rx_size * sizeof(struct xdp_desc));
 out_put_ctx:
-	xsk_put_ctx(ctx);
+	xsk_put_ctx(ctx, unmap);
 out_socket:
 	if (--umem->refcount)
 		close(xsk->fd);
@@ -1018,6 +1034,9 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 		       struct xsk_ring_cons *rx, struct xsk_ring_prod *tx,
 		       const struct xsk_socket_config *usr_config)
 {
+	if (!umem)
+		return -EFAULT;
+
 	return xsk_socket__create_shared(xsk_ptr, ifname, queue_id, umem,
 					 rx, tx, umem->fill_save,
 					 umem->comp_save, usr_config);
@@ -1067,7 +1086,7 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 		}
 	}
 
-	xsk_put_ctx(ctx);
+	xsk_put_ctx(ctx, true);
 
 	umem->refcount--;
 	/* Do not close an fd that also has an associated umem connected

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_EXTABLE64_H
-#define __ASM_EXTABLE64_H
+#ifndef __ASM_EXTABLE_H
+#define __ASM_EXTABLE_H
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is

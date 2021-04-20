@@ -26,12 +26,10 @@
 #include <asm/timex.h>
 #include <asm/debug.h>
 
-#include <asm/perf_cpum_cf_diag.h>
+#include <asm/hwctrset.h>
 
 #define	CF_DIAG_CTRSET_DEF		0xfeef	/* Counter set header mark */
-#define CF_DIAG_MIN_INTERVAL		60	/* Minimum counter set read */
 						/* interval in seconds */
-static unsigned long cf_diag_interval = CF_DIAG_MIN_INTERVAL;
 static unsigned int cf_diag_cpu_speed;
 static debug_info_t *cf_diag_dbg;
 
@@ -729,7 +727,6 @@ static DEFINE_MUTEX(cf_diag_ctrset_mutex);
 static struct cf_diag_ctrset {
 	unsigned long ctrset;		/* Bit mask of counter set to read */
 	cpumask_t mask;			/* CPU mask to read from */
-	time64_t lastread;		/* Epoch counter set last read */
 } cf_diag_ctrset;
 
 static void cf_diag_ctrset_clear(void)
@@ -866,27 +863,16 @@ static int cf_diag_all_read(unsigned long arg)
 {
 	struct cf_diag_call_on_cpu_parm p;
 	cpumask_var_t mask;
-	time64_t now;
-	int rc = 0;
+	int rc;
 
 	debug_sprintf_event(cf_diag_dbg, 5, "%s\n", __func__);
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
 		return -ENOMEM;
-	now = ktime_get_seconds();
-	if (cf_diag_ctrset.lastread + cf_diag_interval > now) {
-		debug_sprintf_event(cf_diag_dbg, 5, "%s now %lld "
-				    " lastread %lld\n", __func__, now,
-				    cf_diag_ctrset.lastread);
-		rc = -EAGAIN;
-		goto out;
-	} else {
-		cf_diag_ctrset.lastread = now;
-	}
+
 	p.sets = cf_diag_ctrset.ctrset;
 	cpumask_and(mask, &cf_diag_ctrset.mask, cpu_online_mask);
 	on_each_cpu_mask(mask, cf_diag_cpu_read, &p, 1);
 	rc = cf_diag_all_copy(arg, mask);
-out:
 	free_cpumask_var(mask);
 	debug_sprintf_event(cf_diag_dbg, 5, "%s rc %d\n", __func__, rc);
 	return rc;
@@ -982,7 +968,7 @@ static int cf_diag_all_start(void)
  */
 static size_t cf_diag_needspace(unsigned int sets)
 {
-	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
+	struct cpu_cf_events *cpuhw = get_cpu_ptr(&cpu_cf_events);
 	size_t bytes = 0;
 	int i;
 
@@ -998,6 +984,7 @@ static size_t cf_diag_needspace(unsigned int sets)
 		     sizeof(((struct s390_ctrset_cpudata *)0)->no_sets));
 	debug_sprintf_event(cf_diag_dbg, 5, "%s bytes %ld\n", __func__,
 			    bytes);
+	put_cpu_ptr(&cpu_cf_events);
 	return bytes;
 }
 

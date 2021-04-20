@@ -98,8 +98,8 @@ EXPORT_SYMBOL_GPL(xen_p2m_size);
 unsigned long xen_max_p2m_pfn __read_mostly;
 EXPORT_SYMBOL_GPL(xen_max_p2m_pfn);
 
-#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
-#define P2M_LIMIT CONFIG_XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+#ifdef CONFIG_XEN_MEMORY_HOTPLUG_LIMIT
+#define P2M_LIMIT CONFIG_XEN_MEMORY_HOTPLUG_LIMIT
 #else
 #define P2M_LIMIT 0
 #endif
@@ -416,9 +416,6 @@ void __init xen_vmalloc_p2m_tree(void)
 	xen_p2m_last_pfn = xen_max_p2m_pfn;
 
 	p2m_limit = (phys_addr_t)P2M_LIMIT * 1024 * 1024 * 1024 / PAGE_SIZE;
-	if (!p2m_limit && IS_ENABLED(CONFIG_XEN_UNPOPULATED_ALLOC))
-		p2m_limit = xen_start_info->nr_pages * XEN_EXTRA_MEM_RATIO;
-
 	vm.flags = VM_ALLOC;
 	vm.size = ALIGN(sizeof(unsigned long) * max(xen_max_p2m_pfn, p2m_limit),
 			PMD_SIZE * PMDS_PER_MID_PAGE);
@@ -741,7 +738,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 		map_ops[i].status = GNTST_general_error;
 		unmap[0].host_addr = map_ops[i].host_addr,
 		unmap[0].handle = map_ops[i].handle;
-		map_ops[i].handle = ~0;
+		map_ops[i].handle = INVALID_GRANT_HANDLE;
 		if (map_ops[i].flags & GNTMAP_device_map)
 			unmap[0].dev_bus_addr = map_ops[i].dev_bus_addr;
 		else
@@ -751,7 +748,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 			kmap_ops[i].status = GNTST_general_error;
 			unmap[1].host_addr = kmap_ops[i].host_addr,
 			unmap[1].handle = kmap_ops[i].handle;
-			kmap_ops[i].handle = ~0;
+			kmap_ops[i].handle = INVALID_GRANT_HANDLE;
 			if (kmap_ops[i].flags & GNTMAP_device_map)
 				unmap[1].dev_bus_addr = kmap_ops[i].dev_bus_addr;
 			else
@@ -776,7 +773,6 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
 
 int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 			      struct gnttab_unmap_grant_ref *kunmap_ops,
@@ -802,7 +798,6 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
 
 #ifdef CONFIG_XEN_DEBUG_FS
 #include <linux/debugfs.h>

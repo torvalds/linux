@@ -3966,7 +3966,6 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 	 *    normalcy is to reset.
 	 * 2. A new reset request from the stack due to timeout
 	 *
-	 * For the first case,error event might not have ae handle available.
 	 * check if this is a new reset request and we are not here just because
 	 * last reset attempt did not succeed and watchdog hit us again. We will
 	 * know this if last reset request did not occur very recently (watchdog
@@ -3976,14 +3975,14 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 	 * want to make sure we throttle the reset request. Therefore, we will
 	 * not allow it again before 3*HZ times.
 	 */
-	if (!handle)
-		handle = &hdev->vport[0].nic;
 
 	if (time_before(jiffies, (hdev->last_reset_time +
 				  HCLGE_RESET_INTERVAL))) {
 		mod_timer(&hdev->reset_timer, jiffies + HCLGE_RESET_INTERVAL);
 		return;
-	} else if (hdev->default_reset_request) {
+	}
+
+	if (hdev->default_reset_request) {
 		hdev->reset_level =
 			hclge_get_reset_level(ae_dev,
 					      &hdev->default_reset_request);
@@ -5245,9 +5244,9 @@ static bool hclge_fd_convert_tuple(u32 tuple_bit, u8 *key_x, u8 *key_y,
 	case BIT(INNER_SRC_MAC):
 		for (i = 0; i < ETH_ALEN; i++) {
 			calc_x(key_x[ETH_ALEN - 1 - i], rule->tuples.src_mac[i],
-			       rule->tuples.src_mac[i]);
+			       rule->tuples_mask.src_mac[i]);
 			calc_y(key_y[ETH_ALEN - 1 - i], rule->tuples.src_mac[i],
-			       rule->tuples.src_mac[i]);
+			       rule->tuples_mask.src_mac[i]);
 		}
 
 		return true;
@@ -6330,8 +6329,7 @@ static void hclge_fd_get_ext_info(struct ethtool_rx_flow_spec *fs,
 		fs->h_ext.vlan_tci = cpu_to_be16(rule->tuples.vlan_tag1);
 		fs->m_ext.vlan_tci =
 				rule->unused_tuple & BIT(INNER_VLAN_TAG_FST) ?
-				cpu_to_be16(VLAN_VID_MASK) :
-				cpu_to_be16(rule->tuples_mask.vlan_tag1);
+				0 : cpu_to_be16(rule->tuples_mask.vlan_tag1);
 	}
 
 	if (fs->flow_type & FLOW_MAC_EXT) {
@@ -11212,7 +11210,7 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 	if (ret)
 		return ret;
 
-	/* RSS indirection table has been configuared by user */
+	/* RSS indirection table has been configured by user */
 	if (rxfh_configured)
 		goto out;
 

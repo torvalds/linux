@@ -5471,11 +5471,11 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	int ret;
 
-	memset(wm, 0, sizeof(*wm));
-
 	/* Watermarks calculated in master */
 	if (plane_state->planar_slave)
 		return 0;
+
+	memset(wm, 0, sizeof(*wm));
 
 	if (plane_state->planar_linked_plane) {
 		const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -7245,11 +7245,16 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 	intel_uncore_write(&dev_priv->uncore, CHICKEN_PAR1_1,
 		   intel_uncore_read(&dev_priv->uncore, CHICKEN_PAR1_1) | DPA_MASK_VBLANK_SRD);
 
-	/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 	for_each_pipe(dev_priv, pipe) {
+		/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 		intel_uncore_write(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
 			   intel_uncore_read(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe)) |
 			   BDW_DPRS_MASK_VBLANK_SRD);
+
+		/* Undocumented but fixes async flip + VT-d corruption */
+		if (intel_vtd_active())
+			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
+					 HSW_PRI_STRETCH_MAX_MASK, HSW_PRI_STRETCH_MAX_X1);
 	}
 
 	/* WaVSRefCountFullforceMissDisable:bdw */
@@ -7285,10 +7290,19 @@ static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
+	enum pipe pipe;
+
 	/* WaFbcAsynchFlipDisableFbcQueue:hsw,bdw */
 	intel_uncore_write(&dev_priv->uncore, CHICKEN_PIPESL_1(PIPE_A),
 		   intel_uncore_read(&dev_priv->uncore, CHICKEN_PIPESL_1(PIPE_A)) |
 		   HSW_FBCQ_DIS);
+
+	for_each_pipe(dev_priv, pipe) {
+		/* Undocumented but fixes async flip + VT-d corruption */
+		if (intel_vtd_active())
+			intel_uncore_rmw(&dev_priv->uncore, CHICKEN_PIPESL_1(pipe),
+					 HSW_PRI_STRETCH_MAX_MASK, HSW_PRI_STRETCH_MAX_X1);
+	}
 
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	intel_uncore_write(&dev_priv->uncore, GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,

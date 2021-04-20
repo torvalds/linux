@@ -252,8 +252,8 @@ static int __init n64joy_probe(struct platform_device *pdev)
 	mutex_init(&priv->n64joy_mutex);
 
 	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!priv->reg_base) {
-		err = -EINVAL;
+	if (IS_ERR(priv->reg_base)) {
+		err = PTR_ERR(priv->reg_base);
 		goto fail;
 	}
 

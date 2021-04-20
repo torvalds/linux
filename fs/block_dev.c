@@ -118,13 +118,22 @@ int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
 	if (!(mode & FMODE_EXCL)) {
 		int err = bd_prepare_to_claim(bdev, truncate_bdev_range);
 		if (err)
-			return err;
+			goto invalidate;
 	}
 
 	truncate_inode_pages_range(bdev->bd_inode->i_mapping, lstart, lend);
 	if (!(mode & FMODE_EXCL))
 		bd_abort_claiming(bdev, truncate_bdev_range);
 	return 0;
+
+invalidate:
+	/*
+	 * Someone else has handle exclusively open. Try invalidating instead.
+	 * The 'end' argument is inclusive so the rounding is safe.
+	 */
+	return invalidate_inode_pages2_range(bdev->bd_inode->i_mapping,
+					     lstart >> PAGE_SHIFT,
+					     lend >> PAGE_SHIFT);
 }
 
 static void set_init_blocksize(struct block_device *bdev)
@@ -266,6 +275,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		bio.bi_opf = dio_bio_write_op(iocb);
 		task_io_account_write(ret);
 	}
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		bio.bi_opf |= REQ_NOWAIT;
 	if (iocb->ki_flags & IOCB_HIPRI)
 		bio_set_polled(&bio, iocb);
 
@@ -419,11 +430,13 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			bio->bi_opf = dio_bio_write_op(iocb);
 			task_io_account_write(bio->bi_iter.bi_size);
 		}
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			bio->bi_opf |= REQ_NOWAIT;
 
 		dio->size += bio->bi_iter.bi_size;
 		pos += bio->bi_iter.bi_size;
 
-		nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_PAGES);
+		nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS);
 		if (!nr_pages) {
 			bool polled = false;
 
@@ -491,8 +504,8 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (!iov_iter_count(iter))
 		return 0;
 
-	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_PAGES + 1);
-	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_PAGES)
+	nr_pages = bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS + 1);
+	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_VECS)
 		return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
 
 	return __blkdev_direct_IO(iocb, iter, bio_max_segs(nr_pages));
@@ -1231,12 +1244,12 @@ int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 
 	lockdep_assert_held(&bdev->bd_mutex);
 
-	clear_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
-
 rescan:
 	ret = blk_drop_partitions(bdev);
 	if (ret)
 		return ret;
+
+	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*
 	 * Historically we only set the capacity to zero for devices that

@@ -290,7 +290,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		rc = server->ops->queryfs(xid, tcon, cifs_sb, buf);
 
 	free_xid(xid);
-	return 0;
+	return rc;
 }
 
 static long cifs_fallocate(struct file *file, int mode, loff_t off, loff_t len)
@@ -476,7 +476,8 @@ static int cifs_show_devname(struct seq_file *m, struct dentry *root)
 		seq_puts(m, "none");
 	else {
 		convert_delimiter(devname, '/');
-		seq_puts(m, devname);
+		/* escape all spaces in share names */
+		seq_escape(m, devname, " \t");
 		kfree(devname);
 	}
 	return 0;

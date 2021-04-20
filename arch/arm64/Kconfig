@@ -810,6 +810,16 @@ config QCOM_FALKOR_ERRATUM_E1041
 
 	  If unsure, say Y.
 
+config NVIDIA_CARMEL_CNP_ERRATUM
+	bool "NVIDIA Carmel CNP: CNP on Carmel semantically different than ARM cores"
+	default y
+	help
+	  If CNP is enabled on Carmel cores, non-sharable TLBIs on a core will not
+	  invalidate shared TLB entries installed by a different core, as it would
+	  on standard ARM cores.
+
+	  If unsure, say Y.
+
 config SOCIONEXT_SYNQUACER_PREITS
 	bool "Socionext Synquacer: Workaround for GICv3 pre-ITS"
 	default y
@@ -1055,8 +1065,6 @@ config HW_PERF_EVENTS
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
-config ARCH_WANT_HUGE_PMD_SHARE
-
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
@@ -1157,8 +1165,8 @@ config XEN
 
 config FORCE_MAX_ZONEORDER
 	int
-	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
-	default "12" if (ARM64_16K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "14" if ARM64_64K_PAGES
+	default "12" if ARM64_16K_PAGES
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -1398,10 +1406,13 @@ config ARM64_PAN
 config AS_HAS_LDAPR
 	def_bool $(as-instr,.arch_extension rcpc)
 
+config AS_HAS_LSE_ATOMICS
+	def_bool $(as-instr,.arch_extension lse)
+
 config ARM64_LSE_ATOMICS
 	bool
 	default ARM64_USE_LSE_ATOMICS
-	depends on $(as-instr,.arch_extension lse)
+	depends on AS_HAS_LSE_ATOMICS
 
 config ARM64_USE_LSE_ATOMICS
 	bool "Atomic instructions"
@@ -1658,6 +1669,7 @@ config ARM64_MTE
 	default y
 	depends on ARM64_AS_HAS_MTE && ARM64_TAGGED_ADDR_ABI
 	depends on AS_HAS_ARMV8_5
+	depends on AS_HAS_LSE_ATOMICS
 	# Required for tag checking in the uaccess routines
 	depends on ARM64_PAN
 	select ARCH_USES_HIGH_VMA_FLAGS
@@ -1854,12 +1866,6 @@ config CMDLINE_FROM_BOOTLOADER
 	  Uses the command-line options passed by the boot loader. If
 	  the boot loader doesn't provide any, the default kernel command
 	  string provided in CMDLINE will be used.
-
-config CMDLINE_EXTEND
-	bool "Extend bootloader kernel arguments"
-	help
-	  The command-line arguments provided by the boot loader will be
-	  appended to the default kernel command string.
 
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"

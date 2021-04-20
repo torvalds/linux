@@ -5,6 +5,8 @@
  * All Rights Reserved.
  */
 
+#define pr_fmt(fmt)	"habanalabs: " fmt
+
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
@@ -682,6 +684,11 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
 
+	if (!hdev) {
+		pr_err_ratelimited("Sending ioctl after device was removed! Please close FD\n");
+		return -ENODEV;
+	}
+
 	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
 		ioctl = &hl_ioctls[nr];
 	} else {
@@ -699,6 +706,11 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 	struct hl_device *hdev = hpriv->hdev;
 	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
+
+	if (!hdev) {
+		pr_err_ratelimited("Sending ioctl after device was removed! Please close FD\n");
+		return -ENODEV;
+	}
 
 	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
 		ioctl = &hl_ioctls_control[nr];

@@ -23,6 +23,7 @@ properties:
           - enum:
               - ingenic,jz4775-intc
               - ingenic,jz4770-intc
+              - ingenic,jz4760b-intc
           - const: ingenic,jz4760-intc
       - items:
           - const: ingenic,x1000-intc
