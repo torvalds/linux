@@ -6,6 +6,7 @@
 #include "en/port.h"
 #include "en_accel/en_accel.h"
 #include "accel/ipsec.h"
+#include "fpga/ipsec.h"
 
 static bool mlx5e_rx_is_xdp(struct mlx5e_params *params,
 			    struct mlx5e_xsk_param *xsk)
@@ -89,30 +90,39 @@ bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params,
 	return !params->lro_en && linear_frag_sz <= PAGE_SIZE;
 }
 
-#define MLX5_MAX_MPWQE_LOG_WQE_STRIDE_SZ ((BIT(__mlx5_bit_sz(wq, log_wqe_stride_size)) - 1) + \
-					  MLX5_MPWQE_LOG_STRIDE_SZ_BASE)
+bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
+				   u8 log_stride_sz, u8 log_num_strides)
+{
+	if (log_stride_sz + log_num_strides != MLX5_MPWRQ_LOG_WQE_SZ)
+		return false;
+
+	if (log_stride_sz < MLX5_MPWQE_LOG_STRIDE_SZ_BASE ||
+	    log_stride_sz > MLX5_MPWQE_LOG_STRIDE_SZ_MAX)
+		return false;
+
+	if (log_num_strides > MLX5_MPWQE_LOG_NUM_STRIDES_MAX)
+		return false;
+
+	if (MLX5_CAP_GEN(mdev, ext_stride_num_range))
+		return log_num_strides >= MLX5_MPWQE_LOG_NUM_STRIDES_EXT_BASE;
+
+	return log_num_strides >= MLX5_MPWQE_LOG_NUM_STRIDES_BASE;
+}
+
 bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 				  struct mlx5e_params *params,
 				  struct mlx5e_xsk_param *xsk)
 {
-	u32 linear_frag_sz = mlx5e_rx_get_linear_frag_sz(params, xsk);
-	s8 signed_log_num_strides_param;
-	u8 log_num_strides;
+	s8 log_num_strides;
+	u8 log_stride_sz;
 
 	if (!mlx5e_rx_is_linear_skb(params, xsk))
 		return false;
 
-	if (order_base_2(linear_frag_sz) > MLX5_MAX_MPWQE_LOG_WQE_STRIDE_SZ)
-		return false;
+	log_stride_sz = order_base_2(mlx5e_rx_get_linear_frag_sz(params, xsk));
+	log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ - log_stride_sz;
 
-	if (MLX5_CAP_GEN(mdev, ext_stride_num_range))
-		return true;
-
-	log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(linear_frag_sz);
-	signed_log_num_strides_param =
-		(s8)log_num_strides - MLX5_MPWQE_LOG_NUM_STRIDES_BASE;
-
-	return signed_log_num_strides_param >= 0;
+	return mlx5e_verify_rx_mpwqe_strides(mdev, log_stride_sz, log_num_strides);
 }
 
 u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5e_params *params,
@@ -282,7 +292,7 @@ bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
 	if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
 		return false;
 
-	if (MLX5_IPSEC_DEV(mdev))
+	if (mlx5_fpga_is_ipsec_device(mdev))
 		return false;
 
 	if (params->xdp_prog) {
@@ -364,7 +374,7 @@ static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	u32 buf_size = 0;
 	int i;
 
-	if (MLX5_IPSEC_DEV(mdev))
+	if (mlx5_fpga_is_ipsec_device(mdev))
 		byte_count += MLX5E_METADATA_ETHER_LEN;
 
 	if (mlx5e_rx_is_linear_skb(params, xsk)) {
@@ -461,26 +471,36 @@ static void mlx5e_build_rx_cq_param(struct mlx5_core_dev *mdev,
 	param->cq_period_mode = params->rx_cq_moderation.cq_period_mode;
 }
 
-void mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
-			  struct mlx5e_params *params,
-			  struct mlx5e_xsk_param *xsk,
-			  u16 q_counter,
-			  struct mlx5e_rq_param *param)
+int mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
+			 struct mlx5e_params *params,
+			 struct mlx5e_xsk_param *xsk,
+			 u16 q_counter,
+			 struct mlx5e_rq_param *param)
 {
 	void *rqc = param->rqc;
 	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	int ndsegs = 1;
 
 	switch (params->rq_wq_type) {
-	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ: {
+		u8 log_wqe_num_of_strides = mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk);
+		u8 log_wqe_stride_size = mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
+
+		if (!mlx5e_verify_rx_mpwqe_strides(mdev, log_wqe_stride_size,
+						   log_wqe_num_of_strides)) {
+			mlx5_core_err(mdev,
+				      "Bad RX MPWQE params: log_stride_size %u, log_num_strides %u\n",
+				      log_wqe_stride_size, log_wqe_num_of_strides);
+			return -EINVAL;
+		}
+
 		MLX5_SET(wq, wq, log_wqe_num_of_strides,
-			 mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk) -
-			 MLX5_MPWQE_LOG_NUM_STRIDES_BASE);
+			 log_wqe_num_of_strides - MLX5_MPWQE_LOG_NUM_STRIDES_BASE);
 		MLX5_SET(wq, wq, log_wqe_stride_size,
-			 mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk) -
-			 MLX5_MPWQE_LOG_STRIDE_SZ_BASE);
+			 log_wqe_stride_size - MLX5_MPWQE_LOG_STRIDE_SZ_BASE);
 		MLX5_SET(wq, wq, log_wq_sz, mlx5e_mpwqe_get_log_rq_size(params, xsk));
 		break;
+	}
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		MLX5_SET(wq, wq, log_wq_sz, params->log_rq_mtu_frames);
 		mlx5e_build_rq_frags_info(mdev, params, xsk, &param->frags_info);
@@ -498,6 +518,8 @@ void mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 
 	param->wq.buf_numa_node = dev_to_node(mlx5_core_dma_dev(mdev));
 	mlx5e_build_rx_cq_param(mdev, params, xsk, &param->cqp);
+
+	return 0;
 }
 
 void mlx5e_build_drop_rq_param(struct mlx5_core_dev *mdev,
@@ -642,14 +664,17 @@ void mlx5e_build_xdpsq_param(struct mlx5_core_dev *mdev,
 	mlx5e_build_tx_cq_param(mdev, params, &param->cqp);
 }
 
-void mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
-			       struct mlx5e_params *params,
-			       u16 q_counter,
-			       struct mlx5e_channel_param *cparam)
+int mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
+			      struct mlx5e_params *params,
+			      u16 q_counter,
+			      struct mlx5e_channel_param *cparam)
 {
 	u8 icosq_log_wq_sz, async_icosq_log_wq_sz;
+	int err;
 
-	mlx5e_build_rq_param(mdev, params, NULL, q_counter, &cparam->rq);
+	err = mlx5e_build_rq_param(mdev, params, NULL, q_counter, &cparam->rq);
+	if (err)
+		return err;
 
 	icosq_log_wq_sz = mlx5e_build_icosq_log_wq_sz(params, &cparam->rq);
 	async_icosq_log_wq_sz = mlx5e_build_async_icosq_log_wq_sz(mdev);
@@ -658,4 +683,6 @@ void mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
 	mlx5e_build_xdpsq_param(mdev, params, &cparam->xdp_sq);
 	mlx5e_build_icosq_param(mdev, icosq_log_wq_sz, &cparam->icosq);
 	mlx5e_build_async_icosq_param(mdev, async_icosq_log_wq_sz, &cparam->async_icosq);
+
+	return 0;
 }
