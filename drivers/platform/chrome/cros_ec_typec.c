@@ -906,6 +906,19 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 		return;
 	}
 
+	/* If we got a hard reset, unregister everything and return. */
+	if (resp.events & PD_STATUS_EVENT_HARD_RESET) {
+		cros_typec_remove_partner(typec, port_num);
+		cros_typec_remove_cable(typec, port_num);
+
+		ret = cros_typec_send_clear_event(typec, port_num,
+						  PD_STATUS_EVENT_HARD_RESET);
+		if (ret < 0)
+			dev_warn(typec->dev,
+				 "Failed hard reset event clear, port: %d\n", port_num);
+		return;
+	}
+
 	/* Handle any events appropriately. */
 	if (resp.events & PD_STATUS_EVENT_SOP_DISC_DONE && !typec->ports[port_num]->sop_disc_done) {
 		u16 sop_revision;
