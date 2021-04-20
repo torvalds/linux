@@ -1,4 +1,4 @@
-/*
+>/*
  *  Driver for the IDT RC32434 (Korina) on-chip ethernet controller.
  *
  *  Copyright 2004 IDT Inc. (rischelp@idt.com)
@@ -323,7 +323,7 @@ struct dma_reg {
 
 enum chain_status {
 	desc_filled,
-	desc_empty
+	desc_is_empty
 };
 
 #define DMA_COUNT(count)	((count) & DMA_DESC_COUNT_MSK)
@@ -459,7 +459,7 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 	chain_next = (idx + 1) & KORINA_TDS_MASK;
 
 	if (readl(&(lp->tx_dma_regs->dmandptr)) == 0) {
-		if (lp->tx_chain_status == desc_empty) {
+		if (lp->tx_chain_status == desc_is_empty) {
 			/* Update tail */
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
@@ -486,10 +486,10 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			       &lp->tx_dma_regs->dmandptr);
 			/* Move head to tail */
 			lp->tx_chain_head = lp->tx_chain_tail;
-			lp->tx_chain_status = desc_empty;
+			lp->tx_chain_status = desc_is_empty;
 		}
 	} else {
-		if (lp->tx_chain_status == desc_empty) {
+		if (lp->tx_chain_status == desc_is_empty) {
 			/* Update tail */
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
@@ -868,7 +868,7 @@ korina_tx_dma_interrupt(int irq, void *dev_id)
 			(readl(&(lp->tx_dma_regs->dmandptr)) == 0)) {
 			writel(korina_tx_dma(lp, lp->tx_chain_head),
 			       &lp->tx_dma_regs->dmandptr);
-			lp->tx_chain_status = desc_empty;
+			lp->tx_chain_status = desc_is_empty;
 			lp->tx_chain_head = lp->tx_chain_tail;
 			netif_trans_update(dev);
 		}
@@ -999,7 +999,7 @@ static int korina_alloc_ring(struct net_device *dev)
 	}
 	lp->tx_next_done = lp->tx_chain_head = lp->tx_chain_tail =
 			lp->tx_full = lp->tx_count = 0;
-	lp->tx_chain_status = desc_empty;
+	lp->tx_chain_status = desc_is_empty;
 
 	/* Initialize the receive descriptors */
 	for (i = 0; i < KORINA_NUM_RDS; i++) {
@@ -1027,7 +1027,7 @@ static int korina_alloc_ring(struct net_device *dev)
 	lp->rx_next_done  = 0;
 	lp->rx_chain_head = 0;
 	lp->rx_chain_tail = 0;
-	lp->rx_chain_status = desc_empty;
+	lp->rx_chain_status = desc_is_empty;
 
 	return 0;
 }
