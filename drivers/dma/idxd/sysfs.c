@@ -1600,6 +1600,7 @@ static void idxd_conf_device_release(struct device *dev)
 	kfree(idxd->wqs);
 	kfree(idxd->engines);
 	kfree(idxd->irq_entries);
+	kfree(idxd->int_handles);
 	ida_free(&idxd_ida, idxd->id);
 	kfree(idxd);
 }

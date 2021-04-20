@@ -598,6 +598,77 @@ void idxd_device_drain_pasid(struct idxd_device *idxd, int pasid)
 	dev_dbg(dev, "pasid %d drained\n", pasid);
 }
 
+int idxd_device_request_int_handle(struct idxd_device *idxd, int idx, int *handle,
+				   enum idxd_interrupt_type irq_type)
+{
+	struct device *dev = &idxd->pdev->dev;
+	u32 operand, status;
+
+	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_REQUEST_INT_HANDLE)))
+		return -EOPNOTSUPP;
+
+	dev_dbg(dev, "get int handle, idx %d\n", idx);
+
+	operand = idx & GENMASK(15, 0);
+	if (irq_type == IDXD_IRQ_IMS)
+		operand |= CMD_INT_HANDLE_IMS;
+
+	dev_dbg(dev, "cmd: %u operand: %#x\n", IDXD_CMD_REQUEST_INT_HANDLE, operand);
+
+	idxd_cmd_exec(idxd, IDXD_CMD_REQUEST_INT_HANDLE, operand, &status);
+
+	if ((status & IDXD_CMDSTS_ERR_MASK) != IDXD_CMDSTS_SUCCESS) {
+		dev_dbg(dev, "request int handle failed: %#x\n", status);
+		return -ENXIO;
+	}
+
+	*handle = (status >> IDXD_CMDSTS_RES_SHIFT) & GENMASK(15, 0);
+
+	dev_dbg(dev, "int handle acquired: %u\n", *handle);
+	return 0;
+}
+
+int idxd_device_release_int_handle(struct idxd_device *idxd, int handle,
+				   enum idxd_interrupt_type irq_type)
+{
+	struct device *dev = &idxd->pdev->dev;
+	u32 operand, status;
+	union idxd_command_reg cmd;
+	unsigned long flags;
+
+	if (!(idxd->hw.cmd_cap & BIT(IDXD_CMD_RELEASE_INT_HANDLE)))
+		return -EOPNOTSUPP;
+
+	dev_dbg(dev, "release int handle, handle %d\n", handle);
+
+	memset(&cmd, 0, sizeof(cmd));
+	operand = handle & GENMASK(15, 0);
+
+	if (irq_type == IDXD_IRQ_IMS)
+		operand |= CMD_INT_HANDLE_IMS;
+
+	cmd.cmd = IDXD_CMD_RELEASE_INT_HANDLE;
+	cmd.operand = operand;
+
+	dev_dbg(dev, "cmd: %u operand: %#x\n", IDXD_CMD_RELEASE_INT_HANDLE, operand);
+
+	spin_lock_irqsave(&idxd->dev_lock, flags);
+	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
+
+	while (ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET) & IDXD_CMDSTS_ACTIVE)
+		cpu_relax();
+	status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
+	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+
+	if ((status & IDXD_CMDSTS_ERR_MASK) != IDXD_CMDSTS_SUCCESS) {
+		dev_dbg(dev, "release int handle failed: %#x\n", status);
+		return -ENXIO;
+	}
+
+	dev_dbg(dev, "int handle released.\n");
+	return 0;
+}
+
 /* Device configuration bits */
 void idxd_msix_perm_setup(struct idxd_device *idxd)
 {

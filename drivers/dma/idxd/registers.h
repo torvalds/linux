@@ -24,8 +24,8 @@ union gen_cap_reg {
 		u64 overlap_copy:1;
 		u64 cache_control_mem:1;
 		u64 cache_control_cache:1;
+		u64 cmd_cap:1;
 		u64 rsvd:3;
-		u64 int_handle_req:1;
 		u64 dest_readback:1;
 		u64 drain_readback:1;
 		u64 rsvd2:6;
@@ -180,7 +180,10 @@ enum idxd_cmd {
 	IDXD_CMD_DRAIN_PASID,
 	IDXD_CMD_ABORT_PASID,
 	IDXD_CMD_REQUEST_INT_HANDLE,
+	IDXD_CMD_RELEASE_INT_HANDLE,
 };
+
+#define CMD_INT_HANDLE_IMS		0x10000
 
 #define IDXD_CMDSTS_OFFSET		0xa8
 union cmdsts_reg {
@@ -193,6 +196,8 @@ union cmdsts_reg {
 	u32 bits;
 } __packed;
 #define IDXD_CMDSTS_ACTIVE		0x80000000
+#define IDXD_CMDSTS_ERR_MASK		0xff
+#define IDXD_CMDSTS_RES_SHIFT		8
 
 enum idxd_cmdsts_err {
 	IDXD_CMDSTS_SUCCESS = 0,
@@ -227,6 +232,8 @@ enum idxd_cmdsts_err {
 	IDXD_CMDSTS_ERR_INVAL_INT_IDX = 0x41,
 	IDXD_CMDSTS_ERR_NO_HANDLE,
 };
+
+#define IDXD_CMDCAP_OFFSET		0xb0
 
 #define IDXD_SWERR_OFFSET		0xc0
 #define IDXD_SWERR_VALID		0x00000001
