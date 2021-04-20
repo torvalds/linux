@@ -1399,6 +1399,12 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		esw_attr->dests[out_index].mdev = out_priv->mdev;
 	}
 
+	if (vf_tun && esw_attr->out_count > 1) {
+		NL_SET_ERR_MSG_MOD(extack, "VF tunnel encap with mirroring is not supported");
+		err = -EOPNOTSUPP;
+		goto err_out;
+	}
+
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
 	if (err)
 		goto err_out;
