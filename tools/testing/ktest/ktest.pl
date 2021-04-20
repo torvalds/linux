@@ -2594,6 +2594,9 @@ sub build {
     # Run old config regardless, to enforce min configurations
     make_oldconfig;
 
+    if (not defined($build_options)){
+	$build_options = "";
+    }
     my $build_ret = run_command "$make $build_options", $buildlog;
 
     if (defined($post_build)) {
