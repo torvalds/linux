@@ -569,7 +569,7 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	} else {
 		dc5_reg = IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
 						 SKL_CSR_DC3_DC5_COUNT;
-		if (!IS_GEN9_LP(dev_priv))
+		if (!IS_GEMINILAKE(dev_priv) && !IS_BROXTON(dev_priv))
 			dc6_reg = SKL_CSR_DC5_DC6_COUNT;
 	}
 

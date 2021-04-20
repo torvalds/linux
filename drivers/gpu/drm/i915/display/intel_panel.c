@@ -667,7 +667,7 @@ static void i9xx_set_backlight(const struct drm_connector_state *conn_state, u32
 		pci_write_config_byte(to_pci_dev(dev_priv->drm.dev), LBPC, lbpc);
 	}
 
-	if (IS_DISPLAY_VER(dev_priv, 4)) {
+	if (DISPLAY_VER(dev_priv) == 4) {
 		mask = BACKLIGHT_DUTY_CYCLE_MASK;
 	} else {
 		level <<= 1;
@@ -1040,7 +1040,7 @@ static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
 	 * 855gm only, but checking for gen2 is safe, as 855gm is the only gen2
 	 * that has backlight.
 	 */
-	if (IS_DISPLAY_VER(dev_priv, 2))
+	if (DISPLAY_VER(dev_priv) == 2)
 		intel_de_write(dev_priv, BLC_HIST_CTL, BLM_HISTOGRAM_ENABLE);
 }
 
@@ -1728,7 +1728,7 @@ static int i9xx_setup_backlight(struct intel_connector *connector, enum pipe unu
 
 	ctl = intel_de_read(dev_priv, BLC_PWM_CTL);
 
-	if (IS_DISPLAY_VER(dev_priv, 2) || IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
+	if (DISPLAY_VER(dev_priv) == 2 || IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
 		panel->backlight.combination_mode = ctl & BLM_LEGACY_MODE;
 
 	if (IS_PINEVIEW(dev_priv))
@@ -2161,7 +2161,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
 		return;
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		panel->backlight.pwm_funcs = &bxt_pwm_funcs;
 	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP) {
 		panel->backlight.pwm_funcs = &cnp_pwm_funcs;
@@ -2178,7 +2178,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		} else {
 			panel->backlight.pwm_funcs = &vlv_pwm_funcs;
 		}
-	} else if (IS_DISPLAY_VER(dev_priv, 4)) {
+	} else if (DISPLAY_VER(dev_priv) == 4) {
 		panel->backlight.pwm_funcs = &i965_pwm_funcs;
 	} else {
 		panel->backlight.pwm_funcs = &i9xx_pwm_funcs;

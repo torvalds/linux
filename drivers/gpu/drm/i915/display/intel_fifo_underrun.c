@@ -271,7 +271,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv))
 		ilk_set_fifo_underrun_reporting(dev, pipe, enable);
-	else if (IS_DISPLAY_VER(dev_priv, 7))
+	else if (DISPLAY_VER(dev_priv) == 7)
 		ivb_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (DISPLAY_VER(dev_priv) >= 8)
 		bdw_set_fifo_underrun_reporting(dev, pipe, enable);
@@ -432,7 +432,7 @@ void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv)
 
 		if (HAS_GMCH(dev_priv))
 			i9xx_check_fifo_underruns(crtc);
-		else if (IS_DISPLAY_VER(dev_priv, 7))
+		else if (DISPLAY_VER(dev_priv) == 7)
 			ivb_check_fifo_underruns(crtc);
 	}
 

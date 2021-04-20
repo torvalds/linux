@@ -610,7 +610,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (!IS_DISPLAY_RANGE(i915, 3, 7)) {
+	if (!IS_DISPLAY_VER(i915, 3, 7)) {
 		drm_dbg_kms(&i915->drm, "Skipping SDVO device mapping\n");
 		return;
 	}
@@ -917,7 +917,7 @@ parse_psr(struct drm_i915_private *i915, const struct bdb_header *bdb)
 	 * Old decimal value is wake up time in multiples of 100 us.
 	 */
 	if (bdb->version >= 205 &&
-	    (IS_GEN9_BC(i915) || DISPLAY_VER(i915) >= 10)) {
+	    (DISPLAY_VER(i915) >= 9 && !IS_BROXTON(i915))) {
 		switch (psr_table->tp1_wakeup_time) {
 		case 0:
 			i915->vbt.psr.tp1_wakeup_time_us = 500;
@@ -1659,7 +1659,7 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	} else if (IS_ROCKETLAKE(i915) && INTEL_PCH_TYPE(i915) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(rkl_pch_tgp_ddc_pin_map);
-	} else if (HAS_PCH_TGP(i915) && IS_GEN9_BC(i915)) {
+	} else if (HAS_PCH_TGP(i915) && DISPLAY_VER(i915) == 9) {
 		ddc_pin_map = gen9bc_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(gen9bc_tgp_ddc_pin_map);
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
@@ -2770,7 +2770,8 @@ intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 	const struct intel_bios_encoder_data *devdata =
 		i915->vbt.ddi_port_info[port].devdata;
 
-	if (drm_WARN_ON_ONCE(&i915->drm, !IS_GEN9_LP(i915)))
+	if (drm_WARN_ON_ONCE(&i915->drm,
+			     !IS_GEMINILAKE(i915) && !IS_BROXTON(i915)))
 		return false;
 
 	return devdata && devdata->child.hpd_invert;

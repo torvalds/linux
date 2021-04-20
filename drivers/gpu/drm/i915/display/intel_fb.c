@@ -84,7 +84,7 @@ int skl_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 
 unsigned int intel_tile_size(const struct drm_i915_private *i915)
 {
-	return IS_DISPLAY_VER(i915, 2) ? 2048 : 4096;
+	return DISPLAY_VER(i915) == 2 ? 2048 : 4096;
 }
 
 unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane)

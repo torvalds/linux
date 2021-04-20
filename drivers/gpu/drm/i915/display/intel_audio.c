@@ -591,7 +591,7 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 
 	val = intel_de_read(i915, AUD_CONFIG_BE);
 
-	if (IS_DISPLAY_VER(i915, 11))
+	if (DISPLAY_VER(i915) == 11)
 		val |= HBLANK_EARLY_ENABLE_ICL(pipe);
 	else if (DISPLAY_VER(i915) >= 12)
 		val |= HBLANK_EARLY_ENABLE_TGL(pipe);
@@ -1309,7 +1309,7 @@ static void i915_audio_component_init(struct drm_i915_private *dev_priv)
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		aud_freq_init = intel_de_read(dev_priv, AUD_FREQ_CNTRL);
 
-		if (INTEL_GEN(dev_priv) >= 12)
+		if (DISPLAY_VER(dev_priv) >= 12)
 			aud_freq = AUD_FREQ_GEN12;
 		else
 			aud_freq = aud_freq_init;

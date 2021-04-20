@@ -144,7 +144,7 @@ static bool i9xx_plane_has_windowing(struct intel_plane *plane)
 		return i9xx_plane == PLANE_B;
 	else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		return false;
-	else if (IS_DISPLAY_VER(dev_priv, 4))
+	else if (DISPLAY_VER(dev_priv) == 4)
 		return i9xx_plane == PLANE_C;
 	else
 		return i9xx_plane == PLANE_B ||

@@ -77,7 +77,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 
 	qi->num_points = dram_info->num_qgv_points;
 
-	if (IS_DISPLAY_VER(dev_priv, 12))
+	if (DISPLAY_VER(dev_priv) == 12)
 		switch (dram_info->type) {
 		case INTEL_DRAM_DDR4:
 			qi->t_bl = 4;
@@ -89,7 +89,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			qi->t_bl = 16;
 			break;
 		}
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 8;
 
 	if (drm_WARN_ON(&dev_priv->drm,
@@ -271,9 +271,9 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 		icl_get_bw_info(dev_priv, &adls_sa_info);
 	else if (IS_ROCKETLAKE(dev_priv))
 		icl_get_bw_info(dev_priv, &rkl_sa_info);
-	else if (IS_DISPLAY_VER(dev_priv, 12))
+	else if (DISPLAY_VER(dev_priv) == 12)
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
-	else if (IS_DISPLAY_VER(dev_priv, 11))
+	else if (DISPLAY_VER(dev_priv) == 11)
 		icl_get_bw_info(dev_priv, &icl_sa_info);
 }
 

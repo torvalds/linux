@@ -313,10 +313,7 @@ void intel_pps_reset_all(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
 
-	if (drm_WARN_ON(&dev_priv->drm,
-			!(IS_VALLEYVIEW(dev_priv) ||
-			  IS_CHERRYVIEW(dev_priv) ||
-			  IS_GEN9_LP(dev_priv))))
+	if (drm_WARN_ON(&dev_priv->drm, !IS_LP(dev_priv)))
 		return;
 
 	/*
@@ -338,7 +335,7 @@ void intel_pps_reset_all(struct drm_i915_private *dev_priv)
 		if (encoder->type != INTEL_OUTPUT_EDP)
 			continue;
 
-		if (IS_GEN9_LP(dev_priv))
+		if (DISPLAY_VER(dev_priv) >= 9)
 			intel_dp->pps.pps_reset = true;
 		else
 			intel_dp->pps.pps_pipe = INVALID_PIPE;
@@ -361,7 +358,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 
 	memset(regs, 0, sizeof(*regs));
 
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pps_idx = bxt_power_sequencer_idx(intel_dp);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		pps_idx = vlv_power_sequencer_pipe(intel_dp);
@@ -372,7 +369,8 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
 
 	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
-	if (IS_GEN9_LP(dev_priv) || INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ||
+	    INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		regs->pp_div = INVALID_MMIO_REG;
 	else
 		regs->pp_div = PP_DIVISOR(pps_idx);
@@ -1399,7 +1397,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 
 void intel_pps_setup(struct drm_i915_private *i915)
 {
-	if (HAS_PCH_SPLIT(i915) || IS_GEN9_LP(i915))
+	if (HAS_PCH_SPLIT(i915) || IS_GEMINILAKE(i915) || IS_BROXTON(i915))
 		i915->pps_mmio_base = PCH_PPS_BASE;
 	else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		i915->pps_mmio_base = VLV_PPS_BASE;
