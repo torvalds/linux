@@ -866,15 +866,15 @@ static int jx_h62_set_ctrl_gain(struct jx_h62 *jx_h62, u32 a_gain)
 
 	/* Total gain = 2^PGA[5:4]*(1+PGA[3:0]/16) */
 	if ( a_gain != jx_h62->old_gain) {
-		if (a_gain < 0x10) { /*1x ~ 2x*/
-			fine_again = a_gain;
-			coarse_again = 0x00 << 4;
-		} else if (a_gain < 0x40) { /*2x ~ 4x*/
+		if (a_gain <= 0x20) { /*1x ~ 2x*/
+			fine_again = a_gain - 16;
+			coarse_again = (0x00 << 4);
+		} else if (a_gain <= 0x40) { /*2x ~ 4x*/
 			fine_again = (a_gain >> 1) - 16;
 			coarse_again = 0x01 << 4;
-		} else if (a_gain < 0x80) { /*4x ~ 8x*/
+		} else if (a_gain <= 0x80) { /*4x ~ 8x*/
 			fine_again = (a_gain >> 2) - 16;
-			coarse_again = 0x2;
+			coarse_again = 0x2 << 4;
 		} else { /*8x ~ 15.5x*/
 			fine_again = (a_gain >> 3) - 16;
 			coarse_again = 0x03 << 4;
