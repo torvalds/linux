@@ -110,7 +110,8 @@ static int enable_wq(struct idxd_wq *wq)
 	}
 
 	spin_lock_irqsave(&idxd->dev_lock, flags);
-	rc = idxd_device_config(idxd);
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		rc = idxd_device_config(idxd);
 	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 	if (rc < 0) {
 		mutex_unlock(&wq->wq_lock);
@@ -170,7 +171,7 @@ static int enable_wq(struct idxd_wq *wq)
 
 static int idxd_config_bus_probe(struct device *dev)
 {
-	int rc;
+	int rc = 0;
 	unsigned long flags;
 
 	dev_dbg(dev, "%s called\n", __func__);
@@ -188,7 +189,8 @@ static int idxd_config_bus_probe(struct device *dev)
 
 		/* Perform IDXD configuration and enabling */
 		spin_lock_irqsave(&idxd->dev_lock, flags);
-		rc = idxd_device_config(idxd);
+		if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+			rc = idxd_device_config(idxd);
 		spin_unlock_irqrestore(&idxd->dev_lock, flags);
 		if (rc < 0) {
 			module_put(THIS_MODULE);
@@ -287,12 +289,14 @@ static int idxd_config_bus_remove(struct device *dev)
 
 		idxd_unregister_dma_device(idxd);
 		rc = idxd_device_disable(idxd);
-		for (i = 0; i < idxd->max_wqs; i++) {
-			struct idxd_wq *wq = idxd->wqs[i];
+		if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
+			for (i = 0; i < idxd->max_wqs; i++) {
+				struct idxd_wq *wq = idxd->wqs[i];
 
-			mutex_lock(&wq->wq_lock);
-			idxd_wq_disable_cleanup(wq);
-			mutex_unlock(&wq->wq_lock);
+				mutex_lock(&wq->wq_lock);
+				idxd_wq_disable_cleanup(wq);
+				mutex_unlock(&wq->wq_lock);
+			}
 		}
 		module_put(THIS_MODULE);
 		if (rc < 0)
