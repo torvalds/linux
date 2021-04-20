@@ -1830,6 +1830,28 @@ svm_range_handle_list_op(struct svm_range_list *svms, struct svm_range *prange)
 	}
 }
 
+static void svm_range_drain_retry_fault(struct svm_range_list *svms)
+{
+	struct kfd_process_device *pdd;
+	struct amdgpu_device *adev;
+	struct kfd_process *p;
+	uint32_t i;
+
+	p = container_of(svms, struct kfd_process, svms);
+
+	for (i = 0; i < p->n_pdds; i++) {
+		pdd = p->pdds[i];
+		if (!pdd)
+			continue;
+
+		pr_debug("drain retry fault gpu %d svms %p\n", i, svms);
+		adev = (struct amdgpu_device *)pdd->dev->kgd;
+
+		amdgpu_ih_wait_on_checkpoint_process(adev, &adev->irq.ih1);
+		pr_debug("drain retry fault gpu %d svms 0x%p done\n", i, svms);
+	}
+}
+
 static void svm_range_deferred_list_work(struct work_struct *work)
 {
 	struct svm_range_list *svms;
@@ -1846,6 +1868,10 @@ static void svm_range_deferred_list_work(struct work_struct *work)
 		spin_unlock(&svms->deferred_list_lock);
 		pr_debug("prange 0x%p [0x%lx 0x%lx] op %d\n", prange,
 			 prange->start, prange->last, prange->work_item.op);
+
+		/* Make sure no stale retry fault coming after range is freed */
+		if (prange->work_item.op == SVM_OP_UNMAP_RANGE)
+			svm_range_drain_retry_fault(prange->svms);
 
 		mm = prange->work_item.mm;
 		mmap_write_lock(mm);
@@ -2234,6 +2260,44 @@ svm_range *svm_range_create_unregistered_range(struct amdgpu_device *adev,
 	return prange;
 }
 
+/* svm_range_skip_recover - decide if prange can be recovered
+ * @prange: svm range structure
+ *
+ * GPU vm retry fault handle skip recover the range for cases:
+ * 1. prange is on deferred list to be removed after unmap, it is stale fault,
+ *    deferred list work will drain the stale fault before free the prange.
+ * 2. prange is on deferred list to add interval notifier after split, or
+ * 3. prange is child range, it is split from parent prange, recover later
+ *    after interval notifier is added.
+ *
+ * Return: true to skip recover, false to recover
+ */
+static bool svm_range_skip_recover(struct svm_range *prange)
+{
+	struct svm_range_list *svms = prange->svms;
+
+	spin_lock(&svms->deferred_list_lock);
+	if (list_empty(&prange->deferred_list) &&
+	    list_empty(&prange->child_list)) {
+		spin_unlock(&svms->deferred_list_lock);
+		return false;
+	}
+	spin_unlock(&svms->deferred_list_lock);
+
+	if (prange->work_item.op == SVM_OP_UNMAP_RANGE) {
+		pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx] unmapped\n",
+			 svms, prange, prange->start, prange->last);
+		return true;
+	}
+	if (prange->work_item.op == SVM_OP_ADD_RANGE_AND_MAP ||
+	    prange->work_item.op == SVM_OP_ADD_RANGE) {
+		pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx] not added yet\n",
+			 svms, prange, prange->start, prange->last);
+		return true;
+	}
+	return false;
+}
+
 int
 svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			uint64_t addr)
@@ -2271,7 +2335,6 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 retry_write_locked:
 	mutex_lock(&svms->lock);
 	prange = svm_range_from_addr(svms, addr, NULL);
-
 	if (!prange) {
 		pr_debug("failed to find prange svms 0x%p address [0x%llx]\n",
 			 svms, addr);
@@ -2299,6 +2362,10 @@ retry_write_locked:
 		mmap_write_downgrade(mm);
 
 	mutex_lock(&prange->migrate_mutex);
+
+	if (svm_range_skip_recover(prange))
+		goto out_unlock_range;
+
 	timestamp = ktime_to_us(ktime_get()) - prange->validate_timestamp;
 	/* skip duplicate vm fault on different pages of same range */
 	if (timestamp < AMDGPU_SVM_RANGE_RETRY_FAULT_PENDING) {
