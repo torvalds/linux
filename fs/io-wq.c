@@ -661,19 +661,6 @@ fail:
 	wake_up_new_task(tsk);
 }
 
-static inline bool io_wqe_need_worker(struct io_wqe *wqe, int index)
-	__must_hold(wqe->lock)
-{
-	struct io_wqe_acct *acct = &wqe->acct[index];
-
-	if (acct->nr_workers && test_bit(IO_WQ_BIT_EXIT, &wqe->wq->state))
-		return false;
-	/* if we have available workers or no work, no need */
-	if (!hlist_nulls_empty(&wqe->free_list) || !io_wqe_run_queue(wqe))
-		return false;
-	return acct->nr_workers < acct->max_workers;
-}
-
 /*
  * Iterate the passed in list and call the specific function for each
  * worker that isn't exiting
