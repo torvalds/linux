@@ -7,6 +7,7 @@
  *
  */
 
+#include <dt-bindings/clock/toshiba,tmpv770x.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -182,6 +183,12 @@
 		#clock-cells = <0>;
 	};
 
+	osc2_clk: osc2-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+		#clock-cells = <0>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -214,6 +221,20 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&gic>;
+		};
+
+		pipllct: clock-controller@24220000 {
+			compatible = "toshiba,tmpv7708-pipllct";
+			reg = <0 0x24220000 0 0x820>;
+			#clock-cells = <1>;
+			clocks = <&osc2_clk>;
+		};
+
+		pismu: syscon@24200000 {
+			compatible = "toshiba,tmpv7708-pismu", "syscon";
+			reg = <0 0x24200000 0 0x2140>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		uart0: serial@28200000 {
