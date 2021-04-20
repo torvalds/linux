@@ -354,7 +354,7 @@ static u64 nxp_c45_get_phase_shift(u64 phase_offset_raw)
 	 * and get 1 decimal point precision.
 	 */
 	phase_offset_raw *= 10;
-	phase_offset_raw -= phase_offset_raw;
+	phase_offset_raw -= 738;
 	return div_u64(phase_offset_raw, 9);
 }
 
