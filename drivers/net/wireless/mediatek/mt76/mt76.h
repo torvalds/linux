@@ -17,12 +17,14 @@
 #include "util.h"
 #include "testmode.h"
 
-#define MT_MCU_RING_SIZE    32
-#define MT_RX_BUF_SIZE      2048
-#define MT_SKB_HEAD_LEN     128
+#define MT_MCU_RING_SIZE	32
+#define MT_RX_BUF_SIZE		2048
+#define MT_SKB_HEAD_LEN		128
 
-#define MT_MAX_NON_AQL_PKT  16
-#define MT_TXQ_FREE_THR     32
+#define MT_MAX_NON_AQL_PKT	16
+#define MT_TXQ_FREE_THR		32
+
+#define MT76_TOKEN_FREE_THR	64
 
 struct mt76_dev;
 struct mt76_phy;
@@ -332,6 +334,7 @@ struct mt76_driver_ops {
 	u32 drv_flags;
 	u32 survey_flags;
 	u16 txwi_size;
+	u16 token_size;
 	u8 mcs_rates;
 
 	void (*update_survey)(struct mt76_dev *dev);
@@ -1215,4 +1218,41 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      struct mt76_power_limits *dest,
 			      s8 target_power);
 
+struct mt76_txwi_cache *
+mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
+int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
+void mt76_token_init(struct mt76_dev *dev);
+void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
+
+static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
+{
+	spin_lock_bh(&dev->token_lock);
+	__mt76_set_tx_blocked(dev, blocked);
+	spin_unlock_bh(&dev->token_lock);
+}
+
+static inline int
+mt76_token_get(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
+{
+	int token;
+
+	spin_lock_bh(&dev->token_lock);
+	token = idr_alloc(&dev->token, *ptxwi, 0, dev->drv->token_size,
+			  GFP_ATOMIC);
+	spin_unlock_bh(&dev->token_lock);
+
+	return token;
+}
+
+static inline struct mt76_txwi_cache *
+mt76_token_put(struct mt76_dev *dev, int token)
+{
+	struct mt76_txwi_cache *txwi;
+
+	spin_lock_bh(&dev->token_lock);
+	txwi = idr_remove(&dev->token, token);
+	spin_unlock_bh(&dev->token_lock);
+
+	return txwi;
+}
 #endif

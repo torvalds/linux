@@ -974,26 +974,6 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 		mt7915_mac_write_txwi_tm(mphy->priv, txwi, skb);
 }
 
-static void
-mt7915_set_tx_blocked(struct mt7915_dev *dev, bool blocked)
-{
-	struct mt76_phy *mphy = &dev->mphy, *mphy2 = dev->mt76.phy2;
-	struct mt76_queue *q, *q2 = NULL;
-
-	q = mphy->q_tx[0];
-	if (blocked == q->blocked)
-		return;
-
-	q->blocked = blocked;
-	if (mphy2) {
-		q2 = mphy2->q_tx[0];
-		q2->blocked = blocked;
-	}
-
-	if (!blocked)
-		mt76_worker_schedule(&dev->mt76.tx_worker);
-}
-
 int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
@@ -1046,15 +1026,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
 	t->skb = tx_info->skb;
 
-	spin_lock_bh(&mdev->token_lock);
-	id = idr_alloc(&mdev->token, t, 0, MT7915_TOKEN_SIZE, GFP_ATOMIC);
-	if (id >= 0)
-		mdev->token_count++;
-
-	if (mdev->token_count >= MT7915_TOKEN_SIZE - MT7915_TOKEN_FREE_THR)
-		mt7915_set_tx_blocked(dev, true);
-	spin_unlock_bh(&mdev->token_lock);
-
+	id = mt76_token_consume(mdev, &t);
 	if (id < 0)
 		return id;
 
@@ -1218,15 +1190,7 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 		msdu = FIELD_GET(MT_TX_FREE_MSDU_ID, info);
 		stat = FIELD_GET(MT_TX_FREE_STATUS, info);
 
-		spin_lock_bh(&mdev->token_lock);
-		txwi = idr_remove(&mdev->token, msdu);
-		if (txwi)
-			mdev->token_count--;
-		if (mdev->token_count < MT7915_TOKEN_SIZE - MT7915_TOKEN_FREE_THR &&
-		    dev->mphy.q_tx[0]->blocked)
-			wake = true;
-		spin_unlock_bh(&mdev->token_lock);
-
+		txwi = mt76_token_release(mdev, msdu, &wake);
 		if (!txwi)
 			continue;
 
@@ -1256,11 +1220,8 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	mt7915_mac_sta_poll(dev);
 
-	if (wake) {
-		spin_lock_bh(&mdev->token_lock);
-		mt7915_set_tx_blocked(dev, false);
-		spin_unlock_bh(&mdev->token_lock);
-	}
+	if (wake)
+		mt76_set_tx_blocked(&dev->mt76, false);
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 
@@ -1289,10 +1250,7 @@ void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 		struct mt7915_txp *txp;
 
 		txp = mt7915_txwi_to_txp(mdev, e->txwi);
-
-		spin_lock_bh(&mdev->token_lock);
-		t = idr_remove(&mdev->token, le16_to_cpu(txp->token));
-		spin_unlock_bh(&mdev->token_lock);
+		t = mt76_token_put(mdev, le16_to_cpu(txp->token));
 		e->skb = t ? t->skb : NULL;
 	}
 

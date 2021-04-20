@@ -99,6 +99,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
+		.token_size = MT7921_TOKEN_SIZE,
 		.tx_prepare_skb = mt7921_tx_prepare_skb,
 		.tx_complete_skb = mt7921_tx_complete_skb,
 		.rx_skb = mt7921_queue_rx_skb,

@@ -785,20 +785,6 @@ mt7921_write_hw_txp(struct mt7921_dev *dev, struct mt76_tx_info *tx_info,
 	}
 }
 
-static void mt7921_set_tx_blocked(struct mt7921_dev *dev, bool blocked)
-{
-	struct mt76_phy *mphy = &dev->mphy;
-	struct mt76_queue *q;
-
-	q = mphy->q_tx[0];
-	if (blocked == q->blocked)
-		return;
-
-	q->blocked = blocked;
-	if (!blocked)
-		mt76_worker_schedule(&dev->mt76.tx_worker);
-}
-
 int mt7921_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
@@ -824,15 +810,7 @@ int mt7921_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
 	t->skb = tx_info->skb;
 
-	spin_lock_bh(&mdev->token_lock);
-	id = idr_alloc(&mdev->token, t, 0, MT7921_TOKEN_SIZE, GFP_ATOMIC);
-	if (id >= 0)
-		mdev->token_count++;
-
-	if (mdev->token_count >= MT7921_TOKEN_SIZE - MT7921_TOKEN_FREE_THR)
-		mt7921_set_tx_blocked(dev, true);
-	spin_unlock_bh(&mdev->token_lock);
-
+	id = mt76_token_consume(mdev, &t);
 	if (id < 0)
 		return id;
 
@@ -994,15 +972,7 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		msdu = FIELD_GET(MT_TX_FREE_MSDU_ID, info);
 		stat = FIELD_GET(MT_TX_FREE_STATUS, info);
 
-		spin_lock_bh(&mdev->token_lock);
-		txwi = idr_remove(&mdev->token, msdu);
-		if (txwi)
-			mdev->token_count--;
-		if (mdev->token_count < MT7921_TOKEN_SIZE - MT7921_TOKEN_FREE_THR &&
-		    dev->mphy.q_tx[0]->blocked)
-			wake = true;
-		spin_unlock_bh(&mdev->token_lock);
-
+		txwi = mt76_token_release(mdev, msdu, &wake);
 		if (!txwi)
 			continue;
 
@@ -1030,11 +1000,8 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		mt76_put_txwi(mdev, txwi);
 	}
 
-	if (wake) {
-		spin_lock_bh(&mdev->token_lock);
-		mt7921_set_tx_blocked(dev, false);
-		spin_unlock_bh(&mdev->token_lock);
-	}
+	if (wake)
+		mt76_set_tx_blocked(&dev->mt76, false);
 
 	napi_consume_skb(skb, 1);
 
@@ -1065,11 +1032,8 @@ void mt7921_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 		u16 token;
 
 		txp = mt7921_txwi_to_txp(mdev, e->txwi);
-
 		token = le16_to_cpu(txp->hw.msdu_id[0]) & ~MT_MSDU_ID_VALID;
-		spin_lock_bh(&mdev->token_lock);
-		t = idr_remove(&mdev->token, token);
-		spin_unlock_bh(&mdev->token_lock);
+		t = mt76_token_put(mdev, token);
 		e->skb = t ? t->skb : NULL;
 	}
 

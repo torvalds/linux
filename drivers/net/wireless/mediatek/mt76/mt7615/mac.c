@@ -1465,11 +1465,7 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 	u8 wcid;
 
 	trace_mac_tx_free(dev, token);
-
-	spin_lock_bh(&mdev->token_lock);
-	txwi = idr_remove(&mdev->token, token);
-	spin_unlock_bh(&mdev->token_lock);
-
+	txwi = mt76_token_put(mdev, token);
 	if (!txwi)
 		return;
 

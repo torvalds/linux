@@ -648,3 +648,71 @@ void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 	spin_unlock_bh(&q->lock);
 }
 EXPORT_SYMBOL_GPL(mt76_queue_tx_complete);
+
+void mt76_token_init(struct mt76_dev *dev)
+{
+	spin_lock_init(&dev->token_lock);
+	idr_init(&dev->token);
+}
+EXPORT_SYMBOL_GPL(mt76_token_init);
+
+void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
+{
+	struct mt76_phy *phy = &dev->phy, *phy2 = dev->phy2;
+	struct mt76_queue *q, *q2 = NULL;
+
+	q = phy->q_tx[0];
+	if (blocked == q->blocked)
+		return;
+
+	q->blocked = blocked;
+	if (phy2) {
+		q2 = phy2->q_tx[0];
+		q2->blocked = blocked;
+	}
+
+	if (!blocked)
+		mt76_worker_schedule(&dev->tx_worker);
+}
+EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
+
+int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
+{
+	int token;
+
+	spin_lock_bh(&dev->token_lock);
+
+	token = idr_alloc(&dev->token, *ptxwi, 0, dev->drv->token_size,
+			  GFP_ATOMIC);
+	if (token >= 0)
+		dev->token_count++;
+
+	if (dev->token_count >= dev->drv->token_size - MT76_TOKEN_FREE_THR)
+		__mt76_set_tx_blocked(dev, true);
+
+	spin_unlock_bh(&dev->token_lock);
+
+	return token;
+}
+EXPORT_SYMBOL_GPL(mt76_token_consume);
+
+struct mt76_txwi_cache *
+mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
+{
+	struct mt76_txwi_cache *txwi;
+
+	spin_lock_bh(&dev->token_lock);
+
+	txwi = idr_remove(&dev->token, token);
+	if (txwi)
+		dev->token_count--;
+
+	if (dev->token_count < dev->drv->token_size - MT76_TOKEN_FREE_THR &&
+	    dev->phy.q_tx[0]->blocked)
+		*wake = true;
+
+	spin_unlock_bh(&dev->token_lock);
+
+	return txwi;
+}
+EXPORT_SYMBOL_GPL(mt76_token_release);

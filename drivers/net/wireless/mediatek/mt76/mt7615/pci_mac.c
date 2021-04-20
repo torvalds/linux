@@ -37,9 +37,7 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 			token = le16_to_cpu(txp->hw.msdu_id[0]) &
 				~MT_MSDU_ID_VALID;
 
-		spin_lock_bh(&mdev->token_lock);
-		t = idr_remove(&mdev->token, token);
-		spin_unlock_bh(&mdev->token_lock);
+		t = mt76_token_put(mdev, token);
 		e->skb = t ? t->skb : NULL;
 	}
 
@@ -161,9 +159,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
 	t->skb = tx_info->skb;
 
-	spin_lock_bh(&mdev->token_lock);
-	id = idr_alloc(&mdev->token, t, 0, MT7615_TOKEN_SIZE, GFP_ATOMIC);
-	spin_unlock_bh(&mdev->token_lock);
+	id = mt76_token_get(mdev, &t);
 	if (id < 0)
 		return id;
 
