@@ -333,7 +333,12 @@ hotplug
 =======
 
 Path for the hotplug policy agent.
-Default value is "``/sbin/hotplug``".
+Default value is ``CONFIG_UEVENT_HELPER_PATH``, which in turn defaults
+to the empty string.
+
+This file only exists when ``CONFIG_UEVENT_HELPER`` is enabled. Most
+modern systems rely exclusively on the netlink-based uevent source and
+don't need this.
 
 
 hung_task_all_cpu_backtrace
