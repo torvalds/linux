@@ -250,10 +250,6 @@ static void walt_find_best_target(struct sched_domain *sd,
 				most_spare_cap_cpu = i;
 			}
 
-			if (per_task_boost(cpu_rq(i)->curr) ==
-					TASK_BOOST_STRICT_MAX)
-				continue;
-
 			/*
 			 * Ensure minimum capacity to grant the required boost.
 			 * The target CPU can be already at a capacity level higher
@@ -305,6 +301,10 @@ static void walt_find_best_target(struct sched_domain *sd,
 				best_idle_cpu = i;
 				continue;
 			}
+
+			if (per_task_boost(cpu_rq(i)->curr) ==
+					TASK_BOOST_STRICT_MAX)
+				continue;
 
 			/*
 			 * Compute the maximum possible capacity we expect
