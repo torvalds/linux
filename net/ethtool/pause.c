@@ -38,16 +38,16 @@ static int pause_prepare_data(const struct ethnl_req_info *req_base,
 	if (!dev->ethtool_ops->get_pauseparam)
 		return -EOPNOTSUPP;
 
+	ethtool_stats_init((u64 *)&data->pausestat,
+			   sizeof(data->pausestat) / 8);
+
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
 	dev->ethtool_ops->get_pauseparam(dev, &data->pauseparam);
 	if (req_base->flags & ETHTOOL_FLAG_STATS &&
-	    dev->ethtool_ops->get_pause_stats) {
-		ethtool_stats_init((u64 *)&data->pausestat,
-				   sizeof(data->pausestat) / 8);
+	    dev->ethtool_ops->get_pause_stats)
 		dev->ethtool_ops->get_pause_stats(dev, &data->pausestat);
-	}
 	ethnl_ops_complete(dev);
 
 	return 0;

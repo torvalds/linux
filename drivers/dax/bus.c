@@ -90,13 +90,11 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 				list_add(&dax_id->list, &dax_drv->ids);
 			} else
 				rc = -ENOMEM;
-		} else
-			/* nothing to remove */;
+		}
 	} else if (action == ID_REMOVE) {
 		list_del(&dax_id->list);
 		kfree(dax_id);
-	} else
-		/* dax_id already added */;
+	}
 	mutex_unlock(&dax_bus_lock);
 
 	if (rc < 0)
