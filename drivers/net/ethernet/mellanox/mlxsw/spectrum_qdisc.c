@@ -886,10 +886,7 @@ int mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	switch (p->command) {
 	case TC_FIFO_DESTROY:
-		if (p->handle == mlxsw_sp_qdisc->handle)
-			return mlxsw_sp_qdisc_destroy(mlxsw_sp_port,
-						      mlxsw_sp_qdisc);
-		return 0;
+		return mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	case TC_FIFO_STATS:
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
