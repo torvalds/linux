@@ -436,7 +436,8 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 			netif_carrier_on(port->dev);
 			if (!delayed_work_pending(caching_dw))
 				queue_delayed_work(prestera_wq, caching_dw, 0);
-		} else {
+		} else if (netif_running(port->dev) &&
+			   netif_carrier_ok(port->dev)) {
 			netif_carrier_off(port->dev);
 			if (delayed_work_pending(caching_dw))
 				cancel_delayed_work(caching_dw);
