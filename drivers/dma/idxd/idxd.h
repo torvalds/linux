@@ -204,6 +204,7 @@ struct idxd_device {
 	void __iomem *reg_base;
 
 	spinlock_t dev_lock;	/* spinlock for device */
+	spinlock_t cmd_lock;	/* spinlock for device commands */
 	struct completion *cmd_done;
 	struct idxd_group **groups;
 	struct idxd_wq **wqs;
