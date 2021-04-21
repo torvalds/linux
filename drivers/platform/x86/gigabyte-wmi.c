@@ -140,6 +140,10 @@ static const struct dmi_system_id gigabyte_wmi_known_working_platforms[] = {
 	}},
 	{ .matches = {
 		DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
+		DMI_EXACT_MATCH(DMI_BOARD_NAME, "B550M AORUS PRO-P"),
+	}},
+	{ .matches = {
+		DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
 		DMI_EXACT_MATCH(DMI_BOARD_NAME, "B550M DS3H"),
 	}},
 	{ .matches = {
