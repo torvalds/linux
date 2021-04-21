@@ -9,6 +9,10 @@
 
 /* CPT PF device id */
 #define	PCI_DEVID_OTX2_CPT_PF	0xA0FD
+#define	PCI_DEVID_OTX2_CPT10K_PF 0xA0F2
+
+/* Length of initial context fetch in 128 byte words */
+#define CPT_CTX_ILEN    2
 
 static int get_cpt_pf_num(struct rvu *rvu)
 {
@@ -21,7 +25,8 @@ static int get_cpt_pf_num(struct rvu *rvu)
 		if (!pdev)
 			continue;
 
-		if (pdev->device == PCI_DEVID_OTX2_CPT_PF) {
+		if (pdev->device == PCI_DEVID_OTX2_CPT_PF ||
+		    pdev->device == PCI_DEVID_OTX2_CPT10K_PF) {
 			cpt_pf_num = i;
 			put_device(&pdev->dev);
 			break;
@@ -103,6 +108,9 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 
 		/* Set CPT LF group and priority */
 		val = (u64)req->eng_grpmsk << 48 | 1;
+		if (!is_rvu_otx2(rvu))
+			val |= (CPT_CTX_ILEN << 17);
+
 		rvu_write64(rvu, blkaddr, CPT_AF_LFX_CTL(cptlf), val);
 
 		/* Set CPT LF NIX_PF_FUNC and SSO_PF_FUNC */
@@ -192,6 +200,7 @@ static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
 		case CPT_AF_PF_FUNC:
 		case CPT_AF_BLK_RST:
 		case CPT_AF_CONSTANTS1:
+		case CPT_AF_CTX_FLUSH_TIMER:
 			return true;
 		}
 
