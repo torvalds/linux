@@ -2882,7 +2882,7 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 	return 0;
 }
 
-static const char * const probes[] = { "qcomsmem", NULL };
+static const char * const probes[] = { "cmdlinepart", "ofpart", "qcomsmem", NULL };
 
 static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 					    struct qcom_nand_host *host,
