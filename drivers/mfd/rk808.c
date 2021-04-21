@@ -763,6 +763,20 @@ static void rk8xx_shutdown(struct i2c_client *client)
 	struct rk808 *rk808 = i2c_get_clientdata(client);
 	int ret = 0;
 
+	if (!rk808) {
+		dev_warn(&rk808_i2c_client->dev,
+			 "have no rk808, so do nothing here\n");
+		return;
+	}
+
+	/* close rtc int when power off */
+	regmap_update_bits(rk808->regmap,
+			   RK808_INT_STS_MSK_REG1,
+			   (0x3 << 5), (0x3 << 5));
+	regmap_update_bits(rk808->regmap,
+			   RK808_RTC_INT_REG,
+			   (0x3 << 2), (0x0 << 2));
+
 	switch (rk808->variant) {
 	case RK805_ID:
 		ret = regmap_update_bits(rk808->regmap,
