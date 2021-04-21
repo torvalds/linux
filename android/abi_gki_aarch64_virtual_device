@@ -391,6 +391,9 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
   __tracepoint_rwmmio_post_read
   __tracepoint_rwmmio_read
   __tracepoint_rwmmio_write
