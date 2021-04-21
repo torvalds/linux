@@ -550,7 +550,7 @@ int dsa_port_bridge_flags(const struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->port_bridge_flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return ds->ops->port_bridge_flags(ds, dp->index, flags, extack);
 }
