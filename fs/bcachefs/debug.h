@@ -8,11 +8,7 @@ struct bio;
 struct btree;
 struct bch_fs;
 
-#ifdef CONFIG_BCACHEFS_DEBUG
 void __bch2_btree_verify(struct bch_fs *, struct btree *);
-#else
-static inline void __bch2_btree_verify(struct bch_fs *c, struct btree *b) {}
-#endif
 
 static inline void bch2_btree_verify(struct bch_fs *c, struct btree *b)
 {

@@ -101,7 +101,7 @@ static struct btree *__btree_node_mem_alloc(struct bch_fs *c)
 	return b;
 }
 
-static struct btree *btree_node_mem_alloc(struct bch_fs *c)
+struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b = __btree_node_mem_alloc(c);
@@ -367,12 +367,10 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	flags = memalloc_nofs_save();
 	mutex_lock(&bc->lock);
 
-#ifdef CONFIG_BCACHEFS_DEBUG
 	if (c->verify_data)
 		list_move(&c->verify_data->list, &bc->live);
 
 	kvpfree(c->verify_ondisk, btree_bytes(c));
-#endif
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		if (c->btree_roots[i].b)
@@ -426,30 +424,14 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	bch2_recalc_btree_reserve(c);
 
 	for (i = 0; i < bc->reserve; i++)
-		if (!btree_node_mem_alloc(c)) {
+		if (!__bch2_btree_node_mem_alloc(c)) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
 	list_splice_init(&bc->live, &bc->freeable);
 
-#ifdef CONFIG_BCACHEFS_DEBUG
 	mutex_init(&c->verify_lock);
-
-	c->verify_ondisk = kvpmalloc(btree_bytes(c), GFP_KERNEL);
-	if (!c->verify_ondisk) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	c->verify_data = btree_node_mem_alloc(c);
-	if (!c->verify_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	list_del_init(&c->verify_data->list);
-#endif
 
 	bc->shrink.count_objects	= bch2_btree_cache_count;
 	bc->shrink.scan_objects		= bch2_btree_cache_scan;

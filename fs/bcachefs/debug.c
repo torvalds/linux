@@ -29,40 +29,19 @@
 
 static struct dentry *bch_debug;
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-
-void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
+static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
+				      struct extent_ptr_decoded pick)
 {
 	struct btree *v = c->verify_data;
-	struct btree_node *n_ondisk, *n_sorted, *n_inmemory;
-	struct bset *sorted, *inmemory;
-	struct extent_ptr_decoded pick;
-	struct bch_dev *ca;
+	struct btree_node *n_ondisk = c->verify_ondisk;
+	struct btree_node *n_sorted = c->verify_data->data;
+	struct bset *sorted, *inmemory = &b->data->keys;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, pick.ptr.dev);
 	struct bio *bio;
+	bool failed = false;
 
-	if (c->opts.nochanges)
-		return;
-
-	btree_node_io_lock(b);
-	mutex_lock(&c->verify_lock);
-
-	n_ondisk = c->verify_ondisk;
-	n_sorted = c->verify_data->data;
-	n_inmemory = b->data;
-
-	bkey_copy(&v->key, &b->key);
-	v->written	= 0;
-	v->c.level	= b->c.level;
-	v->c.btree_id	= b->c.btree_id;
-	bch2_btree_keys_init(v);
-
-	if (bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key),
-				       NULL, &pick) <= 0)
-		return;
-
-	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
 	if (!bch2_dev_get_ioref(ca, READ))
-		return;
+		return false;
 
 	bio = bio_alloc_bioset(ca->disk_sb.bdev,
 			       buf_pages(n_sorted, btree_bytes(c)),
@@ -79,12 +58,12 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 
 	memcpy(n_ondisk, n_sorted, btree_bytes(c));
 
+	v->written = 0;
 	if (bch2_btree_node_read_done(c, ca, v, false))
-		goto out;
+		return false;
 
 	n_sorted = c->verify_data->data;
 	sorted = &n_sorted->keys;
-	inmemory = &n_inmemory->keys;
 
 	if (inmemory->u64s != sorted->u64s ||
 	    memcmp(inmemory->start,
@@ -102,8 +81,8 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		printk(KERN_ERR "*** read back in:\n");
 		bch2_dump_bset(c, v, sorted, 0);
 
-		while (offset < b->written) {
-			if (!offset ) {
+		while (offset < v->written) {
+			if (!offset) {
 				i = &n_ondisk->keys;
 				sectors = vstruct_blocks(n_ondisk, c->block_bits) <<
 					c->block_bits;
@@ -122,24 +101,83 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 			offset += sectors;
 		}
 
-		printk(KERN_ERR "*** block %u/%u not written\n",
-		       offset >> c->block_bits, btree_blocks(c));
-
 		for (j = 0; j < le16_to_cpu(inmemory->u64s); j++)
 			if (inmemory->_data[j] != sorted->_data[j])
 				break;
 
-		printk(KERN_ERR "b->written %u\n", b->written);
-
 		console_unlock();
-		panic("verify failed at %u\n", j);
+		bch_err(c, "verify failed at key %u", j);
+
+		failed = true;
+	}
+
+	if (v->written != b->written) {
+		bch_err(c, "written wrong: expected %u, got %u",
+			b->written, v->written);
+		failed = true;
+	}
+
+	return failed;
+}
+
+void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
+{
+	struct bkey_ptrs_c ptrs;
+	struct extent_ptr_decoded p;
+	const union bch_extent_entry *entry;
+	struct btree *v;
+	struct bset *inmemory = &b->data->keys;
+	struct bkey_packed *k;
+	bool failed = false;
+
+	if (c->opts.nochanges)
+		return;
+
+	btree_node_io_lock(b);
+	mutex_lock(&c->verify_lock);
+
+	if (!c->verify_ondisk) {
+		c->verify_ondisk = kvpmalloc(btree_bytes(c), GFP_KERNEL);
+		if (!c->verify_ondisk)
+			goto out;
+	}
+
+	if (!c->verify_data) {
+		c->verify_data = __bch2_btree_node_mem_alloc(c);
+		if (!c->verify_data)
+			goto out;
+
+		list_del_init(&c->verify_data->list);
+	}
+
+	BUG_ON(b->nsets != 1);
+
+	for (k = inmemory->start; k != vstruct_last(inmemory); k = bkey_next(k))
+		if (k->type == KEY_TYPE_btree_ptr_v2) {
+			struct bch_btree_ptr_v2 *v = (void *) bkeyp_val(&b->format, k);
+			v->mem_ptr = 0;
+		}
+
+	v = c->verify_data;
+	bkey_copy(&v->key, &b->key);
+	v->c.level	= b->c.level;
+	v->c.btree_id	= b->c.btree_id;
+	bch2_btree_keys_init(v);
+
+	ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(&b->key));
+	bkey_for_each_ptr_decode(&b->key.k, ptrs, p, entry)
+		failed |= bch2_btree_verify_replica(c, b, p);
+
+	if (failed) {
+		char buf[200];
+
+		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(&b->key));
+		bch2_fs_fatal_error(c, "btree node verify failed for : %s\n", buf);
 	}
 out:
 	mutex_unlock(&c->verify_lock);
 	btree_node_io_unlock(b);
 }
-
-#endif
 
 #ifdef CONFIG_DEBUG_FS
 
