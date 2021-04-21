@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2020 Marvell. */
 
+#include <linux/bitfield.h>
 #include <linux/pci.h>
 #include "rvu_struct.h"
 #include "rvu_reg.h"
@@ -60,6 +61,17 @@ static bool is_cpt_vf(struct rvu *rvu, u16 pcifunc)
 	return true;
 }
 
+static int validate_and_get_cpt_blkaddr(int req_blkaddr)
+{
+	int blkaddr;
+
+	blkaddr = req_blkaddr ? req_blkaddr : BLKADDR_CPT0;
+	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
+		return -EINVAL;
+
+	return blkaddr;
+}
+
 int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 				  struct cpt_lf_alloc_req_msg *req,
 				  struct msg_rsp *rsp)
@@ -70,9 +82,9 @@ int rvu_mbox_handler_cpt_lf_alloc(struct rvu *rvu,
 	int num_lfs, slot;
 	u64 val;
 
-	blkaddr = req->blkaddr ? req->blkaddr : BLKADDR_CPT0;
-	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
-		return -ENODEV;
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
 
 	if (req->eng_grpmsk == 0x0)
 		return CPT_AF_ERR_GRP_INVALID;
@@ -170,7 +182,9 @@ static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
 	struct rvu_block *block;
 	struct rvu_pfvf *pfvf;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
 
 	/* Registers that can be accessed from PF/VF */
 	if ((offset & 0xFF000) ==  CPT_AF_LFX_CTL(0) ||
@@ -226,9 +240,9 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 {
 	int blkaddr;
 
-	blkaddr = req->blkaddr ? req->blkaddr : BLKADDR_CPT0;
-	if (blkaddr != BLKADDR_CPT0 && blkaddr != BLKADDR_CPT1)
-		return -ENODEV;
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
 
 	/* This message is accepted only if sent from CPT PF/VF */
 	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
@@ -246,6 +260,47 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 		rvu_write64(rvu, blkaddr, req->reg_offset, req->val);
 	else
 		rsp->val = rvu_read64(rvu, blkaddr, req->reg_offset);
+
+	return 0;
+}
+
+#define RXC_ZOMBIE_THRES  GENMASK_ULL(59, 48)
+#define RXC_ZOMBIE_LIMIT  GENMASK_ULL(43, 32)
+#define RXC_ACTIVE_THRES  GENMASK_ULL(27, 16)
+#define RXC_ACTIVE_LIMIT  GENMASK_ULL(11, 0)
+#define RXC_ACTIVE_COUNT  GENMASK_ULL(60, 48)
+#define RXC_ZOMBIE_COUNT  GENMASK_ULL(60, 48)
+
+static void cpt_rxc_time_cfg(struct rvu *rvu, struct cpt_rxc_time_cfg_req *req,
+			     int blkaddr)
+{
+	u64 dfrg_reg;
+
+	dfrg_reg = FIELD_PREP(RXC_ZOMBIE_THRES, req->zombie_thres);
+	dfrg_reg |= FIELD_PREP(RXC_ZOMBIE_LIMIT, req->zombie_limit);
+	dfrg_reg |= FIELD_PREP(RXC_ACTIVE_THRES, req->active_thres);
+	dfrg_reg |= FIELD_PREP(RXC_ACTIVE_LIMIT, req->active_limit);
+
+	rvu_write64(rvu, blkaddr, CPT_AF_RXC_TIME_CFG, req->step);
+	rvu_write64(rvu, blkaddr, CPT_AF_RXC_DFRG, dfrg_reg);
+}
+
+int rvu_mbox_handler_cpt_rxc_time_cfg(struct rvu *rvu,
+				      struct cpt_rxc_time_cfg_req *req,
+				      struct msg_rsp *rsp)
+{
+	int blkaddr;
+
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
+
+	/* This message is accepted only if sent from CPT PF/VF */
+	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
+	    !is_cpt_vf(rvu, req->hdr.pcifunc))
+		return CPT_AF_ERR_ACCESS_DENIED;
+
+	cpt_rxc_time_cfg(rvu, req, blkaddr);
 
 	return 0;
 }
