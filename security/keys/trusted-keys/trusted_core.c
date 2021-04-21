@@ -62,7 +62,7 @@ static const match_table_t key_tokens = {
  *
  * On success returns 0, otherwise -EINVAL.
  */
-static int datablob_parse(char *datablob, struct trusted_key_payload *p)
+static int datablob_parse(char **datablob, struct trusted_key_payload *p)
 {
 	substring_t args[MAX_OPT_ARGS];
 	long keylen;
@@ -71,14 +71,14 @@ static int datablob_parse(char *datablob, struct trusted_key_payload *p)
 	char *c;
 
 	/* main command */
-	c = strsep(&datablob, " \t");
+	c = strsep(datablob, " \t");
 	if (!c)
 		return -EINVAL;
 	key_cmd = match_token(c, key_tokens, args);
 	switch (key_cmd) {
 	case Opt_new:
 		/* first argument is key size */
-		c = strsep(&datablob, " \t");
+		c = strsep(datablob, " \t");
 		if (!c)
 			return -EINVAL;
 		ret = kstrtol(c, 10, &keylen);
@@ -89,7 +89,7 @@ static int datablob_parse(char *datablob, struct trusted_key_payload *p)
 		break;
 	case Opt_load:
 		/* first argument is sealed blob */
-		c = strsep(&datablob, " \t");
+		c = strsep(datablob, " \t");
 		if (!c)
 			return -EINVAL;
 		p->blob_len = strlen(c) / 2;
@@ -140,7 +140,7 @@ static int trusted_instantiate(struct key *key,
 {
 	struct trusted_key_payload *payload = NULL;
 	size_t datalen = prep->datalen;
-	char *datablob;
+	char *datablob, *orig_datablob;
 	int ret = 0;
 	int key_cmd;
 	size_t key_len;
@@ -148,7 +148,7 @@ static int trusted_instantiate(struct key *key,
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
-	datablob = kmalloc(datalen + 1, GFP_KERNEL);
+	orig_datablob = datablob = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!datablob)
 		return -ENOMEM;
 	memcpy(datablob, prep->data, datalen);
@@ -160,7 +160,7 @@ static int trusted_instantiate(struct key *key,
 		goto out;
 	}
 
-	key_cmd = datablob_parse(datablob, payload);
+	key_cmd = datablob_parse(&datablob, payload);
 	if (key_cmd < 0) {
 		ret = key_cmd;
 		goto out;
@@ -196,7 +196,7 @@ static int trusted_instantiate(struct key *key,
 		ret = -EINVAL;
 	}
 out:
-	kfree_sensitive(datablob);
+	kfree_sensitive(orig_datablob);
 	if (!ret)
 		rcu_assign_keypointer(key, payload);
 	else
@@ -220,7 +220,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	struct trusted_key_payload *p;
 	struct trusted_key_payload *new_p;
 	size_t datalen = prep->datalen;
-	char *datablob;
+	char *datablob, *orig_datablob;
 	int ret = 0;
 
 	if (key_is_negative(key))
@@ -231,7 +231,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
-	datablob = kmalloc(datalen + 1, GFP_KERNEL);
+	orig_datablob = datablob = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!datablob)
 		return -ENOMEM;
 
@@ -243,7 +243,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 
 	memcpy(datablob, prep->data, datalen);
 	datablob[datalen] = '\0';
-	ret = datablob_parse(datablob, new_p);
+	ret = datablob_parse(&datablob, new_p);
 	if (ret != Opt_update) {
 		ret = -EINVAL;
 		kfree_sensitive(new_p);
@@ -267,7 +267,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	rcu_assign_keypointer(key, new_p);
 	call_rcu(&p->rcu, trusted_rcu_free);
 out:
-	kfree_sensitive(datablob);
+	kfree_sensitive(orig_datablob);
 	return ret;
 }
 
