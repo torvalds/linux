@@ -1440,7 +1440,7 @@ static int mv88e6xxx_pvt_map(struct mv88e6xxx_chip *chip, int dev, int port)
 			 * the special "LAG device" in the PVT, using
 			 * the LAG ID as the port number.
 			 */
-			dev = MV88E6XXX_G2_PVT_ADRR_DEV_TRUNK;
+			dev = MV88E6XXX_G2_PVT_ADDR_DEV_TRUNK;
 			port = dsa_lag_id(dst, dp->lag_dev);
 		}
 	}
