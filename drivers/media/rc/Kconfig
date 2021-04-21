@@ -499,16 +499,6 @@ config IR_SIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called sir-ir.
 
-config IR_TANGO
-	tristate "Sigma Designs SMP86xx IR decoder"
-	depends on RC_CORE
-	depends on ARCH_TANGO || COMPILE_TEST
-	help
-	   Adds support for the HW IR decoder embedded on Sigma Designs
-	   Tango-based systems (SMP86xx, SMP87xx).
-	   The HW decoder supports NEC, RC-5, RC-6 IR protocols.
-	   When compiled as a module, look for tango-ir.
-
 config RC_XBOX_DVD
 	tristate "Xbox DVD Movie Playback Kit"
 	depends on RC_CORE

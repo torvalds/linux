@@ -125,7 +125,6 @@ properties:
       - rc-snapstream-firefly
       - rc-streamzap
       - rc-su3000
-      - rc-tango
       - rc-tanix-tx3mini
       - rc-tanix-tx5max
       - rc-tbs-nec
