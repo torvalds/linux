@@ -19,7 +19,6 @@ struct intel_plane_state;
 bool is_ccs_plane(const struct drm_framebuffer *fb, int plane);
 bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane);
 bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane);
-bool is_aux_plane(const struct drm_framebuffer *fb, int plane);
 bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane);
 
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane);

@@ -973,9 +973,25 @@ unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
 	/* AUX_DIST needs only 4K alignment */
-	if ((DISPLAY_VER(dev_priv) < 12 && is_aux_plane(fb, color_plane)) ||
-	    is_ccs_plane(fb, color_plane))
+	if (is_ccs_plane(fb, color_plane))
 		return 4096;
+
+	if (is_semiplanar_uv_plane(fb, color_plane)) {
+		/*
+		 * TODO: cross-check wrt. the bspec stride in bytes * 64 bytes
+		 * alignment for linear UV planes on all platforms.
+		 */
+		if (DISPLAY_VER(dev_priv) >= 12) {
+			if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
+				return intel_linear_alignment(dev_priv);
+
+			return intel_tile_row_size(fb, color_plane);
+		}
+
+		return 4096;
+	}
+
+	drm_WARN_ON(&dev_priv->drm, color_plane != 0);
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -985,19 +1001,12 @@ unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 			return 256 * 1024;
 		return 0;
 	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-		if (is_semiplanar_uv_plane(fb, color_plane))
-			return intel_tile_row_size(fb, color_plane);
-		fallthrough;
 	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
 	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
 		return 16 * 1024;
 	case I915_FORMAT_MOD_Y_TILED_CCS:
 	case I915_FORMAT_MOD_Yf_TILED_CCS:
 	case I915_FORMAT_MOD_Y_TILED:
-		if (DISPLAY_VER(dev_priv) >= 12 &&
-		    is_semiplanar_uv_plane(fb, color_plane))
-			return intel_tile_row_size(fb, color_plane);
-		fallthrough;
 	case I915_FORMAT_MOD_Yf_TILED:
 		return 1 * 1024 * 1024;
 	default:
