@@ -8,7 +8,7 @@ static u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
 {
 	u8 *data = dev->mt76.eeprom.data;
 
-	if (data[offset] == 0xff)
+	if (data[offset] == 0xff && !dev->flash_mode)
 		mt7915_mcu_get_eeprom(dev, offset);
 
 	return data[offset];
