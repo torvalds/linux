@@ -123,7 +123,7 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	all_info_addr = rmem->priv;
 	all_info_size = rmem->size;
 
-	memset(all_info_addr, 0, all_info_size);
+	memset(all_info_addr, 0, sizeof(struct kernel_all_info));
 	all_info = (struct kernel_all_info *)all_info_addr;
 	info = &(all_info->info);
 	info->enabled_all = IS_ENABLED(CONFIG_KALLSYMS_ALL);
