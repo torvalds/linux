@@ -322,6 +322,7 @@ struct xt_target *xt_request_find_target(u8 af, const char *name, u8 revision);
 int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 		     int *err);
 
+struct xt_table *xt_find_table(struct net *net, u8 af, const char *name);
 struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 				    const char *name);
 struct xt_table *xt_request_find_table_lock(struct net *net, u_int8_t af,
