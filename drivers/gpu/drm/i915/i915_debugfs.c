@@ -622,9 +622,9 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 		seq_printf(m, "DDC2 = 0x%08x\n",
 			   intel_uncore_read(uncore, DCC2));
 		seq_printf(m, "C0DRB3 = 0x%04x\n",
-			   intel_uncore_read16(uncore, C0DRB3));
+			   intel_uncore_read16(uncore, C0DRB3_BW));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
-			   intel_uncore_read16(uncore, C1DRB3));
+			   intel_uncore_read16(uncore, C1DRB3_BW));
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		seq_printf(m, "MAD_DIMM_C0 = 0x%08x\n",
 			   intel_uncore_read(uncore, MAD_DIMM_C0));
