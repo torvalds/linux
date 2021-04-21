@@ -1590,6 +1590,43 @@ free_internal_qmans_pq_mem:
 	return rc;
 }
 
+static void gaudi_set_pci_memory_regions(struct hl_device *hdev)
+{
+	struct pci_mem_region *region;
+
+	/* CFG */
+	region = &hdev->pci_mem_region[PCI_REGION_CFG];
+	region->region_base = CFG_BASE;
+	region->region_size = CFG_SIZE;
+	region->offset_in_bar = CFG_BASE - SPI_FLASH_BASE_ADDR;
+	region->bar_id = CFG_BAR_ID;
+	region->used = 1;
+
+	/* SRAM */
+	region = &hdev->pci_mem_region[PCI_REGION_SRAM];
+	region->region_base = SRAM_BASE_ADDR;
+	region->region_size = SRAM_SIZE;
+	region->offset_in_bar = 0;
+	region->bar_id = SRAM_BAR_ID;
+	region->used = 1;
+
+	/* DRAM */
+	region = &hdev->pci_mem_region[PCI_REGION_DRAM];
+	region->region_base = DRAM_PHYS_BASE;
+	region->region_size = hdev->asic_prop.dram_size;
+	region->offset_in_bar = 0;
+	region->bar_id = HBM_BAR_ID;
+	region->used = 1;
+
+	/* SP SRAM */
+	region = &hdev->pci_mem_region[PCI_REGION_SP_SRAM];
+	region->region_base = PSOC_SCRATCHPAD_ADDR;
+	region->region_size = PSOC_SCRATCHPAD_SIZE;
+	region->offset_in_bar = PSOC_SCRATCHPAD_ADDR - SPI_FLASH_BASE_ADDR;
+	region->bar_id = CFG_BAR_ID;
+	region->used = 1;
+}
+
 static int gaudi_sw_init(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi;
@@ -1663,6 +1700,8 @@ static int gaudi_sw_init(struct hl_device *hdev)
 	hdev->supports_sync_stream = true;
 	hdev->supports_coresight = true;
 	hdev->supports_staged_submission = true;
+
+	gaudi_set_pci_memory_regions(hdev);
 
 	return 0;
 

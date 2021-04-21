@@ -360,6 +360,32 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 }
 
 /**
+ * hl_get_pci_memory_region() - get PCI region for given address
+ * @hdev: Pointer to hl_device structure.
+ * @addr: device address
+ *
+ * @return region index on success, otherwise PCI_REGION_NUMBER (invalid
+ *         region index)
+ */
+enum pci_region hl_get_pci_memory_region(struct hl_device *hdev, u64 addr)
+{
+	int i;
+
+	for  (i = 0 ; i < PCI_REGION_NUMBER ; i++) {
+		struct pci_mem_region *region = &hdev->pci_mem_region[i];
+
+		if (!region->used)
+			continue;
+
+		if ((addr >= region->region_base) &&
+			(addr < region->region_base + region->region_size))
+			return i;
+	}
+
+	return PCI_REGION_NUMBER;
+}
+
+/**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
  *

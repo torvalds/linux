@@ -818,6 +818,30 @@ enum div_select_defs {
 	DIV_SEL_DIVIDED_PLL = 3,
 };
 
+enum pci_region {
+	PCI_REGION_CFG,
+	PCI_REGION_SRAM,
+	PCI_REGION_DRAM,
+	PCI_REGION_SP_SRAM,
+	PCI_REGION_NUMBER,
+};
+
+/**
+ * struct pci_mem_region - describe memory region in a PCI bar
+ * @region_base: region base address
+ * @region_size: region size
+ * @offset_in_bar: region offset into the bar
+ * @bar_id: bar ID of the region
+ * @used: if used 1, otherwise 0
+ */
+struct pci_mem_region {
+	u64 region_base;
+	u64 region_size;
+	u32 offset_in_bar;
+	u8 bar_id;
+	u8 used;
+};
+
 /**
  * struct static_fw_load_mgr - static FW load manager
  * @preboot_version_max_off: max offset to preboot version
@@ -2014,6 +2038,7 @@ struct hl_mmu_funcs {
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
  * @fw_loader: FW loader manager.
+ * @pci_mem_region: array of memory regions in the PCI
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -2140,6 +2165,8 @@ struct hl_device {
 	struct hl_mmu_funcs		mmu_func[MMU_NUM_PGT_LOCATIONS];
 
 	struct fw_load_mgr		fw_loader;
+
+	struct pci_mem_region		pci_mem_region[PCI_REGION_NUMBER];
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2474,6 +2501,7 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 		struct hl_inbound_pci_region *pci_region);
 int hl_pci_set_outbound_region(struct hl_device *hdev,
 		struct hl_outbound_pci_region *pci_region);
+enum pci_region hl_get_pci_memory_region(struct hl_device *hdev, u64 addr);
 int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
 
