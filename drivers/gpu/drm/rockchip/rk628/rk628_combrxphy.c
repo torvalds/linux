@@ -32,6 +32,8 @@ struct rk628_combrxphy {
 #define MAX_DATA_NUM		16
 #define MAX_CHANNEL		3
 #define CLK_DET_TRY_TIMES	10
+#define CLK_STABLE_LOOP_CNT	10
+#define CLK_STABLE_THRESHOLD	6
 
 static int debug;
 module_param(debug, int, 0644);
@@ -512,25 +514,42 @@ static int
 rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628_combrxphy *combrxphy,
 					  int f)
 {
-	u32 val, data_a, data_b;
-	u32 i, count, ret;
+	u32 val, val_a, val_b, data_a, data_b;
+	u32 i, j, count, ret;
 	u32 cdr_mode, cdr_data, pll_man;
 	u32 tmds_bitrate_per_lane;
+	u32 cdr_data_min, cdr_data_max;
+
+	/*
+	 * use the mode of automatic clock detection, only supports fixed TMDS
+	 * frequency.Refer to register 0x6654[21:16]:
+	 * 5'd31:Error mode
+	 * 5'd30:manual mode detected
+	 * 5'd18:rx3p clock = 297MHz
+	 * 5'd17:rx3p clock = 162MHz
+	 * 5'd16:rx3p clock = 148.5MHz
+	 * 5'd15:rx3p clock = 135MHz
+	 * 5'd14:rx3p clock = 119MHz
+	 * 5'd13:rx3p clock = 108MHz
+	 * 5'd12:rx3p clock = 101MHz
+	 * 5'd11:rx3p clock = 92.8125MHz
+	 * 5'd10:rx3p clock = 88.75MHz
+	 * 5'd9:rx3p clock  = 85.5MHz
+	 * 5'd8:rx3p clock  = 83.5MHz
+	 * 5'd7:rx3p clock  = 74.25MHz
+	 * 5'd6:rx3p clock  = 68.25MHz
+	 * 5'd5:rx3p clock  = 65MHz
+	 * 5'd4:rx3p clock  = 59.4MHz
+	 * 5'd3:rx3p clock  = 40MHz
+	 * 5'd2:rx3p clock  = 33.75MHz
+	 * 5'd1:rx3p clock  = 27MHz
+	 * 5'd0:rx3p clock  = 25.17MHz
+	 */
 
 	const u32 cdr_mode_to_khz[] = {
 		25170,   27000,  33750,  40000,  59400,  65000,  68250,
 		74250,   83500,  85500,  88750,  92812, 101000, 108000,
 		119000, 135000, 148500, 162000, 297000,
-	};
-
-	const struct {
-		u32 data;
-		u32 mode;
-	} cdr_data_table[] = {
-		{  80, 18}, { 147, 17}, { 160, 16}, { 176, 15}, { 200, 14},
-		{ 220, 13}, { 235, 12}, { 256, 11}, { 268, 10}, { 278,  9},
-		{ 285,  8}, { 320,  7}, { 348,  6}, { 366,  5}, { 400,  4},
-		{ 594,  3}, { 704,  2}, { 880,  1}, { 944,  0},
 	};
 
 	for (i = 0; i < CLK_DET_TRY_TIMES; i++) {
@@ -556,25 +575,52 @@ rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628_combrxphy *combrxphy,
 	}
 
 	/* step4: get cdr_mode and cdr_data */
-	regmap_read(combrxphy->regmap, REG(0x6654), &val);
-	if ((val & 0x1f0000) == 0x1f0000) {
-		dev_err(combrxphy->dev, "error,clock error!");
+	for (j = 0; j < CLK_STABLE_LOOP_CNT ; j++) {
+		cdr_data_min = 0xffffffff;
+		cdr_data_max = 0;
+
+		for (i = 0; i < CLK_DET_TRY_TIMES; i++) {
+			regmap_read(combrxphy->regmap, REG(0x6654), &val);
+			cdr_data = val & 0xffff;
+			if (cdr_data <= cdr_data_min)
+				cdr_data_min = cdr_data;
+			if (cdr_data >= cdr_data_max)
+				cdr_data_max = cdr_data;
+			udelay(50);
+		}
+
+		if (((cdr_data_max - cdr_data_min) <= CLK_STABLE_THRESHOLD) &&
+				(cdr_data_min >= 60)) {
+			dev_info(combrxphy->dev, "clock stable!");
+			break;
+		}
+	}
+
+	if (j == CLK_STABLE_LOOP_CNT) {
+		regmap_read(combrxphy->regmap, REG(0x6630), &val_a);
+		regmap_read(combrxphy->regmap, REG(0x6608), &val_b);
+		dev_err(combrxphy->dev,
+			"err, clk not stable, reg_0x6630:%#x, reg_0x6608:%#x",
+			val_a, val_b);
+
 		return -EINVAL;
 	}
+
+	regmap_read(combrxphy->regmap, REG(0x6654), &val);
+	if ((val & 0x1f0000) == 0x1f0000) {
+		regmap_read(combrxphy->regmap, REG(0x6630), &val_a);
+		regmap_read(combrxphy->regmap, REG(0x6608), &val_b);
+		dev_err(combrxphy->dev,
+			"clock error: 0x1f, reg_0x6630:%#x, reg_0x6608:%#x",
+			val_a, val_b);
+
+		return -EINVAL;
+	}
+
 	cdr_mode = (val >> 16) & 0x1f;
 	cdr_data =  val & 0xffff;
 	dev_info(combrxphy->dev, "cdr_mode:%d, cdr_data:%d\n", cdr_mode,
 			cdr_data);
-	if (cdr_mode == 0x1f) {
-		for (i = 0; i < ARRAY_SIZE(cdr_data_table); i++) {
-			if (cdr_data <= cdr_data_table[i].data)
-				break;
-		}
-
-		if (i == ARRAY_SIZE(cdr_data_table))
-			--i;
-		cdr_mode = cdr_data_table[i].mode;
-	}
 
 	/* step5: manually configure PLL
 	 * cfg reg 66a8 tmds clock div2 for rgb/yuv444 as default
