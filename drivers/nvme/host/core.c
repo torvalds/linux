@@ -89,6 +89,10 @@ static dev_t nvme_ctrl_base_chr_devt;
 static struct class *nvme_class;
 static struct class *nvme_subsys_class;
 
+static DEFINE_IDA(nvme_ns_chr_minor_ida);
+static dev_t nvme_ns_chr_devt;
+static struct class *nvme_ns_chr_class;
+
 static void nvme_put_subsystem(struct nvme_subsystem *subsys);
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 					   unsigned nsid);
@@ -3429,6 +3433,66 @@ static int __nvme_check_ids(struct nvme_subsystem *subsys,
 	return 0;
 }
 
+void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device)
+{
+	cdev_device_del(cdev, cdev_device);
+	ida_simple_remove(&nvme_ns_chr_minor_ida, MINOR(cdev_device->devt));
+}
+
+int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
+		const struct file_operations *fops, struct module *owner)
+{
+	int minor, ret;
+
+	minor = ida_simple_get(&nvme_ns_chr_minor_ida, 0, 0, GFP_KERNEL);
+	if (minor < 0)
+		return minor;
+	cdev_device->devt = MKDEV(MAJOR(nvme_ns_chr_devt), minor);
+	cdev_device->class = nvme_ns_chr_class;
+	device_initialize(cdev_device);
+	cdev_init(cdev, fops);
+	cdev->owner = owner;
+	ret = cdev_device_add(cdev, cdev_device);
+	if (ret)
+		ida_simple_remove(&nvme_ns_chr_minor_ida, minor);
+	return ret;
+}
+
+static int nvme_ns_chr_open(struct inode *inode, struct file *file)
+{
+	return nvme_ns_open(container_of(inode->i_cdev, struct nvme_ns, cdev));
+}
+
+static int nvme_ns_chr_release(struct inode *inode, struct file *file)
+{
+	nvme_ns_release(container_of(inode->i_cdev, struct nvme_ns, cdev));
+	return 0;
+}
+
+static const struct file_operations nvme_ns_chr_fops = {
+	.owner		= THIS_MODULE,
+	.open		= nvme_ns_chr_open,
+	.release	= nvme_ns_chr_release,
+	.unlocked_ioctl	= nvme_ns_chr_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
+};
+
+static int nvme_add_ns_cdev(struct nvme_ns *ns)
+{
+	int ret;
+
+	ns->cdev_device.parent = ns->ctrl->device;
+	ret = dev_set_name(&ns->cdev_device, "ng%dn%d",
+			   ns->ctrl->instance, ns->head->instance);
+	if (ret)
+		return ret;
+	ret = nvme_cdev_add(&ns->cdev, &ns->cdev_device, &nvme_ns_chr_fops,
+			    ns->ctrl->ops->module);
+	if (ret)
+		kfree_const(ns->cdev_device.kobj.name);
+	return ret;
+}
+
 static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 		unsigned nsid, struct nvme_ns_ids *ids)
 {
@@ -3630,6 +3694,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	nvme_get_ctrl(ctrl);
 
 	device_add_disk(ctrl->device, ns->disk, nvme_ns_id_attr_groups);
+	if (!nvme_ns_head_multipath(ns->head))
+		nvme_add_ns_cdev(ns);
 
 	nvme_mpath_add_disk(ns, id);
 	nvme_fault_inject_init(&ns->fault_inject, ns->disk->disk_name);
@@ -3674,6 +3740,8 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	synchronize_srcu(&ns->head->srcu); /* wait for concurrent submissions */
 
 	if (ns->disk->flags & GENHD_FL_UP) {
+		if (!nvme_ns_head_multipath(ns->head))
+			nvme_cdev_del(&ns->cdev, &ns->cdev_device);
 		del_gendisk(ns->disk);
 		blk_cleanup_queue(ns->queue);
 		if (blk_get_integrity(ns->disk))
@@ -4464,8 +4532,24 @@ static int __init nvme_core_init(void)
 		result = PTR_ERR(nvme_subsys_class);
 		goto destroy_class;
 	}
+
+	result = alloc_chrdev_region(&nvme_ns_chr_devt, 0, NVME_MINORS,
+				     "nvme-generic");
+	if (result < 0)
+		goto destroy_subsys_class;
+
+	nvme_ns_chr_class = class_create(THIS_MODULE, "nvme-generic");
+	if (IS_ERR(nvme_ns_chr_class)) {
+		result = PTR_ERR(nvme_ns_chr_class);
+		goto unregister_generic_ns;
+	}
+
 	return 0;
 
+unregister_generic_ns:
+	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
+destroy_subsys_class:
+	class_destroy(nvme_subsys_class);
 destroy_class:
 	class_destroy(nvme_class);
 unregister_chrdev:
@@ -4482,12 +4566,15 @@ out:
 
 static void __exit nvme_core_exit(void)
 {
+	class_destroy(nvme_ns_chr_class);
 	class_destroy(nvme_subsys_class);
 	class_destroy(nvme_class);
+	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
 	unregister_chrdev_region(nvme_ctrl_base_chr_devt, NVME_MINORS);
 	destroy_workqueue(nvme_delete_wq);
 	destroy_workqueue(nvme_reset_wq);
 	destroy_workqueue(nvme_wq);
+	ida_destroy(&nvme_ns_chr_minor_ida);
 	ida_destroy(&nvme_instance_ida);
 }
 
