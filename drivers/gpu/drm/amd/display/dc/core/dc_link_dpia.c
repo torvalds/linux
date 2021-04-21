@@ -737,13 +737,84 @@ static enum link_training_result dpia_training_eq_phase(struct dc_link *link,
 }
 
 /* End training of specified hop in display path. */
+static enum dc_status dpcd_clear_lt_pattern(struct dc_link *link, uint32_t hop)
+{
+	union dpcd_training_pattern dpcd_pattern = { {0} };
+	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
+	enum dc_status status;
+
+	if (hop != DPRX)
+		dpcd_tps_offset = DP_TRAINING_PATTERN_SET_PHY_REPEATER1 +
+			((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (hop - 1));
+
+	status = core_link_write_dpcd(link,
+			DP_TRAINING_PATTERN_SET,
+			&dpcd_pattern.raw,
+			sizeof(dpcd_pattern.raw));
+
+	return status;
+}
+
+/* End training of specified hop in display path.
+ *
+ * In transparent LTTPR mode:
+ * - driver clears training pattern for the specified hop in DPCD.
+ * In non-transparent LTTPR mode:
+ * - in addition to clearing training pattern, driver issues USB4 tunneling
+ * (SET_CONFIG) messages to notify DPOA when training is done for first hop
+ * (DPTX-to-DPIA) and last hop (DPRX).
+ *
+ * @param link DPIA link being trained.
+ * @param hop The Hop in display path. DPRX = 0.
+ */
 static enum link_training_result dpia_training_end(struct dc_link *link,
 		uint32_t hop)
 {
-	enum link_training_result result;
+	enum link_training_result result = LINK_TRAINING_SUCCESS;
+	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
+	enum dc_status status;
 
-	/** @todo Fail until implemented. */
-	result = LINK_TRAINING_ABORT;
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+		if (hop == repeater_cnt) { /* DPTX-to-DPIA */
+			/* Send SET_CONFIG(SET_TRAINING:0xff) to notify DPOA that
+			 * DPTX-to-DPIA hop trained. No DPCD write needed for first hop.
+			 */
+			status = core_link_send_set_config(link,
+					DPIA_SET_CFG_SET_TRAINING,
+					DPIA_TS_UFP_DONE);
+			if (status != DC_OK)
+				result = LINK_TRAINING_ABORT;
+		} else { /* DPOA-to-x */
+			/* Write 0x0 to TRAINING_PATTERN_SET */
+			status = dpcd_clear_lt_pattern(link, hop);
+			if (status != DC_OK)
+				result = LINK_TRAINING_ABORT;
+		}
+
+		/* Notify DPOA that non-transparent link training of DPRX done. */
+		if (hop == DPRX && result != LINK_TRAINING_ABORT) {
+			status = core_link_send_set_config(link,
+					DPIA_SET_CFG_SET_TRAINING,
+					DPIA_TS_DPRX_DONE);
+			if (status != DC_OK)
+				result = LINK_TRAINING_ABORT;
+		}
+
+	} else { /* non-LTTPR or transparent LTTPR. */
+		/* Write 0x0 to TRAINING_PATTERN_SET */
+		status = dpcd_clear_lt_pattern(link, hop);
+		if (status != DC_OK)
+			result = LINK_TRAINING_ABORT;
+	}
+
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) end\n - hop(%d)\n - result(%d)\n - LTTPR mode(%d)\n",
+				__func__,
+				link->link_id.enum_id - ENUM_ID_1,
+				hop,
+				result,
+				link->lttpr_mode);
 
 	return result;
 }

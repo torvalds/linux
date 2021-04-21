@@ -2389,14 +2389,21 @@ bool perform_link_training_with_retries(
 			dc_link_dp_perform_link_training_skip_aux(link, &current_setting);
 			return true;
 		} else {
-			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+			/** @todo Consolidate USB4 DP and DPx.x training. */
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
 				status = dc_link_dpia_perform_link_training(link,
 									    &current_setting,
 									    skip_video_pattern);
-			else
+
+				/* Transmit idle pattern once training successful. */
+				if (status == LINK_TRAINING_SUCCESS)
+					dp_set_hw_test_pattern(link, DP_TEST_PATTERN_VIDEO_MODE,
+							       NULL, 0);
+			} else {
 				status = dc_link_dp_perform_link_training(link,
 									  &current_setting,
 									  skip_video_pattern);
+			}
 
 			if (status == LINK_TRAINING_SUCCESS)
 				return true;
