@@ -42,8 +42,10 @@ void mt76_connac_power_save_sched(struct mt76_phy *phy,
 
 	pm->last_activity = jiffies;
 
-	if (!test_bit(MT76_STATE_PM, &phy->state))
+	if (!test_bit(MT76_STATE_PM, &phy->state)) {
+		cancel_delayed_work(&phy->mac_work);
 		queue_delayed_work(dev->wq, &pm->ps_work, pm->idle_timeout);
+	}
 }
 EXPORT_SYMBOL_GPL(mt76_connac_power_save_sched);
 
