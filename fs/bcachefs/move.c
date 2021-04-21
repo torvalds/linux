@@ -761,7 +761,7 @@ static int bch2_move_btree(struct bch_fs *c,
 				    id == start_btree_id ? start_pos : POS_MIN,
 				    BTREE_ITER_PREFETCH, b) {
 			if (kthread && kthread_should_stop())
-				goto out;
+				break;
 
 			if ((cmp_int(id, end_btree_id) ?:
 			     bkey_cmp(b->key.k.p, end_pos)) > 0)
@@ -788,8 +788,10 @@ next:
 		}
 
 		ret = bch2_trans_iter_free(&trans, iter) ?: ret;
+		if (kthread && kthread_should_stop())
+			break;
 	}
-out:
+
 	bch2_trans_exit(&trans);
 
 	if (ret)

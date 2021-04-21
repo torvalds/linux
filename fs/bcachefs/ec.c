@@ -1621,6 +1621,7 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 		if (ret)
 			break;
 	}
+	bch2_trans_iter_put(&trans, iter);
 
 	bch2_trans_exit(&trans);
 
