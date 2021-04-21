@@ -264,8 +264,7 @@ static struct snd_soc_dai_driver acp3x_i2s_dai = {
 	.playback = {
 		.rates = SNDRV_PCM_RATE_8000_96000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
-			SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S24_LE |
-			SNDRV_PCM_FMTBIT_S32_LE,
+			SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
 		.channels_min = 2,
 		.channels_max = 8,
 		.rate_min = 8000,
@@ -274,8 +273,7 @@ static struct snd_soc_dai_driver acp3x_i2s_dai = {
 	.capture = {
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
-			SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S24_LE |
-			SNDRV_PCM_FMTBIT_S32_LE,
+			SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
 		.channels_min = 2,
 		.channels_max = 2,
 		.rate_min = 8000,
