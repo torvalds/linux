@@ -43,9 +43,9 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
-  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run12
+  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -708,9 +708,9 @@
   irq_work_queue
   irq_work_sync
   is_vmalloc_addr
-  jiffies
   jiffies_64_to_clock_t
   jiffies64_to_msecs
+  jiffies
   jiffies_to_msecs
   jiffies_to_usecs
   kasan_flag_enabled
@@ -1360,6 +1360,45 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_android_rvh_can_migrate_task
+  __traceiter_android_rvh_cpu_cgroup_can_attach
+  __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_enqueue_task
+  __traceiter_android_rvh_find_lowest_rq
+  __traceiter_android_rvh_sched_newidle_balance
+  __traceiter_android_rvh_sched_nohz_balancer_kick
+  __traceiter_android_rvh_sched_rebalance_domains
+  __traceiter_android_rvh_select_fallback_rq
+  __traceiter_android_rvh_select_task_rq_fair
+  __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_vh_cpu_idle_enter
+  __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_gic_v3_set_affinity
+  __traceiter_android_vh_ipi_stop
+  __traceiter_android_vh_scheduler_tick
+  __traceiter_cpu_idle
+  __traceiter_device_pm_callback_end
+  __traceiter_device_pm_callback_start
+  __traceiter_hrtimer_expire_entry
+  __traceiter_hrtimer_expire_exit
+  __traceiter_ipi_entry
+  __traceiter_ipi_exit
+  __traceiter_ipi_raise
+  __traceiter_irq_handler_entry
+  __traceiter_irq_handler_exit
+  __traceiter_pelt_cfs_tp
+  __traceiter_pelt_dl_tp
+  __traceiter_pelt_irq_tp
+  __traceiter_pelt_rt_tp
+  __traceiter_pelt_se_tp
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
+  __traceiter_sched_overutilized_tp
+  __traceiter_sched_switch
+  __traceiter_suspend_resume
+  __traceiter_workqueue_execute_end
+  __traceiter_workqueue_execute_start
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_cpu_cgroup_can_attach
   __tracepoint_android_rvh_dequeue_task
