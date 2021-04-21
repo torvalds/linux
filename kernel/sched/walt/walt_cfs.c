@@ -43,7 +43,6 @@ static inline bool task_demand_fits(struct task_struct *p, int cpu)
 struct find_best_target_env {
 	bool	is_rtg;
 	int	need_idle;
-	bool	boosted;
 	int	fastpath;
 	int	start_cpu;
 	int	order_index;
@@ -113,7 +112,7 @@ static inline bool walt_target_ok(int target_cpu, int order_index)
 }
 
 static void walt_get_indicies(struct task_struct *p, int *order_index,
-		int *end_index, int task_boost, bool boosted)
+		int *end_index, int task_boost, bool uclamp_boost)
 {
 	int i = 0;
 
@@ -136,7 +135,8 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		return;
 	}
 
-	if (boosted || task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
+	if (uclamp_boost || task_boost ||
+		task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
 		walt_task_skip_min_cpu(p))
 		*order_index = 1;
 
@@ -513,8 +513,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	u64 start_t = 0;
 	int delta = 0;
 	int task_boost = per_task_boost(p);
-	bool is_uclamp_boosted = uclamp_boosted(p);
-	bool boosted = is_uclamp_boosted || (task_boost > 0);
+	bool uclamp_boost = uclamp_boosted(p);
 	int start_cpu, order_index, end_index;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
@@ -524,7 +523,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	if (unlikely(!cpu_array))
 		return -EPERM;
 
-	walt_get_indicies(p, &order_index, &end_index, task_boost, boosted);
+	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost);
 	start_cpu = cpumask_first(&cpu_array[order_index][0]);
 
 	is_rtg = task_in_related_thread_group(p);
@@ -558,7 +557,6 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	fbt_env.start_cpu = start_cpu;
 	fbt_env.order_index = order_index;
 	fbt_env.end_index = end_index;
-	fbt_env.boosted = boosted;
 	fbt_env.strict_max = is_rtg &&
 		(task_boost == TASK_BOOST_STRICT_MAX);
 	fbt_env.skip_cpu = walt_is_many_wakeup(sibling_count_hint) ?
@@ -582,8 +580,9 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		delta = task_util(p);
 
 	if (task_placement_boost_enabled(p) || fbt_env.need_idle ||
-	    boosted || is_rtg || __cpu_overutilized(prev_cpu, delta) ||
-	    !task_fits_max(p, prev_cpu) || !cpu_active(prev_cpu)) {
+	    uclamp_boost || task_boost || is_rtg ||
+	    __cpu_overutilized(prev_cpu, delta) || !task_fits_max(p, prev_cpu) ||
+	    !cpu_active(prev_cpu)) {
 		best_energy_cpu = cpu;
 		goto unlock;
 	}
@@ -632,7 +631,7 @@ unlock:
 done:
 	trace_sched_task_util(p, cpumask_bits(candidates)[0], best_energy_cpu,
 			sync, fbt_env.need_idle, fbt_env.fastpath,
-			start_t, boosted, start_cpu);
+			start_t, uclamp_boost || task_boost, start_cpu);
 
 	return best_energy_cpu;
 
