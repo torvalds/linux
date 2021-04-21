@@ -313,12 +313,12 @@ struct blk_mq_ops {
 	 */
 	void (*put_budget)(struct request_queue *, int);
 
-	/*
-	 * @set_rq_budget_toekn: store rq's budget token
+	/**
+	 * @set_rq_budget_token: store rq's budget token
 	 */
 	void (*set_rq_budget_token)(struct request *, int);
-	/*
-	 * @get_rq_budget_toekn: retrieve rq's budget token
+	/**
+	 * @get_rq_budget_token: retrieve rq's budget token
 	 */
 	int (*get_rq_budget_token)(struct request *);
 
