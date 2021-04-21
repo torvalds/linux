@@ -35,6 +35,7 @@
 #include <math.h>
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
+#include <stdbool.h>
 
 char *proc_stat = "/proc/stat";
 FILE *outf;
@@ -185,6 +186,7 @@ struct thread_data {
 	unsigned int apic_id;
 	unsigned int x2apic_id;
 	unsigned int flags;
+	bool is_atom;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
 	unsigned long long counter[MAX_ADDED_THREAD_COUNTERS];
@@ -2090,9 +2092,19 @@ retry:
 			return -7;
 	}
 
-	if (DO_BIC(BIC_CPU_c7) || soft_c1_residency_display(BIC_CPU_c7))
+	if (DO_BIC(BIC_CPU_c7) || soft_c1_residency_display(BIC_CPU_c7)) {
 		if (get_msr(cpu, MSR_CORE_C7_RESIDENCY, &c->c7))
 			return -8;
+		else if (t->is_atom) {
+			/*
+			 * For Atom CPUs that has core cstate deeper than c6,
+			 * MSR_CORE_C6_RESIDENCY returns residency of cc6 and deeper.
+			 * Minus CC7 (and deeper cstates) residency to get
+			 * accturate cc6 residency.
+			 */
+			c->c6 -= c->c7;
+		}
+	}
 
 	if (DO_BIC(BIC_Mod_c6))
 		if (get_msr(cpu, MSR_MODULE_C6_RES_MS, &c->mc6_us))
@@ -4911,6 +4923,28 @@ double discover_bclk(unsigned int family, unsigned int model)
 		return 133.33;
 }
 
+int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	unsigned int eax, ebx, ecx, edx;
+
+	if (!genuine_intel)
+		return 0;
+
+	if (cpu_migrate(t->cpu_id)) {
+		fprintf(outf, "Could not migrate to CPU %d\n", t->cpu_id);
+		return -1;
+	}
+
+	if (max_level < 0x1a)
+		return 0;
+
+	__cpuid(0x1a, eax, ebx, ecx, edx);
+	eax = (eax >> 24) & 0xFF;
+	if (eax == 0x20 )
+		t->is_atom = true;
+	return 0;
+}
+
 /*
  * MSR_IA32_TEMPERATURE_TARGET indicates the temperature where
  * the Thermal Control Circuit (TCC) activates.
@@ -5795,6 +5829,9 @@ void turbostat_init()
 		for_all_cpus(print_rapl, ODD_COUNTERS);
 
 	for_all_cpus(set_temperature_target, ODD_COUNTERS);
+
+	for_all_cpus(get_cpu_type, ODD_COUNTERS);
+	for_all_cpus(get_cpu_type, EVEN_COUNTERS);
 
 	if (!quiet)
 		for_all_cpus(print_thermal, ODD_COUNTERS);
