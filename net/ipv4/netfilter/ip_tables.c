@@ -1770,14 +1770,6 @@ void ipt_unregister_table_exit(struct net *net, struct xt_table *table)
 	__ipt_unregister_table(net, table);
 }
 
-void ipt_unregister_table(struct net *net, struct xt_table *table,
-			  const struct nf_hook_ops *ops)
-{
-	if (ops)
-		ipt_unregister_table_pre_exit(net, table, ops);
-	__ipt_unregister_table(net, table);
-}
-
 /* Returns 1 if the type and code is matched by the range, 0 otherwise */
 static inline bool
 icmp_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
@@ -1924,7 +1916,6 @@ static void __exit ip_tables_fini(void)
 }
 
 EXPORT_SYMBOL(ipt_register_table);
-EXPORT_SYMBOL(ipt_unregister_table);
 EXPORT_SYMBOL(ipt_unregister_table_pre_exit);
 EXPORT_SYMBOL(ipt_unregister_table_exit);
 EXPORT_SYMBOL(ipt_do_table);

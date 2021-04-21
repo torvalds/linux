@@ -107,7 +107,7 @@ static int __net_init ip6table_nat_table_init(struct net *net)
 
 	ret = ip6t_nat_register_lookups(net);
 	if (ret < 0) {
-		ip6t_unregister_table(net, net->ipv6.ip6table_nat, NULL);
+		ip6t_unregister_table_exit(net, net->ipv6.ip6table_nat);
 		net->ipv6.ip6table_nat = NULL;
 	}
 	kfree(repl);

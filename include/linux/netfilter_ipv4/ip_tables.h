@@ -31,9 +31,6 @@ void ipt_unregister_table_pre_exit(struct net *net, struct xt_table *table,
 
 void ipt_unregister_table_exit(struct net *net, struct xt_table *table);
 
-void ipt_unregister_table(struct net *net, struct xt_table *table,
-			  const struct nf_hook_ops *ops);
-
 /* Standard entry. */
 struct ipt_standard {
 	struct ipt_entry entry;
