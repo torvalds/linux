@@ -32,13 +32,14 @@ static inline void devm_delayed_work_drop(void *res)
 }
 
 /**
- * devm_delayed_work_autocancel - Resource-managed work allocation
- * @dev: Device which lifetime work is bound to
- * @pdata: work to be cancelled when driver is detached
+ * devm_delayed_work_autocancel - Resource-managed delayed work allocation
+ * @dev:	Device which lifetime work is bound to
+ * @w:		Work item to be queued
+ * @worker:	Worker function
  *
- * Initialize work which is automatically cancelled when driver is detached.
- * A few drivers need delayed work which must be cancelled before driver
- * is detached to avoid accessing removed resources.
+ * Initialize delayed work which is automatically cancelled when driver is
+ * detached. A few drivers need delayed work which must be cancelled before
+ * driver is detached to avoid accessing removed resources.
  * devm_delayed_work_autocancel() can be used to omit the explicit
  * cancelleation when driver is detached.
  */
