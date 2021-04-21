@@ -2887,12 +2887,11 @@ svm_range_get_attr(struct kfd_process *p, uint64_t start, uint64_t size,
 		pr_debug("range attrs not found return default values\n");
 		svm_range_set_default_attributes(&location, &prefetch_loc,
 						 &granularity, &flags);
-		/* TODO: Automatically create SVM ranges and map them on
-		 * GPU page faults
 		if (p->xnack_enabled)
 			bitmap_fill(bitmap_access, MAX_GPU_INSTANCE);
-		 */
-
+		else
+			bitmap_zero(bitmap_access, MAX_GPU_INSTANCE);
+		bitmap_zero(bitmap_aip, MAX_GPU_INSTANCE);
 		goto fill_values;
 	}
 	bitmap_fill(bitmap_access, MAX_GPU_INSTANCE);
