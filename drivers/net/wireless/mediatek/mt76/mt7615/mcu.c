@@ -288,6 +288,7 @@ EXPORT_SYMBOL_GPL(mt7622_trigger_hif_int);
 static int mt7615_mcu_drv_pmctrl(struct mt7615_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_dev *mdev = &dev->mt76;
 	u32 addr;
 	int err;
@@ -317,15 +318,20 @@ static int mt7615_mcu_drv_pmctrl(struct mt7615_dev *dev)
 
 	clear_bit(MT76_STATE_PM, &mphy->state);
 
+	pm->stats.last_wake_event = jiffies;
+	pm->stats.doze_time += pm->stats.last_wake_event -
+			       pm->stats.last_doze_event;
+
 	return 0;
 }
 
 static int mt7615_mcu_lp_drv_pmctrl(struct mt7615_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
 	int i, err = 0;
 
-	mutex_lock(&dev->pm.mutex);
+	mutex_lock(&pm->mutex);
 
 	if (!test_bit(MT76_STATE_PM, &mphy->state))
 		goto out;
@@ -344,8 +350,11 @@ static int mt7615_mcu_lp_drv_pmctrl(struct mt7615_dev *dev)
 	}
 	clear_bit(MT76_STATE_PM, &mphy->state);
 
+	pm->stats.last_wake_event = jiffies;
+	pm->stats.doze_time += pm->stats.last_wake_event -
+			       pm->stats.last_doze_event;
 out:
-	mutex_unlock(&dev->pm.mutex);
+	mutex_unlock(&pm->mutex);
 
 	return err;
 }
@@ -353,12 +362,13 @@ out:
 static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
 	int err = 0;
 	u32 addr;
 
-	mutex_lock(&dev->pm.mutex);
+	mutex_lock(&pm->mutex);
 
-	if (mt76_connac_skip_fw_pmctrl(mphy, &dev->pm))
+	if (mt76_connac_skip_fw_pmctrl(mphy, pm))
 		goto out;
 
 	mt7622_trigger_hif_int(dev, true);
@@ -375,8 +385,12 @@ static int mt7615_mcu_fw_pmctrl(struct mt7615_dev *dev)
 	}
 
 	mt7622_trigger_hif_int(dev, false);
+
+	pm->stats.last_doze_event = jiffies;
+	pm->stats.awake_time += pm->stats.last_doze_event -
+				pm->stats.last_wake_event;
 out:
-	mutex_unlock(&dev->pm.mutex);
+	mutex_unlock(&pm->mutex);
 
 	return err;
 }
