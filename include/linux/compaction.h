@@ -238,7 +238,7 @@ static inline void wakeup_kcompactd(pg_data_t *pgdat,
 {
 }
 
-static unsigned long isolate_and_split_free_page(struct page *page,
+static inline unsigned long isolate_and_split_free_page(struct page *page,
 				struct list_head *list)
 {
 	return 0;
