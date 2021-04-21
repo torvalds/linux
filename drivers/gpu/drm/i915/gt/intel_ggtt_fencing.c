@@ -652,8 +652,8 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 * banks of memory are paired and unswizzled on the
 		 * uneven portion, so leave that as unknown.
 		 */
-		if (intel_uncore_read(uncore, C0DRB3) ==
-		    intel_uncore_read(uncore, C1DRB3)) {
+		if (intel_uncore_read16(uncore, C0DRB3) ==
+		    intel_uncore_read16(uncore, C1DRB3)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
