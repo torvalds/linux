@@ -229,6 +229,9 @@ struct xt_table {
 	/* Man behind the curtain... */
 	struct xt_table_info *private;
 
+	/* hook ops that register the table with the netfilter core */
+	struct nf_hook_ops *ops;
+
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 

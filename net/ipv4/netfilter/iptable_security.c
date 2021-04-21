@@ -40,7 +40,7 @@ static unsigned int
 iptable_security_hook(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	return ipt_do_table(skb, state, state->net->ipv4.iptable_security);
+	return ipt_do_table(skb, state, priv);
 }
 
 static struct nf_hook_ops *sectbl_ops __read_mostly;
@@ -53,21 +53,19 @@ static int __net_init iptable_security_table_init(struct net *net)
 	repl = ipt_alloc_initial_table(&security_table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ipt_register_table(net, &security_table, repl, sectbl_ops,
-				 &net->ipv4.iptable_security);
+	ret = ipt_register_table(net, &security_table, repl, sectbl_ops);
 	kfree(repl);
 	return ret;
 }
 
 static void __net_exit iptable_security_net_pre_exit(struct net *net)
 {
-	ipt_unregister_table_pre_exit(net, "security", sectbl_ops);
+	ipt_unregister_table_pre_exit(net, "security");
 }
 
 static void __net_exit iptable_security_net_exit(struct net *net)
 {
 	ipt_unregister_table_exit(net, "security");
-	net->ipv4.iptable_security = NULL;
 }
 
 static struct pernet_operations iptable_security_net_ops = {

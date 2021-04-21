@@ -34,7 +34,7 @@ static unsigned int
 iptable_filter_hook(void *priv, struct sk_buff *skb,
 		    const struct nf_hook_state *state)
 {
-	return ipt_do_table(skb, state, state->net->ipv4.iptable_filter);
+	return ipt_do_table(skb, state, priv);
 }
 
 static struct nf_hook_ops *filter_ops __read_mostly;
@@ -55,8 +55,7 @@ static int __net_init iptable_filter_table_init(struct net *net)
 	((struct ipt_standard *)repl->entries)[1].target.verdict =
 		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
 
-	err = ipt_register_table(net, &packet_filter, repl, filter_ops,
-				 &net->ipv4.iptable_filter);
+	err = ipt_register_table(net, &packet_filter, repl, filter_ops);
 	kfree(repl);
 	return err;
 }
@@ -71,13 +70,12 @@ static int __net_init iptable_filter_net_init(struct net *net)
 
 static void __net_exit iptable_filter_net_pre_exit(struct net *net)
 {
-	ipt_unregister_table_pre_exit(net, "filter", filter_ops);
+	ipt_unregister_table_pre_exit(net, "filter");
 }
 
 static void __net_exit iptable_filter_net_exit(struct net *net)
 {
 	ipt_unregister_table_exit(net, "filter");
-	net->ipv4.iptable_filter = NULL;
 }
 
 static struct pernet_operations iptable_filter_net_ops = {

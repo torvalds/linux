@@ -24,11 +24,9 @@
 
 int ipt_register_table(struct net *net, const struct xt_table *table,
 		       const struct ipt_replace *repl,
-		       const struct nf_hook_ops *ops, struct xt_table **res);
+		       const struct nf_hook_ops *ops);
 
-void ipt_unregister_table_pre_exit(struct net *net, const char *name,
-				   const struct nf_hook_ops *ops);
-
+void ipt_unregister_table_pre_exit(struct net *net, const char *name);
 void ipt_unregister_table_exit(struct net *net, const char *name);
 
 /* Standard entry. */

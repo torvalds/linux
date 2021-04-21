@@ -66,12 +66,19 @@ static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
 	},
 };
 
-static int ipt_nat_register_lookups(struct net *net, struct xt_table *table)
+static int ipt_nat_register_lookups(struct net *net)
 {
-	struct nf_hook_ops *ops = kmemdup(nf_nat_ipv4_ops, sizeof(nf_nat_ipv4_ops), GFP_KERNEL);
-	struct iptable_nat_pernet *xt_nat_net = net_generic(net, iptable_nat_net_id);
+	struct iptable_nat_pernet *xt_nat_net;
+	struct nf_hook_ops *ops;
+	struct xt_table *table;
 	int i, ret;
 
+	xt_nat_net = net_generic(net, iptable_nat_net_id);
+	table = xt_find_table(net, NFPROTO_IPV4, "nat");
+	if (WARN_ON_ONCE(!table))
+		return -ENOENT;
+
+	ops = kmemdup(nf_nat_ipv4_ops, sizeof(nf_nat_ipv4_ops), GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 
@@ -109,25 +116,21 @@ static void ipt_nat_unregister_lookups(struct net *net)
 static int __net_init iptable_nat_table_init(struct net *net)
 {
 	struct ipt_replace *repl;
-	struct xt_table *table;
 	int ret;
 
 	repl = ipt_alloc_initial_table(&nf_nat_ipv4_table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ipt_register_table(net, &nf_nat_ipv4_table, repl,
-				 NULL, &table);
+
+	ret = ipt_register_table(net, &nf_nat_ipv4_table, repl, NULL);
 	if (ret < 0) {
 		kfree(repl);
 		return ret;
 	}
 
-	ret = ipt_nat_register_lookups(net, table);
-	if (ret < 0) {
+	ret = ipt_nat_register_lookups(net);
+	if (ret < 0)
 		ipt_unregister_table_exit(net, "nat");
-	} else {
-		net->ipv4.nat_table = table;
-	}
 
 	kfree(repl);
 	return ret;
@@ -141,7 +144,6 @@ static void __net_exit iptable_nat_net_pre_exit(struct net *net)
 static void __net_exit iptable_nat_net_exit(struct net *net)
 {
 	ipt_unregister_table_exit(net, "nat");
-	net->ipv4.nat_table = NULL;
 }
 
 static struct pernet_operations iptable_nat_net_ops = {
