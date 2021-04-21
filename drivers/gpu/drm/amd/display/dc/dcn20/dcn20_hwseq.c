@@ -1700,7 +1700,11 @@ void dcn20_program_front_end_for_ctx(
 
 		if (pipe->plane_state && !pipe->top_pipe) {
 			while (pipe) {
-				dcn20_program_pipe(dc, pipe, context);
+				if (hws->funcs.program_pipe)
+					hws->funcs.program_pipe(dc, pipe, context);
+				else
+					dcn20_program_pipe(dc, pipe, context);
+
 				pipe = pipe->bottom_pipe;
 			}
 			/* Program secondary blending tree and writeback pipes */

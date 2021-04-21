@@ -2956,6 +2956,25 @@ void dcn10_program_pipe(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 
+	if (pipe_ctx->top_pipe == NULL) {
+		bool blank = !is_pipe_tree_visible(pipe_ctx);
+
+		pipe_ctx->stream_res.tg->funcs->program_global_sync(
+				pipe_ctx->stream_res.tg,
+				pipe_ctx->pipe_dlg_param.vready_offset,
+				pipe_ctx->pipe_dlg_param.vstartup_start,
+				pipe_ctx->pipe_dlg_param.vupdate_offset,
+				pipe_ctx->pipe_dlg_param.vupdate_width);
+
+		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, true);
+
+		if (hws->funcs.setup_vupdate_interrupt)
+			hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
+
+		hws->funcs.blank_pixel_data(dc, pipe_ctx, blank);
+	}
+
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		dcn10_enable_plane(dc, pipe_ctx, context);
 
@@ -2976,63 +2995,6 @@ void dcn10_program_pipe(
 	 */
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
-}
-
-static void dcn10_program_all_pipe_in_tree(
-		struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct dc_state *context)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-
-	if (pipe_ctx->top_pipe == NULL) {
-		bool blank = !is_pipe_tree_visible(pipe_ctx);
-
-		pipe_ctx->stream_res.tg->funcs->program_global_sync(
-				pipe_ctx->stream_res.tg,
-				pipe_ctx->pipe_dlg_param.vready_offset,
-				pipe_ctx->pipe_dlg_param.vstartup_start,
-				pipe_ctx->pipe_dlg_param.vupdate_offset,
-				pipe_ctx->pipe_dlg_param.vupdate_width);
-
-		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, true);
-
-		if (hws->funcs.setup_vupdate_interrupt)
-			hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
-
-		hws->funcs.blank_pixel_data(dc, pipe_ctx, blank);
-	}
-
-	if (pipe_ctx->plane_state != NULL)
-		hws->funcs.program_pipe(dc, pipe_ctx, context);
-
-	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
-		dcn10_program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
-}
-
-static struct pipe_ctx *dcn10_find_top_pipe_for_stream(
-		struct dc *dc,
-		struct dc_state *context,
-		const struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx =
-				&dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
-			continue;
-
-		if (pipe_ctx->stream != stream)
-			continue;
-
-		if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe)
-			return pipe_ctx;
-	}
-	return NULL;
 }
 
 void dcn10_wait_for_pending_cleared(struct dc *dc,
@@ -3064,91 +3026,6 @@ void dcn10_wait_for_pending_cleared(struct dc *dc,
 			 */
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
-		}
-}
-
-void dcn10_apply_ctx_for_surface(
-		struct dc *dc,
-		const struct dc_stream_state *stream,
-		int num_planes,
-		struct dc_state *context)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-	int i;
-	struct timing_generator *tg;
-	uint32_t underflow_check_delay_us;
-	bool interdependent_update = false;
-	struct pipe_ctx *top_pipe_to_program =
-			dcn10_find_top_pipe_for_stream(dc, context, stream);
-	DC_LOGGER_INIT(dc->ctx->logger);
-
-	// Clear pipe_ctx flag
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		pipe_ctx->update_flags.raw = 0;
-	}
-
-	if (!top_pipe_to_program)
-		return;
-
-	tg = top_pipe_to_program->stream_res.tg;
-
-	interdependent_update = top_pipe_to_program->plane_state &&
-		top_pipe_to_program->plane_state->update_flags.bits.full_update;
-
-	underflow_check_delay_us = dc->debug.underflow_assert_delay_us;
-
-	if (underflow_check_delay_us != 0xFFFFFFFF && hws->funcs.did_underflow_occur)
-		ASSERT(hws->funcs.did_underflow_occur(dc, top_pipe_to_program));
-
-	if (underflow_check_delay_us != 0xFFFFFFFF)
-		udelay(underflow_check_delay_us);
-
-	if (underflow_check_delay_us != 0xFFFFFFFF && hws->funcs.did_underflow_occur)
-		ASSERT(hws->funcs.did_underflow_occur(dc, top_pipe_to_program));
-
-	if (num_planes == 0) {
-		/* OTG blank before remove all front end */
-		hws->funcs.blank_pixel_data(dc, top_pipe_to_program, true);
-	}
-
-	/* Disconnect unused mpcc */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *old_pipe_ctx =
-				&dc->current_state->res_ctx.pipe_ctx[i];
-
-		if ((!pipe_ctx->plane_state ||
-		     pipe_ctx->stream_res.tg != old_pipe_ctx->stream_res.tg) &&
-		    old_pipe_ctx->plane_state &&
-		    old_pipe_ctx->stream_res.tg == tg) {
-
-			hws->funcs.plane_atomic_disconnect(dc, old_pipe_ctx);
-			pipe_ctx->update_flags.bits.disable = 1;
-
-			DC_LOG_DC("Reset mpcc for pipe %d\n",
-					old_pipe_ctx->pipe_idx);
-		}
-	}
-
-	if (num_planes > 0)
-		dcn10_program_all_pipe_in_tree(dc, top_pipe_to_program, context);
-
-	/* Program secondary blending tree and writeback pipes */
-	if ((stream->num_wb_info > 0) && (hws->funcs.program_all_writeback_pipes_in_tree))
-		hws->funcs.program_all_writeback_pipes_in_tree(dc, stream, context);
-	if (interdependent_update)
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-			/* Skip inactive pipes and ones already updated */
-			if (!pipe_ctx->stream || pipe_ctx->stream == stream ||
-			    !pipe_ctx->plane_state || !tg->funcs->is_tg_enabled(tg))
-				continue;
-
-			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
-				pipe_ctx->plane_res.hubp,
-				&pipe_ctx->dlg_regs,
-				&pipe_ctx->ttu_regs);
 		}
 }
 
