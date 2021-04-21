@@ -37,7 +37,7 @@ void mt76_connac_power_save_sched(struct mt76_phy *phy,
 	if (!mt76_is_mmio(dev))
 		return;
 
-	if (!pm->enable || !test_bit(MT76_STATE_RUNNING, &phy->state))
+	if (!pm->enable)
 		return;
 
 	pm->last_activity = jiffies;
