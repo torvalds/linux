@@ -1220,7 +1220,6 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 struct mt76_txwi_cache *
 mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
 int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
-void mt76_token_init(struct mt76_dev *dev);
 void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
 
 static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)

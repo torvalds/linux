@@ -649,13 +649,6 @@ void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 }
 EXPORT_SYMBOL_GPL(mt76_queue_tx_complete);
 
-void mt76_token_init(struct mt76_dev *dev)
-{
-	spin_lock_init(&dev->token_lock);
-	idr_init(&dev->token);
-}
-EXPORT_SYMBOL_GPL(mt76_token_init);
-
 void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
 {
 	struct mt76_phy *phy = &dev->phy, *phy2 = dev->phy2;
