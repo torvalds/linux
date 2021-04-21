@@ -514,6 +514,13 @@ struct intel_l3_parity {
 };
 
 struct i915_gem_mm {
+	/*
+	 * Shortcut for the stolen region. This points to either
+	 * INTEL_REGION_STOLEN_SMEM for integrated platforms, or
+	 * INTEL_REGION_STOLEN_LMEM for discrete, or NULL if the device doesn't
+	 * support stolen.
+	 */
+	struct intel_memory_region *stolen_region;
 	/** Memory allocator for GTT stolen memory */
 	struct drm_mm stolen;
 	/** Protects the usage of the GTT stolen memory allocator. This is

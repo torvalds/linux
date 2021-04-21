@@ -10,6 +10,7 @@
 #include <drm/drm_mm.h>
 #include <drm/i915_drm.h>
 
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
 #include "i915_gem_stolen.h"
@@ -120,6 +121,14 @@ static int i915_adjust_stolen(struct drm_i915_private *i915,
 				dsm);
 		}
 	}
+
+	/*
+	 * With stolen lmem, we don't need to check if the address range
+	 * overlaps with the non-stolen system memory range, since lmem is local
+	 * to the gpu.
+	 */
+	if (HAS_LMEM(i915))
+		return 0;
 
 	/*
 	 * Verify that nothing else uses this physical address. Stolen
@@ -374,8 +383,9 @@ static void icl_get_stolen_reserved(struct drm_i915_private *i915,
 	}
 }
 
-static int i915_gem_init_stolen(struct drm_i915_private *i915)
+static int i915_gem_init_stolen(struct intel_memory_region *mem)
 {
+	struct drm_i915_private *i915 = mem->i915;
 	struct intel_uncore *uncore = &i915->uncore;
 	resource_size_t reserved_base, stolen_top;
 	resource_size_t reserved_total, reserved_size;
@@ -396,10 +406,10 @@ static int i915_gem_init_stolen(struct drm_i915_private *i915)
 		return 0;
 	}
 
-	if (resource_size(&intel_graphics_stolen_res) == 0)
+	if (resource_size(&mem->region) == 0)
 		return 0;
 
-	i915->dsm = intel_graphics_stolen_res;
+	i915->dsm = mem->region;
 
 	if (i915_adjust_stolen(i915, &i915->dsm))
 		return 0;
@@ -688,39 +698,123 @@ struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_i915_private *i915,
 			      resource_size_t size)
 {
-	return i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_STOLEN_SMEM],
+	return i915_gem_object_create_region(i915->mm.stolen_region,
 					     size, I915_BO_ALLOC_CONTIGUOUS);
 }
 
-static int init_stolen(struct intel_memory_region *mem)
+static int init_stolen_smem(struct intel_memory_region *mem)
 {
-	intel_memory_region_set_name(mem, "stolen");
-
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
 	 */
-	return i915_gem_init_stolen(mem->i915);
+	return i915_gem_init_stolen(mem);
 }
 
-static void release_stolen(struct intel_memory_region *mem)
+static void release_stolen_smem(struct intel_memory_region *mem)
 {
 	i915_gem_cleanup_stolen(mem->i915);
 }
 
-static const struct intel_memory_region_ops i915_region_stolen_ops = {
-	.init = init_stolen,
-	.release = release_stolen,
+static const struct intel_memory_region_ops i915_region_stolen_smem_ops = {
+	.init = init_stolen_smem,
+	.release = release_stolen_smem,
 	.init_object = _i915_gem_object_stolen_init,
 };
 
-struct intel_memory_region *i915_gem_stolen_setup(struct drm_i915_private *i915)
+static int init_stolen_lmem(struct intel_memory_region *mem)
 {
-	return intel_memory_region_create(i915,
-					  intel_graphics_stolen_res.start,
-					  resource_size(&intel_graphics_stolen_res),
-					  PAGE_SIZE, 0,
-					  &i915_region_stolen_ops);
+	int err;
+
+	if (GEM_WARN_ON(resource_size(&mem->region) == 0))
+		return -ENODEV;
+
+	if (!io_mapping_init_wc(&mem->iomap,
+				mem->io_start,
+				resource_size(&mem->region)))
+		return -EIO;
+
+	/*
+	 * TODO: For stolen lmem we mostly just care about populating the dsm
+	 * related bits and setting up the drm_mm allocator for the range.
+	 * Perhaps split up i915_gem_init_stolen() for this.
+	 */
+	err = i915_gem_init_stolen(mem);
+	if (err)
+		goto err_fini;
+
+	return 0;
+
+err_fini:
+	io_mapping_fini(&mem->iomap);
+	return err;
+}
+
+static void release_stolen_lmem(struct intel_memory_region *mem)
+{
+	io_mapping_fini(&mem->iomap);
+	i915_gem_cleanup_stolen(mem->i915);
+}
+
+static const struct intel_memory_region_ops i915_region_stolen_lmem_ops = {
+	.init = init_stolen_lmem,
+	.release = release_stolen_lmem,
+	.init_object = _i915_gem_object_stolen_init,
+};
+
+struct intel_memory_region *
+i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
+{
+	struct intel_uncore *uncore = &i915->uncore;
+	struct pci_dev *pdev = i915->drm.pdev;
+	struct intel_memory_region *mem;
+	resource_size_t io_start;
+	resource_size_t lmem_size;
+	u64 lmem_base;
+
+	lmem_base = intel_uncore_read64(uncore, GEN12_DSMBASE);
+	if (GEM_WARN_ON(lmem_base >= pci_resource_len(pdev, 2)))
+		return ERR_PTR(-ENODEV);
+
+	lmem_size = pci_resource_len(pdev, 2) - lmem_base;
+	io_start = pci_resource_start(pdev, 2) + lmem_base;
+
+	mem = intel_memory_region_create(i915, lmem_base, lmem_size,
+					 I915_GTT_PAGE_SIZE_4K, io_start,
+					 &i915_region_stolen_lmem_ops);
+	if (IS_ERR(mem))
+		return mem;
+
+	/*
+	 * TODO: consider creating common helper to just print all the
+	 * interesting stuff from intel_memory_region, which we can use for all
+	 * our probed regions.
+	 */
+
+	drm_dbg(&i915->drm, "Stolen Local memory IO start: %pa\n",
+		&mem->io_start);
+
+	intel_memory_region_set_name(mem, "stolen-local");
+
+	return mem;
+}
+
+struct intel_memory_region*
+i915_gem_stolen_smem_setup(struct drm_i915_private *i915)
+{
+	struct intel_memory_region *mem;
+
+	mem = intel_memory_region_create(i915,
+					 intel_graphics_stolen_res.start,
+					 resource_size(&intel_graphics_stolen_res),
+					 PAGE_SIZE, 0,
+					 &i915_region_stolen_smem_ops);
+	if (IS_ERR(mem))
+		return mem;
+
+	intel_memory_region_set_name(mem, "stolen-system");
+
+	return mem;
 }
 
 struct drm_i915_gem_object *
@@ -728,7 +822,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *i915,
 					       resource_size_t stolen_offset,
 					       resource_size_t size)
 {
-	struct intel_memory_region *mem = i915->mm.regions[INTEL_REGION_STOLEN_SMEM];
+	struct intel_memory_region *mem = i915->mm.stolen_region;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	int ret;
