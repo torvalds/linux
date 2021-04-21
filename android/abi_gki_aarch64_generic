@@ -467,6 +467,8 @@
   dma_map_resource
   dma_map_sg_attrs
   dma_mmap_attrs
+  dma_pool_alloc
+  dma_pool_free
   dma_release_channel
   dma_request_chan
   dma_set_coherent_mask
@@ -1326,6 +1328,7 @@
   prandom_u32
   preempt_schedule
   preempt_schedule_notrace
+  prepare_to_wait
   prepare_to_wait_event
   print_hex_dump
   printk
@@ -1429,6 +1432,7 @@
   regulator_get
   regulator_get_optional
   regulator_get_voltage_sel_regmap
+  regulator_is_enabled
   regulator_is_enabled_regmap
   regulator_list_voltage_linear
   regulator_map_voltage_linear
@@ -1622,6 +1626,7 @@
   snd_soc_of_get_dai_name
   snd_soc_of_parse_card_name
   snd_soc_of_parse_daifmt
+  snd_soc_params_to_bclk
   snd_soc_params_to_frame_size
   snd_soc_put_enum_double
   snd_soc_put_volsw
