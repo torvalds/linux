@@ -235,7 +235,7 @@ static __always_inline void cpuid_entry_change(struct kvm_cpuid_entry2 *entry,
 }
 
 static __always_inline void cpuid_entry_override(struct kvm_cpuid_entry2 *entry,
-						 enum cpuid_leafs leaf)
+						 unsigned int leaf)
 {
 	u32 *reg = cpuid_entry_get_reg(entry, leaf * 32);
 
