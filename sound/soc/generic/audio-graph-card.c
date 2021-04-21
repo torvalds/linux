@@ -247,6 +247,29 @@ static int graph_parse_node(struct asoc_simple_priv *priv,
 	return 0;
 }
 
+static int graph_link_init(struct asoc_simple_priv *priv,
+			   struct device_node *cpu_ep,
+			   struct device_node *codec_ep,
+			   struct link_info *li,
+			   char *name)
+{
+	struct device *dev = simple_priv_to_dev(priv);
+	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	int ret;
+
+	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
+				       NULL, &dai_link->dai_fmt);
+	if (ret < 0)
+		return ret;
+
+	dai_link->init		= asoc_simple_dai_init;
+	dai_link->ops		= &graph_ops;
+	if (priv->ops)
+		dai_link->ops	= priv->ops;
+
+	return asoc_simple_set_dailink_name(dev, dai_link, name);
+}
+
 static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 				  struct device_node *cpu_ep,
 				  struct device_node *codec_ep,
@@ -262,6 +285,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct device_node *ports;
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
+	char dai_name[64];
 	int ret;
 
 	port	= of_get_parent(ep);
@@ -280,13 +304,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		if (ret)
 			goto out_put_node;
 
-		ret = asoc_simple_set_dailink_name(dev, dai_link,
-						   "fe.%pOFP.%s",
-						   cpus->of_node,
-						   cpus->dai_name);
-		if (ret < 0)
-			goto out_put_node;
-
+		snprintf(dai_name, sizeof(dai_name),
+			 "fe.%pOFP.%s", cpus->of_node, cpus->dai_name);
 		/*
 		 * In BE<->BE connections it is not required to create
 		 * PCM devices at CPU end of the dai link and thus 'no_pcm'
@@ -314,12 +333,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		if (ret < 0)
 			goto out_put_node;
 
-		ret = asoc_simple_set_dailink_name(dev, dai_link,
-						   "be.%pOFP.%s",
-						   codecs->of_node,
-						   codecs->dai_name);
-		if (ret < 0)
-			goto out_put_node;
+		snprintf(dai_name, sizeof(dai_name),
+			 "be.%pOFP.%s", codecs->of_node, codecs->dai_name);
 
 		/* check "prefix" from top node */
 		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
@@ -332,20 +347,9 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 	graph_parse_convert(dev, ep, &dai_props->adata);
 
-	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
-				       NULL, &dai_link->dai_fmt);
-	if (ret < 0)
-		goto out_put_node;
-
 	snd_soc_dai_link_set_capabilities(dai_link);
 
-	dai_link->ops			= &graph_ops;
-
-	/* Use custom snd_soc_ops callbacks if available */
-	if (priv->ops)
-		dai_link->ops = priv->ops;
-
-	dai_link->init			= asoc_simple_dai_init;
+	ret = graph_link_init(priv, cpu_ep, codec_ep, li, dai_name);
 
 out_put_node:
 	li->link++;
@@ -364,14 +368,10 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
+	char dai_name[64];
 	int ret;
 
 	dev_dbg(dev, "link_of (%pOF)\n", cpu_ep);
-
-	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
-				       NULL, &dai_link->dai_fmt);
-	if (ret < 0)
-		return ret;
 
 	ret = graph_parse_node(priv, cpu_ep, li, 1);
 	if (ret < 0)
@@ -381,15 +381,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_set_dailink_name(dev, dai_link,
-					   "%s-%s",
-					   cpus->dai_name,
-					   codecs->dai_name);
+	snprintf(dai_name, sizeof(dai_name),
+		 "%s-%s", cpus->dai_name, codecs->dai_name);
+	ret = graph_link_init(priv, cpu_ep, codec_ep, li, dai_name);
 	if (ret < 0)
 		return ret;
-
-	dai_link->ops = &graph_ops;
-	dai_link->init = asoc_simple_dai_init;
 
 	li->link++;
 
