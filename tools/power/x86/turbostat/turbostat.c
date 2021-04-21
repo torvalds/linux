@@ -91,6 +91,7 @@ unsigned int gfx_cur_mhz;
 unsigned int gfx_act_mhz;
 unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
+int tcc_offset_bits;
 double rapl_power_units, rapl_time_units;
 double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
@@ -3886,6 +3887,40 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	}
 }
 
+/*
+ * tcc_offset_bits:
+ * 0: Tcc Offset not supported (Default)
+ * 6: Bit 29:24 of MSR_PLATFORM_INFO
+ * 4: Bit 27:24 of MSR_PLATFORM_INFO
+ */
+void check_tcc_offset(int model)
+{
+	unsigned long long msr;
+
+	if (!genuine_intel)
+		return;
+
+	switch (model) {
+	case INTEL_FAM6_SKYLAKE_L:
+	case INTEL_FAM6_SKYLAKE:
+	case INTEL_FAM6_KABYLAKE_L:
+	case INTEL_FAM6_KABYLAKE:
+	case INTEL_FAM6_ICELAKE_L:
+	case INTEL_FAM6_ICELAKE:
+	case INTEL_FAM6_TIGERLAKE_L:
+	case INTEL_FAM6_TIGERLAKE:
+	case INTEL_FAM6_COMETLAKE:
+		if (!get_msr(base_cpu, MSR_PLATFORM_INFO, &msr)) {
+			msr = (msr >> 30) & 1;
+			if (msr)
+				tcc_offset_bits = 6;
+		}
+		return;
+	default:
+		return;
+	}
+}
+
 static void
 remove_underbar(char *s)
 {
@@ -4964,7 +4999,7 @@ int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 int set_temperature_target(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
-	unsigned int target_c_local;
+	unsigned int target_c_local, tcc_offset;
 	int cpu;
 
 	/* tcc_activation_temp is used only for dts or ptm */
@@ -4997,9 +5032,24 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 
 	target_c_local = (msr >> 16) & 0xFF;
 
-	if (!quiet)
-		fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
+	if (!quiet) {
+		switch (tcc_offset_bits) {
+		case 4:
+			tcc_offset = (msr >> 24) & 0xF;
+			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n",
+			cpu, msr, target_c_local - tcc_offset, target_c_local, tcc_offset);
+			break;
+		case 6:
+			tcc_offset = (msr >> 24) & 0x3F;
+			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C) (%d default - %d offset)\n",
+			cpu, msr, target_c_local - tcc_offset, target_c_local, tcc_offset);
+			break;
+		default:
+			fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
 			cpu, msr, target_c_local);
+			break;
+		}
+	}
 
 	if (!target_c_local)
 		goto guess;
@@ -5482,6 +5532,8 @@ void process_cpuid()
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);
 	automatic_cstate_conversion_probe(family, model);
+
+	check_tcc_offset(model_orig);
 
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
