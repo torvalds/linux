@@ -50,9 +50,6 @@ static int __net_init iptable_security_table_init(struct net *net)
 	struct ipt_replace *repl;
 	int ret;
 
-	if (net->ipv4.iptable_security)
-		return 0;
-
 	repl = ipt_alloc_initial_table(&security_table);
 	if (repl == NULL)
 		return -ENOMEM;

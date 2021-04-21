@@ -48,9 +48,6 @@ static int __net_init iptable_filter_table_init(struct net *net)
 	struct ipt_replace *repl;
 	int err;
 
-	if (net->ipv4.iptable_filter)
-		return 0;
-
 	repl = ipt_alloc_initial_table(&packet_filter);
 	if (repl == NULL)
 		return -ENOMEM;

@@ -44,9 +44,6 @@ static int __net_init arptable_filter_table_init(struct net *net)
 	struct arpt_replace *repl;
 	int err;
 
-	if (net->ipv4.arptable_filter)
-		return 0;
-
 	repl = arpt_alloc_initial_table(&packet_filter);
 	if (repl == NULL)
 		return -ENOMEM;

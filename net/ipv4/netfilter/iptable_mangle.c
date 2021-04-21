@@ -88,9 +88,6 @@ static int __net_init iptable_mangle_table_init(struct net *net)
 	struct ipt_replace *repl;
 	int ret;
 
-	if (net->ipv4.iptable_mangle)
-		return 0;
-
 	repl = ipt_alloc_initial_table(&packet_mangler);
 	if (repl == NULL)
 		return -ENOMEM;
