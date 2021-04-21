@@ -332,7 +332,16 @@ void dp_set_hw_test_pattern(
 	uint32_t custom_pattern_size)
 {
 	struct encoder_set_dp_phy_pattern_param pattern_param = {0};
-	struct link_encoder *encoder = link->link_enc;
+	struct link_encoder *encoder;
+
+	/* Access link encoder based on whether it is statically
+	 * or dynamically assigned to a link.
+	 */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		encoder = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+	else
+		encoder = link->link_enc;
 
 	pattern_param.dp_phy_pattern = test_pattern;
 	pattern_param.custom_pattern = custom_pattern;
