@@ -399,20 +399,22 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 		bch2_wake_allocator(ca);
 }
 
-static inline void update_replicas(struct bch_fs *c,
+static inline int update_replicas(struct bch_fs *c,
 				   struct bch_fs_usage *fs_usage,
 				   struct bch_replicas_entry *r,
 				   s64 sectors)
 {
 	int idx = bch2_replicas_entry_idx(c, r);
 
-	BUG_ON(idx < 0);
+	if (idx < 0)
+		return -1;
 
 	fs_usage_data_type_to_base(fs_usage, r->data_type, sectors);
 	fs_usage->replicas[idx]		+= sectors;
+	return 0;
 }
 
-static inline void update_cached_sectors(struct bch_fs *c,
+static inline int update_cached_sectors(struct bch_fs *c,
 					 struct bch_fs_usage *fs_usage,
 					 unsigned dev, s64 sectors)
 {
@@ -420,7 +422,7 @@ static inline void update_cached_sectors(struct bch_fs *c,
 
 	bch2_replicas_entry_cached(&r.e, dev);
 
-	update_replicas(c, fs_usage, &r.e, sectors);
+	return update_replicas(c, fs_usage, &r.e, sectors);
 }
 
 static struct replicas_delta_list *
@@ -573,8 +575,12 @@ static int bch2_mark_alloc(struct bch_fs *c,
 
 	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
 	    old_m.cached_sectors) {
-		update_cached_sectors(c, fs_usage, ca->dev_idx,
-				      -old_m.cached_sectors);
+		if (update_cached_sectors(c, fs_usage, ca->dev_idx,
+				      -old_m.cached_sectors)) {
+			bch2_fs_fatal_error(c, "bch2_mark_alloc(): no replicas entry while updating cached sectors");
+			return -1;
+		}
+
 		trace_invalidate(ca, bucket_to_sector(ca, new.k->p.offset),
 				 old_m.cached_sectors);
 	}
@@ -956,8 +962,12 @@ static int bch2_mark_extent(struct bch_fs *c,
 
 		if (p.ptr.cached) {
 			if (!stale)
-				update_cached_sectors(c, fs_usage, p.ptr.dev,
-						      disk_sectors);
+				if (update_cached_sectors(c, fs_usage, p.ptr.dev,
+							  disk_sectors)) {
+					bch2_fs_fatal_error(c, "bch2_mark_extent(): no replicas entry while updating cached sectors");
+					return -1;
+
+				}
 		} else if (!p.has_ec) {
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
@@ -976,8 +986,15 @@ static int bch2_mark_extent(struct bch_fs *c,
 		}
 	}
 
-	if (r.e.nr_devs)
-		update_replicas(c, fs_usage, &r.e, dirty_sectors);
+	if (r.e.nr_devs) {
+		if (update_replicas(c, fs_usage, &r.e, dirty_sectors)) {
+			char buf[200];
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, k);
+			bch2_fs_fatal_error(c, "no replicas entry for %s", buf);
+			return -1;
+		}
+	}
 
 	return 0;
 }
@@ -1051,8 +1068,14 @@ static int bch2_mark_stripe(struct bch_fs *c,
 				return ret;
 		}
 
-		update_replicas(c, fs_usage, &m->r.e,
-				((s64) m->sectors * m->nr_redundant));
+		if (update_replicas(c, fs_usage, &m->r.e,
+				((s64) m->sectors * m->nr_redundant))) {
+			char buf[200];
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, new);
+			bch2_fs_fatal_error(c, "no replicas entry for %s", buf);
+			return -1;
+		}
 	}
 
 	return 0;
@@ -1312,7 +1335,7 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 			added += d->delta;
 		}
 
-		update_replicas(c, dst, &d->r, d->delta);
+		BUG_ON(update_replicas(c, dst, &d->r, d->delta));
 	}
 
 	dst->nr_inodes += deltas->nr_inodes;
