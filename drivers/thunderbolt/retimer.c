@@ -151,6 +151,7 @@ static int tb_retimer_nvm_validate_and_write(struct tb_retimer *rt)
 
 static int tb_retimer_nvm_authenticate(struct tb_retimer *rt, bool auth_only)
 {
+	u32 status;
 	int ret;
 
 	if (auth_only) {
@@ -159,7 +160,24 @@ static int tb_retimer_nvm_authenticate(struct tb_retimer *rt, bool auth_only)
 			return ret;
 	}
 
-	return usb4_port_retimer_nvm_authenticate(rt->port, rt->index);
+	ret = usb4_port_retimer_nvm_authenticate(rt->port, rt->index);
+	if (ret)
+		return ret;
+
+	usleep_range(100, 150);
+
+	/*
+	 * Check the status now if we still can access the retimer. It
+	 * is expected that the below fails.
+	 */
+	ret = usb4_port_retimer_nvm_authenticate_status(rt->port, rt->index,
+							&status);
+	if (!ret) {
+		rt->auth_status = status;
+		return status ? -EINVAL : 0;
+	}
+
+	return 0;
 }
 
 static ssize_t device_show(struct device *dev, struct device_attribute *attr,
