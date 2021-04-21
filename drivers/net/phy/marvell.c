@@ -2499,8 +2499,6 @@ static int marvell_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		if (ops->set_temp_critical)
 			err = ops->set_temp_critical(phydev, temp);
 		break;
-	default:
-		fallthrough;
 	}
 
 	return err;
