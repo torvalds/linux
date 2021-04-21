@@ -1360,17 +1360,13 @@ static ssize_t pmc_core_lpm_latch_mode_write(struct file *file,
 	struct pmc_dev *pmcdev = s->private;
 	bool clear = false, c10 = false;
 	unsigned char buf[8];
-	ssize_t ret;
 	int idx, m, mode;
 	u32 reg;
 
 	if (count > sizeof(buf) - 1)
 		return -EINVAL;
-
-	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, userbuf, count);
-	if (ret < 0)
-		return ret;
-
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
 	buf[count] = '\0';
 
 	/*
