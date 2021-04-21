@@ -1769,15 +1769,21 @@ out_free:
 	return ret;
 }
 
-void ip6t_unregister_table_pre_exit(struct net *net, struct xt_table *table,
+void ip6t_unregister_table_pre_exit(struct net *net, const char *name,
 				    const struct nf_hook_ops *ops)
 {
-	nf_unregister_net_hooks(net, ops, hweight32(table->valid_hooks));
+	struct xt_table *table = xt_find_table(net, NFPROTO_IPV6, name);
+
+	if (table)
+		nf_unregister_net_hooks(net, ops, hweight32(table->valid_hooks));
 }
 
-void ip6t_unregister_table_exit(struct net *net, struct xt_table *table)
+void ip6t_unregister_table_exit(struct net *net, const char *name)
 {
-	__ip6t_unregister_table(net, table);
+	struct xt_table *table = xt_find_table(net, NFPROTO_IPV6, name);
+
+	if (table)
+		__ip6t_unregister_table(net, table);
 }
 
 /* Returns 1 if the type and code is matched by the range, 0 otherwise */

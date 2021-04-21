@@ -63,16 +63,12 @@ static int __net_init ip6table_security_table_init(struct net *net)
 
 static void __net_exit ip6table_security_net_pre_exit(struct net *net)
 {
-	if (net->ipv6.ip6table_security)
-		ip6t_unregister_table_pre_exit(net, net->ipv6.ip6table_security,
-					       sectbl_ops);
+	ip6t_unregister_table_pre_exit(net, "security", sectbl_ops);
 }
 
 static void __net_exit ip6table_security_net_exit(struct net *net)
 {
-	if (!net->ipv6.ip6table_security)
-		return;
-	ip6t_unregister_table_exit(net, net->ipv6.ip6table_security);
+	ip6t_unregister_table_exit(net, "security");
 	net->ipv6.ip6table_security = NULL;
 }
 
