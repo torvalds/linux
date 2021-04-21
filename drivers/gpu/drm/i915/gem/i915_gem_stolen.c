@@ -637,10 +637,17 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 {
 	static struct lock_class_key lock_class;
 	unsigned int cache_level;
+	unsigned int flags;
 	int err;
 
+	/*
+	 * Stolen objects are always physically contiguous since we just
+	 * allocate one big block underneath using the drm_mm range allocator.
+	 */
+	flags = I915_BO_ALLOC_CONTIGUOUS;
+
 	drm_gem_private_object_init(&mem->i915->drm, &obj->base, stolen->size);
-	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class, 0);
+	i915_gem_object_init(obj, &i915_gem_object_stolen_ops, &lock_class, flags);
 
 	obj->stolen = stolen;
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
@@ -699,8 +706,7 @@ struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_i915_private *i915,
 			      resource_size_t size)
 {
-	return i915_gem_object_create_region(i915->mm.stolen_region,
-					     size, I915_BO_ALLOC_CONTIGUOUS);
+	return i915_gem_object_create_region(i915->mm.stolen_region, size, 0);
 }
 
 static int init_stolen_smem(struct intel_memory_region *mem)
