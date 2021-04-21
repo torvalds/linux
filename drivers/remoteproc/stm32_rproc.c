@@ -580,7 +580,7 @@ static int stm32_rproc_da_to_pa(struct rproc *rproc,
 			continue;
 
 		*pa = da - p_mem->dev_addr + p_mem->bus_addr;
-		dev_dbg(dev, "da %llx to pa %#x\n", da, *pa);
+		dev_dbg(dev, "da %llx to pa %pap\n", da, pa);
 
 		return 0;
 	}
