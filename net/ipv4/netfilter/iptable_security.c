@@ -64,16 +64,12 @@ static int __net_init iptable_security_table_init(struct net *net)
 
 static void __net_exit iptable_security_net_pre_exit(struct net *net)
 {
-	if (net->ipv4.iptable_security)
-		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_security,
-					      sectbl_ops);
+	ipt_unregister_table_pre_exit(net, "security", sectbl_ops);
 }
 
 static void __net_exit iptable_security_net_exit(struct net *net)
 {
-	if (!net->ipv4.iptable_security)
-		return;
-	ipt_unregister_table_exit(net, net->ipv4.iptable_security);
+	ipt_unregister_table_exit(net, "security");
 	net->ipv4.iptable_security = NULL;
 }
 

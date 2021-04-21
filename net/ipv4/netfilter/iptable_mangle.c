@@ -102,16 +102,12 @@ static int __net_init iptable_mangle_table_init(struct net *net)
 
 static void __net_exit iptable_mangle_net_pre_exit(struct net *net)
 {
-	if (net->ipv4.iptable_mangle)
-		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_mangle,
-					      mangle_ops);
+	ipt_unregister_table_pre_exit(net, "mangle", mangle_ops);
 }
 
 static void __net_exit iptable_mangle_net_exit(struct net *net)
 {
-	if (!net->ipv4.iptable_mangle)
-		return;
-	ipt_unregister_table_exit(net, net->ipv4.iptable_mangle);
+	ipt_unregister_table_exit(net, "mangle");
 	net->ipv4.iptable_mangle = NULL;
 }
 

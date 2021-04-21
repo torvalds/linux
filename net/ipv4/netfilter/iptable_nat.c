@@ -105,7 +105,7 @@ static int __net_init iptable_nat_table_init(struct net *net)
 
 	ret = ipt_nat_register_lookups(net);
 	if (ret < 0) {
-		ipt_unregister_table_exit(net, net->ipv4.nat_table);
+		ipt_unregister_table_exit(net, "nat");
 		net->ipv4.nat_table = NULL;
 	}
 
@@ -121,9 +121,7 @@ static void __net_exit iptable_nat_net_pre_exit(struct net *net)
 
 static void __net_exit iptable_nat_net_exit(struct net *net)
 {
-	if (!net->ipv4.nat_table)
-		return;
-	ipt_unregister_table_exit(net, net->ipv4.nat_table);
+	ipt_unregister_table_exit(net, "nat");
 	net->ipv4.nat_table = NULL;
 }
 
