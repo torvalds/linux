@@ -1136,15 +1136,18 @@ static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
 	vfree(table->private->entries);
 	ebt_free_table_info(table->private);
 	vfree(table->private);
+	kfree(table->ops);
 	kfree(table);
 }
 
 int ebt_register_table(struct net *net, const struct ebt_table *input_table,
-		       const struct nf_hook_ops *ops, struct ebt_table **res)
+		       const struct nf_hook_ops *template_ops)
 {
 	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t, *table;
+	struct nf_hook_ops *ops;
+	unsigned int num_ops;
 	struct ebt_replace_kernel *repl;
 	int ret, i, countersize;
 	void *p;
@@ -1213,15 +1216,31 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 		ret = -ENOENT;
 		goto free_unlock;
 	}
+
+	num_ops = hweight32(table->valid_hooks);
+	if (num_ops == 0) {
+		ret = -EINVAL;
+		goto free_unlock;
+	}
+
+	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
+	if (!ops) {
+		ret = -ENOMEM;
+		if (newinfo->nentries)
+			module_put(table->me);
+		goto free_unlock;
+	}
+
+	for (i = 0; i < num_ops; i++)
+		ops[i].priv = table;
+
 	list_add(&table->list, &ebt_net->tables);
 	mutex_unlock(&ebt_mutex);
 
-	WRITE_ONCE(*res, table);
-	ret = nf_register_net_hooks(net, ops, hweight32(table->valid_hooks));
-	if (ret) {
+	table->ops = ops;
+	ret = nf_register_net_hooks(net, ops, num_ops);
+	if (ret)
 		__ebt_unregister_table(net, table);
-		*res = NULL;
-	}
 
 	audit_log_nfcfg(repl->name, AF_BRIDGE, repl->nentries,
 			AUDIT_XT_OP_REGISTER, GFP_KERNEL);
@@ -1257,18 +1276,21 @@ static struct ebt_table *__ebt_find_table(struct net *net, const char *name)
 	return NULL;
 }
 
-void ebt_unregister_table_pre_exit(struct net *net, const char *name, const struct nf_hook_ops *ops)
+void ebt_unregister_table_pre_exit(struct net *net, const char *name)
 {
 	struct ebt_table *table = __ebt_find_table(net, name);
 
 	if (table)
-		nf_unregister_net_hooks(net, ops, hweight32(table->valid_hooks));
+		nf_unregister_net_hooks(net, table->ops, hweight32(table->valid_hooks));
 }
 EXPORT_SYMBOL(ebt_unregister_table_pre_exit);
 
-void ebt_unregister_table(struct net *net, struct ebt_table *table)
+void ebt_unregister_table(struct net *net, const char *name)
 {
-	__ebt_unregister_table(net, table);
+	struct ebt_table *table = __ebt_find_table(net, name);
+
+	if (table)
+		__ebt_unregister_table(net, table);
 }
 
 /* userspace just supplied us with counters */
