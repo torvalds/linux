@@ -299,13 +299,13 @@ xfs_inode_item_format_attr_fork(
  * Convert an incore timestamp to a log timestamp.  Note that the log format
  * specifies host endian format!
  */
-static inline xfs_ictimestamp_t
+static inline xfs_log_timestamp_t
 xfs_inode_to_log_dinode_ts(
 	struct xfs_inode		*ip,
 	const struct timespec64		tv)
 {
 	struct xfs_legacy_ictimestamp	*lits;
-	xfs_ictimestamp_t		its;
+	xfs_log_timestamp_t		its;
 
 	if (xfs_inode_has_bigtime(ip))
 		return xfs_inode_encode_bigtime(tv);
