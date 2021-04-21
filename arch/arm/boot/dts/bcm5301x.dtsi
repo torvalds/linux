@@ -458,18 +458,18 @@
 					function = "spi";
 				};
 
-				pinmux_i2c: i2c {
+				pinmux_i2c: i2c-pins {
 					groups = "i2c_grp";
 					function = "i2c";
 				};
 
-				pinmux_pwm: pwm {
+				pinmux_pwm: pwm-pins {
 					groups = "pwm0_grp", "pwm1_grp",
 						 "pwm2_grp", "pwm3_grp";
 					function = "pwm";
 				};
 
-				pinmux_uart1: uart1 {
+				pinmux_uart1: uart1-pins {
 					groups = "uart1_grp";
 					function = "uart1";
 				};
