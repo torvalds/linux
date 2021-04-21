@@ -587,9 +587,6 @@ kfd_mem_dmaunmap_dmabuf(struct kfd_mem_attachment *attachment)
 
 	amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
 	ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	/* FIXME: This does not guarantee that amdgpu_ttm_tt_unpopulate is
-	 * called
-	 */
 }
 
 static void
