@@ -4563,8 +4563,7 @@ enum {
 #define   EDP_SU_TRACK_ENABLE			(1 << 30)
 #define   TGL_EDP_PSR2_BLOCK_COUNT_NUM_2	(0 << 28)
 #define   TGL_EDP_PSR2_BLOCK_COUNT_NUM_3	(1 << 28)
-#define   EDP_Y_COORDINATE_VALID		(1 << 26) /* GLK and CNL+ */
-#define   EDP_Y_COORDINATE_ENABLE		(1 << 25) /* GLK and CNL+ */
+#define   EDP_Y_COORDINATE_ENABLE		REG_BIT(25) /* display 10, 11 and 12 */
 #define   EDP_MAX_SU_DISABLE_TIME(t)		((t) << 20)
 #define   EDP_MAX_SU_DISABLE_TIME_MASK		(0x1f << 20)
 #define   EDP_PSR2_IO_BUFFER_WAKE_MAX_LINES	8
