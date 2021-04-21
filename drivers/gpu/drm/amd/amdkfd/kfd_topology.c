@@ -1196,6 +1196,7 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *link, *cpu_link;
 	struct kfd_topology_device *cpu_dev;
+	struct amdgpu_device *adev;
 	uint32_t cap;
 	uint32_t cpu_flag = CRAT_IOLINK_FLAGS_ENABLED;
 	uint32_t flag = CRAT_IOLINK_FLAGS_ENABLED;
@@ -1203,18 +1204,24 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 	if (!dev || !dev->gpu)
 		return;
 
-	pcie_capability_read_dword(dev->gpu->pdev,
-			PCI_EXP_DEVCAP2, &cap);
+	adev = (struct amdgpu_device *)(dev->gpu->kgd);
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		pcie_capability_read_dword(dev->gpu->pdev,
+				PCI_EXP_DEVCAP2, &cap);
 
-	if (!(cap & (PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
-		     PCI_EXP_DEVCAP2_ATOMIC_COMP64)))
-		cpu_flag |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
-			CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+		if (!(cap & (PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
+			     PCI_EXP_DEVCAP2_ATOMIC_COMP64)))
+			cpu_flag |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
+				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+	}
 
-	if (!dev->gpu->pci_atomic_requested ||
-	    dev->gpu->device_info->asic_family == CHIP_HAWAII)
-		flag |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
-			CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+	if (!adev->gmc.xgmi.num_physical_nodes) {
+		if (!dev->gpu->pci_atomic_requested ||
+				dev->gpu->device_info->asic_family ==
+							CHIP_HAWAII)
+			flag |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
+				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+	}
 
 	/* GPU only creates direct links so apply flags setting to all */
 	list_for_each_entry(link, &dev->io_link_props, list) {
