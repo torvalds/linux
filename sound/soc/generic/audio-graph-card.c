@@ -206,6 +206,47 @@ static void graph_parse_mclk_fs(struct device_node *top,
 	of_node_put(ports);
 }
 
+static int graph_parse_node(struct asoc_simple_priv *priv,
+			    struct device_node *ep,
+			    struct link_info *li,
+			    int is_cpu)
+{
+	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *top = dev->of_node;
+	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
+	struct snd_soc_dai_link_component *dlc;
+	struct asoc_simple_dai *dai;
+	int ret, single = 0;
+
+	if (is_cpu) {
+		dlc = asoc_link_to_cpu(dai_link, 0);
+		dai = simple_props_to_dai_cpu(dai_props, 0);
+	} else {
+		dlc = asoc_link_to_codec(dai_link, 0);
+		dai = simple_props_to_dai_codec(dai_props, 0);
+	}
+
+	graph_parse_mclk_fs(top, ep, dai_props);
+
+	ret = asoc_simple_parse_dai(ep, dlc, &single);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_parse_tdm(ep, dai);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_parse_clk(dev, ep, dai, dlc);
+	if (ret < 0)
+		return ret;
+
+	if (is_cpu)
+		asoc_simple_canonicalize_cpu(dlc, single);
+
+	return 0;
+}
+
 static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 				  struct device_node *cpu_ep,
 				  struct device_node *codec_ep,
@@ -219,37 +260,24 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct device_node *ep = li->cpu ? cpu_ep : codec_ep;
 	struct device_node *port;
 	struct device_node *ports;
-	struct device_node *node;
-	struct asoc_simple_dai *dai;
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
 	int ret;
 
 	port	= of_get_parent(ep);
 	ports	= of_get_parent(port);
-	node	= of_graph_get_port_parent(ep);
-
-	li->link++;
 
 	dev_dbg(dev, "link_of DPCM (%pOF)\n", ep);
 
 	if (li->cpu) {
-		int is_single_links = 0;
-
 		/* Codec is dummy */
 
 		/* FE settings */
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
 
-		dai = simple_props_to_dai_cpu(dai_props, 0);
-
-		ret = asoc_simple_parse_dai(ep, cpus, &is_single_links);
+		ret = graph_parse_node(priv, cpu_ep, li, 1);
 		if (ret)
-			goto out_put_node;
-
-		ret = asoc_simple_parse_clk(dev, ep, dai, cpus);
-		if (ret < 0)
 			goto out_put_node;
 
 		ret = asoc_simple_set_dailink_name(dev, dai_link,
@@ -271,9 +299,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		 */
 		if (card->component_chaining && !soc_component_is_pcm(cpus))
 			dai_link->no_pcm = 1;
-
-		/* card->num_links includes Codec */
-		asoc_simple_canonicalize_cpu(cpus, is_single_links);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -283,14 +308,9 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai_link->no_pcm		= 1;
 		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
 
-		dai	= simple_props_to_dai_codec(dai_props, 0);
 		cconf	= simple_props_to_codec_conf(dai_props, 0);
 
-		ret = asoc_simple_parse_dai(ep, codecs, NULL);
-		if (ret < 0)
-			goto out_put_node;
-
-		ret = asoc_simple_parse_clk(dev, ep, dai, codecs);
+		ret = graph_parse_node(priv, codec_ep, li, 0);
 		if (ret < 0)
 			goto out_put_node;
 
@@ -311,11 +331,6 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	}
 
 	graph_parse_convert(dev, ep, &dai_props->adata);
-	graph_parse_mclk_fs(top, ep, dai_props);
-
-	ret = asoc_simple_parse_tdm(ep, dai);
-	if (ret)
-		goto out_put_node;
 
 	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
 				       NULL, &dai_link->dai_fmt);
@@ -333,9 +348,10 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	dai_link->init			= asoc_simple_dai_init;
 
 out_put_node:
+	li->link++;
+
 	of_node_put(ports);
 	of_node_put(port);
-	of_node_put(node);
 	return ret;
 }
 
@@ -346,48 +362,22 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct device_node *top = dev->of_node;
-	struct asoc_simple_dai *cpu_dai = simple_props_to_dai_cpu(dai_props, 0);
-	struct asoc_simple_dai *codec_dai = simple_props_to_dai_codec(dai_props, 0);
 	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
 	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
-	int ret, single_cpu = 0;
+	int ret;
 
 	dev_dbg(dev, "link_of (%pOF)\n", cpu_ep);
-
-	li->link++;
-
-	/* Factor to mclk, used in hw_params() */
-	graph_parse_mclk_fs(top, cpu_ep,   dai_props);
-	graph_parse_mclk_fs(top, codec_ep, dai_props);
 
 	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
 				       NULL, &dai_link->dai_fmt);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_dai(cpu_ep, cpus, &single_cpu);
+	ret = graph_parse_node(priv, cpu_ep, li, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_dai(codec_ep, codecs, NULL);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_parse_tdm(cpu_ep, cpu_dai);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_parse_tdm(codec_ep, codec_dai);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_parse_clk(dev, cpu_ep, cpu_dai, cpus);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_parse_clk(dev, codec_ep, codec_dai, codecs);
+	ret = graph_parse_node(priv, codec_ep, li, 0);
 	if (ret < 0)
 		return ret;
 
@@ -401,7 +391,7 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->ops = &graph_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_canonicalize_cpu(cpus, single_cpu);
+	li->link++;
 
 	return 0;
 }
