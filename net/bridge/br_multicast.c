@@ -1625,7 +1625,7 @@ int br_multicast_add_port(struct net_bridge_port *port)
 				    br_opt_get(port->br,
 					       BROPT_MULTICAST_ENABLED),
 				    NULL);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	port->mcast_stats = netdev_alloc_pcpu_stats(struct bridge_mcast_stats);
