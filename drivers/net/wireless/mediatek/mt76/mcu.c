@@ -99,10 +99,6 @@ int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
 			dev_kfree_skb(skb);
 	} while (ret == -EAGAIN);
 
-	/* notify driver code to reset the mcu */
-	if (ret == -ETIMEDOUT && dev->mcu_ops->mcu_reset)
-		dev->mcu_ops->mcu_reset(dev);
-
 out:
 	mutex_unlock(&dev->mcu.mutex);
 
