@@ -371,7 +371,7 @@ static inline int xfs_ilog_fdata(int w)
 typedef uint64_t xfs_log_timestamp_t;
 
 /* Legacy timestamp encoding format. */
-struct xfs_legacy_ictimestamp {
+struct xfs_log_legacy_timestamp {
 	int32_t		t_sec;		/* timestamp seconds */
 	int32_t		t_nsec;		/* timestamp nanoseconds */
 };

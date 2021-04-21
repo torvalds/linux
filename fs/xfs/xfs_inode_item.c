@@ -304,13 +304,13 @@ xfs_inode_to_log_dinode_ts(
 	struct xfs_inode		*ip,
 	const struct timespec64		tv)
 {
-	struct xfs_legacy_ictimestamp	*lits;
+	struct xfs_log_legacy_timestamp	*lits;
 	xfs_log_timestamp_t		its;
 
 	if (xfs_inode_has_bigtime(ip))
 		return xfs_inode_encode_bigtime(tv);
 
-	lits = (struct xfs_legacy_ictimestamp *)&its;
+	lits = (struct xfs_log_legacy_timestamp *)&its;
 	lits->t_sec = tv.tv_sec;
 	lits->t_nsec = tv.tv_nsec;
 
