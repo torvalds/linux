@@ -4559,8 +4559,7 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	if (!ring->sched.ready)
 		return 0;
 
-	if (adev->asic_type == CHIP_ARCTURUS ||
-	    adev->asic_type == CHIP_ALDEBARAN) {
+	if (adev->asic_type == CHIP_ARCTURUS) {
 		vgpr_init_shader_ptr = vgpr_init_compute_shader_arcturus;
 		vgpr_init_shader_size = sizeof(vgpr_init_compute_shader_arcturus);
 		vgpr_init_regs_ptr = vgpr_init_regs_arcturus;
@@ -4745,7 +4744,11 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	}
 
 	/* requires IBs so do in late init after IB pool is initialized */
-	r = gfx_v9_0_do_edc_gpr_workarounds(adev);
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		r = gfx_v9_4_2_do_edc_gpr_workarounds(adev);
+	else
+		r = gfx_v9_0_do_edc_gpr_workarounds(adev);
+
 	if (r)
 		return r;
 
