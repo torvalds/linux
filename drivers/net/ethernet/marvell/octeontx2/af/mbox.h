@@ -177,6 +177,7 @@ M(CPT_LF_ALLOC,		0xA00, cpt_lf_alloc, cpt_lf_alloc_req_msg,	\
 M(CPT_LF_FREE,		0xA01, cpt_lf_free, msg_req, msg_rsp)		\
 M(CPT_RD_WR_REGISTER,	0xA02, cpt_rd_wr_register,  cpt_rd_wr_reg_msg,	\
 			       cpt_rd_wr_reg_msg)			\
+M(CPT_STATS,            0xA05, cpt_sts, cpt_sts_req, cpt_sts_rsp)	\
 M(CPT_RXC_TIME_CFG,     0xA06, cpt_rxc_time_cfg, cpt_rxc_time_cfg_req,  \
 			       msg_rsp)                                 \
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
@@ -1255,6 +1256,53 @@ struct cpt_lf_alloc_req_msg {
 	u16 sso_pf_func;
 	u16 eng_grpmsk;
 	int blkaddr;
+};
+
+/* Mailbox message request and response format for CPT stats. */
+struct cpt_sts_req {
+	struct mbox_msghdr hdr;
+	u8 blkaddr;
+};
+
+struct cpt_sts_rsp {
+	struct mbox_msghdr hdr;
+	u64 inst_req_pc;
+	u64 inst_lat_pc;
+	u64 rd_req_pc;
+	u64 rd_lat_pc;
+	u64 rd_uc_pc;
+	u64 active_cycles_pc;
+	u64 ctx_mis_pc;
+	u64 ctx_hit_pc;
+	u64 ctx_aop_pc;
+	u64 ctx_aop_lat_pc;
+	u64 ctx_ifetch_pc;
+	u64 ctx_ifetch_lat_pc;
+	u64 ctx_ffetch_pc;
+	u64 ctx_ffetch_lat_pc;
+	u64 ctx_wback_pc;
+	u64 ctx_wback_lat_pc;
+	u64 ctx_psh_pc;
+	u64 ctx_psh_lat_pc;
+	u64 ctx_err;
+	u64 ctx_enc_id;
+	u64 ctx_flush_timer;
+	u64 rxc_time;
+	u64 rxc_time_cfg;
+	u64 rxc_active_sts;
+	u64 rxc_zombie_sts;
+	u64 busy_sts_ae;
+	u64 free_sts_ae;
+	u64 busy_sts_se;
+	u64 free_sts_se;
+	u64 busy_sts_ie;
+	u64 free_sts_ie;
+	u64 exe_err_info;
+	u64 cptclk_cnt;
+	u64 diag;
+	u64 rxc_dfrg;
+	u64 x2p_link_cfg0;
+	u64 x2p_link_cfg1;
 };
 
 /* Mailbox message request format to configure reassembly timeout. */

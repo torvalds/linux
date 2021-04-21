@@ -15,6 +15,24 @@
 /* Length of initial context fetch in 128 byte words */
 #define CPT_CTX_ILEN    2
 
+#define cpt_get_eng_sts(e_min, e_max, rsp, etype)                   \
+({                                                                  \
+	u64 free_sts = 0, busy_sts = 0;                             \
+	typeof(rsp) _rsp = rsp;                                     \
+	u32 e, i;                                                   \
+								    \
+	for (e = (e_min), i = 0; e < (e_max); e++, i++) {           \
+		reg = rvu_read64(rvu, blkaddr, CPT_AF_EXEX_STS(e)); \
+		if (reg & 0x1)                                      \
+			busy_sts |= 1ULL << i;                      \
+								    \
+		if (reg & 0x2)                                      \
+			free_sts |= 1ULL << i;                      \
+	}                                                           \
+	(_rsp)->busy_sts_##etype = busy_sts;                        \
+	(_rsp)->free_sts_##etype = free_sts;                        \
+})
+
 static int get_cpt_pf_num(struct rvu *rvu)
 {
 	int i, domain_nr, cpt_pf_num = -1;
@@ -260,6 +278,100 @@ int rvu_mbox_handler_cpt_rd_wr_register(struct rvu *rvu,
 		rvu_write64(rvu, blkaddr, req->reg_offset, req->val);
 	else
 		rsp->val = rvu_read64(rvu, blkaddr, req->reg_offset);
+
+	return 0;
+}
+
+static void get_ctx_pc(struct rvu *rvu, struct cpt_sts_rsp *rsp, int blkaddr)
+{
+	if (is_rvu_otx2(rvu))
+		return;
+
+	rsp->ctx_mis_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_MIS_PC);
+	rsp->ctx_hit_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_HIT_PC);
+	rsp->ctx_aop_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_AOP_PC);
+	rsp->ctx_aop_lat_pc = rvu_read64(rvu, blkaddr,
+					 CPT_AF_CTX_AOP_LATENCY_PC);
+	rsp->ctx_ifetch_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_IFETCH_PC);
+	rsp->ctx_ifetch_lat_pc = rvu_read64(rvu, blkaddr,
+					    CPT_AF_CTX_IFETCH_LATENCY_PC);
+	rsp->ctx_ffetch_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FFETCH_PC);
+	rsp->ctx_ffetch_lat_pc = rvu_read64(rvu, blkaddr,
+					    CPT_AF_CTX_FFETCH_LATENCY_PC);
+	rsp->ctx_wback_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FFETCH_PC);
+	rsp->ctx_wback_lat_pc = rvu_read64(rvu, blkaddr,
+					   CPT_AF_CTX_FFETCH_LATENCY_PC);
+	rsp->ctx_psh_pc = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FFETCH_PC);
+	rsp->ctx_psh_lat_pc = rvu_read64(rvu, blkaddr,
+					 CPT_AF_CTX_FFETCH_LATENCY_PC);
+	rsp->ctx_err = rvu_read64(rvu, blkaddr, CPT_AF_CTX_ERR);
+	rsp->ctx_enc_id = rvu_read64(rvu, blkaddr, CPT_AF_CTX_ENC_ID);
+	rsp->ctx_flush_timer = rvu_read64(rvu, blkaddr, CPT_AF_CTX_FLUSH_TIMER);
+
+	rsp->rxc_time = rvu_read64(rvu, blkaddr, CPT_AF_RXC_TIME);
+	rsp->rxc_time_cfg = rvu_read64(rvu, blkaddr, CPT_AF_RXC_TIME_CFG);
+	rsp->rxc_active_sts = rvu_read64(rvu, blkaddr, CPT_AF_RXC_ACTIVE_STS);
+	rsp->rxc_zombie_sts = rvu_read64(rvu, blkaddr, CPT_AF_RXC_ZOMBIE_STS);
+	rsp->rxc_dfrg = rvu_read64(rvu, blkaddr, CPT_AF_RXC_DFRG);
+	rsp->x2p_link_cfg0 = rvu_read64(rvu, blkaddr, CPT_AF_X2PX_LINK_CFG(0));
+	rsp->x2p_link_cfg1 = rvu_read64(rvu, blkaddr, CPT_AF_X2PX_LINK_CFG(1));
+}
+
+static void get_eng_sts(struct rvu *rvu, struct cpt_sts_rsp *rsp, int blkaddr)
+{
+	u16 max_ses, max_ies, max_aes;
+	u32 e_min = 0, e_max = 0;
+	u64 reg;
+
+	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
+	max_ses = reg & 0xffff;
+	max_ies = (reg >> 16) & 0xffff;
+	max_aes = (reg >> 32) & 0xffff;
+
+	/* Get AE status */
+	e_min = max_ses + max_ies;
+	e_max = max_ses + max_ies + max_aes;
+	cpt_get_eng_sts(e_min, e_max, rsp, ae);
+	/* Get SE status */
+	e_min = 0;
+	e_max = max_ses;
+	cpt_get_eng_sts(e_min, e_max, rsp, se);
+	/* Get IE status */
+	e_min = max_ses;
+	e_max = max_ses + max_ies;
+	cpt_get_eng_sts(e_min, e_max, rsp, ie);
+}
+
+int rvu_mbox_handler_cpt_sts(struct rvu *rvu, struct cpt_sts_req *req,
+			     struct cpt_sts_rsp *rsp)
+{
+	int blkaddr;
+
+	blkaddr = validate_and_get_cpt_blkaddr(req->blkaddr);
+	if (blkaddr < 0)
+		return blkaddr;
+
+	/* This message is accepted only if sent from CPT PF/VF */
+	if (!is_cpt_pf(rvu, req->hdr.pcifunc) &&
+	    !is_cpt_vf(rvu, req->hdr.pcifunc))
+		return CPT_AF_ERR_ACCESS_DENIED;
+
+	get_ctx_pc(rvu, rsp, blkaddr);
+
+	/* Get CPT engines status */
+	get_eng_sts(rvu, rsp, blkaddr);
+
+	/* Read CPT instruction PC registers */
+	rsp->inst_req_pc = rvu_read64(rvu, blkaddr, CPT_AF_INST_REQ_PC);
+	rsp->inst_lat_pc = rvu_read64(rvu, blkaddr, CPT_AF_INST_LATENCY_PC);
+	rsp->rd_req_pc = rvu_read64(rvu, blkaddr, CPT_AF_RD_REQ_PC);
+	rsp->rd_lat_pc = rvu_read64(rvu, blkaddr, CPT_AF_RD_LATENCY_PC);
+	rsp->rd_uc_pc = rvu_read64(rvu, blkaddr, CPT_AF_RD_UC_PC);
+	rsp->active_cycles_pc = rvu_read64(rvu, blkaddr,
+					   CPT_AF_ACTIVE_CYCLES_PC);
+	rsp->exe_err_info = rvu_read64(rvu, blkaddr, CPT_AF_EXE_ERR_INFO);
+	rsp->cptclk_cnt = rvu_read64(rvu, blkaddr, CPT_AF_CPTCLK_CNT);
+	rsp->diag = rvu_read64(rvu, blkaddr, CPT_AF_DIAG);
 
 	return 0;
 }
