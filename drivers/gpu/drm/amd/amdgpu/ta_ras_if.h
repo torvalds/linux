@@ -105,6 +105,12 @@ struct ta_ras_trigger_error_input {
 	uint64_t		value;			// method if error injection. i.e persistent, coherent etc.
 };
 
+struct ta_ras_init_flags
+{
+    uint8_t     poison_mode_en;
+    uint8_t     dgpu_mode;
+};
+
 struct ta_ras_output_flags
 {
 	uint8_t    ras_init_success_flag;
@@ -115,6 +121,7 @@ struct ta_ras_output_flags
 /* Common input structure for RAS callbacks */
 /**********************************************************/
 union ta_ras_cmd_input {
+	struct ta_ras_init_flags		init_flags;
 	struct ta_ras_enable_features_input	enable_features;
 	struct ta_ras_disable_features_input	disable_features;
 	struct ta_ras_trigger_error_input	trigger_error;

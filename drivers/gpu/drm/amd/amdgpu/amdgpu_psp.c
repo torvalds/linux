@@ -1037,6 +1037,13 @@ static int psp_ras_load(struct psp_context *psp)
 	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
 	memcpy(psp->fw_pri_buf, psp->ta_ras_start_addr, psp->ta_ras_ucode_size);
 
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+
+	if (psp->adev->gmc.xgmi.connected_to_cpu)
+		ras_cmd->ras_in_message.init_flags.poison_mode_en = 1;
+	else
+		ras_cmd->ras_in_message.init_flags.dgpu_mode = 1;
+
 	psp_prep_ta_load_cmd_buf(cmd,
 				 psp->fw_pri_mc_addr,
 				 psp->ta_ras_ucode_size,
@@ -1045,8 +1052,6 @@ static int psp_ras_load(struct psp_context *psp)
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
-
-	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
 
 	if (!ret) {
 		psp->ras.session_id = cmd->resp.session_id;
