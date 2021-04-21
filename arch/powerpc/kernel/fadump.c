@@ -45,22 +45,21 @@ static struct fw_dump fw_dump;
 
 static void __init fadump_reserve_crash_area(u64 base);
 
-struct kobject *fadump_kobj;
-
 #ifndef CONFIG_PRESERVE_FA_DUMP
+
+static struct kobject *fadump_kobj;
 
 static atomic_t cpus_in_fadump;
 static DEFINE_MUTEX(fadump_mutex);
 
-struct fadump_mrange_info crash_mrange_info = { "crash", NULL, 0, 0, 0, false };
+static struct fadump_mrange_info crash_mrange_info = { "crash", NULL, 0, 0, 0, false };
 
 #define RESERVED_RNGS_SZ	16384 /* 16K - 128 entries */
 #define RESERVED_RNGS_CNT	(RESERVED_RNGS_SZ / \
 				 sizeof(struct fadump_memory_range))
 static struct fadump_memory_range rngs[RESERVED_RNGS_CNT];
-struct fadump_mrange_info reserved_mrange_info = { "reserved", rngs,
-						   RESERVED_RNGS_SZ, 0,
-						   RESERVED_RNGS_CNT, true };
+static struct fadump_mrange_info
+reserved_mrange_info = { "reserved", rngs, RESERVED_RNGS_SZ, 0, RESERVED_RNGS_CNT, true };
 
 static void __init early_init_dt_scan_reserved_ranges(unsigned long node);
 
@@ -80,7 +79,7 @@ static struct cma *fadump_cma;
  * But for some reason even if it fails we still have the memory reservation
  * with us and we can still continue doing fadump.
  */
-int __init fadump_cma_init(void)
+static int __init fadump_cma_init(void)
 {
 	unsigned long long base, size;
 	int rc;
