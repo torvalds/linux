@@ -170,7 +170,7 @@ static inline bool test_div64_verify(u64 quotient, u32 remainder, int i, int j)
 	if (!test_div64_verify(quotient, remainder, i, j)) {		\
 		pr_err("ERROR: %016llx / %08x => %016llx,%08x\n",	\
 		       divident, divisor, quotient, remainder);		\
-		pr_err("ERROR: expected value=> %016llx,%08x\n",	\
+		pr_err("ERROR: expected value              => %016llx,%08x\n",\
 		       test_div64_results[i][j].quotient,		\
 		       test_div64_results[i][j].remainder);		\
 		result = false;						\
