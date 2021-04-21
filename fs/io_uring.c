@@ -6839,27 +6839,29 @@ static int io_sq_thread(void *data)
 			continue;
 		}
 
-		needs_sched = true;
 		prepare_to_wait(&sqd->wait, &wait, TASK_INTERRUPTIBLE);
-		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
-			if ((ctx->flags & IORING_SETUP_IOPOLL) &&
-			    !list_empty_careful(&ctx->iopoll_list)) {
-				needs_sched = false;
-				break;
-			}
-			if (io_sqring_entries(ctx)) {
-				needs_sched = false;
-				break;
-			}
-		}
-
-		if (needs_sched && !test_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state)) {
+		if (!test_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state)) {
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				io_ring_set_wakeup_flag(ctx);
 
-			mutex_unlock(&sqd->lock);
-			schedule();
-			mutex_lock(&sqd->lock);
+			needs_sched = true;
+			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
+				if ((ctx->flags & IORING_SETUP_IOPOLL) &&
+				    !list_empty_careful(&ctx->iopoll_list)) {
+					needs_sched = false;
+					break;
+				}
+				if (io_sqring_entries(ctx)) {
+					needs_sched = false;
+					break;
+				}
+			}
+
+			if (needs_sched) {
+				mutex_unlock(&sqd->lock);
+				schedule();
+				mutex_lock(&sqd->lock);
+			}
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				io_ring_clear_wakeup_flag(ctx);
 		}
