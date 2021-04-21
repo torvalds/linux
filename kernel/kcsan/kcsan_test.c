@@ -984,7 +984,7 @@ static const void *nthreads_gen_params(const void *prev, char *desc)
 		const long min_required_cpus = 2 + min_unused_cpus;
 
 		if (num_online_cpus() < min_required_cpus) {
-			pr_err_once("Too few online CPUs (%u < %d) for test\n",
+			pr_err_once("Too few online CPUs (%u < %ld) for test\n",
 				    num_online_cpus(), min_required_cpus);
 			nthreads = 0;
 		} else if (nthreads >= num_online_cpus() - min_unused_cpus) {
