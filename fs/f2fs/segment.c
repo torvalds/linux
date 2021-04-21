@@ -2933,7 +2933,7 @@ unlock:
 }
 
 static void __allocate_new_segment(struct f2fs_sb_info *sbi, int type,
-								bool new_sec)
+						bool new_sec, bool force)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int old_segno;
@@ -2941,7 +2941,7 @@ static void __allocate_new_segment(struct f2fs_sb_info *sbi, int type,
 	if (!curseg->inited)
 		goto alloc;
 
-	if (curseg->next_blkoff ||
+	if (force || curseg->next_blkoff ||
 		get_valid_blocks(sbi, curseg->segno, new_sec))
 		goto alloc;
 
@@ -2953,16 +2953,17 @@ alloc:
 	locate_dirty_segment(sbi, old_segno);
 }
 
-static void __allocate_new_section(struct f2fs_sb_info *sbi, int type)
+static void __allocate_new_section(struct f2fs_sb_info *sbi,
+						int type, bool force)
 {
-	__allocate_new_segment(sbi, type, true);
+	__allocate_new_segment(sbi, type, true, force);
 }
 
-void f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type)
+void f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type, bool force)
 {
 	down_read(&SM_I(sbi)->curseg_lock);
 	down_write(&SIT_I(sbi)->sentry_lock);
-	__allocate_new_section(sbi, type);
+	__allocate_new_section(sbi, type, force);
 	up_write(&SIT_I(sbi)->sentry_lock);
 	up_read(&SM_I(sbi)->curseg_lock);
 }
@@ -2974,7 +2975,7 @@ void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi)
 	down_read(&SM_I(sbi)->curseg_lock);
 	down_write(&SIT_I(sbi)->sentry_lock);
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++)
-		__allocate_new_segment(sbi, i, false);
+		__allocate_new_segment(sbi, i, false, false);
 	up_write(&SIT_I(sbi)->sentry_lock);
 	up_read(&SM_I(sbi)->curseg_lock);
 }
@@ -4844,7 +4845,8 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 
 	f2fs_notice(sbi, "Assign new section to curseg[%d]: "
 		    "curseg[0x%x,0x%x]", type, cs->segno, cs->next_blkoff);
-	allocate_segment_by_default(sbi, type, true);
+
+	f2fs_allocate_new_section(sbi, type, true);
 
 	/* check consistency of the zone curseg pointed to */
 	if (check_zone_write_pointer(sbi, zbd, &zone))
