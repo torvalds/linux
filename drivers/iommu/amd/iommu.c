@@ -1714,6 +1714,8 @@ static void amd_iommu_probe_finalize(struct device *dev)
 	domain = iommu_get_domain_for_dev(dev);
 	if (domain->type == IOMMU_DOMAIN_DMA)
 		iommu_setup_dma_ops(dev, IOVA_START_PFN << PAGE_SHIFT, 0);
+	else
+		set_dma_ops(dev, NULL);
 }
 
 static void amd_iommu_release_device(struct device *dev)
