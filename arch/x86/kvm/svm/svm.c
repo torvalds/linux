@@ -982,21 +982,6 @@ static __init int svm_hardware_setup(void)
 		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
 	}
 
-	if (IS_ENABLED(CONFIG_KVM_AMD_SEV) && sev) {
-		sev_hardware_setup();
-	} else {
-		sev = false;
-		sev_es = false;
-	}
-
-	svm_adjust_mmio_mask();
-
-	for_each_possible_cpu(cpu) {
-		r = svm_cpu_init(cpu);
-		if (r)
-			goto err;
-	}
-
 	/*
 	 * KVM's MMU doesn't support using 2-level paging for itself, and thus
 	 * NPT isn't supported if the host is using 2-level paging since host
@@ -1010,6 +995,21 @@ static __init int svm_hardware_setup(void)
 
 	kvm_configure_mmu(npt_enabled, get_max_npt_level(), PG_LEVEL_1G);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
+
+	if (IS_ENABLED(CONFIG_KVM_AMD_SEV) && sev && npt_enabled) {
+		sev_hardware_setup();
+	} else {
+		sev = false;
+		sev_es = false;
+	}
+
+	svm_adjust_mmio_mask();
+
+	for_each_possible_cpu(cpu) {
+		r = svm_cpu_init(cpu);
+		if (r)
+			goto err;
+	}
 
 	if (nrips) {
 		if (!boot_cpu_has(X86_FEATURE_NRIPS))
