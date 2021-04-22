@@ -283,7 +283,7 @@ static void mana_hwc_comp_event(void *ctx, struct gdma_queue *q_self)
 	struct hwc_rx_oob comp_data = {};
 	struct gdma_comp *completions;
 	struct hwc_cq *hwc_cq = ctx;
-	u32 comp_read, i;
+	int comp_read, i;
 
 	WARN_ON_ONCE(hwc_cq->gdma_cq != q_self);
 
