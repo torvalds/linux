@@ -12,8 +12,8 @@
 #include "super.h"
 #include "xattr.h"
 
+#include <linux/bsearch.h>
 #include <linux/dcache.h> /* struct qstr */
-#include <linux/generic-radix-tree.h>
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
@@ -1132,38 +1132,120 @@ static int check_directory_structure(struct bch_fs *c)
 	return bch2_trans_exit(&trans) ?: ret;
 }
 
-struct nlink {
-	u32	count;
+struct nlink_table {
+	size_t		nr;
+	size_t		size;
+
+	struct nlink {
+		u64	inum;
+		u32	snapshot;
+		u32	count;
+	}		*d;
 };
 
-typedef GENRADIX(struct nlink) nlink_table;
-
-static void inc_link(struct bch_fs *c, nlink_table *links,
-		     u64 range_start, u64 *range_end, u64 inum)
+static int add_nlink(struct nlink_table *t, u64 inum, u32 snapshot)
 {
-	struct nlink *link;
+	if (t->nr == t->size) {
+		size_t new_size = max_t(size_t, 128UL, t->size * 2);
+		void *d = kvmalloc(new_size * sizeof(t->d[0]), GFP_KERNEL);
+		if (!d) {
+			return -ENOMEM;
+		}
 
-	if (inum < range_start || inum >= *range_end)
-		return;
+		memcpy(d, t->d, t->size * sizeof(t->d[0]));
+		kvfree(t->d);
 
-	if (inum - range_start >= SIZE_MAX / sizeof(struct nlink)) {
-		*range_end = inum;
-		return;
+		t->d = d;
+		t->size = new_size;
 	}
 
-	link = genradix_ptr_alloc(links, inum - range_start, GFP_KERNEL);
-	if (!link) {
-		bch_verbose(c, "allocation failed during fsck - will need another pass");
-		*range_end = inum;
-		return;
-	}
 
-	link->count++;
+	t->d[t->nr++] = (struct nlink) {
+		.inum		= inum,
+		.snapshot	= snapshot,
+	};
+
+	return 0;
+}
+
+static int nlink_cmp(const void *_l, const void *_r)
+{
+	const struct nlink *l = _l;
+	const struct nlink *r = _r;
+
+	return cmp_int(l->inum, r->inum) ?: cmp_int(l->snapshot, r->snapshot);
+}
+
+static void inc_link(struct bch_fs *c, struct nlink_table *links,
+		     u64 range_start, u64 range_end, u64 inum)
+{
+	struct nlink *link, key = {
+		.inum = inum, .snapshot = U32_MAX,
+	};
+
+	if (inum < range_start || inum >= range_end)
+		return;
+
+	link = __inline_bsearch(&key, links->d, links->nr,
+				sizeof(links->d[0]), nlink_cmp);
+	if (link)
+		link->count++;
 }
 
 noinline_for_stack
-static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
-			       u64 range_start, u64 *range_end)
+static int check_nlinks_find_hardlinks(struct bch_fs *c,
+				       struct nlink_table *t,
+				       u64 start, u64 *end)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	struct bkey_s_c_inode inode;
+	struct bch_inode_unpacked u;
+	int ret = 0;
+
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes,
+			   POS(0, start), 0, k, ret) {
+		if (k.k->type != KEY_TYPE_inode)
+			continue;
+
+		inode = bkey_s_c_to_inode(k);
+
+		/*
+		 * Backpointer and directory structure checks are sufficient for
+		 * directories, since they can't have hardlinks:
+		 */
+		if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
+			continue;
+
+		/* Should never fail, checked by bch2_inode_invalid: */
+		BUG_ON(bch2_inode_unpack(inode, &u));
+
+		if (!u.bi_nlink)
+			continue;
+
+		ret = add_nlink(t, k.k->p.offset, k.k->p.snapshot);
+		if (ret) {
+			*end = k.k->p.offset;
+			ret = 0;
+			break;
+		}
+
+	}
+	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_exit(&trans);
+
+	if (ret)
+		bch_err(c, "error in fsck: btree error %i while walking inodes", ret);
+
+	return ret;
+}
+
+noinline_for_stack
+static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links,
+				     u64 range_start, u64 range_end)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -1195,80 +1277,58 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 	return ret;
 }
 
-static int check_inode_nlink(struct btree_trans *trans,
-			     struct btree_iter *iter,
-			     struct bkey_s_c_inode inode,
-			     unsigned nlink)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_inode_unpacked u;
-	int ret = 0;
-
-	/*
-	 * Backpointer and directory structure checks are sufficient for
-	 * directories, since they can't have hardlinks:
-	 */
-	if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
-		return 0;
-
-	if (!nlink) {
-		bch_err(c, "no links found to inode %llu", inode.k->p.offset);
-		return -EINVAL;
-	}
-
-	ret = bch2_inode_unpack(inode, &u);
-
-	/* Should never happen, checked by bch2_inode_invalid: */
-	if (bch2_fs_inconsistent_on(ret, c,
-			 "error unpacking inode %llu in fsck",
-			 inode.k->p.inode))
-		return ret;
-
-	if (fsck_err_on(bch2_inode_nlink_get(&u) != nlink, c,
-			"inode %llu has wrong i_nlink (type %u i_nlink %u, should be %u)",
-			u.bi_inum, mode_to_type(u.bi_mode),
-			bch2_inode_nlink_get(&u), nlink)) {
-		bch2_inode_nlink_set(&u, nlink);
-
-		ret = __bch2_trans_do(trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
-				bch2_inode_write(trans, iter, &u));
-		if (ret)
-			bch_err(c, "error in fsck: error %i updating inode", ret);
-	}
-fsck_err:
-	return ret;
-}
-
 noinline_for_stack
-static int bch2_gc_walk_inodes(struct bch_fs *c,
-			       nlink_table *links,
+static int check_nlinks_update_hardlinks(struct bch_fs *c,
+			       struct nlink_table *links,
 			       u64 range_start, u64 range_end)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct nlink *link;
+	struct bkey_s_c_inode inode;
+	struct bch_inode_unpacked u;
+	struct nlink *link = links->d;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_inodes,
 			   POS(0, range_start), 0, k, ret) {
-		if (!k.k || k.k->p.offset >= range_end)
+		if (k.k->p.offset >= range_end)
 			break;
 
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
-		link = genradix_ptr(links, k.k->p.offset - range_start);
-		ret = check_inode_nlink(&trans, iter,
-					bkey_s_c_to_inode(k), link ? link->count : 0);
-		if (ret)
-			break;
+		inode = bkey_s_c_to_inode(k);
+		if (S_ISDIR(le16_to_cpu(inode.v->bi_mode)))
+			continue;
 
+		BUG_ON(bch2_inode_unpack(inode, &u));
+
+		if (!u.bi_nlink)
+			continue;
+
+		while (link->inum < k.k->p.offset) {
+			link++;
+			BUG_ON(link >= links->d + links->nr);
+		}
+
+		if (fsck_err_on(bch2_inode_nlink_get(&u) != link->count, c,
+				"inode %llu has wrong i_nlink (type %u i_nlink %u, should be %u)",
+				u.bi_inum, mode_to_type(u.bi_mode),
+				bch2_inode_nlink_get(&u), link->count)) {
+			bch2_inode_nlink_set(&u, link->count);
+
+			ret = __bch2_trans_do(&trans, NULL, NULL,
+					      BTREE_INSERT_NOFAIL|
+					      BTREE_INSERT_LAZY_RW,
+					bch2_inode_write(&trans, iter, &u));
+			if (ret)
+				bch_err(c, "error in fsck: error %i updating inode", ret);
+		}
 	}
+fsck_err:
 	bch2_trans_iter_put(&trans, iter);
 	bch2_trans_exit(&trans);
 
@@ -1281,34 +1341,36 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 noinline_for_stack
 static int check_nlinks(struct bch_fs *c)
 {
-	nlink_table links;
+	struct nlink_table links = { 0 };
 	u64 this_iter_range_start, next_iter_range_start = 0;
 	int ret = 0;
 
 	bch_verbose(c, "checking inode nlinks");
 
-	genradix_init(&links);
-
 	do {
 		this_iter_range_start = next_iter_range_start;
 		next_iter_range_start = U64_MAX;
 
-		ret = bch2_gc_walk_dirents(c, &links,
+		ret = check_nlinks_find_hardlinks(c, &links,
+						  this_iter_range_start,
+						  &next_iter_range_start);
+
+		ret = check_nlinks_walk_dirents(c, &links,
 					  this_iter_range_start,
-					  &next_iter_range_start);
+					  next_iter_range_start);
 		if (ret)
 			break;
 
-		ret = bch2_gc_walk_inodes(c, &links,
+		ret = check_nlinks_update_hardlinks(c, &links,
 					 this_iter_range_start,
 					 next_iter_range_start);
 		if (ret)
 			break;
 
-		genradix_free(&links);
+		links.nr = 0;
 	} while (next_iter_range_start != U64_MAX);
 
-	genradix_free(&links);
+	kvfree(links.d);
 
 	return ret;
 }
