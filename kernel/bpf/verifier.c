@@ -5075,8 +5075,7 @@ skip_type_check:
 		u64 map_addr;
 		char *str_ptr;
 
-		if (reg->type != PTR_TO_MAP_VALUE || !map ||
-		    !bpf_map_is_rdonly(map)) {
+		if (!bpf_map_is_rdonly(map)) {
 			verbose(env, "R%d does not point to a readonly map'\n", regno);
 			return -EACCES;
 		}
