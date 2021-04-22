@@ -3489,7 +3489,8 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	if (timing->flags.DSC)
 		return dc_dsc_stream_bandwidth_in_kbps(timing,
 				timing->dsc_cfg.bits_per_pixel,
-				timing->dsc_cfg.num_slices_h);
+				timing->dsc_cfg.num_slices_h,
+				timing->dsc_cfg.is_dp);
 #endif
 
 	switch (timing->display_color_depth) {
