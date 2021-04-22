@@ -304,6 +304,7 @@ Parameters (in): struct kvm_sev_send_start
 Returns: 0 on success, -negative on error
 
 ::
+
         struct kvm_sev_send_start {
                 __u32 policy;                 /* guest policy */
 
@@ -366,7 +367,7 @@ migration can restart with a new target later.
 Returns: 0 on success, -negative on error
 
 15. KVM_SEV_RECEIVE_START
-------------------------
+-------------------------
 
 The KVM_SEV_RECEIVE_START command is used for creating the memory encryption
 context for an incoming SEV guest. To create the encryption context, the user must
@@ -395,7 +396,7 @@ On success, the 'handle' field contains a new handle and on error, a negative va
 For more details, see SEV spec Section 6.12.
 
 16. KVM_SEV_RECEIVE_UPDATE_DATA
-----------------------------
+-------------------------------
 
 The KVM_SEV_RECEIVE_UPDATE_DATA command can be used by the hypervisor to copy
 the incoming buffers into the guest memory region with encryption context
@@ -419,7 +420,7 @@ Returns: 0 on success, -negative on error
         };
 
 17. KVM_SEV_RECEIVE_FINISH
-------------------------
+--------------------------
 
 After completion of the migration flow, the KVM_SEV_RECEIVE_FINISH command can be
 issued by the hypervisor to make the guest ready for execution.
