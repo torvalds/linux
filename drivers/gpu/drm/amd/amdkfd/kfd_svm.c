@@ -1330,7 +1330,7 @@ static void svm_range_unreserve_bos(struct svm_validate_context *ctx)
  */
 static int svm_range_validate_and_map(struct mm_struct *mm,
 				      struct svm_range *prange,
-				      uint32_t gpuidx, bool intr, bool wait)
+				      int32_t gpuidx, bool intr, bool wait)
 {
 	struct svm_validate_context ctx;
 	struct hmm_range *hmm_range;
