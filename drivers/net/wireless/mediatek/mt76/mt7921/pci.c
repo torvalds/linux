@@ -61,6 +61,18 @@ static void mt7921_irq_tasklet(unsigned long data)
 	if (intr & MT_INT_TX_DONE_MCU)
 		mask |= MT_INT_TX_DONE_MCU;
 
+	if (intr & MT_INT_MCU_CMD) {
+		u32 intr_sw;
+
+		intr_sw = mt76_rr(dev, MT_MCU_CMD);
+		/* ack MCU2HOST_SW_INT_STA */
+		mt76_wr(dev, MT_MCU_CMD, intr_sw);
+		if (intr_sw & MT_MCU_CMD_WAKE_RX_PCIE) {
+			mask |= MT_INT_RX_DONE_DATA;
+			intr |= MT_INT_RX_DONE_DATA;
+		}
+	}
+
 	mt76_set_irq_mask(&dev->mt76, MT_WFDMA0_HOST_INT_ENA, mask, 0);
 
 	if (intr & MT_INT_TX_DONE_ALL)
@@ -87,6 +99,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
+		.token_size = MT7921_TOKEN_SIZE,
 		.tx_prepare_skb = mt7921_tx_prepare_skb,
 		.tx_complete_skb = mt7921_tx_complete_skb,
 		.rx_skb = mt7921_queue_rx_skb,
@@ -189,13 +202,15 @@ static int mt7921_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 			return err;
 	}
 
+	if (!dev->pm.enable)
+		mt76_connac_mcu_set_deep_sleep(&dev->mt76, true);
+
 	napi_disable(&mdev->tx_napi);
 	mt76_worker_disable(&mdev->tx_worker);
 
 	mt76_for_each_q_rx(mdev, i) {
 		napi_disable(&mdev->napi[i]);
 	}
-	tasklet_kill(&dev->irq_tasklet);
 
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), true);
 
@@ -210,6 +225,9 @@ static int mt7921_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	/* disable interrupt */
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
+	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
+	synchronize_irq(pdev->irq);
+	tasklet_kill(&dev->irq_tasklet);
 
 	err = mt7921_mcu_fw_pmctrl(dev);
 	if (err)
@@ -227,6 +245,10 @@ restore:
 		napi_enable(&mdev->napi[i]);
 	}
 	napi_enable(&mdev->tx_napi);
+
+	if (!dev->pm.enable)
+		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
+
 	if (hif_suspend)
 		mt76_connac_mcu_set_hif_suspend(mdev, false);
 
@@ -249,10 +271,13 @@ static int mt7921_pci_resume(struct pci_dev *pdev)
 	if (err < 0)
 		return err;
 
+	mt7921_wpdma_reinit_cond(dev);
+
 	/* enable interrupt */
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 	mt7921_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
 			  MT_INT_MCU_CMD);
+	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
 	/* put dma enabled */
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
@@ -265,6 +290,9 @@ static int mt7921_pci_resume(struct pci_dev *pdev)
 	}
 	napi_enable(&mdev->tx_napi);
 	napi_schedule(&mdev->tx_napi);
+
+	if (!dev->pm.enable)
+		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
 	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state))
 		err = mt76_connac_mcu_set_hif_suspend(mdev, false);

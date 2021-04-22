@@ -602,8 +602,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 	return done;
 }
 
-static int
-mt76_dma_rx_poll(struct napi_struct *napi, int budget)
+int mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 {
 	struct mt76_dev *dev;
 	int qid, done = 0, cur;
@@ -626,9 +625,11 @@ mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 
 	return done;
 }
+EXPORT_SYMBOL_GPL(mt76_dma_rx_poll);
 
 static int
-mt76_dma_init(struct mt76_dev *dev)
+mt76_dma_init(struct mt76_dev *dev,
+	      int (*poll)(struct napi_struct *napi, int budget))
 {
 	int i;
 
@@ -639,8 +640,7 @@ mt76_dma_init(struct mt76_dev *dev)
 	dev->napi_dev.threaded = 1;
 
 	mt76_for_each_q_rx(dev, i) {
-		netif_napi_add(&dev->napi_dev, &dev->napi[i], mt76_dma_rx_poll,
-			       64);
+		netif_napi_add(&dev->napi_dev, &dev->napi[i], poll, 64);
 		mt76_dma_rx_fill(dev, &dev->q_rx[i]);
 		napi_enable(&dev->napi[i]);
 	}

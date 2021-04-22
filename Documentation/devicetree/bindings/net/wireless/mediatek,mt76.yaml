@@ -72,6 +72,90 @@ properties:
       led-sources:
         maxItems: 1
 
+  power-limits:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^r[0-9]+":
+        type: object
+        additionalProperties: false
+        properties:
+          regdomain:
+            $ref: /schemas/types.yaml#/definitions/string
+            description:
+              Regdomain refers to a legal regulatory region. Different
+              countries define different levels of allowable transmitter
+              power, time that a channel can be occupied, and different
+              available channels
+            enum:
+              - FCC
+              - ETSI
+              - JP
+
+        patternProperties:
+          "^txpower-[256]g$":
+            type: object
+            additionalProperties: false
+            patternProperties:
+              "^b[0-9]+$":
+                type: object
+                additionalProperties: false
+                properties:
+                  channels:
+                    $ref: /schemas/types.yaml#/definitions/uint32-array
+                    minItems: 2
+                    maxItems: 2
+                    description:
+                      Pairs of first and last channel number of the selected
+                      band
+
+                  rates-cck:
+                    $ref: /schemas/types.yaml#/definitions/uint8-array
+                    minItems: 4
+                    maxItems: 4
+                    description:
+                      4 half-dBm per-rate power limit values
+
+                  rates-ofdm:
+                    $ref: /schemas/types.yaml#/definitions/uint8-array
+                    minItems: 8
+                    maxItems: 8
+                    description:
+                      8 half-dBm per-rate power limit values
+
+                  rates-mcs:
+                    $ref: /schemas/types.yaml#/definitions/uint8-matrix
+                    description:
+                      Sets of per-rate power limit values for 802.11n/802.11ac
+                      rates for multiple channel bandwidth settings.
+                      Each set starts with the number of channel bandwidth
+                      settings for which the rate set applies, followed by
+                      either 8 or 10 power limit values. The order of the
+                      channel bandwidth settings is 20, 40, 80 and 160 MHz.
+                    maxItems: 4
+                    items:
+                      minItems: 9
+                      maxItems: 11
+
+                  rates-ru:
+                    $ref: /schemas/types.yaml#/definitions/uint8-matrix
+                    description:
+                      Sets of per-rate power limit values for 802.11ax rates
+                      for multiple channel bandwidth or resource unit settings.
+                      Each set starts with the number of channel bandwidth or
+                      resource unit settings for which the rate set applies,
+                      followed by 12 power limit values. The order of the
+                      channel resource unit settings is RU26, RU52, RU106,
+                      RU242/SU20, RU484/SU40, RU996/SU80 and RU2x996/SU160.
+                    items:
+                      minItems: 13
+                      maxItems: 13
+
+                  txs-delta:
+                    $ref: /schemas/types.yaml#/definitions/uint32-array
+                    description:
+                      Half-dBm power delta for different numbers of antennas
+
 required:
   - compatible
   - reg
@@ -92,6 +176,29 @@ examples:
 
         led {
           led-sources = <2>;
+        };
+
+        power-limits {
+          r0 {
+            regdomain = "FCC";
+            txpower-5g {
+               b0 {
+                   channels = <36 48>;
+                   rates-ofdm = /bits/ 8 <23 23 23 23 23 23 23 23>;
+                   rates-mcs = /bits/ 8 <1 23 23 23 23 23 23 23 23 23 23>,
+                                        <3 22 22 22 22 22 22 22 22 22 22>;
+                   rates-ru = /bits/ 8 <3 22 22 22 22 22 22 22 22 22 22 22 22>,
+                                       <4 20 20 20 20 20 20 20 20 20 20 20 20>;
+               };
+               b1 {
+                   channels = <100 181>;
+                   rates-ofdm = /bits/ 8 <14 14 14 14 14 14 14 14>;
+                   rates-mcs = /bits/ 8  <4 14 14 14 14 14 14 14 14 14 14>;
+                   txs-delta = <12 9 6>;
+                   rates-ru = /bits/ 8  <7 14 14 14 14 14 14 14 14 14 14 14 14>;
+               };
+             };
+          };
         };
       };
     };

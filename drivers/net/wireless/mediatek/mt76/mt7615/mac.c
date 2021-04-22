@@ -1465,11 +1465,7 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 	u8 wcid;
 
 	trace_mac_tx_free(dev, token);
-
-	spin_lock_bh(&dev->token_lock);
-	txwi = idr_remove(&dev->token, token);
-	spin_unlock_bh(&dev->token_lock);
-
+	txwi = mt76_token_put(mdev, token);
 	if (!txwi)
 		return;
 
@@ -1514,14 +1510,10 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	dev_kfree_skb(skb);
 
-	if (test_bit(MT76_STATE_PM, &dev->phy.mt76->state))
-		return;
-
 	rcu_read_lock();
 	mt7615_mac_sta_poll(dev);
 	rcu_read_unlock();
 
-	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
@@ -1913,13 +1905,19 @@ void mt7615_pm_wake_work(struct work_struct *work)
 						pm.wake_work);
 	mphy = dev->phy.mt76;
 
-	if (!mt7615_mcu_set_drv_ctrl(dev))
+	if (!mt7615_mcu_set_drv_ctrl(dev)) {
+		int i;
+
+		mt76_for_each_q_rx(&dev->mt76, i)
+			napi_schedule(&dev->mt76.napi[i]);
 		mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
-	else
-		dev_err(mphy->dev->dev, "failed to wake device\n");
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+		ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
+					     MT7615_WATCHDOG_TIME);
+	}
 
 	ieee80211_wake_queues(mphy->hw);
-	complete_all(&dev->pm.wake_cmpl);
+	wake_up(&dev->pm.wait);
 }
 
 void mt7615_pm_power_save_work(struct work_struct *work)
@@ -1931,6 +1929,10 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 						pm.ps_work.work);
 
 	delta = dev->pm.idle_timeout;
+	if (test_bit(MT76_HW_SCANNING, &dev->mphy.state) ||
+	    test_bit(MT76_HW_SCHED_SCANNING, &dev->mphy.state))
+		goto out;
+
 	if (time_is_after_jiffies(dev->pm.last_activity + delta)) {
 		delta = dev->pm.last_activity + delta - jiffies;
 		goto out;
@@ -1973,15 +1975,19 @@ void mt7615_tx_token_put(struct mt7615_dev *dev)
 	struct mt76_txwi_cache *txwi;
 	int id;
 
-	spin_lock_bh(&dev->token_lock);
-	idr_for_each_entry(&dev->token, txwi, id) {
+	spin_lock_bh(&dev->mt76.token_lock);
+	idr_for_each_entry(&dev->mt76.token, txwi, id) {
 		mt7615_txp_skb_unmap(&dev->mt76, txwi);
-		if (txwi->skb)
-			dev_kfree_skb_any(txwi->skb);
+		if (txwi->skb) {
+			struct ieee80211_hw *hw;
+
+			hw = mt76_tx_status_get_hw(&dev->mt76, txwi->skb);
+			ieee80211_free_txskb(hw, txwi->skb);
+		}
 		mt76_put_txwi(&dev->mt76, txwi);
 	}
-	spin_unlock_bh(&dev->token_lock);
-	idr_destroy(&dev->token);
+	spin_unlock_bh(&dev->mt76.token_lock);
+	idr_destroy(&dev->mt76.token);
 }
 EXPORT_SYMBOL_GPL(mt7615_tx_token_put);
 
