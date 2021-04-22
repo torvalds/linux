@@ -81,6 +81,7 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_inotify_watches"),
 #endif
 	{ },
+	{ },
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
