@@ -10005,6 +10005,7 @@ W:	https://landlock.io
 T:	git https://github.com/landlock-lsm/linux.git
 F:	include/uapi/linux/landlock.h
 F:	security/landlock/
+F:	tools/testing/selftests/landlock/
 K:	landlock
 K:	LANDLOCK
 
