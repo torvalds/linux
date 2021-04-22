@@ -19,10 +19,8 @@ struct nfnl_callback {
 		    const struct nlattr * const cda[]);
 	int (*call_rcu)(struct sk_buff *skb, const struct nfnl_info *info,
 			const struct nlattr * const cda[]);
-	int (*call_batch)(struct net *net, struct sock *nl, struct sk_buff *skb,
-			  const struct nlmsghdr *nlh,
-			  const struct nlattr * const cda[],
-			  struct netlink_ext_ack *extack);
+	int (*call_batch)(struct sk_buff *skb, const struct nfnl_info *info,
+			  const struct nlattr * const cda[]);
 	const struct nla_policy *policy;	/* netlink attribute policy */
 	const u_int16_t attr_count;		/* number of nlattr's */
 };

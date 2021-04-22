@@ -469,10 +469,17 @@ replay_abort:
 
 		{
 			int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
+			struct nfnl_net *nfnlnet = nfnl_pernet(net);
 			u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 			struct nlattr *cda[NFNL_MAX_ATTR_COUNT + 1];
 			struct nlattr *attr = (void *)nlh + min_len;
 			int attrlen = nlh->nlmsg_len - min_len;
+			struct nfnl_info info = {
+				.net	= net,
+				.sk	= nfnlnet->nfnl,
+				.nlh	= nlh,
+				.extack	= &extack,
+			};
 
 			/* Sanity-check NFTA_MAX_ATTR */
 			if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
@@ -488,11 +495,8 @@ replay_abort:
 				goto ack;
 
 			if (nc->call_batch) {
-				struct nfnl_net *nfnlnet = nfnl_pernet(net);
-
-				err = nc->call_batch(net, nfnlnet->nfnl, skb, nlh,
-						     (const struct nlattr **)cda,
-						     &extack);
+				err = nc->call_batch(skb, &info,
+						     (const struct nlattr **)cda);
 			}
 
 			/* The lock was released to autoload some module, we
