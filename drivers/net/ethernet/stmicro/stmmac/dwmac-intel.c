@@ -471,6 +471,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->dma_cfg->fixed_burst = 0;
 	plat->dma_cfg->mixed_burst = 0;
 	plat->dma_cfg->aal = 0;
+	plat->dma_cfg->dche = true;
 
 	plat->axi = devm_kzalloc(&pdev->dev, sizeof(*plat->axi),
 				 GFP_KERNEL);
