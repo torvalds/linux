@@ -87,6 +87,7 @@
 #define GOYA_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 #define GOYA_BOOT_FIT_REQ_TIMEOUT_USEC	1000000		/* 1s */
 #define GOYA_MSG_TO_CPU_TIMEOUT_USEC	4000000		/* 4s */
+#define GOYA_WAIT_FOR_BL_TIMEOUT_USEC	15000000	/* 15s */
 
 #define GOYA_QMAN0_FENCE_VAL		0xD169B243
 
@@ -851,6 +852,7 @@ void goya_late_fini(struct hl_device *hdev)
 
 static void goya_set_pci_memory_regions(struct hl_device *hdev)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_mem_region *region;
 
 	/* CFG */
@@ -858,6 +860,7 @@ static void goya_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = CFG_BASE;
 	region->region_size = CFG_SIZE;
 	region->offset_in_bar = CFG_BASE - SRAM_BASE_ADDR;
+	region->bar_size = CFG_BAR_SIZE;
 	region->bar_id = SRAM_CFG_BAR_ID;
 	region->used = 1;
 
@@ -866,6 +869,7 @@ static void goya_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = SRAM_BASE_ADDR;
 	region->region_size = SRAM_SIZE;
 	region->offset_in_bar = 0;
+	region->bar_size = CFG_BAR_SIZE;
 	region->bar_id = SRAM_CFG_BAR_ID;
 	region->used = 1;
 
@@ -874,6 +878,7 @@ static void goya_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = DRAM_PHYS_BASE;
 	region->region_size = hdev->asic_prop.dram_size;
 	region->offset_in_bar = 0;
+	region->bar_size = prop->dram_pci_bar_size;
 	region->bar_id = DDR_BAR_ID;
 	region->used = 1;
 }
@@ -2452,6 +2457,8 @@ static void goya_init_dynamic_firmware_loader(struct hl_device *hdev)
 				cpu_to_le32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU);
 	dyn_regs->cpu_cmd_status_to_host =
 				cpu_to_le32(mmCPU_CMD_STATUS_TO_HOST);
+
+	dynamic_loader->wait_for_bl_timeout = GOYA_WAIT_FOR_BL_TIMEOUT_USEC;
 }
 
 static void goya_init_static_firmware_loader(struct hl_device *hdev)

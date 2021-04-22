@@ -78,6 +78,7 @@
 #define GAUDI_PLDM_TPC_KERNEL_WAIT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 #define GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC	1000000		/* 1s */
 #define GAUDI_MSG_TO_CPU_TIMEOUT_USEC	4000000		/* 4s */
+#define GAUDI_WAIT_FOR_BL_TIMEOUT_USEC	15000000	/* 15s */
 
 #define GAUDI_QMAN0_FENCE_VAL		0x72E91AB9
 
@@ -1592,6 +1593,7 @@ free_internal_qmans_pq_mem:
 
 static void gaudi_set_pci_memory_regions(struct hl_device *hdev)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_mem_region *region;
 
 	/* CFG */
@@ -1599,6 +1601,7 @@ static void gaudi_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = CFG_BASE;
 	region->region_size = CFG_SIZE;
 	region->offset_in_bar = CFG_BASE - SPI_FLASH_BASE_ADDR;
+	region->bar_size = CFG_BAR_SIZE;
 	region->bar_id = CFG_BAR_ID;
 	region->used = 1;
 
@@ -1607,6 +1610,7 @@ static void gaudi_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = SRAM_BASE_ADDR;
 	region->region_size = SRAM_SIZE;
 	region->offset_in_bar = 0;
+	region->bar_size = SRAM_BAR_SIZE;
 	region->bar_id = SRAM_BAR_ID;
 	region->used = 1;
 
@@ -1615,6 +1619,7 @@ static void gaudi_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = DRAM_PHYS_BASE;
 	region->region_size = hdev->asic_prop.dram_size;
 	region->offset_in_bar = 0;
+	region->bar_size = prop->dram_pci_bar_size;
 	region->bar_id = HBM_BAR_ID;
 	region->used = 1;
 
@@ -1623,6 +1628,7 @@ static void gaudi_set_pci_memory_regions(struct hl_device *hdev)
 	region->region_base = PSOC_SCRATCHPAD_ADDR;
 	region->region_size = PSOC_SCRATCHPAD_SIZE;
 	region->offset_in_bar = PSOC_SCRATCHPAD_ADDR - SPI_FLASH_BASE_ADDR;
+	region->bar_size = CFG_BAR_SIZE;
 	region->bar_id = CFG_BAR_ID;
 	region->used = 1;
 }
@@ -3749,6 +3755,8 @@ static void gaudi_init_dynamic_firmware_loader(struct hl_device *hdev)
 				cpu_to_le32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU);
 	dyn_regs->cpu_cmd_status_to_host =
 				cpu_to_le32(mmCPU_CMD_STATUS_TO_HOST);
+
+	dynamic_loader->wait_for_bl_timeout = GAUDI_WAIT_FOR_BL_TIMEOUT_USEC;
 }
 
 static void gaudi_init_static_firmware_loader(struct hl_device *hdev)

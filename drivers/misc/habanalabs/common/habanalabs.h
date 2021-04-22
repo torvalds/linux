@@ -180,10 +180,12 @@ enum hl_pci_match_mode {
  * enum hl_fw_component - F/W components to read version through registers.
  * @FW_COMP_BOOT_FIT: boot fit.
  * @FW_COMP_PREBOOT: preboot.
+ * @FW_COMP_LINUX: linux.
  */
 enum hl_fw_component {
 	FW_COMP_BOOT_FIT,
-	FW_COMP_PREBOOT
+	FW_COMP_PREBOOT,
+	FW_COMP_LINUX,
 };
 
 /**
@@ -830,6 +832,7 @@ enum pci_region {
  * struct pci_mem_region - describe memory region in a PCI bar
  * @region_base: region base address
  * @region_size: region size
+ * @bar_size: size of the BAR
  * @offset_in_bar: region offset into the bar
  * @bar_id: bar ID of the region
  * @used: if used 1, otherwise 0
@@ -837,6 +840,7 @@ enum pci_region {
 struct pci_mem_region {
 	u64 region_base;
 	u64 region_size;
+	u64 bar_size;
 	u32 offset_in_bar;
 	u8 bar_id;
 	u8 used;
@@ -885,13 +889,15 @@ struct fw_response {
  * @response: FW to LKD response
  * @comm_desc: the communication descriptor with FW
  * @image_region: region to copy the FW image to
- * @fw_image_size: FW image size
+ * @fw_image_size: size of FW image to load
+ * @wait_for_bl_timeout: timeout for waiting for boot loader to respond
  */
 struct dynamic_fw_load_mgr {
 	struct fw_response response;
 	struct lkd_fw_comms_desc comm_desc;
 	struct pci_mem_region *image_region;
 	size_t fw_image_size;
+	u32 wait_for_bl_timeout;
 };
 
 /**
