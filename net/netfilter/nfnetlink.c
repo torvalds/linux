@@ -252,6 +252,12 @@ replay:
 		struct nlattr *attr = (void *)nlh + min_len;
 		int attrlen = nlh->nlmsg_len - min_len;
 		__u8 subsys_id = NFNL_SUBSYS_ID(type);
+		struct nfnl_info info = {
+			.net	= net,
+			.sk	= nfnlnet->nfnl,
+			.nlh	= nlh,
+			.extack	= extack,
+		};
 
 		/* Sanity-check NFNL_MAX_ATTR_COUNT */
 		if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
@@ -276,14 +282,14 @@ replay:
 			rcu_read_unlock();
 			nfnl_lock(subsys_id);
 			if (nfnl_dereference_protected(subsys_id) != ss ||
-			    nfnetlink_find_client(type, ss) != nc)
+			    nfnetlink_find_client(type, ss) != nc) {
 				err = -EAGAIN;
-			else if (nc->call)
-				err = nc->call(net, nfnlnet->nfnl, skb, nlh,
-					       (const struct nlattr **)cda,
-					       extack);
-			else
+			} else if (nc->call) {
+				err = nc->call(skb, &info,
+					       (const struct nlattr **)cda);
+			} else {
 				err = -EINVAL;
+			}
 			nfnl_unlock(subsys_id);
 		}
 		if (err == -EAGAIN)

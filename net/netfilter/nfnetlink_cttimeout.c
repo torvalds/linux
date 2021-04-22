@@ -83,13 +83,11 @@ err:
 	return ret;
 }
 
-static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
-				 struct sk_buff *skb,
-				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[],
-				 struct netlink_ext_ack *extack)
+static int cttimeout_new_timeout(struct sk_buff *skb,
+				 const struct nfnl_info *info,
+				 const struct nlattr * const cda[])
 {
-	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(net);
+	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(info->net);
 	__u16 l3num;
 	__u8 l4num;
 	const struct nf_conntrack_l4proto *l4proto;
@@ -111,7 +109,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		if (strncmp(timeout->name, name, CTNL_TIMEOUT_NAME_MAX) != 0)
 			continue;
 
-		if (nlh->nlmsg_flags & NLM_F_EXCL)
+		if (info->nlh->nlmsg_flags & NLM_F_EXCL)
 			return -EEXIST;
 
 		matching = timeout;
@@ -119,7 +117,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 	}
 
 	if (matching) {
-		if (nlh->nlmsg_flags & NLM_F_REPLACE) {
+		if (info->nlh->nlmsg_flags & NLM_F_REPLACE) {
 			/* You cannot replace one timeout policy by another of
 			 * different kind, sorry.
 			 */
@@ -129,7 +127,8 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 
 			return ctnl_timeout_parse_policy(&matching->timeout.data,
 							 matching->timeout.l4proto,
-							 net, cda[CTA_TIMEOUT_DATA]);
+							 info->net,
+							 cda[CTA_TIMEOUT_DATA]);
 		}
 
 		return -EBUSY;
@@ -150,8 +149,8 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		goto err_proto_put;
 	}
 
-	ret = ctnl_timeout_parse_policy(&timeout->timeout.data, l4proto, net,
-					cda[CTA_TIMEOUT_DATA]);
+	ret = ctnl_timeout_parse_policy(&timeout->timeout.data, l4proto,
+					info->net, cda[CTA_TIMEOUT_DATA]);
 	if (ret < 0)
 		goto err;
 
@@ -248,22 +247,20 @@ ctnl_timeout_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static int cttimeout_get_timeout(struct net *net, struct sock *ctnl,
-				 struct sk_buff *skb,
-				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[],
-				 struct netlink_ext_ack *extack)
+static int cttimeout_get_timeout(struct sk_buff *skb,
+				 const struct nfnl_info *info,
+				 const struct nlattr * const cda[])
 {
-	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(net);
+	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(info->net);
 	int ret = -ENOENT;
 	char *name;
 	struct ctnl_timeout *cur;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = ctnl_timeout_dump,
 		};
-		return netlink_dump_start(ctnl, skb, nlh, &c);
+		return netlink_dump_start(info->sk, skb, info->nlh, &c);
 	}
 
 	if (!cda[CTA_TIMEOUT_NAME])
@@ -283,15 +280,15 @@ static int cttimeout_get_timeout(struct net *net, struct sock *ctnl,
 		}
 
 		ret = ctnl_timeout_fill_info(skb2, NETLINK_CB(skb).portid,
-					     nlh->nlmsg_seq,
-					     NFNL_MSG_TYPE(nlh->nlmsg_type),
+					     info->nlh->nlmsg_seq,
+					     NFNL_MSG_TYPE(info->nlh->nlmsg_type),
 					     IPCTNL_MSG_TIMEOUT_NEW, cur);
 		if (ret <= 0) {
 			kfree_skb(skb2);
 			break;
 		}
-		ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).portid,
-					MSG_DONTWAIT);
+		ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
+				      MSG_DONTWAIT);
 		if (ret > 0)
 			ret = 0;
 
@@ -320,13 +317,11 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 	return ret;
 }
 
-static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
-				 struct sk_buff *skb,
-				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[],
-				 struct netlink_ext_ack *extack)
+static int cttimeout_del_timeout(struct sk_buff *skb,
+				 const struct nfnl_info *info,
+				 const struct nlattr * const cda[])
 {
-	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(net);
+	struct nfct_timeout_pernet *pernet = nfct_timeout_pernet(info->net);
 	struct ctnl_timeout *cur, *tmp;
 	int ret = -ENOENT;
 	char *name;
@@ -334,7 +329,7 @@ static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 	if (!cda[CTA_TIMEOUT_NAME]) {
 		list_for_each_entry_safe(cur, tmp, &pernet->nfct_timeout_list,
 					 head)
-			ctnl_timeout_try_del(net, cur);
+			ctnl_timeout_try_del(info->net, cur);
 
 		return 0;
 	}
@@ -344,7 +339,7 @@ static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 		if (strncmp(cur->name, name, CTNL_TIMEOUT_NAME_MAX) != 0)
 			continue;
 
-		ret = ctnl_timeout_try_del(net, cur);
+		ret = ctnl_timeout_try_del(info->net, cur);
 		if (ret < 0)
 			return ret;
 
@@ -353,11 +348,9 @@ static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 	return ret;
 }
 
-static int cttimeout_default_set(struct net *net, struct sock *ctnl,
-				 struct sk_buff *skb,
-				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[],
-				 struct netlink_ext_ack *extack)
+static int cttimeout_default_set(struct sk_buff *skb,
+				 const struct nfnl_info *info,
+				 const struct nlattr * const cda[])
 {
 	const struct nf_conntrack_l4proto *l4proto;
 	__u8 l4num;
@@ -377,7 +370,7 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 		goto err;
 	}
 
-	ret = ctnl_timeout_parse_policy(NULL, l4proto, net,
+	ret = ctnl_timeout_parse_policy(NULL, l4proto, info->net,
 					cda[CTA_TIMEOUT_DATA]);
 	if (ret < 0)
 		goto err;
@@ -427,11 +420,9 @@ nla_put_failure:
 	return -1;
 }
 
-static int cttimeout_default_get(struct net *net, struct sock *ctnl,
-				 struct sk_buff *skb,
-				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[],
-				 struct netlink_ext_ack *extack)
+static int cttimeout_default_get(struct sk_buff *skb,
+				 const struct nfnl_info *info,
+				 const struct nlattr * const cda[])
 {
 	const struct nf_conntrack_l4proto *l4proto;
 	unsigned int *timeouts = NULL;
@@ -453,35 +444,35 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 
 	switch (l4proto->l4proto) {
 	case IPPROTO_ICMP:
-		timeouts = &nf_icmp_pernet(net)->timeout;
+		timeouts = &nf_icmp_pernet(info->net)->timeout;
 		break;
 	case IPPROTO_TCP:
-		timeouts = nf_tcp_pernet(net)->timeouts;
+		timeouts = nf_tcp_pernet(info->net)->timeouts;
 		break;
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:
-		timeouts = nf_udp_pernet(net)->timeouts;
+		timeouts = nf_udp_pernet(info->net)->timeouts;
 		break;
 	case IPPROTO_DCCP:
 #ifdef CONFIG_NF_CT_PROTO_DCCP
-		timeouts = nf_dccp_pernet(net)->dccp_timeout;
+		timeouts = nf_dccp_pernet(info->net)->dccp_timeout;
 #endif
 		break;
 	case IPPROTO_ICMPV6:
-		timeouts = &nf_icmpv6_pernet(net)->timeout;
+		timeouts = &nf_icmpv6_pernet(info->net)->timeout;
 		break;
 	case IPPROTO_SCTP:
 #ifdef CONFIG_NF_CT_PROTO_SCTP
-		timeouts = nf_sctp_pernet(net)->timeouts;
+		timeouts = nf_sctp_pernet(info->net)->timeouts;
 #endif
 		break;
 	case IPPROTO_GRE:
 #ifdef CONFIG_NF_CT_PROTO_GRE
-		timeouts = nf_gre_pernet(net)->timeouts;
+		timeouts = nf_gre_pernet(info->net)->timeouts;
 #endif
 		break;
 	case 255:
-		timeouts = &nf_generic_pernet(net)->timeout;
+		timeouts = &nf_generic_pernet(info->net)->timeout;
 		break;
 	default:
 		WARN_ONCE(1, "Missing timeouts for proto %d", l4proto->l4proto);
@@ -497,9 +488,10 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 		goto err;
 	}
 
-	ret = cttimeout_default_fill_info(net, skb2, NETLINK_CB(skb).portid,
-					  nlh->nlmsg_seq,
-					  NFNL_MSG_TYPE(nlh->nlmsg_type),
+	ret = cttimeout_default_fill_info(info->net, skb2,
+					  NETLINK_CB(skb).portid,
+					  info->nlh->nlmsg_seq,
+					  NFNL_MSG_TYPE(info->nlh->nlmsg_type),
 					  IPCTNL_MSG_TIMEOUT_DEFAULT_SET,
 					  l3num, l4proto, timeouts);
 	if (ret <= 0) {
@@ -507,7 +499,8 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 		err = -ENOMEM;
 		goto err;
 	}
-	ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).portid, MSG_DONTWAIT);
+	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
+			      MSG_DONTWAIT);
 	if (ret > 0)
 		ret = 0;
 

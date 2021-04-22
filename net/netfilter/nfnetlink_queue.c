@@ -1245,16 +1245,14 @@ static const struct nf_queue_handler nfqh = {
 	.nf_hook_drop	= nfqnl_nf_hook_drop,
 };
 
-static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
-			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nfqa[],
-			     struct netlink_ext_ack *extack)
+static int nfqnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
+			     const struct nlattr * const nfqa[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
+	struct nfnl_queue_net *q = nfnl_queue_pernet(info->net);
+	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
-	struct nfqnl_instance *queue;
 	struct nfqnl_msg_config_cmd *cmd = NULL;
-	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	struct nfqnl_instance *queue;
 	__u32 flags = 0, mask = 0;
 	int ret = 0;
 

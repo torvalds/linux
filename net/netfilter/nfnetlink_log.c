@@ -845,10 +845,8 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 	.notifier_call	= nfulnl_rcv_nl_event,
 };
 
-static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfqa[],
-			      struct netlink_ext_ack *extack)
+static int nfulnl_recv_unsupp(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nfula[])
 {
 	return -ENOTSUPP;
 }
@@ -869,18 +867,16 @@ static const struct nla_policy nfula_cfg_policy[NFULA_CFG_MAX+1] = {
 	[NFULA_CFG_FLAGS]	= { .type = NLA_U16 },
 };
 
-static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfula[],
-			      struct netlink_ext_ack *extack)
+static int nfulnl_recv_config(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nfula[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
+	struct nfnl_log_net *log = nfnl_log_pernet(info->net);
+	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);
-	struct nfulnl_instance *inst;
 	struct nfulnl_msg_config_cmd *cmd = NULL;
-	struct nfnl_log_net *log = nfnl_log_pernet(net);
-	int ret = 0;
+	struct nfulnl_instance *inst;
 	u16 flags = 0;
+	int ret = 0;
 
 	if (nfula[NFULA_CFG_CMD]) {
 		u_int8_t pf = nfmsg->nfgen_family;
@@ -889,9 +885,9 @@ static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 		/* Commands without queue context */
 		switch (cmd->command) {
 		case NFULNL_CFG_CMD_PF_BIND:
-			return nf_log_bind_pf(net, pf, &nfulnl_logger);
+			return nf_log_bind_pf(info->net, pf, &nfulnl_logger);
 		case NFULNL_CFG_CMD_PF_UNBIND:
-			nf_log_unbind_pf(net, pf);
+			nf_log_unbind_pf(info->net, pf);
 			return 0;
 		}
 	}
@@ -932,7 +928,7 @@ static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 				goto out_put;
 			}
 
-			inst = instance_create(net, group_num,
+			inst = instance_create(info->net, group_num,
 					       NETLINK_CB(skb).portid,
 					       sk_user_ns(NETLINK_CB(skb).sk));
 			if (IS_ERR(inst)) {

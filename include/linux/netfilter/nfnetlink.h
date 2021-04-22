@@ -7,11 +7,16 @@
 #include <net/netlink.h>
 #include <uapi/linux/netfilter/nfnetlink.h>
 
+struct nfnl_info {
+	struct net		*net;
+	struct sock		*sk;
+	const struct nlmsghdr	*nlh;
+	struct netlink_ext_ack	*extack;
+};
+
 struct nfnl_callback {
-	int (*call)(struct net *net, struct sock *nl, struct sk_buff *skb,
-		    const struct nlmsghdr *nlh,
-		    const struct nlattr * const cda[],
-		    struct netlink_ext_ack *extack);
+	int (*call)(struct sk_buff *skb, const struct nfnl_info *info,
+		    const struct nlattr * const cda[]);
 	int (*call_rcu)(struct net *net, struct sock *nl, struct sk_buff *skb,
 			const struct nlmsghdr *nlh,
 			const struct nlattr * const cda[],
