@@ -2344,6 +2344,9 @@
   topology_set_thermal_pressure
   _totalram_pages
   total_swapcache_pages
+  trace_array_get_by_name
+  trace_array_put
+  trace_array_set_clr_event
   __trace_bprintk
   __trace_bputs
   trace_clock_local
