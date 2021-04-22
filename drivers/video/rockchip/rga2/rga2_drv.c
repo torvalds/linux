@@ -1198,9 +1198,9 @@ static int rga2_get_img_info(rga_img_info_t *img,
 	return ret;
 
 err_get_sg:
-	if (sgt)
+	if (!IS_ERR(sgt) && sgt)
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
-	if (attach) {
+	if (!IS_ERR(attach) && attach) {
 		dma_buf = attach->dmabuf;
 		dma_buf_detach(dma_buf, attach);
 		*pattach = NULL;
