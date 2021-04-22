@@ -642,6 +642,114 @@ static int rt711_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rt711_sdca_set_fu0f_capture_ctl(struct rt711_sdca_priv *rt711)
+{
+	int err;
+	unsigned int ch_l, ch_r;
+
+	ch_l = (rt711->fu0f_dapm_mute || rt711->fu0f_mixer_l_mute) ? 0x01 : 0x00;
+	ch_r = (rt711->fu0f_dapm_mute || rt711->fu0f_mixer_r_mute) ? 0x01 : 0x00;
+
+	err = regmap_write(rt711->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F,
+			RT711_SDCA_CTL_FU_MUTE, CH_L), ch_l);
+	if (err < 0)
+		return err;
+
+	err = regmap_write(rt711->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F,
+			RT711_SDCA_CTL_FU_MUTE, CH_R), ch_r);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static int rt711_sdca_set_fu1e_capture_ctl(struct rt711_sdca_priv *rt711)
+{
+	int err;
+	unsigned int ch_l, ch_r;
+
+	ch_l = (rt711->fu1e_dapm_mute || rt711->fu1e_mixer_l_mute) ? 0x01 : 0x00;
+	ch_r = (rt711->fu1e_dapm_mute || rt711->fu1e_mixer_r_mute) ? 0x01 : 0x00;
+
+	err = regmap_write(rt711->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU1E,
+			RT711_SDCA_CTL_FU_MUTE, CH_L), ch_l);
+	if (err < 0)
+		return err;
+
+	err = regmap_write(rt711->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU1E,
+			RT711_SDCA_CTL_FU_MUTE, CH_R), ch_r);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static int rt711_sdca_fu1e_capture_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = !rt711->fu1e_mixer_l_mute;
+	ucontrol->value.integer.value[1] = !rt711->fu1e_mixer_r_mute;
+	return 0;
+}
+
+static int rt711_sdca_fu1e_capture_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+	int err, changed = 0;
+
+	if (rt711->fu1e_mixer_l_mute != !ucontrol->value.integer.value[0] ||
+		rt711->fu1e_mixer_r_mute != !ucontrol->value.integer.value[1])
+		changed = 1;
+
+	rt711->fu1e_mixer_l_mute = !ucontrol->value.integer.value[0];
+	rt711->fu1e_mixer_r_mute = !ucontrol->value.integer.value[1];
+	err = rt711_sdca_set_fu1e_capture_ctl(rt711);
+	if (err < 0)
+		return err;
+
+	return changed;
+}
+
+static int rt711_sdca_fu0f_capture_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = !rt711->fu0f_mixer_l_mute;
+	ucontrol->value.integer.value[1] = !rt711->fu0f_mixer_r_mute;
+	return 0;
+}
+
+static int rt711_sdca_fu0f_capture_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+	int err, changed = 0;
+
+	if (rt711->fu0f_mixer_l_mute != !ucontrol->value.integer.value[0] ||
+		rt711->fu0f_mixer_r_mute != !ucontrol->value.integer.value[1])
+		changed = 1;
+
+	rt711->fu0f_mixer_l_mute = !ucontrol->value.integer.value[0];
+	rt711->fu0f_mixer_r_mute = !ucontrol->value.integer.value[1];
+	err = rt711_sdca_set_fu0f_capture_ctl(rt711);
+	if (err < 0)
+		return err;
+
+	return changed;
+}
+
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -6525, 75, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, 0, 1000, 0);
@@ -652,14 +760,10 @@ static const struct snd_kcontrol_new rt711_sdca_snd_controls[] = {
 		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU05, RT711_SDCA_CTL_FU_VOLUME, CH_R),
 		0x57, 0x57, 0,
 		rt711_sdca_set_gain_get, rt711_sdca_set_gain_put, out_vol_tlv),
-	SOC_DOUBLE_R("FU1E Capture Switch",
-		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E, RT711_SDCA_CTL_FU_MUTE, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E, RT711_SDCA_CTL_FU_MUTE, CH_R),
-		0, 1, 1),
-	SOC_DOUBLE_R("FU0F Capture Switch",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F, RT711_SDCA_CTL_FU_MUTE, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F, RT711_SDCA_CTL_FU_MUTE, CH_R),
-		0, 1, 1),
+	SOC_DOUBLE_EXT("FU1E Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+		rt711_sdca_fu1e_capture_get, rt711_sdca_fu1e_capture_put),
+	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+		rt711_sdca_fu0f_capture_get, rt711_sdca_fu0f_capture_put),
 	SOC_DOUBLE_R_EXT_TLV("FU1E Capture Volume",
 		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E, RT711_SDCA_CTL_FU_VOLUME, CH_L),
 		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E, RT711_SDCA_CTL_FU_VOLUME, CH_R),
@@ -809,28 +913,15 @@ static int rt711_sdca_fu0f_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
-	unsigned char unmute = 0x0, mute = 0x1;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F,
-				RT711_SDCA_CTL_FU_MUTE, CH_L),
-				unmute);
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F,
-				RT711_SDCA_CTL_FU_MUTE, CH_R),
-				unmute);
+		rt711->fu0f_dapm_mute = false;
+		rt711_sdca_set_fu0f_capture_ctl(rt711);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F,
-				RT711_SDCA_CTL_FU_MUTE, CH_L),
-				mute);
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU0F,
-				RT711_SDCA_CTL_FU_MUTE, CH_R),
-				mute);
+		rt711->fu0f_dapm_mute = true;
+		rt711_sdca_set_fu0f_capture_ctl(rt711);
 		break;
 	}
 	return 0;
@@ -842,29 +933,16 @@ static int rt711_sdca_fu1e_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
-	unsigned char unmute = 0x0, mute = 0x1;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E,
-				RT711_SDCA_CTL_FU_MUTE, CH_L),
-				unmute);
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E,
-				RT711_SDCA_CTL_FU_MUTE, CH_R),
-				unmute);
+		rt711->fu1e_dapm_mute = false;
+		rt711_sdca_set_fu1e_capture_ctl(rt711);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E,
-				RT711_SDCA_CTL_FU_MUTE, CH_L),
-				mute);
-		regmap_write(rt711->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E,
-				RT711_SDCA_CTL_FU_MUTE, CH_R),
-				mute);
-			break;
+		rt711->fu1e_dapm_mute = true;
+		rt711_sdca_set_fu1e_capture_ctl(rt711);
+		break;
 	}
 	return 0;
 }
@@ -1330,6 +1408,10 @@ int rt711_sdca_init(struct device *dev, struct regmap *regmap,
 	 */
 	rt711->hw_init = false;
 	rt711->first_hw_init = false;
+	rt711->fu0f_dapm_mute = true;
+	rt711->fu1e_dapm_mute = true;
+	rt711->fu0f_mixer_l_mute = rt711->fu0f_mixer_r_mute = true;
+	rt711->fu1e_mixer_l_mute = rt711->fu1e_mixer_r_mute = true;
 
 	/* JD source uses JD2 in default */
 	rt711->jd_src = RT711_JD2;
