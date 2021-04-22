@@ -583,4 +583,9 @@ config WPCM450_AIC
 	help
 	  Support for the interrupt controller in the Nuvoton WPCM450 BMC SoC.
 
+config IRQ_IDT3243X
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 endmenu
