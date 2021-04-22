@@ -89,6 +89,10 @@ static dev_t nvme_ctrl_base_chr_devt;
 static struct class *nvme_class;
 static struct class *nvme_subsys_class;
 
+static DEFINE_IDA(nvme_ns_chr_minor_ida);
+static dev_t nvme_ns_chr_devt;
+static struct class *nvme_ns_chr_class;
+
 static void nvme_put_subsystem(struct nvme_subsystem *subsys);
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 					   unsigned nsid);
@@ -1109,6 +1113,17 @@ void nvme_execute_passthru_rq(struct request *rq)
 }
 EXPORT_SYMBOL_NS_GPL(nvme_execute_passthru_rq, NVME_TARGET_PASSTHRU);
 
+/*
+ * Recommended frequency for KATO commands per NVMe 1.4 section 7.12.1:
+ * 
+ *   The host should send Keep Alive commands at half of the Keep Alive Timeout
+ *   accounting for transport roundtrip times [..].
+ */
+static void nvme_queue_keep_alive_work(struct nvme_ctrl *ctrl)
+{
+	queue_delayed_work(nvme_wq, &ctrl->ka_work, ctrl->kato * HZ / 2);
+}
+
 static void nvme_keep_alive_end_io(struct request *rq, blk_status_t status)
 {
 	struct nvme_ctrl *ctrl = rq->end_io_data;
@@ -1131,7 +1146,7 @@ static void nvme_keep_alive_end_io(struct request *rq, blk_status_t status)
 		startka = true;
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 	if (startka)
-		queue_delayed_work(nvme_wq, &ctrl->ka_work, ctrl->kato * HZ);
+		nvme_queue_keep_alive_work(ctrl);
 }
 
 static int nvme_keep_alive(struct nvme_ctrl *ctrl)
@@ -1161,7 +1176,7 @@ static void nvme_keep_alive_work(struct work_struct *work)
 		dev_dbg(ctrl->device,
 			"reschedule traffic based keep-alive timer\n");
 		ctrl->comp_seen = false;
-		queue_delayed_work(nvme_wq, &ctrl->ka_work, ctrl->kato * HZ);
+		nvme_queue_keep_alive_work(ctrl);
 		return;
 	}
 
@@ -1178,7 +1193,7 @@ static void nvme_start_keep_alive(struct nvme_ctrl *ctrl)
 	if (unlikely(ctrl->kato == 0))
 		return;
 
-	queue_delayed_work(nvme_wq, &ctrl->ka_work, ctrl->kato * HZ);
+	nvme_queue_keep_alive_work(ctrl);
 }
 
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl)
@@ -2170,28 +2185,28 @@ static int nvme_configure_acre(struct nvme_ctrl *ctrl)
 	return ret;
 }
 
+/*
+ * APST (Autonomous Power State Transition) lets us program a table of power
+ * state transitions that the controller will perform automatically.
+ * We configure it with a simple heuristic: we are willing to spend at most 2%
+ * of the time transitioning between power states.  Therefore, when running in
+ * any given state, we will enter the next lower-power non-operational state
+ * after waiting 50 * (enlat + exlat) microseconds, as long as that state's exit
+ * latency is under the requested maximum latency.
+ *
+ * We will not autonomously enter any non-operational state for which the total
+ * latency exceeds ps_max_latency_us.
+ *
+ * Users can set ps_max_latency_us to zero to turn off APST.
+ */
 static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 {
-	/*
-	 * APST (Autonomous Power State Transition) lets us program a
-	 * table of power state transitions that the controller will
-	 * perform automatically.  We configure it with a simple
-	 * heuristic: we are willing to spend at most 2% of the time
-	 * transitioning between power states.  Therefore, when running
-	 * in any given state, we will enter the next lower-power
-	 * non-operational state after waiting 50 * (enlat + exlat)
-	 * microseconds, as long as that state's exit latency is under
-	 * the requested maximum latency.
-	 *
-	 * We will not autonomously enter any non-operational state for
-	 * which the total latency exceeds ps_max_latency_us.  Users
-	 * can set ps_max_latency_us to zero to turn off APST.
-	 */
-
-	unsigned apste;
 	struct nvme_feat_auto_pst *table;
+	unsigned apste = 0;
 	u64 max_lat_us = 0;
+	__le64 target = 0;
 	int max_ps = -1;
+	int state;
 	int ret;
 
 	/*
@@ -2212,83 +2227,72 @@ static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 
 	if (!ctrl->apst_enabled || ctrl->ps_max_latency_us == 0) {
 		/* Turn off APST. */
-		apste = 0;
 		dev_dbg(ctrl->device, "APST disabled\n");
-	} else {
-		__le64 target = cpu_to_le64(0);
-		int state;
-
-		/*
-		 * Walk through all states from lowest- to highest-power.
-		 * According to the spec, lower-numbered states use more
-		 * power.  NPSS, despite the name, is the index of the
-		 * lowest-power state, not the number of states.
-		 */
-		for (state = (int)ctrl->npss; state >= 0; state--) {
-			u64 total_latency_us, exit_latency_us, transition_ms;
-
-			if (target)
-				table->entries[state] = target;
-
-			/*
-			 * Don't allow transitions to the deepest state
-			 * if it's quirked off.
-			 */
-			if (state == ctrl->npss &&
-			    (ctrl->quirks & NVME_QUIRK_NO_DEEPEST_PS))
-				continue;
-
-			/*
-			 * Is this state a useful non-operational state for
-			 * higher-power states to autonomously transition to?
-			 */
-			if (!(ctrl->psd[state].flags &
-			      NVME_PS_FLAGS_NON_OP_STATE))
-				continue;
-
-			exit_latency_us =
-				(u64)le32_to_cpu(ctrl->psd[state].exit_lat);
-			if (exit_latency_us > ctrl->ps_max_latency_us)
-				continue;
-
-			total_latency_us =
-				exit_latency_us +
-				le32_to_cpu(ctrl->psd[state].entry_lat);
-
-			/*
-			 * This state is good.  Use it as the APST idle
-			 * target for higher power states.
-			 */
-			transition_ms = total_latency_us + 19;
-			do_div(transition_ms, 20);
-			if (transition_ms > (1 << 24) - 1)
-				transition_ms = (1 << 24) - 1;
-
-			target = cpu_to_le64((state << 3) |
-					     (transition_ms << 8));
-
-			if (max_ps == -1)
-				max_ps = state;
-
-			if (total_latency_us > max_lat_us)
-				max_lat_us = total_latency_us;
-		}
-
-		apste = 1;
-
-		if (max_ps == -1) {
-			dev_dbg(ctrl->device, "APST enabled but no non-operational states are available\n");
-		} else {
-			dev_dbg(ctrl->device, "APST enabled: max PS = %d, max round-trip latency = %lluus, table = %*phN\n",
-				max_ps, max_lat_us, (int)sizeof(*table), table);
-		}
+		goto done;
 	}
 
+	/*
+	 * Walk through all states from lowest- to highest-power.
+	 * According to the spec, lower-numbered states use more power.  NPSS,
+	 * despite the name, is the index of the lowest-power state, not the
+	 * number of states.
+	 */
+	for (state = (int)ctrl->npss; state >= 0; state--) {
+		u64 total_latency_us, exit_latency_us, transition_ms;
+
+		if (target)
+			table->entries[state] = target;
+
+		/*
+		 * Don't allow transitions to the deepest state if it's quirked
+		 * off.
+		 */
+		if (state == ctrl->npss &&
+		    (ctrl->quirks & NVME_QUIRK_NO_DEEPEST_PS))
+			continue;
+
+		/*
+		 * Is this state a useful non-operational state for higher-power
+		 * states to autonomously transition to?
+		 */
+		if (!(ctrl->psd[state].flags & NVME_PS_FLAGS_NON_OP_STATE))
+			continue;
+
+		exit_latency_us = (u64)le32_to_cpu(ctrl->psd[state].exit_lat);
+		if (exit_latency_us > ctrl->ps_max_latency_us)
+			continue;
+
+		total_latency_us = exit_latency_us +
+			le32_to_cpu(ctrl->psd[state].entry_lat);
+
+		/*
+		 * This state is good.  Use it as the APST idle target for
+		 * higher power states.
+		 */
+		transition_ms = total_latency_us + 19;
+		do_div(transition_ms, 20);
+		if (transition_ms > (1 << 24) - 1)
+			transition_ms = (1 << 24) - 1;
+
+		target = cpu_to_le64((state << 3) | (transition_ms << 8));
+		if (max_ps == -1)
+			max_ps = state;
+		if (total_latency_us > max_lat_us)
+			max_lat_us = total_latency_us;
+	}
+
+	if (max_ps == -1)
+		dev_dbg(ctrl->device, "APST enabled but no non-operational states are available\n");
+	else
+		dev_dbg(ctrl->device, "APST enabled: max PS = %d, max round-trip latency = %lluus, table = %*phN\n",
+			max_ps, max_lat_us, (int)sizeof(*table), table);
+	apste = 1;
+
+done:
 	ret = nvme_set_features(ctrl, NVME_FEAT_AUTO_PST, apste,
 				table, sizeof(*table), NULL);
 	if (ret)
 		dev_err(ctrl->device, "failed to set APST feature (%d)\n", ret);
-
 	kfree(table);
 	return ret;
 }
@@ -2310,7 +2314,8 @@ static void nvme_set_latency_tolerance(struct device *dev, s32 val)
 
 	if (ctrl->ps_max_latency_us != latency) {
 		ctrl->ps_max_latency_us = latency;
-		nvme_configure_apst(ctrl);
+		if (ctrl->state == NVME_CTRL_LIVE)
+			nvme_configure_apst(ctrl);
 	}
 }
 
@@ -3161,6 +3166,7 @@ nvme_show_int_function(cntlid);
 nvme_show_int_function(numa_node);
 nvme_show_int_function(queue_count);
 nvme_show_int_function(sqsize);
+nvme_show_int_function(kato);
 
 static ssize_t nvme_sysfs_delete(struct device *dev,
 				struct device_attribute *attr, const char *buf,
@@ -3358,6 +3364,7 @@ static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_ctrl_loss_tmo.attr,
 	&dev_attr_reconnect_delay.attr,
 	&dev_attr_fast_io_fail_tmo.attr,
+	&dev_attr_kato.attr,
 	NULL
 };
 
@@ -3424,6 +3431,66 @@ static int __nvme_check_ids(struct nvme_subsystem *subsys,
 	}
 
 	return 0;
+}
+
+void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device)
+{
+	cdev_device_del(cdev, cdev_device);
+	ida_simple_remove(&nvme_ns_chr_minor_ida, MINOR(cdev_device->devt));
+}
+
+int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
+		const struct file_operations *fops, struct module *owner)
+{
+	int minor, ret;
+
+	minor = ida_simple_get(&nvme_ns_chr_minor_ida, 0, 0, GFP_KERNEL);
+	if (minor < 0)
+		return minor;
+	cdev_device->devt = MKDEV(MAJOR(nvme_ns_chr_devt), minor);
+	cdev_device->class = nvme_ns_chr_class;
+	device_initialize(cdev_device);
+	cdev_init(cdev, fops);
+	cdev->owner = owner;
+	ret = cdev_device_add(cdev, cdev_device);
+	if (ret)
+		ida_simple_remove(&nvme_ns_chr_minor_ida, minor);
+	return ret;
+}
+
+static int nvme_ns_chr_open(struct inode *inode, struct file *file)
+{
+	return nvme_ns_open(container_of(inode->i_cdev, struct nvme_ns, cdev));
+}
+
+static int nvme_ns_chr_release(struct inode *inode, struct file *file)
+{
+	nvme_ns_release(container_of(inode->i_cdev, struct nvme_ns, cdev));
+	return 0;
+}
+
+static const struct file_operations nvme_ns_chr_fops = {
+	.owner		= THIS_MODULE,
+	.open		= nvme_ns_chr_open,
+	.release	= nvme_ns_chr_release,
+	.unlocked_ioctl	= nvme_ns_chr_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
+};
+
+static int nvme_add_ns_cdev(struct nvme_ns *ns)
+{
+	int ret;
+
+	ns->cdev_device.parent = ns->ctrl->device;
+	ret = dev_set_name(&ns->cdev_device, "ng%dn%d",
+			   ns->ctrl->instance, ns->head->instance);
+	if (ret)
+		return ret;
+	ret = nvme_cdev_add(&ns->cdev, &ns->cdev_device, &nvme_ns_chr_fops,
+			    ns->ctrl->ops->module);
+	if (ret)
+		kfree_const(ns->cdev_device.kobj.name);
+	return ret;
 }
 
 static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
@@ -3627,6 +3694,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	nvme_get_ctrl(ctrl);
 
 	device_add_disk(ctrl->device, ns->disk, nvme_ns_id_attr_groups);
+	if (!nvme_ns_head_multipath(ns->head))
+		nvme_add_ns_cdev(ns);
 
 	nvme_mpath_add_disk(ns, id);
 	nvme_fault_inject_init(&ns->fault_inject, ns->disk->disk_name);
@@ -3671,6 +3740,8 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	synchronize_srcu(&ns->head->srcu); /* wait for concurrent submissions */
 
 	if (ns->disk->flags & GENHD_FL_UP) {
+		if (!nvme_ns_head_multipath(ns->head))
+			nvme_cdev_del(&ns->cdev, &ns->cdev_device);
 		del_gendisk(ns->disk);
 		blk_cleanup_queue(ns->queue);
 		if (blk_get_integrity(ns->disk))
@@ -4461,8 +4532,24 @@ static int __init nvme_core_init(void)
 		result = PTR_ERR(nvme_subsys_class);
 		goto destroy_class;
 	}
+
+	result = alloc_chrdev_region(&nvme_ns_chr_devt, 0, NVME_MINORS,
+				     "nvme-generic");
+	if (result < 0)
+		goto destroy_subsys_class;
+
+	nvme_ns_chr_class = class_create(THIS_MODULE, "nvme-generic");
+	if (IS_ERR(nvme_ns_chr_class)) {
+		result = PTR_ERR(nvme_ns_chr_class);
+		goto unregister_generic_ns;
+	}
+
 	return 0;
 
+unregister_generic_ns:
+	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
+destroy_subsys_class:
+	class_destroy(nvme_subsys_class);
 destroy_class:
 	class_destroy(nvme_class);
 unregister_chrdev:
@@ -4479,12 +4566,15 @@ out:
 
 static void __exit nvme_core_exit(void)
 {
+	class_destroy(nvme_ns_chr_class);
 	class_destroy(nvme_subsys_class);
 	class_destroy(nvme_class);
+	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
 	unregister_chrdev_region(nvme_ctrl_base_chr_devt, NVME_MINORS);
 	destroy_workqueue(nvme_delete_wq);
 	destroy_workqueue(nvme_reset_wq);
 	destroy_workqueue(nvme_wq);
+	ida_destroy(&nvme_ns_chr_minor_ida);
 	ida_destroy(&nvme_instance_ida);
 }
 

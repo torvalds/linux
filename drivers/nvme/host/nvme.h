@@ -27,7 +27,6 @@ extern unsigned int admin_timeout;
 #define NVME_ADMIN_TIMEOUT	(admin_timeout * HZ)
 
 #define NVME_DEFAULT_KATO	5
-#define NVME_KATO_GRACE		10
 
 #ifdef CONFIG_ARCH_NO_SG_CHAIN
 #define  NVME_INLINE_SG_CNT  0
@@ -413,6 +412,10 @@ struct nvme_ns_head {
 	bool			shared;
 	int			instance;
 	struct nvme_effects_log *effects;
+
+	struct cdev		cdev;
+	struct device		cdev_device;
+
 	struct gendisk		*disk;
 #ifdef CONFIG_NVME_MULTIPATH
 	struct bio_list		requeue_list;
@@ -464,6 +467,9 @@ struct nvme_ns {
 #define NVME_NS_DEAD     	1
 #define NVME_NS_ANA_PENDING	2
 #define NVME_NS_FORCE_RO	3
+
+	struct cdev		cdev;
+	struct device		cdev_device;
 
 	struct nvme_fault_inject fault_inject;
 
@@ -659,10 +665,16 @@ void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx);
 bool nvme_tryget_ns_head(struct nvme_ns_head *head);
 void nvme_put_ns_head(struct nvme_ns_head *head);
 struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys);
+int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
+		const struct file_operations *fops, struct module *owner);
+void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device);
 int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg);
+long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg);
+long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg);
 long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg);
 int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo);

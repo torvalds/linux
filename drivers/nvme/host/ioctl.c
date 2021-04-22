@@ -346,15 +346,27 @@ static int nvme_ns_ioctl(struct nvme_ns *ns, unsigned int cmd,
 	}
 }
 
+static int __nvme_ioctl(struct nvme_ns *ns, unsigned int cmd, void __user *arg)
+{
+       if (is_ctrl_ioctl(cmd))
+               return nvme_ctrl_ioctl(ns->ctrl, cmd, arg);
+       return nvme_ns_ioctl(ns, cmd, arg);
+}
+
 int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
-	void __user *argp = (void __user *)arg;
 
-	if (is_ctrl_ioctl(cmd))
-		return nvme_ctrl_ioctl(ns->ctrl, cmd, argp);
-	return nvme_ns_ioctl(ns, cmd, argp);
+	return __nvme_ioctl(ns, cmd, (void __user *)arg);
+}
+
+long nvme_ns_chr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct nvme_ns *ns =
+		container_of(file_inode(file)->i_cdev, struct nvme_ns, cdev);
+
+	return __nvme_ioctl(ns, cmd, (void __user *)arg);
 }
 
 #ifdef CONFIG_NVME_MULTIPATH
@@ -388,10 +400,24 @@ int nvme_ns_head_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
 	struct nvme_ns_head *head = bdev->bd_disk->private_data;
+	void __user *argp = (void __user *)arg;
 
 	if (is_ctrl_ioctl(cmd))
-		return nvme_ns_head_ctrl_ioctl(head, cmd, (void __user *)arg);
-	return nvme_ns_head_ns_ioctl(head, cmd, (void __user *)arg);
+		return nvme_ns_head_ctrl_ioctl(head, cmd, argp);
+	return nvme_ns_head_ns_ioctl(head, cmd, argp);
+}
+
+long nvme_ns_head_chr_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	struct cdev *cdev = file_inode(file)->i_cdev;
+	struct nvme_ns_head *head =
+		container_of(cdev, struct nvme_ns_head, cdev);
+	void __user *argp = (void __user *)arg;
+
+	if (is_ctrl_ioctl(cmd))
+		return nvme_ns_head_ctrl_ioctl(head, cmd, argp);
+	return nvme_ns_head_ns_ioctl(head, cmd, argp);
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 
