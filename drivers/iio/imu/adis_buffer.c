@@ -134,7 +134,12 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 		if (adis->current_page != 0) {
 			adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
 			adis->tx[1] = 0;
-			spi_write(adis->spi, adis->tx, 2);
+			ret = spi_write(adis->spi, adis->tx, 2);
+			if (ret) {
+				dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
+				mutex_unlock(&adis->state_lock);
+				goto irq_done;
+			}
 		}
 	}
 
@@ -151,6 +156,7 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,
 		pf->timestamp);
 
+irq_done:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
