@@ -9,6 +9,59 @@
 #ifndef _UAPI_LINUX_LANDLOCK_H
 #define _UAPI_LINUX_LANDLOCK_H
 
+#include <linux/types.h>
+
+/**
+ * struct landlock_ruleset_attr - Ruleset definition
+ *
+ * Argument of sys_landlock_create_ruleset().  This structure can grow in
+ * future versions.
+ */
+struct landlock_ruleset_attr {
+	/**
+	 * @handled_access_fs: Bitmask of actions (cf. `Filesystem flags`_)
+	 * that is handled by this ruleset and should then be forbidden if no
+	 * rule explicitly allow them.  This is needed for backward
+	 * compatibility reasons.
+	 */
+	__u64 handled_access_fs;
+};
+
+/**
+ * enum landlock_rule_type - Landlock rule type
+ *
+ * Argument of sys_landlock_add_rule().
+ */
+enum landlock_rule_type {
+	/**
+	 * @LANDLOCK_RULE_PATH_BENEATH: Type of a &struct
+	 * landlock_path_beneath_attr .
+	 */
+	LANDLOCK_RULE_PATH_BENEATH = 1,
+};
+
+/**
+ * struct landlock_path_beneath_attr - Path hierarchy definition
+ *
+ * Argument of sys_landlock_add_rule().
+ */
+struct landlock_path_beneath_attr {
+	/**
+	 * @allowed_access: Bitmask of allowed actions for this file hierarchy
+	 * (cf. `Filesystem flags`_).
+	 */
+	__u64 allowed_access;
+	/**
+	 * @parent_fd: File descriptor, open with ``O_PATH``, which identifies
+	 * the parent directory of a file hierarchy, or just a file.
+	 */
+	__s32 parent_fd;
+	/*
+	 * This struct is packed to avoid trailing reserved members.
+	 * Cf. security/landlock/syscalls.c:build_check_abi()
+	 */
+} __attribute__((packed));
+
 /**
  * DOC: fs_access
  *
