@@ -63,6 +63,53 @@ TEST(inconsistent_attr) {
 	free(buf);
 }
 
+TEST(abi_version) {
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	ASSERT_EQ(1, landlock_create_ruleset(NULL, 0,
+				LANDLOCK_CREATE_RULESET_VERSION));
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
+				LANDLOCK_CREATE_RULESET_VERSION));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(NULL, sizeof(ruleset_attr),
+				LANDLOCK_CREATE_RULESET_VERSION));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
+				sizeof(ruleset_attr),
+				LANDLOCK_CREATE_RULESET_VERSION));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 0,
+				LANDLOCK_CREATE_RULESET_VERSION | 1 << 31));
+	ASSERT_EQ(EINVAL, errno);
+}
+
+TEST(inval_create_ruleset_flags) {
+	const int last_flag = LANDLOCK_CREATE_RULESET_VERSION;
+	const int invalid_flag = last_flag << 1;
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+
+	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 0, invalid_flag));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0, invalid_flag));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(NULL, sizeof(ruleset_attr),
+				invalid_flag));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
+				sizeof(ruleset_attr), invalid_flag));
+	ASSERT_EQ(EINVAL, errno);
+}
+
 TEST(empty_path_beneath_attr) {
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,

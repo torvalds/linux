@@ -27,6 +27,14 @@ struct landlock_ruleset_attr {
 	__u64 handled_access_fs;
 };
 
+/*
+ * sys_landlock_create_ruleset() flags:
+ *
+ * - %LANDLOCK_CREATE_RULESET_VERSION: Get the highest supported Landlock ABI
+ *   version.
+ */
+#define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)
+
 /**
  * enum landlock_rule_type - Landlock rule type
  *

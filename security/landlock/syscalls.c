@@ -128,6 +128,8 @@ static const struct file_operations ruleset_fops = {
 	.write = fop_dummy_write,
 };
 
+#define LANDLOCK_ABI_VERSION	1
+
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
  *
@@ -135,15 +137,19 @@ static const struct file_operations ruleset_fops = {
  *        the new ruleset.
  * @size: Size of the pointed &struct landlock_ruleset_attr (needed for
  *        backward and forward compatibility).
- * @flags: Must be 0.
+ * @flags: Supported value: %LANDLOCK_CREATE_RULESET_VERSION.
  *
  * This system call enables to create a new Landlock ruleset, and returns the
  * related file descriptor on success.
  *
+ * If @flags is %LANDLOCK_CREATE_RULESET_VERSION and @attr is NULL and @size is
+ * 0, then the returned value is the highest supported Landlock ABI version
+ * (starting at 1).
+ *
  * Possible returned errors are:
  *
  * - EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - EINVAL: @flags is not 0, or unknown access, or too small @size;
+ * - EINVAL: unknown @flags, or unknown access, or too small @size;
  * - E2BIG or EFAULT: @attr or @size inconsistencies;
  * - ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
  */
@@ -161,9 +167,12 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 	if (!landlock_initialized)
 		return -EOPNOTSUPP;
 
-	/* No flag for now. */
-	if (flags)
+	if (flags) {
+		if ((flags == LANDLOCK_CREATE_RULESET_VERSION)
+				&& !attr && !size)
+			return LANDLOCK_ABI_VERSION;
 		return -EINVAL;
+	}
 
 	/* Copies raw user space buffer. */
 	err = copy_min_struct_from_user(&ruleset_attr, sizeof(ruleset_attr),
