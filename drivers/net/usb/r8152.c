@@ -4803,7 +4803,7 @@ static void rtl_ram_code_speed_up(struct r8152 *tp, struct fw_phy_speed_up *phy,
 
 		if (i == 1000) {
 			dev_err(&tp->intf->dev, "ram code speedup mode timeout\n");
-			return;
+			break;
 		}
 	}
 
