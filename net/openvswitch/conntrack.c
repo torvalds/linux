@@ -271,9 +271,11 @@ static void ovs_ct_update_key(const struct sk_buff *skb,
 /* This is called to initialize CT key fields possibly coming in from the local
  * stack.
  */
-void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
+void ovs_ct_fill_key(const struct sk_buff *skb,
+		     struct sw_flow_key *key,
+		     bool post_ct)
 {
-	ovs_ct_update_key(skb, NULL, key, false, false);
+	ovs_ct_update_key(skb, NULL, key, post_ct, false);
 }
 
 int ovs_ct_put_key(const struct sw_flow_key *swkey,
@@ -1332,7 +1334,7 @@ int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key)
 	if (skb_nfct(skb)) {
 		nf_conntrack_put(skb_nfct(skb));
 		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
-		ovs_ct_fill_key(skb, key);
+		ovs_ct_fill_key(skb, key, false);
 	}
 
 	return 0;

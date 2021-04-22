@@ -69,6 +69,7 @@ struct kvm_sev_info {
 	struct list_head regions_list;  /* List of registered regions */
 	u64 ap_jump_table;	/* SEV-ES AP Jump Table address */
 	struct kvm *enc_context_owner; /* Owner of copied encryption context */
+	struct misc_cg *misc_cg; /* For misc cgroup accounting */
 };
 
 struct kvm_svm {

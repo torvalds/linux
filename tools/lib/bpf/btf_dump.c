@@ -462,7 +462,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 		return err;
 
 	case BTF_KIND_ARRAY:
-		return btf_dump_order_type(d, btf_array(t)->type, through_ptr);
+		return btf_dump_order_type(d, btf_array(t)->type, false);
 
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {

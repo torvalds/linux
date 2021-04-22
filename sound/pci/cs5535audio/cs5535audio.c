@@ -393,4 +393,3 @@ module_pci_driver(cs5535audio_driver);
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CS5535 Audio");
-MODULE_SUPPORTED_DEVICE("CS5535 Audio");

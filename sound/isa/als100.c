@@ -26,17 +26,6 @@
 #define PFX "als100: "
 
 MODULE_DESCRIPTION("Avance Logic ALS007/ALS1X0");
-MODULE_SUPPORTED_DEVICE("{{Diamond Technologies DT-019X},"
-		"{Avance Logic ALS-007}}"
-		"{{Avance Logic,ALS100 - PRO16PNP},"
-	        "{Avance Logic,ALS110},"
-	        "{Avance Logic,ALS120},"
-	        "{Avance Logic,ALS200},"
-	        "{3D Melody,MF1000},"
-	        "{Digimate,3D Sound},"
-	        "{Avance Logic,ALS120},"
-	        "{RTL,RTL3000}}");
-
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_LICENSE("GPL");
 

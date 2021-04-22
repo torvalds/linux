@@ -2371,6 +2371,10 @@ static int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
 		i = state == AMD_CG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
 		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
+		/* skip CG for GFX on S0ix */
+		if (adev->in_s0ix &&
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX)
+			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
 		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
@@ -2401,6 +2405,10 @@ static int amdgpu_device_set_pg_state(struct amdgpu_device *adev, enum amd_power
 	for (j = 0; j < adev->num_ip_blocks; j++) {
 		i = state == AMD_PG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
 		if (!adev->ip_blocks[i].status.late_initialized)
+			continue;
+		/* skip PG for GFX on S0ix */
+		if (adev->in_s0ix &&
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
@@ -2678,11 +2686,8 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	if (adev->in_poweroff_reboot_com ||
-	    !amdgpu_acpi_is_s0ix_supported(adev) || amdgpu_in_reset(adev)) {
-		amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
-		amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
-	}
+	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
@@ -2722,6 +2727,9 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	if (adev->in_s0ix)
+		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D3Entry);
+
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
@@ -2734,6 +2742,17 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 			adev->ip_blocks[i].status.hw = false;
 			continue;
 		}
+
+		/* skip suspend of gfx and psp for S0ix
+		 * gfx is in gfxoff state, so on resume it will exit gfxoff just
+		 * like at runtime. PSP is also part of the always on hardware
+		 * so no need to suspend it.
+		 */
+		if (adev->in_s0ix &&
+		    (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP ||
+		     adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX))
+			continue;
+
 		/* XXX handle errors */
 		r = adev->ip_blocks[i].version->funcs->suspend(adev);
 		/* XXX handle errors */
@@ -3673,13 +3692,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  */
 int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 {
-	struct amdgpu_device *adev;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-	struct drm_connector_list_iter iter;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int r;
-
-	adev = drm_to_adev(dev);
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -3692,61 +3706,19 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	cancel_delayed_work_sync(&adev->delayed_init_work);
 
-	if (!amdgpu_device_has_dc_support(adev)) {
-		/* turn off display hw */
-		drm_modeset_lock_all(dev);
-		drm_connector_list_iter_begin(dev, &iter);
-		drm_for_each_connector_iter(connector, &iter)
-			drm_helper_connector_dpms(connector,
-						  DRM_MODE_DPMS_OFF);
-		drm_connector_list_iter_end(&iter);
-		drm_modeset_unlock_all(dev);
-			/* unpin the front buffers and cursors */
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-			struct drm_framebuffer *fb = crtc->primary->fb;
-			struct amdgpu_bo *robj;
-
-			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
-				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-				r = amdgpu_bo_reserve(aobj, true);
-				if (r == 0) {
-					amdgpu_bo_unpin(aobj);
-					amdgpu_bo_unreserve(aobj);
-				}
-			}
-
-			if (fb == NULL || fb->obj[0] == NULL) {
-				continue;
-			}
-			robj = gem_to_amdgpu_bo(fb->obj[0]);
-			/* don't unpin kernel fb objects */
-			if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
-				r = amdgpu_bo_reserve(robj, true);
-				if (r == 0) {
-					amdgpu_bo_unpin(robj);
-					amdgpu_bo_unreserve(robj);
-				}
-			}
-		}
-	}
-
 	amdgpu_ras_suspend(adev);
 
 	r = amdgpu_device_ip_suspend_phase1(adev);
 
-	amdgpu_amdkfd_suspend(adev, adev->in_runpm);
+	if (!adev->in_s0ix)
+		amdgpu_amdkfd_suspend(adev, adev->in_runpm);
 
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 
 	amdgpu_fence_driver_suspend(adev);
 
-	if (adev->in_poweroff_reboot_com ||
-	    !amdgpu_acpi_is_s0ix_supported(adev) || amdgpu_in_reset(adev))
-		r = amdgpu_device_ip_suspend_phase2(adev);
-	else
-		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D3Entry);
+	r = amdgpu_device_ip_suspend_phase2(adev);
 	/* evict remaining vram memory
 	 * This second call to evict vram is to evict the gart page table
 	 * using the CPU.
@@ -3768,16 +3740,13 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
  */
 int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 {
-	struct drm_connector *connector;
-	struct drm_connector_list_iter iter;
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct drm_crtc *crtc;
 	int r = 0;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	if (amdgpu_acpi_is_s0ix_supported(adev))
+	if (adev->in_s0ix)
 		amdgpu_gfx_state_change_set(adev, sGpuChangeState_D0Entry);
 
 	/* post card */
@@ -3802,50 +3771,17 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	queue_delayed_work(system_wq, &adev->delayed_init_work,
 			   msecs_to_jiffies(AMDGPU_RESUME_MS));
 
-	if (!amdgpu_device_has_dc_support(adev)) {
-		/* pin cursors */
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
-				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-				r = amdgpu_bo_reserve(aobj, true);
-				if (r == 0) {
-					r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
-					if (r != 0)
-						dev_err(adev->dev, "Failed to pin cursor BO (%d)\n", r);
-					amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
-					amdgpu_bo_unreserve(aobj);
-				}
-			}
-		}
+	if (!adev->in_s0ix) {
+		r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
+		if (r)
+			return r;
 	}
-	r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
-	if (r)
-		return r;
 
 	/* Make sure IB tests flushed */
 	flush_delayed_work(&adev->delayed_init_work);
 
-	/* blat the mode back in */
-	if (fbcon) {
-		if (!amdgpu_device_has_dc_support(adev)) {
-			/* pre DCE11 */
-			drm_helper_resume_force_mode(dev);
-
-			/* turn on display hw */
-			drm_modeset_lock_all(dev);
-
-			drm_connector_list_iter_begin(dev, &iter);
-			drm_for_each_connector_iter(connector, &iter)
-				drm_helper_connector_dpms(connector,
-							  DRM_MODE_DPMS_ON);
-			drm_connector_list_iter_end(&iter);
-
-			drm_modeset_unlock_all(dev);
-		}
+	if (fbcon)
 		amdgpu_fbdev_set_suspend(adev, 0);
-	}
 
 	drm_kms_helper_poll_enable(dev);
 

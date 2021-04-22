@@ -51,7 +51,6 @@
 MODULE_AUTHOR("George Talusan <gstalusan@uwaterloo.ca>");
 MODULE_DESCRIPTION("C-Media CMI8330/CMI8329");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8330,isapnp:{CMI0001,@@@0001,@X@0001}}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;

@@ -1173,15 +1173,20 @@ config INTEL_PMC_CORE
 	depends on PCI
 	help
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
-	  to Power Management Controller registers via a PCI interface. This
+	  to Power Management Controller registers via various interfaces. This
 	  driver can utilize debugging capabilities and supported features as
-	  exposed by the Power Management Controller.
+	  exposed by the Power Management Controller. It also may perform some
+	  tasks in the PMC in order to enable transition into the SLPS0 state.
+	  It should be selected on all Intel platforms supported by the driver.
 
 	  Supported features:
 		- SLP_S0_RESIDENCY counter
 		- PCH IP Power Gating status
-		- LTR Ignore
+		- LTR Ignore / LTR Show
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
+		- SLPS0 Debug registers (Cannonlake/Icelake PCH)
+		- Low Power Mode registers (Tigerlake and beyond)
+		- PMC quirks as needed to enable SLPS0/S0ix
 
 config INTEL_PMT_CLASS
 	tristate

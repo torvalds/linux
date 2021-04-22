@@ -92,14 +92,15 @@ struct page_pool;
 				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
 #define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
 
-#define MLX5_MTT_OCTW(npages) (ALIGN(npages, 8) / 2)
+#define MLX5_ALIGN_MTTS(mtts)		(ALIGN(mtts, 8))
+#define MLX5_ALIGNED_MTTS_OCTW(mtts)	((mtts) / 2)
+#define MLX5_MTT_OCTW(mtts)		(MLX5_ALIGNED_MTTS_OCTW(MLX5_ALIGN_MTTS(mtts)))
 /* Add another page to MLX5E_REQUIRED_WQE_MTTS as a buffer between
  * WQEs, This page will absorb write overflow by the hardware, when
  * receiving packets larger than MTU. These oversize packets are
  * dropped by the driver at a later stage.
  */
-#define MLX5E_REQUIRED_WQE_MTTS		(ALIGN(MLX5_MPWRQ_PAGES_PER_WQE + 1, 8))
-#define MLX5E_LOG_ALIGNED_MPWQE_PPW	(ilog2(MLX5E_REQUIRED_WQE_MTTS))
+#define MLX5E_REQUIRED_WQE_MTTS		(MLX5_ALIGN_MTTS(MLX5_MPWRQ_PAGES_PER_WQE + 1))
 #define MLX5E_REQUIRED_MTTS(wqes)	(wqes * MLX5E_REQUIRED_WQE_MTTS)
 #define MLX5E_MAX_RQ_NUM_MTTS	\
 	((1 << 16) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */

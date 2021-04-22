@@ -427,7 +427,6 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	nested_vmcb02_compute_g_pat(svm);
 
 	/* Load the nested guest state */
-
 	if (svm->nested.vmcb12_gpa != svm->nested.last_vmcb12_gpa) {
 		new_vmcb12 = true;
 		svm->nested.last_vmcb12_gpa = svm->nested.vmcb12_gpa;
