@@ -1113,7 +1113,7 @@ static void rkvenc_iommu_handle_work(struct work_struct *work_s)
 	mpp_debug_enter();
 
 	/* avoid another page fault occur after page fault */
-	down_write(&mpp->iommu_info->rw_sem);
+	mpp_iommu_down_write(mpp->iommu_info);
 
 	if (enc->aux_iova != -1) {
 		iommu_unmap(mpp->iommu_info->domain, enc->aux_iova, IOMMU_PAGE_SIZE);
@@ -1130,7 +1130,7 @@ static void rkvenc_iommu_handle_work(struct work_struct *work_s)
 		enc->aux_iova = page_iova;
 
 	rk_iommu_unmask_irq(mpp->dev);
-	up_write(&mpp->iommu_info->rw_sem);
+	mpp_iommu_up_write(mpp->iommu_info);
 
 	mpp_debug_leave();
 }

@@ -109,4 +109,36 @@ int mpp_iommu_disable(struct mpp_rk_iommu *iommu);
 int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev);
 int mpp_iommu_flush_tlb(struct mpp_iommu_info *info);
 
+static inline int mpp_iommu_down_read(struct mpp_iommu_info *info)
+{
+	if (info)
+		down_read(&info->rw_sem);
+
+	return 0;
+}
+
+static inline int mpp_iommu_up_read(struct mpp_iommu_info *info)
+{
+	if (info)
+		up_read(&info->rw_sem);
+
+	return 0;
+}
+
+static inline int mpp_iommu_down_write(struct mpp_iommu_info *info)
+{
+	if (info)
+		down_write(&info->rw_sem);
+
+	return 0;
+}
+
+static inline int mpp_iommu_up_write(struct mpp_iommu_info *info)
+{
+	if (info)
+		up_write(&info->rw_sem);
+
+	return 0;
+}
+
 #endif
