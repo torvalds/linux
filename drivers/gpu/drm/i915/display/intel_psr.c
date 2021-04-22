@@ -817,6 +817,13 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		}
 	}
 
+	/* Wa_2209313811 */
+	if (!crtc_state->enable_psr2_sel_fetch &&
+	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B1)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 HW tracking is not supported this Display stepping\n");
+		return false;
+	}
+
 	if (!crtc_state->enable_psr2_sel_fetch &&
 	    (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v)) {
 		drm_dbg_kms(&dev_priv->drm,
