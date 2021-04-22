@@ -403,7 +403,8 @@ config SERIAL_8250_RT288X
 
 config SERIAL_8250_OMAP
 	tristate "Support for OMAP internal UART (8250 based driver)"
-	depends on SERIAL_8250 && (ARCH_OMAP2PLUS || ARCH_K3)
+	depends on SERIAL_8250
+	depends on ARCH_OMAP2PLUS || ARCH_K3 || COMPILE_TEST
 	help
 	  If you have a machine based on an Texas Instruments OMAP CPU you
 	  can enable its onboard serial ports by enabling this option.
@@ -439,7 +440,8 @@ config SERIAL_8250_LPC18XX
 
 config SERIAL_8250_MT6577
 	tristate "Mediatek serial port support"
-	depends on SERIAL_8250 && ARCH_MEDIATEK
+	depends on SERIAL_8250
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
 	  If you have a Mediatek based board and want to use the
 	  serial port, say Y to this option. If unsure, say N.
