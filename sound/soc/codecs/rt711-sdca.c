@@ -509,11 +509,15 @@ static int rt711_sdca_set_gain_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
 	unsigned int read_l, read_r, gain_l_val, gain_r_val;
-	unsigned int i, adc_vol_flag = 0;
+	unsigned int i, adc_vol_flag = 0, changed = 0;
+	unsigned int lvalue, rvalue;
 
 	if (strstr(ucontrol->id.name, "FU1E Capture Volume") ||
 		strstr(ucontrol->id.name, "FU0F Capture Volume"))
 		adc_vol_flag = 1;
+
+	regmap_read(rt711->mbq_regmap, mc->reg, &lvalue);
+	regmap_read(rt711->mbq_regmap, mc->rreg, &rvalue);
 
 	/* control value to 2's complement value */
 	/* L Channel */
@@ -560,6 +564,11 @@ static int rt711_sdca_set_gain_put(struct snd_kcontrol *kcontrol,
 		gain_r_val &= 0xffff;
 	}
 
+	if (lvalue != gain_l_val || rvalue != gain_r_val)
+		changed = 1;
+	else
+		return 0;
+
 	for (i = 0; i < 3; i++) { /* retry 3 times at most */
 		/* Lch*/
 		regmap_write(rt711->mbq_regmap, mc->reg, gain_l_val);
@@ -573,7 +582,7 @@ static int rt711_sdca_set_gain_put(struct snd_kcontrol *kcontrol,
 			break;
 	}
 
-	return i == 3 ? -EIO : 0;
+	return i == 3 ? -EIO : changed;
 }
 
 static int rt711_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
