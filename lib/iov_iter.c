@@ -489,19 +489,15 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 			size_t count)
 {
 	WARN_ON(direction & ~(READ | WRITE));
-	direction &= READ | WRITE;
-
-	/* It will get better.  Eventually... */
-	if (uaccess_kernel()) {
-		i->type = ITER_KVEC | direction;
-		i->kvec = (struct kvec *)iov;
-	} else {
-		i->type = ITER_IOVEC | direction;
-		i->iov = iov;
-	}
-	i->nr_segs = nr_segs;
-	i->iov_offset = 0;
-	i->count = count;
+	WARN_ON_ONCE(uaccess_kernel());
+	*i = (struct iov_iter) {
+		.iter_type = ITER_IOVEC,
+		.data_source = direction,
+		.iov = iov,
+		.nr_segs = nr_segs,
+		.iov_offset = 0,
+		.count = count
+	};
 }
 EXPORT_SYMBOL(iov_iter_init);
 
@@ -1218,11 +1214,14 @@ void iov_iter_kvec(struct iov_iter *i, unsigned int direction,
 			size_t count)
 {
 	WARN_ON(direction & ~(READ | WRITE));
-	i->type = ITER_KVEC | (direction & (READ | WRITE));
-	i->kvec = kvec;
-	i->nr_segs = nr_segs;
-	i->iov_offset = 0;
-	i->count = count;
+	*i = (struct iov_iter){
+		.iter_type = ITER_KVEC,
+		.data_source = direction,
+		.kvec = kvec,
+		.nr_segs = nr_segs,
+		.iov_offset = 0,
+		.count = count
+	};
 }
 EXPORT_SYMBOL(iov_iter_kvec);
 
@@ -1231,11 +1230,14 @@ void iov_iter_bvec(struct iov_iter *i, unsigned int direction,
 			size_t count)
 {
 	WARN_ON(direction & ~(READ | WRITE));
-	i->type = ITER_BVEC | (direction & (READ | WRITE));
-	i->bvec = bvec;
-	i->nr_segs = nr_segs;
-	i->iov_offset = 0;
-	i->count = count;
+	*i = (struct iov_iter){
+		.iter_type = ITER_BVEC,
+		.data_source = direction,
+		.bvec = bvec,
+		.nr_segs = nr_segs,
+		.iov_offset = 0,
+		.count = count
+	};
 }
 EXPORT_SYMBOL(iov_iter_bvec);
 
@@ -1245,12 +1247,15 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 {
 	BUG_ON(direction != READ);
 	WARN_ON(pipe_full(pipe->head, pipe->tail, pipe->ring_size));
-	i->type = ITER_PIPE | READ;
-	i->pipe = pipe;
-	i->head = pipe->head;
-	i->iov_offset = 0;
-	i->count = count;
-	i->start_head = i->head;
+	*i = (struct iov_iter){
+		.iter_type = ITER_PIPE,
+		.data_source = false,
+		.pipe = pipe,
+		.head = pipe->head,
+		.start_head = pipe->head,
+		.iov_offset = 0,
+		.count = count
+	};
 }
 EXPORT_SYMBOL(iov_iter_pipe);
 
@@ -1271,11 +1276,14 @@ void iov_iter_xarray(struct iov_iter *i, unsigned int direction,
 		     struct xarray *xarray, loff_t start, size_t count)
 {
 	BUG_ON(direction & ~1);
-	i->type = ITER_XARRAY | (direction & (READ | WRITE));
-	i->xarray = xarray;
-	i->xarray_start = start;
-	i->count = count;
-	i->iov_offset = 0;
+	*i = (struct iov_iter) {
+		.iter_type = ITER_XARRAY,
+		.data_source = direction,
+		.xarray = xarray,
+		.xarray_start = start,
+		.count = count,
+		.iov_offset = 0
+	};
 }
 EXPORT_SYMBOL(iov_iter_xarray);
 
@@ -1291,9 +1299,12 @@ EXPORT_SYMBOL(iov_iter_xarray);
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count)
 {
 	BUG_ON(direction != READ);
-	i->type = ITER_DISCARD | READ;
-	i->count = count;
-	i->iov_offset = 0;
+	*i = (struct iov_iter){
+		.iter_type = ITER_DISCARD,
+		.data_source = false,
+		.count = count,
+		.iov_offset = 0
+	};
 }
 EXPORT_SYMBOL(iov_iter_discard);
 

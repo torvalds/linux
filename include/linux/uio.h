@@ -19,21 +19,17 @@ struct kvec {
 
 enum iter_type {
 	/* iter types */
-	ITER_IOVEC = 4,
-	ITER_KVEC = 8,
-	ITER_BVEC = 16,
-	ITER_PIPE = 32,
-	ITER_DISCARD = 64,
-	ITER_XARRAY = 128,
+	ITER_IOVEC,
+	ITER_KVEC,
+	ITER_BVEC,
+	ITER_PIPE,
+	ITER_XARRAY,
+	ITER_DISCARD,
 };
 
 struct iov_iter {
-	/*
-	 * Bit 0 is the read/write bit, set if we're writing.
-	 * Bit 1 is the BVEC_FLAG_NO_REF bit, set if type is a bvec and
-	 * the caller isn't expecting to drop a page reference when done.
-	 */
-	unsigned int type;
+	u8 iter_type;
+	bool data_source;
 	size_t iov_offset;
 	size_t count;
 	union {
@@ -55,7 +51,7 @@ struct iov_iter {
 
 static inline enum iter_type iov_iter_type(const struct iov_iter *i)
 {
-	return i->type & ~(READ | WRITE);
+	return i->iter_type;
 }
 
 static inline bool iter_is_iovec(const struct iov_iter *i)
@@ -90,7 +86,7 @@ static inline bool iov_iter_is_xarray(const struct iov_iter *i)
 
 static inline unsigned char iov_iter_rw(const struct iov_iter *i)
 {
-	return i->type & (READ | WRITE);
+	return i->data_source ? WRITE : READ;
 }
 
 /*
