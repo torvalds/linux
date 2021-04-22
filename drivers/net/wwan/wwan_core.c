@@ -508,6 +508,8 @@ static __poll_t wwan_port_fops_poll(struct file *filp, poll_table *wait)
 		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (!is_read_blocked(port))
 		mask |= EPOLLIN | EPOLLRDNORM;
+	if (!port->ops)
+		mask |= EPOLLHUP | EPOLLERR;
 
 	return mask;
 }
