@@ -5940,8 +5940,10 @@ static int check_bpf_snprintf_call(struct bpf_verifier_env *env,
 	fmt_map_off = fmt_reg->off + fmt_reg->var_off.value;
 	err = fmt_map->ops->map_direct_value_addr(fmt_map, &fmt_addr,
 						  fmt_map_off);
-	if (err)
-		return err;
+	if (err) {
+		verbose(env, "verifier bug\n");
+		return -EFAULT;
+	}
 	fmt = (char *)(long)fmt_addr + fmt_map_off;
 
 	/* We are also guaranteed that fmt+fmt_map_off is NULL terminated, we
