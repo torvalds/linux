@@ -444,6 +444,8 @@ struct rga_req_32
                                     /* ([5]   dst   alpha mode)      */
                                     /* ([6]   alpha output mode sel) 0 src / 1 dst*/
     uint8_t  src_trans_mode;
+
+    uint8_t dither_mode;
 };
 
 

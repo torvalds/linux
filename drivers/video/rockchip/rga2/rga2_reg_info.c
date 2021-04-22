@@ -1357,43 +1357,72 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
         req->render_mode = req_rga->render_mode;
     memcpy_img_info(&req->src, &req_rga->src);
     memcpy_img_info(&req->dst, &req_rga->dst);
-    memcpy_img_info(&req->pat, &req_rga->pat);
-    memcpy_img_info(&req->src1,&req_rga->pat);
+    /* The application will only import pat or src1. */
+    if (req->render_mode == update_palette_table_mode) {
+        memcpy_img_info(&req->pat, &req_rga->pat);
+    } else {
+        memcpy_img_info(&req->src1,&req_rga->pat);
+    }
     format_name_convert(&req->src.format, req_rga->src.format);
     format_name_convert(&req->dst.format, req_rga->dst.format);
-    if(req_rga->rotate_mode == 1) {
+    format_name_convert(&req->src1.format, req_rga->pat.format);
+
+    switch (req_rga->rotate_mode & 0x0F) {
+    case 1:
         if(req_rga->sina == 0 && req_rga->cosa == 65536) {
+            /* rotate 0 */
             req->rotate_mode = 0;
-        }
-        else if (req_rga->sina == 65536 && req_rga->cosa == 0) {
+        } else if (req_rga->sina == 65536 && req_rga->cosa == 0) {
+            /* rotate 90 */
             req->rotate_mode = 1;
             req->dst.x_offset = req_rga->dst.x_offset - req_rga->dst.act_h + 1;
             req->dst.act_w = req_rga->dst.act_h;
             req->dst.act_h = req_rga->dst.act_w;
-        }
-        else if (req_rga->sina == 0 && req_rga->cosa == -65536) {
+        } else if (req_rga->sina == 0 && req_rga->cosa == -65536) {
+            /* rotate 180 */
             req->rotate_mode = 2;
             req->dst.x_offset = req_rga->dst.x_offset - req_rga->dst.act_w + 1;
             req->dst.y_offset = req_rga->dst.y_offset - req_rga->dst.act_h + 1;
-        }
-        else if (req_rga->sina == -65536 && req_rga->cosa == 0) {
+        } else if (req_rga->sina == -65536 && req_rga->cosa == 0) {
+            /* totate 270 */
             req->rotate_mode = 3;
             req->dst.y_offset = req_rga->dst.y_offset - req_rga->dst.act_w + 1;
             req->dst.act_w = req_rga->dst.act_h;
             req->dst.act_h = req_rga->dst.act_w;
         }
-    }
-    else if (req_rga->rotate_mode == 2)
-    {
-        req->rotate_mode = (1 << 4);
-    }
-    else if (req_rga->rotate_mode == 3)
-    {
-        req->rotate_mode = (2 << 4);
-    }
-    else {
+        break;
+    case 2:
+        //x_mirror
+        req->rotate_mode |= (1 << 4);
+        break;
+    case 3:
+        //y_mirror
+        req->rotate_mode |= (2 << 4);
+        break;
+    case 4:
+        //x_mirror+y_mirror
+        req->rotate_mode |= (3 << 4);
+        break;
+    default:
         req->rotate_mode = 0;
+        break;
     }
+
+    switch ((req_rga->rotate_mode & 0xF0) >> 4) {
+    case 2:
+        //x_mirror
+        req->rotate_mode |= (1 << 4);
+        break;
+    case 3:
+        //y_mirror
+        req->rotate_mode |= (2 << 4);
+        break;
+    case 4:
+        //x_mirror+y_mirror
+        req->rotate_mode |= (3 << 4);
+        break;
+    }
+
     if((req->dst.act_w > 2048) && (req->src.act_h < req->dst.act_h))
         req->scale_bicu_mode |= (1<<4);
     req->LUT_addr = req_rga->LUT_addr;
@@ -1419,6 +1448,8 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->fading_r_value = req_rga->fading.r;
     req->fading_g_value = req_rga->fading.g;
     req->fading_b_value = req_rga->fading.b;
+
+    /* alpha mode set */
     req->alpha_rop_flag = 0;
     req->alpha_rop_flag |= (((req_rga->alpha_rop_flag & 1)));           // alpha_rop_enable
     req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 1) & 1) << 1); // rop_enable
@@ -1426,8 +1457,13 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 4) & 1) << 3); // alpha_cal_mode_sel
     req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 5) & 1) << 6); // dst_dither_down
     req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 6) & 1) << 7); // gradient fill mode sel
+
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 8) & 1) << 8); // nn_quantize
+    req->dither_mode = req_rga->dither_mode;
+
     if(((req_rga->alpha_rop_flag) & 1)) {
         if((req_rga->alpha_rop_flag >> 3) & 1) {
+            /* porter duff alpha enable */
             switch(req_rga->PD_mode)
             {
                 case 0: //dst = 0
@@ -1526,9 +1562,15 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
                req->src.uv_addr   = req_rga->src.uv_addr - 0x60000000;
                req->src.v_addr    = req_rga->src.v_addr - 0x60000000;
             }
+
             if (req_rga->dst.yrgb_addr >= 0xa0000000) {
                req->mmu_info.dst_mmu_flag = 0;
                req->dst.yrgb_addr = req_rga->dst.yrgb_addr - 0x60000000;
+            }
+
+	    if (req_rga->pat.yrgb_addr >= 0xa0000000) {
+               req->mmu_info.src1_mmu_flag = 0;
+               req->src1.yrgb_addr = req_rga->pat.yrgb_addr - 0x60000000;
             }
         }
     }
