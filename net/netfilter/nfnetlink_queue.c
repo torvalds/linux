@@ -1046,20 +1046,18 @@ static int nfq_id_after(unsigned int id, unsigned int max)
 	return (int)(id - max) > 0;
 }
 
-static int nfqnl_recv_verdict_batch(struct net *net, struct sock *ctnl,
-				    struct sk_buff *skb,
-				    const struct nlmsghdr *nlh,
-			            const struct nlattr * const nfqa[],
-				    struct netlink_ext_ack *extack)
+static int nfqnl_recv_verdict_batch(struct sk_buff *skb,
+				    const struct nfnl_info *info,
+				    const struct nlattr * const nfqa[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
+	struct nfnl_queue_net *q = nfnl_queue_pernet(info->net);
+	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	u16 queue_num = ntohs(nfmsg->res_id);
 	struct nf_queue_entry *entry, *tmp;
-	unsigned int verdict, maxid;
 	struct nfqnl_msg_verdict_hdr *vhdr;
 	struct nfqnl_instance *queue;
+	unsigned int verdict, maxid;
 	LIST_HEAD(batch_list);
-	u16 queue_num = ntohs(nfmsg->res_id);
-	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
 	queue = verdict_instance_lookup(q, queue_num,
 					NETLINK_CB(skb).portid);
@@ -1158,22 +1156,19 @@ static int nfqa_parse_bridge(struct nf_queue_entry *entry,
 	return 0;
 }
 
-static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
-			      struct sk_buff *skb,
-			      const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfqa[],
-			      struct netlink_ext_ack *extack)
+static int nfqnl_recv_verdict(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nfqa[])
 {
-	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
+	struct nfnl_queue_net *q = nfnl_queue_pernet(info->net);
+	struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
 	struct nfqnl_msg_verdict_hdr *vhdr;
-	struct nfqnl_instance *queue;
-	unsigned int verdict;
-	struct nf_queue_entry *entry;
 	enum ip_conntrack_info ctinfo;
+	struct nfqnl_instance *queue;
+	struct nf_queue_entry *entry;
 	struct nfnl_ct_hook *nfnl_ct;
 	struct nf_conn *ct = NULL;
-	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	unsigned int verdict;
 	int err;
 
 	queue = verdict_instance_lookup(q, queue_num,
@@ -1196,7 +1191,8 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 
 	if (nfqa[NFQA_CT]) {
 		if (nfnl_ct != NULL)
-			ct = nfqnl_ct_parse(nfnl_ct, nlh, nfqa, entry, &ctinfo);
+			ct = nfqnl_ct_parse(nfnl_ct, info->nlh, nfqa, entry,
+					    &ctinfo);
 	}
 
 	if (entry->state.pf == PF_BRIDGE) {
@@ -1224,10 +1220,8 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	return 0;
 }
 
-static int nfqnl_recv_unsupp(struct net *net, struct sock *ctnl,
-			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nfqa[],
-			     struct netlink_ext_ack *extack)
+static int nfqnl_recv_unsupp(struct sk_buff *skb, const struct nfnl_info *info,
+			     const struct nlattr * const cda[])
 {
 	return -ENOTSUPP;
 }

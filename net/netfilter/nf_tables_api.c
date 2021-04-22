@@ -858,25 +858,25 @@ static int nft_netlink_dump_start_rcu(struct sock *nlsk, struct sk_buff *skb,
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_gettable(struct net *net, struct sock *nlsk,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[],
-			      struct netlink_ext_ack *extack)
+static int nf_tables_gettable(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	u8 genmask = nft_genmask_cur(net);
-	const struct nft_table *table;
-	struct sk_buff *skb2;
+	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	struct netlink_ext_ack *extack = info->extack;
+	u8 genmask = nft_genmask_cur(info->net);
 	int family = nfmsg->nfgen_family;
+	const struct nft_table *table;
+	struct net *net = info->net;
+	struct sk_buff *skb2;
 	int err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = nf_tables_dump_tables,
 			.module = THIS_MODULE,
 		};
 
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	table = nft_table_lookup(net, nla[NFTA_TABLE_NAME], family, genmask, 0);
@@ -890,8 +890,8 @@ static int nf_tables_gettable(struct net *net, struct sock *nlsk,
 		return -ENOMEM;
 
 	err = nf_tables_fill_table_info(skb2, net, NETLINK_CB(skb).portid,
-					nlh->nlmsg_seq, NFT_MSG_NEWTABLE, 0,
-					family, table);
+					info->nlh->nlmsg_seq, NFT_MSG_NEWTABLE,
+					0, family, table);
 	if (err < 0)
 		goto err_fill_table_info;
 
@@ -1623,26 +1623,26 @@ done:
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_getchain(struct net *net, struct sock *nlsk,
-			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nla[],
-			      struct netlink_ext_ack *extack)
+static int nf_tables_getchain(struct sk_buff *skb, const struct nfnl_info *info,
+			      const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	u8 genmask = nft_genmask_cur(net);
+	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	struct netlink_ext_ack *extack = info->extack;
+	u8 genmask = nft_genmask_cur(info->net);
+	int family = nfmsg->nfgen_family;
 	const struct nft_chain *chain;
+	struct net *net = info->net;
 	struct nft_table *table;
 	struct sk_buff *skb2;
-	int family = nfmsg->nfgen_family;
 	int err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = nf_tables_dump_chains,
 			.module = THIS_MODULE,
 		};
 
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	table = nft_table_lookup(net, nla[NFTA_CHAIN_TABLE], family, genmask, 0);
@@ -1662,8 +1662,8 @@ static int nf_tables_getchain(struct net *net, struct sock *nlsk,
 		return -ENOMEM;
 
 	err = nf_tables_fill_chain_info(skb2, net, NETLINK_CB(skb).portid,
-					nlh->nlmsg_seq, NFT_MSG_NEWCHAIN, 0,
-					family, table, chain);
+					info->nlh->nlmsg_seq, NFT_MSG_NEWCHAIN,
+					0, family, table, chain);
 	if (err < 0)
 		goto err_fill_chain_info;
 
@@ -3076,21 +3076,21 @@ static int nf_tables_dump_rules_done(struct netlink_callback *cb)
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_getrule(struct net *net, struct sock *nlsk,
-			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nla[],
-			     struct netlink_ext_ack *extack)
+static int nf_tables_getrule(struct sk_buff *skb, const struct nfnl_info *info,
+			     const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	u8 genmask = nft_genmask_cur(net);
+	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	struct netlink_ext_ack *extack = info->extack;
+	u8 genmask = nft_genmask_cur(info->net);
+	int family = nfmsg->nfgen_family;
 	const struct nft_chain *chain;
 	const struct nft_rule *rule;
+	struct net *net = info->net;
 	struct nft_table *table;
 	struct sk_buff *skb2;
-	int family = nfmsg->nfgen_family;
 	int err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.start= nf_tables_dump_rules_start,
 			.dump = nf_tables_dump_rules,
@@ -3099,7 +3099,7 @@ static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 			.data = (void *)nla,
 		};
 
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	table = nft_table_lookup(net, nla[NFTA_RULE_TABLE], family, genmask, 0);
@@ -3125,7 +3125,7 @@ static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 		return -ENOMEM;
 
 	err = nf_tables_fill_rule_info(skb2, net, NETLINK_CB(skb).portid,
-				       nlh->nlmsg_seq, NFT_MSG_NEWRULE, 0,
+				       info->nlh->nlmsg_seq, NFT_MSG_NEWRULE, 0,
 				       family, table, chain, rule, NULL);
 	if (err < 0)
 		goto err_fill_rule_info;
@@ -4045,25 +4045,25 @@ static int nf_tables_dump_sets_done(struct netlink_callback *cb)
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_getset(struct net *net, struct sock *nlsk,
-			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[],
-			    struct netlink_ext_ack *extack)
+static int nf_tables_getset(struct sk_buff *skb, const struct nfnl_info *info,
+			    const struct nlattr * const nla[])
 {
-	u8 genmask = nft_genmask_cur(net);
+	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	struct netlink_ext_ack *extack = info->extack;
+	u8 genmask = nft_genmask_cur(info->net);
+	struct net *net = info->net;
 	const struct nft_set *set;
-	struct nft_ctx ctx;
 	struct sk_buff *skb2;
-	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
+	struct nft_ctx ctx;
 	int err;
 
 	/* Verify existence before starting dump */
-	err = nft_ctx_init_from_setattr(&ctx, net, skb, nlh, nla, extack,
+	err = nft_ctx_init_from_setattr(&ctx, net, skb, info->nlh, nla, extack,
 					genmask, 0);
 	if (err < 0)
 		return err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.start = nf_tables_dump_sets_start,
 			.dump = nf_tables_dump_sets,
@@ -4072,7 +4072,7 @@ static int nf_tables_getset(struct net *net, struct sock *nlsk,
 			.module = THIS_MODULE,
 		};
 
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	/* Only accept unspec with dump */
@@ -5063,18 +5063,19 @@ err_fill_setelem:
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_getsetelem(struct net *net, struct sock *nlsk,
-				struct sk_buff *skb, const struct nlmsghdr *nlh,
-				const struct nlattr * const nla[],
-				struct netlink_ext_ack *extack)
+static int nf_tables_getsetelem(struct sk_buff *skb,
+				const struct nfnl_info *info,
+				const struct nlattr * const nla[])
 {
-	u8 genmask = nft_genmask_cur(net);
+	struct netlink_ext_ack *extack = info->extack;
+	u8 genmask = nft_genmask_cur(info->net);
+	struct net *net = info->net;
 	struct nft_set *set;
 	struct nlattr *attr;
 	struct nft_ctx ctx;
 	int rem, err = 0;
 
-	err = nft_ctx_init_from_elemattr(&ctx, net, skb, nlh, nla, extack,
+	err = nft_ctx_init_from_elemattr(&ctx, net, skb, info->nlh, nla, extack,
 					 genmask, NETLINK_CB(skb).portid);
 	if (err < 0)
 		return err;
@@ -5083,7 +5084,7 @@ static int nf_tables_getsetelem(struct net *net, struct sock *nlsk,
 	if (IS_ERR(set))
 		return PTR_ERR(set);
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.start = nf_tables_dump_set_start,
 			.dump = nf_tables_dump_set,
@@ -5096,7 +5097,7 @@ static int nf_tables_getsetelem(struct net *net, struct sock *nlsk,
 		};
 
 		c.data = &dump_ctx;
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	if (!nla[NFTA_SET_ELEM_LIST_ELEMENTS])
@@ -6416,22 +6417,22 @@ static int nf_tables_dump_obj_done(struct netlink_callback *cb)
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_getobj(struct net *net, struct sock *nlsk,
-			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[],
-			    struct netlink_ext_ack *extack)
+static int nf_tables_getobj(struct sk_buff *skb, const struct nfnl_info *info,
+			    const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	u8 genmask = nft_genmask_cur(net);
+	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	struct netlink_ext_ack *extack = info->extack;
+	u8 genmask = nft_genmask_cur(info->net);
 	int family = nfmsg->nfgen_family;
 	const struct nft_table *table;
+	struct net *net = info->net;
 	struct nft_object *obj;
 	struct sk_buff *skb2;
 	bool reset = false;
 	u32 objtype;
 	int err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.start = nf_tables_dump_obj_start,
 			.dump = nf_tables_dump_obj,
@@ -6440,7 +6441,7 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 			.data = (void *)nla,
 		};
 
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	if (!nla[NFTA_OBJ_NAME] ||
@@ -6464,7 +6465,7 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 	if (!skb2)
 		return -ENOMEM;
 
-	if (NFNL_MSG_TYPE(nlh->nlmsg_type) == NFT_MSG_GETOBJ_RESET)
+	if (NFNL_MSG_TYPE(info->nlh->nlmsg_type) == NFT_MSG_GETOBJ_RESET)
 		reset = true;
 
 	if (reset) {
@@ -6483,7 +6484,7 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 	}
 
 	err = nf_tables_fill_obj_info(skb2, net, NETLINK_CB(skb).portid,
-				      nlh->nlmsg_seq, NFT_MSG_NEWOBJ, 0,
+				      info->nlh->nlmsg_seq, NFT_MSG_NEWOBJ, 0,
 				      family, table, obj, reset);
 	if (err < 0)
 		goto err_fill_obj_info;
@@ -7320,21 +7321,20 @@ static int nf_tables_dump_flowtable_done(struct netlink_callback *cb)
 }
 
 /* called with rcu_read_lock held */
-static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
-				  struct sk_buff *skb,
-				  const struct nlmsghdr *nlh,
-				  const struct nlattr * const nla[],
-				  struct netlink_ext_ack *extack)
+static int nf_tables_getflowtable(struct sk_buff *skb,
+				  const struct nfnl_info *info,
+				  const struct nlattr * const nla[])
 {
-	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	u8 genmask = nft_genmask_cur(net);
+	const struct nfgenmsg *nfmsg = nlmsg_data(info->nlh);
+	u8 genmask = nft_genmask_cur(info->net);
 	int family = nfmsg->nfgen_family;
 	struct nft_flowtable *flowtable;
 	const struct nft_table *table;
+	struct net *net = info->net;
 	struct sk_buff *skb2;
 	int err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if (info->nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.start = nf_tables_dump_flowtable_start,
 			.dump = nf_tables_dump_flowtable,
@@ -7343,7 +7343,7 @@ static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
 			.data = (void *)nla,
 		};
 
-		return nft_netlink_dump_start_rcu(nlsk, skb, nlh, &c);
+		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
 	}
 
 	if (!nla[NFTA_FLOWTABLE_NAME])
@@ -7364,7 +7364,7 @@ static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
 		return -ENOMEM;
 
 	err = nf_tables_fill_flowtable_info(skb2, net, NETLINK_CB(skb).portid,
-					    nlh->nlmsg_seq,
+					    info->nlh->nlmsg_seq,
 					    NFT_MSG_NEWFLOWTABLE, 0, family,
 					    flowtable, &flowtable->hook_list);
 	if (err < 0)
@@ -7526,10 +7526,8 @@ err:
 			  -ENOBUFS);
 }
 
-static int nf_tables_getgen(struct net *net, struct sock *nlsk,
-			    struct sk_buff *skb, const struct nlmsghdr *nlh,
-			    const struct nlattr * const nla[],
-			    struct netlink_ext_ack *extack)
+static int nf_tables_getgen(struct sk_buff *skb, const struct nfnl_info *info,
+			    const struct nlattr * const nla[])
 {
 	struct sk_buff *skb2;
 	int err;
@@ -7538,12 +7536,12 @@ static int nf_tables_getgen(struct net *net, struct sock *nlsk,
 	if (skb2 == NULL)
 		return -ENOMEM;
 
-	err = nf_tables_fill_gen_info(skb2, net, NETLINK_CB(skb).portid,
-				      nlh->nlmsg_seq);
+	err = nf_tables_fill_gen_info(skb2, info->net, NETLINK_CB(skb).portid,
+				      info->nlh->nlmsg_seq);
 	if (err < 0)
 		goto err_fill_gen_info;
 
-	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
+	return nfnetlink_unicast(skb2, info->net, NETLINK_CB(skb).portid);
 
 err_fill_gen_info:
 	kfree_skb(skb2);

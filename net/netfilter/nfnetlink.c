@@ -274,9 +274,8 @@ replay:
 		}
 
 		if (nc->call_rcu) {
-			err = nc->call_rcu(net, nfnlnet->nfnl, skb, nlh,
-					   (const struct nlattr **)cda,
-					   extack);
+			err = nc->call_rcu(skb, &info,
+					   (const struct nlattr **)cda);
 			rcu_read_unlock();
 		} else {
 			rcu_read_unlock();
