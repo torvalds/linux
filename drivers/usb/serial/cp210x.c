@@ -1410,17 +1410,6 @@ static void cp210x_break_ctl(struct tty_struct *tty, int break_state)
 }
 
 #ifdef CONFIG_GPIOLIB
-static int cp210x_gpio_request(struct gpio_chip *gc, unsigned int offset)
-{
-	struct usb_serial *serial = gpiochip_get_data(gc);
-	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
-
-	if (priv->gpio_altfunc & BIT(offset))
-		return -ENODEV;
-
-	return 0;
-}
-
 static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
@@ -1547,6 +1536,24 @@ static int cp210x_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 		return 0;
 
 	return -ENOTSUPP;
+}
+
+static int cp210x_gpio_init_valid_mask(struct gpio_chip *gc,
+		unsigned long *valid_mask, unsigned int ngpios)
+{
+	struct usb_serial *serial = gpiochip_get_data(gc);
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	struct device *dev = &serial->interface->dev;
+	unsigned long altfunc_mask = priv->gpio_altfunc;
+
+	bitmap_complement(valid_mask, &altfunc_mask, ngpios);
+
+	if (bitmap_empty(valid_mask, ngpios))
+		dev_dbg(dev, "no pin configured for GPIO\n");
+	else
+		dev_dbg(dev, "GPIO.%*pbl configured for GPIO\n", ngpios,
+				valid_mask);
+	return 0;
 }
 
 /*
@@ -1786,13 +1793,13 @@ static int cp210x_gpio_init(struct usb_serial *serial)
 		return result;
 
 	priv->gc.label = "cp210x";
-	priv->gc.request = cp210x_gpio_request;
 	priv->gc.get_direction = cp210x_gpio_direction_get;
 	priv->gc.direction_input = cp210x_gpio_direction_input;
 	priv->gc.direction_output = cp210x_gpio_direction_output;
 	priv->gc.get = cp210x_gpio_get;
 	priv->gc.set = cp210x_gpio_set;
 	priv->gc.set_config = cp210x_gpio_set_config;
+	priv->gc.init_valid_mask = cp210x_gpio_init_valid_mask;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.parent = &serial->interface->dev;
 	priv->gc.base = -1;
