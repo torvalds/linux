@@ -325,7 +325,7 @@ static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 						 struct net_device *netdev)
 {
 	int result = 0;
-	int txresult = -1;
+	int txresult;
 	struct wlandevice *wlandev = netdev->ml_priv;
 	union p80211_hdr p80211_hdr;
 	struct p80211_metawep p80211_wep;
