@@ -116,9 +116,11 @@ static void build_check_ruleset(void)
 		.num_rules = ~0,
 		.num_layers = ~0,
 	};
+	typeof(ruleset.fs_access_masks[0]) fs_access_mask = ~0;
 
 	BUILD_BUG_ON(ruleset.num_rules < LANDLOCK_MAX_NUM_RULES);
 	BUILD_BUG_ON(ruleset.num_layers < LANDLOCK_MAX_NUM_LAYERS);
+	BUILD_BUG_ON(fs_access_mask < LANDLOCK_MASK_ACCESS_FS);
 }
 
 /**
@@ -217,9 +219,11 @@ static void build_check_layer(void)
 {
 	const struct landlock_layer layer = {
 		.level = ~0,
+		.access = ~0,
 	};
 
 	BUILD_BUG_ON(layer.level < LANDLOCK_MAX_NUM_LAYERS);
+	BUILD_BUG_ON(layer.access < LANDLOCK_MASK_ACCESS_FS);
 }
 
 /* @ruleset must be locked by the caller. */

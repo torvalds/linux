@@ -10,8 +10,12 @@
 #define _SECURITY_LANDLOCK_LIMITS_H
 
 #include <linux/limits.h>
+#include <uapi/linux/landlock.h>
 
 #define LANDLOCK_MAX_NUM_LAYERS		64
 #define LANDLOCK_MAX_NUM_RULES		U32_MAX
+
+#define LANDLOCK_LAST_ACCESS_FS		LANDLOCK_ACCESS_FS_MAKE_SYM
+#define LANDLOCK_MASK_ACCESS_FS		((LANDLOCK_LAST_ACCESS_FS << 1) - 1)
 
 #endif /* _SECURITY_LANDLOCK_LIMITS_H */
