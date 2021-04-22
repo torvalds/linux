@@ -3751,35 +3751,71 @@ static struct nf_exp_event_notifier ctnl_notifier_exp = {
 #endif
 
 static const struct nfnl_callback ctnl_cb[IPCTNL_MSG_MAX] = {
-	[IPCTNL_MSG_CT_NEW]		= { .call = ctnetlink_new_conntrack,
-					    .attr_count = CTA_MAX,
-					    .policy = ct_nla_policy },
-	[IPCTNL_MSG_CT_GET] 		= { .call = ctnetlink_get_conntrack,
-					    .attr_count = CTA_MAX,
-					    .policy = ct_nla_policy },
-	[IPCTNL_MSG_CT_DELETE]  	= { .call = ctnetlink_del_conntrack,
-					    .attr_count = CTA_MAX,
-					    .policy = ct_nla_policy },
-	[IPCTNL_MSG_CT_GET_CTRZERO] 	= { .call = ctnetlink_get_conntrack,
-					    .attr_count = CTA_MAX,
-					    .policy = ct_nla_policy },
-	[IPCTNL_MSG_CT_GET_STATS_CPU]	= { .call = ctnetlink_stat_ct_cpu },
-	[IPCTNL_MSG_CT_GET_STATS]	= { .call = ctnetlink_stat_ct },
-	[IPCTNL_MSG_CT_GET_DYING]	= { .call = ctnetlink_get_ct_dying },
-	[IPCTNL_MSG_CT_GET_UNCONFIRMED]	= { .call = ctnetlink_get_ct_unconfirmed },
+	[IPCTNL_MSG_CT_NEW]	= {
+		.call		= ctnetlink_new_conntrack,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_MAX,
+		.policy		= ct_nla_policy
+	},
+	[IPCTNL_MSG_CT_GET]	= {
+		.call		= ctnetlink_get_conntrack,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_MAX,
+		.policy		= ct_nla_policy
+	},
+	[IPCTNL_MSG_CT_DELETE]	= {
+		.call		= ctnetlink_del_conntrack,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_MAX,
+		.policy		= ct_nla_policy
+	},
+	[IPCTNL_MSG_CT_GET_CTRZERO] = {
+		.call		= ctnetlink_get_conntrack,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_MAX,
+		.policy		= ct_nla_policy
+	},
+	[IPCTNL_MSG_CT_GET_STATS_CPU] = {
+		.call		= ctnetlink_stat_ct_cpu,
+		.type		= NFNL_CB_MUTEX,
+	},
+	[IPCTNL_MSG_CT_GET_STATS] = {
+		.call		= ctnetlink_stat_ct,
+		.type		= NFNL_CB_MUTEX,
+	},
+	[IPCTNL_MSG_CT_GET_DYING] = {
+		.call		= ctnetlink_get_ct_dying,
+		.type		= NFNL_CB_MUTEX,
+	},
+	[IPCTNL_MSG_CT_GET_UNCONFIRMED]	= {
+		.call		= ctnetlink_get_ct_unconfirmed,
+		.type		= NFNL_CB_MUTEX,
+	},
 };
 
 static const struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_EXP_MAX] = {
-	[IPCTNL_MSG_EXP_GET]		= { .call = ctnetlink_get_expect,
-					    .attr_count = CTA_EXPECT_MAX,
-					    .policy = exp_nla_policy },
-	[IPCTNL_MSG_EXP_NEW]		= { .call = ctnetlink_new_expect,
-					    .attr_count = CTA_EXPECT_MAX,
-					    .policy = exp_nla_policy },
-	[IPCTNL_MSG_EXP_DELETE]		= { .call = ctnetlink_del_expect,
-					    .attr_count = CTA_EXPECT_MAX,
-					    .policy = exp_nla_policy },
-	[IPCTNL_MSG_EXP_GET_STATS_CPU]	= { .call = ctnetlink_stat_exp_cpu },
+	[IPCTNL_MSG_EXP_GET] = {
+		.call		= ctnetlink_get_expect,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_EXPECT_MAX,
+		.policy		= exp_nla_policy
+	},
+	[IPCTNL_MSG_EXP_NEW] = {
+		.call		= ctnetlink_new_expect,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_EXPECT_MAX,
+		.policy		= exp_nla_policy
+	},
+	[IPCTNL_MSG_EXP_DELETE] = {
+		.call		= ctnetlink_del_expect,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_EXPECT_MAX,
+		.policy		= exp_nla_policy
+	},
+	[IPCTNL_MSG_EXP_GET_STATS_CPU] = {
+		.call		= ctnetlink_stat_exp_cpu,
+		.type		= NFNL_CB_MUTEX,
+	},
 };
 
 static const struct nfnetlink_subsystem ctnl_subsys = {

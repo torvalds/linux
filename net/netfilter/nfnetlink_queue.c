@@ -1365,17 +1365,29 @@ err_out_unlock:
 }
 
 static const struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
-	[NFQNL_MSG_PACKET]	= { .call_rcu = nfqnl_recv_unsupp,
-				    .attr_count = NFQA_MAX, },
-	[NFQNL_MSG_VERDICT]	= { .call_rcu = nfqnl_recv_verdict,
-				    .attr_count = NFQA_MAX,
-				    .policy = nfqa_verdict_policy },
-	[NFQNL_MSG_CONFIG]	= { .call = nfqnl_recv_config,
-				    .attr_count = NFQA_CFG_MAX,
-				    .policy = nfqa_cfg_policy },
-	[NFQNL_MSG_VERDICT_BATCH]={ .call_rcu = nfqnl_recv_verdict_batch,
-				    .attr_count = NFQA_MAX,
-				    .policy = nfqa_verdict_batch_policy },
+	[NFQNL_MSG_PACKET]	= {
+		.call		= nfqnl_recv_unsupp,
+		.type		= NFNL_CB_RCU,
+		.attr_count	= NFQA_MAX,
+	},
+	[NFQNL_MSG_VERDICT]	= {
+		.call		= nfqnl_recv_verdict,
+		.type		= NFNL_CB_RCU,
+		.attr_count	= NFQA_MAX,
+		.policy		= nfqa_verdict_policy
+	},
+	[NFQNL_MSG_CONFIG]	= {
+		.call		= nfqnl_recv_config,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFQA_CFG_MAX,
+		.policy		= nfqa_cfg_policy
+	},
+	[NFQNL_MSG_VERDICT_BATCH] = {
+		.call		= nfqnl_recv_verdict_batch,
+		.type		= NFNL_CB_RCU,
+		.attr_count	= NFQA_MAX,
+		.policy		= nfqa_verdict_batch_policy
+	},
 };
 
 static const struct nfnetlink_subsystem nfqnl_subsys = {

@@ -382,18 +382,30 @@ static const struct nla_policy nfnl_acct_policy[NFACCT_MAX+1] = {
 };
 
 static const struct nfnl_callback nfnl_acct_cb[NFNL_MSG_ACCT_MAX] = {
-	[NFNL_MSG_ACCT_NEW]		= { .call = nfnl_acct_new,
-					    .attr_count = NFACCT_MAX,
-					    .policy = nfnl_acct_policy },
-	[NFNL_MSG_ACCT_GET] 		= { .call = nfnl_acct_get,
-					    .attr_count = NFACCT_MAX,
-					    .policy = nfnl_acct_policy },
-	[NFNL_MSG_ACCT_GET_CTRZERO] 	= { .call = nfnl_acct_get,
-					    .attr_count = NFACCT_MAX,
-					    .policy = nfnl_acct_policy },
-	[NFNL_MSG_ACCT_DEL]		= { .call = nfnl_acct_del,
-					    .attr_count = NFACCT_MAX,
-					    .policy = nfnl_acct_policy },
+	[NFNL_MSG_ACCT_NEW] = {
+		.call		= nfnl_acct_new,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFACCT_MAX,
+		.policy		= nfnl_acct_policy
+	},
+	[NFNL_MSG_ACCT_GET] = {
+		.call		= nfnl_acct_get,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFACCT_MAX,
+		.policy		= nfnl_acct_policy
+	},
+	[NFNL_MSG_ACCT_GET_CTRZERO] = {
+		.call		= nfnl_acct_get,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFACCT_MAX,
+		.policy		= nfnl_acct_policy
+	},
+	[NFNL_MSG_ACCT_DEL] = {
+		.call		= nfnl_acct_del,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFACCT_MAX,
+		.policy		= nfnl_acct_policy
+	},
 };
 
 static const struct nfnetlink_subsystem nfnl_acct_subsys = {

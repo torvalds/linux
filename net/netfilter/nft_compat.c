@@ -698,9 +698,12 @@ static const struct nla_policy nfnl_compat_policy_get[NFTA_COMPAT_MAX+1] = {
 };
 
 static const struct nfnl_callback nfnl_nft_compat_cb[NFNL_MSG_COMPAT_MAX] = {
-	[NFNL_MSG_COMPAT_GET]		= { .call_rcu = nfnl_compat_get_rcu,
-					    .attr_count = NFTA_COMPAT_MAX,
-					    .policy = nfnl_compat_policy_get },
+	[NFNL_MSG_COMPAT_GET]	= {
+		.call		= nfnl_compat_get_rcu,
+		.type		= NFNL_CB_RCU,
+		.attr_count	= NFTA_COMPAT_MAX,
+		.policy		= nfnl_compat_policy_get
+	},
 };
 
 static const struct nfnetlink_subsystem nfnl_compat_subsys = {

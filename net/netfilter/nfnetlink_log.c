@@ -989,11 +989,17 @@ out:
 }
 
 static const struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
-	[NFULNL_MSG_PACKET]	= { .call = nfulnl_recv_unsupp,
-				    .attr_count = NFULA_MAX, },
-	[NFULNL_MSG_CONFIG]	= { .call = nfulnl_recv_config,
-				    .attr_count = NFULA_CFG_MAX,
-				    .policy = nfula_cfg_policy },
+	[NFULNL_MSG_PACKET]	= {
+		.call		= nfulnl_recv_unsupp,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFULA_MAX,
+	},
+	[NFULNL_MSG_CONFIG]	= {
+		.call		= nfulnl_recv_config,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFULA_CFG_MAX,
+		.policy		= nfula_cfg_policy
+	},
 };
 
 static const struct nfnetlink_subsystem nfulnl_subsys = {

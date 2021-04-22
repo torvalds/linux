@@ -737,15 +737,24 @@ static const struct nla_policy nfnl_cthelper_policy[NFCTH_MAX+1] = {
 };
 
 static const struct nfnl_callback nfnl_cthelper_cb[NFNL_MSG_CTHELPER_MAX] = {
-	[NFNL_MSG_CTHELPER_NEW]		= { .call = nfnl_cthelper_new,
-					    .attr_count = NFCTH_MAX,
-					    .policy = nfnl_cthelper_policy },
-	[NFNL_MSG_CTHELPER_GET]		= { .call = nfnl_cthelper_get,
-					    .attr_count = NFCTH_MAX,
-					    .policy = nfnl_cthelper_policy },
-	[NFNL_MSG_CTHELPER_DEL]		= { .call = nfnl_cthelper_del,
-					    .attr_count = NFCTH_MAX,
-					    .policy = nfnl_cthelper_policy },
+	[NFNL_MSG_CTHELPER_NEW]	= {
+		.call		= nfnl_cthelper_new,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFCTH_MAX,
+		.policy		= nfnl_cthelper_policy
+	},
+	[NFNL_MSG_CTHELPER_GET] = {
+		.call		= nfnl_cthelper_get,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFCTH_MAX,
+		.policy		= nfnl_cthelper_policy
+	},
+	[NFNL_MSG_CTHELPER_DEL]	= {
+		.call		= nfnl_cthelper_del,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= NFCTH_MAX,
+		.policy		= nfnl_cthelper_policy
+	},
 };
 
 static const struct nfnetlink_subsystem nfnl_cthelper_subsys = {

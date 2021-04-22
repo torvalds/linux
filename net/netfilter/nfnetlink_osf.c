@@ -374,11 +374,13 @@ static int nfnl_osf_remove_callback(struct sk_buff *skb,
 static const struct nfnl_callback nfnl_osf_callbacks[OSF_MSG_MAX] = {
 	[OSF_MSG_ADD]	= {
 		.call		= nfnl_osf_add_callback,
+		.type		= NFNL_CB_MUTEX,
 		.attr_count	= OSF_ATTR_MAX,
 		.policy		= nfnl_osf_policy,
 	},
 	[OSF_MSG_REMOVE]	= {
 		.call		= nfnl_osf_remove_callback,
+		.type		= NFNL_CB_MUTEX,
 		.attr_count	= OSF_ATTR_MAX,
 		.policy		= nfnl_osf_policy,
 	},

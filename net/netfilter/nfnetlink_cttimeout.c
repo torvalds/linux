@@ -546,21 +546,36 @@ static void ctnl_timeout_put(struct nf_ct_timeout *t)
 }
 
 static const struct nfnl_callback cttimeout_cb[IPCTNL_MSG_TIMEOUT_MAX] = {
-	[IPCTNL_MSG_TIMEOUT_NEW]	= { .call = cttimeout_new_timeout,
-					    .attr_count = CTA_TIMEOUT_MAX,
-					    .policy = cttimeout_nla_policy },
-	[IPCTNL_MSG_TIMEOUT_GET]	= { .call = cttimeout_get_timeout,
-					    .attr_count = CTA_TIMEOUT_MAX,
-					    .policy = cttimeout_nla_policy },
-	[IPCTNL_MSG_TIMEOUT_DELETE]	= { .call = cttimeout_del_timeout,
-					    .attr_count = CTA_TIMEOUT_MAX,
-					    .policy = cttimeout_nla_policy },
-	[IPCTNL_MSG_TIMEOUT_DEFAULT_SET]= { .call = cttimeout_default_set,
-					    .attr_count = CTA_TIMEOUT_MAX,
-					    .policy = cttimeout_nla_policy },
-	[IPCTNL_MSG_TIMEOUT_DEFAULT_GET]= { .call = cttimeout_default_get,
-					    .attr_count = CTA_TIMEOUT_MAX,
-					    .policy = cttimeout_nla_policy },
+	[IPCTNL_MSG_TIMEOUT_NEW] = {
+		.call		= cttimeout_new_timeout,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_TIMEOUT_MAX,
+		.policy		= cttimeout_nla_policy
+	},
+	[IPCTNL_MSG_TIMEOUT_GET] = {
+		.call		= cttimeout_get_timeout,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_TIMEOUT_MAX,
+		.policy		= cttimeout_nla_policy
+	},
+	[IPCTNL_MSG_TIMEOUT_DELETE] = {
+		.call		= cttimeout_del_timeout,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_TIMEOUT_MAX,
+		.policy		= cttimeout_nla_policy
+	},
+	[IPCTNL_MSG_TIMEOUT_DEFAULT_SET] = {
+		.call		= cttimeout_default_set,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_TIMEOUT_MAX,
+		.policy		= cttimeout_nla_policy
+	},
+	[IPCTNL_MSG_TIMEOUT_DEFAULT_GET] = {
+		.call		= cttimeout_default_get,
+		.type		= NFNL_CB_MUTEX,
+		.attr_count	= CTA_TIMEOUT_MAX,
+		.policy		= cttimeout_nla_policy
+	},
 };
 
 static const struct nfnetlink_subsystem cttimeout_subsys = {
