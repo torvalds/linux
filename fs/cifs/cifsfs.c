@@ -855,6 +855,12 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
+	/* cifs_setup_volume_info->smb3_parse_devname() redups UNC & prepath */
+	kfree(cifs_sb->ctx->UNC);
+	cifs_sb->ctx->UNC = NULL;
+	kfree(cifs_sb->ctx->prepath);
+	cifs_sb->ctx->prepath = NULL;
+
 	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, old_ctx->UNC);
 	if (rc) {
 		root = ERR_PTR(rc);
