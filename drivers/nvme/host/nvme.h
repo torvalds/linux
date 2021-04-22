@@ -664,7 +664,6 @@ struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk,
 void nvme_put_ns_from_disk(struct nvme_ns_head *head, int idx);
 bool nvme_tryget_ns_head(struct nvme_ns_head *head);
 void nvme_put_ns_head(struct nvme_ns_head *head);
-struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys);
 int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 		const struct file_operations *fops, struct module *owner);
 void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device);

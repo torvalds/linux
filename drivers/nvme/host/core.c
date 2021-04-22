@@ -1999,28 +1999,6 @@ static const struct block_device_operations nvme_bdev_ops = {
 	.pr_ops		= &nvme_pr_ops,
 };
 
-#ifdef CONFIG_NVME_MULTIPATH
-struct nvme_ctrl *nvme_find_get_live_ctrl(struct nvme_subsystem *subsys)
-{
-	struct nvme_ctrl *ctrl;
-	int ret;
-
-	ret = mutex_lock_killable(&nvme_subsystems_lock);
-	if (ret)
-		return ERR_PTR(ret);
-	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry) {
-		if (ctrl->state == NVME_CTRL_LIVE)
-			goto found;
-	}
-	mutex_unlock(&nvme_subsystems_lock);
-	return ERR_PTR(-EWOULDBLOCK);
-found:
-	nvme_get_ctrl(ctrl);
-	mutex_unlock(&nvme_subsystems_lock);
-	return ctrl;
-}
-#endif /* CONFIG_NVME_MULTIPATH */
-
 static int nvme_wait_ready(struct nvme_ctrl *ctrl, u64 cap, bool enabled)
 {
 	unsigned long timeout =
