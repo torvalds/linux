@@ -10,6 +10,7 @@
 #include <linux/types.h>
 
 #include <linux/mm.h>
+#include <linux/oom.h>
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
@@ -78,6 +79,9 @@ DECLARE_HOOK(android_vh_mm_dirty_limits,
 		unsigned long nr_reclaimable, unsigned long pages_dirtied),
 	TP_ARGS(gdtc, strictlimit, dirty, bg_thresh,
 		nr_reclaimable, pages_dirtied));
+DECLARE_HOOK(android_vh_oom_check_panic,
+	TP_PROTO(struct oom_control *oc, int *ret),
+	TP_ARGS(oc, ret));
 DECLARE_HOOK(android_vh_save_vmalloc_stack,
 	TP_PROTO(unsigned long flags, struct vm_struct *vm),
 	TP_ARGS(flags, vm));
