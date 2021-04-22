@@ -630,6 +630,80 @@ struct ice_fw_log_cfg {
 	struct ice_fw_log_evnt evnts[ICE_AQC_FW_LOG_ID_MAX];
 };
 
+/* Enum defining the different states of the mailbox snapshot in the
+ * PF-VF mailbox overflow detection algorithm. The snapshot can be in
+ * states:
+ * 1. ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT - generate a new static snapshot
+ * within the mailbox buffer.
+ * 2. ICE_MAL_VF_DETECT_STATE_TRAVERSE - iterate through the mailbox snaphot
+ * 3. ICE_MAL_VF_DETECT_STATE_DETECT - track the messages sent per VF via the
+ * mailbox and mark any VFs sending more messages than the threshold limit set.
+ * 4. ICE_MAL_VF_DETECT_STATE_INVALID - Invalid mailbox state set to 0xFFFFFFFF.
+ */
+enum ice_mbx_snapshot_state {
+	ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT = 0,
+	ICE_MAL_VF_DETECT_STATE_TRAVERSE,
+	ICE_MAL_VF_DETECT_STATE_DETECT,
+	ICE_MAL_VF_DETECT_STATE_INVALID = 0xFFFFFFFF,
+};
+
+/* Structure to hold information of the static snapshot and the mailbox
+ * buffer data used to generate and track the snapshot.
+ * 1. state: the state of the mailbox snapshot in the malicious VF
+ * detection state handler ice_mbx_vf_state_handler()
+ * 2. head: head of the mailbox snapshot in a circular mailbox buffer
+ * 3. tail: tail of the mailbox snapshot in a circular mailbox buffer
+ * 4. num_iterations: number of messages traversed in circular mailbox buffer
+ * 5. num_msg_proc: number of messages processed in mailbox
+ * 6. num_pending_arq: number of pending asynchronous messages
+ * 7. max_num_msgs_mbx: maximum messages in mailbox for currently
+ * serviced work item or interrupt.
+ */
+struct ice_mbx_snap_buffer_data {
+	enum ice_mbx_snapshot_state state;
+	u32 head;
+	u32 tail;
+	u32 num_iterations;
+	u16 num_msg_proc;
+	u16 num_pending_arq;
+	u16 max_num_msgs_mbx;
+};
+
+/* Structure to track messages sent by VFs on mailbox:
+ * 1. vf_cntr: a counter array of VFs to track the number of
+ * asynchronous messages sent by each VF
+ * 2. vfcntr_len: number of entries in VF counter array
+ */
+struct ice_mbx_vf_counter {
+	u32 *vf_cntr;
+	u32 vfcntr_len;
+};
+
+/* Structure to hold data relevant to the captured static snapshot
+ * of the PF-VF mailbox.
+ */
+struct ice_mbx_snapshot {
+	struct ice_mbx_snap_buffer_data mbx_buf;
+	struct ice_mbx_vf_counter mbx_vf;
+};
+
+/* Structure to hold data to be used for capturing or updating a
+ * static snapshot.
+ * 1. num_msg_proc: number of messages processed in mailbox
+ * 2. num_pending_arq: number of pending asynchronous messages
+ * 3. max_num_msgs_mbx: maximum messages in mailbox for currently
+ * serviced work item or interrupt.
+ * 4. async_watermark_val: An upper threshold set by caller to determine
+ * if the pending arq count is large enough to assume that there is
+ * the possibility of a mailicious VF.
+ */
+struct ice_mbx_data {
+	u16 num_msg_proc;
+	u16 num_pending_arq;
+	u16 max_num_msgs_mbx;
+	u16 async_watermark_val;
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 __iomem *hw_addr;
@@ -761,6 +835,7 @@ struct ice_hw {
 	DECLARE_BITMAP(fdir_perfect_fltr, ICE_FLTR_PTYPE_MAX);
 	struct mutex rss_locks;	/* protect RSS configuration */
 	struct list_head rss_list_head;
+	struct ice_mbx_snapshot mbx_snapshot;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */

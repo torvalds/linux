@@ -103,6 +103,7 @@ struct ice_vf {
 	u16 num_vf_qs;			/* num of queue configured per VF */
 	struct ice_mdd_vf_events mdd_rx_events;
 	struct ice_mdd_vf_events mdd_tx_events;
+	DECLARE_BITMAP(opcodes_allowlist, VIRTCHNL_OP_MAX);
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -119,6 +120,9 @@ void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 bool ice_reset_vf(struct ice_vf *vf, bool is_vflr);
 void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
+bool
+ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
+		    u16 num_msg_proc, u16 num_msg_pending);
 
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -157,6 +161,15 @@ bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id);
 #define ice_print_vfs_mdd_events(pf) do {} while (0)
 #define ice_print_vf_rx_mdd_event(vf) do {} while (0)
 #define ice_restore_all_vfs_msi_state(pdev) do {} while (0)
+
+static inline bool
+ice_is_malicious_vf(struct ice_pf __always_unused *pf,
+		    struct ice_rq_event_info __always_unused *event,
+		    u16 __always_unused num_msg_proc,
+		    u16 __always_unused num_msg_pending)
+{
+	return false;
+}
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,
