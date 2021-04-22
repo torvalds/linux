@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config SECURITY_LANDLOCK
+	bool "Landlock support"
+	depends on SECURITY
+	select SECURITY_PATH
+	help
+	  Landlock is a sandboxing mechanism that enables processes to restrict
+	  themselves (and their future children) by gradually enforcing
+	  tailored access control policies.  A Landlock security policy is a
+	  set of access rights (e.g. open a file in read-only, make a
+	  directory, etc.) tied to a file hierarchy.  Such policy can be
+	  configured and enforced by any processes for themselves using the
+	  dedicated system calls: landlock_create_ruleset(),
+	  landlock_add_rule(), and landlock_restrict_self().
+
+	  See Documentation/userspace-api/landlock.rst for further information.
+
+	  If you are unsure how to answer this question, answer N.  Otherwise,
+	  you should also prepend "landlock," to the content of CONFIG_LSM to
+	  enable Landlock at boot time.
