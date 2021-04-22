@@ -3552,7 +3552,13 @@ int f2fs_inplace_write_data(struct f2fs_io_info *fio)
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_warn(sbi, "%s: incorrect segment(%u) type, run fsck to fix.",
 			  __func__, segno);
-		return -EFSCORRUPTED;
+		err = -EFSCORRUPTED;
+		goto drop_bio;
+	}
+
+	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK) || f2fs_cp_error(sbi)) {
+		err = -EIO;
+		goto drop_bio;
 	}
 
 	stat_inc_inplace_blocks(fio->sbi);
@@ -3566,6 +3572,15 @@ int f2fs_inplace_write_data(struct f2fs_io_info *fio)
 		f2fs_update_iostat(fio->sbi, fio->io_type, F2FS_BLKSIZE);
 	}
 
+	return err;
+drop_bio:
+	if (fio->bio) {
+		struct bio *bio = *(fio->bio);
+
+		bio->bi_status = BLK_STS_IOERR;
+		bio_endio(bio);
+		fio->bio = NULL;
+	}
 	return err;
 }
 
