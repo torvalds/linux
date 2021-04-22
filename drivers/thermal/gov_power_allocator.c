@@ -301,9 +301,8 @@ power_actor_set_power(struct thermal_cooling_device *cdev,
 
 	instance->target = clamp_val(state, instance->lower, instance->upper);
 	mutex_lock(&cdev->lock);
-	cdev->updated = false;
+	__thermal_cdev_update(cdev);
 	mutex_unlock(&cdev->lock);
-	thermal_cdev_update(cdev);
 
 	return 0;
 }
