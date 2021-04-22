@@ -402,6 +402,21 @@ static void dr_ste_v1_set_insert_hdr(u8 *hw_ste_p, u8 *d_action,
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
+static void dr_ste_v1_set_remove_hdr(u8 *hw_ste_p, u8 *s_action,
+				     u8 anchor, u8 offset,
+				     int size)
+{
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action,
+		 action_id, DR_STE_V1_ACTION_ID_REMOVE_BY_SIZE);
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action, start_anchor, anchor);
+
+	/* The hardware expects here size and offset in words (2 byte) */
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action, remove_size, size / 2);
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action, start_offset, offset / 2);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
 static void dr_ste_v1_set_tx_push_vlan(u8 *hw_ste_p, u8 *d_action,
 				       u32 vlan_hdr)
 {
@@ -579,6 +594,18 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 					 attr->reformat.size);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
+	} else if (action_type_set[DR_ACTION_TYP_REMOVE_HDR]) {
+		if (action_sz < DR_STE_ACTION_SINGLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_remove_hdr(last_ste, action,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_SINGLE_SZ;
+		action += DR_STE_ACTION_SINGLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
@@ -714,6 +741,20 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_modify_hdr = false;
+	} else if (action_type_set[DR_ACTION_TYP_REMOVE_HDR]) {
+		if (action_sz < DR_STE_ACTION_SINGLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+			allow_modify_hdr = true;
+			allow_ctr = true;
+		}
+		dr_ste_v1_set_remove_hdr(last_ste, action,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_SINGLE_SZ;
+		action += DR_STE_ACTION_SINGLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
