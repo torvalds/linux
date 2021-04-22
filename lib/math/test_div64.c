@@ -16,7 +16,7 @@
 
 #define TEST_DIV64_N_ITER 1024
 
-static const u64 test_div64_dividents[] = {
+static const u64 test_div64_dividends[] = {
 	0x00000000ab275080,
 	0x0000000fe73c1959,
 	0x000000e54c0a74b1,
@@ -27,7 +27,7 @@ static const u64 test_div64_dividents[] = {
 	0x0842f488162e2284,
 	0xf66745411d8ab063,
 };
-#define SIZE_DIV64_DIVIDENTS ARRAY_SIZE(test_div64_dividents)
+#define SIZE_DIV64_DIVIDENDS ARRAY_SIZE(test_div64_dividends)
 
 #define TEST_DIV64_DIVISOR_0 0x00000009
 #define TEST_DIV64_DIVISOR_1 0x0000007c
@@ -55,7 +55,7 @@ static const u32 test_div64_divisors[] = {
 static const struct {
 	u64 quotient;
 	u32 remainder;
-} test_div64_results[SIZE_DIV64_DIVISORS][SIZE_DIV64_DIVIDENTS] = {
+} test_div64_results[SIZE_DIV64_DIVISORS][SIZE_DIV64_DIVIDENDS] = {
 	{
 		{ 0x0000000013045e47, 0x00000001 },
 		{ 0x000000000161596c, 0x00000030 },
@@ -160,16 +160,16 @@ static inline bool test_div64_verify(u64 quotient, u32 remainder, int i, int j)
  * to do constant propagation, and `do_div' may take a different path for
  * constants, so we do want to verify that as well.
  */
-#define test_div64_one(divident, divisor, i, j) ({			\
+#define test_div64_one(dividend, divisor, i, j) ({			\
 	bool result = true;						\
 	u64 quotient;							\
 	u32 remainder;							\
 									\
-	quotient = divident;						\
+	quotient = dividend;						\
 	remainder = do_div(quotient, divisor);				\
 	if (!test_div64_verify(quotient, remainder, i, j)) {		\
 		pr_err("ERROR: %016llx / %08x => %016llx,%08x\n",	\
-		       divident, divisor, quotient, remainder);		\
+		       dividend, divisor, quotient, remainder);		\
 		pr_err("ERROR: expected value              => %016llx,%08x\n",\
 		       test_div64_results[i][j].quotient,		\
 		       test_div64_results[i][j].remainder);		\
@@ -185,31 +185,31 @@ static inline bool test_div64_verify(u64 quotient, u32 remainder, int i, int j)
  */
 static bool __init test_div64(void)
 {
-	u64 divident;
+	u64 dividend;
 	int i, j;
 
-	for (i = 0; i < SIZE_DIV64_DIVIDENTS; i++) {
-		divident = test_div64_dividents[i];
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_0, i, 0))
+	for (i = 0; i < SIZE_DIV64_DIVIDENDS; i++) {
+		dividend = test_div64_dividends[i];
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_0, i, 0))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_1, i, 1))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_1, i, 1))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_2, i, 2))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_2, i, 2))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_3, i, 3))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_3, i, 3))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_4, i, 4))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_4, i, 4))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_5, i, 5))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_5, i, 5))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_6, i, 6))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_6, i, 6))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_7, i, 7))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_7, i, 7))
 			return false;
-		if (!test_div64_one(divident, TEST_DIV64_DIVISOR_8, i, 8))
+		if (!test_div64_one(dividend, TEST_DIV64_DIVISOR_8, i, 8))
 			return false;
 		for (j = 0; j < SIZE_DIV64_DIVISORS; j++) {
-			if (!test_div64_one(divident, test_div64_divisors[j],
+			if (!test_div64_one(dividend, test_div64_divisors[j],
 					    i, j))
 				return false;
 		}
