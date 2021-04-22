@@ -940,6 +940,7 @@
   get_governor_parent_kobj
   get_option
   get_page_owner_handle
+  get_pfnblock_flags_mask
   get_pid_task
   get_random_bytes
   get_random_u32
@@ -1059,6 +1060,7 @@
   import_iovec
   in4_pton
   in6_pton
+  inc_node_page_state
   inc_zone_page_state
   in_egroup_p
   inet_proto_csum_replace4
@@ -1094,11 +1096,11 @@
   input_unregister_device
   input_unregister_handle
   input_unregister_handler
-  int_sqrt
   interval_tree_insert
   interval_tree_iter_first
   interval_tree_iter_next
   interval_tree_remove
+  int_sqrt
   invalidate_mapping_pages
   iomem_resource
   iommu_alloc_resv_region
@@ -1194,6 +1196,8 @@
   irq_work_queue_on
   irq_work_sync
   is_dma_buf_file
+  isolate_and_split_free_page
+  isolate_anon_lru_page
   is_vmalloc_addr
   jiffies
   jiffies_to_msecs
@@ -1317,10 +1321,10 @@
   lock_sock_nested
   log_buf_addr_get
   log_buf_len_get
-  lookup_page_ext
   __log_post_read_mmio
   __log_read_mmio
   __log_write_mmio
+  lookup_page_ext
   lzo1x_1_compress
   lzo1x_decompress_safe
   lzorle1x_1_compress
@@ -1365,6 +1369,7 @@
   __memset_io
   memstart_addr
   memunmap
+  migrate_pages
   migrate_swap
   mipi_dsi_create_packet
   mipi_dsi_dcs_set_display_brightness
@@ -1386,6 +1391,7 @@
   __module_get
   module_layout
   module_put
+  __mod_zone_page_state
   __msecs_to_jiffies
   msleep
   msleep_interruptible
@@ -1586,8 +1592,8 @@
   pci_bus_type
   pci_clear_master
   pci_d3cold_disable
-  pci_dev_present
   pci_device_group
+  pci_dev_present
   pci_disable_device
   pci_disable_msi
   pcie_capability_read_word
@@ -1751,6 +1757,7 @@
   pskb_expand_head
   __pskb_pull_tail
   ___pskb_trim
+  putback_movable_pages
   put_device
   put_disk
   put_iova_domain
@@ -2074,8 +2081,8 @@
   show_rcu_gp_kthreads
   show_regs
   sigprocmask
-  si_meminfo
   si_mem_available
+  si_meminfo
   simple_attr_open
   simple_attr_read
   simple_attr_release
@@ -2410,10 +2417,10 @@
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_gpio_block_read
-  __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_psi_event
   __tracepoint_android_vh_psi_group
