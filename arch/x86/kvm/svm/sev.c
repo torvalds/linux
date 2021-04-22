@@ -1831,8 +1831,11 @@ void __init sev_hardware_setup(void)
 		goto out;
 
 	sev_reclaim_asid_bitmap = bitmap_zalloc(max_sev_asid, GFP_KERNEL);
-	if (!sev_reclaim_asid_bitmap)
+	if (!sev_reclaim_asid_bitmap) {
+		bitmap_free(sev_asid_bitmap);
+		sev_asid_bitmap = NULL;
 		goto out;
+	}
 
 	sev_asid_count = max_sev_asid - min_sev_asid + 1;
 	if (misc_cg_set_capacity(MISC_CG_RES_SEV, sev_asid_count))
