@@ -24,7 +24,7 @@
 
 #define DRV_NAME "tegra20-spdif"
 
-static int tegra20_spdif_runtime_suspend(struct device *dev)
+static __maybe_unused int tegra20_spdif_runtime_suspend(struct device *dev)
 {
 	struct tegra20_spdif *spdif = dev_get_drvdata(dev);
 
@@ -33,7 +33,7 @@ static int tegra20_spdif_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra20_spdif_runtime_resume(struct device *dev)
+static __maybe_unused int tegra20_spdif_runtime_resume(struct device *dev)
 {
 	struct tegra20_spdif *spdif = dev_get_drvdata(dev);
 	int ret;
