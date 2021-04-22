@@ -79,9 +79,10 @@ static struct sk_buff *nsim_dev_psample_skb_build(void)
 }
 
 static void nsim_dev_psample_md_prepare(const struct nsim_dev_psample *psample,
-					struct psample_metadata *md)
+					struct psample_metadata *md,
+					unsigned int len)
 {
-	md->trunc_size = psample->trunc_size;
+	md->trunc_size = psample->trunc_size ? psample->trunc_size : len;
 	md->in_ifindex = psample->in_ifindex;
 	md->out_ifindex = psample->out_ifindex;
 
@@ -120,7 +121,7 @@ static void nsim_dev_psample_report_work(struct work_struct *work)
 	if (!skb)
 		goto out;
 
-	nsim_dev_psample_md_prepare(psample, &md);
+	nsim_dev_psample_md_prepare(psample, &md, skb->len);
 	psample_sample_packet(psample->group, skb, psample->rate, &md);
 	consume_skb(skb);
 
