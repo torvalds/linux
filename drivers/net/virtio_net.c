@@ -387,7 +387,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	unsigned int copy, hdr_len, hdr_padded_len;
 	struct page *page_to_free = NULL;
 	int tailroom, shinfo_size;
-	char *p, *hdr_p;
+	char *p, *hdr_p, *buf;
 
 	p = page_address(page) + offset;
 	hdr_p = p;
@@ -403,11 +403,15 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	 * space are aligned.
 	 */
 	if (headroom) {
-		/* The actual allocated space size is PAGE_SIZE. */
+		/* Buffers with headroom use PAGE_SIZE as alloc size,
+		 * see add_recvbuf_mergeable() + get_mergeable_buf_len()
+		 */
 		truesize = PAGE_SIZE;
 		tailroom = truesize - len - offset;
+		buf = page_address(page);
 	} else {
 		tailroom = truesize - len;
+		buf = p;
 	}
 
 	len -= hdr_len;
@@ -416,11 +420,13 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 
 	shinfo_size = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
+	/* copy small packet so we can reuse these pages */
 	if (!NET_IP_ALIGN && len > GOOD_COPY_LEN && tailroom >= shinfo_size) {
-		skb = build_skb(p, truesize);
+		skb = build_skb(buf, truesize);
 		if (unlikely(!skb))
 			return NULL;
 
+		skb_reserve(skb, p - buf);
 		skb_put(skb, len);
 		goto ok;
 	}
