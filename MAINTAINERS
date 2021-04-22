@@ -10003,6 +10003,8 @@ L:	linux-security-module@vger.kernel.org
 S:	Supported
 W:	https://landlock.io
 T:	git https://github.com/landlock-lsm/linux.git
+F:	Documentation/security/landlock.rst
+F:	Documentation/userspace-api/landlock.rst
 F:	include/uapi/linux/landlock.h
 F:	samples/landlock/
 F:	security/landlock/
