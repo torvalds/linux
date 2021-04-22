@@ -303,7 +303,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 	uint64_t vram_addr;
 	uint64_t offset;
 	uint64_t i, j;
-	int r = -ENOMEM;
+	int r;
 
 	pr_debug("svms 0x%p [0x%lx 0x%lx]\n", prange->svms, prange->start,
 		 prange->last);
