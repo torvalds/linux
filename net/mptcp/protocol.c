@@ -1739,7 +1739,7 @@ static void mptcp_wait_data(struct sock *sk, long *timeo)
 
 static int __mptcp_recvmsg_mskq(struct mptcp_sock *msk,
 				struct msghdr *msg,
-				size_t len)
+				size_t len, int flags)
 {
 	struct sk_buff *skb;
 	int copied = 0;
@@ -1750,11 +1750,13 @@ static int __mptcp_recvmsg_mskq(struct mptcp_sock *msk,
 		u32 count = min_t(size_t, len - copied, data_len);
 		int err;
 
-		err = skb_copy_datagram_msg(skb, offset, msg, count);
-		if (unlikely(err < 0)) {
-			if (!copied)
-				return err;
-			break;
+		if (!(flags & MSG_TRUNC)) {
+			err = skb_copy_datagram_msg(skb, offset, msg, count);
+			if (unlikely(err < 0)) {
+				if (!copied)
+					return err;
+				break;
+			}
 		}
 
 		copied += count;
@@ -1966,7 +1968,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	while (copied < len) {
 		int bytes_read;
 
-		bytes_read = __mptcp_recvmsg_mskq(msk, msg, len - copied);
+		bytes_read = __mptcp_recvmsg_mskq(msk, msg, len - copied, flags);
 		if (unlikely(bytes_read < 0)) {
 			if (!copied)
 				copied = bytes_read;
