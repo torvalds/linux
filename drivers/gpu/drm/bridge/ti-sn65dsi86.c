@@ -4,6 +4,7 @@
  * datasheet: https://www.ti.com/lit/ds/symlink/sn65dsi86.pdf
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
@@ -113,7 +114,10 @@
 
 /**
  * struct ti_sn65dsi86 - Platform data for ti-sn65dsi86 driver.
- * @dev:          Pointer to our device.
+ * @bridge_aux:   AUX-bus sub device for MIPI-to-eDP bridge functionality.
+ * @gpio_aux:     AUX-bus sub device for GPIO controller functionality.
+ *
+ * @dev:          Pointer to the top level (i2c) device.
  * @regmap:       Regmap for accessing i2c.
  * @aux:          Our aux channel.
  * @bridge:       Our bridge.
@@ -140,6 +144,9 @@
  *                each other's read-modify-write.
  */
 struct ti_sn65dsi86 {
+	struct auxiliary_device		bridge_aux;
+	struct auxiliary_device		gpio_aux;
+
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct drm_dp_aux		aux;
@@ -1137,8 +1144,10 @@ static const char * const ti_sn_bridge_gpio_names[SN_NUM_GPIOS] = {
 	"GPIO1", "GPIO2", "GPIO3", "GPIO4"
 };
 
-static int ti_sn_setup_gpio_controller(struct ti_sn65dsi86 *pdata)
+static int ti_sn_gpio_probe(struct auxiliary_device *adev,
+			    const struct auxiliary_device_id *id)
 {
+	struct ti_sn65dsi86 *pdata = dev_get_drvdata(adev->dev.parent);
 	int ret;
 
 	/* Only init if someone is going to use us as a GPIO controller */
@@ -1160,19 +1169,40 @@ static int ti_sn_setup_gpio_controller(struct ti_sn65dsi86 *pdata)
 	pdata->gchip.names = ti_sn_bridge_gpio_names;
 	pdata->gchip.ngpio = SN_NUM_GPIOS;
 	pdata->gchip.base = -1;
-	ret = devm_gpiochip_add_data(pdata->dev, &pdata->gchip, pdata);
+	ret = devm_gpiochip_add_data(&adev->dev, &pdata->gchip, pdata);
 	if (ret)
 		dev_err(pdata->dev, "can't add gpio chip\n");
 
 	return ret;
 }
 
+static const struct auxiliary_device_id ti_sn_gpio_id_table[] = {
+	{ .name = "ti_sn65dsi86.gpio", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(auxiliary, ti_sn_gpio_id_table);
+
+static struct auxiliary_driver ti_sn_gpio_driver = {
+	.name = "gpio",
+	.probe = ti_sn_gpio_probe,
+	.id_table = ti_sn_gpio_id_table,
+};
+
+static int __init ti_sn_gpio_register(void)
+{
+	return auxiliary_driver_register(&ti_sn_gpio_driver);
+}
+
+static void __exit ti_sn_gpio_unregister(void)
+{
+	auxiliary_driver_unregister(&ti_sn_gpio_driver);
+}
+
 #else
 
-static inline int ti_sn_setup_gpio_controller(struct ti_sn65dsi86 *pdata)
-{
-	return 0;
-}
+static inline int ti_sn_gpio_register(void) { return 0; }
+static inline void ti_sn_gpio_unregister(void) {}
 
 #endif
 
@@ -1225,9 +1255,122 @@ static void ti_sn_bridge_parse_lanes(struct ti_sn65dsi86 *pdata,
 	pdata->ln_polrs = ln_polrs;
 }
 
+static int ti_sn_bridge_probe(struct auxiliary_device *adev,
+			      const struct auxiliary_device_id *id)
+{
+	struct ti_sn65dsi86 *pdata = dev_get_drvdata(adev->dev.parent);
+	struct device_node *np = pdata->dev->of_node;
+	int ret;
+
+	ret = drm_of_find_panel_or_bridge(np, 1, 0, &pdata->panel, NULL);
+	if (ret) {
+		DRM_ERROR("could not find any panel node\n");
+		return ret;
+	}
+
+	ti_sn_bridge_parse_lanes(pdata, np);
+
+	ret = ti_sn_bridge_parse_dsi_host(pdata);
+	if (ret)
+		return ret;
+
+	pdata->aux.name = "ti-sn65dsi86-aux";
+	pdata->aux.dev = pdata->dev;
+	pdata->aux.transfer = ti_sn_aux_transfer;
+	drm_dp_aux_init(&pdata->aux);
+
+	pdata->bridge.funcs = &ti_sn_bridge_funcs;
+	pdata->bridge.of_node = np;
+
+	drm_bridge_add(&pdata->bridge);
+
+	return 0;
+}
+
+static void ti_sn_bridge_remove(struct auxiliary_device *adev)
+{
+	struct ti_sn65dsi86 *pdata = dev_get_drvdata(adev->dev.parent);
+
+	if (!pdata)
+		return;
+
+	if (pdata->dsi) {
+		mipi_dsi_detach(pdata->dsi);
+		mipi_dsi_device_unregister(pdata->dsi);
+	}
+
+	kfree(pdata->edid);
+
+	drm_bridge_remove(&pdata->bridge);
+
+	of_node_put(pdata->host_node);
+}
+
+static const struct auxiliary_device_id ti_sn_bridge_id_table[] = {
+	{ .name = "ti_sn65dsi86.bridge", },
+	{},
+};
+
+static struct auxiliary_driver ti_sn_bridge_driver = {
+	.name = "bridge",
+	.probe = ti_sn_bridge_probe,
+	.remove = ti_sn_bridge_remove,
+	.id_table = ti_sn_bridge_id_table,
+};
+
 static void ti_sn65dsi86_runtime_disable(void *data)
 {
 	pm_runtime_disable(data);
+}
+
+static void ti_sn65dsi86_uninit_aux(void *data)
+{
+	auxiliary_device_uninit(data);
+}
+
+static void ti_sn65dsi86_delete_aux(void *data)
+{
+	auxiliary_device_delete(data);
+}
+
+/*
+ * AUX bus docs say that a non-NULL release is mandatory, but it makes no
+ * sense for the model used here where all of the aux devices are allocated
+ * in the single shared structure. We'll use this noop as a workaround.
+ */
+static void ti_sn65dsi86_noop(struct device *dev) {}
+
+static int ti_sn65dsi86_add_aux_device(struct ti_sn65dsi86 *pdata,
+				       struct auxiliary_device *aux,
+				       const char *name)
+{
+	struct device *dev = pdata->dev;
+	int ret;
+
+	/*
+	 * NOTE: It would be nice to set the "of_node" of our children to be
+	 * the same "of_node"" that the top-level component has. That doesn't
+	 * work, though, since pinctrl will try (and fail) to reserve the
+	 * pins again. Until that gets sorted out the children will just need
+	 * to look at the of_node of the main device.
+	 */
+
+	aux->name = name;
+	aux->dev.parent = dev;
+	aux->dev.release = ti_sn65dsi86_noop;
+	ret = auxiliary_device_init(aux);
+	if (ret)
+		return ret;
+	ret = devm_add_action_or_reset(dev, ti_sn65dsi86_uninit_aux, aux);
+	if (ret)
+		return ret;
+
+	ret = auxiliary_device_add(aux);
+	if (ret)
+		return ret;
+	ret = devm_add_action_or_reset(dev, ti_sn65dsi86_delete_aux, aux);
+
+	return ret;
 }
 
 static int ti_sn65dsi86_probe(struct i2c_client *client,
@@ -1279,54 +1422,24 @@ static int ti_sn65dsi86_probe(struct i2c_client *client,
 
 	ti_sn65dsi86_debugfs_init(pdata);
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &pdata->panel, NULL);
-	if (ret) {
-		DRM_ERROR("could not find any panel node\n");
-		return ret;
+	/*
+	 * Break ourselves up into a collection of aux devices. The only real
+	 * motiviation here is to solve the chicken-and-egg problem of probe
+	 * ordering. The bridge wants the panel to be there when it probes.
+	 * The panel wants its HPD GPIO (provided by sn65dsi86 on some boards)
+	 * when it probes. There will soon be other devices (DDC I2C bus, PWM)
+	 * that have the same problem. Having sub-devices allows the some sub
+	 * devices to finish probing even if others return -EPROBE_DEFER and
+	 * gets us around the problems.
+	 */
+
+	if (IS_ENABLED(CONFIG_OF_GPIO)) {
+		ret = ti_sn65dsi86_add_aux_device(pdata, &pdata->gpio_aux, "gpio");
+		if (ret)
+			return ret;
 	}
 
-	ti_sn_bridge_parse_lanes(pdata, dev->of_node);
-
-	ret = ti_sn_bridge_parse_dsi_host(pdata);
-	if (ret)
-		return ret;
-
-	ret = ti_sn_setup_gpio_controller(pdata);
-	if (ret)
-		return ret;
-
-	pdata->aux.name = "ti-sn65dsi86-aux";
-	pdata->aux.dev = dev;
-	pdata->aux.transfer = ti_sn_aux_transfer;
-	drm_dp_aux_init(&pdata->aux);
-
-	pdata->bridge.funcs = &ti_sn_bridge_funcs;
-	pdata->bridge.of_node = dev->of_node;
-
-	drm_bridge_add(&pdata->bridge);
-
-	return 0;
-}
-
-static int ti_sn65dsi86_remove(struct i2c_client *client)
-{
-	struct ti_sn65dsi86 *pdata = i2c_get_clientdata(client);
-
-	if (!pdata)
-		return -EINVAL;
-
-	if (pdata->dsi) {
-		mipi_dsi_detach(pdata->dsi);
-		mipi_dsi_device_unregister(pdata->dsi);
-	}
-
-	kfree(pdata->edid);
-
-	drm_bridge_remove(&pdata->bridge);
-
-	of_node_put(pdata->host_node);
-
-	return 0;
+	return ti_sn65dsi86_add_aux_device(pdata, &pdata->bridge_aux, "bridge");
 }
 
 static struct i2c_device_id ti_sn65dsi86_id[] = {
@@ -1348,10 +1461,43 @@ static struct i2c_driver ti_sn65dsi86_driver = {
 		.pm = &ti_sn65dsi86_pm_ops,
 	},
 	.probe = ti_sn65dsi86_probe,
-	.remove = ti_sn65dsi86_remove,
 	.id_table = ti_sn65dsi86_id,
 };
-module_i2c_driver(ti_sn65dsi86_driver);
+
+static int __init ti_sn65dsi86_init(void)
+{
+	int ret;
+
+	ret = i2c_add_driver(&ti_sn65dsi86_driver);
+	if (ret)
+		return ret;
+
+	ret = ti_sn_gpio_register();
+	if (ret)
+		goto err_main_was_registered;
+
+	ret = auxiliary_driver_register(&ti_sn_bridge_driver);
+	if (ret)
+		goto err_gpio_was_registered;
+
+	return 0;
+
+err_gpio_was_registered:
+	ti_sn_gpio_unregister();
+err_main_was_registered:
+	i2c_del_driver(&ti_sn65dsi86_driver);
+
+	return ret;
+}
+module_init(ti_sn65dsi86_init);
+
+static void __exit ti_sn65dsi86_exit(void)
+{
+	auxiliary_driver_unregister(&ti_sn_bridge_driver);
+	ti_sn_gpio_unregister();
+	i2c_del_driver(&ti_sn65dsi86_driver);
+}
+module_exit(ti_sn65dsi86_exit);
 
 MODULE_AUTHOR("Sandeep Panda <spanda@codeaurora.org>");
 MODULE_DESCRIPTION("sn65dsi86 DSI to eDP bridge driver");
