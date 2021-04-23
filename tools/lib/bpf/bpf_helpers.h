@@ -47,6 +47,14 @@
 #define __weak __attribute__((weak))
 #endif
 
+/*
+ * Use __hidden attribute to mark a non-static BPF subprogram effectively
+ * static for BPF verifier's verification algorithm purposes, allowing more
+ * extensive and permissive BPF verification process, taking into account
+ * subprogram's caller context.
+ */
+#define __hidden __attribute__((visibility("hidden")))
+
 /* When utilizing vmlinux.h with BPF CO-RE, user BPF programs can't include
  * any system-level headers (such as stddef.h, linux/version.h, etc), and
  * commonly-used macros like NULL and KERNEL_VERSION aren't available through

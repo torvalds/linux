@@ -71,6 +71,7 @@
 static struct bpf_map *bpf_object__add_map(struct bpf_object *obj);
 static const struct btf_type *
 skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
+static bool prog_is_subprog(const struct bpf_object *obj, const struct bpf_program *prog);
 
 static int __base_pr(enum libbpf_print_level level, const char *format,
 		     va_list args)
@@ -274,6 +275,7 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 
 	bool load;
+	bool mark_btf_static;
 	enum bpf_prog_type type;
 	enum bpf_attach_type expected_attach_type;
 	int prog_ifindex;
@@ -697,6 +699,15 @@ bpf_object__add_programs(struct bpf_object *obj, Elf_Data *sec_data,
 					    sec_off, data + sec_off, prog_sz);
 		if (err)
 			return err;
+
+		/* if function is a global/weak symbol, but has hidden
+		 * visibility (STV_HIDDEN), mark its BTF FUNC as static to
+		 * enable more permissive BPF verification mode with more
+		 * outside context available to BPF verifier
+		 */
+		if (GELF_ST_BIND(sym.st_info) != STB_LOCAL
+		    && GELF_ST_VISIBILITY(sym.st_other) == STV_HIDDEN)
+			prog->mark_btf_static = true;
 
 		nr_progs++;
 		obj->nr_programs = nr_progs;
@@ -2618,7 +2629,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 {
 	struct btf *kern_btf = obj->btf;
 	bool btf_mandatory, sanitize;
-	int err = 0;
+	int i, err = 0;
 
 	if (!obj->btf)
 		return 0;
@@ -2630,6 +2641,38 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		}
 		pr_debug("Kernel doesn't support BTF, skipping uploading it.\n");
 		return 0;
+	}
+
+	/* Even though some subprogs are global/weak, user might prefer more
+	 * permissive BPF verification process that BPF verifier performs for
+	 * static functions, taking into account more context from the caller
+	 * functions. In such case, they need to mark such subprogs with
+	 * __attribute__((visibility("hidden"))) and libbpf will adjust
+	 * corresponding FUNC BTF type to be marked as static and trigger more
+	 * involved BPF verification process.
+	 */
+	for (i = 0; i < obj->nr_programs; i++) {
+		struct bpf_program *prog = &obj->programs[i];
+		struct btf_type *t;
+		const char *name;
+		int j, n;
+
+		if (!prog->mark_btf_static || !prog_is_subprog(obj, prog))
+			continue;
+
+		n = btf__get_nr_types(obj->btf);
+		for (j = 1; j <= n; j++) {
+			t = btf_type_by_id(obj->btf, j);
+			if (!btf_is_func(t) || btf_func_linkage(t) != BTF_FUNC_GLOBAL)
+				continue;
+
+			name = btf__str_by_offset(obj->btf, t->name_off);
+			if (strcmp(name, prog->name) != 0)
+				continue;
+
+			t->info = btf_type_info(BTF_KIND_FUNC, BTF_FUNC_STATIC, 0);
+			break;
+		}
 	}
 
 	sanitize = btf_needs_sanitization(obj);

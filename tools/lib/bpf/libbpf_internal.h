@@ -19,6 +19,7 @@
 #pragma GCC poison reallocarray
 
 #include "libbpf.h"
+#include "btf.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -131,6 +132,11 @@ struct btf;
 struct btf_type;
 
 struct btf_type *btf_type_by_id(struct btf *btf, __u32 type_id);
+
+static inline __u32 btf_type_info(int kind, int vlen, int kflag)
+{
+	return (kflag << 31) | (kind << 24) | vlen;
+}
 
 void *libbpf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
 		     size_t cur_cnt, size_t max_cnt, size_t add_cnt);
