@@ -856,13 +856,6 @@ nwl_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	if (ret < 0)
 		return;
 
-	/*
-	 * If hs clock is unchanged, we're all good - all parameters are
-	 * derived from it atm.
-	 */
-	if (new_cfg.mipi_dphy.hs_clk_rate == dsi->phy_cfg.mipi_dphy.hs_clk_rate)
-		return;
-
 	phy_ref_rate = clk_get_rate(dsi->phy_ref_clk);
 	DRM_DEV_DEBUG_DRIVER(dev, "PHY at ref rate: %lu\n", phy_ref_rate);
 	/* Save the new desired phy config */
