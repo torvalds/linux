@@ -319,10 +319,5 @@
 #define	CRYPTO_SRAM_BASE		(0x01000 - CRYPTO_PKA_BASE_OFFSET)
 #define	CRYPTO_SRAM_SIZE		0x01000
 
-enum endian_mode {
-	BIG_ENDIAN = 0,
-	LITTLE_ENDIAN
-};
-
 #endif
 

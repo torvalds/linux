@@ -51,25 +51,25 @@
 	.default_pka_offset = 0x0480,\
 }
 
-static int rk_crypto_enable_clk(struct rk_crypto_info *dev)
+static int rk_crypto_enable_clk(struct rk_crypto_dev *rk_dev)
 {
 	int ret;
 
-	dev_dbg(dev->dev, "clk_bulk_prepare_enable.\n");
+	dev_dbg(rk_dev->dev, "clk_bulk_prepare_enable.\n");
 
-	ret = clk_bulk_prepare_enable(dev->clks_num,
-				      dev->clk_bulks);
+	ret = clk_bulk_prepare_enable(rk_dev->clks_num,
+				      rk_dev->clk_bulks);
 	if (ret < 0)
-		dev_err(dev->dev, "failed to enable clks %d\n", ret);
+		dev_err(rk_dev->dev, "failed to enable clks %d\n", ret);
 
 	return ret;
 }
 
-static void rk_crypto_disable_clk(struct rk_crypto_info *dev)
+static void rk_crypto_disable_clk(struct rk_crypto_dev *rk_dev)
 {
-	dev_dbg(dev->dev, "clk_bulk_disable_unprepare.\n");
+	dev_dbg(rk_dev->dev, "clk_bulk_disable_unprepare.\n");
 
-	clk_bulk_disable_unprepare(dev->clks_num, dev->clk_bulks);
+	clk_bulk_disable_unprepare(rk_dev->clks_num, rk_dev->clk_bulks);
 }
 
 static int check_alignment(struct scatterlist *sg_src,
@@ -89,190 +89,192 @@ static int check_alignment(struct scatterlist *sg_src,
 	return (align && (sg_src->length == sg_dst->length));
 }
 
-static int rk_load_data(struct rk_crypto_info *dev,
+static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			struct scatterlist *sg_src,
 			struct scatterlist *sg_dst)
 {
 	int ret = -EINVAL;
 	unsigned int count;
+	struct device *dev = rk_dev->dev;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&rk_dev->mutex);
 
-	dev->aligned = dev->aligned ?
-		check_alignment(sg_src, sg_dst, dev->align_size) :
-		dev->aligned;
-	if (dev->aligned) {
-		count = min_t(unsigned int, dev->left_bytes, sg_src->length);
-		dev->left_bytes -= count;
+	rk_dev->aligned = rk_dev->aligned ?
+		check_alignment(sg_src, sg_dst, rk_dev->align_size) :
+		rk_dev->aligned;
+	if (rk_dev->aligned) {
+		count = min_t(unsigned int, rk_dev->left_bytes, sg_src->length);
+		rk_dev->left_bytes -= count;
 
-		if (!dma_map_sg(dev->dev, sg_src, 1, DMA_TO_DEVICE)) {
-			dev_err(dev->dev, "[%s:%d] dma_map_sg(src)  error\n",
+		if (!dma_map_sg(dev, sg_src, 1, DMA_TO_DEVICE)) {
+			dev_err(dev, "[%s:%d] dma_map_sg(src)  error\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
 			goto error;
 		}
-		dev->addr_in = sg_dma_address(sg_src);
+		rk_dev->addr_in = sg_dma_address(sg_src);
 
 		if (sg_dst) {
-			if (!dma_map_sg(dev->dev, sg_dst, 1, DMA_FROM_DEVICE)) {
-				dev_err(dev->dev,
+			if (!dma_map_sg(dev, sg_dst, 1, DMA_FROM_DEVICE)) {
+				dev_err(dev,
 					"[%s:%d] dma_map_sg(dst)  error\n",
 					__func__, __LINE__);
-				dma_unmap_sg(dev->dev, sg_src, 1,
+				dma_unmap_sg(dev, sg_src, 1,
 					     DMA_TO_DEVICE);
 				ret = -EINVAL;
 				goto error;
 			}
-			dev->addr_out = sg_dma_address(sg_dst);
+			rk_dev->addr_out = sg_dma_address(sg_dst);
 		}
 	} else {
-		count = (dev->left_bytes > PAGE_SIZE) ?
-			PAGE_SIZE : dev->left_bytes;
+		count = (rk_dev->left_bytes > PAGE_SIZE) ?
+			PAGE_SIZE : rk_dev->left_bytes;
 
-		if (!sg_pcopy_to_buffer(dev->first, dev->src_nents,
-					dev->addr_vir, count,
-					dev->total - dev->left_bytes)) {
-			dev_err(dev->dev, "[%s:%d] pcopy err\n",
+		if (!sg_pcopy_to_buffer(rk_dev->first, rk_dev->src_nents,
+					rk_dev->addr_vir, count,
+					rk_dev->total - rk_dev->left_bytes)) {
+			dev_err(dev, "[%s:%d] pcopy err\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
 			goto error;
 		}
-		dev->left_bytes -= count;
-		sg_init_one(&dev->sg_tmp, dev->addr_vir, count);
-		if (!dma_map_sg(dev->dev, &dev->sg_tmp, 1, DMA_TO_DEVICE)) {
-			dev_err(dev->dev, "[%s:%d] dma_map_sg(sg_tmp)  error\n",
+		rk_dev->left_bytes -= count;
+		sg_init_one(&rk_dev->sg_tmp, rk_dev->addr_vir, count);
+		if (!dma_map_sg(dev, &rk_dev->sg_tmp, 1, DMA_TO_DEVICE)) {
+			dev_err(dev, "[%s:%d] dma_map_sg(sg_tmp)  error\n",
 				__func__, __LINE__);
 			ret = -ENOMEM;
 			goto error;
 		}
-		dev->addr_in = sg_dma_address(&dev->sg_tmp);
+		rk_dev->addr_in = sg_dma_address(&rk_dev->sg_tmp);
 
 		if (sg_dst) {
-			if (!dma_map_sg(dev->dev, &dev->sg_tmp, 1,
+			if (!dma_map_sg(dev, &rk_dev->sg_tmp, 1,
 					DMA_FROM_DEVICE)) {
-				dev_err(dev->dev,
+				dev_err(dev,
 					"[%s:%d] dma_map_sg(sg_tmp)  error\n",
 					__func__, __LINE__);
-				dma_unmap_sg(dev->dev, &dev->sg_tmp, 1,
+				dma_unmap_sg(dev, &rk_dev->sg_tmp, 1,
 					     DMA_TO_DEVICE);
 				ret = -ENOMEM;
 				goto error;
 			}
-			dev->addr_out = sg_dma_address(&dev->sg_tmp);
+			rk_dev->addr_out = sg_dma_address(&rk_dev->sg_tmp);
 		}
 	}
 
-	dev->count = count;
+	rk_dev->count = count;
 	return 0;
 error:
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&rk_dev->mutex);
 	return ret;
 }
 
-static void rk_unload_data(struct rk_crypto_info *dev)
+static void rk_unload_data(struct rk_crypto_dev *rk_dev)
 {
 	struct scatterlist *sg_in, *sg_out;
 
-	sg_in = dev->aligned ? dev->sg_src : &dev->sg_tmp;
-	dma_unmap_sg(dev->dev, sg_in, 1, DMA_TO_DEVICE);
+	sg_in = rk_dev->aligned ? rk_dev->sg_src : &rk_dev->sg_tmp;
+	dma_unmap_sg(rk_dev->dev, sg_in, 1, DMA_TO_DEVICE);
 
-	if (dev->sg_dst) {
-		sg_out = dev->aligned ? dev->sg_dst : &dev->sg_tmp;
-		dma_unmap_sg(dev->dev, sg_out, 1, DMA_FROM_DEVICE);
+	if (rk_dev->sg_dst) {
+		sg_out = rk_dev->aligned ? rk_dev->sg_dst : &rk_dev->sg_tmp;
+		dma_unmap_sg(rk_dev->dev, sg_out, 1, DMA_FROM_DEVICE);
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&rk_dev->mutex);
 }
 
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
-	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
+	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
 
-	spin_lock(&dev->lock);
+	spin_lock(&rk_dev->lock);
 
-	if (dev->irq_handle)
-		dev->irq_handle(irq, dev_id);
+	if (rk_dev->irq_handle)
+		rk_dev->irq_handle(irq, dev_id);
 
-	tasklet_schedule(&dev->done_task);
+	tasklet_schedule(&rk_dev->done_task);
 
-	spin_unlock(&dev->lock);
+	spin_unlock(&rk_dev->lock);
 	return IRQ_HANDLED;
 }
 
-static int rk_crypto_enqueue(struct rk_crypto_info *dev,
+static int rk_crypto_enqueue(struct rk_crypto_dev *rk_dev,
 			      struct crypto_async_request *async_req)
 {
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&dev->lock, flags);
-	ret = crypto_enqueue_request(&dev->queue, async_req);
-	if (dev->busy) {
-		spin_unlock_irqrestore(&dev->lock, flags);
+	spin_lock_irqsave(&rk_dev->lock, flags);
+	ret = crypto_enqueue_request(&rk_dev->queue, async_req);
+	if (rk_dev->busy) {
+		spin_unlock_irqrestore(&rk_dev->lock, flags);
 		return ret;
 	}
-	dev->busy = true;
-	spin_unlock_irqrestore(&dev->lock, flags);
-	tasklet_schedule(&dev->queue_task);
+	rk_dev->busy = true;
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
+	tasklet_schedule(&rk_dev->queue_task);
 
 	return ret;
 }
 
 static void rk_crypto_queue_task_cb(unsigned long data)
 {
-	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
+	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct crypto_async_request *async_req, *backlog;
 	unsigned long flags;
 	int err = 0;
 
-	dev->err = 0;
-	spin_lock_irqsave(&dev->lock, flags);
-	backlog   = crypto_get_backlog(&dev->queue);
-	async_req = crypto_dequeue_request(&dev->queue);
+	rk_dev->err = 0;
+	spin_lock_irqsave(&rk_dev->lock, flags);
+	backlog   = crypto_get_backlog(&rk_dev->queue);
+	async_req = crypto_dequeue_request(&rk_dev->queue);
 
 	if (!async_req) {
-		dev->busy = false;
-		spin_unlock_irqrestore(&dev->lock, flags);
+		rk_dev->busy = false;
+		spin_unlock_irqrestore(&rk_dev->lock, flags);
 		return;
 	}
-	spin_unlock_irqrestore(&dev->lock, flags);
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
 
 	if (backlog) {
 		backlog->complete(backlog, -EINPROGRESS);
 		backlog = NULL;
 	}
 
-	dev->async_req = async_req;
-	err = dev->start(dev);
+	rk_dev->async_req = async_req;
+	err = rk_dev->start(rk_dev);
 	if (err)
-		dev->complete(dev->async_req, err);
+		rk_dev->complete(rk_dev->async_req, err);
 }
 
 static void rk_crypto_done_task_cb(unsigned long data)
 {
-	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
+	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 
-	if (dev->err) {
-		dev->complete(dev->async_req, dev->err);
+	if (rk_dev->err) {
+		rk_dev->complete(rk_dev->async_req, rk_dev->err);
 		return;
 	}
 
-	dev->err = dev->update(dev);
-	if (dev->err)
-		dev->complete(dev->async_req, dev->err);
+	rk_dev->err = rk_dev->update(rk_dev);
+	if (rk_dev->err)
+		rk_dev->complete(rk_dev->async_req, rk_dev->err);
 }
 
-static struct rk_crypto_tmp *rk_crypto_find_algs(struct rk_crypto_info *crypto_info, char *name)
+static struct rk_crypto_algt *rk_crypto_find_algs(struct rk_crypto_dev *rk_dev,
+						  char *name)
 {
 	u32 i;
-	struct rk_crypto_tmp **algs;
-	struct rk_crypto_tmp *tmp_algs;
+	struct rk_crypto_algt **algs;
+	struct rk_crypto_algt *tmp_algs;
 
-	algs = crypto_info->soc_data->total_algs;
+	algs = rk_dev->soc_data->total_algs;
 
-	for (i = 0; i < crypto_info->soc_data->total_algs_num; i++, algs++) {
+	for (i = 0; i < rk_dev->soc_data->total_algs_num; i++, algs++) {
 		tmp_algs = *algs;
-		tmp_algs->dev = crypto_info;
+		tmp_algs->rk_dev = rk_dev;
 
 		if (strcmp(tmp_algs->name, name) == 0)
 			return tmp_algs;
@@ -281,20 +283,20 @@ static struct rk_crypto_tmp *rk_crypto_find_algs(struct rk_crypto_info *crypto_i
 	return NULL;
 }
 
-static int rk_crypto_register(struct rk_crypto_info *crypto_info)
+static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 {
 	unsigned int i, k;
 	char **algs_name;
-	struct rk_crypto_tmp *tmp_algs;
+	struct rk_crypto_algt *tmp_algs;
 	struct rk_crypto_soc_data *soc_data;
 	int err = 0;
 
-	soc_data = crypto_info->soc_data;
+	soc_data = rk_dev->soc_data;
 
 	algs_name = soc_data->valid_algs_name;
 
 	for (i = 0; i < soc_data->valid_algs_num; i++, algs_name++) {
-		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
+		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
 		if (!tmp_algs) {
 			CRYPTO_TRACE("%s not matched!!!\n", *algs_name);
 			continue;
@@ -302,7 +304,7 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 
 		CRYPTO_TRACE("%s matched!!!\n", *algs_name);
 
-		tmp_algs->dev = crypto_info;
+		tmp_algs->rk_dev = rk_dev;
 
 		if (tmp_algs->type == ALG_TYPE_CIPHER) {
 			if (tmp_algs->algo == CIPHER_ALGO_AES &&
@@ -330,7 +332,7 @@ err_cipher_algs:
 	algs_name = soc_data->valid_algs_name;
 
 	for (k = 0; k < i; k++, algs_name++) {
-		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
+		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
 			crypto_unregister_alg(&tmp_algs->alg.crypto);
 		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
@@ -341,16 +343,16 @@ err_cipher_algs:
 	return err;
 }
 
-static void rk_crypto_unregister(struct rk_crypto_info *crypto_info)
+static void rk_crypto_unregister(struct rk_crypto_dev *rk_dev)
 {
 	unsigned int i;
 	char **algs_name;
-	struct rk_crypto_tmp *tmp_algs;
+	struct rk_crypto_algt *tmp_algs;
 
-	algs_name = crypto_info->soc_data->valid_algs_name;
+	algs_name = rk_dev->soc_data->valid_algs_name;
 
-	for (i = 0; i < crypto_info->soc_data->valid_algs_num; i++, algs_name++) {
-		tmp_algs = rk_crypto_find_algs(crypto_info, *algs_name);
+	for (i = 0; i < rk_dev->soc_data->valid_algs_num; i++, algs_name++) {
+		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
 		if (tmp_algs->type == ALG_TYPE_CIPHER)
 			crypto_unregister_alg(&tmp_algs->alg.crypto);
 		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
@@ -360,33 +362,33 @@ static void rk_crypto_unregister(struct rk_crypto_info *crypto_info)
 	}
 }
 
-static void rk_crypto_request(struct rk_crypto_info *dev, const char *name)
+static void rk_crypto_request(struct rk_crypto_dev *rk_dev, const char *name)
 {
 	CRYPTO_TRACE("Crypto is requested by %s\n", name);
 
-	rk_crypto_enable_clk(dev);
+	rk_crypto_enable_clk(rk_dev);
 }
 
-static void rk_crypto_release(struct rk_crypto_info *dev, const char *name)
+static void rk_crypto_release(struct rk_crypto_dev *rk_dev, const char *name)
 {
 	CRYPTO_TRACE("Crypto is released by %s\n", name);
 
-	rk_crypto_disable_clk(dev);
+	rk_crypto_disable_clk(rk_dev);
 }
 
 static void rk_crypto_action(void *data)
 {
-	struct rk_crypto_info *crypto_info = data;
+	struct rk_crypto_dev *rk_dev = data;
 
-	if (crypto_info->rst)
-		reset_control_assert(crypto_info->rst);
+	if (rk_dev->rst)
+		reset_control_assert(rk_dev->rst);
 }
 
 static const char * const crypto_v2_rsts[] = {
 	"crypto-rst",
 };
 
-static struct rk_crypto_tmp *crypto_v2_algs[] = {
+static struct rk_crypto_algt *crypto_v2_algs[] = {
 	&rk_v2_ecb_sm4_alg,		/* ecb(sm4) */
 	&rk_v2_cbc_sm4_alg,		/* cbc(sm4) */
 	&rk_v2_xts_sm4_alg,		/* xts(sm4) */
@@ -417,11 +419,11 @@ static struct rk_crypto_tmp *crypto_v2_algs[] = {
 	&rk_v2_ahash_md5,		/* md5 */
 	&rk_v2_ahash_sm3,		/* sm3 */
 
-	&rk_v2_ahash_hmac_sha1,		/* hmac(sha1) */
-	&rk_v2_ahash_hmac_sha256,	/* hmac(sha256) */
-	&rk_v2_ahash_hmac_sha512,	/* hmac(sha512) */
-	&rk_v2_ahash_hmac_md5,		/* hmac(md5) */
-	&rk_v2_ahash_hmac_sm3,		/* hmac(sm3) */
+	&rk_v2_hmac_sha1,		/* hmac(sha1) */
+	&rk_v2_hmac_sha256,		/* hmac(sha256) */
+	&rk_v2_hmac_sha512,		/* hmac(sha512) */
+	&rk_v2_hmac_md5,		/* hmac(md5) */
+	&rk_v2_hmac_sm3,		/* hmac(sm3) */
 
 	&rk_v2_asym_rsa,		/* rsa */
 };
@@ -466,7 +468,7 @@ static const char * const crypto_v1_rsts[] = {
 	"crypto-rst",
 };
 
-static struct rk_crypto_tmp *crypto_v1_algs[] = {
+static struct rk_crypto_algt *crypto_v1_algs[] = {
 	&rk_v1_ecb_aes_alg,		/* ecb(aes) */
 	&rk_v1_cbc_aes_alg,		/* cbc(aes) */
 
@@ -520,117 +522,117 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
+	struct rk_crypto_soc_data *soc_data;
 	const struct of_device_id *match;
-	struct rk_crypto_info *crypto_info;
+	struct rk_crypto_dev *rk_dev;
 	int err = 0;
 
-	crypto_info = devm_kzalloc(&pdev->dev,
-				   sizeof(*crypto_info), GFP_KERNEL);
-	if (!crypto_info) {
+	rk_dev = devm_kzalloc(&pdev->dev,
+				   sizeof(*rk_dev), GFP_KERNEL);
+	if (!rk_dev) {
 		err = -ENOMEM;
 		goto err_crypto;
 	}
 
 	match = of_match_node(crypto_of_id_table, np);
-	crypto_info->soc_data = (struct rk_crypto_soc_data *)match->data;
+	soc_data = (struct rk_crypto_soc_data *)match->data;
+	rk_dev->soc_data = soc_data;
 
-	if (crypto_info->soc_data->rsts[0]) {
-		crypto_info->rst =
-			devm_reset_control_get(dev,
-					       crypto_info->soc_data->rsts[0]);
-		if (IS_ERR(crypto_info->rst)) {
-			err = PTR_ERR(crypto_info->rst);
+	if (soc_data->rsts[0]) {
+		rk_dev->rst =
+			devm_reset_control_get(dev, soc_data->rsts[0]);
+		if (IS_ERR(rk_dev->rst)) {
+			err = PTR_ERR(rk_dev->rst);
 			goto err_crypto;
 		}
-		reset_control_assert(crypto_info->rst);
+		reset_control_assert(rk_dev->rst);
 		usleep_range(10, 20);
-		reset_control_deassert(crypto_info->rst);
+		reset_control_deassert(rk_dev->rst);
 	}
 
-	err = devm_add_action_or_reset(dev, rk_crypto_action, crypto_info);
+	err = devm_add_action_or_reset(dev, rk_crypto_action, rk_dev);
 	if (err)
 		goto err_crypto;
 
-	spin_lock_init(&crypto_info->lock);
+	spin_lock_init(&rk_dev->lock);
 
 	/* get crypto base */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	crypto_info->reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(crypto_info->reg)) {
-		err = PTR_ERR(crypto_info->reg);
+	rk_dev->reg = devm_ioremap_resource(dev, res);
+	if (IS_ERR(rk_dev->reg)) {
+		err = PTR_ERR(rk_dev->reg);
 		goto err_crypto;
 	}
 
 	/* get pka base, if pka reg not set, pka reg = crypto + pka offset */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	crypto_info->pka_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(crypto_info->pka_reg))
-		crypto_info->pka_reg = crypto_info->reg + crypto_info->soc_data->default_pka_offset;
+	rk_dev->pka_reg = devm_ioremap_resource(dev, res);
+	if (IS_ERR(rk_dev->pka_reg))
+		rk_dev->pka_reg = rk_dev->reg + soc_data->default_pka_offset;
 
-	crypto_info->clks_num = devm_clk_bulk_get_all(&pdev->dev, &crypto_info->clk_bulks);
-	if (crypto_info->clks_num < 0) {
-		dev_err(&pdev->dev, "failed to get clks property\n");
+	rk_dev->clks_num = devm_clk_bulk_get_all(dev, &rk_dev->clk_bulks);
+	if (rk_dev->clks_num < 0) {
+		dev_err(dev, "failed to get clks property\n");
 		goto err_crypto;
 	}
 
-	crypto_info->irq = platform_get_irq(pdev, 0);
-	if (crypto_info->irq < 0) {
-		dev_warn(crypto_info->dev,
+	rk_dev->irq = platform_get_irq(pdev, 0);
+	if (rk_dev->irq < 0) {
+		dev_warn(dev,
 			 "control Interrupt is not available.\n");
-		err = crypto_info->irq;
+		err = rk_dev->irq;
 		goto err_crypto;
 	}
 
-	err = devm_request_irq(&pdev->dev, crypto_info->irq,
+	err = devm_request_irq(dev, rk_dev->irq,
 			       rk_crypto_irq_handle, IRQF_SHARED,
 			       "rk-crypto", pdev);
 
 	if (err) {
-		dev_err(crypto_info->dev, "irq request failed.\n");
+		dev_err(dev, "irq request failed.\n");
 		goto err_crypto;
 	}
 
-	crypto_info->dev = &pdev->dev;
+	rk_dev->dev = dev;
 
-	crypto_info->hw_info =
-		devm_kzalloc(&pdev->dev,
-			     crypto_info->soc_data->hw_info_size, GFP_KERNEL);
-	if (!crypto_info->hw_info) {
+	rk_dev->hw_info =
+		devm_kzalloc(dev, soc_data->hw_info_size, GFP_KERNEL);
+	if (!rk_dev->hw_info) {
 		err = -ENOMEM;
 		goto err_crypto;
 	}
 
-	err = crypto_info->soc_data->hw_init(&pdev->dev, crypto_info->hw_info);
+	err = soc_data->hw_init(dev, rk_dev->hw_info);
 	if (err) {
-		dev_err(crypto_info->dev, "hw_init failed.\n");
+		dev_err(dev, "hw_init failed.\n");
 		goto err_crypto;
 	}
 
-	crypto_info->addr_vir = (char *)__get_free_page(GFP_KERNEL);
-	if (!crypto_info->addr_vir) {
+	rk_dev->addr_vir = (char *)__get_free_page(GFP_KERNEL);
+	if (!rk_dev->addr_vir) {
 		err = -ENOMEM;
-		dev_err(crypto_info->dev, "__get_free_page failed.\n");
+		dev_err(dev, "__get_free_page failed.\n");
 		goto err_crypto;
 	}
 
-	platform_set_drvdata(pdev, crypto_info);
+	platform_set_drvdata(pdev, rk_dev);
 
-	tasklet_init(&crypto_info->queue_task,
-		     rk_crypto_queue_task_cb, (unsigned long)crypto_info);
-	tasklet_init(&crypto_info->done_task,
-		     rk_crypto_done_task_cb, (unsigned long)crypto_info);
-	crypto_init_queue(&crypto_info->queue, 50);
+	tasklet_init(&rk_dev->queue_task,
+		     rk_crypto_queue_task_cb, (unsigned long)rk_dev);
+	tasklet_init(&rk_dev->done_task,
+		     rk_crypto_done_task_cb, (unsigned long)rk_dev);
+	crypto_init_queue(&rk_dev->queue, 50);
 
-	mutex_init(&crypto_info->mutex);
+	mutex_init(&rk_dev->mutex);
 
-	crypto_info->request_crypto = rk_crypto_request;
-	crypto_info->release_crypto = rk_crypto_release;
-	crypto_info->load_data = rk_load_data;
-	crypto_info->unload_data = rk_unload_data;
-	crypto_info->enqueue = rk_crypto_enqueue;
-	crypto_info->busy = false;
+	rk_dev->request_crypto = rk_crypto_request;
+	rk_dev->release_crypto = rk_crypto_release;
+	rk_dev->load_data = rk_load_data;
+	rk_dev->unload_data = rk_unload_data;
+	rk_dev->enqueue = rk_crypto_enqueue;
+	rk_dev->busy = false;
 
-	err = rk_crypto_register(crypto_info);
+	err = rk_crypto_register(rk_dev);
 	if (err) {
 		dev_err(dev, "err in register alg");
 		goto err_register_alg;
@@ -640,27 +642,27 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_alg:
-	mutex_destroy(&crypto_info->mutex);
-	tasklet_kill(&crypto_info->queue_task);
-	tasklet_kill(&crypto_info->done_task);
+	mutex_destroy(&rk_dev->mutex);
+	tasklet_kill(&rk_dev->queue_task);
+	tasklet_kill(&rk_dev->done_task);
 err_crypto:
 	return err;
 }
 
 static int rk_crypto_remove(struct platform_device *pdev)
 {
-	struct rk_crypto_info *crypto_info = platform_get_drvdata(pdev);
+	struct rk_crypto_dev *rk_dev = platform_get_drvdata(pdev);
 
-	rk_crypto_unregister(crypto_info);
-	tasklet_kill(&crypto_info->done_task);
-	tasklet_kill(&crypto_info->queue_task);
+	rk_crypto_unregister(rk_dev);
+	tasklet_kill(&rk_dev->done_task);
+	tasklet_kill(&rk_dev->queue_task);
 
-	if (crypto_info->addr_vir)
-		free_page((unsigned long)crypto_info->addr_vir);
+	if (rk_dev->addr_vir)
+		free_page((unsigned long)rk_dev->addr_vir);
 
-	crypto_info->soc_data->hw_deinit(&pdev->dev, crypto_info->hw_info);
+	rk_dev->soc_data->hw_deinit(&pdev->dev, rk_dev->hw_info);
 
-	mutex_destroy(&crypto_info->mutex);
+	mutex_destroy(&rk_dev->mutex);
 
 	return 0;
 }

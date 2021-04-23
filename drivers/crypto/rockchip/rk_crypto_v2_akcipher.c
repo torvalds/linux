@@ -162,7 +162,7 @@ static int rk_rsa_calc(struct akcipher_request *req, bool encypt)
 		goto exit;
 
 	if (!sg_copy_to_buffer(req->src, sg_nents(req->src), tmp_buf, req->src_len)) {
-		dev_err(ctx->dev->dev, "[%s:%d] sg copy err\n",
+		dev_err(ctx->rk_dev->dev, "[%s:%d] sg copy err\n",
 			__func__, __LINE__);
 		ret =  -EINVAL;
 		goto exit;
@@ -190,7 +190,7 @@ static int rk_rsa_calc(struct akcipher_request *req, bool encypt)
 	CRYPTO_DUMPHEX("tmp_buf = ", tmp_buf, key_byte_size);
 
 	if (!sg_copy_from_buffer(req->dst, sg_nents(req->dst), tmp_buf, key_byte_size)) {
-		dev_err(ctx->dev->dev, "[%s:%d] sg copy err\n",
+		dev_err(ctx->rk_dev->dev, "[%s:%d] sg copy err\n",
 			__func__, __LINE__);
 		ret =  -EINVAL;
 		goto exit;
@@ -222,14 +222,14 @@ static int rk_rsa_dec(struct akcipher_request *req)
 	return rk_rsa_calc(req, false);
 }
 
-static int rk_rsa_start(struct rk_crypto_info *dev)
+static int rk_rsa_start(struct rk_crypto_dev *rk_dev)
 {
 	CRYPTO_TRACE();
 
 	return -ENOSYS;
 }
 
-static int rk_rsa_crypto_rx(struct rk_crypto_info *dev)
+static int rk_rsa_crypto_rx(struct rk_crypto_dev *rk_dev)
 {
 	CRYPTO_TRACE();
 
@@ -246,27 +246,27 @@ static int rk_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct rk_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct akcipher_alg *alg = __crypto_akcipher_alg(tfm->base.__crt_alg);
-	struct rk_crypto_tmp *algt;
-	struct rk_crypto_info *info;
+	struct rk_crypto_algt *algt;
+	struct rk_crypto_dev *rk_dev;
 
 	CRYPTO_TRACE();
 
-	algt = container_of(alg, struct rk_crypto_tmp, alg.asym);
-	info = algt->dev;
+	algt = container_of(alg, struct rk_crypto_algt, alg.asym);
+	rk_dev = algt->rk_dev;
 
-	if (!info->request_crypto)
+	if (!rk_dev->request_crypto)
 		return -EFAULT;
 
-	info->request_crypto(info, "rsa");
+	rk_dev->request_crypto(rk_dev, "rsa");
 
-	info->align_size = crypto_tfm_alg_alignmask(&tfm->base) + 1;
-	info->start = rk_rsa_start;
-	info->update = rk_rsa_crypto_rx;
-	info->complete = rk_rsa_complete;
+	rk_dev->align_size = crypto_tfm_alg_alignmask(&tfm->base) + 1;
+	rk_dev->start      = rk_rsa_start;
+	rk_dev->update     = rk_rsa_crypto_rx;
+	rk_dev->complete   = rk_rsa_complete;
 
-	ctx->dev = info;
+	ctx->rk_dev = rk_dev;
 
-	rk_pka_set_crypto_base(ctx->dev->pka_reg);
+	rk_pka_set_crypto_base(ctx->rk_dev->pka_reg);
 
 	return 0;
 }
@@ -279,10 +279,10 @@ static void rk_rsa_exit_tfm(struct crypto_akcipher *tfm)
 
 	rk_rsa_clear_ctx(ctx);
 
-	ctx->dev->release_crypto(ctx->dev, "rsa");
+	ctx->rk_dev->release_crypto(ctx->rk_dev, "rsa");
 }
 
-struct rk_crypto_tmp rk_v2_asym_rsa = {
+struct rk_crypto_algt rk_v2_asym_rsa = {
 	.name = "rsa",
 	.type = ALG_TYPE_ASYM,
 	.alg.asym = {

@@ -23,43 +23,43 @@ struct rk_hw_crypto_v2_info {
 	dma_addr_t			desc_dma;
 };
 
-extern struct rk_crypto_tmp rk_v2_ecb_sm4_alg;
-extern struct rk_crypto_tmp rk_v2_cbc_sm4_alg;
-extern struct rk_crypto_tmp rk_v2_xts_sm4_alg;
-extern struct rk_crypto_tmp rk_v2_cfb_sm4_alg;
-extern struct rk_crypto_tmp rk_v2_ofb_sm4_alg;
-extern struct rk_crypto_tmp rk_v2_ctr_sm4_alg;
+extern struct rk_crypto_algt rk_v2_ecb_sm4_alg;
+extern struct rk_crypto_algt rk_v2_cbc_sm4_alg;
+extern struct rk_crypto_algt rk_v2_xts_sm4_alg;
+extern struct rk_crypto_algt rk_v2_cfb_sm4_alg;
+extern struct rk_crypto_algt rk_v2_ofb_sm4_alg;
+extern struct rk_crypto_algt rk_v2_ctr_sm4_alg;
 
-extern struct rk_crypto_tmp rk_v2_ecb_aes_alg;
-extern struct rk_crypto_tmp rk_v2_cbc_aes_alg;
-extern struct rk_crypto_tmp rk_v2_xts_aes_alg;
-extern struct rk_crypto_tmp rk_v2_cfb_aes_alg;
-extern struct rk_crypto_tmp rk_v2_ofb_aes_alg;
-extern struct rk_crypto_tmp rk_v2_ctr_aes_alg;
+extern struct rk_crypto_algt rk_v2_ecb_aes_alg;
+extern struct rk_crypto_algt rk_v2_cbc_aes_alg;
+extern struct rk_crypto_algt rk_v2_xts_aes_alg;
+extern struct rk_crypto_algt rk_v2_cfb_aes_alg;
+extern struct rk_crypto_algt rk_v2_ofb_aes_alg;
+extern struct rk_crypto_algt rk_v2_ctr_aes_alg;
 
-extern struct rk_crypto_tmp rk_v2_ecb_des_alg;
-extern struct rk_crypto_tmp rk_v2_cbc_des_alg;
-extern struct rk_crypto_tmp rk_v2_cfb_des_alg;
-extern struct rk_crypto_tmp rk_v2_ofb_des_alg;
+extern struct rk_crypto_algt rk_v2_ecb_des_alg;
+extern struct rk_crypto_algt rk_v2_cbc_des_alg;
+extern struct rk_crypto_algt rk_v2_cfb_des_alg;
+extern struct rk_crypto_algt rk_v2_ofb_des_alg;
 
-extern struct rk_crypto_tmp rk_v2_ecb_des3_ede_alg;
-extern struct rk_crypto_tmp rk_v2_cbc_des3_ede_alg;
-extern struct rk_crypto_tmp rk_v2_cfb_des3_ede_alg;
-extern struct rk_crypto_tmp rk_v2_ofb_des3_ede_alg;
+extern struct rk_crypto_algt rk_v2_ecb_des3_ede_alg;
+extern struct rk_crypto_algt rk_v2_cbc_des3_ede_alg;
+extern struct rk_crypto_algt rk_v2_cfb_des3_ede_alg;
+extern struct rk_crypto_algt rk_v2_ofb_des3_ede_alg;
 
-extern struct rk_crypto_tmp rk_v2_ahash_sha1;
-extern struct rk_crypto_tmp rk_v2_ahash_sha256;
-extern struct rk_crypto_tmp rk_v2_ahash_sha512;
-extern struct rk_crypto_tmp rk_v2_ahash_md5;
-extern struct rk_crypto_tmp rk_v2_ahash_sm3;
+extern struct rk_crypto_algt rk_v2_ahash_sha1;
+extern struct rk_crypto_algt rk_v2_ahash_sha256;
+extern struct rk_crypto_algt rk_v2_ahash_sha512;
+extern struct rk_crypto_algt rk_v2_ahash_md5;
+extern struct rk_crypto_algt rk_v2_ahash_sm3;
 
-extern struct rk_crypto_tmp rk_v2_ahash_hmac_md5;
-extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha1;
-extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha256;
-extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha512;
-extern struct rk_crypto_tmp rk_v2_ahash_hmac_sm3;
+extern struct rk_crypto_algt rk_v2_hmac_md5;
+extern struct rk_crypto_algt rk_v2_hmac_sha1;
+extern struct rk_crypto_algt rk_v2_hmac_sha256;
+extern struct rk_crypto_algt rk_v2_hmac_sha512;
+extern struct rk_crypto_algt rk_v2_hmac_sm3;
 
-extern struct rk_crypto_tmp rk_v2_asym_rsa;
+extern struct rk_crypto_algt rk_v2_asym_rsa;
 
 int rk_hw_crypto_v2_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info);

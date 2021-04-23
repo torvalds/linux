@@ -27,7 +27,7 @@
 struct rk_crypto_soc_data {
 	char				**valid_algs_name;
 	int				valid_algs_num;
-	struct rk_crypto_tmp		**total_algs;
+	struct rk_crypto_algt		**total_algs;
 	int				total_algs_num;
 	const char * const		*rsts;
 	int				rsts_num;
@@ -38,7 +38,7 @@ struct rk_crypto_soc_data {
 	void (*hw_deinit)(struct device *dev, void *hw_info);
 };
 
-struct rk_crypto_info {
+struct rk_crypto_dev {
 	struct device			*dev;
 	struct reset_control		*rst;
 	void __iomem			*reg;
@@ -47,49 +47,54 @@ struct rk_crypto_info {
 	struct crypto_queue		queue;
 	struct tasklet_struct		queue_task;
 	struct tasklet_struct		done_task;
-	struct crypto_async_request	*async_req;
 	int				err;
 	void				*hw_info;
+	struct rk_crypto_soc_data	*soc_data;
+	int clks_num;
+	struct clk_bulk_data		*clk_bulks;
+
 	/* device lock */
 	spinlock_t			lock;
 	struct mutex			mutex;
 
 	/* the public variable */
+	struct crypto_async_request	*async_req;
+	void				*addr_vir;
 	struct scatterlist		*sg_src;
 	struct scatterlist		*sg_dst;
 	struct scatterlist		sg_tmp;
 	struct scatterlist		*first;
-	struct rk_crypto_soc_data	*soc_data;
-	int clks_num;
-	struct clk_bulk_data		*clk_bulks;
-	unsigned int			left_bytes;
-	void				*addr_vir;
-	int				aligned;
-	int				align_size;
 	size_t				src_nents;
 	size_t				dst_nents;
+
 	unsigned int			total;
 	unsigned int			count;
+	unsigned int			left_bytes;
+
 	dma_addr_t			addr_in;
 	dma_addr_t			addr_out;
+
+	int				aligned;
+	int				align_size;
+
 	bool				busy;
-	void (*request_crypto)(struct rk_crypto_info *dev, const char *name);
-	void (*release_crypto)(struct rk_crypto_info *dev, const char *name);
-	int (*start)(struct rk_crypto_info *dev);
-	int (*update)(struct rk_crypto_info *dev);
+	void (*request_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
+	void (*release_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
+	int (*start)(struct rk_crypto_dev *rk_dev);
+	int (*update)(struct rk_crypto_dev *rk_dev);
 	void (*complete)(struct crypto_async_request *base, int err);
 	int (*irq_handle)(int irq, void *dev_id);
-	int (*load_data)(struct rk_crypto_info *dev,
+	int (*load_data)(struct rk_crypto_dev *rk_dev,
 			 struct scatterlist *sg_src,
 			 struct scatterlist *sg_dst);
-	void (*unload_data)(struct rk_crypto_info *dev);
-	int (*enqueue)(struct rk_crypto_info *dev,
+	void (*unload_data)(struct rk_crypto_dev *rk_dev);
+	int (*enqueue)(struct rk_crypto_dev *rk_dev,
 		       struct crypto_async_request *async_req);
 };
 
 /* the private variable of hash */
 struct rk_ahash_ctx {
-	struct rk_crypto_info		*dev;
+	struct rk_crypto_dev		*rk_dev;
 	u8				authkey[SHA512_BLOCK_SIZE];
 
 	/* for fallback */
@@ -104,7 +109,7 @@ struct rk_ahash_rctx {
 
 /* the private variable of cipher */
 struct rk_cipher_ctx {
-	struct rk_crypto_info		*dev;
+	struct rk_crypto_dev		*rk_dev;
 	unsigned char			key[AES_MAX_KEY_SIZE * 2];
 	unsigned int			keylen;
 	u32				mode;
@@ -119,7 +124,7 @@ struct rk_rsa_ctx {
 	struct rk_bignum *e;
 	struct rk_bignum *d;
 
-	struct rk_crypto_info		*dev;
+	struct rk_crypto_dev		*rk_dev;
 };
 
 enum alg_type {
@@ -129,8 +134,8 @@ enum alg_type {
 	ALG_TYPE_ASYM,
 };
 
-struct rk_crypto_tmp {
-	struct rk_crypto_info		*dev;
+struct rk_crypto_algt {
+	struct rk_crypto_dev		*rk_dev;
 	union {
 		struct crypto_alg	crypto;
 		struct ahash_alg	hash;
