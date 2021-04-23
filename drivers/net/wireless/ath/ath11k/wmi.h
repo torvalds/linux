@@ -4171,8 +4171,8 @@ struct wmi_pdev_stats_tx {
 	/* Num PPDUs cleaned up in TX abort */
 	s32 tx_abort;
 
-	/* Num MPDUs requed by SW */
-	s32 mpdus_requed;
+	/* Num MPDUs requeued by SW */
+	s32 mpdus_requeued;
 
 	/* excessive retries */
 	u32 tx_ko;
