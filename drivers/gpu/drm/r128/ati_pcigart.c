@@ -45,18 +45,32 @@
 static int drm_ati_alloc_pcigart_table(struct drm_device *dev,
 				       struct drm_ati_pcigart_info *gart_info)
 {
-	gart_info->table_handle = drm_pci_alloc(dev, gart_info->table_size,
-						PAGE_SIZE);
-	if (gart_info->table_handle == NULL)
+	drm_dma_handle_t *dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
+
+	if (!dmah)
 		return -ENOMEM;
 
+	dmah->size = gart_info->table_size;
+	dmah->vaddr = dma_alloc_coherent(dev->dev,
+					 dmah->size,
+					 &dmah->busaddr,
+					 GFP_KERNEL);
+
+	if (!dmah->vaddr) {
+		kfree(dmah);
+		return -ENOMEM;
+	}
+
+	gart_info->table_handle = dmah;
 	return 0;
 }
 
 static void drm_ati_free_pcigart_table(struct drm_device *dev,
 				       struct drm_ati_pcigart_info *gart_info)
 {
-	drm_pci_free(dev, gart_info->table_handle);
+	drm_dma_handle_t *dmah = gart_info->table_handle;
+
+	dma_free_coherent(dev->dev, dmah->size, dmah->vaddr, dmah->busaddr);
 	gart_info->table_handle = NULL;
 }
 

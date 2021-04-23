@@ -675,12 +675,17 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 static void drm_cleanup_buf_error(struct drm_device *dev,
 				  struct drm_buf_entry *entry)
 {
+	drm_dma_handle_t *dmah;
 	int i;
 
 	if (entry->seg_count) {
 		for (i = 0; i < entry->seg_count; i++) {
 			if (entry->seglist[i]) {
-				drm_pci_free(dev, entry->seglist[i]);
+				dmah = entry->seglist[i];
+				dma_free_coherent(dev->dev,
+						  dmah->size,
+						  dmah->vaddr,
+						  dmah->busaddr);
 			}
 		}
 		kfree(entry->seglist);
@@ -979,10 +984,18 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	page_count = 0;
 
 	while (entry->buf_count < count) {
+		dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
+		if (!dmah)
+			return -ENOMEM;
 
-		dmah = drm_pci_alloc(dev, PAGE_SIZE << page_order, 0x1000);
+		dmah->size = total;
+		dmah->vaddr = dma_alloc_coherent(dev->dev,
+						 dmah->size,
+						 &dmah->busaddr,
+						 GFP_KERNEL);
+		if (!dmah->vaddr) {
+			kfree(dmah);
 
-		if (!dmah) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			entry->seg_count = count;
