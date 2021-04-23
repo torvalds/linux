@@ -642,6 +642,7 @@ struct mtk_tx_buf {
  * @phys:		The physical addr of tx_buf
  * @next_free:		Pointer to the next free descriptor
  * @last_free:		Pointer to the last free descriptor
+ * @last_free_ptr:	Hardware pointer value of the last free descriptor
  * @thresh:		The threshold of minimum amount of free descriptors
  * @free_count:		QDMA uses a linked list. Track how many free descriptors
  *			are present
@@ -652,6 +653,7 @@ struct mtk_tx_ring {
 	dma_addr_t phys;
 	struct mtk_tx_dma *next_free;
 	struct mtk_tx_dma *last_free;
+	u32 last_free_ptr;
 	u16 thresh;
 	atomic_t free_count;
 	int dma_size;
