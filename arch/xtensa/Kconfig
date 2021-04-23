@@ -92,6 +92,9 @@ config CPU_BIG_ENDIAN
 config CPU_LITTLE_ENDIAN
 	def_bool !CPU_BIG_ENDIAN
 
+config CC_HAVE_CALL0_ABI
+	def_bool $(success,test "$(shell,echo __XTENSA_CALL0_ABI__ | $(CC) -mabi=call0 -E -P - 2>/dev/null)" = 1)
+
 menu "Processor type and features"
 
 choice
@@ -249,6 +252,38 @@ config FAST_SYSCALL_SPILL_REGISTERS
 	  Only enable it if your userspace software requires it.
 
 	  If unsure, say N.
+
+choice
+	prompt "Kernel ABI"
+	default KERNEL_ABI_DEFAULT
+	help
+	  Select ABI for the kernel code. This ABI is independent of the
+	  supported userspace ABI and any combination of the
+	  kernel/userspace ABI is possible and should work.
+
+	  In case both kernel and userspace support only call0 ABI
+	  all register windows support code will be omitted from the
+	  build.
+
+	  If unsure, choose the default ABI.
+
+config KERNEL_ABI_DEFAULT
+	bool "Default ABI"
+	help
+	  Select this option to compile kernel code with the default ABI
+	  selected for the toolchain.
+	  Normally cores with windowed registers option use windowed ABI and
+	  cores without it use call0 ABI.
+
+config KERNEL_ABI_CALL0
+	bool "Call0 ABI" if CC_HAVE_CALL0_ABI
+	help
+	  Select this option to compile kernel code with call0 ABI even with
+	  toolchain that defaults to windowed ABI.
+	  When this option is not selected the default toolchain ABI will
+	  be used for the kernel code.
+
+endchoice
 
 config USER_ABI_CALL0
 	bool
