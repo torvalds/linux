@@ -99,6 +99,7 @@
 #define CPU_BOOT_ERR0_PLL_FAIL			(1 << 12)
 #define CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL	(1 << 13)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
+#define CPU_BOOT_ERR1_ENABLED			(1 << 31)
 
 /*
  * BOOT DEVICE STATUS bits in BOOT_DEVICE_STS registers
@@ -219,6 +220,7 @@
 #define CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN		(1 << 17)
 #define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
+#define CPU_BOOT_DEV_STS1_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
 	CPU_BOOT_STATUS_NA = 0,		/* Default value after reset of chip */
@@ -264,33 +266,33 @@ enum cpu_msg_status {
 
 /* communication registers mapping - consider ABI when changing */
 struct cpu_dyn_regs {
-	uint32_t cpu_pq_base_addr_low;
-	uint32_t cpu_pq_base_addr_high;
-	uint32_t cpu_pq_length;
-	uint32_t cpu_pq_init_status;
-	uint32_t cpu_eq_base_addr_low;
-	uint32_t cpu_eq_base_addr_high;
-	uint32_t cpu_eq_length;
-	uint32_t cpu_eq_ci;
-	uint32_t cpu_cq_base_addr_low;
-	uint32_t cpu_cq_base_addr_high;
-	uint32_t cpu_cq_length;
-	uint32_t cpu_pf_pq_pi;
-	uint32_t cpu_boot_dev_sts0;
-	uint32_t cpu_boot_dev_sts1;
-	uint32_t cpu_boot_err0;
-	uint32_t cpu_boot_err1;
-	uint32_t cpu_boot_status;
-	uint32_t fw_upd_sts;
-	uint32_t fw_upd_cmd;
-	uint32_t fw_upd_pending_sts;
-	uint32_t fuse_ver_offset;
-	uint32_t preboot_ver_offset;
-	uint32_t uboot_ver_offset;
-	uint32_t hw_state;
-	uint32_t kmd_msg_to_cpu;
-	uint32_t cpu_cmd_status_to_host;
-	uint32_t reserved1[32];		/* reserve for future use */
+	__le32 cpu_pq_base_addr_low;
+	__le32 cpu_pq_base_addr_high;
+	__le32 cpu_pq_length;
+	__le32 cpu_pq_init_status;
+	__le32 cpu_eq_base_addr_low;
+	__le32 cpu_eq_base_addr_high;
+	__le32 cpu_eq_length;
+	__le32 cpu_eq_ci;
+	__le32 cpu_cq_base_addr_low;
+	__le32 cpu_cq_base_addr_high;
+	__le32 cpu_cq_length;
+	__le32 cpu_pf_pq_pi;
+	__le32 cpu_boot_dev_sts0;
+	__le32 cpu_boot_dev_sts1;
+	__le32 cpu_boot_err0;
+	__le32 cpu_boot_err1;
+	__le32 cpu_boot_status;
+	__le32 fw_upd_sts;
+	__le32 fw_upd_cmd;
+	__le32 fw_upd_pending_sts;
+	__le32 fuse_ver_offset;
+	__le32 preboot_ver_offset;
+	__le32 uboot_ver_offset;
+	__le32 hw_state;
+	__le32 kmd_msg_to_cpu;
+	__le32 cpu_cmd_status_to_host;
+	__le32 reserved1[32];		/* reserve for future use */
 };
 
 /* HCDM - Habana Communications Descriptor Magic */
@@ -299,11 +301,11 @@ struct cpu_dyn_regs {
 
 /* this is the comms descriptor header - meta data */
 struct comms_desc_header {
-	uint32_t magic;		/* magic for validation */
-	uint32_t crc32;		/* CRC32 of the descriptor w/o header */
-	uint16_t size;		/* size of the descriptor w/o header */
-	uint8_t version;	/* descriptor version */
-	uint8_t reserved[5];	/* pad to 64 bit */
+	__le32 magic;		/* magic for validation */
+	__le32 crc32;		/* CRC32 of the descriptor w/o header */
+	__le16 size;		/* size of the descriptor w/o header */
+	__u8 version;	/* descriptor version */
+	__u8 reserved[5];	/* pad to 64 bit */
 };
 
 /* this is the main FW descriptor - consider ABI when changing */
@@ -314,7 +316,7 @@ struct lkd_fw_comms_desc {
 	char cur_fw_ver[VERSION_MAX_LEN];
 	/* can be used for 1 more version w/o ABI change */
 	char reserved0[VERSION_MAX_LEN];
-	uint64_t img_addr;	/* address for next FW component load */
+	__le64 img_addr;	/* address for next FW component load */
 };
 
 /*
@@ -386,11 +388,11 @@ enum comms_cmd {
 struct comms_command {
 	union {		/* bit fields are only for FW use */
 		struct {
-			unsigned int size :25;		/* 32MB max. */
-			unsigned int reserved :2;
+			u32 size :25;		/* 32MB max. */
+			u32 reserved :2;
 			enum comms_cmd cmd :5;		/* 32 commands */
 		};
-		unsigned int val;
+		__le32 val;
 	};
 };
 
@@ -449,11 +451,11 @@ enum comms_ram_types {
 struct comms_status {
 	union {		/* bit fields are only for FW use */
 		struct {
-			unsigned int offset :26;
-			unsigned int ram_type :2;
+			u32 offset :26;
+			enum comms_ram_types ram_type :2;
 			enum comms_sts status :4;	/* 16 statuses */
 		};
-		unsigned int val;
+		__le32 val;
 	};
 };
 

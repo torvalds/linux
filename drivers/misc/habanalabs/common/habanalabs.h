@@ -1138,7 +1138,7 @@ struct hl_asic_funcs {
 	int (*hw_block_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u32 block_id, u32 block_size);
 	void (*enable_events_from_fw)(struct hl_device *hdev);
-	void (*get_msi_info)(u32 *table);
+	void (*get_msi_info)(__le32 *table);
 	int (*map_pll_idx_to_fw_idx)(u32 pll_idx);
 	void (*init_firmware_loader)(struct hl_device *hdev);
 };

@@ -27,6 +27,7 @@ enum gaudi_nic_axi_error {
 	TXE,
 	QPC_RESP,
 	NON_AXI_ERR,
+	TMR,
 };
 
 /*
@@ -40,6 +41,44 @@ struct eq_nic_sei_event {
 	__u8 axi_error_cause;
 	__u8 id;
 	__u8 pad[6];
+};
+
+/*
+ * struct gaudi_nic_status - describes the status of a NIC port.
+ * @port: NIC port index.
+ * @bad_format_cnt: e.g. CRC.
+ * @responder_out_of_sequence_psn_cnt: e.g NAK.
+ * @high_ber_reinit_cnt: link reinit due to high BER.
+ * @correctable_err_cnt: e.g. bit-flip.
+ * @uncorrectable_err_cnt: e.g. MAC errors.
+ * @retraining_cnt: re-training counter.
+ * @up: is port up.
+ * @pcs_link: has PCS link.
+ * @phy_ready: is PHY ready.
+ * @auto_neg: is Autoneg enabled.
+ */
+struct gaudi_nic_status {
+	__u32 port;
+	__u32 bad_format_cnt;
+	__u32 responder_out_of_sequence_psn_cnt;
+	__u32 high_ber_reinit;
+	__u32 correctable_err_cnt;
+	__u32 uncorrectable_err_cnt;
+	__u32 retraining_cnt;
+	__u8 up;
+	__u8 pcs_link;
+	__u8 phy_ready;
+	__u8 auto_neg;
+};
+
+struct gaudi_flops_2_data {
+	union {
+		struct {
+			__u32 spsram_init_done : 1;
+			__u32 reserved : 31;
+		};
+		__u32 data;
+	};
 };
 
 #define GAUDI_PLL_FREQ_LOW		200000000 /* 200 MHz */

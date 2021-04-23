@@ -631,6 +631,8 @@ struct cpucp_security_info {
  * @card_name: card name that will be displayed in HWMON subsystem on the host
  * @sec_info: security information
  * @pll_map: Bit map of supported PLLs for current ASIC version.
+ * @mme_binning_mask: MME binning mask,
+ *                   (0 = functional, 1 = binned)
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -653,6 +655,7 @@ struct cpucp_info {
 	struct cpucp_security_info sec_info;
 	__le32 reserved6;
 	__u8 pll_map[PLL_MAP_LEN];
+	__le64 mme_binning_mask;
 };
 
 struct cpucp_mac_addr {

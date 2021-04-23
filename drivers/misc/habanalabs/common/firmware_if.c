@@ -140,7 +140,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	}
 
 	/* set fence to a non valid value */
-	pkt->fence = UINT_MAX;
+	pkt->fence = cpu_to_le32(UINT_MAX);
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
 	if (rc) {
@@ -524,7 +524,8 @@ static int hl_fw_send_msi_info_msg(struct hl_device *hdev)
 
 	pkt->length = cpu_to_le32(CPUCP_NUM_OF_MSI_TYPES);
 
-	hdev->asic_funcs->get_msi_info((u32 *)&pkt->data);
+	memset((void *) &pkt->data, 0xFF, data_size);
+	hdev->asic_funcs->get_msi_info(pkt->data);
 
 	pkt->cpucp_pkt.ctl = cpu_to_le32(CPUCP_PACKET_MSI_INFO_SET <<
 						CPUCP_PKT_CTL_OPCODE_SHIFT);
@@ -1108,7 +1109,7 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 	/* Wait for expected status */
 	rc = hl_poll_timeout(
 		hdev,
-		fw_loader->cpu_cmd_status_to_host_reg,
+		le32_to_cpu(fw_loader->cpu_cmd_status_to_host_reg),
 		status,
 		FIELD_GET(COMMS_STATUS_STATUS_MASK, status) == expected_status,
 		10000,
