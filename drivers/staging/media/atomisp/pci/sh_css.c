@@ -9657,48 +9657,47 @@ ia_css_stream_get_info(const struct ia_css_stream *stream,
 int
 ia_css_stream_load(struct ia_css_stream *stream)
 {
-	if (!IS_ISP2401) {
-		int i;
-		int err;
+	int i, j, err;
 
-		assert(stream);
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"ia_css_stream_load() enter,\n");
-		for (i = 0; i < MAX_ACTIVE_STREAMS; i++) {
-			if (my_css_save.stream_seeds[i].stream == stream) {
-				int j;
-
-				for (j = 0; j < my_css_save.stream_seeds[i].num_pipes; j++) {
-					if ((err = ia_css_pipe_create(&my_css_save.stream_seeds[i].pipe_config[j],
-								    &my_css_save.stream_seeds[i].pipes[j])) != 0) {
-						if (j) {
-							int k;
-
-							for (k = 0; k < j; k++)
-								ia_css_pipe_destroy(my_css_save.stream_seeds[i].pipes[k]);
-						}
-						return err;
-					}
-				}
-				err = ia_css_stream_create(&my_css_save.stream_seeds[i].stream_config,
-							my_css_save.stream_seeds[i].num_pipes,
-							my_css_save.stream_seeds[i].pipes,
-							&my_css_save.stream_seeds[i].stream);
-				if (err) {
-					ia_css_stream_destroy(stream);
-					for (j = 0; j < my_css_save.stream_seeds[i].num_pipes; j++)
-						ia_css_pipe_destroy(my_css_save.stream_seeds[i].pipes[j]);
-					return err;
-				}
-				break;
-			}
-		}
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"ia_css_stream_load() exit,\n");
-		return 0;
-	} else {
+	if (IS_ISP2401) {
 		/* TODO remove function - DEPRECATED */
 		(void)stream;
 		return -ENOTSUPP;
 	}
+
+	assert(stream);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"ia_css_stream_load() enter,\n");
+	for (i = 0; i < MAX_ACTIVE_STREAMS; i++) {
+		if (my_css_save.stream_seeds[i].stream != stream)
+			continue;
+
+		for (j = 0; j < my_css_save.stream_seeds[i].num_pipes; j++) {
+			int k;
+
+			err = ia_css_pipe_create(&my_css_save.stream_seeds[i].pipe_config[j],
+						 &my_css_save.stream_seeds[i].pipes[j]);
+			if (!err)
+				continue;
+
+			for (k = 0; k < j; k++)
+				ia_css_pipe_destroy(my_css_save.stream_seeds[i].pipes[k]);
+			return err;
+		}
+		err = ia_css_stream_create(&my_css_save.stream_seeds[i].stream_config,
+					   my_css_save.stream_seeds[i].num_pipes,
+					   my_css_save.stream_seeds[i].pipes,
+					   &my_css_save.stream_seeds[i].stream);
+		if (!err)
+			break;
+
+		ia_css_stream_destroy(stream);
+		for (j = 0; j < my_css_save.stream_seeds[i].num_pipes; j++)
+			ia_css_pipe_destroy(my_css_save.stream_seeds[i].pipes[j]);
+		return err;
+	}
+
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"ia_css_stream_load() exit,\n");
+	return 0;
 }
 
 int
