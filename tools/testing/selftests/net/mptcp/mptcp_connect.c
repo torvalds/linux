@@ -45,7 +45,14 @@ enum cfg_mode {
 	CFG_MODE_SENDFILE,
 };
 
+enum cfg_peek {
+	CFG_NONE_PEEK,
+	CFG_WITH_PEEK,
+	CFG_AFTER_PEEK,
+};
+
 static enum cfg_mode cfg_mode = CFG_MODE_POLL;
+static enum cfg_peek cfg_peek = CFG_NONE_PEEK;
 static const char *cfg_host;
 static const char *cfg_port	= "12000";
 static int cfg_sock_proto	= IPPROTO_MPTCP;
@@ -73,6 +80,8 @@ static void die_usage(void)
 	fprintf(stderr, "\t-M mark -- set socket packet mark\n");
 	fprintf(stderr, "\t-u -- check mptcp ulp\n");
 	fprintf(stderr, "\t-w num -- wait num sec before closing the socket\n");
+	fprintf(stderr,
+		"\t-P [saveWithPeek|saveAfterPeek] -- save data with/after MSG_PEEK form tcp socket\n");
 	exit(1);
 }
 
@@ -331,6 +340,8 @@ static size_t do_write(const int fd, char *buf, const size_t len)
 
 static ssize_t do_rnd_read(const int fd, char *buf, const size_t len)
 {
+	int ret = 0;
+	char tmp[16384];
 	size_t cap = rand();
 
 	cap &= 0xffff;
@@ -340,7 +351,17 @@ static ssize_t do_rnd_read(const int fd, char *buf, const size_t len)
 	else if (cap > len)
 		cap = len;
 
-	return read(fd, buf, cap);
+	if (cfg_peek == CFG_WITH_PEEK) {
+		ret = recv(fd, buf, cap, MSG_PEEK);
+		ret = (ret < 0) ? ret : read(fd, tmp, ret);
+	} else if (cfg_peek == CFG_AFTER_PEEK) {
+		ret = recv(fd, buf, cap, MSG_PEEK);
+		ret = (ret < 0) ? ret : read(fd, buf, cap);
+	} else {
+		ret = read(fd, buf, cap);
+	}
+
+	return ret;
 }
 
 static void set_nonblock(int fd)
@@ -819,6 +840,26 @@ int parse_mode(const char *mode)
 	return 0;
 }
 
+int parse_peek(const char *mode)
+{
+	if (!strcasecmp(mode, "saveWithPeek"))
+		return CFG_WITH_PEEK;
+	if (!strcasecmp(mode, "saveAfterPeek"))
+		return CFG_AFTER_PEEK;
+
+	fprintf(stderr, "Unknown: %s\n", mode);
+	fprintf(stderr, "Supported MSG_PEEK mode are:\n");
+	fprintf(stderr,
+		"\t\t\"saveWithPeek\" - recv data with flags 'MSG_PEEK' and save the peek data into file\n");
+	fprintf(stderr,
+		"\t\t\"saveAfterPeek\" - read and save data into file after recv with flags 'MSG_PEEK'\n");
+
+	die_usage();
+
+	/* silence compiler warning */
+	return 0;
+}
+
 static int parse_int(const char *size)
 {
 	unsigned long s;
@@ -846,7 +887,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jr:lp:s:hut:m:S:R:w:M:")) != -1) {
+	while ((c = getopt(argc, argv, "6jr:lp:s:hut:m:S:R:w:M:P:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
@@ -898,6 +939,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'M':
 			cfg_mark = strtol(optarg, NULL, 0);
+			break;
+		case 'P':
+			cfg_peek = parse_peek(optarg);
 			break;
 		}
 	}
