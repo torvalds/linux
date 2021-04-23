@@ -213,6 +213,15 @@ struct kvm_ldttss_desc {
 
 DEFINE_PER_CPU(struct svm_cpu_data *, svm_data);
 
+/*
+ * Only MSR_TSC_AUX is switched via the user return hook.  EFER is switched via
+ * the VMCB, and the SYSCALL/SYSENTER MSRs are handled by VMLOAD/VMSAVE.
+ *
+ * RDTSCP and RDPID are not used in the kernel, specifically to allow KVM to
+ * defer the restoration of TSC_AUX until the CPU returns to userspace.
+ */
+#define TSC_AUX_URET_SLOT	0
+
 static const u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 
 #define NUM_MSR_MAPS ARRAY_SIZE(msrpm_ranges)
@@ -958,6 +967,9 @@ static __init int svm_hardware_setup(void)
 		kvm_tsc_scaling_ratio_frac_bits = 32;
 	}
 
+	if (boot_cpu_has(X86_FEATURE_RDTSCP))
+		kvm_define_user_return_msr(TSC_AUX_URET_SLOT, MSR_TSC_AUX);
+
 	/* Check for pause filtering support */
 	if (!boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
 		pause_filter_count = 0;
@@ -1423,18 +1435,9 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
-	unsigned int i;
 
 	if (svm->guest_state_loaded)
 		return;
-
-	/*
-	 * Certain MSRs are restored on VMEXIT (sev-es), or vmload of host save
-	 * area (non-sev-es). Save ones that aren't so we can restore them
-	 * individually later.
-	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
-		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	/*
 	 * Save additional host state that will be restored on VMEXIT (sev-es)
@@ -1454,29 +1457,15 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	/* This assumes that the kernel never uses MSR_TSC_AUX */
 	if (static_cpu_has(X86_FEATURE_RDTSCP))
-		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
+		kvm_set_user_return_msr(TSC_AUX_URET_SLOT, svm->tsc_aux, -1ull);
 
 	svm->guest_state_loaded = true;
 }
 
 static void svm_prepare_host_switch(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-	unsigned int i;
-
-	if (!svm->guest_state_loaded)
-		return;
-
-	/*
-	 * Certain MSRs are restored on VMEXIT (sev-es), or vmload of host save
-	 * area (non-sev-es). Restore the ones that weren't.
-	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
-		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
-
-	svm->guest_state_loaded = false;
+	to_svm(vcpu)->guest_state_loaded = false;
 }
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -2790,6 +2779,7 @@ static int svm_set_vm_cr(struct kvm_vcpu *vcpu, u64 data)
 static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	int r;
 
 	u32 ecx = msr->index;
 	u64 data = msr->data;
@@ -2910,11 +2900,16 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		data = (u32)data;
 
 		/*
-		 * This is rare, so we update the MSR here instead of using
-		 * direct_access_msrs.  Doing that would require a rdmsr in
-		 * svm_vcpu_put.
+		 * TSC_AUX is usually changed only during boot and never read
+		 * directly.  Intercept TSC_AUX instead of exposing it to the
+		 * guest via direct_access_msrs, and switch it via user return.
 		 */
-		wrmsrl(MSR_TSC_AUX, data);
+		preempt_disable();
+		r = kvm_set_user_return_msr(TSC_AUX_URET_SLOT, data, -1ull);
+		preempt_enable();
+		if (r)
+			return 1;
+
 		svm->tsc_aux = data;
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
