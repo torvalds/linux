@@ -4752,10 +4752,8 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 		if (p->subdevs[i] == terminal_sensor->sd) {
 
-			if (reset_src == RKCIF_RESET_SRC_ERR_HOTPLUG)
-				continue;
-
 			if (reset_src == RKCIF_RESET_SRC_ERR_CSI2 ||
+			    reset_src == RKCIF_RESET_SRC_ERR_HOTPLUG ||
 			    reset_src == RKICF_RESET_SRC_ERR_CUTOFF) {
 
 				ret = v4l2_subdev_call(p->subdevs[i], core, ioctl,
@@ -4811,10 +4809,8 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 
 			rkcif_csi2_set_sof(resume_info->frm_sync_seq);
 
-			if (reset_src == RKCIF_RESET_SRC_ERR_HOTPLUG)
-				continue;
-
 			if (reset_src == RKCIF_RESET_SRC_ERR_CSI2 ||
+			    reset_src == RKCIF_RESET_SRC_ERR_HOTPLUG ||
 			    reset_src == RKICF_RESET_SRC_ERR_CUTOFF) {
 				ret = v4l2_subdev_call(p->subdevs[i], core, ioctl,
 						       RKMODULE_SET_QUICK_STREAM, &on);
@@ -4949,7 +4945,7 @@ static void rkcif_init_reset_work(struct rkcif_timer *timer)
 
 	dev->reset_work.reset_src = timer->reset_src;
 	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
-	if (schedule_work_on(smp_processor_id(), &dev->reset_work.work))
+	if (schedule_work(&dev->reset_work.work))
 		v4l2_err(&dev->v4l2_dev,
 			 "schedule reset work successfully\n");
 	else
