@@ -1303,14 +1303,6 @@ enum {
 #define IS_DUMMY_WRITTEN_PAGE(page)			\
 		(page_private(page) == DUMMY_WRITTEN_PAGE)
 
-#ifdef CONFIG_F2FS_IO_TRACE
-#define IS_IO_TRACED_PAGE(page)			\
-		(page_private(page) > 0 &&		\
-		 page_private(page) < (unsigned long)PID_MAX_LIMIT)
-#else
-#define IS_IO_TRACED_PAGE(page) (0)
-#endif
-
 /* For compression */
 enum compress_algorithm_type {
 	COMPRESS_LZO,
