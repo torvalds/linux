@@ -321,6 +321,15 @@ static netdev_tx_t enetc_start_xmit(struct sk_buff *skb,
 	struct enetc_bdr *tx_ring;
 	int count;
 
+	/* Queue one-step Sync packet if already locked */
+	if (skb->cb[0] & ENETC_F_TX_ONESTEP_SYNC_TSTAMP) {
+		if (test_and_set_bit_lock(ENETC_TX_ONESTEP_TSTAMP_IN_PROGRESS,
+					  &priv->flags)) {
+			skb_queue_tail(&priv->tx_skbs, skb);
+			return NETDEV_TX_OK;
+		}
+	}
+
 	tx_ring = priv->tx_ring[skb->queue_mapping];
 
 	if (unlikely(skb_shinfo(skb)->nr_frags > ENETC_MAX_SKB_FRAGS))
@@ -370,15 +379,6 @@ netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev)
 				    &offset1, &offset2) ||
 		    msgtype != PTP_MSGTYPE_SYNC || twostep != 0)
 			skb->cb[0] = ENETC_F_TX_TSTAMP;
-	}
-
-	/* Queue one-step Sync packet if already locked */
-	if (skb->cb[0] & ENETC_F_TX_ONESTEP_SYNC_TSTAMP) {
-		if (test_and_set_bit_lock(ENETC_TX_ONESTEP_TSTAMP_IN_PROGRESS,
-					  &priv->flags)) {
-			skb_queue_tail(&priv->tx_skbs, skb);
-			return NETDEV_TX_OK;
-		}
 	}
 
 	return enetc_start_xmit(skb, ndev);
