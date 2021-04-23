@@ -36,7 +36,9 @@ ifeq ($(CONFIG_MODULE_SIG),y)
 endif
 
 ifeq ($(CONFIG_IMA_APPRAISE_MODSIG),y)
+ifeq ($(CONFIG_MODULES),y)
 	SIGN_KEY = y
+endif
 endif
 
 ifdef SIGN_KEY
