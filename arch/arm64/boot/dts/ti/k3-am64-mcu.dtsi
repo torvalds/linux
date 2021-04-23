@@ -87,7 +87,7 @@
 	};
 
 	mcu_gpio0: gpio@4201000 {
-		compatible = "ti,am64-gpio", "keystone-gpio";
+		compatible = "ti,am64-gpio", "ti,keystone-gpio";
 		reg = <0x0 0x4201000 0x0 0x100>;
 		gpio-controller;
 		#gpio-cells = <2>;
