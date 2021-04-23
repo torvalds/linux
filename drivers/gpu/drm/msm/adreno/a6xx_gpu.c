@@ -852,7 +852,7 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 		if (!a6xx_gpu->shadow_bo) {
 			a6xx_gpu->shadow = msm_gem_kernel_new_locked(gpu->dev,
 				sizeof(u32) * gpu->nr_rings,
-				MSM_BO_UNCACHED | MSM_BO_MAP_PRIV,
+				MSM_BO_WC | MSM_BO_MAP_PRIV,
 				gpu->aspace, &a6xx_gpu->shadow_bo,
 				&a6xx_gpu->shadow_iova);
 
