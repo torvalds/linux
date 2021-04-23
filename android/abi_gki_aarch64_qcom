@@ -2280,6 +2280,8 @@
   synchronize_rcu_tasks_trace
   synchronize_srcu
   synchronize_srcu_expedited
+  synth_event_create
+  synth_event_delete
   syscon_node_to_regmap
   syscon_regmap_lookup_by_phandle
   sysctl_sched_features
@@ -2355,6 +2357,7 @@
   trace_event_ignore_this_pid
   trace_event_raw_init
   trace_event_reg
+  trace_get_event_file
   trace_handle_return
   __traceiter_cpu_frequency
   __traceiter_gpu_mem_total
