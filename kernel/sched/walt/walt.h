@@ -478,6 +478,13 @@ static inline enum sched_boost_policy task_boost_policy(struct task_struct *p)
 	return policy;
 }
 
+static inline bool walt_uclamp_boosted(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return uclamp_eff_value(p, UCLAMP_MIN) > 0 && wts->unfilter;
+}
+
 static inline unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
@@ -702,7 +709,7 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 	if (is_min_capacity_cpu(cpu)) {
 		if (task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
 				task_boost > 0 ||
-				uclamp_boosted(p) ||
+				walt_uclamp_boosted(p) ||
 				walt_should_kick_upmigrate(p, cpu))
 			return false;
 	} else { /* mid cap cpu */
