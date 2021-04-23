@@ -1471,6 +1471,134 @@ recur:
 	}
 }
 
+static bool map_defs_match(const char *sym_name,
+			   const struct btf *main_btf,
+			   const struct btf_map_def *main_def,
+			   const struct btf_map_def *main_inner_def,
+			   const struct btf *extra_btf,
+			   const struct btf_map_def *extra_def,
+			   const struct btf_map_def *extra_inner_def)
+{
+	const char *reason;
+
+	if (main_def->map_type != extra_def->map_type) {
+		reason = "type";
+		goto mismatch;
+	}
+
+	/* check key type/size match */
+	if (main_def->key_size != extra_def->key_size) {
+		reason = "key_size";
+		goto mismatch;
+	}
+	if (!!main_def->key_type_id != !!extra_def->key_type_id) {
+		reason = "key type";
+		goto mismatch;
+	}
+	if ((main_def->parts & MAP_DEF_KEY_TYPE)
+	     && !glob_sym_btf_matches(sym_name, true /*exact*/,
+				      main_btf, main_def->key_type_id,
+				      extra_btf, extra_def->key_type_id)) {
+		reason = "key type";
+		goto mismatch;
+	}
+
+	/* validate value type/size match */
+	if (main_def->value_size != extra_def->value_size) {
+		reason = "value_size";
+		goto mismatch;
+	}
+	if (!!main_def->value_type_id != !!extra_def->value_type_id) {
+		reason = "value type";
+		goto mismatch;
+	}
+	if ((main_def->parts & MAP_DEF_VALUE_TYPE)
+	     && !glob_sym_btf_matches(sym_name, true /*exact*/,
+				      main_btf, main_def->value_type_id,
+				      extra_btf, extra_def->value_type_id)) {
+		reason = "key type";
+		goto mismatch;
+	}
+
+	if (main_def->max_entries != extra_def->max_entries) {
+		reason = "max_entries";
+		goto mismatch;
+	}
+	if (main_def->map_flags != extra_def->map_flags) {
+		reason = "map_flags";
+		goto mismatch;
+	}
+	if (main_def->numa_node != extra_def->numa_node) {
+		reason = "numa_node";
+		goto mismatch;
+	}
+	if (main_def->pinning != extra_def->pinning) {
+		reason = "pinning";
+		goto mismatch;
+	}
+
+	if ((main_def->parts & MAP_DEF_INNER_MAP) != (extra_def->parts & MAP_DEF_INNER_MAP)) {
+		reason = "inner map";
+		goto mismatch;
+	}
+
+	if (main_def->parts & MAP_DEF_INNER_MAP) {
+		char inner_map_name[128];
+
+		snprintf(inner_map_name, sizeof(inner_map_name), "%s.inner", sym_name);
+
+		return map_defs_match(inner_map_name,
+				      main_btf, main_inner_def, NULL,
+				      extra_btf, extra_inner_def, NULL);
+	}
+
+	return true;
+
+mismatch:
+	pr_warn("global '%s': map %s mismatch\n", sym_name, reason);
+	return false;
+}
+
+static bool glob_map_defs_match(const char *sym_name,
+				struct bpf_linker *linker, struct glob_sym *glob_sym,
+				struct src_obj *obj, Elf64_Sym *sym, int btf_id)
+{
+	struct btf_map_def dst_def = {}, dst_inner_def = {};
+	struct btf_map_def src_def = {}, src_inner_def = {};
+	const struct btf_type *t;
+	int err;
+
+	t = btf__type_by_id(obj->btf, btf_id);
+	if (!btf_is_var(t)) {
+		pr_warn("global '%s': invalid map definition type [%d]\n", sym_name, btf_id);
+		return false;
+	}
+	t = skip_mods_and_typedefs(obj->btf, t->type, NULL);
+
+	err = parse_btf_map_def(sym_name, obj->btf, t, true /*strict*/, &src_def, &src_inner_def);
+	if (err) {
+		pr_warn("global '%s': invalid map definition\n", sym_name);
+		return false;
+	}
+
+	/* re-parse existing map definition */
+	t = btf__type_by_id(linker->btf, glob_sym->btf_id);
+	t = skip_mods_and_typedefs(linker->btf, t->type, NULL);
+	err = parse_btf_map_def(sym_name, linker->btf, t, true /*strict*/, &dst_def, &dst_inner_def);
+	if (err) {
+		/* this should not happen, because we already validated it */
+		pr_warn("global '%s': invalid dst map definition\n", sym_name);
+		return false;
+	}
+
+	/* Currently extern map definition has to be complete and match
+	 * concrete map definition exactly. This restriction might be lifted
+	 * in the future.
+	 */
+	return map_defs_match(sym_name, linker->btf, &dst_def, &dst_inner_def,
+			      obj->btf, &src_def, &src_inner_def);
+}
+
 static bool glob_syms_match(const char *sym_name,
 			    struct bpf_linker *linker, struct glob_sym *glob_sym,
 			    struct src_obj *obj, Elf64_Sym *sym, size_t sym_idx, int btf_id)
@@ -1491,6 +1619,10 @@ static bool glob_syms_match(const char *sym_name,
 			btf_kind_str(src_t), sym_name);
 		return false;
 	}
+
+	/* deal with .maps definitions specially */
+	if (glob_sym->sec_id && strcmp(linker->secs[glob_sym->sec_id].sec_name, MAPS_ELF_SEC) == 0)
+		return glob_map_defs_match(sym_name, linker, glob_sym, obj, sym, btf_id);
 
 	if (!glob_sym_btf_matches(sym_name, true /*exact*/,
 				  linker->btf, glob_sym->btf_id, obj->btf, btf_id))
