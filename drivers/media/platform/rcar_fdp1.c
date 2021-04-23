@@ -2135,7 +2135,9 @@ static int fdp1_open(struct file *file)
 	}
 
 	/* Perform any power management required */
-	pm_runtime_get_sync(fdp1->dev);
+	ret = pm_runtime_resume_and_get(fdp1->dev);
+	if (ret < 0)
+		goto error_pm;
 
 	v4l2_fh_add(&ctx->fh);
 
@@ -2145,6 +2147,8 @@ static int fdp1_open(struct file *file)
 	mutex_unlock(&fdp1->dev_mutex);
 	return 0;
 
+error_pm:
+       v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 error_ctx:
 	v4l2_ctrl_handler_free(&ctx->hdl);
 	kfree(ctx);
@@ -2352,7 +2356,9 @@ static int fdp1_probe(struct platform_device *pdev)
 
 	/* Power up the cells to read HW */
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(fdp1->dev);
+	ret = pm_runtime_resume_and_get(fdp1->dev);
+	if (ret < 0)
+		goto disable_pm;
 
 	hw_version = fdp1_read(fdp1, FD1_IP_INTDATA);
 	switch (hw_version) {
@@ -2380,6 +2386,9 @@ static int fdp1_probe(struct platform_device *pdev)
 	pm_runtime_put(fdp1->dev);
 
 	return 0;
+
+disable_pm:
+	pm_runtime_disable(fdp1->dev);
 
 release_m2m:
 	v4l2_m2m_release(fdp1->m2m_dev);
