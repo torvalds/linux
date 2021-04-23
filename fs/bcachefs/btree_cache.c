@@ -686,6 +686,41 @@ static int lock_node_check_fn(struct six_lock *lock, void *p)
 	return b->hash_val == btree_ptr_hash_val(k) ? 0 : -1;
 }
 
+static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
+{
+	char buf1[100], buf2[100], buf3[100], buf4[100];
+
+	if (!test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
+		return;
+
+	bch2_bpos_to_text(&PBUF(buf1), b->key.k.type == KEY_TYPE_btree_ptr_v2
+		? bkey_i_to_btree_ptr_v2(&b->key)->v.min_key
+		: POS_MIN);
+	bch2_bpos_to_text(&PBUF(buf2), b->data->min_key);
+
+	bch2_bpos_to_text(&PBUF(buf3), b->key.k.p);
+	bch2_bpos_to_text(&PBUF(buf4), b->data->max_key);
+	bch2_fs_inconsistent(c, "btree node header doesn't match ptr\n"
+			     "btree: ptr %u header %llu\n"
+			     "level: ptr %u header %llu\n"
+			     "min ptr %s node header %s\n"
+			     "max ptr %s node header %s",
+			     b->c.btree_id,	BTREE_NODE_ID(b->data),
+			     b->c.level,	BTREE_NODE_LEVEL(b->data),
+			     buf1, buf2, buf3, buf4);
+}
+
+static inline void btree_check_header(struct bch_fs *c, struct btree *b)
+{
+	if (b->c.btree_id != BTREE_NODE_ID(b->data) ||
+	    b->c.level != BTREE_NODE_LEVEL(b->data) ||
+	    bpos_cmp(b->data->max_key, b->key.k.p) ||
+	    (b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
+	     bpos_cmp(b->data->min_key,
+		      bkey_i_to_btree_ptr_v2(&b->key)->v.min_key)))
+		btree_bad_header(c, b);
+}
+
 /**
  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
@@ -803,10 +838,7 @@ lock_node:
 
 	EBUG_ON(b->c.btree_id != iter->btree_id);
 	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
-	EBUG_ON(bpos_cmp(b->data->max_key, k->k.p));
-	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
-		bpos_cmp(b->data->min_key,
-			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
+	btree_check_header(c, b);
 
 	return b;
 }
@@ -886,10 +918,7 @@ lock_node:
 
 	EBUG_ON(b->c.btree_id != btree_id);
 	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
-	EBUG_ON(bpos_cmp(b->data->max_key, k->k.p));
-	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
-		bpos_cmp(b->data->min_key,
-			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
+	btree_check_header(c, b);
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
 	return b;

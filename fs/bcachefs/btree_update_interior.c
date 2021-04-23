@@ -1606,7 +1606,19 @@ retry:
 		next = m;
 	}
 
-	BUG_ON(bkey_cmp(bpos_successor(prev->data->max_key), next->data->min_key));
+	if (bkey_cmp(bpos_successor(prev->data->max_key), next->data->min_key)) {
+		char buf1[100], buf2[100];
+
+		bch2_bpos_to_text(&PBUF(buf1), prev->data->max_key);
+		bch2_bpos_to_text(&PBUF(buf2), next->data->min_key);
+		bch2_fs_inconsistent(c,
+				     "btree topology error in btree merge:\n"
+				     "prev ends at   %s\n"
+				     "next starts at %s\n",
+				     buf1, buf2);
+		ret = -EIO;
+		goto err;
+	}
 
 	bch2_bkey_format_init(&new_s);
 	bch2_bkey_format_add_pos(&new_s, prev->data->min_key);
