@@ -54,8 +54,13 @@ iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
 #define IAVF_GTPU_HDR_TEID_OFFS0	4
 #define IAVF_GTPU_HDR_TEID_OFFS1	6
 #define IAVF_GTPU_HDR_N_PDU_AND_NEXT_EXTHDR_OFFS	10
+#define IAVF_GTPU_HDR_NEXT_EXTHDR_TYPE_MASK		0x00FF /* skip N_PDU */
+/* PDU Session Container Extension Header (PSC) */
+#define IAVF_GTPU_PSC_EXTHDR_TYPE			0x85
 #define IAVF_GTPU_HDR_PSC_PDU_TYPE_AND_QFI_OFFS		13
-#define IAVF_GTPU_PSC_EXTHDR_TYPE	0x85 /* PDU Session Container Extension Header */
+#define IAVF_GTPU_HDR_PSC_PDU_QFI_MASK			0x3F /* skip Type */
+#define IAVF_GTPU_EH_QFI_IDX				1
+
 		if (fltr->flex_words[i].offset < adj_offs)
 			return -EINVAL;
 
@@ -71,7 +76,9 @@ iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
 			}
 			break;
 		case IAVF_GTPU_HDR_N_PDU_AND_NEXT_EXTHDR_OFFS:
-			if ((fltr->flex_words[i].word & 0xff) != IAVF_GTPU_PSC_EXTHDR_TYPE)
+			if ((fltr->flex_words[i].word &
+			     IAVF_GTPU_HDR_NEXT_EXTHDR_TYPE_MASK) !=
+						IAVF_GTPU_PSC_EXTHDR_TYPE)
 				return -EOPNOTSUPP;
 			if (!ehdr)
 				ehdr = &proto_hdrs->proto_hdr[proto_hdrs->count++];
@@ -80,7 +87,9 @@ iavf_fill_fdir_gtpu_hdr(struct iavf_fdir_fltr *fltr,
 		case IAVF_GTPU_HDR_PSC_PDU_TYPE_AND_QFI_OFFS:
 			if (!ehdr)
 				return -EINVAL;
-			ehdr->buffer[1] = fltr->flex_words[i].word & 0x3F;
+			ehdr->buffer[IAVF_GTPU_EH_QFI_IDX] =
+					fltr->flex_words[i].word &
+						IAVF_GTPU_HDR_PSC_PDU_QFI_MASK;
 			VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(ehdr, GTPU_EH, QFI);
 			break;
 		default:
@@ -713,7 +722,6 @@ void iavf_print_fdir_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *f
 bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr)
 {
 	struct iavf_fdir_fltr *tmp;
-	bool ret = false;
 
 	list_for_each_entry(tmp, &adapter->fdir_list_head, list) {
 		if (tmp->flow_type != fltr->flow_type)
@@ -724,13 +732,11 @@ bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *
 		    !memcmp(&tmp->ip_data, &fltr->ip_data,
 			    sizeof(fltr->ip_data)) &&
 		    !memcmp(&tmp->ext_data, &fltr->ext_data,
-			    sizeof(fltr->ext_data))) {
-			ret = true;
-			break;
-		}
+			    sizeof(fltr->ext_data)))
+			return true;
 	}
 
-	return ret;
+	return false;
 }
 
 /**

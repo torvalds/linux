@@ -35,6 +35,11 @@ enum iavf_fdir_flow_type {
 	IAVF_FDIR_FLOW_PTYPE_MAX,
 };
 
+/* Must not exceed the array element number of '__be32 data[2]' in the ethtool
+ * 'struct ethtool_rx_flow_spec.m_ext.data[2]' to express the flex-byte (word).
+ */
+#define IAVF_FLEX_WORD_NUM	2
+
 struct iavf_flex_word {
 	u16 offset;
 	u16 word;
@@ -71,7 +76,7 @@ struct iavf_fdir_ip {
 };
 
 struct iavf_fdir_extra {
-	u32 usr_def[2];
+	u32 usr_def[IAVF_FLEX_WORD_NUM];
 };
 
 /* bookkeeping of Flow Director filters */
@@ -95,7 +100,7 @@ struct iavf_fdir_fltr {
 	/* flex byte filter data */
 	u8 ip_ver; /* used to adjust the flex offset, 4 : IPv4, 6 : IPv6 */
 	u8 flex_cnt;
-	struct iavf_flex_word flex_words[2];
+	struct iavf_flex_word flex_words[IAVF_FLEX_WORD_NUM];
 
 	u32 flow_id;
 
