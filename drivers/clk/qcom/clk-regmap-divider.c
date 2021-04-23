@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014, 2017, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2017, 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -22,10 +22,17 @@ static long div_round_ro_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_regmap_div *divider = to_clk_regmap_div(hw);
 	struct clk_regmap *clkr = &divider->clkr;
 	u32 val;
+	int ret;
+
+	ret = clk_runtime_get_regmap(clkr);
+	if (ret)
+		return ret;
 
 	regmap_read(clkr->regmap, divider->reg, &val);
 	val >>= divider->shift;
 	val &= BIT(divider->width) - 1;
+
+	clk_runtime_put_regmap(clkr);
 
 	return divider_ro_round_rate(hw, rate, prate, NULL, divider->width,
 				     CLK_DIVIDER_ROUND_CLOSEST, val);
@@ -82,11 +89,18 @@ static long clk_regmap_div_list_rate(struct clk_hw *hw, unsigned int n,
 	struct clk_regmap *clkr = &divider->clkr;
 	struct clk_regmap *parent_clkr = to_clk_regmap(parent_hw);
 	u32 div;
+	int ret;
+
+	ret = clk_runtime_get_regmap(clkr);
+	if (ret)
+		return ret;
 
 	regmap_read(clkr->regmap, divider->reg, &div);
 	div >>= divider->shift;
 	div &= BIT(divider->width) - 1;
 	div += 1;
+
+	clk_runtime_put_regmap(clkr);
 
 	if (parent_clkr && parent_clkr->ops && parent_clkr->ops->list_rate)
 		return (parent_clkr->ops->list_rate(parent_hw, n, fmax) / div);
