@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2021 NXP
  *   Dong Aisheng <aisheng.dong@nxp.com>
  */
 
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <linux/arm-smccc.h>
+#include <linux/bsearch.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/of_platform.h>
@@ -22,6 +23,7 @@
 static struct imx_sc_ipc *ccm_ipc_handle;
 static struct device_node *pd_np;
 static struct platform_driver imx_clk_scu_driver;
+static const struct imx_clk_scu_rsrc_table *rsrc_table;
 
 struct imx_scu_clk_node {
 	const char *name;
@@ -167,7 +169,26 @@ static inline struct clk_scu *to_clk_scu(struct clk_hw *hw)
 	return container_of(hw, struct clk_scu, hw);
 }
 
-int imx_clk_scu_init(struct device_node *np)
+static inline int imx_scu_clk_search_cmp(const void *rsrc, const void *rsrc_p)
+{
+	return *(u32 *)rsrc - *(u32 *)rsrc_p;
+}
+
+static bool imx_scu_clk_is_valid(u32 rsrc_id)
+{
+	void *p;
+
+	if (!rsrc_table)
+		return true;
+
+	p = bsearch(&rsrc_id, rsrc_table->rsrc, rsrc_table->num,
+		    sizeof(rsrc_table->rsrc[0]), imx_scu_clk_search_cmp);
+
+	return p != NULL;
+}
+
+int imx_clk_scu_init(struct device_node *np,
+		     const struct imx_clk_scu_rsrc_table *data)
 {
 	u32 clk_cells;
 	int ret, i;
@@ -186,6 +207,8 @@ int imx_clk_scu_init(struct device_node *np)
 		pd_np = of_find_compatible_node(NULL, NULL, "fsl,scu-pd");
 		if (!pd_np)
 			return -EINVAL;
+
+		rsrc_table = data;
 	}
 
 	return platform_driver_register(&imx_clk_scu_driver);
@@ -583,6 +606,9 @@ struct clk_hw *imx_clk_scu_alloc_dev(const char *name,
 	struct platform_device *pdev;
 	int ret;
 
+	if (!imx_scu_clk_is_valid(rsrc_id))
+		return ERR_PTR(-EINVAL);
+
 	pdev = platform_device_alloc(name, PLATFORM_DEVID_NONE);
 	if (!pdev) {
 		pr_err("%s: failed to allocate scu clk dev rsrc %d type %d\n",
@@ -749,6 +775,9 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 	clk_node = kzalloc(sizeof(*clk_node), GFP_KERNEL);
 	if (!clk_node)
 		return ERR_PTR(-ENOMEM);
+
+	if (!imx_scu_clk_is_valid(rsrc_id))
+		return ERR_PTR(-EINVAL);
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2021 NXP
  *	Dong Aisheng <aisheng.dong@nxp.com>
  */
 
@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -27,9 +28,11 @@ static const char *dc0_sels[] = {
 static int imx8qxp_clk_probe(struct platform_device *pdev)
 {
 	struct device_node *ccm_node = pdev->dev.of_node;
+	const struct imx_clk_scu_rsrc_table *rsrc_table;
 	int ret;
 
-	ret = imx_clk_scu_init(ccm_node);
+	rsrc_table = of_device_get_match_data(&pdev->dev);
+	ret = imx_clk_scu_init(ccm_node, rsrc_table);
 	if (ret)
 		return ret;
 
@@ -130,7 +133,7 @@ static int imx8qxp_clk_probe(struct platform_device *pdev)
 
 static const struct of_device_id imx8qxp_match[] = {
 	{ .compatible = "fsl,scu-clk", },
-	{ .compatible = "fsl,imx8qxp-clk", },
+	{ .compatible = "fsl,imx8qxp-clk", &imx_clk_scu_rsrc_imx8qxp, },
 	{ /* sentinel */ }
 };
 
