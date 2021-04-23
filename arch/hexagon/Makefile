@@ -10,6 +10,9 @@ LDFLAGS_vmlinux += -G0
 # Do not use single-byte enums; these will overflow.
 KBUILD_CFLAGS += -fno-short-enums
 
+# We must use long-calls:
+KBUILD_CFLAGS += -mlong-calls
+
 # Modules must use either long-calls, or use pic/plt.
 # Use long-calls for now, it's easier.  And faster.
 # KBUILD_CFLAGS_MODULE += -fPIC
