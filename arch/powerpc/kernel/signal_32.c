@@ -971,7 +971,7 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 	sigset_t set;
 	struct mcontext __user *mcp;
 
-	if (user_read_access_begin(ucp, sizeof(*ucp)))
+	if (!user_read_access_begin(ucp, sizeof(*ucp)))
 		return -EFAULT;
 
 	unsafe_get_sigset_t(&set, &ucp->uc_sigmask, failed);
@@ -1009,7 +1009,7 @@ static int do_setcontext_tm(struct ucontext __user *ucp,
 	u32 cmcp;
 	u32 tm_cmcp;
 
-	if (user_read_access_begin(ucp, sizeof(*ucp)))
+	if (!user_read_access_begin(ucp, sizeof(*ucp)))
 		return -EFAULT;
 
 	unsafe_get_sigset_t(&set, &ucp->uc_sigmask, failed);
