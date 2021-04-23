@@ -3792,12 +3792,15 @@ static inline void update_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
 	u64 now = cfs_rq_clock_pelt(cfs_rq);
 	int decayed;
 
+	trace_android_vh_prepare_update_load_avg_se(se, flags);
 	/*
 	 * Track task load average for carrying it to new CPU after migrated, and
 	 * track group sched_entity load average for task_h_load calc in migration
 	 */
 	if (se->avg.last_update_time && !(flags & SKIP_AGE_LOAD))
 		__update_load_avg_se(now, cfs_rq, se);
+
+	trace_android_vh_finish_update_load_avg_se(se, flags);
 
 	decayed  = update_cfs_rq_load_avg(now, cfs_rq);
 	decayed |= propagate_entity_load_avg(se);

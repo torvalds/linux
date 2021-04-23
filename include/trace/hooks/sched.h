@@ -346,6 +346,14 @@ DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
 	TP_ARGS(rq, p, flags), 1);
 
+DECLARE_HOOK(android_vh_prepare_update_load_avg_se,
+	TP_PROTO(struct sched_entity *se, int flags),
+	TP_ARGS(se, flags));
+
+DECLARE_HOOK(android_vh_finish_update_load_avg_se,
+	TP_PROTO(struct sched_entity *se, int flags),
+	TP_ARGS(se, flags));
+
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */
