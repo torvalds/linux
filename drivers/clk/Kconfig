@@ -55,6 +55,13 @@ config CLK_HSDK
 	  This driver supports the HSDK core, system, ddr, tunnel and hdmi PLLs
 	  control.
 
+config LMK04832
+	tristate "Ti LMK04832 JESD204B Compliant Clock Jitter Cleaner"
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
+	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
+
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
 	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
