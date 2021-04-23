@@ -763,6 +763,7 @@ isolate_freepages_range(struct compact_control *cc,
 	return pfn;
 }
 
+#ifdef CONFIG_COMPACTION
 unsigned long isolate_and_split_free_page(struct page *page,
 						struct list_head *list)
 {
@@ -785,6 +786,7 @@ unsigned long isolate_and_split_free_page(struct page *page,
 	return isolated;
 }
 EXPORT_SYMBOL_GPL(isolate_and_split_free_page);
+#endif
 
 /* Similar to reclaim, but different enough that they don't share logic */
 static bool too_many_isolated(pg_data_t *pgdat)
