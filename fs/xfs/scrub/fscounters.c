@@ -182,7 +182,8 @@ retry:
 		/* Add up the free/freelist/bnobt/cntbt blocks */
 		fsc->fdblocks += pag->pagf_freeblks;
 		fsc->fdblocks += pag->pagf_flcount;
-		fsc->fdblocks += pag->pagf_btreeblks;
+		if (xfs_sb_version_haslazysbcount(&sc->mp->m_sb))
+			fsc->fdblocks += pag->pagf_btreeblks;
 
 		/*
 		 * Per-AG reservations are taken out of the incore counters,

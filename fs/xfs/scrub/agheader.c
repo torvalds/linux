@@ -416,6 +416,10 @@ xchk_agf_xref_btreeblks(
 	xfs_agblock_t		btreeblks;
 	int			error;
 
+	/* agf_btreeblks didn't exist before lazysbcount */
+	if (!xfs_sb_version_haslazysbcount(&sc->mp->m_sb))
+		return;
+
 	/* Check agf_rmap_blocks; set up for agf_btreeblks check */
 	if (sc->sa.rmap_cur) {
 		error = xfs_btree_count_blocks(sc->sa.rmap_cur, &blocks);
@@ -581,7 +585,8 @@ xchk_agf(
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	if (pag->pagf_flcount != be32_to_cpu(agf->agf_flcount))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
-	if (pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
+	if (xfs_sb_version_haslazysbcount(&sc->mp->m_sb) &&
+	    pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	xfs_perag_put(pag);
 
