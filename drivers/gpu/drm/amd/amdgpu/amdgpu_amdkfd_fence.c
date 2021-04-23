@@ -113,6 +113,8 @@ static const char *amdkfd_fence_get_timeline_name(struct dma_fence *f)
  *  a KFD BO and schedules a job to move the BO.
  *  If fence is already signaled return true.
  *  If fence is not signaled schedule a evict KFD process work item.
+ *
+ *  @f: dma_fence
  */
 static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 {
@@ -137,7 +139,7 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 /**
  * amdkfd_fence_release - callback that fence can be freed
  *
- * @fence: fence
+ * @f: dma_fence
  *
  * This function is called when the reference count becomes zero.
  * Drops the mm_struct reference and RCU schedules freeing up the fence.

@@ -719,7 +719,7 @@ static void unlock_spi_csq_mutexes(struct amdgpu_device *adev)
 }
 
 /**
- * @get_wave_count: Read device registers to get number of waves in flight for
+ * get_wave_count: Read device registers to get number of waves in flight for
  * a particular queue. The method also returns the VMID associated with the
  * queue.
  *
@@ -755,19 +755,19 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
 }
 
 /**
- * @kgd_gfx_v9_get_cu_occupancy: Reads relevant registers associated with each
+ * kgd_gfx_v9_get_cu_occupancy: Reads relevant registers associated with each
  * shader engine and aggregates the number of waves that are in flight for the
  * process whose pasid is provided as a parameter. The process could have ZERO
  * or more queues running and submitting waves to compute units.
  *
  * @kgd: Handle of device from which to get number of waves in flight
  * @pasid: Identifies the process for which this query call is invoked
- * @wave_cnt: Output parameter updated with number of waves in flight that
+ * @pasid_wave_cnt: Output parameter updated with number of waves in flight that
  * belong to process with given pasid
  * @max_waves_per_cu: Output parameter updated with maximum number of waves
  * possible per Compute Unit
  *
- * @note: It's possible that the device has too many queues (oversubscription)
+ * Note: It's possible that the device has too many queues (oversubscription)
  * in which case a VMID could be remapped to a different PASID. This could lead
  * to an iaccurate wave count. Following is a high-level sequence:
  *    Time T1: vmid = getVmid(); vmid is associated with Pasid P1
