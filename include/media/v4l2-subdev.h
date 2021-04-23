@@ -701,11 +701,25 @@ struct v4l2_subdev_pad_config {
 };
 
 /**
+ * struct v4l2_subdev_krouting - subdev routing table
+ *
+ * @num_routes: number of routes
+ * @routes: &struct v4l2_subdev_route
+ *
+ * This structure contains the routing table for a subdev.
+ */
+struct v4l2_subdev_krouting {
+	unsigned int num_routes;
+	struct v4l2_subdev_route *routes;
+};
+
+/**
  * struct v4l2_subdev_state - Used for storing subdev state information.
  *
  * @_lock: default for 'lock'
  * @lock: mutex for the state. May be replaced by the user.
  * @pads: &struct v4l2_subdev_pad_config array
+ * @routing: routing table for the subdev
  *
  * This structure only needs to be passed to the pad op if the 'which' field
  * of the main argument is set to %V4L2_SUBDEV_FORMAT_TRY. For
@@ -716,6 +730,7 @@ struct v4l2_subdev_state {
 	struct mutex _lock;
 	struct mutex *lock;
 	struct v4l2_subdev_pad_config *pads;
+	struct v4l2_subdev_krouting routing;
 };
 
 /**
@@ -768,6 +783,9 @@ struct v4l2_subdev_state {
  *		     this operation as close as possible to stream on time. The
  *		     operation shall fail if the pad index it has been called on
  *		     is not valid or in case of unrecoverable failures.
+ *
+ * @set_routing: enable or disable data connection routes described in the
+ *		 subdevice routing table.
  */
 struct v4l2_subdev_pad_ops {
 	int (*init_cfg)(struct v4l2_subdev *sd,
@@ -810,6 +828,10 @@ struct v4l2_subdev_pad_ops {
 			      struct v4l2_mbus_frame_desc *fd);
 	int (*get_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
 			       struct v4l2_mbus_config *config);
+	int (*set_routing)(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *state,
+			   enum v4l2_subdev_format_whence which,
+			   struct v4l2_subdev_krouting *route);
 };
 
 /**

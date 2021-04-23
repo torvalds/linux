@@ -23,6 +23,16 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 
+/*
+ * Maximum stream ID is 63 for now, as we use u64 bitmask to represent a set
+ * of streams.
+ *
+ * Note that V4L2_FRAME_DESC_ENTRY_MAX is related: V4L2_FRAME_DESC_ENTRY_MAX
+ * restricts the total number of streams in a pad, although the stream ID is
+ * not restricted.
+ */
+#define V4L2_SUBDEV_MAX_STREAM_ID 63
+
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
@@ -432,6 +442,10 @@ subdev_ioctl_get_state(struct v4l2_subdev *sd, struct v4l2_subdev_fh *subdev_fh,
 	case VIDIOC_SUBDEV_S_SELECTION:
 		which = ((struct v4l2_subdev_selection *)arg)->which;
 		break;
+	case VIDIOC_SUBDEV_G_ROUTING:
+	case VIDIOC_SUBDEV_S_ROUTING:
+		which = ((struct v4l2_subdev_routing *)arg)->which;
+		break;
 	}
 
 	return which == V4L2_SUBDEV_FORMAT_TRY ?
@@ -748,6 +762,75 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 	case VIDIOC_SUBDEV_QUERYSTD:
 		return v4l2_subdev_call(sd, video, querystd, arg);
 
+	case VIDIOC_SUBDEV_G_ROUTING: {
+		struct v4l2_subdev_routing *routing = arg;
+		struct v4l2_subdev_krouting *krouting;
+
+		if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
+			return -ENOIOCTLCMD;
+
+		memset(routing->reserved, 0, sizeof(routing->reserved));
+
+		krouting = &state->routing;
+
+		if (routing->num_routes < krouting->num_routes) {
+			routing->num_routes = krouting->num_routes;
+			return -ENOSPC;
+		}
+
+		memcpy((struct v4l2_subdev_route *)(uintptr_t)routing->routes,
+		       krouting->routes,
+		       krouting->num_routes * sizeof(*krouting->routes));
+		routing->num_routes = krouting->num_routes;
+
+		return 0;
+	}
+
+	case VIDIOC_SUBDEV_S_ROUTING: {
+		struct v4l2_subdev_routing *routing = arg;
+		struct v4l2_subdev_route *routes =
+			(struct v4l2_subdev_route *)(uintptr_t)routing->routes;
+		struct v4l2_subdev_krouting krouting = {};
+		unsigned int i;
+
+		if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS))
+			return -ENOIOCTLCMD;
+
+		if (routing->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
+			return -EPERM;
+
+		memset(routing->reserved, 0, sizeof(routing->reserved));
+
+		for (i = 0; i < routing->num_routes; ++i) {
+			const struct v4l2_subdev_route *route = &routes[i];
+			const struct media_pad *pads = sd->entity.pads;
+
+			if (route->sink_stream > V4L2_SUBDEV_MAX_STREAM_ID ||
+			    route->source_stream > V4L2_SUBDEV_MAX_STREAM_ID)
+				return -EINVAL;
+
+			if (route->sink_pad >= sd->entity.num_pads)
+				return -EINVAL;
+
+			if (!(pads[route->sink_pad].flags &
+			      MEDIA_PAD_FL_SINK))
+				return -EINVAL;
+
+			if (route->source_pad >= sd->entity.num_pads)
+				return -EINVAL;
+
+			if (!(pads[route->source_pad].flags &
+			      MEDIA_PAD_FL_SOURCE))
+				return -EINVAL;
+		}
+
+		krouting.num_routes = routing->num_routes;
+		krouting.routes = routes;
+
+		return v4l2_subdev_call(sd, pad, set_routing, state,
+					routing->which, &krouting);
+	}
+
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);
 	}
@@ -1031,6 +1114,7 @@ void __v4l2_subdev_state_free(struct v4l2_subdev_state *state)
 
 	mutex_destroy(&state->_lock);
 
+	kfree(state->routing.routes);
 	kvfree(state->pads);
 	kfree(state);
 }
