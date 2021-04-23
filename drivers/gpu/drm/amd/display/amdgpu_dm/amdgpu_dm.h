@@ -164,6 +164,7 @@ struct dal_allocation {
  * @compressor: Frame buffer compression buffer. See &struct dm_compressor_info
  * @force_timing_sync: set via debugfs. When set, indicates that all connected
  *		       displays will be forced to synchronize.
+ * @dmcub_trace_event_en: enable dmcub trace events
  */
 struct amdgpu_display_manager {
 
