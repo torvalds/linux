@@ -330,6 +330,10 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 		BUG_ON(bch2_journal_seq_verify &&
 		       k->k->version.lo > journal_cur_seq(&c->journal));
 
+		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, k);
+		if (ret)
+			goto err;
+
 		if (fsck_err_on(k->k->version.lo > atomic64_read(&c->key_version), c,
 				"key version number higher than recorded: %llu > %llu",
 				k->k->version.lo,
@@ -346,8 +350,6 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
 				goto err;
 			}
 		}
-
-		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, k);
 	}
 
 	ptrs = bch2_bkey_ptrs_c(*k);
