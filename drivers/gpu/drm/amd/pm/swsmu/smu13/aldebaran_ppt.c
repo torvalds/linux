@@ -1657,7 +1657,9 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_mm_activity = 0;
 
 	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
-	gpu_metrics->energy_accumulator = 0;
+	gpu_metrics->energy_accumulator =
+			(uint64_t)metrics.EnergyAcc64bitHigh << 32 |
+			metrics.EnergyAcc64bitLow;
 
 	gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.AverageSocclkFrequency;
