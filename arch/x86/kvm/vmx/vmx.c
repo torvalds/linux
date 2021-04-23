@@ -362,8 +362,6 @@ static const struct kernel_param_ops vmentry_l1d_flush_ops = {
 module_param_cb(vmentry_l1d_flush, &vmentry_l1d_flush_ops, NULL, 0644);
 
 static u32 vmx_segment_access_rights(struct kvm_segment *var);
-static __always_inline void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu,
-							  u32 msr, int type);
 
 void vmx_vmexit(void);
 
@@ -3818,8 +3816,7 @@ static void vmx_set_msr_bitmap_write(ulong *msr_bitmap, u32 msr)
 		__set_bit(msr & 0x1fff, msr_bitmap + 0xc00 / f);
 }
 
-static __always_inline void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu,
-							  u32 msr, int type)
+void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
@@ -3864,8 +3861,7 @@ static __always_inline void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu,
 		vmx_clear_msr_bitmap_write(msr_bitmap, msr);
 }
 
-static __always_inline void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu,
-							 u32 msr, int type)
+void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
@@ -3896,15 +3892,6 @@ static __always_inline void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu,
 
 	if (type & MSR_TYPE_W)
 		vmx_set_msr_bitmap_write(msr_bitmap, msr);
-}
-
-void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu,
-						      u32 msr, int type, bool value)
-{
-	if (value)
-		vmx_enable_intercept_for_msr(vcpu, msr, type);
-	else
-		vmx_disable_intercept_for_msr(vcpu, msr, type);
 }
 
 static u8 vmx_msr_bitmap_mode(struct kvm_vcpu *vcpu)
