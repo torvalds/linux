@@ -69,8 +69,6 @@ xfs_resizefs_init_new_ags(
 	if (error)
 		return error;
 
-	xfs_trans_agblocks_delta(tp, id->nfree);
-
 	if (delta) {
 		*lastag_extended = true;
 		error = xfs_ag_extend_space(mp, tp, id, delta);
