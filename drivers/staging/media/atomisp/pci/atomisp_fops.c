@@ -837,7 +837,7 @@ dev_init:
 	}
 
 	/* runtime power management, turn on ISP */
-	ret = pm_runtime_get_sync(vdev->v4l2_dev->dev);
+	ret = pm_runtime_resume_and_get(vdev->v4l2_dev->dev);
 	if (ret < 0) {
 		dev_err(isp->dev, "Failed to power on device\n");
 		goto error;
@@ -881,9 +881,9 @@ done:
 
 css_error:
 	atomisp_css_uninit(isp);
+	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
 	hmm_pool_unregister(HMM_POOL_TYPE_DYNAMIC);
-	pm_runtime_put(vdev->v4l2_dev->dev);
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
