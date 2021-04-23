@@ -1096,28 +1096,42 @@ static void iov_iter_bvec_advance(struct iov_iter *i, size_t size)
 	i->iov_offset = bi.bi_bvec_done;
 }
 
+static void iov_iter_iovec_advance(struct iov_iter *i, size_t size)
+{
+	const struct iovec *iov, *end;
+
+	if (!i->count)
+		return;
+	i->count -= size;
+
+	size += i->iov_offset; // from beginning of current segment
+	for (iov = i->iov, end = iov + i->nr_segs; iov < end; iov++) {
+		if (likely(size < iov->iov_len))
+			break;
+		size -= iov->iov_len;
+	}
+	i->iov_offset = size;
+	i->nr_segs -= iov - i->iov;
+	i->iov = iov;
+}
+
 void iov_iter_advance(struct iov_iter *i, size_t size)
 {
 	if (unlikely(i->count < size))
 		size = i->count;
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (likely(iter_is_iovec(i) || iov_iter_is_kvec(i))) {
+		/* iovec and kvec have identical layouts */
+		iov_iter_iovec_advance(i, size);
+	} else if (iov_iter_is_bvec(i)) {
+		iov_iter_bvec_advance(i, size);
+	} else if (iov_iter_is_pipe(i)) {
 		pipe_advance(i, size);
-		return;
-	}
-	if (unlikely(iov_iter_is_discard(i))) {
-		i->count -= size;
-		return;
-	}
-	if (unlikely(iov_iter_is_xarray(i))) {
+	} else if (unlikely(iov_iter_is_xarray(i))) {
 		i->iov_offset += size;
 		i->count -= size;
-		return;
+	} else if (iov_iter_is_discard(i)) {
+		i->count -= size;
 	}
-	if (iov_iter_is_bvec(i)) {
-		iov_iter_bvec_advance(i, size);
-		return;
-	}
-	iterate_and_advance(i, size, v, 0, 0, 0, 0)
 }
 EXPORT_SYMBOL(iov_iter_advance);
 
