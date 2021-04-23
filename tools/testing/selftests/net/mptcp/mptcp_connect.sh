@@ -375,7 +375,7 @@ do_transfer()
 	local srv_proto="$4"
 	local connect_addr="$5"
 	local local_addr="$6"
-	local extra_args=""
+	local extra_args="$7"
 
 	local port
 	port=$((10000+$TEST_COUNT))
@@ -394,9 +394,9 @@ do_transfer()
 	fi
 
 	if [ -n "$extra_args" ] && $options_log; then
-		options_log=false
 		echo "INFO: extra options: $extra_args"
 	fi
+	options_log=false
 
 	:> "$cout"
 	:> "$sout"
@@ -589,6 +589,7 @@ run_tests_lo()
 	local connector_ns="$2"
 	local connect_addr="$3"
 	local loopback="$4"
+	local extra_args="$5"
 	local lret=0
 
 	# skip if test programs are running inside same netns for subsequent runs.
@@ -608,7 +609,8 @@ run_tests_lo()
 		local_addr="0.0.0.0"
 	fi
 
-	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP ${connect_addr} ${local_addr}
+	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP \
+		    ${connect_addr} ${local_addr} "${extra_args}"
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
@@ -622,14 +624,16 @@ run_tests_lo()
 		fi
 	fi
 
-	do_transfer ${listener_ns} ${connector_ns} MPTCP TCP ${connect_addr} ${local_addr}
+	do_transfer ${listener_ns} ${connector_ns} MPTCP TCP \
+		    ${connect_addr} ${local_addr} "${extra_args}"
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
 		return 1
 	fi
 
-	do_transfer ${listener_ns} ${connector_ns} TCP MPTCP ${connect_addr} ${local_addr}
+	do_transfer ${listener_ns} ${connector_ns} TCP MPTCP \
+		    ${connect_addr} ${local_addr} "${extra_args}"
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
@@ -637,7 +641,8 @@ run_tests_lo()
 	fi
 
 	if [ $do_tcp -gt 1 ] ;then
-		do_transfer ${listener_ns} ${connector_ns} TCP TCP ${connect_addr} ${local_addr}
+		do_transfer ${listener_ns} ${connector_ns} TCP TCP \
+			    ${connect_addr} ${local_addr} "${extra_args}"
 		lret=$?
 		if [ $lret -ne 0 ]; then
 			ret=$lret
@@ -651,6 +656,15 @@ run_tests_lo()
 run_tests()
 {
 	run_tests_lo $1 $2 $3 0
+}
+
+run_tests_peekmode()
+{
+	local peekmode="$1"
+
+	echo "INFO: with peek mode: ${peekmode}"
+	run_tests_lo "$ns1" "$ns1" 10.0.1.1 1 "-P ${peekmode}"
+	run_tests_lo "$ns1" "$ns1" dead:beef:1::1 1 "-P ${peekmode}"
 }
 
 make_file "$cin" "client"
@@ -731,6 +745,9 @@ for sender in $ns1 $ns2 $ns3 $ns4;do
 	run_tests "$ns4" $sender 10.0.3.1
 	run_tests "$ns4" $sender dead:beef:3::1
 done
+
+run_tests_peekmode "saveWithPeek"
+run_tests_peekmode "saveAfterPeek"
 
 time_end=$(date +%s)
 time_run=$((time_end-time_start))
