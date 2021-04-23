@@ -1767,6 +1767,8 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 {
 	int ret;
 
+	WARN_ON_ONCE(!aux->drm_dev);
+
 	if (!aux->ddc.algo)
 		drm_dp_aux_init(aux);
 
