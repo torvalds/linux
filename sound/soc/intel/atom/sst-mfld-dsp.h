@@ -256,7 +256,7 @@ struct snd_sst_tstamp {
 	u32 channel_peak[8];
 } __packed;
 
-/* Stream type params struture for Alloc stream */
+/* Stream type params structure for Alloc stream */
 struct snd_sst_str_type {
 	u8 codec_type;		/* Codec type */
 	u8 str_type;		/* 1 = voice 2 = music */
@@ -358,7 +358,7 @@ struct snd_wma_params {
 	u8 reserved;	/* reserved */
 } __packed;
 
-/* Codec params struture */
+/* Codec params structure */
 union  snd_sst_codec_params {
 	struct snd_pcm_params pcm_params;
 	struct snd_mp3_params mp3_params;

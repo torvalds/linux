@@ -76,7 +76,7 @@ int intel_sst_reset_dsp_mrfld(struct intel_sst_drv *sst_drv_ctx)
 }
 
 /**
- * sst_start_merrifield - Start the SST DSP processor
+ * sst_start_mrfld - Start the SST DSP processor
  * @sst_drv_ctx: intel_sst_drv context pointer
  *
  * This starts the DSP in MERRIFIELD platfroms

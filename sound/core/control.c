@@ -28,10 +28,12 @@ struct snd_kctl_ioctl {
 };
 
 static DECLARE_RWSEM(snd_ioctl_rwsem);
+static DECLARE_RWSEM(snd_ctl_layer_rwsem);
 static LIST_HEAD(snd_control_ioctls);
 #ifdef CONFIG_COMPAT
 static LIST_HEAD(snd_control_compat_ioctls);
 #endif
+static struct snd_ctl_layer_ops *snd_ctl_layer;
 
 static int snd_ctl_open(struct inode *inode, struct file *file)
 {
@@ -182,6 +184,32 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 EXPORT_SYMBOL(snd_ctl_notify);
 
 /**
+ * snd_ctl_notify_one - Send notification to user-space for a control change
+ * @card: the card to send notification
+ * @mask: the event mask, SNDRV_CTL_EVENT_*
+ * @kctl: the pointer with the control instance
+ * @ioff: the additional offset to the control index
+ *
+ * This function calls snd_ctl_notify() and does additional jobs
+ * like LED state changes.
+ */
+void snd_ctl_notify_one(struct snd_card *card, unsigned int mask,
+			struct snd_kcontrol *kctl, unsigned int ioff)
+{
+	struct snd_ctl_elem_id id = kctl->id;
+	struct snd_ctl_layer_ops *lops;
+
+	id.index += ioff;
+	id.numid += ioff;
+	snd_ctl_notify(card, mask, &id);
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		lops->lnotify(card, mask, kctl, ioff);
+	up_read(&snd_ctl_layer_rwsem);
+}
+EXPORT_SYMBOL(snd_ctl_notify_one);
+
+/**
  * snd_ctl_new - create a new control instance with some elements
  * @kctl: the pointer to store new control instance
  * @count: the number of elements in this control
@@ -250,6 +278,7 @@ struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new *ncontrol,
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK |
+		   SNDRV_CTL_ELEM_ACCESS_LED_MASK |
 		   SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK);
 
 	err = snd_ctl_new(&kctl, count, access, NULL);
@@ -342,7 +371,6 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 {
 	struct snd_ctl_elem_id id;
 	unsigned int idx;
-	unsigned int count;
 	struct snd_kcontrol *old;
 	int err;
 
@@ -376,10 +404,8 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 	kcontrol->id.numid = card->last_numid + 1;
 	card->last_numid += kcontrol->count;
 
-	id = kcontrol->id;
-	count = kcontrol->count;
-	for (idx = 0; idx < count; idx++, id.index++, id.numid++)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_ADD, &id);
+	for (idx = 0; idx < kcontrol->count; idx++)
+		snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_ADD, kcontrol, idx);
 
 	return 0;
 }
@@ -462,16 +488,14 @@ EXPORT_SYMBOL(snd_ctl_replace);
  */
 int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 {
-	struct snd_ctl_elem_id id;
 	unsigned int idx;
 
 	if (snd_BUG_ON(!card || !kcontrol))
 		return -EINVAL;
 	list_del(&kcontrol->list);
 	card->controls_count -= kcontrol->count;
-	id = kcontrol->id;
-	for (idx = 0; idx < kcontrol->count; idx++, id.index++, id.numid++)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_REMOVE, &id);
+	for (idx = 0; idx < kcontrol->count; idx++)
+		snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_REMOVE, kcontrol, idx);
 	snd_ctl_free_one(kcontrol);
 	return 0;
 }
@@ -584,11 +608,13 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
 		vd->access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	}
 	snd_ctl_build_ioff(id, kctl, index_offset);
-	ret = 1;
+	downgrade_write(&card->controls_rwsem);
+	snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_INFO, kctl, index_offset);
+	up_read(&card->controls_rwsem);
+	return 1;
+
  unlock:
 	up_write(&card->controls_rwsem);
-	if (ret > 0)
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, id);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_ctl_activate_id);
@@ -1022,7 +1048,8 @@ static int snd_ctl_elem_info_user(struct snd_ctl_file *ctl,
 	if (result < 0)
 		return result;
 	/* drop internal access flags */
-	info.access &= ~SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK;
+	info.access &= ~(SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK|
+			 SNDRV_CTL_ELEM_ACCESS_LED_MASK);
 	if (copy_to_user(_info, &info, sizeof(info)))
 		return -EFAULT;
 	return result;
@@ -1110,25 +1137,34 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 	unsigned int index_offset;
 	int result;
 
+	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id(card, &control->id);
-	if (kctl == NULL)
+	if (kctl == NULL) {
+		up_write(&card->controls_rwsem);
 		return -ENOENT;
+	}
 
 	index_offset = snd_ctl_get_ioff(kctl, &control->id);
 	vd = &kctl->vd[index_offset];
 	if (!(vd->access & SNDRV_CTL_ELEM_ACCESS_WRITE) || kctl->put == NULL ||
 	    (file && vd->owner && vd->owner != file)) {
+		up_write(&card->controls_rwsem);
 		return -EPERM;
 	}
 
 	snd_ctl_build_ioff(&control->id, kctl, index_offset);
 	result = kctl->put(kctl, control);
-	if (result < 0)
+	if (result < 0) {
+		up_write(&card->controls_rwsem);
 		return result;
+	}
 
 	if (result > 0) {
-		struct snd_ctl_elem_id id = control->id;
-		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
+		downgrade_write(&card->controls_rwsem);
+		snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_VALUE, kctl, index_offset);
+		up_read(&card->controls_rwsem);
+	} else {
+		up_write(&card->controls_rwsem);
 	}
 
 	return 0;
@@ -1150,9 +1186,7 @@ static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 	if (result < 0)
 		goto error;
 
-	down_write(&card->controls_rwsem);
 	result = snd_ctl_elem_write(card, file, control);
-	up_write(&card->controls_rwsem);
 	if (result < 0)
 		goto error;
 
@@ -1301,7 +1335,6 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 {
 	struct user_element *ue = kctl->private_data;
 	unsigned int *container;
-	struct snd_ctl_elem_id id;
 	unsigned int mask = 0;
 	int i;
 	int change;
@@ -1333,10 +1366,8 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	ue->tlv_data_size = size;
 
 	mask |= SNDRV_CTL_EVENT_MASK_TLV;
-	for (i = 0; i < kctl->count; ++i) {
-		snd_ctl_build_ioff(&id, kctl, i);
-		snd_ctl_notify(ue->card, mask, &id);
-	}
+	for (i = 0; i < kctl->count; ++i)
+		snd_ctl_notify_one(ue->card, mask, kctl, i);
 
 	return change;
 }
@@ -1976,6 +2007,86 @@ EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
 #endif
 
 /*
+ * control layers (audio LED etc.)
+ */
+
+/**
+ * snd_ctl_request_layer - request to use the layer
+ * @module_name: Name of the kernel module (NULL == build-in)
+ *
+ * Return an error code when the module cannot be loaded.
+ */
+int snd_ctl_request_layer(const char *module_name)
+{
+	struct snd_ctl_layer_ops *lops;
+
+	if (module_name == NULL)
+		return 0;
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		if (strcmp(lops->module_name, module_name) == 0)
+			break;
+	up_read(&snd_ctl_layer_rwsem);
+	if (lops)
+		return 0;
+	return request_module(module_name);
+}
+EXPORT_SYMBOL_GPL(snd_ctl_request_layer);
+
+/**
+ * snd_ctl_register_layer - register new control layer
+ * @lops: operation structure
+ *
+ * The new layer can track all control elements and do additional
+ * operations on top (like audio LED handling).
+ */
+void snd_ctl_register_layer(struct snd_ctl_layer_ops *lops)
+{
+	struct snd_card *card;
+	int card_number;
+
+	down_write(&snd_ctl_layer_rwsem);
+	lops->next = snd_ctl_layer;
+	snd_ctl_layer = lops;
+	up_write(&snd_ctl_layer_rwsem);
+	for (card_number = 0; card_number < SNDRV_CARDS; card_number++) {
+		card = snd_card_ref(card_number);
+		if (card) {
+			down_read(&card->controls_rwsem);
+			lops->lregister(card);
+			up_read(&card->controls_rwsem);
+			snd_card_unref(card);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(snd_ctl_register_layer);
+
+/**
+ * snd_ctl_disconnect_layer - disconnect control layer
+ * @lops: operation structure
+ *
+ * It is expected that the information about tracked cards
+ * is freed before this call (the disconnect callback is
+ * not called here).
+ */
+void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops)
+{
+	struct snd_ctl_layer_ops *lops2, *prev_lops2;
+
+	down_write(&snd_ctl_layer_rwsem);
+	for (lops2 = snd_ctl_layer, prev_lops2 = NULL; lops2; lops2 = lops2->next)
+		if (lops2 == lops) {
+			if (!prev_lops2)
+				snd_ctl_layer = lops->next;
+			else
+				prev_lops2->next = lops->next;
+			break;
+		}
+	up_write(&snd_ctl_layer_rwsem);
+}
+EXPORT_SYMBOL_GPL(snd_ctl_disconnect_layer);
+
+/*
  *  INIT PART
  */
 
@@ -1998,9 +2109,20 @@ static const struct file_operations snd_ctl_f_ops =
 static int snd_ctl_dev_register(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
+	struct snd_ctl_layer_ops *lops;
+	int err;
 
-	return snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
-				   &snd_ctl_f_ops, card, &card->ctl_dev);
+	err = snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
+				  &snd_ctl_f_ops, card, &card->ctl_dev);
+	if (err < 0)
+		return err;
+	down_read(&card->controls_rwsem);
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		lops->lregister(card);
+	up_read(&snd_ctl_layer_rwsem);
+	up_read(&card->controls_rwsem);
+	return 0;
 }
 
 /*
@@ -2010,6 +2132,7 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
 	struct snd_ctl_file *ctl;
+	struct snd_ctl_layer_ops *lops;
 	unsigned long flags;
 
 	read_lock_irqsave(&card->ctl_files_rwlock, flags);
@@ -2018,6 +2141,13 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}
 	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
+
+	down_read(&card->controls_rwsem);
+	down_read(&snd_ctl_layer_rwsem);
+	for (lops = snd_ctl_layer; lops; lops = lops->next)
+		lops->ldisconnect(card);
+	up_read(&snd_ctl_layer_rwsem);
+	up_read(&card->controls_rwsem);
 
 	return snd_unregister_device(&card->ctl_dev);
 }

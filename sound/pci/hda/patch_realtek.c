@@ -292,7 +292,7 @@ static void alc_fixup_gpio4(struct hda_codec *codec,
 static void alc_fixup_micmute_led(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PROBE)
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
 		snd_hda_gen_add_micmute_led_cdev(codec, NULL);
 }
 
