@@ -138,6 +138,38 @@ static inline __u32 btf_type_info(int kind, int vlen, int kflag)
 	return (kflag << 31) | (kind << 24) | vlen;
 }
 
+enum map_def_parts {
+	MAP_DEF_MAP_TYPE	= 0x001,
+	MAP_DEF_KEY_TYPE	= 0x002,
+	MAP_DEF_KEY_SIZE	= 0x004,
+	MAP_DEF_VALUE_TYPE	= 0x008,
+	MAP_DEF_VALUE_SIZE	= 0x010,
+	MAP_DEF_MAX_ENTRIES	= 0x020,
+	MAP_DEF_MAP_FLAGS	= 0x040,
+	MAP_DEF_NUMA_NODE	= 0x080,
+	MAP_DEF_PINNING		= 0x100,
+	MAP_DEF_INNER_MAP	= 0x200,
+
+	MAP_DEF_ALL		= 0x3ff, /* combination of all above */
+};
+
+struct btf_map_def {
+	enum map_def_parts parts;
+	__u32 map_type;
+	__u32 key_type_id;
+	__u32 key_size;
+	__u32 value_type_id;
+	__u32 value_size;
+	__u32 max_entries;
+	__u32 map_flags;
+	__u32 numa_node;
+	__u32 pinning;
+};
+
+int parse_btf_map_def(const char *map_name, struct btf *btf,
+		      const struct btf_type *def_t, bool strict,
+		      struct btf_map_def *map_def, struct btf_map_def *inner_def);
+
 void *libbpf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
 		     size_t cur_cnt, size_t max_cnt, size_t add_cnt);
 int libbpf_ensure_mem(void **data, size_t *cap_cnt, size_t elem_sz, size_t need_cnt);
