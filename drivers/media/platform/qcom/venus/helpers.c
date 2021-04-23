@@ -1510,6 +1510,8 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 
 	venus_pm_release_core(inst);
 
+	inst->session_error = 0;
+
 	mutex_unlock(&inst->lock);
 }
 EXPORT_SYMBOL_GPL(venus_helper_vb2_stop_streaming);

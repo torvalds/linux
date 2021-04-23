@@ -95,15 +95,16 @@ static void venus_sys_error_handler(struct work_struct *work)
 		failed = true;
 	}
 
-	hfi_core_deinit(core, true);
-
-	mutex_lock(&core->lock);
+	core->ops->core_deinit(core);
+	core->state = CORE_UNINIT;
 
 	for (i = 0; i < max_attempts; i++) {
 		if (!pm_runtime_active(core->dev_dec) && !pm_runtime_active(core->dev_enc))
 			break;
 		msleep(10);
 	}
+
+	mutex_lock(&core->lock);
 
 	venus_shutdown(core);
 
@@ -162,6 +163,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 
 	mutex_lock(&core->lock);
 	clear_bit(0, &core->sys_error);
+	wake_up_all(&core->sys_err_done);
 	mutex_unlock(&core->lock);
 }
 
@@ -316,6 +318,7 @@ static int venus_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&core->instances);
 	mutex_init(&core->lock);
 	INIT_DELAYED_WORK(&core->work, venus_sys_error_handler);
+	init_waitqueue_head(&core->sys_err_done);
 
 	ret = devm_request_threaded_irq(dev, core->irq, hfi_isr, hfi_isr_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,

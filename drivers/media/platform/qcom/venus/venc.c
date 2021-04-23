@@ -966,6 +966,7 @@ static int venc_queue_setup(struct vb2_queue *q,
 			    unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct venus_inst *inst = vb2_get_drv_priv(q);
+	struct venus_core *core = inst->core;
 	unsigned int num, min = 4;
 	int ret;
 
@@ -987,6 +988,16 @@ static int venc_queue_setup(struct vb2_queue *q,
 			return -EINVAL;
 
 		return 0;
+	}
+
+	if (test_bit(0, &core->sys_error)) {
+		if (inst->nonblock)
+			return -EAGAIN;
+
+		ret = wait_event_interruptible(core->sys_err_done,
+					       !test_bit(0, &core->sys_error));
+		if (ret)
+			return ret;
 	}
 
 	ret = venc_pm_get(inst);
@@ -1248,6 +1259,7 @@ static void venc_event_notify(struct venus_inst *inst, u32 event,
 
 	if (event == EVT_SESSION_ERROR) {
 		inst->session_error = true;
+		venus_helper_vb2_queue_error(inst);
 		dev_err(dev, "enc: event session error %x\n", inst->error);
 	}
 }
@@ -1331,6 +1343,7 @@ static int venc_open(struct file *file)
 	inst->session_type = VIDC_SESSION_TYPE_ENC;
 	inst->clk_data.core_id = VIDC_CORE_ID_DEFAULT;
 	inst->core_acquired = false;
+	inst->nonblock = file->f_flags & O_NONBLOCK;
 
 	venus_helper_init_instance(inst);
 
