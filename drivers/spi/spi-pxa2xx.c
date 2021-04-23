@@ -628,7 +628,7 @@ static void int_error_stop(struct driver_data *drv_data, const char *msg)
 	pxa2xx_spi_flush(drv_data);
 	pxa2xx_spi_off(drv_data);
 
-	dev_err(&drv_data->pdev->dev, "%s\n", msg);
+	dev_err(drv_data->ssp->dev, "%s\n", msg);
 
 	drv_data->controller->cur_msg->status = -EIO;
 	spi_finalize_current_transfer(drv_data->controller);
@@ -731,8 +731,7 @@ static void handle_bad_msg(struct driver_data *drv_data)
 		pxa2xx_spi_write(drv_data, SSTO, 0);
 	write_SSSR_CS(drv_data, drv_data->clear_sr);
 
-	dev_err(&drv_data->pdev->dev,
-		"bad message state in interrupt handler\n");
+	dev_err(drv_data->ssp->dev, "bad message state in interrupt handler\n");
 }
 
 static irqreturn_t ssp_int(int irq, void *dev_id)
@@ -748,7 +747,7 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 	 * the IRQ was not for us (we shouldn't be RPM suspended when the
 	 * interrupt is enabled).
 	 */
-	if (pm_runtime_suspended(&drv_data->pdev->dev))
+	if (pm_runtime_suspended(drv_data->ssp->dev))
 		return IRQ_NONE;
 
 	/*
@@ -1158,7 +1157,7 @@ static int pxa2xx_spi_slave_abort(struct spi_controller *controller)
 	pxa2xx_spi_flush(drv_data);
 	pxa2xx_spi_off(drv_data);
 
-	dev_dbg(&drv_data->pdev->dev, "transfer aborted\n");
+	dev_dbg(drv_data->ssp->dev, "transfer aborted\n");
 
 	drv_data->controller->cur_msg->status = -EINTR;
 	spi_finalize_current_transfer(drv_data->controller);
@@ -1645,7 +1644,7 @@ static int pxa2xx_spi_fw_translate_cs(struct spi_controller *controller,
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
-	if (has_acpi_companion(&drv_data->pdev->dev)) {
+	if (has_acpi_companion(drv_data->ssp->dev)) {
 		switch (drv_data->ssp_type) {
 		/*
 		 * For Atoms the ACPI DeviceSelection used by the Windows
@@ -1711,7 +1710,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data = spi_controller_get_devdata(controller);
 	drv_data->controller = controller;
 	drv_data->controller_info = platform_info;
-	drv_data->pdev = pdev;
 	drv_data->ssp = ssp;
 
 	controller->dev.of_node = pdev->dev.of_node;

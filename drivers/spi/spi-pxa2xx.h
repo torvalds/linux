@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <linux/platform_device.h>
 #include <linux/pxa2xx_ssp.h>
 #include <linux/scatterlist.h>
 #include <linux/sizes.h>
@@ -20,9 +19,6 @@
 #include <linux/spi/pxa2xx_spi.h>
 
 struct driver_data {
-	/* Driver model hookup */
-	struct platform_device *pdev;
-
 	/* SSP Info */
 	struct ssp_device *ssp;
 

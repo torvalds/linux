@@ -111,7 +111,7 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret) {
-		dev_warn(&drv_data->pdev->dev, "DMA slave config failed\n");
+		dev_warn(drv_data->ssp->dev, "DMA slave config failed\n");
 		return NULL;
 	}
 
@@ -125,7 +125,7 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 
 	status = pxa2xx_spi_read(drv_data, SSSR) & drv_data->mask_sr;
 	if (status & SSSR_ROR) {
-		dev_err(&drv_data->pdev->dev, "FIFO overrun\n");
+		dev_err(drv_data->ssp->dev, "FIFO overrun\n");
 
 		dmaengine_terminate_async(drv_data->controller->dma_rx);
 		dmaengine_terminate_async(drv_data->controller->dma_tx);
@@ -145,16 +145,14 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
 
 	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV, xfer);
 	if (!tx_desc) {
-		dev_err(&drv_data->pdev->dev,
-			"failed to get DMA TX descriptor\n");
+		dev_err(drv_data->ssp->dev, "failed to get DMA TX descriptor\n");
 		err = -EBUSY;
 		goto err_tx;
 	}
 
 	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM, xfer);
 	if (!rx_desc) {
-		dev_err(&drv_data->pdev->dev,
-			"failed to get DMA RX descriptor\n");
+		dev_err(drv_data->ssp->dev, "failed to get DMA RX descriptor\n");
 		err = -EBUSY;
 		goto err_rx;
 	}
@@ -191,8 +189,8 @@ void pxa2xx_spi_dma_stop(struct driver_data *drv_data)
 int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 {
 	struct pxa2xx_spi_controller *pdata = drv_data->controller_info;
-	struct device *dev = &drv_data->pdev->dev;
 	struct spi_controller *controller = drv_data->controller;
+	struct device *dev = drv_data->ssp->dev;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
