@@ -243,7 +243,7 @@ static int status_show(struct seq_file *s, void *data)
 		seq_printf(s, "[0x%02x] = 0x%08x\n", reg, val);
 	}
 
-	pm_runtime_put(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 
 	return 0;
 }
@@ -293,7 +293,7 @@ static int ti_sn_bridge_connector_get_modes(struct drm_connector *connector)
 	if (!edid) {
 		pm_runtime_get_sync(pdata->dev);
 		edid = pdata->edid = drm_get_edid(connector, &pdata->aux.ddc);
-		pm_runtime_put(pdata->dev);
+		pm_runtime_put_autosuspend(pdata->dev);
 	}
 
 	if (edid && drm_edid_is_valid(edid)) {
@@ -420,7 +420,7 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	/* check if continuous dsi clock is required or not */
 	pm_runtime_get_sync(pdata->dev);
 	regmap_read(pdata->regmap, SN_DPPLL_SRC_REG, &val);
-	pm_runtime_put(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 	if (!(val & DPPLL_CLK_SRC_DSICLK))
 		dsi->mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
@@ -1051,7 +1051,7 @@ static int ti_sn_bridge_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	 */
 	pm_runtime_get_sync(pdata->dev);
 	ret = regmap_read(pdata->regmap, SN_GPIO_IO_REG, &val);
-	pm_runtime_put(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 
 	if (ret)
 		return ret;
@@ -1102,7 +1102,7 @@ static int ti_sn_bridge_gpio_direction_input(struct gpio_chip *chip,
 	 * it off and when it comes back it will have lost all state, but
 	 * that's OK because the default is input and we're now an input.
 	 */
-	pm_runtime_put(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 
 	return 0;
 }
@@ -1128,7 +1128,7 @@ static int ti_sn_bridge_gpio_direction_output(struct gpio_chip *chip,
 				 SN_GPIO_MUX_OUTPUT << shift);
 	if (ret) {
 		clear_bit(offset, pdata->gchip_output);
-		pm_runtime_put(pdata->dev);
+		pm_runtime_put_autosuspend(pdata->dev);
 	}
 
 	return ret;
@@ -1419,6 +1419,8 @@ static int ti_sn65dsi86_probe(struct i2c_client *client,
 	ret = devm_add_action_or_reset(dev, ti_sn65dsi86_runtime_disable, dev);
 	if (ret)
 		return ret;
+	pm_runtime_set_autosuspend_delay(pdata->dev, 500);
+	pm_runtime_use_autosuspend(pdata->dev);
 
 	ti_sn65dsi86_debugfs_init(pdata);
 
