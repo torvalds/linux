@@ -216,7 +216,8 @@
 
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
-		logo-memory-region = <&drm_logo>;
+		memory-region = <&drm_logo>, <&drm_cubic_lut>;
+		memory-region-names = "drm-logo", "drm-cubic-lut";
 		ports = <&vop_out>;
 
 		route {
@@ -317,6 +318,11 @@
 
 		drm_logo: drm-logo@00000000 {
 			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		drm_cubic_lut: drm-cubic-lut@00000000 {
+			compatible = "rockchip,drm-cubic-lut";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
