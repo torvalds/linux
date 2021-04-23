@@ -449,6 +449,19 @@ from source at
 
 https://github.com/acmel/dwarves
 
+pahole starts to use libbpf definitions and APIs since v1.13 after the
+commit 21507cd3e97b ("pahole: add libbpf as submodule under lib/bpf").
+It works well with the git repository because the libbpf submodule will
+use "git submodule update --init --recursive" to update.
+
+Unfortunately, the default github release source code does not contain
+libbpf submodule source code and this will cause build issues, the tarball
+from https://git.kernel.org/pub/scm/devel/pahole/pahole.git/ is same with
+github, you can get the source tarball with corresponding libbpf submodule
+codes from
+
+https://fedorapeople.org/~acme/dwarves
+
 Some distros have pahole version 1.16 packaged already, e.g.
 Fedora, Gentoo.
 
