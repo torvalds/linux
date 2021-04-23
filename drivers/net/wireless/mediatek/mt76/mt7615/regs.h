@@ -61,6 +61,11 @@ enum mt7615_reg_base {
 #define MT_MCU_PCIE_REMAP_2_BASE	GENMASK(31, 19)
 #define MT_PCIE_REMAP_BASE_2		((dev)->reg_map[MT_PCIE_REMAP_BASE2])
 
+#define MT_MCU_CIRQ_BASE		0xc0000
+#define MT_MCU_CIRQ(ofs)		(MT_MCU_CIRQ_BASE + (ofs))
+
+#define MT_MCU_CIRQ_IRQ_SEL(n)		MT_MCU_CIRQ((n) << 2)
+
 #define MT_HIF(ofs)			((dev)->reg_map[MT_HIF_BASE] + (ofs))
 #define MT_HIF_RST			MT_HIF(0x100)
 #define MT_HIF_LOGIC_RST_N		BIT(4)
@@ -88,6 +93,10 @@ enum mt7615_reg_base {
 #define MT_CFG_LPCR_HOST_FW_OWN		BIT(0)
 #define MT_CFG_LPCR_HOST_DRV_OWN	BIT(1)
 
+#define MT_MCU2HOST_INT_STATUS		MT_HIF(0x1f0)
+#define MT_MCU2HOST_INT_ENABLE		MT_HIF(0x1f4)
+
+#define MT7663_MCU_INT_EVENT		MT_HIF(0x108)
 #define MT_MCU_INT_EVENT		MT_HIF(0x1f8)
 #define MT_MCU_INT_EVENT_PDMA_STOPPED	BIT(0)
 #define MT_MCU_INT_EVENT_PDMA_INIT	BIT(1)
@@ -102,6 +111,7 @@ enum mt7615_reg_base {
 #define MT_INT_RX_DONE_ALL		GENMASK(1, 0)
 #define MT_INT_TX_DONE_ALL		GENMASK(19, 4)
 #define MT_INT_TX_DONE(_n)		BIT((_n) + 4)
+#define MT7663_INT_MCU_CMD		BIT(29)
 #define MT_INT_MCU_CMD			BIT(30)
 
 #define MT_WPDMA_GLO_CFG		MT_HIF(0x208)
@@ -138,6 +148,7 @@ enum mt7615_reg_base {
 #define MT_MCU_CMD_PDMA_ERROR		BIT(27)
 #define MT_MCU_CMD_PCIE_ERROR		BIT(28)
 #define MT_MCU_CMD_ERROR_MASK		(GENMASK(5, 1) | GENMASK(28, 24))
+#define MT7663_MCU_CMD_ERROR_MASK	GENMASK(5, 2)
 
 #define MT_TX_RING_BASE			MT_HIF(0x300)
 #define MT_RX_RING_BASE			MT_HIF(0x400)

@@ -213,7 +213,7 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 			return ret;
 	}
 
-	ret = mt76_init_queues(dev);
+	ret = mt76_init_queues(dev, mt76_dma_rx_poll);
 	if (ret < 0)
 		return ret;
 

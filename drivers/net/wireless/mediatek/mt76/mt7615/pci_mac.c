@@ -37,9 +37,7 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 			token = le16_to_cpu(txp->hw.msdu_id[0]) &
 				~MT_MSDU_ID_VALID;
 
-		spin_lock_bh(&dev->token_lock);
-		t = idr_remove(&dev->token, token);
-		spin_unlock_bh(&dev->token_lock);
+		t = mt76_token_put(mdev, token);
 		e->skb = t ? t->skb : NULL;
 	}
 
@@ -161,9 +159,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
 	t->skb = tx_info->skb;
 
-	spin_lock_bh(&dev->token_lock);
-	id = idr_alloc(&dev->token, t, 0, MT7615_TOKEN_SIZE, GFP_ATOMIC);
-	spin_unlock_bh(&dev->token_lock);
+	id = mt76_token_get(mdev, &t);
 	if (id < 0)
 		return id;
 
@@ -201,6 +197,8 @@ void mt7615_dma_reset(struct mt7615_dev *dev)
 	mt76_for_each_q_rx(&dev->mt76, i)
 		mt76_queue_rx_reset(dev, i);
 
+	mt76_tx_status_check(&dev->mt76, NULL, true);
+
 	mt7615_dma_start(dev);
 }
 EXPORT_SYMBOL_GPL(mt7615_dma_reset);
@@ -208,7 +206,12 @@ EXPORT_SYMBOL_GPL(mt7615_dma_reset);
 static void
 mt7615_hif_int_event_trigger(struct mt7615_dev *dev, u8 event)
 {
-	mt76_wr(dev, MT_MCU_INT_EVENT, event);
+	u32 reg = MT_MCU_INT_EVENT;
+
+	if (is_mt7663(&dev->mt76))
+		reg = MT7663_MCU_INT_EVENT;
+
+	mt76_wr(dev, reg, event);
 
 	mt7622_trigger_hif_int(dev, true);
 	mt7622_trigger_hif_int(dev, false);
@@ -303,11 +306,11 @@ void mt7615_mac_reset_work(struct work_struct *work)
 
 	mt7615_hif_int_event_trigger(dev, MT_MCU_INT_EVENT_PDMA_STOPPED);
 
-	mt7615_tx_token_put(dev);
-	idr_init(&dev->token);
-
 	if (mt7615_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
 		mt7615_dma_reset(dev);
+
+		mt7615_tx_token_put(dev);
+		idr_init(&dev->mt76.token);
 
 		mt76_wr(dev, MT_WPDMA_MEM_RNG_ERR, 0);
 

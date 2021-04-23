@@ -564,6 +564,7 @@ enum {
 	MCU_CMD_CHIP_CONFIG = MCU_CE_PREFIX | 0xca,
 	MCU_CMD_FWLOG_2_HOST = MCU_CE_PREFIX | 0xc5,
 	MCU_CMD_GET_WTBL = MCU_CE_PREFIX | 0xcd,
+	MCU_CMD_GET_TXPWR = MCU_CE_PREFIX | 0xd0,
 };
 
 enum {
@@ -895,6 +896,37 @@ struct mt76_sta_cmd_info {
 	u8 rcpi;
 };
 
+#define MT_SKU_POWER_LIMIT	161
+
+struct mt76_connac_sku_tlv {
+	u8 channel;
+	s8 pwr_limit[MT_SKU_POWER_LIMIT];
+} __packed;
+
+struct mt76_connac_tx_power_limit_tlv {
+	/* DW0 - common info*/
+	u8 ver;
+	u8 pad0;
+	__le16 len;
+	/* DW1 - cmd hint */
+	u8 n_chan; /* # channel */
+	u8 band; /* 2.4GHz - 5GHz */
+	u8 last_msg;
+	u8 pad1;
+	/* DW3 */
+	u8 alpha2[4]; /* regulatory_request.alpha2 */
+	u8 pad2[32];
+} __packed;
+
+struct mt76_connac_config {
+	__le16 id;
+	u8 type;
+	u8 resp_type;
+	__le16 data_size;
+	__le16 resv;
+	u8 data[320];
+} __packed;
+
 #define to_wcid_lo(id)		FIELD_GET(GENMASK(7, 0), (u16)id)
 #define to_wcid_hi(id)		FIELD_GET(GENMASK(9, 8), (u16)id)
 
@@ -987,6 +1019,9 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 int mt76_connac_mcu_sched_scan_enable(struct mt76_phy *phy,
 				      struct ieee80211_vif *vif,
 				      bool enable);
+int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
+				      struct mt76_vif *vif,
+				      struct ieee80211_bss_conf *info);
 int mt76_connac_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct cfg80211_gtk_rekey_data *key);
@@ -994,6 +1029,8 @@ int mt76_connac_mcu_set_hif_suspend(struct mt76_dev *dev, bool suspend);
 void mt76_connac_mcu_set_suspend_iter(void *priv, u8 *mac,
 				      struct ieee80211_vif *vif);
 int mt76_connac_mcu_chip_config(struct mt76_dev *dev);
+int mt76_connac_mcu_set_deep_sleep(struct mt76_dev *dev, bool enable);
 void mt76_connac_mcu_coredump_event(struct mt76_dev *dev, struct sk_buff *skb,
 				    struct mt76_connac_coredump *coredump);
+int mt76_connac_mcu_set_rate_txpower(struct mt76_phy *phy);
 #endif /* __MT76_CONNAC_MCU_H */

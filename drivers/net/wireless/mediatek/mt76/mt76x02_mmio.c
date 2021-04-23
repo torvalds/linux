@@ -226,7 +226,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt76_init_queues(dev);
+	ret = mt76_init_queues(dev, mt76_dma_rx_poll);
 	if (ret)
 		return ret;
 
@@ -471,6 +471,8 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
 	}
+
+	mt76_tx_status_check(&dev->mt76, NULL, true);
 
 	mt76x02_mac_start(dev);
 

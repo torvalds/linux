@@ -86,6 +86,7 @@ enum {
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
 	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
 	MCU_EVENT_DBG_MSG = 0x27,
+	MCU_EVENT_TXPWR = 0xd0,
 	MCU_EVENT_COREDUMP = 0xf0,
 };
 
@@ -390,4 +391,20 @@ struct mt7921_mcu_wlan_info {
 	__le32 wlan_idx;
 	struct mt7921_mcu_wlan_info_event event;
 } __packed;
+
+struct mt7921_txpwr_req {
+	u8 ver;
+	u8 action;
+	__le16 len;
+	u8 dbdc_idx;
+	u8 rsv[3];
+} __packed;
+
+struct mt7921_txpwr_event {
+	u8 ver;
+	u8 action;
+	__le16 len;
+	struct mt7921_txpwr txpwr;
+} __packed;
+
 #endif
