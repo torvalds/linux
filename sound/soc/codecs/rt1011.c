@@ -2239,18 +2239,9 @@ static int rt1011_calibrate(struct rt1011_priv *rt1011, unsigned char cali_flag)
 	dc_offset |= (value & 0xffff);
 	dev_info(dev, "Gain1 offset=0x%x\n", dc_offset);
 
-	/* check the package info. */
-	regmap_read(rt1011->regmap, RT1011_EFUSE_MATCH_DONE, &value);
-	if (value & 0x4)
-		rt1011->pack_id = 1;
-
 	if (cali_flag) {
 
-		if (rt1011->pack_id)
-			regmap_write(rt1011->regmap, RT1011_ADC_SET_1, 0x292c);
-		else
-			regmap_write(rt1011->regmap, RT1011_ADC_SET_1, 0x2925);
-
+		regmap_write(rt1011->regmap, RT1011_ADC_SET_1, 0x2925);
 		/* Class D on */
 		regmap_write(rt1011->regmap, RT1011_CLASS_D_POS, 0x010e);
 		regmap_write(rt1011->regmap,
@@ -2376,10 +2367,7 @@ static void rt1011_calibration_work(struct work_struct *work)
 		rt1011_r0_load(rt1011);
 	}
 
-	if (rt1011->pack_id)
-		snd_soc_component_write(component, RT1011_ADC_SET_1, 0x292c);
-	else
-		snd_soc_component_write(component, RT1011_ADC_SET_1, 0x2925);
+	snd_soc_component_write(component, RT1011_ADC_SET_1, 0x2925);
 }
 
 static int rt1011_parse_dp(struct rt1011_priv *rt1011, struct device *dev)
