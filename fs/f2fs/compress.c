@@ -76,12 +76,6 @@ bool f2fs_is_compressed_page(struct page *page)
 		return false;
 	if (IS_ATOMIC_WRITTEN_PAGE(page) || IS_DUMMY_WRITTEN_PAGE(page))
 		return false;
-	/*
-	 * page->private may be set with pid.
-	 * pid_max is enough to check if it is traced.
-	 */
-	if (IS_IO_TRACED_PAGE(page))
-		return false;
 
 	f2fs_bug_on(F2FS_M_SB(page->mapping),
 		*((u32 *)page_private(page)) != F2FS_COMPRESSED_PAGE_MAGIC);
