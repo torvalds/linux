@@ -189,8 +189,11 @@ static inline void walt_task_dump(struct task_struct *p)
 	int i, j = 0;
 	int buffsz = WALT_NR_CPUS * 16;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	bool is_32bit_thread = is_compat_thread(task_thread_info(p));
 
-	SCHED_PRINT(p->pid);
+	printk_deferred("Task: %.16s-%d\n", p->comm, p->pid);
+	SCHED_PRINT(p->policy);
+	SCHED_PRINT(p->prio);
 	SCHED_PRINT(wts->mark_start);
 	SCHED_PRINT(wts->demand);
 	SCHED_PRINT(wts->coloc_demand);
@@ -213,6 +216,10 @@ static inline void walt_task_dump(struct task_struct *p)
 	SCHED_PRINT(wts->last_enqueued_ts);
 	SCHED_PRINT(wts->misfit);
 	SCHED_PRINT(wts->unfilter);
+	SCHED_PRINT(is_32bit_thread);
+	SCHED_PRINT(wts->grp);
+	SCHED_PRINT(p->on_cpu);
+	SCHED_PRINT(p->on_rq);
 }
 
 static inline void walt_rq_dump(int cpu)
