@@ -58,9 +58,10 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 
 	mutex_lock(&res->td.list_lock);
-	mlx5_core_destroy_tir(mdev, tir->tirn);
 	list_del(&tir->list);
 	mutex_unlock(&res->td.list_lock);
+
+	mlx5_core_destroy_tir(mdev, tir->tirn);
 }
 
 void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
