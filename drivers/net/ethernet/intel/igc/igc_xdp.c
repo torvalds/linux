@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020, Intel Corporation. */
 
+#include <net/xdp_sock_drv.h>
+
 #include "igc.h"
 #include "igc_xdp.h"
 
@@ -30,4 +32,102 @@ int igc_xdp_set_prog(struct igc_adapter *adapter, struct bpf_prog *prog,
 		igc_open(dev);
 
 	return 0;
+}
+
+static int igc_xdp_enable_pool(struct igc_adapter *adapter,
+			       struct xsk_buff_pool *pool, u16 queue_id)
+{
+	struct net_device *ndev = adapter->netdev;
+	struct device *dev = &adapter->pdev->dev;
+	struct igc_ring *rx_ring;
+	struct napi_struct *napi;
+	bool needs_reset;
+	u32 frame_size;
+	int err;
+
+	if (queue_id >= adapter->num_rx_queues)
+		return -EINVAL;
+
+	frame_size = xsk_pool_get_rx_frame_size(pool);
+	if (frame_size < ETH_FRAME_LEN + VLAN_HLEN * 2) {
+		/* When XDP is enabled, the driver doesn't support frames that
+		 * span over multiple buffers. To avoid that, we check if xsk
+		 * frame size is big enough to fit the max ethernet frame size
+		 * + vlan double tagging.
+		 */
+		return -EOPNOTSUPP;
+	}
+
+	err = xsk_pool_dma_map(pool, dev, IGC_RX_DMA_ATTR);
+	if (err) {
+		netdev_err(ndev, "Failed to map xsk pool\n");
+		return err;
+	}
+
+	needs_reset = netif_running(adapter->netdev) && igc_xdp_is_enabled(adapter);
+
+	rx_ring = adapter->rx_ring[queue_id];
+	napi = &rx_ring->q_vector->napi;
+
+	if (needs_reset) {
+		igc_disable_rx_ring(rx_ring);
+		napi_disable(napi);
+	}
+
+	set_bit(IGC_RING_FLAG_AF_XDP_ZC, &rx_ring->flags);
+
+	if (needs_reset) {
+		napi_enable(napi);
+		igc_enable_rx_ring(rx_ring);
+
+		err = igc_xsk_wakeup(ndev, queue_id, XDP_WAKEUP_RX);
+		if (err) {
+			xsk_pool_dma_unmap(pool, IGC_RX_DMA_ATTR);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int igc_xdp_disable_pool(struct igc_adapter *adapter, u16 queue_id)
+{
+	struct xsk_buff_pool *pool;
+	struct igc_ring *rx_ring;
+	struct napi_struct *napi;
+	bool needs_reset;
+
+	if (queue_id >= adapter->num_rx_queues)
+		return -EINVAL;
+
+	pool = xsk_get_pool_from_qid(adapter->netdev, queue_id);
+	if (!pool)
+		return -EINVAL;
+
+	needs_reset = netif_running(adapter->netdev) && igc_xdp_is_enabled(adapter);
+
+	rx_ring = adapter->rx_ring[queue_id];
+	napi = &rx_ring->q_vector->napi;
+
+	if (needs_reset) {
+		igc_disable_rx_ring(rx_ring);
+		napi_disable(napi);
+	}
+
+	xsk_pool_dma_unmap(pool, IGC_RX_DMA_ATTR);
+	clear_bit(IGC_RING_FLAG_AF_XDP_ZC, &rx_ring->flags);
+
+	if (needs_reset) {
+		napi_enable(napi);
+		igc_enable_rx_ring(rx_ring);
+	}
+
+	return 0;
+}
+
+int igc_xdp_setup_pool(struct igc_adapter *adapter, struct xsk_buff_pool *pool,
+		       u16 queue_id)
+{
+	return pool ? igc_xdp_enable_pool(adapter, pool, queue_id) :
+		      igc_xdp_disable_pool(adapter, queue_id);
 }

@@ -81,6 +81,7 @@ union igc_adv_rx_desc {
 
 /* Additional Receive Descriptor Control definitions */
 #define IGC_RXDCTL_QUEUE_ENABLE	0x02000000 /* Ena specific Rx Queue */
+#define IGC_RXDCTL_SWFLUSH		0x04000000 /* Receive Software Flush */
 
 /* SRRCTL bit definitions */
 #define IGC_SRRCTL_BSIZEPKT_SHIFT		10 /* Shift _right_ */

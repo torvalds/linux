@@ -6,6 +6,8 @@
 
 int igc_xdp_set_prog(struct igc_adapter *adapter, struct bpf_prog *prog,
 		     struct netlink_ext_ack *extack);
+int igc_xdp_setup_pool(struct igc_adapter *adapter, struct xsk_buff_pool *pool,
+		       u16 queue_id);
 
 static inline bool igc_xdp_is_enabled(struct igc_adapter *adapter)
 {
