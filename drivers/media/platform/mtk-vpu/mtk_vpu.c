@@ -985,6 +985,12 @@ static int mtk_vpu_suspend(struct device *dev)
 		return ret;
 	}
 
+	if (!vpu_running(vpu)) {
+		vpu_clock_disable(vpu);
+		clk_unprepare(vpu->clk);
+		return 0;
+	}
+
 	mutex_lock(&vpu->vpu_mutex);
 	/* disable vpu timer interrupt */
 	vpu_cfg_writel(vpu, vpu_cfg_readl(vpu, VPU_INT_STATUS) | VPU_IDLE_STATE,
