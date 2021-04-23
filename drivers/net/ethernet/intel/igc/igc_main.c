@@ -2020,12 +2020,38 @@ static int igc_xdp_xmit_back(struct igc_adapter *adapter, struct xdp_buff *xdp)
 	return res;
 }
 
+/* This function assumes rcu_read_lock() is held by the caller. */
+static int __igc_xdp_run_prog(struct igc_adapter *adapter,
+			      struct bpf_prog *prog,
+			      struct xdp_buff *xdp)
+{
+	u32 act = bpf_prog_run_xdp(prog, xdp);
+
+	switch (act) {
+	case XDP_PASS:
+		return IGC_XDP_PASS;
+	case XDP_TX:
+		return igc_xdp_xmit_back(adapter, xdp) < 0 ?
+			IGC_XDP_CONSUMED : IGC_XDP_TX;
+	case XDP_REDIRECT:
+		return xdp_do_redirect(adapter->netdev, xdp, prog) < 0 ?
+			IGC_XDP_CONSUMED : IGC_XDP_REDIRECT;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		fallthrough;
+	case XDP_ABORTED:
+		trace_xdp_exception(adapter->netdev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		return IGC_XDP_CONSUMED;
+	}
+}
+
 static struct sk_buff *igc_xdp_run_prog(struct igc_adapter *adapter,
 					struct xdp_buff *xdp)
 {
 	struct bpf_prog *prog;
 	int res;
-	u32 act;
 
 	rcu_read_lock();
 
@@ -2035,33 +2061,7 @@ static struct sk_buff *igc_xdp_run_prog(struct igc_adapter *adapter,
 		goto unlock;
 	}
 
-	act = bpf_prog_run_xdp(prog, xdp);
-	switch (act) {
-	case XDP_PASS:
-		res = IGC_XDP_PASS;
-		break;
-	case XDP_TX:
-		if (igc_xdp_xmit_back(adapter, xdp) < 0)
-			res = IGC_XDP_CONSUMED;
-		else
-			res = IGC_XDP_TX;
-		break;
-	case XDP_REDIRECT:
-		if (xdp_do_redirect(adapter->netdev, xdp, prog) < 0)
-			res = IGC_XDP_CONSUMED;
-		else
-			res = IGC_XDP_REDIRECT;
-		break;
-	default:
-		bpf_warn_invalid_xdp_action(act);
-		fallthrough;
-	case XDP_ABORTED:
-		trace_xdp_exception(adapter->netdev, prog, act);
-		fallthrough;
-	case XDP_DROP:
-		res = IGC_XDP_CONSUMED;
-		break;
-	}
+	res = __igc_xdp_run_prog(adapter, prog, xdp);
 
 unlock:
 	rcu_read_unlock();
