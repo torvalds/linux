@@ -1429,6 +1429,13 @@ static int linker_fixup_btf(struct src_obj *obj)
 static int remap_type_id(__u32 *type_id, void *ctx)
 {
 	int *id_map = ctx;
+	int new_id = id_map[*type_id];
+
+	/* Error out if the type wasn't remapped. Ignore VOID which stays VOID. */
+	if (new_id == 0 && *type_id != 0) {
+		pr_warn("failed to find new ID mapping for original BTF type ID %u\n", *type_id);
+		return -EINVAL;
+	}
 
 	*type_id = id_map[*type_id];
 
