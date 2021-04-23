@@ -123,9 +123,7 @@ struct bpf_linker {
 };
 
 #define pr_warn_elf(fmt, ...)									\
-do {												\
-	libbpf_print(LIBBPF_WARN, "libbpf: " fmt ": %s\n", ##__VA_ARGS__, elf_errmsg(-1));	\
-} while (0)
+	libbpf_print(LIBBPF_WARN, "libbpf: " fmt ": %s\n", ##__VA_ARGS__, elf_errmsg(-1))
 
 static int init_output_elf(struct bpf_linker *linker, const char *file);
 
@@ -284,7 +282,7 @@ static int init_output_elf(struct bpf_linker *linker, const char *file)
 
 	/* ELF header */
 	linker->elf_hdr = elf64_newehdr(linker->elf);
-	if (!linker->elf_hdr){
+	if (!linker->elf_hdr) {
 		pr_warn_elf("failed to create ELF header");
 		return -EINVAL;
 	}
@@ -925,13 +923,13 @@ static int init_sec(struct bpf_linker *linker, struct dst_sec *dst_sec, struct s
 
 	scn = elf_newscn(linker->elf);
 	if (!scn)
-		return -1;
+		return -ENOMEM;
 	data = elf_newdata(scn);
 	if (!data)
-		return -1;
+		return -ENOMEM;
 	shdr = elf64_getshdr(scn);
 	if (!shdr)
-		return -1;
+		return -ENOMEM;
 
 	dst_sec->scn = scn;
 	dst_sec->shdr = shdr;
@@ -1221,7 +1219,7 @@ static int linker_append_elf_relos(struct bpf_linker *linker, struct src_obj *ob
 				return err;
 			}
 		} else if (!secs_match(dst_sec, src_sec)) {
-			pr_warn("Secs %s are not compatible\n", src_sec->sec_name);
+			pr_warn("sections %s are not compatible\n", src_sec->sec_name);
 			return -1;
 		}
 
