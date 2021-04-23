@@ -132,6 +132,8 @@
  * @dp_lanes:     Count of dp_lanes we're using.
  * @ln_assign:    Value to program to the LN_ASSIGN register.
  * @ln_polrs:     Value for the 4-bit LN_POLRS field of SN_ENH_FRAME_REG.
+ * @comms_enabled: If true then communication over the aux channel is enabled.
+ * @comms_mutex:   Protects modification of comms_enabled.
  *
  * @gchip:        If we expose our GPIOs, this is used.
  * @gchip_output: A cache of whether we've set GPIOs to output.  This
@@ -162,6 +164,8 @@ struct ti_sn65dsi86 {
 	int				dp_lanes;
 	u8				ln_assign;
 	u8				ln_polrs;
+	bool				comms_enabled;
+	struct mutex			comms_mutex;
 
 #if defined(CONFIG_OF_GPIO)
 	struct gpio_chip		gchip;
@@ -250,6 +254,47 @@ static void ti_sn_bridge_set_refclk_freq(struct ti_sn65dsi86 *pdata)
 			   REFCLK_FREQ(i));
 }
 
+static void ti_sn65dsi86_enable_comms(struct ti_sn65dsi86 *pdata)
+{
+	mutex_lock(&pdata->comms_mutex);
+
+	/* configure bridge ref_clk */
+	ti_sn_bridge_set_refclk_freq(pdata);
+
+	/*
+	 * HPD on this bridge chip is a bit useless.  This is an eDP bridge
+	 * so the HPD is an internal signal that's only there to signal that
+	 * the panel is done powering up.  ...but the bridge chip debounces
+	 * this signal by between 100 ms and 400 ms (depending on process,
+	 * voltage, and temperate--I measured it at about 200 ms).  One
+	 * particular panel asserted HPD 84 ms after it was powered on meaning
+	 * that we saw HPD 284 ms after power on.  ...but the same panel said
+	 * that instead of looking at HPD you could just hardcode a delay of
+	 * 200 ms.  We'll assume that the panel driver will have the hardcoded
+	 * delay in its prepare and always disable HPD.
+	 *
+	 * If HPD somehow makes sense on some future panel we'll have to
+	 * change this to be conditional on someone specifying that HPD should
+	 * be used.
+	 */
+	regmap_update_bits(pdata->regmap, SN_HPD_DISABLE_REG, HPD_DISABLE,
+			   HPD_DISABLE);
+
+	pdata->comms_enabled = true;
+
+	mutex_unlock(&pdata->comms_mutex);
+}
+
+static void ti_sn65dsi86_disable_comms(struct ti_sn65dsi86 *pdata)
+{
+	mutex_lock(&pdata->comms_mutex);
+
+	pdata->comms_enabled = false;
+	clk_disable_unprepare(pdata->refclk);
+
+	mutex_unlock(&pdata->comms_mutex);
+}
+
 static int __maybe_unused ti_sn65dsi86_resume(struct device *dev)
 {
 	struct ti_sn65dsi86 *pdata = dev_get_drvdata(dev);
@@ -263,6 +308,16 @@ static int __maybe_unused ti_sn65dsi86_resume(struct device *dev)
 
 	gpiod_set_value(pdata->enable_gpio, 1);
 
+	/*
+	 * If we have a reference clock we can enable communication w/ the
+	 * panel (including the aux channel) w/out any need for an input clock
+	 * so we can do it in resume which lets us read the EDID before
+	 * pre_enable(). Without a reference clock we need the MIPI reference
+	 * clock so reading early doesn't work.
+	 */
+	if (pdata->refclk)
+		ti_sn65dsi86_enable_comms(pdata);
+
 	return ret;
 }
 
@@ -270,6 +325,9 @@ static int __maybe_unused ti_sn65dsi86_suspend(struct device *dev)
 {
 	struct ti_sn65dsi86 *pdata = dev_get_drvdata(dev);
 	int ret;
+
+	if (pdata->refclk)
+		ti_sn65dsi86_disable_comms(pdata);
 
 	gpiod_set_value(pdata->enable_gpio, 0);
 
@@ -845,27 +903,8 @@ static void ti_sn_bridge_pre_enable(struct drm_bridge *bridge)
 
 	pm_runtime_get_sync(pdata->dev);
 
-	/* configure bridge ref_clk */
-	ti_sn_bridge_set_refclk_freq(pdata);
-
-	/*
-	 * HPD on this bridge chip is a bit useless.  This is an eDP bridge
-	 * so the HPD is an internal signal that's only there to signal that
-	 * the panel is done powering up.  ...but the bridge chip debounces
-	 * this signal by between 100 ms and 400 ms (depending on process,
-	 * voltage, and temperate--I measured it at about 200 ms).  One
-	 * particular panel asserted HPD 84 ms after it was powered on meaning
-	 * that we saw HPD 284 ms after power on.  ...but the same panel said
-	 * that instead of looking at HPD you could just hardcode a delay of
-	 * 200 ms.  We'll assume that the panel driver will have the hardcoded
-	 * delay in its prepare and always disable HPD.
-	 *
-	 * If HPD somehow makes sense on some future panel we'll have to
-	 * change this to be conditional on someone specifying that HPD should
-	 * be used.
-	 */
-	regmap_update_bits(pdata->regmap, SN_HPD_DISABLE_REG, HPD_DISABLE,
-			   HPD_DISABLE);
+	if (!pdata->refclk)
+		ti_sn65dsi86_enable_comms(pdata);
 
 	drm_panel_prepare(pdata->panel);
 }
@@ -876,7 +915,8 @@ static void ti_sn_bridge_post_disable(struct drm_bridge *bridge)
 
 	drm_panel_unprepare(pdata->panel);
 
-	clk_disable_unprepare(pdata->refclk);
+	if (!pdata->refclk)
+		ti_sn65dsi86_disable_comms(pdata);
 
 	pm_runtime_put_sync(pdata->dev);
 }
@@ -910,6 +950,20 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 	if (len > SN_AUX_MAX_PAYLOAD_BYTES)
 		return -EINVAL;
 
+	pm_runtime_get_sync(pdata->dev);
+	mutex_lock(&pdata->comms_mutex);
+
+	/*
+	 * If someone tries to do a DDC over AUX transaction before pre_enable()
+	 * on a device without a dedicated reference clock then we just can't
+	 * do it. Fail right away. This prevents non-refclk users from reading
+	 * the EDID before enabling the panel but such is life.
+	 */
+	if (!pdata->comms_enabled) {
+		ret = -EIO;
+		goto exit;
+	}
+
 	switch (request) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
@@ -920,7 +974,8 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 		msg->reply = 0;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	BUILD_BUG_ON(sizeof(addr_len) != sizeof(__be32));
@@ -944,11 +999,11 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 	ret = regmap_read_poll_timeout(pdata->regmap, SN_AUX_CMD_REG, val,
 				       !(val & AUX_CMD_SEND), 0, 50 * 1000);
 	if (ret)
-		return ret;
+		goto exit;
 
 	ret = regmap_read(pdata->regmap, SN_AUX_CMD_STATUS_REG, &val);
 	if (ret)
-		return ret;
+		goto exit;
 
 	if (val & AUX_IRQ_STATUS_AUX_RPLY_TOUT) {
 		/*
@@ -956,13 +1011,14 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 		 * but it hit a timeout. We ignore defers here because they're
 		 * handled in hardware.
 		 */
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto exit;
 	}
 
 	if (val & AUX_IRQ_STATUS_AUX_SHORT) {
 		ret = regmap_read(pdata->regmap, SN_AUX_LENGTH_REG, &len);
 		if (ret)
-			return ret;
+			goto exit;
 	} else if (val & AUX_IRQ_STATUS_NAT_I2C_FAIL) {
 		switch (request) {
 		case DP_AUX_I2C_WRITE:
@@ -974,18 +1030,19 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 			msg->reply |= DP_AUX_NATIVE_REPLY_NACK;
 			break;
 		}
-		return 0;
+		len = 0;
+		goto exit;
 	}
 
-	if (request == DP_AUX_NATIVE_WRITE || request == DP_AUX_I2C_WRITE ||
-	    len == 0)
-		return len;
+	if (request != DP_AUX_NATIVE_WRITE && request != DP_AUX_I2C_WRITE && len != 0)
+		ret = regmap_bulk_read(pdata->regmap, SN_AUX_RDATA_REG(0), buf, len);
 
-	ret = regmap_bulk_read(pdata->regmap, SN_AUX_RDATA_REG(0), buf, len);
-	if (ret)
-		return ret;
+exit:
+	mutex_unlock(&pdata->comms_mutex);
+	pm_runtime_mark_last_busy(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 
-	return len;
+	return ret ? ret : len;
 }
 
 static int ti_sn_bridge_parse_dsi_host(struct ti_sn65dsi86 *pdata)
@@ -1390,6 +1447,8 @@ static int ti_sn65dsi86_probe(struct i2c_client *client,
 		return -ENOMEM;
 	dev_set_drvdata(dev, pdata);
 	pdata->dev = dev;
+
+	mutex_init(&pdata->comms_mutex);
 
 	pdata->regmap = devm_regmap_init_i2c(client,
 					     &ti_sn65dsi86_regmap_config);
