@@ -406,10 +406,17 @@ static void rcsi2_enter_standby(struct rcar_csi2 *priv)
 	pm_runtime_put(priv->dev);
 }
 
-static void rcsi2_exit_standby(struct rcar_csi2 *priv)
+static int rcsi2_exit_standby(struct rcar_csi2 *priv)
 {
-	pm_runtime_get_sync(priv->dev);
+	int ret;
+
+	ret = pm_runtime_resume_and_get(priv->dev);
+	if (ret < 0)
+		return ret;
+
 	reset_control_deassert(priv->rstc);
+
+	return 0;
 }
 
 static int rcsi2_wait_phy_start(struct rcar_csi2 *priv,
@@ -657,7 +664,9 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 {
 	int ret;
 
-	rcsi2_exit_standby(priv);
+	ret = rcsi2_exit_standby(priv);
+	if (ret < 0)
+		return ret;
 
 	ret = rcsi2_start_receiver(priv);
 	if (ret) {
