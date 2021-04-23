@@ -41,9 +41,10 @@
  * - 1.5.0 - Add SUBMITQUERY_QUERY ioctl
  * - 1.6.0 - Syncobj support
  * - 1.7.0 - Add MSM_PARAM_SUSPENDS to access suspend count
+ * - 1.8.0 - Add MSM_BO_CACHED_COHERENT for supported GPUs (a6xx)
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	7
+#define MSM_VERSION_MINOR	8
 #define MSM_VERSION_PATCHLEVEL	0
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
