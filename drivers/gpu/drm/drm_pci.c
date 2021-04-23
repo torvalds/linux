@@ -41,64 +41,6 @@
 /* List of devices hanging off drivers with stealth attach. */
 static LIST_HEAD(legacy_dev_list);
 static DEFINE_MUTEX(legacy_dev_list_lock);
-
-/**
- * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.
- * @dev: DRM device
- * @size: size of block to allocate
- * @align: alignment of block
- *
- * FIXME: This is a needless abstraction of the Linux dma-api and should be
- * removed.
- *
- * Return: A handle to the allocated memory block on success or NULL on
- * failure.
- */
-drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
-{
-	drm_dma_handle_t *dmah;
-
-	/* pci_alloc_consistent only guarantees alignment to the smallest
-	 * PAGE_SIZE order which is greater than or equal to the requested size.
-	 * Return NULL here for now to make sure nobody tries for larger alignment
-	 */
-	if (align > size)
-		return NULL;
-
-	dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
-	if (!dmah)
-		return NULL;
-
-	dmah->size = size;
-	dmah->vaddr = dma_alloc_coherent(dev->dev, size,
-					 &dmah->busaddr,
-					 GFP_KERNEL);
-
-	if (dmah->vaddr == NULL) {
-		kfree(dmah);
-		return NULL;
-	}
-
-	return dmah;
-}
-EXPORT_SYMBOL(drm_pci_alloc);
-
-/**
- * drm_pci_free - Free a PCI consistent memory block
- * @dev: DRM device
- * @dmah: handle to memory block
- *
- * FIXME: This is a needless abstraction of the Linux dma-api and should be
- * removed.
- */
-void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
-{
-	dma_free_coherent(dev->dev, dmah->size, dmah->vaddr,
-			  dmah->busaddr);
-	kfree(dmah);
-}
-
-EXPORT_SYMBOL(drm_pci_free);
 #endif
 
 static int drm_get_pci_domain(struct drm_device *dev)
