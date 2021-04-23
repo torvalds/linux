@@ -750,14 +750,45 @@ static int linker_sanity_check_elf_symtab(struct src_obj *obj, struct src_sec *s
 	n = sec->shdr->sh_size / sec->shdr->sh_entsize;
 	sym = sec->data->d_buf;
 	for (i = 0; i < n; i++, sym++) {
-		if (sym->st_shndx
-		    && sym->st_shndx < SHN_LORESERVE
-		    && sym->st_shndx >= obj->sec_cnt) {
+		int sym_type = ELF64_ST_TYPE(sym->st_info);
+		int sym_bind = ELF64_ST_BIND(sym->st_info);
+		int sym_vis = ELF64_ST_VISIBILITY(sym->st_other);
+
+		if (i == 0) {
+			if (sym->st_name != 0 || sym->st_info != 0
+			    || sym->st_other != 0 || sym->st_shndx != 0
+			    || sym->st_value != 0 || sym->st_size != 0) {
+				pr_warn("ELF sym #0 is invalid in %s\n", obj->filename);
+				return -EINVAL;
+			}
+			continue;
+		}
+		if (sym_bind != STB_LOCAL && sym_bind != STB_GLOBAL && sym_bind != STB_WEAK) {
+			pr_warn("ELF sym #%d in section #%zu has unsupported symbol binding %d\n",
+				i, sec->sec_idx, sym_bind);
+			return -EINVAL;
+		}
+		if (sym_vis != STV_DEFAULT && sym_vis != STV_HIDDEN) {
+			pr_warn("ELF sym #%d in section #%zu has unsupported symbol visibility %d\n",
+				i, sec->sec_idx, sym_vis);
+			return -EINVAL;
+		}
+		if (sym->st_shndx == 0) {
+			if (sym_type != STT_NOTYPE || sym_bind == STB_LOCAL
+			    || sym->st_value != 0 || sym->st_size != 0) {
+				pr_warn("ELF sym #%d is invalid extern symbol in %s\n",
+					i, obj->filename);
+
+				return -EINVAL;
+			}
+			continue;
+		}
+		if (sym->st_shndx < SHN_LORESERVE && sym->st_shndx >= obj->sec_cnt) {
 			pr_warn("ELF sym #%d in section #%zu points to missing section #%zu in %s\n",
 				i, sec->sec_idx, (size_t)sym->st_shndx, obj->filename);
 			return -EINVAL;
 		}
-		if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION) {
+		if (sym_type == STT_SECTION) {
 			if (sym->st_value != 0)
 				return -EINVAL;
 			continue;
@@ -1135,16 +1166,16 @@ static int linker_append_elf_syms(struct bpf_linker *linker, struct src_obj *obj
 		size_t dst_sym_idx;
 		int name_off;
 
-		/* we already have all-zero initial symbol */
-		if (sym->st_name == 0 && sym->st_info == 0 &&
-		    sym->st_other == 0 && sym->st_shndx == SHN_UNDEF &&
-		    sym->st_value == 0 && sym->st_size ==0)
+		/* We already validated all-zero symbol #0 and we already
+		 * appended it preventively to the final SYMTAB, so skip it.
+		 */
+		if (i == 0)
 			continue;
 
 		sym_name = elf_strptr(obj->elf, str_sec_idx, sym->st_name);
 		if (!sym_name) {
 			pr_warn("can't fetch symbol name for symbol #%d in '%s'\n", i, obj->filename);
-			return -1;
+			return -EINVAL;
 		}
 
 		if (sym->st_shndx && sym->st_shndx < SHN_LORESERVE) {
