@@ -89,6 +89,23 @@ static u32 smuio_v13_0_get_die_id(struct amdgpu_device *adev)
 }
 
 /**
+ * smuio_v13_0_get_socket_id - query socket id from FCH
+ *
+ * @adev: amdgpu device pointer
+ *
+ * Returns socket id
+ */
+static u32 smuio_v13_0_get_socket_id(struct amdgpu_device *adev)
+{
+	u32 data, socket_id;
+
+	data = RREG32_SOC15(SMUIO, 0, regSMUIO_MCM_CONFIG);
+	socket_id = REG_GET_FIELD(data, SMUIO_MCM_CONFIG, SOCKET_ID);
+
+	return socket_id;
+}
+
+/**
  * smuio_v13_0_supports_host_gpu_xgmi - detect xgmi interface between cpu and gpu/s.
  *
  * @adev: amdgpu device pointer
@@ -115,6 +132,7 @@ const struct amdgpu_smuio_funcs smuio_v13_0_funcs = {
 	.get_rom_index_offset = smuio_v13_0_get_rom_index_offset,
 	.get_rom_data_offset = smuio_v13_0_get_rom_data_offset,
 	.get_die_id = smuio_v13_0_get_die_id,
+	.get_socket_id = smuio_v13_0_get_socket_id,
 	.is_host_gpu_xgmi_supported = smuio_v13_0_is_host_gpu_xgmi_supported,
 	.update_rom_clock_gating = smuio_v13_0_update_rom_clock_gating,
 	.get_clock_gating_state = smuio_v13_0_get_clock_gating_state,
