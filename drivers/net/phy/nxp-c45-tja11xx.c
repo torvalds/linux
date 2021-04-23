@@ -28,6 +28,11 @@
 #define DEVICE_CONTROL_CONFIG_GLOBAL_EN	BIT(14)
 #define DEVICE_CONTROL_CONFIG_ALL_EN	BIT(13)
 
+#define VEND1_PHY_IRQ_ACK		0x80A0
+#define VEND1_PHY_IRQ_EN		0x80A1
+#define VEND1_PHY_IRQ_STATUS		0x80A2
+#define PHY_IRQ_LINK_EVENT		BIT(1)
+
 #define VEND1_PHY_CONTROL		0x8100
 #define PHY_CONFIG_EN			BIT(14)
 #define PHY_START_OP			BIT(0)
@@ -186,6 +191,32 @@ static int nxp_c45_start_op(struct phy_device *phydev)
 {
 	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PHY_CONTROL,
 				PHY_START_OP);
+}
+
+static int nxp_c45_config_intr(struct phy_device *phydev)
+{
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		return phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+					VEND1_PHY_IRQ_EN, PHY_IRQ_LINK_EVENT);
+	else
+		return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+					  VEND1_PHY_IRQ_EN, PHY_IRQ_LINK_EVENT);
+}
+
+static irqreturn_t nxp_c45_handle_interrupt(struct phy_device *phydev)
+{
+	irqreturn_t ret = IRQ_NONE;
+	int irq;
+
+	irq = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_PHY_IRQ_STATUS);
+	if (irq & PHY_IRQ_LINK_EVENT) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_PHY_IRQ_ACK,
+			      PHY_IRQ_LINK_EVENT);
+		phy_trigger_machine(phydev);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
 }
 
 static int nxp_c45_soft_reset(struct phy_device *phydev)
@@ -560,6 +591,8 @@ static struct phy_driver nxp_c45_driver[] = {
 		.soft_reset		= nxp_c45_soft_reset,
 		.config_aneg		= nxp_c45_config_aneg,
 		.config_init		= nxp_c45_config_init,
+		.config_intr		= nxp_c45_config_intr,
+		.handle_interrupt	= nxp_c45_handle_interrupt,
 		.read_status		= nxp_c45_read_status,
 		.suspend		= genphy_c45_pma_suspend,
 		.resume			= genphy_c45_pma_resume,
