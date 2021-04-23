@@ -125,14 +125,14 @@
 				interrupt-parent = <&liointc1>;
 			};
 
-			ehci@4,2 {
+			ohci@4,2 {
 				compatible = "pci0014,7a24.0",
 						   "pci0014,7a24",
 						   "pciclass0c0310",
 						   "pciclass0c03";
 
 				reg = <0x2200 0x0 0x0 0x0 0x0>;
-				interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+				interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-parent = <&liointc1>;
 			};
 
