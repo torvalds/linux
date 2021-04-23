@@ -68,6 +68,29 @@ struct mt7915_mcu_rxd {
 	u8 s2d_index;
 };
 
+struct mt7915_mcu_thermal_ctrl {
+	u8 ctrl_id;
+	u8 band_idx;
+	union {
+		struct {
+			u8 protect_type; /* 1: duty admit, 2: radio off */
+			u8 trigger_type; /* 0: low, 1: high */
+		} __packed type;
+		struct {
+			u8 duty_level;	/* level 0~3 */
+			u8 duty_cycle;
+		} __packed duty;
+	};
+} __packed;
+
+struct mt7915_mcu_thermal_notify {
+	struct mt7915_mcu_rxd rxd;
+
+	struct mt7915_mcu_thermal_ctrl ctrl;
+	__le32 temperature;
+	u8 rsv[8];
+} __packed;
+
 struct mt7915_mcu_csa_notify {
 	struct mt7915_mcu_rxd rxd;
 
@@ -262,6 +285,7 @@ enum {
 	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
 	MCU_EXT_CMD_TXBF_ACTION = 0x1e,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
+	MCU_EXT_CMD_THERMAL_PROT = 0x23,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
 	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
@@ -1064,6 +1088,17 @@ enum {
 	THERMAL_SENSOR_MANUAL_CTRL,
 	THERMAL_SENSOR_INFO_QUERY,
 	THERMAL_SENSOR_TASK_CTRL,
+};
+
+enum {
+	THERMAL_PROTECT_PARAMETER_CTRL,
+	THERMAL_PROTECT_BASIC_INFO,
+	THERMAL_PROTECT_ENABLE,
+	THERMAL_PROTECT_DISABLE,
+	THERMAL_PROTECT_DUTY_CONFIG,
+	THERMAL_PROTECT_MECH_INFO,
+	THERMAL_PROTECT_DUTY_INFO,
+	THERMAL_PROTECT_STATE_ACT,
 };
 
 enum {

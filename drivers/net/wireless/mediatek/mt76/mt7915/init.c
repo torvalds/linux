@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/thermal.h>
 #include "mt7915.h"
 #include "mac.h"
 #include "mcu.h"
@@ -65,10 +66,80 @@ static struct attribute *mt7915_hwmon_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mt7915_hwmon);
 
+static int
+mt7915_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
+{
+	*state = MT7915_THERMAL_THROTTLE_MAX;
+
+	return 0;
+}
+
+static int
+mt7915_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
+{
+	struct mt7915_phy *phy = cdev->devdata;
+
+	*state = phy->throttle_state;
+
+	return 0;
+}
+
+static int
+mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long state)
+{
+	struct mt7915_phy *phy = cdev->devdata;
+	int ret;
+
+	if (state > MT7915_THERMAL_THROTTLE_MAX)
+		return -EINVAL;
+
+	if (state == phy->throttle_state)
+		return 0;
+
+	ret = mt7915_mcu_set_thermal_throttling(phy, state);
+	if (ret)
+		return ret;
+
+	phy->throttle_state = state;
+
+	return 0;
+}
+
+static const struct thermal_cooling_device_ops mt7915_thermal_ops = {
+	.get_max_state = mt7915_thermal_get_max_throttle_state,
+	.get_cur_state = mt7915_thermal_get_cur_throttle_state,
+	.set_cur_state = mt7915_thermal_set_cur_throttle_state,
+};
+
+static void mt7915_unregister_thermal(struct mt7915_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+
+	if (!phy->cdev)
+	    return;
+
+	sysfs_remove_link(&wiphy->dev.kobj, "cooling_device");
+	thermal_cooling_device_unregister(phy->cdev);
+}
+
 static int mt7915_thermal_init(struct mt7915_phy *phy)
 {
 	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+	struct thermal_cooling_device *cdev;
 	struct device *hwmon;
+
+	cdev = thermal_cooling_device_register(wiphy_name(wiphy), phy,
+					       &mt7915_thermal_ops);
+	if (!IS_ERR(cdev)) {
+		if (sysfs_create_link(&wiphy->dev.kobj, &cdev->device.kobj,
+				      "cooling_device") < 0)
+			thermal_cooling_device_unregister(cdev);
+		else
+			phy->cdev = cdev;
+	}
 
 	if (!IS_REACHABLE(CONFIG_HWMON))
 		return 0;
@@ -709,6 +780,7 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
 	if (!phy)
 		return;
 
+	mt7915_unregister_thermal(phy);
 	mt76_unregister_phy(mphy);
 	ieee80211_free_hw(mphy->hw);
 }
@@ -771,6 +843,7 @@ int mt7915_register_device(struct mt7915_dev *dev)
 void mt7915_unregister_device(struct mt7915_dev *dev)
 {
 	mt7915_unregister_ext_phy(dev);
+	mt7915_unregister_thermal(&dev->phy);
 	mt76_unregister_device(&dev->mt76);
 	mt7915_mcu_exit(dev);
 	mt7915_tx_token_put(dev);
