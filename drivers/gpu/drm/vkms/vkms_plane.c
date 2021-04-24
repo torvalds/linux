@@ -133,7 +133,7 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	if (plane->type == DRM_PLANE_TYPE_CURSOR)
+	if (plane->type != DRM_PLANE_TYPE_PRIMARY)
 		can_position = true;
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
@@ -200,14 +200,23 @@ struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
 	const u32 *formats;
 	int nformats;
 
-	if (type == DRM_PLANE_TYPE_CURSOR) {
-		formats = vkms_plane_formats;
-		nformats = ARRAY_SIZE(vkms_plane_formats);
-		funcs = &vkms_primary_helper_funcs;
-	} else {
+	switch (type) {
+	case DRM_PLANE_TYPE_PRIMARY:
 		formats = vkms_formats;
 		nformats = ARRAY_SIZE(vkms_formats);
 		funcs = &vkms_primary_helper_funcs;
+		break;
+	case DRM_PLANE_TYPE_CURSOR:
+	case DRM_PLANE_TYPE_OVERLAY:
+		formats = vkms_plane_formats;
+		nformats = ARRAY_SIZE(vkms_plane_formats);
+		funcs = &vkms_primary_helper_funcs;
+		break;
+	default:
+		formats = vkms_formats;
+		nformats = ARRAY_SIZE(vkms_formats);
+		funcs = &vkms_primary_helper_funcs;
+		break;
 	}
 
 	plane = drmm_universal_plane_alloc(dev, struct vkms_plane, base, 1 << index,
