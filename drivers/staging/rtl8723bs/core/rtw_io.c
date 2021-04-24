@@ -25,8 +25,6 @@ jackson@realtek.com.tw
 
 */
 
-#define _RTW_IO_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 
