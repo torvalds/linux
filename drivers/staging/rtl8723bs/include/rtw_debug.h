@@ -144,8 +144,6 @@
 
 #if defined(_dbgdump)
 
-#define RTW_DBGDUMP NULL /* 'stream' for _dbgdump */
-
 #endif /* defined(_dbgdump) */
 
 void mac_reg_dump(struct adapter *adapter);
