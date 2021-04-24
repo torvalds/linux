@@ -1117,8 +1117,6 @@ static inline void pipe_truncate(struct iov_iter *i)
 static void pipe_advance(struct iov_iter *i, size_t size)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	if (unlikely(i->count < size))
-		size = i->count;
 	if (size) {
 		struct pipe_buffer *buf;
 		unsigned int p_mask = pipe->ring_size - 1;
@@ -1159,6 +1157,8 @@ static void iov_iter_bvec_advance(struct iov_iter *i, size_t size)
 
 void iov_iter_advance(struct iov_iter *i, size_t size)
 {
+	if (unlikely(i->count < size))
+		size = i->count;
 	if (unlikely(iov_iter_is_pipe(i))) {
 		pipe_advance(i, size);
 		return;
@@ -1168,7 +1168,6 @@ void iov_iter_advance(struct iov_iter *i, size_t size)
 		return;
 	}
 	if (unlikely(iov_iter_is_xarray(i))) {
-		size = min(size, i->count);
 		i->iov_offset += size;
 		i->count -= size;
 		return;
