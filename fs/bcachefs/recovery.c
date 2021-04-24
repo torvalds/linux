@@ -973,7 +973,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	struct jset *last_journal_entry = NULL;
 	u64 blacklist_seq, journal_seq;
 	bool write_sb = false;
-	int ret;
+	int ret = 0;
 
 	if (c->sb.clean)
 		clean = read_superblock_clean(c);
@@ -1253,10 +1253,9 @@ use_clean:
 	if (c->journal_seq_blacklist_table &&
 	    c->journal_seq_blacklist_table->nr > 128)
 		queue_work(system_long_wq, &c->journal_seq_blacklist_gc_work);
-out:
+
 	ret = 0;
-err:
-fsck_err:
+out:
 	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 	bch2_flush_fsck_errs(c);
 
@@ -1270,6 +1269,10 @@ fsck_err:
 	else
 		bch_verbose(c, "ret %i", ret);
 	return ret;
+err:
+fsck_err:
+	bch2_fs_emergency_read_only(c);
+	goto out;
 }
 
 int bch2_fs_initialize(struct bch_fs *c)

@@ -489,6 +489,7 @@ enum {
 	BCH_FS_FSCK_DONE,
 	BCH_FS_STARTED,
 	BCH_FS_RW,
+	BCH_FS_WAS_RW,
 
 	/* shutdown: */
 	BCH_FS_STOPPING,

@@ -683,7 +683,9 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 		kmem_cache_free(bch2_key_cache, ck);
 	}
 
-	BUG_ON(atomic_long_read(&bc->nr_dirty) && !bch2_journal_error(&c->journal));
+	BUG_ON(atomic_long_read(&bc->nr_dirty) &&
+	       !bch2_journal_error(&c->journal) &&
+	       test_bit(BCH_FS_WAS_RW, &c->flags));
 	BUG_ON(atomic_long_read(&bc->nr_keys));
 
 	mutex_unlock(&bc->lock);

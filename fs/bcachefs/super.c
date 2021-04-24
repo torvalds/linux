@@ -441,6 +441,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	percpu_ref_reinit(&c->writes);
 	set_bit(BCH_FS_RW, &c->flags);
+	set_bit(BCH_FS_WAS_RW, &c->flags);
 	return 0;
 err:
 	__bch2_fs_read_only(c);
