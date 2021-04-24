@@ -7,7 +7,6 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define _module_efuse_			BIT(29)
 #define _module_rtl8712_recv_c_		BIT(30)
 
 #undef _MODULE_DEFINE_
@@ -22,8 +21,6 @@
 	#define	_MODULE_DEFINE_	_module_rtl8712_recv_c_
 #elif defined _RTL871X_MLME_EXT_C_
 	#define _MODULE_DEFINE_	_module_mlme_osdep_c_
-#elif defined _RTW_EFUSE_C_
-	#define	_MODULE_DEFINE_	_module_efuse_
 #endif
 
 #define DRIVER_PREFIX "RTL8723BS: "
