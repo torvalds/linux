@@ -2734,7 +2734,7 @@ static int rtw_dbg_port(struct net_device *dev,
 				case 0xdd:/* registers dump , 0 for mac reg, 1 for bb reg, 2 for rf reg */
 					{
 						if (extra_arg == 0)
-							mac_reg_dump(RTW_DBGDUMP, padapter);
+							mac_reg_dump(padapter);
 						else if (extra_arg == 1)
 							bb_reg_dump(RTW_DBGDUMP, padapter);
 						else if (extra_arg == 2)
