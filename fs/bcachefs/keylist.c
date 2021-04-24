@@ -62,6 +62,6 @@ void bch2_verify_keylist_sorted(struct keylist *l)
 
 	for_each_keylist_key(l, k)
 		BUG_ON(bkey_next(k) != l->top &&
-		       bkey_cmp(k->k.p, bkey_next(k)->k.p) >= 0);
+		       bpos_cmp(k->k.p, bkey_next(k)->k.p) >= 0);
 }
 #endif
