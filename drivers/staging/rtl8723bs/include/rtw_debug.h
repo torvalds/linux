@@ -158,15 +158,6 @@
 
 #define RTW_DBGDUMP NULL /* 'stream' for _dbgdump */
 
-/* dump message to selected 'stream' */
-#define DBG_871X_SEL(sel, fmt, arg...)					\
-	do {								\
-		if (sel == RTW_DBGDUMP)					\
-			_DBG_871X_LEVEL(_drv_always_, fmt, ##arg);	\
-		else							\
-			seq_printf(sel, fmt, ##arg);			\
-	} while (0)
-
 #endif /* defined(_dbgdump) */
 
 void mac_reg_dump(void *sel, struct adapter *adapter);
