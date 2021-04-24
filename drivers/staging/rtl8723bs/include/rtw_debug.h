@@ -7,7 +7,6 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define _module_hal_init_c_		BIT(14)
 #define _module_hci_hal_init_c_		BIT(15)
 #define _module_rtl871x_ioctl_c_		BIT(16)
 #define _module_rtl871x_ioctl_set_c_		BIT(17)
@@ -29,9 +28,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _HAL_INTF_C_
-	#define	_MODULE_DEFINE_	_module_hal_init_c_
-#elif (defined _HCI_HAL_INIT_C_) || (defined _SDIO_HALINIT_C_)
+#if (defined _HCI_HAL_INIT_C_) || (defined _SDIO_HALINIT_C_)
 	#define	_MODULE_DEFINE_	_module_hci_hal_init_c_
 #elif defined _RTL871X_IOCTL_C_
 	#define	_MODULE_DEFINE_	_module_rtl871x_ioctl_c_
