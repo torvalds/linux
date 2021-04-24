@@ -252,7 +252,7 @@ cleanup:
 }
 
 /**
- * @kfd_get_cu_occupancy() - Collect number of waves in-flight on this device
+ * @kfd_get_cu_occupancy - Collect number of waves in-flight on this device
  * by current process. Translates acquired wave count into number of compute units
  * that are occupied.
  *
