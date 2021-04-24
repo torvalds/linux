@@ -7,7 +7,6 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define _module_rtl871x_xmit_c_		BIT(0)
 #define _module_xmit_osdep_c_		BIT(1)
 #define _module_rtl871x_recv_c_		BIT(2)
 #define _module_recv_osdep_c_		BIT(3)
@@ -43,9 +42,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _RTW_XMIT_C_
-	#define _MODULE_DEFINE_	_module_rtl871x_xmit_c_
-#elif defined _XMIT_OSDEP_C_
+#if defined _XMIT_OSDEP_C_
 	#define _MODULE_DEFINE_	_module_xmit_osdep_c_
 #elif defined _RTW_RECV_C_
 	#define _MODULE_DEFINE_	_module_rtl871x_recv_c_
