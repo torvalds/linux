@@ -25,6 +25,13 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	}
 }
 
+void bch2_topology_error(struct bch_fs *c)
+{
+	set_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
+	if (test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
+		bch2_inconsistent_error(c);
+}
+
 void bch2_fatal_error(struct bch_fs *c)
 {
 	if (bch2_fs_emergency_read_only(c))
@@ -74,9 +81,13 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 		vprintk(fmt, args);
 		va_end(args);
 
-		return bch2_inconsistent_error(c)
-			? FSCK_ERR_EXIT
-			: FSCK_ERR_FIX;
+		if (c->opts.errors == BCH_ON_ERROR_continue) {
+			bch_err(c, "fixing");
+			return FSCK_ERR_FIX;
+		} else {
+			bch2_inconsistent_error(c);
+			return FSCK_ERR_EXIT;
+		}
 	}
 
 	mutex_lock(&c->fsck_error_lock);
@@ -146,6 +157,7 @@ print:
 		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
 		return FSCK_ERR_FIX;
 	} else {
+		set_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags);
 		set_bit(BCH_FS_ERROR, &c->flags);
 		return c->opts.fix_errors == FSCK_OPT_EXIT ||
 			!(flags & FSCK_CAN_IGNORE)

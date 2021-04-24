@@ -131,6 +131,8 @@ static inline void bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offse
 
 void bch2_btree_sort_into(struct bch_fs *, struct btree *, struct btree *);
 
+void bch2_btree_node_drop_keys_outside_node(struct btree *);
+
 void bch2_btree_build_aux_trees(struct btree *);
 void bch2_btree_init_next(struct bch_fs *, struct btree *,
 			 struct btree_iter *);

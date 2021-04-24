@@ -558,6 +558,55 @@ out:									\
 
 #define btree_err_on(cond, ...)	((cond) ? btree_err(__VA_ARGS__) : false)
 
+/*
+ * When btree topology repair changes the start or end of a node, that might
+ * mean we have to drop keys that are no longer inside the node:
+ */
+__cold
+void bch2_btree_node_drop_keys_outside_node(struct btree *b)
+{
+	struct bset_tree *t;
+	struct bkey_s_c k;
+	struct bkey unpacked;
+	struct btree_node_iter iter;
+
+	for_each_bset(b, t) {
+		struct bset *i = bset(b, t);
+		struct bkey_packed *k;
+
+		for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
+			if (bkey_cmp_left_packed(b, k, &b->data->min_key) >= 0)
+				break;
+
+		if (k != i->start) {
+			unsigned shift = (u64 *) k - (u64 *) i->start;
+
+			memmove_u64s_down(i->start, k,
+					  (u64 *) vstruct_end(i) - (u64 *) k);
+			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - shift);
+			set_btree_bset_end(b, t);
+			bch2_bset_set_no_aux_tree(b, t);
+		}
+
+		for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
+			if (bkey_cmp_left_packed(b, k, &b->data->max_key) > 0)
+				break;
+
+		if (k != vstruct_last(i)) {
+			i->u64s = cpu_to_le16((u64 *) k - (u64 *) i->start);
+			set_btree_bset_end(b, t);
+			bch2_bset_set_no_aux_tree(b, t);
+		}
+	}
+
+	bch2_btree_build_aux_trees(b);
+
+	for_each_btree_node_key_unpack(b, k, &iter, &unpacked) {
+		BUG_ON(bpos_cmp(k.k->p, b->data->min_key) < 0);
+		BUG_ON(bpos_cmp(k.k->p, b->data->max_key) > 0);
+	}
+}
+
 static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 struct btree *b, struct bset *i,
 			 unsigned sectors, int write, bool have_retry)
@@ -680,6 +729,8 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 {
 	unsigned version = le16_to_cpu(i->version);
 	struct bkey_packed *k, *prev = NULL;
+	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
+		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	int ret = 0;
 
 	for (k = i->start;
@@ -713,7 +764,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		u = __bkey_disassemble(b, k, &tmp);
 
 		invalid = __bch2_bkey_invalid(c, u.s_c, btree_node_type(b)) ?:
-			bch2_bkey_in_btree_node(b, u.s_c) ?:
+			(!updated_range ?  bch2_bkey_in_btree_node(b, u.s_c) : NULL) ?:
 			(write ? bch2_bkey_val_invalid(c, u.s_c) : NULL);
 		if (invalid) {
 			char buf[160];
@@ -770,6 +821,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	struct bch_extent_ptr *ptr;
 	struct bset *i;
 	bool used_mempool, blacklisted;
+	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
+		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	unsigned u64s;
 	int ret, retry_read = 0, write = READ;
 
@@ -916,6 +969,9 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	BUG_ON(b->nr.live_u64s != u64s);
 
 	btree_bounce_free(c, btree_bytes(c), used_mempool, sorted);
+
+	if (updated_range)
+		bch2_btree_node_drop_keys_outside_node(b);
 
 	i = &b->data->keys;
 	for (k = i->start; k != vstruct_last(i);) {

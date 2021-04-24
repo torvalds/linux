@@ -388,6 +388,11 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	unsigned i;
 	int ret;
 
+	if (test_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags)) {
+		bch_err(c, "cannot go rw, unfixed btree errors");
+		return -EROFS;
+	}
+
 	if (test_bit(BCH_FS_RW, &c->flags))
 		return 0;
 

@@ -1609,11 +1609,12 @@ retry:
 
 		bch2_bpos_to_text(&PBUF(buf1), prev->data->max_key);
 		bch2_bpos_to_text(&PBUF(buf2), next->data->min_key);
-		bch2_fs_inconsistent(c,
-				     "btree topology error in btree merge:\n"
-				     "prev ends at   %s\n"
-				     "next starts at %s\n",
-				     buf1, buf2);
+		bch_err(c,
+			"btree topology error in btree merge:\n"
+			"  prev ends at   %s\n"
+			"  next starts at %s",
+			buf1, buf2);
+		bch2_topology_error(c);
 		ret = -EIO;
 		goto err;
 	}

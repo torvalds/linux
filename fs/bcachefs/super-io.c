@@ -439,6 +439,11 @@ int bch2_sb_to_fs(struct bch_fs *c, struct bch_sb *src)
 
 	__copy_super(&c->disk_sb, src);
 
+	if (BCH_SB_HAS_ERRORS(c->disk_sb.sb))
+		set_bit(BCH_FS_ERROR, &c->flags);
+	if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb))
+		set_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
+
 	ret = bch2_sb_replicas_to_cpu_replicas(c);
 	if (ret)
 		return ret;
@@ -715,6 +720,8 @@ int bch2_write_super(struct bch_fs *c)
 
 	if (test_bit(BCH_FS_ERROR, &c->flags))
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 1);
+	if (test_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags))
+		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, 1);
 
 	SET_BCH_SB_BIG_ENDIAN(c->disk_sb.sb, CPU_BIG_ENDIAN);
 

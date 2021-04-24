@@ -29,6 +29,8 @@ struct work_struct;
 
 bool bch2_inconsistent_error(struct bch_fs *);
 
+void bch2_topology_error(struct bch_fs *);
+
 #define bch2_fs_inconsistent(c, ...)					\
 ({									\
 	bch_err(c, __VA_ARGS__);					\
@@ -88,6 +90,7 @@ enum fsck_err_ret {
 	FSCK_ERR_IGNORE	= 0,
 	FSCK_ERR_FIX	= 1,
 	FSCK_ERR_EXIT	= 2,
+	FSCK_ERR_START_TOPOLOGY_REPAIR = 3,
 };
 
 struct fsck_err_state {

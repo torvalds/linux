@@ -1241,8 +1241,9 @@ use_clean:
 
 	if (c->opts.fsck &&
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
-	    BCH_SB_HAS_ERRORS(c->disk_sb.sb)) {
+	    !test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags)) {
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
+		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, 0);
 		write_sb = true;
 	}
 
