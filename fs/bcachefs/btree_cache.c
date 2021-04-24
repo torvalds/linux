@@ -33,21 +33,21 @@ static inline unsigned btree_cache_can_free(struct btree_cache *bc)
 	return max_t(int, 0, bc->used - bc->reserve);
 }
 
-static void __btree_node_data_free(struct bch_fs *c, struct btree *b)
-{
-	EBUG_ON(btree_node_write_in_flight(b));
-
-	kvpfree(b->data, btree_bytes(c));
-	b->data = NULL;
-	kvfree(b->aux_data);
-	b->aux_data = NULL;
-}
-
 static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 {
 	struct btree_cache *bc = &c->btree_cache;
 
-	__btree_node_data_free(c, b);
+	EBUG_ON(btree_node_write_in_flight(b));
+
+	kvpfree(b->data, btree_bytes(c));
+	b->data = NULL;
+#ifdef __KERNEL__
+	kvfree(b->aux_data);
+#else
+	munmap(b->aux_data, btree_aux_data_bytes(b));
+#endif
+	b->aux_data = NULL;
+
 	bc->used--;
 	list_move(&b->list, &bc->freed);
 }
@@ -75,8 +75,15 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 	b->data = kvpmalloc(btree_bytes(c), gfp);
 	if (!b->data)
 		return -ENOMEM;
-
+#ifdef __KERNEL__
 	b->aux_data = kvmalloc(btree_aux_data_bytes(b), gfp);
+#else
+	b->aux_data = mmap(NULL, btree_aux_data_bytes(b),
+			   PROT_READ|PROT_WRITE|PROT_EXEC,
+			   MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+	if (b->aux_data == MAP_FAILED)
+		b->aux_data = NULL;
+#endif
 	if (!b->aux_data) {
 		kvpfree(b->data, btree_bytes(c));
 		b->data = NULL;
