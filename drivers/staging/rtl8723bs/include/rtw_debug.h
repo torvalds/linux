@@ -7,7 +7,6 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define _module_hci_intfs_c_			BIT(20)
 #define _module_hci_ops_c_			BIT(21)
 #define _module_osdep_service_c_			BIT(22)
 #define _module_mp_			BIT(23)
@@ -23,14 +22,10 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _HCI_INTF_C_
-	#define	_MODULE_DEFINE_	_module_hci_intfs_c_
-#elif defined _HCI_OPS_C_
+#if defined _HCI_OPS_C_
 	#define	_MODULE_DEFINE_	_module_hci_ops_c_
 #elif defined _SDIO_OPS_C_
 	#define	_MODULE_DEFINE_ 1
-#elif defined _OSDEP_HCI_INTF_C_
-	#define	_MODULE_DEFINE_	_module_hci_intfs_c_
 #elif defined _OSDEP_SERVICE_C_
 	#define	_MODULE_DEFINE_	_module_osdep_service_c_
 #elif defined _HCI_OPS_OS_C_
