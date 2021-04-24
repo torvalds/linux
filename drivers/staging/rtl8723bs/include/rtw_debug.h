@@ -131,20 +131,12 @@
 	#define	_MODULE_DEFINE_	_module_efuse_
 #endif
 
-#undef _dbgdump
-
 #ifndef _RTL871X_DEBUG_C_
 	extern u32 GlobalDebugLevel;
 	extern u64 GlobalDebugComponents;
 #endif
 
-#define _dbgdump printk
-
 #define DRIVER_PREFIX "RTL8723BS: "
-
-#if defined(_dbgdump)
-
-#endif /* defined(_dbgdump) */
 
 void mac_reg_dump(struct adapter *adapter);
 void bb_reg_dump(struct adapter *adapter);
