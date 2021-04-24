@@ -9018,6 +9018,7 @@ static void io_sqpoll_cancel_cb(struct callback_head *cb)
 	if (sqd->thread)
 		io_uring_cancel_sqpoll(sqd);
 	list_del_init(&work->ctx->sqd_list);
+	io_sqd_update_thread_idle(sqd);
 	complete(&work->completion);
 }
 
@@ -9028,7 +9029,6 @@ static void io_sqpoll_cancel_sync(struct io_ring_ctx *ctx)
 	struct task_struct *task;
 
 	io_sq_thread_park(sqd);
-	io_sqd_update_thread_idle(sqd);
 	task = sqd->thread;
 	if (task) {
 		init_completion(&work.completion);
@@ -9037,6 +9037,7 @@ static void io_sqpoll_cancel_sync(struct io_ring_ctx *ctx)
 		wake_up_process(task);
 	} else {
 		list_del_init(&ctx->sqd_list);
+		io_sqd_update_thread_idle(sqd);
 	}
 	io_sq_thread_unpark(sqd);
 
