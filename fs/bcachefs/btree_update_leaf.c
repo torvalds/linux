@@ -293,6 +293,12 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	    !(trans->flags & BTREE_INSERT_JOURNAL_RECLAIM))
 		return BTREE_INSERT_NEED_JOURNAL_RECLAIM;
 
+	/*
+	 * bch2_varint_decode can read past the end of the buffer by at most 7
+	 * bytes (it won't be used):
+	 */
+	u64s += 1;
+
 	if (u64s <= ck->u64s)
 		return BTREE_INSERT_OK;
 

@@ -219,8 +219,14 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 		goto err;
 	}
 
-	if (k.k->u64s > ck->u64s) {
-		new_u64s = roundup_pow_of_two(k.k->u64s);
+	/*
+	 * bch2_varint_decode can read past the end of the buffer by at
+	 * most 7 bytes (it won't be used):
+	 */
+	new_u64s = k.k->u64s + 1;
+
+	if (new_u64s > ck->u64s) {
+		new_u64s = roundup_pow_of_two(new_u64s);
 		new_k = kmalloc(new_u64s * sizeof(u64), GFP_NOFS);
 		if (!new_k) {
 			ret = -ENOMEM;
