@@ -7,11 +7,8 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define	_module_rtl8192c_xmit_c_ BIT(28)
-#define _module_hal_xmit_c_	BIT(28)
 #define _module_efuse_			BIT(29)
 #define _module_rtl8712_recv_c_		BIT(30)
-#define _module_rtl8712_led_c_		BIT(31)
 
 #undef _MODULE_DEFINE_
 
