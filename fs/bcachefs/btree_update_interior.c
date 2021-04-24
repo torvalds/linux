@@ -1797,6 +1797,56 @@ out:
 	return ret;
 }
 
+struct async_btree_rewrite {
+	struct bch_fs		*c;
+	struct work_struct	work;
+	enum btree_id		btree_id;
+	unsigned		level;
+	struct bpos		pos;
+	__le64			seq;
+};
+
+void async_btree_node_rewrite_work(struct work_struct *work)
+{
+	struct async_btree_rewrite *a =
+		container_of(work, struct async_btree_rewrite, work);
+	struct bch_fs *c = a->c;
+	struct btree_trans trans;
+	struct btree_iter *iter;
+
+	bch2_trans_init(&trans, c, 0, 0);
+	iter = bch2_trans_get_node_iter(&trans, a->btree_id, a->pos,
+					BTREE_MAX_DEPTH, a->level, 0);
+	bch2_btree_node_rewrite(c, iter, a->seq, 0);
+	bch2_trans_iter_put(&trans, iter);
+	bch2_trans_exit(&trans);
+	percpu_ref_put(&c->writes);
+	kfree(a);
+}
+
+void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
+{
+	struct async_btree_rewrite *a;
+
+	if (!percpu_ref_tryget(&c->writes))
+		return;
+
+	a = kmalloc(sizeof(*a), GFP_NOFS);
+	if (!a) {
+		percpu_ref_put(&c->writes);
+		return;
+	}
+
+	a->c		= c;
+	a->btree_id	= b->c.btree_id;
+	a->level	= b->c.level;
+	a->pos		= b->key.k.p;
+	a->seq		= b->data->keys.seq;
+
+	INIT_WORK(&a->work, async_btree_node_rewrite_work);
+	queue_work(system_long_wq, &a->work);
+}
+
 static void __bch2_btree_node_update_key(struct bch_fs *c,
 					 struct btree_update *as,
 					 struct btree_iter *iter,

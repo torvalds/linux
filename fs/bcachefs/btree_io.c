@@ -986,6 +986,7 @@ static void btree_node_read_work(struct work_struct *work)
 	struct bch_io_failures failed = { .nr = 0 };
 	char buf[200];
 	struct printbuf out;
+	bool saw_error = false;
 	bool can_retry;
 
 	goto start;
@@ -1022,6 +1023,8 @@ start:
 		    !bch2_btree_node_read_done(c, ca, b, can_retry))
 			break;
 
+		saw_error = true;
+
 		if (!can_retry) {
 			set_btree_node_read_error(b);
 			break;
@@ -1031,6 +1034,10 @@ start:
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_read],
 			       rb->start_time);
 	bio_put(&rb->bio);
+
+	if (saw_error && !btree_node_read_error(b))
+		bch2_btree_node_rewrite_async(c, b);
+
 	clear_btree_node_read_in_flight(b);
 	wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
 }
