@@ -6932,6 +6932,11 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf, bool force)
 	 */
 	update_rq_clock(rq);
 
+#ifdef CONFIG_SCHED_DEBUG
+	/* note the clock update in orf */
+	orf.clock_update_flags |= RQCF_UPDATED;
+#endif
+
 	for (;;) {
 		/*
 		 * There's this thread running, bail when that's the only
