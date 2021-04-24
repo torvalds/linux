@@ -644,6 +644,7 @@ struct bch_fs {
 	struct mutex		btree_trans_lock;
 	struct list_head	btree_trans_list;
 	mempool_t		btree_iters_pool;
+	mempool_t		btree_trans_mem_pool;
 	struct btree_iter_buf  __percpu	*btree_iters_bufs;
 
 	struct srcu_struct	btree_trans_barrier;

@@ -346,6 +346,8 @@ struct btree_insert_entry {
 #define BTREE_ITER_MAX		32
 #endif
 
+#define BTREE_TRANS_MEM_MAX	(1U << 14)
+
 struct btree_trans {
 	struct bch_fs		*c;
 #ifdef CONFIG_BCACHEFS_DEBUG
