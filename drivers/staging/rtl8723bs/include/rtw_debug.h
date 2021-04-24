@@ -37,9 +37,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _RTW_MLME_EXT_C_
-	#define _MODULE_DEFINE_ 1
-#elif defined _RTW_STA_MGT_C_
+#if defined _RTW_STA_MGT_C_
 	#define _MODULE_DEFINE_	_module_rtl871x_sta_mgt_c_
 #elif defined _RTW_CMD_C_
 	#define _MODULE_DEFINE_	_module_rtl871x_cmd_c_
