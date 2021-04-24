@@ -125,26 +125,26 @@ static void blend(void *vaddr_dst, void *vaddr_src,
 	}
 }
 
-static void compose_cursor(struct vkms_composer *cursor_composer,
-			   struct vkms_composer *primary_composer,
-			   void *vaddr_out)
+static void compose_plane(struct vkms_composer *primary_composer,
+			  struct vkms_composer *plane_composer,
+			  void *vaddr_out)
 {
-	struct drm_gem_object *cursor_obj;
-	struct drm_gem_shmem_object *cursor_shmem_obj;
+	struct drm_gem_object *plane_obj;
+	struct drm_gem_shmem_object *plane_shmem_obj;
 
-	cursor_obj = drm_gem_fb_get_obj(&cursor_composer->fb, 0);
-	cursor_shmem_obj = to_drm_gem_shmem_obj(cursor_obj);
+	plane_obj = drm_gem_fb_get_obj(&plane_composer->fb, 0);
+	plane_shmem_obj = to_drm_gem_shmem_obj(plane_obj);
 
-	if (WARN_ON(!cursor_shmem_obj->vaddr))
+	if (WARN_ON(!plane_shmem_obj->vaddr))
 		return;
 
-	blend(vaddr_out, cursor_shmem_obj->vaddr,
-	      primary_composer, cursor_composer);
+	blend(vaddr_out, plane_shmem_obj->vaddr,
+	      primary_composer, plane_composer);
 }
 
-static int compose_planes(void **vaddr_out,
-			  struct vkms_composer *primary_composer,
-			  struct vkms_composer *cursor_composer)
+static int compose_active_planes(void **vaddr_out,
+				 struct vkms_composer *primary_composer,
+				 struct vkms_composer *cursor_composer)
 {
 	struct drm_framebuffer *fb = &primary_composer->fb;
 	struct drm_gem_object *gem_obj = drm_gem_fb_get_obj(fb, 0);
@@ -164,7 +164,7 @@ static int compose_planes(void **vaddr_out,
 	memcpy(*vaddr_out, shmem_obj->vaddr, shmem_obj->base.size);
 
 	if (cursor_composer)
-		compose_cursor(cursor_composer, primary_composer, *vaddr_out);
+		compose_plane(primary_composer, cursor_composer, *vaddr_out);
 
 	return 0;
 }
@@ -222,7 +222,8 @@ void vkms_composer_worker(struct work_struct *work)
 	if (wb_pending)
 		vaddr_out = crtc_state->active_writeback;
 
-	ret = compose_planes(&vaddr_out, primary_composer, cursor_composer);
+	ret = compose_active_planes(&vaddr_out, primary_composer,
+				    cursor_composer);
 	if (ret) {
 		if (ret == -EINVAL && !wb_pending)
 			kfree(vaddr_out);
