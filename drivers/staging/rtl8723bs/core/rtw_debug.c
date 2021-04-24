@@ -14,23 +14,6 @@ u32 GlobalDebugLevel = _drv_err_;
 
 #include <rtw_version.h>
 
-void sd_f0_reg_dump(void *sel, struct adapter *adapter)
-{
-	int i;
-
-	for (i = 0x0; i <= 0xff; i++) {
-		if (i%16 == 0)
-			netdev_dbg(adapter->pnetdev, "0x%02x ", i);
-
-		DBG_871X_SEL(sel, "%02x ", rtw_sd_f0_read8(adapter, i));
-
-		if (i%16 == 15)
-			DBG_871X_SEL(sel, "\n");
-		else if (i%8 == 7)
-			DBG_871X_SEL(sel, "\t");
-	}
-}
-
 void mac_reg_dump(void *sel, struct adapter *adapter)
 {
 	int i, j = 1;

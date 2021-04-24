@@ -169,8 +169,6 @@
 
 #endif /* defined(_dbgdump) */
 
-void sd_f0_reg_dump(void *sel, struct adapter *adapter);
-
 void mac_reg_dump(void *sel, struct adapter *adapter);
 void bb_reg_dump(void *sel, struct adapter *adapter);
 void rf_reg_dump(void *sel, struct adapter *adapter);
