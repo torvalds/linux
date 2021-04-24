@@ -546,6 +546,8 @@ struct btree_iter_buf {
 	struct btree_iter	*iter;
 };
 
+#define REPLICAS_DELTA_LIST_MAX	(1U << 16)
+
 struct bch_fs {
 	struct closure		cl;
 
@@ -573,6 +575,7 @@ struct bch_fs {
 	struct bch_replicas_cpu replicas;
 	struct bch_replicas_cpu replicas_gc;
 	struct mutex		replicas_gc_lock;
+	mempool_t		replicas_delta_pool;
 
 	struct journal_entry_res btree_root_journal_res;
 	struct journal_entry_res replicas_journal_res;

@@ -560,10 +560,26 @@ replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 {
 	struct replicas_delta_list *d = trans->fs_usage_deltas;
 	unsigned new_size = d ? (d->size + more) * 2 : 128;
+	unsigned alloc_size = sizeof(*d) + new_size;
+
+	WARN_ON_ONCE(alloc_size > REPLICAS_DELTA_LIST_MAX);
 
 	if (!d || d->used + more > d->size) {
-		d = krealloc(d, sizeof(*d) + new_size, GFP_NOIO|__GFP_ZERO);
-		BUG_ON(!d);
+		d = krealloc(d, alloc_size, GFP_NOIO|__GFP_ZERO);
+
+		BUG_ON(!d && alloc_size > REPLICAS_DELTA_LIST_MAX);
+
+		if (!d) {
+			d = mempool_alloc(&trans->c->replicas_delta_pool, GFP_NOIO);
+			memset(d, 0, REPLICAS_DELTA_LIST_MAX);
+
+			if (trans->fs_usage_deltas)
+				memcpy(d, trans->fs_usage_deltas,
+				       trans->fs_usage_deltas->size + sizeof(*d));
+
+			new_size = REPLICAS_DELTA_LIST_MAX - sizeof(*d);
+			kfree(trans->fs_usage_deltas);
+		}
 
 		d->size = new_size;
 		trans->fs_usage_deltas = d;

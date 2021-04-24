@@ -1033,11 +1033,27 @@ unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 	return ret;
 }
 
+void bch2_fs_replicas_exit(struct bch_fs *c)
+{
+	unsigned i;
+
+	kfree(c->usage_scratch);
+	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
+		free_percpu(c->usage[i]);
+	kfree(c->usage_base);
+	kfree(c->replicas.entries);
+	kfree(c->replicas_gc.entries);
+
+	mempool_exit(&c->replicas_delta_pool);
+}
+
 int bch2_fs_replicas_init(struct bch_fs *c)
 {
 	bch2_journal_entry_res_resize(&c->journal,
 			&c->replicas_journal_res,
 			reserve_journal_replicas(c, &c->replicas));
 
-	return replicas_table_update(c, &c->replicas);
+	return mempool_init_kmalloc_pool(&c->replicas_delta_pool, 1,
+					 REPLICAS_DELTA_LIST_MAX) ?:
+		replicas_table_update(c, &c->replicas);
 }

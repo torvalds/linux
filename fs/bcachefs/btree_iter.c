@@ -2337,7 +2337,14 @@ int bch2_trans_exit(struct btree_trans *trans)
 
 	bch2_journal_preres_put(&trans->c->journal, &trans->journal_preres);
 
-	kfree(trans->fs_usage_deltas);
+	if (trans->fs_usage_deltas) {
+		if (trans->fs_usage_deltas->size + sizeof(trans->fs_usage_deltas) ==
+		    REPLICAS_DELTA_LIST_MAX)
+			mempool_free(trans->fs_usage_deltas,
+				     &trans->c->replicas_delta_pool);
+		else
+			kfree(trans->fs_usage_deltas);
+	}
 
 	if (trans->mem_bytes == BTREE_TRANS_MEM_MAX)
 		mempool_free(trans->mem, &trans->c->btree_trans_mem_pool);

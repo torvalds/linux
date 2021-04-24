@@ -476,6 +476,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_fs_btree_iter_exit(c);
 	bch2_fs_btree_key_cache_exit(&c->btree_key_cache);
 	bch2_fs_btree_cache_exit(c);
+	bch2_fs_replicas_exit(c);
 	bch2_fs_journal_exit(&c->journal);
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
 	bch2_io_clock_exit(&c->io_clock[READ]);
@@ -484,10 +485,6 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_journal_entries_free(&c->journal_entries);
 	percpu_free_rwsem(&c->mark_lock);
 	free_percpu(c->online_reserved);
-	kfree(c->usage_scratch);
-	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-		free_percpu(c->usage[i]);
-	kfree(c->usage_base);
 
 	if (c->btree_iters_bufs)
 		for_each_possible_cpu(cpu)
@@ -500,8 +497,6 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bioset_exit(&c->btree_bio);
 	mempool_exit(&c->fill_iter);
 	percpu_ref_exit(&c->writes);
-	kfree(c->replicas.entries);
-	kfree(c->replicas_gc.entries);
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 	kfree(c->journal_seq_blacklist_table);
 	kfree(c->unused_inode_hints);
