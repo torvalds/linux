@@ -14,41 +14,54 @@ u32 GlobalDebugLevel = _drv_err_;
 
 #include <rtw_version.h>
 
+static void dump_4_regs(struct adapter *adapter, int offset)
+{
+	u32 reg[4];
+	int i;
+
+	for (i = 0; i < 4; i++)
+		reg[i] = rtw_read32(adapter, offset + i);
+
+	netdev_dbg(adapter->pnetdev, "0x%03x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   i, reg[0], reg[1], reg[2], reg[3]);
+}
+
 void mac_reg_dump(void *sel, struct adapter *adapter)
 {
-	int i, j = 1;
+	int i;
 
 	netdev_dbg(adapter->pnetdev, "======= MAC REG =======\n");
 
-	for (i = 0x0; i < 0x800; i += 4) {
-		if (j%4 == 1)
-			netdev_dbg(adapter->pnetdev, "0x%03x", i);
-		netdev_dbg(adapter->pnetdev, " 0x%08x ",
-			   rtw_read32(adapter, i));
-		if ((j++)%4 == 0)
-			netdev_dbg(adapter->pnetdev, "\n");
-	}
+	for (i = 0x0; i < 0x800; i += 4)
+		dump_4_regs(adapter, i);
 }
 
 void bb_reg_dump(void *sel, struct adapter *adapter)
 {
-	int i, j = 1;
+	int i;
 
 	netdev_dbg(adapter->pnetdev, "======= BB REG =======\n");
-	for (i = 0x800; i < 0x1000 ; i += 4) {
-		if (j%4 == 1)
-			netdev_dbg(adapter->pnetdev, "0x%03x", i);
-		netdev_dbg(adapter->pnetdev, " 0x%08x ",
-			   rtw_read32(adapter, i));
-		if ((j++)%4 == 0)
-			netdev_dbg(adapter->pnetdev, "\n");
-	}
+
+	for (i = 0x800; i < 0x1000 ; i += 4)
+		dump_4_regs(adapter, i);
+}
+
+static void dump_4_rf_regs(struct adapter *adapter, int path, int offset)
+{
+	u8 reg[4];
+	int i;
+
+	for (i = 0; i < 4; i++)
+		reg[i] = rtw_hal_read_rfreg(adapter, path, offset + i,
+					    0xffffffff);
+
+	netdev_dbg(adapter->pnetdev, "0x%02x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   i, reg[0], reg[1], reg[2], reg[3]);
 }
 
 void rf_reg_dump(void *sel, struct adapter *adapter)
 {
-	int i, j = 1, path;
-	u32 value;
+	int i, path;
 	u8 rf_type = 0;
 	u8 path_nums = 0;
 
@@ -62,13 +75,7 @@ void rf_reg_dump(void *sel, struct adapter *adapter)
 
 	for (path = 0; path < path_nums; path++) {
 		netdev_dbg(adapter->pnetdev, "RF_Path(%x)\n", path);
-		for (i = 0; i < 0x100; i++) {
-			value = rtw_hal_read_rfreg(adapter, path, i, 0xffffffff);
-			if (j%4 == 1)
-				netdev_dbg(adapter->pnetdev, "0x%02x ", i);
-			netdev_dbg(adapter->pnetdev, " 0x%08x ", value);
-			if ((j++)%4 == 0)
-				netdev_dbg(adapter->pnetdev, "\n");
-		}
+		for (i = 0; i < 0x100; i++)
+			dump_4_rf_regs(adapter, path, i);
 	}
 }
