@@ -21,9 +21,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _SDIO_OPS_C_
-	#define	_MODULE_DEFINE_ 1
-#elif defined _OSDEP_SERVICE_C_
+#if defined _OSDEP_SERVICE_C_
 	#define	_MODULE_DEFINE_	_module_osdep_service_c_
 #elif defined _HCI_OPS_OS_C_
 	#define	_MODULE_DEFINE_	_module_hci_ops_os_c_
