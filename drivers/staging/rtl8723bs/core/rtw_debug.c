@@ -59,7 +59,7 @@ static void dump_4_rf_regs(struct adapter *adapter, int path, int offset)
 		   i, reg[0], reg[1], reg[2], reg[3]);
 }
 
-void rf_reg_dump(void *sel, struct adapter *adapter)
+void rf_reg_dump(struct adapter *adapter)
 {
 	int i, path;
 	u8 rf_type = 0;

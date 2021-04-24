@@ -2738,7 +2738,7 @@ static int rtw_dbg_port(struct net_device *dev,
 						else if (extra_arg == 1)
 							bb_reg_dump(padapter);
 						else if (extra_arg == 2)
-							rf_reg_dump(RTW_DBGDUMP, padapter);
+							rf_reg_dump(padapter);
 					}
 					break;
 
