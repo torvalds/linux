@@ -252,6 +252,9 @@ quiet_cmd_copy = COPY    $@
 
 # Shipped files
 # ===========================================================================
+# 'cp' preserves permissions. If you use it to copy a file in read-only srctree,
+# the copy would be read-only as well, leading to an error when executing the
+# rule next time. Use 'cat' instead in order to generate a writable file.
 
 quiet_cmd_shipped = SHIPPED $@
 cmd_shipped = cat $< > $@
