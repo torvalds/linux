@@ -7,7 +7,6 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define _module_os_intfs_c_			BIT(11)
 #define _module_rtl871x_security_c_		BIT(12)
 #define _module_rtl871x_eeprom_c_			BIT(13)
 #define _module_hal_init_c_		BIT(14)
@@ -32,9 +31,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _OS_INTFS_C_
-	#define	_MODULE_DEFINE_	_module_os_intfs_c_
-#elif defined _RTW_SECURITY_C_
+#if defined _RTW_SECURITY_C_
 	#define	_MODULE_DEFINE_	_module_rtl871x_security_c_
 #elif defined _RTW_EEPROM_C_
 	#define	_MODULE_DEFINE_	_module_rtl871x_eeprom_c_
