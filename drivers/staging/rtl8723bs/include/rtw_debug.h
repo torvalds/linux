@@ -144,18 +144,6 @@
 
 #if defined(_dbgdump)
 
-/* without driver-defined prefix */
-#undef _DBG_871X_LEVEL
-#define _DBG_871X_LEVEL(level, fmt, arg...)	   \
-	do {\
-		if (level <= GlobalDebugLevel) {\
-			if (level <= _drv_err_ && level > _drv_always_) \
-				_dbgdump("ERROR " fmt, ##arg);\
-			else \
-				_dbgdump(fmt, ##arg);\
-		} \
-	} while (0)
-
 #define RTW_DBGDUMP NULL /* 'stream' for _dbgdump */
 
 #endif /* defined(_dbgdump) */
