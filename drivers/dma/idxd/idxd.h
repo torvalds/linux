@@ -9,6 +9,8 @@
 #include <linux/wait.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
+#include <linux/pci.h>
+#include <linux/perf_event.h>
 #include "registers.h"
 
 #define IDXD_DRIVER_VERSION	"1.00"
@@ -29,6 +31,7 @@ enum idxd_type {
 };
 
 #define IDXD_NAME_SIZE		128
+#define IDXD_PMU_EVENT_MAX	64
 
 struct idxd_device_driver {
 	struct device_driver drv;
@@ -59,6 +62,31 @@ struct idxd_group {
 	u8 tokens_reserved;
 	int tc_a;
 	int tc_b;
+};
+
+struct idxd_pmu {
+	struct idxd_device *idxd;
+
+	struct perf_event *event_list[IDXD_PMU_EVENT_MAX];
+	int n_events;
+
+	DECLARE_BITMAP(used_mask, IDXD_PMU_EVENT_MAX);
+
+	struct pmu pmu;
+	char name[IDXD_NAME_SIZE];
+	int cpu;
+
+	int n_counters;
+	int counter_width;
+	int n_event_categories;
+
+	bool per_counter_caps_supported;
+	unsigned long supported_event_categories;
+
+	unsigned long supported_filters;
+	int n_filters;
+
+	struct hlist_node cpuhp_node;
 };
 
 #define IDXD_MAX_PRIORITY	0xf
@@ -241,6 +269,8 @@ struct idxd_device {
 	struct work_struct work;
 
 	int *int_handles;
+
+	struct idxd_pmu *idxd_pmu;
 };
 
 /* IDXD software descriptor */
@@ -436,5 +466,20 @@ void idxd_cdev_remove(void);
 int idxd_cdev_get_major(struct idxd_device *idxd);
 int idxd_wq_add_cdev(struct idxd_wq *wq);
 void idxd_wq_del_cdev(struct idxd_wq *wq);
+
+/* perfmon */
+#if IS_ENABLED(CONFIG_INTEL_IDXD_PERFMON)
+int perfmon_pmu_init(struct idxd_device *idxd);
+void perfmon_pmu_remove(struct idxd_device *idxd);
+void perfmon_counter_overflow(struct idxd_device *idxd);
+void perfmon_init(void);
+void perfmon_exit(void);
+#else
+static inline int perfmon_pmu_init(struct idxd_device *idxd) { return 0; }
+static inline void perfmon_pmu_remove(struct idxd_device *idxd) {}
+static inline void perfmon_counter_overflow(struct idxd_device *idxd) {}
+static inline void perfmon_init(void) {}
+static inline void perfmon_exit(void) {}
+#endif
 
 #endif

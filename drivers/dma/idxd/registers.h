@@ -386,4 +386,112 @@ union wqcfg {
 #define GRPENGCFG_OFFSET(idxd_dev, n) ((idxd_dev)->grpcfg_offset + (n) * GRPCFG_SIZE + 32)
 #define GRPFLGCFG_OFFSET(idxd_dev, n) ((idxd_dev)->grpcfg_offset + (n) * GRPCFG_SIZE + 40)
 
+/* Following is performance monitor registers */
+#define IDXD_PERFCAP_OFFSET		0x0
+union idxd_perfcap {
+	struct {
+		u64 num_perf_counter:6;
+		u64 rsvd1:2;
+		u64 counter_width:8;
+		u64 num_event_category:4;
+		u64 global_event_category:16;
+		u64 filter:8;
+		u64 rsvd2:8;
+		u64 cap_per_counter:1;
+		u64 writeable_counter:1;
+		u64 counter_freeze:1;
+		u64 overflow_interrupt:1;
+		u64 rsvd3:8;
+	};
+	u64 bits;
+} __packed;
+
+#define IDXD_EVNTCAP_OFFSET		0x80
+union idxd_evntcap {
+	struct {
+		u64 events:28;
+		u64 rsvd:36;
+	};
+	u64 bits;
+} __packed;
+
+struct idxd_event {
+	union {
+		struct {
+			u32 event_category:4;
+			u32 events:28;
+		};
+		u32 val;
+	};
+} __packed;
+
+#define IDXD_CNTRCAP_OFFSET		0x800
+struct idxd_cntrcap {
+	union {
+		struct {
+			u32 counter_width:8;
+			u32 rsvd:20;
+			u32 num_events:4;
+		};
+		u32 val;
+	};
+	struct idxd_event events[];
+} __packed;
+
+#define IDXD_PERFRST_OFFSET		0x10
+union idxd_perfrst {
+	struct {
+		u32 perfrst_config:1;
+		u32 perfrst_counter:1;
+		u32 rsvd:30;
+	};
+	u32 val;
+} __packed;
+
+#define IDXD_OVFSTATUS_OFFSET		0x30
+#define IDXD_PERFFRZ_OFFSET		0x20
+#define IDXD_CNTRCFG_OFFSET		0x100
+union idxd_cntrcfg {
+	struct {
+		u64 enable:1;
+		u64 interrupt_ovf:1;
+		u64 global_freeze_ovf:1;
+		u64 rsvd1:5;
+		u64 event_category:4;
+		u64 rsvd2:20;
+		u64 events:28;
+		u64 rsvd3:4;
+	};
+	u64 val;
+} __packed;
+
+#define IDXD_FLTCFG_OFFSET		0x300
+
+#define IDXD_CNTRDATA_OFFSET		0x200
+union idxd_cntrdata {
+	struct {
+		u64 event_count_value;
+	};
+	u64 val;
+} __packed;
+
+union event_cfg {
+	struct {
+		u64 event_cat:4;
+		u64 event_enc:28;
+	};
+	u64 val;
+} __packed;
+
+union filter_cfg {
+	struct {
+		u64 wq:32;
+		u64 tc:8;
+		u64 pg_sz:4;
+		u64 xfer_sz:8;
+		u64 eng:8;
+	};
+	u64 val;
+} __packed;
+
 #endif
