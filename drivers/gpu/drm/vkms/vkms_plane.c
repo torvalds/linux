@@ -16,8 +16,9 @@ static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-static const u32 vkms_cursor_formats[] = {
+static const u32 vkms_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888
 };
 
 static struct drm_plane_state *
@@ -200,8 +201,8 @@ struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
 	int nformats;
 
 	if (type == DRM_PLANE_TYPE_CURSOR) {
-		formats = vkms_cursor_formats;
-		nformats = ARRAY_SIZE(vkms_cursor_formats);
+		formats = vkms_plane_formats;
+		nformats = ARRAY_SIZE(vkms_plane_formats);
 		funcs = &vkms_primary_helper_funcs;
 	} else {
 		formats = vkms_formats;
