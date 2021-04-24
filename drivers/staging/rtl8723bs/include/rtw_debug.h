@@ -23,9 +23,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _RTW_PWRCTRL_C_
-	#define	_MODULE_DEFINE_	1
-#elif defined _HCI_INTF_C_
+#if defined _HCI_INTF_C_
 	#define	_MODULE_DEFINE_	_module_hci_intfs_c_
 #elif defined _HCI_OPS_C_
 	#define	_MODULE_DEFINE_	_module_hci_ops_c_
