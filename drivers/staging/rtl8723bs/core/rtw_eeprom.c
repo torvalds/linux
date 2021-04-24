@@ -4,8 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_EEPROM_C_
-
 #include <drv_conf.h>
 #include <osdep_service.h>
 #include <drv_types.h>
