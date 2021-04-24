@@ -7,7 +7,6 @@
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
-#define _module_rtl871x_sta_mgt_c_		BIT(6)
 #define _module_rtl871x_cmd_c_			BIT(7)
 #define _module_cmd_osdep_c_		BIT(8)
 #define _module_rtl871x_io_c_				BIT(9)
@@ -37,9 +36,7 @@
 
 #undef _MODULE_DEFINE_
 
-#if defined _RTW_STA_MGT_C_
-	#define _MODULE_DEFINE_	_module_rtl871x_sta_mgt_c_
-#elif defined _RTW_CMD_C_
+#if defined _RTW_CMD_C_
 	#define _MODULE_DEFINE_	_module_rtl871x_cmd_c_
 #elif defined _CMD_OSDEP_C_
 	#define _MODULE_DEFINE_	_module_cmd_osdep_c_

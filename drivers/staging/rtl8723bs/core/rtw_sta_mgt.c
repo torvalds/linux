@@ -4,8 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_STA_MGT_C_
-
 #include <drv_types.h>
 #include <rtw_debug.h>
 
