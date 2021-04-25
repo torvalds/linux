@@ -644,7 +644,7 @@ vchiq_queue_message(unsigned int handle,
  * implementations must be provided.
  */
 
-extern enum vchiq_status
+extern int
 vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset,
 			void __user *uoffset, int size, int dir);
 
@@ -679,7 +679,7 @@ vchiq_on_remote_use(struct vchiq_state *state);
 extern void
 vchiq_on_remote_release(struct vchiq_state *state);
 
-extern enum vchiq_status
+extern int
 vchiq_platform_init_state(struct vchiq_state *state);
 
 extern enum vchiq_status

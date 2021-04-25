@@ -2162,9 +2162,9 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 {
 	struct vchiq_shared_state *local;
 	struct vchiq_shared_state *remote;
-	enum vchiq_status status;
+	enum vchiq_status status = VCHIQ_SUCCESS;
 	char threadname[16];
-	int i;
+	int i, ret;
 
 	if (vchiq_states[0]) {
 		pr_err("%s: VCHIQ state already initialized\n", __func__);
@@ -2246,8 +2246,8 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 
 	local->debug[DEBUG_ENTRIES] = DEBUG_MAX;
 
-	status = vchiq_platform_init_state(state);
-	if (status != VCHIQ_SUCCESS)
+	ret = vchiq_platform_init_state(state);
+	if (ret)
 		return VCHIQ_ERROR;
 
 	/*
@@ -3141,8 +3141,7 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 	bulk->size = size;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 
-	if (vchiq_prepare_bulk_data(bulk, offset, uoffset, size, dir)
-			!= VCHIQ_SUCCESS)
+	if (vchiq_prepare_bulk_data(bulk, offset, uoffset, size, dir))
 		goto unlock_error_exit;
 
 	wmb();
