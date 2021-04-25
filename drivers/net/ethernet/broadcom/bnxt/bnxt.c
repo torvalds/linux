@@ -9495,7 +9495,8 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 	if (!BNXT_SINGLE_PF(bp))
 		return 0;
 
-	if (pci_num_vf(bp->pdev))
+	if (pci_num_vf(bp->pdev) &&
+	    !(bp->phy_flags & BNXT_PHY_FL_FW_MANAGED_LKDN))
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
