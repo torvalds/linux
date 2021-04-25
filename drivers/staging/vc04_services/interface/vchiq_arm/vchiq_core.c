@@ -2763,21 +2763,21 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 				VCHIQ_MSG_DSTPORT(service->remoteport)),
 				NULL, NULL, 0, QMFLAGS_NO_MUTEX_UNLOCK);
 
-		if (status == VCHIQ_SUCCESS) {
-			if (!close_recvd) {
-				/* Change the state while the mutex is still held */
-				vchiq_set_service_state(service,
-							VCHIQ_SRVSTATE_CLOSESENT);
-				mutex_unlock(&state->slot_mutex);
-				if (service->sync)
-					mutex_unlock(&state->sync_mutex);
-				break;
-			}
-		} else if (service->srvstate == VCHIQ_SRVSTATE_OPENSYNC) {
-			mutex_unlock(&state->sync_mutex);
+		if (status != VCHIQ_SUCCESS) {
+			if (service->srvstate == VCHIQ_SRVSTATE_OPENSYNC)
+				mutex_unlock(&state->sync_mutex);
 			break;
-		} else
+		}
+
+		if (!close_recvd) {
+			/* Change the state while the mutex is still held */
+			vchiq_set_service_state(service,
+						VCHIQ_SRVSTATE_CLOSESENT);
+			mutex_unlock(&state->slot_mutex);
+			if (service->sync)
+				mutex_unlock(&state->sync_mutex);
 			break;
+		}
 
 		/* Change the state while the mutex is still held */
 		vchiq_set_service_state(service, VCHIQ_SRVSTATE_CLOSERECVD);
