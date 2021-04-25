@@ -49,10 +49,6 @@ static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
 
 static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 {
-	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
-		netdev_err(bp->dev, "vf ndo called though PF is down\n");
-		return -EINVAL;
-	}
 	if (!bp->pf.active_vfs) {
 		netdev_err(bp->dev, "vf ndo called though sriov is disabled\n");
 		return -EINVAL;
