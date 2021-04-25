@@ -1257,61 +1257,59 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 
 	queue->remote_notify = queue->process;
 
-	if (status == VCHIQ_SUCCESS) {
-		while (queue->remove != queue->remote_notify) {
-			struct vchiq_bulk *bulk =
-				&queue->bulks[BULK_INDEX(queue->remove)];
+	while (queue->remove != queue->remote_notify) {
+		struct vchiq_bulk *bulk =
+			&queue->bulks[BULK_INDEX(queue->remove)];
 
-			/*
-			 * Only generate callbacks for non-dummy bulk
-			 * requests, and non-terminated services
-			 */
-			if (bulk->data && service->instance) {
-				if (bulk->actual != VCHIQ_BULK_ACTUAL_ABORTED) {
-					if (bulk->dir == VCHIQ_BULK_TRANSMIT) {
-						VCHIQ_SERVICE_STATS_INC(service,
-							bulk_tx_count);
-						VCHIQ_SERVICE_STATS_ADD(service,
-							bulk_tx_bytes,
-							bulk->actual);
-					} else {
-						VCHIQ_SERVICE_STATS_INC(service,
-							bulk_rx_count);
-						VCHIQ_SERVICE_STATS_ADD(service,
-							bulk_rx_bytes,
-							bulk->actual);
-					}
+		/*
+		 * Only generate callbacks for non-dummy bulk
+		 * requests, and non-terminated services
+		 */
+		if (bulk->data && service->instance) {
+			if (bulk->actual != VCHIQ_BULK_ACTUAL_ABORTED) {
+				if (bulk->dir == VCHIQ_BULK_TRANSMIT) {
+					VCHIQ_SERVICE_STATS_INC(service,
+						bulk_tx_count);
+					VCHIQ_SERVICE_STATS_ADD(service,
+						bulk_tx_bytes,
+						bulk->actual);
 				} else {
 					VCHIQ_SERVICE_STATS_INC(service,
-						bulk_aborted_count);
+						bulk_rx_count);
+					VCHIQ_SERVICE_STATS_ADD(service,
+						bulk_rx_bytes,
+						bulk->actual);
 				}
-				if (bulk->mode == VCHIQ_BULK_MODE_BLOCKING) {
-					struct bulk_waiter *waiter;
-
-					spin_lock(&bulk_waiter_spinlock);
-					waiter = bulk->userdata;
-					if (waiter) {
-						waiter->actual = bulk->actual;
-						complete(&waiter->event);
-					}
-					spin_unlock(&bulk_waiter_spinlock);
-				} else if (bulk->mode ==
-					VCHIQ_BULK_MODE_CALLBACK) {
-					enum vchiq_reason reason =
-							get_bulk_reason(bulk);
-					status = make_service_callback(service,
-						reason,	NULL, bulk->userdata);
-					if (status == VCHIQ_RETRY)
-						break;
-				}
+			} else {
+				VCHIQ_SERVICE_STATS_INC(service,
+					bulk_aborted_count);
 			}
+			if (bulk->mode == VCHIQ_BULK_MODE_BLOCKING) {
+				struct bulk_waiter *waiter;
 
-			queue->remove++;
-			complete(&service->bulk_remove_event);
+				spin_lock(&bulk_waiter_spinlock);
+				waiter = bulk->userdata;
+				if (waiter) {
+					waiter->actual = bulk->actual;
+					complete(&waiter->event);
+				}
+				spin_unlock(&bulk_waiter_spinlock);
+			} else if (bulk->mode ==
+				VCHIQ_BULK_MODE_CALLBACK) {
+				enum vchiq_reason reason =
+						get_bulk_reason(bulk);
+				status = make_service_callback(service,
+					reason,	NULL, bulk->userdata);
+				if (status == VCHIQ_RETRY)
+					break;
+			}
 		}
-		if (!retry_poll)
-			status = VCHIQ_SUCCESS;
+
+		queue->remove++;
+		complete(&service->bulk_remove_event);
 	}
+	if (!retry_poll)
+		status = VCHIQ_SUCCESS;
 
 	if (status == VCHIQ_RETRY)
 		request_poll(service->state, service,
