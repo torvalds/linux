@@ -218,6 +218,7 @@ struct io_rsrc_put {
 	union {
 		void *rsrc;
 		struct file *file;
+		struct io_mapped_ubuf *buf;
 	};
 };
 
@@ -404,6 +405,7 @@ struct io_ring_ctx {
 	unsigned		nr_user_files;
 
 	/* if used, fixed mapped user buffers */
+	struct io_rsrc_data	*buf_data;
 	unsigned		nr_user_bufs;
 	struct io_mapped_ubuf	**user_bufs;
 
@@ -5927,7 +5929,7 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 			req->opcode);
-	return-EINVAL;
+	return -EINVAL;
 }
 
 static int io_req_prep_async(struct io_kiocb *req)
@@ -8110,19 +8112,36 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	*slot = NULL;
 }
 
-static int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
+static void io_rsrc_buf_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
+{
+	/* no updates yet, so not used */
+	WARN_ON_ONCE(1);
+}
+
+static void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 {
 	unsigned int i;
-
-	if (!ctx->user_bufs)
-		return -ENXIO;
 
 	for (i = 0; i < ctx->nr_user_bufs; i++)
 		io_buffer_unmap(ctx, &ctx->user_bufs[i]);
 	kfree(ctx->user_bufs);
+	kfree(ctx->buf_data);
 	ctx->user_bufs = NULL;
+	ctx->buf_data = NULL;
 	ctx->nr_user_bufs = 0;
-	return 0;
+}
+
+static int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
+{
+	int ret;
+
+	if (!ctx->buf_data)
+		return -ENXIO;
+
+	ret = io_rsrc_ref_quiesce(ctx->buf_data, ctx);
+	if (!ret)
+		__io_sqe_buffers_unregister(ctx);
+	return ret;
 }
 
 static int io_copy_iov(struct io_ring_ctx *ctx, struct iovec *dst,
@@ -8342,17 +8361,26 @@ static int io_buffer_validate(struct iovec *iov)
 static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 				   unsigned int nr_args)
 {
+	struct page *last_hpage = NULL;
+	struct io_rsrc_data *data;
 	int i, ret;
 	struct iovec iov;
-	struct page *last_hpage = NULL;
 
 	if (ctx->user_bufs)
 		return -EBUSY;
 	if (!nr_args || nr_args > UIO_MAXIOV)
 		return -EINVAL;
-	ret = io_buffers_map_alloc(ctx, nr_args);
+	ret = io_rsrc_node_switch_start(ctx);
 	if (ret)
 		return ret;
+	data = io_rsrc_data_alloc(ctx, io_rsrc_buf_put, nr_args);
+	if (!data)
+		return -ENOMEM;
+	ret = io_buffers_map_alloc(ctx, nr_args);
+	if (ret) {
+		kfree(data);
+		return ret;
+	}
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
 		ret = io_copy_iov(ctx, &iov, arg, i);
@@ -8368,9 +8396,13 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 			break;
 	}
 
-	if (ret)
-		io_sqe_buffers_unregister(ctx);
+	WARN_ON_ONCE(ctx->buf_data);
 
+	ctx->buf_data = data;
+	if (ret)
+		__io_sqe_buffers_unregister(ctx);
+	else
+		io_rsrc_node_switch(ctx, NULL);
 	return ret;
 }
 
@@ -8445,10 +8477,18 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
+static bool io_wait_rsrc_data(struct io_rsrc_data *data)
+{
+	if (!data)
+		return false;
+	if (!atomic_dec_and_test(&data->refs))
+		wait_for_completion(&data->done);
+	return true;
+}
+
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
-	io_sqe_buffers_unregister(ctx);
 
 	if (ctx->mm_account) {
 		mmdrop(ctx->mm_account);
@@ -8456,11 +8496,10 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	}
 
 	mutex_lock(&ctx->uring_lock);
-	if (ctx->file_data) {
-		if (!atomic_dec_and_test(&ctx->file_data->refs))
-			wait_for_completion(&ctx->file_data->done);
+	if (io_wait_rsrc_data(ctx->buf_data))
+		__io_sqe_buffers_unregister(ctx);
+	if (io_wait_rsrc_data(ctx->file_data))
 		__io_sqe_files_unregister(ctx);
-	}
 	if (ctx->rings)
 		__io_cqring_overflow_flush(ctx, true);
 	mutex_unlock(&ctx->uring_lock);
@@ -9825,6 +9864,8 @@ static int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 static bool io_register_op_must_quiesce(int op)
 {
 	switch (op) {
+	case IORING_REGISTER_BUFFERS:
+	case IORING_UNREGISTER_BUFFERS:
 	case IORING_REGISTER_FILES:
 	case IORING_UNREGISTER_FILES:
 	case IORING_REGISTER_FILES_UPDATE:
