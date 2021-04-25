@@ -1035,9 +1035,9 @@ static void io_dismantle_req(struct io_kiocb *req);
 static void io_put_task(struct task_struct *task, int nr);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
-static int __io_sqe_files_update(struct io_ring_ctx *ctx,
-				 struct io_uring_rsrc_update *ip,
-				 unsigned nr_args);
+static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
+				     struct io_uring_rsrc_update *up,
+				     unsigned nr_args);
 static void io_clean_op(struct io_kiocb *req);
 static struct file *io_file_get(struct io_submit_state *state,
 				struct io_kiocb *req, int fd, bool fixed);
@@ -5824,7 +5824,8 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	up.data = req->rsrc_update.arg;
 
 	mutex_lock(&ctx->uring_lock);
-	ret = __io_sqe_files_update(ctx, &up, req->rsrc_update.nr_args);
+	ret = __io_register_rsrc_update(ctx, IORING_REGISTER_FILES_UPDATE,
+					&up, req->rsrc_update.nr_args);
 	mutex_unlock(&ctx->uring_lock);
 
 	if (ret < 0)
@@ -7726,25 +7727,20 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_rsrc_update *up,
 				 unsigned nr_args)
 {
+	__s32 __user *fds = u64_to_user_ptr(up->data);
 	struct io_rsrc_data *data = ctx->file_data;
 	struct io_fixed_file *file_slot;
 	struct file *file;
-	__s32 __user *fds;
-	int fd, i, err;
-	__u32 done;
+	int fd, i, err = 0;
+	unsigned int done;
 	bool needs_switch = false;
 
-	if (check_add_overflow(up->offset, nr_args, &done))
-		return -EOVERFLOW;
-	if (done > ctx->nr_user_files)
+	if (!ctx->file_data)
+		return -ENXIO;
+	if (up->offset + nr_args > ctx->nr_user_files)
 		return -EINVAL;
-	err = io_rsrc_node_switch_start(ctx);
-	if (err)
-		return err;
 
-	fds = u64_to_user_ptr(up->data);
 	for (done = 0; done < nr_args; done++) {
-		err = 0;
 		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
 			err = -EFAULT;
 			break;
@@ -7796,23 +7792,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	if (needs_switch)
 		io_rsrc_node_switch(ctx, data);
 	return done ? done : err;
-}
-
-static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
-			       unsigned nr_args)
-{
-	struct io_uring_rsrc_update up;
-
-	if (!ctx->file_data)
-		return -ENXIO;
-	if (!nr_args)
-		return -EINVAL;
-	if (copy_from_user(&up, arg, sizeof(up)))
-		return -EFAULT;
-	if (up.resv)
-		return -EINVAL;
-
-	return __io_sqe_files_update(ctx, &up, nr_args);
 }
 
 static struct io_wq_work *io_free_work(struct io_wq_work *work)
@@ -9730,6 +9709,40 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 	return 0;
 }
 
+static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
+				     struct io_uring_rsrc_update *up,
+				     unsigned nr_args)
+{
+	__u32 tmp;
+	int err;
+
+	if (check_add_overflow(up->offset, nr_args, &tmp))
+		return -EOVERFLOW;
+	err = io_rsrc_node_switch_start(ctx);
+	if (err)
+		return err;
+
+	switch (opcode) {
+	case IORING_REGISTER_FILES_UPDATE:
+		return __io_sqe_files_update(ctx, up, nr_args);
+	}
+	return -EINVAL;
+}
+
+static int io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
+				   void __user *arg, unsigned nr_args)
+{
+	struct io_uring_rsrc_update up;
+
+	if (!nr_args)
+		return -EINVAL;
+	if (copy_from_user(&up, arg, sizeof(up)))
+		return -EFAULT;
+	if (up.resv)
+		return -EINVAL;
+	return __io_register_rsrc_update(ctx, opcode, &up, nr_args);
+}
+
 static bool io_register_op_must_quiesce(int op)
 {
 	switch (op) {
@@ -9816,7 +9829,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_sqe_files_unregister(ctx);
 		break;
 	case IORING_REGISTER_FILES_UPDATE:
-		ret = io_sqe_files_update(ctx, arg, nr_args);
+		ret = io_register_rsrc_update(ctx, opcode, arg, nr_args);
 		break;
 	case IORING_REGISTER_EVENTFD:
 	case IORING_REGISTER_EVENTFD_ASYNC:
