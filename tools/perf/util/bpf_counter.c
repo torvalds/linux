@@ -14,6 +14,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 #include <api/fs/fs.h>
+#include <perf/bpf_perf.h>
 
 #include "bpf_counter.h"
 #include "counts.h"
@@ -29,28 +30,6 @@
 #include "bpf_skel/bperf_leader.skel.h"
 #include "bpf_skel/bperf_follower.skel.h"
 
-/*
- * bperf uses a hashmap, the attr_map, to track all the leader programs.
- * The hashmap is pinned in bpffs. flock() on this file is used to ensure
- * no concurrent access to the attr_map.  The key of attr_map is struct
- * perf_event_attr, and the value is struct perf_event_attr_map_entry.
- *
- * struct perf_event_attr_map_entry contains two __u32 IDs, bpf_link of the
- * leader prog, and the diff_map. Each perf-stat session holds a reference
- * to the bpf_link to make sure the leader prog is attached to sched_switch
- * tracepoint.
- *
- * Since the hashmap only contains IDs of the bpf_link and diff_map, it
- * does not hold any references to the leader program. Once all perf-stat
- * sessions of these events exit, the leader prog, its maps, and the
- * perf_events will be freed.
- */
-struct perf_event_attr_map_entry {
-	__u32 link_id;
-	__u32 diff_map_id;
-};
-
-#define DEFAULT_ATTR_MAP_PATH "fs/bpf/perf_attr_map"
 #define ATTR_MAP_SIZE 16
 
 static inline void *u64_to_ptr(__u64 ptr)
@@ -341,8 +320,8 @@ static int bperf_lock_attr_map(struct target *target)
 	if (target->attr_map) {
 		scnprintf(path, PATH_MAX, "%s", target->attr_map);
 	} else {
-		scnprintf(path, PATH_MAX, "%s/%s", sysfs__mountpoint(),
-			  DEFAULT_ATTR_MAP_PATH);
+		scnprintf(path, PATH_MAX, "%s/fs/bpf/%s", sysfs__mountpoint(),
+			  BPF_PERF_DEFAULT_ATTR_MAP_PATH);
 	}
 
 	if (access(path, F_OK)) {
