@@ -9,12 +9,12 @@
 		#size-cells = <2>;
 		ranges;
 
-		waveform_reserved: waveform@0x10000000 {
-			reg = <0x0 0x10000000 0x0 0x100000>;
+		waveform_reserved: waveform@10800000 {
+			reg = <0x0 0x10800000 0x0 0x100000>;
 		};
 
-		display_reserved: framebuffer@10100000 {
-			reg = <0x0 0x10100000 0x0 0x2000000>;
+		display_reserved: framebuffer@10900000 {
+			reg = <0x0 0x10900000 0x0 0x2000000>;
 		};
 	};
 
