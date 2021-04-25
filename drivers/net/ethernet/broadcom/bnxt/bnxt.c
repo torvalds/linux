@@ -375,6 +375,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct pci_dev *pdev = bp->pdev;
 	struct bnxt_tx_ring_info *txr;
 	struct bnxt_sw_tx_bd *tx_buf;
+	__le32 lflags = 0;
 
 	i = skb_get_queue_mapping(skb);
 	if (unlikely(i >= bp->tx_nr_rings)) {
@@ -414,6 +415,11 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (skb->vlan_proto == htons(ETH_P_8021Q))
 			vlan_tag_flags |= 1 << TX_BD_CFA_META_TPID_SHIFT;
+	}
+
+	if (unlikely(skb->no_fcs)) {
+		lflags |= cpu_to_le32(TX_BD_FLAGS_NO_CRC);
+		goto normal_tx;
 	}
 
 	if (free_size == bp->tx_ring_size && length <= bp->tx_push_thresh) {
@@ -517,7 +523,7 @@ normal_tx:
 	txbd1 = (struct tx_bd_ext *)
 		&txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
 
-	txbd1->tx_bd_hsize_lflags = 0;
+	txbd1->tx_bd_hsize_lflags = lflags;
 	if (skb_is_gso(skb)) {
 		u32 hdr_len;
 
@@ -529,14 +535,14 @@ normal_tx:
 			hdr_len = skb_transport_offset(skb) +
 				tcp_hdrlen(skb);
 
-		txbd1->tx_bd_hsize_lflags = cpu_to_le32(TX_BD_FLAGS_LSO |
+		txbd1->tx_bd_hsize_lflags |= cpu_to_le32(TX_BD_FLAGS_LSO |
 					TX_BD_FLAGS_T_IPID |
 					(hdr_len << (TX_BD_HSIZE_SHIFT - 1)));
 		length = skb_shinfo(skb)->gso_size;
 		txbd1->tx_bd_mss = cpu_to_le32(length);
 		length += hdr_len;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		txbd1->tx_bd_hsize_lflags =
+		txbd1->tx_bd_hsize_lflags |=
 			cpu_to_le32(TX_BD_FLAGS_TCP_UDP_CHKSUM);
 		txbd1->tx_bd_mss = 0;
 	}
@@ -12460,6 +12466,10 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 			   rc);
 		return rc;
 	}
+	if (bp->phy_flags & BNXT_PHY_FL_NO_FCS)
+		bp->dev->priv_flags |= IFF_SUPP_NOFCS;
+	else
+		bp->dev->priv_flags &= ~IFF_SUPP_NOFCS;
 	if (!fw_dflt)
 		return 0;
 
