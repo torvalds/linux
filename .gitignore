@@ -48,7 +48,6 @@
 *.xz
 *.zst
 Module.symvers
-modules.builtin
 modules.order
 
 #
@@ -64,6 +63,7 @@ modules.order
 /vmlinuz
 /System.map
 /Module.markers
+/modules.builtin
 /modules.builtin.modinfo
 /modules.nsdeps
 
