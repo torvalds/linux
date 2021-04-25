@@ -2162,13 +2162,12 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 {
 	struct vchiq_shared_state *local;
 	struct vchiq_shared_state *remote;
-	enum vchiq_status status = VCHIQ_SUCCESS;
 	char threadname[16];
 	int i, ret;
 
 	if (vchiq_states[0]) {
 		pr_err("%s: VCHIQ state already initialized\n", __func__);
-		return VCHIQ_ERROR;
+		return -EINVAL;
 	}
 
 	local = &slot_zero->slave;
@@ -2181,7 +2180,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 		else
 			vchiq_loud_error("master/slave mismatch two slaves");
 		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
+		return -EINVAL;
 	}
 
 	memset(state, 0, sizeof(struct vchiq_state));
@@ -2248,7 +2247,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 
 	ret = vchiq_platform_init_state(state);
 	if (ret)
-		return VCHIQ_ERROR;
+		return ret;
 
 	/*
 	 * bring up slot handler thread
@@ -2262,7 +2261,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
+		return PTR_ERR(state->slot_handler_thread);
 	}
 	set_user_nice(state->slot_handler_thread, -19);
 
@@ -2274,6 +2273,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
+		ret = PTR_ERR(state->recycle_thread);
 		goto fail_free_handler_thread;
 	}
 	set_user_nice(state->recycle_thread, -19);
@@ -2286,6 +2286,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
+		ret = PTR_ERR(state->sync_thread);
 		goto fail_free_recycle_thread;
 	}
 	set_user_nice(state->sync_thread, -20);
@@ -2299,14 +2300,14 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	/* Indicate readiness to the other side */
 	local->initialised = 1;
 
-	return status;
+	return 0;
 
 fail_free_recycle_thread:
 	kthread_stop(state->recycle_thread);
 fail_free_handler_thread:
 	kthread_stop(state->slot_handler_thread);
 
-	return VCHIQ_ERROR;
+	return ret;
 }
 
 void vchiq_msg_queue_push(unsigned int handle, struct vchiq_header *header)

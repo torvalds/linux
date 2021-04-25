@@ -539,7 +539,7 @@ get_conn_state_name(enum vchiq_connstate conn_state);
 extern struct vchiq_slot_zero *
 vchiq_init_slots(void *mem_base, int mem_size);
 
-extern enum vchiq_status
+extern int
 vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero);
 
 extern enum vchiq_status
