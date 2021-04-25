@@ -1033,7 +1033,6 @@
   config_group_init
   config_group_init_type_name
   _ctype
-  filp_open
   fs_bio_set
   hex_to_bin
   iov_iter_bvec
