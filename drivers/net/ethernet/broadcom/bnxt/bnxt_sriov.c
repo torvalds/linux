@@ -1147,6 +1147,7 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 {
 	struct hwrm_func_qcaps_input req = {0};
 	struct hwrm_func_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	bool inform_pf = false;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCAPS, -1, -1);
 	req.fid = cpu_to_le16(0xffff);
@@ -1162,14 +1163,22 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 	 *    default but the stored zero MAC will allow the VF user to change
 	 *    the random MAC address using ndo_set_mac_address() if he wants.
 	 */
-	if (!ether_addr_equal(resp->mac_address, bp->vf.mac_addr))
+	if (!ether_addr_equal(resp->mac_address, bp->vf.mac_addr)) {
 		memcpy(bp->vf.mac_addr, resp->mac_address, ETH_ALEN);
+		/* This means we are now using our own MAC address, let
+		 * the PF know about this MAC address.
+		 */
+		if (!is_valid_ether_addr(bp->vf.mac_addr))
+			inform_pf = true;
+	}
 
 	/* overwrite netdev dev_addr with admin VF MAC */
 	if (is_valid_ether_addr(bp->vf.mac_addr))
 		memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
 update_vf_mac_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (inform_pf)
+		bnxt_approve_mac(bp, bp->dev->dev_addr, false);
 }
 
 #else
