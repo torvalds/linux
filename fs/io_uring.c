@@ -1035,7 +1035,7 @@ static void io_dismantle_req(struct io_kiocb *req);
 static void io_put_task(struct task_struct *task, int nr);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
-static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
+static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     struct io_uring_rsrc_update *up,
 				     unsigned nr_args);
 static void io_clean_op(struct io_kiocb *req);
@@ -5824,7 +5824,7 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	up.data = req->rsrc_update.arg;
 
 	mutex_lock(&ctx->uring_lock);
-	ret = __io_register_rsrc_update(ctx, IORING_REGISTER_FILES_UPDATE,
+	ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
 					&up, req->rsrc_update.nr_args);
 	mutex_unlock(&ctx->uring_lock);
 
@@ -9709,7 +9709,7 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 	return 0;
 }
 
-static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
+static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     struct io_uring_rsrc_update *up,
 				     unsigned nr_args)
 {
@@ -9722,14 +9722,14 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
 	if (err)
 		return err;
 
-	switch (opcode) {
-	case IORING_REGISTER_FILES_UPDATE:
+	switch (type) {
+	case IORING_RSRC_FILE:
 		return __io_sqe_files_update(ctx, up, nr_args);
 	}
 	return -EINVAL;
 }
 
-static int io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
+static int io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				   void __user *arg, unsigned nr_args)
 {
 	struct io_uring_rsrc_update up;
@@ -9740,7 +9740,7 @@ static int io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned opcode,
 		return -EFAULT;
 	if (up.resv)
 		return -EINVAL;
-	return __io_register_rsrc_update(ctx, opcode, &up, nr_args);
+	return __io_register_rsrc_update(ctx, type, &up, nr_args);
 }
 
 static bool io_register_op_must_quiesce(int op)
@@ -9829,7 +9829,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_sqe_files_unregister(ctx);
 		break;
 	case IORING_REGISTER_FILES_UPDATE:
-		ret = io_register_rsrc_update(ctx, opcode, arg, nr_args);
+		ret = io_register_rsrc_update(ctx, IORING_RSRC_FILE, arg, nr_args);
 		break;
 	case IORING_REGISTER_EVENTFD:
 	case IORING_REGISTER_EVENTFD_ASYNC:

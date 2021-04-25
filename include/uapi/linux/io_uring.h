@@ -316,6 +316,10 @@ struct io_uring_rsrc_update {
 	__aligned_u64 data;
 };
 
+enum {
+	IORING_RSRC_FILE		= 0,
+};
+
 /* Skip updating fd indexes set to this value in the fd table */
 #define IORING_REGISTER_FILES_SKIP	(-2)
 
