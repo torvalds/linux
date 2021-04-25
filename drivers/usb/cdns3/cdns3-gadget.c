@@ -484,7 +484,7 @@ static void __cdns3_descmiss_copy_data(struct usb_request *request,
 }
 
 /**
- * cdns3_wa2_descmiss_copy_data copy data from internal requests to
+ * cdns3_wa2_descmiss_copy_data - copy data from internal requests to
  * request queued by class driver.
  * @priv_ep: extended endpoint object
  * @request: request object
