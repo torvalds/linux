@@ -2507,11 +2507,9 @@ static int mcp251xfd_open(struct net_device *ndev)
 	if (err)
 		return err;
 
-	err = pm_runtime_get_sync(ndev->dev.parent);
-	if (err < 0) {
-		pm_runtime_put_noidle(ndev->dev.parent);
+	err = pm_runtime_resume_and_get(ndev->dev.parent);
+	if (err)
 		goto out_close_candev;
-	}
 
 	err = mcp251xfd_ring_alloc(priv);
 	if (err)
