@@ -4,6 +4,19 @@ if ARCH_ROCKCHIP || COMPILE_TEST
 source "drivers/soc/rockchip/Kconfig.cpu"
 
 #
+# Rockchip Android Features
+#
+
+config NO_GKI
+	bool "Disable Android GKI support"
+	default y if !GKI_HACKS_TO_FIX
+	help
+	  Say y here to disable Android GKI support. Then
+	  all the ABI compatibilities are not applicable.
+
+	  If unsure, say Y.
+
+#
 # Rockchip Soc drivers
 #
 
