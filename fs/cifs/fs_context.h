@@ -120,6 +120,7 @@ enum cifs_param {
 	Opt_dirmode,
 	Opt_min_enc_offload,
 	Opt_blocksize,
+	Opt_rasize,
 	Opt_rsize,
 	Opt_wsize,
 	Opt_actimeo,
@@ -235,6 +236,7 @@ struct smb3_fs_context {
 	/* reuse existing guid for multichannel */
 	u8 client_guid[SMB2_CLIENT_GUID_SIZE];
 	unsigned int bsize;
+	unsigned int rasize;
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int min_offload;

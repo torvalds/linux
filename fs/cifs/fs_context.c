@@ -137,6 +137,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("min_enc_offload", Opt_min_enc_offload),
 	fsparam_u32("esize", Opt_min_enc_offload),
 	fsparam_u32("bsize", Opt_blocksize),
+	fsparam_u32("rasize", Opt_rasize),
 	fsparam_u32("rsize", Opt_rsize),
 	fsparam_u32("wsize", Opt_wsize),
 	fsparam_u32("actimeo", Opt_actimeo),
@@ -941,6 +942,26 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->bsize = result.uint_32;
 		ctx->got_bsize = true;
 		break;
+	case Opt_rasize:
+		/*
+		 * readahead size realistically should never need to be
+		 * less than 1M (CIFS_DEFAULT_IOSIZE) or greater than 32M
+		 * (perhaps an exception should be considered in the
+		 * for the case of a large number of channels
+		 * when multichannel is negotiated) since that would lead
+		 * to plenty of parallel I/O in flight to the server.
+		 * Note that smaller read ahead sizes would
+		 * hurt performance of common tools like cp and scp
+		 * which often trigger sequential i/o with read ahead
+		 */
+		if ((result.uint_32 > (8 * SMB3_DEFAULT_IOSIZE)) ||
+		    (result.uint_32 < CIFS_DEFAULT_IOSIZE)) {
+			cifs_errorf(fc, "%s: Invalid rasize %d vs. %d\n",
+				__func__, result.uint_32, SMB3_DEFAULT_IOSIZE);
+			goto cifs_parse_mount_err;
+		}
+		ctx->rasize = result.uint_32;
+		break;
 	case Opt_rsize:
 		ctx->rsize = result.uint_32;
 		ctx->got_rsize = true;
@@ -1377,7 +1398,9 @@ int smb3_init_fs_context(struct fs_context *fc)
 	ctx->cred_uid = current_uid();
 	ctx->linux_uid = current_uid();
 	ctx->linux_gid = current_gid();
-	ctx->bsize = 1024 * 1024; /* can improve cp performance significantly */
+	/* By default 4MB read ahead size, 1MB block size */
+	ctx->bsize = CIFS_DEFAULT_IOSIZE; /* can improve cp performance significantly */
+	ctx->rasize = 0; /* 0 = use default (ie negotiated rsize) for read ahead pages */
 
 	/*
 	 * default to SFM style remapping of seven reserved characters
