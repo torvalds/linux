@@ -886,6 +886,18 @@ static ssize_t real_cssid_show(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RO(real_cssid);
 
+static ssize_t rescan_store(struct device *dev, struct device_attribute *a,
+			    const char *buf, size_t count)
+{
+	CIO_TRACE_EVENT(4, "usr-rescan");
+
+	css_schedule_eval_all();
+	css_complete_work();
+
+	return count;
+}
+static DEVICE_ATTR_WO(rescan);
+
 static ssize_t cm_enable_show(struct device *dev, struct device_attribute *a,
 			      char *buf)
 {
@@ -932,6 +944,7 @@ static umode_t cm_enable_mode(struct kobject *kobj, struct attribute *attr,
 
 static struct attribute *cssdev_attrs[] = {
 	&dev_attr_real_cssid.attr,
+	&dev_attr_rescan.attr,
 	NULL,
 };
 
