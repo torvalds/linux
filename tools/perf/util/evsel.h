@@ -82,6 +82,7 @@ struct evsel {
 		bool			auto_merge_stats;
 		bool			collect_stat;
 		bool			weak_group;
+		bool			bpf_counter;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
 	};
