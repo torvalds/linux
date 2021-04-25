@@ -4145,7 +4145,7 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 	bnxt_free_ntp_fltrs(bp, irq_re_init);
 	if (irq_re_init) {
 		bnxt_free_ring_stats(bp);
-		if (!(bp->fw_cap & BNXT_FW_CAP_PORT_STATS_NO_RESET) ||
+		if (!(bp->phy_flags & BNXT_PHY_FL_PORT_STATS_NO_RESET) ||
 		    test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 			bnxt_free_port_stats(bp);
 		bnxt_free_ring_grps(bp);
@@ -9116,7 +9116,7 @@ static void bnxt_report_link(struct bnxt *bp)
 		}
 		netdev_info(bp->dev, "NIC Link is Up, %u Mbps %s%s duplex, Flow control: %s\n",
 			    speed, signal, duplex, flow_ctrl);
-		if (bp->flags & BNXT_FLAG_EEE_CAP)
+		if (bp->phy_flags & BNXT_PHY_FL_EEE_CAP)
 			netdev_info(bp->dev, "EEE is %s\n",
 				    bp->eee.eee_active ? "active" :
 							 "not active");
@@ -9148,10 +9148,6 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	struct hwrm_port_phy_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
-	bp->flags &= ~BNXT_FLAG_EEE_CAP;
-	if (bp->test_info)
-		bp->test_info->flags &= ~(BNXT_TEST_FL_EXT_LPBK |
-					  BNXT_TEST_FL_AN_PHY_LPBK);
 	if (bp->hwrm_spec_code < 0x10201)
 		return 0;
 
@@ -9162,31 +9158,17 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (rc)
 		goto hwrm_phy_qcaps_exit;
 
+	bp->phy_flags = resp->flags;
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED) {
 		struct ethtool_eee *eee = &bp->eee;
 		u16 fw_speeds = le16_to_cpu(resp->supported_speeds_eee_mode);
 
-		bp->flags |= BNXT_FLAG_EEE_CAP;
 		eee->supported = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
 		bp->lpi_tmr_lo = le32_to_cpu(resp->tx_lpi_timer_low) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_LOW_MASK;
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
 	}
-	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED) {
-		if (bp->test_info)
-			bp->test_info->flags |= BNXT_TEST_FL_EXT_LPBK;
-	}
-	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED) {
-		if (bp->test_info)
-			bp->test_info->flags |= BNXT_TEST_FL_AN_PHY_LPBK;
-	}
-	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_SHARED_PHY_CFG_SUPPORTED) {
-		if (BNXT_PF(bp))
-			bp->fw_cap |= BNXT_FW_CAP_SHARED_PORT_CFG;
-	}
-	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET)
-		bp->fw_cap |= BNXT_FW_CAP_PORT_STATS_NO_RESET;
 
 	if (bp->hwrm_spec_code >= 0x10a01) {
 		if (bnxt_phy_qcaps_no_speed(resp)) {
@@ -9277,7 +9259,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 			      PORT_PHY_QCFG_RESP_PHY_ADDR_MASK;
 	link_info->module_status = resp->module_status;
 
-	if (bp->flags & BNXT_FLAG_EEE_CAP) {
+	if (bp->phy_flags & BNXT_PHY_FL_EEE_CAP) {
 		struct ethtool_eee *eee = &bp->eee;
 		u16 fw_speeds;
 
@@ -9855,7 +9837,7 @@ static bool bnxt_eee_config_ok(struct bnxt *bp)
 	struct ethtool_eee *eee = &bp->eee;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
-	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+	if (!(bp->phy_flags & BNXT_PHY_FL_EEE_CAP))
 		return true;
 
 	if (eee->eee_enabled) {
@@ -12450,6 +12432,7 @@ static int bnxt_probe_phy(struct bnxt *bp, bool fw_dflt)
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
+	bp->phy_flags = 0;
 	rc = bnxt_hwrm_phy_qcaps(bp);
 	if (rc) {
 		netdev_err(bp->dev, "Probe phy can't get phy capabilities (rc: %x)\n",
