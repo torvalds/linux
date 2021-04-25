@@ -215,6 +215,17 @@ static int bpf_program_profiler__enable(struct evsel *evsel)
 	return 0;
 }
 
+static int bpf_program_profiler__disable(struct evsel *evsel)
+{
+	struct bpf_counter *counter;
+
+	list_for_each_entry(counter, &evsel->bpf_counter_list, list) {
+		assert(counter->skel != NULL);
+		bpf_prog_profiler_bpf__detach(counter->skel);
+	}
+	return 0;
+}
+
 static int bpf_program_profiler__read(struct evsel *evsel)
 {
 	// perf_cpu_map uses /sys/devices/system/cpu/online
@@ -280,6 +291,7 @@ static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu,
 struct bpf_counter_ops bpf_program_profiler_ops = {
 	.load       = bpf_program_profiler__load,
 	.enable	    = bpf_program_profiler__enable,
+	.disable    = bpf_program_profiler__disable,
 	.read       = bpf_program_profiler__read,
 	.destroy    = bpf_program_profiler__destroy,
 	.install_pe = bpf_program_profiler__install_pe,
@@ -627,6 +639,12 @@ static int bperf__enable(struct evsel *evsel)
 	return 0;
 }
 
+static int bperf__disable(struct evsel *evsel)
+{
+	evsel->follower_skel->bss->enabled = 0;
+	return 0;
+}
+
 static int bperf__read(struct evsel *evsel)
 {
 	struct bperf_follower_bpf *skel = evsel->follower_skel;
@@ -768,6 +786,7 @@ static int bperf__destroy(struct evsel *evsel)
 struct bpf_counter_ops bperf_ops = {
 	.load       = bperf__load,
 	.enable     = bperf__enable,
+	.disable    = bperf__disable,
 	.read       = bperf__read,
 	.install_pe = bperf__install_pe,
 	.destroy    = bperf__destroy,
@@ -804,6 +823,13 @@ int bpf_counter__enable(struct evsel *evsel)
 	if (bpf_counter_skip(evsel))
 		return 0;
 	return evsel->bpf_counter_ops->enable(evsel);
+}
+
+int bpf_counter__disable(struct evsel *evsel)
+{
+	if (bpf_counter_skip(evsel))
+		return 0;
+	return evsel->bpf_counter_ops->disable(evsel);
 }
 
 int bpf_counter__read(struct evsel *evsel)
