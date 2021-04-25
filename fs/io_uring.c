@@ -214,6 +214,7 @@ struct io_fixed_file {
 
 struct io_rsrc_put {
 	struct list_head list;
+	u64 tag;
 	union {
 		void *rsrc;
 		struct file *file;
@@ -239,6 +240,7 @@ typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
 struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
+	u64				*tags;
 	rsrc_put_fn			*do_put;
 	atomic_t			refs;
 	struct completion		done;
@@ -7117,17 +7119,25 @@ static int io_rsrc_ref_quiesce(struct io_rsrc_data *data, struct io_ring_ctx *ct
 
 static void io_rsrc_data_free(struct io_rsrc_data *data)
 {
+	kvfree(data->tags);
 	kfree(data);
 }
 
 static struct io_rsrc_data *io_rsrc_data_alloc(struct io_ring_ctx *ctx,
-					       rsrc_put_fn *do_put)
+					       rsrc_put_fn *do_put,
+					       unsigned nr)
 {
 	struct io_rsrc_data *data;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return NULL;
+
+	data->tags = kvcalloc(nr, sizeof(*data->tags), GFP_KERNEL);
+	if (!data->tags) {
+		kfree(data);
+		return NULL;
+	}
 
 	atomic_set(&data->refs, 1);
 	data->ctx = ctx;
@@ -7493,6 +7503,20 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 
 	list_for_each_entry_safe(prsrc, tmp, &ref_node->rsrc_list, list) {
 		list_del(&prsrc->list);
+
+		if (prsrc->tag) {
+			bool lock_ring = ctx->flags & IORING_SETUP_IOPOLL;
+			unsigned long flags;
+
+			io_ring_submit_lock(ctx, lock_ring);
+			spin_lock_irqsave(&ctx->completion_lock, flags);
+			io_cqring_fill_event(ctx, prsrc->tag, 0, 0);
+			io_commit_cqring(ctx);
+			spin_unlock_irqrestore(&ctx->completion_lock, flags);
+			io_cqring_ev_posted(ctx);
+			io_ring_submit_unlock(ctx, lock_ring);
+		}
+
 		rsrc_data->do_put(ctx, prsrc);
 		kfree(prsrc);
 	}
@@ -7582,7 +7606,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	if (ret)
 		return ret;
 
-	file_data = io_rsrc_data_alloc(ctx, io_rsrc_file_put);
+	file_data = io_rsrc_data_alloc(ctx, io_rsrc_file_put, nr_args);
 	if (!file_data)
 		return -ENOMEM;
 	ctx->file_data = file_data;
@@ -7683,7 +7707,7 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 #endif
 }
 
-static int io_queue_rsrc_removal(struct io_rsrc_data *data,
+static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 				 struct io_rsrc_node *node, void *rsrc)
 {
 	struct io_rsrc_put *prsrc;
@@ -7692,6 +7716,7 @@ static int io_queue_rsrc_removal(struct io_rsrc_data *data,
 	if (!prsrc)
 		return -ENOMEM;
 
+	prsrc->tag = data->tags[idx];
 	prsrc->rsrc = rsrc;
 	list_add(&prsrc->list, &node->rsrc_list);
 	return 0;
@@ -7732,7 +7757,8 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 		if (file_slot->file_ptr) {
 			file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-			err = io_queue_rsrc_removal(data, ctx->rsrc_node, file);
+			err = io_queue_rsrc_removal(data, up->offset + done,
+						    ctx->rsrc_node, file);
 			if (err)
 				break;
 			file_slot->file_ptr = 0;
