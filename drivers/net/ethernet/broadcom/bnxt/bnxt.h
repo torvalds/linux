@@ -1914,6 +1914,8 @@ struct bnxt {
 
 	u16			vxlan_fw_dst_port_id;
 	u16			nge_fw_dst_port_id;
+	__be16			vxlan_port;
+	__be16			nge_port;
 	u8			port_partition_type;
 	u8			port_count;
 	u16			br_mode;
