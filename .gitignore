@@ -54,8 +54,6 @@ modules.order
 #
 # Top-level generic files
 #
-/tags
-/TAGS
 /linux
 /modules-only.symvers
 /vmlinux
@@ -113,6 +111,10 @@ patches-*
 # quilt's files
 patches
 series
+
+# ctags files
+tags
+TAGS
 
 # cscope files
 cscope.*
