@@ -8265,7 +8265,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 		goto done;
 
 	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
-	if (!imu->bvec)
+	if (!imu)
 		goto done;
 
 	ret = 0;
