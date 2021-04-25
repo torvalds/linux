@@ -1234,7 +1234,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		old_rate = clk_get_rate(dev->hw_dev->clks[0]);
 		safe_rate = dev->hw_dev->clk_rate_tbl[0].clk_rate * 1000000UL;
 		if (old_rate > safe_rate) {
-			clk_set_rate(dev->hw_dev->clks[0], safe_rate);
+			rkisp_set_clk_rate(dev->hw_dev->clks[0], safe_rate);
 			udelay(100);
 		}
 		rkisp_soft_reset(dev->hw_dev, false);
