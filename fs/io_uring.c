@@ -7589,7 +7589,7 @@ static struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 }
 
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
-				 unsigned nr_args)
+				 unsigned nr_args, u64 __user *tags)
 {
 	__s32 __user *fds = (__s32 __user *) arg;
 	struct file *file;
@@ -7616,17 +7616,24 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		goto out_free;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
-		if (copy_from_user(&fd, &fds[i], sizeof(fd))) {
+		u64 tag = 0;
+
+		if ((tags && copy_from_user(&tag, &tags[i], sizeof(tag))) ||
+		    copy_from_user(&fd, &fds[i], sizeof(fd))) {
 			ret = -EFAULT;
 			goto out_fput;
 		}
 		/* allow sparse sets */
-		if (fd == -1)
+		if (fd == -1) {
+			ret = -EINVAL;
+			if (unlikely(tag))
+				goto out_fput;
 			continue;
+		}
 
 		file = fget(fd);
 		ret = -EBADF;
-		if (!file)
+		if (unlikely(!file))
 			goto out_fput;
 
 		/*
@@ -7640,6 +7647,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			fput(file);
 			goto out_fput;
 		}
+		ctx->file_data->tags[i] = tag;
 		io_fixed_file_set(io_fixed_file_slot(&ctx->file_table, i), file);
 	}
 
@@ -9743,6 +9751,29 @@ static int io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 	return __io_register_rsrc_update(ctx, type, &up, nr_args);
 }
 
+static int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
+			    unsigned int size)
+{
+	struct io_uring_rsrc_register rr;
+
+	/* keep it extendible */
+	if (size != sizeof(rr))
+		return -EINVAL;
+
+	memset(&rr, 0, sizeof(rr));
+	if (copy_from_user(&rr, arg, size))
+		return -EFAULT;
+	if (!rr.nr)
+		return -EINVAL;
+
+	switch (rr.type) {
+	case IORING_RSRC_FILE:
+		return io_sqe_files_register(ctx, u64_to_user_ptr(rr.data),
+					     rr.nr, u64_to_user_ptr(rr.tags));
+	}
+	return -EINVAL;
+}
+
 static bool io_register_op_must_quiesce(int op)
 {
 	switch (op) {
@@ -9752,6 +9783,7 @@ static bool io_register_op_must_quiesce(int op)
 	case IORING_REGISTER_PROBE:
 	case IORING_REGISTER_PERSONALITY:
 	case IORING_UNREGISTER_PERSONALITY:
+	case IORING_REGISTER_RSRC:
 		return false;
 	default:
 		return true;
@@ -9820,7 +9852,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_sqe_buffers_unregister(ctx);
 		break;
 	case IORING_REGISTER_FILES:
-		ret = io_sqe_files_register(ctx, arg, nr_args);
+		ret = io_sqe_files_register(ctx, arg, nr_args, NULL);
 		break;
 	case IORING_UNREGISTER_FILES:
 		ret = -EINVAL;
@@ -9876,6 +9908,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		break;
 	case IORING_REGISTER_RESTRICTIONS:
 		ret = io_register_restrictions(ctx, arg, nr_args);
+		break;
+	case IORING_REGISTER_RSRC:
+		ret = io_register_rsrc(ctx, arg, nr_args);
 		break;
 	default:
 		ret = -EINVAL;

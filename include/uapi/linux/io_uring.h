@@ -298,6 +298,7 @@ enum {
 	IORING_UNREGISTER_PERSONALITY		= 10,
 	IORING_REGISTER_RESTRICTIONS		= 11,
 	IORING_REGISTER_ENABLE_RINGS		= 12,
+	IORING_REGISTER_RSRC			= 13,
 
 	/* this goes last */
 	IORING_REGISTER_LAST
@@ -318,6 +319,13 @@ struct io_uring_rsrc_update {
 
 enum {
 	IORING_RSRC_FILE		= 0,
+};
+
+struct io_uring_rsrc_register {
+	__u32 type;
+	__u32 nr;
+	__aligned_u64 data;
+	__aligned_u64 tags;
 };
 
 /* Skip updating fd indexes set to this value in the fd table */
