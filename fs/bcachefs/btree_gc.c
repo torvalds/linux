@@ -298,6 +298,7 @@ again:
 				bch2_btree_ids[b->c.btree_id],
 				b->c.level - 1,
 				(bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(tmp.k)), buf))) {
+			bch2_btree_node_evict(c, tmp.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, tmp.k->k.p);
 			if (ret)
@@ -359,6 +360,7 @@ again:
 		cur = NULL;
 
 		if (ret == DROP_THIS_NODE) {
+			bch2_btree_node_evict(c, tmp.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, tmp.k->k.p);
 			dropped_children = true;

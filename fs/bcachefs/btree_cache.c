@@ -948,6 +948,36 @@ void bch2_btree_node_prefetch(struct bch_fs *c, struct btree_iter *iter,
 	bch2_btree_node_fill(c, iter, k, btree_id, level, SIX_LOCK_read, false);
 }
 
+void bch2_btree_node_evict(struct bch_fs *c, const struct bkey_i *k)
+{
+	struct btree_cache *bc = &c->btree_cache;
+	struct btree *b;
+
+	b = btree_cache_find(bc, k);
+	if (!b)
+		return;
+
+	six_lock_intent(&b->c.lock, NULL, NULL);
+	six_lock_write(&b->c.lock, NULL, NULL);
+
+	wait_on_bit_io(&b->flags, BTREE_NODE_read_in_flight,
+		       TASK_UNINTERRUPTIBLE);
+	__bch2_btree_node_write(c, b);
+
+	/* wait for any in flight btree write */
+	btree_node_wait_on_io(b);
+
+	BUG_ON(btree_node_dirty(b));
+
+	mutex_lock(&bc->lock);
+	btree_node_data_free(c, b);
+	bch2_btree_node_hash_remove(bc, b);
+	mutex_unlock(&bc->lock);
+
+	six_unlock_write(&b->c.lock);
+	six_unlock_intent(&b->c.lock);
+}
+
 void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 			     struct btree *b)
 {
