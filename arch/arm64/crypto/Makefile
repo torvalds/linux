@@ -71,13 +71,10 @@ $(obj)/aes-glue-%.o: $(src)/aes-glue.c FORCE
 quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $(<) void $(@)
 
-$(obj)/poly1305-core.S: $(src)/poly1305-armv8.pl
+$(obj)/%-core.S: $(src)/%-armv8.pl
 	$(call cmd,perlasm)
 
 $(obj)/sha256-core.S: $(src)/sha512-armv8.pl
-	$(call cmd,perlasm)
-
-$(obj)/sha512-core.S: $(src)/sha512-armv8.pl
 	$(call cmd,perlasm)
 
 clean-files += poly1305-core.S sha256-core.S sha512-core.S
