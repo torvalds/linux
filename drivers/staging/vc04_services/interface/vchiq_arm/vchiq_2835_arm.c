@@ -172,7 +172,6 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 enum vchiq_status
 vchiq_platform_init_state(struct vchiq_state *state)
 {
-	enum vchiq_status status = VCHIQ_SUCCESS;
 	struct vchiq_2835_state *platform_state;
 
 	state->platform_state = kzalloc(sizeof(*platform_state), GFP_KERNEL);
@@ -182,12 +181,9 @@ vchiq_platform_init_state(struct vchiq_state *state)
 	platform_state = (struct vchiq_2835_state *)state->platform_state;
 
 	platform_state->inited = 1;
-	status = vchiq_arm_init_state(state, &platform_state->arm_state);
+	vchiq_arm_init_state(state, &platform_state->arm_state);
 
-	if (status != VCHIQ_SUCCESS)
-		platform_state->inited = 0;
-
-	return status;
+	return VCHIQ_SUCCESS;
 }
 
 struct vchiq_arm_state*

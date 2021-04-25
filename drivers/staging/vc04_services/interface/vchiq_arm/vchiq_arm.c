@@ -2312,7 +2312,7 @@ exit:
 	return 0;
 }
 
-enum vchiq_status
+void
 vchiq_arm_init_state(struct vchiq_state *state,
 		     struct vchiq_arm_state *arm_state)
 {
@@ -2328,7 +2328,6 @@ vchiq_arm_init_state(struct vchiq_state *state,
 		arm_state->first_connect = 0;
 
 	}
-	return VCHIQ_SUCCESS;
 }
 
 enum vchiq_status
