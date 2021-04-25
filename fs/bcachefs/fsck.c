@@ -290,8 +290,12 @@ static int hash_redo_key(struct btree_trans *trans,
 			 struct bch_hash_info *hash_info,
 			 struct btree_iter *k_iter, struct bkey_s_c k)
 {
-	struct bkey_i delete;
+	struct bkey_i *delete;
 	struct bkey_i *tmp;
+
+	delete = bch2_trans_kmalloc(trans, sizeof(*delete));
+	if (IS_ERR(delete))
+		return PTR_ERR(delete);
 
 	tmp = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 	if (IS_ERR(tmp))
@@ -299,12 +303,11 @@ static int hash_redo_key(struct btree_trans *trans,
 
 	bkey_reassemble(tmp, k);
 
-	bkey_init(&delete.k);
-	delete.k.p = k_iter->pos;
-	bch2_trans_update(trans, k_iter, &delete, 0);
+	bkey_init(&delete->k);
+	delete->k.p = k_iter->pos;
+	bch2_trans_update(trans, k_iter, delete, 0);
 
-	return bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode,
-			     tmp, 0);
+	return bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode, tmp, 0);
 }
 
 static int fsck_hash_delete_at(struct btree_trans *trans,
@@ -377,9 +380,8 @@ static int hash_check_key(struct btree_trans *trans,
 	return ret;
 bad_hash:
 	if (fsck_err(c, "hash table key at wrong offset: btree %u inode %llu offset %llu, "
-		     "hashed to %llu should be at %llu\n%s",
-		     desc.btree_id, hash_k.k->p.inode, hash_k.k->p.offset,
-		     hash, iter->pos.offset,
+		     "hashed to %llu\n%s",
+		     desc.btree_id, hash_k.k->p.inode, hash_k.k->p.offset, hash,
 		     (bch2_bkey_val_to_text(&PBUF(buf), c, hash_k), buf)) == FSCK_ERR_IGNORE)
 		return 0;
 
