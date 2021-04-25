@@ -48,13 +48,7 @@ curve25519-neon-y := curve25519-core.o curve25519-glue.o
 quiet_cmd_perl = PERL    $@
       cmd_perl = $(PERL) $(<) > $(@)
 
-$(obj)/poly1305-core.S: $(src)/poly1305-armv4.pl
-	$(call cmd,perl)
-
-$(obj)/sha256-core.S: $(src)/sha256-armv4.pl
-	$(call cmd,perl)
-
-$(obj)/sha512-core.S: $(src)/sha512-armv4.pl
+$(obj)/%-core.S: $(src)/%-armv4.pl
 	$(call cmd,perl)
 
 clean-files += poly1305-core.S sha256-core.S sha512-core.S
