@@ -18,6 +18,7 @@
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "util/stat.h"  /* perf_stat__set_big_num */
+#include "util/evsel.h"  /* evsel__hw_names, evsel__use_bpf_counters */
 #include "build-id.h"
 #include "debug.h"
 #include "config.h"
@@ -459,6 +460,9 @@ static int perf_stat_config(const char *var, const char *value)
 
 	if (!strcmp(var, "stat.no-csv-summary"))
 		perf_stat__set_no_csv_summary(perf_config_bool(var, value));
+
+	if (!strcmp(var, "stat.bpf-counter-events"))
+		evsel__bpf_counter_events = strdup(value);
 
 	/* Add other config variables here. */
 	return 0;

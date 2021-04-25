@@ -492,6 +492,28 @@ const char *evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"ref-cycles",
 };
 
+char *evsel__bpf_counter_events;
+
+bool evsel__match_bpf_counter_events(const char *name)
+{
+	int name_len;
+	bool match;
+	char *ptr;
+
+	if (!evsel__bpf_counter_events)
+		return false;
+
+	ptr = strstr(evsel__bpf_counter_events, name);
+	name_len = strlen(name);
+
+	/* check name matches a full token in evsel__bpf_counter_events */
+	match = (ptr != NULL) &&
+		((ptr == evsel__bpf_counter_events) || (*(ptr - 1) == ',')) &&
+		((*(ptr + name_len) == ',') || (*(ptr + name_len) == '\0'));
+
+	return match;
+}
+
 static const char *__evsel__hw_name(u64 config)
 {
 	if (config < PERF_COUNT_HW_MAX && evsel__hw_names[config])

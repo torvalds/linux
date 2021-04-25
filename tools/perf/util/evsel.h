@@ -239,6 +239,11 @@ void evsel__calc_id_pos(struct evsel *evsel);
 
 bool evsel__is_cache_op_valid(u8 type, u8 op);
 
+static inline bool evsel__is_bpf(struct evsel *evsel)
+{
+	return evsel->bpf_counter_ops != NULL;
+}
+
 #define EVSEL__MAX_ALIASES 8
 
 extern const char *evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES];
@@ -246,6 +251,9 @@ extern const char *evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX][EVSEL__MAX_ALI
 extern const char *evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX][EVSEL__MAX_ALIASES];
 extern const char *evsel__hw_names[PERF_COUNT_HW_MAX];
 extern const char *evsel__sw_names[PERF_COUNT_SW_MAX];
+extern char *evsel__bpf_counter_events;
+bool evsel__match_bpf_counter_events(const char *name);
+
 int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size);
 const char *evsel__name(struct evsel *evsel);
 

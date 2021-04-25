@@ -66,11 +66,6 @@ static inline bool target__has_cpu(struct target *target)
 	return target->system_wide || target->cpu_list;
 }
 
-static inline bool target__has_bpf(struct target *target)
-{
-	return target->bpf_str || target->use_bpf;
-}
-
 static inline bool target__none(struct target *target)
 {
 	return !target__has_task(target) && !target__has_cpu(target);

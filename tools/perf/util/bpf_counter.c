@@ -790,7 +790,8 @@ int bpf_counter__load(struct evsel *evsel, struct target *target)
 {
 	if (target->bpf_str)
 		evsel->bpf_counter_ops = &bpf_program_profiler_ops;
-	else if (target->use_bpf)
+	else if (target->use_bpf ||
+		 evsel__match_bpf_counter_events(evsel->name))
 		evsel->bpf_counter_ops = &bperf_ops;
 
 	if (evsel->bpf_counter_ops)

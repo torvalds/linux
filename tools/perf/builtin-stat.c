@@ -161,6 +161,7 @@ static const char *smi_cost_attrs = {
 };
 
 static struct evlist	*evsel_list;
+static bool all_counters_use_bpf = true;
 
 static struct target target = {
 	.uid	= UINT_MAX,
@@ -401,6 +402,9 @@ static int read_affinity_counters(struct timespec *rs)
 	struct affinity affinity;
 	int i, ncpus, cpu;
 
+	if (all_counters_use_bpf)
+		return 0;
+
 	if (affinity__setup(&affinity) < 0)
 		return -1;
 
@@ -414,6 +418,8 @@ static int read_affinity_counters(struct timespec *rs)
 
 		evlist__for_each_entry(evsel_list, counter) {
 			if (evsel__cpu_iter_skip(counter, cpu))
+				continue;
+			if (evsel__is_bpf(counter))
 				continue;
 			if (!counter->err) {
 				counter->err = read_counter_cpu(counter, rs,
@@ -431,6 +437,9 @@ static int read_bpf_map_counters(void)
 	int err;
 
 	evlist__for_each_entry(evsel_list, counter) {
+		if (!evsel__is_bpf(counter))
+			continue;
+
 		err = bpf_counter__read(counter);
 		if (err)
 			return err;
@@ -441,14 +450,10 @@ static int read_bpf_map_counters(void)
 static void read_counters(struct timespec *rs)
 {
 	struct evsel *counter;
-	int err;
 
 	if (!stat_config.stop_read_counter) {
-		if (target__has_bpf(&target))
-			err = read_bpf_map_counters();
-		else
-			err = read_affinity_counters(rs);
-		if (err < 0)
+		if (read_bpf_map_counters() ||
+		    read_affinity_counters(rs))
 			return;
 	}
 
@@ -537,12 +542,13 @@ static int enable_counters(void)
 	struct evsel *evsel;
 	int err;
 
-	if (target__has_bpf(&target)) {
-		evlist__for_each_entry(evsel_list, evsel) {
-			err = bpf_counter__enable(evsel);
-			if (err)
-				return err;
-		}
+	evlist__for_each_entry(evsel_list, evsel) {
+		if (!evsel__is_bpf(evsel))
+			continue;
+
+		err = bpf_counter__enable(evsel);
+		if (err)
+			return err;
 	}
 
 	if (stat_config.initial_delay < 0) {
@@ -786,11 +792,11 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	if (affinity__setup(&affinity) < 0)
 		return -1;
 
-	if (target__has_bpf(&target)) {
-		evlist__for_each_entry(evsel_list, counter) {
-			if (bpf_counter__load(counter, &target))
-				return -1;
-		}
+	evlist__for_each_entry(evsel_list, counter) {
+		if (bpf_counter__load(counter, &target))
+			return -1;
+		if (!evsel__is_bpf(counter))
+			all_counters_use_bpf = false;
 	}
 
 	evlist__for_each_cpu (evsel_list, i, cpu) {
@@ -806,6 +812,8 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 			if (evsel__cpu_iter_skip(counter, cpu))
 				continue;
 			if (counter->reset_group || counter->errored)
+				continue;
+			if (evsel__is_bpf(counter))
 				continue;
 try_again:
 			if (create_perf_stat_counter(counter, &stat_config, &target,

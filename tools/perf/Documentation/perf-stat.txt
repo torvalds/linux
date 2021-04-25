@@ -97,6 +97,8 @@ report::
 	Use BPF programs to aggregate readings from perf_events.  This
 	allows multiple perf-stat sessions that are counting the same metric (cycles,
 	instructions, etc.) to share hardware counters.
+	To use BPF programs on common events by default, use
+	"perf config stat.bpf-counter-events=<list_of_events>".
 
 --bpf-attr-map::
 	With option "--bpf-counters", different perf-stat sessions share
