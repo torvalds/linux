@@ -7114,6 +7114,11 @@ static int io_rsrc_ref_quiesce(struct io_rsrc_data *data, struct io_ring_ctx *ct
 	return ret;
 }
 
+static void io_rsrc_data_free(struct io_rsrc_data *data)
+{
+	kfree(data);
+}
+
 static struct io_rsrc_data *io_rsrc_data_alloc(struct io_ring_ctx *ctx,
 					       rsrc_put_fn *do_put)
 {
@@ -7152,7 +7157,7 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	}
 #endif
 	io_free_file_tables(&ctx->file_table, ctx->nr_user_files);
-	kfree(ctx->file_data);
+	io_rsrc_data_free(ctx->file_data);
 	ctx->file_data = NULL;
 	ctx->nr_user_files = 0;
 }
@@ -7629,7 +7634,7 @@ out_fput:
 	io_free_file_tables(&ctx->file_table, nr_args);
 	ctx->nr_user_files = 0;
 out_free:
-	kfree(ctx->file_data);
+	io_rsrc_data_free(ctx->file_data);
 	ctx->file_data = NULL;
 	return ret;
 }
