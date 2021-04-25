@@ -33,12 +33,11 @@ static struct sk_buff *esp4_gro_receive(struct list_head *head,
 	struct xfrm_state *x;
 	__be32 seq;
 	__be32 spi;
-	int err;
 
 	if (!pskb_pull(skb, offset))
 		return NULL;
 
-	if ((err = xfrm_parse_spi(skb, IPPROTO_ESP, &spi, &seq)) != 0)
+	if (xfrm_parse_spi(skb, IPPROTO_ESP, &spi, &seq) != 0)
 		goto out;
 
 	xo = xfrm_offload(skb);
