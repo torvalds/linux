@@ -113,7 +113,7 @@ static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
 	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
-	req.fid = cpu_to_le16(vf->fw_fid);
+	req.fid = cpu_to_le16(BNXT_PF(bp) ? vf->fw_fid : 0xffff);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc) {
@@ -125,9 +125,9 @@ static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
 	return 0;
 }
 
-static bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
+bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
 {
-	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+	if (BNXT_PF(bp) && !(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
 		return !!(vf->flags & BNXT_VF_TRUST);
 
 	bnxt_hwrm_func_qcfg_flags(bp, vf);
