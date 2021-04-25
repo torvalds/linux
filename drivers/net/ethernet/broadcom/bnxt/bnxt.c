@@ -9075,8 +9075,9 @@ static char *bnxt_report_fec(struct bnxt_link_info *link_info)
 static void bnxt_report_link(struct bnxt *bp)
 {
 	if (bp->link_info.link_up) {
-		const char *duplex;
+		const char *signal = "";
 		const char *flow_ctrl;
+		const char *duplex;
 		u32 speed;
 		u16 fec;
 
@@ -9098,8 +9099,23 @@ static void bnxt_report_link(struct bnxt *bp)
 			flow_ctrl = "ON - receive";
 		else
 			flow_ctrl = "none";
-		netdev_info(bp->dev, "NIC Link is Up, %u Mbps %s duplex, Flow control: %s\n",
-			    speed, duplex, flow_ctrl);
+		if (bp->link_info.phy_qcfg_resp.option_flags &
+		    PORT_PHY_QCFG_RESP_OPTION_FLAGS_SIGNAL_MODE_KNOWN) {
+			u8 sig_mode = bp->link_info.active_fec_sig_mode &
+				      PORT_PHY_QCFG_RESP_SIGNAL_MODE_MASK;
+			switch (sig_mode) {
+			case PORT_PHY_QCFG_RESP_SIGNAL_MODE_NRZ:
+				signal = "(NRZ) ";
+				break;
+			case PORT_PHY_QCFG_RESP_SIGNAL_MODE_PAM4:
+				signal = "(PAM4) ";
+				break;
+			default:
+				break;
+			}
+		}
+		netdev_info(bp->dev, "NIC Link is Up, %u Mbps %s%s duplex, Flow control: %s\n",
+			    speed, signal, duplex, flow_ctrl);
 		if (bp->flags & BNXT_FLAG_EEE_CAP)
 			netdev_info(bp->dev, "EEE is %s\n",
 				    bp->eee.eee_active ? "active" :
