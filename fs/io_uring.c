@@ -8114,8 +8114,8 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 
 static void io_rsrc_buf_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
 {
-	/* no updates yet, so not used */
-	WARN_ON_ONCE(1);
+	io_buffer_unmap(ctx, &prsrc->buf);
+	prsrc->buf = NULL;
 }
 
 static void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
@@ -8359,7 +8359,7 @@ static int io_buffer_validate(struct iovec *iov)
 }
 
 static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
-				   unsigned int nr_args)
+				   unsigned int nr_args, u64 __user *tags)
 {
 	struct page *last_hpage = NULL;
 	struct io_rsrc_data *data;
@@ -8383,6 +8383,12 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
+		u64 tag = 0;
+
+		if (tags && copy_from_user(&tag, &tags[i], sizeof(tag))) {
+			ret = -EFAULT;
+			break;
+		}
 		ret = io_copy_iov(ctx, &iov, arg, i);
 		if (ret)
 			break;
@@ -8394,6 +8400,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 					     &last_hpage);
 		if (ret)
 			break;
+		data->tags[i] = tag;
 	}
 
 	WARN_ON_ONCE(ctx->buf_data);
@@ -8404,6 +8411,62 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	else
 		io_rsrc_node_switch(ctx, NULL);
 	return ret;
+}
+
+static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
+				   struct io_uring_rsrc_update2 *up,
+				   unsigned int nr_args)
+{
+	u64 __user *tags = u64_to_user_ptr(up->tags);
+	struct iovec iov, __user *iovs = u64_to_user_ptr(up->data);
+	struct io_mapped_ubuf *imu;
+	struct page *last_hpage = NULL;
+	bool needs_switch = false;
+	__u32 done;
+	int i, err;
+
+	if (!ctx->buf_data)
+		return -ENXIO;
+	if (up->offset + nr_args > ctx->nr_user_bufs)
+		return -EINVAL;
+
+	for (done = 0; done < nr_args; done++) {
+		u64 tag = 0;
+
+		err = io_copy_iov(ctx, &iov, iovs, done);
+		if (err)
+			break;
+		if (tags && copy_from_user(&tag, &tags[done], sizeof(tag))) {
+			err = -EFAULT;
+			break;
+		}
+
+		i = array_index_nospec(up->offset + done, ctx->nr_user_bufs);
+		imu = ctx->user_bufs[i];
+		if (imu) {
+			err = io_queue_rsrc_removal(ctx->buf_data, up->offset + done,
+						    ctx->rsrc_node, imu);
+			if (err)
+				break;
+			ctx->user_bufs[i] = NULL;
+			needs_switch = true;
+		}
+
+		if (iov.iov_base || iov.iov_len) {
+			err = io_buffer_validate(&iov);
+			if (err)
+				break;
+			err = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
+						     &last_hpage);
+			if (err)
+				break;
+			ctx->buf_data->tags[up->offset + done] = tag;
+		}
+	}
+
+	if (needs_switch)
+		io_rsrc_node_switch(ctx, ctx->buf_data);
+	return done ? done : err;
 }
 
 static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg)
@@ -9807,6 +9870,8 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 	switch (type) {
 	case IORING_RSRC_FILE:
 		return __io_sqe_files_update(ctx, up, nr_args);
+	case IORING_RSRC_BUFFER:
+		return __io_sqe_buffers_update(ctx, up, nr_args);
 	}
 	return -EINVAL;
 }
@@ -9857,6 +9922,9 @@ static int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 	case IORING_RSRC_FILE:
 		return io_sqe_files_register(ctx, u64_to_user_ptr(rr.data),
 					     rr.nr, u64_to_user_ptr(rr.tags));
+	case IORING_RSRC_BUFFER:
+		return io_sqe_buffers_register(ctx, u64_to_user_ptr(rr.data),
+					       rr.nr, u64_to_user_ptr(rr.tags));
 	}
 	return -EINVAL;
 }
@@ -9933,7 +10001,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 
 	switch (opcode) {
 	case IORING_REGISTER_BUFFERS:
-		ret = io_sqe_buffers_register(ctx, arg, nr_args);
+		ret = io_sqe_buffers_register(ctx, arg, nr_args, NULL);
 		break;
 	case IORING_UNREGISTER_BUFFERS:
 		ret = -EINVAL;

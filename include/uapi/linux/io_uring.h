@@ -314,6 +314,7 @@ struct io_uring_files_update {
 
 enum {
 	IORING_RSRC_FILE		= 0,
+	IORING_RSRC_BUFFER		= 1,
 };
 
 struct io_uring_rsrc_register {
