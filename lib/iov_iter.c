@@ -1398,23 +1398,24 @@ EXPORT_SYMBOL(iov_iter_alignment);
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 {
 	unsigned long res = 0;
+	unsigned long v = 0;
 	size_t size = i->count;
+	unsigned k;
 
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
-		WARN_ON(1);
+	if (WARN_ON(!iter_is_iovec(i)))
 		return ~0U;
-	}
 
-	iterate_all_kinds(i, size, v,
-		(res |= (!res ? 0 : (unsigned long)v.iov_base) |
-			(size != v.iov_len ? size : 0), 0),
-		(res |= (!res ? 0 : (unsigned long)v.bv_offset) |
-			(size != v.bv_len ? size : 0)),
-		(res |= (!res ? 0 : (unsigned long)v.iov_base) |
-			(size != v.iov_len ? size : 0)),
-		(res |= (!res ? 0 : (unsigned long)v.bv_offset) |
-			(size != v.bv_len ? size : 0))
-		);
+	for (k = 0; k < i->nr_segs; k++) {
+		if (i->iov[k].iov_len) {
+			unsigned long base = (unsigned long)i->iov[k].iov_base;
+			if (v) // if not the first one
+				res |= base | v; // this start | previous end
+			v = base + i->iov[k].iov_len;
+			if (size <= i->iov[k].iov_len)
+				break;
+			size -= i->iov[k].iov_len;
+		}
+	}
 	return res;
 }
 EXPORT_SYMBOL(iov_iter_gap_alignment);
