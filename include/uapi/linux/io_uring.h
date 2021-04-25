@@ -299,6 +299,7 @@ enum {
 	IORING_REGISTER_RESTRICTIONS		= 11,
 	IORING_REGISTER_ENABLE_RINGS		= 12,
 	IORING_REGISTER_RSRC			= 13,
+	IORING_REGISTER_RSRC_UPDATE		= 14,
 
 	/* this goes last */
 	IORING_REGISTER_LAST
@@ -311,12 +312,6 @@ struct io_uring_files_update {
 	__aligned_u64 /* __s32 * */ fds;
 };
 
-struct io_uring_rsrc_update {
-	__u32 offset;
-	__u32 resv;
-	__aligned_u64 data;
-};
-
 enum {
 	IORING_RSRC_FILE		= 0,
 };
@@ -326,6 +321,21 @@ struct io_uring_rsrc_register {
 	__u32 nr;
 	__aligned_u64 data;
 	__aligned_u64 tags;
+};
+
+struct io_uring_rsrc_update {
+	__u32 offset;
+	__u32 resv;
+	__aligned_u64 data;
+};
+
+struct io_uring_rsrc_update2 {
+	__u32 offset;
+	__u32 resv;
+	__aligned_u64 data;
+	__aligned_u64 tags;
+	__u32 type;
+	__u32 nr;
 };
 
 /* Skip updating fd indexes set to this value in the fd table */

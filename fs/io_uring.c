@@ -1036,7 +1036,7 @@ static void io_put_task(struct task_struct *task, int nr);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
-				     struct io_uring_rsrc_update *up,
+				     struct io_uring_rsrc_update2 *up,
 				     unsigned nr_args);
 static void io_clean_op(struct io_kiocb *req);
 static struct file *io_file_get(struct io_submit_state *state,
@@ -5814,7 +5814,7 @@ static int io_rsrc_update_prep(struct io_kiocb *req,
 static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_uring_rsrc_update up;
+	struct io_uring_rsrc_update2 up;
 	int ret;
 
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -5822,6 +5822,8 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 
 	up.offset = req->rsrc_update.offset;
 	up.data = req->rsrc_update.arg;
+	up.nr = 0;
+	up.tags = 0;
 
 	mutex_lock(&ctx->uring_lock);
 	ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
@@ -7732,9 +7734,10 @@ static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
-				 struct io_uring_rsrc_update *up,
+				 struct io_uring_rsrc_update2 *up,
 				 unsigned nr_args)
 {
+	u64 __user *tags = u64_to_user_ptr(up->tags);
 	__s32 __user *fds = u64_to_user_ptr(up->data);
 	struct io_rsrc_data *data = ctx->file_data;
 	struct io_fixed_file *file_slot;
@@ -7749,8 +7752,15 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		return -EINVAL;
 
 	for (done = 0; done < nr_args; done++) {
-		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
+		u64 tag = 0;
+
+		if ((tags && copy_from_user(&tag, &tags[done], sizeof(tag))) ||
+		    copy_from_user(&fd, &fds[done], sizeof(fd))) {
 			err = -EFAULT;
+			break;
+		}
+		if ((fd == IORING_REGISTER_FILES_SKIP || fd == -1) && tag) {
+			err = -EINVAL;
 			break;
 		}
 		if (fd == IORING_REGISTER_FILES_SKIP)
@@ -7787,6 +7797,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
+			data->tags[up->offset + done] = tag;
 			io_fixed_file_set(file_slot, file);
 			err = io_sqe_file_register(ctx, file, i);
 			if (err) {
@@ -9718,12 +9729,14 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 }
 
 static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
-				     struct io_uring_rsrc_update *up,
+				     struct io_uring_rsrc_update2 *up,
 				     unsigned nr_args)
 {
 	__u32 tmp;
 	int err;
 
+	if (up->resv)
+		return -EINVAL;
 	if (check_add_overflow(up->offset, nr_args, &tmp))
 		return -EOVERFLOW;
 	err = io_rsrc_node_switch_start(ctx);
@@ -9737,18 +9750,31 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 	return -EINVAL;
 }
 
-static int io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
-				   void __user *arg, unsigned nr_args)
+static int io_register_files_update(struct io_ring_ctx *ctx, void __user *arg,
+				    unsigned nr_args)
 {
-	struct io_uring_rsrc_update up;
+	struct io_uring_rsrc_update2 up;
 
 	if (!nr_args)
 		return -EINVAL;
+	memset(&up, 0, sizeof(up));
+	if (copy_from_user(&up, arg, sizeof(struct io_uring_rsrc_update)))
+		return -EFAULT;
+	return __io_register_rsrc_update(ctx, IORING_RSRC_FILE, &up, nr_args);
+}
+
+static int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
+				   unsigned size)
+{
+	struct io_uring_rsrc_update2 up;
+
+	if (size != sizeof(up))
+		return -EINVAL;
 	if (copy_from_user(&up, arg, sizeof(up)))
 		return -EFAULT;
-	if (up.resv)
+	if (!up.nr)
 		return -EINVAL;
-	return __io_register_rsrc_update(ctx, type, &up, nr_args);
+	return __io_register_rsrc_update(ctx, up.type, &up, up.nr);
 }
 
 static int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
@@ -9784,6 +9810,7 @@ static bool io_register_op_must_quiesce(int op)
 	case IORING_REGISTER_PERSONALITY:
 	case IORING_UNREGISTER_PERSONALITY:
 	case IORING_REGISTER_RSRC:
+	case IORING_REGISTER_RSRC_UPDATE:
 		return false;
 	default:
 		return true;
@@ -9861,7 +9888,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_sqe_files_unregister(ctx);
 		break;
 	case IORING_REGISTER_FILES_UPDATE:
-		ret = io_register_rsrc_update(ctx, IORING_RSRC_FILE, arg, nr_args);
+		ret = io_register_files_update(ctx, arg, nr_args);
 		break;
 	case IORING_REGISTER_EVENTFD:
 	case IORING_REGISTER_EVENTFD_ASYNC:
@@ -9911,6 +9938,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		break;
 	case IORING_REGISTER_RSRC:
 		ret = io_register_rsrc(ctx, arg, nr_args);
+		break;
+	case IORING_REGISTER_RSRC_UPDATE:
+		ret = io_register_rsrc_update(ctx, arg, nr_args);
 		break;
 	default:
 		ret = -EINVAL;
