@@ -867,19 +867,6 @@ out_err:
 		wake_up(&ccw_device_init_wq);
 }
 
-static void ccw_device_call_sch_unregister(struct ccw_device *cdev)
-{
-	struct subchannel *sch;
-
-	/* Get subchannel reference for local processing. */
-	if (!get_device(cdev->dev.parent))
-		return;
-	sch = to_subchannel(cdev->dev.parent);
-	css_sch_device_unregister(sch);
-	/* Release subchannel reference for local processing. */
-	put_device(&sch->dev);
-}
-
 /*
  * subchannel recognition done. Called from the state machine.
  */
@@ -1860,10 +1847,10 @@ static void ccw_device_todo(struct work_struct *work)
 			css_schedule_eval(sch->schid);
 		fallthrough;
 	case CDEV_TODO_UNREG:
-		if (sch_is_pseudo_sch(sch))
-			ccw_device_unregister(cdev);
-		else
-			ccw_device_call_sch_unregister(cdev);
+		spin_lock_irq(sch->lock);
+		sch_set_cdev(sch, NULL);
+		spin_unlock_irq(sch->lock);
+		ccw_device_unregister(cdev);
 		break;
 	default:
 		break;
