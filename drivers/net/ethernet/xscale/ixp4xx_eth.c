@@ -1360,7 +1360,6 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 
 static int ixp4xx_eth_probe(struct platform_device *pdev)
 {
-	char phy_id[MII_BUS_ID_SIZE + 3];
 	struct phy_device *phydev = NULL;
 	struct device *dev = &pdev->dev;
 	struct eth_plat_info *plat;
@@ -1459,14 +1458,15 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	__raw_writel(DEFAULT_CORE_CNTRL, &port->regs->core_control);
 	udelay(50);
 
-	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
-		mdio_bus->id, plat->phy);
-	phydev = phy_connect(ndev, phy_id, &ixp4xx_adjust_link,
-			     PHY_INTERFACE_MODE_MII);
+	phydev = mdiobus_get_phy(mdio_bus, plat->phy);
 	if (IS_ERR(phydev)) {
 		err = PTR_ERR(phydev);
 		goto err_free_mem;
 	}
+	err = phy_connect_direct(ndev, phydev, ixp4xx_adjust_link,
+				 PHY_INTERFACE_MODE_MII);
+	if (err)
+		goto err_free_mem;
 
 	phydev->irq = PHY_POLL;
 
