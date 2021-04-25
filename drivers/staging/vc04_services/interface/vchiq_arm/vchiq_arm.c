@@ -602,7 +602,9 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 
 	service = handle_to_service(handle);
-	BUG_ON(!service);
+	if (WARN_ON(!service))
+		return VCHIQ_SUCCESS;
+
 	user_service = (struct user_service *)service->base.userdata;
 	instance = user_service->instance;
 
@@ -918,8 +920,12 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 			goto out;
 	}
 
-	BUG_ON((int)(user_service->msg_insert -
-		user_service->msg_remove) < 0);
+	if (WARN_ON_ONCE((int)(user_service->msg_insert -
+			 user_service->msg_remove) < 0)) {
+		spin_unlock(&msg_queue_spinlock);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	header = user_service->msg_queue[user_service->msg_remove &
 		(MSG_QUEUE_SIZE - 1)];
@@ -1937,7 +1943,10 @@ static int vchiq_release(struct inode *inode, struct file *file)
 
 		wait_for_completion(&service->remove_event);
 
-		BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
+		if (WARN_ON(service->srvstate != VCHIQ_SRVSTATE_FREE)) {
+			unlock_service(service);
+			break;
+		}
 
 		spin_lock(&msg_queue_spinlock);
 
