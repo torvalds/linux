@@ -1226,6 +1226,22 @@ release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 	mutex_unlock(&state->recycle_mutex);
 }
 
+static inline enum vchiq_reason
+get_bulk_reason(struct vchiq_bulk *bulk)
+{
+	if (bulk->dir == VCHIQ_BULK_TRANSMIT) {
+		if (bulk->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+			return VCHIQ_BULK_TRANSMIT_ABORTED;
+
+		return VCHIQ_BULK_TRANSMIT_DONE;
+	}
+
+	if (bulk->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+		return VCHIQ_BULK_RECEIVE_ABORTED;
+
+	return VCHIQ_BULK_RECEIVE_DONE;
+}
+
 /* Called by the slot handler - don't hold the bulk mutex */
 static enum vchiq_status
 notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
@@ -1281,16 +1297,8 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 					spin_unlock(&bulk_waiter_spinlock);
 				} else if (bulk->mode ==
 					VCHIQ_BULK_MODE_CALLBACK) {
-					enum vchiq_reason reason = (bulk->dir ==
-						VCHIQ_BULK_TRANSMIT) ?
-						((bulk->actual ==
-						VCHIQ_BULK_ACTUAL_ABORTED) ?
-						VCHIQ_BULK_TRANSMIT_ABORTED :
-						VCHIQ_BULK_TRANSMIT_DONE) :
-						((bulk->actual ==
-						VCHIQ_BULK_ACTUAL_ABORTED) ?
-						VCHIQ_BULK_RECEIVE_ABORTED :
-						VCHIQ_BULK_RECEIVE_DONE);
+					enum vchiq_reason reason =
+							get_bulk_reason(bulk);
 					status = make_service_callback(service,
 						reason,	NULL, bulk->userdata);
 					if (status == VCHIQ_RETRY)
