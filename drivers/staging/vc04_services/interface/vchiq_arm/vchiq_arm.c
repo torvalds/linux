@@ -147,12 +147,11 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 	unsigned int size, enum vchiq_bulk_dir dir);
 
 #define VCHIQ_INIT_RETRIES 10
-enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
+int vchiq_initialise(struct vchiq_instance **instance_out)
 {
-	enum vchiq_status status = VCHIQ_ERROR;
 	struct vchiq_state *state;
 	struct vchiq_instance *instance = NULL;
-	int i;
+	int i, ret;
 
 	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
 
@@ -170,6 +169,7 @@ enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
 	if (i == VCHIQ_INIT_RETRIES) {
 		vchiq_log_error(vchiq_core_log_level,
 			"%s: videocore not initialized\n", __func__);
+		ret = -ENOTCONN;
 		goto failed;
 	} else if (i > 0) {
 		vchiq_log_warning(vchiq_core_log_level,
@@ -181,6 +181,7 @@ enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
 	if (!instance) {
 		vchiq_log_error(vchiq_core_log_level,
 			"%s: error allocating vchiq instance\n", __func__);
+		ret = -ENOMEM;
 		goto failed;
 	}
 
@@ -191,13 +192,13 @@ enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
 
 	*instance_out = instance;
 
-	status = VCHIQ_SUCCESS;
+	ret = 0;
 
 failed:
 	vchiq_log_trace(vchiq_core_log_level,
-		"%s(%p): returning %d", __func__, instance, status);
+		"%s(%p): returning %d", __func__, instance, ret);
 
-	return status;
+	return ret;
 }
 EXPORT_SYMBOL(vchiq_initialise);
 
@@ -2236,6 +2237,7 @@ vchiq_keepalive_thread_func(void *v)
 	enum vchiq_status status;
 	struct vchiq_instance *instance;
 	unsigned int ka_handle;
+	int ret;
 
 	struct vchiq_service_params_kernel params = {
 		.fourcc      = VCHIQ_MAKE_FOURCC('K', 'E', 'E', 'P'),
@@ -2244,10 +2246,10 @@ vchiq_keepalive_thread_func(void *v)
 		.version_min = KEEPALIVE_VER_MIN
 	};
 
-	status = vchiq_initialise(&instance);
-	if (status != VCHIQ_SUCCESS) {
+	ret = vchiq_initialise(&instance);
+	if (ret) {
 		vchiq_log_error(vchiq_susp_log_level,
-			"%s vchiq_initialise failed %d", __func__, status);
+			"%s vchiq_initialise failed %d", __func__, ret);
 		goto exit;
 	}
 
