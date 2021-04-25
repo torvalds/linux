@@ -712,7 +712,7 @@ extern int vchiq_get_client_id(unsigned int service);
 
 extern void vchiq_get_config(struct vchiq_config *config);
 
-extern enum vchiq_status
+extern int
 vchiq_set_service_option(unsigned int service, enum vchiq_service_option option,
 			 int value);
 

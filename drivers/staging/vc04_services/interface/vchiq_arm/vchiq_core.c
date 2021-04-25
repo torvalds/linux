@@ -3371,21 +3371,21 @@ void vchiq_get_config(struct vchiq_config *config)
 	config->version_min            = VCHIQ_VERSION_MIN;
 }
 
-enum vchiq_status
+int
 vchiq_set_service_option(unsigned int handle,
 	enum vchiq_service_option option, int value)
 {
 	struct vchiq_service *service = find_service_by_handle(handle);
-	enum vchiq_status status = VCHIQ_ERROR;
 	struct vchiq_service_quota *quota;
+	int ret = -EINVAL;
 
 	if (!service)
-		return VCHIQ_ERROR;
+		return -EINVAL;
 
 	switch (option) {
 	case VCHIQ_SERVICE_OPTION_AUTOCLOSE:
 		service->auto_close = value;
-		status = VCHIQ_SUCCESS;
+		ret = 0;
 		break;
 
 	case VCHIQ_SERVICE_OPTION_SLOT_QUOTA:
@@ -3402,7 +3402,7 @@ vchiq_set_service_option(unsigned int handle,
 				 * dropped below its quota
 				 */
 				complete(&quota->quota_event);
-			status = VCHIQ_SUCCESS;
+			ret = 0;
 		}
 		break;
 
@@ -3420,7 +3420,7 @@ vchiq_set_service_option(unsigned int handle,
 				 * dropped below its quota
 				 */
 				complete(&quota->quota_event);
-			status = VCHIQ_SUCCESS;
+			ret = 0;
 		}
 		break;
 
@@ -3428,13 +3428,13 @@ vchiq_set_service_option(unsigned int handle,
 		if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
 		    (service->srvstate == VCHIQ_SRVSTATE_LISTENING)) {
 			service->sync = value;
-			status = VCHIQ_SUCCESS;
+			ret = 0;
 		}
 		break;
 
 	case VCHIQ_SERVICE_OPTION_TRACE:
 		service->trace = value;
-		status = VCHIQ_SUCCESS;
+		ret = 0;
 		break;
 
 	default:
@@ -3442,7 +3442,7 @@ vchiq_set_service_option(unsigned int handle,
 	}
 	unlock_service(service);
 
-	return status;
+	return ret;
 }
 
 static int

@@ -1517,8 +1517,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		status = vchiq_set_service_option(
-				args.handle, args.option, args.value);
+		ret = vchiq_set_service_option(args.handle, args.option,
+					       args.value);
 	} break;
 
 	case VCHIQ_IOC_LIB_VERSION: {
