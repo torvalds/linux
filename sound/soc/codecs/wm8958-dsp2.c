@@ -912,13 +912,13 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 
 
 	/* We don't *require* firmware and don't want to delay boot */
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc_vss.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_vss_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_enh_eq.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_enh_eq_loaded);
 
