@@ -901,17 +901,42 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 	info->ce_count = obj->err_data.ce_count;
 
 	if (err_data.ce_count) {
-		dev_info(adev->dev, "%ld correctable hardware errors "
+		if (adev->smuio.funcs &&
+		    adev->smuio.funcs->get_socket_id &&
+		    adev->smuio.funcs->get_die_id) {
+			dev_info(adev->dev, "socket: %d, die: %d "
+					"%ld correctable hardware errors "
+					"detected in %s block, no user "
+					"action is needed.\n",
+					adev->smuio.funcs->get_socket_id(adev),
+					adev->smuio.funcs->get_die_id(adev),
+					obj->err_data.ce_count,
+					ras_block_str(info->head.block));
+		} else {
+			dev_info(adev->dev, "%ld correctable hardware errors "
 					"detected in %s block, no user "
 					"action is needed.\n",
 					obj->err_data.ce_count,
 					ras_block_str(info->head.block));
+		}
 	}
 	if (err_data.ue_count) {
-		dev_info(adev->dev, "%ld uncorrectable hardware errors "
+		if (adev->smuio.funcs &&
+		    adev->smuio.funcs->get_socket_id &&
+		    adev->smuio.funcs->get_die_id) {
+			dev_info(adev->dev, "socket: %d, die: %d "
+					"%ld uncorrectable hardware errors "
+					"detected in %s block\n",
+					adev->smuio.funcs->get_socket_id(adev),
+					adev->smuio.funcs->get_die_id(adev),
+					obj->err_data.ue_count,
+					ras_block_str(info->head.block));
+		} else {
+			dev_info(adev->dev, "%ld uncorrectable hardware errors "
 					"detected in %s block\n",
 					obj->err_data.ue_count,
 					ras_block_str(info->head.block));
+		}
 	}
 
 	return 0;
