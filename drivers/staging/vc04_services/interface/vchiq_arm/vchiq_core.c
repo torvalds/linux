@@ -2622,9 +2622,10 @@ do_abort_bulks(struct vchiq_service *service)
 	mutex_unlock(&service->bulk_mutex);
 
 	status = notify_bulks(service, &service->bulk_tx, 0/*!retry_poll*/);
-	if (status == VCHIQ_SUCCESS)
-		status = notify_bulks(service, &service->bulk_rx,
-			0/*!retry_poll*/);
+	if (status != VCHIQ_SUCCESS)
+		return 0;
+
+	status = notify_bulks(service, &service->bulk_rx, 0/*!retry_poll*/);
 	return (status == VCHIQ_SUCCESS);
 }
 
