@@ -839,6 +839,8 @@ struct io_kiocb {
 	struct hlist_node		hash_node;
 	struct async_poll		*apoll;
 	struct io_wq_work		work;
+	/* store used ubuf, so we can prevent reloading */
+	struct io_mapped_ubuf		*imu;
 };
 
 struct io_tctx_node {
@@ -2683,6 +2685,12 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		kiocb->ki_complete = io_complete_rw;
 	}
 
+	if (req->opcode == IORING_OP_READ_FIXED ||
+	    req->opcode == IORING_OP_WRITE_FIXED) {
+		req->imu = NULL;
+		io_req_set_rsrc_node(req);
+	}
+
 	req->rw.addr = READ_ONCE(sqe->addr);
 	req->rw.len = READ_ONCE(sqe->len);
 	req->buf_index = READ_ONCE(sqe->buf_index);
@@ -2748,20 +2756,12 @@ static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
 	}
 }
 
-static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter)
+static int __io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter,
+			     struct io_mapped_ubuf *imu)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	size_t len = req->rw.len;
-	struct io_mapped_ubuf *imu;
-	u16 index, buf_index = req->buf_index;
 	u64 buf_end, buf_addr = req->rw.addr;
 	size_t offset;
-
-	if (unlikely(buf_index >= ctx->nr_user_bufs))
-		return -EFAULT;
-	index = array_index_nospec(buf_index, ctx->nr_user_bufs);
-	imu = ctx->user_bufs[index];
-	buf_addr = req->rw.addr;
 
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
@@ -2812,6 +2812,22 @@ static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter)
 	}
 
 	return 0;
+}
+
+static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_mapped_ubuf *imu = req->imu;
+	u16 index, buf_index = req->buf_index;
+
+	if (likely(!imu)) {
+		if (unlikely(buf_index >= ctx->nr_user_bufs))
+			return -EFAULT;
+		index = array_index_nospec(buf_index, ctx->nr_user_bufs);
+		imu = READ_ONCE(ctx->user_bufs[index]);
+		req->imu = imu;
+	}
+	return __io_import_fixed(req, rw, iter, imu);
 }
 
 static void io_ring_submit_unlock(struct io_ring_ctx *ctx, bool needs_lock)
@@ -9506,6 +9522,9 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ret = io_sq_offload_create(ctx, p);
 	if (ret)
 		goto err;
+	/* always set a rsrc node */
+	io_rsrc_node_switch_start(ctx);
+	io_rsrc_node_switch(ctx, NULL);
 
 	memset(&p->sq_off, 0, sizeof(p->sq_off));
 	p->sq_off.head = offsetof(struct io_rings, sq.head);
