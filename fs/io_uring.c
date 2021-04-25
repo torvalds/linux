@@ -9021,41 +9021,6 @@ static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 	return percpu_counter_sum(&tctx->inflight);
 }
 
-static void io_sqpoll_cancel_cb(struct callback_head *cb)
-{
-	struct io_tctx_exit *work = container_of(cb, struct io_tctx_exit, task_work);
-	struct io_sq_data *sqd = work->ctx->sq_data;
-
-	if (sqd->thread)
-		io_uring_cancel_sqpoll(sqd);
-	list_del_init(&work->ctx->sqd_list);
-	io_sqd_update_thread_idle(sqd);
-	complete(&work->completion);
-}
-
-static void io_sqpoll_cancel_sync(struct io_ring_ctx *ctx)
-{
-	struct io_sq_data *sqd = ctx->sq_data;
-	struct io_tctx_exit work = { .ctx = ctx, };
-	struct task_struct *task;
-
-	io_sq_thread_park(sqd);
-	task = sqd->thread;
-	if (task) {
-		init_completion(&work.completion);
-		init_task_work(&work.task_work, io_sqpoll_cancel_cb);
-		io_task_work_add_head(&sqd->park_task_work, &work.task_work);
-		wake_up_process(task);
-	} else {
-		list_del_init(&ctx->sqd_list);
-		io_sqd_update_thread_idle(sqd);
-	}
-	io_sq_thread_unpark(sqd);
-
-	if (task)
-		wait_for_completion(&work.completion);
-}
-
 static void io_uring_try_cancel(struct files_struct *files)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -9065,11 +9030,9 @@ static void io_uring_try_cancel(struct files_struct *files)
 	xa_for_each(&tctx->xa, index, node) {
 		struct io_ring_ctx *ctx = node->ctx;
 
-		if (ctx->sq_data) {
-			io_sqpoll_cancel_sync(ctx);
-			continue;
-		}
-		io_uring_try_cancel_requests(ctx, current, files);
+		/* sqpoll task will cancel all its requests */
+		if (!ctx->sq_data)
+			io_uring_try_cancel_requests(ctx, current, files);
 	}
 }
 
@@ -9117,8 +9080,6 @@ void __io_uring_cancel(struct files_struct *files)
 
 	/* make sure overflow events are dropped */
 	atomic_inc(&tctx->in_idle);
-	io_uring_try_cancel(files);
-
 	do {
 		/* read completions before cancelations */
 		inflight = tctx_inflight(tctx, !!files);
