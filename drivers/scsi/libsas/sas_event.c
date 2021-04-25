@@ -109,7 +109,7 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 
 		sas_phy = container_of(port->phy_list.next, struct asd_sas_phy,
 				port_phy_el);
-		ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 	}
 	mutex_unlock(&ha->disco_mutex);
 }
@@ -131,17 +131,14 @@ static void sas_phy_event_worker(struct work_struct *work)
 	sas_free_event(ev);
 }
 
-static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
+static int __sas_notify_port_event(struct asd_sas_phy *phy,
+				   enum port_event event,
+				   struct asd_sas_event *ev)
 {
-	struct asd_sas_event *ev;
 	struct sas_ha_struct *ha = phy->ha;
 	int ret;
 
 	BUG_ON(event >= PORT_NUM_EVENTS);
-
-	ev = sas_alloc_event(phy);
-	if (!ev)
-		return -ENOMEM;
 
 	INIT_SAS_EVENT(ev, sas_port_event_worker, phy, event);
 
@@ -152,17 +149,39 @@ static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
 	return ret;
 }
 
-int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
+int sas_notify_port_event_gfp(struct asd_sas_phy *phy, enum port_event event,
+			      gfp_t gfp_flags)
 {
 	struct asd_sas_event *ev;
-	struct sas_ha_struct *ha = phy->ha;
-	int ret;
 
-	BUG_ON(event >= PHY_NUM_EVENTS);
+	ev = sas_alloc_event_gfp(phy, gfp_flags);
+	if (!ev)
+		return -ENOMEM;
+
+	return __sas_notify_port_event(phy, event, ev);
+}
+EXPORT_SYMBOL_GPL(sas_notify_port_event_gfp);
+
+int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
+{
+	struct asd_sas_event *ev;
 
 	ev = sas_alloc_event(phy);
 	if (!ev)
 		return -ENOMEM;
+
+	return __sas_notify_port_event(phy, event, ev);
+}
+EXPORT_SYMBOL_GPL(sas_notify_port_event);
+
+static inline int __sas_notify_phy_event(struct asd_sas_phy *phy,
+					 enum phy_event event,
+					 struct asd_sas_event *ev)
+{
+	struct sas_ha_struct *ha = phy->ha;
+	int ret;
+
+	BUG_ON(event >= PHY_NUM_EVENTS);
 
 	INIT_SAS_EVENT(ev, sas_phy_event_worker, phy, event);
 
@@ -173,10 +192,27 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 	return ret;
 }
 
-int sas_init_events(struct sas_ha_struct *sas_ha)
+int sas_notify_phy_event_gfp(struct asd_sas_phy *phy, enum phy_event event,
+			     gfp_t gfp_flags)
 {
-	sas_ha->notify_port_event = sas_notify_port_event;
-	sas_ha->notify_phy_event = sas_notify_phy_event;
+	struct asd_sas_event *ev;
 
-	return 0;
+	ev = sas_alloc_event_gfp(phy, gfp_flags);
+	if (!ev)
+		return -ENOMEM;
+
+	return __sas_notify_phy_event(phy, event, ev);
 }
+EXPORT_SYMBOL_GPL(sas_notify_phy_event_gfp);
+
+int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
+{
+	struct asd_sas_event *ev;
+
+	ev = sas_alloc_event(phy);
+	if (!ev)
+		return -ENOMEM;
+
+	return __sas_notify_phy_event(phy, event, ev);
+}
+EXPORT_SYMBOL_GPL(sas_notify_phy_event);

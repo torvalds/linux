@@ -74,6 +74,8 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_16b = { 4 },
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "R1 tried to add from different maps, paths, or prohibited types",
 	.result = ACCEPT,
 },
 {
@@ -90,5 +92,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_16b = { 4 },
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "R1 tried to add from different maps, paths, or prohibited types",
 	.result = ACCEPT,
 },

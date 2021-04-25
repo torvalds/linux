@@ -144,77 +144,13 @@ Please send incremental versions on top of what has been merged in order to fix
 the patches the way they would look like if your latest patch series was to be
 merged.
 
-Q: How can I tell what patches are queued up for backporting to the various stable releases?
---------------------------------------------------------------------------------------------
-A: Normally Greg Kroah-Hartman collects stable commits himself, but for
-networking, Dave collects up patches he deems critical for the
-networking subsystem, and then hands them off to Greg.
-
-There is a patchworks queue that you can see here:
-
-  https://patchwork.kernel.org/bundle/netdev/stable/?state=*
-
-It contains the patches which Dave has selected, but not yet handed off
-to Greg.  If Greg already has the patch, then it will be here:
-
-  https://git.kernel.org/pub/scm/linux/kernel/git/stable/stable-queue.git
-
-A quick way to find whether the patch is in this stable-queue is to
-simply clone the repo, and then git grep the mainline commit ID, e.g.
-::
-
-  stable-queue$ git grep -l 284041ef21fdf2e
-  releases/3.0.84/ipv6-fix-possible-crashes-in-ip6_cork_release.patch
-  releases/3.4.51/ipv6-fix-possible-crashes-in-ip6_cork_release.patch
-  releases/3.9.8/ipv6-fix-possible-crashes-in-ip6_cork_release.patch
-  stable/stable-queue$
-
-Q: I see a network patch and I think it should be backported to stable.
------------------------------------------------------------------------
-Q: Should I request it via stable@vger.kernel.org like the references in
-the kernel's Documentation/process/stable-kernel-rules.rst file say?
-A: No, not for networking.  Check the stable queues as per above first
-to see if it is already queued.  If not, then send a mail to netdev,
-listing the upstream commit ID and why you think it should be a stable
-candidate.
-
-Before you jump to go do the above, do note that the normal stable rules
-in :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
-still apply.  So you need to explicitly indicate why it is a critical
-fix and exactly what users are impacted.  In addition, you need to
-convince yourself that you *really* think it has been overlooked,
-vs. having been considered and rejected.
-
-Generally speaking, the longer it has had a chance to "soak" in
-mainline, the better the odds that it is an OK candidate for stable.  So
-scrambling to request a commit be added the day after it appears should
-be avoided.
-
-Q: I have created a network patch and I think it should be backported to stable.
---------------------------------------------------------------------------------
-Q: Should I add a Cc: stable@vger.kernel.org like the references in the
-kernel's Documentation/ directory say?
-A: No.  See above answer.  In short, if you think it really belongs in
-stable, then ensure you write a decent commit log that describes who
-gets impacted by the bug fix and how it manifests itself, and when the
-bug was introduced.  If you do that properly, then the commit will get
-handled appropriately and most likely get put in the patchworks stable
-queue if it really warrants it.
-
-If you think there is some valid information relating to it being in
-stable that does *not* belong in the commit log, then use the three dash
-marker line as described in
-:ref:`Documentation/process/submitting-patches.rst <the_canonical_patch_format>`
-to temporarily embed that information into the patch that you send.
-
-Q: Are all networking bug fixes backported to all stable releases?
-------------------------------------------------------------------
-A: Due to capacity, Dave could only take care of the backports for the
-last two stable releases. For earlier stable releases, each stable
-branch maintainer is supposed to take care of them. If you find any
-patch is missing from an earlier stable branch, please notify
-stable@vger.kernel.org with either a commit ID or a formal patch
-backported, and CC Dave and other relevant networking developers.
+Q: Are there special rules regarding stable submissions on netdev?
+---------------------------------------------------------------
+While it used to be the case that netdev submissions were not supposed
+to carry explicit ``CC: stable@vger.kernel.org`` tags that is no longer
+the case today. Please follow the standard stable rules in
+:ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`,
+and make sure you include appropriate Fixes tags!
 
 Q: Is the comment style convention different for the networking content?
 ------------------------------------------------------------------------

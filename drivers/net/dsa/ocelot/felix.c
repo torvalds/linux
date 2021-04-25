@@ -635,14 +635,18 @@ static void felix_teardown(struct dsa_switch *ds)
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int port;
 
+	ocelot_deinit_timestamp(ocelot);
+	ocelot_deinit(ocelot);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		ocelot_deinit_port(ocelot, port);
+	}
+
 	if (felix->info->mdio_bus_free)
 		felix->info->mdio_bus_free(ocelot);
-
-	for (port = 0; port < ocelot->num_phys_ports; port++)
-		ocelot_deinit_port(ocelot, port);
-	ocelot_deinit_timestamp(ocelot);
-	/* stop workqueue thread */
-	ocelot_deinit(ocelot);
 }
 
 static int felix_hwtstamp_get(struct dsa_switch *ds, int port,

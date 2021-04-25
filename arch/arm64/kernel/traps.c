@@ -46,6 +46,8 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
+#include <trace/hooks/traps.h>
+
 static const char *handler[]= {
 	"Synchronous Abort",
 	"IRQ",
@@ -404,6 +406,7 @@ void do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
+	trace_android_rvh_do_undefinstr(regs, user_mode(regs));
 	BUG_ON(!user_mode(regs));
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
@@ -765,6 +768,7 @@ asmlinkage void notrace bad_mode(struct pt_regs *regs, int reason, unsigned int 
 		handler[reason], smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
+	trace_android_rvh_bad_mode(regs, esr, reason);
 	__show_regs(regs);
 	local_daif_mask();
 	panic("bad mode");
@@ -830,6 +834,8 @@ void __noreturn arm64_serror_panic(struct pt_regs *regs, u32 esr)
 
 	pr_crit("SError Interrupt on CPU%d, code 0x%08x -- %s\n",
 		smp_processor_id(), esr, esr_get_class_string(esr));
+
+	trace_android_rvh_arm64_serror_panic(regs, esr);
 	if (regs)
 		__show_regs(regs);
 

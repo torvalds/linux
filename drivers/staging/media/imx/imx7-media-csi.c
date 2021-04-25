@@ -499,6 +499,7 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
+	struct media_entity *src;
 	struct media_pad *pad;
 	int ret;
 
@@ -509,11 +510,21 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	if (!csi->src_sd)
 		return -EPIPE;
 
+	src = &csi->src_sd->entity;
+
 	/*
-	 * find the entity that is selected by the CSI mux. This is needed
+	 * if the source is neither a CSI MUX or CSI-2 get the one directly
+	 * upstream from this CSI
+	 */
+	if (src->function != MEDIA_ENT_F_VID_IF_BRIDGE &&
+	    src->function != MEDIA_ENT_F_VID_MUX)
+		src = &csi->sd.entity;
+
+	/*
+	 * find the entity that is selected by the source. This is needed
 	 * to distinguish between a parallel or CSI-2 pipeline.
 	 */
-	pad = imx_media_pipeline_pad(&csi->src_sd->entity, 0, 0, true);
+	pad = imx_media_pipeline_pad(src, 0, 0, true);
 	if (!pad)
 		return -ENODEV;
 
@@ -1164,12 +1175,12 @@ static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
 	struct media_pad *sink = &csi->sd.entity.pads[IMX7_CSI_PAD_SINK];
 
-	/* The bound subdev must always be the CSI mux */
-	if (WARN_ON(sd->entity.function != MEDIA_ENT_F_VID_MUX))
-		return -ENXIO;
-
-	/* Mark it as such via its group id */
-	sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
+	/*
+	 * If the subdev is a video mux, it must be one of the CSI
+	 * muxes. Mark it as such via its group id.
+	 */
+	if (sd->entity.function == MEDIA_ENT_F_VID_MUX)
+		sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
 
 	return v4l2_create_fwnode_links_to_pad(sd, sink);
 }

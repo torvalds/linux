@@ -1561,12 +1561,11 @@ static int bfd2elf_binding(asymbol *symbol)
 int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 {
 	int err = -1;
-	long symbols_size, symbols_count;
+	long symbols_size, symbols_count, i;
 	asection *section;
 	asymbol **symbols, *sym;
 	struct symbol *symbol;
 	bfd *abfd;
-	u_int i;
 	u64 start, len;
 
 	abfd = bfd_openr(dso->long_name, NULL);
@@ -1867,8 +1866,10 @@ int dso__load(struct dso *dso, struct map *map)
 		if (nsexit)
 			nsinfo__mountns_enter(dso->nsinfo, &nsc);
 
-		if (bfdrc == 0)
+		if (bfdrc == 0) {
+			ret = 0;
 			break;
+		}
 
 		if (!is_reg || sirc < 0)
 			continue;

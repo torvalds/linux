@@ -1506,6 +1506,48 @@ static int vega10_populate_single_lclk_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega10_override_pcie_parameters(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t pcie_gen = 0, pcie_width = 0;
+	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
+	int i;
+
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
+		pcie_gen = 3;
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
+		pcie_gen = 2;
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
+		pcie_gen = 1;
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1)
+		pcie_gen = 0;
+
+	if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
+		pcie_width = 6;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X12)
+		pcie_width = 5;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X8)
+		pcie_width = 4;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4)
+		pcie_width = 3;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X2)
+		pcie_width = 2;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X1)
+		pcie_width = 1;
+
+	for (i = 0; i < NUM_LINK_LEVELS; i++) {
+		if (pp_table->PcieGenSpeed[i] > pcie_gen)
+			pp_table->PcieGenSpeed[i] = pcie_gen;
+
+		if (pp_table->PcieLaneCount[i] > pcie_width)
+			pp_table->PcieLaneCount[i] = pcie_width;
+	}
+
+	return 0;
+}
+
 static int vega10_populate_smc_link_levels(struct pp_hwmgr *hwmgr)
 {
 	int result = -1;
@@ -2557,6 +2599,11 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 			"Failed to initialize Link Level!",
 			return result);
 
+	result = vega10_override_pcie_parameters(hwmgr);
+	PP_ASSERT_WITH_CODE(!result,
+			"Failed to override pcie parameters!",
+			return result);
+
 	result = vega10_populate_all_graphic_levels(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to initialize Graphics Level!",
@@ -2922,6 +2969,7 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 
 	return 0;
 }
+
 
 static int vega10_enable_disable_PCC_limit_feature(struct pp_hwmgr *hwmgr, bool enable)
 {

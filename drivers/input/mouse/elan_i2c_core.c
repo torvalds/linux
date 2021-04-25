@@ -47,18 +47,6 @@
 #define ETP_FINGER_WIDTH	15
 #define ETP_RETRY_COUNT		3
 
-#define ETP_MAX_FINGERS		5
-#define ETP_FINGER_DATA_LEN	5
-#define ETP_REPORT_ID		0x5D
-#define ETP_REPORT_ID2		0x60	/* High precision report */
-#define ETP_TP_REPORT_ID	0x5E
-#define ETP_REPORT_ID_OFFSET	2
-#define ETP_TOUCH_INFO_OFFSET	3
-#define ETP_FINGER_DATA_OFFSET	4
-#define ETP_HOVER_INFO_OFFSET	30
-#define ETP_MK_DATA_OFFSET	33	/* For high precision reports */
-#define ETP_MAX_REPORT_LEN	39
-
 /* The main device structure */
 struct elan_tp_data {
 	struct i2c_client	*client;
@@ -1076,6 +1064,7 @@ static irqreturn_t elan_isr(int irq, void *dev_id)
 		elan_report_absolute(data, report, true);
 		break;
 	case ETP_TP_REPORT_ID:
+	case ETP_TP_REPORT_ID2:
 		elan_report_trackpoint(data, report);
 		break;
 	default:

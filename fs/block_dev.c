@@ -123,12 +123,21 @@ int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
 		err = bd_prepare_to_claim(bdev, claimed_bdev,
 					  truncate_bdev_range);
 		if (err)
-			return err;
+			goto invalidate;
 	}
 	truncate_inode_pages_range(bdev->bd_inode->i_mapping, lstart, lend);
 	if (claimed_bdev)
 		bd_abort_claiming(bdev, claimed_bdev, truncate_bdev_range);
 	return 0;
+
+invalidate:
+	/*
+	 * Someone else has handle exclusively open. Try invalidating instead.
+	 * The 'end' argument is inclusive so the rounding is safe.
+	 */
+	return invalidate_inode_pages2_range(bdev->bd_inode->i_mapping,
+					     lstart >> PAGE_SHIFT,
+					     lend >> PAGE_SHIFT);
 }
 EXPORT_SYMBOL(truncate_bdev_range);
 

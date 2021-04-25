@@ -232,7 +232,8 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	dma_addr_t dma_addr = sess->dma_addr[id->msg_id];
 	struct rtrs_srv_mr *srv_mr;
 	struct rtrs_srv *srv = sess->srv;
-	struct ib_send_wr inv_wr, imm_wr;
+	struct ib_send_wr inv_wr;
+	struct ib_rdma_wr imm_wr;
 	struct ib_rdma_wr *wr = NULL;
 	enum ib_send_flags flags;
 	size_t sg_cnt;
@@ -277,21 +278,22 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 		WARN_ON_ONCE(rkey != wr->rkey);
 
 	wr->wr.opcode = IB_WR_RDMA_WRITE;
+	wr->wr.wr_cqe   = &io_comp_cqe;
 	wr->wr.ex.imm_data = 0;
 	wr->wr.send_flags  = 0;
 
 	if (need_inval && always_invalidate) {
 		wr->wr.next = &rwr.wr;
 		rwr.wr.next = &inv_wr;
-		inv_wr.next = &imm_wr;
+		inv_wr.next = &imm_wr.wr;
 	} else if (always_invalidate) {
 		wr->wr.next = &rwr.wr;
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 	} else if (need_inval) {
 		wr->wr.next = &inv_wr;
-		inv_wr.next = &imm_wr;
+		inv_wr.next = &imm_wr.wr;
 	} else {
-		wr->wr.next = &imm_wr;
+		wr->wr.next = &imm_wr.wr;
 	}
 	/*
 	 * From time to time we have to post signaled sends,
@@ -304,16 +306,18 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 		inv_wr.sg_list = NULL;
 		inv_wr.num_sge = 0;
 		inv_wr.opcode = IB_WR_SEND_WITH_INV;
+		inv_wr.wr_cqe   = &io_comp_cqe;
 		inv_wr.send_flags = 0;
 		inv_wr.ex.invalidate_rkey = rkey;
 	}
 
-	imm_wr.next = NULL;
+	imm_wr.wr.next = NULL;
 	if (always_invalidate) {
 		struct rtrs_msg_rkey_rsp *msg;
 
 		srv_mr = &sess->mrs[id->msg_id];
 		rwr.wr.opcode = IB_WR_REG_MR;
+		rwr.wr.wr_cqe = &local_reg_cqe;
 		rwr.wr.num_sge = 0;
 		rwr.mr = srv_mr->mr;
 		rwr.wr.send_flags = 0;
@@ -328,22 +332,22 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 		list.addr   = srv_mr->iu->dma_addr;
 		list.length = sizeof(*msg);
 		list.lkey   = sess->s.dev->ib_pd->local_dma_lkey;
-		imm_wr.sg_list = &list;
-		imm_wr.num_sge = 1;
-		imm_wr.opcode = IB_WR_SEND_WITH_IMM;
+		imm_wr.wr.sg_list = &list;
+		imm_wr.wr.num_sge = 1;
+		imm_wr.wr.opcode = IB_WR_SEND_WITH_IMM;
 		ib_dma_sync_single_for_device(sess->s.dev->ib_dev,
 					      srv_mr->iu->dma_addr,
 					      srv_mr->iu->size, DMA_TO_DEVICE);
 	} else {
-		imm_wr.sg_list = NULL;
-		imm_wr.num_sge = 0;
-		imm_wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
+		imm_wr.wr.sg_list = NULL;
+		imm_wr.wr.num_sge = 0;
+		imm_wr.wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
 	}
-	imm_wr.send_flags = flags;
-	imm_wr.ex.imm_data = cpu_to_be32(rtrs_to_io_rsp_imm(id->msg_id,
+	imm_wr.wr.send_flags = flags;
+	imm_wr.wr.ex.imm_data = cpu_to_be32(rtrs_to_io_rsp_imm(id->msg_id,
 							     0, need_inval));
 
-	imm_wr.wr_cqe   = &io_comp_cqe;
+	imm_wr.wr.wr_cqe   = &io_comp_cqe;
 	ib_dma_sync_single_for_device(sess->s.dev->ib_dev, dma_addr,
 				      offset, DMA_BIDIRECTIONAL);
 
@@ -370,7 +374,8 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 {
 	struct rtrs_sess *s = con->c.sess;
 	struct rtrs_srv_sess *sess = to_srv_sess(s);
-	struct ib_send_wr inv_wr, imm_wr, *wr = NULL;
+	struct ib_send_wr inv_wr, *wr = NULL;
+	struct ib_rdma_wr imm_wr;
 	struct ib_reg_wr rwr;
 	struct rtrs_srv *srv = sess->srv;
 	struct rtrs_srv_mr *srv_mr;
@@ -389,6 +394,7 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 
 		if (need_inval) {
 			if (likely(sg_cnt)) {
+				inv_wr.wr_cqe   = &io_comp_cqe;
 				inv_wr.sg_list = NULL;
 				inv_wr.num_sge = 0;
 				inv_wr.opcode = IB_WR_SEND_WITH_INV;
@@ -406,15 +412,15 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	if (need_inval && always_invalidate) {
 		wr = &inv_wr;
 		inv_wr.next = &rwr.wr;
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 	} else if (always_invalidate) {
 		wr = &rwr.wr;
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 	} else if (need_inval) {
 		wr = &inv_wr;
-		inv_wr.next = &imm_wr;
+		inv_wr.next = &imm_wr.wr;
 	} else {
-		wr = &imm_wr;
+		wr = &imm_wr.wr;
 	}
 	/*
 	 * From time to time we have to post signalled sends,
@@ -423,14 +429,15 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	flags = (atomic_inc_return(&con->wr_cnt) % srv->queue_depth) ?
 		0 : IB_SEND_SIGNALED;
 	imm = rtrs_to_io_rsp_imm(id->msg_id, errno, need_inval);
-	imm_wr.next = NULL;
+	imm_wr.wr.next = NULL;
 	if (always_invalidate) {
 		struct ib_sge list;
 		struct rtrs_msg_rkey_rsp *msg;
 
 		srv_mr = &sess->mrs[id->msg_id];
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 		rwr.wr.opcode = IB_WR_REG_MR;
+		rwr.wr.wr_cqe = &local_reg_cqe;
 		rwr.wr.num_sge = 0;
 		rwr.wr.send_flags = 0;
 		rwr.mr = srv_mr->mr;
@@ -445,21 +452,21 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 		list.addr   = srv_mr->iu->dma_addr;
 		list.length = sizeof(*msg);
 		list.lkey   = sess->s.dev->ib_pd->local_dma_lkey;
-		imm_wr.sg_list = &list;
-		imm_wr.num_sge = 1;
-		imm_wr.opcode = IB_WR_SEND_WITH_IMM;
+		imm_wr.wr.sg_list = &list;
+		imm_wr.wr.num_sge = 1;
+		imm_wr.wr.opcode = IB_WR_SEND_WITH_IMM;
 		ib_dma_sync_single_for_device(sess->s.dev->ib_dev,
 					      srv_mr->iu->dma_addr,
 					      srv_mr->iu->size, DMA_TO_DEVICE);
 	} else {
-		imm_wr.sg_list = NULL;
-		imm_wr.num_sge = 0;
-		imm_wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
+		imm_wr.wr.sg_list = NULL;
+		imm_wr.wr.num_sge = 0;
+		imm_wr.wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
 	}
-	imm_wr.send_flags = flags;
-	imm_wr.wr_cqe   = &io_comp_cqe;
+	imm_wr.wr.send_flags = flags;
+	imm_wr.wr.wr_cqe   = &io_comp_cqe;
 
-	imm_wr.ex.imm_data = cpu_to_be32(imm);
+	imm_wr.wr.ex.imm_data = cpu_to_be32(imm);
 
 	err = ib_post_send(id->con->c.qp, wr, NULL);
 	if (unlikely(err))
@@ -577,8 +584,7 @@ static void unmap_cont_bufs(struct rtrs_srv_sess *sess)
 		struct rtrs_srv_mr *srv_mr;
 
 		srv_mr = &sess->mrs[i];
-		rtrs_iu_free(srv_mr->iu, DMA_TO_DEVICE,
-			      sess->s.dev->ib_dev, 1);
+		rtrs_iu_free(srv_mr->iu, sess->s.dev->ib_dev, 1);
 		ib_dereg_mr(srv_mr->mr);
 		ib_dma_unmap_sg(sess->s.dev->ib_dev, srv_mr->sgt.sgl,
 				srv_mr->sgt.nents, DMA_BIDIRECTIONAL);
@@ -665,7 +671,7 @@ static int map_cont_bufs(struct rtrs_srv_sess *sess)
 			if (!srv_mr->iu) {
 				err = -ENOMEM;
 				rtrs_err(ss, "rtrs_iu_alloc(), err: %d\n", err);
-				goto free_iu;
+				goto dereg_mr;
 			}
 		}
 		/* Eventually dma addr for each chunk can be cached */
@@ -681,9 +687,7 @@ err:
 			srv_mr = &sess->mrs[mri];
 			sgt = &srv_mr->sgt;
 			mr = srv_mr->mr;
-free_iu:
-			rtrs_iu_free(srv_mr->iu, DMA_TO_DEVICE,
-				      sess->s.dev->ib_dev, 1);
+			rtrs_iu_free(srv_mr->iu, sess->s.dev->ib_dev, 1);
 dereg_mr:
 			ib_dereg_mr(mr);
 unmap_sg:
@@ -735,7 +739,7 @@ static void rtrs_srv_info_rsp_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rtrs_iu *iu;
 
 	iu = container_of(wc->wr_cqe, struct rtrs_iu, cqe);
-	rtrs_iu_free(iu, DMA_TO_DEVICE, sess->s.dev->ib_dev, 1);
+	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		rtrs_err(s, "Sess info response send failed: %s\n",
@@ -829,7 +833,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 		rwr[mri].wr.opcode = IB_WR_REG_MR;
 		rwr[mri].wr.wr_cqe = &local_reg_cqe;
 		rwr[mri].wr.num_sge = 0;
-		rwr[mri].wr.send_flags = mri ? 0 : IB_SEND_SIGNALED;
+		rwr[mri].wr.send_flags = 0;
 		rwr[mri].mr = mr;
 		rwr[mri].key = mr->rkey;
 		rwr[mri].access = (IB_ACCESS_LOCAL_WRITE |
@@ -861,7 +865,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	if (unlikely(err)) {
 		rtrs_err(s, "rtrs_iu_post_send(), err: %d\n", err);
 iu_free:
-		rtrs_iu_free(tx_iu, DMA_TO_DEVICE, sess->s.dev->ib_dev, 1);
+		rtrs_iu_free(tx_iu, sess->s.dev->ib_dev, 1);
 	}
 rwr_free:
 	kfree(rwr);
@@ -906,7 +910,7 @@ static void rtrs_srv_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 		goto close;
 
 out:
-	rtrs_iu_free(iu, DMA_FROM_DEVICE, sess->s.dev->ib_dev, 1);
+	rtrs_iu_free(iu, sess->s.dev->ib_dev, 1);
 	return;
 close:
 	close_sess(sess);
@@ -929,7 +933,7 @@ static int post_recv_info_req(struct rtrs_srv_con *con)
 	err = rtrs_iu_post_recv(&con->c, rx_iu);
 	if (unlikely(err)) {
 		rtrs_err(s, "rtrs_iu_post_recv(), err: %d\n", err);
-		rtrs_iu_free(rx_iu, DMA_FROM_DEVICE, sess->s.dev->ib_dev, 1);
+		rtrs_iu_free(rx_iu, sess->s.dev->ib_dev, 1);
 		return err;
 	}
 
@@ -1253,7 +1257,6 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 	case IB_WC_SEND:
 		/*
 		 * post_send() RDMA write completions of IO reqs (read/write)
-		 * and hb
 		 */
 		atomic_add(srv->queue_depth, &con->sq_wr_avail);
 
@@ -1343,7 +1346,8 @@ static void free_srv(struct rtrs_srv *srv)
 }
 
 static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
-					   const uuid_t *paths_uuid)
+					  const uuid_t *paths_uuid,
+					  bool first_conn)
 {
 	struct rtrs_srv *srv;
 	int i;
@@ -1356,13 +1360,18 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 			return srv;
 		}
 	}
+	mutex_unlock(&ctx->srv_mutex);
+	/*
+	 * If this request is not the first connection request from the
+	 * client for this session then fail and return error.
+	 */
+	if (!first_conn)
+		return ERR_PTR(-ENXIO);
 
 	/* need to allocate a new srv */
 	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
-	if  (!srv) {
-		mutex_unlock(&ctx->srv_mutex);
-		return NULL;
-	}
+	if  (!srv)
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&srv->paths_list);
 	mutex_init(&srv->paths_mutex);
@@ -1372,8 +1381,6 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 	srv->ctx = ctx;
 	device_initialize(&srv->dev);
 	srv->dev.release = rtrs_srv_dev_release;
-	list_add(&srv->ctx_list, &ctx->srv_list);
-	mutex_unlock(&ctx->srv_mutex);
 
 	srv->chunks = kcalloc(srv->queue_depth, sizeof(*srv->chunks),
 			      GFP_KERNEL);
@@ -1386,6 +1393,9 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 			goto err_free_chunks;
 	}
 	refcount_set(&srv->refcount, 1);
+	mutex_lock(&ctx->srv_mutex);
+	list_add(&srv->ctx_list, &ctx->srv_list);
+	mutex_unlock(&ctx->srv_mutex);
 
 	return srv;
 
@@ -1396,7 +1406,7 @@ err_free_chunks:
 
 err_free_srv:
 	kfree(srv);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void put_srv(struct rtrs_srv *srv)
@@ -1476,10 +1486,12 @@ static bool __is_path_w_addr_exists(struct rtrs_srv *srv,
 
 static void free_sess(struct rtrs_srv_sess *sess)
 {
-	if (sess->kobj.state_in_sysfs)
+	if (sess->kobj.state_in_sysfs) {
+		kobject_del(&sess->kobj);
 		kobject_put(&sess->kobj);
-	else
+	} else {
 		kfree(sess);
+	}
 }
 
 static void rtrs_srv_close_work(struct work_struct *work)
@@ -1601,7 +1613,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 	struct rtrs_sess *s = &sess->s;
 	struct rtrs_srv_con *con;
 
-	u16 cq_size, wr_queue_size;
+	u32 cq_size, wr_queue_size;
 	int err, cq_vector;
 
 	con = kzalloc(sizeof(*con), GFP_KERNEL);
@@ -1615,7 +1627,7 @@ static int create_con(struct rtrs_srv_sess *sess,
 	con->c.cm_id = cm_id;
 	con->c.sess = &sess->s;
 	con->c.cid = cid;
-	atomic_set(&con->wr_cnt, 0);
+	atomic_set(&con->wr_cnt, 1);
 
 	if (con->c.cid == 0) {
 		/*
@@ -1645,7 +1657,8 @@ static int create_con(struct rtrs_srv_sess *sess,
 
 	/* TODO: SOFTIRQ can be faster, but be careful with softirq context */
 	err = rtrs_cq_qp_create(&sess->s, &con->c, 1, cq_vector, cq_size,
-				 wr_queue_size, IB_POLL_WORKQUEUE);
+				 wr_queue_size, wr_queue_size,
+				 IB_POLL_WORKQUEUE);
 	if (err) {
 		rtrs_err(s, "rtrs_cq_qp_create(), err: %d\n", err);
 		goto free_con;
@@ -1796,13 +1809,9 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 		goto reject_w_econnreset;
 	}
 	recon_cnt = le16_to_cpu(msg->recon_cnt);
-	srv = get_or_create_srv(ctx, &msg->paths_uuid);
-	/*
-	 * "refcount == 0" happens if a previous thread calls get_or_create_srv
-	 * allocate srv, but chunks of srv are not allocated yet.
-	 */
-	if (!srv || refcount_read(&srv->refcount) == 0) {
-		err = -ENOMEM;
+	srv = get_or_create_srv(ctx, &msg->paths_uuid, msg->first_conn);
+	if (IS_ERR(srv)) {
+		err = PTR_ERR(srv);
 		goto reject_w_err;
 	}
 	mutex_lock(&srv->paths_mutex);
@@ -1877,8 +1886,8 @@ reject_w_econnreset:
 	return rtrs_rdma_do_reject(cm_id, -ECONNRESET);
 
 close_and_return_err:
-	close_sess(sess);
 	mutex_unlock(&srv->paths_mutex);
+	close_sess(sess);
 
 	return err;
 }

@@ -408,6 +408,7 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 				   "%s", str);
 	if (err) {
 		pr_err("kobject_init_and_add: %d\n", err);
+		kobject_put(&sess->kobj);
 		return err;
 	}
 	err = sysfs_create_group(&sess->kobj, &rtrs_clt_sess_attr_group);
@@ -419,6 +420,7 @@ int rtrs_clt_create_sess_files(struct rtrs_clt_sess *sess)
 				   &sess->kobj, "stats");
 	if (err) {
 		pr_err("kobject_init_and_add: %d\n", err);
+		kobject_put(&sess->stats->kobj_stats);
 		goto remove_group;
 	}
 

@@ -37,6 +37,15 @@ struct task_struct;
 DECLARE_HOOK(android_vh_sched_show_task,
 	TP_PROTO(struct task_struct *task),
 	TP_ARGS(task));
+DECLARE_HOOK(android_vh_alter_mutex_list_add,
+	TP_PROTO(struct mutex *lock,
+		struct mutex_waiter *waiter,
+		struct list_head *list,
+		bool *already_on_list),
+	TP_ARGS(lock, waiter, list, already_on_list));
+DECLARE_HOOK(android_vh_mutex_unlock_slowpath,
+	TP_PROTO(struct mutex *lock),
+	TP_ARGS(lock));
 
 /* macro versions of hooks are no longer required */
 

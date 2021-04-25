@@ -198,13 +198,13 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 				     le32_to_cpu(sku_id->data[1]),
 				     le32_to_cpu(sku_id->data[2]));
 
+			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
+			len -= ALIGN(tlv_len, 4);
+
 			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
 			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
 			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
 				int ret;
-
-				data += sizeof(*tlv) + ALIGN(tlv_len, 4);
-				len -= ALIGN(tlv_len, 4);
 
 				ret = iwl_pnvm_handle_section(trans, data, len);
 				if (!ret)
@@ -227,6 +227,7 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
+	int ret;
 
 	/* if the SKU_ID is empty, there's nothing to do */
 	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
@@ -236,7 +237,6 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	if (!trans->pnvm_loaded) {
 		const struct firmware *pnvm;
 		char pnvm_name[64];
-		int ret;
 
 		/*
 		 * The prefix unfortunately includes a hyphen at the end, so
@@ -264,6 +264,11 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 
 			release_firmware(pnvm);
 		}
+	} else {
+		/* if we already loaded, we need to set it again */
+		ret = iwl_trans_set_pnvm(trans, NULL, 0);
+		if (ret)
+			return ret;
 	}
 
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,

@@ -28,6 +28,8 @@
   amba_bustype
   amba_driver_register
   amba_driver_unregister
+  android_debug_per_cpu_symbol
+  android_debug_symbol
   anon_inode_getfile
   __arch_clear_user
   __arch_copy_from_user
@@ -144,6 +146,7 @@
   cfg80211_unlink_bss
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_reply
+  __cfi_slowpath
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
@@ -230,6 +233,7 @@
   consume_skb
   contig_page_data
   _copy_from_iter_full
+  copy_from_kernel_nofault
   __cpu_active_mask
   cpu_bit_bitmap
   cpufreq_cpu_get
@@ -398,6 +402,7 @@
   __dev_kfree_skb_any
   devm_add_action
   devm_backlight_device_register
+  devm_blk_ksm_init
   devm_clk_bulk_get
   devm_clk_bulk_get_all
   devm_clk_get
@@ -1042,6 +1047,8 @@
   iio_channel_get_all
   iio_read_channel_processed
   import_iovec
+  in4_pton
+  in6_pton
   inc_zone_page_state
   in_egroup_p
   init_dummy_netdev
@@ -1118,9 +1125,11 @@
   iounmap
   __iowrite32_copy
   ip_compute_csum
+  ipi_desc_get
   iput
   __ipv6_addr_type
   ipv6_ext_hdr
+  ipv6_find_hdr
   ipv6_skip_exthdr
   irq_chip_ack_parent
   irq_chip_disable_parent
@@ -1169,6 +1178,7 @@
   irq_work_queue
   irq_work_queue_on
   irq_work_sync
+  is_dma_buf_file
   is_vmalloc_addr
   jiffies
   jiffies_to_msecs
@@ -1225,6 +1235,9 @@
   kset_create_and_add
   ksize
   ksoftirqd
+  kstat
+  kstat_irqs_cpu
+  kstat_irqs_usr
   kstrdup
   kstrdup_const
   kstrndup
@@ -1271,6 +1284,7 @@
   ktime_get_seconds
   ktime_get_with_offset
   kvfree
+  kvfree_call_rcu
   kvmalloc_node
   led_classdev_flash_register_ext
   led_classdev_flash_unregister
@@ -1286,6 +1300,8 @@
   __local_bh_enable_ip
   __lock_page
   lock_sock_nested
+  log_buf_addr_get
+  log_buf_len_get
   __log_post_read_mmio
   __log_read_mmio
   __log_write_mmio
@@ -1405,6 +1421,8 @@
   nonseekable_open
   noop_llseek
   nr_cpu_ids
+  nr_ipi_get
+  nr_irqs
   ns_capable
   nsecs_to_jiffies
   ns_to_timespec64
@@ -1552,6 +1570,7 @@
   pci_bus_type
   pci_clear_master
   pci_d3cold_disable
+  pci_dev_present
   pci_device_group
   pci_disable_device
   pci_disable_msi
@@ -1591,6 +1610,7 @@
   percpu_down_write
   __percpu_init_rwsem
   __per_cpu_offset
+  per_cpu_ptr_to_phys
   percpu_up_write
   perf_aux_output_begin
   perf_aux_output_end
@@ -1812,12 +1832,14 @@
   __register_chrdev
   register_chrdev_region
   register_console
+  register_die_notifier
   register_ftrace_export
   register_inet6addr_notifier
   register_inetaddr_notifier
   register_kprobe
   register_kretprobe
   register_memory_notifier
+  register_module_notifier
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -1920,8 +1942,10 @@
   rproc_add_subdev
   rproc_alloc
   rproc_boot
+  rproc_coredump_add_custom_segment
   rproc_coredump_add_segment
   rproc_coredump_set_elf_info
+  rproc_coredump_using_sections
   rproc_del
   rproc_free
   rproc_get_by_child
@@ -1942,12 +1966,14 @@
   rtnl_lock
   rtnl_register_module
   rtnl_trylock
+  rtnl_unicast
   rtnl_unlock
   rtnl_unregister
   runqueues
   sched_clock
   sched_feat_keys
   sched_feat_names
+  sched_setattr
   sched_set_fifo
   sched_set_fifo_low
   sched_set_normal
@@ -1992,6 +2018,7 @@
   sdhci_set_bus_width
   sdhci_set_power_noreg
   sdhci_setup_host
+  seq_buf_printf
   seq_hex_dump
   seq_lseek
   seq_open
@@ -2235,6 +2262,7 @@
   sysfs_create_group
   sysfs_create_groups
   sysfs_create_link
+  sysfs_emit
   __sysfs_match_string
   sysfs_notify
   sysfs_remove_bin_file
@@ -2343,6 +2371,11 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_freq_table_limits
+  __tracepoint_android_vh_ftrace_dump_buffer
+  __tracepoint_android_vh_ftrace_format_check
+  __tracepoint_android_vh_ftrace_oops_enter
+  __tracepoint_android_vh_ftrace_oops_exit
+  __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
@@ -2351,8 +2384,10 @@
   __tracepoint_android_vh_show_max_freq
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
+  __tracepoint_android_vh_timer_calc_index
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency
+  __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
@@ -2446,11 +2481,13 @@
   __unregister_chrdev
   unregister_chrdev_region
   unregister_console
+  unregister_die_notifier
   unregister_ftrace_export
   unregister_inet6addr_notifier
   unregister_inetaddr_notifier
   unregister_kprobe
   unregister_kretprobe
+  unregister_module_notifier
   unregister_netdev
   unregister_netdevice_many
   unregister_netdevice_notifier
@@ -2659,5 +2696,15 @@
   xa_find_after
   xa_load
   xa_store
+  xhci_alloc_command
+  xhci_alloc_erst
+  xhci_free_command
+  xhci_free_erst
+  xhci_get_endpoint_index
+  xhci_queue_stop_endpoint
+  xhci_ring_alloc
+  xhci_ring_cmd_db
+  xhci_ring_free
+  xhci_trb_virt_to_dma
   zone_watermark_ok
   zone_watermark_ok_safe

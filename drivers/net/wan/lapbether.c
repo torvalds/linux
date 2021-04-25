@@ -283,15 +283,12 @@ static int lapbeth_open(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	netif_start_queue(dev);
 	return 0;
 }
 
 static int lapbeth_close(struct net_device *dev)
 {
 	int err;
-
-	netif_stop_queue(dev);
 
 	if ((err = lapb_unregister(dev)) != LAPB_OK)
 		pr_err("lapb_unregister error: %d\n", err);

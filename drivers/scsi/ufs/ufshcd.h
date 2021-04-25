@@ -550,7 +550,7 @@ enum ufshcd_quirks {
 	 * This quirk needs to disable unipro timeout values
 	 * before power mode change
 	 */
-	UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING	= 1 << 13,
+	UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING = 1 << 13,
 
 	/*
 	 * This quirk allows only sg entries aligned with page size.

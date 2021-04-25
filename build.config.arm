@@ -1,5 +1,6 @@
 ARCH=arm
 
+LLVM_IAS=1
 CROSS_COMPILE=arm-linux-gnueabi-
 LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
 

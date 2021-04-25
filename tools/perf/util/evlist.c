@@ -508,6 +508,14 @@ int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
 	return perf_evlist__filter_pollfd(&evlist->core, revents_and_mask);
 }
 
+#ifdef HAVE_EVENTFD_SUPPORT
+int evlist__add_wakeup_eventfd(struct evlist *evlist, int fd)
+{
+	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
+				       fdarray_flag__nonfilterable);
+}
+#endif
+
 int evlist__poll(struct evlist *evlist, int timeout)
 {
 	return perf_evlist__poll(&evlist->core, timeout);

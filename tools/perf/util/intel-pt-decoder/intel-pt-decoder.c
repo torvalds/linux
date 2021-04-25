@@ -24,6 +24,13 @@
 #include "intel-pt-decoder.h"
 #include "intel-pt-log.h"
 
+#define BITULL(x) (1ULL << (x))
+
+/* IA32_RTIT_CTL MSR bits */
+#define INTEL_PT_CYC_ENABLE		BITULL(1)
+#define INTEL_PT_CYC_THRESHOLD		(BITULL(22) | BITULL(21) | BITULL(20) | BITULL(19))
+#define INTEL_PT_CYC_THRESHOLD_SHIFT	19
+
 #define INTEL_PT_BLK_SIZE 1024
 
 #define BIT63 (((uint64_t)1 << 63))
@@ -167,6 +174,8 @@ struct intel_pt_decoder {
 	uint64_t sample_tot_cyc_cnt;
 	uint64_t base_cyc_cnt;
 	uint64_t cyc_cnt_timestamp;
+	uint64_t ctl;
+	uint64_t cyc_threshold;
 	double tsc_to_cyc;
 	bool continuous_period;
 	bool overflow;
@@ -202,6 +211,14 @@ static uint64_t intel_pt_lower_power_of_2(uint64_t x)
 		x >>= 1;
 
 	return x << i;
+}
+
+static uint64_t intel_pt_cyc_threshold(uint64_t ctl)
+{
+	if (!(ctl & INTEL_PT_CYC_ENABLE))
+		return 0;
+
+	return (ctl & INTEL_PT_CYC_THRESHOLD) >> INTEL_PT_CYC_THRESHOLD_SHIFT;
 }
 
 static void intel_pt_setup_period(struct intel_pt_decoder *decoder)
@@ -245,11 +262,14 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 
 	decoder->flags              = params->flags;
 
+	decoder->ctl                = params->ctl;
 	decoder->period             = params->period;
 	decoder->period_type        = params->period_type;
 
 	decoder->max_non_turbo_ratio    = params->max_non_turbo_ratio;
 	decoder->max_non_turbo_ratio_fp = params->max_non_turbo_ratio;
+
+	decoder->cyc_threshold = intel_pt_cyc_threshold(decoder->ctl);
 
 	intel_pt_setup_period(decoder);
 
@@ -1761,6 +1781,9 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_CYC:
+			intel_pt_calc_cyc_timestamp(decoder);
+			break;
+
 		case INTEL_PT_VMCS:
 		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
@@ -2014,6 +2037,7 @@ static int intel_pt_hop_trace(struct intel_pt_decoder *decoder, bool *no_tip, in
 
 static int intel_pt_walk_trace(struct intel_pt_decoder *decoder)
 {
+	int last_packet_type = INTEL_PT_PAD;
 	bool no_tip = false;
 	int err;
 
@@ -2022,6 +2046,12 @@ static int intel_pt_walk_trace(struct intel_pt_decoder *decoder)
 		if (err)
 			return err;
 next:
+		if (decoder->cyc_threshold) {
+			if (decoder->sample_cyc && last_packet_type != INTEL_PT_CYC)
+				decoder->sample_cyc = false;
+			last_packet_type = decoder->packet.type;
+		}
+
 		if (decoder->hop) {
 			switch (intel_pt_hop_trace(decoder, &no_tip, &err)) {
 			case HOP_IGNORE:
@@ -2811,9 +2841,18 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		}
 		if (intel_pt_sample_time(decoder->pkt_state)) {
 			intel_pt_update_sample_time(decoder);
-			if (decoder->sample_cyc)
+			if (decoder->sample_cyc) {
 				decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
+				decoder->state.flags |= INTEL_PT_SAMPLE_IPC;
+				decoder->sample_cyc = false;
+			}
 		}
+		/*
+		 * When using only TSC/MTC to compute cycles, IPC can be
+		 * sampled as soon as the cycle count changes.
+		 */
+		if (!decoder->have_cyc)
+			decoder->state.flags |= INTEL_PT_SAMPLE_IPC;
 	}
 
 	decoder->state.timestamp = decoder->sample_timestamp;

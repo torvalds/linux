@@ -3918,11 +3918,15 @@ static int bond_neigh_init(struct neighbour *n)
 
 	rcu_read_lock();
 	slave = bond_first_slave_rcu(bond);
-	if (!slave)
+	if (!slave) {
+		ret = -EINVAL;
 		goto out;
+	}
 	slave_ops = slave->dev->netdev_ops;
-	if (!slave_ops->ndo_neigh_setup)
+	if (!slave_ops->ndo_neigh_setup) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	/* TODO: find another way [1] to implement this.
 	 * Passing a zeroed structure is fragile,

@@ -35,6 +35,9 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 	struct callback_head *head;
 	unsigned long flags;
 
+	/* record the work call stack in order to print it in KASAN reports */
+	kasan_record_aux_stack(work);
+
 	do {
 		head = READ_ONCE(task->task_works);
 		if (unlikely(head == &work_exited))

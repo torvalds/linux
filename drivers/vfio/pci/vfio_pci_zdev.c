@@ -74,6 +74,8 @@ static int zpci_util_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
 	int ret;
 
 	cap = kmalloc(cap_size, GFP_KERNEL);
+	if (!cap)
+		return -ENOMEM;
 
 	cap->header.id = VFIO_DEVICE_INFO_CAP_ZPCI_UTIL;
 	cap->header.version = 1;
@@ -98,6 +100,8 @@ static int zpci_pfip_cap(struct zpci_dev *zdev, struct vfio_pci_device *vdev,
 	int ret;
 
 	cap = kmalloc(cap_size, GFP_KERNEL);
+	if (!cap)
+		return -ENOMEM;
 
 	cap->header.id = VFIO_DEVICE_INFO_CAP_ZPCI_PFIP;
 	cap->header.version = 1;

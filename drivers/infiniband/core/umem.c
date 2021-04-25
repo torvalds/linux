@@ -220,10 +220,10 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 
 		cur_base += ret * PAGE_SIZE;
 		npages -= ret;
-		sg = __sg_alloc_table_from_pages(
-			&umem->sg_head, page_list, ret, 0, ret << PAGE_SHIFT,
-			dma_get_max_seg_size(device->dma_device), sg, npages,
-			GFP_KERNEL);
+		sg = __sg_alloc_table_from_pages(&umem->sg_head, page_list, ret,
+				0, ret << PAGE_SHIFT,
+				ib_dma_max_seg_size(device), sg, npages,
+				GFP_KERNEL);
 		umem->sg_nents = umem->sg_head.nents;
 		if (IS_ERR(sg)) {
 			unpin_user_pages_dirty_lock(page_list, ret, 0);

@@ -332,7 +332,7 @@ static ssize_t rvu_dbg_qsize_write(struct file *filp,
 	u16 pcifunc;
 	int ret, lf;
 
-	cmd_buf = memdup_user(buffer, count);
+	cmd_buf = memdup_user(buffer, count + 1);
 	if (IS_ERR(cmd_buf))
 		return -ENOMEM;
 
