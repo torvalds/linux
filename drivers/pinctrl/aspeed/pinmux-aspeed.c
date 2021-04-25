@@ -21,7 +21,8 @@ static inline void aspeed_sig_desc_print_val(
 }
 
 /**
- * Query the enabled or disabled state of a signal descriptor
+ * aspeed_sig_desc_eval() - Query the enabled or disabled state of a signal
+ * descriptor.
  *
  * @desc: The signal descriptor of interest
  * @enabled: True to query the enabled state, false to query disabled state

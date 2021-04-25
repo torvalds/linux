@@ -2611,8 +2611,8 @@ static struct aspeed_pin_config aspeed_g6_configs[] = {
 };
 
 /**
- * Configure a pin's signal by applying an expression's descriptor state for
- * all descriptors in the expression.
+ * aspeed_g6_sig_expr_set() - Configure a pin's signal by applying an
+ * expression's descriptor state for all descriptors in the expression.
  *
  * @ctx: The pinmux context
  * @expr: The expression associated with the function whose signal is to be
