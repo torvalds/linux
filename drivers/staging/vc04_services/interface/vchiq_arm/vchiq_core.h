@@ -667,10 +667,10 @@ extern int
 vchiq_dump_platform_service_state(void *dump_context,
 	struct vchiq_service *service);
 
-extern enum vchiq_status
+extern int
 vchiq_use_service_internal(struct vchiq_service *service);
 
-extern enum vchiq_status
+extern int
 vchiq_release_service_internal(struct vchiq_service *service);
 
 extern void

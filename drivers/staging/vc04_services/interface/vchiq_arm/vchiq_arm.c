@@ -1385,21 +1385,20 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		service = find_service_for_instance(instance, handle);
 		if (service) {
-			status = (cmd == VCHIQ_IOC_USE_SERVICE)	?
+			ret = (cmd == VCHIQ_IOC_USE_SERVICE) ?
 				vchiq_use_service_internal(service) :
 				vchiq_release_service_internal(service);
-			if (status != VCHIQ_SUCCESS) {
+			if (ret) {
 				vchiq_log_error(vchiq_susp_log_level,
-					"%s: cmd %s returned error %d for service %c%c%c%c:%03d",
+					"%s: cmd %s returned error %ld for service %c%c%c%c:%03d",
 					__func__,
 					(cmd == VCHIQ_IOC_USE_SERVICE) ?
 						"VCHIQ_IOC_USE_SERVICE" :
 						"VCHIQ_IOC_RELEASE_SERVICE",
-					status,
+					ret,
 					VCHIQ_FOURCC_AS_4CHARS(
 						service->base.fourcc),
 					service->client_id);
-				ret = -EINVAL;
 			}
 		} else
 			ret = -EINVAL;
@@ -2330,18 +2329,18 @@ vchiq_arm_init_state(struct vchiq_state *state,
 	}
 }
 
-enum vchiq_status
+int
 vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		   enum USE_TYPE_E use_type)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	enum vchiq_status ret = VCHIQ_SUCCESS;
+	int ret = 0;
 	char entity[16];
 	int *entity_uc;
 	int local_uc;
 
 	if (!arm_state) {
-		ret = VCHIQ_ERROR;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -2357,7 +2356,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		entity_uc = &service->service_use_count;
 	} else {
 		vchiq_log_error(vchiq_susp_log_level, "%s null service ptr", __func__);
-		ret = VCHIQ_ERROR;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -2371,7 +2370,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 
 	write_unlock_bh(&arm_state->susp_res_lock);
 
-	if (ret == VCHIQ_SUCCESS) {
+	if (!ret) {
 		enum vchiq_status status = VCHIQ_SUCCESS;
 		long ack_cnt = atomic_xchg(&arm_state->ka_use_ack_count, 0);
 
@@ -2391,16 +2390,16 @@ out:
 	return ret;
 }
 
-enum vchiq_status
+int
 vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-	enum vchiq_status ret = VCHIQ_SUCCESS;
+	int ret = 0;
 	char entity[16];
 	int *entity_uc;
 
 	if (!arm_state) {
-		ret = VCHIQ_ERROR;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -2421,7 +2420,7 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 		/* Don't use BUG_ON - don't allow user thread to crash kernel */
 		WARN_ON(!arm_state->videocore_use_count);
 		WARN_ON(!(*entity_uc));
-		ret = VCHIQ_ERROR;
+		ret = -EINVAL;
 		goto unlock;
 	}
 	--arm_state->videocore_use_count;
@@ -2460,13 +2459,13 @@ vchiq_on_remote_release(struct vchiq_state *state)
 	complete(&arm_state->ka_evt);
 }
 
-enum vchiq_status
+int
 vchiq_use_service_internal(struct vchiq_service *service)
 {
 	return vchiq_use_internal(service->state, service, USE_TYPE_SERVICE);
 }
 
-enum vchiq_status
+int
 vchiq_release_service_internal(struct vchiq_service *service)
 {
 	return vchiq_release_internal(service->state, service);
