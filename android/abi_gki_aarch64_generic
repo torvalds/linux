@@ -374,6 +374,7 @@
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
   devm_power_supply_register
+  devm_pwm_get
   __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_spi
@@ -798,6 +799,12 @@
   have_governor_per_policy
   hex_dump_to_buffer
   hex_to_bin
+  hid_add_device
+  hid_allocate_device
+  hid_debug
+  hid_destroy_device
+  hid_input_report
+  hid_parse_report
   hrtimer_active
   hrtimer_cancel
   hrtimer_forward
@@ -1332,10 +1339,12 @@
   prepare_to_wait_event
   print_hex_dump
   printk
+  printk_deferred
   proc_create
   proc_create_data
   proc_dointvec
   proc_dostring
+  proc_douintvec_minmax
   proc_mkdir
   proc_mkdir_data
   proc_remove
@@ -1407,6 +1416,7 @@
   register_restart_handler
   register_shrinker
   register_syscore_ops
+  register_sysctl
   register_sysctl_table
   register_virtio_device
   register_virtio_driver
@@ -1822,6 +1832,10 @@
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_find_energy_efficient_cpu
+  __tracepoint_android_rvh_irqs_disable
+  __tracepoint_android_rvh_irqs_enable
+  __tracepoint_android_rvh_preempt_disable
+  __tracepoint_android_rvh_preempt_enable
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_iowait
   __tracepoint_android_rvh_typec_tcpci_chk_contaminant
@@ -1870,6 +1884,7 @@
   __tracepoint_rwmmio_write
   __tracepoint_sched_cpu_capacity_tp
   __tracepoint_sched_overutilized_tp
+  __tracepoint_sched_switch
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_suspend_resume
