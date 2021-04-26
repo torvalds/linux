@@ -72,7 +72,8 @@ static const struct dmi_system_id dmi_platform_info[] = {
 	{}
 };
 
-static const struct resource intel_quark_i2c_res[] = {
+/* This is used as a place holder and will be modified at run-time */
+static struct resource intel_quark_i2c_res[] = {
 	[INTEL_QUARK_IORES_MEM] = {
 		.flags = IORESOURCE_MEM,
 	},
@@ -85,7 +86,8 @@ static struct mfd_cell_acpi_match intel_quark_acpi_match_i2c = {
 	.adr = MFD_ACPI_MATCH_I2C,
 };
 
-static const struct resource intel_quark_gpio_res[] = {
+/* This is used as a place holder and will be modified at run-time */
+static struct resource intel_quark_gpio_res[] = {
 	[INTEL_QUARK_IORES_MEM] = {
 		.flags = IORESOURCE_MEM,
 	},

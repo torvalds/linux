@@ -57,7 +57,7 @@ struct fragment {
  * struct overlay_changeset
  * @id:			changeset identifier
  * @ovcs_list:		list on which we are located
- * @fdt:		FDT that was unflattened to create @overlay_tree
+ * @fdt:		base of memory allocated to hold aligned FDT that was unflattened to create @overlay_tree
  * @overlay_tree:	expanded device tree that contains the fragment nodes
  * @count:		count of fragment structures
  * @fragments:		fragment nodes in the overlay expanded device tree
@@ -719,8 +719,8 @@ static struct device_node *find_target(struct device_node *info_node)
 /**
  * init_overlay_changeset() - initialize overlay changeset from overlay tree
  * @ovcs:	Overlay changeset to build
- * @fdt:	the FDT that was unflattened to create @tree
- * @tree:	Contains all the overlay fragments and overlay fixup nodes
+ * @fdt:	base of memory allocated to hold aligned FDT that was unflattened to create @tree
+ * @tree:	Contains the overlay fragments and overlay fixup nodes
  *
  * Initialize @ovcs.  Populate @ovcs->fragments with node information from
  * the top level of @tree.  The relevant top level nodes are the fragment
@@ -873,7 +873,7 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
  * internal documentation
  *
  * of_overlay_apply() - Create and apply an overlay changeset
- * @fdt:	the FDT that was unflattened to create @tree
+ * @fdt:	base of memory allocated to hold the aligned FDT
  * @tree:	Expanded overlay device tree
  * @ovcs_id:	Pointer to overlay changeset id
  *
@@ -953,7 +953,9 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 	/*
 	 * after overlay_notify(), ovcs->overlay_tree related pointers may have
 	 * leaked to drivers, so can not kfree() tree, aka ovcs->overlay_tree;
-	 * and can not free fdt, aka ovcs->fdt
+	 * and can not free memory containing aligned fdt.  The aligned fdt
+	 * is contained within the memory at ovcs->fdt, possibly at an offset
+	 * from ovcs->fdt.
 	 */
 	ret = overlay_notify(ovcs, OF_OVERLAY_PRE_APPLY);
 	if (ret) {
@@ -1014,10 +1016,11 @@ out:
 int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 			 int *ovcs_id)
 {
-	const void *new_fdt;
+	void *new_fdt;
+	void *new_fdt_align;
 	int ret;
 	u32 size;
-	struct device_node *overlay_root;
+	struct device_node *overlay_root = NULL;
 
 	*ovcs_id = 0;
 	ret = 0;
@@ -1036,11 +1039,14 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	 * Must create permanent copy of FDT because of_fdt_unflatten_tree()
 	 * will create pointers to the passed in FDT in the unflattened tree.
 	 */
-	new_fdt = kmemdup(overlay_fdt, size, GFP_KERNEL);
+	new_fdt = kmalloc(size + FDT_ALIGN_SIZE, GFP_KERNEL);
 	if (!new_fdt)
 		return -ENOMEM;
 
-	of_fdt_unflatten_tree(new_fdt, NULL, &overlay_root);
+	new_fdt_align = PTR_ALIGN(new_fdt, FDT_ALIGN_SIZE);
+	memcpy(new_fdt_align, overlay_fdt, size);
+
+	of_fdt_unflatten_tree(new_fdt_align, NULL, &overlay_root);
 	if (!overlay_root) {
 		pr_err("unable to unflatten overlay_fdt\n");
 		ret = -EINVAL;

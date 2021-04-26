@@ -513,10 +513,10 @@ void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
 	__ext4_fc_track_link(handle, d_inode(dentry), dentry);
 }
 
-void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
+void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
+			  struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
-	struct inode *inode = d_inode(dentry);
 	int ret;
 
 	args.dentry = dentry;
@@ -525,6 +525,11 @@ void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_create(inode, dentry, ret);
+}
+
+void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
+{
+	__ext4_fc_track_create(handle, d_inode(dentry), dentry);
 }
 
 /* __track_fn for inode tracking */

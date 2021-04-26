@@ -173,7 +173,7 @@ static void ilk_update_pipe_csc(struct intel_crtc *crtc,
 		       coeff[6] << 16 | coeff[7]);
 	intel_de_write(dev_priv, PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
 
-	if (INTEL_GEN(dev_priv) >= 7) {
+	if (DISPLAY_VER(dev_priv) >= 7) {
 		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_HI(pipe),
 			       postoff[0]);
 		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_ME(pipe),
@@ -225,7 +225,7 @@ static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
 	 */
 	return crtc_state->limited_color_range &&
 		(IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv) ||
-		 IS_GEN_RANGE(dev_priv, 9, 10));
+		 IS_DISPLAY_RANGE(dev_priv, 9, 10));
 }
 
 static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
@@ -530,7 +530,7 @@ static void skl_color_commit(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, GAMMA_MODE(crtc->pipe),
 		       crtc_state->gamma_mode);
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (DISPLAY_VER(dev_priv) >= 11)
 		icl_load_csc_matrix(crtc_state);
 	else
 		ilk_load_csc_matrix(crtc_state);
@@ -737,7 +737,7 @@ static void ivb_load_lut_ext_max(const struct intel_crtc_state *crtc_state)
 	 * ToDo: Extend the ABI to be able to program values
 	 * from 3.0 to 7.0
 	 */
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+	if (DISPLAY_VER(dev_priv) >= 10) {
 		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 0),
 				    1 << 16);
 		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 1),
@@ -1222,7 +1222,7 @@ static bool need_plane_update(struct intel_plane *plane,
 	 * We have to reconfigure that even if the plane is inactive.
 	 */
 	return crtc_state->active_planes & BIT(plane->id) ||
-		(INTEL_GEN(dev_priv) < 9 &&
+		(DISPLAY_VER(dev_priv) < 9 &&
 		 plane->id == PLANE_PRIMARY);
 }
 
@@ -1709,9 +1709,9 @@ int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_stat
 		else
 			return i9xx_gamma_precision(crtc_state);
 	} else {
-		if (INTEL_GEN(dev_priv) >= 11)
+		if (DISPLAY_VER(dev_priv) >= 11)
 			return icl_gamma_precision(crtc_state);
-		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+		else if (IS_DISPLAY_VER(dev_priv, 10))
 			return glk_gamma_precision(crtc_state);
 		else if (IS_IRONLAKE(dev_priv))
 			return ilk_gamma_precision(crtc_state);
@@ -2105,7 +2105,7 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = chv_load_luts;
 			dev_priv->display.read_luts = chv_read_luts;
-		} else if (INTEL_GEN(dev_priv) >= 4) {
+		} else if (DISPLAY_VER(dev_priv) >= 4) {
 			dev_priv->display.color_check = i9xx_color_check;
 			dev_priv->display.color_commit = i9xx_color_commit;
 			dev_priv->display.load_luts = i965_load_luts;
@@ -2117,31 +2117,31 @@ void intel_color_init(struct intel_crtc *crtc)
 			dev_priv->display.read_luts = i9xx_read_luts;
 		}
 	} else {
-		if (INTEL_GEN(dev_priv) >= 11)
+		if (DISPLAY_VER(dev_priv) >= 11)
 			dev_priv->display.color_check = icl_color_check;
-		else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		else if (DISPLAY_VER(dev_priv) >= 10)
 			dev_priv->display.color_check = glk_color_check;
-		else if (INTEL_GEN(dev_priv) >= 7)
+		else if (DISPLAY_VER(dev_priv) >= 7)
 			dev_priv->display.color_check = ivb_color_check;
 		else
 			dev_priv->display.color_check = ilk_color_check;
 
-		if (INTEL_GEN(dev_priv) >= 9)
+		if (DISPLAY_VER(dev_priv) >= 9)
 			dev_priv->display.color_commit = skl_color_commit;
 		else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 			dev_priv->display.color_commit = hsw_color_commit;
 		else
 			dev_priv->display.color_commit = ilk_color_commit;
 
-		if (INTEL_GEN(dev_priv) >= 11) {
+		if (DISPLAY_VER(dev_priv) >= 11) {
 			dev_priv->display.load_luts = icl_load_luts;
 			dev_priv->display.read_luts = icl_read_luts;
-		} else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
+		} else if (IS_DISPLAY_VER(dev_priv, 10)) {
 			dev_priv->display.load_luts = glk_load_luts;
 			dev_priv->display.read_luts = glk_read_luts;
-		} else if (INTEL_GEN(dev_priv) >= 8) {
+		} else if (DISPLAY_VER(dev_priv) >= 8) {
 			dev_priv->display.load_luts = bdw_load_luts;
-		} else if (INTEL_GEN(dev_priv) >= 7) {
+		} else if (DISPLAY_VER(dev_priv) >= 7) {
 			dev_priv->display.load_luts = ivb_load_luts;
 		} else {
 			dev_priv->display.load_luts = ilk_load_luts;

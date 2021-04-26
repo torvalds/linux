@@ -870,17 +870,62 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 	return r;
 }
 
+int amdgpu_display_gem_fb_init(struct drm_device *dev,
+			       struct amdgpu_framebuffer *rfb,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       struct drm_gem_object *obj)
+{
+	int ret;
+
+	rfb->base.obj[0] = obj;
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
+	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
+	if (ret)
+		goto err;
+
+	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	drm_err(dev, "Failed to init gem fb: %d\n", ret);
+	rfb->base.obj[0] = NULL;
+	return ret;
+}
+
+int amdgpu_display_gem_fb_verify_and_init(
+	struct drm_device *dev, struct amdgpu_framebuffer *rfb,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	struct drm_gem_object *obj)
+{
+	int ret;
+
+	rfb->base.obj[0] = obj;
+
+	/* Verify that bo size can fit the fb size. */
+	ret = drm_gem_fb_init_with_funcs(dev, &rfb->base, file_priv, mode_cmd,
+					 &amdgpu_fb_funcs);
+	if (ret)
+		goto err;
+
+	ret = amdgpu_display_framebuffer_init(dev, rfb, mode_cmd, obj);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	drm_err(dev, "Failed to verify and init gem fb: %d\n", ret);
+	rfb->base.obj[0] = NULL;
+	return ret;
+}
+
 int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    struct amdgpu_framebuffer *rfb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,
 				    struct drm_gem_object *obj)
 {
 	int ret, i;
-	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
-	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
-	if (ret)
-		goto fail;
 
 	/*
 	 * This needs to happen before modifier conversion as that might change
@@ -891,13 +936,13 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 			drm_dbg_kms(dev, "Plane 0 and %d have different BOs: %u vs. %u\n",
 				    i, mode_cmd->handles[0], mode_cmd->handles[i]);
 			ret = -EINVAL;
-			goto fail;
+			return ret;
 		}
 	}
 
 	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
 	if (ret)
-		goto fail;
+		return ret;
 
 	if (dev->mode_config.allow_fb_modifiers &&
 	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
@@ -905,20 +950,17 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 		if (ret) {
 			drm_dbg_kms(dev, "Failed to convert tiling flags 0x%llX to a modifier",
 				    rfb->tiling_flags);
-			goto fail;
+			return ret;
 		}
 	}
 
 	for (i = 1; i < rfb->base.format->num_planes; ++i) {
+		drm_gem_object_get(rfb->base.obj[0]);
+		drm_gem_object_put(rfb->base.obj[i]);
 		rfb->base.obj[i] = rfb->base.obj[0];
-		drm_gem_object_get(rfb->base.obj[i]);
 	}
 
 	return 0;
-
-fail:
-	rfb->base.obj[0] = NULL;
-	return ret;
 }
 
 struct drm_framebuffer *
@@ -953,13 +995,15 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = amdgpu_display_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
+	ret = amdgpu_display_gem_fb_verify_and_init(dev, amdgpu_fb, file_priv,
+						    mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
 		drm_gem_object_put(obj);
 		return ERR_PTR(ret);
 	}
 
+	drm_gem_object_put(obj);
 	return &amdgpu_fb->base;
 }
 
@@ -1310,3 +1354,92 @@ bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
 						  stime, etime, mode);
 }
+
+int amdgpu_display_suspend_helper(struct amdgpu_device *adev)
+{
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+	int r;
+
+	/* turn off display hw */
+	drm_modeset_lock_all(dev);
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
+		drm_helper_connector_dpms(connector,
+					  DRM_MODE_DPMS_OFF);
+	drm_connector_list_iter_end(&iter);
+	drm_modeset_unlock_all(dev);
+	/* unpin the front buffers and cursors */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+		struct drm_framebuffer *fb = crtc->primary->fb;
+		struct amdgpu_bo *robj;
+
+		if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
+			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+			r = amdgpu_bo_reserve(aobj, true);
+			if (r == 0) {
+				amdgpu_bo_unpin(aobj);
+				amdgpu_bo_unreserve(aobj);
+			}
+		}
+
+		if (fb == NULL || fb->obj[0] == NULL) {
+			continue;
+		}
+		robj = gem_to_amdgpu_bo(fb->obj[0]);
+		/* don't unpin kernel fb objects */
+		if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
+			r = amdgpu_bo_reserve(robj, true);
+			if (r == 0) {
+				amdgpu_bo_unpin(robj);
+				amdgpu_bo_unreserve(robj);
+			}
+		}
+	}
+	return r;
+}
+
+int amdgpu_display_resume_helper(struct amdgpu_device *adev)
+{
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+	struct drm_crtc *crtc;
+	int r;
+
+	/* pin cursors */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+		if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
+			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+			r = amdgpu_bo_reserve(aobj, true);
+			if (r == 0) {
+				r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
+				if (r != 0)
+					dev_err(adev->dev, "Failed to pin cursor BO (%d)\n", r);
+				amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
+				amdgpu_bo_unreserve(aobj);
+			}
+		}
+	}
+
+	drm_helper_resume_force_mode(dev);
+
+	/* turn on display hw */
+	drm_modeset_lock_all(dev);
+
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
+		drm_helper_connector_dpms(connector,
+					  DRM_MODE_DPMS_ON);
+	drm_connector_list_iter_end(&iter);
+
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+

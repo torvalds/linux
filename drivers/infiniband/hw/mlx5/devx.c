@@ -1116,7 +1116,7 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 	case MLX5_CMD_OP_CREATE_MKEY:
 		MLX5_SET(destroy_mkey_in, din, opcode,
 			 MLX5_CMD_OP_DESTROY_MKEY);
-		MLX5_SET(destroy_mkey_in, in, mkey_index, *obj_id);
+		MLX5_SET(destroy_mkey_in, din, mkey_index, *obj_id);
 		break;
 	case MLX5_CMD_OP_CREATE_CQ:
 		MLX5_SET(destroy_cq_in, din, opcode, MLX5_CMD_OP_DESTROY_CQ);

@@ -968,7 +968,7 @@ static int cf_diag_all_start(void)
  */
 static size_t cf_diag_needspace(unsigned int sets)
 {
-	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
+	struct cpu_cf_events *cpuhw = get_cpu_ptr(&cpu_cf_events);
 	size_t bytes = 0;
 	int i;
 
@@ -984,6 +984,7 @@ static size_t cf_diag_needspace(unsigned int sets)
 		     sizeof(((struct s390_ctrset_cpudata *)0)->no_sets));
 	debug_sprintf_event(cf_diag_dbg, 5, "%s bytes %ld\n", __func__,
 			    bytes);
+	put_cpu_ptr(&cpu_cf_events);
 	return bytes;
 }
 

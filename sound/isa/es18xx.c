@@ -1929,17 +1929,9 @@ static int snd_es18xx_mixer(struct snd_card *card)
 
 /* Card level */
 
-MODULE_AUTHOR("Christian Fischbach <fishbach@pool.informatik.rwth-aachen.de>, Abramo Bagnara <abramo@alsa-project.org>");  
+MODULE_AUTHOR("Christian Fischbach <fishbach@pool.informatik.rwth-aachen.de>, Abramo Bagnara <abramo@alsa-project.org>");
 MODULE_DESCRIPTION("ESS ES18xx AudioDrive");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESS,ES1868 PnP AudioDrive},"
-		"{ESS,ES1869 PnP AudioDrive},"
-		"{ESS,ES1878 PnP AudioDrive},"
-		"{ESS,ES1879 PnP AudioDrive},"
-		"{ESS,ES1887 PnP AudioDrive},"
-		"{ESS,ES1888 PnP AudioDrive},"
-		"{ESS,ES1887 AudioDrive},"
-		"{ESS,ES1888 AudioDrive}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

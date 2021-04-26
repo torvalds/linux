@@ -4849,8 +4849,8 @@ static int btusb_probe(struct usb_interface *intf,
 			data->diag = NULL;
 	}
 
-	if (!enable_autosuspend)
-		usb_disable_autosuspend(data->udev);
+	if (enable_autosuspend)
+		usb_enable_autosuspend(data->udev);
 
 	err = hci_register_dev(hdev);
 	if (err < 0)
@@ -4910,9 +4910,6 @@ static void btusb_disconnect(struct usb_interface *intf)
 		gpiod_put(data->reset_gpio);
 
 	hci_free_dev(hdev);
-
-	if (!enable_autosuspend)
-		usb_enable_autosuspend(data->udev);
 }
 
 #ifdef CONFIG_PM

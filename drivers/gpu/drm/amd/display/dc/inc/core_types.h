@@ -97,6 +97,10 @@ struct resource_funcs {
 		const struct panel_cntl_init_data *panel_cntl_init_data);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
+	/* Create a minimal link encoder object with no dc_link object
+	 * associated with it. */
+	struct link_encoder *(*link_enc_create_minimal)(struct dc_context *ctx, enum engine_id eng_id);
+
 	bool (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
@@ -106,11 +110,34 @@ struct resource_funcs {
 				display_e2e_pipe_params_st *pipes,
 				int pipe_cnt,
 				int vlevel);
+	void (*update_soc_for_wm_a)(
+				struct dc *dc, struct dc_state *context);
 	int (*populate_dml_pipes)(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		bool fast_validate);
+
+	/*
+	 * Algorithm for assigning available link encoders to links.
+	 *
+	 * Update link_enc_assignments table and link_enc_avail list accordingly in
+	 * struct resource_context.
+	 */
+	void (*link_encs_assign)(
+			struct dc *dc,
+			struct dc_state *state,
+			struct dc_stream_state *streams[],
+			uint8_t stream_count);
+	/*
+	 * Unassign a link encoder from a stream.
+	 *
+	 * Update link_enc_assignments table and link_enc_avail list accordingly in
+	 * struct resource_context.
+	 */
+	void (*link_enc_unassign)(
+			struct dc_state *state,
+			struct dc_stream_state *stream);
 
 	enum dc_status (*validate_global)(
 		struct dc *dc,
@@ -209,6 +236,15 @@ struct resource_pool {
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
+
+	/* An array for accessing the link encoder objects that have been created.
+	 * Index in array corresponds to engine ID - viz. 0: ENGINE_ID_DIGA
+	 */
+	struct link_encoder *link_encoders[MAX_DIG_LINK_ENCODERS];
+	/* Number of DIG link encoder objects created - i.e. number of valid
+	 * entries in link_encoders array.
+	 */
+	unsigned int dig_link_enc_count;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dc_3dlut *mpc_lut[MAX_PIPES];
@@ -343,6 +379,12 @@ struct resource_context {
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
 	uint8_t dp_clock_source_ref_count;
 	bool is_dsc_acquired[MAX_PIPES];
+	/* A table/array of encoder-to-link assignments. One entry per stream.
+	 * Indexed by stream index in dc_state.
+	 */
+	struct link_enc_assignment link_enc_assignments[MAX_PIPES];
+	/* List of available link encoders. Uses engine ID as encoder identifier. */
+	enum engine_id link_enc_avail[MAX_DIG_LINK_ENCODERS];
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
 #endif

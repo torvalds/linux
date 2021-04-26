@@ -277,7 +277,7 @@ static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	if (!parent->bi_status)
+	if (bio->bi_status && !parent->bi_status)
 		parent->bi_status = bio->bi_status;
 	bio_put(bio);
 	return parent;
@@ -949,7 +949,7 @@ void bio_release_pages(struct bio *bio, bool mark_dirty)
 }
 EXPORT_SYMBOL_GPL(bio_release_pages);
 
-static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
+static void __bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 {
 	WARN_ON_ONCE(bio->bi_max_vecs);
 
@@ -959,8 +959,23 @@ static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 	bio->bi_iter.bi_size = iter->count;
 	bio_set_flag(bio, BIO_NO_PAGE_REF);
 	bio_set_flag(bio, BIO_CLONED);
+}
 
+static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
+{
+	__bio_iov_bvec_set(bio, iter);
 	iov_iter_advance(iter, iter->count);
+	return 0;
+}
+
+static int bio_iov_bvec_set_append(struct bio *bio, struct iov_iter *iter)
+{
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+	struct iov_iter i = *iter;
+
+	iov_iter_truncate(&i, queue_max_zone_append_sectors(q) << 9);
+	__bio_iov_bvec_set(bio, &i);
+	iov_iter_advance(iter, i.count);
 	return 0;
 }
 
@@ -1094,8 +1109,8 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	int ret = 0;
 
 	if (iov_iter_is_bvec(iter)) {
-		if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
-			return -EINVAL;
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+			return bio_iov_bvec_set_append(bio, iter);
 		return bio_iov_bvec_set(bio, iter);
 	}
 

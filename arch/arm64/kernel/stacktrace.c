@@ -194,8 +194,9 @@ void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 
 #ifdef CONFIG_STACKTRACE
 
-void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
-		     struct task_struct *task, struct pt_regs *regs)
+noinline void arch_stack_walk(stack_trace_consume_fn consume_entry,
+			      void *cookie, struct task_struct *task,
+			      struct pt_regs *regs)
 {
 	struct stackframe frame;
 
@@ -203,8 +204,8 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		start_backtrace(&frame, regs->regs[29], regs->pc);
 	else if (task == current)
 		start_backtrace(&frame,
-				(unsigned long)__builtin_frame_address(0),
-				(unsigned long)arch_stack_walk);
+				(unsigned long)__builtin_frame_address(1),
+				(unsigned long)__builtin_return_address(0));
 	else
 		start_backtrace(&frame, thread_saved_fp(task),
 				thread_saved_pc(task));

@@ -914,3 +914,13 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_stream_ready(struct mod_hdcp *hdcp)
 	return status;
 }
 
+bool mod_hdcp_is_link_encryption_enabled(struct mod_hdcp *hdcp)
+{
+	/* unsupported */
+	return true;
+}
+
+void mod_hdcp_save_current_encryption_states(struct mod_hdcp *hdcp)
+{
+	/* unsupported */
+}

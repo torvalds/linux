@@ -1020,6 +1020,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_HTB_MAX + 1];
 	struct tc_htb_glob *gopt;
 	unsigned int ntx;
+	bool offload;
 	int err;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
@@ -1044,9 +1045,9 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	if (gopt->version != HTB_VER >> 16)
 		return -EINVAL;
 
-	q->offload = nla_get_flag(tb[TCA_HTB_OFFLOAD]);
+	offload = nla_get_flag(tb[TCA_HTB_OFFLOAD]);
 
-	if (q->offload) {
+	if (offload) {
 		if (sch->parent != TC_H_ROOT)
 			return -EOPNOTSUPP;
 
@@ -1076,7 +1077,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 		q->rate2quantum = 1;
 	q->defcls = gopt->defcls;
 
-	if (!q->offload)
+	if (!offload)
 		return 0;
 
 	for (ntx = 0; ntx < q->num_direct_qdiscs; ntx++) {
@@ -1107,12 +1108,14 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		goto err_free_qdiscs;
 
+	/* Defer this assignment, so that htb_destroy skips offload-related
+	 * parts (especially calling ndo_setup_tc) on errors.
+	 */
+	q->offload = true;
+
 	return 0;
 
 err_free_qdiscs:
-	/* TC_HTB_CREATE call failed, avoid any further calls to the driver. */
-	q->offload = false;
-
 	for (ntx = 0; ntx < q->num_direct_qdiscs && q->direct_qdiscs[ntx];
 	     ntx++)
 		qdisc_put(q->direct_qdiscs[ntx]);
@@ -1340,7 +1343,11 @@ htb_select_queue(struct Qdisc *sch, struct tcmsg *tcm)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct tc_htb_qopt_offload offload_opt;
+	struct htb_sched *q = qdisc_priv(sch);
 	int err;
+
+	if (!q->offload)
+		return sch->dev_queue;
 
 	offload_opt = (struct tc_htb_qopt_offload) {
 		.command = TC_HTB_LEAF_QUERY_QUEUE,
@@ -1668,9 +1675,10 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg,
 					  cl->parent->common.classid,
 					  NULL);
 		if (q->offload) {
-			if (new_q)
+			if (new_q) {
 				htb_set_lockdep_class_child(new_q);
-			htb_parent_to_leaf_offload(sch, dev_queue, new_q);
+				htb_parent_to_leaf_offload(sch, dev_queue, new_q);
+			}
 		}
 	}
 

@@ -33,9 +33,6 @@
 MODULE_AUTHOR("Martin Langer <martin-langer@gmx.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Miro miroSOUND PCM1 pro, PCM12, PCM20 Radio");
-MODULE_SUPPORTED_DEVICE("{{Miro,miroSOUND PCM1 pro}, "
-			"{Miro,miroSOUND PCM12}, "
-			"{Miro,miroSOUND PCM20 Radio}}");
 
 static int index = SNDRV_DEFAULT_IDX1;		/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;		/* ID for this card */

@@ -45,6 +45,7 @@
 #include <linux/swap.h>
 
 #include "amd_shared.h"
+#include "amdgpu.h"
 
 #define KFD_MAX_RING_ENTRY_SIZE	8
 
@@ -168,6 +169,11 @@ extern bool hws_gws_support;
 
 /* Queue preemption timeout in ms */
 extern int queue_preemption_timeout_ms;
+
+/*
+ * Don't evict process queues on vm fault
+ */
+extern int amdgpu_no_queue_eviction_on_vm_fault;
 
 /* Enable eviction debug messages */
 extern bool debug_evictions;
@@ -644,12 +650,6 @@ enum kfd_pdd_bound {
 
 /* Data that is per-process-per device. */
 struct kfd_process_device {
-	/*
-	 * List of all per-device data for a process.
-	 * Starts from kfd_process.per_device_data.
-	 */
-	struct list_head per_device_list;
-
 	/* The device that owns this data. */
 	struct kfd_dev *dev;
 
@@ -766,10 +766,11 @@ struct kfd_process {
 	u32 pasid;
 
 	/*
-	 * List of kfd_process_device structures,
+	 * Array of kfd_process_device pointers,
 	 * one for each device the process is using.
 	 */
-	struct list_head per_device_data;
+	struct kfd_process_device *pdds[MAX_GPU_INSTANCE];
+	uint32_t n_pdds;
 
 	struct process_queue_manager pqm;
 
@@ -867,14 +868,6 @@ void *kfd_process_device_translate_handle(struct kfd_process_device *p,
 void kfd_process_device_remove_obj_handle(struct kfd_process_device *pdd,
 					int handle);
 
-/* Process device data iterator */
-struct kfd_process_device *kfd_get_first_process_device_data(
-							struct kfd_process *p);
-struct kfd_process_device *kfd_get_next_process_device_data(
-						struct kfd_process *p,
-						struct kfd_process_device *pdd);
-bool kfd_has_process_device_data(struct kfd_process *p);
-
 /* PASIDs */
 int kfd_pasid_init(void);
 void kfd_pasid_exit(void);
@@ -944,6 +937,10 @@ bool interrupt_is_wanted(struct kfd_dev *dev,
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
 
+void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
+				  uint64_t tba_addr,
+				  uint64_t tma_addr);
+
 /* Queue Context Management */
 int init_queue(struct queue **q, const struct queue_properties *properties);
 void uninit_queue(struct queue *q);
@@ -1003,8 +1000,8 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 		       u32 *ctl_stack_used_size,
 		       u32 *save_area_used_size);
 
-int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
-			      unsigned int fence_value,
+int amdkfd_fence_wait_timeout(uint64_t *fence_addr,
+			      uint64_t fence_value,
 			      unsigned int timeout_ms);
 
 /* Packet Manager */
@@ -1040,7 +1037,7 @@ struct packet_manager_funcs {
 			uint32_t filter_param, bool reset,
 			unsigned int sdma_engine);
 	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
-			uint64_t fence_address,	uint32_t fence_value);
+			uint64_t fence_address,	uint64_t fence_value);
 	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
 
 	/* Packet sizes */
@@ -1062,7 +1059,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 				struct scheduling_resources *res);
 int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues);
 int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
-				uint32_t fence_value);
+				uint64_t fence_value);
 
 int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 			enum kfd_unmap_queues_filter mode,

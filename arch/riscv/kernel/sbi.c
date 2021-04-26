@@ -116,7 +116,7 @@ void sbi_clear_ipi(void)
 EXPORT_SYMBOL(sbi_clear_ipi);
 
 /**
- * sbi_set_timer_v01() - Program the timer for next timer event.
+ * __sbi_set_timer_v01() - Program the timer for next timer event.
  * @stime_value: The value after which next timer event should fire.
  *
  * Return: None

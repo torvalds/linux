@@ -8,6 +8,7 @@ CFLAGS_REMOVE_ftrace.o	= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_patch.o	= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_sbi.o	= $(CC_FLAGS_FTRACE)
 endif
+CFLAGS_syscall_table.o	+= $(call cc-option,-Wno-override-init,)
 
 extra-y += head.o
 extra-y += vmlinux.lds

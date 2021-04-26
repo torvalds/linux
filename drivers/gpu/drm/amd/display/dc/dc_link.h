@@ -35,6 +35,13 @@ enum dc_link_fec_state {
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };
+
+enum lttpr_mode {
+	LTTPR_MODE_NON_LTTPR,
+	LTTPR_MODE_TRANSPARENT,
+	LTTPR_MODE_NON_TRANSPARENT,
+};
+
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -100,8 +107,12 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
-	bool lttpr_non_transparent_mode;
+	enum lttpr_mode lttpr_mode;
 	bool is_internal_display;
+
+	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
+	 * DIG encoder. */
+	bool is_dig_mapping_flexible;
 
 	bool edp_sink_present;
 
@@ -121,6 +132,11 @@ struct dc_link {
 	uint8_t hpd_src;
 
 	uint8_t link_enc_hw_inst;
+	/* DIG link encoder ID. Used as index in link encoder resource pool.
+	 * For links with fixed mapping to DIG, this is not changed after dc_link
+	 * object creation.
+	 */
+	enum engine_id eng_id;
 
 	bool test_pattern_enabled;
 	union compliance_test_state compliance_test_state;
@@ -140,6 +156,11 @@ struct dc_link {
 	struct panel_cntl *panel_cntl;
 	struct link_encoder *link_enc;
 	struct graphics_object_id link_id;
+	/* Endpoint type distinguishes display endpoints which do not have entries
+	 * in the BIOS connector table from those that do. Helps when tracking link
+	 * encoder to display endpoint assignments.
+	 */
+	enum display_endpoint_type ep_type;
 	union ddi_channel_mapping ddi_channel_mapping;
 	struct connector_device_tag_info device_tag;
 	struct dpcd_caps dpcd_caps;
@@ -183,16 +204,21 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
 	return dc->links[link_index];
 }
 
-static inline struct dc_link *get_edp_link(const struct dc *dc)
+static inline void get_edp_links(const struct dc *dc,
+		struct dc_link **edp_links,
+		int *edp_num)
 {
 	int i;
 
-	// report any eDP links, even unconnected DDI's
+	*edp_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
-		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP)
-			return dc->links[i];
+		// report any eDP links, even unconnected DDI's
+		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP) {
+			edp_links[*edp_num] = dc->links[i];
+			if (++(*edp_num) == MAX_NUM_EDP)
+				return;
+		}
 	}
-	return NULL;
 }
 
 /* Set backlight level of an embedded panel (eDP, LVDS).

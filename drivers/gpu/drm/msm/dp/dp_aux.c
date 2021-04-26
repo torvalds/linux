@@ -32,6 +32,8 @@ struct dp_aux_private {
 	struct drm_dp_aux dp_aux;
 };
 
+#define MAX_AUX_RETRIES			5
+
 static const char *dp_aux_get_error(u32 aux_error)
 {
 	switch (aux_error) {
@@ -377,6 +379,11 @@ static ssize_t dp_aux_transfer(struct drm_dp_aux *dp_aux,
 	ret = dp_aux_cmd_fifo_tx(aux, msg);
 
 	if (ret < 0) {
+		if (aux->native) {
+			aux->retry_cnt++;
+			if (!(aux->retry_cnt % MAX_AUX_RETRIES))
+				dp_catalog_aux_update_cfg(aux->catalog);
+		}
 		usleep_range(400, 500); /* at least 400us to next try */
 		goto unlock_exit;
 	}

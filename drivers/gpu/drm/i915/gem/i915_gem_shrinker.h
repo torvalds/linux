@@ -9,10 +9,12 @@
 #include <linux/bits.h>
 
 struct drm_i915_private;
+struct i915_gem_ww_ctx;
 struct mutex;
 
 /* i915_gem_shrinker.c */
-unsigned long i915_gem_shrink(struct drm_i915_private *i915,
+unsigned long i915_gem_shrink(struct i915_gem_ww_ctx *ww,
+			      struct drm_i915_private *i915,
 			      unsigned long target,
 			      unsigned long *nr_scanned,
 			      unsigned flags);

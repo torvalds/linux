@@ -1016,6 +1016,11 @@ struct drm_device;
 #define DP_EDP_REGIONAL_BACKLIGHT_BASE      0x740    /* eDP 1.4 */
 #define DP_EDP_REGIONAL_BACKLIGHT_0	    0x741    /* eDP 1.4 */
 
+#define DP_EDP_MSO_LINK_CAPABILITIES        0x7a4    /* eDP 1.4 */
+# define DP_EDP_MSO_NUMBER_OF_LINKS_MASK    (7 << 0)
+# define DP_EDP_MSO_NUMBER_OF_LINKS_SHIFT   0
+# define DP_EDP_MSO_INDEPENDENT_LINK_BIT    (1 << 3)
+
 /* Sideband MSG Buffers */
 #define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
@@ -1171,6 +1176,7 @@ struct drm_device;
 # define DP_PCON_ENABLE_MAX_BW_48GBPS	       6
 # define DP_PCON_ENABLE_SOURCE_CTL_MODE       (1 << 3)
 # define DP_PCON_ENABLE_CONCURRENT_LINK       (1 << 4)
+# define DP_PCON_ENABLE_SEQUENTIAL_LINK       (0 << 4)
 # define DP_PCON_ENABLE_LINK_FRL_MODE         (1 << 5)
 # define DP_PCON_ENABLE_HPD_READY	      (1 << 6)
 # define DP_PCON_ENABLE_HDMI_LINK             (1 << 7)
@@ -1185,6 +1191,7 @@ struct drm_device;
 # define DP_PCON_FRL_BW_MASK_40GBPS           (1 << 4)
 # define DP_PCON_FRL_BW_MASK_48GBPS           (1 << 5)
 # define DP_PCON_FRL_LINK_TRAIN_EXTENDED      (1 << 6)
+# define DP_PCON_FRL_LINK_TRAIN_NORMAL        (0 << 6)
 
 /* PCON HDMI LINK STATUS */
 #define DP_PCON_HDMI_TX_LINK_STATUS           0x303B
@@ -2149,9 +2156,9 @@ int drm_dp_get_pcon_max_frl_bw(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 int drm_dp_pcon_frl_prepare(struct drm_dp_aux *aux, bool enable_frl_ready_hpd);
 bool drm_dp_pcon_is_frl_ready(struct drm_dp_aux *aux);
 int drm_dp_pcon_frl_configure_1(struct drm_dp_aux *aux, int max_frl_gbps,
-				bool concurrent_mode);
+				u8 frl_mode);
 int drm_dp_pcon_frl_configure_2(struct drm_dp_aux *aux, int max_frl_mask,
-				bool extended_train_mode);
+				u8 frl_type);
 int drm_dp_pcon_reset_frl_config(struct drm_dp_aux *aux);
 int drm_dp_pcon_frl_enable(struct drm_dp_aux *aux);
 

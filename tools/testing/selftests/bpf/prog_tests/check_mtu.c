@@ -128,6 +128,8 @@ static void test_check_mtu_xdp(__u32 mtu, __u32 ifindex)
 	test_check_mtu_run_xdp(skel, skel->progs.xdp_use_helper, mtu);
 	test_check_mtu_run_xdp(skel, skel->progs.xdp_exceed_mtu, mtu);
 	test_check_mtu_run_xdp(skel, skel->progs.xdp_minus_delta, mtu);
+	test_check_mtu_run_xdp(skel, skel->progs.xdp_input_len, mtu);
+	test_check_mtu_run_xdp(skel, skel->progs.xdp_input_len_exceed, mtu);
 
 cleanup:
 	test_check_mtu__destroy(skel);
@@ -187,6 +189,8 @@ static void test_check_mtu_tc(__u32 mtu, __u32 ifindex)
 	test_check_mtu_run_tc(skel, skel->progs.tc_exceed_mtu, mtu);
 	test_check_mtu_run_tc(skel, skel->progs.tc_exceed_mtu_da, mtu);
 	test_check_mtu_run_tc(skel, skel->progs.tc_minus_delta, mtu);
+	test_check_mtu_run_tc(skel, skel->progs.tc_input_len, mtu);
+	test_check_mtu_run_tc(skel, skel->progs.tc_input_len_exceed, mtu);
 cleanup:
 	test_check_mtu__destroy(skel);
 }

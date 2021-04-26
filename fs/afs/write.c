@@ -851,8 +851,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	fscache_wait_on_page_write(vnode->cache, vmf->page);
 #endif
 
-	if (PageWriteback(vmf->page) &&
-	    wait_on_page_bit_killable(vmf->page, PG_writeback) < 0)
+	if (wait_on_page_writeback_killable(vmf->page))
 		return VM_FAULT_RETRY;
 
 	if (lock_page_killable(vmf->page) < 0)

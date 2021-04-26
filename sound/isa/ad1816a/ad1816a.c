@@ -22,13 +22,6 @@
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("AD1816A, AD1815");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Highscreen,Sound-Boostar 16 3D},"
-		"{Analog Devices,AD1815},"
-		"{Analog Devices,AD1816A},"
-		"{TerraTec,Base 64},"
-		"{TerraTec,AudioSystem EWS64S},"
-		"{Aztech/Newcom SC-16 3D},"
-		"{Shark Predator ISA}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 1-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */

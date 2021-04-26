@@ -805,7 +805,6 @@ minstrel_ht_group_min_rate_offset(struct minstrel_ht_sta *mi, int group,
 static u16
 minstrel_ht_next_inc_rate(struct minstrel_ht_sta *mi, u32 fast_rate_dur)
 {
-	struct minstrel_mcs_group_data *mg;
 	u8 type = MINSTREL_SAMPLE_TYPE_INC;
 	int i, index = 0;
 	u8 group;
@@ -813,7 +812,6 @@ minstrel_ht_next_inc_rate(struct minstrel_ht_sta *mi, u32 fast_rate_dur)
 	group = mi->sample[type].sample_group;
 	for (i = 0; i < ARRAY_SIZE(minstrel_mcs_groups); i++) {
 		group = (group + 1) % ARRAY_SIZE(minstrel_mcs_groups);
-		mg = &mi->groups[group];
 
 		index = minstrel_ht_group_min_rate_offset(mi, group,
 							  fast_rate_dur);

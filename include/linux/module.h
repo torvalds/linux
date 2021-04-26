@@ -30,9 +30,6 @@
 #include <linux/percpu.h>
 #include <asm/module.h>
 
-/* Not Yet Implemented */
-#define MODULE_SUPPORTED_DEVICE(name)
-
 #define MODULE_NAME_LEN MAX_PARAM_PREFIX_LEN
 
 struct modversion_info {

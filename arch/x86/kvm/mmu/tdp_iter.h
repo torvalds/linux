@@ -36,6 +36,8 @@ struct tdp_iter {
 	int min_level;
 	/* The iterator's current level within the paging structure */
 	int level;
+	/* The address space ID, i.e. SMM vs. regular. */
+	int as_id;
 	/* A snapshot of the value at sptep */
 	u64 old_spte;
 	/*
@@ -62,6 +64,6 @@ tdp_ptep_t spte_to_child_pt(u64 pte, int level);
 void tdp_iter_start(struct tdp_iter *iter, u64 *root_pt, int root_level,
 		    int min_level, gfn_t next_last_level_gfn);
 void tdp_iter_next(struct tdp_iter *iter);
-tdp_ptep_t tdp_iter_root_pt(struct tdp_iter *iter);
+void tdp_iter_restart(struct tdp_iter *iter);
 
 #endif /* __KVM_X86_MMU_TDP_ITER_H */

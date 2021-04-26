@@ -143,6 +143,7 @@ struct dpu_encoder_phys_ops {
 	void (*prepare_idle_pc)(struct dpu_encoder_phys *phys_enc);
 	void (*restore)(struct dpu_encoder_phys *phys);
 	int (*get_line_count)(struct dpu_encoder_phys *phys);
+	int (*get_frame_count)(struct dpu_encoder_phys *phys);
 };
 
 /**

@@ -53,19 +53,39 @@ static void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev,
 
 static void gfxhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
-	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+	uint64_t pt_base;
+
+	if (adev->gmc.pdb0_bo)
+		pt_base = amdgpu_gmc_pd_addr(adev->gmc.pdb0_bo);
+	else
+		pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
 
 	gfxhub_v1_0_setup_vm_pt_regs(adev, 0, pt_base);
 
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
-		     (u32)(adev->gmc.gart_start >> 12));
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
-		     (u32)(adev->gmc.gart_start >> 44));
+	/* If use GART for FB translation, vmid0 page table covers both
+	 * vram and system memory (gart)
+	 */
+	if (adev->gmc.pdb0_bo) {
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
+				(u32)(adev->gmc.fb_start >> 12));
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
+				(u32)(adev->gmc.fb_start >> 44));
 
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
-		     (u32)(adev->gmc.gart_end >> 12));
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
-		     (u32)(adev->gmc.gart_end >> 44));
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
+				(u32)(adev->gmc.gart_end >> 12));
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
+				(u32)(adev->gmc.gart_end >> 44));
+	} else {
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
+				(u32)(adev->gmc.gart_start >> 12));
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
+				(u32)(adev->gmc.gart_start >> 44));
+
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
+				(u32)(adev->gmc.gart_end >> 12));
+		WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
+				(u32)(adev->gmc.gart_end >> 44));
+	}
 }
 
 static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
@@ -115,6 +135,27 @@ static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 
 		WREG32_FIELD15(GC, 0, VM_L2_PROTECTION_FAULT_CNTL2,
 			       ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
+	}
+
+	/* In the case squeezing vram into GART aperture, we don't use
+	 * FB aperture and AGP aperture. Disable them.
+	 */
+	if (adev->gmc.pdb0_bo) {
+		if (adev->asic_type == CHIP_ALDEBARAN) {
+			WREG32_SOC15(GC, 0, mmMC_VM_FB_LOCATION_TOP, adev->gmc.fb_end_original >> 24);
+			WREG32_SOC15(GC, 0, mmMC_VM_FB_LOCATION_BASE, adev->gmc.fb_start_original >> 24);
+			WREG32_SOC15(GC, 0, mmMC_VM_AGP_TOP, 0);
+			WREG32_SOC15(GC, 0, mmMC_VM_AGP_BOT, 0xFFFFFF);
+			WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR, adev->gmc.fb_start_original >> 18);
+			WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR, adev->gmc.fb_end_original >> 18);
+		} else {
+			WREG32_SOC15(GC, 0, mmMC_VM_FB_LOCATION_TOP, 0);
+			WREG32_SOC15(GC, 0, mmMC_VM_FB_LOCATION_BASE, 0x00FFFFFF);
+			WREG32_SOC15(GC, 0, mmMC_VM_AGP_TOP, 0);
+			WREG32_SOC15(GC, 0, mmMC_VM_AGP_BOT, 0xFFFFFF);
+			WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR, 0x3FFFFFFF);
+			WREG32_SOC15(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR, 0);
+		}
 	}
 }
 
@@ -173,8 +214,13 @@ static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL3, tmp);
 
 	tmp = mmVM_L2_CNTL4_DEFAULT;
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 1);
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 1);
+	} else {
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
+	}
 	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL4, tmp);
 }
 
@@ -184,7 +230,10 @@ static void gfxhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
 
 	tmp = RREG32_SOC15(GC, 0, mmVM_CONTEXT0_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH,
+			adev->gmc.vmid0_page_table_depth);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_BLOCK_SIZE,
+			adev->gmc.vmid0_page_table_block_size);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL,
 			    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_CNTL, tmp);
