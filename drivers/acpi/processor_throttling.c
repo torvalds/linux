@@ -281,9 +281,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	status = acpi_evaluate_integer(pr->handle, "_TPC", NULL, &tpc);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
-			acpi_handle_warn(pr->handle,
-					 "_TPC evaluation failed: %s\n",
-					 acpi_format_exception(status));
+			acpi_evaluation_failure_warn(pr->handle, "_TPC", status);
 
 		return -ENODEV;
 	}
@@ -416,9 +414,7 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 	status = acpi_evaluate_object(pr->handle, "_PTC", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
-			acpi_handle_warn(pr->handle,
-					 "_PTC evaluation failed: %s\n",
-					 acpi_format_exception(status));
+			acpi_evaluation_failure_warn(pr->handle, "_PTC", status);
 
 		return -ENODEV;
 	}
@@ -503,9 +499,7 @@ static int acpi_processor_get_throttling_states(struct acpi_processor *pr)
 	status = acpi_evaluate_object(pr->handle, "_TSS", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
-			acpi_handle_warn(pr->handle,
-					 "_TSS evaluation failed: %s\n",
-					 acpi_format_exception(status));
+			acpi_evaluation_failure_warn(pr->handle, "_TSS", status);
 
 		return -ENODEV;
 	}
@@ -586,9 +580,7 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	status = acpi_evaluate_object(pr->handle, "_TSD", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
-			acpi_handle_warn(pr->handle,
-					 "_TSD evaluation failed: %s\n",
-					 acpi_format_exception(status));
+			acpi_evaluation_failure_warn(pr->handle, "_TSD", status);
 
 		return -ENODEV;
 	}

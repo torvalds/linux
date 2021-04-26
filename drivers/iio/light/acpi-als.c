@@ -26,8 +26,6 @@
 #define ACPI_ALS_DEVICE_NAME		"acpi-als"
 #define ACPI_ALS_NOTIFY_ILLUMINANCE	0x80
 
-ACPI_MODULE_NAME("acpi-als");
-
 /*
  * So far, there's only one channel in here, but the specification for
  * ACPI0008 says there can be more to what the block can report. Like
@@ -91,7 +89,7 @@ static int acpi_als_read_value(struct acpi_als *als, char *prop, s32 *val)
 				       &temp_val);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Error reading ALS %s", prop));
+		acpi_evaluation_failure_warn(als->device->handle, prop, status);
 		return -EIO;
 	}
 

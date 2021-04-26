@@ -256,8 +256,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     acpi_pci_link_check_current, &irq);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_warn(handle, "_CRS evaluation failed: %s\n",
-				 acpi_format_exception(status));
+		acpi_evaluation_failure_warn(handle, "_CRS", status);
 		result = -ENODEV;
 		goto end;
 	}
@@ -345,8 +344,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 
 	/* check for total failure */
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_warn(handle, "_SRS evaluation failed: %s",
-				 acpi_format_exception(status));
+		acpi_evaluation_failure_warn(handle, "_SRS", status);
 		result = -ENODEV;
 		goto end;
 	}
