@@ -544,7 +544,7 @@ static inline bool rtc_tv_nsec_ok(unsigned long set_offset_nsec,
 				  struct timespec64 *to_set,
 				  const struct timespec64 *now)
 {
-	/* Allowed error in tv_nsec, arbitarily set to 5 jiffies in ns. */
+	/* Allowed error in tv_nsec, arbitrarily set to 5 jiffies in ns. */
 	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
 	struct timespec64 delay = {.tv_sec = -1,
 				   .tv_nsec = set_offset_nsec};

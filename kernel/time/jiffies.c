@@ -44,7 +44,7 @@ static u64 jiffies_read(struct clocksource *cs)
  * the timer interrupt frequency HZ and it suffers
  * inaccuracies caused by missed or lost timer
  * interrupts and the inability for the timer
- * interrupt hardware to accuratly tick at the
+ * interrupt hardware to accurately tick at the
  * requested HZ value. It is also not recommended
  * for "tick-less" systems.
  */

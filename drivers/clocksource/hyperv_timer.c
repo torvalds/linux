@@ -457,7 +457,7 @@ void __init hv_init_clocksource(void)
 {
 	/*
 	 * Try to set up the TSC page clocksource. If it succeeds, we're
-	 * done. Otherwise, set up the MSR clocksoruce.  At least one of
+	 * done. Otherwise, set up the MSR clocksource.  At least one of
 	 * these will always be available except on very old versions of
 	 * Hyper-V on x86.  In that case we won't have a Hyper-V
 	 * clocksource, but Linux will still run with a clocksource based
