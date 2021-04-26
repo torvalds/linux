@@ -8,11 +8,13 @@
 #include <linux/export.h>
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
+#include <linux/sched/smt.h>
 
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/nospec-branch.h>
 #include <asm/cache.h>
+#include <asm/cacheflush.h>
 #include <asm/apic.h>
 #include <asm/perf_event.h>
 
@@ -43,11 +45,12 @@
  */
 
 /*
- * Bits to mangle the TIF_SPEC_IB state into the mm pointer which is
+ * Bits to mangle the TIF_SPEC_* state into the mm pointer which is
  * stored in cpu_tlb_state.last_user_mm_spec.
  */
 #define LAST_USER_MM_IBPB	0x1UL
-#define LAST_USER_MM_SPEC_MASK	(LAST_USER_MM_IBPB)
+#define LAST_USER_MM_L1D_FLUSH	0x2UL
+#define LAST_USER_MM_SPEC_MASK	(LAST_USER_MM_IBPB | LAST_USER_MM_L1D_FLUSH)
 
 /* Bits to set when tlbstate and flush is (re)initialized */
 #define LAST_USER_MM_INIT	LAST_USER_MM_IBPB
@@ -321,10 +324,51 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	local_irq_restore(flags);
 }
 
+/*
+ * Invoked from return to user/guest by a task that opted-in to L1D
+ * flushing but ended up running on an SMT enabled core due to wrong
+ * affinity settings or CPU hotplug. This is part of the paranoid L1D flush
+ * contract which this task requested.
+ */
+static void l1d_flush_force_sigbus(struct callback_head *ch)
+{
+	force_sig(SIGBUS);
+}
+
+static void l1d_flush_evaluate(unsigned long prev_mm, unsigned long next_mm,
+				struct task_struct *next)
+{
+	/* Flush L1D if the outgoing task requests it */
+	if (prev_mm & LAST_USER_MM_L1D_FLUSH)
+		wrmsrl(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
+
+	/* Check whether the incoming task opted in for L1D flush */
+	if (likely(!(next_mm & LAST_USER_MM_L1D_FLUSH)))
+		return;
+
+	/*
+	 * Validate that it is not running on an SMT sibling as this would
+	 * make the excercise pointless because the siblings share L1D. If
+	 * it runs on a SMT sibling, notify it with SIGBUS on return to
+	 * user/guest
+	 */
+	if (this_cpu_read(cpu_info.smt_active)) {
+		clear_ti_thread_flag(&next->thread_info, TIF_SPEC_L1D_FLUSH);
+		next->l1d_flush_kill.func = l1d_flush_force_sigbus;
+		task_work_add(next, &next->l1d_flush_kill, TWA_RESUME);
+	}
+}
+
 static unsigned long mm_mangle_tif_spec_bits(struct task_struct *next)
 {
 	unsigned long next_tif = task_thread_info(next)->flags;
 	unsigned long spec_bits = (next_tif >> TIF_SPEC_IB) & LAST_USER_MM_SPEC_MASK;
+
+	/*
+	 * Ensure that the bit shift above works as expected and the two flags
+	 * end up in bit 0 and 1.
+	 */
+	BUILD_BUG_ON(TIF_SPEC_L1D_FLUSH != TIF_SPEC_IB + 1);
 
 	return (unsigned long)next->mm | spec_bits;
 }
@@ -401,6 +445,16 @@ static void cond_mitigation(struct task_struct *next)
 		if ((prev_mm & ~LAST_USER_MM_SPEC_MASK) !=
 					(unsigned long)next->mm)
 			indirect_branch_prediction_barrier();
+	}
+
+	if (static_branch_unlikely(&switch_mm_cond_l1d_flush)) {
+		/*
+		 * Flush L1D when the outgoing task requested it and/or
+		 * check whether the incoming task requested L1D flushing
+		 * and ended up on an SMT sibling.
+		 */
+		if (unlikely((prev_mm | next_mm) & LAST_USER_MM_L1D_FLUSH))
+			l1d_flush_evaluate(prev_mm, next_mm, next);
 	}
 
 	this_cpu_write(cpu_tlbstate.last_user_mm_spec, next_mm);

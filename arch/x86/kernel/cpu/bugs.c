@@ -43,6 +43,7 @@ static void __init mds_select_mitigation(void);
 static void __init mds_print_mitigation(void);
 static void __init taa_select_mitigation(void);
 static void __init srbds_select_mitigation(void);
+static void __init l1d_flush_select_mitigation(void);
 
 /* The base value of the SPEC_CTRL MSR that always has to be preserved. */
 u64 x86_spec_ctrl_base;
@@ -75,6 +76,13 @@ EXPORT_SYMBOL_GPL(mds_user_clear);
 /* Control MDS CPU buffer clear before idling (halt, mwait) */
 DEFINE_STATIC_KEY_FALSE(mds_idle_clear);
 EXPORT_SYMBOL_GPL(mds_idle_clear);
+
+/*
+ * Controls whether l1d flush based mitigations are enabled,
+ * based on hw features and admin setting via boot parameter
+ * defaults to false
+ */
+DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 
 void __init check_bugs(void)
 {
@@ -111,6 +119,7 @@ void __init check_bugs(void)
 	mds_select_mitigation();
 	taa_select_mitigation();
 	srbds_select_mitigation();
+	l1d_flush_select_mitigation();
 
 	/*
 	 * As MDS and TAA mitigations are inter-related, print MDS
@@ -490,6 +499,34 @@ static int __init srbds_parse_cmdline(char *str)
 	return 0;
 }
 early_param("srbds", srbds_parse_cmdline);
+
+#undef pr_fmt
+#define pr_fmt(fmt)     "L1D Flush : " fmt
+
+enum l1d_flush_mitigations {
+	L1D_FLUSH_OFF = 0,
+	L1D_FLUSH_ON,
+};
+
+static enum l1d_flush_mitigations l1d_flush_mitigation __initdata = L1D_FLUSH_OFF;
+
+static void __init l1d_flush_select_mitigation(void)
+{
+	if (!l1d_flush_mitigation || !boot_cpu_has(X86_FEATURE_FLUSH_L1D))
+		return;
+
+	static_branch_enable(&switch_mm_cond_l1d_flush);
+	pr_info("Conditional flush on switch_mm() enabled\n");
+}
+
+static int __init l1d_flush_parse_cmdline(char *str)
+{
+	if (!strcmp(str, "on"))
+		l1d_flush_mitigation = L1D_FLUSH_ON;
+
+	return 0;
+}
+early_param("l1d_flush", l1d_flush_parse_cmdline);
 
 #undef pr_fmt
 #define pr_fmt(fmt)     "Spectre V1 : " fmt
