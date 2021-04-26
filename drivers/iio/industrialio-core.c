@@ -1642,7 +1642,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	device_initialize(&indio_dev->dev);
 	iio_device_set_drvdata(indio_dev, (void *)indio_dev);
 	mutex_init(&indio_dev->mlock);
-	mutex_init(&indio_dev->info_exist_lock);
+	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
 	iio_dev_opaque->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
@@ -1779,7 +1779,7 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct iio_ioctl_handler *h;
 	int ret = -ENODEV;
 
-	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
 	/**
 	 * The NULL check here is required to prevent crashing when a device
@@ -1799,7 +1799,7 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = -ENODEV;
 
 out_unlock:
-	mutex_unlock(&indio_dev->info_exist_lock);
+	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	return ret;
 }
@@ -1938,7 +1938,7 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 {
 	cdev_device_del(&indio_dev->chrdev, &indio_dev->dev);
 
-	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
 	iio_device_unregister_debugfs(indio_dev);
 
@@ -1949,7 +1949,7 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 	iio_device_wakeup_eventset(indio_dev);
 	iio_buffer_wakeup_poll(indio_dev);
 
-	mutex_unlock(&indio_dev->info_exist_lock);
+	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	iio_buffers_free_sysfs_and_mask(indio_dev);
 }

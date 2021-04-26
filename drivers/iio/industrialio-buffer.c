@@ -1150,12 +1150,13 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int ret;
 
 	if (insert_buffer == remove_buffer)
 		return 0;
 
-	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	mutex_lock(&indio_dev->mlock);
 
 	if (insert_buffer && iio_buffer_is_active(insert_buffer))
@@ -1178,7 +1179,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 
 out_unlock:
 	mutex_unlock(&indio_dev->mlock);
-	mutex_unlock(&indio_dev->info_exist_lock);
+	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	return ret;
 }

@@ -510,7 +510,6 @@ struct iio_buffer_setup_ops {
  * @label:              [DRIVER] unique name to identify which device this is
  * @info:		[DRIVER] callbacks and constant info from driver
  * @clock_id:		[INTERN] timestamping clock posix identifier
- * @info_exist_lock:	[INTERN] lock to prevent use during removal
  * @setup_ops:		[DRIVER] callbacks to call before and after buffer
  *			enable/disable
  * @chrdev:		[INTERN] associated character device
@@ -542,7 +541,6 @@ struct iio_dev {
 	const char			*label;
 	const struct iio_info		*info;
 	clockid_t			clock_id;
-	struct mutex			info_exist_lock;
 	const struct iio_buffer_setup_ops	*setup_ops;
 	struct cdev			chrdev;
 
