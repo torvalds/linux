@@ -43,6 +43,10 @@ int *fd_percpu;
 int *fd_instr_count_percpu;
 struct timeval interval_tv = {5, 0};
 struct timespec interval_ts = {5, 0};
+
+/* Save original CPU model */
+unsigned int model_orig;
+
 unsigned int num_iterations;
 unsigned int debug;
 unsigned int quiet;
@@ -5257,6 +5261,7 @@ void process_cpuid()
 			edx_flags & (1 << 29) ? "TM" : "-");
 	}
 	if (genuine_intel) {
+		model_orig = model;
 		model = intel_model_duplicates(model);
 	}
 
