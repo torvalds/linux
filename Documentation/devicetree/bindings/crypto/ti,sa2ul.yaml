@@ -14,6 +14,7 @@ properties:
     enum:
       - ti,j721e-sa2ul
       - ti,am654-sa2ul
+      - ti,am64-sa2ul
 
   reg:
     maxItems: 1
@@ -45,6 +46,18 @@ properties:
     description:
       Address translation for the possible RNG child node for SA2UL
 
+  clocks:
+    items:
+      - description: Clock used by PKA
+      - description: Main Input Clock
+      - description: Clock used by rng
+
+  clock-names:
+    items:
+      - const: pka_in_clk
+      - const: x1_clk
+      - const: x2_clk
+
 patternProperties:
   "^rng@[a-f0-9]+$":
     type: object
@@ -57,7 +70,16 @@ required:
   - power-domains
   - dmas
   - dma-names
-  - dma-coherent
+
+if:
+  properties:
+    compatible:
+      enum:
+        - ti,j721e-sa2ul
+        - ti,am654-sa2ul
+then:
+  required:
+    - dma-coherent
 
 additionalProperties: false
 

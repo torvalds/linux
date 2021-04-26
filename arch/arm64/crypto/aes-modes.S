@@ -359,6 +359,7 @@ ST5(	mov		v4.16b, vctr.16b		)
 	ins		vctr.d[0], x8
 
 	/* apply carry to N counter blocks for N := x12 */
+	cbz		x12, 2f
 	adr		x16, 1f
 	sub		x16, x16, x12, lsl #3
 	br		x16
