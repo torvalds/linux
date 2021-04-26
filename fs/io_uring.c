@@ -8419,7 +8419,6 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 {
 	u64 __user *tags = u64_to_user_ptr(up->tags);
 	struct iovec iov, __user *iovs = u64_to_user_ptr(up->data);
-	struct io_mapped_ubuf *imu;
 	struct page *last_hpage = NULL;
 	bool needs_switch = false;
 	__u32 done;
@@ -8431,6 +8430,8 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		return -EINVAL;
 
 	for (done = 0; done < nr_args; done++) {
+		struct io_mapped_ubuf *imu;
+		int offset = up->offset + done;
 		u64 tag = 0;
 
 		err = io_copy_iov(ctx, &iov, iovs, done);
@@ -8440,28 +8441,27 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 			err = -EFAULT;
 			break;
 		}
+		err = io_buffer_validate(&iov);
+		if (err)
+			break;
+		err = io_sqe_buffer_register(ctx, &iov, &imu, &last_hpage);
+		if (err)
+			break;
 
-		i = array_index_nospec(up->offset + done, ctx->nr_user_bufs);
-		imu = ctx->user_bufs[i];
-		if (imu) {
-			err = io_queue_rsrc_removal(ctx->buf_data, up->offset + done,
-						    ctx->rsrc_node, imu);
-			if (err)
+		i = array_index_nospec(offset, ctx->nr_user_bufs);
+		if (ctx->user_bufs[i]) {
+			err = io_queue_rsrc_removal(ctx->buf_data, offset,
+						    ctx->rsrc_node, ctx->user_bufs[i]);
+			if (unlikely(err)) {
+				io_buffer_unmap(ctx, &imu);
 				break;
+			}
 			ctx->user_bufs[i] = NULL;
 			needs_switch = true;
 		}
 
-		if (iov.iov_base || iov.iov_len) {
-			err = io_buffer_validate(&iov);
-			if (err)
-				break;
-			err = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
-						     &last_hpage);
-			if (err)
-				break;
-			ctx->buf_data->tags[up->offset + done] = tag;
-		}
+		ctx->user_bufs[i] = imu;
+		ctx->buf_data->tags[offset] = tag;
 	}
 
 	if (needs_switch)
