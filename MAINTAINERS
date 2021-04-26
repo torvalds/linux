@@ -4235,13 +4235,20 @@ X:	drivers/char/tpm/
 CHECKPATCH
 M:	Andy Whitcroft <apw@canonical.com>
 M:	Joe Perches <joe@perches.com>
+R:	Dwaipayan Ray <dwaipayanray1@gmail.com>
+R:	Lukas Bulwahn <lukas.bulwahn@gmail.com>
 S:	Maintained
 F:	scripts/checkpatch.pl
 
+CHECKPATCH DOCUMENTATION
+M:	Dwaipayan Ray <dwaipayanray1@gmail.com>
+M:	Lukas Bulwahn <lukas.bulwahn@gmail.com>
+R:	Joe Perches <joe@perches.com>
+S:	Maintained
+F:	Documentation/dev-tools/checkpatch.rst
+
 CHINESE DOCUMENTATION
-M:	Harry Wei <harryxiyou@gmail.com>
-M:	Alex Shi <alex.shi@linux.alibaba.com>
-L:	xiyoulinuxkernelgroup@googlegroups.com (subscribers-only)
+M:	Alex Shi <alexs@kernel.org>
 S:	Maintained
 F:	Documentation/translations/zh_CN/
 
@@ -5468,6 +5475,12 @@ X:	Documentation/i2c/
 X:	Documentation/power/
 X:	Documentation/spi/
 X:	Documentation/userspace-api/media/
+
+DOCUMENTATION REPORTING ISSUES
+M:	Thorsten Leemhuis <linux@leemhuis.info>
+L:	linux-doc@vger.kernel.org
+S:	Maintained
+F:	Documentation/admin-guide/reporting-issues.rst
 
 DOCUMENTATION SCRIPTS
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -9799,6 +9812,11 @@ F:	include/uapi/linux/nfsd/
 F:	include/uapi/linux/sunrpc/
 F:	net/sunrpc/
 F:	Documentation/filesystems/nfs/
+
+KERNEL REGRESSIONS
+M:	Thorsten Leemhuis <linux@leemhuis.info>
+L:	regressions@lists.linux.dev
+S:	Supported
 
 KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuah@kernel.org>
