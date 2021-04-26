@@ -384,9 +384,14 @@ static int vangogh_dpm_set_jpeg_enable(struct smu_context *smu, bool enable)
 
 static bool vangogh_is_dpm_running(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 	uint32_t feature_mask[2];
 	uint64_t feature_enabled;
+
+	/* we need to re-init after suspend so return false */
+	if (adev->in_suspend)
+		return false;
 
 	ret = smu_cmn_get_enabled_32_bits_mask(smu, feature_mask, 2);
 

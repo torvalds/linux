@@ -261,7 +261,7 @@ static int q6tdm_set_tdm_slot(struct snd_soc_dai *dai,
 		tdm->nslots_per_frame = slots;
 		tdm->slot_width = slot_width;
 		/* TDM RX dais ids are even and tx are odd */
-		tdm->slot_mask = (dai->id & 0x1 ? tx_mask : rx_mask) & cap_mask;
+		tdm->slot_mask = ((dai->id & 0x1) ? tx_mask : rx_mask) & cap_mask;
 		break;
 	default:
 		dev_err(dai->dev, "%s: invalid dai id 0x%x\n",
@@ -1315,7 +1315,7 @@ static struct snd_soc_dai_driver q6afe_dais[] = {
 };
 
 static int q6afe_of_xlate_dai_name(struct snd_soc_component *component,
-				   struct of_phandle_args *args,
+				   const struct of_phandle_args *args,
 				   const char **dai_name)
 {
 	int id = args->args[0];

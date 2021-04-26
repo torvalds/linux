@@ -24,8 +24,7 @@ static const struct snd_pcm_hardware acp3x_pcm_hardware_playback = {
 		SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |  SNDRV_PCM_FMTBIT_S8 |
-		   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S24_LE |
-		   SNDRV_PCM_FMTBIT_S32_LE,
+		   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
 	.channels_min = 2,
 	.channels_max = 8,
 	.rates = SNDRV_PCM_RATE_8000_96000,
@@ -45,8 +44,7 @@ static const struct snd_pcm_hardware acp3x_pcm_hardware_capture = {
 		SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
-		   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S24_LE |
-		   SNDRV_PCM_FMTBIT_S32_LE,
+		   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
 	.channels_min = 2,
 	.channels_max = 2,
 	.rates = SNDRV_PCM_RATE_8000_48000,

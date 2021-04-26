@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  skl.h - HD Audio skylake defintions.
+ *  skl.h - HD Audio skylake definitions.
  *
  *  Copyright (C) 2015 Intel Corp
  *  Author: Jeeja KP <jeeja.kp@intel.com>

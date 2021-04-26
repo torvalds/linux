@@ -1283,8 +1283,6 @@ struct cifs_aio_ctx {
 	bool			direct_io;
 };
 
-struct cifs_readdata;
-
 /* asynchronous read support */
 struct cifs_readdata {
 	struct kref			refcount;

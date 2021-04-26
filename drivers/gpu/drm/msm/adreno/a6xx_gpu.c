@@ -567,17 +567,17 @@ static bool a6xx_ucode_check_version(struct a6xx_gpu *a6xx_gpu,
 	}  else {
 		/*
 		 * a650 tier targets don't need whereami but still need to be
-		 * equal to or newer than 1.95 for other security fixes
+		 * equal to or newer than 0.95 for other security fixes
 		 */
 		if (adreno_is_a650(adreno_gpu)) {
-			if ((buf[0] & 0xfff) >= 0x195) {
+			if ((buf[0] & 0xfff) >= 0x095) {
 				ret = true;
 				goto out;
 			}
 
 			DRM_DEV_ERROR(&gpu->pdev->dev,
 				"a650 SQE ucode is too old. Have version %x need at least %x\n",
-				buf[0] & 0xfff, 0x195);
+				buf[0] & 0xfff, 0x095);
 		}
 
 		/*
@@ -1228,8 +1228,8 @@ static int a6xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 	/* Force the GPU power on so we can read this register */
 	a6xx_gmu_set_oob(&a6xx_gpu->gmu, GMU_OOB_PERFCOUNTER_SET);
 
-	*value = gpu_read64(gpu, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
-		REG_A6XX_RBBM_PERFCTR_CP_0_HI);
+	*value = gpu_read64(gpu, REG_A6XX_CP_ALWAYS_ON_COUNTER_LO,
+		REG_A6XX_CP_ALWAYS_ON_COUNTER_HI);
 
 	a6xx_gmu_clear_oob(&a6xx_gpu->gmu, GMU_OOB_PERFCOUNTER_SET);
 	mutex_unlock(&perfcounter_oob);
@@ -1406,7 +1406,13 @@ static int a6xx_set_supported_hw(struct device *dev, struct a6xx_gpu *a6xx_gpu,
 	int ret;
 
 	ret = nvmem_cell_read_u16(dev, "speed_bin", &speedbin);
-	if (ret) {
+	/*
+	 * -ENOENT means that the platform doesn't support speedbin which is
+	 * fine
+	 */
+	if (ret == -ENOENT) {
+		return 0;
+	} else if (ret) {
 		DRM_DEV_ERROR(dev,
 			      "failed to read speed-bin (%d). Some OPPs may not be supported by hardware",
 			      ret);

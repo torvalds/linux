@@ -1056,7 +1056,7 @@ static int rt711_pcm_hw_free(struct snd_pcm_substream *substream,
 #define RT711_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-static struct snd_soc_dai_ops rt711_ops = {
+static const struct snd_soc_dai_ops rt711_ops = {
 	.hw_params	= rt711_pcm_hw_params,
 	.hw_free	= rt711_pcm_hw_free,
 	.set_sdw_stream	= rt711_set_sdw_stream,

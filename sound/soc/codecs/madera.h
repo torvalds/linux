@@ -430,7 +430,7 @@ int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 			      irq_handler_t handler);
 void madera_free_bus_error_irq(struct madera_priv *priv, int dsp_num);
 
-int madera_init_dai(struct madera_priv *priv, int dai);
+int madera_init_dai(struct madera_priv *priv, int id);
 
 int madera_set_output_mode(struct snd_soc_component *component, int output,
 			   bool differential);
