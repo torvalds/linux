@@ -51,9 +51,6 @@ struct nfsd_net {
 	bool grace_ended;
 	time64_t boot_time;
 
-	/* internal mount of the "nfsd" pseudofilesystem: */
-	struct vfsmount *nfsd_mnt;
-
 	struct dentry *nfsd_client_dir;
 
 	/*
@@ -129,6 +126,9 @@ struct nfsd_net {
 
 	wait_queue_head_t ntf_wq;
 	atomic_t ntf_refcnt;
+
+	/* Allow umount to wait for nfsd state cleanup */
+	struct completion nfsd_shutdown_complete;
 
 	/*
 	 * clientid and stateid data for construction of net unique COPY
