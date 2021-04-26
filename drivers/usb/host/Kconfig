@@ -272,6 +272,7 @@ config USB_EHCI_TEGRA
 	select USB_CHIPIDEA
 	select USB_CHIPIDEA_HOST
 	select USB_CHIPIDEA_TEGRA
+	select USB_GADGET
 	help
 	  This option is deprecated now and the driver was removed, use
 	  USB_CHIPIDEA_TEGRA instead.
