@@ -233,4 +233,7 @@ obj-m			+= fips140.o
 
 CFLAGS_fips140-module.o += $(FIPS140_CFLAGS)
 
+hostprogs-always-y := fips140_gen_hmac
+HOSTLDLIBS_fips140_gen_hmac := -lcrypto -lelf
+
 endif
