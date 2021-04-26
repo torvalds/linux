@@ -773,7 +773,7 @@ struct  cs42l42_private {
 	struct regulator_bulk_data supplies[CS42L42_NUM_SUPPLIES];
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
-	struct snd_soc_jack jack;
+	struct snd_soc_jack *jack;
 	int bclk;
 	u32 sclk;
 	u32 srate;
