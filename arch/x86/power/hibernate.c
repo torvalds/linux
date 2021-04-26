@@ -13,8 +13,8 @@
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
 #include <linux/pgtable.h>
-
-#include <crypto/hash.h>
+#include <linux/types.h>
+#include <linux/crc32.h>
 
 #include <asm/e820/api.h>
 #include <asm/init.h>
@@ -54,95 +54,33 @@ int pfn_is_nosave(unsigned long pfn)
 	return pfn >= nosave_begin_pfn && pfn < nosave_end_pfn;
 }
 
-
-#define MD5_DIGEST_SIZE 16
-
 struct restore_data_record {
 	unsigned long jump_address;
 	unsigned long jump_address_phys;
 	unsigned long cr3;
 	unsigned long magic;
-	u8 e820_digest[MD5_DIGEST_SIZE];
+	unsigned long e820_checksum;
 };
 
-#if IS_BUILTIN(CONFIG_CRYPTO_MD5)
 /**
- * get_e820_md5 - calculate md5 according to given e820 table
+ * compute_e820_crc32 - calculate crc32 of a given e820 table
  *
  * @table: the e820 table to be calculated
- * @buf: the md5 result to be stored to
+ *
+ * Return: the resulting checksum
  */
-static int get_e820_md5(struct e820_table *table, void *buf)
+static inline u32 compute_e820_crc32(struct e820_table *table)
 {
-	struct crypto_shash *tfm;
-	struct shash_desc *desc;
-	int size;
-	int ret = 0;
-
-	tfm = crypto_alloc_shash("md5", 0, 0);
-	if (IS_ERR(tfm))
-		return -ENOMEM;
-
-	desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm),
-		       GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto free_tfm;
-	}
-
-	desc->tfm = tfm;
-
-	size = offsetof(struct e820_table, entries) +
+	int size = offsetof(struct e820_table, entries) +
 		sizeof(struct e820_entry) * table->nr_entries;
 
-	if (crypto_shash_digest(desc, (u8 *)table, size, buf))
-		ret = -EINVAL;
-
-	kfree_sensitive(desc);
-
-free_tfm:
-	crypto_free_shash(tfm);
-	return ret;
+	return ~crc32_le(~0, (unsigned char const *)table, size);
 }
-
-static int hibernation_e820_save(void *buf)
-{
-	return get_e820_md5(e820_table_firmware, buf);
-}
-
-static bool hibernation_e820_mismatch(void *buf)
-{
-	int ret;
-	u8 result[MD5_DIGEST_SIZE];
-
-	memset(result, 0, MD5_DIGEST_SIZE);
-	/* If there is no digest in suspend kernel, let it go. */
-	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
-		return false;
-
-	ret = get_e820_md5(e820_table_firmware, result);
-	if (ret)
-		return true;
-
-	return memcmp(result, buf, MD5_DIGEST_SIZE) ? true : false;
-}
-#else
-static int hibernation_e820_save(void *buf)
-{
-	return 0;
-}
-
-static bool hibernation_e820_mismatch(void *buf)
-{
-	/* If md5 is not builtin for restore kernel, let it go. */
-	return false;
-}
-#endif
 
 #ifdef CONFIG_X86_64
-#define RESTORE_MAGIC	0x23456789ABCDEF01UL
+#define RESTORE_MAGIC	0x23456789ABCDEF02UL
 #else
-#define RESTORE_MAGIC	0x12345678UL
+#define RESTORE_MAGIC	0x12345679UL
 #endif
 
 /**
@@ -179,7 +117,8 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	 */
 	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
 
-	return hibernation_e820_save(rdr->e820_digest);
+	rdr->e820_checksum = compute_e820_crc32(e820_table_firmware);
+	return 0;
 }
 
 /**
@@ -200,7 +139,7 @@ int arch_hibernation_header_restore(void *addr)
 	jump_address_phys = rdr->jump_address_phys;
 	restore_cr3 = rdr->cr3;
 
-	if (hibernation_e820_mismatch(rdr->e820_digest)) {
+	if (rdr->e820_checksum != compute_e820_crc32(e820_table_firmware)) {
 		pr_crit("Hibernate inconsistent memory map detected!\n");
 		return -ENODEV;
 	}
