@@ -443,15 +443,15 @@ int mv88e6185_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 int mv88e6185_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	/* There are no configurable serdes lanes on this switch chip but we
-	 * need to return non-zero so that callers of
+	 * need to return a non-negative lane number so that callers of
 	 * mv88e6xxx_serdes_get_lane() know this is a serdes port.
 	 */
 	switch (chip->ports[port].cmode) {
 	case MV88E6185_PORT_STS_CMODE_SERDES:
 	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
-		return 0xff;
-	default:
 		return 0;
+	default:
+		return -ENODEV;
 	}
 }
 
