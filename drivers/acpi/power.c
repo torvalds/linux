@@ -934,7 +934,7 @@ int acpi_add_power_resource(acpi_handle handle)
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
 	device->power.state = ACPI_STATE_UNKNOWN;
 
-	/* Evalute the object to get the system level and resource order. */
+	/* Evaluate the object to get the system level and resource order. */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status))
 		goto err;

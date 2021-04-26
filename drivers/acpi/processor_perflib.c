@@ -96,7 +96,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
  * acpi_processor_ppc_ost: Notify firmware the _PPC evaluation status
  * @handle: ACPI processor handle
  * @status: the status code of _PPC evaluation
- *	0: success. OSPM is now using the performance state specificed.
+ *	0: success. OSPM is now using the performance state specified.
  *	1: failure. OSPM has not changed the number of P-states in use
  */
 static void acpi_processor_ppc_ost(acpi_handle handle, int status)

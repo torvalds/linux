@@ -560,7 +560,7 @@ static void acpi_scan_drop_device(acpi_handle handle, void *context)
 	 * prevents attempts to register device objects identical to those being
 	 * deleted from happening concurrently (such attempts result from
 	 * hotplug events handled via the ACPI hotplug workqueue).  It also will
-	 * run after all of the work items submitted previosuly, which helps
+	 * run after all of the work items submitted previously, which helps
 	 * those work items to ensure that they are not accessing stale device
 	 * objects.
 	 */

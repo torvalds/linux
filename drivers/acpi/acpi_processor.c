@@ -25,10 +25,7 @@
 DEFINE_PER_CPU(struct acpi_processor *, processors);
 EXPORT_PER_CPU_SYMBOL(processors);
 
-/* --------------------------------------------------------------------------
-                                Errata Handling
-   -------------------------------------------------------------------------- */
-
+/* Errata Handling */
 struct acpi_processor_errata errata __read_mostly;
 EXPORT_SYMBOL_GPL(errata);
 
@@ -151,10 +148,7 @@ static int acpi_processor_errata(void)
 	return result;
 }
 
-/* --------------------------------------------------------------------------
-                                Initialization
-   -------------------------------------------------------------------------- */
-
+/* Initialization */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 int __weak acpi_map_cpu(acpi_handle handle,
 		phys_cpuid_t physid, u32 acpi_id, int *pcpu)
@@ -306,6 +300,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 */
 	if (invalid_logical_cpuid(pr->id) || !cpu_present(pr->id)) {
 		int ret = acpi_processor_hotadd_init(pr);
+
 		if (ret)
 			return ret;
 	}
@@ -431,10 +426,7 @@ static int acpi_processor_add(struct acpi_device *device,
 }
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
-/* --------------------------------------------------------------------------
-                                    Removal
-   -------------------------------------------------------------------------- */
-
+/* Removal */
 static void acpi_processor_remove(struct acpi_device *device)
 {
 	struct acpi_processor *pr;
@@ -892,7 +884,7 @@ int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
 
 	info->count = last_index;
 
-      end:
+end:
 	kfree(buffer.pointer);
 
 	return ret;

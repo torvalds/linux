@@ -1392,7 +1392,7 @@ acpi_video_get_next_level(struct acpi_video_device *device,
 				break;
 		}
 	}
-	/* Ajust level_current to closest available level */
+	/* Adjust level_current to closest available level */
 	level_current += delta;
 	for (i = ACPI_VIDEO_FIRST_LEVEL; i < device->brightness->count; i++) {
 		l = device->brightness->levels[i];
@@ -1555,7 +1555,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 
 /*
  * Win8 requires setting bit2 of _DOS to let firmware know it shouldn't
- * preform any automatic brightness change on receiving a notification.
+ * perform any automatic brightness change on receiving a notification.
  */
 static int acpi_video_bus_start_devices(struct acpi_video_bus *video)
 {
