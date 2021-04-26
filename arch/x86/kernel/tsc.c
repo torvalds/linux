@@ -14,6 +14,7 @@
 #include <linux/percpu.h>
 #include <linux/timex.h>
 #include <linux/static_key.h>
+#include <linux/static_call.h>
 
 #include <asm/hpet.h>
 #include <asm/timer.h>
@@ -254,7 +255,7 @@ unsigned long long sched_clock(void)
 
 bool using_native_sched_clock(void)
 {
-	return pv_ops.time.sched_clock == native_sched_clock;
+	return static_call_query(pv_sched_clock) == native_sched_clock;
 }
 #else
 unsigned long long
