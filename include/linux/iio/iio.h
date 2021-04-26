@@ -512,7 +512,6 @@ struct iio_buffer_setup_ops {
  * @clock_id:		[INTERN] timestamping clock posix identifier
  * @setup_ops:		[DRIVER] callbacks to call before and after buffer
  *			enable/disable
- * @chrdev:		[INTERN] associated character device
  * @flags:		[INTERN] file ops related flags including busy flag.
  * @priv:		[DRIVER] reference to driver's private information
  *			**MUST** be accessed **ONLY** via iio_priv() helper
@@ -542,7 +541,6 @@ struct iio_dev {
 	const struct iio_info		*info;
 	clockid_t			clock_id;
 	const struct iio_buffer_setup_ops	*setup_ops;
-	struct cdev			chrdev;
 
 	unsigned long			flags;
 	void				*priv;

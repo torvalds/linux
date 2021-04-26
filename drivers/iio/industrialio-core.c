@@ -1715,8 +1715,9 @@ EXPORT_SYMBOL_GPL(devm_iio_device_alloc);
  **/
 static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
-	struct iio_dev *indio_dev = container_of(inode->i_cdev,
-						struct iio_dev, chrdev);
+	struct iio_dev_opaque *iio_dev_opaque =
+		container_of(inode->i_cdev, struct iio_dev_opaque, chrdev);
+	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	struct iio_dev_buffer_pair *ib;
 
 	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
@@ -1749,8 +1750,9 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
 	struct iio_dev_buffer_pair *ib = filp->private_data;
-	struct iio_dev *indio_dev = container_of(inode->i_cdev,
-						struct iio_dev, chrdev);
+	struct iio_dev_opaque *iio_dev_opaque =
+		container_of(inode->i_cdev, struct iio_dev_opaque, chrdev);
+	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	kfree(ib);
 	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
 	iio_device_put(indio_dev);
@@ -1900,19 +1902,19 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 		indio_dev->setup_ops = &noop_ring_setup_ops;
 
 	if (iio_dev_opaque->attached_buffers_cnt)
-		cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
+		cdev_init(&iio_dev_opaque->chrdev, &iio_buffer_fileops);
 	else if (iio_dev_opaque->event_interface)
-		cdev_init(&indio_dev->chrdev, &iio_event_fileops);
+		cdev_init(&iio_dev_opaque->chrdev, &iio_event_fileops);
 
 	if (iio_dev_opaque->attached_buffers_cnt || iio_dev_opaque->event_interface) {
 		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), iio_dev_opaque->id);
-		indio_dev->chrdev.owner = this_mod;
+		iio_dev_opaque->chrdev.owner = this_mod;
 	}
 
 	/* assign device groups now; they should be all registered now */
 	indio_dev->dev.groups = iio_dev_opaque->groups;
 
-	ret = cdev_device_add(&indio_dev->chrdev, &indio_dev->dev);
+	ret = cdev_device_add(&iio_dev_opaque->chrdev, &indio_dev->dev);
 	if (ret < 0)
 		goto error_unreg_eventset;
 
@@ -1936,7 +1938,9 @@ EXPORT_SYMBOL(__iio_device_register);
  **/
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
-	cdev_device_del(&indio_dev->chrdev, &indio_dev->dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	cdev_device_del(&iio_dev_opaque->chrdev, &indio_dev->dev);
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
