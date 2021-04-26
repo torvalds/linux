@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
@@ -2001,12 +2002,21 @@ static const struct dev_pm_ops cs42l42_runtime_pm = {
 			   NULL)
 };
 
+#ifdef CONFIG_OF
 static const struct of_device_id cs42l42_of_match[] = {
 	{ .compatible = "cirrus,cs42l42", },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, cs42l42_of_match);
+#endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cs42l42_acpi_match[] = {
+	{"10134242", 0,},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, cs42l42_acpi_match);
+#endif
 
 static const struct i2c_device_id cs42l42_id[] = {
 	{"cs42l42", 0},
@@ -2019,7 +2029,8 @@ static struct i2c_driver cs42l42_i2c_driver = {
 	.driver = {
 		.name = "cs42l42",
 		.pm = &cs42l42_runtime_pm,
-		.of_match_table = cs42l42_of_match,
+		.of_match_table = of_match_ptr(cs42l42_of_match),
+		.acpi_match_table = ACPI_PTR(cs42l42_acpi_match),
 		},
 	.id_table = cs42l42_id,
 	.probe = cs42l42_i2c_probe,
