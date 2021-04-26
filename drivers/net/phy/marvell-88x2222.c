@@ -473,8 +473,6 @@ static int mv2222_config_init(struct phy_device *phydev)
 	if (phydev->interface != PHY_INTERFACE_MODE_XAUI)
 		return -EINVAL;
 
-	phydev->autoneg = AUTONEG_DISABLE;
-
 	return 0;
 }
 
