@@ -269,7 +269,7 @@ static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int
 
 	buf = kmalloc(SECTORSIZE + mtd->oobsize, GFP_KERNEL);
 	if (!buf)
-		return -1;
+		return -ENOMEM;
 
 	ret = -1;
 	for (i = 0; i < len; i += SECTORSIZE) {
