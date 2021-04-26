@@ -700,27 +700,11 @@ struct core_reloc_existence___minimal {
 	int a;
 };
 
-struct core_reloc_existence___err_wrong_int_sz {
-	short a;
-};
-
-struct core_reloc_existence___err_wrong_int_type {
+struct core_reloc_existence___wrong_field_defs {
+	void *a;
 	int b[1];
-};
-
-struct core_reloc_existence___err_wrong_int_kind {
 	struct{ int x; } c;
-};
-
-struct core_reloc_existence___err_wrong_arr_kind {
 	int arr;
-};
-
-struct core_reloc_existence___err_wrong_arr_value_type {
-	short arr[1];
-};
-
-struct core_reloc_existence___err_wrong_struct_type {
 	int s;
 };
 
