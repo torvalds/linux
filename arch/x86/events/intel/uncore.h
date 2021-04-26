@@ -84,6 +84,7 @@ struct intel_uncore_type {
 	/*
 	 * Optional callbacks for managing mapping of Uncore units to PMONs
 	 */
+	int (*get_topology)(struct intel_uncore_type *type);
 	int (*set_mapping)(struct intel_uncore_type *type);
 	void (*cleanup_mapping)(struct intel_uncore_type *type);
 };
