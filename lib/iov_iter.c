@@ -16,55 +16,44 @@
 
 #define PIPE_PARANOIA /* for now */
 
-#define iterate_iovec(i, n, __v, __p, skip, STEP) {	\
-	size_t left;					\
-	size_t wanted = n;				\
-	__p = i->iov;					\
-	__v.iov_len = min(n, __p->iov_len - skip);	\
-	if (likely(__v.iov_len)) {			\
-		__v.iov_base = __p->iov_base + skip;	\
-		left = (STEP);				\
-		__v.iov_len -= left;			\
-		skip += __v.iov_len;			\
-		n -= __v.iov_len;			\
-	} else {					\
-		left = 0;				\
-	}						\
-	while (unlikely(!left && n)) {			\
-		__p++;					\
-		__v.iov_len = min(n, __p->iov_len);	\
-		if (unlikely(!__v.iov_len))		\
-			continue;			\
-		__v.iov_base = __p->iov_base;		\
-		left = (STEP);				\
-		__v.iov_len -= left;			\
-		skip = __v.iov_len;			\
-		n -= __v.iov_len;			\
-	}						\
-	n = wanted - n;					\
+#define iterate_iovec(i, n, __v, __p, skip, STEP) {		\
+	size_t left;						\
+	size_t wanted = n;					\
+	__p = i->iov;						\
+	do {							\
+		__v.iov_len = min(n, __p->iov_len - skip);	\
+		if (likely(__v.iov_len)) {			\
+			__v.iov_base = __p->iov_base + skip;	\
+			left = (STEP);				\
+			__v.iov_len -= left;			\
+			skip += __v.iov_len;			\
+			n -= __v.iov_len;			\
+			if (skip < __p->iov_len)		\
+				break;				\
+		}						\
+		__p++;						\
+		skip = 0;					\
+	} while (n);						\
+	n = wanted - n;						\
 }
 
-#define iterate_kvec(i, n, __v, __p, skip, STEP) {	\
-	size_t wanted = n;				\
-	__p = i->kvec;					\
-	__v.iov_len = min(n, __p->iov_len - skip);	\
-	if (likely(__v.iov_len)) {			\
-		__v.iov_base = __p->iov_base + skip;	\
-		(void)(STEP);				\
-		skip += __v.iov_len;			\
-		n -= __v.iov_len;			\
-	}						\
-	while (unlikely(n)) {				\
-		__p++;					\
-		__v.iov_len = min(n, __p->iov_len);	\
-		if (unlikely(!__v.iov_len))		\
-			continue;			\
-		__v.iov_base = __p->iov_base;		\
-		(void)(STEP);				\
-		skip = __v.iov_len;			\
-		n -= __v.iov_len;			\
-	}						\
-	n = wanted;					\
+#define iterate_kvec(i, n, __v, __p, skip, STEP) {		\
+	size_t wanted = n;					\
+	__p = i->kvec;						\
+	do {							\
+		__v.iov_len = min(n, __p->iov_len - skip);	\
+		if (likely(__v.iov_len)) {			\
+			__v.iov_base = __p->iov_base + skip;	\
+			(void)(STEP);				\
+			skip += __v.iov_len;			\
+			n -= __v.iov_len;			\
+			if (skip < __p->iov_len)		\
+				break;				\
+		}						\
+		__p++;						\
+		skip = 0;					\
+	} while (n);						\
+	n = wanted - n;						\
 }
 
 #define iterate_bvec(i, n, __v, __bi, skip, STEP) {	\
@@ -123,10 +112,6 @@
 			const struct iovec *iov;		\
 			struct iovec v;				\
 			iterate_iovec(i, n, v, iov, skip, (I))	\
-			if (skip == iov->iov_len) {		\
-				iov++;				\
-				skip = 0;			\
-			}					\
 			i->nr_segs -= iov - i->iov;		\
 			i->iov = iov;				\
 		} else if (iov_iter_is_bvec(i)) {		\
@@ -141,10 +126,6 @@
 			const struct kvec *kvec;		\
 			struct kvec v;				\
 			iterate_kvec(i, n, v, kvec, skip, (K))	\
-			if (skip == kvec->iov_len) {		\
-				kvec++;				\
-				skip = 0;			\
-			}					\
 			i->nr_segs -= kvec - i->kvec;		\
 			i->kvec = kvec;				\
 		} else if (iov_iter_is_xarray(i)) {		\
