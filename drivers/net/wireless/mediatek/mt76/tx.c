@@ -722,12 +722,11 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
 
 	spin_lock_bh(&dev->token_lock);
 
-	token = idr_alloc(&dev->token, *ptxwi, 0, dev->drv->token_size,
-			  GFP_ATOMIC);
+	token = idr_alloc(&dev->token, *ptxwi, 0, dev->token_size, GFP_ATOMIC);
 	if (token >= 0)
 		dev->token_count++;
 
-	if (dev->token_count >= dev->drv->token_size - MT76_TOKEN_FREE_THR)
+	if (dev->token_count >= dev->token_size - MT76_TOKEN_FREE_THR)
 		__mt76_set_tx_blocked(dev, true);
 
 	spin_unlock_bh(&dev->token_lock);
@@ -747,7 +746,7 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
 	if (txwi)
 		dev->token_count--;
 
-	if (dev->token_count < dev->drv->token_size - MT76_TOKEN_FREE_THR &&
+	if (dev->token_count < dev->token_size - MT76_TOKEN_FREE_THR &&
 	    dev->phy.q_tx[0]->blocked)
 		*wake = true;
 
