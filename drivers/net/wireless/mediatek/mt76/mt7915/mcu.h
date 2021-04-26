@@ -919,7 +919,7 @@ struct sta_rec_ra {
 	u8 op_vht_rx_nss;
 	u8 op_vht_rx_nss_type;
 
-	__le32 sta_status;
+	__le32 sta_cap;
 
 	struct ra_phy phy;
 } __packed;
