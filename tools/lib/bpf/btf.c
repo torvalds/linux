@@ -1605,11 +1605,6 @@ static void *btf_add_type_mem(struct btf *btf, size_t add_sz)
 			      btf->hdr->type_len, UINT_MAX, add_sz);
 }
 
-static __u32 btf_type_info(int kind, int vlen, int kflag)
-{
-	return (kflag << 31) | (kind << 24) | vlen;
-}
-
 static void btf_type_inc_vlen(struct btf_type *t)
 {
 	t->info = btf_type_info(btf_kind(t), btf_vlen(t) + 1, btf_kflag(t));

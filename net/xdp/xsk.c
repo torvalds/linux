@@ -30,7 +30,7 @@
 #include "xdp_umem.h"
 #include "xsk.h"
 
-#define TX_BATCH_SIZE 16
+#define TX_BATCH_SIZE 32
 
 static DEFINE_PER_CPU(struct list_head, xskmap_flush_list);
 

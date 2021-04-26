@@ -188,7 +188,7 @@ static int sock_map_init_proto(struct sock *sk, struct sk_psock *psock)
 	if (!sk->sk_prot->psock_update_sk_prot)
 		return -EINVAL;
 	psock->psock_update_sk_prot = sk->sk_prot->psock_update_sk_prot;
-	return sk->sk_prot->psock_update_sk_prot(sk, false);
+	return sk->sk_prot->psock_update_sk_prot(sk, psock, false);
 }
 
 static struct sk_psock *sock_map_psock_get_checked(struct sock *sk)
@@ -1521,7 +1521,7 @@ void sock_map_close(struct sock *sk, long timeout)
 
 	lock_sock(sk);
 	rcu_read_lock();
-	psock = sk_psock(sk);
+	psock = sk_psock_get(sk);
 	if (unlikely(!psock)) {
 		rcu_read_unlock();
 		release_sock(sk);
@@ -1532,6 +1532,7 @@ void sock_map_close(struct sock *sk, long timeout)
 	sock_map_remove_links(sk, psock);
 	rcu_read_unlock();
 	sk_psock_stop(psock, true);
+	sk_psock_put(sk, psock);
 	release_sock(sk);
 	saved_close(sk, timeout);
 }

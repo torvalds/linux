@@ -312,6 +312,27 @@ union bpf_iter_link_info {
  *		*ctx_out*, *data_out* (for example, packet data), result of the
  *		execution *retval*, and *duration* of the test run.
  *
+ *		The sizes of the buffers provided as input and output
+ *		parameters *ctx_in*, *ctx_out*, *data_in*, and *data_out* must
+ *		be provided in the corresponding variables *ctx_size_in*,
+ *		*ctx_size_out*, *data_size_in*, and/or *data_size_out*. If any
+ *		of these parameters are not provided (ie set to NULL), the
+ *		corresponding size field must be zero.
+ *
+ *		Some program types have particular requirements:
+ *
+ *		**BPF_PROG_TYPE_SK_LOOKUP**
+ *			*data_in* and *data_out* must be NULL.
+ *
+ *		**BPF_PROG_TYPE_XDP**
+ *			*ctx_in* and *ctx_out* must be NULL.
+ *
+ *		**BPF_PROG_TYPE_RAW_TRACEPOINT**,
+ *		**BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE**
+ *
+ *			*ctx_out*, *data_in* and *data_out* must be NULL.
+ *			*repeat* must be zero.
+ *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
  *		is set appropriately.
@@ -4061,12 +4082,20 @@ union bpf_attr {
  * 		of new data availability is sent.
  * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
  * 		of new data availability is sent unconditionally.
+ * 		If **0** is specified in *flags*, an adaptive notification
+ * 		of new data availability is sent.
+ *
+ * 		An adaptive notification is a notification sent whenever the user-space
+ * 		process has caught up and consumed all available payloads. In case the user-space
+ * 		process is still processing a previous payload, then no notification is needed
+ * 		as it will process the newly added payload automatically.
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
  * void *bpf_ringbuf_reserve(void *ringbuf, u64 size, u64 flags)
  * 	Description
  * 		Reserve *size* bytes of payload in a ring buffer *ringbuf*.
+ * 		*flags* must be 0.
  * 	Return
  * 		Valid pointer with *size* bytes of memory available; NULL,
  * 		otherwise.
@@ -4078,6 +4107,10 @@ union bpf_attr {
  * 		of new data availability is sent.
  * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
  * 		of new data availability is sent unconditionally.
+ * 		If **0** is specified in *flags*, an adaptive notification
+ * 		of new data availability is sent.
+ *
+ * 		See 'bpf_ringbuf_output()' for the definition of adaptive notification.
  * 	Return
  * 		Nothing. Always succeeds.
  *
@@ -4088,6 +4121,10 @@ union bpf_attr {
  * 		of new data availability is sent.
  * 		If **BPF_RB_FORCE_WAKEUP** is specified in *flags*, notification
  * 		of new data availability is sent unconditionally.
+ * 		If **0** is specified in *flags*, an adaptive notification
+ * 		of new data availability is sent.
+ *
+ * 		See 'bpf_ringbuf_output()' for the definition of adaptive notification.
  * 	Return
  * 		Nothing. Always succeeds.
  *
@@ -4671,6 +4708,33 @@ union bpf_attr {
  *	Return
  *		The number of traversed map elements for success, **-EINVAL** for
  *		invalid **flags**.
+ *
+ * long bpf_snprintf(char *str, u32 str_size, const char *fmt, u64 *data, u32 data_len)
+ *	Description
+ *		Outputs a string into the **str** buffer of size **str_size**
+ *		based on a format string stored in a read-only map pointed by
+ *		**fmt**.
+ *
+ *		Each format specifier in **fmt** corresponds to one u64 element
+ *		in the **data** array. For strings and pointers where pointees
+ *		are accessed, only the pointer values are stored in the *data*
+ *		array. The *data_len* is the size of *data* in bytes.
+ *
+ *		Formats **%s** and **%p{i,I}{4,6}** require to read kernel
+ *		memory. Reading kernel memory may fail due to either invalid
+ *		address or valid address but requiring a major memory fault. If
+ *		reading kernel memory fails, the string for **%s** will be an
+ *		empty string, and the ip address for **%p{i,I}{4,6}** will be 0.
+ *		Not returning error to bpf program is consistent with what
+ *		**bpf_trace_printk**\ () does for now.
+ *
+ *	Return
+ *		The strictly positive length of the formatted string, including
+ *		the trailing zero character. If the return value is greater than
+ *		**str_size**, **str** contains a truncated string, guaranteed to
+ *		be zero-terminated except when **str_size** is 0.
+ *
+ *		Or **-EBUSY** if the per-CPU memory copy buffer is busy.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -4838,6 +4902,7 @@ union bpf_attr {
 	FN(sock_from_file),		\
 	FN(check_mtu),			\
 	FN(for_each_map_elem),		\
+	FN(snprintf),			\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -5379,6 +5444,8 @@ struct bpf_link_info {
 		} raw_tracepoint;
 		struct {
 			__u32 attach_type;
+			__u32 target_obj_id; /* prog_id for PROG_EXT, otherwise btf object id */
+			__u32 target_btf_id; /* BTF type id inside the object */
 		} tracing;
 		struct {
 			__u64 cgroup_id;

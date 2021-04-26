@@ -69,8 +69,7 @@
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
 static struct bpf_map *bpf_object__add_map(struct bpf_object *obj);
-static const struct btf_type *
-skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
+static bool prog_is_subprog(const struct bpf_object *obj, const struct bpf_program *prog);
 
 static int __base_pr(enum libbpf_print_level level, const char *format,
 		     va_list args)
@@ -195,7 +194,6 @@ struct reloc_desc {
 	int insn_idx;
 	int map_idx;
 	int sym_off;
-	bool processed;
 };
 
 struct bpf_sec_def;
@@ -275,6 +273,7 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 
 	bool load;
+	bool mark_btf_static;
 	enum bpf_prog_type type;
 	enum bpf_attach_type expected_attach_type;
 	int prog_ifindex;
@@ -501,8 +500,6 @@ static Elf_Scn *elf_sec_by_name(const struct bpf_object *obj, const char *name);
 static int elf_sec_hdr(const struct bpf_object *obj, Elf_Scn *scn, GElf_Shdr *hdr);
 static const char *elf_sec_name(const struct bpf_object *obj, Elf_Scn *scn);
 static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn);
-static int elf_sym_by_sec_off(const struct bpf_object *obj, size_t sec_idx,
-			      size_t off, __u32 sym_type, GElf_Sym *sym);
 
 void bpf_program__unload(struct bpf_program *prog)
 {
@@ -643,25 +640,29 @@ static int
 bpf_object__add_programs(struct bpf_object *obj, Elf_Data *sec_data,
 			 const char *sec_name, int sec_idx)
 {
+	Elf_Data *symbols = obj->efile.symbols;
 	struct bpf_program *prog, *progs;
 	void *data = sec_data->d_buf;
-	size_t sec_sz = sec_data->d_size, sec_off, prog_sz;
-	int nr_progs, err;
+	size_t sec_sz = sec_data->d_size, sec_off, prog_sz, nr_syms;
+	int nr_progs, err, i;
 	const char *name;
 	GElf_Sym sym;
 
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
+	nr_syms = symbols->d_size / sizeof(GElf_Sym);
 	sec_off = 0;
 
-	while (sec_off < sec_sz) {
-		if (elf_sym_by_sec_off(obj, sec_idx, sec_off, STT_FUNC, &sym)) {
-			pr_warn("sec '%s': failed to find program symbol at offset %zu\n",
-				sec_name, sec_off);
-			return -LIBBPF_ERRNO__FORMAT;
-		}
+	for (i = 0; i < nr_syms; i++) {
+		if (!gelf_getsym(symbols, i, &sym))
+			continue;
+		if (sym.st_shndx != sec_idx)
+			continue;
+		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC)
+			continue;
 
 		prog_sz = sym.st_size;
+		sec_off = sym.st_value;
 
 		name = elf_sym_str(obj, sym.st_name);
 		if (!name) {
@@ -699,10 +700,17 @@ bpf_object__add_programs(struct bpf_object *obj, Elf_Data *sec_data,
 		if (err)
 			return err;
 
+		/* if function is a global/weak symbol, but has hidden
+		 * visibility (STV_HIDDEN), mark its BTF FUNC as static to
+		 * enable more permissive BPF verification mode with more
+		 * outside context available to BPF verifier
+		 */
+		if (GELF_ST_BIND(sym.st_info) != STB_LOCAL
+		    && GELF_ST_VISIBILITY(sym.st_other) == STV_HIDDEN)
+			prog->mark_btf_static = true;
+
 		nr_progs++;
 		obj->nr_programs = nr_progs;
-
-		sec_off += prog_sz;
 	}
 
 	return 0;
@@ -1896,7 +1904,7 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 	return 0;
 }
 
-static const struct btf_type *
+const struct btf_type *
 skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id)
 {
 	const struct btf_type *t = btf__type_by_id(btf, id);
@@ -1951,14 +1959,9 @@ static const char *__btf_kind_str(__u16 kind)
 	}
 }
 
-static const char *btf_kind_str(const struct btf_type *t)
+const char *btf_kind_str(const struct btf_type *t)
 {
 	return __btf_kind_str(btf_kind(t));
-}
-
-static enum btf_func_linkage btf_func_linkage(const struct btf_type *t)
-{
-	return (enum btf_func_linkage)BTF_INFO_VLEN(t->info);
 }
 
 /*
@@ -2015,241 +2018,247 @@ static int build_map_pin_path(struct bpf_map *map, const char *path)
 	return bpf_map__set_pin_path(map, buf);
 }
 
-
-static int parse_btf_map_def(struct bpf_object *obj,
-			     struct bpf_map *map,
-			     const struct btf_type *def,
-			     bool strict, bool is_inner,
-			     const char *pin_root_path)
+int parse_btf_map_def(const char *map_name, struct btf *btf,
+		      const struct btf_type *def_t, bool strict,
+		      struct btf_map_def *map_def, struct btf_map_def *inner_def)
 {
 	const struct btf_type *t;
 	const struct btf_member *m;
+	bool is_inner = inner_def == NULL;
 	int vlen, i;
 
-	vlen = btf_vlen(def);
-	m = btf_members(def);
+	vlen = btf_vlen(def_t);
+	m = btf_members(def_t);
 	for (i = 0; i < vlen; i++, m++) {
-		const char *name = btf__name_by_offset(obj->btf, m->name_off);
+		const char *name = btf__name_by_offset(btf, m->name_off);
 
 		if (!name) {
-			pr_warn("map '%s': invalid field #%d.\n", map->name, i);
+			pr_warn("map '%s': invalid field #%d.\n", map_name, i);
 			return -EINVAL;
 		}
 		if (strcmp(name, "type") == 0) {
-			if (!get_map_field_int(map->name, obj->btf, m,
-					       &map->def.type))
+			if (!get_map_field_int(map_name, btf, m, &map_def->map_type))
 				return -EINVAL;
-			pr_debug("map '%s': found type = %u.\n",
-				 map->name, map->def.type);
+			map_def->parts |= MAP_DEF_MAP_TYPE;
 		} else if (strcmp(name, "max_entries") == 0) {
-			if (!get_map_field_int(map->name, obj->btf, m,
-					       &map->def.max_entries))
+			if (!get_map_field_int(map_name, btf, m, &map_def->max_entries))
 				return -EINVAL;
-			pr_debug("map '%s': found max_entries = %u.\n",
-				 map->name, map->def.max_entries);
+			map_def->parts |= MAP_DEF_MAX_ENTRIES;
 		} else if (strcmp(name, "map_flags") == 0) {
-			if (!get_map_field_int(map->name, obj->btf, m,
-					       &map->def.map_flags))
+			if (!get_map_field_int(map_name, btf, m, &map_def->map_flags))
 				return -EINVAL;
-			pr_debug("map '%s': found map_flags = %u.\n",
-				 map->name, map->def.map_flags);
+			map_def->parts |= MAP_DEF_MAP_FLAGS;
 		} else if (strcmp(name, "numa_node") == 0) {
-			if (!get_map_field_int(map->name, obj->btf, m, &map->numa_node))
+			if (!get_map_field_int(map_name, btf, m, &map_def->numa_node))
 				return -EINVAL;
-			pr_debug("map '%s': found numa_node = %u.\n", map->name, map->numa_node);
+			map_def->parts |= MAP_DEF_NUMA_NODE;
 		} else if (strcmp(name, "key_size") == 0) {
 			__u32 sz;
 
-			if (!get_map_field_int(map->name, obj->btf, m, &sz))
+			if (!get_map_field_int(map_name, btf, m, &sz))
 				return -EINVAL;
-			pr_debug("map '%s': found key_size = %u.\n",
-				 map->name, sz);
-			if (map->def.key_size && map->def.key_size != sz) {
+			if (map_def->key_size && map_def->key_size != sz) {
 				pr_warn("map '%s': conflicting key size %u != %u.\n",
-					map->name, map->def.key_size, sz);
+					map_name, map_def->key_size, sz);
 				return -EINVAL;
 			}
-			map->def.key_size = sz;
+			map_def->key_size = sz;
+			map_def->parts |= MAP_DEF_KEY_SIZE;
 		} else if (strcmp(name, "key") == 0) {
 			__s64 sz;
 
-			t = btf__type_by_id(obj->btf, m->type);
+			t = btf__type_by_id(btf, m->type);
 			if (!t) {
 				pr_warn("map '%s': key type [%d] not found.\n",
-					map->name, m->type);
+					map_name, m->type);
 				return -EINVAL;
 			}
 			if (!btf_is_ptr(t)) {
 				pr_warn("map '%s': key spec is not PTR: %s.\n",
-					map->name, btf_kind_str(t));
+					map_name, btf_kind_str(t));
 				return -EINVAL;
 			}
-			sz = btf__resolve_size(obj->btf, t->type);
+			sz = btf__resolve_size(btf, t->type);
 			if (sz < 0) {
 				pr_warn("map '%s': can't determine key size for type [%u]: %zd.\n",
-					map->name, t->type, (ssize_t)sz);
+					map_name, t->type, (ssize_t)sz);
 				return sz;
 			}
-			pr_debug("map '%s': found key [%u], sz = %zd.\n",
-				 map->name, t->type, (ssize_t)sz);
-			if (map->def.key_size && map->def.key_size != sz) {
+			if (map_def->key_size && map_def->key_size != sz) {
 				pr_warn("map '%s': conflicting key size %u != %zd.\n",
-					map->name, map->def.key_size, (ssize_t)sz);
+					map_name, map_def->key_size, (ssize_t)sz);
 				return -EINVAL;
 			}
-			map->def.key_size = sz;
-			map->btf_key_type_id = t->type;
+			map_def->key_size = sz;
+			map_def->key_type_id = t->type;
+			map_def->parts |= MAP_DEF_KEY_SIZE | MAP_DEF_KEY_TYPE;
 		} else if (strcmp(name, "value_size") == 0) {
 			__u32 sz;
 
-			if (!get_map_field_int(map->name, obj->btf, m, &sz))
+			if (!get_map_field_int(map_name, btf, m, &sz))
 				return -EINVAL;
-			pr_debug("map '%s': found value_size = %u.\n",
-				 map->name, sz);
-			if (map->def.value_size && map->def.value_size != sz) {
+			if (map_def->value_size && map_def->value_size != sz) {
 				pr_warn("map '%s': conflicting value size %u != %u.\n",
-					map->name, map->def.value_size, sz);
+					map_name, map_def->value_size, sz);
 				return -EINVAL;
 			}
-			map->def.value_size = sz;
+			map_def->value_size = sz;
+			map_def->parts |= MAP_DEF_VALUE_SIZE;
 		} else if (strcmp(name, "value") == 0) {
 			__s64 sz;
 
-			t = btf__type_by_id(obj->btf, m->type);
+			t = btf__type_by_id(btf, m->type);
 			if (!t) {
 				pr_warn("map '%s': value type [%d] not found.\n",
-					map->name, m->type);
+					map_name, m->type);
 				return -EINVAL;
 			}
 			if (!btf_is_ptr(t)) {
 				pr_warn("map '%s': value spec is not PTR: %s.\n",
-					map->name, btf_kind_str(t));
+					map_name, btf_kind_str(t));
 				return -EINVAL;
 			}
-			sz = btf__resolve_size(obj->btf, t->type);
+			sz = btf__resolve_size(btf, t->type);
 			if (sz < 0) {
 				pr_warn("map '%s': can't determine value size for type [%u]: %zd.\n",
-					map->name, t->type, (ssize_t)sz);
+					map_name, t->type, (ssize_t)sz);
 				return sz;
 			}
-			pr_debug("map '%s': found value [%u], sz = %zd.\n",
-				 map->name, t->type, (ssize_t)sz);
-			if (map->def.value_size && map->def.value_size != sz) {
+			if (map_def->value_size && map_def->value_size != sz) {
 				pr_warn("map '%s': conflicting value size %u != %zd.\n",
-					map->name, map->def.value_size, (ssize_t)sz);
+					map_name, map_def->value_size, (ssize_t)sz);
 				return -EINVAL;
 			}
-			map->def.value_size = sz;
-			map->btf_value_type_id = t->type;
+			map_def->value_size = sz;
+			map_def->value_type_id = t->type;
+			map_def->parts |= MAP_DEF_VALUE_SIZE | MAP_DEF_VALUE_TYPE;
 		}
 		else if (strcmp(name, "values") == 0) {
+			char inner_map_name[128];
 			int err;
 
 			if (is_inner) {
 				pr_warn("map '%s': multi-level inner maps not supported.\n",
-					map->name);
+					map_name);
 				return -ENOTSUP;
 			}
 			if (i != vlen - 1) {
 				pr_warn("map '%s': '%s' member should be last.\n",
-					map->name, name);
+					map_name, name);
 				return -EINVAL;
 			}
-			if (!bpf_map_type__is_map_in_map(map->def.type)) {
+			if (!bpf_map_type__is_map_in_map(map_def->map_type)) {
 				pr_warn("map '%s': should be map-in-map.\n",
-					map->name);
+					map_name);
 				return -ENOTSUP;
 			}
-			if (map->def.value_size && map->def.value_size != 4) {
+			if (map_def->value_size && map_def->value_size != 4) {
 				pr_warn("map '%s': conflicting value size %u != 4.\n",
-					map->name, map->def.value_size);
+					map_name, map_def->value_size);
 				return -EINVAL;
 			}
-			map->def.value_size = 4;
-			t = btf__type_by_id(obj->btf, m->type);
+			map_def->value_size = 4;
+			t = btf__type_by_id(btf, m->type);
 			if (!t) {
 				pr_warn("map '%s': map-in-map inner type [%d] not found.\n",
-					map->name, m->type);
+					map_name, m->type);
 				return -EINVAL;
 			}
 			if (!btf_is_array(t) || btf_array(t)->nelems) {
 				pr_warn("map '%s': map-in-map inner spec is not a zero-sized array.\n",
-					map->name);
+					map_name);
 				return -EINVAL;
 			}
-			t = skip_mods_and_typedefs(obj->btf, btf_array(t)->type,
-						   NULL);
+			t = skip_mods_and_typedefs(btf, btf_array(t)->type, NULL);
 			if (!btf_is_ptr(t)) {
 				pr_warn("map '%s': map-in-map inner def is of unexpected kind %s.\n",
-					map->name, btf_kind_str(t));
+					map_name, btf_kind_str(t));
 				return -EINVAL;
 			}
-			t = skip_mods_and_typedefs(obj->btf, t->type, NULL);
+			t = skip_mods_and_typedefs(btf, t->type, NULL);
 			if (!btf_is_struct(t)) {
 				pr_warn("map '%s': map-in-map inner def is of unexpected kind %s.\n",
-					map->name, btf_kind_str(t));
+					map_name, btf_kind_str(t));
 				return -EINVAL;
 			}
 
-			map->inner_map = calloc(1, sizeof(*map->inner_map));
-			if (!map->inner_map)
-				return -ENOMEM;
-			map->inner_map->sec_idx = obj->efile.btf_maps_shndx;
-			map->inner_map->name = malloc(strlen(map->name) +
-						      sizeof(".inner") + 1);
-			if (!map->inner_map->name)
-				return -ENOMEM;
-			sprintf(map->inner_map->name, "%s.inner", map->name);
-
-			err = parse_btf_map_def(obj, map->inner_map, t, strict,
-						true /* is_inner */, NULL);
+			snprintf(inner_map_name, sizeof(inner_map_name), "%s.inner", map_name);
+			err = parse_btf_map_def(inner_map_name, btf, t, strict, inner_def, NULL);
 			if (err)
 				return err;
+
+			map_def->parts |= MAP_DEF_INNER_MAP;
 		} else if (strcmp(name, "pinning") == 0) {
 			__u32 val;
-			int err;
 
 			if (is_inner) {
-				pr_debug("map '%s': inner def can't be pinned.\n",
-					 map->name);
+				pr_warn("map '%s': inner def can't be pinned.\n", map_name);
 				return -EINVAL;
 			}
-			if (!get_map_field_int(map->name, obj->btf, m, &val))
+			if (!get_map_field_int(map_name, btf, m, &val))
 				return -EINVAL;
-			pr_debug("map '%s': found pinning = %u.\n",
-				 map->name, val);
-
-			if (val != LIBBPF_PIN_NONE &&
-			    val != LIBBPF_PIN_BY_NAME) {
+			if (val != LIBBPF_PIN_NONE && val != LIBBPF_PIN_BY_NAME) {
 				pr_warn("map '%s': invalid pinning value %u.\n",
-					map->name, val);
+					map_name, val);
 				return -EINVAL;
 			}
-			if (val == LIBBPF_PIN_BY_NAME) {
-				err = build_map_pin_path(map, pin_root_path);
-				if (err) {
-					pr_warn("map '%s': couldn't build pin path.\n",
-						map->name);
-					return err;
-				}
-			}
+			map_def->pinning = val;
+			map_def->parts |= MAP_DEF_PINNING;
 		} else {
 			if (strict) {
-				pr_warn("map '%s': unknown field '%s'.\n",
-					map->name, name);
+				pr_warn("map '%s': unknown field '%s'.\n", map_name, name);
 				return -ENOTSUP;
 			}
-			pr_debug("map '%s': ignoring unknown field '%s'.\n",
-				 map->name, name);
+			pr_debug("map '%s': ignoring unknown field '%s'.\n", map_name, name);
 		}
 	}
 
-	if (map->def.type == BPF_MAP_TYPE_UNSPEC) {
-		pr_warn("map '%s': map type isn't specified.\n", map->name);
+	if (map_def->map_type == BPF_MAP_TYPE_UNSPEC) {
+		pr_warn("map '%s': map type isn't specified.\n", map_name);
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static void fill_map_from_def(struct bpf_map *map, const struct btf_map_def *def)
+{
+	map->def.type = def->map_type;
+	map->def.key_size = def->key_size;
+	map->def.value_size = def->value_size;
+	map->def.max_entries = def->max_entries;
+	map->def.map_flags = def->map_flags;
+
+	map->numa_node = def->numa_node;
+	map->btf_key_type_id = def->key_type_id;
+	map->btf_value_type_id = def->value_type_id;
+
+	if (def->parts & MAP_DEF_MAP_TYPE)
+		pr_debug("map '%s': found type = %u.\n", map->name, def->map_type);
+
+	if (def->parts & MAP_DEF_KEY_TYPE)
+		pr_debug("map '%s': found key [%u], sz = %u.\n",
+			 map->name, def->key_type_id, def->key_size);
+	else if (def->parts & MAP_DEF_KEY_SIZE)
+		pr_debug("map '%s': found key_size = %u.\n", map->name, def->key_size);
+
+	if (def->parts & MAP_DEF_VALUE_TYPE)
+		pr_debug("map '%s': found value [%u], sz = %u.\n",
+			 map->name, def->value_type_id, def->value_size);
+	else if (def->parts & MAP_DEF_VALUE_SIZE)
+		pr_debug("map '%s': found value_size = %u.\n", map->name, def->value_size);
+
+	if (def->parts & MAP_DEF_MAX_ENTRIES)
+		pr_debug("map '%s': found max_entries = %u.\n", map->name, def->max_entries);
+	if (def->parts & MAP_DEF_MAP_FLAGS)
+		pr_debug("map '%s': found map_flags = %u.\n", map->name, def->map_flags);
+	if (def->parts & MAP_DEF_PINNING)
+		pr_debug("map '%s': found pinning = %u.\n", map->name, def->pinning);
+	if (def->parts & MAP_DEF_NUMA_NODE)
+		pr_debug("map '%s': found numa_node = %u.\n", map->name, def->numa_node);
+
+	if (def->parts & MAP_DEF_INNER_MAP)
+		pr_debug("map '%s': found inner map definition.\n", map->name);
 }
 
 static int bpf_object__init_user_btf_map(struct bpf_object *obj,
@@ -2258,11 +2267,13 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 					 const Elf_Data *data, bool strict,
 					 const char *pin_root_path)
 {
+	struct btf_map_def map_def = {}, inner_def = {};
 	const struct btf_type *var, *def;
 	const struct btf_var_secinfo *vi;
 	const struct btf_var *var_extra;
 	const char *map_name;
 	struct bpf_map *map;
+	int err;
 
 	vi = btf_var_secinfos(sec) + var_idx;
 	var = btf__type_by_id(obj->btf, vi->type);
@@ -2316,7 +2327,35 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 	pr_debug("map '%s': at sec_idx %d, offset %zu.\n",
 		 map_name, map->sec_idx, map->sec_offset);
 
-	return parse_btf_map_def(obj, map, def, strict, false, pin_root_path);
+	err = parse_btf_map_def(map->name, obj->btf, def, strict, &map_def, &inner_def);
+	if (err)
+		return err;
+
+	fill_map_from_def(map, &map_def);
+
+	if (map_def.pinning == LIBBPF_PIN_BY_NAME) {
+		err = build_map_pin_path(map, pin_root_path);
+		if (err) {
+			pr_warn("map '%s': couldn't build pin path.\n", map->name);
+			return err;
+		}
+	}
+
+	if (map_def.parts & MAP_DEF_INNER_MAP) {
+		map->inner_map = calloc(1, sizeof(*map->inner_map));
+		if (!map->inner_map)
+			return -ENOMEM;
+		map->inner_map->fd = -1;
+		map->inner_map->sec_idx = sec_idx;
+		map->inner_map->name = malloc(strlen(map_name) + sizeof(".inner") + 1);
+		if (!map->inner_map->name)
+			return -ENOMEM;
+		sprintf(map->inner_map->name, "%s.inner", map_name);
+
+		fill_map_from_def(map->inner_map, &inner_def);
+	}
+
+	return 0;
 }
 
 static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
@@ -2618,7 +2657,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 {
 	struct btf *kern_btf = obj->btf;
 	bool btf_mandatory, sanitize;
-	int err = 0;
+	int i, err = 0;
 
 	if (!obj->btf)
 		return 0;
@@ -2630,6 +2669,38 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 		}
 		pr_debug("Kernel doesn't support BTF, skipping uploading it.\n");
 		return 0;
+	}
+
+	/* Even though some subprogs are global/weak, user might prefer more
+	 * permissive BPF verification process that BPF verifier performs for
+	 * static functions, taking into account more context from the caller
+	 * functions. In such case, they need to mark such subprogs with
+	 * __attribute__((visibility("hidden"))) and libbpf will adjust
+	 * corresponding FUNC BTF type to be marked as static and trigger more
+	 * involved BPF verification process.
+	 */
+	for (i = 0; i < obj->nr_programs; i++) {
+		struct bpf_program *prog = &obj->programs[i];
+		struct btf_type *t;
+		const char *name;
+		int j, n;
+
+		if (!prog->mark_btf_static || !prog_is_subprog(obj, prog))
+			continue;
+
+		n = btf__get_nr_types(obj->btf);
+		for (j = 1; j <= n; j++) {
+			t = btf_type_by_id(obj->btf, j);
+			if (!btf_is_func(t) || btf_func_linkage(t) != BTF_FUNC_GLOBAL)
+				continue;
+
+			name = btf__str_by_offset(obj->btf, t->name_off);
+			if (strcmp(name, prog->name) != 0)
+				continue;
+
+			t->info = btf_type_info(BTF_KIND_FUNC, BTF_FUNC_STATIC, 0);
+			break;
+		}
 	}
 
 	sanitize = btf_needs_sanitization(obj);
@@ -2780,26 +2851,6 @@ static Elf_Data *elf_sec_data(const struct bpf_object *obj, Elf_Scn *scn)
 	}
 
 	return data;
-}
-
-static int elf_sym_by_sec_off(const struct bpf_object *obj, size_t sec_idx,
-			      size_t off, __u32 sym_type, GElf_Sym *sym)
-{
-	Elf_Data *symbols = obj->efile.symbols;
-	size_t n = symbols->d_size / sizeof(GElf_Sym);
-	int i;
-
-	for (i = 0; i < n; i++) {
-		if (!gelf_getsym(symbols, i, sym))
-			continue;
-		if (sym->st_shndx != sec_idx || sym->st_value != off)
-			continue;
-		if (GELF_ST_TYPE(sym->st_info) != sym_type)
-			continue;
-		return 0;
-	}
-
-	return -ENOENT;
 }
 
 static bool is_sec_name_dwarf(const char *name)
@@ -3498,8 +3549,6 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 	const char *sym_sec_name;
 	struct bpf_map *map;
 
-	reloc_desc->processed = false;
-
 	if (!is_call_insn(insn) && !is_ldimm64_insn(insn)) {
 		pr_warn("prog '%s': invalid relo against '%s' for insns[%d].code 0x%x\n",
 			prog->name, sym_name, insn_idx, insn->code);
@@ -3682,11 +3731,16 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, GElf_Shdr *shdr, Elf_Data
 	int err, i, nrels;
 	const char *sym_name;
 	__u32 insn_idx;
+	Elf_Scn *scn;
+	Elf_Data *scn_data;
 	GElf_Sym sym;
 	GElf_Rel rel;
 
+	scn = elf_sec_by_idx(obj, sec_idx);
+	scn_data = elf_sec_data(obj, scn);
+
 	relo_sec_name = elf_sec_str(obj, shdr->sh_name);
-	sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, sec_idx));
+	sec_name = elf_sec_name(obj, scn);
 	if (!relo_sec_name || !sec_name)
 		return -EINVAL;
 
@@ -3704,7 +3758,8 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, GElf_Shdr *shdr, Elf_Data
 				relo_sec_name, (size_t)GELF_R_SYM(rel.r_info), i);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
-		if (rel.r_offset % BPF_INSN_SZ) {
+
+		if (rel.r_offset % BPF_INSN_SZ || rel.r_offset >= scn_data->d_size) {
 			pr_warn("sec '%s': invalid offset 0x%zx for relo #%d\n",
 				relo_sec_name, (size_t)GELF_R_SYM(rel.r_info), i);
 			return -LIBBPF_ERRNO__FORMAT;
@@ -3728,9 +3783,9 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, GElf_Shdr *shdr, Elf_Data
 
 		prog = find_prog_by_sec_insn(obj, sec_idx, insn_idx);
 		if (!prog) {
-			pr_warn("sec '%s': relo #%d: program not found in section '%s' for insn #%u\n",
+			pr_debug("sec '%s': relo #%d: couldn't find program in section '%s' for insn #%u, probably overridden weak function, skipping...\n",
 				relo_sec_name, i, sec_name, insn_idx);
-			return -LIBBPF_ERRNO__RELOC;
+			continue;
 		}
 
 		relos = libbpf_reallocarray(prog->reloc_desc,
@@ -3843,6 +3898,14 @@ err_free_new_name:
 __u32 bpf_map__max_entries(const struct bpf_map *map)
 {
 	return map->def.max_entries;
+}
+
+struct bpf_map *bpf_map__inner_map(struct bpf_map *map)
+{
+	if (!bpf_map_type__is_map_in_map(map->def.type))
+		return NULL;
+
+	return map->inner_map;
 }
 
 int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries)
@@ -6305,13 +6368,11 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 		case RELO_LD64:
 			insn[0].src_reg = BPF_PSEUDO_MAP_FD;
 			insn[0].imm = obj->maps[relo->map_idx].fd;
-			relo->processed = true;
 			break;
 		case RELO_DATA:
 			insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
 			insn[1].imm = insn[0].imm + relo->sym_off;
 			insn[0].imm = obj->maps[relo->map_idx].fd;
-			relo->processed = true;
 			break;
 		case RELO_EXTERN_VAR:
 			ext = &obj->externs[relo->sym_off];
@@ -6329,13 +6390,11 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 					insn[1].imm = ext->ksym.addr >> 32;
 				}
 			}
-			relo->processed = true;
 			break;
 		case RELO_EXTERN_FUNC:
 			ext = &obj->externs[relo->sym_off];
 			insn[0].src_reg = BPF_PSEUDO_KFUNC_CALL;
 			insn[0].imm = ext->ksym.kernel_btf_id;
-			relo->processed = true;
 			break;
 		case RELO_SUBPROG_ADDR:
 			insn[0].src_reg = BPF_PSEUDO_FUNC;
@@ -6621,9 +6680,6 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 		 * different main programs */
 		insn->imm = subprog->sub_insn_off - (prog->sub_insn_off + insn_idx) - 1;
 
-		if (relo)
-			relo->processed = true;
-
 		pr_debug("prog '%s': insn #%zu relocated, imm %d points to subprog '%s' (now at %zu offset)\n",
 			 prog->name, insn_idx, insn->imm, subprog->name, subprog->sub_insn_off);
 	}
@@ -6716,7 +6772,7 @@ static int
 bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 {
 	struct bpf_program *subprog;
-	int i, j, err;
+	int i, err;
 
 	/* mark all subprogs as not relocated (yet) within the context of
 	 * current main program
@@ -6727,9 +6783,6 @@ bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 			continue;
 
 		subprog->sub_insn_off = 0;
-		for (j = 0; j < subprog->nr_reloc; j++)
-			if (subprog->reloc_desc[j].type == RELO_CALL)
-				subprog->reloc_desc[j].processed = false;
 	}
 
 	err = bpf_object__reloc_code(obj, prog, prog);
@@ -6976,7 +7029,7 @@ static bool insn_is_helper_call(struct bpf_insn *insn, enum bpf_func_id *func_id
 	return false;
 }
 
-static int bpf_object__sanitize_prog(struct bpf_object* obj, struct bpf_program *prog)
+static int bpf_object__sanitize_prog(struct bpf_object *obj, struct bpf_program *prog)
 {
 	struct bpf_insn *insn = prog->insns;
 	enum bpf_func_id func_id;
@@ -9476,6 +9529,7 @@ int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
 		pr_warn("error: inner_map_fd already specified\n");
 		return -EINVAL;
 	}
+	zfree(&map->inner_map);
 	map->inner_map_fd = fd;
 	return 0;
 }

@@ -193,3 +193,12 @@ Without it, the error from compiling bpf selftests looks like:
   libbpf: failed to find BTF for extern 'tcp_slow_start' [25] section: -2
 
 __ https://reviews.llvm.org/D93563
+
+Clang dependencies for static linking tests
+===========================================
+
+linked_vars, linked_maps, and linked_funcs tests depend on `Clang fix`__ to
+generate valid BTF information for weak variables. Please make sure you use
+Clang that contains the fix.
+
+__ https://reviews.llvm.org/D100362
