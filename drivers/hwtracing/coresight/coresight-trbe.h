@@ -128,8 +128,7 @@ static inline void set_trbe_write_pointer(unsigned long addr)
 static inline unsigned long get_trbe_limit_pointer(void)
 {
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
-	unsigned long limit = (trblimitr >> TRBLIMITR_LIMIT_SHIFT) & TRBLIMITR_LIMIT_MASK;
-	unsigned long addr = limit << TRBLIMITR_LIMIT_SHIFT;
+	unsigned long addr = trblimitr & (TRBLIMITR_LIMIT_MASK << TRBLIMITR_LIMIT_SHIFT);
 
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	return addr;
