@@ -62,9 +62,7 @@
 #include "dfs_cache.h"
 #endif
 #include "fs_context.h"
-#ifdef CONFIG_CIFS_SWN_UPCALL
 #include "cifs_swn.h"
-#endif
 
 extern mempool_t *cifs_req_poolp;
 extern bool disable_legacy_dialects;
@@ -314,12 +312,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 		mutex_lock(&server->srv_mutex);
 
-#ifdef CONFIG_CIFS_SWN_UPCALL
-		if (server->use_swn_dstaddr) {
-			server->dstaddr = server->swn_dstaddr;
-		} else {
-#endif
 
+		if (!cifs_swn_set_server_dstaddr(server)) {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 		if (cifs_sb && cifs_sb->origin_fullpath)
 			/*
@@ -344,9 +338,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 #endif
 
 
-#ifdef CONFIG_CIFS_SWN_UPCALL
 		}
-#endif
 
 		if (cifs_rdma_enabled(server))
 			rc = smbd_reconnect(server);
@@ -363,9 +355,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
-#ifdef CONFIG_CIFS_SWN_UPCALL
-			server->use_swn_dstaddr = false;
-#endif
+			cifs_swn_reset_server_dstaddr(server);
 			mutex_unlock(&server->srv_mutex);
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
@@ -430,10 +420,8 @@ cifs_echo_request(struct work_struct *work)
 		cifs_dbg(FYI, "Unable to send echo request to server: %s\n",
 			 server->hostname);
 
-#ifdef CONFIG_CIFS_SWN_UPCALL
 	/* Check witness registrations */
 	cifs_swn_check();
-#endif
 
 requeue_echo:
 	queue_delayed_work(cifsiod_wq, &server->echo, server->echo_interval);
@@ -1790,9 +1778,7 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 	 * for the request.
 	 */
 	if (is_domain && ses->domainName) {
-		ctx->domainname = kstrndup(ses->domainName,
-					   strlen(ses->domainName),
-					   GFP_KERNEL);
+		ctx->domainname = kstrdup(ses->domainName, GFP_KERNEL);
 		if (!ctx->domainname) {
 			cifs_dbg(FYI, "Unable to allocate %zd bytes for domain\n",
 				 len);
@@ -2009,7 +1995,6 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 		return;
 	}
 
-#ifdef CONFIG_CIFS_SWN_UPCALL
 	if (tcon->use_witness) {
 		int rc;
 
@@ -2019,7 +2004,6 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 					__func__, rc);
 		}
 	}
-#endif
 
 	list_del_init(&tcon->tcon_list);
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -2181,9 +2165,9 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 		}
 		tcon->use_resilient = true;
 	}
-#ifdef CONFIG_CIFS_SWN_UPCALL
+
 	tcon->use_witness = false;
-	if (ctx->witness) {
+	if (IS_ENABLED(CONFIG_CIFS_SWN_UPCALL) && ctx->witness) {
 		if (ses->server->vals->protocol_id >= SMB30_PROT_ID) {
 			if (tcon->capabilities & SMB2_SHARE_CAP_CLUSTER) {
 				/*
@@ -2209,7 +2193,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 			goto out_fail;
 		}
 	}
-#endif
 
 	/* If the user really knows what they are doing they can override */
 	if (tcon->share_flags & SMB2_SHAREFLAG_NO_CACHING) {
@@ -3426,8 +3409,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			goto error;
 	}
 	/* Save mount options */
-	mntdata = kstrndup(cifs_sb->ctx->mount_options,
-			   strlen(cifs_sb->ctx->mount_options), GFP_KERNEL);
+	mntdata = kstrdup(cifs_sb->ctx->mount_options, GFP_KERNEL);
 	if (!mntdata) {
 		rc = -ENOMEM;
 		goto error;
@@ -3500,7 +3482,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	 * links, the prefix path is included in both and may be changed during reconnect.  See
 	 * cifs_tree_connect().
 	 */
-	cifs_sb->origin_fullpath = kstrndup(full_path, strlen(full_path), GFP_KERNEL);
+	cifs_sb->origin_fullpath = kstrdup(full_path, GFP_KERNEL);
 	if (!cifs_sb->origin_fullpath) {
 		rc = -ENOMEM;
 		goto error;
@@ -3877,9 +3859,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	ctx->sectype = master_tcon->ses->sectype;
 	ctx->sign = master_tcon->ses->sign;
 	ctx->seal = master_tcon->seal;
-#ifdef CONFIG_CIFS_SWN_UPCALL
 	ctx->witness = master_tcon->use_witness;
-#endif
 
 	rc = cifs_set_vol_auth(ctx, master_tcon->ses);
 	if (rc) {

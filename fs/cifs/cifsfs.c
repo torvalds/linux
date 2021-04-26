@@ -217,8 +217,11 @@ cifs_read_super(struct super_block *sb)
 	rc = super_setup_bdi(sb);
 	if (rc)
 		goto out_no_root;
-	/* tune readahead according to rsize */
-	sb->s_bdi->ra_pages = cifs_sb->ctx->rsize / PAGE_SIZE;
+	/* tune readahead according to rsize if readahead size not set on mount */
+	if (cifs_sb->ctx->rasize)
+		sb->s_bdi->ra_pages = cifs_sb->ctx->rasize / PAGE_SIZE;
+	else
+		sb->s_bdi->ra_pages = cifs_sb->ctx->rsize / PAGE_SIZE;
 
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
@@ -257,6 +260,29 @@ out_no_root:
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_tcon *tcon;
+	struct cached_fid *cfid;
+
+	/*
+	 * We ned to release all dentries for the cached directories
+	 * before we kill the sb.
+	 */
+	if (cifs_sb->root) {
+		dput(cifs_sb->root);
+		cifs_sb->root = NULL;
+	}
+	tcon = cifs_sb_master_tcon(cifs_sb);
+	if (tcon) {
+		cfid = &tcon->crfid;
+		mutex_lock(&cfid->fid_mutex);
+		if (cfid->dentry) {
+
+			dput(cfid->dentry);
+			cfid->dentry = NULL;
+		}
+		mutex_unlock(&cfid->fid_mutex);
+	}
+
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
 }
@@ -626,6 +652,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);
 	seq_printf(s, ",bsize=%u", cifs_sb->ctx->bsize);
+	if (cifs_sb->ctx->rasize)
+		seq_printf(s, ",rasize=%u", cifs_sb->ctx->rasize);
 	if (tcon->ses->server->min_offload)
 		seq_printf(s, ",esize=%u", tcon->ses->server->min_offload);
 	seq_printf(s, ",echo_interval=%lu",
@@ -656,10 +684,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",multichannel,max_channels=%zu",
 			   tcon->ses->chan_max);
 
-#ifdef CONFIG_CIFS_SWN_UPCALL
 	if (tcon->use_witness)
 		seq_puts(s, ",witness");
-#endif
 
 	return 0;
 }
@@ -834,6 +860,12 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
+	/* cifs_setup_volume_info->smb3_parse_devname() redups UNC & prepath */
+	kfree(cifs_sb->ctx->UNC);
+	cifs_sb->ctx->UNC = NULL;
+	kfree(cifs_sb->ctx->prepath);
+	cifs_sb->ctx->prepath = NULL;
+
 	rc = cifs_setup_volume_info(cifs_sb->ctx, NULL, old_ctx->UNC);
 	if (rc) {
 		root = ERR_PTR(rc);
@@ -887,6 +919,9 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	root = cifs_get_root(cifs_sb ? cifs_sb->ctx : old_ctx, sb);
 	if (IS_ERR(root))
 		goto out_super;
+
+	if (cifs_sb)
+		cifs_sb->root = dget(root);
 
 	cifs_dbg(FYI, "dentry root is: %p\n", root);
 	return root;
@@ -1528,10 +1563,6 @@ init_cifs(void)
 	int rc = 0;
 	cifs_proc_init();
 	INIT_LIST_HEAD(&cifs_tcp_ses_list);
-#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
-	INIT_LIST_HEAD(&GlobalDnotifyReqList);
-	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
-#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
 /*
  *  Initialize Global counters
  */

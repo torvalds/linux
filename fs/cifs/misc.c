@@ -1180,7 +1180,7 @@ int update_super_prepath(struct cifs_tcon *tcon, char *prefix)
 	kfree(cifs_sb->prepath);
 
 	if (prefix && *prefix) {
-		cifs_sb->prepath = kstrndup(prefix, strlen(prefix), GFP_ATOMIC);
+		cifs_sb->prepath = kstrdup(prefix, GFP_ATOMIC);
 		if (!cifs_sb->prepath) {
 			rc = -ENOMEM;
 			goto out;
