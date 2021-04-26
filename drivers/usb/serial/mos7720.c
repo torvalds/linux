@@ -1042,7 +1042,7 @@ static int mos7720_write_room(struct tty_struct *tty)
 
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
-		return -ENODEV;
+		return 0;
 
 	/* FIXME: Locking */
 	for (i = 0; i < NUM_URBS; ++i) {

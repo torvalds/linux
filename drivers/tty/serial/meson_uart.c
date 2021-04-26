@@ -226,9 +226,7 @@ static void meson_receive_chars(struct uart_port *port)
 
 	} while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY));
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tport);
-	spin_lock(&port->lock);
 }
 
 static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
