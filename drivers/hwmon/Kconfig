@@ -321,16 +321,6 @@ config SENSORS_FAM15H_POWER
 	  This driver can also be built as a module. If so, the module
 	  will be called fam15h_power.
 
-config SENSORS_AMD_ENERGY
-	tristate "AMD RAPL MSR based Energy driver"
-	depends on X86
-	help
-	  If you say yes here you get support for core and package energy
-	  sensors, based on RAPL MSR for AMD family 17h and above CPUs.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called as amd_energy.
-
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
 	depends on INPUT && X86
@@ -1491,6 +1481,16 @@ config SENSORS_NSA320
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nsa320-hwmon.
+
+config SENSORS_NZXT_KRAKEN2
+	tristate "NZXT Kraken X42/X51/X62/X72 liquid coolers"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  NZXT Kraken X42/X52/X62/X72 all-in-one CPU liquid coolers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nzxt-kraken2.
 
 source "drivers/hwmon/occ/Kconfig"
 
