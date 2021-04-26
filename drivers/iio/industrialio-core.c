@@ -169,6 +169,20 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
 	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
 };
+/**
+ * iio_device_id() - query the unique ID for the device
+ * @indio_dev:		Device structure whose ID is being queried
+ *
+ * The IIO device ID is a unique index used for example for the naming
+ * of the character device /dev/iio\:device[ID]
+ */
+int iio_device_id(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->id;
+}
+EXPORT_SYMBOL_GPL(iio_device_id);
 
 /**
  * iio_sysfs_match_string_with_gaps - matches given string in an array with gaps
@@ -1588,7 +1602,7 @@ static void iio_dev_release(struct device *device)
 
 	iio_device_detach_buffers(indio_dev);
 
-	ida_simple_remove(&iio_ida, indio_dev->id);
+	ida_simple_remove(&iio_ida, iio_dev_opaque->id);
 	kfree(iio_dev_opaque);
 }
 
@@ -1631,14 +1645,14 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	mutex_init(&indio_dev->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
-	indio_dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
-	if (indio_dev->id < 0) {
+	iio_dev_opaque->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
+	if (iio_dev_opaque->id < 0) {
 		/* cannot use a dev_err as the name isn't available */
 		pr_err("failed to get device id\n");
 		kfree(iio_dev_opaque);
 		return NULL;
 	}
-	dev_set_name(&indio_dev->dev, "iio:device%d", indio_dev->id);
+	dev_set_name(&indio_dev->dev, "iio:device%d", iio_dev_opaque->id);
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
 
@@ -1891,7 +1905,7 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 		cdev_init(&indio_dev->chrdev, &iio_event_fileops);
 
 	if (iio_dev_opaque->attached_buffers_cnt || iio_dev_opaque->event_interface) {
-		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
+		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), iio_dev_opaque->id);
 		indio_dev->chrdev.owner = this_mod;
 	}
 

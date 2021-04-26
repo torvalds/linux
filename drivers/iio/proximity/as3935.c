@@ -404,7 +404,8 @@ static int as3935_probe(struct spi_device *spi)
 	indio_dev->info = &as3935_info;
 
 	trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
-				      indio_dev->name, indio_dev->id);
+				      indio_dev->name,
+				      iio_device_id(indio_dev));
 
 	if (!trig)
 		return -ENOMEM;

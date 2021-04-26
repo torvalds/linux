@@ -477,7 +477,7 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 
 	sigma_delta->trig = iio_trigger_alloc(&sigma_delta->spi->dev,
 					      "%s-dev%d", indio_dev->name,
-					      indio_dev->id);
+					      iio_device_id(indio_dev));
 	if (sigma_delta->trig == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;

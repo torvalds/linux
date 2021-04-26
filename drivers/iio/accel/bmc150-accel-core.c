@@ -1470,9 +1470,9 @@ static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
 		struct bmc150_accel_trigger *t = &data->triggers[i];
 
 		t->indio_trig = devm_iio_trigger_alloc(dev,
-					bmc150_accel_triggers[i].name,
+						       bmc150_accel_triggers[i].name,
 						       indio_dev->name,
-						       indio_dev->id);
+						       iio_device_id(indio_dev));
 		if (!t->indio_trig) {
 			ret = -ENOMEM;
 			break;

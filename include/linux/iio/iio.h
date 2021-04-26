@@ -488,7 +488,6 @@ struct iio_buffer_setup_ops {
 
 /**
  * struct iio_dev - industrial I/O device
- * @id:			[INTERN] used to identify device internally
  * @driver_module:	[INTERN] used to make it harder to undercut users
  * @modes:		[DRIVER] operating modes supported by device
  * @currentmode:	[DRIVER] current operating mode
@@ -523,7 +522,6 @@ struct iio_buffer_setup_ops {
  *			**MUST** be accessed **ONLY** via iio_priv() helper
  */
 struct iio_dev {
-	int				id;
 	struct module			*driver_module;
 
 	int				modes;
@@ -558,6 +556,8 @@ struct iio_dev {
 	unsigned long			flags;
 	void				*priv;
 };
+
+int iio_device_id(struct iio_dev *indio_dev);
 
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si);

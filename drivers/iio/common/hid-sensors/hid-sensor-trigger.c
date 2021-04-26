@@ -256,7 +256,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	}
 
 	trig = iio_trigger_alloc(indio_dev->dev.parent,
-				 "%s-dev%d", name, indio_dev->id);
+				 "%s-dev%d", name, iio_device_id(indio_dev));
 	if (trig == NULL) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
 		ret = -ENOMEM;

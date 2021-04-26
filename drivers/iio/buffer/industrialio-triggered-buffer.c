@@ -56,7 +56,7 @@ int iio_triggered_buffer_setup_ext(struct iio_dev *indio_dev,
 						 indio_dev,
 						 "%s_consumer%d",
 						 indio_dev->name,
-						 indio_dev->id);
+						 iio_device_id(indio_dev));
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
 		goto error_kfifo_free;

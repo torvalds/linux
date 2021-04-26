@@ -455,7 +455,7 @@ static int mxs_lradc_adc_trigger_init(struct iio_dev *iio)
 	struct mxs_lradc_adc *adc = iio_priv(iio);
 
 	trig = devm_iio_trigger_alloc(&iio->dev, "%s-dev%i", iio->name,
-				      iio->id);
+				      iio_device_id(iio));
 	if (!trig)
 		return -ENOMEM;
 

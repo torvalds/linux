@@ -323,7 +323,8 @@ static int lmp91000_probe(struct i2c_client *client,
 	}
 
 	data->trig = devm_iio_trigger_alloc(dev, "%s-mux%d",
-					    indio_dev->name, indio_dev->id);
+					    indio_dev->name,
+					    iio_device_id(indio_dev));
 	if (!data->trig) {
 		dev_err(dev, "cannot allocate iio trigger.\n");
 		return -ENOMEM;

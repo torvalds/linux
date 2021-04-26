@@ -1045,7 +1045,7 @@ static int bma180_probe(struct i2c_client *client,
 
 	if (client->irq > 0) {
 		data->trig = iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
-			indio_dev->id);
+					       iio_device_id(indio_dev));
 		if (!data->trig) {
 			ret = -ENOMEM;
 			goto err_chip_disable;

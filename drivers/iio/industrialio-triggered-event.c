@@ -37,7 +37,7 @@ int iio_triggered_event_setup(struct iio_dev *indio_dev,
 						       indio_dev,
 						       "%s_consumer%d",
 						       indio_dev->name,
-						       indio_dev->id);
+						       iio_device_id(indio_dev));
 	if (indio_dev->pollfunc_event == NULL)
 		return -ENOMEM;
 

@@ -1264,7 +1264,7 @@ static struct iio_trigger *kmx61_trigger_setup(struct kmx61_data *data,
 				      "%s-%s-dev%d",
 				      indio_dev->name,
 				      tag,
-				      indio_dev->id);
+				      iio_device_id(indio_dev));
 	if (!trig)
 		return ERR_PTR(-ENOMEM);
 

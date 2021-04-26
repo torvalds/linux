@@ -491,7 +491,7 @@ static int ccs811_probe(struct i2c_client *client,
 		data->drdy_trig = devm_iio_trigger_alloc(&client->dev,
 							 "%s-dev%d",
 							 indio_dev->name,
-							 indio_dev->id);
+							 iio_device_id(indio_dev));
 		if (!data->drdy_trig) {
 			ret = -ENOMEM;
 			goto err_poweroff;

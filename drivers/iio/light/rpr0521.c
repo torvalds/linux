@@ -985,7 +985,7 @@ static int rpr0521_probe(struct i2c_client *client,
 		/* Trigger0 producer setup */
 		data->drdy_trigger0 = devm_iio_trigger_alloc(
 			indio_dev->dev.parent,
-			"%s-dev%d", indio_dev->name, indio_dev->id);
+			"%s-dev%d", indio_dev->name, iio_device_id(indio_dev));
 		if (!data->drdy_trigger0) {
 			ret = -ENOMEM;
 			goto err_pm_disable;

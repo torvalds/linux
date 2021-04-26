@@ -852,7 +852,7 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 
 	data->dready_trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 						   indio_dev->name,
-						   indio_dev->id);
+						   iio_device_id(indio_dev));
 	if (!data->dready_trig)
 		return -ENOMEM;
 

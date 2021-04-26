@@ -998,7 +998,8 @@ static int vcnl4010_probe_trigger(struct iio_dev *indio_dev)
 	struct iio_trigger *trigger;
 
 	trigger = devm_iio_trigger_alloc(&client->dev, "%s-dev%d",
-					 indio_dev->name, indio_dev->id);
+					 indio_dev->name,
+					 iio_device_id(indio_dev));
 	if (!trigger)
 		return -ENOMEM;
 

@@ -997,7 +997,7 @@ static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *indio,
 	int ret;
 
 	trig = devm_iio_trigger_alloc(&indio->dev, "%s-dev%d-%s", indio->name,
-				      indio->id, trigger_name);
+				iio_device_id(indio), trigger_name);
 	if (!trig)
 		return NULL;
 
