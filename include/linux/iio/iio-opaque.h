@@ -25,6 +25,7 @@
  * @legacy_buffer_group:	attribute group for legacy buffer attributes group
  * @scan_index_timestamp:	cache of the index to the timestamp
  * @chrdev:			associated character device
+ * @flags:			file ops related flags including busy flag.
  * @debugfs_dentry:		device specific debugfs dentry
  * @cached_reg_addr:		cached register address for debugfs reads
  * @read_buf:			read buffer to be used for the initial reg read
@@ -51,6 +52,7 @@ struct iio_dev_opaque {
 
 	unsigned int			scan_index_timestamp;
 	struct cdev			chrdev;
+	unsigned long			flags;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;

@@ -1720,7 +1720,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	struct iio_dev_buffer_pair *ib;
 
-	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
+	if (test_and_set_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags))
 		return -EBUSY;
 
 	iio_device_get(indio_dev);
@@ -1728,7 +1728,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 	ib = kmalloc(sizeof(*ib), GFP_KERNEL);
 	if (!ib) {
 		iio_device_put(indio_dev);
-		clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
+		clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);
 		return -ENOMEM;
 	}
 
@@ -1754,7 +1754,7 @@ static int iio_chrdev_release(struct inode *inode, struct file *filp)
 		container_of(inode->i_cdev, struct iio_dev_opaque, chrdev);
 	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
 	kfree(ib);
-	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
+	clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);
 	iio_device_put(indio_dev);
 
 	return 0;
