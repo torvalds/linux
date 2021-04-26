@@ -475,9 +475,15 @@
 #define SYS_PMCCFILTR_EL0		sys_reg(3, 3, 14, 15, 7)
 
 #define SYS_SCTLR_EL2			sys_reg(3, 4, 1, 0, 0)
+#define SYS_HFGRTR_EL2			sys_reg(3, 4, 1, 1, 4)
+#define SYS_HFGWTR_EL2			sys_reg(3, 4, 1, 1, 5)
+#define SYS_HFGITR_EL2			sys_reg(3, 4, 1, 1, 6)
 #define SYS_ZCR_EL2			sys_reg(3, 4, 1, 2, 0)
 #define SYS_TRFCR_EL2			sys_reg(3, 4, 1, 2, 1)
 #define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
+#define SYS_HDFGRTR_EL2			sys_reg(3, 4, 3, 1, 4)
+#define SYS_HDFGWTR_EL2			sys_reg(3, 4, 3, 1, 5)
+#define SYS_HAFGRTR_EL2			sys_reg(3, 4, 3, 1, 6)
 #define SYS_SPSR_EL2			sys_reg(3, 4, 4, 0, 0)
 #define SYS_ELR_EL2			sys_reg(3, 4, 4, 0, 1)
 #define SYS_IFSR32_EL2			sys_reg(3, 4, 5, 0, 1)
@@ -565,8 +571,10 @@
 #define SCTLR_ELx_TCF_ASYNC	(UL(0x2) << SCTLR_ELx_TCF_SHIFT)
 #define SCTLR_ELx_TCF_MASK	(UL(0x3) << SCTLR_ELx_TCF_SHIFT)
 
+#define SCTLR_ELx_ENIA_SHIFT	31
+
 #define SCTLR_ELx_ITFSB	(BIT(37))
-#define SCTLR_ELx_ENIA	(BIT(31))
+#define SCTLR_ELx_ENIA	(BIT(SCTLR_ELx_ENIA_SHIFT))
 #define SCTLR_ELx_ENIB	(BIT(30))
 #define SCTLR_ELx_ENDA	(BIT(27))
 #define SCTLR_ELx_EE    (BIT(25))
@@ -597,6 +605,7 @@
 	(SCTLR_EL2_RES1 | ENDIAN_SET_EL2)
 
 /* SCTLR_EL1 specific flags. */
+#define SCTLR_EL1_EPAN		(BIT(57))
 #define SCTLR_EL1_ATA0		(BIT(42))
 
 #define SCTLR_EL1_TCF0_SHIFT	38
@@ -637,7 +646,7 @@
 	 SCTLR_EL1_SED  | SCTLR_ELx_I    | SCTLR_EL1_DZE  | SCTLR_EL1_UCT   | \
 	 SCTLR_EL1_NTWE | SCTLR_ELx_IESB | SCTLR_EL1_SPAN | SCTLR_ELx_ITFSB | \
 	 SCTLR_ELx_ATA  | SCTLR_EL1_ATA0 | ENDIAN_SET_EL1 | SCTLR_EL1_UCI   | \
-	 SCTLR_EL1_RES1)
+	 SCTLR_EL1_EPAN | SCTLR_EL1_RES1)
 
 /* MAIR_ELx memory attributes (used by Linux) */
 #define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)

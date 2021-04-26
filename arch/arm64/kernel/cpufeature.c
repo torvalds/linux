@@ -808,6 +808,12 @@ static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
 					reg->name,
 					ftrp->shift + ftrp->width - 1,
 					ftrp->shift, str, tmp);
+		} else if ((ftr_mask & reg->override->val) == ftr_mask) {
+			reg->override->val &= ~ftr_mask;
+			pr_warn("%s[%d:%d]: impossible override, ignored\n",
+				reg->name,
+				ftrp->shift + ftrp->width - 1,
+				ftrp->shift);
 		}
 
 		val = arm64_ftr_set_value(ftrp, val, ftr_new);
@@ -1619,7 +1625,6 @@ int get_cpu_with_amu_feat(void)
 }
 #endif
 
-#ifdef CONFIG_ARM64_VHE
 static bool runs_at_el2(const struct arm64_cpu_capabilities *entry, int __unused)
 {
 	return is_kernel_in_hyp_mode();
@@ -1638,7 +1643,6 @@ static void cpu_copy_el2regs(const struct arm64_cpu_capabilities *__unused)
 	if (!alternative_is_applied(ARM64_HAS_VIRT_HOST_EXTN))
 		write_sysreg(read_sysreg(tpidr_el1), tpidr_el2);
 }
-#endif
 
 static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
 {
@@ -1823,6 +1827,18 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.cpu_enable = cpu_enable_pan,
 	},
 #endif /* CONFIG_ARM64_PAN */
+#ifdef CONFIG_ARM64_EPAN
+	{
+		.desc = "Enhanced Privileged Access Never",
+		.capability = ARM64_HAS_EPAN,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_cpuid_feature,
+		.sys_reg = SYS_ID_AA64MMFR1_EL1,
+		.field_pos = ID_AA64MMFR1_PAN_SHIFT,
+		.sign = FTR_UNSIGNED,
+		.min_field_value = 3,
+	},
+#endif /* CONFIG_ARM64_EPAN */
 #ifdef CONFIG_ARM64_LSE_ATOMICS
 	{
 		.desc = "LSE atomic instructions",
@@ -1841,7 +1857,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.matches = has_no_hw_prefetch,
 	},
-#ifdef CONFIG_ARM64_VHE
 	{
 		.desc = "Virtualization Host Extensions",
 		.capability = ARM64_HAS_VIRT_HOST_EXTN,
@@ -1849,7 +1864,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.matches = runs_at_el2,
 		.cpu_enable = cpu_copy_el2regs,
 	},
-#endif	/* CONFIG_ARM64_VHE */
 	{
 		.desc = "32-bit EL0 Support",
 		.capability = ARM64_HAS_32BIT_EL0,
