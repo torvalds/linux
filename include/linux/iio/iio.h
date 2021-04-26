@@ -488,7 +488,6 @@ struct iio_buffer_setup_ops {
 
 /**
  * struct iio_dev - industrial I/O device
- * @driver_module:	[INTERN] used to make it harder to undercut users
  * @modes:		[DRIVER] operating modes supported by device
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
@@ -522,8 +521,6 @@ struct iio_buffer_setup_ops {
  *			**MUST** be accessed **ONLY** via iio_priv() helper
  */
 struct iio_dev {
-	struct module			*driver_module;
-
 	int				modes;
 	int				currentmode;
 	struct device			dev;
