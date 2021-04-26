@@ -134,7 +134,7 @@ void test_kfree_skb(void)
 	/* make sure kfree_skb program was triggered
 	 * and it sent expected skb into ring buffer
 	 */
-	CHECK_FAIL(!passed);
+	ASSERT_TRUE(passed, "passed");
 
 	err = bpf_map_lookup_elem(bpf_map__fd(global_data), &zero, test_ok);
 	if (CHECK(err, "get_result",

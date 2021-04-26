@@ -6,8 +6,6 @@
 #include <test_progs.h>
 #include <bpf/btf.h>
 
-static int duration = 0;
-
 void test_btf_endian() {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 	enum btf_endianness endian = BTF_LITTLE_ENDIAN;
@@ -71,7 +69,7 @@ void test_btf_endian() {
 
 	/* now modify original BTF */
 	var_id = btf__add_var(btf, "some_var", BTF_VAR_GLOBAL_ALLOCATED, 1);
-	CHECK(var_id <= 0, "var_id", "failed %d\n", var_id);
+	ASSERT_GT(var_id, 0, "var_id");
 
 	btf__free(swap_btf);
 	swap_btf = NULL;
