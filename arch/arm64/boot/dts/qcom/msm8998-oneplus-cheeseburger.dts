@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * OnePlus 5 (cheeseburger) device tree
+ *
+ * Copyright (c) 2021, Jami Kettunen <jamipkettunen@gmail.com>
+ */
+
+#include <dt-bindings/leds/common.h>
+#include "msm8998-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 5";
+	compatible = "oneplus,cheeseburger", "qcom,msm8998";
+	/* Required for bootloader to select correct board */
+	qcom,board-id = <8 0 16859 23>;
+
+	/* Capacitive keypad button backlight */
+	leds {
+		compatible = "gpio-leds";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&button_backlight_default>;
+
+		button-backlight {
+			gpios = <&pmi8998_gpio 5 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			default-state = "off";
+		};
+	};
+};
+
+&pmi8998_gpio {
+	button_backlight_default: button-backlight-default {
+		pinconf {
+			pins = "gpio5";
+			function = "normal";
+			bias-pull-down;
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		};
+	};
+};

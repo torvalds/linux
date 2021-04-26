@@ -651,6 +651,8 @@ patternProperties:
     description: Liebherr-Werk Nenzing GmbH
   "^lxa,.*":
     description: Linux Automation GmbH
+  "^m5stack,.*":
+    description: M5Stack
   "^macnica,.*":
     description: Macnica Americas
   "^mantix,.*":
@@ -932,6 +934,8 @@ patternProperties:
     description: Unisoc Communications, Inc.
   "^realtek,.*":
     description: Realtek Semiconductor Corp.
+  "^remarkable,.*":
+    description: reMarkable AS
   "^renesas,.*":
     description: Renesas Electronics Corporation
   "^rex,.*":
@@ -1024,6 +1028,8 @@ patternProperties:
     description: Silex Insight
   "^siliconmitus,.*":
     description: Silicon Mitus, Inc.
+  "^siemens,.*":
+    description: Siemens AG
   "^simtek,.*":
     description: Cypress Semiconductor Corporation (Simtek Corporation)
   "^sinlinx,.*":

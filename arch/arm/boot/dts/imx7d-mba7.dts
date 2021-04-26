@@ -99,8 +99,6 @@
 	/* probe deferral not supported */
 	/* pcie-bus-supply = <&reg_mpcie_1v5>; */
 	reset-gpio = <&gpio5 12 GPIO_ACTIVE_LOW>;
-	disable-gpio = <&gpio2 29 GPIO_ACTIVE_LOW>;
-	power-on-gpio = <&gpio2 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

@@ -497,6 +497,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x1>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -512,6 +513,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x2>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -527,6 +529,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x4>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -542,6 +545,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x10>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -1428,11 +1432,13 @@
 				      "mac-clk-tx",
 				      "mac-clk-rx",
 				      "eth-ck",
+				      "ptp_ref",
 				      "ethstp";
 			clocks = <&rcc ETHMAC>,
 				 <&rcc ETHTX>,
 				 <&rcc ETHRX>,
 				 <&rcc ETHCK_K>,
+				 <&rcc ETHPTP_K>,
 				 <&rcc ETHSTP>;
 			st,syscon = <&syscfg 0x4>;
 			snps,mixed-burst;
@@ -1544,6 +1550,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x8>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
@@ -1581,6 +1588,7 @@
 			#size-cells = <0>;
 			st,syscfg-fmp = <&syscfg 0x4 0x20>;
 			wakeup-source;
+			i2c-analog-filter;
 			status = "disabled";
 		};
 
