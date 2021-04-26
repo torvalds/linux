@@ -52,13 +52,13 @@ static ssize_t format_attr_contextid_show(struct device *dev,
 {
 	int pid_fmt = ETM_OPT_CTXTID;
 
-#if defined(CONFIG_CORESIGHT_SOURCE_ETM4X)
+#if IS_ENABLED(CONFIG_CORESIGHT_SOURCE_ETM4X)
 	pid_fmt = is_kernel_in_hyp_mode() ? ETM_OPT_CTXTID2 : ETM_OPT_CTXTID;
 #endif
 	return sprintf(page, "config:%d\n", pid_fmt);
 }
 
-struct device_attribute format_attr_contextid =
+static struct device_attribute format_attr_contextid =
 	__ATTR(contextid, 0444, format_attr_contextid_show, NULL);
 
 static struct attribute *etm_config_formats_attr[] = {

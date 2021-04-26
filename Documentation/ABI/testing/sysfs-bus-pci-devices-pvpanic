@@ -1,4 +1,5 @@
-What:		/sys/devices/pci0000:00/*/QEMU0001:00/capability
+What:		/sys/devices/pci0000:00/*/QEMU0001:00/capability for MMIO
+		/sys/bus/pci/drivers/pvpanic-pci/0000:00:0*.0/capability for PCI
 Date:		Jan 2021
 Contact:	zhenwei pi <pizhenwei@bytedance.com>
 Description:
@@ -12,6 +13,7 @@ Description:
 		https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/specs/pvpanic.txt
 
 What:		/sys/devices/pci0000:00/*/QEMU0001:00/events
+		/sys/bus/pci/drivers/pvpanic-pci/0000:00:0*.0/events for PCI
 Date:		Jan 2021
 Contact:	zhenwei pi <pizhenwei@bytedance.com>
 Description:
