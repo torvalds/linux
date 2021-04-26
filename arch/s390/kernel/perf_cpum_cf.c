@@ -230,9 +230,7 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 		/* No support for kernel space counters only */
 		} else if (!attr->exclude_kernel && attr->exclude_user) {
 			return -EOPNOTSUPP;
-
-		/* Count user and kernel space */
-		} else {
+		} else {	/* Count user and kernel space */
 			if (ev >= ARRAY_SIZE(cpumf_generic_events_basic))
 				return -EOPNOTSUPP;
 			ev = cpumf_generic_events_basic[ev];
@@ -402,12 +400,12 @@ static void cpumf_pmu_stop(struct perf_event *event, int flags)
 		 */
 		if (!atomic_dec_return(&cpuhw->ctr_set[hwc->config_base]))
 			ctr_set_stop(&cpuhw->state, hwc->config_base);
-		event->hw.state |= PERF_HES_STOPPED;
+		hwc->state |= PERF_HES_STOPPED;
 	}
 
 	if ((flags & PERF_EF_UPDATE) && !(hwc->state & PERF_HES_UPTODATE)) {
 		hw_perf_event_update(event);
-		event->hw.state |= PERF_HES_UPTODATE;
+		hwc->state |= PERF_HES_UPTODATE;
 	}
 }
 
