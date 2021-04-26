@@ -12,12 +12,12 @@
 #include <hal_intf.h>
 
 static const struct {
-        int channel_plan;
-        char *name;
+	int channel_plan;
+	char *name;
 } channel_table[] = { { RT_CHANNEL_DOMAIN_FCC, "US" },
-        { RT_CHANNEL_DOMAIN_ETSI, "EU" },
-        { RT_CHANNEL_DOMAIN_MKK, "JP" },
-        { RT_CHANNEL_DOMAIN_CHINA, "CN"} };
+	{ RT_CHANNEL_DOMAIN_ETSI, "EU" },
+	{ RT_CHANNEL_DOMAIN_MKK, "JP" },
+	{ RT_CHANNEL_DOMAIN_CHINA, "CN"} };
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 
