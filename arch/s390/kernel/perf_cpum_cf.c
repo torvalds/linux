@@ -428,8 +428,6 @@ static int cpumf_pmu_add(struct perf_event *event, int flags)
 	if (flags & PERF_EF_START)
 		cpumf_pmu_start(event, PERF_EF_RELOAD);
 
-	perf_event_update_userpage(event);
-
 	return 0;
 }
 
@@ -449,8 +447,6 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
 	 */
 	if (!atomic_read(&cpuhw->ctr_set[event->hw.config_base]))
 		ctr_set_disable(&cpuhw->state, event->hw.config_base);
-
-	perf_event_update_userpage(event);
 }
 
 /*
