@@ -226,7 +226,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
+	btrfs_inode_lock(inode, 0);
 	fsflags = btrfs_mask_fsflags_for_type(inode, fsflags);
 	old_fsflags = btrfs_inode_flags_to_fsflags(binode->flags);
 
@@ -353,7 +353,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
  out_end_trans:
 	btrfs_end_transaction(trans);
  out_unlock:
-	inode_unlock(inode);
+	btrfs_inode_unlock(inode, 0);
 	mnt_drop_write_file(file);
 	return ret;
 }
@@ -449,7 +449,7 @@ static int btrfs_ioctl_fssetxattr(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
+	btrfs_inode_lock(inode, 0);
 
 	old_flags = binode->flags;
 	old_i_flags = inode->i_flags;
@@ -501,7 +501,7 @@ out_unlock:
 		inode->i_flags = old_i_flags;
 	}
 
-	inode_unlock(inode);
+	btrfs_inode_unlock(inode, 0);
 	mnt_drop_write_file(file);
 
 	return ret;
@@ -697,8 +697,6 @@ static noinline int create_subvol(struct inode *dir,
 	btrfs_set_root_otransid(root_item, trans->transid);
 
 	btrfs_tree_unlock(leaf);
-	free_extent_buffer(leaf);
-	leaf = NULL;
 
 	btrfs_set_root_dirid(root_item, BTRFS_FIRST_FREE_OBJECTID);
 
@@ -707,8 +705,22 @@ static noinline int create_subvol(struct inode *dir,
 	key.type = BTRFS_ROOT_ITEM_KEY;
 	ret = btrfs_insert_root(trans, fs_info->tree_root, &key,
 				root_item);
-	if (ret)
+	if (ret) {
+		/*
+		 * Since we don't abort the transaction in this case, free the
+		 * tree block so that we don't leak space and leave the
+		 * filesystem in an inconsistent state (an extent item in the
+		 * extent tree without backreferences). Also no need to have
+		 * the tree block locked since it is not in any tree at this
+		 * point, so no other task can find it and use it.
+		 */
+		btrfs_free_tree_block(trans, root, leaf, 0, 1);
+		free_extent_buffer(leaf);
 		goto fail;
+	}
+
+	free_extent_buffer(leaf);
+	leaf = NULL;
 
 	key.offset = (u64)-1;
 	new_root = btrfs_get_new_fs_root(fs_info, objectid, anon_dev);
@@ -721,7 +733,12 @@ static noinline int create_subvol(struct inode *dir,
 	/* Freeing will be done in btrfs_put_root() of new_root */
 	anon_dev = 0;
 
-	btrfs_record_root_in_trans(trans, new_root);
+	ret = btrfs_record_root_in_trans(trans, new_root);
+	if (ret) {
+		btrfs_put_root(new_root);
+		btrfs_abort_transaction(trans, ret);
+		goto fail;
+	}
 
 	ret = btrfs_create_subvol_root(trans, new_root, root);
 	btrfs_put_root(new_root);
@@ -1014,7 +1031,7 @@ out_up_read:
 out_dput:
 	dput(dentry);
 out_unlock:
-	inode_unlock(dir);
+	btrfs_inode_unlock(dir, 0);
 	return error;
 }
 
@@ -1612,7 +1629,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ra_index += cluster;
 		}
 
-		inode_lock(inode);
+		btrfs_inode_lock(inode, 0);
 		if (IS_SWAPFILE(inode)) {
 			ret = -ETXTBSY;
 		} else {
@@ -1621,13 +1638,13 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ret = cluster_pages_for_defrag(inode, pages, i, cluster);
 		}
 		if (ret < 0) {
-			inode_unlock(inode);
+			btrfs_inode_unlock(inode, 0);
 			goto out_ra;
 		}
 
 		defrag_count += ret;
 		balance_dirty_pages_ratelimited(inode->i_mapping);
-		inode_unlock(inode);
+		btrfs_inode_unlock(inode, 0);
 
 		if (newer_than) {
 			if (newer_off == (u64)-1)
@@ -1675,9 +1692,9 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 out_ra:
 	if (do_compress) {
-		inode_lock(inode);
+		btrfs_inode_lock(inode, 0);
 		BTRFS_I(inode)->defrag_compress = BTRFS_COMPRESS_NONE;
-		inode_unlock(inode);
+		btrfs_inode_unlock(inode, 0);
 	}
 	if (!file)
 		kfree(ra);
@@ -3112,9 +3129,9 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		goto out_dput;
 	}
 
-	inode_lock(inode);
+	btrfs_inode_lock(inode, 0);
 	err = btrfs_delete_subvolume(dir, dentry);
-	inode_unlock(inode);
+	btrfs_inode_unlock(inode, 0);
 	if (!err) {
 		fsnotify_rmdir(dir, dentry);
 		d_delete(dentry);
@@ -3123,7 +3140,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 out_dput:
 	dput(dentry);
 out_unlock_dir:
-	inode_unlock(dir);
+	btrfs_inode_unlock(dir, 0);
 free_subvol_name:
 	kfree(subvol_name_ptr);
 free_parent:
