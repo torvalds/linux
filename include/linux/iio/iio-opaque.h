@@ -24,6 +24,7 @@
  * @legacy_scan_el_group:	attribute group for legacy scan elements attribute group
  * @legacy_buffer_group:	attribute group for legacy buffer attributes group
  * @scan_index_timestamp:	cache of the index to the timestamp
+ * @clock_id:			timestamping clock posix identifier
  * @chrdev:			associated character device
  * @flags:			file ops related flags including busy flag.
  * @debugfs_dentry:		device specific debugfs dentry
@@ -51,6 +52,7 @@ struct iio_dev_opaque {
 	struct attribute_group		legacy_buffer_group;
 
 	unsigned int			scan_index_timestamp;
+	clockid_t			clock_id;
 	struct cdev			chrdev;
 	unsigned long			flags;
 

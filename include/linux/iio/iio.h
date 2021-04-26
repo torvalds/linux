@@ -509,7 +509,6 @@ struct iio_buffer_setup_ops {
  * @name:		[DRIVER] name of the device.
  * @label:              [DRIVER] unique name to identify which device this is
  * @info:		[DRIVER] callbacks and constant info from driver
- * @clock_id:		[INTERN] timestamping clock posix identifier
  * @setup_ops:		[DRIVER] callbacks to call before and after buffer
  *			enable/disable
  * @priv:		[DRIVER] reference to driver's private information
@@ -538,7 +537,6 @@ struct iio_dev {
 	const char			*name;
 	const char			*label;
 	const struct iio_info		*info;
-	clockid_t			clock_id;
 	const struct iio_buffer_setup_ops	*setup_ops;
 
 	void				*priv;
@@ -589,15 +587,7 @@ static inline void iio_device_put(struct iio_dev *indio_dev)
 		put_device(&indio_dev->dev);
 }
 
-/**
- * iio_device_get_clock() - Retrieve current timestamping clock for the device
- * @indio_dev: IIO device structure containing the device
- */
-static inline clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
-{
-	return indio_dev->clock_id;
-}
-
+clockid_t iio_device_get_clock(const struct iio_dev *indio_dev);
 int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id);
 
 /**

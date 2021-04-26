@@ -271,12 +271,24 @@ int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
-	indio_dev->clock_id = clock_id;
+	iio_dev_opaque->clock_id = clock_id;
 	mutex_unlock(&indio_dev->mlock);
 
 	return 0;
 }
 EXPORT_SYMBOL(iio_device_set_clock);
+
+/**
+ * iio_device_get_clock() - Retrieve current timestamping clock for the device
+ * @indio_dev: IIO device structure containing the device
+ */
+clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->clock_id;
+}
+EXPORT_SYMBOL(iio_device_get_clock);
 
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
