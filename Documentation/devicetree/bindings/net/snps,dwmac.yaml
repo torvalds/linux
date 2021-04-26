@@ -56,6 +56,15 @@ properties:
         - amlogic,meson8m2-dwmac
         - amlogic,meson-gxbb-dwmac
         - amlogic,meson-axg-dwmac
+        - rockchip,px30-gmac
+        - rockchip,rk3128-gmac
+        - rockchip,rk3228-gmac
+        - rockchip,rk3288-gmac
+        - rockchip,rk3328-gmac
+        - rockchip,rk3366-gmac
+        - rockchip,rk3368-gmac
+        - rockchip,rk3399-gmac
+        - rockchip,rv1108-gmac
         - snps,dwmac
         - snps,dwmac-3.50a
         - snps,dwmac-3.610
@@ -89,7 +98,7 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 5
+    maxItems: 8
     additionalItems: true
     items:
       - description: GMAC main clock
@@ -101,7 +110,7 @@ properties:
 
   clock-names:
     minItems: 1
-    maxItems: 5
+    maxItems: 8
     additionalItems: true
     contains:
       enum:
