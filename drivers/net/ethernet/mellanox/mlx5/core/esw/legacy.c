@@ -216,7 +216,8 @@ static void esw_destroy_legacy_table(struct mlx5_eswitch *esw)
 int esw_legacy_enable(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
-	int ret, i;
+	unsigned long i;
+	int ret;
 
 	ret = esw_create_legacy_table(esw);
 	if (ret)
