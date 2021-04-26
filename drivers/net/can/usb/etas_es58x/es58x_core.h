@@ -625,7 +625,7 @@ static inline int es58x_get_netdev(struct es58x_device *es58x_dev,
 		return -ECHRNG;
 
 	*netdev = es58x_dev->netdev[channel_idx];
-	if (!netdev || !netif_device_present(*netdev))
+	if (!*netdev || !netif_device_present(*netdev))
 		return -ENODEV;
 
 	return 0;

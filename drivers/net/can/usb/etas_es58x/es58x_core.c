@@ -688,7 +688,7 @@ int es58x_rx_err_msg(struct net_device *netdev, enum es58x_err error,
 
 	case ES58X_ERR_PROT_STUFF:
 		if (net_ratelimit())
-			netdev_dbg(netdev, "Error BITSUFF\n");
+			netdev_dbg(netdev, "Error BITSTUFF\n");
 		if (cf)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 		break;
@@ -1015,7 +1015,7 @@ int es58x_rx_cmd_ret_u32(struct net_device *netdev,
 			int ret;
 
 			netdev_warn(netdev,
-				    "%s: channel is already opened, closing and re-openning it to reflect new configuration\n",
+				    "%s: channel is already opened, closing and re-opening it to reflect new configuration\n",
 				    ret_desc);
 			ret = ops->disable_channel(es58x_priv(netdev));
 			if (ret)
