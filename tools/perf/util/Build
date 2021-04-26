@@ -165,6 +165,7 @@ perf-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
 perf-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
 
 perf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+perf-y += data-convert-json.o
 
 perf-y += scripting-engines/
 
