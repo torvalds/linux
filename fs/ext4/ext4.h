@@ -3784,7 +3784,7 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 	 * have to read the block because we may read the old data
 	 * successfully.
 	 */
-	if (!buffer_uptodate(bh) && buffer_write_io_error(bh))
+	if (buffer_write_io_error(bh))
 		set_buffer_uptodate(bh);
 	return buffer_uptodate(bh);
 }
