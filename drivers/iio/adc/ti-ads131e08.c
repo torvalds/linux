@@ -177,7 +177,10 @@ static int ads131e08_read_reg(struct ads131e08_state *st, u8 reg)
 		{
 			.tx_buf = &st->tx_buf,
 			.len = 2,
-			.delay_usecs = st->sdecode_delay_us,
+			.delay = {
+				.value = st->sdecode_delay_us,
+				.unit = SPI_DELAY_UNIT_USECS,
+			},
 		}, {
 			.rx_buf = &st->rx_buf,
 			.len = 1,
@@ -203,7 +206,10 @@ static int ads131e08_write_reg(struct ads131e08_state *st, u8 reg, u8 value)
 		{
 			.tx_buf = &st->tx_buf,
 			.len = 3,
-			.delay_usecs = st->sdecode_delay_us,
+			.delay = {
+				.value = st->sdecode_delay_us,
+				.unit = SPI_DELAY_UNIT_USECS,
+			},
 		}
 	};
 
