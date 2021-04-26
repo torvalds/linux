@@ -160,11 +160,9 @@ static void device_run(void *priv)
 	src = hantro_get_src_buf(ctx);
 	dst = hantro_get_dst_buf(ctx);
 
-	ret = pm_runtime_get_sync(ctx->dev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(ctx->dev->dev);
+	ret = pm_runtime_resume_and_get(ctx->dev->dev);
+	if (ret < 0)
 		goto err_cancel_job;
-	}
 
 	ret = clk_bulk_enable(ctx->dev->variant->num_clocks, ctx->dev->clocks);
 	if (ret)
