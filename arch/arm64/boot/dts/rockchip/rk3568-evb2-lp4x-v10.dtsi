@@ -74,6 +74,17 @@
 			  3300000 0x1>;
 	};
 
+	qsgmii_3v3: gpio-regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "qsgmii_3v3";
+		regulator-min-microvolt = <0100000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0x1>;
+		states = <0100000 0x0
+			  3300000 0x1>;
+	};
+
 	vcc3v3_bu: vcc3v3-bu {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_bu";
@@ -138,57 +149,39 @@
 };
 
 &gmac0 {
-	phy-mode = "rgmii";
-	clock_in_out = "output";
+	phy-supply = <&qsgmii_3v3>;
+	phy-mode = "qsgmii";
+	rockchip,xpcs = <&xpcs>;
 
-	snps,reset-gpio = <&gpio2 RK_PD3 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
-	snps,reset-delays-us = <0 20000 100000>;
+	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>;
+	assigned-clock-parents = <&gmac0_xpcsclk>;
 
-	assigned-clocks = <&cru SCLK_GMAC0_RX_TX>, <&cru SCLK_GMAC0>;
-	assigned-clock-parents = <&cru SCLK_GMAC0_RGMII_SPEED>, <&cru CLK_MAC0_2TOP>;
-	assigned-clock-rates = <0>, <125000000>;
+	power-domains = <&power RK3568_PD_PIPE>;
+	phys = <&combphy1_usq PHY_TYPE_QSGMII>;
+	phy-handle = <&qsgmii_phy0>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim
-		     &gmac0_tx_bus2
-		     &gmac0_rx_bus2
-		     &gmac0_rgmii_clk
-		     &gmac0_rgmii_bus>;
-
-	tx_delay = <0x3c>;
-	rx_delay = <0x2f>;
-
-	phy-handle = <&rgmii_phy0>;
-	status = "disabled";
+	status = "okay";
 };
 
 &gmac1 {
-	phy-mode = "rgmii";
-	clock_in_out = "output";
+	phy-supply = <&qsgmii_3v3>;
+	phy-mode = "qsgmii";
 
-	snps,reset-gpio = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
 
-	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
-	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru CLK_MAC1_2TOP>;
-	assigned-clock-rates = <0>, <125000000>;
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>;
+	assigned-clock-parents = <&gmac1_xpcsclk>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim
-		     &gmac1m1_tx_bus2
-		     &gmac1m1_rx_bus2
-		     &gmac1m1_rgmii_clk
-		     &gmac1m1_rgmii_bus>;
+	pinctrl-0 = <&gmac1m1_miim>;
 
-	tx_delay = <0x4f>;
-	rx_delay = <0x26>;
+	power-domains = <&power RK3568_PD_PIPE>;
+	phy-handle = <&qsgmii_phy1>;
 
-	phy-handle = <&rgmii_phy1>;
-	status = "disabled";
+	status = "okay";
 };
 
 /*
@@ -221,17 +214,22 @@
 	status = "disabled";
 };
 
-&mdio0 {
-	rgmii_phy0: phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
+&mdio1 {
+	qsgmii_phy0: phy@0 {
+		compatible = "ethernet-phy-id001c.c942", "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
 	};
-};
-
-&mdio1 {
-	rgmii_phy1: phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
+	qsgmii_phy1: phy@1 {
+		compatible = "ethernet-phy-id001c.c942", "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+	};
+	qsgmii_phy2: phy@2 {
+		compatible = "ethernet-phy-id001c.c942", "ethernet-phy-ieee802.3-c22";
+		reg = <0x2>;
+	};
+	qsgmii_phy3: phy@3 {
+		compatible = "ethernet-phy-id001c.c942", "ethernet-phy-ieee802.3-c22";
+		reg = <0x3>;
 	};
 };
 
@@ -487,5 +485,9 @@
 	BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
 	BT,wake_host_irq = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&xpcs {
 	status = "okay";
 };
