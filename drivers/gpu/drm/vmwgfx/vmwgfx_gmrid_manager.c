@@ -57,6 +57,12 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 	int id;
 
+	mem->mm_node = kmalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem->mm_node)
+		return -ENOMEM;
+
+	ttm_resource_init(bo, place, mem->mm_node);
+
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
 	if (id < 0)
 		return id;
@@ -87,13 +93,11 @@ static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,
 {
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 
-	if (mem->mm_node) {
-		ida_free(&gman->gmr_ida, mem->start);
-		spin_lock(&gman->lock);
-		gman->used_gmr_pages -= mem->num_pages;
-		spin_unlock(&gman->lock);
-		mem->mm_node = NULL;
-	}
+	ida_free(&gman->gmr_ida, mem->start);
+	spin_lock(&gman->lock);
+	gman->used_gmr_pages -= mem->num_pages;
+	spin_unlock(&gman->lock);
+	kfree(mem->mm_node);
 }
 
 static const struct ttm_resource_manager_func vmw_gmrid_manager_func;

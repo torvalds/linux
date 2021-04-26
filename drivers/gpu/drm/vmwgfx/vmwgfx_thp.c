@@ -7,6 +7,7 @@
 #include "vmwgfx_drv.h"
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_range_manager.h>
 
 /**
  * struct vmw_thp_manager - Range manager implementing huge page alignment
@@ -54,15 +55,17 @@ static int vmw_thp_get_node(struct ttm_resource_manager *man,
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
 	struct drm_mm *mm = &rman->mm;
-	struct drm_mm_node *node;
+	struct ttm_range_mgr_node *node;
 	unsigned long align_pages;
 	unsigned long lpfn;
 	enum drm_mm_insert_mode mode = DRM_MM_INSERT_BEST;
 	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc(struct_size(node, mm_nodes, 1), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
+
+	ttm_resource_init(bo, place, &node->base);
 
 	lpfn = place->lpfn;
 	if (!lpfn)
@@ -76,8 +79,9 @@ static int vmw_thp_get_node(struct ttm_resource_manager *man,
 	if (IS_ENABLED(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)) {
 		align_pages = (HPAGE_PUD_SIZE >> PAGE_SHIFT);
 		if (mem->num_pages >= align_pages) {
-			ret = vmw_thp_insert_aligned(bo, mm, node, align_pages,
-						     place, mem, lpfn, mode);
+			ret = vmw_thp_insert_aligned(bo, mm, &node->mm_nodes[0],
+						     align_pages, place, mem,
+						     lpfn, mode);
 			if (!ret)
 				goto found_unlock;
 		}
@@ -85,14 +89,15 @@ static int vmw_thp_get_node(struct ttm_resource_manager *man,
 
 	align_pages = (HPAGE_PMD_SIZE >> PAGE_SHIFT);
 	if (mem->num_pages >= align_pages) {
-		ret = vmw_thp_insert_aligned(bo, mm, node, align_pages, place,
-					     mem, lpfn, mode);
+		ret = vmw_thp_insert_aligned(bo, mm, &node->mm_nodes[0],
+					     align_pages, place, mem, lpfn,
+					     mode);
 		if (!ret)
 			goto found_unlock;
 	}
 
-	ret = drm_mm_insert_node_in_range(mm, node, mem->num_pages,
-					  bo->page_alignment, 0,
+	ret = drm_mm_insert_node_in_range(mm, &node->mm_nodes[0],
+					  mem->num_pages, bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 found_unlock:
 	spin_unlock(&rman->lock);
@@ -100,8 +105,8 @@ found_unlock:
 	if (unlikely(ret)) {
 		kfree(node);
 	} else {
-		mem->mm_node = node;
-		mem->start = node->start;
+		mem->mm_node = &node->mm_nodes[0];
+		mem->start = node->mm_nodes[0].start;
 	}
 
 	return ret;
@@ -113,15 +118,13 @@ static void vmw_thp_put_node(struct ttm_resource_manager *man,
 			     struct ttm_resource *mem)
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
+	struct ttm_range_mgr_node * node = mem->mm_node;
 
-	if (mem->mm_node) {
-		spin_lock(&rman->lock);
-		drm_mm_remove_node(mem->mm_node);
-		spin_unlock(&rman->lock);
+	spin_lock(&rman->lock);
+	drm_mm_remove_node(&node->mm_nodes[0]);
+	spin_unlock(&rman->lock);
 
-		kfree(mem->mm_node);
-		mem->mm_node = NULL;
-	}
+	kfree(node);
 }
 
 int vmw_thp_init(struct vmw_private *dev_priv)
