@@ -909,13 +909,19 @@ struct coresight_device *coresight_get_sink_by_id(u32 id)
 static inline bool coresight_get_ref(struct coresight_device *csdev)
 {
 	struct device *dev = csdev->dev.parent;
+	int ret;
 
 	/* Make sure the driver can't be removed */
 	if (!try_module_get(dev->driver->owner))
 		return false;
 	/* Make sure the device can't go away */
 	get_device(dev);
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return false;
+	}
+
 	return true;
 }
 
