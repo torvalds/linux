@@ -16736,6 +16736,13 @@ F:	drivers/firmware/arm_sdei.c
 F:	include/linux/arm_sdei.h
 F:	include/uapi/linux/arm_sdei.h
 
+SOFTWARE NODES
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+R:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+L:	linux-acpi@vger.kernel.org
+S:	Maintained
+F:	drivers/base/swnode.c
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Song Liu <song@kernel.org>
 L:	linux-raid@vger.kernel.org
