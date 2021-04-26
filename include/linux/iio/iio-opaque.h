@@ -8,6 +8,7 @@
  * @indio_dev:			public industrial I/O device information
  * @id:			used to identify device internally
  * @driver_module:		used to make it harder to undercut users
+ * @trig_readonly:		mark the current trigger immutable
  * @event_interface:		event chrdevs associated with interrupt lines
  * @attached_buffers:		array of buffers statically attached by the driver
  * @attached_buffers_cnt:	number of buffers in the array of statically attached buffers
@@ -30,6 +31,7 @@ struct iio_dev_opaque {
 	struct iio_dev			indio_dev;
 	int				id;
 	struct module			*driver_module;
+	bool				trig_readonly;
 	struct iio_event_interface	*event_interface;
 	struct iio_buffer		**attached_buffers;
 	unsigned int			attached_buffers_cnt;

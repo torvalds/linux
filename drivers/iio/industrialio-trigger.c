@@ -117,14 +117,17 @@ EXPORT_SYMBOL(iio_trigger_unregister);
 
 int iio_trigger_set_immutable(struct iio_dev *indio_dev, struct iio_trigger *trig)
 {
+	struct iio_dev_opaque *iio_dev_opaque;
+
 	if (!indio_dev || !trig)
 		return -EINVAL;
 
+	iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	mutex_lock(&indio_dev->mlock);
-	WARN_ON(indio_dev->trig_readonly);
+	WARN_ON(iio_dev_opaque->trig_readonly);
 
 	indio_dev->trig = iio_trigger_get(trig);
-	indio_dev->trig_readonly = true;
+	iio_dev_opaque->trig_readonly = true;
 	mutex_unlock(&indio_dev->mlock);
 
 	return 0;
@@ -402,6 +405,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 					 size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_trigger *oldtrig = indio_dev->trig;
 	struct iio_trigger *trig;
 	int ret;
@@ -411,7 +415,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
-	if (indio_dev->trig_readonly) {
+	if (iio_dev_opaque->trig_readonly) {
 		mutex_unlock(&indio_dev->mlock);
 		return -EPERM;
 	}
