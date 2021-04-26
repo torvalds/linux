@@ -995,9 +995,9 @@
 			compatible = "allwinner,sun8i-a23-rsb";
 			reg = <0x07083000 0x400>;
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&r_ccu 13>;
+			clocks = <&r_ccu CLK_R_APB2_RSB>;
 			clock-frequency = <3000000>;
-			resets = <&r_ccu 7>;
+			resets = <&r_ccu RST_R_APB2_RSB>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&r_rsb_pins>;
 			status = "disabled";

@@ -414,6 +414,44 @@ static struct snd_soc_cdai_ops sof_probe_compr_ops = {
 #endif
 #endif
 
+static int ssp_dai_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	struct sof_ipc_dai_config *config;
+	struct snd_sof_dai *sof_dai;
+	struct sof_ipc_reply reply;
+	int ret;
+
+	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
+		if (!sof_dai->cpu_dai_name || !sof_dai->dai_config)
+			continue;
+
+		if (!strcmp(dai->name, sof_dai->cpu_dai_name) &&
+		    substream->stream == sof_dai->comp_dai.direction) {
+			config = &sof_dai->dai_config[sof_dai->current_config];
+
+			/* send IPC */
+			ret = sof_ipc_tx_message(sdev->ipc, config->hdr.cmd, config,
+						 config->hdr.size, &reply, sizeof(reply));
+
+			if (ret < 0)
+				dev_err(sdev->dev, "error: failed to set DAI config for %s\n",
+					sof_dai->name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static const struct snd_soc_dai_ops ssp_dai_ops = {
+	.hw_params = ssp_dai_hw_params,
+};
+
 /*
  * common dai driver for skl+ platforms.
  * some products who use this DAI array only physically have a subset of
@@ -422,6 +460,7 @@ static struct snd_soc_cdai_ops sof_probe_compr_ops = {
 struct snd_soc_dai_driver skl_dai[] = {
 {
 	.name = "SSP0 Pin",
+	.ops = &ssp_dai_ops,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,
@@ -433,6 +472,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 {
 	.name = "SSP1 Pin",
+	.ops = &ssp_dai_ops,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,
@@ -444,6 +484,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 {
 	.name = "SSP2 Pin",
+	.ops = &ssp_dai_ops,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,
@@ -455,6 +496,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 {
 	.name = "SSP3 Pin",
+	.ops = &ssp_dai_ops,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,
@@ -466,6 +508,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 {
 	.name = "SSP4 Pin",
+	.ops = &ssp_dai_ops,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,
@@ -477,6 +520,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 {
 	.name = "SSP5 Pin",
+	.ops = &ssp_dai_ops,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 8,

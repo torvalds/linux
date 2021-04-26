@@ -79,7 +79,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &max98390_spk_codecs,
 		.sof_fw_filename = "sof-cml.ri",
-		.sof_tplg_filename = "sof-cml-da7219-max98357a.tplg",
+		.sof_tplg_filename = "sof-cml-da7219-max98390.tplg",
 	},
 	{},
 };

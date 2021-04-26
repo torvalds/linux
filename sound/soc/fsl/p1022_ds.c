@@ -200,7 +200,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	struct device_node *codec_np = NULL;
 	struct machine_data *mdata;
 	struct snd_soc_dai_link_component *comp;
-	int ret = -ENODEV;
+	int ret;
 	const char *sprop;
 	const u32 *iprop;
 

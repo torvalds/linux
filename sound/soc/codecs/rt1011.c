@@ -1089,25 +1089,21 @@ static int rt1011_recv_spk_mode_put(struct snd_kcontrol *kcontrol,
 
 static bool rt1011_validate_bq_drc_coeff(unsigned short reg)
 {
-	if ((reg == RT1011_DAC_SET_1) |
-		(reg >= RT1011_ADC_SET && reg <= RT1011_ADC_SET_1) |
-		(reg == RT1011_ADC_SET_4) | (reg == RT1011_ADC_SET_5) |
-		(reg == RT1011_MIXER_1) |
-		(reg == RT1011_A_TIMING_1) | (reg >= RT1011_POWER_7 &&
-		reg <= RT1011_POWER_8) |
-		(reg == RT1011_CLASS_D_POS) | (reg == RT1011_ANALOG_CTRL) |
-		(reg >= RT1011_SPK_TEMP_PROTECT_0 &&
-		reg <= RT1011_SPK_TEMP_PROTECT_6) |
-		(reg >= RT1011_SPK_PRO_DC_DET_5 && reg <= RT1011_BAT_GAIN_1) |
-		(reg >= RT1011_RT_DRC_CROSS && reg <= RT1011_RT_DRC_POS_8) |
-		(reg >= RT1011_CROSS_BQ_SET_1 && reg <= RT1011_BQ_10_A2_15_0) |
-		(reg >= RT1011_SMART_BOOST_TIMING_1 &&
-		reg <= RT1011_SMART_BOOST_TIMING_36) |
-		(reg == RT1011_SINE_GEN_REG_1) |
-		(reg >= RT1011_STP_ALPHA_RECIPROCAL_MSB &&
-		reg <= RT1011_BQ_6_PARAMS_CHECK_5) |
-		(reg >= RT1011_BQ_7_PARAMS_CHECK_1 &&
-		reg <= RT1011_BQ_10_PARAMS_CHECK_5))
+	if ((reg == RT1011_DAC_SET_1) ||
+		(reg >= RT1011_ADC_SET && reg <= RT1011_ADC_SET_1) ||
+		(reg == RT1011_ADC_SET_4) || (reg == RT1011_ADC_SET_5) ||
+		(reg == RT1011_MIXER_1) ||
+		(reg == RT1011_A_TIMING_1) ||
+		(reg >= RT1011_POWER_7 && reg <= RT1011_POWER_8) ||
+		(reg == RT1011_CLASS_D_POS) || (reg == RT1011_ANALOG_CTRL) ||
+		(reg >= RT1011_SPK_TEMP_PROTECT_0 && reg <= RT1011_SPK_TEMP_PROTECT_6) ||
+		(reg >= RT1011_SPK_PRO_DC_DET_5 && reg <= RT1011_BAT_GAIN_1) ||
+		(reg >= RT1011_RT_DRC_CROSS && reg <= RT1011_RT_DRC_POS_8) ||
+		(reg >= RT1011_CROSS_BQ_SET_1 && reg <= RT1011_BQ_10_A2_15_0) ||
+		(reg >= RT1011_SMART_BOOST_TIMING_1 && reg <= RT1011_SMART_BOOST_TIMING_36) ||
+		(reg == RT1011_SINE_GEN_REG_1) ||
+		(reg >= RT1011_STP_ALPHA_RECIPROCAL_MSB && reg <= RT1011_BQ_6_PARAMS_CHECK_5) ||
+		(reg >= RT1011_BQ_7_PARAMS_CHECK_1 && reg <= RT1011_BQ_10_PARAMS_CHECK_5))
 		return true;
 
 	return false;
@@ -1782,8 +1778,9 @@ static int rt1011_set_component_pll(struct snd_soc_component *component,
 		pll_code.n_code, pll_code.k_code);
 
 	snd_soc_component_write(component, RT1011_PLL_1,
-		(pll_code.m_bp ? 0 : pll_code.m_code) << RT1011_PLL1_QM_SFT |
-		pll_code.m_bp << RT1011_PLL1_BPM_SFT | pll_code.n_code);
+		((pll_code.m_bp ? 0 : pll_code.m_code) << RT1011_PLL1_QM_SFT) |
+		(pll_code.m_bp << RT1011_PLL1_BPM_SFT) |
+		pll_code.n_code);
 	snd_soc_component_write(component, RT1011_PLL_2,
 		pll_code.k_code);
 
@@ -1991,10 +1988,10 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 		RT1011_TDM_I2S_DOCK_EN_1_MASK, tdm_en);
 	snd_soc_component_update_bits(component, RT1011_TDM2_SET_2,
 		RT1011_TDM_I2S_DOCK_EN_2_MASK, tdm_en);
-	if (tx_slotnum)
-		snd_soc_component_update_bits(component, RT1011_TDM_TOTAL_SET,
-			RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
-			RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
+
+	snd_soc_component_update_bits(component, RT1011_TDM_TOTAL_SET,
+		RT1011_ADCDAT1_PIN_CONFIG | RT1011_ADCDAT2_PIN_CONFIG,
+		RT1011_ADCDAT1_OUTPUT | RT1011_ADCDAT2_OUTPUT);
 
 _set_tdm_err_:
 	snd_soc_dapm_mutex_unlock(dapm);
@@ -2151,7 +2148,7 @@ MODULE_DEVICE_TABLE(of, rt1011_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt1011_acpi_match[] = {
+static const struct acpi_device_id rt1011_acpi_match[] = {
 	{"10EC1011", 0,},
 	{},
 };
@@ -2239,18 +2236,9 @@ static int rt1011_calibrate(struct rt1011_priv *rt1011, unsigned char cali_flag)
 	dc_offset |= (value & 0xffff);
 	dev_info(dev, "Gain1 offset=0x%x\n", dc_offset);
 
-	/* check the package info. */
-	regmap_read(rt1011->regmap, RT1011_EFUSE_MATCH_DONE, &value);
-	if (value & 0x4)
-		rt1011->pack_id = 1;
-
 	if (cali_flag) {
 
-		if (rt1011->pack_id)
-			regmap_write(rt1011->regmap, RT1011_ADC_SET_1, 0x292c);
-		else
-			regmap_write(rt1011->regmap, RT1011_ADC_SET_1, 0x2925);
-
+		regmap_write(rt1011->regmap, RT1011_ADC_SET_1, 0x2925);
 		/* Class D on */
 		regmap_write(rt1011->regmap, RT1011_CLASS_D_POS, 0x010e);
 		regmap_write(rt1011->regmap,
@@ -2376,10 +2364,7 @@ static void rt1011_calibration_work(struct work_struct *work)
 		rt1011_r0_load(rt1011);
 	}
 
-	if (rt1011->pack_id)
-		snd_soc_component_write(component, RT1011_ADC_SET_1, 0x292c);
-	else
-		snd_soc_component_write(component, RT1011_ADC_SET_1, 0x2925);
+	snd_soc_component_write(component, RT1011_ADC_SET_1, 0x2925);
 }
 
 static int rt1011_parse_dp(struct rt1011_priv *rt1011, struct device *dev)
