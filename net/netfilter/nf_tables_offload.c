@@ -7,8 +7,6 @@
 #include <net/netfilter/nf_tables_offload.h>
 #include <net/pkt_cls.h>
 
-extern unsigned int nf_tables_net_id;
-
 static struct nft_flow_rule *nft_flow_rule_alloc(int num_actions)
 {
 	struct nft_flow_rule *flow;
@@ -389,7 +387,7 @@ static void nft_indr_block_cleanup(struct flow_block_cb *block_cb)
 
 	nft_flow_block_offload_init(&bo, dev_net(dev), FLOW_BLOCK_UNBIND,
 				    basechain, &extack);
-	nft_net = net_generic(net, nf_tables_net_id);
+	nft_net = nft_pernet(net);
 	mutex_lock(&nft_net->commit_mutex);
 	list_del(&block_cb->driver_list);
 	list_move(&block_cb->list, &bo.cb_list);
@@ -490,7 +488,7 @@ static int nft_flow_offload_chain(struct nft_chain *chain, u8 *ppolicy,
 static void nft_flow_rule_offload_abort(struct net *net,
 					struct nft_trans *trans)
 {
-	struct nftables_pernet *nft_net = net_generic(net, nf_tables_net_id);
+	struct nftables_pernet *nft_net = nft_pernet(net);
 	int err = 0;
 
 	list_for_each_entry_continue_reverse(trans, &nft_net->commit_list, list) {
@@ -539,7 +537,7 @@ static void nft_flow_rule_offload_abort(struct net *net,
 
 int nft_flow_rule_offload_commit(struct net *net)
 {
-	struct nftables_pernet *nft_net = net_generic(net, nf_tables_net_id);
+	struct nftables_pernet *nft_net = nft_pernet(net);
 	struct nft_trans *trans;
 	int err = 0;
 	u8 policy;
@@ -663,7 +661,7 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 
-	nft_net = net_generic(net, nf_tables_net_id);
+	nft_net = nft_pernet(net);
 	mutex_lock(&nft_net->commit_mutex);
 	chain = __nft_offload_get_chain(nft_net, dev);
 	if (chain)

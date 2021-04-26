@@ -252,6 +252,12 @@ replay:
 		struct nlattr *attr = (void *)nlh + min_len;
 		int attrlen = nlh->nlmsg_len - min_len;
 		__u8 subsys_id = NFNL_SUBSYS_ID(type);
+		struct nfnl_info info = {
+			.net	= net,
+			.sk	= nfnlnet->nfnl,
+			.nlh	= nlh,
+			.extack	= extack,
+		};
 
 		/* Sanity-check NFNL_MAX_ATTR_COUNT */
 		if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
@@ -267,24 +273,30 @@ replay:
 			return err;
 		}
 
-		if (nc->call_rcu) {
-			err = nc->call_rcu(net, nfnlnet->nfnl, skb, nlh,
-					   (const struct nlattr **)cda,
-					   extack);
+		if (!nc->call) {
 			rcu_read_unlock();
-		} else {
+			return -EINVAL;
+		}
+
+		switch (nc->type) {
+		case NFNL_CB_RCU:
+			err = nc->call(skb, &info, (const struct nlattr **)cda);
+			rcu_read_unlock();
+			break;
+		case NFNL_CB_MUTEX:
 			rcu_read_unlock();
 			nfnl_lock(subsys_id);
 			if (nfnl_dereference_protected(subsys_id) != ss ||
-			    nfnetlink_find_client(type, ss) != nc)
+			    nfnetlink_find_client(type, ss) != nc) {
 				err = -EAGAIN;
-			else if (nc->call)
-				err = nc->call(net, nfnlnet->nfnl, skb, nlh,
-					       (const struct nlattr **)cda,
-					       extack);
-			else
-				err = -EINVAL;
+				break;
+			}
+			err = nc->call(skb, &info, (const struct nlattr **)cda);
 			nfnl_unlock(subsys_id);
+			break;
+		default:
+			err = -EINVAL;
+			break;
 		}
 		if (err == -EAGAIN)
 			goto replay;
@@ -462,12 +474,24 @@ replay_abort:
 			goto ack;
 		}
 
+		if (nc->type != NFNL_CB_BATCH) {
+			err = -EINVAL;
+			goto ack;
+		}
+
 		{
 			int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
-			u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+			struct nfnl_net *nfnlnet = nfnl_pernet(net);
 			struct nlattr *cda[NFNL_MAX_ATTR_COUNT + 1];
 			struct nlattr *attr = (void *)nlh + min_len;
+			u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 			int attrlen = nlh->nlmsg_len - min_len;
+			struct nfnl_info info = {
+				.net	= net,
+				.sk	= nfnlnet->nfnl,
+				.nlh	= nlh,
+				.extack	= &extack,
+			};
 
 			/* Sanity-check NFTA_MAX_ATTR */
 			if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
@@ -482,13 +506,7 @@ replay_abort:
 			if (err < 0)
 				goto ack;
 
-			if (nc->call_batch) {
-				struct nfnl_net *nfnlnet = nfnl_pernet(net);
-
-				err = nc->call_batch(net, nfnlnet->nfnl, skb, nlh,
-						     (const struct nlattr **)cda,
-						     &extack);
-			}
+			err = nc->call(skb, &info, (const struct nlattr **)cda);
 
 			/* The lock was released to autoload some module, we
 			 * have to abort and start from scratch using the

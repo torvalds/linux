@@ -7,21 +7,26 @@
 #include <net/netlink.h>
 #include <uapi/linux/netfilter/nfnetlink.h>
 
+struct nfnl_info {
+	struct net		*net;
+	struct sock		*sk;
+	const struct nlmsghdr	*nlh;
+	struct netlink_ext_ack	*extack;
+};
+
+enum nfnl_callback_type {
+	NFNL_CB_UNSPEC	= 0,
+	NFNL_CB_MUTEX,
+	NFNL_CB_RCU,
+	NFNL_CB_BATCH,
+};
+
 struct nfnl_callback {
-	int (*call)(struct net *net, struct sock *nl, struct sk_buff *skb,
-		    const struct nlmsghdr *nlh,
-		    const struct nlattr * const cda[],
-		    struct netlink_ext_ack *extack);
-	int (*call_rcu)(struct net *net, struct sock *nl, struct sk_buff *skb,
-			const struct nlmsghdr *nlh,
-			const struct nlattr * const cda[],
-			struct netlink_ext_ack *extack);
-	int (*call_batch)(struct net *net, struct sock *nl, struct sk_buff *skb,
-			  const struct nlmsghdr *nlh,
-			  const struct nlattr * const cda[],
-			  struct netlink_ext_ack *extack);
-	const struct nla_policy *policy;	/* netlink attribute policy */
-	const u_int16_t attr_count;		/* number of nlattr's */
+	int (*call)(struct sk_buff *skb, const struct nfnl_info *info,
+		    const struct nlattr * const cda[]);
+	const struct nla_policy	*policy;
+	enum nfnl_callback_type	type;
+	__u16			attr_count;
 };
 
 enum nfnl_abort_action {

@@ -613,17 +613,15 @@ nla_put_failure:
 	return -1;
 }
 
-static int nfnl_compat_get_rcu(struct net *net, struct sock *nfnl,
-			       struct sk_buff *skb, const struct nlmsghdr *nlh,
-			       const struct nlattr * const tb[],
-			       struct netlink_ext_ack *extack)
+static int nfnl_compat_get_rcu(struct sk_buff *skb,
+			       const struct nfnl_info *info,
+			       const struct nlattr * const tb[])
 {
-	int ret = 0, target;
 	struct nfgenmsg *nfmsg;
-	const char *fmt;
-	const char *name;
-	u32 rev;
+	const char *name, *fmt;
 	struct sk_buff *skb2;
+	int ret = 0, target;
+	u32 rev;
 
 	if (tb[NFTA_COMPAT_NAME] == NULL ||
 	    tb[NFTA_COMPAT_REV] == NULL ||
@@ -634,7 +632,7 @@ static int nfnl_compat_get_rcu(struct net *net, struct sock *nfnl,
 	rev = ntohl(nla_get_be32(tb[NFTA_COMPAT_REV]));
 	target = ntohl(nla_get_be32(tb[NFTA_COMPAT_TYPE]));
 
-	nfmsg = nlmsg_data(nlh);
+	nfmsg = nlmsg_data(info->nlh);
 
 	switch(nfmsg->nfgen_family) {
 	case AF_INET:
@@ -673,8 +671,8 @@ static int nfnl_compat_get_rcu(struct net *net, struct sock *nfnl,
 
 	/* include the best revision for this extension in the message */
 	if (nfnl_compat_fill_info(skb2, NETLINK_CB(skb).portid,
-				  nlh->nlmsg_seq,
-				  NFNL_MSG_TYPE(nlh->nlmsg_type),
+				  info->nlh->nlmsg_seq,
+				  NFNL_MSG_TYPE(info->nlh->nlmsg_type),
 				  NFNL_MSG_COMPAT_GET,
 				  nfmsg->nfgen_family,
 				  name, ret, target) <= 0) {
@@ -682,8 +680,8 @@ static int nfnl_compat_get_rcu(struct net *net, struct sock *nfnl,
 		goto out_put;
 	}
 
-	ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).portid,
-				MSG_DONTWAIT);
+	ret = netlink_unicast(info->sk, skb2, NETLINK_CB(skb).portid,
+			      MSG_DONTWAIT);
 	if (ret > 0)
 		ret = 0;
 out_put:
@@ -700,9 +698,12 @@ static const struct nla_policy nfnl_compat_policy_get[NFTA_COMPAT_MAX+1] = {
 };
 
 static const struct nfnl_callback nfnl_nft_compat_cb[NFNL_MSG_COMPAT_MAX] = {
-	[NFNL_MSG_COMPAT_GET]		= { .call_rcu = nfnl_compat_get_rcu,
-					    .attr_count = NFTA_COMPAT_MAX,
-					    .policy = nfnl_compat_policy_get },
+	[NFNL_MSG_COMPAT_GET]	= {
+		.call		= nfnl_compat_get_rcu,
+		.type		= NFNL_CB_RCU,
+		.attr_count	= NFTA_COMPAT_MAX,
+		.policy		= nfnl_compat_policy_get
+	},
 };
 
 static const struct nfnetlink_subsystem nfnl_compat_subsys = {
