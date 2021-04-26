@@ -850,6 +850,7 @@ struct dwc3_trb {
  * @hwparams6: GHWPARAMS6
  * @hwparams7: GHWPARAMS7
  * @hwparams8: GHWPARAMS8
+ * @hwparams9: GHWPARAMS9
  */
 struct dwc3_hwparams {
 	u32	hwparams0;
