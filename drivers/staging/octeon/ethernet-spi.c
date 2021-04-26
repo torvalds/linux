@@ -202,7 +202,7 @@ int cvm_oct_spi_init(struct net_device *dev)
 	}
 	number_spi_ports++;
 
-	if ((priv->port == 0) || (priv->port == 16)) {
+	if (priv->port == 0 || priv->port == 16) {
 		cvm_oct_spi_enable_error_reporting(INTERFACE(priv->port));
 		priv->poll = cvm_oct_spi_poll;
 	}

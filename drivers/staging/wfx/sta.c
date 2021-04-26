@@ -199,7 +199,7 @@ int wfx_update_pm(struct wfx_vif *wvif)
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params)
+		u16 queue, const struct ieee80211_tx_queue_params *params)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;

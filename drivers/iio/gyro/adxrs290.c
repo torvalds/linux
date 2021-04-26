@@ -593,7 +593,6 @@ static int adxrs290_probe_trigger(struct iio_dev *indio_dev)
 	if (!st->dready_trig)
 		return -ENOMEM;
 
-	st->dready_trig->dev.parent = &st->spi->dev;
 	st->dready_trig->ops = &adxrs290_trigger_ops;
 	iio_trigger_set_drvdata(st->dready_trig, indio_dev);
 

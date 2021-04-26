@@ -1318,8 +1318,8 @@ static int fwtty_break_ctl(struct tty_struct *tty, int state)
 	if (state == -1) {
 		set_bit(STOP_TX, &port->flags);
 		ret = wait_event_interruptible_timeout(port->wait_tx,
-					       !test_bit(IN_TX, &port->flags),
-					       10);
+						       !test_bit(IN_TX, &port->flags),
+						       10);
 		if (ret == 0 || ret == -ERESTARTSYS) {
 			clear_bit(STOP_TX, &port->flags);
 			fwtty_restart_tx(port);
@@ -2632,7 +2632,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 
 	rcode = RCODE_COMPLETE;
 
-	fwtty_dbg(&peer->unit, "mgmt: hdr.code: %04hx\n", pkt->hdr.code);
+	fwtty_dbg(&peer->unit, "mgmt: hdr.code: %04x\n", pkt->hdr.code);
 
 	switch (be16_to_cpu(pkt->hdr.code) & FWSC_CODE_MASK) {
 	case FWSC_VIRT_CABLE_PLUG:

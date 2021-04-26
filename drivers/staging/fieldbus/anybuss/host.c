@@ -1406,32 +1406,26 @@ void anybuss_host_common_remove(struct anybuss_host *host)
 }
 EXPORT_SYMBOL_GPL(anybuss_host_common_remove);
 
-static void host_release(struct device *dev, void *res)
+static void host_release(void *res)
 {
-	struct anybuss_host **dr = res;
-
-	anybuss_host_common_remove(*dr);
+	anybuss_host_common_remove(res);
 }
 
 struct anybuss_host * __must_check
 devm_anybuss_host_common_probe(struct device *dev,
 			       const struct anybuss_ops *ops)
 {
-	struct anybuss_host **dr;
 	struct anybuss_host *host;
-
-	dr = devres_alloc(host_release, sizeof(struct anybuss_host *),
-			  GFP_KERNEL);
-	if (!dr)
-		return ERR_PTR(-ENOMEM);
+	int ret;
 
 	host = anybuss_host_common_probe(dev, ops);
-	if (IS_ERR(host)) {
-		devres_free(dr);
+	if (IS_ERR(host))
 		return host;
-	}
-	*dr = host;
-	devres_add(dev, dr);
+
+	ret = devm_add_action_or_reset(dev, host_release, host);
+	if (ret)
+		return ERR_PTR(ret);
+
 	return host;
 }
 EXPORT_SYMBOL_GPL(devm_anybuss_host_common_probe);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (C) 2017 Axis Communications AB
  *
  * Driver for Texas Instruments' ADC084S021 ADC chip.
@@ -65,7 +65,7 @@ static const struct iio_chan_spec adc084s021_channels[] = {
 };
 
 /**
- * Read an ADC channel and return its value.
+ * adc084s021_adc_conversion() - Read an ADC channel and return its value.
  *
  * @adc: The ADC SPI data.
  * @data: Buffer for converted data.
@@ -136,7 +136,7 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 }
 
 /**
- * Read enabled ADC channels and push data to the buffer.
+ * adc084s021_buffer_trigger_handler() - Read ADC channels and push to buffer.
  *
  * @irq: The interrupt number (not used).
  * @pollfunc: Pointer to the poll func.

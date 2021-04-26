@@ -614,14 +614,11 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 static struct device_node *cvm_oct_of_get_child
 				(const struct device_node *parent, int reg_val)
 {
-	struct device_node *node = NULL;
-	int size;
+	struct device_node *node;
 	const __be32 *addr;
+	int size;
 
-	for (;;) {
-		node = of_get_next_child(parent, node);
-		if (!node)
-			break;
+	for_each_child_of_node(parent, node) {
 		addr = of_get_property(node, "reg", &size);
 		if (addr && (be32_to_cpu(*addr) == reg_val))
 			break;

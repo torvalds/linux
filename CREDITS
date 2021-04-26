@@ -2536,6 +2536,14 @@ D: Linux/PARISC hacker
 D: AD1889 sound driver
 S: Ottawa, Canada
 
+N: Peter Meerwald-Stadler
+E: pmeerw@pmeerw.net
+W: https://pmeerw.net
+D: IIO reviewing, drivers
+S: Schießstandstr. 3a
+S: A-5061 Elsbethen
+S: Austria
+
 N: Dirk Melchers
 E: dirk@merlin.nbg.sub.org
 D: 8 bit XT hard disk driver for OMTI5520

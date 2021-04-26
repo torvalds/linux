@@ -26,7 +26,7 @@ struct ht_priv {
 	unsigned int	rx_ampdu_maxlen; /* for rx reordering ctrl win_sz,
 					  * updated when join_callback.
 					  */
-	struct rtl_ieee80211_ht_cap ht_cap;
+	struct ieee80211_ht_cap ht_cap;
 };
 
 #endif	/*_RTL871X_HT_H_ */

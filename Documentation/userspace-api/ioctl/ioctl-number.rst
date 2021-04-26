@@ -245,6 +245,7 @@ Code  Seq#    Include File                                           Comments
 'i'   00-3F  linux/i2o-dev.h                                         conflict!
 'i'   0B-1F  linux/ipmi.h                                            conflict!
 'i'   80-8F  linux/i8k.h
+'i'   90-9F  `linux/iio/*.h`                                         IIO
 'j'   00-3F  linux/joystick.h
 'k'   00-0F  linux/spi/spidev.h                                      conflict!
 'k'   00-05  video/kyro.h                                            conflict!

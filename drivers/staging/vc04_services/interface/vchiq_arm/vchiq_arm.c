@@ -2332,8 +2332,10 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 	int *entity_uc;
 	int local_uc;
 
-	if (!arm_state)
+	if (!arm_state) {
+		ret = VCHIQ_ERROR;
 		goto out;
+	}
 
 	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
 
@@ -2389,8 +2391,10 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 	char entity[16];
 	int *entity_uc;
 
-	if (!arm_state)
+	if (!arm_state) {
+		ret = VCHIQ_ERROR;
 		goto out;
+	}
 
 	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
 

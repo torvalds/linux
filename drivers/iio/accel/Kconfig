@@ -157,6 +157,24 @@ config BMC150_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
+config BMI088_ACCEL
+	tristate "Bosch BMI088 Accelerometer Driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select BMI088_ACCEL_SPI
+	help
+	  Say yes here to build support for the Bosch BMI088 accelerometer.
+
+	  This is a combo module with both accelerometer and gyroscope. This
+	  driver only implements the accelerometer part, which has its own
+	  address and register map. BMG160 provides the gyroscope driver.
+
+config BMI088_ACCEL_SPI
+	tristate
+	select REGMAP_SPI
+
 config DA280
 	tristate "MiraMEMS DA280 3-axis 14-bit digital accelerometer driver"
 	depends on I2C

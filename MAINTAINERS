@@ -300,7 +300,6 @@ M:	Syed Nayyar Waris <syednwaris@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-counter-104-quad-8
-F:	Documentation/ABI/testing/sysfs-bus-iio-counter-104-quad-8
 F:	drivers/counter/104-quad-8.c
 
 ACCES PCI-IDIO-16 GPIO DRIVER
@@ -1153,7 +1152,7 @@ W:	http://ez.analog.com/community/linux-device-drivers
 F:	Documentation/ABI/testing/sysfs-bus-iio-frequency-ad9523
 F:	Documentation/ABI/testing/sysfs-bus-iio-frequency-adf4350
 F:	Documentation/devicetree/bindings/iio/*/adi,*
-F:	Documentation/devicetree/bindings/iio/dac/ad5758.txt
+F:	Documentation/devicetree/bindings/iio/dac/adi,ad5758.yaml
 F:	drivers/iio/*/ad*
 F:	drivers/iio/adc/ltc249*
 F:	drivers/iio/amplifiers/hmc425a.c
@@ -4441,6 +4440,12 @@ S:	Supported
 F:	Documentation/process/code-of-conduct-interpretation.rst
 F:	Documentation/process/code-of-conduct.rst
 
+COMEDI DRIVERS
+M:	Ian Abbott <abbotti@mev.co.uk>
+M:	H Hartley Sweeten <hsweeten@visionengravers.com>
+S:	Odd Fixes
+F:	drivers/comedi/
+
 COMMON CLK FRAMEWORK
 M:	Michael Turquette <mturquette@baylibre.com>
 M:	Stephen Boyd <sboyd@kernel.org>
@@ -7418,14 +7423,6 @@ F:	Documentation/hwmon/gsc-hwmon.rst
 F:	drivers/hwmon/gsc-hwmon.c
 F:	include/linux/platform_data/gsc_hwmon.h
 
-GASKET DRIVER FRAMEWORK
-M:	Rob Springer <rspringer@google.com>
-M:	Todd Poynor <toddpoynor@google.com>
-M:	Ben Chan <benchan@chromium.org>
-M:	Richard Yeh <rcy@google.com>
-S:	Maintained
-F:	drivers/staging/gasket/
-
 GCC PLUGINS
 M:	Kees Cook <keescook@chromium.org>
 L:	linux-hardening@vger.kernel.org
@@ -8253,7 +8250,7 @@ M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 W:	http://www.st.com/
-F:	Documentation/devicetree/bindings/iio/humidity/hts221.txt
+F:	Documentation/devicetree/bindings/iio/humidity/st,hts221.yaml
 F:	drivers/iio/humidity/hts221*
 
 HUAWEI ETHERNET DRIVER
@@ -8719,7 +8716,7 @@ M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-iio-dac-dpot-dac
-F:	Documentation/devicetree/bindings/iio/dac/dpot-dac.txt
+F:	Documentation/devicetree/bindings/iio/dac/dpot-dac.yaml
 F:	drivers/iio/dac/dpot-dac.c
 
 IIO ENVELOPE DETECTOR
@@ -8727,7 +8724,7 @@ M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-iio-adc-envelope-detector
-F:	Documentation/devicetree/bindings/iio/adc/envelope-detector.txt
+F:	Documentation/devicetree/bindings/iio/adc/envelope-detector.yaml
 F:	drivers/iio/adc/envelope-detector.c
 
 IIO MULTIPLEXER
@@ -8737,10 +8734,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/multiplexer/io-channel-mux.txt
 F:	drivers/iio/multiplexer/iio-mux.c
 
+IIO SCMI BASED DRIVER
+M:	Jyoti Bhayana <jbhayana@google.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/common/scmi_sensors/scmi_iio.c
+
 IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@kernel.org>
 R:	Lars-Peter Clausen <lars@metafoo.de>
-R:	Peter Meerwald-Stadler <pmeerw@pmeerw.net>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jic23/iio.git
@@ -8756,9 +8758,9 @@ IIO UNIT CONVERTER
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/iio/afe/current-sense-amplifier.txt
-F:	Documentation/devicetree/bindings/iio/afe/current-sense-shunt.txt
-F:	Documentation/devicetree/bindings/iio/afe/voltage-divider.txt
+F:	Documentation/devicetree/bindings/iio/afe/current-sense-amplifier.yaml
+F:	Documentation/devicetree/bindings/iio/afe/current-sense-shunt.yaml
+F:	Documentation/devicetree/bindings/iio/afe/voltage-divider.yaml
 F:	drivers/iio/afe/iio-rescale.c
 
 IKANOS/ADI EAGLE ADSL USB DRIVER
@@ -9337,6 +9339,13 @@ F:	drivers/interconnect/
 F:	include/dt-bindings/interconnect/
 F:	include/linux/interconnect-provider.h
 F:	include/linux/interconnect.h
+
+INTERRUPT COUNTER DRIVER
+M:	Oleksij Rempel <o.rempel@pengutronix.de>
+R:	Pengutronix Kernel Team <kernel@pengutronix.de>
+L:	linux-iio@vger.kernel.org
+F:	Documentation/devicetree/bindings/counter/interrupt-counter.yaml
+F:	drivers/counter/interrupt-cnt.c
 
 INVENSENSE ICM-426xx IMU DRIVER
 M:	Jean-Baptiste Maneyrol <jmaneyrol@invensense.com>
@@ -11852,7 +11861,7 @@ MICROCHIP SAMA5D2-COMPATIBLE ADC DRIVER
 M:	Eugen Hristev <eugen.hristev@microchip.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/iio/adc/at91-sama5d2_adc.txt
+F:	Documentation/devicetree/bindings/iio/adc/atmel,sama5d2-adc.yaml
 F:	drivers/iio/adc/at91-sama5d2_adc.c
 F:	include/dt-bindings/iio/adc/at91-sama5d2_adc.h
 
@@ -14349,7 +14358,7 @@ PNI RM3100 IIO DRIVER
 M:	Song Qiang <songqiang1304521@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/iio/magnetometer/pni,rm3100.txt
+F:	Documentation/devicetree/bindings/iio/magnetometer/pni,rm3100.yaml
 F:	drivers/iio/magnetometer/rm3100*
 
 PNP SUPPORT
@@ -15331,7 +15340,7 @@ RENESAS R-CAR GYROADC DRIVER
 M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/iio/adc/renesas,gyroadc.txt
+F:	Documentation/devicetree/bindings/iio/adc/renesas,rcar-gyroadc.yaml
 F:	drivers/iio/adc/rcar-gyroadc.c
 
 RENESAS R-CAR I2C DRIVERS
@@ -17009,7 +17018,7 @@ M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 W:	http://www.st.com/
-F:	Documentation/devicetree/bindings/iio/imu/st_lsm6dsx.txt
+F:	Documentation/devicetree/bindings/iio/imu/st,lsm6dsx.yaml
 F:	drivers/iio/imu/st_lsm6dsx/
 
 ST MIPID02 CSI-2 TO PARALLEL BRIDGE DRIVER
@@ -17031,7 +17040,7 @@ ST VL53L0X ToF RANGER(I2C) IIO DRIVER
 M:	Song Qiang <songqiang1304521@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/iio/proximity/vl53l0x.txt
+F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml
 F:	drivers/iio/proximity/vl53l0x-i2c.c
 
 STABLE BRANCH
@@ -17047,12 +17056,6 @@ R:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/media/atomisp/
-
-STAGING - COMEDI
-M:	Ian Abbott <abbotti@mev.co.uk>
-M:	H Hartley Sweeten <hsweeten@visionengravers.com>
-S:	Odd Fixes
-F:	drivers/staging/comedi/
 
 STAGING - FIELDBUS SUBSYSTEM
 M:	Sven Van Asbroeck <TheSven73@gmail.com>
@@ -17767,7 +17770,7 @@ TEXAS INSTRUMENTS' DAC7612 DAC DRIVER
 M:	Ricardo Ribalda <ribalda@kernel.org>
 L:	linux-iio@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/iio/dac/ti,dac7612.txt
+F:	Documentation/devicetree/bindings/iio/dac/ti,dac7612.yaml
 F:	drivers/iio/dac/ti-dac7612.c
 
 TEXAS INSTRUMENTS DMA DRIVERS
@@ -17908,6 +17911,13 @@ THUNDERX GPIO DRIVER
 M:	Robert Richter <rric@kernel.org>
 S:	Odd Fixes
 F:	drivers/gpio/gpio-thunderx.c
+
+TI ADS131E0X ADC SERIES DRIVER
+M:	Tomislav Denis <tomislav.denis@avl.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/adc/ti,ads131e08.yaml
+F:	drivers/iio/adc/ti-ads131e08.c
 
 TI AM437X VPFE DRIVER
 M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
