@@ -209,7 +209,7 @@
 	 *
 	 * Lets build a 5 entry IRET frame after that, such that struct pt_regs
 	 * is complete and in particular regs->sp is correct. This gives us
-	 * the original 6 enties as gap:
+	 * the original 6 entries as gap:
 	 *
 	 * 14*4(%esp) - <previous context>
 	 * 13*4(%esp) - gap / flags

@@ -104,7 +104,7 @@ static unsigned int __head *fixup_int(void *ptr, unsigned long physaddr)
 static bool __head check_la57_support(unsigned long physaddr)
 {
 	/*
-	 * 5-level paging is detected and enabled at kernel decomression
+	 * 5-level paging is detected and enabled at kernel decompression
 	 * stage. Only check if it has been enabled there.
 	 */
 	if (!(native_read_cr4() & X86_CR4_LA57))

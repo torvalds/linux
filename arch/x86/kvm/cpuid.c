@@ -1033,7 +1033,7 @@ EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
  *  - Centaur:    0xc0000000 - 0xcfffffff
  *
  * The Hypervisor class is further subdivided into sub-classes that each act as
- * their own indepdent class associated with a 0x100 byte range.  E.g. if Qemu
+ * their own independent class associated with a 0x100 byte range.  E.g. if Qemu
  * is advertising support for both HyperV and KVM, the resulting Hypervisor
  * CPUID sub-classes are:
  *

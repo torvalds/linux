@@ -889,7 +889,7 @@ static inline int uv_nmi_kdb_reason(void)
  * Call KGDB/KDB from NMI handler
  *
  * Note that if both KGDB and KDB are configured, then the action of 'kgdb' or
- * 'kdb' has no affect on which is used.  See the KGDB documention for further
+ * 'kdb' has no affect on which is used.  See the KGDB documentation for further
  * information.
  */
 static void uv_call_kgdb_kdb(int cpu, struct pt_regs *regs, int master)

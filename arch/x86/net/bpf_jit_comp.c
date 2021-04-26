@@ -1556,7 +1556,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			if (is_imm8(jmp_offset)) {
 				if (jmp_padding) {
 					/* To keep the jmp_offset valid, the extra bytes are
-					 * padded before the jump insn, so we substract the
+					 * padded before the jump insn, so we subtract the
 					 * 2 bytes of jmp_cond insn from INSN_SZ_DIFF.
 					 *
 					 * If the previous pass already emits an imm8
@@ -1631,7 +1631,7 @@ emit_jmp:
 				if (jmp_padding) {
 					/* To avoid breaking jmp_offset, the extra bytes
 					 * are padded before the actual jmp insn, so
-					 * 2 bytes is substracted from INSN_SZ_DIFF.
+					 * 2 bytes is subtracted from INSN_SZ_DIFF.
 					 *
 					 * If the previous pass already emits an imm8
 					 * jmp, there is nothing to pad (0 byte).

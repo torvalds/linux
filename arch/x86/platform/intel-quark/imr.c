@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * imr.c -- Intel Isolated Memory Region driver
  *
  * Copyright(c) 2013 Intel Corporation.
@@ -551,7 +551,7 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 
 	/*
 	 * Setup an unlocked IMR around the physical extent of the kernel
-	 * from the beginning of the .text secton to the end of the
+	 * from the beginning of the .text section to the end of the
 	 * .rodata section as one physically contiguous block.
 	 *
 	 * We don't round up @size since it is already PAGE_SIZE aligned.

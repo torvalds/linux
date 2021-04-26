@@ -94,7 +94,7 @@
  *         Remove APM dependencies in arch/i386/kernel/process.c
  *         Remove APM dependencies in drivers/char/sysrq.c
  *         Reset time across standby.
- *         Allow more inititialisation on SMP.
+ *         Allow more initialisation on SMP.
  *         Remove CONFIG_APM_POWER_OFF and make it boot time
  *         configurable (default on).
  *         Make debug only a boot time parameter (remove APM_DEBUG).
@@ -766,7 +766,7 @@ static int apm_driver_version(u_short *val)
  *	not cleared until it is acknowledged.
  *
  *	Additional information is returned in the info pointer, providing
- *	that APM 1.2 is in use. If no messges are pending the value 0x80
+ *	that APM 1.2 is in use. If no messages are pending the value 0x80
  *	is returned (No power management events pending).
  */
 static int apm_get_event(apm_event_t *event, apm_eventinfo_t *info)
@@ -1025,7 +1025,7 @@ static int apm_enable_power_management(int enable)
  *	status which gives the rough battery status, and current power
  *	source. The bat value returned give an estimate as a percentage
  *	of life and a status value for the battery. The estimated life
- *	if reported is a lifetime in secodnds/minutes at current powwer
+ *	if reported is a lifetime in seconds/minutes at current power
  *	consumption.
  */
 

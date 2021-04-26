@@ -547,7 +547,7 @@ SYM_CODE_END(spurious_entries_start)
 /*
  * Dummy trap number so the low level ASM macro vector number checks do not
  * match which results in emitting plain IDTENTRY stubs without bells and
- * whistels.
+ * whistles.
  */
 #define X86_TRAP_OTHER		0xFFFF
 

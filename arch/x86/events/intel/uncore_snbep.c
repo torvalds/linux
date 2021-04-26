@@ -280,17 +280,17 @@
  * | [63]  |    00h    | VALID - When set, indicates the CPU bus
  *                       numbers have been initialized. (RO)
  * |[62:48]|    ---    | Reserved
- * |[47:40]|    00h    | BUS_NUM_5 — Return the bus number BIOS assigned
+ * |[47:40]|    00h    | BUS_NUM_5 - Return the bus number BIOS assigned
  *                       CPUBUSNO(5). (RO)
- * |[39:32]|    00h    | BUS_NUM_4 — Return the bus number BIOS assigned
+ * |[39:32]|    00h    | BUS_NUM_4 - Return the bus number BIOS assigned
  *                       CPUBUSNO(4). (RO)
- * |[31:24]|    00h    | BUS_NUM_3 — Return the bus number BIOS assigned
+ * |[31:24]|    00h    | BUS_NUM_3 - Return the bus number BIOS assigned
  *                       CPUBUSNO(3). (RO)
- * |[23:16]|    00h    | BUS_NUM_2 — Return the bus number BIOS assigned
+ * |[23:16]|    00h    | BUS_NUM_2 - Return the bus number BIOS assigned
  *                       CPUBUSNO(2). (RO)
- * |[15:8] |    00h    | BUS_NUM_1 — Return the bus number BIOS assigned
+ * |[15:8] |    00h    | BUS_NUM_1 - Return the bus number BIOS assigned
  *                       CPUBUSNO(1). (RO)
- * | [7:0] |    00h    | BUS_NUM_0 — Return the bus number BIOS assigned
+ * | [7:0] |    00h    | BUS_NUM_0 - Return the bus number BIOS assigned
  *                       CPUBUSNO(0). (RO)
  */
 #define SKX_MSR_CPU_BUS_NUMBER		0x300

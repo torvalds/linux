@@ -214,10 +214,10 @@ static const cpumask_t *sgx_encl_ewb_cpumask(struct sgx_encl *encl)
 
 /*
  * Swap page to the regular memory transformed to the blocked state by using
- * EBLOCK, which means that it can no loger be referenced (no new TLB entries).
+ * EBLOCK, which means that it can no longer be referenced (no new TLB entries).
  *
  * The first trial just tries to write the page assuming that some other thread
- * has reset the count for threads inside the enlave by using ETRACK, and
+ * has reset the count for threads inside the enclave by using ETRACK, and
  * previous thread count has been zeroed out. The second trial calls ETRACK
  * before EWB. If that fails we kick all the HW threads out, and then do EWB,
  * which should be guaranteed the succeed.
