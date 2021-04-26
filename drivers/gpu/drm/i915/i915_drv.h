@@ -1720,9 +1720,15 @@ static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
 }
 
 static inline bool
-intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
+intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
 {
-	return IS_BROXTON(dev_priv) && intel_vtd_active();
+	return IS_BROXTON(i915) && intel_vtd_active();
+}
+
+static inline bool
+intel_vm_no_concurrent_access_wa(struct drm_i915_private *i915)
+{
+	return IS_CHERRYVIEW(i915) || intel_ggtt_update_needs_vtd_wa(i915);
 }
 
 /* i915_drv.c */
@@ -1802,6 +1808,7 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 #define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
 #define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
 #define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
+#define I915_GEM_OBJECT_UNBIND_VM_TRYLOCK BIT(3)
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 

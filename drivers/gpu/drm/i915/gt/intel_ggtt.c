@@ -906,9 +906,11 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->vm.insert_entries = gen8_ggtt_insert_entries;
 
-	/* Serialize GTT updates with aperture access on BXT if VT-d is on. */
-	if (intel_ggtt_update_needs_vtd_wa(i915) ||
-	    IS_CHERRYVIEW(i915) /* fails with concurrent use/update */) {
+	/*
+	 * Serialize GTT updates with aperture access on BXT if VT-d is on,
+	 * and always on CHV.
+	 */
+	if (intel_vm_no_concurrent_access_wa(i915)) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 		ggtt->vm.bind_async_flags =

@@ -154,7 +154,22 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 	 */
 	mutex_init(&vm->mutex);
 	lockdep_set_subclass(&vm->mutex, subclass);
-	i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
+
+	if (!intel_vm_no_concurrent_access_wa(vm->i915)) {
+		i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
+	} else {
+		/*
+		 * CHV + BXT VTD workaround use stop_machine(),
+		 * which is allowed to allocate memory. This means &vm->mutex
+		 * is the outer lock, and in theory we can allocate memory inside
+		 * it through stop_machine().
+		 *
+		 * Add the annotation for this, we use trylock in shrinker.
+		 */
+		mutex_acquire(&vm->mutex.dep_map, 0, 0, _THIS_IP_);
+		might_alloc(GFP_KERNEL);
+		mutex_release(&vm->mutex.dep_map, _THIS_IP_);
+	}
 	dma_resv_init(&vm->resv);
 
 	GEM_BUG_ON(!vm->total);
