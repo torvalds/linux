@@ -48,7 +48,7 @@ struct iio_dev_opaque {
 #endif
 };
 
-#define to_iio_dev_opaque(indio_dev)		\
-	container_of(indio_dev, struct iio_dev_opaque, indio_dev)
+#define to_iio_dev_opaque(_indio_dev)		\
+	container_of((_indio_dev), struct iio_dev_opaque, indio_dev)
 
 #endif
