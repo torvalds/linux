@@ -232,7 +232,7 @@ do {								\
 	case 2: __get_user_asm(x, (u16 __user *)ptr, retval, "lhz"); break;	\
 	case 4: __get_user_asm(x, (u32 __user *)ptr, retval, "lwz"); break;	\
 	case 8: __get_user_asm2(x, (u64 __user *)ptr, retval);  break;	\
-	default: BUILD_BUG();					\
+	default: x = 0; BUILD_BUG();				\
 	}							\
 } while (0)
 
