@@ -58,6 +58,8 @@ nouveau_vram_manager_new(struct ttm_resource_manager *man,
 	if (ret)
 		return ret;
 
+	ttm_resource_init(bo, place, reg->mm_node);
+
 	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
 	if (ret) {
 		nouveau_mem_del(reg);
@@ -86,6 +88,7 @@ nouveau_gart_manager_new(struct ttm_resource_manager *man,
 	if (ret)
 		return ret;
 
+	ttm_resource_init(bo, place, reg->mm_node);
 	reg->start = 0;
 	return 0;
 }
@@ -111,6 +114,7 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 	if (ret)
 		return ret;
 
+	ttm_resource_init(bo, place, reg->mm_node);
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
 			   (long)reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {

@@ -13,6 +13,7 @@ nouveau_mem(struct ttm_resource *reg)
 }
 
 struct nouveau_mem {
+	struct ttm_resource base;
 	struct nouveau_cli *cli;
 	u8 kind;
 	u8 comp;
