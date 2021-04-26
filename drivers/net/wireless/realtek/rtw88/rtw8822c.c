@@ -80,6 +80,13 @@ static void rtw8822c_header_file_init(struct rtw_dev *rtwdev, bool pre)
 		rtw_write32_set(rtwdev, REG_ENCCK, BIT_CCK_OFDM_BLK_EN);
 }
 
+static void rtw8822c_bb_reset(struct rtw_dev *rtwdev)
+{
+	rtw_write16_set(rtwdev, REG_SYS_FUNC_EN, BIT_FEN_BB_RSTB);
+	rtw_write16_clr(rtwdev, REG_SYS_FUNC_EN, BIT_FEN_BB_RSTB);
+	rtw_write16_set(rtwdev, REG_SYS_FUNC_EN, BIT_FEN_BB_RSTB);
+}
+
 static void rtw8822c_dac_backup_reg(struct rtw_dev *rtwdev,
 				    struct rtw_backup_info *backup,
 				    struct rtw_backup_info *backup_rf)
@@ -2424,10 +2431,11 @@ static void rtw8822c_config_cck_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
 		else
 			rtw_write32_mask(rtwdev, REG_RXCCKSEL, 0xf0000000, 0x8);
 	}
+	rtw8822c_bb_reset(rtwdev);
 }
 
 static void rtw8822c_config_ofdm_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
-					 bool is_tx2_path)
+					 enum rtw_bb_path tx_path_sel_1ss)
 {
 	if (tx_path == BB_PATH_A) {
 		rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x11);
@@ -2436,21 +2444,28 @@ static void rtw8822c_config_ofdm_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
 		rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x12);
 		rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xff, 0x0);
 	} else {
-		if (is_tx2_path) {
+		if (tx_path_sel_1ss == BB_PATH_AB) {
 			rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x33);
 			rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xffff, 0x0404);
-		} else {
+		} else if (tx_path_sel_1ss == BB_PATH_B) {
+			rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x32);
+			rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xffff, 0x0400);
+		} else if (tx_path_sel_1ss == BB_PATH_A) {
 			rtw_write32_mask(rtwdev, REG_ANTMAP0, 0xff, 0x31);
 			rtw_write32_mask(rtwdev, REG_TXLGMAP, 0xffff, 0x0400);
 		}
 	}
+	rtw8822c_bb_reset(rtwdev);
 }
 
 static void rtw8822c_config_tx_path(struct rtw_dev *rtwdev, u8 tx_path,
+				    enum rtw_bb_path tx_path_sel_1ss,
+				    enum rtw_bb_path tx_path_cck,
 				    bool is_tx2_path)
 {
-	rtw8822c_config_cck_tx_path(rtwdev, tx_path, is_tx2_path);
-	rtw8822c_config_ofdm_tx_path(rtwdev, tx_path, is_tx2_path);
+	rtw8822c_config_cck_tx_path(rtwdev, tx_path_cck, is_tx2_path);
+	rtw8822c_config_ofdm_tx_path(rtwdev, tx_path, tx_path_sel_1ss);
+	rtw8822c_bb_reset(rtwdev);
 }
 
 static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
@@ -2466,7 +2481,8 @@ static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 		rtw_write32_mask(rtwdev, REG_ORITXCODE2, MASK20BITS, 0x11111);
 
 	rtw8822c_config_rx_path(rtwdev, rx_path);
-	rtw8822c_config_tx_path(rtwdev, tx_path, is_tx2_path);
+	rtw8822c_config_tx_path(rtwdev, tx_path, BB_PATH_A, BB_PATH_A,
+				is_tx2_path);
 
 	rtw8822c_toggle_igi(rtwdev);
 }
@@ -2517,6 +2533,7 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
+	struct rtw_path_div *p_div = &rtwdev->dm_path_div;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u8 rxsc, bw;
 	s8 min_rx_power = -120;
@@ -2559,6 +2576,13 @@ static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 	for (path = 0; path <= rtwdev->hal.rf_path_num; path++) {
 		rssi = rtw_phy_rf_power_2_rssi(&pkt_stat->rx_power[path], 1);
 		dm_info->rssi[path] = rssi;
+		if (path == RF_PATH_A) {
+			p_div->path_a_sum += rssi;
+			p_div->path_a_cnt++;
+		} else if (path == RF_PATH_B) {
+			p_div->path_b_sum += rssi;
+			p_div->path_b_cnt++;
+		}
 		dm_info->rx_snr[path] = pkt_stat->rx_snr[path] >> 1;
 		dm_info->cfo_tail[path] = (pkt_stat->cfo_tail[path] * 5) >> 1;
 
@@ -4851,6 +4875,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
 	.cfo_init		= rtw8822c_cfo_init,
 	.cfo_track		= rtw8822c_cfo_track,
+	.config_tx_path		= rtw8822c_config_tx_path,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
@@ -5192,6 +5217,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.band = RTW_BAND_2G | RTW_BAND_5G,
 	.page_size = 128,
 	.dig_min = 0x20,
+	.default_1ss_tx_path = BB_PATH_A,
+	.path_div_supported = true,
 	.ht_supported = true,
 	.vht_supported = true,
 	.lps_deep_mode_supported = BIT(LPS_DEEP_MODE_LCLK) | BIT(LPS_DEEP_MODE_PG),
