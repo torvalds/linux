@@ -570,8 +570,10 @@ static u64 get_va_block(struct hl_device *hdev,
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
 			(!is_align_pow_2 &&
 				do_div(tmp_hint_addr, va_range->page_size))) {
-		dev_info(hdev->dev, "Hint address 0x%llx will be ignored\n",
-					hint_addr);
+
+		dev_dbg(hdev->dev,
+			"Hint address 0x%llx will be ignored because it is not aligned\n",
+			hint_addr);
 		hint_addr = 0;
 	}
 
