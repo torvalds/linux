@@ -124,14 +124,14 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 {
 	unsigned int alloc_size_bytes;
 	unsigned int *rl_buffer, rl_wptr, i;
-	int retval, proccesses_mapped;
+	int retval, processes_mapped;
 	struct device_process_node *cur;
 	struct qcm_process_device *qpd;
 	struct queue *q;
 	struct kernel_queue *kq;
 	bool is_over_subscription;
 
-	rl_wptr = retval = proccesses_mapped = 0;
+	rl_wptr = retval = processes_mapped = 0;
 
 	retval = pm_allocate_runlist_ib(pm, &rl_buffer, rl_gpu_addr,
 				&alloc_size_bytes, &is_over_subscription);
@@ -148,7 +148,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	list_for_each_entry(cur, queues, list) {
 		qpd = cur->qpd;
 		/* build map process packet */
-		if (proccesses_mapped >= pm->dqm->processes_count) {
+		if (processes_mapped >= pm->dqm->processes_count) {
 			pr_debug("Not enough space left in runlist IB\n");
 			pm_release_ib(pm);
 			return -ENOMEM;
@@ -158,7 +158,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		if (retval)
 			return retval;
 
-		proccesses_mapped++;
+		processes_mapped++;
 		inc_wptr(&rl_wptr, pm->pmf->map_process_size,
 				alloc_size_bytes);
 
