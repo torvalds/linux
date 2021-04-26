@@ -601,8 +601,10 @@ static unsigned int iio_storage_bytes_for_si(struct iio_dev *indio_dev,
 
 static unsigned int iio_storage_bytes_for_timestamp(struct iio_dev *indio_dev)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
 	return iio_storage_bytes_for_si(indio_dev,
-					indio_dev->scan_index_timestamp);
+					iio_dev_opaque->scan_index_timestamp);
 }
 
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
@@ -1469,6 +1471,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 					     struct iio_dev *indio_dev,
 					     int index)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_dev_attr *p;
 	struct attribute **attr;
 	int ret, i, attrn, scan_el_attrcount, buffer_attrcount;
@@ -1495,7 +1498,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 				goto error_cleanup_dynamic;
 			scan_el_attrcount += ret;
 			if (channels[i].type == IIO_TIMESTAMP)
-				indio_dev->scan_index_timestamp =
+				iio_dev_opaque->scan_index_timestamp =
 					channels[i].scan_index;
 		}
 		if (indio_dev->masklength && buffer->scan_mask == NULL) {

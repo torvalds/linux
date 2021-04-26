@@ -22,6 +22,7 @@
  * @groupcounter:		index of next attribute group
  * @legacy_scan_el_group:	attribute group for legacy scan elements attribute group
  * @legacy_buffer_group:	attribute group for legacy buffer attributes group
+ * @scan_index_timestamp:	cache of the index to the timestamp
  * @debugfs_dentry:		device specific debugfs dentry
  * @cached_reg_addr:		cached register address for debugfs reads
  * @read_buf:			read buffer to be used for the initial reg read
@@ -44,6 +45,9 @@ struct iio_dev_opaque {
 	int				groupcounter;
 	struct attribute_group		legacy_scan_el_group;
 	struct attribute_group		legacy_buffer_group;
+
+	unsigned int			scan_index_timestamp;
+
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;
 	unsigned			cached_reg_addr;
