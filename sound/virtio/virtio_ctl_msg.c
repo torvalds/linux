@@ -61,7 +61,7 @@ void *virtsnd_ctl_msg_request(struct virtio_snd_msg *msg)
 }
 
 /**
- * virtsnd_ctl_msg_request() - Get a pointer to the response header.
+ * virtsnd_ctl_msg_response() - Get a pointer to the response header.
  * @msg: Control message.
  *
  * Context: Any context.
