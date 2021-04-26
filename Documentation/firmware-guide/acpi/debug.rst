@@ -54,11 +54,9 @@ shows the supported mask values, currently these::
     ACPI_TOOLS                      0x00002000
     ACPI_SBS_COMPONENT              0x00100000
     ACPI_FAN_COMPONENT              0x00200000
-    ACPI_PCI_COMPONENT              0x00400000
     ACPI_CONTAINER_COMPONENT        0x01000000
     ACPI_SYSTEM_COMPONENT           0x02000000
     ACPI_MEMORY_DEVICE_COMPONENT    0x08000000
-    ACPI_PROCESSOR_COMPONENT        0x20000000
 
 debug_level
 ===========
@@ -126,10 +124,6 @@ Enable all AML "Debug" output (stores to the Debug object while interpreting
 AML) during boot::
 
     acpi.debug_layer=0xffffffff acpi.debug_level=0x2
-
-Enable PCI and PCI interrupt routing debug messages::
-
-    acpi.debug_layer=0x400000 acpi.debug_level=0x4
 
 Enable all ACPI hardware-related messages::
 
