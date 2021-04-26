@@ -16,6 +16,23 @@
 #include <linux/slab.h>
 #include <linux/mtd/partitions.h>
 
+#include "ofpart_bcm4908.h"
+#include "ofpart_linksys_ns.h"
+
+struct fixed_partitions_quirks {
+	int (*post_parse)(struct mtd_info *mtd, struct mtd_partition *parts, int nr_parts);
+};
+
+static struct fixed_partitions_quirks bcm4908_partitions_quirks = {
+	.post_parse = bcm4908_partitions_post_parse,
+};
+
+static struct fixed_partitions_quirks linksys_ns_partitions_quirks = {
+	.post_parse = linksys_ns_partitions_post_parse,
+};
+
+static const struct of_device_id parse_ofpart_match_table[];
+
 static bool node_has_compatible(struct device_node *pp)
 {
 	return of_get_property(pp, "compatible", NULL);
@@ -25,6 +42,8 @@ static int parse_fixed_partitions(struct mtd_info *master,
 				  const struct mtd_partition **pparts,
 				  struct mtd_part_parser_data *data)
 {
+	const struct fixed_partitions_quirks *quirks;
+	const struct of_device_id *of_id;
 	struct mtd_partition *parts;
 	struct device_node *mtd_node;
 	struct device_node *ofpart_node;
@@ -33,14 +52,13 @@ static int parse_fixed_partitions(struct mtd_info *master,
 	int nr_parts, i, ret = 0;
 	bool dedicated = true;
 
-
 	/* Pull of_node from the master device node */
 	mtd_node = mtd_get_of_node(master);
 	if (!mtd_node)
 		return 0;
 
 	ofpart_node = of_get_child_by_name(mtd_node, "partitions");
-	if (!ofpart_node) {
+	if (!ofpart_node && !master->parent) {
 		/*
 		 * We might get here even when ofpart isn't used at all (e.g.,
 		 * when using another parser), so don't be louder than
@@ -50,10 +68,17 @@ static int parse_fixed_partitions(struct mtd_info *master,
 			 master->name, mtd_node);
 		ofpart_node = mtd_node;
 		dedicated = false;
-	} else if (!of_device_is_compatible(ofpart_node, "fixed-partitions")) {
+	}
+	if (!ofpart_node)
+		return 0;
+
+	of_id = of_match_node(parse_ofpart_match_table, ofpart_node);
+	if (dedicated && !of_id) {
 		/* The 'partitions' subnode might be used by another parser */
 		return 0;
 	}
+
+	quirks = of_id ? of_id->data : NULL;
 
 	/* First count the subnodes */
 	nr_parts = 0;
@@ -126,6 +151,9 @@ static int parse_fixed_partitions(struct mtd_info *master,
 	if (!nr_parts)
 		goto ofpart_none;
 
+	if (quirks && quirks->post_parse)
+		quirks->post_parse(master, parts, nr_parts);
+
 	*pparts = parts;
 	return nr_parts;
 
@@ -140,7 +168,11 @@ ofpart_none:
 }
 
 static const struct of_device_id parse_ofpart_match_table[] = {
+	/* Generic */
 	{ .compatible = "fixed-partitions" },
+	/* Customized */
+	{ .compatible = "brcm,bcm4908-partitions", .data = &bcm4908_partitions_quirks, },
+	{ .compatible = "linksys,ns-partitions", .data = &linksys_ns_partitions_quirks, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, parse_ofpart_match_table);
