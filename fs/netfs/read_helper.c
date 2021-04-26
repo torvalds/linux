@@ -933,7 +933,7 @@ cleanup:
 EXPORT_SYMBOL(netfs_readahead);
 
 /**
- * netfs_page - Helper to manage a readpage request
+ * netfs_readpage - Helper to manage a readpage request
  * @file: The file to read from
  * @page: The page to read
  * @ops: The network filesystem's operations for the helper to use
@@ -968,7 +968,7 @@ int netfs_readpage(struct file *file,
 		return -ENOMEM;
 	}
 	rreq->mapping	= page_file_mapping(page);
-	rreq->start	= page_index(page) * PAGE_SIZE;
+	rreq->start	= page_file_offset(page);
 	rreq->len	= thp_size(page);
 
 	if (ops->begin_cache_operation) {
@@ -1106,7 +1106,7 @@ retry:
 	if (!rreq)
 		goto error;
 	rreq->mapping		= page->mapping;
-	rreq->start		= page->index * PAGE_SIZE;
+	rreq->start		= page_offset(page);
 	rreq->len		= thp_size(page);
 	rreq->no_unlock_page	= page->index;
 	__set_bit(NETFS_RREQ_NO_UNLOCK_PAGE, &rreq->flags);
