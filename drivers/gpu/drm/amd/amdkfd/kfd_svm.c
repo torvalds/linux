@@ -2286,7 +2286,7 @@ retry_write_locked:
 		}
 		prange = svm_range_create_unregistered_range(adev, p, mm, addr);
 		if (!prange) {
-			pr_debug("failed to create unregisterd range svms 0x%p address [0x%llx]\n",
+			pr_debug("failed to create unregistered range svms 0x%p address [0x%llx]\n",
 				 svms, addr);
 			mmap_write_downgrade(mm);
 			r = -EFAULT;
