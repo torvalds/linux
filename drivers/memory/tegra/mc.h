@@ -92,12 +92,12 @@ icc_provider_to_tegra_mc(struct icc_provider *provider)
 	return container_of(provider, struct tegra_mc, provider);
 }
 
-static inline u32 mc_readl(struct tegra_mc *mc, unsigned long offset)
+static inline u32 mc_readl(const struct tegra_mc *mc, unsigned long offset)
 {
 	return readl_relaxed(mc->regs + offset);
 }
 
-static inline void mc_writel(struct tegra_mc *mc, u32 value,
+static inline void mc_writel(const struct tegra_mc *mc, u32 value,
 			     unsigned long offset)
 {
 	writel_relaxed(value, mc->regs + offset);

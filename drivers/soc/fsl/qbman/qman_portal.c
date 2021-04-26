@@ -302,7 +302,7 @@ static int qman_portal_probe(struct platform_device *pdev)
 		__qman_portals_probed = 1;
 		/* unassigned portal, skip init */
 		spin_unlock(&qman_lock);
-		return 0;
+		goto check_cleanup;
 	}
 
 	cpumask_set_cpu(cpu, &portal_cpus);
@@ -323,6 +323,7 @@ static int qman_portal_probe(struct platform_device *pdev)
 	if (!cpu_online(cpu))
 		qman_offline_cpu(cpu);
 
+check_cleanup:
 	if (__qman_portals_probed == 1 && qman_requires_cleanup()) {
 		/*
 		 * QMan wasn't reset prior to boot (Kexec for example)
