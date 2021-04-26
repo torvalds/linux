@@ -56,6 +56,7 @@
 	#size-cells = <1>;
 
 	aliases {
+		ethernet0 = &gmac;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
