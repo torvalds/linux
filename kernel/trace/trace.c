@@ -3545,7 +3545,11 @@ static char *trace_iter_expand_format(struct trace_iterator *iter)
 {
 	char *tmp;
 
-	if (iter->fmt == static_fmt_buf)
+	/*
+	 * iter->tr is NULL when used with tp_printk, which makes
+	 * this get called where it is not safe to call krealloc().
+	 */
+	if (!iter->tr || iter->fmt == static_fmt_buf)
 		return NULL;
 
 	tmp = krealloc(iter->fmt, iter->fmt_size + STATIC_FMT_BUF_SIZE,
@@ -3566,7 +3570,7 @@ const char *trace_event_format(struct trace_iterator *iter, const char *fmt)
 	if (WARN_ON_ONCE(!fmt))
 		return fmt;
 
-	if (iter->tr->trace_flags & TRACE_ITER_HASH_PTR)
+	if (!iter->tr || iter->tr->trace_flags & TRACE_ITER_HASH_PTR)
 		return fmt;
 
 	p = fmt;
@@ -9692,7 +9696,7 @@ void __init early_trace_init(void)
 {
 	if (tracepoint_printk) {
 		tracepoint_print_iter =
-			kmalloc(sizeof(*tracepoint_print_iter), GFP_KERNEL);
+			kzalloc(sizeof(*tracepoint_print_iter), GFP_KERNEL);
 		if (MEM_FAIL(!tracepoint_print_iter,
 			     "Failed to allocate trace iterator\n"))
 			tracepoint_printk = 0;

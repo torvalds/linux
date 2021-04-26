@@ -5471,11 +5471,11 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	int ret;
 
-	memset(wm, 0, sizeof(*wm));
-
 	/* Watermarks calculated in master */
 	if (plane_state->planar_slave)
 		return 0;
+
+	memset(wm, 0, sizeof(*wm));
 
 	if (plane_state->planar_linked_plane) {
 		const struct drm_framebuffer *fb = plane_state->hw.fb;

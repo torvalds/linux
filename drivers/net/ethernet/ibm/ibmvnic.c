@@ -1149,18 +1149,12 @@ static int __ibmvnic_open(struct net_device *netdev)
 
 	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
 	if (rc) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			napi_disable(&adapter->napi[i]);
+		ibmvnic_napi_disable(adapter);
 		release_resources(adapter);
 		return rc;
 	}
 
 	netif_tx_start_all_queues(netdev);
-
-	if (prev_state == VNIC_CLOSED) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			napi_schedule(&adapter->napi[i]);
-	}
 
 	adapter->state = VNIC_OPEN;
 	return rc;
@@ -1922,7 +1916,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	u64 old_num_rx_queues, old_num_tx_queues;
 	u64 old_num_rx_slots, old_num_tx_slots;
 	struct net_device *netdev = adapter->netdev;
-	int i, rc;
+	int rc;
 
 	netdev_dbg(adapter->netdev,
 		   "[S:%d FOP:%d] Reset reason %d, reset_state %d\n",
@@ -2110,10 +2104,6 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 	/* refresh device's multicast list */
 	ibmvnic_set_multi(netdev);
-
-	/* kick napi */
-	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_schedule(&adapter->napi[i]);
 
 	if (adapter->reset_reason == VNIC_RESET_FAILOVER ||
 	    adapter->reset_reason == VNIC_RESET_MOBILITY)
@@ -3204,9 +3194,6 @@ restart_loop:
 
 		next = ibmvnic_next_scrq(adapter, scrq);
 		for (i = 0; i < next->tx_comp.num_comps; i++) {
-			if (next->tx_comp.rcs[i])
-				dev_err(dev, "tx error %x\n",
-					next->tx_comp.rcs[i]);
 			index = be32_to_cpu(next->tx_comp.correlators[i]);
 			if (index & IBMVNIC_TSO_POOL_MASK) {
 				tx_pool = &adapter->tso_pool[pool];
@@ -3220,7 +3207,13 @@ restart_loop:
 			num_entries += txbuff->num_entries;
 			if (txbuff->skb) {
 				total_bytes += txbuff->skb->len;
-				dev_consume_skb_irq(txbuff->skb);
+				if (next->tx_comp.rcs[i]) {
+					dev_err(dev, "tx error %x\n",
+						next->tx_comp.rcs[i]);
+					dev_kfree_skb_irq(txbuff->skb);
+				} else {
+					dev_consume_skb_irq(txbuff->skb);
+				}
 				txbuff->skb = NULL;
 			} else {
 				netdev_warn(adapter->netdev,
