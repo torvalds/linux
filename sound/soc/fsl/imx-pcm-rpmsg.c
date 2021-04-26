@@ -544,7 +544,7 @@ static int imx_rpmsg_pcm_ack(struct snd_soc_component *component,
 	struct rpmsg_msg *msg;
 	unsigned long flags;
 	int buffer_tail = 0;
-	int written_num = 0;
+	int written_num;
 
 	if (!rpmsg->force_lpa)
 		return 0;
