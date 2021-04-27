@@ -641,24 +641,12 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16400_state *st = iio_priv(indio_dev);
 	struct adis *adis = &st->adis;
-	u32 old_speed_hz = st->adis.spi->max_speed_hz;
 	void *buffer;
 	int ret;
-
-	if (!(st->variant->flags & ADIS16400_NO_BURST) &&
-		st->adis.spi->max_speed_hz > ADIS16400_SPI_BURST) {
-		st->adis.spi->max_speed_hz = ADIS16400_SPI_BURST;
-		spi_setup(st->adis.spi);
-	}
 
 	ret = spi_sync(adis->spi, &adis->msg);
 	if (ret)
 		dev_err(&adis->spi->dev, "Failed to read data: %d\n", ret);
-
-	if (!(st->variant->flags & ADIS16400_NO_BURST)) {
-		st->adis.spi->max_speed_hz = old_speed_hz;
-		spi_setup(st->adis.spi);
-	}
 
 	if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
 		buffer = adis->buffer + sizeof(u16);
@@ -965,7 +953,8 @@ static const char * const adis16400_status_error_msgs[] = {
 		BIT(ADIS16400_DIAG_STAT_POWER_LOW),			\
 	.timeouts = (_timeouts),					\
 	.burst_reg_cmd = ADIS16400_GLOB_CMD,				\
-	.burst_len = (_burst_len)					\
+	.burst_len = (_burst_len),					\
+	.burst_max_speed_hz = ADIS16400_SPI_BURST			\
 }
 
 static const struct adis_timeout adis16300_timeouts = {
