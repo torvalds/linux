@@ -101,6 +101,9 @@ static umode_t smbios_attr_is_visible(struct kobject *kobj, struct attribute *a,
 	dev = kobj_to_dev(kobj);
 	pdev = to_pci_dev(dev);
 
+	if (device_has_acpi_name(dev))
+		return 0;
+
 	if (!find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE))
 		return 0;
 
@@ -136,29 +139,10 @@ static struct attribute *smbios_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group smbios_attr_group = {
+const struct attribute_group pci_dev_smbios_attr_group = {
 	.attrs = smbios_attrs,
 	.is_visible = smbios_attr_is_visible,
 };
-
-static int pci_create_smbiosname_file(struct pci_dev *pdev)
-{
-	return sysfs_create_group(&pdev->dev.kobj, &smbios_attr_group);
-}
-
-static void pci_remove_smbiosname_file(struct pci_dev *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &smbios_attr_group);
-}
-#else
-static inline int pci_create_smbiosname_file(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline void pci_remove_smbiosname_file(struct pci_dev *pdev)
-{
-}
 #endif
 
 #ifdef CONFIG_ACPI
@@ -253,45 +237,8 @@ static struct attribute *acpi_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group acpi_attr_group = {
+const struct attribute_group pci_dev_acpi_attr_group = {
 	.attrs = acpi_attrs,
 	.is_visible = acpi_attr_is_visible,
 };
-
-static int pci_create_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return sysfs_create_group(&pdev->dev.kobj, &acpi_attr_group);
-}
-
-static int pci_remove_acpi_index_label_files(struct pci_dev *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &acpi_attr_group);
-	return 0;
-}
-#else
-static inline int pci_create_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return -1;
-}
-
-static inline int pci_remove_acpi_index_label_files(struct pci_dev *pdev)
-{
-	return -1;
-}
 #endif
-
-void pci_create_firmware_label_files(struct pci_dev *pdev)
-{
-	if (device_has_acpi_name(&pdev->dev))
-		pci_create_acpi_index_label_files(pdev);
-	else
-		pci_create_smbiosname_file(pdev);
-}
-
-void pci_remove_firmware_label_files(struct pci_dev *pdev)
-{
-	if (device_has_acpi_name(&pdev->dev))
-		pci_remove_acpi_index_label_files(pdev);
-	else
-		pci_remove_smbiosname_file(pdev);
-}

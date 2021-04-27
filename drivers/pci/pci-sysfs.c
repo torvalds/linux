@@ -1380,18 +1380,10 @@ static const struct attribute_group pci_dev_reset_attr_group = {
 
 int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 {
-	int retval;
-
 	if (!sysfs_initialized)
 		return -EACCES;
 
-	retval = pci_create_resource_files(pdev);
-	if (retval)
-		return retval;
-
-	pci_create_firmware_label_files(pdev);
-
-	return 0;
+	return pci_create_resource_files(pdev);
 }
 
 /**
@@ -1406,7 +1398,6 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 		return;
 
 	pci_remove_resource_files(pdev);
-	pci_remove_firmware_label_files(pdev);
 }
 
 static int __init pci_sysfs_init(void)
@@ -1501,6 +1492,12 @@ const struct attribute_group *pci_dev_groups[] = {
 	&pci_dev_rom_attr_group,
 	&pci_dev_reset_attr_group,
 	&pci_dev_vpd_attr_group,
+#ifdef CONFIG_DMI
+	&pci_dev_smbios_attr_group,
+#endif
+#ifdef CONFIG_ACPI
+	&pci_dev_acpi_attr_group,
+#endif
 	NULL,
 };
 
