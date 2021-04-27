@@ -2148,54 +2148,53 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 	 * byte as the problem.  MODE_SENSE commands can return
 	 * ILLEGAL REQUEST if the code page isn't supported */
 
-	if (use_10_for_ms && !scsi_status_is_good(result) &&
-	    driver_byte(result) == DRIVER_SENSE) {
-		if (scsi_sense_valid(sshdr)) {
+	if (!scsi_status_is_good(result)) {
+		if (driver_byte(result) == DRIVER_SENSE &&
+		    scsi_sense_valid(sshdr)) {
 			if ((sshdr->sense_key == ILLEGAL_REQUEST) &&
 			    (sshdr->asc == 0x20) && (sshdr->ascq == 0)) {
 				/*
 				 * Invalid command operation code
 				 */
-				sdev->use_10_for_ms = 0;
+				if (use_10_for_ms) {
+					sdev->use_10_for_ms = 0;
+					goto retry;
+				}
+			}
+			if ((status_byte(result) == CHECK_CONDITION) &&
+			    sshdr->sense_key == UNIT_ATTENTION &&
+			    retry_count) {
+				retry_count--;
 				goto retry;
 			}
 		}
+		return -EIO;
 	}
+	if (unlikely(buffer[0] == 0x86 && buffer[1] == 0x0b &&
+		     (modepage == 6 || modepage == 8))) {
+		/* Initio breakage? */
+		header_length = 0;
+		data->length = 13;
+		data->medium_type = 0;
+		data->device_specific = 0;
+		data->longlba = 0;
+		data->block_descriptor_length = 0;
+	} else if (use_10_for_ms) {
+		data->length = buffer[0]*256 + buffer[1] + 2;
+		data->medium_type = buffer[2];
+		data->device_specific = buffer[3];
+		data->longlba = buffer[4] & 0x01;
+		data->block_descriptor_length = buffer[6]*256
+			+ buffer[7];
+	} else {
+		data->length = buffer[0] + 1;
+		data->medium_type = buffer[1];
+		data->device_specific = buffer[2];
+		data->block_descriptor_length = buffer[3];
+	}
+	data->header_length = header_length;
 
-	if (scsi_status_is_good(result)) {
-		if (unlikely(buffer[0] == 0x86 && buffer[1] == 0x0b &&
-			     (modepage == 6 || modepage == 8))) {
-			/* Initio breakage? */
-			header_length = 0;
-			data->length = 13;
-			data->medium_type = 0;
-			data->device_specific = 0;
-			data->longlba = 0;
-			data->block_descriptor_length = 0;
-		} else if (use_10_for_ms) {
-			data->length = buffer[0]*256 + buffer[1] + 2;
-			data->medium_type = buffer[2];
-			data->device_specific = buffer[3];
-			data->longlba = buffer[4] & 0x01;
-			data->block_descriptor_length = buffer[6]*256
-				+ buffer[7];
-		} else {
-			data->length = buffer[0] + 1;
-			data->medium_type = buffer[1];
-			data->device_specific = buffer[2];
-			data->block_descriptor_length = buffer[3];
-		}
-		data->header_length = header_length;
-		result = 0;
-	} else if ((status_byte(result) == CHECK_CONDITION) &&
-		   scsi_sense_valid(sshdr) &&
-		   sshdr->sense_key == UNIT_ATTENTION && retry_count) {
-		retry_count--;
-		goto retry;
-	}
-	if (result > 0)
-		result = -EIO;
-	return result;
+	return 0;
 }
 EXPORT_SYMBOL(scsi_mode_sense);
 
