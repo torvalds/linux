@@ -1596,11 +1596,9 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 					cmd->result = (DRIVER_SENSE << 24) |
 						(DID_OK << 16) |
 						(CHECK_CONDITION << 1);
-				} else {
-					cmd->sense_buffer[0] = 0x70;
-					cmd->sense_buffer[2] = ABORTED_COMMAND;
-					cmd->result |= (CHECK_CONDITION << 1);
-				}
+				} else
+					scsi_build_sense(cmd, 0,
+							 ABORTED_COMMAND, 0, 0);
 			}
 			break;
 
