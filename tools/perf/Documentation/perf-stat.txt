@@ -552,6 +552,8 @@ The fields are in this order:
 
 Additional metrics may be printed with all earlier fields being empty.
 
+include::intel-hybrid.txt[]
+
 SEE ALSO
 --------
 linkperf:perf-top[1], linkperf:perf-list[1]
