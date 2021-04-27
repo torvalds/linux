@@ -87,21 +87,6 @@ static size_t find_smbios_instance_string(struct pci_dev *pdev, char *buf,
 	return 0;
 }
 
-static umode_t smbios_attr_is_visible(struct kobject *kobj, struct attribute *a,
-				      int n)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct pci_dev *pdev = to_pci_dev(dev);
-
-	if (device_has_acpi_name(dev))
-		return 0;
-
-	if (!find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE))
-		return 0;
-
-	return a->mode;
-}
-
 static ssize_t smbios_label_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -128,6 +113,21 @@ static struct attribute *smbios_attrs[] = {
 	&dev_attr_index.attr,
 	NULL,
 };
+
+static umode_t smbios_attr_is_visible(struct kobject *kobj, struct attribute *a,
+				      int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (device_has_acpi_name(dev))
+		return 0;
+
+	if (!find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE))
+		return 0;
+
+	return a->mode;
+}
 
 const struct attribute_group pci_dev_smbios_attr_group = {
 	.attrs = smbios_attrs,
@@ -193,17 +193,6 @@ static int dsm_get_label(struct device *dev, char *buf,
 	return len;
 }
 
-static umode_t acpi_attr_is_visible(struct kobject *kobj, struct attribute *a,
-				    int n)
-{
-	struct device *dev = kobj_to_dev(kobj);
-
-	if (!device_has_acpi_name(dev))
-		return 0;
-
-	return a->mode;
-}
-
 static ssize_t label_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -223,6 +212,17 @@ static struct attribute *acpi_attrs[] = {
 	&dev_attr_acpi_index.attr,
 	NULL,
 };
+
+static umode_t acpi_attr_is_visible(struct kobject *kobj, struct attribute *a,
+				    int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+
+	if (!device_has_acpi_name(dev))
+		return 0;
+
+	return a->mode;
+}
 
 const struct attribute_group pci_dev_acpi_attr_group = {
 	.attrs = acpi_attrs,
