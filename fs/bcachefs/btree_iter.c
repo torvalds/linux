@@ -2085,14 +2085,15 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 		btree_iter_get_locks(iter, true, false);
 	}
 
-	while (iter->level < depth) {
+	while (iter->level != depth) {
 		btree_node_unlock(iter, iter->level);
 		iter->l[iter->level].b = BTREE_ITER_NO_NODE_INIT;
-		iter->level++;
+		iter->uptodate = BTREE_ITER_NEED_TRAVERSE;
+		if (iter->level < depth)
+			iter->level++;
+		else
+			iter->level--;
 	}
-
-	while (iter->level > depth)
-		iter->l[--iter->level].b = BTREE_ITER_NO_NODE_INIT;
 
 	iter->min_depth	= depth;
 
