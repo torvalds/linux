@@ -931,6 +931,81 @@ out:
 }
 
 /*
+ * Lookup the first ordered extent that overlaps the range
+ * [@file_offset, @file_offset + @len).
+ *
+ * The difference between this and btrfs_lookup_first_ordered_extent() is
+ * that this one won't return any ordered extent that does not overlap the range.
+ * And the difference against btrfs_lookup_ordered_extent() is, this function
+ * ensures the first ordered extent gets returned.
+ */
+struct btrfs_ordered_extent *btrfs_lookup_first_ordered_range(
+			struct btrfs_inode *inode, u64 file_offset, u64 len)
+{
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
+	struct rb_node *node;
+	struct rb_node *cur;
+	struct rb_node *prev;
+	struct rb_node *next;
+	struct btrfs_ordered_extent *entry = NULL;
+
+	spin_lock_irq(&tree->lock);
+	node = tree->tree.rb_node;
+	/*
+	 * Here we don't want to use tree_search() which will use tree->last
+	 * and screw up the search order.
+	 * And __tree_search() can't return the adjacent ordered extents
+	 * either, thus here we do our own search.
+	 */
+	while (node) {
+		entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+
+		if (file_offset < entry->file_offset) {
+			node = node->rb_left;
+		} else if (file_offset >= entry_end(entry)) {
+			node = node->rb_right;
+		} else {
+			/*
+			 * Direct hit, got an ordered extent that starts at
+			 * @file_offset
+			 */
+			goto out;
+		}
+	}
+	if (!entry) {
+		/* Empty tree */
+		goto out;
+	}
+
+	cur = &entry->rb_node;
+	/* We got an entry around @file_offset, check adjacent entries */
+	if (entry->file_offset < file_offset) {
+		prev = cur;
+		next = rb_next(cur);
+	} else {
+		prev = rb_prev(cur);
+		next = cur;
+	}
+	if (prev) {
+		entry = rb_entry(prev, struct btrfs_ordered_extent, rb_node);
+		if (range_overlaps(entry, file_offset, len))
+			goto out;
+	}
+	if (next) {
+		entry = rb_entry(next, struct btrfs_ordered_extent, rb_node);
+		if (range_overlaps(entry, file_offset, len))
+			goto out;
+	}
+	/* No ordered extent in the range */
+	entry = NULL;
+out:
+	if (entry)
+		refcount_inc(&entry->refs);
+	spin_unlock_irq(&tree->lock);
+	return entry;
+}
+
+/*
  * btrfs_flush_ordered_range - Lock the passed range and ensures all pending
  * ordered extents in it are run to completion.
  *
