@@ -225,50 +225,42 @@ static int dsm_get_label(struct device *dev, char *buf,
 	return len;
 }
 
-static umode_t acpi_index_string_exist(struct kobject *kobj,
-				       struct attribute *attr, int n)
+static umode_t acpi_attr_is_visible(struct kobject *kobj, struct attribute *a,
+				    int n)
 {
 	struct device *dev;
 
 	dev = kobj_to_dev(kobj);
 
-	if (device_has_acpi_name(dev))
-		return S_IRUGO;
+	if (!device_has_acpi_name(dev))
+		return 0;
 
-	return 0;
+	return a->mode;
 }
 
-static ssize_t acpilabel_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t label_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	return dsm_get_label(dev, buf, ACPI_ATTR_LABEL_SHOW);
 }
+static DEVICE_ATTR_RO(label);
 
-static ssize_t acpiindex_show(struct device *dev,
+static ssize_t acpi_index_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	return dsm_get_label(dev, buf, ACPI_ATTR_INDEX_SHOW);
 }
+static DEVICE_ATTR_RO(acpi_index);
 
-static struct device_attribute acpi_attr_label = {
-	.attr = {.name = "label", .mode = 0444},
-	.show = acpilabel_show,
-};
-
-static struct device_attribute acpi_attr_index = {
-	.attr = {.name = "acpi_index", .mode = 0444},
-	.show = acpiindex_show,
-};
-
-static struct attribute *acpi_attributes[] = {
-	&acpi_attr_label.attr,
-	&acpi_attr_index.attr,
+static struct attribute *acpi_attrs[] = {
+	&dev_attr_label.attr,
+	&dev_attr_acpi_index.attr,
 	NULL,
 };
 
 static const struct attribute_group acpi_attr_group = {
-	.attrs = acpi_attributes,
-	.is_visible = acpi_index_string_exist,
+	.attrs = acpi_attrs,
+	.is_visible = acpi_attr_is_visible,
 };
 
 static int pci_create_acpi_index_label_files(struct pci_dev *pdev)
