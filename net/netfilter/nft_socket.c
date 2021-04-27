@@ -34,7 +34,7 @@ static void nft_socket_wildcard(const struct nft_pktinfo *pkt,
 	}
 }
 
-#ifdef CONFIG_CGROUPS
+#ifdef CONFIG_SOCK_CGROUP_DATA
 static noinline bool
 nft_sock_get_eval_cgroupv2(u32 *dest, const struct nft_pktinfo *pkt, u32 level)
 {
@@ -106,7 +106,7 @@ static void nft_socket_eval(const struct nft_expr *expr,
 		}
 		nft_socket_wildcard(pkt, regs, sk, dest);
 		break;
-#ifdef CONFIG_CGROUPS
+#ifdef CONFIG_SOCK_CGROUP_DATA
 	case NFT_SOCKET_CGROUPV2:
 		if (!nft_sock_get_eval_cgroupv2(dest, pkt, priv->level)) {
 			regs->verdict.code = NFT_BREAK;
