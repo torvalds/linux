@@ -361,8 +361,8 @@ static void fdomain_work(struct work_struct *work)
 
 	if (done) {
 		set_status_byte(cmd, cmd->SCp.Status);
-		set_msg_byte(cmd, cmd->SCp.Message);
 		set_host_byte(cmd, DID_OK);
+		scsi_msg_to_host_byte(cmd, cmd->SCp.Message);
 		fdomain_finish_cmd(fd);
 	} else {
 		if (cmd->SCp.phase & disconnect) {
