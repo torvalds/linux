@@ -254,7 +254,7 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	 */
 	hdr->status = req->result & 0xff;
 	hdr->masked_status = status_byte(req->result);
-	hdr->msg_status = msg_byte(req->result);
+	hdr->msg_status = COMMAND_COMPLETE;
 	hdr->host_status = host_byte(req->result);
 	hdr->driver_status = 0;
 	if (scsi_status_is_check_condition(hdr->status))

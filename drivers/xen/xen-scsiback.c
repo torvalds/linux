@@ -224,7 +224,7 @@ static void scsiback_print_status(char *sense_buffer, int errors,
 
 	pr_err("[%s:%d] cmnd[0]=%02x -> st=%02x msg=%02x host=%02x\n",
 	       tpg->tport->tport_name, pending_req->v2p->lun,
-	       pending_req->cmnd[0], status_byte(errors), msg_byte(errors),
+	       pending_req->cmnd[0], status_byte(errors), COMMAND_COMPLETE,
 	       host_byte(errors));
 }
 

@@ -1376,7 +1376,7 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 
 		srp->header.status = 0xff & result;
 		srp->header.masked_status = status_byte(result);
-		srp->header.msg_status = msg_byte(result);
+		srp->header.msg_status = COMMAND_COMPLETE;
 		srp->header.host_status = host_byte(result);
 		srp->header.driver_status = driver_byte(result);
 		if ((sdp->sgdebug > 0) &&

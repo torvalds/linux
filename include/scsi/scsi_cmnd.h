@@ -320,11 +320,6 @@ static inline u8 get_status_byte(struct scsi_cmnd *cmd)
 	return cmd->result & 0xff;
 }
 
-static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
-{
-	cmd->result = (cmd->result & 0xffff00ff) | (status << 8);
-}
-
 static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 {
 	cmd->result = (cmd->result & 0xff00ffff) | (status << 16);

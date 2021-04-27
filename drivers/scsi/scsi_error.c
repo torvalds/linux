@@ -742,12 +742,6 @@ static enum scsi_disposition scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		return FAILED;
 
 	/*
-	 * next, check the message byte.
-	 */
-	if (msg_byte(scmd->result) != COMMAND_COMPLETE)
-		return FAILED;
-
-	/*
 	 * now, check the status byte to see if this indicates
 	 * anything special.
 	 */
@@ -1766,8 +1760,7 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 	case DID_PARITY:
 		return (scmd->request->cmd_flags & REQ_FAILFAST_DEV);
 	case DID_ERROR:
-		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
-		    status_byte(scmd->result) == RESERVATION_CONFLICT)
+		if (status_byte(scmd->result) == RESERVATION_CONFLICT)
 			return 0;
 		fallthrough;
 	case DID_SOFT_ERROR:
@@ -1883,8 +1876,7 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 */
 		return SUCCESS;
 	case DID_ERROR:
-		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
-		    status_byte(scmd->result) == RESERVATION_CONFLICT)
+		if (status_byte(scmd->result) == RESERVATION_CONFLICT)
 			/*
 			 * execute reservation conflict processing code
 			 * lower down
@@ -1911,12 +1903,6 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 	default:
 		return FAILED;
 	}
-
-	/*
-	 * next, check the message byte.
-	 */
-	if (msg_byte(scmd->result) != COMMAND_COMPLETE)
-		return FAILED;
 
 	/*
 	 * check the status byte to see if this indicates anything special.
