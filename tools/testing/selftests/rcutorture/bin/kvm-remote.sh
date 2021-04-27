@@ -159,6 +159,28 @@ do
 	fi
 done
 
+# Function to check for presence of a file on the specified system.
+# Complain if the system cannot be reached, and retry after a wait.
+# Currently just waits forever if a machine disappears.
+#
+# Usage: checkremotefile system pathname
+checkremotefile () {
+	local ret
+	local sleeptime=60
+
+	while :
+	do
+		ssh $1 "test -f \"$2\""
+		ret=$?
+		if test "$ret" -ne 255
+		then
+			return $ret
+		fi
+		echo " ---" ssh failure to $1 checking for file $2, retry after $sleeptime seconds. `date`
+		sleep $sleeptime
+	done
+}
+
 # Function to start batches on idle remote $systems
 #
 # Usage: startbatches curbatch nbatches
@@ -178,7 +200,7 @@ startbatches () {
 			echo $((nbatches + 1))
 			return 0
 		fi
-		if ssh "$i" "test -f \"$resdir/$ds/remote.run\"" 1>&2
+		if checkremotefile "$i" "$resdir/$ds/remote.run" 1>&2
 		then
 			continue # System still running last test, skip.
 		fi
@@ -216,7 +238,7 @@ echo All batches started. `date`
 # Wait for all remaining scenarios to complete and collect results.
 for i in $systems
 do
-	while ssh "$i" "test -f \"$resdir/$ds/remote.run\""
+	while checkremotefile "$i" "$resdir/$ds/remote.run"
 	do
 		sleep 30
 	done
