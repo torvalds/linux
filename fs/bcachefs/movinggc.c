@@ -293,17 +293,19 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned dev_idx;
-	u64 fragmented_allowed = 0, fragmented = 0;
+	s64 wait = S64_MAX, fragmented_allowed, fragmented;
 
 	for_each_rw_member(ca, c, dev_idx) {
 		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
 
-		fragmented_allowed += ((__dev_buckets_reclaimable(ca, usage) *
+		fragmented_allowed = ((__dev_buckets_reclaimable(ca, usage) *
 					ca->mi.bucket_size) >> 1);
-		fragmented += usage.d[BCH_DATA_user].fragmented;
+		fragmented = usage.d[BCH_DATA_user].fragmented;
+
+		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
 	}
 
-	return max_t(s64, 0, fragmented_allowed - fragmented);
+	return wait;
 }
 
 static int bch2_copygc_thread(void *arg)
