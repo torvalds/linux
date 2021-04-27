@@ -33,6 +33,22 @@
 #include <linux/pci-acpi.h>
 #include "pci.h"
 
+static bool device_has_acpi_name(struct device *dev)
+{
+#ifdef CONFIG_ACPI
+	acpi_handle handle;
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
+		return false;
+
+	return acpi_check_dsm(handle, &pci_acpi_dsm_guid, 0x2,
+			      1 << DSM_PCI_DEVICE_NAME);
+#else
+	return false;
+#endif
+}
+
 #ifdef CONFIG_DMI
 enum smbios_attr_enum {
 	SMBIOS_ATTR_NONE = 0,
@@ -209,18 +225,6 @@ static int dsm_get_label(struct device *dev, char *buf,
 	return len;
 }
 
-static bool device_has_dsm(struct device *dev)
-{
-	acpi_handle handle;
-
-	handle = ACPI_HANDLE(dev);
-	if (!handle)
-		return false;
-
-	return !!acpi_check_dsm(handle, &pci_acpi_dsm_guid, 0x2,
-				1 << DSM_PCI_DEVICE_NAME);
-}
-
 static umode_t acpi_index_string_exist(struct kobject *kobj,
 				       struct attribute *attr, int n)
 {
@@ -228,7 +232,7 @@ static umode_t acpi_index_string_exist(struct kobject *kobj,
 
 	dev = kobj_to_dev(kobj);
 
-	if (device_has_dsm(dev))
+	if (device_has_acpi_name(dev))
 		return S_IRUGO;
 
 	return 0;
@@ -287,16 +291,11 @@ static inline int pci_remove_acpi_index_label_files(struct pci_dev *pdev)
 {
 	return -1;
 }
-
-static inline bool device_has_dsm(struct device *dev)
-{
-	return false;
-}
 #endif
 
 void pci_create_firmware_label_files(struct pci_dev *pdev)
 {
-	if (device_has_dsm(&pdev->dev))
+	if (device_has_acpi_name(&pdev->dev))
 		pci_create_acpi_index_label_files(pdev);
 	else
 		pci_create_smbiosname_file(pdev);
@@ -304,7 +303,7 @@ void pci_create_firmware_label_files(struct pci_dev *pdev)
 
 void pci_remove_firmware_label_files(struct pci_dev *pdev)
 {
-	if (device_has_dsm(&pdev->dev))
+	if (device_has_acpi_name(&pdev->dev))
 		pci_remove_acpi_index_label_files(pdev);
 	else
 		pci_remove_smbiosname_file(pdev);
