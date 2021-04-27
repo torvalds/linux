@@ -66,7 +66,7 @@ then
 		if (ds != "")
 			print "--datestamp " ds;
 	}'`"
-	kvm.sh "$@" $datestamp --buildonly > $T/kvm.sh.out 2>&1
+	kvm.sh --remote "$@" $datestamp --buildonly > $T/kvm.sh.out 2>&1
 	ret=$?
 	if test "$ret" -ne 0
 	then

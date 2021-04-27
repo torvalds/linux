@@ -44,6 +44,7 @@ TORTURE_KCONFIG_KASAN_ARG=""
 TORTURE_KCONFIG_KCSAN_ARG=""
 TORTURE_KMAKE_ARG=""
 TORTURE_QEMU_MEM=512
+TORTURE_REMOTE=
 TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
 TORTURE_MOD=rcutorture
@@ -80,6 +81,7 @@ usage () {
 	echo "       --no-initrd"
 	echo "       --qemu-args qemu-arguments"
 	echo "       --qemu-cmd qemu-system-..."
+	echo "       --remote"
 	echo "       --results absolute-pathname"
 	echo "       --torture lock|rcu|rcuscale|refscale|scf"
 	echo "       --trust-make"
@@ -115,10 +117,13 @@ do
 		checkarg --cpus "(number)" "$#" "$2" '^[0-9]*$' '^--'
 		cpus=$2
 		TORTURE_ALLOTED_CPUS="$2"
-		max_cpus="`identify_qemu_vcpus`"
-		if test "$TORTURE_ALLOTED_CPUS" -gt "$max_cpus"
+		if test -z "$TORTURE_REMOTE"
 		then
-			TORTURE_ALLOTED_CPUS=$max_cpus
+			max_cpus="`identify_qemu_vcpus`"
+			if test "$TORTURE_ALLOTED_CPUS" -gt "$max_cpus"
+			then
+				TORTURE_ALLOTED_CPUS=$max_cpus
+			fi
 		fi
 		shift
 		;;
@@ -208,6 +213,9 @@ do
 		checkarg --qemu-cmd "(qemu-system-...)" $# "$2" 'qemu-system-' '^--'
 		TORTURE_QEMU_CMD="$2"
 		shift
+		;;
+	--remote)
+		TORTURE_REMOTE=1
 		;;
 	--results)
 		checkarg --results "(absolute pathname)" "$#" "$2" '^/' '^error'
