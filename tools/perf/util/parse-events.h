@@ -263,4 +263,9 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 
 int perf_pmu__test_parse_init(void);
 
+struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
+					     struct perf_event_attr *attr,
+					     char *name, struct perf_pmu *pmu,
+					     struct list_head *config_terms);
+
 #endif /* __PERF_PARSE_EVENTS_H */

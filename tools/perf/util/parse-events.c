@@ -37,6 +37,7 @@
 #include "util/evsel_config.h"
 #include "util/event.h"
 #include "util/pfm.h"
+#include "util/parse-events-hybrid.h"
 #include "perf.h"
 
 #define MAX_NAME_LEN 100
@@ -1419,6 +1420,8 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
+	bool hybrid;
+	int ret;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = type;
@@ -1432,6 +1435,12 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 		if (get_config_terms(head_config, &config_terms))
 			return -ENOMEM;
 	}
+
+	ret = parse_events__add_numeric_hybrid(parse_state, list, &attr,
+					       get_config_name(head_config),
+					       &config_terms, &hybrid);
+	if (hybrid)
+		return ret;
 
 	return add_event(list, &parse_state->idx, &attr,
 			 get_config_name(head_config), &config_terms);
@@ -3193,4 +3202,13 @@ char *parse_events_formats_error_string(char *additional_terms)
 
 fail:
 	return NULL;
+}
+
+struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
+					     struct perf_event_attr *attr,
+					     char *name, struct perf_pmu *pmu,
+					     struct list_head *config_terms)
+{
+	return __add_event(list, idx, attr, true, name, pmu,
+			   config_terms, false, NULL);
 }

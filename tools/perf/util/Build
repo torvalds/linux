@@ -23,6 +23,7 @@ perf-y += llvm-utils.o
 perf-y += mmap.o
 perf-y += memswap.o
 perf-y += parse-events.o
+perf-y += parse-events-hybrid.o
 perf-y += perf_regs.o
 perf-y += path.o
 perf-y += print_binary.o
