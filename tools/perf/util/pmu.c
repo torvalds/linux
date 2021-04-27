@@ -40,6 +40,7 @@ int perf_pmu_parse(struct list_head *list, char *name);
 extern FILE *perf_pmu_in;
 
 static LIST_HEAD(pmus);
+static bool hybrid_scanned;
 
 /*
  * Parse & process all the sysfs attributes located under
@@ -1860,4 +1861,14 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 	pr_warning("WARNING: event '%s' not valid (bits %s of config "
 		   "'%llx' not supported by kernel)!\n",
 		   name ?: "N/A", buf, config);
+}
+
+bool perf_pmu__has_hybrid(void)
+{
+	if (!hybrid_scanned) {
+		hybrid_scanned = true;
+		perf_pmu__scan(NULL);
+	}
+
+	return !list_empty(&perf_pmu__hybrid_pmus);
 }
