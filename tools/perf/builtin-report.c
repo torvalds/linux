@@ -85,6 +85,7 @@ struct report {
 	bool			group_set;
 	bool			stitch_lbr;
 	bool			disable_order;
+	bool			skip_empty;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	struct annotation_options annotation_opts;
@@ -530,6 +531,9 @@ static int evlist__tty_browse_hists(struct evlist *evlist, struct report *rep, c
 		if (symbol_conf.event_group && !evsel__is_group_leader(pos))
 			continue;
 
+		if (rep->skip_empty && !hists->stats.nr_samples)
+			continue;
+
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 
 		if (rep->total_cycles_mode) {
@@ -731,8 +735,8 @@ static int stats_print(struct report *rep)
 {
 	struct perf_session *session = rep->session;
 
-	perf_session__fprintf_nr_events(session, stdout);
-	perf_evlist__fprintf_nr_events(session->evlist, stdout);
+	perf_session__fprintf_nr_events(session, stdout, rep->skip_empty);
+	evlist__fprintf_nr_events(session->evlist, stdout, rep->skip_empty);
 	return 0;
 }
 
@@ -944,8 +948,10 @@ static int __cmd_report(struct report *rep)
 			perf_session__fprintf_dsos(session, stdout);
 
 		if (dump_trace) {
-			perf_session__fprintf_nr_events(session, stdout);
-			evlist__fprintf_nr_events(session->evlist, stdout);
+			perf_session__fprintf_nr_events(session, stdout,
+							rep->skip_empty);
+			evlist__fprintf_nr_events(session->evlist, stdout,
+						  rep->skip_empty);
 			return 0;
 		}
 	}
@@ -1313,6 +1319,8 @@ int cmd_report(int argc, const char **argv)
 		    "Sort all blocks by 'Sampled Cycles%'"),
 	OPT_BOOLEAN(0, "disable-order", &report.disable_order,
 		    "Disable raw trace ordering"),
+	OPT_BOOLEAN(0, "skip-empty", &report.skip_empty,
+		    "Do not display empty (or dummy) events in the output"),
 	OPT_END()
 	};
 	struct perf_data data = {

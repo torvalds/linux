@@ -2676,13 +2676,17 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 	}
 }
 
-size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp)
+size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp,
+				 bool skip_empty)
 {
 	struct evsel *pos;
 	size_t ret = 0;
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
+
+		if (skip_empty && !hists->stats.nr_samples)
+			continue;
 
 		ret += fprintf(fp, "%s stats:\n", evsel__name(pos));
 		ret += fprintf(fp, "%16s events: %10d\n",
