@@ -6,8 +6,9 @@
 tuner-objs	:=	tuner-core.o
 
 videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o v4l2-device.o v4l2-fh.o \
-			v4l2-event.o v4l2-ctrls.o v4l2-subdev.o \
-			v4l2-async.o v4l2-common.o
+			v4l2-event.o v4l2-subdev.o v4l2-async.o v4l2-common.o \
+			v4l2-ctrls-core.o v4l2-ctrls-api.o \
+			v4l2-ctrls-request.o v4l2-ctrls-defs.o
 videodev-$(CONFIG_COMPAT) += v4l2-compat-ioctl32.o
 videodev-$(CONFIG_TRACEPOINTS) += v4l2-trace.o
 videodev-$(CONFIG_MEDIA_CONTROLLER) += v4l2-mc.o
