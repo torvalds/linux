@@ -805,8 +805,7 @@ static int audit_in_mask(const struct audit_krule *rule, unsigned long val)
  * (i.e., the state is AUDIT_SETUP_CONTEXT or AUDIT_BUILD_CONTEXT).
  */
 static void audit_filter_syscall(struct task_struct *tsk,
-					     struct audit_context *ctx,
-					     struct list_head *list)
+				 struct audit_context *ctx)
 {
 	struct audit_entry *e;
 	enum audit_state state;
@@ -815,7 +814,7 @@ static void audit_filter_syscall(struct task_struct *tsk,
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(e, list, list) {
+	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_EXIT], list) {
 		if (audit_in_mask(&e->rule, ctx->major) &&
 		    audit_filter_rules(tsk, &e->rule, ctx, NULL,
 				       &state, false)) {
@@ -1627,8 +1626,7 @@ void __audit_free(struct task_struct *tsk)
 		context->return_valid = AUDITSC_INVALID;
 		context->return_code = 0;
 
-		audit_filter_syscall(tsk, context,
-				     &audit_filter_list[AUDIT_FILTER_EXIT]);
+		audit_filter_syscall(tsk, context);
 		audit_filter_inodes(tsk, context);
 		if (context->current_state == AUDIT_RECORD_CONTEXT)
 			audit_log_exit();
@@ -1735,8 +1733,7 @@ void __audit_syscall_exit(int success, long return_code)
 		else
 			context->return_code  = return_code;
 
-		audit_filter_syscall(current, context,
-				     &audit_filter_list[AUDIT_FILTER_EXIT]);
+		audit_filter_syscall(current, context);
 		audit_filter_inodes(current, context);
 		if (context->current_state == AUDIT_RECORD_CONTEXT)
 			audit_log_exit();
