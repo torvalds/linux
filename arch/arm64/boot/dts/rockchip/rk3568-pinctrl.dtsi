@@ -3109,9 +3109,9 @@
 		};
 	};
 
-	gpio {
+	gpio-func {
 		/omit-if-no-ref/
-		tsadc_gpio: tsadc-gpio {
+		tsadc_gpio_func: tsadc-gpio-func {
 			rockchip,pins =
 				<0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
