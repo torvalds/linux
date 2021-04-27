@@ -20,6 +20,57 @@
 
 #include "ksz_common.h"
 #include "ksz8795_reg.h"
+#include "ksz8.h"
+
+static const u8 ksz8795_regs[] = {
+	[REG_IND_CTRL_0]		= 0x6E,
+	[REG_IND_DATA_8]		= 0x70,
+	[REG_IND_DATA_CHECK]		= 0x72,
+	[REG_IND_DATA_HI]		= 0x71,
+	[REG_IND_DATA_LO]		= 0x75,
+	[REG_IND_MIB_CHECK]		= 0x74,
+	[P_FORCE_CTRL]			= 0x0C,
+	[P_LINK_STATUS]			= 0x0E,
+	[P_LOCAL_CTRL]			= 0x07,
+	[P_NEG_RESTART_CTRL]		= 0x0D,
+	[P_REMOTE_STATUS]		= 0x08,
+	[P_SPEED_STATUS]		= 0x09,
+	[S_TAIL_TAG_CTRL]		= 0x0C,
+};
+
+static const u32 ksz8795_masks[] = {
+	[PORT_802_1P_REMAPPING]		= BIT(7),
+	[SW_TAIL_TAG_ENABLE]		= BIT(1),
+	[MIB_COUNTER_OVERFLOW]		= BIT(6),
+	[MIB_COUNTER_VALID]		= BIT(5),
+	[VLAN_TABLE_FID]		= GENMASK(6, 0),
+	[VLAN_TABLE_MEMBERSHIP]		= GENMASK(11, 7),
+	[VLAN_TABLE_VALID]		= BIT(12),
+	[STATIC_MAC_TABLE_VALID]	= BIT(21),
+	[STATIC_MAC_TABLE_USE_FID]	= BIT(23),
+	[STATIC_MAC_TABLE_FID]		= GENMASK(30, 24),
+	[STATIC_MAC_TABLE_OVERRIDE]	= BIT(26),
+	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(24, 20),
+	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(6, 0),
+	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(8),
+	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
+	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 29),
+	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(26, 20),
+	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
+	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
+};
+
+static const u8 ksz8795_shifts[] = {
+	[VLAN_TABLE_MEMBERSHIP_S]	= 7,
+	[VLAN_TABLE]			= 16,
+	[STATIC_MAC_FWD_PORTS]		= 16,
+	[STATIC_MAC_FID]		= 24,
+	[DYNAMIC_MAC_ENTRIES_H]		= 3,
+	[DYNAMIC_MAC_ENTRIES]		= 29,
+	[DYNAMIC_MAC_FID]		= 16,
+	[DYNAMIC_MAC_TIMESTAMP]		= 27,
+	[DYNAMIC_MAC_SRC_PORT]		= 24,
+};
 
 static const struct {
 	char string[ETH_GSTRING_LEN];
@@ -119,26 +170,32 @@ static void ksz8795_set_prio_queue(struct ksz_device *dev, int port, int queue)
 
 static void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 {
+	struct ksz8 *ksz8 = dev->priv;
+	const u32 *masks;
+	const u8 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u8 check;
 	int loop;
 
+	masks = ksz8->masks;
+	regs = ksz8->regs;
+
 	ctrl_addr = addr + dev->reg_mib_cnt * port;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, REG_IND_CTRL_0, ctrl_addr);
+	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 
 	/* It is almost guaranteed to always read the valid bit because of
 	 * slow SPI speed.
 	 */
 	for (loop = 2; loop > 0; loop--) {
-		ksz_read8(dev, REG_IND_MIB_CHECK, &check);
+		ksz_read8(dev, regs[REG_IND_MIB_CHECK], &check);
 
-		if (check & MIB_COUNTER_VALID) {
-			ksz_read32(dev, REG_IND_DATA_LO, &data);
-			if (check & MIB_COUNTER_OVERFLOW)
+		if (check & masks[MIB_COUNTER_VALID]) {
+			ksz_read32(dev, regs[REG_IND_DATA_LO], &data);
+			if (check & masks[MIB_COUNTER_OVERFLOW])
 				*cnt += MIB_COUNTER_VALUE + 1;
 			*cnt += data & MIB_COUNTER_VALUE;
 			break;
@@ -150,10 +207,16 @@ static void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 static void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 			   u64 *dropped, u64 *cnt)
 {
+	struct ksz8 *ksz8 = dev->priv;
+	const u32 *masks;
+	const u8 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u8 check;
 	int loop;
+
+	masks = ksz8->masks;
+	regs = ksz8->regs;
 
 	addr -= dev->reg_mib_cnt;
 	ctrl_addr = (KS_MIB_TOTAL_RX_1 - KS_MIB_TOTAL_RX_0) * port;
@@ -161,16 +224,16 @@ static void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, REG_IND_CTRL_0, ctrl_addr);
+	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 
 	/* It is almost guaranteed to always read the valid bit because of
 	 * slow SPI speed.
 	 */
 	for (loop = 2; loop > 0; loop--) {
-		ksz_read8(dev, REG_IND_MIB_CHECK, &check);
+		ksz_read8(dev, regs[REG_IND_MIB_CHECK], &check);
 
-		if (check & MIB_COUNTER_VALID) {
-			ksz_read32(dev, REG_IND_DATA_LO, &data);
+		if (check & masks[MIB_COUNTER_VALID]) {
+			ksz_read32(dev, regs[REG_IND_DATA_LO], &data);
 			if (addr < 2) {
 				u64 total;
 
@@ -178,13 +241,13 @@ static void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 				total <<= 32;
 				*cnt += total;
 				*cnt += data;
-				if (check & MIB_COUNTER_OVERFLOW) {
+				if (check & masks[MIB_COUNTER_OVERFLOW]) {
 					total = MIB_TOTAL_BYTES_H + 1;
 					total <<= 32;
 					*cnt += total;
 				}
 			} else {
-				if (check & MIB_COUNTER_OVERFLOW)
+				if (check & masks[MIB_COUNTER_OVERFLOW])
 					*cnt += MIB_PACKET_DROPPED + 1;
 				*cnt += data & MIB_PACKET_DROPPED;
 			}
@@ -236,46 +299,56 @@ static void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 
 static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 {
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *regs = ksz8->regs;
 	u16 ctrl_addr;
 
 	ctrl_addr = IND_ACC_TABLE(table | TABLE_READ) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, REG_IND_CTRL_0, ctrl_addr);
-	ksz_read64(dev, REG_IND_DATA_HI, data);
+	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	ksz_read64(dev, regs[REG_IND_DATA_HI], data);
 	mutex_unlock(&dev->alu_mutex);
 }
 
 static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
 {
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *regs = ksz8->regs;
 	u16 ctrl_addr;
 
 	ctrl_addr = IND_ACC_TABLE(table) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write64(dev, REG_IND_DATA_HI, data);
-	ksz_write16(dev, REG_IND_CTRL_0, ctrl_addr);
+	ksz_write64(dev, regs[REG_IND_DATA_HI], data);
+	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 	mutex_unlock(&dev->alu_mutex);
 }
 
 static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 {
+	struct ksz8 *ksz8 = dev->priv;
 	int timeout = 100;
+	const u32 *masks;
+	const u8 *regs;
+
+	masks = ksz8->masks;
+	regs = ksz8->regs;
 
 	do {
-		ksz_read8(dev, REG_IND_DATA_CHECK, data);
+		ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
 		timeout--;
-	} while ((*data & DYNAMIC_MAC_TABLE_NOT_READY) && timeout);
+	} while ((*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) && timeout);
 
 	/* Entry is not ready for accessing. */
-	if (*data & DYNAMIC_MAC_TABLE_NOT_READY) {
+	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) {
 		return -EAGAIN;
 	/* Entry is ready for accessing. */
 	} else {
-		ksz_read8(dev, REG_IND_DATA_8, data);
+		ksz_read8(dev, regs[REG_IND_DATA_8], data);
 
 		/* There is no valid entry in the table. */
-		if (*data & DYNAMIC_MAC_TABLE_MAC_EMPTY)
+		if (*data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY])
 			return -ENXIO;
 	}
 	return 0;
@@ -285,15 +358,23 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr,
 				u8 *mac_addr, u8 *fid, u8 *src_port,
 				u8 *timestamp, u16 *entries)
 {
+	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
+	const u8 *shifts;
+	const u32 *masks;
+	const u8 *regs;
 	u16 ctrl_addr;
 	u8 data;
 	int rc;
 
+	shifts = ksz8->shifts;
+	masks = ksz8->masks;
+	regs = ksz8->regs;
+
 	ctrl_addr = IND_ACC_TABLE(TABLE_DYNAMIC_MAC | TABLE_READ) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, REG_IND_CTRL_0, ctrl_addr);
+	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 
 	rc = ksz8_valid_dyn_entry(dev, &data);
 	if (rc == -EAGAIN) {
@@ -306,23 +387,23 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr,
 		u64 buf = 0;
 		int cnt;
 
-		ksz_read64(dev, REG_IND_DATA_HI, &buf);
+		ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
 		data_hi = (u32)(buf >> 32);
 		data_lo = (u32)buf;
 
 		/* Check out how many valid entry in the table. */
-		cnt = data & DYNAMIC_MAC_TABLE_ENTRIES_H;
-		cnt <<= DYNAMIC_MAC_ENTRIES_H_S;
-		cnt |= (data_hi & DYNAMIC_MAC_TABLE_ENTRIES) >>
-			DYNAMIC_MAC_ENTRIES_S;
+		cnt = data & masks[DYNAMIC_MAC_TABLE_ENTRIES_H];
+		cnt <<= shifts[DYNAMIC_MAC_ENTRIES_H];
+		cnt |= (data_hi & masks[DYNAMIC_MAC_TABLE_ENTRIES]) >>
+			shifts[DYNAMIC_MAC_ENTRIES];
 		*entries = cnt + 1;
 
-		*fid = (data_hi & DYNAMIC_MAC_TABLE_FID) >>
-			DYNAMIC_MAC_FID_S;
-		*src_port = (data_hi & DYNAMIC_MAC_TABLE_SRC_PORT) >>
-			DYNAMIC_MAC_SRC_PORT_S;
-		*timestamp = (data_hi & DYNAMIC_MAC_TABLE_TIMESTAMP) >>
-			DYNAMIC_MAC_TIMESTAMP_S;
+		*fid = (data_hi & masks[DYNAMIC_MAC_TABLE_FID]) >>
+			shifts[DYNAMIC_MAC_FID];
+		*src_port = (data_hi & masks[DYNAMIC_MAC_TABLE_SRC_PORT]) >>
+			shifts[DYNAMIC_MAC_SRC_PORT];
+		*timestamp = (data_hi & masks[DYNAMIC_MAC_TABLE_TIMESTAMP]) >>
+			shifts[DYNAMIC_MAC_TIMESTAMP];
 
 		mac_addr[5] = (u8)data_lo;
 		mac_addr[4] = (u8)(data_lo >> 8);
@@ -341,27 +422,37 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr,
 static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 				struct alu_struct *alu)
 {
+	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
+	const u8 *shifts;
+	const u32 *masks;
 	u64 data;
+
+	shifts = ksz8->shifts;
+	masks = ksz8->masks;
 
 	ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
 	data_hi = data >> 32;
 	data_lo = (u32)data;
-	if (data_hi & (STATIC_MAC_TABLE_VALID | STATIC_MAC_TABLE_OVERRIDE)) {
+	if (data_hi & (masks[STATIC_MAC_TABLE_VALID] |
+			masks[STATIC_MAC_TABLE_OVERRIDE])) {
 		alu->mac[5] = (u8)data_lo;
 		alu->mac[4] = (u8)(data_lo >> 8);
 		alu->mac[3] = (u8)(data_lo >> 16);
 		alu->mac[2] = (u8)(data_lo >> 24);
 		alu->mac[1] = (u8)data_hi;
 		alu->mac[0] = (u8)(data_hi >> 8);
-		alu->port_forward = (data_hi & STATIC_MAC_TABLE_FWD_PORTS) >>
-			STATIC_MAC_FWD_PORTS_S;
+		alu->port_forward =
+			(data_hi & masks[STATIC_MAC_TABLE_FWD_PORTS]) >>
+				shifts[STATIC_MAC_FWD_PORTS];
 		alu->is_override =
-			(data_hi & STATIC_MAC_TABLE_OVERRIDE) ? 1 : 0;
+			(data_hi & masks[STATIC_MAC_TABLE_OVERRIDE]) ? 1 : 0;
 		data_hi >>= 1;
-		alu->is_use_fid = (data_hi & STATIC_MAC_TABLE_USE_FID) ? 1 : 0;
-		alu->fid = (data_hi & STATIC_MAC_TABLE_FID) >>
-			STATIC_MAC_FID_S;
+		alu->is_static = true;
+		alu->is_use_fid =
+			(data_hi & masks[STATIC_MAC_TABLE_USE_FID]) ? 1 : 0;
+		alu->fid = (data_hi & masks[STATIC_MAC_TABLE_FID]) >>
+				shifts[STATIC_MAC_FID];
 		return 0;
 	}
 	return -ENXIO;
@@ -370,55 +461,82 @@ static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 static void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
 				 struct alu_struct *alu)
 {
+	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
+	const u8 *shifts;
+	const u32 *masks;
 	u64 data;
+
+	shifts = ksz8->shifts;
+	masks = ksz8->masks;
 
 	data_lo = ((u32)alu->mac[2] << 24) |
 		((u32)alu->mac[3] << 16) |
 		((u32)alu->mac[4] << 8) | alu->mac[5];
 	data_hi = ((u32)alu->mac[0] << 8) | alu->mac[1];
-	data_hi |= (u32)alu->port_forward << STATIC_MAC_FWD_PORTS_S;
+	data_hi |= (u32)alu->port_forward << shifts[STATIC_MAC_FWD_PORTS];
 
 	if (alu->is_override)
-		data_hi |= STATIC_MAC_TABLE_OVERRIDE;
+		data_hi |= masks[STATIC_MAC_TABLE_OVERRIDE];
 	if (alu->is_use_fid) {
-		data_hi |= STATIC_MAC_TABLE_USE_FID;
-		data_hi |= (u32)alu->fid << STATIC_MAC_FID_S;
+		data_hi |= masks[STATIC_MAC_TABLE_USE_FID];
+		data_hi |= (u32)alu->fid << shifts[STATIC_MAC_FID];
 	}
 	if (alu->is_static)
-		data_hi |= STATIC_MAC_TABLE_VALID;
+		data_hi |= masks[STATIC_MAC_TABLE_VALID];
 	else
-		data_hi &= ~STATIC_MAC_TABLE_OVERRIDE;
+		data_hi &= ~masks[STATIC_MAC_TABLE_OVERRIDE];
 
 	data = (u64)data_hi << 32 | data_lo;
 	ksz8_w_table(dev, TABLE_STATIC_MAC, addr, data);
 }
 
-static void ksz8_from_vlan(u16 vlan, u8 *fid, u8 *member, u8 *valid)
+static void ksz8_from_vlan(struct ksz_device *dev, u32 vlan, u8 *fid,
+			   u8 *member, u8 *valid)
 {
-	*fid = vlan & VLAN_TABLE_FID;
-	*member = (vlan & VLAN_TABLE_MEMBERSHIP) >> VLAN_TABLE_MEMBERSHIP_S;
-	*valid = !!(vlan & VLAN_TABLE_VALID);
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *shifts;
+	const u32 *masks;
+
+	shifts = ksz8->shifts;
+	masks = ksz8->masks;
+
+	*fid = vlan & masks[VLAN_TABLE_FID];
+	*member = (vlan & masks[VLAN_TABLE_MEMBERSHIP]) >>
+			shifts[VLAN_TABLE_MEMBERSHIP_S];
+	*valid = !!(vlan & masks[VLAN_TABLE_VALID]);
 }
 
-static void ksz8_to_vlan(u8 fid, u8 member, u8 valid, u16 *vlan)
+static void ksz8_to_vlan(struct ksz_device *dev, u8 fid, u8 member, u8 valid,
+			 u16 *vlan)
 {
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *shifts;
+	const u32 *masks;
+
+	shifts = ksz8->shifts;
+	masks = ksz8->masks;
+
 	*vlan = fid;
-	*vlan |= (u16)member << VLAN_TABLE_MEMBERSHIP_S;
+	*vlan |= (u16)member << shifts[VLAN_TABLE_MEMBERSHIP_S];
 	if (valid)
-		*vlan |= VLAN_TABLE_VALID;
+		*vlan |= masks[VLAN_TABLE_VALID];
 }
 
 static void ksz8_r_vlan_entries(struct ksz_device *dev, u16 addr)
 {
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *shifts;
 	u64 data;
 	int i;
+
+	shifts = ksz8->shifts;
 
 	ksz8_r_table(dev, TABLE_VLAN, addr, &data);
 	addr *= dev->phy_port_cnt;
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		dev->vlan_cache[addr + i].table[0] = (u16)data;
-		data >>= VLAN_TABLE_S;
+		data >>= shifts[VLAN_TABLE];
 	}
 }
 
@@ -454,16 +572,18 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 
 static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
+	struct ksz8 *ksz8 = dev->priv;
 	u8 restart, speed, ctrl, link;
+	const u8 *regs = ksz8->regs;
 	int processed = true;
 	u16 data = 0;
 	u8 p = phy;
 
 	switch (reg) {
 	case PHY_REG_CTRL:
-		ksz_pread8(dev, p, P_NEG_RESTART_CTRL, &restart);
-		ksz_pread8(dev, p, P_SPEED_STATUS, &speed);
-		ksz_pread8(dev, p, P_FORCE_CTRL, &ctrl);
+		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
+		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
+		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
 		if (restart & PORT_PHY_LOOPBACK)
 			data |= PHY_LOOPBACK;
 		if (ctrl & PORT_FORCE_100_MBIT)
@@ -488,7 +608,7 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data |= PHY_LED_DISABLE;
 		break;
 	case PHY_REG_STATUS:
-		ksz_pread8(dev, p, P_LINK_STATUS, &link);
+		ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
 		data = PHY_100BTX_FD_CAPABLE |
 		       PHY_100BTX_CAPABLE |
 		       PHY_10BT_FD_CAPABLE |
@@ -506,7 +626,7 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 		data = KSZ8795_ID_LO;
 		break;
 	case PHY_REG_AUTO_NEGOTIATION:
-		ksz_pread8(dev, p, P_LOCAL_CTRL, &ctrl);
+		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
 		data = PHY_AUTO_NEG_802_3;
 		if (ctrl & PORT_AUTO_NEG_SYM_PAUSE)
 			data |= PHY_AUTO_NEG_SYM_PAUSE;
@@ -520,7 +640,7 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 			data |= PHY_AUTO_NEG_10BT;
 		break;
 	case PHY_REG_REMOTE_CAPABILITY:
-		ksz_pread8(dev, p, P_REMOTE_STATUS, &link);
+		ksz_pread8(dev, p, regs[P_REMOTE_STATUS], &link);
 		data = PHY_AUTO_NEG_802_3;
 		if (link & PORT_REMOTE_SYM_PAUSE)
 			data |= PHY_AUTO_NEG_SYM_PAUSE;
@@ -545,8 +665,10 @@ static void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 
 static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
-	u8 p = phy;
+	struct ksz8 *ksz8 = dev->priv;
 	u8 restart, speed, ctrl, data;
+	const u8 *regs = ksz8->regs;
+	u8 p = phy;
 
 	switch (reg) {
 	case PHY_REG_CTRL:
@@ -554,15 +676,15 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		/* Do not support PHY reset function. */
 		if (val & PHY_RESET)
 			break;
-		ksz_pread8(dev, p, P_SPEED_STATUS, &speed);
+		ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
 		data = speed;
 		if (val & PHY_HP_MDIX)
 			data |= PORT_HP_MDIX;
 		else
 			data &= ~PORT_HP_MDIX;
 		if (data != speed)
-			ksz_pwrite8(dev, p, P_SPEED_STATUS, data);
-		ksz_pread8(dev, p, P_FORCE_CTRL, &ctrl);
+			ksz_pwrite8(dev, p, regs[P_SPEED_STATUS], data);
+		ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
 		data = ctrl;
 		if (!(val & PHY_AUTO_NEG_ENABLE))
 			data |= PORT_AUTO_NEG_DISABLE;
@@ -581,8 +703,8 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		else
 			data &= ~PORT_FORCE_FULL_DUPLEX;
 		if (data != ctrl)
-			ksz_pwrite8(dev, p, P_FORCE_CTRL, data);
-		ksz_pread8(dev, p, P_NEG_RESTART_CTRL, &restart);
+			ksz_pwrite8(dev, p, regs[P_FORCE_CTRL], data);
+		ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
 		data = restart;
 		if (val & PHY_LED_DISABLE)
 			data |= PORT_LED_OFF;
@@ -613,10 +735,10 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		else
 			data &= ~PORT_PHY_LOOPBACK;
 		if (data != restart)
-			ksz_pwrite8(dev, p, P_NEG_RESTART_CTRL, data);
+			ksz_pwrite8(dev, p, regs[P_NEG_RESTART_CTRL], data);
 		break;
 	case PHY_REG_AUTO_NEGOTIATION:
-		ksz_pread8(dev, p, P_LOCAL_CTRL, &ctrl);
+		ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
 		data = ctrl;
 		data &= ~(PORT_AUTO_NEG_SYM_PAUSE |
 			  PORT_AUTO_NEG_100BTX_FD |
@@ -634,7 +756,7 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 		if (val & PHY_AUTO_NEG_10BT)
 			data |= PORT_AUTO_NEG_10BT;
 		if (data != ctrl)
-			ksz_pwrite8(dev, p, P_LOCAL_CTRL, data);
+			ksz_pwrite8(dev, p, regs[P_LOCAL_CTRL], data);
 		break;
 	default:
 		break;
@@ -799,7 +921,7 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
 	ksz8_r_vlan_table(dev, vlan->vid, &data);
-	ksz8_from_vlan(data, &fid, &member, &valid);
+	ksz8_from_vlan(dev, data, &fid, &member, &valid);
 
 	/* First time to setup the VLAN entry. */
 	if (!valid) {
@@ -809,7 +931,7 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 	}
 	member |= BIT(port);
 
-	ksz8_to_vlan(fid, member, valid, &data);
+	ksz8_to_vlan(dev, fid, member, valid, &data);
 	ksz8_w_vlan_table(dev, vlan->vid, data);
 
 	/* change PVID */
@@ -842,7 +964,7 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, P_TAG_CTRL, PORT_REMOVE_TAG, untagged);
 
 	ksz8_r_vlan_table(dev, vlan->vid, &data);
-	ksz8_from_vlan(data, &fid, &member, &valid);
+	ksz8_from_vlan(dev, data, &fid, &member, &valid);
 
 	member &= ~BIT(port);
 
@@ -855,7 +977,7 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 	if (pvid == vlan->vid)
 		new_pvid = 1;
 
-	ksz8_to_vlan(fid, member, valid, &data);
+	ksz8_to_vlan(dev, fid, member, valid, &data);
 	ksz8_w_vlan_table(dev, vlan->vid, data);
 
 	if (new_pvid != pvid)
@@ -960,7 +1082,11 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	struct ksz_port *p = &dev->ports[port];
+	struct ksz8 *ksz8 = dev->priv;
+	const u32 *masks;
 	u8 member;
+
+	masks = ksz8->masks;
 
 	/* enable broadcast storm limit */
 	ksz_port_cfg(dev, port, P_BCAST_STORM_CTRL, PORT_BROADCAST_STORM, true);
@@ -971,7 +1097,8 @@ static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_DIFFSERV_ENABLE, false);
 
 	/* replace priority */
-	ksz_port_cfg(dev, port, P_802_1P_CTRL, PORT_802_1P_REMAPPING, false);
+	ksz_port_cfg(dev, port, P_802_1P_CTRL,
+		     masks[PORT_802_1P_REMAPPING], false);
 
 	/* enable 802.1p priority */
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_ENABLE, true);
@@ -989,13 +1116,18 @@ static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 static void ksz8_config_cpu_port(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *regs = ksz8->regs;
 	struct ksz_port *p;
+	const u32 *masks;
 	u8 remote;
 	int i;
 
+	masks = ksz8->masks;
+
 	/* Switch marks the maximum frame with extra byte as oversize. */
 	ksz_cfg(dev, REG_SW_CTRL_2, SW_LEGAL_PACKET_DISABLE, true);
-	ksz_cfg(dev, S_TAIL_TAG_CTRL, SW_TAIL_TAG_ENABLE, true);
+	ksz_cfg(dev, regs[S_TAIL_TAG_CTRL], masks[SW_TAIL_TAG_ENABLE], true);
 
 	p = &dev->ports[dev->cpu_port];
 	p->vid_member = dev->port_mask;
@@ -1024,7 +1156,7 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 		p = &dev->ports[i];
 		if (!p->on)
 			continue;
-		ksz_pread8(dev, i, P_REMOTE_STATUS, &remote);
+		ksz_pread8(dev, i, regs[P_REMOTE_STATUS], &remote);
 		if (remote & PORT_FIBER_MODE)
 			p->fiber = 1;
 		if (p->fiber)
@@ -1222,6 +1354,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 
 static int ksz8_switch_init(struct ksz_device *dev)
 {
+	struct ksz8 *ksz8 = dev->priv;
 	int i;
 
 	dev->ds->ops = &ksz8_switch_ops;
@@ -1248,6 +1381,10 @@ static int ksz8_switch_init(struct ksz_device *dev)
 	/* no switch found */
 	if (!dev->cpu_ports)
 		return -ENODEV;
+
+	ksz8->regs = ksz8795_regs;
+	ksz8->masks = ksz8795_masks;
+	ksz8->shifts = ksz8795_shifts;
 
 	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
 	dev->mib_cnt = ARRAY_SIZE(mib_names);
