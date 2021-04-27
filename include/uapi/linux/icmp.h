@@ -70,22 +70,22 @@
 #define ICMP_EXC_FRAGTIME	1	/* Fragment Reass time exceeded	*/
 
 /* Codes for EXT_ECHO (PROBE) */
-#define ICMP_EXT_ECHO		42
-#define ICMP_EXT_ECHOREPLY	43
-#define ICMP_EXT_MAL_QUERY	1	/* Malformed Query */
-#define ICMP_EXT_NO_IF		2	/* No such Interface */
-#define ICMP_EXT_NO_TABLE_ENT	3	/* No such Table Entry */
-#define ICMP_EXT_MULT_IFS	4	/* Multiple Interfaces Satisfy Query */
+#define ICMP_EXT_ECHO			42
+#define ICMP_EXT_ECHOREPLY		43
+#define ICMP_EXT_CODE_MAL_QUERY		1	/* Malformed Query */
+#define ICMP_EXT_CODE_NO_IF		2	/* No such Interface */
+#define ICMP_EXT_CODE_NO_TABLE_ENT	3	/* No such Table Entry */
+#define ICMP_EXT_CODE_MULT_IFS		4	/* Multiple Interfaces Satisfy Query */
 
 /* Constants for EXT_ECHO (PROBE) */
-#define EXT_ECHOREPLY_ACTIVE	(1 << 2)/* active bit in reply message */
-#define EXT_ECHOREPLY_IPV4	(1 << 1)/* ipv4 bit in reply message */
-#define EXT_ECHOREPLY_IPV6	1	/* ipv6 bit in reply message */
-#define EXT_ECHO_CTYPE_NAME	1
-#define EXT_ECHO_CTYPE_INDEX	2
-#define EXT_ECHO_CTYPE_ADDR	3
-#define ICMP_AFI_IP		1	/* Address Family Identifier for ipv4 */
-#define ICMP_AFI_IP6		2	/* Address Family Identifier for ipv6 */
+#define ICMP_EXT_ECHOREPLY_ACTIVE	(1 << 2)/* active bit in reply message */
+#define ICMP_EXT_ECHOREPLY_IPV4		(1 << 1)/* ipv4 bit in reply message */
+#define ICMP_EXT_ECHOREPLY_IPV6		1	/* ipv6 bit in reply message */
+#define ICMP_EXT_ECHO_CTYPE_NAME	1
+#define ICMP_EXT_ECHO_CTYPE_INDEX	2
+#define ICMP_EXT_ECHO_CTYPE_ADDR	3
+#define ICMP_AFI_IP			1	/* Address Family Identifier for ipv4 */
+#define ICMP_AFI_IP6			2	/* Address Family Identifier for ipv6 */
 
 struct icmphdr {
   __u8		type;

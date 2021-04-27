@@ -1033,7 +1033,7 @@ static bool icmp_echo(struct sk_buff *skb)
 	status = 0;
 	dev = NULL;
 	switch (iio->extobj_hdr.class_type) {
-	case EXT_ECHO_CTYPE_NAME:
+	case ICMP_EXT_ECHO_CTYPE_NAME:
 		iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(_iio), &_iio);
 		if (ident_len >= IFNAMSIZ)
 			goto send_mal_query;
@@ -1041,14 +1041,14 @@ static bool icmp_echo(struct sk_buff *skb)
 		memcpy(buff, &iio->ident.name, ident_len);
 		dev = dev_get_by_name(net, buff);
 		break;
-	case EXT_ECHO_CTYPE_INDEX:
+	case ICMP_EXT_ECHO_CTYPE_INDEX:
 		iio = skb_header_pointer(skb, sizeof(_ext_hdr), sizeof(iio->extobj_hdr) +
 					 sizeof(iio->ident.ifindex), &_iio);
 		if (ident_len != sizeof(iio->ident.ifindex))
 			goto send_mal_query;
 		dev = dev_get_by_index(net, ntohl(iio->ident.ifindex));
 		break;
-	case EXT_ECHO_CTYPE_ADDR:
+	case ICMP_EXT_ECHO_CTYPE_ADDR:
 		if (ident_len != sizeof(iio->ident.addr.ctype3_hdr) +
 				 iio->ident.addr.ctype3_hdr.addrlen)
 			goto send_mal_query;
@@ -1080,23 +1080,23 @@ static bool icmp_echo(struct sk_buff *skb)
 		goto send_mal_query;
 	}
 	if (!dev) {
-		icmp_param.data.icmph.code = ICMP_EXT_NO_IF;
+		icmp_param.data.icmph.code = ICMP_EXT_CODE_NO_IF;
 		goto send_reply;
 	}
 	/* Fill bits in reply message */
 	if (dev->flags & IFF_UP)
-		status |= EXT_ECHOREPLY_ACTIVE;
+		status |= ICMP_EXT_ECHOREPLY_ACTIVE;
 	if (__in_dev_get_rcu(dev) && __in_dev_get_rcu(dev)->ifa_list)
-		status |= EXT_ECHOREPLY_IPV4;
+		status |= ICMP_EXT_ECHOREPLY_IPV4;
 	if (!list_empty(&rcu_dereference(dev->ip6_ptr)->addr_list))
-		status |= EXT_ECHOREPLY_IPV6;
+		status |= ICMP_EXT_ECHOREPLY_IPV6;
 	dev_put(dev);
 	icmp_param.data.icmph.un.echo.sequence |= htons(status);
 send_reply:
 	icmp_reply(&icmp_param, skb);
 		return true;
 send_mal_query:
-	icmp_param.data.icmph.code = ICMP_EXT_MAL_QUERY;
+	icmp_param.data.icmph.code = ICMP_EXT_CODE_MAL_QUERY;
 	goto send_reply;
 }
 
