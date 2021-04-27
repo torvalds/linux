@@ -7539,6 +7539,7 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 			io_ring_submit_lock(ctx, lock_ring);
 			spin_lock_irqsave(&ctx->completion_lock, flags);
 			io_cqring_fill_event(ctx, prsrc->tag, 0, 0);
+			ctx->cq_extra++;
 			io_commit_cqring(ctx);
 			spin_unlock_irqrestore(&ctx->completion_lock, flags);
 			io_cqring_ev_posted(ctx);
