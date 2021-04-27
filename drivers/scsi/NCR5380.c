@@ -1815,6 +1815,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 				switch (tmp) {
 				case ABORT:
+					set_host_byte(cmd, DID_ABORT);
+					/* fallthrough */
 				case COMMAND_COMPLETE:
 					/* Accept message by clearing ACK */
 					sink = 1;
@@ -1826,9 +1828,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					hostdata->connected = NULL;
 					hostdata->busy[scmd_id(cmd)] &= ~(1 << cmd->device->lun);
 
-					cmd->result &= ~0xffff;
-					cmd->result |= cmd->SCp.Status;
-					cmd->result |= cmd->SCp.Message << 8;
+					set_status_byte(cmd, cmd->SCp.Status);
 
 					set_resid_from_SCp(cmd);
 
