@@ -33,7 +33,7 @@ static void walt_attach_task(struct task_struct *p, struct rq *rq)
 	check_preempt_curr(rq, p, 0);
 }
 
-static int walt_lb_active_migration(void *data)
+static int stop_walt_lb_active_migration(void *data)
 {
 	struct rq *busiest_rq = data;
 	int busiest_cpu = cpu_of(busiest_rq);
@@ -307,10 +307,15 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	 * the push_task is really pulled onto this CPU.
 	 */
 	if (active_balance) {
+		bool success;
+
 		wts = (struct walt_task_struct *) p->android_vendor_data1;
 		trace_walt_active_load_balance(p, src_cpu, dst_cpu, wts);
-		stop_one_cpu_nowait(src_cpu, walt_lb_active_migration,
+		success = stop_one_cpu_nowait(src_cpu, stop_walt_lb_active_migration,
 				    src_rq, &src_rq->active_balance_work);
+		if (!success)
+			clear_reserved(dst_cpu);
+
 		return 0; /* we did not pull any task here */
 	}
 
@@ -543,7 +548,7 @@ void walt_lb_tick(struct rq *rq)
 
 	trace_walt_active_load_balance(p, prev_cpu, new_cpu, wts);
 	ret = stop_one_cpu_nowait(prev_cpu,
-			walt_lb_active_migration, rq,
+			stop_walt_lb_active_migration, rq,
 			&rq->active_balance_work);
 	if (!ret)
 		clear_reserved(new_cpu);
