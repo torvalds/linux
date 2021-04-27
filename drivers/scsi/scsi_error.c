@@ -745,32 +745,32 @@ static enum scsi_disposition scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 	 * now, check the status byte to see if this indicates
 	 * anything special.
 	 */
-	switch (status_byte(scmd->result)) {
-	case GOOD:
+	switch (get_status_byte(scmd)) {
+	case SAM_STAT_GOOD:
 		scsi_handle_queue_ramp_up(scmd->device);
 		fallthrough;
-	case COMMAND_TERMINATED:
+	case SAM_STAT_COMMAND_TERMINATED:
 		return SUCCESS;
-	case CHECK_CONDITION:
+	case SAM_STAT_CHECK_CONDITION:
 		return scsi_check_sense(scmd);
-	case CONDITION_GOOD:
-	case INTERMEDIATE_GOOD:
-	case INTERMEDIATE_C_GOOD:
+	case SAM_STAT_CONDITION_MET:
+	case SAM_STAT_INTERMEDIATE:
+	case SAM_STAT_INTERMEDIATE_CONDITION_MET:
 		/*
 		 * who knows?  FIXME(eric)
 		 */
 		return SUCCESS;
-	case RESERVATION_CONFLICT:
+	case SAM_STAT_RESERVATION_CONFLICT:
 		if (scmd->cmnd[0] == TEST_UNIT_READY)
 			/* it is a success, we probed the device and
 			 * found it */
 			return SUCCESS;
 		/* otherwise, we failed to send the command */
 		return FAILED;
-	case QUEUE_FULL:
+	case SAM_STAT_TASK_SET_FULL:
 		scsi_handle_queue_full(scmd->device);
 		fallthrough;
-	case BUSY:
+	case SAM_STAT_BUSY:
 		return NEEDS_RETRY;
 	default:
 		return FAILED;
@@ -1760,7 +1760,7 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 	case DID_PARITY:
 		return (scmd->request->cmd_flags & REQ_FAILFAST_DEV);
 	case DID_ERROR:
-		if (status_byte(scmd->result) == RESERVATION_CONFLICT)
+		if (get_status_byte(scmd) == SAM_STAT_RESERVATION_CONFLICT)
 			return 0;
 		fallthrough;
 	case DID_SOFT_ERROR:
@@ -1876,7 +1876,7 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 */
 		return SUCCESS;
 	case DID_ERROR:
-		if (status_byte(scmd->result) == RESERVATION_CONFLICT)
+		if (get_status_byte(scmd) == SAM_STAT_RESERVATION_CONFLICT)
 			/*
 			 * execute reservation conflict processing code
 			 * lower down
@@ -1907,15 +1907,15 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 	/*
 	 * check the status byte to see if this indicates anything special.
 	 */
-	switch (status_byte(scmd->result)) {
-	case QUEUE_FULL:
+	switch (get_status_byte(scmd)) {
+	case SAM_STAT_TASK_SET_FULL:
 		scsi_handle_queue_full(scmd->device);
 		/*
 		 * the case of trying to send too many commands to a
 		 * tagged queueing device.
 		 */
 		fallthrough;
-	case BUSY:
+	case SAM_STAT_BUSY:
 		/*
 		 * device can't talk to us at the moment.  Should only
 		 * occur (SAM-3) when the task queue is empty, so will cause
@@ -1923,16 +1923,16 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * device.
 		 */
 		return ADD_TO_MLQUEUE;
-	case GOOD:
+	case SAM_STAT_GOOD:
 		if (scmd->cmnd[0] == REPORT_LUNS)
 			scmd->device->sdev_target->expecting_lun_change = 0;
 		scsi_handle_queue_ramp_up(scmd->device);
 		fallthrough;
-	case COMMAND_TERMINATED:
+	case SAM_STAT_COMMAND_TERMINATED:
 		return SUCCESS;
-	case TASK_ABORTED:
+	case SAM_STAT_TASK_ABORTED:
 		goto maybe_retry;
-	case CHECK_CONDITION:
+	case SAM_STAT_CHECK_CONDITION:
 		rtn = scsi_check_sense(scmd);
 		if (rtn == NEEDS_RETRY)
 			goto maybe_retry;
@@ -1941,16 +1941,16 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * to collect the sense and redo the decide
 		 * disposition */
 		return rtn;
-	case CONDITION_GOOD:
-	case INTERMEDIATE_GOOD:
-	case INTERMEDIATE_C_GOOD:
-	case ACA_ACTIVE:
+	case SAM_STAT_CONDITION_MET:
+	case SAM_STAT_INTERMEDIATE:
+	case SAM_STAT_INTERMEDIATE_CONDITION_MET:
+	case SAM_STAT_ACA_ACTIVE:
 		/*
 		 * who knows?  FIXME(eric)
 		 */
 		return SUCCESS;
 
-	case RESERVATION_CONFLICT:
+	case SAM_STAT_RESERVATION_CONFLICT:
 		sdev_printk(KERN_INFO, scmd->device,
 			    "reservation conflict\n");
 		set_host_byte(scmd, DID_NEXUS_FAILURE);

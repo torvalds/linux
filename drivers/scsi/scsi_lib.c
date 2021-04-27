@@ -873,7 +873,7 @@ static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
 	 * if it can't fit). Treat SAM_STAT_CONDITION_MET and the related
 	 * intermediate statuses (both obsolete in SAM-4) as good.
 	 */
-	if (status_byte(result) && scsi_status_is_good(result)) {
+	if ((result & 0xff) && scsi_status_is_good(result)) {
 		result = 0;
 		*blk_statp = BLK_STS_OK;
 	}

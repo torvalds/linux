@@ -642,7 +642,7 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 		if (cmd->request->rq_flags & RQF_QUIET)
 			qc->flags |= ATA_QCFLAG_QUIET;
 	} else {
-		cmd->result = (DID_OK << 16) | (QUEUE_FULL << 1);
+		cmd->result = (DID_OK << 16) | SAM_STAT_TASK_SET_FULL;
 		cmd->scsi_done(cmd);
 	}
 

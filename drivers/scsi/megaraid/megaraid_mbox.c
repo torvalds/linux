@@ -2327,7 +2327,7 @@ megaraid_mbox_dpc(unsigned long devp)
 			 */
 			if (scp->cmnd[0] == TEST_UNIT_READY) {
 				scp->result = DID_ERROR << 16 |
-					RESERVATION_CONFLICT << 1;
+					SAM_STAT_RESERVATION_CONFLICT;
 			}
 			else
 			/*
@@ -2338,7 +2338,7 @@ megaraid_mbox_dpc(unsigned long devp)
 					 scp->cmnd[0] == RELEASE)) {
 
 				scp->result = DID_ERROR << 16 |
-					RESERVATION_CONFLICT << 1;
+					SAM_STAT_RESERVATION_CONFLICT;
 			}
 			else {
 				scp->result = DID_BAD_TARGET << 16 | status;
