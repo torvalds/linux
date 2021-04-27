@@ -646,8 +646,10 @@ static unsigned long bch2_btree_key_cache_count(struct shrinker *shrink,
 	struct bch_fs *c = container_of(shrink, struct bch_fs,
 					btree_key_cache.shrink);
 	struct btree_key_cache *bc = &c->btree_key_cache;
+	long nr = atomic_long_read(&bc->nr_keys) -
+		atomic_long_read(&bc->nr_dirty);
 
-	return atomic_long_read(&bc->nr_keys);
+	return max(0L, nr);
 }
 
 void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
