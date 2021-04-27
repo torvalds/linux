@@ -369,7 +369,7 @@ retry:
 		goto out;
 	}
 
-	if (driver_byte(result) == DRIVER_SENSE) {
+	if (result > 0 && driver_byte(result) == DRIVER_SENSE) {
 		result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */
 		if (result & SAM_STAT_CHECK_CONDITION) {
 			switch (sshdr.sense_key) {

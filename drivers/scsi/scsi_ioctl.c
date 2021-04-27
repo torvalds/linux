@@ -101,6 +101,8 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 	SCSI_LOG_IOCTL(2, sdev_printk(KERN_INFO, sdev,
 				      "Ioctl returned  0x%x\n", result));
 
+	if (result < 0)
+		goto out;
 	if (driver_byte(result) == DRIVER_SENSE &&
 	    scsi_sense_valid(&sshdr)) {
 		switch (sshdr.sense_key) {
@@ -133,7 +135,7 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 			break;
 		}
 	}
-
+out:
 	SCSI_LOG_IOCTL(2, sdev_printk(KERN_INFO, sdev,
 				      "IOCTL Releasing command\n"));
 	return result;

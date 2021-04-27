@@ -409,6 +409,10 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	cmd_result = scsi_execute(scsidev, scsi_cmd, data_dir, argbuf, argsize,
 				  sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 
+	if (cmd_result < 0) {
+		rc = cmd_result;
+		goto error;
+	}
 	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
 		u8 *desc = sensebuf + 8;
 		cmd_result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */
@@ -490,6 +494,10 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	cmd_result = scsi_execute(scsidev, scsi_cmd, DMA_NONE, NULL, 0,
 				sensebuf, &sshdr, (10*HZ), 5, 0, 0, NULL);
 
+	if (cmd_result < 0) {
+		rc = cmd_result;
+		goto error;
+	}
 	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
 		u8 *desc = sensebuf + 8;
 		cmd_result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */

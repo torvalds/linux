@@ -201,6 +201,10 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			      cgc->timeout, IOCTL_RETRIES, 0, 0, NULL);
 
 	/* Minimal error checking.  Ignore cases we know about, and report the rest. */
+	if (result < 0) {
+		err = result;
+		goto out;
+	}
 	if (driver_byte(result) != 0) {
 		switch (sshdr->sense_key) {
 		case UNIT_ATTENTION:

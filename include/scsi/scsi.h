@@ -259,10 +259,13 @@ enum scsi_disposition {
  * This returns true for known good conditions that may be treated as
  * command completed normally
  */
-static inline int scsi_status_is_good(int status)
+static inline bool scsi_status_is_good(int status)
 {
+	if (status < 0)
+		return false;
+
 	if (host_byte(status) == DID_NO_CONNECT)
-		return 0;
+		return false;
 
 	/*
 	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
