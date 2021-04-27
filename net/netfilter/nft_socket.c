@@ -134,7 +134,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_socket *priv = nft_expr_priv(expr);
-	unsigned int len, level;
+	unsigned int len;
 
 	if (!tb[NFTA_SOCKET_DREG] || !tb[NFTA_SOCKET_KEY])
 		return -EINVAL;
@@ -160,7 +160,9 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 #ifdef CONFIG_CGROUPS
-	case NFT_SOCKET_CGROUPV2:
+	case NFT_SOCKET_CGROUPV2: {
+		unsigned int level;
+
 		if (!tb[NFTA_SOCKET_LEVEL])
 			return -EINVAL;
 
@@ -171,6 +173,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 		priv->level = level;
 		len = sizeof(u64);
 		break;
+	}
 #endif
 	default:
 		return -EOPNOTSUPP;
