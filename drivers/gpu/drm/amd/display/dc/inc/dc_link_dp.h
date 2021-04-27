@@ -30,10 +30,20 @@
 #define LINK_TRAINING_RETRY_DELAY 50 /* ms */
 #define LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD 3200 /*us*/
 #define LINK_AUX_DEFAULT_TIMEOUT_PERIOD 552 /*us*/
+#define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE 0x50
+#define TRAINING_AUX_RD_INTERVAL 100 //us
 
 struct dc_link;
 struct dc_stream_state;
 struct dc_link_settings;
+
+enum {
+	LINK_TRAINING_MAX_RETRY_COUNT = 5,
+	/* to avoid infinite loop where-in the receiver
+	 * switches between different VS
+	 */
+	LINK_TRAINING_MAX_CR_RETRY = 100
+};
 
 bool dp_verify_link_cap(
 	struct dc_link *link,
@@ -96,6 +106,45 @@ void dpcd_set_source_specific_data(struct dc_link *link);
 enum dc_status dpcd_set_link_settings(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings);
+/* Write DPCD drive settings. */
+enum dc_status dpcd_set_lane_settings(
+	struct dc_link *link,
+	const struct link_training_settings *link_training_setting,
+	uint32_t offset);
+/* Read training status and adjustment requests from DPCD. */
+enum dc_status dp_get_lane_status_and_drive_settings(
+	struct dc_link *link,
+	const struct link_training_settings *link_training_setting,
+	union lane_status *ln_status,
+	union lane_align_status_updated *ln_status_updated,
+	struct link_training_settings *req_settings,
+	uint32_t offset);
+
+void dp_wait_for_training_aux_rd_interval(
+	struct dc_link *link,
+	uint32_t wait_in_micro_secs);
+
+bool dp_is_cr_done(enum dc_lane_count ln_count,
+	union lane_status *dpcd_lane_status);
+
+enum link_training_result dp_get_cr_failure(enum dc_lane_count ln_count,
+	union lane_status *dpcd_lane_status);
+
+bool dp_is_max_vs_reached(
+	const struct link_training_settings *lt_settings);
+
+void dp_update_drive_settings(
+	struct link_training_settings *dest,
+	struct link_training_settings src);
+
+enum dpcd_training_patterns
+	dc_dp_training_pattern_to_dpcd_training_pattern(
+	struct dc_link *link,
+	enum dc_dp_training_pattern pattern);
+
+uint8_t dc_dp_initialize_scrambling_data_symbols(
+	struct dc_link *link,
+	enum dc_dp_training_pattern pattern);
 
 enum dc_status dp_set_fec_ready(struct dc_link *link, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
