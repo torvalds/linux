@@ -905,8 +905,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 			if (err)
 				goto err_fence;
 
-			err = i915_vm_pin_pt_stash(vma->vm,
-						   &work->stash);
+			err = i915_vm_map_pt_stash(vma->vm, &work->stash);
 			if (err)
 				goto err_fence;
 		}

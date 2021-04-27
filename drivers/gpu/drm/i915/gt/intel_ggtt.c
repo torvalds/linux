@@ -657,7 +657,7 @@ static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 		goto err_ppgtt;
 
 	i915_gem_object_lock(ppgtt->vm.scratch[0], NULL);
-	err = i915_vm_pin_pt_stash(&ppgtt->vm, &stash);
+	err = i915_vm_map_pt_stash(&ppgtt->vm, &stash);
 	i915_gem_object_unlock(ppgtt->vm.scratch[0]);
 	if (err)
 		goto err_stash;
