@@ -9044,6 +9044,8 @@ static void io_uring_cancel_sqpoll(struct io_sq_data *sqd)
 	s64 inflight;
 	DEFINE_WAIT(wait);
 
+	if (!current->io_uring)
+		return;
 	WARN_ON_ONCE(!sqd || sqd->thread != current);
 
 	atomic_inc(&tctx->in_idle);
