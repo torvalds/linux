@@ -11,9 +11,10 @@
 #include <drm/drm_hdcp.h>
 #include <drm/drm_print.h>
 
-#include "intel_display_types.h"
 #include "intel_ddi.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_hdcp.h"
 #include "intel_hdcp.h"
 
 static unsigned int transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
@@ -835,7 +836,7 @@ static const struct intel_hdcp_shim intel_dp_mst_hdcp_shim = {
 	.protocol = HDCP_PROTOCOL_DP,
 };
 
-int intel_dp_init_hdcp(struct intel_digital_port *dig_port,
+int intel_dp_hdcp_init(struct intel_digital_port *dig_port,
 		       struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;
