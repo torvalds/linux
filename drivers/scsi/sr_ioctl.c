@@ -205,7 +205,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 		err = result;
 		goto out;
 	}
-	if (driver_byte(result) != 0) {
+	if (status_byte(result) == SAM_STAT_CHECK_CONDITION) {
 		switch (sshdr->sense_key) {
 		case UNIT_ATTENTION:
 			SDev->changed = 1;

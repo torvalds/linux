@@ -1174,8 +1174,7 @@ Members of interest:
                    target device). 'result' is a 32 bit unsigned integer that
                    can be viewed as 4 related bytes. The SCSI status value is
                    in the LSB. See include/scsi/scsi.h status_byte(),
-                   msg_byte(), host_byte() and driver_byte() macros and
-                   related constants.
+                   msg_byte() and host_byte() macros and related constants.
     sense_buffer
 		 - an array (maximum size: SCSI_SENSE_BUFFERSIZE bytes) that
                    should be written when the SCSI status (LSB of 'result')

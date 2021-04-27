@@ -325,10 +325,6 @@ static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 	cmd->result = (cmd->result & 0xff00ffff) | (status << 16);
 }
 
-static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
-{
-	cmd->result = (cmd->result & 0x00ffffff) | (status << 24);
-}
 
 static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
 {
