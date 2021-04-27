@@ -3,6 +3,7 @@
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_placement.h>
+#include <linux/slab.h>
 
 #include "ttm_module.h"
 
@@ -11,12 +12,18 @@ static int ttm_sys_man_alloc(struct ttm_resource_manager *man,
 			     const struct ttm_place *place,
 			     struct ttm_resource *mem)
 {
+	mem->mm_node = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem->mm_node)
+		return -ENOMEM;
+
+	ttm_resource_init(bo, place, mem->mm_node);
 	return 0;
 }
 
 static void ttm_sys_man_free(struct ttm_resource_manager *man,
 			     struct ttm_resource *mem)
 {
+	kfree(mem->mm_node);
 }
 
 static const struct ttm_resource_manager_func ttm_sys_manager_func = {
