@@ -368,7 +368,7 @@ static void folio_activate(struct folio *folio)
 }
 #endif
 
-static void __lru_cache_activate_page(struct page *page)
+static void __lru_cache_activate_folio(struct folio *folio)
 {
 	struct pagevec *pvec;
 	int i;
@@ -389,8 +389,8 @@ static void __lru_cache_activate_page(struct page *page)
 	for (i = pagevec_count(pvec) - 1; i >= 0; i--) {
 		struct page *pagevec_page = pvec->pages[i];
 
-		if (pagevec_page == page) {
-			SetPageActive(page);
+		if (pagevec_page == &folio->page) {
+			folio_set_active(folio);
 			break;
 		}
 	}
@@ -408,36 +408,34 @@ static void __lru_cache_activate_page(struct page *page)
  * When a newly allocated page is not yet visible, so safe for non-atomic ops,
  * __SetPageReferenced(page) may be substituted for mark_page_accessed(page).
  */
-void mark_page_accessed(struct page *page)
+void folio_mark_accessed(struct folio *folio)
 {
-	page = compound_head(page);
-
-	if (!PageReferenced(page)) {
-		SetPageReferenced(page);
-	} else if (PageUnevictable(page)) {
+	if (!folio_test_referenced(folio)) {
+		folio_set_referenced(folio);
+	} else if (folio_test_unevictable(folio)) {
 		/*
 		 * Unevictable pages are on the "LRU_UNEVICTABLE" list. But,
 		 * this list is never rotated or maintained, so marking an
 		 * evictable page accessed has no effect.
 		 */
-	} else if (!PageActive(page)) {
+	} else if (!folio_test_active(folio)) {
 		/*
 		 * If the page is on the LRU, queue it for activation via
 		 * lru_pvecs.activate_page. Otherwise, assume the page is on a
 		 * pagevec, mark it active and it'll be moved to the active
 		 * LRU on the next drain.
 		 */
-		if (PageLRU(page))
-			folio_activate(page_folio(page));
+		if (folio_test_lru(folio))
+			folio_activate(folio);
 		else
-			__lru_cache_activate_page(page);
-		ClearPageReferenced(page);
-		workingset_activation(page_folio(page));
+			__lru_cache_activate_folio(folio);
+		folio_clear_referenced(folio);
+		workingset_activation(folio);
 	}
-	if (page_is_idle(page))
-		clear_page_idle(page);
+	if (folio_test_idle(folio))
+		folio_clear_idle(folio);
 }
-EXPORT_SYMBOL(mark_page_accessed);
+EXPORT_SYMBOL(folio_mark_accessed);
 
 /**
  * lru_cache_add - add a page to a page list

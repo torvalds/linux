@@ -5,6 +5,7 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/swap.h>
 
 struct address_space *page_mapping(struct page *page)
 {
@@ -41,3 +42,9 @@ bool page_mapped(struct page *page)
 	return folio_mapped(page_folio(page));
 }
 EXPORT_SYMBOL(page_mapped);
+
+void mark_page_accessed(struct page *page)
+{
+	folio_mark_accessed(page_folio(page));
+}
+EXPORT_SYMBOL(mark_page_accessed);
