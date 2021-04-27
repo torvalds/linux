@@ -4163,11 +4163,14 @@ static struct extent_buffer *find_extent_buffer_nolock(
  * Unlike end_bio_extent_buffer_writepage(), we only call end_page_writeback()
  * after all extent buffers in the page has finished their writeback.
  */
-static void end_bio_subpage_eb_writepage(struct btrfs_fs_info *fs_info,
-					 struct bio *bio)
+static void end_bio_subpage_eb_writepage(struct bio *bio)
 {
+	struct btrfs_fs_info *fs_info;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
+
+	fs_info = btrfs_sb(bio_first_page_all(bio)->mapping->host->i_sb);
+	ASSERT(fs_info->sectorsize < PAGE_SIZE);
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, iter_all) {
@@ -4219,15 +4222,10 @@ static void end_bio_subpage_eb_writepage(struct btrfs_fs_info *fs_info,
 
 static void end_bio_extent_buffer_writepage(struct bio *bio)
 {
-	struct btrfs_fs_info *fs_info;
 	struct bio_vec *bvec;
 	struct extent_buffer *eb;
 	int done;
 	struct bvec_iter_all iter_all;
-
-	fs_info = btrfs_sb(bio_first_page_all(bio)->mapping->host->i_sb);
-	if (fs_info->sectorsize < PAGE_SIZE)
-		return end_bio_subpage_eb_writepage(fs_info, bio);
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, iter_all) {
@@ -4254,12 +4252,34 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
 	bio_put(bio);
 }
 
+static void prepare_eb_write(struct extent_buffer *eb)
+{
+	u32 nritems;
+	unsigned long start;
+	unsigned long end;
+
+	clear_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags);
+	atomic_set(&eb->io_pages, num_extent_pages(eb));
+
+	/* Set btree blocks beyond nritems with 0 to avoid stale content */
+	nritems = btrfs_header_nritems(eb);
+	if (btrfs_header_level(eb) > 0) {
+		end = btrfs_node_key_ptr_offset(nritems);
+		memzero_extent_buffer(eb, end, eb->len - end);
+	} else {
+		/*
+		 * Leaf:
+		 * header 0 1 2 .. N ... data_N .. data_2 data_1 data_0
+		 */
+		start = btrfs_item_nr_offset(nritems);
+		end = BTRFS_LEAF_DATA_OFFSET + leaf_data_end(eb);
+		memzero_extent_buffer(eb, start, end - start);
+	}
+}
+
 /*
  * Unlike the work in write_one_eb(), we rely completely on extent locking.
  * Page locking is only utilized at minimum to keep the VMM code happy.
- *
- * Caller should still call write_one_eb() other than this function directly.
- * As write_one_eb() has extra preparation before submitting the extent buffer.
  */
 static int write_one_subpage_eb(struct extent_buffer *eb,
 				struct writeback_control *wbc,
@@ -4270,6 +4290,8 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 	unsigned int write_flags = wbc_to_write_flags(wbc) | REQ_META;
 	bool no_dirty_ebs = false;
 	int ret;
+
+	prepare_eb_write(eb);
 
 	/* clear_page_dirty_for_io() in subpage helper needs page locked */
 	lock_page(page);
@@ -4284,7 +4306,7 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 	ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
 			&epd->bio_ctrl, page, eb->start, eb->len,
 			eb->start - page_offset(page),
-			end_bio_extent_buffer_writepage, 0, 0, false);
+			end_bio_subpage_eb_writepage, 0, 0, false);
 	if (ret) {
 		btrfs_subpage_clear_writeback(fs_info, page, eb->start, eb->len);
 		set_btree_ioerr(page, eb);
@@ -4309,35 +4331,13 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 			struct extent_page_data *epd)
 {
 	u64 disk_bytenr = eb->start;
-	u32 nritems;
 	int i, num_pages;
-	unsigned long start, end;
 	unsigned int write_flags = wbc_to_write_flags(wbc) | REQ_META;
 	int ret = 0;
 
-	clear_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags);
+	prepare_eb_write(eb);
+
 	num_pages = num_extent_pages(eb);
-	atomic_set(&eb->io_pages, num_pages);
-
-	/* set btree blocks beyond nritems with 0 to avoid stale content. */
-	nritems = btrfs_header_nritems(eb);
-	if (btrfs_header_level(eb) > 0) {
-		end = btrfs_node_key_ptr_offset(nritems);
-
-		memzero_extent_buffer(eb, end, eb->len - end);
-	} else {
-		/*
-		 * leaf:
-		 * header 0 1 2 .. N ... data_N .. data_2 data_1 data_0
-		 */
-		start = btrfs_item_nr_offset(nritems);
-		end = BTRFS_LEAF_DATA_OFFSET + leaf_data_end(eb);
-		memzero_extent_buffer(eb, start, end - start);
-	}
-
-	if (eb->fs_info->sectorsize < PAGE_SIZE)
-		return write_one_subpage_eb(eb, wbc, epd);
-
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = eb->pages[i];
 
@@ -4451,7 +4451,7 @@ static int submit_eb_subpage(struct page *page,
 			free_extent_buffer(eb);
 			goto cleanup;
 		}
-		ret = write_one_eb(eb, wbc, epd);
+		ret = write_one_subpage_eb(eb, wbc, epd);
 		free_extent_buffer(eb);
 		if (ret < 0)
 			goto cleanup;
