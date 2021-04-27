@@ -4254,6 +4254,11 @@ static inline int is_arm_mapping_symbol(const char *str)
 	       && (str[2] == '\0' || str[2] == '.');
 }
 
+static inline int is_cfi_typeid_symbol(const char *str)
+{
+	return !strncmp(str, "__typeid__", 10);
+}
+
 static const char *kallsyms_symbol_name(struct mod_kallsyms *kallsyms, unsigned int symnum)
 {
 	return kallsyms->strtab + kallsyms->symtab[symnum].st_name;
@@ -4292,7 +4297,8 @@ static const char *find_kallsyms_symbol(struct module *mod,
 		/* We ignore unnamed symbols: they're uninformative
 		 * and inserted at a whim. */
 		if (*kallsyms_symbol_name(kallsyms, i) == '\0'
-		    || is_arm_mapping_symbol(kallsyms_symbol_name(kallsyms, i)))
+		    || is_arm_mapping_symbol(kallsyms_symbol_name(kallsyms, i))
+		    || is_cfi_typeid_symbol(kallsyms_symbol_name(kallsyms, i)))
 			continue;
 
 		if (thisval <= addr && thisval > bestval) {
