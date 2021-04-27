@@ -60,10 +60,32 @@ struct rk_crypto_dev {
 	/* the public variable */
 	struct crypto_async_request	*async_req;
 	void				*addr_vir;
+
+	bool				busy;
+	void (*request_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
+	void (*release_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
+	int (*load_data)(struct rk_crypto_dev *rk_dev,
+			 struct scatterlist *sg_src,
+			 struct scatterlist *sg_dst);
+	int (*unload_data)(struct rk_crypto_dev *rk_dev);
+	int (*enqueue)(struct rk_crypto_dev *rk_dev,
+		       struct crypto_async_request *async_req);
+};
+
+struct rk_alg_ops {
+	int (*start)(struct rk_crypto_dev *rk_dev);
+	int (*update)(struct rk_crypto_dev *rk_dev);
+	void (*complete)(struct crypto_async_request *base, int err);
+	int (*irq_handle)(int irq, void *dev_id);
+};
+
+struct rk_alg_ctx {
+	struct rk_alg_ops		ops;
 	struct scatterlist		*sg_src;
 	struct scatterlist		*sg_dst;
 	struct scatterlist		sg_tmp;
-	struct scatterlist		*first;
+	struct scatterlist		*req_src;
+	struct scatterlist		*req_dst;
 	size_t				src_nents;
 	size_t				dst_nents;
 
@@ -76,24 +98,11 @@ struct rk_crypto_dev {
 
 	int				aligned;
 	int				align_size;
-
-	bool				busy;
-	void (*request_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
-	void (*release_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
-	int (*start)(struct rk_crypto_dev *rk_dev);
-	int (*update)(struct rk_crypto_dev *rk_dev);
-	void (*complete)(struct crypto_async_request *base, int err);
-	int (*irq_handle)(int irq, void *dev_id);
-	int (*load_data)(struct rk_crypto_dev *rk_dev,
-			 struct scatterlist *sg_src,
-			 struct scatterlist *sg_dst);
-	void (*unload_data)(struct rk_crypto_dev *rk_dev);
-	int (*enqueue)(struct rk_crypto_dev *rk_dev,
-		       struct crypto_async_request *async_req);
 };
 
 /* the private variable of hash */
 struct rk_ahash_ctx {
+	struct rk_alg_ctx		algs_ctx;
 	struct rk_crypto_dev		*rk_dev;
 	u8				authkey[SHA512_BLOCK_SIZE];
 
@@ -103,12 +112,14 @@ struct rk_ahash_ctx {
 
 /* the privete variable of hash for fallback */
 struct rk_ahash_rctx {
+	struct rk_alg_ctx		algs_ctx;
 	struct ahash_request		fallback_req;
 	u32				mode;
 };
 
 /* the private variable of cipher */
 struct rk_cipher_ctx {
+	struct rk_alg_ctx		algs_ctx;
 	struct rk_crypto_dev		*rk_dev;
 	unsigned char			key[AES_MAX_KEY_SIZE * 2];
 	unsigned int			keylen;
@@ -120,6 +131,7 @@ struct rk_cipher_ctx {
 };
 
 struct rk_rsa_ctx {
+	struct rk_alg_ctx		algs_ctx;
 	struct rk_bignum *n;
 	struct rk_bignum *e;
 	struct rk_bignum *d;

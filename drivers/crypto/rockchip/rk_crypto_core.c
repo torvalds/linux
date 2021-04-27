@@ -51,6 +51,37 @@
 	.default_pka_offset = 0x0480,\
 }
 
+static void dump_alg_ctx(struct crypto_async_request *async_req)
+{
+	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(async_req->tfm);
+	struct scatterlist *cur_sg = NULL;
+	unsigned int i;
+
+	CRYPTO_TRACE("\n");
+
+	CRYPTO_TRACE("------ req_src addr = %llx, nents = %zu ------",
+		     (long long)alg_ctx->req_src, alg_ctx->src_nents);
+
+	for_each_sg(alg_ctx->req_src, cur_sg, alg_ctx->src_nents, i)
+		CRYPTO_TRACE("sg %llx: virt = %llx, off = %u, len = %u",
+			     (long long)cur_sg, (long long)sg_virt(cur_sg),
+			     cur_sg->offset, cur_sg->length);
+
+	CRYPTO_TRACE("\n");
+
+	if (!alg_ctx->req_dst)
+		return;
+
+	CRYPTO_TRACE("------ req_dst addr = %llx, nents = %zu ------",
+		     (long long)alg_ctx->req_dst, alg_ctx->dst_nents);
+
+	for_each_sg(alg_ctx->req_dst, cur_sg, alg_ctx->dst_nents, i)
+		CRYPTO_TRACE("sg %llx: virt = %llx, off = %u, len = %u\n",
+			     (long long)cur_sg, (long long)sg_virt(cur_sg),
+			     cur_sg->offset, cur_sg->length);
+	CRYPTO_TRACE("\n");
+}
+
 static int rk_crypto_enable_clk(struct rk_crypto_dev *rk_dev)
 {
 	int ret;
@@ -96,15 +127,19 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	int ret = -EINVAL;
 	unsigned int count;
 	struct device *dev = rk_dev->dev;
+	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
 
 	mutex_lock(&rk_dev->mutex);
 
-	rk_dev->aligned = rk_dev->aligned ?
-		check_alignment(sg_src, sg_dst, rk_dev->align_size) :
-		rk_dev->aligned;
-	if (rk_dev->aligned) {
-		count = min_t(unsigned int, rk_dev->left_bytes, sg_src->length);
-		rk_dev->left_bytes -= count;
+	alg_ctx->aligned = check_alignment(sg_src, sg_dst, alg_ctx->align_size);
+
+	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
+		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
+
+	if (alg_ctx->aligned) {
+		count = min_t(unsigned int, alg_ctx->left_bytes,
+			     sg_src->length);
+		alg_ctx->left_bytes -= count;
 
 		if (!dma_map_sg(dev, sg_src, 1, DMA_TO_DEVICE)) {
 			dev_err(dev, "[%s:%d] dma_map_sg(src)  error\n",
@@ -112,7 +147,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			ret = -EINVAL;
 			goto error;
 		}
-		rk_dev->addr_in = sg_dma_address(sg_src);
+		alg_ctx->addr_in = sg_dma_address(sg_src);
 
 		if (sg_dst) {
 			if (!dma_map_sg(dev, sg_dst, 1, DMA_FROM_DEVICE)) {
@@ -124,75 +159,93 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 				ret = -EINVAL;
 				goto error;
 			}
-			rk_dev->addr_out = sg_dma_address(sg_dst);
+			alg_ctx->addr_out = sg_dma_address(sg_dst);
 		}
 	} else {
-		count = (rk_dev->left_bytes > PAGE_SIZE) ?
-			PAGE_SIZE : rk_dev->left_bytes;
+		count = (alg_ctx->left_bytes > PAGE_SIZE) ?
+			PAGE_SIZE : alg_ctx->left_bytes;
 
-		if (!sg_pcopy_to_buffer(rk_dev->first, rk_dev->src_nents,
+		if (!sg_pcopy_to_buffer(alg_ctx->req_src, alg_ctx->src_nents,
 					rk_dev->addr_vir, count,
-					rk_dev->total - rk_dev->left_bytes)) {
+					alg_ctx->total - alg_ctx->left_bytes)) {
 			dev_err(dev, "[%s:%d] pcopy err\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
 			goto error;
 		}
-		rk_dev->left_bytes -= count;
-		sg_init_one(&rk_dev->sg_tmp, rk_dev->addr_vir, count);
-		if (!dma_map_sg(dev, &rk_dev->sg_tmp, 1, DMA_TO_DEVICE)) {
+		alg_ctx->left_bytes -= count;
+		sg_init_one(&alg_ctx->sg_tmp, rk_dev->addr_vir, count);
+		if (!dma_map_sg(dev, &alg_ctx->sg_tmp, 1, DMA_TO_DEVICE)) {
 			dev_err(dev, "[%s:%d] dma_map_sg(sg_tmp)  error\n",
 				__func__, __LINE__);
 			ret = -ENOMEM;
 			goto error;
 		}
-		rk_dev->addr_in = sg_dma_address(&rk_dev->sg_tmp);
+		alg_ctx->addr_in = sg_dma_address(&alg_ctx->sg_tmp);
 
 		if (sg_dst) {
-			if (!dma_map_sg(dev, &rk_dev->sg_tmp, 1,
+			if (!dma_map_sg(dev, &alg_ctx->sg_tmp, 1,
 					DMA_FROM_DEVICE)) {
 				dev_err(dev,
 					"[%s:%d] dma_map_sg(sg_tmp)  error\n",
 					__func__, __LINE__);
-				dma_unmap_sg(dev, &rk_dev->sg_tmp, 1,
+				dma_unmap_sg(dev, &alg_ctx->sg_tmp, 1,
 					     DMA_TO_DEVICE);
 				ret = -ENOMEM;
 				goto error;
 			}
-			rk_dev->addr_out = sg_dma_address(&rk_dev->sg_tmp);
+			alg_ctx->addr_out = sg_dma_address(&alg_ctx->sg_tmp);
 		}
 	}
 
-	rk_dev->count = count;
+	alg_ctx->count = count;
 	return 0;
 error:
 	mutex_unlock(&rk_dev->mutex);
 	return ret;
 }
 
-static void rk_unload_data(struct rk_crypto_dev *rk_dev)
+static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 {
+	int ret = 0;
 	struct scatterlist *sg_in, *sg_out;
+	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
 
-	sg_in = rk_dev->aligned ? rk_dev->sg_src : &rk_dev->sg_tmp;
+	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
+		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
+
+	sg_in = alg_ctx->aligned ? alg_ctx->sg_src : &alg_ctx->sg_tmp;
 	dma_unmap_sg(rk_dev->dev, sg_in, 1, DMA_TO_DEVICE);
 
-	if (rk_dev->sg_dst) {
-		sg_out = rk_dev->aligned ? rk_dev->sg_dst : &rk_dev->sg_tmp;
+	if (alg_ctx->sg_dst) {
+		sg_out = alg_ctx->aligned ? alg_ctx->sg_dst : &alg_ctx->sg_tmp;
 		dma_unmap_sg(rk_dev->dev, sg_out, 1, DMA_FROM_DEVICE);
 	}
 
+	if (!alg_ctx->aligned && alg_ctx->req_dst) {
+		if (!sg_pcopy_from_buffer(alg_ctx->req_dst, alg_ctx->dst_nents,
+					  rk_dev->addr_vir, alg_ctx->count,
+					  alg_ctx->total - alg_ctx->left_bytes -
+					  alg_ctx->count)) {
+			ret = -EINVAL;
+			goto exit;
+		}
+	}
+
+exit:
 	mutex_unlock(&rk_dev->mutex);
+	return ret;
 }
 
 static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
+	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
 
 	spin_lock(&rk_dev->lock);
 
-	if (rk_dev->irq_handle)
-		rk_dev->irq_handle(irq, dev_id);
+	if (alg_ctx->ops.irq_handle)
+		alg_ctx->ops.irq_handle(irq, dev_id);
 
 	tasklet_schedule(&rk_dev->done_task);
 
@@ -201,7 +254,7 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 }
 
 static int rk_crypto_enqueue(struct rk_crypto_dev *rk_dev,
-			      struct crypto_async_request *async_req)
+			     struct crypto_async_request *async_req)
 {
 	unsigned long flags;
 	int ret;
@@ -223,6 +276,7 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 {
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct crypto_async_request *async_req, *backlog;
+	struct rk_alg_ctx *alg_ctx;
 	unsigned long flags;
 	int err = 0;
 
@@ -243,24 +297,29 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 		backlog = NULL;
 	}
 
+	alg_ctx = crypto_tfm_ctx(async_req->tfm);
+
 	rk_dev->async_req = async_req;
-	err = rk_dev->start(rk_dev);
+	err = alg_ctx->ops.start(rk_dev);
 	if (err)
-		rk_dev->complete(rk_dev->async_req, err);
+		alg_ctx->ops.complete(rk_dev->async_req, err);
+
+	dump_alg_ctx(async_req);
 }
 
 static void rk_crypto_done_task_cb(unsigned long data)
 {
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
+	struct rk_alg_ctx *alg_ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
 
 	if (rk_dev->err) {
-		rk_dev->complete(rk_dev->async_req, rk_dev->err);
+		alg_ctx->ops.complete(rk_dev->async_req, rk_dev->err);
 		return;
 	}
 
-	rk_dev->err = rk_dev->update(rk_dev);
+	rk_dev->err = alg_ctx->ops.update(rk_dev);
 	if (rk_dev->err)
-		rk_dev->complete(rk_dev->async_req, rk_dev->err);
+		alg_ctx->ops.complete(rk_dev->async_req, rk_dev->err);
 }
 
 static struct rk_crypto_algt *rk_crypto_find_algs(struct rk_crypto_dev *rk_dev,

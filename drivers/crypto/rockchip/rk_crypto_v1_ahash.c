@@ -17,6 +17,18 @@
  * so we put the fixed hash out when met zero message.
  */
 
+static struct rk_alg_ctx *rk_alg_ctx_cast(
+	struct rk_crypto_dev *rk_dev)
+{
+	struct ahash_request *req =
+		ahash_request_cast(rk_dev->async_req);
+
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_ctx *ctx = crypto_ahash_ctx(tfm);
+
+	return &ctx->algs_ctx;
+}
+
 static int rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev  = platform_get_drvdata(dev_id);
@@ -65,6 +77,7 @@ static void rk_ahash_reg_init(struct rk_crypto_dev *rk_dev)
 {
 	struct ahash_request *req = ahash_request_cast(rk_dev->async_req);
 	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 	int reg_status = 0;
 
 	reg_status = CRYPTO_READ(rk_dev, RK_CRYPTO_CTRL) |
@@ -91,7 +104,7 @@ static void rk_ahash_reg_init(struct rk_crypto_dev *rk_dev)
 					  RK_CRYPTO_BYTESWAP_BRFIFO |
 					  RK_CRYPTO_BYTESWAP_BTFIFO);
 
-	CRYPTO_WRITE(rk_dev, RK_CRYPTO_HASH_MSG_LEN, rk_dev->total);
+	CRYPTO_WRITE(rk_dev, RK_CRYPTO_HASH_MSG_LEN, alg_ctx->total);
 }
 
 static int rk_ahash_init(struct ahash_request *req)
@@ -192,8 +205,10 @@ static int rk_ahash_digest(struct ahash_request *req)
 
 static void crypto_ahash_dma_start(struct rk_crypto_dev *rk_dev)
 {
-	CRYPTO_WRITE(rk_dev, RK_CRYPTO_HRDMAS, rk_dev->addr_in);
-	CRYPTO_WRITE(rk_dev, RK_CRYPTO_HRDMAL, (rk_dev->count + 3) / 4);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
+
+	CRYPTO_WRITE(rk_dev, RK_CRYPTO_HRDMAS, alg_ctx->addr_in);
+	CRYPTO_WRITE(rk_dev, RK_CRYPTO_HRDMAL, (alg_ctx->count + 3) / 4);
 	CRYPTO_WRITE(rk_dev, RK_CRYPTO_CTRL, RK_CRYPTO_HASH_START |
 					  (RK_CRYPTO_HASH_START << 16));
 }
@@ -201,8 +216,9 @@ static void crypto_ahash_dma_start(struct rk_crypto_dev *rk_dev)
 static int rk_ahash_set_data_start(struct rk_crypto_dev *rk_dev)
 {
 	int err;
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 
-	err = rk_dev->load_data(rk_dev, rk_dev->sg_src, NULL);
+	err = rk_dev->load_data(rk_dev, alg_ctx->sg_src, NULL);
 	if (!err)
 		crypto_ahash_dma_start(rk_dev);
 	return err;
@@ -211,22 +227,18 @@ static int rk_ahash_set_data_start(struct rk_crypto_dev *rk_dev)
 static int rk_ahash_start(struct rk_crypto_dev *rk_dev)
 {
 	struct ahash_request *req = ahash_request_cast(rk_dev->async_req);
-	struct crypto_ahash *tfm;
-	struct rk_ahash_rctx *rctx;
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 
-	rk_dev->total      = req->nbytes;
-	rk_dev->left_bytes = req->nbytes;
-	rk_dev->aligned    = 0;
-	rk_dev->align_size = 4;
-	rk_dev->sg_dst     = NULL;
-	rk_dev->sg_src     = req->src;
-	rk_dev->first      = req->src;
-	rk_dev->src_nents   = sg_nents(req->src);
+	alg_ctx->total      = req->nbytes;
+	alg_ctx->left_bytes = req->nbytes;
+	alg_ctx->sg_src     = req->src;
+	alg_ctx->req_src    = req->src;
+	alg_ctx->src_nents  = sg_nents_for_len(req->src, req->nbytes);
 
-	rctx = ahash_request_ctx(req);
 	rctx->mode = 0;
 
-	tfm = crypto_ahash_reqtfm(req);
 	switch (crypto_ahash_digestsize(tfm)) {
 	case SHA1_DIGEST_SIZE:
 		rctx->mode = RK_CRYPTO_HASH_SHA1;
@@ -249,18 +261,24 @@ static int rk_ahash_crypto_rx(struct rk_crypto_dev *rk_dev)
 {
 	int err = 0;
 	struct ahash_request *req = ahash_request_cast(rk_dev->async_req);
+	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev);
 	struct crypto_ahash *tfm;
 
-	rk_dev->unload_data(rk_dev);
-	if (rk_dev->left_bytes) {
-		if (rk_dev->aligned) {
-			if (sg_is_last(rk_dev->sg_src)) {
+	CRYPTO_TRACE("left_bytes = %u\n", alg_ctx->left_bytes);
+
+	err = rk_dev->unload_data(rk_dev);
+	if (err)
+		goto out_rx;
+
+	if (alg_ctx->left_bytes) {
+		if (alg_ctx->aligned) {
+			if (sg_is_last(alg_ctx->sg_src)) {
 				dev_warn(rk_dev->dev, "[%s:%d], Lack of data\n",
 					 __func__, __LINE__);
 				err = -ENOMEM;
 				goto out_rx;
 			}
-			rk_dev->sg_src = sg_next(rk_dev->sg_src);
+			alg_ctx->sg_src = sg_next(alg_ctx->sg_src);
 		}
 		err = rk_ahash_set_data_start(rk_dev);
 	} else {
@@ -280,7 +298,7 @@ static int rk_ahash_crypto_rx(struct rk_crypto_dev *rk_dev)
 		tfm = crypto_ahash_reqtfm(req);
 		memcpy_fromio(req->result, rk_dev->reg + RK_CRYPTO_HASH_DOUT_0,
 			      crypto_ahash_digestsize(tfm));
-		rk_dev->complete(rk_dev->async_req, 0);
+		alg_ctx->ops.complete(rk_dev->async_req, 0);
 		tasklet_schedule(&rk_dev->queue_task);
 	}
 
@@ -294,20 +312,25 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 	struct rk_crypto_algt *algt;
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
 	const char *alg_name = crypto_tfm_alg_name(tfm);
+	struct rk_alg_ctx *alg_ctx = &ctx->algs_ctx;
 	struct rk_crypto_dev *rk_dev;
 
 	algt = container_of(alg, struct rk_crypto_algt, alg.hash);
 	rk_dev = algt->rk_dev;
+
+	memset(ctx, 0x00, sizeof(*ctx));
 
 	if (!rk_dev->request_crypto)
 		return -EFAULT;
 
 	rk_dev->request_crypto(rk_dev, crypto_tfm_alg_name(tfm));
 
-	rk_dev->start      = rk_ahash_start;
-	rk_dev->update     = rk_ahash_crypto_rx;
-	rk_dev->complete   = rk_ahash_crypto_complete;
-	rk_dev->irq_handle = rk_crypto_irq_handle;
+	alg_ctx->align_size     = 4;
+
+	alg_ctx->ops.start      = rk_ahash_start;
+	alg_ctx->ops.update     = rk_ahash_crypto_rx;
+	alg_ctx->ops.complete   = rk_ahash_crypto_complete;
+	alg_ctx->ops.irq_handle = rk_crypto_irq_handle;
 
 	ctx->rk_dev = rk_dev;
 
