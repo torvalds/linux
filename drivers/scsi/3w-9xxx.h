@@ -602,7 +602,7 @@ typedef struct TAG_TW_Ioctl_Apache {
 	TW_Ioctl_Driver_Command driver_command;
 	char padding[488];
 	TW_Command_Full firmware_command;
-	char data_buffer[1];
+	char data_buffer[];
 } TW_Ioctl_Buf_Apache;
 
 /* Lock structure for ioctl get/release lock */
@@ -618,7 +618,7 @@ typedef struct {
 	unsigned short	parameter_id;
 	unsigned short	parameter_size_bytes;
 	unsigned short  actual_parameter_size_bytes;
-	unsigned char	data[1];
+	unsigned char	data[];
 } TW_Param_Apache, *PTW_Param_Apache;
 
 /* Response queue */
