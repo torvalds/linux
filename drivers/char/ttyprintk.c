@@ -109,7 +109,6 @@ static int tpk_write(struct tty_struct *tty,
 	unsigned long flags;
 	int ret;
 
-
 	/* exclusive use of tpk_printk within this tty */
 	spin_lock_irqsave(&tpkp->spinlock, flags);
 	ret = tpk_printk(buf, count);
@@ -124,27 +123,6 @@ static int tpk_write(struct tty_struct *tty,
 static unsigned int tpk_write_room(struct tty_struct *tty)
 {
 	return TPK_MAX_ROOM;
-}
-
-/*
- * TTY operations ioctl function.
- */
-static int tpk_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
-{
-	struct ttyprintk_port *tpkp = tty->driver_data;
-
-	if (!tpkp)
-		return -EINVAL;
-
-	switch (cmd) {
-	/* Stop TIOCCONS */
-	case TIOCCONS:
-		return -EOPNOTSUPP;
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
 }
 
 /*
@@ -176,7 +154,6 @@ static const struct tty_operations ttyprintk_ops = {
 	.close = tpk_close,
 	.write = tpk_write,
 	.write_room = tpk_write_room,
-	.ioctl = tpk_ioctl,
 	.hangup = tpk_hangup,
 };
 
