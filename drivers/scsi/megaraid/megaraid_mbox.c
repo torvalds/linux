@@ -2299,8 +2299,7 @@ megaraid_mbox_dpc(unsigned long devp)
 				memcpy(scp->sense_buffer, pthru->reqsensearea,
 						14);
 
-				scp->result = DRIVER_SENSE << 24 |
-					DID_OK << 16 | CHECK_CONDITION << 1;
+				scp->result = SAM_STAT_CHECK_CONDITION;
 			}
 			else {
 				if (mbox->cmd == MBOXCMD_EXTPTHRU) {
@@ -2308,9 +2307,7 @@ megaraid_mbox_dpc(unsigned long devp)
 					memcpy(scp->sense_buffer,
 						epthru->reqsensearea, 14);
 
-					scp->result = DRIVER_SENSE << 24 |
-						DID_OK << 16 |
-						CHECK_CONDITION << 1;
+					scp->result = SAM_STAT_CHECK_CONDITION;
 				} else
 					scsi_build_sense(scp, 0,
 							 ABORTED_COMMAND, 0, 0);

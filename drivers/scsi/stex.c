@@ -737,7 +737,7 @@ static void stex_scsi_done(struct st_ccb *ccb)
 			result |= DID_OK << 16;
 			break;
 		case SAM_STAT_CHECK_CONDITION:
-			result |= DRIVER_SENSE << 24;
+			result |= DID_OK << 16;
 			break;
 		case SAM_STAT_BUSY:
 			result |= DID_BUS_BUSY << 16;
@@ -748,7 +748,7 @@ static void stex_scsi_done(struct st_ccb *ccb)
 		}
 	}
 	else if (ccb->srb_status & SRB_SEE_SENSE)
-		result = DRIVER_SENSE << 24 | SAM_STAT_CHECK_CONDITION;
+		result = SAM_STAT_CHECK_CONDITION;
 	else switch (ccb->srb_status) {
 		case SRB_STATUS_SELECTION_TIMEOUT:
 			result = DID_NO_CONNECT << 16;

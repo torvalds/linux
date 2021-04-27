@@ -566,7 +566,6 @@ static int tcm_loop_queue_data_or_status(const char *func,
 		memcpy(sc->sense_buffer, se_cmd->sense_buffer,
 				SCSI_SENSE_BUFFERSIZE);
 		sc->result = SAM_STAT_CHECK_CONDITION;
-		set_driver_byte(sc, DRIVER_SENSE);
 	} else
 		sc->result = scsi_status;
 

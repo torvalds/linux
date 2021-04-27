@@ -1401,8 +1401,7 @@ static int scsiback_queue_status(struct se_cmd *se_cmd)
 	if (se_cmd->sense_buffer &&
 	    ((se_cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) ||
 	     (se_cmd->se_cmd_flags & SCF_EMULATED_TASK_SENSE)))
-		pending_req->result = (DRIVER_SENSE << 24) |
-				      SAM_STAT_CHECK_CONDITION;
+		pending_req->result = SAM_STAT_CHECK_CONDITION;
 	else
 		pending_req->result = se_cmd->scsi_status;
 

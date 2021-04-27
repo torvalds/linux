@@ -1722,16 +1722,17 @@ static int sd_sync_cache(struct scsi_disk *sdkp, struct scsi_sense_hdr *sshdr)
 		if (res < 0)
 			return res;
 
-		if (driver_byte(res) == DRIVER_SENSE)
+		if (scsi_status_is_check_condition(res) &&
+		    scsi_sense_valid(sshdr)) {
 			sd_print_sense_hdr(sdkp, sshdr);
 
-		/* we need to evaluate the error return  */
-		if (scsi_sense_valid(sshdr) &&
-			(sshdr->asc == 0x3a ||	/* medium not present */
-			 sshdr->asc == 0x20 ||	/* invalid command */
-			 (sshdr->asc == 0x74 && sshdr->ascq == 0x71)))	/* drive is password locked */
+			/* we need to evaluate the error return  */
+			if (sshdr->asc == 0x3a ||	/* medium not present */
+			    sshdr->asc == 0x20 ||	/* invalid command */
+			    (sshdr->asc == 0x74 && sshdr->ascq == 0x71))	/* drive is password locked */
 				/* this is no error here */
 				return 0;
+		}
 
 		switch (host_byte(res)) {
 		/* ignore errors due to racing a disconnection */
@@ -1828,7 +1829,7 @@ static int sd_pr_command(struct block_device *bdev, u8 sa,
 	result = scsi_execute_req(sdev, cmd, DMA_TO_DEVICE, &data, sizeof(data),
 			&sshdr, SD_TIMEOUT, sdkp->max_retries, NULL);
 
-	if (result > 0 && driver_byte(result) == DRIVER_SENSE &&
+	if (scsi_status_is_check_condition(result) &&
 	    scsi_sense_valid(&sshdr)) {
 		sdev_printk(KERN_INFO, sdev, "PR command failed: %d\n", result);
 		scsi_print_sense_hdr(sdev, NULL, &sshdr);
@@ -2072,7 +2073,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	}
 	sdkp->medium_access_timed_out = 0;
 
-	if (driver_byte(result) != DRIVER_SENSE &&
+	if (!scsi_status_is_check_condition(result) &&
 	    (!sense_valid || sense_deferred))
 		goto out;
 
@@ -2175,12 +2176,12 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			if (the_result)
 				sense_valid = scsi_sense_valid(&sshdr);
 			retries++;
-		} while (retries < 3 && 
+		} while (retries < 3 &&
 			 (!scsi_status_is_good(the_result) ||
-			  ((driver_byte(the_result) == DRIVER_SENSE) &&
+			  (scsi_status_is_check_condition(the_result) &&
 			  sense_valid && sshdr.sense_key == UNIT_ATTENTION)));
 
-		if (the_result < 0 || driver_byte(the_result) != DRIVER_SENSE) {
+		if (!scsi_status_is_check_condition(the_result)) {
 			/* no sense, TUR either succeeded or failed
 			 * with a status error */
 			if(!spintime && !scsi_status_is_good(the_result)) {
@@ -2308,7 +2309,7 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 			struct scsi_sense_hdr *sshdr, int sense_valid,
 			int the_result)
 {
-	if (driver_byte(the_result) == DRIVER_SENSE)
+	if (sense_valid)
 		sd_print_sense_hdr(sdkp, sshdr);
 	else
 		sd_printk(KERN_NOTICE, sdkp, "Sense not available.\n");
@@ -3594,12 +3595,12 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
 	if (res) {
 		sd_print_result(sdkp, "Start/Stop Unit failed", res);
-		if (res > 0 && driver_byte(res) == DRIVER_SENSE)
+		if (res > 0 && scsi_sense_valid(&sshdr)) {
 			sd_print_sense_hdr(sdkp, &sshdr);
-		if (scsi_sense_valid(&sshdr) &&
 			/* 0x3a is medium not present */
-			sshdr.asc == 0x3a)
-			res = 0;
+			if (sshdr.asc == 0x3a)
+				res = 0;
+		}
 	}
 
 	/* SCSI error codes must not go to the generic layer */

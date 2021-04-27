@@ -851,10 +851,10 @@ static struct device_driver sdebug_driverfs_driver = {
 };
 
 static const int check_condition_result =
-		(DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
+	SAM_STAT_CHECK_CONDITION;
 
 static const int illegal_condition_result =
-	(DRIVER_SENSE << 24) | (DID_ABORT << 16) | SAM_STAT_CHECK_CONDITION;
+	(DID_ABORT << 16) | SAM_STAT_CHECK_CONDITION;
 
 static const int device_qfull_result =
 	(DID_OK << 16) | SAM_STAT_TASK_SET_FULL;

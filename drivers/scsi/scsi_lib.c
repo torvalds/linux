@@ -593,8 +593,6 @@ static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
 	case DID_OK:
 		/*
 		 * Also check the other bytes than the status byte in result
-		 * to handle the case when a SCSI LLD sets result to
-		 * DRIVER_SENSE << 24 without setting SAM_STAT_CHECK_CONDITION.
 		 */
 		if (scsi_status_is_good(result) && (result & ~0xff) == 0)
 			return BLK_STS_OK;
@@ -790,7 +788,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 			 */
 			if (!level && __ratelimit(&_rs)) {
 				scsi_print_result(cmd, NULL, FAILED);
-				if (driver_byte(result) == DRIVER_SENSE)
+				if (sense_valid)
 					scsi_print_sense(cmd);
 				scsi_print_command(cmd);
 			}
@@ -2152,8 +2150,7 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 	 * ILLEGAL REQUEST if the code page isn't supported */
 
 	if (!scsi_status_is_good(result)) {
-		if (driver_byte(result) == DRIVER_SENSE &&
-		    scsi_sense_valid(sshdr)) {
+		if (scsi_sense_valid(sshdr)) {
 			if ((sshdr->sense_key == ILLEGAL_REQUEST) &&
 			    (sshdr->asc == 0x20) && (sshdr->ascq == 0)) {
 				/*
@@ -3236,7 +3233,6 @@ EXPORT_SYMBOL(scsi_vpd_tpg_id);
 void scsi_build_sense(struct scsi_cmnd *scmd, int desc, u8 key, u8 asc, u8 ascq)
 {
 	scsi_build_sense_buffer(desc, scmd->sense_buffer, key, asc, ascq);
-	scmd->result = (DRIVER_SENSE << 24) | (DID_OK << 16) |
-		SAM_STAT_CHECK_CONDITION;
+	scmd->result = SAM_STAT_CHECK_CONDITION;
 }
 EXPORT_SYMBOL_GPL(scsi_build_sense);

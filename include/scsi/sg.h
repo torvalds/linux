@@ -131,6 +131,17 @@ struct compat_sg_io_hdr {
 #define SG_INFO_DIRECT_IO 0x2   /* direct IO requested and performed */
 #define SG_INFO_MIXED_IO 0x4    /* part direct, part indirect IO */
 
+/*
+ * Obsolete DRIVER_SENSE driver byte
+ *
+ * Originally the SCSI midlayer would set the DRIVER_SENSE driver byte when
+ * a sense code was generated and a sense buffer was allocated.
+ * However, as nowadays every scsi command has a sense code allocated this
+ * distinction became moot as one could check the sense buffer directly.
+ * Consequently this byte is not set anymore from the midlayer, but SG will
+ * keep setting this byte to be compatible with previous releases.
+ */
+#define DRIVER_SENSE 0x08
 
 typedef struct sg_scsi_id { /* used by SG_GET_SCSI_ID ioctl() */
     int host_no;        /* as in "scsi<n>" where 'n' is one of 0, 1, 2 etc */

@@ -411,13 +411,12 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 		rc = cmd_result;
 		goto error;
 	}
-	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
+	if (scsi_sense_valid(&sshdr)) {/* sense data available */
 		u8 *desc = sensebuf + 8;
-		cmd_result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */
 
 		/* If we set cc then ATA pass-through will cause a
 		 * check condition even if no error. Filter that. */
-		if (cmd_result & SAM_STAT_CHECK_CONDITION) {
+		if (scsi_status_is_check_condition(cmd_result)) {
 			if (sshdr.sense_key == RECOVERED_ERROR &&
 			    sshdr.asc == 0 && sshdr.ascq == 0x1d)
 				cmd_result &= ~SAM_STAT_CHECK_CONDITION;
@@ -496,9 +495,8 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 		rc = cmd_result;
 		goto error;
 	}
-	if (driver_byte(cmd_result) == DRIVER_SENSE) {/* sense data available */
+	if (scsi_sense_valid(&sshdr)) {/* sense data available */
 		u8 *desc = sensebuf + 8;
-		cmd_result &= ~(0xFF<<24); /* DRIVER_SENSE is not an error */
 
 		/* If we set cc then ATA pass-through will cause a
 		 * check condition even if no error. Filter that. */
@@ -864,8 +862,6 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
-	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-
 	/*
 	 * Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
@@ -961,8 +957,6 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	u8 sense_key, asc, ascq;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
-
-	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
 	if (ata_dev_disabled(dev)) {
 		/* Device disabled after error recovery */
@@ -4201,7 +4195,6 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 
 	case REQUEST_SENSE:
 		ata_scsi_set_sense(dev, cmd, 0, 0, 0);
-		cmd->result = (DRIVER_SENSE << 24);
 		break;
 
 	/* if we reach this, then writeback caching is disabled,

@@ -103,8 +103,7 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 
 	if (result < 0)
 		goto out;
-	if (driver_byte(result) == DRIVER_SENSE &&
-	    scsi_sense_valid(&sshdr)) {
+	if (scsi_sense_valid(&sshdr)) {
 		switch (sshdr.sense_key) {
 		case ILLEGAL_REQUEST:
 			if (cmd[0] == ALLOW_MEDIUM_REMOVAL)

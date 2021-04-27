@@ -542,7 +542,7 @@ static void complete_cmd(struct Scsi_Host *instance,
 			scsi_eh_restore_cmnd(cmd, &hostdata->ses);
 		} else {
 			scsi_eh_restore_cmnd(cmd, &hostdata->ses);
-			set_driver_byte(cmd, DRIVER_SENSE);
+			set_status_byte(cmd, SAM_STAT_CHECK_CONDITION);
 		}
 		hostdata->sensing = NULL;
 	}
