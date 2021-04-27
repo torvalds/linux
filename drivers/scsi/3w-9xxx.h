@@ -485,13 +485,17 @@ printk(KERN_WARNING "3w-9xxx: ERROR: (0x%02X:0x%04X): %s.\n",a,b,c); \
 #define TW_PADDING_LENGTH (sizeof(dma_addr_t) > 4 ? 8 : 0)
 #define TW_CPU_TO_SGL(x) (sizeof(dma_addr_t) > 4 ? cpu_to_le64(x) : cpu_to_le32(x))
 
-#pragma pack(1)
+#if IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT)
+typedef u64 twa_addr_t;
+#else
+typedef u32 twa_addr_t;
+#endif
 
 /* Scatter Gather List Entry */
 typedef struct TAG_TW_SG_Entry {
-	dma_addr_t address;
+	twa_addr_t address;
 	u32 length;
-} TW_SG_Entry;
+} __packed TW_SG_Entry;
 
 /* Command Packet */
 typedef struct TW_Command {
@@ -510,12 +514,12 @@ typedef struct TW_Command {
 		struct {
 			u32 lba;
 			TW_SG_Entry sgl[TW_ESCALADE_MAX_SGL_LENGTH];
-			dma_addr_t padding;
+			twa_addr_t padding;
 		} io;
 		struct {
 			TW_SG_Entry sgl[TW_ESCALADE_MAX_SGL_LENGTH];
 			u32 padding;
-			dma_addr_t padding2;
+			twa_addr_t padding2;
 		} param;
 	} byte8_offset;
 } TW_Command;
@@ -545,7 +549,7 @@ typedef struct TAG_TW_Command_Apache_Header {
 	unsigned char err_specific_desc[98];
 	struct {
 		unsigned char size_header;
-		unsigned short reserved;
+		unsigned char reserved[2];
 		unsigned char size_sense;
 	} header_desc;
 } TW_Command_Apache_Header;
@@ -644,8 +648,6 @@ typedef struct TAG_TW_Compatibility_Info
 	unsigned short fw_on_ctlr_branch;
 	unsigned short fw_on_ctlr_build;
 } TW_Compatibility_Info;
-
-#pragma pack()
 
 typedef struct TAG_TW_Device_Extension {
 	u32			__iomem *base_addr;
