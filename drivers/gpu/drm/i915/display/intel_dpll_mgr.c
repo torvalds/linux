@@ -23,6 +23,7 @@
 
 #include "intel_display_types.h"
 #include "intel_dpio_phy.h"
+#include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 
 /**

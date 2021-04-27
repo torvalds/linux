@@ -36,6 +36,7 @@
 #include "i915_drv.h"
 #include "intel_connector.h"
 #include "intel_crt.h"
+#include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"

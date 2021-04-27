@@ -8,6 +8,7 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/intel_crtc.h"
 #include "display/intel_display_types.h"
 #include "gt/intel_engine.h"
 

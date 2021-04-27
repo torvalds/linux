@@ -31,6 +31,7 @@
 #include "intel_audio.h"
 #include "intel_combo_phy.h"
 #include "intel_connector.h"
+#include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_display_types.h"
