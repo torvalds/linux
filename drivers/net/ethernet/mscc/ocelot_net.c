@@ -507,19 +507,15 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Check if timestamping is needed */
 	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
-		rew_op = ocelot_port->ptp_cmd;
+		struct sk_buff *clone = NULL;
+
+		if (ocelot_port_txtstamp_request(ocelot, port, skb, &clone)) {
+			kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
 
 		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
-			struct sk_buff *clone;
-
-			clone = skb_clone_sk(skb);
-			if (!clone) {
-				kfree_skb(skb);
-				return NETDEV_TX_OK;
-			}
-
-			ocelot_port_add_txtstamp_skb(ocelot, port, clone);
-
+			rew_op = ocelot_port->ptp_cmd;
 			rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
 		}
 	}
