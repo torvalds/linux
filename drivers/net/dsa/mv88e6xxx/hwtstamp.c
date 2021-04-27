@@ -475,9 +475,6 @@ bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
 	struct ptp_header *hdr;
 
-	if (!(skb_shinfo(clone)->tx_flags & SKBTX_HW_TSTAMP))
-		return false;
-
 	hdr = mv88e6xxx_should_tstamp(chip, port, clone, type);
 	if (!hdr)
 		return false;

@@ -559,6 +559,9 @@ static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
 	struct sk_buff *clone;
 	unsigned int type;
 
+	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		return;
+
 	type = ptp_classify_raw(skb);
 	if (type == PTP_CLASS_NONE)
 		return;

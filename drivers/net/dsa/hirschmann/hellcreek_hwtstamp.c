@@ -382,10 +382,6 @@ bool hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
 
 	ps = &hellcreek->ports[port].port_hwtstamp;
 
-	/* Check if the driver is expected to do HW timestamping */
-	if (!(skb_shinfo(clone)->tx_flags & SKBTX_HW_TSTAMP))
-		return false;
-
 	/* Make sure the message is a PTP message that needs to be timestamped
 	 * and the interaction with the HW timestamping is enabled. If not, stop
 	 * here
