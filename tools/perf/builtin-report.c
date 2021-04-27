@@ -708,9 +708,22 @@ static void report__output_resort(struct report *rep)
 	ui_progress__finish();
 }
 
+static int count_sample_event(struct perf_tool *tool __maybe_unused,
+			      union perf_event *event __maybe_unused,
+			      struct perf_sample *sample __maybe_unused,
+			      struct evsel *evsel,
+			      struct machine *machine __maybe_unused)
+{
+	struct hists *hists = evsel__hists(evsel);
+
+	hists__inc_nr_events(hists);
+	return 0;
+}
+
 static void stats_setup(struct report *rep)
 {
 	memset(&rep->tool, 0, sizeof(rep->tool));
+	rep->tool.sample = count_sample_event;
 	rep->tool.no_warn = true;
 }
 
@@ -719,6 +732,7 @@ static int stats_print(struct report *rep)
 	struct perf_session *session = rep->session;
 
 	perf_session__fprintf_nr_events(session, stdout);
+	perf_evlist__fprintf_nr_events(session->evlist, stdout);
 	return 0;
 }
 
