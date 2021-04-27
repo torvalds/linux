@@ -77,3 +77,9 @@ bool set_page_writeback(struct page *page)
 	return folio_start_writeback(page_folio(page));
 }
 EXPORT_SYMBOL(set_page_writeback);
+
+bool set_page_dirty(struct page *page)
+{
+	return folio_mark_dirty(page_folio(page));
+}
+EXPORT_SYMBOL(set_page_dirty);
