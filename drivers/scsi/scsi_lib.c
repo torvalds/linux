@@ -2164,7 +2164,7 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 					goto retry;
 				}
 			}
-			if ((status_byte(result) == CHECK_CONDITION) &&
+			if (scsi_status_is_check_condition(result) &&
 			    sshdr->sense_key == UNIT_ATTENTION &&
 			    retry_count) {
 				retry_count--;

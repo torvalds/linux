@@ -1258,7 +1258,7 @@ int scsi_eh_get_sense(struct list_head *work_q,
 					     current->comm));
 			break;
 		}
-		if (status_byte(scmd->result) != CHECK_CONDITION)
+		if (!scsi_status_is_check_condition(scmd->result))
 			/*
 			 * don't request sense if there's no check condition
 			 * status because the error we're processing isn't one
@@ -1774,7 +1774,7 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 		return (scmd->request->cmd_flags & REQ_FAILFAST_DRIVER);
 	}
 
-	if (status_byte(scmd->result) != CHECK_CONDITION)
+	if (!scsi_status_is_check_condition(scmd->result))
 		return 0;
 
 check_type:
