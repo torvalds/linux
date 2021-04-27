@@ -6062,7 +6062,8 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	 * (since logging them is pointless, a link count of 0 means they
 	 * will never be accessible).
 	 */
-	if (btrfs_inode_in_log(inode, trans->transid) ||
+	if ((btrfs_inode_in_log(inode, trans->transid) &&
+	     list_empty(&ctx->ordered_extents)) ||
 	    inode->vfs_inode.i_nlink == 0) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
