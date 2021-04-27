@@ -576,6 +576,11 @@ static void nvme_free_ns(struct kref *kref)
 	kfree(ns);
 }
 
+static inline bool nvme_get_ns(struct nvme_ns *ns)
+{
+	return kref_get_unless_zero(&ns->kref);
+}
+
 void nvme_put_ns(struct nvme_ns *ns)
 {
 	kref_put(&ns->kref, nvme_free_ns);
@@ -1494,7 +1499,7 @@ static int nvme_ns_open(struct nvme_ns *ns)
 	/* should never be called due to GENHD_FL_HIDDEN */
 	if (WARN_ON_ONCE(nvme_ns_head_multipath(ns->head)))
 		goto fail;
-	if (!kref_get_unless_zero(&ns->kref))
+	if (!nvme_get_ns(ns))
 		goto fail;
 	if (!try_module_get(ns->ctrl->ops->module))
 		goto fail_put_ns;
@@ -3582,7 +3587,7 @@ struct nvme_ns *nvme_find_get_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	down_read(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		if (ns->head->ns_id == nsid) {
-			if (!kref_get_unless_zero(&ns->kref))
+			if (!nvme_get_ns(ns))
 				continue;
 			ret = ns;
 			break;
