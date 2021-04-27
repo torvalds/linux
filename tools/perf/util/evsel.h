@@ -221,7 +221,7 @@ static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 	return evsel__newtp_idx(sys, name, 0);
 }
 
-struct evsel *evsel__new_cycles(bool precise);
+struct evsel *evsel__new_cycles(bool precise, __u32 type, __u64 config);
 
 struct tep_event *event_format__new(const char *sys, const char *name);
 
