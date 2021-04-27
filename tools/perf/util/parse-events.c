@@ -460,7 +460,8 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	char name[MAX_NAME_LEN], *config_name;
 	int cache_type = -1, cache_op = -1, cache_result = -1;
 	char *op_result[2] = { op_result1, op_result2 };
-	int i, n;
+	int i, n, ret;
+	bool hybrid;
 
 	/*
 	 * No fallback - if we cannot get a clear cache type
@@ -520,6 +521,13 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 		if (get_config_terms(head_config, &config_terms))
 			return -ENOMEM;
 	}
+
+	ret = parse_events__add_cache_hybrid(list, idx, &attr,
+					     config_name ? : name, &config_terms,
+					     &hybrid);
+	if (hybrid)
+		return ret;
+
 	return add_event(list, idx, &attr, config_name ? : name, &config_terms);
 }
 

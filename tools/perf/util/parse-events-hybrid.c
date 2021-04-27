@@ -98,3 +98,26 @@ int parse_events__add_numeric_hybrid(struct parse_events_state *parse_state,
 
 	return -1;
 }
+
+int parse_events__add_cache_hybrid(struct list_head *list, int *idx,
+				   struct perf_event_attr *attr, char *name,
+				   struct list_head *config_terms,
+				   bool *hybrid)
+{
+	struct perf_pmu *pmu;
+	int ret;
+
+	*hybrid = false;
+	if (!perf_pmu__has_hybrid())
+		return 0;
+
+	*hybrid = true;
+	perf_pmu__for_each_hybrid_pmu(pmu) {
+		ret = create_event_hybrid(PERF_TYPE_HW_CACHE, idx, list,
+					  attr, name, config_terms, pmu);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
