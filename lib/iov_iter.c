@@ -37,14 +37,23 @@
 	n = wanted - n;						\
 }
 
-#define iterate_bvec(i, n, __v, __bi, skip, STEP) {	\
-	struct bvec_iter __start;			\
-	__start.bi_size = n;				\
-	__start.bi_bvec_done = skip;			\
-	__start.bi_idx = 0;				\
-	for_each_bvec(__v, i->bvec, __bi, __start) {	\
-		(void)(STEP);				\
-	}						\
+#define iterate_bvec(i, n, __v, p, skip, STEP) {		\
+	size_t wanted = n;					\
+	while (n) {						\
+		unsigned offset = p->bv_offset + skip;		\
+		__v.bv_offset = offset % PAGE_SIZE;		\
+		__v.bv_page = p->bv_page + offset / PAGE_SIZE;	\
+		__v.bv_len = min(min(n, p->bv_len - skip),	\
+		     (size_t)(PAGE_SIZE - offset % PAGE_SIZE));	\
+		(void)(STEP);					\
+		skip += __v.bv_len;				\
+		if (skip == p->bv_len) {			\
+			skip = 0;				\
+			p++;					\
+		}						\
+		n -= __v.bv_len;				\
+	}							\
+	n = wanted - n;						\
 }
 
 #define iterate_xarray(i, n, __v, skip, STEP) {		\
@@ -98,11 +107,9 @@
 		} else if (iov_iter_is_bvec(i)) {		\
 			const struct bio_vec *bvec = i->bvec;	\
 			struct bio_vec v;			\
-			struct bvec_iter __bi;			\
-			iterate_bvec(i, n, v, __bi, skip, (B))	\
-			i->bvec = __bvec_iter_bvec(i->bvec, __bi);	\
-			i->nr_segs -= i->bvec - bvec;		\
-			skip = __bi.bi_bvec_done;		\
+			iterate_bvec(i, n, v, bvec, skip, (B))	\
+			i->nr_segs -= bvec - i->bvec;		\
+			i->bvec = bvec;				\
 		} else if (iov_iter_is_kvec(i)) {		\
 			const struct kvec *kvec = i->kvec;	\
 			struct kvec v;				\
