@@ -381,27 +381,23 @@ BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
 	   u64, arg2, u64, arg3)
 {
 	u64 args[MAX_TRACE_PRINTK_VARARGS] = { arg1, arg2, arg3 };
-	enum bpf_printf_mod_type mod[MAX_TRACE_PRINTK_VARARGS];
+	u32 *bin_args;
 	static char buf[BPF_TRACE_PRINTK_SIZE];
 	unsigned long flags;
 	int ret;
 
-	ret = bpf_printf_prepare(fmt, fmt_size, args, args, mod,
-				 MAX_TRACE_PRINTK_VARARGS);
+	ret = bpf_bprintf_prepare(fmt, fmt_size, args, &bin_args,
+				  MAX_TRACE_PRINTK_VARARGS);
 	if (ret < 0)
 		return ret;
 
 	raw_spin_lock_irqsave(&trace_printk_lock, flags);
-	ret = snprintf(buf, sizeof(buf), fmt, BPF_CAST_FMT_ARG(0, args, mod),
-		BPF_CAST_FMT_ARG(1, args, mod), BPF_CAST_FMT_ARG(2, args, mod));
-	/* snprintf() will not append null for zero-length strings */
-	if (ret == 0)
-		buf[0] = '\0';
+	ret = bstr_printf(buf, sizeof(buf), fmt, bin_args);
 
 	trace_bpf_trace_printk(buf);
 	raw_spin_unlock_irqrestore(&trace_printk_lock, flags);
 
-	bpf_printf_cleanup();
+	bpf_bprintf_cleanup();
 
 	return ret;
 }
@@ -435,31 +431,21 @@ const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
 BPF_CALL_5(bpf_seq_printf, struct seq_file *, m, char *, fmt, u32, fmt_size,
 	   const void *, data, u32, data_len)
 {
-	enum bpf_printf_mod_type mod[MAX_SEQ_PRINTF_VARARGS];
-	u64 args[MAX_SEQ_PRINTF_VARARGS];
 	int err, num_args;
+	u32 *bin_args;
 
 	if (data_len & 7 || data_len > MAX_SEQ_PRINTF_VARARGS * 8 ||
 	    (data_len && !data))
 		return -EINVAL;
 	num_args = data_len / 8;
 
-	err = bpf_printf_prepare(fmt, fmt_size, data, args, mod, num_args);
+	err = bpf_bprintf_prepare(fmt, fmt_size, data, &bin_args, num_args);
 	if (err < 0)
 		return err;
 
-	/* Maximumly we can have MAX_SEQ_PRINTF_VARARGS parameter, just give
-	 * all of them to seq_printf().
-	 */
-	seq_printf(m, fmt, BPF_CAST_FMT_ARG(0, args, mod),
-		BPF_CAST_FMT_ARG(1, args, mod), BPF_CAST_FMT_ARG(2, args, mod),
-		BPF_CAST_FMT_ARG(3, args, mod), BPF_CAST_FMT_ARG(4, args, mod),
-		BPF_CAST_FMT_ARG(5, args, mod), BPF_CAST_FMT_ARG(6, args, mod),
-		BPF_CAST_FMT_ARG(7, args, mod), BPF_CAST_FMT_ARG(8, args, mod),
-		BPF_CAST_FMT_ARG(9, args, mod), BPF_CAST_FMT_ARG(10, args, mod),
-		BPF_CAST_FMT_ARG(11, args, mod));
+	seq_bprintf(m, fmt, bin_args);
 
-	bpf_printf_cleanup();
+	bpf_bprintf_cleanup();
 
 	return seq_has_overflowed(m) ? -EOVERFLOW : 0;
 }
