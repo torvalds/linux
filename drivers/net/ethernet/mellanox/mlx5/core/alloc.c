@@ -71,53 +71,6 @@ static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
 	return cpu_handle;
 }
 
-static int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			       struct mlx5_frag_buf *buf, int node)
-{
-	dma_addr_t t;
-
-	buf->size = size;
-	buf->npages       = 1;
-	buf->page_shift   = (u8)get_order(size) + PAGE_SHIFT;
-
-	buf->frags = kzalloc(sizeof(*buf->frags), GFP_KERNEL);
-	if (!buf->frags)
-		return -ENOMEM;
-
-	buf->frags->buf   = mlx5_dma_zalloc_coherent_node(dev, size,
-							  &t, node);
-	if (!buf->frags->buf)
-		goto err_out;
-
-	buf->frags->map = t;
-
-	while (t & ((1 << buf->page_shift) - 1)) {
-		--buf->page_shift;
-		buf->npages *= 2;
-	}
-
-	return 0;
-err_out:
-	kfree(buf->frags);
-	return -ENOMEM;
-}
-
-int mlx5_buf_alloc(struct mlx5_core_dev *dev,
-		   int size, struct mlx5_frag_buf *buf)
-{
-	return mlx5_buf_alloc_node(dev, size, buf, dev->priv.numa_node);
-}
-EXPORT_SYMBOL(mlx5_buf_alloc);
-
-void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
-{
-	dma_free_coherent(mlx5_core_dma_dev(dev), buf->size, buf->frags->buf,
-			  buf->frags->map);
-
-	kfree(buf->frags);
-}
-EXPORT_SYMBOL_GPL(mlx5_buf_free);
-
 int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 			     struct mlx5_frag_buf *buf, int node)
 {
