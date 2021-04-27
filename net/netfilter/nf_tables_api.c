@@ -5839,10 +5839,10 @@ fail_elem:
 	return err;
 }
 
-static int nft_flush_set(const struct nft_ctx *ctx,
-			 struct nft_set *set,
-			 const struct nft_set_iter *iter,
-			 struct nft_set_elem *elem)
+static int nft_setelem_flush(const struct nft_ctx *ctx,
+			     struct nft_set *set,
+			     const struct nft_set_iter *iter,
+			     struct nft_set_elem *elem)
 {
 	struct nft_trans *trans;
 	int err;
@@ -5869,6 +5869,18 @@ err1:
 	return err;
 }
 
+static int nft_set_flush(struct nft_ctx *ctx, struct nft_set *set, u8 genmask)
+{
+	struct nft_set_iter iter = {
+		.genmask	= genmask,
+		.fn		= nft_setelem_flush,
+	};
+
+	set->ops->walk(ctx, set, &iter);
+
+	return iter.err;
+}
+
 static int nf_tables_delsetelem(struct sk_buff *skb,
 				const struct nfnl_info *info,
 				const struct nlattr * const nla[])
@@ -5892,15 +5904,8 @@ static int nf_tables_delsetelem(struct sk_buff *skb,
 	if (!list_empty(&set->bindings) && set->flags & NFT_SET_CONSTANT)
 		return -EBUSY;
 
-	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL) {
-		struct nft_set_iter iter = {
-			.genmask	= genmask,
-			.fn		= nft_flush_set,
-		};
-		set->ops->walk(&ctx, set, &iter);
-
-		return iter.err;
-	}
+	if (!nla[NFTA_SET_ELEM_LIST_ELEMENTS])
+		return nft_set_flush(&ctx, set, genmask);
 
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
 		err = nft_del_setelem(&ctx, set, attr);
