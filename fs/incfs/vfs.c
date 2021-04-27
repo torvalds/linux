@@ -1631,6 +1631,9 @@ static int incfs_getattr(struct user_namespace *ns, const struct path *path,
 
 	generic_fillattr(ns, inode, stat);
 
+	if (inode->i_ino < INCFS_START_INO_RANGE)
+		return 0;
+
 	stat->attributes &= ~STATX_ATTR_VERITY;
 	if (IS_VERITY(inode))
 		stat->attributes |= STATX_ATTR_VERITY;
