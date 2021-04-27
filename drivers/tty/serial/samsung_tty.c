@@ -2220,8 +2220,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 			default:
 				dev_warn(&pdev->dev, "unsupported reg-io-width (%d)\n",
 						prop);
-				ret = -EINVAL;
-				break;
+				return -EINVAL;
 			}
 		}
 	}
