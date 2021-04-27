@@ -577,24 +577,98 @@ netdev_features(void)
 {
 }
 
+struct page_flags_test {
+	int width;
+	int shift;
+	int mask;
+	unsigned long value;
+	const char *fmt;
+	const char *name;
+};
+
+static struct page_flags_test pft[] = {
+	{SECTIONS_WIDTH, SECTIONS_PGSHIFT, SECTIONS_MASK,
+	 0, "%d", "section"},
+	{NODES_WIDTH, NODES_PGSHIFT, NODES_MASK,
+	 0, "%d", "node"},
+	{ZONES_WIDTH, ZONES_PGSHIFT, ZONES_MASK,
+	 0, "%d", "zone"},
+	{LAST_CPUPID_WIDTH, LAST_CPUPID_PGSHIFT, LAST_CPUPID_MASK,
+	 0, "%#x", "lastcpupid"},
+	{KASAN_TAG_WIDTH, KASAN_TAG_PGSHIFT, KASAN_TAG_MASK,
+	 0, "%#x", "kasantag"},
+};
+
+static void __init
+page_flags_test(int section, int node, int zone, int last_cpupid,
+		int kasan_tag, int flags, const char *name, char *cmp_buf)
+{
+	unsigned long values[] = {section, node, zone, last_cpupid, kasan_tag};
+	unsigned long page_flags = 0;
+	unsigned long size = 0;
+	bool append = false;
+	int i;
+
+	flags &= BIT(NR_PAGEFLAGS) - 1;
+	if (flags) {
+		page_flags |= flags;
+		snprintf(cmp_buf + size, BUF_SIZE - size, "%s", name);
+		size = strlen(cmp_buf);
+#if SECTIONS_WIDTH || NODES_WIDTH || ZONES_WIDTH || \
+	LAST_CPUPID_WIDTH || KASAN_TAG_WIDTH
+		/* Other information also included in page flags */
+		snprintf(cmp_buf + size, BUF_SIZE - size, "|");
+		size = strlen(cmp_buf);
+#endif
+	}
+
+	/* Set the test value */
+	for (i = 0; i < ARRAY_SIZE(pft); i++)
+		pft[i].value = values[i];
+
+	for (i = 0; i < ARRAY_SIZE(pft); i++) {
+		if (!pft[i].width)
+			continue;
+
+		if (append) {
+			snprintf(cmp_buf + size, BUF_SIZE - size, "|");
+			size = strlen(cmp_buf);
+		}
+
+		page_flags |= (pft[i].value & pft[i].mask) << pft[i].shift;
+		snprintf(cmp_buf + size, BUF_SIZE - size, "%s=", pft[i].name);
+		size = strlen(cmp_buf);
+		snprintf(cmp_buf + size, BUF_SIZE - size, pft[i].fmt,
+			 pft[i].value & pft[i].mask);
+		size = strlen(cmp_buf);
+		append = true;
+	}
+
+	test(cmp_buf, "%pGp", &page_flags);
+}
+
 static void __init
 flags(void)
 {
 	unsigned long flags;
-	gfp_t gfp;
 	char *cmp_buffer;
+	gfp_t gfp;
+
+	cmp_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
+	if (!cmp_buffer)
+		return;
 
 	flags = 0;
-	test("", "%pGp", &flags);
+	page_flags_test(0, 0, 0, 0, 0, flags, "", cmp_buffer);
 
-	/* Page flags should filter the zone id */
 	flags = 1UL << NR_PAGEFLAGS;
-	test("", "%pGp", &flags);
+	page_flags_test(0, 0, 0, 0, 0, flags, "", cmp_buffer);
 
 	flags |= 1UL << PG_uptodate | 1UL << PG_dirty | 1UL << PG_lru
 		| 1UL << PG_active | 1UL << PG_swapbacked;
-	test("uptodate|dirty|lru|active|swapbacked", "%pGp", &flags);
-
+	page_flags_test(1, 1, 1, 0x1fffff, 1, flags,
+			"uptodate|dirty|lru|active|swapbacked",
+			cmp_buffer);
 
 	flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC
 			| VM_DENYWRITE;
@@ -608,10 +682,6 @@ flags(void)
 
 	gfp = __GFP_ATOMIC;
 	test("__GFP_ATOMIC", "%pGg", &gfp);
-
-	cmp_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!cmp_buffer)
-		return;
 
 	/* Any flags not translated by the table should remain numeric */
 	gfp = ~__GFP_BITS_MASK;
