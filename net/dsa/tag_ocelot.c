@@ -5,33 +5,14 @@
 #include <soc/mscc/ocelot.h>
 #include "dsa_priv.h"
 
-static void ocelot_xmit_ptp(struct dsa_port *dp, void *injection,
-			    struct sk_buff *clone)
-{
-	struct ocelot *ocelot = dp->ds->priv;
-	struct ocelot_port *ocelot_port;
-	u64 rew_op;
-
-	ocelot_port = ocelot->ports[dp->index];
-	rew_op = ocelot_port->ptp_cmd;
-
-	/* Retrieve timestamp ID populated inside OCELOT_SKB_CB(clone)->ts_id
-	 * by ocelot_port_add_txtstamp_skb
-	 */
-	if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
-		rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
-
-	ocelot_ifh_set_rew_op(injection, rew_op);
-}
-
 static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 			       __be32 ifh_prefix, void **ifh)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
 	struct dsa_switch *ds = dp->ds;
 	void *injection;
 	__be32 *prefix;
+	u32 rew_op = 0;
 
 	injection = skb_push(skb, OCELOT_TAG_LEN);
 	prefix = skb_push(skb, OCELOT_SHORT_PREFIX_LEN);
@@ -42,9 +23,9 @@ static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 	ocelot_ifh_set_src(injection, ds->num_ports);
 	ocelot_ifh_set_qos_class(injection, skb->priority);
 
-	/* TX timestamping was requested */
-	if (clone)
-		ocelot_xmit_ptp(dp, injection, clone);
+	rew_op = ocelot_ptp_rew_op(skb);
+	if (rew_op)
+		ocelot_ifh_set_rew_op(injection, rew_op);
 
 	*ifh = injection;
 }

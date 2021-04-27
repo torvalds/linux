@@ -514,10 +514,10 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		}
 
-		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
-			rew_op = ocelot_port->ptp_cmd;
-			rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
-		}
+		if (clone)
+			OCELOT_SKB_CB(skb)->clone = clone;
+
+		rew_op = ocelot_ptp_rew_op(skb);
 	}
 
 	ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
