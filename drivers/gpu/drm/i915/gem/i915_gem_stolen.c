@@ -773,7 +773,7 @@ struct intel_memory_region *
 i915_gem_stolen_lmem_setup(struct drm_i915_private *i915)
 {
 	struct intel_uncore *uncore = &i915->uncore;
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
 	resource_size_t io_start;
 	resource_size_t lmem_size;
