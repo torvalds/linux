@@ -136,6 +136,11 @@ static int report__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
+	if (!strcmp(var, "report.skip-empty")) {
+		rep->skip_empty = perf_config_bool(var, value);
+		return 0;
+	}
+
 	return 0;
 }
 
@@ -1160,6 +1165,7 @@ int cmd_report(int argc, const char **argv)
 		.pretty_printing_style	 = "normal",
 		.socket_filter		 = -1,
 		.annotation_opts	 = annotation__default_options,
+		.skip_empty		 = true,
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
