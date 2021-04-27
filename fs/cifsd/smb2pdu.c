@@ -5237,11 +5237,6 @@ out:
 	return rc;
 }
 
-static bool is_attributes_write_allowed(struct ksmbd_file *fp)
-{
-	return fp->daccess & FILE_WRITE_ATTRIBUTES_LE;
-}
-
 static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 		struct ksmbd_share_config *share)
 {
@@ -5252,7 +5247,7 @@ static int set_file_basic_info(struct ksmbd_file *fp, char *buf,
 	struct inode *inode;
 	int rc;
 
-	if (!is_attributes_write_allowed(fp))
+	if (!(fp->daccess & FILE_WRITE_ATTRIBUTES_LE))
 		return -EACCES;
 
 	file_info = (struct smb2_file_all_info *)buf;
