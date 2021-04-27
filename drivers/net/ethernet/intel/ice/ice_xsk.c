@@ -270,6 +270,7 @@ static int ice_xsk_pool_disable(struct ice_vsi *vsi, u16 qid)
 	if (!pool)
 		return -EINVAL;
 
+	clear_bit(qid, vsi->af_xdp_zc_qps);
 	xsk_pool_dma_unmap(pool, ICE_RX_DMA_ATTR);
 
 	return 0;
@@ -299,6 +300,8 @@ ice_xsk_pool_enable(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 			       ICE_RX_DMA_ATTR);
 	if (err)
 		return err;
+
+	set_bit(qid, vsi->af_xdp_zc_qps);
 
 	return 0;
 }
