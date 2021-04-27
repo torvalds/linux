@@ -446,10 +446,11 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	}
 	spin_unlock(&mgr->lock);
 
+	if (i == 1)
+		mem->placement |= TTM_PL_FLAG_CONTIGUOUS;
+
 	atomic64_add(vis_usage, &mgr->vis_usage);
-
 	mem->mm_node = nodes;
-
 	return 0;
 
 error:
