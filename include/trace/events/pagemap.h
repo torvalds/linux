@@ -60,23 +60,21 @@ TRACE_EVENT(mm_lru_insertion,
 
 TRACE_EVENT(mm_lru_activate,
 
-	TP_PROTO(struct page *page),
+	TP_PROTO(struct folio *folio),
 
-	TP_ARGS(page),
+	TP_ARGS(folio),
 
 	TP_STRUCT__entry(
-		__field(struct page *,	page	)
+		__field(struct folio *,	folio	)
 		__field(unsigned long,	pfn	)
 	),
 
 	TP_fast_assign(
-		__entry->page	= page;
-		__entry->pfn	= page_to_pfn(page);
+		__entry->folio	= folio;
+		__entry->pfn	= folio_pfn(folio);
 	),
 
-	/* Flag format is based on page-types.c formatting for pagemap */
-	TP_printk("page=%p pfn=0x%lx", __entry->page, __entry->pfn)
-
+	TP_printk("folio=%p pfn=0x%lx", __entry->folio, __entry->pfn)
 );
 
 #endif /* _TRACE_PAGEMAP_H */
