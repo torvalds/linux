@@ -41,26 +41,17 @@
  * struct msm_disp_state - structure to store current dpu state
  * @dev: device pointer
  * @drm_dev: drm device pointer
- * @mutex: mutex to serialize access to serialze dumps, debugfs access
- * @coredump_pending: coredump is pending read from userspace
  * @atomic_state: atomic state duplicated at the time of the error
- * @dump_worker: kworker thread which runs the dump work
- * @dump_work: kwork which dumps the registers and drm state
  * @timestamp: timestamp at which the coredump was captured
  */
 struct msm_disp_state {
 	struct device *dev;
 	struct drm_device *drm_dev;
-	struct mutex mutex;
-
-	bool coredump_pending;
 
 	struct list_head blocks;
 
 	struct drm_atomic_state *atomic_state;
 
-	struct kthread_worker *dump_worker;
-	struct kthread_work dump_work;
 	ktime_t timestamp;
 };
 
@@ -123,11 +114,11 @@ void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state);
 
 /**
  * msm_disp_state_free - free the memory after the coredump has been read
- * @disp_state:	    handle to struct msm_disp_state
+ * @data:	    handle to struct msm_disp_state
 
  * Returns: none
  */
-void msm_disp_state_free(struct msm_disp_state *disp_state);
+void msm_disp_state_free(void *data);
 
 /**
  * msm_disp_snapshot_add_block - add a hardware block with its register dump

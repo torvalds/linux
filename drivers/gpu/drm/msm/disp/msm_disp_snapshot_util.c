@@ -142,8 +142,9 @@ void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state)
 	msm_disp_capture_atomic_state(disp_state);
 }
 
-void msm_disp_state_free(struct msm_disp_state *disp_state)
+void msm_disp_state_free(void *data)
 {
+	struct msm_disp_state *disp_state = data;
 	struct msm_disp_state_block *block, *tmp;
 
 	if (disp_state->atomic_state) {
@@ -156,6 +157,8 @@ void msm_disp_state_free(struct msm_disp_state *disp_state)
 		kfree(block->state);
 		kfree(block);
 	}
+
+	kfree(disp_state);
 }
 
 void msm_disp_snapshot_add_block(struct msm_disp_state *disp_state, u32 len,

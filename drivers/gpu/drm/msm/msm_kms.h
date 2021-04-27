@@ -156,8 +156,10 @@ struct msm_kms {
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	struct msm_gem_address_space *aspace;
 
-	/* handle to disp snapshot state */
-	struct msm_disp_state *disp_state;
+	/* disp snapshot support */
+	struct kthread_worker *dump_worker;
+	struct kthread_work dump_work;
+	struct mutex dump_mutex;
 
 	/*
 	 * For async commit, where ->flush_commit() and later happens
