@@ -124,7 +124,7 @@ struct msm_kms_funcs {
 	void (*destroy)(struct msm_kms *kms);
 
 	/* snapshot: */
-	void (*snapshot)(struct msm_kms *kms);
+	void (*snapshot)(struct msm_disp_state *disp_state, struct msm_kms *kms);
 
 #ifdef CONFIG_DEBUG_FS
 	/* debugfs: */

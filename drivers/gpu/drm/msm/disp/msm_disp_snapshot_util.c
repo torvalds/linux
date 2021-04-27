@@ -69,17 +69,6 @@ static void msm_disp_state_print_regs(u32 **reg, u32 len, void __iomem *base_add
 	}
 }
 
-struct msm_disp_state *msm_disp_state_get(struct drm_device *drm)
-{
-	struct msm_drm_private *priv;
-	struct msm_kms *kms;
-
-	priv = drm->dev_private;
-	kms = priv->kms;
-
-	return kms->disp_state;
-}
-
 void msm_disp_state_print(struct msm_disp_state *state, struct drm_printer *p)
 {
 	struct msm_disp_state_block *block, *tmp;
@@ -138,17 +127,17 @@ void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state)
 	kms = priv->kms;
 
 	if (priv->dp)
-		msm_dp_snapshot(priv->dp);
+		msm_dp_snapshot(disp_state, priv->dp);
 
 	for (i = 0; i < ARRAY_SIZE(priv->dsi); i++) {
 		if (!priv->dsi[i])
 			continue;
 
-		msm_dsi_snapshot(priv->dsi[i]);
+		msm_dsi_snapshot(disp_state, priv->dsi[i]);
 	}
 
 	if (kms->funcs->snapshot)
-		kms->funcs->snapshot(kms);
+		kms->funcs->snapshot(disp_state, kms);
 
 	msm_disp_capture_atomic_state(disp_state);
 }

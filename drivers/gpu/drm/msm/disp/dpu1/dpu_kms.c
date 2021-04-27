@@ -799,15 +799,12 @@ static void dpu_irq_uninstall(struct msm_kms *kms)
 	dpu_core_irq_uninstall(dpu_kms);
 }
 
-static void dpu_kms_mdp_snapshot(struct msm_kms *kms)
+static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_kms *kms)
 {
 	int i;
 	struct dpu_kms *dpu_kms;
 	struct dpu_mdss_cfg *cat;
 	struct dpu_hw_mdp *top;
-	struct msm_disp_state *disp_state;
-
-	disp_state = kms->disp_state;
 
 	dpu_kms = to_dpu_kms(kms);
 

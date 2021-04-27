@@ -105,14 +105,6 @@ void msm_disp_snapshot_destroy(struct drm_device *drm_dev);
 void msm_disp_snapshot_state(struct drm_device *drm_dev);
 
 /**
- * msm_disp_state_get - get the handle to msm_disp_state struct from the drm device
- * @drm:	    handle to drm device
-
- * Returns:	handle to the msm_disp_state struct
- */
-struct msm_disp_state *msm_disp_state_get(struct drm_device *drm);
-
-/**
  * msm_disp_state_print - print out the current dpu state
  * @disp_state:	    handle to drm device
  * @p:	    handle to drm printer

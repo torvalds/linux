@@ -1039,15 +1039,13 @@ int dp_display_get_test_bpp(struct msm_dp *dp)
 		dp_display->link->test_video.test_bit_depth);
 }
 
-void msm_dp_snapshot(struct msm_dp *dp)
+void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 {
 	struct dp_display_private *dp_display;
 	struct drm_device *drm;
-	struct msm_disp_state *disp_state;
 
 	dp_display = container_of(dp, struct dp_display_private, dp_display);
 	drm = dp->drm_dev;
-	disp_state = msm_disp_state_get(drm);
 
 	/*
 	 * if we are reading registers we need the link clocks to be on
