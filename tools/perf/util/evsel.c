@@ -47,6 +47,7 @@
 #include "memswap.h"
 #include "util.h"
 #include "hashmap.h"
+#include "pmu-hybrid.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
@@ -2818,4 +2819,9 @@ void evsel__zero_per_pkg(struct evsel *evsel)
 
 		hashmap__clear(evsel->per_pkg_mask);
 	}
+}
+
+bool evsel__is_hybrid(struct evsel *evsel)
+{
+	return evsel->pmu_name && perf_pmu__is_hybrid(evsel->pmu_name);
 }

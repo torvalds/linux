@@ -48,6 +48,7 @@
 #include "util/pmu.h"
 #include "util/event.h"
 #include "util/evlist.h"
+#include "util/evlist-hybrid.h"
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/color.h"
@@ -242,6 +243,9 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 {
 	struct evsel *evsel, *pos, *leader;
 	char buf[1024];
+
+	if (evlist__has_hybrid(evlist))
+		evlist__warn_hybrid_group(evlist);
 
 	evlist__for_each_entry(evlist, evsel) {
 		leader = evsel->leader;

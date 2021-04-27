@@ -462,4 +462,5 @@ struct perf_env *evsel__env(struct evsel *evsel);
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 
 void evsel__zero_per_pkg(struct evsel *evsel);
+bool evsel__is_hybrid(struct evsel *evsel);
 #endif /* __PERF_EVSEL_H */
