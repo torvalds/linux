@@ -20,7 +20,6 @@
 #include <linux/if_bridge.h>
 #include <linux/if_hsr.h>
 #include <linux/netpoll.h>
-#include <linux/ptp_classify.h>
 
 #include "dsa_priv.h"
 
@@ -557,13 +556,8 @@ static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
 {
 	struct dsa_switch *ds = p->dp->ds;
 	struct sk_buff *clone;
-	unsigned int type;
 
 	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
-		return;
-
-	type = ptp_classify_raw(skb);
-	if (type == PTP_CLASS_NONE)
 		return;
 
 	if (!ds->ops->port_txtstamp)
@@ -573,7 +567,7 @@ static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
 	if (!clone)
 		return;
 
-	if (ds->ops->port_txtstamp(ds, p->dp->index, clone, type)) {
+	if (ds->ops->port_txtstamp(ds, p->dp->index, clone)) {
 		DSA_SKB_CB(skb)->clone = clone;
 		return;
 	}
@@ -632,9 +626,7 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DSA_SKB_CB(skb)->clone = NULL;
 
-	/* Identify PTP protocol packets, clone them, and pass them to the
-	 * switch driver
-	 */
+	/* Handle tx timestamp if any */
 	dsa_skb_tx_timestamp(p, skb);
 
 	if (dsa_realloc_skb(skb, dev)) {

@@ -741,7 +741,7 @@ struct dsa_switch_ops {
 	int	(*port_hwtstamp_set)(struct dsa_switch *ds, int port,
 				     struct ifreq *ifr);
 	bool	(*port_txtstamp)(struct dsa_switch *ds, int port,
-				 struct sk_buff *clone, unsigned int type);
+				 struct sk_buff *clone);
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb, unsigned int type);
 

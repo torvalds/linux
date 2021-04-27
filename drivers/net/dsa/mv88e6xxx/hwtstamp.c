@@ -469,11 +469,16 @@ long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp)
 }
 
 bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
-			     struct sk_buff *clone, unsigned int type)
+			     struct sk_buff *clone)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
 	struct ptp_header *hdr;
+	unsigned int type;
+
+	type = ptp_classify_raw(clone);
+	if (type == PTP_CLASS_NONE)
+		return false;
 
 	hdr = mv88e6xxx_should_tstamp(chip, port, clone, type);
 	if (!hdr)

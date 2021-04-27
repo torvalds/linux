@@ -374,13 +374,18 @@ long hellcreek_hwtstamp_work(struct ptp_clock_info *ptp)
 }
 
 bool hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
-			     struct sk_buff *clone, unsigned int type)
+			     struct sk_buff *clone)
 {
 	struct hellcreek *hellcreek = ds->priv;
 	struct hellcreek_port_hwtstamp *ps;
 	struct ptp_header *hdr;
+	unsigned int type;
 
 	ps = &hellcreek->ports[port].port_hwtstamp;
+
+	type = ptp_classify_raw(clone);
+	if (type == PTP_CLASS_NONE)
+		return false;
 
 	/* Make sure the message is a PTP message that needs to be timestamped
 	 * and the interaction with the HW timestamping is enabled. If not, stop
