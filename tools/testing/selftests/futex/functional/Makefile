@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-INCLUDES := -I../include -I../../
+INCLUDES := -I../include -I../../ -I../../../../../usr/include/ \
+	-I$(KBUILD_OUTPUT)/kselftest/usr/include
 CFLAGS := $(CFLAGS) -g -O2 -Wall -D_GNU_SOURCE -pthread $(INCLUDES)
 LDLIBS := -lpthread -lrt
 
