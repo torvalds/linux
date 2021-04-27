@@ -44,6 +44,13 @@
 #define REG_LPG_HI_INDEX		0x56
 #define REG_LPG_LO_INDEX		0x57
 
+/* PWM module registers */
+#define REG_PWM_STATUS1			0x08
+#define FM_MODE_PRESENT			BIT(0)
+
+#define REG_PWM_FM_MODE			0x50
+#define FM_MODE_ENABLE			BIT(7)
+
 /* REG_LPG_PATTERN_CONFIG */
 #define LPG_PATTERN_EN_PAUSE_LO		BIT(0)
 #define LPG_PATTERN_EN_PAUSE_HI		BIT(1)
@@ -142,6 +149,8 @@ enum ppg_num_nvmems {
 
 static const int pwm_size[NUM_PWM_SIZE] = {6, 9};
 static const int clk_freq_hz[NUM_PWM_CLK] = {1024, 32768, 19200000};
+/* clk_period_ns = NSEC_PER_SEC / clk_freq_hz */
+static const int clk_period_ns[NUM_PWM_CLK] = {976562, 30517, 52};
 static const int clk_prediv[NUM_CLK_PREDIV] = {1, 3, 5, 6};
 static const int pwm_exponent[NUM_PWM_EXP] = {0, 1, 2, 3, 4, 5, 6, 7};
 
@@ -187,6 +196,7 @@ struct qpnp_lpg_channel {
 	u8				src_sel;
 	u8				subtype;
 	bool				lut_written;
+	bool				enable_pfm;
 	u64				current_period_ns;
 	u64				current_duty_ns;
 };
@@ -490,6 +500,61 @@ static int qpnp_lpg_set_pwm_config(struct qpnp_lpg_channel *lpg)
 	return rc;
 }
 
+static int qpnp_lpg_set_pfm_config(struct qpnp_lpg_channel *lpg)
+{
+	int rc;
+	u8 val, mask;
+	int pwm_clk_idx, clk_exp_idx;
+
+	pwm_clk_idx = __find_index_in_array(lpg->pwm_config.pwm_clk,
+			clk_freq_hz, ARRAY_SIZE(clk_freq_hz));
+	clk_exp_idx = __find_index_in_array(lpg->pwm_config.clk_exp,
+			pwm_exponent, ARRAY_SIZE(pwm_exponent));
+
+	if (pwm_clk_idx < 0 || clk_exp_idx < 0)
+		return -EINVAL;
+
+	/* pwm_clk_idx is 1 bit lower than the register value */
+	pwm_clk_idx += 1;
+
+	val = pwm_clk_idx;
+	mask = LPG_PWM_CLK_FREQ_SEL_MASK;
+	rc = qpnp_lpg_masked_write(lpg, REG_LPG_PWM_SIZE_CLK, mask, val);
+	if (rc < 0) {
+		dev_err(lpg->chip->dev, "Write LPG_PWM_SIZE_CLK failed, rc=%d\n",
+			rc);
+		return rc;
+	}
+
+	val = clk_exp_idx;
+	mask = LPG_PWM_FREQ_EXPONENT_MASK;
+	rc = qpnp_lpg_masked_write(lpg, REG_LPG_PWM_FREQ_PREDIV_CLK, mask, val);
+	if (rc < 0) {
+		dev_err(lpg->chip->dev, "Write LPG_PWM_FREQ_PREDIV_CLK failed, rc=%d\n",
+			rc);
+		return rc;
+	}
+
+	val = lpg->pwm_config.pwm_value;
+	rc = qpnp_lpg_masked_write(lpg, REG_LPG_PWM_VALUE_LSB,
+				   LPG_PWM_VALUE_LSB_MASK, val);
+	if (rc < 0) {
+		dev_err(lpg->chip->dev, "Write LPG_PWM_VALUE_LSB failed, rc=%d\n",
+			rc);
+		return rc;
+	}
+
+	val = LPG_PWM_VALUE_SYNC;
+	rc = qpnp_lpg_write(lpg, REG_LPG_PWM_SYNC, val);
+	if (rc < 0) {
+		dev_err(lpg->chip->dev, "Write LPG_PWM_SYNC failed, rc=%d\n",
+							rc);
+		return rc;
+	}
+
+	return rc;
+}
+
 static int qpnp_lpg_set_sdam_lut_pattern(struct qpnp_lpg_channel *lpg,
 		unsigned int *pattern, unsigned int length)
 {
@@ -742,7 +807,7 @@ static int qpnp_lpg_set_ramp_config(struct qpnp_lpg_channel *lpg)
 	return rc;
 }
 
-static void __qpnp_lpg_calc_pwm_period(u64 period_ns,
+static int __qpnp_lpg_calc_pwm_period(u64 period_ns,
 			struct lpg_pwm_config *pwm_config)
 {
 	struct qpnp_lpg_channel *lpg = container_of(pwm_config,
@@ -827,6 +892,8 @@ static void __qpnp_lpg_calc_pwm_period(u64 period_ns,
 			period_ns, pwm_config->pwm_clk, pwm_config->prediv,
 			pwm_config->clk_exp, pwm_config->pwm_size);
 	pr_debug("Actual period: %lluns\n", pwm_config->best_period_ns);
+
+	return 0;
 }
 
 static void __qpnp_lpg_calc_pwm_duty(u64 period_ns, u64 duty_ns,
@@ -844,6 +911,76 @@ static void __qpnp_lpg_calc_pwm_duty(u64 period_ns, u64 duty_ns,
 	pwm_config->pwm_value = pwm_value;
 }
 
+static int __qpnp_lpg_calc_pfm_period(u64 period_ns,
+				       struct lpg_pwm_config *pwm_config)
+{
+	int clk, exp, lsb;
+	int best_clk = 0, best_exp = 0, best_lsb = -EINVAL;
+	u64 lsb_tmp, period_tmp, curr_p_err, last_p_err = 0;
+	u64 min_p_err = U64_MAX;
+
+	/*
+	 *               2 * (pwm_value_lsb + 1) * (2^pwm_exp) * NSEC_PER_SEC
+	 * pwm_period = ---------------------------------------------------
+	 *                               clk_freq_hz
+	 *
+	 * For each (clk, exp) solve above equation for pwm_value_lsb, and then
+	 * use this pwm_lsb to calculate pwm_period and compare with desired
+	 * period. Store the triplet values that yield the closest value to
+	 * desired period.
+	 */
+	for (clk = 0; clk < NUM_PWM_CLK; clk++) {
+		last_p_err = U64_MAX;
+		for (exp = 0; exp < NUM_PWM_EXP; exp++) {
+			lsb_tmp = div_u64(period_ns, clk_period_ns[clk]);
+			lsb_tmp >>= (exp + 1);
+			lsb = lsb_tmp - 1;
+			if (lsb >= 0 && lsb <= U8_MAX) {
+				period_tmp = (lsb + 1);
+				period_tmp <<= (exp + 1);
+				period_tmp *= clk_period_ns[clk];
+				curr_p_err = abs(period_ns - period_tmp);
+
+				if (curr_p_err < min_p_err) {
+					min_p_err = curr_p_err;
+
+					/* Closest settings found! Save them. */
+					best_clk = clk;
+					best_exp = exp;
+					best_lsb = lsb;
+					/*
+					 * No need to set pwm_size or prediv in
+					 * `struct pwm_config` as they are
+					 * no-ops in PFM mode.
+					 */
+					pwm_config->best_period_ns = period_tmp;
+				}
+
+				if (curr_p_err > last_p_err)
+					/* No need to iterate further */
+					break;
+				last_p_err = curr_p_err;
+			}
+		}
+	}
+
+	if (best_lsb < 0) {
+		pr_err("Cannot generate %llu ns\n", period_ns);
+		return -EINVAL;
+	}
+
+	pwm_config->pwm_clk = clk_freq_hz[best_clk];
+	pwm_config->clk_exp = pwm_exponent[best_exp];
+	pwm_config->pwm_value = best_lsb;
+
+	pr_debug("PFM setting for period_ns %llu: pwm_clk = %d Hz, exponent = %d, pwm_val_lsb = %d\n",
+			period_ns, pwm_config->pwm_clk,
+			pwm_config->clk_exp, pwm_config->pwm_value);
+	pr_debug("Actual PFM period: %llu ns\n", pwm_config->best_period_ns);
+
+	return 0;
+}
+
 static int qpnp_lpg_config(struct qpnp_lpg_channel *lpg,
 		u64 duty_ns, u64 period_ns)
 {
@@ -856,30 +993,45 @@ static int qpnp_lpg_config(struct qpnp_lpg_channel *lpg,
 	}
 
 	if (period_ns != lpg->current_period_ns) {
-		__qpnp_lpg_calc_pwm_period(period_ns, &lpg->pwm_config);
+		if (lpg->enable_pfm) {
+			rc = __qpnp_lpg_calc_pfm_period(period_ns,
+							&lpg->pwm_config);
+			if (rc)
+				return rc;
+		} else {
+			rc = __qpnp_lpg_calc_pwm_period(period_ns,
+							&lpg->pwm_config);
+			if (rc)
+				return rc;
 
-		/* program LUT if PWM period is changed */
-		if (lpg->src_sel == LUT_PATTERN) {
-			rc = qpnp_lpg_set_lut_pattern(lpg,
+			/* program LUT if PWM period is changed */
+			if (lpg->src_sel == LUT_PATTERN) {
+				rc = qpnp_lpg_set_lut_pattern(lpg,
 					lpg->ramp_config.pattern,
 					lpg->ramp_config.pattern_length);
-			if (rc < 0) {
-				dev_err(lpg->chip->dev, "set LUT pattern failed for LPG%d, rc=%d\n",
-						lpg->lpg_idx, rc);
-				return rc;
+				if (rc < 0) {
+					dev_err(lpg->chip->dev, "set LUT pattern failed for LPG%d, rc=%d\n",
+							lpg->lpg_idx, rc);
+					return rc;
+				}
+				lpg->lut_written = true;
 			}
-			lpg->lut_written = true;
 		}
 	}
 
-	if (period_ns != lpg->current_period_ns ||
-			duty_ns != lpg->current_duty_ns)
+	/* Don't calculate duty cycle for PFM as it is fixed at 50% */
+	if ((period_ns != lpg->current_period_ns ||
+		duty_ns != lpg->current_duty_ns) && !lpg->enable_pfm)
 		__qpnp_lpg_calc_pwm_duty(period_ns, duty_ns, &lpg->pwm_config);
 
-	rc = qpnp_lpg_set_pwm_config(lpg);
+	if (lpg->enable_pfm)
+		rc = qpnp_lpg_set_pfm_config(lpg);
+	else
+		rc = qpnp_lpg_set_pwm_config(lpg);
+
 	if (rc < 0) {
-		dev_err(lpg->chip->dev, "Config PWM failed for channel %d, rc=%d\n",
-						lpg->lpg_idx, rc);
+		dev_err(lpg->chip->dev, "Config %s failed for channel %d, rc=%d\n",
+			lpg->enable_pfm ? "PFM" : "PWM", lpg->lpg_idx, rc);
 		return rc;
 	}
 
@@ -1367,6 +1519,11 @@ static int qpnp_lpg_parse_pattern_dt(struct qpnp_lpg_chip *chip,
 			return -EINVAL;
 		}
 
+		if (chip->lpgs[lpg_chan_id - 1].enable_pfm) {
+			dev_err(chip->dev, "Cannot configure ramp for PFM-enabled channel %d\n");
+			return -EINVAL;
+		}
+
 		if (chip->use_sdam) {
 			rc = of_property_read_u32(child,
 					"qcom,lpg-sdam-base",
@@ -1550,6 +1707,60 @@ err:
 	return rc;
 }
 
+static int qpnp_lpg_parse_pfm_support(struct qpnp_lpg_chip *chip)
+{
+	u32 chan_idx;
+	u32 num_pfm_channels;
+	u8 val;
+	int i, rc;
+
+	rc = of_property_count_elems_of_size(chip->dev->of_node,
+					     "qcom,pfm-chan-ids",
+					     sizeof(u32));
+	if (rc < 0)
+		return rc;
+
+	if (rc == 0 || rc > chip->num_lpgs)
+		return -EINVAL;
+
+	num_pfm_channels = rc;
+
+	for (i = 0; i < num_pfm_channels; i++) {
+		rc = of_property_read_u32_index(chip->dev->of_node,
+				"qcom,pfm-chan-ids", i, &chan_idx);
+		if (rc) {
+			dev_err(chip->dev, "Read pfm channel %d failed, rc=%d\n",
+					i, rc);
+			return -EINVAL;
+		}
+
+		if (chan_idx < 1 || chan_idx > chip->num_lpgs) {
+			dev_err(chip->dev, "pfm chan id %u is out of range 1~%d\n",
+					chan_idx, chip->num_lpgs);
+			return -EINVAL;
+		}
+
+		chan_idx--; /* zero-based indexing */
+
+		if (chip->lpgs[chan_idx].subtype == SUBTYPE_PWM) {
+			rc = qpnp_lpg_read(&chip->lpgs[chan_idx],
+					   REG_PWM_STATUS1, &val);
+			if (rc < 0) {
+				dev_err(chip->dev, "Read status1 failed, rc=%d\n",
+					rc);
+				return rc;
+			}
+
+			if (val & FM_MODE_PRESENT)
+				chip->lpgs[chan_idx].enable_pfm = true;
+			else
+				return -EOPNOTSUPP;
+		}
+	}
+
+	return rc;
+}
+
 #define DEFAULT_TICK_DURATION_US	7800
 static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 {
@@ -1575,6 +1786,15 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 				&chip->lpgs[i].subtype);
 		if (rc < 0) {
 			dev_err(chip->dev, "Read subtype failed, rc=%d\n", rc);
+			return rc;
+		}
+	}
+
+	if (of_find_property(chip->dev->of_node,
+				"qcom,pfm-chan-ids", NULL)) {
+		rc = qpnp_lpg_parse_pfm_support(chip);
+		if (rc < 0) {
+			dev_err(chip->dev, "PFM channels specified incorrectly\n");
 			return rc;
 		}
 	}
@@ -1669,8 +1889,9 @@ static int qpnp_lpg_sdam_hw_init(struct qpnp_lpg_chip *chip)
 
 static int qpnp_lpg_probe(struct platform_device *pdev)
 {
-	int rc;
+	int rc, i;
 	struct qpnp_lpg_chip *chip;
+	struct qpnp_lpg_channel *lpg;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1697,6 +1918,19 @@ static int qpnp_lpg_probe(struct platform_device *pdev)
 		dev_err(chip->dev, "SDAM HW init failed, rc=%d\n",
 				rc);
 		goto err_out;
+	}
+
+	for (i = 0; i < chip->num_lpgs; i++) {
+		lpg = &chip->lpgs[i];
+		if (lpg->enable_pfm) {
+			rc = qpnp_lpg_write(lpg, REG_PWM_FM_MODE,
+					FM_MODE_ENABLE);
+			if (rc < 0) {
+				dev_err(chip->dev, "Write fm_mode_enable failed, rc=%d\n",
+					rc);
+				return rc;
+			}
+		}
 	}
 
 	dev_set_drvdata(chip->dev, chip);
