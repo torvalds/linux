@@ -2202,7 +2202,7 @@ static void selinux_notify_policy_change(struct selinux_state *state,
 	selinux_status_update_policyload(state, seqno);
 	selinux_netlbl_cache_invalidate();
 	selinux_xfrm_notify_policyload();
-	selinux_ima_measure_state(state);
+	selinux_ima_measure_state_locked(state);
 }
 
 void selinux_policy_commit(struct selinux_state *state,

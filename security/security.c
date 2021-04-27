@@ -890,6 +890,13 @@ int security_sb_eat_lsm_opts(char *options, void **mnt_opts)
 }
 EXPORT_SYMBOL(security_sb_eat_lsm_opts);
 
+int security_sb_mnt_opts_compat(struct super_block *sb,
+				void *mnt_opts)
+{
+	return call_int_hook(sb_mnt_opts_compat, 0, sb, mnt_opts);
+}
+EXPORT_SYMBOL(security_sb_mnt_opts_compat);
+
 int security_sb_remount(struct super_block *sb,
 			void *mnt_opts)
 {
@@ -1762,12 +1769,19 @@ int security_task_getsid(struct task_struct *p)
 	return call_int_hook(task_getsid, 0, p);
 }
 
-void security_task_getsecid(struct task_struct *p, u32 *secid)
+void security_task_getsecid_subj(struct task_struct *p, u32 *secid)
 {
 	*secid = 0;
-	call_void_hook(task_getsecid, p, secid);
+	call_void_hook(task_getsecid_subj, p, secid);
 }
-EXPORT_SYMBOL(security_task_getsecid);
+EXPORT_SYMBOL(security_task_getsecid_subj);
+
+void security_task_getsecid_obj(struct task_struct *p, u32 *secid)
+{
+	*secid = 0;
+	call_void_hook(task_getsecid_obj, p, secid);
+}
+EXPORT_SYMBOL(security_task_getsecid_obj);
 
 int security_task_setnice(struct task_struct *p, int nice)
 {

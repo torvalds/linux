@@ -142,6 +142,12 @@
  *	@orig the original mount data copied from userspace.
  *	@copy copied data which will be passed to the security module.
  *	Returns 0 if the copy was successful.
+ * @sb_mnt_opts_compat:
+ *	Determine if the new mount options in @mnt_opts are allowed given
+ *	the existing mounted filesystem at @sb.
+ *	@sb superblock being compared
+ *	@mnt_opts new mount options
+ *	Return 0 if options are compatible.
  * @sb_remount:
  *	Extracts security system specific mount options and verifies no changes
  *	are being made to those options.
@@ -707,9 +713,15 @@
  *	@p.
  *	@p contains the task_struct for the process.
  *	Return 0 if permission is granted.
- * @task_getsecid:
- *	Retrieve the security identifier of the process @p.
- *	@p contains the task_struct for the process and place is into @secid.
+ * @task_getsecid_subj:
+ *	Retrieve the subjective security identifier of the task_struct in @p
+ *	and return it in @secid.  Special care must be taken to ensure that @p
+ *	is the either the "current" task, or the caller has exclusive access
+ *	to @p.
+ *	In case of failure, @secid will be set to zero.
+ * @task_getsecid_obj:
+ *	Retrieve the objective security identifier of the task_struct in @p
+ *	and return it in @secid.
  *	In case of failure, @secid will be set to zero.
  *
  * @task_setnice:

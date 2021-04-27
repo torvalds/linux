@@ -1045,7 +1045,7 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 	sb->s_blocksize = 0;
 	sb->s_xattr = server->nfs_client->cl_nfs_mod->xattr;
 	sb->s_op = server->nfs_client->cl_nfs_mod->sops;
-	if (ctx && ctx->bsize)
+	if (ctx->bsize)
 		sb->s_blocksize = nfs_block_size(ctx->bsize, &sb->s_blocksize_bits);
 
 	if (server->nfs_client->rpc_ops->version != 2) {
@@ -1077,6 +1077,7 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 						 &sb->s_blocksize_bits);
 
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
+	server->has_sec_mnt_opts = ctx->has_sec_mnt_opts;
 }
 
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b,
@@ -1192,6 +1193,9 @@ static int nfs_compare_super(struct super_block *sb, struct fs_context *fc)
 	if (memcmp(&old->fsid, &server->fsid, sizeof(old->fsid)) != 0)
 		return 0;
 	if (!nfs_compare_userns(old, server))
+		return 0;
+	if ((old->has_sec_mnt_opts || fc->security) &&
+			security_sb_mnt_opts_compat(sb, fc->security))
 		return 0;
 	return nfs_compare_mount_options(sb, server, fc);
 }
