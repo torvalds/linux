@@ -667,6 +667,9 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	if (!collect_data(config, counter, aggr_cb, &ad))
 		return;
 
+	if (perf_pmu__has_hybrid() && ad.ena == 0)
+		return;
+
 	nr = ad.nr;
 	ena = ad.ena;
 	run = ad.run;
