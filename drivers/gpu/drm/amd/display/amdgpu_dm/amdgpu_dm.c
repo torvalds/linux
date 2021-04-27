@@ -1987,9 +1987,6 @@ static int dm_suspend(void *handle)
 		return ret;
 	}
 
-#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-	amdgpu_dm_crtc_secure_display_suspend(adev);
-#endif
 	WARN_ON(adev->dm.cached_state);
 	adev->dm.cached_state = drm_atomic_helper_suspend(adev_to_drm(adev));
 
@@ -2313,10 +2310,6 @@ static int dm_resume(void *handle)
 	drm_atomic_helper_resume(ddev, dm->cached_state);
 
 	dm->cached_state = NULL;
-
-#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-	amdgpu_dm_crtc_secure_display_resume(adev);
-#endif
 
 	amdgpu_dm_irq_resume_late(adev);
 
@@ -9004,6 +8997,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 #ifdef CONFIG_DEBUG_FS
 		bool configure_crc = false;
 		enum amdgpu_dm_pipe_crc_source cur_crc_src;
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		struct crc_rd_work *crc_rd_wrk = dm->crc_rd_wrk;
+#endif
+		spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
+		cur_crc_src = acrtc->dm_irq_params.crc_src;
+		spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 #endif
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
@@ -9020,15 +9019,19 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			 * settings for the stream.
 			 */
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-			spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
-			cur_crc_src = acrtc->dm_irq_params.crc_src;
-			spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 
 			if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
 				configure_crc = true;
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-				if (amdgpu_dm_crc_window_is_activated(crtc))
-					configure_crc = false;
+				if (amdgpu_dm_crc_window_is_activated(crtc)) {
+					spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
+					acrtc->dm_irq_params.crc_window.update_win = true;
+					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 2;
+					spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
+					crc_rd_wrk->crtc = crtc;
+					spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+					spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
+				}
 #endif
 			}
 
