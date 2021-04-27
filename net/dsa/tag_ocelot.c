@@ -15,11 +15,11 @@ static void ocelot_xmit_ptp(struct dsa_port *dp, void *injection,
 	ocelot_port = ocelot->ports[dp->index];
 	rew_op = ocelot_port->ptp_cmd;
 
-	/* Retrieve timestamp ID populated inside skb->cb[0] of the
-	 * clone by ocelot_port_add_txtstamp_skb
+	/* Retrieve timestamp ID populated inside OCELOT_SKB_CB(clone)->ts_id
+	 * by ocelot_port_add_txtstamp_skb
 	 */
 	if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
-		rew_op |= clone->cb[0] << 3;
+		rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
 
 	ocelot_ifh_set_rew_op(injection, rew_op);
 }
@@ -28,7 +28,7 @@ static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
 			       __be32 ifh_prefix, void **ifh)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
+	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
 	struct dsa_switch *ds = dp->ds;
 	void *injection;
 	__be32 *prefix;

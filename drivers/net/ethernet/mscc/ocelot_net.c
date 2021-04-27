@@ -520,7 +520,7 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			ocelot_port_add_txtstamp_skb(ocelot, port, clone);
 
-			rew_op |= clone->cb[0] << 3;
+			rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
 		}
 	}
 

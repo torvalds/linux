@@ -28,11 +28,11 @@ static struct sk_buff *ocelot_xmit_ptp(struct dsa_port *dp,
 	ocelot_port = ocelot->ports[port];
 	rew_op = ocelot_port->ptp_cmd;
 
-	/* Retrieve timestamp ID populated inside skb->cb[0] of the
-	 * clone by ocelot_port_add_txtstamp_skb
+	/* Retrieve timestamp ID populated inside OCELOT_SKB_CB(clone)->ts_id
+	 * by ocelot_port_add_txtstamp_skb
 	 */
 	if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
-		rew_op |= clone->cb[0] << 3;
+		rew_op |= OCELOT_SKB_CB(clone)->ts_id << 3;
 
 	ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
 
@@ -46,7 +46,7 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
+	struct sk_buff *clone = OCELOT_SKB_CB(skb)->clone;
 
 	/* TX timestamping was requested, so inject through MMIO */
 	if (clone)

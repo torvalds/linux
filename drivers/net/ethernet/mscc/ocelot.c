@@ -538,8 +538,8 @@ void ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
 	spin_lock(&ocelot_port->ts_id_lock);
 
 	skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
-	/* Store timestamp ID in cb[0] of sk_buff */
-	clone->cb[0] = ocelot_port->ts_id;
+	/* Store timestamp ID in OCELOT_SKB_CB(clone)->ts_id */
+	OCELOT_SKB_CB(clone)->ts_id = ocelot_port->ts_id;
 	ocelot_port->ts_id = (ocelot_port->ts_id + 1) % 4;
 	skb_queue_tail(&ocelot_port->tx_skbs, clone);
 
@@ -604,7 +604,7 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		spin_lock_irqsave(&port->tx_skbs.lock, flags);
 
 		skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
-			if (skb->cb[0] != id)
+			if (OCELOT_SKB_CB(skb)->ts_id != id)
 				continue;
 			__skb_unlink(skb, &port->tx_skbs);
 			skb_match = skb;
