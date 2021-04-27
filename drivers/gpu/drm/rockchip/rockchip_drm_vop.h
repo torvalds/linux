@@ -7,6 +7,8 @@
 #ifndef _ROCKCHIP_DRM_VOP_H
 #define _ROCKCHIP_DRM_VOP_H
 
+#include <drm/drm_plane.h>
+
 /*
  * major: IP major version, used for IP structure
  * minor: big feature change under same structure
