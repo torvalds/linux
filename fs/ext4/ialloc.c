@@ -970,7 +970,7 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 		i_gid_write(inode, owner[1]);
 	} else if (test_opt(sb, GRPID)) {
 		inode->i_mode = mode;
-		inode->i_uid = fsuid_into_mnt(mnt_userns);
+		inode_fsuid_set(inode, mnt_userns);
 		inode->i_gid = dir->i_gid;
 	} else
 		inode_init_owner(mnt_userns, inode, dir, mode);
