@@ -418,7 +418,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	total_nr_samples = 0;
 	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
-		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
+		u32 nr_samples = hists->stats.nr_samples;
 
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
