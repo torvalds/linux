@@ -140,6 +140,8 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 				mutex_unlock(&adis->state_lock);
 				goto irq_done;
 			}
+
+			adis->current_page = 0;
 		}
 	}
 
@@ -148,10 +150,8 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
 
 
-	if (adis->data->has_paging) {
-		adis->current_page = 0;
+	if (adis->data->has_paging)
 		mutex_unlock(&adis->state_lock);
-	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,
 		pf->timestamp);
