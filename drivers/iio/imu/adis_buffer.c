@@ -146,12 +146,12 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	}
 
 	ret = spi_sync(adis->spi, &adis->msg);
-	if (ret)
-		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
-
-
 	if (adis->data->has_paging)
 		mutex_unlock(&adis->state_lock);
+	if (ret) {
+		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
+		goto irq_done;
+	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,
 		pf->timestamp);
