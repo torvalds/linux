@@ -702,7 +702,8 @@ enum {
 	REQ_F_FORCE_ASYNC_BIT	= IOSQE_ASYNC_BIT,
 	REQ_F_BUFFER_SELECT_BIT	= IOSQE_BUFFER_SELECT_BIT,
 
-	REQ_F_FAIL_LINK_BIT,
+	/* first byte is taken by user flags, shift it to not overlap */
+	REQ_F_FAIL_LINK_BIT	= 8,
 	REQ_F_INFLIGHT_BIT,
 	REQ_F_CUR_POS_BIT,
 	REQ_F_NOWAIT_BIT,
@@ -6503,14 +6504,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->work.creds = NULL;
 
 	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
-		req->flags = 0;
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
 		return -EINVAL;
-	}
-
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
-
 	if (unlikely(!io_check_restriction(ctx, req, sqe_flags)))
 		return -EACCES;
 
