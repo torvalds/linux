@@ -3226,7 +3226,6 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 		}
 		dprintkdbg(DBG_0, "srb_done: AUTO_REQSENSE2\n");
 
-		set_msg_byte(cmd, srb->end_message);
 		set_status_byte(cmd, SAM_STAT_CHECK_CONDITION);
 
 		goto ckc_e;
@@ -3260,7 +3259,6 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 		} else {
 			srb->adapter_status = 0;
 			set_host_byte(cmd, DID_ERROR);
-			set_msg_byte(cmd, srb->end_message);
 			set_status_byte(cmd, status);
 		}
 	} else {
@@ -3270,10 +3268,9 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 		status = srb->adapter_status;
 		if (status & H_OVER_UNDER_RUN) {
 			srb->target_status = 0;
-			set_msg_byte(cmd, srb->end_message);
+			scsi_msg_to_host_byte(cmd, srb->end_message);
 		} else if (srb->status & PARITY_ERROR) {
 			set_host_byte(cmd, DID_PARITY);
-			set_msg_byte(cmd, srb->end_message);
 		} else {	/* No error */
 
 			srb->adapter_status = 0;
