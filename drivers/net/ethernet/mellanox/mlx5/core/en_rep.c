@@ -412,8 +412,8 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 		    MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_TX_PORT_TS));
 	nch = priv->channels.num + ptp_sq;
 
-	sqs = kcalloc(nch * mlx5e_get_dcb_num_tc(&priv->channels.params), sizeof(*sqs),
-		      GFP_KERNEL);
+	sqs = kvcalloc(nch * mlx5e_get_dcb_num_tc(&priv->channels.params), sizeof(*sqs),
+		       GFP_KERNEL);
 	if (!sqs)
 		goto out;
 
@@ -430,7 +430,7 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	}
 
 	err = mlx5e_sqs2vport_start(esw, rep, sqs, num_sqs);
-	kfree(sqs);
+	kvfree(sqs);
 
 out:
 	if (err)
@@ -1269,7 +1269,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	struct mlx5e_rep_priv *rpriv;
 	int err;
 
-	rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
+	rpriv = kvzalloc(sizeof(*rpriv), GFP_KERNEL);
 	if (!rpriv)
 		return -ENOMEM;
 
@@ -1284,7 +1284,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		err = mlx5e_vport_vf_rep_load(dev, rep);
 
 	if (err)
-		kfree(rpriv);
+		kvfree(rpriv);
 
 	return err;
 }
@@ -1312,7 +1312,7 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	priv->profile->cleanup(priv);
 	mlx5e_destroy_netdev(priv);
 free_ppriv:
-	kfree(ppriv); /* mlx5e_rep_priv */
+	kvfree(ppriv); /* mlx5e_rep_priv */
 }
 
 static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
