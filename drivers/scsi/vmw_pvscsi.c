@@ -601,9 +601,6 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 		case BTSTAT_LUNMISMATCH:
 		case BTSTAT_TAGREJECT:
 		case BTSTAT_BADMSG:
-			cmd->result = (DRIVER_INVALID << 24);
-			fallthrough;
-
 		case BTSTAT_HAHARDWARE:
 		case BTSTAT_INVPHASE:
 		case BTSTAT_HATIMEOUT:
