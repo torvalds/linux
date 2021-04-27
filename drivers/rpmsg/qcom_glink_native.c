@@ -253,6 +253,9 @@ static void qcom_glink_channel_release(struct kref *ref)
 	unsigned long flags;
 	int iid;
 
+	channel->intent_req_result = false;
+	complete_all(&channel->intent_req_comp);
+
 	/* cancel pending rx_done work */
 	cancel_work_sync(&channel->intent_work);
 
