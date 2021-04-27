@@ -29,6 +29,11 @@
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
 
+struct amdgpu_vram_reservation {
+	struct list_head node;
+	struct drm_mm_node mm_node;
+};
+
 static inline struct amdgpu_vram_mgr *
 to_vram_mgr(struct ttm_resource_manager *man)
 {
