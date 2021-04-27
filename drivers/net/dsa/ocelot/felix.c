@@ -1395,18 +1395,21 @@ static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 	return false;
 }
 
-static bool felix_txtstamp(struct dsa_switch *ds, int port,
-			   struct sk_buff *clone)
+static void felix_txtstamp(struct dsa_switch *ds, int port,
+			   struct sk_buff *skb)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct sk_buff *clone;
 
 	if (ocelot->ptp && ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
-		ocelot_port_add_txtstamp_skb(ocelot, port, clone);
-		return true;
-	}
+		clone = skb_clone_sk(skb);
+		if (!clone)
+			return;
 
-	return false;
+		ocelot_port_add_txtstamp_skb(ocelot, port, clone);
+		DSA_SKB_CB(skb)->clone = clone;
+	}
 }
 
 static int felix_change_mtu(struct dsa_switch *ds, int port, int new_mtu)

@@ -555,7 +555,6 @@ static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
 				 struct sk_buff *skb)
 {
 	struct dsa_switch *ds = p->dp->ds;
-	struct sk_buff *clone;
 
 	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
 		return;
@@ -563,16 +562,7 @@ static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
 	if (!ds->ops->port_txtstamp)
 		return;
 
-	clone = skb_clone_sk(skb);
-	if (!clone)
-		return;
-
-	if (ds->ops->port_txtstamp(ds, p->dp->index, clone)) {
-		DSA_SKB_CB(skb)->clone = clone;
-		return;
-	}
-
-	kfree_skb(clone);
+	ds->ops->port_txtstamp(ds, p->dp->index, skb);
 }
 
 netdev_tx_t dsa_enqueue_skb(struct sk_buff *skb, struct net_device *dev)

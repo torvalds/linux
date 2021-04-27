@@ -373,31 +373,38 @@ long hellcreek_hwtstamp_work(struct ptp_clock_info *ptp)
 	return restart ? 1 : -1;
 }
 
-bool hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
-			     struct sk_buff *clone)
+void hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
+			     struct sk_buff *skb)
 {
 	struct hellcreek *hellcreek = ds->priv;
 	struct hellcreek_port_hwtstamp *ps;
 	struct ptp_header *hdr;
+	struct sk_buff *clone;
 	unsigned int type;
 
 	ps = &hellcreek->ports[port].port_hwtstamp;
 
-	type = ptp_classify_raw(clone);
+	type = ptp_classify_raw(skb);
 	if (type == PTP_CLASS_NONE)
-		return false;
+		return;
 
 	/* Make sure the message is a PTP message that needs to be timestamped
 	 * and the interaction with the HW timestamping is enabled. If not, stop
 	 * here
 	 */
-	hdr = hellcreek_should_tstamp(hellcreek, port, clone, type);
+	hdr = hellcreek_should_tstamp(hellcreek, port, skb, type);
 	if (!hdr)
-		return false;
+		return;
+
+	clone = skb_clone_sk(skb);
+	if (!clone)
+		return;
 
 	if (test_and_set_bit_lock(HELLCREEK_HWTSTAMP_TX_IN_PROGRESS,
-				  &ps->state))
-		return false;
+				  &ps->state)) {
+		kfree_skb(clone);
+		return;
+	}
 
 	ps->tx_skb = clone;
 
@@ -407,8 +414,6 @@ bool hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
 	ps->tx_tstamp_start = jiffies;
 
 	ptp_schedule_worker(hellcreek->ptp_clock, 0);
-
-	return true;
 }
 
 bool hellcreek_port_rxtstamp(struct dsa_switch *ds, int port,
