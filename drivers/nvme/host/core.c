@@ -589,9 +589,6 @@ EXPORT_SYMBOL_NS_GPL(nvme_put_ns, NVME_TARGET_PASSTHRU);
 
 static inline void nvme_clear_nvme_request(struct request *req)
 {
-	struct nvme_command *cmd = nvme_req(req)->cmd;
-
-	memset(cmd, 0, sizeof(*cmd));
 	nvme_req(req)->retries = 0;
 	nvme_req(req)->flags = 0;
 	req->rq_flags |= RQF_DONTPREP;
@@ -903,8 +900,10 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 	struct nvme_command *cmd = nvme_req(req)->cmd;
 	blk_status_t ret = BLK_STS_OK;
 
-	if (!(req->rq_flags & RQF_DONTPREP))
+	if (!(req->rq_flags & RQF_DONTPREP)) {
 		nvme_clear_nvme_request(req);
+		memset(cmd, 0, sizeof(*cmd));
+	}
 
 	switch (req_op(req)) {
 	case REQ_OP_DRV_IN:
