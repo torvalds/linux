@@ -275,6 +275,12 @@
 		};
 	};
 
+	clk_virt: interconnect {
+		compatible = "qcom,sc7280-clk-virt";
+		#interconnect-cells = <2>;
+		qcom,bcm-voters = <&apps_bcm_voter>;
+	};
+
 	smem {
 		compatible = "qcom,smem";
 		memory-region = <&smem_mem>;
@@ -453,6 +459,55 @@
 			};
 		};
 
+		cnoc2: interconnect@1500000 {
+			reg = <0 0x01500000 0 0x1000>;
+			compatible = "qcom,sc7280-cnoc2";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		cnoc3: interconnect@1502000 {
+			reg = <0 0x01502000 0 0x1000>;
+			compatible = "qcom,sc7280-cnoc3";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		mc_virt: interconnect@1580000 {
+			reg = <0 0x01580000 0 0x4>;
+			compatible = "qcom,sc7280-mc-virt";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		system_noc: interconnect@1680000 {
+			reg = <0 0x01680000 0 0x15480>;
+			compatible = "qcom,sc7280-system-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		aggre1_noc: interconnect@16e0000 {
+			compatible = "qcom,sc7280-aggre1-noc";
+			reg = <0 0x016e0000 0 0x1c080>;
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		aggre2_noc: interconnect@1700000 {
+			reg = <0 0x01700000 0 0x2b080>;
+			compatible = "qcom,sc7280-aggre2-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		mmss_noc: interconnect@1740000 {
+			reg = <0 0x01740000 0 0x1e080>;
+			compatible = "qcom,sc7280-mmss-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
 		tcsr_mutex: hwlock@1f40000 {
 			compatible = "qcom,tcsr-mutex", "syscon";
 			reg = <0 0x01f40000 0 0x40000>;
@@ -468,6 +523,13 @@
 			clocks = <&gcc GCC_CFG_NOC_LPASS_CLK>;
 			clock-names = "iface";
 			#clock-cells = <1>;
+		};
+
+		lpass_ag_noc: interconnect@3c40000 {
+			reg = <0 0x03c40000 0 0xf080>;
+			compatible = "qcom,sc7280-lpass-ag-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
 		gpucc: clock-controller@3d90000 {
@@ -973,11 +1035,32 @@
 			};
 		};
 
+		dc_noc: interconnect@90e0000 {
+			reg = <0 0x090e0000 0 0x5080>;
+			compatible = "qcom,sc7280-dc-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
+		gem_noc: interconnect@9100000 {
+			reg = <0 0x9100000 0 0xe2200>;
+			compatible = "qcom,sc7280-gem-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
 		system-cache-controller@9200000 {
 			compatible = "qcom,sc7280-llcc";
 			reg = <0 0x09200000 0 0xd0000>, <0 0x09600000 0 0x50000>;
 			reg-names = "llcc_base", "llcc_broadcast_base";
 			interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nsp_noc: interconnect@a0c0000 {
+			reg = <0 0x0a0c0000 0 0x10000>;
+			compatible = "qcom,sc7280-nsp-noc";
+			#interconnect-cells = <2>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
 		videocc: clock-controller@aaf0000 {
@@ -1293,6 +1376,10 @@
 					  <SLEEP_TCS   3>,
 					  <WAKE_TCS    3>,
 					  <CONTROL_TCS 1>;
+
+			apps_bcm_voter: bcm-voter {
+				compatible = "qcom,bcm-voter";
+			};
 
 			rpmhpd: power-controller {
 				compatible = "qcom,sc7280-rpmhpd";
