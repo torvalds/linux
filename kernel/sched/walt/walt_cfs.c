@@ -8,6 +8,7 @@
 
 #include "walt.h"
 #include "trace.h"
+#include <../../../drivers/android/binder_internal.h>
 #include "../../../drivers/android/binder_trace.h"
 
 /* Migration margins */
@@ -711,6 +712,34 @@ static void walt_binder_low_latency_clear(void *unused, struct binder_transactio
 		wts->low_latency &= ~WALT_LOW_LATENCY_BINDER;
 }
 
+static void binder_set_priority_hook(void *data,
+				struct binder_transaction *bndrtrans, struct task_struct *task)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) task->android_vendor_data1;
+	struct walt_task_struct *current_wts =
+			(struct walt_task_struct *) current->android_vendor_data1;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	if (bndrtrans && bndrtrans->need_reply && current_wts->boost == TASK_BOOST_STRICT_MAX) {
+		bndrtrans->android_vendor_data1  = wts->boost;
+		wts->boost = TASK_BOOST_STRICT_MAX;
+	}
+}
+
+static void binder_restore_priority_hook(void *data,
+				struct binder_transaction *bndrtrans, struct task_struct *task)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) task->android_vendor_data1;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	if (wts->boost == TASK_BOOST_STRICT_MAX)
+		wts->boost = bndrtrans->android_vendor_data1;
+}
+
 void walt_cfs_init(void)
 {
 	register_trace_android_rvh_select_task_rq_fair(walt_select_task_rq_fair, NULL);
@@ -718,4 +747,7 @@ void walt_cfs_init(void)
 
 	register_trace_android_vh_binder_wakeup_ilocked(walt_binder_low_latency_set, NULL);
 	register_trace_binder_transaction_received(walt_binder_low_latency_clear, NULL);
+
+	register_trace_android_vh_binder_set_priority(binder_set_priority_hook, NULL);
+	register_trace_android_vh_binder_restore_priority(binder_restore_priority_hook, NULL);
 }
