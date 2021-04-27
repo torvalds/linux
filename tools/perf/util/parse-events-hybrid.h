@@ -17,6 +17,7 @@ int parse_events__add_numeric_hybrid(struct parse_events_state *parse_state,
 int parse_events__add_cache_hybrid(struct list_head *list, int *idx,
 				   struct perf_event_attr *attr, char *name,
 				   struct list_head *config_terms,
-				   bool *hybrid);
+				   bool *hybrid,
+				   struct parse_events_state *parse_state);
 
 #endif /* __PERF_PARSE_EVENTS_HYBRID_H */

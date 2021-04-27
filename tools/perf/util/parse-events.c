@@ -453,7 +453,8 @@ static int config_attr(struct perf_event_attr *attr,
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
 			   struct parse_events_error *err,
-			   struct list_head *head_config)
+			   struct list_head *head_config,
+			   struct parse_events_state *parse_state)
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
@@ -524,7 +525,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 
 	ret = parse_events__add_cache_hybrid(list, idx, &attr,
 					     config_name ? : name, &config_terms,
-					     &hybrid);
+					     &hybrid, parse_state);
 	if (hybrid)
 		return ret;
 

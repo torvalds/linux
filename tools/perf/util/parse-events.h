@@ -138,6 +138,7 @@ struct parse_events_state {
 	struct list_head	  *terms;
 	int			   stoken;
 	struct perf_pmu		  *fake_pmu;
+	char			  *hybrid_pmu_name;
 };
 
 void parse_events__handle_error(struct parse_events_error *err, int idx,
@@ -188,7 +189,8 @@ int parse_events_add_tool(struct parse_events_state *parse_state,
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
 			   struct parse_events_error *error,
-			   struct list_head *head_config);
+			   struct list_head *head_config,
+			   struct parse_events_state *parse_state);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				u64 addr, char *type, u64 len);
 int parse_events_add_pmu(struct parse_events_state *parse_state,
