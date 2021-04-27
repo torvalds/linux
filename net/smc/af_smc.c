@@ -1076,7 +1076,6 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 		rc = -EISCONN;
 		goto out;
 	case SMC_INIT:
-		rc = 0;
 		break;
 	}
 
