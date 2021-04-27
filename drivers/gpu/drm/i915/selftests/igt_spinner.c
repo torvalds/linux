@@ -94,9 +94,9 @@ int igt_spinner_pin(struct igt_spinner *spin,
 	}
 
 	if (!spin->batch) {
-		unsigned int mode =
-			i915_coherent_map_type(spin->gt->i915);
+		unsigned int mode;
 
+		mode = i915_coherent_map_type(spin->gt->i915, spin->obj, false);
 		vaddr = igt_spinner_pin_obj(ce, ww, spin->obj, mode, &spin->batch_vma);
 		if (IS_ERR(vaddr))
 			return PTR_ERR(vaddr);
