@@ -7,9 +7,25 @@
 
 #include <linux/fault-inject.h>
 
+#include "gem/i915_gem_lmem.h"
 #include "i915_trace.h"
 #include "intel_gt.h"
 #include "intel_gtt.h"
+
+struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
+{
+	struct drm_i915_gem_object *obj;
+
+	obj = i915_gem_object_create_lmem(vm->i915, sz, 0);
+	/*
+	 * Ensure all paging structures for this vm share the same dma-resv
+	 * object underneath, with the idea that one object_lock() will lock
+	 * them all at once.
+	 */
+	if (!IS_ERR(obj))
+		obj->base.resv = &vm->resv;
+	return obj;
+}
 
 struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 {
@@ -19,7 +35,11 @@ struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 		i915_gem_shrink_all(vm->i915);
 
 	obj = i915_gem_object_create_internal(vm->i915, sz);
-	/* ensure all dma objects have the same reservation class */
+	/*
+	 * Ensure all paging structures for this vm share the same dma-resv
+	 * object underneath, with the idea that one object_lock() will lock
+	 * them all at once.
+	 */
 	if (!IS_ERR(obj))
 		obj->base.resv = &vm->resv;
 	return obj;
@@ -27,9 +47,11 @@ struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 
 int map_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 {
+	enum i915_map_type type;
 	void *vaddr;
 
-	vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
+	type = i915_coherent_map_type(vm->i915, obj, true);
+	vaddr = i915_gem_object_pin_map_unlocked(obj, type);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
@@ -39,9 +61,11 @@ int map_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 
 int map_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 {
+	enum i915_map_type type;
 	void *vaddr;
 
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	type = i915_coherent_map_type(vm->i915, obj, true);
+	vaddr = i915_gem_object_pin_map(obj, type);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
