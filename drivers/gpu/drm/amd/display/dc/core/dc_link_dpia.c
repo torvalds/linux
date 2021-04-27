@@ -29,6 +29,9 @@
 #include "inc/core_status.h"
 #include "dc_link.h"
 #include "dc_link_dp.h"
+#include "dpcd_defs.h"
+#include "link_hwss.h"
+#include "inc/link_dpcd.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -88,17 +91,389 @@ static enum link_training_result dpia_configure_link(struct dc_link *link,
 	return LINK_TRAINING_SUCCESS;
 }
 
+static enum dc_status core_link_send_set_config(struct dc_link *link,
+		uint8_t msg_type, uint8_t msg_data)
+{
+	/** @todo Implement */
+	return DC_OK;
+}
+
+/* Build SET_CONFIG message data payload for specified message type. */
+static uint8_t dpia_build_set_config_data(enum dpia_set_config_type type,
+		struct dc_link *link,
+		struct link_training_settings *lt_settings)
+{
+	union dpia_set_config_data data;
+
+	data.raw = 0;
+
+	switch (type) {
+	case DPIA_SET_CFG_SET_LINK:
+		data.set_link.mode = link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT ? 1 : 0;
+		break;
+	case DPIA_SET_CFG_SET_PHY_TEST_MODE:
+		break;
+	case DPIA_SET_CFG_SET_VSPE:
+		/* Assume all lanes have same drive settings. */
+		data.set_vspe.swing = lt_settings->lane_settings[0].VOLTAGE_SWING;
+		data.set_vspe.pre_emph = lt_settings->lane_settings[0].PRE_EMPHASIS;
+		data.set_vspe.max_swing_reached =
+			lt_settings->lane_settings[0].VOLTAGE_SWING ==
+			VOLTAGE_SWING_MAX_LEVEL ? 1 : 0;
+		data.set_vspe.max_pre_emph_reached =
+			lt_settings->lane_settings[0].PRE_EMPHASIS ==
+			PRE_EMPHASIS_MAX_LEVEL ? 1 : 0;
+		break;
+	default:
+		ASSERT(false); /* Message type not supported by helper function. */
+		break;
+	}
+
+	return data.raw;
+}
+
+/* Convert DC training pattern to DPIA training stage. */
+static enum dpia_set_config_ts convert_trng_ptn_to_trng_stg(enum dc_dp_training_pattern tps)
+{
+	enum dpia_set_config_ts ts;
+
+	switch (tps) {
+	case DP_TRAINING_PATTERN_SEQUENCE_1:
+		ts = DPIA_TS_TPS1;
+		break;
+	case DP_TRAINING_PATTERN_SEQUENCE_2:
+		ts = DPIA_TS_TPS2;
+		break;
+	case DP_TRAINING_PATTERN_SEQUENCE_3:
+		ts = DPIA_TS_TPS3;
+		break;
+	case DP_TRAINING_PATTERN_SEQUENCE_4:
+		ts = DPIA_TS_TPS4;
+		break;
+	default:
+		ASSERT(false); /* TPS not supported by helper function. */
+		break;
+	}
+
+	return ts;
+}
+
+/* Write training pattern to DPCD. */
+static enum dc_status dpcd_set_lt_pattern(struct dc_link *link,
+	enum dc_dp_training_pattern pattern,
+	uint32_t hop)
+{
+	union dpcd_training_pattern dpcd_pattern = { {0} };
+	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
+	enum dc_status status;
+
+	if (hop != DPRX)
+		dpcd_tps_offset = DP_TRAINING_PATTERN_SET_PHY_REPEATER1 +
+			((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (hop - 1));
+
+	/* DpcdAddress_TrainingPatternSet */
+	dpcd_pattern.v1_4.TRAINING_PATTERN_SET =
+		dc_dp_training_pattern_to_dpcd_training_pattern(link, pattern);
+
+	dpcd_pattern.v1_4.SCRAMBLING_DISABLE =
+		dc_dp_initialize_scrambling_data_symbols(link, pattern);
+
+	if (hop != DPRX) {
+		DC_LOG_HW_LINK_TRAINING("%s\n LTTPR Repeater ID: %d\n 0x%X pattern = %x\n",
+					__func__,
+					hop,
+					dpcd_tps_offset,
+					dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s\n 0x%X pattern = %x\n",
+					__func__,
+					dpcd_tps_offset,
+					dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
+	}
+
+	status = core_link_write_dpcd(link,
+				      DP_TRAINING_PATTERN_SET,
+				      &dpcd_pattern.raw,
+				      sizeof(dpcd_pattern.raw));
+
+	return status;
+}
+
+/* Execute clock recovery phase of link training for specified hop in display
+ * path.in non-transparent mode:
+ * - Driver issues both DPCD and SET_CONFIG transactions.
+ * - TPS1 is transmitted for any hops downstream of DPOA.
+ * - Drive (VS/PE) only transmitted for the hop immediately downstream of DPOA.
+ * - CR for the first hop (DPTX-to-DPIA) is assumed to be successful.
+ *
+ * @param link DPIA link being trained.
+ * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
+ * @param hop The Hop in display path. DPRX = 0.
+ */
+static enum link_training_result dpia_training_cr_non_transparent(struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t hop)
+{
+	enum link_training_result result = LINK_TRAINING_CR_FAIL_LANE0;
+	uint8_t repeater_cnt = 0; /* Number of hops/repeaters in display path. */
+	enum dc_status status;
+	uint32_t retries_cr = 0; /* Number of consecutive attempts with same VS or PE. */
+	uint32_t retry_count = 0;
+	/* From DP spec, CR read interval is always 100us. */
+	uint32_t wait_time_microsec = TRAINING_AUX_RD_INTERVAL;
+	struct link_training_settings req_settings;
+	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
+	uint8_t set_cfg_data;
+	enum dpia_set_config_ts ts;
+
+	repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+	/* Cap of LINK_TRAINING_MAX_CR_RETRY attempts at clock recovery.
+	 * Fix inherited from perform_clock_recovery_sequence() -
+	 * the DP equivalent of this function:
+	 * Required for Synaptics MST hub which can put the LT in
+	 * infinite loop by switching the VS between level 0 and level 1
+	 * continuously.
+	 */
+	while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
+	       (retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
+		/* DPTX-to-DPIA */
+		if (hop == repeater_cnt) {
+			/* Send SET_CONFIG(SET_LINK:LC,LR,LTTPR) to notify DPOA that
+			 * non-transparent link training has started.
+			 * This also enables the transmission of clk_sync packets.
+			 */
+			set_cfg_data = dpia_build_set_config_data(DPIA_SET_CFG_SET_LINK,
+					link,
+					lt_settings);
+			status = core_link_send_set_config(link,
+					DPIA_SET_CFG_SET_LINK,
+					set_cfg_data);
+			/* CR for this hop is considered successful as long as
+			 * SET_CONFIG message is acknowledged by DPOA.
+			 */
+			if (status == DC_OK)
+				result = LINK_TRAINING_SUCCESS;
+			else
+				result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		/* DPOA-to-x */
+		/* Instruct DPOA to transmit TPS1 then update DPCD. */
+		if (retry_count == 0) {
+			ts = convert_trng_ptn_to_trng_stg(lt_settings->pattern_for_cr);
+			status = core_link_send_set_config(link,
+					DPIA_SET_CFG_SET_TRAINING,
+					ts);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+			status = dpcd_set_lt_pattern(link, lt_settings->pattern_for_cr, hop);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+		}
+
+		/* Update DPOA drive settings then DPCD. DPOA does only adjusts
+		 * drive settings for hops immediately downstream.
+		 */
+		if (hop == repeater_cnt - 1) {
+			set_cfg_data = dpia_build_set_config_data(DPIA_SET_CFG_SET_VSPE,
+					link,
+					lt_settings);
+			status = core_link_send_set_config(link,
+					DPIA_SET_CFG_SET_VSPE,
+					set_cfg_data);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+		}
+		status = dpcd_set_lane_settings(link, lt_settings, hop);
+		if (status != DC_OK) {
+			result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		dp_wait_for_training_aux_rd_interval(link, wait_time_microsec);
+
+		/* Read status and adjustment requests from DPCD. */
+		status = dp_get_lane_status_and_drive_settings(link,
+				lt_settings,
+				dpcd_lane_status,
+				&dpcd_lane_status_updated,
+				&req_settings,
+				hop);
+		if (status != DC_OK) {
+			result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		/* Check if clock recovery successful. */
+		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			result = LINK_TRAINING_SUCCESS;
+			break;
+		}
+
+		result = dp_get_cr_failure(lane_count, dpcd_lane_status);
+
+		if (dp_is_max_vs_reached(lt_settings))
+			break;
+
+		/* Count number of attempts with same drive settings.
+		 * Note: settings are the same for all lanes,
+		 * so comparing first lane is sufficient.
+		 */
+		if (lt_settings->lane_settings[0].VOLTAGE_SWING ==
+			req_settings.lane_settings[0].VOLTAGE_SWING &&
+			lt_settings->lane_settings[0].PRE_EMPHASIS ==
+			req_settings.lane_settings[0].PRE_EMPHASIS)
+			retries_cr++;
+		else
+			retries_cr = 0;
+
+		/* Update VS/PE. */
+		dp_update_drive_settings(lt_settings, req_settings);
+		retry_count++;
+	}
+
+	/* Abort link training if clock recovery failed due to HPD unplug. */
+	if (!link->hpd_status)
+		result = LINK_TRAINING_ABORT;
+
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) clock recovery\n"
+		" -hop(%d)\n - result(%d)\n - retries(%d)\n",
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		hop,
+		result,
+		retry_count);
+
+	return result;
+}
+
+/* Execute clock recovery phase of link training in transparent LTTPR mode:
+ * - Driver only issues DPCD transactions and leaves USB4 tunneling (SET_CONFIG) messages to DPIA.
+ * - Driver writes TPS1 to DPCD to kick off training.
+ * - Clock recovery (CR) for link is handled by DPOA, which reports result to DPIA on completion.
+ * - DPIA communicates result to driver by updating CR status when driver reads DPCD.
+ *
+ * @param link DPIA link being trained.
+ * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
+ */
+static enum link_training_result dpia_training_cr_transparent(struct dc_link *link,
+		struct link_training_settings *lt_settings)
+{
+	enum link_training_result result = LINK_TRAINING_CR_FAIL_LANE0;
+	enum dc_status status;
+	uint32_t retries_cr = 0; /* Number of consecutive attempts with same VS or PE. */
+	uint32_t retry_count = 0;
+	uint32_t wait_time_microsec = lt_settings->cr_pattern_time;
+	struct link_training_settings req_settings;
+	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
+	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
+
+	/* Cap of LINK_TRAINING_MAX_CR_RETRY attempts at clock recovery.
+	 * Fix inherited from perform_clock_recovery_sequence() -
+	 * the DP equivalent of this function:
+	 * Required for Synaptics MST hub which can put the LT in
+	 * infinite loop by switching the VS between level 0 and level 1
+	 * continuously.
+	 */
+	while ((retries_cr < LINK_TRAINING_MAX_RETRY_COUNT) &&
+	       (retry_count < LINK_TRAINING_MAX_CR_RETRY)) {
+		/* Write TPS1 (not VS or PE) to DPCD to start CR phase.
+		 * DPIA sends SET_CONFIG(SET_LINK) to notify DPOA to
+		 * start link training.
+		 */
+		if (retry_count == 0) {
+			status = dpcd_set_lt_pattern(link, lt_settings->pattern_for_cr, DPRX);
+			if (status != DC_OK) {
+				result = LINK_TRAINING_ABORT;
+				break;
+			}
+		}
+
+		dp_wait_for_training_aux_rd_interval(link, wait_time_microsec);
+
+		/* Read status and adjustment requests from DPCD. */
+		status = dp_get_lane_status_and_drive_settings(link,
+				lt_settings,
+				dpcd_lane_status,
+				&dpcd_lane_status_updated,
+				&req_settings,
+				DPRX);
+		if (status != DC_OK) {
+			result = LINK_TRAINING_ABORT;
+			break;
+		}
+
+		/* Check if clock recovery successful. */
+		if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
+			result = LINK_TRAINING_SUCCESS;
+			break;
+		}
+
+		result = dp_get_cr_failure(lane_count, dpcd_lane_status);
+
+		if (dp_is_max_vs_reached(lt_settings))
+			break;
+
+		/* Count number of attempts with same drive settings.
+		 * Note: settings are the same for all lanes,
+		 * so comparing first lane is sufficient.
+		 */
+		if (lt_settings->lane_settings[0].VOLTAGE_SWING ==
+			req_settings.lane_settings[0].VOLTAGE_SWING &&
+			lt_settings->lane_settings[0].PRE_EMPHASIS ==
+			req_settings.lane_settings[0].PRE_EMPHASIS)
+			retries_cr++;
+		else
+			retries_cr = 0;
+
+		/* Update VS/PE. */
+		dp_update_drive_settings(lt_settings, req_settings);
+		retry_count++;
+	}
+
+	/* Abort link training if clock recovery failed due to HPD unplug. */
+	if (!link->hpd_status)
+		result = LINK_TRAINING_ABORT;
+
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) clock recovery\n"
+		" -hop(%d)\n - result(%d)\n - retries(%d)\n",
+		__func__,
+		link->link_id.enum_id - ENUM_ID_1,
+		DPRX,
+		result,
+		retry_count);
+
+	return result;
+}
+
 /* Execute clock recovery phase of link training for specified hop in display
  * path.
+ *
+ * @param link DPIA link being trained.
+ * @param lt_settings link_setting and drive settings (voltage swing and pre-emphasis).
+ * @param hop The Hop in display path. DPRX = 0.
  */
 static enum link_training_result dpia_training_cr_phase(struct dc_link *link,
 		struct link_training_settings *lt_settings,
 		uint32_t hop)
 {
-	enum link_training_result result;
+	enum link_training_result result = LINK_TRAINING_CR_FAIL_LANE0;
 
-	/** @todo Fail until implemented. */
-	result = LINK_TRAINING_ABORT;
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
+		result = dpia_training_cr_non_transparent(link, lt_settings, hop);
+	else
+		result = dpia_training_cr_transparent(link, lt_settings);
 
 	return result;
 }
@@ -128,6 +503,38 @@ static enum link_training_result dpia_training_end(struct dc_link *link,
 	result = LINK_TRAINING_ABORT;
 
 	return result;
+}
+
+/* When aborting training of specified hop in display path, clean up by:
+ * - Attempting to clear DPCD TRAINING_PATTERN_SET, LINK_BW_SET and LANE_COUNT_SET.
+ * - Sending SET_CONFIG(SET_LINK) with lane count and link rate set to 0.
+ *
+ * @param link DPIA link being trained.
+ * @param hop The Hop in display path. DPRX = 0.
+ */
+static void dpia_training_abort(struct dc_link *link, uint32_t hop)
+{
+	uint8_t data = 0;
+	uint32_t dpcd_tps_offset = DP_TRAINING_PATTERN_SET;
+
+	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) aborting\n - LTTPR mode(%d)\n - HPD(%d)\n",
+				__func__,
+				link->link_id.enum_id - ENUM_ID_1,
+				link->lttpr_mode,
+				link->hpd_status);
+
+	/* Abandon clean-up if sink unplugged. */
+	if (!link->hpd_status)
+		return;
+
+	if (hop != DPRX)
+		dpcd_tps_offset = DP_TRAINING_PATTERN_SET_PHY_REPEATER1 +
+			((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (hop - 1));
+
+	core_link_write_dpcd(link, dpcd_tps_offset, &data, 1);
+	core_link_write_dpcd(link, DP_LINK_BW_SET, &data, 1);
+	core_link_write_dpcd(link, DP_LANE_COUNT_SET, &data, 1);
+	core_link_send_set_config(link, DPIA_SET_CFG_SET_LINK, data);
 }
 
 enum link_training_result dc_link_dpia_perform_link_training(struct dc_link *link,
@@ -167,14 +574,17 @@ enum link_training_result dc_link_dpia_perform_link_training(struct dc_link *lin
 			break;
 	}
 
-	/* Double-check link status if training successful; gracefully stop
-	 * training of current hop if training failed for any reason other than
-	 * sink unplug.
+	/* Double-check link status if training successful; gracefully abort
+	 * training of current hop if training failed due to message tunneling
+	 * failure; end training of hop if training ended conventionally and
+	 * falling back to lower bandwidth settings possible.
 	 */
 	if (result == LINK_TRAINING_SUCCESS) {
 		msleep(5);
 		result = dp_check_link_loss_status(link, &lt_settings);
-	} else if (result != LINK_TRAINING_ABORT) {
+	} else if (result == LINK_TRAINING_ABORT) {
+		dpia_training_abort(link, repeater_id);
+	} else {
 		dpia_training_end(link, repeater_id);
 	}
 	return result;

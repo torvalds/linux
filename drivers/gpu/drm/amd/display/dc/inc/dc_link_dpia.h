@@ -32,6 +32,46 @@
 struct dc_link;
 struct dc_link_settings;
 
+/* The approximate time (us) it takes to transmit 9 USB4 DP clock sync packets. */
+#define DPIA_CLK_SYNC_DELAY 16000
+
+/* SET_CONFIG message types sent by driver. */
+enum dpia_set_config_type {
+	DPIA_SET_CFG_SET_LINK = 0x01,
+	DPIA_SET_CFG_SET_PHY_TEST_MODE = 0x05,
+	DPIA_SET_CFG_SET_TRAINING = 0x18,
+	DPIA_SET_CFG_SET_VSPE = 0x19
+};
+
+/* Training stages (TS) in SET_CONFIG(SET_TRAINING) message. */
+enum dpia_set_config_ts {
+	DPIA_TS_DPRX_DONE = 0x00, /* Done training DPRX. */
+	DPIA_TS_TPS1 = 0x01,
+	DPIA_TS_TPS2 = 0x02,
+	DPIA_TS_TPS3 = 0x03,
+	DPIA_TS_TPS4 = 0x07,
+	DPIA_TS_UFP_DONE = 0xff /* Done training DPTX-to-DPIA hop. */
+};
+
+/* SET_CONFIG message data associated with messages sent by driver. */
+union dpia_set_config_data {
+	struct {
+		uint8_t mode : 1;
+		uint8_t reserved : 7;
+	} set_link;
+	struct {
+		uint8_t stage;
+	} set_training;
+	struct {
+		uint8_t swing : 2;
+		uint8_t max_swing_reached : 1;
+		uint8_t pre_emph : 2;
+		uint8_t max_pre_emph_reached : 1;
+		uint8_t reserved : 2;
+	} set_vspe;
+	uint8_t raw;
+};
+
 /* Read tunneling device capability from DPCD and update link capability
  * accordingly.
  */
