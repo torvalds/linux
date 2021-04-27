@@ -92,8 +92,8 @@ static size_t find_smbios_instance_string(struct pci_dev *pdev, char *buf,
 	return 0;
 }
 
-static umode_t smbios_instance_string_exist(struct kobject *kobj,
-					    struct attribute *attr, int n)
+static umode_t smbios_attr_is_visible(struct kobject *kobj, struct attribute *a,
+				      int n)
 {
 	struct device *dev;
 	struct pci_dev *pdev;
@@ -101,12 +101,14 @@ static umode_t smbios_instance_string_exist(struct kobject *kobj,
 	dev = kobj_to_dev(kobj);
 	pdev = to_pci_dev(dev);
 
-	return find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE) ?
-					   S_IRUGO : 0;
+	if (!find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE))
+		return 0;
+
+	return a->mode;
 }
 
-static ssize_t smbioslabel_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t smbios_label_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	pdev = to_pci_dev(dev);
@@ -114,9 +116,11 @@ static ssize_t smbioslabel_show(struct device *dev,
 	return find_smbios_instance_string(pdev, buf,
 					   SMBIOS_ATTR_LABEL_SHOW);
 }
+static struct device_attribute dev_attr_smbios_label = __ATTR(label, 0444,
+						    smbios_label_show, NULL);
 
-static ssize_t smbiosinstance_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t index_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct pci_dev *pdev;
 	pdev = to_pci_dev(dev);
@@ -124,26 +128,17 @@ static ssize_t smbiosinstance_show(struct device *dev,
 	return find_smbios_instance_string(pdev, buf,
 					   SMBIOS_ATTR_INSTANCE_SHOW);
 }
+static DEVICE_ATTR_RO(index);
 
-static struct device_attribute smbios_attr_label = {
-	.attr = {.name = "label", .mode = 0444},
-	.show = smbioslabel_show,
-};
-
-static struct device_attribute smbios_attr_instance = {
-	.attr = {.name = "index", .mode = 0444},
-	.show = smbiosinstance_show,
-};
-
-static struct attribute *smbios_attributes[] = {
-	&smbios_attr_label.attr,
-	&smbios_attr_instance.attr,
+static struct attribute *smbios_attrs[] = {
+	&dev_attr_smbios_label.attr,
+	&dev_attr_index.attr,
 	NULL,
 };
 
 static const struct attribute_group smbios_attr_group = {
-	.attrs = smbios_attributes,
-	.is_visible = smbios_instance_string_exist,
+	.attrs = smbios_attrs,
+	.is_visible = smbios_attr_is_visible,
 };
 
 static int pci_create_smbiosname_file(struct pci_dev *pdev)
