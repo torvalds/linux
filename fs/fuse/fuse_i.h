@@ -872,6 +872,28 @@ static inline bool fuse_is_bad(struct inode *inode)
 	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
 }
 
+static inline struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
+					     struct fuse_page_desc **desc)
+{
+	struct page **pages;
+
+	pages = kzalloc(npages * (sizeof(struct page *) +
+				  sizeof(struct fuse_page_desc)), flags);
+	*desc = (void *) (pages + npages);
+
+	return pages;
+}
+
+static inline void fuse_page_descs_length_init(struct fuse_page_desc *descs,
+					       unsigned int index,
+					       unsigned int nr_pages)
+{
+	int i;
+
+	for (i = index; i < index + nr_pages; i++)
+		descs[i].length = PAGE_SIZE - descs[i].offset;
+}
+
 /** Device operations */
 extern const struct file_operations fuse_dev_operations;
 
@@ -932,7 +954,8 @@ struct fuse_file *fuse_file_alloc(struct fuse_mount *fm);
 void fuse_file_free(struct fuse_file *ff);
 void fuse_finish_open(struct inode *inode, struct file *file);
 
-void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff, int flags);
+void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff,
+		       unsigned int flags);
 
 /**
  * Send RELEASE or RELEASEDIR request
@@ -1213,5 +1236,20 @@ void fuse_dax_inode_init(struct inode *inode);
 void fuse_dax_inode_cleanup(struct inode *inode);
 bool fuse_dax_check_alignment(struct fuse_conn *fc, unsigned int map_alignment);
 void fuse_dax_cancel_work(struct fuse_conn *fc);
+
+/* ioctl.c */
+long fuse_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg);
+int fuse_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int fuse_fileattr_set(struct user_namespace *mnt_userns,
+		      struct dentry *dentry, struct fileattr *fa);
+
+/* file.c */
+
+struct fuse_file *fuse_file_open(struct fuse_mount *fm, u64 nodeid,
+				 unsigned int open_flags, bool isdir);
+void fuse_file_release(struct inode *inode, struct fuse_file *ff,
+		       unsigned int open_flags, fl_owner_t id, bool isdir);
 
 #endif /* _FS_FUSE_I_H */
