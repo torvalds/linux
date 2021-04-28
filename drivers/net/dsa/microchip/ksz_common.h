@@ -69,7 +69,7 @@ struct ksz_device {
 	int cpu_ports;			/* port bitmap can be cpu port */
 	int phy_port_cnt;
 	int port_cnt;
-	int reg_mib_cnt;
+	u8 reg_mib_cnt;
 	int mib_cnt;
 	const struct mib_names *mib_names;
 	phy_interface_t compat_interface;
