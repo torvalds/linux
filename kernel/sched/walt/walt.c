@@ -3764,7 +3764,7 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	if (unlikely(walt_disabled))
 		return;
 	wts->last_enqueued_ts = wallclock;
-	sched_update_nr_prod(rq->cpu, true);
+	sched_update_nr_prod(rq->cpu, 1);
 
 	if (walt_fair_task(p)) {
 		wts->misfit = !task_fits_max(p, rq->cpu);
@@ -3784,7 +3784,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	if (p == wrq->ed_task)
 		is_ed_task_present(rq, sched_ktime_clock(), p);
 
-	sched_update_nr_prod(rq->cpu, false);
+	sched_update_nr_prod(rq->cpu, -1);
 
 	if (walt_fair_task(p))
 		dec_rq_walt_stats(rq, p);
@@ -3823,7 +3823,7 @@ static void android_rvh_update_misfit_status(void *unused, struct task_struct *p
 
 	change = misfit - old_misfit;
 	if (change) {
-		sched_update_nr_prod(rq->cpu, true);
+		sched_update_nr_prod(rq->cpu, 0);
 		wts->misfit = misfit;
 		wrq->walt_stats.nr_big_tasks += change;
 		BUG_ON(wrq->walt_stats.nr_big_tasks < 0);
