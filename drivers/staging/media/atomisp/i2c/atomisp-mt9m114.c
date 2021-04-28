@@ -475,10 +475,12 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Note: current modules wire only one GPIO signal (RESET#),
+	/*
+	 * Note: current modules wire only one GPIO signal (RESET#),
 	 * but the schematic wires up two to the connector.  BIOS
 	 * versions have been unfortunately inconsistent with which
-	 * ACPI index RESET# is on, so hit both */
+	 * ACPI index RESET# is on, so hit both
+	 */
 
 	if (flag) {
 		ret = dev->platform_data->gpio0_ctrl(sd, 0);
@@ -560,7 +562,7 @@ static int power_down(struct v4l2_subdev *sd)
 	if (ret)
 		dev_err(&client->dev, "vprog failed.\n");
 
-	/*according to DS, 20ms is needed after power down*/
+	/* according to DS, 20ms is needed after power down */
 	msleep(20);
 
 	return ret;
@@ -947,7 +949,7 @@ static int mt9m114_g_focal(struct v4l2_subdev *sd, s32 *val)
 
 static int mt9m114_g_fnumber(struct v4l2_subdev *sd, s32 *val)
 {
-	/*const f number for mt9m114*/
+	/* const f number for mt9m114 */
 	*val = (MT9M114_F_NUMBER_DEFAULT_NUM << 16) | MT9M114_F_NUMBER_DEM;
 	return 0;
 }
@@ -1008,8 +1010,10 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 		exposure->gain[1]);
 
 	coarse_integration = exposure->integration_time[0];
-	/* fine_integration = ExposureTime.FineIntegrationTime; */
-	/* FrameLengthLines = ExposureTime.FrameLengthLines; */
+	/*
+	 * fine_integration = ExposureTime.FineIntegrationTime;
+	 * FrameLengthLines = ExposureTime.FrameLengthLines;
+	 */
 	FLines = mt9m114_res[dev->res].lines_per_frame;
 	AnalogGain = exposure->gain[0];
 	DigitalGain = exposure->gain[1];
@@ -1019,8 +1023,8 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 		dev->first_gain = AnalogGain;
 		dev->first_diggain = DigitalGain;
 	}
-	/* DigitalGain = 0x400 * (((u16) DigitalGain) >> 8) +
-	((unsigned int)(0x400 * (((u16) DigitalGain) & 0xFF)) >>8); */
+	/* DigitalGain = 0x400 * (((u16) DigitalGain) >> 8) +		*/
+	/* ((unsigned int)(0x400 * (((u16) DigitalGain) & 0xFF)) >>8);	*/
 
 	/* set frame length */
 	if (FLines < coarse_integration + 6)
@@ -1034,8 +1038,10 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 	}
 
 	/* set coarse integration */
-	/* 3A provide real exposure time.
-		should not translate to any value here. */
+	/*
+	 * 3A provide real exposure time.
+	 * should not translate to any value here.
+	 */
 	ret = mt9m114_write_reg(client, MISENSOR_16BIT,
 				REG_EXPO_COARSE, (u16)(coarse_integration));
 	if (ret) {
@@ -1044,7 +1050,7 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 	}
 
 	/*
-	// set analog/digital gain
+	 * set analog/digital gain
 	switch(AnalogGain)
 	{
 	case 0:
@@ -1069,8 +1075,9 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 	*/
 	if (DigitalGain >= 16 || DigitalGain <= 1)
 		DigitalGain = 1;
-	/* AnalogGainToWrite =
-		(u16)((DigitalGain << 12) | AnalogGainToWrite); */
+	/*
+	 * AnalogGainToWrite = (u16)((DigitalGain << 12) | AnalogGainToWrite);
+	 */
 	AnalogGainToWrite = (u16)((DigitalGain << 12) | (u16)AnalogGain);
 	ret = mt9m114_write_reg(client, MISENSOR_16BIT,
 				REG_GAIN, AnalogGainToWrite);
@@ -1095,8 +1102,10 @@ static long mt9m114_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return 0;
 }
 
-/* This returns the exposure time being used. This should only be used
-   for filling in EXIF data, not for actual image processing. */
+/*
+ * This returns the exposure time being used. This should only be used
+ * for filling in EXIF data, not for actual image processing.
+ */
 static int mt9m114_g_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1247,7 +1256,8 @@ static int mt9m114_s_ev(struct v4l2_subdev *sd, s32 val)
 	s32 luma = 0x37;
 	int err;
 
-	/* EV value only support -2 to 2
+	/*
+	 * EV value only support -2 to 2
 	 * 0: 0x37, 1:0x47, 2:0x57, -1:0x27, -2:0x17
 	 */
 	if (val < -2 || val > 2)
@@ -1295,9 +1305,10 @@ static int mt9m114_g_ev(struct v4l2_subdev *sd, s32 *val)
 	return 0;
 }
 
-/* Fake interface
+/*
+ * Fake interface
  * mt9m114 now can not support 3a_lock
-*/
+ */
 static int mt9m114_s_3a_lock(struct v4l2_subdev *sd, s32 val)
 {
 	aaalock = val;
@@ -1843,7 +1854,7 @@ static int mt9m114_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	/*TODO add format code here*/
+	/* TODO add format code here */
 	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;

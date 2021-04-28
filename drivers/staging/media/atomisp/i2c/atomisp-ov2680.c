@@ -127,7 +127,7 @@ static int ov2680_g_focal(struct v4l2_subdev *sd, s32 *val)
 
 static int ov2680_g_fnumber(struct v4l2_subdev *sd, s32 *val)
 {
-	/*const f number for ov2680*/
+	/* const f number for ov2680 */
 
 	*val = (OV2680_F_NUMBER_DEFAULT_NUM << 16) | OV2680_F_NUMBER_DEM;
 	return 0;
@@ -399,7 +399,8 @@ static long ov2680_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return 0;
 }
 
-/* This returns the exposure time being used. This should only be used
+/*
+ * This returns the exposure time being used. This should only be used
  * for filling in EXIF data, not for actual image processing.
  */
 static int ov2680_q_exposure(struct v4l2_subdev *sd, s32 *value)
@@ -727,11 +728,13 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* The OV2680 documents only one GPIO input (#XSHUTDN), but
+	/*
+	 * The OV2680 documents only one GPIO input (#XSHUTDN), but
 	 * existing integrations often wire two (reset/power_down)
 	 * because that is the way other sensors work.  There is no
 	 * way to tell how it is wired internally, so existing
-	 * firmwares expose both and we drive them symmetrically. */
+	 * firmwares expose both and we drive them symmetrically.
+	 */
 	if (flag) {
 		ret = dev->platform_data->gpio0_ctrl(sd, 1);
 		usleep_range(10000, 15000);
@@ -977,7 +980,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		goto err;
 	}
 
-	/*recall flip functions to avoid flip registers
+	/*
+	 * recall flip functions to avoid flip registers
 	 * were overridden by default setting
 	 */
 	if (h_flag)
@@ -987,7 +991,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 
 	v4l2_info(client, "\n%s idx %d\n", __func__, dev->fmt_idx);
 
-	/*ret = startup(sd);
+	/*
+	 * ret = startup(sd);
 	 * if (ret)
 	 * dev_err(&client->dev, "ov2680 startup err\n");
 	 */
@@ -1096,7 +1101,8 @@ static int ov2680_s_config(struct v4l2_subdev *sd,
 	    (struct camera_sensor_platform_data *)platform_data;
 
 	mutex_lock(&dev->input_lock);
-	/* power off the module, then power on it in future
+	/*
+	 * power off the module, then power on it in future
 	 * as first power on by board may not fulfill the
 	 * power on sequqence needed by the module
 	 */
