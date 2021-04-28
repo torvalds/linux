@@ -163,8 +163,8 @@
 			};
 
 			pci_bridge@a,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -178,8 +178,8 @@
 			};
 
 			pci_bridge@b,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -193,8 +193,8 @@
 			};
 
 			pci_bridge@c,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
@@ -223,8 +223,8 @@
 			};
 
 			pci_bridge@e,0 {
-				compatible = "pci0014,7a19.0",
-						   "pci0014,7a19",
+				compatible = "pci0014,7a09.0",
+						   "pci0014,7a09",
 						   "pciclass060400",
 						   "pciclass0604";
 
