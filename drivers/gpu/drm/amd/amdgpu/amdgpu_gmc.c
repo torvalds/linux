@@ -473,7 +473,7 @@ void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 
 	if (adev->mmhub.ras_funcs &&
 	    adev->mmhub.ras_funcs->ras_fini)
-		amdgpu_mmhub_ras_fini(adev);
+		adev->mmhub.ras_funcs->ras_fini(adev);
 
 	if (adev->gmc.xgmi.ras_funcs &&
 	    adev->gmc.xgmi.ras_funcs->ras_fini)
