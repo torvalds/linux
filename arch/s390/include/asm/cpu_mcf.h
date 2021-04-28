@@ -92,9 +92,8 @@ struct cpu_cf_events {
 	struct cpumf_ctr_info	info;
 	atomic_t		ctr_set[CPUMF_CTR_SET_MAX];
 	atomic64_t		alert;
-	u64			state, tx_state;
+	u64			state;
 	unsigned int		flags;
-	unsigned int		txn_flags;
 };
 DECLARE_PER_CPU(struct cpu_cf_events, cpu_cf_events);
 
