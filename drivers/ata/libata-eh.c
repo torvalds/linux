@@ -2613,6 +2613,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			switch (tmp) {
 			case -EAGAIN:
 				rc = -EAGAIN;
+				break;
 			case 0:
 				break;
 			default:
