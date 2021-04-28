@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/brcm,iproc-sdhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom IPROC SDHCI controller
+
+maintainers:
+  - Ray Jui <ray.jui@broadcom.com>
+  - Scott Branden <scott.branden@broadcom.com>
+  - Nicolas Saenz Julienne <nsaenz@kernel.org>
+
+allOf:
+  - $ref: mmc-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm2835-sdhci
+      - brcm,bcm2711-emmc2
+      - brcm,sdhci-iproc-cygnus
+      - brcm,sdhci-iproc
+
+  reg:
+    minItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+    description:
+      Handle to core clock for the sdhci controller.
+
+  sdhci,auto-cmd12:
+    type: boolean
+    description: Specifies that controller should use auto CMD12
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/bcm-cygnus.h>
+
+    mmc@18041000 {
+      compatible = "brcm,sdhci-iproc-cygnus";
+      reg = <0x18041000 0x100>;
+      interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&lcpll0_clks BCM_CYGNUS_LCPLL0_SDIO_CLK>;
+      bus-width = <4>;
+      sdhci,auto-cmd12;
+      no-1-8-v;
+    };
+...
