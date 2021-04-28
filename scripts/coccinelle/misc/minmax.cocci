@@ -116,16 +116,32 @@ func(...)
 	...>
 }
 
-@pmin depends on patch@
+// Don't generate patches for errcode returns.
+@errcode depends on patch@
+position p;
 identifier func;
-expression x, y;
-binary operator cmp = {<=, <};
+expression x;
+binary operator cmp = {<, <=};
 @@
 
 func(...)
 {
 	<...
--	((x) cmp (y) ? (x) : (y))
+	return ((x) cmp@p 0 ? (x) : 0);
+	...>
+}
+
+@pmin depends on patch@
+identifier func;
+expression x, y;
+binary operator cmp = {<=, <};
+position p != errcode.p;
+@@
+
+func(...)
+{
+	<...
+-	((x) cmp@p (y) ? (x) : (y))
 +	min(x, y)
 	...>
 }
