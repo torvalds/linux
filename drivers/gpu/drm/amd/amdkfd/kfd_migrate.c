@@ -460,8 +460,8 @@ retry:
 	}
 
 	if (migrate.cpages) {
-		svm_migrate_copy_to_vram(adev, prange, &migrate, &mfence,
-					 scratch);
+		r = svm_migrate_copy_to_vram(adev, prange, &migrate, &mfence,
+					     scratch);
 		migrate_vma_pages(&migrate);
 		svm_migrate_copy_done(adev, mfence);
 		migrate_vma_finalize(&migrate);
@@ -663,8 +663,8 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 	pr_debug("cpages %ld\n", migrate.cpages);
 
 	if (migrate.cpages) {
-		svm_migrate_copy_to_ram(adev, prange, &migrate, &mfence,
-					scratch);
+		r = svm_migrate_copy_to_ram(adev, prange, &migrate, &mfence,
+					    scratch);
 		migrate_vma_pages(&migrate);
 		svm_migrate_copy_done(adev, mfence);
 		migrate_vma_finalize(&migrate);
