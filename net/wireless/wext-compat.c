@@ -1167,7 +1167,7 @@ static int cfg80211_wext_siwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
-	bool ps = wdev->ps;
+	bool ps;
 	int timeout = wdev->ps_timeout;
 	int err;
 
