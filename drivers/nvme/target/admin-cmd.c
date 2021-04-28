@@ -513,7 +513,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	default:
 		id->nuse = id->nsze;
 		break;
-        }
+	}
 
 	if (req->ns->bdev)
 		nvmet_bdev_set_limits(req->ns->bdev, id);
@@ -919,15 +919,21 @@ void nvmet_execute_async_event(struct nvmet_req *req)
 void nvmet_execute_keep_alive(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	u16 status = 0;
 
 	if (!nvmet_check_transfer_len(req, 0))
 		return;
 
+	if (!ctrl->kato) {
+		status = NVME_SC_KA_TIMEOUT_INVALID;
+		goto out;
+	}
+
 	pr_debug("ctrl %d update keep-alive timer for %d secs\n",
 		ctrl->cntlid, ctrl->kato);
-
 	mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
-	nvmet_req_complete(req, 0);
+out:
+	nvmet_req_complete(req, status);
 }
 
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
@@ -940,7 +946,7 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 	if (nvmet_req_subsys(req)->type == NVME_NQN_DISC)
 		return nvmet_parse_discovery_cmd(req);
 
-	ret = nvmet_check_ctrl_status(req, cmd);
+	ret = nvmet_check_ctrl_status(req);
 	if (unlikely(ret))
 		return ret;
 

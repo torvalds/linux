@@ -101,6 +101,7 @@ struct rtrs_sess {
 	uuid_t			uuid;
 	struct rtrs_con	**con;
 	unsigned int		con_num;
+	unsigned int		irq_con_num;
 	unsigned int		recon_cnt;
 	struct rtrs_ib_dev	*dev;
 	int			dev_ref;
