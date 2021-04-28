@@ -1521,9 +1521,6 @@ static int soc15_common_late_init(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_get_irq(adev);
 
-	if (adev->hdp.funcs->reset_ras_error_count)
-		adev->hdp.funcs->reset_ras_error_count(adev);
-
 	if (adev->nbio.ras_funcs &&
 	    adev->nbio.ras_funcs->ras_late_init)
 		r = adev->nbio.ras_funcs->ras_late_init(adev);

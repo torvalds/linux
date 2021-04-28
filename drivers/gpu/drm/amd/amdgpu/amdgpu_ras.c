@@ -890,6 +890,11 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		    adev->gmc.xgmi.ras_funcs->query_ras_error_count)
 			adev->gmc.xgmi.ras_funcs->query_ras_error_count(adev, &err_data);
 		break;
+	case AMDGPU_RAS_BLOCK__HDP:
+		if (adev->hdp.ras_funcs &&
+		    adev->hdp.ras_funcs->query_ras_error_count)
+			adev->hdp.ras_funcs->query_ras_error_count(adev, &err_data);
+		break;
 	default:
 		break;
 	}
@@ -966,6 +971,11 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 	case AMDGPU_RAS_BLOCK__SDMA:
 		if (adev->sdma.funcs->reset_ras_error_count)
 			adev->sdma.funcs->reset_ras_error_count(adev);
+		break;
+	case AMDGPU_RAS_BLOCK__HDP:
+		if (adev->hdp.ras_funcs &&
+		    adev->hdp.ras_funcs->reset_ras_error_count)
+			adev->hdp.ras_funcs->reset_ras_error_count(adev);
 		break;
 	default:
 		break;
