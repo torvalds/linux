@@ -541,6 +541,7 @@ static int qe_ep_init(struct qe_udc *udc,
 			case USB_SPEED_HIGH:
 			if ((max == 128) || (max == 256) || (max == 512))
 				break;
+			fallthrough;
 			default:
 				switch (max) {
 				case 4:
@@ -562,9 +563,11 @@ static int qe_ep_init(struct qe_udc *udc,
 			case USB_SPEED_HIGH:
 				if (max <= 1024)
 					break;
+				fallthrough;
 			case USB_SPEED_FULL:
 				if (max <= 64)
 					break;
+				fallthrough;
 			default:
 				if (max <= 8)
 					break;
@@ -579,6 +582,7 @@ static int qe_ep_init(struct qe_udc *udc,
 			case USB_SPEED_HIGH:
 				if (max <= 1024)
 					break;
+				fallthrough;
 			case USB_SPEED_FULL:
 				if (max <= 1023)
 					break;
@@ -605,6 +609,7 @@ static int qe_ep_init(struct qe_udc *udc,
 				default:
 					goto en_done;
 				}
+				fallthrough;
 			case USB_SPEED_LOW:
 				switch (max) {
 				case 1:
