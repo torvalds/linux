@@ -161,81 +161,6 @@ static void part_in_flight_rw(struct block_device *part,
 		inflight[1] = 0;
 }
 
-/**
- * disk_part_iter_init - initialize partition iterator
- * @piter: iterator to initialize
- * @disk: disk to iterate over
- * @flags: DISK_PITER_* flags
- *
- * Initialize @piter so that it iterates over partitions of @disk.
- *
- * CONTEXT:
- * Don't care.
- */
-void disk_part_iter_init(struct disk_part_iter *piter, struct gendisk *disk,
-			  unsigned int flags)
-{
-	piter->disk = disk;
-	piter->part = NULL;
-	if (flags & (DISK_PITER_INCL_PART0 | DISK_PITER_INCL_EMPTY_PART0))
-		piter->idx = 0;
-	else
-		piter->idx = 1;
-	piter->flags = flags;
-}
-
-/**
- * disk_part_iter_next - proceed iterator to the next partition and return it
- * @piter: iterator of interest
- *
- * Proceed @piter to the next partition and return it.
- *
- * CONTEXT:
- * Don't care.
- */
-struct block_device *disk_part_iter_next(struct disk_part_iter *piter)
-{
-	struct block_device *part;
-	unsigned long idx;
-
-	/* put the last partition */
-	disk_part_iter_exit(piter);
-
-	rcu_read_lock();
-	xa_for_each_start(&piter->disk->part_tbl, idx, part, piter->idx) {
-		if (!bdev_nr_sectors(part) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
-		      piter->idx == 0))
-			continue;
-
-		piter->part = bdgrab(part);
-		if (!piter->part)
-			continue;
-		piter->idx = idx + 1;
-		break;
-	}
-	rcu_read_unlock();
-
-	return piter->part;
-}
-
-/**
- * disk_part_iter_exit - finish up partition iteration
- * @piter: iter of interest
- *
- * Called when iteration is over.  Cleans up @piter.
- *
- * CONTEXT:
- * Don't care.
- */
-void disk_part_iter_exit(struct disk_part_iter *piter)
-{
-	if (piter->part)
-		bdput(piter->part);
-	piter->part = NULL;
-}
-
 /*
  * Can be deleted altogether. Later.
  *
@@ -472,13 +397,22 @@ static char *bdevt_str(dev_t devt, char *buf)
 
 void disk_uevent(struct gendisk *disk, enum kobject_action action)
 {
-	struct disk_part_iter piter;
 	struct block_device *part;
+	unsigned long idx;
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY_PART0);
-	while ((part = disk_part_iter_next(&piter)))
+	rcu_read_lock();
+	xa_for_each(&disk->part_tbl, idx, part) {
+		if (bdev_is_partition(part) && !bdev_nr_sectors(part))
+			continue;
+		if (!bdgrab(part))
+			continue;
+
+		rcu_read_unlock();
 		kobject_uevent(bdev_kobj(part), action);
-	disk_part_iter_exit(&piter);
+		bdput(part);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(disk_uevent);
 
@@ -646,18 +580,6 @@ void device_add_disk_no_queue_reg(struct device *parent, struct gendisk *disk)
 }
 EXPORT_SYMBOL(device_add_disk_no_queue_reg);
 
-static void invalidate_partition(struct block_device *bdev)
-{
-	fsync_bdev(bdev);
-	__invalidate_device(bdev, true);
-
-	/*
-	 * Unhash the bdev inode for this device so that it can't be looked
-	 * up any more even if openers still hold references to it.
-	 */
-	remove_inode_hash(bdev->bd_inode);
-}
-
 /**
  * del_gendisk - remove the gendisk
  * @disk: the struct gendisk to remove
@@ -679,9 +601,6 @@ static void invalidate_partition(struct block_device *bdev)
  */
 void del_gendisk(struct gendisk *disk)
 {
-	struct disk_part_iter piter;
-	struct block_device *part;
-
 	might_sleep();
 
 	if (WARN_ON_ONCE(!disk->queue))
@@ -696,15 +615,19 @@ void del_gendisk(struct gendisk *disk)
 	 */
 	down_write(&bdev_lookup_sem);
 
-	/* invalidate stuff */
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
-	while ((part = disk_part_iter_next(&piter))) {
-		invalidate_partition(part);
-		delete_partition(part);
-	}
-	disk_part_iter_exit(&piter);
+	mutex_lock(&disk->part0->bd_mutex);
+	blk_drop_partitions(disk);
+	mutex_unlock(&disk->part0->bd_mutex);
 
-	invalidate_partition(disk->part0);
+	fsync_bdev(disk->part0);
+	__invalidate_device(disk->part0, true);
+
+	/*
+	 * Unhash the bdev inode for this device so that it can't be looked
+	 * up any more even if openers still hold references to it.
+	 */
+	remove_inode_hash(disk->part0->bd_inode);
+
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 	up_write(&bdev_lookup_sem);
@@ -817,10 +740,10 @@ void __init printk_all_partitions(void)
 	class_dev_iter_init(&iter, &block_class, NULL, &disk_type);
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct gendisk *disk = dev_to_disk(dev);
-		struct disk_part_iter piter;
 		struct block_device *part;
 		char name_buf[BDEVNAME_SIZE];
 		char devt_buf[BDEVT_SIZE];
+		unsigned long idx;
 
 		/*
 		 * Don't show empty devices or things that have been
@@ -831,30 +754,29 @@ void __init printk_all_partitions(void)
 			continue;
 
 		/*
-		 * Note, unlike /proc/partitions, I am showing the
-		 * numbers in hex - the same format as the root=
-		 * option takes.
+		 * Note, unlike /proc/partitions, I am showing the numbers in
+		 * hex - the same format as the root= option takes.
 		 */
-		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
-		while ((part = disk_part_iter_next(&piter))) {
-			bool is_part0 = part == disk->part0;
-
-			printk("%s%s %10llu %s %s", is_part0 ? "" : "  ",
+		rcu_read_lock();
+		xa_for_each(&disk->part_tbl, idx, part) {
+			if (!bdev_nr_sectors(part))
+				continue;
+			printk("%s%s %10llu %s %s",
+			       bdev_is_partition(part) ? "  " : "",
 			       bdevt_str(part->bd_dev, devt_buf),
 			       bdev_nr_sectors(part) >> 1,
 			       disk_name(disk, part->bd_partno, name_buf),
 			       part->bd_meta_info ?
 					part->bd_meta_info->uuid : "");
-			if (is_part0) {
-				if (dev->parent && dev->parent->driver)
-					printk(" driver: %s\n",
-					      dev->parent->driver->name);
-				else
-					printk(" (driver?)\n");
-			} else
+			if (bdev_is_partition(part))
 				printk("\n");
+			else if (dev->parent && dev->parent->driver)
+				printk(" driver: %s\n",
+					dev->parent->driver->name);
+			else
+				printk(" (driver?)\n");
 		}
-		disk_part_iter_exit(&piter);
+		rcu_read_unlock();
 	}
 	class_dev_iter_exit(&iter);
 }
@@ -919,8 +841,8 @@ static void *show_partition_start(struct seq_file *seqf, loff_t *pos)
 static int show_partition(struct seq_file *seqf, void *v)
 {
 	struct gendisk *sgp = v;
-	struct disk_part_iter piter;
 	struct block_device *part;
+	unsigned long idx;
 	char buf[BDEVNAME_SIZE];
 
 	/* Don't show non-partitionable removeable devices or empty devices */
@@ -930,15 +852,16 @@ static int show_partition(struct seq_file *seqf, void *v)
 	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
 		return 0;
 
-	/* show the full disk and all non-0 size partitions of it */
-	disk_part_iter_init(&piter, sgp, DISK_PITER_INCL_PART0);
-	while ((part = disk_part_iter_next(&piter)))
+	rcu_read_lock();
+	xa_for_each(&sgp->part_tbl, idx, part) {
+		if (!bdev_nr_sectors(part))
+			continue;
 		seq_printf(seqf, "%4d  %7d %10llu %s\n",
 			   MAJOR(part->bd_dev), MINOR(part->bd_dev),
 			   bdev_nr_sectors(part) >> 1,
 			   disk_name(sgp, part->bd_partno, buf));
-	disk_part_iter_exit(&piter);
-
+	}
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -1247,11 +1170,11 @@ const struct device_type disk_type = {
 static int diskstats_show(struct seq_file *seqf, void *v)
 {
 	struct gendisk *gp = v;
-	struct disk_part_iter piter;
 	struct block_device *hd;
 	char buf[BDEVNAME_SIZE];
 	unsigned int inflight;
 	struct disk_stats stat;
+	unsigned long idx;
 
 	/*
 	if (&disk_to_dev(gp)->kobj.entry == block_class.devices.next)
@@ -1261,8 +1184,10 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 				"\n\n");
 	*/
 
-	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
-	while ((hd = disk_part_iter_next(&piter))) {
+	rcu_read_lock();
+	xa_for_each(&gp->part_tbl, idx, hd) {
+		if (bdev_is_partition(hd) && !bdev_nr_sectors(hd))
+			continue;
 		part_stat_read_all(hd, &stat);
 		if (queue_is_mq(gp->queue))
 			inflight = blk_mq_in_flight(gp->queue, hd);
@@ -1305,7 +1230,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 						 NSEC_PER_MSEC)
 			);
 	}
-	disk_part_iter_exit(&piter);
+	rcu_read_unlock();
 
 	return 0;
 }

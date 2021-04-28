@@ -361,11 +361,12 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
 
 	if (e) {
 		/*
-		 * Flush requests are special and go directly to the
+		 * Flush/passthrough requests are special and go directly to the
 		 * dispatch list. Don't include reserved tags in the
 		 * limiting, as it isn't useful.
 		 */
 		if (!op_is_flush(data->cmd_flags) &&
+		    !blk_op_is_passthrough(data->cmd_flags) &&
 		    e->type->ops.limit_depth &&
 		    !(data->flags & BLK_MQ_REQ_RESERVED))
 			e->type->ops.limit_depth(data->cmd_flags, data);

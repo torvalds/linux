@@ -1240,14 +1240,16 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int ret;
+	int ret = 0;
 
 	lockdep_assert_held(&bdev->bd_mutex);
 
 rescan:
-	ret = blk_drop_partitions(bdev);
-	if (ret)
-		return ret;
+	if (bdev->bd_part_count)
+		return -EBUSY;
+	sync_blockdev(bdev);
+	invalidate_bdev(bdev);
+	blk_drop_partitions(disk);
 
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
