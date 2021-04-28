@@ -175,6 +175,9 @@ vdso_install:
 	$(if $(CONFIG_COMPAT_VDSO), \
 		$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso32 $@)
 
+archprepare:
+	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
+
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
