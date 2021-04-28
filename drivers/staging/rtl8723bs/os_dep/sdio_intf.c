@@ -447,7 +447,9 @@ static int rtw_sdio_suspend(struct device *dev)
 		return 0;
 	}
 
-	return rtw_suspend_common(padapter);
+	rtw_suspend_common(padapter);
+
+	return 0;
 }
 
 static int rtw_resume_process(struct adapter *padapter)
