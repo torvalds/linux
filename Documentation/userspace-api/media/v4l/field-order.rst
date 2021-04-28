@@ -62,7 +62,7 @@ enum v4l2_field
 
 .. c:type:: v4l2_field
 
-.. tabularcolumns:: |p{5.8cm}|p{0.6cm}|p{11.1cm}|
+.. tabularcolumns:: |p{5.8cm}|p{0.6cm}|p{10.9cm}|
 
 .. cssclass:: longtable
 

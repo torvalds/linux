@@ -28,8 +28,8 @@
  * @minor:	device node minor number
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
- * @fhs_lock:	lock to control access to the filehandle list
  * @fhs:	the list of open filehandles (cec_fh)
+ * @lock:	lock to control access to this structure
  *
  * This structure represents a cec-related device node.
  *

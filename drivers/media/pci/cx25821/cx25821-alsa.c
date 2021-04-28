@@ -402,7 +402,7 @@ static int dsp_buffer_free(struct cx25821_audio_dev *chip)
 	dprintk(2, "Freeing buffer\n");
 	cx25821_alsa_dma_unmap(chip);
 	cx25821_alsa_dma_free(chip->buf);
-	pci_free_consistent(chip->pci, risc->size, risc->cpu, risc->dma);
+	dma_free_coherent(&chip->pci->dev, risc->size, risc->cpu, risc->dma);
 	kfree(chip->buf);
 
 	chip->buf = NULL;

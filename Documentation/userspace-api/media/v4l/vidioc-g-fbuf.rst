@@ -75,7 +75,7 @@ jeopardize the system security, its stability or even damage the
 hardware, therefore only the superuser can set the parameters for a
 destructive video overlay.
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{6.6cm}|
 
 .. c:type:: v4l2_framebuffer
 
@@ -207,7 +207,7 @@ destructive video overlay.
       - ``priv``
       - Reserved. Drivers and applications must set this field to zero.
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.4cm}|p{1.6cm}|p{8.3cm}|
 
 .. _framebuffer-cap:
 
@@ -255,7 +255,7 @@ destructive video overlay.
 	chroma-key colors are replaced by framebuffer pixels, which is
 	exactly opposite of ``V4L2_FBUF_CAP_CHROMAKEY``
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.4cm}|p{1.6cm}|p{8.3cm}|
 
 .. _framebuffer-flags:
 
