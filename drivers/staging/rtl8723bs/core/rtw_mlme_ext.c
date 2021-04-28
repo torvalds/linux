@@ -5135,10 +5135,9 @@ void _linked_info_dump(struct adapter *padapter)
 
 			spin_lock_bh(&pstapriv->asoc_list_lock);
 			phead = &pstapriv->asoc_list;
-			plist = get_next(phead);
-			while (phead != plist) {
-				psta = container_of(plist, struct sta_info, asoc_list);
-				plist = get_next(plist);
+			list_for_each(plist, phead) {
+				psta = list_entry(plist, struct sta_info,
+						  asoc_list);
 			}
 			spin_unlock_bh(&pstapriv->asoc_list_lock);
 
@@ -6108,12 +6107,9 @@ u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 		spin_lock_bh(&pxmitpriv->lock);
 
 		xmitframe_phead = get_list_head(&psta_bmc->sleep_q);
-		xmitframe_plist = get_next(xmitframe_phead);
-
-		while (xmitframe_phead != xmitframe_plist) {
-			pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
-
-			xmitframe_plist = get_next(xmitframe_plist);
+		list_for_each(xmitframe_plist, xmitframe_phead) {
+			pxmitframe = list_entry(xmitframe_plist,
+						struct xmit_frame, list);
 
 			list_del_init(&pxmitframe->list);
 

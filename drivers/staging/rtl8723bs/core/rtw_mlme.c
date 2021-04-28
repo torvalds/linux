@@ -242,15 +242,11 @@ struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 *addr)
 	/* spin_lock_bh(&scanned_queue->lock); */
 
 	phead = get_list_head(scanned_queue);
-	plist = get_next(phead);
-
-	while (plist != phead) {
-		pnetwork = container_of(plist, struct wlan_network, list);
+	list_for_each(plist, phead) {
+		pnetwork = list_entry(plist, struct wlan_network, list);
 
 		if (!memcmp(addr, pnetwork->network.MacAddress, ETH_ALEN))
 			break;
-
-		plist = get_next(plist);
 	}
 
 	if (plist == phead)
@@ -272,13 +268,9 @@ void rtw_free_network_queue(struct adapter *padapter, u8 isfreeall)
 	spin_lock_bh(&scanned_queue->lock);
 
 	phead = get_list_head(scanned_queue);
-	plist = get_next(phead);
+	list_for_each(plist, phead) {
 
-	while (phead != plist) {
-
-		pnetwork = container_of(plist, struct wlan_network, list);
-
-		plist = get_next(plist);
+		pnetwork = list_entry(plist, struct wlan_network, list);
 
 		_rtw_free_network(pmlmepriv, pnetwork, isfreeall);
 
@@ -420,15 +412,11 @@ struct wlan_network *_rtw_find_same_network(struct __queue *scanned_queue, struc
 	struct wlan_network *found = NULL;
 
 	phead = get_list_head(scanned_queue);
-	plist = get_next(phead);
-
-	while (plist != phead) {
-		found = container_of(plist, struct wlan_network, list);
+	list_for_each(plist, phead) {
+		found = list_entry(plist, struct wlan_network, list);
 
 		if (is_same_network(&network->network, &found->network, 0))
 			break;
-
-		plist = get_next(plist);
 	}
 
 	if (plist == phead)
@@ -446,21 +434,14 @@ struct	wlan_network	*rtw_get_oldest_wlan_network(struct __queue *scanned_queue)
 
 	phead = get_list_head(scanned_queue);
 
-	plist = get_next(phead);
+	list_for_each(plist, phead) {
 
-	while (1) {
-
-		if (phead == plist)
-			break;
-
-		pwlan = container_of(plist, struct wlan_network, list);
+		pwlan = list_entry(plist, struct wlan_network, list);
 
 		if (!pwlan->fixed) {
 			if (oldest == NULL || time_after(oldest->last_scanned, pwlan->last_scanned))
 				oldest = pwlan;
 		}
-
-		plist = get_next(plist);
 	}
 	return oldest;
 
@@ -547,13 +528,8 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 
 	spin_lock_bh(&queue->lock);
 	phead = get_list_head(queue);
-	plist = get_next(phead);
-
-	while (1) {
-		if (phead == plist)
-			break;
-
-		pnetwork = container_of(plist, struct wlan_network, list);
+	list_for_each(plist, phead) {
+		pnetwork = list_entry(plist, struct wlan_network, list);
 
 		rtw_bug_check(pnetwork, pnetwork, pnetwork, pnetwork);
 
@@ -568,8 +544,6 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 
 		if (oldest == NULL || time_after(oldest->last_scanned, pnetwork->last_scanned))
 			oldest = pnetwork;
-
-		plist = get_next(plist);
 
 	}
 
@@ -1786,17 +1760,10 @@ int rtw_select_roaming_candidate(struct mlme_priv *mlme)
 	spin_lock_bh(&(mlme->scanned_queue.lock));
 	phead = get_list_head(queue);
 
-	mlme->pscanned = get_next(phead);
+	list_for_each(mlme->pscanned, phead) {
 
-	while (phead != mlme->pscanned) {
-
-		pnetwork = container_of(mlme->pscanned, struct wlan_network, list);
-		if (!pnetwork) {
-			ret = _FAIL;
-			goto exit;
-		}
-
-		mlme->pscanned = get_next(mlme->pscanned);
+		pnetwork = list_entry(mlme->pscanned, struct wlan_network,
+				      list);
 
 		rtw_check_roaming_candidate(mlme, &candidate, pnetwork);
 
@@ -1890,17 +1857,10 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 	}
 
 	phead = get_list_head(queue);
-	pmlmepriv->pscanned = get_next(phead);
+	list_for_each(pmlmepriv->pscanned, phead) {
 
-	while (phead != pmlmepriv->pscanned) {
-
-		pnetwork = container_of(pmlmepriv->pscanned, struct wlan_network, list);
-		if (!pnetwork) {
-			ret = _FAIL;
-			goto exit;
-		}
-
-		pmlmepriv->pscanned = get_next(pmlmepriv->pscanned);
+		pnetwork = list_entry(pmlmepriv->pscanned,
+				      struct wlan_network, list);
 
 		rtw_check_join_candidate(pmlmepriv, &candidate, pnetwork);
 

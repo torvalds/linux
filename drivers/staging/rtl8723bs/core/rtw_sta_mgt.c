@@ -148,13 +148,11 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 		spin_lock_bh(&pstapriv->sta_hash_lock);
 		for (index = 0; index < NUM_STA; index++) {
 			phead = &(pstapriv->sta_hash[index]);
-			plist = get_next(phead);
-
-			while (phead != plist) {
+			list_for_each(plist, phead) {
 				int i;
 
-				psta = container_of(plist, struct sta_info, hash_list);
-				plist = get_next(plist);
+				psta = list_entry(plist, struct sta_info,
+						  hash_list);
 
 				for (i = 0; i < 16 ; i++) {
 					preorder_ctrl = &psta->recvreorder_ctrl[i];
@@ -438,12 +436,8 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &(pstapriv->sta_hash[index]);
-		plist = get_next(phead);
-
-		while (phead != plist) {
-			psta = container_of(plist, struct sta_info, hash_list);
-
-			plist = get_next(plist);
+		list_for_each(plist, phead) {
+			psta = list_entry(plist, struct sta_info, hash_list);
 
 			if (pbcmc_stainfo != psta)
 				rtw_free_stainfo(padapter, psta);
@@ -475,17 +469,14 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	spin_lock_bh(&pstapriv->sta_hash_lock);
 
 	phead = &(pstapriv->sta_hash[index]);
-	plist = get_next(phead);
-
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, hash_list);
+	list_for_each(plist, phead) {
+		psta = list_entry(plist, struct sta_info, hash_list);
 
 		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN)))
 		 /*  if found the matched address */
 			break;
 
 		psta = NULL;
-		plist = get_next(plist);
 	}
 
 	spin_unlock_bh(&pstapriv->sta_hash_lock);
@@ -531,10 +522,8 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 
 	spin_lock_bh(&(pacl_node_q->lock));
 	phead = get_list_head(pacl_node_q);
-	plist = get_next(phead);
-	while (phead != plist) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
-		plist = get_next(plist);
+	list_for_each(plist, phead) {
+		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
 
 		if (!memcmp(paclnode->addr, mac_addr, ETH_ALEN))
 			if (paclnode->valid == true) {
