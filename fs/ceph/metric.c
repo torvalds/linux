@@ -286,19 +286,18 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 		ceph_put_mds_session(m->session);
 }
 
-static inline void __update_latency(ktime_t *totalp, ktime_t *lsump,
-				    ktime_t *min, ktime_t *max,
-				    ktime_t *sq_sump, ktime_t lat)
+#define METRIC_UPDATE_MIN_MAX(min, max, new)	\
+{						\
+	if (unlikely(new < min))		\
+		min = new;			\
+	if (unlikely(new > max))		\
+		max = new;			\
+}
+
+static inline void __update_stdev(ktime_t total, ktime_t lsum,
+				  ktime_t *sq_sump, ktime_t lat)
 {
-	ktime_t total, avg, sq, lsum;
-
-	total = ++(*totalp);
-	lsum = (*lsump += lat);
-
-	if (unlikely(lat < *min))
-		*min = lat;
-	if (unlikely(lat > *max))
-		*max = lat;
+	ktime_t avg, sq;
 
 	if (unlikely(total == 1))
 		return;
@@ -316,14 +315,19 @@ void ceph_update_read_metrics(struct ceph_client_metric *m,
 			      int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
+	ktime_t total;
 
 	if (unlikely(rc < 0 && rc != -ENOENT && rc != -ETIMEDOUT))
 		return;
 
 	spin_lock(&m->read_metric_lock);
-	__update_latency(&m->total_reads, &m->read_latency_sum,
-			 &m->read_latency_min, &m->read_latency_max,
-			 &m->read_latency_sq_sum, lat);
+	total = ++m->total_reads;
+	m->read_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->read_latency_min,
+			      m->read_latency_max,
+			      lat);
+	__update_stdev(total, m->read_latency_sum,
+		       &m->read_latency_sq_sum, lat);
 	spin_unlock(&m->read_metric_lock);
 }
 
@@ -332,14 +336,19 @@ void ceph_update_write_metrics(struct ceph_client_metric *m,
 			       int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
+	ktime_t total;
 
 	if (unlikely(rc && rc != -ETIMEDOUT))
 		return;
 
 	spin_lock(&m->write_metric_lock);
-	__update_latency(&m->total_writes, &m->write_latency_sum,
-			 &m->write_latency_min, &m->write_latency_max,
-			 &m->write_latency_sq_sum, lat);
+	total = ++m->total_writes;
+	m->write_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->write_latency_min,
+			      m->write_latency_max,
+			      lat);
+	__update_stdev(total, m->write_latency_sum,
+		       &m->write_latency_sq_sum, lat);
 	spin_unlock(&m->write_metric_lock);
 }
 
@@ -348,13 +357,18 @@ void ceph_update_metadata_metrics(struct ceph_client_metric *m,
 				  int rc)
 {
 	ktime_t lat = ktime_sub(r_end, r_start);
+	ktime_t total;
 
 	if (unlikely(rc && rc != -ENOENT))
 		return;
 
 	spin_lock(&m->metadata_metric_lock);
-	__update_latency(&m->total_metadatas, &m->metadata_latency_sum,
-			 &m->metadata_latency_min, &m->metadata_latency_max,
-			 &m->metadata_latency_sq_sum, lat);
+	total = ++m->total_metadatas;
+	m->metadata_latency_sum += lat;
+	METRIC_UPDATE_MIN_MAX(m->metadata_latency_min,
+			      m->metadata_latency_max,
+			      lat);
+	__update_stdev(total, m->metadata_latency_sum,
+		       &m->metadata_latency_sq_sum, lat);
 	spin_unlock(&m->metadata_metric_lock);
 }
