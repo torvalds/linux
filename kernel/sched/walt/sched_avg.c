@@ -147,6 +147,7 @@ static inline void update_busy_hyst_end_time(int cpu, bool dequeue,
 	u64 agg_hyst_time, total_util = 0;
 	bool util_load_trigger = false;
 	int i;
+	bool hyst_trigger, coloc_trigger;
 
 	if (!per_cpu(hyst_time, cpu) && !per_cpu(coloc_hyst_time, cpu) &&
 	    !per_cpu(util_hyst_time, cpu))
@@ -172,12 +173,16 @@ static inline void update_busy_hyst_end_time(int cpu, bool dequeue,
 		}
 	}
 
-	agg_hyst_time = max(max((nr_run_trigger || load_trigger) ?
-				per_cpu(hyst_time, cpu) : 0,
-				(nr_run_trigger || coloc_load_trigger) ?
-				per_cpu(coloc_hyst_time, cpu) : 0),
-				(util_load_trigger) ?
-				per_cpu(util_hyst_time, cpu) : 0);
+	coloc_trigger = nr_run_trigger || coloc_load_trigger;
+#ifdef CONFIG_SCHED_CONSERVATIVE_BOOST_LPM_BIAS
+	hyst_trigger = nr_run_trigger || load_trigger || (sched_boost_type == CONSERVATIVE_BOOST);
+#else
+	hyst_trigger = nr_run_trigger || load_trigger;
+#endif
+
+	agg_hyst_time = max(max(hyst_trigger ? per_cpu(hyst_time, cpu) : 0,
+			    coloc_trigger ? per_cpu(coloc_hyst_time, cpu) : 0),
+			    util_load_trigger ?	per_cpu(util_hyst_time, cpu) : 0);
 
 	if (agg_hyst_time) {
 		atomic64_set(&per_cpu(busy_hyst_end_time, cpu),

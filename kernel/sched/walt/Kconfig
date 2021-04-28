@@ -29,4 +29,13 @@ config SCHED_WALT_DEBUG
 	  This module also used to crash the system to catch issues
 	  in scenarios like RT throttling and sleeping while in atomic
 	  context etc.
+
+config SCHED_CONSERVATIVE_BOOST_LPM_BIAS
+	bool "Enable LPM bias if conservative boost is enabled"
+	default n
+	help
+	  This feature will allow the scheduler to disable low power
+	  modes on a cpu if conservative boost is active. The cpu
+	  will not enter low power mode for a hysteresis time period,
+	  which can be configured from userspace.
 endmenu
