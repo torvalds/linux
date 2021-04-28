@@ -58,18 +58,19 @@ static bool __is_cp_guaranteed(struct page *page)
 	if (!mapping)
 		return false;
 
-	if (f2fs_is_compressed_page(page))
-		return false;
-
 	inode = mapping->host;
 	sbi = F2FS_I_SB(inode);
 
 	if (inode->i_ino == F2FS_META_INO(sbi) ||
 			inode->i_ino == F2FS_NODE_INO(sbi) ||
-			S_ISDIR(inode->i_mode) ||
-			(S_ISREG(inode->i_mode) &&
+			S_ISDIR(inode->i_mode))
+		return true;
+
+	if (f2fs_is_compressed_page(page))
+		return false;
+	if ((S_ISREG(inode->i_mode) &&
 			(f2fs_is_atomic_file(inode) || IS_NOQUOTA(inode))) ||
-			is_cold_data(page))
+			page_private_gcing(page))
 		return true;
 	return false;
 }
@@ -299,9 +300,8 @@ static void f2fs_write_end_io(struct bio *bio)
 		struct page *page = bvec->bv_page;
 		enum count_type type = WB_DATA_TYPE(page);
 
-		if (IS_DUMMY_WRITTEN_PAGE(page)) {
-			set_page_private(page, (unsigned long)NULL);
-			ClearPagePrivate(page);
+		if (page_private_dummy(page)) {
+			clear_page_private_dummy(page);
 			unlock_page(page);
 			mempool_free(page, sbi->write_io_dummy);
 
@@ -331,7 +331,7 @@ static void f2fs_write_end_io(struct bio *bio)
 		dec_page_count(sbi, type);
 		if (f2fs_in_warm_node_list(sbi, page))
 			f2fs_del_fsync_node_entry(sbi, page);
-		clear_cold_data(page);
+		clear_page_private_gcing(page);
 		end_page_writeback(page);
 	}
 	if (!get_pages(sbi, F2FS_WB_CP_DATA) &&
@@ -465,10 +465,11 @@ static inline void __submit_bio(struct f2fs_sb_info *sbi,
 					      GFP_NOIO | __GFP_NOFAIL);
 			f2fs_bug_on(sbi, !page);
 
-			zero_user_segment(page, 0, PAGE_SIZE);
-			SetPagePrivate(page);
-			set_page_private(page, DUMMY_WRITTEN_PAGE);
 			lock_page(page);
+
+			zero_user_segment(page, 0, PAGE_SIZE);
+			set_page_private_dummy(page);
+
 			if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE)
 				f2fs_bug_on(sbi, 1);
 		}
@@ -2493,9 +2494,9 @@ bool f2fs_should_update_outplace(struct inode *inode, struct f2fs_io_info *fio)
 	if (f2fs_is_atomic_file(inode))
 		return true;
 	if (fio) {
-		if (is_cold_data(fio->page))
+		if (page_private_gcing(fio->page))
 			return true;
-		if (IS_ATOMIC_WRITTEN_PAGE(fio->page))
+		if (page_private_dummy(fio->page))
 			return true;
 		if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED) &&
 			f2fs_is_checkpointed_data(sbi, fio->old_blkaddr)))
@@ -2551,7 +2552,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 	/* This page is already truncated */
 	if (fio->old_blkaddr == NULL_ADDR) {
 		ClearPageUptodate(page);
-		clear_cold_data(page);
+		clear_page_private_gcing(page);
 		goto out_writepage;
 	}
 got_it:
@@ -2761,7 +2762,7 @@ out:
 	inode_dec_dirty_pages(inode);
 	if (err) {
 		ClearPageUptodate(page);
-		clear_cold_data(page);
+		clear_page_private_gcing(page);
 	}
 
 	if (wbc->for_reclaim) {
@@ -3235,7 +3236,7 @@ restart:
 			f2fs_do_read_inline_data(page, ipage);
 			set_inode_flag(inode, FI_DATA_EXIST);
 			if (inode->i_nlink)
-				set_inline_node(ipage);
+				set_page_private_inline(ipage);
 		} else {
 			err = f2fs_convert_inline_page(&dn, page);
 			if (err)
@@ -3626,12 +3627,13 @@ void f2fs_invalidate_page(struct page *page, unsigned int offset,
 		}
 	}
 
-	clear_cold_data(page);
+	clear_page_private_gcing(page);
 
-	if (IS_ATOMIC_WRITTEN_PAGE(page))
+	if (page_private_atomic(page))
 		return f2fs_drop_inmem_page(inode, page);
 
-	f2fs_clear_page_private(page);
+	detach_page_private(page);
+	set_page_private(page, 0);
 }
 
 int f2fs_release_page(struct page *page, gfp_t wait)
@@ -3641,11 +3643,13 @@ int f2fs_release_page(struct page *page, gfp_t wait)
 		return 0;
 
 	/* This is atomic written page, keep Private */
-	if (IS_ATOMIC_WRITTEN_PAGE(page))
+	if (page_private_atomic(page))
 		return 0;
 
-	clear_cold_data(page);
-	f2fs_clear_page_private(page);
+	clear_page_private_gcing(page);
+
+	detach_page_private(page);
+	set_page_private(page, 0);
 	return 1;
 }
 
@@ -3661,7 +3665,7 @@ static int f2fs_set_data_page_dirty(struct page *page)
 		return __set_page_dirty_nobuffers(page);
 
 	if (f2fs_is_atomic_file(inode) && !f2fs_is_commit_atomic_write(inode)) {
-		if (!IS_ATOMIC_WRITTEN_PAGE(page)) {
+		if (!page_private_atomic(page)) {
 			f2fs_register_inmem_page(inode, page);
 			return 1;
 		}
@@ -3753,7 +3757,7 @@ int f2fs_migrate_page(struct address_space *mapping,
 {
 	int rc, extra_count;
 	struct f2fs_inode_info *fi = F2FS_I(mapping->host);
-	bool atomic_written = IS_ATOMIC_WRITTEN_PAGE(page);
+	bool atomic_written = page_private_atomic(page);
 
 	BUG_ON(PageWriteback(page));
 
@@ -3789,8 +3793,13 @@ int f2fs_migrate_page(struct address_space *mapping,
 	}
 
 	if (PagePrivate(page)) {
-		f2fs_set_page_private(newpage, page_private(page));
-		f2fs_clear_page_private(page);
+		set_page_private(newpage, page_private(page));
+		SetPagePrivate(newpage);
+		get_page(newpage);
+
+		set_page_private(page, 0);
+		ClearPagePrivate(page);
+		put_page(page);
 	}
 
 	if (mode != MIGRATE_SYNC_NO_COPY)

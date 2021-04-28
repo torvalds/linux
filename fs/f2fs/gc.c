@@ -1336,7 +1336,7 @@ static int move_data_page(struct inode *inode, block_t bidx, int gc_type,
 			goto out;
 		}
 		set_page_dirty(page);
-		set_cold_data(page);
+		set_page_private_gcing(page);
 	} else {
 		struct f2fs_io_info fio = {
 			.sbi = F2FS_I_SB(inode),
@@ -1362,11 +1362,11 @@ retry:
 			f2fs_remove_dirty_inode(inode);
 		}
 
-		set_cold_data(page);
+		set_page_private_gcing(page);
 
 		err = f2fs_do_write_data_page(&fio);
 		if (err) {
-			clear_cold_data(page);
+			clear_page_private_gcing(page);
 			if (err == -ENOMEM) {
 				congestion_wait(BLK_RW_ASYNC,
 						DEFAULT_IO_TIMEOUT);

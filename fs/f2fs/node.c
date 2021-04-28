@@ -1860,8 +1860,8 @@ continue_unlock:
 			}
 
 			/* flush inline_data, if it's async context. */
-			if (is_inline_node(page)) {
-				clear_inline_node(page);
+			if (page_private_inline(page)) {
+				clear_page_private_inline(page);
 				unlock_page(page);
 				flush_inline_data(sbi, ino_of_node(page));
 				continue;
@@ -1941,8 +1941,8 @@ continue_unlock:
 				goto write_node;
 
 			/* flush inline_data */
-			if (is_inline_node(page)) {
-				clear_inline_node(page);
+			if (page_private_inline(page)) {
+				clear_page_private_inline(page);
 				unlock_page(page);
 				flush_inline_data(sbi, ino_of_node(page));
 				goto lock_node;
@@ -2096,7 +2096,7 @@ static int f2fs_set_node_page_dirty(struct page *page)
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
-		f2fs_set_page_private(page, 0);
+		set_page_private_reference(page);
 		return 1;
 	}
 	return 0;
