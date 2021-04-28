@@ -33,7 +33,7 @@
 	status = "okay";
 
 	ports {
-		port {
+		port@0 {
 			csi40_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
