@@ -809,6 +809,7 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 {
 	struct ideapad_dytc_priv *dytc = container_of(pprof, struct ideapad_dytc_priv, pprof);
 	struct ideapad_private *priv = dytc->priv;
+	unsigned long output;
 	int err;
 
 	err = mutex_lock_interruptible(&dytc->mutex);
@@ -829,7 +830,7 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 
 		/* Determine if we are in CQL mode. This alters the commands we do */
 		err = dytc_cql_command(priv, DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
-				       NULL);
+				       &output);
 		if (err)
 			goto unlock;
 	}
