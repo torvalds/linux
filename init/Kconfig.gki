@@ -217,6 +217,13 @@ config GKI_HIDDEN_ETHERNET_CONFIGS
 	  Dummy config option used to enable the hidden Ethernet PHYLINK
 	  configs, required by various ethernet devices.
 
+config GKI_HIDDEN_DMA_CONFIGS
+	bool "Hidden DMA configuration needed for GKI"
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Dummy config option used to enable the hidden DMA configs,
+	  required by various SoC platforms.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -247,6 +254,8 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_PHY_CONFIGS
 	select GKI_HIDDEN_MM_CONFIGS
 	select GKI_HIDDEN_ETHERNET_CONFIGS
+	select GKI_HIDDEN_DMA_CONFIGS
+
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
