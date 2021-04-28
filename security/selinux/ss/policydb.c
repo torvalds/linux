@@ -2589,7 +2589,6 @@ int policydb_read(struct policydb *p, void *fp)
 		if (rc)
 			goto bad;
 
-		rc = -EINVAL;
 		rtk->role = le32_to_cpu(buf[0]);
 		rtk->type = le32_to_cpu(buf[1]);
 		rtd->new_role = le32_to_cpu(buf[2]);
