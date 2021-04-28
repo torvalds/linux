@@ -88,7 +88,7 @@ static int rnbd_clt_set_dev_attr(struct rnbd_clt_dev *dev,
 	dev->discard_alignment	    = le32_to_cpu(rsp->discard_alignment);
 	dev->secure_discard	    = le16_to_cpu(rsp->secure_discard);
 	dev->rotational		    = rsp->rotational;
-	dev->wc 		    = !!(rsp->cache_policy & RNBD_WRITEBACK);
+	dev->wc			    = !!(rsp->cache_policy & RNBD_WRITEBACK);
 	dev->fua		    = !!(rsp->cache_policy & RNBD_FUA);
 
 	dev->max_hw_sectors = sess->max_io_size / SECTOR_SIZE;
@@ -351,9 +351,8 @@ static struct rnbd_iu *rnbd_get_iu(struct rnbd_clt_session *sess,
 	struct rtrs_permit *permit;
 
 	iu = kzalloc(sizeof(*iu), GFP_KERNEL);
-	if (!iu) {
+	if (!iu)
 		return NULL;
-	}
 
 	permit = rnbd_get_permit(sess, con_type, wait);
 	if (unlikely(!permit)) {
@@ -805,7 +804,7 @@ static struct rnbd_clt_session *alloc_sess(const char *sessname)
 	mutex_init(&sess->lock);
 	INIT_LIST_HEAD(&sess->devs_list);
 	INIT_LIST_HEAD(&sess->list);
-	bitmap_zero(sess->cpu_queues_bm, NR_CPUS);
+	bitmap_zero(sess->cpu_queues_bm, num_possible_cpus());
 	init_waitqueue_head(&sess->rtrs_waitq);
 	refcount_set(&sess->refcount, 1);
 
@@ -1148,7 +1147,8 @@ static blk_status_t rnbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	iu->sgt.sgl = iu->first_sgl;
 	err = sg_alloc_table_chained(&iu->sgt,
 				     /* Even-if the request has no segment,
-				      * sglist must have one entry at least */
+				      * sglist must have one entry at least.
+				      */
 				     blk_rq_nr_phys_segments(rq) ? : 1,
 				     iu->sgt.sgl,
 				     RNBD_INLINE_SG_CNT);
