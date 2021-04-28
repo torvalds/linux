@@ -67,7 +67,8 @@ CIFSD Feature Status
 Feature name                   Status
 ============================== =================================================
 Dialects                       Supported. SMB2.1 SMB3.0, SMB3.1.1 dialects
-                               excluding security vulnerable SMB1.
+                               (intentionally excludes security vulnerable SMB1
+                               dialect).
 Auto Negotiation               Supported.
 Compound Request               Supported.
 Oplock Cache Mechanism         Supported.
@@ -79,26 +80,37 @@ HMAC-SHA256 Signing            Supported.
 Secure negotiate               Supported.
 Signing Update                 Supported.
 Pre-authentication integrity   Supported.
-SMB3 encryption(CCM, GCM)      Supported.
-SMB direct(RDMA)               Partial Supported. SMB3 Multi-channel is required
-                               to connect to Windows client.
+SMB3 encryption(CCM, GCM)      Supported. (CCM and GCM128 supported, GCM256 in
+                               progress)
+SMB direct(RDMA)               Partially Supported. SMB3 Multi-channel is
+                               required to connect to Windows client.
 SMB3 Multi-channel             In Progress.
 SMB3.1.1 POSIX extension       Supported.
-ACLs                           Partial Supported. only DACLs available, SACLs is
-                               planned for future. ksmbd generate random subauth
+ACLs                           Partially Supported. only DACLs available, SACLs
+                               (auditing) is planned for the future. For
+                               ownership (SIDs) ksmbd generates random subauth
                                values(then store it to disk) and use uid/gid
                                get from inode as RID for local domain SID.
                                The current acl implementation is limited to
                                standalone server, not a domain member.
+                               Integration with Samba tools is being worked on
+                               to allow future support for running as a domain
+                               member.
 Kerberos                       Supported.
 Durable handle v1,v2           Planned for future.
 Persistent handle              Planned for future.
 SMB2 notify                    Planned for future.
 Sparse file support            Supported.
-DCE/RPC support                Partial Supported. a few calls(NetShareEnumAll,
-                               NetServerGetInfo, SAMR, LSARPC) that needed as
-                               file server via netlink interface from
-                               ksmbd.mountd.
+DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
+                               NetServerGetInfo, SAMR, LSARPC) that are needed
+                               for file server handled via netlink interface
+                               from ksmbd.mountd. Additional integration with
+                               Samba tools and libraries via upcall is being
+                               investigated to allow support for additional
+                               DCE/RPC management calls (and future support
+                               for Witness protocol e.g.)
+ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
+                               support are Leases, Notify, ACLs and Share modes.
 ============================== =================================================
 
 
