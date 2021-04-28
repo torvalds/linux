@@ -128,6 +128,8 @@ include ../scripts/utilities.mak
 #
 # Define BUILD_BPF_SKEL to enable BPF skeletons
 #
+# Define LIBTRACEEVENT_DYNAMIC to enable libtraceevent dynamic linking
+#
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -310,7 +312,6 @@ endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
 export LIBTRACEEVENT
-
 LIBTRACEEVENT_DYNAMIC_LIST = $(PLUGINS_PATH)libtraceevent-dynamic-list
 
 #
@@ -375,11 +376,14 @@ endif
 
 export PERL_PATH
 
-PERFLIBS = $(LIBAPI) $(LIBTRACEEVENT) $(LIBSUBCMD) $(LIBPERF)
+PERFLIBS = $(LIBAPI) $(LIBSUBCMD) $(LIBPERF)
 ifndef NO_LIBBPF
   ifndef LIBBPF_DYNAMIC
     PERFLIBS += $(LIBBPF)
   endif
+endif
+ifndef LIBTRACEEVENT_DYNAMIC
+  PERFLIBS += $(LIBTRACEEVENT)
 endif
 
 # We choose to avoid "if .. else if .. else .. endif endif"
