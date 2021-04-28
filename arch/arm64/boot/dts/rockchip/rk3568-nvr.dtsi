@@ -352,6 +352,10 @@
 	status = "okay";
 };
 
+&rkvdec_sram {
+	reg = <0x0 0x10000>;
+};
+
 &rkvenc {
 	status = "okay";
 };
@@ -384,6 +388,11 @@
 
 &spdif_8ch {
 	status = "okay";
+};
+
+&sram {
+	reg = <0x0 0xfdcc0000 0x0 0x10000>;
+	ranges = <0x0 0x0 0xfdcc0000 0x10000>;
 };
 
 &tsadc {
