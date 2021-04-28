@@ -456,6 +456,7 @@ struct io_ring_ctx {
 	spinlock_t			rsrc_ref_lock;
 	struct io_rsrc_node		*rsrc_node;
 	struct io_rsrc_node		*rsrc_backup_node;
+	struct io_mapped_ubuf		*dummy_ubuf;
 
 	struct io_restriction		restrictions;
 
@@ -1158,6 +1159,12 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		goto err;
 	__hash_init(ctx->cancel_hash, 1U << hash_bits);
 
+	ctx->dummy_ubuf = kzalloc(sizeof(*ctx->dummy_ubuf), GFP_KERNEL);
+	if (!ctx->dummy_ubuf)
+		goto err;
+	/* set invalid range, so io_import_fixed() fails meeting it */
+	ctx->dummy_ubuf->ubuf = -1UL;
+
 	if (percpu_ref_init(&ctx->refs, io_ring_ctx_ref_free,
 			    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL))
 		goto err;
@@ -1185,6 +1192,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->submit_state.comp.locked_free_list);
 	return ctx;
 err:
+	kfree(ctx->dummy_ubuf);
 	kfree(ctx->cancel_hash);
 	kfree(ctx);
 	return NULL;
@@ -8109,11 +8117,13 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	struct io_mapped_ubuf *imu = *slot;
 	unsigned int i;
 
-	for (i = 0; i < imu->nr_bvecs; i++)
-		unpin_user_page(imu->bvec[i].bv_page);
-	if (imu->acct_pages)
-		io_unaccount_mem(ctx, imu->acct_pages);
-	kvfree(imu);
+	if (imu != ctx->dummy_ubuf) {
+		for (i = 0; i < imu->nr_bvecs; i++)
+			unpin_user_page(imu->bvec[i].bv_page);
+		if (imu->acct_pages)
+			io_unaccount_mem(ctx, imu->acct_pages);
+		kvfree(imu);
+	}
 	*slot = NULL;
 }
 
@@ -8253,6 +8263,11 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	size_t size;
 	int ret, pret, nr_pages, i;
 
+	if (!iov->iov_base) {
+		*pimu = ctx->dummy_ubuf;
+		return 0;
+	}
+
 	ubuf = (unsigned long) iov->iov_base;
 	end = (ubuf + iov->iov_len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	start = ubuf >> PAGE_SHIFT;
@@ -8350,7 +8365,9 @@ static int io_buffer_validate(struct iovec *iov)
 	 * constraints here, we'll -EINVAL later when IO is
 	 * submitted if they are wrong.
 	 */
-	if (!iov->iov_base || !iov->iov_len)
+	if (!iov->iov_base)
+		return iov->iov_len ? -EFAULT : 0;
+	if (!iov->iov_len)
 		return -EFAULT;
 
 	/* arbitrary limit, but we need something */
@@ -8400,6 +8417,8 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		ret = io_buffer_validate(&iov);
 		if (ret)
 			break;
+		if (!iov.iov_base && tag)
+			return -EINVAL;
 
 		ret = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
 					     &last_hpage);
@@ -8449,12 +8468,14 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		err = io_buffer_validate(&iov);
 		if (err)
 			break;
+		if (!iov.iov_base && tag)
+			return -EINVAL;
 		err = io_sqe_buffer_register(ctx, &iov, &imu, &last_hpage);
 		if (err)
 			break;
 
 		i = array_index_nospec(offset, ctx->nr_user_bufs);
-		if (ctx->user_bufs[i]) {
+		if (ctx->user_bufs[i] != ctx->dummy_ubuf) {
 			err = io_queue_rsrc_removal(ctx->buf_data, offset,
 						    ctx->rsrc_node, ctx->user_bufs[i]);
 			if (unlikely(err)) {
@@ -8602,6 +8623,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	if (ctx->hash_map)
 		io_wq_put_hash(ctx->hash_map);
 	kfree(ctx->cancel_hash);
+	kfree(ctx->dummy_ubuf);
 	kfree(ctx);
 }
 
