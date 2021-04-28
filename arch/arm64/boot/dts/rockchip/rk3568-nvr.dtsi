@@ -344,8 +344,6 @@
 };
 
 &rkvdec {
-	/delete-property/ rockchip,sram;
-	/delete-property/ rockchip,rcb-iova;
 	rockchip,default-max-load = <100>;
 	status = "okay";
 };
