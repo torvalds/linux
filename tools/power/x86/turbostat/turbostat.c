@@ -91,6 +91,7 @@ double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
 unsigned int do_core_perf_limit_reasons;
 unsigned int has_automatic_cstate_conversion;
+unsigned int dis_cstate_prewake;
 unsigned int do_gfx_perf_limit_reasons;
 unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
@@ -2271,6 +2272,8 @@ calculate_tsc_tweak()
 	tsc_tweak = base_hz / tsc_hz;
 }
 
+void prewake_cstate_probe(unsigned int family, unsigned int model);
+
 static void
 dump_nhm_platform_info(void)
 {
@@ -2292,6 +2295,11 @@ dump_nhm_platform_info(void)
 	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
 	fprintf(outf, "cpu%d: MSR_IA32_POWER_CTL: 0x%08llx (C1E auto-promotion: %sabled)\n",
 		base_cpu, msr, msr & 0x2 ? "EN" : "DIS");
+
+	/* C-state Pre-wake Disable (CSTATE_PREWAKE_DISABLE) */
+	if (dis_cstate_prewake)
+		fprintf(outf, "C-state Pre-wake: %sabled\n",
+			msr & 0x40000000 ? "DIS" : "EN");
 
 	return;
 }
@@ -4544,6 +4552,12 @@ void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
 	if (is_skx(family, model) || is_bdx(family, model) ||
 	    is_icx(family, model))
 		has_automatic_cstate_conversion = 1;
+}
+
+void prewake_cstate_probe(unsigned int family, unsigned int model)
+{
+	if (is_icx(family, model))
+		dis_cstate_prewake = 1;
 }
 
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
