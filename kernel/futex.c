@@ -981,6 +981,7 @@ static inline void exit_pi_state_list(struct task_struct *curr) { }
  * p->pi_lock:
  *
  *	p->pi_state_list -> pi_state->list, relation
+ *	pi_mutex->owner -> pi_state->owner, relation
  *
  * pi_state->refcount:
  *
@@ -1494,13 +1495,14 @@ static void mark_wake_futex(struct wake_q_head *wake_q, struct futex_q *q)
 static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_pi_state *pi_state)
 {
 	u32 curval, newval;
+	struct rt_mutex_waiter *top_waiter;
 	struct task_struct *new_owner;
 	bool postunlock = false;
 	DEFINE_WAKE_Q(wake_q);
 	int ret = 0;
 
-	new_owner = rt_mutex_next_owner(&pi_state->pi_mutex);
-	if (WARN_ON_ONCE(!new_owner)) {
+	top_waiter = rt_mutex_top_waiter(&pi_state->pi_mutex);
+	if (WARN_ON_ONCE(!top_waiter)) {
 		/*
 		 * As per the comment in futex_unlock_pi() this should not happen.
 		 *
@@ -1512,6 +1514,8 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_pi_state *pi_
 		ret = -EAGAIN;
 		goto out_unlock;
 	}
+
+	new_owner = top_waiter->task;
 
 	/*
 	 * We pass it to the next owner. The WAITERS bit is always kept
@@ -2315,19 +2319,15 @@ retry:
 
 /*
  * PI futexes can not be requeued and must remove themself from the
- * hash bucket. The hash bucket lock (i.e. lock_ptr) is held on entry
- * and dropped here.
+ * hash bucket. The hash bucket lock (i.e. lock_ptr) is held.
  */
 static void unqueue_me_pi(struct futex_q *q)
-	__releases(q->lock_ptr)
 {
 	__unqueue_futex(q);
 
 	BUG_ON(!q->pi_state);
 	put_pi_state(q->pi_state);
 	q->pi_state = NULL;
-
-	spin_unlock(q->lock_ptr);
 }
 
 static int __fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
@@ -2909,8 +2909,8 @@ no_block:
 	if (res)
 		ret = (res < 0) ? res : 0;
 
-	/* Unqueue and drop the lock */
 	unqueue_me_pi(&q);
+	spin_unlock(q.lock_ptr);
 	goto out;
 
 out_unlock_put_key:
@@ -3237,15 +3237,14 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	 * reference count.
 	 */
 
-	/* Check if the requeue code acquired the second futex for us. */
+	/*
+	 * Check if the requeue code acquired the second futex for us and do
+	 * any pertinent fixup.
+	 */
 	if (!q.rt_waiter) {
-		/*
-		 * Got the lock. We might not be the anticipated owner if we
-		 * did a lock-steal - fix up the PI-state in that case.
-		 */
 		if (q.pi_state && (q.pi_state->owner != current)) {
 			spin_lock(q.lock_ptr);
-			ret = fixup_pi_state_owner(uaddr2, &q, current);
+			ret = fixup_owner(uaddr2, &q, true);
 			/*
 			 * Drop the reference to the pi state which
 			 * the requeue_pi() code acquired for us.
@@ -3287,8 +3286,8 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 		if (res)
 			ret = (res < 0) ? res : 0;
 
-		/* Unqueue and drop the lock. */
 		unqueue_me_pi(&q);
+		spin_unlock(q.lock_ptr);
 	}
 
 	if (ret == -EINTR) {
