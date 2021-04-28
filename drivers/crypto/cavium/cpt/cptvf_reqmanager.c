@@ -244,11 +244,7 @@ static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 	memcpy(ent, (void *)cmd, qinfo->cmd_size);
 
 	if (++queue->idx >= queue->qhead->size / 64) {
-		struct hlist_node *node;
-
-		hlist_for_each(node, &queue->chead) {
-			chunk = hlist_entry(node, struct command_chunk,
-					    nextchunk);
+		hlist_for_each_entry(chunk, &queue->chead, nextchunk) {
 			if (chunk == queue->qhead) {
 				continue;
 			} else {
