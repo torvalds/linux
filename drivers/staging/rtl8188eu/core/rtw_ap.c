@@ -175,12 +175,9 @@ void expire_timeout_chk(struct adapter *padapter)
 	spin_lock_bh(&pstapriv->auth_list_lock);
 
 	phead = &pstapriv->auth_list;
-	plist = phead->next;
-
 	/* check auth_queue */
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, auth_list);
-		plist = plist->next;
+	list_for_each(plist, phead) {
+		psta = list_entry(plist, struct sta_info, auth_list);
 
 		if (psta->expire_to > 0) {
 			psta->expire_to--;
@@ -208,12 +205,9 @@ void expire_timeout_chk(struct adapter *padapter)
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 
 	phead = &pstapriv->asoc_list;
-	plist = phead->next;
-
 	/* check asoc_queue */
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, asoc_list);
-		plist = plist->next;
+	list_for_each(plist, phead) {
+		psta = list_entry(plist, struct sta_info, asoc_list);
 
 		if (chk_sta_is_alive(psta) || !psta->expire_to) {
 			psta->expire_to = pstapriv->expire_to;
@@ -1032,11 +1026,8 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 	spin_lock_bh(&pacl_node_q->lock);
 
 	phead = get_list_head(pacl_node_q);
-	plist = phead->next;
-
-	while (phead != plist) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
-		plist = plist->next;
+	list_for_each(plist, phead) {
+		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
 
 		if (!memcmp(paclnode->addr, addr, ETH_ALEN)) {
 			if (paclnode->valid) {
@@ -1092,11 +1083,8 @@ int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 	spin_lock_bh(&pacl_node_q->lock);
 
 	phead = get_list_head(pacl_node_q);
-	plist = phead->next;
-
-	while (phead != plist) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
-		plist = plist->next;
+	list_for_each(plist, phead) {
+		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
 
 		if (!memcmp(paclnode->addr, addr, ETH_ALEN)) {
 			if (paclnode->valid) {
@@ -1338,13 +1326,9 @@ void associated_clients_update(struct adapter *padapter, u8 updated)
 		spin_lock_bh(&pstapriv->asoc_list_lock);
 
 		phead = &pstapriv->asoc_list;
-		plist = phead->next;
-
 		/* check asoc_queue */
-		while (phead != plist) {
-			psta = container_of(plist, struct sta_info, asoc_list);
-
-			plist = plist->next;
+		list_for_each(plist, phead) {
+			psta = list_entry(plist, struct sta_info, asoc_list);
 
 			VCS_update(padapter, psta);
 		}
@@ -1609,13 +1593,9 @@ int rtw_sta_flush(struct adapter *padapter)
 
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
-	plist = phead->next;
-
 	/* free sta asoc_queue */
-	while (phead != plist) {
-		psta = container_of(plist, struct sta_info, asoc_list);
-
-		plist = plist->next;
+	list_for_each(plist, phead) {
+		psta = list_entry(plist, struct sta_info, asoc_list);
 
 		list_del_init(&psta->asoc_list);
 		pstapriv->asoc_list_cnt--;
@@ -1738,10 +1718,8 @@ void stop_ap_mode(struct adapter *padapter)
 	/* for ACL */
 	spin_lock_bh(&pacl_node_q->lock);
 	phead = get_list_head(pacl_node_q);
-	plist = phead->next;
-	while (phead != plist) {
-		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
-		plist = plist->next;
+	list_for_each(plist, phead) {
+		paclnode = list_entry(plist, struct rtw_wlan_acl_node, list);
 
 		if (paclnode->valid) {
 			paclnode->valid = false;

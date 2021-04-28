@@ -507,11 +507,9 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 	spin_lock_bh(&pxmitpriv->lock);
 
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
-	xmitframe_plist = xmitframe_phead->next;
-
-	while (xmitframe_phead != xmitframe_plist) {
-		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
-		xmitframe_plist = xmitframe_plist->next;
+	list_for_each(xmitframe_plist, xmitframe_phead) {
+		pxmitframe = list_entry(xmitframe_plist, struct xmit_frame,
+					list);
 
 		pxmitframe->agg_num = 0; /*  not first frame of aggregation */
 		pxmitframe->pkt_offset = 0; /*  not first frame of aggregation, no need to reserve offset */
