@@ -172,7 +172,6 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 static int serial_link_irq_chain(struct uart_8250_port *up)
 {
 	struct hlist_head *h;
-	struct hlist_node *n;
 	struct irq_info *i;
 	int ret;
 
@@ -180,13 +179,11 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
 
-	hlist_for_each(n, h) {
-		i = hlist_entry(n, struct irq_info, node);
+	hlist_for_each_entry(i, h, node)
 		if (i->irq == up->port.irq)
 			break;
-	}
 
-	if (n == NULL) {
+	if (i == NULL) {
 		i = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
 		if (i == NULL) {
 			mutex_unlock(&hash_mutex);
@@ -220,25 +217,18 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
-	/*
-	 * yes, some broken gcc emit "warning: 'i' may be used uninitialized"
-	 * but no, we are not going to take a patch that assigns NULL below.
-	 */
 	struct irq_info *i;
-	struct hlist_node *n;
 	struct hlist_head *h;
 
 	mutex_lock(&hash_mutex);
 
 	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
 
-	hlist_for_each(n, h) {
-		i = hlist_entry(n, struct irq_info, node);
+	hlist_for_each_entry(i, h, node)
 		if (i->irq == up->port.irq)
 			break;
-	}
 
-	BUG_ON(n == NULL);
+	BUG_ON(i == NULL);
 	BUG_ON(i->head == NULL);
 
 	if (list_empty(i->head))
