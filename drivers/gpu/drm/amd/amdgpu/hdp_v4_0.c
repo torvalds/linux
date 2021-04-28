@@ -159,7 +159,6 @@ const struct amdgpu_hdp_ras_funcs hdp_v4_0_ras_funcs = {
 const struct amdgpu_hdp_funcs hdp_v4_0_funcs = {
 	.flush_hdp = hdp_v4_0_flush_hdp,
 	.invalidate_hdp = hdp_v4_0_invalidate_hdp,
-	.reset_ras_error_count = hdp_v4_0_reset_ras_error_count,
 	.update_clock_gating = hdp_v4_0_update_clock_gating,
 	.get_clock_gating_state = hdp_v4_0_get_clockgating_state,
 	.init_registers = hdp_v4_0_init_registers,
