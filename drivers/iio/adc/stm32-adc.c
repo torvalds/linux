@@ -449,7 +449,7 @@ static const struct stm32_adc_regspec stm32h7_adc_regspec = {
 	.smp_bits = stm32h7_smp_bits,
 };
 
-/**
+/*
  * STM32 ADC registers access routines
  * @adc: stm32 adc instance
  * @reg: reg offset in adc instance
@@ -851,7 +851,7 @@ static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
 	return 0;
 }
 
-/**
+/*
  * Fixed timeout value for ADC calibration.
  * worst cases:
  * - low clock frequency
