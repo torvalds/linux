@@ -4077,9 +4077,7 @@
 				see CONFIG_RAS_CEC help text.
 
 	rcu_nocbs=	[KNL]
-			The argument is a cpu list, as described above,
-			except that the string "all" can be used to
-			specify every CPU on the system.
+			The argument is a cpu list, as described above.
 
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
@@ -4267,6 +4265,18 @@
 
 	rcuscale.kfree_rcu_test= [KNL]
 			Set to measure performance of kfree_rcu() flooding.
+
+	rcuscale.kfree_rcu_test_double= [KNL]
+			Test the double-argument variant of kfree_rcu().
+			If this parameter has the same value as
+			rcuscale.kfree_rcu_test_single, both the single-
+			and double-argument variants are tested.
+
+	rcuscale.kfree_rcu_test_single= [KNL]
+			Test the single-argument variant of kfree_rcu().
+			If this parameter has the same value as
+			rcuscale.kfree_rcu_test_double, both the single-
+			and double-argument variants are tested.
 
 	rcuscale.kfree_nthreads= [KNL]
 			The number of threads running loops of kfree_rcu().
