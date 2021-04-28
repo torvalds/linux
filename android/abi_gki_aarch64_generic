@@ -50,6 +50,7 @@
   bio_endio
   bio_init
   bio_put
+  __bitmap_clear
   bitmap_from_arr32
   bitmap_parse
   bitmap_parselist
@@ -79,9 +80,10 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
-  bpf_trace_run1
+  bpf_trace_run12
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -759,6 +761,7 @@
   get_unused_fd_flags
   get_user_pages
   get_user_pages_fast
+  get_user_pages_remote
   get_vaddr_frames
   gic_nonsecure_priorities
   glob_match
@@ -795,6 +798,7 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
+  handle_simple_irq
   handle_sysrq
   have_governor_per_policy
   hex_dump_to_buffer
@@ -938,8 +942,8 @@
   irq_work_queue
   irq_work_sync
   is_vmalloc_addr
-  jiffies64_to_msecs
   jiffies
+  jiffies64_to_msecs
   jiffies_to_msecs
   jiffies_to_usecs
   kasan_flag_enabled
@@ -950,6 +954,7 @@
   kernel_restart
   kern_mount
   kern_unmount
+  __kfifo_alloc
   __kfifo_free
   __kfifo_in
   __kfifo_init
@@ -1052,8 +1057,8 @@
   memmove
   memparse
   memremap
-  memset64
   memset
+  memset64
   memstart_addr
   memunmap
   mfd_add_devices
@@ -1115,8 +1120,8 @@
   nla_append
   nla_memcpy
   __nla_parse
-  nla_put_64bit
   nla_put
+  nla_put_64bit
   nla_put_nohdr
   nla_reserve
   nla_strlcpy
@@ -1191,6 +1196,7 @@
   of_property_read_string_helper
   of_property_read_u32_index
   of_property_read_u64
+  of_property_read_u64_index
   of_property_read_variable_u16_array
   of_property_read_variable_u32_array
   of_property_read_variable_u64_array
