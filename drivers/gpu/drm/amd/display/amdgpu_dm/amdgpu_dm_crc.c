@@ -176,7 +176,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 
 	/* Configuration will be deferred to stream enable. */
 	if (!stream_state)
-		return 0;
+		return -EINVAL;
 
 	mutex_lock(&adev->dm.dc_lock);
 

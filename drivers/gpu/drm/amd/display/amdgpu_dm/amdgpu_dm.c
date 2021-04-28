@@ -9036,8 +9036,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			}
 
 			if (configure_crc)
-				amdgpu_dm_crtc_configure_crc_source(
-					crtc, dm_new_crtc_state, cur_crc_src);
+				if (amdgpu_dm_crtc_configure_crc_source(
+					crtc, dm_new_crtc_state, cur_crc_src))
+					DRM_DEBUG_DRIVER("Failed to configure crc source");
 #endif
 		}
 	}
