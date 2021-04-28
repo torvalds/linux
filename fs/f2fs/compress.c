@@ -74,7 +74,7 @@ bool f2fs_is_compressed_page(struct page *page)
 		return false;
 	if (!page_private(page))
 		return false;
-	if (IS_ATOMIC_WRITTEN_PAGE(page) || IS_DUMMY_WRITTEN_PAGE(page))
+	if (page_private_nonpointer(page))
 		return false;
 
 	f2fs_bug_on(F2FS_M_SB(page->mapping),
@@ -85,8 +85,7 @@ bool f2fs_is_compressed_page(struct page *page)
 static void f2fs_set_compressed_page(struct page *page,
 		struct inode *inode, pgoff_t index, void *data)
 {
-	SetPagePrivate(page);
-	set_page_private(page, (unsigned long)data);
+	attach_page_private(page, (void *)data);
 
 	/* i_crypto_info and iv index */
 	page->index = index;
@@ -589,8 +588,7 @@ static void f2fs_compress_free_page(struct page *page)
 {
 	if (!page)
 		return;
-	set_page_private(page, (unsigned long)NULL);
-	ClearPagePrivate(page);
+	detach_page_private(page);
 	page->mapping = NULL;
 	unlock_page(page);
 	mempool_free(page, compress_page_pool);
@@ -1405,7 +1403,7 @@ void f2fs_compress_write_end_io(struct bio *bio, struct page *page)
 
 	for (i = 0; i < cic->nr_rpages; i++) {
 		WARN_ON(!cic->rpages[i]);
-		clear_cold_data(cic->rpages[i]);
+		clear_page_private_gcing(cic->rpages[i]);
 		end_page_writeback(cic->rpages[i]);
 	}
 
