@@ -417,6 +417,49 @@ int resource_get_clock_source_reference(
 	return -1;
 }
 
+bool resource_are_vblanks_synchronizable(
+	struct dc_stream_state *stream1,
+	struct dc_stream_state *stream2)
+{
+	uint32_t base60_refresh_rates[] = {10, 20, 5};
+	uint8_t i;
+	uint8_t rr_count = sizeof(base60_refresh_rates)/sizeof(base60_refresh_rates[0]);
+	uint64_t frame_time_diff;
+
+	if (stream1->ctx->dc->config.vblank_alignment_dto_params &&
+		stream1->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0 &&
+		dc_is_dp_signal(stream1->signal) &&
+		dc_is_dp_signal(stream2->signal) &&
+		false == stream1->has_non_synchronizable_pclk &&
+		false == stream2->has_non_synchronizable_pclk &&
+		stream1->timing.flags.VBLANK_SYNCHRONIZABLE &&
+		stream2->timing.flags.VBLANK_SYNCHRONIZABLE) {
+		/* disable refresh rates higher than 60Hz for now */
+		if (stream1->timing.pix_clk_100hz*100/stream1->timing.h_total/
+				stream1->timing.v_total > 60)
+			return false;
+		if (stream2->timing.pix_clk_100hz*100/stream2->timing.h_total/
+				stream2->timing.v_total > 60)
+			return false;
+		frame_time_diff = (uint64_t)10000 *
+			stream1->timing.h_total *
+			stream1->timing.v_total *
+			stream2->timing.pix_clk_100hz;
+		frame_time_diff = div_u64(frame_time_diff, stream1->timing.pix_clk_100hz);
+		frame_time_diff = div_u64(frame_time_diff, stream2->timing.h_total);
+		frame_time_diff = div_u64(frame_time_diff, stream2->timing.v_total);
+		for (i = 0; i < rr_count; i++) {
+			int64_t diff = (int64_t)div_u64(frame_time_diff * base60_refresh_rates[i], 10) - 10000;
+
+			if (diff < 0)
+				diff = -diff;
+			if (diff < stream1->ctx->dc->config.vblank_alignment_max_frame_time_diff)
+				return true;
+		}
+	}
+	return false;
+}
+
 bool resource_are_streams_timing_synchronizable(
 	struct dc_stream_state *stream1,
 	struct dc_stream_state *stream2)
@@ -1887,6 +1930,9 @@ enum dc_status dc_remove_stream_from_ctx(
 				dc->res_pool,
 			del_pipe->stream_res.stream_enc,
 			false);
+	/* Release link encoder from stream in new dc_state. */
+	if (dc->res_pool->funcs->link_enc_unassign)
+		dc->res_pool->funcs->link_enc_unassign(new_ctx, del_pipe->stream);
 
 	if (del_pipe->stream_res.audio)
 		update_audio_usage(
@@ -2797,6 +2843,10 @@ bool pipe_need_reprogram(
 		return true;
 
 	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
+		return true;
+
+	/* DIG link encoder resource assignment for stream changed. */
+	if (pipe_ctx_old->stream->link_enc != pipe_ctx->stream->link_enc)
 		return true;
 
 	return false;

@@ -52,6 +52,20 @@
 #define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
 #define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
 
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
+
+#define mmBIF_MMSCH1_DOORBELL_RANGE_ALDE                0x01d8
+#define mmBIF_MMSCH1_DOORBELL_RANGE_ALDE_BASE_IDX       2
+//BIF_MMSCH1_DOORBELL_ALDE_RANGE
+#define BIF_MMSCH1_DOORBELL_RANGE_ALDE__OFFSET__SHIFT   0x2
+#define BIF_MMSCH1_DOORBELL_RANGE_ALDE__SIZE__SHIFT     0x10
+#define BIF_MMSCH1_DOORBELL_RANGE_ALDE__OFFSET_MASK     0x00000FFCL
+#define BIF_MMSCH1_DOORBELL_RANGE_ALDE__SIZE_MASK       0x001F0000L
+
+#define mmRCC_DEV0_EPF0_STRAP0_ALDE			0x0015
+#define mmRCC_DEV0_EPF0_STRAP0_ALDE_BASE_IDX		2
+
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status);
 
@@ -65,7 +79,12 @@ static void nbio_v7_4_remap_hdp_registers(struct amdgpu_device *adev)
 
 static u32 nbio_v7_4_get_rev_id(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
+	u32 tmp;
+
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0_ALDE);
+	else
+		tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
 
 	tmp &= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK;
 	tmp >>= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT;
@@ -92,10 +111,10 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 {
 	u32 reg, doorbell_range;
 
-	if (instance < 2)
+	if (instance < 2) {
 		reg = instance +
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
-	else
+	} else {
 		/*
 		 * These registers address of SDMA2~7 is not consecutive
 		 * from SDMA0~1. Need plus 4 dwords offset.
@@ -103,9 +122,19 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 		 *   BIF_SDMA0_DOORBELL_RANGE:  0x3bc0
 		 *   BIF_SDMA1_DOORBELL_RANGE:  0x3bc4
 		 *   BIF_SDMA2_DOORBELL_RANGE:  0x3bd8
++		 *   BIF_SDMA4_DOORBELL_RANGE:
++		 *     ARCTURUS:  0x3be0
++		 *     ALDEBARAN: 0x3be4
 		 */
-		reg = instance + 0x4 +
-			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE);
+		if (adev->asic_type == CHIP_ALDEBARAN && instance == 4)
+			reg = instance + 0x4 + 0x1 +
+				SOC15_REG_OFFSET(NBIO, 0,
+						 mmBIF_SDMA0_DOORBELL_RANGE);
+		else
+			reg = instance + 0x4 +
+				SOC15_REG_OFFSET(NBIO, 0,
+						 mmBIF_SDMA0_DOORBELL_RANGE);
+	}
 
 	doorbell_range = RREG32(reg);
 
@@ -124,9 +153,12 @@ static void nbio_v7_4_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 	u32 reg;
 	u32 doorbell_range;
 
-	if (instance)
-		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE);
-	else
+	if (instance) {
+		if (adev->asic_type == CHIP_ALDEBARAN)
+			reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE_ALDE);
+		else
+			reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE);
+	} else
 		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
 
 	doorbell_range = RREG32(reg);
@@ -525,6 +557,16 @@ static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
 		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
+const struct amdgpu_nbio_ras_funcs nbio_v7_4_ras_funcs = {
+	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
+	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
+	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
+	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
+	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
+	.ras_late_init = amdgpu_nbio_ras_late_init,
+	.ras_fini = amdgpu_nbio_ras_fini,
+};
+
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
@@ -545,10 +587,4 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.ih_control = nbio_v7_4_ih_control,
 	.init_registers = nbio_v7_4_init_registers,
 	.remap_hdp_registers = nbio_v7_4_remap_hdp_registers,
-	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
-	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
-	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
-	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
-	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
-	.ras_late_init = amdgpu_nbio_ras_late_init,
 };

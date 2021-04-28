@@ -118,7 +118,7 @@ static unsigned int calc_duration_in_us_from_v_total(
 	return duration_in_us;
 }
 
-static unsigned int calc_v_total_from_refresh(
+unsigned int mod_freesync_calc_v_total_from_refresh(
 		const struct dc_stream_state *stream,
 		unsigned int refresh_in_uhz)
 {
@@ -280,10 +280,10 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 
 		/* Restore FreeSync */
 		in_out_vrr->adjust.v_total_min =
-			calc_v_total_from_refresh(stream,
+			mod_freesync_calc_v_total_from_refresh(stream,
 				in_out_vrr->max_refresh_in_uhz);
 		in_out_vrr->adjust.v_total_max =
-			calc_v_total_from_refresh(stream,
+			mod_freesync_calc_v_total_from_refresh(stream,
 				in_out_vrr->min_refresh_in_uhz);
 	/* BTR set to "active" so engage */
 	} else {
@@ -442,16 +442,16 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 	if (update) {
 		if (in_out_vrr->fixed.fixed_active) {
 			in_out_vrr->adjust.v_total_min =
-				calc_v_total_from_refresh(
+				mod_freesync_calc_v_total_from_refresh(
 				stream, in_out_vrr->max_refresh_in_uhz);
 			in_out_vrr->adjust.v_total_max =
 					in_out_vrr->adjust.v_total_min;
 		} else {
 			in_out_vrr->adjust.v_total_min =
-				calc_v_total_from_refresh(stream,
+				mod_freesync_calc_v_total_from_refresh(stream,
 					in_out_vrr->max_refresh_in_uhz);
 			in_out_vrr->adjust.v_total_max =
-				calc_v_total_from_refresh(stream,
+				mod_freesync_calc_v_total_from_refresh(stream,
 					in_out_vrr->min_refresh_in_uhz);
 		}
 	}
@@ -543,8 +543,8 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 		infopacket->sb[6] |= 0x02;
 
 	/* PB6 = [Bit 2 = FreeSync Active] */
-	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
-			vrr->state == VRR_STATE_ACTIVE_FIXED)
+	if (vrr->state != VRR_STATE_DISABLED &&
+			vrr->state != VRR_STATE_UNSUPPORTED)
 		infopacket->sb[6] |= 0x04;
 
 	// For v1 & 2 infoframes program nominal if non-fs mode, otherwise full range
@@ -903,12 +903,31 @@ static void build_vrr_infopacket_v3(enum signal_type signal,
 	infopacket->valid = true;
 }
 
+static void build_vrr_infopacket_sdp_v1_3(enum vrr_packet_type packet_type,
+										struct dc_info_packet *infopacket)
+{
+	uint8_t idx = 0, size = 0;
+
+	size = ((packet_type == PACKET_TYPE_FS_V1) ? 0x08 :
+			(packet_type == PACKET_TYPE_FS_V3) ? 0x10 :
+												0x09);
+
+	for (idx = infopacket->hb2; idx > 1; idx--) // Data Byte Count: 0x1B
+		infopacket->sb[idx] = infopacket->sb[idx-1];
+
+	infopacket->sb[1] = size;                         // Length
+	infopacket->sb[0] = (infopacket->hb3 >> 2) & 0x3F;//Version
+	infopacket->hb3   = (0x13 << 2);                  // Header,SDP 1.3
+	infopacket->hb2   = 0x1D;
+}
+
 void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
 		enum color_transfer_func app_tf,
-		struct dc_info_packet *infopacket)
+		struct dc_info_packet *infopacket,
+		bool pack_sdp_v1_3)
 {
 	/* SPD info packet for FreeSync
 	 * VTEM info packet for HdmiVRR
@@ -941,6 +960,12 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	default:
 		build_vrr_infopacket_v1(stream->signal, vrr, infopacket);
 	}
+
+	if (true == pack_sdp_v1_3 &&
+		true == dc_is_dp_signal(stream->signal) &&
+		packet_type != PACKET_TYPE_VRR &&
+		packet_type != PACKET_TYPE_VTEM)
+		build_vrr_infopacket_sdp_v1_3(packet_type, infopacket);
 }
 
 void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
@@ -1057,10 +1082,10 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 			refresh_range >= MIN_REFRESH_RANGE) {
 
 		in_out_vrr->adjust.v_total_min =
-			calc_v_total_from_refresh(stream,
+			mod_freesync_calc_v_total_from_refresh(stream,
 				in_out_vrr->max_refresh_in_uhz);
 		in_out_vrr->adjust.v_total_max =
-			calc_v_total_from_refresh(stream,
+			mod_freesync_calc_v_total_from_refresh(stream,
 				in_out_vrr->min_refresh_in_uhz);
 	} else if (in_out_vrr->state == VRR_STATE_ACTIVE_FIXED) {
 		in_out_vrr->fixed.target_refresh_in_uhz =
@@ -1074,7 +1099,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		} else {
 			in_out_vrr->fixed.fixed_active = true;
 			in_out_vrr->adjust.v_total_min =
-				calc_v_total_from_refresh(stream,
+				mod_freesync_calc_v_total_from_refresh(stream,
 					in_out_vrr->fixed.target_refresh_in_uhz);
 			in_out_vrr->adjust.v_total_max =
 				in_out_vrr->adjust.v_total_min;
@@ -1181,10 +1206,10 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		/* Restore FreeSync */
 		if (in_out_vrr->btr.frame_counter == 0) {
 			in_out_vrr->adjust.v_total_min =
-				calc_v_total_from_refresh(stream,
+				mod_freesync_calc_v_total_from_refresh(stream,
 				in_out_vrr->max_refresh_in_uhz);
 			in_out_vrr->adjust.v_total_max =
-				calc_v_total_from_refresh(stream,
+				mod_freesync_calc_v_total_from_refresh(stream,
 				in_out_vrr->min_refresh_in_uhz);
 		}
 	}
@@ -1240,6 +1265,21 @@ unsigned long long mod_freesync_calc_nominal_field_rate(
 	nominal_field_rate_in_uhz =	div_u64(nominal_field_rate_in_uhz, total);
 
 	return nominal_field_rate_in_uhz;
+}
+
+unsigned long long mod_freesync_calc_field_rate_from_timing(
+		unsigned int vtotal, unsigned int htotal, unsigned int pix_clk)
+{
+	unsigned long long field_rate_in_uhz = 0;
+	unsigned int total = htotal * vtotal;
+
+	/* Calculate nominal field rate for stream, rounded up to nearest integer */
+	field_rate_in_uhz = pix_clk;
+	field_rate_in_uhz *= 1000000ULL;
+
+	field_rate_in_uhz =	div_u64(field_rate_in_uhz, total);
+
+	return field_rate_in_uhz;
 }
 
 bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
@@ -1304,4 +1344,3 @@ bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 
 	return true;
 }
-

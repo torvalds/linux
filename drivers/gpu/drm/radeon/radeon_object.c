@@ -159,7 +159,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
 	unsigned long page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
-	size_t acc_size;
 	int r;
 
 	size = ALIGN(size, PAGE_SIZE);
@@ -172,9 +171,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 		type = ttm_bo_type_device;
 	}
 	*bo_ptr = NULL;
-
-	acc_size = ttm_bo_dma_acc_size(&rdev->mman.bdev, size,
-				       sizeof(struct radeon_bo));
 
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
@@ -230,8 +226,8 @@ int radeon_bo_create(struct radeon_device *rdev,
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, page_align, !kernel, acc_size,
-			sg, resv, &radeon_ttm_bo_destroy);
+			&bo->placement, page_align, !kernel, sg, resv,
+			&radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		return r;
@@ -372,7 +368,7 @@ void radeon_bo_unpin(struct radeon_bo *bo)
 
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
-	struct ttm_bo_device *bdev = &rdev->mman.bdev;
+	struct ttm_device *bdev = &rdev->mman.bdev;
 	struct ttm_resource_manager *man;
 
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
@@ -384,6 +380,8 @@ int radeon_bo_evict_vram(struct radeon_device *rdev)
 	}
 #endif
 	man = ttm_manager_type(bdev, TTM_PL_VRAM);
+	if (!man)
+		return 0;
 	return ttm_resource_manager_evict_all(bdev, man);
 }
 

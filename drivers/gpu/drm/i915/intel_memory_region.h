@@ -25,24 +25,19 @@ struct sg_table;
 enum intel_memory_type {
 	INTEL_MEMORY_SYSTEM = 0,
 	INTEL_MEMORY_LOCAL,
-	INTEL_MEMORY_STOLEN,
+	INTEL_MEMORY_STOLEN_SYSTEM,
 };
 
 enum intel_region_id {
 	INTEL_REGION_SMEM = 0,
 	INTEL_REGION_LMEM,
-	INTEL_REGION_STOLEN,
+	INTEL_REGION_STOLEN_SMEM,
 	INTEL_REGION_UNKNOWN, /* Should be last */
 };
 
 #define REGION_SMEM     BIT(INTEL_REGION_SMEM)
 #define REGION_LMEM     BIT(INTEL_REGION_LMEM)
-#define REGION_STOLEN   BIT(INTEL_REGION_STOLEN)
-
-#define INTEL_MEMORY_TYPE_SHIFT 16
-
-#define MEMORY_TYPE_FROM_REGION(r) (ilog2((r) >> INTEL_MEMORY_TYPE_SHIFT))
-#define MEMORY_INSTANCE_FROM_REGION(r) (ilog2((r) & 0xffff))
+#define REGION_STOLEN_SMEM   BIT(INTEL_REGION_STOLEN_SMEM)
 
 #define I915_ALLOC_MIN_PAGE_SIZE  BIT(0)
 #define I915_ALLOC_CONTIGUOUS     BIT(1)
@@ -84,10 +79,12 @@ struct intel_memory_region {
 	resource_size_t total;
 	resource_size_t avail;
 
-	unsigned int type;
-	unsigned int instance;
-	unsigned int id;
+	u16 type;
+	u16 instance;
+	enum intel_region_id id;
 	char name[8];
+
+	struct list_head reserved;
 
 	dma_addr_t remap_addr;
 
@@ -112,6 +109,9 @@ __intel_memory_region_get_block_buddy(struct intel_memory_region *mem,
 void __intel_memory_region_put_pages_buddy(struct intel_memory_region *mem,
 					   struct list_head *blocks);
 void __intel_memory_region_put_block_buddy(struct i915_buddy_block *block);
+
+int intel_memory_region_reserve(struct intel_memory_region *mem,
+				u64 offset, u64 size);
 
 struct intel_memory_region *
 intel_memory_region_create(struct drm_i915_private *i915,

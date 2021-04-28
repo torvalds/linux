@@ -97,12 +97,16 @@ enum i915_cache_level;
 
 struct intel_remapped_plane_info {
 	/* in gtt pages */
-	unsigned int width, height, stride, offset;
+	u32 offset;
+	u16 width;
+	u16 height;
+	u16 src_stride;
+	u16 dst_stride;
 } __packed;
 
 struct intel_remapped_info {
 	struct intel_remapped_plane_info plane[2];
-	unsigned int unused_mbz;
+	u32 unused_mbz;
 } __packed;
 
 struct intel_rotation_info {
@@ -123,9 +127,9 @@ enum i915_ggtt_view_type {
 
 static inline void assert_i915_gem_gtt_types(void)
 {
-	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 8*sizeof(unsigned int));
+	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 2 * sizeof(u32) + 8 * sizeof(u16));
 	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
-	BUILD_BUG_ON(sizeof(struct intel_remapped_info) != 9*sizeof(unsigned int));
+	BUILD_BUG_ON(sizeof(struct intel_remapped_info) != 3 * sizeof(u32) + 8 * sizeof(u16));
 
 	/* Check that rotation/remapped shares offsets for simplicity */
 	BUILD_BUG_ON(offsetof(struct intel_remapped_info, plane[0]) !=

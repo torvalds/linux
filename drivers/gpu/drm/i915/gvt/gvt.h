@@ -133,6 +133,7 @@ struct intel_vgpu_display {
 	struct intel_vgpu_i2c_edid i2c_edid;
 	struct intel_vgpu_port ports[I915_MAX_PORTS];
 	struct intel_vgpu_sbi sbi;
+	enum port port_num;
 };
 
 struct vgpu_sched_ctl {
@@ -214,6 +215,7 @@ struct intel_vgpu {
 	struct list_head dmabuf_obj_list_head;
 	struct mutex dmabuf_lock;
 	struct idr object_idr;
+	struct intel_vgpu_vblank_timer vblank_timer;
 
 	u32 scan_nonprivbb;
 };
@@ -346,13 +348,16 @@ static inline struct intel_gvt *to_gvt(struct drm_i915_private *i915)
 }
 
 enum {
-	INTEL_GVT_REQUEST_EMULATE_VBLANK = 0,
-
 	/* Scheduling trigger by timer */
-	INTEL_GVT_REQUEST_SCHED = 1,
+	INTEL_GVT_REQUEST_SCHED = 0,
 
 	/* Scheduling trigger by event */
-	INTEL_GVT_REQUEST_EVENT_SCHED = 2,
+	INTEL_GVT_REQUEST_EVENT_SCHED = 1,
+
+	/* per-vGPU vblank emulation request */
+	INTEL_GVT_REQUEST_EMULATE_VBLANK = 2,
+	INTEL_GVT_REQUEST_EMULATE_VBLANK_MAX = INTEL_GVT_REQUEST_EMULATE_VBLANK
+		+ GVT_MAX_VGPU,
 };
 
 static inline void intel_gvt_request_service(struct intel_gvt *gvt,

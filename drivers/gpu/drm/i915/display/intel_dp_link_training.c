@@ -26,12 +26,13 @@
 #include "intel_dp_link_training.h"
 
 static void
-intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
+intel_dp_dump_link_status(struct drm_device *drm,
+			  const u8 link_status[DP_LINK_STATUS_SIZE])
 {
-
-	DRM_DEBUG_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
-		      link_status[0], link_status[1], link_status[2],
-		      link_status[3], link_status[4], link_status[5]);
+	drm_dbg_kms(drm,
+		    "ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x\n",
+		    link_status[0], link_status[1], link_status[2],
+		    link_status[3], link_status[4], link_status[5]);
 }
 
 static void intel_dp_reset_lttpr_common_caps(struct intel_dp *intel_dp)
@@ -95,7 +96,7 @@ static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
 	 * Detecting LTTPRs must be avoided on platforms with an AUX timeout
 	 * period < 3.2ms. (see DP Standard v2.0, 2.11.2, 3.6.6.1).
 	 */
-	if (INTEL_GEN(i915) < 10)
+	if (DISPLAY_VER(i915) < 10)
 		return false;
 
 	if (drm_dp_read_lttpr_common_caps(&intel_dp->aux,
@@ -364,6 +365,39 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	len = crtc_state->lane_count + 1;
 
 	return drm_dp_dpcd_write(&intel_dp->aux, reg, buf, len) == len;
+}
+
+static char dp_training_pattern_name(u8 train_pat)
+{
+	switch (train_pat) {
+	case DP_TRAINING_PATTERN_1:
+	case DP_TRAINING_PATTERN_2:
+	case DP_TRAINING_PATTERN_3:
+		return '0' + train_pat;
+	case DP_TRAINING_PATTERN_4:
+		return '4';
+	default:
+		MISSING_CASE(train_pat);
+		return '?';
+	}
+}
+
+void
+intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
+				       const struct intel_crtc_state *crtc_state,
+				       u8 dp_train_pat)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u8 train_pat = intel_dp_training_pattern_symbol(dp_train_pat);
+
+	if (train_pat != DP_TRAINING_PATTERN_DISABLE)
+		drm_dbg_kms(&dev_priv->drm,
+			    "[ENCODER:%d:%s] Using DP training pattern TPS%c\n",
+			    encoder->base.base.id, encoder->base.name,
+			    dp_training_pattern_name(train_pat));
+
+	intel_dp->set_link_train(intel_dp, crtc_state, dp_train_pat);
 }
 
 void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
@@ -680,7 +714,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 		/* Make sure clock is still ok */
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      crtc_state->lane_count)) {
-			intel_dp_dump_link_status(link_status);
+			intel_dp_dump_link_status(&i915->drm, link_status);
 			drm_dbg_kms(&i915->drm,
 				    "Clock recovery check failed, cannot "
 				    "continue channel equalization\n");
@@ -707,7 +741,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 
 	/* Try 5 times, else fail and try at lower BW */
 	if (tries == 5) {
-		intel_dp_dump_link_status(link_status);
+		intel_dp_dump_link_status(&i915->drm, link_status);
 		drm_dbg_kms(&i915->drm,
 			    "Channel equalization failed 5 times\n");
 	}
@@ -769,7 +803,7 @@ intel_dp_link_train_phy(struct intel_dp *intel_dp,
 
 out:
 	drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
-		    "[CONNECTOR:%d:%s] Link Training %s at link rate = %d, lane count = %d, at %s",
+		    "[CONNECTOR:%d:%s] Link Training %s at link rate = %d, lane count = %d, at %s\n",
 		    intel_connector->base.base.id,
 		    intel_connector->base.name,
 		    ret ? "passed" : "failed",

@@ -173,26 +173,30 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 				break;
 
 			case I915_GGTT_VIEW_ROTATED:
-				seq_printf(m, ", rotated [(%ux%u, stride=%u, offset=%u), (%ux%u, stride=%u, offset=%u)]",
+				seq_printf(m, ", rotated [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
 					   vma->ggtt_view.rotated.plane[0].width,
 					   vma->ggtt_view.rotated.plane[0].height,
-					   vma->ggtt_view.rotated.plane[0].stride,
+					   vma->ggtt_view.rotated.plane[0].src_stride,
+					   vma->ggtt_view.rotated.plane[0].dst_stride,
 					   vma->ggtt_view.rotated.plane[0].offset,
 					   vma->ggtt_view.rotated.plane[1].width,
 					   vma->ggtt_view.rotated.plane[1].height,
-					   vma->ggtt_view.rotated.plane[1].stride,
+					   vma->ggtt_view.rotated.plane[1].src_stride,
+					   vma->ggtt_view.rotated.plane[1].dst_stride,
 					   vma->ggtt_view.rotated.plane[1].offset);
 				break;
 
 			case I915_GGTT_VIEW_REMAPPED:
-				seq_printf(m, ", remapped [(%ux%u, stride=%u, offset=%u), (%ux%u, stride=%u, offset=%u)]",
+				seq_printf(m, ", remapped [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
 					   vma->ggtt_view.remapped.plane[0].width,
 					   vma->ggtt_view.remapped.plane[0].height,
-					   vma->ggtt_view.remapped.plane[0].stride,
+					   vma->ggtt_view.remapped.plane[0].src_stride,
+					   vma->ggtt_view.remapped.plane[0].dst_stride,
 					   vma->ggtt_view.remapped.plane[0].offset,
 					   vma->ggtt_view.remapped.plane[1].width,
 					   vma->ggtt_view.remapped.plane[1].height,
-					   vma->ggtt_view.remapped.plane[1].stride,
+					   vma->ggtt_view.remapped.plane[1].src_stride,
+					   vma->ggtt_view.remapped.plane[1].dst_stride,
 					   vma->ggtt_view.remapped.plane[1].offset);
 				break;
 
@@ -677,7 +681,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	if (!HAS_RUNTIME_PM(dev_priv))
 		seq_puts(m, "Runtime power management not supported\n");
@@ -904,10 +908,10 @@ i915_drop_caches_set(void *data, u64 val)
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
-		i915_gem_shrink(i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
+		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
 	if (val & DROP_UNBOUND)
-		i915_gem_shrink(i915, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
+		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_UNBOUND);
 
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);

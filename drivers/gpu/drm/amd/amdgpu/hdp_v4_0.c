@@ -49,6 +49,9 @@ static void hdp_v4_0_flush_hdp(struct amdgpu_device *adev,
 static void hdp_v4_0_invalidate_hdp(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring)
 {
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		return;
+
 	if (!ring || !ring->funcs->emit_wreg)
 		WREG32_SOC15_NO_KIQ(HDP, 0, mmHDP_READ_CACHE_INVALIDATE, 1);
 	else

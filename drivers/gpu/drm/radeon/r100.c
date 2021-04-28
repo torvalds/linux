@@ -32,7 +32,6 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
@@ -1121,9 +1120,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	uint32_t tmp;
 	int r;
 
-	if (r100_debugfs_cp_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for CP !\n");
-	}
+	r100_debugfs_cp_init(rdev);
 	if (!rdev->me_fw) {
 		r = r100_cp_init_microcode(rdev);
 		if (r) {
@@ -2920,11 +2917,9 @@ static void r100_set_safe_registers(struct radeon_device *rdev)
  * Debugfs info
  */
 #if defined(CONFIG_DEBUG_FS)
-static int r100_debugfs_rbbm_info(struct seq_file *m, void *data)
+static int r100_debugfs_rbbm_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	uint32_t reg, value;
 	unsigned i;
 
@@ -2941,11 +2936,9 @@ static int r100_debugfs_rbbm_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
+static int r100_debugfs_cp_ring_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t rdp, wdp;
 	unsigned count, i, j;
@@ -2969,11 +2962,9 @@ static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 }
 
 
-static int r100_debugfs_cp_csq_fifo(struct seq_file *m, void *data)
+static int r100_debugfs_cp_csq_fifo_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	uint32_t csq_stat, csq2_stat, tmp;
 	unsigned r_rptr, r_wptr, ib1_rptr, ib1_wptr, ib2_rptr, ib2_wptr;
 	unsigned i;
@@ -3019,11 +3010,9 @@ static int r100_debugfs_cp_csq_fifo(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int r100_debugfs_mc_info(struct seq_file *m, void *data)
+static int r100_debugfs_mc_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	uint32_t tmp;
 
 	tmp = RREG32(RADEON_CONFIG_MEMSIZE);
@@ -3049,44 +3038,42 @@ static int r100_debugfs_mc_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list r100_debugfs_rbbm_list[] = {
-	{"r100_rbbm_info", r100_debugfs_rbbm_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(r100_debugfs_rbbm_info);
+DEFINE_SHOW_ATTRIBUTE(r100_debugfs_cp_ring_info);
+DEFINE_SHOW_ATTRIBUTE(r100_debugfs_cp_csq_fifo);
+DEFINE_SHOW_ATTRIBUTE(r100_debugfs_mc_info);
 
-static struct drm_info_list r100_debugfs_cp_list[] = {
-	{"r100_cp_ring_info", r100_debugfs_cp_ring_info, 0, NULL},
-	{"r100_cp_csq_fifo", r100_debugfs_cp_csq_fifo, 0, NULL},
-};
-
-static struct drm_info_list r100_debugfs_mc_info_list[] = {
-	{"r100_mc_info", r100_debugfs_mc_info, 0, NULL},
-};
 #endif
 
-int r100_debugfs_rbbm_init(struct radeon_device *rdev)
+void  r100_debugfs_rbbm_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r100_debugfs_rbbm_list, 1);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("r100_rbbm_info", 0444, root, rdev,
+			    &r100_debugfs_rbbm_info_fops);
 #endif
 }
 
-int r100_debugfs_cp_init(struct radeon_device *rdev)
+void r100_debugfs_cp_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r100_debugfs_cp_list, 2);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("r100_cp_ring_info", 0444, root, rdev,
+			    &r100_debugfs_cp_ring_info_fops);
+	debugfs_create_file("r100_cp_csq_fifo", 0444, root, rdev,
+			    &r100_debugfs_cp_csq_fifo_fops);
 #endif
 }
 
-int r100_debugfs_mc_info_init(struct radeon_device *rdev)
+void  r100_debugfs_mc_info_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r100_debugfs_mc_info_list, 1);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("r100_mc_info", 0444, root, rdev,
+			    &r100_debugfs_mc_info_fops);
 #endif
 }
 
@@ -3834,15 +3821,6 @@ void r100_vga_render_disable(struct radeon_device *rdev)
 	WREG8(R_0003C2_GENMO_WT, C_0003C2_VGA_RAM_EN & tmp);
 }
 
-static void r100_debugfs(struct radeon_device *rdev)
-{
-	int r;
-
-	r = r100_debugfs_mc_info_init(rdev);
-	if (r)
-		dev_warn(rdev->dev, "Failed to create r100_mc debugfs file.\n");
-}
-
 static void r100_mc_program(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
@@ -4031,7 +4009,7 @@ int r100_init(struct radeon_device *rdev)
 	int r;
 
 	/* Register debugfs file specific to this group of asics */
-	r100_debugfs(rdev);
+	r100_debugfs_mc_info_init(rdev);
 	/* Disable VGA */
 	r100_vga_render_disable(rdev);
 	/* Initialize scratch registers */
