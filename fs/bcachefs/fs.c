@@ -145,7 +145,7 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 	struct bch_inode_unpacked inode_u;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
+	bch2_trans_init(&trans, c, 0, 256);
 retry:
 	bch2_trans_begin(&trans);
 
