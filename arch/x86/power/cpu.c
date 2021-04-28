@@ -284,7 +284,6 @@ void notrace restore_processor_state(void)
 	wrmsrl(MSR_GS_BASE, saved_context.kernelmode_gs_base);
 #else
 	loadsegment(fs, __KERNEL_PERCPU);
-	loadsegment(gs, __KERNEL_STACK_CANARY);
 #endif
 #endif
 	__restore_processor_state(&saved_context);
