@@ -329,6 +329,7 @@ static int nv_query_video_codecs(struct amdgpu_device *adev, bool encode,
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 		if (encode)
 			*codecs = &nv_video_codecs_encode;
 		else
