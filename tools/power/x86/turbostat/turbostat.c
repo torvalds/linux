@@ -5440,7 +5440,7 @@ void process_cpuid()
 	if (!quiet)
 		dump_sysfs_pstate_config();
 
-	if (has_skl_msrs(family, model))
+	if (has_skl_msrs(family, model) || is_ehl(family, model))
 		calculate_tsc_tweak();
 
 	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
