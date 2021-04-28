@@ -189,6 +189,10 @@
 	/delete-node/ opp-1992000000;
 };
 
+&CPU_SLEEP {
+	status = "disabled";
+};
+
 &dsi0_in_vp0 {
 	status = "disabled";
 };
