@@ -718,7 +718,6 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct gc0310_device *dev = to_gc0310_sensor(sd);
 
-	pr_info("%s S\n", __func__);
 	mutex_lock(&dev->input_lock);
 
 	/* set initial registers */
@@ -730,7 +729,6 @@ static int gc0310_init(struct v4l2_subdev *sd)
 
 	mutex_unlock(&dev->input_lock);
 
-	pr_info("%s E\n", __func__);
 	return ret;
 }
 
@@ -796,7 +794,6 @@ static int power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	pr_info("%s S\n", __func__);
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
@@ -823,7 +820,6 @@ static int power_up(struct v4l2_subdev *sd)
 
 	msleep(100);
 
-	pr_info("%s E\n", __func__);
 	return 0;
 
 fail_gpio:
@@ -959,15 +955,12 @@ static int startup(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	pr_info("%s S\n", __func__);
-
 	ret = gc0310_write_reg_array(client, gc0310_res[dev->fmt_idx].regs);
 	if (ret) {
 		dev_err(&client->dev, "gc0310 write register err.\n");
 		return ret;
 	}
 
-	pr_info("%s E\n", __func__);
 	return ret;
 }
 
@@ -981,8 +974,6 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *gc0310_info = NULL;
 	int ret = 0;
 	int idx = 0;
-
-	pr_info("%s S\n", __func__);
 
 	if (format->pad)
 		return -EINVAL;
@@ -1035,7 +1026,6 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 		goto err;
 	}
 
-	pr_info("%s E\n", __func__);
 err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
@@ -1068,7 +1058,6 @@ static int gc0310_detect(struct i2c_client *client)
 	int ret;
 	u16 id;
 
-	pr_info("%s S\n", __func__);
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
@@ -1094,8 +1083,6 @@ static int gc0310_detect(struct i2c_client *client)
 	}
 
 	dev_dbg(&client->dev, "detect gc0310 success\n");
-
-	pr_info("%s E\n", __func__);
 
 	return 0;
 }
@@ -1142,7 +1129,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	mutex_unlock(&dev->input_lock);
-	pr_info("%s E\n", __func__);
 	return ret;
 }
 
@@ -1153,7 +1139,6 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	pr_info("%s S\n", __func__);
 	if (!platform_data)
 		return -ENODEV;
 
@@ -1196,7 +1181,6 @@ static int gc0310_s_config(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&dev->input_lock);
 
-	pr_info("%s E\n", __func__);
 	return 0;
 
 fail_csi_cfg:
@@ -1365,7 +1349,6 @@ static int gc0310_probe(struct i2c_client *client)
 	if (ret)
 		gc0310_remove(client);
 
-	pr_info("%s E\n", __func__);
 	return ret;
 out_free:
 	v4l2_device_unregister_subdev(&dev->sd);
