@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cache Monitoring Technology (CQM) test
+ * Cache Monitoring Technology (CMT) test
  *
  * Copyright (C) 2018 Intel Corporation
  *
@@ -11,17 +11,17 @@
 #include "resctrl.h"
 #include <unistd.h>
 
-#define RESULT_FILE_NAME	"result_cqm"
+#define RESULT_FILE_NAME	"result_cmt"
 #define NUM_OF_RUNS		5
 #define MAX_DIFF		2000000
 #define MAX_DIFF_PERCENT	15
 
-int count_of_bits;
-char cbm_mask[256];
-unsigned long long_mask;
-unsigned long cache_size;
+static int count_of_bits;
+static char cbm_mask[256];
+static unsigned long long_mask;
+static unsigned long cache_size;
 
-static int cqm_setup(int num, ...)
+static int cmt_setup(int num, ...)
 {
 	struct resctrl_val_param *p;
 	va_list param;
@@ -39,38 +39,6 @@ static int cqm_setup(int num, ...)
 	return 0;
 }
 
-static void show_cache_info(unsigned long sum_llc_occu_resc, int no_of_bits,
-			    unsigned long span)
-{
-	unsigned long avg_llc_occu_resc = 0;
-	float diff_percent;
-	long avg_diff = 0;
-	bool res;
-
-	avg_llc_occu_resc = sum_llc_occu_resc / (NUM_OF_RUNS - 1);
-	avg_diff = (long)abs(span - avg_llc_occu_resc);
-
-	diff_percent = (((float)span - avg_llc_occu_resc) / span) * 100;
-
-	if ((abs((int)diff_percent) <= MAX_DIFF_PERCENT) ||
-	    (abs(avg_diff) <= MAX_DIFF))
-		res = true;
-	else
-		res = false;
-
-	printf("%sok CQM: diff within %d, %d\%%\n", res ? "" : "not",
-	       MAX_DIFF, (int)MAX_DIFF_PERCENT);
-
-	printf("# diff: %ld\n", avg_diff);
-	printf("# percent diff=%d\n", abs((int)diff_percent));
-	printf("# Results are displayed in (Bytes)\n");
-	printf("# Number of bits: %d\n", no_of_bits);
-	printf("# Avg_llc_occu_resc: %lu\n", avg_llc_occu_resc);
-	printf("# llc_occu_exp (span): %lu\n", span);
-
-	tests_run++;
-}
-
 static int check_results(struct resctrl_val_param *param, int no_of_bits)
 {
 	char *token_array[8], temp[512];
@@ -78,7 +46,7 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 	int runs = 0;
 	FILE *fp;
 
-	printf("# checking for pass/fail\n");
+	ksft_print_msg("Checking for pass/fail\n");
 	fp = fopen(param->filename, "r");
 	if (!fp) {
 		perror("# Error in opening file\n");
@@ -86,7 +54,7 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 		return errno;
 	}
 
-	while (fgets(temp, 1024, fp)) {
+	while (fgets(temp, sizeof(temp), fp)) {
 		char *token = strtok(temp, ":\t");
 		int fields = 0;
 
@@ -101,17 +69,18 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 		runs++;
 	}
 	fclose(fp);
-	show_cache_info(sum_llc_occu_resc, no_of_bits, param->span);
 
-	return 0;
+	return show_cache_info(sum_llc_occu_resc, no_of_bits, param->span,
+			       MAX_DIFF, MAX_DIFF_PERCENT, NUM_OF_RUNS,
+			       true, true);
 }
 
-void cqm_test_cleanup(void)
+void cmt_test_cleanup(void)
 {
 	remove(RESULT_FILE_NAME);
 }
 
-int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
+int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 {
 	int ret, mum_resctrlfs;
 
@@ -122,10 +91,10 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	if (ret)
 		return ret;
 
-	if (!validate_resctrl_feature_request("cqm"))
+	if (!validate_resctrl_feature_request(CMT_STR))
 		return -1;
 
-	ret = get_cbm_mask("L3");
+	ret = get_cbm_mask("L3", cbm_mask);
 	if (ret)
 		return ret;
 
@@ -134,18 +103,18 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	ret = get_cache_size(cpu_no, "L3", &cache_size);
 	if (ret)
 		return ret;
-	printf("cache size :%lu\n", cache_size);
+	ksft_print_msg("Cache size :%lu\n", cache_size);
 
 	count_of_bits = count_bits(long_mask);
 
 	if (n < 1 || n > count_of_bits) {
-		printf("Invalid input value for numbr_of_bits n!\n");
-		printf("Please Enter value in range 1 to %d\n", count_of_bits);
+		ksft_print_msg("Invalid input value for numbr_of_bits n!\n");
+		ksft_print_msg("Please enter value in range 1 to %d\n", count_of_bits);
 		return -1;
 	}
 
 	struct resctrl_val_param param = {
-		.resctrl_val	= "cqm",
+		.resctrl_val	= CMT_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
 		.cpu_no		= cpu_no,
@@ -154,7 +123,7 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 		.mask		= ~(long_mask << n) & long_mask,
 		.span		= cache_size * n / count_of_bits,
 		.num_of_runs	= 0,
-		.setup		= cqm_setup,
+		.setup		= cmt_setup,
 	};
 
 	if (strcmp(benchmark_cmd[0], "fill_buf") == 0)
@@ -170,7 +139,7 @@ int cqm_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	if (ret)
 		return ret;
 
-	cqm_test_cleanup();
+	cmt_test_cleanup();
 
 	return 0;
 }
