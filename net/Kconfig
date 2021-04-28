@@ -431,7 +431,7 @@ config SOCK_VALIDATE_XMIT
 
 config NET_SELFTESTS
 	def_tristate PHYLIB
-	depends on PHYLIB
+	depends on PHYLIB && INET
 
 config NET_SOCK_MSG
 	bool
