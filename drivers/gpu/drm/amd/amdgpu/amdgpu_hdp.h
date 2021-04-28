@@ -23,6 +23,14 @@
 #ifndef __AMDGPU_HDP_H__
 #define __AMDGPU_HDP_H__
 
+struct amdgpu_hdp_ras_funcs {
+	int (*ras_late_init)(struct amdgpu_device *adev);
+	void (*ras_fini)(struct amdgpu_device *adev);
+	void (*query_ras_error_count)(struct amdgpu_device *adev,
+				      void *ras_error_status);
+	void (*reset_ras_error_count)(struct amdgpu_device *adev);
+};
+
 struct amdgpu_hdp_funcs {
 	void (*flush_hdp)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 	void (*invalidate_hdp)(struct amdgpu_device *adev,
@@ -34,7 +42,9 @@ struct amdgpu_hdp_funcs {
 };
 
 struct amdgpu_hdp {
+	struct ras_common_if			*ras_if;
 	const struct amdgpu_hdp_funcs		*funcs;
+	const struct amdgpu_hdp_ras_funcs	*ras_funcs;
 };
 
 #endif /* __AMDGPU_HDP_H__ */
