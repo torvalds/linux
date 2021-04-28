@@ -1401,16 +1401,31 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	else
 		props.power = FB_BLANK_POWERDOWN;
 
-	/*
-	 * Note: using the same name independent of the connector prevents
-	 * registration of multiple backlight devices in the driver.
-	 */
 	name = kstrdup("intel_backlight", GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
 
 	bd = backlight_device_register(name, connector->base.kdev, connector,
 				       &intel_backlight_device_ops, &props);
+
+	/*
+	 * Using the same name independent of the drm device or connector
+	 * prevents registration of multiple backlight devices in the
+	 * driver. However, we need to use the default name for backward
+	 * compatibility. Use unique names for subsequent backlight devices as a
+	 * fallback when the default name already exists.
+	 */
+	if (IS_ERR(bd) && PTR_ERR(bd) == -EEXIST) {
+		kfree(name);
+		name = kasprintf(GFP_KERNEL, "card%d-%s-backlight",
+				 i915->drm.primary->index, connector->base.name);
+		if (!name)
+			return -ENOMEM;
+
+		bd = backlight_device_register(name, connector->base.kdev, connector,
+					       &intel_backlight_device_ops, &props);
+	}
+
 	if (IS_ERR(bd)) {
 		drm_err(&i915->drm,
 			"[CONNECTOR:%d:%s] backlight device %s register failed: %ld\n",
