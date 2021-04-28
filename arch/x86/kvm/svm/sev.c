@@ -14,6 +14,7 @@
 #include <linux/psp-sev.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
+#include <linux/misc_cgroup.h>
 #include <linux/processor.h>
 #include <linux/trace_events.h>
 #include <asm/fpu/internal.h>
@@ -27,6 +28,21 @@
 #include "trace.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
+
+#ifndef CONFIG_KVM_AMD_SEV
+/*
+ * When this config is not defined, SEV feature is not supported and APIs in
+ * this file are not used but this file still gets compiled into the KVM AMD
+ * module.
+ *
+ * We will not have MISC_CG_RES_SEV and MISC_CG_RES_SEV_ES entries in the enum
+ * misc_res_type {} defined in linux/misc_cgroup.h.
+ *
+ * Below macros allow compilation to succeed.
+ */
+#define MISC_CG_RES_SEV MISC_CG_RES_TYPES
+#define MISC_CG_RES_SEV_ES MISC_CG_RES_TYPES
+#endif
 
 static u8 sev_enc_bit;
 static int sev_flush_asids(void);
@@ -89,8 +105,19 @@ static bool __sev_recycle_asids(int min_asid, int max_asid)
 
 static int sev_asid_new(struct kvm_sev_info *sev)
 {
-	int pos, min_asid, max_asid;
+	int pos, min_asid, max_asid, ret;
 	bool retry = true;
+	enum misc_res_type type;
+
+	type = sev->es_active ? MISC_CG_RES_SEV_ES : MISC_CG_RES_SEV;
+	WARN_ON(sev->misc_cg);
+	sev->misc_cg = get_current_misc_cg();
+	ret = misc_cg_try_charge(type, sev->misc_cg, 1);
+	if (ret) {
+		put_misc_cg(sev->misc_cg);
+		sev->misc_cg = NULL;
+		return ret;
+	}
 
 	mutex_lock(&sev_bitmap_lock);
 
@@ -108,7 +135,8 @@ again:
 			goto again;
 		}
 		mutex_unlock(&sev_bitmap_lock);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto e_uncharge;
 	}
 
 	__set_bit(pos, sev_asid_bitmap);
@@ -116,6 +144,11 @@ again:
 	mutex_unlock(&sev_bitmap_lock);
 
 	return pos + 1;
+e_uncharge:
+	misc_cg_uncharge(type, sev->misc_cg, 1);
+	put_misc_cg(sev->misc_cg);
+	sev->misc_cg = NULL;
+	return ret;
 }
 
 static int sev_get_asid(struct kvm *kvm)
@@ -125,14 +158,15 @@ static int sev_get_asid(struct kvm *kvm)
 	return sev->asid;
 }
 
-static void sev_asid_free(int asid)
+static void sev_asid_free(struct kvm_sev_info *sev)
 {
 	struct svm_cpu_data *sd;
 	int cpu, pos;
+	enum misc_res_type type;
 
 	mutex_lock(&sev_bitmap_lock);
 
-	pos = asid - 1;
+	pos = sev->asid - 1;
 	__set_bit(pos, sev_reclaim_asid_bitmap);
 
 	for_each_possible_cpu(cpu) {
@@ -141,6 +175,11 @@ static void sev_asid_free(int asid)
 	}
 
 	mutex_unlock(&sev_bitmap_lock);
+
+	type = sev->es_active ? MISC_CG_RES_SEV_ES : MISC_CG_RES_SEV;
+	misc_cg_uncharge(type, sev->misc_cg, 1);
+	put_misc_cg(sev->misc_cg);
+	sev->misc_cg = NULL;
 }
 
 static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
@@ -188,19 +227,20 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	asid = sev_asid_new(sev);
 	if (asid < 0)
 		return ret;
+	sev->asid = asid;
 
 	ret = sev_platform_init(&argp->error);
 	if (ret)
 		goto e_free;
 
 	sev->active = true;
-	sev->asid = asid;
 	INIT_LIST_HEAD(&sev->regions_list);
 
 	return 0;
 
 e_free:
-	sev_asid_free(asid);
+	sev_asid_free(sev);
+	sev->asid = 0;
 	return ret;
 }
 
@@ -1315,12 +1355,12 @@ void sev_vm_destroy(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 
 	sev_unbind_asid(kvm, sev->handle);
-	sev_asid_free(sev->asid);
+	sev_asid_free(sev);
 }
 
 void __init sev_hardware_setup(void)
 {
-	unsigned int eax, ebx, ecx, edx;
+	unsigned int eax, ebx, ecx, edx, sev_asid_count, sev_es_asid_count;
 	bool sev_es_supported = false;
 	bool sev_supported = false;
 
@@ -1352,7 +1392,11 @@ void __init sev_hardware_setup(void)
 	if (!sev_reclaim_asid_bitmap)
 		goto out;
 
-	pr_info("SEV supported: %u ASIDs\n", max_sev_asid - min_sev_asid + 1);
+	sev_asid_count = max_sev_asid - min_sev_asid + 1;
+	if (misc_cg_set_capacity(MISC_CG_RES_SEV, sev_asid_count))
+		goto out;
+
+	pr_info("SEV supported: %u ASIDs\n", sev_asid_count);
 	sev_supported = true;
 
 	/* SEV-ES support requested? */
@@ -1367,7 +1411,11 @@ void __init sev_hardware_setup(void)
 	if (min_sev_asid == 1)
 		goto out;
 
-	pr_info("SEV-ES supported: %u ASIDs\n", min_sev_asid - 1);
+	sev_es_asid_count = min_sev_asid - 1;
+	if (misc_cg_set_capacity(MISC_CG_RES_SEV_ES, sev_es_asid_count))
+		goto out;
+
+	pr_info("SEV-ES supported: %u ASIDs\n", sev_es_asid_count);
 	sev_es_supported = true;
 
 out:
@@ -1382,6 +1430,8 @@ void sev_hardware_teardown(void)
 
 	bitmap_free(sev_asid_bitmap);
 	bitmap_free(sev_reclaim_asid_bitmap);
+	misc_cg_set_capacity(MISC_CG_RES_SEV, 0);
+	misc_cg_set_capacity(MISC_CG_RES_SEV_ES, 0);
 
 	sev_flush_asids();
 }
