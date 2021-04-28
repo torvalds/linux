@@ -1708,6 +1708,7 @@ config BPF_SYSCALL
 	select BPF
 	select IRQ_WORK
 	select TASKS_TRACE_RCU
+	select BINARY_PRINTF
 	select NET_SOCK_MSG if INET
 	default n
 	help
