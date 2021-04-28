@@ -495,7 +495,8 @@ static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
  */
 static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 			    struct btrfs_space_info *space_info,
-			    u64 to_reclaim, bool wait_ordered)
+			    u64 to_reclaim, bool wait_ordered,
+			    bool for_preempt)
 {
 	struct btrfs_trans_handle *trans;
 	u64 delalloc_bytes;
@@ -532,7 +533,7 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 	 * ordered extents, otherwise we'll waste time trying to flush delalloc
 	 * that likely won't give us the space back we need.
 	 */
-	if (ordered_bytes > delalloc_bytes)
+	if (ordered_bytes > delalloc_bytes && !for_preempt)
 		wait_ordered = true;
 
 	loops = 0;
@@ -550,6 +551,14 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 			if (time_left)
 				break;
 		}
+
+		/*
+		 * If we are for preemption we just want a one-shot of delalloc
+		 * flushing so we can stop flushing if we decide we don't need
+		 * to anymore.
+		 */
+		if (for_preempt)
+			break;
 
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets) &&
@@ -702,7 +711,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 	case FLUSH_DELALLOC:
 	case FLUSH_DELALLOC_WAIT:
 		shrink_delalloc(fs_info, space_info, num_bytes,
-				state == FLUSH_DELALLOC_WAIT);
+				state == FLUSH_DELALLOC_WAIT, for_preempt);
 		break;
 	case FLUSH_DELAYED_REFS_NR:
 	case FLUSH_DELAYED_REFS:
