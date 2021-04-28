@@ -1,12 +1,14 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Writing DeviceTree Bindings in json-schema
+Writing Devicetree Bindings in json-schema
 ==========================================
 
 Devicetree bindings are written using json-schema vocabulary. Schema files are
 written in a JSON compatible subset of YAML. YAML is used instead of JSON as it
 is considered more human readable and has some advantages such as allowing
 comments (Prefixed with '#').
+
+Also see :ref:`example-schema`.
 
 Schema Contents
 ---------------
@@ -46,12 +48,12 @@ select
   schema. By default without 'select', nodes are matched against their possible
   compatible string values or node name. Most bindings should not need select.
 
- allOf
+allOf
   Optional. A list of other schemas to include. This is used to
   include other schemas the binding conforms to. This may be schemas for a
   particular class of devices such as I2C or SPI controllers.
 
- properties
+properties
   A set of sub-schema defining all the DT properties for the
   binding. The exact schema syntax depends on whether properties are known,
   common properties (e.g. 'interrupts') or are binding/vendor specific properties.
@@ -170,3 +172,12 @@ json-schema Resources
 `JSON-Schema Specifications <http://json-schema.org/>`_
 
 `Using JSON Schema Book <http://usingjsonschema.com/>`_
+
+.. _example-schema:
+
+Annotated Example Schema
+------------------------
+
+Also available as a separate file: :download:`example-schema.yaml`
+
+.. literalinclude:: example-schema.yaml
