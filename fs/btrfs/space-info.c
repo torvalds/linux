@@ -871,7 +871,7 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 		used += fs_info->delayed_refs_rsv.reserved +
 			fs_info->delayed_block_rsv.reserved;
 	else
-		used += space_info->bytes_may_use;
+		used += space_info->bytes_may_use - global_rsv_size;
 
 	return (used >= thresh && !btrfs_fs_closing(fs_info) &&
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
