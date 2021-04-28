@@ -840,8 +840,10 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 
 	thresh = calc_available_free_space(fs_info, space_info,
 					   BTRFS_RESERVE_FLUSH_ALL);
-	thresh += (space_info->total_bytes - space_info->bytes_used -
-		   space_info->bytes_reserved - space_info->bytes_readonly);
+	used = space_info->bytes_used + space_info->bytes_reserved +
+	       space_info->bytes_readonly + global_rsv_size;
+	if (used < space_info->total_bytes)
+		thresh += space_info->total_bytes - used;
 	thresh >>= space_info->clamp;
 
 	used = space_info->bytes_pinned;
