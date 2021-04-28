@@ -1561,6 +1561,15 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		    flush == BTRFS_RESERVE_FLUSH_DATA) {
 			list_add_tail(&ticket.list, &space_info->tickets);
 			if (!space_info->flush) {
+				/*
+				 * We were forced to add a reserve ticket, so
+				 * our preemptive flushing is unable to keep
+				 * up.  Clamp down on the threshold for the
+				 * preemptive flushing in order to keep up with
+				 * the workload.
+				 */
+				maybe_clamp_preempt(fs_info, space_info);
+
 				space_info->flush = 1;
 				trace_btrfs_trigger_flush(fs_info,
 							  space_info->flags,
@@ -1572,14 +1581,6 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 			list_add_tail(&ticket.list,
 				      &space_info->priority_tickets);
 		}
-
-		/*
-		 * We were forced to add a reserve ticket, so our preemptive
-		 * flushing is unable to keep up.  Clamp down on the threshold
-		 * for the preemptive flushing in order to keep up with the
-		 * workload.
-		 */
-		maybe_clamp_preempt(fs_info, space_info);
 	} else if (!ret && space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		used += orig_bytes;
 		/*
