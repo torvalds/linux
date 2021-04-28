@@ -46,10 +46,8 @@
 
 #define PVH_GDT_ENTRY_CS	1
 #define PVH_GDT_ENTRY_DS	2
-#define PVH_GDT_ENTRY_CANARY	3
 #define PVH_CS_SEL		(PVH_GDT_ENTRY_CS * 8)
 #define PVH_DS_SEL		(PVH_GDT_ENTRY_DS * 8)
-#define PVH_CANARY_SEL		(PVH_GDT_ENTRY_CANARY * 8)
 
 SYM_CODE_START_LOCAL(pvh_start_xen)
 	cld
@@ -111,17 +109,6 @@ SYM_CODE_START_LOCAL(pvh_start_xen)
 
 #else /* CONFIG_X86_64 */
 
-	/* Set base address in stack canary descriptor. */
-	movl $_pa(gdt_start),%eax
-	movl $_pa(canary),%ecx
-	movw %cx, (PVH_GDT_ENTRY_CANARY * 8) + 2(%eax)
-	shrl $16, %ecx
-	movb %cl, (PVH_GDT_ENTRY_CANARY * 8) + 4(%eax)
-	movb %ch, (PVH_GDT_ENTRY_CANARY * 8) + 7(%eax)
-
-	mov $PVH_CANARY_SEL,%eax
-	mov %eax,%gs
-
 	call mk_early_pgtbl_32
 
 	mov $_pa(initial_page_table), %eax
@@ -165,7 +152,6 @@ SYM_DATA_START_LOCAL(gdt_start)
 	.quad GDT_ENTRY(0xc09a, 0, 0xfffff) /* PVH_CS_SEL */
 #endif
 	.quad GDT_ENTRY(0xc092, 0, 0xfffff) /* PVH_DS_SEL */
-	.quad GDT_ENTRY(0x4090, 0, 0x18)    /* PVH_CANARY_SEL */
 SYM_DATA_END_LABEL(gdt_start, SYM_L_LOCAL, gdt_end)
 
 	.balign 16

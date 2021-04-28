@@ -20,7 +20,7 @@
  *	1C(%esp) - %ds
  *	20(%esp) - %es
  *	24(%esp) - %fs
- *	28(%esp) - %gs		saved iff !CONFIG_X86_32_LAZY_GS
+ *	28(%esp) - unused -- was %gs on old stackprotector kernels
  *	2C(%esp) - orig_eax
  *	30(%esp) - %eip
  *	34(%esp) - %cs
@@ -52,83 +52,6 @@
 	.section .entry.text, "ax"
 
 #define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
-
-/*
- * User gs save/restore
- *
- * %gs is used for userland TLS and kernel only uses it for stack
- * canary which is required to be at %gs:20 by gcc.  Read the comment
- * at the top of stackprotector.h for more info.
- *
- * Local labels 98 and 99 are used.
- */
-#ifdef CONFIG_X86_32_LAZY_GS
-
- /* unfortunately push/pop can't be no-op */
-.macro PUSH_GS
-	pushl	$0
-.endm
-.macro POP_GS pop=0
-	addl	$(4 + \pop), %esp
-.endm
-.macro POP_GS_EX
-.endm
-
- /* all the rest are no-op */
-.macro PTGS_TO_GS
-.endm
-.macro PTGS_TO_GS_EX
-.endm
-.macro GS_TO_REG reg
-.endm
-.macro REG_TO_PTGS reg
-.endm
-.macro SET_KERNEL_GS reg
-.endm
-
-#else	/* CONFIG_X86_32_LAZY_GS */
-
-.macro PUSH_GS
-	pushl	%gs
-.endm
-
-.macro POP_GS pop=0
-98:	popl	%gs
-  .if \pop <> 0
-	add	$\pop, %esp
-  .endif
-.endm
-.macro POP_GS_EX
-.pushsection .fixup, "ax"
-99:	movl	$0, (%esp)
-	jmp	98b
-.popsection
-	_ASM_EXTABLE(98b, 99b)
-.endm
-
-.macro PTGS_TO_GS
-98:	mov	PT_GS(%esp), %gs
-.endm
-.macro PTGS_TO_GS_EX
-.pushsection .fixup, "ax"
-99:	movl	$0, PT_GS(%esp)
-	jmp	98b
-.popsection
-	_ASM_EXTABLE(98b, 99b)
-.endm
-
-.macro GS_TO_REG reg
-	movl	%gs, \reg
-.endm
-.macro REG_TO_PTGS reg
-	movl	\reg, PT_GS(%esp)
-.endm
-.macro SET_KERNEL_GS reg
-	movl	$(__KERNEL_STACK_CANARY), \reg
-	movl	\reg, %gs
-.endm
-
-#endif /* CONFIG_X86_32_LAZY_GS */
 
 /* Unconditionally switch to user cr3 */
 .macro SWITCH_TO_USER_CR3 scratch_reg:req
@@ -282,7 +205,7 @@
 .macro SAVE_ALL pt_regs_ax=%eax switch_stacks=0 skip_gs=0 unwind_espfix=0
 	cld
 .if \skip_gs == 0
-	PUSH_GS
+	pushl	$0
 .endif
 	pushl	%fs
 
@@ -307,9 +230,6 @@
 	movl	$(__USER_DS), %edx
 	movl	%edx, %ds
 	movl	%edx, %es
-.if \skip_gs == 0
-	SET_KERNEL_GS %edx
-.endif
 	/* Switch to kernel stack if necessary */
 .if \switch_stacks > 0
 	SWITCH_TO_KERNEL_STACK
@@ -348,7 +268,7 @@
 1:	popl	%ds
 2:	popl	%es
 3:	popl	%fs
-	POP_GS \pop
+	addl	$(4 + \pop), %esp	/* pop the unused "gs" slot */
 	IRET_FRAME
 .pushsection .fixup, "ax"
 4:	movl	$0, (%esp)
@@ -361,7 +281,6 @@
 	_ASM_EXTABLE(1b, 4b)
 	_ASM_EXTABLE(2b, 5b)
 	_ASM_EXTABLE(3b, 6b)
-	POP_GS_EX
 .endm
 
 .macro RESTORE_ALL_NMI cr3_reg:req pop=0
@@ -779,7 +698,7 @@ SYM_CODE_START(__switch_to_asm)
 
 #ifdef CONFIG_STACKPROTECTOR
 	movl	TASK_stack_canary(%edx), %ebx
-	movl	%ebx, PER_CPU_VAR(stack_canary)+stack_canary_offset
+	movl	%ebx, PER_CPU_VAR(__stack_chk_guard)
 #endif
 
 #ifdef CONFIG_RETPOLINE
@@ -976,7 +895,6 @@ SYM_FUNC_START(entry_SYSENTER_32)
 	movl	PT_EIP(%esp), %edx	/* pt_regs->ip */
 	movl	PT_OLDESP(%esp), %ecx	/* pt_regs->sp */
 1:	mov	PT_FS(%esp), %fs
-	PTGS_TO_GS
 
 	popl	%ebx			/* pt_regs->bx */
 	addl	$2*4, %esp		/* skip pt_regs->cx and pt_regs->dx */
@@ -1012,7 +930,6 @@ SYM_FUNC_START(entry_SYSENTER_32)
 	jmp	1b
 .popsection
 	_ASM_EXTABLE(1b, 2b)
-	PTGS_TO_GS_EX
 
 .Lsysenter_fix_flags:
 	pushl	$X86_EFLAGS_FIXED
@@ -1154,11 +1071,7 @@ SYM_CODE_START_LOCAL_NOALIGN(handle_exception)
 	SAVE_ALL switch_stacks=1 skip_gs=1 unwind_espfix=1
 	ENCODE_FRAME_POINTER
 
-	/* fixup %gs */
-	GS_TO_REG %ecx
 	movl	PT_GS(%esp), %edi		# get the function address
-	REG_TO_PTGS %ecx
-	SET_KERNEL_GS %ecx
 
 	/* fixup orig %eax */
 	movl	PT_ORIG_EAX(%esp), %edx		# get the error code
