@@ -669,7 +669,7 @@ int rtw_startbss_cmd(struct adapter  *padapter, int flags)
 
 	if (flags & RTW_CMDF_DIRECTLY) {
 		/* no need to enqueue, do the cmd hdl directly and free cmd parameter */
-		start_bss_network(padapter, (u8 *)&(padapter->mlmepriv.cur_network.network));
+		start_bss_network(padapter);
 	} else {
 		/* need enqueue, prepare cmd_obj and enqueue */
 		pcmd = rtw_zmalloc(sizeof(struct cmd_obj));

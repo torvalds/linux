@@ -653,7 +653,7 @@ static void update_hw_ht_param(struct adapter *padapter)
 	/* pmlmeinfo->HT_protection = pmlmeinfo->HT_info.infos[1] & 0x3; */
 }
 
-void start_bss_network(struct adapter *padapter, u8 *pbuf)
+void start_bss_network(struct adapter *padapter)
 {
 	u8 *p;
 	u8 val8, cur_channel, cur_bwmode, cur_ch_offset;
@@ -2039,7 +2039,6 @@ void ap_sta_info_defer_update(struct adapter *padapter, struct sta_info *psta)
 /* restore hw setting from sw data structures */
 void rtw_ap_restore_network(struct adapter *padapter)
 {
-	struct mlme_priv *mlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info *psta;
@@ -2058,7 +2057,7 @@ void rtw_ap_restore_network(struct adapter *padapter)
 		pmlmeext->cur_bwmode
 	);
 
-	start_bss_network(padapter, (u8 *)&mlmepriv->cur_network.network);
+	start_bss_network(padapter);
 
 	if ((padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
 		(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)) {

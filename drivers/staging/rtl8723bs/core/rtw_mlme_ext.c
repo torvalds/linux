@@ -5455,9 +5455,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 	/* u32 initialgain; */
 
 	if (pmlmeinfo->state == WIFI_FW_AP_STATE) {
-		struct wlan_bssid_ex *network = &padapter->mlmepriv.cur_network.network;
-
-		start_bss_network(padapter, (u8 *)network);
+		start_bss_network(padapter);
 		return H2C_SUCCESS;
 	}
 
