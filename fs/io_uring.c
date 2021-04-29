@@ -9627,7 +9627,9 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	if (ret)
 		goto err;
 	/* always set a rsrc node */
-	io_rsrc_node_switch_start(ctx);
+	ret = io_rsrc_node_switch_start(ctx);
+	if (ret)
+		goto err;
 	io_rsrc_node_switch(ctx, NULL);
 
 	memset(&p->sq_off, 0, sizeof(p->sq_off));
