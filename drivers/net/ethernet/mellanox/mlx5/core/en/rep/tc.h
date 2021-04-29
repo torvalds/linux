@@ -64,7 +64,6 @@ static inline int
 mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		   void *type_data) { return -EOPNOTSUPP; }
 
-struct mlx5e_tc_update_priv;
 static inline void
 mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 		     struct sk_buff *skb) {}

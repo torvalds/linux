@@ -38,6 +38,7 @@
 #include "eswitch.h"
 #include "en/tc_ct.h"
 #include "en/tc_tun.h"
+#include "en/tc/int_port.h"
 #include "en_rep.h"
 
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
@@ -103,6 +104,8 @@ struct mlx5_rx_tun_attr {
 
 #define MLX5E_TC_TABLE_CHAIN_TAG_BITS 16
 #define MLX5E_TC_TABLE_CHAIN_TAG_MASK GENMASK(MLX5E_TC_TABLE_CHAIN_TAG_BITS - 1, 0)
+
+#define MLX5E_TC_MAX_INT_PORT_NUM (8)
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 

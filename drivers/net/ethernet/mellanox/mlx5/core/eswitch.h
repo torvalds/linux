@@ -51,6 +51,7 @@
 enum mlx5_mapped_obj_type {
 	MLX5_MAPPED_OBJ_CHAIN,
 	MLX5_MAPPED_OBJ_SAMPLE,
+	MLX5_MAPPED_OBJ_INT_PORT_METADATA,
 };
 
 struct mlx5_mapped_obj {
@@ -63,6 +64,7 @@ struct mlx5_mapped_obj {
 			u32 trunc_size;
 			u32 tunnel_id;
 		} sample;
+		u32 int_port_metadata;
 	};
 };
 
@@ -88,6 +90,7 @@ enum {
 	MAPPING_TYPE_TUNNEL_ENC_OPTS,
 	MAPPING_TYPE_LABELS,
 	MAPPING_TYPE_ZONE,
+	MAPPING_TYPE_INT_PORT,
 };
 
 struct vport_ingress {
@@ -335,6 +338,9 @@ u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw);
 void mlx5_esw_match_metadata_free(struct mlx5_eswitch *esw, u32 metadata);
 
 int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 rate_mbps);
+
+bool mlx5_esw_vport_match_metadata_supported(const struct mlx5_eswitch *esw);
+int mlx5_esw_offloads_vport_metadata_set(struct mlx5_eswitch *esw, bool enable);
 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
