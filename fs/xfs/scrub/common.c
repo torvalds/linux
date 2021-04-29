@@ -402,22 +402,22 @@ int
 xchk_ag_read_headers(
 	struct xfs_scrub	*sc,
 	xfs_agnumber_t		agno,
-	struct xfs_buf		**agi,
-	struct xfs_buf		**agf,
-	struct xfs_buf		**agfl)
+	struct xchk_ag		*sa)
 {
 	struct xfs_mount	*mp = sc->mp;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, sc->tp, agno, agi);
+	sa->agno = agno;
+
+	error = xfs_ialloc_read_agi(mp, sc->tp, agno, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		goto out;
 
-	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, agf);
+	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &sa->agf_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		goto out;
 
-	error = xfs_alloc_read_agfl(mp, sc->tp, agno, agfl);
+	error = xfs_alloc_read_agfl(mp, sc->tp, agno, &sa->agfl_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		goto out;
 	error = 0;
@@ -452,7 +452,7 @@ xchk_ag_btcur_free(
 }
 
 /* Initialize all the btree cursors for an AG. */
-int
+void
 xchk_ag_btcur_init(
 	struct xfs_scrub	*sc,
 	struct xchk_ag		*sa)
@@ -502,8 +502,6 @@ xchk_ag_btcur_init(
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
 				sa->agf_bp, agno);
 	}
-
-	return 0;
 }
 
 /* Release the AG header context and btree cursors. */
@@ -547,13 +545,12 @@ xchk_ag_init(
 {
 	int			error;
 
-	sa->agno = agno;
-	error = xchk_ag_read_headers(sc, agno, &sa->agi_bp,
-			&sa->agf_bp, &sa->agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, sa);
 	if (error)
 		return error;
 
-	return xchk_ag_btcur_init(sc, sa);
+	xchk_ag_btcur_init(sc, sa);
+	return 0;
 }
 
 /*
@@ -596,8 +593,7 @@ xchk_trans_alloc(
 /* Set us up with a transaction and an empty context. */
 int
 xchk_setup_fs(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
 	uint			resblks;
 
@@ -609,7 +605,6 @@ xchk_setup_fs(
 int
 xchk_setup_ag_btree(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip,
 	bool			force_log)
 {
 	struct xfs_mount	*mp = sc->mp;
@@ -627,7 +622,7 @@ xchk_setup_ag_btree(
 			return error;
 	}
 
-	error = xchk_setup_fs(sc, ip);
+	error = xchk_setup_fs(sc);
 	if (error)
 		return error;
 
@@ -655,11 +650,11 @@ xchk_checkpoint_log(
  */
 int
 xchk_get_inode(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip_in)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_imap		imap;
 	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
 	struct xfs_inode	*ip = NULL;
 	int			error;
 
@@ -720,12 +715,11 @@ xchk_get_inode(
 int
 xchk_setup_inode_contents(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip,
 	unsigned int		resblks)
 {
 	int			error;
 
-	error = xchk_get_inode(sc, ip);
+	error = xchk_get_inode(sc);
 	if (error)
 		return error;
 
@@ -821,7 +815,7 @@ xchk_metadata_inode_forks(
 		return 0;
 
 	/* Metadata inodes don't live on the rt device. */
-	if (sc->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
+	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME) {
 		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 		return 0;
 	}

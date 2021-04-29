@@ -116,8 +116,7 @@ next_loop_perag:
 
 int
 xchk_setup_fscounters(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
 	struct xchk_fscounters	*fsc;
 	int			error;
