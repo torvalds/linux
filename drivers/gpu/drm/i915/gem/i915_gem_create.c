@@ -8,6 +8,7 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "i915_user_extensions.h"
 
 static int i915_gem_publish(struct drm_i915_gem_object *obj,
 			    struct drm_file *file,
@@ -135,6 +136,61 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	obj = i915_gem_object_alloc();
 	if (!obj)
 		return -ENOMEM;
+
+	ret = i915_gem_setup(obj,
+			     intel_memory_region_by_type(i915,
+							 INTEL_MEMORY_SYSTEM),
+			     args->size);
+	if (ret)
+		goto object_free;
+
+	return i915_gem_publish(obj, file, &args->size, &args->handle);
+
+object_free:
+	i915_gem_object_free(obj);
+	return ret;
+}
+
+struct create_ext {
+	struct drm_i915_private *i915;
+	struct drm_i915_gem_object *vanilla_object;
+};
+
+static const i915_user_extension_fn create_extensions[] = {
+};
+
+/**
+ * Creates a new mm object and returns a handle to it.
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
+ */
+int
+i915_gem_create_ext_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
+{
+	struct drm_i915_private *i915 = to_i915(dev);
+	struct drm_i915_gem_create_ext *args = data;
+	struct create_ext ext_data = { .i915 = i915 };
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	if (args->flags)
+		return -EINVAL;
+
+	i915_gem_flush_free_objects(i915);
+
+	obj = i915_gem_object_alloc();
+	if (!obj)
+		return -ENOMEM;
+
+	ext_data.vanilla_object = obj;
+	ret = i915_user_extensions(u64_to_user_ptr(args->extensions),
+				   create_extensions,
+				   ARRAY_SIZE(create_extensions),
+				   &ext_data);
+	if (ret)
+		goto object_free;
 
 	ret = i915_gem_setup(obj,
 			     intel_memory_region_by_type(i915,
