@@ -32,7 +32,6 @@
 #include <linux/dma-map-ops.h>
 #include <mach/udc.h>
 #include <mach/hardware.h>
-#include <mach/io.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/exception.h>

@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <scsi/scsi_host.h>
+#include <mach/hardware.h>
 
 #define DRV_NAME	"pata_ixp4xx_cf"
 #define DRV_VERSION	"0.2"
