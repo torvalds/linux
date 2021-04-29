@@ -45,16 +45,16 @@ obj-y		:= $(filter-out %/, $(obj-y))
 endif
 
 # Expand $(foo-objs) $(foo-y) by calling $(call suffix-search,foo.o,-objs -y)
-suffix-search = $(foreach s,$(2),$($(1:.o=$s)))
+suffix-search = $(strip $(foreach s, $2, $($(1:.o=$s))))
 # If $(foo-objs), $(foo-y), $(foo-m), or $(foo-) exists, foo.o is a composite object
-multi-search = $(sort $(foreach m,$(1), $(if $(strip $(call suffix-search,$(m),$(2) -)), $(m))))
-multi-used-y := $(call multi-search,$(obj-y),-objs -y)
-multi-used-m := $(call multi-search,$(obj-m),-objs -y -m)
-multi-used   := $(multi-used-y) $(multi-used-m)
+multi-search = $(sort $(foreach m, $1, $(if $(call suffix-search, $m, $2 -), $m)))
+multi-obj-y := $(call multi-search,$(obj-y),-objs -y)
+multi-obj-m := $(call multi-search,$(obj-m),-objs -y -m)
+multi-obj-ym := $(multi-obj-y) $(multi-obj-m)
 
 # Replace multi-part objects by their individual parts,
 # including built-in.a from subdirectories
-real-search = $(foreach m,$(1), $(if $(strip $(call suffix-search,$(m),$(2) -)),$(call suffix-search,$(m),$(2)),$(m)))
+real-search = $(foreach m, $1, $(if $(call suffix-search, $m, $2 -), $(call suffix-search, $m, $2), $m))
 real-obj-y := $(call real-search, $(obj-y),-objs -y)
 real-obj-m := $(call real-search, $(obj-m),-objs -y -m)
 
@@ -104,12 +104,12 @@ obj-m		:= $(addprefix $(obj)/,$(obj-m))
 lib-y		:= $(addprefix $(obj)/,$(lib-y))
 real-obj-y	:= $(addprefix $(obj)/,$(real-obj-y))
 real-obj-m	:= $(addprefix $(obj)/,$(real-obj-m))
-multi-used-m	:= $(addprefix $(obj)/,$(multi-used-m))
+multi-obj-m	:= $(addprefix $(obj)/, $(multi-obj-m))
 subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
 
 # Finds the multi-part object the current object will be linked into.
 # If the object belongs to two or more multi-part objects, list them all.
-modname-multi = $(sort $(foreach m,$(multi-used),\
+modname-multi = $(sort $(foreach m,$(multi-obj-ym),\
 		$(if $(filter $*.o, $($(m:.o=-objs)) $($(m:.o=-y)) $($(m:.o=-m))),$(m:.o=))))
 
 __modname = $(if $(modname-multi),$(modname-multi),$(basetarget))

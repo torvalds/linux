@@ -14,7 +14,7 @@ PHONY := __dtbs_install
 __dtbs_install:
 
 include include/config/auto.conf
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 include $(src)/Makefile
 
 dtbs    := $(addprefix $(dst)/, $(dtb-y) $(if $(CONFIG_OF_ALL_DTBS),$(dtb-)))

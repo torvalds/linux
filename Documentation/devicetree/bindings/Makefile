@@ -48,7 +48,7 @@ define rule_chkdt
 	$(call cmd,mk_schema)
 endef
 
-DT_DOCS = $(shell $(find_cmd) | sed -e 's|^$(srctree)/||')
+DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_cmd)))
 
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \
