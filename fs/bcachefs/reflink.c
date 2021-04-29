@@ -42,24 +42,22 @@ void bch2_reflink_p_to_text(struct printbuf *out, struct bch_fs *c,
 	pr_buf(out, "idx %llu", le64_to_cpu(p.v->idx));
 }
 
-enum merge_result bch2_reflink_p_merge(struct bch_fs *c,
-				       struct bkey_s _l, struct bkey_s _r)
+bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
 {
 	struct bkey_s_reflink_p l = bkey_s_to_reflink_p(_l);
-	struct bkey_s_reflink_p r = bkey_s_to_reflink_p(_r);
+	struct bkey_s_c_reflink_p r = bkey_s_c_to_reflink_p(_r);
+
+	/*
+	 * Disabled for now, the triggers code needs to be reworked for merging
+	 * of reflink pointers to work:
+	 */
+	return false;
 
 	if (le64_to_cpu(l.v->idx) + l.k->size != le64_to_cpu(r.v->idx))
-		return BCH_MERGE_NOMERGE;
-
-	if ((u64) l.k->size + r.k->size > KEY_SIZE_MAX) {
-		bch2_key_resize(l.k, KEY_SIZE_MAX);
-		bch2_cut_front_s(l.k->p, _r);
-		return BCH_MERGE_PARTIAL;
-	}
+		return false;
 
 	bch2_key_resize(l.k, l.k->size + r.k->size);
-
-	return BCH_MERGE_MERGE;
+	return true;
 }
 
 /* indirect extents */

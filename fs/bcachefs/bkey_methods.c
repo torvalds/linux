@@ -84,7 +84,7 @@ static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
 	.val_to_text	= key_type_inline_data_to_text,	\
 }
 
-static const struct bkey_ops bch2_bkey_ops[] = {
+const struct bkey_ops bch2_bkey_ops[] = {
 #define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
 	BCH_BKEY_TYPES()
 #undef x
@@ -292,24 +292,11 @@ bool bch2_bkey_normalize(struct bch_fs *c, struct bkey_s k)
 		: false;
 }
 
-enum merge_result bch2_bkey_merge(struct bch_fs *c,
-				  struct bkey_s l, struct bkey_s r)
+bool bch2_bkey_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 {
 	const struct bkey_ops *ops = &bch2_bkey_ops[l.k->type];
-	enum merge_result ret;
 
-	if (bch2_key_merging_disabled ||
-	    !ops->key_merge ||
-	    l.k->type != r.k->type ||
-	    bversion_cmp(l.k->version, r.k->version) ||
-	    bpos_cmp(l.k->p, bkey_start_pos(r.k)))
-		return BCH_MERGE_NOMERGE;
-
-	ret = ops->key_merge(c, l, r);
-
-	if (ret != BCH_MERGE_NOMERGE)
-		l.k->needs_whiteout |= r.k->needs_whiteout;
-	return ret;
+	return bch2_bkey_maybe_mergable(l.k, r.k) && ops->key_merge(c, l, r);
 }
 
 static const struct old_bkey_type {

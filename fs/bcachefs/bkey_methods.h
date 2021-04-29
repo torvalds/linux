@@ -11,17 +11,6 @@ enum btree_node_type;
 
 extern const char * const bch2_bkey_types[];
 
-enum merge_result {
-	BCH_MERGE_NOMERGE,
-
-	/*
-	 * The keys were mergeable, but would have overflowed size - so instead
-	 * l was changed to the maximum size, and both keys were modified:
-	 */
-	BCH_MERGE_PARTIAL,
-	BCH_MERGE_MERGE,
-};
-
 struct bkey_ops {
 	/* Returns reason for being invalid if invalid, else NULL: */
 	const char *	(*key_invalid)(const struct bch_fs *,
@@ -30,12 +19,13 @@ struct bkey_ops {
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
 	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
-	enum merge_result (*key_merge)(struct bch_fs *,
-				       struct bkey_s, struct bkey_s);
+	bool		(*key_merge)(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	void		(*compat)(enum btree_id id, unsigned version,
 				  unsigned big_endian, int write,
 				  struct bkey_s);
 };
+
+extern const struct bkey_ops bch2_bkey_ops[];
 
 const char *bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c);
 const char *__bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
@@ -57,8 +47,17 @@ void bch2_bkey_swab_val(struct bkey_s);
 
 bool bch2_bkey_normalize(struct bch_fs *, struct bkey_s);
 
-enum merge_result bch2_bkey_merge(struct bch_fs *,
-				  struct bkey_s, struct bkey_s);
+static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct bkey *r)
+{
+	return l->type == r->type &&
+		!bversion_cmp(l->version, r->version) &&
+		!bpos_cmp(l->p, bkey_start_pos(r)) &&
+		(u64) l->size + r->size <= KEY_SIZE_MAX &&
+		bch2_bkey_ops[l->type].key_merge &&
+		!bch2_key_merging_disabled;
+}
+
+bool bch2_bkey_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 void bch2_bkey_renumber(enum btree_node_type, struct bkey_packed *, int);
 

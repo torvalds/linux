@@ -394,8 +394,7 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 
 const char *bch2_extent_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_extent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
-enum merge_result bch2_extent_merge(struct bch_fs *,
-				    struct bkey_s, struct bkey_s);
+bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 #define bch2_bkey_ops_extent (struct bkey_ops) {		\
 	.key_invalid	= bch2_extent_invalid,			\
@@ -409,8 +408,7 @@ enum merge_result bch2_extent_merge(struct bch_fs *,
 
 const char *bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
-enum merge_result bch2_reservation_merge(struct bch_fs *,
-					 struct bkey_s, struct bkey_s);
+bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 #define bch2_bkey_ops_reservation (struct bkey_ops) {		\
 	.key_invalid	= bch2_reservation_invalid,		\
