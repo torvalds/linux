@@ -18216,7 +18216,6 @@ F:	sound/soc/codecs/isabelle*
 F:	sound/soc/codecs/lm49453*
 
 TI NETCP ETHERNET DRIVER
-M:	Wingman Kwok <w-kwok2@ti.com>
 M:	Murali Karicheri <m-karicheri2@ti.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
