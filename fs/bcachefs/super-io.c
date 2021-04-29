@@ -373,9 +373,15 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.clean		= BCH_SB_CLEAN(src);
 	c->sb.encryption_type	= BCH_SB_ENCRYPTION_TYPE(src);
 	c->sb.encoded_extent_max= 1 << BCH_SB_ENCODED_EXTENT_MAX_BITS(src);
-	c->sb.time_base_lo	= le64_to_cpu(src->time_base_lo);
+
+	c->sb.nsec_per_time_unit = le32_to_cpu(src->time_precision);
+	c->sb.time_units_per_sec = NSEC_PER_SEC / c->sb.nsec_per_time_unit;
+
+	/* XXX this is wrong, we need a 96 or 128 bit integer type */
+	c->sb.time_base_lo	= div_u64(le64_to_cpu(src->time_base_lo),
+					  c->sb.nsec_per_time_unit);
 	c->sb.time_base_hi	= le32_to_cpu(src->time_base_hi);
-	c->sb.time_precision	= le32_to_cpu(src->time_precision);
+
 	c->sb.features		= le64_to_cpu(src->features[0]);
 	c->sb.compat		= le64_to_cpu(src->compat[0]);
 

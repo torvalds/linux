@@ -605,10 +605,12 @@ struct bch_fs {
 
 		u64		time_base_lo;
 		u32		time_base_hi;
-		u32		time_precision;
+		unsigned	time_units_per_sec;
+		unsigned	nsec_per_time_unit;
 		u64		features;
 		u64		compat;
 	}			sb;
+
 
 	struct bch_sb_handle	disk_sb;
 
@@ -872,19 +874,22 @@ static inline unsigned block_bytes(const struct bch_fs *c)
 	return c->opts.block_size << 9;
 }
 
-static inline struct timespec64 bch2_time_to_timespec(struct bch_fs *c, u64 time)
+static inline struct timespec64 bch2_time_to_timespec(struct bch_fs *c, s64 time)
 {
-	return ns_to_timespec64(time * c->sb.time_precision + c->sb.time_base_lo);
+	struct timespec64 t;
+	s32 rem;
+
+	time += c->sb.time_base_lo;
+
+	t.tv_sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
+	t.tv_nsec = rem * c->sb.nsec_per_time_unit;
+	return t;
 }
 
 static inline s64 timespec_to_bch2_time(struct bch_fs *c, struct timespec64 ts)
 {
-	s64 ns = timespec64_to_ns(&ts) - c->sb.time_base_lo;
-
-	if (c->sb.time_precision == 1)
-		return ns;
-
-	return div_s64(ns, c->sb.time_precision);
+	return (ts.tv_sec * c->sb.time_units_per_sec +
+		(int) ts.tv_nsec / c->sb.nsec_per_time_unit) - c->sb.time_base_lo;
 }
 
 static inline s64 bch2_current_time(struct bch_fs *c)

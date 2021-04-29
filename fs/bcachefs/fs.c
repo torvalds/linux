@@ -1565,7 +1565,9 @@ got_sb:
 #endif
 	sb->s_xattr		= bch2_xattr_handlers;
 	sb->s_magic		= BCACHEFS_STATFS_MAGIC;
-	sb->s_time_gran		= c->sb.time_precision;
+	sb->s_time_gran		= c->sb.nsec_per_time_unit;
+	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
+	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
 	c->vfs_sb		= sb;
 	strlcpy(sb->s_id, c->name, sizeof(sb->s_id));
 
