@@ -464,7 +464,7 @@ static void __iomem *crb_map_res(struct device *dev, struct resource *iores,
 
 	/* Detect a 64 bit address on a 32 bit system */
 	if (start != new_res.start)
-		return (void __iomem *) ERR_PTR(-EINVAL);
+		return IOMEM_ERR_PTR(-EINVAL);
 
 	if (!iores)
 		return devm_ioremap_resource(dev, &new_res);
