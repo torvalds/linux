@@ -3180,6 +3180,7 @@ static int stmmac_fpe_start_wq(struct stmmac_priv *priv)
 	char *name;
 
 	clear_bit(__FPE_TASK_SCHED, &priv->fpe_task_state);
+	clear_bit(__FPE_REMOVING,  &priv->fpe_task_state);
 
 	name = priv->wq_name;
 	sprintf(name, "%s-fpe", priv->dev->name);
