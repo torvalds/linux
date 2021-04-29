@@ -84,16 +84,14 @@
 #define PICT_FRAME         3
 
 static void
-rk3399_vpu_mpeg2_dec_set_quantization(struct hantro_dev *vpu,
+rk3399_vpu_mpeg2_dec_set_quantisation(struct hantro_dev *vpu,
 				      struct hantro_ctx *ctx)
 {
-	struct v4l2_ctrl_mpeg2_quantization *quantization;
+	struct v4l2_ctrl_mpeg2_quantisation *q;
 
-	quantization = hantro_get_ctrl(ctx,
-				       V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
-	hantro_mpeg2_dec_copy_qtable(ctx->mpeg2_dec.qtable.cpu, quantization);
-	vdpu_write_relaxed(vpu, ctx->mpeg2_dec.qtable.dma,
-			   VDPU_REG_QTABLE_BASE);
+	q = hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION);
+	hantro_mpeg2_dec_copy_qtable(ctx->mpeg2_dec.qtable.cpu, q);
+	vdpu_write_relaxed(vpu, ctx->mpeg2_dec.qtable.dma, VDPU_REG_QTABLE_BASE);
 }
 
 static void
@@ -243,7 +241,7 @@ void rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
 	      VDPU_REG_MV_ACCURACY_BWD(1);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(136));
 
-	rk3399_vpu_mpeg2_dec_set_quantization(vpu, ctx);
+	rk3399_vpu_mpeg2_dec_set_quantisation(vpu, ctx);
 
 	rk3399_vpu_mpeg2_dec_set_buffers(vpu, ctx, &src_buf->vb2_buf,
 					 &dst_buf->vb2_buf,

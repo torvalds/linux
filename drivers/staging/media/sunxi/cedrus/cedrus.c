@@ -37,7 +37,7 @@ static const struct cedrus_control cedrus_controls[] = {
 	},
 	{
 		.cfg = {
-			.id	= V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION,
+			.id	= V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION,
 		},
 		.codec		= CEDRUS_CODEC_MPEG2,
 	},

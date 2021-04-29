@@ -12,11 +12,11 @@
 #define _MPEG2_CTRLS_H_
 
 #define V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS		(V4L2_CID_CODEC_BASE+250)
-#define V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION		(V4L2_CID_CODEC_BASE+251)
+#define V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION		(V4L2_CID_CODEC_BASE+251)
 
 /* enum v4l2_ctrl_type type values */
 #define V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS 0x0103
-#define	V4L2_CTRL_TYPE_MPEG2_QUANTIZATION 0x0104
+#define	V4L2_CTRL_TYPE_MPEG2_QUANTISATION 0x0104
 
 #define V4L2_MPEG2_PICTURE_CODING_TYPE_I	1
 #define V4L2_MPEG2_PICTURE_CODING_TYPE_P	2
@@ -66,7 +66,7 @@ struct v4l2_ctrl_mpeg2_slice_params {
 	__u32	quantiser_scale_code;
 };
 
-struct v4l2_ctrl_mpeg2_quantization {
+struct v4l2_ctrl_mpeg2_quantisation {
 	/* ISO/IEC 13818-2, ITU-T Rec. H.262: Quant matrix extension */
 	__u8	load_intra_quantiser_matrix;
 	__u8	load_non_intra_quantiser_matrix;

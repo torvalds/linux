@@ -423,12 +423,12 @@ See also the examples in :ref:`control`.
       - n/a
       - A struct :c:type:`v4l2_ctrl_mpeg2_slice_params`, containing MPEG-2
 	slice parameters for stateless video decoders.
-    * - ``V4L2_CTRL_TYPE_MPEG2_QUANTIZATION``
+    * - ``V4L2_CTRL_TYPE_MPEG2_QUANTISATION``
       - n/a
       - n/a
       - n/a
-      - A struct :c:type:`v4l2_ctrl_mpeg2_quantization`, containing MPEG-2
-	quantization matrices for stateless video decoders.
+      - A struct :c:type:`v4l2_ctrl_mpeg2_quantisation`, containing MPEG-2
+	quantisation matrices for stateless video decoders.
     * - ``V4L2_CTRL_TYPE_AREA``
       - n/a
       - n/a

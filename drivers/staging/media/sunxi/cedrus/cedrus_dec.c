@@ -42,8 +42,8 @@ void cedrus_device_run(void *priv)
 	case V4L2_PIX_FMT_MPEG2_SLICE:
 		run.mpeg2.slice_params = cedrus_find_control_data(ctx,
 			V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
-		run.mpeg2.quantization = cedrus_find_control_data(ctx,
-			V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
+		run.mpeg2.quantisation = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION);
 		break;
 
 	case V4L2_PIX_FMT_H264_SLICE:

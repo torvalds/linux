@@ -1755,8 +1755,8 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
     \normalsize
 
-``V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION (struct)``
-    Specifies quantization matrices (as extracted from the bitstream) for the
+``V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION (struct)``
+    Specifies quantisation matrices (as extracted from the bitstream) for the
     associated MPEG-2 slice data.
 
     .. note::
@@ -1764,7 +1764,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
        This compound control is not yet part of the public kernel API and
        it is expected to change.
 
-.. c:type:: v4l2_ctrl_mpeg2_quantization
+.. c:type:: v4l2_ctrl_mpeg2_quantisation
 
 .. tabularcolumns:: |p{0.8cm}|p{8.0cm}|p{8.5cm}|
 
@@ -1774,7 +1774,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
     \small
 
-.. flat-table:: struct v4l2_ctrl_mpeg2_quantization
+.. flat-table:: struct v4l2_ctrl_mpeg2_quantisation
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
@@ -1798,24 +1798,24 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 	YUV formats.
     * - __u8
       - ``intra_quantiser_matrix[64]``
-      - The quantization matrix coefficients for intra-coded frames, in zigzag
+      - The quantisation matrix coefficients for intra-coded frames, in zigzag
 	scanning order. It is relevant for both luma and chroma components,
 	although it can be superseded by the chroma-specific matrix for
 	non-4:2:0 YUV formats.
     * - __u8
       - ``non_intra_quantiser_matrix[64]``
-      - The quantization matrix coefficients for non-intra-coded frames, in
+      - The quantisation matrix coefficients for non-intra-coded frames, in
 	zigzag scanning order. It is relevant for both luma and chroma
 	components, although it can be superseded by the chroma-specific matrix
 	for non-4:2:0 YUV formats.
     * - __u8
       - ``chroma_intra_quantiser_matrix[64]``
-      - The quantization matrix coefficients for the chominance component of
+      - The quantisation matrix coefficients for the chominance component of
 	intra-coded frames, in zigzag scanning order. Only relevant for
 	non-4:2:0 YUV formats.
     * - __u8
       - ``chroma_non_intra_quantiser_matrix[64]``
-      - The quantization matrix coefficients for the chrominance component of
+      - The quantisation matrix coefficients for the chrominance component of
 	non-intra-coded frames, in zigzag scanning order. Only relevant for
 	non-4:2:0 YUV formats.
 

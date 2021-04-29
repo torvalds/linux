@@ -13,9 +13,9 @@
 #include "cedrus_hw.h"
 #include "cedrus_regs.h"
 
-/* Default MPEG-2 quantization coefficients, from the specification. */
+/* Default MPEG-2 quantisation coefficients, from the specification. */
 
-static const u8 intra_quantization_matrix_default[64] = {
+static const u8 intra_quantisation_matrix_default[64] = {
 	8,  16, 16, 19, 16, 19, 22, 22,
 	22, 22, 22, 22, 26, 24, 26, 27,
 	27, 27, 26, 26, 26, 26, 27, 27,
@@ -26,7 +26,7 @@ static const u8 intra_quantization_matrix_default[64] = {
 	46, 46, 56, 56, 58, 69, 69, 83
 };
 
-static const u8 non_intra_quantization_matrix_default[64] = {
+static const u8 non_intra_quantisation_matrix_default[64] = {
 	16, 16, 16, 16, 16, 16, 16, 16,
 	16, 16, 16, 16, 16, 16, 16, 16,
 	16, 16, 16, 16, 16, 16, 16, 16,
@@ -77,7 +77,7 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
 	const struct v4l2_mpeg2_sequence *sequence;
 	const struct v4l2_mpeg2_picture *picture;
-	const struct v4l2_ctrl_mpeg2_quantization *quantization;
+	const struct v4l2_ctrl_mpeg2_quantisation *quantisation;
 	dma_addr_t src_buf_addr, dst_luma_addr, dst_chroma_addr;
 	dma_addr_t fwd_luma_addr, fwd_chroma_addr;
 	dma_addr_t bwd_luma_addr, bwd_chroma_addr;
@@ -93,17 +93,17 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	sequence = &slice_params->sequence;
 	picture = &slice_params->picture;
 
-	quantization = run->mpeg2.quantization;
+	quantisation = run->mpeg2.quantisation;
 
 	/* Activate MPEG engine. */
 	cedrus_engine_enable(ctx, CEDRUS_CODEC_MPEG2);
 
-	/* Set intra quantization matrix. */
+	/* Set intra quantisation matrix. */
 
-	if (quantization && quantization->load_intra_quantiser_matrix)
-		matrix = quantization->intra_quantiser_matrix;
+	if (quantisation && quantisation->load_intra_quantiser_matrix)
+		matrix = quantisation->intra_quantiser_matrix;
 	else
-		matrix = intra_quantization_matrix_default;
+		matrix = intra_quantisation_matrix_default;
 
 	for (i = 0; i < 64; i++) {
 		reg = VE_DEC_MPEG_IQMINPUT_WEIGHT(i, matrix[i]);
@@ -112,12 +112,12 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 		cedrus_write(dev, VE_DEC_MPEG_IQMINPUT, reg);
 	}
 
-	/* Set non-intra quantization matrix. */
+	/* Set non-intra quantisation matrix. */
 
-	if (quantization && quantization->load_non_intra_quantiser_matrix)
-		matrix = quantization->non_intra_quantiser_matrix;
+	if (quantisation && quantisation->load_non_intra_quantiser_matrix)
+		matrix = quantisation->non_intra_quantiser_matrix;
 	else
-		matrix = non_intra_quantization_matrix_default;
+		matrix = non_intra_quantisation_matrix_default;
 
 	for (i = 0; i < 64; i++) {
 		reg = VE_DEC_MPEG_IQMINPUT_WEIGHT(i, matrix[i]);
