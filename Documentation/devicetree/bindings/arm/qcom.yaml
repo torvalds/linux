@@ -178,6 +178,7 @@ properties:
       - items:
           - enum:
               - qcom,sc7280-idp
+              - google,senor
           - const: qcom,sc7280
 
       - items:
