@@ -1312,13 +1312,11 @@ static int __init ssb_modinit(void)
 	if (err) {
 		pr_err("Broadcom 43xx PCI-SSB-bridge initialization failed\n");
 		/* don't fail SSB init because of this */
-		err = 0;
 	}
 	err = ssb_host_pcmcia_init();
 	if (err) {
 		pr_err("PCMCIA host initialization failed\n");
 		/* don't fail SSB init because of this */
-		err = 0;
 	}
 	err = ssb_gige_init();
 	if (err) {
