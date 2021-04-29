@@ -323,9 +323,7 @@ static void btree_and_journal_iter_prefetch(struct bch_fs *c, struct btree *b,
 }
 
 static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b,
-				struct journal_keys *journal_keys,
 				enum btree_id btree_id,
-				btree_walk_node_fn node_fn,
 				btree_walk_key_fn key_fn)
 {
 	struct btree_and_journal_iter iter;
@@ -338,14 +336,8 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		ret = key_fn(c, btree_id, b->c.level, k);
-		if (ret)
-			break;
-
 		if (b->c.level) {
 			bch2_bkey_buf_reassemble(&tmp, c, k);
-
-			bch2_btree_and_journal_iter_advance(&iter);
 
 			child = bch2_btree_node_get_noiter(c, tmp.k,
 						b->c.btree_id, b->c.level - 1,
@@ -357,16 +349,17 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 
 			btree_and_journal_iter_prefetch(c, b, iter);
 
-			ret   = (node_fn ? node_fn(c, b) : 0) ?:
-				bch2_btree_and_journal_walk_recurse(c, child,
-					journal_keys, btree_id, node_fn, key_fn);
+			ret = bch2_btree_and_journal_walk_recurse(c, child,
+					btree_id, key_fn);
 			six_unlock_read(&child->c.lock);
-
-			if (ret)
-				break;
 		} else {
-			bch2_btree_and_journal_iter_advance(&iter);
+			ret = key_fn(c, k);
 		}
+
+		if (ret)
+			break;
+
+		bch2_btree_and_journal_iter_advance(&iter);
 	}
 
 	bch2_btree_and_journal_iter_exit(&iter);
@@ -374,9 +367,7 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 	return ret;
 }
 
-int bch2_btree_and_journal_walk(struct bch_fs *c, struct journal_keys *journal_keys,
-				enum btree_id btree_id,
-				btree_walk_node_fn node_fn,
+int bch2_btree_and_journal_walk(struct bch_fs *c, enum btree_id btree_id,
 				btree_walk_key_fn key_fn)
 {
 	struct btree *b = c->btree_roots[btree_id].b;
@@ -386,10 +377,7 @@ int bch2_btree_and_journal_walk(struct bch_fs *c, struct journal_keys *journal_k
 		return 0;
 
 	six_lock_read(&b->c.lock, NULL, NULL);
-	ret   = (node_fn ? node_fn(c, b) : 0) ?:
-		bch2_btree_and_journal_walk_recurse(c, b, journal_keys, btree_id,
-						    node_fn, key_fn) ?:
-		key_fn(c, btree_id, b->c.level + 1, bkey_i_to_s_c(&b->key));
+	ret = bch2_btree_and_journal_walk_recurse(c, b, btree_id, key_fn);
 	six_unlock_read(&b->c.lock);
 
 	return ret;
@@ -1120,14 +1108,14 @@ use_clean:
 
 	bch_verbose(c, "starting alloc read");
 	err = "error reading allocation information";
-	ret = bch2_alloc_read(c, &c->journal_keys);
+	ret = bch2_alloc_read(c);
 	if (ret)
 		goto err;
 	bch_verbose(c, "alloc read done");
 
 	bch_verbose(c, "starting stripes_read");
 	err = "error reading stripes";
-	ret = bch2_stripes_read(c, &c->journal_keys);
+	ret = bch2_stripes_read(c);
 	if (ret)
 		goto err;
 	bch_verbose(c, "stripes_read done");

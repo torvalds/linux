@@ -1630,26 +1630,22 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 	return ret;
 }
 
-static int bch2_stripes_read_fn(struct bch_fs *c, enum btree_id id,
-			      unsigned level, struct bkey_s_c k)
+static int bch2_stripes_read_fn(struct bch_fs *c, struct bkey_s_c k)
 {
 	int ret = 0;
 
-	if (k.k->type == KEY_TYPE_stripe) {
+	if (k.k->type == KEY_TYPE_stripe)
 		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL) ?:
 			bch2_mark_key(c, k, 0, 0, NULL, 0,
 				      BTREE_TRIGGER_NOATOMIC);
-		if (ret)
-			return ret;
-	}
 
 	return ret;
 }
 
-int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
+int bch2_stripes_read(struct bch_fs *c)
 {
-	int ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_stripes,
-					  NULL, bch2_stripes_read_fn);
+	int ret = bch2_btree_and_journal_walk(c, BTREE_ID_stripes,
+					      bch2_stripes_read_fn);
 	if (ret)
 		bch_err(c, "error reading stripes: %i", ret);
 

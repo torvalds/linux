@@ -261,16 +261,14 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 #undef  x
 }
 
-static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
-			      unsigned level, struct bkey_s_c k)
+static int bch2_alloc_read_fn(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bch_dev *ca;
 	struct bucket *g;
 	struct bkey_alloc_unpacked u;
 
-	if (level ||
-	    (k.k->type != KEY_TYPE_alloc &&
-	     k.k->type != KEY_TYPE_alloc_v2))
+	if (k.k->type != KEY_TYPE_alloc &&
+	    k.k->type != KEY_TYPE_alloc_v2)
 		return 0;
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
@@ -289,13 +287,12 @@ static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
 	return 0;
 }
 
-int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
+int bch2_alloc_read(struct bch_fs *c)
 {
 	int ret;
 
 	down_read(&c->gc_lock);
-	ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_alloc,
-					  NULL, bch2_alloc_read_fn);
+	ret = bch2_btree_and_journal_walk(c, BTREE_ID_alloc, bch2_alloc_read_fn);
 	up_read(&c->gc_lock);
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);

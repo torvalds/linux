@@ -91,8 +91,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_alloc_to_text,		\
 }
 
-struct journal_keys;
-int bch2_alloc_read(struct bch_fs *, struct journal_keys *);
+int bch2_alloc_read(struct bch_fs *);
 
 static inline void bch2_wake_allocator(struct bch_dev *ca)
 {
