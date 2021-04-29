@@ -57,6 +57,18 @@ static bool is_new_manual(const struct v4l2_ctrl *master)
 	return master->is_auto && master->val == master->manual_mode_value;
 }
 
+/* Default intra MPEG-2 quantisation coefficients, from the specification. */
+static const u8 mpeg2_intra_quant_matrix[64] = {
+	8,  16, 16, 19, 16, 19, 22, 22,
+	22, 22, 22, 22, 26, 24, 26, 27,
+	27, 27, 26, 26, 26, 26, 27, 27,
+	27, 29, 29, 29, 34, 34, 34, 29,
+	29, 29, 27, 27, 29, 29, 32, 32,
+	34, 34, 37, 38, 37, 35, 35, 34,
+	35, 38, 38, 40, 40, 40, 48, 48,
+	46, 46, 56, 56, 58, 69, 69, 83
+};
+
 /* Returns NULL or a character pointer array containing the menu for
    the given control ID. The pointer array ends with a NULL pointer.
    An empty string signifies a menu entry that is invalid. This allows
@@ -1692,6 +1704,7 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 			      union v4l2_ctrl_ptr ptr)
 {
 	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
+	struct v4l2_ctrl_mpeg2_quantisation *p_mpeg2_quant;
 	struct v4l2_ctrl_vp8_frame *p_vp8_frame;
 	struct v4l2_ctrl_fwht_params *p_fwht_params;
 	void *p = ptr.p + idx * ctrl->elem_size;
@@ -1715,6 +1728,19 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		p_mpeg2_slice_params->picture.picture_structure = 1;
 		p_mpeg2_slice_params->picture.picture_coding_type =
 					V4L2_MPEG2_PICTURE_CODING_TYPE_I;
+		break;
+	case V4L2_CTRL_TYPE_MPEG2_QUANTISATION:
+		p_mpeg2_quant = p;
+
+		memcpy(p_mpeg2_quant->intra_quantiser_matrix,
+		       mpeg2_intra_quant_matrix,
+		       ARRAY_SIZE(mpeg2_intra_quant_matrix));
+		/*
+		 * The default non-intra MPEG-2 quantisation
+		 * coefficients are all 16, as per the specification.
+		 */
+		memset(p_mpeg2_quant->non_intra_quantiser_matrix, 16,
+		       sizeof(p_mpeg2_quant->non_intra_quantiser_matrix));
 		break;
 	case V4L2_CTRL_TYPE_VP8_FRAME:
 		p_vp8_frame = p;

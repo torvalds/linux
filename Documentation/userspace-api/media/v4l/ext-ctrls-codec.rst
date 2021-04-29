@@ -1780,23 +1780,6 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :widths:       1 1 2
 
     * - __u8
-      - ``load_intra_quantiser_matrix``
-      - One bit to indicate whether to load the ``intra_quantiser_matrix`` data.
-    * - __u8
-      - ``load_non_intra_quantiser_matrix``
-      - One bit to indicate whether to load the ``non_intra_quantiser_matrix``
-	data.
-    * - __u8
-      - ``load_chroma_intra_quantiser_matrix``
-      - One bit to indicate whether to load the
-	``chroma_intra_quantiser_matrix`` data, only relevant for non-4:2:0 YUV
-	formats.
-    * - __u8
-      - ``load_chroma_non_intra_quantiser_matrix``
-      - One bit to indicate whether to load the
-	``chroma_non_intra_quantiser_matrix`` data, only relevant for non-4:2:0
-	YUV formats.
-    * - __u8
       - ``intra_quantiser_matrix[64]``
       - The quantisation matrix coefficients for intra-coded frames, in zigzag
 	scanning order. It is relevant for both luma and chroma components,
