@@ -51,10 +51,7 @@ static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct b
 {
 	return l->type == r->type &&
 		!bversion_cmp(l->version, r->version) &&
-		!bpos_cmp(l->p, bkey_start_pos(r)) &&
-		(u64) l->size + r->size <= KEY_SIZE_MAX &&
-		bch2_bkey_ops[l->type].key_merge &&
-		!bch2_key_merging_disabled;
+		!bpos_cmp(l->p, bkey_start_pos(r));
 }
 
 bool bch2_bkey_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);

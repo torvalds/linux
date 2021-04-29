@@ -296,7 +296,11 @@ bool bch2_bkey_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 {
 	const struct bkey_ops *ops = &bch2_bkey_ops[l.k->type];
 
-	return bch2_bkey_maybe_mergable(l.k, r.k) && ops->key_merge(c, l, r);
+	return bch2_bkey_maybe_mergable(l.k, r.k) &&
+		(u64) l.k->size + r.k->size <= KEY_SIZE_MAX &&
+		bch2_bkey_ops[l.k->type].key_merge &&
+		!bch2_key_merging_disabled &&
+		ops->key_merge(c, l, r);
 }
 
 static const struct old_bkey_type {

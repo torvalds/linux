@@ -797,9 +797,38 @@ static int __btree_delete_at(struct btree_trans *trans, enum btree_id btree_id,
 	return 0;
 }
 
+static noinline int extent_front_merge(struct btree_trans *trans,
+				       struct bkey_s_c k,
+				       struct btree_insert_entry *i)
+{
+	struct bch_fs *c = trans->c;
+	struct bpos l_pos = k.k->p;
+	struct bkey_i *update;
+	int ret;
+
+	update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	ret = PTR_ERR_OR_ZERO(update);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(update, k);
+
+	if (bch2_bkey_merge(c, bkey_i_to_s(update), bkey_i_to_s_c(i->k))) {
+		ret = __btree_delete_at(trans, i->btree_id, l_pos,
+					i->trigger_flags);
+		if (ret)
+			return ret;
+
+		i->k = update;
+	}
+
+	return 0;
+}
+
 static int extent_handle_overwrites(struct btree_trans *trans,
 				    struct btree_insert_entry *i)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter *iter, *update_iter;
 	struct bpos start = bkey_start_pos(&i->k->k);
 	struct bkey_i *update;
@@ -814,8 +843,15 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 	if (!k.k || (ret = bkey_err(k)))
 		goto out;
 
-	if (!bkey_cmp(k.k->p, bkey_start_pos(&i->k->k)))
+	if (!bkey_cmp(k.k->p, bkey_start_pos(&i->k->k))) {
+		if (bch2_bkey_maybe_mergable(k.k, &i->k->k)) {
+			ret = extent_front_merge(trans, k, i);
+			if (ret)
+				goto out;
+		}
+
 		goto next;
+	}
 
 	while (bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) > 0) {
 		if (bkey_cmp(bkey_start_pos(k.k), start) < 0) {
@@ -862,6 +898,9 @@ next:
 		if (!k.k || (ret = bkey_err(k)))
 			goto out;
 	}
+
+	if (bch2_bkey_maybe_mergable(&i->k->k, k.k))
+		bch2_bkey_merge(c, bkey_i_to_s(i->k), k);
 out:
 	bch2_trans_iter_put(trans, iter);
 
