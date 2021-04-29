@@ -154,7 +154,7 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 
 	dev = ksz_switch_alloc(&mdiodev->dev, ksz8);
 	if (!dev)
-		return -EINVAL;
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ksz8863_regmap_config); i++) {
 		rc = ksz8863_regmap_config[i];
