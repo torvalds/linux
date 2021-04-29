@@ -21,7 +21,7 @@ config ERRATA_SIFIVE
 
 config ERRATA_SIFIVE_CIP_453
 	bool "Apply SiFive errata CIP-453"
-	depends on ERRATA_SIFIVE
+	depends on ERRATA_SIFIVE && 64BIT
 	default y
 	help
 	  This will apply the SiFive CIP-453 errata to add sign extension
@@ -32,7 +32,7 @@ config ERRATA_SIFIVE_CIP_453
 
 config ERRATA_SIFIVE_CIP_1200
 	bool "Apply SiFive errata CIP-1200"
-	depends on ERRATA_SIFIVE
+	depends on ERRATA_SIFIVE && 64BIT
 	default y
 	help
 	  This will apply the SiFive CIP-1200 errata to repalce all
