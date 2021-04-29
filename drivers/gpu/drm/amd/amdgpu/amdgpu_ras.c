@@ -33,6 +33,7 @@
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_xgmi.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
+#include "atom.h"
 
 static const char *RAS_FS_NAME = "ras";
 
@@ -2064,6 +2065,24 @@ static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 }
 
 /*
+ * this is workaround for vega20 workstation sku,
+ * force enable gfx ras, ignore vbios gfx ras flag
+ * due to GC EDC can not write
+ */
+static void amdgpu_ras_get_quirks(struct amdgpu_device *adev,
+		uint32_t *hw_supported)
+{
+	struct atom_context *ctx = adev->mode_info.atom_context;
+
+	if (!ctx)
+		return;
+
+	if (strnstr(ctx->vbios_version, "D16406",
+				sizeof(ctx->vbios_version)))
+			*hw_supported |= (1 << AMDGPU_RAS_BLOCK__GFX);
+}
+
+/*
  * check hardware's ras ability which will be saved in hw_supported.
  * if hardware does not support ras, we can skip some ras initializtion and
  * forbid some ras operations from IP.
@@ -2105,6 +2124,8 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 				1 << AMDGPU_RAS_BLOCK__SDMA |
 				1 << AMDGPU_RAS_BLOCK__MMHUB);
 	}
+
+	amdgpu_ras_get_quirks(adev, hw_supported);
 
 	/* hw_supported needs to be aligned with RAS block mask. */
 	*hw_supported &= AMDGPU_RAS_BLOCK_MASK;
