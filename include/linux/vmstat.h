@@ -597,12 +597,6 @@ static inline void mod_lruvec_page_state(struct page *page,
 
 #endif /* CONFIG_MEMCG */
 
-static inline void inc_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx)
-{
-	mod_lruvec_state(lruvec, idx, 1);
-}
-
 static inline void __inc_lruvec_page_state(struct page *page,
 					   enum node_stat_item idx)
 {
