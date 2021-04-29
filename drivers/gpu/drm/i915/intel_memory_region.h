@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/io-mapping.h>
 #include <drm/drm_mm.h>
+#include <drm/i915_drm.h>
 
 #include "i915_buddy.h"
 
@@ -19,12 +20,9 @@ struct drm_i915_gem_object;
 struct intel_memory_region;
 struct sg_table;
 
-/**
- *  Base memory type
- */
 enum intel_memory_type {
-	INTEL_MEMORY_SYSTEM = 0,
-	INTEL_MEMORY_LOCAL,
+	INTEL_MEMORY_SYSTEM = I915_MEMORY_CLASS_SYSTEM,
+	INTEL_MEMORY_LOCAL = I915_MEMORY_CLASS_DEVICE,
 	INTEL_MEMORY_STOLEN_SYSTEM,
 	INTEL_MEMORY_STOLEN_LOCAL,
 };
