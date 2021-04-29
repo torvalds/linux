@@ -25,6 +25,7 @@
 struct mlx5e_rep_indr_block_priv {
 	struct net_device *netdev;
 	struct mlx5e_rep_priv *rpriv;
+	enum flow_block_binder_type binder_type;
 
 	struct list_head list;
 };
@@ -299,14 +300,16 @@ int mlx5e_rep_tc_event_port_affinity(struct mlx5e_priv *priv)
 
 static struct mlx5e_rep_indr_block_priv *
 mlx5e_rep_indr_block_priv_lookup(struct mlx5e_rep_priv *rpriv,
-				 struct net_device *netdev)
+				 struct net_device *netdev,
+				 enum flow_block_binder_type binder_type)
 {
 	struct mlx5e_rep_indr_block_priv *cb_priv;
 
 	list_for_each_entry(cb_priv,
 			    &rpriv->uplink_priv.tc_indr_block_priv_list,
 			    list)
-		if (cb_priv->netdev == netdev)
+		if (cb_priv->netdev == netdev &&
+		    cb_priv->binder_type == binder_type)
 			return cb_priv;
 
 	return NULL;
@@ -344,8 +347,12 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 static int mlx5e_rep_indr_setup_tc_cb(enum tc_setup_type type,
 				      void *type_data, void *indr_priv)
 {
-	unsigned long flags = MLX5_TC_FLAG(EGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
+	unsigned long flags = MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_rep_indr_block_priv *priv = indr_priv;
+
+	flags |= (priv->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS) ?
+		MLX5_TC_FLAG(EGRESS) :
+		MLX5_TC_FLAG(INGRESS);
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
@@ -428,11 +435,14 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 			   void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	bool is_ovs_int_port = netif_is_ovs_master(netdev);
 	struct mlx5e_rep_indr_block_priv *indr_priv;
 	struct flow_block_cb *block_cb;
 
 	if (!mlx5e_tc_tun_device_to_offload(priv, netdev) &&
-	    !(is_vlan_dev(netdev) && vlan_dev_real_dev(netdev) == rpriv->netdev)) {
+	    !(is_vlan_dev(netdev) && vlan_dev_real_dev(netdev) == rpriv->netdev) &&
+	    !is_ovs_int_port) {
 		if (!(netif_is_macvlan(netdev) && macvlan_dev_real_dev(netdev) == rpriv->netdev))
 			return -EOPNOTSUPP;
 		if (!mlx5e_rep_macvlan_mode_supported(netdev)) {
@@ -441,7 +451,14 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 		}
 	}
 
-	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
+	    f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
+		return -EOPNOTSUPP;
+
+	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS && !is_ovs_int_port)
+		return -EOPNOTSUPP;
+
+	if (is_ovs_int_port && !mlx5e_tc_int_port_supported(esw))
 		return -EOPNOTSUPP;
 
 	f->unlocked_driver_cb = true;
@@ -449,7 +466,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
+		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev, f->binder_type);
 		if (indr_priv)
 			return -EEXIST;
 
@@ -459,6 +476,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 
 		indr_priv->netdev = netdev;
 		indr_priv->rpriv = rpriv;
+		indr_priv->binder_type = f->binder_type;
 		list_add(&indr_priv->list,
 			 &rpriv->uplink_priv.tc_indr_block_priv_list);
 
@@ -476,7 +494,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
+		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev, f->binder_type);
 		if (!indr_priv)
 			return -ENOENT;
 

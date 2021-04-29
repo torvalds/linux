@@ -468,6 +468,7 @@ struct mlx5_esw_flow_attr {
 	struct mlx5_core_dev	*in_mdev;
 	struct mlx5_core_dev    *counter_dev;
 	struct mlx5e_tc_int_port *dest_int_port;
+	struct mlx5e_tc_int_port *int_port;
 
 	int split_count;
 	int out_count;

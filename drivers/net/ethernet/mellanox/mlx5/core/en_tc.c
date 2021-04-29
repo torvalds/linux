@@ -1437,6 +1437,32 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	parse_attr = attr->parse_attr;
 	esw_attr = attr->esw_attr;
 
+	if (netif_is_ovs_master(parse_attr->filter_dev)) {
+		struct mlx5e_tc_int_port *int_port;
+
+		if (attr->chain) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Internal port rule is only supported on chain 0");
+			return -EOPNOTSUPP;
+		}
+
+		if (attr->dest_chain) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Internal port rule offload doesn't support goto action");
+			return -EOPNOTSUPP;
+		}
+
+		int_port = mlx5e_tc_int_port_get(mlx5e_get_int_port_priv(priv),
+						 parse_attr->filter_dev->ifindex,
+						 flow_flag_test(flow, EGRESS) ?
+						 MLX5E_TC_INT_PORT_EGRESS :
+						 MLX5E_TC_INT_PORT_INGRESS);
+		if (IS_ERR(int_port))
+			return PTR_ERR(int_port);
+
+		esw_attr->int_port = int_port;
+	}
+
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
 		struct net_device *out_dev;
 		int mirred_ifindex;
@@ -1591,6 +1617,9 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
 		mlx5_fc_destroy(esw_attr->counter_dev, attr->counter);
+
+	if (esw_attr->int_port)
+		mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(priv), esw_attr->int_port);
 
 	if (esw_attr->dest_int_port)
 		mlx5e_tc_int_port_put(mlx5e_get_int_port_priv(priv), esw_attr->dest_int_port);
@@ -4254,10 +4283,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		}
 	}
 
-	/* If we forward to internal port we can only have 1 dest */
-	if (esw_attr->dest_int_port && esw_attr->out_count > 1) {
+	/* Forward to/from internal port can only have 1 dest */
+	if ((netif_is_ovs_master(parse_attr->filter_dev) || esw_attr->dest_int_port) &&
+	    esw_attr->out_count > 1) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Redirect to internal port should be the only destination");
+				   "Rules with internal port can have only one destination");
 		return -EOPNOTSUPP;
 	}
 
