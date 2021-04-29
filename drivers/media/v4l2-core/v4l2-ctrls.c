@@ -1727,7 +1727,7 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		/* interlaced top field */
 		p_mpeg2_slice_params->picture.picture_structure = 1;
 		p_mpeg2_slice_params->picture.picture_coding_type =
-					V4L2_MPEG2_PICTURE_CODING_TYPE_I;
+					V4L2_MPEG2_PIC_CODING_TYPE_I;
 		break;
 	case V4L2_CTRL_TYPE_MPEG2_QUANTISATION:
 		p_mpeg2_quant = p;
@@ -1949,18 +1949,18 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		}
 
 		switch (p_mpeg2_slice_params->picture.picture_structure) {
-		case 1: /* interlaced top field */
-		case 2: /* interlaced bottom field */
-		case 3: /* progressive */
+		case V4L2_MPEG2_PIC_TOP_FIELD:
+		case V4L2_MPEG2_PIC_BOTTOM_FIELD:
+		case V4L2_MPEG2_PIC_FRAME:
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		switch (p_mpeg2_slice_params->picture.picture_coding_type) {
-		case V4L2_MPEG2_PICTURE_CODING_TYPE_I:
-		case V4L2_MPEG2_PICTURE_CODING_TYPE_P:
-		case V4L2_MPEG2_PICTURE_CODING_TYPE_B:
+		case V4L2_MPEG2_PIC_CODING_TYPE_I:
+		case V4L2_MPEG2_PIC_CODING_TYPE_P:
+		case V4L2_MPEG2_PIC_CODING_TYPE_B:
 			break;
 		default:
 			return -EINVAL;
