@@ -152,10 +152,9 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 
 	/* Source offset and length in bits. */
 
-	cedrus_write(dev, VE_DEC_MPEG_VLD_OFFSET,
-		     slice_params->data_bit_offset);
+	cedrus_write(dev, VE_DEC_MPEG_VLD_OFFSET, 0);
 
-	reg = slice_params->bit_size - slice_params->data_bit_offset;
+	reg = vb2_get_plane_payload(&run->src->vb2_buf, 0) * 8;
 	cedrus_write(dev, VE_DEC_MPEG_VLD_LEN, reg);
 
 	/* Source beginning and end addresses. */
@@ -169,7 +168,7 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 
 	cedrus_write(dev, VE_DEC_MPEG_VLD_ADDR, reg);
 
-	reg = src_buf_addr + DIV_ROUND_UP(slice_params->bit_size, 8);
+	reg = src_buf_addr + vb2_get_plane_payload(&run->src->vb2_buf, 0);
 	cedrus_write(dev, VE_DEC_MPEG_VLD_END_ADDR, reg);
 
 	/* Macroblock address: start at the beginning. */
