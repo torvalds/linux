@@ -2705,8 +2705,6 @@ static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 	nch = priv->channels.params.num_channels;
 	ntc = priv->channels.params.num_tc;
 	num_rxqs = nch * priv->profile->rq_groups;
-	if (priv->channels.params.ptp_rx)
-		num_rxqs++;
 
 	mlx5e_netdev_set_tcs(netdev, nch, ntc);
 
