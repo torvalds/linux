@@ -7,41 +7,51 @@
 #include "gem/i915_gem_region.h"
 
 #include "i915_drv.h"
+#include "i915_trace.h"
+
+static int i915_gem_publish(struct drm_i915_gem_object *obj,
+			    struct drm_file *file,
+			    u64 *size_p,
+			    u32 *handle_p)
+{
+	u64 size = obj->base.size;
+	int ret;
+
+	ret = drm_gem_handle_create(file, &obj->base, handle_p);
+	/* drop reference from allocate - handle holds it now */
+	i915_gem_object_put(obj);
+	if (ret)
+		return ret;
+
+	*size_p = size;
+	return 0;
+}
 
 static int
-i915_gem_create(struct drm_file *file,
-		struct intel_memory_region *mr,
-		u64 *size_p,
-		u32 *handle_p)
+i915_gem_setup(struct drm_i915_gem_object *obj,
+	       struct intel_memory_region *mr,
+	       u64 size)
 {
-	struct drm_i915_gem_object *obj;
-	u32 handle;
-	u64 size;
 	int ret;
 
 	GEM_BUG_ON(!is_power_of_2(mr->min_page_size));
-	size = round_up(*size_p, mr->min_page_size);
+	size = round_up(size, mr->min_page_size);
 	if (size == 0)
 		return -EINVAL;
 
 	/* For most of the ABI (e.g. mmap) we think in system pages */
 	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
 
-	/* Allocate the new object */
-	obj = i915_gem_object_create_region(mr, size, 0);
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
+	if (i915_gem_object_size_2big(size))
+		return -E2BIG;
 
-	GEM_BUG_ON(size != obj->base.size);
-
-	ret = drm_gem_handle_create(file, &obj->base, &handle);
-	/* drop reference from allocate - handle holds it now */
-	i915_gem_object_put(obj);
+	ret = mr->ops->init_object(mr, obj, size, 0);
 	if (ret)
 		return ret;
 
-	*handle_p = handle;
-	*size_p = size;
+	GEM_BUG_ON(size != obj->base.size);
+
+	trace_i915_gem_object_create(obj);
 	return 0;
 }
 
@@ -50,9 +60,11 @@ i915_gem_dumb_create(struct drm_file *file,
 		     struct drm_device *dev,
 		     struct drm_mode_create_dumb *args)
 {
+	struct drm_i915_gem_object *obj;
 	enum intel_memory_type mem_type;
 	int cpp = DIV_ROUND_UP(args->bpp, 8);
 	u32 format;
+	int ret;
 
 	switch (cpp) {
 	case 1:
@@ -85,10 +97,22 @@ i915_gem_dumb_create(struct drm_file *file,
 	if (HAS_LMEM(to_i915(dev)))
 		mem_type = INTEL_MEMORY_LOCAL;
 
-	return i915_gem_create(file,
-			       intel_memory_region_by_type(to_i915(dev),
-							   mem_type),
-			       &args->size, &args->handle);
+	obj = i915_gem_object_alloc();
+	if (!obj)
+		return -ENOMEM;
+
+	ret = i915_gem_setup(obj,
+			     intel_memory_region_by_type(to_i915(dev),
+							 mem_type),
+			     args->size);
+	if (ret)
+		goto object_free;
+
+	return i915_gem_publish(obj, file, &args->size, &args->handle);
+
+object_free:
+	i915_gem_object_free(obj);
+	return ret;
 }
 
 /**
@@ -103,11 +127,25 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_create *args = data;
+	struct drm_i915_gem_object *obj;
+	int ret;
 
 	i915_gem_flush_free_objects(i915);
 
-	return i915_gem_create(file,
-			       intel_memory_region_by_type(i915,
-							   INTEL_MEMORY_SYSTEM),
-			       &args->size, &args->handle);
+	obj = i915_gem_object_alloc();
+	if (!obj)
+		return -ENOMEM;
+
+	ret = i915_gem_setup(obj,
+			     intel_memory_region_by_type(i915,
+							 INTEL_MEMORY_SYSTEM),
+			     args->size);
+	if (ret)
+		goto object_free;
+
+	return i915_gem_publish(obj, file, &args->size, &args->handle);
+
+object_free:
+	i915_gem_object_free(obj);
+	return ret;
 }
