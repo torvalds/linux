@@ -135,11 +135,16 @@ void __init setup_bootmem(void)
 
 	/*
 	 * Reserve from the start of the kernel to the end of the kernel
-	 * and make sure we align the reservation on PMD_SIZE since we will
+	 */
+#if defined(CONFIG_64BIT) && defined(CONFIG_STRICT_KERNEL_RWX)
+	/*
+	 * Make sure we align the reservation on PMD_SIZE since we will
 	 * map the kernel in the linear mapping as read-only: we do not want
 	 * any allocation to happen between _end and the next pmd aligned page.
 	 */
-	memblock_reserve(vmlinux_start, (vmlinux_end - vmlinux_start + PMD_SIZE - 1) & PMD_MASK);
+	vmlinux_end = (vmlinux_end + PMD_SIZE - 1) & PMD_MASK;
+#endif
+	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
