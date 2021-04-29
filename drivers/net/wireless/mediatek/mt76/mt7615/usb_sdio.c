@@ -323,8 +323,8 @@ int mt7663_usb_sdio_register_device(struct mt7615_dev *dev)
 			hw->max_tx_fragments = 1;
 	}
 
-	err = mt76_register_device(&dev->mt76, true, mt7615_rates,
-				   ARRAY_SIZE(mt7615_rates));
+	err = mt76_register_device(&dev->mt76, true, mt76_rates,
+				   ARRAY_SIZE(mt76_rates));
 	if (err < 0)
 		return err;
 
