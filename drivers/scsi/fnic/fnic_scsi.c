@@ -173,7 +173,7 @@ static int free_wq_copy_descs(struct fnic *fnic, struct vnic_wq_copy *wq)
 }
 
 
-/**
+/*
  * __fnic_set_state_flags
  * Sets/Clears bits in fnic's state_flags
  **/
@@ -2287,7 +2287,7 @@ clean_pending_aborts_end:
 	return ret;
 }
 
-/**
+/*
  * fnic_scsi_host_start_tag
  * Allocates tagid from host's tag list
  **/
@@ -2307,7 +2307,7 @@ fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 	return dummy->tag;
 }
 
-/**
+/*
  * fnic_scsi_host_end_tag
  * frees tag allocated by fnic_scsi_host_start_tag.
  **/

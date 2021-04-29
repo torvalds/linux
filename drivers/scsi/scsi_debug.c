@@ -322,17 +322,19 @@ struct sdeb_store_info {
 	container_of(d, struct sdebug_host_info, dev)
 
 enum sdeb_defer_type {SDEB_DEFER_NONE = 0, SDEB_DEFER_HRT = 1,
-		      SDEB_DEFER_WQ = 2};
+		      SDEB_DEFER_WQ = 2, SDEB_DEFER_POLL = 3};
 
 struct sdebug_defer {
 	struct hrtimer hrt;
 	struct execute_work ew;
+	ktime_t cmpl_ts;/* time since boot to complete this cmd */
 	int sqa_idx;	/* index of sdebug_queue array */
 	int qc_idx;	/* index of sdebug_queued_cmd array within sqa_idx */
 	int hc_idx;	/* hostwide tag index */
 	int issuing_cpu;
 	bool init_hrt;
 	bool init_wq;
+	bool init_poll;
 	bool aborted;	/* true when blk_abort_request() already called */
 	enum sdeb_defer_type defer_t;
 };
@@ -357,6 +359,7 @@ static atomic_t sdebug_completions;  /* count of deferred completions */
 static atomic_t sdebug_miss_cpus;    /* submission + completion cpus differ */
 static atomic_t sdebug_a_tsf;	     /* 'almost task set full' counter */
 static atomic_t sdeb_inject_pending;
+static atomic_t sdeb_mq_poll_count;  /* bumped when mq_poll returns > 0 */
 
 struct opcode_info_t {
 	u8 num_attached;	/* 0 if this is it (i.e. a leaf); use 0xff */
@@ -829,6 +832,7 @@ static int sdeb_zbc_max_open = DEF_ZBC_MAX_OPEN_ZONES;
 static int sdeb_zbc_nr_conv = DEF_ZBC_NR_CONV_ZONES;
 
 static int submit_queues = DEF_SUBMIT_QUEUES;  /* > 1 for multi-queue (mq) */
+static int poll_queues; /* iouring iopoll interface.*/
 static struct sdebug_queue *sdebug_q_arr;  /* ptr to array of submit queues */
 
 static DEFINE_RWLOCK(atomic_rw);
@@ -4729,7 +4733,6 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 	struct scsi_cmnd *scp;
 	struct sdebug_dev_info *devip;
 
-	sd_dp->defer_t = SDEB_DEFER_NONE;
 	if (unlikely(aborted))
 		sd_dp->aborted = false;
 	qc_idx = sd_dp->qc_idx;
@@ -4744,6 +4747,7 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 		return;
 	}
 	spin_lock_irqsave(&sqp->qc_lock, iflags);
+	sd_dp->defer_t = SDEB_DEFER_NONE;
 	sqcp = &sqp->qc_arr[qc_idx];
 	scp = sqcp->a_cmnd;
 	if (unlikely(scp == NULL)) {
@@ -5363,6 +5367,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 {
 	bool new_sd_dp;
 	bool inject = false;
+	bool hipri = (cmnd->request->cmd_flags & REQ_HIPRI);
 	int k, num_in_q, qdepth;
 	unsigned long iflags;
 	u64 ns_from_boot = 0;
@@ -5432,6 +5437,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	cmnd->host_scribble = (unsigned char *)sqcp;
 	sd_dp = sqcp->sd_dp;
 	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+
 	if (!sd_dp) {
 		sd_dp = kzalloc(sizeof(*sd_dp), GFP_ATOMIC);
 		if (!sd_dp) {
@@ -5448,7 +5454,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if (sdebug_host_max_queue)
 		sd_dp->hc_idx = get_tag(cmnd);
 
-	if (ndelay > 0 && ndelay < INCLUSIVE_TIMING_MAX_NS)
+	if (hipri)
 		ns_from_boot = ktime_get_boottime_ns();
 
 	/* one of the resp_*() response functions is called here */
@@ -5508,40 +5514,66 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				kt -= d;
 			}
 		}
-		if (!sd_dp->init_hrt) {
-			sd_dp->init_hrt = true;
-			sqcp->sd_dp = sd_dp;
-			hrtimer_init(&sd_dp->hrt, CLOCK_MONOTONIC,
-				     HRTIMER_MODE_REL_PINNED);
-			sd_dp->hrt.function = sdebug_q_cmd_hrt_complete;
-			sd_dp->sqa_idx = sqp - sdebug_q_arr;
-			sd_dp->qc_idx = k;
+		if (hipri) {
+			sd_dp->cmpl_ts = ktime_add(ns_to_ktime(ns_from_boot), kt);
+			spin_lock_irqsave(&sqp->qc_lock, iflags);
+			if (!sd_dp->init_poll) {
+				sd_dp->init_poll = true;
+				sqcp->sd_dp = sd_dp;
+				sd_dp->sqa_idx = sqp - sdebug_q_arr;
+				sd_dp->qc_idx = k;
+			}
+			sd_dp->defer_t = SDEB_DEFER_POLL;
+			spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+		} else {
+			if (!sd_dp->init_hrt) {
+				sd_dp->init_hrt = true;
+				sqcp->sd_dp = sd_dp;
+				hrtimer_init(&sd_dp->hrt, CLOCK_MONOTONIC,
+					     HRTIMER_MODE_REL_PINNED);
+				sd_dp->hrt.function = sdebug_q_cmd_hrt_complete;
+				sd_dp->sqa_idx = sqp - sdebug_q_arr;
+				sd_dp->qc_idx = k;
+			}
+			sd_dp->defer_t = SDEB_DEFER_HRT;
+			/* schedule the invocation of scsi_done() for a later time */
+			hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 		}
 		if (sdebug_statistics)
 			sd_dp->issuing_cpu = raw_smp_processor_id();
-		sd_dp->defer_t = SDEB_DEFER_HRT;
-		/* schedule the invocation of scsi_done() for a later time */
-		hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 	} else {	/* jdelay < 0, use work queue */
-		if (!sd_dp->init_wq) {
-			sd_dp->init_wq = true;
-			sqcp->sd_dp = sd_dp;
-			sd_dp->sqa_idx = sqp - sdebug_q_arr;
-			sd_dp->qc_idx = k;
-			INIT_WORK(&sd_dp->ew.work, sdebug_q_cmd_wq_complete);
-		}
-		if (sdebug_statistics)
-			sd_dp->issuing_cpu = raw_smp_processor_id();
-		sd_dp->defer_t = SDEB_DEFER_WQ;
 		if (unlikely((sdebug_opts & SDEBUG_OPT_CMD_ABORT) &&
 			     atomic_read(&sdeb_inject_pending)))
 			sd_dp->aborted = true;
-		schedule_work(&sd_dp->ew.work);
-		if (unlikely((sdebug_opts & SDEBUG_OPT_CMD_ABORT) &&
-			     atomic_read(&sdeb_inject_pending))) {
+		if (hipri) {
+			sd_dp->cmpl_ts = ns_to_ktime(ns_from_boot);
+			spin_lock_irqsave(&sqp->qc_lock, iflags);
+			if (!sd_dp->init_poll) {
+				sd_dp->init_poll = true;
+				sqcp->sd_dp = sd_dp;
+				sd_dp->sqa_idx = sqp - sdebug_q_arr;
+				sd_dp->qc_idx = k;
+			}
+			sd_dp->defer_t = SDEB_DEFER_POLL;
+			spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+		} else {
+			if (!sd_dp->init_wq) {
+				sd_dp->init_wq = true;
+				sqcp->sd_dp = sd_dp;
+				sd_dp->sqa_idx = sqp - sdebug_q_arr;
+				sd_dp->qc_idx = k;
+				INIT_WORK(&sd_dp->ew.work, sdebug_q_cmd_wq_complete);
+			}
+			sd_dp->defer_t = SDEB_DEFER_WQ;
+			schedule_work(&sd_dp->ew.work);
+		}
+		if (sdebug_statistics)
+			sd_dp->issuing_cpu = raw_smp_processor_id();
+		if (unlikely(sd_dp->aborted)) {
 			sdev_printk(KERN_INFO, sdp, "abort request tag %d\n", cmnd->request->tag);
 			blk_abort_request(cmnd->request);
 			atomic_set(&sdeb_inject_pending, 0);
+			sd_dp->aborted = false;
 		}
 	}
 	if (unlikely((SDEBUG_OPT_Q_NOISE & sdebug_opts) && scsi_result == device_qfull_result))
@@ -5615,6 +5647,7 @@ module_param_named(sector_size, sdebug_sector_size, int, S_IRUGO);
 module_param_named(statistics, sdebug_statistics, bool, S_IRUGO | S_IWUSR);
 module_param_named(strict, sdebug_strict, bool, S_IRUGO | S_IWUSR);
 module_param_named(submit_queues, submit_queues, int, S_IRUGO);
+module_param_named(poll_queues, poll_queues, int, S_IRUGO);
 module_param_named(tur_ms_to_ready, sdeb_tur_ms_to_ready, int, S_IRUGO);
 module_param_named(unmap_alignment, sdebug_unmap_alignment, int, S_IRUGO);
 module_param_named(unmap_granularity, sdebug_unmap_granularity, int, S_IRUGO);
@@ -5677,6 +5710,7 @@ MODULE_PARM_DESC(opt_xferlen_exp, "optimal transfer length granularity exponent 
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err... (def=0)");
 MODULE_PARM_DESC(per_host_store, "If set, next positive add_host will get new store (def=0)");
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
+MODULE_PARM_DESC(poll_queues, "support for iouring iopoll queues (1 to max(submit_queues - 1)");
 MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=0[disk])");
 MODULE_PARM_DESC(random, "If set, uniformly randomize command duration between 0 and delay_in_ns");
 MODULE_PARM_DESC(removable, "claim to have removable media (def=0)");
@@ -5768,11 +5802,12 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		   dix_reads, dix_writes, dif_errors);
 	seq_printf(m, "usec_in_jiffy=%lu, statistics=%d\n", TICK_NSEC / 1000,
 		   sdebug_statistics);
-	seq_printf(m, "cmnd_count=%d, completions=%d, %s=%d, a_tsf=%d\n",
+	seq_printf(m, "cmnd_count=%d, completions=%d, %s=%d, a_tsf=%d, mq_polls=%d\n",
 		   atomic_read(&sdebug_cmnd_count),
 		   atomic_read(&sdebug_completions),
 		   "miss_cpus", atomic_read(&sdebug_miss_cpus),
-		   atomic_read(&sdebug_a_tsf));
+		   atomic_read(&sdebug_a_tsf),
+		   atomic_read(&sdeb_mq_poll_count));
 
 	seq_printf(m, "submit_queues=%d\n", submit_queues);
 	for (j = 0, sqp = sdebug_q_arr; j < submit_queues; ++j, ++sqp) {
@@ -7202,6 +7237,121 @@ static int resp_not_ready(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return check_condition_result;
 }
 
+static int sdebug_map_queues(struct Scsi_Host *shost)
+{
+	int i, qoff;
+
+	if (shost->nr_hw_queues == 1)
+		return 0;
+
+	for (i = 0, qoff = 0; i < HCTX_MAX_TYPES; i++) {
+		struct blk_mq_queue_map *map = &shost->tag_set.map[i];
+
+		map->nr_queues  = 0;
+
+		if (i == HCTX_TYPE_DEFAULT)
+			map->nr_queues = submit_queues - poll_queues;
+		else if (i == HCTX_TYPE_POLL)
+			map->nr_queues = poll_queues;
+
+		if (!map->nr_queues) {
+			BUG_ON(i == HCTX_TYPE_DEFAULT);
+			continue;
+		}
+
+		map->queue_offset = qoff;
+		blk_mq_map_queues(map);
+
+		qoff += map->nr_queues;
+	}
+
+	return 0;
+
+}
+
+static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
+{
+	bool first;
+	bool retiring = false;
+	int num_entries = 0;
+	unsigned int qc_idx = 0;
+	unsigned long iflags;
+	ktime_t kt_from_boot = ktime_get_boottime();
+	struct sdebug_queue *sqp;
+	struct sdebug_queued_cmd *sqcp;
+	struct scsi_cmnd *scp;
+	struct sdebug_dev_info *devip;
+	struct sdebug_defer *sd_dp;
+
+	sqp = sdebug_q_arr + queue_num;
+	spin_lock_irqsave(&sqp->qc_lock, iflags);
+
+	for (first = true; first || qc_idx + 1 < sdebug_max_queue; )   {
+		if (first) {
+			qc_idx = find_first_bit(sqp->in_use_bm, sdebug_max_queue);
+			first = false;
+		} else {
+			qc_idx = find_next_bit(sqp->in_use_bm, sdebug_max_queue, qc_idx + 1);
+		}
+		if (unlikely(qc_idx >= sdebug_max_queue))
+			break;
+
+		sqcp = &sqp->qc_arr[qc_idx];
+		sd_dp = sqcp->sd_dp;
+		if (unlikely(!sd_dp))
+			continue;
+		scp = sqcp->a_cmnd;
+		if (unlikely(scp == NULL)) {
+			pr_err("scp is NULL, queue_num=%d, qc_idx=%u from %s\n",
+			       queue_num, qc_idx, __func__);
+			break;
+		}
+		if (sd_dp->defer_t == SDEB_DEFER_POLL) {
+			if (kt_from_boot < sd_dp->cmpl_ts)
+				continue;
+
+		} else		/* ignoring non REQ_HIPRI requests */
+			continue;
+		devip = (struct sdebug_dev_info *)scp->device->hostdata;
+		if (likely(devip))
+			atomic_dec(&devip->num_in_q);
+		else
+			pr_err("devip=NULL from %s\n", __func__);
+		if (unlikely(atomic_read(&retired_max_queue) > 0))
+			retiring = true;
+
+		sqcp->a_cmnd = NULL;
+		if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
+			pr_err("Unexpected completion sqp %p queue_num=%d qc_idx=%u from %s\n",
+				sqp, queue_num, qc_idx, __func__);
+			break;
+		}
+		if (unlikely(retiring)) {	/* user has reduced max_queue */
+			int k, retval;
+
+			retval = atomic_read(&retired_max_queue);
+			if (qc_idx >= retval) {
+				pr_err("index %d too large\n", retval);
+				break;
+			}
+			k = find_last_bit(sqp->in_use_bm, retval);
+			if ((k < sdebug_max_queue) || (k == retval))
+				atomic_set(&retired_max_queue, 0);
+			else
+				atomic_set(&retired_max_queue, k + 1);
+		}
+		sd_dp->defer_t = SDEB_DEFER_NONE;
+		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+		scp->scsi_done(scp); /* callback to mid level */
+		spin_lock_irqsave(&sqp->qc_lock, iflags);
+		num_entries++;
+	}
+	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
+	if (num_entries > 0)
+		atomic_add(num_entries, &sdeb_mq_poll_count);
+	return num_entries;
+}
+
 static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 				   struct scsi_cmnd *scp)
 {
@@ -7381,6 +7531,8 @@ static struct scsi_host_template sdebug_driver_template = {
 	.ioctl =		scsi_debug_ioctl,
 	.queuecommand =		scsi_debug_queuecommand,
 	.change_queue_depth =	sdebug_change_qdepth,
+	.map_queues =		sdebug_map_queues,
+	.mq_poll =		sdebug_blk_mq_poll,
 	.eh_abort_handler =	scsi_debug_abort,
 	.eh_device_reset_handler = scsi_debug_device_reset,
 	.eh_target_reset_handler = scsi_debug_target_reset,
@@ -7427,6 +7579,25 @@ static int sdebug_driver_probe(struct device *dev)
 	hpnt->nr_hw_queues = submit_queues;
 	if (sdebug_host_max_queue)
 		hpnt->host_tagset = 1;
+
+	/* poll queues are possible for nr_hw_queues > 1 */
+	if (hpnt->nr_hw_queues == 1 || (poll_queues < 1)) {
+		pr_warn("%s: trim poll_queues to 0. poll_q/nr_hw = (%d/%d)\n",
+			 my_name, poll_queues, hpnt->nr_hw_queues);
+		poll_queues = 0;
+	}
+
+	/*
+	 * Poll queues don't need interrupts, but we need at least one I/O queue
+	 * left over for non-polled I/O.
+	 * If condition not met, trim poll_queues to 1 (just for simplicity).
+	 */
+	if (poll_queues >= submit_queues) {
+		pr_warn("%s: trim poll_queues to 1\n", my_name);
+		poll_queues = 1;
+	}
+	if (poll_queues)
+		hpnt->nr_maps = 3;
 
 	sdbg_host->shost = hpnt;
 	*((struct sdebug_host_info **)hpnt->hostdata) = sdbg_host;

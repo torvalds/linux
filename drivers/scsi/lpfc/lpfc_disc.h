@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -159,7 +159,6 @@ struct lpfc_node_rrq {
 	uint16_t rxid;
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	struct lpfc_vport *vport;
-	struct lpfc_nodelist *ndlp;
 	unsigned long rrq_stop_time;
 };
 

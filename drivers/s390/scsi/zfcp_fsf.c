@@ -846,7 +846,6 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 	if (adapter->req_no == 0)
 		adapter->req_no++;
 
-	INIT_LIST_HEAD(&req->list);
 	timer_setup(&req->timer, NULL, 0);
 	init_completion(&req->completion);
 

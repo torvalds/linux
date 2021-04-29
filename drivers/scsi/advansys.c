@@ -1799,7 +1799,7 @@ typedef struct adv_req {
  * Field naming convention:
  *
  *  *_able indicates both whether a feature should be enabled or disabled
- *  and whether a device isi capable of the feature. At initialization
+ *  and whether a device is capable of the feature. At initialization
  *  this field may be set, but later if a device is found to be incapable
  *  of the feature, the field is cleared.
  */
