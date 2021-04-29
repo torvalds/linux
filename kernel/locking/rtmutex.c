@@ -19,6 +19,7 @@
 #include <linux/sched/wake_q.h>
 #include <linux/sched/debug.h>
 #include <linux/timer.h>
+#include <trace/hooks/dtask.h>
 
 #include "rtmutex_common.h"
 
@@ -1168,6 +1169,7 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 {
 	int ret = 0;
 
+	trace_android_vh_rtmutex_wait_start(lock);
 	for (;;) {
 		/* Try to acquire the lock: */
 		if (try_to_take_rt_mutex(lock, current, waiter))
@@ -1197,6 +1199,7 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 		set_current_state(state);
 	}
 
+	trace_android_vh_rtmutex_wait_finish(lock);
 	__set_current_state(TASK_RUNNING);
 	return ret;
 }
