@@ -220,6 +220,12 @@ struct drm_i915_gem_object {
 		atomic_t shrink_pin;
 
 		/**
+		 * Priority list of potential placements for this object.
+		 */
+		struct intel_memory_region **placements;
+		int n_placements;
+
+		/**
 		 * Memory region for this object.
 		 */
 		struct intel_memory_region *region;

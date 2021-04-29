@@ -29,6 +29,22 @@ static const struct {
 };
 
 struct intel_memory_region *
+intel_memory_region_lookup(struct drm_i915_private *i915,
+			   u16 class, u16 instance)
+{
+	struct intel_memory_region *mr;
+	int id;
+
+	/* XXX: consider maybe converting to an rb tree at some point */
+	for_each_memory_region(mr, i915, id) {
+		if (mr->type == class && mr->instance == instance)
+			return mr;
+	}
+
+	return NULL;
+}
+
+struct intel_memory_region *
 intel_memory_region_by_type(struct drm_i915_private *i915,
 			    enum intel_memory_type mem_type)
 {
