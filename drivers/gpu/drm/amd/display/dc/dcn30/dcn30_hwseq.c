@@ -813,6 +813,15 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1),
 						denom) - 64LL;
 
+				/* In some cases the stutter period is really big (tiny modes) in these
+				 * cases MALL cant be enabled, So skip these cases to avoid a ASSERT()
+				 *
+				 * We can check if stutter_period is more than 1/10th the frame time to
+				 * consider if we can actually meet the range of hysteresis timer
+				 */
+				if (stutter_period > 100000/refresh_hz)
+					return false;
+
 				/* scale should be increased until it fits into 6 bits */
 				while (tmr_delay & ~0x3F) {
 					tmr_scale++;
