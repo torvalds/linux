@@ -10,8 +10,6 @@
 #ifndef _PLATFORM_SST_AUDIO_H_
 #define _PLATFORM_SST_AUDIO_H_
 
-#include <linux/sfi.h>
-
 #define MAX_NUM_STREAMS_MRFLD	25
 #define MAX_NUM_STREAMS	MAX_NUM_STREAMS_MRFLD
 

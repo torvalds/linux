@@ -12,8 +12,13 @@
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
-	u64 idle_mask = 0;
+	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	int i;
+
+	/* Release all allocated pending cb's, those cb's were never
+	 * scheduled so it is safe to release them here
+	 */
+	hl_pending_cb_list_flush(ctx);
 
 	/*
 	 * If we arrived here, there are no jobs waiting for this context
@@ -50,12 +55,15 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 
 		if ((!hdev->pldm) && (hdev->pdev) &&
 				(!hdev->asic_funcs->is_device_idle(hdev,
-							&idle_mask, NULL)))
+					idle_mask,
+					HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)))
 			dev_notice(hdev->dev,
-				"device not idle after user context is closed (0x%llx)\n",
-				idle_mask);
+					"device not idle after user context is closed (0x%llx, 0x%llx)\n",
+						idle_mask[0], idle_mask[1]);
 	} else {
 		dev_dbg(hdev->dev, "closing kernel context\n");
+		hdev->asic_funcs->ctx_fini(ctx);
+		hl_vm_ctx_fini(ctx);
 		hl_mmu_ctx_fini(ctx);
 	}
 }
@@ -140,8 +148,11 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	kref_init(&ctx->refcount);
 
 	ctx->cs_sequence = 1;
+	INIT_LIST_HEAD(&ctx->pending_cb_list);
+	spin_lock_init(&ctx->pending_cb_lock);
 	spin_lock_init(&ctx->cs_lock);
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
+	atomic_set(&ctx->thread_pending_cb_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
 	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
 				sizeof(struct hl_fence *),
@@ -151,10 +162,17 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 
 	if (is_kernel_ctx) {
 		ctx->asid = HL_KERNEL_ASID_ID; /* Kernel driver gets ASID 0 */
-		rc = hl_mmu_ctx_init(ctx);
+		rc = hl_vm_ctx_init(ctx);
 		if (rc) {
-			dev_err(hdev->dev, "Failed to init mmu ctx module\n");
+			dev_err(hdev->dev, "Failed to init mem ctx module\n");
+			rc = -ENOMEM;
 			goto err_free_cs_pending;
+		}
+
+		rc = hdev->asic_funcs->ctx_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev, "ctx_init failed\n");
+			goto err_vm_ctx_fini;
 		}
 	} else {
 		ctx->asid = hl_asid_alloc(hdev);
@@ -194,7 +212,8 @@ err_cb_va_pool_fini:
 err_vm_ctx_fini:
 	hl_vm_ctx_fini(ctx);
 err_asid_free:
-	hl_asid_free(hdev, ctx->asid);
+	if (ctx->asid != HL_KERNEL_ASID_ID)
+		hl_asid_free(hdev, ctx->asid);
 err_free_cs_pending:
 	kfree(ctx->cs_pending);
 

@@ -1532,7 +1532,7 @@ static void nvmet_subsys_free(struct kref *ref)
 	nvmet_passthru_subsys_free(subsys);
 
 	kfree(subsys->subsysnqn);
-	kfree_rcu(subsys->model, rcuhead);
+	kfree(subsys->model_number);
 	kfree(subsys);
 }
 

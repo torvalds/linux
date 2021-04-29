@@ -45,12 +45,14 @@ struct replicator_drvdata {
 
 static void dynamic_replicator_reset(struct replicator_drvdata *drvdata)
 {
+	struct coresight_device *csdev = drvdata->csdev;
+
 	CS_UNLOCK(drvdata->base);
 
-	if (!coresight_claim_device_unlocked(drvdata->base)) {
+	if (!coresight_claim_device_unlocked(csdev)) {
 		writel_relaxed(0xff, drvdata->base + REPLICATOR_IDFILTER0);
 		writel_relaxed(0xff, drvdata->base + REPLICATOR_IDFILTER1);
-		coresight_disclaim_device_unlocked(drvdata->base);
+		coresight_disclaim_device_unlocked(csdev);
 	}
 
 	CS_LOCK(drvdata->base);
@@ -70,6 +72,7 @@ static int dynamic_replicator_enable(struct replicator_drvdata *drvdata,
 {
 	int rc = 0;
 	u32 id0val, id1val;
+	struct coresight_device *csdev = drvdata->csdev;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -84,7 +87,7 @@ static int dynamic_replicator_enable(struct replicator_drvdata *drvdata,
 		id0val = id1val = 0xff;
 
 	if (id0val == 0xff && id1val == 0xff)
-		rc = coresight_claim_device_unlocked(drvdata->base);
+		rc = coresight_claim_device_unlocked(csdev);
 
 	if (!rc) {
 		switch (outport) {
@@ -140,6 +143,7 @@ static void dynamic_replicator_disable(struct replicator_drvdata *drvdata,
 				       int inport, int outport)
 {
 	u32 reg;
+	struct coresight_device *csdev = drvdata->csdev;
 
 	switch (outport) {
 	case 0:
@@ -160,7 +164,7 @@ static void dynamic_replicator_disable(struct replicator_drvdata *drvdata,
 
 	if ((readl_relaxed(drvdata->base + REPLICATOR_IDFILTER0) == 0xff) &&
 	    (readl_relaxed(drvdata->base + REPLICATOR_IDFILTER1) == 0xff))
-		coresight_disclaim_device_unlocked(drvdata->base);
+		coresight_disclaim_device_unlocked(csdev);
 	CS_LOCK(drvdata->base);
 }
 
@@ -254,6 +258,7 @@ static int replicator_probe(struct device *dev, struct resource *res)
 		}
 		drvdata->base = base;
 		desc.groups = replicator_groups;
+		desc.access = CSDEV_ACCESS_IOMEM(base);
 	}
 
 	if (fwnode_property_present(dev_fwnode(dev),

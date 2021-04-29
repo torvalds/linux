@@ -785,7 +785,7 @@ static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
  */
 static int wdt_open(struct inode *inode, struct file *file)
 {
-	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
+	if (iminor(inode) == WATCHDOG_MINOR) {
 		mutex_lock(&m41t80_rtc_mutex);
 		if (test_and_set_bit(0, &wdt_is_open)) {
 			mutex_unlock(&m41t80_rtc_mutex);
@@ -809,7 +809,7 @@ static int wdt_open(struct inode *inode, struct file *file)
  */
 static int wdt_release(struct inode *inode, struct file *file)
 {
-	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR)
+	if (iminor(inode) == WATCHDOG_MINOR)
 		clear_bit(0, &wdt_is_open);
 	return 0;
 }

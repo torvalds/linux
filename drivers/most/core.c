@@ -379,7 +379,7 @@ static struct attribute *channel_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group channel_attr_group = {
+static const struct attribute_group channel_attr_group = {
 	.attrs = channel_attrs,
 	.is_visible = channel_attr_is_visible,
 };
@@ -436,7 +436,7 @@ static struct attribute *interface_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group interface_attr_group = {
+static const struct attribute_group interface_attr_group = {
 	.attrs = interface_attrs,
 };
 
@@ -718,7 +718,7 @@ static struct attribute *mc_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group mc_attr_group = {
+static const struct attribute_group mc_attr_group = {
 	.attrs = mc_attrs,
 };
 

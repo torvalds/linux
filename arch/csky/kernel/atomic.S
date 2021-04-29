@@ -14,6 +14,10 @@
  */
 ENTRY(csky_cmpxchg)
 	USPTOKSP
+
+	RD_MEH	a3
+	WR_MEH	a3
+
 	mfcr	a3, epc
 	addi	a3, TRAP0_SIZE
 
@@ -36,11 +40,11 @@ ENTRY(csky_cmpxchg)
 2:
 	sync.is
 #else
-1:
+GLOBAL(csky_cmpxchg_ldw)
 	ldw	a3, (a2)
 	cmpne	a0, a3
 	bt16	3f
-2:
+GLOBAL(csky_cmpxchg_stw)
 	stw	a1, (a2)
 3:
 #endif
@@ -55,19 +59,3 @@ ENTRY(csky_cmpxchg)
 	KSPTOUSP
 	rte
 END(csky_cmpxchg)
-
-#ifndef CONFIG_CPU_HAS_LDSTEX
-/*
- * Called from tlbmodified exception
- */
-ENTRY(csky_cmpxchg_fixup)
-	mfcr	a0, epc
-	lrw	a1, 2b
-	cmpne	a1, a0
-	bt	1f
-	subi	a1, (2b - 1b)
-	stw	a1, (sp, LSAVE_PC)
-1:
-	rts
-END(csky_cmpxchg_fixup)
-#endif

@@ -228,7 +228,6 @@ char *next_arg(char *args, char **param, char **val)
 {
 	unsigned int i, equals = 0;
 	int in_quote = 0, quoted = 0;
-	char *next;
 
 	if (*args == '"') {
 		args++;
@@ -266,10 +265,10 @@ char *next_arg(char *args, char **param, char **val)
 
 	if (args[i]) {
 		args[i] = '\0';
-		next = args + i + 1;
+		args += i + 1;
 	} else
-		next = args + i;
+		args += i;
 
 	/* Chew up trailing spaces. */
-	return skip_spaces(next);
+	return skip_spaces(args);
 }

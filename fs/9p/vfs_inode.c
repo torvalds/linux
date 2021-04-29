@@ -1139,9 +1139,6 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 		 struct super_block *sb, unsigned int flags)
 {
 	umode_t mode;
-	char ext[32];
-	char tag_name[14];
-	unsigned int i_nlink;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 	struct v9fs_inode *v9inode = V9FS_I(inode);
 
@@ -1159,18 +1156,18 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 		inode->i_gid = stat->n_gid;
 	}
 	if ((S_ISREG(inode->i_mode)) || (S_ISDIR(inode->i_mode))) {
-		if (v9fs_proto_dotu(v9ses) && (stat->extension[0] != '\0')) {
+		if (v9fs_proto_dotu(v9ses)) {
+			unsigned int i_nlink;
 			/*
-			 * Hadlink support got added later to
-			 * to the .u extension. So there can be
-			 * server out there that doesn't support
-			 * this even with .u extension. So check
-			 * for non NULL stat->extension
+			 * Hadlink support got added later to the .u extension.
+			 * So there can be a server out there that doesn't
+			 * support this even with .u extension. That would
+			 * just leave us with stat->extension being an empty
+			 * string, though.
 			 */
-			strlcpy(ext, stat->extension, sizeof(ext));
 			/* HARDLINKCOUNT %u */
-			sscanf(ext, "%13s %u", tag_name, &i_nlink);
-			if (!strncmp(tag_name, "HARDLINKCOUNT", 13))
+			if (sscanf(stat->extension,
+				   " HARDLINKCOUNT %u", &i_nlink) == 1)
 				set_nlink(inode, i_nlink);
 		}
 	}

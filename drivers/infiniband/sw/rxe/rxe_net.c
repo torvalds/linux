@@ -407,14 +407,22 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	return 0;
 }
 
+/* fix up a send packet to match the packets
+ * received from UDP before looping them back
+ */
 void rxe_loopback(struct sk_buff *skb)
 {
+	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
+
 	if (skb->protocol == htons(ETH_P_IP))
 		skb_pull(skb, sizeof(struct iphdr));
 	else
 		skb_pull(skb, sizeof(struct ipv6hdr));
 
-	rxe_rcv(skb);
+	if (WARN_ON(!ib_device_try_get(&pkt->rxe->ib_dev)))
+		kfree_skb(skb);
+	else
+		rxe_rcv(skb);
 }
 
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,

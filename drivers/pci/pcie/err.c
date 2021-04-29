@@ -198,8 +198,7 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	pci_dbg(bridge, "broadcast error_detected message\n");
 	if (state == pci_channel_io_frozen) {
 		pci_walk_bridge(bridge, report_frozen_detected, &status);
-		status = reset_subordinates(bridge);
-		if (status != PCI_ERS_RESULT_RECOVERED) {
+		if (reset_subordinates(bridge) != PCI_ERS_RESULT_RECOVERED) {
 			pci_warn(bridge, "subordinate device reset failed\n");
 			goto failed;
 		}
@@ -231,15 +230,14 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	pci_walk_bridge(bridge, report_resume, &status);
 
 	/*
-	 * If we have native control of AER, clear error status in the Root
-	 * Port or Downstream Port that signaled the error.  If the
-	 * platform retained control of AER, it is responsible for clearing
-	 * this status.  In that case, the signaling device may not even be
-	 * visible to the OS.
+	 * If we have native control of AER, clear error status in the device
+	 * that detected the error.  If the platform retained control of AER,
+	 * it is responsible for clearing this status.  In that case, the
+	 * signaling device may not even be visible to the OS.
 	 */
 	if (host->native_aer || pcie_ports_native) {
-		pcie_clear_device_status(bridge);
-		pci_aer_clear_nonfatal_status(bridge);
+		pcie_clear_device_status(dev);
+		pci_aer_clear_nonfatal_status(dev);
 	}
 	pci_info(bridge, "device recovery successful\n");
 	return status;

@@ -570,7 +570,7 @@ enum ufshcd_quirks {
 	/*
 	 * This quirk allows only sg entries aligned with page size.
 	 */
-	UFSHCD_QUIRK_ALIGN_SG_WITH_PAGE_SIZE		= 1 << 13,
+	UFSHCD_QUIRK_ALIGN_SG_WITH_PAGE_SIZE		= 1 << 14,
 };
 
 enum ufshcd_caps {

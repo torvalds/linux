@@ -218,6 +218,7 @@ static int visconti_eth_dwmac_probe(struct platform_device *pdev)
 		goto remove_config;
 	}
 
+	spin_lock_init(&dwmac->lock);
 	dwmac->reg = stmmac_res.addr;
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = visconti_eth_fix_mac_speed;

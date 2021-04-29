@@ -1455,7 +1455,7 @@ EXPORT_SYMBOL(finalize_exec);
 /*
  * Prepare credentials and lock ->cred_guard_mutex.
  * setup_new_exec() commits the new creds and drops the lock.
- * Or, if exec fails before, free_bprm() should release ->cred and
+ * Or, if exec fails before, free_bprm() should release ->cred
  * and unlock.
  */
 static int prepare_bprm_creds(struct linux_binprm *bprm)
@@ -1841,7 +1841,7 @@ static int bprm_execve(struct linux_binprm *bprm,
 
 out:
 	/*
-	 * If past the point of no return ensure the the code never
+	 * If past the point of no return ensure the code never
 	 * returns to the userspace process.  Use an existing fatal
 	 * signal if present otherwise terminate the process with
 	 * SIGSEGV.

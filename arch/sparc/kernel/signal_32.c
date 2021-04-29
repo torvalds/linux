@@ -400,8 +400,8 @@ static int setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs,
 	else {
 		regs->u_regs[UREG_I7] = (unsigned long)(&(sf->insns[0]) - 2);
 
-		/* mov __NR_sigreturn, %g1 */
-		err |= __put_user(0x821020d8, &sf->insns[0]);
+		/* mov __NR_rt_sigreturn, %g1 */
+		err |= __put_user(0x82102065, &sf->insns[0]);
 
 		/* t 0x10 */
 		err |= __put_user(0x91d02010, &sf->insns[1]);

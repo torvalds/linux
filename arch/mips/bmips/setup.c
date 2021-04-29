@@ -196,4 +196,4 @@ static int __init plat_dev_init(void)
 	return 0;
 }
 
-device_initcall(plat_dev_init);
+arch_initcall(plat_dev_init);

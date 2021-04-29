@@ -5,13 +5,17 @@ Description:	This file contains a space-separated list of profiles supported for
 
 		Drivers must use the following standard profile-names:
 
-		============	============================================
-		low-power	Low power consumption
-		cool		Cooler operation
-		quiet		Quieter operation
-		balanced	Balance between low power consumption and performance
-		performance	High performance operation
-		============	============================================
+		====================	========================================
+		low-power		Low power consumption
+		cool			Cooler operation
+		quiet			Quieter operation
+		balanced		Balance between low power consumption
+					and performance
+		balanced-performance	Balance between performance and low
+					power consumption with a slight bias
+					towards performance
+		performance		High performance operation
+		====================	========================================
 
 		Userspace may expect drivers to offer more than one of these
 		standard profile names.

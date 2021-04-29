@@ -313,26 +313,39 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 	nvmet_req_complete(req, NVME_SC_INVALID_FIELD | NVME_SC_DNR);
 }
 
-static void nvmet_id_set_model_number(struct nvme_id_ctrl *id,
-				      struct nvmet_subsys *subsys)
+static u16 nvmet_set_model_number(struct nvmet_subsys *subsys)
 {
-	const char *model = NVMET_DEFAULT_CTRL_MODEL;
-	struct nvmet_subsys_model *subsys_model;
+	u16 status = 0;
 
-	rcu_read_lock();
-	subsys_model = rcu_dereference(subsys->model);
-	if (subsys_model)
-		model = subsys_model->number;
-	memcpy_and_pad(id->mn, sizeof(id->mn), model, strlen(model), ' ');
-	rcu_read_unlock();
+	mutex_lock(&subsys->lock);
+	if (!subsys->model_number) {
+		subsys->model_number =
+			kstrdup(NVMET_DEFAULT_CTRL_MODEL, GFP_KERNEL);
+		if (!subsys->model_number)
+			status = NVME_SC_INTERNAL;
+	}
+	mutex_unlock(&subsys->lock);
+
+	return status;
 }
 
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	struct nvmet_subsys *subsys = ctrl->subsys;
 	struct nvme_id_ctrl *id;
 	u32 cmd_capsule_size;
 	u16 status = 0;
+
+	/*
+	 * If there is no model number yet, set it now.  It will then remain
+	 * stable for the life time of the subsystem.
+	 */
+	if (!subsys->model_number) {
+		status = nvmet_set_model_number(subsys);
+		if (status)
+			goto out;
+	}
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id) {
@@ -347,7 +360,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	memset(id->sn, ' ', sizeof(id->sn));
 	bin2hex(id->sn, &ctrl->subsys->serial,
 		min(sizeof(ctrl->subsys->serial), sizeof(id->sn) / 2));
-	nvmet_id_set_model_number(id, ctrl->subsys);
+	memcpy_and_pad(id->mn, sizeof(id->mn), subsys->model_number,
+		       strlen(subsys->model_number), ' ');
 	memcpy_and_pad(id->fr, sizeof(id->fr),
 		       UTS_RELEASE, strlen(UTS_RELEASE), ' ');
 

@@ -80,6 +80,7 @@ static struct blk_crypto_keyslot {
 static struct blk_keyslot_manager blk_crypto_ksm;
 static struct workqueue_struct *blk_crypto_wq;
 static mempool_t *blk_crypto_bounce_page_pool;
+static struct bio_set crypto_bio_split;
 
 /*
  * This is the key we set when evicting a keyslot. This *should* be the all 0's
@@ -224,7 +225,8 @@ static bool blk_crypto_split_bio_if_needed(struct bio **bio_ptr)
 	if (num_sectors < bio_sectors(bio)) {
 		struct bio *split_bio;
 
-		split_bio = bio_split(bio, num_sectors, GFP_NOIO, NULL);
+		split_bio = bio_split(bio, num_sectors, GFP_NOIO,
+				      &crypto_bio_split);
 		if (!split_bio) {
 			bio->bi_status = BLK_STS_RESOURCE;
 			return false;
@@ -538,9 +540,13 @@ static int blk_crypto_fallback_init(void)
 
 	prandom_bytes(blank_key, BLK_CRYPTO_MAX_KEY_SIZE);
 
-	err = blk_ksm_init(&blk_crypto_ksm, blk_crypto_num_keyslots);
+	err = bioset_init(&crypto_bio_split, 64, 0, 0);
 	if (err)
 		goto out;
+
+	err = blk_ksm_init(&blk_crypto_ksm, blk_crypto_num_keyslots);
+	if (err)
+		goto fail_free_bioset;
 	err = -ENOMEM;
 
 	blk_crypto_ksm.ksm_ll_ops = blk_crypto_ksm_ll_ops;
@@ -591,6 +597,8 @@ fail_free_wq:
 	destroy_workqueue(blk_crypto_wq);
 fail_free_ksm:
 	blk_ksm_destroy(&blk_crypto_ksm);
+fail_free_bioset:
+	bioset_exit(&crypto_bio_split);
 out:
 	return err;
 }

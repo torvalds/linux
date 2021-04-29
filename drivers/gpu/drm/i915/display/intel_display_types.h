@@ -830,7 +830,6 @@ struct intel_crtc_wm_state {
 };
 
 enum intel_output_format {
-	INTEL_OUTPUT_FORMAT_INVALID,
 	INTEL_OUTPUT_FORMAT_RGB,
 	INTEL_OUTPUT_FORMAT_YCBCR420,
 	INTEL_OUTPUT_FORMAT_YCBCR444,

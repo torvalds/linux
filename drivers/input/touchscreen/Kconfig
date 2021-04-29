@@ -608,7 +608,7 @@ config TOUCHSCREEN_MTOUCH
 
 config TOUCHSCREEN_IMX6UL_TSC
 	tristate "Freescale i.MX6UL touchscreen controller"
-	depends on (OF && GPIOLIB) || COMPILE_TEST
+	depends on ((OF && GPIOLIB) || COMPILE_TEST) && HAS_IOMEM
 	help
 	  Say Y here if you have a Freescale i.MX6UL, and want to
 	  use the internal touchscreen controller.

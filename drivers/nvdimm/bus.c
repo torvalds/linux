@@ -113,18 +113,17 @@ static int nvdimm_bus_remove(struct device *dev)
 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
 	struct module *provider = to_bus_provider(dev);
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-	int rc = 0;
 
 	if (nd_drv->remove) {
 		debug_nvdimm_lock(dev);
-		rc = nd_drv->remove(dev);
+		nd_drv->remove(dev);
 		debug_nvdimm_unlock(dev);
 	}
 
-	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
-			dev_name(dev), rc);
+	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s)\n", dev->driver->name,
+			dev_name(dev));
 	module_put(provider);
-	return rc;
+	return 0;
 }
 
 static void nvdimm_bus_shutdown(struct device *dev)
@@ -427,7 +426,7 @@ static void free_badrange_list(struct list_head *badrange_list)
 	list_del_init(badrange_list);
 }
 
-static int nd_bus_remove(struct device *dev)
+static void nd_bus_remove(struct device *dev)
 {
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 
@@ -446,8 +445,6 @@ static int nd_bus_remove(struct device *dev)
 	spin_unlock(&nvdimm_bus->badrange.lock);
 
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
-
-	return 0;
 }
 
 static int nd_bus_probe(struct device *dev)

@@ -109,7 +109,6 @@ void intel_crtc_state_reset(struct intel_crtc_state *crtc_state,
 	crtc_state->cpu_transcoder = INVALID_TRANSCODER;
 	crtc_state->master_transcoder = INVALID_TRANSCODER;
 	crtc_state->hsw_workaround_pipe = INVALID_PIPE;
-	crtc_state->output_format = INTEL_OUTPUT_FORMAT_INVALID;
 	crtc_state->scaler_state.scaler_id = -1;
 	crtc_state->mst_master_transcoder = INVALID_TRANSCODER;
 }

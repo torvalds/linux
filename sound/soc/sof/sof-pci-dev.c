@@ -13,15 +13,11 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
-#include <sound/intel-dsp-config.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
 #include "ops.h"
-
-/* platform specific devices */
-#include "intel/shim.h"
-#include "intel/hda.h"
+#include "sof-pci-dev.h"
 
 static char *fw_path;
 module_param(fw_path, charp, 0444);
@@ -81,243 +77,14 @@ static const struct dmi_system_id community_key_platforms[] = {
 	{},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
-static const struct sof_dev_desc bxt_desc = {
-	.machines		= snd_soc_acpi_intel_bxt_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &apl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-apl.ri",
-	.nocodec_tplg_filename = "sof-apl-nocodec.tplg",
-	.ops = &sof_apl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
-static const struct sof_dev_desc glk_desc = {
-	.machines		= snd_soc_acpi_intel_glk_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &apl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-glk.ri",
-	.nocodec_tplg_filename = "sof-glk-nocodec.tplg",
-	.ops = &sof_apl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
-static struct snd_soc_acpi_mach sof_tng_machines[] = {
-	{
-		.id = "INT343A",
-		.drv_name = "edison",
-		.sof_fw_filename = "sof-byt.ri",
-		.sof_tplg_filename = "sof-byt.tplg",
-	},
-	{}
-};
-
-static const struct sof_dev_desc tng_desc = {
-	.machines		= sof_tng_machines,
-	.resindex_lpe_base	= 3,	/* IRAM, but subtract IRAM offset */
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= 0,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &tng_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-byt.ri",
-	.nocodec_tplg_filename = "sof-byt.tplg",
-	.ops = &sof_tng_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
-static const struct sof_dev_desc cnl_desc = {
-	.machines		= snd_soc_acpi_intel_cnl_machines,
-	.alt_machines		= snd_soc_acpi_intel_cnl_sdw_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &cnl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-cnl.ri",
-	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COFFEELAKE)
-static const struct sof_dev_desc cfl_desc = {
-	.machines		= snd_soc_acpi_intel_cfl_machines,
-	.alt_machines		= snd_soc_acpi_intel_cfl_sdw_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &cnl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-cfl.ri",
-	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE)
-static const struct sof_dev_desc cml_desc = {
-	.machines		= snd_soc_acpi_intel_cml_machines,
-	.alt_machines		= snd_soc_acpi_intel_cml_sdw_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base	= 0,
-	.resindex_pcicfg_base	= -1,
-	.resindex_imr_base	= -1,
-	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
-	.chip_info = &cnl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-cml.ri",
-	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
-static const struct sof_dev_desc icl_desc = {
-	.machines               = snd_soc_acpi_intel_icl_machines,
-	.alt_machines		= snd_soc_acpi_intel_icl_sdw_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base      = 0,
-	.resindex_pcicfg_base   = -1,
-	.resindex_imr_base      = -1,
-	.irqindex_host_ipc      = -1,
-	.resindex_dma_base      = -1,
-	.chip_info = &icl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-icl.ri",
-	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
-	.ops = &sof_icl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE) || IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
-static const struct sof_dev_desc tgl_desc = {
-	.machines               = snd_soc_acpi_intel_tgl_machines,
-	.alt_machines		= snd_soc_acpi_intel_tgl_sdw_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base      = 0,
-	.resindex_pcicfg_base   = -1,
-	.resindex_imr_base      = -1,
-	.irqindex_host_ipc      = -1,
-	.resindex_dma_base      = -1,
-	.chip_info = &tgl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-tgl.ri",
-	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
-	.ops = &sof_tgl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
-static const struct sof_dev_desc tglh_desc = {
-	.machines               = snd_soc_acpi_intel_tgl_machines,
-	.alt_machines		= snd_soc_acpi_intel_tgl_sdw_machines,
-	.resindex_lpe_base      = 0,
-	.resindex_pcicfg_base   = -1,
-	.resindex_imr_base      = -1,
-	.irqindex_host_ipc      = -1,
-	.resindex_dma_base      = -1,
-	.chip_info = &tglh_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-tgl-h.ri",
-	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
-	.ops = &sof_tgl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
-static const struct sof_dev_desc ehl_desc = {
-	.machines               = snd_soc_acpi_intel_ehl_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base      = 0,
-	.resindex_pcicfg_base   = -1,
-	.resindex_imr_base      = -1,
-	.irqindex_host_ipc      = -1,
-	.resindex_dma_base      = -1,
-	.chip_info = &ehl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-ehl.ri",
-	.nocodec_tplg_filename = "sof-ehl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
-static const struct sof_dev_desc jsl_desc = {
-	.machines               = snd_soc_acpi_intel_jsl_machines,
-	.use_acpi_target_states	= true,
-	.resindex_lpe_base      = 0,
-	.resindex_pcicfg_base   = -1,
-	.resindex_imr_base      = -1,
-	.irqindex_host_ipc      = -1,
-	.resindex_dma_base      = -1,
-	.chip_info = &jsl_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-jsl.ri",
-	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
-};
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
-static const struct sof_dev_desc adls_desc = {
-	.machines               = snd_soc_acpi_intel_adl_machines,
-	.alt_machines           = snd_soc_acpi_intel_adl_sdw_machines,
-	.resindex_lpe_base      = 0,
-	.resindex_pcicfg_base   = -1,
-	.resindex_imr_base      = -1,
-	.irqindex_host_ipc      = -1,
-	.resindex_dma_base      = -1,
-	.chip_info = &adls_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-adl-s.ri",
-	.nocodec_tplg_filename = "sof-adl-nocodec.tplg",
-	.ops = &sof_tgl_ops,
-};
-#endif
-
-static const struct dev_pm_ops sof_pci_pm = {
+const struct dev_pm_ops sof_pci_pm = {
 	.prepare = snd_sof_prepare,
 	.complete = snd_sof_complete,
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
 			   snd_sof_runtime_idle)
 };
+EXPORT_SYMBOL_NS(sof_pci_pm, SND_SOC_SOF_PCI_DEV);
 
 static void sof_pci_probe_complete(struct device *dev)
 {
@@ -343,8 +110,7 @@ static void sof_pci_probe_complete(struct device *dev)
 	pm_runtime_put_noidle(dev);
 }
 
-static int sof_pci_probe(struct pci_dev *pci,
-			 const struct pci_device_id *pci_id)
+int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	struct device *dev = &pci->dev;
 	const struct sof_dev_desc *desc =
@@ -353,13 +119,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 	const struct snd_sof_dsp_ops *ops;
 	int ret;
 
-	if (IS_REACHABLE(CONFIG_SND_INTEL_DSP_CONFIG)) {
-		ret = snd_intel_dsp_driver_probe(pci);
-		if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-			dev_dbg(&pci->dev, "SOF PCI driver not selected, aborting probe\n");
-			return -ENODEV;
-		}
-	}
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
 	/* get ops for platform */
@@ -447,8 +206,9 @@ release_regions:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(sof_pci_probe, SND_SOC_SOF_PCI_DEV);
 
-static void sof_pci_remove(struct pci_dev *pci)
+void sof_pci_remove(struct pci_dev *pci)
 {
 	/* call sof helper for DSP hardware remove */
 	snd_sof_device_remove(&pci->dev);
@@ -461,94 +221,12 @@ static void sof_pci_remove(struct pci_dev *pci)
 	/* release pci regions and disable device */
 	pci_release_regions(pci);
 }
+EXPORT_SYMBOL_NS(sof_pci_remove, SND_SOC_SOF_PCI_DEV);
 
-static void sof_pci_shutdown(struct pci_dev *pci)
+void sof_pci_shutdown(struct pci_dev *pci)
 {
 	snd_sof_device_shutdown(&pci->dev);
 }
-
-/* PCI IDs */
-static const struct pci_device_id sof_pci_ids[] = {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
-	{ PCI_DEVICE(0x8086, 0x119a),
-		.driver_data = (unsigned long)&tng_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
-	/* BXT-P & Apollolake */
-	{ PCI_DEVICE(0x8086, 0x5a98),
-		.driver_data = (unsigned long)&bxt_desc},
-	{ PCI_DEVICE(0x8086, 0x1a98),
-		.driver_data = (unsigned long)&bxt_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
-	{ PCI_DEVICE(0x8086, 0x3198),
-		.driver_data = (unsigned long)&glk_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
-	{ PCI_DEVICE(0x8086, 0x9dc8),
-		.driver_data = (unsigned long)&cnl_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COFFEELAKE)
-	{ PCI_DEVICE(0x8086, 0xa348),
-		.driver_data = (unsigned long)&cfl_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
-	{ PCI_DEVICE(0x8086, 0x34C8), /* ICL-LP */
-		.driver_data = (unsigned long)&icl_desc},
-	{ PCI_DEVICE(0x8086, 0x3dc8), /* ICL-H */
-		.driver_data = (unsigned long)&icl_desc},
-
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
-	{ PCI_DEVICE(0x8086, 0x38c8),
-		.driver_data = (unsigned long)&jsl_desc},
-	{ PCI_DEVICE(0x8086, 0x4dc8),
-		.driver_data = (unsigned long)&jsl_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE)
-	{ PCI_DEVICE(0x8086, 0x02c8), /* CML-LP */
-		.driver_data = (unsigned long)&cml_desc},
-	{ PCI_DEVICE(0x8086, 0x06c8), /* CML-H */
-		.driver_data = (unsigned long)&cml_desc},
-	{ PCI_DEVICE(0x8086, 0xa3f0), /* CML-S */
-		.driver_data = (unsigned long)&cml_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
-	{ PCI_DEVICE(0x8086, 0xa0c8), /* TGL-LP */
-		.driver_data = (unsigned long)&tgl_desc},
-	{ PCI_DEVICE(0x8086, 0x43c8), /* TGL-H */
-		.driver_data = (unsigned long)&tglh_desc},
-
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
-	{ PCI_DEVICE(0x8086, 0x4b55),
-		.driver_data = (unsigned long)&ehl_desc},
-	{ PCI_DEVICE(0x8086, 0x4b58),
-		.driver_data = (unsigned long)&ehl_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ALDERLAKE)
-	{ PCI_DEVICE(0x8086, 0x7ad0),
-		.driver_data = (unsigned long)&adls_desc},
-	{ PCI_DEVICE(0x8086, 0x51c8),
-		.driver_data = (unsigned long)&tgl_desc},
-#endif
-	{ 0, }
-};
-MODULE_DEVICE_TABLE(pci, sof_pci_ids);
-
-/* pci_driver definition */
-static struct pci_driver snd_sof_pci_driver = {
-	.name = "sof-audio-pci",
-	.id_table = sof_pci_ids,
-	.probe = sof_pci_probe,
-	.remove = sof_pci_remove,
-	.shutdown = sof_pci_shutdown,
-	.driver = {
-		.pm = &sof_pci_pm,
-	},
-};
-module_pci_driver(snd_sof_pci_driver);
+EXPORT_SYMBOL_NS(sof_pci_shutdown, SND_SOC_SOF_PCI_DEV);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(SND_SOC_SOF_MERRIFIELD);
-MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_COMMON);

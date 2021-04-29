@@ -2101,7 +2101,7 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
  * cpufreq_driver_adjust_perf - Adjust CPU performance level in one go.
  * @cpu: Target CPU.
  * @min_perf: Minimum (required) performance level (units of @capacity).
- * @target_perf: Terget (desired) performance level (units of @capacity).
+ * @target_perf: Target (desired) performance level (units of @capacity).
  * @capacity: Capacity of the target CPU.
  *
  * Carry out a fast performance level switch of @cpu without sleeping.

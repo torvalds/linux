@@ -1,0 +1,253 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2020 SiFive, Inc */
+
+#include "fu740-c000.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/* Clock frequency (in Hz) of the PCB crystal for rtcclk */
+#define RTCCLK_FREQ		1000000
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "SiFive HiFive Unmatched A00";
+	compatible = "sifive,hifive-unmatched-a00", "sifive,fu740-c000",
+		     "sifive,fu740";
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	cpus {
+		timebase-frequency = <RTCCLK_FREQ>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x2 0x00000000>;
+	};
+
+	soc {
+	};
+
+	hfclk: hfclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+		clock-output-names = "hfclk";
+	};
+
+	rtcclk: rtcclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <RTCCLK_FREQ>;
+		clock-output-names = "rtcclk";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	temperature-sensor@4c {
+		compatible = "ti,tmp451";
+		reg = <0x4c>;
+		interrupt-parent = <&gpio>;
+		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	pmic@58 {
+		compatible = "dlg,da9063";
+		reg = <0x58>;
+		interrupt-parent = <&gpio>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+
+		regulators {
+			vdd_bcore1: bcore1 {
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-min-microamp = <5000000>;
+				regulator-max-microamp = <5000000>;
+				regulator-always-on;
+			};
+
+			vdd_bcore2: bcore2 {
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-min-microamp = <5000000>;
+				regulator-max-microamp = <5000000>;
+				regulator-always-on;
+			};
+
+			vdd_bpro: bpro {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <2500000>;
+				regulator-max-microamp = <2500000>;
+				regulator-always-on;
+			};
+
+			vdd_bperi: bperi {
+				regulator-min-microvolt = <1050000>;
+				regulator-max-microvolt = <1050000>;
+				regulator-min-microamp = <1500000>;
+				regulator-max-microamp = <1500000>;
+				regulator-always-on;
+			};
+
+			vdd_bmem: bmem {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-min-microamp = <3000000>;
+				regulator-max-microamp = <3000000>;
+				regulator-always-on;
+			};
+
+			vdd_bio: bio {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-min-microamp = <3000000>;
+				regulator-max-microamp = <3000000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo1: ldo1 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <100000>;
+				regulator-max-microamp = <100000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo2: ldo2 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo3: ldo3 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo4: ldo4 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo5: ldo5 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <100000>;
+				regulator-max-microamp = <100000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo6: ldo6 {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo7: ldo7 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+				regulator-always-on;
+			};
+
+			vdd_ldo8: ldo8 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+				regulator-always-on;
+			};
+
+			vdd_ld09: ldo9 {
+				regulator-min-microvolt = <1050000>;
+				regulator-max-microvolt = <1050000>;
+				regulator-min-microamp = <200000>;
+				regulator-max-microamp = <200000>;
+			};
+
+			vdd_ldo10: ldo10 {
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-min-microamp = <300000>;
+				regulator-max-microamp = <300000>;
+			};
+
+			vdd_ldo11: ldo11 {
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <2500000>;
+				regulator-min-microamp = <300000>;
+				regulator-max-microamp = <300000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&qspi0 {
+	status = "okay";
+	flash@0 {
+		compatible = "issi,is25wp256", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		m25p,fast-read;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+	mmc@0 {
+		compatible = "mmc-spi-slot";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+		voltage-ranges = <3300 3300>;
+		disable-wp;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	phy-mode = "gmii";
+	phy-handle = <&phy0>;
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&gpio {
+	status = "okay";
+};

@@ -1322,7 +1322,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 						       CMN2ASIC_MAPPING_WORKLOAD,
 						       profile_mode);
 	if (workload_type < 0) {
-		dev_err(smu->adev->dev, "Unsupported power profile mode %d on arcturus\n", profile_mode);
+		dev_dbg(smu->adev->dev, "Unsupported power profile mode %d on arcturus\n", profile_mode);
 		return -EINVAL;
 	}
 

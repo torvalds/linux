@@ -115,7 +115,7 @@ DEFINE_EVENT(kmem_alloc_node, kmem_cache_alloc_node,
 	TP_ARGS(call_site, ptr, bytes_req, bytes_alloc, gfp_flags, node)
 );
 
-DECLARE_EVENT_CLASS(kmem_free,
+TRACE_EVENT(kfree,
 
 	TP_PROTO(unsigned long call_site, const void *ptr),
 
@@ -135,18 +135,26 @@ DECLARE_EVENT_CLASS(kmem_free,
 		  (void *)__entry->call_site, __entry->ptr)
 );
 
-DEFINE_EVENT(kmem_free, kfree,
+TRACE_EVENT(kmem_cache_free,
 
-	TP_PROTO(unsigned long call_site, const void *ptr),
+	TP_PROTO(unsigned long call_site, const void *ptr, const char *name),
 
-	TP_ARGS(call_site, ptr)
-);
+	TP_ARGS(call_site, ptr, name),
 
-DEFINE_EVENT(kmem_free, kmem_cache_free,
+	TP_STRUCT__entry(
+		__field(	unsigned long,	call_site	)
+		__field(	const void *,	ptr		)
+		__string(	name,	name	)
+	),
 
-	TP_PROTO(unsigned long call_site, const void *ptr),
+	TP_fast_assign(
+		__entry->call_site	= call_site;
+		__entry->ptr		= ptr;
+		__assign_str(name, name);
+	),
 
-	TP_ARGS(call_site, ptr)
+	TP_printk("call_site=%pS ptr=%p name=%s",
+		  (void *)__entry->call_site, __entry->ptr, __get_str(name))
 );
 
 TRACE_EVENT(mm_page_free,

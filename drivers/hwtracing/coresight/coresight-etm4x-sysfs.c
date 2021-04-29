@@ -389,7 +389,7 @@ static ssize_t mode_store(struct device *dev,
 		config->eventctrl1 &= ~BIT(12);
 
 	/* bit[8], Instruction stall bit */
-	if (config->mode & ETM_MODE_ISTALL_EN)
+	if ((config->mode & ETM_MODE_ISTALL_EN) && (drvdata->stallctl == true))
 		config->stall_ctrl |= BIT(8);
 	else
 		config->stall_ctrl &= ~BIT(8);
@@ -743,7 +743,7 @@ static ssize_t s_exlevel_vinst_show(struct device *dev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
 
-	val = (config->vinst_ctrl & ETM_EXLEVEL_S_VICTLR_MASK) >> 16;
+	val = (config->vinst_ctrl & TRCVICTLR_EXLEVEL_S_MASK) >> TRCVICTLR_EXLEVEL_S_SHIFT;
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
@@ -760,10 +760,10 @@ static ssize_t s_exlevel_vinst_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	/* clear all EXLEVEL_S bits  */
-	config->vinst_ctrl &= ~(ETM_EXLEVEL_S_VICTLR_MASK);
+	config->vinst_ctrl &= ~(TRCVICTLR_EXLEVEL_S_MASK);
 	/* enable instruction tracing for corresponding exception level */
 	val &= drvdata->s_ex_level;
-	config->vinst_ctrl |= (val << 16);
+	config->vinst_ctrl |= (val << TRCVICTLR_EXLEVEL_S_SHIFT);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -778,7 +778,7 @@ static ssize_t ns_exlevel_vinst_show(struct device *dev,
 	struct etmv4_config *config = &drvdata->config;
 
 	/* EXLEVEL_NS, bits[23:20] */
-	val = (config->vinst_ctrl & ETM_EXLEVEL_NS_VICTLR_MASK) >> 20;
+	val = (config->vinst_ctrl & TRCVICTLR_EXLEVEL_NS_MASK) >> TRCVICTLR_EXLEVEL_NS_SHIFT;
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
@@ -795,10 +795,10 @@ static ssize_t ns_exlevel_vinst_store(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	/* clear EXLEVEL_NS bits  */
-	config->vinst_ctrl &= ~(ETM_EXLEVEL_NS_VICTLR_MASK);
+	config->vinst_ctrl &= ~(TRCVICTLR_EXLEVEL_NS_MASK);
 	/* enable instruction tracing for corresponding exception level */
 	val &= drvdata->ns_ex_level;
-	config->vinst_ctrl |= (val << 20);
+	config->vinst_ctrl |= (val << TRCVICTLR_EXLEVEL_NS_SHIFT);
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -2319,7 +2319,8 @@ static struct attribute *coresight_etmv4_attrs[] = {
 };
 
 struct etmv4_reg {
-	void __iomem *addr;
+	struct coresight_device *csdev;
+	u32 offset;
 	u32 data;
 };
 
@@ -2327,15 +2328,16 @@ static void do_smp_cross_read(void *data)
 {
 	struct etmv4_reg *reg = data;
 
-	reg->data = readl_relaxed(reg->addr);
+	reg->data = etm4x_relaxed_read32(&reg->csdev->access, reg->offset);
 }
 
-static u32 etmv4_cross_read(const struct device *dev, u32 offset)
+static u32 etmv4_cross_read(const struct etmv4_drvdata *drvdata, u32 offset)
 {
-	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
 	struct etmv4_reg reg;
 
-	reg.addr = drvdata->base + offset;
+	reg.offset = offset;
+	reg.csdev = drvdata->csdev;
+
 	/*
 	 * smp cross call ensures the CPU will be powered up before
 	 * accessing the ETMv4 trace core registers
@@ -2344,72 +2346,120 @@ static u32 etmv4_cross_read(const struct device *dev, u32 offset)
 	return reg.data;
 }
 
-#define coresight_etm4x_reg(name, offset)			\
-	coresight_simple_reg32(struct etmv4_drvdata, name, offset)
+static inline u32 coresight_etm4x_attr_to_offset(struct device_attribute *attr)
+{
+	struct dev_ext_attribute *eattr;
 
-#define coresight_etm4x_cross_read(name, offset)			\
-	coresight_simple_func(struct etmv4_drvdata, etmv4_cross_read,	\
-			      name, offset)
+	eattr = container_of(attr, struct dev_ext_attribute, attr);
+	return (u32)(unsigned long)eattr->var;
+}
 
-coresight_etm4x_reg(trcpdcr, TRCPDCR);
-coresight_etm4x_reg(trcpdsr, TRCPDSR);
-coresight_etm4x_reg(trclsr, TRCLSR);
-coresight_etm4x_reg(trcauthstatus, TRCAUTHSTATUS);
-coresight_etm4x_reg(trcdevid, TRCDEVID);
-coresight_etm4x_reg(trcdevtype, TRCDEVTYPE);
-coresight_etm4x_reg(trcpidr0, TRCPIDR0);
-coresight_etm4x_reg(trcpidr1, TRCPIDR1);
-coresight_etm4x_reg(trcpidr2, TRCPIDR2);
-coresight_etm4x_reg(trcpidr3, TRCPIDR3);
-coresight_etm4x_cross_read(trcoslsr, TRCOSLSR);
-coresight_etm4x_cross_read(trcconfig, TRCCONFIGR);
-coresight_etm4x_cross_read(trctraceid, TRCTRACEIDR);
+static ssize_t coresight_etm4x_reg_show(struct device *dev,
+					struct device_attribute *d_attr,
+					char *buf)
+{
+	u32 val, offset;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	offset = coresight_etm4x_attr_to_offset(d_attr);
+
+	pm_runtime_get_sync(dev->parent);
+	val = etmv4_cross_read(drvdata, offset);
+	pm_runtime_put_sync(dev->parent);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);
+}
+
+static inline bool
+etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
+{
+	switch (offset) {
+	ETM4x_SYSREG_LIST_CASES
+		/*
+		 * Registers accessible via system instructions are always
+		 * implemented.
+		 */
+		return true;
+	ETM4x_MMAP_LIST_CASES
+		/*
+		 * Registers accessible only via memory-mapped registers
+		 * must not be accessed via system instructions.
+		 * We cannot access the drvdata->csdev here, as this
+		 * function is called during the device creation, via
+		 * coresight_register() and the csdev is not initialized
+		 * until that is done. So rely on the drvdata->base to
+		 * detect if we have a memory mapped access.
+		 */
+		return !!drvdata->base;
+	}
+
+	return false;
+}
+
+/*
+ * Hide the ETM4x registers that may not be available on the
+ * hardware.
+ * There are certain management registers unavailable via system
+ * instructions. Make those sysfs attributes hidden on such
+ * systems.
+ */
+static umode_t
+coresight_etm4x_attr_reg_implemented(struct kobject *kobj,
+				     struct attribute *attr, int unused)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct device_attribute *d_attr;
+	u32 offset;
+
+	d_attr = container_of(attr, struct device_attribute, attr);
+	offset = coresight_etm4x_attr_to_offset(d_attr);
+
+	if (etm4x_register_implemented(drvdata, offset))
+		return attr->mode;
+	return 0;
+}
+
+#define coresight_etm4x_reg(name, offset)				\
+	&((struct dev_ext_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_etm4x_reg_show, NULL),	\
+		(void *)(unsigned long)offset				\
+	   }								\
+	})[0].attr.attr
 
 static struct attribute *coresight_etmv4_mgmt_attrs[] = {
-	&dev_attr_trcoslsr.attr,
-	&dev_attr_trcpdcr.attr,
-	&dev_attr_trcpdsr.attr,
-	&dev_attr_trclsr.attr,
-	&dev_attr_trcconfig.attr,
-	&dev_attr_trctraceid.attr,
-	&dev_attr_trcauthstatus.attr,
-	&dev_attr_trcdevid.attr,
-	&dev_attr_trcdevtype.attr,
-	&dev_attr_trcpidr0.attr,
-	&dev_attr_trcpidr1.attr,
-	&dev_attr_trcpidr2.attr,
-	&dev_attr_trcpidr3.attr,
+	coresight_etm4x_reg(trcpdcr, TRCPDCR),
+	coresight_etm4x_reg(trcpdsr, TRCPDSR),
+	coresight_etm4x_reg(trclsr, TRCLSR),
+	coresight_etm4x_reg(trcauthstatus, TRCAUTHSTATUS),
+	coresight_etm4x_reg(trcdevid, TRCDEVID),
+	coresight_etm4x_reg(trcdevtype, TRCDEVTYPE),
+	coresight_etm4x_reg(trcpidr0, TRCPIDR0),
+	coresight_etm4x_reg(trcpidr1, TRCPIDR1),
+	coresight_etm4x_reg(trcpidr2, TRCPIDR2),
+	coresight_etm4x_reg(trcpidr3, TRCPIDR3),
+	coresight_etm4x_reg(trcoslsr, TRCOSLSR),
+	coresight_etm4x_reg(trcconfig, TRCCONFIGR),
+	coresight_etm4x_reg(trctraceid, TRCTRACEIDR),
+	coresight_etm4x_reg(trcdevarch, TRCDEVARCH),
 	NULL,
 };
 
-coresight_etm4x_cross_read(trcidr0, TRCIDR0);
-coresight_etm4x_cross_read(trcidr1, TRCIDR1);
-coresight_etm4x_cross_read(trcidr2, TRCIDR2);
-coresight_etm4x_cross_read(trcidr3, TRCIDR3);
-coresight_etm4x_cross_read(trcidr4, TRCIDR4);
-coresight_etm4x_cross_read(trcidr5, TRCIDR5);
-/* trcidr[6,7] are reserved */
-coresight_etm4x_cross_read(trcidr8, TRCIDR8);
-coresight_etm4x_cross_read(trcidr9, TRCIDR9);
-coresight_etm4x_cross_read(trcidr10, TRCIDR10);
-coresight_etm4x_cross_read(trcidr11, TRCIDR11);
-coresight_etm4x_cross_read(trcidr12, TRCIDR12);
-coresight_etm4x_cross_read(trcidr13, TRCIDR13);
-
 static struct attribute *coresight_etmv4_trcidr_attrs[] = {
-	&dev_attr_trcidr0.attr,
-	&dev_attr_trcidr1.attr,
-	&dev_attr_trcidr2.attr,
-	&dev_attr_trcidr3.attr,
-	&dev_attr_trcidr4.attr,
-	&dev_attr_trcidr5.attr,
+	coresight_etm4x_reg(trcidr0, TRCIDR0),
+	coresight_etm4x_reg(trcidr1, TRCIDR1),
+	coresight_etm4x_reg(trcidr2, TRCIDR2),
+	coresight_etm4x_reg(trcidr3, TRCIDR3),
+	coresight_etm4x_reg(trcidr4, TRCIDR4),
+	coresight_etm4x_reg(trcidr5, TRCIDR5),
 	/* trcidr[6,7] are reserved */
-	&dev_attr_trcidr8.attr,
-	&dev_attr_trcidr9.attr,
-	&dev_attr_trcidr10.attr,
-	&dev_attr_trcidr11.attr,
-	&dev_attr_trcidr12.attr,
-	&dev_attr_trcidr13.attr,
+	coresight_etm4x_reg(trcidr8, TRCIDR8),
+	coresight_etm4x_reg(trcidr9, TRCIDR9),
+	coresight_etm4x_reg(trcidr10, TRCIDR10),
+	coresight_etm4x_reg(trcidr11, TRCIDR11),
+	coresight_etm4x_reg(trcidr12, TRCIDR12),
+	coresight_etm4x_reg(trcidr13, TRCIDR13),
 	NULL,
 };
 
@@ -2418,6 +2468,7 @@ static const struct attribute_group coresight_etmv4_group = {
 };
 
 static const struct attribute_group coresight_etmv4_mgmt_group = {
+	.is_visible = coresight_etm4x_attr_reg_implemented,
 	.attrs = coresight_etmv4_mgmt_attrs,
 	.name = "mgmt",
 };

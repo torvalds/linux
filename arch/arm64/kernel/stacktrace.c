@@ -46,7 +46,7 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 
 	/* Terminal record; nothing to unwind */
 	if (!fp)
-		return -EINVAL;
+		return -ENOENT;
 
 	if (fp & 0xf)
 		return -EINVAL;

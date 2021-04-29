@@ -844,16 +844,19 @@ enable_err_exit:
 	return ret;
 }
 
-static int mei_hdcp_remove(struct mei_cl_device *cldev)
+static void mei_hdcp_remove(struct mei_cl_device *cldev)
 {
 	struct i915_hdcp_comp_master *comp_master =
 						mei_cldev_get_drvdata(cldev);
+	int ret;
 
 	component_master_del(&cldev->dev, &mei_component_master_ops);
 	kfree(comp_master);
 	mei_cldev_set_drvdata(cldev, NULL);
 
-	return mei_cldev_disable(cldev);
+	ret = mei_cldev_disable(cldev);
+	if (ret)
+		dev_warn(&cldev->dev, "mei_cldev_disable() failed\n");
 }
 
 #define MEI_UUID_HDCP GUID_INIT(0xB638AB7E, 0x94E2, 0x4EA2, 0xA5, \
