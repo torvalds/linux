@@ -621,6 +621,11 @@ DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_reused,
 	TP_ARGS(ip)
 );
 
+DEFINE_EVENT(transaction_restart,	trans_blocked_journal_reclaim,
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
+);
+
 TRACE_EVENT(trans_restart_would_deadlock,
 	TP_PROTO(unsigned long	trans_ip,
 		 unsigned long	caller_ip,
