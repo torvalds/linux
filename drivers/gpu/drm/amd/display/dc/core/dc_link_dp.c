@@ -1806,7 +1806,7 @@ bool perform_link_training_with_retries(
 	enum dp_panel_mode panel_mode;
 	struct link_encoder *link_enc;
 	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
-	struct dc_link_settings currnet_setting = *link_setting;
+	struct dc_link_settings current_setting = *link_setting;
 
 	/* Dynamically assigned link encoders associated with stream rather than
 	 * link.
@@ -1832,7 +1832,7 @@ bool perform_link_training_with_retries(
 			link,
 			signal,
 			pipe_ctx->clock_source->id,
-			&currnet_setting);
+			&current_setting);
 
 		if (stream->sink_patches.dppowerup_delay > 0) {
 			int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
@@ -1847,12 +1847,12 @@ bool perform_link_training_with_retries(
 			 panel_mode != DP_PANEL_MODE_DEFAULT);
 
 		if (link->aux_access_disabled) {
-			dc_link_dp_perform_link_training_skip_aux(link, &currnet_setting);
+			dc_link_dp_perform_link_training_skip_aux(link, &current_setting);
 			return true;
 		} else {
 				status = dc_link_dp_perform_link_training(
 										link,
-										&currnet_setting,
+										&current_setting,
 										skip_video_pattern);
 			if (status == LINK_TRAINING_SUCCESS)
 				return true;
@@ -1872,12 +1872,12 @@ bool perform_link_training_with_retries(
 		if (status == LINK_TRAINING_ABORT)
 			break;
 		else if (do_fallback) {
-			decide_fallback_link_setting(*link_setting, &currnet_setting, status);
+			decide_fallback_link_setting(*link_setting, &current_setting, status);
 			/* Fail link training if reduced link bandwidth no longer meets
 			 * stream requirements.
 			 */
 			if (dc_bandwidth_in_kbps_from_timing(&stream->timing) <
-					dc_link_bandwidth_kbps(link, &currnet_setting))
+					dc_link_bandwidth_kbps(link, &current_setting))
 				break;
 		}
 
