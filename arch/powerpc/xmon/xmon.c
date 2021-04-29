@@ -499,10 +499,10 @@ static void xmon_touch_watchdogs(void)
 	touch_nmi_watchdog();
 }
 
-static int xmon_core(struct pt_regs *regs, int fromipi)
+static int xmon_core(struct pt_regs *regs, volatile int fromipi)
 {
-	int cmd = 0;
-	struct bpt *bp;
+	volatile int cmd = 0;
+	struct bpt *volatile bp;
 	long recurse_jmp[JMP_BUF_LEN];
 	bool locked_down;
 	unsigned long offset;
@@ -872,7 +872,7 @@ static inline void force_enable_xmon(void)
 static struct bpt *at_breakpoint(unsigned long pc)
 {
 	int i;
-	struct bpt *bp;
+	struct bpt *volatile bp;
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp)
@@ -3109,7 +3109,7 @@ static void dump_opal_msglog(void)
 {
 	unsigned char buf[128];
 	ssize_t res;
-	loff_t pos = 0;
+	volatile loff_t pos = 0;
 
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
 		printf("Machine is not running OPAL firmware.\n");
@@ -3264,7 +3264,7 @@ memzcan(void)
 		printf("%.8lx\n", a - mskip);
 }
 
-static void show_task(struct task_struct *tsk)
+static void show_task(struct task_struct *volatile tsk)
 {
 	char state;
 
@@ -3308,7 +3308,7 @@ static void format_pte(void *ptep, unsigned long pte)
 static void show_pte(unsigned long addr)
 {
 	unsigned long tskv = 0;
-	struct task_struct *tsk = NULL;
+	struct task_struct *volatile tsk = NULL;
 	struct mm_struct *mm;
 	pgd_t *pgdp;
 	p4d_t *p4dp;
@@ -3403,7 +3403,7 @@ static void show_pte(unsigned long addr)
 static void show_tasks(void)
 {
 	unsigned long tskv;
-	struct task_struct *tsk = NULL;
+	struct task_struct *volatile tsk = NULL;
 
 	printf("     task_struct     ->thread.ksp    ->thread.regs    PID   PPID S  P CMD\n");
 
@@ -3726,7 +3726,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 			      const char *after)
 {
 	char *modname;
-	const char *name = NULL;
+	const char *volatile name = NULL;
 	unsigned long offset, size;
 
 	printf(REG, address);
@@ -4158,7 +4158,7 @@ void xmon_register_spus(struct list_head *list)
 static void stop_spus(void)
 {
 	struct spu *spu;
-	int i;
+	volatile int i;
 	u64 tmp;
 
 	for (i = 0; i < XMON_NUM_SPUS; i++) {
@@ -4199,7 +4199,7 @@ static void stop_spus(void)
 static void restart_spus(void)
 {
 	struct spu *spu;
-	int i;
+	volatile int i;
 
 	for (i = 0; i < XMON_NUM_SPUS; i++) {
 		if (!spu_info[i].spu)
