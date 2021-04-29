@@ -4,13 +4,15 @@ config MIPS
 	default y
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
+	select ARCH_HAS_DEBUG_VIRTUAL if !64BIT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_KCOV
+	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE if !EVA
 	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_KEEP_MEMBLOCK if DEBUG_KERNEL
+	select ARCH_KEEP_MEMBLOCK
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -26,6 +28,7 @@ config MIPS
 	select GENERIC_ATOMIC64 if !64BIT
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
@@ -91,7 +94,6 @@ config MIPS
 	select PERF_USE_VMALLOC
 	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	select RTC_LIB
-	select SET_FS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
 	select ARCH_HAS_ELFCORE_COMPAT
@@ -712,6 +714,7 @@ config SGI_IP27
 	select ARC_CMDLINE_ONLY
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
+	select FORCE_PCI
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
@@ -774,6 +777,7 @@ config SGI_IP30
 	select BOOT_ELF64
 	select CEVT_R4K
 	select CSRC_R4K
+	select FORCE_PCI
 	select SYNC_R4K if SMP
 	select ZONE_DMA32
 	select HAVE_PCI
@@ -998,6 +1002,7 @@ config CAVIUM_OCTEON_SOC
 	select NR_CPUS_DEFAULT_64
 	select MIPS_NR_CPU_NR_MAP_1024
 	select BUILTIN_DTB
+	select MTD
 	select MTD_COMPLEX_MAPPINGS
 	select SWIOTLB
 	select SYS_SUPPORTS_RELOCATABLE
@@ -2118,7 +2123,7 @@ config CPU_MIPS32
 config CPU_MIPS64
 	bool
 	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R5 || \
-		     CPU_MIPS64_R6
+		     CPU_MIPS64_R6 || CPU_LOONGSON64 || CPU_CAVIUM_OCTEON
 
 #
 # These indicate the revision of the architecture
@@ -2185,7 +2190,8 @@ config CPU_SUPPORTS_HUGEPAGES
 	depends on !(32BIT && (ARCH_PHYS_ADDR_T_64BIT || EVA))
 config MIPS_PGD_C0_CONTEXT
 	bool
-	default y if 64BIT && (CPU_MIPSR2 || CPU_MIPSR6) && !CPU_XLP
+	depends on 64BIT
+	default y if (CPU_MIPSR2 || CPU_MIPSR6) && !CPU_XLP
 
 #
 # Set to y for ptrace access to watch registers.
@@ -2218,23 +2224,6 @@ config 64BIT
 	  Select this option if you want to build a 64-bit kernel.
 
 endchoice
-
-config KVM_GUEST
-	bool "KVM Guest Kernel"
-	depends on CPU_MIPS32_R2
-	depends on !64BIT && BROKEN_ON_SMP
-	help
-	  Select this option if building a guest kernel for KVM (Trap & Emulate)
-	  mode.
-
-config KVM_GUEST_TIMER_FREQ
-	int "Count/Compare Timer Frequency (MHz)"
-	depends on KVM_GUEST
-	default 100
-	help
-	  Set this to non-zero if building a guest kernel for KVM to skip RTC
-	  emulation when determining guest CPU Frequency. Instead, the guest's
-	  timer frequency is specified directly.
 
 config MIPS_VA_BITS_48
 	bool "48 bits virtual memory"

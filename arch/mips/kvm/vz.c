@@ -292,9 +292,8 @@ static int kvm_vz_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 	switch (priority) {
 	case MIPS_EXC_INT_TIMER:
 		/*
-		 * Call to kvm_write_c0_guest_compare() clears Cause.TI in
-		 * kvm_mips_emulate_CP0(). Explicitly clear irq associated with
-		 * Cause.IP[IPTI] if GuestCtl2 virtual interrupt register not
+		 * Explicitly clear irq associated with Cause.IP[IPTI]
+		 * if GuestCtl2 virtual interrupt register not
 		 * supported or if not using GuestCtl2 Hardware Clear.
 		 */
 		if (cpu_has_guestctl2) {
