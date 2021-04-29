@@ -51,7 +51,7 @@ static int __live_active(struct i915_active *base)
 	return 0;
 }
 
-static void __live_retire(struct i915_active *base)
+__i915_active_call static void __live_retire(struct i915_active *base)
 {
 	struct live_active *active = container_of(base, typeof(*active), base);
 

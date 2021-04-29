@@ -63,7 +63,7 @@ static void pulse_put(struct pulse *p)
 	kref_put(&p->kref, pulse_free);
 }
 
-static void pulse_retire(struct i915_active *active)
+__i915_active_call static void pulse_retire(struct i915_active *active)
 {
 	pulse_put(container_of(active, struct pulse, active));
 }
