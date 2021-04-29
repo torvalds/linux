@@ -362,14 +362,8 @@ static void cpumf_pmu_start(struct perf_event *event, int flags)
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 	struct hw_perf_event *hwc = &event->hw;
 
-	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
+	if (!(hwc->state & PERF_HES_STOPPED))
 		return;
-
-	if (WARN_ON_ONCE(hwc->config == -1))
-		return;
-
-	if (flags & PERF_EF_RELOAD)
-		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
 
 	hwc->state = 0;
 
