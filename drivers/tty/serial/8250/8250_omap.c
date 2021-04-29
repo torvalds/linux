@@ -813,7 +813,7 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 			       poll_count--)
 				cpu_relax();
 
-			if (!poll_count)
+			if (poll_count == -1)
 				dev_err(p->port.dev, "teardown incomplete\n");
 		}
 	}
