@@ -775,74 +775,94 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	return 0;
 }
 
-static int extent_handle_overwrites(struct btree_trans *trans,
-				    enum btree_id btree_id,
-				    struct bkey_i *insert,
-				    unsigned trigger_flags)
+static int __btree_delete_at(struct btree_trans *trans, enum btree_id btree_id,
+			     struct bpos pos, unsigned trigger_flags)
 {
-	struct btree_iter *iter, *update_iter;
-	struct bpos start = bkey_start_pos(&insert->k);
+	struct btree_iter *iter;
 	struct bkey_i *update;
-	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key(trans, iter, btree_id, start,
-			   BTREE_ITER_INTENT|
-			   BTREE_ITER_WITH_UPDATES, k, ret) {
-		if (bkey_cmp(insert->k.p, bkey_start_pos(k.k)) <= 0)
-			break;
+	update = bch2_trans_kmalloc(trans, sizeof(struct bkey));
+	if ((ret = PTR_ERR_OR_ZERO(update)))
+		return ret;
 
+	bkey_init(&update->k);
+	update->k.p = pos;
+
+	iter = bch2_trans_get_iter(trans, btree_id, pos,
+				   BTREE_ITER_NOT_EXTENTS|
+				   BTREE_ITER_INTENT);
+	bch2_trans_update(trans, iter, update, trigger_flags);
+	bch2_trans_iter_put(trans, iter);
+	return 0;
+}
+
+static int extent_handle_overwrites(struct btree_trans *trans,
+				    struct btree_insert_entry *i)
+{
+	struct btree_iter *iter, *update_iter;
+	struct bpos start = bkey_start_pos(&i->k->k);
+	struct bkey_i *update;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	iter = bch2_trans_get_iter(trans, i->btree_id, start,
+				   BTREE_ITER_INTENT|
+				   BTREE_ITER_WITH_UPDATES|
+				   BTREE_ITER_NOT_EXTENTS);
+	k = bch2_btree_iter_peek(iter);
+	if (!k.k || (ret = bkey_err(k)))
+		goto out;
+
+	if (!bkey_cmp(k.k->p, bkey_start_pos(&i->k->k)))
+		goto next;
+
+	while (bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) > 0) {
 		if (bkey_cmp(bkey_start_pos(k.k), start) < 0) {
 			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
-				break;
+				goto out;
 
 			bkey_reassemble(update, k);
 
 			bch2_cut_back(start, update);
 
-			update_iter = bch2_trans_get_iter(trans, btree_id, update->k.p,
+			update_iter = bch2_trans_get_iter(trans, i->btree_id, update->k.p,
 							  BTREE_ITER_NOT_EXTENTS|
 							  BTREE_ITER_INTENT);
-			bch2_trans_update(trans, update_iter, update,
-					  trigger_flags);
+			bch2_trans_update(trans, update_iter, update, i->trigger_flags);
 			bch2_trans_iter_put(trans, update_iter);
 		}
 
-		if (bkey_cmp(k.k->p, insert->k.p) < 0 ||
-		    (!bkey_cmp(k.k->p, insert->k.p) && bkey_deleted(&insert->k))) {
-			update = bch2_trans_kmalloc(trans, sizeof(struct bkey));
-			if ((ret = PTR_ERR_OR_ZERO(update)))
-				break;
-
-			bkey_init(&update->k);
-			update->k.p = k.k->p;
-
-			update_iter = bch2_trans_get_iter(trans, btree_id, update->k.p,
-							  BTREE_ITER_NOT_EXTENTS|
-							  BTREE_ITER_INTENT);
-			bch2_trans_update(trans, update_iter, update,
-					  trigger_flags);
-			bch2_trans_iter_put(trans, update_iter);
+		if (bkey_cmp(k.k->p, i->k->k.p) <= 0) {
+			ret = __btree_delete_at(trans, i->btree_id, k.k->p,
+						i->trigger_flags);
+			if (ret)
+				goto out;
 		}
 
-		if (bkey_cmp(k.k->p, insert->k.p) > 0) {
+		if (bkey_cmp(k.k->p, i->k->k.p) > 0) {
 			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
-				break;
+				goto out;
 
 			bkey_reassemble(update, k);
-			bch2_cut_front(insert->k.p, update);
+			bch2_cut_front(i->k->k.p, update);
 
-			update_iter = bch2_trans_get_iter(trans, btree_id, update->k.p,
+			update_iter = bch2_trans_get_iter(trans, i->btree_id, update->k.p,
 							  BTREE_ITER_NOT_EXTENTS|
 							  BTREE_ITER_INTENT);
 			bch2_trans_update(trans, update_iter, update,
-					  trigger_flags);
+					  i->trigger_flags);
 			bch2_trans_iter_put(trans, update_iter);
-			break;
+			goto out;
 		}
+next:
+		k = bch2_btree_iter_next(iter);
+		if (!k.k || (ret = bkey_err(k)))
+			goto out;
 	}
+out:
 	bch2_trans_iter_put(trans, iter);
 
 	return ret;
@@ -1002,7 +1022,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		if (ret)
 			return ret;
 
-		ret = extent_handle_overwrites(trans, n.btree_id, n.k, flags);
+		ret = extent_handle_overwrites(trans, &n);
 		if (ret)
 			return ret;
 
@@ -1012,7 +1032,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		if (bkey_deleted(&n.k->k))
 			return 0;
 
-		n.iter = bch2_trans_get_iter(trans, n.iter->btree_id, n.k->k.p,
+		n.iter = bch2_trans_get_iter(trans, n.btree_id, n.k->k.p,
 					     BTREE_ITER_INTENT|
 					     BTREE_ITER_NOT_EXTENTS);
 		bch2_trans_iter_put(trans, n.iter);
