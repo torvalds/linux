@@ -158,8 +158,7 @@ try_again:
 			ret = -EBUSY;
 			if (flags & I915_GEM_OBJECT_UNBIND_ACTIVE ||
 			    !i915_vma_is_active(vma)) {
-				if (i915_is_ggtt(vma->vm) &&
-				    flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK) {
+				if (flags & I915_GEM_OBJECT_UNBIND_VM_TRYLOCK) {
 					if (mutex_trylock(&vma->vm->mutex)) {
 						ret = __i915_vma_unbind(vma);
 						mutex_unlock(&vma->vm->mutex);
