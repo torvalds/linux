@@ -19,7 +19,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. sc7280 IDP platform";
-	compatible = "qcom,sc7280-idp", "qcom,sc7280";
+	compatible = "qcom,sc7280-idp", "google,senor", "qcom,sc7280";
 
 	aliases {
 		serial0 = &uart5;
