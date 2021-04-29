@@ -702,33 +702,12 @@ static __always_inline void rcu_read_lock(void)
 /**
  * rcu_read_unlock() - marks the end of an RCU read-side critical section.
  *
- * In most situations, rcu_read_unlock() is immune from deadlock.
- * However, in kernels built with CONFIG_RCU_BOOST, rcu_read_unlock()
- * is responsible for deboosting, which it does via rt_mutex_unlock().
- * Unfortunately, this function acquires the scheduler's runqueue and
- * priority-inheritance spinlocks.  This means that deadlock could result
- * if the caller of rcu_read_unlock() already holds one of these locks or
- * any lock that is ever acquired while holding them.
- *
- * That said, RCU readers are never priority boosted unless they were
- * preempted.  Therefore, one way to avoid deadlock is to make sure
- * that preemption never happens within any RCU read-side critical
- * section whose outermost rcu_read_unlock() is called with one of
- * rt_mutex_unlock()'s locks held.  Such preemption can be avoided in
- * a number of ways, for example, by invoking preempt_disable() before
- * critical section's outermost rcu_read_lock().
- *
- * Given that the set of locks acquired by rt_mutex_unlock() might change
- * at any time, a somewhat more future-proofed approach is to make sure
- * that that preemption never happens within any RCU read-side critical
- * section whose outermost rcu_read_unlock() is called with irqs disabled.
- * This approach relies on the fact that rt_mutex_unlock() currently only
- * acquires irq-disabled locks.
- *
- * The second of these two approaches is best in most situations,
- * however, the first approach can also be useful, at least to those
- * developers willing to keep abreast of the set of locks acquired by
- * rt_mutex_unlock().
+ * In almost all situations, rcu_read_unlock() is immune from deadlock.
+ * In recent kernels that have consolidated synchronize_sched() and
+ * synchronize_rcu_bh() into synchronize_rcu(), this deadlock immunity
+ * also extends to the scheduler's runqueue and priority-inheritance
+ * spinlocks, courtesy of the quiescent-state deferral that is carried
+ * out when rcu_read_unlock() is invoked with interrupts disabled.
  *
  * See rcu_read_lock() for more information.
  */
