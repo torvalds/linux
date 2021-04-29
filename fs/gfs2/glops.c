@@ -49,6 +49,7 @@ static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
  * __gfs2_ail_flush - remove all buffers for a given lock from the AIL
  * @gl: the glock
  * @fsync: set when called from fsync (not all buffers will be clean)
+ * @nr_revokes: Number of buffers to revoke
  *
  * None of the buffers should be dirty, locked, or pinned.
  */
@@ -480,8 +481,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 
 /**
  * inode_go_lock - operation done after an inode lock is locked by a process
- * @gl: the glock
- * @flags:
+ * @gh: The glock holder
  *
  * Returns: errno
  */
@@ -522,7 +522,7 @@ static int inode_go_lock(struct gfs2_holder *gh)
 /**
  * inode_go_dump - print information about an inode
  * @seq: The iterator
- * @ip: the inode
+ * @gl: The glock
  * @fs_id_buf: file system id (may be empty)
  *
  */
@@ -553,9 +553,6 @@ static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
 /**
  * freeze_go_sync - promote/demote the freeze glock
  * @gl: the glock
- * @state: the requested state
- * @flags:
- *
  */
 
 static int freeze_go_sync(struct gfs2_glock *gl)
@@ -600,10 +597,8 @@ static int freeze_go_sync(struct gfs2_glock *gl)
 /**
  * freeze_go_xmote_bh - After promoting/demoting the freeze glock
  * @gl: the glock
- *
  */
-
-static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
+static int freeze_go_xmote_bh(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
@@ -630,7 +625,7 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 }
 
 /**
- * trans_go_demote_ok
+ * freeze_go_demote_ok
  * @gl: the glock
  *
  * Always returns 0
@@ -644,6 +639,7 @@ static int freeze_go_demote_ok(const struct gfs2_glock *gl)
 /**
  * iopen_go_callback - schedule the dcache entry for the inode to be deleted
  * @gl: the glock
+ * @remote: true if this came from a different cluster node
  *
  * gl_lockref.lock lock is held while calling this
  */
