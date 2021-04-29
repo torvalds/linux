@@ -2214,12 +2214,6 @@ static void rkisp1_params_first_cfg_v1x(struct rkisp_isp_params_vdev *params_vde
 				   hst_params_default_config.mode);
 	}
 
-	/* set the  range */
-	if (params_vdev->quantization == V4L2_QUANTIZATION_FULL_RANGE)
-		ops->csm_config(params_vdev, true);
-	else
-		ops->csm_config(params_vdev, false);
-
 	/* disable color related config for grey sensor */
 	if (params_vdev->in_mbus_code == MEDIA_BUS_FMT_Y8_1X8 ||
 	    params_vdev->in_mbus_code == MEDIA_BUS_FMT_Y10_1X10 ||

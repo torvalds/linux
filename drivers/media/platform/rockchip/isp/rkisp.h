@@ -121,6 +121,7 @@ struct rkisp_isp_subdev {
 	bool dphy_errctrl_disabled;
 	atomic_t frm_sync_seq;
 	enum v4l2_quantization quantization;
+	enum v4l2_colorspace colorspace;
 	u64 frm_timestamp;
 	struct frame_debug_info dbg;
 };
