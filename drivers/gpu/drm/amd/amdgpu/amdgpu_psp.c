@@ -422,6 +422,7 @@ static bool psp_skip_tmr(struct psp_context *psp)
 	switch (psp->adev->asic_type) {
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_ALDEBARAN:
 		return true;
 	default:
 		return false;
