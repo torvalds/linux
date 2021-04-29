@@ -96,8 +96,7 @@ rk3399_vpu_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
 				 struct vb2_buffer *src_buf,
 				 struct vb2_buffer *dst_buf,
 				 const struct v4l2_ctrl_mpeg2_sequence *seq,
-				 const struct v4l2_ctrl_mpeg2_picture *pic,
-				 const struct v4l2_ctrl_mpeg2_slice_params *slice_params)
+				 const struct v4l2_ctrl_mpeg2_picture *pic)
 {
 	dma_addr_t forward_addr = 0, backward_addr = 0;
 	dma_addr_t current_addr, addr;
@@ -153,7 +152,6 @@ void rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
-	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
 	const struct v4l2_ctrl_mpeg2_sequence *seq;
 	const struct v4l2_ctrl_mpeg2_picture *pic;
 	u32 reg;
@@ -163,8 +161,6 @@ void rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
 
 	hantro_start_prepare_run(ctx);
 
-	slice_params = hantro_get_ctrl(ctx,
-				       V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
 	seq = hantro_get_ctrl(ctx,
 			      V4L2_CID_MPEG_VIDEO_MPEG2_SEQUENCE);
 	pic = hantro_get_ctrl(ctx,
@@ -241,7 +237,7 @@ void rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
 
 	rk3399_vpu_mpeg2_dec_set_buffers(vpu, ctx, &src_buf->vb2_buf,
 					 &dst_buf->vb2_buf,
-					 seq, pic, slice_params);
+					 seq, pic);
 
 	/* Kick the watchdog and start decoding */
 	hantro_end_prepare_run(ctx);

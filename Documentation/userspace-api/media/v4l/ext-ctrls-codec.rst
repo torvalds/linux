@@ -1608,41 +1608,6 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 
 .. _v4l2-mpeg-mpeg2:
 
-``V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS (struct)``
-    Specifies the slice parameters (as extracted from the bitstream) for the
-    associated MPEG-2 slice data. This includes the necessary parameters for
-    configuring a stateless hardware decoding pipeline for MPEG-2.
-    The bitstream parameters are defined according to :ref:`mpeg2part2`.
-
-    .. note::
-
-       This compound control is not yet part of the public kernel API and
-       it is expected to change.
-
-.. c:type:: v4l2_ctrl_mpeg2_slice_params
-
-.. tabularcolumns:: |p{5.6cm}|p{4.6cm}|p{7.1cm}|
-
-.. cssclass:: longtable
-
-.. flat-table:: struct v4l2_ctrl_mpeg2_slice_params
-    :header-rows:  0
-    :stub-columns: 0
-    :widths:       1 1 2
-
-    * - __u32
-      - ``bit_size``
-      - Size (in bits) of the current slice data.
-    * - __u32
-      - ``data_bit_offset``
-      - Offset (in bits) to the video data in the current slice data.
-    * - __u32
-      - ``quantiser_scale_code``
-      - Code used to determine the quantization scale to use for the IDCT.
-    * - __u8
-      - ``reserved``
-      - Applications and drivers must set this to zero.
-
 ``V4L2_CID_MPEG_VIDEO_MPEG2_SEQUENCE (struct)``
     Specifies the sequence parameters (as extracted from the bitstream) for the
     associated MPEG-2 slice data. This includes fields matching the syntax

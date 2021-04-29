@@ -93,8 +93,7 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 				struct vb2_buffer *src_buf,
 				struct vb2_buffer *dst_buf,
 				const struct v4l2_ctrl_mpeg2_sequence *seq,
-				const struct v4l2_ctrl_mpeg2_picture *pic,
-				const struct v4l2_ctrl_mpeg2_slice_params *slice_params)
+				const struct v4l2_ctrl_mpeg2_picture *pic)
 {
 	dma_addr_t forward_addr = 0, backward_addr = 0;
 	dma_addr_t current_addr, addr;
@@ -150,7 +149,6 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
-	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
 	const struct v4l2_ctrl_mpeg2_sequence *seq;
 	const struct v4l2_ctrl_mpeg2_picture *pic;
 	u32 reg;
@@ -161,8 +159,6 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 	/* Apply request controls if any */
 	hantro_start_prepare_run(ctx);
 
-	slice_params = hantro_get_ctrl(ctx,
-				       V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
 	seq = hantro_get_ctrl(ctx,
 			      V4L2_CID_MPEG_VIDEO_MPEG2_SEQUENCE);
 	pic = hantro_get_ctrl(ctx,
@@ -232,10 +228,9 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(55));
 
 	hantro_g1_mpeg2_dec_set_quantisation(vpu, ctx);
-
 	hantro_g1_mpeg2_dec_set_buffers(vpu, ctx, &src_buf->vb2_buf,
 					&dst_buf->vb2_buf,
-					seq, pic, slice_params);
+					seq, pic);
 
 	hantro_end_prepare_run(ctx);
 

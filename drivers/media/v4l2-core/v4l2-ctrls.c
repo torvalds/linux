@@ -979,7 +979,6 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_USE_LTR_FRAMES:		return "Use LTR Frames";
 	case V4L2_CID_MPEG_VIDEO_MPEG2_SEQUENCE:		return "MPEG-2 Sequence Header";
 	case V4L2_CID_MPEG_VIDEO_MPEG2_PICTURE:			return "MPEG-2 Picture Header";
-	case V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS:		return "MPEG-2 Slice Parameters";
 	case V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION:		return "MPEG-2 Quantisation Matrices";
 	case V4L2_CID_FWHT_I_FRAME_QP:				return "FWHT I-Frame QP Value";
 	case V4L2_CID_FWHT_P_FRAME_QP:				return "FWHT P-Frame QP Value";
@@ -1507,9 +1506,6 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_MPEG2_PICTURE:
 		*type = V4L2_CTRL_TYPE_MPEG2_PICTURE;
 		break;
-	case V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS:
-		*type = V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS;
-		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION:
 		*type = V4L2_CTRL_TYPE_MPEG2_QUANTISATION;
 		break;
@@ -1723,11 +1719,6 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	else
 		memset(p, 0, ctrl->elem_size);
 
-	/*
-	 * The cast is needed to get rid of a gcc warning complaining that
-	 * V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS is not part of the
-	 * v4l2_ctrl_type enum.
-	 */
 	switch ((u32)ctrl->type) {
 	case V4L2_CTRL_TYPE_MPEG2_SEQUENCE:
 		p_mpeg2_sequence = p;
@@ -1925,7 +1916,6 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 {
 	struct v4l2_ctrl_mpeg2_sequence *p_mpeg2_sequence;
 	struct v4l2_ctrl_mpeg2_picture *p_mpeg2_picture;
-	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
 	struct v4l2_ctrl_vp8_frame *p_vp8_frame;
 	struct v4l2_ctrl_fwht_params *p_fwht_params;
 	struct v4l2_ctrl_h264_sps *p_h264_sps;
@@ -1986,12 +1976,6 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 			return -EINVAL;
 		}
 		zero_reserved(*p_mpeg2_picture);
-		break;
-
-	case V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS:
-		p_mpeg2_slice_params = p;
-
-		zero_reserved(*p_mpeg2_slice_params);
 		break;
 
 	case V4L2_CTRL_TYPE_MPEG2_QUANTISATION:
@@ -2965,9 +2949,6 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		break;
 	case V4L2_CTRL_TYPE_MPEG2_PICTURE:
 		elem_size = sizeof(struct v4l2_ctrl_mpeg2_picture);
-		break;
-	case V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS:
-		elem_size = sizeof(struct v4l2_ctrl_mpeg2_slice_params);
 		break;
 	case V4L2_CTRL_TYPE_MPEG2_QUANTISATION:
 		elem_size = sizeof(struct v4l2_ctrl_mpeg2_quantisation);

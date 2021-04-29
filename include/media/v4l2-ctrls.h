@@ -42,7 +42,6 @@ struct video_device;
  * @p_char:			Pointer to a string.
  * @p_mpeg2_sequence:		Pointer to a MPEG2 sequence structure.
  * @p_mpeg2_picture:		Pointer to a MPEG2 picture structure.
- * @p_mpeg2_slice_params:	Pointer to a MPEG2 slice parameters structure.
  * @p_mpeg2_quantisation:	Pointer to a MPEG2 quantisation data structure.
  * @p_fwht_params:		Pointer to a FWHT stateless parameters structure.
  * @p_h264_sps:			Pointer to a struct v4l2_ctrl_h264_sps.
@@ -70,7 +69,6 @@ union v4l2_ctrl_ptr {
 	char *p_char;
 	struct v4l2_ctrl_mpeg2_sequence *p_mpeg2_sequence;
 	struct v4l2_ctrl_mpeg2_picture *p_mpeg2_picture;
-	struct v4l2_ctrl_mpeg2_slice_params *p_mpeg2_slice_params;
 	struct v4l2_ctrl_mpeg2_quantisation *p_mpeg2_quantisation;
 	struct v4l2_ctrl_fwht_params *p_fwht_params;
 	struct v4l2_ctrl_h264_sps *p_h264_sps;

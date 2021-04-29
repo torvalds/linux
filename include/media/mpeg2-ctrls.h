@@ -11,13 +11,11 @@
 #ifndef _MPEG2_CTRLS_H_
 #define _MPEG2_CTRLS_H_
 
-#define V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS		(V4L2_CID_CODEC_BASE+250)
 #define V4L2_CID_MPEG_VIDEO_MPEG2_QUANTISATION		(V4L2_CID_CODEC_BASE+251)
 #define V4L2_CID_MPEG_VIDEO_MPEG2_SEQUENCE		(V4L2_CID_CODEC_BASE+252)
 #define V4L2_CID_MPEG_VIDEO_MPEG2_PICTURE		(V4L2_CID_CODEC_BASE+253)
 
 /* enum v4l2_ctrl_type type values */
-#define V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS 0x0130
 #define V4L2_CTRL_TYPE_MPEG2_QUANTISATION 0x0131
 #define V4L2_CTRL_TYPE_MPEG2_SEQUENCE 0x0132
 #define V4L2_CTRL_TYPE_MPEG2_PICTURE 0x0133
@@ -99,20 +97,6 @@ struct v4l2_ctrl_mpeg2_picture {
 	__u8	picture_structure;
 	__u8	intra_dc_precision;
 	__u8	reserved[5];
-};
-
-/**
- * struct v4l2_ctrl_mpeg2_slice_params - MPEG-2 slice header
- *
- * @quantiser_scale_code: quantiser scale integer matching an
- * homonymous syntax element.
- * @reserved: padding field. Should be zeroed by applications.
- */
-struct v4l2_ctrl_mpeg2_slice_params {
-	__u32	bit_size;
-	__u32	data_bit_offset;
-	__u32	quantiser_scale_code;
-	__u32	reserved;
 };
 
 /**

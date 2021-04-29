@@ -50,7 +50,6 @@ static void cedrus_mpeg2_irq_disable(struct cedrus_ctx *ctx)
 
 static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
-	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
 	const struct v4l2_ctrl_mpeg2_sequence *seq;
 	const struct v4l2_ctrl_mpeg2_picture *pic;
 	const struct v4l2_ctrl_mpeg2_quantisation *quantisation;
@@ -65,7 +64,6 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	unsigned int i;
 	u32 reg;
 
-	slice_params = run->mpeg2.slice_params;
 	seq = run->mpeg2.sequence;
 	pic = run->mpeg2.picture;
 
