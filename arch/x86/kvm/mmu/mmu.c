@@ -1172,8 +1172,7 @@ static bool __rmap_clear_dirty(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
  * @gfn_offset: start of the BITS_PER_LONG pages we care about
  * @mask: indicates which pages we should protect
  *
- * Used when we do not need to care about huge page mappings: e.g. during dirty
- * logging we do not have any such mappings.
+ * Used when we do not need to care about huge page mappings.
  */
 static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 				     struct kvm_memory_slot *slot,
@@ -1230,13 +1229,36 @@ static void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
  * It calls kvm_mmu_write_protect_pt_masked to write protect selected pages to
  * enable dirty logging for them.
  *
- * Used when we do not need to care about huge page mappings: e.g. during dirty
- * logging we do not have any such mappings.
+ * We need to care about huge page mappings: e.g. during dirty logging we may
+ * have such mappings.
  */
 void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 				struct kvm_memory_slot *slot,
 				gfn_t gfn_offset, unsigned long mask)
 {
+	/*
+	 * Huge pages are NOT write protected when we start dirty logging in
+	 * initially-all-set mode; must write protect them here so that they
+	 * are split to 4K on the first write.
+	 *
+	 * The gfn_offset is guaranteed to be aligned to 64, but the base_gfn
+	 * of memslot has no such restriction, so the range can cross two large
+	 * pages.
+	 */
+	if (kvm_dirty_log_manual_protect_and_init_set(kvm)) {
+		gfn_t start = slot->base_gfn + gfn_offset + __ffs(mask);
+		gfn_t end = slot->base_gfn + gfn_offset + __fls(mask);
+
+		kvm_mmu_slot_gfn_write_protect(kvm, slot, start, PG_LEVEL_2M);
+
+		/* Cross two large pages? */
+		if (ALIGN(start << PAGE_SHIFT, PMD_SIZE) !=
+		    ALIGN(end << PAGE_SHIFT, PMD_SIZE))
+			kvm_mmu_slot_gfn_write_protect(kvm, slot, end,
+						       PG_LEVEL_2M);
+	}
+
+	/* Now handle 4K PTEs.  */
 	if (kvm_x86_ops.cpu_dirty_log_size)
 		kvm_mmu_clear_dirty_pt_masked(kvm, slot, gfn_offset, mask);
 	else
