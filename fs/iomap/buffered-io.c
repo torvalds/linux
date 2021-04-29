@@ -967,10 +967,9 @@ iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 }
 EXPORT_SYMBOL_GPL(iomap_truncate_page);
 
-static loff_t iomap_page_mkwrite_iter(struct iomap_iter *iter,
-		struct page *page)
+static loff_t iomap_folio_mkwrite_iter(struct iomap_iter *iter,
+		struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	loff_t length = iomap_length(iter);
 	int ret;
 
@@ -979,10 +978,10 @@ static loff_t iomap_page_mkwrite_iter(struct iomap_iter *iter,
 					      &iter->iomap);
 		if (ret)
 			return ret;
-		block_commit_write(page, 0, length);
+		block_commit_write(&folio->page, 0, length);
 	} else {
-		WARN_ON_ONCE(!PageUptodate(page));
-		set_page_dirty(page);
+		WARN_ON_ONCE(!folio_test_uptodate(folio));
+		folio_mark_dirty(folio);
 	}
 
 	return length;
@@ -994,24 +993,24 @@ vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
 		.inode		= file_inode(vmf->vma->vm_file),
 		.flags		= IOMAP_WRITE | IOMAP_FAULT,
 	};
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	ssize_t ret;
 
-	lock_page(page);
-	ret = page_mkwrite_check_truncate(page, iter.inode);
+	folio_lock(folio);
+	ret = folio_mkwrite_check_truncate(folio, iter.inode);
 	if (ret < 0)
 		goto out_unlock;
-	iter.pos = page_offset(page);
+	iter.pos = folio_pos(folio);
 	iter.len = ret;
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.processed = iomap_page_mkwrite_iter(&iter, page);
+		iter.processed = iomap_folio_mkwrite_iter(&iter, folio);
 
 	if (ret < 0)
 		goto out_unlock;
-	wait_for_stable_page(page);
+	folio_wait_stable(folio);
 	return VM_FAULT_LOCKED;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	return block_page_mkwrite_return(ret);
 }
 EXPORT_SYMBOL_GPL(iomap_page_mkwrite);
