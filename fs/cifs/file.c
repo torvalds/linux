@@ -45,6 +45,7 @@
 #include "fscache.h"
 #include "smbdirect.h"
 #include "fs_context.h"
+#include "cifs_ioctl.h"
 
 static inline int cifs_convert_flags(unsigned int flags)
 {
@@ -542,6 +543,11 @@ int cifs_open(struct inode *inode, struct file *file)
 	xid = get_xid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
+	if (unlikely(cifs_forced_shutdown(cifs_sb))) {
+		free_xid(xid);
+		return -EIO;
+	}
+
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		free_xid(xid);

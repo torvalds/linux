@@ -78,3 +78,19 @@ struct smb3_notify {
 #define CIFS_QUERY_INFO _IOWR(CIFS_IOCTL_MAGIC, 7, struct smb_query_info)
 #define CIFS_DUMP_KEY _IOWR(CIFS_IOCTL_MAGIC, 8, struct smb3_key_debug_info)
 #define CIFS_IOC_NOTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_notify)
+#define CIFS_IOC_SHUTDOWN _IOR ('X', 125, __u32)
+
+/*
+ * Flags for going down operation
+ */
+#define CIFS_GOING_FLAGS_DEFAULT                0x0     /* going down */
+#define CIFS_GOING_FLAGS_LOGFLUSH               0x1     /* flush log but not data */
+#define CIFS_GOING_FLAGS_NOLOGFLUSH             0x2     /* don't flush log nor data */
+
+static inline bool cifs_forced_shutdown(struct cifs_sb_info *sbi)
+{
+	if (CIFS_MOUNT_SHUTDOWN & sbi->mnt_cifs_flags)
+		return true;
+	else
+		return false;
+}

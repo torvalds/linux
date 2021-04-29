@@ -55,6 +55,7 @@
 #define CIFS_MOUNT_MODE_FROM_SID 0x10000000 /* retrieve mode from special ACE */
 #define CIFS_MOUNT_RO_CACHE	0x20000000  /* assumes share will not change */
 #define CIFS_MOUNT_RW_CACHE	0x40000000  /* assumes only client accessing */
+#define CIFS_MOUNT_SHUTDOWN	0x80000000
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;
