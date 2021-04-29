@@ -391,8 +391,14 @@ my $doc_com = '\s*\*\s*';
 my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
 # @params and a strictly limited set of supported section names
+# Specifically:
+#   Match @word:
+#	  @...:
+#         @{section-name}:
+# while trying to not match literal block starts like "example::"
+#
 my $doc_sect = $doc_com .
-    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:(.*)';
+    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:([^:].*)?$';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
@@ -1201,12 +1207,23 @@ sub dump_union($$) {
 sub dump_struct($$) {
     my $x = shift;
     my $file = shift;
+    my $decl_type;
+    my $members;
+    my $type = qr{struct|union};
+    # For capturing struct/union definition body, i.e. "{members*}qualifiers*"
+    my $definition_body = qr{\{(.*)\}(?:\s*(?:__packed|__aligned|____cacheline_aligned_in_smp|____cacheline_aligned|__attribute__\s*\(\([a-z0-9,_\s\(\)]*\)\)))*};
 
-    if ($x =~ /(struct|union)\s+(\w+)\s*\{(.*)\}(\s*(__packed|__aligned|____cacheline_aligned_in_smp|____cacheline_aligned|__attribute__\s*\(\([a-z0-9,_\s\(\)]*\)\)))*/) {
-	my $decl_type = $1;
+    if ($x =~ /($type)\s+(\w+)\s*$definition_body/) {
+	$decl_type = $1;
 	$declaration_name = $2;
-	my $members = $3;
+	$members = $3;
+    } elsif ($x =~ /typedef\s+($type)\s*$definition_body\s*(\w+)\s*;/) {
+	$decl_type = $1;
+	$declaration_name = $3;
+	$members = $2;
+    }
 
+    if ($members) {
 	if ($identifier ne $declaration_name) {
 	    print STDERR "${file}:$.: warning: expecting prototype for $decl_type $identifier. Prototype was for $decl_type $declaration_name instead\n";
 	    return;
@@ -1401,9 +1418,14 @@ sub dump_enum($$) {
 
     if ($members) {
 	if ($identifier ne $declaration_name) {
-	    print STDERR "${file}:$.: warning: expecting prototype for enum $identifier. Prototype was for enum $declaration_name instead\n";
+	    if ($identifier eq "") {
+		print STDERR "${file}:$.: warning: wrong kernel-doc identifier on line:\n";
+	    } else {
+		print STDERR "${file}:$.: warning: expecting prototype for enum $identifier. Prototype was for enum $declaration_name instead\n";
+	    }
 	    return;
 	}
+	$declaration_name = "(anonymous)" if ($declaration_name eq "");
 
 	my %_members;
 
@@ -1755,12 +1777,14 @@ sub dump_function($$) {
     $prototype =~ s/^noinline +//;
     $prototype =~ s/__init +//;
     $prototype =~ s/__init_or_module +//;
+    $prototype =~ s/__flatten +//;
     $prototype =~ s/__meminit +//;
     $prototype =~ s/__must_check +//;
     $prototype =~ s/__weak +//;
     $prototype =~ s/__sched +//;
     $prototype =~ s/__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +//;
     my $define = $prototype =~ s/^#\s*define\s+//; #ak added
+    $prototype =~ s/__attribute_const__ +//;
     $prototype =~ s/__attribute__\s*\(\(
             (?:
                  [\w\s]++          # attribute name
@@ -2085,15 +2109,28 @@ sub process_name($$) {
 	}
     } elsif (/$doc_decl/o) {
 	$identifier = $1;
-	if (/\s*([\w\s]+?)(\(\))?\s*([-:].*)?$/) {
+	my $is_kernel_comment = 0;
+	my $decl_start = qr{\s*\*};
+	# test for pointer declaration type, foo * bar() - desc
+	my $fn_type = qr{\w+\s*\*\s*}; 
+	my $parenthesis = qr{\(\w*\)};
+	my $decl_end = qr{[-:].*};
+	if (/^$decl_start\s*([\w\s]+?)$parenthesis?\s*$decl_end?$/) {
 	    $identifier = $1;
 	}
 	if ($identifier =~ m/^(struct|union|enum|typedef)\b\s*(\S*)/) {
 	    $decl_type = $1;
 	    $identifier = $2;
-	} else {
+	    $is_kernel_comment = 1;
+	}
+	# Look for foo() or static void foo() - description; or misspelt
+	# identifier
+	elsif (/^$decl_start\s*$fn_type?(\w+)\s*$parenthesis?\s*$decl_end?$/ ||
+	    /^$decl_start\s*$fn_type?(\w+.*)$parenthesis?\s*$decl_end$/) {
+	    $identifier = $1;
 	    $decl_type = 'function';
 	    $identifier =~ s/^define\s+//;
+	    $is_kernel_comment = 1;
 	}
 	$identifier =~ s/\s+$//;
 
@@ -2115,13 +2152,20 @@ sub process_name($$) {
 	    $declaration_purpose = "";
 	}
 
+	if (!$is_kernel_comment) {
+	    print STDERR "${file}:$.: warning: This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n";
+	    print STDERR $_;
+	    ++$warnings;
+	    $state = STATE_NORMAL;
+	}
+
 	if (($declaration_purpose eq "") && $verbose) {
 	    print STDERR "${file}:$.: warning: missing initial short description on line:\n";
 	    print STDERR $_;
 	    ++$warnings;
 	}
 
-	if ($identifier eq "") {
+	if ($identifier eq "" && $decl_type ne "enum") {
 	    print STDERR "${file}:$.: warning: wrong kernel-doc identifier on line:\n";
 	    print STDERR $_;
 	    ++$warnings;

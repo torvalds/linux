@@ -38,5 +38,5 @@ bit of the entropy to decide the index of the 64M zone. Then we chose a
 
                               kernstart_virt_addr
 
-To enable KASLR, set CONFIG_RANDOMIZE_BASE = y. If KASLR is enable and you
+To enable KASLR, set CONFIG_RANDOMIZE_BASE = y. If KASLR is enabled and you
 want to disable it at runtime, add "nokaslr" to the kernel cmdline.

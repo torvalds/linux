@@ -482,7 +482,7 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 	if (pk)
 		pk->pkru = init_pkru_value;
 	/*
-	 * Seting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
+	 * Setting X86_CR4_PKE will cause the X86_FEATURE_OSPKE
 	 * cpuid bit to be set.  We need to ensure that we
 	 * update that bit in this CPU's "cpu_info".
 	 */
@@ -1330,7 +1330,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	cpu_set_bug_bits(c);
 
-	cpu_set_core_cap_bits(c);
+	sld_setup(c);
 
 	fpu__init_system(c);
 
@@ -1404,7 +1404,7 @@ static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
 	 * where GS is unused by the prev and next threads.
 	 *
 	 * Since neither vendor documents this anywhere that I can see,
-	 * detect it directly instead of hardcoding the choice by
+	 * detect it directly instead of hard-coding the choice by
 	 * vendor.
 	 *
 	 * I've designated AMD's behavior as the "bug" because it's
@@ -1747,6 +1747,8 @@ DEFINE_PER_CPU(bool, hardirq_stack_inuse);
 
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
+
+DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) = TOP_OF_INIT_STACK;
 
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)

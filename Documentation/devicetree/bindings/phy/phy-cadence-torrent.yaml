@@ -28,13 +28,27 @@ properties:
   '#size-cells':
     const: 0
 
+  '#clock-cells':
+    const: 1
+
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
     description:
-      PHY reference clock. Must contain an entry in clock-names.
+      PHY reference clock for 1 item. Must contain an entry in clock-names.
+      Optional Parent to enable output reference clock.
 
   clock-names:
-    const: refclk
+    minItems: 1
+    items:
+      - const: refclk
+      - const: phy_en_refclk
+
+  assigned-clocks:
+    maxItems: 3
+
+  assigned-clock-parents:
+    maxItems: 3
 
   reg:
     minItems: 1
@@ -170,7 +184,7 @@ examples:
     };
   - |
     #include <dt-bindings/phy/phy.h>
-    #include <dt-bindings/phy/phy-cadence-torrent.h>
+    #include <dt-bindings/phy/phy-cadence.h>
 
     bus {
         #address-cells = <2>;

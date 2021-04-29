@@ -31,6 +31,8 @@
 		serial0 = &scif2;
 		i2c9 = &gpioi2c1;
 		i2c10 = &i2chdmi;
+		mmc0 = &mmcif0;
+		mmc1 = &sdhi1;
 	};
 
 	chosen {
@@ -379,7 +381,7 @@
 };
 
 &ether {
-	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-0 = <&ether_pins>, <&phy1_pins>;
 	pinctrl-names = "default";
 
 	phy-handle = <&phy1>;
@@ -518,7 +520,7 @@
 };
 
 &du {
-	pinctrl-0 = <&du0_pins &du1_pins>;
+	pinctrl-0 = <&du0_pins>, <&du1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
@@ -541,7 +543,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&ssi_pins &audio_clk_pins>;
+	pinctrl-0 = <&ssi_pins>, <&audio_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 

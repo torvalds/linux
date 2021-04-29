@@ -765,7 +765,7 @@ struct perf_sched {
 };
 
 /*
- * Initialize interator that runs through all events and counters.
+ * Initialize iterator that runs through all events and counters.
  */
 static void perf_sched_init(struct perf_sched *sched, struct event_constraint **constraints,
 			    int num, int wmin, int wmax, int gpmax)

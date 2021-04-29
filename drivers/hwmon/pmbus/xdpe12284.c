@@ -168,3 +168,4 @@ module_i2c_driver(xdpe122_driver);
 MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
 MODULE_DESCRIPTION("PMBus driver for Infineon XDPE122 family");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

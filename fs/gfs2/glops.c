@@ -394,18 +394,24 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	const struct gfs2_dinode *str = buf;
 	struct timespec64 atime;
 	u16 height, depth;
+	umode_t mode = be32_to_cpu(str->di_mode);
+	bool is_new = ip->i_inode.i_flags & I_NEW;
 
 	if (unlikely(ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)))
 		goto corrupt;
+	if (unlikely(!is_new && inode_wrong_type(&ip->i_inode, mode)))
+		goto corrupt;
 	ip->i_no_formal_ino = be64_to_cpu(str->di_num.no_formal_ino);
-	ip->i_inode.i_mode = be32_to_cpu(str->di_mode);
-	ip->i_inode.i_rdev = 0;
-	switch (ip->i_inode.i_mode & S_IFMT) {
-	case S_IFBLK:
-	case S_IFCHR:
-		ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
-					   be32_to_cpu(str->di_minor));
-		break;
+	ip->i_inode.i_mode = mode;
+	if (is_new) {
+		ip->i_inode.i_rdev = 0;
+		switch (mode & S_IFMT) {
+		case S_IFBLK:
+		case S_IFCHR:
+			ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
+						   be32_to_cpu(str->di_minor));
+			break;
+		}
 	}
 
 	i_uid_write(&ip->i_inode, be32_to_cpu(str->di_uid));

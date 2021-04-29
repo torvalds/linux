@@ -1488,7 +1488,7 @@ extern u64 kvm_mce_cap_supported;
 /*
  * EMULTYPE_NO_DECODE - Set when re-emulating an instruction (after completing
  *			userspace I/O) to indicate that the emulation context
- *			should be resued as is, i.e. skip initialization of
+ *			should be reused as is, i.e. skip initialization of
  *			emulation context, instruction fetch and decode.
  *
  * EMULTYPE_TRAP_UD - Set when emulating an intercepted #UD from hardware.
@@ -1513,7 +1513,7 @@ extern u64 kvm_mce_cap_supported;
  *
  * EMULTYPE_VMWARE_GP - Set when emulating an intercepted #GP for VMware
  *			backdoor emulation, which is opt in via module param.
- *			VMware backoor emulation handles select instructions
+ *			VMware backdoor emulation handles select instructions
  *			and reinjects the #GP for all other cases.
  *
  * EMULTYPE_PF - Set when emulating MMIO by way of an intercepted #PF, in which

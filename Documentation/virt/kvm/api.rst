@@ -55,7 +55,7 @@ not cause harm to the host, their actual behavior is not guaranteed by
 the API.  See "General description" for details on the ioctl usage
 model that is supported by KVM.
 
-It is important to note that althought VM ioctls may only be issued from
+It is important to note that although VM ioctls may only be issued from
 the process that created the VM, a VM's lifecycle is associated with its
 file descriptor, not its creator (process).  In other words, the VM and
 its resources, *including the associated address space*, are not freed

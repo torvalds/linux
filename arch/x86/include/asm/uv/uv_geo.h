@@ -10,7 +10,7 @@
 #ifndef _ASM_UV_GEO_H
 #define _ASM_UV_GEO_H
 
-/* Type declaractions */
+/* Type declarations */
 
 /* Size of a geoid_s structure (must be before decl. of geoid_u) */
 #define GEOID_SIZE	8

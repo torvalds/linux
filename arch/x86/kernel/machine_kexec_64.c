@@ -260,7 +260,7 @@ static void set_idt(void *newidt, u16 limit)
 {
 	struct desc_ptr curidt;
 
-	/* x86-64 supports unaliged loads & stores */
+	/* x86-64 supports unaligned loads & stores */
 	curidt.size    = limit;
 	curidt.address = (unsigned long)newidt;
 

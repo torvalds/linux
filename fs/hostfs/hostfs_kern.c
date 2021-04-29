@@ -711,7 +711,6 @@ static int hostfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	if (name == NULL)
 		goto out_put;
 
-	init_special_inode(inode, mode, dev);
 	err = do_mknod(name, mode, MAJOR(dev), MINOR(dev));
 	if (err)
 		goto out_free;

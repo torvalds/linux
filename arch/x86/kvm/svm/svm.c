@@ -4400,7 +4400,7 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int i
 	 *
 	 * This happens because CPU microcode reading instruction bytes
 	 * uses a special opcode which attempts to read data using CPL=0
-	 * priviledges. The microcode reads CS:RIP and if it hits a SMAP
+	 * privileges. The microcode reads CS:RIP and if it hits a SMAP
 	 * fault, it gives up and returns no instruction bytes.
 	 *
 	 * Detection:

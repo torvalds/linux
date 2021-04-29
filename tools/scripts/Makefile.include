@@ -86,7 +86,8 @@ endif
 # in newer systems.
 # Needed for the __raw_cmpxchg in tools/arch/x86/include/asm/cmpxchg.h
 #
-# See https://lkml.org/lkml/2006/11/28/253 and https://gcc.gnu.org/gcc-4.8/changes.html,
+# See https://lore.kernel.org/lkml/9a8748490611281710g78402fbeh8ff7fcc162dbcbca@mail.gmail.com/
+# and https://gcc.gnu.org/gcc-4.8/changes.html,
 # that takes into account Linus's comments (search for Wshadow) for the reasoning about
 # -Wshadow not being interesting before gcc 4.8.
 

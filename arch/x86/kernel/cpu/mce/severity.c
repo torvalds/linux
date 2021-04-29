@@ -142,7 +142,7 @@ static struct severity {
 		MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR)
 		),
 	MCESEV(
-		KEEP, "Non signalled machine check",
+		KEEP, "Non signaled machine check",
 		SER, BITCLR(MCI_STATUS_S)
 		),
 

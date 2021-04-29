@@ -375,7 +375,8 @@ int vnt_radio_power_off(struct vnt_private *priv)
 	case RF_VT3226D0:
 	case RF_VT3342A0:
 		ret = vnt_mac_reg_bits_off(priv, MAC_REG_SOFTPWRCTL,
-					(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
+					   (SOFTPWRCTL_SWPE2 |
+					    SOFTPWRCTL_SWPE3));
 		break;
 	}
 

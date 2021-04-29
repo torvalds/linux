@@ -15,7 +15,7 @@ struct iio_chan_spec;
  * struct adi_axi_adc_chip_info - Chip specific information
  * @name		Chip name
  * @id			Chip ID (usually product ID)
- * @channels		Channel specifications of type @struct axi_adc_chan_spec
+ * @channels		Channel specifications of type @struct iio_chan_spec
  * @num_channels	Number of @channels
  * @scale_table		Supported scales by the chip; tuples of 2 ints
  * @num_scales		Number of scales in the table

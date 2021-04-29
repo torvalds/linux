@@ -42,13 +42,16 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct dentry *dentry = filep->f_path.dentry;
-	unsigned char *path;
+	const unsigned char *path;
+	void *page = alloc_dentry_path();
 	__le16 *utf16_path = NULL, root_path;
 	int rc = 0;
 
-	path = build_path_from_dentry(dentry);
-	if (path == NULL)
-		return -ENOMEM;
+	path = build_path_from_dentry(dentry, page);
+	if (IS_ERR(path)) {
+		free_dentry_path(page);
+		return PTR_ERR(path);
+	}
 
 	cifs_dbg(FYI, "%s %s\n", __func__, path);
 
@@ -73,7 +76,7 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
  ici_exit:
 	if (utf16_path != &root_path)
 		kfree(utf16_path);
-	kfree(path);
+	free_dentry_path(page);
 	return rc;
 }
 

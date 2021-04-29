@@ -2369,7 +2369,6 @@ int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock *flock)
 		if (flock->l_pid != 0)
 			goto out;
 
-		cmd = F_GETLK;
 		fl->fl_flags |= FL_OFDLCK;
 		fl->fl_owner = filp;
 	}
@@ -2825,7 +2824,7 @@ struct locks_iterator {
 };
 
 static void lock_get_status(struct seq_file *f, struct file_lock *fl,
-			    loff_t id, char *pfx)
+			    loff_t id, char *pfx, int repeat)
 {
 	struct inode *inode = NULL;
 	unsigned int fl_pid;
@@ -2841,7 +2840,11 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	if (fl->fl_file != NULL)
 		inode = locks_inode(fl->fl_file);
 
-	seq_printf(f, "%lld:%s ", id, pfx);
+	seq_printf(f, "%lld: ", id);
+
+	if (repeat)
+		seq_printf(f, "%*s", repeat - 1 + (int)strlen(pfx), pfx);
+
 	if (IS_POSIX(fl)) {
 		if (fl->fl_flags & FL_ACCESS)
 			seq_puts(f, "ACCESS");
@@ -2903,21 +2906,64 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	}
 }
 
+static struct file_lock *get_next_blocked_member(struct file_lock *node)
+{
+	struct file_lock *tmp;
+
+	/* NULL node or root node */
+	if (node == NULL || node->fl_blocker == NULL)
+		return NULL;
+
+	/* Next member in the linked list could be itself */
+	tmp = list_next_entry(node, fl_blocked_member);
+	if (list_entry_is_head(tmp, &node->fl_blocker->fl_blocked_requests, fl_blocked_member)
+		|| tmp == node) {
+		return NULL;
+	}
+
+	return tmp;
+}
+
 static int locks_show(struct seq_file *f, void *v)
 {
 	struct locks_iterator *iter = f->private;
-	struct file_lock *fl, *bfl;
+	struct file_lock *cur, *tmp;
 	struct pid_namespace *proc_pidns = proc_pid_ns(file_inode(f->file)->i_sb);
+	int level = 0;
 
-	fl = hlist_entry(v, struct file_lock, fl_link);
+	cur = hlist_entry(v, struct file_lock, fl_link);
 
-	if (locks_translate_pid(fl, proc_pidns) == 0)
+	if (locks_translate_pid(cur, proc_pidns) == 0)
 		return 0;
 
-	lock_get_status(f, fl, iter->li_pos, "");
+	/* View this crossed linked list as a binary tree, the first member of fl_blocked_requests
+	 * is the left child of current node, the next silibing in fl_blocked_member is the
+	 * right child, we can alse get the parent of current node from fl_blocker, so this
+	 * question becomes traversal of a binary tree
+	 */
+	while (cur != NULL) {
+		if (level)
+			lock_get_status(f, cur, iter->li_pos, "-> ", level);
+		else
+			lock_get_status(f, cur, iter->li_pos, "", level);
 
-	list_for_each_entry(bfl, &fl->fl_blocked_requests, fl_blocked_member)
-		lock_get_status(f, bfl, iter->li_pos, " ->");
+		if (!list_empty(&cur->fl_blocked_requests)) {
+			/* Turn left */
+			cur = list_first_entry_or_null(&cur->fl_blocked_requests,
+				struct file_lock, fl_blocked_member);
+			level++;
+		} else {
+			/* Turn right */
+			tmp = get_next_blocked_member(cur);
+			/* Fall back to parent node */
+			while (tmp == NULL && cur->fl_blocker != NULL) {
+				cur = cur->fl_blocker;
+				level--;
+				tmp = get_next_blocked_member(cur);
+			}
+			cur = tmp;
+		}
+	}
 
 	return 0;
 }
@@ -2938,7 +2984,7 @@ static void __show_fd_locks(struct seq_file *f,
 
 		(*id)++;
 		seq_puts(f, "lock:\t");
-		lock_get_status(f, fl, *id, "");
+		lock_get_status(f, fl, *id, "", 0);
 	}
 }
 

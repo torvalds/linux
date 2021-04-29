@@ -137,7 +137,7 @@ static struct event_constraint intel_ivb_event_constraints[] __read_mostly =
 	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2), /* CPU_CLK_UNHALTED.REF */
 	INTEL_UEVENT_CONSTRAINT(0x0148, 0x4), /* L1D_PEND_MISS.PENDING */
-	INTEL_UEVENT_CONSTRAINT(0x0279, 0xf), /* IDQ.EMTPY */
+	INTEL_UEVENT_CONSTRAINT(0x0279, 0xf), /* IDQ.EMPTY */
 	INTEL_UEVENT_CONSTRAINT(0x019c, 0xf), /* IDQ_UOPS_NOT_DELIVERED.CORE */
 	INTEL_UEVENT_CONSTRAINT(0x02a3, 0xf), /* CYCLE_ACTIVITY.CYCLES_LDM_PENDING */
 	INTEL_UEVENT_CONSTRAINT(0x04a3, 0xf), /* CYCLE_ACTIVITY.CYCLES_NO_EXECUTE */
@@ -2186,7 +2186,7 @@ static void intel_pmu_enable_all(int added)
  *   magic three (non-counting) events 0x4300B5, 0x4300D2, and 0x4300B1 either
  *   in sequence on the same PMC or on different PMCs.
  *
- * In practise it appears some of these events do in fact count, and
+ * In practice it appears some of these events do in fact count, and
  * we need to program all 4 events.
  */
 static void intel_pmu_nhm_workaround(void)
@@ -2435,7 +2435,7 @@ static inline u64 icl_get_metrics_event_value(u64 metric, u64 slots, int idx)
 
 	/*
 	 * The metric is reported as an 8bit integer fraction
-	 * suming up to 0xff.
+	 * summing up to 0xff.
 	 * slots-in-metric = (Metric / 0xff) * slots
 	 */
 	val = (metric >> ((idx - INTEL_PMC_IDX_METRIC_BASE) * 8)) & 0xff;
@@ -2776,7 +2776,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	 * processing loop coming after that the function, otherwise
 	 * phony regular samples may be generated in the sampling buffer
 	 * not marked with the EXACT tag. Another possibility is to have
-	 * one PEBS event and at least one non-PEBS event whic hoverflows
+	 * one PEBS event and at least one non-PEBS event which overflows
 	 * while PEBS has armed. In this case, bit 62 of GLOBAL_STATUS will
 	 * not be set, yet the overflow status bit for the PEBS counter will
 	 * be on Skylake.
@@ -2824,7 +2824,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	}
 
 	/*
-	 * Intel Perf mertrics
+	 * Intel Perf metrics
 	 */
 	if (__test_and_clear_bit(GLOBAL_STATUS_PERF_METRICS_OVF_BIT, (unsigned long *)&status)) {
 		handled++;
@@ -4594,7 +4594,7 @@ static bool check_msr(unsigned long msr, u64 mask)
 
 	/*
 	 * Disable the check for real HW, so we don't
-	 * mess with potentionaly enabled registers:
+	 * mess with potentially enabled registers:
 	 */
 	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return true;
@@ -4659,7 +4659,7 @@ static __init void intel_arch_events_quirk(void)
 {
 	int bit;
 
-	/* disable event that reported as not presend by cpuid */
+	/* disable event that reported as not present by cpuid */
 	for_each_set_bit(bit, x86_pmu.events_mask, ARRAY_SIZE(intel_arch_events_map)) {
 		intel_perfmon_event_map[intel_arch_events_map[bit].id] = 0;
 		pr_warn("CPUID marked event: \'%s\' unavailable\n",

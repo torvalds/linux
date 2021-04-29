@@ -404,7 +404,7 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 	 * If this warning were to trigger it would indicate that there was a
 	 * missing MMU notifier or a race with some notifier handler.
 	 * A present, leaf SPTE should never be directly replaced with another
-	 * present leaf SPTE pointing to a differnt PFN. A notifier handler
+	 * present leaf SPTE pointing to a different PFN. A notifier handler
 	 * should be zapping the SPTE before the main MM's page table is
 	 * changed, or the SPTE should be zeroed, and the TLBs flushed by the
 	 * thread before replacement.
@@ -418,7 +418,7 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 
 		/*
 		 * Crash the host to prevent error propagation and guest data
-		 * courruption.
+		 * corruption.
 		 */
 		BUG();
 	}
@@ -529,7 +529,7 @@ static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	/*
 	 * No other thread can overwrite the removed SPTE as they
 	 * must either wait on the MMU lock or use
-	 * tdp_mmu_set_spte_atomic which will not overrite the
+	 * tdp_mmu_set_spte_atomic which will not overwrite the
 	 * special removed SPTE value. No bookkeeping is needed
 	 * here since the SPTE is going from non-present
 	 * to non-present.

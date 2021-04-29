@@ -81,5 +81,9 @@ struct cifs_sb_info {
 	 * (cifs_autodisable_serverino) in order to match new mounts.
 	 */
 	bool mnt_cifs_serverino_autodisabled;
+	/*
+	 * Available once the mount has completed.
+	 */
+	struct dentry *root;
 };
 #endif				/* _CIFS_FS_SB_H */

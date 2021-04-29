@@ -114,40 +114,38 @@ static struct ieee80211_supported_band vnt_supported_5ghz_band = {
 	.n_bitrates = ARRAY_SIZE(vnt_rates_a),
 };
 
-void vnt_init_bands(struct vnt_private *priv)
+static void vnt_init_band(struct vnt_private *priv,
+			  struct ieee80211_supported_band *supported_band,
+			  enum nl80211_band band)
 {
-	struct ieee80211_channel *ch;
 	int i;
 
+	for (i = 0; i < supported_band->n_channels; i++) {
+		supported_band->channels[i].max_power = 0x3f;
+		supported_band->channels[i].flags =
+			IEEE80211_CHAN_NO_HT40;
+	}
+
+	priv->hw->wiphy->bands[band] = supported_band;
+}
+
+void vnt_init_bands(struct vnt_private *priv)
+{
 	switch (priv->byRFType) {
 	case RF_AIROHA7230:
 	case RF_UW2452:
 	case RF_NOTHING:
 	default:
-		ch = vnt_channels_5ghz;
-
-		for (i = 0; i < ARRAY_SIZE(vnt_channels_5ghz); i++) {
-			ch[i].max_power = 0x3f;
-			ch[i].flags = IEEE80211_CHAN_NO_HT40;
-		}
-
-		priv->hw->wiphy->bands[NL80211_BAND_5GHZ] =
-						&vnt_supported_5ghz_band;
+		vnt_init_band(priv, &vnt_supported_5ghz_band,
+			      NL80211_BAND_5GHZ);
 		fallthrough;
 	case RF_RFMD2959:
 	case RF_AIROHA:
 	case RF_AL2230S:
 	case RF_UW2451:
 	case RF_VT3226:
-		ch = vnt_channels_2ghz;
-
-		for (i = 0; i < ARRAY_SIZE(vnt_channels_2ghz); i++) {
-			ch[i].max_power = 0x3f;
-			ch[i].flags = IEEE80211_CHAN_NO_HT40;
-		}
-
-		priv->hw->wiphy->bands[NL80211_BAND_2GHZ] =
-						&vnt_supported_2ghz_band;
+		vnt_init_band(priv, &vnt_supported_2ghz_band,
+			      NL80211_BAND_2GHZ);
 		break;
 	}
 }
@@ -155,8 +153,8 @@ void vnt_init_bands(struct vnt_private *priv)
 /**
  * set_channel() - Set NIC media channel
  *
- * @pDeviceHandler: The adapter to be set
- * @uConnectionChannel: Channel to be set
+ * @priv: The adapter to be set
+ * @ch: Channel to be set
  *
  * Return Value: true if succeeded; false if failed.
  *

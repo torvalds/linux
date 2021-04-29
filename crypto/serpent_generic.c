@@ -272,6 +272,7 @@ int __serpent_setkey(struct serpent_ctx *ctx, const u8 *key,
 	u32 *k = ctx->expkey;
 	u8  *k8 = (u8 *)k;
 	u32 r0, r1, r2, r3, r4;
+	__le32 *lk;
 	int i;
 
 	/* Copy key, add padding */
@@ -283,22 +284,32 @@ int __serpent_setkey(struct serpent_ctx *ctx, const u8 *key,
 	while (i < SERPENT_MAX_KEY_SIZE)
 		k8[i++] = 0;
 
+	lk = (__le32 *)k;
+	k[0] = le32_to_cpu(lk[0]);
+	k[1] = le32_to_cpu(lk[1]);
+	k[2] = le32_to_cpu(lk[2]);
+	k[3] = le32_to_cpu(lk[3]);
+	k[4] = le32_to_cpu(lk[4]);
+	k[5] = le32_to_cpu(lk[5]);
+	k[6] = le32_to_cpu(lk[6]);
+	k[7] = le32_to_cpu(lk[7]);
+
 	/* Expand key using polynomial */
 
-	r0 = le32_to_cpu(k[3]);
-	r1 = le32_to_cpu(k[4]);
-	r2 = le32_to_cpu(k[5]);
-	r3 = le32_to_cpu(k[6]);
-	r4 = le32_to_cpu(k[7]);
+	r0 = k[3];
+	r1 = k[4];
+	r2 = k[5];
+	r3 = k[6];
+	r4 = k[7];
 
-	keyiter(le32_to_cpu(k[0]), r0, r4, r2, 0, 0);
-	keyiter(le32_to_cpu(k[1]), r1, r0, r3, 1, 1);
-	keyiter(le32_to_cpu(k[2]), r2, r1, r4, 2, 2);
-	keyiter(le32_to_cpu(k[3]), r3, r2, r0, 3, 3);
-	keyiter(le32_to_cpu(k[4]), r4, r3, r1, 4, 4);
-	keyiter(le32_to_cpu(k[5]), r0, r4, r2, 5, 5);
-	keyiter(le32_to_cpu(k[6]), r1, r0, r3, 6, 6);
-	keyiter(le32_to_cpu(k[7]), r2, r1, r4, 7, 7);
+	keyiter(k[0], r0, r4, r2, 0, 0);
+	keyiter(k[1], r1, r0, r3, 1, 1);
+	keyiter(k[2], r2, r1, r4, 2, 2);
+	keyiter(k[3], r3, r2, r0, 3, 3);
+	keyiter(k[4], r4, r3, r1, 4, 4);
+	keyiter(k[5], r0, r4, r2, 5, 5);
+	keyiter(k[6], r1, r0, r3, 6, 6);
+	keyiter(k[7], r2, r1, r4, 7, 7);
 
 	keyiter(k[0], r3, r2, r0, 8, 8);
 	keyiter(k[1], r4, r3, r1, 9, 9);
