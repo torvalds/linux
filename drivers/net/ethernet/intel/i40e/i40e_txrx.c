@@ -3331,7 +3331,7 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 }
 
 /**
- * i40e_create_tx_ctx Build the Tx context descriptor
+ * i40e_create_tx_ctx - Build the Tx context descriptor
  * @tx_ring:  ring to create the descriptor on
  * @cd_type_cmd_tso_mss: Quad Word 1
  * @cd_tunneling: Quad Word 0 - bits 0-31
@@ -3833,8 +3833,8 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
  * @frames: array of XDP buffer pointers
  * @flags: XDP extra info
  *
- * Returns number of frames successfully sent. Frames that fail are
- * free'ed via XDP return API.
+ * Returns number of frames successfully sent. Failed frames
+ * will be free'ed by XDP core.
  *
  * For error cases, a negative errno code is returned and no-frames
  * are transmitted (caller must handle freeing frames).
@@ -3847,7 +3847,7 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_ring *xdp_ring;
-	int drops = 0;
+	int nxmit = 0;
 	int i;
 
 	if (test_bit(__I40E_VSI_DOWN, vsi->state))
@@ -3867,14 +3867,13 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		int err;
 
 		err = i40e_xmit_xdp_ring(xdpf, xdp_ring);
-		if (err != I40E_XDP_TX) {
-			xdp_return_frame_rx_napi(xdpf);
-			drops++;
-		}
+		if (err != I40E_XDP_TX)
+			break;
+		nxmit++;
 	}
 
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		i40e_xdp_ring_update_tail(xdp_ring);
 
-	return n - drops;
+	return nxmit;
 }

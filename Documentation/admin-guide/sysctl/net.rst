@@ -311,6 +311,17 @@ permit to distribute the load on several cpus.
 If set to 1 (default), timestamps are sampled as soon as possible, before
 queueing.
 
+netdev_unregister_timeout_secs
+------------------------------
+
+Unregister network device timeout in seconds.
+This option controls the timeout (in seconds) used to issue a warning while
+waiting for a network device refcount to drop to 0 during device
+unregistration. A lower value may be useful during bisection to detect
+a leaked reference faster. A larger value may be useful to prevent false
+warnings on slow/loaded systems.
+Default value is 10, minimum 1, maximum 3600.
+
 optmem_max
 ----------
 

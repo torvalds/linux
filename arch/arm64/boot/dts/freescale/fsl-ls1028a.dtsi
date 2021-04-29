@@ -1118,6 +1118,12 @@
 			};
 		};
 
+		/* Integrated Endpoint Register Block */
+		ierb@1f0800000 {
+			compatible = "fsl,ls1028a-enetc-ierb";
+			reg = <0x01 0xf0800000 0x0 0x10000>;
+		};
+
 		rcpm: power-controller@1e34040 {
 			compatible = "fsl,ls1028a-rcpm", "fsl,qoriq-rcpm-2.1+";
 			reg = <0x0 0x1e34040 0x0 0x1c>;

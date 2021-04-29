@@ -350,6 +350,12 @@ needs_gc_run:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
 
+	he = nft_set_catchall_gc(set);
+	if (he) {
+		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
+		if (gcb)
+			nft_set_gc_batch_add(gcb, he);
+	}
 	nft_set_gc_batch_complete(gcb);
 	queue_delayed_work(system_power_efficient_wq, &priv->gc_work,
 			   nft_set_gc_interval(set));

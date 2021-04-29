@@ -3104,7 +3104,7 @@ static void hso_free_interface(struct usb_interface *interface)
 			cancel_work_sync(&serial_table[i]->async_put_intf);
 			cancel_work_sync(&serial_table[i]->async_get_intf);
 			hso_serial_tty_unregister(serial);
-			kref_put(&serial_table[i]->ref, hso_serial_ref_free);
+			kref_put(&serial->parent->ref, hso_serial_ref_free);
 		}
 	}
 

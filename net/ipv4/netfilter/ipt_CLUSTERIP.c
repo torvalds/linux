@@ -541,7 +541,7 @@ static void clusterip_tg_destroy(const struct xt_tgdtor_param *par)
 	nf_ct_netns_put(par->net, par->family);
 }
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 struct compat_ipt_clusterip_tgt_info
 {
 	u_int32_t	flags;
@@ -553,7 +553,7 @@ struct compat_ipt_clusterip_tgt_info
 	u_int32_t	hash_initval;
 	compat_uptr_t	config;
 };
-#endif /* CONFIG_COMPAT */
+#endif /* CONFIG_NETFILTER_XTABLES_COMPAT */
 
 static struct xt_target clusterip_tg_reg __read_mostly = {
 	.name		= "CLUSTERIP",
@@ -563,9 +563,9 @@ static struct xt_target clusterip_tg_reg __read_mostly = {
 	.destroy	= clusterip_tg_destroy,
 	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
 	.usersize	= offsetof(struct ipt_clusterip_tgt_info, config),
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 	.compatsize	= sizeof(struct compat_ipt_clusterip_tgt_info),
-#endif /* CONFIG_COMPAT */
+#endif /* CONFIG_NETFILTER_XTABLES_COMPAT */
 	.me		= THIS_MODULE
 };
 

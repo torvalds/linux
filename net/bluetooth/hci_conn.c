@@ -772,6 +772,16 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 
 	hci_conn_del(conn);
 
+	/* The suspend notifier is waiting for all devices to disconnect and an
+	 * LE connect cancel will result in an hci_le_conn_failed. Once the last
+	 * connection is deleted, we should also wake the suspend queue to
+	 * complete suspend operations.
+	 */
+	if (list_empty(&hdev->conn_hash.list) &&
+	    test_and_clear_bit(SUSPEND_DISCONNECTING, hdev->suspend_tasks)) {
+		wake_up(&hdev->suspend_wait_q);
+	}
+
 	/* Since we may have temporarily stopped the background scanning in
 	 * favor of connection establishment, we should restart it.
 	 */
@@ -1830,8 +1840,6 @@ u32 hci_conn_get_phy(struct hci_conn *conn)
 {
 	u32 phys = 0;
 
-	hci_dev_lock(conn->hdev);
-
 	/* BLUETOOTH CORE SPECIFICATION Version 5.2 | Vol 2, Part B page 471:
 	 * Table 6.2: Packets defined for synchronous, asynchronous, and
 	 * CSB logical transport types.
@@ -1927,8 +1935,6 @@ u32 hci_conn_get_phy(struct hci_conn *conn)
 
 		break;
 	}
-
-	hci_dev_unlock(conn->hdev);
 
 	return phys;
 }

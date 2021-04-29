@@ -127,14 +127,16 @@ bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr)
 
 static int
 mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
-				  struct mlxsw_sp_ipip_entry *ipip_entry)
+				  struct mlxsw_sp_ipip_entry *ipip_entry,
+				  bool force, char *ratr_pl)
 {
 	u16 rif_index = mlxsw_sp_ipip_lb_rif_index(ipip_entry->ol_lb);
 	__be32 daddr4 = mlxsw_sp_ipip_netdev_daddr4(ipip_entry->ol_dev);
-	char ratr_pl[MLXSW_REG_RATR_LEN];
+	enum mlxsw_reg_ratr_op op;
 
-	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY,
-			    true, MLXSW_REG_RATR_TYPE_IPIP,
+	op = force ? MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY :
+		     MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY_ON_ACTIVITY;
+	mlxsw_reg_ratr_pack(ratr_pl, op, true, MLXSW_REG_RATR_TYPE_IPIP,
 			    adj_index, rif_index);
 	mlxsw_reg_ratr_ipip4_entry_pack(ratr_pl, be32_to_cpu(daddr4));
 

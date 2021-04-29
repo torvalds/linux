@@ -213,6 +213,12 @@ struct struct_with_embedded_stuff {
 	struct_in_array_t *v;
 };
 
+struct float_struct {
+	float f;
+	const double *d;
+	volatile long double *ld;
+};
+
 struct root_struct {
 	enum e1 _1;
 	enum e2 _2;
@@ -227,6 +233,7 @@ struct root_struct {
 	union_fwd_t *_12;
 	union_fwd_ptr_t _13;
 	struct struct_with_embedded_stuff _14;
+	struct float_struct _15;
 };
 
 /* ------ END-EXPECTED-OUTPUT ------ */

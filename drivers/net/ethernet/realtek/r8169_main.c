@@ -1586,12 +1586,10 @@ DECLARE_RTL_COND(rtl_counters_cond)
 
 static void rtl8169_do_counters(struct rtl8169_private *tp, u32 counter_cmd)
 {
-	dma_addr_t paddr = tp->counters_phys_addr;
-	u32 cmd;
+	u32 cmd = lower_32_bits(tp->counters_phys_addr);
 
-	RTL_W32(tp, CounterAddrHigh, (u64)paddr >> 32);
+	RTL_W32(tp, CounterAddrHigh, upper_32_bits(tp->counters_phys_addr));
 	rtl_pci_commit(tp);
-	cmd = (u64)paddr & DMA_BIT_MASK(32);
 	RTL_W32(tp, CounterAddrLow, cmd);
 	RTL_W32(tp, CounterAddrLow, cmd | counter_cmd);
 
@@ -1903,6 +1901,41 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 	return ret;
 }
 
+static void rtl8169_get_ringparam(struct net_device *dev,
+				  struct ethtool_ringparam *data)
+{
+	data->rx_max_pending = NUM_RX_DESC;
+	data->rx_pending = NUM_RX_DESC;
+	data->tx_max_pending = NUM_TX_DESC;
+	data->tx_pending = NUM_TX_DESC;
+}
+
+static void rtl8169_get_pauseparam(struct net_device *dev,
+				   struct ethtool_pauseparam *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	bool tx_pause, rx_pause;
+
+	phy_get_pause(tp->phydev, &tx_pause, &rx_pause);
+
+	data->autoneg = tp->phydev->autoneg;
+	data->tx_pause = tx_pause ? 1 : 0;
+	data->rx_pause = rx_pause ? 1 : 0;
+}
+
+static int rtl8169_set_pauseparam(struct net_device *dev,
+				  struct ethtool_pauseparam *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	if (dev->mtu > ETH_DATA_LEN)
+		return -EOPNOTSUPP;
+
+	phy_set_asym_pause(tp->phydev, data->rx_pause, data->tx_pause);
+
+	return 0;
+}
+
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -1923,6 +1956,9 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.set_eee		= rtl8169_set_eee,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+	.get_ringparam		= rtl8169_get_ringparam,
+	.get_pauseparam		= rtl8169_get_pauseparam,
+	.set_pauseparam		= rtl8169_set_pauseparam,
 };
 
 static void rtl_enable_eee(struct rtl8169_private *tp)
@@ -2352,11 +2388,13 @@ static void rtl_jumbo_config(struct rtl8169_private *tp)
 		pcie_set_readrq(tp->pci_dev, readrq);
 
 	/* Chip doesn't support pause in jumbo mode */
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-			 tp->phydev->advertising, !jumbo);
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-			 tp->phydev->advertising, !jumbo);
-	phy_start_aneg(tp->phydev);
+	if (jumbo) {
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				   tp->phydev->advertising);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				   tp->phydev->advertising);
+		phy_start_aneg(tp->phydev);
+	}
 }
 
 DECLARE_RTL_COND(rtl_chipcmd_cond)
@@ -2733,11 +2771,6 @@ static void rtl_hw_start_8168c_2(struct rtl8169_private *tp)
 	rtl_ephy_init(tp, e_info_8168c_2);
 
 	__rtl_hw_start_8168cp(tp);
-}
-
-static void rtl_hw_start_8168c_3(struct rtl8169_private *tp)
-{
-	rtl_hw_start_8168c_2(tp);
 }
 
 static void rtl_hw_start_8168c_4(struct rtl8169_private *tp)
@@ -3652,7 +3685,7 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_18] = rtl_hw_start_8168cp_1,
 		[RTL_GIGA_MAC_VER_19] = rtl_hw_start_8168c_1,
 		[RTL_GIGA_MAC_VER_20] = rtl_hw_start_8168c_2,
-		[RTL_GIGA_MAC_VER_21] = rtl_hw_start_8168c_3,
+		[RTL_GIGA_MAC_VER_21] = rtl_hw_start_8168c_2,
 		[RTL_GIGA_MAC_VER_22] = rtl_hw_start_8168c_4,
 		[RTL_GIGA_MAC_VER_23] = rtl_hw_start_8168cp_2,
 		[RTL_GIGA_MAC_VER_24] = rtl_hw_start_8168cp_3,
@@ -4662,6 +4695,7 @@ static void rtl8169_down(struct rtl8169_private *tp)
 static void rtl8169_up(struct rtl8169_private *tp)
 {
 	pci_set_master(tp->pci_dev);
+	phy_init_hw(tp->phydev);
 	phy_resume(tp->phydev);
 	rtl8169_init_phy(tp);
 	napi_enable(&tp->napi);
@@ -5086,6 +5120,10 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 			tp->phydev->phy_id);
 		return -EUNATCH;
 	}
+
+	tp->phydev->mac_managed_pm = 1;
+
+	phy_support_asym_pause(tp->phydev);
 
 	/* PHY will be woken up in rtl_open() */
 	phy_suspend(tp->phydev);

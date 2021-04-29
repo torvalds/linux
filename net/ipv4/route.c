@@ -21,7 +21,7 @@
  *		Alan Cox	:	Added BSD route gw semantics
  *		Alan Cox	:	Super /proc >4K
  *		Alan Cox	:	MTU in route table
- *		Alan Cox	: 	MSS actually. Also added the window
+ *		Alan Cox	:	MSS actually. Also added the window
  *					clamper.
  *		Sam Lantinga	:	Fixed route matching in rt_del()
  *		Alan Cox	:	Routing cache support.
@@ -41,7 +41,7 @@
  *		Olaf Erb	:	irtt wasn't being copied right.
  *		Bjorn Ekwall	:	Kerneld route support.
  *		Alan Cox	:	Multicast fixed (I hope)
- * 		Pavel Krauz	:	Limited broadcast fixed
+ *		Pavel Krauz	:	Limited broadcast fixed
  *		Mike McLagan	:	Routing by source
  *	Alexey Kuznetsov	:	End of old history. Split to fib.c and
  *					route.c and rewritten from scratch.
@@ -54,8 +54,8 @@
  *	Robert Olsson		:	Added rt_cache statistics
  *	Arnaldo C. Melo		:	Convert proc stuff to seq_file
  *	Eric Dumazet		:	hashed spinlocks and rt_check_expire() fixes.
- * 	Ilia Sotnikov		:	Ignore TOS on PMTUD and Redirect
- * 	Ilia Sotnikov		:	Removed TOS from hash calculations
+ *	Ilia Sotnikov		:	Ignore TOS on PMTUD and Redirect
+ *	Ilia Sotnikov		:	Removed TOS from hash calculations
  */
 
 #define pr_fmt(fmt) "IPv4: " fmt
@@ -66,6 +66,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -234,19 +235,6 @@ static const struct seq_operations rt_cache_seq_ops = {
 	.show   = rt_cache_seq_show,
 };
 
-static int rt_cache_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rt_cache_seq_ops);
-}
-
-static const struct proc_ops rt_cache_proc_ops = {
-	.proc_open	= rt_cache_seq_open,
-	.proc_read	= seq_read,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= seq_release,
-};
-
-
 static void *rt_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	int cpu;
@@ -324,19 +312,6 @@ static const struct seq_operations rt_cpu_seq_ops = {
 	.show   = rt_cpu_seq_show,
 };
 
-
-static int rt_cpu_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rt_cpu_seq_ops);
-}
-
-static const struct proc_ops rt_cpu_proc_ops = {
-	.proc_open	= rt_cpu_seq_open,
-	.proc_read	= seq_read,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= seq_release,
-};
-
 #ifdef CONFIG_IP_ROUTE_CLASSID
 static int rt_acct_proc_show(struct seq_file *m, void *v)
 {
@@ -367,13 +342,13 @@ static int __net_init ip_rt_do_proc_init(struct net *net)
 {
 	struct proc_dir_entry *pde;
 
-	pde = proc_create("rt_cache", 0444, net->proc_net,
-			  &rt_cache_proc_ops);
+	pde = proc_create_seq("rt_cache", 0444, net->proc_net,
+			      &rt_cache_seq_ops);
 	if (!pde)
 		goto err1;
 
-	pde = proc_create("rt_cache", 0444,
-			  net->proc_net_stat, &rt_cpu_proc_ops);
+	pde = proc_create_seq("rt_cache", 0444, net->proc_net_stat,
+			      &rt_cpu_seq_ops);
 	if (!pde)
 		goto err2;
 
@@ -478,8 +453,10 @@ static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr)
 	__ipv4_confirm_neigh(dev, *(__force u32 *)pkey);
 }
 
-#define IP_IDENTS_SZ 2048u
-
+/* Hash tables of size 2048..262144 depending on RAM size.
+ * Each bucket uses 8 bytes.
+ */
+static u32 ip_idents_mask __read_mostly;
 static atomic_t *ip_idents __read_mostly;
 static u32 *ip_tstamps __read_mostly;
 
@@ -489,11 +466,15 @@ static u32 *ip_tstamps __read_mostly;
  */
 u32 ip_idents_reserve(u32 hash, int segs)
 {
-	u32 *p_tstamp = ip_tstamps + hash % IP_IDENTS_SZ;
-	atomic_t *p_id = ip_idents + hash % IP_IDENTS_SZ;
-	u32 old = READ_ONCE(*p_tstamp);
-	u32 now = (u32)jiffies;
+	u32 bucket, old, now = (u32)jiffies;
+	atomic_t *p_id;
+	u32 *p_tstamp;
 	u32 delta = 0;
+
+	bucket = hash & ip_idents_mask;
+	p_tstamp = ip_tstamps + bucket;
+	p_id = ip_idents + bucket;
+	old = READ_ONCE(*p_tstamp);
 
 	if (old != now && cmpxchg(p_tstamp, old, now) == old)
 		delta = prandom_u32_max(now - old);
@@ -722,6 +703,7 @@ static void update_or_create_fnhe(struct fib_nh_common *nhc, __be32 daddr,
 
 		for_each_possible_cpu(i) {
 			struct rtable __rcu **prt;
+
 			prt = per_cpu_ptr(nhc->nhc_pcpu_rth_output, i);
 			rt = rcu_dereference(*prt);
 			if (rt)
@@ -1258,12 +1240,12 @@ static int ip_rt_bug(struct net *net, struct sock *sk, struct sk_buff *skb)
 }
 
 /*
-   We do not cache source address of outgoing interface,
-   because it is used only by IP RR, TS and SRR options,
-   so that it out of fast path.
-
-   BTW remember: "addr" is allowed to be not aligned
-   in IP options!
+ * We do not cache source address of outgoing interface,
+ * because it is used only by IP RR, TS and SRR options,
+ * so that it out of fast path.
+ *
+ * BTW remember: "addr" is allowed to be not aligned
+ * in IP options!
  */
 
 void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
@@ -2108,7 +2090,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto out;
 
 	/* Check for the most weird martians, which can be not detected
-	   by fib_lookup.
+	 * by fib_lookup.
 	 */
 
 	tun_info = skb_tunnel_info(skb);
@@ -2246,7 +2228,7 @@ local_input:
 	if (res->type == RTN_UNREACHABLE) {
 		rth->dst.input= ip_error;
 		rth->dst.error= -err;
-		rth->rt_flags 	&= ~RTCF_LOCAL;
+		rth->rt_flags	&= ~RTCF_LOCAL;
 	}
 
 	if (do_cache) {
@@ -2317,15 +2299,15 @@ int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		       u8 tos, struct net_device *dev, struct fib_result *res)
 {
 	/* Multicast recognition logic is moved from route cache to here.
-	   The problem was that too many Ethernet cards have broken/missing
-	   hardware multicast filters :-( As result the host on multicasting
-	   network acquires a lot of useless route cache entries, sort of
-	   SDR messages from all the world. Now we try to get rid of them.
-	   Really, provided software IP multicast filter is organized
-	   reasonably (at least, hashed), it does not result in a slowdown
-	   comparing with route cache reject entries.
-	   Note, that multicast routers are not affected, because
-	   route cache entry is created eventually.
+	 * The problem was that too many Ethernet cards have broken/missing
+	 * hardware multicast filters :-( As result the host on multicasting
+	 * network acquires a lot of useless route cache entries, sort of
+	 * SDR messages from all the world. Now we try to get rid of them.
+	 * Really, provided software IP multicast filter is organized
+	 * reasonably (at least, hashed), it does not result in a slowdown
+	 * comparing with route cache reject entries.
+	 * Note, that multicast routers are not affected, because
+	 * route cache entry is created eventually.
 	 */
 	if (ipv4_is_multicast(daddr)) {
 		struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -2537,11 +2519,11 @@ struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
 		rth = ERR_PTR(-ENETUNREACH);
 
 		/* I removed check for oif == dev_out->oif here.
-		   It was wrong for two reasons:
-		   1. ip_dev_find(net, saddr) can return wrong iface, if saddr
-		      is assigned to multiple interfaces.
-		   2. Moreover, we are allowed to send packets with saddr
-		      of another iface. --ANK
+		 * It was wrong for two reasons:
+		 * 1. ip_dev_find(net, saddr) can return wrong iface, if saddr
+		 *    is assigned to multiple interfaces.
+		 * 2. Moreover, we are allowed to send packets with saddr
+		 *    of another iface. --ANK
 		 */
 
 		if (fl4->flowi4_oif == 0 &&
@@ -2553,18 +2535,18 @@ struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
 				goto out;
 
 			/* Special hack: user can direct multicasts
-			   and limited broadcast via necessary interface
-			   without fiddling with IP_MULTICAST_IF or IP_PKTINFO.
-			   This hack is not just for fun, it allows
-			   vic,vat and friends to work.
-			   They bind socket to loopback, set ttl to zero
-			   and expect that it will work.
-			   From the viewpoint of routing cache they are broken,
-			   because we are not allowed to build multicast path
-			   with loopback source addr (look, routing cache
-			   cannot know, that ttl is zero, so that packet
-			   will not leave this host and route is valid).
-			   Luckily, this hack is good workaround.
+			 * and limited broadcast via necessary interface
+			 * without fiddling with IP_MULTICAST_IF or IP_PKTINFO.
+			 * This hack is not just for fun, it allows
+			 * vic,vat and friends to work.
+			 * They bind socket to loopback, set ttl to zero
+			 * and expect that it will work.
+			 * From the viewpoint of routing cache they are broken,
+			 * because we are not allowed to build multicast path
+			 * with loopback source addr (look, routing cache
+			 * cannot know, that ttl is zero, so that packet
+			 * will not leave this host and route is valid).
+			 * Luckily, this hack is good workaround.
 			 */
 
 			fl4->flowi4_oif = dev_out->ifindex;
@@ -2627,21 +2609,21 @@ struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
 		    (ipv4_is_multicast(fl4->daddr) ||
 		    !netif_index_is_l3_master(net, fl4->flowi4_oif))) {
 			/* Apparently, routing tables are wrong. Assume,
-			   that the destination is on link.
-
-			   WHY? DW.
-			   Because we are allowed to send to iface
-			   even if it has NO routes and NO assigned
-			   addresses. When oif is specified, routing
-			   tables are looked up with only one purpose:
-			   to catch if destination is gatewayed, rather than
-			   direct. Moreover, if MSG_DONTROUTE is set,
-			   we send packet, ignoring both routing tables
-			   and ifaddr state. --ANK
-
-
-			   We could make it even if oif is unknown,
-			   likely IPv6, but we do not.
+			 * that the destination is on link.
+			 *
+			 * WHY? DW.
+			 * Because we are allowed to send to iface
+			 * even if it has NO routes and NO assigned
+			 * addresses. When oif is specified, routing
+			 * tables are looked up with only one purpose:
+			 * to catch if destination is gatewayed, rather than
+			 * direct. Moreover, if MSG_DONTROUTE is set,
+			 * we send packet, ignoring both routing tables
+			 * and ifaddr state. --ANK
+			 *
+			 *
+			 * We could make it even if oif is unknown,
+			 * likely IPv6, but we do not.
 			 */
 
 			if (fl4->saddr == 0)
@@ -3553,18 +3535,25 @@ struct ip_rt_acct __percpu *ip_rt_acct __read_mostly;
 
 int __init ip_rt_init(void)
 {
+	void *idents_hash;
 	int cpu;
 
-	ip_idents = kmalloc_array(IP_IDENTS_SZ, sizeof(*ip_idents),
-				  GFP_KERNEL);
-	if (!ip_idents)
-		panic("IP: failed to allocate ip_idents\n");
+	/* For modern hosts, this will use 2 MB of memory */
+	idents_hash = alloc_large_system_hash("IP idents",
+					      sizeof(*ip_idents) + sizeof(*ip_tstamps),
+					      0,
+					      16, /* one bucket per 64 KB */
+					      HASH_ZERO,
+					      NULL,
+					      &ip_idents_mask,
+					      2048,
+					      256*1024);
 
-	prandom_bytes(ip_idents, IP_IDENTS_SZ * sizeof(*ip_idents));
+	ip_idents = idents_hash;
 
-	ip_tstamps = kcalloc(IP_IDENTS_SZ, sizeof(*ip_tstamps), GFP_KERNEL);
-	if (!ip_tstamps)
-		panic("IP: failed to allocate ip_tstamps\n");
+	prandom_bytes(ip_idents, (ip_idents_mask + 1) * sizeof(*ip_idents));
+
+	ip_tstamps = idents_hash + (ip_idents_mask + 1) * sizeof(*ip_idents);
 
 	for_each_possible_cpu(cpu) {
 		struct uncached_list *ul = &per_cpu(rt_uncached_list, cpu);

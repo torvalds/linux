@@ -655,14 +655,18 @@ EXPORT_SYMBOL(tcp_v4_send_check);
  *	Exception: precedence violation. We do not implement it in any case.
  */
 
+#ifdef CONFIG_TCP_MD5SIG
+#define OPTION_BYTES TCPOLEN_MD5SIG_ALIGNED
+#else
+#define OPTION_BYTES sizeof(__be32)
+#endif
+
 static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	struct {
 		struct tcphdr th;
-#ifdef CONFIG_TCP_MD5SIG
-		__be32 opt[(TCPOLEN_MD5SIG_ALIGNED >> 2)];
-#endif
+		__be32 opt[OPTION_BYTES / sizeof(__be32)];
 	} rep;
 	struct ip_reply_arg arg;
 #ifdef CONFIG_TCP_MD5SIG
@@ -770,6 +774,17 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 				     ip_hdr(skb)->daddr, &rep.th);
 	}
 #endif
+	/* Can't co-exist with TCPMD5, hence check rep.opt[0] */
+	if (rep.opt[0] == 0) {
+		__be32 mrst = mptcp_reset_option(skb);
+
+		if (mrst) {
+			rep.opt[0] = mrst;
+			arg.iov[0].iov_len += sizeof(mrst);
+			rep.th.doff = arg.iov[0].iov_len / 4;
+		}
+	}
+
 	arg.csum = csum_tcpudp_nofold(ip_hdr(skb)->daddr,
 				      ip_hdr(skb)->saddr, /* XXX */
 				      arg.iov[0].iov_len, IPPROTO_TCP, 0);
@@ -2806,6 +2821,9 @@ struct proto tcp_prot = {
 	.hash			= inet_hash,
 	.unhash			= inet_unhash,
 	.get_port		= inet_csk_get_port,
+#ifdef CONFIG_BPF_SYSCALL
+	.psock_update_sk_prot	= tcp_bpf_update_proto,
+#endif
 	.enter_memory_pressure	= tcp_enter_memory_pressure,
 	.leave_memory_pressure	= tcp_leave_memory_pressure,
 	.stream_memory_free	= tcp_stream_memory_free,

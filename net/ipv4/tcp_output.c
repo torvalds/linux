@@ -2775,13 +2775,17 @@ bool tcp_schedule_loss_probe(struct sock *sk, bool advancing_rto)
  * a packet is still in a qdisc or driver queue.
  * In this case, there is very little point doing a retransmit !
  */
-static bool skb_still_in_host_queue(const struct sock *sk,
+static bool skb_still_in_host_queue(struct sock *sk,
 				    const struct sk_buff *skb)
 {
 	if (unlikely(skb_fclone_busy(sk, skb))) {
-		NET_INC_STATS(sock_net(sk),
-			      LINUX_MIB_TCPSPURIOUS_RTX_HOSTQUEUES);
-		return true;
+		set_bit(TSQ_THROTTLED, &sk->sk_tsq_flags);
+		smp_mb__after_atomic();
+		if (skb_fclone_busy(sk, skb)) {
+			NET_INC_STATS(sock_net(sk),
+				      LINUX_MIB_TCPSPURIOUS_RTX_HOSTQUEUES);
+			return true;
+		}
 	}
 	return false;
 }
@@ -3146,14 +3150,6 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 	/* Inconclusive MTU probe */
 	if (icsk->icsk_mtup.probe_size)
 		icsk->icsk_mtup.probe_size = 0;
-
-	/* Do not sent more than we queued. 1/4 is reserved for possible
-	 * copying overhead: fragmentation, tunneling, mangling etc.
-	 */
-	if (refcount_read(&sk->sk_wmem_alloc) >
-	    min_t(u32, sk->sk_wmem_queued + (sk->sk_wmem_queued >> 2),
-		  sk->sk_sndbuf))
-		return -EAGAIN;
 
 	if (skb_still_in_host_queue(sk, skb))
 		return -EBUSY;

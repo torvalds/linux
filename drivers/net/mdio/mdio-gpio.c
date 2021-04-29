@@ -17,15 +17,15 @@
  * Vitaly Bordug <vbordug@ru.mvista.com>
  */
 
-#include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/platform_data/mdio-gpio.h>
 #include <linux/mdio-bitbang.h>
 #include <linux/mdio-gpio.h>
-#include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/of_mdio.h>
+#include <linux/platform_data/mdio-gpio.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 struct mdio_gpio_info {
 	struct mdiobb_ctrl ctrl;
@@ -132,6 +132,13 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 		new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
 	}
 
+	if (dev->of_node &&
+	    of_device_is_compatible(dev->of_node, "microchip,mdio-smi0")) {
+		bitbang->ctrl.op_c22_read = 0;
+		bitbang->ctrl.op_c22_write = 0;
+		bitbang->ctrl.override_op_c22 = 1;
+	}
+
 	dev_set_drvdata(dev, new_bus);
 
 	return new_bus;
@@ -196,6 +203,7 @@ static int mdio_gpio_remove(struct platform_device *pdev)
 
 static const struct of_device_id mdio_gpio_of_match[] = {
 	{ .compatible = "virtual,mdio-gpio", },
+	{ .compatible = "microchip,mdio-smi0" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mdio_gpio_of_match);
