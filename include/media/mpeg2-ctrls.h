@@ -77,6 +77,12 @@ struct v4l2_ctrl_mpeg2_sequence {
  * All the members on this structure match the picture header and picture
  * coding extension syntaxes as specified by the MPEG-2 specification.
  *
+ * @backward_ref_ts: timestamp of the V4L2 capture buffer to use as
+ * reference for backward prediction.
+ * @forward_ref_ts: timestamp of the V4L2 capture buffer to use as
+ * reference for forward prediction. These timestamp refers to the
+ * timestamp field in struct v4l2_buffer. Use v4l2_timeval_to_ns()
+ * to convert the struct timeval to a __u64.
  * @flags: see V4L2_MPEG2_PIC_FLAG_{}.
  * @f_code[2][2]: see MPEG-2 specification.
  * @picture_coding_type: see MPEG-2 specification.
@@ -85,6 +91,8 @@ struct v4l2_ctrl_mpeg2_sequence {
  * @reserved: padding field. Should be zeroed by applications.
  */
 struct v4l2_ctrl_mpeg2_picture {
+	__u64	backward_ref_ts;
+	__u64	forward_ref_ts;
 	__u32	flags;
 	__u8	f_code[2][2];
 	__u8	picture_coding_type;
@@ -96,12 +104,6 @@ struct v4l2_ctrl_mpeg2_picture {
 /**
  * struct v4l2_ctrl_mpeg2_slice_params - MPEG-2 slice header
  *
- * @backward_ref_ts: timestamp of the V4L2 capture buffer to use as
- * reference for backward prediction.
- * @forward_ref_ts: timestamp of the V4L2 capture buffer to use as
- * reference for forward prediction. These timestamp refers to the
- * timestamp field in struct v4l2_buffer. Use v4l2_timeval_to_ns()
- * to convert the struct timeval to a __u64.
  * @quantiser_scale_code: quantiser scale integer matching an
  * homonymous syntax element.
  * @reserved: padding field. Should be zeroed by applications.
@@ -109,8 +111,6 @@ struct v4l2_ctrl_mpeg2_picture {
 struct v4l2_ctrl_mpeg2_slice_params {
 	__u32	bit_size;
 	__u32	data_bit_offset;
-	__u64	backward_ref_ts;
-	__u64	forward_ref_ts;
 	__u32	quantiser_scale_code;
 	__u32	reserved;
 };
