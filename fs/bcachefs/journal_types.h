@@ -248,6 +248,7 @@ struct journal {
 	wait_queue_head_t	reclaim_wait;
 	struct task_struct	*reclaim_thread;
 	bool			reclaim_kicked;
+	unsigned long		next_reclaim;
 	u64			nr_direct_reclaim;
 	u64			nr_background_reclaim;
 

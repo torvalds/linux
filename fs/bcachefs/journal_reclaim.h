@@ -8,11 +8,9 @@ static inline void journal_reclaim_kick(struct journal *j)
 {
 	struct task_struct *p = READ_ONCE(j->reclaim_thread);
 
-	if (p && !j->reclaim_kicked) {
-		j->reclaim_kicked = true;
-		if (p)
-			wake_up_process(p);
-	}
+	j->reclaim_kicked = true;
+	if (p)
+		wake_up_process(p);
 }
 
 unsigned bch2_journal_dev_buckets_available(struct journal *,

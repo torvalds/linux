@@ -677,12 +677,14 @@ int bch2_journal_reclaim(struct journal *j)
 static int bch2_journal_reclaim_thread(void *arg)
 {
 	struct journal *j = arg;
-	unsigned long next;
+	unsigned long delay, now;
 	int ret = 0;
 
 	set_freezable();
 
 	kthread_wait_freezable(test_bit(JOURNAL_RECLAIM_STARTED, &j->flags));
+
+	j->last_flushed = jiffies;
 
 	while (!ret && !kthread_should_stop()) {
 		j->reclaim_kicked = false;
@@ -691,18 +693,22 @@ static int bch2_journal_reclaim_thread(void *arg)
 		ret = __bch2_journal_reclaim(j, false);
 		mutex_unlock(&j->reclaim_lock);
 
-		next = j->last_flushed + msecs_to_jiffies(j->reclaim_delay_ms);
+		now = jiffies;
+		delay = msecs_to_jiffies(j->reclaim_delay_ms);
+		j->next_reclaim = j->last_flushed + delay;
+
+		if (!time_in_range(j->next_reclaim, now, now + delay))
+			j->next_reclaim = now + delay;
 
 		while (1) {
-			set_current_state(TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
 			if (kthread_should_stop())
 				break;
 			if (j->reclaim_kicked)
 				break;
-			if (time_after_eq(jiffies, next))
+			if (time_after_eq(jiffies, j->next_reclaim))
 				break;
-			schedule_timeout(next - jiffies);
-			try_to_freeze();
+			schedule_timeout(j->next_reclaim - jiffies);
 
 		}
 		__set_current_state(TASK_RUNNING);
