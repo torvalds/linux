@@ -102,3 +102,9 @@ bool redirty_page_for_writepage(struct writeback_control *wbc,
 	return folio_redirty_for_writepage(wbc, page_folio(page));
 }
 EXPORT_SYMBOL(redirty_page_for_writepage);
+
+void lru_cache_add(struct page *page)
+{
+	folio_add_lru(page_folio(page));
+}
+EXPORT_SYMBOL(lru_cache_add);
