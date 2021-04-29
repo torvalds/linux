@@ -11,6 +11,7 @@
 #include <crypto/aes.h>
 #include <crypto/hash.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/internal/aead.h>
 
 /* xts du size */
 #define QCE_SECTOR_SIZE			512
@@ -88,6 +89,7 @@ struct qce_alg_template {
 	union {
 		struct skcipher_alg skcipher;
 		struct ahash_alg ahash;
+		struct aead_alg aead;
 	} alg;
 	struct qce_device *qce;
 	const u8 *hash_zero;
