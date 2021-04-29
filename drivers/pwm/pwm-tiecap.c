@@ -168,16 +168,7 @@ static void ecap_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pm_runtime_put_sync(pc->chip.dev);
 }
 
-static void ecap_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	if (pwm_is_enabled(pwm)) {
-		dev_warn(chip->dev, "Removing PWM device without disabling\n");
-		pm_runtime_put_sync(chip->dev);
-	}
-}
-
 static const struct pwm_ops ecap_pwm_ops = {
-	.free = ecap_pwm_free,
 	.config = ecap_pwm_config,
 	.set_polarity = ecap_pwm_set_polarity,
 	.enable = ecap_pwm_enable,
