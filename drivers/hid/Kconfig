@@ -1053,10 +1053,11 @@ config HID_THINGM
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
-	depends on HID
+	depends on USB_HID
 	help
-	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
-	  a THRUSTMASTER Ferrari GT Rumble Wheel.
+	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2,
+	  a THRUSTMASTER Ferrari GT Rumble Wheel or Thrustmaster FFB
+	  Wheel (T150RS, T300RS, T300 Ferrari Alcantara Edition, T500RS).
 
 config THRUSTMASTER_FF
 	bool "ThrustMaster devices force feedback support"
