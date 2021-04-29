@@ -76,7 +76,9 @@ config CAN_KVASER_USB
 	    - Scania VCI2 (if you have the Kvaser logo on top)
 	    - Kvaser BlackBird v2
 	    - Kvaser Leaf Pro HS v2
+	    - Kvaser Hybrid CAN/LIN
 	    - Kvaser Hybrid 2xCAN/LIN
+	    - Kvaser Hybrid Pro CAN/LIN
 	    - Kvaser Hybrid Pro 2xCAN/LIN
 	    - Kvaser Memorator 2xHS v2
 	    - Kvaser Memorator Pro 2xHS v2
