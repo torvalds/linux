@@ -1249,20 +1249,21 @@ int kvm_cpu_dirty_log_size(void)
 }
 
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
-				    struct kvm_memory_slot *slot, u64 gfn)
+				    struct kvm_memory_slot *slot, u64 gfn,
+				    int min_level)
 {
 	struct kvm_rmap_head *rmap_head;
 	int i;
 	bool write_protected = false;
 
-	for (i = PG_LEVEL_4K; i <= KVM_MAX_HUGEPAGE_LEVEL; ++i) {
+	for (i = min_level; i <= KVM_MAX_HUGEPAGE_LEVEL; ++i) {
 		rmap_head = __gfn_to_rmap(gfn, i, slot);
 		write_protected |= __rmap_write_protect(kvm, rmap_head, true);
 	}
 
 	if (is_tdp_mmu_enabled(kvm))
 		write_protected |=
-			kvm_tdp_mmu_write_protect_gfn(kvm, slot, gfn);
+			kvm_tdp_mmu_write_protect_gfn(kvm, slot, gfn, min_level);
 
 	return write_protected;
 }
@@ -1272,7 +1273,7 @@ static bool rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 	struct kvm_memory_slot *slot;
 
 	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	return kvm_mmu_slot_gfn_write_protect(vcpu->kvm, slot, gfn);
+	return kvm_mmu_slot_gfn_write_protect(vcpu->kvm, slot, gfn, PG_LEVEL_4K);
 }
 
 static bool kvm_zap_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
