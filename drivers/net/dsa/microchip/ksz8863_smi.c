@@ -147,6 +147,9 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 	int i;
 
 	ksz8 = devm_kzalloc(&mdiodev->dev, sizeof(struct ksz8), GFP_KERNEL);
+	if (!ksz8)
+		return -ENOMEM;
+
 	ksz8->priv = mdiodev;
 
 	dev = ksz_switch_alloc(&mdiodev->dev, ksz8);
