@@ -438,9 +438,9 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 	}
 
 	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - device unusable\n");
-		err_exists = true;
+		/* Ignore this bit, don't prevent driver loading */
+		dev_dbg(hdev->dev, "device unusable status is set\n");
+		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
 	}
 
 	security_val = RREG32(cpu_security_boot_status_reg);
