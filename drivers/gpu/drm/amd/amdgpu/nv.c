@@ -635,6 +635,8 @@ static int nv_reg_base_init(struct amdgpu_device *adev)
 			goto legacy_init;
 		}
 
+		amdgpu_discovery_harvest_ip(adev);
+
 		return 0;
 	}
 
@@ -777,7 +779,6 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &jpeg_v3_0_ip_block);
-
 		if (adev->enable_mes)
 			amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
 		break;
@@ -1148,6 +1149,11 @@ static int nv_common_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (adev->harvest_ip_mask & AMD_HARVEST_IP_VCN_MASK)
+		adev->pg_flags &= ~(AMD_PG_SUPPORT_VCN |
+				    AMD_PG_SUPPORT_VCN_DPG |
+				    AMD_PG_SUPPORT_JPEG);
 
 	if (amdgpu_sriov_vf(adev)) {
 		amdgpu_virt_init_setting(adev);
