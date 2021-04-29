@@ -8417,8 +8417,10 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		ret = io_buffer_validate(&iov);
 		if (ret)
 			break;
-		if (!iov.iov_base && tag)
-			return -EINVAL;
+		if (!iov.iov_base && tag) {
+			ret = -EINVAL;
+			break;
+		}
 
 		ret = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
 					     &last_hpage);
@@ -8468,8 +8470,10 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		err = io_buffer_validate(&iov);
 		if (err)
 			break;
-		if (!iov.iov_base && tag)
-			return -EINVAL;
+		if (!iov.iov_base && tag) {
+			err = -EINVAL;
+			break;
+		}
 		err = io_sqe_buffer_register(ctx, &iov, &imu, &last_hpage);
 		if (err)
 			break;
