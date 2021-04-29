@@ -1010,7 +1010,6 @@ static void hot_add_req(struct work_struct *dummy)
 		 * that need to be hot-added while ensuring the alignment
 		 * and size requirements of Linux as it relates to hot-add.
 		 */
-		region_start = pg_start;
 		region_size = (pfn_cnt / HA_CHUNK) * HA_CHUNK;
 		if (pfn_cnt % HA_CHUNK)
 			region_size += HA_CHUNK;
