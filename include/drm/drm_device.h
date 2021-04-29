@@ -279,9 +279,6 @@ struct drm_device {
 	/** @agp: AGP data */
 	struct drm_agp_head *agp;
 
-	/** @pdev: PCI device structure */
-	struct pci_dev *pdev;
-
 	/** @num_crtcs: Number of CRTCs on this device */
 	unsigned int num_crtcs;
 
@@ -323,6 +320,9 @@ struct drm_device {
 #if IS_ENABLED(CONFIG_DRM_LEGACY)
 	/* List of devices per driver for stealth attach cleanup */
 	struct list_head legacy_dev_list;
+
+	/* PCI device structure */
+	struct pci_dev *pdev;
 
 #ifdef __alpha__
 	/** @hose: PCI hose, only used on ALPHA platforms. */
