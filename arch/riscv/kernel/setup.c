@@ -293,9 +293,7 @@ void __init setup_arch(char **cmdline_p)
 
 	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX)) {
 		protect_kernel_text_data();
-#if defined(CONFIG_64BIT) && defined(CONFIG_MMU) && !defined(CONFIG_XIP_KERNEL)
 		protect_kernel_linear_mapping_text_rodata();
-#endif
 	}
 
 #ifdef CONFIG_SWIOTLB
