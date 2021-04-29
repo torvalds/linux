@@ -1,0 +1,10 @@
+[
+    {
+        "BriefDescription": "Clockticks of the power control unit (PCU)",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventName": "UNC_P_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "PCU"
+    }
+]
