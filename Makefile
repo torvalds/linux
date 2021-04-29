@@ -404,11 +404,13 @@ ifeq ($(ARCH),sh64)
        SRCARCH := sh
 endif
 
+export cross_compiling :=
+ifneq ($(SRCARCH),$(SUBARCH))
+cross_compiling := 1
+endif
+
 KCONFIG_CONFIG	?= .config
 export KCONFIG_CONFIG
-
-# Default file for 'make defconfig'. This may be overridden by arch-Makefile.
-export KBUILD_DEFCONFIG := defconfig
 
 # SHELL used by kbuild
 CONFIG_SHELL := sh

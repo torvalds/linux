@@ -1,13 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config DEFCONFIG_LIST
-	string
-	depends on !UML
-	option defconfig_list
-	default "/lib/modules/$(shell,uname -r)/.config"
-	default "/etc/kernel-config"
-	default "/boot/config-$(shell,uname -r)"
-	default "arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)"
-
 config CC_VERSION_TEXT
 	string
 	default "$(CC_VERSION_TEXT)"
@@ -1805,7 +1796,6 @@ config DEBUG_RSEQ
 
 config EMBEDDED
 	bool "Embedded system"
-	option allnoconfig_y
 	select EXPERT
 	help
 	  This option should be enabled if compiling the kernel for
@@ -2080,7 +2070,7 @@ config MODULE_SIG_FORMAT
 
 menuconfig MODULES
 	bool "Enable loadable module support"
-	option modules
+	modules
 	help
 	  Kernel modules are small pieces of compiled code which can
 	  be inserted in the running kernel, rather than being
