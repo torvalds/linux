@@ -71,6 +71,7 @@ static int
 i915_gem_setup(struct drm_i915_gem_object *obj, u64 size)
 {
 	struct intel_memory_region *mr = obj->mm.placements[0];
+	unsigned int flags;
 	int ret;
 
 	size = round_up(size, object_max_page_size(obj));
@@ -83,7 +84,16 @@ i915_gem_setup(struct drm_i915_gem_object *obj, u64 size)
 	if (i915_gem_object_size_2big(size))
 		return -E2BIG;
 
-	ret = mr->ops->init_object(mr, obj, size, 0);
+	/*
+	 * For now resort to CPU based clearing for device local-memory, in the
+	 * near future this will use the blitter engine for accelerated, GPU
+	 * based clearing.
+	 */
+	flags = 0;
+	if (mr->type == INTEL_MEMORY_LOCAL)
+		flags = I915_BO_ALLOC_CPU_CLEAR;
+
+	ret = mr->ops->init_object(mr, obj, size, flags);
 	if (ret)
 		return ret;
 
