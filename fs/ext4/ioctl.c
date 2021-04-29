@@ -659,10 +659,9 @@ static int ext4_ioc_getfsmap(struct super_block *sb,
 	info.gi_sb = sb;
 	info.gi_data = arg;
 	error = ext4_getfsmap(sb, &xhead, ext4_getfsmap_format, &info);
-	if (error == EXT4_QUERY_RANGE_ABORT) {
-		error = 0;
+	if (error == EXT4_QUERY_RANGE_ABORT)
 		aborted = true;
-	} else if (error)
+	else if (error)
 		return error;
 
 	/* If we didn't abort, set the "last" flag in the last fmx */
