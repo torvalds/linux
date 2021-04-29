@@ -2020,6 +2020,13 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 					 unsigned flags)
 {
 	struct btree_iter *iter, *best = NULL;
+	struct bpos real_pos, pos_min = POS_MIN;
+
+	if ((flags & BTREE_ITER_TYPE) != BTREE_ITER_NODES &&
+	    btree_node_type_is_extents(btree_id) &&
+	    !(flags & BTREE_ITER_NOT_EXTENTS) &&
+	    !(flags & BTREE_ITER_ALL_SNAPSHOTS))
+		flags |= BTREE_ITER_IS_EXTENTS;
 
 	if ((flags & BTREE_ITER_TYPE) != BTREE_ITER_NODES &&
 	    !btree_type_has_snapshots(btree_id))
@@ -2029,6 +2036,12 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 		pos.snapshot = btree_type_has_snapshots(btree_id)
 			? U32_MAX : 0;
 
+	real_pos = pos;
+
+	if ((flags & BTREE_ITER_IS_EXTENTS) &&
+	    bkey_cmp(pos, POS_MAX))
+		real_pos = bpos_nosnap_successor(pos);
+
 	trans_for_each_iter(trans, iter) {
 		if (btree_iter_type(iter) != (flags & BTREE_ITER_TYPE))
 			continue;
@@ -2037,8 +2050,8 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 			continue;
 
 		if (best) {
-			int cmp = bkey_cmp(bpos_diff(best->real_pos, pos),
-					   bpos_diff(iter->real_pos, pos));
+			int cmp = bkey_cmp(bpos_diff(best->real_pos, real_pos),
+					   bpos_diff(iter->real_pos, real_pos));
 
 			if (cmp < 0 ||
 			    ((cmp == 0 && btree_iter_keep(trans, iter))))
@@ -2047,6 +2060,13 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 
 		best = iter;
 	}
+
+	trace_trans_get_iter(_RET_IP_, trans->ip,
+			     btree_id,
+			     &real_pos, locks_want,
+			     best ? &best->real_pos : &pos_min,
+			     best ? best->locks_want : 0,
+			     best ? best->uptodate : BTREE_ITER_NEED_TRAVERSE);
 
 	if (!best) {
 		iter = btree_trans_iter_alloc(trans);
@@ -2060,12 +2080,6 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 
 	trans->iters_live	|= 1ULL << iter->idx;
 	trans->iters_touched	|= 1ULL << iter->idx;
-
-	if ((flags & BTREE_ITER_TYPE) != BTREE_ITER_NODES &&
-	    btree_node_type_is_extents(btree_id) &&
-	    !(flags & BTREE_ITER_NOT_EXTENTS) &&
-	    !(flags & BTREE_ITER_ALL_SNAPSHOTS))
-		flags |= BTREE_ITER_IS_EXTENTS;
 
 	iter->flags = flags;
 
@@ -2098,7 +2112,7 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 	iter->min_depth	= depth;
 
 	bch2_btree_iter_set_pos(iter, pos);
-	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
+	btree_iter_set_search_pos(iter, real_pos);
 
 	return iter;
 }

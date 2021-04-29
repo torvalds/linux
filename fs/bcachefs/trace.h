@@ -528,6 +528,62 @@ TRACE_EVENT(copygc,
 		__entry->buckets_moved, __entry->buckets_not_moved)
 );
 
+TRACE_EVENT(trans_get_iter,
+	TP_PROTO(unsigned long caller, unsigned long ip,
+		 enum btree_id btree_id,
+		 struct bpos *pos_want,
+		 unsigned locks_want,
+		 struct bpos *pos_found,
+		 unsigned locks_found,
+		 unsigned uptodate),
+	TP_ARGS(caller, ip, btree_id,
+		pos_want, locks_want,
+		pos_found, locks_found,
+		uptodate),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,	caller			)
+		__field(unsigned long,	ip			)
+		__field(u8,		btree_id		)
+		__field(u8,		uptodate		)
+		__field(u8,		locks_want		)
+		__field(u8,		locks_found		)
+		__field(u64,		pos_want_inode		)
+		__field(u64,		pos_want_offset		)
+		__field(u32,		pos_want_snapshot	)
+		__field(u64,		pos_found_inode		)
+		__field(u64,		pos_found_offset	)
+		__field(u32,		pos_found_snapshot	)
+	),
+
+	TP_fast_assign(
+		__entry->caller			= caller;
+		__entry->ip			= ip;
+		__entry->btree_id		= btree_id;
+		__entry->uptodate		= uptodate;
+		__entry->pos_want_inode		= pos_want->inode;
+		__entry->pos_want_offset	= pos_want->offset;
+		__entry->pos_want_snapshot	= pos_want->snapshot;
+		__entry->pos_found_inode	= pos_found->inode;
+		__entry->pos_found_offset	= pos_found->offset;
+		__entry->pos_found_snapshot	= pos_found->snapshot;
+	),
+
+	TP_printk("%ps %pS btree %u uptodate %u want %llu:%llu:%u locks %u found %llu:%llu:%u locks %u",
+		  (void *) __entry->caller,
+		  (void *) __entry->ip,
+		  __entry->btree_id,
+		  __entry->uptodate,
+		  __entry->pos_want_inode,
+		  __entry->pos_want_offset,
+		  __entry->pos_want_snapshot,
+		  __entry->locks_want,
+		  __entry->pos_found_inode,
+		  __entry->pos_found_offset,
+		  __entry->pos_found_snapshot,
+		  __entry->locks_found)
+);
+
 TRACE_EVENT(transaction_restart_ip,
 	TP_PROTO(unsigned long caller, unsigned long ip),
 	TP_ARGS(caller, ip),
