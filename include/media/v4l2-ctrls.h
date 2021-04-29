@@ -17,7 +17,6 @@
  * Include the stateless codec compound control definitions.
  * This will move to the public headers once this API is fully stable.
  */
-#include <media/mpeg2-ctrls.h>
 #include <media/hevc-ctrls.h>
 
 /* forward references */
