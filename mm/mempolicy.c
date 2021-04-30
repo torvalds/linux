@@ -2245,7 +2245,7 @@ out:
 EXPORT_SYMBOL(alloc_pages_vma);
 
 /**
- * 	alloc_pages_current - Allocate pages.
+ * 	alloc_pages - Allocate pages.
  *
  *	@gfp:
  *		%GFP_USER   user allocation,
@@ -2259,7 +2259,7 @@ EXPORT_SYMBOL(alloc_pages_vma);
  *	interrupt context and apply the current process NUMA policy.
  *	Returns NULL when no page can be allocated.
  */
-struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+struct page *alloc_pages(gfp_t gfp, unsigned order)
 {
 	struct mempolicy *pol = &default_policy;
 	struct page *page;
@@ -2280,7 +2280,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 
 	return page;
 }
-EXPORT_SYMBOL(alloc_pages_current);
+EXPORT_SYMBOL(alloc_pages);
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst)
 {
