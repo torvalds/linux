@@ -47,8 +47,6 @@ __param(int, run_test_mask, INT_MAX,
 		"\t\tid: 128,  name: pcpu_alloc_test\n"
 		"\t\tid: 256,  name: kvfree_rcu_1_arg_vmalloc_test\n"
 		"\t\tid: 512,  name: kvfree_rcu_2_arg_vmalloc_test\n"
-		"\t\tid: 1024, name: kvfree_rcu_1_arg_slab_test\n"
-		"\t\tid: 2048, name: kvfree_rcu_2_arg_slab_test\n"
 		/* Add a new test case description here. */
 );
 
@@ -363,42 +361,6 @@ kvfree_rcu_2_arg_vmalloc_test(void)
 	return 0;
 }
 
-static int
-kvfree_rcu_1_arg_slab_test(void)
-{
-	struct test_kvfree_rcu *p;
-	int i;
-
-	for (i = 0; i < test_loop_count; i++) {
-		p = kmalloc(sizeof(*p), GFP_KERNEL);
-		if (!p)
-			return -1;
-
-		p->array[0] = 'a';
-		kvfree_rcu(p);
-	}
-
-	return 0;
-}
-
-static int
-kvfree_rcu_2_arg_slab_test(void)
-{
-	struct test_kvfree_rcu *p;
-	int i;
-
-	for (i = 0; i < test_loop_count; i++) {
-		p = kmalloc(sizeof(*p), GFP_KERNEL);
-		if (!p)
-			return -1;
-
-		p->array[0] = 'a';
-		kvfree_rcu(p, rcu);
-	}
-
-	return 0;
-}
-
 struct test_case_desc {
 	const char *test_name;
 	int (*test_func)(void);
@@ -415,8 +377,6 @@ static struct test_case_desc test_case_array[] = {
 	{ "pcpu_alloc_test", pcpu_alloc_test },
 	{ "kvfree_rcu_1_arg_vmalloc_test", kvfree_rcu_1_arg_vmalloc_test },
 	{ "kvfree_rcu_2_arg_vmalloc_test", kvfree_rcu_2_arg_vmalloc_test },
-	{ "kvfree_rcu_1_arg_slab_test", kvfree_rcu_1_arg_slab_test },
-	{ "kvfree_rcu_2_arg_slab_test", kvfree_rcu_2_arg_slab_test },
 	/* Add a new test case here. */
 };
 
