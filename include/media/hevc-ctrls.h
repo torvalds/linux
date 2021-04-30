@@ -75,8 +75,7 @@ struct v4l2_ctrl_hevc_sps {
 	__u8	num_short_term_ref_pic_sets;
 	__u8	num_long_term_ref_pics_sps;
 	__u8	chroma_format_idc;
-
-	__u8	padding;
+	__u8	sps_max_sub_layers_minus1;
 
 	__u64	flags;
 };

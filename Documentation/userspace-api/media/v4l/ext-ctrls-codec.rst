@@ -2707,6 +2707,9 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     * - __u8
       - ``chroma_format_idc``
       -
+    * - __u8
+      - ``sps_max_sub_layers_minus1``
+      -
     * - __u64
       - ``flags``
       - See :ref:`Sequence Parameter Set Flags <hevc_sps_flags>`
