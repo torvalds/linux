@@ -323,11 +323,20 @@ void get_surface_visual_confirm_color(
 	case PIXEL_FORMAT_ARGB8888:
 		/* set border color to red */
 		color->color_r_cr = color_value;
+		if (pipe_ctx->plane_state->layer_index > 0) {
+			/* set border color to pink */
+			color->color_b_cb = color_value;
+			color->color_g_y = color_value * 0.5;
+		}
 		break;
 
 	case PIXEL_FORMAT_ARGB2101010:
 		/* set border color to blue */
 		color->color_b_cb = color_value;
+		if (pipe_ctx->plane_state->layer_index > 0) {
+			/* set border color to cyan */
+			color->color_g_y = color_value;
+		}
 		break;
 	case PIXEL_FORMAT_420BPP8:
 		/* set border color to green */
@@ -343,6 +352,11 @@ void get_surface_visual_confirm_color(
 		color->color_r_cr = color_value;
 		color->color_b_cb = color_value;
 		color->color_g_y = color_value;
+		if (pipe_ctx->plane_state->layer_index > 0) {
+			/* set border color to orange */
+			color->color_g_y = 0.22 * color_value;
+			color->color_b_cb = 0;
+		}
 		break;
 	default:
 		break;
