@@ -1297,16 +1297,20 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 		for (i = 0; i < bbio->num_stripes; i++, stripe++) {
 			u64 bytes;
 			struct request_queue *req_q;
+			struct btrfs_device *device = stripe->dev;
 
-			if (!stripe->dev->bdev) {
+			if (!device->bdev) {
 				ASSERT(btrfs_test_opt(fs_info, DEGRADED));
 				continue;
 			}
-			req_q = bdev_get_queue(stripe->dev->bdev);
+			req_q = bdev_get_queue(device->bdev);
 			if (!blk_queue_discard(req_q))
 				continue;
 
-			ret = btrfs_issue_discard(stripe->dev->bdev,
+			if (!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
+				continue;
+
+			ret = btrfs_issue_discard(device->bdev,
 						  stripe->physical,
 						  stripe->length,
 						  &bytes);
