@@ -5007,21 +5007,29 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
 }
 
 /*
- * __alloc_pages_bulk - Allocate a number of order-0 pages to a list
+ * __alloc_pages_bulk - Allocate a number of order-0 pages to a list or array
  * @gfp: GFP flags for the allocation
  * @preferred_nid: The preferred NUMA node ID to allocate from
  * @nodemask: Set of nodes to allocate from, may be NULL
- * @nr_pages: The number of pages desired on the list
- * @page_list: List to store the allocated pages
+ * @nr_pages: The number of pages desired on the list or array
+ * @page_list: Optional list to store the allocated pages
+ * @page_array: Optional array to store the pages
  *
  * This is a batched version of the page allocator that attempts to
- * allocate nr_pages quickly and add them to a list.
+ * allocate nr_pages quickly. Pages are added to page_list if page_list
+ * is not NULL, otherwise it is assumed that the page_array is valid.
  *
- * Returns the number of pages on the list.
+ * For lists, nr_pages is the number of pages that should be allocated.
+ *
+ * For arrays, only NULL elements are populated with pages and nr_pages
+ * is the maximum number of pages that will be stored in the array.
+ *
+ * Returns the number of pages on the list or array.
  */
 unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 			nodemask_t *nodemask, int nr_pages,
-			struct list_head *page_list)
+			struct list_head *page_list,
+			struct page **page_array)
 {
 	struct page *page;
 	unsigned long flags;
@@ -5032,13 +5040,20 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 	struct alloc_context ac;
 	gfp_t alloc_gfp;
 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
-	int allocated = 0;
+	int nr_populated = 0;
 
 	if (WARN_ON_ONCE(nr_pages <= 0))
 		return 0;
 
+	/*
+	 * Skip populated array elements to determine if any pages need
+	 * to be allocated before disabling IRQs.
+	 */
+	while (page_array && page_array[nr_populated] && nr_populated < nr_pages)
+		nr_populated++;
+
 	/* Use the single page allocator for one page. */
-	if (nr_pages == 1)
+	if (nr_pages - nr_populated == 1)
 		goto failed;
 
 	/* May set ALLOC_NOFRAGMENT, fragmentation will return 1 page. */
@@ -5082,12 +5097,19 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
 	pcp_list = &pcp->lists[ac.migratetype];
 
-	while (allocated < nr_pages) {
+	while (nr_populated < nr_pages) {
+
+		/* Skip existing pages */
+		if (page_array && page_array[nr_populated]) {
+			nr_populated++;
+			continue;
+		}
+
 		page = __rmqueue_pcplist(zone, ac.migratetype, alloc_flags,
 								pcp, pcp_list);
 		if (!page) {
 			/* Try and get at least one page */
-			if (!allocated)
+			if (!nr_populated)
 				goto failed_irq;
 			break;
 		}
@@ -5102,13 +5124,16 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 		zone_statistics(ac.preferred_zoneref->zone, zone);
 
 		prep_new_page(page, 0, gfp, 0);
-		list_add(&page->lru, page_list);
-		allocated++;
+		if (page_list)
+			list_add(&page->lru, page_list);
+		else
+			page_array[nr_populated] = page;
+		nr_populated++;
 	}
 
 	local_irq_restore(flags);
 
-	return allocated;
+	return nr_populated;
 
 failed_irq:
 	local_irq_restore(flags);
@@ -5116,11 +5141,14 @@ failed_irq:
 failed:
 	page = __alloc_pages(gfp, 0, preferred_nid, nodemask);
 	if (page) {
-		list_add(&page->lru, page_list);
-		allocated = 1;
+		if (page_list)
+			list_add(&page->lru, page_list);
+		else
+			page_array[nr_populated] = page;
+		nr_populated++;
 	}
 
-	return allocated;
+	return nr_populated;
 }
 EXPORT_SYMBOL_GPL(__alloc_pages_bulk);
 
