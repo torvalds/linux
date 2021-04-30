@@ -2174,6 +2174,34 @@ int drm_connector_attach_hdr_output_metadata_property(struct drm_connector *conn
 EXPORT_SYMBOL(drm_connector_attach_hdr_output_metadata_property);
 
 /**
+ * drm_connector_atomic_hdr_metadata_equal - checks if the hdr metadata changed
+ * @old_state: old connector state to compare
+ * @new_state: new connector state to compare
+ *
+ * This is used by HDR-enabled drivers to test whether the HDR metadata
+ * have changed between two different connector state (and thus probably
+ * requires a full blown mode change).
+ *
+ * Returns:
+ * True if the metadata are equal, False otherwise
+ */
+bool drm_connector_atomic_hdr_metadata_equal(struct drm_connector_state *old_state,
+					     struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (!old_blob || !new_blob)
+		return old_blob == new_blob;
+
+	if (old_blob->length != new_blob->length)
+		return false;
+
+	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+}
+EXPORT_SYMBOL(drm_connector_atomic_hdr_metadata_equal);
+
+/**
  * drm_connector_set_vrr_capable_property - sets the variable refresh rate
  * capable property for a connector
  * @connector: drm connector
