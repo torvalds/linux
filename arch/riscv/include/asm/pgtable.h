@@ -184,7 +184,7 @@ static inline int pmd_none(pmd_t pmd)
 
 static inline int pmd_bad(pmd_t pmd)
 {
-	return !pmd_present(pmd);
+	return !pmd_present(pmd) || (pmd_val(pmd) & _PAGE_LEAF);
 }
 
 #define pmd_leaf	pmd_leaf
