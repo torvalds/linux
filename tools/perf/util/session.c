@@ -2155,6 +2155,7 @@ struct reader {
 	u64		 data_size;
 	u64		 data_offset;
 	reader_cb_t	 process;
+	bool		 in_place_update;
 };
 
 static int
@@ -2188,7 +2189,9 @@ reader__process_events(struct reader *rd, struct perf_session *session,
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
 
-	if (session->header.needs_swap) {
+	if (rd->in_place_update) {
+		mmap_prot  |= PROT_WRITE;
+	} else if (session->header.needs_swap) {
 		mmap_prot  |= PROT_WRITE;
 		mmap_flags = MAP_PRIVATE;
 	}
@@ -2274,6 +2277,7 @@ static int __perf_session__process_events(struct perf_session *session)
 		.data_size	= session->header.data_size,
 		.data_offset	= session->header.data_offset,
 		.process	= process_simple,
+		.in_place_update = session->data->in_place_update,
 	};
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;

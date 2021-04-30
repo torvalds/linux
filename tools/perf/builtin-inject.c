@@ -43,6 +43,8 @@ struct perf_inject {
 	bool			have_auxtrace;
 	bool			strip;
 	bool			jit_mode;
+	bool			in_place_update;
+	bool			in_place_update_dry_run;
 	const char		*input_name;
 	struct perf_data	output;
 	u64			bytes_written;
@@ -701,7 +703,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	int ret = -EINVAL;
 	struct perf_session *session = inject->session;
 	struct perf_data *data_out = &inject->output;
-	int fd = perf_data__fd(data_out);
+	int fd = inject->in_place_update ? -1 : perf_data__fd(data_out);
 	u64 output_data_offset;
 
 	signal(SIGINT, sig_handler);
@@ -759,14 +761,14 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!inject->itrace_synth_opts.set)
 		auxtrace_index__free(&session->auxtrace_index);
 
-	if (!data_out->is_pipe)
+	if (!data_out->is_pipe && !inject->in_place_update)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 
-	if (!data_out->is_pipe) {
+	if (!data_out->is_pipe && !inject->in_place_update) {
 		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
@@ -900,7 +902,23 @@ int cmd_inject(int argc, const char **argv)
 		return -1;
 	}
 
-	if (perf_data__open(&inject.output)) {
+	if (inject.in_place_update) {
+		if (!strcmp(inject.input_name, "-")) {
+			pr_err("Input file name required for in-place updating\n");
+			return -1;
+		}
+		if (strcmp(inject.output.path, "-")) {
+			pr_err("Output file name must not be specified for in-place updating\n");
+			return -1;
+		}
+		if (!data.force && !inject.in_place_update_dry_run) {
+			pr_err("The input file would be updated in place, "
+				"the --force option is required.\n");
+			return -1;
+		}
+		if (!inject.in_place_update_dry_run)
+			data.in_place_update = true;
+	} else if (perf_data__open(&inject.output)) {
 		perror("failed to create output file");
 		return -1;
 	}

@@ -3814,6 +3814,11 @@ int perf_session__read_header(struct perf_session *session)
 	if (perf_file_header__read(&f_header, header, fd) < 0)
 		return -EINVAL;
 
+	if (header->needs_swap && data->in_place_update) {
+		pr_err("In-place update not supported when byte-swapping is required\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * Sanity check that perf.data was written cleanly; data size is
 	 * initialized to 0 and updated only if the on_exit function is run.
