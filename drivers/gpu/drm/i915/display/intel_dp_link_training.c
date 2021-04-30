@@ -96,7 +96,7 @@ static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
 	 * Detecting LTTPRs must be avoided on platforms with an AUX timeout
 	 * period < 3.2ms. (see DP Standard v2.0, 2.11.2, 3.6.6.1).
 	 */
-	if (DISPLAY_VER(i915) < 10)
+	if (DISPLAY_VER(i915) < 10 || IS_GEMINILAKE(i915))
 		return false;
 
 	if (drm_dp_read_lttpr_common_caps(&intel_dp->aux,

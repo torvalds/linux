@@ -1587,6 +1587,9 @@ static int gfx_v9_0_init_cp_compute_microcode(struct amdgpu_device *adev,
 			err = 0;
 			adev->gfx.mec2_fw = NULL;
 		}
+	} else {
+		adev->gfx.mec2_fw_version = adev->gfx.mec_fw_version;
+		adev->gfx.mec2_feature_version = adev->gfx.mec_feature_version;
 	}
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {

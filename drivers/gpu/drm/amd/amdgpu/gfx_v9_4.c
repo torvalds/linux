@@ -994,7 +994,7 @@ static int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev,
 	return ret;
 }
 
-static const struct soc15_reg_entry gfx_v9_4_rdrsp_status_regs =
+static const struct soc15_reg_entry gfx_v9_4_ea_err_status_regs =
 	{ SOC15_REG_ENTRY(GC, 0, mmGCEA_ERR_STATUS), 0, 1, 32 };
 
 static void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
@@ -1007,15 +1007,21 @@ static void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->grbm_idx_mutex);
 
-	for (i = 0; i < gfx_v9_4_rdrsp_status_regs.se_num; i++) {
-		for (j = 0; j < gfx_v9_4_rdrsp_status_regs.instance;
+	for (i = 0; i < gfx_v9_4_ea_err_status_regs.se_num; i++) {
+		for (j = 0; j < gfx_v9_4_ea_err_status_regs.instance;
 		     j++) {
 			gfx_v9_4_select_se_sh(adev, i, 0, j);
 			reg_value = RREG32(SOC15_REG_ENTRY_OFFSET(
-				gfx_v9_4_rdrsp_status_regs));
-			if (reg_value)
+				gfx_v9_4_ea_err_status_regs));
+			if (REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_RDRSP_STATUS) ||
+			    REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_WRRSP_STATUS) ||
+			    REG_GET_FIELD(reg_value, GCEA_ERR_STATUS, SDP_RDRSP_DATAPARITY_ERROR)) {
+				/* SDP read/write error/parity error in FUE_IS_FATAL mode
+				 * can cause system fatal error in arcturas. Harvest the error
+				 * status before GPU reset */
 				dev_warn(adev->dev, "GCEA err detected at instance: %d, status: 0x%x!\n",
 						j, reg_value);
+			}
 		}
 	}
 

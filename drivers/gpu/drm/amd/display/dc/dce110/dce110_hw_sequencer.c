@@ -48,6 +48,7 @@
 #include "stream_encoder.h"
 #include "link_encoder.h"
 #include "link_hwss.h"
+#include "dc_link_dp.h"
 #include "clock_source.h"
 #include "clk_mgr.h"
 #include "abm.h"
@@ -1694,6 +1695,8 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	bool can_apply_edp_fast_boot = false;
 	bool can_apply_seamless_boot = false;
 	bool keep_edp_vdd_on = false;
+	DC_LOGGER_INIT();
+
 
 	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
 	get_edp_links(dc, edp_links, &edp_num);
@@ -1714,8 +1717,11 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 				/* Set optimization flag on eDP stream*/
 				if (edp_stream_num && edp_link->link_status.link_active) {
 					edp_stream = edp_streams[0];
-					edp_stream->apply_edp_fast_boot_optimization = true;
-					can_apply_edp_fast_boot = true;
+					can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
+					edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
+					if (can_apply_edp_fast_boot)
+						DC_LOG_EVENT_LINK_TRAINING("eDP fast boot disabled to optimize link rate\n");
+
 					break;
 				}
 			}

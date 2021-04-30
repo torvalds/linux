@@ -112,7 +112,7 @@ int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
 {
 	struct ttm_global *glob = &ttm_glob;
 	struct ttm_device *bdev;
-	int ret = -EBUSY;
+	int ret = 0;
 
 	mutex_lock(&ttm_global_mutex);
 	list_for_each_entry(bdev, &glob->device_list, device_list) {

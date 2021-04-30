@@ -434,6 +434,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	int link_index = aconnector->dc_link->link_index;
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
+	struct drm_connector_state *conn_state;
 
 	if (config->dpms_off) {
 		hdcp_remove_display(hdcp_work, link_index, aconnector);
@@ -459,8 +460,13 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 3;
 	link->adjust.hdcp1.disable = 0;
+	conn_state = aconnector->base.state;
 
-	hdcp_update_display(hdcp_work, link_index, aconnector, DRM_MODE_HDCP_CONTENT_TYPE0, false);
+	pr_debug("[HDCP_DM] display %d, CP %d, type %d\n", aconnector->base.index,
+			(!!aconnector->base.state) ? aconnector->base.state->content_protection : -1,
+			(!!aconnector->base.state) ? aconnector->base.state->hdcp_content_type : -1);
+
+	hdcp_update_display(hdcp_work, link_index, aconnector, conn_state->hdcp_content_type, false);
 }
 
 
