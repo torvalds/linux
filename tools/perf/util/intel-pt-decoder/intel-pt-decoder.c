@@ -1499,9 +1499,15 @@ static void intel_pt_calc_tsc_timestamp(struct intel_pt_decoder *decoder)
 			timestamp = decoder->timestamp;
 		}
 		if (timestamp < decoder->timestamp) {
-			intel_pt_log_to("Wraparound timestamp", timestamp);
-			timestamp += (1ULL << 56);
-			decoder->tsc_timestamp = timestamp;
+			if (!decoder->buf_timestamp ||
+			    (timestamp + (1ULL << 56) < decoder->buf_timestamp)) {
+				intel_pt_log_to("Wraparound timestamp", timestamp);
+				timestamp += (1ULL << 56);
+				decoder->tsc_timestamp = timestamp;
+			} else {
+				intel_pt_log_to("Suppressing bad timestamp", timestamp);
+				timestamp = decoder->timestamp;
+			}
 		}
 		decoder->timestamp = timestamp;
 		decoder->timestamp_insn_cnt = 0;
