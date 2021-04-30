@@ -18,7 +18,6 @@
 
 struct hi6421_spmi_reg_info {
 	struct regulator_desc	desc;
-	struct hi6421_spmi_pmic *pmic;
 	u8			eco_mode_mask;
 	u32			eco_uA;
 
@@ -98,13 +97,12 @@ static const unsigned int ldo34_voltages[] = {
 static int hi6421_spmi_regulator_enable(struct regulator_dev *rdev)
 {
 	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
-	struct hi6421_spmi_pmic *pmic = sreg->pmic;
 	int ret;
 
 	/* cannot enable more than one regulator at one time */
 	mutex_lock(&sreg->enable_mutex);
 
-	ret = regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
+	ret = regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				 rdev->desc->enable_mask,
 				 rdev->desc->enable_mask);
 
@@ -116,22 +114,12 @@ static int hi6421_spmi_regulator_enable(struct regulator_dev *rdev)
 	return ret;
 }
 
-static int hi6421_spmi_regulator_disable(struct regulator_dev *rdev)
-{
-	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
-	struct hi6421_spmi_pmic *pmic = sreg->pmic;
-
-	return regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
-				  rdev->desc->enable_mask, 0);
-}
-
 static unsigned int hi6421_spmi_regulator_get_mode(struct regulator_dev *rdev)
 {
 	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
-	struct hi6421_spmi_pmic *pmic = sreg->pmic;
 	u32 reg_val;
 
-	regmap_read(pmic->regmap, rdev->desc->enable_reg, &reg_val);
+	regmap_read(rdev->regmap, rdev->desc->enable_reg, &reg_val);
 
 	if (reg_val & sreg->eco_mode_mask)
 		return REGULATOR_MODE_IDLE;
@@ -143,7 +131,6 @@ static int hi6421_spmi_regulator_set_mode(struct regulator_dev *rdev,
 					  unsigned int mode)
 {
 	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
-	struct hi6421_spmi_pmic *pmic = sreg->pmic;
 	u32 val;
 
 	switch (mode) {
@@ -157,7 +144,7 @@ static int hi6421_spmi_regulator_set_mode(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
+	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  sreg->eco_mode_mask, val);
 }
 
@@ -177,7 +164,7 @@ hi6421_spmi_regulator_get_optimum_mode(struct regulator_dev *rdev,
 static const struct regulator_ops hi6421_spmi_ldo_rops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = hi6421_spmi_regulator_enable,
-	.disable = hi6421_spmi_regulator_disable,
+	.disable = regulator_disable_regmap,
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_iterate,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -258,7 +245,6 @@ static int hi6421_spmi_regulator_probe(struct platform_device *pdev)
 	if (!sreg)
 		return -ENOMEM;
 
-	sreg->pmic = pmic;
 	mutex_init(&sreg->enable_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(regulator_info); i++) {
