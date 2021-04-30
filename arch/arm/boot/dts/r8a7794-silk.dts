@@ -45,8 +45,11 @@
 		reg = <0 0x40000000 0 0x40000000>;
 	};
 
-	gpio-keys {
+	keyboard {
 		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keyboard_pins>;
+		pinctrl-names = "default";
 
 		key-3 {
 			gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
@@ -356,6 +359,11 @@
 	du1_pins: du1 {
 		groups = "du1_rgb666", "du1_sync", "du1_disp", "du1_clk0_out";
 		function = "du1";
+	};
+
+	keyboard_pins: keyboard {
+		pins = "GP_3_9", "GP_3_10", "GP_3_11", "GP_3_12";
+		bias-pull-up;
 	};
 
 	ssi_pins: sound {
