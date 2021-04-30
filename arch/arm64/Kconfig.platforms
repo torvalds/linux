@@ -232,9 +232,7 @@ config ARCH_RENESAS
 config ARCH_ROCKCHIP
 	bool "Rockchip Platforms"
 	select ARCH_HAS_RESET_CONTROLLER
-	select GPIOLIB
 	select PINCTRL
-	select PINCTRL_ROCKCHIP
 	select PM
 	select ROCKCHIP_TIMER
 	help
