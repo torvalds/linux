@@ -2708,8 +2708,7 @@ static void handle_hpd_rx_irq(void *param)
 	 * conflict, after implement i2c helper, this mutex should be
 	 * retired.
 	 */
-	if (dc_link->type != dc_connection_mst_branch)
-		mutex_lock(&aconnector->hpd_lock);
+	mutex_lock(&aconnector->hpd_lock);
 
 	read_hpd_rx_irq_data(dc_link, &hpd_irq_data);
 
@@ -2778,10 +2777,10 @@ out:
 	}
 #endif
 
-	if (dc_link->type != dc_connection_mst_branch) {
+	if (dc_link->type != dc_connection_mst_branch)
 		drm_dp_cec_irq(&aconnector->dm_dp_aux.aux);
-		mutex_unlock(&aconnector->hpd_lock);
-	}
+
+	mutex_unlock(&aconnector->hpd_lock);
 }
 
 static void register_hpd_handlers(struct amdgpu_device *adev)
