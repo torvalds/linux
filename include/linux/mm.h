@@ -485,6 +485,7 @@ extern pgprot_t protection_map[16];
 
 /**
  * fault_flag_allow_retry_first - check ALLOW_RETRY the first time
+ * @flags: Fault flags.
  *
  * This is mostly used for places where we want to try to avoid taking
  * the mmap_lock for too long a time when waiting for another condition
