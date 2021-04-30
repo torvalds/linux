@@ -970,20 +970,16 @@ static u32 skl_dpll0_link_rate(struct drm_i915_private *dev_priv, int vco)
 
 static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 {
-	u32 val;
-
-	val = intel_de_read(dev_priv, DPLL_CTRL1);
-
-	val &= ~(DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) | DPLL_CTRL1_SSC(SKL_DPLL0) |
-		 DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
-	val |= DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
-	val |= skl_dpll0_link_rate(dev_priv, vco);
-
-	intel_de_write(dev_priv, DPLL_CTRL1, val);
+	intel_de_rmw(dev_priv, DPLL_CTRL1,
+		     DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
+		     DPLL_CTRL1_SSC(SKL_DPLL0) |
+		     DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0),
+		     DPLL_CTRL1_OVERRIDE(SKL_DPLL0) |
+		     skl_dpll0_link_rate(dev_priv, vco));
 	intel_de_posting_read(dev_priv, DPLL_CTRL1);
 
-	intel_de_write(dev_priv, LCPLL1_CTL,
-		       intel_de_read(dev_priv, LCPLL1_CTL) | LCPLL_PLL_ENABLE);
+	intel_de_rmw(dev_priv, LCPLL1_CTL,
+		     0, LCPLL_PLL_ENABLE);
 
 	if (intel_de_wait_for_set(dev_priv, LCPLL1_CTL, LCPLL_PLL_LOCK, 5))
 		drm_err(&dev_priv->drm, "DPLL0 not locked\n");
@@ -996,8 +992,9 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 
 static void skl_dpll0_disable(struct drm_i915_private *dev_priv)
 {
-	intel_de_write(dev_priv, LCPLL1_CTL,
-		       intel_de_read(dev_priv, LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
+	intel_de_rmw(dev_priv, LCPLL1_CTL,
+		     LCPLL_PLL_ENABLE, 0);
+
 	if (intel_de_wait_for_clear(dev_priv, LCPLL1_CTL, LCPLL_PLL_LOCK, 1))
 		drm_err(&dev_priv->drm, "Couldn't disable DPLL0\n");
 
