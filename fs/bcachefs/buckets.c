@@ -902,6 +902,7 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 		spin_unlock(&c->ec_stripes_heap_lock);
 		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
 				    (u64) p.idx);
+		bch2_inconsistent_error(c);
 		return -EIO;
 	}
 
@@ -1019,6 +1020,7 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	if (!m || (old_s && !m->alive)) {
 		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
 				    idx);
+		bch2_inconsistent_error(c);
 		return -1;
 	}
 
@@ -1503,6 +1505,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 		bch2_fs_inconsistent(c,
 			"pointer to nonexistent stripe %llu",
 			(u64) p.ec.idx);
+		bch2_inconsistent_error(c);
 		ret = -EIO;
 		goto out;
 	}
@@ -1743,6 +1746,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 		bch2_fs_inconsistent(c,
 			"%llu:%llu len %u points to nonexistent indirect extent %llu",
 			p.k->p.inode, p.k->p.offset, p.k->size, idx);
+		bch2_inconsistent_error(c);
 		ret = -EIO;
 		goto err;
 	}
