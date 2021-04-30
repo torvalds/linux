@@ -52,14 +52,7 @@ ifneq ($(CONFIG_LD_NO_RELAX),)
 KBUILD_LDFLAGS := --no-relax
 endif
 
-ifeq ($(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)
-CHECKFLAGS += -D__XTENSA_EB__
-KBUILD_CPPFLAGS += -DCONFIG_CPU_BIG_ENDIAN
-endif
-ifeq ($(shell echo __XTENSA_EL__ | $(CC) -E - | grep -v "\#"),1)
-CHECKFLAGS += -D__XTENSA_EL__
-KBUILD_CPPFLAGS += -DCONFIG_CPU_LITTLE_ENDIAN
-endif
+CHECKFLAGS += -D$(if $(CONFIG_CPU_BIG_ENDIAN),__XTENSA_EB__,__XTENSA_EL__)
 
 vardirs := $(patsubst %,arch/xtensa/variants/%/,$(variant-y))
 plfdirs := $(patsubst %,arch/xtensa/platforms/%/,$(platform-y))
