@@ -743,6 +743,15 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *
  * - a list of valid ranges for sclk labeled OD_RANGE
  *
+ * < For VanGogh >
+ *
+ * Reading the file will display:
+ *
+ * - minimum and maximum engine clock labeled OD_SCLK
+ * - minimum and maximum core clocks labeled OD_CCLK
+ *
+ * - a list of valid ranges for sclk and cclk labeled OD_RANGE
+ *
  * To manually adjust these settings:
  *
  * - First select manual using power_dpm_force_performance_level
@@ -751,7 +760,10 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   string that contains "s/m index clock" to the file. The index
  *   should be 0 if to set minimum clock. And 1 if to set maximum
  *   clock. E.g., "s 0 500" will update minimum sclk to be 500 MHz.
- *   "m 1 800" will update maximum mclk to be 800Mhz.
+ *   "m 1 800" will update maximum mclk to be 800Mhz. For core
+ *   clocks on VanGogh, the string contains "p core index clock".
+ *   E.g., "p 2 0 800" would set the minimum core clock on core
+ *   2 to 800Mhz.
  *
  *   For sclk voltage curve, enter the new values by writing a
  *   string that contains "vc point clock voltage" to the file. The
