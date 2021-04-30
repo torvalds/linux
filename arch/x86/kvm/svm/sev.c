@@ -1764,7 +1764,8 @@ e_mirror_unlock:
 e_source_unlock:
 	mutex_unlock(&source_kvm->lock);
 e_source_put:
-	fput(source_kvm_file);
+	if (source_kvm_file)
+		fput(source_kvm_file);
 	return ret;
 }
 
