@@ -33,48 +33,6 @@ static bool CheckPositive(
 		pDM_Odm->TypeALNA << 16 |
 		pDM_Odm->TypeAPA  << 24;
 
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"===> [8812A] CheckPositive (cond1, cond2) = (0x%X 0x%X)\n",
-			cond1,
-			cond2
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"===> [8812A] CheckPositive (driver1, driver2) = (0x%X 0x%X)\n",
-			driver1,
-			driver2
-		)
-	);
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"	(Platform, Interface) = (0x%X, 0x%X)\n",
-			pDM_Odm->SupportPlatform,
-			pDM_Odm->SupportInterface
-		)
-	);
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_TRACE,
-		(
-			"	(Board, Package) = (0x%X, 0x%X)\n",
-			pDM_Odm->BoardType,
-			pDM_Odm->PackageType
-		)
-	);
-
 	/*  Value Defined Check =============== */
 	/* QFN Type [15:12] and Cut Version [27:24] need to do value check */
 
@@ -265,13 +223,6 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(struct dm_odm_t *pDM_Odm)
 	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_RadioA);
 	u32 *Array = Array_MP_8723B_RadioA;
 
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_8723B_RadioA\n")
-	);
-
 	for (i = 0; i < ArrayLen; i += 2) {
 		u32 v1 = Array[i];
 		u32 v2 = Array[i+1];
@@ -423,13 +374,6 @@ static u8 gDeltaSwingTableIdx_MP_2GCCKA_P_TxPowerTrack_SDIO_8723B[] = {
 void ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(struct dm_odm_t *pDM_Odm)
 {
 	struct odm_rf_cal_t *pRFCalibrateInfo = &pDM_Odm->RFCalibrateInfo;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_MP_8723B\n")
-	);
 
 
 	memcpy(
@@ -759,13 +703,6 @@ void ODM_ReadAndConfig_MP_8723B_TXPWR_LMT(struct dm_odm_t *pDM_Odm)
 {
 	u32 i = 0;
 	u8 **Array = Array_MP_8723B_TXPWR_LMT;
-
-	ODM_RT_TRACE(
-		pDM_Odm,
-		ODM_COMP_INIT,
-		ODM_DBG_LOUD,
-		("===> ODM_ReadAndConfig_MP_8723B_TXPWR_LMT\n")
-	);
 
 	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_TXPWR_LMT); i += 7) {
 		u8 *regulation = Array[i];
