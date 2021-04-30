@@ -45,46 +45,38 @@ struct ttm_resource_manager_func {
 	 *
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
-	 * @placement: Placement details.
-	 * @flags: Additional placement flags.
-	 * @mem: Pointer to a struct ttm_resource to be filled in.
+	 * @place: Placement details.
+	 * @res: Resulting pointer to the ttm_resource.
 	 *
 	 * This function should allocate space in the memory type managed
-	 * by @man. Placement details if
-	 * applicable are given by @placement. If successful,
-	 * @mem::mm_node should be set to a non-null value, and
-	 * @mem::start should be set to a value identifying the beginning
+	 * by @man. Placement details if applicable are given by @place. If
+	 * successful, a filled in ttm_resource object should be returned in
+	 * @res. @res::start should be set to a value identifying the beginning
 	 * of the range allocated, and the function should return zero.
-	 * If the memory region accommodate the buffer object, @mem::mm_node
-	 * should be set to NULL, and the function should return 0.
+	 * If the manager can't fulfill the request -ENOSPC should be returned.
 	 * If a system error occurred, preventing the request to be fulfilled,
 	 * the function should return a negative error code.
 	 *
-	 * Note that @mem::mm_node will only be dereferenced by
-	 * struct ttm_resource_manager functions and optionally by the driver,
-	 * which has knowledge of the underlying type.
-	 *
-	 * This function may not be called from within atomic context, so
-	 * an implementation can and must use either a mutex or a spinlock to
-	 * protect any data structures managing the space.
+	 * This function may not be called from within atomic context and needs
+	 * to take care of its own locking to protect any data structures
+	 * managing the space.
 	 */
 	int  (*alloc)(struct ttm_resource_manager *man,
 		      struct ttm_buffer_object *bo,
 		      const struct ttm_place *place,
-		      struct ttm_resource *mem);
+		      struct ttm_resource **res);
 
 	/**
 	 * struct ttm_resource_manager_func member free
 	 *
 	 * @man: Pointer to a memory type manager.
-	 * @mem: Pointer to a struct ttm_resource to be filled in.
+	 * @res: Pointer to a struct ttm_resource to be freed.
 	 *
-	 * This function frees memory type resources previously allocated
-	 * and that are identified by @mem::mm_node and @mem::start. May not
-	 * be called from within atomic context.
+	 * This function frees memory type resources previously allocated.
+	 * May not be called from within atomic context.
 	 */
 	void (*free)(struct ttm_resource_manager *man,
-		     struct ttm_resource *mem);
+		     struct ttm_resource *res);
 
 	/**
 	 * struct ttm_resource_manager_func member debug
@@ -158,9 +150,9 @@ struct ttm_bus_placement {
 /**
  * struct ttm_resource
  *
- * @mm_node: Memory manager node.
- * @size: Requested size of memory region.
- * @num_pages: Actual size of memory region in pages.
+ * @start: Start of the allocation.
+ * @num_pages: Actual size of resource in pages.
+ * @mem_type: Resource type of the allocation.
  * @placement: Placement flags.
  * @bus: Placement on io bus accessible to the CPU
  *
@@ -168,7 +160,6 @@ struct ttm_bus_placement {
  * buffer object.
  */
 struct ttm_resource {
-	void *mm_node;
 	unsigned long start;
 	unsigned long num_pages;
 	uint32_t mem_type;

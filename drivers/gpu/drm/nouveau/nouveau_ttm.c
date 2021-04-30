@@ -45,7 +45,7 @@ static int
 nouveau_vram_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_resource *reg)
+			 struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -54,15 +54,15 @@ nouveau_vram_manager_new(struct ttm_resource_manager *man,
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	ttm_resource_init(bo, place, reg->mm_node);
+	ttm_resource_init(bo, place, *res);
 
-	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
+	ret = nouveau_mem_vram(*res, nvbo->contig, nvbo->page);
 	if (ret) {
-		nouveau_mem_del(reg);
+		nouveau_mem_del(*res);
 		return ret;
 	}
 
@@ -78,18 +78,18 @@ static int
 nouveau_gart_manager_new(struct ttm_resource_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_resource *reg)
+			 struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	ttm_resource_init(bo, place, reg->mm_node);
-	reg->start = 0;
+	ttm_resource_init(bo, place, *res);
+	(*res)->start = 0;
 	return 0;
 }
 
@@ -102,27 +102,27 @@ static int
 nv04_gart_manager_new(struct ttm_resource_manager *man,
 		      struct ttm_buffer_object *bo,
 		      const struct ttm_place *place,
-		      struct ttm_resource *reg)
+		      struct ttm_resource **res)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *mem;
 	int ret;
 
-	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
-	mem = nouveau_mem(reg);
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, res);
 	if (ret)
 		return ret;
 
-	ttm_resource_init(bo, place, reg->mm_node);
+	mem = nouveau_mem(*res);
+	ttm_resource_init(bo, place, *res);
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
-			   (long)reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
+			   (long)(*res)->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
-		nouveau_mem_del(reg);
+		nouveau_mem_del(*res);
 		return ret;
 	}
 
-	reg->start = mem->vma[0].addr >> PAGE_SHIFT;
+	(*res)->start = mem->vma[0].addr >> PAGE_SHIFT;
 	return 0;
 }
 

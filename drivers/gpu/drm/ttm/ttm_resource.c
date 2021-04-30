@@ -29,7 +29,6 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
                        const struct ttm_place *place,
                        struct ttm_resource *res)
 {
-	res->mm_node = NULL;
 	res->start = 0;
 	res->num_pages = PFN_UP(bo->base.size);
 	res->mem_type = place->mem_type;
@@ -47,22 +46,8 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 {
 	struct ttm_resource_manager *man =
 		ttm_manager_type(bo->bdev, place->mem_type);
-	struct ttm_resource *res;
-	int r;
 
-	res = kmalloc(sizeof(*res), GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	ttm_resource_init(bo, place, res);
-	r = man->func->alloc(man, bo, place, res);
-	if (r) {
-		kfree(res);
-		return r;
-	}
-
-	*res_ptr = res;
-	return 0;
+	return man->func->alloc(man, bo, place, res_ptr);
 }
 
 void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
@@ -74,7 +59,6 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 
 	man = ttm_manager_type(bo->bdev, (*res)->mem_type);
 	man->func->free(man, *res);
-	kfree(*res);
 	*res = NULL;
 }
 EXPORT_SYMBOL(ttm_resource_free);

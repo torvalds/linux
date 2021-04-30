@@ -51,7 +51,7 @@ static int vmw_thp_insert_aligned(struct ttm_buffer_object *bo,
 static int vmw_thp_get_node(struct ttm_resource_manager *man,
 			    struct ttm_buffer_object *bo,
 			    const struct ttm_place *place,
-			    struct ttm_resource *mem)
+			    struct ttm_resource **res)
 {
 	struct vmw_thp_manager *rman = to_thp_manager(man);
 	struct drm_mm *mm = &rman->mm;
@@ -78,26 +78,27 @@ static int vmw_thp_get_node(struct ttm_resource_manager *man,
 	spin_lock(&rman->lock);
 	if (IS_ENABLED(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)) {
 		align_pages = (HPAGE_PUD_SIZE >> PAGE_SHIFT);
-		if (mem->num_pages >= align_pages) {
+		if (node->base.num_pages >= align_pages) {
 			ret = vmw_thp_insert_aligned(bo, mm, &node->mm_nodes[0],
-						     align_pages, place, mem,
-						     lpfn, mode);
+						     align_pages, place,
+						     &node->base, lpfn, mode);
 			if (!ret)
 				goto found_unlock;
 		}
 	}
 
 	align_pages = (HPAGE_PMD_SIZE >> PAGE_SHIFT);
-	if (mem->num_pages >= align_pages) {
+	if (node->base.num_pages >= align_pages) {
 		ret = vmw_thp_insert_aligned(bo, mm, &node->mm_nodes[0],
-					     align_pages, place, mem, lpfn,
-					     mode);
+					     align_pages, place, &node->base,
+					     lpfn, mode);
 		if (!ret)
 			goto found_unlock;
 	}
 
 	ret = drm_mm_insert_node_in_range(mm, &node->mm_nodes[0],
-					  mem->num_pages, bo->page_alignment, 0,
+					  node->base.num_pages,
+					  bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 found_unlock:
 	spin_unlock(&rman->lock);
@@ -105,20 +106,18 @@ found_unlock:
 	if (unlikely(ret)) {
 		kfree(node);
 	} else {
-		mem->mm_node = &node->mm_nodes[0];
-		mem->start = node->mm_nodes[0].start;
+		node->base.start = node->mm_nodes[0].start;
+		*res = &node->base;
 	}
 
 	return ret;
 }
 
-
-
 static void vmw_thp_put_node(struct ttm_resource_manager *man,
-			     struct ttm_resource *mem)
+			     struct ttm_resource *res)
 {
+	struct ttm_range_mgr_node *node = to_ttm_range_mgr_node(res);
 	struct vmw_thp_manager *rman = to_thp_manager(man);
-	struct ttm_range_mgr_node * node = mem->mm_node;
 
 	spin_lock(&rman->lock);
 	drm_mm_remove_node(&node->mm_nodes[0]);

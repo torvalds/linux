@@ -10,20 +10,20 @@
 static int ttm_sys_man_alloc(struct ttm_resource_manager *man,
 			     struct ttm_buffer_object *bo,
 			     const struct ttm_place *place,
-			     struct ttm_resource *mem)
+			     struct ttm_resource **res)
 {
-	mem->mm_node = kzalloc(sizeof(*mem), GFP_KERNEL);
-	if (!mem->mm_node)
+	*res = kzalloc(sizeof(**res), GFP_KERNEL);
+	if (!*res)
 		return -ENOMEM;
 
-	ttm_resource_init(bo, place, mem->mm_node);
+	ttm_resource_init(bo, place, *res);
 	return 0;
 }
 
 static void ttm_sys_man_free(struct ttm_resource_manager *man,
-			     struct ttm_resource *mem)
+			     struct ttm_resource *res)
 {
-	kfree(mem->mm_node);
+	kfree(res);
 }
 
 static const struct ttm_resource_manager_func ttm_sys_manager_func = {

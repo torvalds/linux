@@ -58,7 +58,7 @@ to_range_manager(struct ttm_resource_manager *man)
 static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 			       struct ttm_buffer_object *bo,
 			       const struct ttm_place *place,
-			       struct ttm_resource *mem)
+			       struct ttm_resource **res)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
 	struct ttm_range_mgr_node *node;
@@ -83,37 +83,30 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 
 	spin_lock(&rman->lock);
 	ret = drm_mm_insert_node_in_range(mm, &node->mm_nodes[0],
-					  mem->num_pages, bo->page_alignment, 0,
+					  node->base.num_pages,
+					  bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		kfree(node);
-	} else {
-		mem->mm_node = &node->mm_nodes[0];
-		mem->start = node->mm_nodes[0].start;
-	}
+	else
+		node->base.start = node->mm_nodes[0].start;
 
 	return ret;
 }
 
 static void ttm_range_man_free(struct ttm_resource_manager *man,
-			       struct ttm_resource *mem)
+			       struct ttm_resource *res)
 {
+	struct ttm_range_mgr_node *node = to_ttm_range_mgr_node(res);
 	struct ttm_range_manager *rman = to_range_manager(man);
-	struct ttm_range_mgr_node *node;
-
-	if (!mem->mm_node)
-		return;
-
-	node = to_ttm_range_mgr_node(mem);
 
 	spin_lock(&rman->lock);
 	drm_mm_remove_node(&node->mm_nodes[0]);
 	spin_unlock(&rman->lock);
 
 	kfree(node);
-	mem->mm_node = NULL;
 }
 
 static void ttm_range_man_debug(struct ttm_resource_manager *man,

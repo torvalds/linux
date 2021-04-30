@@ -40,8 +40,7 @@ to_gtt_mgr(struct ttm_resource_manager *man)
 static inline struct amdgpu_gtt_node *
 to_amdgpu_gtt_node(struct ttm_resource *res)
 {
-	return container_of(res->mm_node, struct amdgpu_gtt_node,
-			    base.mm_nodes[0]);
+	return container_of(res, struct amdgpu_gtt_node, base.base);
 }
 
 /**
@@ -102,13 +101,13 @@ const struct attribute_group amdgpu_gtt_mgr_attr_group = {
 /**
  * amdgpu_gtt_mgr_has_gart_addr - Check if mem has address space
  *
- * @mem: the mem object to check
+ * @res: the mem object to check
  *
  * Check if a mem object has already address space allocated.
  */
-bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_resource *mem)
+bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_resource *res)
 {
-	struct amdgpu_gtt_node *node = to_amdgpu_gtt_node(mem);
+	struct amdgpu_gtt_node *node = to_amdgpu_gtt_node(res);
 
 	return drm_mm_node_allocated(&node->base.mm_nodes[0]);
 }
@@ -126,19 +125,20 @@ bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_resource *mem)
 static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 			      struct ttm_buffer_object *tbo,
 			      const struct ttm_place *place,
-			      struct ttm_resource *mem)
+			      struct ttm_resource **res)
 {
 	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
+	uint32_t num_pages = PFN_UP(tbo->base.size);
 	struct amdgpu_gtt_node *node;
 	int r;
 
 	spin_lock(&mgr->lock);
-	if ((tbo->resource == mem || tbo->resource->mem_type != TTM_PL_TT) &&
-	    atomic64_read(&mgr->available) < mem->num_pages) {
+	if (tbo->resource && tbo->resource->mem_type != TTM_PL_TT &&
+	    atomic64_read(&mgr->available) < num_pages) {
 		spin_unlock(&mgr->lock);
 		return -ENOSPC;
 	}
-	atomic64_sub(mem->num_pages, &mgr->available);
+	atomic64_sub(num_pages, &mgr->available);
 	spin_unlock(&mgr->lock);
 
 	node = kzalloc(struct_size(node, base.mm_nodes, 1), GFP_KERNEL);
@@ -154,29 +154,28 @@ static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 		spin_lock(&mgr->lock);
 		r = drm_mm_insert_node_in_range(&mgr->mm,
 						&node->base.mm_nodes[0],
-						mem->num_pages,
-						tbo->page_alignment, 0,
-						place->fpfn, place->lpfn,
+						num_pages, tbo->page_alignment,
+						0, place->fpfn, place->lpfn,
 						DRM_MM_INSERT_BEST);
 		spin_unlock(&mgr->lock);
 		if (unlikely(r))
 			goto err_free;
 
-		mem->start = node->base.mm_nodes[0].start;
+		node->base.base.start = node->base.mm_nodes[0].start;
 	} else {
 		node->base.mm_nodes[0].start = 0;
-		node->base.mm_nodes[0].size = mem->num_pages;
-		mem->start = AMDGPU_BO_INVALID_OFFSET;
+		node->base.mm_nodes[0].size = node->base.base.num_pages;
+		node->base.base.start = AMDGPU_BO_INVALID_OFFSET;
 	}
 
-	mem->mm_node = &node->base.mm_nodes[0];
+	*res = &node->base.base;
 	return 0;
 
 err_free:
 	kfree(node);
 
 err_out:
-	atomic64_add(mem->num_pages, &mgr->available);
+	atomic64_add(num_pages, &mgr->available);
 
 	return r;
 }
@@ -190,21 +189,16 @@ err_out:
  * Free the allocated GTT again.
  */
 static void amdgpu_gtt_mgr_del(struct ttm_resource_manager *man,
-			       struct ttm_resource *mem)
+			       struct ttm_resource *res)
 {
+	struct amdgpu_gtt_node *node = to_amdgpu_gtt_node(res);
 	struct amdgpu_gtt_mgr *mgr = to_gtt_mgr(man);
-	struct amdgpu_gtt_node *node;
-
-	if (!mem->mm_node)
-		return;
-
-	node = to_amdgpu_gtt_node(mem);
 
 	spin_lock(&mgr->lock);
 	if (drm_mm_node_allocated(&node->base.mm_nodes[0]))
 		drm_mm_remove_node(&node->base.mm_nodes[0]);
 	spin_unlock(&mgr->lock);
-	atomic64_add(mem->num_pages, &mgr->available);
+	atomic64_add(res->num_pages, &mgr->available);
 
 	kfree(node);
 }

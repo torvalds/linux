@@ -918,12 +918,8 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 		}
 	}
 
-	if (new_reg) {
-		if (new_reg->mm_node)
-			nvbo->offset = (new_reg->start << PAGE_SHIFT);
-		else
-			nvbo->offset = 0;
-	}
+	if (new_reg)
+		nvbo->offset = (new_reg->start << PAGE_SHIFT);
 
 }
 
