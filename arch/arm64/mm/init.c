@@ -521,7 +521,7 @@ void free_initmem(void)
 	 * prevents the region from being reused for kernel modules, which
 	 * is not supported by kallsyms.
 	 */
-	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
+	vunmap_range((u64)__init_begin, (u64)__init_end);
 }
 
 void dump_mem_limit(void)

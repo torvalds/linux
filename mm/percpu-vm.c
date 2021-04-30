@@ -134,7 +134,7 @@ static void pcpu_pre_unmap_flush(struct pcpu_chunk *chunk,
 
 static void __pcpu_unmap_pages(unsigned long addr, int nr_pages)
 {
-	unmap_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT);
+	vunmap_range_noflush(addr, addr + (nr_pages << PAGE_SHIFT));
 }
 
 /**

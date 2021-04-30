@@ -378,22 +378,20 @@ static void vunmap_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
 	} while (p4d++, addr = next, addr != end);
 }
 
-/**
- * unmap_kernel_range_noflush - unmap kernel VM area
- * @start: start of the VM area to unmap
- * @size: size of the VM area to unmap
+/*
+ * vunmap_range_noflush is similar to vunmap_range, but does not
+ * flush caches or TLBs.
  *
- * Unmap PFN_UP(@size) pages at @addr.  The VM area @addr and @size specify
- * should have been allocated using get_vm_area() and its friends.
+ * The caller is responsible for calling flush_cache_vmap() before calling
+ * this function, and flush_tlb_kernel_range after it has returned
+ * successfully (and before the addresses are expected to cause a page fault
+ * or be re-mapped for something else, if TLB flushes are being delayed or
+ * coalesced).
  *
- * NOTE:
- * This function does NOT do any cache flushing.  The caller is responsible
- * for calling flush_cache_vunmap() on to-be-mapped areas before calling this
- * function and flush_tlb_kernel_range() after.
+ * This is an internal function only. Do not use outside mm/.
  */
-void unmap_kernel_range_noflush(unsigned long start, unsigned long size)
+void vunmap_range_noflush(unsigned long start, unsigned long end)
 {
-	unsigned long end = start + size;
 	unsigned long next;
 	pgd_t *pgd;
 	unsigned long addr = start;
@@ -412,6 +410,22 @@ void unmap_kernel_range_noflush(unsigned long start, unsigned long size)
 
 	if (mask & ARCH_PAGE_TABLE_SYNC_MASK)
 		arch_sync_kernel_mappings(start, end);
+}
+
+/**
+ * vunmap_range - unmap kernel virtual addresses
+ * @addr: start of the VM area to unmap
+ * @end: end of the VM area to unmap (non-inclusive)
+ *
+ * Clears any present PTEs in the virtual address range, flushes TLBs and
+ * caches. Any subsequent access to the address before it has been re-mapped
+ * is a kernel bug.
+ */
+void vunmap_range(unsigned long addr, unsigned long end)
+{
+	flush_cache_vunmap(addr, end);
+	vunmap_range_noflush(addr, end);
+	flush_tlb_kernel_range(addr, end);
 }
 
 static int vmap_pages_pte_range(pmd_t *pmd, unsigned long addr,
@@ -1712,7 +1726,7 @@ static void free_vmap_area_noflush(struct vmap_area *va)
 static void free_unmap_vmap_area(struct vmap_area *va)
 {
 	flush_cache_vunmap(va->va_start, va->va_end);
-	unmap_kernel_range_noflush(va->va_start, va->va_end - va->va_start);
+	vunmap_range_noflush(va->va_start, va->va_end);
 	if (debug_pagealloc_enabled_static())
 		flush_tlb_kernel_range(va->va_start, va->va_end);
 
@@ -1990,7 +2004,7 @@ static void vb_free(unsigned long addr, unsigned long size)
 	offset = (addr & (VMAP_BLOCK_SIZE - 1)) >> PAGE_SHIFT;
 	vb = xa_load(&vmap_blocks, addr_to_vb_idx(addr));
 
-	unmap_kernel_range_noflush(addr, size);
+	vunmap_range_noflush(addr, addr + size);
 
 	if (debug_pagealloc_enabled_static())
 		flush_tlb_kernel_range(addr, addr + size);
@@ -2305,23 +2319,6 @@ void __init vmalloc_init(void)
 	 */
 	vmap_init_free_space();
 	vmap_initialized = true;
-}
-
-/**
- * unmap_kernel_range - unmap kernel VM area and flush cache and TLB
- * @addr: start of the VM area to unmap
- * @size: size of the VM area to unmap
- *
- * Similar to unmap_kernel_range_noflush() but flushes vcache before
- * the unmapping and tlb after.
- */
-void unmap_kernel_range(unsigned long addr, unsigned long size)
-{
-	unsigned long end = addr + size;
-
-	flush_cache_vunmap(addr, end);
-	unmap_kernel_range_noflush(addr, size);
-	flush_tlb_kernel_range(addr, end);
 }
 
 static inline void setup_vmalloc_vm_locked(struct vm_struct *vm,
