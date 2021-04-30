@@ -1503,7 +1503,6 @@ retry:
 	va->va_end = addr + size;
 	va->vm = NULL;
 
-
 	spin_lock(&vmap_area_lock);
 	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
 	spin_unlock(&vmap_area_lock);
