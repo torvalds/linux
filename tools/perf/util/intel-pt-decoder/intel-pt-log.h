@@ -67,4 +67,9 @@ static inline void intel_pt_log_to(const char *msg, uint64_t u)
 	intel_pt_log("%s to " x64_fmt "\n", msg, u);
 }
 
+#define intel_pt_log_var(var, fmt) intel_pt_log("%s: " #var " " fmt "\n", __func__, var)
+
+#define intel_pt_log_x32(var) intel_pt_log_var(var, "%#x")
+#define intel_pt_log_x64(var) intel_pt_log_var(var, "%#" PRIx64)
+
 #endif

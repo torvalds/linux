@@ -258,6 +258,8 @@ struct intel_pt_params {
 	void *data;
 	bool return_compression;
 	bool branch_enable;
+	bool vm_time_correlation;
+	bool vm_tm_corr_dry_run;
 	uint64_t first_timestamp;
 	uint64_t ctl;
 	uint64_t period;
