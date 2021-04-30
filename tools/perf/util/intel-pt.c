@@ -133,6 +133,9 @@ struct intel_pt {
 
 	struct ip_callchain *chain;
 	struct branch_stack *br_stack;
+
+	u64 dflt_tsc_offset;
+	struct rb_root vmcs_info;
 };
 
 enum switch_state {
@@ -269,6 +272,65 @@ static bool intel_pt_log_events(struct intel_pt *pt, u64 tm)
 		tm = 1;
 
 	return !n || !perf_time__ranges_skip_sample(range, n, tm);
+}
+
+static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs(struct rb_root *rb_root,
+							u64 vmcs,
+							u64 dflt_tsc_offset)
+{
+	struct rb_node **p = &rb_root->rb_node;
+	struct rb_node *parent = NULL;
+	struct intel_pt_vmcs_info *v;
+
+	while (*p) {
+		parent = *p;
+		v = rb_entry(parent, struct intel_pt_vmcs_info, rb_node);
+
+		if (v->vmcs == vmcs)
+			return v;
+
+		if (vmcs < v->vmcs)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	v = zalloc(sizeof(*v));
+	if (v) {
+		v->vmcs = vmcs;
+		v->tsc_offset = dflt_tsc_offset;
+		v->reliable = dflt_tsc_offset;
+
+		rb_link_node(&v->rb_node, parent, p);
+		rb_insert_color(&v->rb_node, rb_root);
+	}
+
+	return v;
+}
+
+static struct intel_pt_vmcs_info *intel_pt_findnew_vmcs_info(void *data, uint64_t vmcs)
+{
+	struct intel_pt_queue *ptq = data;
+	struct intel_pt *pt = ptq->pt;
+
+	if (!vmcs && !pt->dflt_tsc_offset)
+		return NULL;
+
+	return intel_pt_findnew_vmcs(&pt->vmcs_info, vmcs, pt->dflt_tsc_offset);
+}
+
+static void intel_pt_free_vmcs_info(struct intel_pt *pt)
+{
+	struct intel_pt_vmcs_info *v;
+	struct rb_node *n;
+
+	n = rb_first(&pt->vmcs_info);
+	while (n) {
+		v = rb_entry(n, struct intel_pt_vmcs_info, rb_node);
+		n = rb_next(n);
+		rb_erase(&v->rb_node, &pt->vmcs_info);
+		free(v);
+	}
 }
 
 static int intel_pt_do_fix_overlap(struct intel_pt *pt, struct auxtrace_buffer *a,
@@ -1109,6 +1171,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.get_trace = intel_pt_get_trace;
 	params.walk_insn = intel_pt_walk_next_insn;
 	params.lookahead = intel_pt_lookahead;
+	params.findnew_vmcs_info = intel_pt_findnew_vmcs_info;
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
 	params.branch_enable = intel_pt_branch_enable(pt);
@@ -2970,6 +3033,7 @@ static void intel_pt_free(struct perf_session *session)
 	auxtrace_heap__free(&pt->heap);
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
+	intel_pt_free_vmcs_info(pt);
 	thread__put(pt->unknown_thread);
 	addr_filters__exit(&pt->filts);
 	zfree(&pt->chain);
@@ -3474,6 +3538,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt = zalloc(sizeof(struct intel_pt));
 	if (!pt)
 		return -ENOMEM;
+
+	pt->vmcs_info = RB_ROOT;
 
 	addr_filters__init(&pt->filts);
 

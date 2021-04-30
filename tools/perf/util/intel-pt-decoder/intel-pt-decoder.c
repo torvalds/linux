@@ -107,6 +107,7 @@ struct intel_pt_decoder {
 			 uint64_t max_insn_cnt, void *data);
 	bool (*pgd_ip)(uint64_t ip, void *data);
 	int (*lookahead)(void *data, intel_pt_lookahead_cb_t cb, void *cb_data);
+	struct intel_pt_vmcs_info *(*findnew_vmcs_info)(void *data, uint64_t vmcs);
 	void *data;
 	struct intel_pt_state state;
 	const unsigned char *buf;
@@ -258,6 +259,7 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->walk_insn          = params->walk_insn;
 	decoder->pgd_ip             = params->pgd_ip;
 	decoder->lookahead          = params->lookahead;
+	decoder->findnew_vmcs_info  = params->findnew_vmcs_info;
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
 	decoder->branch_enable      = params->branch_enable;

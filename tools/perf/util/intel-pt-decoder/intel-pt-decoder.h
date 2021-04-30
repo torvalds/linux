@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <linux/rbtree.h>
+
 #include "intel-pt-insn-decoder.h"
 
 #define INTEL_PT_IN_TX		(1 << 0)
@@ -199,6 +201,14 @@ struct intel_pt_blk_items {
 	bool is_32_bit;
 };
 
+struct intel_pt_vmcs_info {
+	struct rb_node rb_node;
+	uint64_t vmcs;
+	uint64_t tsc_offset;
+	bool reliable;
+	bool error_printed;
+};
+
 struct intel_pt_state {
 	enum intel_pt_sample_type type;
 	bool from_nr;
@@ -244,6 +254,7 @@ struct intel_pt_params {
 			 uint64_t max_insn_cnt, void *data);
 	bool (*pgd_ip)(uint64_t ip, void *data);
 	int (*lookahead)(void *data, intel_pt_lookahead_cb_t cb, void *cb_data);
+	struct intel_pt_vmcs_info *(*findnew_vmcs_info)(void *data, uint64_t vmcs);
 	void *data;
 	bool return_compression;
 	bool branch_enable;
