@@ -11,6 +11,8 @@
 	aliases: aliases {
 		ethernet1 = &eth1;
 		ethernet2 = &eth2;
+		mmc0 = &usdhc3;
+		mmc1 = &usdhc4;
 	};
 
 	backlight: backlight {
