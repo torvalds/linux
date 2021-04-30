@@ -5197,8 +5197,8 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[27] = RCAR_GP_PIN(1,  0),	/* A0 */
 		[28] = SH_PFC_PIN_NONE,
 		[29] = SH_PFC_PIN_NONE,
-		[30] = RCAR_GP_PIN(2, 25),	/* PUEN_EX_WAIT0 */
-		[31] = RCAR_GP_PIN(2, 24),	/* PUEN_RD/WR# */
+		[30] = RCAR_GP_PIN(2, 25),	/* EX_WAIT0 */
+		[31] = RCAR_GP_PIN(2, 24),	/* RD/WR# */
 	} },
 	{ PINMUX_BIAS_REG("PUEN2", 0xe6060408, "PUD2", 0xe6060448) {
 		 [0] = RCAR_GP_PIN(3,  1),	/* SD0_CMD */
@@ -5333,8 +5333,8 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[27] = SH_PFC_PIN_NONE,
 		[28] = SH_PFC_PIN_NONE,
 		[29] = SH_PFC_PIN_NONE,
-		[30] = RCAR_GP_PIN(6,  9),	/* PUEN_USB30_OVC */
-		[31] = RCAR_GP_PIN(6, 17),	/* PUEN_USB30_PWEN */
+		[30] = RCAR_GP_PIN(6,  9),	/* USB30_OVC */
+		[31] = RCAR_GP_PIN(6, 17),	/* USB30_PWEN */
 	} },
 	{ /* sentinel */ },
 };
