@@ -293,6 +293,6 @@ config SND_SOC_SOF_INTEL_SOUNDWIRE
 	  Say Y if you want to enable SoundWire links with SOF.
 	  If unsure select "N".
 
-endif ## SND_SOC_SOF_INTEL_PCI
+endif ## SND_SOC_SOF_PCI
 
 endif ## SND_SOC_SOF_INTEL_TOPLEVEL

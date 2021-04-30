@@ -182,15 +182,6 @@ static const struct snd_soc_acpi_adr_device rt714_3_adr[] = {
 	}
 };
 
-static const struct snd_soc_acpi_link_adr tgl_i2s_rt1308[] = {
-	{
-		.mask = BIT(0),
-		.num_adr = ARRAY_SIZE(rt711_0_adr),
-		.adr_d = rt711_0_adr,
-	},
-	{}
-};
-
 static const struct snd_soc_acpi_link_adr tgl_rvp[] = {
 	{
 		.mask = BIT(0),
@@ -331,14 +322,6 @@ static const struct snd_soc_acpi_codecs tgl_rt1011_amp = {
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 	{
-		.id = "10EC1308",
-		.drv_name = "sof_sdw",
-		.link_mask = 0x1, /* RT711 on SoundWire link0 */
-		.links = tgl_i2s_rt1308,
-		.sof_fw_filename = "sof-tgl.ri",
-		.sof_tplg_filename = "sof-tgl-rt711-i2s-rt1308.tplg",
-	},
-	{
 		.id = "10EC5682",
 		.drv_name = "tgl_max98357a_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
@@ -414,12 +397,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.links = tgl_chromebook_base,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-tgl-sdw-max98373-rt5682.tplg",
-	},
-	{
-		.link_mask = 0x1, /* this will only enable rt5682 for now */
-		.links = tgl_chromebook_base,
-		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt5682.tplg",
 	},
 	{},
 };
