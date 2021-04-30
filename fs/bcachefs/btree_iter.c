@@ -1618,16 +1618,17 @@ static struct bkey_i *btree_trans_peek_updates(struct btree_trans *trans,
 static inline struct bkey_s_c __btree_iter_peek(struct btree_iter *iter, bool with_updates)
 {
 	struct bpos search_key = btree_iter_search_key(iter);
-	struct bkey_i *next_update = with_updates
-		? btree_trans_peek_updates(iter->trans, iter->btree_id, search_key)
-		: NULL;
+	struct bkey_i *next_update;
 	struct bkey_s_c k;
 	int ret;
 
 	EBUG_ON(btree_iter_type(iter) != BTREE_ITER_KEYS);
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
-
+start:
+	next_update = with_updates
+		? btree_trans_peek_updates(iter->trans, iter->btree_id, search_key)
+		: NULL;
 	btree_iter_set_search_pos(iter, search_key);
 
 	while (1) {
@@ -1643,9 +1644,8 @@ static inline struct bkey_s_c __btree_iter_peek(struct btree_iter *iter, bool wi
 
 		if (likely(k.k)) {
 			if (bkey_deleted(k.k)) {
-				btree_iter_set_search_pos(iter,
-						bkey_successor(iter, k.k->p));
-				continue;
+				search_key = bkey_successor(iter, k.k->p);
+				goto start;
 			}
 
 			break;
