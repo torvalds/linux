@@ -281,7 +281,7 @@ svm_migrate_get_sys_page(struct vm_area_struct *vma, unsigned long addr)
 	return page;
 }
 
-void svm_migrate_put_sys_page(unsigned long addr)
+static void svm_migrate_put_sys_page(unsigned long addr)
 {
 	struct page *page;
 
