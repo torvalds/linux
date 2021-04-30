@@ -1122,6 +1122,8 @@ void reserve_ds_buffers(void);
 
 void release_lbr_buffers(void);
 
+void reserve_lbr_buffers(void);
+
 extern struct event_constraint bts_constraint;
 extern struct event_constraint vlbr_constraint;
 
@@ -1264,6 +1266,10 @@ static inline void release_ds_buffers(void)
 }
 
 static inline void release_lbr_buffers(void)
+{
+}
+
+static inline void reserve_lbr_buffers(void)
 {
 }
 
