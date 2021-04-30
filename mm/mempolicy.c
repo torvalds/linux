@@ -2448,14 +2448,11 @@ static void sp_free(struct sp_node *n)
  * @addr: virtual address where page mapped
  *
  * Lookup current policy node id for vma,addr and "compare to" page's
- * node id.
- *
- * Returns:
- *	-1	- not misplaced, page is in the right node
- *	node	- node id where the page should be
- *
- * Policy determination "mimics" alloc_page_vma().
+ * node id.  Policy determination "mimics" alloc_page_vma().
  * Called from fault path where we know the vma and faulting address.
+ *
+ * Return: -1 if the page is in a node that is valid for this policy, or a
+ * suitable node ID to allocate a replacement page from.
  */
 int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
 {
