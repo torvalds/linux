@@ -730,7 +730,6 @@ EXPORT_SYMBOL(rtllib_act_scanning);
 /* called with ieee->lock held */
 static void rtllib_start_scan(struct rtllib_device *ieee)
 {
-	RT_TRACE(COMP_DBG, "===>%s()\n", __func__);
 	if (ieee->rtllib_ips_leave_wq != NULL)
 		ieee->rtllib_ips_leave_wq(ieee->dev);
 
