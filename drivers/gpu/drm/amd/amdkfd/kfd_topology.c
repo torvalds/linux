@@ -1192,47 +1192,60 @@ static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
 		mem->mem_clk_max = local_mem_info.mem_clk_max;
 }
 
-static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
+static void kfd_set_iolink_no_atomics(struct kfd_topology_device *dev,
+					struct kfd_topology_device *target_gpu_dev,
+					struct kfd_iolink_properties *link)
 {
-	struct kfd_iolink_properties *link, *cpu_link;
-	struct kfd_topology_device *cpu_dev;
-	struct amdgpu_device *adev;
-	uint32_t cap;
-	uint32_t cpu_flag = CRAT_IOLINK_FLAGS_ENABLED;
-	uint32_t flag = CRAT_IOLINK_FLAGS_ENABLED;
-
-	if (!dev || !dev->gpu)
+	/* xgmi always supports atomics between links. */
+	if (link->iolink_type == CRAT_IOLINK_TYPE_XGMI)
 		return;
 
-	adev = (struct amdgpu_device *)(dev->gpu->kgd);
-	if (!adev->gmc.xgmi.connected_to_cpu) {
-		pcie_capability_read_dword(dev->gpu->pdev,
+	/* check pcie support to set cpu(dev) flags for target_gpu_dev link. */
+	if (target_gpu_dev) {
+		uint32_t cap;
+
+		pcie_capability_read_dword(target_gpu_dev->gpu->pdev,
 				PCI_EXP_DEVCAP2, &cap);
 
 		if (!(cap & (PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
 			     PCI_EXP_DEVCAP2_ATOMIC_COMP64)))
-			cpu_flag |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
+			link->flags |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
 				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
-	}
-
-	if (!adev->gmc.xgmi.num_physical_nodes) {
+	/* set gpu (dev) flags. */
+	} else {
 		if (!dev->gpu->pci_atomic_requested ||
 				dev->gpu->device_info->asic_family ==
 							CHIP_HAWAII)
-			flag |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
+			link->flags |= CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
 				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
 	}
+}
+
+static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
+{
+	struct kfd_iolink_properties *link, *inbound_link;
+	struct kfd_topology_device *peer_dev;
+
+	if (!dev || !dev->gpu)
+		return;
 
 	/* GPU only creates direct links so apply flags setting to all */
 	list_for_each_entry(link, &dev->io_link_props, list) {
-		link->flags = flag;
-		cpu_dev = kfd_topology_device_by_proximity_domain(
+		link->flags = CRAT_IOLINK_FLAGS_ENABLED;
+		kfd_set_iolink_no_atomics(dev, NULL, link);
+		peer_dev = kfd_topology_device_by_proximity_domain(
 				link->node_to);
-		if (cpu_dev) {
-			list_for_each_entry(cpu_link,
-					    &cpu_dev->io_link_props, list)
-				if (cpu_link->node_to == link->node_from)
-					cpu_link->flags = cpu_flag;
+
+		if (!peer_dev)
+			continue;
+
+		list_for_each_entry(inbound_link, &peer_dev->io_link_props,
+									list) {
+			if (inbound_link->node_to != link->node_from)
+				continue;
+
+			inbound_link->flags = CRAT_IOLINK_FLAGS_ENABLED;
+			kfd_set_iolink_no_atomics(peer_dev, dev, inbound_link);
 		}
 	}
 }
