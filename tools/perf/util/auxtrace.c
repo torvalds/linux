@@ -1569,6 +1569,9 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 		case 'q':
 			synth_opts->quick += 1;
 			break;
+		case 'Z':
+			synth_opts->timeless_decoding = true;
+			break;
 		case ' ':
 		case ',':
 			break;
