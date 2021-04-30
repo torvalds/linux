@@ -899,7 +899,7 @@ static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 	bool timeless_decoding = true;
 	u64 config;
 
-	if (!pt->tsc_bit || !pt->cap_user_time_zero)
+	if (!pt->tsc_bit || !pt->cap_user_time_zero || pt->synth_opts.timeless_decoding)
 		return true;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {

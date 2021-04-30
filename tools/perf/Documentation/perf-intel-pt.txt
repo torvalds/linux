@@ -869,6 +869,7 @@ The letters are:
 	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
 	q	quicker (less detailed) decoding
+	Z	prefer to ignore timestamps (so-called "timeless" decoding)
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -1061,6 +1062,10 @@ What will *not* be decoded with the qq option:
 What *will* be decoded with the qq option:
 
 	- instruction pointer associated with PSB packets
+
+The Z option is equivalent to having recorded a trace without TSC
+(i.e. config term tsc=0). It can be useful to avoid timestamp issues when
+decoding a trace of a virtual machine.
 
 
 dump option
