@@ -17,7 +17,6 @@
 #include "util.h"
 #include "bf.h"
 #include "efuse.h"
-#include "coex.h"
 
 #define IQK_DONE_8822C 0xaa
 
