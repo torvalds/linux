@@ -5,7 +5,11 @@
 
 #include <linux/types.h>
 
+struct drm_device;
 struct pci_dev;
+
+int devm_aperture_acquire_from_firmware(struct drm_device *dev, resource_size_t base,
+					resource_size_t size);
 
 int drm_aperture_remove_conflicting_framebuffers(resource_size_t base, resource_size_t size,
 						 bool primary, const char *name);
