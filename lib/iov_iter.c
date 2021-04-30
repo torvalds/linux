@@ -114,28 +114,6 @@
 	n = wanted - n;						\
 }
 
-#define iterate_all_kinds(i, n, v, I, B, K, X) {		\
-	if (likely(n)) {					\
-		size_t skip = i->iov_offset;			\
-		if (likely(iter_is_iovec(i))) {			\
-			const struct iovec *iov;		\
-			struct iovec v;				\
-			iterate_iovec(i, n, v, iov, skip, (I))	\
-		} else if (iov_iter_is_bvec(i)) {		\
-			struct bio_vec v;			\
-			struct bvec_iter __bi;			\
-			iterate_bvec(i, n, v, __bi, skip, (B))	\
-		} else if (iov_iter_is_kvec(i)) {		\
-			const struct kvec *kvec;		\
-			struct kvec v;				\
-			iterate_kvec(i, n, v, kvec, skip, (K))	\
-		} else if (iov_iter_is_xarray(i)) {		\
-			struct bio_vec v;			\
-			iterate_xarray(i, n, v, skip, (X));	\
-		}						\
-	}							\
-}
-
 #define iterate_and_advance(i, n, v, I, B, K, X) {		\
 	if (unlikely(i->count < n))				\
 		n = i->count;					\
@@ -1009,8 +987,8 @@ size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_zero);
 
-size_t iov_iter_copy_from_user_atomic(struct page *page,
-		struct iov_iter *i, unsigned long offset, size_t bytes)
+size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t bytes,
+				  struct iov_iter *i)
 {
 	char *kaddr = kmap_atomic(page), *p = kaddr + offset;
 	if (unlikely(!page_copy_sane(page, offset, bytes))) {
@@ -1022,7 +1000,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 		WARN_ON(1);
 		return 0;
 	}
-	iterate_all_kinds(i, bytes, v,
+	iterate_and_advance(i, bytes, v,
 		copyin((p += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
 		memcpy_from_page((p += v.bv_len) - v.bv_len, v.bv_page,
 				 v.bv_offset, v.bv_len),
@@ -1033,7 +1011,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 	kunmap_atomic(kaddr);
 	return bytes;
 }
-EXPORT_SYMBOL(iov_iter_copy_from_user_atomic);
+EXPORT_SYMBOL(copy_page_from_iter_atomic);
 
 static inline void pipe_truncate(struct iov_iter *i)
 {

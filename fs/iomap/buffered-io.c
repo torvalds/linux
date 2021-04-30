@@ -785,13 +785,15 @@ again:
 		if (mapping_writably_mapped(inode->i_mapping))
 			flush_dcache_page(page);
 
-		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
+		copied = copy_page_from_iter_atomic(page, offset, bytes, i);
 
 		status = iomap_write_end(inode, pos, bytes, copied, page, iomap,
 				srcmap);
 
-		cond_resched();
+		if (unlikely(copied != status))
+			iov_iter_revert(i, copied - status);
 
+		cond_resched();
 		if (unlikely(status == 0)) {
 			/*
 			 * A short copy made iomap_write_end() reject the
@@ -803,11 +805,9 @@ again:
 				bytes = copied;
 			goto again;
 		}
-		copied = status;
-		iov_iter_advance(i, copied);
-		pos += copied;
-		written += copied;
-		length -= copied;
+		pos += status;
+		written += status;
+		length -= status;
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 	} while (iov_iter_count(i) && length);

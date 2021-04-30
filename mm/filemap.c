@@ -3661,14 +3661,16 @@ again:
 		if (mapping_writably_mapped(mapping))
 			flush_dcache_page(page);
 
-		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
+		copied = copy_page_from_iter_atomic(page, offset, bytes, i);
 		flush_dcache_page(page);
 
 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
 						page, fsdata);
-		if (unlikely(status < 0))
-			break;
-
+		if (unlikely(status != copied)) {
+			iov_iter_revert(i, copied - max(status, 0L));
+			if (unlikely(status < 0))
+				break;
+		}
 		cond_resched();
 
 		if (unlikely(status == 0)) {
@@ -3682,10 +3684,8 @@ again:
 				bytes = copied;
 			goto again;
 		}
-		copied = status;
-		iov_iter_advance(i, copied);
-		pos += copied;
-		written += copied;
+		pos += status;
+		written += status;
 
 		balance_dirty_pages_ratelimited(mapping);
 	} while (iov_iter_count(i));
