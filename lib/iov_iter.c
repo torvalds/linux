@@ -897,7 +897,9 @@ static size_t pipe_zero(size_t bytes, struct iov_iter *i)
 
 	do {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
-		memzero_page(pipe->bufs[i_head & p_mask].page, off, chunk);
+		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
+		memset(p + off, 0, chunk);
+		kunmap_local(p);
 		i->head = i_head;
 		i->iov_offset = off + chunk;
 		n -= chunk;
