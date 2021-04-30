@@ -2217,6 +2217,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->curr_window = 0;
 	wts->prev_window = 0;
 	wts->active_time = 0;
+	wts->prev_on_rq = 0;
 
 	for (i = 0; i < NUM_BUSY_BUCKETS; ++i)
 		wts->busy_buckets[i] = 0;
@@ -3800,6 +3801,15 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 
 	if (unlikely(walt_disabled))
 		return;
+
+	/* catch double enqueue */
+	if (wts->prev_on_rq == 1) {
+		printk_deferred("WALT-BUG double enqueue detected\n");
+		walt_task_dump(p);
+		SCHED_BUG_ON(1);
+	}
+	wts->prev_on_rq = 1;
+
 	wts->last_enqueued_ts = wallclock;
 	sched_update_nr_prod(rq->cpu, 1);
 
@@ -3815,9 +3825,19 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p, int flags)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
 		return;
+
+	/* catch double deq */
+	if (wts->prev_on_rq == 2) {
+		printk_deferred("WALT-BUG double dequeue detected\n");
+		walt_task_dump(p);
+		SCHED_BUG_ON(1);
+	}
+
+	wts->prev_on_rq = 2;
 	if (p == wrq->ed_task)
 		is_ed_task_present(rq, sched_ktime_clock(), p);
 

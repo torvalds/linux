@@ -79,6 +79,9 @@ struct walt_task_struct {
 	 * used for prediction
 	 *
 	 * 'demand_scaled' represents task's demand scaled to 1024
+	 *
+	 * 'prev_on_rq' tracks enqueue/dequeue of a task for error conditions
+	 * 0 = nothing, 1 = enqueued, 2 = dequeued
 	 */
 	u64				mark_start;
 	u32				sum, demand;
@@ -110,6 +113,7 @@ struct walt_task_struct {
 	u64				cpu_cycles;
 	cpumask_t			cpus_requested;
 	bool				iowaited;
+	int				prev_on_rq;
 };
 
 #define wts_to_ts(wts) ({ \
