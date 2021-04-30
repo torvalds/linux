@@ -609,6 +609,9 @@ static inline bool mem_cgroup_below_min(struct mem_cgroup *memcg)
 }
 
 int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask);
+int mem_cgroup_swapin_charge_page(struct page *page, struct mm_struct *mm,
+				  gfp_t gfp, swp_entry_t entry);
+void mem_cgroup_swapin_uncharge_swap(swp_entry_t entry);
 
 void mem_cgroup_uncharge(struct page *page);
 void mem_cgroup_uncharge_list(struct list_head *page_list);
@@ -1110,6 +1113,16 @@ static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
 				    gfp_t gfp_mask)
 {
 	return 0;
+}
+
+static inline int mem_cgroup_swapin_charge_page(struct page *page,
+			struct mm_struct *mm, gfp_t gfp, swp_entry_t entry)
+{
+	return 0;
+}
+
+static inline void mem_cgroup_swapin_uncharge_swap(swp_entry_t entry)
+{
 }
 
 static inline void mem_cgroup_uncharge(struct page *page)
