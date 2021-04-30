@@ -90,6 +90,9 @@ enum itrace_period_type {
  * @remote_access: whether to synthesize remote access events
  * @mem: whether to synthesize memory events
  * @timeless_decoding: prefer "timeless" decoding i.e. ignore timestamps
+ * @vm_time_correlation: perform VM Time Correlation
+ * @vm_tm_corr_dry_run: VM Time Correlation dry-run
+ * @vm_tm_corr_args:  VM Time Correlation implementation-specific arguments
  * @callchain_sz: maximum callchain size
  * @last_branch_sz: branch context size
  * @period: 'instructions' events period
@@ -130,6 +133,9 @@ struct itrace_synth_opts {
 	bool			remote_access;
 	bool			mem;
 	bool			timeless_decoding;
+	bool			vm_time_correlation;
+	bool			vm_tm_corr_dry_run;
+	char			*vm_tm_corr_args;
 	unsigned int		callchain_sz;
 	unsigned int		last_branch_sz;
 	unsigned long long	period;
