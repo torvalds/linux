@@ -8,6 +8,7 @@
  * Chunks are mapped into vmalloc areas and populated page by page.
  * This is the default chunk allocator.
  */
+#include "internal.h"
 
 static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
 				    unsigned int cpu, int page_idx)
@@ -192,8 +193,8 @@ static void pcpu_post_unmap_tlb_flush(struct pcpu_chunk *chunk,
 static int __pcpu_map_pages(unsigned long addr, struct page **pages,
 			    int nr_pages)
 {
-	return map_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT,
-					PAGE_KERNEL, pages);
+	return vmap_pages_range_noflush(addr, addr + (nr_pages << PAGE_SHIFT),
+					PAGE_KERNEL, pages, PAGE_SHIFT);
 }
 
 /**

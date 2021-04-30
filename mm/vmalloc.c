@@ -523,7 +523,16 @@ static int vmap_small_pages_range_noflush(unsigned long addr, unsigned long end,
 	return 0;
 }
 
-static int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
+/*
+ * vmap_pages_range_noflush is similar to vmap_pages_range, but does not
+ * flush caches.
+ *
+ * The caller is responsible for calling flush_cache_vmap() after this
+ * function returns successfully and before the addresses are accessed.
+ *
+ * This is an internal function only. Do not use outside mm/.
+ */
+int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
 		pgprot_t prot, struct page **pages, unsigned int page_shift)
 {
 	unsigned int i, nr = (end - addr) >> PAGE_SHIFT;
@@ -549,6 +558,18 @@ static int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
 	return 0;
 }
 
+/**
+ * vmap_pages_range - map pages to a kernel virtual address
+ * @addr: start of the VM area to map
+ * @end: end of the VM area to map (non-inclusive)
+ * @prot: page protection flags to use
+ * @pages: pages to map (always PAGE_SIZE pages)
+ * @page_shift: maximum shift that the pages may be mapped with, @pages must
+ * be aligned and contiguous up to at least this shift.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
 static int vmap_pages_range(unsigned long addr, unsigned long end,
 		pgprot_t prot, struct page **pages, unsigned int page_shift)
 {
@@ -557,40 +578,6 @@ static int vmap_pages_range(unsigned long addr, unsigned long end,
 	err = vmap_pages_range_noflush(addr, end, prot, pages, page_shift);
 	flush_cache_vmap(addr, end);
 	return err;
-}
-
-/**
- * map_kernel_range_noflush - map kernel VM area with the specified pages
- * @addr: start of the VM area to map
- * @size: size of the VM area to map
- * @prot: page protection flags to use
- * @pages: pages to map
- *
- * Map PFN_UP(@size) pages at @addr.  The VM area @addr and @size specify should
- * have been allocated using get_vm_area() and its friends.
- *
- * NOTE:
- * This function does NOT do any cache flushing.  The caller is responsible for
- * calling flush_cache_vmap() on to-be-mapped areas before calling this
- * function.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int map_kernel_range_noflush(unsigned long addr, unsigned long size,
-			     pgprot_t prot, struct page **pages)
-{
-	return vmap_pages_range_noflush(addr, addr + size, prot, pages, PAGE_SHIFT);
-}
-
-int map_kernel_range(unsigned long start, unsigned long size, pgprot_t prot,
-		struct page **pages)
-{
-	int ret;
-
-	ret = map_kernel_range_noflush(start, size, prot, pages);
-	flush_cache_vmap(start, start + size);
-	return ret;
 }
 
 int is_vmalloc_or_module_addr(const void *x)
@@ -2156,10 +2143,12 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node)
 
 	kasan_unpoison_vmalloc(mem, size);
 
-	if (map_kernel_range(addr, size, PAGE_KERNEL, pages) < 0) {
+	if (vmap_pages_range(addr, addr + size, PAGE_KERNEL,
+				pages, PAGE_SHIFT) < 0) {
 		vm_unmap_ram(mem, count);
 		return NULL;
 	}
+
 	return mem;
 }
 EXPORT_SYMBOL(vm_map_ram);
@@ -2703,6 +2692,7 @@ void *vmap(struct page **pages, unsigned int count,
 	   unsigned long flags, pgprot_t prot)
 {
 	struct vm_struct *area;
+	unsigned long addr;
 	unsigned long size;		/* In bytes */
 
 	might_sleep();
@@ -2715,8 +2705,9 @@ void *vmap(struct page **pages, unsigned int count,
 	if (!area)
 		return NULL;
 
-	if (map_kernel_range((unsigned long)area->addr, size, pgprot_nx(prot),
-			pages) < 0) {
+	addr = (unsigned long)area->addr;
+	if (vmap_pages_range(addr, addr + size, pgprot_nx(prot),
+				pages, PAGE_SHIFT) < 0) {
 		vunmap(area->addr);
 		return NULL;
 	}

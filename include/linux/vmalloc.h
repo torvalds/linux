@@ -212,10 +212,6 @@ static inline bool is_vm_area_hugepages(const void *addr)
 int vmap_range(unsigned long addr, unsigned long end,
 			phys_addr_t phys_addr, pgprot_t prot,
 			unsigned int max_page_shift);
-extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
-				    pgprot_t prot, struct page **pages);
-int map_kernel_range(unsigned long start, unsigned long size, pgprot_t prot,
-		struct page **pages);
 extern void unmap_kernel_range_noflush(unsigned long addr, unsigned long size);
 extern void unmap_kernel_range(unsigned long addr, unsigned long size);
 static inline void set_vm_flush_reset_perms(void *addr)
@@ -227,13 +223,6 @@ static inline void set_vm_flush_reset_perms(void *addr)
 }
 
 #else
-static inline int
-map_kernel_range_noflush(unsigned long start, unsigned long size,
-			pgprot_t prot, struct page **pages)
-{
-	return size >> PAGE_SHIFT;
-}
-#define map_kernel_range map_kernel_range_noflush
 static inline void
 unmap_kernel_range_noflush(unsigned long addr, unsigned long size)
 {
