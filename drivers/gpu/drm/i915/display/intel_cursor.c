@@ -13,6 +13,7 @@
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_cursor.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_display.h"
 #include "intel_fb.h"

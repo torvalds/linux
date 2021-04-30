@@ -43,6 +43,7 @@
 #include "intel_atomic.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_gmbus.h"

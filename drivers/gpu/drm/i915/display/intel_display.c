@@ -78,6 +78,7 @@
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_csr.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp_link_training.h"
 #include "intel_fbc.h"
