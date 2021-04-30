@@ -1852,6 +1852,19 @@ intel_bios_encoder_supports_edp(const struct intel_bios_encoder_data *devdata)
 		devdata->child.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR;
 }
 
+static bool is_port_valid(struct drm_i915_private *i915, enum port port)
+{
+	/*
+	 * On some ICL/CNL SKUs port F is not present, but broken VBTs mark
+	 * the port as present. Only try to initialize port F for the
+	 * SKUs that may actually have it.
+	 */
+	if (port == PORT_F && (IS_ICELAKE(i915) || IS_CANNONLAKE(i915)))
+		return IS_ICL_WITH_PORT_F(i915) || IS_CNL_WITH_PORT_F(i915);
+
+	return true;
+}
+
 static void parse_ddi_port(struct drm_i915_private *i915,
 			   struct intel_bios_encoder_data *devdata)
 {
@@ -1864,6 +1877,13 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	port = dvo_port_to_port(i915, child->dvo_port);
 	if (port == PORT_NONE)
 		return;
+
+	if (!is_port_valid(i915, port)) {
+		drm_dbg_kms(&i915->drm,
+			    "VBT reports port %c as supported, but that can't be true: skipping\n",
+			    port_name(port));
+		return;
+	}
 
 	info = &i915->vbt.ddi_port_info[port];
 

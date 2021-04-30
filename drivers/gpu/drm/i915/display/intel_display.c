@@ -11199,15 +11199,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_C);
 		intel_ddi_init(dev_priv, PORT_D);
 		intel_ddi_init(dev_priv, PORT_E);
-
-		/*
-		 * On some ICL SKUs port F is not present, but broken VBTs mark
-		 * the port as present. Only try to initialize port F for the
-		 * SKUs that may actually have it.
-		 */
-		if (IS_ICL_WITH_PORT_F(dev_priv))
-			intel_ddi_init(dev_priv, PORT_F);
-
+		intel_ddi_init(dev_priv, PORT_F);
 		icl_dsi_init(dev_priv);
 	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
 		intel_ddi_init(dev_priv, PORT_A);
@@ -11220,9 +11212,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_C);
 		intel_ddi_init(dev_priv, PORT_D);
 		intel_ddi_init(dev_priv, PORT_E);
-
-		if (IS_CNL_WITH_PORT_F(dev_priv))
-			intel_ddi_init(dev_priv, PORT_F);
+		intel_ddi_init(dev_priv, PORT_F);
 	} else if (HAS_DDI(dev_priv)) {
 		u32 found;
 
