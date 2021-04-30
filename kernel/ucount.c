@@ -263,7 +263,7 @@ long inc_rlimit_ucounts(struct ucounts *ucounts, enum ucount_type type, long v)
 bool dec_rlimit_ucounts(struct ucounts *ucounts, enum ucount_type type, long v)
 {
 	struct ucounts *iter;
-	long new;
+	long new = -1; /* Silence compiler warning */
 	for (iter = ucounts; iter; iter = iter->ns->ucounts) {
 		long dec = atomic_long_add_return(-v, &iter->ucount[type]);
 		WARN_ON_ONCE(dec < 0);
