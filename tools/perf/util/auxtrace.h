@@ -533,7 +533,11 @@ int auxtrace_queue_data(struct perf_session *session, bool samples,
 			bool events);
 struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,
 					      struct auxtrace_buffer *buffer);
-void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd);
+void *auxtrace_buffer__get_data_rw(struct auxtrace_buffer *buffer, int fd, bool rw);
+static inline void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
+{
+	return auxtrace_buffer__get_data_rw(buffer, fd, false);
+}
 void auxtrace_buffer__put_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__drop_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__free(struct auxtrace_buffer *buffer);
