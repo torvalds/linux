@@ -709,7 +709,6 @@ struct dm_odm_t { /* DM_Out_Source_Dynamic_Mechanism_Structure */
 	enum phy_reg_pg_type PhyRegPgValueType;
 	u8 PhyRegPgVersion;
 
-	u64	DebugComponents;
 	u32 DebugLevel;
 
 	u32 NumQryPhyStatusAll;	/* CCK + OFDM */
