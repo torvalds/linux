@@ -132,9 +132,7 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
-bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
-bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i);
 
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
@@ -157,10 +155,11 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 static __always_inline __must_check
 bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return false;
-	else
-		return _copy_from_iter_full(addr, bytes, i);
+	size_t copied = copy_from_iter(addr, bytes, i);
+	if (likely(copied == bytes))
+		return true;
+	iov_iter_revert(i, copied);
+	return false;
 }
 
 static __always_inline __must_check
@@ -175,10 +174,11 @@ size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 static __always_inline __must_check
 bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return false;
-	else
-		return _copy_from_iter_full_nocache(addr, bytes, i);
+	size_t copied = copy_from_iter_nocache(addr, bytes, i);
+	if (likely(copied == bytes))
+		return true;
+	iov_iter_revert(i, copied);
+	return false;
 }
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
@@ -278,7 +278,17 @@ struct csum_state {
 
 size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csstate, struct iov_iter *i);
 size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
-bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
+
+static __always_inline __must_check
+bool csum_and_copy_from_iter_full(void *addr, size_t bytes,
+				  __wsum *csum, struct iov_iter *i)
+{
+	size_t copied = csum_and_copy_from_iter(addr, bytes, csum, i);
+	if (likely(copied == bytes))
+		return true;
+	iov_iter_revert(i, copied);
+	return false;
+}
 size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
 		struct iov_iter *i);
 

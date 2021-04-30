@@ -819,35 +819,6 @@ size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(_copy_from_iter);
 
-bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
-{
-	char *to = addr;
-	if (unlikely(iov_iter_is_pipe(i))) {
-		WARN_ON(1);
-		return false;
-	}
-	if (unlikely(i->count < bytes))
-		return false;
-
-	if (iter_is_iovec(i))
-		might_fault();
-	iterate_all_kinds(i, bytes, v, ({
-		if (copyin((to += v.iov_len) - v.iov_len,
-				      v.iov_base, v.iov_len))
-			return false;
-		0;}),
-		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-				 v.bv_offset, v.bv_len),
-		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
-		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-				 v.bv_offset, v.bv_len)
-	)
-
-	iov_iter_advance(i, bytes);
-	return true;
-}
-EXPORT_SYMBOL(_copy_from_iter_full);
-
 size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
@@ -906,32 +877,6 @@ size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL_GPL(_copy_from_iter_flushcache);
 #endif
-
-bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
-{
-	char *to = addr;
-	if (unlikely(iov_iter_is_pipe(i))) {
-		WARN_ON(1);
-		return false;
-	}
-	if (unlikely(i->count < bytes))
-		return false;
-	iterate_all_kinds(i, bytes, v, ({
-		if (__copy_from_user_inatomic_nocache((to += v.iov_len) - v.iov_len,
-					     v.iov_base, v.iov_len))
-			return false;
-		0;}),
-		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-				 v.bv_offset, v.bv_len),
-		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
-		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-				 v.bv_offset, v.bv_len)
-	)
-
-	iov_iter_advance(i, bytes);
-	return true;
-}
-EXPORT_SYMBOL(_copy_from_iter_full_nocache);
 
 static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 {
@@ -1739,55 +1684,6 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 	return bytes;
 }
 EXPORT_SYMBOL(csum_and_copy_from_iter);
-
-bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
-			       struct iov_iter *i)
-{
-	char *to = addr;
-	__wsum sum, next;
-	size_t off = 0;
-	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
-		WARN_ON(1);
-		return false;
-	}
-	if (unlikely(i->count < bytes))
-		return false;
-	iterate_all_kinds(i, bytes, v, ({
-		next = csum_and_copy_from_user(v.iov_base,
-					       (to += v.iov_len) - v.iov_len,
-					       v.iov_len);
-		if (!next)
-			return false;
-		sum = csum_block_add(sum, next, off);
-		off += v.iov_len;
-		0;
-	}), ({
-		char *p = kmap_atomic(v.bv_page);
-		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
-				      p + v.bv_offset, v.bv_len,
-				      sum, off);
-		kunmap_atomic(p);
-		off += v.bv_len;
-	}),({
-		sum = csum_and_memcpy((to += v.iov_len) - v.iov_len,
-				      v.iov_base, v.iov_len,
-				      sum, off);
-		off += v.iov_len;
-	}), ({
-		char *p = kmap_atomic(v.bv_page);
-		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
-				      p + v.bv_offset, v.bv_len,
-				      sum, off);
-		kunmap_atomic(p);
-		off += v.bv_len;
-	})
-	)
-	*csum = sum;
-	iov_iter_advance(i, bytes);
-	return true;
-}
-EXPORT_SYMBOL(csum_and_copy_from_iter_full);
 
 size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 			     struct iov_iter *i)
