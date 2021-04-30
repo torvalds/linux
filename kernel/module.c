@@ -2807,7 +2807,11 @@ void * __weak module_alloc(unsigned long size)
 
 bool __weak module_init_section(const char *name)
 {
+#ifndef CONFIG_MODULE_UNLOAD
+	return strstarts(name, ".init") || module_exit_section(name);
+#else
 	return strstarts(name, ".init");
+#endif
 }
 
 bool __weak module_exit_section(const char *name)
@@ -3121,11 +3125,6 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 		 */
 		shdr->sh_addr = (size_t)info->hdr + shdr->sh_offset;
 
-#ifndef CONFIG_MODULE_UNLOAD
-		/* Don't load .exit sections */
-		if (module_exit_section(info->secstrings+shdr->sh_name))
-			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
-#endif
 	}
 
 	/* Track but don't keep modinfo and version sections. */
