@@ -1493,9 +1493,8 @@ static void cnl_cdclk_pll_disable(struct drm_i915_private *dev_priv)
 		     BXT_DE_PLL_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
-	if (wait_for((intel_de_read(dev_priv, BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
-		drm_err(&dev_priv->drm,
-			"timeout waiting for CDCLK PLL unlock\n");
+	if (intel_de_wait_for_clear(dev_priv, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+		drm_err(&dev_priv->drm, "timeout waiting for CDCLK PLL unlock\n");
 
 	dev_priv->cdclk.hw.vco = 0;
 }
@@ -1512,9 +1511,8 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, val);
 
 	/* Timeout 200us */
-	if (wait_for((intel_de_read(dev_priv, BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) != 0, 1))
-		drm_err(&dev_priv->drm,
-			"timeout waiting for CDCLK PLL lock\n");
+	if (intel_de_wait_for_set(dev_priv, BXT_DE_PLL_ENABLE, BXT_DE_PLL_LOCK, 1))
+		drm_err(&dev_priv->drm, "timeout waiting for CDCLK PLL lock\n");
 
 	dev_priv->cdclk.hw.vco = vco;
 }
