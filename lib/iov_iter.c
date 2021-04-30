@@ -600,9 +600,9 @@ static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
 		return 0;
 	do {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - r);
-		char *p = kmap_atomic(pipe->bufs[i_head & p_mask].page);
+		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
 		sum = csum_and_memcpy(p + r, addr, chunk, sum, off);
-		kunmap_atomic(p);
+		kunmap_local(p);
 		i->head = i_head;
 		i->iov_offset = r + chunk;
 		n -= chunk;
@@ -1665,8 +1665,7 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 	}
 	iterate_and_advance(i, bytes, base, len, off, ({
 		next = csum_and_copy_from_user(base, addr + off, len);
-		if (next)
-			sum = csum_block_add(sum, next, off);
+		sum = csum_block_add(sum, next, off);
 		next ? 0 : len;
 	}), ({
 		sum = csum_and_memcpy(addr + off, base, len, sum, off);
@@ -1693,8 +1692,7 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 	}
 	iterate_and_advance(i, bytes, base, len, off, ({
 		next = csum_and_copy_to_user(addr + off, base, len);
-		if (next)
-			sum = csum_block_add(sum, next, off);
+		sum = csum_block_add(sum, next, off);
 		next ? 0 : len;
 	}), ({
 		sum = csum_and_memcpy(base, addr + off, len, sum, off);
