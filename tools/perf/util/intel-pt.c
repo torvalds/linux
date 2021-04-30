@@ -3479,6 +3479,20 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 
 	intel_pt_log_set_name(INTEL_PT_PMU_NAME);
 
+	if (session->itrace_synth_opts->set) {
+		pt->synth_opts = *session->itrace_synth_opts;
+	} else {
+		struct itrace_synth_opts *opts = session->itrace_synth_opts;
+
+		itrace_synth_opts__set_default(&pt->synth_opts, opts->default_no_sample);
+		if (!opts->default_no_sample && !opts->inject) {
+			pt->synth_opts.branches = false;
+			pt->synth_opts.callchain = true;
+			pt->synth_opts.add_callchain = true;
+		}
+		pt->synth_opts.thread_stack = opts->thread_stack;
+	}
+
 	pt->session = session;
 	pt->machine = &session->machines.host; /* No kvm support */
 	pt->auxtrace_type = auxtrace_info->type;
@@ -3607,21 +3621,6 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pr_err("%s: missing context_switch attribute flag\n", __func__);
 		err = -EINVAL;
 		goto err_delete_thread;
-	}
-
-	if (session->itrace_synth_opts->set) {
-		pt->synth_opts = *session->itrace_synth_opts;
-	} else {
-		itrace_synth_opts__set_default(&pt->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
-		if (!session->itrace_synth_opts->default_no_sample &&
-		    !session->itrace_synth_opts->inject) {
-			pt->synth_opts.branches = false;
-			pt->synth_opts.callchain = true;
-			pt->synth_opts.add_callchain = true;
-		}
-		pt->synth_opts.thread_stack =
-				session->itrace_synth_opts->thread_stack;
 	}
 
 	if (pt->synth_opts.log)
