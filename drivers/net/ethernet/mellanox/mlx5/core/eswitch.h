@@ -61,6 +61,7 @@ struct mlx5_mapped_obj {
 			u32 group_id;
 			u32 rate;
 			u32 trunc_size;
+			u32 tunnel_id;
 		} sample;
 	};
 };

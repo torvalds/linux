@@ -1148,7 +1148,8 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 					       mod_hdr_acts);
 #if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
 	} else if (flow_flag_test(flow, SAMPLE)) {
-		rule = mlx5e_tc_sample_offload(get_sample_priv(flow->priv), spec, attr);
+		rule = mlx5e_tc_sample_offload(get_sample_priv(flow->priv), spec, attr,
+					       mlx5e_tc_get_flow_tun_id(flow));
 #endif
 	} else {
 		rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
@@ -1625,16 +1626,21 @@ static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 	}
 }
 
-static int flow_has_tc_fwd_action(struct flow_cls_offload *f)
+static bool flow_requires_tunnel_mapping(u32 chain, struct flow_cls_offload *f)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_action *flow_action = &rule->action;
 	const struct flow_action_entry *act;
 	int i;
 
+	if (chain)
+		return false;
+
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_GOTO:
+			return true;
+		case FLOW_ACTION_SAMPLE:
 			return true;
 		default:
 			continue;
@@ -1876,7 +1882,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 
 	needs_mapping = !!flow->attr->chain;
-	sets_mapping = !flow->attr->chain && flow_has_tc_fwd_action(f);
+	sets_mapping = flow_requires_tunnel_mapping(flow->attr->chain, f);
 	*match_inner = !needs_mapping;
 
 	if ((needs_mapping || sets_mapping) &&

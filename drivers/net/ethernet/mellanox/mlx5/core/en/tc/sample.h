@@ -24,7 +24,8 @@ void mlx5e_tc_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj
 struct mlx5_flow_handle *
 mlx5e_tc_sample_offload(struct mlx5e_tc_psample *sample_priv,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_flow_attr *attr);
+			struct mlx5_flow_attr *attr,
+			u32 tunnel_id);
 
 void
 mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *sample_priv,

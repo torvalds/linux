@@ -608,8 +608,8 @@ static bool mlx5e_restore_tunnel(struct mlx5e_priv *priv, struct sk_buff *skb,
 	return true;
 }
 
-static bool mlx5e_restore_skb(struct sk_buff *skb, u32 chain, u32 reg_c1,
-			      struct mlx5e_tc_update_priv *tc_priv)
+static bool mlx5e_restore_skb_chain(struct sk_buff *skb, u32 chain, u32 reg_c1,
+				    struct mlx5e_tc_update_priv *tc_priv)
 {
 	struct mlx5e_priv *priv = netdev_priv(skb->dev);
 	u32 tunnel_id = (reg_c1 >> ESW_TUN_OFFSET) & TUNNEL_ID_MASK;
@@ -641,6 +641,21 @@ static bool mlx5e_restore_skb(struct sk_buff *skb, u32 chain, u32 reg_c1,
 	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
 }
 
+static void mlx5e_restore_skb_sample(struct mlx5e_priv *priv, struct sk_buff *skb,
+				     struct mlx5_mapped_obj *mapped_obj,
+				     struct mlx5e_tc_update_priv *tc_priv)
+{
+	if (!mlx5e_restore_tunnel(priv, skb, tc_priv, mapped_obj->sample.tunnel_id)) {
+		netdev_dbg(priv->netdev,
+			   "Failed to restore tunnel info for sampled packet\n");
+		return;
+	}
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	mlx5e_tc_sample_skb(skb, mapped_obj);
+#endif /* CONFIG_MLX5_TC_SAMPLE */
+	mlx5_rep_tc_post_napi_receive(tc_priv);
+}
+
 bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 			     struct sk_buff *skb,
 			     struct mlx5e_tc_update_priv *tc_priv)
@@ -648,7 +663,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	struct mlx5_mapped_obj mapped_obj;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
-	u32 reg_c0, reg_c1;
+	u32 reg_c0;
 	int err;
 
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
@@ -659,8 +674,6 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	 * is not supported and must be reset back to 0.
 	 */
 	skb->mark = 0;
-
-	reg_c1 = be32_to_cpu(cqe->ft_metadata);
 
 	priv = netdev_priv(skb->dev);
 	esw = priv->mdev->priv.eswitch;
@@ -673,12 +686,12 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	}
 
 	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
-		return mlx5e_restore_skb(skb, mapped_obj.chain, reg_c1, tc_priv);
-#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+		u32 reg_c1 = be32_to_cpu(cqe->ft_metadata);
+
+		return mlx5e_restore_skb_chain(skb, mapped_obj.chain, reg_c1, tc_priv);
 	} else if (mapped_obj.type == MLX5_MAPPED_OBJ_SAMPLE) {
-		mlx5e_tc_sample_skb(skb, &mapped_obj);
+		mlx5e_restore_skb_sample(priv, skb, &mapped_obj, tc_priv);
 		return false;
-#endif /* CONFIG_MLX5_TC_SAMPLE */
 	} else {
 		netdev_dbg(priv->netdev, "Invalid mapped object type: %d\n", mapped_obj.type);
 		return false;
