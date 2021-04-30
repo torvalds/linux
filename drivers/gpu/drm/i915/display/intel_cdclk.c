@@ -746,7 +746,6 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 			  enum pipe pipe)
 {
 	int cdclk = cdclk_config->cdclk;
-	u32 val;
 	int ret;
 
 	if (drm_WARN(&dev_priv->drm,
@@ -766,9 +765,8 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	val = intel_de_read(dev_priv, LCPLL_CTL);
-	val |= LCPLL_CD_SOURCE_FCLK;
-	intel_de_write(dev_priv, LCPLL_CTL, val);
+	intel_de_rmw(dev_priv, LCPLL_CTL,
+		     0, LCPLL_CD_SOURCE_FCLK);
 
 	/*
 	 * According to the spec, it should be enough to poll for this 1 us.
@@ -778,14 +776,11 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 			LCPLL_CD_SOURCE_FCLK_DONE, 100))
 		drm_err(&dev_priv->drm, "Switching to FCLK failed\n");
 
-	val = intel_de_read(dev_priv, LCPLL_CTL);
-	val &= ~LCPLL_CLK_FREQ_MASK;
-	val |= bdw_cdclk_freq_sel(cdclk);
-	intel_de_write(dev_priv, LCPLL_CTL, val);
+	intel_de_rmw(dev_priv, LCPLL_CTL,
+		     LCPLL_CLK_FREQ_MASK, bdw_cdclk_freq_sel(cdclk));
 
-	val = intel_de_read(dev_priv, LCPLL_CTL);
-	val &= ~LCPLL_CD_SOURCE_FCLK;
-	intel_de_write(dev_priv, LCPLL_CTL, val);
+	intel_de_rmw(dev_priv, LCPLL_CTL,
+		     LCPLL_CD_SOURCE_FCLK, 0);
 
 	if (wait_for_us((intel_de_read(dev_priv, LCPLL_CTL) &
 			 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
