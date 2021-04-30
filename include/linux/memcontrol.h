@@ -1123,8 +1123,6 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 #define MEM_CGROUP_ID_SHIFT	0
 #define MEM_CGROUP_ID_MAX	0
 
-struct mem_cgroup;
-
 static inline struct mem_cgroup *page_memcg(struct page *page)
 {
 	return NULL;
