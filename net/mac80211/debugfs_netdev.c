@@ -57,7 +57,6 @@ static ssize_t ieee80211_if_write(
 		return -EFAULT;
 	buf[count] = '\0';
 
-	ret = -ENODEV;
 	rtnl_lock();
 	ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
