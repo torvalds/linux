@@ -39,5 +39,10 @@
 #define _PAGE_CHG_MASK  (~(unsigned long)(_PAGE_PRESENT | _PAGE_READ |	\
 					  _PAGE_WRITE | _PAGE_EXEC |	\
 					  _PAGE_USER | _PAGE_GLOBAL))
+/*
+ * when all of R/W/X are zero, the PTE is a pointer to the next level
+ * of the page table; otherwise, it is a leaf PTE.
+ */
+#define _PAGE_LEAF (_PAGE_READ | _PAGE_WRITE | _PAGE_EXEC)
 
 #endif /* _ASM_RISCV_PGTABLE_BITS_H */

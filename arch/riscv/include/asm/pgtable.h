@@ -190,8 +190,7 @@ static inline int pmd_bad(pmd_t pmd)
 #define pmd_leaf	pmd_leaf
 static inline int pmd_leaf(pmd_t pmd)
 {
-	return pmd_present(pmd) &&
-	       (pmd_val(pmd) & (_PAGE_READ | _PAGE_WRITE | _PAGE_EXEC));
+	return pmd_present(pmd) && (pmd_val(pmd) & _PAGE_LEAF);
 }
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
@@ -267,8 +266,7 @@ static inline int pte_exec(pte_t pte)
 
 static inline int pte_huge(pte_t pte)
 {
-	return pte_present(pte)
-		&& (pte_val(pte) & (_PAGE_READ | _PAGE_WRITE | _PAGE_EXEC));
+	return pte_present(pte) && (pte_val(pte) & _PAGE_LEAF);
 }
 
 static inline int pte_dirty(pte_t pte)
