@@ -360,6 +360,7 @@ static struct dentry *dfs_dir_mtd;
 
 static void mtd_debugfs_populate(struct mtd_info *mtd)
 {
+	struct mtd_info *master = mtd_get_master(mtd);
 	struct device *dev = &mtd->dev;
 	struct dentry *root;
 
@@ -369,12 +370,12 @@ static void mtd_debugfs_populate(struct mtd_info *mtd)
 	root = debugfs_create_dir(dev_name(dev), dfs_dir_mtd);
 	mtd->dbg.dfs_dir = root;
 
-	if (mtd->dbg.partid)
-		debugfs_create_file("partid", 0400, root, mtd,
+	if (master->dbg.partid)
+		debugfs_create_file("partid", 0400, root, master,
 				    &mtd_partid_debug_fops);
 
-	if (mtd->dbg.partname)
-		debugfs_create_file("partname", 0400, root, mtd,
+	if (master->dbg.partname)
+		debugfs_create_file("partname", 0400, root, master,
 				    &mtd_partname_debug_fops);
 }
 
