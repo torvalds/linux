@@ -602,7 +602,14 @@ int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
 	    !(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
 		return 0;
 
+	/* Some branches advertise having 0 downstream ports, despite also advertising they have a
+	 * downstream port present. The DP spec isn't clear on if this is allowed or not, but since
+	 * some branches do it we need to handle it regardless.
+	 */
 	len = drm_dp_downstream_port_count(dpcd);
+	if (!len)
+		return 0;
+
 	if (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE)
 		len *= 4;
 
