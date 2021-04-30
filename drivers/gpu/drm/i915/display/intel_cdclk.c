@@ -1473,12 +1473,9 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 {
 	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk.hw.ref);
-	u32 val;
 
-	val = intel_de_read(dev_priv, BXT_DE_PLL_CTL);
-	val &= ~BXT_DE_PLL_RATIO_MASK;
-	val |= BXT_DE_PLL_RATIO(ratio);
-	intel_de_write(dev_priv, BXT_DE_PLL_CTL, val);
+	intel_de_rmw(dev_priv, BXT_DE_PLL_CTL,
+		     BXT_DE_PLL_RATIO_MASK, BXT_DE_PLL_RATIO(ratio));
 
 	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
 
@@ -1492,11 +1489,8 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 
 static void cnl_cdclk_pll_disable(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
-	val = intel_de_read(dev_priv, BXT_DE_PLL_ENABLE);
-	val &= ~BXT_DE_PLL_PLL_ENABLE;
-	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, val);
+	intel_de_rmw(dev_priv, BXT_DE_PLL_ENABLE,
+		     BXT_DE_PLL_PLL_ENABLE, 0);
 
 	/* Timeout 200us */
 	if (wait_for((intel_de_read(dev_priv, BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
