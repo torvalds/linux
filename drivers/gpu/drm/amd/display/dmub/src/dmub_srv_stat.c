@@ -87,6 +87,11 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 		notify->link_index = cmd.dp_hpd_notify.hpd_data.instance;
 		notify->result = AUX_RET_SUCCESS;
 		break;
+	case DMUB_OUT_CMD__SET_CONFIG_REPLY:
+		notify->type = DMUB_NOTIFICATION_SET_CONFIG_REPLY;
+		notify->link_index = cmd.set_config_reply.set_config_reply_control.instance;
+		notify->sc_status = cmd.set_config_reply.set_config_reply_control.status;
+		break;
 	default:
 		notify->type = DMUB_NOTIFICATION_NO_DATA;
 		break;

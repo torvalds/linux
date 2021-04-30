@@ -683,11 +683,16 @@ enum dmub_out_cmd_type {
 	 * Command type used for DP HPD event notification
 	 */
 	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
+	/**
+	 * Command type used for SET_CONFIG Reply notification
+	 */
+	DMUB_OUT_CMD__SET_CONFIG_REPLY = 3,
 };
 
 /* DMUB_CMD__DPIA command sub-types. */
 enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
+	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
 };
 
 #pragma pack(push, 1)
@@ -1038,6 +1043,31 @@ struct dmub_rb_cmd_dig1_dpia_control {
 };
 
 /**
+ * SET_CONFIG Command Payload
+ */
+struct set_config_cmd_payload {
+	uint8_t msg_type; /* set config message type */
+	uint8_t msg_data; /* set config message data */
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
+ */
+struct dmub_cmd_set_config_control_data {
+	struct set_config_cmd_payload cmd_pkt;
+	uint8_t instance; /* DPIA instance */
+	uint8_t immed_status; /* Immediate status returned in case of error */
+};
+
+/**
+ * DMUB command structure for SET_CONFIG command.
+ */
+struct dmub_rb_cmd_set_config_access {
+	struct dmub_cmd_header header; /* header */
+	struct dmub_cmd_set_config_control_data set_config_control; /* set config data */
+};
+
+/**
  * struct dmub_rb_cmd_dpphy_init - DPPHY init.
  */
 struct dmub_rb_cmd_dpphy_init {
@@ -1282,6 +1312,33 @@ struct dmub_rb_cmd_dp_hpd_notify {
 	 * Data passed to driver from FW in a DMUB_OUT_CMD__DP_HPD_NOTIFY command.
 	 */
 	struct dp_hpd_data hpd_data;
+};
+
+/**
+ * Definition of a SET_CONFIG reply from DPOA.
+ */
+enum set_config_status {
+	SET_CONFIG_PENDING = 0,
+	SET_CONFIG_ACK_RECEIVED,
+	SET_CONFIG_RX_TIMEOUT,
+	SET_CONFIG_UNKNOWN_ERROR,
+};
+
+/**
+ * Definition of a set_config reply
+ */
+struct set_config_reply_control_data {
+	uint8_t instance; /* DPIA Instance */
+	uint8_t status; /* Set Config reply */
+	uint16_t pad; /* Alignment */
+};
+
+/**
+ * Definition of a DMUB_OUT_CMD__SET_CONFIG_REPLY command.
+ */
+struct dmub_rb_cmd_dp_set_config_reply {
+	struct dmub_cmd_header header;
+	struct set_config_reply_control_data set_config_reply_control;
 };
 
 /*
@@ -2483,6 +2540,10 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_dig1_dpia_control dig1_dpia_control;
 	/**
+	 * Definition of a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
+	 */
+	struct dmub_rb_cmd_set_config_access set_config_access;
+	/**
 	 * Definition of a DMUB_CMD__EDID_CEA command.
 	 */
 	struct dmub_rb_cmd_edid_cea edid_cea;
@@ -2504,6 +2565,10 @@ union dmub_rb_out_cmd {
 	 * HPD notify command.
 	 */
 	struct dmub_rb_cmd_dp_hpd_notify dp_hpd_notify;
+	/**
+	 * SET_CONFIG reply command.
+	 */
+	struct dmub_rb_cmd_dp_set_config_reply set_config_reply;
 };
 #pragma pack(pop)
 

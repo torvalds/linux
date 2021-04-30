@@ -44,6 +44,8 @@
 
 /* forward declaration */
 struct aux_payload;
+struct set_config_cmd_payload;
+struct dmub_notification;
 
 #define DC_VER "3.2.156"
 
@@ -1397,6 +1399,11 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 /* Get dc link index from dpia port index */
 uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
 				uint8_t dpia_port_index);
+
+bool dc_process_dmub_set_config_async(struct dc *dc,
+				uint32_t link_index,
+				struct set_config_cmd_payload *payload,
+				struct dmub_notification *notify);
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/

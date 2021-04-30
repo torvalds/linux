@@ -32,6 +32,8 @@
 #include "dpcd_defs.h"
 #include "link_hwss.h"
 #include "inc/link_dpcd.h"
+#include "dm_helpers.h"
+#include "dmub/inc/dmub_cmd.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -92,10 +94,18 @@ static enum link_training_result dpia_configure_link(struct dc_link *link,
 }
 
 static enum dc_status core_link_send_set_config(struct dc_link *link,
-		uint8_t msg_type, uint8_t msg_data)
+	uint8_t msg_type,
+	uint8_t msg_data)
 {
-	/** @todo Implement */
-	return DC_OK;
+	struct set_config_cmd_payload payload;
+	enum set_config_status set_config_result = SET_CONFIG_PENDING;
+
+	/* prepare set_config payload */
+	payload.msg_type = msg_type;
+	payload.msg_data = msg_data;
+
+	/* set_config should return ACK if successful */
+	return (set_config_result == SET_CONFIG_ACK_RECEIVED) ? DC_OK : DC_ERROR_UNEXPECTED;
 }
 
 /* Build SET_CONFIG message data payload for specified message type. */
