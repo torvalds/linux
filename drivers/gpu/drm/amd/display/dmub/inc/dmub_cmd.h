@@ -649,10 +649,6 @@ enum dmub_out_cmd_type {
 	 * Command type used for DP AUX Reply data notification
 	 */
 	DMUB_OUT_CMD__DP_AUX_REPLY = 1,
-	/**
-	 * Command type used for DP HPD event notification
-	 */
-	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
 };
 
 #pragma pack(push, 1)
