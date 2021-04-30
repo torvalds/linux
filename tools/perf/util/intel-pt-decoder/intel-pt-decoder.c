@@ -3227,6 +3227,7 @@ static unsigned char *adj_for_padding(unsigned char *buf_b,
  * @len_b: size of second buffer
  * @consecutive: returns true if there is data in buf_b that is consecutive
  *               to buf_a
+ * @ooo_tsc: out-of-order TSC due to VM TSC offset / scaling
  *
  * If the trace contains TSC we can look at the last TSC of @buf_a and the
  * first TSC of @buf_b in order to determine if the buffers overlap, and then
@@ -3239,7 +3240,8 @@ static unsigned char *adj_for_padding(unsigned char *buf_b,
 static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
 						size_t len_a,
 						unsigned char *buf_b,
-						size_t len_b, bool *consecutive)
+						size_t len_b, bool *consecutive,
+						bool ooo_tsc)
 {
 	uint64_t tsc_a, tsc_b;
 	unsigned char *p;
@@ -3274,7 +3276,7 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
 				start = buf_b + len_b - (rem_b - rem_a);
 				return adj_for_padding(start, buf_a, len_a);
 			}
-			if (cmp < 0)
+			if (cmp < 0 && !ooo_tsc)
 				return buf_b; /* tsc_a < tsc_b => no overlap */
 		}
 
@@ -3292,6 +3294,7 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
  * @have_tsc: can use TSC packets to detect overlap
  * @consecutive: returns true if there is data in buf_b that is consecutive
  *               to buf_a
+ * @ooo_tsc: out-of-order TSC due to VM TSC offset / scaling
  *
  * When trace samples or snapshots are recorded there is the possibility that
  * the data overlaps.  Note that, for the purposes of decoding, data is only
@@ -3302,7 +3305,8 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
  */
 unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     unsigned char *buf_b, size_t len_b,
-				     bool have_tsc, bool *consecutive)
+				     bool have_tsc, bool *consecutive,
+				     bool ooo_tsc)
 {
 	unsigned char *found;
 
@@ -3315,7 +3319,7 @@ unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 
 	if (have_tsc) {
 		found = intel_pt_find_overlap_tsc(buf_a, len_a, buf_b, len_b,
-						  consecutive);
+						  consecutive, ooo_tsc);
 		if (found)
 			return found;
 	}

@@ -278,9 +278,17 @@ static int intel_pt_do_fix_overlap(struct intel_pt *pt, struct auxtrace_buffer *
 	void *start;
 
 	start = intel_pt_find_overlap(a->data, a->size, b->data, b->size,
-				      pt->have_tsc, &consecutive);
+				      pt->have_tsc, &consecutive,
+				      pt->synth_opts.vm_time_correlation);
 	if (!start)
 		return -EINVAL;
+	/*
+	 * In the case of vm_time_correlation, the overlap might contain TSC
+	 * packets that will not be fixed, and that will then no longer work for
+	 * overlap detection. Avoid that by zeroing out the overlap.
+	 */
+	if (pt->synth_opts.vm_time_correlation)
+		memset(b->data, 0, start - b->data);
 	b->use_size = b->data + b->size - start;
 	b->use_data = start;
 	if (b->use_size && consecutive)
