@@ -99,6 +99,9 @@ struct vc4_hdmi_variant {
 
 	/* Callback to get channel map */
 	u32 (*channel_map)(struct vc4_hdmi *vc4_hdmi, u32 channel_mask);
+
+	/* Enables HDR metadata */
+	bool supports_hdr;
 };
 
 /* HDMI audio information */
