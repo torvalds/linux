@@ -651,6 +651,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,dma-info = <24 20>;
 	status = "okay";
 };
 
@@ -670,6 +671,7 @@
 &uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
+	fsl,dma-info = <4096 4>;
 	status = "okay";
 };
 
