@@ -1018,6 +1018,19 @@ static bool intel_pt_have_tsc(struct intel_pt *pt)
 	return have_tsc;
 }
 
+static bool intel_pt_have_mtc(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
+		    (config & pt->mtc_bit))
+			return true;
+	}
+	return false;
+}
+
 static bool intel_pt_sampling_mode(struct intel_pt *pt)
 {
 	struct evsel *evsel;
@@ -1182,6 +1195,8 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
 	params.quick = pt->synth_opts.quick;
+	params.vm_time_correlation = pt->synth_opts.vm_time_correlation;
+	params.vm_tm_corr_dry_run = pt->synth_opts.vm_tm_corr_dry_run;
 	params.first_timestamp = pt->first_timestamp;
 
 	if (pt->filts.cnt > 0)
@@ -2465,7 +2480,7 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 		if (pt->per_cpu_mmaps &&
 		    (pt->have_sched_switch == 1 || pt->have_sched_switch == 3) &&
 		    !pt->timeless_decoding && intel_pt_tracing_kernel(pt) &&
-		    !pt->sampling_mode) {
+		    !pt->sampling_mode && !pt->synth_opts.vm_time_correlation) {
 			pt->switch_ip = intel_pt_switch_ip(pt, &pt->ptss_ip);
 			if (pt->switch_ip) {
 				intel_pt_log("switch_ip: %"PRIx64" ptss_ip: %"PRIx64"\n",
@@ -3496,6 +3511,65 @@ static int intel_pt_setup_time_ranges(struct intel_pt *pt,
 	return 0;
 }
 
+static int intel_pt_parse_vm_tm_corr_arg(struct intel_pt *pt, char **args)
+{
+	struct intel_pt_vmcs_info *vmcs_info;
+	u64 tsc_offset, vmcs;
+	char *p = *args;
+
+	errno = 0;
+
+	p = skip_spaces(p);
+	if (!*p)
+		return 1;
+
+	tsc_offset = strtoull(p, &p, 0);
+	if (errno)
+		return -errno;
+	p = skip_spaces(p);
+	if (*p != ':') {
+		pt->dflt_tsc_offset = tsc_offset;
+		*args = p;
+		return 0;
+	}
+	while (1) {
+		vmcs = strtoull(p, &p, 0);
+		if (errno)
+			return -errno;
+		if (!vmcs)
+			return -EINVAL;
+		vmcs_info = intel_pt_findnew_vmcs(&pt->vmcs_info, vmcs, tsc_offset);
+		if (!vmcs_info)
+			return -ENOMEM;
+		p = skip_spaces(p);
+		if (*p != ',')
+			break;
+		p += 1;
+	}
+	*args = p;
+	return 0;
+}
+
+static int intel_pt_parse_vm_tm_corr_args(struct intel_pt *pt)
+{
+	char *args = pt->synth_opts.vm_tm_corr_args;
+	int ret;
+
+	if (!args)
+		return 0;
+
+	do {
+		ret = intel_pt_parse_vm_tm_corr_arg(pt, &args);
+	} while (!ret);
+
+	if (ret < 0) {
+		pr_err("Failed to parse VM Time Correlation options\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
 	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
@@ -3666,6 +3740,28 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt->have_tsc = intel_pt_have_tsc(pt);
 	pt->sampling_mode = intel_pt_sampling_mode(pt);
 	pt->est_tsc = !pt->timeless_decoding;
+
+	if (pt->synth_opts.vm_time_correlation) {
+		if (pt->timeless_decoding) {
+			pr_err("Intel PT has no time information for VM Time Correlation\n");
+			err = -EINVAL;
+			goto err_free_queues;
+		}
+		if (session->itrace_synth_opts->ptime_range) {
+			pr_err("Time ranges cannot be specified with VM Time Correlation\n");
+			err = -EINVAL;
+			goto err_free_queues;
+		}
+		/* Currently TSC Offset is calculated using MTC packets */
+		if (!intel_pt_have_mtc(pt)) {
+			pr_err("MTC packets must have been enabled for VM Time Correlation\n");
+			err = -EINVAL;
+			goto err_free_queues;
+		}
+		err = intel_pt_parse_vm_tm_corr_args(pt);
+		if (err)
+			goto err_free_queues;
+	}
 
 	pt->unknown_thread = thread__new(999999999, 999999999);
 	if (!pt->unknown_thread) {
