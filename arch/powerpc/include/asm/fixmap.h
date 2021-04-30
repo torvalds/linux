@@ -23,11 +23,16 @@
 #include <asm/kmap_size.h>
 #endif
 
+#ifdef CONFIG_PPC64
+#define FIXADDR_TOP	(IOREMAP_END + FIXADDR_SIZE)
+#else
+#define FIXADDR_SIZE	0
 #ifdef CONFIG_KASAN
 #include <asm/kasan.h>
 #define FIXADDR_TOP	(KASAN_SHADOW_START - PAGE_SIZE)
 #else
 #define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
+#endif
 #endif
 
 /*
@@ -50,6 +55,7 @@
  */
 enum fixed_addresses {
 	FIX_HOLE,
+#ifdef CONFIG_PPC32
 	/* reserve the top 128K for early debugging purposes */
 	FIX_EARLY_DEBUG_TOP = FIX_HOLE,
 	FIX_EARLY_DEBUG_BASE = FIX_EARLY_DEBUG_TOP+(ALIGN(SZ_128K, PAGE_SIZE)/PAGE_SIZE)-1,
@@ -72,6 +78,7 @@ enum fixed_addresses {
 		       FIX_IMMR_SIZE,
 #endif
 	/* FIX_PCIE_MCFG, */
+#endif /* CONFIG_PPC32 */
 	__end_of_permanent_fixed_addresses,
 
 #define NR_FIX_BTMAPS		(SZ_256K / PAGE_SIZE)
@@ -98,6 +105,8 @@ enum fixed_addresses {
 static inline void __set_fixmap(enum fixed_addresses idx,
 				phys_addr_t phys, pgprot_t flags)
 {
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_PPC64) && __FIXADDR_SIZE > FIXADDR_SIZE);
+
 	if (__builtin_constant_p(idx))
 		BUILD_BUG_ON(idx >= __end_of_fixed_addresses);
 	else if (WARN_ON(idx >= __end_of_fixed_addresses))

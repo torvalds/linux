@@ -69,7 +69,6 @@
 #include "setup.h"
 
 #ifdef DEBUG
-#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -829,7 +828,7 @@ static __init void print_system_info(void)
 }
 
 #ifdef CONFIG_SMP
-static void smp_setup_pacas(void)
+static void __init smp_setup_pacas(void)
 {
 	int cpu;
 

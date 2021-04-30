@@ -157,7 +157,7 @@ static void __init pnv_check_guarded_cores(void)
 	for_each_node_by_type(dn, "cpu") {
 		if (of_property_match_string(dn, "status", "bad") >= 0)
 			bad_count++;
-	};
+	}
 
 	if (bad_count) {
 		printk("  _     _______________\n");
