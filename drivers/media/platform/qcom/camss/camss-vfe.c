@@ -1301,8 +1301,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 
 	/* Memory */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
-	vfe->base = devm_ioremap_resource(dev, r);
+	vfe->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
 	if (IS_ERR(vfe->base)) {
 		dev_err(dev, "could not map memory\n");
 		return PTR_ERR(vfe->base);

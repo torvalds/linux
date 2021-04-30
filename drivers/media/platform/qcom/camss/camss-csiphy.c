@@ -591,16 +591,14 @@ int msm_csiphy_subdev_init(struct camss *camss,
 
 	/* Memory */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
-	csiphy->base = devm_ioremap_resource(dev, r);
+	csiphy->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
 	if (IS_ERR(csiphy->base))
 		return PTR_ERR(csiphy->base);
 
 	if (camss->version == CAMSS_8x16 ||
 	    camss->version == CAMSS_8x96) {
-		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						 res->reg[1]);
-		csiphy->base_clk_mux = devm_ioremap_resource(dev, r);
+		csiphy->base_clk_mux =
+			devm_platform_ioremap_resource_byname(pdev, res->reg[1]);
 		if (IS_ERR(csiphy->base_clk_mux))
 			return PTR_ERR(csiphy->base_clk_mux);
 	} else {

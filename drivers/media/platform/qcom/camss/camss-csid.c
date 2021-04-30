@@ -566,8 +566,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 
 	/* Memory */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
-	csid->base = devm_ioremap_resource(dev, r);
+	csid->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
 	if (IS_ERR(csid->base))
 		return PTR_ERR(csid->base);
 
