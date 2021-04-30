@@ -57,12 +57,30 @@ struct smb_query_info {
 	/* char buffer[]; */
 } __packed;
 
+/*
+ * Dumping the commonly used 16 byte (e.g. CCM and GCM128) keys still supported
+ * for backlevel compatibility, but is not sufficient for dumping the less
+ * frequently used GCM256 (32 byte) keys (see the newer "CIFS_DUMP_FULL_KEY"
+ * ioctl for dumping decryption info for GCM256 mounts)
+ */
 struct smb3_key_debug_info {
 	__u64	Suid;
 	__u16	cipher_type;
 	__u8	auth_key[16]; /* SMB2_NTLMV2_SESSKEY_SIZE */
 	__u8	smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8	smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
+} __packed;
+
+/*
+ * Dump full key (32 byte encrypt/decrypt keys instead of 16 bytes)
+ * is needed if GCM256 (stronger encryption) negotiated
+ */
+struct smb3_full_key_debug_info {
+	__u64	Suid;
+	__u16	cipher_type;
+	__u8	auth_key[16]; /* SMB2_NTLMV2_SESSKEY_SIZE */
+	__u8	smb3encryptionkey[32]; /* SMB3_ENC_DEC_KEY_SIZE */
+	__u8	smb3decryptionkey[32]; /* SMB3_ENC_DEC_KEY_SIZE */
 } __packed;
 
 struct smb3_notify {
@@ -78,6 +96,7 @@ struct smb3_notify {
 #define CIFS_QUERY_INFO _IOWR(CIFS_IOCTL_MAGIC, 7, struct smb_query_info)
 #define CIFS_DUMP_KEY _IOWR(CIFS_IOCTL_MAGIC, 8, struct smb3_key_debug_info)
 #define CIFS_IOC_NOTIFY _IOW(CIFS_IOCTL_MAGIC, 9, struct smb3_notify)
+#define CIFS_DUMP_FULL_KEY _IOWR(CIFS_IOCTL_MAGIC, 10, struct smb3_full_key_debug_info)
 #define CIFS_IOC_SHUTDOWN _IOR ('X', 125, __u32)
 
 /*
