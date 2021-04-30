@@ -575,8 +575,8 @@ static int hns3_nic_net_stop(struct net_device *netdev)
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, false);
 
-	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
 
 	hns3_nic_net_down(netdev);
 
