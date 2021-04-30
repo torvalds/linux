@@ -28,7 +28,6 @@ r8723bs-y = \
 		hal/HalPwrSeqCmd.o \
 		hal/odm.o \
 		hal/odm_CfoTracking.o \
-		hal/odm_debug.o \
 		hal/odm_DIG.o \
 		hal/odm_DynamicBBPowerSaving.o \
 		hal/odm_DynamicTxPower.o \
