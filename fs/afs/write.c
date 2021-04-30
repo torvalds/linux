@@ -450,6 +450,7 @@ static int afs_store_data(struct address_space *mapping,
 	afs_op_set_vnode(op, 0, vnode);
 	op->file[0].dv_delta = 1;
 	op->store.mapping = mapping;
+	op->file[0].modification = true;
 	op->store.first = first;
 	op->store.last = last;
 	op->store.first_offset = offset;
