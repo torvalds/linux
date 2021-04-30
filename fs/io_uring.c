@@ -8140,7 +8140,7 @@ static void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 	for (i = 0; i < ctx->nr_user_bufs; i++)
 		io_buffer_unmap(ctx, &ctx->user_bufs[i]);
 	kfree(ctx->user_bufs);
-	kfree(ctx->buf_data);
+	io_rsrc_data_free(ctx->buf_data);
 	ctx->user_bufs = NULL;
 	ctx->buf_data = NULL;
 	ctx->nr_user_bufs = 0;
@@ -8400,7 +8400,7 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -ENOMEM;
 	ret = io_buffers_map_alloc(ctx, nr_args);
 	if (ret) {
-		kfree(data);
+		io_rsrc_data_free(data);
 		return ret;
 	}
 
