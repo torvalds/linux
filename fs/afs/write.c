@@ -377,6 +377,7 @@ static int afs_store_data(struct afs_vnode *vnode, struct iov_iter *iter, loff_t
 
 	afs_op_set_vnode(op, 0, vnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].modification = true;
 	op->store.write_iter = iter;
 	op->store.pos = pos;
 	op->store.size = size;
