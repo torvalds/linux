@@ -408,7 +408,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int ret, i;
 
-	DBG("%s", gpu->name);
+	VERB("%s", gpu->name);
 
 	ret = adreno_load_fw(adreno_gpu);
 	if (ret)
