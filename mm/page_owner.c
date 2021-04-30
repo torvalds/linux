@@ -147,15 +147,15 @@ void __reset_page_owner(struct page *page, unsigned int order)
 {
 	int i;
 	struct page_ext *page_ext;
-	depot_stack_handle_t handle = 0;
+	depot_stack_handle_t handle;
 	struct page_owner *page_owner;
 	u64 free_ts_nsec = local_clock();
-
-	handle = save_stack(GFP_NOWAIT | __GFP_NOWARN);
 
 	page_ext = lookup_page_ext(page);
 	if (unlikely(!page_ext))
 		return;
+
+	handle = save_stack(GFP_NOWAIT | __GFP_NOWARN);
 	for (i = 0; i < (1 << order); i++) {
 		__clear_bit(PAGE_EXT_OWNER_ALLOCATED, &page_ext->flags);
 		page_owner = get_page_owner(page_ext);
