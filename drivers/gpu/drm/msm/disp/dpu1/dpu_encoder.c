@@ -28,13 +28,13 @@
 #include "dpu_core_irq.h"
 #include "disp/msm_disp_snapshot.h"
 
-#define DPU_DEBUG_ENC(e, fmt, ...) DPU_DEBUG("enc%d " fmt,\
+#define DPU_DEBUG_ENC(e, fmt, ...) DRM_DEBUG_ATOMIC("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
 
 #define DPU_ERROR_ENC(e, fmt, ...) DPU_ERROR("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
 
-#define DPU_DEBUG_PHYS(p, fmt, ...) DPU_DEBUG("enc%d intf%d pp%d " fmt,\
+#define DPU_DEBUG_PHYS(p, fmt, ...) DRM_DEBUG_ATOMIC("enc%d intf%d pp%d " fmt,\
 		(p) ? (p)->parent->base.id : -1, \
 		(p) ? (p)->intf_idx - INTF_0 : -1, \
 		(p) ? ((p)->hw_pp ? (p)->hw_pp->idx - PINGPONG_0 : -1) : -1, \
@@ -791,13 +791,13 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 
 		/* return if the resource control is already in ON state */
 		if (dpu_enc->rc_state == DPU_ENC_RC_STATE_ON) {
-			DRM_DEBUG_KMS("id;%u, sw_event:%d, rc in ON state\n",
+			DRM_DEBUG_ATOMIC("id;%u, sw_event:%d, rc in ON state\n",
 				      DRMID(drm_enc), sw_event);
 			mutex_unlock(&dpu_enc->rc_lock);
 			return 0;
 		} else if (dpu_enc->rc_state != DPU_ENC_RC_STATE_OFF &&
 				dpu_enc->rc_state != DPU_ENC_RC_STATE_IDLE) {
-			DRM_DEBUG_KMS("id;%u, sw_event:%d, rc in state %d\n",
+			DRM_DEBUG_ATOMIC("id;%u, sw_event:%d, rc in state %d\n",
 				      DRMID(drm_enc), sw_event,
 				      dpu_enc->rc_state);
 			mutex_unlock(&dpu_enc->rc_lock);
@@ -2047,8 +2047,6 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	phys_params.parent = &dpu_enc->base;
 	phys_params.parent_ops = &dpu_encoder_parent_ops;
 	phys_params.enc_spinlock = &dpu_enc->enc_spinlock;
-
-	DPU_DEBUG("\n");
 
 	switch (disp_info->intf_type) {
 	case DRM_MODE_ENCODER_DSI:
