@@ -172,19 +172,6 @@ mlx5_eswitch_termtbl_put(struct mlx5_eswitch *esw,
 	}
 }
 
-static bool mlx5_eswitch_termtbl_is_encap_reformat(struct mlx5_pkt_reformat *rt)
-{
-	switch (rt->reformat_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-	case MLX5_REFORMAT_TYPE_L2_TO_NVGRE:
-	case MLX5_REFORMAT_TYPE_L2_TO_L2_TUNNEL:
-	case MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static void
 mlx5_eswitch_termtbl_actions_move(struct mlx5_flow_act *src,
 				  struct mlx5_flow_act *dst)
@@ -201,14 +188,6 @@ mlx5_eswitch_termtbl_actions_move(struct mlx5_flow_act *src,
 			memcpy(&dst->vlan[1], &src->vlan[1], sizeof(src->vlan[1]));
 			memset(&src->vlan[1], 0, sizeof(src->vlan[1]));
 		}
-	}
-
-	if (src->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT &&
-	    mlx5_eswitch_termtbl_is_encap_reformat(src->pkt_reformat)) {
-		src->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-		dst->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-		dst->pkt_reformat = src->pkt_reformat;
-		src->pkt_reformat = NULL;
 	}
 }
 
@@ -279,6 +258,14 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 		if (dest[i].type != MLX5_FLOW_DESTINATION_TYPE_VPORT)
 			continue;
 
+		if (attr->dests[num_vport_dests].flags & MLX5_ESW_DEST_ENCAP) {
+			term_tbl_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+			term_tbl_act.pkt_reformat = attr->dests[num_vport_dests].pkt_reformat;
+		} else {
+			term_tbl_act.action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+			term_tbl_act.pkt_reformat = NULL;
+		}
+
 		/* get the terminating table for the action list */
 		tt = mlx5_eswitch_termtbl_get_create(esw, &term_tbl_act,
 						     &dest[i], attr);
@@ -301,6 +288,8 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 		goto revert_changes;
 
 	/* create the FTE */
+	flow_act->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+	flow_act->pkt_reformat = NULL;
 	rule = mlx5_add_flow_rules(fdb, spec, flow_act, dest, num_dest);
 	if (IS_ERR(rule))
 		goto revert_changes;
