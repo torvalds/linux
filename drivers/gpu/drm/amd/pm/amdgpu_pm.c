@@ -735,6 +735,14 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - a list of valid ranges for sclk, mclk, and voltage curve points
  *   labeled OD_RANGE
  *
+ * < For APUs >
+ *
+ * Reading the file will display:
+ *
+ * - minimum and maximum engine clock labeled OD_SCLK
+ *
+ * - a list of valid ranges for sclk labeled OD_RANGE
+ *
  * To manually adjust these settings:
  *
  * - First select manual using power_dpm_force_performance_level
