@@ -158,6 +158,16 @@ static inline void filemap_nr_thps_dec(struct address_space *mapping)
 void release_pages(struct page **pages, int nr);
 
 /*
+ * For file cache pages, return the address_space, otherwise return NULL
+ */
+static inline struct address_space *page_mapping_file(struct page *page)
+{
+	if (unlikely(PageSwapCache(page)))
+		return NULL;
+	return page_mapping(page);
+}
+
+/*
  * speculatively take a reference to a page.
  * If the page is free (_refcount == 0), then _refcount is untouched, and 0
  * is returned. Otherwise, _refcount is incremented by 1 and 1 is returned.
