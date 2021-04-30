@@ -367,11 +367,10 @@ retry:
 		goto err_unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	ret = remap_io_mapping(area,
-			       area->vm_start + (vma->ggtt_view.partial.offset << PAGE_SHIFT),
-			       (ggtt->gmadr.start + vma->node.start) >> PAGE_SHIFT,
-			       min_t(u64, vma->size, area->vm_end - area->vm_start),
-			       &ggtt->iomap);
+	ret = io_mapping_map_user(&ggtt->iomap, area, area->vm_start +
+			(vma->ggtt_view.partial.offset << PAGE_SHIFT),
+			(ggtt->gmadr.start + vma->node.start) >> PAGE_SHIFT,
+			min_t(u64, vma->size, area->vm_end - area->vm_start));
 	if (ret)
 		goto err_fence;
 

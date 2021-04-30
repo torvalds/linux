@@ -20,6 +20,7 @@ config DRM_I915
 	select INPUT if ACPI
 	select ACPI_VIDEO if ACPI
 	select ACPI_BUTTON if ACPI
+	select IO_MAPPING
 	select SYNC_FILE
 	select IOSF_MBI
 	select CRC32

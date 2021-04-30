@@ -59,31 +59,31 @@ static inline int mode_to_o2dlm(int mode)
 	return mode;
 }
 
-#define map_flag(_generic, _o2dlm)		\
-	if (flags & (_generic)) {		\
-		flags &= ~(_generic);		\
-		o2dlm_flags |= (_o2dlm);	\
-	}
 static int flags_to_o2dlm(u32 flags)
 {
 	int o2dlm_flags = 0;
 
-	map_flag(DLM_LKF_NOQUEUE, LKM_NOQUEUE);
-	map_flag(DLM_LKF_CANCEL, LKM_CANCEL);
-	map_flag(DLM_LKF_CONVERT, LKM_CONVERT);
-	map_flag(DLM_LKF_VALBLK, LKM_VALBLK);
-	map_flag(DLM_LKF_IVVALBLK, LKM_INVVALBLK);
-	map_flag(DLM_LKF_ORPHAN, LKM_ORPHAN);
-	map_flag(DLM_LKF_FORCEUNLOCK, LKM_FORCE);
-	map_flag(DLM_LKF_TIMEOUT, LKM_TIMEOUT);
-	map_flag(DLM_LKF_LOCAL, LKM_LOCAL);
-
-	/* map_flag() should have cleared every flag passed in */
-	BUG_ON(flags != 0);
+	if (flags & DLM_LKF_NOQUEUE)
+		o2dlm_flags |= LKM_NOQUEUE;
+	if (flags & DLM_LKF_CANCEL)
+		o2dlm_flags |= LKM_CANCEL;
+	if (flags & DLM_LKF_CONVERT)
+		o2dlm_flags |= LKM_CONVERT;
+	if (flags & DLM_LKF_VALBLK)
+		o2dlm_flags |= LKM_VALBLK;
+	if (flags & DLM_LKF_IVVALBLK)
+		o2dlm_flags |= LKM_INVVALBLK;
+	if (flags & DLM_LKF_ORPHAN)
+		o2dlm_flags |= LKM_ORPHAN;
+	if (flags & DLM_LKF_FORCEUNLOCK)
+		o2dlm_flags |= LKM_FORCE;
+	if (flags & DLM_LKF_TIMEOUT)
+		o2dlm_flags |= LKM_TIMEOUT;
+	if (flags & DLM_LKF_LOCAL)
+		o2dlm_flags |= LKM_LOCAL;
 
 	return o2dlm_flags;
 }
-#undef map_flag
 
 /*
  * Map an o2dlm status to standard errno values.
