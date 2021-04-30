@@ -78,6 +78,7 @@ struct intel_pt {
 	u64 kernel_start;
 	u64 switch_ip;
 	u64 ptss_ip;
+	u64 first_timestamp;
 
 	struct perf_tsc_conversion tc;
 	bool cap_user_time_zero;
@@ -1181,6 +1182,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
 	params.quick = pt->synth_opts.quick;
+	params.first_timestamp = pt->first_timestamp;
 
 	if (pt->filts.cnt > 0)
 		params.pgd_ip = intel_pt_pgd_ip;
@@ -1243,6 +1245,21 @@ static void intel_pt_free_queue(void *priv)
 	zfree(&ptq->last_branch);
 	zfree(&ptq->chain);
 	free(ptq);
+}
+
+static void intel_pt_first_timestamp(struct intel_pt *pt, u64 timestamp)
+{
+	unsigned int i;
+
+	pt->first_timestamp = timestamp;
+
+	for (i = 0; i < pt->queues.nr_queues; i++) {
+		struct auxtrace_queue *queue = &pt->queues.queue_array[i];
+		struct intel_pt_queue *ptq = queue->priv;
+
+		if (ptq && ptq->decoder)
+			intel_pt_set_first_timestamp(ptq->decoder, timestamp);
+	}
 }
 
 static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
@@ -2947,6 +2964,8 @@ static int intel_pt_process_event(struct perf_session *session,
 							       sample->time);
 		}
 	} else if (timestamp) {
+		if (!pt->first_timestamp)
+			intel_pt_first_timestamp(pt, timestamp);
 		err = intel_pt_process_queues(pt, timestamp);
 	}
 	if (err)

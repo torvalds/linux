@@ -258,6 +258,7 @@ struct intel_pt_params {
 	void *data;
 	bool return_compression;
 	bool branch_enable;
+	uint64_t first_timestamp;
 	uint64_t ctl;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
@@ -284,5 +285,8 @@ unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     bool ooo_tsc);
 
 int intel_pt__strerror(int code, char *buf, size_t buflen);
+
+void intel_pt_set_first_timestamp(struct intel_pt_decoder *decoder,
+				  uint64_t first_timestamp);
 
 #endif

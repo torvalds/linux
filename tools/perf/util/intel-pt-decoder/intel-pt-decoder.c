@@ -140,6 +140,7 @@ struct intel_pt_decoder {
 	uint64_t ctc_delta;
 	uint64_t cycle_cnt;
 	uint64_t cyc_ref_timestamp;
+	uint64_t first_timestamp;
 	uint32_t last_mtc;
 	uint32_t tsc_ctc_ratio_n;
 	uint32_t tsc_ctc_ratio_d;
@@ -265,6 +266,7 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->branch_enable      = params->branch_enable;
 	decoder->hop                = params->quick >= 1;
 	decoder->leap               = params->quick >= 2;
+	decoder->first_timestamp    = params->first_timestamp;
 
 	decoder->flags              = params->flags;
 
@@ -312,6 +314,12 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 		intel_pt_log("Hop mode: decoding FUP and TIPs, but not TNT\n");
 
 	return decoder;
+}
+
+void intel_pt_set_first_timestamp(struct intel_pt_decoder *decoder,
+				  uint64_t first_timestamp)
+{
+	decoder->first_timestamp = first_timestamp;
 }
 
 static void intel_pt_pop_blk(struct intel_pt_stack *stack)
