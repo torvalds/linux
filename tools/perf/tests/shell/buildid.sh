@@ -14,18 +14,56 @@ if ! [ -x "$(command -v cc)" ]; then
 	exit 2
 fi
 
+# check what we need to test windows binaries
+add_pe=1
+run_pe=1
+if ! perf version --build-options | grep -q 'libbfd: .* on '; then
+	echo "WARNING: perf not built with libbfd. PE binaries will not be tested."
+	add_pe=0
+	run_pe=0
+fi
+if ! which wine > /dev/null; then
+	echo "WARNING: wine not found. PE binaries will not be run."
+	run_pe=0
+fi
+
+# set up wine
+if [ ${run_pe} -eq 1 ]; then
+	wineprefix=$(mktemp -d /tmp/perf.wineprefix.XXX)
+	export WINEPREFIX=${wineprefix}
+	# clear display variables to prevent wine from popping up dialogs
+	unset DISPLAY
+	unset WAYLAND_DISPLAY
+fi
+
 ex_md5=$(mktemp /tmp/perf.ex.MD5.XXX)
 ex_sha1=$(mktemp /tmp/perf.ex.SHA1.XXX)
+ex_pe=$(dirname $0)/../pe-file.exe
 
 echo 'int main(void) { return 0; }' | cc -Wl,--build-id=sha1 -o ${ex_sha1} -x c -
 echo 'int main(void) { return 0; }' | cc -Wl,--build-id=md5 -o ${ex_md5} -x c -
 
-echo "test binaries: ${ex_sha1} ${ex_md5}"
+echo "test binaries: ${ex_sha1} ${ex_md5} ${ex_pe}"
 
 check()
 {
-	id=`readelf -n ${1} 2>/dev/null | grep 'Build ID' | awk '{print $3}'`
-
+	case $1 in
+	*.exe)
+		# We don't have a tool that can pull a nicely formatted build-id out of
+		# a PE file, but we can extract the whole section with objcopy and
+		# format it ourselves. The .buildid section is a Debug Directory
+		# containing a CodeView entry:
+		#     https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#debug-directory-image-only
+		#     https://github.com/dotnet/runtime/blob/da94c022576a5c3bbc0e896f006565905eb137f9/docs/design/specs/PE-COFF.md
+		# The build-id starts at byte 33 and must be rearranged into a GUID.
+		id=`objcopy -O binary --only-section=.buildid $1 /dev/stdout | \
+			cut -c 33-48 | hexdump -ve '/1 "%02x"' | \
+			sed 's@^\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)\(.*\)0a$@\4\3\2\1\6\5\8\7\9@'`
+		;;
+	*)
+		id=`readelf -n ${1} 2>/dev/null | grep 'Build ID' | awk '{print $3}'`
+		;;
+	esac
 	echo "build id: ${id}"
 
 	link=${build_id_dir}/.build-id/${id:0:2}/${id:2}
@@ -50,7 +88,7 @@ check()
 		exit 1
 	fi
 
-	${perf} buildid-cache -l | grep $id
+	${perf} buildid-cache -l | grep ${id}
 	if [ $? -ne 0 ]; then
 		echo "failed: ${id} is not reported by \"perf buildid-cache -l\""
 		exit 1
@@ -79,16 +117,20 @@ test_record()
 {
 	data=$(mktemp /tmp/perf.data.XXX)
 	build_id_dir=$(mktemp -d /tmp/perf.debug.XXX)
+	log=$(mktemp /tmp/perf.log.XXX)
 	perf="perf --buildid-dir ${build_id_dir}"
 
-	${perf} record --buildid-all -o ${data} ${1}
+	echo "running: perf record $@"
+	${perf} record --buildid-all -o ${data} $@ &> ${log}
 	if [ $? -ne 0 ]; then
-		echo "failed: record ${1}"
+		echo "failed: record $@"
+		echo "see log: ${log}"
 		exit 1
 	fi
 
-	check ${1}
+	check ${@: -1}
 
+	rm -f ${log}
 	rm -rf ${build_id_dir}
 	rm -rf ${data}
 }
@@ -96,12 +138,21 @@ test_record()
 # add binaries manual via perf buildid-cache -a
 test_add ${ex_sha1}
 test_add ${ex_md5}
+if [ ${add_pe} -eq 1 ]; then
+	test_add ${ex_pe}
+fi
 
 # add binaries via perf record post processing
 test_record ${ex_sha1}
 test_record ${ex_md5}
+if [ ${run_pe} -eq 1 ]; then
+	test_record wine ${ex_pe}
+fi
 
 # cleanup
 rm ${ex_sha1} ${ex_md5}
+if [ ${run_pe} -eq 1 ]; then
+	rm -r ${wineprefix}
+fi
 
 exit ${err}
