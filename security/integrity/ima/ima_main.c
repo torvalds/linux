@@ -482,7 +482,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
 }
 
 /**
- * ima_path_check - based on policy, collect/store measurement.
+ * ima_file_check - based on policy, collect/store measurement.
  * @file: pointer to the file to be measured
  * @mask: contains MAY_READ, MAY_WRITE, MAY_EXEC or MAY_APPEND
  *
@@ -606,6 +606,9 @@ void ima_post_create_tmpfile(struct user_namespace *mnt_userns,
 	struct integrity_iint_cache *iint;
 	int must_appraise;
 
+	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+		return;
+
 	must_appraise = ima_must_appraise(mnt_userns, inode, MAY_ACCESS,
 					  FILE_CHECK);
 	if (!must_appraise)
@@ -635,6 +638,9 @@ void ima_post_path_mknod(struct user_namespace *mnt_userns,
 	struct integrity_iint_cache *iint;
 	struct inode *inode = dentry->d_inode;
 	int must_appraise;
+
+	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+		return;
 
 	must_appraise = ima_must_appraise(mnt_userns, inode, MAY_ACCESS,
 					  FILE_CHECK);
@@ -780,6 +786,7 @@ int ima_load_data(enum kernel_load_data_id id, bool contents)
 			pr_err("impossible to appraise a module without a file descriptor. sig_enforce kernel parameter might help\n");
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
 		}
+		break;
 	default:
 		break;
 	}
