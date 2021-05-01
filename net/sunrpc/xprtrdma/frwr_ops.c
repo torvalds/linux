@@ -530,6 +530,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		*prev = last;
 		prev = &last->next;
 	}
+	mr = container_of(last, struct rpcrdma_mr, mr_invwr);
 
 	/* Strong send queue ordering guarantees that when the
 	 * last WR in the chain completes, all WRs in the chain
