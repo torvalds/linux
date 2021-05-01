@@ -581,11 +581,6 @@ static u64 perf_event_time(struct perf_event *event);
 
 void __weak perf_event_print_debug(void)	{ }
 
-extern __weak const char *perf_pmu_name(void)
-{
-	return "pmu";
-}
-
 static inline u64 perf_clock(void)
 {
 	return local_clock();

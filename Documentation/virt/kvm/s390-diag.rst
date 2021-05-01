@@ -84,3 +84,36 @@ If the function code specifies 0x501, breakpoint functions may be performed.
 This function code is handled by userspace.
 
 This diagnose function code has no subfunctions and uses no parameters.
+
+
+DIAGNOSE function code 'X'9C - Voluntary Time Slice Yield
+---------------------------------------------------------
+
+General register 1 contains the target CPU address.
+
+In a guest of a hypervisor like LPAR, KVM or z/VM using shared host CPUs,
+DIAGNOSE with function code 0x9c may improve system performance by
+yielding the host CPU on which the guest CPU is running to be assigned
+to another guest CPU, preferably the logical CPU containing the specified
+target CPU.
+
+
+DIAG 'X'9C forwarding
++++++++++++++++++++++
+
+The guest may send a DIAGNOSE 0x9c in order to yield to a certain
+other vcpu. An example is a Linux guest that tries to yield to the vcpu
+that is currently holding a spinlock, but not running.
+
+However, on the host the real cpu backing the vcpu may itself not be
+running.
+Forwarding the DIAGNOSE 0x9c initially sent by the guest to yield to
+the backing cpu will hopefully cause that cpu, and thus subsequently
+the guest's vcpu, to be scheduled.
+
+
+diag9c_forwarding_hz
+    KVM kernel parameter allowing to specify the maximum number of DIAGNOSE
+    0x9c forwarding per second in the purpose of avoiding a DIAGNOSE 0x9c
+    forwarding storm.
+    A value of 0 turns the forwarding off.
