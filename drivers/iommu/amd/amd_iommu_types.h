@@ -693,7 +693,6 @@ struct iommu_dev_data {
 	} ats;				  /* ATS state */
 	bool pri_tlp;			  /* PASID TLB required for
 					     PPR completions */
-	u32 errata;			  /* Bitmap for errata to apply */
 	bool use_vapic;			  /* Enable device to use vapic mode */
 	bool defer_attach;
 
