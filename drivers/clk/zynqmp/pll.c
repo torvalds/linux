@@ -341,8 +341,6 @@ struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 	}
 
 	clk_hw_set_rate_range(hw, PS_PLL_VCO_MIN, PS_PLL_VCO_MAX);
-	if (ret < 0)
-		pr_err("%s:ERROR clk_set_rate_range failed %d\n", name, ret);
 
 	return hw;
 }
