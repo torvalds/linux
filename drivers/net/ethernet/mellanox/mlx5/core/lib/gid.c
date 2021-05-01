@@ -137,10 +137,10 @@ int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 		}
 
 		ether_addr_copy(addr_mac, mac);
-		MLX5_SET_RA(in_addr, roce_version, roce_version);
-		MLX5_SET_RA(in_addr, roce_l3_type, roce_l3_type);
 		memcpy(addr_l3_addr, gid, gidsz);
 	}
+	MLX5_SET_RA(in_addr, roce_version, roce_version);
+	MLX5_SET_RA(in_addr, roce_l3_type, roce_l3_type);
 
 	if (MLX5_CAP_GEN(dev, num_vhca_ports) > 0)
 		MLX5_SET(set_roce_address_in, in, vhca_port_num, port_num);

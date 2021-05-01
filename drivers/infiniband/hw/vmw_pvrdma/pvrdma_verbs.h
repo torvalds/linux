@@ -70,30 +70,6 @@ enum pvrdma_mtu {
 	PVRDMA_MTU_4096 = 5,
 };
 
-static inline int pvrdma_mtu_enum_to_int(enum pvrdma_mtu mtu)
-{
-	switch (mtu) {
-	case PVRDMA_MTU_256:	return  256;
-	case PVRDMA_MTU_512:	return  512;
-	case PVRDMA_MTU_1024:	return 1024;
-	case PVRDMA_MTU_2048:	return 2048;
-	case PVRDMA_MTU_4096:	return 4096;
-	default:		return   -1;
-	}
-}
-
-static inline enum pvrdma_mtu pvrdma_mtu_int_to_enum(int mtu)
-{
-	switch (mtu) {
-	case 256:	return PVRDMA_MTU_256;
-	case 512:	return PVRDMA_MTU_512;
-	case 1024:	return PVRDMA_MTU_1024;
-	case 2048:	return PVRDMA_MTU_2048;
-	case 4096:
-	default:	return PVRDMA_MTU_4096;
-	}
-}
-
 enum pvrdma_port_state {
 	PVRDMA_PORT_NOP			= 0,
 	PVRDMA_PORT_DOWN		= 1,
@@ -137,17 +113,6 @@ enum pvrdma_port_width {
 	PVRDMA_WIDTH_8X		= 4,
 	PVRDMA_WIDTH_12X	= 8,
 };
-
-static inline int pvrdma_width_enum_to_int(enum pvrdma_port_width width)
-{
-	switch (width) {
-	case PVRDMA_WIDTH_1X:	return  1;
-	case PVRDMA_WIDTH_4X:	return  4;
-	case PVRDMA_WIDTH_8X:	return  8;
-	case PVRDMA_WIDTH_12X:	return 12;
-	default:		return -1;
-	}
-}
 
 enum pvrdma_port_speed {
 	PVRDMA_SPEED_SDR	= 1,
@@ -383,17 +348,17 @@ enum pvrdma_access_flags {
 int pvrdma_query_device(struct ib_device *ibdev,
 			struct ib_device_attr *props,
 			struct ib_udata *udata);
-int pvrdma_query_port(struct ib_device *ibdev, u8 port,
+int pvrdma_query_port(struct ib_device *ibdev, u32 port,
 		      struct ib_port_attr *props);
-int pvrdma_query_gid(struct ib_device *ibdev, u8 port,
+int pvrdma_query_gid(struct ib_device *ibdev, u32 port,
 		     int index, union ib_gid *gid);
-int pvrdma_query_pkey(struct ib_device *ibdev, u8 port,
+int pvrdma_query_pkey(struct ib_device *ibdev, u32 port,
 		      u16 index, u16 *pkey);
 enum rdma_link_layer pvrdma_port_link_layer(struct ib_device *ibdev,
-					    u8 port);
+					    u32 port);
 int pvrdma_modify_device(struct ib_device *ibdev, int mask,
 			 struct ib_device_modify *props);
-int pvrdma_modify_port(struct ib_device *ibdev, u8 port,
+int pvrdma_modify_port(struct ib_device *ibdev, u32 port,
 		       int mask, struct ib_port_modify *props);
 int pvrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);

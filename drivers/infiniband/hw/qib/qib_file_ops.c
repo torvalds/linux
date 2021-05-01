@@ -1758,7 +1758,8 @@ bail:
 }
 
 /**
- * unlock_exptid - unlock any expected TID entries context still had in use
+ * unlock_expected_tids - unlock any expected TID entries context still had
+ * in use
  * @rcd: ctxt
  *
  * We don't actually update the chip here, because we do a bulk update
@@ -2247,7 +2248,7 @@ static ssize_t qib_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (!iter_is_iovec(from) || !from->nr_segs || !pq)
 		return -EINVAL;
-			 
+
 	return qib_user_sdma_writev(rcd, pq, from->iov, from->nr_segs);
 }
 

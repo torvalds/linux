@@ -100,10 +100,6 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	 */
 	pgsz_bitmap &= GENMASK(BITS_PER_LONG - 1, PAGE_SHIFT);
 
-	/* At minimum, drivers must support PAGE_SIZE or smaller */
-	if (WARN_ON(!(pgsz_bitmap & GENMASK(PAGE_SHIFT, 0))))
-		return 0;
-
 	umem->iova = va = virt;
 	/* The best result is the smallest page size that results in the minimum
 	 * number of required pages. Compute the largest page size that could
@@ -309,8 +305,8 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 	int ret;
 
 	if (offset > umem->length || length > umem->length - offset) {
-		pr_err("ib_umem_copy_from not in range. offset: %zd umem length: %zd end: %zd\n",
-		       offset, umem->length, end);
+		pr_err("%s not in range. offset: %zd umem length: %zd end: %zd\n",
+		       __func__, offset, umem->length, end);
 		return -EINVAL;
 	}
 
