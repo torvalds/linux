@@ -17,11 +17,16 @@
 /*
  * Entry condition:
  *
- *   a2:	a0 of the caller
+ *   a2:	a0 of the caller in windowed ABI
+ *   a10:	a0 of the caller in call0 ABI
+ *
+ * In call0 ABI the function _mcount is called with the special ABI:
+ * its argument is in a10 and all the usual argument registers (a2 - a7)
+ * must be preserved in addition to callee-saved a12 - a15.
  */
 
 ENTRY(_mcount)
-
+#if defined(__XTENSA_WINDOWED_ABI__)
 	abi_entry_default
 
 	movi	a4, ftrace_trace_function
@@ -42,7 +47,36 @@ ENTRY(_mcount)
 	callx4	a4
 
 	abi_ret_default
+#elif defined(__XTENSA_CALL0_ABI__)
+	abi_entry_default
 
+	movi	a9, ftrace_trace_function
+	l32i	a9, a9, 0
+	movi	a11, ftrace_stub
+	bne	a9, a11, 1f
+	abi_ret_default
+
+1:	abi_entry(28)
+	s32i	a0, sp, 0
+	s32i	a2, sp, 4
+	s32i	a3, sp, 8
+	s32i	a4, sp, 12
+	s32i	a5, sp, 16
+	s32i	a6, sp, 20
+	s32i	a7, sp, 24
+	addi	a2, a10, -MCOUNT_INSN_SIZE
+	callx0	a9
+	l32i	a0, sp, 0
+	l32i	a2, sp, 4
+	l32i	a3, sp, 8
+	l32i	a4, sp, 12
+	l32i	a5, sp, 16
+	l32i	a6, sp, 20
+	l32i	a7, sp, 24
+	abi_ret(28)
+#else
+#error Unsupported Xtensa ABI
+#endif
 ENDPROC(_mcount)
 
 ENTRY(ftrace_stub)
