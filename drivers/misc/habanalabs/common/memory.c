@@ -1612,7 +1612,8 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	if (rc != npages) {
 		dev_err(hdev->dev,
-			"Failed to map host memory, user ptr probably wrong\n");
+			"Failed (%d) to pin host memory with user ptr 0x%llx\n",
+			rc, addr);
 		if (rc < 0)
 			goto destroy_pages;
 		npages = rc;
