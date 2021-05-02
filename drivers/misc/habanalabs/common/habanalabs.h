@@ -422,15 +422,24 @@ struct hl_mmu_properties {
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @max_pending_cs: maximum of concurrent pending command submissions
  * @max_queues: maximum amount of queues in the system
- * @fw_preboot_caps_map: bitmap representation of preboot cpu capabilities
- *                              reported by FW, bit description can be found in
- *                              CPU_BOOT_DEV_STS*
- * @fw_boot_cpu_security_map: bitmap representation of boot cpu security status
- *                            reported by FW, bit description can be found in
- *                            CPU_BOOT_DEV_STS*
- * @fw_app_security_map: bitmap representation of application security status
- *                       reported by FW, bit description can be found in
- *                       CPU_BOOT_DEV_STS*
+ * @fw_preboot_cpu_boot_dev_sts0: bitmap representation of preboot cpu
+ *                                capabilities reported by FW, bit description
+ *                                can be found in CPU_BOOT_DEV_STS0
+ * @fw_preboot_cpu_boot_dev_sts1: bitmap representation of preboot cpu
+ *                                capabilities reported by FW, bit description
+ *                                can be found in CPU_BOOT_DEV_STS1
+ * @fw_bootfit_cpu_boot_dev_sts0: bitmap representation of boot cpu security
+ *                                status reported by FW, bit description can be
+ *                                found in CPU_BOOT_DEV_STS0
+ * @fw_bootfit_cpu_boot_dev_sts1: bitmap representation of boot cpu security
+ *                                status reported by FW, bit description can be
+ *                                found in CPU_BOOT_DEV_STS1
+ * @fw_app_cpu_boot_dev_sts0: bitmap representation of application security
+ *                            status reported by FW, bit description can be
+ *                            found in CPU_BOOT_DEV_STS0
+ * @fw_app_cpu_boot_dev_sts1: bitmap representation of application security
+ *                            status reported by FW, bit description can be
+ *                            found in CPU_BOOT_DEV_STS1
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -445,8 +454,10 @@ struct hl_mmu_properties {
  * @completion_queues_count: number of completion queues.
  * @fw_security_disabled: true if security measures are disabled in firmware,
  *                        false otherwise
- * @fw_security_status_valid: security status bits are valid and can be fetched
- *                            from BOOT_DEV_STS0
+ * @fw_cpu_boot_dev_sts0_valid: status bits are valid and can be fetched from
+ *                              BOOT_DEV_STS0
+ * @fw_cpu_boot_dev_sts1_valid: status bits are valid and can be fetched from
+ *                              BOOT_DEV_STS1
  * @dram_supports_virtual_memory: is there an MMU towards the DRAM
  * @hard_reset_done_by_fw: true if firmware is handling hard reset flow
  * @num_functional_hbms: number of functional HBMs in each DCORE.
@@ -497,9 +508,12 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_size;
 	u32				max_pending_cs;
 	u32				max_queues;
-	u32				fw_preboot_caps_map;
-	u32				fw_boot_cpu_security_map;
-	u32				fw_app_security_map;
+	u32				fw_preboot_cpu_boot_dev_sts0;
+	u32				fw_preboot_cpu_boot_dev_sts1;
+	u32				fw_bootfit_cpu_boot_dev_sts0;
+	u32				fw_bootfit_cpu_boot_dev_sts1;
+	u32				fw_app_cpu_boot_dev_sts0;
+	u32				fw_app_cpu_boot_dev_sts1;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
@@ -512,7 +526,8 @@ struct asic_fixed_properties {
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 	u8				fw_security_disabled;
-	u8				fw_security_status_valid;
+	u8				fw_cpu_boot_dev_sts0_valid;
+	u8				fw_cpu_boot_dev_sts1_valid;
 	u8				dram_supports_virtual_memory;
 	u8				hard_reset_done_by_fw;
 	u8				num_functional_hbms;
@@ -853,8 +868,10 @@ struct pci_mem_region {
  * @kmd_msg_to_cpu_reg: register address for KDM->CPU messages
  * @cpu_cmd_status_to_host_reg: register address for CPU command status response
  * @cpu_boot_status_reg: boot status register
- * @cpu_boot_dev_status_reg: boot device status register
- * @boot_err0_reg: boot error register
+ * @cpu_boot_dev_status0_reg: boot device status register 0
+ * @cpu_boot_dev_status1_reg: boot device status register 1
+ * @boot_err0_reg: boot error register 0
+ * @boot_err1_reg: boot error register 1
  * @preboot_version_offset_reg: SRAM offset to preboot version register
  * @boot_fit_version_offset_reg: SRAM offset to boot fit version register
  * @sram_offset_mask: mask for getting offset into the SRAM
@@ -865,8 +882,10 @@ struct static_fw_load_mgr {
 	u32 kmd_msg_to_cpu_reg;
 	u32 cpu_cmd_status_to_host_reg;
 	u32 cpu_boot_status_reg;
-	u32 cpu_boot_dev_status_reg;
+	u32 cpu_boot_dev_status0_reg;
+	u32 cpu_boot_dev_status1_reg;
 	u32 boot_err0_reg;
+	u32 boot_err1_reg;
 	u32 preboot_version_offset_reg;
 	u32 boot_fit_version_offset_reg;
 	u32 sram_offset_mask;
@@ -2514,11 +2533,13 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
 int hl_fw_send_heartbeat(struct hl_device *hdev);
 int hl_fw_cpucp_info_get(struct hl_device *hdev,
-			u32 cpu_security_boot_status_reg,
-			u32 boot_err0_reg);
+				u32 sts_boot_dev_sts0_reg,
+				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
+				u32 boot_err1_reg);
 int hl_fw_cpucp_handshake(struct hl_device *hdev,
-			u32 cpu_security_boot_status_reg,
-			u32 boot_err0_reg);
+				u32 sts_boot_dev_sts0_reg,
+				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
+				u32 boot_err1_reg);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
 int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
@@ -2531,8 +2552,9 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u32 pll_index,
 int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
 int hl_fw_init_cpu(struct hl_device *hdev);
 int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 cpu_boot_caps_reg, u32 boot_err0_reg,
-		u32 timeout);
+				u32 sts_boot_dev_sts0_reg,
+				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
+				u32 boot_err1_reg, u32 timeout);
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);

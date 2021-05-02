@@ -461,7 +461,8 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;
 
-	prop->fw_security_status_valid = false;
+	prop->fw_cpu_boot_dev_sts0_valid = false;
+	prop->fw_cpu_boot_dev_sts1_valid = false;
 	prop->hard_reset_done_by_fw = false;
 
 	return 0;
@@ -641,8 +642,10 @@ pci_init:
 	 * version to determine whether we run with a security-enabled firmware
 	 */
 	rc = hl_fw_read_preboot_status(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
-			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
+					mmCPU_BOOT_DEV_STS0,
+					mmCPU_BOOT_DEV_STS1, mmCPU_BOOT_ERR0,
+					mmCPU_BOOT_ERR1,
+					GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
 			hdev->asic_funcs->hw_fini(hdev, true);
@@ -1297,8 +1300,11 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 	}
 
 	/* update FW application security bits */
-	if (prop->fw_security_status_valid)
-		prop->fw_app_security_map = RREG32(mmCPU_BOOT_DEV_STS0);
+	if (prop->fw_cpu_boot_dev_sts0_valid)
+		prop->fw_app_cpu_boot_dev_sts0 = RREG32(mmCPU_BOOT_DEV_STS0);
+
+	if (prop->fw_cpu_boot_dev_sts1_valid)
+		prop->fw_app_cpu_boot_dev_sts1 = RREG32(mmCPU_BOOT_DEV_STS1);
 
 	goya->hw_cap_initialized |= HW_CAP_CPU_Q;
 	return 0;
@@ -2470,8 +2476,10 @@ static void goya_init_static_firmware_loader(struct hl_device *hdev)
 	static_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
 	static_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
 	static_loader->cpu_boot_status_reg = mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS;
-	static_loader->cpu_boot_dev_status_reg = mmCPU_BOOT_DEV_STS0;
+	static_loader->cpu_boot_dev_status0_reg = mmCPU_BOOT_DEV_STS0;
+	static_loader->cpu_boot_dev_status1_reg = mmCPU_BOOT_DEV_STS1;
 	static_loader->boot_err0_reg = mmCPU_BOOT_ERR0;
+	static_loader->boot_err1_reg = mmCPU_BOOT_ERR1;
 	static_loader->preboot_version_offset_reg = mmPREBOOT_VER_OFFSET;
 	static_loader->boot_fit_version_offset_reg = mmUBOOT_VER_OFFSET;
 	static_loader->sram_offset_mask = ~((u32)SRAM_BASE_ADDR);
@@ -5245,7 +5253,9 @@ int goya_cpucp_info_get(struct hl_device *hdev)
 	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
 
-	rc = hl_fw_cpucp_handshake(hdev, mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0);
+	rc = hl_fw_cpucp_handshake(hdev, mmCPU_BOOT_DEV_STS0,
+					mmCPU_BOOT_DEV_STS1, mmCPU_BOOT_ERR0,
+					mmCPU_BOOT_ERR1);
 	if (rc)
 		return rc;
 

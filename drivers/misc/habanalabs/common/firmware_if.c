@@ -146,6 +146,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 				u16 len, u32 timeout, u64 *result)
 {
 	struct hl_hw_queue *queue = &hdev->kernel_queues[hw_queue_id];
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
 	u32 tmp, expected_ack_val;
@@ -180,8 +181,9 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	if (hdev->asic_prop.fw_app_security_map &
-			CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
+	if (prop->fw_cpu_boot_dev_sts0_valid &&
+				(prop->fw_app_cpu_boot_dev_sts0 &
+					CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN))
 		expected_ack_val = queue->pi;
 	else
 		expected_ack_val = CPUCP_PACKET_FENCE_VAL;
@@ -344,24 +346,13 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	return rc;
 }
 
-static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
-		u32 cpu_security_boot_status_reg)
+static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
+								u32 sts_val)
 {
-	u32 err_val, security_val;
 	bool err_exists = false;
 
-	/* Some of the firmware status codes are deprecated in newer f/w
-	 * versions. In those versions, the errors are reported
-	 * in different registers. Therefore, we need to check those
-	 * registers and print the exact errors. Moreover, there
-	 * may be multiple errors, so we need to report on each error
-	 * separately. Some of the error codes might indicate a state
-	 * that is not an error per-se, but it is an error in production
-	 * environment
-	 */
-	err_val = RREG32(boot_err0_reg);
 	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
-		return 0;
+		return false;
 
 	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL) {
 		dev_err(hdev->dev,
@@ -432,6 +423,20 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		err_exists = true;
 	}
 
+	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - Failed to load preboot primary image\n");
+		/* This is a warning so we don't want it to disable the
+		 * device as we have a secondary preboot image
+		 */
+		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL) {
+		dev_err(hdev->dev, "Device boot error - Failed to load preboot secondary image\n");
+		err_exists = true;
+	}
+
 	if (err_val & CPU_BOOT_ERR0_PLL_FAIL) {
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
 		err_exists = true;
@@ -443,28 +448,89 @@ static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
 	}
 
-	security_val = RREG32(cpu_security_boot_status_reg);
-	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
-		dev_dbg(hdev->dev, "Device security status %#x\n",
-				security_val);
+	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
+		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
 	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
 		dev_err(hdev->dev,
-			"Device boot error - unknown error 0x%08x\n",
-			err_val);
+			"Device boot error - unknown ERR0 error 0x%08x\n", err_val);
 		err_exists = true;
 	}
 
+	/* return error only if it's in the predefined mask */
 	if (err_exists && ((err_val & ~CPU_BOOT_ERR0_ENABLED) &
 				lower_32_bits(hdev->boot_error_status_mask)))
+		return true;
+
+	return false;
+}
+
+/* placeholder for ERR1 as no errors defined there yet */
+static bool fw_report_boot_dev1(struct hl_device *hdev, u32 err_val,
+								u32 sts_val)
+{
+	/*
+	 * keep this variable to preserve the logic of the function.
+	 * this way it would require less modifications when error will be
+	 * added to DEV_ERR1
+	 */
+	bool err_exists = false;
+
+	if (!(err_val & CPU_BOOT_ERR1_ENABLED))
+		return false;
+
+	if (sts_val & CPU_BOOT_DEV_STS1_ENABLED)
+		dev_dbg(hdev->dev, "Device status1 %#x\n", sts_val);
+
+	if (!err_exists && (err_val & ~CPU_BOOT_ERR1_ENABLED)) {
+		dev_err(hdev->dev,
+			"Device boot error - unknown ERR1 error 0x%08x\n",
+								err_val);
+		err_exists = true;
+	}
+
+	/* return error only if it's in the predefined mask */
+	if (err_exists && ((err_val & ~CPU_BOOT_ERR1_ENABLED) &
+				upper_32_bits(hdev->boot_error_status_mask)))
+		return true;
+
+	return false;
+}
+
+static int fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
+				u32 boot_err1_reg, u32 cpu_boot_dev_status0_reg,
+				u32 cpu_boot_dev_status1_reg)
+{
+	u32 err_val, status_val;
+	bool err_exists = false;
+
+	/* Some of the firmware status codes are deprecated in newer f/w
+	 * versions. In those versions, the errors are reported
+	 * in different registers. Therefore, we need to check those
+	 * registers and print the exact errors. Moreover, there
+	 * may be multiple errors, so we need to report on each error
+	 * separately. Some of the error codes might indicate a state
+	 * that is not an error per-se, but it is an error in production
+	 * environment
+	 */
+	err_val = RREG32(boot_err0_reg);
+	status_val = RREG32(cpu_boot_dev_status0_reg);
+	err_exists = fw_report_boot_dev0(hdev, err_val, status_val);
+
+	err_val = RREG32(boot_err1_reg);
+	status_val = RREG32(cpu_boot_dev_status1_reg);
+	err_exists |= fw_report_boot_dev1(hdev, err_val, status_val);
+
+	if (err_exists)
 		return -EIO;
 
 	return 0;
 }
 
 int hl_fw_cpucp_info_get(struct hl_device *hdev,
-			u32 cpu_security_boot_status_reg,
-			u32 boot_err0_reg)
+				u32 sts_boot_dev_sts0_reg,
+				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
+				u32 boot_err1_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet pkt = {};
@@ -498,7 +564,8 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 		goto out;
 	}
 
-	rc = fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
+	rc = fw_read_errors(hdev, boot_err0_reg, boot_err1_reg,
+				sts_boot_dev_sts0_reg, sts_boot_dev_sts1_reg);
 	if (rc) {
 		dev_err(hdev->dev, "Errors in device boot\n");
 		goto out;
@@ -516,9 +583,13 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	}
 
 	/* Read FW application security bits again */
-	if (hdev->asic_prop.fw_security_status_valid)
-		hdev->asic_prop.fw_app_security_map =
-				RREG32(cpu_security_boot_status_reg);
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid)
+		hdev->asic_prop.fw_app_cpu_boot_dev_sts0 =
+						RREG32(sts_boot_dev_sts0_reg);
+
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts1_valid)
+		hdev->asic_prop.fw_app_cpu_boot_dev_sts1 =
+						RREG32(sts_boot_dev_sts1_reg);
 
 out:
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
@@ -582,13 +653,15 @@ static int hl_fw_send_msi_info_msg(struct hl_device *hdev)
 }
 
 int hl_fw_cpucp_handshake(struct hl_device *hdev,
-			u32 cpu_security_boot_status_reg,
-			u32 boot_err0_reg)
+				u32 sts_boot_dev_sts0_reg,
+				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
+				u32 boot_err1_reg)
 {
 	int rc;
 
-	rc = hl_fw_cpucp_info_get(hdev, cpu_security_boot_status_reg,
-					boot_err0_reg);
+	rc = hl_fw_cpucp_info_get(hdev, sts_boot_dev_sts0_reg,
+					sts_boot_dev_sts1_reg, boot_err0_reg,
+					boot_err1_reg);
 	if (rc)
 		return rc;
 
@@ -723,8 +796,8 @@ int get_used_pll_index(struct hl_device *hdev, u32 input_pll_index,
 	bool dynamic_pll;
 	int fw_pll_idx;
 
-	dynamic_pll = prop->fw_security_status_valid &&
-		(prop->fw_app_security_map & CPU_BOOT_DEV_STS0_DYN_PLL_EN);
+	dynamic_pll = prop->fw_cpu_boot_dev_sts0_valid &&
+		(prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_DYN_PLL_EN);
 
 	if (!dynamic_pll) {
 		/*
@@ -867,8 +940,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 
 static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 					u32 cpu_boot_status_reg,
-					u32 cpu_boot_caps_reg,
-					u32 boot_err0_reg, u32 timeout)
+					u32 sts_boot_dev_sts0_reg,
+					u32 sts_boot_dev_sts1_reg,
+					u32 boot_err0_reg, u32 boot_err1_reg,
+					u32 timeout)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u32 status;
@@ -903,15 +978,20 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		 * of reading specific errors
 		 */
 		if (status != -1)
-			fw_read_errors(hdev, boot_err0_reg,
-					cpu_boot_status_reg);
+			fw_read_errors(hdev, boot_err0_reg, boot_err1_reg,
+							sts_boot_dev_sts0_reg,
+							sts_boot_dev_sts1_reg);
 		return -EIO;
 	}
 
-	prop->fw_preboot_caps_map = RREG32(cpu_boot_caps_reg);
+	prop->fw_preboot_cpu_boot_dev_sts0 = RREG32(sts_boot_dev_sts0_reg);
+	prop->fw_preboot_cpu_boot_dev_sts1 = RREG32(sts_boot_dev_sts1_reg);
 
-	prop->dynamic_fw_load = !!(prop->fw_preboot_caps_map &
+	if (prop->fw_preboot_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED)
+		prop->dynamic_fw_load = !!(prop->fw_preboot_cpu_boot_dev_sts0 &
 						CPU_BOOT_DEV_STS0_FW_LD_COM_EN);
+	else
+		prop->dynamic_fw_load = 0;
 
 	/* initialize FW loader once we know what load protocol is used */
 	hdev->asic_funcs->init_firmware_loader(hdev);
@@ -978,9 +1058,10 @@ static int hl_fw_static_read_device_fw_version(struct hl_device *hdev,
 static void hl_fw_preboot_update_state(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 preboot_caps;
+	u32 cpu_boot_dev_sts0, cpu_boot_dev_sts1;
 
-	preboot_caps = prop->fw_preboot_caps_map;
+	cpu_boot_dev_sts0 = prop->fw_preboot_cpu_boot_dev_sts0;
+	cpu_boot_dev_sts1 = prop->fw_preboot_cpu_boot_dev_sts1;
 
 	/* We read security status multiple times during boot:
 	 * 1. preboot - a. Check whether the security status bits are valid
@@ -995,23 +1076,30 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED), if it is set
 	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
 	 */
-	if (preboot_caps & CPU_BOOT_DEV_STS0_ENABLED) {
-		prop->fw_security_status_valid = 1;
+	if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
+		prop->fw_cpu_boot_dev_sts0_valid = 1;
 
 		/* FW security should be derived from PCI ID, we keep this
 		 * check for backward compatibility
 		 */
-		if (preboot_caps & CPU_BOOT_DEV_STS0_SECURITY_EN)
+		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_SECURITY_EN)
 			prop->fw_security_disabled = false;
 
-		if (preboot_caps & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
+		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
 	} else {
-		prop->fw_security_status_valid = 0;
+		prop->fw_cpu_boot_dev_sts0_valid = 0;
 	}
 
-	dev_dbg(hdev->dev, "Firmware preboot security status %#x\n",
-			preboot_caps);
+	/* place holder for STS1 as no statuses are defined yet */
+	prop->fw_cpu_boot_dev_sts1_valid =
+			!!(cpu_boot_dev_sts1 & CPU_BOOT_DEV_STS1_ENABLED);
+
+	dev_dbg(hdev->dev, "Firmware preboot boot device status0 %#x\n",
+							cpu_boot_dev_sts0);
+
+	dev_dbg(hdev->dev, "Firmware preboot boot device status1 %#x\n",
+							cpu_boot_dev_sts1);
 
 	dev_dbg(hdev->dev, "Firmware preboot hard-reset is %s\n",
 			prop->hard_reset_done_by_fw ? "enabled" : "disabled");
@@ -1020,9 +1108,7 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 			prop->fw_security_disabled ? "disabled" : "enabled");
 }
 
-static int hl_fw_static_read_preboot_status(struct hl_device *hdev,
-		u32 cpu_boot_status_reg, u32 cpu_security_boot_status_reg,
-		u32 boot_err0_reg, u32 timeout)
+static int hl_fw_static_read_preboot_status(struct hl_device *hdev)
 {
 	int rc;
 
@@ -1036,8 +1122,9 @@ static int hl_fw_static_read_preboot_status(struct hl_device *hdev,
 }
 
 int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 cpu_boot_caps_reg, u32 boot_err0_reg,
-		u32 timeout)
+				u32 sts_boot_dev_sts0_reg,
+				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
+				u32 boot_err1_reg, u32 timeout)
 {
 	int rc;
 
@@ -1053,8 +1140,9 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	 * read the boot caps register
 	 */
 	rc = hl_fw_read_preboot_caps(hdev, cpu_boot_status_reg,
-				cpu_boot_caps_reg, boot_err0_reg,
-				timeout);
+					sts_boot_dev_sts0_reg,
+					sts_boot_dev_sts1_reg, boot_err0_reg,
+					boot_err1_reg, timeout);
 	if (rc)
 		return rc;
 
@@ -1062,9 +1150,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (hdev->asic_prop.dynamic_fw_load)
 		return 0;
 
-	return hl_fw_static_read_preboot_status(hdev, cpu_boot_status_reg,
-				cpu_boot_caps_reg, boot_err0_reg,
-				timeout);
+	return hl_fw_static_read_preboot_status(hdev);
 }
 
 /* associate string with COMM status */
@@ -1610,30 +1696,37 @@ static int hl_fw_dynamic_copy_image(struct hl_device *hdev,
  *                               is loaded
  *
  * @hdev: pointer to the habanalabs device structure
- * @cpu_security_boot_status_reg: register holding security status props
+ * @cpu_boot_dev_sts0_reg: register holding CPU boot dev status 0
+ * @cpu_boot_dev_sts1_reg: register holding CPU boot dev status 1
  *
  * @return 0 on success, otherwise non-zero error code
  */
 static void hl_fw_boot_fit_update_state(struct hl_device *hdev,
-					u32 cpu_security_boot_status_reg)
+						u32 cpu_boot_dev_sts0_reg,
+						u32 cpu_boot_dev_sts1_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
 	/* Clear reset status since we need to read it again from boot CPU */
 	prop->hard_reset_done_by_fw = false;
 
-	/* Read boot_cpu security bits */
-	if (prop->fw_security_status_valid) {
-		prop->fw_boot_cpu_security_map =
-				RREG32(cpu_security_boot_status_reg);
+	/* Read boot_cpu status bits */
+	if (prop->fw_cpu_boot_dev_sts0_valid) {
+		prop->fw_bootfit_cpu_boot_dev_sts0 = RREG32(cpu_boot_dev_sts0_reg);
 
-		if (prop->fw_boot_cpu_security_map &
+		if (prop->fw_bootfit_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
 
-		dev_dbg(hdev->dev,
-			"Firmware boot CPU security status %#x\n",
-			prop->fw_boot_cpu_security_map);
+		dev_dbg(hdev->dev, "Firmware boot CPU status0 %#x\n",
+					prop->fw_bootfit_cpu_boot_dev_sts0);
+	}
+
+	if (prop->fw_cpu_boot_dev_sts1_valid) {
+		prop->fw_bootfit_cpu_boot_dev_sts1 = RREG32(cpu_boot_dev_sts1_reg);
+
+		dev_dbg(hdev->dev, "Firmware boot CPU status1 %#x\n",
+					prop->fw_bootfit_cpu_boot_dev_sts1);
 	}
 
 	dev_dbg(hdev->dev, "Firmware boot CPU hard-reset is %s\n",
@@ -1697,7 +1790,8 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 
 		dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 		hl_fw_boot_fit_update_state(hdev,
-					le32_to_cpu(dyn_regs->cpu_boot_status));
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
 	} else {
 		/* update state during preboot handshake */
 		hl_fw_preboot_update_state(hdev);
@@ -1783,11 +1877,14 @@ static int hl_fw_dynamic_wait_for_linux_active(struct hl_device *hdev,
  *
  *
  * @hdev: pointer to the habanalabs device structure
+ * @cpu_boot_dev_sts0_reg: register holding CPU boot dev status 0
+ * @cpu_boot_dev_sts1_reg: register holding CPU boot dev status 1
  *
  * @return 0 on success, otherwise non-zero error code
  */
 static void hl_fw_linux_update_state(struct hl_device *hdev,
-						u32 cpu_boot_status_reg)
+						u32 cpu_boot_dev_sts0_reg,
+						u32 cpu_boot_dev_sts1_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
@@ -1795,17 +1892,26 @@ static void hl_fw_linux_update_state(struct hl_device *hdev,
 	prop->hard_reset_done_by_fw = false;
 
 	/* Read FW application security bits */
-	if (prop->fw_security_status_valid) {
-		prop->fw_app_security_map =
-				RREG32(cpu_boot_status_reg);
+	if (prop->fw_cpu_boot_dev_sts0_valid) {
+		prop->fw_app_cpu_boot_dev_sts0 =
+				RREG32(cpu_boot_dev_sts0_reg);
 
-		if (prop->fw_app_security_map &
+		if (prop->fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
 
 		dev_dbg(hdev->dev,
-			"Firmware application CPU security status %#x\n",
-			prop->fw_app_security_map);
+			"Firmware application CPU status0 %#x\n",
+			prop->fw_app_cpu_boot_dev_sts0);
+	}
+
+	if (prop->fw_cpu_boot_dev_sts1_valid) {
+		prop->fw_app_cpu_boot_dev_sts1 =
+				RREG32(cpu_boot_dev_sts1_reg);
+
+		dev_dbg(hdev->dev,
+			"Firmware application CPU status1 %#x\n",
+			prop->fw_app_cpu_boot_dev_sts1);
 	}
 
 	dev_dbg(hdev->dev, "Firmware application CPU hard-reset is %s\n",
@@ -1900,13 +2006,16 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (rc)
 		goto protocol_err;
 
-	hl_fw_linux_update_state(hdev, le32_to_cpu(dyn_regs->cpu_boot_status));
+	hl_fw_linux_update_state(hdev, le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
 
 	return 0;
 
 protocol_err:
 	fw_read_errors(hdev, le32_to_cpu(dyn_regs->cpu_boot_err0),
-					le32_to_cpu(dyn_regs->cpu_boot_status));
+				le32_to_cpu(dyn_regs->cpu_boot_err1),
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
 	return rc;
 }
 
@@ -1922,8 +2031,9 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 					struct fw_load_mgr *fw_loader)
 {
 	u32 cpu_msg_status_reg, cpu_timeout, msg_to_cpu_reg, status;
-	u32 cpu_boot_status_reg, cpu_security_boot_status_reg;
+	u32 cpu_boot_dev_status0_reg, cpu_boot_dev_status1_reg;
 	struct static_fw_load_mgr *static_loader;
+	u32 cpu_boot_status_reg;
 	int rc;
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU))
@@ -1936,7 +2046,8 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 	static_loader = &fw_loader->static_loader;
 	cpu_msg_status_reg = static_loader->cpu_cmd_status_to_host_reg;
 	msg_to_cpu_reg = static_loader->kmd_msg_to_cpu_reg;
-	cpu_security_boot_status_reg = static_loader->cpu_boot_dev_status_reg;
+	cpu_boot_dev_status0_reg = static_loader->cpu_boot_dev_status0_reg;
+	cpu_boot_dev_status1_reg = static_loader->cpu_boot_dev_status1_reg;
 	cpu_boot_status_reg = static_loader->cpu_boot_status_reg;
 
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
@@ -2002,7 +2113,8 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 	hl_fw_static_read_device_fw_version(hdev, FW_COMP_BOOT_FIT);
 
 	/* update state according to boot stage */
-	hl_fw_boot_fit_update_state(hdev, cpu_security_boot_status_reg);
+	hl_fw_boot_fit_update_state(hdev, cpu_boot_dev_status0_reg,
+						cpu_boot_dev_status1_reg);
 
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);
@@ -2073,17 +2185,22 @@ static int hl_fw_static_init_cpu(struct hl_device *hdev,
 	}
 
 	rc = fw_read_errors(hdev, fw_loader->static_loader.boot_err0_reg,
-					cpu_security_boot_status_reg);
+					fw_loader->static_loader.boot_err1_reg,
+					cpu_boot_dev_status0_reg,
+					cpu_boot_dev_status1_reg);
 	if (rc)
 		return rc;
 
-	hl_fw_linux_update_state(hdev, cpu_security_boot_status_reg);
+	hl_fw_linux_update_state(hdev, cpu_boot_dev_status0_reg,
+						cpu_boot_dev_status1_reg);
 
 	return 0;
 
 out:
 	fw_read_errors(hdev, fw_loader->static_loader.boot_err0_reg,
-					cpu_security_boot_status_reg);
+					fw_loader->static_loader.boot_err1_reg,
+					cpu_boot_dev_status0_reg,
+					cpu_boot_dev_status1_reg);
 
 	return rc;
 }

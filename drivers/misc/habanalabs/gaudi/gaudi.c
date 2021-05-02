@@ -546,7 +546,8 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;
 
-	prop->fw_security_status_valid = false;
+	prop->fw_cpu_boot_dev_sts0_valid = false;
+	prop->fw_cpu_boot_dev_sts1_valid = false;
 	prop->hard_reset_done_by_fw = false;
 
 	return 0;
@@ -706,8 +707,10 @@ pci_init:
 	 * version to determine whether we run with a security-enabled firmware
 	 */
 	rc = hl_fw_read_preboot_status(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
-			GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
+					mmCPU_BOOT_DEV_STS0,
+					mmCPU_BOOT_DEV_STS1, mmCPU_BOOT_ERR0,
+					mmCPU_BOOT_ERR1,
+					GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
 			hdev->asic_funcs->hw_fini(hdev, true);
@@ -1925,8 +1928,8 @@ static void gaudi_init_scrambler_sram(struct hl_device *hdev)
 	if (!hdev->asic_prop.fw_security_disabled)
 		return;
 
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_app_security_map &
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
+			(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
 					CPU_BOOT_DEV_STS0_SRAM_SCR_EN))
 		return;
 
@@ -1997,8 +2000,8 @@ static void gaudi_init_scrambler_hbm(struct hl_device *hdev)
 	if (!hdev->asic_prop.fw_security_disabled)
 		return;
 
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_boot_cpu_security_map &
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
+			(hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
 					CPU_BOOT_DEV_STS0_DRAM_SCR_EN))
 		return;
 
@@ -2067,8 +2070,8 @@ static void gaudi_init_e2e(struct hl_device *hdev)
 	if (!hdev->asic_prop.fw_security_disabled)
 		return;
 
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_boot_cpu_security_map &
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
+			(hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
 					CPU_BOOT_DEV_STS0_E2E_CRED_EN))
 		return;
 
@@ -2442,8 +2445,8 @@ static void gaudi_init_hbm_cred(struct hl_device *hdev)
 	if (!hdev->asic_prop.fw_security_disabled)
 		return;
 
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_boot_cpu_security_map &
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
+			(hdev->asic_prop.fw_bootfit_cpu_boot_dev_sts0 &
 					CPU_BOOT_DEV_STS0_HBM_CRED_EN))
 		return;
 
@@ -3768,8 +3771,10 @@ static void gaudi_init_static_firmware_loader(struct hl_device *hdev)
 	static_loader->kmd_msg_to_cpu_reg = mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU;
 	static_loader->cpu_cmd_status_to_host_reg = mmCPU_CMD_STATUS_TO_HOST;
 	static_loader->cpu_boot_status_reg = mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS;
-	static_loader->cpu_boot_dev_status_reg = mmCPU_BOOT_DEV_STS0;
+	static_loader->cpu_boot_dev_status0_reg = mmCPU_BOOT_DEV_STS0;
+	static_loader->cpu_boot_dev_status1_reg = mmCPU_BOOT_DEV_STS1;
 	static_loader->boot_err0_reg = mmCPU_BOOT_ERR0;
+	static_loader->boot_err1_reg = mmCPU_BOOT_ERR1;
 	static_loader->preboot_version_offset_reg = mmPREBOOT_VER_OFFSET;
 	static_loader->boot_fit_version_offset_reg = mmUBOOT_VER_OFFSET;
 	static_loader->sram_offset_mask = ~((u32)SRAM_BASE_ADDR);
@@ -3884,8 +3889,10 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 	}
 
 	/* update FW application security bits */
-	if (prop->fw_security_status_valid)
-		prop->fw_app_security_map = RREG32(mmCPU_BOOT_DEV_STS0);
+	if (prop->fw_cpu_boot_dev_sts0_valid)
+		prop->fw_app_cpu_boot_dev_sts0 = RREG32(mmCPU_BOOT_DEV_STS0);
+	if (prop->fw_cpu_boot_dev_sts1_valid)
+		prop->fw_app_cpu_boot_dev_sts1 = RREG32(mmCPU_BOOT_DEV_STS1);
 
 	gaudi->hw_cap_initialized |= HW_CAP_CPU_Q;
 	return 0;
@@ -7409,8 +7416,8 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 	u32 base, val, val2, wr_par, rd_par, ca_par, derr, serr, type, ch;
 	int err = 0;
 
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_app_security_map &
+	if (hdev->asic_prop.fw_cpu_boot_dev_sts0_valid &&
+			(hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
 				CPU_BOOT_DEV_STS0_HBM_ECC_EN)) {
 		if (!hbm_ecc_data) {
 			dev_err(hdev->dev, "No FW ECC data");
@@ -7975,7 +7982,9 @@ static int gaudi_cpucp_info_get(struct hl_device *hdev)
 	if (!(gaudi->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
 
-	rc = hl_fw_cpucp_handshake(hdev, mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0);
+	rc = hl_fw_cpucp_handshake(hdev, mmCPU_BOOT_DEV_STS0,
+					mmCPU_BOOT_DEV_STS1, mmCPU_BOOT_ERR0,
+					mmCPU_BOOT_ERR1);
 	if (rc)
 		return rc;
 
