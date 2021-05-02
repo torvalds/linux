@@ -17,8 +17,9 @@
 #define PIPE_PARANOIA /* for now */
 
 /* covers iovec and kvec alike */
-#define iterate_iovec(i, n, base, len, off, __p, skip, STEP) {	\
+#define iterate_iovec(i, n, base, len, off, __p, STEP) {	\
 	size_t off = 0;						\
+	size_t skip = i->iov_offset;				\
 	do {							\
 		len = min(n, __p->iov_len - skip);		\
 		if (likely(len)) {				\
@@ -33,18 +34,20 @@
 		__p++;						\
 		skip = 0;					\
 	} while (n);						\
+	i->iov_offset = skip;					\
 	n = off;						\
 }
 
-#define iterate_bvec(i, n, base, len, off, p, skip, STEP) {	\
+#define iterate_bvec(i, n, base, len, off, p, STEP) {		\
 	size_t off = 0;						\
+	unsigned skip = i->iov_offset;				\
 	while (n) {						\
 		unsigned offset = p->bv_offset + skip;		\
 		unsigned left;					\
 		void *kaddr = kmap_local_page(p->bv_page +	\
 					offset / PAGE_SIZE);	\
 		base = kaddr + offset % PAGE_SIZE;		\
-		len = min(min(n, p->bv_len - skip),		\
+		len = min(min(n, (size_t)(p->bv_len - skip)),	\
 		     (size_t)(PAGE_SIZE - offset % PAGE_SIZE));	\
 		left = (STEP);					\
 		kunmap_local(kaddr);				\
@@ -59,15 +62,16 @@
 		if (left)					\
 			break;					\
 	}							\
+	i->iov_offset = skip;					\
 	n = off;						\
 }
 
-#define iterate_xarray(i, n, base, len, __off, skip, STEP) {	\
+#define iterate_xarray(i, n, base, len, __off, STEP) {		\
 	__label__ __out;					\
 	size_t __off = 0;					\
 	struct page *head = NULL;				\
 	size_t offset;						\
-	loff_t start = i->xarray_start + skip;			\
+	loff_t start = i->xarray_start + i->iov_offset;		\
 	pgoff_t index = start >> PAGE_SHIFT;			\
 	int j;							\
 								\
@@ -100,7 +104,7 @@
 	}							\
 __out:								\
 	rcu_read_unlock();					\
-	skip += __off;						\
+	i->iov_offset += __off;						\
 	n = __off;						\
 }
 
@@ -108,13 +112,12 @@ __out:								\
 	if (unlikely(i->count < n))				\
 		n = i->count;					\
 	if (likely(n)) {					\
-		size_t skip = i->iov_offset;			\
 		if (likely(iter_is_iovec(i))) {			\
 			const struct iovec *iov = i->iov;	\
 			void __user *base;			\
 			size_t len;				\
 			iterate_iovec(i, n, base, len, off,	\
-						iov, skip, (I))	\
+						iov, (I))	\
 			i->nr_segs -= iov - i->iov;		\
 			i->iov = iov;				\
 		} else if (iov_iter_is_bvec(i)) {		\
@@ -122,7 +125,7 @@ __out:								\
 			void *base;				\
 			size_t len;				\
 			iterate_bvec(i, n, base, len, off,	\
-					bvec, skip, (K))	\
+						bvec, (K))	\
 			i->nr_segs -= bvec - i->bvec;		\
 			i->bvec = bvec;				\
 		} else if (iov_iter_is_kvec(i)) {		\
@@ -130,17 +133,16 @@ __out:								\
 			void *base;				\
 			size_t len;				\
 			iterate_iovec(i, n, base, len, off,	\
-					kvec, skip, (K))	\
+						kvec, (K))	\
 			i->nr_segs -= kvec - i->kvec;		\
 			i->kvec = kvec;				\
 		} else if (iov_iter_is_xarray(i)) {		\
 			void *base;				\
 			size_t len;				\
 			iterate_xarray(i, n, base, len, off,	\
-						skip, (K))	\
+							(K))	\
 		}						\
 		i->count -= n;					\
-		i->iov_offset = skip;				\
 	}							\
 }
 #define iterate_and_advance(i, n, base, len, off, I, K) \
