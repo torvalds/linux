@@ -642,19 +642,6 @@ static int copyout_mc(void __user *to, const void *from, size_t n)
 	return n;
 }
 
-static unsigned long copy_mc_to_page(struct page *page, size_t offset,
-		const char *from, size_t len)
-{
-	unsigned long ret;
-	char *to;
-
-	to = kmap_atomic(page);
-	ret = copy_mc_to_kernel(to + offset, from, len);
-	kunmap_atomic(to);
-
-	return ret;
-}
-
 static size_t copy_mc_pipe_to_iter(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
@@ -666,25 +653,23 @@ static size_t copy_mc_pipe_to_iter(const void *addr, size_t bytes,
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &i_head, &off);
-	if (unlikely(!n))
-		return 0;
-	do {
+	n = push_pipe(i, bytes, &i_head, &off);
+	while (n) {
 		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
+		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
 		unsigned long rem;
-
-		rem = copy_mc_to_page(pipe->bufs[i_head & p_mask].page,
-					    off, addr, chunk);
+		rem = copy_mc_to_kernel(p + off, addr + xfer, chunk);
+		chunk -= rem;
+		kunmap_local(p);
 		i->head = i_head;
-		i->iov_offset = off + chunk - rem;
-		xfer += chunk - rem;
+		i->iov_offset = off + chunk;
+		xfer += chunk;
 		if (rem)
 			break;
 		n -= chunk;
-		addr += chunk;
 		off = 0;
 		i_head++;
-	} while (n);
+	}
 	i->count -= xfer;
 	return xfer;
 }
