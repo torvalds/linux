@@ -582,39 +582,34 @@ static __wsum csum_and_memcpy(void *to, const void *from, size_t len,
 }
 
 static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
-					 struct csum_state *csstate,
-					 struct iov_iter *i)
+					 struct iov_iter *i, __wsum *sump)
 {
 	struct pipe_inode_info *pipe = i->pipe;
 	unsigned int p_mask = pipe->ring_size - 1;
-	__wsum sum = csstate->csum;
-	size_t off = csstate->off;
+	__wsum sum = *sump;
+	size_t off = 0;
 	unsigned int i_head;
-	size_t n, r;
+	size_t r;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &i_head, &r);
-	if (unlikely(!n))
-		return 0;
-	do {
-		size_t chunk = min_t(size_t, n, PAGE_SIZE - r);
+	bytes = push_pipe(i, bytes, &i_head, &r);
+	while (bytes) {
+		size_t chunk = min_t(size_t, bytes, PAGE_SIZE - r);
 		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
-		sum = csum_and_memcpy(p + r, addr, chunk, sum, off);
+		sum = csum_and_memcpy(p + r, addr + off, chunk, sum, off);
 		kunmap_local(p);
 		i->head = i_head;
 		i->iov_offset = r + chunk;
-		n -= chunk;
+		bytes -= chunk;
 		off += chunk;
-		addr += chunk;
 		r = 0;
 		i_head++;
-	} while (n);
-	i->count -= bytes;
-	csstate->csum = sum;
-	csstate->off = off;
-	return bytes;
+	}
+	*sump = sum;
+	i->count -= off;
+	return off;
 }
 
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
@@ -1669,15 +1664,15 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 	struct csum_state *csstate = _csstate;
 	__wsum sum, next;
 
-	if (unlikely(iov_iter_is_pipe(i)))
-		return csum_and_copy_to_pipe_iter(addr, bytes, _csstate, i);
-
-	sum = csum_shift(csstate->csum, csstate->off);
 	if (unlikely(iov_iter_is_discard(i))) {
 		WARN_ON(1);	/* for now */
 		return 0;
 	}
-	iterate_and_advance(i, bytes, base, len, off, ({
+
+	sum = csum_shift(csstate->csum, csstate->off);
+	if (unlikely(iov_iter_is_pipe(i)))
+		bytes = csum_and_copy_to_pipe_iter(addr, bytes, i, &sum);
+	else iterate_and_advance(i, bytes, base, len, off, ({
 		next = csum_and_copy_to_user(addr + off, base, len);
 		sum = csum_block_add(sum, next, off);
 		next ? 0 : len;
