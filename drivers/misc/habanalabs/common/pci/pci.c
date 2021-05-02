@@ -421,6 +421,12 @@ int hl_pci_init(struct hl_device *hdev)
 		goto unmap_pci_bars;
 	}
 
+	/* Driver must sleep in order for FW to finish the iATU configuration */
+	if (hdev->asic_prop.iatu_done_by_fw) {
+		usleep_range(2000, 3000);
+		hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+	}
+
 	rc = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(hdev->dma_mask));
 	if (rc) {
@@ -429,10 +435,6 @@ int hl_pci_init(struct hl_device *hdev)
 			hdev->dma_mask, rc);
 		goto unmap_pci_bars;
 	}
-
-	/* Driver must sleep in order for FW to finish the iATU configuration */
-	if (hdev->asic_prop.iatu_done_by_fw)
-		usleep_range(2000, 3000);
 
 	return 0;
 

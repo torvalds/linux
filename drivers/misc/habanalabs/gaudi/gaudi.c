@@ -600,10 +600,8 @@ static int gaudi_init_iatu(struct hl_device *hdev)
 	struct hl_outbound_pci_region outbound_region;
 	int rc;
 
-	if (hdev->asic_prop.iatu_done_by_fw) {
-		hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+	if (hdev->asic_prop.iatu_done_by_fw)
 		return 0;
-	}
 
 	/* Inbound Region 0 - Bar 0 - Point to SRAM + CFG */
 	inbound_region.mode = PCI_BAR_MATCH_MODE;
