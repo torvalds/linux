@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x9130ab830
+#define DMUB_FW_VERSION_GIT_HASH 0x2cab49dfb
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 64
+#define DMUB_FW_VERSION_REVISION 65
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -163,6 +163,13 @@ extern "C" {
 #ifndef dmub_udelay
 #define dmub_udelay(microseconds) udelay(microseconds)
 #endif
+
+/**
+ * Number of nanoseconds per DMUB tick.
+ * DMCUB_TIMER_CURRENT increments in DMUB ticks, which are 10ns by default.
+ * If DMCUB_TIMER_WINDOW is non-zero this will no longer be true.
+ */
+#define NS_PER_DMUB_TICK 10
 
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
@@ -455,6 +462,61 @@ enum dmub_gpint_command {
 	DMUB_GPINT__PSR_RESIDENCY = 9,
 };
 
+/**
+ * INBOX0 generic command definition
+ */
+union dmub_inbox0_cmd_common {
+	struct {
+		uint32_t command_code: 8; /**< INBOX0 command code */
+		uint32_t param: 24; /**< 24-bit parameter */
+	} bits;
+	uint32_t all;
+};
+
+/**
+ * INBOX0 hw_lock command definition
+ */
+union dmub_inbox0_cmd_lock_hw {
+	struct {
+		uint32_t command_code: 8;
+
+		/* NOTE: Must be have enough bits to match: enum hw_lock_client */
+		uint32_t hw_lock_client: 1;
+
+		/* NOTE: Below fields must match with: struct dmub_hw_lock_inst_flags */
+		uint32_t otg_inst: 3;
+		uint32_t opp_inst: 3;
+		uint32_t dig_inst: 3;
+
+		/* NOTE: Below fields must match with: union dmub_hw_lock_flags */
+		uint32_t lock_pipe: 1;
+		uint32_t lock_cursor: 1;
+		uint32_t lock_dig: 1;
+		uint32_t triple_buffer_lock: 1;
+
+		uint32_t lock: 1;				/**< Lock */
+		uint32_t should_release: 1;		/**< Release */
+		uint32_t reserved: 8; 			/**< Reserved for extending more clients, HW, etc. */
+	} bits;
+	uint32_t all;
+};
+
+union dmub_inbox0_data_register {
+	union dmub_inbox0_cmd_common inbox0_cmd_common;
+	union dmub_inbox0_cmd_lock_hw inbox0_cmd_lock_hw;
+};
+
+enum dmub_inbox0_command {
+	/**
+	 * DESC: Invalid command, ignored.
+	 */
+	DMUB_INBOX0_CMD__INVALID_COMMAND = 0,
+	/**
+	 * DESC: Notification to acquire/release HW lock
+	 * ARGS:
+	 */
+	DMUB_INBOX0_CMD__HW_LOCK = 1,
+};
 //==============================================================================
 //</DMUB_GPINT>=================================================================
 //==============================================================================
@@ -573,7 +635,8 @@ struct dmub_cmd_header {
 	unsigned int type : 8; /**< command type */
 	unsigned int sub_type : 8; /**< command sub type */
 	unsigned int ret_status : 1; /**< 1 if returned data, 0 otherwise */
-	unsigned int reserved0 : 7; /**< reserved bits */
+	unsigned int multi_cmd_pending : 1; /**< 1 if multiple commands chained together */
+	unsigned int reserved0 : 6; /**< reserved bits */
 	unsigned int payload_bytes : 6;  /* payload excluding header - up to 60 bytes */
 	unsigned int reserved1 : 2; /**< reserved bits */
 };
@@ -1346,6 +1409,9 @@ struct dmub_rb_cmd_psr_force_static {
 
 /**
  * Set of HW components that can be locked.
+ *
+ * Note: If updating with more HW components, fields
+ * in dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 union dmub_hw_lock_flags {
 	/**
@@ -1378,6 +1444,9 @@ union dmub_hw_lock_flags {
 
 /**
  * Instances of HW to be locked.
+ *
+ * Note: If updating with more HW components, fields
+ * in dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 struct dmub_hw_lock_inst_flags {
 	/**
@@ -1401,16 +1470,16 @@ struct dmub_hw_lock_inst_flags {
 
 /**
  * Clients that can acquire the HW Lock Manager.
+ *
+ * Note: If updating with more clients, fields in
+ * dmub_inbox0_cmd_lock_hw must be updated to match.
  */
 enum hw_lock_client {
 	/**
 	 * Driver is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_DRIVER = 0,
-	/**
-	 * FW is the client of HW Lock Manager.
-	 */
-	HW_LOCK_CLIENT_FW,
+	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Invalid client.
 	 */
@@ -2189,6 +2258,46 @@ static inline bool dmub_rb_front(struct dmub_rb *rb,
 				 union dmub_rb_cmd  **cmd)
 {
 	uint8_t *rb_cmd = (uint8_t *)(rb->base_address) + rb->rptr;
+
+	if (dmub_rb_empty(rb))
+		return false;
+
+	*cmd = (union dmub_rb_cmd *)rb_cmd;
+
+	return true;
+}
+
+/**
+ * @brief Determines the next ringbuffer offset.
+ *
+ * @param rb DMUB inbox ringbuffer
+ * @param num_cmds Number of commands
+ * @param next_rptr The next offset in the ringbuffer
+ */
+static inline void dmub_rb_get_rptr_with_offset(struct dmub_rb *rb,
+				  uint32_t num_cmds,
+				  uint32_t *next_rptr)
+{
+	*next_rptr = rb->rptr + DMUB_RB_CMD_SIZE * num_cmds;
+
+	if (*next_rptr >= rb->capacity)
+		*next_rptr %= rb->capacity;
+}
+
+/**
+ * @brief Returns a pointer to a command in the inbox.
+ *
+ * @param rb DMUB inbox ringbuffer
+ * @param cmd The inbox command to return
+ * @param rptr The ringbuffer offset
+ * @return true if not empty
+ * @return false otherwise
+ */
+static inline bool dmub_rb_peek_offset(struct dmub_rb *rb,
+				 union dmub_rb_cmd  **cmd,
+				 uint32_t rptr)
+{
+	uint8_t *rb_cmd = (uint8_t *)(rb->base_address) + rptr;
 
 	if (dmub_rb_empty(rb))
 		return false;
