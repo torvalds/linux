@@ -722,12 +722,19 @@ int mem_cgroup_swapin_charge_page(struct page *page, struct mm_struct *mm,
 				  gfp_t gfp, swp_entry_t entry);
 void mem_cgroup_swapin_uncharge_swap(swp_entry_t entry);
 
-void __mem_cgroup_uncharge(struct page *page);
-static inline void mem_cgroup_uncharge(struct page *page)
+void __mem_cgroup_uncharge(struct folio *folio);
+
+/**
+ * mem_cgroup_uncharge - Uncharge a folio.
+ * @folio: Folio to uncharge.
+ *
+ * Uncharge a folio previously charged with mem_cgroup_charge().
+ */
+static inline void mem_cgroup_uncharge(struct folio *folio)
 {
 	if (mem_cgroup_disabled())
 		return;
-	__mem_cgroup_uncharge(page);
+	__mem_cgroup_uncharge(folio);
 }
 
 void __mem_cgroup_uncharge_list(struct list_head *page_list);
@@ -1229,7 +1236,7 @@ static inline void mem_cgroup_swapin_uncharge_swap(swp_entry_t entry)
 {
 }
 
-static inline void mem_cgroup_uncharge(struct page *page)
+static inline void mem_cgroup_uncharge(struct folio *folio)
 {
 }
 

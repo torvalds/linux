@@ -6858,22 +6858,16 @@ static void uncharge_folio(struct folio *folio, struct uncharge_gather *ug)
 	css_put(&memcg->css);
 }
 
-/**
- * __mem_cgroup_uncharge - uncharge a page
- * @page: page to uncharge
- *
- * Uncharge a page previously charged with __mem_cgroup_charge().
- */
-void __mem_cgroup_uncharge(struct page *page)
+void __mem_cgroup_uncharge(struct folio *folio)
 {
 	struct uncharge_gather ug;
 
-	/* Don't touch page->lru of any random page, pre-check: */
-	if (!page_memcg(page))
+	/* Don't touch folio->lru of any random page, pre-check: */
+	if (!folio_memcg(folio))
 		return;
 
 	uncharge_gather_clear(&ug);
-	uncharge_folio(page_folio(page), &ug);
+	uncharge_folio(folio, &ug);
 	uncharge_batch(&ug);
 }
 
