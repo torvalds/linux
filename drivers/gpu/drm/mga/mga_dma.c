@@ -389,6 +389,7 @@ int mga_freelist_put(struct drm_device *dev, struct drm_buf *buf)
 
 int mga_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	drm_mga_private_t *dev_priv;
 	int ret;
 
@@ -400,9 +401,9 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
 	 * device.
 	 */
-	if ((dev->pdev->device == 0x0525) && dev->pdev->bus->self
-	    && (dev->pdev->bus->self->vendor == 0x3388)
-	    && (dev->pdev->bus->self->device == 0x0021)
+	if ((pdev->device == 0x0525) && pdev->bus->self
+	    && (pdev->bus->self->vendor == 0x3388)
+	    && (pdev->bus->self->device == 0x0021)
 	    && dev->agp) {
 		/* FIXME: This should be quirked in the pci core, but oh well
 		 * the hw probably stopped existing. */
@@ -419,10 +420,10 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->usec_timeout = MGA_DEFAULT_USEC_TIMEOUT;
 	dev_priv->chipset = flags;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
-	dev_priv->mmio_base = pci_resource_start(dev->pdev, 1);
-	dev_priv->mmio_size = pci_resource_len(dev->pdev, 1);
+	dev_priv->mmio_base = pci_resource_start(pdev, 1);
+	dev_priv->mmio_size = pci_resource_len(pdev, 1);
 
 	ret = drm_vblank_init(dev, 1);
 
