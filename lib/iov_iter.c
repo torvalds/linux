@@ -172,8 +172,6 @@
 		} else if (iov_iter_is_xarray(i)) {		\
 			struct bio_vec v;			\
 			iterate_xarray(i, n, v, skip, (X))	\
-		} else if (iov_iter_is_discard(i)) {		\
-			skip += n;				\
 		}						\
 		i->count -= n;					\
 		i->iov_offset = skip;				\
