@@ -214,11 +214,54 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 	return 0;
 }
 
+static int cifs_dump_full_key(struct cifs_tcon *tcon, unsigned long arg)
+{
+	struct smb3_full_key_debug_info pfull_key_inf;
+	__u64 suid;
+	struct list_head *tmp;
+	struct cifs_ses *ses;
+	bool found = false;
+
+	if (!smb3_encryption_required(tcon))
+		return -EOPNOTSUPP;
+
+	ses = tcon->ses; /* default to user id for current user */
+	if (get_user(suid, (__u64 __user *)arg))
+		suid = 0;
+	if (suid) {
+		/* search to see if there is a session with a matching SMB UID */
+		spin_lock(&cifs_tcp_ses_lock);
+		list_for_each(tmp, &tcon->ses->server->smb_ses_list) {
+			ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+			if (ses->Suid == suid) {
+				found = true;
+				break;
+			}
+		}
+		spin_unlock(&cifs_tcp_ses_lock);
+		if (found == false)
+			return -EINVAL;
+	} /* else uses default user's SMB UID (ie current user) */
+
+	pfull_key_inf.cipher_type = le16_to_cpu(ses->server->cipher_type);
+	pfull_key_inf.Suid = ses->Suid;
+	memcpy(pfull_key_inf.auth_key, ses->auth_key.response,
+	       16 /* SMB2_NTLMV2_SESSKEY_SIZE */);
+	memcpy(pfull_key_inf.smb3decryptionkey, ses->smb3decryptionkey,
+	       32 /* SMB3_ENC_DEC_KEY_SIZE */);
+	memcpy(pfull_key_inf.smb3encryptionkey,
+	       ses->smb3encryptionkey, 32 /* SMB3_ENC_DEC_KEY_SIZE */);
+	if (copy_to_user((void __user *)arg, &pfull_key_inf,
+			 sizeof(struct smb3_full_key_debug_info)))
+		return -EFAULT;
+
+	return 0;
+}
+
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = file_inode(filep);
 	struct smb3_key_debug_info pkey_inf;
-	struct smb3_full_key_debug_info pfull_key_inf;
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
@@ -366,26 +409,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EACCES;
 				break;
 			}
-
 			tcon = tlink_tcon(pSMBFile->tlink);
-			if (!smb3_encryption_required(tcon)) {
-				rc = -EOPNOTSUPP;
-				break;
-			}
-			pfull_key_inf.cipher_type =
-				le16_to_cpu(tcon->ses->server->cipher_type);
-			pfull_key_inf.Suid = tcon->ses->Suid;
-			memcpy(pfull_key_inf.auth_key, tcon->ses->auth_key.response,
-					16 /* SMB2_NTLMV2_SESSKEY_SIZE */);
-			memcpy(pfull_key_inf.smb3decryptionkey,
-			      tcon->ses->smb3decryptionkey, 32 /* SMB3_ENC_DEC_KEY_SIZE */);
-			memcpy(pfull_key_inf.smb3encryptionkey,
-			      tcon->ses->smb3encryptionkey, 32 /* SMB3_ENC_DEC_KEY_SIZE */);
-			if (copy_to_user((void __user *)arg, &pfull_key_inf,
-					sizeof(struct smb3_full_key_debug_info)))
-				rc = -EFAULT;
-			else
-				rc = 0;
+			rc = cifs_dump_full_key(tcon, arg);
+
 			break;
 		case CIFS_IOC_NOTIFY:
 			if (!S_ISDIR(inode->i_mode)) {
