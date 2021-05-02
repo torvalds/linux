@@ -466,19 +466,25 @@ out:
  * Return 0 on success, or non-zero if the memory could not be accessed (i.e.
  * because it is an invalid address).
  */
-int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
+int iov_iter_fault_in_readable(const struct iov_iter *i, size_t bytes)
 {
-	size_t skip = i->iov_offset;
-	const struct iovec *iov;
-	int err;
-	struct iovec v;
-
 	if (iter_is_iovec(i)) {
-		iterate_iovec(i, bytes, v, iov, skip, ({
-			err = fault_in_pages_readable(v.iov_base, v.iov_len);
+		const struct iovec *p;
+		size_t skip;
+
+		if (bytes > i->count)
+			bytes = i->count;
+		for (p = i->iov, skip = i->iov_offset; bytes; p++, skip = 0) {
+			size_t len = min(bytes, p->iov_len - skip);
+			int err;
+
+			if (unlikely(!len))
+				continue;
+			err = fault_in_pages_readable(p->iov_base + skip, len);
 			if (unlikely(err))
-			return err;
-		0;}))
+				return err;
+			bytes -= len;
+		}
 	}
 	return 0;
 }
