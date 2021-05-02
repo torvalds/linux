@@ -20,6 +20,42 @@
 			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>, <4 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		pci@c0000000 {
+			/* compatible filled in by per-soc device tree */
+			reg = <0xc0000000 0x1000>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>,
+				     <9 IRQ_TYPE_LEVEL_HIGH>,
+				     <10 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0x00 0xff>;
+			status = "disabled";
+
+			ranges =
+			/*
+			 * 64MB 32bit non-prefetchable memory 0x48000000-0x4bffffff
+			 * done in 4 chunks of 16MB each.
+			 */
+			<0x02000000 0 0x48000000 0x48000000 0 0x04000000>,
+			/* 64KB I/O space at 0x4c000000 */
+			<0x01000000 0 0x00000000 0x4c000000 0 0x00010000>;
+
+			/*
+			 * This needs to map to the start of physical memory so
+			 * PCI devices can see all (hopefully) memory. This is done
+			 * using 4 1:1 16MB windows, so the RAM should not be more than
+			 * 64 MB for this to work. If your memory is anywhere else
+			 * than at 0x0 you need to alter this.
+			 */
+			dma-ranges =
+			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			/* Each unique DTS using PCI must specify the swizzling */
+		};
+
 		uart0: serial@c8000000 {
 			compatible = "intel,xscale-uart";
 			reg = <0xc8000000 0x1000>;
