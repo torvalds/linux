@@ -162,7 +162,6 @@ static int drm_get_pci_dev(struct pci_dev *pdev,
 	if (ret)
 		goto err_free;
 
-	dev->pdev = pdev;
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
