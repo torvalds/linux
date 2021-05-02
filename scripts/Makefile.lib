@@ -109,7 +109,7 @@ subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
 # Finds the multi-part object the current object will be linked into.
 # If the object belongs to two or more multi-part objects, list them all.
 modname-multi = $(sort $(foreach m,$(multi-obj-ym),\
-		$(if $(filter $*.o, $($(m:.o=-objs)) $($(m:.o=-y)) $($(m:.o=-m))),$(m:.o=))))
+		$(if $(filter $*.o, $(call suffix-search, $m, .o, -objs -y -m)),$(m:.o=))))
 
 __modname = $(if $(modname-multi),$(modname-multi),$(basetarget))
 
