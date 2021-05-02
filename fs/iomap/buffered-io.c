@@ -683,16 +683,16 @@ static size_t __iomap_write_end(struct inode *inode, loff_t pos, size_t len,
 }
 
 static size_t iomap_write_end_inline(const struct iomap_iter *iter,
-		struct page *page, loff_t pos, size_t copied)
+		struct folio *folio, loff_t pos, size_t copied)
 {
 	const struct iomap *iomap = &iter->iomap;
 	void *addr;
 
-	WARN_ON_ONCE(!PageUptodate(page));
+	WARN_ON_ONCE(!folio_test_uptodate(folio));
 	BUG_ON(!iomap_inline_data_valid(iomap));
 
-	flush_dcache_page(page);
-	addr = kmap_local_page(page) + pos;
+	flush_dcache_folio(folio);
+	addr = kmap_local_folio(folio, pos);
 	memcpy(iomap_inline_data(iomap, pos), addr, copied);
 	kunmap_local(addr);
 
@@ -710,7 +710,7 @@ static size_t iomap_write_end(struct iomap_iter *iter, loff_t pos, size_t len,
 	size_t ret;
 
 	if (srcmap->type == IOMAP_INLINE) {
-		ret = iomap_write_end_inline(iter, &folio->page, pos, copied);
+		ret = iomap_write_end_inline(iter, folio, pos, copied);
 	} else if (srcmap->flags & IOMAP_F_BUFFER_HEAD) {
 		ret = block_write_end(NULL, iter->inode->i_mapping, pos, len,
 				copied, &folio->page, NULL);
