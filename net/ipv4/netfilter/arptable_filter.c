@@ -54,7 +54,7 @@ static int __net_init arptable_filter_table_init(struct net *net)
 
 static void __net_exit arptable_filter_net_pre_exit(struct net *net)
 {
-	arpt_unregister_table_pre_exit(net, "filter", arpfilter_ops);
+	arpt_unregister_table_pre_exit(net, "filter");
 }
 
 static void __net_exit arptable_filter_net_exit(struct net *net)
