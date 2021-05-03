@@ -402,10 +402,11 @@ extern struct power_supply *devm_power_supply_get_by_phandle(
 static inline struct power_supply *
 power_supply_get_by_phandle(struct device_node *np, const char *property)
 { return NULL; }
-static int power_supply_get_by_phandle_array(struct device_node *np,
-					     const char *property,
-					     struct power_supply **psy,
-					     int size)
+static inline int
+power_supply_get_by_phandle_array(struct device_node *np,
+				  const char *property,
+				  struct power_supply **psy,
+				  int size)
 { return 0; }
 static inline struct power_supply *
 devm_power_supply_get_by_phandle(struct device *dev, const char *property)

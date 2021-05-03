@@ -37,6 +37,9 @@
 #include <linux/jiffies.h>
 #include <trace/events/cma.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/mm.h>
+
 #include "cma.h"
 
 struct cma cma_areas[MAX_CMA_AREAS];
@@ -439,6 +442,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	int ret = -ENOMEM;
 	int num_attempts = 0;
 	int max_retries = 5;
+	s64 ts;
+
+	trace_android_vh_cma_alloc_start(&ts);
 
 	if (!cma || !cma->count || !cma->bitmap)
 		goto out;
@@ -448,6 +454,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 
 	if (!count)
 		goto out;
+
+	trace_cma_alloc_start(cma->name, count, align);
 
 	mask = cma_bitmap_aligned_mask(cma, align);
 	offset = cma_bitmap_aligned_offset(cma, align);
@@ -507,11 +515,14 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 
 		pr_debug("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
+
+		trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
+					   count, align);
 		/* try again with a bit different memory target */
 		start = bitmap_no + mask + 1;
 	}
 
-	trace_cma_alloc(pfn, page, count, align);
+	trace_cma_alloc_finish(cma->name, pfn, page, count, align);
 
 	/*
 	 * CMA can allocate multiple page blocks, which results in different
@@ -531,6 +542,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 
 	pr_debug("%s(): returned %p\n", __func__, page);
 out:
+	trace_android_vh_cma_alloc_finish(cma, page, count, align, gfp_mask, ts);
 	if (page) {
 		count_vm_event(CMA_ALLOC_SUCCESS);
 		cma_sysfs_account_success_pages(cma, count);
@@ -572,7 +584,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
 
 	free_contig_range(pfn, count);
 	cma_clear_bitmap(cma, pfn, count);
-	trace_cma_release(pfn, pages, count);
+	trace_cma_release(cma->name, pfn, pages, count);
 
 	return true;
 }

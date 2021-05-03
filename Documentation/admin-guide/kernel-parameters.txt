@@ -289,6 +289,12 @@
 			do not want to use tracing_snapshot_alloc() as it needs
 			to be done where GFP_KERNEL allocations are allowed.
 
+	allow_file_spec_access
+			Allow speculative faults on file backed pages.
+			Speculative faults are enabled only for those vm_ops
+			that implement and return true for allow_speculation
+			callback.
+
 	allow_mismatched_32bit_el0 [ARM64]
 			Allow execve() of 32-bit applications and setting of the
 			PER_LINUX32 personality on systems where only a strict

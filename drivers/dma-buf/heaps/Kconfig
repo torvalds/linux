@@ -1,14 +1,16 @@
-config DMABUF_HEAPS_DEFERRED_FREE
-	tristate
+menuconfig DMABUF_HEAPS_DEFERRED_FREE
+	bool "DMA-BUF heaps deferred-free library"
+	help
+	  Choose this option to enable the DMA-BUF heaps deferred-free library.
 
-config DMABUF_HEAPS_PAGE_POOL
-	tristate
+menuconfig DMABUF_HEAPS_PAGE_POOL
+	bool "DMA-BUF heaps page-pool library"
+	help
+	  Choose this option to enable the DMA-BUF heaps page-pool library.
 
 config DMABUF_HEAPS_SYSTEM
 	tristate "DMA-BUF System Heap"
-	depends on DMABUF_HEAPS
-	select DMABUF_HEAPS_PAGE_POOL
-	select DMABUF_HEAPS_DEFERRED_FREE
+	depends on DMABUF_HEAPS && DMABUF_HEAPS_DEFERRED_FREE && DMABUF_HEAPS_PAGE_POOL
 	help
 	  Choose this option to enable the system dmabuf heap. The system heap
 	  is backed by pages from the buddy allocator. If in doubt, say Y.

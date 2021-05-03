@@ -162,7 +162,9 @@ static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
 
 static inline bool __get_fault_info(u64 esr, struct kvm_vcpu_fault_info *fault)
 {
-	fault->far_el2 = read_sysreg_el2(SYS_FAR);
+	u64 hpfar, far;
+
+	far = read_sysreg_el2(SYS_FAR);
 
 	/*
 	 * The HPFAR can be invalid if the stage 2 fault did not
@@ -178,12 +180,14 @@ static inline bool __get_fault_info(u64 esr, struct kvm_vcpu_fault_info *fault)
 	if (!(esr & ESR_ELx_S1PTW) &&
 	    (cpus_have_final_cap(ARM64_WORKAROUND_834220) ||
 	     (esr & ESR_ELx_FSC_TYPE) == FSC_PERM)) {
-		if (!__translate_far_to_hpfar(fault->far_el2, &fault->hpfar_el2))
+		if (!__translate_far_to_hpfar(far, &hpfar))
 			return false;
 	} else {
-		fault->hpfar_el2 = read_sysreg(hpfar_el2);
+		hpfar = read_sysreg(hpfar_el2);
 	}
 
+	fault->far_el2 = far;
+	fault->hpfar_el2 = hpfar;
 	return true;
 }
 

@@ -126,7 +126,7 @@ static void update_domain_next_wakeup(struct generic_pm_domain *genpd, ktime_t n
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
 
-	if (!genpd_may_use_next_wakeup(genpd))
+	if (!(genpd->flags & GENPD_FLAG_MIN_RESIDENCY))
 		return;
 
 	/*
@@ -275,7 +275,7 @@ static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 	 * cannot be met.
 	 */
 	update_domain_next_wakeup(genpd, now);
-	if (genpd->next_wakeup != KTIME_MAX) {
+	if ((genpd->flags & GENPD_FLAG_MIN_RESIDENCY) && (genpd->next_wakeup != KTIME_MAX)) {
 		/* Let's find out the deepest domain idle state, the devices prefer */
 		while (state_idx >= 0) {
 			if (next_wakeup_allows_state(genpd, state_idx, now)) {

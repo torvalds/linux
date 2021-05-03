@@ -1,0 +1,9 @@
+[abi_symbol_list]
+# commonly used symbols
+  ieee802154_alloc_hw
+  ieee802154_free_hw
+  ieee802154_register_hw
+  ieee802154_rx_irqsafe
+  ieee802154_unregister_hw
+  ieee802154_wake_queue
+  ieee802154_xmit_complete

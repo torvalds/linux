@@ -27,37 +27,54 @@
 enum LOG_RECORD_TYPE {
 	FULL,
 	SAME_FILE,
+	SAME_FILE_CLOSE_BLOCK,
+	SAME_FILE_CLOSE_BLOCK_SHORT,
 	SAME_FILE_NEXT_BLOCK,
 	SAME_FILE_NEXT_BLOCK_SHORT,
 };
 
 struct full_record {
-	enum LOG_RECORD_TYPE type : 2; /* FULL */
-	u32 block_index : 30;
+	enum LOG_RECORD_TYPE type : 3; /* FULL */
+	u32 block_index : 29;
 	incfs_uuid_t file_id;
 	u64 absolute_ts_us;
 	uid_t uid;
-} __packed; /* 28 bytes */
+} __packed; /* 32 bytes */
 
-struct same_file_record {
-	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
-	u32 block_index : 30;
-	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
-} __packed; /* 8 bytes */
+struct same_file {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE */
+	u32 block_index : 29;
+	uid_t uid;
+	u16 relative_ts_us; /* max 2^16 us ~= 64 ms */
+} __packed; /* 10 bytes */
 
-struct same_file_next_block {
-	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
-	u32 relative_ts_us : 30; /* max 2^30 us ~= 15 min (17:50) */
+struct same_file_close_block {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_CLOSE_BLOCK */
+	u16 relative_ts_us : 13; /* max 2^13 us ~= 8 ms */
+	s16 block_index_delta;
 } __packed; /* 4 bytes */
 
-struct same_file_next_block_short {
-	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK_SHORT */
-	u16 relative_ts_us : 14; /* max 2^14 us ~= 16 ms */
+struct same_file_close_block_short {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_CLOSE_BLOCK_SHORT */
+	u8 relative_ts_tens_us : 5; /* max 2^5*10 us ~= 320 us */
+	s8 block_index_delta;
 } __packed; /* 2 bytes */
+
+struct same_file_next_block {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_NEXT_BLOCK */
+	u16 relative_ts_us : 13; /* max 2^13 us ~= 8 ms */
+} __packed; /* 2 bytes */
+
+struct same_file_next_block_short {
+	enum LOG_RECORD_TYPE type : 3; /* SAME_FILE_NEXT_BLOCK_SHORT */
+	u8 relative_ts_tens_us : 5; /* max 2^5*10 us ~= 320 us */
+} __packed; /* 1 byte */
 
 union log_record {
 	struct full_record full_record;
-	struct same_file_record same_file_record;
+	struct same_file same_file;
+	struct same_file_close_block same_file_close_block;
+	struct same_file_close_block_short same_file_close_block_short;
 	struct same_file_next_block same_file_next_block;
 	struct same_file_next_block_short same_file_next_block_short;
 };
@@ -105,6 +122,7 @@ struct mount_options {
 	unsigned int read_log_pages;
 	unsigned int read_log_wakeup_count;
 	bool report_uid;
+	char *sysfs_name;
 };
 
 struct mount_info {
@@ -171,6 +189,16 @@ struct mount_info {
 	void *mi_zstd_workspace;
 	ZSTD_DStream *mi_zstd_stream;
 	struct delayed_work mi_zstd_cleanup_work;
+
+	/* sysfs node */
+	struct incfs_sysfs_node *mi_sysfs_node;
+
+	/* Last error information */
+	struct mutex	mi_le_mutex;
+	incfs_uuid_t	mi_le_file_id;
+	u64		mi_le_time_us;
+	u32		mi_le_page;
+	u32		mi_le_errno;
 };
 
 struct data_file_block {
@@ -355,10 +383,18 @@ void incfs_free_data_file(struct data_file *df);
 struct dir_file *incfs_open_dir_file(struct mount_info *mi, struct file *bf);
 void incfs_free_dir_file(struct dir_file *dir);
 
+struct incfs_read_data_file_timeouts {
+	u32 min_time_us;
+	u32 min_pending_time_us;
+	u32 max_pending_time_us;
+};
+
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
-			int index, u32 min_time_us,
-			u32 min_pending_time_us, u32 max_pending_time_us,
-			struct mem_range tmp);
+			int index, struct mem_range tmp,
+			struct incfs_read_data_file_timeouts *timeouts);
+
+ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
+				      struct data_file *df, size_t offset);
 
 int incfs_get_filled_blocks(struct data_file *df,
 			    struct incfs_file_data *fd,
@@ -398,7 +434,7 @@ static inline struct inode_info *get_incfs_node(struct inode *inode)
 	if (!inode)
 		return NULL;
 
-	if (inode->i_sb->s_magic != (long) INCFS_MAGIC_NUMBER) {
+	if (inode->i_sb->s_magic != INCFS_MAGIC_NUMBER) {
 		/* This inode doesn't belong to us. */
 		pr_warn_once("incfs: %s on an alien inode.", __func__);
 		return NULL;

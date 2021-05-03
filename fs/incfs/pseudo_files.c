@@ -652,7 +652,7 @@ static long ioctl_create_file(struct file *file,
 	/* Initializing a newly created file. */
 	error = init_new_file(mi, index_file_dentry, &args.file_id, args.size,
 			      range(attr_value, args.file_attr_len),
-			      (u8 __user *)args.signature_info,
+			      u64_to_user_ptr(args.signature_info),
 			      args.signature_size);
 	if (error)
 		goto out;
@@ -991,6 +991,28 @@ out:
 	return error;
 }
 
+static long ioctl_get_last_read_error(struct mount_info *mi, void __user *arg)
+{
+	struct incfs_get_last_read_error_args __user *args_usr_ptr = arg;
+	struct incfs_get_last_read_error_args args = {};
+	int error;
+
+	error = mutex_lock_interruptible(&mi->mi_le_mutex);
+	if (error)
+		return error;
+
+	args.file_id_out = mi->mi_le_file_id;
+	args.time_us_out = mi->mi_le_time_us;
+	args.page_out = mi->mi_le_page;
+	args.errno_out = mi->mi_le_errno;
+
+	mutex_unlock(&mi->mi_le_mutex);
+	if (copy_to_user(args_usr_ptr, &args, sizeof(args)) > 0)
+		error = -EFAULT;
+
+	return error;
+}
+
 static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 					unsigned long arg)
 {
@@ -1007,6 +1029,8 @@ static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 		return ioctl_get_read_timeouts(mi, (void __user *)arg);
 	case INCFS_IOC_SET_READ_TIMEOUTS:
 		return ioctl_set_read_timeouts(mi, (void __user *)arg);
+	case INCFS_IOC_GET_LAST_READ_ERROR:
+		return ioctl_get_last_read_error(mi, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}

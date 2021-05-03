@@ -7,6 +7,7 @@
 #include <linux/file.h>
 #include <linux/fsverity.h>
 #include <linux/gfp.h>
+#include <linux/kobject.h>
 #include <linux/ktime.h>
 #include <linux/lz4.h>
 #include <linux/mm.h>
@@ -19,6 +20,7 @@
 #include "data_mgmt.h"
 #include "format.h"
 #include "integrity.h"
+#include "sysfs.h"
 #include "verity.h"
 
 static int incfs_scan_metadata_chain(struct data_file *df);
@@ -49,6 +51,7 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 {
 	struct mount_info *mi = NULL;
 	int error = 0;
+	struct incfs_sysfs_node *node;
 
 	mi = kzalloc(sizeof(*mi), GFP_NOFS);
 	if (!mi)
@@ -70,6 +73,14 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	spin_lock_init(&mi->mi_per_uid_read_timeouts_lock);
 	mutex_init(&mi->mi_zstd_workspace_mutex);
 	INIT_DELAYED_WORK(&mi->mi_zstd_cleanup_work, zstd_free_workspace);
+	mutex_init(&mi->mi_le_mutex);
+
+	node = incfs_add_sysfs_node(options->sysfs_name);
+	if (IS_ERR(node)) {
+		error = PTR_ERR(node);
+		goto err;
+	}
+	mi->mi_sysfs_node = node;
 
 	error = incfs_realloc_mount_info(mi, options);
 	if (error)
@@ -119,6 +130,15 @@ int incfs_realloc_mount_info(struct mount_info *mi,
 		kfree(old_buffer);
 	}
 
+	if ((options->sysfs_name && !mi->mi_sysfs_node) ||
+	    (!options->sysfs_name && mi->mi_sysfs_node) ||
+	    (options->sysfs_name &&
+		strcmp(options->sysfs_name,
+		       kobject_name(&mi->mi_sysfs_node->isn_sysfs_node)))) {
+		pr_err("incfs: Can't change sysfs_name mount option on remount\n");
+		return -EOPNOTSUPP;
+	}
+
 	mi->mi_options = *options;
 	return 0;
 }
@@ -142,6 +162,7 @@ void incfs_free_mount_info(struct mount_info *mi)
 	for (i = 0; i < ARRAY_SIZE(mi->pseudo_file_xattr); ++i)
 		kfree(mi->pseudo_file_xattr[i].data);
 	kfree(mi->mi_per_uid_read_timeouts);
+	incfs_free_sysfs_node(mi->mi_sysfs_node);
 	kfree(mi);
 }
 
@@ -469,10 +490,27 @@ static void log_read_one_record(struct read_log *rl, struct read_log_state *rs)
 
 	case SAME_FILE:
 		rs->base_record.block_index =
-			record->same_file_record.block_index;
+			record->same_file.block_index;
 		rs->base_record.absolute_ts_us +=
-			record->same_file_record.relative_ts_us;
-		record_size = sizeof(record->same_file_record);
+			record->same_file.relative_ts_us;
+		rs->base_record.uid = record->same_file.uid;
+		record_size = sizeof(record->same_file);
+		break;
+
+	case SAME_FILE_CLOSE_BLOCK:
+		rs->base_record.block_index +=
+			record->same_file_close_block.block_index_delta;
+		rs->base_record.absolute_ts_us +=
+			record->same_file_close_block.relative_ts_us;
+		record_size = sizeof(record->same_file_close_block);
+		break;
+
+	case SAME_FILE_CLOSE_BLOCK_SHORT:
+		rs->base_record.block_index +=
+			record->same_file_close_block_short.block_index_delta;
+		rs->base_record.absolute_ts_us +=
+		   record->same_file_close_block_short.relative_ts_tens_us * 10;
+		record_size = sizeof(record->same_file_close_block_short);
 		break;
 
 	case SAME_FILE_NEXT_BLOCK:
@@ -485,7 +523,7 @@ static void log_read_one_record(struct read_log *rl, struct read_log_state *rs)
 	case SAME_FILE_NEXT_BLOCK_SHORT:
 		++rs->base_record.block_index;
 		rs->base_record.absolute_ts_us +=
-			record->same_file_next_block_short.relative_ts_us;
+		    record->same_file_next_block_short.relative_ts_tens_us * 10;
 		record_size = sizeof(record->same_file_next_block_short);
 		break;
 	}
@@ -508,6 +546,10 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	union log_record record;
 	size_t record_size;
 	uid_t uid = current_uid().val;
+	int block_delta;
+	bool same_file, same_uid;
+	bool next_block, close_block, very_close_block;
+	bool close_time, very_close_time, very_very_close_time;
 
 	/*
 	 * This may read the old value, but it's OK to delay the logging start
@@ -528,9 +570,57 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	tail = &log->rl_tail;
 	relative_us = now_us - head->base_record.absolute_ts_us;
 
-	if (memcmp(id, &head->base_record.file_id, sizeof(incfs_uuid_t)) ||
-	    relative_us >= 1ll << 32 ||
-	    uid != head->base_record.uid) {
+	same_file = !memcmp(id, &head->base_record.file_id,
+			    sizeof(incfs_uuid_t));
+	same_uid = uid == head->base_record.uid;
+
+	block_delta = block_index - head->base_record.block_index;
+	next_block = block_delta == 1;
+	very_close_block = block_delta >= S8_MIN && block_delta <= S8_MAX;
+	close_block = block_delta >= S16_MIN && block_delta <= S16_MAX;
+
+	very_very_close_time = relative_us < (1 << 5) * 10;
+	very_close_time = relative_us < (1 << 13);
+	close_time = relative_us < (1 << 16);
+
+	if (same_file && same_uid && next_block && very_very_close_time) {
+		record.same_file_next_block_short =
+			(struct same_file_next_block_short){
+				.type = SAME_FILE_NEXT_BLOCK_SHORT,
+				.relative_ts_tens_us = div_s64(relative_us, 10),
+			};
+		record_size = sizeof(struct same_file_next_block_short);
+	} else if (same_file && same_uid && next_block && very_close_time) {
+		record.same_file_next_block = (struct same_file_next_block){
+			.type = SAME_FILE_NEXT_BLOCK,
+			.relative_ts_us = relative_us,
+		};
+		record_size = sizeof(struct same_file_next_block);
+	} else if (same_file && same_uid && very_close_block &&
+		   very_very_close_time) {
+		record.same_file_close_block_short =
+			(struct same_file_close_block_short){
+				.type = SAME_FILE_CLOSE_BLOCK_SHORT,
+				.relative_ts_tens_us = div_s64(relative_us, 10),
+				.block_index_delta = block_delta,
+			};
+		record_size = sizeof(struct same_file_close_block_short);
+	} else if (same_file && same_uid && close_block && very_close_time) {
+		record.same_file_close_block = (struct same_file_close_block){
+				.type = SAME_FILE_CLOSE_BLOCK,
+				.relative_ts_us = relative_us,
+				.block_index_delta = block_delta,
+			};
+		record_size = sizeof(struct same_file_close_block);
+	} else if (same_file && close_time) {
+		record.same_file = (struct same_file){
+			.type = SAME_FILE,
+			.block_index = block_index,
+			.relative_ts_us = relative_us,
+			.uid = uid,
+		};
+		record_size = sizeof(struct same_file);
+	} else {
 		record.full_record = (struct full_record){
 			.type = FULL,
 			.block_index = block_index,
@@ -540,27 +630,6 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 		};
 		head->base_record.file_id = *id;
 		record_size = sizeof(struct full_record);
-	} else if (block_index != head->base_record.block_index + 1 ||
-		   relative_us >= 1 << 30) {
-		record.same_file_record = (struct same_file_record){
-			.type = SAME_FILE,
-			.block_index = block_index,
-			.relative_ts_us = relative_us,
-		};
-		record_size = sizeof(struct same_file_record);
-	} else if (relative_us >= 1 << 14) {
-		record.same_file_next_block = (struct same_file_next_block){
-			.type = SAME_FILE_NEXT_BLOCK,
-			.relative_ts_us = relative_us,
-		};
-		record_size = sizeof(struct same_file_next_block);
-	} else {
-		record.same_file_next_block_short =
-			(struct same_file_next_block_short){
-				.type = SAME_FILE_NEXT_BLOCK_SHORT,
-				.relative_ts_us = relative_us,
-			};
-		record_size = sizeof(struct same_file_next_block_short);
 	}
 
 	head->base_record.block_index = block_index;
@@ -1040,17 +1109,16 @@ static int usleep_interruptible(u32 us)
 }
 
 static int wait_for_data_block(struct data_file *df, int block_index,
-			       u32 min_time_us, u32 min_pending_time_us,
-			       u32 max_pending_time_us,
-			       struct data_file_block *res_block)
+			       struct data_file_block *res_block,
+			       struct incfs_read_data_file_timeouts *timeouts)
 {
 	struct data_file_block block = {};
 	struct data_file_segment *segment = NULL;
 	struct pending_read *read = NULL;
 	struct mount_info *mi = NULL;
-	int error = 0;
+	int error;
 	int wait_res = 0;
-	u64 time;
+	unsigned int delayed_pending_us = 0, delayed_min_us = 0;
 
 	if (!df || !res_block)
 		return -EFAULT;
@@ -1078,13 +1146,16 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 
 	/* If the block was found, just return it. No need to wait. */
 	if (is_data_block_present(&block)) {
-		if (min_time_us)
-			error = usleep_interruptible(min_time_us);
 		*res_block = block;
-		return error;
+		if (timeouts && timeouts->min_time_us) {
+			delayed_min_us = timeouts->min_time_us;
+			error = usleep_interruptible(delayed_min_us);
+			goto out;
+		}
+		return 0;
 	} else {
 		/* If it's not found, create a pending read */
-		if (max_pending_time_us != 0) {
+		if (timeouts && timeouts->max_pending_time_us) {
 			read = add_pending_read(df, block_index);
 			if (!read)
 				return -ENOMEM;
@@ -1094,14 +1165,17 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		}
 	}
 
-	if (min_pending_time_us)
-		time = ktime_get_ns();
+	/* Rest of function only applies if timeouts != NULL */
+	if (!timeouts) {
+		pr_warn("incfs: timeouts unexpectedly NULL\n");
+		return -EFSCORRUPTED;
+	}
 
 	/* Wait for notifications about block's arrival */
 	wait_res =
 		wait_event_interruptible_timeout(segment->new_data_arrival_wq,
-					(is_read_done(read)),
-					usecs_to_jiffies(max_pending_time_us));
+			(is_read_done(read)),
+			usecs_to_jiffies(timeouts->max_pending_time_us));
 
 	/* Woke up, the pending read is no longer needed. */
 	remove_pending_read(df, read);
@@ -1119,14 +1193,14 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return wait_res;
 	}
 
-	if (min_pending_time_us) {
-		time = div_u64(ktime_get_ns() - time, 1000);
-		if (min_pending_time_us > time) {
-			error = usleep_interruptible(
-						min_pending_time_us - time);
-			if (error)
-				return error;
-		}
+	delayed_pending_us = timeouts->max_pending_time_us -
+				jiffies_to_usecs(wait_res);
+	if (timeouts->min_pending_time_us > delayed_pending_us) {
+		delayed_min_us = timeouts->min_pending_time_us -
+					     delayed_pending_us;
+		error = usleep_interruptible(delayed_min_us);
+		if (error)
+			return error;
 	}
 
 	error = down_read_killable(&segment->rwsem);
@@ -1134,7 +1208,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return error;
 
 	/*
-	 * Re-read block's info now, it has just arrived and
+	 * Re-read blocks info now, it has just arrived and
 	 * should be available.
 	 */
 	error = get_data_file_block(df, block_index, &block);
@@ -1143,22 +1217,60 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 			*res_block = block;
 		else {
 			/*
-			 * Somehow wait finished successfully bug block still
+			 * Somehow wait finished successfully but block still
 			 * can't be found. It's not normal.
 			 */
 			pr_warn("incfs: Wait succeeded but block not found.\n");
 			error = -ENODATA;
 		}
 	}
-
 	up_read(&segment->rwsem);
-	return error;
+
+out:
+	if (error)
+		return error;
+
+	if (!mi->mi_sysfs_node)
+		return 0;
+
+	if (delayed_pending_us) {
+		mi->mi_sysfs_node->isn_reads_delayed_pending++;
+		mi->mi_sysfs_node->isn_reads_delayed_pending_us +=
+			delayed_pending_us;
+	}
+
+	if (delayed_min_us) {
+		mi->mi_sysfs_node->isn_reads_delayed_min++;
+		mi->mi_sysfs_node->isn_reads_delayed_min_us += delayed_min_us;
+	}
+
+	return 0;
+}
+
+static int incfs_update_sysfs_error(struct file *file, int index, int result,
+				struct mount_info *mi, struct data_file *df)
+{
+	int error;
+
+	if (result >= 0)
+		return 0;
+
+	error = mutex_lock_interruptible(&mi->mi_le_mutex);
+	if (error)
+		return error;
+
+	mi->mi_le_file_id = df->df_id;
+	mi->mi_le_time_us = ktime_to_us(ktime_get());
+	mi->mi_le_page = index;
+	mi->mi_le_errno = result;
+	mutex_unlock(&mi->mi_le_mutex);
+
+	return 0;
 }
 
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
-			int index, u32 min_time_us,
-			u32 min_pending_time_us, u32 max_pending_time_us,
-			struct mem_range tmp)
+			int index, struct mem_range tmp,
+			struct incfs_read_data_file_timeouts *timeouts)
 {
 	loff_t pos;
 	ssize_t result;
@@ -1177,8 +1289,7 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 	mi = df->df_mount_info;
 	bfc = df->df_backing_file_context;
 
-	result = wait_for_data_block(df, index, min_time_us,
-			min_pending_time_us, max_pending_time_us, &block);
+	result = wait_for_data_block(df, index, &block, timeouts);
 	if (result < 0)
 		goto out;
 
@@ -1221,7 +1332,40 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 		log_block_read(mi, &df->df_id, index);
 
 out:
+	if (mi->mi_sysfs_node) {
+		if (result == -ETIME)
+			mi->mi_sysfs_node->isn_reads_failed_timed_out++;
+		else if (result == -EBADMSG)
+			mi->mi_sysfs_node->isn_reads_failed_hash_verification++;
+		else if (result < 0)
+			mi->mi_sysfs_node->isn_reads_failed_other++;
+
+		incfs_update_sysfs_error(f, index, result, mi, df);
+	}
+
 	return result;
+}
+
+ssize_t incfs_read_merkle_tree_blocks(struct mem_range dst,
+				      struct data_file *df, size_t offset)
+{
+	struct backing_file_context *bfc = NULL;
+	struct incfs_df_signature *sig = NULL;
+	size_t to_read = dst.len;
+
+	if (!dst.data || !df)
+		return -EFAULT;
+
+	sig = df->df_signature;
+	bfc = df->df_backing_file_context;
+
+	if (offset > sig->hash_size)
+		return -ERANGE;
+
+	if (offset + to_read > sig->hash_size)
+		to_read = sig->hash_size - offset;
+
+	return incfs_kread(bfc, dst.data, to_read, sig->hash_offset + offset);
 }
 
 int incfs_process_new_data_block(struct data_file *df,

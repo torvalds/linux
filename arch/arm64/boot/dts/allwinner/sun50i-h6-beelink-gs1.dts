@@ -289,10 +289,6 @@
 	vcc-pm-supply = <&reg_aldo1>;
 };
 
-&rtc {
-	clocks = <&ext_osc32k>;
-};
-
 &spdif {
 	status = "okay";
 };

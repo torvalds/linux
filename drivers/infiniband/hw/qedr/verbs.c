@@ -1241,7 +1241,8 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 	 * TGT QP isn't associated with RQ/SQ
 	 */
 	if ((attrs->qp_type != IB_QPT_GSI) && (dev->gsi_qp_created) &&
-	    (attrs->qp_type != IB_QPT_XRC_TGT)) {
+	    (attrs->qp_type != IB_QPT_XRC_TGT) &&
+	    (attrs->qp_type != IB_QPT_XRC_INI)) {
 		struct qedr_cq *send_cq = get_qedr_cq(attrs->send_cq);
 		struct qedr_cq *recv_cq = get_qedr_cq(attrs->recv_cq);
 

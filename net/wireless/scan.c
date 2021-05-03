@@ -2351,14 +2351,16 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		return NULL;
 
 	if (ext) {
-		struct ieee80211_s1g_bcn_compat_ie *compat;
-		u8 *ie;
+		const struct ieee80211_s1g_bcn_compat_ie *compat;
+		const struct element *elem;
 
-		ie = (void *)cfg80211_find_ie(WLAN_EID_S1G_BCN_COMPAT,
-					      variable, ielen);
-		if (!ie)
+		elem = cfg80211_find_elem(WLAN_EID_S1G_BCN_COMPAT,
+					  variable, ielen);
+		if (!elem)
 			return NULL;
-		compat = (void *)(ie + 2);
+		if (elem->datalen < sizeof(*compat))
+			return NULL;
+		compat = (void *)elem->data;
 		bssid = ext->u.s1g_beacon.sa;
 		capability = le16_to_cpu(compat->compat_info);
 		beacon_int = le16_to_cpu(compat->beacon_int);

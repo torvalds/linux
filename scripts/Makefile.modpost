@@ -46,6 +46,8 @@ include scripts/Kbuild.include
 # for ld_flags
 include scripts/Makefile.lib
 
+mixed-build-prefix = $(if $(KBUILD_MIXED_TREE),$(KBUILD_MIXED_TREE)/)
+
 MODPOST = scripts/mod/modpost								\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
@@ -67,7 +69,7 @@ else
 
 ifeq ($(KBUILD_EXTMOD),)
 
-input-symdump := vmlinux.symvers
+input-symdump := $(mixed-build-prefix)vmlinux.symvers
 output-symdump := Module.symvers
 module_srcpath := $(srctree)
 

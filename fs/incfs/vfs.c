@@ -10,6 +10,7 @@
 #include <linux/fs_stack.h>
 #include <linux/fsnotify.h>
 #include <linux/fsverity.h>
+#include <linux/mmap_lock.h>
 #include <linux/namei.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
@@ -55,6 +56,9 @@ static void free_inode(struct inode *inode);
 static void evict_inode(struct inode *inode);
 
 static int incfs_setattr(struct dentry *dentry, struct iattr *ia);
+static int incfs_getattr(const struct path *path,
+			 struct kstat *stat, u32 request_mask,
+			 unsigned int query_flags);
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
 static ssize_t incfs_setxattr(struct dentry *d, const char *name,
@@ -107,11 +111,36 @@ static const struct address_space_operations incfs_address_space_ops = {
 	/* .readpages = readpages */
 };
 
+static vm_fault_t incfs_fault(struct vm_fault *vmf)
+{
+	vmf->flags &= ~FAULT_FLAG_ALLOW_RETRY;
+	return filemap_fault(vmf);
+}
+
+static const struct vm_operations_struct incfs_file_vm_ops = {
+	.fault		= incfs_fault,
+	.map_pages	= filemap_map_pages,
+	.page_mkwrite	= filemap_page_mkwrite,
+};
+
+/* This is used for a general mmap of a disk file */
+
+static int incfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct address_space *mapping = file->f_mapping;
+
+	if (!mapping->a_ops->readpage)
+		return -ENOEXEC;
+	file_accessed(file);
+	vma->vm_ops = &incfs_file_vm_ops;
+	return 0;
+}
+
 const struct file_operations incfs_file_ops = {
 	.open = file_open,
 	.release = file_release,
 	.read_iter = generic_file_read_iter,
-	.mmap = generic_file_mmap,
+	.mmap = incfs_file_mmap,
 	.splice_read = generic_file_splice_read,
 	.llseek = generic_file_llseek,
 	.unlocked_ioctl = dispatch_ioctl,
@@ -122,7 +151,7 @@ const struct file_operations incfs_file_ops = {
 
 const struct inode_operations incfs_file_inode_ops = {
 	.setattr = incfs_setattr,
-	.getattr = simple_getattr,
+	.getattr = incfs_getattr,
 	.listxattr = incfs_listxattr
 };
 
@@ -169,6 +198,7 @@ enum parse_parameter {
 	Opt_rlog_pages,
 	Opt_rlog_wakeup_cnt,
 	Opt_report_uid,
+	Opt_sysfs_name,
 	Opt_err
 };
 
@@ -178,8 +208,15 @@ static const match_table_t option_tokens = {
 	{ Opt_rlog_pages, "rlog_pages=%u" },
 	{ Opt_rlog_wakeup_cnt, "rlog_wakeup_cnt=%u" },
 	{ Opt_report_uid, "report_uid" },
+	{ Opt_sysfs_name, "sysfs_name=%s" },
 	{ Opt_err, NULL }
 };
+
+static void free_options(struct mount_options *opts)
+{
+	kfree(opts->sysfs_name);
+	opts->sysfs_name = NULL;
+}
 
 static int parse_options(struct mount_options *opts, char *str)
 {
@@ -234,7 +271,11 @@ static int parse_options(struct mount_options *opts, char *str)
 		case Opt_report_uid:
 			opts->report_uid = true;
 			break;
+		case Opt_sysfs_name:
+			opts->sysfs_name = match_strdup(&args[0]);
+			break;
 		default:
+			free_options(opts);
 			return -EINVAL;
 		}
 	}
@@ -433,9 +474,9 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 				     struct mem_range tmp)
 {
 	struct mount_info *mi = df->df_mount_info;
-	u32 min_time_us = 0;
-	u32 min_pending_time_us = 0;
-	u32 max_pending_time_us = U32_MAX;
+	struct incfs_read_data_file_timeouts timeouts = {
+		.max_pending_time_us = U32_MAX,
+	};
 	int uid = current_uid().val;
 	int i;
 
@@ -446,24 +487,23 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 			&mi->mi_per_uid_read_timeouts[i];
 
 		if(t->uid == uid) {
-			min_time_us = t->min_time_us;
-			min_pending_time_us = t->min_pending_time_us;
-			max_pending_time_us = t->max_pending_time_us;
+			timeouts.min_time_us = t->min_time_us;
+			timeouts.min_pending_time_us = t->min_pending_time_us;
+			timeouts.max_pending_time_us = t->max_pending_time_us;
 			break;
 		}
 	}
 	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
-	if (max_pending_time_us == U32_MAX) {
+	if (timeouts.max_pending_time_us == U32_MAX) {
 		u64 read_timeout_us = (u64)mi->mi_options.read_timeout_ms *
 					1000;
 
-		max_pending_time_us = read_timeout_us <= U32_MAX ?
-					read_timeout_us : U32_MAX;
+		timeouts.max_pending_time_us = read_timeout_us <= U32_MAX ?
+					       read_timeout_us : U32_MAX;
 	}
 
-	return incfs_read_data_file_block(range, f, block_index,
-		min_time_us, min_pending_time_us, max_pending_time_us,
-		tmp);
+	return incfs_read_data_file_block(range, f, block_index, tmp,
+					  &timeouts);
 }
 
 static int read_single_page(struct file *f, struct page *page)
@@ -619,6 +659,7 @@ out:
 static void maybe_delete_incomplete_file(struct file *f,
 					 struct data_file *df)
 {
+	struct backing_file_context *bfc;
 	struct mount_info *mi = df->df_mount_info;
 	char *file_id_str = NULL;
 	struct dentry *incomplete_file_dentry = NULL;
@@ -627,6 +668,22 @@ static void maybe_delete_incomplete_file(struct file *f,
 
 	if (atomic_read(&df->df_data_blocks_written) < df->df_data_block_count)
 		goto out;
+
+	/* Truncate file to remove any preallocated space */
+	bfc = df->df_backing_file_context;
+	if (bfc) {
+		struct file *f = bfc->bc_file;
+
+		if (f) {
+			loff_t size = i_size_read(file_inode(f));
+
+			error = vfs_truncate(&f->f_path, size);
+			if (error)
+				/* No useful action on failure */
+				pr_warn("incfs: Failed to truncate complete file: %d\n",
+					error);
+		}
+	}
 
 	/* This is best effort - there is no useful action to take on failure */
 	file_id_str = file_id_to_str(df->df_id);
@@ -850,6 +907,8 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 		return incfs_ioctl_get_flags(f, (void __user *) arg);
 	case FS_IOC_MEASURE_VERITY:
 		return incfs_ioctl_measure_verity(f, (void __user *)arg);
+	case FS_IOC_READ_VERITY_METADATA:
+		return incfs_ioctl_read_verity_metadata(f, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}
@@ -869,6 +928,7 @@ static long incfs_compat_ioctl(struct file *file, unsigned int cmd,
 	case INCFS_IOC_GET_BLOCK_COUNT:
 	case FS_IOC_ENABLE_VERITY:
 	case FS_IOC_MEASURE_VERITY:
+	case FS_IOC_READ_VERITY_METADATA:
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -1555,6 +1615,43 @@ static int incfs_setattr(struct dentry *dentry, struct iattr *ia)
 	return simple_setattr(dentry, ia);
 }
 
+
+static int incfs_getattr(const struct path *path,
+			 struct kstat *stat, u32 request_mask,
+			 unsigned int query_flags)
+{
+	struct inode *inode = d_inode(path->dentry);
+
+	generic_fillattr(inode, stat);
+
+	if (inode->i_ino < INCFS_START_INO_RANGE)
+		return 0;
+
+	stat->attributes &= ~STATX_ATTR_VERITY;
+	if (IS_VERITY(inode))
+		stat->attributes |= STATX_ATTR_VERITY;
+	stat->attributes_mask |= STATX_ATTR_VERITY;
+
+	if (request_mask & STATX_BLOCKS) {
+		struct kstat backing_kstat;
+		struct dentry_info *di = get_incfs_dentry(path->dentry);
+		int error = 0;
+		struct path *backing_path;
+
+		if (!di)
+			return -EFSCORRUPTED;
+		backing_path = &di->backing_path;
+		error = vfs_getattr(backing_path, &backing_kstat, STATX_BLOCKS,
+				    AT_STATX_SYNC_AS_STAT);
+		if (error)
+			return error;
+
+		stat->blocks = backing_kstat.blocks;
+	}
+
+	return 0;
+}
+
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size)
 {
@@ -1744,6 +1841,7 @@ err:
 	path_put(&backing_dir_path);
 	incfs_free_mount_info(mi);
 	deactivate_locked_super(sb);
+	free_options(&options);
 	return ERR_PTR(error);
 }
 
@@ -1760,15 +1858,19 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	if (options.report_uid != mi->mi_options.report_uid) {
 		pr_err("incfs: Can't change report_uid mount option on remount\n");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto out;
 	}
 
 	err = incfs_realloc_mount_info(mi, &options);
 	if (err)
-		return err;
+		goto out;
 
 	pr_debug("incfs: remount\n");
-	return 0;
+
+out:
+	free_options(&options);
+	return err;
 }
 
 void incfs_kill_sb(struct super_block *sb)

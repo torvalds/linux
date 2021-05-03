@@ -1,0 +1,2 @@
+# include OWNERS from the authoritative android-mainline branch
+include kernel/common:android-mainline:/kernel/sched/OWNERS

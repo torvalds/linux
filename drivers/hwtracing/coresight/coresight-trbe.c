@@ -73,7 +73,7 @@ struct trbe_cpudata {
 
 struct trbe_drvdata {
 	struct trbe_cpudata __percpu *cpudata;
-	struct perf_output_handle __percpu **handle;
+	struct perf_output_handle * __percpu *handle;
 	struct hlist_node hotplug_node;
 	int irq;
 	cpumask_t supported_cpus;

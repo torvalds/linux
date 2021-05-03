@@ -56,6 +56,7 @@
 #include <trace/events/printk.h>
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/printk.h>
+#include <trace/hooks/logbuf.h>
 
 #include "printk_ringbuffer.h"
 #include "console_cmdline.h"
@@ -537,6 +538,8 @@ static int log_store(u32 caller_id, int facility, int level,
 		prb_commit(&e);
 	else
 		prb_final_commit(&e);
+
+	trace_android_vh_logbuf(prb, &r);
 
 	return (text_len + trunc_msg_len);
 }

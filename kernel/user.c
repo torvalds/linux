@@ -160,6 +160,7 @@ struct user_struct *find_user(kuid_t uid)
 	spin_unlock_irqrestore(&uidhash_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(find_user);
 
 void free_uid(struct user_struct *up)
 {
@@ -171,6 +172,7 @@ void free_uid(struct user_struct *up)
 	if (refcount_dec_and_lock_irqsave(&up->__count, &uidhash_lock, &flags))
 		free_user(up, flags);
 }
+EXPORT_SYMBOL_GPL(free_uid);
 
 struct user_struct *alloc_uid(kuid_t uid)
 {

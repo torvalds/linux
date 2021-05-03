@@ -38,10 +38,3 @@ unsigned long __hyp_per_cpu_offset(unsigned int cpu)
 	elf_base = (unsigned long)&__per_cpu_start;
 	return this_cpu_base - elf_base;
 }
-
-/*
- * Define the CPU feature registers variables that will hold the copies of
- * the host's sanitized values.
- */
-#define KVM_HYP_CPU_FTR_REG(name) struct arm64_ftr_reg name
-#include <asm/kvm_cpufeature.h>

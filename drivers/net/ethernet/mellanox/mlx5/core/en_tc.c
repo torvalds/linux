@@ -2196,6 +2196,9 @@ static int mlx5e_flower_parse_meta(struct net_device *filter_dev,
 		return 0;
 
 	flow_rule_match_meta(rule, &match);
+	if (!match.mask->ingress_ifindex)
+		return 0;
+
 	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
 		return -EOPNOTSUPP;
@@ -2595,6 +2598,16 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 
 		if (match.mask->flags)
 			*match_level = MLX5_MATCH_L4;
+	}
+
+	/* Currenlty supported only for MPLS over UDP */
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_MPLS) &&
+	    !netif_is_bareudp(filter_dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Matching on MPLS is supported only for MPLS over UDP");
+		netdev_err(priv->netdev,
+			   "Matching on MPLS is supported only for MPLS over UDP\n");
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -3200,6 +3213,37 @@ static int is_action_keys_supported(const struct flow_action_entry *act,
 	return 0;
 }
 
+static bool modify_tuple_supported(bool modify_tuple, bool ct_clear,
+				   bool ct_flow, struct netlink_ext_ack *extack,
+				   struct mlx5e_priv *priv,
+				   struct mlx5_flow_spec *spec)
+{
+	if (!modify_tuple || ct_clear)
+		return true;
+
+	if (ct_flow) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "can't offload tuple modification with non-clear ct()");
+		netdev_info(priv->netdev,
+			    "can't offload tuple modification with non-clear ct()");
+		return false;
+	}
+
+	/* Add ct_state=-trk match so it will be offloaded for non ct flows
+	 * (or after clear action), as otherwise, since the tuple is changed,
+	 * we can't restore ct state
+	 */
+	if (mlx5_tc_ct_add_no_trk_match(spec)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "can't offload tuple modification with ct matches and no ct(clear) action");
+		netdev_info(priv->netdev,
+			    "can't offload tuple modification with ct matches and no ct(clear) action");
+		return false;
+	}
+
+	return true;
+}
+
 static bool modify_header_match_supported(struct mlx5e_priv *priv,
 					  struct mlx5_flow_spec *spec,
 					  struct flow_action *flow_action,
@@ -3238,18 +3282,9 @@ static bool modify_header_match_supported(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	/* Add ct_state=-trk match so it will be offloaded for non ct flows
-	 * (or after clear action), as otherwise, since the tuple is changed,
-	 *  we can't restore ct state
-	 */
-	if (!ct_clear && modify_tuple &&
-	    mlx5_tc_ct_add_no_trk_match(spec)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "can't offload tuple modify header with ct matches");
-		netdev_info(priv->netdev,
-			    "can't offload tuple modify header with ct matches");
+	if (!modify_tuple_supported(modify_tuple, ct_clear, ct_flow, extack,
+				    priv, spec))
 		return false;
-	}
 
 	ip_proto = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ip_protocol);
 	if (modify_ip_header && ip_proto != IPPROTO_TCP &&

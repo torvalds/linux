@@ -48,6 +48,7 @@ config GKI_HIDDEN_SND_SOC_CONFIGS
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
 	select SND_PCM_IEC958
 	select SND_SOC_COMPRESS if (SND_SOC && SND)
+	select SND_SOC_TOPOLOGY if (SND_SOC && SND)
 	select DMADEVICES
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -200,6 +201,14 @@ config GKI_HIDDEN_PHY_CONFIGS
 	  Dummy config option used to enable the hidden PHY configs,
 	  required by various SoC platforms.
 
+config GKI_HIDDEN_MM_CONFIGS
+	bool "Hidden MM configuration needed for GKI"
+	select PAGE_REPORTING
+	select BALLOON_COMPACTION
+	select MEMORY_BALLOON
+	help
+	  Dummy config option used to enable hidden MM configs,
+	  currently required for VIRTIO_BALLOON
 
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
@@ -229,6 +238,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_HYPERVISOR_CONFIGS
 	select GKI_HIDDEN_NET_CONFIGS
 	select GKI_HIDDEN_PHY_CONFIGS
+	select GKI_HIDDEN_MM_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.

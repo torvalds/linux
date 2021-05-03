@@ -3,7 +3,6 @@
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
-#include <linux/console.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
@@ -91,13 +90,10 @@ struct geni_wrapper {
 	struct device *dev;
 	void __iomem *base;
 	struct clk_bulk_data ahb_clks[NUM_AHB_CLKS];
-	struct geni_icc_path to_core;
 };
 
 static const char * const icc_path_names[] = {"qup-core", "qup-config",
 						"qup-memory"};
-
-static struct geni_wrapper *earlycon_wrapper;
 
 #define QUP_HW_VER_REG			0x4
 
@@ -828,44 +824,11 @@ int geni_icc_disable(struct geni_se *se)
 }
 EXPORT_SYMBOL(geni_icc_disable);
 
-void geni_remove_earlycon_icc_vote(void)
-{
-	struct platform_device *pdev;
-	struct geni_wrapper *wrapper;
-	struct device_node *parent;
-	struct device_node *child;
-
-	if (!earlycon_wrapper)
-		return;
-
-	wrapper = earlycon_wrapper;
-	parent = of_get_next_parent(wrapper->dev->of_node);
-	for_each_child_of_node(parent, child) {
-		if (!of_device_is_compatible(child, "qcom,geni-se-qup"))
-			continue;
-
-		pdev = of_find_device_by_node(child);
-		if (!pdev)
-			continue;
-
-		wrapper = platform_get_drvdata(pdev);
-		icc_put(wrapper->to_core.path);
-		wrapper->to_core.path = NULL;
-
-	}
-	of_node_put(parent);
-
-	earlycon_wrapper = NULL;
-}
-EXPORT_SYMBOL(geni_remove_earlycon_icc_vote);
-
 static int geni_se_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct geni_wrapper *wrapper;
-	struct console __maybe_unused *bcon;
-	bool __maybe_unused has_earlycon = false;
 	int ret;
 
 	wrapper = devm_kzalloc(dev, sizeof(*wrapper), GFP_KERNEL);
@@ -888,43 +851,6 @@ static int geni_se_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_SERIAL_EARLYCON
-	for_each_console(bcon) {
-		if (!strcmp(bcon->name, "qcom_geni")) {
-			has_earlycon = true;
-			break;
-		}
-	}
-	if (!has_earlycon)
-		goto exit;
-
-	wrapper->to_core.path = devm_of_icc_get(dev, "qup-core");
-	if (IS_ERR(wrapper->to_core.path))
-		return PTR_ERR(wrapper->to_core.path);
-	/*
-	 * Put minmal BW request on core clocks on behalf of early console.
-	 * The vote will be removed earlycon exit function.
-	 *
-	 * Note: We are putting vote on each QUP wrapper instead only to which
-	 * earlycon is connected because QUP core clock of different wrapper
-	 * share same voltage domain. If core1 is put to 0, then core2 will
-	 * also run at 0, if not voted. Default ICC vote will be removed ASA
-	 * we touch any of the core clock.
-	 * core1 = core2 = max(core1, core2)
-	 */
-	ret = icc_set_bw(wrapper->to_core.path, GENI_DEFAULT_BW,
-				GENI_DEFAULT_BW);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: ICC BW voting failed for core: %d\n",
-			__func__, ret);
-		return ret;
-	}
-
-	if (of_get_compatible_child(pdev->dev.of_node, "qcom,geni-debug-uart"))
-		earlycon_wrapper = wrapper;
-	of_node_put(pdev->dev.of_node);
-exit:
-#endif
 	dev_set_drvdata(dev, wrapper);
 	dev_dbg(dev, "GENI SE Driver probed\n");
 	return devm_of_platform_populate(dev);
