@@ -1894,6 +1894,13 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	if (curr_val == new_val)
 		return 0;
 
+	if (new_val && !priv->profile->rx_ptp_support &&
+	    priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE) {
+		netdev_err(priv->netdev,
+			   "Profile doesn't support enabling of CQE compression while hardware time-stamping is enabled.\n");
+		return -EINVAL;
+	}
+
 	new_params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
 	if (priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE)
