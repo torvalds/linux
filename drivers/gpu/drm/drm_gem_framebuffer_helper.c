@@ -155,8 +155,10 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 	int ret, i;
 
 	info = drm_get_format_info(dev, mode_cmd);
-	if (!info)
+	if (!info) {
+		drm_dbg_kms(dev, "Failed to get FB format info\n");
 		return -EINVAL;
+	}
 
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = mode_cmd->width / (i ? info->hsub : 1);
@@ -175,6 +177,9 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 			 + mode_cmd->offsets[i];
 
 		if (objs[i]->size < min_size) {
+			drm_dbg_kms(dev,
+				    "GEM object size (%zu) smaller than minimum size (%u) for plane %d\n",
+				    objs[i]->size, min_size, i);
 			drm_gem_object_put(objs[i]);
 			ret = -EINVAL;
 			goto err_gem_object_put;
