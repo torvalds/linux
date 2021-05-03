@@ -9976,6 +9976,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/leds/backlight/kinetic,ktd253.yaml
 F:	drivers/video/backlight/ktd253-backlight.c
 
+KTEST
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	John Hawley <warthog9@eaglescrag.net>
+S:	Maintained
+F:	tools/testing/ktest
+
 L3MDEV
 M:	David Ahern <dsahern@kernel.org>
 L:	netdev@vger.kernel.org
