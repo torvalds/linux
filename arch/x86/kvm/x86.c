@@ -5468,13 +5468,17 @@ static void kvm_free_msr_filter(struct kvm_x86_msr_filter *msr_filter)
 static int kvm_add_msr_filter(struct kvm_x86_msr_filter *msr_filter,
 			      struct kvm_msr_filter_range *user_range)
 {
-	struct msr_bitmap_range range;
 	unsigned long *bitmap = NULL;
 	size_t bitmap_size;
-	int r;
 
 	if (!user_range->nmsrs)
 		return 0;
+
+	if (user_range->flags & ~(KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE))
+		return -EINVAL;
+
+	if (!user_range->flags)
+		return -EINVAL;
 
 	bitmap_size = BITS_TO_LONGS(user_range->nmsrs) * sizeof(long);
 	if (!bitmap_size || bitmap_size > KVM_MSR_FILTER_MAX_BITMAP_SIZE)
@@ -5484,31 +5488,15 @@ static int kvm_add_msr_filter(struct kvm_x86_msr_filter *msr_filter,
 	if (IS_ERR(bitmap))
 		return PTR_ERR(bitmap);
 
-	range = (struct msr_bitmap_range) {
+	msr_filter->ranges[msr_filter->count] = (struct msr_bitmap_range) {
 		.flags = user_range->flags,
 		.base = user_range->base,
 		.nmsrs = user_range->nmsrs,
 		.bitmap = bitmap,
 	};
 
-	if (range.flags & ~(KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE)) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	if (!range.flags) {
-		r = -EINVAL;
-		goto err;
-	}
-
-	/* Everything ok, add this range identifier. */
-	msr_filter->ranges[msr_filter->count] = range;
 	msr_filter->count++;
-
 	return 0;
-err:
-	kfree(bitmap);
-	return r;
 }
 
 static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm, void __user *argp)
