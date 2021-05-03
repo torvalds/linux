@@ -1309,12 +1309,15 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	 * L2 registers if needed are moved from the current VMCB to VMCB02.
 	 */
 
+	if (is_guest_mode(vcpu))
+		svm_leave_nested(svm);
+	else
+		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
+
 	svm->nested.nested_run_pending =
 		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
 
 	svm->nested.vmcb12_gpa = kvm_state->hdr.svm.vmcb_pa;
-	if (svm->current_vmcb == &svm->vmcb01)
-		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
 
 	svm->vmcb01.ptr->save.es = save->es;
 	svm->vmcb01.ptr->save.cs = save->cs;
