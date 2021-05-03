@@ -1566,6 +1566,7 @@ static void hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 		break;
 	default:
 		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
+		return;
 	}
 
 	strscpy(dest, fw_version, VERSION_MAX_LEN);
