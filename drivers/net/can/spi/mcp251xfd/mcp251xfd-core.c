@@ -2885,8 +2885,8 @@ static int mcp251xfd_probe(struct spi_device *spi)
 
 	clk = devm_clk_get(&spi->dev, NULL);
 	if (IS_ERR(clk))
-		dev_err_probe(&spi->dev, PTR_ERR(clk),
-			      "Failed to get Oscillator (clock)!\n");
+		return dev_err_probe(&spi->dev, PTR_ERR(clk),
+				     "Failed to get Oscillator (clock)!\n");
 	freq = clk_get_rate(clk);
 
 	/* Sanity check */
