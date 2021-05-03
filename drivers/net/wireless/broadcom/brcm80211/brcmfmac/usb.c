@@ -1584,8 +1584,8 @@ void brcmf_usb_exit(void)
 	usb_deregister(&brcmf_usbdrvr);
 }
 
-void brcmf_usb_register(void)
+int brcmf_usb_register(void)
 {
 	brcmf_dbg(USB, "Enter\n");
-	usb_register(&brcmf_usbdrvr);
+	return usb_register(&brcmf_usbdrvr);
 }
