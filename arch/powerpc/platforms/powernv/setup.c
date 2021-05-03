@@ -123,10 +123,14 @@ static void pnv_setup_security_mitigations(void)
 	}
 
 	/*
-	 * If we are non-Power9 bare metal, we don't need to flush on kernel
-	 * entry or after user access: they fix a P9 specific vulnerability.
+	 * The issues addressed by the entry and uaccess flush don't affect P7
+	 * or P8, so on bare metal disable them explicitly in case firmware does
+	 * not include the features to disable them. POWER9 and newer processors
+	 * should have the appropriate firmware flags.
 	 */
-	if (!pvr_version_is(PVR_POWER9)) {
+	if (pvr_version_is(PVR_POWER7) || pvr_version_is(PVR_POWER7p) ||
+	    pvr_version_is(PVR_POWER8E) || pvr_version_is(PVR_POWER8NVL) ||
+	    pvr_version_is(PVR_POWER8)) {
 		security_ftr_clear(SEC_FTR_L1D_FLUSH_ENTRY);
 		security_ftr_clear(SEC_FTR_L1D_FLUSH_UACCESS);
 	}
