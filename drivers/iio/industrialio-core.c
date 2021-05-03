@@ -1778,7 +1778,6 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (!indio_dev->info)
 		goto out_unlock;
 
-	ret = -EINVAL;
 	list_for_each_entry(h, &iio_dev_opaque->ioctl_handlers, entry) {
 		ret = h->ioctl(indio_dev, filp, cmd, arg);
 		if (ret != IIO_IOCTL_UNHANDLED)
@@ -1786,7 +1785,7 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 	if (ret == IIO_IOCTL_UNHANDLED)
-		ret = -EINVAL;
+		ret = -ENODEV;
 
 out_unlock:
 	mutex_unlock(&indio_dev->info_exist_lock);
