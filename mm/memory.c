@@ -5063,7 +5063,8 @@ out_segv:
 
 vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 				unsigned long address, unsigned int flags,
-				struct vm_area_struct **vma)
+				struct vm_area_struct **vma,
+				struct pt_regs *regs)
 {
 	vm_fault_t ret;
 
@@ -5081,6 +5082,7 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 	if (ret != VM_FAULT_RETRY) {
 		put_vma(*vma);
 		*vma = NULL;
+		mm_account_fault(regs, address, flags, ret);
 	}
 
 	return ret;

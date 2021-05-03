@@ -1792,11 +1792,13 @@ extern int fixup_user_fault(struct mm_struct *mm,
 extern vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
 					     unsigned long address,
 					     unsigned int flags,
-					     struct vm_area_struct **vma);
+					     struct vm_area_struct **vma,
+					     struct pt_regs *regs);
 static inline vm_fault_t handle_speculative_fault(struct mm_struct *mm,
 						  unsigned long address,
 						  unsigned int flags,
-						  struct vm_area_struct **vma)
+						  struct vm_area_struct **vma,
+						  struct pt_regs *regs)
 {
 	/*
 	 * Try speculative page fault for multithreaded user space task only.
@@ -1805,7 +1807,7 @@ static inline vm_fault_t handle_speculative_fault(struct mm_struct *mm,
 		*vma = NULL;
 		return VM_FAULT_RETRY;
 	}
-	return __handle_speculative_fault(mm, address, flags, vma);
+	return __handle_speculative_fault(mm, address, flags, vma, regs);
 }
 extern bool can_reuse_spf_vma(struct vm_area_struct *vma,
 			      unsigned long address);
@@ -1813,7 +1815,8 @@ extern bool can_reuse_spf_vma(struct vm_area_struct *vma,
 static inline vm_fault_t handle_speculative_fault(struct mm_struct *mm,
 						  unsigned long address,
 						  unsigned int flags,
-						  struct vm_area_struct **vma)
+						  struct vm_area_struct **vma,
+						  struct pt_regs *regs)
 {
 	return VM_FAULT_RETRY;
 }
