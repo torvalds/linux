@@ -1235,8 +1235,8 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	svm->current_vmcb->asid_generation = 0;
 	svm->asid = 0;
 
-	svm->nested.vmcb12_gpa = 0;
-	svm->nested.last_vmcb12_gpa = 0;
+	svm->nested.vmcb12_gpa = INVALID_GPA;
+	svm->nested.last_vmcb12_gpa = INVALID_GPA;
 	vcpu->arch.hflags = 0;
 
 	if (!kvm_pause_in_guest(vcpu->kvm)) {
