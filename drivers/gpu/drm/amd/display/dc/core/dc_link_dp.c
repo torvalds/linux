@@ -4852,4 +4852,11 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	return false;
 }
 
+enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings)
+{
+	if ((link_settings->link_rate >= LINK_RATE_LOW) &&
+			(link_settings->link_rate <= LINK_RATE_HIGH3))
+		return DP_8b_10b_ENCODING;
+	return DP_UNKNOWN_ENCODING;
+}
 

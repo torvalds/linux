@@ -105,4 +105,5 @@ enum link_training_result dp_check_link_loss_status(
 		struct dc_link *link,
 		const struct link_training_settings *link_training_setting);
 
+enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
 #endif /* __DC_LINK_DP_H__ */
