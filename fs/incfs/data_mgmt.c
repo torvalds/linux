@@ -1274,6 +1274,7 @@ static int incfs_update_sysfs_error(struct file *file, int index, int result,
 	mi->mi_le_time_us = ktime_to_us(ktime_get());
 	mi->mi_le_page = index;
 	mi->mi_le_errno = result;
+	mi->mi_le_uid = current_uid().val;
 	mutex_unlock(&mi->mi_le_mutex);
 
 	return 0;
