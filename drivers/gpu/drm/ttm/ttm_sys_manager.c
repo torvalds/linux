@@ -4,6 +4,8 @@
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_placement.h>
 
+#include "ttm_module.h"
+
 static int ttm_sys_man_alloc(struct ttm_resource_manager *man,
 			     struct ttm_buffer_object *bo,
 			     const struct ttm_place *place,
