@@ -1075,6 +1075,7 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 	 * Preboot:
 	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED), if it is set
 	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
+	 * Check GIC privileged bit (CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
 	 */
 	if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_cpu_boot_dev_sts0_valid = 1;
@@ -1087,6 +1088,9 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 
 		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
+
+		if (cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN)
+			prop->gic_interrupts_enable = false;
 	} else {
 		prop->fw_cpu_boot_dev_sts0_valid = 0;
 	}
@@ -1106,6 +1110,9 @@ static void hl_fw_preboot_update_state(struct hl_device *hdev)
 
 	dev_info(hdev->dev, "firmware-level security is %s\n",
 			prop->fw_security_disabled ? "disabled" : "enabled");
+
+	dev_info(hdev->dev, "GIC controller is %s\n",
+			prop->gic_interrupts_enable ? "enabled" : "disabled");
 }
 
 static int hl_fw_static_read_preboot_status(struct hl_device *hdev)

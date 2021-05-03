@@ -191,6 +191,12 @@
  *					PLLs.
  *					Initialized in: linux
  *
+ * CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN	GIC access permission only from
+ *					previleged entity. FW sets this status
+ *					bit for host. If this bit is set then
+ *					GIC can not be accessed from host.
+ *					Initialized in: preboot
+ *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
  *					running FW populates the device status
@@ -219,6 +225,7 @@
 #define CPU_BOOT_DEV_STS0_FW_LD_COM_EN			(1 << 16)
 #define CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN		(1 << 17)
 #define CPU_BOOT_DEV_STS0_DYN_PLL_EN			(1 << 19)
+#define CPU_BOOT_DEV_STS0_GIC_PRIVILEGED_EN		(1 << 20)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 #define CPU_BOOT_DEV_STS1_ENABLED			(1 << 31)
 

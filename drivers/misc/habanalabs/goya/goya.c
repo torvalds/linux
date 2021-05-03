@@ -464,6 +464,7 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	prop->fw_cpu_boot_dev_sts0_valid = false;
 	prop->fw_cpu_boot_dev_sts1_valid = false;
 	prop->hard_reset_done_by_fw = false;
+	prop->gic_interrupts_enable = true;
 
 	return 0;
 }
