@@ -1979,6 +1979,7 @@
   usb_copy_descriptors
   __usb_create_hcd
   usb_disabled
+  usb_enable_autosuspend
   usb_ep_autoconfig
   usb_ep_disable
   usb_ep_enable
@@ -1987,6 +1988,7 @@
   usb_gadget_set_state
   usb_hcd_is_primary_hcd
   usb_hcd_platform_shutdown
+  usb_hub_find_child
   usb_interface_id
   usb_otg_state_string
   usb_put_function_instance
@@ -2124,6 +2126,9 @@
   __xfrm_state_destroy
   xfrm_state_lookup_byspi
   xfrm_stateonly_find
+  xhci_address_device
+  xhci_bus_resume
+  xhci_bus_suspend
   xhci_gen_setup
   xhci_get_ep_ctx
   xhci_get_slot_ctx
