@@ -1157,7 +1157,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 	return get_cr_failure(lane_count, dpcd_lane_status);
 }
 
-static inline enum link_training_result perform_link_training_int(
+static inline enum link_training_result dp_transition_to_video_idle(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
 	enum link_training_result status)
@@ -1665,7 +1665,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	/* 3. set training not in progress*/
 	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
-		status = perform_link_training_int(link,
+		status = dp_transition_to_video_idle(link,
 				&lt_settings,
 				status);
 	}
