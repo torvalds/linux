@@ -1231,7 +1231,7 @@ enum link_training_result dp_check_link_loss_status(
 	return status;
 }
 
-static void initialize_training_settings(
+static inline void decide_8b_10b_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	const struct dc_link_training_overrides *overrides,
@@ -1326,6 +1326,17 @@ static void initialize_training_settings(
 	else
 		lt_settings->enhanced_framing = 1;
 }
+
+static void decide_training_settings(
+		struct dc_link *link,
+		const struct dc_link_settings *link_settings,
+		const struct dc_link_training_overrides *overrides,
+		struct link_training_settings *lt_settings)
+{
+	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		decide_8b_10b_training_settings(link, link_settings, overrides, lt_settings);
+}
+
 
 uint8_t dp_convert_to_count(uint8_t lttpr_repeater_count)
 {
@@ -1542,7 +1553,7 @@ bool dc_link_dp_perform_link_training_skip_aux(
 {
 	struct link_training_settings lt_settings;
 
-	initialize_training_settings(
+	decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1592,7 +1603,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 	uint8_t repeater_cnt;
 	uint8_t repeater_id;
 
-	initialize_training_settings(
+	decide_training_settings(
 			link,
 			link_setting,
 			&link->preferred_training_settings,
@@ -1877,7 +1888,7 @@ enum link_training_result dc_link_dp_sync_lt_attempt(
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	bool fec_enable = false;
 
-	initialize_training_settings(
+	decide_training_settings(
 		link,
 		link_settings,
 		lt_overrides,
