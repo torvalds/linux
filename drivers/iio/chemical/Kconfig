@@ -148,6 +148,17 @@ config SPS30_I2C
 	  To compile this driver as a module, choose M here: the module will
 	  be called sps30_i2c.
 
+config SPS30_SERIAL
+	tristate "SPS30 particulate matter sensor serial driver"
+	depends on SERIAL_DEV_BUS
+	select SPS30
+	help
+	  Say Y here to build support for the Sensirion SPS30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sps30_serial.
+
 config VZ89X
 	tristate "SGX Sensortech MiCS VZ89X VOC sensor"
 	depends on I2C
