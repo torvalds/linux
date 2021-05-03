@@ -280,9 +280,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	if (!mlx5_lag_is_ready(ldev))
 		return;
 
-	spin_lock(&lag_lock);
 	tracker = ldev->tracker;
-	spin_unlock(&lag_lock);
 
 	do_bond = tracker.is_bonded && mlx5_lag_check_prereq(ldev);
 
@@ -481,9 +479,7 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 		break;
 	}
 
-	spin_lock(&lag_lock);
 	ldev->tracker = tracker;
-	spin_unlock(&lag_lock);
 
 	if (changed)
 		mlx5_queue_bond_work(ldev, 0);
