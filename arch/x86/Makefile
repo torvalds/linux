@@ -260,8 +260,11 @@ BOOT_TARGETS = bzdisk fdimage fdimage144 fdimage288 isoimage
 
 PHONY += bzImage $(BOOT_TARGETS)
 
+# Don't compile Image in mixed build with "all" target
+ifndef KBUILD_MIXED_TREE
 # Default kernel to build
 all: bzImage
+endif
 
 # KBUILD_IMAGE specify target image being built
 KBUILD_IMAGE := $(boot)/bzImage
