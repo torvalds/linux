@@ -300,9 +300,7 @@ static void stf_barrier_enable(bool enable)
 void setup_stf_barrier(void)
 {
 	enum stf_barrier_type type;
-	bool enable, hv;
-
-	hv = cpu_has_feature(CPU_FTR_HVMODE);
+	bool enable;
 
 	/* Default to fallback in case fw-features are not available */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
@@ -315,8 +313,7 @@ void setup_stf_barrier(void)
 		type = STF_BARRIER_NONE;
 
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
-		(security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR) ||
-		 (security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV) && hv));
+		 security_ftr_enabled(SEC_FTR_STF_BARRIER);
 
 	if (type == STF_BARRIER_FALLBACK) {
 		pr_info("stf-barrier: fallback barrier available\n");
