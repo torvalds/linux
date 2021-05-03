@@ -281,7 +281,7 @@ int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num);
  * When IO fails, either with EIO or csum verification fails, we
  * try other mirrors that might have a good copy of the data.  This
  * io_failure_record is used to record state as we go through all the
- * mirrors.  If another mirror has good data, the page is set up to date
+ * mirrors.  If another mirror has good data, the sector is set up to date
  * and things continue.  If a good mirror can't be found, the original
  * bio end_io callback is called to indicate things have failed.
  */
@@ -293,7 +293,6 @@ struct io_failure_record {
 	unsigned long bio_flags;
 	int this_mirror;
 	int failed_mirror;
-	int in_validation;
 };
 
 int btrfs_repair_one_sector(struct inode *inode,
