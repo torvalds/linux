@@ -580,7 +580,11 @@ struct incfs_get_last_read_error_args {
 	/* errno of last read error */
 	__u32	errno_out;
 
-	__u64	reserved;
+	/* uid of last read error */
+	__u32	uid_out;
+
+	__u32	reserved1;
+	__u64	reserved2;
 };
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */

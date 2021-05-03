@@ -1005,6 +1005,7 @@ static long ioctl_get_last_read_error(struct mount_info *mi, void __user *arg)
 	args.time_us_out = mi->mi_le_time_us;
 	args.page_out = mi->mi_le_page;
 	args.errno_out = mi->mi_le_errno;
+	args.uid_out = mi->mi_le_uid;
 
 	mutex_unlock(&mi->mi_le_mutex);
 	if (copy_to_user(args_usr_ptr, &args, sizeof(args)) > 0)
