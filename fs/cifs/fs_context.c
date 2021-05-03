@@ -476,6 +476,7 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 
 	/* move "pos" up to delimiter or NULL */
 	pos += len;
+	kfree(ctx->UNC);
 	ctx->UNC = kstrndup(devname, pos - devname, GFP_KERNEL);
 	if (!ctx->UNC)
 		return -ENOMEM;
@@ -485,6 +486,9 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 	/* skip any delimiter */
 	if (*pos == '/' || *pos == '\\')
 		pos++;
+
+	kfree(ctx->prepath);
+	ctx->prepath = NULL;
 
 	/* If pos is NULL then no prepath */
 	if (!*pos)

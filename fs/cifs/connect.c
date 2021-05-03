@@ -3149,17 +3149,29 @@ out:
 int
 cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const char *devname)
 {
-	int rc = 0;
+	int rc;
 
-	smb3_parse_devname(devname, ctx);
+	if (devname) {
+		cifs_dbg(FYI, "%s: devname=%s\n", __func__, devname);
+		rc = smb3_parse_devname(devname, ctx);
+		if (rc) {
+			cifs_dbg(VFS, "%s: failed to parse %s: %d\n", __func__, devname, rc);
+			return rc;
+		}
+	}
 
 	if (mntopts) {
 		char *ip;
 
-		cifs_dbg(FYI, "%s: mntopts=%s\n", __func__, mntopts);
 		rc = smb3_parse_opt(mntopts, "ip", &ip);
-		if (!rc && !cifs_convert_address((struct sockaddr *)&ctx->dstaddr, ip,
-						 strlen(ip))) {
+		if (rc) {
+			cifs_dbg(VFS, "%s: failed to parse ip options: %d\n", __func__, rc);
+			return rc;
+		}
+
+		rc = cifs_convert_address((struct sockaddr *)&ctx->dstaddr, ip, strlen(ip));
+		kfree(ip);
+		if (!rc) {
 			cifs_dbg(VFS, "%s: failed to convert ip address\n", __func__);
 			return -EINVAL;
 		}
@@ -3179,7 +3191,7 @@ cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const c
 		return -EINVAL;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int
