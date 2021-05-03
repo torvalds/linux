@@ -886,7 +886,7 @@ void svm_leave_nested(struct vcpu_svm *svm)
 		svm->nested.nested_run_pending = 0;
 		leave_guest_mode(vcpu);
 
-		svm_switch_vmcb(svm, &svm->nested.vmcb02);
+		svm_switch_vmcb(svm, &svm->vmcb01);
 
 		nested_svm_uninit_mmu_context(vcpu);
 		vmcb_mark_all_dirty(svm->vmcb);
