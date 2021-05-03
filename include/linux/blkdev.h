@@ -316,6 +316,8 @@ enum blk_zoned_model {
 };
 
 struct queue_limits {
+	unsigned int		bio_max_bytes;
+
 	unsigned long		bounce_pfn;
 	unsigned long		seg_boundary_mask;
 	unsigned long		virt_boundary_mask;
