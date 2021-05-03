@@ -191,7 +191,7 @@
 		};
 
 		rtc@45000000 {
-			compatible = "cortina,gemini-rtc";
+			compatible = "cortina,gemini-rtc", "faraday,ftrtc010";
 			reg = <0x45000000 0x100>;
 			interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon GEMINI_RESET_RTC>;
