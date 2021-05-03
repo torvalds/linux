@@ -1925,20 +1925,8 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages)
 		return min(npages, maxpages);
 	}
 	if (iov_iter_is_xarray(i)) {
-		size_t size = i->count;
-		unsigned offset;
-		int npages;
-
-		offset = (i->xarray_start + i->iov_offset) & ~PAGE_MASK;
-
-		npages = 1;
-		if (size > PAGE_SIZE - offset) {
-			size -= PAGE_SIZE - offset;
-			npages += size >> PAGE_SHIFT;
-			size &= ~PAGE_MASK;
-			if (size)
-				npages++;
-		}
+		unsigned offset = (i->xarray_start + i->iov_offset) % PAGE_SIZE;
+		int npages = DIV_ROUND_UP(offset + i->count, PAGE_SIZE);
 		return min(npages, maxpages);
 	}
 	return 0;
